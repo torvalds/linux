@@ -683,6 +683,7 @@ int symsrc__init(struct symsrc *ss, struct dso *dso, const char *name,
 		}
 
 		if (!dso__build_id_equal(dso, build_id)) {
+			pr_debug("%s: build id mismatch for %s.\n", __func__, name);
 			dso->load_errno = DSO_LOAD_ERRNO__MISMATCHING_BUILDID;
 			goto out_elf_end;
 		}
