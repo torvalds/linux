@@ -1717,16 +1717,6 @@ typedef struct adv_carr_t {
 #define ADV_CARRIER_BUFSIZE \
 	(ADV_CARRIER_COUNT * sizeof(ADV_CARR_T))
 
-/*
- * ADV_SCSI_REQ_Q 'a_flag' definitions
- *
- * The Adv Library should limit use to the lower nibble (4 bits) of
- * a_flag. Drivers are free to use the upper nibble (4 bits) of a_flag.
- */
-#define ADV_POLL_REQUEST                0x01	/* poll for request completion */
-#define ADV_SCSIQ_DONE                  0x02	/* request done */
-#define ADV_DONT_RETRY                  0x08	/* don't do retry */
-
 #define ADV_CHIP_ASC3550          0x01	/* Ultra-Wide IC */
 #define ADV_CHIP_ASC38C0800       0x02	/* Ultra2-Wide/LVD IC */
 #define ADV_CHIP_ASC38C1600       0x03	/* Ultra3-Wide/LVD2 IC */
@@ -1808,8 +1798,6 @@ typedef struct adv_scsi_req_q {
 	 * is used by the Adv Library and ignored by the microcode.
 	 */
 	u32 srb_tag;
-	uchar a_flag;
-	uchar pad[3];		/* Pad out to a word boundary. */
 	ADV_SG_BLOCK *sg_list_ptr;	/* SG list virtual address. */
 } ADV_SCSI_REQ_Q;
 
@@ -2592,15 +2580,15 @@ static void asc_prt_adv_sgblock(int sgblockno, ADV_SG_BLOCK *b)
 
 	printk(" ADV_SG_BLOCK at addr 0x%lx (sgblockno %d)\n",
 	       (ulong)b, sgblockno);
-	printk("  sg_cnt %u, sg_ptr 0x%lx\n",
-	       b->sg_cnt, (ulong)le32_to_cpu(b->sg_ptr));
+	printk("  sg_cnt %u, sg_ptr 0x%x\n",
+	       b->sg_cnt, (u32)le32_to_cpu(b->sg_ptr));
 	BUG_ON(b->sg_cnt > NO_OF_SG_PER_BLOCK);
 	if (b->sg_ptr != 0)
 		BUG_ON(b->sg_cnt != NO_OF_SG_PER_BLOCK);
 	for (i = 0; i < b->sg_cnt; i++) {
-		printk("  [%u]: sg_addr 0x%lx, sg_count 0x%lx\n",
-		       i, (ulong)b->sg_list[i].sg_addr,
-		       (ulong)b->sg_list[i].sg_count);
+		printk("  [%u]: sg_addr 0x%x, sg_count 0x%x\n",
+		       i, (u32)le32_to_cpu(b->sg_list[i].sg_addr),
+		       (u32)le32_to_cpu(b->sg_list[i].sg_count));
 	}
 }
 
@@ -2617,8 +2605,8 @@ static void asc_prt_adv_scsi_req_q(ADV_SCSI_REQ_Q *q)
 
 	printk("ADV_SCSI_REQ_Q at addr 0x%lx\n", (ulong)q);
 
-	printk("  target_id %u, target_lun %u, srb_tag 0x%x, a_flag 0x%x\n",
-	       q->target_id, q->target_lun, q->srb_tag, q->a_flag);
+	printk("  target_id %u, target_lun %u, srb_tag 0x%x\n",
+	       q->target_id, q->target_lun, q->srb_tag);
 
 	printk("  cntl 0x%x, data_addr 0x%lx\n",
 	       q->cntl, (ulong)le32_to_cpu(q->data_addr));
@@ -6249,7 +6237,6 @@ static int AdvISR(ADV_DVC_VAR *asc_dvc)
 		 * Notify the driver of the completed request by passing
 		 * the ADV_SCSI_REQ_Q pointer to its callback function.
 		 */
-		scsiq->a_flag |= ADV_SCSIQ_DONE;
 		adv_isr_callback(asc_dvc, scsiq);
 		/*
 		 * Note: After the driver callback function is called, 'scsiq'
@@ -8428,11 +8415,6 @@ static int AdvExeScsiQueue(ADV_DVC_VAR *asc_dvc, adv_req_t *reqp)
 	}
 
 	asc_dvc->carr_pending_cnt++;
-
-	/*
-	 * Clear the ADV_SCSI_REQ_Q done flag.
-	 */
-	scsiq->a_flag &= ~ADV_SCSIQ_DONE;
 
 	/* Save virtual and physical address of ADV_SCSI_REQ_Q and carrier. */
 	scsiq->scsiq_ptr = cpu_to_le32(scsiq->srb_tag);
