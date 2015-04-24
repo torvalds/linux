@@ -342,7 +342,7 @@ static inline void __thread_fpu_end(struct fpu *fpu)
 		stts();
 }
 
-static inline void __thread_fpu_begin(struct fpu *fpu)
+static inline void fpregs_activate(struct fpu *fpu)
 {
 	if (!use_eager_fpu())
 		clts();
@@ -441,7 +441,7 @@ switch_fpu_prepare(struct fpu *old_fpu, struct fpu *new_fpu, int cpu)
 				fpu.preload = 0;
 			else
 				prefetch(new_fpu->state);
-			__thread_fpu_begin(new_fpu);
+			fpregs_activate(new_fpu);
 		}
 	}
 	return fpu;
@@ -499,7 +499,7 @@ static inline void user_fpu_begin(void)
 
 	preempt_disable();
 	if (!user_has_fpu())
-		__thread_fpu_begin(fpu);
+		fpregs_activate(fpu);
 	preempt_enable();
 }
 

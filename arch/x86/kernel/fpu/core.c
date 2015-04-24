@@ -368,9 +368,9 @@ void fpu__restore(void)
 		local_irq_disable();
 	}
 
-	/* Avoid __kernel_fpu_begin() right after __thread_fpu_begin() */
+	/* Avoid __kernel_fpu_begin() right after fpregs_activate() */
 	kernel_fpu_disable();
-	__thread_fpu_begin(fpu);
+	fpregs_activate(fpu);
 	if (unlikely(restore_fpu_checking(fpu))) {
 		fpu_reset_state(fpu);
 		force_sig_info(SIGSEGV, SEND_SIG_PRIV, tsk);
