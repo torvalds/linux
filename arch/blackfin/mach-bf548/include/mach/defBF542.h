@@ -140,9 +140,6 @@
 #define                   USB_APHY_CALIB  0xffc03de4   /* Register used to set some calibration values */
 #define                  USB_APHY_CNTRL2  0xffc03de8   /* Register used to prevent re-enumeration once Moab goes into hibernate mode */
 
-/* (PHY_TEST is for ADI usage only) */
-
-#define                     USB_PHY_TEST  0xffc03dec   /* Used for reducing simulation time and simplifies FIFO testability */
 #define                  USB_PLLOSC_CTRL  0xffc03df0   /* Used to program different parameters for USB PLL and Oscillator */
 #define                   USB_SRP_CLKDIV  0xffc03df4   /* Used to program clock divide value for the clock fed to the SRP detection logic */
 
