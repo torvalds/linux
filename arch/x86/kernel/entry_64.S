@@ -216,7 +216,7 @@ ENTRY(system_call)
 GLOBAL(system_call_after_swapgs)
 
 	movq	%rsp,PER_CPU_VAR(rsp_scratch)
-	movq	PER_CPU_VAR(kernel_stack),%rsp
+	movq	PER_CPU_VAR(cpu_tss + TSS_sp0),%rsp
 
 	/* Construct struct pt_regs on stack */
 	pushq_cfi $__USER_DS			/* pt_regs->ss */
