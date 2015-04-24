@@ -4111,11 +4111,17 @@ static inline int __btrfs_fs_incompat(struct btrfs_fs_info *fs_info, u64 flag)
  * Call btrfs_abort_transaction as early as possible when an error condition is
  * detected, that way the exact line number is reported.
  */
-
 #define btrfs_abort_transaction(trans, root, errno)		\
 do {								\
-	__btrfs_abort_transaction(trans, root, __func__,	\
-				  __LINE__, errno);		\
+	/* Report first abort since mount */			\
+	if (!test_and_set_bit(BTRFS_FS_STATE_TRANS_ABORTED,	\
+			&((root)->fs_info->fs_state))) {	\
+		WARN(1, KERN_DEBUG				\
+		"BTRFS: Transaction aborted (error %d)\n",	\
+		(errno));					\
+	}							\
+	__btrfs_abort_transaction((trans), (root), __func__,	\
+				  __LINE__, (errno));		\
 } while (0)
 
 #define btrfs_std_error(fs_info, errno)				\

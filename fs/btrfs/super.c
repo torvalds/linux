@@ -251,14 +251,6 @@ void __btrfs_abort_transaction(struct btrfs_trans_handle *trans,
 			       struct btrfs_root *root, const char *function,
 			       unsigned int line, int errno)
 {
-	/*
-	 * Report first abort since mount
-	 */
-	if (!test_and_set_bit(BTRFS_FS_STATE_TRANS_ABORTED,
-				&root->fs_info->fs_state)) {
-		WARN(1, KERN_DEBUG "BTRFS: Transaction aborted (error %d)\n",
-				errno);
-	}
 	trans->aborted = errno;
 	/* Nothing used. The other threads that have joined this
 	 * transaction may be able to continue. */
