@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2009 Hewlett-Packard Development Company, L.P.
  *
- * Author: dann frazier <dannf@hp.com>
+ * Author: dann frazier <dannf@dannf.org>
  * Based on efirtc.c by Stephane Eranian
  *
  *  This program is free software; you can redistribute  it and/or modify it
@@ -233,7 +233,7 @@ static struct platform_driver efi_rtc_driver = {
 module_platform_driver_probe(efi_rtc_driver, efi_rtc_probe);
 
 MODULE_ALIAS("platform:rtc-efi");
-MODULE_AUTHOR("dann frazier <dannf@hp.com>");
+MODULE_AUTHOR("dann frazier <dannf@dannf.org>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("EFI RTC driver");
 MODULE_ALIAS("platform:rtc-efi");
