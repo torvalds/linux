@@ -111,6 +111,13 @@ static inline void queued_spin_unlock_wait(struct qspinlock *lock)
 		cpu_relax();
 }
 
+#ifndef virt_queued_spin_lock
+static __always_inline bool virt_queued_spin_lock(struct qspinlock *lock)
+{
+	return false;
+}
+#endif
+
 /*
  * Initializier
  */
