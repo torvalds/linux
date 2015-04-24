@@ -350,7 +350,7 @@ int __restore_xstate_sig(void __user *buf, void __user *buf_fx, int size)
 	if (!access_ok(VERIFY_READ, buf, size))
 		return -EACCES;
 
-	if (!fpu->fpstate_active && fpstate_alloc_init(tsk))
+	if (!fpu->fpstate_active && fpstate_alloc_init(fpu))
 		return -1;
 
 	if (!static_cpu_has(X86_FEATURE_FPU))

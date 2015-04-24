@@ -150,7 +150,7 @@ void math_emulate(struct math_emu_info *info)
 	struct fpu *fpu = &current->thread.fpu;
 
 	if (!fpu->fpstate_active) {
-		if (fpstate_alloc_init(current)) {
+		if (fpstate_alloc_init(fpu)) {
 			do_group_exit(SIGKILL);
 			return;
 		}

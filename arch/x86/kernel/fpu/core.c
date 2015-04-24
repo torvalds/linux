@@ -263,12 +263,11 @@ int fpu__copy(struct fpu *dst_fpu, struct fpu *src_fpu)
  *
  * Can fail.
  */
-int fpstate_alloc_init(struct task_struct *curr)
+int fpstate_alloc_init(struct fpu *fpu)
 {
-	struct fpu *fpu = &curr->thread.fpu;
 	int ret;
 
-	if (WARN_ON_ONCE(curr != current))
+	if (WARN_ON_ONCE(fpu != &current->thread.fpu))
 		return -EINVAL;
 	if (WARN_ON_ONCE(fpu->fpstate_active))
 		return -EINVAL;
@@ -276,11 +275,11 @@ int fpstate_alloc_init(struct task_struct *curr)
 	/*
 	 * Memory allocation at the first usage of the FPU and other state.
 	 */
-	ret = fpstate_alloc(&curr->thread.fpu);
+	ret = fpstate_alloc(fpu);
 	if (ret)
 		return ret;
 
-	fpstate_init(&curr->thread.fpu);
+	fpstate_init(fpu);
 
 	/* Safe to do for the current task: */
 	fpu->fpstate_active = 1;
@@ -360,7 +359,7 @@ void fpu__restore(void)
 		/*
 		 * does a slab alloc which can sleep
 		 */
-		if (fpstate_alloc_init(tsk)) {
+		if (fpstate_alloc_init(fpu)) {
 			/*
 			 * ran out of memory!
 			 */
@@ -396,7 +395,7 @@ void fpu__flush_thread(struct task_struct *tsk)
 	} else {
 		if (!fpu->fpstate_active) {
 			/* kthread execs. TODO: cleanup this horror. */
-		if (WARN_ON(fpstate_alloc_init(tsk)))
+		if (WARN_ON(fpstate_alloc_init(fpu)))
 				force_sig(SIGKILL, tsk);
 			user_fpu_begin();
 		}
