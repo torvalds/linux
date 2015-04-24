@@ -509,9 +509,18 @@ static void color_to_ycbcr(struct tpg_data *tpg, int r, int g, int b,
 
 	switch (tpg->real_ycbcr_enc) {
 	case V4L2_YCBCR_ENC_601:
-	case V4L2_YCBCR_ENC_XV601:
 	case V4L2_YCBCR_ENC_SYCC:
 		rgb2ycbcr(full ? bt601_full : bt601, r, g, b, y_offset, y, cb, cr);
+		break;
+	case V4L2_YCBCR_ENC_XV601:
+		/* Ignore quantization range, there is only one possible
+		 * Y'CbCr encoding. */
+		rgb2ycbcr(bt601, r, g, b, 16, y, cb, cr);
+		break;
+	case V4L2_YCBCR_ENC_XV709:
+		/* Ignore quantization range, there is only one possible
+		 * Y'CbCr encoding. */
+		rgb2ycbcr(rec709, r, g, b, 16, y, cb, cr);
 		break;
 	case V4L2_YCBCR_ENC_BT2020:
 		rgb2ycbcr(full ? bt2020_full : bt2020, r, g, b, y_offset, y, cb, cr);
@@ -535,7 +544,6 @@ static void color_to_ycbcr(struct tpg_data *tpg, int r, int g, int b,
 		rgb2ycbcr(full ? smpte240m_full : smpte240m, r, g, b, y_offset, y, cb, cr);
 		break;
 	case V4L2_YCBCR_ENC_709:
-	case V4L2_YCBCR_ENC_XV709:
 	default:
 		rgb2ycbcr(full ? rec709_full : rec709, r, g, b, y_offset, y, cb, cr);
 		break;
@@ -617,9 +625,18 @@ static void ycbcr_to_color(struct tpg_data *tpg, int y, int cb, int cr,
 
 	switch (tpg->real_ycbcr_enc) {
 	case V4L2_YCBCR_ENC_601:
-	case V4L2_YCBCR_ENC_XV601:
 	case V4L2_YCBCR_ENC_SYCC:
 		ycbcr2rgb(full ? bt601_full : bt601, y, cb, cr, y_offset, r, g, b);
+		break;
+	case V4L2_YCBCR_ENC_XV601:
+		/* Ignore quantization range, there is only one possible
+		 * Y'CbCr encoding. */
+		ycbcr2rgb(bt601, y, cb, cr, 16, r, g, b);
+		break;
+	case V4L2_YCBCR_ENC_XV709:
+		/* Ignore quantization range, there is only one possible
+		 * Y'CbCr encoding. */
+		ycbcr2rgb(rec709, y, cb, cr, 16, r, g, b);
 		break;
 	case V4L2_YCBCR_ENC_BT2020:
 		ycbcr2rgb(full ? bt2020_full : bt2020, y, cb, cr, y_offset, r, g, b);
@@ -652,7 +669,6 @@ static void ycbcr_to_color(struct tpg_data *tpg, int y, int cb, int cr,
 		ycbcr2rgb(full ? smpte240m_full : smpte240m, y, cb, cr, y_offset, r, g, b);
 		break;
 	case V4L2_YCBCR_ENC_709:
-	case V4L2_YCBCR_ENC_XV709:
 	default:
 		ycbcr2rgb(full ? rec709_full : rec709, y, cb, cr, y_offset, r, g, b);
 		break;
