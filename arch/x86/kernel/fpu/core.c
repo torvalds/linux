@@ -240,15 +240,12 @@ static void fpu_copy(struct fpu *dst_fpu, struct fpu *src_fpu)
 	}
 }
 
-int fpu__copy(struct task_struct *dst, struct task_struct *src)
+int fpu__copy(struct fpu *dst_fpu, struct fpu *src_fpu)
 {
-	struct fpu *dst_fpu = &dst->thread.fpu;
-	struct fpu *src_fpu = &src->thread.fpu;
-
-	dst->thread.fpu.counter = 0;
-	dst->thread.fpu.has_fpu = 0;
-	dst->thread.fpu.state = NULL;
-	dst->thread.fpu.last_cpu = -1;
+	dst_fpu->counter = 0;
+	dst_fpu->has_fpu = 0;
+	dst_fpu->state = NULL;
+	dst_fpu->last_cpu = -1;
 
 	if (src_fpu->fpstate_active) {
 		int err = fpstate_alloc(dst_fpu);

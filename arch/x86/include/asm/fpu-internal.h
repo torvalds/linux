@@ -535,7 +535,7 @@ extern void fpstate_cache_init(void);
 
 extern int fpstate_alloc(struct fpu *fpu);
 extern void fpstate_free(struct fpu *fpu);
-extern int fpu__copy(struct task_struct *dst, struct task_struct *src);
+extern int fpu__copy(struct fpu *dst_fpu, struct fpu *src_fpu);
 
 static inline unsigned long
 alloc_mathframe(unsigned long sp, int ia32_frame, unsigned long *buf_fx,
