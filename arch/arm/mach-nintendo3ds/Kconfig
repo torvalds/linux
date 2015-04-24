@@ -1,7 +1,13 @@
 menu "Nintendo 3DS model type"
 	depends on ARCH_NINTENDO3DS
 
-if ARCH_NINTENDO3DS
+config NINTENDO3DS_DT
+	bool "Support Nintendo 3DS Device Tree based boot"
+	select ARM_GIC
+	select USE_OF
+	help
+	  Include support for booting the Nintendo 3DS
+	  using a device tree machine description.
 
 config MACH_NINTENDO3DS_CTR
 	bool "Old Nintendo 3DS (CTR)"
@@ -17,7 +23,5 @@ config MACH_NINTENDO3DS_KTR
 
 config MACH_NINTENDO3DS_RED
 	bool "New Nintendo 3DS XL/LL (RED)"
-
-endif
 
 endmenu

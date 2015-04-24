@@ -645,6 +645,8 @@ dtb-$(CONFIG_ARCH_MEDIATEK) += \
 	mt6592-evb.dtb \
 	mt8127-moose.dtb \
 	mt8135-evbp1.dtb
+dtb-$(CONFIG_MACH_NINTENDO3DS) += \
+	nintendo3ds_ctr.dtb
 endif
 
 always		:= $(dtb-y)

@@ -570,9 +570,12 @@ config ARCH_NINTENDO3DS
 	bool "Nintendo 3DS"
 	select ARM_GIC
 	select CPU_V6K
+	select HAVE_SMP
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if SMP
-	select HAVE_SMP
+	select GENERIC_IRQ_CHIP
+	select GENERIC_CLOCKEVENTS
+	select CLKDEV_LOOKUP
 	help
 	  Support for the Nintendo 3DS game console.
 

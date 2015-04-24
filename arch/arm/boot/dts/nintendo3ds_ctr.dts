@@ -1,0 +1,53 @@
+/dts-v1/;
+/ {
+	model = "Nintendo 3DS (CTR)";
+	compatible = "nintendo3ds,ctr";
+	#address-cells = <1>;
+	#size-cells = <1>;
+	chosen { };
+	aliases { };
+
+	memory {
+		device_type = "memory";
+
+		/* 128 MiB FCRAM memory @ 0x20000000 */
+		reg = <0x20000000 0x08000000>;
+	};
+
+	cpus {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        
+		cpu@0 {
+			compatible = "arm,mpcore";
+			reg = <0>;
+		};
+		cpu@1 {
+			compatible = "arm,mpcore";
+			reg = <1>;
+		};
+	};
+
+	twd-timer@17E00600 {
+		compatible = "arm,arm11mp-twd-timer";
+		reg = <0x17E00600 0x20>;
+		interrupts = <29>;
+	};
+
+	twd-watchdog@17E00620 {
+		compatible = "arm,arm11mp-twd-wdt";
+		reg = <0x17E00620 0x20>;
+		interrupts = <30>;
+	};
+
+	interrupt-controller@17E01000 {
+		compatible = "arm,arm11mp-gic";
+		#interrupt-cells = <3>;
+		#address-cells = <1>;
+		interrupt-controller;
+		arm,routable-irqs = <64>;
+		reg = <0x17E01000 0x1000>, //GIC distributor register
+			  <0x17E00100 0x100>;  //GIC cpu interface register
+	};
+
+} ;

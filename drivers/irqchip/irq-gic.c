@@ -48,6 +48,12 @@
 #include "irq-gic-common.h"
 #include "irqchip.h"
 
+#undef WARN
+#define WARN(x, fmt, ...) \
+	do { \
+		if (x) printk(fmt, ##__VA_ARGS__); \
+	} while (0)
+
 union gic_base {
 	void __iomem *common_base;
 	void __percpu * __iomem *percpu_base;
