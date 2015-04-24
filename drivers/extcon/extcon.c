@@ -1,5 +1,5 @@
 /*
- *  drivers/extcon/extcon_class.c
+ *  drivers/extcon/extcon.c - External Connector (extcon) framework.
  *
  *  External connector (extcon) class driver
  *
@@ -19,8 +19,7 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
-*/
+ */
 
 #include <linux/module.h>
 #include <linux/types.h>
@@ -469,7 +468,6 @@ int extcon_register_interest(struct extcon_specific_cable_nb *obj,
 		ret = raw_notifier_chain_register(&obj->edev->nh,
 						  &obj->internal_nb);
 		spin_unlock_irqrestore(&obj->edev->lock, flags);
-		return ret;
 	} else {
 		struct class_dev_iter iter;
 		struct extcon_dev *extd;
@@ -489,8 +487,10 @@ int extcon_register_interest(struct extcon_specific_cable_nb *obj,
 						cable_name, nb);
 		}
 
-		return -ENODEV;
+		ret = -ENODEV;
 	}
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(extcon_register_interest);
 

@@ -97,8 +97,8 @@ struct extcon_cable;
  * @state:		Attach/detach state of this extcon. Do not provide at
  *			register-time.
  * @nh:			Notifier for the state change events from this extcon
- * @entry:		To support list of extcon devices so that users can search
- *			for extcon devices based on the extcon name.
+ * @entry:		To support list of extcon devices so that users can
+ *			search for extcon devices based on the extcon name.
  * @lock:
  * @max_supported:	Internal value to store the number of cables.
  * @extcon_dev_type:	Device_type struct to provide attribute_groups
@@ -258,7 +258,8 @@ extern int extcon_unregister_notifier(struct extcon_dev *edev,
  * Following API get the extcon device from devicetree.
  * This function use phandle of devicetree to get extcon device directly.
  */
-extern struct extcon_dev *extcon_get_edev_by_phandle(struct device *dev, int index);
+extern struct extcon_dev *extcon_get_edev_by_phandle(struct device *dev,
+						     int index);
 
 /* Following API to get information of extcon device */
 extern const char *extcon_get_edev_name(struct extcon_dev *edev);
