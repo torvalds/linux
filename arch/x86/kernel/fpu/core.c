@@ -528,7 +528,7 @@ int xstateregs_set(struct task_struct *target, const struct user_regset *regset,
 	 * mxcsr reserved bits must be masked to zero for security reasons.
 	 */
 	xsave->i387.mxcsr &= mxcsr_feature_mask;
-	xsave->xsave_hdr.xstate_bv &= pcntxt_mask;
+	xsave->xsave_hdr.xstate_bv &= xfeatures_mask;
 	/*
 	 * These bits must be zero.
 	 */

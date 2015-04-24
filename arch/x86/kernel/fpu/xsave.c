@@ -13,9 +13,9 @@
 #include <asm/xcr.h>
 
 /*
- * Supported feature mask by the CPU and the kernel.
+ * Mask of xstate features supported by the CPU and the kernel:
  */
-u64 pcntxt_mask;
+u64 xfeatures_mask;
 
 /*
  * Represents init state for the supported extended state.
@@ -24,7 +24,7 @@ struct xsave_struct *init_xstate_buf;
 
 static struct _fpx_sw_bytes fx_sw_reserved, fx_sw_reserved_ia32;
 static unsigned int *xstate_offsets, *xstate_sizes;
-static unsigned int xstate_comp_offsets[sizeof(pcntxt_mask)*8];
+static unsigned int xstate_comp_offsets[sizeof(xfeatures_mask)*8];
 static unsigned int xstate_features;
 
 /*
@@ -52,7 +52,7 @@ void __sanitize_i387_state(struct task_struct *tsk)
 	 * None of the feature bits are in init state. So nothing else
 	 * to do for us, as the memory layout is up to date.
 	 */
-	if ((xstate_bv & pcntxt_mask) == pcntxt_mask)
+	if ((xstate_bv & xfeatures_mask) == xfeatures_mask)
 		return;
 
 	/*
@@ -74,7 +74,7 @@ void __sanitize_i387_state(struct task_struct *tsk)
 	if (!(xstate_bv & XSTATE_SSE))
 		memset(&fx->xmm_space[0], 0, 256);
 
-	xstate_bv = (pcntxt_mask & ~xstate_bv) >> 2;
+	xstate_bv = (xfeatures_mask & ~xstate_bv) >> 2;
 
 	/*
 	 * Update all the other memory layouts for which the corresponding
@@ -291,7 +291,7 @@ sanitize_restored_xstate(struct task_struct *tsk,
 		if (fx_only)
 			xsave_hdr->xstate_bv = XSTATE_FPSSE;
 		else
-			xsave_hdr->xstate_bv &= (pcntxt_mask & xstate_bv);
+			xsave_hdr->xstate_bv &= (xfeatures_mask & xstate_bv);
 	}
 
 	if (use_fxsr()) {
@@ -312,11 +312,11 @@ static inline int restore_user_xstate(void __user *buf, u64 xbv, int fx_only)
 {
 	if (use_xsave()) {
 		if ((unsigned long)buf % 64 || fx_only) {
-			u64 init_bv = pcntxt_mask & ~XSTATE_FPSSE;
+			u64 init_bv = xfeatures_mask & ~XSTATE_FPSSE;
 			xrstor_state(init_xstate_buf, init_bv);
 			return fxrstor_user(buf);
 		} else {
-			u64 init_bv = pcntxt_mask & ~xbv;
+			u64 init_bv = xfeatures_mask & ~xbv;
 			if (unlikely(init_bv))
 				xrstor_state(init_xstate_buf, init_bv);
 			return xrestore_user(buf, xbv);
@@ -439,7 +439,7 @@ static void prepare_fx_sw_frame(void)
 
 	fx_sw_reserved.magic1 = FP_XSTATE_MAGIC1;
 	fx_sw_reserved.extended_size = size;
-	fx_sw_reserved.xstate_bv = pcntxt_mask;
+	fx_sw_reserved.xstate_bv = xfeatures_mask;
 	fx_sw_reserved.xstate_size = xstate_size;
 
 	if (config_enabled(CONFIG_IA32_EMULATION)) {
@@ -454,7 +454,7 @@ static void prepare_fx_sw_frame(void)
 static inline void xstate_enable(void)
 {
 	cr4_set_bits(X86_CR4_OSXSAVE);
-	xsetbv(XCR_XFEATURE_ENABLED_MASK, pcntxt_mask);
+	xsetbv(XCR_XFEATURE_ENABLED_MASK, xfeatures_mask);
 }
 
 /*
@@ -465,7 +465,7 @@ static void __init setup_xstate_features(void)
 {
 	int eax, ebx, ecx, edx, leaf = 0x2;
 
-	xstate_features = fls64(pcntxt_mask);
+	xstate_features = fls64(xfeatures_mask);
 	xstate_offsets = alloc_bootmem(xstate_features * sizeof(int));
 	xstate_sizes = alloc_bootmem(xstate_features * sizeof(int));
 
@@ -484,7 +484,7 @@ static void __init setup_xstate_features(void)
 
 static void print_xstate_feature(u64 xstate_mask, const char *desc)
 {
-	if (pcntxt_mask & xstate_mask) {
+	if (xfeatures_mask & xstate_mask) {
 		int xstate_feature = fls64(xstate_mask)-1;
 
 		pr_info("x86/fpu: Supporting XSAVE feature %2d: '%s'\n", xstate_feature, desc);
@@ -516,7 +516,7 @@ static void print_xstate_features(void)
  */
 void setup_xstate_comp(void)
 {
-	unsigned int xstate_comp_sizes[sizeof(pcntxt_mask)*8];
+	unsigned int xstate_comp_sizes[sizeof(xfeatures_mask)*8];
 	int i;
 
 	/*
@@ -529,7 +529,7 @@ void setup_xstate_comp(void)
 
 	if (!cpu_has_xsaves) {
 		for (i = 2; i < xstate_features; i++) {
-			if (test_bit(i, (unsigned long *)&pcntxt_mask)) {
+			if (test_bit(i, (unsigned long *)&xfeatures_mask)) {
 				xstate_comp_offsets[i] = xstate_offsets[i];
 				xstate_comp_sizes[i] = xstate_sizes[i];
 			}
@@ -540,7 +540,7 @@ void setup_xstate_comp(void)
 	xstate_comp_offsets[2] = FXSAVE_SIZE + XSAVE_HDR_SIZE;
 
 	for (i = 2; i < xstate_features; i++) {
-		if (test_bit(i, (unsigned long *)&pcntxt_mask))
+		if (test_bit(i, (unsigned long *)&xfeatures_mask))
 			xstate_comp_sizes[i] = xstate_sizes[i];
 		else
 			xstate_comp_sizes[i] = 0;
@@ -573,8 +573,8 @@ static void __init setup_init_fpu_buf(void)
 
 	if (cpu_has_xsaves) {
 		init_xstate_buf->xsave_hdr.xcomp_bv =
-						(u64)1 << 63 | pcntxt_mask;
-		init_xstate_buf->xsave_hdr.xstate_bv = pcntxt_mask;
+						(u64)1 << 63 | xfeatures_mask;
+		init_xstate_buf->xsave_hdr.xstate_bv = xfeatures_mask;
 	}
 
 	/*
@@ -604,7 +604,7 @@ __setup("eagerfpu=", eager_fpu_setup);
 
 
 /*
- * Calculate total size of enabled xstates in XCR0/pcntxt_mask.
+ * Calculate total size of enabled xstates in XCR0/xfeatures_mask.
  */
 static void __init init_xstate_size(void)
 {
@@ -619,7 +619,7 @@ static void __init init_xstate_size(void)
 
 	xstate_size = FXSAVE_SIZE + XSAVE_HDR_SIZE;
 	for (i = 2; i < 64; i++) {
-		if (test_bit(i, (unsigned long *)&pcntxt_mask)) {
+		if (test_bit(i, (unsigned long *)&xfeatures_mask)) {
 			cpuid_count(XSTATE_CPUID, i, &eax, &ebx, &ecx, &edx);
 			xstate_size += eax;
 		}
@@ -642,17 +642,17 @@ static void /* __init */ xstate_enable_boot_cpu(void)
 	}
 
 	cpuid_count(XSTATE_CPUID, 0, &eax, &ebx, &ecx, &edx);
-	pcntxt_mask = eax + ((u64)edx << 32);
+	xfeatures_mask = eax + ((u64)edx << 32);
 
-	if ((pcntxt_mask & XSTATE_FPSSE) != XSTATE_FPSSE) {
-		pr_err("x86/fpu: FP/SSE not present amongst the CPU's xstate features: 0x%llx.\n", pcntxt_mask);
+	if ((xfeatures_mask & XSTATE_FPSSE) != XSTATE_FPSSE) {
+		pr_err("x86/fpu: FP/SSE not present amongst the CPU's xstate features: 0x%llx.\n", xfeatures_mask);
 		BUG();
 	}
 
 	/*
 	 * Support only the state known to OS.
 	 */
-	pcntxt_mask = pcntxt_mask & XCNTXT_MASK;
+	xfeatures_mask = xfeatures_mask & XCNTXT_MASK;
 
 	xstate_enable();
 
@@ -661,7 +661,7 @@ static void /* __init */ xstate_enable_boot_cpu(void)
 	 */
 	init_xstate_size();
 
-	update_regset_xstate_info(xstate_size, pcntxt_mask);
+	update_regset_xstate_info(xstate_size, xfeatures_mask);
 	prepare_fx_sw_frame();
 	setup_init_fpu_buf();
 
@@ -669,18 +669,18 @@ static void /* __init */ xstate_enable_boot_cpu(void)
 	if (cpu_has_xsaveopt && eagerfpu != DISABLE)
 		eagerfpu = ENABLE;
 
-	if (pcntxt_mask & XSTATE_EAGER) {
+	if (xfeatures_mask & XSTATE_EAGER) {
 		if (eagerfpu == DISABLE) {
 			pr_err("x86/fpu: eagerfpu switching disabled, disabling the following xstate features: 0x%llx.\n",
-			       pcntxt_mask & XSTATE_EAGER);
-			pcntxt_mask &= ~XSTATE_EAGER;
+			       xfeatures_mask & XSTATE_EAGER);
+			xfeatures_mask &= ~XSTATE_EAGER;
 		} else {
 			eagerfpu = ENABLE;
 		}
 	}
 
 	pr_info("x86/fpu: Enabled xstate features 0x%llx, context size is 0x%x bytes, using '%s' format.\n",
-		pcntxt_mask,
+		xfeatures_mask,
 		xstate_size,
 		cpu_has_xsaves ? "compacted" : "standard");
 }
@@ -749,7 +749,7 @@ void __init_refok eager_fpu_init(void)
 void *get_xsave_addr(struct xsave_struct *xsave, int xstate)
 {
 	int feature = fls64(xstate) - 1;
-	if (!test_bit(feature, (unsigned long *)&pcntxt_mask))
+	if (!test_bit(feature, (unsigned long *)&xfeatures_mask))
 		return NULL;
 
 	return (void *)xsave + xstate_comp_offsets[feature];

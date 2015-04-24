@@ -21,7 +21,7 @@
 #include <asm/xcr.h>
 #include <asm/suspend.h>
 #include <asm/debugreg.h>
-#include <asm/fpu/internal.h> /* pcntxt_mask */
+#include <asm/fpu/internal.h> /* xfeatures_mask */
 #include <asm/cpu.h>
 
 #ifdef CONFIG_X86_32
@@ -225,7 +225,7 @@ static void notrace __restore_processor_state(struct saved_context *ctxt)
 	 * restore XCR0 for xsave capable cpu's.
 	 */
 	if (cpu_has_xsave)
-		xsetbv(XCR_XFEATURE_ENABLED_MASK, pcntxt_mask);
+		xsetbv(XCR_XFEATURE_ENABLED_MASK, xfeatures_mask);
 
 	fix_processor_context();
 

@@ -45,7 +45,7 @@
 #endif
 
 extern unsigned int xstate_size;
-extern u64 pcntxt_mask;
+extern u64 xfeatures_mask;
 extern u64 xstate_fx_sw_bytes[USER_XSTATE_FX_SW_WORDS];
 extern struct xsave_struct *init_xstate_buf;
 
