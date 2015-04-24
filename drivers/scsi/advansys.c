@@ -1844,7 +1844,7 @@ typedef struct adv_scsi_req_q {
 	uchar target_lun;	/* Device target logical unit number. */
 	ADV_PADDR data_addr;	/* Data buffer physical address. */
 	ADV_DCNT data_cnt;	/* Data count. Ucode sets to residual. */
-	ADV_PADDR sense_addr;
+	__le32 sense_addr;
 	ADV_PADDR carr_pa;
 	uchar mflag;
 	uchar sense_len;
@@ -6084,6 +6084,7 @@ static void adv_isr_callback(ADV_DVC_VAR *adv_dvc_varp, ADV_SCSI_REQ_Q *scsiqp)
 	adv_sgblk_t *sgblkp;
 	struct scsi_cmnd *scp;
 	ADV_DCNT resid_cnt;
+	dma_addr_t sense_addr;
 
 	ASC_DBG(1, "adv_dvc_varp 0x%p, scsiqp 0x%p\n",
 		adv_dvc_varp, scsiqp);
@@ -6120,6 +6121,10 @@ static void adv_isr_callback(ADV_DVC_VAR *adv_dvc_varp, ADV_SCSI_REQ_Q *scsiqp)
 
 	ASC_STATS(boardp->shost, callback);
 	ASC_DBG(1, "shost 0x%p\n", boardp->shost);
+
+	sense_addr = le32_to_cpu(scsiqp->sense_addr);
+	dma_unmap_single(boardp->dev, sense_addr,
+			 SCSI_SENSE_BUFFERSIZE, DMA_FROM_DEVICE);
 
 	/*
 	 * 'done_status' contains the command's ending status.
@@ -8018,9 +8023,9 @@ adv_build_req(struct asc_board *boardp, struct scsi_cmnd *scp,
 	u32 srb_tag = scp->request->tag;
 	adv_req_t *reqp;
 	ADV_SCSI_REQ_Q *scsiqp;
-	int i;
 	int ret;
 	int use_sg;
+	dma_addr_t sense_addr;
 
 	/*
 	 * Allocate an adv_req_t structure from the board to execute
@@ -8061,19 +8066,21 @@ adv_build_req(struct asc_board *boardp, struct scsi_cmnd *scp,
 	/* Set CDB length and copy it to the request structure.  */
 	scsiqp->cdb_len = scp->cmd_len;
 	/* Copy first 12 CDB bytes to cdb[]. */
-	for (i = 0; i < scp->cmd_len && i < 12; i++) {
-		scsiqp->cdb[i] = scp->cmnd[i];
-	}
+	memcpy(scsiqp->cdb, scp->cmnd, scp->cmd_len < 12 ? scp->cmd_len : 12);
 	/* Copy last 4 CDB bytes, if present, to cdb16[]. */
-	for (; i < scp->cmd_len; i++) {
-		scsiqp->cdb16[i - 12] = scp->cmnd[i];
+	if (scp->cmd_len > 12) {
+		int cdb16_len = scp->cmd_len - 12;
+
+		memcpy(scsiqp->cdb16, &scp->cmnd[12], cdb16_len);
 	}
 
 	scsiqp->target_id = scp->device->id;
 	scsiqp->target_lun = scp->device->lun;
 
-	scsiqp->sense_addr = cpu_to_le32(virt_to_bus(&scp->sense_buffer[0]));
-	scsiqp->sense_len = SCSI_SENSE_BUFFERSIZE;
+	sense_addr = dma_map_single(boardp->dev, scp->sense_buffer,
+				    SCSI_SENSE_BUFFERSIZE, DMA_FROM_DEVICE);
+	scsiqp->sense_addr = cpu_to_le32(sense_addr);
+	scsiqp->sense_len = cpu_to_le32(SCSI_SENSE_BUFFERSIZE);
 
 	/* Build ADV_SCSI_REQ_Q */
 
