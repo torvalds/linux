@@ -62,7 +62,7 @@ static bool interrupted_kernel_fpu_idle(void)
 	if (use_eager_fpu())
 		return true;
 
-	return !current->thread.fpu.has_fpu && (read_cr0() & X86_CR0_TS);
+	return !current->thread.fpu.fpregs_active && (read_cr0() & X86_CR0_TS);
 }
 
 /*
@@ -100,7 +100,7 @@ void __kernel_fpu_begin(void)
 
 	kernel_fpu_disable();
 
-	if (fpu->has_fpu) {
+	if (fpu->fpregs_active) {
 		fpu_save_init(fpu);
 	} else {
 		this_cpu_write(fpu_fpregs_owner_ctx, NULL);
@@ -114,7 +114,7 @@ void __kernel_fpu_end(void)
 {
 	struct fpu *fpu = &current->thread.fpu;
 
-	if (fpu->has_fpu) {
+	if (fpu->fpregs_active) {
 		if (WARN_ON(restore_fpu_checking(fpu)))
 			fpu_reset_state(fpu);
 	} else if (!use_eager_fpu()) {
@@ -147,7 +147,7 @@ void fpu__save(struct fpu *fpu)
 	WARN_ON(fpu != &current->thread.fpu);
 
 	preempt_disable();
-	if (fpu->has_fpu) {
+	if (fpu->fpregs_active) {
 		if (use_eager_fpu()) {
 			__save_fpu(fpu);
 		} else {
@@ -243,7 +243,7 @@ static void fpu_copy(struct fpu *dst_fpu, struct fpu *src_fpu)
 int fpu__copy(struct fpu *dst_fpu, struct fpu *src_fpu)
 {
 	dst_fpu->counter = 0;
-	dst_fpu->has_fpu = 0;
+	dst_fpu->fpregs_active = 0;
 	dst_fpu->state = NULL;
 	dst_fpu->last_cpu = -1;
 

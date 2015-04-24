@@ -308,7 +308,7 @@ static inline int restore_fpu_checking(struct fpu *fpu)
 			"fnclex\n\t"
 			"emms\n\t"
 			"fildl %P[addr]"	/* set F?P to defined value */
-			: : [addr] "m" (fpu->has_fpu));
+			: : [addr] "m" (fpu->fpregs_active));
 	}
 
 	return fpu_restore_checking(fpu);
@@ -317,14 +317,14 @@ static inline int restore_fpu_checking(struct fpu *fpu)
 /* Must be paired with an 'stts' after! */
 static inline void __thread_clear_has_fpu(struct fpu *fpu)
 {
-	fpu->has_fpu = 0;
+	fpu->fpregs_active = 0;
 	this_cpu_write(fpu_fpregs_owner_ctx, NULL);
 }
 
 /* Must be paired with a 'clts' before! */
 static inline void __thread_set_has_fpu(struct fpu *fpu)
 {
-	fpu->has_fpu = 1;
+	fpu->fpregs_active = 1;
 	this_cpu_write(fpu_fpregs_owner_ctx, fpu);
 }
 
@@ -357,7 +357,7 @@ static inline void drop_fpu(struct fpu *fpu)
 	preempt_disable();
 	fpu->counter = 0;
 
-	if (fpu->has_fpu) {
+	if (fpu->fpregs_active) {
 		/* Ignore delayed exceptions from user space */
 		asm volatile("1: fwait\n"
 			     "2:\n"
@@ -416,14 +416,14 @@ switch_fpu_prepare(struct fpu *old_fpu, struct fpu *new_fpu, int cpu)
 	fpu.preload = new_fpu->fpstate_active &&
 		      (use_eager_fpu() || new_fpu->counter > 5);
 
-	if (old_fpu->has_fpu) {
+	if (old_fpu->fpregs_active) {
 		if (!fpu_save_init(old_fpu))
 			old_fpu->last_cpu = -1;
 		else
 			old_fpu->last_cpu = cpu;
 
 		/* But leave fpu_fpregs_owner_ctx! */
-		old_fpu->has_fpu = 0;
+		old_fpu->fpregs_active = 0;
 
 		/* Don't change CR0.TS if we just switch! */
 		if (fpu.preload) {

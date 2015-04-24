@@ -96,7 +96,7 @@ static inline void irq_ts_restore(int TS_state)
  */
 static inline int user_has_fpu(void)
 {
-	return current->thread.fpu.has_fpu;
+	return current->thread.fpu.fpregs_active;
 }
 
 extern void fpu__save(struct fpu *fpu);
