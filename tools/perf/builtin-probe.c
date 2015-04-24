@@ -262,21 +262,25 @@ static int opt_set_filter(const struct option *opt __maybe_unused,
 			  const char *str, int unset __maybe_unused)
 {
 	const char *err;
+	int ret = 0;
 
 	if (str) {
 		pr_debug2("Set filter: %s\n", str);
-		if (params.filter)
-			strfilter__delete(params.filter);
-		params.filter = strfilter__new(str, &err);
 		if (!params.filter) {
+			params.filter = strfilter__new(str, &err);
+			if (!params.filter)
+				ret = err ? -EINVAL : -ENOMEM;
+		} else
+			ret = strfilter__or(params.filter, str, &err);
+
+		if (ret == -EINVAL) {
 			pr_err("Filter parse error at %td.\n", err - str + 1);
 			pr_err("Source: \"%s\"\n", str);
 			pr_err("         %*c\n", (int)(err - str + 1), '^');
-			return -EINVAL;
 		}
 	}
 
-	return 0;
+	return ret;
 }
 
 static int init_params(void)
