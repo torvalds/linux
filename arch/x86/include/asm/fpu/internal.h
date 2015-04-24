@@ -315,7 +315,7 @@ static inline int restore_fpu_checking(struct fpu *fpu)
 }
 
 /* Must be paired with an 'stts' after! */
-static inline void __thread_clear_has_fpu(struct fpu *fpu)
+static inline void __fpregs_deactivate(struct fpu *fpu)
 {
 	fpu->fpregs_active = 0;
 	this_cpu_write(fpu_fpregs_owner_ctx, NULL);
@@ -337,7 +337,7 @@ static inline void __fpregs_activate(struct fpu *fpu)
  */
 static inline void __thread_fpu_end(struct fpu *fpu)
 {
-	__thread_clear_has_fpu(fpu);
+	__fpregs_deactivate(fpu);
 	if (!use_eager_fpu())
 		stts();
 }
