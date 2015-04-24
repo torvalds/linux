@@ -1110,6 +1110,15 @@ config I2C_CROS_EC_TUNNEL
 	  connected there. This will work whatever the interface used to
 	  talk to the EC (SPI, I2C or LPC).
 
+config I2C_XGENE_SLIMPRO
+	tristate "APM X-Gene SoC I2C SLIMpro devices support"
+	depends on ARCH_XGENE && MAILBOX
+	help
+	  Enable I2C bus access using the APM X-Gene SoC SLIMpro
+	  co-processor. The I2C device access the I2C bus via the X-Gene
+	  to SLIMpro (On chip coprocessor) mailbox mechanism.
+	  If unsure, say N.
+
 config SCx200_ACB
 	tristate "Geode ACCESS.bus support"
 	depends on X86_32 && PCI
