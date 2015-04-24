@@ -14,7 +14,7 @@ or
 or
 'perf probe' [options] --del='[GROUP:]EVENT' [...]
 or
-'perf probe' --list
+'perf probe' --list[=[GROUP:]EVENT]
 or
 'perf probe' [options] --line='LINE'
 or
@@ -66,8 +66,8 @@ OPTIONS
 	classes(e.g. [a-z], [!A-Z]).
 
 -l::
---list::
-	List up current probe events.
+--list[=[GROUP:]EVENT]::
+	List up current probe events. This can also accept filtering patterns of event names.
 
 -L::
 --line=::

@@ -44,6 +44,7 @@
 
 #define DEFAULT_VAR_FILTER "!__k???tab_* & !__crc_*"
 #define DEFAULT_FUNC_FILTER "!_*"
+#define DEFAULT_LIST_FILTER "*:*"
 
 /* Session management structure */
 static struct {
@@ -89,6 +90,28 @@ static int parse_probe_event(const char *str)
 	/* Parse a perf-probe command into event */
 	ret = parse_perf_probe_command(str, pev);
 	pr_debug("%d arguments\n", pev->nargs);
+
+	return ret;
+}
+
+static int params_add_filter(const char *str)
+{
+	const char *err = NULL;
+	int ret = 0;
+
+	pr_debug2("Add filter: %s\n", str);
+	if (!params.filter) {
+		params.filter = strfilter__new(str, &err);
+		if (!params.filter)
+			ret = err ? -EINVAL : -ENOMEM;
+	} else
+		ret = strfilter__or(params.filter, str, &err);
+
+	if (ret == -EINVAL) {
+		pr_err("Filter parse error at %td.\n", err - str + 1);
+		pr_err("Source: \"%s\"\n", str);
+		pr_err("         %*c\n", (int)(err - str + 1), '^');
+	}
 
 	return ret;
 }
@@ -180,6 +203,18 @@ static int opt_del_probe_event(const struct option *opt __maybe_unused,
 	return 0;
 }
 
+static int opt_list_probe_event(const struct option *opt __maybe_unused,
+				const char *str, int unset)
+{
+	if (!unset)
+		params.list_events = true;
+
+	if (str)
+		return params_add_filter(str);
+
+	return 0;
+}
+
 static int opt_set_target(const struct option *opt, const char *str,
 			int unset __maybe_unused)
 {
@@ -261,26 +296,10 @@ static int opt_show_vars(const struct option *opt __maybe_unused,
 static int opt_set_filter(const struct option *opt __maybe_unused,
 			  const char *str, int unset __maybe_unused)
 {
-	const char *err;
-	int ret = 0;
+	if (str)
+		return params_add_filter(str);
 
-	if (str) {
-		pr_debug2("Set filter: %s\n", str);
-		if (!params.filter) {
-			params.filter = strfilter__new(str, &err);
-			if (!params.filter)
-				ret = err ? -EINVAL : -ENOMEM;
-		} else
-			ret = strfilter__or(params.filter, str, &err);
-
-		if (ret == -EINVAL) {
-			pr_err("Filter parse error at %td.\n", err - str + 1);
-			pr_err("Source: \"%s\"\n", str);
-			pr_err("         %*c\n", (int)(err - str + 1), '^');
-		}
-	}
-
-	return ret;
+	return 0;
 }
 
 static int init_params(void)
@@ -320,21 +339,22 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 		"perf probe [<options>] 'PROBEDEF' ['PROBEDEF' ...]",
 		"perf probe [<options>] --add 'PROBEDEF' [--add 'PROBEDEF' ...]",
 		"perf probe [<options>] --del '[GROUP:]EVENT' ...",
-		"perf probe --list",
+		"perf probe --list [GROUP:]EVENT ...",
 #ifdef HAVE_DWARF_SUPPORT
 		"perf probe [<options>] --line 'LINEDESC'",
 		"perf probe [<options>] --vars 'PROBEPOINT'",
 #endif
 		"perf probe [<options>] --funcs",
 		NULL
-};
+	};
 	struct option options[] = {
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show parsed arguments, etc)"),
 	OPT_BOOLEAN('q', "quiet", &params.quiet,
 		    "be quiet (do not show any mesages)"),
-	OPT_BOOLEAN('l', "list", &params.list_events,
-		    "list up current probe events"),
+	OPT_CALLBACK_DEFAULT('l', "list", NULL, "[GROUP:]EVENT",
+			     "list up probe events", opt_list_probe_event,
+			     DEFAULT_LIST_FILTER),
 	OPT_CALLBACK('d', "del", NULL, "[GROUP:]EVENT", "delete a probe event.",
 		opt_del_probe_event),
 	OPT_CALLBACK('a', "add", NULL,
@@ -448,7 +468,9 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 			pr_warning("  Error: Don't use --list with --exec.\n");
 			usage_with_options(probe_usage, options);
 		}
-		ret = show_perf_probe_events();
+		ret = show_perf_probe_events(params.filter);
+		strfilter__delete(params.filter);
+		params.filter = NULL;
 		if (ret < 0)
 			pr_err_with_code("  Error: Failed to show event list.", ret);
 		return ret;

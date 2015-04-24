@@ -2146,7 +2146,23 @@ static int show_perf_probe_event(struct perf_probe_event *pev,
 	return ret;
 }
 
-static int __show_perf_probe_events(int fd, bool is_kprobe)
+static bool filter_probe_trace_event(struct probe_trace_event *tev,
+				     struct strfilter *filter)
+{
+	char tmp[128];
+
+	/* At first, check the event name itself */
+	if (strfilter__compare(filter, tev->event))
+		return true;
+
+	/* Next, check the combination of name and group */
+	if (e_snprintf(tmp, 128, "%s:%s", tev->group, tev->event) < 0)
+		return false;
+	return strfilter__compare(filter, tmp);
+}
+
+static int __show_perf_probe_events(int fd, bool is_kprobe,
+				    struct strfilter *filter)
 {
 	int ret = 0;
 	struct probe_trace_event tev;
@@ -2164,12 +2180,15 @@ static int __show_perf_probe_events(int fd, bool is_kprobe)
 	strlist__for_each(ent, rawlist) {
 		ret = parse_probe_trace_command(ent->s, &tev);
 		if (ret >= 0) {
+			if (!filter_probe_trace_event(&tev, filter))
+				goto next;
 			ret = convert_to_perf_probe_event(&tev, &pev,
 								is_kprobe);
 			if (ret >= 0)
 				ret = show_perf_probe_event(&pev,
 							    tev.point.module);
 		}
+next:
 		clear_perf_probe_event(&pev);
 		clear_probe_trace_event(&tev);
 		if (ret < 0)
@@ -2181,7 +2200,7 @@ static int __show_perf_probe_events(int fd, bool is_kprobe)
 }
 
 /* List up current perf-probe events */
-int show_perf_probe_events(void)
+int show_perf_probe_events(struct strfilter *filter)
 {
 	int kp_fd, up_fd, ret;
 
@@ -2193,7 +2212,7 @@ int show_perf_probe_events(void)
 
 	kp_fd = open_kprobe_events(false);
 	if (kp_fd >= 0) {
-		ret = __show_perf_probe_events(kp_fd, true);
+		ret = __show_perf_probe_events(kp_fd, true, filter);
 		close(kp_fd);
 		if (ret < 0)
 			goto out;
@@ -2207,7 +2226,7 @@ int show_perf_probe_events(void)
 	}
 
 	if (up_fd >= 0) {
-		ret = __show_perf_probe_events(up_fd, false);
+		ret = __show_perf_probe_events(up_fd, false, filter);
 		close(up_fd);
 	}
 out:
