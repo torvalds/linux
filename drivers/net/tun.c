@@ -208,7 +208,8 @@ struct tun_struct {
 
 static inline bool tun_is_little_endian(struct tun_struct *tun)
 {
-	return tun->flags & TUN_VNET_LE;
+	return tun->flags & TUN_VNET_LE ||
+		virtio_legacy_is_little_endian();
 }
 
 static inline u16 tun16_to_cpu(struct tun_struct *tun, __virtio16 val)

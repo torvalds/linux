@@ -228,7 +228,8 @@ static inline void vringh_notify(struct vringh *vrh)
 
 static inline bool vringh_is_little_endian(const struct vringh *vrh)
 {
-	return vrh->little_endian;
+	return vrh->little_endian ||
+		virtio_legacy_is_little_endian();
 }
 
 static inline u16 vringh16_to_cpu(const struct vringh *vrh, __virtio16 val)

@@ -207,7 +207,8 @@ int virtqueue_set_affinity(struct virtqueue *vq, int cpu)
 
 static inline bool virtio_is_little_endian(struct virtio_device *vdev)
 {
-	return virtio_has_feature(vdev, VIRTIO_F_VERSION_1);
+	return virtio_has_feature(vdev, VIRTIO_F_VERSION_1) ||
+		virtio_legacy_is_little_endian();
 }
 
 /* Memory accessors */

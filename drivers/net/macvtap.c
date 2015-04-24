@@ -51,7 +51,8 @@ struct macvtap_queue {
 
 static inline bool macvtap_is_little_endian(struct macvtap_queue *q)
 {
-	return q->flags & MACVTAP_VNET_LE;
+	return q->flags & MACVTAP_VNET_LE ||
+		virtio_legacy_is_little_endian();
 }
 
 static inline u16 macvtap16_to_cpu(struct macvtap_queue *q, __virtio16 val)
