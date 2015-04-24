@@ -16,7 +16,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/kmod.h>
 #include <linux/device.h>
 #include <linux/init.h>
 #include <linux/cache.h>
@@ -129,125 +128,11 @@ static int spi_uevent(struct device *dev, struct kobj_uevent_env *env)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int spi_legacy_suspend(struct device *dev, pm_message_t message)
-{
-	int			value = 0;
-	struct spi_driver	*drv = to_spi_driver(dev->driver);
-
-	/* suspend will stop irqs and dma; no more i/o */
-	if (drv) {
-		if (drv->suspend)
-			value = drv->suspend(to_spi_device(dev), message);
-		else
-			dev_dbg(dev, "... can't suspend\n");
-	}
-	return value;
-}
-
-static int spi_legacy_resume(struct device *dev)
-{
-	int			value = 0;
-	struct spi_driver	*drv = to_spi_driver(dev->driver);
-
-	/* resume may restart the i/o queue */
-	if (drv) {
-		if (drv->resume)
-			value = drv->resume(to_spi_device(dev));
-		else
-			dev_dbg(dev, "... can't resume\n");
-	}
-	return value;
-}
-
-static int spi_pm_suspend(struct device *dev)
-{
-	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
-
-	if (pm)
-		return pm_generic_suspend(dev);
-	else
-		return spi_legacy_suspend(dev, PMSG_SUSPEND);
-}
-
-static int spi_pm_resume(struct device *dev)
-{
-	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
-
-	if (pm)
-		return pm_generic_resume(dev);
-	else
-		return spi_legacy_resume(dev);
-}
-
-static int spi_pm_freeze(struct device *dev)
-{
-	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
-
-	if (pm)
-		return pm_generic_freeze(dev);
-	else
-		return spi_legacy_suspend(dev, PMSG_FREEZE);
-}
-
-static int spi_pm_thaw(struct device *dev)
-{
-	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
-
-	if (pm)
-		return pm_generic_thaw(dev);
-	else
-		return spi_legacy_resume(dev);
-}
-
-static int spi_pm_poweroff(struct device *dev)
-{
-	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
-
-	if (pm)
-		return pm_generic_poweroff(dev);
-	else
-		return spi_legacy_suspend(dev, PMSG_HIBERNATE);
-}
-
-static int spi_pm_restore(struct device *dev)
-{
-	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
-
-	if (pm)
-		return pm_generic_restore(dev);
-	else
-		return spi_legacy_resume(dev);
-}
-#else
-#define spi_pm_suspend	NULL
-#define spi_pm_resume	NULL
-#define spi_pm_freeze	NULL
-#define spi_pm_thaw	NULL
-#define spi_pm_poweroff	NULL
-#define spi_pm_restore	NULL
-#endif
-
-static const struct dev_pm_ops spi_pm = {
-	.suspend = spi_pm_suspend,
-	.resume = spi_pm_resume,
-	.freeze = spi_pm_freeze,
-	.thaw = spi_pm_thaw,
-	.poweroff = spi_pm_poweroff,
-	.restore = spi_pm_restore,
-	SET_RUNTIME_PM_OPS(
-		pm_generic_runtime_suspend,
-		pm_generic_runtime_resume,
-		NULL
-	)
-};
-
 struct bus_type spi_bus_type = {
 	.name		= "spi",
 	.dev_groups	= spi_dev_groups,
 	.match		= spi_match_device,
 	.uevent		= spi_uevent,
-	.pm		= &spi_pm,
 };
 EXPORT_SYMBOL_GPL(spi_bus_type);
 
@@ -698,6 +583,15 @@ static int spi_unmap_msg(struct spi_master *master, struct spi_message *msg)
 	rx_dev = master->dma_rx->device->dev;
 
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
+		/*
+		 * Restore the original value of tx_buf or rx_buf if they are
+		 * NULL.
+		 */
+		if (xfer->tx_buf == master->dummy_tx)
+			xfer->tx_buf = NULL;
+		if (xfer->rx_buf == master->dummy_rx)
+			xfer->rx_buf = NULL;
+
 		if (!master->can_dma(master, msg->spi, xfer))
 			continue;
 
@@ -850,6 +744,9 @@ out:
 
 	if (msg->status == -EINPROGRESS)
 		msg->status = ret;
+
+	if (msg->status && master->handle_err)
+		master->handle_err(master, msg);
 
 	spi_finalize_current_message(master);
 
@@ -1360,7 +1257,6 @@ of_register_spi_device(struct spi_master *master, struct device_node *nc)
 	spi->dev.of_node = nc;
 
 	/* Register the new device */
-	request_module("%s%s", SPI_MODULE_PREFIX, spi->modalias);
 	rc = spi_add_device(spi);
 	if (rc) {
 		dev_err(&master->dev, "spi_device register error %s\n",
@@ -1893,6 +1789,8 @@ int spi_setup(struct spi_device *spi)
 
 	if (!spi->max_speed_hz)
 		spi->max_speed_hz = spi->master->max_speed_hz;
+
+	spi_set_cs(spi, false);
 
 	if (spi->master->setup)
 		status = spi->master->setup(spi);
