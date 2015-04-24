@@ -71,4 +71,13 @@ bool strfilter__compare(struct strfilter *filter, const char *str);
  */
 void strfilter__delete(struct strfilter *filter);
 
+/**
+ * strfilter__string - Reconstruct a rule string from filter
+ * @filter: String filter to reconstruct
+ *
+ * Reconstruct a rule string from @filter. This will be good for
+ * debug messages. Note that returning string must be freed afterward.
+ */
+char *strfilter__string(struct strfilter *filter);
+
 #endif
