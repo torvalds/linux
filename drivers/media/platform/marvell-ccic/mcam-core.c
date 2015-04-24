@@ -138,8 +138,8 @@ static struct mcam_format_struct {
 		.planar		= true,
 	},
 	{
-		.desc		= "RGB 444",
-		.pixelformat	= V4L2_PIX_FMT_RGB444,
+		.desc		= "XRGB 444",
+		.pixelformat	= V4L2_PIX_FMT_XRGB444,
 		.mbus_code	= MEDIA_BUS_FMT_RGB444_2X8_PADHI_LE,
 		.bpp		= 2,
 		.planar		= false,
@@ -777,10 +777,9 @@ static void mcam_ctlr_image(struct mcam_camera *cam)
 		mcam_reg_write_mask(cam, REG_CTRL0,
 			C0_DF_YUV | C0_YUV_PACKED | C0_YUVE_SWAP24, C0_DF_MASK);
 		break;
-	case V4L2_PIX_FMT_RGB444:
+	case V4L2_PIX_FMT_XRGB444:
 		mcam_reg_write_mask(cam, REG_CTRL0,
-			C0_DF_RGB | C0_RGBF_444 | C0_RGB4_XRGB, C0_DF_MASK);
-		/* Alpha value? */
+			C0_DF_RGB | C0_RGBF_444 | C0_RGB4_XBGR, C0_DF_MASK);
 		break;
 	case V4L2_PIX_FMT_RGB565:
 		mcam_reg_write_mask(cam, REG_CTRL0,
