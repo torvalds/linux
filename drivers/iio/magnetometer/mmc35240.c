@@ -17,6 +17,7 @@
 #include <linux/i2c.h>
 #include <linux/delay.h>
 #include <linux/regmap.h>
+#include <linux/acpi.h>
 #include <linux/pm.h>
 
 #include <linux/iio/iio.h>
@@ -482,6 +483,12 @@ static const struct dev_pm_ops mmc35240_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(mmc35240_suspend, mmc35240_resume)
 };
 
+static const struct acpi_device_id mmc35240_acpi_match[] = {
+	{"MMC35240", 0},
+	{ },
+};
+MODULE_DEVICE_TABLE(acpi, mmc35240_acpi_match);
+
 static const struct i2c_device_id mmc35240_id[] = {
 	{"MMC35240", 0},
 	{}
@@ -492,6 +499,7 @@ static struct i2c_driver mmc35240_driver = {
 	.driver = {
 		.name = MMC35240_DRV_NAME,
 		.pm = &mmc35240_pm_ops,
+		.acpi_match_table = ACPI_PTR(mmc35240_acpi_match),
 	},
 	.probe		= mmc35240_probe,
 	.id_table	= mmc35240_id,
