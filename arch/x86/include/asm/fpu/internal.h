@@ -33,6 +33,8 @@ int ia32_setup_frame(int sig, struct ksignal *ksig,
 # define ia32_setup_rt_frame	__setup_rt_frame
 #endif
 
+#define	MXCSR_DEFAULT		0x1f80
+
 extern unsigned int mxcsr_feature_mask;
 extern void fpu__cpu_init(void);
 extern void eager_fpu_init(void);

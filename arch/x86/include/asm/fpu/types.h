@@ -4,8 +4,6 @@
 #ifndef _ASM_X86_FPU_H
 #define _ASM_X86_FPU_H
 
-#define	MXCSR_DEFAULT		0x1f80
-
 struct i387_fsave_struct {
 	u32			cwd;	/* FPU Control Word		*/
 	u32			swd;	/* FPU Status Word		*/
