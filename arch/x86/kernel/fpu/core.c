@@ -438,7 +438,7 @@ int xfpregs_get(struct task_struct *target, const struct user_regset *regset,
 	sanitize_i387_state(target);
 
 	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				   &target->thread.fpu.state->fxsave, 0, -1);
+				   &fpu->state->fxsave, 0, -1);
 }
 
 int xfpregs_set(struct task_struct *target, const struct user_regset *regset,
@@ -458,19 +458,19 @@ int xfpregs_set(struct task_struct *target, const struct user_regset *regset,
 	sanitize_i387_state(target);
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
-				 &target->thread.fpu.state->fxsave, 0, -1);
+				 &fpu->state->fxsave, 0, -1);
 
 	/*
 	 * mxcsr reserved bits must be masked to zero for security reasons.
 	 */
-	target->thread.fpu.state->fxsave.mxcsr &= mxcsr_feature_mask;
+	fpu->state->fxsave.mxcsr &= mxcsr_feature_mask;
 
 	/*
 	 * update the header bits in the xsave header, indicating the
 	 * presence of FP and SSE state.
 	 */
 	if (cpu_has_xsave)
-		target->thread.fpu.state->xsave.xsave_hdr.xstate_bv |= XSTATE_FPSSE;
+		fpu->state->xsave.xsave_hdr.xstate_bv |= XSTATE_FPSSE;
 
 	return ret;
 }
@@ -490,7 +490,7 @@ int xstateregs_get(struct task_struct *target, const struct user_regset *regset,
 	if (ret)
 		return ret;
 
-	xsave = &target->thread.fpu.state->xsave;
+	xsave = &fpu->state->xsave;
 
 	/*
 	 * Copy the 48bytes defined by the software first into the xstate
@@ -521,7 +521,7 @@ int xstateregs_set(struct task_struct *target, const struct user_regset *regset,
 	if (ret)
 		return ret;
 
-	xsave = &target->thread.fpu.state->xsave;
+	xsave = &fpu->state->xsave;
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, xsave, 0, -1);
 	/*
@@ -533,6 +533,7 @@ int xstateregs_set(struct task_struct *target, const struct user_regset *regset,
 	 * These bits must be zero.
 	 */
 	memset(&xsave->xsave_hdr.reserved, 0, 48);
+
 	return ret;
 }
 
@@ -690,7 +691,7 @@ int fpregs_get(struct task_struct *target, const struct user_regset *regset,
 
 	if (!cpu_has_fxsr)
 		return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-					   &target->thread.fpu.state->fsave, 0,
+					   &fpu->state->fsave, 0,
 					   -1);
 
 	sanitize_i387_state(target);
@@ -724,7 +725,7 @@ int fpregs_set(struct task_struct *target, const struct user_regset *regset,
 
 	if (!cpu_has_fxsr)
 		return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
-					  &target->thread.fpu.state->fsave, 0,
+					  &fpu->state->fsave, 0,
 					  -1);
 
 	if (pos > 0 || count < sizeof(env))
@@ -739,7 +740,7 @@ int fpregs_set(struct task_struct *target, const struct user_regset *regset,
 	 * presence of FP.
 	 */
 	if (cpu_has_xsave)
-		target->thread.fpu.state->xsave.xsave_hdr.xstate_bv |= XSTATE_FP;
+		fpu->state->xsave.xsave_hdr.xstate_bv |= XSTATE_FP;
 	return ret;
 }
 
