@@ -381,11 +381,11 @@ void fpu__restore(void)
 }
 EXPORT_SYMBOL_GPL(fpu__restore);
 
-void fpu__flush_thread(struct task_struct *tsk)
+void fpu__clear(struct task_struct *tsk)
 {
 	struct fpu *fpu = &tsk->thread.fpu;
 
-	WARN_ON(tsk != current);
+	WARN_ON_ONCE(tsk != current); /* Almost certainly an anomaly */
 
 	if (!use_eager_fpu()) {
 		/* FPU state will be reallocated lazily at the first use. */

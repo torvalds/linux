@@ -20,7 +20,7 @@ struct user_i387_struct;
 
 extern int fpstate_alloc_init(struct fpu *fpu);
 extern void fpstate_init(struct fpu *fpu);
-extern void fpu__flush_thread(struct task_struct *tsk);
+extern void fpu__clear(struct task_struct *tsk);
 
 extern int dump_fpu(struct pt_regs *, struct user_i387_struct *);
 extern void fpu__restore(void);
