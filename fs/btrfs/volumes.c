@@ -3908,9 +3908,9 @@ int btrfs_create_uuid_tree(struct btrfs_fs_info *fs_info)
 	uuid_root = btrfs_create_tree(trans, fs_info,
 				      BTRFS_UUID_TREE_OBJECTID);
 	if (IS_ERR(uuid_root)) {
-		btrfs_abort_transaction(trans, tree_root,
-					PTR_ERR(uuid_root));
-		return PTR_ERR(uuid_root);
+		ret = PTR_ERR(uuid_root);
+		btrfs_abort_transaction(trans, tree_root, ret);
+		return ret;
 	}
 
 	fs_info->uuid_root = uuid_root;
