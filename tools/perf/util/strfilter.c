@@ -170,6 +170,46 @@ struct strfilter *strfilter__new(const char *rules, const char **err)
 	return filter;
 }
 
+static int strfilter__append(struct strfilter *filter, bool _or,
+			     const char *rules, const char **err)
+{
+	struct strfilter_node *right, *root;
+	const char *ep = NULL;
+
+	if (!filter || !rules)
+		return -EINVAL;
+
+	right = strfilter_node__new(rules, &ep);
+	if (!right || *ep != '\0') {
+		if (err)
+			*err = ep;
+		goto error;
+	}
+	root = strfilter_node__alloc(_or ? OP_or : OP_and, filter->root, right);
+	if (!root) {
+		ep = NULL;
+		goto error;
+	}
+
+	filter->root = root;
+	return 0;
+
+error:
+	strfilter_node__delete(right);
+	return ep ? -EINVAL : -ENOMEM;
+}
+
+int strfilter__or(struct strfilter *filter, const char *rules, const char **err)
+{
+	return strfilter__append(filter, true, rules, err);
+}
+
+int strfilter__and(struct strfilter *filter, const char *rules,
+		   const char **err)
+{
+	return strfilter__append(filter, false, rules, err);
+}
+
 static bool strfilter_node__compare(struct strfilter_node *node,
 				    const char *str)
 {
