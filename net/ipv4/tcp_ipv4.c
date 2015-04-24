@@ -1348,7 +1348,8 @@ static struct sock *tcp_v4_hnd_req(struct sock *sk, struct sk_buff *skb)
 	req = inet_csk_search_req(sk, th->source, iph->saddr, iph->daddr);
 	if (req) {
 		nsk = tcp_check_req(sk, skb, req, false);
-		reqsk_put(req);
+		if (!nsk)
+			reqsk_put(req);
 		return nsk;
 	}
 
