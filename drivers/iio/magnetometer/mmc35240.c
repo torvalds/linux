@@ -17,6 +17,7 @@
 #include <linux/i2c.h>
 #include <linux/delay.h>
 #include <linux/regmap.h>
+#include <linux/pm.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -448,6 +449,39 @@ static int mmc35240_probe(struct i2c_client *client,
 	return devm_iio_device_register(&client->dev, indio_dev);
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int mmc35240_suspend(struct device *dev)
+{
+	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
+	struct mmc35240_data *data = iio_priv(indio_dev);
+
+	regcache_cache_only(data->regmap, true);
+
+	return 0;
+}
+
+static int mmc35240_resume(struct device *dev)
+{
+	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
+	struct mmc35240_data *data = iio_priv(indio_dev);
+	int ret;
+
+	regcache_mark_dirty(data->regmap);
+	ret = regcache_sync_region(data->regmap, MMC35240_REG_CTRL0,
+				   MMC35240_REG_CTRL1);
+	if (ret < 0)
+		dev_err(dev, "Failed to restore control registers\n");
+
+	regcache_cache_only(data->regmap, false);
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops mmc35240_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(mmc35240_suspend, mmc35240_resume)
+};
+
 static const struct i2c_device_id mmc35240_id[] = {
 	{"MMC35240", 0},
 	{}
@@ -457,6 +491,7 @@ MODULE_DEVICE_TABLE(i2c, mmc35240_id);
 static struct i2c_driver mmc35240_driver = {
 	.driver = {
 		.name = MMC35240_DRV_NAME,
+		.pm = &mmc35240_pm_ops,
 	},
 	.probe		= mmc35240_probe,
 	.id_table	= mmc35240_id,
