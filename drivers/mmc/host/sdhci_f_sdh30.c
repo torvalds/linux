@@ -114,8 +114,7 @@ static int sdhci_f_sdh30_probe(struct platform_device *pdev)
 		return irq;
 	}
 
-	host = sdhci_alloc_host(dev, sizeof(struct sdhci_host) +
-						sizeof(struct f_sdhost_priv));
+	host = sdhci_alloc_host(dev, sizeof(struct f_sdhost_priv));
 	if (IS_ERR(host))
 		return PTR_ERR(host);
 
