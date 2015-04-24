@@ -60,7 +60,7 @@
 #include <asm/mtrr.h>
 #include <asm/mce.h>
 #include <linux/kernel_stat.h>
-#include <asm/fpu-internal.h> /* Ugh! */
+#include <asm/fpu/internal.h> /* Ugh! */
 #include <asm/xcr.h>
 #include <asm/pvclock.h>
 #include <asm/div64.h>

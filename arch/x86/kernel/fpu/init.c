@@ -1,7 +1,7 @@
 /*
  * x86 FPU boot time init code
  */
-#include <asm/fpu-internal.h>
+#include <asm/fpu/internal.h>
 #include <asm/tlbflush.h>
 
 /*

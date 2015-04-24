@@ -15,7 +15,7 @@
 #include <asm/mmu_context.h>
 #include <asm/mpx.h>
 #include <asm/processor.h>
-#include <asm/fpu-internal.h>
+#include <asm/fpu/internal.h>
 
 static const char *mpx_mapping_name(struct vm_area_struct *vma)
 {

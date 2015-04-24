@@ -5,7 +5,7 @@
  *  General FPU state handling cleanups
  *	Gareth Hughes <gareth@valinux.com>, May 2000
  */
-#include <asm/fpu-internal.h>
+#include <asm/fpu/internal.h>
 
 /*
  * Track whether the kernel is using the FPU state

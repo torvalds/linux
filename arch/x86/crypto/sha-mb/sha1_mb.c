@@ -68,7 +68,7 @@
 #include <asm/xcr.h>
 #include <asm/fpu/xsave.h>
 #include <linux/hardirq.h>
-#include <asm/fpu-internal.h>
+#include <asm/fpu/internal.h>
 #include "sha_mb_ctx.h"
 
 #define FLUSH_INTERVAL 1000 /* in usec */

@@ -38,7 +38,7 @@
 
 #include <asm/pgtable.h>
 #include <asm/processor.h>
-#include <asm/fpu-internal.h>
+#include <asm/fpu/internal.h>
 #include <asm/mmu_context.h>
 #include <asm/prctl.h>
 #include <asm/desc.h>

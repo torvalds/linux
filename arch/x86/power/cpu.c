@@ -21,7 +21,7 @@
 #include <asm/xcr.h>
 #include <asm/suspend.h>
 #include <asm/debugreg.h>
-#include <asm/fpu-internal.h> /* pcntxt_mask */
+#include <asm/fpu/internal.h> /* pcntxt_mask */
 #include <asm/cpu.h>
 
 #ifdef CONFIG_X86_32

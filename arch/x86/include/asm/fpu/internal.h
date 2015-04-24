@@ -7,8 +7,8 @@
  * x86-64 work by Andi Kleen 2002
  */
 
-#ifndef _FPU_INTERNAL_H
-#define _FPU_INTERNAL_H
+#ifndef _ASM_X86_FPU_INTERNAL_H
+#define _ASM_X86_FPU_INTERNAL_H
 
 #include <linux/regset.h>
 #include <linux/compat.h>
@@ -553,4 +553,4 @@ alloc_mathframe(unsigned long sp, int ia32_frame, unsigned long *buf_fx,
 	return sp;
 }
 
-#endif
+#endif /* _ASM_X86_FPU_INTERNAL_H */
