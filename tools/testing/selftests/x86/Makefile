@@ -1,6 +1,6 @@
 .PHONY: all all_32 all_64 check_build32 clean run_tests
 
-TARGETS_C_BOTHBITS := sigreturn single_step_syscall
+TARGETS_C_BOTHBITS := sigreturn single_step_syscall sysret_ss_attrs
 
 BINARIES_32 := $(TARGETS_C_BOTHBITS:%=%_32)
 BINARIES_64 := $(TARGETS_C_BOTHBITS:%=%_64)
@@ -46,3 +46,6 @@ check_build32:
 	  echo "  yum install glibc-devel.*i686";			\
 	  exit 1;							\
 	fi
+
+# Some tests have additional dependencies.
+sysret_ss_attrs_64: thunks.S
