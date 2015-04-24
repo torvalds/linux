@@ -1119,10 +1119,7 @@ static int flush_dirty_cache(struct inode *inode)
 }
 
 static void noinline_for_stack
-cleanup_write_cache_enospc(struct inode *inode,
-			   struct btrfs_io_ctl *io_ctl,
-			   struct extent_state **cached_state,
-			   struct list_head *bitmap_list)
+cleanup_bitmap_list(struct list_head *bitmap_list)
 {
 	struct list_head *pos, *n;
 
@@ -1131,6 +1128,14 @@ cleanup_write_cache_enospc(struct inode *inode,
 			list_entry(pos, struct btrfs_free_space, list);
 		list_del_init(&entry->list);
 	}
+}
+
+static void noinline_for_stack
+cleanup_write_cache_enospc(struct inode *inode,
+			   struct btrfs_io_ctl *io_ctl,
+			   struct extent_state **cached_state,
+			   struct list_head *bitmap_list)
+{
 	io_ctl_drop_pages(io_ctl);
 	unlock_extent_cached(&BTRFS_I(inode)->io_tree, 0,
 			     i_size_read(inode) - 1, cached_state,
@@ -1266,11 +1271,8 @@ static int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 	ret = write_cache_extent_entries(io_ctl, ctl,
 					 block_group, &entries, &bitmaps,
 					 &bitmap_list);
-	spin_unlock(&ctl->tree_lock);
-	if (ret) {
-		mutex_unlock(&ctl->cache_writeout_mutex);
-		goto out_nospc;
-	}
+	if (ret)
+		goto out_nospc_locked;
 
 	/*
 	 * Some spaces that are freed in the current transaction are pinned,
@@ -1281,17 +1283,14 @@ static int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 	 * the dirty list and redo it.  No locking needed
 	 */
 	ret = write_pinned_extent_entries(root, block_group, io_ctl, &entries);
-	if (ret) {
-		mutex_unlock(&ctl->cache_writeout_mutex);
-		goto out_nospc;
-	}
+	if (ret)
+		goto out_nospc_locked;
 
 	/*
 	 * At last, we write out all the bitmaps and keep cache_writeout_mutex
 	 * locked while doing it because a concurrent trim can be manipulating
 	 * or freeing the bitmap.
 	 */
-	spin_lock(&ctl->tree_lock);
 	ret = write_bitmap_entries(io_ctl, &bitmap_list);
 	spin_unlock(&ctl->tree_lock);
 	mutex_unlock(&ctl->cache_writeout_mutex);
@@ -1343,6 +1342,11 @@ out:
 	if (must_iput)
 		iput(inode);
 	return ret;
+
+out_nospc_locked:
+	cleanup_bitmap_list(&bitmap_list);
+	spin_unlock(&ctl->tree_lock);
+	mutex_unlock(&ctl->cache_writeout_mutex);
 
 out_nospc:
 	cleanup_write_cache_enospc(inode, io_ctl, &cached_state, &bitmap_list);
