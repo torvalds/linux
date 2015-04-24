@@ -68,18 +68,26 @@ void fpu__init_check_bugs(void)
  * Boot time FPU feature detection code:
  */
 unsigned int mxcsr_feature_mask __read_mostly = 0xffffffffu;
+
 unsigned int xstate_size;
 EXPORT_SYMBOL_GPL(xstate_size);
-static struct i387_fxsave_struct fx_scratch;
 
 static void mxcsr_feature_mask_init(void)
 {
-	unsigned long mask = 0;
+	unsigned int mask = 0;
 
 	if (cpu_has_fxsr) {
-		memset(&fx_scratch, 0, sizeof(struct i387_fxsave_struct));
-		asm volatile("fxsave %0" : "+m" (fx_scratch));
-		mask = fx_scratch.mxcsr_mask;
+		struct i387_fxsave_struct fx_tmp __aligned(32) = { };
+
+		asm volatile("fxsave %0" : "+m" (fx_tmp));
+
+		mask = fx_tmp.mxcsr_mask;
+
+		/*
+		 * If zero then use the default features mask,
+		 * which has all features set, except the
+		 * denormals-are-zero feature bit:
+		 */
 		if (mask == 0)
 			mask = 0x0000ffbf;
 	}
