@@ -346,6 +346,11 @@ of ftrace. Here is a list of some of the key files:
 	  x86-tsc: Architectures may define their own clocks. For
 	  	   example, x86 uses its own TSC cycle clock here.
 
+	  ppc-tb: This uses the powerpc timebase register value.
+		  This is in sync across CPUs and can also be used
+		  to correlate events across hypervisor/guest if
+		  tb_offset is known.
+
 	To set a clock, simply echo the clock name into this file.
 
 	  echo global > trace_clock
