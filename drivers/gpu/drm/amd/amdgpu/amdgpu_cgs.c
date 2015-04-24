@@ -21,7 +21,11 @@
  *
  *
  */
+#include <linux/list.h>
+#include <linux/slab.h>
 #include <linux/pci.h>
+#include <drm/drmP.h>
+#include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
 #include "cgs_linux.h"
 #include "atom.h"
@@ -39,6 +43,30 @@ static int amdgpu_cgs_gpu_mem_info(void *cgs_device, enum cgs_gpu_mem_type type,
 				   uint64_t *mc_start, uint64_t *mc_size,
 				   uint64_t *mem_size)
 {
+	CGS_FUNC_ADEV;
+	switch(type) {
+	case CGS_GPU_MEM_TYPE__VISIBLE_CONTIG_FB:
+	case CGS_GPU_MEM_TYPE__VISIBLE_FB:
+		*mc_start = 0;
+		*mc_size = adev->mc.visible_vram_size;
+		*mem_size = adev->mc.visible_vram_size - adev->vram_pin_size;
+		break;
+	case CGS_GPU_MEM_TYPE__INVISIBLE_CONTIG_FB:
+	case CGS_GPU_MEM_TYPE__INVISIBLE_FB:
+		*mc_start = adev->mc.visible_vram_size;
+		*mc_size = adev->mc.real_vram_size - adev->mc.visible_vram_size;
+		*mem_size = *mc_size;
+		break;
+	case CGS_GPU_MEM_TYPE__GART_CACHEABLE:
+	case CGS_GPU_MEM_TYPE__GART_WRITECOMBINE:
+		*mc_start = adev->mc.gtt_start;
+		*mc_size = adev->mc.gtt_size;
+		*mem_size = adev->mc.gtt_size - adev->gart_pin_size;
+		break;
+	default:
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -47,11 +75,43 @@ static int amdgpu_cgs_gmap_kmem(void *cgs_device, void *kmem,
 				uint64_t min_offset, uint64_t max_offset,
 				cgs_handle_t *kmem_handle, uint64_t *mcaddr)
 {
-	return 0;
+	CGS_FUNC_ADEV;
+	int ret;
+	struct amdgpu_bo *bo;
+	struct page *kmem_page = vmalloc_to_page(kmem);
+	int npages = ALIGN(size, PAGE_SIZE) >> PAGE_SHIFT;
+
+	struct sg_table *sg = drm_prime_pages_to_sg(&kmem_page, npages);
+	ret = amdgpu_bo_create(adev, size, PAGE_SIZE, false,
+			       AMDGPU_GEM_DOMAIN_GTT, 0, sg, &bo);
+	if (ret)
+		return ret;
+	ret = amdgpu_bo_reserve(bo, false);
+	if (unlikely(ret != 0))
+		return ret;
+
+	/* pin buffer into GTT */
+	ret = amdgpu_bo_pin_restricted(bo, AMDGPU_GEM_DOMAIN_GTT,
+				       min_offset, max_offset, mcaddr);
+	amdgpu_bo_unreserve(bo);
+
+	*kmem_handle = (cgs_handle_t)bo;
+	return ret;
 }
 
 static int amdgpu_cgs_gunmap_kmem(void *cgs_device, cgs_handle_t kmem_handle)
 {
+	struct amdgpu_bo *obj = (struct amdgpu_bo *)kmem_handle;
+
+	if (obj) {
+		int r = amdgpu_bo_reserve(obj, false);
+		if (likely(r == 0)) {
+			amdgpu_bo_unpin(obj);
+			amdgpu_bo_unreserve(obj);
+		}
+		amdgpu_bo_unref(&obj);
+
+	}
 	return 0;
 }
 
@@ -61,46 +121,200 @@ static int amdgpu_cgs_alloc_gpu_mem(void *cgs_device,
 				    uint64_t min_offset, uint64_t max_offset,
 				    cgs_handle_t *handle)
 {
-	return 0;
+	CGS_FUNC_ADEV;
+	uint16_t flags = 0;
+	int ret = 0;
+	uint32_t domain = 0;
+	struct amdgpu_bo *obj;
+	struct ttm_placement placement;
+	struct ttm_place place;
+
+	if (min_offset > max_offset) {
+		BUG_ON(1);
+		return -EINVAL;
+	}
+
+	/* fail if the alignment is not a power of 2 */
+	if (((align != 1) && (align & (align - 1)))
+	    || size == 0 || align == 0)
+		return -EINVAL;
+
+
+	switch(type) {
+	case CGS_GPU_MEM_TYPE__VISIBLE_CONTIG_FB:
+	case CGS_GPU_MEM_TYPE__VISIBLE_FB:
+		flags = AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED;
+		domain = AMDGPU_GEM_DOMAIN_VRAM;
+		if (max_offset > adev->mc.real_vram_size)
+			return -EINVAL;
+		place.fpfn = min_offset >> PAGE_SHIFT;
+		place.lpfn = max_offset >> PAGE_SHIFT;
+		place.flags = TTM_PL_FLAG_WC | TTM_PL_FLAG_UNCACHED |
+			TTM_PL_FLAG_VRAM;
+		break;
+	case CGS_GPU_MEM_TYPE__INVISIBLE_CONTIG_FB:
+	case CGS_GPU_MEM_TYPE__INVISIBLE_FB:
+		flags = AMDGPU_GEM_CREATE_NO_CPU_ACCESS;
+		domain = AMDGPU_GEM_DOMAIN_VRAM;
+		if (adev->mc.visible_vram_size < adev->mc.real_vram_size) {
+			place.fpfn =
+				max(min_offset, adev->mc.visible_vram_size) >> PAGE_SHIFT;
+			place.lpfn =
+				min(max_offset, adev->mc.real_vram_size) >> PAGE_SHIFT;
+			place.flags = TTM_PL_FLAG_WC | TTM_PL_FLAG_UNCACHED |
+				TTM_PL_FLAG_VRAM;
+		}
+
+		break;
+	case CGS_GPU_MEM_TYPE__GART_CACHEABLE:
+		domain = AMDGPU_GEM_DOMAIN_GTT;
+		place.fpfn = min_offset >> PAGE_SHIFT;
+		place.lpfn = max_offset >> PAGE_SHIFT;
+		place.flags = TTM_PL_FLAG_CACHED | TTM_PL_FLAG_TT;
+		break;
+	case CGS_GPU_MEM_TYPE__GART_WRITECOMBINE:
+		flags = AMDGPU_GEM_CREATE_CPU_GTT_USWC;
+		domain = AMDGPU_GEM_DOMAIN_GTT;
+		place.fpfn = min_offset >> PAGE_SHIFT;
+		place.lpfn = max_offset >> PAGE_SHIFT;
+		place.flags = TTM_PL_FLAG_WC | TTM_PL_FLAG_TT |
+			TTM_PL_FLAG_UNCACHED;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+
+	*handle = 0;
+
+	placement.placement = &place;
+	placement.num_placement = 1;
+	placement.busy_placement = &place;
+	placement.num_busy_placement = 1;
+
+	ret = amdgpu_bo_create_restricted(adev, size, PAGE_SIZE,
+					  true, domain, flags,
+					  NULL, &placement, &obj);
+	if (ret) {
+		DRM_ERROR("(%d) bo create failed\n", ret);
+		return ret;
+	}
+	*handle = (cgs_handle_t)obj;
+
+	return ret;
 }
 
 static int amdgpu_cgs_import_gpu_mem(void *cgs_device, int dmabuf_fd,
 				     cgs_handle_t *handle)
 {
-	/* TODO */
+	CGS_FUNC_ADEV;
+	int r;
+	uint32_t dma_handle;
+	struct drm_gem_object *obj;
+	struct amdgpu_bo *bo;
+	struct drm_device *dev = adev->ddev;
+	struct drm_file *file_priv = NULL, *priv;
+
+	mutex_lock(&dev->struct_mutex);
+	list_for_each_entry(priv, &dev->filelist, lhead) {
+		rcu_read_lock();
+		if (priv->pid == get_pid(task_pid(current)))
+			file_priv = priv;
+		rcu_read_unlock();
+		if (file_priv)
+			break;
+	}
+	mutex_unlock(&dev->struct_mutex);
+	r = dev->driver->prime_fd_to_handle(dev,
+					    file_priv, dmabuf_fd,
+					    &dma_handle);
+	spin_lock(&file_priv->table_lock);
+
+	/* Check if we currently have a reference on the object */
+	obj = idr_find(&file_priv->object_idr, dma_handle);
+	if (obj == NULL) {
+		spin_unlock(&file_priv->table_lock);
+		return -EINVAL;
+	}
+	spin_unlock(&file_priv->table_lock);
+	bo = gem_to_amdgpu_bo(obj);
+	*handle = (cgs_handle_t)bo;
 	return 0;
 }
 
 static int amdgpu_cgs_free_gpu_mem(void *cgs_device, cgs_handle_t handle)
 {
-	/* TODO */
+	struct amdgpu_bo *obj = (struct amdgpu_bo *)handle;
+
+	if (obj) {
+		int r = amdgpu_bo_reserve(obj, false);
+		if (likely(r == 0)) {
+			amdgpu_bo_kunmap(obj);
+			amdgpu_bo_unpin(obj);
+			amdgpu_bo_unreserve(obj);
+		}
+		amdgpu_bo_unref(&obj);
+
+	}
 	return 0;
 }
 
 static int amdgpu_cgs_gmap_gpu_mem(void *cgs_device, cgs_handle_t handle,
 				   uint64_t *mcaddr)
 {
-	/* TODO */
-	return 0;
+	int r;
+	u64 min_offset, max_offset;
+	struct amdgpu_bo *obj = (struct amdgpu_bo *)handle;
+
+	WARN_ON_ONCE(obj->placement.num_placement > 1);
+
+	min_offset = obj->placements[0].fpfn << PAGE_SHIFT;
+	max_offset = obj->placements[0].lpfn << PAGE_SHIFT;
+
+	r = amdgpu_bo_reserve(obj, false);
+	if (unlikely(r != 0))
+		return r;
+	r = amdgpu_bo_pin_restricted(obj, AMDGPU_GEM_DOMAIN_GTT,
+				     min_offset, max_offset, mcaddr);
+	amdgpu_bo_unreserve(obj);
+	return r;
 }
 
 static int amdgpu_cgs_gunmap_gpu_mem(void *cgs_device, cgs_handle_t handle)
 {
-	/* TODO */
-	return 0;
+	int r;
+	struct amdgpu_bo *obj = (struct amdgpu_bo *)handle;
+	r = amdgpu_bo_reserve(obj, false);
+	if (unlikely(r != 0))
+		return r;
+	r = amdgpu_bo_unpin(obj);
+	amdgpu_bo_unreserve(obj);
+	return r;
 }
 
 static int amdgpu_cgs_kmap_gpu_mem(void *cgs_device, cgs_handle_t handle,
 				   void **map)
 {
-	/* TODO */
-	return 0;
+	int r;
+	struct amdgpu_bo *obj = (struct amdgpu_bo *)handle;
+	r = amdgpu_bo_reserve(obj, false);
+	if (unlikely(r != 0))
+		return r;
+	r = amdgpu_bo_kmap(obj, map);
+	amdgpu_bo_unreserve(obj);
+	return r;
 }
 
 static int amdgpu_cgs_kunmap_gpu_mem(void *cgs_device, cgs_handle_t handle)
 {
-	/* TODO */
-	return 0;
+	int r;
+	struct amdgpu_bo *obj = (struct amdgpu_bo *)handle;
+	r = amdgpu_bo_reserve(obj, false);
+	if (unlikely(r != 0))
+		return r;
+	amdgpu_bo_kunmap(obj);
+	amdgpu_bo_unreserve(obj);
+	return r;
 }
 
 static uint32_t amdgpu_cgs_read_register(void *cgs_device, unsigned offset)
