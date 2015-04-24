@@ -18,6 +18,9 @@
  * Authors: Waiman Long <waiman.long@hp.com>
  *          Peter Zijlstra <peterz@infradead.org>
  */
+
+#ifndef _GEN_PV_LOCK_SLOWPATH
+
 #include <linux/smp.h>
 #include <linux/bug.h>
 #include <linux/cpumask.h>
@@ -65,13 +68,21 @@
 
 #include "mcs_spinlock.h"
 
+#ifdef CONFIG_PARAVIRT_SPINLOCKS
+#define MAX_NODES	8
+#else
+#define MAX_NODES	4
+#endif
+
 /*
  * Per-CPU queue node structures; we can never have more than 4 nested
  * contexts: task, softirq, hardirq, nmi.
  *
  * Exactly fits one 64-byte cacheline on a 64-bit architecture.
+ *
+ * PV doubles the storage and uses the second cacheline for PV state.
  */
-static DEFINE_PER_CPU_ALIGNED(struct mcs_spinlock, mcs_nodes[4]);
+static DEFINE_PER_CPU_ALIGNED(struct mcs_spinlock, mcs_nodes[MAX_NODES]);
 
 /*
  * We must be able to distinguish between no-tail and the tail at 0:0,
@@ -220,6 +231,32 @@ static __always_inline void set_locked(struct qspinlock *lock)
 	WRITE_ONCE(l->locked, _Q_LOCKED_VAL);
 }
 
+
+/*
+ * Generate the native code for queued_spin_unlock_slowpath(); provide NOPs for
+ * all the PV callbacks.
+ */
+
+static __always_inline void __pv_init_node(struct mcs_spinlock *node) { }
+static __always_inline void __pv_wait_node(struct mcs_spinlock *node) { }
+static __always_inline void __pv_kick_node(struct mcs_spinlock *node) { }
+
+static __always_inline void __pv_wait_head(struct qspinlock *lock,
+					   struct mcs_spinlock *node) { }
+
+#define pv_enabled()		false
+
+#define pv_init_node		__pv_init_node
+#define pv_wait_node		__pv_wait_node
+#define pv_kick_node		__pv_kick_node
+#define pv_wait_head		__pv_wait_head
+
+#ifdef CONFIG_PARAVIRT_SPINLOCKS
+#define queued_spin_lock_slowpath	native_queued_spin_lock_slowpath
+#endif
+
+#endif /* _GEN_PV_LOCK_SLOWPATH */
+
 /**
  * queued_spin_lock_slowpath - acquire the queued spinlock
  * @lock: Pointer to queued spinlock structure
@@ -248,6 +285,9 @@ void queued_spin_lock_slowpath(struct qspinlock *lock, u32 val)
 	int idx;
 
 	BUILD_BUG_ON(CONFIG_NR_CPUS >= (1U << _Q_TAIL_CPU_BITS));
+
+	if (pv_enabled())
+		goto queue;
 
 	if (virt_queued_spin_lock(lock))
 		return;
@@ -325,6 +365,7 @@ queue:
 	node += idx;
 	node->locked = 0;
 	node->next = NULL;
+	pv_init_node(node);
 
 	/*
 	 * We touched a (possibly) cold cacheline in the per-cpu queue node;
@@ -350,6 +391,7 @@ queue:
 		prev = decode_tail(old);
 		WRITE_ONCE(prev->next, node);
 
+		pv_wait_node(node);
 		arch_mcs_spin_lock_contended(&node->locked);
 	}
 
@@ -365,6 +407,7 @@ queue:
 	 * does not imply a full barrier.
 	 *
 	 */
+	pv_wait_head(lock, node);
 	while ((val = smp_load_acquire(&lock->val.counter)) & _Q_LOCKED_PENDING_MASK)
 		cpu_relax();
 
@@ -397,6 +440,7 @@ queue:
 		cpu_relax();
 
 	arch_mcs_spin_unlock_contended(&next->locked);
+	pv_kick_node(next);
 
 release:
 	/*
@@ -405,3 +449,25 @@ release:
 	this_cpu_dec(mcs_nodes[0].count);
 }
 EXPORT_SYMBOL(queued_spin_lock_slowpath);
+
+/*
+ * Generate the paravirt code for queued_spin_unlock_slowpath().
+ */
+#if !defined(_GEN_PV_LOCK_SLOWPATH) && defined(CONFIG_PARAVIRT_SPINLOCKS)
+#define _GEN_PV_LOCK_SLOWPATH
+
+#undef  pv_enabled
+#define pv_enabled()	true
+
+#undef pv_init_node
+#undef pv_wait_node
+#undef pv_kick_node
+#undef pv_wait_head
+
+#undef  queued_spin_lock_slowpath
+#define queued_spin_lock_slowpath	__pv_queued_spin_lock_slowpath
+
+#include "qspinlock_paravirt.h"
+#include "qspinlock.c"
+
+#endif
