@@ -113,7 +113,6 @@ static const char * const bcm2835_compat[] = {
 };
 
 DT_MACHINE_START(BCM2835, "BCM2835")
-	.init_irq = irqchip_init,
 	.init_machine = bcm2835_init,
 	.restart = bcm2835_restart,
 	.dt_compat = bcm2835_compat
