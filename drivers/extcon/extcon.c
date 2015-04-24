@@ -3,6 +3,9 @@
  *
  *  External connector (extcon) class driver
  *
+ * Copyright (C) 2015 Samsung Electronics
+ * Author: Chanwoo Choi <cw00.choi@samsung.com>
+ *
  * Copyright (C) 2012 Samsung Electronics
  * Author: Donggeun Kim <dg77.kim@samsung.com>
  * Author: MyungJoo Ham <myungjoo.ham@samsung.com>
@@ -32,36 +35,32 @@
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 
-/*
- * extcon_cable_name suggests the standard cable names for commonly used
- * cable types.
- *
- * However, please do not use extcon_cable_name directly for extcon_dev
- * struct's supported_cable pointer unless your device really supports
- * every single port-type of the following cable names. Please choose cable
- * names that are actually used in your extcon device.
- */
-const char extcon_cable_name[][CABLE_NAME_MAX + 1] = {
+#define SUPPORTED_CABLE_MAX	32
+#define CABLE_NAME_MAX		30
+
+static const char *extcon_name[] =  {
 	[EXTCON_USB]		= "USB",
 	[EXTCON_USB_HOST]	= "USB-Host",
 	[EXTCON_TA]		= "TA",
 	[EXTCON_FAST_CHARGER]	= "Fast-charger",
 	[EXTCON_SLOW_CHARGER]	= "Slow-charger",
 	[EXTCON_CHARGE_DOWNSTREAM]	= "Charge-downstream",
+	[EXTCON_LINE_IN]	= "Line-in",
+	[EXTCON_LINE_OUT]	= "Line-out",
+	[EXTCON_MICROPHONE]	= "Microphone",
+	[EXTCON_HEADPHONE]	= "Headphone",
 	[EXTCON_HDMI]		= "HDMI",
 	[EXTCON_MHL]		= "MHL",
 	[EXTCON_DVI]		= "DVI",
 	[EXTCON_VGA]		= "VGA",
-	[EXTCON_DOCK]		= "Dock",
-	[EXTCON_LINE_IN]	= "Line-in",
-	[EXTCON_LINE_OUT]	= "Line-out",
-	[EXTCON_MIC_IN]		= "Microphone",
-	[EXTCON_HEADPHONE_OUT]	= "Headphone",
 	[EXTCON_SPDIF_IN]	= "SPDIF-in",
 	[EXTCON_SPDIF_OUT]	= "SPDIF-out",
 	[EXTCON_VIDEO_IN]	= "Video-in",
 	[EXTCON_VIDEO_OUT]	= "Video-out",
+	[EXTCON_DOCK]		= "Dock",
+	[EXTCON_JIG]		= "JIG",
 	[EXTCON_MECHANICAL]	= "Mechanical",
+	NULL,
 };
 
 static struct class *extcon_class;
@@ -101,6 +100,43 @@ static int check_mutually_exclusive(struct extcon_dev *edev, u32 new_state)
 	return 0;
 }
 
+static int find_cable_index_by_id(struct extcon_dev *edev, const enum extcon id)
+{
+	int i;
+
+	/* Find the the index of extcon cable in edev->supported_cable */
+	for (i = 0; i < edev->max_supported; i++) {
+		if (edev->supported_cable[i] == id)
+			return i;
+	}
+
+	return -EINVAL;
+}
+
+static int find_cable_index_by_name(struct extcon_dev *edev, const char *name)
+{
+	enum extcon id = EXTCON_NONE;
+	int i;
+
+	if (edev->max_supported == 0)
+		return -EINVAL;
+
+	/* Find the the number of extcon cable */
+	for (i = 0; i < EXTCON_END; i++) {
+		if (!extcon_name[i])
+			continue;
+		if (!strncmp(extcon_name[i], name, CABLE_NAME_MAX)) {
+			id = i;
+			break;
+		}
+	}
+
+	if (id == EXTCON_NONE)
+		return -EINVAL;
+
+	return find_cable_index_by_id(edev, id);
+}
+
 static ssize_t state_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
@@ -118,11 +154,9 @@ static ssize_t state_show(struct device *dev, struct device_attribute *attr,
 	if (edev->max_supported == 0)
 		return sprintf(buf, "%u\n", edev->state);
 
-	for (i = 0; i < SUPPORTED_CABLE_MAX; i++) {
-		if (!edev->supported_cable[i])
-			break;
+	for (i = 0; i < edev->max_supported; i++) {
 		count += sprintf(buf + count, "%s=%d\n",
-				 edev->supported_cable[i],
+				extcon_name[edev->supported_cable[i]],
 				 !!(edev->state & (1 << i)));
 	}
 
@@ -171,9 +205,10 @@ static ssize_t cable_name_show(struct device *dev,
 {
 	struct extcon_cable *cable = container_of(attr, struct extcon_cable,
 						  attr_name);
+	int i = cable->cable_index;
 
 	return sprintf(buf, "%s\n",
-		       cable->edev->supported_cable[cable->cable_index]);
+			extcon_name[cable->edev->supported_cable[i]]);
 }
 
 static ssize_t cable_state_show(struct device *dev,
@@ -283,39 +318,19 @@ int extcon_set_state(struct extcon_dev *edev, u32 state)
 EXPORT_SYMBOL_GPL(extcon_set_state);
 
 /**
- * extcon_find_cable_index() - Get the cable index based on the cable name.
- * @edev:	the extcon device that has the cable.
- * @cable_name:	cable name to be searched.
- *
- * Note that accessing a cable state based on cable_index is faster than
- * cable_name because using cable_name induces a loop with strncmp().
- * Thus, when get/set_cable_state is repeatedly used, using cable_index
- * is recommended.
- */
-int extcon_find_cable_index(struct extcon_dev *edev, const char *cable_name)
-{
-	int i;
-
-	if (edev->supported_cable) {
-		for (i = 0; edev->supported_cable[i]; i++) {
-			if (!strncmp(edev->supported_cable[i],
-				cable_name, CABLE_NAME_MAX))
-				return i;
-		}
-	}
-
-	return -EINVAL;
-}
-EXPORT_SYMBOL_GPL(extcon_find_cable_index);
-
-/**
  * extcon_get_cable_state_() - Get the status of a specific cable.
  * @edev:	the extcon device that has the cable.
- * @index:	cable index that can be retrieved by extcon_find_cable_index().
+ * @id:		the unique id of each external connector in extcon enumeration.
  */
-int extcon_get_cable_state_(struct extcon_dev *edev, int index)
+int extcon_get_cable_state_(struct extcon_dev *edev, const enum extcon id)
 {
-	if (index < 0 || (edev->max_supported && edev->max_supported <= index))
+	int index;
+
+	index = find_cable_index_by_id(edev, id);
+	if (index < 0)
+		return index;
+
+	if (edev->max_supported && edev->max_supported <= index)
 		return -EINVAL;
 
 	return !!(edev->state & (1 << index));
@@ -331,7 +346,7 @@ EXPORT_SYMBOL_GPL(extcon_get_cable_state_);
  */
 int extcon_get_cable_state(struct extcon_dev *edev, const char *cable_name)
 {
-	return extcon_get_cable_state_(edev, extcon_find_cable_index
+	return extcon_get_cable_state_(edev, find_cable_index_by_name
 						(edev, cable_name));
 }
 EXPORT_SYMBOL_GPL(extcon_get_cable_state);
@@ -339,17 +354,22 @@ EXPORT_SYMBOL_GPL(extcon_get_cable_state);
 /**
  * extcon_set_cable_state_() - Set the status of a specific cable.
  * @edev:		the extcon device that has the cable.
- * @index:		cable index that can be retrieved by
- *			extcon_find_cable_index().
- * @cable_state:	the new cable status. The default semantics is
+ * @id:			the unique id of each external connector
+ *			in extcon enumeration.
+ * @state:		the new cable status. The default semantics is
  *			true: attached / false: detached.
  */
-int extcon_set_cable_state_(struct extcon_dev *edev,
-			int index, bool cable_state)
+int extcon_set_cable_state_(struct extcon_dev *edev, enum extcon id,
+				bool cable_state)
 {
 	u32 state;
+	int index;
 
-	if (index < 0 || (edev->max_supported && edev->max_supported <= index))
+	index = find_cable_index_by_id(edev, id);
+	if (index < 0)
+		return index;
+
+	if (edev->max_supported && edev->max_supported <= index)
 		return -EINVAL;
 
 	state = cable_state ? (1 << index) : 0;
@@ -369,7 +389,7 @@ EXPORT_SYMBOL_GPL(extcon_set_cable_state_);
 int extcon_set_cable_state(struct extcon_dev *edev,
 			const char *cable_name, bool cable_state)
 {
-	return extcon_set_cable_state_(edev, extcon_find_cable_index
+	return extcon_set_cable_state_(edev, find_cable_index_by_name
 					(edev, cable_name), cable_state);
 }
 EXPORT_SYMBOL_GPL(extcon_set_cable_state);
@@ -455,8 +475,8 @@ int extcon_register_interest(struct extcon_specific_cable_nb *obj,
 		if (!obj->edev)
 			return -ENODEV;
 
-		obj->cable_index = extcon_find_cable_index(obj->edev,
-							  cable_name);
+		obj->cable_index = find_cable_index_by_name(obj->edev,
+							cable_name);
 		if (obj->cable_index < 0)
 			return obj->cable_index;
 
@@ -479,7 +499,7 @@ int extcon_register_interest(struct extcon_specific_cable_nb *obj,
 		while ((dev = class_dev_iter_next(&iter))) {
 			extd = dev_get_drvdata(dev);
 
-			if (extcon_find_cable_index(extd, cable_name) < 0)
+			if (find_cable_index_by_name(extd, cable_name) < 0)
 				continue;
 
 			class_dev_iter_exit(&iter);
@@ -595,7 +615,7 @@ static void dummy_sysfs_dev_release(struct device *dev)
 
 /*
  * extcon_dev_allocate() - Allocate the memory of extcon device.
- * @supported_cable:	Array of supported cable names ending with NULL.
+ * @supported_cable:	Array of supported extcon ending with EXTCON_NONE.
  *			If supported_cable is NULL, cable name related APIs
  *			are disabled.
  *
@@ -605,7 +625,7 @@ static void dummy_sysfs_dev_release(struct device *dev)
  *
  * Return the pointer of extcon device if success or ERR_PTR(err) if fail
  */
-struct extcon_dev *extcon_dev_allocate(const char **supported_cable)
+struct extcon_dev *extcon_dev_allocate(const enum extcon *supported_cable)
 {
 	struct extcon_dev *edev;
 
@@ -647,7 +667,7 @@ static void devm_extcon_dev_release(struct device *dev, void *res)
 /**
  * devm_extcon_dev_allocate - Allocate managed extcon device
  * @dev:		device owning the extcon device being created
- * @supported_cable:	Array of supported cable names ending with NULL.
+ * @supported_cable:	Array of supported extcon ending with EXTCON_NONE.
  *			If supported_cable is NULL, cable name related APIs
  *			are disabled.
  *
@@ -659,7 +679,7 @@ static void devm_extcon_dev_release(struct device *dev, void *res)
  * or ERR_PTR(err) if fail
  */
 struct extcon_dev *devm_extcon_dev_allocate(struct device *dev,
-					    const char **supported_cable)
+					const enum extcon *supported_cable)
 {
 	struct extcon_dev **ptr, *edev;
 
@@ -709,17 +729,15 @@ int extcon_dev_register(struct extcon_dev *edev)
 			return ret;
 	}
 
-	if (edev->supported_cable) {
-		/* Get size of array */
-		for (index = 0; edev->supported_cable[index]; index++)
-			;
-		edev->max_supported = index;
-	} else {
-		edev->max_supported = 0;
-	}
+	if (!edev->supported_cable)
+		return -EINVAL;
 
+	for (; edev->supported_cable[index] != EXTCON_NONE; index++);
+
+	edev->max_supported = index;
 	if (index > SUPPORTED_CABLE_MAX) {
-		dev_err(&edev->dev, "extcon: maximum number of supported cables exceeded.\n");
+		dev_err(&edev->dev,
+			"exceed the maximum number of supported cables\n");
 		return -EINVAL;
 	}
 
@@ -1070,6 +1088,7 @@ static void __exit extcon_class_exit(void)
 }
 module_exit(extcon_class_exit);
 
+MODULE_AUTHOR("Chanwoo Choi <cw00.choi@samsung.com>");
 MODULE_AUTHOR("Mike Lockwood <lockwood@android.com>");
 MODULE_AUTHOR("Donggeun Kim <dg77.kim@samsung.com>");
 MODULE_AUTHOR("MyungJoo Ham <myungjoo.ham@samsung.com>");

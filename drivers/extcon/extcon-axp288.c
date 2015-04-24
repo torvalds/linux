@@ -77,10 +77,6 @@
 /* IRQ enable-6 register */
 #define BC12_IRQ_CFG_MASK		BIT(1)
 
-#define AXP288_EXTCON_SLOW_CHARGER		"SLOW-CHARGER"
-#define AXP288_EXTCON_DOWNSTREAM_CHARGER	"CHARGE-DOWNSTREAM"
-#define AXP288_EXTCON_FAST_CHARGER		"FAST-CHARGER"
-
 enum axp288_extcon_reg {
 	AXP288_PS_STAT_REG		= 0x00,
 	AXP288_PS_BOOT_REASON_REG	= 0x02,
@@ -105,11 +101,11 @@ enum axp288_extcon_irq {
 	EXTCON_IRQ_END,
 };
 
-static const char *axp288_extcon_cables[] = {
-	AXP288_EXTCON_SLOW_CHARGER,
-	AXP288_EXTCON_DOWNSTREAM_CHARGER,
-	AXP288_EXTCON_FAST_CHARGER,
-	NULL,
+static const enum extcon axp288_extcon_cables[] = {
+	EXTCON_SLOW_CHARGER,
+	EXTCON_CHARGE_DOWNSTREAM,
+	EXTCON_FAST_CHARGER,
+	EXTCON_NONE,
 };
 
 struct axp288_extcon_info {
@@ -161,7 +157,7 @@ static void axp288_extcon_log_rsi(struct axp288_extcon_info *info)
 static int axp288_handle_chrg_det_event(struct axp288_extcon_info *info)
 {
 	static bool notify_otg, notify_charger;
-	static char *cable;
+	static enum extcon cable;
 	int ret, stat, cfg, pwr_stat;
 	u8 chrg_type;
 	bool vbus_attach = false;
@@ -196,18 +192,18 @@ static int axp288_handle_chrg_det_event(struct axp288_extcon_info *info)
 		dev_dbg(info->dev, "sdp cable is connecetd\n");
 		notify_otg = true;
 		notify_charger = true;
-		cable = AXP288_EXTCON_SLOW_CHARGER;
+		cable = EXTCON_SLOW_CHARGER;
 		break;
 	case DET_STAT_CDP:
 		dev_dbg(info->dev, "cdp cable is connecetd\n");
 		notify_otg = true;
 		notify_charger = true;
-		cable = AXP288_EXTCON_DOWNSTREAM_CHARGER;
+		cable = EXTCON_CHARGE_DOWNSTREAM;
 		break;
 	case DET_STAT_DCP:
 		dev_dbg(info->dev, "dcp cable is connecetd\n");
 		notify_charger = true;
-		cable = AXP288_EXTCON_FAST_CHARGER;
+		cable = EXTCON_FAST_CHARGER;
 		break;
 	default:
 		dev_warn(info->dev,
@@ -230,7 +226,7 @@ notify_otg:
 	}
 
 	if (notify_charger)
-		extcon_set_cable_state(info->edev, cable, vbus_attach);
+		extcon_set_cable_state_(info->edev, cable, vbus_attach);
 
 	/* Clear the flags on disconnect event */
 	if (!vbus_attach)

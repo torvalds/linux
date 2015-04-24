@@ -90,21 +90,12 @@ static struct reg_data rt8973a_reg_data[] = {
 };
 
 /* List of detectable cables */
-enum {
-	EXTCON_CABLE_USB = 0,
-	EXTCON_CABLE_USB_HOST,
-	EXTCON_CABLE_TA,
-	EXTCON_CABLE_JIG,
-
-	EXTCON_CABLE_END,
-};
-
-static const char *rt8973a_extcon_cable[] = {
-	[EXTCON_CABLE_USB]		= "USB",
-	[EXTCON_CABLE_USB_HOST]		= "USB-Host",
-	[EXTCON_CABLE_TA]		= "TA",
-	[EXTCON_CABLE_JIG]		= "JIG",
-	NULL,
+static const enum extcon rt8973a_extcon_cable[] = {
+	EXTCON_USB,
+	EXTCON_USB_HOST,
+	EXTCON_TA,
+	EXTCON_JIG,
+	EXTCON_NONE,
 };
 
 /* Define OVP (Over Voltage Protection), OTP (Over Temperature Protection) */
@@ -307,13 +298,10 @@ static int rt8973a_muic_cable_handler(struct rt8973a_muic_info *info,
 					enum rt8973a_event_type event)
 {
 	static unsigned int prev_cable_type;
-	const char **cable_names = info->edev->supported_cable;
 	unsigned int con_sw = DM_DP_SWITCH_UART;
-	int ret, idx = 0, cable_type;
+	int ret, cable_type;
+	enum extcon id;
 	bool attached = false;
-
-	if (!cable_names)
-		return 0;
 
 	switch (event) {
 	case RT8973A_EVENT_ATTACH:
@@ -341,25 +329,25 @@ static int rt8973a_muic_cable_handler(struct rt8973a_muic_info *info,
 
 	switch (cable_type) {
 	case RT8973A_MUIC_ADC_OTG:
-		idx = EXTCON_CABLE_USB_HOST;
+		id = EXTCON_USB_HOST;
 		con_sw = DM_DP_SWITCH_USB;
 		break;
 	case RT8973A_MUIC_ADC_TA:
-		idx = EXTCON_CABLE_TA;
+		id = EXTCON_TA;
 		con_sw = DM_DP_SWITCH_OPEN;
 		break;
 	case RT8973A_MUIC_ADC_FACTORY_MODE_BOOT_OFF_USB:
 	case RT8973A_MUIC_ADC_FACTORY_MODE_BOOT_ON_USB:
-		idx = EXTCON_CABLE_JIG;
+		id = EXTCON_JIG;
 		con_sw = DM_DP_SWITCH_USB;
 		break;
 	case RT8973A_MUIC_ADC_FACTORY_MODE_BOOT_OFF_UART:
 	case RT8973A_MUIC_ADC_FACTORY_MODE_BOOT_ON_UART:
-		idx = EXTCON_CABLE_JIG;
+		id = EXTCON_JIG;
 		con_sw = DM_DP_SWITCH_UART;
 		break;
 	case RT8973A_MUIC_ADC_USB:
-		idx = EXTCON_CABLE_USB;
+		id = EXTCON_USB;
 		con_sw = DM_DP_SWITCH_USB;
 		break;
 	case RT8973A_MUIC_ADC_OPEN:
@@ -409,7 +397,7 @@ static int rt8973a_muic_cable_handler(struct rt8973a_muic_info *info,
 		return ret;
 
 	/* Change the state of external accessory */
-	extcon_set_cable_state(info->edev, cable_names[idx], attached);
+	extcon_set_cable_state_(info->edev, id, attached);
 
 	return 0;
 }

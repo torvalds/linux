@@ -1,6 +1,9 @@
 /*
  *  External connector (extcon) class driver
  *
+ * Copyright (C) 2015 Samsung Electronics
+ * Author: Chanwoo Choi <cw00.choi@samsung.com>
+ *
  * Copyright (C) 2012 Samsung Electronics
  * Author: Donggeun Kim <dg77.kim@samsung.com>
  * Author: MyungJoo Ham <myungjoo.ham@samsung.com>
@@ -27,50 +30,41 @@
 #include <linux/notifier.h>
 #include <linux/sysfs.h>
 
-#define SUPPORTED_CABLE_MAX	32
-#define CABLE_NAME_MAX		30
+enum extcon {
+	EXTCON_NONE		= 0x0,
 
-/*
- * The standard cable name is to help support general notifier
- * and notifiee device drivers to share the common names.
- * Please use standard cable names unless your notifier device has
- * a very unique and abnormal cable or
- * the cable type is supposed to be used with only one unique
- * pair of notifier/notifiee devices.
- *
- * Please add any other "standard" cables used with extcon dev.
- *
- * You may add a dot and number to specify version or specification
- * of the specific cable if it is required. (e.g., "Fast-charger.18"
- * and "Fast-charger.10" for 1.8A and 1.0A chargers)
- * However, the notifiee and notifier should be able to handle such
- * string and if the notifiee can negotiate the protocol or identify,
- * you don't need such convention. This convention is helpful when
- * notifier can distinguish but notifiee cannot.
- */
-enum extcon_cable_name {
-	EXTCON_USB = 0,
-	EXTCON_USB_HOST,
-	EXTCON_TA,			/* Travel Adaptor */
-	EXTCON_FAST_CHARGER,
-	EXTCON_SLOW_CHARGER,
-	EXTCON_CHARGE_DOWNSTREAM,	/* Charging an external device */
-	EXTCON_HDMI,
-	EXTCON_MHL,
-	EXTCON_DVI,
-	EXTCON_VGA,
-	EXTCON_DOCK,
-	EXTCON_LINE_IN,
-	EXTCON_LINE_OUT,
-	EXTCON_MIC_IN,
-	EXTCON_HEADPHONE_OUT,
-	EXTCON_SPDIF_IN,
-	EXTCON_SPDIF_OUT,
-	EXTCON_VIDEO_IN,
-	EXTCON_VIDEO_OUT,
-	EXTCON_MECHANICAL,
+	/* USB external connector */
+	EXTCON_USB		= 0x1,
+	EXTCON_USB_HOST		= 0x2,
+
+	/* Charger external connector */
+	EXTCON_TA		= 0x10,
+	EXTCON_FAST_CHARGER	= 0x11,
+	EXTCON_SLOW_CHARGER	= 0x12,
+	EXTCON_CHARGE_DOWNSTREAM = 0x13,
+
+	/* Audio/Video external connector */
+	EXTCON_LINE_IN		= 0x20,
+	EXTCON_LINE_OUT		= 0x21,
+	EXTCON_MICROPHONE	= 0x22,
+	EXTCON_HEADPHONE	= 0x23,
+
+	EXTCON_HDMI		= 0x30,
+	EXTCON_MHL		= 0x31,
+	EXTCON_DVI		= 0x32,
+	EXTCON_VGA		= 0x33,
+	EXTCON_SPDIF_IN		= 0x34,
+	EXTCON_SPDIF_OUT	= 0x35,
+	EXTCON_VIDEO_IN		= 0x36,
+	EXTCON_VIDEO_OUT	= 0x37,
+
+	/* Etc external connector */
+	EXTCON_DOCK		= 0x50,
+	EXTCON_JIG		= 0x51,
+	EXTCON_MECHANICAL	= 0x52,
+
+	EXTCON_END,
 };
-extern const char extcon_cable_name[][CABLE_NAME_MAX + 1];
 
 struct extcon_cable;
 
@@ -78,7 +72,7 @@ struct extcon_cable;
  * struct extcon_dev - An extcon device represents one external connector.
  * @name:		The name of this extcon device. Parent device name is
  *			used if NULL.
- * @supported_cable:	Array of supported cable names ending with NULL.
+ * @supported_cable:	Array of supported cable names ending with EXTCON_NONE.
  *			If supported_cable is NULL, cable name related APIs
  *			are disabled.
  * @mutually_exclusive:	Array of mutually exclusive set of cables that cannot
@@ -113,7 +107,7 @@ struct extcon_cable;
 struct extcon_dev {
 	/* Optional user initializing data */
 	const char *name;
-	const char **supported_cable;
+	const enum extcon *supported_cable;
 	const u32 *mutually_exclusive;
 
 	/* Optional callbacks to override class functions */
@@ -194,10 +188,10 @@ extern struct extcon_dev *extcon_get_extcon_dev(const char *extcon_name);
 /*
  * Following APIs control the memory of extcon device.
  */
-extern struct extcon_dev *extcon_dev_allocate(const char **cables);
+extern struct extcon_dev *extcon_dev_allocate(const enum extcon *cable);
 extern void extcon_dev_free(struct extcon_dev *edev);
 extern struct extcon_dev *devm_extcon_dev_allocate(struct device *dev,
-						   const char **cables);
+						   const enum extcon *cable);
 extern void devm_extcon_dev_free(struct device *dev, struct extcon_dev *edev);
 
 /*
@@ -216,13 +210,10 @@ extern int extcon_update_state(struct extcon_dev *edev, u32 mask, u32 state);
 
 /*
  * get/set_cable_state access each bit of the 32b encoded state value.
- * They are used to access the status of each cable based on the cable_name
- * or cable_index, which is retrieved by extcon_find_cable_index
+ * They are used to access the status of each cable based on the cable_name.
  */
-extern int extcon_find_cable_index(struct extcon_dev *sdev,
-				   const char *cable_name);
-extern int extcon_get_cable_state_(struct extcon_dev *edev, int cable_index);
-extern int extcon_set_cable_state_(struct extcon_dev *edev, int cable_index,
+extern int extcon_get_cable_state_(struct extcon_dev *edev, enum extcon id);
+extern int extcon_set_cable_state_(struct extcon_dev *edev, enum extcon id,
 				   bool cable_state);
 
 extern int extcon_get_cable_state(struct extcon_dev *edev,
@@ -281,7 +272,7 @@ static inline int devm_extcon_dev_register(struct device *dev,
 static inline void devm_extcon_dev_unregister(struct device *dev,
 					      struct extcon_dev *edev) { }
 
-static inline struct extcon_dev *extcon_dev_allocate(const char **cables)
+static inline struct extcon_dev *extcon_dev_allocate(const enum extcon *cable)
 {
 	return ERR_PTR(-ENOSYS);
 }
@@ -289,7 +280,7 @@ static inline struct extcon_dev *extcon_dev_allocate(const char **cables)
 static inline void extcon_dev_free(struct extcon_dev *edev) { }
 
 static inline struct extcon_dev *devm_extcon_dev_allocate(struct device *dev,
-							  const char **cables)
+						const enum extcon *cable)
 {
 	return ERR_PTR(-ENOSYS);
 }
@@ -312,20 +303,14 @@ static inline int extcon_update_state(struct extcon_dev *edev, u32 mask,
 	return 0;
 }
 
-static inline int extcon_find_cable_index(struct extcon_dev *edev,
-					  const char *cable_name)
-{
-	return 0;
-}
-
 static inline int extcon_get_cable_state_(struct extcon_dev *edev,
-					  int cable_index)
+					  enum extcon id)
 {
 	return 0;
 }
 
 static inline int extcon_set_cable_state_(struct extcon_dev *edev,
-					  int cable_index, bool cable_state)
+					  enum extcon id, bool cable_state)
 {
 	return 0;
 }

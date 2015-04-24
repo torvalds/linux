@@ -118,17 +118,12 @@ static const int arizona_micd_levels[] = {
 	1257,
 };
 
-#define ARIZONA_CABLE_MECHANICAL 0
-#define ARIZONA_CABLE_MICROPHONE 1
-#define ARIZONA_CABLE_HEADPHONE  2
-#define ARIZONA_CABLE_LINEOUT    3
-
-static const char *arizona_cable[] = {
-	"Mechanical",
-	"Microphone",
-	"Headphone",
-	"Line-out",
-	NULL,
+static const enum extcon arizona_cable[] = {
+	EXTCON_MECHANICAL,
+	EXTCON_MICROPHONE,
+	EXTCON_HEADPHONE,
+	EXTCON_LINE_OUT,
+	EXTCON_NONE,
 };
 
 static void arizona_start_hpdet_acc_id(struct arizona_extcon_info *info);
@@ -557,7 +552,7 @@ static irqreturn_t arizona_hpdet_irq(int irq, void *data)
 	struct arizona_extcon_info *info = data;
 	struct arizona *arizona = info->arizona;
 	int id_gpio = arizona->pdata.hpdet_id_gpio;
-	int report = ARIZONA_CABLE_HEADPHONE;
+	enum extcon report = EXTCON_HEADPHONE;
 	int ret, reading;
 	bool mic = false;
 
@@ -571,7 +566,7 @@ static irqreturn_t arizona_hpdet_irq(int irq, void *data)
 	}
 
 	/* If the cable was removed while measuring ignore the result */
-	ret = extcon_get_cable_state_(info->edev, ARIZONA_CABLE_MECHANICAL);
+	ret = extcon_get_cable_state_(info->edev, EXTCON_MECHANICAL);
 	if (ret < 0) {
 		dev_err(arizona->dev, "Failed to check cable state: %d\n",
 			ret);
@@ -602,9 +597,9 @@ static irqreturn_t arizona_hpdet_irq(int irq, void *data)
 
 	/* Report high impedence cables as line outputs */
 	if (reading >= 5000)
-		report = ARIZONA_CABLE_LINEOUT;
+		report = EXTCON_LINE_OUT;
 	else
-		report = ARIZONA_CABLE_HEADPHONE;
+		report = EXTCON_HEADPHONE;
 
 	ret = extcon_set_cable_state_(info->edev, report, true);
 	if (ret != 0)
@@ -689,8 +684,7 @@ err:
 			   ARIZONA_ACCDET_MODE_MASK, ARIZONA_ACCDET_MODE_MIC);
 
 	/* Just report headphone */
-	ret = extcon_set_cable_state_(info->edev,
-				      ARIZONA_CABLE_HEADPHONE, true);
+	ret = extcon_set_cable_state_(info->edev, EXTCON_HEADPHONE, true);
 	if (ret != 0)
 		dev_err(arizona->dev, "Failed to report headphone: %d\n", ret);
 
@@ -747,8 +741,7 @@ err:
 			   ARIZONA_ACCDET_MODE_MASK, ARIZONA_ACCDET_MODE_MIC);
 
 	/* Just report headphone */
-	ret = extcon_set_cable_state_(info->edev,
-				      ARIZONA_CABLE_HEADPHONE, true);
+	ret = extcon_set_cable_state_(info->edev, EXTCON_HEADPHONE, true);
 	if (ret != 0)
 		dev_err(arizona->dev, "Failed to report headphone: %d\n", ret);
 
@@ -787,7 +780,7 @@ static void arizona_micd_detect(struct work_struct *work)
 	mutex_lock(&info->lock);
 
 	/* If the cable was removed while measuring ignore the result */
-	ret = extcon_get_cable_state_(info->edev, ARIZONA_CABLE_MECHANICAL);
+	ret = extcon_get_cable_state_(info->edev, EXTCON_MECHANICAL);
 	if (ret < 0) {
 		dev_err(arizona->dev, "Failed to check cable state: %d\n",
 				ret);
@@ -836,8 +829,7 @@ static void arizona_micd_detect(struct work_struct *work)
 		arizona_identify_headphone(info);
 
 		ret = extcon_set_cable_state_(info->edev,
-					      ARIZONA_CABLE_MICROPHONE, true);
-
+					      EXTCON_MICROPHONE, true);
 		if (ret != 0)
 			dev_err(arizona->dev, "Headset report failed: %d\n",
 				ret);
@@ -1028,7 +1020,7 @@ static irqreturn_t arizona_jackdet(int irq, void *data)
 	if (info->last_jackdet == present) {
 		dev_dbg(arizona->dev, "Detected jack\n");
 		ret = extcon_set_cable_state_(info->edev,
-					      ARIZONA_CABLE_MECHANICAL, true);
+					      EXTCON_MECHANICAL, true);
 
 		if (ret != 0)
 			dev_err(arizona->dev, "Mechanical report failed: %d\n",

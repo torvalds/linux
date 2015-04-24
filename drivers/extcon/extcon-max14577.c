@@ -148,27 +148,14 @@ enum max14577_muic_acc_type {
 	MAX14577_MUIC_ADC_OPEN,
 };
 
-/* max14577 MUIC device support below list of accessories(external connector) */
-enum {
-	EXTCON_CABLE_USB = 0,
-	EXTCON_CABLE_TA,
-	EXTCON_CABLE_FAST_CHARGER,
-	EXTCON_CABLE_SLOW_CHARGER,
-	EXTCON_CABLE_CHARGE_DOWNSTREAM,
-	EXTCON_CABLE_JIG,
-
-	_EXTCON_CABLE_NUM,
-};
-
-static const char *max14577_extcon_cable[] = {
-	[EXTCON_CABLE_USB]			= "USB",
-	[EXTCON_CABLE_TA]			= "TA",
-	[EXTCON_CABLE_FAST_CHARGER]		= "Fast-charger",
-	[EXTCON_CABLE_SLOW_CHARGER]		= "Slow-charger",
-	[EXTCON_CABLE_CHARGE_DOWNSTREAM]	= "Charge-downstream",
-	[EXTCON_CABLE_JIG]			= "JIG",
-
-	NULL,
+static const enum extcon max14577_extcon_cable[] = {
+	EXTCON_USB,
+	EXTCON_TA,
+	EXTCON_FAST_CHARGER,
+	EXTCON_SLOW_CHARGER,
+	EXTCON_CHARGE_DOWNSTREAM,
+	EXTCON_JIG,
+	EXTCON_NONE,
 };
 
 /*
@@ -369,7 +356,7 @@ static int max14577_muic_jig_handler(struct max14577_muic_info *info,
 	if (ret < 0)
 		return ret;
 
-	extcon_set_cable_state(info->edev, "JIG", attached);
+	extcon_set_cable_state_(info->edev, EXTCON_JIG, attached);
 
 	return 0;
 }
@@ -466,20 +453,22 @@ static int max14577_muic_chg_handler(struct max14577_muic_info *info)
 		if (ret < 0)
 			return ret;
 
-		extcon_set_cable_state(info->edev, "USB", attached);
+		extcon_set_cable_state_(info->edev, EXTCON_USB, attached);
 		break;
 	case MAX14577_CHARGER_TYPE_DEDICATED_CHG:
-		extcon_set_cable_state(info->edev, "TA", attached);
+		extcon_set_cable_state_(info->edev, EXTCON_TA, attached);
 		break;
 	case MAX14577_CHARGER_TYPE_DOWNSTREAM_PORT:
-		extcon_set_cable_state(info->edev,
-				"Charge-downstream", attached);
+		extcon_set_cable_state_(info->edev, EXTCON_CHARGE_DOWNSTREAM,
+					attached);
 		break;
 	case MAX14577_CHARGER_TYPE_SPECIAL_500MA:
-		extcon_set_cable_state(info->edev, "Slow-charger", attached);
+		extcon_set_cable_state_(info->edev, EXTCON_SLOW_CHARGER,
+					attached);
 		break;
 	case MAX14577_CHARGER_TYPE_SPECIAL_1A:
-		extcon_set_cable_state(info->edev, "Fast-charger", attached);
+		extcon_set_cable_state_(info->edev, EXTCON_FAST_CHARGER,
+					attached);
 		break;
 	case MAX14577_CHARGER_TYPE_NONE:
 	case MAX14577_CHARGER_TYPE_DEAD_BATTERY:

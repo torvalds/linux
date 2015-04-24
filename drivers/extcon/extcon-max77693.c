@@ -200,32 +200,17 @@ enum max77693_muic_acc_type {
 /*
  * MAX77693 MUIC device support below list of accessories(external connector)
  */
-enum {
-	EXTCON_CABLE_USB = 0,
-	EXTCON_CABLE_USB_HOST,
-	EXTCON_CABLE_TA,
-	EXTCON_CABLE_FAST_CHARGER,
-	EXTCON_CABLE_SLOW_CHARGER,
-	EXTCON_CABLE_CHARGE_DOWNSTREAM,
-	EXTCON_CABLE_MHL,
-	EXTCON_CABLE_JIG,
-	EXTCON_CABLE_DOCK,
-
-	_EXTCON_CABLE_NUM,
-};
-
-static const char *max77693_extcon_cable[] = {
-	[EXTCON_CABLE_USB]			= "USB",
-	[EXTCON_CABLE_USB_HOST]			= "USB-Host",
-	[EXTCON_CABLE_TA]			= "TA",
-	[EXTCON_CABLE_FAST_CHARGER]		= "Fast-charger",
-	[EXTCON_CABLE_SLOW_CHARGER]		= "Slow-charger",
-	[EXTCON_CABLE_CHARGE_DOWNSTREAM]	= "Charge-downstream",
-	[EXTCON_CABLE_MHL]			= "MHL",
-	[EXTCON_CABLE_JIG]			= "JIG",
-	[EXTCON_CABLE_DOCK]			= "DOCK",
-
-	NULL,
+static const enum extcon max77693_extcon_cable[] = {
+	EXTCON_USB,
+	EXTCON_USB_HOST,
+	EXTCON_TA,
+	EXTCON_FAST_CHARGER,
+	EXTCON_SLOW_CHARGER,
+	EXTCON_CHARGE_DOWNSTREAM,
+	EXTCON_MHL,
+	EXTCON_JIG,
+	EXTCON_DOCK,
+	EXTCON_NONE,
 };
 
 /*
@@ -472,7 +457,7 @@ static int max77693_muic_dock_handler(struct max77693_muic_info *info,
 	int ret = 0;
 	int vbvolt;
 	bool cable_attached;
-	char dock_name[CABLE_NAME_MAX];
+	enum extcon dock_id;
 
 	dev_info(info->dev,
 		"external connector is %s (adc:0x%02x)\n",
@@ -517,16 +502,16 @@ static int max77693_muic_dock_handler(struct max77693_muic_info *info,
 		if (ret < 0)
 			return ret;
 
-		extcon_set_cable_state(info->edev, "DOCK", attached);
-		extcon_set_cable_state(info->edev, "MHL", attached);
+		extcon_set_cable_state_(info->edev, EXTCON_DOCK, attached);
+		extcon_set_cable_state_(info->edev, EXTCON_MHL, attached);
 		goto out;
 	case MAX77693_MUIC_ADC_AUDIO_MODE_REMOTE:	/* Dock-Desk */
-		strcpy(dock_name, "DOCK");
+		dock_id = EXTCON_DOCK;
 		break;
 	case MAX77693_MUIC_ADC_AV_CABLE_NOLOAD:		/* Dock-Audio */
-		strcpy(dock_name, "DOCK");
+		dock_id = EXTCON_DOCK;
 		if (!attached)
-			extcon_set_cable_state(info->edev, "USB", false);
+			extcon_set_cable_state_(info->edev, EXTCON_USB, false);
 		break;
 	default:
 		dev_err(info->dev, "failed to detect %s dock device\n",
@@ -538,7 +523,7 @@ static int max77693_muic_dock_handler(struct max77693_muic_info *info,
 	ret = max77693_muic_set_path(info, CONTROL1_SW_AUDIO, attached);
 	if (ret < 0)
 		return ret;
-	extcon_set_cable_state(info->edev, dock_name, attached);
+	extcon_set_cable_state_(info->edev, dock_id, attached);
 
 out:
 	return 0;
@@ -603,20 +588,19 @@ static int max77693_muic_adc_ground_handler(struct max77693_muic_info *info)
 		ret = max77693_muic_set_path(info, CONTROL1_SW_USB, attached);
 		if (ret < 0)
 			return ret;
-		extcon_set_cable_state(info->edev, "USB-Host", attached);
+		extcon_set_cable_state_(info->edev, EXTCON_USB_HOST, attached);
 		break;
 	case MAX77693_MUIC_GND_AV_CABLE_LOAD:
 		/* Audio Video Cable with load, PATH:AUDIO */
 		ret = max77693_muic_set_path(info, CONTROL1_SW_AUDIO, attached);
 		if (ret < 0)
 			return ret;
-		extcon_set_cable_state(info->edev,
-				"Audio-video-load", attached);
+		extcon_set_cable_state_(info->edev, EXTCON_USB, attached);
 		break;
 	case MAX77693_MUIC_GND_MHL:
 	case MAX77693_MUIC_GND_MHL_VB:
 		/* MHL or MHL with USB/TA cable */
-		extcon_set_cable_state(info->edev, "MHL", attached);
+		extcon_set_cable_state_(info->edev, EXTCON_MHL, attached);
 		break;
 	default:
 		dev_err(info->dev, "failed to detect %s cable of gnd type\n",
@@ -658,7 +642,7 @@ static int max77693_muic_jig_handler(struct max77693_muic_info *info,
 	if (ret < 0)
 		return ret;
 
-	extcon_set_cable_state(info->edev, "JIG", attached);
+	extcon_set_cable_state_(info->edev, EXTCON_JIG, attached);
 
 	return 0;
 }
@@ -812,10 +796,10 @@ static int max77693_muic_chg_handler(struct max77693_muic_info *info)
 			 * - Support charging through micro-usb port without
 			 *   data connection
 			 */
-			extcon_set_cable_state(info->edev, "TA", attached);
+			extcon_set_cable_state_(info->edev, EXTCON_TA, attached);
 			if (!cable_attached)
-				extcon_set_cable_state(info->edev,
-						      "MHL", cable_attached);
+				extcon_set_cable_state_(info->edev, EXTCON_MHL,
+							cable_attached);
 			break;
 		}
 
@@ -838,11 +822,12 @@ static int max77693_muic_chg_handler(struct max77693_muic_info *info)
 			 * - Support charging through micro-usb port without
 			 *   data connection.
 			 */
-			extcon_set_cable_state(info->edev, "USB", attached);
+			extcon_set_cable_state_(info->edev, EXTCON_USB,
+						attached);
 
 			if (!cable_attached)
-				extcon_set_cable_state(info->edev, "DOCK",
-						      cable_attached);
+				extcon_set_cable_state_(info->edev, EXTCON_DOCK,
+							cable_attached);
 			break;
 		case MAX77693_MUIC_ADC_RESERVED_ACC_3:		/* Dock-Smart */
 			/*
@@ -870,9 +855,10 @@ static int max77693_muic_chg_handler(struct max77693_muic_info *info)
 			if (ret < 0)
 				return ret;
 
-			extcon_set_cable_state(info->edev, "DOCK", attached);
-			extcon_set_cable_state(info->edev, "MHL", attached);
-
+			extcon_set_cable_state_(info->edev, EXTCON_DOCK,
+						attached);
+			extcon_set_cable_state_(info->edev, EXTCON_MHL,
+						attached);
 			break;
 		}
 
@@ -905,23 +891,26 @@ static int max77693_muic_chg_handler(struct max77693_muic_info *info)
 			if (ret < 0)
 				return ret;
 
-			extcon_set_cable_state(info->edev, "USB", attached);
+			extcon_set_cable_state_(info->edev, EXTCON_USB,
+						attached);
 			break;
 		case MAX77693_CHARGER_TYPE_DEDICATED_CHG:
 			/* Only TA cable */
-			extcon_set_cable_state(info->edev, "TA", attached);
+			extcon_set_cable_state_(info->edev, EXTCON_TA, attached);
 			break;
 		}
 		break;
 	case MAX77693_CHARGER_TYPE_DOWNSTREAM_PORT:
-		extcon_set_cable_state(info->edev,
-				"Charge-downstream", attached);
+		extcon_set_cable_state_(info->edev, EXTCON_CHARGE_DOWNSTREAM,
+					attached);
 		break;
 	case MAX77693_CHARGER_TYPE_APPLE_500MA:
-		extcon_set_cable_state(info->edev, "Slow-charger", attached);
+		extcon_set_cable_state_(info->edev, EXTCON_SLOW_CHARGER,
+					attached);
 		break;
 	case MAX77693_CHARGER_TYPE_APPLE_1A_2A:
-		extcon_set_cable_state(info->edev, "Fast-charger", attached);
+		extcon_set_cable_state_(info->edev, EXTCON_FAST_CHARGER,
+					attached);
 		break;
 	case MAX77693_CHARGER_TYPE_DEAD_BATTERY:
 		break;

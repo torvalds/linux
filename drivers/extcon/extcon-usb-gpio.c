@@ -39,18 +39,10 @@ struct usb_extcon_info {
 	struct delayed_work wq_detcable;
 };
 
-/* List of detectable cables */
-enum {
-	EXTCON_CABLE_USB = 0,
-	EXTCON_CABLE_USB_HOST,
-
-	EXTCON_CABLE_END,
-};
-
-static const char *usb_extcon_cable[] = {
-	[EXTCON_CABLE_USB] = "USB",
-	[EXTCON_CABLE_USB_HOST] = "USB-HOST",
-	NULL,
+static const enum extcon usb_extcon_cable[] = {
+	EXTCON_USB,
+	EXTCON_USB_HOST,
+	EXTCON_NONE,
 };
 
 static void usb_extcon_detect_cable(struct work_struct *work)
@@ -68,24 +60,16 @@ static void usb_extcon_detect_cable(struct work_struct *work)
 		 * As we don't have event for USB peripheral cable attached,
 		 * we simulate USB peripheral attach here.
 		 */
-		extcon_set_cable_state(info->edev,
-				       usb_extcon_cable[EXTCON_CABLE_USB_HOST],
-				       false);
-		extcon_set_cable_state(info->edev,
-				       usb_extcon_cable[EXTCON_CABLE_USB],
-				       true);
+		extcon_set_cable_state_(info->edev, EXTCON_USB_HOST, false);
+		extcon_set_cable_state_(info->edev, EXTCON_USB, true);
 	} else {
 		/*
 		 * ID = 0 means USB HOST cable attached.
 		 * As we don't have event for USB peripheral cable detached,
 		 * we simulate USB peripheral detach here.
 		 */
-		extcon_set_cable_state(info->edev,
-				       usb_extcon_cable[EXTCON_CABLE_USB],
-				       false);
-		extcon_set_cable_state(info->edev,
-				       usb_extcon_cable[EXTCON_CABLE_USB_HOST],
-				       true);
+		extcon_set_cable_state_(info->edev, EXTCON_USB, false);
+		extcon_set_cable_state_(info->edev, EXTCON_USB_HOST, true);
 	}
 }
 
