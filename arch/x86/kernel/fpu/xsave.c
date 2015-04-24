@@ -482,6 +482,30 @@ static void __init setup_xstate_features(void)
 	} while (1);
 }
 
+static void print_xstate_feature(u64 xstate_mask, const char *desc)
+{
+	if (pcntxt_mask & xstate_mask) {
+		int xstate_feature = fls64(xstate_mask)-1;
+
+		pr_info("x86/fpu: Supporting XSAVE feature %2d: '%s'\n", xstate_feature, desc);
+	}
+}
+
+/*
+ * Print out all the supported xstate features:
+ */
+static void print_xstate_features(void)
+{
+	print_xstate_feature(XSTATE_FP,		"x87 floating point registers");
+	print_xstate_feature(XSTATE_SSE,	"SSE registers");
+	print_xstate_feature(XSTATE_YMM,	"AVX registers");
+	print_xstate_feature(XSTATE_BNDREGS,	"MPX bounds registers");
+	print_xstate_feature(XSTATE_BNDCSR,	"MPX CSR");
+	print_xstate_feature(XSTATE_OPMASK,	"AVX-512 opmask");
+	print_xstate_feature(XSTATE_ZMM_Hi256,	"AVX-512 Hi256");
+	print_xstate_feature(XSTATE_Hi16_ZMM,	"AVX-512 ZMM_Hi256");
+}
+
 /*
  * This function sets up offsets and sizes of all extended states in
  * xsave area. This supports both standard format and compacted format
@@ -545,6 +569,7 @@ static void __init setup_init_fpu_buf(void)
 		return;
 
 	setup_xstate_features();
+	print_xstate_features();
 
 	if (cpu_has_xsaves) {
 		init_xstate_buf->xsave_hdr.xcomp_bv =
