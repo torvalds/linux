@@ -392,6 +392,17 @@ static int vidioc_s_parm(struct file *file, void *fh,
 	return vivid_vid_out_g_parm(file, fh, parm);
 }
 
+static int vidioc_log_status(struct file *file, void *fh)
+{
+	struct vivid_dev *dev = video_drvdata(file);
+	struct video_device *vdev = video_devdata(file);
+
+	v4l2_ctrl_log_status(file, fh);
+	if (vdev->vfl_dir == VFL_DIR_RX && vdev->vfl_type == VFL_TYPE_GRABBER)
+		tpg_log_status(&dev->tpg);
+	return 0;
+}
+
 static ssize_t vivid_radio_read(struct file *file, char __user *buf,
 			 size_t size, loff_t *offset)
 {
@@ -610,7 +621,7 @@ static const struct v4l2_ioctl_ops vivid_ioctl_ops = {
 	.vidioc_g_edid			= vidioc_g_edid,
 	.vidioc_s_edid			= vidioc_s_edid,
 
-	.vidioc_log_status		= v4l2_ctrl_log_status,
+	.vidioc_log_status		= vidioc_log_status,
 	.vidioc_subscribe_event		= vidioc_subscribe_event,
 	.vidioc_unsubscribe_event	= v4l2_event_unsubscribe,
 };

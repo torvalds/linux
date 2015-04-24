@@ -1670,6 +1670,22 @@ static int tpg_pattern_avg(const struct tpg_data *tpg,
 	return -1;
 }
 
+void tpg_log_status(struct tpg_data *tpg)
+{
+	pr_info("tpg source WxH: %ux%u (%s)\n",
+			tpg->src_width, tpg->src_height,
+			tpg->is_yuv ? "YCbCr" : "RGB");
+	pr_info("tpg field: %u\n", tpg->field);
+	pr_info("tpg crop: %ux%u@%dx%d\n", tpg->crop.width, tpg->crop.height,
+			tpg->crop.left, tpg->crop.top);
+	pr_info("tpg compose: %ux%u@%dx%d\n", tpg->compose.width, tpg->compose.height,
+			tpg->compose.left, tpg->compose.top);
+	pr_info("tpg colorspace: %d\n", tpg->colorspace);
+	pr_info("tpg Y'CbCr encoding: %d/%d\n", tpg->ycbcr_enc, tpg->real_ycbcr_enc);
+	pr_info("tpg quantization: %d/%d\n", tpg->quantization, tpg->real_quantization);
+	pr_info("tpg RGB range: %d/%d\n", tpg->rgb_range, tpg->real_rgb_range);
+}
+
 /*
  * This struct contains common parameters used by both the drawing of the
  * test pattern and the drawing of the extras (borders, square, etc.)
