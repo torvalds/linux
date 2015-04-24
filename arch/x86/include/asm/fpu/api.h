@@ -10,8 +10,6 @@
 #ifndef _ASM_X86_FPU_API_H
 #define _ASM_X86_FPU_API_H
 
-#ifndef __ASSEMBLY__
-
 #include <linux/sched.h>
 #include <linux/hardirq.h>
 
@@ -101,7 +99,5 @@ static inline int user_has_fpu(void)
 }
 
 extern void fpu__save(struct fpu *fpu);
-
-#endif /* __ASSEMBLY__ */
 
 #endif /* _ASM_X86_FPU_API_H */
