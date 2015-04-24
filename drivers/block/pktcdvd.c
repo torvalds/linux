@@ -2447,6 +2447,10 @@ static void pkt_make_request(struct request_queue *q, struct bio *bio)
 	char b[BDEVNAME_SIZE];
 	struct bio *split;
 
+	blk_queue_bounce(q, &bio);
+
+	blk_queue_split(q, &bio, q->bio_split);
+
 	pd = q->queuedata;
 	if (!pd) {
 		pr_err("%s incorrect request queue\n",
@@ -2476,8 +2480,6 @@ static void pkt_make_request(struct request_queue *q, struct bio *bio)
 		pkt_err(pd, "wrong bio size\n");
 		goto end_io;
 	}
-
-	blk_queue_bounce(q, &bio);
 
 	do {
 		sector_t zone = get_zone(bio->bi_iter.bi_sector, pd);
