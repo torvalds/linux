@@ -353,17 +353,6 @@ typedef struct asc_scsi_q {
 	ushort next_sg_index;
 } ASC_SCSI_Q;
 
-typedef struct asc_scsi_req_q {
-	ASC_SCSIQ_1 r1;
-	ASC_SCSIQ_2 r2;
-	uchar *cdbptr;
-	ASC_SG_HEAD *sg_head;
-	uchar *sense_ptr;
-	ASC_SCSIQ_3 r3;
-	uchar cdb[ASC_MAX_CDB_LEN];
-	uchar sense[ASC_MIN_SENSE_LEN];
-} ASC_SCSI_REQ_Q;
-
 typedef struct asc_scsi_bios_req_q {
 	ASC_SCSIQ_1 r1;
 	ASC_SCSIQ_2 r2;
@@ -1707,7 +1696,7 @@ typedef struct adveep_38C1600_config {
 typedef struct adv_carr_t {
 	__le32 carr_va;	/* Carrier Virtual Address */
 	__le32 carr_pa;	/* Carrier Physical Address */
-	__le32 areq_vpa;	/* ASC_SCSI_REQ_Q Virtual or Physical Address */
+	__le32 areq_vpa;	/* ADV_SCSI_REQ_Q Virtual or Physical Address */
 	/*
 	 * next_vpa [31:4]            Carrier Virtual or Physical Next Pointer
 	 *
@@ -1738,7 +1727,7 @@ typedef struct adv_carr_t {
 	(ADV_CARRIER_COUNT * sizeof(ADV_CARR_T))
 
 /*
- * ASC_SCSI_REQ_Q 'a_flag' definitions
+ * ADV_SCSI_REQ_Q 'a_flag' definitions
  *
  * The Adv Library should limit use to the lower nibble (4 bits) of
  * a_flag. Drivers are free to use the upper nibble (4 bits) of a_flag.
@@ -2029,7 +2018,7 @@ do { \
 
 /*
  * Abort an SRB in the chip's RISC Memory. The 'srb_tag' argument must
- * match the ASC_SCSI_REQ_Q 'srb_tag' field.
+ * match the ADV_SCSI_REQ_Q 'srb_tag' field.
  *
  * If the request has not yet been sent to the device it will simply be
  * aborted from RISC memory. If the request is disconnected it will be
@@ -2075,7 +2064,7 @@ do { \
 #define ADV_TID_TO_TIDMASK(tid)   (0x01 << ((tid) & ADV_MAX_TID))
 
 /*
- * ASC_SCSI_REQ_Q 'done_status' and 'host_status' return values.
+ * ADV_SCSI_REQ_Q 'done_status' and 'host_status' return values.
  */
 
 #define QD_NO_STATUS         0x00	/* Request not completed yet. */
@@ -6237,9 +6226,9 @@ static int AdvISR(ADV_DVC_VAR *asc_dvc)
 		 * Get a pointer to the newly completed ADV_SCSI_REQ_Q structure.
 		 * The RISC will have set 'areq_vpa' to a virtual address.
 		 *
-		 * The firmware will have copied the ASC_SCSI_REQ_Q.scsiq_ptr
+		 * The firmware will have copied the ADV_SCSI_REQ_Q.scsiq_ptr
 		 * field to the carrier ADV_CARR_T.areq_vpa field. The conversion
-		 * below complements the conversion of ASC_SCSI_REQ_Q.scsiq_ptr'
+		 * below complements the conversion of ADV_SCSI_REQ_Q.scsiq_ptr'
 		 * in AdvExeScsiQueue().
 		 */
 		u32 pa_offset = le32_to_cpu(asc_dvc->irq_sp->areq_vpa);
@@ -6751,9 +6740,9 @@ static void AscIsrChipHalted(ASC_DVC_VAR *asc_dvc)
 		q_addr = ASC_QNO_TO_QADDR(q_no);
 
 		/*
-		 * Convert the request's SRB pointer to a host ASC_SCSI_REQ
+		 * Convert the request's SRB pointer to a host ASC_SCSI_Q
 		 * structure pointer using a macro provided by the driver.
-		 * The ASC_SCSI_REQ pointer provides a pointer to the
+		 * The ASC_SCSI_Q pointer provides a pointer to the
 		 * host ASC_SG_HEAD structure.
 		 */
 		/* Read request's SRB pointer. */
@@ -7947,7 +7936,7 @@ adv_get_sglist(struct asc_board *boardp, adv_req_t *reqp,
  * If an adv_req_t can not be allocated to issue the request,
  * then return ASC_BUSY. If an error occurs, then return ASC_ERROR.
  *
- * Multi-byte fields in the ASC_SCSI_REQ_Q that are used by the
+ * Multi-byte fields in the ADV_SCSI_REQ_Q that are used by the
  * microcode for DMA addresses or math operations are byte swapped
  * to little-endian order.
  */
@@ -8633,7 +8622,7 @@ static int AscExeScsiQueue(ASC_DVC_VAR *asc_dvc, ASC_SCSI_Q *scsiq)
  * If 'done_status' is not set to QD_DO_RETRY, then 'error_retry' will be
  * set to SCSI_MAX_RETRY.
  *
- * Multi-byte fields in the ASC_SCSI_REQ_Q that are used by the microcode
+ * Multi-byte fields in the ADV_SCSI_REQ_Q that are used by the microcode
  * for DMA addresses or math operations are byte swapped to little-endian
  * order.
  *
