@@ -499,43 +499,13 @@ static inline void add_to_mask(struct posix_acl_state *state, struct posix_ace_s
 	state->mask.allow |= astate->allow;
 }
 
-/*
- * Certain bits (SYNCHRONIZE, DELETE, WRITE_OWNER, READ/WRITE_NAMED_ATTRS,
- * READ_ATTRIBUTES, READ_ACL) are currently unenforceable and don't translate
- * to traditional read/write/execute permissions.
- *
- * It's problematic to reject acls that use certain mode bits, because it
- * places the burden on users to learn the rules about which bits one
- * particular server sets, without giving the user a lot of help--we return an
- * error that could mean any number of different things.  To make matters
- * worse, the problematic bits might be introduced by some application that's
- * automatically mapping from some other acl model.
- *
- * So wherever possible we accept anything, possibly erring on the side of
- * denying more permissions than necessary.
- *
- * However we do reject *explicit* DENY's of a few bits representing
- * permissions we could never deny:
- */
-
-static inline int check_deny(u32 mask, int isowner)
-{
-	if (mask & (NFS4_ACE_READ_ATTRIBUTES | NFS4_ACE_READ_ACL))
-		return -EINVAL;
-	if (!isowner)
-		return 0;
-	if (mask & (NFS4_ACE_WRITE_ATTRIBUTES | NFS4_ACE_WRITE_ACL))
-		return -EINVAL;
-	return 0;
-}
-
 static struct posix_acl *
 posix_state_to_acl(struct posix_acl_state *state, unsigned int flags)
 {
 	struct posix_acl_entry *pace;
 	struct posix_acl *pacl;
 	int nace;
-	int i, error = 0;
+	int i;
 
 	/*
 	 * ACLs with no ACEs are treated differently in the inheritable
@@ -560,17 +530,11 @@ posix_state_to_acl(struct posix_acl_state *state, unsigned int flags)
 
 	pace = pacl->a_entries;
 	pace->e_tag = ACL_USER_OBJ;
-	error = check_deny(state->owner.deny, 1);
-	if (error)
-		goto out_err;
 	low_mode_from_nfs4(state->owner.allow, &pace->e_perm, flags);
 
 	for (i=0; i < state->users->n; i++) {
 		pace++;
 		pace->e_tag = ACL_USER;
-		error = check_deny(state->users->aces[i].perms.deny, 0);
-		if (error)
-			goto out_err;
 		low_mode_from_nfs4(state->users->aces[i].perms.allow,
 					&pace->e_perm, flags);
 		pace->e_uid = state->users->aces[i].uid;
@@ -579,18 +543,12 @@ posix_state_to_acl(struct posix_acl_state *state, unsigned int flags)
 
 	pace++;
 	pace->e_tag = ACL_GROUP_OBJ;
-	error = check_deny(state->group.deny, 0);
-	if (error)
-		goto out_err;
 	low_mode_from_nfs4(state->group.allow, &pace->e_perm, flags);
 	add_to_mask(state, &state->group);
 
 	for (i=0; i < state->groups->n; i++) {
 		pace++;
 		pace->e_tag = ACL_GROUP;
-		error = check_deny(state->groups->aces[i].perms.deny, 0);
-		if (error)
-			goto out_err;
 		low_mode_from_nfs4(state->groups->aces[i].perms.allow,
 					&pace->e_perm, flags);
 		pace->e_gid = state->groups->aces[i].gid;
@@ -605,15 +563,9 @@ posix_state_to_acl(struct posix_acl_state *state, unsigned int flags)
 
 	pace++;
 	pace->e_tag = ACL_OTHER;
-	error = check_deny(state->other.deny, 0);
-	if (error)
-		goto out_err;
 	low_mode_from_nfs4(state->other.allow, &pace->e_perm, flags);
 
 	return pacl;
-out_err:
-	posix_acl_release(pacl);
-	return ERR_PTR(error);
 }
 
 static inline void allow_bits(struct posix_ace_state *astate, u32 mask)
