@@ -311,27 +311,26 @@ EXPORT_SYMBOL_GPL(fpstate_alloc_init);
  *       the read-only case, it's not strictly necessary for
  *       read-only access to the context.
  */
-static int fpu__unlazy_stopped(struct task_struct *child)
+static int fpu__unlazy_stopped(struct fpu *child_fpu)
 {
-	struct fpu *child_fpu = &child->thread.fpu;
 	int ret;
 
-	if (WARN_ON_ONCE(child == current))
+	if (WARN_ON_ONCE(child_fpu == &current->thread.fpu))
 		return -EINVAL;
 
 	if (child_fpu->fpstate_active) {
-		child->thread.fpu.last_cpu = -1;
+		child_fpu->last_cpu = -1;
 		return 0;
 	}
 
 	/*
 	 * Memory allocation at the first usage of the FPU and other state.
 	 */
-	ret = fpstate_alloc(&child->thread.fpu);
+	ret = fpstate_alloc(child_fpu);
 	if (ret)
 		return ret;
 
-	fpstate_init(&child->thread.fpu);
+	fpstate_init(child_fpu);
 
 	/* Safe to do for stopped child tasks: */
 	child_fpu->fpstate_active = 1;
@@ -426,12 +425,13 @@ int xfpregs_get(struct task_struct *target, const struct user_regset *regset,
 		unsigned int pos, unsigned int count,
 		void *kbuf, void __user *ubuf)
 {
+	struct fpu *fpu = &target->thread.fpu;
 	int ret;
 
 	if (!cpu_has_fxsr)
 		return -ENODEV;
 
-	ret = fpu__unlazy_stopped(target);
+	ret = fpu__unlazy_stopped(fpu);
 	if (ret)
 		return ret;
 
@@ -445,12 +445,13 @@ int xfpregs_set(struct task_struct *target, const struct user_regset *regset,
 		unsigned int pos, unsigned int count,
 		const void *kbuf, const void __user *ubuf)
 {
+	struct fpu *fpu = &target->thread.fpu;
 	int ret;
 
 	if (!cpu_has_fxsr)
 		return -ENODEV;
 
-	ret = fpu__unlazy_stopped(target);
+	ret = fpu__unlazy_stopped(fpu);
 	if (ret)
 		return ret;
 
@@ -478,13 +479,14 @@ int xstateregs_get(struct task_struct *target, const struct user_regset *regset,
 		unsigned int pos, unsigned int count,
 		void *kbuf, void __user *ubuf)
 {
+	struct fpu *fpu = &target->thread.fpu;
 	struct xsave_struct *xsave;
 	int ret;
 
 	if (!cpu_has_xsave)
 		return -ENODEV;
 
-	ret = fpu__unlazy_stopped(target);
+	ret = fpu__unlazy_stopped(fpu);
 	if (ret)
 		return ret;
 
@@ -508,13 +510,14 @@ int xstateregs_set(struct task_struct *target, const struct user_regset *regset,
 		  unsigned int pos, unsigned int count,
 		  const void *kbuf, const void __user *ubuf)
 {
+	struct fpu *fpu = &target->thread.fpu;
 	struct xsave_struct *xsave;
 	int ret;
 
 	if (!cpu_has_xsave)
 		return -ENODEV;
 
-	ret = fpu__unlazy_stopped(target);
+	ret = fpu__unlazy_stopped(fpu);
 	if (ret)
 		return ret;
 
@@ -674,10 +677,11 @@ int fpregs_get(struct task_struct *target, const struct user_regset *regset,
 	       unsigned int pos, unsigned int count,
 	       void *kbuf, void __user *ubuf)
 {
+	struct fpu *fpu = &target->thread.fpu;
 	struct user_i387_ia32_struct env;
 	int ret;
 
-	ret = fpu__unlazy_stopped(target);
+	ret = fpu__unlazy_stopped(fpu);
 	if (ret)
 		return ret;
 
@@ -705,10 +709,11 @@ int fpregs_set(struct task_struct *target, const struct user_regset *regset,
 	       unsigned int pos, unsigned int count,
 	       const void *kbuf, const void __user *ubuf)
 {
+	struct fpu *fpu = &target->thread.fpu;
 	struct user_i387_ia32_struct env;
 	int ret;
 
-	ret = fpu__unlazy_stopped(target);
+	ret = fpu__unlazy_stopped(fpu);
 	if (ret)
 		return ret;
 
