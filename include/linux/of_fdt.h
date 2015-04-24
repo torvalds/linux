@@ -33,6 +33,8 @@ extern void *of_fdt_get_property(const void *blob,
 extern int of_fdt_is_compatible(const void *blob,
 				unsigned long node,
 				const char *compat);
+extern bool of_fdt_is_big_endian(const void *blob,
+				 unsigned long node);
 extern int of_fdt_match(const void *blob, unsigned long node,
 			const char *const *compat);
 extern void of_fdt_unflatten_tree(unsigned long *blob,

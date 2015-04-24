@@ -342,6 +342,11 @@ static inline void iowrite32(u32 val, void __iomem *p)
 		__flush_PCI_writes();
 }
 
+#define ioread16be(addr)	be16_to_cpu(ioread16(addr))
+#define ioread32be(addr)	be32_to_cpu(ioread32(addr))
+#define iowrite16be(v, addr)	iowrite16(cpu_to_be16(v), (addr))
+#define iowrite32be(v, addr)	iowrite32(cpu_to_be32(v), (addr))
+
 static inline void ioread8_rep(void __iomem *p, void *dst, unsigned long count)
 {
 	io_insb((unsigned long) p, dst, count);

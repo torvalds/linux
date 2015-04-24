@@ -42,6 +42,8 @@ unsigned int __weak __init serial8250_early_in(struct uart_port *port, int offse
 		return readb(port->membase + offset);
 	case UPIO_MEM32:
 		return readl(port->membase + (offset << 2));
+	case UPIO_MEM32BE:
+		return ioread32be(port->membase + (offset << 2));
 	case UPIO_PORT:
 		return inb(port->iobase + offset);
 	default:
@@ -57,6 +59,9 @@ void __weak __init serial8250_early_out(struct uart_port *port, int offset, int 
 		break;
 	case UPIO_MEM32:
 		writel(value, port->membase + (offset << 2));
+		break;
+	case UPIO_MEM32BE:
+		iowrite32be(value, port->membase + (offset << 2));
 		break;
 	case UPIO_PORT:
 		outb(value, port->iobase + offset);
