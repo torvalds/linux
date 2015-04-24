@@ -1725,8 +1725,6 @@ static void handle_bad_sector(struct bio *bio)
 			bio->bi_rw,
 			(unsigned long long)bio_end_sector(bio),
 			(long long)(i_size_read(bio->bi_bdev->bd_inode) >> 9));
-
-	set_bit(BIO_EOF, &bio->bi_flags);
 }
 
 #ifdef CONFIG_FAIL_MAKE_REQUEST
