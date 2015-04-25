@@ -1368,8 +1368,10 @@ be_complete_io(struct beiscsi_conn *beiscsi_conn,
 	if (io_task->cmd_bhs->iscsi_hdr.flags & ISCSI_FLAG_CMD_READ)
 		conn->rxdata_octets += resid;
 unmap:
-	scsi_dma_unmap(io_task->scsi_cmnd);
-	io_task->scsi_cmnd = NULL;
+	if (io_task->scsi_cmnd) {
+		scsi_dma_unmap(io_task->scsi_cmnd);
+		io_task->scsi_cmnd = NULL;
+	}
 	iscsi_complete_scsi_task(task, exp_cmdsn, max_cmdsn);
 }
 
@@ -4609,11 +4611,13 @@ beiscsi_free_mgmt_task_handles(struct beiscsi_conn *beiscsi_conn,
 		spin_unlock_bh(&phba->mgmt_sgl_lock);
 	}
 
-	if (io_task->mtask_addr)
+	if (io_task->mtask_addr) {
 		pci_unmap_single(phba->pcidev,
 				 io_task->mtask_addr,
 				 io_task->mtask_data_count,
 				 PCI_DMA_TODEVICE);
+		io_task->mtask_addr = 0;
+	}
 }
 
 /**
