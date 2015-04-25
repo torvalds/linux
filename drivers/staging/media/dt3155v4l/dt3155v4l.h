@@ -20,6 +20,8 @@
 
 #include <linux/pci.h>
 #include <linux/interrupt.h>
+#include <media/v4l2-device.h>
+#include <media/v4l2-dev.h>
 
 #define DT3155_NAME "dt3155"
 #define DT3155_VER_MAJ 1
@@ -157,6 +159,7 @@
 /**
  * struct dt3155_priv - private data structure
  *
+ * @v4l2_dev:		v4l2_device structure
  * @vdev:		video_device structure
  * @pdev:		pointer to pci_dev structure
  * @q			pointer to vb2_queue structure
@@ -172,6 +175,7 @@
  * @config:		local copy of config register
  */
 struct dt3155_priv {
+	struct v4l2_device v4l2_dev;
 	struct video_device vdev;
 	struct pci_dev *pdev;
 	struct vb2_queue *q;
