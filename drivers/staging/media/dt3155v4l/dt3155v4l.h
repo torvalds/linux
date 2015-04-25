@@ -12,17 +12,11 @@
  *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
  *   GNU General Public License for more details.                          *
  *                                                                         *
- *   You should have received a copy of the GNU General Public License     *
- *   along with this program; if not, write to the                         *
- *   Free Software Foundation, Inc.,                                       *
- *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
  ***************************************************************************/
 
 /*    DT3155 header file    */
 #ifndef _DT3155_H_
 #define _DT3155_H_
-
-#ifdef __KERNEL__
 
 #include <linux/pci.h>
 #include <linux/interrupt.h>
@@ -206,7 +200,5 @@ struct dt3155_priv {
 	int users;
 	u8 csr2, config;
 };
-
-#endif /*  __KERNEL__  */
 
 #endif /*  _DT3155_H_  */
