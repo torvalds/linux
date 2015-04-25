@@ -1419,7 +1419,7 @@ intel_atomic_get_crtc_state(struct drm_atomic_state *state,
 	struct drm_crtc_state *crtc_state;
 	crtc_state = drm_atomic_get_crtc_state(state, &crtc->base);
 	if (IS_ERR(crtc_state))
-		return ERR_PTR(PTR_ERR(crtc_state));
+		return ERR_CAST(crtc_state);
 
 	return to_intel_crtc_state(crtc_state);
 }
