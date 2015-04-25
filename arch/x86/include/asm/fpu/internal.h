@@ -373,9 +373,9 @@ static inline void drop_fpu(struct fpu *fpu)
 static inline void restore_init_xstate(void)
 {
 	if (use_xsave())
-		xrstor_state(init_xstate_buf, -1);
+		xrstor_state(&init_xstate_ctx, -1);
 	else
-		fxrstor_checking(&init_xstate_buf->i387);
+		fxrstor_checking(&init_xstate_ctx.i387);
 }
 
 /*

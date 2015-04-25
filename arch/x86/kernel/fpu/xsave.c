@@ -3,7 +3,6 @@
  *
  * Author: Suresh Siddha <suresh.b.siddha@intel.com>
  */
-#include <linux/bootmem.h>
 #include <linux/compat.h>
 #include <linux/cpu.h>
 #include <asm/fpu/api.h>
@@ -20,7 +19,7 @@ u64 xfeatures_mask;
 /*
  * Represents init state for the supported extended state.
  */
-struct xsave_struct *init_xstate_buf;
+struct xsave_struct init_xstate_ctx;
 
 static struct _fpx_sw_bytes fx_sw_reserved, fx_sw_reserved_ia32;
 static unsigned int xstate_offsets[XFEATURES_NR_MAX], xstate_sizes[XFEATURES_NR_MAX];
@@ -98,7 +97,7 @@ void __sanitize_i387_state(struct task_struct *tsk)
 			int size = xstate_sizes[feature_bit];
 
 			memcpy((void *)fx + offset,
-			       (void *)init_xstate_buf + offset,
+			       (void *)&init_xstate_ctx + offset,
 			       size);
 		}
 
@@ -325,12 +324,12 @@ static inline int restore_user_xstate(void __user *buf, u64 xbv, int fx_only)
 	if (use_xsave()) {
 		if ((unsigned long)buf % 64 || fx_only) {
 			u64 init_bv = xfeatures_mask & ~XSTATE_FPSSE;
-			xrstor_state(init_xstate_buf, init_bv);
+			xrstor_state(&init_xstate_ctx, init_bv);
 			return fxrstor_user(buf);
 		} else {
 			u64 init_bv = xfeatures_mask & ~xbv;
 			if (unlikely(init_bv))
-				xrstor_state(init_xstate_buf, init_bv);
+				xrstor_state(&init_xstate_ctx, init_bv);
 			return xrestore_user(buf, xbv);
 		}
 	} else if (use_fxsr()) {
@@ -574,12 +573,10 @@ static void setup_init_fpu_buf(void)
 	on_boot_cpu = 0;
 
 	/*
-	 * Setup init_xstate_buf to represent the init state of
+	 * Setup init_xstate_ctx to represent the init state of
 	 * all the features managed by the xsave
 	 */
-	init_xstate_buf = alloc_bootmem_align(xstate_size,
-					      __alignof__(struct xsave_struct));
-	fx_finit(&init_xstate_buf->i387);
+	fx_finit(&init_xstate_ctx.i387);
 
 	if (!cpu_has_xsave)
 		return;
@@ -588,21 +585,20 @@ static void setup_init_fpu_buf(void)
 	print_xstate_features();
 
 	if (cpu_has_xsaves) {
-		init_xstate_buf->header.xcomp_bv =
-						(u64)1 << 63 | xfeatures_mask;
-		init_xstate_buf->header.xfeatures = xfeatures_mask;
+		init_xstate_ctx.header.xcomp_bv = (u64)1 << 63 | xfeatures_mask;
+		init_xstate_ctx.header.xfeatures = xfeatures_mask;
 	}
 
 	/*
 	 * Init all the features state with header_bv being 0x0
 	 */
-	xrstor_state_booting(init_xstate_buf, -1);
+	xrstor_state_booting(&init_xstate_ctx, -1);
 
 	/*
 	 * Dump the init state again. This is to identify the init state
 	 * of any feature which is not represented by all zero's.
 	 */
-	xsave_state_booting(init_xstate_buf);
+	xsave_state_booting(&init_xstate_ctx);
 }
 
 static enum { AUTO, ENABLE, DISABLE } eagerfpu = AUTO;
@@ -727,7 +723,7 @@ void xsave_init(void)
 
 /*
  * setup_init_fpu_buf() is __init and it is OK to call it here because
- * init_xstate_buf will be unset only once during boot.
+ * init_xstate_ctx will be unset only once during boot.
  */
 void __init_refok eager_fpu_init(void)
 {
