@@ -75,7 +75,8 @@ static void __init _mx1_clocks_init(unsigned long fref)
 
 int __init mx1_clocks_init(unsigned long fref)
 {
-	ccm = MX1_IO_ADDRESS(MX1_CCM_BASE_ADDR);
+	ccm = ioremap(MX1_CCM_BASE_ADDR, SZ_4K);
+	BUG_ON(!ccm);
 
 	_mx1_clocks_init(fref);
 

@@ -71,10 +71,13 @@ static struct clk *clk[clk_max];
 
 int __init mx35_clocks_init(void)
 {
-	void __iomem *base = MX35_IO_ADDRESS(MX35_CCM_BASE_ADDR);
+	void __iomem *base;
 	u32 pdr0, consumer_sel, hsp_sel;
 	struct arm_ahb_div *aad;
 	unsigned char *hsp_div;
+
+	base = ioremap(MX35_CCM_BASE_ADDR, SZ_4K);
+	BUG_ON(!base);
 
 	pdr0 = __raw_readl(base + MXC_CCM_PDR0);
 	consumer_sel = (pdr0 >> 16) & 0xf;

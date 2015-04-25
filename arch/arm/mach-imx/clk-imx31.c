@@ -50,8 +50,11 @@ static struct clk_onecell_data clk_data;
 
 int __init mx31_clocks_init(unsigned long fref)
 {
-	void __iomem *base = MX31_IO_ADDRESS(MX31_CCM_BASE_ADDR);
+	void __iomem *base;
 	struct device_node *np;
+
+	base = ioremap(MX31_CCM_BASE_ADDR, SZ_4K);
+	BUG_ON(!base);
 
 	clk[dummy] = imx_clk_fixed("dummy", 0);
 	clk[ckih] = imx_clk_fixed("ckih", fref);
