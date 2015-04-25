@@ -24,8 +24,8 @@
 #include <media/v4l2-dev.h>
 
 #define DT3155_NAME "dt3155"
-#define DT3155_VER_MAJ 1
-#define DT3155_VER_MIN 1
+#define DT3155_VER_MAJ 2
+#define DT3155_VER_MIN 0
 #define DT3155_VER_EXT 0
 #define DT3155_VERSION  __stringify(DT3155_VER_MAJ)	"."		\
 			__stringify(DT3155_VER_MIN)	"."		\

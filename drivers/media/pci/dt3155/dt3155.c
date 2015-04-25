@@ -25,7 +25,7 @@
 #include <media/v4l2-common.h>
 #include <media/videobuf2-dma-contig.h>
 
-#include "dt3155v4l.h"
+#include "dt3155.h"
 
 #define DT3155_DEVICE_ID 0x1223
 
