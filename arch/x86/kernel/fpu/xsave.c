@@ -686,20 +686,6 @@ void fpu__init_system_xstate(void)
 	prepare_fx_sw_frame();
 	setup_init_fpu_buf();
 
-	/* Auto enable eagerfpu for xsaveopt */
-	if (cpu_has_xsaveopt && eagerfpu != DISABLE)
-		eagerfpu = ENABLE;
-
-	if (xfeatures_mask & XSTATE_EAGER) {
-		if (eagerfpu == DISABLE) {
-			pr_err("x86/fpu: eagerfpu switching disabled, disabling the following xstate features: 0x%llx.\n",
-			       xfeatures_mask & XSTATE_EAGER);
-			xfeatures_mask &= ~XSTATE_EAGER;
-		} else {
-			eagerfpu = ENABLE;
-		}
-	}
-
 	pr_info("x86/fpu: Enabled xstate features 0x%llx, context size is 0x%x bytes, using '%s' format.\n",
 		xfeatures_mask,
 		xstate_size,
@@ -714,6 +700,20 @@ void __init_refok eager_fpu_init(void)
 {
 	WARN_ON(current->thread.fpu.fpstate_active);
 	current_thread_info()->status = 0;
+
+	/* Auto enable eagerfpu for xsaveopt */
+	if (cpu_has_xsaveopt && eagerfpu != DISABLE)
+		eagerfpu = ENABLE;
+
+	if (xfeatures_mask & XSTATE_EAGER) {
+		if (eagerfpu == DISABLE) {
+			pr_err("x86/fpu: eagerfpu switching disabled, disabling the following xstate features: 0x%llx.\n",
+			       xfeatures_mask & XSTATE_EAGER);
+			xfeatures_mask &= ~XSTATE_EAGER;
+		} else {
+			eagerfpu = ENABLE;
+		}
+	}
 
 	if (eagerfpu == ENABLE)
 		setup_force_cpu_cap(X86_FEATURE_EAGER_FPU);
