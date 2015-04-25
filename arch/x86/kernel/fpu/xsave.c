@@ -652,6 +652,11 @@ static void __init init_xstate_size(void)
 void fpu__init_system_xstate(void)
 {
 	unsigned int eax, ebx, ecx, edx;
+	static bool on_boot_cpu = 1;
+
+	if (!on_boot_cpu)
+		return;
+	on_boot_cpu = 0;
 
 	if (!cpu_has_xsave) {
 		pr_info("x86/fpu: Legacy x87 FPU detected.\n");
@@ -714,14 +719,8 @@ void fpu__init_system_xstate(void)
  */
 void xsave_init(void)
 {
-	static char on_boot_cpu = 1;
-
-	if (on_boot_cpu) {
-		on_boot_cpu = 0;
-		fpu__init_system_xstate();
-	} else {
-		fpu__init_cpu_xstate();
-	}
+	fpu__init_system_xstate();
+	fpu__init_cpu_xstate();
 }
 
 /*
