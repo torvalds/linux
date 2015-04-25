@@ -214,6 +214,13 @@ void fpu__init_system(void)
 	fpu__init_cpu();
 
 	/*
+	 * But don't leave CR0::TS set yet, as some of the FPU setup methods depend
+	 * on being able to execute FPU instructions that will fault on a set TS,
+	 * such as the FXSAVE in mxcsr_feature_mask_init().
+	 */
+	clts();
+
+	/*
 	 * Set up the legacy init FPU context. (xstate init might overwrite this
 	 * with a more modern format, if the CPU supports it.)
 	 */
