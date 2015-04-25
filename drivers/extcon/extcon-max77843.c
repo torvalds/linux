@@ -126,7 +126,6 @@ enum {
 	MAX77843_CABLE_FAST_CHARGER,
 	MAX77843_CABLE_SLOW_CHARGER,
 	MAX77843_CABLE_MHL,
-	MAX77843_CABLE_MHL_TA,
 	MAX77843_CABLE_JIG,
 
 	MAX77843_CABLE_NUM,
@@ -140,7 +139,6 @@ static const char *max77843_extcon_cable[] = {
 	[MAX77843_CABLE_FAST_CHARGER]		= "FAST-CHARGER",
 	[MAX77843_CABLE_SLOW_CHARGER]		= "SLOW-CHARGER",
 	[MAX77843_CABLE_MHL]			= "MHL",
-	[MAX77843_CABLE_MHL_TA]			= "MHL-TA",
 	[MAX77843_CABLE_JIG]			= "JIG",
 };
 
@@ -529,9 +527,9 @@ static int max77843_muic_chg_handler(struct max77843_muic_info *info)
 
 		/* Charger cable on MHL accessory is attach or detach */
 		if (gnd_type == MAX77843_MUIC_GND_MHL_VB)
-			extcon_set_cable_state(info->edev, "MHL-TA", true);
+			extcon_set_cable_state(info->edev, "TA", true);
 		else if (gnd_type == MAX77843_MUIC_GND_MHL)
-			extcon_set_cable_state(info->edev, "MHL-TA", false);
+			extcon_set_cable_state(info->edev, "TA", false);
 		break;
 	case MAX77843_MUIC_CHG_NONE:
 		break;
