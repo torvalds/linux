@@ -4400,6 +4400,9 @@ static int beiscsi_get_boot_info(struct beiscsi_hba *phba)
 
 	memcpy(&phba->boot_sess, &session_resp->session_info,
 	       sizeof(struct mgmt_session_info));
+
+	 beiscsi_logout_fw_sess(phba,
+				phba->boot_sess.session_handle);
 	ret = 0;
 
 boot_freemem:
