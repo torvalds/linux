@@ -171,7 +171,7 @@
  * @mux:		mutex to protect the instance
  * @dmaq		queue for dma buffers
  * @lock		spinlock for dma queue
- * @field_count		fields counter
+ * @sequence		frame counter
  * @stats:		statistics structure
  * @regs:		local copy of mmio base register
  * @csr2:		local copy of csr2 register
@@ -187,7 +187,7 @@ struct dt3155_priv {
 	struct mutex mux;
 	struct list_head dmaq;
 	spinlock_t lock;
-	unsigned int field_count;
+	unsigned int sequence;
 	void __iomem *regs;
 	u8 csr2, config;
 };

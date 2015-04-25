@@ -168,32 +168,6 @@ static int wait_i2c_reg(void __iomem *addr)
 	return 0;
 }
 
-static int dt3155_start_acq(struct dt3155_priv *pd)
-{
-	struct vb2_buffer *vb = pd->curr_buf;
-	dma_addr_t dma_addr;
-
-	dma_addr = vb2_dma_contig_plane_dma_addr(vb, 0);
-	iowrite32(dma_addr, pd->regs + EVEN_DMA_START);
-	iowrite32(dma_addr + img_width, pd->regs + ODD_DMA_START);
-	iowrite32(img_width, pd->regs + EVEN_DMA_STRIDE);
-	iowrite32(img_width, pd->regs + ODD_DMA_STRIDE);
-	/* enable interrupts, clear all irq flags */
-	iowrite32(FLD_START_EN | FLD_END_ODD_EN | FLD_START |
-			FLD_END_EVEN | FLD_END_ODD, pd->regs + INT_CSR);
-	iowrite32(FIFO_EN | SRST | FLD_CRPT_ODD | FLD_CRPT_EVEN |
-		  FLD_DN_ODD | FLD_DN_EVEN | CAP_CONT_EVEN | CAP_CONT_ODD,
-							pd->regs + CSR1);
-	wait_i2c_reg(pd->regs);
-	write_i2c_reg(pd->regs, CONFIG, pd->config);
-	write_i2c_reg(pd->regs, EVEN_CSR, CSR_ERROR | CSR_DONE);
-	write_i2c_reg(pd->regs, ODD_CSR, CSR_ERROR | CSR_DONE);
-
-	/*  start the board  */
-	write_i2c_reg(pd->regs, CSR2, pd->csr2 | BUSY_EVEN | BUSY_ODD);
-	return 0; /* success  */
-}
-
 static int
 dt3155_queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
 		unsigned int *nbuffers, unsigned int *num_planes,
@@ -219,36 +193,79 @@ static int dt3155_buf_prepare(struct vb2_buffer *vb)
 	return 0;
 }
 
+static int dt3155_start_streaming(struct vb2_queue *q, unsigned count)
+{
+	struct dt3155_priv *pd = vb2_get_drv_priv(q);
+	struct vb2_buffer *vb = pd->curr_buf;
+	dma_addr_t dma_addr;
+
+	pd->sequence = 0;
+	dma_addr = vb2_dma_contig_plane_dma_addr(vb, 0);
+	iowrite32(dma_addr, pd->regs + EVEN_DMA_START);
+	iowrite32(dma_addr + img_width, pd->regs + ODD_DMA_START);
+	iowrite32(img_width, pd->regs + EVEN_DMA_STRIDE);
+	iowrite32(img_width, pd->regs + ODD_DMA_STRIDE);
+	/* enable interrupts, clear all irq flags */
+	iowrite32(FLD_START_EN | FLD_END_ODD_EN | FLD_START |
+			FLD_END_EVEN | FLD_END_ODD, pd->regs + INT_CSR);
+	iowrite32(FIFO_EN | SRST | FLD_CRPT_ODD | FLD_CRPT_EVEN |
+		  FLD_DN_ODD | FLD_DN_EVEN | CAP_CONT_EVEN | CAP_CONT_ODD,
+							pd->regs + CSR1);
+	wait_i2c_reg(pd->regs);
+	write_i2c_reg(pd->regs, CONFIG, pd->config);
+	write_i2c_reg(pd->regs, EVEN_CSR, CSR_ERROR | CSR_DONE);
+	write_i2c_reg(pd->regs, ODD_CSR, CSR_ERROR | CSR_DONE);
+
+	/*  start the board  */
+	write_i2c_reg(pd->regs, CSR2, pd->csr2 | BUSY_EVEN | BUSY_ODD);
+	return 0;
+}
+
 static void dt3155_stop_streaming(struct vb2_queue *q)
 {
 	struct dt3155_priv *pd = vb2_get_drv_priv(q);
 	struct vb2_buffer *vb;
 
 	spin_lock_irq(&pd->lock);
+	/* stop the board */
+	write_i2c_reg_nowait(pd->regs, CSR2, pd->csr2);
+	iowrite32(FIFO_EN | SRST | FLD_CRPT_ODD | FLD_CRPT_EVEN |
+		  FLD_DN_ODD | FLD_DN_EVEN, pd->regs + CSR1);
+	/* disable interrupts, clear all irq flags */
+	iowrite32(FLD_START | FLD_END_EVEN | FLD_END_ODD, pd->regs + INT_CSR);
+	spin_unlock_irq(&pd->lock);
+
+	/*
+	 * It is not clear whether the DMA stops at once or whether it
+	 * will finish the current frame or field first. To be on the
+	 * safe side we wait a bit.
+	 */
+	msleep(45);
+
+	spin_lock_irq(&pd->lock);
+	if (pd->curr_buf) {
+		vb2_buffer_done(pd->curr_buf, VB2_BUF_STATE_ERROR);
+		pd->curr_buf = NULL;
+	}
+
 	while (!list_empty(&pd->dmaq)) {
 		vb = list_first_entry(&pd->dmaq, typeof(*vb), done_entry);
 		list_del(&vb->done_entry);
 		vb2_buffer_done(vb, VB2_BUF_STATE_ERROR);
 	}
 	spin_unlock_irq(&pd->lock);
-	msleep(45); /* irq hendler will stop the hardware */
-	/* disable all irqs, clear all irq flags */
-	iowrite32(FLD_START | FLD_END_EVEN | FLD_END_ODD,
-					pd->regs + INT_CSR);
 }
 
 static void dt3155_buf_queue(struct vb2_buffer *vb)
 {
 	struct dt3155_priv *pd = vb2_get_drv_priv(vb->vb2_queue);
 
-	/*  pd->q->streaming = 1 when dt3155_buf_queue() is invoked  */
+	/*  pd->vidq.streaming = 1 when dt3155_buf_queue() is invoked  */
 	spin_lock_irq(&pd->lock);
 	if (pd->curr_buf)
 		list_add_tail(&vb->done_entry, &pd->dmaq);
-	else {
+	else
 		pd->curr_buf = vb;
-		dt3155_start_acq(pd);
-	}
 	spin_unlock_irq(&pd->lock);
 }
 
@@ -257,6 +274,7 @@ static const struct vb2_ops q_ops = {
 	.wait_prepare = vb2_ops_wait_prepare,
 	.wait_finish = vb2_ops_wait_finish,
 	.buf_prepare = dt3155_buf_prepare,
+	.start_streaming = dt3155_start_streaming,
 	.stop_streaming = dt3155_stop_streaming,
 	.buf_queue = dt3155_buf_queue,
 };
@@ -274,7 +292,6 @@ static irqreturn_t dt3155_irq_handler_even(int irq, void *dev_id)
 	if ((tmp & FLD_START) && !(tmp & FLD_END_ODD)) {
 		iowrite32(FLD_START_EN | FLD_END_ODD_EN | FLD_START,
 							ipd->regs + INT_CSR);
-		ipd->field_count++;
 		return IRQ_HANDLED; /* start of field irq */
 	}
 	tmp = ioread32(ipd->regs + CSR1) & (FLD_CRPT_EVEN | FLD_CRPT_ODD);
@@ -287,37 +304,26 @@ static irqreturn_t dt3155_irq_handler_even(int irq, void *dev_id)
 	}
 
 	spin_lock(&ipd->lock);
-	if (ipd->curr_buf) {
+	if (ipd->curr_buf && !list_empty(&ipd->dmaq)) {
 		v4l2_get_timestamp(&ipd->curr_buf->v4l2_buf.timestamp);
-		ipd->curr_buf->v4l2_buf.sequence = (ipd->field_count) >> 1;
+		ipd->curr_buf->v4l2_buf.sequence = ipd->sequence++;
+		ipd->curr_buf->v4l2_buf.field = V4L2_FIELD_NONE;
 		vb2_buffer_done(ipd->curr_buf, VB2_BUF_STATE_DONE);
+
+		ivb = list_first_entry(&ipd->dmaq, typeof(*ivb), done_entry);
+		list_del(&ivb->done_entry);
+		ipd->curr_buf = ivb;
+		dma_addr = vb2_dma_contig_plane_dma_addr(ivb, 0);
+		iowrite32(dma_addr, ipd->regs + EVEN_DMA_START);
+		iowrite32(dma_addr + img_width, ipd->regs + ODD_DMA_START);
+		iowrite32(img_width, ipd->regs + EVEN_DMA_STRIDE);
+		iowrite32(img_width, ipd->regs + ODD_DMA_STRIDE);
+		mmiowb();
 	}
 
-	if (!ipd->vidq.streaming || list_empty(&ipd->dmaq))
-		goto stop_dma;
-	ivb = list_first_entry(&ipd->dmaq, typeof(*ivb), done_entry);
-	list_del(&ivb->done_entry);
-	ipd->curr_buf = ivb;
-	dma_addr = vb2_dma_contig_plane_dma_addr(ivb, 0);
-	iowrite32(dma_addr, ipd->regs + EVEN_DMA_START);
-	iowrite32(dma_addr + img_width, ipd->regs + ODD_DMA_START);
-	iowrite32(img_width, ipd->regs + EVEN_DMA_STRIDE);
-	iowrite32(img_width, ipd->regs + ODD_DMA_STRIDE);
-	mmiowb();
 	/* enable interrupts, clear all irq flags */
 	iowrite32(FLD_START_EN | FLD_END_ODD_EN | FLD_START |
 			FLD_END_EVEN | FLD_END_ODD, ipd->regs + INT_CSR);
-	spin_unlock(&ipd->lock);
-	return IRQ_HANDLED;
-
-stop_dma:
-	ipd->curr_buf = NULL;
-	/* stop the board */
-	write_i2c_reg_nowait(ipd->regs, CSR2, ipd->csr2);
-	iowrite32(FIFO_EN | SRST | FLD_CRPT_ODD | FLD_CRPT_EVEN |
-		  FLD_DN_ODD | FLD_DN_EVEN, ipd->regs + CSR1);
-	/* disable interrupts, clear all irq flags */
-	iowrite32(FLD_START | FLD_END_EVEN | FLD_END_ODD, ipd->regs + INT_CSR);
 	spin_unlock(&ipd->lock);
 	return IRQ_HANDLED;
 }
