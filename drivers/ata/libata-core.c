@@ -6814,8 +6814,21 @@ u32 ata_wait_register(struct ata_port *ap, void __iomem *reg, u32 mask, u32 val,
  */
 bool sata_lpm_ignore_phy_events(struct ata_link *link)
 {
+	unsigned long lpm_timeout = link->last_lpm_change +
+				    msecs_to_jiffies(ATA_TMOUT_SPURIOUS_PHY);
+
 	/* if LPM is enabled, PHYRDY doesn't mean anything */
-	return !!(link->lpm_policy > ATA_LPM_MAX_POWER);
+	if (link->lpm_policy > ATA_LPM_MAX_POWER)
+		return true;
+
+	/* ignore the first PHY event after the LPM policy changed
+	 * as it is might be spurious
+	 */
+	if ((link->flags & ATA_LFLAG_CHANGED) &&
+	    time_before(jiffies, lpm_timeout))
+		return true;
+
+	return false;
 }
 EXPORT_SYMBOL_GPL(sata_lpm_ignore_phy_events);
 
