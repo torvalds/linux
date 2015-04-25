@@ -282,7 +282,7 @@ following is true:
 
 - The current CPU's queue head counter >= the recorded tail counter
   value in rps_dev_flow[i]
-- The current CPU is unset (equal to RPS_NO_CPU)
+- The current CPU is unset (>= nr_cpu_ids)
 - The current CPU is offline
 
 After this check, the packet is sent to the (possibly updated) current

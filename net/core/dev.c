@@ -3079,7 +3079,7 @@ static struct rps_dev_flow *
 set_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 	    struct rps_dev_flow *rflow, u16 next_cpu)
 {
-	if (next_cpu != RPS_NO_CPU) {
+	if (next_cpu < nr_cpu_ids) {
 #ifdef CONFIG_RFS_ACCEL
 		struct netdev_rx_queue *rxqueue;
 		struct rps_dev_flow_table *flow_table;
@@ -3184,7 +3184,7 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 		 * If the desired CPU (where last recvmsg was done) is
 		 * different from current CPU (one in the rx-queue flow
 		 * table entry), switch if one of the following holds:
-		 *   - Current CPU is unset (equal to RPS_NO_CPU).
+		 *   - Current CPU is unset (>= nr_cpu_ids).
 		 *   - Current CPU is offline.
 		 *   - The current CPU's queue tail has advanced beyond the
 		 *     last packet that was enqueued using this table entry.
@@ -3192,14 +3192,14 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 		 *     have been dequeued, thus preserving in order delivery.
 		 */
 		if (unlikely(tcpu != next_cpu) &&
-		    (tcpu == RPS_NO_CPU || !cpu_online(tcpu) ||
+		    (tcpu >= nr_cpu_ids || !cpu_online(tcpu) ||
 		     ((int)(per_cpu(softnet_data, tcpu).input_queue_head -
 		      rflow->last_qtail)) >= 0)) {
 			tcpu = next_cpu;
 			rflow = set_rps_cpu(dev, skb, rflow, next_cpu);
 		}
 
-		if (tcpu != RPS_NO_CPU && cpu_online(tcpu)) {
+		if (tcpu < nr_cpu_ids && cpu_online(tcpu)) {
 			*rflowp = rflow;
 			cpu = tcpu;
 			goto done;
@@ -3240,14 +3240,14 @@ bool rps_may_expire_flow(struct net_device *dev, u16 rxq_index,
 	struct rps_dev_flow_table *flow_table;
 	struct rps_dev_flow *rflow;
 	bool expire = true;
-	int cpu;
+	unsigned int cpu;
 
 	rcu_read_lock();
 	flow_table = rcu_dereference(rxqueue->rps_flow_table);
 	if (flow_table && flow_id <= flow_table->mask) {
 		rflow = &flow_table->flows[flow_id];
 		cpu = ACCESS_ONCE(rflow->cpu);
-		if (rflow->filter == filter_id && cpu != RPS_NO_CPU &&
+		if (rflow->filter == filter_id && cpu < nr_cpu_ids &&
 		    ((int)(per_cpu(softnet_data, cpu).input_queue_head -
 			   rflow->last_qtail) <
 		     (int)(10 * flow_table->mask)))
