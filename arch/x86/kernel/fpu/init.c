@@ -245,7 +245,6 @@ void fpu__init_system(void)
 void fpu__cpu_init(void)
 {
 	fpu__init_cpu();
-	fpu__init_system();
 }
 
 static int __init no_387(char *s)
@@ -279,5 +278,6 @@ void fpu__detect(struct cpuinfo_x86 *c)
 	else
 		clear_cpu_cap(c, X86_FEATURE_FPU);
 
+	fpu__init_system();
 	/* The final cr0 value is set later, in fpu_init() */
 }
