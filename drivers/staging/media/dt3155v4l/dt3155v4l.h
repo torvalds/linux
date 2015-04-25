@@ -153,21 +153,6 @@
 #define DMA_STRIDE 640
 #endif
 
-/**
- * struct dt3155_stats - statistics structure
- *
- * @free_bufs_empty:	no free image buffers
- * @corrupted_fields:	corrupted fields
- * @dma_map_failed:	dma mapping failed
- * @start_before_end:	new started before old ended
- */
-struct dt3155_stats {
-	int free_bufs_empty;
-	int corrupted_fields;
-	int dma_map_failed;
-	int start_before_end;
-};
-
 /*    per board private data structure   */
 /**
  * struct dt3155_priv - private data structure
@@ -195,7 +180,6 @@ struct dt3155_priv {
 	struct list_head dmaq;
 	spinlock_t lock;
 	unsigned int field_count;
-	struct dt3155_stats stats;
 	void __iomem *regs;
 	int users;
 	u8 csr2, config;

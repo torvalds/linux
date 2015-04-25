@@ -304,11 +304,8 @@ static irqreturn_t dt3155_irq_handler_even(int irq, void *dev_id)
 		ipd->field_count++;
 		return IRQ_HANDLED; /* start of field irq */
 	}
-	if ((tmp & FLD_START) && (tmp & FLD_END_ODD))
-		ipd->stats.start_before_end++;
 	tmp = ioread32(ipd->regs + CSR1) & (FLD_CRPT_EVEN | FLD_CRPT_ODD);
 	if (tmp) {
-		ipd->stats.corrupted_fields++;
 		iowrite32(FIFO_EN | SRST | FLD_CRPT_ODD | FLD_CRPT_EVEN |
 						FLD_DN_ODD | FLD_DN_EVEN |
 						CAP_CONT_EVEN | CAP_CONT_ODD,
