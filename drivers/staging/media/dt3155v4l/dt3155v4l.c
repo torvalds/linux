@@ -29,12 +29,6 @@
 
 #define DT3155_DEVICE_ID 0x1223
 
-#ifdef CONFIG_DT3155_STREAMING
-#define DT3155_CAPTURE_METHOD V4L2_CAP_STREAMING
-#else
-#define DT3155_CAPTURE_METHOD V4L2_CAP_READWRITE
-#endif
-
 /*  global initializers (for all boards)  */
 #ifdef CONFIG_DT3155_CCIR
 static const u8 csr2_init = VT_50HZ;
@@ -346,7 +340,7 @@ static int dt3155_querycap(struct file *filp, void *p, struct v4l2_capability *c
 	strcpy(cap->card, DT3155_NAME " frame grabber");
 	sprintf(cap->bus_info, "PCI:%s", pci_name(pd->pdev));
 	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE |
-				DT3155_CAPTURE_METHOD;
+		V4L2_CAP_STREAMING | V4L2_CAP_READWRITE;
 	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }

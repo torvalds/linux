@@ -19,11 +19,3 @@ config DT3155_CCIR
 	---help---
 	  Select it for CCIR/50Hz (European region),
 	  or leave it unselected for RS-170/60Hz (North America).
-
-config DT3155_STREAMING
-	bool "Selects streaming capture method"
-	depends on VIDEO_DT3155
-	default y
-	---help---
-	  Select it if you want to use streaming of memory mapped buffers
-	  or leave it unselected if you want to use read method (one copy more).
