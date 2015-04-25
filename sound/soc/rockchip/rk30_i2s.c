@@ -77,7 +77,7 @@ struct rk30_i2s_info {
 #define I2S_CLR_ERROR_COUNT 10// check I2S_CLR reg 
 static struct rk30_i2s_info *rk30_i2s;
 
-#if defined (CONFIG_RK_HDMI) && defined (CONFIG_SND_RK_SOC_HDMI_I2S)
+#if 0 /*defined (CONFIG_RK_HDMI) && defined (CONFIG_SND_RK_SOC_HDMI_I2S)*/
 extern int hdmi_get_hotplug(void);
 #else
 #define hdmi_get_hotplug() 0
@@ -693,11 +693,11 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
 
 	i2s->playback_dma_data.addr = regs_base + I2S_TXR_BUFF;
 	i2s->playback_dma_data.addr_width = 4;
-	i2s->playback_dma_data.maxburst = 1;
+	i2s->playback_dma_data.maxburst = 16;
 
 	i2s->capture_dma_data.addr = regs_base + I2S_RXR_BUFF;
 	i2s->capture_dma_data.addr_width = 4;
-	i2s->capture_dma_data.maxburst = 1;
+	i2s->capture_dma_data.maxburst = 16;
 
 	i2s->i2s_tx_status = false;
 	i2s->i2s_rx_status = false;

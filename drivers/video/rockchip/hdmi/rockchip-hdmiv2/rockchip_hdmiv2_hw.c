@@ -1505,7 +1505,20 @@ static int hdmi_dev_config_audio(struct hdmi *hdmi, struct hdmi_audio *audio)
 		hdmi_msk_reg(hdmi_dev, AUD_CONF0,
 			     m_SW_AUD_FIFO_RST, v_SW_AUD_FIFO_RST(1));
 		hdmi_writel(hdmi_dev, MC_SWRSTZREQ, 0xF7);
+		hdmi_writel(hdmi_dev, AUD_CONF2, 0x0);
 		usleep_range(90, 100);
+		if (I2S_CHANNEL_7_8 == channel) {
+			HDMIDBG("hbr mode.\n");
+			hdmi_writel(hdmi_dev, AUD_CONF2, 0x1);
+			word_length = I2S_24BIT_SAMPLE;
+		} else if ((HDMI_AUDIO_FS_48000 == audio->rate)
+			   || (HDMI_AUDIO_FS_192000 == audio->rate)) {
+			HDMIDBG("nlpcm mode.\n");
+			hdmi_writel(hdmi_dev, AUD_CONF2, 0x2);
+			word_length = I2S_24BIT_SAMPLE;
+		} else {
+			hdmi_writel(hdmi_dev, AUD_CONF2, 0x0);
+		}
 		hdmi_msk_reg(hdmi_dev, AUD_CONF0,
 			     m_I2S_SEL | m_I2S_IN_EN,
 			     v_I2S_SEL(AUDIO_I2S) | v_I2S_IN_EN(channel));
