@@ -3178,8 +3178,8 @@ static int write_one_cache_group(struct btrfs_trans_handle *trans,
 	bi = btrfs_item_ptr_offset(leaf, path->slots[0]);
 	write_extent_buffer(leaf, &cache->item, bi, sizeof(cache->item));
 	btrfs_mark_buffer_dirty(leaf);
-	btrfs_release_path(path);
 fail:
+	btrfs_release_path(path);
 	if (ret)
 		btrfs_abort_transaction(trans, root, ret);
 	return ret;
