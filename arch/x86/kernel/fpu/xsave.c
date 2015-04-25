@@ -599,20 +599,6 @@ static void setup_init_fpu_buf(void)
 	xsave_state_booting(&init_xstate_ctx);
 }
 
-static enum { AUTO, ENABLE, DISABLE } eagerfpu = AUTO;
-static int __init eager_fpu_setup(char *s)
-{
-	if (!strcmp(s, "on"))
-		eagerfpu = ENABLE;
-	else if (!strcmp(s, "off"))
-		eagerfpu = DISABLE;
-	else if (!strcmp(s, "auto"))
-		eagerfpu = AUTO;
-	return 1;
-}
-__setup("eagerfpu=", eager_fpu_setup);
-
-
 /*
  * Calculate total size of enabled xstates in XCR0/xfeatures_mask.
  */
@@ -690,40 +676,6 @@ void fpu__init_system_xstate(void)
 		xfeatures_mask,
 		xstate_size,
 		cpu_has_xsaves ? "compacted" : "standard");
-}
-
-/*
- * setup_init_fpu_buf() is __init and it is OK to call it here because
- * init_xstate_ctx will be unset only once during boot.
- */
-void __init_refok eager_fpu_init(void)
-{
-	WARN_ON(current->thread.fpu.fpstate_active);
-	current_thread_info()->status = 0;
-
-	/* Auto enable eagerfpu for xsaveopt */
-	if (cpu_has_xsaveopt && eagerfpu != DISABLE)
-		eagerfpu = ENABLE;
-
-	if (xfeatures_mask & XSTATE_EAGER) {
-		if (eagerfpu == DISABLE) {
-			pr_err("x86/fpu: eagerfpu switching disabled, disabling the following xstate features: 0x%llx.\n",
-			       xfeatures_mask & XSTATE_EAGER);
-			xfeatures_mask &= ~XSTATE_EAGER;
-		} else {
-			eagerfpu = ENABLE;
-		}
-	}
-
-	if (eagerfpu == ENABLE)
-		setup_force_cpu_cap(X86_FEATURE_EAGER_FPU);
-
-	printk_once(KERN_INFO "x86/fpu: Using '%s' FPU context switches.\n", eagerfpu == ENABLE ? "eager" : "lazy");
-
-	if (!cpu_has_eager_fpu) {
-		stts();
-		return;
-	}
 }
 
 /*
