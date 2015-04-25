@@ -98,7 +98,7 @@ static void fpstate_xstate_init_size(void)
 {
 	/*
 	 * Note that xstate_size might be overwriten later during
-	 * xsave_init().
+	 * fpu__init_system_xstate().
 	 */
 
 	if (!cpu_has_fpu) {
@@ -146,7 +146,8 @@ void fpu__init_cpu(void)
 		cr0 |= X86_CR0_EM;
 	write_cr0(cr0);
 
-	xsave_init();
+	fpu__init_system_xstate();
+	fpu__init_cpu_xstate();
 }
 
 /*
@@ -159,7 +160,8 @@ void fpu__init_system(void)
 	fpu__init_cpu();
 
 	mxcsr_feature_mask_init();
-	xsave_init();
+	fpu__init_system_xstate();
+	fpu__init_cpu_xstate();
 	eager_fpu_init();
 }
 
