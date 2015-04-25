@@ -168,6 +168,7 @@
  * @std:		input standard
  * @width:		frame width
  * @height:		frame height
+ * @input:		current input
  * @sequence:		frame counter
  * @stats:		statistics structure
  * @regs:		local copy of mmio base register
@@ -186,6 +187,7 @@ struct dt3155_priv {
 	spinlock_t lock;
 	v4l2_std_id std;
 	unsigned width, height;
+	unsigned input;
 	unsigned int sequence;
 	void __iomem *regs;
 	u8 csr2, config;

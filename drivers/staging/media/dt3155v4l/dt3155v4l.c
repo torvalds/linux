@@ -370,9 +370,12 @@ static int dt3155_s_std(struct file *filp, void *p, v4l2_std_id norm)
 
 static int dt3155_enum_input(struct file *filp, void *p, struct v4l2_input *input)
 {
-	if (input->index)
+	if (input->index > 3)
 		return -EINVAL;
-	strcpy(input->name, "Coax in");
+	if (input->index)
+		snprintf(input->name, sizeof(input->name), "VID%d", input->index);
+	else
+		strlcpy(input->name, "J2/VID0", sizeof(input->name));
 	input->type = V4L2_INPUT_TYPE_CAMERA;
 	input->std = V4L2_STD_ALL;
 	input->status = 0;
@@ -381,14 +384,21 @@ static int dt3155_enum_input(struct file *filp, void *p, struct v4l2_input *inpu
 
 static int dt3155_g_input(struct file *filp, void *p, unsigned int *i)
 {
-	*i = 0;
+	struct dt3155_priv *pd = video_drvdata(filp);
+
+	*i = pd->input;
 	return 0;
 }
 
 static int dt3155_s_input(struct file *filp, void *p, unsigned int i)
 {
-	if (i)
+	struct dt3155_priv *pd = video_drvdata(filp);
+
+	if (i > 3)
 		return -EINVAL;
+	pd->input = i;
+	write_i2c_reg(pd->regs, AD_ADDR, AD_CMD_REG);
+	write_i2c_reg(pd->regs, AD_CMD, (i << 6) | (i << 4) | SYNC_LVL_3);
 	return 0;
 }
 
