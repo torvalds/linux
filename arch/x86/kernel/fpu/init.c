@@ -158,6 +158,12 @@ void fpu__init_system(void)
 	/* The FPU has to be operational for some of the later FPU init activities: */
 	fpu__init_cpu();
 
+	/*
+	 * Set up the legacy init FPU context. (xstate init might overwrite this
+	 * with a more modern format, if the CPU supports it.)
+	 */
+	fx_finit(&init_xstate_ctx.i387);
+
 	mxcsr_feature_mask_init();
 	fpu__init_system_xstate();
 	eager_fpu_init();

@@ -576,12 +576,6 @@ static void setup_init_fpu_buf(void)
 		return;
 	on_boot_cpu = 0;
 
-	/*
-	 * Setup init_xstate_ctx to represent the init state of
-	 * all the features managed by the xsave
-	 */
-	fx_finit(&init_xstate_ctx.i387);
-
 	if (!cpu_has_xsave)
 		return;
 
