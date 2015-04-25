@@ -23,7 +23,7 @@ u64 xfeatures_mask;
 struct xsave_struct *init_xstate_buf;
 
 static struct _fpx_sw_bytes fx_sw_reserved, fx_sw_reserved_ia32;
-static unsigned int *xstate_offsets, *xstate_sizes;
+static unsigned int xstate_offsets[XFEATURES_NR_MAX], xstate_sizes[XFEATURES_NR_MAX];
 static unsigned int xstate_comp_offsets[sizeof(xfeatures_mask)*8];
 
 /* The number of supported xfeatures in xfeatures_mask: */
@@ -478,8 +478,6 @@ static void __init setup_xstate_features(void)
 	int eax, ebx, ecx, edx, leaf = 0x2;
 
 	xfeatures_nr = fls64(xfeatures_mask);
-	xstate_offsets = alloc_bootmem(xfeatures_nr * sizeof(int));
-	xstate_sizes = alloc_bootmem(xfeatures_nr * sizeof(int));
 
 	do {
 		cpuid_count(XSTATE_CPUID, leaf, &eax, &ebx, &ecx, &edx);

@@ -15,6 +15,9 @@
 #define XSTATE_ZMM_Hi256	0x40
 #define XSTATE_Hi16_ZMM		0x80
 
+/* The highest xstate bit above (of XSTATE_Hi16_ZMM): */
+#define XFEATURES_NR_MAX	8
+
 #define XSTATE_FPSSE	(XSTATE_FP | XSTATE_SSE)
 #define XSTATE_AVX512	(XSTATE_OPMASK | XSTATE_ZMM_Hi256 | XSTATE_Hi16_ZMM)
 /* Bit 63 of XCR0 is reserved for future expansion */
