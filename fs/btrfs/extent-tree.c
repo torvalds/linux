@@ -3408,17 +3408,14 @@ int btrfs_start_dirty_block_groups(struct btrfs_trans_handle *trans,
 	int loops = 0;
 
 	spin_lock(&cur_trans->dirty_bgs_lock);
-	if (!list_empty(&cur_trans->dirty_bgs)) {
-		list_splice_init(&cur_trans->dirty_bgs, &dirty);
+	if (list_empty(&cur_trans->dirty_bgs)) {
+		spin_unlock(&cur_trans->dirty_bgs_lock);
+		return 0;
 	}
+	list_splice_init(&cur_trans->dirty_bgs, &dirty);
 	spin_unlock(&cur_trans->dirty_bgs_lock);
 
 again:
-	if (list_empty(&dirty)) {
-		btrfs_free_path(path);
-		return 0;
-	}
-
 	/*
 	 * make sure all the block groups on our dirty list actually
 	 * exist
@@ -3431,18 +3428,16 @@ again:
 			return -ENOMEM;
 	}
 
+	/*
+	 * cache_write_mutex is here only to save us from balance or automatic
+	 * removal of empty block groups deleting this block group while we are
+	 * writing out the cache
+	 */
+	mutex_lock(&trans->transaction->cache_write_mutex);
 	while (!list_empty(&dirty)) {
 		cache = list_first_entry(&dirty,
 					 struct btrfs_block_group_cache,
 					 dirty_list);
-
-		/*
-		 * cache_write_mutex is here only to save us from balance
-		 * deleting this block group while we are writing out the
-		 * cache
-		 */
-		mutex_lock(&trans->transaction->cache_write_mutex);
-
 		/*
 		 * this can happen if something re-dirties a block
 		 * group that is already under IO.  Just wait for it to
@@ -3495,7 +3490,6 @@ again:
 		}
 		if (!ret)
 			ret = write_one_cache_group(trans, root, path, cache);
-		mutex_unlock(&trans->transaction->cache_write_mutex);
 
 		/* if its not on the io list, we need to put the block group */
 		if (should_put)
@@ -3503,7 +3497,16 @@ again:
 
 		if (ret)
 			break;
+
+		/*
+		 * Avoid blocking other tasks for too long. It might even save
+		 * us from writing caches for block groups that are going to be
+		 * removed.
+		 */
+		mutex_unlock(&trans->transaction->cache_write_mutex);
+		mutex_lock(&trans->transaction->cache_write_mutex);
 	}
+	mutex_unlock(&trans->transaction->cache_write_mutex);
 
 	/*
 	 * go through delayed refs for all the stuff we've just kicked off
@@ -3514,8 +3517,15 @@ again:
 		loops++;
 		spin_lock(&cur_trans->dirty_bgs_lock);
 		list_splice_init(&cur_trans->dirty_bgs, &dirty);
+		/*
+		 * dirty_bgs_lock protects us from concurrent block group
+		 * deletes too (not just cache_write_mutex).
+		 */
+		if (!list_empty(&dirty)) {
+			spin_unlock(&cur_trans->dirty_bgs_lock);
+			goto again;
+		}
 		spin_unlock(&cur_trans->dirty_bgs_lock);
-		goto again;
 	}
 
 	btrfs_free_path(path);
