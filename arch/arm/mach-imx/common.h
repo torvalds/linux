@@ -56,13 +56,10 @@ struct platform_device *mxc_register_gpio(char *name, int id,
 void mxc_set_cpu_type(unsigned int type);
 void mxc_restart(enum reboot_mode, const char *);
 void mxc_arch_reset_init(void __iomem *);
-int mx51_revision(void);
-int mx53_revision(void);
 void imx_set_aips(void __iomem *);
 void imx_aips_allow_unprivileged_access(const char *compat);
 int mxc_device_init(void);
 void imx_set_soc_revision(unsigned int rev);
-unsigned int imx_get_soc_revision(void);
 void imx_init_revision_from_anatop(void);
 struct device *imx_soc_device_init(void);
 void imx6_enable_rbc(bool enable);
@@ -87,7 +84,6 @@ enum mx3_cpu_pwr_mode {
 };
 
 void mx3_cpu_lp_set(enum mx3_cpu_pwr_mode mode);
-void imx_print_silicon_rev(const char *cpu, int srev);
 
 void imx_enable_cpu(int cpu, bool enable);
 void imx_set_cpu_jump(int cpu, void *jump_addr);
