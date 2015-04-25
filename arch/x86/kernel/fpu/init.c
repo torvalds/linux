@@ -109,13 +109,12 @@ static void fpstate_xstate_init_size(void)
 		setup_clear_cpu_cap(X86_FEATURE_XSAVE);
 		setup_clear_cpu_cap(X86_FEATURE_XSAVEOPT);
 		xstate_size = sizeof(struct i387_soft_struct);
-		return;
+	} else {
+		if (cpu_has_fxsr)
+			xstate_size = sizeof(struct i387_fxsave_struct);
+		else
+			xstate_size = sizeof(struct i387_fsave_struct);
 	}
-
-	if (cpu_has_fxsr)
-		xstate_size = sizeof(struct i387_fxsave_struct);
-	else
-		xstate_size = sizeof(struct i387_fsave_struct);
 }
 
 /*
@@ -151,12 +150,6 @@ void fpu__cpu_init(void)
 		cr0 |= X86_CR0_EM;
 	write_cr0(cr0);
 
-	/*
-	 * fpstate_xstate_init_size() is only called once, to avoid overriding
-	 * 'xstate_size' during (secondary CPU) bootup or during CPU hotplug.
-	 */
-	if (xstate_size == 0)
-		fpstate_xstate_init_size();
 
 	mxcsr_feature_mask_init();
 	xsave_init();
@@ -194,5 +187,7 @@ void fpu__detect(struct cpuinfo_x86 *c)
 	else
 		clear_cpu_cap(c, X86_FEATURE_FPU);
 
-	/* The final cr0 value is set in fpu_init() */
+	/* The final cr0 value is set later, in fpu_init() */
+
+	fpstate_xstate_init_size();
 }
