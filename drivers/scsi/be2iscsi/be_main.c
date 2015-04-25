@@ -2037,11 +2037,16 @@ static void  beiscsi_process_mcc_isr(struct beiscsi_hba *phba)
 				/* Interpret compl as a async link evt */
 				beiscsi_async_link_state_process(phba,
 				(struct be_async_event_link_state *) mcc_compl);
-			else
+			else {
 				beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_MBOX,
 					    "BM_%d :  Unsupported Async Event, flags"
 					    " = 0x%08x\n",
 					    mcc_compl->flags);
+				if (phba->state & BE_ADAPTER_LINK_UP) {
+					phba->state |= BE_ADAPTER_CHECK_BOOT;
+					phba->get_boot = BE_GET_BOOT_RETRIES;
+				}
+			}
 		} else if (mcc_compl->flags & CQE_FLAGS_COMPLETED_MASK) {
 			be_mcc_compl_process_isr(&phba->ctrl, mcc_compl);
 			atomic_dec(&phba->ctrl.mcc_obj.q.used);
@@ -4328,8 +4333,14 @@ static int beiscsi_get_boot_info(struct beiscsi_hba *phba)
 		beiscsi_log(phba, KERN_ERR,
 			    BEISCSI_LOG_INIT | BEISCSI_LOG_CONFIG,
 			    "BM_%d : No boot session\n");
+
+		if (ret == -ENXIO)
+			phba->get_boot = 0;
+
+
 		return ret;
 	}
+	phba->get_boot = 0;
 	nonemb_cmd.va = pci_zalloc_consistent(phba->ctrl.pdev,
 					      sizeof(*session_resp),
 					      &nonemb_cmd.dma);
@@ -5374,8 +5385,14 @@ beiscsi_hw_health_check(struct work_struct *work)
 	be_eqd_update(phba);
 
 	if (phba->state & BE_ADAPTER_CHECK_BOOT) {
-		phba->state &= ~BE_ADAPTER_CHECK_BOOT;
-		be_check_boot_session(phba);
+		if ((phba->get_boot > 0) && (!phba->boot_kset)) {
+			phba->get_boot--;
+			if (!(phba->get_boot % BE_GET_BOOT_TO))
+				be_check_boot_session(phba);
+		} else {
+			phba->state &= ~BE_ADAPTER_CHECK_BOOT;
+			phba->get_boot = 0;
+		}
 	}
 
 	beiscsi_ue_detect(phba);

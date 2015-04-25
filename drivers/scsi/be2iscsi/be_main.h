@@ -109,6 +109,9 @@
 
 #define BEISCSI_CLEAN_UNLOAD	0x01
 #define BEISCSI_EEH_UNLOAD	0x02
+
+#define BE_GET_BOOT_RETRIES	45
+#define BE_GET_BOOT_TO		20
 /**
  * hardware needs the async PDU buffers to be posted in multiples of 8
  * So have atleast 8 of them by default
@@ -413,6 +416,7 @@ struct beiscsi_hba {
 	} fw_config;
 
 	unsigned int state;
+	int get_boot;
 	bool fw_timeout;
 	bool ue_detected;
 	struct delayed_work beiscsi_hw_check_task;
