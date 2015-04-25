@@ -6800,6 +6800,25 @@ u32 ata_wait_register(struct ata_port *ap, void __iomem *reg, u32 mask, u32 val,
 	return tmp;
 }
 
+/**
+ *	sata_lpm_ignore_phy_events - test if PHY event should be ignored
+ *	@link: Link receiving the event
+ *
+ *	Test whether the received PHY event has to be ignored or not.
+ *
+ *	LOCKING:
+ *	None:
+ *
+ *	RETURNS:
+ *	True if the event has to be ignored.
+ */
+bool sata_lpm_ignore_phy_events(struct ata_link *link)
+{
+	/* if LPM is enabled, PHYRDY doesn't mean anything */
+	return !!(link->lpm_policy > ATA_LPM_MAX_POWER);
+}
+EXPORT_SYMBOL_GPL(sata_lpm_ignore_phy_events);
+
 /*
  * Dummy port_ops
  */
