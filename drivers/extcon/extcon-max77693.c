@@ -210,9 +210,7 @@ enum {
 	EXTCON_CABLE_MHL,
 	EXTCON_CABLE_MHL_TA,
 	EXTCON_CABLE_JIG,
-	EXTCON_CABLE_DOCK_SMART,
-	EXTCON_CABLE_DOCK_DESK,
-	EXTCON_CABLE_DOCK_AUDIO,
+	EXTCON_CABLE_DOCK,
 
 	_EXTCON_CABLE_NUM,
 };
@@ -227,9 +225,7 @@ static const char *max77693_extcon_cable[] = {
 	[EXTCON_CABLE_MHL]			= "MHL",
 	[EXTCON_CABLE_MHL_TA]			= "MHL-TA",
 	[EXTCON_CABLE_JIG]			= "JIG",
-	[EXTCON_CABLE_DOCK_SMART]		= "Dock-Smart",
-	[EXTCON_CABLE_DOCK_DESK]		= "Dock-Desk",
-	[EXTCON_CABLE_DOCK_AUDIO]		= "Dock-Audio",
+	[EXTCON_CABLE_DOCK]			= "DOCK",
 
 	NULL,
 };
@@ -501,15 +497,15 @@ static int max77693_muic_dock_handler(struct max77693_muic_info *info,
 		}
 
 		/*
-		 * Notify Dock-Smart/MHL state.
-		 * - Dock-Smart device include three type of cable which
+		 * Notify Dock/MHL state.
+		 * - Dock device include three type of cable which
 		 * are HDMI, USB for mouse/keyboard and micro-usb port
-		 * for USB/TA cable. Dock-Smart device need always exteranl
-		 * power supply(USB/TA cable through micro-usb cable). Dock-
-		 * Smart device support screen output of target to separate
+		 * for USB/TA cable. Dock device need always exteranl
+		 * power supply(USB/TA cable through micro-usb cable). Dock
+		 * device support screen output of target to separate
 		 * monitor and mouse/keyboard for desktop mode.
 		 *
-		 * Features of 'USB/TA cable with Dock-Smart device'
+		 * Features of 'USB/TA cable with Dock device'
 		 * - Support MHL
 		 * - Support external output feature of audio
 		 * - Support charging through micro-usb port without data
@@ -523,14 +519,14 @@ static int max77693_muic_dock_handler(struct max77693_muic_info *info,
 		if (ret < 0)
 			return ret;
 
-		extcon_set_cable_state(info->edev, "Dock-Smart", attached);
+		extcon_set_cable_state(info->edev, "DOCK", attached);
 		extcon_set_cable_state(info->edev, "MHL", attached);
 		goto out;
 	case MAX77693_MUIC_ADC_AUDIO_MODE_REMOTE:	/* Dock-Desk */
-		strcpy(dock_name, "Dock-Desk");
+		strcpy(dock_name, "DOCK");
 		break;
 	case MAX77693_MUIC_ADC_AV_CABLE_NOLOAD:		/* Dock-Audio */
-		strcpy(dock_name, "Dock-Audio");
+		strcpy(dock_name, "DOCK");
 		if (!attached)
 			extcon_set_cable_state(info->edev, "USB", false);
 		break;
@@ -847,7 +843,7 @@ static int max77693_muic_chg_handler(struct max77693_muic_info *info)
 			extcon_set_cable_state(info->edev, "USB", attached);
 
 			if (!cable_attached)
-				extcon_set_cable_state(info->edev, "Dock-Audio",
+				extcon_set_cable_state(info->edev, "DOCK",
 						      cable_attached);
 			break;
 		case MAX77693_MUIC_ADC_RESERVED_ACC_3:		/* Dock-Smart */
@@ -876,8 +872,7 @@ static int max77693_muic_chg_handler(struct max77693_muic_info *info)
 			if (ret < 0)
 				return ret;
 
-			extcon_set_cable_state(info->edev, "Dock-Smart",
-					      attached);
+			extcon_set_cable_state(info->edev, "DOCK", attached);
 			extcon_set_cable_state(info->edev, "MHL", attached);
 
 			break;

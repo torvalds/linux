@@ -153,8 +153,7 @@ enum {
 	EXTCON_CABLE_SLOW_CHARGER,
 	EXTCON_CABLE_CHARGE_DOWNSTREAM,
 	EXTCON_CABLE_MHL,
-	EXTCON_CABLE_DOCK_DESK,
-	EXTCON_CABLE_DOCK_CARD,
+	EXTCON_CABLE_DOCK,
 	EXTCON_CABLE_JIG,
 
 	_EXTCON_CABLE_NUM,
@@ -168,8 +167,7 @@ static const char *max8997_extcon_cable[] = {
 	[EXTCON_CABLE_SLOW_CHARGER]		= "Slow-charger",
 	[EXTCON_CABLE_CHARGE_DOWNSTREAM]	= "Charge-downstream",
 	[EXTCON_CABLE_MHL]			= "MHL",
-	[EXTCON_CABLE_DOCK_DESK]		= "Dock-Desk",
-	[EXTCON_CABLE_DOCK_CARD]		= "Dock-Card",
+	[EXTCON_CABLE_DOCK]			= "DOCK",
 	[EXTCON_CABLE_JIG]			= "JIG",
 
 	NULL,
@@ -374,10 +372,8 @@ static int max8997_muic_handle_dock(struct max8997_muic_info *info,
 
 	switch (cable_type) {
 	case MAX8997_MUIC_ADC_AV_CABLE_NOLOAD:
-		extcon_set_cable_state(info->edev, "Dock-desk", attached);
-		break;
 	case MAX8997_MUIC_ADC_FACTORY_MODE_UART_ON:
-		extcon_set_cable_state(info->edev, "Dock-card", attached);
+		extcon_set_cable_state(info->edev, "DOCK", attached);
 		break;
 	default:
 		dev_err(info->dev, "failed to detect %s dock device\n",
