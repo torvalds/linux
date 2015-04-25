@@ -565,8 +565,14 @@ void setup_xstate_comp(void)
 /*
  * setup the xstate image representing the init state
  */
-static void __init setup_init_fpu_buf(void)
+static void setup_init_fpu_buf(void)
 {
+	static int on_boot_cpu = 1;
+
+	if (!on_boot_cpu)
+		return;
+	on_boot_cpu = 0;
+
 	/*
 	 * Setup init_xstate_buf to represent the init state of
 	 * all the features managed by the xsave
@@ -738,8 +744,7 @@ void __init_refok eager_fpu_init(void)
 		return;
 	}
 
-	if (!init_xstate_buf)
-		setup_init_fpu_buf();
+	setup_init_fpu_buf();
 }
 
 /*
