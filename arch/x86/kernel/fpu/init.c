@@ -165,6 +165,7 @@ void fpu__init_cpu(void)
 	write_cr0(cr0);
 
 	fpu__init_cpu_xstate();
+	fpu__init_cpu_ctx_switch();
 }
 
 static enum { AUTO, ENABLE, DISABLE } eagerfpu = AUTO;
