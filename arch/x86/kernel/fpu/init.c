@@ -167,7 +167,7 @@ __setup("eagerfpu=", eager_fpu_setup);
  * setup_init_fpu_buf() is __init and it is OK to call it here because
  * init_xstate_ctx will be unset only once during boot.
  */
-void __init_refok eager_fpu_init(void)
+static void fpu__ctx_switch_init(void)
 {
 	WARN_ON(current->thread.fpu.fpstate_active);
 	current_thread_info()->status = 0;
@@ -191,10 +191,8 @@ void __init_refok eager_fpu_init(void)
 
 	printk_once(KERN_INFO "x86/fpu: Using '%s' FPU context switches.\n", eagerfpu == ENABLE ? "eager" : "lazy");
 
-	if (!cpu_has_eager_fpu) {
+	if (!cpu_has_eager_fpu)
 		stts();
-		return;
-	}
 }
 
 /*
@@ -214,7 +212,7 @@ void fpu__init_system(void)
 
 	mxcsr_feature_mask_init();
 	fpu__init_system_xstate();
-	eager_fpu_init();
+	fpu__ctx_switch_init();
 }
 
 void fpu__cpu_init(void)
