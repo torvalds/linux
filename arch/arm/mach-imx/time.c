@@ -344,12 +344,13 @@ static void __init _mxc_timer_init(int irq,
 	setup_irq(irq, &mxc_timer_irq);
 }
 
-void __init mxc_timer_init(void __iomem *base, int irq)
+void __init mxc_timer_init(unsigned long pbase, int irq)
 {
 	struct clk *clk_per = clk_get_sys("imx-gpt.0", "per");
 	struct clk *clk_ipg = clk_get_sys("imx-gpt.0", "ipg");
 
-	timer_base = base;
+	timer_base = ioremap(pbase, SZ_4K);
+	BUG_ON(!timer_base);
 
 	_mxc_timer_init(irq, clk_per, clk_ipg);
 }

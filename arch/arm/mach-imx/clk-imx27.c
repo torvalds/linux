@@ -229,7 +229,7 @@ int __init mx27_clocks_init(unsigned long fref)
 	clk_register_clkdev(clk[IMX27_CLK_EMMA_AHB_GATE], "ahb", "m2m-emmaprp.0");
 	clk_register_clkdev(clk[IMX27_CLK_EMMA_IPG_GATE], "ipg", "m2m-emmaprp.0");
 
-	mxc_timer_init(MX27_IO_ADDRESS(MX27_GPT1_BASE_ADDR), MX27_INT_GPT1);
+	mxc_timer_init(MX27_GPT1_BASE_ADDR, MX27_INT_GPT1);
 
 	return 0;
 }

@@ -98,7 +98,7 @@ int __init mx1_clocks_init(unsigned long fref)
 	clk_register_clkdev(clk[IMX1_CLK_DUMMY], "ipg", "imx1-fb.0");
 	clk_register_clkdev(clk[IMX1_CLK_DUMMY], "ahb", "imx1-fb.0");
 
-	mxc_timer_init(MX1_IO_ADDRESS(MX1_TIM1_BASE_ADDR), MX1_TIM1_INT);
+	mxc_timer_init(MX1_TIM1_BASE_ADDR, MX1_TIM1_INT);
 
 	return 0;
 }
