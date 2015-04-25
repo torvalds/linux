@@ -5,10 +5,14 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <dt-bindings/clock/imx27-clock.h>
+#include <soc/imx/revision.h>
+#include <asm/irq.h>
 
 #include "clk.h"
-#include "common.h"
-#include "hardware.h"
+
+#define MX27_CCM_BASE_ADDR	0x10027000
+#define MX27_GPT1_BASE_ADDR	0x10003000
+#define MX27_INT_GPT1		(NR_IRQS_LEGACY + 26)
 
 static void __iomem *ccm __initdata;
 

@@ -13,11 +13,25 @@
 #include <linux/clkdev.h>
 #include <linux/of.h>
 #include <linux/err.h>
+#include <soc/imx/revision.h>
+#include <asm/irq.h>
 
-#include "crmregs-imx3.h"
 #include "clk.h"
-#include "common.h"
-#include "hardware.h"
+
+#define MX35_CCM_BASE_ADDR	0x53f80000
+#define MX35_GPT1_BASE_ADDR	0x53f90000
+#define MX35_INT_GPT		(NR_IRQS_LEGACY + 29)
+
+#define MXC_CCM_PDR0		0x04
+#define MX35_CCM_PDR2		0x0c
+#define MX35_CCM_PDR3		0x10
+#define MX35_CCM_PDR4		0x14
+#define MX35_CCM_MPCTL		0x1c
+#define MX35_CCM_PPCTL		0x20
+#define MX35_CCM_CGR0		0x2c
+#define MX35_CCM_CGR1		0x30
+#define MX35_CCM_CGR2		0x34
+#define MX35_CCM_CGR3		0x38
 
 struct arm_ahb_div {
 	unsigned char arm, ahb, sel;

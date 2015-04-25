@@ -19,11 +19,10 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <soc/imx/revision.h>
 #include <dt-bindings/clock/imx6qdl-clock.h>
 
 #include "clk.h"
-#include "common.h"
-#include "hardware.h"
 
 static const char *step_sels[]	= { "osc", "pll2_pfd2_396m", };
 static const char *pll1_sw_sels[]	= { "pll1_sys", "step", };

@@ -16,11 +16,10 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <soc/imx/revision.h>
 #include <dt-bindings/clock/imx5-clock.h>
 
 #include "clk.h"
-#include "common.h"
-#include "hardware.h"
 
 #define MX51_DPLL1_BASE		0x83f80000
 #define MX51_DPLL2_BASE		0x83f84000

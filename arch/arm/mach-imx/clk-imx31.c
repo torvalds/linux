@@ -21,12 +21,25 @@
 #include <linux/io.h>
 #include <linux/err.h>
 #include <linux/of.h>
+#include <soc/imx/revision.h>
+#include <asm/irq.h>
 
 #include "clk.h"
-#include "common.h"
-#include "crmregs-imx3.h"
-#include "hardware.h"
-#include "mx31.h"
+
+#define MX31_CCM_BASE_ADDR	0x53f80000
+#define MX31_GPT1_BASE_ADDR	0x53f90000
+#define MX31_INT_GPT		(NR_IRQS_LEGACY + 29)
+
+#define MXC_CCM_CCMR		0x00
+#define MXC_CCM_PDR0		0x04
+#define MXC_CCM_PDR1		0x08
+#define MXC_CCM_MPCTL		0x10
+#define MXC_CCM_UPCTL		0x14
+#define MXC_CCM_SRPCTL		0x18
+#define MXC_CCM_CGR0		0x20
+#define MXC_CCM_CGR1		0x24
+#define MXC_CCM_CGR2		0x28
+#define MXC_CCM_PMCR0		0x5c
 
 static const char *mcu_main_sel[] = { "spll", "mpll", };
 static const char *per_sel[] = { "per_div", "ipg", };

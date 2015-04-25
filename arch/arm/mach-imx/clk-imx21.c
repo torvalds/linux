@@ -15,10 +15,13 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <dt-bindings/clock/imx21-clock.h>
+#include <asm/irq.h>
 
 #include "clk.h"
-#include "common.h"
-#include "hardware.h"
+
+#define MX21_CCM_BASE_ADDR	0x10027000
+#define MX21_GPT1_BASE_ADDR	0x10003000
+#define MX21_INT_GPT1		(NR_IRQS_LEGACY + 26)
 
 static void __iomem *ccm __initdata;
 

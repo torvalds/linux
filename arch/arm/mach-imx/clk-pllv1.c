@@ -6,8 +6,6 @@
 #include <linux/err.h>
 
 #include "clk.h"
-#include "common.h"
-#include "hardware.h"
 
 /**
  * pll v1

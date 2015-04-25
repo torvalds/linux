@@ -23,10 +23,13 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <dt-bindings/clock/imx1-clock.h>
+#include <asm/irq.h>
 
 #include "clk.h"
-#include "common.h"
-#include "hardware.h"
+
+#define MX1_CCM_BASE_ADDR	0x0021b000
+#define MX1_TIM1_BASE_ADDR	0x00220000
+#define MX1_TIM1_INT		(NR_IRQS_LEGACY + 59)
 
 static const char *prem_sel_clks[] = { "clk32_premult", "clk16m", };
 static const char *clko_sel_clks[] = { "per1", "hclk", "clk48m", "clk16m",

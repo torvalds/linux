@@ -21,7 +21,6 @@
 #include <linux/types.h>
 
 #include "clk.h"
-#include "common.h"
 
 #define CCDR    0x4
 #define BM_CCM_CCDR_MMDC_CH0_MASK       (0x2 << 16)

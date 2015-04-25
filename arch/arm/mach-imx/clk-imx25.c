@@ -28,8 +28,6 @@
 #include <linux/of_irq.h>
 
 #include "clk.h"
-#include "common.h"
-#include "hardware.h"
 
 #define CCM_MPCTL	0x00
 #define CCM_UPCTL	0x04

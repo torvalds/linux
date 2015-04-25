@@ -16,7 +16,6 @@
 #include <dt-bindings/clock/imx6sl-clock.h>
 
 #include "clk.h"
-#include "common.h"
 
 #define CCSR			0xc
 #define BM_CCSR_PLL1_SW_CLK_SEL	(1 << 2)
