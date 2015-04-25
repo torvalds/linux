@@ -146,7 +146,6 @@ void fpu__init_cpu(void)
 		cr0 |= X86_CR0_EM;
 	write_cr0(cr0);
 
-	fpu__init_system_xstate();
 	fpu__init_cpu_xstate();
 }
 
@@ -161,7 +160,6 @@ void fpu__init_system(void)
 
 	mxcsr_feature_mask_init();
 	fpu__init_system_xstate();
-	fpu__init_cpu_xstate();
 	eager_fpu_init();
 }
 
