@@ -381,6 +381,165 @@ static const struct attribute_group *acpi_nfit_attribute_groups[] = {
 	NULL,
 };
 
+static struct acpi_nfit_memory_map *to_nfit_memdev(struct device *dev)
+{
+	struct nvdimm *nvdimm = to_nvdimm(dev);
+	struct nfit_mem *nfit_mem = nvdimm_provider_data(nvdimm);
+
+	return __to_nfit_memdev(nfit_mem);
+}
+
+static struct acpi_nfit_control_region *to_nfit_dcr(struct device *dev)
+{
+	struct nvdimm *nvdimm = to_nvdimm(dev);
+	struct nfit_mem *nfit_mem = nvdimm_provider_data(nvdimm);
+
+	return nfit_mem->dcr;
+}
+
+static ssize_t handle_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct acpi_nfit_memory_map *memdev = to_nfit_memdev(dev);
+
+	return sprintf(buf, "%#x\n", memdev->device_handle);
+}
+static DEVICE_ATTR_RO(handle);
+
+static ssize_t phys_id_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct acpi_nfit_memory_map *memdev = to_nfit_memdev(dev);
+
+	return sprintf(buf, "%#x\n", memdev->physical_id);
+}
+static DEVICE_ATTR_RO(phys_id);
+
+static ssize_t vendor_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct acpi_nfit_control_region *dcr = to_nfit_dcr(dev);
+
+	return sprintf(buf, "%#x\n", dcr->vendor_id);
+}
+static DEVICE_ATTR_RO(vendor);
+
+static ssize_t rev_id_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct acpi_nfit_control_region *dcr = to_nfit_dcr(dev);
+
+	return sprintf(buf, "%#x\n", dcr->revision_id);
+}
+static DEVICE_ATTR_RO(rev_id);
+
+static ssize_t device_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct acpi_nfit_control_region *dcr = to_nfit_dcr(dev);
+
+	return sprintf(buf, "%#x\n", dcr->device_id);
+}
+static DEVICE_ATTR_RO(device);
+
+static ssize_t format_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct acpi_nfit_control_region *dcr = to_nfit_dcr(dev);
+
+	return sprintf(buf, "%#x\n", dcr->code);
+}
+static DEVICE_ATTR_RO(format);
+
+static ssize_t serial_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct acpi_nfit_control_region *dcr = to_nfit_dcr(dev);
+
+	return sprintf(buf, "%#x\n", dcr->serial_number);
+}
+static DEVICE_ATTR_RO(serial);
+
+static struct attribute *acpi_nfit_dimm_attributes[] = {
+	&dev_attr_handle.attr,
+	&dev_attr_phys_id.attr,
+	&dev_attr_vendor.attr,
+	&dev_attr_device.attr,
+	&dev_attr_format.attr,
+	&dev_attr_serial.attr,
+	&dev_attr_rev_id.attr,
+	NULL,
+};
+
+static umode_t acpi_nfit_dimm_attr_visible(struct kobject *kobj,
+		struct attribute *a, int n)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+
+	if (to_nfit_dcr(dev))
+		return a->mode;
+	else
+		return 0;
+}
+
+static struct attribute_group acpi_nfit_dimm_attribute_group = {
+	.name = "nfit",
+	.attrs = acpi_nfit_dimm_attributes,
+	.is_visible = acpi_nfit_dimm_attr_visible,
+};
+
+static const struct attribute_group *acpi_nfit_dimm_attribute_groups[] = {
+	&acpi_nfit_dimm_attribute_group,
+	NULL,
+};
+
+static struct nvdimm *acpi_nfit_dimm_by_handle(struct acpi_nfit_desc *acpi_desc,
+		u32 device_handle)
+{
+	struct nfit_mem *nfit_mem;
+
+	list_for_each_entry(nfit_mem, &acpi_desc->dimms, list)
+		if (__to_nfit_memdev(nfit_mem)->device_handle == device_handle)
+			return nfit_mem->nvdimm;
+
+	return NULL;
+}
+
+static int acpi_nfit_register_dimms(struct acpi_nfit_desc *acpi_desc)
+{
+	struct nfit_mem *nfit_mem;
+
+	list_for_each_entry(nfit_mem, &acpi_desc->dimms, list) {
+		struct nvdimm *nvdimm;
+		unsigned long flags = 0;
+		u32 device_handle;
+
+		device_handle = __to_nfit_memdev(nfit_mem)->device_handle;
+		nvdimm = acpi_nfit_dimm_by_handle(acpi_desc, device_handle);
+		if (nvdimm) {
+			/*
+			 * If for some reason we find multiple DCRs the
+			 * first one wins
+			 */
+			dev_err(acpi_desc->dev, "duplicate DCR detected: %s\n",
+					nvdimm_name(nvdimm));
+			continue;
+		}
+
+		if (nfit_mem->bdw && nfit_mem->memdev_pmem)
+			flags |= NDD_ALIASING;
+
+		nvdimm = nvdimm_create(acpi_desc->nvdimm_bus, nfit_mem,
+				acpi_nfit_dimm_attribute_groups, flags);
+		if (!nvdimm)
+			return -ENOMEM;
+
+		nfit_mem->nvdimm = nvdimm;
+	}
+
+	return 0;
+}
+
 static int acpi_nfit_init(struct acpi_nfit_desc *acpi_desc, acpi_size sz)
 {
 	struct device *dev = acpi_desc->dev;
@@ -408,7 +567,7 @@ static int acpi_nfit_init(struct acpi_nfit_desc *acpi_desc, acpi_size sz)
 	if (nfit_mem_init(acpi_desc) != 0)
 		return -ENOMEM;
 
-	return 0;
+	return acpi_nfit_register_dimms(acpi_desc);
 }
 
 static int acpi_nfit_add(struct acpi_device *adev)

@@ -15,6 +15,10 @@
 #include <linux/libnvdimm.h>
 #include <linux/device.h>
 
+extern struct list_head nvdimm_bus_list;
+extern struct mutex nvdimm_bus_list_mutex;
+extern struct bus_type nvdimm_bus_type;
+
 struct nvdimm_bus {
 	struct nvdimm_bus_descriptor *nd_desc;
 	struct list_head list;
@@ -22,6 +26,14 @@ struct nvdimm_bus {
 	int id;
 };
 
+struct nvdimm {
+	unsigned long flags;
+	void *provider_data;
+	struct device dev;
+	int id;
+};
+
+struct nvdimm_bus *walk_to_nvdimm_bus(struct device *nd_dev);
 int __init nvdimm_bus_init(void);
 void __exit nvdimm_bus_exit(void);
 int nvdimm_bus_create_ndctl(struct nvdimm_bus *nvdimm_bus);

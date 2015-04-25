@@ -13,6 +13,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/uaccess.h>
 #include <linux/fcntl.h>
+#include <linux/async.h>
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/io.h>
@@ -20,6 +21,10 @@
 
 static int nvdimm_bus_major;
 static struct class *nd_class;
+
+struct bus_type nvdimm_bus_type = {
+	.name = "nd",
+};
 
 int nvdimm_bus_create_ndctl(struct nvdimm_bus *nvdimm_bus)
 {
@@ -59,9 +64,13 @@ int __init nvdimm_bus_init(void)
 {
 	int rc;
 
+	rc = bus_register(&nvdimm_bus_type);
+	if (rc)
+		return rc;
+
 	rc = register_chrdev(0, "ndctl", &nvdimm_bus_fops);
 	if (rc < 0)
-		return rc;
+		goto err_chrdev;
 	nvdimm_bus_major = rc;
 
 	nd_class = class_create(THIS_MODULE, "nd");
@@ -72,6 +81,8 @@ int __init nvdimm_bus_init(void)
 
  err_class:
 	unregister_chrdev(nvdimm_bus_major, "ndctl");
+ err_chrdev:
+	bus_unregister(&nvdimm_bus_type);
 
 	return rc;
 }
@@ -80,4 +91,5 @@ void __exit nvdimm_bus_exit(void)
 {
 	class_destroy(nd_class);
 	unregister_chrdev(nvdimm_bus_major, "ndctl");
+	bus_unregister(&nvdimm_bus_type);
 }

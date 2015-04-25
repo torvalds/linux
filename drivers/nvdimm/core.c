@@ -18,8 +18,8 @@
 #include <linux/slab.h>
 #include "nd-core.h"
 
-static LIST_HEAD(nvdimm_bus_list);
-static DEFINE_MUTEX(nvdimm_bus_list_mutex);
+LIST_HEAD(nvdimm_bus_list);
+DEFINE_MUTEX(nvdimm_bus_list_mutex);
 static DEFINE_IDA(nd_ida);
 
 static void nvdimm_bus_release(struct device *dev)
@@ -47,6 +47,19 @@ struct nvdimm_bus_descriptor *to_nd_desc(struct nvdimm_bus *nvdimm_bus)
 	return nvdimm_bus->nd_desc;
 }
 EXPORT_SYMBOL_GPL(to_nd_desc);
+
+struct nvdimm_bus *walk_to_nvdimm_bus(struct device *nd_dev)
+{
+	struct device *dev;
+
+	for (dev = nd_dev; dev; dev = dev->parent)
+		if (dev->release == nvdimm_bus_release)
+			break;
+	dev_WARN_ONCE(nd_dev, !dev, "invalid dev, not on nd bus\n");
+	if (dev)
+		return to_nvdimm_bus(dev);
+	return NULL;
+}
 
 static const char *nvdimm_bus_provider(struct nvdimm_bus *nvdimm_bus)
 {
@@ -121,6 +134,21 @@ struct nvdimm_bus *nvdimm_bus_register(struct device *parent,
 }
 EXPORT_SYMBOL_GPL(nvdimm_bus_register);
 
+static int child_unregister(struct device *dev, void *data)
+{
+	/*
+	 * the singular ndctl class device per bus needs to be
+	 * "device_destroy"ed, so skip it here
+	 *
+	 * i.e. remove classless children
+	 */
+	if (dev->class)
+		/* pass */;
+	else
+		device_unregister(dev);
+	return 0;
+}
+
 void nvdimm_bus_unregister(struct nvdimm_bus *nvdimm_bus)
 {
 	if (!nvdimm_bus)
@@ -130,6 +158,7 @@ void nvdimm_bus_unregister(struct nvdimm_bus *nvdimm_bus)
 	list_del_init(&nvdimm_bus->list);
 	mutex_unlock(&nvdimm_bus_list_mutex);
 
+	device_for_each_child(&nvdimm_bus->dev, NULL, child_unregister);
 	nvdimm_bus_destroy_ndctl(nvdimm_bus);
 
 	device_unregister(&nvdimm_bus->dev);

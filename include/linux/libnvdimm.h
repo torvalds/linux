@@ -14,6 +14,12 @@
  */
 #ifndef __LIBNVDIMM_H__
 #define __LIBNVDIMM_H__
+
+enum {
+	/* when a dimm supports both PMEM and BLK access a label is required */
+	NDD_ALIASING = 1 << 0,
+};
+
 extern struct attribute_group nvdimm_bus_attribute_group;
 
 struct nvdimm;
@@ -34,5 +40,10 @@ struct nvdimm_bus *nvdimm_bus_register(struct device *parent,
 		struct nvdimm_bus_descriptor *nfit_desc);
 void nvdimm_bus_unregister(struct nvdimm_bus *nvdimm_bus);
 struct nvdimm_bus *to_nvdimm_bus(struct device *dev);
+struct nvdimm *to_nvdimm(struct device *dev);
 struct nvdimm_bus_descriptor *to_nd_desc(struct nvdimm_bus *nvdimm_bus);
+const char *nvdimm_name(struct nvdimm *nvdimm);
+void *nvdimm_provider_data(struct nvdimm *nvdimm);
+struct nvdimm *nvdimm_create(struct nvdimm_bus *nvdimm_bus, void *provider_data,
+		const struct attribute_group **groups, unsigned long flags);
 #endif /* __LIBNVDIMM_H__ */
