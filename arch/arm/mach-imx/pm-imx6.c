@@ -255,7 +255,7 @@ static void imx6q_enable_wb(bool enable)
 	writel_relaxed(val, ccm_base + CCR);
 }
 
-int imx6q_set_lpm(enum mxc_cpu_pwr_mode mode)
+int imx6_set_lpm(enum mxc_cpu_pwr_mode mode)
 {
 	u32 val = readl_relaxed(ccm_base + CLPCR);
 
@@ -340,7 +340,7 @@ static int imx6q_pm_enter(suspend_state_t state)
 {
 	switch (state) {
 	case PM_SUSPEND_STANDBY:
-		imx6q_set_lpm(STOP_POWER_ON);
+		imx6_set_lpm(STOP_POWER_ON);
 		imx6q_set_int_mem_clk_lpm(true);
 		imx_gpc_pre_suspend(false);
 		if (cpu_is_imx6sl())
@@ -350,10 +350,10 @@ static int imx6q_pm_enter(suspend_state_t state)
 		if (cpu_is_imx6sl())
 			imx6sl_set_wait_clk(false);
 		imx_gpc_post_resume();
-		imx6q_set_lpm(WAIT_CLOCKED);
+		imx6_set_lpm(WAIT_CLOCKED);
 		break;
 	case PM_SUSPEND_MEM:
-		imx6q_set_lpm(STOP_POWER_OFF);
+		imx6_set_lpm(STOP_POWER_OFF);
 		imx6q_set_int_mem_clk_lpm(false);
 		imx6q_enable_wb(true);
 		/*
@@ -373,7 +373,7 @@ static int imx6q_pm_enter(suspend_state_t state)
 		imx6_enable_rbc(false);
 		imx6q_enable_wb(false);
 		imx6q_set_int_mem_clk_lpm(true);
-		imx6q_set_lpm(WAIT_CLOCKED);
+		imx6_set_lpm(WAIT_CLOCKED);
 		break;
 	default:
 		return -EINVAL;
@@ -559,6 +559,8 @@ static void __init imx6_pm_common_init(const struct imx6_pm_socdata
 
 	WARN_ON(!ccm_base);
 
+	imx6_set_lpm(WAIT_CLOCKED);
+
 	if (IS_ENABLED(CONFIG_SUSPEND)) {
 		ret = imx6q_suspend_init(socdata);
 		if (ret)
@@ -568,7 +570,7 @@ static void __init imx6_pm_common_init(const struct imx6_pm_socdata
 
 	/*
 	 * This is for SW workaround step #1 of ERR007265, see comments
-	 * in imx6q_set_lpm for details of this errata.
+	 * in imx6_set_lpm for details of this errata.
 	 * Force IOMUXC irq pending, so that the interrupt to GPC can be
 	 * used to deassert dsm_request signal when the signal gets
 	 * asserted unexpectedly.
