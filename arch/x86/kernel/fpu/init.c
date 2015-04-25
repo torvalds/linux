@@ -118,13 +118,9 @@ static void fpstate_xstate_init_size(void)
 }
 
 /*
- * Called on the boot CPU at bootup to set up the initial FPU state that
- * is later cloned into all processes.
- *
- * Also called on secondary CPUs to set up the FPU state of their
- * idle threads.
+ * Enable all supported FPU features. Called when a CPU is brought online.
  */
-void fpu__cpu_init(void)
+void fpu__init_cpu(void)
 {
 	unsigned long cr0;
 	unsigned long cr4_mask = 0;
@@ -150,10 +146,27 @@ void fpu__cpu_init(void)
 		cr0 |= X86_CR0_EM;
 	write_cr0(cr0);
 
+	xsave_init();
+}
+
+/*
+ * Called on the boot CPU once per system bootup, to set up the initial FPU state that
+ * is later cloned into all processes.
+ */
+void fpu__init_system(void)
+{
+	/* The FPU has to be operational for some of the later FPU init activities: */
+	fpu__init_cpu();
 
 	mxcsr_feature_mask_init();
 	xsave_init();
 	eager_fpu_init();
+}
+
+void fpu__cpu_init(void)
+{
+	fpu__init_cpu();
+	fpu__init_system();
 }
 
 static int __init no_387(char *s)
