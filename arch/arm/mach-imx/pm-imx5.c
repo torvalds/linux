@@ -50,16 +50,19 @@
 #define IMX5_DEFAULT_CPU_IDLE_STATE WAIT_UNCLOCKED_POWER_OFF
 
 struct imx5_pm_data {
+	phys_addr_t ccm_addr;
 	phys_addr_t cortex_addr;
 	phys_addr_t gpc_addr;
 };
 
 static const struct imx5_pm_data imx51_pm_data __initconst = {
+	.ccm_addr = 0x73fd4000,
 	.cortex_addr = 0x83fa0000,
 	.gpc_addr = 0x73fd8000,
 };
 
 static const struct imx5_pm_data imx53_pm_data __initconst = {
+	.ccm_addr = 0x53fd4000,
 	.cortex_addr = 0x63fa0000,
 	.gpc_addr = 0x53fd8000,
 };
@@ -67,11 +70,6 @@ static const struct imx5_pm_data imx53_pm_data __initconst = {
 static void __iomem *ccm_base;
 static void __iomem *cortex_base;
 static void __iomem *gpc_base;
-
-void __init imx5_pm_set_ccm_base(void __iomem *base)
-{
-	ccm_base = base;
-}
 
 /*
  * set cpu low power mode before WFI instruction. This function is called
@@ -208,6 +206,7 @@ static int __init imx5_pm_common_init(const struct imx5_pm_data *data)
 
 	arm_pm_idle = imx5_pm_idle;
 
+	ccm_base = ioremap(data->ccm_addr, SZ_16K);
 	cortex_base = ioremap(data->cortex_addr, SZ_16K);
 	gpc_base = ioremap(data->gpc_addr, SZ_16K);
 	WARN_ON(!ccm_base || !cortex_base || !gpc_base);
