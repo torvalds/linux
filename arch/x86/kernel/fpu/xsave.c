@@ -465,7 +465,7 @@ static void prepare_fx_sw_frame(void)
  */
 void fpu__init_cpu_xstate(void)
 {
-	if (!xfeatures_mask)
+	if (!cpu_has_xsave || !xfeatures_mask)
 		return;
 
 	cr4_set_bits(X86_CR4_OSXSAVE);
