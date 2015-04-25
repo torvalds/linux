@@ -165,14 +165,14 @@
  * @v4l2_dev:		v4l2_device structure
  * @vdev:		video_device structure
  * @pdev:		pointer to pci_dev structure
- * @q			pointer to vb2_queue structure
+ * @vidq:		vb2_queue structure
+ * @alloc_ctx:		dma_contig allocation context
  * @curr_buf:		pointer to curren buffer
  * @mux:		mutex to protect the instance
  * @dmaq		queue for dma buffers
  * @lock		spinlock for dma queue
  * @field_count		fields counter
  * @stats:		statistics structure
- * @users		open count
  * @regs:		local copy of mmio base register
  * @csr2:		local copy of csr2 register
  * @config:		local copy of config register
@@ -181,14 +181,14 @@ struct dt3155_priv {
 	struct v4l2_device v4l2_dev;
 	struct video_device vdev;
 	struct pci_dev *pdev;
-	struct vb2_queue *q;
+	struct vb2_queue vidq;
+	struct vb2_alloc_ctx *alloc_ctx;
 	struct vb2_buffer *curr_buf;
 	struct mutex mux;
 	struct list_head dmaq;
 	spinlock_t lock;
 	unsigned int field_count;
 	void __iomem *regs;
-	int users;
 	u8 csr2, config;
 };
 
