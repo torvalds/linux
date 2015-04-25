@@ -77,7 +77,7 @@ struct task_struct;
  */
 #define TSK_K_ESP(tsk)		(tsk->thread.ksp)
 
-#define TSK_K_REG(tsk, off)	(*((unsigned int *)(TSK_K_ESP(tsk) + \
+#define TSK_K_REG(tsk, off)	(*((unsigned long *)(TSK_K_ESP(tsk) + \
 					sizeof(struct callee_regs) + off)))
 
 #define TSK_K_BLINK(tsk)	TSK_K_REG(tsk, 4)
