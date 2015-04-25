@@ -724,8 +724,6 @@ void __init_refok eager_fpu_init(void)
 		stts();
 		return;
 	}
-
-	setup_init_fpu_buf();
 }
 
 /*
