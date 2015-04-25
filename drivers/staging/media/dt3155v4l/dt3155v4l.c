@@ -29,8 +29,6 @@
 
 #define DT3155_DEVICE_ID 0x1223
 
-#define DT3155_BUF_SIZE (768 * 576)
-
 #ifdef CONFIG_DT3155_STREAMING
 #define DT3155_CAPTURE_METHOD V4L2_CAP_STREAMING
 #else
@@ -645,16 +643,14 @@ static const struct v4l2_ioctl_ops dt3155_ioctl_ops = {
 static int dt3155_init_board(struct dt3155_priv *pd)
 {
 	struct pci_dev *pdev = pd->pdev;
-	void *buf_cpu;
-	dma_addr_t buf_dma;
 	int i;
-	u8 tmp;
+	u8 tmp = 0;
 
 	pci_set_master(pdev); /* dt3155 needs it */
 
 	/*  resetting the adapter  */
-	iowrite32(FLD_CRPT_ODD | FLD_CRPT_EVEN | FLD_DN_ODD | FLD_DN_EVEN,
-							pd->regs + CSR1);
+	iowrite32(ADDR_ERR_ODD | ADDR_ERR_EVEN | FLD_CRPT_ODD | FLD_CRPT_EVEN |
+			FLD_DN_ODD | FLD_DN_EVEN, pd->regs + CSR1);
 	mmiowb();
 	msleep(20);
 
@@ -710,33 +706,10 @@ static int dt3155_init_board(struct dt3155_priv *pd)
 	write_i2c_reg(pd->regs, AD_ADDR, AD_CMD_REG);
 	write_i2c_reg(pd->regs, AD_CMD, VIDEO_CNL_1 | SYNC_CNL_1 | SYNC_LVL_3);
 
-	/* allocate memory, and initialize the DMA machine */
-	buf_cpu = dma_alloc_coherent(&pdev->dev, DT3155_BUF_SIZE, &buf_dma,
-								GFP_KERNEL);
-	if (!buf_cpu)
-		return -ENOMEM;
-	iowrite32(buf_dma, pd->regs + EVEN_DMA_START);
-	iowrite32(buf_dma, pd->regs + ODD_DMA_START);
-	iowrite32(0, pd->regs + EVEN_DMA_STRIDE);
-	iowrite32(0, pd->regs + ODD_DMA_STRIDE);
+	/* disable all irqs, clear all irq flags */
+	iowrite32(FLD_START | FLD_END_EVEN | FLD_END_ODD,
+			pd->regs + INT_CSR);
 
-	/*  Perform a pseudo even field acquire    */
-	iowrite32(FIFO_EN | SRST | CAP_CONT_ODD, pd->regs + CSR1);
-	write_i2c_reg(pd->regs, CSR2, pd->csr2 | SYNC_SNTL);
-	write_i2c_reg(pd->regs, CONFIG, pd->config);
-	write_i2c_reg(pd->regs, EVEN_CSR, CSR_SNGL);
-	write_i2c_reg(pd->regs, CSR2, pd->csr2 | BUSY_EVEN | SYNC_SNTL);
-	msleep(100);
-	read_i2c_reg(pd->regs, CSR2, &tmp);
-	write_i2c_reg(pd->regs, EVEN_CSR, CSR_ERROR | CSR_SNGL | CSR_DONE);
-	write_i2c_reg(pd->regs, ODD_CSR, CSR_ERROR | CSR_SNGL | CSR_DONE);
-	write_i2c_reg(pd->regs, CSR2, pd->csr2);
-	iowrite32(FIFO_EN | SRST | FLD_DN_EVEN | FLD_DN_ODD, pd->regs + CSR1);
-
-	/*  deallocate memory  */
-	dma_free_coherent(&pdev->dev, DT3155_BUF_SIZE, buf_cpu, buf_dma);
-	if (tmp & BUSY_EVEN)
-		return -EIO;
 	return 0;
 }
 

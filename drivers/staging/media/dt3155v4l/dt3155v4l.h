@@ -74,7 +74,10 @@
 #define AD_NEG_REF   0x02
 
 /* CSR1 bit masks */
+#define RANGE_EN       0x00008000
 #define CRPT_DIS       0x00004000
+#define ADDR_ERR_ODD   0x00000800
+#define ADDR_ERR_EVEN  0x00000400
 #define FLD_CRPT_ODD   0x00000200
 #define FLD_CRPT_EVEN  0x00000100
 #define FIFO_EN        0x00000080
