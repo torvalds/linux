@@ -39,6 +39,9 @@ extern unsigned int mxcsr_feature_mask;
 extern void fpu__cpu_init(void);
 extern void eager_fpu_init(void);
 
+extern void fpu__init_system_xstate(void);
+extern void fpu__init_cpu_xstate(void);
+
 DECLARE_PER_CPU(struct fpu *, fpu_fpregs_owner_ctx);
 
 extern void convert_from_fxsr(struct user_i387_ia32_struct *env,
