@@ -11,11 +11,3 @@ config VIDEO_DT3155
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called dt3155v4l.
-
-config DT3155_CCIR
-	bool "Selects CCIR/50Hz vertical refresh"
-	depends on VIDEO_DT3155
-	default y
-	---help---
-	  Select it for CCIR/50Hz (European region),
-	  or leave it unselected for RS-170/60Hz (North America).

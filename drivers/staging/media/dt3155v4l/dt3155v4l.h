@@ -152,12 +152,6 @@
 /* DT3155 identificator */
 #define DT3155_ID   0x20
 
-#ifdef CONFIG_DT3155_CCIR
-#define DMA_STRIDE 768
-#else
-#define DMA_STRIDE 640
-#endif
-
 /*    per board private data structure   */
 /**
  * struct dt3155_priv - private data structure
@@ -169,9 +163,12 @@
  * @alloc_ctx:		dma_contig allocation context
  * @curr_buf:		pointer to curren buffer
  * @mux:		mutex to protect the instance
- * @dmaq		queue for dma buffers
- * @lock		spinlock for dma queue
- * @sequence		frame counter
+ * @dmaq:		queue for dma buffers
+ * @lock:		spinlock for dma queue
+ * @std:		input standard
+ * @width:		frame width
+ * @height:		frame height
+ * @sequence:		frame counter
  * @stats:		statistics structure
  * @regs:		local copy of mmio base register
  * @csr2:		local copy of csr2 register
@@ -187,6 +184,8 @@ struct dt3155_priv {
 	struct mutex mux;
 	struct list_head dmaq;
 	spinlock_t lock;
+	v4l2_std_id std;
+	unsigned width, height;
 	unsigned int sequence;
 	void __iomem *regs;
 	u8 csr2, config;
