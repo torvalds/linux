@@ -1,0 +1,18 @@
+/dts-v1/;
+
+/include/ "etraxfs.dtsi"
+
+/ {
+	model = "Axis 88 Developer Board";
+	compatible = "axis,dev88";
+
+	aliases {
+		serial0 = &uart0;
+	};
+
+	soc {
+		uart0: serial@b00260000 {
+			status = "okay";
+		};
+	};
+};
