@@ -2124,6 +2124,12 @@ F:	arch/arm64/
 F:	Documentation/arm64/
 
 AS3645A LED FLASH CONTROLLER DRIVER
+M:	Sakari Ailus <sakari.ailus@iki.fi>
+L:	linux-leds@vger.kernel.org
+S:	Maintained
+F:	drivers/leds/leds-as3645a.c
+
+AS3645A LED FLASH CONTROLLER DRIVER
 M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
 L:	linux-media@vger.kernel.org
 T:	git git://linuxtv.org/media_tree.git
