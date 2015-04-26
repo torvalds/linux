@@ -39,19 +39,8 @@ extern bool irq_fpu_usable(void);
  */
 extern void __kernel_fpu_begin(void);
 extern void __kernel_fpu_end(void);
-
-static inline void kernel_fpu_begin(void)
-{
-	preempt_disable();
-	WARN_ON_ONCE(!irq_fpu_usable());
-	__kernel_fpu_begin();
-}
-
-static inline void kernel_fpu_end(void)
-{
-	__kernel_fpu_end();
-	preempt_enable();
-}
+extern void kernel_fpu_begin(void);
+extern void kernel_fpu_end(void);
 
 /*
  * Some instructions like VIA's padlock instructions generate a spurious

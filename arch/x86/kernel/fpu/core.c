@@ -125,6 +125,21 @@ void __kernel_fpu_end(void)
 }
 EXPORT_SYMBOL(__kernel_fpu_end);
 
+void kernel_fpu_begin(void)
+{
+	preempt_disable();
+	WARN_ON_ONCE(!irq_fpu_usable());
+	__kernel_fpu_begin();
+}
+EXPORT_SYMBOL_GPL(kernel_fpu_begin);
+
+void kernel_fpu_end(void)
+{
+	__kernel_fpu_end();
+	preempt_enable();
+}
+EXPORT_SYMBOL_GPL(kernel_fpu_end);
+
 static void __save_fpu(struct fpu *fpu)
 {
 	if (use_xsave()) {
