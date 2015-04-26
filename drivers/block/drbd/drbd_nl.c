@@ -2706,6 +2706,7 @@ int drbd_adm_resize(struct sk_buff *skb, struct genl_info *info)
 		mutex_unlock(&device->resource->conf_update);
 		synchronize_rcu();
 		kfree(old_disk_conf);
+		new_disk_conf = NULL;
 	}
 
 	ddsf = (rs.resize_force ? DDSF_FORCED : 0) | (rs.no_resync ? DDSF_NO_RESYNC : 0);
@@ -2739,6 +2740,7 @@ int drbd_adm_resize(struct sk_buff *skb, struct genl_info *info)
 
  fail_ldev:
 	put_ldev(device);
+	kfree(new_disk_conf);
 	goto fail;
 }
 
