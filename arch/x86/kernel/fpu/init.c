@@ -231,9 +231,3 @@ static int __init no_387(char *s)
 }
 
 __setup("no387", no_387);
-
-void fpu__detect(struct cpuinfo_x86 *c)
-{
-	fpu__init_system(c);
-	/* The final cr0 value is set later, in fpu_init() */
-}
