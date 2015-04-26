@@ -4,6 +4,7 @@
 #include <net/netns/generic.h>
 #include <net/bonding.h>
 
+#include "bonding_priv.h"
 
 static void *bond_info_seq_start(struct seq_file *seq, loff_t *pos)
 	__acquires(RCU)

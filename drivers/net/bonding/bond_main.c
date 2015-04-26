@@ -82,6 +82,8 @@
 #include <net/bond_3ad.h>
 #include <net/bond_alb.h>
 
+#include "bonding_priv.h"
+
 /*---------------------------- Module parameters ----------------------------*/
 
 /* monitor all links that often (in milliseconds). <=0 disables monitoring */
