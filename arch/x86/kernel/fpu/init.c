@@ -241,11 +241,6 @@ void fpu__init_system(void)
 	fpu__init_system_ctx_switch();
 }
 
-void fpu__cpu_init(void)
-{
-	fpu__init_cpu();
-}
-
 static int __init no_387(char *s)
 {
 	setup_clear_cpu_cap(X86_FEATURE_FPU);

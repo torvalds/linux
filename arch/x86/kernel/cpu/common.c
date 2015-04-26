@@ -1435,7 +1435,7 @@ void cpu_init(void)
 	clear_all_debug_regs();
 	dbg_restore_debug_regs();
 
-	fpu__cpu_init();
+	fpu__init_cpu();
 
 	if (is_uv_system())
 		uv_cpu_init();
@@ -1491,7 +1491,7 @@ void cpu_init(void)
 	clear_all_debug_regs();
 	dbg_restore_debug_regs();
 
-	fpu__cpu_init();
+	fpu__init_cpu();
 }
 #endif
 
