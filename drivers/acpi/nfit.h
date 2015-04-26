@@ -87,4 +87,10 @@ static inline struct acpi_nfit_memory_map *__to_nfit_memdev(
 		return nfit_mem->memdev_dcr;
 	return nfit_mem->memdev_pmem;
 }
+
+static inline struct acpi_nfit_desc *to_acpi_desc(
+		struct nvdimm_bus_descriptor *nd_desc)
+{
+	return container_of(nd_desc, struct acpi_nfit_desc, nd_desc);
+}
 #endif /* __NFIT_H__ */

@@ -17,7 +17,13 @@
 
 struct nvdimm_bus {
 	struct nvdimm_bus_descriptor *nd_desc;
+	struct list_head list;
 	struct device dev;
 	int id;
 };
+
+int __init nvdimm_bus_init(void);
+void __exit nvdimm_bus_exit(void);
+int nvdimm_bus_create_ndctl(struct nvdimm_bus *nvdimm_bus);
+void nvdimm_bus_destroy_ndctl(struct nvdimm_bus *nvdimm_bus);
 #endif /* __ND_CORE_H__ */
