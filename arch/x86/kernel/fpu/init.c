@@ -136,9 +136,9 @@ static void fpu__init_cpu_ctx_switch(void)
 }
 
 /*
- * Enable all supported FPU features. Called when a CPU is brought online.
+ * Initialize the registers found in all CPUs, CR0 and CR4:
  */
-void fpu__init_cpu(void)
+static void fpu__init_cpu_generic(void)
 {
 	unsigned long cr0;
 	unsigned long cr4_mask = 0;
@@ -163,7 +163,14 @@ void fpu__init_cpu(void)
 	if (!cpu_has_fpu)
 		cr0 |= X86_CR0_EM;
 	write_cr0(cr0);
+}
 
+/*
+ * Enable all supported FPU features. Called when a CPU is brought online.
+ */
+void fpu__init_cpu(void)
+{
+	fpu__init_cpu_generic();
 	fpu__init_cpu_xstate();
 	fpu__init_cpu_ctx_switch();
 }
