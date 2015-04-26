@@ -85,6 +85,15 @@ static void fpu__init_system_early_generic(struct cpuinfo_x86 *c)
 		set_cpu_cap(c, X86_FEATURE_FPU);
 	else
 		clear_cpu_cap(c, X86_FEATURE_FPU);
+
+#ifndef CONFIG_MATH_EMULATION
+	if (!cpu_has_fpu) {
+		pr_emerg("No FPU found and no math emulation present\n");
+		pr_emerg("Giving up\n");
+		for (;;)
+			asm volatile("hlt");
+	}
+#endif
 }
 
 /*
@@ -180,14 +189,6 @@ static void fpu__init_cpu_generic(void)
 	unsigned long cr0;
 	unsigned long cr4_mask = 0;
 
-#ifndef CONFIG_MATH_EMULATION
-	if (!cpu_has_fpu) {
-		pr_emerg("No FPU found and no math emulation present\n");
-		pr_emerg("Giving up\n");
-		for (;;)
-			asm volatile("hlt");
-	}
-#endif
 	if (cpu_has_fxsr)
 		cr4_mask |= X86_CR4_OSFXSR;
 	if (cpu_has_xmm)
