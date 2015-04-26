@@ -2,4 +2,4 @@
 # Build rules for the FPU support code:
 #
 
-obj-y				+= init.o core.o xsave.o
+obj-y				+= init.o bugs.o core.o xsave.o
