@@ -10,8 +10,6 @@
 #ifndef _ASM_X86_FPU_API_H
 #define _ASM_X86_FPU_API_H
 
-#include <linux/hardirq.h>
-
 /*
  * Careful: __kernel_fpu_begin/end() must be called with preempt disabled
  * and they don't touch the preempt state on their own.
@@ -35,28 +33,7 @@ extern bool irq_fpu_usable(void);
  * in interrupt context interacting wrongly with other user/kernel fpu usage, we
  * should use them only in the context of irq_ts_save/restore()
  */
-static inline int irq_ts_save(void)
-{
-	/*
-	 * If in process context and not atomic, we can take a spurious DNA fault.
-	 * Otherwise, doing clts() in process context requires disabling preemption
-	 * or some heavy lifting like kernel_fpu_begin()
-	 */
-	if (!in_atomic())
-		return 0;
-
-	if (read_cr0() & X86_CR0_TS) {
-		clts();
-		return 1;
-	}
-
-	return 0;
-}
-
-static inline void irq_ts_restore(int TS_state)
-{
-	if (TS_state)
-		stts();
-}
+extern int  irq_ts_save(void);
+extern void irq_ts_restore(int TS_state);
 
 #endif /* _ASM_X86_FPU_API_H */
