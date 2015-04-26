@@ -99,6 +99,4 @@ static inline int user_has_fpu(void)
 	return current->thread.fpu.fpregs_active;
 }
 
-extern void fpu__save(struct fpu *fpu);
-
 #endif /* _ASM_X86_FPU_API_H */

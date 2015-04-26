@@ -290,6 +290,8 @@ static inline int fpu_save_init(struct fpu *fpu)
 	return 1;
 }
 
+extern void fpu__save(struct fpu *fpu);
+
 static inline int fpu_restore_checking(struct fpu *fpu)
 {
 	if (use_xsave())
