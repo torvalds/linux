@@ -446,8 +446,9 @@ config CRYPTO_DEV_VMX
 source "drivers/crypto/vmx/Kconfig"
 
 config CRYPTO_DEV_IMGTEC_HASH
-	depends on MIPS || COMPILE_TEST
 	tristate "Imagination Technologies hardware hash accelerator"
+	depends on MIPS || COMPILE_TEST
+	depends on HAS_DMA
 	select CRYPTO_ALGAPI
 	select CRYPTO_MD5
 	select CRYPTO_SHA1
