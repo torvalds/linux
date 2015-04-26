@@ -54,8 +54,8 @@ static void __init _mx27_clocks_init(unsigned long fref)
 	clk[IMX27_CLK_CKIH_GATE] = imx_clk_gate_dis("ckih_gate", "ckih", CCM_CSCR, 3);
 	clk[IMX27_CLK_MPLL_OSC_SEL] = imx_clk_mux("mpll_osc_sel", CCM_CSCR, 4, 1, mpll_osc_sel_clks, ARRAY_SIZE(mpll_osc_sel_clks));
 	clk[IMX27_CLK_MPLL_SEL] = imx_clk_mux("mpll_sel", CCM_CSCR, 16, 1, mpll_sel_clks, ARRAY_SIZE(mpll_sel_clks));
-	clk[IMX27_CLK_MPLL] = imx_clk_pllv1("mpll", "mpll_sel", CCM_MPCTL0);
-	clk[IMX27_CLK_SPLL] = imx_clk_pllv1("spll", "ckih_gate", CCM_SPCTL0);
+	clk[IMX27_CLK_MPLL] = imx_clk_pllv1(IMX_PLLV1_IMX27, "mpll", "mpll_sel", CCM_MPCTL0);
+	clk[IMX27_CLK_SPLL] = imx_clk_pllv1(IMX_PLLV1_IMX27, "spll", "ckih_gate", CCM_SPCTL0);
 	clk[IMX27_CLK_SPLL_GATE] = imx_clk_gate("spll_gate", "spll", CCM_CSCR, 1);
 	clk[IMX27_CLK_MPLL_MAIN2] = imx_clk_fixed_factor("mpll_main2", "mpll", 2, 3);
 

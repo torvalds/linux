@@ -63,9 +63,9 @@ static void __init _mx21_clocks_init(unsigned long lref, unsigned long href)
 	clk[IMX21_CLK_USB_DIV] = imx_clk_divider("usb_div", "spll_gate", CCM_CSCR, 26, 3);
 	clk[IMX21_CLK_FCLK] = imx_clk_divider("fclk", "mpll_gate", CCM_CSCR, 29, 3);
 
-	clk[IMX21_CLK_MPLL] = imx_clk_pllv1("mpll", "mpll_sel", CCM_MPCTL0);
+	clk[IMX21_CLK_MPLL] = imx_clk_pllv1(IMX_PLLV1_IMX21, "mpll", "mpll_sel", CCM_MPCTL0);
 
-	clk[IMX21_CLK_SPLL] = imx_clk_pllv1("spll", "spll_sel", CCM_SPCTL0);
+	clk[IMX21_CLK_SPLL] = imx_clk_pllv1(IMX_PLLV1_IMX21, "spll", "spll_sel", CCM_SPCTL0);
 
 	clk[IMX21_CLK_NFC_DIV] = imx_clk_divider("nfc_div", "fclk", CCM_PCDR0, 12, 4);
 	clk[IMX21_CLK_SSI1_DIV] = imx_clk_divider("ssi1_div", "ssi1_sel", CCM_PCDR0, 16, 6);

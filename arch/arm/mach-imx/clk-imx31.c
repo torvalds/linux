@@ -59,9 +59,9 @@ int __init mx31_clocks_init(unsigned long fref)
 	clk[dummy] = imx_clk_fixed("dummy", 0);
 	clk[ckih] = imx_clk_fixed("ckih", fref);
 	clk[ckil] = imx_clk_fixed("ckil", 32768);
-	clk[mpll] = imx_clk_pllv1("mpll", "ckih", base + MXC_CCM_MPCTL);
-	clk[spll] = imx_clk_pllv1("spll", "ckih", base + MXC_CCM_SRPCTL);
-	clk[upll] = imx_clk_pllv1("upll", "ckih", base + MXC_CCM_UPCTL);
+	clk[mpll] = imx_clk_pllv1(IMX_PLLV1_IMX31, "mpll", "ckih", base + MXC_CCM_MPCTL);
+	clk[spll] = imx_clk_pllv1(IMX_PLLV1_IMX31, "spll", "ckih", base + MXC_CCM_SRPCTL);
+	clk[upll] = imx_clk_pllv1(IMX_PLLV1_IMX31, "upll", "ckih", base + MXC_CCM_UPCTL);
 	clk[mcu_main] = imx_clk_mux("mcu_main", base + MXC_CCM_PMCR0, 31, 1, mcu_main_sel, ARRAY_SIZE(mcu_main_sel));
 	clk[hsp] = imx_clk_divider("hsp", "mcu_main", base + MXC_CCM_PDR0, 11, 3);
 	clk[ahb] = imx_clk_divider("ahb", "mcu_main", base + MXC_CCM_PDR0, 3, 3);
