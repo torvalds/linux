@@ -118,6 +118,18 @@ static void fpstate_xstate_init_size(void)
 }
 
 /*
+ * Initialize the TS bit in CR0 according to the style of context-switches
+ * we are using:
+ */
+static void fpu__init_cpu_ctx_switch(void)
+{
+	if (!cpu_has_eager_fpu)
+		stts();
+	else
+		clts();
+}
+
+/*
  * Enable all supported FPU features. Called when a CPU is brought online.
  */
 void fpu__init_cpu(void)
@@ -167,7 +179,7 @@ __setup("eagerfpu=", eager_fpu_setup);
  * setup_init_fpu_buf() is __init and it is OK to call it here because
  * init_xstate_ctx will be unset only once during boot.
  */
-static void fpu__ctx_switch_init(void)
+static void fpu__init_system_ctx_switch(void)
 {
 	WARN_ON(current->thread.fpu.fpstate_active);
 	current_thread_info()->status = 0;
@@ -190,9 +202,6 @@ static void fpu__ctx_switch_init(void)
 		setup_force_cpu_cap(X86_FEATURE_EAGER_FPU);
 
 	printk_once(KERN_INFO "x86/fpu: Using '%s' FPU context switches.\n", eagerfpu == ENABLE ? "eager" : "lazy");
-
-	if (!cpu_has_eager_fpu)
-		stts();
 }
 
 /*
@@ -212,7 +221,8 @@ void fpu__init_system(void)
 
 	mxcsr_feature_mask_init();
 	fpu__init_system_xstate();
-	fpu__ctx_switch_init();
+	fpu__init_system_ctx_switch();
+	fpu__init_cpu_ctx_switch();
 }
 
 void fpu__cpu_init(void)
