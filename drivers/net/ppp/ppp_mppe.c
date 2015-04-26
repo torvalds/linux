@@ -533,6 +533,13 @@ mppe_decompress(void *arg, unsigned char *ibuf, int isize, unsigned char *obuf,
 	 */
 
 	if (!state->stateful) {
+		/* Discard late packet */
+		if ((ccount - state->ccount) % MPPE_CCOUNT_SPACE
+						> MPPE_CCOUNT_SPACE / 2) {
+			state->sanity_errors++;
+			goto sanity_error;
+		}
+
 		/* RFC 3078, sec 8.1.  Rekey for every packet. */
 		while (state->ccount != ccount) {
 			mppe_rekey(state, 0);
