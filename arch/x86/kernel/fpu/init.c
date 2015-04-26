@@ -72,7 +72,7 @@ unsigned int mxcsr_feature_mask __read_mostly = 0xffffffffu;
 unsigned int xstate_size;
 EXPORT_SYMBOL_GPL(xstate_size);
 
-static void mxcsr_feature_mask_init(void)
+static void fpu__init_system_mxcsr(void)
 {
 	unsigned int mask = 0;
 
@@ -92,6 +92,20 @@ static void mxcsr_feature_mask_init(void)
 			mask = 0x0000ffbf;
 	}
 	mxcsr_feature_mask &= mask;
+}
+
+/*
+ * Once per bootup FPU initialization sequences that will run on most x86 CPUs:
+ */
+static void fpu__init_system_generic(void)
+{
+	/*
+	 * Set up the legacy init FPU context. (xstate init might overwrite this
+	 * with a more modern format, if the CPU supports it.)
+	 */
+	fx_finit(&init_xstate_ctx.i387);
+
+	fpu__init_system_mxcsr();
 }
 
 static void fpstate_xstate_init_size(void)
@@ -230,18 +244,11 @@ void fpu__init_system(void)
 	/*
 	 * But don't leave CR0::TS set yet, as some of the FPU setup methods depend
 	 * on being able to execute FPU instructions that will fault on a set TS,
-	 * such as the FXSAVE in mxcsr_feature_mask_init().
+	 * such as the FXSAVE in fpu__init_system_mxcsr().
 	 */
 	clts();
 
-	/*
-	 * Set up the legacy init FPU context. (xstate init might overwrite this
-	 * with a more modern format, if the CPU supports it.)
-	 */
-	fx_finit(&init_xstate_ctx.i387);
-
-	mxcsr_feature_mask_init();
-
+	fpu__init_system_generic();
 	fpstate_xstate_init_size();
 	fpu__init_system_xstate();
 
