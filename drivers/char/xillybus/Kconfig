@@ -24,7 +24,7 @@ config XILLYBUS_PCIE
 
 config XILLYBUS_OF
 	tristate "Xillybus over Device Tree"
-	depends on OF_ADDRESS && OF_IRQ
+	depends on OF_ADDRESS && OF_IRQ && HAS_DMA
 	help
 	  Set to M if you want Xillybus to find its resources from the
 	  Open Firmware Flattened Device Tree. If the target is an embedded
