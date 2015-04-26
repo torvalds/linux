@@ -150,12 +150,6 @@ static pte_t lookup_linux_pte_and_update(pgd_t *pgdir, unsigned long hva,
 	return kvmppc_read_update_linux_pte(ptep, writing, hugepage_shift);
 }
 
-static inline void unlock_hpte(__be64 *hpte, unsigned long hpte_v)
-{
-	asm volatile(PPC_RELEASE_BARRIER "" : : : "memory");
-	hpte[0] = cpu_to_be64(hpte_v);
-}
-
 long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 		       long pte_index, unsigned long pteh, unsigned long ptel,
 		       pgd_t *pgdir, bool realmode, unsigned long *pte_idx_ret)
@@ -271,10 +265,10 @@ long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 				u64 pte;
 				while (!try_lock_hpte(hpte, HPTE_V_HVLOCK))
 					cpu_relax();
-				pte = be64_to_cpu(*hpte);
+				pte = be64_to_cpu(hpte[0]);
 				if (!(pte & (HPTE_V_VALID | HPTE_V_ABSENT)))
 					break;
-				*hpte &= ~cpu_to_be64(HPTE_V_HVLOCK);
+				__unlock_hpte(hpte, pte);
 				hpte += 2;
 			}
 			if (i == 8)
@@ -290,9 +284,9 @@ long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 
 			while (!try_lock_hpte(hpte, HPTE_V_HVLOCK))
 				cpu_relax();
-			pte = be64_to_cpu(*hpte);
+			pte = be64_to_cpu(hpte[0]);
 			if (pte & (HPTE_V_VALID | HPTE_V_ABSENT)) {
-				*hpte &= ~cpu_to_be64(HPTE_V_HVLOCK);
+				__unlock_hpte(hpte, pte);
 				return H_PTEG_FULL;
 			}
 		}
@@ -331,7 +325,7 @@ long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 
 	/* Write the first HPTE dword, unlocking the HPTE and making it valid */
 	eieio();
-	hpte[0] = cpu_to_be64(pteh);
+	__unlock_hpte(hpte, pteh);
 	asm volatile("ptesync" : : : "memory");
 
 	*pte_idx_ret = pte_index;
@@ -412,7 +406,7 @@ long kvmppc_do_h_remove(struct kvm *kvm, unsigned long flags,
 	if ((pte & (HPTE_V_ABSENT | HPTE_V_VALID)) == 0 ||
 	    ((flags & H_AVPN) && (pte & ~0x7fUL) != avpn) ||
 	    ((flags & H_ANDCOND) && (pte & avpn) != 0)) {
-		hpte[0] &= ~cpu_to_be64(HPTE_V_HVLOCK);
+		__unlock_hpte(hpte, pte);
 		return H_NOT_FOUND;
 	}
 
@@ -548,7 +542,7 @@ long kvmppc_h_bulk_remove(struct kvm_vcpu *vcpu)
 				be64_to_cpu(hp[0]), be64_to_cpu(hp[1]));
 			rcbits = rev->guest_rpte & (HPTE_R_R|HPTE_R_C);
 			args[j] |= rcbits << (56 - 5);
-			hp[0] = 0;
+			__unlock_hpte(hp, 0);
 		}
 	}
 
@@ -574,7 +568,7 @@ long kvmppc_h_protect(struct kvm_vcpu *vcpu, unsigned long flags,
 	pte = be64_to_cpu(hpte[0]);
 	if ((pte & (HPTE_V_ABSENT | HPTE_V_VALID)) == 0 ||
 	    ((flags & H_AVPN) && (pte & ~0x7fUL) != avpn)) {
-		hpte[0] &= ~cpu_to_be64(HPTE_V_HVLOCK);
+		__unlock_hpte(hpte, pte);
 		return H_NOT_FOUND;
 	}
 
@@ -755,8 +749,7 @@ long kvmppc_hv_find_lock_hpte(struct kvm *kvm, gva_t eaddr, unsigned long slb_v,
 				/* Return with the HPTE still locked */
 				return (hash << 3) + (i >> 1);
 
-			/* Unlock and move on */
-			hpte[i] = cpu_to_be64(v);
+			__unlock_hpte(&hpte[i], v);
 		}
 
 		if (val & HPTE_V_SECONDARY)

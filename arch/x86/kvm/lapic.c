@@ -683,8 +683,7 @@ bool kvm_irq_delivery_to_apic_fast(struct kvm *kvm, struct kvm_lapic *src,
 	unsigned long bitmap = 1;
 	struct kvm_lapic **dst;
 	int i;
-	bool ret = false;
-	bool x2apic_ipi = src && apic_x2apic_mode(src);
+	bool ret, x2apic_ipi;
 
 	*r = -1;
 
@@ -696,16 +695,18 @@ bool kvm_irq_delivery_to_apic_fast(struct kvm *kvm, struct kvm_lapic *src,
 	if (irq->shorthand)
 		return false;
 
+	x2apic_ipi = src && apic_x2apic_mode(src);
 	if (irq->dest_id == (x2apic_ipi ? X2APIC_BROADCAST : APIC_BROADCAST))
 		return false;
 
+	ret = true;
 	rcu_read_lock();
 	map = rcu_dereference(kvm->arch.apic_map);
 
-	if (!map)
+	if (!map) {
+		ret = false;
 		goto out;
-
-	ret = true;
+	}
 
 	if (irq->dest_mode == APIC_DEST_PHYSICAL) {
 		if (irq->dest_id >= ARRAY_SIZE(map->phys_map))
