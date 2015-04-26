@@ -85,8 +85,10 @@ static int tmio_mmc_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -EINVAL;
+	if (!res) {
+		ret = -EINVAL;
+		goto cell_disable;
+	}
 
 	pdata->flags |= TMIO_MMC_HAVE_HIGH_REG;
 
