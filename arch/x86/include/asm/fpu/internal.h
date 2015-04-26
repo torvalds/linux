@@ -12,6 +12,7 @@
 
 #include <linux/regset.h>
 #include <linux/compat.h>
+#include <linux/sched.h>
 #include <linux/slab.h>
 
 #include <asm/user.h>
@@ -42,6 +43,15 @@ extern void eager_fpu_init(void);
 extern void fpu__init_system_xstate(void);
 extern void fpu__init_cpu_xstate(void);
 extern void fpu__init_system(struct cpuinfo_x86 *c);
+
+extern int fpstate_alloc_init(struct fpu *fpu);
+extern void fpstate_init(struct fpu *fpu);
+extern void fpu__clear(struct task_struct *tsk);
+
+extern int dump_fpu(struct pt_regs *, struct user_i387_struct *);
+extern void fpu__restore(void);
+extern void fpu__init_check_bugs(void);
+extern void fpu__resume_cpu(void);
 
 DECLARE_PER_CPU(struct fpu *, fpu_fpregs_owner_ctx);
 
@@ -332,6 +342,21 @@ static inline void __fpregs_activate(struct fpu *fpu)
 {
 	fpu->fpregs_active = 1;
 	this_cpu_write(fpu_fpregs_owner_ctx, fpu);
+}
+
+/*
+ * The question "does this thread have fpu access?"
+ * is slightly racy, since preemption could come in
+ * and revoke it immediately after the test.
+ *
+ * However, even in that very unlikely scenario,
+ * we can just assume we have FPU access - typically
+ * to save the FP state - we'll just take a #NM
+ * fault and get the FPU access back.
+ */
+static inline int user_has_fpu(void)
+{
+	return current->thread.fpu.fpregs_active;
 }
 
 /*

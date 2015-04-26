@@ -19,6 +19,7 @@
 #include <asm/page.h>
 #include <asm/mce.h>
 #include <asm/suspend.h>
+#include <asm/fpu/internal.h>
 #include <asm/debugreg.h>
 #include <asm/cpu.h>
 

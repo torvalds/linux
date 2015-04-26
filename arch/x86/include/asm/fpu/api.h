@@ -10,22 +10,7 @@
 #ifndef _ASM_X86_FPU_API_H
 #define _ASM_X86_FPU_API_H
 
-#include <linux/sched.h>
 #include <linux/hardirq.h>
-
-struct pt_regs;
-struct user_i387_struct;
-
-extern int fpstate_alloc_init(struct fpu *fpu);
-extern void fpstate_init(struct fpu *fpu);
-extern void fpu__clear(struct task_struct *tsk);
-
-extern int dump_fpu(struct pt_regs *, struct user_i387_struct *);
-extern void fpu__restore(void);
-extern void fpu__init_check_bugs(void);
-extern void fpu__resume_cpu(void);
-
-extern bool irq_fpu_usable(void);
 
 /*
  * Careful: __kernel_fpu_begin/end() must be called with preempt disabled
@@ -41,6 +26,7 @@ extern void __kernel_fpu_begin(void);
 extern void __kernel_fpu_end(void);
 extern void kernel_fpu_begin(void);
 extern void kernel_fpu_end(void);
+extern bool irq_fpu_usable(void);
 
 /*
  * Some instructions like VIA's padlock instructions generate a spurious
@@ -71,21 +57,6 @@ static inline void irq_ts_restore(int TS_state)
 {
 	if (TS_state)
 		stts();
-}
-
-/*
- * The question "does this thread have fpu access?"
- * is slightly racy, since preemption could come in
- * and revoke it immediately after the test.
- *
- * However, even in that very unlikely scenario,
- * we can just assume we have FPU access - typically
- * to save the FP state - we'll just take a #NM
- * fault and get the FPU access back.
- */
-static inline int user_has_fpu(void)
-{
-	return current->thread.fpu.fpregs_active;
 }
 
 #endif /* _ASM_X86_FPU_API_H */

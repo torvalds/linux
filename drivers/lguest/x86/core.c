@@ -46,7 +46,7 @@
 #include <asm/setup.h>
 #include <asm/lguest.h>
 #include <asm/uaccess.h>
-#include <asm/fpu/api.h>
+#include <asm/fpu/internal.h>
 #include <asm/tlbflush.h>
 #include "../lg.h"
 

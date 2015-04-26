@@ -40,7 +40,7 @@
 #include <asm/vmx.h>
 #include <asm/virtext.h>
 #include <asm/mce.h>
-#include <asm/fpu/api.h>
+#include <asm/fpu/internal.h>
 #include <asm/xcr.h>
 #include <asm/perf_event.h>
 #include <asm/debugreg.h>
