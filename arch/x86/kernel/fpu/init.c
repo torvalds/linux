@@ -4,6 +4,46 @@
 #include <asm/fpu/internal.h>
 #include <asm/tlbflush.h>
 
+static void fpu__init_cpu_ctx_switch(void)
+{
+	if (!cpu_has_eager_fpu)
+		stts();
+	else
+		clts();
+}
+
+/*
+ * Initialize the registers found in all CPUs, CR0 and CR4:
+ */
+static void fpu__init_cpu_generic(void)
+{
+	unsigned long cr0;
+	unsigned long cr4_mask = 0;
+
+	if (cpu_has_fxsr)
+		cr4_mask |= X86_CR4_OSFXSR;
+	if (cpu_has_xmm)
+		cr4_mask |= X86_CR4_OSXMMEXCPT;
+	if (cr4_mask)
+		cr4_set_bits(cr4_mask);
+
+	cr0 = read_cr0();
+	cr0 &= ~(X86_CR0_TS|X86_CR0_EM); /* clear TS and EM */
+	if (!cpu_has_fpu)
+		cr0 |= X86_CR0_EM;
+	write_cr0(cr0);
+}
+
+/*
+ * Enable all supported FPU features. Called when a CPU is brought online.
+ */
+void fpu__init_cpu(void)
+{
+	fpu__init_cpu_generic();
+	fpu__init_cpu_xstate();
+	fpu__init_cpu_ctx_switch();
+}
+
 /*
  * The earliest FPU detection code.
  *
@@ -44,9 +84,6 @@ static void fpu__init_system_early_generic(struct cpuinfo_x86 *c)
  */
 unsigned int mxcsr_feature_mask __read_mostly = 0xffffffffu;
 
-unsigned int xstate_size;
-EXPORT_SYMBOL_GPL(xstate_size);
-
 static void fpu__init_system_mxcsr(void)
 {
 	unsigned int mask = 0;
@@ -83,6 +120,15 @@ static void fpu__init_system_generic(void)
 	fpu__init_system_mxcsr();
 }
 
+unsigned int xstate_size;
+EXPORT_SYMBOL_GPL(xstate_size);
+
+/*
+ * Set up the xstate_size based on the legacy FPU context size.
+ *
+ * We set this up first, and later it will be overwritten by
+ * fpu__init_system_xstate() if the CPU knows about xstates.
+ */
 static void fpu__init_system_xstate_size_legacy(void)
 {
 	static bool on_boot_cpu = 1;
@@ -110,50 +156,6 @@ static void fpu__init_system_xstate_size_legacy(void)
 		else
 			xstate_size = sizeof(struct i387_fsave_struct);
 	}
-}
-
-/*
- * Initialize the TS bit in CR0 according to the style of context-switches
- * we are using:
- */
-static void fpu__init_cpu_ctx_switch(void)
-{
-	if (!cpu_has_eager_fpu)
-		stts();
-	else
-		clts();
-}
-
-/*
- * Initialize the registers found in all CPUs, CR0 and CR4:
- */
-static void fpu__init_cpu_generic(void)
-{
-	unsigned long cr0;
-	unsigned long cr4_mask = 0;
-
-	if (cpu_has_fxsr)
-		cr4_mask |= X86_CR4_OSFXSR;
-	if (cpu_has_xmm)
-		cr4_mask |= X86_CR4_OSXMMEXCPT;
-	if (cr4_mask)
-		cr4_set_bits(cr4_mask);
-
-	cr0 = read_cr0();
-	cr0 &= ~(X86_CR0_TS|X86_CR0_EM); /* clear TS and EM */
-	if (!cpu_has_fpu)
-		cr0 |= X86_CR0_EM;
-	write_cr0(cr0);
-}
-
-/*
- * Enable all supported FPU features. Called when a CPU is brought online.
- */
-void fpu__init_cpu(void)
-{
-	fpu__init_cpu_generic();
-	fpu__init_cpu_xstate();
-	fpu__init_cpu_ctx_switch();
 }
 
 static enum { AUTO, ENABLE, DISABLE } eagerfpu = AUTO;
