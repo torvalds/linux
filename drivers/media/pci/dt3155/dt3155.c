@@ -538,6 +538,7 @@ static int dt3155_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	pd->vidq.mem_ops = &vb2_dma_contig_memops;
 	pd->vidq.drv_priv = pd;
 	pd->vidq.min_buffers_needed = 2;
+	pd->vidq.gfp_flags = GFP_DMA32;
 	pd->vidq.lock = &pd->mux; /* for locking v4l2_file_operations */
 	pd->vdev.queue = &pd->vidq;
 	err = vb2_queue_init(&pd->vidq);
