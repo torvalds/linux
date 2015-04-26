@@ -280,7 +280,8 @@ static struct scsi_device *scsi_alloc_sdev(struct scsi_target *starget,
 				    sdev->host->cmd_per_lun, shost->bqt,
 				    shost->hostt->tag_alloc_policy);
 	}
-	scsi_change_queue_depth(sdev, sdev->host->cmd_per_lun);
+	scsi_change_queue_depth(sdev, sdev->host->cmd_per_lun ?
+					sdev->host->cmd_per_lun : 1);
 
 	scsi_sysfs_device_initialize(sdev);
 
