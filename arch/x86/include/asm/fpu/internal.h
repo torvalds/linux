@@ -41,6 +41,7 @@ extern void eager_fpu_init(void);
 
 extern void fpu__init_system_xstate(void);
 extern void fpu__init_cpu_xstate(void);
+extern void fpu__init_system(struct cpuinfo_x86 *c);
 
 DECLARE_PER_CPU(struct fpu *, fpu_fpregs_owner_ctx);
 

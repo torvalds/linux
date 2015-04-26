@@ -5,7 +5,10 @@
 #include <asm/tlbflush.h>
 
 /*
- * The earliest FPU detection code:
+ * The earliest FPU detection code.
+ *
+ * Set the X86_FEATURE_FPU CPU-capability bit based on
+ * trying to execute an actual sequence of FPU instructions:
  */
 static void fpu__init_system_early_generic(struct cpuinfo_x86 *c)
 {
@@ -200,8 +203,10 @@ static void fpu__init_system_ctx_switch(void)
  * Called on the boot CPU once per system bootup, to set up the initial FPU state that
  * is later cloned into all processes.
  */
-void fpu__init_system(void)
+void fpu__init_system(struct cpuinfo_x86 *c)
 {
+	fpu__init_system_early_generic(c);
+
 	/* The FPU has to be operational for some of the later FPU init activities: */
 	fpu__init_cpu();
 
@@ -227,13 +232,8 @@ static int __init no_387(char *s)
 
 __setup("no387", no_387);
 
-/*
- * Set the X86_FEATURE_FPU CPU-capability bit based on
- * trying to execute an actual sequence of FPU instructions:
- */
 void fpu__detect(struct cpuinfo_x86 *c)
 {
-	fpu__init_system_early_generic(c);
-	fpu__init_system();
+	fpu__init_system(c);
 	/* The final cr0 value is set later, in fpu_init() */
 }
