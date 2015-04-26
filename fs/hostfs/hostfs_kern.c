@@ -807,7 +807,7 @@ static int hostfs_permission(struct inode *ino, int desired)
 
 static int hostfs_setattr(struct dentry *dentry, struct iattr *attr)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct hostfs_iattr attrs;
 	char *name;
 	int err;

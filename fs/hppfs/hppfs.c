@@ -153,9 +153,9 @@ static struct dentry *hppfs_lookup(struct inode *ino, struct dentry *dentry,
 		return ERR_PTR(-ENOENT);
 
 	parent = HPPFS_I(ino)->proc_dentry;
-	mutex_lock(&parent->d_inode->i_mutex);
+	mutex_lock(&d_inode(parent)->i_mutex);
 	proc_dentry = lookup_one_len(name->name, parent, name->len);
-	mutex_unlock(&parent->d_inode->i_mutex);
+	mutex_unlock(&d_inode(parent)->i_mutex);
 
 	if (IS_ERR(proc_dentry))
 		return proc_dentry;
@@ -637,25 +637,25 @@ static const struct super_operations hppfs_sbops = {
 static int hppfs_readlink(struct dentry *dentry, char __user *buffer,
 			  int buflen)
 {
-	struct dentry *proc_dentry = HPPFS_I(dentry->d_inode)->proc_dentry;
-	return proc_dentry->d_inode->i_op->readlink(proc_dentry, buffer,
+	struct dentry *proc_dentry = HPPFS_I(d_inode(dentry))->proc_dentry;
+	return d_inode(proc_dentry)->i_op->readlink(proc_dentry, buffer,
 						    buflen);
 }
 
 static void *hppfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
-	struct dentry *proc_dentry = HPPFS_I(dentry->d_inode)->proc_dentry;
+	struct dentry *proc_dentry = HPPFS_I(d_inode(dentry))->proc_dentry;
 
-	return proc_dentry->d_inode->i_op->follow_link(proc_dentry, nd);
+	return d_inode(proc_dentry)->i_op->follow_link(proc_dentry, nd);
 }
 
 static void hppfs_put_link(struct dentry *dentry, struct nameidata *nd,
 			   void *cookie)
 {
-	struct dentry *proc_dentry = HPPFS_I(dentry->d_inode)->proc_dentry;
+	struct dentry *proc_dentry = HPPFS_I(d_inode(dentry))->proc_dentry;
 
-	if (proc_dentry->d_inode->i_op->put_link)
-		proc_dentry->d_inode->i_op->put_link(proc_dentry, nd, cookie);
+	if (d_inode(proc_dentry)->i_op->put_link)
+		d_inode(proc_dentry)->i_op->put_link(proc_dentry, nd, cookie);
 }
 
 static const struct inode_operations hppfs_dir_iops = {
@@ -670,7 +670,7 @@ static const struct inode_operations hppfs_link_iops = {
 
 static struct inode *get_inode(struct super_block *sb, struct dentry *dentry)
 {
-	struct inode *proc_ino = dentry->d_inode;
+	struct inode *proc_ino = d_inode(dentry);
 	struct inode *inode = new_inode(sb);
 
 	if (!inode) {

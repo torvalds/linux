@@ -679,7 +679,7 @@ static struct dentry *get_nonsnap_parent(struct dentry *dentry)
 	 * except to resplice to another snapdir, and either the old or new
 	 * result is a valid result.
 	 */
-	while (!IS_ROOT(dentry) && ceph_snap(dentry->d_inode) != CEPH_NOSNAP)
+	while (!IS_ROOT(dentry) && ceph_snap(d_inode(dentry)) != CEPH_NOSNAP)
 		dentry = dentry->d_parent;
 	return dentry;
 }
@@ -716,20 +716,20 @@ static int __choose_mds(struct ceph_mds_client *mdsc,
 	} else if (req->r_dentry) {
 		/* ignore race with rename; old or new d_parent is okay */
 		struct dentry *parent = req->r_dentry->d_parent;
-		struct inode *dir = parent->d_inode;
+		struct inode *dir = d_inode(parent);
 
 		if (dir->i_sb != mdsc->fsc->sb) {
 			/* not this fs! */
-			inode = req->r_dentry->d_inode;
+			inode = d_inode(req->r_dentry);
 		} else if (ceph_snap(dir) != CEPH_NOSNAP) {
 			/* direct snapped/virtual snapdir requests
 			 * based on parent dir inode */
 			struct dentry *dn = get_nonsnap_parent(parent);
-			inode = dn->d_inode;
+			inode = d_inode(dn);
 			dout("__choose_mds using nonsnap parent %p\n", inode);
 		} else {
 			/* dentry target */
-			inode = req->r_dentry->d_inode;
+			inode = d_inode(req->r_dentry);
 			if (!inode || mode == USE_AUTH_MDS) {
 				/* dir + name */
 				inode = dir;
@@ -1732,7 +1732,7 @@ retry:
 	seq = read_seqbegin(&rename_lock);
 	rcu_read_lock();
 	for (temp = dentry; !IS_ROOT(temp);) {
-		struct inode *inode = temp->d_inode;
+		struct inode *inode = d_inode(temp);
 		if (inode && ceph_snap(inode) == CEPH_SNAPDIR)
 			len++;  /* slash only */
 		else if (stop_on_nosnap && inode &&
@@ -1756,7 +1756,7 @@ retry:
 		struct inode *inode;
 
 		spin_lock(&temp->d_lock);
-		inode = temp->d_inode;
+		inode = d_inode(temp);
 		if (inode && ceph_snap(inode) == CEPH_SNAPDIR) {
 			dout("build_path path+%d: %p SNAPDIR\n",
 			     pos, temp);
@@ -1790,7 +1790,7 @@ retry:
 		goto retry;
 	}
 
-	*base = ceph_ino(temp->d_inode);
+	*base = ceph_ino(d_inode(temp));
 	*plen = len;
 	dout("build_path on %p %d built %llx '%.*s'\n",
 	     dentry, d_count(dentry), *base, len, path);
@@ -1803,8 +1803,8 @@ static int build_dentry_path(struct dentry *dentry,
 {
 	char *path;
 
-	if (ceph_snap(dentry->d_parent->d_inode) == CEPH_NOSNAP) {
-		*pino = ceph_ino(dentry->d_parent->d_inode);
+	if (ceph_snap(d_inode(dentry->d_parent)) == CEPH_NOSNAP) {
+		*pino = ceph_ino(d_inode(dentry->d_parent));
 		*ppath = dentry->d_name.name;
 		*ppathlen = dentry->d_name.len;
 		return 0;
@@ -1945,7 +1945,7 @@ static struct ceph_msg *create_request_message(struct ceph_mds_client *mdsc,
 	releases = 0;
 	if (req->r_inode_drop)
 		releases += ceph_encode_inode_release(&p,
-		      req->r_inode ? req->r_inode : req->r_dentry->d_inode,
+		      req->r_inode ? req->r_inode : d_inode(req->r_dentry),
 		      mds, req->r_inode_drop, req->r_inode_unless, 0);
 	if (req->r_dentry_drop)
 		releases += ceph_encode_dentry_release(&p, req->r_dentry,
@@ -1955,7 +1955,7 @@ static struct ceph_msg *create_request_message(struct ceph_mds_client *mdsc,
 		       mds, req->r_old_dentry_drop, req->r_old_dentry_unless);
 	if (req->r_old_inode_drop)
 		releases += ceph_encode_inode_release(&p,
-		      req->r_old_dentry->d_inode,
+		      d_inode(req->r_old_dentry),
 		      mds, req->r_old_inode_drop, req->r_old_inode_unless, 0);
 
 	if (drop_cap_releases) {

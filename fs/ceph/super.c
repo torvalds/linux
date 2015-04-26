@@ -44,7 +44,7 @@ static void ceph_put_super(struct super_block *s)
 
 static int ceph_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
-	struct ceph_fs_client *fsc = ceph_inode_to_client(dentry->d_inode);
+	struct ceph_fs_client *fsc = ceph_inode_to_client(d_inode(dentry));
 	struct ceph_monmap *monmap = fsc->client->monc.monmap;
 	struct ceph_statfs st;
 	u64 fsid;
@@ -972,7 +972,7 @@ static struct dentry *ceph_mount(struct file_system_type *fs_type,
 	if (IS_ERR(res))
 		goto out_splat;
 	dout("root %p inode %p ino %llx.%llx\n", res,
-	     res->d_inode, ceph_vinop(res->d_inode));
+	     d_inode(res), ceph_vinop(d_inode(res)));
 	return res;
 
 out_splat:

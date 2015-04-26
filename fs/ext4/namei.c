@@ -1664,7 +1664,7 @@ struct dentry *ext4_get_parent(struct dentry *child)
 	struct ext4_dir_entry_2 * de;
 	struct buffer_head *bh;
 
-	bh = ext4_find_entry(child->d_inode, &dotdot, &de, NULL);
+	bh = ext4_find_entry(d_inode(child), &dotdot, &de, NULL);
 	if (IS_ERR(bh))
 		return (struct dentry *) bh;
 	if (!bh)
@@ -1672,13 +1672,13 @@ struct dentry *ext4_get_parent(struct dentry *child)
 	ino = le32_to_cpu(de->inode);
 	brelse(bh);
 
-	if (!ext4_valid_inum(child->d_inode->i_sb, ino)) {
-		EXT4_ERROR_INODE(child->d_inode,
+	if (!ext4_valid_inum(d_inode(child)->i_sb, ino)) {
+		EXT4_ERROR_INODE(d_inode(child),
 				 "bad parent inode number: %u", ino);
 		return ERR_PTR(-EIO);
 	}
 
-	return d_obtain_alias(ext4_iget_normal(child->d_inode->i_sb, ino));
+	return d_obtain_alias(ext4_iget_normal(d_inode(child)->i_sb, ino));
 }
 
 /*
@@ -1988,7 +1988,7 @@ static int add_dirent_to_buf(handle_t *handle, struct dentry *dentry,
 			     struct inode *inode, struct ext4_dir_entry_2 *de,
 			     struct buffer_head *bh)
 {
-	struct inode	*dir = dentry->d_parent->d_inode;
+	struct inode	*dir = d_inode(dentry->d_parent);
 	const char	*name = dentry->d_name.name;
 	int		namelen = dentry->d_name.len;
 	unsigned int	blocksize = dir->i_sb->s_blocksize;
@@ -2048,7 +2048,7 @@ static int add_dirent_to_buf(handle_t *handle, struct dentry *dentry,
 static int make_indexed_dir(handle_t *handle, struct dentry *dentry,
 			    struct inode *inode, struct buffer_head *bh)
 {
-	struct inode	*dir = dentry->d_parent->d_inode;
+	struct inode	*dir = d_inode(dentry->d_parent);
 #ifdef CONFIG_EXT4_FS_ENCRYPTION
 	struct ext4_fname_crypto_ctx *ctx = NULL;
 	int res;
@@ -2202,7 +2202,7 @@ out_frames:
 static int ext4_add_entry(handle_t *handle, struct dentry *dentry,
 			  struct inode *inode)
 {
-	struct inode *dir = dentry->d_parent->d_inode;
+	struct inode *dir = d_inode(dentry->d_parent);
 	struct buffer_head *bh = NULL;
 	struct ext4_dir_entry_2 *de;
 	struct ext4_dir_entry_tail *t;
@@ -2287,7 +2287,7 @@ static int ext4_dx_add_entry(handle_t *handle, struct dentry *dentry,
 	struct dx_entry *entries, *at;
 	struct dx_hash_info hinfo;
 	struct buffer_head *bh;
-	struct inode *dir = dentry->d_parent->d_inode;
+	struct inode *dir = d_inode(dentry->d_parent);
 	struct super_block *sb = dir->i_sb;
 	struct ext4_dir_entry_2 *de;
 	int err;
@@ -3063,7 +3063,7 @@ static int ext4_rmdir(struct inode *dir, struct dentry *dentry)
 	/* Initialize quotas before so that eventual writes go in
 	 * separate transaction */
 	dquot_initialize(dir);
-	dquot_initialize(dentry->d_inode);
+	dquot_initialize(d_inode(dentry));
 
 	retval = -ENOENT;
 	bh = ext4_find_entry(dir, &dentry->d_name, &de, NULL);
@@ -3072,7 +3072,7 @@ static int ext4_rmdir(struct inode *dir, struct dentry *dentry)
 	if (!bh)
 		goto end_rmdir;
 
-	inode = dentry->d_inode;
+	inode = d_inode(dentry);
 
 	retval = -EIO;
 	if (le32_to_cpu(de->inode) != inode->i_ino)
@@ -3132,7 +3132,7 @@ static int ext4_unlink(struct inode *dir, struct dentry *dentry)
 	/* Initialize quotas before so that eventual writes go
 	 * in separate transaction */
 	dquot_initialize(dir);
-	dquot_initialize(dentry->d_inode);
+	dquot_initialize(d_inode(dentry));
 
 	retval = -ENOENT;
 	bh = ext4_find_entry(dir, &dentry->d_name, &de, NULL);
@@ -3141,7 +3141,7 @@ static int ext4_unlink(struct inode *dir, struct dentry *dentry)
 	if (!bh)
 		goto end_unlink;
 
-	inode = dentry->d_inode;
+	inode = d_inode(dentry);
 
 	retval = -EIO;
 	if (le32_to_cpu(de->inode) != inode->i_ino)
@@ -3339,7 +3339,7 @@ static int ext4_link(struct dentry *old_dentry,
 		     struct inode *dir, struct dentry *dentry)
 {
 	handle_t *handle;
-	struct inode *inode = old_dentry->d_inode;
+	struct inode *inode = d_inode(old_dentry);
 	int err, retries = 0;
 
 	if (inode->i_nlink >= EXT4_LINK_MAX)
@@ -3613,12 +3613,12 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct ext4_renament old = {
 		.dir = old_dir,
 		.dentry = old_dentry,
-		.inode = old_dentry->d_inode,
+		.inode = d_inode(old_dentry),
 	};
 	struct ext4_renament new = {
 		.dir = new_dir,
 		.dentry = new_dentry,
-		.inode = new_dentry->d_inode,
+		.inode = d_inode(new_dentry),
 	};
 	int force_reread;
 	int retval;
@@ -3809,12 +3809,12 @@ static int ext4_cross_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct ext4_renament old = {
 		.dir = old_dir,
 		.dentry = old_dentry,
-		.inode = old_dentry->d_inode,
+		.inode = d_inode(old_dentry),
 	};
 	struct ext4_renament new = {
 		.dir = new_dir,
 		.dentry = new_dentry,
-		.inode = new_dentry->d_inode,
+		.inode = d_inode(new_dentry),
 	};
 	u8 new_file_type;
 	int retval;

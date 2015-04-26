@@ -1257,7 +1257,7 @@ static int do_setattr(struct ubifs_info *c, struct inode *inode,
 int ubifs_setattr(struct dentry *dentry, struct iattr *attr)
 {
 	int err;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
 
 	dbg_gen("ino %lu, mode %#x, ia_valid %#x",
@@ -1302,7 +1302,7 @@ static void ubifs_invalidatepage(struct page *page, unsigned int offset,
 
 static void *ubifs_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
-	struct ubifs_inode *ui = ubifs_inode(dentry->d_inode);
+	struct ubifs_inode *ui = ubifs_inode(d_inode(dentry));
 
 	nd_set_link(nd, ui->data);
 	return NULL;

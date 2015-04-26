@@ -39,7 +39,7 @@ static const struct xattr_handler *squashfs_xattr_handler(int);
 ssize_t squashfs_listxattr(struct dentry *d, char *buffer,
 	size_t buffer_size)
 {
-	struct inode *inode = d->d_inode;
+	struct inode *inode = d_inode(d);
 	struct super_block *sb = inode->i_sb;
 	struct squashfs_sb_info *msblk = sb->s_fs_info;
 	u64 start = SQUASHFS_XATTR_BLK(squashfs_i(inode)->xattr)
@@ -229,7 +229,7 @@ static int squashfs_user_get(struct dentry *d, const char *name, void *buffer,
 	if (name[0] == '\0')
 		return  -EINVAL;
 
-	return squashfs_xattr_get(d->d_inode, SQUASHFS_XATTR_USER, name,
+	return squashfs_xattr_get(d_inode(d), SQUASHFS_XATTR_USER, name,
 		buffer, size);
 }
 
@@ -259,7 +259,7 @@ static int squashfs_trusted_get(struct dentry *d, const char *name,
 	if (name[0] == '\0')
 		return  -EINVAL;
 
-	return squashfs_xattr_get(d->d_inode, SQUASHFS_XATTR_TRUSTED, name,
+	return squashfs_xattr_get(d_inode(d), SQUASHFS_XATTR_TRUSTED, name,
 		buffer, size);
 }
 
@@ -286,7 +286,7 @@ static int squashfs_security_get(struct dentry *d, const char *name,
 	if (name[0] == '\0')
 		return  -EINVAL;
 
-	return squashfs_xattr_get(d->d_inode, SQUASHFS_XATTR_SECURITY, name,
+	return squashfs_xattr_get(d_inode(d), SQUASHFS_XATTR_SECURITY, name,
 		buffer, size);
 }
 

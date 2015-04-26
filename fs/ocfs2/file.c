@@ -1126,7 +1126,7 @@ out:
 int ocfs2_setattr(struct dentry *dentry, struct iattr *attr)
 {
 	int status = 0, size_change;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct super_block *sb = inode->i_sb;
 	struct ocfs2_super *osb = OCFS2_SB(sb);
 	struct buffer_head *bh = NULL;
@@ -1275,8 +1275,8 @@ int ocfs2_getattr(struct vfsmount *mnt,
 		  struct dentry *dentry,
 		  struct kstat *stat)
 {
-	struct inode *inode = dentry->d_inode;
-	struct super_block *sb = dentry->d_inode->i_sb;
+	struct inode *inode = d_inode(dentry);
+	struct super_block *sb = d_inode(dentry)->i_sb;
 	struct ocfs2_super *osb = sb->s_fs_info;
 	int err;
 
@@ -2114,7 +2114,7 @@ static int ocfs2_prepare_inode_for_write(struct file *file,
 {
 	int ret = 0, meta_level = 0;
 	struct dentry *dentry = file->f_path.dentry;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	loff_t end;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	int full_coherency = !(osb->s_mount_opt &

@@ -586,12 +586,12 @@ cifs_hardlink(struct dentry *old_file, struct inode *inode,
 	 * if source file is cached (oplocked) revalidate will not go to server
 	 * until the file is closed or oplock broken so update nlinks locally
 	 */
-	if (old_file->d_inode) {
-		cifsInode = CIFS_I(old_file->d_inode);
+	if (d_really_is_positive(old_file)) {
+		cifsInode = CIFS_I(d_inode(old_file));
 		if (rc == 0) {
-			spin_lock(&old_file->d_inode->i_lock);
-			inc_nlink(old_file->d_inode);
-			spin_unlock(&old_file->d_inode->i_lock);
+			spin_lock(&d_inode(old_file)->i_lock);
+			inc_nlink(d_inode(old_file));
+			spin_unlock(&d_inode(old_file)->i_lock);
 
 			/*
 			 * parent dir timestamps will update from srv within a
@@ -629,7 +629,7 @@ cifs_hl_exit:
 void *
 cifs_follow_link(struct dentry *direntry, struct nameidata *nd)
 {
-	struct inode *inode = direntry->d_inode;
+	struct inode *inode = d_inode(direntry);
 	int rc = -ENOMEM;
 	unsigned int xid;
 	char *full_path = NULL;
