@@ -83,7 +83,7 @@ static void fpu__init_system_generic(void)
 	fpu__init_system_mxcsr();
 }
 
-static void fpstate_xstate_init_size(void)
+static void fpu__init_system_xstate_size_legacy(void)
 {
 	static bool on_boot_cpu = 1;
 
@@ -218,7 +218,7 @@ void fpu__init_system(struct cpuinfo_x86 *c)
 	clts();
 
 	fpu__init_system_generic();
-	fpstate_xstate_init_size();
+	fpu__init_system_xstate_size_legacy();
 	fpu__init_system_xstate();
 
 	fpu__init_system_ctx_switch();
