@@ -96,6 +96,12 @@ static void mxcsr_feature_mask_init(void)
 
 static void fpstate_xstate_init_size(void)
 {
+	static bool on_boot_cpu = 1;
+
+	if (!on_boot_cpu)
+		return;
+	on_boot_cpu = 0;
+
 	/*
 	 * Note that xstate_size might be overwriten later during
 	 * fpu__init_system_xstate().
@@ -227,7 +233,10 @@ void fpu__init_system(void)
 	fx_finit(&init_xstate_ctx.i387);
 
 	mxcsr_feature_mask_init();
+
+	fpstate_xstate_init_size();
 	fpu__init_system_xstate();
+
 	fpu__init_system_ctx_switch();
 	fpu__init_cpu_ctx_switch();
 }
@@ -270,6 +279,4 @@ void fpu__detect(struct cpuinfo_x86 *c)
 		clear_cpu_cap(c, X86_FEATURE_FPU);
 
 	/* The final cr0 value is set later, in fpu_init() */
-
-	fpstate_xstate_init_size();
 }
