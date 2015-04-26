@@ -1,9 +1,13 @@
 /*
- * x86 FPU boot time init code
+ * x86 FPU boot time init code:
  */
 #include <asm/fpu/internal.h>
 #include <asm/tlbflush.h>
 
+/*
+ * Initialize the TS bit in CR0 according to the style of context-switches
+ * we are using:
+ */
 static void fpu__init_cpu_ctx_switch(void)
 {
 	if (!cpu_has_eager_fpu)
@@ -35,7 +39,7 @@ static void fpu__init_cpu_generic(void)
 }
 
 /*
- * Enable all supported FPU features. Called when a CPU is brought online.
+ * Enable all supported FPU features. Called when a CPU is brought online:
  */
 void fpu__init_cpu(void)
 {
@@ -71,8 +75,7 @@ static void fpu__init_system_early_generic(struct cpuinfo_x86 *c)
 
 #ifndef CONFIG_MATH_EMULATION
 	if (!cpu_has_fpu) {
-		pr_emerg("No FPU found and no math emulation present\n");
-		pr_emerg("Giving up\n");
+		pr_emerg("x86/fpu: Giving up, no FPU found and no math emulation present\n");
 		for (;;)
 			asm volatile("hlt");
 	}
@@ -120,6 +123,12 @@ static void fpu__init_system_generic(void)
 	fpu__init_system_mxcsr();
 }
 
+/*
+ * Size of the FPU context state. All tasks in the system use the
+ * same context size, regardless of what portion they use.
+ * This is inherent to the XSAVE architecture which puts all state
+ * components into a single, continuous memory block:
+ */
 unsigned int xstate_size;
 EXPORT_SYMBOL_GPL(xstate_size);
 
@@ -158,6 +167,37 @@ static void fpu__init_system_xstate_size_legacy(void)
 	}
 }
 
+/*
+ * FPU context switching strategies:
+ *
+ * Against popular belief, we don't do lazy FPU saves, due to the
+ * task migration complications it brings on SMP - we only do
+ * lazy FPU restores.
+ *
+ * 'lazy' is the traditional strategy, which is based on setting
+ * CR0::TS to 1 during context-switch (instead of doing a full
+ * restore of the FPU state), which causes the first FPU instruction
+ * after the context switch (whenever it is executed) to fault - at
+ * which point we lazily restore the FPU state into FPU registers.
+ *
+ * Tasks are of course under no obligation to execute FPU instructions,
+ * so it can easily happen that another context-switch occurs without
+ * a single FPU instruction being executed. If we eventually switch
+ * back to the original task (that still owns the FPU) then we have
+ * not only saved the restores along the way, but we also have the
+ * FPU ready to be used for the original task.
+ *
+ * 'eager' switching is used on modern CPUs, there we switch the FPU
+ * state during every context switch, regardless of whether the task
+ * has used FPU instructions in that time slice or not. This is done
+ * because modern FPU context saving instructions are able to optimize
+ * state saving and restoration in hardware: they can detect both
+ * unused and untouched FPU state and optimize accordingly.
+ *
+ * [ Note that even in 'lazy' mode we might optimize context switches
+ *   to use 'eager' restores, if we detect that a task is using the FPU
+ *   frequently. See the fpu->counter logic in fpu/internal.h for that. ]
+ */
 static enum { AUTO, ENABLE, DISABLE } eagerfpu = AUTO;
 
 static int __init eager_fpu_setup(char *s)
@@ -173,8 +213,7 @@ static int __init eager_fpu_setup(char *s)
 __setup("eagerfpu=", eager_fpu_setup);
 
 /*
- * setup_init_fpu_buf() is __init and it is OK to call it here because
- * init_xstate_ctx will be unset only once during boot.
+ * Pick the FPU context switching strategy:
  */
 static void fpu__init_system_ctx_switch(void)
 {
@@ -202,20 +241,24 @@ static void fpu__init_system_ctx_switch(void)
 }
 
 /*
- * Called on the boot CPU once per system bootup, to set up the initial FPU state that
- * is later cloned into all processes.
+ * Called on the boot CPU once per system bootup, to set up the initial
+ * FPU state that is later cloned into all processes:
  */
 void fpu__init_system(struct cpuinfo_x86 *c)
 {
 	fpu__init_system_early_generic(c);
 
-	/* The FPU has to be operational for some of the later FPU init activities: */
+	/*
+	 * The FPU has to be operational for some of the
+	 * later FPU init activities:
+	 */
 	fpu__init_cpu();
 
 	/*
-	 * But don't leave CR0::TS set yet, as some of the FPU setup methods depend
-	 * on being able to execute FPU instructions that will fault on a set TS,
-	 * such as the FXSAVE in fpu__init_system_mxcsr().
+	 * But don't leave CR0::TS set yet, as some of the FPU setup
+	 * methods depend on being able to execute FPU instructions
+	 * that will fault on a set TS, such as the FXSAVE in
+	 * fpu__init_system_mxcsr().
 	 */
 	clts();
 
@@ -226,6 +269,9 @@ void fpu__init_system(struct cpuinfo_x86 *c)
 	fpu__init_system_ctx_switch();
 }
 
+/*
+ * Boot parameter to turn off FPU support and fall back to math-emu:
+ */
 static int __init no_387(char *s)
 {
 	setup_clear_cpu_cap(X86_FEATURE_FPU);
