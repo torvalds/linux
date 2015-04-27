@@ -160,13 +160,8 @@ void i40e_vc_notify_vf_reset(struct i40e_vf *vf)
  **/
 static inline void i40e_vc_disable_vf(struct i40e_pf *pf, struct i40e_vf *vf)
 {
-	struct i40e_hw *hw = &pf->hw;
-	u32 reg;
-
-	reg = rd32(hw, I40E_VPGEN_VFRTRIG(vf->vf_id));
-	reg |= I40E_VPGEN_VFRTRIG_VFSWR_MASK;
-	wr32(hw, I40E_VPGEN_VFRTRIG(vf->vf_id), reg);
-	i40e_flush(hw);
+	i40e_vc_notify_vf_reset(vf);
+	i40e_reset_vf(vf, false);
 }
 
 /**
