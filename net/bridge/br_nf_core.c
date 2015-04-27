@@ -54,7 +54,6 @@ static unsigned int fake_mtu(const struct dst_entry *dst)
 
 static struct dst_ops fake_dst_ops = {
 	.family		= AF_INET,
-	.protocol	= cpu_to_be16(ETH_P_IP),
 	.update_pmtu	= fake_update_pmtu,
 	.redirect	= fake_redirect,
 	.cow_metrics	= fake_cow_metrics,

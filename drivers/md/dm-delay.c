@@ -236,7 +236,7 @@ static int delay_bio(struct delay_c *dc, int delay, struct bio *bio)
 	delayed = dm_per_bio_data(bio, sizeof(struct dm_delay_info));
 
 	delayed->context = dc;
-	delayed->expires = expires = jiffies + (delay * HZ / 1000);
+	delayed->expires = expires = jiffies + msecs_to_jiffies(delay);
 
 	mutex_lock(&delayed_bios_lock);
 

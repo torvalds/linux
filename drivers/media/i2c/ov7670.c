@@ -1069,28 +1069,34 @@ static int ov7670_s_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *parms)
 
 static int ov7670_frame_rates[] = { 30, 15, 10, 5, 1 };
 
-static int ov7670_enum_frameintervals(struct v4l2_subdev *sd,
-		struct v4l2_frmivalenum *interval)
+static int ov7670_enum_frame_interval(struct v4l2_subdev *sd,
+				      struct v4l2_subdev_pad_config *cfg,
+				      struct v4l2_subdev_frame_interval_enum *fie)
 {
-	if (interval->index >= ARRAY_SIZE(ov7670_frame_rates))
+	if (fie->pad)
 		return -EINVAL;
-	interval->type = V4L2_FRMIVAL_TYPE_DISCRETE;
-	interval->discrete.numerator = 1;
-	interval->discrete.denominator = ov7670_frame_rates[interval->index];
+	if (fie->index >= ARRAY_SIZE(ov7670_frame_rates))
+		return -EINVAL;
+	fie->interval.numerator = 1;
+	fie->interval.denominator = ov7670_frame_rates[fie->index];
 	return 0;
 }
 
 /*
  * Frame size enumeration
  */
-static int ov7670_enum_framesizes(struct v4l2_subdev *sd,
-		struct v4l2_frmsizeenum *fsize)
+static int ov7670_enum_frame_size(struct v4l2_subdev *sd,
+				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct ov7670_info *info = to_state(sd);
 	int i;
 	int num_valid = -1;
-	__u32 index = fsize->index;
+	__u32 index = fse->index;
 	unsigned int n_win_sizes = info->devtype->n_win_sizes;
+
+	if (fse->pad)
+		return -EINVAL;
 
 	/*
 	 * If a minimum width/height was requested, filter out the capture
@@ -1103,9 +1109,8 @@ static int ov7670_enum_framesizes(struct v4l2_subdev *sd,
 		if (info->min_height && win->height < info->min_height)
 			continue;
 		if (index == ++num_valid) {
-			fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
-			fsize->discrete.width = win->width;
-			fsize->discrete.height = win->height;
+			fse->min_width = fse->max_width = win->width;
+			fse->min_height = fse->max_height = win->height;
 			return 0;
 		}
 	}
@@ -1485,13 +1490,17 @@ static const struct v4l2_subdev_video_ops ov7670_video_ops = {
 	.s_mbus_fmt = ov7670_s_mbus_fmt,
 	.s_parm = ov7670_s_parm,
 	.g_parm = ov7670_g_parm,
-	.enum_frameintervals = ov7670_enum_frameintervals,
-	.enum_framesizes = ov7670_enum_framesizes,
+};
+
+static const struct v4l2_subdev_pad_ops ov7670_pad_ops = {
+	.enum_frame_interval = ov7670_enum_frame_interval,
+	.enum_frame_size = ov7670_enum_frame_size,
 };
 
 static const struct v4l2_subdev_ops ov7670_ops = {
 	.core = &ov7670_core_ops,
 	.video = &ov7670_video_ops,
+	.pad = &ov7670_pad_ops,
 };
 
 /* ----------------------------------------------------------------------- */

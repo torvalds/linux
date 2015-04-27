@@ -98,7 +98,7 @@ void named_cluster_distribute(struct net *net, struct sk_buff *skb)
 			continue;
 		if (!tipc_node_active_links(node))
 			continue;
-		oskb = skb_copy(skb, GFP_ATOMIC);
+		oskb = pskb_copy(skb, GFP_ATOMIC);
 		if (!oskb)
 			break;
 		msg_set_destnode(buf_msg(oskb), dnode);
@@ -244,6 +244,7 @@ static void tipc_publ_subscribe(struct net *net, struct publication *publ,
 	tipc_node_lock(node);
 	list_add_tail(&publ->nodesub_list, &node->publ_list);
 	tipc_node_unlock(node);
+	tipc_node_put(node);
 }
 
 static void tipc_publ_unsubscribe(struct net *net, struct publication *publ,
@@ -258,6 +259,7 @@ static void tipc_publ_unsubscribe(struct net *net, struct publication *publ,
 	tipc_node_lock(node);
 	list_del_init(&publ->nodesub_list);
 	tipc_node_unlock(node);
+	tipc_node_put(node);
 }
 
 /**

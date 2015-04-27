@@ -48,9 +48,9 @@
 #include <linux/errno.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
+#include <linux/uaccess.h>
 
 #include <asm/io.h>
-#include <asm/uaccess.h>
 #include <asm/byteorder.h>
 
 /* Structure used to define /proc entries */
@@ -85,9 +85,8 @@ static int print_serial_number(struct seq_file *seq, u8 * serialno, int max_len)
 	switch (serialno[0]) {
 	case I2O_SNFORMAT_BINARY:	/* Binary */
 		seq_printf(seq, "0x");
-		for (i = 0; i < serialno[1]; i++) {
+		for (i = 0; i < serialno[1]; i++)
 			seq_printf(seq, "%02X", serialno[2 + i]);
-		}
 		break;
 
 	case I2O_SNFORMAT_ASCII:	/* ASCII */
@@ -101,9 +100,8 @@ static int print_serial_number(struct seq_file *seq, u8 * serialno, int max_len)
 			seq_printf(seq, "%s", &serialno[2]);
 		} else {
 			/* print chars for specified length */
-			for (i = 0; i < serialno[1]; i++) {
+			for (i = 0; i < serialno[1]; i++)
 				seq_printf(seq, "%c", serialno[2 + i]);
-			}
 		}
 		break;
 
@@ -266,16 +264,22 @@ static int i2o_report_query_status(struct seq_file *seq, int block_status,
 {
 	switch (block_status) {
 	case -ETIMEDOUT:
-		return seq_printf(seq, "Timeout reading group %s.\n", group);
+		seq_printf(seq, "Timeout reading group %s.\n", group);
+		break;
 	case -ENOMEM:
-		return seq_printf(seq, "No free memory to read the table.\n");
+		seq_puts(seq, "No free memory to read the table.\n");
+		break;
 	case -I2O_PARAMS_STATUS_INVALID_GROUP_ID:
-		return seq_printf(seq, "Group %s not supported.\n", group);
+		seq_printf(seq, "Group %s not supported.\n", group);
+		break;
 	default:
-		return seq_printf(seq,
-				  "Error reading group %s. BlockStatus 0x%02X\n",
-				  group, -block_status);
+		seq_printf(seq,
+			   "Error reading group %s. BlockStatus 0x%02X\n",
+			   group, -block_status);
+		break;
 	}
+
+	return 0;
 }
 
 static char *bus_strings[] = {

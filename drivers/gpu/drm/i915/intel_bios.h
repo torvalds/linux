@@ -554,6 +554,7 @@ struct bdb_edp {
 	/* ith bit indicates enabled/disabled for (i+1)th panel */
 	u16 edp_s3d_feature;
 	u16 edp_t3_optimization;
+	u64 edp_vswing_preemph;		/* v173 */
 } __packed;
 
 struct psr_table {

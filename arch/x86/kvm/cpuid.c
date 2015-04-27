@@ -104,6 +104,9 @@ int kvm_update_cpuid(struct kvm_vcpu *vcpu)
 		((best->eax & 0xff00) >> 8) != 0)
 		return -EINVAL;
 
+	/* Update physical-address width */
+	vcpu->arch.maxphyaddr = cpuid_query_maxphyaddr(vcpu);
+
 	kvm_pmu_cpuid_update(vcpu);
 	return 0;
 }
@@ -134,6 +137,21 @@ static void cpuid_fix_nx_cap(struct kvm_vcpu *vcpu)
 		printk(KERN_INFO "kvm: guest NX capability removed\n");
 	}
 }
+
+int cpuid_query_maxphyaddr(struct kvm_vcpu *vcpu)
+{
+	struct kvm_cpuid_entry2 *best;
+
+	best = kvm_find_cpuid_entry(vcpu, 0x80000000, 0);
+	if (!best || best->eax < 0x80000008)
+		goto not_found;
+	best = kvm_find_cpuid_entry(vcpu, 0x80000008, 0);
+	if (best)
+		return best->eax & 0xff;
+not_found:
+	return 36;
+}
+EXPORT_SYMBOL_GPL(cpuid_query_maxphyaddr);
 
 /* when an old userspace process fills a new kernel module */
 int kvm_vcpu_ioctl_set_cpuid(struct kvm_vcpu *vcpu,
@@ -756,21 +774,6 @@ struct kvm_cpuid_entry2 *kvm_find_cpuid_entry(struct kvm_vcpu *vcpu,
 	return best;
 }
 EXPORT_SYMBOL_GPL(kvm_find_cpuid_entry);
-
-int cpuid_maxphyaddr(struct kvm_vcpu *vcpu)
-{
-	struct kvm_cpuid_entry2 *best;
-
-	best = kvm_find_cpuid_entry(vcpu, 0x80000000, 0);
-	if (!best || best->eax < 0x80000008)
-		goto not_found;
-	best = kvm_find_cpuid_entry(vcpu, 0x80000008, 0);
-	if (best)
-		return best->eax & 0xff;
-not_found:
-	return 36;
-}
-EXPORT_SYMBOL_GPL(cpuid_maxphyaddr);
 
 /*
  * If no match is found, check whether we exceed the vCPU's limit

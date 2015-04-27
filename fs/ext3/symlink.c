@@ -23,7 +23,7 @@
 
 static void * ext3_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
-	struct ext3_inode_info *ei = EXT3_I(dentry->d_inode);
+	struct ext3_inode_info *ei = EXT3_I(d_inode(dentry));
 	nd_set_link(nd, (char*)ei->i_data);
 	return NULL;
 }

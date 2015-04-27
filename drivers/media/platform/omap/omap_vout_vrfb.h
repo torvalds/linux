@@ -15,7 +15,7 @@
 #ifdef CONFIG_VIDEO_OMAP2_VOUT_VRFB
 void omap_vout_free_vrfb_buffers(struct omap_vout_device *vout);
 int omap_vout_setup_vrfb_bufs(struct platform_device *pdev, int vid_num,
-			u32 static_vrfb_allocation);
+			bool static_vrfb_allocation);
 void omap_vout_release_vrfb(struct omap_vout_device *vout);
 int omap_vout_vrfb_buffer_setup(struct omap_vout_device *vout,
 			unsigned int *count, unsigned int startindex);
@@ -25,7 +25,7 @@ void omap_vout_calculate_vrfb_offset(struct omap_vout_device *vout);
 #else
 static inline void omap_vout_free_vrfb_buffers(struct omap_vout_device *vout) { };
 static inline int omap_vout_setup_vrfb_bufs(struct platform_device *pdev, int vid_num,
-			u32 static_vrfb_allocation)
+			bool static_vrfb_allocation)
 		{ return 0; };
 static inline void omap_vout_release_vrfb(struct omap_vout_device *vout) { };
 static inline int omap_vout_vrfb_buffer_setup(struct omap_vout_device *vout,

@@ -34,20 +34,12 @@
 #include <target/target_core_fabric.h>
 #include <target/target_core_configfs.h>
 
+#include "target_core_internal.h"
 #include "target_core_pr.h"
 #include "target_core_ua.h"
 #include "target_core_xcopy.h"
 
 static struct workqueue_struct *xcopy_wq = NULL;
-/*
- * From target_core_device.c
- */
-extern struct mutex g_device_mutex;
-extern struct list_head g_device_list;
-/*
- * From target_core_configfs.c
- */
-extern struct configfs_subsystem *target_core_subsystem[];
 
 static int target_xcopy_gen_naa_ieee(struct se_device *dev, unsigned char *buf)
 {
@@ -433,7 +425,7 @@ static int xcopy_pt_queue_status(struct se_cmd *se_cmd)
 	return 0;
 }
 
-static struct target_core_fabric_ops xcopy_pt_tfo = {
+static const struct target_core_fabric_ops xcopy_pt_tfo = {
 	.get_fabric_name	= xcopy_pt_get_fabric_name,
 	.get_task_tag		= xcopy_pt_get_tag,
 	.get_cmd_state		= xcopy_pt_get_cmd_state,
@@ -548,33 +540,22 @@ static void target_xcopy_setup_pt_port(
 	}
 }
 
-static int target_xcopy_init_pt_lun(
-	struct xcopy_pt_cmd *xpt_cmd,
-	struct xcopy_op *xop,
-	struct se_device *se_dev,
-	struct se_cmd *pt_cmd,
-	bool remote_port)
+static void target_xcopy_init_pt_lun(struct se_device *se_dev,
+		struct se_cmd *pt_cmd, bool remote_port)
 {
 	/*
 	 * Don't allocate + init an pt_cmd->se_lun if honoring local port for
 	 * reservations.  The pt_cmd->se_lun pointer will be setup from within
 	 * target_xcopy_setup_pt_port()
 	 */
-	if (!remote_port) {
-		pt_cmd->se_cmd_flags |= SCF_SE_LUN_CMD | SCF_CMD_XCOPY_PASSTHROUGH;
-		return 0;
+	if (remote_port) {
+		pr_debug("Setup emulated se_dev: %p from se_dev\n",
+			pt_cmd->se_dev);
+		pt_cmd->se_lun = &se_dev->xcopy_lun;
+		pt_cmd->se_dev = se_dev;
 	}
 
-	pt_cmd->se_lun = &se_dev->xcopy_lun;
-	pt_cmd->se_dev = se_dev;
-
-	pr_debug("Setup emulated se_dev: %p from se_dev\n", pt_cmd->se_dev);
-	pt_cmd->se_cmd_flags |= SCF_SE_LUN_CMD | SCF_CMD_XCOPY_PASSTHROUGH;
-
-	pr_debug("Setup emulated se_dev: %p to pt_cmd->se_lun->lun_se_dev\n",
-		pt_cmd->se_lun->lun_se_dev);
-
-	return 0;
+	pt_cmd->se_cmd_flags |= SCF_SE_LUN_CMD;
 }
 
 static int target_xcopy_setup_pt_cmd(
@@ -592,11 +573,8 @@ static int target_xcopy_setup_pt_cmd(
 	 * Setup LUN+port to honor reservations based upon xop->op_origin for
 	 * X-COPY PUSH or X-COPY PULL based upon where the CDB was received.
 	 */
-	rc = target_xcopy_init_pt_lun(xpt_cmd, xop, se_dev, cmd, remote_port);
-	if (rc < 0) {
-		ret = rc;
-		goto out;
-	}
+	target_xcopy_init_pt_lun(se_dev, cmd, remote_port);
+
 	xpt_cmd->xcopy_op = xop;
 	target_xcopy_setup_pt_port(xpt_cmd, xop, remote_port);
 

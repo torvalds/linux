@@ -223,7 +223,7 @@ nfsd_proc_create(struct svc_rqst *rqstp, struct nfsd_createargs *argp,
 	}
 	fh_init(newfhp, NFS_FHSIZE);
 	nfserr = fh_compose(newfhp, dirfhp->fh_export, dchild, dirfhp);
-	if (!nfserr && !dchild->d_inode)
+	if (!nfserr && d_really_is_negative(dchild))
 		nfserr = nfserr_noent;
 	dput(dchild);
 	if (nfserr) {
@@ -241,7 +241,7 @@ nfsd_proc_create(struct svc_rqst *rqstp, struct nfsd_createargs *argp,
 		}
 	}
 
-	inode = newfhp->fh_dentry->d_inode;
+	inode = d_inode(newfhp->fh_dentry);
 
 	/* Unfudge the mode bits */
 	if (attr->ia_valid & ATTR_MODE) {

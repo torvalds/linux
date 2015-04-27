@@ -12,6 +12,9 @@
  * (at your option) any later version.
  */
 
+#ifndef __CODA_H__
+#define __CODA_H__
+
 #include <linux/debugfs.h>
 #include <linux/irqreturn.h>
 #include <linux/mutex.h>
@@ -26,7 +29,6 @@
 #include "coda_regs.h"
 
 #define CODA_MAX_FRAMEBUFFERS	8
-#define CODA_MAX_FRAME_SIZE	0x100000
 #define FMO_SLICE_SAVE_BUF_SIZE	(32)
 
 enum {
@@ -178,6 +180,7 @@ struct coda_ctx;
 struct coda_context_ops {
 	int (*queue_init)(void *priv, struct vb2_queue *src_vq,
 			  struct vb2_queue *dst_vq);
+	int (*reqbufs)(struct coda_ctx *ctx, struct v4l2_requestbuffers *rb);
 	int (*start_streaming)(struct coda_ctx *ctx);
 	int (*prepare_run)(struct coda_ctx *ctx);
 	void (*finish_run)(struct coda_ctx *ctx);
@@ -249,13 +252,6 @@ int coda_alloc_aux_buf(struct coda_dev *dev, struct coda_aux_buf *buf,
 		       size_t size, const char *name, struct dentry *parent);
 void coda_free_aux_buf(struct coda_dev *dev, struct coda_aux_buf *buf);
 
-static inline int coda_alloc_context_buf(struct coda_ctx *ctx,
-					 struct coda_aux_buf *buf, size_t size,
-					 const char *name)
-{
-	return coda_alloc_aux_buf(ctx->dev, buf, size, name, ctx->debugfs_entry);
-}
-
 int coda_encoder_queue_init(void *priv, struct vb2_queue *src_vq,
 			    struct vb2_queue *dst_vq);
 int coda_decoder_queue_init(void *priv, struct vb2_queue *src_vq,
@@ -263,7 +259,7 @@ int coda_decoder_queue_init(void *priv, struct vb2_queue *src_vq,
 
 int coda_hw_reset(struct coda_ctx *ctx);
 
-void coda_fill_bitstream(struct coda_ctx *ctx);
+void coda_fill_bitstream(struct coda_ctx *ctx, bool streaming);
 
 void coda_set_gdi_regs(struct coda_ctx *ctx);
 
@@ -284,7 +280,7 @@ const char *coda_product_name(int product);
 
 int coda_check_firmware(struct coda_dev *dev);
 
-static inline int coda_get_bitstream_payload(struct coda_ctx *ctx)
+static inline unsigned int coda_get_bitstream_payload(struct coda_ctx *ctx)
 {
 	return kfifo_len(&ctx->bitstream_fifo);
 }
@@ -301,3 +297,5 @@ extern const struct coda_context_ops coda_bit_encode_ops;
 extern const struct coda_context_ops coda_bit_decode_ops;
 
 irqreturn_t coda_irq_handler(int irq, void *data);
+
+#endif /* __CODA_H__ */

@@ -87,6 +87,7 @@ enum max77693_pmic_reg {
 /* MAX77693 ITORCH register */
 #define TORCH_IOUT1_SHIFT	0
 #define TORCH_IOUT2_SHIFT	4
+#define TORCH_IOUT_MASK(x)	(0xf << (x))
 #define TORCH_IOUT_MIN		15625
 #define TORCH_IOUT_MAX		250000
 #define TORCH_IOUT_STEP		15625
@@ -113,8 +114,8 @@ enum max77693_pmic_reg {
 #define FLASH_EN_FLASH		0x1
 #define FLASH_EN_TORCH		0x2
 #define FLASH_EN_ON		0x3
-#define FLASH_EN_SHIFT(x)	(6 - ((x) - 1) * 2)
-#define TORCH_EN_SHIFT(x)	(2 - ((x) - 1) * 2)
+#define FLASH_EN_SHIFT(x)	(6 - (x) * 2)
+#define TORCH_EN_SHIFT(x)	(2 - (x) * 2)
 
 /* MAX77693 MAX_FLASH1 register */
 #define MAX_FLASH1_MAX_FL_EN	0x80

@@ -117,6 +117,7 @@ struct palmas_pmic_driver_data {
 	int ldo_begin;
 	int ldo_end;
 	int max_reg;
+	bool has_regen3;
 	struct palmas_regs_info *palmas_regs_info;
 	struct of_regulator_match *palmas_matches;
 	struct palmas_sleep_requestor_info *sleep_req_info;

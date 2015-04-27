@@ -8,6 +8,7 @@
  * warranty of any kind, whether express or implied.
  */
 
+#include <linux/acpi_irq.h>
 #include <linux/init.h>
 #include <linux/of_irq.h>
 #include <linux/irqchip.h>
@@ -26,4 +27,6 @@ extern struct of_device_id __irqchip_of_table[];
 void __init irqchip_init(void)
 {
 	of_irq_init(__irqchip_of_table);
+
+	acpi_irq_init();
 }

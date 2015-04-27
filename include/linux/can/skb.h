@@ -44,16 +44,11 @@ static inline void can_skb_reserve(struct sk_buff *skb)
 	skb_reserve(skb, sizeof(struct can_skb_priv));
 }
 
-static inline void can_skb_destructor(struct sk_buff *skb)
-{
-	sock_put(skb->sk);
-}
-
 static inline void can_skb_set_owner(struct sk_buff *skb, struct sock *sk)
 {
 	if (sk) {
 		sock_hold(sk);
-		skb->destructor = can_skb_destructor;
+		skb->destructor = sock_efree;
 		skb->sk = sk;
 	}
 }

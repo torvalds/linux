@@ -152,4 +152,7 @@
 /* Time out value for reading PMECC status register */
 #define PMECC_MAX_TIMEOUT_MS			100
 
+/* Reserved bytes in oob area */
+#define PMECC_OOB_RESERVED_BYTES		2
+
 #endif

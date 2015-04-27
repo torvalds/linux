@@ -81,10 +81,10 @@ static void __init imx6sx_init_machine(void)
 
 static void __init imx6sx_init_irq(void)
 {
+	imx_gpc_check_dt();
 	imx_init_revision_from_anatop();
 	imx_init_l2cache();
 	imx_src_init();
-	imx_gpc_init();
 	irqchip_init();
 }
 

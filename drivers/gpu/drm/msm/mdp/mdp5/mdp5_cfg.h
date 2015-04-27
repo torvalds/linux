@@ -44,25 +44,37 @@ struct mdp5_lm_block {
 	uint32_t nb_stages;		/* number of stages per blender */
 };
 
+struct mdp5_ctl_block {
+	MDP5_SUB_BLOCK_DEFINITION;
+	uint32_t flush_hw_mask;		/* FLUSH register's hardware mask */
+};
+
 struct mdp5_smp_block {
 	int mmb_count;			/* number of SMP MMBs */
 	int mmb_size;			/* MMB: size in bytes */
+	uint32_t clients[MAX_CLIENTS];	/* SMP port allocation /pipe */
 	mdp5_smp_state_t reserved_state;/* SMP MMBs statically allocated */
 	int reserved[MAX_CLIENTS];	/* # of MMBs allocated per client */
 };
 
+#define MDP5_INTF_NUM_MAX	5
+
 struct mdp5_cfg_hw {
 	char  *name;
 
+	struct mdp5_sub_block mdp;
 	struct mdp5_smp_block smp;
-	struct mdp5_sub_block ctl;
+	struct mdp5_ctl_block ctl;
 	struct mdp5_sub_block pipe_vig;
 	struct mdp5_sub_block pipe_rgb;
 	struct mdp5_sub_block pipe_dma;
 	struct mdp5_lm_block  lm;
 	struct mdp5_sub_block dspp;
 	struct mdp5_sub_block ad;
+	struct mdp5_sub_block pp;
 	struct mdp5_sub_block intf;
+
+	u32 intfs[MDP5_INTF_NUM_MAX]; /* array of enum mdp5_intf_type */
 
 	uint32_t max_clk;
 };
@@ -83,6 +95,10 @@ struct mdp5_cfg_handler;
 const struct mdp5_cfg_hw *mdp5_cfg_get_hw_config(struct mdp5_cfg_handler *cfg_hnd);
 struct mdp5_cfg *mdp5_cfg_get_config(struct mdp5_cfg_handler *cfg_hnd);
 int mdp5_cfg_get_hw_rev(struct mdp5_cfg_handler *cfg_hnd);
+
+#define mdp5_cfg_intf_is_virtual(intf_type) ({	\
+	typeof(intf_type) __val = (intf_type);	\
+	(__val) >= INTF_VIRTUAL ? true : false; })
 
 struct mdp5_cfg_handler *mdp5_cfg_init(struct mdp5_kms *mdp5_kms,
 		uint32_t major, uint32_t minor);

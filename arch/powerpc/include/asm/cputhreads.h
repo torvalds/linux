@@ -25,7 +25,7 @@ extern cpumask_t threads_core_mask;
 #define threads_per_core	1
 #define threads_per_subcore	1
 #define threads_shift		0
-#define threads_core_mask	(CPU_MASK_CPU0)
+#define threads_core_mask	(*get_cpu_mask(0))
 #endif
 
 /* cpu_thread_mask_to_cores - Return a cpumask of one per cores

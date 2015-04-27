@@ -1201,13 +1201,9 @@ static int virtio_ccw_online(struct ccw_device *cdev)
 	vcdev->vdev.id.vendor = cdev->id.cu_type;
 	vcdev->vdev.id.device = cdev->id.cu_model;
 
-	if (virtio_device_is_legacy_only(vcdev->vdev.id)) {
-		vcdev->revision = 0;
-	} else {
-		ret = virtio_ccw_set_transport_rev(vcdev);
-		if (ret)
-			goto out_free;
-	}
+	ret = virtio_ccw_set_transport_rev(vcdev);
+	if (ret)
+		goto out_free;
 
 	ret = register_virtio_device(&vcdev->vdev);
 	if (ret) {

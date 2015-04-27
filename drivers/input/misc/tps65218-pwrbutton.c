@@ -106,7 +106,7 @@ static int tps65218_pwron_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id of_tps65218_pwr_match[] = {
+static const struct of_device_id of_tps65218_pwr_match[] = {
 	{ .compatible = "ti,tps65218-pwrbutton" },
 	{ },
 };

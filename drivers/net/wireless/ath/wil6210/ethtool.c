@@ -50,27 +50,19 @@ static int wil_ethtoolops_get_coalesce(struct net_device *ndev,
 
 	wil_dbg_misc(wil, "%s()\n", __func__);
 
-	if (test_bit(hw_capability_advanced_itr_moderation,
-		     wil->hw_capabilities)) {
-		tx_itr_en = ioread32(wil->csr +
-				     HOSTADDR(RGF_DMA_ITR_TX_CNT_CTL));
-		if (tx_itr_en & BIT_DMA_ITR_TX_CNT_CTL_EN)
-			tx_itr_val =
-				ioread32(wil->csr +
-					 HOSTADDR(RGF_DMA_ITR_TX_CNT_TRSH));
+	tx_itr_en = ioread32(wil->csr +
+			     HOSTADDR(RGF_DMA_ITR_TX_CNT_CTL));
+	if (tx_itr_en & BIT_DMA_ITR_TX_CNT_CTL_EN)
+		tx_itr_val =
+			ioread32(wil->csr +
+				 HOSTADDR(RGF_DMA_ITR_TX_CNT_TRSH));
 
-		rx_itr_en = ioread32(wil->csr +
-				     HOSTADDR(RGF_DMA_ITR_RX_CNT_CTL));
-		if (rx_itr_en & BIT_DMA_ITR_RX_CNT_CTL_EN)
-			rx_itr_val =
-				ioread32(wil->csr +
-					 HOSTADDR(RGF_DMA_ITR_RX_CNT_TRSH));
-	} else {
-		rx_itr_en = ioread32(wil->csr + HOSTADDR(RGF_DMA_ITR_CNT_CRL));
-		if (rx_itr_en & BIT_DMA_ITR_CNT_CRL_EN)
-			rx_itr_val = ioread32(wil->csr +
-					      HOSTADDR(RGF_DMA_ITR_CNT_TRSH));
-	}
+	rx_itr_en = ioread32(wil->csr +
+			     HOSTADDR(RGF_DMA_ITR_RX_CNT_CTL));
+	if (rx_itr_en & BIT_DMA_ITR_RX_CNT_CTL_EN)
+		rx_itr_val =
+			ioread32(wil->csr +
+				 HOSTADDR(RGF_DMA_ITR_RX_CNT_TRSH));
 
 	cp->tx_coalesce_usecs = tx_itr_val;
 	cp->rx_coalesce_usecs = rx_itr_val;

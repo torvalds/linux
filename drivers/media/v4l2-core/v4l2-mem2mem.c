@@ -97,7 +97,7 @@ EXPORT_SYMBOL(v4l2_m2m_get_vq);
  */
 void *v4l2_m2m_next_buf(struct v4l2_m2m_queue_ctx *q_ctx)
 {
-	struct v4l2_m2m_buffer *b = NULL;
+	struct v4l2_m2m_buffer *b;
 	unsigned long flags;
 
 	spin_lock_irqsave(&q_ctx->rdy_spinlock, flags);
@@ -119,7 +119,7 @@ EXPORT_SYMBOL_GPL(v4l2_m2m_next_buf);
  */
 void *v4l2_m2m_buf_remove(struct v4l2_m2m_queue_ctx *q_ctx)
 {
-	struct v4l2_m2m_buffer *b = NULL;
+	struct v4l2_m2m_buffer *b;
 	unsigned long flags;
 
 	spin_lock_irqsave(&q_ctx->rdy_spinlock, flags);

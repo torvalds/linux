@@ -231,7 +231,7 @@ static int i915_setup_compression(struct drm_device *dev, int size, int fb_cpp)
 			   dev_priv->mm.stolen_base + compressed_llb->start);
 	}
 
-	dev_priv->fbc.size = size / dev_priv->fbc.threshold;
+	dev_priv->fbc.uncompressed_size = size;
 
 	DRM_DEBUG_KMS("reserved %d bytes of contiguous stolen space for FBC\n",
 		      size);
@@ -253,7 +253,7 @@ int i915_gem_stolen_setup_compression(struct drm_device *dev, int size, int fb_c
 	if (!drm_mm_initialized(&dev_priv->mm.stolen))
 		return -ENODEV;
 
-	if (size < dev_priv->fbc.size)
+	if (size <= dev_priv->fbc.uncompressed_size)
 		return 0;
 
 	/* Release any current block */
@@ -266,7 +266,7 @@ void i915_gem_stolen_cleanup_compression(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (dev_priv->fbc.size == 0)
+	if (dev_priv->fbc.uncompressed_size == 0)
 		return;
 
 	drm_mm_remove_node(&dev_priv->fbc.compressed_fb);
@@ -276,7 +276,7 @@ void i915_gem_stolen_cleanup_compression(struct drm_device *dev)
 		kfree(dev_priv->fbc.compressed_llb);
 	}
 
-	dev_priv->fbc.size = 0;
+	dev_priv->fbc.uncompressed_size = 0;
 }
 
 void i915_gem_cleanup_stolen(struct drm_device *dev)

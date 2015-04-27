@@ -23,12 +23,10 @@
  */
 
 #include <linux/module.h>
-#include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 
-#include "../comedidev.h"
-#include "comedi_fc.h"
+#include "../comedi_pci.h"
 #include "amcc_s5933.h"
 
 /*
@@ -203,7 +201,7 @@ static unsigned short apci3501_eeprom_readw(unsigned long iobase,
 		outb(NVCMD_LOAD_HIGH, iobase + AMCC_OP_REG_MCSR_NVCMD);
 		apci3501_eeprom_wait(iobase);
 		outb(((addr + i) >> 8) & 0xff,
-			iobase + AMCC_OP_REG_MCSR_NVDATA);
+		     iobase + AMCC_OP_REG_MCSR_NVDATA);
 		apci3501_eeprom_wait(iobase);
 
 		/* Read the eeprom data byte */
@@ -270,7 +268,7 @@ static irqreturn_t apci3501_interrupt(int irq, void *d)
 
 	/*  Disable Interrupt */
 	ul_Command1 = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
-	ul_Command1 = (ul_Command1 & 0xFFFFF9FDul);
+	ul_Command1 = ul_Command1 & 0xFFFFF9FDul;
 	outl(ul_Command1, dev->iobase + APCI3501_TIMER_CTRL_REG);
 
 	ui_Timer_AOWatchdog = inl(dev->iobase + APCI3501_TIMER_IRQ_REG) & 0x1;
@@ -282,7 +280,7 @@ static irqreturn_t apci3501_interrupt(int irq, void *d)
 	/* Enable Interrupt Send a signal to from kernel to user space */
 	send_sig(SIGIO, devpriv->tsk_Current, 0);
 	ul_Command1 = inl(dev->iobase + APCI3501_TIMER_CTRL_REG);
-	ul_Command1 = ((ul_Command1 & 0xFFFFF9FDul) | 1 << 1);
+	ul_Command1 = (ul_Command1 & 0xFFFFF9FDul) | 1 << 1;
 	outl(ul_Command1, dev->iobase + APCI3501_TIMER_CTRL_REG);
 	inl(dev->iobase + APCI3501_TIMER_STATUS_REG);
 

@@ -283,7 +283,7 @@ fail_ioremap:
 	return ret;
 }
 
-static int __exit tb10x_gpio_remove(struct platform_device *pdev)
+static int tb10x_gpio_remove(struct platform_device *pdev)
 {
 	struct tb10x_gpio *tb10x_gpio = platform_get_drvdata(pdev);
 

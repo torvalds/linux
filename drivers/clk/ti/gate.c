@@ -225,7 +225,7 @@ static void __init _of_ti_gate_clk_setup(struct device_node *node,
 
 	if (ops != &omap_gate_clkdm_clk_ops) {
 		reg = ti_clk_get_reg_addr(node, 0);
-		if (!reg)
+		if (IS_ERR(reg))
 			return;
 
 		if (!of_property_read_u32(node, "ti,bit-shift", &val))
@@ -264,7 +264,7 @@ _of_ti_composite_gate_clk_setup(struct device_node *node,
 		return;
 
 	gate->enable_reg = ti_clk_get_reg_addr(node, 0);
-	if (!gate->enable_reg)
+	if (IS_ERR(gate->enable_reg))
 		goto cleanup;
 
 	of_property_read_u32(node, "ti,bit-shift", &val);

@@ -56,7 +56,8 @@ static u8 _rtl_rc_get_highest_rix(struct rtl_priv *rtlpriv,
 		wireless_mode = sta_entry->wireless_mode;
 	}
 
-	if (rtl_is_special_data(rtlpriv->mac80211.hw, skb, true) || not_data) {
+	if (rtl_is_special_data(rtlpriv->mac80211.hw, skb, true, false) ||
+	    not_data) {
 		return 0;
 	} else {
 		if (rtlhal->current_bandtype == BAND_ON_2_4G) {
@@ -201,7 +202,7 @@ static void rtl_tx_status(void *ppriv,
 	if (!priv_sta || !ieee80211_is_data(fc))
 		return;
 
-	if (rtl_is_special_data(mac->hw, skb, true))
+	if (rtl_is_special_data(mac->hw, skb, true, true))
 		return;
 
 	if (is_multicast_ether_addr(ieee80211_get_DA(hdr)) ||

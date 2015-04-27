@@ -25,6 +25,7 @@ enum {
 	FOU_CMD_UNSPEC,
 	FOU_CMD_ADD,
 	FOU_CMD_DEL,
+	FOU_CMD_GET,
 
 	__FOU_CMD_MAX,
 };

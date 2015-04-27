@@ -6,6 +6,7 @@ config OPENVSWITCH
 	tristate "Open vSwitch"
 	depends on INET
 	select LIBCRC32C
+	select MPLS
 	select NET_MPLS_GSO
 	---help---
 	  Open vSwitch is a multilayer Ethernet switch targeted at virtualized

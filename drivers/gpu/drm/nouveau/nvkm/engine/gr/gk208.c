@@ -34,10 +34,10 @@
 
 static struct nvkm_oclass
 gk208_gr_sclass[] = {
-	{ 0x902d, &nvkm_object_ofuncs },
-	{ 0xa140, &nvkm_object_ofuncs },
+	{ FERMI_TWOD_A, &nvkm_object_ofuncs },
+	{ KEPLER_INLINE_TO_MEMORY_B, &nvkm_object_ofuncs },
 	{ KEPLER_B, &gf100_fermi_ofuncs },
-	{ 0xa1c0, &nvkm_object_ofuncs },
+	{ KEPLER_COMPUTE_B, &nvkm_object_ofuncs },
 	{}
 };
 
@@ -152,43 +152,6 @@ gk208_gr_pack_mmio[] = {
  * PGRAPH engine/subdev functions
  ******************************************************************************/
 
-static int
-gk208_gr_fini(struct nvkm_object *object, bool suspend)
-{
-	struct gf100_gr_priv *priv = (void *)object;
-	static const struct {
-		u32 addr;
-		u32 data;
-	} magic[] = {
-		{ 0x020520, 0xfffffffc },
-		{ 0x020524, 0xfffffffe },
-		{ 0x020524, 0xfffffffc },
-		{ 0x020524, 0xfffffff8 },
-		{ 0x020524, 0xffffffe0 },
-		{ 0x020530, 0xfffffffe },
-		{ 0x02052c, 0xfffffffa },
-		{ 0x02052c, 0xfffffff0 },
-		{ 0x02052c, 0xffffffc0 },
-		{ 0x02052c, 0xffffff00 },
-		{ 0x02052c, 0xfffffc00 },
-		{ 0x02052c, 0xfffcfc00 },
-		{ 0x02052c, 0xfff0fc00 },
-		{ 0x02052c, 0xff80fc00 },
-		{ 0x020528, 0xfffffffe },
-		{ 0x020528, 0xfffffffc },
-	};
-	int i;
-
-	nv_mask(priv, 0x000200, 0x08001000, 0x00000000);
-	nv_mask(priv, 0x0206b4, 0x00000000, 0x00000000);
-	for (i = 0; i < ARRAY_SIZE(magic); i++) {
-		nv_wr32(priv, magic[i].addr, magic[i].data);
-		nv_wait(priv, magic[i].addr, 0x80000000, 0x00000000);
-	}
-
-	return nvkm_gr_fini(&priv->base, suspend);
-}
-
 #include "fuc/hubgk208.fuc5.h"
 
 static struct gf100_gr_ucode
@@ -213,10 +176,10 @@ struct nvkm_oclass *
 gk208_gr_oclass = &(struct gf100_gr_oclass) {
 	.base.handle = NV_ENGINE(GR, 0x08),
 	.base.ofuncs = &(struct nvkm_ofuncs) {
-		.ctor = gf100_gr_ctor,
+		.ctor = gk104_gr_ctor,
 		.dtor = gf100_gr_dtor,
 		.init = gk104_gr_init,
-		.fini = gk208_gr_fini,
+		.fini = _nvkm_gr_fini,
 	},
 	.cclass = &gk208_grctx_oclass,
 	.sclass =  gk208_gr_sclass,

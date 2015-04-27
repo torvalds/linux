@@ -1,5 +1,6 @@
 tools/perf
 tools/scripts
+tools/build
 tools/lib/traceevent
 tools/lib/api
 tools/lib/symbol/kallsyms.c

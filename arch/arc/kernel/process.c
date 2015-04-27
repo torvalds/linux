@@ -49,7 +49,10 @@ void arch_cpu_idle(void)
 
 asmlinkage void ret_from_fork(void);
 
-/* Layout of Child kernel mode stack as setup at the end of this function is
+/*
+ * Copy architecture-specific thread state
+ *
+ * Layout of Child kernel mode stack as setup at the end of this function is
  *
  * |     ...        |
  * |     ...        |
@@ -81,7 +84,7 @@ asmlinkage void ret_from_fork(void);
  * ------------------  <===== END of PAGE
  */
 int copy_thread(unsigned long clone_flags,
-		unsigned long usp, unsigned long arg,
+		unsigned long usp, unsigned long kthread_arg,
 		struct task_struct *p)
 {
 	struct pt_regs *c_regs;        /* child's pt_regs */
@@ -112,7 +115,7 @@ int copy_thread(unsigned long clone_flags,
 	if (unlikely(p->flags & PF_KTHREAD)) {
 		memset(c_regs, 0, sizeof(struct pt_regs));
 
-		c_callee->r13 = arg; /* argument to kernel thread */
+		c_callee->r13 = kthread_arg;
 		c_callee->r14 = usp;  /* function */
 
 		return 0;
@@ -155,8 +158,6 @@ int copy_thread(unsigned long clone_flags,
  */
 void start_thread(struct pt_regs * regs, unsigned long pc, unsigned long usp)
 {
-	set_fs(USER_DS); /* user space */
-
 	regs->sp = usp;
 	regs->ret = pc;
 

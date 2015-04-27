@@ -102,7 +102,7 @@ struct lguest {
 
 	struct pgdir pgdirs[4];
 
-	unsigned long noirq_start, noirq_end;
+	unsigned long noirq_iret;
 
 	unsigned int stack_pages;
 	u32 tsc_khz;

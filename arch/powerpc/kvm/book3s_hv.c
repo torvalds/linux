@@ -32,6 +32,7 @@
 #include <linux/page-flags.h>
 #include <linux/srcu.h>
 #include <linux/miscdevice.h>
+#include <linux/debugfs.h>
 
 #include <asm/reg.h>
 #include <asm/cputable.h>
@@ -50,6 +51,7 @@
 #include <asm/hvcall.h>
 #include <asm/switch_to.h>
 #include <asm/smp.h>
+#include <asm/dbell.h>
 #include <linux/gfp.h>
 #include <linux/vmalloc.h>
 #include <linux/highmem.h>
@@ -83,9 +85,35 @@ static DECLARE_BITMAP(default_enabled_hcalls, MAX_HCALL_OPCODE/4 + 1);
 static void kvmppc_end_cede(struct kvm_vcpu *vcpu);
 static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu);
 
+static bool kvmppc_ipi_thread(int cpu)
+{
+	/* On POWER8 for IPIs to threads in the same core, use msgsnd */
+	if (cpu_has_feature(CPU_FTR_ARCH_207S)) {
+		preempt_disable();
+		if (cpu_first_thread_sibling(cpu) ==
+		    cpu_first_thread_sibling(smp_processor_id())) {
+			unsigned long msg = PPC_DBELL_TYPE(PPC_DBELL_SERVER);
+			msg |= cpu_thread_in_core(cpu);
+			smp_mb();
+			__asm__ __volatile__ (PPC_MSGSND(%0) : : "r" (msg));
+			preempt_enable();
+			return true;
+		}
+		preempt_enable();
+	}
+
+#if defined(CONFIG_PPC_ICP_NATIVE) && defined(CONFIG_SMP)
+	if (cpu >= 0 && cpu < nr_cpu_ids && paca[cpu].kvm_hstate.xics_phys) {
+		xics_wake_cpu(cpu);
+		return true;
+	}
+#endif
+
+	return false;
+}
+
 static void kvmppc_fast_vcpu_kick_hv(struct kvm_vcpu *vcpu)
 {
-	int me;
 	int cpu = vcpu->cpu;
 	wait_queue_head_t *wqp;
 
@@ -95,20 +123,12 @@ static void kvmppc_fast_vcpu_kick_hv(struct kvm_vcpu *vcpu)
 		++vcpu->stat.halt_wakeup;
 	}
 
-	me = get_cpu();
+	if (kvmppc_ipi_thread(cpu + vcpu->arch.ptid))
+		return;
 
 	/* CPU points to the first thread of the core */
-	if (cpu != me && cpu >= 0 && cpu < nr_cpu_ids) {
-#ifdef CONFIG_PPC_ICP_NATIVE
-		int real_cpu = cpu + vcpu->arch.ptid;
-		if (paca[real_cpu].kvm_hstate.xics_phys)
-			xics_wake_cpu(real_cpu);
-		else
-#endif
-		if (cpu_online(cpu))
-			smp_send_reschedule(cpu);
-	}
-	put_cpu();
+	if (cpu >= 0 && cpu < nr_cpu_ids && cpu_online(cpu))
+		smp_send_reschedule(cpu);
 }
 
 /*
@@ -706,6 +726,16 @@ int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
 
 		/* Send the error out to userspace via KVM_RUN */
 		return rc;
+	case H_LOGICAL_CI_LOAD:
+		ret = kvmppc_h_logical_ci_load(vcpu);
+		if (ret == H_TOO_HARD)
+			return RESUME_HOST;
+		break;
+	case H_LOGICAL_CI_STORE:
+		ret = kvmppc_h_logical_ci_store(vcpu);
+		if (ret == H_TOO_HARD)
+			return RESUME_HOST;
+		break;
 	case H_SET_MODE:
 		ret = kvmppc_h_set_mode(vcpu, kvmppc_get_gpr(vcpu, 4),
 					kvmppc_get_gpr(vcpu, 5),
@@ -740,6 +770,8 @@ static int kvmppc_hcall_impl_hv(unsigned long cmd)
 	case H_CONFER:
 	case H_REGISTER_VPA:
 	case H_SET_MODE:
+	case H_LOGICAL_CI_LOAD:
+	case H_LOGICAL_CI_STORE:
 #ifdef CONFIG_KVM_XICS
 	case H_XIRR:
 	case H_CPPR:
@@ -1410,6 +1442,154 @@ static struct kvmppc_vcore *kvmppc_vcore_create(struct kvm *kvm, int core)
 	return vcore;
 }
 
+#ifdef CONFIG_KVM_BOOK3S_HV_EXIT_TIMING
+static struct debugfs_timings_element {
+	const char *name;
+	size_t offset;
+} timings[] = {
+	{"rm_entry",	offsetof(struct kvm_vcpu, arch.rm_entry)},
+	{"rm_intr",	offsetof(struct kvm_vcpu, arch.rm_intr)},
+	{"rm_exit",	offsetof(struct kvm_vcpu, arch.rm_exit)},
+	{"guest",	offsetof(struct kvm_vcpu, arch.guest_time)},
+	{"cede",	offsetof(struct kvm_vcpu, arch.cede_time)},
+};
+
+#define N_TIMINGS	(sizeof(timings) / sizeof(timings[0]))
+
+struct debugfs_timings_state {
+	struct kvm_vcpu	*vcpu;
+	unsigned int	buflen;
+	char		buf[N_TIMINGS * 100];
+};
+
+static int debugfs_timings_open(struct inode *inode, struct file *file)
+{
+	struct kvm_vcpu *vcpu = inode->i_private;
+	struct debugfs_timings_state *p;
+
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	if (!p)
+		return -ENOMEM;
+
+	kvm_get_kvm(vcpu->kvm);
+	p->vcpu = vcpu;
+	file->private_data = p;
+
+	return nonseekable_open(inode, file);
+}
+
+static int debugfs_timings_release(struct inode *inode, struct file *file)
+{
+	struct debugfs_timings_state *p = file->private_data;
+
+	kvm_put_kvm(p->vcpu->kvm);
+	kfree(p);
+	return 0;
+}
+
+static ssize_t debugfs_timings_read(struct file *file, char __user *buf,
+				    size_t len, loff_t *ppos)
+{
+	struct debugfs_timings_state *p = file->private_data;
+	struct kvm_vcpu *vcpu = p->vcpu;
+	char *s, *buf_end;
+	struct kvmhv_tb_accumulator tb;
+	u64 count;
+	loff_t pos;
+	ssize_t n;
+	int i, loops;
+	bool ok;
+
+	if (!p->buflen) {
+		s = p->buf;
+		buf_end = s + sizeof(p->buf);
+		for (i = 0; i < N_TIMINGS; ++i) {
+			struct kvmhv_tb_accumulator *acc;
+
+			acc = (struct kvmhv_tb_accumulator *)
+				((unsigned long)vcpu + timings[i].offset);
+			ok = false;
+			for (loops = 0; loops < 1000; ++loops) {
+				count = acc->seqcount;
+				if (!(count & 1)) {
+					smp_rmb();
+					tb = *acc;
+					smp_rmb();
+					if (count == acc->seqcount) {
+						ok = true;
+						break;
+					}
+				}
+				udelay(1);
+			}
+			if (!ok)
+				snprintf(s, buf_end - s, "%s: stuck\n",
+					timings[i].name);
+			else
+				snprintf(s, buf_end - s,
+					"%s: %llu %llu %llu %llu\n",
+					timings[i].name, count / 2,
+					tb_to_ns(tb.tb_total),
+					tb_to_ns(tb.tb_min),
+					tb_to_ns(tb.tb_max));
+			s += strlen(s);
+		}
+		p->buflen = s - p->buf;
+	}
+
+	pos = *ppos;
+	if (pos >= p->buflen)
+		return 0;
+	if (len > p->buflen - pos)
+		len = p->buflen - pos;
+	n = copy_to_user(buf, p->buf + pos, len);
+	if (n) {
+		if (n == len)
+			return -EFAULT;
+		len -= n;
+	}
+	*ppos = pos + len;
+	return len;
+}
+
+static ssize_t debugfs_timings_write(struct file *file, const char __user *buf,
+				     size_t len, loff_t *ppos)
+{
+	return -EACCES;
+}
+
+static const struct file_operations debugfs_timings_ops = {
+	.owner	 = THIS_MODULE,
+	.open	 = debugfs_timings_open,
+	.release = debugfs_timings_release,
+	.read	 = debugfs_timings_read,
+	.write	 = debugfs_timings_write,
+	.llseek	 = generic_file_llseek,
+};
+
+/* Create a debugfs directory for the vcpu */
+static void debugfs_vcpu_init(struct kvm_vcpu *vcpu, unsigned int id)
+{
+	char buf[16];
+	struct kvm *kvm = vcpu->kvm;
+
+	snprintf(buf, sizeof(buf), "vcpu%u", id);
+	if (IS_ERR_OR_NULL(kvm->arch.debugfs_dir))
+		return;
+	vcpu->arch.debugfs_dir = debugfs_create_dir(buf, kvm->arch.debugfs_dir);
+	if (IS_ERR_OR_NULL(vcpu->arch.debugfs_dir))
+		return;
+	vcpu->arch.debugfs_timings =
+		debugfs_create_file("timings", 0444, vcpu->arch.debugfs_dir,
+				    vcpu, &debugfs_timings_ops);
+}
+
+#else /* CONFIG_KVM_BOOK3S_HV_EXIT_TIMING */
+static void debugfs_vcpu_init(struct kvm_vcpu *vcpu, unsigned int id)
+{
+}
+#endif /* CONFIG_KVM_BOOK3S_HV_EXIT_TIMING */
+
 static struct kvm_vcpu *kvmppc_core_vcpu_create_hv(struct kvm *kvm,
 						   unsigned int id)
 {
@@ -1478,6 +1658,8 @@ static struct kvm_vcpu *kvmppc_core_vcpu_create_hv(struct kvm *kvm,
 
 	vcpu->arch.cpu_type = KVM_CPU_3S_64;
 	kvmppc_sanity_check(vcpu);
+
+	debugfs_vcpu_init(vcpu, id);
 
 	return vcpu;
 
@@ -1566,8 +1748,10 @@ static int kvmppc_grab_hwthread(int cpu)
 	tpaca = &paca[cpu];
 
 	/* Ensure the thread won't go into the kernel if it wakes */
-	tpaca->kvm_hstate.hwthread_req = 1;
 	tpaca->kvm_hstate.kvm_vcpu = NULL;
+	tpaca->kvm_hstate.napping = 0;
+	smp_wmb();
+	tpaca->kvm_hstate.hwthread_req = 1;
 
 	/*
 	 * If the thread is already executing in the kernel (e.g. handling
@@ -1610,35 +1794,41 @@ static void kvmppc_start_thread(struct kvm_vcpu *vcpu)
 	}
 	cpu = vc->pcpu + vcpu->arch.ptid;
 	tpaca = &paca[cpu];
-	tpaca->kvm_hstate.kvm_vcpu = vcpu;
 	tpaca->kvm_hstate.kvm_vcore = vc;
 	tpaca->kvm_hstate.ptid = vcpu->arch.ptid;
 	vcpu->cpu = vc->pcpu;
+	/* Order stores to hstate.kvm_vcore etc. before store to kvm_vcpu */
 	smp_wmb();
-#if defined(CONFIG_PPC_ICP_NATIVE) && defined(CONFIG_SMP)
-	if (cpu != smp_processor_id()) {
-		xics_wake_cpu(cpu);
-		if (vcpu->arch.ptid)
-			++vc->n_woken;
-	}
-#endif
+	tpaca->kvm_hstate.kvm_vcpu = vcpu;
+	if (cpu != smp_processor_id())
+		kvmppc_ipi_thread(cpu);
 }
 
-static void kvmppc_wait_for_nap(struct kvmppc_vcore *vc)
+static void kvmppc_wait_for_nap(void)
 {
-	int i;
+	int cpu = smp_processor_id();
+	int i, loops;
 
-	HMT_low();
-	i = 0;
-	while (vc->nap_count < vc->n_woken) {
-		if (++i >= 1000000) {
-			pr_err("kvmppc_wait_for_nap timeout %d %d\n",
-			       vc->nap_count, vc->n_woken);
-			break;
+	for (loops = 0; loops < 1000000; ++loops) {
+		/*
+		 * Check if all threads are finished.
+		 * We set the vcpu pointer when starting a thread
+		 * and the thread clears it when finished, so we look
+		 * for any threads that still have a non-NULL vcpu ptr.
+		 */
+		for (i = 1; i < threads_per_subcore; ++i)
+			if (paca[cpu + i].kvm_hstate.kvm_vcpu)
+				break;
+		if (i == threads_per_subcore) {
+			HMT_medium();
+			return;
 		}
-		cpu_relax();
+		HMT_low();
 	}
 	HMT_medium();
+	for (i = 1; i < threads_per_subcore; ++i)
+		if (paca[cpu + i].kvm_hstate.kvm_vcpu)
+			pr_err("KVM: CPU %d seems to be stuck\n", cpu + i);
 }
 
 /*
@@ -1700,53 +1890,90 @@ static void kvmppc_start_restoring_l2_cache(const struct kvmppc_vcore *vc)
 	mtspr(SPRN_MPPR, mpp_addr | PPC_MPPR_FETCH_WHOLE_TABLE);
 }
 
+static void prepare_threads(struct kvmppc_vcore *vc)
+{
+	struct kvm_vcpu *vcpu, *vnext;
+
+	list_for_each_entry_safe(vcpu, vnext, &vc->runnable_threads,
+				 arch.run_list) {
+		if (signal_pending(vcpu->arch.run_task))
+			vcpu->arch.ret = -EINTR;
+		else if (vcpu->arch.vpa.update_pending ||
+			 vcpu->arch.slb_shadow.update_pending ||
+			 vcpu->arch.dtl.update_pending)
+			vcpu->arch.ret = RESUME_GUEST;
+		else
+			continue;
+		kvmppc_remove_runnable(vc, vcpu);
+		wake_up(&vcpu->arch.cpu_run);
+	}
+}
+
+static void post_guest_process(struct kvmppc_vcore *vc)
+{
+	u64 now;
+	long ret;
+	struct kvm_vcpu *vcpu, *vnext;
+
+	now = get_tb();
+	list_for_each_entry_safe(vcpu, vnext, &vc->runnable_threads,
+				 arch.run_list) {
+		/* cancel pending dec exception if dec is positive */
+		if (now < vcpu->arch.dec_expires &&
+		    kvmppc_core_pending_dec(vcpu))
+			kvmppc_core_dequeue_dec(vcpu);
+
+		trace_kvm_guest_exit(vcpu);
+
+		ret = RESUME_GUEST;
+		if (vcpu->arch.trap)
+			ret = kvmppc_handle_exit_hv(vcpu->arch.kvm_run, vcpu,
+						    vcpu->arch.run_task);
+
+		vcpu->arch.ret = ret;
+		vcpu->arch.trap = 0;
+
+		if (vcpu->arch.ceded) {
+			if (!is_kvmppc_resume_guest(ret))
+				kvmppc_end_cede(vcpu);
+			else
+				kvmppc_set_timer(vcpu);
+		}
+		if (!is_kvmppc_resume_guest(vcpu->arch.ret)) {
+			kvmppc_remove_runnable(vc, vcpu);
+			wake_up(&vcpu->arch.cpu_run);
+		}
+	}
+}
+
 /*
  * Run a set of guest threads on a physical core.
  * Called with vc->lock held.
  */
-static void kvmppc_run_core(struct kvmppc_vcore *vc)
+static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 {
-	struct kvm_vcpu *vcpu, *vnext;
-	long ret;
-	u64 now;
-	int i, need_vpa_update;
+	struct kvm_vcpu *vcpu;
+	int i;
 	int srcu_idx;
-	struct kvm_vcpu *vcpus_to_update[threads_per_core];
-
-	/* don't start if any threads have a signal pending */
-	need_vpa_update = 0;
-	list_for_each_entry(vcpu, &vc->runnable_threads, arch.run_list) {
-		if (signal_pending(vcpu->arch.run_task))
-			return;
-		if (vcpu->arch.vpa.update_pending ||
-		    vcpu->arch.slb_shadow.update_pending ||
-		    vcpu->arch.dtl.update_pending)
-			vcpus_to_update[need_vpa_update++] = vcpu;
-	}
 
 	/*
-	 * Initialize *vc, in particular vc->vcore_state, so we can
-	 * drop the vcore lock if necessary.
+	 * Remove from the list any threads that have a signal pending
+	 * or need a VPA update done
 	 */
-	vc->n_woken = 0;
-	vc->nap_count = 0;
-	vc->entry_exit_count = 0;
+	prepare_threads(vc);
+
+	/* if the runner is no longer runnable, let the caller pick a new one */
+	if (vc->runner->arch.state != KVMPPC_VCPU_RUNNABLE)
+		return;
+
+	/*
+	 * Initialize *vc.
+	 */
+	vc->entry_exit_map = 0;
 	vc->preempt_tb = TB_NIL;
-	vc->vcore_state = VCORE_STARTING;
 	vc->in_guest = 0;
 	vc->napping_threads = 0;
 	vc->conferring_threads = 0;
-
-	/*
-	 * Updating any of the vpas requires calling kvmppc_pin_guest_page,
-	 * which can't be called with any spinlocks held.
-	 */
-	if (need_vpa_update) {
-		spin_unlock(&vc->lock);
-		for (i = 0; i < need_vpa_update; ++i)
-			kvmppc_update_vpas(vcpus_to_update[i]);
-		spin_lock(&vc->lock);
-	}
 
 	/*
 	 * Make sure we are running on primary threads, and that secondary
@@ -1755,8 +1982,11 @@ static void kvmppc_run_core(struct kvmppc_vcore *vc)
 	 */
 	if ((threads_per_core > 1) &&
 	    ((vc->num_threads > threads_per_subcore) || !on_primary_thread())) {
-		list_for_each_entry(vcpu, &vc->runnable_threads, arch.run_list)
+		list_for_each_entry(vcpu, &vc->runnable_threads, arch.run_list) {
 			vcpu->arch.ret = -EBUSY;
+			kvmppc_remove_runnable(vc, vcpu);
+			wake_up(&vcpu->arch.cpu_run);
+		}
 		goto out;
 	}
 
@@ -1797,8 +2027,7 @@ static void kvmppc_run_core(struct kvmppc_vcore *vc)
 	list_for_each_entry(vcpu, &vc->runnable_threads, arch.run_list)
 		vcpu->cpu = -1;
 	/* wait for secondary threads to finish writing their state to memory */
-	if (vc->nap_count < vc->n_woken)
-		kvmppc_wait_for_nap(vc);
+	kvmppc_wait_for_nap();
 	for (i = 0; i < threads_per_subcore; ++i)
 		kvmppc_release_hwthread(vc->pcpu + i);
 	/* prevent other vcpu threads from doing kvmppc_start_thread() now */
@@ -1812,44 +2041,12 @@ static void kvmppc_run_core(struct kvmppc_vcore *vc)
 	kvm_guest_exit();
 
 	preempt_enable();
-	cond_resched();
 
 	spin_lock(&vc->lock);
-	now = get_tb();
-	list_for_each_entry(vcpu, &vc->runnable_threads, arch.run_list) {
-		/* cancel pending dec exception if dec is positive */
-		if (now < vcpu->arch.dec_expires &&
-		    kvmppc_core_pending_dec(vcpu))
-			kvmppc_core_dequeue_dec(vcpu);
-
-		trace_kvm_guest_exit(vcpu);
-
-		ret = RESUME_GUEST;
-		if (vcpu->arch.trap)
-			ret = kvmppc_handle_exit_hv(vcpu->arch.kvm_run, vcpu,
-						    vcpu->arch.run_task);
-
-		vcpu->arch.ret = ret;
-		vcpu->arch.trap = 0;
-
-		if (vcpu->arch.ceded) {
-			if (!is_kvmppc_resume_guest(ret))
-				kvmppc_end_cede(vcpu);
-			else
-				kvmppc_set_timer(vcpu);
-		}
-	}
+	post_guest_process(vc);
 
  out:
 	vc->vcore_state = VCORE_INACTIVE;
-	list_for_each_entry_safe(vcpu, vnext, &vc->runnable_threads,
-				 arch.run_list) {
-		if (!is_kvmppc_resume_guest(vcpu->arch.ret)) {
-			kvmppc_remove_runnable(vc, vcpu);
-			wake_up(&vcpu->arch.cpu_run);
-		}
-	}
-
 	trace_kvmppc_run_core(vc, 1);
 }
 
@@ -1939,8 +2136,7 @@ static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	 * this thread straight away and have it join in.
 	 */
 	if (!signal_pending(current)) {
-		if (vc->vcore_state == VCORE_RUNNING &&
-		    VCORE_EXIT_COUNT(vc) == 0) {
+		if (vc->vcore_state == VCORE_RUNNING && !VCORE_IS_EXITING(vc)) {
 			kvmppc_create_dtl_entry(vcpu, vc);
 			kvmppc_start_thread(vcpu);
 			trace_kvm_guest_enter(vcpu);
@@ -1971,7 +2167,6 @@ static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 		}
 		if (!vc->n_runnable || vcpu->arch.state != KVMPPC_VCPU_RUNNABLE)
 			break;
-		vc->runner = vcpu;
 		n_ceded = 0;
 		list_for_each_entry(v, &vc->runnable_threads, arch.run_list) {
 			if (!v->arch.pending_exceptions)
@@ -1979,10 +2174,17 @@ static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 			else
 				v->arch.ceded = 0;
 		}
-		if (n_ceded == vc->n_runnable)
+		vc->runner = vcpu;
+		if (n_ceded == vc->n_runnable) {
 			kvmppc_vcore_blocked(vc);
-		else
+		} else if (should_resched()) {
+			vc->vcore_state = VCORE_PREEMPT;
+			/* Let something else run */
+			cond_resched_lock(&vc->lock);
+			vc->vcore_state = VCORE_INACTIVE;
+		} else {
 			kvmppc_run_core(vc);
+		}
 		vc->runner = NULL;
 	}
 
@@ -2032,11 +2234,11 @@ static int kvmppc_vcpu_run_hv(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	}
 
 	atomic_inc(&vcpu->kvm->arch.vcpus_running);
-	/* Order vcpus_running vs. rma_setup_done, see kvmppc_alloc_reset_hpt */
+	/* Order vcpus_running vs. hpte_setup_done, see kvmppc_alloc_reset_hpt */
 	smp_mb();
 
 	/* On the first time here, set up HTAB and VRMA */
-	if (!vcpu->kvm->arch.rma_setup_done) {
+	if (!vcpu->kvm->arch.hpte_setup_done) {
 		r = kvmppc_hv_setup_htab_rma(vcpu);
 		if (r)
 			goto out;
@@ -2238,7 +2440,7 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
 	int srcu_idx;
 
 	mutex_lock(&kvm->lock);
-	if (kvm->arch.rma_setup_done)
+	if (kvm->arch.hpte_setup_done)
 		goto out;	/* another vcpu beat us to it */
 
 	/* Allocate hashed page table (if not done already) and reset it */
@@ -2289,9 +2491,9 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
 
 	kvmppc_update_lpcr(kvm, lpcr, LPCR_VRMASD);
 
-	/* Order updates to kvm->arch.lpcr etc. vs. rma_setup_done */
+	/* Order updates to kvm->arch.lpcr etc. vs. hpte_setup_done */
 	smp_wmb();
-	kvm->arch.rma_setup_done = 1;
+	kvm->arch.hpte_setup_done = 1;
 	err = 0;
  out_srcu:
 	srcu_read_unlock(&kvm->srcu, srcu_idx);
@@ -2307,6 +2509,7 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
 static int kvmppc_core_init_vm_hv(struct kvm *kvm)
 {
 	unsigned long lpcr, lpid;
+	char buf[32];
 
 	/* Allocate the guest's logical partition ID */
 
@@ -2347,6 +2550,14 @@ static int kvmppc_core_init_vm_hv(struct kvm *kvm)
 	 */
 	kvm_hv_vm_activated();
 
+	/*
+	 * Create a debugfs directory for the VM
+	 */
+	snprintf(buf, sizeof(buf), "vm%d", current->pid);
+	kvm->arch.debugfs_dir = debugfs_create_dir(buf, kvm_debugfs_dir);
+	if (!IS_ERR_OR_NULL(kvm->arch.debugfs_dir))
+		kvmppc_mmu_debugfs_init(kvm);
+
 	return 0;
 }
 
@@ -2367,6 +2578,8 @@ static void kvmppc_free_vcores(struct kvm *kvm)
 
 static void kvmppc_core_destroy_vm_hv(struct kvm *kvm)
 {
+	debugfs_remove_recursive(kvm->arch.debugfs_dir);
+
 	kvm_hv_vm_deactivated();
 
 	kvmppc_free_vcores(kvm);

@@ -216,75 +216,6 @@ static ssize_t flash_fault_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(flash_fault);
 
-static ssize_t available_sync_leds_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct led_classdev *led_cdev = dev_get_drvdata(dev);
-	struct led_classdev_flash *fled_cdev = lcdev_to_flcdev(led_cdev);
-	char *pbuf = buf;
-	int i, buf_len;
-
-	buf_len = sprintf(pbuf, "[0: none] ");
-	pbuf += buf_len;
-
-	for (i = 0; i < fled_cdev->num_sync_leds; ++i) {
-		buf_len = sprintf(pbuf, "[%d: %s] ", i + 1,
-				  fled_cdev->sync_leds[i]->led_cdev.name);
-		pbuf += buf_len;
-	}
-
-	return sprintf(buf, "%s\n", buf);
-}
-static DEVICE_ATTR_RO(available_sync_leds);
-
-static ssize_t flash_sync_strobe_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t size)
-{
-	struct led_classdev *led_cdev = dev_get_drvdata(dev);
-	struct led_classdev_flash *fled_cdev = lcdev_to_flcdev(led_cdev);
-	unsigned long led_id;
-	ssize_t ret;
-
-	mutex_lock(&led_cdev->led_access);
-
-	if (led_sysfs_is_disabled(led_cdev)) {
-		ret = -EBUSY;
-		goto unlock;
-	}
-
-	ret = kstrtoul(buf, 10, &led_id);
-	if (ret)
-		goto unlock;
-
-	if (led_id > fled_cdev->num_sync_leds) {
-		ret = -ERANGE;
-		goto unlock;
-	}
-
-	fled_cdev->sync_led_id = led_id;
-
-	ret = size;
-unlock:
-	mutex_unlock(&led_cdev->led_access);
-	return ret;
-}
-
-static ssize_t flash_sync_strobe_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct led_classdev *led_cdev = dev_get_drvdata(dev);
-	struct led_classdev_flash *fled_cdev = lcdev_to_flcdev(led_cdev);
-	int sled_id = fled_cdev->sync_led_id;
-	char *sync_led_name = "none";
-
-	if (fled_cdev->sync_led_id > 0)
-		sync_led_name = (char *)
-			fled_cdev->sync_leds[sled_id - 1]->led_cdev.name;
-
-	return sprintf(buf, "[%d: %s]\n", sled_id, sync_led_name);
-}
-static DEVICE_ATTR_RW(flash_sync_strobe);
-
 static struct attribute *led_flash_strobe_attrs[] = {
 	&dev_attr_flash_strobe.attr,
 	NULL,
@@ -307,12 +238,6 @@ static struct attribute *led_flash_fault_attrs[] = {
 	NULL,
 };
 
-static struct attribute *led_flash_sync_strobe_attrs[] = {
-	&dev_attr_available_sync_leds.attr,
-	&dev_attr_flash_sync_strobe.attr,
-	NULL,
-};
-
 static const struct attribute_group led_flash_strobe_group = {
 	.attrs = led_flash_strobe_attrs,
 };
@@ -327,10 +252,6 @@ static const struct attribute_group led_flash_brightness_group = {
 
 static const struct attribute_group led_flash_fault_group = {
 	.attrs = led_flash_fault_attrs,
-};
-
-static const struct attribute_group led_flash_sync_strobe_group = {
-	.attrs = led_flash_sync_strobe_attrs,
 };
 
 static void led_flash_resume(struct led_classdev *led_cdev)
@@ -360,9 +281,6 @@ static void led_flash_init_sysfs_groups(struct led_classdev_flash *fled_cdev)
 
 	if (ops->fault_get)
 		flash_groups[num_sysfs_groups++] = &led_flash_fault_group;
-
-	if (led_cdev->flags & LED_DEV_CAP_SYNC_STROBE)
-		flash_groups[num_sysfs_groups++] = &led_flash_sync_strobe_group;
 
 	led_cdev->groups = flash_groups;
 }

@@ -36,13 +36,13 @@
 
 struct drm_i915_file_private;
 
-typedef uint32_t gen6_gtt_pte_t;
-typedef uint64_t gen8_gtt_pte_t;
-typedef gen8_gtt_pte_t gen8_ppgtt_pde_t;
+typedef uint32_t gen6_pte_t;
+typedef uint64_t gen8_pte_t;
+typedef uint64_t gen8_pde_t;
 
 #define gtt_total_entries(gtt) ((gtt).base.total >> PAGE_SHIFT)
 
-#define I915_PPGTT_PT_ENTRIES		(PAGE_SIZE / sizeof(gen6_gtt_pte_t))
+
 /* gen6-hsw has bit 11-4 for physical addr bit 39-32 */
 #define GEN6_GTT_ADDR_ENCODE(addr)	((addr) | (((addr) >> 28) & 0xff0))
 #define GEN6_PTE_ADDR_ENCODE(addr)	GEN6_GTT_ADDR_ENCODE(addr)
@@ -51,9 +51,16 @@ typedef gen8_gtt_pte_t gen8_ppgtt_pde_t;
 #define GEN6_PTE_UNCACHED		(1 << 1)
 #define GEN6_PTE_VALID			(1 << 0)
 
-#define GEN6_PPGTT_PD_ENTRIES		512
-#define GEN6_PD_SIZE			(GEN6_PPGTT_PD_ENTRIES * PAGE_SIZE)
+#define I915_PTES(pte_len)		(PAGE_SIZE / (pte_len))
+#define I915_PTE_MASK(pte_len)		(I915_PTES(pte_len) - 1)
+#define I915_PDES			512
+#define I915_PDE_MASK			(I915_PDES - 1)
+#define NUM_PTE(pde_shift)     (1 << (pde_shift - PAGE_SHIFT))
+
+#define GEN6_PTES			I915_PTES(sizeof(gen6_pte_t))
+#define GEN6_PD_SIZE		        (I915_PDES * PAGE_SIZE)
 #define GEN6_PD_ALIGN			(PAGE_SIZE * 16)
+#define GEN6_PDE_SHIFT			22
 #define GEN6_PDE_VALID			(1 << 0)
 
 #define GEN7_PTE_CACHE_L3_LLC		(3 << 1)
@@ -88,9 +95,8 @@ typedef gen8_gtt_pte_t gen8_ppgtt_pde_t;
 #define GEN8_PDE_MASK			0x1ff
 #define GEN8_PTE_SHIFT			12
 #define GEN8_PTE_MASK			0x1ff
-#define GEN8_LEGACY_PDPS		4
-#define GEN8_PTES_PER_PAGE		(PAGE_SIZE / sizeof(gen8_gtt_pte_t))
-#define GEN8_PDES_PER_PAGE		(PAGE_SIZE / sizeof(gen8_ppgtt_pde_t))
+#define GEN8_LEGACY_PDPES		4
+#define GEN8_PTES			I915_PTES(sizeof(gen8_pte_t))
 
 #define PPAT_UNCACHED_INDEX		(_PAGE_PWT | _PAGE_PCD)
 #define PPAT_CACHED_PDE_INDEX		0 /* WB LLC */
@@ -111,15 +117,28 @@ typedef gen8_gtt_pte_t gen8_ppgtt_pde_t;
 
 enum i915_ggtt_view_type {
 	I915_GGTT_VIEW_NORMAL = 0,
+	I915_GGTT_VIEW_ROTATED
+};
+
+struct intel_rotation_info {
+	unsigned int height;
+	unsigned int pitch;
+	uint32_t pixel_format;
+	uint64_t fb_modifier;
 };
 
 struct i915_ggtt_view {
 	enum i915_ggtt_view_type type;
 
 	struct sg_table *pages;
+
+	union {
+		struct intel_rotation_info rotation_info;
+	};
 };
 
 extern const struct i915_ggtt_view i915_ggtt_view_normal;
+extern const struct i915_ggtt_view i915_ggtt_view_rotated;
 
 enum i915_cache_level;
 
@@ -187,6 +206,28 @@ struct i915_vma {
 			 u32 flags);
 };
 
+struct i915_page_table_entry {
+	struct page *page;
+	dma_addr_t daddr;
+
+	unsigned long *used_ptes;
+};
+
+struct i915_page_directory_entry {
+	struct page *page; /* NULL for GEN6-GEN7 */
+	union {
+		uint32_t pd_offset;
+		dma_addr_t daddr;
+	};
+
+	struct i915_page_table_entry *page_table[I915_PDES]; /* PDEs */
+};
+
+struct i915_page_directory_pointer_entry {
+	/* struct page *page; */
+	struct i915_page_directory_entry *page_directory[GEN8_LEGACY_PDPES];
+};
+
 struct i915_address_space {
 	struct drm_mm mm;
 	struct drm_device *dev;
@@ -223,9 +264,12 @@ struct i915_address_space {
 	struct list_head inactive_list;
 
 	/* FIXME: Need a more generic return type */
-	gen6_gtt_pte_t (*pte_encode)(dma_addr_t addr,
-				     enum i915_cache_level level,
-				     bool valid, u32 flags); /* Create a valid PTE */
+	gen6_pte_t (*pte_encode)(dma_addr_t addr,
+				 enum i915_cache_level level,
+				 bool valid, u32 flags); /* Create a valid PTE */
+	int (*allocate_va_range)(struct i915_address_space *vm,
+				 uint64_t start,
+				 uint64_t length);
 	void (*clear_range)(struct i915_address_space *vm,
 			    uint64_t start,
 			    uint64_t length,
@@ -269,29 +313,89 @@ struct i915_hw_ppgtt {
 	struct i915_address_space base;
 	struct kref ref;
 	struct drm_mm_node node;
+	unsigned long pd_dirty_rings;
 	unsigned num_pd_entries;
 	unsigned num_pd_pages; /* gen8+ */
 	union {
-		struct page **pt_pages;
-		struct page **gen8_pt_pages[GEN8_LEGACY_PDPS];
-	};
-	struct page *pd_pages;
-	union {
-		uint32_t pd_offset;
-		dma_addr_t pd_dma_addr[GEN8_LEGACY_PDPS];
-	};
-	union {
-		dma_addr_t *pt_dma_addr;
-		dma_addr_t *gen8_pt_dma_addr[4];
+		struct i915_page_directory_pointer_entry pdp;
+		struct i915_page_directory_entry pd;
 	};
 
+	struct i915_page_table_entry *scratch_pt;
+
 	struct drm_i915_file_private *file_priv;
+
+	gen6_pte_t __iomem *pd_addr;
 
 	int (*enable)(struct i915_hw_ppgtt *ppgtt);
 	int (*switch_mm)(struct i915_hw_ppgtt *ppgtt,
 			 struct intel_engine_cs *ring);
 	void (*debug_dump)(struct i915_hw_ppgtt *ppgtt, struct seq_file *m);
 };
+
+/* For each pde iterates over every pde between from start until start + length.
+ * If start, and start+length are not perfectly divisible, the macro will round
+ * down, and up as needed. The macro modifies pde, start, and length. Dev is
+ * only used to differentiate shift values. Temp is temp.  On gen6/7, start = 0,
+ * and length = 2G effectively iterates over every PDE in the system.
+ *
+ * XXX: temp is not actually needed, but it saves doing the ALIGN operation.
+ */
+#define gen6_for_each_pde(pt, pd, start, length, temp, iter) \
+	for (iter = gen6_pde_index(start); \
+	     pt = (pd)->page_table[iter], length > 0 && iter < I915_PDES; \
+	     iter++, \
+	     temp = ALIGN(start+1, 1 << GEN6_PDE_SHIFT) - start, \
+	     temp = min_t(unsigned, temp, length), \
+	     start += temp, length -= temp)
+
+static inline uint32_t i915_pte_index(uint64_t address, uint32_t pde_shift)
+{
+	const uint32_t mask = NUM_PTE(pde_shift) - 1;
+
+	return (address >> PAGE_SHIFT) & mask;
+}
+
+/* Helper to counts the number of PTEs within the given length. This count
+ * does not cross a page table boundary, so the max value would be
+ * GEN6_PTES for GEN6, and GEN8_PTES for GEN8.
+*/
+static inline uint32_t i915_pte_count(uint64_t addr, size_t length,
+				      uint32_t pde_shift)
+{
+	const uint64_t mask = ~((1 << pde_shift) - 1);
+	uint64_t end;
+
+	WARN_ON(length == 0);
+	WARN_ON(offset_in_page(addr|length));
+
+	end = addr + length;
+
+	if ((addr & mask) != (end & mask))
+		return NUM_PTE(pde_shift) - i915_pte_index(addr, pde_shift);
+
+	return i915_pte_index(end, pde_shift) - i915_pte_index(addr, pde_shift);
+}
+
+static inline uint32_t i915_pde_index(uint64_t addr, uint32_t shift)
+{
+	return (addr >> shift) & I915_PDE_MASK;
+}
+
+static inline uint32_t gen6_pte_index(uint32_t addr)
+{
+	return i915_pte_index(addr, GEN6_PDE_SHIFT);
+}
+
+static inline size_t gen6_pte_count(uint32_t addr, uint32_t length)
+{
+	return i915_pte_count(addr, length, GEN6_PDE_SHIFT);
+}
+
+static inline uint32_t gen6_pde_index(uint32_t addr)
+{
+	return i915_pde_index(addr, GEN6_PDE_SHIFT);
+}
 
 int i915_gem_gtt_init(struct drm_device *dev);
 void i915_gem_init_global_gtt(struct drm_device *dev);
@@ -320,5 +424,15 @@ void i915_gem_restore_gtt_mappings(struct drm_device *dev);
 
 int __must_check i915_gem_gtt_prepare_object(struct drm_i915_gem_object *obj);
 void i915_gem_gtt_finish_object(struct drm_i915_gem_object *obj);
+
+static inline bool
+i915_ggtt_view_equal(const struct i915_ggtt_view *a,
+                     const struct i915_ggtt_view *b)
+{
+	if (WARN_ON(!a || !b))
+		return false;
+
+	return a->type == b->type;
+}
 
 #endif

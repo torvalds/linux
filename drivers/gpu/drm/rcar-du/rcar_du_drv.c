@@ -19,6 +19,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/slab.h>
+#include <linux/wait.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
@@ -163,6 +164,8 @@ static int rcar_du_load(struct drm_device *dev, unsigned long flags)
 		return -ENOMEM;
 	}
 
+	init_waitqueue_head(&rcdu->commit.wait);
+
 	rcdu->dev = &pdev->dev;
 	rcdu->info = np ? of_match_device(rcar_du_of_table, rcdu->dev)->data
 		   : (void *)platform_get_device_id(pdev)->driver_data;
@@ -175,17 +178,19 @@ static int rcar_du_load(struct drm_device *dev, unsigned long flags)
 	if (IS_ERR(rcdu->mmio))
 		return PTR_ERR(rcdu->mmio);
 
+	/* Initialize vertical blanking interrupts handling. Start with vblank
+	 * disabled for all CRTCs.
+	 */
+	ret = drm_vblank_init(dev, (1 << rcdu->info->num_crtcs) - 1);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "failed to initialize vblank\n");
+		goto done;
+	}
+
 	/* DRM/KMS objects */
 	ret = rcar_du_modeset_init(rcdu);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to initialize DRM/KMS\n");
-		goto done;
-	}
-
-	/* vblank handling */
-	ret = drm_vblank_init(dev, (1 << rcdu->num_crtcs) - 1);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to initialize vblank\n");
 		goto done;
 	}
 
@@ -247,7 +252,8 @@ static const struct file_operations rcar_du_fops = {
 };
 
 static struct drm_driver rcar_du_driver = {
-	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME,
+	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME
+				| DRIVER_ATOMIC,
 	.load			= rcar_du_load,
 	.unload			= rcar_du_unload,
 	.preclose		= rcar_du_preclose,

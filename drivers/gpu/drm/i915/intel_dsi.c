@@ -854,7 +854,7 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder)
 
 
 		/* recovery disables */
-		I915_WRITE(MIPI_EOT_DISABLE(port), val);
+		I915_WRITE(MIPI_EOT_DISABLE(port), tmp);
 
 		/* in terms of low power clock */
 		I915_WRITE(MIPI_INIT_COUNT(port), intel_dsi->init_count);
@@ -975,6 +975,7 @@ static const struct drm_connector_funcs intel_dsi_connector_funcs = {
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.atomic_get_property = intel_connector_atomic_get_property,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
 };
 
 void intel_dsi_init(struct drm_device *dev)
@@ -1006,7 +1007,7 @@ void intel_dsi_init(struct drm_device *dev)
 	if (!intel_dsi)
 		return;
 
-	intel_connector = kzalloc(sizeof(*intel_connector), GFP_KERNEL);
+	intel_connector = intel_connector_alloc();
 	if (!intel_connector) {
 		kfree(intel_dsi);
 		return;

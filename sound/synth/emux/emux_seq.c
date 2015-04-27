@@ -124,12 +124,10 @@ snd_emux_detach_seq(struct snd_emux *emu)
 	if (emu->voices)
 		snd_emux_terminate_all(emu);
 		
-	mutex_lock(&emu->register_mutex);
 	if (emu->client >= 0) {
 		snd_seq_delete_kernel_client(emu->client);
 		emu->client = -1;
 	}
-	mutex_unlock(&emu->register_mutex);
 }
 
 

@@ -218,7 +218,7 @@
 		.clk_id = _clk_id,					\
 		.p.parent_name = _parent_name,				\
 		.periph = TEGRA_CLK_PERIPH(0, 0, 0, 0, 0, 0, 0,		\
-				_clk_num, _gate_flags, 0, NULL),	\
+				_clk_num, _gate_flags, NULL, NULL),	\
 		.flags = _flags						\
 	}
 

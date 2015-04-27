@@ -25,16 +25,20 @@
 
 #define NFS4_enc_allocate_sz		(compound_encode_hdr_maxsz + \
 					 encode_putfh_maxsz + \
-					 encode_allocate_maxsz)
+					 encode_allocate_maxsz + \
+					 encode_getattr_maxsz)
 #define NFS4_dec_allocate_sz		(compound_decode_hdr_maxsz + \
 					 decode_putfh_maxsz + \
-					 decode_allocate_maxsz)
+					 decode_allocate_maxsz + \
+					 decode_getattr_maxsz)
 #define NFS4_enc_deallocate_sz		(compound_encode_hdr_maxsz + \
 					 encode_putfh_maxsz + \
-					 encode_deallocate_maxsz)
+					 encode_deallocate_maxsz + \
+					 encode_getattr_maxsz)
 #define NFS4_dec_deallocate_sz		(compound_decode_hdr_maxsz + \
 					 decode_putfh_maxsz + \
-					 decode_deallocate_maxsz)
+					 decode_deallocate_maxsz + \
+					 decode_getattr_maxsz)
 #define NFS4_enc_seek_sz		(compound_encode_hdr_maxsz + \
 					 encode_putfh_maxsz + \
 					 encode_seek_maxsz)
@@ -92,6 +96,7 @@ static void nfs4_xdr_enc_allocate(struct rpc_rqst *req,
 	encode_sequence(xdr, &args->seq_args, &hdr);
 	encode_putfh(xdr, args->falloc_fh, &hdr);
 	encode_allocate(xdr, args, &hdr);
+	encode_getfattr(xdr, args->falloc_bitmask, &hdr);
 	encode_nops(&hdr);
 }
 
@@ -110,6 +115,7 @@ static void nfs4_xdr_enc_deallocate(struct rpc_rqst *req,
 	encode_sequence(xdr, &args->seq_args, &hdr);
 	encode_putfh(xdr, args->falloc_fh, &hdr);
 	encode_deallocate(xdr, args, &hdr);
+	encode_getfattr(xdr, args->falloc_bitmask, &hdr);
 	encode_nops(&hdr);
 }
 
@@ -183,6 +189,9 @@ static int nfs4_xdr_dec_allocate(struct rpc_rqst *rqstp,
 	if (status)
 		goto out;
 	status = decode_allocate(xdr, res);
+	if (status)
+		goto out;
+	decode_getfattr(xdr, res->falloc_fattr, res->falloc_server);
 out:
 	return status;
 }
@@ -207,6 +216,9 @@ static int nfs4_xdr_dec_deallocate(struct rpc_rqst *rqstp,
 	if (status)
 		goto out;
 	status = decode_deallocate(xdr, res);
+	if (status)
+		goto out;
+	decode_getfattr(xdr, res->falloc_fattr, res->falloc_server);
 out:
 	return status;
 }

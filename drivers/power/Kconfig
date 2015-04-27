@@ -192,6 +192,27 @@ config BATTERY_DA9052
 	  Say Y here to enable support for batteries charger integrated into
 	  DA9052 PMIC.
 
+config CHARGER_DA9150
+	tristate "Dialog Semiconductor DA9150 Charger support"
+	depends on MFD_DA9150
+	depends on DA9150_GPADC
+	depends on IIO
+	help
+	  Say Y here to enable support for charger unit of the DA9150
+	  Integrated Charger & Fuel-Gauge IC.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called da9150-charger.
+
+config AXP288_FUEL_GAUGE
+	tristate "X-Powers AXP288 Fuel Gauge"
+	depends on MFD_AXP20X && IIO
+	help
+	  Say yes here to have support for X-Power power management IC (PMIC)
+	  Fuel Gauge. The device provides battery statistics and status
+	  monitoring as well as alerts for battery over/under voltage and
+	  over/under temperature.
+
 config BATTERY_MAX17040
 	tristate "Maxim MAX17040 Fuel Gauge"
 	depends on I2C

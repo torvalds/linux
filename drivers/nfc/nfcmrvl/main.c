@@ -111,7 +111,7 @@ struct nfcmrvl_private *nfcmrvl_nci_register_dev(void *drv_data,
 
 	priv->ndev = nci_allocate_device(&nfcmrvl_nci_ops, protocols, 0, 0);
 	if (!priv->ndev) {
-		nfc_err(dev, "nci_allocate_device failed");
+		nfc_err(dev, "nci_allocate_device failed\n");
 		rc = -ENOMEM;
 		goto error;
 	}
@@ -120,7 +120,7 @@ struct nfcmrvl_private *nfcmrvl_nci_register_dev(void *drv_data,
 
 	rc = nci_register_device(priv->ndev);
 	if (rc) {
-		nfc_err(dev, "nci_register_device failed %d", rc);
+		nfc_err(dev, "nci_register_device failed %d\n", rc);
 		nci_free_device(priv->ndev);
 		goto error;
 	}

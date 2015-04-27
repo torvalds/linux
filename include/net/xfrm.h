@@ -126,9 +126,7 @@ struct xfrm_state_walk {
 
 /* Full description of state of transformer. */
 struct xfrm_state {
-#ifdef CONFIG_NET_NS
-	struct net		*xs_net;
-#endif
+	possible_net_t		xs_net;
 	union {
 		struct hlist_node	gclist;
 		struct hlist_node	bydst;
@@ -334,7 +332,7 @@ struct xfrm_state_afinfo {
 	int			(*tmpl_sort)(struct xfrm_tmpl **dst, struct xfrm_tmpl **src, int n);
 	int			(*state_sort)(struct xfrm_state **dst, struct xfrm_state **src, int n);
 	int			(*output)(struct sock *sk, struct sk_buff *skb);
-	int			(*output_finish)(struct sk_buff *skb);
+	int			(*output_finish)(struct sock *sk, struct sk_buff *skb);
 	int			(*extract_input)(struct xfrm_state *x,
 						 struct sk_buff *skb);
 	int			(*extract_output)(struct xfrm_state *x,
@@ -522,9 +520,7 @@ struct xfrm_policy_queue {
 };
 
 struct xfrm_policy {
-#ifdef CONFIG_NET_NS
-	struct net		*xp_net;
-#endif
+	possible_net_t		xp_net;
 	struct hlist_node	bydst;
 	struct hlist_node	byidx;
 
@@ -1029,7 +1025,7 @@ xfrm_addr_any(const xfrm_address_t *addr, unsigned short family)
 	case AF_INET:
 		return addr->a4 == 0;
 	case AF_INET6:
-		return ipv6_addr_any((struct in6_addr *)&addr->a6);
+		return ipv6_addr_any(&addr->in6);
 	}
 	return 0;
 }
@@ -1242,8 +1238,8 @@ void xfrm_flowi_addr_get(const struct flowi *fl,
 		memcpy(&daddr->a4, &fl->u.ip4.daddr, sizeof(daddr->a4));
 		break;
 	case AF_INET6:
-		*(struct in6_addr *)saddr->a6 = fl->u.ip6.saddr;
-		*(struct in6_addr *)daddr->a6 = fl->u.ip6.daddr;
+		saddr->in6 = fl->u.ip6.saddr;
+		daddr->in6 = fl->u.ip6.daddr;
 		break;
 	}
 }
@@ -1507,7 +1503,7 @@ int xfrm_prepare_input(struct xfrm_state *x, struct sk_buff *skb);
 int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type);
 int xfrm_input_resume(struct sk_buff *skb, int nexthdr);
 int xfrm_output_resume(struct sk_buff *skb, int err);
-int xfrm_output(struct sk_buff *skb);
+int xfrm_output(struct sock *sk, struct sk_buff *skb);
 int xfrm_inner_extract_output(struct xfrm_state *x, struct sk_buff *skb);
 void xfrm_local_error(struct sk_buff *skb, int mtu);
 int xfrm4_extract_header(struct sk_buff *skb);
@@ -1528,7 +1524,7 @@ static inline int xfrm4_rcv_spi(struct sk_buff *skb, int nexthdr, __be32 spi)
 int xfrm4_extract_output(struct xfrm_state *x, struct sk_buff *skb);
 int xfrm4_prepare_output(struct xfrm_state *x, struct sk_buff *skb);
 int xfrm4_output(struct sock *sk, struct sk_buff *skb);
-int xfrm4_output_finish(struct sk_buff *skb);
+int xfrm4_output_finish(struct sock *sk, struct sk_buff *skb);
 int xfrm4_rcv_cb(struct sk_buff *skb, u8 protocol, int err);
 int xfrm4_protocol_register(struct xfrm4_protocol *handler, unsigned char protocol);
 int xfrm4_protocol_deregister(struct xfrm4_protocol *handler, unsigned char protocol);
@@ -1553,7 +1549,7 @@ __be32 xfrm6_tunnel_spi_lookup(struct net *net, const xfrm_address_t *saddr);
 int xfrm6_extract_output(struct xfrm_state *x, struct sk_buff *skb);
 int xfrm6_prepare_output(struct xfrm_state *x, struct sk_buff *skb);
 int xfrm6_output(struct sock *sk, struct sk_buff *skb);
-int xfrm6_output_finish(struct sk_buff *skb);
+int xfrm6_output_finish(struct sock *sk, struct sk_buff *skb);
 int xfrm6_find_1stfragopt(struct xfrm_state *x, struct sk_buff *skb,
 			  u8 **prevhdr);
 

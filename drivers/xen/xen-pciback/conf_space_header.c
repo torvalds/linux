@@ -88,9 +88,15 @@ static int command_write(struct pci_dev *dev, int offset, u16 value, void *data)
 			printk(KERN_DEBUG DRV_NAME ": %s: set bus master\n",
 			       pci_name(dev));
 		pci_set_master(dev);
+	} else if (dev->is_busmaster && !is_master_cmd(value)) {
+		if (unlikely(verbose_request))
+			printk(KERN_DEBUG DRV_NAME ": %s: clear bus master\n",
+			       pci_name(dev));
+		pci_clear_master(dev);
 	}
 
-	if (value & PCI_COMMAND_INVALIDATE) {
+	if (!(cmd->val & PCI_COMMAND_INVALIDATE) &&
+	    (value & PCI_COMMAND_INVALIDATE)) {
 		if (unlikely(verbose_request))
 			printk(KERN_DEBUG
 			       DRV_NAME ": %s: enable memory-write-invalidate\n",
@@ -101,6 +107,13 @@ static int command_write(struct pci_dev *dev, int offset, u16 value, void *data)
 				pci_name(dev), err);
 			value &= ~PCI_COMMAND_INVALIDATE;
 		}
+	} else if ((cmd->val & PCI_COMMAND_INVALIDATE) &&
+		   !(value & PCI_COMMAND_INVALIDATE)) {
+		if (unlikely(verbose_request))
+			printk(KERN_DEBUG
+			       DRV_NAME ": %s: disable memory-write-invalidate\n",
+			       pci_name(dev));
+		pci_clear_mwi(dev);
 	}
 
 	cmd->val = value;

@@ -15,12 +15,11 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/device.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/log2.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/of_graph.h>
 #include <linux/pm.h>
 #include <linux/regulator/consumer.h>
@@ -28,6 +27,7 @@
 #include <linux/videodev2.h>
 
 #include <media/mt9p031.h>
+#include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-subdev.h>
@@ -135,7 +135,7 @@ struct mt9p031 {
 	struct aptina_pll pll;
 	unsigned int clk_div;
 	bool use_pll;
-	int reset;
+	struct gpio_desc *reset;
 
 	struct v4l2_ctrl_handler ctrls;
 	struct v4l2_ctrl *blc_auto;
@@ -251,7 +251,7 @@ static int mt9p031_clk_setup(struct mt9p031 *mt9p031)
 		div = DIV_ROUND_UP(pdata->ext_freq, pdata->target_freq);
 		div = roundup_pow_of_two(div) / 2;
 
-		mt9p031->clk_div = max_t(unsigned int, div, 64);
+		mt9p031->clk_div = min_t(unsigned int, div, 64);
 		mt9p031->use_pll = false;
 
 		return 0;
@@ -308,9 +308,9 @@ static int mt9p031_power_on(struct mt9p031 *mt9p031)
 {
 	int ret;
 
-	/* Ensure RESET_BAR is low */
-	if (gpio_is_valid(mt9p031->reset)) {
-		gpio_set_value(mt9p031->reset, 0);
+	/* Ensure RESET_BAR is active */
+	if (mt9p031->reset) {
+		gpiod_set_value(mt9p031->reset, 1);
 		usleep_range(1000, 2000);
 	}
 
@@ -331,8 +331,8 @@ static int mt9p031_power_on(struct mt9p031 *mt9p031)
 	}
 
 	/* Now RESET_BAR must be high */
-	if (gpio_is_valid(mt9p031->reset)) {
-		gpio_set_value(mt9p031->reset, 1);
+	if (mt9p031->reset) {
+		gpiod_set_value(mt9p031->reset, 0);
 		usleep_range(1000, 2000);
 	}
 
@@ -341,8 +341,8 @@ static int mt9p031_power_on(struct mt9p031 *mt9p031)
 
 static void mt9p031_power_off(struct mt9p031 *mt9p031)
 {
-	if (gpio_is_valid(mt9p031->reset)) {
-		gpio_set_value(mt9p031->reset, 0);
+	if (mt9p031->reset) {
+		gpiod_set_value(mt9p031->reset, 1);
 		usleep_range(1000, 2000);
 	}
 
@@ -474,7 +474,7 @@ static int mt9p031_s_stream(struct v4l2_subdev *subdev, int enable)
 }
 
 static int mt9p031_enum_mbus_code(struct v4l2_subdev *subdev,
-				  struct v4l2_subdev_fh *fh,
+				  struct v4l2_subdev_pad_config *cfg,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct mt9p031 *mt9p031 = to_mt9p031(subdev);
@@ -487,7 +487,7 @@ static int mt9p031_enum_mbus_code(struct v4l2_subdev *subdev,
 }
 
 static int mt9p031_enum_frame_size(struct v4l2_subdev *subdev,
-				   struct v4l2_subdev_fh *fh,
+				   struct v4l2_subdev_pad_config *cfg,
 				   struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct mt9p031 *mt9p031 = to_mt9p031(subdev);
@@ -505,12 +505,12 @@ static int mt9p031_enum_frame_size(struct v4l2_subdev *subdev,
 }
 
 static struct v4l2_mbus_framefmt *
-__mt9p031_get_pad_format(struct mt9p031 *mt9p031, struct v4l2_subdev_fh *fh,
+__mt9p031_get_pad_format(struct mt9p031 *mt9p031, struct v4l2_subdev_pad_config *cfg,
 			 unsigned int pad, u32 which)
 {
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_get_try_format(fh, pad);
+		return v4l2_subdev_get_try_format(&mt9p031->subdev, cfg, pad);
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		return &mt9p031->format;
 	default:
@@ -519,12 +519,12 @@ __mt9p031_get_pad_format(struct mt9p031 *mt9p031, struct v4l2_subdev_fh *fh,
 }
 
 static struct v4l2_rect *
-__mt9p031_get_pad_crop(struct mt9p031 *mt9p031, struct v4l2_subdev_fh *fh,
+__mt9p031_get_pad_crop(struct mt9p031 *mt9p031, struct v4l2_subdev_pad_config *cfg,
 		     unsigned int pad, u32 which)
 {
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_get_try_crop(fh, pad);
+		return v4l2_subdev_get_try_crop(&mt9p031->subdev, cfg, pad);
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		return &mt9p031->crop;
 	default:
@@ -533,18 +533,18 @@ __mt9p031_get_pad_crop(struct mt9p031 *mt9p031, struct v4l2_subdev_fh *fh,
 }
 
 static int mt9p031_get_format(struct v4l2_subdev *subdev,
-			      struct v4l2_subdev_fh *fh,
+			      struct v4l2_subdev_pad_config *cfg,
 			      struct v4l2_subdev_format *fmt)
 {
 	struct mt9p031 *mt9p031 = to_mt9p031(subdev);
 
-	fmt->format = *__mt9p031_get_pad_format(mt9p031, fh, fmt->pad,
+	fmt->format = *__mt9p031_get_pad_format(mt9p031, cfg, fmt->pad,
 						fmt->which);
 	return 0;
 }
 
 static int mt9p031_set_format(struct v4l2_subdev *subdev,
-			      struct v4l2_subdev_fh *fh,
+			      struct v4l2_subdev_pad_config *cfg,
 			      struct v4l2_subdev_format *format)
 {
 	struct mt9p031 *mt9p031 = to_mt9p031(subdev);
@@ -555,7 +555,7 @@ static int mt9p031_set_format(struct v4l2_subdev *subdev,
 	unsigned int hratio;
 	unsigned int vratio;
 
-	__crop = __mt9p031_get_pad_crop(mt9p031, fh, format->pad,
+	__crop = __mt9p031_get_pad_crop(mt9p031, cfg, format->pad,
 					format->which);
 
 	/* Clamp the width and height to avoid dividing by zero. */
@@ -571,7 +571,7 @@ static int mt9p031_set_format(struct v4l2_subdev *subdev,
 	hratio = DIV_ROUND_CLOSEST(__crop->width, width);
 	vratio = DIV_ROUND_CLOSEST(__crop->height, height);
 
-	__format = __mt9p031_get_pad_format(mt9p031, fh, format->pad,
+	__format = __mt9p031_get_pad_format(mt9p031, cfg, format->pad,
 					    format->which);
 	__format->width = __crop->width / hratio;
 	__format->height = __crop->height / vratio;
@@ -582,7 +582,7 @@ static int mt9p031_set_format(struct v4l2_subdev *subdev,
 }
 
 static int mt9p031_get_selection(struct v4l2_subdev *subdev,
-				 struct v4l2_subdev_fh *fh,
+				 struct v4l2_subdev_pad_config *cfg,
 				 struct v4l2_subdev_selection *sel)
 {
 	struct mt9p031 *mt9p031 = to_mt9p031(subdev);
@@ -590,12 +590,12 @@ static int mt9p031_get_selection(struct v4l2_subdev *subdev,
 	if (sel->target != V4L2_SEL_TGT_CROP)
 		return -EINVAL;
 
-	sel->r = *__mt9p031_get_pad_crop(mt9p031, fh, sel->pad, sel->which);
+	sel->r = *__mt9p031_get_pad_crop(mt9p031, cfg, sel->pad, sel->which);
 	return 0;
 }
 
 static int mt9p031_set_selection(struct v4l2_subdev *subdev,
-				 struct v4l2_subdev_fh *fh,
+				 struct v4l2_subdev_pad_config *cfg,
 				 struct v4l2_subdev_selection *sel)
 {
 	struct mt9p031 *mt9p031 = to_mt9p031(subdev);
@@ -625,13 +625,13 @@ static int mt9p031_set_selection(struct v4l2_subdev *subdev,
 	rect.height = min_t(unsigned int, rect.height,
 			    MT9P031_PIXEL_ARRAY_HEIGHT - rect.top);
 
-	__crop = __mt9p031_get_pad_crop(mt9p031, fh, sel->pad, sel->which);
+	__crop = __mt9p031_get_pad_crop(mt9p031, cfg, sel->pad, sel->which);
 
 	if (rect.width != __crop->width || rect.height != __crop->height) {
 		/* Reset the output image size if the crop rectangle size has
 		 * been modified.
 		 */
-		__format = __mt9p031_get_pad_format(mt9p031, fh, sel->pad,
+		__format = __mt9p031_get_pad_format(mt9p031, cfg, sel->pad,
 						    sel->which);
 		__format->width = rect.width;
 		__format->height = rect.height;
@@ -946,13 +946,13 @@ static int mt9p031_open(struct v4l2_subdev *subdev, struct v4l2_subdev_fh *fh)
 	struct v4l2_mbus_framefmt *format;
 	struct v4l2_rect *crop;
 
-	crop = v4l2_subdev_get_try_crop(fh, 0);
+	crop = v4l2_subdev_get_try_crop(subdev, fh->pad, 0);
 	crop->left = MT9P031_COLUMN_START_DEF;
 	crop->top = MT9P031_ROW_START_DEF;
 	crop->width = MT9P031_WINDOW_WIDTH_DEF;
 	crop->height = MT9P031_WINDOW_HEIGHT_DEF;
 
-	format = v4l2_subdev_get_try_format(fh, 0);
+	format = v4l2_subdev_get_try_format(subdev, fh->pad, 0);
 
 	if (mt9p031->model == MT9P031_MODEL_MONOCHROME)
 		format->code = MEDIA_BUS_FMT_Y12_1X12;
@@ -1022,7 +1022,6 @@ mt9p031_get_pdata(struct i2c_client *client)
 	if (!pdata)
 		goto done;
 
-	pdata->reset = of_get_named_gpio(client->dev.of_node, "reset-gpios", 0);
 	of_property_read_u32(np, "input-clock-frequency", &pdata->ext_freq);
 	of_property_read_u32(np, "pixel-clock-frequency", &pdata->target_freq);
 
@@ -1059,7 +1058,6 @@ static int mt9p031_probe(struct i2c_client *client,
 	mt9p031->output_control	= MT9P031_OUTPUT_CONTROL_DEF;
 	mt9p031->mode2 = MT9P031_READ_MODE_2_ROW_BLC;
 	mt9p031->model = did->driver_data;
-	mt9p031->reset = -1;
 
 	mt9p031->regulators[0].supply = "vdd";
 	mt9p031->regulators[1].supply = "vdd_io";
@@ -1070,6 +1068,8 @@ static int mt9p031_probe(struct i2c_client *client,
 		dev_err(&client->dev, "Unable to get regulators\n");
 		return ret;
 	}
+
+	mutex_init(&mt9p031->power_lock);
 
 	v4l2_ctrl_handler_init(&mt9p031->ctrls, ARRAY_SIZE(mt9p031_ctrls) + 6);
 
@@ -1108,7 +1108,6 @@ static int mt9p031_probe(struct i2c_client *client,
 	mt9p031->blc_offset = v4l2_ctrl_find(&mt9p031->ctrls,
 					     V4L2_CID_BLC_DIGITAL_OFFSET);
 
-	mutex_init(&mt9p031->power_lock);
 	v4l2_i2c_subdev_init(&mt9p031->subdev, client, &mt9p031_subdev_ops);
 	mt9p031->subdev.internal_ops = &mt9p031_subdev_internal_ops;
 
@@ -1134,21 +1133,20 @@ static int mt9p031_probe(struct i2c_client *client,
 	mt9p031->format.field = V4L2_FIELD_NONE;
 	mt9p031->format.colorspace = V4L2_COLORSPACE_SRGB;
 
-	if (gpio_is_valid(pdata->reset)) {
-		ret = devm_gpio_request_one(&client->dev, pdata->reset,
-					    GPIOF_OUT_INIT_LOW, "mt9p031_rst");
-		if (ret < 0)
-			goto done;
-
-		mt9p031->reset = pdata->reset;
-	}
+	mt9p031->reset = devm_gpiod_get_optional(&client->dev, "reset",
+						 GPIOD_OUT_HIGH);
 
 	ret = mt9p031_clk_setup(mt9p031);
+	if (ret)
+		goto done;
+
+	ret = v4l2_async_register_subdev(&mt9p031->subdev);
 
 done:
 	if (ret < 0) {
 		v4l2_ctrl_handler_free(&mt9p031->ctrls);
 		media_entity_cleanup(&mt9p031->subdev.entity);
+		mutex_destroy(&mt9p031->power_lock);
 	}
 
 	return ret;
@@ -1160,8 +1158,9 @@ static int mt9p031_remove(struct i2c_client *client)
 	struct mt9p031 *mt9p031 = to_mt9p031(subdev);
 
 	v4l2_ctrl_handler_free(&mt9p031->ctrls);
-	v4l2_device_unregister_subdev(subdev);
+	v4l2_async_unregister_subdev(subdev);
 	media_entity_cleanup(&subdev->entity);
+	mutex_destroy(&mt9p031->power_lock);
 
 	return 0;
 }

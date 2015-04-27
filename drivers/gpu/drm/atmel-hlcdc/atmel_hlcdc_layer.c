@@ -298,7 +298,7 @@ void atmel_hlcdc_layer_irq(struct atmel_hlcdc_layer *layer)
 	spin_unlock_irqrestore(&layer->lock, flags);
 }
 
-int atmel_hlcdc_layer_disable(struct atmel_hlcdc_layer *layer)
+void atmel_hlcdc_layer_disable(struct atmel_hlcdc_layer *layer)
 {
 	struct atmel_hlcdc_layer_dma_channel *dma = &layer->dma;
 	struct atmel_hlcdc_layer_update *upd = &layer->update;
@@ -341,8 +341,6 @@ int atmel_hlcdc_layer_disable(struct atmel_hlcdc_layer *layer)
 	dma->status = ATMEL_HLCDC_LAYER_DISABLED;
 
 	spin_unlock_irqrestore(&layer->lock, flags);
-
-	return 0;
 }
 
 int atmel_hlcdc_layer_update_start(struct atmel_hlcdc_layer *layer)

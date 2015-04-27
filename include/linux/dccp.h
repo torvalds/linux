@@ -43,6 +43,7 @@ enum dccp_state {
 	DCCP_CLOSING	     = TCP_CLOSING,
 	DCCP_TIME_WAIT	     = TCP_TIME_WAIT,
 	DCCP_CLOSED	     = TCP_CLOSE,
+	DCCP_NEW_SYN_RECV    = TCP_NEW_SYN_RECV,
 	DCCP_PARTOPEN	     = TCP_MAX_STATES,
 	DCCP_PASSIVE_CLOSEREQ,			/* clients receiving CloseReq */
 	DCCP_MAX_STATES
@@ -57,6 +58,7 @@ enum {
 	DCCPF_CLOSING	      = TCPF_CLOSING,
 	DCCPF_TIME_WAIT	      = TCPF_TIME_WAIT,
 	DCCPF_CLOSED	      = TCPF_CLOSE,
+	DCCPF_NEW_SYN_RECV    = TCPF_NEW_SYN_RECV,
 	DCCPF_PARTOPEN	      = (1 << DCCP_PARTOPEN),
 };
 
@@ -317,6 +319,6 @@ static inline const char *dccp_role(const struct sock *sk)
 	return NULL;
 }
 
-extern void dccp_syn_ack_timeout(struct sock *sk, struct request_sock *req);
+extern void dccp_syn_ack_timeout(const struct request_sock *req);
 
 #endif /* _LINUX_DCCP_H */

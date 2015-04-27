@@ -80,9 +80,9 @@ padding bytes after the last line of an image cross a system page
 boundary. Input devices may write padding bytes, the value is
 undefined. Output devices ignore the contents of padding
 bytes.</para><para>When the image format is planar the
-<structfield>bytesperline</structfield> value applies to the largest
+<structfield>bytesperline</structfield> value applies to the first
 plane and is divided by the same factor as the
-<structfield>width</structfield> field for any smaller planes. For
+<structfield>width</structfield> field for the other planes. For
 example the Cb and Cr planes of a YUV 4:2:0 image have half as many
 padding bytes following each line as the Y plane. To avoid ambiguities
 drivers must return a <structfield>bytesperline</structfield> value
@@ -182,14 +182,14 @@ see <xref linkend="colorspaces" />.</entry>
           </entry>
         </row>
         <row>
-          <entry>__u16</entry>
+          <entry>__u32</entry>
           <entry><structfield>bytesperline</structfield></entry>
           <entry>Distance in bytes between the leftmost pixels in two adjacent
             lines. See &v4l2-pix-format;.</entry>
         </row>
         <row>
           <entry>__u16</entry>
-          <entry><structfield>reserved[7]</structfield></entry>
+          <entry><structfield>reserved[6]</structfield></entry>
           <entry>Reserved for future extensions. Should be zeroed by the
            application.</entry>
         </row>
@@ -483,8 +483,8 @@ is the Y'CbCr encoding identifier (&v4l2-ycbcr-encoding;) to specify non-standar
 Y'CbCr encodings and the third is the quantization identifier (&v4l2-quantization;)
 to specify non-standard quantization methods. Most of the time only the colorspace
 field of &v4l2-pix-format; or &v4l2-pix-format-mplane; needs to be filled in. Note
-that the default R'G'B' quantization is always full range for all colorspaces,
-so this won't be mentioned explicitly for each colorspace description.</para>
+that the default R'G'B' quantization is full range for all colorspaces except for
+BT.2020 which uses limited range R'G'B' quantization.</para>
 
     <table pgwide="1" frame="none" id="v4l2-colorspace">
       <title>V4L2 Colorspaces</title>
@@ -598,7 +598,8 @@ so this won't be mentioned explicitly for each colorspace description.</para>
 	  <row>
 	    <entry><constant>V4L2_QUANTIZATION_DEFAULT</constant></entry>
 	    <entry>Use the default quantization encoding as defined by the colorspace.
-This is always full range for R'G'B' and usually limited range for Y'CbCr.</entry>
+This is always full range for R'G'B' (except for the BT.2020 colorspace) and usually
+limited range for Y'CbCr.</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_QUANTIZATION_FULL_RANGE</constant></entry>
@@ -620,8 +621,8 @@ is mapped to [16&hellip;235]. Cb and Cr are mapped from [-0.5&hellip;0.5] to [16
 
   <section>
     <title>Detailed Colorspace Descriptions</title>
-    <section>
-      <title id="col-smpte-170m">Colorspace SMPTE 170M (<constant>V4L2_COLORSPACE_SMPTE170M</constant>)</title>
+    <section id="col-smpte-170m">
+      <title>Colorspace SMPTE 170M (<constant>V4L2_COLORSPACE_SMPTE170M</constant>)</title>
       <para>The <xref linkend="smpte170m" /> standard defines the colorspace used by NTSC and PAL and by SDTV
 in general. The default Y'CbCr encoding is <constant>V4L2_YCBCR_ENC_601</constant>.
 The default Y'CbCr quantization is limited range. The chromaticities of the primary colors and
@@ -666,8 +667,7 @@ as the SMPTE C set, so this colorspace is sometimes called SMPTE C as well.</par
       <variablelist>
 	<varlistentry>
           <term>The transfer function defined for SMPTE 170M is the same as the
-one defined in Rec. 709. Normally L is in the range [0&hellip;1], but for the extended
-gamut xvYCC encoding values outside that range are allowed.</term>
+one defined in Rec. 709.</term>
 	  <listitem>
             <para>L' = -1.099(-L)<superscript>0.45</superscript>&nbsp;+&nbsp;0.099&nbsp;for&nbsp;L&nbsp;&le;&nbsp;-0.018</para>
             <para>L' = 4.5L&nbsp;for&nbsp;-0.018&nbsp;&lt;&nbsp;L&nbsp;&lt;&nbsp;0.018</para>
@@ -702,29 +702,10 @@ defined in the <xref linkend="itu601" /> standard and this colorspace is sometim
 though BT.601 does not mention any color primaries.</para>
       <para>The default quantization is limited range, but full range is possible although
 rarely seen.</para>
-      <para>The <constant>V4L2_YCBCR_ENC_601</constant> encoding as described above is the
-default for this colorspace, but it can be overridden with <constant>V4L2_YCBCR_ENC_709</constant>,
-in which case the Rec. 709 Y'CbCr encoding is used.</para>
-      <variablelist>
-	<varlistentry>
-      	  <term>The xvYCC 601 encoding (<constant>V4L2_YCBCR_ENC_XV601</constant>, <xref linkend="xvycc" />) is similar
-to the BT.601 encoding, but it allows for R', G' and B' values that are outside the range
-[0&hellip;1]. The resulting Y', Cb and Cr values are scaled and offset:</term>
-	  <listitem>
-            <para>Y'&nbsp;=&nbsp;(219&nbsp;/&nbsp;255)&nbsp;*&nbsp;(0.299R'&nbsp;+&nbsp;0.587G'&nbsp;+&nbsp;0.114B')&nbsp;+&nbsp;(16&nbsp;/&nbsp;255)</para>
-            <para>Cb&nbsp;=&nbsp;(224&nbsp;/&nbsp;255)&nbsp;*&nbsp;(-0.169R'&nbsp;-&nbsp;0.331G'&nbsp;+&nbsp;0.5B')</para>
-            <para>Cr&nbsp;=&nbsp;(224&nbsp;/&nbsp;255)&nbsp;*&nbsp;(0.5R'&nbsp;-&nbsp;0.419G'&nbsp;-&nbsp;0.081B')</para>
-	  </listitem>
-	</varlistentry>
-      </variablelist>
-      <para>Y' is clamped to the range [0&hellip;1] and Cb and Cr are clamped
-to the range [-0.5&hellip;0.5]. The non-standard xvYCC 709 encoding can also be used by selecting
-<constant>V4L2_YCBCR_ENC_XV709</constant>. The xvYCC encodings always use full range
-quantization.</para>
     </section>
 
-    <section>
-      <title id="col-rec709">Colorspace Rec. 709 (<constant>V4L2_COLORSPACE_REC709</constant>)</title>
+    <section id="col-rec709">
+      <title>Colorspace Rec. 709 (<constant>V4L2_COLORSPACE_REC709</constant>)</title>
       <para>The <xref linkend="itu709" /> standard defines the colorspace used by HDTV in general. The default
 Y'CbCr encoding is <constant>V4L2_YCBCR_ENC_709</constant>. The default Y'CbCr quantization is
 limited range. The chromaticities of the primary colors and the white reference are:</para>
@@ -803,26 +784,39 @@ rarely seen.</para>
       <para>The <constant>V4L2_YCBCR_ENC_709</constant> encoding described above is the default
 for this colorspace, but it can be overridden with <constant>V4L2_YCBCR_ENC_601</constant>, in which
 case the BT.601 Y'CbCr encoding is used.</para>
+      <para>Two additional extended gamut Y'CbCr encodings are also possible with this colorspace:</para>
       <variablelist>
 	<varlistentry>
       	  <term>The xvYCC 709 encoding (<constant>V4L2_YCBCR_ENC_XV709</constant>, <xref linkend="xvycc" />)
 is similar to the Rec. 709 encoding, but it allows for R', G' and B' values that are outside the range
 [0&hellip;1]. The resulting Y', Cb and Cr values are scaled and offset:</term>
 	  <listitem>
-            <para>Y'&nbsp;=&nbsp;(219&nbsp;/&nbsp;255)&nbsp;*&nbsp;(0.2126R'&nbsp;+&nbsp;0.7152G'&nbsp;+&nbsp;0.0722B')&nbsp;+&nbsp;(16&nbsp;/&nbsp;255)</para>
-            <para>Cb&nbsp;=&nbsp;(224&nbsp;/&nbsp;255)&nbsp;*&nbsp;(-0.1146R'&nbsp;-&nbsp;0.3854G'&nbsp;+&nbsp;0.5B')</para>
-            <para>Cr&nbsp;=&nbsp;(224&nbsp;/&nbsp;255)&nbsp;*&nbsp;(0.5R'&nbsp;-&nbsp;0.4542G'&nbsp;-&nbsp;0.0458B')</para>
+            <para>Y'&nbsp;=&nbsp;(219&nbsp;/&nbsp;256)&nbsp;*&nbsp;(0.2126R'&nbsp;+&nbsp;0.7152G'&nbsp;+&nbsp;0.0722B')&nbsp;+&nbsp;(16&nbsp;/&nbsp;256)</para>
+            <para>Cb&nbsp;=&nbsp;(224&nbsp;/&nbsp;256)&nbsp;*&nbsp;(-0.1146R'&nbsp;-&nbsp;0.3854G'&nbsp;+&nbsp;0.5B')</para>
+            <para>Cr&nbsp;=&nbsp;(224&nbsp;/&nbsp;256)&nbsp;*&nbsp;(0.5R'&nbsp;-&nbsp;0.4542G'&nbsp;-&nbsp;0.0458B')</para>
+	  </listitem>
+	</varlistentry>
+      </variablelist>
+      <variablelist>
+	<varlistentry>
+         <term>The xvYCC 601 encoding (<constant>V4L2_YCBCR_ENC_XV601</constant>, <xref linkend="xvycc" />) is similar
+to the BT.601 encoding, but it allows for R', G' and B' values that are outside the range
+[0&hellip;1]. The resulting Y', Cb and Cr values are scaled and offset:</term>
+	  <listitem>
+            <para>Y'&nbsp;=&nbsp;(219&nbsp;/&nbsp;256)&nbsp;*&nbsp;(0.299R'&nbsp;+&nbsp;0.587G'&nbsp;+&nbsp;0.114B')&nbsp;+&nbsp;(16&nbsp;/&nbsp;256)</para>
+            <para>Cb&nbsp;=&nbsp;(224&nbsp;/&nbsp;256)&nbsp;*&nbsp;(-0.169R'&nbsp;-&nbsp;0.331G'&nbsp;+&nbsp;0.5B')</para>
+            <para>Cr&nbsp;=&nbsp;(224&nbsp;/&nbsp;256)&nbsp;*&nbsp;(0.5R'&nbsp;-&nbsp;0.419G'&nbsp;-&nbsp;0.081B')</para>
 	  </listitem>
 	</varlistentry>
       </variablelist>
       <para>Y' is clamped to the range [0&hellip;1] and Cb and Cr are clamped
-to the range [-0.5&hellip;0.5]. The non-standard xvYCC 601 encoding can also be used by
-selecting <constant>V4L2_YCBCR_ENC_XV601</constant>. The xvYCC encodings always use full
-range quantization.</para>
+to the range [-0.5&hellip;0.5]. The non-standard xvYCC 709 or xvYCC 601 encodings can be used by
+selecting <constant>V4L2_YCBCR_ENC_XV709</constant> or <constant>V4L2_YCBCR_ENC_XV601</constant>.
+The xvYCC encodings always use full range quantization.</para>
     </section>
 
-    <section>
-      <title id="col-srgb">Colorspace sRGB (<constant>V4L2_COLORSPACE_SRGB</constant>)</title>
+    <section id="col-srgb">
+      <title>Colorspace sRGB (<constant>V4L2_COLORSPACE_SRGB</constant>)</title>
       <para>The <xref linkend="srgb" /> standard defines the colorspace used by most webcams and computer graphics. The
 default Y'CbCr encoding is <constant>V4L2_YCBCR_ENC_SYCC</constant>. The default Y'CbCr quantization
 is full range. The chromaticities of the primary colors and the white reference are:</para>
@@ -898,8 +892,8 @@ encoding, it is not. The <constant>V4L2_YCBCR_ENC_XV601</constant> scales and of
 values before quantization, but this encoding does not do that.</para>
     </section>
 
-    <section>
-      <title id="col-adobergb">Colorspace Adobe RGB (<constant>V4L2_COLORSPACE_ADOBERGB</constant>)</title>
+    <section id="col-adobergb">
+      <title>Colorspace Adobe RGB (<constant>V4L2_COLORSPACE_ADOBERGB</constant>)</title>
       <para>The <xref linkend="adobergb" /> standard defines the colorspace used by computer graphics
 that use the AdobeRGB colorspace. This is also known as the <xref linkend="oprgb" /> standard.
 The default Y'CbCr encoding is <constant>V4L2_YCBCR_ENC_601</constant>. The default Y'CbCr
@@ -970,12 +964,12 @@ clamped to the range [-0.5&hellip;0.5]. This transform is identical to one defin
 SMPTE 170M/BT.601. The Y'CbCr quantization is limited range.</para>
     </section>
 
-    <section>
-      <title id="col-bt2020">Colorspace BT.2020 (<constant>V4L2_COLORSPACE_BT2020</constant>)</title>
+    <section id="col-bt2020">
+      <title>Colorspace BT.2020 (<constant>V4L2_COLORSPACE_BT2020</constant>)</title>
       <para>The <xref linkend="itu2020" /> standard defines the colorspace used by Ultra-high definition
 television (UHDTV). The default Y'CbCr encoding is <constant>V4L2_YCBCR_ENC_BT2020</constant>.
-The default Y'CbCr quantization is limited range. The chromaticities of the primary colors and
-the white reference are:</para>
+The default R'G'B' quantization is limited range (!), and so is the default Y'CbCr quantization.
+The chromaticities of the primary colors and the white reference are:</para>
       <table frame="none">
         <title>BT.2020 Chromaticities</title>
         <tgroup cols="3" align="left">
@@ -1032,7 +1026,7 @@ the white reference are:</para>
       	  <term>The luminance (Y') and color difference (Cb and Cr) are obtained with the
 following <constant>V4L2_YCBCR_ENC_BT2020</constant> encoding:</term>
 	  <listitem>
-            <para>Y'&nbsp;=&nbsp;0.2627R'&nbsp;+&nbsp;0.6789G'&nbsp;+&nbsp;0.0593B'</para>
+            <para>Y'&nbsp;=&nbsp;0.2627R'&nbsp;+&nbsp;0.6780G'&nbsp;+&nbsp;0.0593B'</para>
             <para>Cb&nbsp;=&nbsp;-0.1396R'&nbsp;-&nbsp;0.3604G'&nbsp;+&nbsp;0.5B'</para>
             <para>Cr&nbsp;=&nbsp;0.5R'&nbsp;-&nbsp;0.4598G'&nbsp;-&nbsp;0.0402B'</para>
 	  </listitem>
@@ -1046,7 +1040,7 @@ clamped to the range [-0.5&hellip;0.5]. The Y'CbCr quantization is limited range
 	<varlistentry>
       	  <term>Luma:</term>
 	  <listitem>
-            <para>Yc'&nbsp;=&nbsp;(0.2627R&nbsp;+&nbsp;0.6789G&nbsp;+&nbsp;0.0593B)'</para>
+            <para>Yc'&nbsp;=&nbsp;(0.2627R&nbsp;+&nbsp;0.6780G&nbsp;+&nbsp;0.0593B)'</para>
 	  </listitem>
 	</varlistentry>
       </variablelist>
@@ -1054,7 +1048,7 @@ clamped to the range [-0.5&hellip;0.5]. The Y'CbCr quantization is limited range
 	<varlistentry>
       	  <term>B'&nbsp;-&nbsp;Yc'&nbsp;&le;&nbsp;0:</term>
 	  <listitem>
-            <para>Cbc&nbsp;=&nbsp;(B'&nbsp;-&nbsp;Y')&nbsp;/&nbsp;1.9404</para>
+            <para>Cbc&nbsp;=&nbsp;(B'&nbsp;-&nbsp;Yc')&nbsp;/&nbsp;1.9404</para>
 	  </listitem>
 	</varlistentry>
       </variablelist>
@@ -1062,7 +1056,7 @@ clamped to the range [-0.5&hellip;0.5]. The Y'CbCr quantization is limited range
 	<varlistentry>
       	  <term>B'&nbsp;-&nbsp;Yc'&nbsp;&gt;&nbsp;0:</term>
 	  <listitem>
-            <para>Cbc&nbsp;=&nbsp;(B'&nbsp;-&nbsp;Y')&nbsp;/&nbsp;1.5816</para>
+            <para>Cbc&nbsp;=&nbsp;(B'&nbsp;-&nbsp;Yc')&nbsp;/&nbsp;1.5816</para>
 	  </listitem>
 	</varlistentry>
       </variablelist>
@@ -1086,8 +1080,8 @@ clamped to the range [-0.5&hellip;0.5]. The Y'CbCr quantization is limited range
 clamped to the range [-0.5&hellip;0.5]. The Yc'CbcCrc quantization is limited range.</para>
     </section>
 
-    <section>
-      <title id="col-smpte-240m">Colorspace SMPTE 240M (<constant>V4L2_COLORSPACE_SMPTE240M</constant>)</title>
+    <section id="col-smpte-240m">
+      <title>Colorspace SMPTE 240M (<constant>V4L2_COLORSPACE_SMPTE240M</constant>)</title>
       <para>The <xref linkend="smpte240m" /> standard was an interim standard used during the early days of HDTV (1988-1998).
 It has been superseded by Rec. 709. The default Y'CbCr encoding is <constant>V4L2_YCBCR_ENC_SMPTE240M</constant>.
 The default Y'CbCr quantization is limited range. The chromaticities of the primary colors and the
@@ -1159,8 +1153,8 @@ following <constant>V4L2_YCBCR_ENC_SMPTE240M</constant> encoding:</term>
 clamped to the range [-0.5&hellip;0.5]. The Y'CbCr quantization is limited range.</para>
     </section>
 
-    <section>
-      <title id="col-sysm">Colorspace NTSC 1953 (<constant>V4L2_COLORSPACE_470_SYSTEM_M</constant>)</title>
+    <section id="col-sysm">
+      <title>Colorspace NTSC 1953 (<constant>V4L2_COLORSPACE_470_SYSTEM_M</constant>)</title>
       <para>This standard defines the colorspace used by NTSC in 1953. In practice this
 colorspace is obsolete and SMPTE 170M should be used instead. The default Y'CbCr encoding
 is <constant>V4L2_YCBCR_ENC_601</constant>. The default Y'CbCr quantization is limited range.
@@ -1237,8 +1231,8 @@ clamped to the range [-0.5&hellip;0.5]. The Y'CbCr quantization is limited range
 This transform is identical to one defined in SMPTE 170M/BT.601.</para>
     </section>
 
-    <section>
-      <title id="col-sysbg">Colorspace EBU Tech. 3213 (<constant>V4L2_COLORSPACE_470_SYSTEM_BG</constant>)</title>
+    <section id="col-sysbg">
+      <title>Colorspace EBU Tech. 3213 (<constant>V4L2_COLORSPACE_470_SYSTEM_BG</constant>)</title>
       <para>The <xref linkend="tech3213" /> standard defines the colorspace used by PAL/SECAM in 1975. In practice this
 colorspace is obsolete and SMPTE 170M should be used instead. The default Y'CbCr encoding
 is <constant>V4L2_YCBCR_ENC_601</constant>. The default Y'CbCr quantization is limited range.
@@ -1311,8 +1305,8 @@ clamped to the range [-0.5&hellip;0.5]. The Y'CbCr quantization is limited range
 This transform is identical to one defined in SMPTE 170M/BT.601.</para>
     </section>
 
-    <section>
-      <title id="col-jpeg">Colorspace JPEG (<constant>V4L2_COLORSPACE_JPEG</constant>)</title>
+    <section id="col-jpeg">
+      <title>Colorspace JPEG (<constant>V4L2_COLORSPACE_JPEG</constant>)</title>
       <para>This colorspace defines the colorspace used by most (Motion-)JPEG formats. The chromaticities
 of the primary colors and the white reference are identical to sRGB. The Y'CbCr encoding is
 <constant>V4L2_YCBCR_ENC_601</constant> with full range quantization where

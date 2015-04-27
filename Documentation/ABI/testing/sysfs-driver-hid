@@ -8,3 +8,13 @@ Description:	When read, this file returns the device's raw binary HID
 		report descriptor.
 		This file cannot be written.
 Users:		HIDAPI library (http://www.signal11.us/oss/hidapi)
+
+What:		For USB devices	: /sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/country
+		For BT devices	: /sys/class/bluetooth/hci<addr>/<hid-bus>:<vendor-id>:<product-id>.<num>/country
+		Symlink		: /sys/class/hidraw/hidraw<num>/device/country
+Date:		February 2015
+KernelVersion:	3.19
+Contact:	Olivier Gay <ogay@logitech.com>
+Description:	When read, this file returns the hex integer value in ASCII
+		of the device's HID country code (e.g. 21 for US).
+		This file cannot be written.

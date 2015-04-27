@@ -109,7 +109,7 @@ Bugs:
 #include <linux/module.h>
 #include <linux/delay.h>
 
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 
 #include <asm/byteorder.h>
 
@@ -1041,7 +1041,6 @@ static int pcimio_dio_change(struct comedi_device *dev,
 	return 0;
 }
 
-
 static void m_series_init_eeprom_buffer(struct comedi_device *dev)
 {
 	struct ni_private *devpriv = dev->private;
@@ -1183,19 +1182,19 @@ static int pcimio_auto_attach(struct comedi_device *dev,
 		return ret;
 
 	devpriv->ai_mite_ring = mite_alloc_ring(devpriv->mite);
-	if (devpriv->ai_mite_ring == NULL)
+	if (!devpriv->ai_mite_ring)
 		return -ENOMEM;
 	devpriv->ao_mite_ring = mite_alloc_ring(devpriv->mite);
-	if (devpriv->ao_mite_ring == NULL)
+	if (!devpriv->ao_mite_ring)
 		return -ENOMEM;
 	devpriv->cdo_mite_ring = mite_alloc_ring(devpriv->mite);
-	if (devpriv->cdo_mite_ring == NULL)
+	if (!devpriv->cdo_mite_ring)
 		return -ENOMEM;
 	devpriv->gpct_mite_ring[0] = mite_alloc_ring(devpriv->mite);
-	if (devpriv->gpct_mite_ring[0] == NULL)
+	if (!devpriv->gpct_mite_ring[0])
 		return -ENOMEM;
 	devpriv->gpct_mite_ring[1] = mite_alloc_ring(devpriv->mite);
-	if (devpriv->gpct_mite_ring[1] == NULL)
+	if (!devpriv->gpct_mite_ring[1])
 		return -ENOMEM;
 
 	if (devpriv->is_m_series)

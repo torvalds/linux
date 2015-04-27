@@ -62,6 +62,63 @@ MODULE_ALIAS("rcupdate");
 
 module_param(rcu_expedited, int, 0);
 
+#ifndef CONFIG_TINY_RCU
+
+static atomic_t rcu_expedited_nesting =
+	ATOMIC_INIT(IS_ENABLED(CONFIG_RCU_EXPEDITE_BOOT) ? 1 : 0);
+
+/*
+ * Should normal grace-period primitives be expedited?  Intended for
+ * use within RCU.  Note that this function takes the rcu_expedited
+ * sysfs/boot variable into account as well as the rcu_expedite_gp()
+ * nesting.  So looping on rcu_unexpedite_gp() until rcu_gp_is_expedited()
+ * returns false is a -really- bad idea.
+ */
+bool rcu_gp_is_expedited(void)
+{
+	return rcu_expedited || atomic_read(&rcu_expedited_nesting);
+}
+EXPORT_SYMBOL_GPL(rcu_gp_is_expedited);
+
+/**
+ * rcu_expedite_gp - Expedite future RCU grace periods
+ *
+ * After a call to this function, future calls to synchronize_rcu() and
+ * friends act as the corresponding synchronize_rcu_expedited() function
+ * had instead been called.
+ */
+void rcu_expedite_gp(void)
+{
+	atomic_inc(&rcu_expedited_nesting);
+}
+EXPORT_SYMBOL_GPL(rcu_expedite_gp);
+
+/**
+ * rcu_unexpedite_gp - Cancel prior rcu_expedite_gp() invocation
+ *
+ * Undo a prior call to rcu_expedite_gp().  If all prior calls to
+ * rcu_expedite_gp() are undone by a subsequent call to rcu_unexpedite_gp(),
+ * and if the rcu_expedited sysfs/boot parameter is not set, then all
+ * subsequent calls to synchronize_rcu() and friends will return to
+ * their normal non-expedited behavior.
+ */
+void rcu_unexpedite_gp(void)
+{
+	atomic_dec(&rcu_expedited_nesting);
+}
+EXPORT_SYMBOL_GPL(rcu_unexpedite_gp);
+
+#endif /* #ifndef CONFIG_TINY_RCU */
+
+/*
+ * Inform RCU of the end of the in-kernel boot sequence.
+ */
+void rcu_end_inkernel_boot(void)
+{
+	if (IS_ENABLED(CONFIG_RCU_EXPEDITE_BOOT))
+		rcu_unexpedite_gp();
+}
+
 #ifdef CONFIG_PREEMPT_RCU
 
 /*
@@ -199,16 +256,13 @@ EXPORT_SYMBOL_GPL(rcu_read_lock_bh_held);
 
 #endif /* #ifdef CONFIG_DEBUG_LOCK_ALLOC */
 
-struct rcu_synchronize {
-	struct rcu_head head;
-	struct completion completion;
-};
-
-/*
- * Awaken the corresponding synchronize_rcu() instance now that a
- * grace period has elapsed.
+/**
+ * wakeme_after_rcu() - Callback function to awaken a task after grace period
+ * @head: Pointer to rcu_head member within rcu_synchronize structure
+ *
+ * Awaken the corresponding task now that a grace period has elapsed.
  */
-static void wakeme_after_rcu(struct rcu_head  *head)
+void wakeme_after_rcu(struct rcu_head *head)
 {
 	struct rcu_synchronize *rcu;
 

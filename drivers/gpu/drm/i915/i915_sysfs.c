@@ -127,10 +127,19 @@ show_rc6pp_ms(struct device *kdev, struct device_attribute *attr, char *buf)
 	return snprintf(buf, PAGE_SIZE, "%u\n", rc6pp_residency);
 }
 
+static ssize_t
+show_media_rc6_ms(struct device *kdev, struct device_attribute *attr, char *buf)
+{
+	struct drm_minor *dminor = dev_get_drvdata(kdev);
+	u32 rc6_residency = calc_residency(dminor->dev, VLV_GT_MEDIA_RC6);
+	return snprintf(buf, PAGE_SIZE, "%u\n", rc6_residency);
+}
+
 static DEVICE_ATTR(rc6_enable, S_IRUGO, show_rc6_mask, NULL);
 static DEVICE_ATTR(rc6_residency_ms, S_IRUGO, show_rc6_ms, NULL);
 static DEVICE_ATTR(rc6p_residency_ms, S_IRUGO, show_rc6p_ms, NULL);
 static DEVICE_ATTR(rc6pp_residency_ms, S_IRUGO, show_rc6pp_ms, NULL);
+static DEVICE_ATTR(media_rc6_residency_ms, S_IRUGO, show_media_rc6_ms, NULL);
 
 static struct attribute *rc6_attrs[] = {
 	&dev_attr_rc6_enable.attr,
@@ -152,6 +161,16 @@ static struct attribute *rc6p_attrs[] = {
 static struct attribute_group rc6p_attr_group = {
 	.name = power_group_name,
 	.attrs =  rc6p_attrs
+};
+
+static struct attribute *media_rc6_attrs[] = {
+	&dev_attr_media_rc6_residency_ms.attr,
+	NULL
+};
+
+static struct attribute_group media_rc6_attr_group = {
+	.name = power_group_name,
+	.attrs =  media_rc6_attrs
 };
 #endif
 
@@ -300,7 +319,9 @@ static ssize_t gt_act_freq_mhz_show(struct device *kdev,
 		ret = intel_gpu_freq(dev_priv, (freq >> 8) & 0xff);
 	} else {
 		u32 rpstat = I915_READ(GEN6_RPSTAT1);
-		if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
+		if (IS_GEN9(dev_priv))
+			ret = (rpstat & GEN9_CAGF_MASK) >> GEN9_CAGF_SHIFT;
+		else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 			ret = (rpstat & HSW_CAGF_MASK) >> HSW_CAGF_SHIFT;
 		else
 			ret = (rpstat & GEN6_CAGF_MASK) >> GEN6_CAGF_SHIFT;
@@ -402,10 +423,7 @@ static ssize_t gt_max_freq_mhz_store(struct device *kdev,
 	/* We still need *_set_rps to process the new max_delay and
 	 * update the interrupt limits and PMINTRMSK even though
 	 * frequency request may be unchanged. */
-	if (IS_VALLEYVIEW(dev))
-		valleyview_set_rps(dev, val);
-	else
-		gen6_set_rps(dev, val);
+	intel_set_rps(dev, val);
 
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
@@ -464,10 +482,7 @@ static ssize_t gt_min_freq_mhz_store(struct device *kdev,
 	/* We still need *_set_rps to process the new min_delay and
 	 * update the interrupt limits and PMINTRMSK even though
 	 * frequency request may be unchanged. */
-	if (IS_VALLEYVIEW(dev))
-		valleyview_set_rps(dev, val);
-	else
-		gen6_set_rps(dev, val);
+	intel_set_rps(dev, val);
 
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
@@ -493,38 +508,17 @@ static ssize_t gt_rp_mhz_show(struct device *kdev, struct device_attribute *attr
 	struct drm_minor *minor = dev_to_drm_minor(kdev);
 	struct drm_device *dev = minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 val, rp_state_cap;
-	ssize_t ret;
+	u32 val;
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
-	intel_runtime_pm_get(dev_priv);
-	rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
-	intel_runtime_pm_put(dev_priv);
-	mutex_unlock(&dev->struct_mutex);
-
-	if (attr == &dev_attr_gt_RP0_freq_mhz) {
-		if (IS_VALLEYVIEW(dev))
-			val = intel_gpu_freq(dev_priv, dev_priv->rps.rp0_freq);
-		else
-			val = intel_gpu_freq(dev_priv,
-					     ((rp_state_cap & 0x0000ff) >> 0));
-	} else if (attr == &dev_attr_gt_RP1_freq_mhz) {
-		if (IS_VALLEYVIEW(dev))
-			val = intel_gpu_freq(dev_priv, dev_priv->rps.rp1_freq);
-		else
-			val = intel_gpu_freq(dev_priv,
-					     ((rp_state_cap & 0x00ff00) >> 8));
-	} else if (attr == &dev_attr_gt_RPn_freq_mhz) {
-		if (IS_VALLEYVIEW(dev))
-			val = intel_gpu_freq(dev_priv, dev_priv->rps.min_freq);
-		else
-			val = intel_gpu_freq(dev_priv,
-					     ((rp_state_cap & 0xff0000) >> 16));
-	} else {
+	if (attr == &dev_attr_gt_RP0_freq_mhz)
+		val = intel_gpu_freq(dev_priv, dev_priv->rps.rp0_freq);
+	else if (attr == &dev_attr_gt_RP1_freq_mhz)
+		val = intel_gpu_freq(dev_priv, dev_priv->rps.rp1_freq);
+	else if (attr == &dev_attr_gt_RPn_freq_mhz)
+		val = intel_gpu_freq(dev_priv, dev_priv->rps.min_freq);
+	else
 		BUG();
-	}
+
 	return snprintf(buf, PAGE_SIZE, "%d\n", val);
 }
 
@@ -632,6 +626,12 @@ void i915_setup_sysfs(struct drm_device *dev)
 					&rc6p_attr_group);
 		if (ret)
 			DRM_ERROR("RC6p residency sysfs setup failed\n");
+	}
+	if (IS_VALLEYVIEW(dev)) {
+		ret = sysfs_merge_group(&dev->primary->kdev->kobj,
+					&media_rc6_attr_group);
+		if (ret)
+			DRM_ERROR("Media RC6 residency sysfs setup failed\n");
 	}
 #endif
 	if (HAS_L3_DPF(dev)) {

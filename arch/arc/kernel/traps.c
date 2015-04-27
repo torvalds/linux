@@ -42,7 +42,7 @@ void die(const char *str, struct pt_regs *regs, unsigned long address)
  *  -for kernel, chk if due to copy_(to|from)_user, otherwise die()
  */
 static noinline int
-handle_exception(const char *str, struct pt_regs *regs, siginfo_t *info)
+unhandled_exception(const char *str, struct pt_regs *regs, siginfo_t *info)
 {
 	if (user_mode(regs)) {
 		struct task_struct *tsk = current;
@@ -71,7 +71,7 @@ int name(unsigned long address, struct pt_regs *regs) \
 		.si_code  = sicode,		\
 		.si_addr = (void __user *)address,	\
 	};					\
-	return handle_exception(str, regs, &info);\
+	return unhandled_exception(str, regs, &info);\
 }
 
 /*

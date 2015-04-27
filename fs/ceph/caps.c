@@ -896,6 +896,18 @@ int ceph_is_any_caps(struct inode *inode)
 	return ret;
 }
 
+static void drop_inode_snap_realm(struct ceph_inode_info *ci)
+{
+	struct ceph_snap_realm *realm = ci->i_snap_realm;
+	spin_lock(&realm->inodes_with_caps_lock);
+	list_del_init(&ci->i_snap_realm_item);
+	ci->i_snap_realm_counter++;
+	ci->i_snap_realm = NULL;
+	spin_unlock(&realm->inodes_with_caps_lock);
+	ceph_put_snap_realm(ceph_sb_to_client(ci->vfs_inode.i_sb)->mdsc,
+			    realm);
+}
+
 /*
  * Remove a cap.  Take steps to deal with a racing iterate_session_caps.
  *
@@ -946,15 +958,13 @@ void __ceph_remove_cap(struct ceph_cap *cap, bool queue_release)
 	if (removed)
 		ceph_put_cap(mdsc, cap);
 
-	if (!__ceph_is_any_caps(ci) && ci->i_snap_realm) {
-		struct ceph_snap_realm *realm = ci->i_snap_realm;
-		spin_lock(&realm->inodes_with_caps_lock);
-		list_del_init(&ci->i_snap_realm_item);
-		ci->i_snap_realm_counter++;
-		ci->i_snap_realm = NULL;
-		spin_unlock(&realm->inodes_with_caps_lock);
-		ceph_put_snap_realm(mdsc, realm);
-	}
+	/* when reconnect denied, we remove session caps forcibly,
+	 * i_wr_ref can be non-zero. If there are ongoing write,
+	 * keep i_snap_realm.
+	 */
+	if (!__ceph_is_any_caps(ci) && ci->i_wr_ref == 0 && ci->i_snap_realm)
+		drop_inode_snap_realm(ci);
+
 	if (!__ceph_is_any_real_caps(ci))
 		__cap_delay_cancel(mdsc, ci);
 }
@@ -1394,6 +1404,13 @@ int __ceph_mark_dirty_caps(struct ceph_inode_info *ci, int mask)
 	int was = ci->i_dirty_caps;
 	int dirty = 0;
 
+	if (!ci->i_auth_cap) {
+		pr_warn("__mark_dirty_caps %p %llx mask %s, "
+			"but no auth cap (session was closed?)\n",
+			inode, ceph_ino(inode), ceph_cap_string(mask));
+		return 0;
+	}
+
 	dout("__mark_dirty_caps %p %s dirty %s -> %s\n", &ci->vfs_inode,
 	     ceph_cap_string(mask), ceph_cap_string(was),
 	     ceph_cap_string(was | mask));
@@ -1404,7 +1421,6 @@ int __ceph_mark_dirty_caps(struct ceph_inode_info *ci, int mask)
 				ci->i_snap_realm->cached_context);
 		dout(" inode %p now dirty snapc %p auth cap %p\n",
 		     &ci->vfs_inode, ci->i_head_snapc, ci->i_auth_cap);
-		WARN_ON(!ci->i_auth_cap);
 		BUG_ON(!list_empty(&ci->i_dirty_item));
 		spin_lock(&mdsc->cap_dirty_lock);
 		list_add(&ci->i_dirty_item, &mdsc->cap_dirty);
@@ -1545,7 +1561,19 @@ retry_locked:
 	if (!mdsc->stopping && inode->i_nlink > 0) {
 		if (want) {
 			retain |= CEPH_CAP_ANY;       /* be greedy */
+		} else if (S_ISDIR(inode->i_mode) &&
+			   (issued & CEPH_CAP_FILE_SHARED) &&
+			    __ceph_dir_is_complete(ci)) {
+			/*
+			 * If a directory is complete, we want to keep
+			 * the exclusive cap. So that MDS does not end up
+			 * revoking the shared cap on every create/unlink
+			 * operation.
+			 */
+			want = CEPH_CAP_ANY_SHARED | CEPH_CAP_FILE_EXCL;
+			retain |= want;
 		} else {
+
 			retain |= CEPH_CAP_ANY_SHARED;
 			/*
 			 * keep RD only if we didn't have the file open RW,
@@ -2309,6 +2337,9 @@ void ceph_put_cap_refs(struct ceph_inode_info *ci, int had)
 					wake = 1;
 				}
 			}
+			/* see comment in __ceph_remove_cap() */
+			if (!__ceph_is_any_caps(ci) && ci->i_snap_realm)
+				drop_inode_snap_realm(ci);
 		}
 	spin_unlock(&ci->i_ceph_lock);
 
@@ -3391,7 +3422,7 @@ int ceph_encode_inode_release(void **p, struct inode *inode,
 int ceph_encode_dentry_release(void **p, struct dentry *dentry,
 			       int mds, int drop, int unless)
 {
-	struct inode *dir = dentry->d_parent->d_inode;
+	struct inode *dir = d_inode(dentry->d_parent);
 	struct ceph_mds_request_release *rel = *p;
 	struct ceph_dentry_info *di = ceph_dentry(dentry);
 	int force = 0;

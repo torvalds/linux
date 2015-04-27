@@ -30,6 +30,8 @@
 #define RING_ELSP(ring)			((ring)->mmio_base+0x230)
 #define RING_EXECLIST_STATUS(ring)	((ring)->mmio_base+0x234)
 #define RING_CONTEXT_CONTROL(ring)	((ring)->mmio_base+0x244)
+#define	  CTX_CTRL_INHIBIT_SYN_CTX_SWITCH	(1 << 3)
+#define	  CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT	(1 << 0)
 #define RING_CONTEXT_STATUS_BUF(ring)	((ring)->mmio_base+0x370)
 #define RING_CONTEXT_STATUS_PTR(ring)	((ring)->mmio_base+0x3a0)
 
@@ -40,10 +42,6 @@ int intel_logical_rings_init(struct drm_device *dev);
 
 int logical_ring_flush_all_caches(struct intel_ringbuffer *ringbuf,
 				  struct intel_context *ctx);
-void intel_logical_ring_advance_and_submit(
-				struct intel_ringbuffer *ringbuf,
-				struct intel_context *ctx,
-				struct drm_i915_gem_request *request);
 /**
  * intel_logical_ring_advance() - advance the ringbuffer tail
  * @ringbuf: Ringbuffer to advance.
@@ -70,13 +68,13 @@ int intel_logical_ring_begin(struct intel_ringbuffer *ringbuf,
 			     int num_dwords);
 
 /* Logical Ring Contexts */
-int intel_lr_context_render_state_init(struct intel_engine_cs *ring,
-				       struct intel_context *ctx);
 void intel_lr_context_free(struct intel_context *ctx);
 int intel_lr_context_deferred_create(struct intel_context *ctx,
 				     struct intel_engine_cs *ring);
 void intel_lr_context_unpin(struct intel_engine_cs *ring,
 		struct intel_context *ctx);
+void intel_lr_context_reset(struct drm_device *dev,
+			struct intel_context *ctx);
 
 /* Execlists */
 int intel_sanitize_enable_execlists(struct drm_device *dev, int enable_execlists);
@@ -86,7 +84,7 @@ int intel_execlists_submission(struct drm_device *dev, struct drm_file *file,
 			       struct drm_i915_gem_execbuffer2 *args,
 			       struct list_head *vmas,
 			       struct drm_i915_gem_object *batch_obj,
-			       u64 exec_start, u32 flags);
+			       u64 exec_start, u32 dispatch_flags);
 u32 intel_execlists_ctx_id(struct drm_i915_gem_object *ctx_obj);
 
 void intel_lrc_irq_handler(struct intel_engine_cs *ring);

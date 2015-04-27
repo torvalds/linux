@@ -98,12 +98,12 @@ static int ieee802154_sock_release(struct socket *sock)
 	return 0;
 }
 
-static int ieee802154_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
-				   struct msghdr *msg, size_t len)
+static int ieee802154_sock_sendmsg(struct socket *sock, struct msghdr *msg,
+				   size_t len)
 {
 	struct sock *sk = sock->sk;
 
-	return sk->sk_prot->sendmsg(iocb, sk, msg, len);
+	return sk->sk_prot->sendmsg(sk, msg, len);
 }
 
 static int ieee802154_sock_bind(struct socket *sock, struct sockaddr *uaddr,
@@ -255,8 +255,7 @@ static int raw_disconnect(struct sock *sk, int flags)
 	return 0;
 }
 
-static int raw_sendmsg(struct kiocb *iocb, struct sock *sk,
-		       struct msghdr *msg, size_t size)
+static int raw_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 {
 	struct net_device *dev;
 	unsigned int mtu;
@@ -327,8 +326,8 @@ out:
 	return err;
 }
 
-static int raw_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
-		       size_t len, int noblock, int flags, int *addr_len)
+static int raw_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
+		       int noblock, int flags, int *addr_len)
 {
 	size_t copied = 0;
 	int err = -EOPNOTSUPP;
@@ -615,8 +614,7 @@ static int dgram_disconnect(struct sock *sk, int flags)
 	return 0;
 }
 
-static int dgram_sendmsg(struct kiocb *iocb, struct sock *sk,
-			 struct msghdr *msg, size_t size)
+static int dgram_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 {
 	struct net_device *dev;
 	unsigned int mtu;
@@ -715,9 +713,8 @@ out:
 	return err;
 }
 
-static int dgram_recvmsg(struct kiocb *iocb, struct sock *sk,
-			 struct msghdr *msg, size_t len, int noblock,
-			 int flags, int *addr_len)
+static int dgram_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
+			 int noblock, int flags, int *addr_len)
 {
 	size_t copied = 0;
 	int err = -EOPNOTSUPP;

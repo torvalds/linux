@@ -138,7 +138,7 @@ static struct omap4_vp omap4_vp[] = {
 	},
 };
 
-u32 omap4_prm_vp_check_txdone(u8 vp_id)
+static u32 omap4_prm_vp_check_txdone(u8 vp_id)
 {
 	struct omap4_vp *vp = &omap4_vp[vp_id];
 	u32 irqstatus;
@@ -149,7 +149,7 @@ u32 omap4_prm_vp_check_txdone(u8 vp_id)
 	return irqstatus & vp->tranxdone_status;
 }
 
-void omap4_prm_vp_clear_txdone(u8 vp_id)
+static void omap4_prm_vp_clear_txdone(u8 vp_id)
 {
 	struct omap4_vp *vp = &omap4_vp[vp_id];
 
@@ -699,29 +699,31 @@ static struct prm_ll_data omap44xx_prm_ll_data = {
 	.deassert_hardreset	= omap4_prminst_deassert_hardreset,
 	.is_hardreset_asserted	= omap4_prminst_is_hardreset_asserted,
 	.reset_system		= omap4_prminst_global_warm_sw_reset,
+	.vp_check_txdone	= omap4_prm_vp_check_txdone,
+	.vp_clear_txdone	= omap4_prm_vp_clear_txdone,
 };
 
-int __init omap44xx_prm_init(void)
+static const struct omap_prcm_init_data *prm_init_data;
+
+int __init omap44xx_prm_init(const struct omap_prcm_init_data *data)
 {
-	if (cpu_is_omap44xx() || soc_is_omap54xx() || soc_is_dra7xx())
+	omap_prm_base_init();
+
+	prm_init_data = data;
+
+	if (data->flags & PRM_HAS_IO_WAKEUP)
 		prm_features |= PRM_HAS_IO_WAKEUP;
 
-	if (!soc_is_dra7xx())
+	if (data->flags & PRM_HAS_VOLTAGE)
 		prm_features |= PRM_HAS_VOLTAGE;
+
+	omap4_prminst_set_prm_dev_inst(data->device_inst_offset);
 
 	return prm_register(&omap44xx_prm_ll_data);
 }
 
-static const struct of_device_id omap_prm_dt_match_table[] = {
-	{ .compatible = "ti,omap4-prm" },
-	{ .compatible = "ti,omap5-prm" },
-	{ .compatible = "ti,dra7-prm" },
-	{ }
-};
-
 static int omap44xx_prm_late_init(void)
 {
-	struct device_node *np;
 	int irq_num;
 
 	if (!(prm_features & PRM_HAS_IO_WAKEUP))
@@ -731,31 +733,23 @@ static int omap44xx_prm_late_init(void)
 	if (!of_have_populated_dt())
 		return 0;
 
-	np = of_find_matching_node(NULL, omap_prm_dt_match_table);
+	irq_num = of_irq_get(prm_init_data->np, 0);
+	/*
+	 * Already have OMAP4 IRQ num. For all other platforms, we need
+	 * IRQ numbers from DT
+	 */
+	if (irq_num < 0 && !(prm_init_data->flags & PRM_IRQ_DEFAULT)) {
+		if (irq_num == -EPROBE_DEFER)
+			return irq_num;
 
-	if (!np) {
-		/* Default loaded up with OMAP4 values */
-		if (!cpu_is_omap44xx())
-			return 0;
-	} else {
-		irq_num = of_irq_get(np, 0);
-		/*
-		 * Already have OMAP4 IRQ num. For all other platforms, we need
-		 * IRQ numbers from DT
-		 */
-		if (irq_num < 0 && !cpu_is_omap44xx()) {
-			if (irq_num == -EPROBE_DEFER)
-				return irq_num;
+		/* Have nothing to do */
+		return 0;
+	}
 
-			/* Have nothing to do */
-			return 0;
-		}
-
-		/* Once OMAP4 DT is filled as well */
-		if (irq_num >= 0) {
-			omap4_prcm_irq_setup.irq = irq_num;
-			omap4_prcm_irq_setup.xlate_irq = NULL;
-		}
+	/* Once OMAP4 DT is filled as well */
+	if (irq_num >= 0) {
+		omap4_prcm_irq_setup.irq = irq_num;
+		omap4_prcm_irq_setup.xlate_irq = NULL;
 	}
 
 	omap44xx_prm_enable_io_wakeup();

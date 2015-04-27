@@ -896,7 +896,7 @@ static const struct dev_pm_ops sirfsoc_dma_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(sirfsoc_dma_pm_suspend, sirfsoc_dma_pm_resume)
 };
 
-static struct of_device_id sirfsoc_dma_match[] = {
+static const struct of_device_id sirfsoc_dma_match[] = {
 	{ .compatible = "sirf,prima2-dmac", },
 	{ .compatible = "sirf,marco-dmac", },
 	{},

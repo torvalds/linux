@@ -6,6 +6,7 @@ config NFSD
 	select SUNRPC
 	select EXPORTFS
 	select NFS_ACL_SUPPORT if NFSD_V2_ACL
+	depends on MULTIUSER
 	help
 	  Choose Y here if you want to allow other computers to access
 	  files residing on this system using Sun's Network File System
@@ -107,7 +108,7 @@ config NFSD_V4_SECURITY_LABEL
 
 config NFSD_FAULT_INJECTION
 	bool "NFS server manual fault injection"
-	depends on NFSD_V4 && DEBUG_KERNEL
+	depends on NFSD_V4 && DEBUG_KERNEL && DEBUG_FS
 	help
 	  This option enables support for manually injecting faults
 	  into the NFS server.  This is intended to be used for

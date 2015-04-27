@@ -10,8 +10,6 @@ IXP4xx
 	- Intel IXP4xx Network processor.
 Makefile
 	- Build sourcefiles as part of the Documentation-build for arm
-msm/
-	- MSM specific documentation
 Netwinder
 	- Netwinder specific documentation
 Porting

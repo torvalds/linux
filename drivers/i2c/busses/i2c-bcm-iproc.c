@@ -160,14 +160,6 @@ static int bcm_iproc_i2c_xfer_single_msg(struct bcm_iproc_i2c_dev *iproc_i2c,
 	u32 val;
 	unsigned long time_left = msecs_to_jiffies(I2C_TIMEOUT_MESC);
 
-	/* need to reserve one byte in the FIFO for the slave address */
-	if (msg->len > M_TX_RX_FIFO_SIZE - 1) {
-		dev_err(iproc_i2c->device,
-			"only support data length up to %u bytes\n",
-			M_TX_RX_FIFO_SIZE - 1);
-		return -EOPNOTSUPP;
-	}
-
 	/* check if bus is busy */
 	if (!!(readl(iproc_i2c->base + M_CMD_OFFSET) &
 	       BIT(M_CMD_START_BUSY_SHIFT))) {
@@ -285,6 +277,12 @@ static uint32_t bcm_iproc_i2c_functionality(struct i2c_adapter *adap)
 static const struct i2c_algorithm bcm_iproc_algo = {
 	.master_xfer = bcm_iproc_i2c_xfer,
 	.functionality = bcm_iproc_i2c_functionality,
+};
+
+static struct i2c_adapter_quirks bcm_iproc_i2c_quirks = {
+	/* need to reserve one byte in the FIFO for the slave address */
+	.max_read_len = M_TX_RX_FIFO_SIZE - 1,
+	.max_write_len = M_TX_RX_FIFO_SIZE - 1,
 };
 
 static int bcm_iproc_i2c_cfg_speed(struct bcm_iproc_i2c_dev *iproc_i2c)
@@ -413,6 +411,7 @@ static int bcm_iproc_i2c_probe(struct platform_device *pdev)
 	i2c_set_adapdata(adap, iproc_i2c);
 	strlcpy(adap->name, "Broadcom iProc I2C adapter", sizeof(adap->name));
 	adap->algo = &bcm_iproc_algo;
+	adap->quirks = &bcm_iproc_i2c_quirks;
 	adap->dev.parent = &pdev->dev;
 	adap->dev.of_node = pdev->dev.of_node;
 

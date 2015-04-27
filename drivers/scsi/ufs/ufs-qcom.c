@@ -214,8 +214,6 @@ static int ufs_qcom_power_up_sequence(struct ufs_hba *hba)
 	struct ufs_qcom_host *host = hba->priv;
 	struct phy *phy = host->generic_phy;
 	int ret = 0;
-	u8 major;
-	u16 minor, step;
 	bool is_rate_B = (UFS_QCOM_LIMIT_HS_RATE == PA_HS_MODE_B)
 							? true : false;
 
@@ -224,8 +222,6 @@ static int ufs_qcom_power_up_sequence(struct ufs_hba *hba)
 	/* provide 1ms delay to let the reset pulse propagate */
 	usleep_range(1000, 1100);
 
-	ufs_qcom_get_controller_revision(hba, &major, &minor, &step);
-	ufs_qcom_phy_save_controller_version(phy, major, minor, step);
 	ret = ufs_qcom_phy_calibrate_phy(phy, is_rate_B);
 	if (ret) {
 		dev_err(hba->dev, "%s: ufs_qcom_phy_calibrate_phy() failed, ret = %d\n",
@@ -698,16 +694,24 @@ out:
  */
 static void ufs_qcom_advertise_quirks(struct ufs_hba *hba)
 {
-	u8 major;
-	u16 minor, step;
+	struct ufs_qcom_host *host = hba->priv;
 
-	ufs_qcom_get_controller_revision(hba, &major, &minor, &step);
+	if (host->hw_ver.major == 0x1)
+		hba->quirks |= UFSHCD_QUIRK_DELAY_BEFORE_DME_CMDS;
 
-	/*
-	 * TBD
-	 * here we should be advertising controller quirks according to
-	 * controller version.
-	 */
+	if (host->hw_ver.major >= 0x2) {
+		if (!ufs_qcom_cap_qunipro(host))
+			/* Legacy UniPro mode still need following quirks */
+			hba->quirks |= UFSHCD_QUIRK_DELAY_BEFORE_DME_CMDS;
+	}
+}
+
+static void ufs_qcom_set_caps(struct ufs_hba *hba)
+{
+	struct ufs_qcom_host *host = hba->priv;
+
+	if (host->hw_ver.major >= 0x2)
+		host->caps = UFS_QCOM_CAP_QUNIPRO;
 }
 
 static int ufs_qcom_get_bus_vote(struct ufs_qcom_host *host,
@@ -929,6 +933,13 @@ static int ufs_qcom_init(struct ufs_hba *hba)
 	if (err)
 		goto out_host_free;
 
+	ufs_qcom_get_controller_revision(hba, &host->hw_ver.major,
+		&host->hw_ver.minor, &host->hw_ver.step);
+
+	/* update phy revision information before calling phy_init() */
+	ufs_qcom_phy_save_controller_version(host->generic_phy,
+		host->hw_ver.major, host->hw_ver.minor, host->hw_ver.step);
+
 	phy_init(host->generic_phy);
 	err = phy_power_on(host->generic_phy);
 	if (err)
@@ -938,6 +949,7 @@ static int ufs_qcom_init(struct ufs_hba *hba)
 	if (err)
 		goto out_disable_phy;
 
+	ufs_qcom_set_caps(hba);
 	ufs_qcom_advertise_quirks(hba);
 
 	hba->caps |= UFSHCD_CAP_CLK_GATING | UFSHCD_CAP_CLK_SCALING;

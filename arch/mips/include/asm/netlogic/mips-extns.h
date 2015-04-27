@@ -157,7 +157,13 @@ static inline int nlm_nodeid(void)
 
 static inline unsigned int nlm_core_id(void)
 {
-	return (read_c0_ebase() & 0x1c) >> 2;
+	uint32_t prid = read_c0_prid() & PRID_IMP_MASK;
+
+	if ((prid == PRID_IMP_NETLOGIC_XLP9XX) ||
+			(prid == PRID_IMP_NETLOGIC_XLP5XX))
+		return (read_c0_ebase() & 0x7c) >> 2;
+	else
+		return (read_c0_ebase() & 0x1c) >> 2;
 }
 
 static inline unsigned int nlm_thread_id(void)

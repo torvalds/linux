@@ -1606,7 +1606,7 @@ static int sm501fb_start(struct sm501fb_info *info,
 	info->fbmem_len = resource_size(res);
 
 	/* clear framebuffer memory - avoids garbage data on unused fb */
-	memset(info->fbmem, 0, info->fbmem_len);
+	memset_io(info->fbmem, 0, info->fbmem_len);
 
 	/* clear palette ram - undefined at power on */
 	for (k = 0; k < (256 * 3); k++)

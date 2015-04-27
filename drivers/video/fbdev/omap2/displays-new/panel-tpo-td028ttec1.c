@@ -58,7 +58,7 @@ static struct omap_video_timings td028ttec1_panel_timings = {
 
 	.data_pclk_edge	= OMAPDSS_DRIVE_SIG_FALLING_EDGE,
 	.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
-	.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
+	.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_RISING_EDGE,
 };
 
 #define JBT_COMMAND	0x000

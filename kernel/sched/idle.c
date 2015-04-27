@@ -158,8 +158,7 @@ static void cpuidle_idle_call(void)
 	 * is used from another cpu as a broadcast timer, this call may
 	 * fail if it is not available
 	 */
-	if (broadcast &&
-	    clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ENTER, &dev->cpu))
+	if (broadcast && tick_broadcast_enter())
 		goto use_default;
 
 	/* Take note of the planned idle state. */
@@ -176,7 +175,7 @@ static void cpuidle_idle_call(void)
 	idle_set_state(this_rq(), NULL);
 
 	if (broadcast)
-		clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_EXIT, &dev->cpu);
+		tick_broadcast_exit();
 
 	/*
 	 * Give the governor an opportunity to reflect on the outcome
@@ -210,6 +209,8 @@ use_default:
 	goto exit_idle;
 }
 
+DEFINE_PER_CPU(bool, cpu_dead_idle);
+
 /*
  * Generic idle loop implementation
  *
@@ -234,8 +235,13 @@ static void cpu_idle_loop(void)
 			check_pgt_cache();
 			rmb();
 
-			if (cpu_is_offline(smp_processor_id()))
+			if (cpu_is_offline(smp_processor_id())) {
+				rcu_cpu_notify(NULL, CPU_DYING_IDLE,
+					       (void *)(long)smp_processor_id());
+				smp_mb(); /* all activity before dead. */
+				this_cpu_write(cpu_dead_idle, true);
 				arch_cpu_idle_dead();
+			}
 
 			local_irq_disable();
 			arch_cpu_idle_enter();

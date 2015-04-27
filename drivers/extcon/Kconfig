@@ -55,6 +55,16 @@ config EXTCON_MAX77693
 	  Maxim MAX77693 PMIC. The MAX77693 MUIC is a USB port accessory
 	  detector and switch.
 
+config EXTCON_MAX77843
+	tristate "MAX77843 EXTCON Support"
+	depends on MFD_MAX77843
+	select IRQ_DOMAIN
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for the MUIC device of
+	  Maxim MAX77843. The MAX77843 MUIC is a USB port accessory
+	  detector add switch.
+
 config EXTCON_MAX8997
 	tristate "MAX8997 EXTCON Support"
 	depends on MFD_MAX8997 && IRQ_DOMAIN
@@ -92,5 +102,12 @@ config EXTCON_SM5502
 	  If you say yes here you get support for the MUIC device of
 	  Silicon Mitus SM5502. The SM5502 is a USB port accessory
 	  detector and switch.
+
+config EXTCON_USB_GPIO
+	tristate "USB GPIO extcon support"
+	depends on GPIOLIB
+	help
+	  Say Y here to enable GPIO based USB cable detection extcon support.
+	  Used typically if GPIO is used for USB ID pin detection.
 
 endif # MULTISTATE_SWITCH

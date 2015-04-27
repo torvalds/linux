@@ -124,7 +124,7 @@ static int get_matching_mc(struct microcode_intel *mc_intel, int cpu)
 	cpf = cpu_sig.pf;
 	crev = cpu_sig.rev;
 
-	return get_matching_microcode(csig, cpf, mc_intel, crev);
+	return get_matching_microcode(csig, cpf, crev, mc_intel);
 }
 
 static int apply_microcode_intel(int cpu)
@@ -226,7 +226,7 @@ static enum ucode_state generic_load_microcode(int cpu, void *data, size_t size,
 
 		csig = uci->cpu_sig.sig;
 		cpf = uci->cpu_sig.pf;
-		if (get_matching_microcode(csig, cpf, mc, new_rev)) {
+		if (get_matching_microcode(csig, cpf, new_rev, mc)) {
 			vfree(new_mc);
 			new_rev = mc_header.rev;
 			new_mc  = mc;

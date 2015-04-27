@@ -781,8 +781,8 @@ int se_dev_set_emulate_fua_write(struct se_device *dev, int flag)
 	}
 	if (flag &&
 	    dev->transport->get_write_cache) {
-		pr_err("emulate_fua_write not supported for this device\n");
-		return -EINVAL;
+		pr_warn("emulate_fua_write not supported for this device, ignoring\n");
+		return 0;
 	}
 	if (dev->export_count) {
 		pr_err("emulate_fua_write cannot be changed with active"

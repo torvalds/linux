@@ -57,6 +57,10 @@ static inline int plat_device_is_coherent(struct device *dev)
 	return 1;
 }
 
+static inline void plat_post_dma_flush(struct device *dev)
+{
+}
+
 dma_addr_t phys_to_dma(struct device *dev, phys_addr_t paddr);
 phys_addr_t dma_to_phys(struct device *dev, dma_addr_t daddr);
 

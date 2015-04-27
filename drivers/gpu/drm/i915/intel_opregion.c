@@ -744,10 +744,8 @@ void intel_opregion_init(struct drm_device *dev)
 		return;
 
 	if (opregion->acpi) {
-		if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-			intel_didl_outputs(dev);
-			intel_setup_cadls(dev);
-		}
+		intel_didl_outputs(dev);
+		intel_setup_cadls(dev);
 
 		/* Notify BIOS we are ready to handle ACPI video ext notifs.
 		 * Right now, all the events are handled by the ACPI video module.

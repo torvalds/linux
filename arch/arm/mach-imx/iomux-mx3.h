@@ -114,7 +114,7 @@ enum iomux_gp_func {
  */
 int mxc_iomux_alloc_pin(unsigned int pin, const char *label);
 /*
- * setups mutliple pins
+ * setups multiple pins
  * convenient way to call the above function with tables
  */
 int mxc_iomux_setup_multiple_pins(const unsigned int *pin_list, unsigned count,

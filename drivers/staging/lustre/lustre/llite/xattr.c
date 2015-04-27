@@ -214,7 +214,7 @@ int ll_setxattr_common(struct inode *inode, const char *name,
 int ll_setxattr(struct dentry *dentry, const char *name,
 		const void *value, size_t size, int flags)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 
 	LASSERT(inode);
 	LASSERT(name);
@@ -267,7 +267,7 @@ int ll_setxattr(struct dentry *dentry, const char *name,
 
 int ll_removexattr(struct dentry *dentry, const char *name)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 
 	LASSERT(inode);
 	LASSERT(name);
@@ -457,7 +457,7 @@ out:
 ssize_t ll_getxattr(struct dentry *dentry, const char *name,
 		    void *buffer, size_t size)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 
 	LASSERT(inode);
 	LASSERT(name);
@@ -545,7 +545,7 @@ out:
 
 ssize_t ll_listxattr(struct dentry *dentry, char *buffer, size_t size)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	int rc = 0, rc2 = 0;
 	struct lov_mds_md *lmm = NULL;
 	struct ptlrpc_request *request = NULL;
