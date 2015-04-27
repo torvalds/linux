@@ -234,8 +234,9 @@ static int klp_find_verify_func_addr(struct klp_object *obj,
 	int ret;
 
 #if defined(CONFIG_RANDOMIZE_BASE)
-	/* KASLR is enabled, disregard old_addr from user */
-	func->old_addr = 0;
+	/* If KASLR has been enabled, adjust old_addr accordingly */
+	if (kaslr_enabled() && func->old_addr)
+		func->old_addr += kaslr_offset();
 #endif
 
 	if (!func->old_addr || klp_is_module(obj))
