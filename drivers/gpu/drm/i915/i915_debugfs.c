@@ -1211,12 +1211,17 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 			   GEN6_CURBSYTAVG_MASK);
 		seq_printf(m, "RP PREV UP: %dus\n", rpprevup &
 			   GEN6_CURBSYTAVG_MASK);
+		seq_printf(m, "Up threshold: %d%%\n",
+			   dev_priv->rps.up_threshold);
+
 		seq_printf(m, "RP CUR DOWN EI: %dus\n", rpdownei &
 			   GEN6_CURIAVG_MASK);
 		seq_printf(m, "RP CUR DOWN: %dus\n", rpcurdown &
 			   GEN6_CURBSYTAVG_MASK);
 		seq_printf(m, "RP PREV DOWN: %dus\n", rpprevdown &
 			   GEN6_CURBSYTAVG_MASK);
+		seq_printf(m, "Down threshold: %d%%\n",
+			   dev_priv->rps.down_threshold);
 
 		max_freq = (rp_state_cap & 0xff0000) >> 16;
 		max_freq *= (IS_SKYLAKE(dev) ? GEN9_FREQ_SCALER : 1);
@@ -1232,12 +1237,21 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		max_freq *= (IS_SKYLAKE(dev) ? GEN9_FREQ_SCALER : 1);
 		seq_printf(m, "Max non-overclocked (RP0) frequency: %dMHz\n",
 			   intel_gpu_freq(dev_priv, max_freq));
-
 		seq_printf(m, "Max overclocked frequency: %dMHz\n",
 			   intel_gpu_freq(dev_priv, dev_priv->rps.max_freq));
 
+		seq_printf(m, "Current freq: %d MHz\n",
+			   intel_gpu_freq(dev_priv, dev_priv->rps.cur_freq));
+		seq_printf(m, "Actual freq: %d MHz\n", cagf);
 		seq_printf(m, "Idle freq: %d MHz\n",
 			   intel_gpu_freq(dev_priv, dev_priv->rps.idle_freq));
+		seq_printf(m, "Min freq: %d MHz\n",
+			   intel_gpu_freq(dev_priv, dev_priv->rps.min_freq));
+		seq_printf(m, "Max freq: %d MHz\n",
+			   intel_gpu_freq(dev_priv, dev_priv->rps.max_freq));
+		seq_printf(m,
+			   "efficient (RPe) frequency: %d MHz\n",
+			   intel_gpu_freq(dev_priv, dev_priv->rps.efficient_freq));
 	} else if (IS_VALLEYVIEW(dev)) {
 		u32 freq_sts;
 
@@ -1245,6 +1259,12 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		freq_sts = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
 		seq_printf(m, "PUNIT_REG_GPU_FREQ_STS: 0x%08x\n", freq_sts);
 		seq_printf(m, "DDR freq: %d MHz\n", dev_priv->mem_freq);
+
+		seq_printf(m, "actual GPU freq: %d MHz\n",
+			   intel_gpu_freq(dev_priv, (freq_sts >> 8) & 0xff));
+
+		seq_printf(m, "current GPU freq: %d MHz\n",
+			   intel_gpu_freq(dev_priv, dev_priv->rps.cur_freq));
 
 		seq_printf(m, "max GPU freq: %d MHz\n",
 			   intel_gpu_freq(dev_priv, dev_priv->rps.max_freq));
@@ -1258,9 +1278,6 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 		seq_printf(m,
 			   "efficient (RPe) frequency: %d MHz\n",
 			   intel_gpu_freq(dev_priv, dev_priv->rps.efficient_freq));
-
-		seq_printf(m, "current GPU freq: %d MHz\n",
-			   intel_gpu_freq(dev_priv, (freq_sts >> 8) & 0xff));
 		mutex_unlock(&dev_priv->rps.hw_lock);
 	} else {
 		seq_puts(m, "no P-state info available\n");
