@@ -492,7 +492,7 @@ static void azx_init_pci(struct azx *chip)
 static int azx_get_delay_from_lpib(struct azx *chip, struct azx_dev *azx_dev,
 				   unsigned int pos)
 {
-	struct snd_pcm_substream *substream = azx_dev->substream;
+	struct snd_pcm_substream *substream = azx_dev->core.substream;
 	int stream = substream->stream;
 	unsigned int lpib_pos = azx_get_pos_lpib(chip, azx_dev);
 	int delay;
@@ -502,16 +502,16 @@ static int azx_get_delay_from_lpib(struct azx *chip, struct azx_dev *azx_dev,
 	else
 		delay = lpib_pos - pos;
 	if (delay < 0) {
-		if (delay >= azx_dev->delay_negative_threshold)
+		if (delay >= azx_dev->core.delay_negative_threshold)
 			delay = 0;
 		else
-			delay += azx_dev->bufsize;
+			delay += azx_dev->core.bufsize;
 	}
 
-	if (delay >= azx_dev->period_bytes) {
+	if (delay >= azx_dev->core.period_bytes) {
 		dev_info(chip->card->dev,
 			 "Unstable LPIB (%d >= %d); disabling LPIB delay counting\n",
-			 delay, azx_dev->period_bytes);
+			 delay, azx_dev->core.period_bytes);
 		delay = 0;
 		chip->driver_caps &= ~AZX_DCAPS_COUNT_LPIB_DELAY;
 		chip->get_delay[stream] = NULL;
@@ -551,13 +551,13 @@ static int azx_position_check(struct azx *chip, struct azx_dev *azx_dev)
  */
 static int azx_position_ok(struct azx *chip, struct azx_dev *azx_dev)
 {
-	struct snd_pcm_substream *substream = azx_dev->substream;
+	struct snd_pcm_substream *substream = azx_dev->core.substream;
 	int stream = substream->stream;
 	u32 wallclk;
 	unsigned int pos;
 
-	wallclk = azx_readl(chip, WALLCLK) - azx_dev->start_wallclk;
-	if (wallclk < (azx_dev->period_wallclk * 2) / 3)
+	wallclk = azx_readl(chip, WALLCLK) - azx_dev->core.start_wallclk;
+	if (wallclk < (azx_dev->core.period_wallclk * 2) / 3)
 		return -1;	/* bogus (too early) interrupt */
 
 	if (chip->get_position[stream])
@@ -568,6 +568,9 @@ static int azx_position_ok(struct azx *chip, struct azx_dev *azx_dev)
 			dev_info(chip->card->dev,
 				 "Invalid position buffer, using LPIB read method instead.\n");
 			chip->get_position[stream] = azx_get_pos_lpib;
+			if (chip->get_position[0] == azx_get_pos_lpib &&
+			    chip->get_position[1] == azx_get_pos_lpib)
+				azx_bus(chip)->use_posbuf = false;
 			pos = azx_get_pos_lpib(chip, azx_dev);
 			chip->get_delay[stream] = NULL;
 		} else {
@@ -577,17 +580,17 @@ static int azx_position_ok(struct azx *chip, struct azx_dev *azx_dev)
 		}
 	}
 
-	if (pos >= azx_dev->bufsize)
+	if (pos >= azx_dev->core.bufsize)
 		pos = 0;
 
-	if (WARN_ONCE(!azx_dev->period_bytes,
+	if (WARN_ONCE(!azx_dev->core.period_bytes,
 		      "hda-intel: zero azx_dev->period_bytes"))
 		return -1; /* this shouldn't happen! */
-	if (wallclk < (azx_dev->period_wallclk * 5) / 4 &&
-	    pos % azx_dev->period_bytes > azx_dev->period_bytes / 2)
+	if (wallclk < (azx_dev->core.period_wallclk * 5) / 4 &&
+	    pos % azx_dev->core.period_bytes > azx_dev->core.period_bytes / 2)
 		/* NG - it's below the first next period boundary */
 		return chip->bdl_pos_adj[chip->dev_index] ? 0 : -1;
-	azx_dev->start_wallclk += wallclk;
+	azx_dev->core.start_wallclk += wallclk;
 	return 1; /* OK, it's fine */
 }
 
@@ -598,7 +601,9 @@ static void azx_irq_pending_work(struct work_struct *work)
 {
 	struct hda_intel *hda = container_of(work, struct hda_intel, irq_pending_work);
 	struct azx *chip = &hda->chip;
-	int i, pending, ok;
+	struct hdac_bus *bus = azx_bus(chip);
+	struct hdac_stream *s;
+	int pending, ok;
 
 	if (!hda->irq_pending_warned) {
 		dev_info(chip->card->dev,
@@ -609,25 +614,25 @@ static void azx_irq_pending_work(struct work_struct *work)
 
 	for (;;) {
 		pending = 0;
-		spin_lock_irq(&chip->reg_lock);
-		for (i = 0; i < chip->num_streams; i++) {
-			struct azx_dev *azx_dev = &chip->azx_dev[i];
+		spin_lock_irq(&bus->reg_lock);
+		list_for_each_entry(s, &bus->stream_list, list) {
+			struct azx_dev *azx_dev = stream_to_azx_dev(s);
 			if (!azx_dev->irq_pending ||
-			    !azx_dev->substream ||
-			    !azx_dev->running)
+			    !s->substream ||
+			    !s->running)
 				continue;
 			ok = azx_position_ok(chip, azx_dev);
 			if (ok > 0) {
 				azx_dev->irq_pending = 0;
-				spin_unlock(&chip->reg_lock);
-				snd_pcm_period_elapsed(azx_dev->substream);
-				spin_lock(&chip->reg_lock);
+				spin_unlock(&bus->reg_lock);
+				snd_pcm_period_elapsed(s->substream);
+				spin_lock(&bus->reg_lock);
 			} else if (ok < 0) {
 				pending = 0;	/* too early */
 			} else
 				pending++;
 		}
-		spin_unlock_irq(&chip->reg_lock);
+		spin_unlock_irq(&bus->reg_lock);
 		if (!pending)
 			return;
 		msleep(1);
@@ -637,16 +642,21 @@ static void azx_irq_pending_work(struct work_struct *work)
 /* clear irq_pending flags and assure no on-going workq */
 static void azx_clear_irq_pending(struct azx *chip)
 {
-	int i;
+	struct hdac_bus *bus = azx_bus(chip);
+	struct hdac_stream *s;
 
-	spin_lock_irq(&chip->reg_lock);
-	for (i = 0; i < chip->num_streams; i++)
-		chip->azx_dev[i].irq_pending = 0;
-	spin_unlock_irq(&chip->reg_lock);
+	spin_lock_irq(&bus->reg_lock);
+	list_for_each_entry(s, &bus->stream_list, list) {
+		struct azx_dev *azx_dev = stream_to_azx_dev(s);
+		azx_dev->irq_pending = 0;
+	}
+	spin_unlock_irq(&bus->reg_lock);
 }
 
 static int azx_acquire_irq(struct azx *chip, int do_disconnect)
 {
+	struct hdac_bus *bus = azx_bus(chip);
+
 	if (request_irq(chip->pci->irq, azx_interrupt,
 			chip->msi ? 0 : IRQF_SHARED,
 			KBUILD_MODNAME, chip)) {
@@ -657,7 +667,7 @@ static int azx_acquire_irq(struct azx *chip, int do_disconnect)
 			snd_card_disconnect(chip->card);
 		return -1;
 	}
-	chip->irq = chip->pci->irq;
+	bus->irq = chip->pci->irq;
 	pci_intx(chip->pci, !chip->msi);
 	return 0;
 }
@@ -670,8 +680,8 @@ static unsigned int azx_via_get_position(struct azx *chip,
 	unsigned int mod_link_pos, mod_dma_pos, mod_mini_pos;
 	unsigned int fifo_size;
 
-	link_pos = azx_sd_readl(chip, azx_dev, SD_LPIB);
-	if (azx_dev->substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+	link_pos = snd_hdac_stream_get_pos_lpib(azx_stream(azx_dev));
+	if (azx_dev->core.substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		/* Playback, no problem using link position */
 		return link_pos;
 	}
@@ -680,13 +690,14 @@ static unsigned int azx_via_get_position(struct azx *chip,
 	/* For new chipset,
 	 * use mod to get the DMA position just like old chipset
 	 */
-	mod_dma_pos = le32_to_cpu(*azx_dev->posbuf);
-	mod_dma_pos %= azx_dev->period_bytes;
+	mod_dma_pos = le32_to_cpu(*azx_dev->core.posbuf);
+	mod_dma_pos %= azx_dev->core.period_bytes;
 
 	/* azx_dev->fifo_size can't get FIFO size of in stream.
 	 * Get from base address + offset.
 	 */
-	fifo_size = readw(chip->remap_addr + VIA_IN_STREAM0_FIFO_SIZE_OFFSET);
+	fifo_size = readw(azx_bus(chip)->remap_addr +
+			  VIA_IN_STREAM0_FIFO_SIZE_OFFSET);
 
 	if (azx_dev->insufficient) {
 		/* Link position never gather than FIFO size */
@@ -697,20 +708,20 @@ static unsigned int azx_via_get_position(struct azx *chip,
 	}
 
 	if (link_pos <= fifo_size)
-		mini_pos = azx_dev->bufsize + link_pos - fifo_size;
+		mini_pos = azx_dev->core.bufsize + link_pos - fifo_size;
 	else
 		mini_pos = link_pos - fifo_size;
 
 	/* Find nearest previous boudary */
-	mod_mini_pos = mini_pos % azx_dev->period_bytes;
-	mod_link_pos = link_pos % azx_dev->period_bytes;
+	mod_mini_pos = mini_pos % azx_dev->core.period_bytes;
+	mod_link_pos = link_pos % azx_dev->core.period_bytes;
 	if (mod_link_pos >= fifo_size)
 		bound_pos = link_pos - mod_link_pos;
 	else if (mod_dma_pos >= mod_mini_pos)
 		bound_pos = mini_pos - mod_mini_pos;
 	else {
-		bound_pos = mini_pos - mod_mini_pos + azx_dev->period_bytes;
-		if (bound_pos >= azx_dev->bufsize)
+		bound_pos = mini_pos - mod_mini_pos + azx_dev->core.period_bytes;
+		if (bound_pos >= azx_dev->core.bufsize)
 			bound_pos = 0;
 	}
 
@@ -752,9 +763,9 @@ static int param_set_xint(const char *val, const struct kernel_param *kp)
 	mutex_lock(&card_list_lock);
 	list_for_each_entry(hda, &card_list, list) {
 		chip = &hda->chip;
-		if (!chip->bus || chip->disabled)
+		if (!hda->probe_continued || chip->disabled)
 			continue;
-		snd_hda_set_power_save(chip->bus, power_save * 1000);
+		snd_hda_set_power_save(&chip->bus, power_save * 1000);
 	}
 	mutex_unlock(&card_list_lock);
 	return 0;
@@ -773,6 +784,7 @@ static int azx_suspend(struct device *dev)
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip;
 	struct hda_intel *hda;
+	struct hdac_bus *bus;
 
 	if (!card)
 		return 0;
@@ -782,13 +794,14 @@ static int azx_suspend(struct device *dev)
 	if (chip->disabled || hda->init_failed)
 		return 0;
 
+	bus = azx_bus(chip);
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 	azx_clear_irq_pending(chip);
 	azx_stop_chip(chip);
 	azx_enter_link_reset(chip);
-	if (chip->irq >= 0) {
-		free_irq(chip->irq, chip);
-		chip->irq = -1;
+	if (bus->irq >= 0) {
+		free_irq(bus->irq, chip);
+		bus->irq = -1;
 	}
 
 	if (chip->msi)
@@ -867,7 +880,6 @@ static int azx_runtime_resume(struct device *dev)
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip;
 	struct hda_intel *hda;
-	struct hda_bus *bus;
 	struct hda_codec *codec;
 	int status;
 
@@ -893,9 +905,8 @@ static int azx_runtime_resume(struct device *dev)
 	azx_init_pci(chip);
 	azx_init_chip(chip, true);
 
-	bus = chip->bus;
-	if (status && bus) {
-		list_for_each_codec(codec, bus)
+	if (status) {
+		list_for_each_codec(codec, &chip->bus)
 			if (status & (1 << codec->addr))
 				schedule_delayed_work(&codec->jackpoll_work,
 						      codec->jackpoll_interval);
@@ -923,7 +934,7 @@ static int azx_runtime_idle(struct device *dev)
 		return 0;
 
 	if (!power_save_controller || !azx_has_pm_runtime(chip) ||
-	    chip->bus->core.codec_powered)
+	    azx_bus(chip)->codec_powered)
 		return -EBUSY;
 
 	return 0;
@@ -961,7 +972,7 @@ static void azx_vs_set_state(struct pci_dev *pci,
 	if (chip->disabled == disabled)
 		return;
 
-	if (!chip->bus) {
+	if (!hda->probe_continued) {
 		chip->disabled = disabled;
 		if (!disabled) {
 			dev_info(chip->card->dev,
@@ -982,11 +993,11 @@ static void azx_vs_set_state(struct pci_dev *pci,
 			 * put ourselves there */
 			pci->current_state = PCI_D3cold;
 			chip->disabled = true;
-			if (snd_hda_lock_devices(chip->bus))
+			if (snd_hda_lock_devices(&chip->bus))
 				dev_warn(chip->card->dev,
 					 "Cannot lock devices!\n");
 		} else {
-			snd_hda_unlock_devices(chip->bus);
+			snd_hda_unlock_devices(&chip->bus);
 			pm_runtime_get_noresume(card->dev);
 			chip->disabled = false;
 			azx_resume(card->dev);
@@ -1003,11 +1014,11 @@ static bool azx_vs_can_switch(struct pci_dev *pci)
 	wait_for_completion(&hda->probe_wait);
 	if (hda->init_failed)
 		return false;
-	if (chip->disabled || !chip->bus)
+	if (chip->disabled || !hda->probe_continued)
 		return true;
-	if (snd_hda_lock_devices(chip->bus))
+	if (snd_hda_lock_devices(&chip->bus))
 		return false;
-	snd_hda_unlock_devices(chip->bus);
+	snd_hda_unlock_devices(&chip->bus);
 	return true;
 }
 
@@ -1040,7 +1051,7 @@ static int register_vga_switcheroo(struct azx *chip)
 	 */
 	err = vga_switcheroo_register_audio_client(chip->pci, &azx_vs_ops,
 						    VGA_SWITCHEROO_DIS,
-						    chip->bus != NULL);
+						    hda->probe_continued);
 	if (err < 0)
 		return err;
 	hda->vga_switcheroo_registered = 1;
@@ -1063,7 +1074,7 @@ static int azx_free(struct azx *chip)
 {
 	struct pci_dev *pci = chip->pci;
 	struct hda_intel *hda = container_of(chip, struct hda_intel, chip);
-	int i;
+	struct hdac_bus *bus = azx_bus(chip);
 
 	if (azx_has_pm_runtime(chip) && chip->running)
 		pm_runtime_get_noresume(&pci->dev);
@@ -1074,30 +1085,32 @@ static int azx_free(struct azx *chip)
 	complete_all(&hda->probe_wait);
 
 	if (use_vga_switcheroo(hda)) {
-		if (chip->disabled && chip->bus)
-			snd_hda_unlock_devices(chip->bus);
+		if (chip->disabled && hda->probe_continued)
+			snd_hda_unlock_devices(&chip->bus);
 		if (hda->vga_switcheroo_registered)
 			vga_switcheroo_unregister_client(chip->pci);
 	}
 
-	if (chip->initialized) {
+	if (bus->chip_init) {
 		azx_clear_irq_pending(chip);
-		for (i = 0; i < chip->num_streams; i++)
-			azx_stream_stop(chip, &chip->azx_dev[i]);
+		azx_stop_all_streams(chip);
 		azx_stop_chip(chip);
 	}
 
-	if (chip->irq >= 0)
-		free_irq(chip->irq, (void*)chip);
+	if (bus->irq >= 0)
+		free_irq(bus->irq, (void*)chip);
 	if (chip->msi)
 		pci_disable_msi(chip->pci);
-	iounmap(chip->remap_addr);
+	iounmap(bus->remap_addr);
 
 	azx_free_stream_pages(chip);
+	azx_free_streams(chip);
+	snd_hdac_bus_exit(bus);
+
 	if (chip->region_requested)
 		pci_release_regions(chip->pci);
+
 	pci_disable_device(chip->pci);
-	kfree(chip->azx_dev);
 #ifdef CONFIG_SND_HDA_PATCH_LOADER
 	release_firmware(chip->fw);
 #endif
@@ -1107,6 +1120,14 @@ static int azx_free(struct azx *chip)
 	}
 	kfree(hda);
 
+	return 0;
+}
+
+static int azx_dev_disconnect(struct snd_device *device)
+{
+	struct azx *chip = device->device_data;
+
+	chip->bus.shutdown = 1;
 	return 0;
 }
 
@@ -1276,9 +1297,9 @@ static void check_probe_mask(struct azx *chip, int dev)
 	/* check forced option */
 	if (chip->codec_probe_mask != -1 &&
 	    (chip->codec_probe_mask & AZX_FORCE_CODEC_MASK)) {
-		chip->codec_mask = chip->codec_probe_mask & 0xff;
+		azx_bus(chip)->codec_mask = chip->codec_probe_mask & 0xff;
 		dev_info(chip->card->dev, "codec_mask forced to 0x%x\n",
-			 chip->codec_mask);
+			 (int)azx_bus(chip)->codec_mask);
 	}
 }
 
@@ -1365,12 +1386,15 @@ static void azx_probe_work(struct work_struct *work)
 /*
  * constructor
  */
+static const struct hdac_io_ops pci_hda_io_ops;
+static const struct hda_controller_ops pci_hda_ops;
+
 static int azx_create(struct snd_card *card, struct pci_dev *pci,
 		      int dev, unsigned int driver_caps,
-		      const struct hda_controller_ops *hda_ops,
 		      struct azx **rchip)
 {
 	static struct snd_device_ops ops = {
+		.dev_disconnect = azx_dev_disconnect,
 		.dev_free = azx_dev_free,
 	};
 	struct hda_intel *hda;
@@ -1390,12 +1414,10 @@ static int azx_create(struct snd_card *card, struct pci_dev *pci,
 	}
 
 	chip = &hda->chip;
-	spin_lock_init(&chip->reg_lock);
 	mutex_init(&chip->open_mutex);
 	chip->card = card;
 	chip->pci = pci;
-	chip->ops = hda_ops;
-	chip->irq = -1;
+	chip->ops = &pci_hda_ops;
 	chip->driver_caps = driver_caps;
 	chip->driver_type = driver_caps & 0xff;
 	check_msi(chip);
@@ -1427,6 +1449,13 @@ static int azx_create(struct snd_card *card, struct pci_dev *pci,
 	}
 	chip->bdl_pos_adj = bdl_pos_adj;
 
+	err = azx_bus_init(chip, model[dev], &pci_hda_io_ops);
+	if (err < 0) {
+		kfree(hda);
+		pci_disable_device(pci);
+		return err;
+	}
+
 	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
 	if (err < 0) {
 		dev_err(card->dev, "Error creating device [card]!\n");
@@ -1447,6 +1476,7 @@ static int azx_first_init(struct azx *chip)
 	int dev = chip->dev_index;
 	struct pci_dev *pci = chip->pci;
 	struct snd_card *card = chip->card;
+	struct hdac_bus *bus = azx_bus(chip);
 	int err;
 	unsigned short gcap;
 	unsigned int dma_bits = 64;
@@ -1466,9 +1496,9 @@ static int azx_first_init(struct azx *chip)
 		return err;
 	chip->region_requested = 1;
 
-	chip->addr = pci_resource_start(pci, 0);
-	chip->remap_addr = pci_ioremap_bar(pci, 0);
-	if (chip->remap_addr == NULL) {
+	bus->addr = pci_resource_start(pci, 0);
+	bus->remap_addr = pci_ioremap_bar(pci, 0);
+	if (bus->remap_addr == NULL) {
 		dev_err(card->dev, "ioremap error\n");
 		return -ENXIO;
 	}
@@ -1486,7 +1516,7 @@ static int azx_first_init(struct azx *chip)
 		return -EBUSY;
 
 	pci_set_master(pci);
-	synchronize_irq(chip->irq);
+	synchronize_irq(bus->irq);
 
 	gcap = azx_readw(chip, GCAP);
 	dev_dbg(card->dev, "chipset global capabilities = 0x%x\n", gcap);
@@ -1563,17 +1593,15 @@ static int azx_first_init(struct azx *chip)
 	chip->capture_index_offset = 0;
 	chip->playback_index_offset = chip->capture_streams;
 	chip->num_streams = chip->playback_streams + chip->capture_streams;
-	chip->azx_dev = kcalloc(chip->num_streams, sizeof(*chip->azx_dev),
-				GFP_KERNEL);
-	if (!chip->azx_dev)
-		return -ENOMEM;
+
+	/* initialize streams */
+	err = azx_init_streams(chip);
+	if (err < 0)
+		return err;
 
 	err = azx_alloc_stream_pages(chip);
 	if (err < 0)
 		return err;
-
-	/* initialize streams */
-	azx_init_stream(chip);
 
 	/* initialize chip */
 	azx_init_pci(chip);
@@ -1588,7 +1616,7 @@ static int azx_first_init(struct azx *chip)
 	azx_init_chip(chip, (probe_only[dev] & 2) == 0);
 
 	/* codec detection */
-	if (!chip->codec_mask) {
+	if (!azx_bus(chip)->codec_mask) {
 		dev_err(card->dev, "no codecs found!\n");
 		return -ENODEV;
 	}
@@ -1598,7 +1626,7 @@ static int azx_first_init(struct azx *chip)
 		sizeof(card->shortname));
 	snprintf(card->longname, sizeof(card->longname),
 		 "%s at 0x%lx irq %i",
-		 card->shortname, chip->addr, chip->irq);
+		 card->shortname, bus->addr, bus->irq);
 
 	return 0;
 }
@@ -1667,10 +1695,11 @@ static u8 pci_azx_readb(u8 __iomem *addr)
 
 static int disable_msi_reset_irq(struct azx *chip)
 {
+	struct hdac_bus *bus = azx_bus(chip);
 	int err;
 
-	free_irq(chip->irq, chip);
-	chip->irq = -1;
+	free_irq(bus->irq, chip);
+	bus->irq = -1;
 	pci_disable_msi(chip->pci);
 	chip->msi = 0;
 	err = azx_acquire_irq(chip, 1);
@@ -1681,15 +1710,16 @@ static int disable_msi_reset_irq(struct azx *chip)
 }
 
 /* DMA page allocation helpers.  */
-static int dma_alloc_pages(struct azx *chip,
+static int dma_alloc_pages(struct hdac_bus *bus,
 			   int type,
 			   size_t size,
 			   struct snd_dma_buffer *buf)
 {
+	struct azx *chip = bus_to_azx(bus);
 	int err;
 
 	err = snd_dma_alloc_pages(type,
-				  chip->card->dev,
+				  bus->dev,
 				  size, buf);
 	if (err < 0)
 		return err;
@@ -1697,8 +1727,10 @@ static int dma_alloc_pages(struct azx *chip,
 	return 0;
 }
 
-static void dma_free_pages(struct azx *chip, struct snd_dma_buffer *buf)
+static void dma_free_pages(struct hdac_bus *bus, struct snd_dma_buffer *buf)
 {
+	struct azx *chip = bus_to_azx(bus);
+
 	mark_pages_wc(chip, buf, false);
 	snd_dma_free_pages(buf);
 }
@@ -1711,9 +1743,6 @@ static int substream_alloc_pages(struct azx *chip,
 	int ret;
 
 	mark_runtime_wc(chip, azx_dev, substream, false);
-	azx_dev->bufsize = 0;
-	azx_dev->period_bytes = 0;
-	azx_dev->format_val = 0;
 	ret = snd_pcm_lib_malloc_pages(substream, size);
 	if (ret < 0)
 		return ret;
@@ -1740,16 +1769,19 @@ static void pcm_mmap_prepare(struct snd_pcm_substream *substream,
 #endif
 }
 
-static const struct hda_controller_ops pci_hda_ops = {
+static const struct hdac_io_ops pci_hda_io_ops = {
 	.reg_writel = pci_azx_writel,
 	.reg_readl = pci_azx_readl,
 	.reg_writew = pci_azx_writew,
 	.reg_readw = pci_azx_readw,
 	.reg_writeb = pci_azx_writeb,
 	.reg_readb = pci_azx_readb,
-	.disable_msi_reset_irq = disable_msi_reset_irq,
 	.dma_alloc_pages = dma_alloc_pages,
 	.dma_free_pages = dma_free_pages,
+};
+
+static const struct hda_controller_ops pci_hda_ops = {
+	.disable_msi_reset_irq = disable_msi_reset_irq,
 	.substream_alloc_pages = substream_alloc_pages,
 	.substream_free_pages = substream_free_pages,
 	.pcm_mmap_prepare = pcm_mmap_prepare,
@@ -1780,8 +1812,7 @@ static int azx_probe(struct pci_dev *pci,
 		return err;
 	}
 
-	err = azx_create(card, pci, dev, pci_id->driver_data,
-			 &pci_hda_ops, &chip);
+	err = azx_create(card, pci, dev, pci_id->driver_data, &chip);
 	if (err < 0)
 		goto out_free;
 	card->private_data = chip;
@@ -1847,6 +1878,7 @@ static int azx_probe_continue(struct azx *chip)
 	int dev = chip->dev_index;
 	int err;
 
+	hda->probe_continued = 1;
 	/* Request power well for Haswell HDA controller and codec */
 	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL) {
 #ifdef CONFIG_SND_HDA_I915
@@ -1871,17 +1903,13 @@ static int azx_probe_continue(struct azx *chip)
 #endif
 
 	/* create codec instances */
-	err = azx_bus_create(chip, model[dev]);
-	if (err < 0)
-		goto out_free;
-
 	err = azx_probe_codecs(chip, azx_max_codecs[chip->driver_type]);
 	if (err < 0)
 		goto out_free;
 
 #ifdef CONFIG_SND_HDA_PATCH_LOADER
 	if (chip->fw) {
-		err = snd_hda_load_patch(chip->bus, chip->fw->size,
+		err = snd_hda_load_patch(&chip->bus, chip->fw->size,
 					 chip->fw->data);
 		if (err < 0)
 			goto out_free;
@@ -1903,7 +1931,7 @@ static int azx_probe_continue(struct azx *chip)
 
 	chip->running = 1;
 	azx_add_card_list(chip);
-	snd_hda_set_power_save(chip->bus, power_save * 1000);
+	snd_hda_set_power_save(&chip->bus, power_save * 1000);
 	if (azx_has_pm_runtime(chip) || hda->use_vga_switcheroo)
 		pm_runtime_put_noidle(&pci->dev);
 
