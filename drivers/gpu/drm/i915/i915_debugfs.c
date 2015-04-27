@@ -2282,6 +2282,18 @@ static int i915_ppgtt_info(struct seq_file *m, void *data)
 	return 0;
 }
 
+static int count_irq_waiters(struct drm_i915_private *i915)
+{
+	struct intel_engine_cs *ring;
+	int count = 0;
+	int i;
+
+	for_each_ring(ring, i915, i)
+		count += ring->irq_refcount;
+
+	return count;
+}
+
 static int i915_rps_boost_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = m->private;
@@ -2298,6 +2310,15 @@ static int i915_rps_boost_info(struct seq_file *m, void *data)
 	if (ret)
 		goto unlock;
 
+	seq_printf(m, "RPS enabled? %d\n", dev_priv->rps.enabled);
+	seq_printf(m, "GPU busy? %d\n", dev_priv->mm.busy);
+	seq_printf(m, "CPU waiting? %d\n", count_irq_waiters(dev_priv));
+	seq_printf(m, "Frequency requested %d; min hard:%d, soft:%d; max soft:%d, hard:%d\n",
+		   intel_gpu_freq(dev_priv, dev_priv->rps.cur_freq),
+		   intel_gpu_freq(dev_priv, dev_priv->rps.min_freq),
+		   intel_gpu_freq(dev_priv, dev_priv->rps.min_freq_softlimit),
+		   intel_gpu_freq(dev_priv, dev_priv->rps.max_freq_softlimit),
+		   intel_gpu_freq(dev_priv, dev_priv->rps.max_freq));
 	list_for_each_entry_reverse(file, &dev->filelist, lhead) {
 		struct drm_i915_file_private *file_priv = file->driver_priv;
 		struct task_struct *task;

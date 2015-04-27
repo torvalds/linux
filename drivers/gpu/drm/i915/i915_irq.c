@@ -1070,6 +1070,18 @@ static u32 vlv_wa_c0_ei(struct drm_i915_private *dev_priv, u32 pm_iir)
 	return events;
 }
 
+static bool any_waiters(struct drm_i915_private *dev_priv)
+{
+	struct intel_engine_cs *ring;
+	int i;
+
+	for_each_ring(ring, dev_priv, i)
+		if (ring->irq_refcount)
+			return true;
+
+	return false;
+}
+
 static void gen6_pm_rps_work(struct work_struct *work)
 {
 	struct drm_i915_private *dev_priv =
@@ -1114,6 +1126,8 @@ static void gen6_pm_rps_work(struct work_struct *work)
 			new_delay = dev_priv->rps.efficient_freq;
 			adj = 0;
 		}
+	} else if (any_waiters(dev_priv)) {
+		adj = 0;
 	} else if (pm_iir & GEN6_PM_RP_DOWN_TIMEOUT) {
 		if (dev_priv->rps.cur_freq > dev_priv->rps.efficient_freq)
 			new_delay = dev_priv->rps.efficient_freq;
