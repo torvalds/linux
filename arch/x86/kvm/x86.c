@@ -7004,10 +7004,8 @@ int kvm_arch_vcpu_ioctl_set_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)
 	return 0;
 }
 
-int fx_init(struct kvm_vcpu *vcpu)
+static void fx_init(struct kvm_vcpu *vcpu)
 {
-	int err;
-
 	fpstate_init(&vcpu->arch.guest_fpu);
 	if (cpu_has_xsaves)
 		vcpu->arch.guest_fpu.state.xsave.header.xcomp_bv =
@@ -7019,10 +7017,7 @@ int fx_init(struct kvm_vcpu *vcpu)
 	vcpu->arch.xcr0 = XSTATE_FP;
 
 	vcpu->arch.cr0 |= X86_CR0_ET;
-
-	return 0;
 }
-EXPORT_SYMBOL_GPL(fx_init);
 
 void kvm_load_guest_fpu(struct kvm_vcpu *vcpu)
 {
@@ -7341,9 +7336,7 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 		goto fail_free_mce_banks;
 	}
 
-	r = fx_init(vcpu);
-	if (r)
-		goto fail_free_wbinvd_dirty_mask;
+	fx_init(vcpu);
 
 	vcpu->arch.ia32_tsc_adjust_msr = 0x0;
 	vcpu->arch.pv_time_enabled = false;
@@ -7357,8 +7350,7 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 	kvm_pmu_init(vcpu);
 
 	return 0;
-fail_free_wbinvd_dirty_mask:
-	free_cpumask_var(vcpu->arch.wbinvd_dirty_mask);
+
 fail_free_mce_banks:
 	kfree(vcpu->arch.mce_banks);
 fail_free_lapic:
