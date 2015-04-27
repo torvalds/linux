@@ -2115,7 +2115,7 @@ static int hotkey_mask_get(void)
 	return 0;
 }
 
-void static hotkey_mask_warn_incomplete_mask(void)
+static void hotkey_mask_warn_incomplete_mask(void)
 {
 	/* log only what the user can fix... */
 	const u32 wantedmask = hotkey_driver_mask &
