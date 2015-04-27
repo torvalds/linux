@@ -252,7 +252,7 @@ void snd_ctl_sync_vmaster(struct snd_kcontrol *kctl, bool hook_only);
  * Helper functions for jack-detection controls
  */
 struct snd_kcontrol *
-snd_kctl_jack_new(const char *name, void *private_data, struct snd_card *card);
+snd_kctl_jack_new(const char *name, struct snd_card *card);
 void snd_kctl_jack_report(struct snd_card *card,
 			  struct snd_kcontrol *kctl, bool status);
 

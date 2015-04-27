@@ -61,11 +61,11 @@ static void jack_kctl_name_gen(char *name, const char *src_name, int size)
 }
 
 struct snd_kcontrol *
-snd_kctl_jack_new(const char *name, void *private_data, struct snd_card *card)
+snd_kctl_jack_new(const char *name, struct snd_card *card)
 {
 	struct snd_kcontrol *kctl;
 
-	kctl = snd_ctl_new1(&jack_detect_kctl, private_data);
+	kctl = snd_ctl_new1(&jack_detect_kctl, NULL);
 	if (!kctl)
 		return NULL;
 

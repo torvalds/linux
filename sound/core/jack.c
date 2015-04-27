@@ -135,7 +135,7 @@ static struct snd_jack_kctl * snd_jack_kctl_new(struct snd_card *card, const cha
 	struct snd_jack_kctl *jack_kctl;
 	int err;
 
-	kctl = snd_kctl_jack_new(name, card, card);
+	kctl = snd_kctl_jack_new(name, card);
 	if (!kctl)
 		return NULL;
 
