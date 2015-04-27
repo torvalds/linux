@@ -18,6 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
 #include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/acpi.h>
 #include <linux/dmi.h>
 #include <sound/core.h>
