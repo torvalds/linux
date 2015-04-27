@@ -61,10 +61,13 @@ chip control registers, so there should be a single DT node only providing the
 different functions which are described below.
 
 Required properties:
-- compatible: shall be one of
-	"marvell,berlin2-chip-ctrl" for BG2
-	"marvell,berlin2cd-chip-ctrl" for BG2CD
-	"marvell,berlin2q-chip-ctrl" for BG2Q
+- compatible:
+	* the first value should be one of:
+		"marvell,berlin2-chip-ctrl" for BG2
+		"marvell,berlin2cd-chip-ctrl" for BG2CD
+		"marvell,berlin2q-chip-ctrl" for BG2Q
+	* the second and third values must be:
+		"simple-mfd", "syscon"
 - reg: address and length of following register sets for
   BG2/BG2CD: chip control register set
   BG2Q: chip control register set and cpu pll registers
@@ -75,10 +78,13 @@ Marvell Berlin SoCs have a system control register set providing several
 individual registers dealing with pinmux, padmux, and reset.
 
 Required properties:
-- compatible: should be one of
-	"marvell,berlin2-system-ctrl" for BG2
-	"marvell,berlin2cd-system-ctrl" for BG2CD
-	"marvell,berlin2q-system-ctrl" for BG2Q
+- compatible:
+	* the first value should be one of:
+		"marvell,berlin2-system-ctrl" for BG2
+		"marvell,berlin2cd-system-ctrl" for BG2CD
+		"marvell,berlin2q-system-ctrl" for BG2Q
+	* the second and third values must be:
+		"simple-mfd", "syscon"
 - reg: address and length of the system control register set
 
 * Clock provider binding
@@ -130,7 +136,7 @@ Required property:
 Example:
 
 chip: chip-control@ea0000 {
-	compatible = "marvell,berlin2-chip-ctrl";
+	compatible = "marvell,berlin2-chip-ctrl", "simple-mfd", "syscon";
 	#clock-cells = <1>;
 	#reset-cells = <2>;
 	reg = <0xea0000 0x400>;
@@ -144,7 +150,7 @@ chip: chip-control@ea0000 {
 };
 
 sysctrl: system-controller@d000 {
-	compatible = "marvell,berlin2-system-ctrl";
+	compatible = "marvell,berlin2-system-ctrl", "simple-mfd", "syscon";
 	reg = <0xd000 0x100>;
 
 	uart0_pmux: uart0-pmux {
