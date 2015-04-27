@@ -180,12 +180,9 @@ void fpu__save(struct fpu *fpu)
 
 	preempt_disable();
 	if (fpu->fpregs_active) {
-		if (use_eager_fpu()) {
-			copy_fpregs_to_fpstate(fpu);
-		} else {
-			copy_fpregs_to_fpstate(fpu);
+		copy_fpregs_to_fpstate(fpu);
+		if (!use_eager_fpu())
 			fpregs_deactivate(fpu);
-		}
 	}
 	preempt_enable();
 }
