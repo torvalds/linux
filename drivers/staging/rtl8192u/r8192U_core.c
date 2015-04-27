@@ -3711,10 +3711,10 @@ static void rtl8192_process_phyinfo(struct r8192_priv *priv, u8 *buffer,
 	static u32 slide_beacon_adc_pwdb_index, slide_beacon_adc_pwdb_statistics;
 	static u32 last_beacon_adc_pwdb;
 
-	struct ieee80211_hdr_3addr *hdr;
+	struct rtl_80211_hdr_3addr *hdr;
 	u16 sc;
 	unsigned int frag, seq;
-	hdr = (struct ieee80211_hdr_3addr *)buffer;
+	hdr = (struct rtl_80211_hdr_3addr *)buffer;
 	sc = le16_to_cpu(hdr->seq_ctl);
 	frag = WLAN_GET_SEQ_FRAG(sc);
 	seq = WLAN_GET_SEQ_SEQ(sc);
@@ -4205,7 +4205,7 @@ static void TranslateRxSignalStuff819xUsb(struct sk_buff *skb,
 	bool bpacket_match_bssid, bpacket_toself;
 	bool bPacketBeacon = false, bToSelfBA = false;
 	static struct ieee80211_rx_stats  previous_stats;
-	struct ieee80211_hdr_3addr *hdr;//by amy
+	struct rtl_80211_hdr_3addr *hdr;//by amy
 	u16 fc, type;
 
 	// Get Signal Quality for only RX data queue (but not command queue)
@@ -4216,7 +4216,7 @@ static void TranslateRxSignalStuff819xUsb(struct sk_buff *skb,
 	/* Get MAC frame start address. */
 	tmp_buf = (u8 *)skb->data;
 
-	hdr = (struct ieee80211_hdr_3addr *)tmp_buf;
+	hdr = (struct rtl_80211_hdr_3addr *)tmp_buf;
 	fc = le16_to_cpu(hdr->frame_ctl);
 	type = WLAN_FC_GET_TYPE(fc);
 	praddr = hdr->addr1;
@@ -4487,7 +4487,7 @@ static void rtl8192_rx_nomal(struct sk_buff *skb)
 		.freq = IEEE80211_24GHZ_BAND,
 	};
 	u32 rx_pkt_len = 0;
-	struct ieee80211_hdr_1addr *ieee80211_hdr = NULL;
+	struct rtl_80211_hdr_1addr *ieee80211_hdr = NULL;
 	bool unicast_packet = false;
 
 	/* 20 is for ps-poll */
@@ -4500,7 +4500,7 @@ static void rtl8192_rx_nomal(struct sk_buff *skb)
 		skb_trim(skb, skb->len - 4/*sCrcLng*/);
 
 		rx_pkt_len = skb->len;
-		ieee80211_hdr = (struct ieee80211_hdr_1addr *)skb->data;
+		ieee80211_hdr = (struct rtl_80211_hdr_1addr *)skb->data;
 		unicast_packet = false;
 		if (is_broadcast_ether_addr(ieee80211_hdr->addr1)) {
 			//TODO

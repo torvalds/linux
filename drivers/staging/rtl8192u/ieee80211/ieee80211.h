@@ -1020,20 +1020,20 @@ enum ieee80211_mfie {
 /* Minimal header; can be used for passing 802.11 frames with sufficient
  * information to determine what type of underlying data type is actually
  * stored in the data. */
-struct ieee80211_hdr {
+struct rtl_80211_hdr {
 	__le16 frame_ctl;
 	__le16 duration_id;
 	u8 payload[0];
 } __packed;
 
-struct ieee80211_hdr_1addr {
+struct rtl_80211_hdr_1addr {
 	__le16 frame_ctl;
 	__le16 duration_id;
 	u8 addr1[ETH_ALEN];
 	u8 payload[0];
 } __packed;
 
-struct ieee80211_hdr_2addr {
+struct rtl_80211_hdr_2addr {
 	__le16 frame_ctl;
 	__le16 duration_id;
 	u8 addr1[ETH_ALEN];
@@ -1041,7 +1041,7 @@ struct ieee80211_hdr_2addr {
 	u8 payload[0];
 } __packed;
 
-struct ieee80211_hdr_3addr {
+struct rtl_80211_hdr_3addr {
 	__le16 frame_ctl;
 	__le16 duration_id;
 	u8 addr1[ETH_ALEN];
@@ -1051,7 +1051,7 @@ struct ieee80211_hdr_3addr {
 	u8 payload[0];
 } __packed;
 
-struct ieee80211_hdr_4addr {
+struct rtl_80211_hdr_4addr {
 	__le16 frame_ctl;
 	__le16 duration_id;
 	u8 addr1[ETH_ALEN];
@@ -1062,7 +1062,7 @@ struct ieee80211_hdr_4addr {
 	u8 payload[0];
 } __packed;
 
-struct ieee80211_hdr_3addrqos {
+struct rtl_80211_hdr_3addrqos {
 	__le16 frame_ctl;
 	__le16 duration_id;
 	u8 addr1[ETH_ALEN];
@@ -1073,7 +1073,7 @@ struct ieee80211_hdr_3addrqos {
 	__le16 qos_ctl;
 } __packed;
 
-struct ieee80211_hdr_4addrqos {
+struct rtl_80211_hdr_4addrqos {
 	__le16 frame_ctl;
 	__le16 duration_id;
 	u8 addr1[ETH_ALEN];
@@ -1092,7 +1092,7 @@ struct ieee80211_info_element {
 } __packed;
 
 struct ieee80211_authentication {
-	struct ieee80211_hdr_3addr header;
+	struct rtl_80211_hdr_3addr header;
 	__le16 algorithm;
 	__le16 transaction;
 	__le16 status;
@@ -1101,18 +1101,18 @@ struct ieee80211_authentication {
 } __packed;
 
 struct ieee80211_disassoc {
-	struct ieee80211_hdr_3addr header;
+	struct rtl_80211_hdr_3addr header;
 	__le16 reason;
 } __packed;
 
 struct ieee80211_probe_request {
-	struct ieee80211_hdr_3addr header;
+	struct rtl_80211_hdr_3addr header;
 	/* SSID, supported rates */
 	struct ieee80211_info_element info_element[0];
 } __packed;
 
 struct ieee80211_probe_response {
-	struct ieee80211_hdr_3addr header;
+	struct rtl_80211_hdr_3addr header;
 	__le32 time_stamp[2];
 	__le16 beacon_interval;
 	__le16 capability;
@@ -1125,7 +1125,7 @@ struct ieee80211_probe_response {
 #define ieee80211_beacon ieee80211_probe_response
 
 struct ieee80211_assoc_request_frame {
-	struct ieee80211_hdr_3addr header;
+	struct rtl_80211_hdr_3addr header;
 	__le16 capability;
 	__le16 listen_interval;
 	/* SSID, supported rates, RSN */
@@ -1133,7 +1133,7 @@ struct ieee80211_assoc_request_frame {
 } __packed;
 
 struct ieee80211_reassoc_request_frame {
-	struct ieee80211_hdr_3addr header;
+	struct rtl_80211_hdr_3addr header;
 	__le16 capability;
 	__le16 listen_interval;
 	u8 current_ap[ETH_ALEN];
@@ -1142,7 +1142,7 @@ struct ieee80211_reassoc_request_frame {
 } __packed;
 
 struct ieee80211_assoc_response_frame {
-	struct ieee80211_hdr_3addr header;
+	struct rtl_80211_hdr_3addr header;
 	__le16 capability;
 	__le16 status;
 	__le16 aid;
@@ -1329,9 +1329,9 @@ static inline const char *eap_get_type(int type)
 //added by amy for reorder
 static inline u8 Frame_QoSTID(u8 *buf)
 {
-	struct ieee80211_hdr_3addr *hdr;
+	struct rtl_80211_hdr_3addr *hdr;
 	u16 fc;
-	hdr = (struct ieee80211_hdr_3addr *)buf;
+	hdr = (struct rtl_80211_hdr_3addr *)buf;
 	fc = le16_to_cpu(hdr->frame_ctl);
 	return (u8)((frameqos *)(buf + (((fc & IEEE80211_FCTL_TODS)&&(fc & IEEE80211_FCTL_FROMDS))? 30 : 24)))->field.tid;
 }
@@ -2262,17 +2262,17 @@ static inline int ieee80211_get_hdrlen(u16 fc)
 	return hdrlen;
 }
 
-static inline u8 *ieee80211_get_payload(struct ieee80211_hdr *hdr)
+static inline u8 *ieee80211_get_payload(struct rtl_80211_hdr *hdr)
 {
 	switch (ieee80211_get_hdrlen(le16_to_cpu(hdr->frame_ctl))) {
 	case IEEE80211_1ADDR_LEN:
-		return ((struct ieee80211_hdr_1addr *)hdr)->payload;
+		return ((struct rtl_80211_hdr_1addr *)hdr)->payload;
 	case IEEE80211_2ADDR_LEN:
-		return ((struct ieee80211_hdr_2addr *)hdr)->payload;
+		return ((struct rtl_80211_hdr_2addr *)hdr)->payload;
 	case IEEE80211_3ADDR_LEN:
-		return ((struct ieee80211_hdr_3addr *)hdr)->payload;
+		return ((struct rtl_80211_hdr_3addr *)hdr)->payload;
 	case IEEE80211_4ADDR_LEN:
-		return ((struct ieee80211_hdr_4addr *)hdr)->payload;
+		return ((struct rtl_80211_hdr_4addr *)hdr)->payload;
 	}
 	return NULL;
 }
@@ -2328,7 +2328,7 @@ extern void ieee80211_txb_free(struct ieee80211_txb *);
 extern int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 			struct ieee80211_rx_stats *rx_stats);
 extern void ieee80211_rx_mgt(struct ieee80211_device *ieee,
-			     struct ieee80211_hdr_4addr *header,
+			     struct rtl_80211_hdr_4addr *header,
 			     struct ieee80211_rx_stats *stats);
 
 /* ieee80211_wx.c */

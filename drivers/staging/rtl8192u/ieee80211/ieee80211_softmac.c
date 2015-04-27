@@ -222,8 +222,8 @@ inline void softmac_mgmt_xmit(struct sk_buff *skb, struct ieee80211_device *ieee
 {
 	unsigned long flags;
 	short single = ieee->softmac_features & IEEE_SOFTMAC_SINGLE_QUEUE;
-	struct ieee80211_hdr_3addr  *header=
-		(struct ieee80211_hdr_3addr  *) skb->data;
+	struct rtl_80211_hdr_3addr  *header=
+		(struct rtl_80211_hdr_3addr  *) skb->data;
 
 	cb_desc *tcb_desc = (cb_desc *)(skb->cb + 8);
 	spin_lock_irqsave(&ieee->lock, flags);
@@ -289,8 +289,8 @@ inline void softmac_ps_mgmt_xmit(struct sk_buff *skb, struct ieee80211_device *i
 {
 
 	short single = ieee->softmac_features & IEEE_SOFTMAC_SINGLE_QUEUE;
-	struct ieee80211_hdr_3addr  *header =
-		(struct ieee80211_hdr_3addr  *) skb->data;
+	struct rtl_80211_hdr_3addr  *header =
+		(struct rtl_80211_hdr_3addr  *) skb->data;
 
 
 	if(single){
@@ -928,14 +928,14 @@ static struct sk_buff *ieee80211_null_func(struct ieee80211_device *ieee,
 					   short pwr)
 {
 	struct sk_buff *skb;
-	struct ieee80211_hdr_3addr *hdr;
+	struct rtl_80211_hdr_3addr *hdr;
 
-	skb = dev_alloc_skb(sizeof(struct ieee80211_hdr_3addr));
+	skb = dev_alloc_skb(sizeof(struct rtl_80211_hdr_3addr));
 
 	if (!skb)
 		return NULL;
 
-	hdr = (struct ieee80211_hdr_3addr *)skb_put(skb,sizeof(struct ieee80211_hdr_3addr));
+	hdr = (struct rtl_80211_hdr_3addr *)skb_put(skb,sizeof(struct rtl_80211_hdr_3addr));
 
 	memcpy(hdr->addr1, ieee->current_network.bssid, ETH_ALEN);
 	memcpy(hdr->addr2, ieee->dev->dev_addr, ETH_ALEN);
@@ -1304,7 +1304,7 @@ static void ieee80211_auth_challenge(struct ieee80211_device *ieee,
 
 		IEEE80211_DEBUG_MGMT("Sending authentication challenge response\n");
 
-		ieee80211_encrypt_fragment(ieee, skb, sizeof(struct ieee80211_hdr_3addr  ));
+		ieee80211_encrypt_fragment(ieee, skb, sizeof(struct rtl_80211_hdr_3addr  ));
 
 		softmac_mgmt_xmit(skb, ieee);
 		mod_timer(&ieee->associate_timer, jiffies + (HZ/2));
@@ -1588,17 +1588,17 @@ static short probe_rq_parse(struct ieee80211_device *ieee, struct sk_buff *skb, 
 	u8 *ssid=NULL;
 	u8 ssidlen = 0;
 
-	struct ieee80211_hdr_3addr   *header =
-		(struct ieee80211_hdr_3addr   *) skb->data;
+	struct rtl_80211_hdr_3addr   *header =
+		(struct rtl_80211_hdr_3addr   *) skb->data;
 
-	if (skb->len < sizeof (struct ieee80211_hdr_3addr  ))
+	if (skb->len < sizeof (struct rtl_80211_hdr_3addr  ))
 		return -1; /* corrupted */
 
 	memcpy(src,header->addr2, ETH_ALEN);
 
 	skbend = (u8 *)skb->data + skb->len;
 
-	tag = skb->data + sizeof (struct ieee80211_hdr_3addr  );
+	tag = skb->data + sizeof (struct rtl_80211_hdr_3addr  );
 
 	while (tag+1 < skbend){
 		if (*tag == 0) {
@@ -1894,7 +1894,7 @@ EXPORT_SYMBOL(ieee80211_ps_tx_ack);
 static void ieee80211_process_action(struct ieee80211_device *ieee,
 				     struct sk_buff *skb)
 {
-	struct ieee80211_hdr *header = (struct ieee80211_hdr *)skb->data;
+	struct rtl_80211_hdr *header = (struct rtl_80211_hdr *)skb->data;
 	u8 *act = ieee80211_get_payload(header);
 	u8 tmp = 0;
 //	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA|IEEE80211_DL_BA, skb->data, skb->len);
@@ -1985,7 +1985,7 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
 			struct ieee80211_rx_stats *rx_stats, u16 type,
 			u16 stype)
 {
-	struct ieee80211_hdr_3addr *header = (struct ieee80211_hdr_3addr *) skb->data;
+	struct rtl_80211_hdr_3addr *header = (struct rtl_80211_hdr_3addr *) skb->data;
 	u16 errcode;
 	int aid;
 	struct ieee80211_assoc_response_frame *assoc_resp;
@@ -2243,7 +2243,7 @@ void ieee80211_wake_queue(struct ieee80211_device *ieee)
 
 	unsigned long flags;
 	struct sk_buff *skb;
-	struct ieee80211_hdr_3addr  *header;
+	struct rtl_80211_hdr_3addr  *header;
 
 	spin_lock_irqsave(&ieee->lock, flags);
 	if (! ieee->queue_stop) goto exit;
@@ -2253,7 +2253,7 @@ void ieee80211_wake_queue(struct ieee80211_device *ieee)
 	if (ieee->softmac_features & IEEE_SOFTMAC_SINGLE_QUEUE) {
 		while (!ieee->queue_stop && (skb = dequeue_mgmt(ieee))){
 
-			header = (struct ieee80211_hdr_3addr  *) skb->data;
+			header = (struct rtl_80211_hdr_3addr  *) skb->data;
 
 			header->seq_ctl = cpu_to_le16(ieee->seq_ctrl[0] << 4);
 
