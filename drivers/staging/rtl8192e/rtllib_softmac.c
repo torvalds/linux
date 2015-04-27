@@ -20,6 +20,7 @@
 #include <linux/delay.h>
 #include <linux/uaccess.h>
 #include <linux/etherdevice.h>
+#include <linux/ieee80211.h>
 #include "dot11d.h"
 
 short rtllib_is_54g(struct rtllib_network *net)
@@ -2983,7 +2984,7 @@ void rtllib_stop_protocol(struct rtllib_device *ieee, u8 shutdown)
 
 	if (ieee->state == RTLLIB_LINKED) {
 		if (ieee->iw_mode == IW_MODE_INFRA)
-			SendDisassociation(ieee, 1, deauth_lv_ss);
+			SendDisassociation(ieee, 1, WLAN_REASON_DEAUTH_LEAVING);
 		rtllib_disassociate(ieee);
 	}
 

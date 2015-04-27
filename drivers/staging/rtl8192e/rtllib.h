@@ -261,45 +261,6 @@ struct sw_chnl_cmd {
 #define	MGN_MCS14_SG		0x9e
 #define	MGN_MCS15_SG		0x9f
 
-
-enum	_ReasonCode {
-	unspec_reason	= 0x1,
-	auth_not_valid	= 0x2,
-	deauth_lv_ss	= 0x3,
-	inactivity		= 0x4,
-	ap_overload	= 0x5,
-	class2_err		= 0x6,
-	class3_err		= 0x7,
-	disas_lv_ss	= 0x8,
-	asoc_not_auth	= 0x9,
-
-	mic_failure	= 0xe,
-
-	invalid_IE		= 0x0d,
-	four_way_tmout	= 0x0f,
-	two_way_tmout	= 0x10,
-	IE_dismatch	= 0x11,
-	invalid_Gcipher = 0x12,
-	invalid_Pcipher = 0x13,
-	invalid_AKMP	= 0x14,
-	unsup_RSNIEver = 0x15,
-	invalid_RSNIE	= 0x16,
-	auth_802_1x_fail = 0x17,
-	ciper_reject		= 0x18,
-
-	QoS_unspec		= 0x20,
-	QAP_bandwidth	= 0x21,
-	poor_condition	= 0x22,
-	no_facility	= 0x23,
-	req_declined	= 0x25,
-	invalid_param	= 0x26,
-	req_not_honored = 0x27,
-	TS_not_created	= 0x2F,
-	DL_not_allowed	= 0x30,
-	dest_not_exist	= 0x31,
-	dest_not_QSTA	= 0x32,
-};
-
 enum hal_def_variable {
 	HAL_DEF_TPC_ENABLE,
 	HAL_DEF_INIT_GAIN,

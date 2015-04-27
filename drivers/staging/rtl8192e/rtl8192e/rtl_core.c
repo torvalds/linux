@@ -44,6 +44,7 @@
 #include <linux/uaccess.h>
 #include <linux/pci.h>
 #include <linux/vmalloc.h>
+#include <linux/ieee80211.h>
 #include "rtl_core.h"
 #include "r8192E_phy.h"
 #include "r8192E_phyreg.h"
@@ -391,7 +392,7 @@ bool MgntActSet_RF_State(struct net_device *dev,
 				else
 					priv->blinked_ingpio = false;
 				rtllib_MgntDisconnect(priv->rtllib,
-						      disas_lv_ss);
+						      WLAN_REASON_DISASSOC_STA_HAS_LEFT);
 			}
 		}
 		if ((ChangeSource == RF_CHANGE_BY_HW) && !priv->bHwRadioOff)
