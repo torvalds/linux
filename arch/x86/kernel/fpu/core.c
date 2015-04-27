@@ -296,24 +296,18 @@ EXPORT_SYMBOL_GPL(fpstate_init_curr);
  *       the read-only case, it's not strictly necessary for
  *       read-only access to the context.
  */
-static int fpu__unlazy_stopped(struct fpu *child_fpu)
+static void fpu__unlazy_stopped(struct fpu *child_fpu)
 {
-	int ret;
-
-	if (WARN_ON_ONCE(child_fpu == &current->thread.fpu))
-		return -EINVAL;
+	WARN_ON_ONCE(child_fpu == &current->thread.fpu);
 
 	if (child_fpu->fpstate_active) {
 		child_fpu->last_cpu = -1;
-		return 0;
+	} else {
+		fpstate_init(child_fpu);
+
+		/* Safe to do for stopped child tasks: */
+		child_fpu->fpstate_active = 1;
 	}
-
-	fpstate_init(child_fpu);
-
-	/* Safe to do for stopped child tasks: */
-	child_fpu->fpstate_active = 1;
-
-	return 0;
 }
 
 /*
@@ -389,15 +383,11 @@ int xfpregs_get(struct task_struct *target, const struct user_regset *regset,
 		void *kbuf, void __user *ubuf)
 {
 	struct fpu *fpu = &target->thread.fpu;
-	int ret;
 
 	if (!cpu_has_fxsr)
 		return -ENODEV;
 
-	ret = fpu__unlazy_stopped(fpu);
-	if (ret)
-		return ret;
-
+	fpu__unlazy_stopped(fpu);
 	sanitize_i387_state(target);
 
 	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
@@ -414,10 +404,7 @@ int xfpregs_set(struct task_struct *target, const struct user_regset *regset,
 	if (!cpu_has_fxsr)
 		return -ENODEV;
 
-	ret = fpu__unlazy_stopped(fpu);
-	if (ret)
-		return ret;
-
+	fpu__unlazy_stopped(fpu);
 	sanitize_i387_state(target);
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
@@ -449,9 +436,7 @@ int xstateregs_get(struct task_struct *target, const struct user_regset *regset,
 	if (!cpu_has_xsave)
 		return -ENODEV;
 
-	ret = fpu__unlazy_stopped(fpu);
-	if (ret)
-		return ret;
+	fpu__unlazy_stopped(fpu);
 
 	xsave = &fpu->state.xsave;
 
@@ -480,9 +465,7 @@ int xstateregs_set(struct task_struct *target, const struct user_regset *regset,
 	if (!cpu_has_xsave)
 		return -ENODEV;
 
-	ret = fpu__unlazy_stopped(fpu);
-	if (ret)
-		return ret;
+	fpu__unlazy_stopped(fpu);
 
 	xsave = &fpu->state.xsave;
 
@@ -643,11 +626,8 @@ int fpregs_get(struct task_struct *target, const struct user_regset *regset,
 {
 	struct fpu *fpu = &target->thread.fpu;
 	struct user_i387_ia32_struct env;
-	int ret;
 
-	ret = fpu__unlazy_stopped(fpu);
-	if (ret)
-		return ret;
+	fpu__unlazy_stopped(fpu);
 
 	if (!static_cpu_has(X86_FEATURE_FPU))
 		return fpregs_soft_get(target, regset, pos, count, kbuf, ubuf);
@@ -677,9 +657,7 @@ int fpregs_set(struct task_struct *target, const struct user_regset *regset,
 	struct user_i387_ia32_struct env;
 	int ret;
 
-	ret = fpu__unlazy_stopped(fpu);
-	if (ret)
-		return ret;
+	fpu__unlazy_stopped(fpu);
 
 	sanitize_i387_state(target);
 
