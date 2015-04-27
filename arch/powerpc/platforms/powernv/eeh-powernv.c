@@ -1000,13 +1000,13 @@ static int pnv_eeh_wait_state(struct eeh_pe *pe, int max_wait)
 		if (ret != EEH_STATE_UNAVAILABLE)
 			return ret;
 
-		max_wait -= mwait;
 		if (max_wait <= 0) {
 			pr_warn("%s: Timeout getting PE#%x's state (%d)\n",
 				__func__, pe->addr, max_wait);
 			return EEH_STATE_NOT_SUPPORT;
 		}
 
+		max_wait -= mwait;
 		msleep(mwait);
 	}
 
