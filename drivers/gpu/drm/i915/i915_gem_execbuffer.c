@@ -889,6 +889,7 @@ static int
 i915_gem_execbuffer_move_to_gpu(struct intel_engine_cs *ring,
 				struct list_head *vmas)
 {
+	const unsigned other_rings = ~intel_ring_flag(ring);
 	struct i915_vma *vma;
 	uint32_t flush_domains = 0;
 	bool flush_chipset = false;
@@ -896,9 +897,12 @@ i915_gem_execbuffer_move_to_gpu(struct intel_engine_cs *ring,
 
 	list_for_each_entry(vma, vmas, exec_list) {
 		struct drm_i915_gem_object *obj = vma->obj;
-		ret = i915_gem_object_sync(obj, ring);
-		if (ret)
-			return ret;
+
+		if (obj->active & other_rings) {
+			ret = i915_gem_object_sync(obj, ring);
+			if (ret)
+				return ret;
+		}
 
 		if (obj->base.write_domain & I915_GEM_DOMAIN_CPU)
 			flush_chipset |= i915_gem_clflush_object(obj, false);
