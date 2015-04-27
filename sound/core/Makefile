@@ -7,8 +7,7 @@ snd-y     := sound.o init.o memory.o info.o control.o misc.o device.o
 snd-$(CONFIG_ISA_DMA_API) += isadma.o
 snd-$(CONFIG_SND_OSSEMUL) += sound_oss.o info_oss.o
 snd-$(CONFIG_SND_VMASTER) += vmaster.o
-snd-$(CONFIG_SND_KCTL_JACK) += ctljack.o
-snd-$(CONFIG_SND_JACK)	  += jack.o
+snd-$(CONFIG_SND_JACK)	  += ctljack.o jack.o
 
 snd-pcm-y := pcm.o pcm_native.o pcm_lib.o pcm_timer.o pcm_misc.o \
 		pcm_memory.o memalloc.o

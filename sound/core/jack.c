@@ -24,6 +24,13 @@
 #include <linux/module.h>
 #include <sound/jack.h>
 #include <sound/core.h>
+#include <sound/control.h>
+
+struct snd_jack_kctl {
+	struct snd_kcontrol *kctl;
+	struct list_head list;  /* list of controls belong to the same jack */
+	unsigned int mask_bits; /* only masked status bits are reported via kctl */
+};
 
 static int jack_switch_types[SND_JACK_SWITCH_TYPES] = {
 	SW_HEADPHONE_INSERT,
@@ -54,7 +61,13 @@ static int snd_jack_dev_disconnect(struct snd_device *device)
 static int snd_jack_dev_free(struct snd_device *device)
 {
 	struct snd_jack *jack = device->device_data;
+	struct snd_card *card = device->card;
+	struct snd_jack_kctl *jack_kctl, *tmp_jack_kctl;
 
+	list_for_each_entry_safe(jack_kctl, tmp_jack_kctl, &jack->kctl_list, list) {
+		list_del_init(&jack_kctl->list);
+		snd_ctl_remove(card, jack_kctl->kctl);
+	}
 	if (jack->private_free)
 		jack->private_free(jack);
 
@@ -99,6 +112,77 @@ static int snd_jack_dev_register(struct snd_device *device)
 
 	return err;
 }
+
+static void snd_jack_kctl_private_free(struct snd_kcontrol *kctl)
+{
+	struct snd_jack_kctl *jack_kctl;
+
+	jack_kctl = kctl->private_data;
+	if (jack_kctl) {
+		list_del(&jack_kctl->list);
+		kfree(jack_kctl);
+	}
+}
+
+static void snd_jack_kctl_add(struct snd_jack *jack, struct snd_jack_kctl *jack_kctl)
+{
+	list_add_tail(&jack_kctl->list, &jack->kctl_list);
+}
+
+static struct snd_jack_kctl * snd_jack_kctl_new(struct snd_card *card, const char *name, unsigned int mask)
+{
+	struct snd_kcontrol *kctl;
+	struct snd_jack_kctl *jack_kctl;
+	int err;
+
+	kctl = snd_kctl_jack_new(name, 0, card);
+	if (!kctl)
+		return NULL;
+
+	err = snd_ctl_add(card, kctl);
+	if (err < 0)
+		return NULL;
+
+	jack_kctl = kzalloc(sizeof(*jack_kctl), GFP_KERNEL);
+
+	if (!jack_kctl)
+		goto error;
+
+	jack_kctl->kctl = kctl;
+	jack_kctl->mask_bits = mask;
+
+	kctl->private_data = jack_kctl;
+	kctl->private_free = snd_jack_kctl_private_free;
+
+	return jack_kctl;
+error:
+	snd_ctl_free_one(kctl);
+	return NULL;
+}
+
+/**
+ * snd_jack_add_new_kctl - Create a new snd_jack_kctl and add it to jack
+ * @jack:  the jack instance which the kctl will attaching to
+ * @name:  the name for the snd_kcontrol object
+ * @mask:  a bitmask of enum snd_jack_type values that can be detected
+ *         by this snd_jack_kctl object.
+ *
+ * Creates a new snd_kcontrol object and adds it to the jack kctl_list.
+ *
+ * Return: Zero if successful, or a negative error code on failure.
+ */
+int snd_jack_add_new_kctl(struct snd_jack *jack, const char * name, int mask)
+{
+	struct snd_jack_kctl *jack_kctl;
+
+	jack_kctl = snd_jack_kctl_new(jack->card, name, mask);
+	if (!jack_kctl)
+		return -ENOMEM;
+
+	snd_jack_kctl_add(jack, jack_kctl);
+	return 0;
+}
+EXPORT_SYMBOL(snd_jack_add_new_kctl);
 
 /**
  * snd_jack_new - Create a new jack
@@ -149,6 +233,9 @@ int snd_jack_new(struct snd_card *card, const char *id, int type,
 	err = snd_device_new(card, SNDRV_DEV_JACK, jack, &ops);
 	if (err < 0)
 		goto fail_input;
+
+	jack->card = card;
+	INIT_LIST_HEAD(&jack->kctl_list);
 
 	*jjack = jack;
 
@@ -230,6 +317,7 @@ EXPORT_SYMBOL(snd_jack_set_key);
  */
 void snd_jack_report(struct snd_jack *jack, int status)
 {
+	struct snd_jack_kctl *jack_kctl;
 	int i;
 
 	if (!jack)
@@ -252,6 +340,11 @@ void snd_jack_report(struct snd_jack *jack, int status)
 	}
 
 	input_sync(jack->input_dev);
+
+	list_for_each_entry(jack_kctl, &jack->kctl_list, list)
+		snd_kctl_jack_report(jack->card, jack_kctl->kctl,
+					    status & jack_kctl->mask_bits);
+
 }
 EXPORT_SYMBOL(snd_jack_report);
 

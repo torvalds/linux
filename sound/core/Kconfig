@@ -221,9 +221,6 @@ config SND_PCM_XRUN_DEBUG
 config SND_VMASTER
 	bool
 
-config SND_KCTL_JACK
-	bool
-
 config SND_DMA_SGBUF
 	def_bool y
 	depends on X86
