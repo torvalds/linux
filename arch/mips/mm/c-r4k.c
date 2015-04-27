@@ -295,7 +295,7 @@ static void r4k_blast_icache_page_setup(void)
 
 static void (*r4k_blast_icache_user_page)(unsigned long addr);
 
-static void __cpuinit r4k_blast_icache_user_page_setup(void)
+static void r4k_blast_icache_user_page_setup(void)
 {
 	unsigned long ic_lsize = cpu_icache_line_size();
 
