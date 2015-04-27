@@ -2485,8 +2485,10 @@ static void bnx2x_bz_fp(struct bnx2x *bp, int index)
 	else if (bp->flags & GRO_ENABLE_FLAG)
 		fp->mode = TPA_MODE_GRO;
 
-	/* We don't want TPA on an FCoE L2 ring */
-	if (IS_FCOE_FP(fp))
+	/* We don't want TPA if it's disabled in bp
+	 * or if this is an FCoE L2 ring.
+	 */
+	if (bp->disable_tpa || IS_FCOE_FP(fp))
 		fp->disable_tpa = 1;
 }
 
