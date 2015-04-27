@@ -195,6 +195,12 @@
 			clocks = <&ccu1 CLK_CPU_CREG>;
 			resets = <&rgu 5>;
 
+			creg_clk: clock-controller {
+				compatible = "nxp,lpc1850-creg-clk";
+				clocks = <&xtal32>;
+				#clock-cells = <1>;
+			};
+
 			usb0_otg_phy: phy@004 {
 				compatible = "nxp,lpc1850-usb-otg-phy";
 				clocks = <&ccu1 CLK_USB0>;
@@ -213,7 +219,7 @@
 			compatible = "nxp,lpc1850-cgu";
 			reg = <0x40050000 0x1000>;
 			#clock-cells = <1>;
-			clocks = <&xtal>, <&xtal32>, <&enet_rx_clk>, <&enet_tx_clk>, <&gp_clkin>;
+			clocks = <&xtal>, <&creg_clk 1>, <&enet_rx_clk>, <&enet_tx_clk>, <&gp_clkin>;
 		};
 
 		ccu1: clock-controller@40051000 {
