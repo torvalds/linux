@@ -234,10 +234,7 @@ static int omap_wdt_probe(struct platform_device *pdev)
 	omap_wdt->min_timeout = TIMER_MARGIN_MIN;
 	omap_wdt->max_timeout = TIMER_MARGIN_MAX;
 
-	if (timer_margin >= TIMER_MARGIN_MIN &&
-	    timer_margin <= TIMER_MARGIN_MAX)
-		omap_wdt->timeout = timer_margin;
-	else
+	if (watchdog_init_timeout(omap_wdt, timer_margin, &pdev->dev) < 0)
 		omap_wdt->timeout = TIMER_MARGIN_DEFAULT;
 
 	watchdog_set_drvdata(omap_wdt, wdev);
