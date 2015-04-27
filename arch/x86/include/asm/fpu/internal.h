@@ -44,7 +44,7 @@ extern void fpu__init_system_xstate(void);
 extern void fpu__init_cpu_xstate(void);
 extern void fpu__init_system(struct cpuinfo_x86 *c);
 
-extern int fpstate_alloc_init(struct fpu *fpu);
+extern void fpstate_alloc_init(struct fpu *fpu);
 extern void fpstate_init(struct fpu *fpu);
 extern void fpu__clear(struct task_struct *tsk);
 

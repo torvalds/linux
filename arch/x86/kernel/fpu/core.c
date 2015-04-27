@@ -259,26 +259,17 @@ int fpu__copy(struct fpu *dst_fpu, struct fpu *src_fpu)
 }
 
 /*
- * Allocate the backing store for the current task's FPU registers
- * and initialize the registers themselves as well.
- *
- * Can fail.
+ * Initialize the current task's in-memory FPU context:
  */
-int fpstate_alloc_init(struct fpu *fpu)
+void fpstate_alloc_init(struct fpu *fpu)
 {
-	int ret;
-
-	if (WARN_ON_ONCE(fpu != &current->thread.fpu))
-		return -EINVAL;
-	if (WARN_ON_ONCE(fpu->fpstate_active))
-		return -EINVAL;
+	WARN_ON_ONCE(fpu != &current->thread.fpu);
+	WARN_ON_ONCE(fpu->fpstate_active);
 
 	fpstate_init(fpu);
 
 	/* Safe to do for the current task: */
 	fpu->fpstate_active = 1;
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(fpstate_alloc_init);
 
@@ -340,20 +331,8 @@ void fpu__restore(void)
 	struct task_struct *tsk = current;
 	struct fpu *fpu = &tsk->thread.fpu;
 
-	if (!fpu->fpstate_active) {
-		local_irq_enable();
-		/*
-		 * does a slab alloc which can sleep
-		 */
-		if (fpstate_alloc_init(fpu)) {
-			/*
-			 * ran out of memory!
-			 */
-			do_group_exit(SIGKILL);
-			return;
-		}
-		local_irq_disable();
-	}
+	if (!fpu->fpstate_active)
+		fpstate_alloc_init(fpu);
 
 	/* Avoid __kernel_fpu_begin() right after fpregs_activate() */
 	kernel_fpu_disable();
@@ -379,9 +358,7 @@ void fpu__clear(struct task_struct *tsk)
 		drop_fpu(fpu);
 	} else {
 		if (!fpu->fpstate_active) {
-			/* kthread execs. TODO: cleanup this horror. */
-			if (WARN_ON(fpstate_alloc_init(fpu)))
-				force_sig(SIGKILL, tsk);
+			fpstate_alloc_init(fpu);
 			user_fpu_begin();
 		}
 		restore_init_xstate();

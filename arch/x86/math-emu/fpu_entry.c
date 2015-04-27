@@ -149,12 +149,8 @@ void math_emulate(struct math_emu_info *info)
 	struct desc_struct code_descriptor;
 	struct fpu *fpu = &current->thread.fpu;
 
-	if (!fpu->fpstate_active) {
-		if (fpstate_alloc_init(fpu)) {
-			do_group_exit(SIGKILL);
-			return;
-		}
-	}
+	if (!fpu->fpstate_active)
+		fpstate_alloc_init(fpu);
 
 #ifdef RE_ENTRANT_CHECKING
 	if (emulating) {
