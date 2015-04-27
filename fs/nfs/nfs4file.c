@@ -10,6 +10,8 @@
 #include "fscache.h"
 #include "pnfs.h"
 
+#include "nfstrace.h"
+
 #ifdef CONFIG_NFS_V4_2
 #include "nfs42.h"
 #endif
@@ -57,7 +59,7 @@ nfs4_file_open(struct inode *inode, struct file *filp)
 	if (openflags & O_TRUNC) {
 		attr.ia_valid |= ATTR_SIZE;
 		attr.ia_size = 0;
-		nfs_wb_all(inode);
+		nfs_sync_inode(inode);
 	}
 
 	inode = NFS_PROTO(dir)->open_context(dir, ctx, openflags, &attr, &opened);
@@ -100,6 +102,9 @@ nfs4_file_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	int ret;
 	struct inode *inode = file_inode(file);
 
+	trace_nfs_fsync_enter(inode);
+
+	nfs_inode_dio_wait(inode);
 	do {
 		ret = filemap_write_and_wait_range(inode->i_mapping, start, end);
 		if (ret != 0)
@@ -107,7 +112,7 @@ nfs4_file_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 		mutex_lock(&inode->i_mutex);
 		ret = nfs_file_fsync_commit(file, start, end, datasync);
 		if (!ret)
-			ret = pnfs_layoutcommit_inode(inode, true);
+			ret = pnfs_sync_inode(inode, !!datasync);
 		mutex_unlock(&inode->i_mutex);
 		/*
 		 * If nfs_file_fsync_commit detected a server reboot, then
@@ -118,6 +123,7 @@ nfs4_file_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 		end = LLONG_MAX;
 	} while (ret == -EAGAIN);
 
+	trace_nfs_fsync_exit(inode, ret);
 	return ret;
 }
 
@@ -152,15 +158,9 @@ static long nfs42_fallocate(struct file *filep, int mode, loff_t offset, loff_t 
 	if (ret < 0)
 		return ret;
 
-	mutex_lock(&inode->i_mutex);
 	if (mode & FALLOC_FL_PUNCH_HOLE)
-		ret = nfs42_proc_deallocate(filep, offset, len);
-	else
-		ret = nfs42_proc_allocate(filep, offset, len);
-	mutex_unlock(&inode->i_mutex);
-
-	nfs_zap_caches(inode);
-	return ret;
+		return nfs42_proc_deallocate(filep, offset, len);
+	return nfs42_proc_allocate(filep, offset, len);
 }
 #endif /* CONFIG_NFS_V4_2 */
 

@@ -36,7 +36,6 @@
 #include <linux/types.h>
 #include <linux/parser.h>
 #include <linux/fs.h>
-#include <linux/nfs_idmap.h>
 #include <net/net_namespace.h>
 #include <linux/sunrpc/rpc_pipe_fs.h>
 #include <linux/nfs_fs.h>
@@ -49,6 +48,7 @@
 
 #include "internal.h"
 #include "netns.h"
+#include "nfs4idmap.h"
 #include "nfs4trace.h"
 
 #define NFS_UINT_MAXLEN 11

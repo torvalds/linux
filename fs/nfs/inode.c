@@ -133,6 +133,13 @@ void nfs_evict_inode(struct inode *inode)
 	nfs_clear_inode(inode);
 }
 
+int nfs_sync_inode(struct inode *inode)
+{
+	nfs_inode_dio_wait(inode);
+	return nfs_wb_all(inode);
+}
+EXPORT_SYMBOL_GPL(nfs_sync_inode);
+
 /**
  * nfs_sync_mapping - helper to flush all mmapped dirty data to disk
  */
@@ -192,7 +199,6 @@ void nfs_zap_caches(struct inode *inode)
 	nfs_zap_caches_locked(inode);
 	spin_unlock(&inode->i_lock);
 }
-EXPORT_SYMBOL_GPL(nfs_zap_caches);
 
 void nfs_zap_mapping(struct inode *inode, struct address_space *mapping)
 {
@@ -525,10 +531,8 @@ nfs_setattr(struct dentry *dentry, struct iattr *attr)
 	trace_nfs_setattr_enter(inode);
 
 	/* Write all dirty data */
-	if (S_ISREG(inode->i_mode)) {
-		nfs_inode_dio_wait(inode);
-		nfs_wb_all(inode);
-	}
+	if (S_ISREG(inode->i_mode))
+		nfs_sync_inode(inode);
 
 	fattr = nfs_alloc_fattr();
 	if (fattr == NULL)
@@ -644,8 +648,9 @@ int nfs_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
 	trace_nfs_getattr_enter(inode);
 	/* Flush out writes to the server in order to update c/mtime.  */
 	if (S_ISREG(inode->i_mode)) {
-		nfs_inode_dio_wait(inode);
-		err = filemap_write_and_wait(inode->i_mapping);
+		mutex_lock(&inode->i_mutex);
+		err = nfs_sync_inode(inode);
+		mutex_unlock(&inode->i_mutex);
 		if (err)
 			goto out;
 	}
@@ -1588,6 +1593,19 @@ int nfs_post_op_update_inode_force_wcc(struct inode *inode, struct nfs_fattr *fa
 }
 EXPORT_SYMBOL_GPL(nfs_post_op_update_inode_force_wcc);
 
+
+static inline bool nfs_fileid_valid(struct nfs_inode *nfsi,
+				    struct nfs_fattr *fattr)
+{
+	bool ret1 = true, ret2 = true;
+
+	if (fattr->valid & NFS_ATTR_FATTR_FILEID)
+		ret1 = (nfsi->fileid == fattr->fileid);
+	if (fattr->valid & NFS_ATTR_FATTR_MOUNTED_ON_FILEID)
+		ret2 = (nfsi->fileid == fattr->mounted_on_fileid);
+	return ret1 || ret2;
+}
+
 /*
  * Many nfs protocol calls return the new file attributes after
  * an operation.  Here we update the inode to reflect the state
@@ -1614,7 +1632,7 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 			nfs_display_fhandle_hash(NFS_FH(inode)),
 			atomic_read(&inode->i_count), fattr->valid);
 
-	if ((fattr->valid & NFS_ATTR_FATTR_FILEID) && nfsi->fileid != fattr->fileid) {
+	if (!nfs_fileid_valid(nfsi, fattr)) {
 		printk(KERN_ERR "NFS: server %s error: fileid changed\n"
 			"fsid %s: expected fileid 0x%Lx, got 0x%Lx\n",
 			NFS_SERVER(inode)->nfs_client->cl_hostname,
@@ -1819,7 +1837,7 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 struct inode *nfs_alloc_inode(struct super_block *sb)
 {
 	struct nfs_inode *nfsi;
-	nfsi = (struct nfs_inode *)kmem_cache_alloc(nfs_inode_cachep, GFP_KERNEL);
+	nfsi = kmem_cache_alloc(nfs_inode_cachep, GFP_KERNEL);
 	if (!nfsi)
 		return NULL;
 	nfsi->flags = 0UL;

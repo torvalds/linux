@@ -4,7 +4,6 @@
  */
 #include <linux/module.h>
 #include <linux/nfs_fs.h>
-#include <linux/nfs_idmap.h>
 #include <linux/nfs_mount.h>
 #include <linux/sunrpc/addr.h>
 #include <linux/sunrpc/auth.h>
@@ -15,6 +14,7 @@
 #include "callback.h"
 #include "delegation.h"
 #include "nfs4session.h"
+#include "nfs4idmap.h"
 #include "pnfs.h"
 #include "netns.h"
 

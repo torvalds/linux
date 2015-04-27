@@ -129,22 +129,25 @@ nfs_direct_good_bytes(struct nfs_direct_req *dreq, struct nfs_pgio_header *hdr)
 	int i;
 	ssize_t count;
 
-	WARN_ON_ONCE(hdr->pgio_mirror_idx >= dreq->mirror_count);
+	if (dreq->mirror_count == 1) {
+		dreq->mirrors[hdr->pgio_mirror_idx].count += hdr->good_bytes;
+		dreq->count += hdr->good_bytes;
+	} else {
+		/* mirrored writes */
+		count = dreq->mirrors[hdr->pgio_mirror_idx].count;
+		if (count + dreq->io_start < hdr->io_start + hdr->good_bytes) {
+			count = hdr->io_start + hdr->good_bytes - dreq->io_start;
+			dreq->mirrors[hdr->pgio_mirror_idx].count = count;
+		}
+		/* update the dreq->count by finding the minimum agreed count from all
+		 * mirrors */
+		count = dreq->mirrors[0].count;
 
-	count = dreq->mirrors[hdr->pgio_mirror_idx].count;
-	if (count + dreq->io_start < hdr->io_start + hdr->good_bytes) {
-		count = hdr->io_start + hdr->good_bytes - dreq->io_start;
-		dreq->mirrors[hdr->pgio_mirror_idx].count = count;
+		for (i = 1; i < dreq->mirror_count; i++)
+			count = min(count, dreq->mirrors[i].count);
+
+		dreq->count = count;
 	}
-
-	/* update the dreq->count by finding the minimum agreed count from all
-	 * mirrors */
-	count = dreq->mirrors[0].count;
-
-	for (i = 1; i < dreq->mirror_count; i++)
-		count = min(count, dreq->mirrors[i].count);
-
-	dreq->count = count;
 }
 
 /*
@@ -258,18 +261,11 @@ ssize_t nfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter, loff_t pos)
 	if (!IS_SWAPFILE(inode))
 		return 0;
 
-#ifndef CONFIG_NFS_SWAP
-	dprintk("NFS: nfs_direct_IO (%pD) off/no(%Ld/%lu) EINVAL\n",
-			iocb->ki_filp, (long long) pos, iter->nr_segs);
-
-	return -EINVAL;
-#else
 	VM_BUG_ON(iov_iter_count(iter) != PAGE_SIZE);
 
 	if (iov_iter_rw(iter) == READ)
 		return nfs_file_direct_read(iocb, iter, pos);
 	return nfs_file_direct_write(iocb, iter);
-#endif /* CONFIG_NFS_SWAP */
 }
 
 static void nfs_direct_release_pages(struct page **pages, unsigned int npages)
@@ -1030,6 +1026,7 @@ ssize_t nfs_file_direct_write(struct kiocb *iocb, struct iov_iter *iter)
 			if (i_size_read(inode) < iocb->ki_pos)
 				i_size_write(inode, iocb->ki_pos);
 			spin_unlock(&inode->i_lock);
+			generic_write_sync(file, pos, result);
 		}
 	}
 	nfs_direct_req_release(dreq);

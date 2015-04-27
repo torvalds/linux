@@ -580,7 +580,7 @@ static int nfs_do_writepage(struct page *page, struct writeback_control *wbc, st
 	int ret;
 
 	nfs_inc_stats(inode, NFSIOS_VFSWRITEPAGE);
-	nfs_inc_stats(inode, NFSIOS_WRITEPAGES);
+	nfs_add_stats(inode, NFSIOS_WRITEPAGES, 1);
 
 	nfs_pageio_cond_complete(pgio, page_file_index(page));
 	ret = nfs_page_async_flush(pgio, page, wbc->sync_mode == WB_SYNC_NONE);
@@ -1840,17 +1840,16 @@ EXPORT_SYMBOL_GPL(nfs_write_inode);
  */
 int nfs_wb_all(struct inode *inode)
 {
-	struct writeback_control wbc = {
-		.sync_mode = WB_SYNC_ALL,
-		.nr_to_write = LONG_MAX,
-		.range_start = 0,
-		.range_end = LLONG_MAX,
-	};
 	int ret;
 
 	trace_nfs_writeback_inode_enter(inode);
 
-	ret = sync_inode(inode, &wbc);
+	ret = filemap_write_and_wait(inode->i_mapping);
+	if (!ret) {
+		ret = nfs_commit_inode(inode, FLUSH_SYNC);
+		if (!ret)
+			pnfs_sync_inode(inode, true);
+	}
 
 	trace_nfs_writeback_inode_exit(inode, ret);
 	return ret;

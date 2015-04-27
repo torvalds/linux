@@ -1,5 +1,5 @@
 /*
- * include/linux/nfs_idmap.h
+ * fs/nfs/nfs4idmap.h
  *
  *  UID and GID to name mapping for clients.
  *
@@ -46,19 +46,8 @@ struct nfs_server;
 struct nfs_fattr;
 struct nfs4_string;
 
-#if IS_ENABLED(CONFIG_NFS_V4)
 int nfs_idmap_init(void);
 void nfs_idmap_quit(void);
-#else
-static inline int nfs_idmap_init(void)
-{
-	return 0;
-}
-
-static inline void nfs_idmap_quit(void)
-{}
-#endif
-
 int nfs_idmap_new(struct nfs_client *);
 void nfs_idmap_delete(struct nfs_client *);
 

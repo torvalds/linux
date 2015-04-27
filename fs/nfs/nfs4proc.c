@@ -51,7 +51,6 @@
 #include <linux/namei.h>
 #include <linux/mount.h>
 #include <linux/module.h>
-#include <linux/nfs_idmap.h>
 #include <linux/xattr.h>
 #include <linux/utsname.h>
 #include <linux/freezer.h>
@@ -63,6 +62,7 @@
 #include "callback.h"
 #include "pnfs.h"
 #include "netns.h"
+#include "nfs4idmap.h"
 #include "nfs4session.h"
 #include "fscache.h"
 
@@ -185,7 +185,8 @@ const u32 nfs4_fattr_bitmap[3] = {
 	| FATTR4_WORD1_SPACE_USED
 	| FATTR4_WORD1_TIME_ACCESS
 	| FATTR4_WORD1_TIME_METADATA
-	| FATTR4_WORD1_TIME_MODIFY,
+	| FATTR4_WORD1_TIME_MODIFY
+	| FATTR4_WORD1_MOUNTED_ON_FILEID,
 #ifdef CONFIG_NFS_V4_SECURITY_LABEL
 	FATTR4_WORD2_SECURITY_LABEL
 #endif
@@ -3095,16 +3096,13 @@ int nfs4_proc_get_rootfh(struct nfs_server *server, struct nfs_fh *fhandle,
 			 struct nfs_fsinfo *info,
 			 bool auth_probe)
 {
-	int status;
+	int status = 0;
 
-	switch (auth_probe) {
-	case false:
+	if (!auth_probe)
 		status = nfs4_lookup_root(server, fhandle, info);
-		if (status != -NFS4ERR_WRONGSEC)
-			break;
-	default:
+
+	if (auth_probe || status == NFS4ERR_WRONGSEC)
 		status = nfs4_do_find_root_sec(server, fhandle, info);
-	}
 
 	if (status == 0)
 		status = nfs4_server_capabilities(server, fhandle);
@@ -7944,6 +7942,8 @@ _nfs4_proc_getdeviceinfo(struct nfs_server *server,
 {
 	struct nfs4_getdeviceinfo_args args = {
 		.pdev = pdev,
+		.notify_types = NOTIFY_DEVICEID4_CHANGE |
+			NOTIFY_DEVICEID4_DELETE,
 	};
 	struct nfs4_getdeviceinfo_res res = {
 		.pdev = pdev,
@@ -7958,6 +7958,11 @@ _nfs4_proc_getdeviceinfo(struct nfs_server *server,
 
 	dprintk("--> %s\n", __func__);
 	status = nfs4_call_sync(server->client, server, &msg, &args.seq_args, &res.seq_res, 0);
+	if (res.notification & ~args.notify_types)
+		dprintk("%s: unsupported notification\n", __func__);
+	if (res.notification != args.notify_types)
+		pdev->nocache = 1;
+
 	dprintk("<-- %s status=%d\n", __func__, status);
 
 	return status;
