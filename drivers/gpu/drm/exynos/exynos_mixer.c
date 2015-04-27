@@ -393,6 +393,9 @@ static void vp_video_buffer(struct mixer_context *ctx, int win)
 	case DRM_FORMAT_NV12:
 		crcb_mode = false;
 		break;
+	case DRM_FORMAT_NV21:
+		crcb_mode = true;
+		break;
 	default:
 		DRM_ERROR("pixel format for vp is wrong [%d].\n",
 				plane->pixel_format);
