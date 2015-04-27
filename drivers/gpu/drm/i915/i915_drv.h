@@ -2821,7 +2821,6 @@ static inline bool i915_stop_ring_allow_warn(struct drm_i915_private *dev_priv)
 
 void i915_gem_reset(struct drm_device *dev);
 bool i915_gem_clflush_object(struct drm_i915_gem_object *obj, bool force);
-int __must_check i915_gem_object_finish_gpu(struct drm_i915_gem_object *obj);
 int __must_check i915_gem_init(struct drm_device *dev);
 int i915_gem_init_rings(struct drm_device *dev);
 int __must_check i915_gem_init_hw(struct drm_device *dev);
@@ -2842,6 +2841,9 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 			struct drm_i915_file_private *file_priv);
 int __must_check i915_wait_request(struct drm_i915_gem_request *req);
 int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
+int __must_check
+i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj,
+			       bool readonly);
 int __must_check
 i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj,
 				  bool write);

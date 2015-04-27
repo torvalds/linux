@@ -3295,27 +3295,30 @@ void intel_finish_reset(struct drm_device *dev)
 	drm_modeset_unlock_all(dev);
 }
 
-static int
+static void
 intel_finish_fb(struct drm_framebuffer *old_fb)
 {
 	struct drm_i915_gem_object *obj = intel_fb_obj(old_fb);
-	struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
 	bool was_interruptible = dev_priv->mm.interruptible;
 	int ret;
 
 	/* Big Hammer, we also need to ensure that any pending
 	 * MI_WAIT_FOR_EVENT inside a user batch buffer on the
 	 * current scanout is retired before unpinning the old
-	 * framebuffer.
+	 * framebuffer. Note that we rely on userspace rendering
+	 * into the buffer attached to the pipe they are waiting
+	 * on. If not, userspace generates a GPU hang with IPEHR
+	 * point to the MI_WAIT_FOR_EVENT.
 	 *
 	 * This should only fail upon a hung GPU, in which case we
 	 * can safely continue.
 	 */
 	dev_priv->mm.interruptible = false;
-	ret = i915_gem_object_finish_gpu(obj);
+	ret = i915_gem_object_wait_rendering(obj, true);
 	dev_priv->mm.interruptible = was_interruptible;
 
-	return ret;
+	WARN_ON(ret);
 }
 
 static bool intel_crtc_has_pending_flip(struct drm_crtc *crtc)

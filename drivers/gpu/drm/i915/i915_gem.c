@@ -40,9 +40,6 @@
 
 static void i915_gem_object_flush_gtt_write_domain(struct drm_i915_gem_object *obj);
 static void i915_gem_object_flush_cpu_write_domain(struct drm_i915_gem_object *obj);
-static __must_check int
-i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj,
-			       bool readonly);
 static void
 i915_gem_object_retire(struct drm_i915_gem_object *obj);
 
@@ -1397,7 +1394,7 @@ i915_gem_object_wait_rendering__tail(struct drm_i915_gem_object *obj)
  * Ensures that all rendering to the object has completed and the object is
  * safe to unbind from the GTT or access from the CPU.
  */
-static __must_check int
+int
 i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj,
 			       bool readonly)
 {
@@ -3078,7 +3075,7 @@ int i915_vma_unbind(struct i915_vma *vma)
 
 	BUG_ON(obj->pages == NULL);
 
-	ret = i915_gem_object_finish_gpu(obj);
+	ret = i915_gem_object_wait_rendering(obj, false);
 	if (ret)
 		return ret;
 	/* Continue on if we fail due to EIO, the GPU is hung so we
@@ -3853,7 +3850,7 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 	}
 
 	if (i915_gem_obj_bound_any(obj)) {
-		ret = i915_gem_object_finish_gpu(obj);
+		ret = i915_gem_object_wait_rendering(obj, false);
 		if (ret)
 			return ret;
 
@@ -4042,23 +4039,6 @@ i915_gem_object_unpin_from_display_plane(struct drm_i915_gem_object *obj,
 	i915_gem_object_ggtt_unpin_view(obj, view);
 
 	obj->pin_display--;
-}
-
-int
-i915_gem_object_finish_gpu(struct drm_i915_gem_object *obj)
-{
-	int ret;
-
-	if ((obj->base.read_domains & I915_GEM_GPU_DOMAINS) == 0)
-		return 0;
-
-	ret = i915_gem_object_wait_rendering(obj, false);
-	if (ret)
-		return ret;
-
-	/* Ensure that we invalidate the GPU's caches and TLBs. */
-	obj->base.read_domains &= ~I915_GEM_GPU_DOMAINS;
-	return 0;
 }
 
 /**
