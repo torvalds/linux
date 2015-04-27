@@ -873,14 +873,15 @@ struct hda_pcm *snd_hda_codec_pcm_new(struct hda_codec *codec,
 	struct hda_pcm *pcm;
 	va_list args;
 
-	va_start(args, fmt);
 	pcm = kzalloc(sizeof(*pcm), GFP_KERNEL);
 	if (!pcm)
 		return NULL;
 
 	pcm->codec = codec;
 	kref_init(&pcm->kref);
+	va_start(args, fmt);
 	pcm->name = kvasprintf(GFP_KERNEL, fmt, args);
+	va_end(args);
 	if (!pcm->name) {
 		kfree(pcm);
 		return NULL;
