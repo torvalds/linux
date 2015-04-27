@@ -1537,7 +1537,7 @@ static int pcxhr_probe(struct pci_dev *pci,
 	pci_set_master(pci);
 
 	/* check if we can restrict PCI DMA transfers to 32 bits */
-	if (pci_set_dma_mask(pci, DMA_BIT_MASK(32)) < 0) {
+	if (dma_set_mask(&pci->dev, DMA_BIT_MASK(32)) < 0) {
 		dev_err(&pci->dev,
 			"architecture does not support 32bit PCI busmaster DMA\n");
 		pci_disable_device(pci);

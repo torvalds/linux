@@ -33,12 +33,6 @@
 #include <linux/mutex.h>
 #include <stdarg.h>
 
-/*
- *
- */
-
-#ifdef CONFIG_PROC_FS
-
 int snd_info_check_reserved_words(const char *str)
 {
 	static char *reserved[] =
@@ -78,74 +72,13 @@ struct snd_info_private_data {
 };
 
 static int snd_info_version_init(void);
-static int snd_info_version_done(void);
 static void snd_info_disconnect(struct snd_info_entry *entry);
-
-
-/* resize the proc r/w buffer */
-static int resize_info_buffer(struct snd_info_buffer *buffer,
-			      unsigned int nsize)
-{
-	char *nbuf;
-
-	nsize = PAGE_ALIGN(nsize);
-	nbuf = krealloc(buffer->buffer, nsize, GFP_KERNEL | __GFP_ZERO);
-	if (! nbuf)
-		return -ENOMEM;
-
-	buffer->buffer = nbuf;
-	buffer->len = nsize;
-	return 0;
-}
-
-/**
- * snd_iprintf - printf on the procfs buffer
- * @buffer: the procfs buffer
- * @fmt: the printf format
- *
- * Outputs the string on the procfs buffer just like printf().
- *
- * Return: The size of output string, or a negative error code.
- */
-int snd_iprintf(struct snd_info_buffer *buffer, const char *fmt, ...)
-{
-	va_list args;
-	int len, res;
-	int err = 0;
-
-	might_sleep();
-	if (buffer->stop || buffer->error)
-		return 0;
-	len = buffer->len - buffer->size;
-	va_start(args, fmt);
-	for (;;) {
-		va_list ap;
-		va_copy(ap, args);
-		res = vsnprintf(buffer->buffer + buffer->curr, len, fmt, ap);
-		va_end(ap);
-		if (res < len)
-			break;
-		err = resize_info_buffer(buffer, buffer->len + PAGE_SIZE);
-		if (err < 0)
-			break;
-		len = buffer->len - buffer->size;
-	}
-	va_end(args);
-
-	if (err < 0)
-		return err;
-	buffer->curr += res;
-	buffer->size += res;
-	return res;
-}
-
-EXPORT_SYMBOL(snd_iprintf);
 
 /*
 
  */
 
-static struct proc_dir_entry *snd_proc_root;
+static struct snd_info_entry *snd_proc_root;
 struct snd_info_entry *snd_seq_root;
 EXPORT_SYMBOL(snd_seq_root);
 
@@ -153,6 +86,37 @@ EXPORT_SYMBOL(snd_seq_root);
 struct snd_info_entry *snd_oss_root;
 #endif
 
+static int alloc_info_private(struct snd_info_entry *entry,
+			      struct snd_info_private_data **ret)
+{
+	struct snd_info_private_data *data;
+
+	if (!entry || !entry->p)
+		return -ENODEV;
+	if (!try_module_get(entry->module))
+		return -EFAULT;
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	if (!data) {
+		module_put(entry->module);
+		return -ENOMEM;
+	}
+	data->entry = entry;
+	*ret = data;
+	return 0;
+}
+
+static bool valid_pos(loff_t pos, size_t count)
+{
+	if (pos < 0 || (long) pos != pos || (ssize_t) count < 0)
+		return false;
+	if ((unsigned long) pos + (unsigned long) count < (unsigned long) pos)
+		return false;
+	return true;
+}
+
+/*
+ * file ops for binary proc files
+ */
 static loff_t snd_info_entry_llseek(struct file *file, loff_t offset, int orig)
 {
 	struct snd_info_private_data *data;
@@ -162,17 +126,14 @@ static loff_t snd_info_entry_llseek(struct file *file, loff_t offset, int orig)
 	data = file->private_data;
 	entry = data->entry;
 	mutex_lock(&entry->access);
-	if (entry->content == SNDRV_INFO_CONTENT_DATA &&
-	    entry->c.ops->llseek) {
+	if (entry->c.ops->llseek) {
 		offset = entry->c.ops->llseek(entry,
 					      data->file_private_data,
 					      file, offset, orig);
 		goto out;
 	}
-	if (entry->content == SNDRV_INFO_CONTENT_DATA)
-		size = entry->size;
-	else
-		size = 0;
+
+	size = entry->size;
 	switch (orig) {
 	case SEEK_SET:
 		break;
@@ -201,45 +162,20 @@ static loff_t snd_info_entry_llseek(struct file *file, loff_t offset, int orig)
 static ssize_t snd_info_entry_read(struct file *file, char __user *buffer,
 				   size_t count, loff_t * offset)
 {
-	struct snd_info_private_data *data;
-	struct snd_info_entry *entry;
-	struct snd_info_buffer *buf;
-	size_t size = 0;
+	struct snd_info_private_data *data = file->private_data;
+	struct snd_info_entry *entry = data->entry;
+	size_t size;
 	loff_t pos;
 
-	data = file->private_data;
-	if (snd_BUG_ON(!data))
-		return -ENXIO;
 	pos = *offset;
-	if (pos < 0 || (long) pos != pos || (ssize_t) count < 0)
+	if (!valid_pos(pos, count))
 		return -EIO;
-	if ((unsigned long) pos + (unsigned long) count < (unsigned long) pos)
-		return -EIO;
-	entry = data->entry;
-	switch (entry->content) {
-	case SNDRV_INFO_CONTENT_TEXT:
-		buf = data->rbuffer;
-		if (buf == NULL)
-			return -EIO;
-		if (pos >= buf->size)
-			return 0;
-		size = buf->size - pos;
-		size = min(count, size);
-		if (copy_to_user(buffer, buf->buffer + pos, size))
-			return -EFAULT;
-		break;
-	case SNDRV_INFO_CONTENT_DATA:
-		if (pos >= entry->size)
-			return 0;
-		if (entry->c.ops->read) {
-			size = entry->size - pos;
-			size = min(count, size);
-			size = entry->c.ops->read(entry,
-						  data->file_private_data,
-						  file, buffer, size, pos);
-		}
-		break;
-	}
+	if (pos >= entry->size)
+		return 0;
+	size = entry->size - pos;
+	size = min(count, size);
+	size = entry->c.ops->read(entry, data->file_private_data,
+				  file, buffer, size, pos);
 	if ((ssize_t) size > 0)
 		*offset = pos + size;
 	return size;
@@ -248,246 +184,52 @@ static ssize_t snd_info_entry_read(struct file *file, char __user *buffer,
 static ssize_t snd_info_entry_write(struct file *file, const char __user *buffer,
 				    size_t count, loff_t * offset)
 {
-	struct snd_info_private_data *data;
-	struct snd_info_entry *entry;
-	struct snd_info_buffer *buf;
+	struct snd_info_private_data *data = file->private_data;
+	struct snd_info_entry *entry = data->entry;
 	ssize_t size = 0;
 	loff_t pos;
 
-	data = file->private_data;
-	if (snd_BUG_ON(!data))
-		return -ENXIO;
-	entry = data->entry;
 	pos = *offset;
-	if (pos < 0 || (long) pos != pos || (ssize_t) count < 0)
+	if (!valid_pos(pos, count))
 		return -EIO;
-	if ((unsigned long) pos + (unsigned long) count < (unsigned long) pos)
-		return -EIO;
-	switch (entry->content) {
-	case SNDRV_INFO_CONTENT_TEXT:
-		buf = data->wbuffer;
-		if (buf == NULL)
-			return -EIO;
-		mutex_lock(&entry->access);
-		if (pos + count >= buf->len) {
-			if (resize_info_buffer(buf, pos + count)) {
-				mutex_unlock(&entry->access);
-				return -ENOMEM;
-			}
-		}
-		if (copy_from_user(buf->buffer + pos, buffer, count)) {
-			mutex_unlock(&entry->access);
-			return -EFAULT;
-		}
-		buf->size = pos + count;
-		mutex_unlock(&entry->access);
-		size = count;
-		break;
-	case SNDRV_INFO_CONTENT_DATA:
-		if (entry->c.ops->write && count > 0) {
-			size_t maxsize = entry->size - pos;
-			count = min(count, maxsize);
-			size = entry->c.ops->write(entry,
-						   data->file_private_data,
-						   file, buffer, count, pos);
-		}
-		break;
+	if (count > 0) {
+		size_t maxsize = entry->size - pos;
+		count = min(count, maxsize);
+		size = entry->c.ops->write(entry, data->file_private_data,
+					   file, buffer, count, pos);
 	}
-	if ((ssize_t) size > 0)
+	if (size > 0)
 		*offset = pos + size;
 	return size;
 }
 
-static int snd_info_entry_open(struct inode *inode, struct file *file)
+static unsigned int snd_info_entry_poll(struct file *file, poll_table *wait)
 {
-	struct snd_info_entry *entry;
-	struct snd_info_private_data *data;
-	struct snd_info_buffer *buffer;
-	int mode, err;
+	struct snd_info_private_data *data = file->private_data;
+	struct snd_info_entry *entry = data->entry;
+	unsigned int mask = 0;
 
-	mutex_lock(&info_mutex);
-	entry = PDE_DATA(inode);
-	if (entry == NULL || ! entry->p) {
-		mutex_unlock(&info_mutex);
-		return -ENODEV;
-	}
-	if (!try_module_get(entry->module)) {
-		err = -EFAULT;
-		goto __error1;
-	}
-	mode = file->f_flags & O_ACCMODE;
-	if (mode == O_RDONLY || mode == O_RDWR) {
-		if ((entry->content == SNDRV_INFO_CONTENT_DATA &&
-		     entry->c.ops->read == NULL)) {
-		    	err = -ENODEV;
-		    	goto __error;
-		}
-	}
-	if (mode == O_WRONLY || mode == O_RDWR) {
-		if ((entry->content == SNDRV_INFO_CONTENT_DATA &&
-		     entry->c.ops->write == NULL)) {
-		    	err = -ENODEV;
-		    	goto __error;
-		}
-	}
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
-	if (data == NULL) {
-		err = -ENOMEM;
-		goto __error;
-	}
-	data->entry = entry;
-	switch (entry->content) {
-	case SNDRV_INFO_CONTENT_TEXT:
-		if (mode == O_RDONLY || mode == O_RDWR) {
-			buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
-			if (buffer == NULL)
-				goto __nomem;
-			data->rbuffer = buffer;
-			buffer->len = PAGE_SIZE;
-			buffer->buffer = kzalloc(buffer->len, GFP_KERNEL);
-			if (buffer->buffer == NULL)
-				goto __nomem;
-		}
-		if (mode == O_WRONLY || mode == O_RDWR) {
-			buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
-			if (buffer == NULL)
-				goto __nomem;
-			data->wbuffer = buffer;
-			buffer->len = PAGE_SIZE;
-			buffer->buffer = kmalloc(buffer->len, GFP_KERNEL);
-			if (buffer->buffer == NULL)
-				goto __nomem;
-		}
-		break;
-	case SNDRV_INFO_CONTENT_DATA:	/* data */
-		if (entry->c.ops->open) {
-			if ((err = entry->c.ops->open(entry, mode,
-						      &data->file_private_data)) < 0) {
-				kfree(data);
-				goto __error;
-			}
-		}
-		break;
-	}
-	file->private_data = data;
-	mutex_unlock(&info_mutex);
-	if (entry->content == SNDRV_INFO_CONTENT_TEXT &&
-	    (mode == O_RDONLY || mode == O_RDWR)) {
-		if (entry->c.text.read) {
-			mutex_lock(&entry->access);
-			entry->c.text.read(entry, data->rbuffer);
-			mutex_unlock(&entry->access);
-		}
-	}
-	return 0;
-
- __nomem:
-	if (data->rbuffer) {
-		kfree(data->rbuffer->buffer);
-		kfree(data->rbuffer);
-	}
-	if (data->wbuffer) {
-		kfree(data->wbuffer->buffer);
-		kfree(data->wbuffer);
-	}
-	kfree(data);
-	err = -ENOMEM;
-      __error:
-	module_put(entry->module);
-      __error1:
-	mutex_unlock(&info_mutex);
-	return err;
-}
-
-static int snd_info_entry_release(struct inode *inode, struct file *file)
-{
-	struct snd_info_entry *entry;
-	struct snd_info_private_data *data;
-	int mode;
-
-	mode = file->f_flags & O_ACCMODE;
-	data = file->private_data;
-	entry = data->entry;
-	switch (entry->content) {
-	case SNDRV_INFO_CONTENT_TEXT:
-		if (data->rbuffer) {
-			kfree(data->rbuffer->buffer);
-			kfree(data->rbuffer);
-		}
-		if (data->wbuffer) {
-			if (entry->c.text.write) {
-				entry->c.text.write(entry, data->wbuffer);
-				if (data->wbuffer->error) {
-					if (entry->card)
-						dev_warn(entry->card->dev, "info: data write error to %s (%i)\n",
-							 entry->name,
-							 data->wbuffer->error);
-					else
-						pr_warn("ALSA: info: data write error to %s (%i)\n",
-							entry->name,
-							data->wbuffer->error);
-				}
-			}
-			kfree(data->wbuffer->buffer);
-			kfree(data->wbuffer);
-		}
-		break;
-	case SNDRV_INFO_CONTENT_DATA:
-		if (entry->c.ops->release)
-			entry->c.ops->release(entry, mode,
-					      data->file_private_data);
-		break;
-	}
-	module_put(entry->module);
-	kfree(data);
-	return 0;
-}
-
-static unsigned int snd_info_entry_poll(struct file *file, poll_table * wait)
-{
-	struct snd_info_private_data *data;
-	struct snd_info_entry *entry;
-	unsigned int mask;
-
-	data = file->private_data;
-	if (data == NULL)
-		return 0;
-	entry = data->entry;
-	mask = 0;
-	switch (entry->content) {
-	case SNDRV_INFO_CONTENT_DATA:
-		if (entry->c.ops->poll)
-			return entry->c.ops->poll(entry,
-						  data->file_private_data,
-						  file, wait);
-		if (entry->c.ops->read)
-			mask |= POLLIN | POLLRDNORM;
-		if (entry->c.ops->write)
-			mask |= POLLOUT | POLLWRNORM;
-		break;
-	}
+	if (entry->c.ops->poll)
+		return entry->c.ops->poll(entry,
+					  data->file_private_data,
+					  file, wait);
+	if (entry->c.ops->read)
+		mask |= POLLIN | POLLRDNORM;
+	if (entry->c.ops->write)
+		mask |= POLLOUT | POLLWRNORM;
 	return mask;
 }
 
 static long snd_info_entry_ioctl(struct file *file, unsigned int cmd,
 				unsigned long arg)
 {
-	struct snd_info_private_data *data;
-	struct snd_info_entry *entry;
+	struct snd_info_private_data *data = file->private_data;
+	struct snd_info_entry *entry = data->entry;
 
-	data = file->private_data;
-	if (data == NULL)
-		return 0;
-	entry = data->entry;
-	switch (entry->content) {
-	case SNDRV_INFO_CONTENT_DATA:
-		if (entry->c.ops->ioctl)
-			return entry->c.ops->ioctl(entry,
-						   data->file_private_data,
-						   file, cmd, arg);
-		break;
-	}
-	return -ENOTTY;
+	if (!entry->c.ops->ioctl)
+		return -ENOTTY;
+	return entry->c.ops->ioctl(entry, data->file_private_data,
+				   file, cmd, arg);
 }
 
 static int snd_info_entry_mmap(struct file *file, struct vm_area_struct *vma)
@@ -500,15 +242,59 @@ static int snd_info_entry_mmap(struct file *file, struct vm_area_struct *vma)
 	if (data == NULL)
 		return 0;
 	entry = data->entry;
-	switch (entry->content) {
-	case SNDRV_INFO_CONTENT_DATA:
-		if (entry->c.ops->mmap)
-			return entry->c.ops->mmap(entry,
-						  data->file_private_data,
-						  inode, file, vma);
-		break;
+	if (!entry->c.ops->mmap)
+		return -ENXIO;
+	return entry->c.ops->mmap(entry, data->file_private_data,
+				  inode, file, vma);
+}
+
+static int snd_info_entry_open(struct inode *inode, struct file *file)
+{
+	struct snd_info_entry *entry = PDE_DATA(inode);
+	struct snd_info_private_data *data;
+	int mode, err;
+
+	mutex_lock(&info_mutex);
+	err = alloc_info_private(entry, &data);
+	if (err < 0)
+		goto unlock;
+
+	mode = file->f_flags & O_ACCMODE;
+	if (((mode == O_RDONLY || mode == O_RDWR) && !entry->c.ops->read) ||
+	    ((mode == O_WRONLY || mode == O_RDWR) && !entry->c.ops->write)) {
+		err = -ENODEV;
+		goto error;
 	}
-	return -ENXIO;
+
+	if (entry->c.ops->open) {
+		err = entry->c.ops->open(entry, mode, &data->file_private_data);
+		if (err < 0)
+			goto error;
+	}
+
+	file->private_data = data;
+	mutex_unlock(&info_mutex);
+	return 0;
+
+ error:
+	kfree(data);
+	module_put(entry->module);
+ unlock:
+	mutex_unlock(&info_mutex);
+	return err;
+}
+
+static int snd_info_entry_release(struct inode *inode, struct file *file)
+{
+	struct snd_info_private_data *data = file->private_data;
+	struct snd_info_entry *entry = data->entry;
+
+	if (entry->c.ops->release)
+		entry->c.ops->release(entry, file->f_flags & O_ACCMODE,
+				      data->file_private_data);
+	module_put(entry->module);
+	kfree(data);
+	return 0;
 }
 
 static const struct file_operations snd_info_entry_operations =
@@ -524,69 +310,190 @@ static const struct file_operations snd_info_entry_operations =
 	.release =		snd_info_entry_release,
 };
 
+/*
+ * file ops for text proc files
+ */
+static ssize_t snd_info_text_entry_write(struct file *file,
+					 const char __user *buffer,
+					 size_t count, loff_t *offset)
+{
+	struct seq_file *m = file->private_data;
+	struct snd_info_private_data *data = m->private;
+	struct snd_info_entry *entry = data->entry;
+	struct snd_info_buffer *buf;
+	loff_t pos;
+	size_t next;
+	int err = 0;
+
+	pos = *offset;
+	if (!valid_pos(pos, count))
+		return -EIO;
+	next = pos + count;
+	mutex_lock(&entry->access);
+	buf = data->wbuffer;
+	if (!buf) {
+		data->wbuffer = buf = kzalloc(sizeof(*buf), GFP_KERNEL);
+		if (!buf) {
+			err = -ENOMEM;
+			goto error;
+		}
+	}
+	if (next > buf->len) {
+		char *nbuf = krealloc(buf->buffer, PAGE_ALIGN(next),
+				      GFP_KERNEL | __GFP_ZERO);
+		if (!nbuf) {
+			err = -ENOMEM;
+			goto error;
+		}
+		buf->buffer = nbuf;
+		buf->len = PAGE_ALIGN(next);
+	}
+	if (copy_from_user(buf->buffer + pos, buffer, count)) {
+		err = -EFAULT;
+		goto error;
+	}
+	buf->size = next;
+ error:
+	mutex_unlock(&entry->access);
+	if (err < 0)
+		return err;
+	*offset = next;
+	return count;
+}
+
+static int snd_info_seq_show(struct seq_file *seq, void *p)
+{
+	struct snd_info_private_data *data = seq->private;
+	struct snd_info_entry *entry = data->entry;
+
+	if (entry->c.text.read) {
+		data->rbuffer->buffer = (char *)seq; /* XXX hack! */
+		entry->c.text.read(entry, data->rbuffer);
+	}
+	return 0;
+}
+
+static int snd_info_text_entry_open(struct inode *inode, struct file *file)
+{
+	struct snd_info_entry *entry = PDE_DATA(inode);
+	struct snd_info_private_data *data;
+	int err;
+
+	mutex_lock(&info_mutex);
+	err = alloc_info_private(entry, &data);
+	if (err < 0)
+		goto unlock;
+
+	data->rbuffer = kzalloc(sizeof(*data->rbuffer), GFP_KERNEL);
+	if (!data->rbuffer) {
+		err = -ENOMEM;
+		goto error;
+	}
+	if (entry->size)
+		err = single_open_size(file, snd_info_seq_show, data,
+				       entry->size);
+	else
+		err = single_open(file, snd_info_seq_show, data);
+	if (err < 0)
+		goto error;
+	mutex_unlock(&info_mutex);
+	return 0;
+
+ error:
+	kfree(data->rbuffer);
+	kfree(data);
+	module_put(entry->module);
+ unlock:
+	mutex_unlock(&info_mutex);
+	return err;
+}
+
+static int snd_info_text_entry_release(struct inode *inode, struct file *file)
+{
+	struct seq_file *m = file->private_data;
+	struct snd_info_private_data *data = m->private;
+	struct snd_info_entry *entry = data->entry;
+
+	if (data->wbuffer && entry->c.text.write)
+		entry->c.text.write(entry, data->wbuffer);
+
+	single_release(inode, file);
+	kfree(data->rbuffer);
+	if (data->wbuffer) {
+		kfree(data->wbuffer->buffer);
+		kfree(data->wbuffer);
+	}
+
+	module_put(entry->module);
+	kfree(data);
+	return 0;
+}
+
+static const struct file_operations snd_info_text_entry_ops =
+{
+	.owner =		THIS_MODULE,
+	.open =			snd_info_text_entry_open,
+	.release =		snd_info_text_entry_release,
+	.write =		snd_info_text_entry_write,
+	.llseek =		seq_lseek,
+	.read =			seq_read,
+};
+
+static struct snd_info_entry *create_subdir(struct module *mod,
+					    const char *name)
+{
+	struct snd_info_entry *entry;
+
+	entry = snd_info_create_module_entry(mod, name, NULL);
+	if (!entry)
+		return NULL;
+	entry->mode = S_IFDIR | S_IRUGO | S_IXUGO;
+	if (snd_info_register(entry) < 0) {
+		snd_info_free_entry(entry);
+		return NULL;
+	}
+	return entry;
+}
+
+static struct snd_info_entry *snd_info_create_entry(const char *name);
+
 int __init snd_info_init(void)
 {
-	struct proc_dir_entry *p;
-
-	p = proc_mkdir("asound", NULL);
-	if (p == NULL)
+	snd_proc_root = snd_info_create_entry("asound");
+	if (!snd_proc_root)
 		return -ENOMEM;
-	snd_proc_root = p;
+	snd_proc_root->mode = S_IFDIR | S_IRUGO | S_IXUGO;
+	snd_proc_root->p = proc_mkdir("asound", NULL);
+	if (!snd_proc_root->p)
+		goto error;
 #ifdef CONFIG_SND_OSSEMUL
-	{
-		struct snd_info_entry *entry;
-		if ((entry = snd_info_create_module_entry(THIS_MODULE, "oss", NULL)) == NULL)
-			return -ENOMEM;
-		entry->mode = S_IFDIR | S_IRUGO | S_IXUGO;
-		if (snd_info_register(entry) < 0) {
-			snd_info_free_entry(entry);
-			return -ENOMEM;
-		}
-		snd_oss_root = entry;
-	}
+	snd_oss_root = create_subdir(THIS_MODULE, "oss");
+	if (!snd_oss_root)
+		goto error;
 #endif
 #if IS_ENABLED(CONFIG_SND_SEQUENCER)
-	{
-		struct snd_info_entry *entry;
-		if ((entry = snd_info_create_module_entry(THIS_MODULE, "seq", NULL)) == NULL)
-			return -ENOMEM;
-		entry->mode = S_IFDIR | S_IRUGO | S_IXUGO;
-		if (snd_info_register(entry) < 0) {
-			snd_info_free_entry(entry);
-			return -ENOMEM;
-		}
-		snd_seq_root = entry;
-	}
+	snd_seq_root = create_subdir(THIS_MODULE, "seq");
+	if (!snd_seq_root)
+		goto error;
 #endif
-	snd_info_version_init();
-	snd_minor_info_init();
-	snd_minor_info_oss_init();
-	snd_card_info_init();
+	if (snd_info_version_init() < 0 ||
+	    snd_minor_info_init() < 0 ||
+	    snd_minor_info_oss_init() < 0 ||
+	    snd_card_info_init() < 0 ||
+	    snd_info_minor_register() < 0)
+		goto error;
 	return 0;
+
+ error:
+	snd_info_free_entry(snd_proc_root);
+	return -ENOMEM;
 }
 
 int __exit snd_info_done(void)
 {
-	snd_card_info_done();
-	snd_minor_info_oss_done();
-	snd_minor_info_done();
-	snd_info_version_done();
-	if (snd_proc_root) {
-#if IS_ENABLED(CONFIG_SND_SEQUENCER)
-		snd_info_free_entry(snd_seq_root);
-#endif
-#ifdef CONFIG_SND_OSSEMUL
-		snd_info_free_entry(snd_oss_root);
-#endif
-		proc_remove(snd_proc_root);
-	}
+	snd_info_free_entry(snd_proc_root);
 	return 0;
 }
-
-/*
-
- */
-
 
 /*
  * create a card proc file
@@ -601,13 +508,9 @@ int snd_info_card_create(struct snd_card *card)
 		return -ENXIO;
 
 	sprintf(str, "card%i", card->number);
-	if ((entry = snd_info_create_module_entry(card->module, str, NULL)) == NULL)
+	entry = create_subdir(card->module, str);
+	if (!entry)
 		return -ENOMEM;
-	entry->mode = S_IFDIR | S_IRUGO | S_IXUGO;
-	if (snd_info_register(entry) < 0) {
-		snd_info_free_entry(entry);
-		return -ENOMEM;
-	}
 	card->proc_root = entry;
 	return 0;
 }
@@ -626,7 +529,7 @@ int snd_info_card_register(struct snd_card *card)
 	if (!strcmp(card->id, card->proc_root->name))
 		return 0;
 
-	p = proc_symlink(card->id, snd_proc_root, card->proc_root->name);
+	p = proc_symlink(card->id, snd_proc_root->p, card->proc_root->name);
 	if (p == NULL)
 		return -ENOMEM;
 	card->proc_root_link = p;
@@ -645,7 +548,7 @@ void snd_info_card_id_change(struct snd_card *card)
 	}
 	if (strcmp(card->id, card->proc_root->name))
 		card->proc_root_link = proc_symlink(card->id,
-						    snd_proc_root,
+						    snd_proc_root->p,
 						    card->proc_root->name);
 	mutex_unlock(&info_mutex);
 }
@@ -835,95 +738,39 @@ EXPORT_SYMBOL(snd_info_create_card_entry);
 
 static void snd_info_disconnect(struct snd_info_entry *entry)
 {
-	struct list_head *p, *n;
-	struct proc_dir_entry *root;
+	struct snd_info_entry *p, *n;
 
-	list_for_each_safe(p, n, &entry->children) {
-		snd_info_disconnect(list_entry(p, struct snd_info_entry, list));
-	}
-
-	if (! entry->p)
+	if (!entry->p)
 		return;
+	list_for_each_entry_safe(p, n, &entry->children, list)
+		snd_info_disconnect(p);
 	list_del_init(&entry->list);
-	root = entry->parent == NULL ? snd_proc_root : entry->parent->p;
-	snd_BUG_ON(!root);
 	proc_remove(entry->p);
 	entry->p = NULL;
 }
-
-static int snd_info_dev_free_entry(struct snd_device *device)
-{
-	struct snd_info_entry *entry = device->device_data;
-	snd_info_free_entry(entry);
-	return 0;
-}
-
-static int snd_info_dev_register_entry(struct snd_device *device)
-{
-	struct snd_info_entry *entry = device->device_data;
-	return snd_info_register(entry);
-}
-
-/**
- * snd_card_proc_new - create an info entry for the given card
- * @card: the card instance
- * @name: the file name
- * @entryp: the pointer to store the new info entry
- *
- * Creates a new info entry and assigns it to the given card.
- * Unlike snd_info_create_card_entry(), this function registers the
- * info entry as an ALSA device component, so that it can be
- * unregistered/released without explicit call.
- * Also, you don't have to register this entry via snd_info_register(),
- * since this will be registered by snd_card_register() automatically.
- *
- * The parent is assumed as card->proc_root.
- *
- * For releasing this entry, use snd_device_free() instead of
- * snd_info_free_entry(). 
- *
- * Return: Zero if successful, or a negative error code on failure.
- */
-int snd_card_proc_new(struct snd_card *card, const char *name,
-		      struct snd_info_entry **entryp)
-{
-	static struct snd_device_ops ops = {
-		.dev_free = snd_info_dev_free_entry,
-		.dev_register =	snd_info_dev_register_entry,
-		/* disconnect is done via snd_info_card_disconnect() */
-	};
-	struct snd_info_entry *entry;
-	int err;
-
-	entry = snd_info_create_card_entry(card, name, card->proc_root);
-	if (! entry)
-		return -ENOMEM;
-	if ((err = snd_device_new(card, SNDRV_DEV_INFO, entry, &ops)) < 0) {
-		snd_info_free_entry(entry);
-		return err;
-	}
-	if (entryp)
-		*entryp = entry;
-	return 0;
-}
-
-EXPORT_SYMBOL(snd_card_proc_new);
 
 /**
  * snd_info_free_entry - release the info entry
  * @entry: the info entry
  *
- * Releases the info entry.  Don't call this after registered.
+ * Releases the info entry.
  */
 void snd_info_free_entry(struct snd_info_entry * entry)
 {
-	if (entry == NULL)
+	struct snd_info_entry *p, *n;
+
+	if (!entry)
 		return;
 	if (entry->p) {
 		mutex_lock(&info_mutex);
 		snd_info_disconnect(entry);
 		mutex_unlock(&info_mutex);
 	}
+
+	/* free all children at first */
+	list_for_each_entry_safe(p, n, &entry->children, list)
+		snd_info_free_entry(p);
+
 	kfree(entry->name);
 	if (entry->private_free)
 		entry->private_free(entry);
@@ -946,7 +793,7 @@ int snd_info_register(struct snd_info_entry * entry)
 
 	if (snd_BUG_ON(!entry))
 		return -ENXIO;
-	root = entry->parent == NULL ? snd_proc_root : entry->parent->p;
+	root = entry->parent == NULL ? snd_proc_root->p : entry->parent->p;
 	mutex_lock(&info_mutex);
 	if (S_ISDIR(entry->mode)) {
 		p = proc_mkdir_mode(entry->name, entry->mode, root);
@@ -955,8 +802,13 @@ int snd_info_register(struct snd_info_entry * entry)
 			return -ENOMEM;
 		}
 	} else {
+		const struct file_operations *ops;
+		if (entry->content == SNDRV_INFO_CONTENT_DATA)
+			ops = &snd_info_entry_operations;
+		else
+			ops = &snd_info_text_entry_ops;
 		p = proc_create_data(entry->name, entry->mode, root,
-					&snd_info_entry_operations, entry);
+				     ops, entry);
 		if (!p) {
 			mutex_unlock(&info_mutex);
 			return -ENOMEM;
@@ -976,8 +828,6 @@ EXPORT_SYMBOL(snd_info_register);
 
  */
 
-static struct snd_info_entry *snd_info_version_entry;
-
 static void snd_info_version_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer)
 {
 	snd_iprintf(buffer,
@@ -993,18 +843,5 @@ static int __init snd_info_version_init(void)
 	if (entry == NULL)
 		return -ENOMEM;
 	entry->c.text.read = snd_info_version_read;
-	if (snd_info_register(entry) < 0) {
-		snd_info_free_entry(entry);
-		return -ENOMEM;
-	}
-	snd_info_version_entry = entry;
-	return 0;
+	return snd_info_register(entry); /* freed in error path */
 }
-
-static int __exit snd_info_version_done(void)
-{
-	snd_info_free_entry(snd_info_version_entry);
-	return 0;
-}
-
-#endif /* CONFIG_PROC_FS */

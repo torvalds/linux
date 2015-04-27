@@ -40,32 +40,6 @@ struct hda_codec;
 struct hda_pcm;
 struct hda_pcm_stream;
 
-/* bus operators */
-struct hda_bus_ops {
-	/* send a single command */
-	int (*command)(struct hda_bus *bus, unsigned int cmd);
-	/* get a response from the last command */
-	unsigned int (*get_response)(struct hda_bus *bus, unsigned int addr);
-	/* free the private data */
-	void (*private_free)(struct hda_bus *);
-	/* attach a PCM stream */
-	int (*attach_pcm)(struct hda_bus *bus, struct hda_codec *codec,
-			  struct hda_pcm *pcm);
-	/* reset bus for retry verb */
-	void (*bus_reset)(struct hda_bus *bus);
-#ifdef CONFIG_SND_HDA_DSP_LOADER
-	/* prepare DSP transfer */
-	int (*load_dsp_prepare)(struct hda_bus *bus, unsigned int format,
-				unsigned int byte_size,
-				struct snd_dma_buffer *bufp);
-	/* start/stop DSP transfer */
-	void (*load_dsp_trigger)(struct hda_bus *bus, bool start);
-	/* clean up DSP transfer */
-	void (*load_dsp_cleanup)(struct hda_bus *bus,
-				 struct snd_dma_buffer *dmab);
-#endif
-};
-
 /*
  * codec bus
  *
@@ -77,10 +51,8 @@ struct hda_bus {
 
 	struct snd_card *card;
 
-	void *private_data;
 	struct pci_dev *pci;
 	const char *modelname;
-	struct hda_bus_ops ops;
 
 	struct mutex prepare_mutex;
 
@@ -92,13 +64,15 @@ struct hda_bus {
 	unsigned int allow_bus_reset:1;	/* allow bus reset at fatal error */
 	/* status for codec/controller */
 	unsigned int shutdown :1;	/* being unloaded */
-	unsigned int rirb_error:1;	/* error in codec communication */
 	unsigned int response_reset:1;	/* controller was reset */
 	unsigned int in_reset:1;	/* during reset operation */
 	unsigned int no_response_fallback:1; /* don't fallback at RIRB error */
 
 	int primary_dig_out_type;	/* primary digital out PCM type */
 };
+
+/* from hdac_bus to hda_bus */
+#define to_hda_bus(bus)		container_of(bus, struct hda_bus, core)
 
 /*
  * codec preset
@@ -328,7 +302,10 @@ struct hda_codec {
 /*
  * constructors
  */
-int snd_hda_bus_new(struct snd_card *card, struct hda_bus **busp);
+int snd_hda_bus_new(struct snd_card *card,
+		    const struct hdac_bus_ops *ops,
+		    const struct hdac_io_ops *io_ops,
+		    struct hda_bus **busp);
 int snd_hda_codec_new(struct hda_bus *bus, struct snd_card *card,
 		      unsigned int codec_addr, struct hda_codec **codecp);
 int snd_hda_codec_configure(struct hda_codec *codec);
@@ -367,8 +344,6 @@ int snd_hda_get_conn_index(struct hda_codec *codec, hda_nid_t mux,
 			   hda_nid_t nid, int recursive);
 int snd_hda_get_devices(struct hda_codec *codec, hda_nid_t nid,
 			u8 *dev_list, int max_devices);
-int snd_hda_query_supported_pcm(struct hda_codec *codec, hda_nid_t nid,
-				u32 *ratesp, u64 *formatsp, unsigned int *bpsp);
 
 struct hda_verb {
 	hda_nid_t nid;
@@ -460,16 +435,16 @@ void __snd_hda_codec_cleanup_stream(struct hda_codec *codec, hda_nid_t nid,
 				    int do_now);
 #define snd_hda_codec_cleanup_stream(codec, nid) \
 	__snd_hda_codec_cleanup_stream(codec, nid, 0)
-unsigned int snd_hda_calc_stream_format(struct hda_codec *codec,
-					unsigned int rate,
-					unsigned int channels,
-					unsigned int format,
-					unsigned int maxbps,
-					unsigned short spdif_ctls);
-int snd_hda_is_supported_format(struct hda_codec *codec, hda_nid_t nid,
-				unsigned int format);
+
+#define snd_hda_query_supported_pcm(codec, nid, ratesp, fmtsp, bpsp) \
+	snd_hdac_query_supported_pcm(&(codec)->core, nid, ratesp, fmtsp, bpsp)
+#define snd_hda_is_supported_format(codec, nid, fmt) \
+	snd_hdac_is_supported_format(&(codec)->core, nid, fmt)
 
 extern const struct snd_pcm_chmap_elem snd_pcm_2_1_chmaps[];
+
+int snd_hda_attach_pcm_stream(struct hda_bus *_bus, struct hda_codec *codec,
+			      struct hda_pcm *cpcm);
 
 /*
  * Misc
@@ -481,6 +456,7 @@ void snd_hda_codec_set_power_to_all(struct hda_codec *codec, hda_nid_t fg,
 int snd_hda_lock_devices(struct hda_bus *bus);
 void snd_hda_unlock_devices(struct hda_bus *bus);
 void snd_hda_bus_reset(struct hda_bus *bus);
+void snd_hda_bus_reset_codecs(struct hda_bus *bus);
 
 /*
  * power management
@@ -526,24 +502,12 @@ int snd_hda_load_patch(struct hda_bus *bus, size_t size, const void *buf);
 #endif
 
 #ifdef CONFIG_SND_HDA_DSP_LOADER
-static inline int
-snd_hda_codec_load_dsp_prepare(struct hda_codec *codec, unsigned int format,
-				unsigned int size,
-				struct snd_dma_buffer *bufp)
-{
-	return codec->bus->ops.load_dsp_prepare(codec->bus, format, size, bufp);
-}
-static inline void
-snd_hda_codec_load_dsp_trigger(struct hda_codec *codec, bool start)
-{
-	return codec->bus->ops.load_dsp_trigger(codec->bus, start);
-}
-static inline void
-snd_hda_codec_load_dsp_cleanup(struct hda_codec *codec,
-				struct snd_dma_buffer *dmab)
-{
-	return codec->bus->ops.load_dsp_cleanup(codec->bus, dmab);
-}
+int snd_hda_codec_load_dsp_prepare(struct hda_codec *codec, unsigned int format,
+				   unsigned int size,
+				   struct snd_dma_buffer *bufp);
+void snd_hda_codec_load_dsp_trigger(struct hda_codec *codec, bool start);
+void snd_hda_codec_load_dsp_cleanup(struct hda_codec *codec,
+				    struct snd_dma_buffer *dmab);
 #else
 static inline int
 snd_hda_codec_load_dsp_prepare(struct hda_codec *codec, unsigned int format,

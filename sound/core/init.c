@@ -783,8 +783,6 @@ int snd_card_register(struct snd_card *card)
 EXPORT_SYMBOL(snd_card_register);
 
 #ifdef CONFIG_PROC_FS
-static struct snd_info_entry *snd_card_info_entry;
-
 static void snd_card_info_read(struct snd_info_entry *entry,
 			       struct snd_info_buffer *buffer)
 {
@@ -810,7 +808,6 @@ static void snd_card_info_read(struct snd_info_entry *entry,
 }
 
 #ifdef CONFIG_SND_OSSEMUL
-
 void snd_card_info_read_oss(struct snd_info_buffer *buffer)
 {
 	int idx, count;
@@ -832,7 +829,6 @@ void snd_card_info_read_oss(struct snd_info_buffer *buffer)
 #endif
 
 #ifdef MODULE
-static struct snd_info_entry *snd_card_module_info_entry;
 static void snd_card_module_info_read(struct snd_info_entry *entry,
 				      struct snd_info_buffer *buffer)
 {
@@ -857,35 +853,20 @@ int __init snd_card_info_init(void)
 	if (! entry)
 		return -ENOMEM;
 	entry->c.text.read = snd_card_info_read;
-	if (snd_info_register(entry) < 0) {
-		snd_info_free_entry(entry);
-		return -ENOMEM;
-	}
-	snd_card_info_entry = entry;
+	if (snd_info_register(entry) < 0)
+		return -ENOMEM; /* freed in error path */
 
 #ifdef MODULE
 	entry = snd_info_create_module_entry(THIS_MODULE, "modules", NULL);
-	if (entry) {
-		entry->c.text.read = snd_card_module_info_read;
-		if (snd_info_register(entry) < 0)
-			snd_info_free_entry(entry);
-		else
-			snd_card_module_info_entry = entry;
-	}
+	if (!entry)
+		return -ENOMEM;
+	entry->c.text.read = snd_card_module_info_read;
+	if (snd_info_register(entry) < 0)
+		return -ENOMEM; /* freed in error path */
 #endif
 
 	return 0;
 }
-
-int __exit snd_card_info_done(void)
-{
-	snd_info_free_entry(snd_card_info_entry);
-#ifdef MODULE
-	snd_info_free_entry(snd_card_module_info_entry);
-#endif
-	return 0;
-}
-
 #endif /* CONFIG_PROC_FS */
 
 /**

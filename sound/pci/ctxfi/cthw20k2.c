@@ -2035,8 +2035,8 @@ static int hw_card_start(struct hw *hw)
 		return err;
 
 	/* Set DMA transfer mask */
-	if (pci_set_dma_mask(pci, CT_XFI_DMA_MASK) < 0 ||
-	    pci_set_consistent_dma_mask(pci, CT_XFI_DMA_MASK) < 0) {
+	if (dma_set_mask(&pci->dev, CT_XFI_DMA_MASK) < 0 ||
+	    dma_set_coherent_mask(&pci->dev, CT_XFI_DMA_MASK) < 0) {
 		dev_err(hw->card->dev,
 			"architecture does not support PCI busmaster DMA with mask 0x%llx\n",
 			CT_XFI_DMA_MASK);

@@ -24,7 +24,7 @@ TRACE_EVENT(azx_pcm_trigger,
 
 	TP_fast_assign(
 		__entry->card = (chip)->card->number;
-		__entry->idx = (dev)->index;
+		__entry->idx = (dev)->core.index;
 		__entry->cmd = cmd;
 	),
 
@@ -46,7 +46,7 @@ TRACE_EVENT(azx_get_position,
 
 	TP_fast_assign(
 		__entry->card = (chip)->card->number;
-		__entry->idx = (dev)->index;
+		__entry->idx = (dev)->core.index;
 		__entry->pos = pos;
 		__entry->delay = delay;
 	),
