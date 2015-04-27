@@ -964,8 +964,8 @@ static int dm_table_alloc_md_mempools(struct dm_table *t, struct mapped_device *
 		return -EINVAL;
 	}
 
-	if (!t->mempools)
-		return -ENOMEM;
+	if (IS_ERR(t->mempools))
+		return PTR_ERR(t->mempools);
 
 	return 0;
 }

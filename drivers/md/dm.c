@@ -2323,31 +2323,45 @@ static void free_dev(struct mapped_device *md)
 	kfree(md);
 }
 
+static unsigned filter_md_type(unsigned type, struct mapped_device *md)
+{
+	if (type == DM_TYPE_BIO_BASED)
+		return type;
+
+	return !md->use_blk_mq ? DM_TYPE_REQUEST_BASED : DM_TYPE_MQ_REQUEST_BASED;
+}
+
 static void __bind_mempools(struct mapped_device *md, struct dm_table *t)
 {
 	struct dm_md_mempools *p = dm_table_get_md_mempools(t);
 
-	if (md->bs) {
-		/* The md already has necessary mempools. */
-		if (dm_table_get_type(t) == DM_TYPE_BIO_BASED) {
+	switch (filter_md_type(dm_table_get_type(t), md)) {
+	case DM_TYPE_BIO_BASED:
+		if (md->bs && md->io_pool) {
 			/*
+			 * This bio-based md already has necessary mempools.
 			 * Reload bioset because front_pad may have changed
 			 * because a different table was loaded.
 			 */
 			bioset_free(md->bs);
 			md->bs = p->bs;
 			p->bs = NULL;
+			goto out;
 		}
-		/*
-		 * There's no need to reload with request-based dm
-		 * because the size of front_pad doesn't change.
-		 * Note for future: If you are to reload bioset,
-		 * prep-ed requests in the queue may refer
-		 * to bio from the old bioset, so you must walk
-		 * through the queue to unprep.
-		 */
-		goto out;
+		break;
+	case DM_TYPE_REQUEST_BASED:
+		if (md->rq_pool && md->io_pool)
+			/*
+			 * This request-based md already has necessary mempools.
+			 */
+			goto out;
+		break;
+	case DM_TYPE_MQ_REQUEST_BASED:
+		BUG_ON(p); /* No mempools needed */
+		return;
 	}
+
+	BUG_ON(!p || md->io_pool || md->rq_pool || md->bs);
 
 	md->io_pool = p->io_pool;
 	p->io_pool = NULL;
@@ -2355,7 +2369,6 @@ static void __bind_mempools(struct mapped_device *md, struct dm_table *t)
 	p->rq_pool = NULL;
 	md->bs = p->bs;
 	p->bs = NULL;
-
 out:
 	/* mempool bind completed, no longer need any mempools in the table */
 	dm_table_free_md_mempools(t);
@@ -2732,14 +2745,6 @@ static int dm_init_request_based_blk_mq_queue(struct mapped_device *md)
 out_tag_set:
 	blk_mq_free_tag_set(&md->tag_set);
 	return err;
-}
-
-static unsigned filter_md_type(unsigned type, struct mapped_device *md)
-{
-	if (type == DM_TYPE_BIO_BASED)
-		return type;
-
-	return !md->use_blk_mq ? DM_TYPE_REQUEST_BASED : DM_TYPE_MQ_REQUEST_BASED;
 }
 
 /*
@@ -3463,7 +3468,7 @@ struct dm_md_mempools *dm_alloc_bio_mempools(unsigned integrity,
 
 	pools = kzalloc(sizeof(*pools), GFP_KERNEL);
 	if (!pools)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	front_pad = roundup(per_bio_data_size, __alignof__(struct dm_target_io)) +
 		offsetof(struct dm_target_io, clone);
@@ -3482,24 +3487,26 @@ struct dm_md_mempools *dm_alloc_bio_mempools(unsigned integrity,
 	return pools;
 out:
 	dm_free_md_mempools(pools);
-	return NULL;
+	return ERR_PTR(-ENOMEM);
 }
 
 struct dm_md_mempools *dm_alloc_rq_mempools(struct mapped_device *md,
 					    unsigned type)
 {
-	unsigned int pool_size = dm_get_reserved_rq_based_ios();
+	unsigned int pool_size;
 	struct dm_md_mempools *pools;
 
+	if (filter_md_type(type, md) == DM_TYPE_MQ_REQUEST_BASED)
+		return NULL; /* No mempools needed */
+
+	pool_size = dm_get_reserved_rq_based_ios();
 	pools = kzalloc(sizeof(*pools), GFP_KERNEL);
 	if (!pools)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
-	if (filter_md_type(type, md) == DM_TYPE_REQUEST_BASED) {
-		pools->rq_pool = mempool_create_slab_pool(pool_size, _rq_cache);
-		if (!pools->rq_pool)
-			goto out;
-	}
+	pools->rq_pool = mempool_create_slab_pool(pool_size, _rq_cache);
+	if (!pools->rq_pool)
+		goto out;
 
 	pools->io_pool = mempool_create_slab_pool(pool_size, _rq_tio_cache);
 	if (!pools->io_pool)
@@ -3508,7 +3515,7 @@ struct dm_md_mempools *dm_alloc_rq_mempools(struct mapped_device *md,
 	return pools;
 out:
 	dm_free_md_mempools(pools);
-	return NULL;
+	return ERR_PTR(-ENOMEM);
 }
 
 void dm_free_md_mempools(struct dm_md_mempools *pools)
