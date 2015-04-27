@@ -4150,7 +4150,7 @@ void gen6_rps_idle(struct drm_i915_private *dev_priv)
 }
 
 void gen6_rps_boost(struct drm_i915_private *dev_priv,
-		    struct drm_i915_file_private *file_priv)
+		    struct intel_rps_client *rps)
 {
 	u32 val;
 
@@ -4159,13 +4159,13 @@ void gen6_rps_boost(struct drm_i915_private *dev_priv,
 	if (dev_priv->rps.enabled &&
 	    dev_priv->mm.busy &&
 	    dev_priv->rps.cur_freq < val &&
-	    (file_priv == NULL || list_empty(&file_priv->rps_boost))) {
+	    (rps == NULL || list_empty(&rps->link))) {
 		intel_set_rps(dev_priv->dev, val);
 		dev_priv->rps.last_adj = 0;
 
-		if (file_priv != NULL) {
-			list_add(&file_priv->rps_boost, &dev_priv->rps.clients);
-			file_priv->rps_boosts++;
+		if (rps != NULL) {
+			list_add(&rps->link, &dev_priv->rps.clients);
+			rps->boosts++;
 		} else
 			dev_priv->rps.boosts++;
 	}
@@ -6884,8 +6884,8 @@ void intel_pm_setup(struct drm_device *dev)
 	INIT_DELAYED_WORK(&dev_priv->rps.delayed_resume_work,
 			  intel_gen6_powersave_work);
 	INIT_LIST_HEAD(&dev_priv->rps.clients);
-	INIT_LIST_HEAD(&dev_priv->rps.semaphores.rps_boost);
-	INIT_LIST_HEAD(&dev_priv->rps.mmioflips.rps_boost);
+	INIT_LIST_HEAD(&dev_priv->rps.semaphores.link);
+	INIT_LIST_HEAD(&dev_priv->rps.mmioflips.link);
 
 	dev_priv->pm.suspended = false;
 }

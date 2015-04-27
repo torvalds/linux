@@ -1221,7 +1221,7 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 			unsigned reset_counter,
 			bool interruptible,
 			s64 *timeout,
-			struct drm_i915_file_private *file_priv)
+			struct intel_rps_client *rps)
 {
 	struct intel_engine_cs *ring = i915_gem_request_get_ring(req);
 	struct drm_device *dev = ring->dev;
@@ -1244,8 +1244,8 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 	timeout_expire = timeout ?
 		jiffies + nsecs_to_jiffies_timeout((u64)*timeout) : 0;
 
-	if (INTEL_INFO(dev)->gen >= 6)
-		gen6_rps_boost(dev_priv, file_priv);
+	if (INTEL_INFO(dev_priv)->gen >= 6)
+		gen6_rps_boost(dev_priv, rps);
 
 	/* Record current time in case interrupted by signal, or wedged */
 	trace_i915_gem_request_wait_begin(req);
@@ -1493,7 +1493,7 @@ i915_gem_object_retire_request(struct drm_i915_gem_object *obj,
  */
 static __must_check int
 i915_gem_object_wait_rendering__nonblocking(struct drm_i915_gem_object *obj,
-					    struct drm_i915_file_private *file_priv,
+					    struct intel_rps_client *rps,
 					    bool readonly)
 {
 	struct drm_device *dev = obj->base.dev;
@@ -1545,7 +1545,7 @@ i915_gem_object_wait_rendering__nonblocking(struct drm_i915_gem_object *obj,
 	mutex_unlock(&dev->struct_mutex);
 	for (i = 0; ret == 0 && i < n; i++)
 		ret = __i915_wait_request(requests[i], reset_counter, true,
-					  NULL, file_priv);
+					  NULL, rps);
 	mutex_lock(&dev->struct_mutex);
 
 err:
@@ -1556,6 +1556,12 @@ err:
 	}
 
 	return ret;
+}
+
+static struct intel_rps_client *to_rps_client(struct drm_file *file)
+{
+	struct drm_i915_file_private *fpriv = file->driver_priv;
+	return &fpriv->rps;
 }
 
 /**
@@ -1600,7 +1606,7 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 	 * to catch cases where we are gazumped.
 	 */
 	ret = i915_gem_object_wait_rendering__nonblocking(obj,
-							  file->driver_priv,
+							  to_rps_client(file),
 							  !write_domain);
 	if (ret)
 		goto unref;
@@ -5216,9 +5222,9 @@ void i915_gem_release(struct drm_device *dev, struct drm_file *file)
 	}
 	spin_unlock(&file_priv->mm.lock);
 
-	if (!list_empty(&file_priv->rps_boost)) {
+	if (!list_empty(&file_priv->rps.link)) {
 		mutex_lock(&to_i915(dev)->rps.hw_lock);
-		list_del(&file_priv->rps_boost);
+		list_del(&file_priv->rps.link);
 		mutex_unlock(&to_i915(dev)->rps.hw_lock);
 	}
 }
@@ -5237,7 +5243,7 @@ int i915_gem_open(struct drm_device *dev, struct drm_file *file)
 	file->driver_priv = file_priv;
 	file_priv->dev_priv = dev->dev_private;
 	file_priv->file = file;
-	INIT_LIST_HEAD(&file_priv->rps_boost);
+	INIT_LIST_HEAD(&file_priv->rps.link);
 
 	spin_lock_init(&file_priv->mm.lock);
 	INIT_LIST_HEAD(&file_priv->mm.request_list);

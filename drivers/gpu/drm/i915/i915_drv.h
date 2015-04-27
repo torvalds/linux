@@ -282,10 +282,12 @@ struct drm_i915_file_private {
 	} mm;
 	struct idr context_idr;
 
-	struct list_head rps_boost;
-	struct intel_engine_cs *bsd_ring;
+	struct intel_rps_client {
+		struct list_head link;
+		unsigned boosts;
+	} rps;
 
-	unsigned rps_boosts;
+	struct intel_engine_cs *bsd_ring;
 };
 
 enum intel_dpll_id {
@@ -1086,8 +1088,7 @@ struct intel_gen6_power_mgmt {
 	struct list_head clients;
 	unsigned boosts;
 
-	struct drm_i915_file_private semaphores;
-	struct drm_i915_file_private mmioflips;
+	struct intel_rps_client semaphores, mmioflips;
 
 	/* manual wa residency calculations */
 	struct intel_rps_ei up_ei, down_ei;
@@ -2856,7 +2857,7 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 			unsigned reset_counter,
 			bool interruptible,
 			s64 *timeout,
-			struct drm_i915_file_private *file_priv);
+			struct intel_rps_client *rps);
 int __must_check i915_wait_request(struct drm_i915_gem_request *req);
 int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
 int __must_check

@@ -2307,12 +2307,16 @@ static int i915_rps_boost_info(struct seq_file *m, void *data)
 		seq_printf(m, "%s [%d]: %d boosts%s\n",
 			   task ? task->comm : "<unknown>",
 			   task ? task->pid : -1,
-			   file_priv->rps_boosts,
-			   list_empty(&file_priv->rps_boost) ? "" : ", active");
+			   file_priv->rps.boosts,
+			   list_empty(&file_priv->rps.link) ? "" : ", active");
 		rcu_read_unlock();
 	}
-	seq_printf(m, "Semaphore boosts: %d\n", dev_priv->rps.semaphores.rps_boosts);
-	seq_printf(m, "MMIO flip boosts: %d\n", dev_priv->rps.mmioflips.rps_boosts);
+	seq_printf(m, "Semaphore boosts: %d%s\n",
+		   dev_priv->rps.semaphores.boosts,
+		   list_empty(&dev_priv->rps.semaphores.link) ? "" : ", active");
+	seq_printf(m, "MMIO flip boosts: %d%s\n",
+		   dev_priv->rps.mmioflips.boosts,
+		   list_empty(&dev_priv->rps.mmioflips.link) ? "" : ", active");
 	seq_printf(m, "Kernel boosts: %d\n", dev_priv->rps.boosts);
 
 	mutex_unlock(&dev_priv->rps.hw_lock);
