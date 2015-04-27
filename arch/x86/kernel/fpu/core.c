@@ -224,7 +224,10 @@ static void fpu_copy(struct fpu *dst_fpu, struct fpu *src_fpu)
 		memset(&dst_fpu->state.xsave, 0, xstate_size);
 		copy_fpregs_to_fpstate(dst_fpu);
 	} else {
-		fpu__save(src_fpu);
+		preempt_disable();
+		if (!copy_fpregs_to_fpstate(src_fpu))
+			fpregs_deactivate(src_fpu);
+		preempt_enable();
 		memcpy(&dst_fpu->state, &src_fpu->state, xstate_size);
 	}
 }
