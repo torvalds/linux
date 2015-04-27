@@ -429,7 +429,7 @@ static int tcm_qla2xxx_check_stop_free(struct se_cmd *se_cmd)
 		cmd->cmd_flags |= BIT_14;
 	}
 
-	return target_put_sess_cmd(se_cmd->se_sess, se_cmd);
+	return target_put_sess_cmd(se_cmd);
 }
 
 /* tcm_qla2xxx_release_cmd - Callback from TCM Core to release underlying

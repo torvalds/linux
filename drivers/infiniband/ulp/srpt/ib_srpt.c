@@ -1334,7 +1334,7 @@ static int srpt_abort_cmd(struct srpt_send_ioctx *ioctx)
 
 		BUG_ON(ch->sess == NULL);
 
-		target_put_sess_cmd(ch->sess, &ioctx->cmd);
+		target_put_sess_cmd(&ioctx->cmd);
 		goto out;
 	}
 
@@ -1365,11 +1365,11 @@ static int srpt_abort_cmd(struct srpt_send_ioctx *ioctx)
 		 * not been received in time.
 		 */
 		srpt_unmap_sg_to_ib_sge(ioctx->ch, ioctx);
-		target_put_sess_cmd(ioctx->ch->sess, &ioctx->cmd);
+		target_put_sess_cmd(&ioctx->cmd);
 		break;
 	case SRPT_STATE_MGMT_RSP_SENT:
 		srpt_set_cmd_state(ioctx, SRPT_STATE_DONE);
-		target_put_sess_cmd(ioctx->ch->sess, &ioctx->cmd);
+		target_put_sess_cmd(&ioctx->cmd);
 		break;
 	default:
 		WARN(1, "Unexpected command state (%d)", state);
@@ -1679,7 +1679,7 @@ static int srpt_check_stop_free(struct se_cmd *cmd)
 	struct srpt_send_ioctx *ioctx = container_of(cmd,
 				struct srpt_send_ioctx, cmd);
 
-	return target_put_sess_cmd(ioctx->ch->sess, &ioctx->cmd);
+	return target_put_sess_cmd(&ioctx->cmd);
 }
 
 /**
@@ -3074,7 +3074,7 @@ static void srpt_queue_response(struct se_cmd *cmd)
 		       ioctx->tag);
 		srpt_unmap_sg_to_ib_sge(ch, ioctx);
 		srpt_set_cmd_state(ioctx, SRPT_STATE_DONE);
-		target_put_sess_cmd(ioctx->ch->sess, &ioctx->cmd);
+		target_put_sess_cmd(&ioctx->cmd);
 	}
 }
 

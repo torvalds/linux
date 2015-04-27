@@ -153,7 +153,7 @@ void core_tmr_abort_task(
 		cancel_work_sync(&se_cmd->work);
 		transport_wait_for_tasks(se_cmd);
 
-		target_put_sess_cmd(se_sess, se_cmd);
+		target_put_sess_cmd(se_cmd);
 		transport_cmd_finish_abort(se_cmd, true);
 
 		printk("ABORT_TASK: Sending TMR_FUNCTION_COMPLETE for"

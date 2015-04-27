@@ -1967,7 +1967,7 @@ static void lio_set_default_node_attributes(struct se_node_acl *se_acl)
 
 static int lio_check_stop_free(struct se_cmd *se_cmd)
 {
-	return target_put_sess_cmd(se_cmd->se_sess, se_cmd);
+	return target_put_sess_cmd(se_cmd);
 }
 
 static void lio_release_cmd(struct se_cmd *se_cmd)
