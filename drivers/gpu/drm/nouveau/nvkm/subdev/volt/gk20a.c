@@ -24,21 +24,9 @@
 
 #include <core/tegra.h>
 
-struct cvb_coef {
-	int c0;
-	int c1;
-	int c2;
-	int c3;
-	int c4;
-	int c5;
-};
+#include "gk20a.h"
 
-struct gk20a_volt {
-	struct nvkm_volt base;
-	struct regulator *vdd;
-};
-
-const struct cvb_coef gk20a_cvb_coef[] = {
+static const struct cvb_coef gk20a_cvb_coef[] = {
 	/* MHz,        c0,     c1,   c2,    c3,     c4,   c5 */
 	/*  72 */ { 1209886, -36468,  515,   417, -13123,  203},
 	/* 108 */ { 1130804, -27659,  296,   298, -10834,  221},
@@ -89,7 +77,7 @@ gk20a_volt_get_cvb_t_voltage(int speedo, int temp, int s_scale, int t_scale,
 	return mv;
 }
 
-static int
+int
 gk20a_volt_calc_voltage(const struct cvb_coef *coef, int speedo)
 {
 	int mv;
@@ -100,7 +88,7 @@ gk20a_volt_calc_voltage(const struct cvb_coef *coef, int speedo)
 	return mv * 1000;
 }
 
-static int
+int
 gk20a_volt_vid_get(struct nvkm_volt *base)
 {
 	struct gk20a_volt *volt = gk20a_volt(base);
@@ -115,7 +103,7 @@ gk20a_volt_vid_get(struct nvkm_volt *base)
 	return -EINVAL;
 }
 
-static int
+int
 gk20a_volt_vid_set(struct nvkm_volt *base, u8 vid)
 {
 	struct gk20a_volt *volt = gk20a_volt(base);
@@ -125,7 +113,7 @@ gk20a_volt_vid_set(struct nvkm_volt *base, u8 vid)
 	return regulator_set_voltage(volt->vdd, volt->base.vid[vid].uv, 1200000);
 }
 
-static int
+int
 gk20a_volt_set_id(struct nvkm_volt *base, u8 id, int condition)
 {
 	struct gk20a_volt *volt = gk20a_volt(base);
