@@ -727,7 +727,7 @@ int
 ncp_del_file_or_subdir2(struct ncp_server *server,
 			struct dentry *dentry)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	__u8  volnum;
 	__le32 dirent;
 

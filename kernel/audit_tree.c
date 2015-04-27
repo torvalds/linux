@@ -577,7 +577,7 @@ int audit_remove_tree_rule(struct audit_krule *rule)
 
 static int compare_root(struct vfsmount *mnt, void *arg)
 {
-	return mnt->mnt_root->d_inode == arg;
+	return d_backing_inode(mnt->mnt_root) == arg;
 }
 
 void audit_trim_trees(void)
@@ -649,7 +649,7 @@ void audit_put_tree(struct audit_tree *tree)
 
 static int tag_mount(struct vfsmount *mnt, void *arg)
 {
-	return tag_chunk(mnt->mnt_root->d_inode, arg);
+	return tag_chunk(d_backing_inode(mnt->mnt_root), arg);
 }
 
 /*

@@ -139,7 +139,7 @@ int
 nfsd4_get_nfs4_acl(struct svc_rqst *rqstp, struct dentry *dentry,
 		struct nfs4_acl **acl)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	int error = 0;
 	struct posix_acl *pacl = NULL, *dpacl = NULL;
 	unsigned int flags = 0;
@@ -780,7 +780,7 @@ nfsd4_set_nfs4_acl(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		return error;
 
 	dentry = fhp->fh_dentry;
-	inode = dentry->d_inode;
+	inode = d_inode(dentry);
 
 	if (!inode->i_op->set_acl || !IS_POSIXACL(inode))
 		return nfserr_attrnotsupp;

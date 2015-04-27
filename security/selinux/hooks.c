@@ -414,7 +414,7 @@ static int sb_finish_set_opts(struct super_block *sb)
 {
 	struct superblock_security_struct *sbsec = sb->s_security;
 	struct dentry *root = sb->s_root;
-	struct inode *root_inode = root->d_inode;
+	struct inode *root_inode = d_backing_inode(root);
 	int rc = 0;
 
 	if (sbsec->behavior == SECURITY_FS_USE_XATTR) {
@@ -552,7 +552,7 @@ static int selinux_get_mnt_opts(const struct super_block *sb,
 		opts->mnt_opts_flags[i++] = DEFCONTEXT_MNT;
 	}
 	if (sbsec->flags & ROOTCONTEXT_MNT) {
-		struct inode *root = sbsec->sb->s_root->d_inode;
+		struct inode *root = d_backing_inode(sbsec->sb->s_root);
 		struct inode_security_struct *isec = root->i_security;
 
 		rc = security_sid_to_context(isec->sid, &context, &len);
@@ -608,7 +608,7 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 	int rc = 0, i;
 	struct superblock_security_struct *sbsec = sb->s_security;
 	const char *name = sb->s_type->name;
-	struct inode *inode = sbsec->sb->s_root->d_inode;
+	struct inode *inode = d_backing_inode(sbsec->sb->s_root);
 	struct inode_security_struct *root_isec = inode->i_security;
 	u32 fscontext_sid = 0, context_sid = 0, rootcontext_sid = 0;
 	u32 defcontext_sid = 0;
@@ -835,8 +835,8 @@ static int selinux_cmp_sb_context(const struct super_block *oldsb,
 	if ((oldflags & DEFCONTEXT_MNT) && old->def_sid != new->def_sid)
 		goto mismatch;
 	if (oldflags & ROOTCONTEXT_MNT) {
-		struct inode_security_struct *oldroot = oldsb->s_root->d_inode->i_security;
-		struct inode_security_struct *newroot = newsb->s_root->d_inode->i_security;
+		struct inode_security_struct *oldroot = d_backing_inode(oldsb->s_root)->i_security;
+		struct inode_security_struct *newroot = d_backing_inode(newsb->s_root)->i_security;
 		if (oldroot->sid != newroot->sid)
 			goto mismatch;
 	}
@@ -886,16 +886,16 @@ static int selinux_sb_clone_mnt_opts(const struct super_block *oldsb,
 		if (!set_fscontext)
 			newsbsec->sid = sid;
 		if (!set_rootcontext) {
-			struct inode *newinode = newsb->s_root->d_inode;
+			struct inode *newinode = d_backing_inode(newsb->s_root);
 			struct inode_security_struct *newisec = newinode->i_security;
 			newisec->sid = sid;
 		}
 		newsbsec->mntpoint_sid = sid;
 	}
 	if (set_rootcontext) {
-		const struct inode *oldinode = oldsb->s_root->d_inode;
+		const struct inode *oldinode = d_backing_inode(oldsb->s_root);
 		const struct inode_security_struct *oldisec = oldinode->i_security;
-		struct inode *newinode = newsb->s_root->d_inode;
+		struct inode *newinode = d_backing_inode(newsb->s_root);
 		struct inode_security_struct *newisec = newinode->i_security;
 
 		newisec->sid = oldisec->sid;
@@ -1610,7 +1610,7 @@ static inline int dentry_has_perm(const struct cred *cred,
 				  struct dentry *dentry,
 				  u32 av)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_backing_inode(dentry);
 	struct common_audit_data ad;
 
 	ad.type = LSM_AUDIT_DATA_DENTRY;
@@ -1625,7 +1625,7 @@ static inline int path_has_perm(const struct cred *cred,
 				const struct path *path,
 				u32 av)
 {
-	struct inode *inode = path->dentry->d_inode;
+	struct inode *inode = d_backing_inode(path->dentry);
 	struct common_audit_data ad;
 
 	ad.type = LSM_AUDIT_DATA_PATH;
@@ -1753,7 +1753,7 @@ static int may_link(struct inode *dir,
 	int rc;
 
 	dsec = dir->i_security;
-	isec = dentry->d_inode->i_security;
+	isec = d_backing_inode(dentry)->i_security;
 
 	ad.type = LSM_AUDIT_DATA_DENTRY;
 	ad.u.dentry = dentry;
@@ -1797,7 +1797,7 @@ static inline int may_rename(struct inode *old_dir,
 	int rc;
 
 	old_dsec = old_dir->i_security;
-	old_isec = old_dentry->d_inode->i_security;
+	old_isec = d_backing_inode(old_dentry)->i_security;
 	old_is_dir = d_is_dir(old_dentry);
 	new_dsec = new_dir->i_security;
 
@@ -1827,7 +1827,7 @@ static inline int may_rename(struct inode *old_dir,
 	if (rc)
 		return rc;
 	if (d_is_positive(new_dentry)) {
-		new_isec = new_dentry->d_inode->i_security;
+		new_isec = d_backing_inode(new_dentry)->i_security;
 		new_is_dir = d_is_dir(new_dentry);
 		rc = avc_has_perm(sid, new_isec->sid,
 				  new_isec->sclass,
@@ -1963,7 +1963,7 @@ static int selinux_binder_transfer_file(struct task_struct *from,
 {
 	u32 sid = task_sid(to);
 	struct file_security_struct *fsec = file->f_security;
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = d_backing_inode(file->f_path.dentry);
 	struct inode_security_struct *isec = inode->i_security;
 	struct common_audit_data ad;
 	int rc;
@@ -2627,7 +2627,7 @@ static int selinux_sb_remount(struct super_block *sb, void *data)
 			break;
 		case ROOTCONTEXT_MNT: {
 			struct inode_security_struct *root_isec;
-			root_isec = sb->s_root->d_inode->i_security;
+			root_isec = d_backing_inode(sb->s_root)->i_security;
 
 			if (bad_option(sbsec, ROOTCONTEXT_MNT, root_isec->sid, sid))
 				goto out_bad_option;
@@ -2727,7 +2727,7 @@ static int selinux_dentry_init_security(struct dentry *dentry, int mode,
 	struct task_security_struct *tsec;
 	struct inode_security_struct *dsec;
 	struct superblock_security_struct *sbsec;
-	struct inode *dir = dentry->d_parent->d_inode;
+	struct inode *dir = d_backing_inode(dentry->d_parent);
 	u32 newsid;
 	int rc;
 
@@ -2982,7 +2982,7 @@ static int selinux_inode_setotherxattr(struct dentry *dentry, const char *name)
 static int selinux_inode_setxattr(struct dentry *dentry, const char *name,
 				  const void *value, size_t size, int flags)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_backing_inode(dentry);
 	struct inode_security_struct *isec = inode->i_security;
 	struct superblock_security_struct *sbsec;
 	struct common_audit_data ad;
@@ -3059,7 +3059,7 @@ static void selinux_inode_post_setxattr(struct dentry *dentry, const char *name,
 					const void *value, size_t size,
 					int flags)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_backing_inode(dentry);
 	struct inode_security_struct *isec = inode->i_security;
 	u32 newsid;
 	int rc;

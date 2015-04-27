@@ -110,7 +110,7 @@ static struct dentry *squashfs_fh_to_parent(struct super_block *sb,
 
 static struct dentry *squashfs_get_parent(struct dentry *child)
 {
-	struct inode *inode = child->d_inode;
+	struct inode *inode = d_inode(child);
 	unsigned int parent_ino = squashfs_i(inode)->parent;
 
 	return squashfs_export_iget(inode->i_sb, parent_ino);

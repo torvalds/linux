@@ -1170,7 +1170,7 @@ static int parse_options (char *options, struct super_block *sb,
 				return 0;
 			}
 
-			journal_inode = path.dentry->d_inode;
+			journal_inode = d_inode(path.dentry);
 			if (!S_ISBLK(journal_inode->i_mode)) {
 				ext3_msg(sb, KERN_ERR, "error: journal path %s "
 					"is not a block device", journal_path);
@@ -2947,7 +2947,7 @@ static int ext3_write_info(struct super_block *sb, int type)
 	handle_t *handle;
 
 	/* Data block + inode block */
-	handle = ext3_journal_start(sb->s_root->d_inode, 2);
+	handle = ext3_journal_start(d_inode(sb->s_root), 2);
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 	ret = dquot_commit_info(sb, type);
@@ -2994,7 +2994,7 @@ static int ext3_quota_on(struct super_block *sb, int type, int format_id,
 	 * When we journal data on quota file, we have to flush journal to see
 	 * all updates to the file when we bypass pagecache...
 	 */
-	if (ext3_should_journal_data(path->dentry->d_inode)) {
+	if (ext3_should_journal_data(d_inode(path->dentry))) {
 		/*
 		 * We don't need to lock updates but journal_flush() could
 		 * otherwise be livelocked...

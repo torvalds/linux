@@ -182,7 +182,7 @@ static const char *qnx6_checkroot(struct super_block *s)
 	static char match_root[2][3] = {".\0\0", "..\0"};
 	int i, error = 0;
 	struct qnx6_dir_entry *dir_entry;
-	struct inode *root = s->s_root->d_inode;
+	struct inode *root = d_inode(s->s_root);
 	struct address_space *mapping = root->i_mapping;
 	struct page *page = read_mapping_page(mapping, 0, NULL);
 	if (IS_ERR(page))

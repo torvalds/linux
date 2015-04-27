@@ -94,7 +94,7 @@ rpc_timeout_upcall_queue(struct work_struct *work)
 	}
 	dentry = dget(pipe->dentry);
 	spin_unlock(&pipe->lock);
-	rpc_purge_list(dentry ? &RPC_I(dentry->d_inode)->waitq : NULL,
+	rpc_purge_list(dentry ? &RPC_I(d_inode(dentry))->waitq : NULL,
 			&free_list, destroy_msg, -ETIMEDOUT);
 	dput(dentry);
 }
@@ -152,7 +152,7 @@ rpc_queue_upcall(struct rpc_pipe *pipe, struct rpc_pipe_msg *msg)
 	dentry = dget(pipe->dentry);
 	spin_unlock(&pipe->lock);
 	if (dentry) {
-		wake_up(&RPC_I(dentry->d_inode)->waitq);
+		wake_up(&RPC_I(d_inode(dentry))->waitq);
 		dput(dentry);
 	}
 	return res;
@@ -591,7 +591,7 @@ static int __rpc_mkpipe_dentry(struct inode *dir, struct dentry *dentry,
 	err = __rpc_create_common(dir, dentry, S_IFIFO | mode, i_fop, private);
 	if (err)
 		return err;
-	rpci = RPC_I(dentry->d_inode);
+	rpci = RPC_I(d_inode(dentry));
 	rpci->private = private;
 	rpci->pipe = pipe;
 	fsnotify_create(dir, dentry);
@@ -616,7 +616,7 @@ int rpc_rmdir(struct dentry *dentry)
 	int error;
 
 	parent = dget_parent(dentry);
-	dir = parent->d_inode;
+	dir = d_inode(parent);
 	mutex_lock_nested(&dir->i_mutex, I_MUTEX_PARENT);
 	error = __rpc_rmdir(dir, dentry);
 	mutex_unlock(&dir->i_mutex);
@@ -638,7 +638,7 @@ static int __rpc_unlink(struct inode *dir, struct dentry *dentry)
 
 static int __rpc_rmpipe(struct inode *dir, struct dentry *dentry)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 
 	rpc_close_pipes(inode);
 	return __rpc_unlink(dir, dentry);
@@ -654,7 +654,7 @@ static struct dentry *__rpc_lookup_create_exclusive(struct dentry *parent,
 		if (!dentry)
 			return ERR_PTR(-ENOMEM);
 	}
-	if (dentry->d_inode == NULL)
+	if (d_really_is_negative(dentry))
 		return dentry;
 	dput(dentry);
 	return ERR_PTR(-EEXIST);
@@ -667,7 +667,7 @@ static void __rpc_depopulate(struct dentry *parent,
 			     const struct rpc_filelist *files,
 			     int start, int eof)
 {
-	struct inode *dir = parent->d_inode;
+	struct inode *dir = d_inode(parent);
 	struct dentry *dentry;
 	struct qstr name;
 	int i;
@@ -679,9 +679,9 @@ static void __rpc_depopulate(struct dentry *parent,
 
 		if (dentry == NULL)
 			continue;
-		if (dentry->d_inode == NULL)
+		if (d_really_is_negative(dentry))
 			goto next;
-		switch (dentry->d_inode->i_mode & S_IFMT) {
+		switch (d_inode(dentry)->i_mode & S_IFMT) {
 			default:
 				BUG();
 			case S_IFREG:
@@ -699,7 +699,7 @@ static void rpc_depopulate(struct dentry *parent,
 			   const struct rpc_filelist *files,
 			   int start, int eof)
 {
-	struct inode *dir = parent->d_inode;
+	struct inode *dir = d_inode(parent);
 
 	mutex_lock_nested(&dir->i_mutex, I_MUTEX_CHILD);
 	__rpc_depopulate(parent, files, start, eof);
@@ -711,7 +711,7 @@ static int rpc_populate(struct dentry *parent,
 			int start, int eof,
 			void *private)
 {
-	struct inode *dir = parent->d_inode;
+	struct inode *dir = d_inode(parent);
 	struct dentry *dentry;
 	int i, err;
 
@@ -754,7 +754,7 @@ static struct dentry *rpc_mkdir_populate(struct dentry *parent,
 		int (*populate)(struct dentry *, void *), void *args_populate)
 {
 	struct dentry *dentry;
-	struct inode *dir = parent->d_inode;
+	struct inode *dir = d_inode(parent);
 	int error;
 
 	mutex_lock_nested(&dir->i_mutex, I_MUTEX_PARENT);
@@ -787,7 +787,7 @@ static int rpc_rmdir_depopulate(struct dentry *dentry,
 	int error;
 
 	parent = dget_parent(dentry);
-	dir = parent->d_inode;
+	dir = d_inode(parent);
 	mutex_lock_nested(&dir->i_mutex, I_MUTEX_PARENT);
 	if (depopulate != NULL)
 		depopulate(dentry);
@@ -819,7 +819,7 @@ struct dentry *rpc_mkpipe_dentry(struct dentry *parent, const char *name,
 				 void *private, struct rpc_pipe *pipe)
 {
 	struct dentry *dentry;
-	struct inode *dir = parent->d_inode;
+	struct inode *dir = d_inode(parent);
 	umode_t umode = S_IFIFO | S_IRUSR | S_IWUSR;
 	int err;
 
@@ -864,7 +864,7 @@ rpc_unlink(struct dentry *dentry)
 	int error = 0;
 
 	parent = dget_parent(dentry);
-	dir = parent->d_inode;
+	dir = d_inode(parent);
 	mutex_lock_nested(&dir->i_mutex, I_MUTEX_PARENT);
 	error = __rpc_rmpipe(dir, dentry);
 	mutex_unlock(&dir->i_mutex);
@@ -1375,7 +1375,7 @@ rpc_gssd_dummy_depopulate(struct dentry *pipe_dentry)
 	struct dentry *clnt_dir = pipe_dentry->d_parent;
 	struct dentry *gssd_dir = clnt_dir->d_parent;
 
-	__rpc_rmpipe(clnt_dir->d_inode, pipe_dentry);
+	__rpc_rmpipe(d_inode(clnt_dir), pipe_dentry);
 	__rpc_depopulate(clnt_dir, gssd_dummy_info_file, 0, 1);
 	__rpc_depopulate(gssd_dir, gssd_dummy_clnt_dir, 0, 1);
 	dput(pipe_dentry);

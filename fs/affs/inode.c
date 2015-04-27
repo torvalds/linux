@@ -213,7 +213,7 @@ affs_write_inode(struct inode *inode, struct writeback_control *wbc)
 int
 affs_notify_change(struct dentry *dentry, struct iattr *attr)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	int error;
 
 	pr_debug("notify_change(%lu,0x%x)\n", inode->i_ino, attr->ia_valid);

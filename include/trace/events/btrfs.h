@@ -407,10 +407,10 @@ TRACE_EVENT(btrfs_sync_file,
 
 	TP_fast_assign(
 		struct dentry *dentry = file->f_path.dentry;
-		struct inode *inode = dentry->d_inode;
+		struct inode *inode = d_inode(dentry);
 
 		__entry->ino		= inode->i_ino;
-		__entry->parent		= dentry->d_parent->d_inode->i_ino;
+		__entry->parent		= d_inode(dentry->d_parent)->i_ino;
 		__entry->datasync	= datasync;
 		__entry->root_objectid	=
 				 BTRFS_I(inode)->root->root_key.objectid;

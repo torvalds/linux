@@ -16,6 +16,7 @@
 #ifndef __LINUX_MFD_CROS_EC_H
 #define __LINUX_MFD_CROS_EC_H
 
+#include <linux/cdev.h>
 #include <linux/notifier.h>
 #include <linux/mfd/cros_ec_commands.h>
 #include <linux/mutex.h>
@@ -38,20 +39,20 @@ enum {
 /*
  * @version: Command version number (often 0)
  * @command: Command to send (EC_CMD_...)
- * @outdata: Outgoing data to EC
  * @outsize: Outgoing length in bytes
- * @indata: Where to put the incoming data from EC
  * @insize: Max number of bytes to accept from EC
  * @result: EC's response to the command (separate from communication failure)
+ * @outdata: Outgoing data to EC
+ * @indata: Where to put the incoming data from EC
  */
 struct cros_ec_command {
 	uint32_t version;
 	uint32_t command;
-	uint8_t *outdata;
 	uint32_t outsize;
-	uint8_t *indata;
 	uint32_t insize;
 	uint32_t result;
+	uint8_t outdata[EC_PROTO2_MAX_PARAM_SIZE];
+	uint8_t indata[EC_PROTO2_MAX_PARAM_SIZE];
 };
 
 /**
@@ -59,9 +60,17 @@ struct cros_ec_command {
  *
  * @ec_name: name of EC device (e.g. 'chromeos-ec')
  * @phys_name: name of physical comms layer (e.g. 'i2c-4')
- * @dev: Device pointer
+ * @dev: Device pointer for physical comms device
+ * @vdev: Device pointer for virtual comms device
+ * @cdev: Character device structure for virtual comms device
  * @was_wake_device: true if this device was set to wake the system from
  * sleep at the last suspend
+ * @cmd_readmem: direct read of the EC memory-mapped region, if supported
+ *     @offset is within EC_LPC_ADDR_MEMMAP region.
+ *     @bytes: number of bytes to read. zero means "read a string" (including
+ *     the trailing '\0'). At most only EC_MEMMAP_SIZE bytes can be read.
+ *     Caller must ensure that the buffer is large enough for the result when
+ *     reading a string.
  *
  * @priv: Private data
  * @irq: Interrupt to use
@@ -90,8 +99,12 @@ struct cros_ec_device {
 	const char *ec_name;
 	const char *phys_name;
 	struct device *dev;
+	struct device *vdev;
+	struct cdev cdev;
 	bool was_wake_device;
 	struct class *cros_class;
+	int (*cmd_readmem)(struct cros_ec_device *ec, unsigned int offset,
+			   unsigned int bytes, void *dest);
 
 	/* These are used to implement the platform-specific interface */
 	void *priv;

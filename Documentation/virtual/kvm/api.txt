@@ -3573,3 +3573,20 @@ struct {
 @ar   - access register number
 
 KVM handlers should exit to userspace with rc = -EREMOTE.
+
+
+8. Other capabilities.
+----------------------
+
+This section lists capabilities that give information about other
+features of the KVM implementation.
+
+8.1 KVM_CAP_PPC_HWRNG
+
+Architectures: ppc
+
+This capability, if KVM_CHECK_EXTENSION indicates that it is
+available, means that that the kernel has an implementation of the
+H_RANDOM hypercall backed by a hardware random-number generator.
+If present, the kernel H_RANDOM handler can be enabled for guest use
+with the KVM_CAP_PPC_ENABLE_HCALL capability.

@@ -294,7 +294,7 @@ xfs_filestream_get_parent(
 	if (!parent)
 		goto out_dput;
 
-	dir = igrab(parent->d_inode);
+	dir = igrab(d_inode(parent));
 	dput(parent);
 
 out_dput:

@@ -3240,7 +3240,7 @@ int ext3_write_inode(struct inode *inode, struct writeback_control *wbc)
  */
 int ext3_setattr(struct dentry *dentry, struct iattr *attr)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	int error, rc = 0;
 	const unsigned int ia_valid = attr->ia_valid;
 

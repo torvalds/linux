@@ -244,7 +244,7 @@ int fuse_ctl_add_conn(struct fuse_conn *fc)
 		return 0;
 
 	parent = fuse_control_sb->s_root;
-	inc_nlink(parent->d_inode);
+	inc_nlink(d_inode(parent));
 	sprintf(name, "%u", fc->dev);
 	parent = fuse_ctl_add_dentry(parent, fc, name, S_IFDIR | 0500, 2,
 				     &simple_dir_inode_operations,
@@ -283,11 +283,11 @@ void fuse_ctl_remove_conn(struct fuse_conn *fc)
 
 	for (i = fc->ctl_ndents - 1; i >= 0; i--) {
 		struct dentry *dentry = fc->ctl_dentry[i];
-		dentry->d_inode->i_private = NULL;
+		d_inode(dentry)->i_private = NULL;
 		d_drop(dentry);
 		dput(dentry);
 	}
-	drop_nlink(fuse_control_sb->s_root->d_inode);
+	drop_nlink(d_inode(fuse_control_sb->s_root));
 }
 
 static int fuse_ctl_fill_super(struct super_block *sb, void *data, int silent)
