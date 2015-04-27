@@ -274,8 +274,8 @@ struct snd_pcm_hw_constraint_ratdens {
 };
 
 struct snd_pcm_hw_constraint_list {
-	unsigned int count;
 	const unsigned int *list;
+	unsigned int count;
 	unsigned int mask;
 };
 
