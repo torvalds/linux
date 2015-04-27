@@ -2233,6 +2233,10 @@ int ceph_get_caps(struct ceph_inode_info *ci, int need, int want,
 {
 	int _got, check_max, ret, err = 0;
 
+	ret = ceph_pool_perm_check(ci, need);
+	if (ret < 0)
+		return ret;
+
 retry:
 	if (endoff > 0)
 		check_max_size(&ci->vfs_inode, endoff);

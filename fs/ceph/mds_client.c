@@ -3414,6 +3414,9 @@ int ceph_mdsc_init(struct ceph_fs_client *fsc)
 	ceph_caps_init(mdsc);
 	ceph_adjust_min_caps(mdsc, fsc->min_caps);
 
+	init_rwsem(&mdsc->pool_perm_rwsem);
+	mdsc->pool_perm_tree = RB_ROOT;
+
 	return 0;
 }
 
@@ -3607,6 +3610,7 @@ static void ceph_mdsc_stop(struct ceph_mds_client *mdsc)
 		ceph_mdsmap_destroy(mdsc->mdsmap);
 	kfree(mdsc->sessions);
 	ceph_caps_finalize(mdsc);
+	ceph_pool_perm_destroy(mdsc);
 }
 
 void ceph_mdsc_destroy(struct ceph_fs_client *fsc)
