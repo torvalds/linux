@@ -191,6 +191,8 @@ EXPORT_SYMBOL(snd_jack_add_new_kctl);
  * @type:  a bitmask of enum snd_jack_type values that can be detected by
  *         this jack
  * @jjack: Used to provide the allocated jack object to the caller.
+ * @initial_kctl: if true, create a kcontrol and add it to the jack list.
+ * @phantom_jack: Don't create a input device for phantom jacks.
  *
  * Creates a new jack object.
  *
@@ -198,9 +200,10 @@ EXPORT_SYMBOL(snd_jack_add_new_kctl);
  * On success @jjack will be initialised.
  */
 int snd_jack_new(struct snd_card *card, const char *id, int type,
-		 struct snd_jack **jjack)
+		 struct snd_jack **jjack, bool initial_kctl, bool phantom_jack)
 {
 	struct snd_jack *jack;
+	struct snd_jack_kctl *jack_kctl = NULL;
 	int err;
 	int i;
 	static struct snd_device_ops ops = {
@@ -209,26 +212,36 @@ int snd_jack_new(struct snd_card *card, const char *id, int type,
 		.dev_disconnect = snd_jack_dev_disconnect,
 	};
 
+	if (initial_kctl) {
+		jack_kctl = snd_jack_kctl_new(card, id, type);
+		if (!jack_kctl)
+			return -ENOMEM;
+	}
+
 	jack = kzalloc(sizeof(struct snd_jack), GFP_KERNEL);
 	if (jack == NULL)
 		return -ENOMEM;
 
 	jack->id = kstrdup(id, GFP_KERNEL);
 
-	jack->input_dev = input_allocate_device();
-	if (jack->input_dev == NULL) {
-		err = -ENOMEM;
-		goto fail_input;
+	/* don't creat input device for phantom jack */
+	if (!phantom_jack) {
+		jack->input_dev = input_allocate_device();
+		if (jack->input_dev == NULL) {
+			err = -ENOMEM;
+			goto fail_input;
+		}
+
+		jack->input_dev->phys = "ALSA";
+
+		jack->type = type;
+
+		for (i = 0; i < SND_JACK_SWITCH_TYPES; i++)
+			if (type & (1 << i))
+				input_set_capability(jack->input_dev, EV_SW,
+						     jack_switch_types[i]);
+
 	}
-
-	jack->input_dev->phys = "ALSA";
-
-	jack->type = type;
-
-	for (i = 0; i < SND_JACK_SWITCH_TYPES; i++)
-		if (type & (1 << i))
-			input_set_capability(jack->input_dev, EV_SW,
-					     jack_switch_types[i]);
 
 	err = snd_device_new(card, SNDRV_DEV_JACK, jack, &ops);
 	if (err < 0)
@@ -236,6 +249,9 @@ int snd_jack_new(struct snd_card *card, const char *id, int type,
 
 	jack->card = card;
 	INIT_LIST_HEAD(&jack->kctl_list);
+
+	if (initial_kctl)
+		snd_jack_kctl_add(jack, jack_kctl);
 
 	*jjack = jack;
 
