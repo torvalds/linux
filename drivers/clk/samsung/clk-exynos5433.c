@@ -1490,7 +1490,7 @@ static struct samsung_gate_clock mif_gate_clks[] __initdata = {
 
 	/* ENABLE_PCLK_MIF_SECURE_MONOTONIC_CNT */
 	GATE(CLK_PCLK_MONOTONIC_CNT, "pclk_monotonic_cnt", "div_aclk_mif_133",
-			ENABLE_PCLK_MIF_SECURE_RTC, 0, 0, 0),
+			ENABLE_PCLK_MIF_SECURE_MONOTONIC_CNT, 0, 0, 0),
 
 	/* ENABLE_PCLK_MIF_SECURE_RTC */
 	GATE(CLK_PCLK_RTC, "pclk_rtc", "div_aclk_mif_133",
