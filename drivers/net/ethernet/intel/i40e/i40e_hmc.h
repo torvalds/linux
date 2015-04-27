@@ -62,6 +62,7 @@ struct i40e_hmc_bp {
 struct i40e_hmc_pd_entry {
 	struct i40e_hmc_bp bp;
 	u32 sd_index;
+	bool rsrc_pg;
 	bool valid;
 };
 
@@ -218,7 +219,8 @@ i40e_status i40e_add_sd_table_entry(struct i40e_hw *hw,
 
 i40e_status i40e_add_pd_table_entry(struct i40e_hw *hw,
 					      struct i40e_hmc_info *hmc_info,
-					      u32 pd_index);
+					      u32 pd_index,
+					      struct i40e_dma_mem *rsrc_pg);
 i40e_status i40e_remove_pd_bp(struct i40e_hw *hw,
 					struct i40e_hmc_info *hmc_info,
 					u32 idx);
