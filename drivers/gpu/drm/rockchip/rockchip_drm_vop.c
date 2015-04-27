@@ -191,6 +191,11 @@ struct vop {
 	/* physical map length of vop register */
 	uint32_t len;
 
+	void __iomem *lut_regs;
+	u32 *lut;
+	u32 lut_len;
+	bool lut_active;
+
 	/* one time only one process allowed to config the register */
 	spinlock_t reg_lock;
 	/* lock vop irq reg */
@@ -323,6 +328,16 @@ static bool vop_fs_irq_is_active(struct vop *vop)
 static bool vop_line_flag_is_active(struct vop *vop)
 {
 	return VOP_INTR_GET_TYPE(vop, status, LINE_FLAG_INTR);
+}
+
+static inline void vop_write_lut(struct vop *vop, uint32_t offset, uint32_t v)
+{
+	writel(v, vop->lut_regs + offset);
+}
+
+static inline uint32_t vop_read_lut(struct vop *vop, uint32_t offset)
+{
+	return readl(vop->lut_regs + offset);
 }
 
 static bool has_rb_swapped(uint32_t format)
@@ -775,6 +790,88 @@ static void vop_line_flag_irq_disable(struct vop *vop)
 	spin_unlock_irqrestore(&vop->irq_lock, flags);
 }
 
+static void vop_crtc_load_lut(struct drm_crtc *crtc)
+{
+	struct vop *vop = to_vop(crtc);
+	int i, dle, lut_idx;
+
+	if (!vop->is_enabled || !vop->lut || !vop->lut_regs)
+		return;
+
+	if (WARN_ON(!drm_modeset_is_locked(&crtc->mutex)))
+		return;
+
+	if (!VOP_CTRL_SUPPORT(vop, update_gamma_lut)) {
+		spin_lock(&vop->reg_lock);
+		VOP_CTRL_SET(vop, dsp_lut_en, 0);
+		vop_cfg_done(vop);
+		spin_unlock(&vop->reg_lock);
+
+#define CTRL_GET(name) VOP_CTRL_GET(vop, name)
+		readx_poll_timeout(CTRL_GET, dsp_lut_en,
+				dle, !dle, 5, 33333);
+	} else {
+		lut_idx = CTRL_GET(lut_buffer_index);
+	}
+
+	for (i = 0; i < vop->lut_len; i++)
+		vop_write_lut(vop, i << 2, vop->lut[i]);
+
+	spin_lock(&vop->reg_lock);
+
+	VOP_CTRL_SET(vop, dsp_lut_en, 1);
+	VOP_CTRL_SET(vop, update_gamma_lut, 1);
+	vop_cfg_done(vop);
+	vop->lut_active = true;
+
+	spin_unlock(&vop->reg_lock);
+
+	if (VOP_CTRL_SUPPORT(vop, update_gamma_lut)) {
+		readx_poll_timeout(CTRL_GET, lut_buffer_index,
+				   dle, dle != lut_idx, 5, 33333);
+		/* FIXME:
+		 * update_gamma value auto clean to 0 by HW, should not
+		 * bakeup it.
+		 */
+		VOP_CTRL_SET(vop, update_gamma_lut, 0);
+	}
+#undef CTRL_GET
+}
+
+void rockchip_vop_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
+				    u16 blue, int regno)
+{
+	struct vop *vop = to_vop(crtc);
+	u32 lut_len = vop->lut_len;
+	u32 r, g, b;
+
+	if (regno >= lut_len || !vop->lut)
+		return;
+
+	r = red * (lut_len - 1) / 0xffff;
+	g = green * (lut_len - 1) / 0xffff;
+	b = blue * (lut_len - 1) / 0xffff;
+	vop->lut[regno] = r * lut_len * lut_len + g * lut_len + b;
+}
+
+void rockchip_vop_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
+				    u16 *blue, int regno)
+{
+	struct vop *vop = to_vop(crtc);
+	u32 lut_len = vop->lut_len;
+	u32 r, g, b;
+
+	if (regno >= lut_len || !vop->lut)
+		return;
+
+	r = (vop->lut[regno] / lut_len / lut_len) & (lut_len - 1);
+	g = (vop->lut[regno] / lut_len) & (lut_len - 1);
+	b = vop->lut[regno] & (lut_len - 1);
+	*red = r * 0xffff / (lut_len - 1);
+	*green = g * 0xffff / (lut_len - 1);
+	*blue = b * 0xffff / (lut_len - 1);
+}
+
 static void vop_power_enable(struct drm_crtc *crtc)
 {
 	struct vop *vop = to_vop(crtc);
@@ -825,6 +922,12 @@ static void vop_initial(struct drm_crtc *crtc)
 
 	VOP_CTRL_SET(vop, global_regdone_en, 1);
 	VOP_CTRL_SET(vop, dsp_blank, 0);
+
+	/*
+	 * restore the lut table.
+	 */
+	if (vop->lut_active)
+		vop_crtc_load_lut(crtc);
 
 	/*
 	 * We need to make sure that all windows are disabled before resume
@@ -1923,6 +2026,7 @@ static void vop_crtc_atomic_begin(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_helper_funcs vop_crtc_helper_funcs = {
+	.load_lut = vop_crtc_load_lut,
 	.enable = vop_crtc_enable,
 	.disable = vop_crtc_disable,
 	.mode_fixup = vop_crtc_mode_fixup,
@@ -2044,7 +2148,25 @@ static int vop_crtc_atomic_set_property(struct drm_crtc *crtc,
 	return -EINVAL;
 }
 
+static void vop_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
+			       u16 *blue, uint32_t start, uint32_t size)
+{
+	struct vop *vop = to_vop(crtc);
+	int end = min_t(u32, start + size, vop->lut_len);
+	int i;
+
+	if (!vop->lut)
+		return;
+
+	for (i = start; i < end; i++)
+		rockchip_vop_crtc_fb_gamma_set(crtc, red[i], green[i],
+					       blue[i], i);
+
+	vop_crtc_load_lut(crtc);
+}
+
 static const struct drm_crtc_funcs vop_crtc_funcs = {
+	.gamma_set = vop_crtc_gamma_set,
 	.set_config = drm_atomic_helper_set_config,
 	.page_flip = drm_atomic_helper_page_flip,
 	.destroy = vop_crtc_destroy,
@@ -2270,6 +2392,27 @@ static int vop_create_crtc(struct vop *vop)
 		feature |= BIT(ROCKCHIP_DRM_CRTC_FEATURE_AFBDC);
 	drm_object_attach_property(&crtc->base, vop->feature_prop,
 				   feature);
+	if (vop->lut_regs) {
+		u16 *r_base, *g_base, *b_base;
+		u32 lut_len = vop->lut_len;
+
+		drm_mode_crtc_set_gamma_size(crtc, lut_len);
+		vop->lut = devm_kmalloc_array(dev, lut_len, sizeof(*vop->lut),
+					      GFP_KERNEL);
+		if (!vop->lut)
+			return -ENOMEM;
+
+		r_base = crtc->gamma_store;
+		g_base = r_base + crtc->gamma_size;
+		b_base = g_base + crtc->gamma_size;
+
+		for (i = 0; i < lut_len; i++) {
+			vop->lut[i] = i * lut_len * lut_len | i * lut_len | i;
+			rockchip_vop_crtc_fb_gamma_get(crtc, &r_base[i],
+						       &g_base[i], &b_base[i],
+						       i);
+		}
+	}
 
 	return 0;
 
@@ -2520,6 +2663,21 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 	vop->regsbak = devm_kzalloc(dev, vop->len, GFP_KERNEL);
 	if (!vop->regsbak)
 		return -ENOMEM;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	vop->lut_regs = devm_ioremap_resource(dev, res);
+	if (IS_ERR(vop->lut_regs)) {
+		dev_warn(vop->dev, "failed to get vop lut registers\n");
+		vop->lut_regs = NULL;
+	}
+	if (vop->lut_regs) {
+		vop->lut_len = resource_size(res) / sizeof(*vop->lut);
+		if (vop->lut_len != 256 && vop->lut_len != 1024) {
+			dev_err(vop->dev, "unsupport lut sizes %d\n",
+				vop->lut_len);
+			return -EINVAL;
+		}
+	}
 
 	vop->hclk = devm_clk_get(vop->dev, "hclk_vop");
 	if (IS_ERR(vop->hclk)) {

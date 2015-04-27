@@ -20,6 +20,7 @@
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_gem.h"
 #include "rockchip_drm_fb.h"
+#include "rockchip_drm_fbdev.h"
 
 #define PREFERRED_BPP		32
 
@@ -122,6 +123,8 @@ err_rockchip_gem_free_object:
 }
 
 static const struct drm_fb_helper_funcs rockchip_drm_fb_helper_funcs = {
+	.gamma_set = rockchip_vop_crtc_fb_gamma_set,
+	.gamma_get = rockchip_vop_crtc_fb_gamma_get,
 	.fb_probe = rockchip_drm_fbdev_create,
 };
 

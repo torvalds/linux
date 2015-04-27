@@ -210,6 +210,8 @@ static const struct vop_ctrl rk3288_ctrl_data = {
 	.dsp_data_swap = VOP_REG(RK3288_DSP_CTRL0, 0x1f, 12),
 	.dsp_ccir656_avg = VOP_REG(RK3288_DSP_CTRL0, 0x1, 20),
 	.dsp_blank = VOP_REG(RK3288_DSP_CTRL0, 0x3, 18),
+	.update_gamma_lut = VOP_REG_VER(RK3288_DSP_CTRL1, 0x1, 7, 3, 5, -1),
+	.lut_buffer_index = VOP_REG_VER(RK3399_DBG_POST_REG1, 0x1, 1, 3, 5, -1),
 	.dsp_lut_en = VOP_REG(RK3288_DSP_CTRL1, 0x1, 0),
 	.out_mode = VOP_REG(RK3288_DSP_CTRL0, 0xf, 0),
 
