@@ -559,7 +559,8 @@ spi_sirfsoc_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 		sspi->tx_word = spi_sirfsoc_tx_word_u32;
 		break;
 	default:
-		BUG();
+		dev_err(&spi->dev, "bpw %d not supported\n", bits_per_word);
+		return -EINVAL;
 	}
 
 	sspi->word_width = DIV_ROUND_UP(bits_per_word, 8);
