@@ -1623,8 +1623,10 @@ build_pte_present(u32 **p, struct uasm_reloc **r,
 		}
 	} else {
 		uasm_i_srl(p, t, pte, _PAGE_PRESENT_SHIFT);
-		uasm_i_andi(p, t, t, 3);
-		uasm_i_xori(p, t, t, 3);
+		uasm_i_andi(p, t, t,
+			(_PAGE_PRESENT | _PAGE_READ) >> _PAGE_PRESENT_SHIFT);
+		uasm_i_xori(p, t, t,
+			(_PAGE_PRESENT | _PAGE_READ) >> _PAGE_PRESENT_SHIFT);
 		uasm_il_bnez(p, r, t, lid);
 		if (pte == t)
 			/* You lose the SMP race :-(*/
@@ -1654,8 +1656,10 @@ build_pte_writable(u32 **p, struct uasm_reloc **r,
 	int t = scratch >= 0 ? scratch : pte;
 
 	uasm_i_srl(p, t, pte, _PAGE_PRESENT_SHIFT);
-	uasm_i_andi(p, t, t, 5);
-	uasm_i_xori(p, t, t, 5);
+	uasm_i_andi(p, t, t,
+		    (_PAGE_PRESENT | _PAGE_WRITE) >> _PAGE_PRESENT_SHIFT);
+	uasm_i_xori(p, t, t,
+		    (_PAGE_PRESENT | _PAGE_WRITE) >> _PAGE_PRESENT_SHIFT);
 	uasm_il_bnez(p, r, t, lid);
 	if (pte == t)
 		/* You lose the SMP race :-(*/
