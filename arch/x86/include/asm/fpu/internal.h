@@ -271,46 +271,26 @@ static inline void fpu_fxsave(struct fpu *fpu)
  * The legacy FNSAVE instruction cleared all FPU state
  * unconditionally, so registers are essentially destroyed.
  * Modern FPU state can be kept in registers, if there are
- * no pending FP exceptions. (Note the FIXME below.)
+ * no pending FP exceptions.
  */
 static inline int copy_fpregs_to_fpstate(struct fpu *fpu)
 {
-	if (use_xsave()) {
+	if (likely(use_xsave())) {
 		xsave_state(&fpu->state->xsave);
+		return 1;
+	}
 
-		/*
-		 * xsave header may indicate the init state of the FP.
-		 */
-		if (!(fpu->state->xsave.header.xfeatures & XSTATE_FP))
-			goto keep_fpregs;
-	} else {
-		if (use_fxsr()) {
-			fpu_fxsave(fpu);
-		} else {
-			/* FNSAVE always clears FPU registers: */
-			asm volatile("fnsave %[fx]; fwait"
-				     : [fx] "=m" (fpu->state->fsave));
-			goto drop_fpregs;
-		}
+	if (likely(use_fxsr())) {
+		fpu_fxsave(fpu);
+		return 1;
 	}
 
 	/*
-	 * If exceptions are pending, we need to clear them so
-	 * that we don't randomly get exceptions later.
-	 *
-	 * FIXME! Is this perhaps only true for the old-style
-	 * irq13 case? Maybe we could leave the x87 state
-	 * intact otherwise?
+	 * Legacy FPU register saving, FNSAVE always clears FPU registers,
+	 * so we have to mark them inactive:
 	 */
-	if (unlikely(fpu->state->fxsave.swd & X87_FSW_ES)) {
-		asm volatile("fnclex");
-		goto drop_fpregs;
-	}
+	asm volatile("fnsave %[fx]; fwait" : [fx] "=m" (fpu->state->fsave));
 
-keep_fpregs:
-	return 1;
-
-drop_fpregs:
 	return 0;
 }
 
