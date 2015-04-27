@@ -490,6 +490,8 @@ int radeon_vm_bo_set_addr(struct radeon_device *rdev,
 			spin_lock(&vm->status_lock);
 			list_add(&tmp->vm_status, &vm->freed);
 			spin_unlock(&vm->status_lock);
+
+			bo_va->addr = 0;
 		}
 
 		interval_tree_remove(&bo_va->it, &vm->va);
