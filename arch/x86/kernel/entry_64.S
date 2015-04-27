@@ -666,7 +666,7 @@ END(irq_entries_start)
 	leaq -RBP(%rsp),%rdi	/* arg1 for \func (pointer to pt_regs) */
 
 	testl $3, CS-RBP(%rsp)
-	je 1f
+	jz	1f
 	SWAPGS
 1:
 	/*
@@ -721,7 +721,7 @@ ret_from_intr:
 	CFI_ADJUST_CFA_OFFSET	RBP
 
 	testl $3,CS(%rsp)
-	je retint_kernel
+	jz	retint_kernel
 	/* Interrupt came from user space */
 
 	GET_THREAD_INFO(%rcx)
@@ -1310,7 +1310,7 @@ ENTRY(error_entry)
 	SAVE_EXTRA_REGS 8
 	xorl %ebx,%ebx
 	testl $3,CS+8(%rsp)
-	je error_kernelspace
+	jz	error_kernelspace
 error_swapgs:
 	SWAPGS
 error_sti:
@@ -1361,7 +1361,7 @@ ENTRY(error_exit)
 	TRACE_IRQS_OFF
 	GET_THREAD_INFO(%rcx)
 	testl %eax,%eax
-	jne retint_kernel
+	jnz retint_kernel
 	LOCKDEP_SYS_EXIT_IRQ
 	movl TI_flags(%rcx),%edx
 	movl $_TIF_WORK_MASK,%edi
