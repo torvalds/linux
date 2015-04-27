@@ -1277,9 +1277,9 @@ struct ieee80211_tim_parameters {
 
 //#else
 struct ieee80211_wmm_ac_param {
-	u8 ac_aci_acm_aifsn;
-	u8 ac_ecwmin_ecwmax;
-	u16 ac_txop_limit;
+	u8 aci_aifsn;
+	u8 cw;
+	u16 txop_limit;
 };
 
 struct ieee80211_wmm_ts_info {
