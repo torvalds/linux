@@ -126,6 +126,7 @@ struct nfs4_delegation {
 	struct list_head	dl_perfile;
 	struct list_head	dl_perclnt;
 	struct list_head	dl_recall_lru;  /* delegation recalled */
+	struct nfs4_clnt_odstate *dl_clnt_odstate;
 	u32			dl_type;
 	time_t			dl_time;
 /* For recall: */
@@ -465,6 +466,17 @@ static inline struct nfs4_lockowner * lockowner(struct nfs4_stateowner *so)
 }
 
 /*
+ * Per-client state indicating no. of opens and outstanding delegations
+ * on a file from a particular client.'od' stands for 'open & delegation'
+ */
+struct nfs4_clnt_odstate {
+	struct nfs4_client	*co_client;
+	struct nfs4_file	*co_file;
+	struct list_head	co_perfile;
+	atomic_t		co_odcount;
+};
+
+/*
  * nfs4_file: a file opened by some number of (open) nfs4_stateowners.
  *
  * These objects are global. nfsd keeps one instance of a nfs4_file per
@@ -485,6 +497,7 @@ struct nfs4_file {
 		struct list_head	fi_delegations;
 		struct rcu_head		fi_rcu;
 	};
+	struct list_head	fi_clnt_odstate;
 	/* One each for O_RDONLY, O_WRONLY, O_RDWR: */
 	struct file *		fi_fds[3];
 	/*
@@ -526,6 +539,7 @@ struct nfs4_ol_stateid {
 	struct list_head              st_perstateowner;
 	struct list_head              st_locks;
 	struct nfs4_stateowner      * st_stateowner;
+	struct nfs4_clnt_odstate    * st_clnt_odstate;
 	unsigned char                 st_access_bmap;
 	unsigned char                 st_deny_bmap;
 	struct nfs4_ol_stateid         * st_openstp;
