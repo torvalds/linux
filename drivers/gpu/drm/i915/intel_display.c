@@ -10682,7 +10682,7 @@ static bool use_mmio_flip(struct intel_engine_cs *ring,
 	else if (i915.enable_execlists)
 		return true;
 	else
-		return ring != i915_gem_request_get_ring(obj->last_read_req);
+		return ring != i915_gem_request_get_ring(obj->last_write_req);
 }
 
 static void skl_do_mmio_flip(struct intel_crtc *intel_crtc)
@@ -10998,7 +10998,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	} else if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev)) {
 		ring = &dev_priv->ring[BCS];
 	} else if (INTEL_INFO(dev)->gen >= 7) {
-		ring = i915_gem_request_get_ring(obj->last_read_req);
+		ring = i915_gem_request_get_ring(obj->last_write_req);
 		if (ring == NULL || ring->id != RCS)
 			ring = &dev_priv->ring[BCS];
 	} else {
@@ -11014,7 +11014,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	 */
 	ret = intel_pin_and_fence_fb_obj(crtc->primary, fb,
 					 crtc->primary->state,
-					 mmio_flip ? i915_gem_request_get_ring(obj->last_read_req) : ring);
+					 mmio_flip ? i915_gem_request_get_ring(obj->last_write_req) : ring);
 	if (ret)
 		goto cleanup_pending;
 

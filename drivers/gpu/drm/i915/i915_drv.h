@@ -508,7 +508,7 @@ struct drm_i915_error_state {
 	struct drm_i915_error_buffer {
 		u32 size;
 		u32 name;
-		u32 rseqno, wseqno;
+		u32 rseqno[I915_NUM_RINGS], wseqno;
 		u32 gtt_offset;
 		u32 read_domains;
 		u32 write_domain;
@@ -1939,7 +1939,7 @@ struct drm_i915_gem_object {
 	struct drm_mm_node *stolen;
 	struct list_head global_list;
 
-	struct list_head ring_list;
+	struct list_head ring_list[I915_NUM_RINGS];
 	/** Used in execbuf to temporarily hold a ref */
 	struct list_head obj_exec_link;
 
@@ -1950,7 +1950,7 @@ struct drm_i915_gem_object {
 	 * rendering and so a non-zero seqno), and is not set if it i s on
 	 * inactive (ready to be unbound) list.
 	 */
-	unsigned int active:1;
+	unsigned int active:I915_NUM_RINGS;
 
 	/**
 	 * This is set if the object has been written to since last bound
@@ -2021,8 +2021,17 @@ struct drm_i915_gem_object {
 	void *dma_buf_vmapping;
 	int vmapping_count;
 
-	/** Breadcrumb of last rendering to the buffer. */
-	struct drm_i915_gem_request *last_read_req;
+	/** Breadcrumb of last rendering to the buffer.
+	 * There can only be one writer, but we allow for multiple readers.
+	 * If there is a writer that necessarily implies that all other
+	 * read requests are complete - but we may only be lazily clearing
+	 * the read requests. A read request is naturally the most recent
+	 * request on a ring, so we may have two different write and read
+	 * requests on one ring where the write request is older than the
+	 * read request. This allows for the CPU to read from an active
+	 * buffer by only waiting for the write to complete.
+	 * */
+	struct drm_i915_gem_request *last_read_req[I915_NUM_RINGS];
 	struct drm_i915_gem_request *last_write_req;
 	/** Breadcrumb of last fenced GPU access to the buffer. */
 	struct drm_i915_gem_request *last_fenced_req;

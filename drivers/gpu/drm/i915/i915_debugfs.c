@@ -120,10 +120,13 @@ static inline const char *get_global_flag(struct drm_i915_gem_object *obj)
 static void
 describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 {
+	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
+	struct intel_engine_cs *ring;
 	struct i915_vma *vma;
 	int pin_count = 0;
+	int i;
 
-	seq_printf(m, "%pK: %s%s%s%s %8zdKiB %02x %02x %x %x %x%s%s%s",
+	seq_printf(m, "%pK: %s%s%s%s %8zdKiB %02x %02x [ ",
 		   &obj->base,
 		   obj->active ? "*" : " ",
 		   get_pin_flag(obj),
@@ -131,8 +134,11 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		   get_global_flag(obj),
 		   obj->base.size / 1024,
 		   obj->base.read_domains,
-		   obj->base.write_domain,
-		   i915_gem_request_get_seqno(obj->last_read_req),
+		   obj->base.write_domain);
+	for_each_ring(ring, dev_priv, i)
+		seq_printf(m, "%x ",
+				i915_gem_request_get_seqno(obj->last_read_req[i]));
+	seq_printf(m, "] %x %x%s%s%s",
 		   i915_gem_request_get_seqno(obj->last_write_req),
 		   i915_gem_request_get_seqno(obj->last_fenced_req),
 		   i915_cache_level_str(to_i915(obj->base.dev), obj->cache_level),
@@ -169,9 +175,9 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		*t = '\0';
 		seq_printf(m, " (%s mappable)", s);
 	}
-	if (obj->last_read_req != NULL)
+	if (obj->last_write_req != NULL)
 		seq_printf(m, " (%s)",
-			   i915_gem_request_get_ring(obj->last_read_req)->name);
+			   i915_gem_request_get_ring(obj->last_write_req)->name);
 	if (obj->frontbuffer_bits)
 		seq_printf(m, " (frontbuffer: 0x%03x)", obj->frontbuffer_bits);
 }

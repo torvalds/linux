@@ -192,15 +192,20 @@ static void print_error_buffers(struct drm_i915_error_state_buf *m,
 				struct drm_i915_error_buffer *err,
 				int count)
 {
+	int i;
+
 	err_printf(m, "  %s [%d]:\n", name, count);
 
 	while (count--) {
-		err_printf(m, "    %08x %8u %02x %02x %x %x",
+		err_printf(m, "    %08x %8u %02x %02x [ ",
 			   err->gtt_offset,
 			   err->size,
 			   err->read_domains,
-			   err->write_domain,
-			   err->rseqno, err->wseqno);
+			   err->write_domain);
+		for (i = 0; i < I915_NUM_RINGS; i++)
+			err_printf(m, "%02x ", err->rseqno[i]);
+
+		err_printf(m, "] %02x", err->wseqno);
 		err_puts(m, pin_flag(err->pinned));
 		err_puts(m, tiling_flag(err->tiling));
 		err_puts(m, dirty_flag(err->dirty));
@@ -681,10 +686,12 @@ static void capture_bo(struct drm_i915_error_buffer *err,
 		       struct i915_vma *vma)
 {
 	struct drm_i915_gem_object *obj = vma->obj;
+	int i;
 
 	err->size = obj->base.size;
 	err->name = obj->base.name;
-	err->rseqno = i915_gem_request_get_seqno(obj->last_read_req);
+	for (i = 0; i < I915_NUM_RINGS; i++)
+		err->rseqno[i] = i915_gem_request_get_seqno(obj->last_read_req[i]);
 	err->wseqno = i915_gem_request_get_seqno(obj->last_write_req);
 	err->gtt_offset = vma->node.start;
 	err->read_domains = obj->base.read_domains;
@@ -697,8 +704,8 @@ static void capture_bo(struct drm_i915_error_buffer *err,
 	err->dirty = obj->dirty;
 	err->purgeable = obj->madv != I915_MADV_WILLNEED;
 	err->userptr = obj->userptr.mm != NULL;
-	err->ring = obj->last_read_req ?
-			i915_gem_request_get_ring(obj->last_read_req)->id : -1;
+	err->ring = obj->last_write_req ?
+			i915_gem_request_get_ring(obj->last_write_req)->id : -1;
 	err->cache_level = obj->cache_level;
 }
 

@@ -228,7 +228,6 @@ static int intel_overlay_do_wait_request(struct intel_overlay *overlay,
 	ret = i915_wait_request(overlay->last_flip_req);
 	if (ret)
 		return ret;
-	i915_gem_retire_requests(dev);
 
 	i915_gem_request_assign(&overlay->last_flip_req, NULL);
 	return 0;
@@ -376,7 +375,6 @@ static int intel_overlay_recover_from_interrupt(struct intel_overlay *overlay)
 	ret = i915_wait_request(overlay->last_flip_req);
 	if (ret)
 		return ret;
-	i915_gem_retire_requests(overlay->dev);
 
 	if (overlay->flip_tail)
 		overlay->flip_tail(overlay);

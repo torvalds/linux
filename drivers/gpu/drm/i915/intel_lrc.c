@@ -679,7 +679,8 @@ static int logical_ring_wait_for_space(struct intel_ringbuffer *ringbuf,
 {
 	struct intel_engine_cs *ring = ringbuf->ring;
 	struct drm_i915_gem_request *request;
-	int ret, new_space;
+	unsigned space;
+	int ret;
 
 	if (intel_ring_space(ringbuf) >= bytes)
 		return 0;
@@ -690,14 +691,13 @@ static int logical_ring_wait_for_space(struct intel_ringbuffer *ringbuf,
 		 * from multiple ringbuffers. Here, we must ignore any that
 		 * aren't from the ringbuffer we're considering.
 		 */
-		struct intel_context *ctx = request->ctx;
-		if (ctx->engine[ring->id].ringbuf != ringbuf)
+		if (request->ringbuf != ringbuf)
 			continue;
 
 		/* Would completion of this request free enough space? */
-		new_space = __intel_ring_space(request->postfix, ringbuf->tail,
-				       ringbuf->size);
-		if (new_space >= bytes)
+		space = __intel_ring_space(request->postfix, ringbuf->tail,
+					   ringbuf->size);
+		if (space >= bytes)
 			break;
 	}
 
@@ -708,11 +708,8 @@ static int logical_ring_wait_for_space(struct intel_ringbuffer *ringbuf,
 	if (ret)
 		return ret;
 
-	i915_gem_retire_requests_ring(ring);
-
-	WARN_ON(intel_ring_space(ringbuf) < new_space);
-
-	return intel_ring_space(ringbuf) >= bytes ? 0 : -ENOSPC;
+	ringbuf->space = space;
+	return 0;
 }
 
 /*

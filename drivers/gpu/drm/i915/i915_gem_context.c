@@ -753,8 +753,6 @@ static int do_switch(struct intel_engine_cs *ring,
 		 * swapped, but there is no way to do that yet.
 		 */
 		from->legacy_hw_ctx.rcs_state->dirty = 1;
-		BUG_ON(i915_gem_request_get_ring(
-			from->legacy_hw_ctx.rcs_state->last_read_req) != ring);
 
 		/* obj is kept alive until the next request by its active ref */
 		i915_gem_object_ggtt_unpin(from->legacy_hw_ctx.rcs_state);
