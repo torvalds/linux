@@ -564,7 +564,7 @@ static int wm831x_irq_map(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
-static struct irq_domain_ops wm831x_irq_domain_ops = {
+static const struct irq_domain_ops wm831x_irq_domain_ops = {
 	.map	= wm831x_irq_map,
 	.xlate	= irq_domain_xlate_twocell,
 };

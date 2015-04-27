@@ -214,7 +214,7 @@ static int max8998_irq_domain_map(struct irq_domain *d, unsigned int irq,
 	return 0;
 }
 
-static struct irq_domain_ops max8998_irq_domain_ops = {
+static const struct irq_domain_ops max8998_irq_domain_ops = {
 	.map = max8998_irq_domain_map,
 };
 
