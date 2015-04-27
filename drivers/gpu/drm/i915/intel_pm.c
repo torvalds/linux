@@ -4150,9 +4150,16 @@ void gen6_rps_idle(struct drm_i915_private *dev_priv)
 }
 
 void gen6_rps_boost(struct drm_i915_private *dev_priv,
-		    struct intel_rps_client *rps)
+		    struct intel_rps_client *rps,
+		    unsigned long submitted)
 {
 	u32 val;
+
+	/* Force a RPS boost (and don't count it against the client) if
+	 * the GPU is severely congested.
+	 */
+	if (rps && time_after(jiffies, submitted + msecs_to_jiffies(20)))
+		rps = NULL;
 
 	mutex_lock(&dev_priv->rps.hw_lock);
 	val = dev_priv->rps.max_freq_softlimit;
@@ -6848,11 +6855,13 @@ struct request_boost {
 static void __intel_rps_boost_work(struct work_struct *work)
 {
 	struct request_boost *boost = container_of(work, struct request_boost, work);
+	struct drm_i915_gem_request *req = boost->req;
 
-	if (!i915_gem_request_completed(boost->req, true))
-		gen6_rps_boost(to_i915(boost->req->ring->dev), NULL);
+	if (!i915_gem_request_completed(req, true))
+		gen6_rps_boost(to_i915(req->ring->dev), NULL,
+			       req->emitted_jiffies);
 
-	i915_gem_request_unreference__unlocked(boost->req);
+	i915_gem_request_unreference__unlocked(req);
 	kfree(boost);
 }
 
@@ -6862,6 +6871,9 @@ void intel_queue_rps_boost_for_request(struct drm_device *dev,
 	struct request_boost *boost;
 
 	if (req == NULL || INTEL_INFO(dev)->gen < 6)
+		return;
+
+	if (i915_gem_request_completed(req, true))
 		return;
 
 	boost = kmalloc(sizeof(*boost), GFP_ATOMIC);

@@ -1245,7 +1245,7 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 		jiffies + nsecs_to_jiffies_timeout((u64)*timeout) : 0;
 
 	if (INTEL_INFO(dev_priv)->gen >= 6)
-		gen6_rps_boost(dev_priv, rps);
+		gen6_rps_boost(dev_priv, rps, req->emitted_jiffies);
 
 	/* Record current time in case interrupted by signal, or wedged */
 	trace_i915_gem_request_wait_begin(req);
