@@ -4190,11 +4190,18 @@ static void alc_shutup_dell_xps13(struct hda_codec *codec)
 static void alc_fixup_dell_xps13(struct hda_codec *codec,
 				const struct hda_fixup *fix, int action)
 {
-	if (action == HDA_FIXUP_ACT_PROBE) {
-		struct alc_spec *spec = codec->spec;
-		struct hda_input_mux *imux = &spec->gen.input_mux;
-		int i;
+	struct alc_spec *spec = codec->spec;
+	struct hda_input_mux *imux = &spec->gen.input_mux;
+	int i;
 
+	switch (action) {
+	case HDA_FIXUP_ACT_PRE_PROBE:
+		/* mic pin 0x19 must be initialized with Vref Hi-Z, otherwise
+		 * it causes a click noise at start up
+		 */
+		snd_hda_codec_set_pin_target(codec, 0x19, PIN_VREFHIZ);
+		break;
+	case HDA_FIXUP_ACT_PROBE:
 		spec->shutup = alc_shutup_dell_xps13;
 
 		/* Make the internal mic the default input source. */
@@ -4204,6 +4211,7 @@ static void alc_fixup_dell_xps13(struct hda_codec *codec,
 				break;
 			}
 		}
+		break;
 	}
 }
 
