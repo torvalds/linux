@@ -172,10 +172,7 @@ EXPORT_SYMBOL_GPL(irq_ts_restore);
 static void __save_fpu(struct fpu *fpu)
 {
 	if (use_xsave()) {
-		if (unlikely(system_state == SYSTEM_BOOTING))
-			xsave_state_booting(&fpu->state.xsave);
-		else
-			xsave_state(&fpu->state.xsave);
+		xsave_state(&fpu->state.xsave);
 	} else {
 		fpu_fxsave(fpu);
 	}

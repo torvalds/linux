@@ -133,6 +133,8 @@ static inline int xsave_state(struct xsave_struct *fx)
 	u32 hmask = mask >> 32;
 	int err = 0;
 
+	WARN_ON(system_state == SYSTEM_BOOTING);
+
 	/*
 	 * If xsaves is enabled, xsaves replaces xsaveopt because
 	 * it supports compact format and supervisor states in addition to
