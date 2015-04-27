@@ -132,7 +132,7 @@ static int fpga_irqdomain_map(struct irq_domain *d, unsigned int irq,
 	return 0;
 }
 
-static struct irq_domain_ops fpga_irqdomain_ops = {
+static const struct irq_domain_ops fpga_irqdomain_ops = {
 	.map = fpga_irqdomain_map,
 	.xlate = irq_domain_xlate_onetwocell,
 };
