@@ -220,16 +220,35 @@ static void fpu_copy(struct fpu *dst_fpu, struct fpu *src_fpu)
 {
 	WARN_ON(src_fpu != &current->thread.fpu);
 
-	if (use_eager_fpu()) {
+	/*
+	 * Don't let 'init optimized' areas of the XSAVE area
+	 * leak into the child task:
+	 */
+	if (use_eager_fpu())
 		memset(&dst_fpu->state.xsave, 0, xstate_size);
-		copy_fpregs_to_fpstate(dst_fpu);
-	} else {
-		preempt_disable();
-		if (!copy_fpregs_to_fpstate(src_fpu))
-			fpregs_deactivate(src_fpu);
-		preempt_enable();
-		memcpy(&dst_fpu->state, &src_fpu->state, xstate_size);
+
+	/*
+	 * Save current FPU registers directly into the child
+	 * FPU context, without any memory-to-memory copying.
+	 *
+	 * If the FPU context got destroyed in the process (FNSAVE
+	 * done on old CPUs) then copy it back into the source
+	 * context and mark the current task for lazy restore.
+	 *
+	 * We have to do all this with preemption disabled,
+	 * mostly because of the FNSAVE case, because in that
+	 * case we must not allow preemption in the window
+	 * between the FNSAVE and us marking the context lazy.
+	 *
+	 * It shouldn't be an issue as even FNSAVE is plenty
+	 * fast in terms of critical section length.
+	 */
+	preempt_disable();
+	if (!copy_fpregs_to_fpstate(dst_fpu)) {
+		memcpy(&src_fpu->state, &dst_fpu->state, xstate_size);
+		fpregs_deactivate(src_fpu);
 	}
+	preempt_enable();
 }
 
 int fpu__copy(struct fpu *dst_fpu, struct fpu *src_fpu)
