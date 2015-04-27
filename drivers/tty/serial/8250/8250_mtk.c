@@ -214,10 +214,8 @@ static int mtk8250_remove(struct platform_device *pdev)
 	pm_runtime_get_sync(&pdev->dev);
 
 	serial8250_unregister_port(data->line);
-	if (!IS_ERR(data->uart_clk)) {
-		clk_disable_unprepare(data->uart_clk);
-		clk_put(data->uart_clk);
-	}
+	clk_disable_unprepare(data->uart_clk);
+	clk_put(data->uart_clk);
 
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_put_noidle(&pdev->dev);
@@ -249,8 +247,7 @@ static int mtk8250_runtime_suspend(struct device *dev)
 {
 	struct mtk8250_data *data = dev_get_drvdata(dev);
 
-	if (!IS_ERR(data->uart_clk))
-		clk_disable_unprepare(data->uart_clk);
+	clk_disable_unprepare(data->uart_clk);
 
 	return 0;
 }
@@ -259,8 +256,7 @@ static int mtk8250_runtime_resume(struct device *dev)
 {
 	struct mtk8250_data *data = dev_get_drvdata(dev);
 
-	if (!IS_ERR(data->uart_clk))
-		clk_prepare_enable(data->uart_clk);
+	clk_prepare_enable(data->uart_clk);
 
 	return 0;
 }
