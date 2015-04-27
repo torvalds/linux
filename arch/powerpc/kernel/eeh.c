@@ -144,8 +144,6 @@ struct eeh_stats {
 
 static struct eeh_stats eeh_stats;
 
-#define IS_BRIDGE(class_code) (((class_code)<<16) == PCI_BASE_CLASS_BRIDGE)
-
 static int __init eeh_setup(char *str)
 {
 	if (!strcmp(str, "off"))
