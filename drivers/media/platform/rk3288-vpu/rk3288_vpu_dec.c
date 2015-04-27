@@ -178,6 +178,37 @@ static int vidioc_querycap(struct file *file, void *priv,
 	return 0;
 }
 
+static int vidioc_enum_framesizes(struct file *file, void *prov,
+				  struct v4l2_frmsizeenum *fsize)
+{
+	struct v4l2_frmsize_stepwise *s = &fsize->stepwise;
+	struct rk3288_vpu_fmt *fmt;
+
+	if (fsize->index != 0) {
+		vpu_debug(0, "invalid frame size index (expected 0, got %d)\n",
+				fsize->index);
+		return -EINVAL;
+	}
+
+	fmt = find_format(fsize->pixel_format, true);
+	if (!fmt) {
+		vpu_debug(0, "unsupported bitstream format (%08x)\n",
+				fsize->pixel_format);
+		return -EINVAL;
+	}
+
+	fsize->type = V4L2_FRMSIZE_TYPE_STEPWISE;
+
+	s->min_width = RK3288_DEC_MIN_WIDTH;
+	s->max_width = RK3288_DEC_MAX_WIDTH;
+	s->step_width = MB_DIM;
+	s->min_height = RK3288_DEC_MIN_HEIGHT;
+	s->max_height = RK3288_DEC_MAX_HEIGHT;
+	s->step_height = MB_DIM;
+
+	return 0;
+}
+
 static int vidioc_enum_fmt(struct v4l2_fmtdesc *f, bool out)
 {
 	struct rk3288_vpu_fmt *fmt;
@@ -767,6 +798,7 @@ static const struct v4l2_ctrl_ops rk3288_vpu_dec_ctrl_ops = {
 
 static const struct v4l2_ioctl_ops rk3288_vpu_dec_ioctl_ops = {
 	.vidioc_querycap = vidioc_querycap,
+	.vidioc_enum_framesizes = vidioc_enum_framesizes,
 	.vidioc_enum_fmt_vid_cap_mplane = vidioc_enum_fmt_vid_cap_mplane,
 	.vidioc_enum_fmt_vid_out_mplane = vidioc_enum_fmt_vid_out_mplane,
 	.vidioc_g_fmt_vid_cap_mplane = vidioc_g_fmt,
