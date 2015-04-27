@@ -520,8 +520,16 @@ static void early_init_amd(struct cpuinfo_x86 *c)
 			set_cpu_cap(c, X86_FEATURE_K6_MTRR);
 #endif
 #if defined(CONFIG_X86_LOCAL_APIC) && defined(CONFIG_PCI)
-	/* check CPU config space for extended APIC ID */
-	if (cpu_has_apic && c->x86 >= 0xf) {
+	/*
+	 * ApicID can always be treated as an 8-bit value for AMD APIC versions
+	 * >= 0x10, but even old K8s came out of reset with version 0x10. So, we
+	 * can safely set X86_FEATURE_EXTD_APICID unconditionally for families
+	 * after 16h.
+	 */
+	if (cpu_has_apic && c->x86 > 0x16) {
+		set_cpu_cap(c, X86_FEATURE_EXTD_APICID);
+	} else if (cpu_has_apic && c->x86 >= 0xf) {
+		/* check CPU config space for extended APIC ID */
 		unsigned int val;
 		val = read_pci_config(0, 24, 0, 0x68);
 		if ((val & ((1 << 17) | (1 << 18))) == ((1 << 17) | (1 << 18)))
