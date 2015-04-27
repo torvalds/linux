@@ -7008,10 +7008,6 @@ int fx_init(struct kvm_vcpu *vcpu)
 {
 	int err;
 
-	err = fpstate_alloc(&vcpu->arch.guest_fpu);
-	if (err)
-		return err;
-
 	fpstate_init(&vcpu->arch.guest_fpu);
 	if (cpu_has_xsaves)
 		vcpu->arch.guest_fpu.state.xsave.header.xcomp_bv =
@@ -7027,11 +7023,6 @@ int fx_init(struct kvm_vcpu *vcpu)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(fx_init);
-
-static void fx_free(struct kvm_vcpu *vcpu)
-{
-	fpstate_free(&vcpu->arch.guest_fpu);
-}
 
 void kvm_load_guest_fpu(struct kvm_vcpu *vcpu)
 {
@@ -7070,7 +7061,6 @@ void kvm_arch_vcpu_free(struct kvm_vcpu *vcpu)
 	kvmclock_reset(vcpu);
 
 	free_cpumask_var(vcpu->arch.wbinvd_dirty_mask);
-	fx_free(vcpu);
 	kvm_x86_ops->vcpu_free(vcpu);
 }
 
@@ -7126,7 +7116,6 @@ void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 	kvm_mmu_unload(vcpu);
 	vcpu_put(vcpu);
 
-	fx_free(vcpu);
 	kvm_x86_ops->vcpu_free(vcpu);
 }
 

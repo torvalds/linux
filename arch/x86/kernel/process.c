@@ -86,16 +86,6 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 	return fpu__copy(&dst->thread.fpu, &src->thread.fpu);
 }
 
-void arch_release_task_struct(struct task_struct *tsk)
-{
-	fpstate_free(&tsk->thread.fpu);
-}
-
-void arch_task_cache_init(void)
-{
-	fpstate_cache_init();
-}
-
 /*
  * Free current thread data structures etc..
  */

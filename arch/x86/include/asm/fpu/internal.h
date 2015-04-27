@@ -558,10 +558,6 @@ static inline unsigned short get_fpu_mxcsr(struct task_struct *tsk)
 	}
 }
 
-extern void fpstate_cache_init(void);
-
-extern int fpstate_alloc(struct fpu *fpu);
-extern void fpstate_free(struct fpu *fpu);
 extern int fpu__copy(struct fpu *dst_fpu, struct fpu *src_fpu);
 
 static inline unsigned long

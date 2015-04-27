@@ -226,34 +226,6 @@ void fpstate_init(struct fpu *fpu)
 EXPORT_SYMBOL_GPL(fpstate_init);
 
 /*
- * FPU state allocation:
- */
-static struct kmem_cache *task_xstate_cachep;
-
-void fpstate_cache_init(void)
-{
-	task_xstate_cachep =
-		kmem_cache_create("task_xstate", xstate_size,
-				  __alignof__(union thread_xstate),
-				  SLAB_PANIC | SLAB_NOTRACK, NULL);
-	setup_xstate_comp();
-}
-
-int fpstate_alloc(struct fpu *fpu)
-{
-	/* The CPU requires the FPU state to be aligned to 16 byte boundaries: */
-	WARN_ON((unsigned long)&fpu->state & 15);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(fpstate_alloc);
-
-void fpstate_free(struct fpu *fpu)
-{
-}
-EXPORT_SYMBOL_GPL(fpstate_free);
-
-/*
  * Copy the current task's FPU state to a new task's FPU context.
  *
  * In the 'eager' case we just save to the destination context.
@@ -280,13 +252,9 @@ int fpu__copy(struct fpu *dst_fpu, struct fpu *src_fpu)
 	dst_fpu->fpregs_active = 0;
 	dst_fpu->last_cpu = -1;
 
-	if (src_fpu->fpstate_active) {
-		int err = fpstate_alloc(dst_fpu);
-
-		if (err)
-			return err;
+	if (src_fpu->fpstate_active)
 		fpu_copy(dst_fpu, src_fpu);
-	}
+
 	return 0;
 }
 
@@ -304,13 +272,6 @@ int fpstate_alloc_init(struct fpu *fpu)
 		return -EINVAL;
 	if (WARN_ON_ONCE(fpu->fpstate_active))
 		return -EINVAL;
-
-	/*
-	 * Memory allocation at the first usage of the FPU and other state.
-	 */
-	ret = fpstate_alloc(fpu);
-	if (ret)
-		return ret;
 
 	fpstate_init(fpu);
 
@@ -355,13 +316,6 @@ static int fpu__unlazy_stopped(struct fpu *child_fpu)
 		child_fpu->last_cpu = -1;
 		return 0;
 	}
-
-	/*
-	 * Memory allocation at the first usage of the FPU and other state.
-	 */
-	ret = fpstate_alloc(child_fpu);
-	if (ret)
-		return ret;
 
 	fpstate_init(child_fpu);
 
@@ -423,7 +377,6 @@ void fpu__clear(struct task_struct *tsk)
 	if (!use_eager_fpu()) {
 		/* FPU state will be reallocated lazily at the first use. */
 		drop_fpu(fpu);
-		fpstate_free(fpu);
 	} else {
 		if (!fpu->fpstate_active) {
 			/* kthread execs. TODO: cleanup this horror. */

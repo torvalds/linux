@@ -265,6 +265,7 @@ void fpu__init_system(struct cpuinfo_x86 *c)
 	fpu__init_system_generic();
 	fpu__init_system_xstate_size_legacy();
 	fpu__init_system_xstate();
+	setup_xstate_comp();
 
 	fpu__init_system_ctx_switch();
 }
