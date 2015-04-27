@@ -3075,9 +3075,12 @@ __i915_gem_object_sync(struct drm_i915_gem_object *obj,
 		return ret;
 
 	if (!i915_semaphore_is_enabled(obj->base.dev)) {
+		struct drm_i915_private *i915 = to_i915(obj->base.dev);
 		ret = __i915_wait_request(req,
-					  atomic_read(&to_i915(obj->base.dev)->gpu_error.reset_counter),
-					  to_i915(obj->base.dev)->mm.interruptible, NULL, NULL);
+					  atomic_read(&i915->gpu_error.reset_counter),
+					  i915->mm.interruptible,
+					  NULL,
+					  &i915->rps.semaphores);
 		if (ret)
 			return ret;
 

@@ -272,6 +272,22 @@ struct drm_i915_private;
 struct i915_mm_struct;
 struct i915_mmu_object;
 
+struct drm_i915_file_private {
+	struct drm_i915_private *dev_priv;
+	struct drm_file *file;
+
+	struct {
+		spinlock_t lock;
+		struct list_head request_list;
+	} mm;
+	struct idr context_idr;
+
+	struct list_head rps_boost;
+	struct intel_engine_cs *bsd_ring;
+
+	unsigned rps_boosts;
+};
+
 enum intel_dpll_id {
 	DPLL_ID_PRIVATE = -1, /* non-shared dpll in use */
 	/* real shared dpll ids must be >= 0 */
@@ -1069,6 +1085,8 @@ struct intel_gen6_power_mgmt {
 	struct delayed_work delayed_resume_work;
 	struct list_head clients;
 	unsigned boosts;
+
+	struct drm_i915_file_private semaphores;
 
 	/* manual wa residency calculations */
 	struct intel_rps_ei up_ei, down_ei;
@@ -2215,22 +2233,6 @@ static inline void i915_gem_request_assign(struct drm_i915_gem_request **pdst,
  * definition of i915_seqno_passed() which is below. It will be moved in
  * a later patch when the call to i915_seqno_passed() is obsoleted...
  */
-
-struct drm_i915_file_private {
-	struct drm_i915_private *dev_priv;
-	struct drm_file *file;
-
-	struct {
-		spinlock_t lock;
-		struct list_head request_list;
-	} mm;
-	struct idr context_idr;
-
-	struct list_head rps_boost;
-	struct intel_engine_cs *bsd_ring;
-
-	unsigned rps_boosts;
-};
 
 /*
  * A command that requires special handling by the command parser.
