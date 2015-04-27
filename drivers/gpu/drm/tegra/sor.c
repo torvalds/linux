@@ -1599,8 +1599,10 @@ static int tegra_sor_probe(struct platform_device *pdev)
 	}
 
 	err = tegra_output_probe(&sor->output);
-	if (err < 0)
+	if (err < 0) {
+		dev_err(&pdev->dev, "failed to probe output: %d\n", err);
 		return err;
+	}
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	sor->regs = devm_ioremap_resource(&pdev->dev, regs);
@@ -1608,24 +1610,39 @@ static int tegra_sor_probe(struct platform_device *pdev)
 		return PTR_ERR(sor->regs);
 
 	sor->rst = devm_reset_control_get(&pdev->dev, "sor");
-	if (IS_ERR(sor->rst))
+	if (IS_ERR(sor->rst)) {
+		dev_err(&pdev->dev, "failed to get reset control: %ld\n",
+			PTR_ERR(sor->rst));
 		return PTR_ERR(sor->rst);
+	}
 
 	sor->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(sor->clk))
+	if (IS_ERR(sor->clk)) {
+		dev_err(&pdev->dev, "failed to get module clock: %ld\n",
+			PTR_ERR(sor->clk));
 		return PTR_ERR(sor->clk);
+	}
 
 	sor->clk_parent = devm_clk_get(&pdev->dev, "parent");
-	if (IS_ERR(sor->clk_parent))
+	if (IS_ERR(sor->clk_parent)) {
+		dev_err(&pdev->dev, "failed to get parent clock: %ld\n",
+			PTR_ERR(sor->clk_parent));
 		return PTR_ERR(sor->clk_parent);
+	}
 
 	sor->clk_safe = devm_clk_get(&pdev->dev, "safe");
-	if (IS_ERR(sor->clk_safe))
+	if (IS_ERR(sor->clk_safe)) {
+		dev_err(&pdev->dev, "failed to get safe clock: %ld\n",
+			PTR_ERR(sor->clk_safe));
 		return PTR_ERR(sor->clk_safe);
+	}
 
 	sor->clk_dp = devm_clk_get(&pdev->dev, "dp");
-	if (IS_ERR(sor->clk_dp))
+	if (IS_ERR(sor->clk_dp)) {
+		dev_err(&pdev->dev, "failed to get DP clock: %ld\n",
+			PTR_ERR(sor->clk_dp));
 		return PTR_ERR(sor->clk_dp);
+	}
 
 	INIT_LIST_HEAD(&sor->client.list);
 	sor->client.ops = &sor_client_ops;
