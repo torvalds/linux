@@ -324,14 +324,31 @@ static inline int restore_fpu_checking(struct fpu *fpu)
 	return fpu_restore_checking(fpu);
 }
 
-/* Must be paired with an 'stts' after! */
+/*
+ * Wrap lazy FPU TS handling in a 'hw fpregs activation/deactivation'
+ * idiom, which is then paired with the sw-flag (fpregs_active) later on:
+ */
+
+static inline void __fpregs_activate_hw(void)
+{
+	if (!use_eager_fpu())
+		clts();
+}
+
+static inline void __fpregs_deactivate_hw(void)
+{
+	if (!use_eager_fpu())
+		stts();
+}
+
+/* Must be paired with an 'stts' (fpregs_deactivate_hw()) after! */
 static inline void __fpregs_deactivate(struct fpu *fpu)
 {
 	fpu->fpregs_active = 0;
 	this_cpu_write(fpu_fpregs_owner_ctx, NULL);
 }
 
-/* Must be paired with a 'clts' before! */
+/* Must be paired with a 'clts' (fpregs_activate_hw()) before! */
 static inline void __fpregs_activate(struct fpu *fpu)
 {
 	fpu->fpregs_active = 1;
@@ -362,16 +379,14 @@ static inline int user_has_fpu(void)
  */
 static inline void fpregs_activate(struct fpu *fpu)
 {
-	if (!use_eager_fpu())
-		clts();
+	__fpregs_activate_hw();
 	__fpregs_activate(fpu);
 }
 
 static inline void fpregs_deactivate(struct fpu *fpu)
 {
 	__fpregs_deactivate(fpu);
-	if (!use_eager_fpu())
-		stts();
+	__fpregs_deactivate_hw();
 }
 
 static inline void drop_fpu(struct fpu *fpu)
@@ -455,8 +470,9 @@ switch_fpu_prepare(struct fpu *old_fpu, struct fpu *new_fpu, int cpu)
 			new_fpu->counter++;
 			__fpregs_activate(new_fpu);
 			prefetch(&new_fpu->state);
-		} else if (!use_eager_fpu())
-			stts();
+		} else {
+			__fpregs_deactivate_hw();
+		}
 	} else {
 		old_fpu->counter = 0;
 		old_fpu->last_cpu = -1;

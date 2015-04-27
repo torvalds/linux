@@ -105,8 +105,7 @@ void __kernel_fpu_begin(void)
 		copy_fpregs_to_fpstate(fpu);
 	} else {
 		this_cpu_write(fpu_fpregs_owner_ctx, NULL);
-		if (!use_eager_fpu())
-			clts();
+		__fpregs_activate_hw();
 	}
 }
 EXPORT_SYMBOL(__kernel_fpu_begin);
@@ -118,8 +117,8 @@ void __kernel_fpu_end(void)
 	if (fpu->fpregs_active) {
 		if (WARN_ON(restore_fpu_checking(fpu)))
 			fpu_reset_state(fpu);
-	} else if (!use_eager_fpu()) {
-		stts();
+	} else {
+		__fpregs_deactivate_hw();
 	}
 
 	kernel_fpu_enable();
