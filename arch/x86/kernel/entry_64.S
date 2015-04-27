@@ -601,7 +601,7 @@ ENTRY(ret_from_fork)
 
 	RESTORE_EXTRA_REGS
 
-	testl $3,CS(%rsp)			# from kernel_thread?
+	testb	$3, CS(%rsp)			# from kernel_thread?
 
 	/*
 	 * By the time we get here, we have no idea whether our pt_regs,
@@ -665,7 +665,7 @@ END(irq_entries_start)
 
 	leaq -RBP(%rsp),%rdi	/* arg1 for \func (pointer to pt_regs) */
 
-	testl $3, CS-RBP(%rsp)
+	testb	$3, CS-RBP(%rsp)
 	jz	1f
 	SWAPGS
 1:
@@ -720,7 +720,7 @@ ret_from_intr:
 	CFI_DEF_CFA_REGISTER	rsp
 	CFI_ADJUST_CFA_OFFSET	RBP
 
-	testl $3,CS(%rsp)
+	testb	$3, CS(%rsp)
 	jz	retint_kernel
 	/* Interrupt came from user space */
 
@@ -968,7 +968,7 @@ ENTRY(\sym)
 	.if \paranoid
 	.if \paranoid == 1
 	CFI_REMEMBER_STATE
-	testl $3, CS(%rsp)		/* If coming from userspace, switch */
+	testb	$3, CS(%rsp)		/* If coming from userspace, switch */
 	jnz 1f				/* stacks. */
 	.endif
 	call paranoid_entry
@@ -1309,7 +1309,7 @@ ENTRY(error_entry)
 	SAVE_C_REGS 8
 	SAVE_EXTRA_REGS 8
 	xorl %ebx,%ebx
-	testl $3,CS+8(%rsp)
+	testb	$3, CS+8(%rsp)
 	jz	error_kernelspace
 error_swapgs:
 	SWAPGS
@@ -1606,7 +1606,6 @@ end_repeat_nmi:
 	je 1f
 	movq %r12, %cr2
 1:
-	
 	testl %ebx,%ebx				/* swapgs needed? */
 	jnz nmi_restore
 nmi_swapgs:
