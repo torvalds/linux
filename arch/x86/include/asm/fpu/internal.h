@@ -265,9 +265,15 @@ static inline void fpu_fxsave(struct fpu *fpu)
 
 /*
  * These must be called with preempt disabled. Returns
- * 'true' if the FPU state is still intact.
+ * 'true' if the FPU state is still intact and we can
+ * keep registers active.
+ *
+ * The legacy FNSAVE instruction cleared all FPU state
+ * unconditionally, so registers are essentially destroyed.
+ * Modern FPU state can be kept in registers, if there are
+ * no pending FP exceptions. (Note the FIXME below.)
  */
-static inline int fpu_save_init(struct fpu *fpu)
+static inline int copy_fpregs_to_fpstate(struct fpu *fpu)
 {
 	if (use_xsave()) {
 		xsave_state(&fpu->state->xsave);
@@ -276,13 +282,16 @@ static inline int fpu_save_init(struct fpu *fpu)
 		 * xsave header may indicate the init state of the FP.
 		 */
 		if (!(fpu->state->xsave.header.xfeatures & XSTATE_FP))
-			return 1;
-	} else if (use_fxsr()) {
-		fpu_fxsave(fpu);
+			goto keep_fpregs;
 	} else {
-		asm volatile("fnsave %[fx]; fwait"
-			     : [fx] "=m" (fpu->state->fsave));
-		return 0;
+		if (use_fxsr()) {
+			fpu_fxsave(fpu);
+		} else {
+			/* FNSAVE always clears FPU registers: */
+			asm volatile("fnsave %[fx]; fwait"
+				     : [fx] "=m" (fpu->state->fsave));
+			goto drop_fpregs;
+		}
 	}
 
 	/*
@@ -295,9 +304,14 @@ static inline int fpu_save_init(struct fpu *fpu)
 	 */
 	if (unlikely(fpu->state->fxsave.swd & X87_FSW_ES)) {
 		asm volatile("fnclex");
-		return 0;
+		goto drop_fpregs;
 	}
+
+keep_fpregs:
 	return 1;
+
+drop_fpregs:
+	return 0;
 }
 
 extern void fpu__save(struct fpu *fpu);
@@ -448,7 +462,7 @@ switch_fpu_prepare(struct fpu *old_fpu, struct fpu *new_fpu, int cpu)
 		      (use_eager_fpu() || new_fpu->counter > 5);
 
 	if (old_fpu->fpregs_active) {
-		if (!fpu_save_init(old_fpu))
+		if (!copy_fpregs_to_fpstate(old_fpu))
 			old_fpu->last_cpu = -1;
 		else
 			old_fpu->last_cpu = cpu;

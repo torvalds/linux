@@ -395,7 +395,7 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
 	 * It is not directly accessible, though, so we need to
 	 * do an xsave and then pull it out of the xsave buffer.
 	 */
-	fpu_save_init(&tsk->thread.fpu);
+	copy_fpregs_to_fpstate(&tsk->thread.fpu);
 	xsave_buf = &(tsk->thread.fpu.state->xsave);
 	bndcsr = get_xsave_addr(xsave_buf, XSTATE_BNDCSR);
 	if (!bndcsr)

@@ -102,7 +102,7 @@ void __kernel_fpu_begin(void)
 	kernel_fpu_disable();
 
 	if (fpu->fpregs_active) {
-		fpu_save_init(fpu);
+		copy_fpregs_to_fpstate(fpu);
 	} else {
 		this_cpu_write(fpu_fpregs_owner_ctx, NULL);
 		if (!use_eager_fpu())
@@ -196,7 +196,7 @@ void fpu__save(struct fpu *fpu)
 		if (use_eager_fpu()) {
 			__save_fpu(fpu);
 		} else {
-			fpu_save_init(fpu);
+			copy_fpregs_to_fpstate(fpu);
 			fpregs_deactivate(fpu);
 		}
 	}
