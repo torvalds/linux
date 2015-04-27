@@ -43,6 +43,17 @@
 				};
 			};
 
+			mmc1: mmc@f8000000 {
+				vmmc-supply = <&vcc_3v3_reg>;
+				vqmmc-supply = <&vcc_3v3_reg>;
+				status = "disabled";
+				slot@0 {
+					reg = <0>;
+					bus-width = <4>;
+					cd-gpios = <&pioE 1 GPIO_ACTIVE_LOW>;
+				};
+			};
+
 			spi0: spi@f0004000 {
 				cs-gpios = <&pioD 13 0>, <0>, <0>, <&pioD 16 0>;
 				status = "okay";
