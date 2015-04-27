@@ -1986,6 +1986,8 @@ static void kvm_gmap_notifier(struct gmap *gmap, unsigned long start,
 	unsigned long prefix;
 	int i;
 
+	if (gmap_is_shadow(gmap))
+		return;
 	if (start >= 1UL << 31)
 		/* We are only interested in prefix pages */
 		return;
