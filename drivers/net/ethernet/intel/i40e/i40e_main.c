@@ -9767,7 +9767,8 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = i40e_init_shared_code(hw);
 	if (err) {
-		dev_info(&pdev->dev, "init_shared_code failed: %d\n", err);
+		dev_warn(&pdev->dev, "unidentified MAC or BLANK NVM: %d\n",
+			 err);
 		goto err_pf_reset;
 	}
 
