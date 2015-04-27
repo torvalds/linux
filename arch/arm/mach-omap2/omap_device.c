@@ -688,11 +688,8 @@ struct dev_pm_domain omap_device_pm_domain = {
 		SET_RUNTIME_PM_OPS(_od_runtime_suspend, _od_runtime_resume,
 				   NULL)
 		USE_PLATFORM_PM_SLEEP_OPS
-		.suspend_noirq = _od_suspend_noirq,
-		.resume_noirq = _od_resume_noirq,
-		.freeze_noirq = _od_suspend_noirq,
-		.thaw_noirq = _od_resume_noirq,
-		.restore_noirq = _od_resume_noirq,
+		SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(_od_suspend_noirq,
+					      _od_resume_noirq)
 	}
 };
 
