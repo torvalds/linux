@@ -35,6 +35,7 @@
 		apb {
 			mmc0: mmc@f0000000 {
 				pinctrl-0 = <&pinctrl_mmc0_clk_cmd_dat0 &pinctrl_mmc0_dat1_3 &pinctrl_mmc0_dat4_7 &pinctrl_mmc0_cd>;
+				vmmc-supply = <&vcc_mmc0_reg>;
 				vqmmc-supply = <&vcc_3v3_reg>;
 				status = "okay";
 				slot@0 {
@@ -294,6 +295,14 @@
 		usb2: ehci@00700000 {
 			status = "okay";
 		};
+	};
+
+	vcc_mmc0_reg: fixedregulator@0 {
+		compatible = "regulator-fixed";
+		gpio = <&pioE 2 GPIO_ACTIVE_LOW>;
+		regulator-name = "mmc0-card-supply";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
 	};
 
 	gpio_keys {
