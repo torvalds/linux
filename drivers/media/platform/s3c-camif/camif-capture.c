@@ -115,7 +115,7 @@ static int sensor_set_power(struct camif_dev *camif, int on)
 	struct cam_sensor *sensor = &camif->sensor;
 	int err = 0;
 
-	if (!on == camif->sensor.power_count)
+	if (camif->sensor.power_count == !on)
 		err = v4l2_subdev_call(sensor->sd, core, s_power, on);
 	if (!err)
 		sensor->power_count += on ? 1 : -1;
@@ -131,7 +131,7 @@ static int sensor_set_streaming(struct camif_dev *camif, int on)
 	struct cam_sensor *sensor = &camif->sensor;
 	int err = 0;
 
-	if (!on == camif->sensor.stream_count)
+	if (camif->sensor.stream_count == !on)
 		err = v4l2_subdev_call(sensor->sd, video, s_stream, on);
 	if (!err)
 		sensor->stream_count += on ? 1 : -1;
