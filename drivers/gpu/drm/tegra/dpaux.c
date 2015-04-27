@@ -294,26 +294,41 @@ static int tegra_dpaux_probe(struct platform_device *pdev)
 	}
 
 	dpaux->rst = devm_reset_control_get(&pdev->dev, "dpaux");
-	if (IS_ERR(dpaux->rst))
+	if (IS_ERR(dpaux->rst)) {
+		dev_err(&pdev->dev, "failed to get reset control: %ld\n",
+			PTR_ERR(dpaux->rst));
 		return PTR_ERR(dpaux->rst);
+	}
 
 	dpaux->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(dpaux->clk))
+	if (IS_ERR(dpaux->clk)) {
+		dev_err(&pdev->dev, "failed to get module clock: %ld\n",
+			PTR_ERR(dpaux->clk));
 		return PTR_ERR(dpaux->clk);
+	}
 
 	err = clk_prepare_enable(dpaux->clk);
-	if (err < 0)
+	if (err < 0) {
+		dev_err(&pdev->dev, "failed to enable module clock: %d\n",
+			err);
 		return err;
+	}
 
 	reset_control_deassert(dpaux->rst);
 
 	dpaux->clk_parent = devm_clk_get(&pdev->dev, "parent");
-	if (IS_ERR(dpaux->clk_parent))
+	if (IS_ERR(dpaux->clk_parent)) {
+		dev_err(&pdev->dev, "failed to get parent clock: %ld\n",
+			PTR_ERR(dpaux->clk_parent));
 		return PTR_ERR(dpaux->clk_parent);
+	}
 
 	err = clk_prepare_enable(dpaux->clk_parent);
-	if (err < 0)
+	if (err < 0) {
+		dev_err(&pdev->dev, "failed to enable parent clock: %d\n",
+			err);
 		return err;
+	}
 
 	err = clk_set_rate(dpaux->clk_parent, 270000000);
 	if (err < 0) {
@@ -323,8 +338,11 @@ static int tegra_dpaux_probe(struct platform_device *pdev)
 	}
 
 	dpaux->vdd = devm_regulator_get(&pdev->dev, "vdd");
-	if (IS_ERR(dpaux->vdd))
+	if (IS_ERR(dpaux->vdd)) {
+		dev_err(&pdev->dev, "failed to get VDD supply: %ld\n",
+			PTR_ERR(dpaux->vdd));
 		return PTR_ERR(dpaux->vdd);
+	}
 
 	err = devm_request_irq(dpaux->dev, dpaux->irq, tegra_dpaux_irq, 0,
 			       dev_name(dpaux->dev), dpaux);
