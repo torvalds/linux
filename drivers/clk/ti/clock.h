@@ -280,4 +280,6 @@ long omap4_dpll_regm4xen_determine_rate(struct clk_hw *hw,
 					unsigned long *best_parent_rate,
 					struct clk_hw **best_parent_clk);
 
+extern struct ti_clk_ll_ops *ti_clk_ll_ops;
+
 #endif

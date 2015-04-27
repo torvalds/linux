@@ -33,6 +33,27 @@ static struct device_node *clocks_node_ptr[CLK_MAX_MEMMAPS];
 struct ti_clk_features ti_clk_features;
 
 /**
+ * ti_clk_setup_ll_ops - setup low level clock operations
+ * @ops: low level clock ops descriptor
+ *
+ * Sets up low level clock operations for TI clock driver. This is used
+ * to provide various callbacks for the clock driver towards platform
+ * specific code. Returns 0 on success, -EBUSY if ll_ops have been
+ * registered already.
+ */
+int ti_clk_setup_ll_ops(struct ti_clk_ll_ops *ops)
+{
+	if (ti_clk_ll_ops) {
+		pr_err("Attempt to register ll_ops multiple times.\n");
+		return -EBUSY;
+	}
+
+	ti_clk_ll_ops = ops;
+
+	return 0;
+}
+
+/**
  * ti_dt_clocks_register - register DT alias clocks during boot
  * @oclks: list of clocks to register
  *

@@ -235,8 +235,6 @@ struct ti_clk_ll_ops {
 				       u8 *idlest_reg_id);
 };
 
-extern struct ti_clk_ll_ops *ti_clk_ll_ops;
-
 #define to_clk_hw_omap(_hw) container_of(_hw, struct clk_hw_omap, hw)
 
 void omap2_init_clk_clkdm(struct clk_hw *clk);
@@ -255,6 +253,7 @@ unsigned long omap2_get_dpll_rate(struct clk_hw_omap *clk);
 void ti_dt_clk_init_provider(struct device_node *np, int index);
 void ti_dt_clk_init_retry_clks(void);
 void ti_dt_clockdomains_setup(void);
+int ti_clk_setup_ll_ops(struct ti_clk_ll_ops *ops);
 
 int omap3430_dt_clk_init(void);
 int omap3630_dt_clk_init(void);

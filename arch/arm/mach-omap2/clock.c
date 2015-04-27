@@ -113,6 +113,19 @@ static struct ti_clk_ll_ops omap_clk_ll_ops = {
 };
 
 /**
+ * omap2_clk_setup_ll_ops - setup clock driver low-level ops
+ *
+ * Sets up clock driver low-level platform ops. These are needed
+ * for register accesses and various other misc platform operations.
+ * Returns 0 on success, -EBUSY if low level ops have been registered
+ * already.
+ */
+int __init omap2_clk_setup_ll_ops(void)
+{
+	return ti_clk_setup_ll_ops(&omap_clk_ll_ops);
+}
+
+/**
  * omap2_clk_provider_init - initialize a clock provider
  * @match_table: DT device table to match for devices to init
  * @np: device node pointer for the this clock provider
@@ -129,8 +142,6 @@ int __init omap2_clk_provider_init(struct device_node *np, int index,
 				   struct regmap *syscon, void __iomem *mem)
 {
 	struct clk_iomap *io;
-
-	ti_clk_ll_ops = &omap_clk_ll_ops;
 
 	io = kzalloc(sizeof(*io), GFP_KERNEL);
 
@@ -154,8 +165,6 @@ int __init omap2_clk_provider_init(struct device_node *np, int index,
 void __init omap2_clk_legacy_provider_init(int index, void __iomem *mem)
 {
 	struct clk_iomap *io;
-
-	ti_clk_ll_ops = &omap_clk_ll_ops;
 
 	io = memblock_virt_alloc(sizeof(*io), 0);
 

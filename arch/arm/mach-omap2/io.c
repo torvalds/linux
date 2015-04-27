@@ -722,6 +722,8 @@ int __init omap_clk_init(void)
 
 	ti_clk_init_features();
 
+	omap2_clk_setup_ll_ops();
+
 	if (of_have_populated_dt()) {
 		ret = omap_control_init();
 		if (ret)
