@@ -637,10 +637,7 @@ static int __init intel_enable_irq_remapping(void)
 	if (x2apic_supported()) {
 		eim = !dmar_x2apic_optout();
 		if (!eim)
-			printk(KERN_WARNING
-				"Your BIOS is broken and requested that x2apic be disabled.\n"
-				"This will slightly decrease performance.\n"
-				"Use 'intremap=no_x2apic_optout' to override BIOS request.\n");
+			pr_info("x2apic is disabled because BIOS sets x2apic opt out bit. You can use 'intremap=no_x2apic_optout' to override the BIOS setting.\n");
 	}
 
 	for_each_iommu(iommu, drhd) {
