@@ -1130,7 +1130,7 @@ static int twl6040_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
-	twl6040_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
+	snd_soc_codec_force_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	twl6040_init_chip(codec);
 
 	return 0;

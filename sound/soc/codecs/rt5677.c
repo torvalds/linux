@@ -4618,7 +4618,7 @@ static int rt5677_probe(struct snd_soc_codec *codec)
 			ARRAY_SIZE(rt5677_dmic2_clk_1));
 	}
 
-	rt5677_set_bias_level(codec, SND_SOC_BIAS_OFF);
+	snd_soc_codec_force_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	regmap_write(rt5677->regmap, RT5677_DIG_MISC, 0x0020);
 	regmap_write(rt5677->regmap, RT5677_PWR_DSP2, 0x0c00);
