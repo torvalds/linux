@@ -6,7 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -32,7 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -322,7 +322,7 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 
 	lockdep_assert_held(&mvm->mutex);
 
-	if (WARN_ON_ONCE(mvm->init_ucode_complete || mvm->calibrating))
+	if (WARN_ON_ONCE(mvm->calibrating))
 		return 0;
 
 	iwl_init_notification_wait(&mvm->notif_wait,
@@ -396,8 +396,6 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 	 */
 	ret = iwl_wait_notification(&mvm->notif_wait, &calib_wait,
 			MVM_UCODE_CALIB_TIMEOUT);
-	if (!ret)
-		mvm->init_ucode_complete = true;
 
 	if (ret && iwl_mvm_is_radio_killed(mvm)) {
 		IWL_DEBUG_RF_KILL(mvm, "RFKILL while calibrating.\n");
@@ -649,25 +647,24 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	 * module loading, load init ucode now
 	 * (for example, if we were in RFKILL)
 	 */
-	if (!mvm->init_ucode_complete) {
-		ret = iwl_run_init_mvm_ucode(mvm, false);
-		if (ret && !iwlmvm_mod_params.init_dbg) {
-			IWL_ERR(mvm, "Failed to run INIT ucode: %d\n", ret);
-			/* this can't happen */
-			if (WARN_ON(ret > 0))
-				ret = -ERFKILL;
-			goto error;
-		}
-		if (!iwlmvm_mod_params.init_dbg) {
-			/*
-			 * should stop and start HW since that INIT
-			 * image just loaded
-			 */
-			iwl_trans_stop_device(mvm->trans);
-			ret = iwl_trans_start_hw(mvm->trans);
-			if (ret)
-				return ret;
-		}
+	ret = iwl_run_init_mvm_ucode(mvm, false);
+	if (ret && !iwlmvm_mod_params.init_dbg) {
+		IWL_ERR(mvm, "Failed to run INIT ucode: %d\n", ret);
+		/* this can't happen */
+		if (WARN_ON(ret > 0))
+			ret = -ERFKILL;
+		goto error;
+	}
+	if (!iwlmvm_mod_params.init_dbg) {
+		/*
+		 * Stop and start the transport without entering low power
+		 * mode. This will save the state of other components on the
+		 * device that are triggered by the INIT firwmare (MFUART).
+		 */
+		_iwl_trans_stop_device(mvm->trans, false);
+		_iwl_trans_start_hw(mvm->trans, false);
+		if (ret)
+			return ret;
 	}
 
 	if (iwlmvm_mod_params.init_dbg)

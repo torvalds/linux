@@ -1021,7 +1021,7 @@ static void iwl_trans_pcie_fw_alive(struct iwl_trans *trans, u32 scd_addr)
 	iwl_pcie_tx_start(trans, scd_addr);
 }
 
-static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
+static void iwl_trans_pcie_stop_device(struct iwl_trans *trans, bool low_power)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	bool hw_rfkill, was_hw_rfkill;
@@ -1116,7 +1116,7 @@ static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 void iwl_trans_pcie_rf_kill(struct iwl_trans *trans, bool state)
 {
 	if (iwl_op_mode_hw_rf_kill(trans->op_mode, state))
-		iwl_trans_pcie_stop_device(trans);
+		iwl_trans_pcie_stop_device(trans, true);
 }
 
 static void iwl_trans_pcie_d3_suspend(struct iwl_trans *trans, bool test)
@@ -1201,7 +1201,7 @@ static int iwl_trans_pcie_d3_resume(struct iwl_trans *trans,
 	return 0;
 }
 
-static int iwl_trans_pcie_start_hw(struct iwl_trans *trans)
+static int iwl_trans_pcie_start_hw(struct iwl_trans *trans, bool low_power)
 {
 	bool hw_rfkill;
 	int err;
