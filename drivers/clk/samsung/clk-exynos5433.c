@@ -3665,7 +3665,7 @@ static struct samsung_gate_clock apollo_gate_clks[] __initdata = {
 			ENABLE_SCLK_APOLLO, 3, CLK_IGNORE_UNUSED, 0),
 	GATE(CLK_SCLK_HPM_APOLLO, "sclk_hpm_apollo", "div_sclk_hpm_apollo",
 			ENABLE_SCLK_APOLLO, 1, CLK_IGNORE_UNUSED, 0),
-	GATE(CLK_SCLK_APOLLO, "sclk_apollo", "div_apollo_pll",
+	GATE(CLK_SCLK_APOLLO, "sclk_apollo", "div_apollo2",
 			ENABLE_SCLK_APOLLO, 0, CLK_IGNORE_UNUSED, 0),
 };
 
