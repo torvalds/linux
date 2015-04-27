@@ -87,22 +87,6 @@ static u32 clk_memmap_readl(void __iomem *reg)
 	return val;
 }
 
-void omap2_clk_writel(u32 val, struct clk_hw_omap *clk, void __iomem *reg)
-{
-	if (WARN_ON_ONCE(!(clk->flags & MEMMAP_ADDRESSING)))
-		writel_relaxed(val, reg);
-	else
-		clk_memmap_writel(val, reg);
-}
-
-u32 omap2_clk_readl(struct clk_hw_omap *clk, void __iomem *reg)
-{
-	if (WARN_ON_ONCE(!(clk->flags & MEMMAP_ADDRESSING)))
-		return readl_relaxed(reg);
-	else
-		return clk_memmap_readl(reg);
-}
-
 static struct ti_clk_ll_ops omap_clk_ll_ops = {
 	.clk_readl = clk_memmap_readl,
 	.clk_writel = clk_memmap_writel,
