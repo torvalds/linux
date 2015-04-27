@@ -376,7 +376,7 @@
 		status = "disabled";
 	};
 
-	scifb8: serial@e6c30000 {
+	scifb: serial@e6c30000 {
 		compatible = "renesas,scifb-sh73a0", "renesas,scifb";
 		reg = <0xe6c30000 0x100>;
 		interrupts = <0 80 IRQ_TYPE_LEVEL_HIGH>;
