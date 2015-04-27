@@ -115,6 +115,29 @@ mtk8250_set_termios(struct uart_port *port, struct ktermios *termios,
 		tty_termios_encode_baud_rate(termios, baud, baud);
 }
 
+static int mtk8250_runtime_suspend(struct device *dev)
+{
+	struct mtk8250_data *data = dev_get_drvdata(dev);
+
+	clk_disable_unprepare(data->uart_clk);
+
+	return 0;
+}
+
+static int mtk8250_runtime_resume(struct device *dev)
+{
+	struct mtk8250_data *data = dev_get_drvdata(dev);
+	int err;
+
+	err = clk_prepare_enable(data->uart_clk);
+	if (err) {
+		dev_warn(dev, "Can't enable clock\n");
+		return err;
+	}
+
+	return 0;
+}
+
 static void
 mtk8250_do_pm(struct uart_port *port, unsigned int state, unsigned int old)
 {
@@ -130,19 +153,12 @@ mtk8250_do_pm(struct uart_port *port, unsigned int state, unsigned int old)
 static int mtk8250_probe_of(struct platform_device *pdev, struct uart_port *p,
 			   struct mtk8250_data *data)
 {
-	int err;
-
 	data->uart_clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(data->uart_clk)) {
 		dev_warn(&pdev->dev, "Can't get uart clock\n");
 		return PTR_ERR(data->uart_clk);
 	}
 
-	err = clk_prepare_enable(data->uart_clk);
-	if (err) {
-		dev_warn(&pdev->dev, "Can't prepare clock\n");
-		return err;
-	}
 	p->uartclk = clk_get_rate(data->uart_clk);
 
 	return 0;
@@ -193,14 +209,18 @@ static int mtk8250_probe(struct platform_device *pdev)
 	writel(0x0, uart.port.membase +
 			(MTK_UART_RATE_FIX << uart.port.regshift));
 
+	platform_set_drvdata(pdev, data);
+
+	pm_runtime_enable(&pdev->dev);
+	if (!pm_runtime_enabled(&pdev->dev)) {
+		err = mtk8250_runtime_resume(&pdev->dev);
+		if (err)
+			return err;
+	}
+
 	data->line = serial8250_register_8250_port(&uart);
 	if (data->line < 0)
 		return data->line;
-
-	platform_set_drvdata(pdev, data);
-
-	pm_runtime_set_active(&pdev->dev);
-	pm_runtime_enable(&pdev->dev);
 
 	return 0;
 }
@@ -212,10 +232,13 @@ static int mtk8250_remove(struct platform_device *pdev)
 	pm_runtime_get_sync(&pdev->dev);
 
 	serial8250_unregister_port(data->line);
-	clk_disable_unprepare(data->uart_clk);
 
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_put_noidle(&pdev->dev);
+
+	if (!pm_runtime_status_suspended(&pdev->dev))
+		mtk8250_runtime_suspend(&pdev->dev);
+
 	return 0;
 }
 
@@ -238,26 +261,6 @@ static int mtk8250_resume(struct device *dev)
 	return 0;
 }
 #endif /* CONFIG_PM_SLEEP */
-
-#ifdef CONFIG_PM
-static int mtk8250_runtime_suspend(struct device *dev)
-{
-	struct mtk8250_data *data = dev_get_drvdata(dev);
-
-	clk_disable_unprepare(data->uart_clk);
-
-	return 0;
-}
-
-static int mtk8250_runtime_resume(struct device *dev)
-{
-	struct mtk8250_data *data = dev_get_drvdata(dev);
-
-	clk_prepare_enable(data->uart_clk);
-
-	return 0;
-}
-#endif
 
 static const struct dev_pm_ops mtk8250_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(mtk8250_suspend, mtk8250_resume)
