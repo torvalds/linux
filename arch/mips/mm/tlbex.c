@@ -35,7 +35,7 @@
 #include <asm/uasm.h>
 #include <asm/setup.h>
 
-static int __cpuinitdata mips_xpa_disabled;
+static int mips_xpa_disabled;
 
 static int __init xpa_disable(char *s)
 {
