@@ -224,9 +224,10 @@ typedef int (*snd_pcm_hw_rule_func_t)(struct snd_pcm_hw_params *params,
 
 struct snd_pcm_hw_rule {
 	unsigned int cond;
-	snd_pcm_hw_rule_func_t func;
 	int var;
 	int deps[4];
+
+	snd_pcm_hw_rule_func_t func;
 	void *private;
 };
 
