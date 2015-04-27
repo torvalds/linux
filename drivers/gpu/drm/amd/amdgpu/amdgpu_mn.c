@@ -135,7 +135,7 @@ static void amdgpu_mn_invalidate_range_start(struct mmu_notifier *mn,
 	while (it) {
 		struct amdgpu_mn_node *node;
 		struct amdgpu_bo *bo;
-		int r;
+		long r;
 
 		node = container_of(it, struct amdgpu_mn_node, it);
 		it = interval_tree_iter_next(it, start, end);
@@ -144,19 +144,19 @@ static void amdgpu_mn_invalidate_range_start(struct mmu_notifier *mn,
 
 			r = amdgpu_bo_reserve(bo, true);
 			if (r) {
-				DRM_ERROR("(%d) failed to reserve user bo\n", r);
+				DRM_ERROR("(%ld) failed to reserve user bo\n", r);
 				continue;
 			}
 
 			r = reservation_object_wait_timeout_rcu(bo->tbo.resv,
 				true, false, MAX_SCHEDULE_TIMEOUT);
-			if (r)
-				DRM_ERROR("(%d) failed to wait for user bo\n", r);
+			if (r <= 0)
+				DRM_ERROR("(%ld) failed to wait for user bo\n", r);
 
 			amdgpu_ttm_placement_from_domain(bo, AMDGPU_GEM_DOMAIN_CPU);
 			r = ttm_bo_validate(&bo->tbo, &bo->placement, false, false);
 			if (r)
-				DRM_ERROR("(%d) failed to validate user bo\n", r);
+				DRM_ERROR("(%ld) failed to validate user bo\n", r);
 
 			amdgpu_bo_unreserve(bo);
 		}
