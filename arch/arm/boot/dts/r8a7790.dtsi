@@ -1451,7 +1451,7 @@
 		status = "disabled";
 	};
 
-	rcar_sound: rcar_sound@ec500000 {
+	rcar_sound: sound@ec500000 {
 		/*
 		 * #sound-dai-cells is required
 		 *
