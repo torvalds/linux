@@ -406,7 +406,7 @@ static int i40evf_map_rings_to_vectors(struct i40evf_adapter *adapter)
 	/* The ideal configuration...
 	 * We have enough vectors to map one per queue.
 	 */
-	if (q_vectors == (rxr_remaining * 2)) {
+	if (q_vectors >= (rxr_remaining * 2)) {
 		for (; rxr_idx < rxr_remaining; v_start++, rxr_idx++)
 			i40evf_map_vector_to_rxq(adapter, v_start, rxr_idx);
 
