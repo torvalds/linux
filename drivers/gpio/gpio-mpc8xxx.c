@@ -329,7 +329,7 @@ static int mpc8xxx_gpio_irq_map(struct irq_domain *h, unsigned int irq,
 	return 0;
 }
 
-static struct irq_domain_ops mpc8xxx_gpio_irq_ops = {
+static const struct irq_domain_ops mpc8xxx_gpio_irq_ops = {
 	.map	= mpc8xxx_gpio_irq_map,
 	.xlate	= irq_domain_xlate_twocell,
 };
