@@ -331,7 +331,6 @@ static void put_cluster_clk_and_freq_table(struct device *cpu_dev)
 static int _get_cluster_clk_and_freq_table(struct device *cpu_dev)
 {
 	u32 cluster = raw_cpu_to_cluster(cpu_dev->id);
-	char name[14] = "cpu-cluster.";
 	int ret;
 
 	if (freq_table[cluster])
@@ -351,8 +350,7 @@ static int _get_cluster_clk_and_freq_table(struct device *cpu_dev)
 		goto free_opp_table;
 	}
 
-	name[12] = cluster + '0';
-	clk[cluster] = clk_get(cpu_dev, name);
+	clk[cluster] = clk_get(cpu_dev, NULL);
 	if (!IS_ERR(clk[cluster])) {
 		dev_dbg(cpu_dev, "%s: clk: %p & freq table: %p, cluster: %d\n",
 				__func__, clk[cluster], freq_table[cluster],
