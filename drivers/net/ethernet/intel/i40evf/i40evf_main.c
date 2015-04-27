@@ -892,8 +892,10 @@ static void i40evf_set_rx_mode(struct net_device *netdev)
 					break;
 				}
 			}
+			if (ether_addr_equal(f->macaddr, adapter->hw.mac.addr))
+				found = true;
 		}
-		if (found) {
+		if (!found) {
 			f->remove = true;
 			adapter->aq_required |= I40EVF_FLAG_AQ_DEL_MAC_FILTER;
 		}
