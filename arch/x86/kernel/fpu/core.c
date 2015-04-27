@@ -169,15 +169,6 @@ void irq_ts_restore(int TS_state)
 }
 EXPORT_SYMBOL_GPL(irq_ts_restore);
 
-static void __save_fpu(struct fpu *fpu)
-{
-	if (use_xsave()) {
-		xsave_state(&fpu->state.xsave);
-	} else {
-		fpu_fxsave(fpu);
-	}
-}
-
 /*
  * Save the FPU state (initialize it if necessary):
  *
@@ -190,7 +181,7 @@ void fpu__save(struct fpu *fpu)
 	preempt_disable();
 	if (fpu->fpregs_active) {
 		if (use_eager_fpu()) {
-			__save_fpu(fpu);
+			copy_fpregs_to_fpstate(fpu);
 		} else {
 			copy_fpregs_to_fpstate(fpu);
 			fpregs_deactivate(fpu);
@@ -235,7 +226,7 @@ static void fpu_copy(struct fpu *dst_fpu, struct fpu *src_fpu)
 
 	if (use_eager_fpu()) {
 		memset(&dst_fpu->state.xsave, 0, xstate_size);
-		__save_fpu(dst_fpu);
+		copy_fpregs_to_fpstate(dst_fpu);
 	} else {
 		fpu__save(src_fpu);
 		memcpy(&dst_fpu->state, &src_fpu->state, xstate_size);
