@@ -223,7 +223,7 @@ static int mv64x60_host_map(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
-static struct irq_domain_ops mv64x60_host_ops = {
+static const struct irq_domain_ops mv64x60_host_ops = {
 	.map   = mv64x60_host_map,
 };
 

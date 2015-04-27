@@ -271,7 +271,7 @@ static int qe_ic_host_map(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
-static struct irq_domain_ops qe_ic_host_ops = {
+static const struct irq_domain_ops qe_ic_host_ops = {
 	.match = qe_ic_host_match,
 	.map = qe_ic_host_map,
 	.xlate = irq_domain_xlate_onetwocell,

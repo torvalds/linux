@@ -189,7 +189,7 @@ static int uic_host_map(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
-static struct irq_domain_ops uic_host_ops = {
+static const struct irq_domain_ops uic_host_ops = {
 	.map	= uic_host_map,
 	.xlate	= irq_domain_xlate_twocell,
 };
