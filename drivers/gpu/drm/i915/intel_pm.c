@@ -2639,8 +2639,18 @@ void skl_ddb_get_hw_state(struct drm_i915_private *dev_priv,
 }
 
 static unsigned int
-skl_plane_relative_data_rate(const struct intel_plane_wm_parameters *p)
+skl_plane_relative_data_rate(const struct intel_plane_wm_parameters *p, int y)
 {
+
+	/* for planar format */
+	if (p->y_bytes_per_pixel) {
+		if (y)  /* y-plane data rate */
+			return p->horiz_pixels * p->vert_pixels * p->y_bytes_per_pixel;
+		else    /* uv-plane data rate */
+			return (p->horiz_pixels/2) * (p->vert_pixels/2) * p->bytes_per_pixel;
+	}
+
+	/* for packed formats */
 	return p->horiz_pixels * p->vert_pixels * p->bytes_per_pixel;
 }
 
@@ -2663,7 +2673,10 @@ skl_get_total_relative_data_rate(struct intel_crtc *intel_crtc,
 		if (!p->enabled)
 			continue;
 
-		total_data_rate += skl_plane_relative_data_rate(p);
+		total_data_rate += skl_plane_relative_data_rate(p, 0); /* packed/uv */
+		if (p->y_bytes_per_pixel) {
+			total_data_rate += skl_plane_relative_data_rate(p, 1); /* y-plane */
+		}
 	}
 
 	return total_data_rate;
@@ -2682,6 +2695,7 @@ skl_allocate_pipe_ddb(struct drm_crtc *crtc,
 	struct skl_ddb_entry *alloc = &ddb->pipe[pipe];
 	uint16_t alloc_size, start, cursor_blocks;
 	uint16_t minimum[I915_MAX_PLANES];
+	uint16_t y_minimum[I915_MAX_PLANES];
 	unsigned int total_data_rate;
 	int plane;
 
@@ -2710,6 +2724,8 @@ skl_allocate_pipe_ddb(struct drm_crtc *crtc,
 
 		minimum[plane] = 8;
 		alloc_size -= minimum[plane];
+		y_minimum[plane] = p->y_bytes_per_pixel ? 8 : 0;
+		alloc_size -= y_minimum[plane];
 	}
 
 	/*
@@ -2723,16 +2739,17 @@ skl_allocate_pipe_ddb(struct drm_crtc *crtc,
 	start = alloc->start;
 	for (plane = 0; plane < intel_num_planes(intel_crtc); plane++) {
 		const struct intel_plane_wm_parameters *p;
-		unsigned int data_rate;
-		uint16_t plane_blocks;
+		unsigned int data_rate, y_data_rate;
+		uint16_t plane_blocks, y_plane_blocks = 0;
 
 		p = &params->plane[plane];
 		if (!p->enabled)
 			continue;
 
-		data_rate = skl_plane_relative_data_rate(p);
+		data_rate = skl_plane_relative_data_rate(p, 0);
 
 		/*
+		 * allocation for (packed formats) or (uv-plane part of planar format):
 		 * promote the expression to 64 bits to avoid overflowing, the
 		 * result is < available as data_rate / total_data_rate < 1
 		 */
@@ -2744,6 +2761,22 @@ skl_allocate_pipe_ddb(struct drm_crtc *crtc,
 		ddb->plane[pipe][plane].end = start + plane_blocks;
 
 		start += plane_blocks;
+
+		/*
+		 * allocation for y_plane part of planar format:
+		 */
+		if (p->y_bytes_per_pixel) {
+			y_data_rate = skl_plane_relative_data_rate(p, 1);
+			y_plane_blocks = y_minimum[plane];
+			y_plane_blocks += div_u64((uint64_t)alloc_size * y_data_rate,
+						total_data_rate);
+
+			ddb->y_plane[pipe][plane].start = start;
+			ddb->y_plane[pipe][plane].end = start + y_plane_blocks;
+
+			start += y_plane_blocks;
+		}
+
 	}
 
 }
@@ -2856,13 +2889,18 @@ static void skl_compute_wm_pipe_parameters(struct drm_crtc *crtc,
 		p->pixel_rate = skl_pipe_pixel_rate(intel_crtc->config);
 
 		fb = crtc->primary->state->fb;
+		/* For planar: Bpp is for uv plane, y_Bpp is for y plane */
 		if (fb) {
 			p->plane[0].enabled = true;
-			p->plane[0].bytes_per_pixel = fb->bits_per_pixel / 8;
+			p->plane[0].bytes_per_pixel = fb->pixel_format == DRM_FORMAT_NV12 ?
+				drm_format_plane_cpp(fb->pixel_format, 1) : fb->bits_per_pixel / 8;
+			p->plane[0].y_bytes_per_pixel = fb->pixel_format == DRM_FORMAT_NV12 ?
+				drm_format_plane_cpp(fb->pixel_format, 0) : 0;
 			p->plane[0].tiling = fb->modifier[0];
 		} else {
 			p->plane[0].enabled = false;
 			p->plane[0].bytes_per_pixel = 0;
+			p->plane[0].y_bytes_per_pixel = 0;
 			p->plane[0].tiling = DRM_FORMAT_MOD_NONE;
 		}
 		p->plane[0].horiz_pixels = intel_crtc->config->pipe_src_w;
@@ -2870,6 +2908,7 @@ static void skl_compute_wm_pipe_parameters(struct drm_crtc *crtc,
 		p->plane[0].rotation = crtc->primary->state->rotation;
 
 		fb = crtc->cursor->state->fb;
+		p->cursor.y_bytes_per_pixel = 0;
 		if (fb) {
 			p->cursor.enabled = true;
 			p->cursor.bytes_per_pixel = fb->bits_per_pixel / 8;
@@ -2905,22 +2944,25 @@ static bool skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 	uint32_t plane_bytes_per_line, plane_blocks_per_line;
 	uint32_t res_blocks, res_lines;
 	uint32_t selected_result;
+	uint8_t bytes_per_pixel;
 
 	if (latency == 0 || !p->active || !p_params->enabled)
 		return false;
 
+	bytes_per_pixel = p_params->y_bytes_per_pixel ?
+		p_params->y_bytes_per_pixel :
+		p_params->bytes_per_pixel;
 	method1 = skl_wm_method1(p->pixel_rate,
-				 p_params->bytes_per_pixel,
+				 bytes_per_pixel,
 				 latency);
 	method2 = skl_wm_method2(p->pixel_rate,
 				 p->pipe_htotal,
 				 p_params->horiz_pixels,
-				 p_params->bytes_per_pixel,
+				 bytes_per_pixel,
 				 p_params->tiling,
 				 latency);
 
-	plane_bytes_per_line = p_params->horiz_pixels *
-					p_params->bytes_per_pixel;
+	plane_bytes_per_line = p_params->horiz_pixels * bytes_per_pixel;
 	plane_blocks_per_line = DIV_ROUND_UP(plane_bytes_per_line, 512);
 
 	if (p_params->tiling == I915_FORMAT_MOD_Y_TILED ||
@@ -3137,10 +3179,14 @@ static void skl_write_wm_values(struct drm_i915_private *dev_priv,
 				   new->plane_trans[pipe][i]);
 		I915_WRITE(CUR_WM_TRANS(pipe), new->cursor_trans[pipe]);
 
-		for (i = 0; i < intel_num_planes(crtc); i++)
+		for (i = 0; i < intel_num_planes(crtc); i++) {
 			skl_ddb_entry_write(dev_priv,
 					    PLANE_BUF_CFG(pipe, i),
 					    &new->ddb.plane[pipe][i]);
+			skl_ddb_entry_write(dev_priv,
+					    PLANE_NV12_BUF_CFG(pipe, i),
+					    &new->ddb.y_plane[pipe][i]);
+		}
 
 		skl_ddb_entry_write(dev_priv, CUR_BUF_CFG(pipe),
 				    &new->ddb.cursor[pipe]);
@@ -3298,6 +3344,7 @@ static bool skl_update_pipe_wm(struct drm_crtc *crtc,
 		return false;
 
 	intel_crtc->wm.skl_active = *pipe_wm;
+
 	return true;
 }
 
@@ -3391,8 +3438,16 @@ skl_update_sprite_wm(struct drm_plane *plane, struct drm_crtc *crtc,
 	intel_plane->wm.scaled = scaled;
 	intel_plane->wm.horiz_pixels = sprite_width;
 	intel_plane->wm.vert_pixels = sprite_height;
-	intel_plane->wm.bytes_per_pixel = pixel_size;
 	intel_plane->wm.tiling = DRM_FORMAT_MOD_NONE;
+
+	/* For planar: Bpp is for UV plane, y_Bpp is for Y plane */
+	intel_plane->wm.bytes_per_pixel =
+		(fb && fb->pixel_format == DRM_FORMAT_NV12) ?
+		drm_format_plane_cpp(plane->state->fb->pixel_format, 1) : pixel_size;
+	intel_plane->wm.y_bytes_per_pixel =
+		(fb && fb->pixel_format == DRM_FORMAT_NV12) ?
+		drm_format_plane_cpp(plane->state->fb->pixel_format, 0) : 0;
+
 	/*
 	 * Framebuffer can be NULL on plane disable, but it does not
 	 * matter for watermarks if we assume no tiling in that case.

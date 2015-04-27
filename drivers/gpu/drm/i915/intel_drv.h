@@ -555,7 +555,15 @@ struct intel_crtc {
 struct intel_plane_wm_parameters {
 	uint32_t horiz_pixels;
 	uint32_t vert_pixels;
+	/*
+	 *   For packed pixel formats:
+	 *     bytes_per_pixel - holds bytes per pixel
+	 *   For planar pixel formats:
+	 *     bytes_per_pixel - holds bytes per pixel for uv-plane
+	 *     y_bytes_per_pixel - holds bytes per pixel for y-plane
+	 */
 	uint8_t bytes_per_pixel;
+	uint8_t y_bytes_per_pixel;
 	bool enabled;
 	bool scaled;
 	u64 tiling;

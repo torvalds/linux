@@ -1468,7 +1468,8 @@ static inline bool skl_ddb_entry_equal(const struct skl_ddb_entry *e1,
 
 struct skl_ddb_allocation {
 	struct skl_ddb_entry pipe[I915_MAX_PIPES];
-	struct skl_ddb_entry plane[I915_MAX_PIPES][I915_MAX_PLANES];
+	struct skl_ddb_entry plane[I915_MAX_PIPES][I915_MAX_PLANES]; /* packed/uv */
+	struct skl_ddb_entry y_plane[I915_MAX_PIPES][I915_MAX_PLANES]; /* y-plane */
 	struct skl_ddb_entry cursor[I915_MAX_PIPES];
 };
 
