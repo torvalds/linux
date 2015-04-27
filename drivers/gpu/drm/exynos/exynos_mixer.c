@@ -44,6 +44,12 @@
 #define MIXER_WIN_NR		3
 #define MIXER_DEFAULT_WIN	0
 
+/* The pixelformats that are natively supported by the mixer. */
+#define MXR_FORMAT_RGB565	4
+#define MXR_FORMAT_ARGB1555	5
+#define MXR_FORMAT_ARGB4444	6
+#define MXR_FORMAT_ARGB8888	7
+
 struct mixer_resources {
 	int			irq;
 	void __iomem		*mixer_regs;
@@ -521,20 +527,27 @@ static void mixer_graph_buffer(struct mixer_context *ctx, int win)
 
 	plane = &ctx->planes[win];
 
-	#define RGB565 4
-	#define ARGB1555 5
-	#define ARGB4444 6
-	#define ARGB8888 7
+	switch (plane->pixel_format) {
+	case DRM_FORMAT_XRGB4444:
+		fmt = MXR_FORMAT_ARGB4444;
+		break;
 
-	switch (plane->bpp) {
-	case 16:
-		fmt = ARGB4444;
+	case DRM_FORMAT_XRGB1555:
+		fmt = MXR_FORMAT_ARGB1555;
 		break;
-	case 32:
-		fmt = ARGB8888;
+
+	case DRM_FORMAT_RGB565:
+		fmt = MXR_FORMAT_RGB565;
 		break;
+
+	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_ARGB8888:
+		fmt = MXR_FORMAT_ARGB8888;
+		break;
+
 	default:
-		fmt = ARGB8888;
+		DRM_DEBUG_KMS("pixelformat unsupported by mixer\n");
+		return;
 	}
 
 	/* check if mixer supports requested scaling setup */
