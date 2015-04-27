@@ -835,6 +835,7 @@ static unsigned long cpif_clk_regs[] __initdata = {
 	MPHY_PLL_CON1,
 	MPHY_PLL_FREQ_DET,
 	MUX_SEL_CPIF0,
+	DIV_CPIF,
 	ENABLE_SCLK_CPIF,
 };
 
