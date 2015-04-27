@@ -460,6 +460,7 @@ struct intel_pipe_wm {
 
 struct intel_mmio_flip {
 	struct work_struct work;
+	struct drm_i915_private *i915;
 	struct drm_i915_gem_request *req;
 	struct intel_crtc *crtc;
 };

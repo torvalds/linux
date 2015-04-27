@@ -2312,6 +2312,7 @@ static int i915_rps_boost_info(struct seq_file *m, void *data)
 		rcu_read_unlock();
 	}
 	seq_printf(m, "Semaphore boosts: %d\n", dev_priv->rps.semaphores.rps_boosts);
+	seq_printf(m, "MMIO flip boosts: %d\n", dev_priv->rps.mmioflips.rps_boosts);
 	seq_printf(m, "Kernel boosts: %d\n", dev_priv->rps.boosts);
 
 	mutex_unlock(&dev_priv->rps.hw_lock);

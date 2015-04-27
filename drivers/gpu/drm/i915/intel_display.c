@@ -10788,7 +10788,8 @@ static void intel_mmio_flip_work_func(struct work_struct *work)
 	if (mmio_flip->req)
 		WARN_ON(__i915_wait_request(mmio_flip->req,
 					    mmio_flip->crtc->reset_counter,
-					    false, NULL, NULL));
+					    false, NULL,
+					    &mmio_flip->i915->rps.mmioflips));
 
 	intel_do_mmio_flip(mmio_flip->crtc);
 
@@ -10809,6 +10810,7 @@ static int intel_queue_mmio_flip(struct drm_device *dev,
 	if (mmio_flip == NULL)
 		return -ENOMEM;
 
+	mmio_flip->i915 = to_i915(dev);
 	mmio_flip->req = i915_gem_request_reference(obj->last_write_req);
 	mmio_flip->crtc = to_intel_crtc(crtc);
 

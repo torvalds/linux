@@ -6885,6 +6885,7 @@ void intel_pm_setup(struct drm_device *dev)
 			  intel_gen6_powersave_work);
 	INIT_LIST_HEAD(&dev_priv->rps.clients);
 	INIT_LIST_HEAD(&dev_priv->rps.semaphores.rps_boost);
+	INIT_LIST_HEAD(&dev_priv->rps.mmioflips.rps_boost);
 
 	dev_priv->pm.suspended = false;
 }

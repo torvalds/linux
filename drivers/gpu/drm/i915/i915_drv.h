@@ -1087,6 +1087,7 @@ struct intel_gen6_power_mgmt {
 	unsigned boosts;
 
 	struct drm_i915_file_private semaphores;
+	struct drm_i915_file_private mmioflips;
 
 	/* manual wa residency calculations */
 	struct intel_rps_ei up_ei, down_ei;
