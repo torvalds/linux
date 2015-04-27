@@ -32,7 +32,7 @@
 #include <crypto/cryptd.h>
 #include <crypto/ctr.h>
 #include <asm/xcr.h>
-#include <asm/xsave.h>
+#include <asm/fpu/xsave.h>
 #include <asm/crypto/glue_helper.h>
 
 #define CAST5_PARALLEL_BLOCKS 16

@@ -38,7 +38,7 @@
 #include <crypto/xts.h>
 #include <asm/fpu/api.h>
 #include <asm/xcr.h>
-#include <asm/xsave.h>
+#include <asm/fpu/xsave.h>
 #include <asm/crypto/twofish.h>
 #include <asm/crypto/glue_helper.h>
 #include <crypto/scatterwalk.h>

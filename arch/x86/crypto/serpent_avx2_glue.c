@@ -21,7 +21,7 @@
 #include <crypto/xts.h>
 #include <crypto/serpent.h>
 #include <asm/xcr.h>
-#include <asm/xsave.h>
+#include <asm/fpu/xsave.h>
 #include <asm/crypto/serpent-avx.h>
 #include <asm/crypto/glue_helper.h>
 

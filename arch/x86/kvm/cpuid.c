@@ -17,7 +17,7 @@
 #include <linux/vmalloc.h>
 #include <linux/uaccess.h>
 #include <asm/user.h>
-#include <asm/xsave.h>
+#include <asm/fpu/xsave.h>
 #include "cpuid.h"
 #include "lapic.h"
 #include "mmu.h"

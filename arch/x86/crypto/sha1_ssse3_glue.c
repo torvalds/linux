@@ -31,7 +31,7 @@
 #include <crypto/sha1_base.h>
 #include <asm/fpu/api.h>
 #include <asm/xcr.h>
-#include <asm/xsave.h>
+#include <asm/fpu/xsave.h>
 
 
 asmlinkage void sha1_transform_ssse3(u32 *digest, const char *data,

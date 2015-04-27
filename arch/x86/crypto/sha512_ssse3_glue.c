@@ -37,7 +37,7 @@
 #include <crypto/sha512_base.h>
 #include <asm/fpu/api.h>
 #include <asm/xcr.h>
-#include <asm/xsave.h>
+#include <asm/fpu/xsave.h>
 
 #include <linux/string.h>
 
