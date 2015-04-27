@@ -3196,7 +3196,7 @@ static int kvm_vcpu_ioctl_x86_set_debugregs(struct kvm_vcpu *vcpu,
 
 static void fill_xsave(u8 *dest, struct kvm_vcpu *vcpu)
 {
-	struct xsave_struct *xsave = &vcpu->arch.guest_fpu.state->xsave;
+	struct xsave_struct *xsave = &vcpu->arch.guest_fpu.state.xsave;
 	u64 xstate_bv = xsave->header.xfeatures;
 	u64 valid;
 
@@ -3232,7 +3232,7 @@ static void fill_xsave(u8 *dest, struct kvm_vcpu *vcpu)
 
 static void load_xsave(struct kvm_vcpu *vcpu, u8 *src)
 {
-	struct xsave_struct *xsave = &vcpu->arch.guest_fpu.state->xsave;
+	struct xsave_struct *xsave = &vcpu->arch.guest_fpu.state.xsave;
 	u64 xstate_bv = *(u64 *)(src + XSAVE_HDR_OFFSET);
 	u64 valid;
 
@@ -3277,7 +3277,7 @@ static void kvm_vcpu_ioctl_x86_get_xsave(struct kvm_vcpu *vcpu,
 		fill_xsave((u8 *) guest_xsave->region, vcpu);
 	} else {
 		memcpy(guest_xsave->region,
-			&vcpu->arch.guest_fpu.state->fxsave,
+			&vcpu->arch.guest_fpu.state.fxsave,
 			sizeof(struct i387_fxsave_struct));
 		*(u64 *)&guest_xsave->region[XSAVE_HDR_OFFSET / sizeof(u32)] =
 			XSTATE_FPSSE;
@@ -3302,7 +3302,7 @@ static int kvm_vcpu_ioctl_x86_set_xsave(struct kvm_vcpu *vcpu,
 	} else {
 		if (xstate_bv & ~XSTATE_FPSSE)
 			return -EINVAL;
-		memcpy(&vcpu->arch.guest_fpu.state->fxsave,
+		memcpy(&vcpu->arch.guest_fpu.state.fxsave,
 			guest_xsave->region, sizeof(struct i387_fxsave_struct));
 	}
 	return 0;
@@ -6973,7 +6973,7 @@ int kvm_arch_vcpu_ioctl_translate(struct kvm_vcpu *vcpu,
 int kvm_arch_vcpu_ioctl_get_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)
 {
 	struct i387_fxsave_struct *fxsave =
-			&vcpu->arch.guest_fpu.state->fxsave;
+			&vcpu->arch.guest_fpu.state.fxsave;
 
 	memcpy(fpu->fpr, fxsave->st_space, 128);
 	fpu->fcw = fxsave->cwd;
@@ -6990,7 +6990,7 @@ int kvm_arch_vcpu_ioctl_get_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)
 int kvm_arch_vcpu_ioctl_set_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)
 {
 	struct i387_fxsave_struct *fxsave =
-			&vcpu->arch.guest_fpu.state->fxsave;
+			&vcpu->arch.guest_fpu.state.fxsave;
 
 	memcpy(fxsave->st_space, fpu->fpr, 128);
 	fxsave->cwd = fpu->fcw;
@@ -7014,7 +7014,7 @@ int fx_init(struct kvm_vcpu *vcpu)
 
 	fpstate_init(&vcpu->arch.guest_fpu);
 	if (cpu_has_xsaves)
-		vcpu->arch.guest_fpu.state->xsave.header.xcomp_bv =
+		vcpu->arch.guest_fpu.state.xsave.header.xcomp_bv =
 			host_xcr0 | XSTATE_COMPACTION_ENABLED;
 
 	/*

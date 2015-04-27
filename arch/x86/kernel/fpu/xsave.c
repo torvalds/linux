@@ -44,14 +44,14 @@ static unsigned int xfeatures_nr;
  */
 void __sanitize_i387_state(struct task_struct *tsk)
 {
-	struct i387_fxsave_struct *fx = &tsk->thread.fpu.state->fxsave;
+	struct i387_fxsave_struct *fx = &tsk->thread.fpu.state.fxsave;
 	int feature_bit;
 	u64 xfeatures;
 
 	if (!fx)
 		return;
 
-	xfeatures = tsk->thread.fpu.state->xsave.header.xfeatures;
+	xfeatures = tsk->thread.fpu.state.xsave.header.xfeatures;
 
 	/*
 	 * None of the feature bits are in init state. So nothing else
@@ -147,7 +147,7 @@ static inline int check_for_xstate(struct i387_fxsave_struct __user *buf,
 static inline int save_fsave_header(struct task_struct *tsk, void __user *buf)
 {
 	if (use_fxsr()) {
-		struct xsave_struct *xsave = &tsk->thread.fpu.state->xsave;
+		struct xsave_struct *xsave = &tsk->thread.fpu.state.xsave;
 		struct user_i387_ia32_struct env;
 		struct _fpstate_ia32 __user *fp = buf;
 
@@ -245,7 +245,7 @@ static inline int save_user_xstate(struct xsave_struct __user *buf)
  */
 int save_xstate_sig(void __user *buf, void __user *buf_fx, int size)
 {
-	struct xsave_struct *xsave = &current->thread.fpu.state->xsave;
+	struct xsave_struct *xsave = &current->thread.fpu.state.xsave;
 	struct task_struct *tsk = current;
 	int ia32_fxstate = (buf != buf_fx);
 
@@ -288,7 +288,7 @@ sanitize_restored_xstate(struct task_struct *tsk,
 			 struct user_i387_ia32_struct *ia32_env,
 			 u64 xfeatures, int fx_only)
 {
-	struct xsave_struct *xsave = &tsk->thread.fpu.state->xsave;
+	struct xsave_struct *xsave = &tsk->thread.fpu.state.xsave;
 	struct xstate_header *header = &xsave->header;
 
 	if (use_xsave()) {
@@ -402,7 +402,7 @@ int __restore_xstate_sig(void __user *buf, void __user *buf_fx, int size)
 		 */
 		drop_fpu(fpu);
 
-		if (__copy_from_user(&fpu->state->xsave, buf_fx, state_size) ||
+		if (__copy_from_user(&fpu->state.xsave, buf_fx, state_size) ||
 		    __copy_from_user(&env, buf, sizeof(env))) {
 			fpstate_init(fpu);
 			err = -1;

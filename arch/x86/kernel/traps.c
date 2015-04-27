@@ -396,7 +396,7 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
 	 * do an xsave and then pull it out of the xsave buffer.
 	 */
 	copy_fpregs_to_fpstate(&tsk->thread.fpu);
-	xsave_buf = &(tsk->thread.fpu.state->xsave);
+	xsave_buf = &(tsk->thread.fpu.state.xsave);
 	bndcsr = get_xsave_addr(xsave_buf, XSTATE_BNDCSR);
 	if (!bndcsr)
 		goto exit_trap;

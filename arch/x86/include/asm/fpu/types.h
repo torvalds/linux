@@ -143,7 +143,7 @@ struct fpu {
 	unsigned int			last_cpu;
 
 	unsigned int			fpregs_active;
-	union thread_xstate		*state;
+	union thread_xstate		state;
 	/*
 	 * This counter contains the number of consecutive context switches
 	 * during which the FPU stays used. If this is over a threshold, the

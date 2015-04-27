@@ -358,7 +358,7 @@ static __user void *task_get_bounds_dir(struct task_struct *tsk)
 	 * only accessible if we first do an xsave.
 	 */
 	copy_fpregs_to_fpstate(&tsk->thread.fpu);
-	bndcsr = get_xsave_addr(&tsk->thread.fpu.state->xsave, XSTATE_BNDCSR);
+	bndcsr = get_xsave_addr(&tsk->thread.fpu.state.xsave, XSTATE_BNDCSR);
 	if (!bndcsr)
 		return MPX_INVALID_BOUNDS_DIR;
 

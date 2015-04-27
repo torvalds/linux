@@ -52,7 +52,7 @@ void finit_soft_fpu(struct i387_soft_struct *soft)
 
 void finit(void)
 {
-	finit_soft_fpu(&current->thread.fpu.state->soft);
+	finit_soft_fpu(&current->thread.fpu.state.soft);
 }
 
 /*

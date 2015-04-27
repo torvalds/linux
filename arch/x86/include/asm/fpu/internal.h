@@ -232,9 +232,9 @@ static inline int frstor_user(struct i387_fsave_struct __user *fx)
 static inline void fpu_fxsave(struct fpu *fpu)
 {
 	if (config_enabled(CONFIG_X86_32))
-		asm volatile( "fxsave %[fx]" : [fx] "=m" (fpu->state->fxsave));
+		asm volatile( "fxsave %[fx]" : [fx] "=m" (fpu->state.fxsave));
 	else if (config_enabled(CONFIG_AS_FXSAVEQ))
-		asm volatile("fxsaveq %[fx]" : [fx] "=m" (fpu->state->fxsave));
+		asm volatile("fxsaveq %[fx]" : [fx] "=m" (fpu->state.fxsave));
 	else {
 		/* Using "rex64; fxsave %0" is broken because, if the memory
 		 * operand uses any extended registers for addressing, a second
@@ -251,15 +251,15 @@ static inline void fpu_fxsave(struct fpu *fpu)
 		 * an extended register is needed for addressing (fix submitted
 		 * to mainline 2005-11-21).
 		 *
-		 *  asm volatile("rex64/fxsave %0" : "=m" (fpu->state->fxsave));
+		 *  asm volatile("rex64/fxsave %0" : "=m" (fpu->state.fxsave));
 		 *
 		 * This, however, we can work around by forcing the compiler to
 		 * select an addressing mode that doesn't require extended
 		 * registers.
 		 */
 		asm volatile( "rex64/fxsave (%[fx])"
-			     : "=m" (fpu->state->fxsave)
-			     : [fx] "R" (&fpu->state->fxsave));
+			     : "=m" (fpu->state.fxsave)
+			     : [fx] "R" (&fpu->state.fxsave));
 	}
 }
 
@@ -276,7 +276,7 @@ static inline void fpu_fxsave(struct fpu *fpu)
 static inline int copy_fpregs_to_fpstate(struct fpu *fpu)
 {
 	if (likely(use_xsave())) {
-		xsave_state(&fpu->state->xsave);
+		xsave_state(&fpu->state.xsave);
 		return 1;
 	}
 
@@ -289,7 +289,7 @@ static inline int copy_fpregs_to_fpstate(struct fpu *fpu)
 	 * Legacy FPU register saving, FNSAVE always clears FPU registers,
 	 * so we have to mark them inactive:
 	 */
-	asm volatile("fnsave %[fx]; fwait" : [fx] "=m" (fpu->state->fsave));
+	asm volatile("fnsave %[fx]; fwait" : [fx] "=m" (fpu->state.fsave));
 
 	return 0;
 }
@@ -299,11 +299,11 @@ extern void fpu__save(struct fpu *fpu);
 static inline int fpu_restore_checking(struct fpu *fpu)
 {
 	if (use_xsave())
-		return fpu_xrstor_checking(&fpu->state->xsave);
+		return fpu_xrstor_checking(&fpu->state.xsave);
 	else if (use_fxsr())
-		return fxrstor_checking(&fpu->state->fxsave);
+		return fxrstor_checking(&fpu->state.fxsave);
 	else
-		return frstor_checking(&fpu->state->fsave);
+		return frstor_checking(&fpu->state.fsave);
 }
 
 static inline int restore_fpu_checking(struct fpu *fpu)
@@ -454,7 +454,7 @@ switch_fpu_prepare(struct fpu *old_fpu, struct fpu *new_fpu, int cpu)
 		if (fpu.preload) {
 			new_fpu->counter++;
 			__fpregs_activate(new_fpu);
-			prefetch(new_fpu->state);
+			prefetch(&new_fpu->state);
 		} else if (!use_eager_fpu())
 			stts();
 	} else {
@@ -465,7 +465,7 @@ switch_fpu_prepare(struct fpu *old_fpu, struct fpu *new_fpu, int cpu)
 			if (fpu_want_lazy_restore(new_fpu, cpu))
 				fpu.preload = 0;
 			else
-				prefetch(new_fpu->state);
+				prefetch(&new_fpu->state);
 			fpregs_activate(new_fpu);
 		}
 	}
@@ -534,25 +534,25 @@ static inline void user_fpu_begin(void)
 static inline unsigned short get_fpu_cwd(struct task_struct *tsk)
 {
 	if (cpu_has_fxsr) {
-		return tsk->thread.fpu.state->fxsave.cwd;
+		return tsk->thread.fpu.state.fxsave.cwd;
 	} else {
-		return (unsigned short)tsk->thread.fpu.state->fsave.cwd;
+		return (unsigned short)tsk->thread.fpu.state.fsave.cwd;
 	}
 }
 
 static inline unsigned short get_fpu_swd(struct task_struct *tsk)
 {
 	if (cpu_has_fxsr) {
-		return tsk->thread.fpu.state->fxsave.swd;
+		return tsk->thread.fpu.state.fxsave.swd;
 	} else {
-		return (unsigned short)tsk->thread.fpu.state->fsave.swd;
+		return (unsigned short)tsk->thread.fpu.state.fsave.swd;
 	}
 }
 
 static inline unsigned short get_fpu_mxcsr(struct task_struct *tsk)
 {
 	if (cpu_has_xmm) {
-		return tsk->thread.fpu.state->fxsave.mxcsr;
+		return tsk->thread.fpu.state.fxsave.mxcsr;
 	} else {
 		return MXCSR_DEFAULT;
 	}
