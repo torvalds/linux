@@ -38,6 +38,11 @@
 #define DEF_SRC_FMT_DEC				V4L2_PIX_FMT_H264_SLICE
 #define DEF_DST_FMT_DEC				V4L2_PIX_FMT_NV12
 
+#define RK3288_DEC_MIN_WIDTH			48U
+#define RK3288_DEC_MAX_WIDTH			3840U
+#define RK3288_DEC_MIN_HEIGHT			48U
+#define RK3288_DEC_MAX_HEIGHT			2160U
+
 #define RK3288_H264_MAX_SLICES_PER_FRAME	16
 
 static struct rk3288_vpu_fmt formats[] = {
@@ -289,8 +294,10 @@ static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f)
 		}
 
 		/* Limit to hardware min/max. */
-		pix_fmt_mp->width = clamp(pix_fmt_mp->width, 48U, 3840U);
-		pix_fmt_mp->height = clamp(pix_fmt_mp->height, 48U, 2160U);
+		pix_fmt_mp->width = clamp(pix_fmt_mp->width,
+				RK3288_DEC_MIN_WIDTH, RK3288_DEC_MAX_WIDTH);
+		pix_fmt_mp->height = clamp(pix_fmt_mp->height,
+				RK3288_DEC_MIN_HEIGHT, RK3288_DEC_MAX_HEIGHT);
 
 		/* Round up to macroblocks. */
 		pix_fmt_mp->width = round_up(pix_fmt_mp->width, MB_DIM);

@@ -44,6 +44,11 @@
 #define DEF_SRC_FMT_ENC				V4L2_PIX_FMT_NV12
 #define DEF_DST_FMT_ENC				V4L2_PIX_FMT_VP8
 
+#define RK3288_ENC_MIN_WIDTH			96U
+#define RK3288_ENC_MAX_WIDTH			1920U
+#define RK3288_ENC_MIN_HEIGHT			96U
+#define RK3288_ENC_MAX_HEIGHT			1088U
+
 #define V4L2_CID_PRIVATE_RK3288_HEADER		(V4L2_CID_CUSTOM_BASE + 0)
 #define V4L2_CID_PRIVATE_RK3288_REG_PARAMS	(V4L2_CID_CUSTOM_BASE + 1)
 #define V4L2_CID_PRIVATE_RK3288_HW_PARAMS	(V4L2_CID_CUSTOM_BASE + 2)
@@ -481,9 +486,10 @@ static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f)
 		}
 
 		/* Limit to hardware min/max. */
-		pix_fmt_mp->width = clamp(pix_fmt_mp->width, 96U, 1920U);
-		pix_fmt_mp->height = clamp(pix_fmt_mp->height, 96U, 1088U);
-
+		pix_fmt_mp->width = clamp(pix_fmt_mp->width,
+				RK3288_ENC_MIN_WIDTH, RK3288_ENC_MAX_WIDTH);
+		pix_fmt_mp->height = clamp(pix_fmt_mp->height,
+				RK3288_ENC_MIN_HEIGHT, RK3288_ENC_MAX_HEIGHT);
 		/* Round up to macroblocks. */
 		pix_fmt_mp->width = round_up(pix_fmt_mp->width, MB_DIM);
 		pix_fmt_mp->height = round_up(pix_fmt_mp->height, MB_DIM);
