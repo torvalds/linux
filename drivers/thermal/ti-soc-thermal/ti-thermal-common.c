@@ -429,7 +429,7 @@ int ti_thermal_unregister_cpu_cooling(struct ti_bandgap *bgp, int id)
 
 	data = ti_bandgap_get_sensor_data(bgp, id);
 
-	if (data && data->cool_dev)
+	if (data)
 		cpufreq_cooling_unregister(data->cool_dev);
 
 	return 0;

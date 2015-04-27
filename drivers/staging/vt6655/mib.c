@@ -63,51 +63,51 @@ void STAvUpdateIsrStatCounter(PSStatCounter pStatistic, unsigned long dwIsr)
 	/**********************/
 	/* ABNORMAL interrupt */
 	/**********************/
-	// not any IMR bit invoke irq
+	/* not any IMR bit invoke irq */
 
 	if (dwIsr == 0) {
 		pStatistic->ISRStat.dwIsrUnknown++;
 		return;
 	}
 
-//Added by Kyle
-	if (dwIsr & ISR_TXDMA0)               // ISR, bit0
-		pStatistic->ISRStat.dwIsrTx0OK++;             // TXDMA0 successful
+/* Added by Kyle */
+	if (dwIsr & ISR_TXDMA0)               /* ISR, bit0 */
+		pStatistic->ISRStat.dwIsrTx0OK++;             /* TXDMA0 successful */
 
-	if (dwIsr & ISR_AC0DMA)               // ISR, bit1
-		pStatistic->ISRStat.dwIsrAC0TxOK++;           // AC0DMA successful
+	if (dwIsr & ISR_AC0DMA)               /* ISR, bit1 */
+		pStatistic->ISRStat.dwIsrAC0TxOK++;           /* AC0DMA successful */
 
-	if (dwIsr & ISR_BNTX)                 // ISR, bit2
-		pStatistic->ISRStat.dwIsrBeaconTxOK++;        // BeaconTx successful
+	if (dwIsr & ISR_BNTX)                 /* ISR, bit2 */
+		pStatistic->ISRStat.dwIsrBeaconTxOK++;        /* BeaconTx successful */
 
-	if (dwIsr & ISR_RXDMA0)               // ISR, bit3
-		pStatistic->ISRStat.dwIsrRx0OK++;             // Rx0 successful
+	if (dwIsr & ISR_RXDMA0)               /* ISR, bit3 */
+		pStatistic->ISRStat.dwIsrRx0OK++;             /* Rx0 successful */
 
-	if (dwIsr & ISR_TBTT)                 // ISR, bit4
-		pStatistic->ISRStat.dwIsrTBTTInt++;           // TBTT successful
+	if (dwIsr & ISR_TBTT)                 /* ISR, bit4 */
+		pStatistic->ISRStat.dwIsrTBTTInt++;           /* TBTT successful */
 
-	if (dwIsr & ISR_SOFTTIMER)            // ISR, bit6
+	if (dwIsr & ISR_SOFTTIMER)            /* ISR, bit6 */
 		pStatistic->ISRStat.dwIsrSTIMERInt++;
 
-	if (dwIsr & ISR_WATCHDOG)             // ISR, bit7
+	if (dwIsr & ISR_WATCHDOG)             /* ISR, bit7 */
 		pStatistic->ISRStat.dwIsrWatchDog++;
 
-	if (dwIsr & ISR_FETALERR)             // ISR, bit8
+	if (dwIsr & ISR_FETALERR)             /* ISR, bit8 */
 		pStatistic->ISRStat.dwIsrUnrecoverableError++;
 
-	if (dwIsr & ISR_SOFTINT)              // ISR, bit9
-		pStatistic->ISRStat.dwIsrSoftInterrupt++;     // software interrupt
+	if (dwIsr & ISR_SOFTINT)              /* ISR, bit9 */
+		pStatistic->ISRStat.dwIsrSoftInterrupt++;     /* software interrupt */
 
-	if (dwIsr & ISR_MIBNEARFULL)          // ISR, bit10
+	if (dwIsr & ISR_MIBNEARFULL)          /* ISR, bit10 */
 		pStatistic->ISRStat.dwIsrMIBNearfull++;
 
-	if (dwIsr & ISR_RXNOBUF)              // ISR, bit11
-		pStatistic->ISRStat.dwIsrRxNoBuf++;           // Rx No Buff
+	if (dwIsr & ISR_RXNOBUF)              /* ISR, bit11 */
+		pStatistic->ISRStat.dwIsrRxNoBuf++;           /* Rx No Buff */
 
-	if (dwIsr & ISR_RXDMA1)               // ISR, bit12
-		pStatistic->ISRStat.dwIsrRx1OK++;             // Rx1 successful
+	if (dwIsr & ISR_RXDMA1)               /* ISR, bit12 */
+		pStatistic->ISRStat.dwIsrRx1OK++;             /* Rx1 successful */
 
-	if (dwIsr & ISR_SOFTTIMER1)           // ISR, bit21
+	if (dwIsr & ISR_SOFTTIMER1)           /* ISR, bit21 */
 		pStatistic->ISRStat.dwIsrSTIMER1Int++;
 }
 

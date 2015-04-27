@@ -423,8 +423,7 @@ out:
 }
 EXPORT_SYMBOL(acpi_pci_osc_control_set);
 
-static void negotiate_os_control(struct acpi_pci_root *root, int *no_aspm,
-				 int *clear_aspm)
+static void negotiate_os_control(struct acpi_pci_root *root, int *no_aspm)
 {
 	u32 support, control, requested;
 	acpi_status status;
@@ -495,10 +494,12 @@ static void negotiate_os_control(struct acpi_pci_root *root, int *no_aspm,
 		decode_osc_control(root, "OS now controls", control);
 		if (acpi_gbl_FADT.boot_flags & ACPI_FADT_NO_ASPM) {
 			/*
-			 * We have ASPM control, but the FADT indicates
-			 * that it's unsupported. Clear it.
+			 * We have ASPM control, but the FADT indicates that
+			 * it's unsupported. Leave existing configuration
+			 * intact and prevent the OS from touching it.
 			 */
-			*clear_aspm = 1;
+			dev_info(&device->dev, "FADT indicates ASPM is unsupported, using BIOS configuration\n");
+			*no_aspm = 1;
 		}
 	} else {
 		decode_osc_control(root, "OS requested", requested);
@@ -525,7 +526,7 @@ static int acpi_pci_root_add(struct acpi_device *device,
 	int result;
 	struct acpi_pci_root *root;
 	acpi_handle handle = device->handle;
-	int no_aspm = 0, clear_aspm = 0;
+	int no_aspm = 0;
 	bool hotadd = system_state != SYSTEM_BOOTING;
 
 	root = kzalloc(sizeof(struct acpi_pci_root), GFP_KERNEL);
@@ -584,7 +585,7 @@ static int acpi_pci_root_add(struct acpi_device *device,
 
 	root->mcfg_addr = acpi_pci_root_get_mcfg_addr(handle);
 
-	negotiate_os_control(root, &no_aspm, &clear_aspm);
+	negotiate_os_control(root, &no_aspm);
 
 	/*
 	 * TBD: Need PCI interface for enumeration/configuration of roots.
@@ -607,10 +608,6 @@ static int acpi_pci_root_add(struct acpi_device *device,
 		goto remove_dmar;
 	}
 
-	if (clear_aspm) {
-		dev_info(&device->dev, "Disabling ASPM (FADT indicates it is unsupported)\n");
-		pcie_clear_aspm(root->bus);
-	}
 	if (no_aspm)
 		pcie_no_aspm();
 

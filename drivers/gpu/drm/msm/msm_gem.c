@@ -32,6 +32,12 @@ static dma_addr_t physaddr(struct drm_gem_object *obj)
 			priv->vram.paddr;
 }
 
+static bool use_pages(struct drm_gem_object *obj)
+{
+	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+	return !msm_obj->vram_node;
+}
+
 /* allocate pages from VRAM carveout, used when no IOMMU: */
 static struct page **get_pages_vram(struct drm_gem_object *obj,
 		int npages)
@@ -72,7 +78,7 @@ static struct page **get_pages(struct drm_gem_object *obj)
 		struct page **p;
 		int npages = obj->size >> PAGE_SHIFT;
 
-		if (iommu_present(&platform_bus_type))
+		if (use_pages(obj))
 			p = drm_gem_get_pages(obj);
 		else
 			p = get_pages_vram(obj, npages);
@@ -116,7 +122,7 @@ static void put_pages(struct drm_gem_object *obj)
 		sg_free_table(msm_obj->sgt);
 		kfree(msm_obj->sgt);
 
-		if (iommu_present(&platform_bus_type))
+		if (use_pages(obj))
 			drm_gem_put_pages(obj, msm_obj->pages, true, false);
 		else {
 			drm_mm_remove_node(msm_obj->vram_node);
@@ -580,6 +586,7 @@ static int msm_gem_new_impl(struct drm_device *dev,
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_gem_object *msm_obj;
 	unsigned sz;
+	bool use_vram = false;
 
 	switch (flags & MSM_BO_CACHE_MASK) {
 	case MSM_BO_UNCACHED:
@@ -592,15 +599,23 @@ static int msm_gem_new_impl(struct drm_device *dev,
 		return -EINVAL;
 	}
 
-	sz = sizeof(*msm_obj);
 	if (!iommu_present(&platform_bus_type))
+		use_vram = true;
+	else if ((flags & MSM_BO_STOLEN) && priv->vram.size)
+		use_vram = true;
+
+	if (WARN_ON(use_vram && !priv->vram.size))
+		return -EINVAL;
+
+	sz = sizeof(*msm_obj);
+	if (use_vram)
 		sz += sizeof(struct drm_mm_node);
 
 	msm_obj = kzalloc(sz, GFP_KERNEL);
 	if (!msm_obj)
 		return -ENOMEM;
 
-	if (!iommu_present(&platform_bus_type))
+	if (use_vram)
 		msm_obj->vram_node = (void *)&msm_obj[1];
 
 	msm_obj->flags = flags;
@@ -630,7 +645,7 @@ struct drm_gem_object *msm_gem_new(struct drm_device *dev,
 	if (ret)
 		goto fail;
 
-	if (iommu_present(&platform_bus_type)) {
+	if (use_pages(obj)) {
 		ret = drm_gem_object_init(dev, obj, size);
 		if (ret)
 			goto fail;

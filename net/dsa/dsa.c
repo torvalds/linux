@@ -20,6 +20,7 @@
 #include <linux/of.h>
 #include <linux/of_mdio.h>
 #include <linux/of_platform.h>
+#include <linux/of_net.h>
 #include <linux/sysfs.h>
 #include "dsa_priv.h"
 
@@ -123,7 +124,7 @@ static ssize_t temp1_max_store(struct device *dev,
 
 	return count;
 }
-static DEVICE_ATTR(temp1_max, S_IRUGO, temp1_max_show, temp1_max_store);
+static DEVICE_ATTR_RW(temp1_max);
 
 static ssize_t temp1_max_alarm_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
@@ -158,8 +159,8 @@ static umode_t dsa_hwmon_attrs_visible(struct kobject *kobj,
 	if (index == 1) {
 		if (!drv->get_temp_limit)
 			mode = 0;
-		else if (drv->set_temp_limit)
-			mode |= S_IWUSR;
+		else if (!drv->set_temp_limit)
+			mode &= ~S_IWUSR;
 	} else if (index == 2 && !drv->get_temp_alarm) {
 		mode = 0;
 	}
@@ -175,43 +176,14 @@ __ATTRIBUTE_GROUPS(dsa_hwmon);
 #endif /* CONFIG_NET_DSA_HWMON */
 
 /* basic switch operations **************************************************/
-static struct dsa_switch *
-dsa_switch_setup(struct dsa_switch_tree *dst, int index,
-		 struct device *parent, struct device *host_dev)
+static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 {
-	struct dsa_chip_data *pd = dst->pd->chip + index;
-	struct dsa_switch_driver *drv;
-	struct dsa_switch *ds;
-	int ret;
-	char *name;
-	int i;
+	struct dsa_switch_driver *drv = ds->drv;
+	struct dsa_switch_tree *dst = ds->dst;
+	struct dsa_chip_data *pd = ds->pd;
 	bool valid_name_found = false;
-
-	/*
-	 * Probe for switch model.
-	 */
-	drv = dsa_switch_probe(host_dev, pd->sw_addr, &name);
-	if (drv == NULL) {
-		netdev_err(dst->master_netdev, "[%d]: could not detect attached switch\n",
-			   index);
-		return ERR_PTR(-EINVAL);
-	}
-	netdev_info(dst->master_netdev, "[%d]: detected a %s switch\n",
-		    index, name);
-
-
-	/*
-	 * Allocate and initialise switch state.
-	 */
-	ds = kzalloc(sizeof(*ds) + drv->priv_size, GFP_KERNEL);
-	if (ds == NULL)
-		return ERR_PTR(-ENOMEM);
-
-	ds->dst = dst;
-	ds->index = index;
-	ds->pd = dst->pd->chip + index;
-	ds->drv = drv;
-	ds->master_dev = host_dev;
+	int index = ds->index;
+	int i, ret;
 
 	/*
 	 * Validate supplied switch configuration.
@@ -256,7 +228,7 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 	 * switch.
 	 */
 	if (dst->cpu_switch == index) {
-		switch (drv->tag_protocol) {
+		switch (ds->tag_protocol) {
 #ifdef CONFIG_NET_DSA_TAG_DSA
 		case DSA_TAG_PROTO_DSA:
 			dst->rcv = dsa_netdev_ops.rcv;
@@ -284,7 +256,7 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 			goto out;
 		}
 
-		dst->tag_protocol = drv->tag_protocol;
+		dst->tag_protocol = ds->tag_protocol;
 	}
 
 	/*
@@ -314,19 +286,15 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 	 * Create network devices for physical switch ports.
 	 */
 	for (i = 0; i < DSA_MAX_PORTS; i++) {
-		struct net_device *slave_dev;
-
 		if (!(ds->phys_port_mask & (1 << i)))
 			continue;
 
-		slave_dev = dsa_slave_create(ds, parent, i, pd->port_names[i]);
-		if (slave_dev == NULL) {
+		ret = dsa_slave_create(ds, parent, i, pd->port_names[i]);
+		if (ret < 0) {
 			netdev_err(dst->master_netdev, "[%d]: can't create dsa slave device for port %d(%s)\n",
 				   index, i, pd->port_names[i]);
-			continue;
+			ret = 0;
 		}
-
-		ds->ports[i] = slave_dev;
 	}
 
 #ifdef CONFIG_NET_DSA_HWMON
@@ -354,13 +322,57 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 	}
 #endif /* CONFIG_NET_DSA_HWMON */
 
-	return ds;
+	return ret;
 
 out_free:
 	mdiobus_free(ds->slave_mii_bus);
 out:
 	kfree(ds);
-	return ERR_PTR(ret);
+	return ret;
+}
+
+static struct dsa_switch *
+dsa_switch_setup(struct dsa_switch_tree *dst, int index,
+		 struct device *parent, struct device *host_dev)
+{
+	struct dsa_chip_data *pd = dst->pd->chip + index;
+	struct dsa_switch_driver *drv;
+	struct dsa_switch *ds;
+	int ret;
+	char *name;
+
+	/*
+	 * Probe for switch model.
+	 */
+	drv = dsa_switch_probe(host_dev, pd->sw_addr, &name);
+	if (drv == NULL) {
+		netdev_err(dst->master_netdev, "[%d]: could not detect attached switch\n",
+			   index);
+		return ERR_PTR(-EINVAL);
+	}
+	netdev_info(dst->master_netdev, "[%d]: detected a %s switch\n",
+		    index, name);
+
+
+	/*
+	 * Allocate and initialise switch state.
+	 */
+	ds = kzalloc(sizeof(*ds) + drv->priv_size, GFP_KERNEL);
+	if (ds == NULL)
+		return NULL;
+
+	ds->dst = dst;
+	ds->index = index;
+	ds->pd = pd;
+	ds->drv = drv;
+	ds->tag_protocol = drv->tag_protocol;
+	ds->master_dev = host_dev;
+
+	ret = dsa_switch_setup_one(ds, parent);
+	if (ret)
+		return NULL;
+
+	return ds;
 }
 
 static void dsa_switch_destroy(struct dsa_switch *ds)
@@ -378,7 +390,7 @@ static int dsa_switch_suspend(struct dsa_switch *ds)
 
 	/* Suspend slave network devices */
 	for (i = 0; i < DSA_MAX_PORTS; i++) {
-		if (!(ds->phys_port_mask & (1 << i)))
+		if (!dsa_is_port_initialized(ds, i))
 			continue;
 
 		ret = dsa_slave_suspend(ds->ports[i]);
@@ -404,7 +416,7 @@ static int dsa_switch_resume(struct dsa_switch *ds)
 
 	/* Resume slave network devices */
 	for (i = 0; i < DSA_MAX_PORTS; i++) {
-		if (!(ds->phys_port_mask & (1 << i)))
+		if (!dsa_is_port_initialized(ds, i))
 			continue;
 
 		ret = dsa_slave_resume(ds->ports[i]);
@@ -501,12 +513,10 @@ static struct net_device *dev_to_net_device(struct device *dev)
 #ifdef CONFIG_OF
 static int dsa_of_setup_routing_table(struct dsa_platform_data *pd,
 					struct dsa_chip_data *cd,
-					int chip_index,
+					int chip_index, int port_index,
 					struct device_node *link)
 {
-	int ret;
 	const __be32 *reg;
-	int link_port_addr;
 	int link_sw_addr;
 	struct device_node *parent_sw;
 	int len;
@@ -519,6 +529,10 @@ static int dsa_of_setup_routing_table(struct dsa_platform_data *pd,
 	if (!reg || (len != sizeof(*reg) * 2))
 		return -EINVAL;
 
+	/*
+	 * Get the destination switch number from the second field of its 'reg'
+	 * property, i.e. for "reg = <0x19 1>" sw_addr is '1'.
+	 */
 	link_sw_addr = be32_to_cpup(reg + 1);
 
 	if (link_sw_addr >= pd->nr_chips)
@@ -535,20 +549,9 @@ static int dsa_of_setup_routing_table(struct dsa_platform_data *pd,
 		memset(cd->rtable, -1, pd->nr_chips * sizeof(s8));
 	}
 
-	reg = of_get_property(link, "reg", NULL);
-	if (!reg) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	link_port_addr = be32_to_cpup(reg);
-
-	cd->rtable[link_sw_addr] = link_port_addr;
+	cd->rtable[link_sw_addr] = port_index;
 
 	return 0;
-out:
-	kfree(cd->rtable);
-	return ret;
 }
 
 static void dsa_of_free_platform_data(struct dsa_platform_data *pd)
@@ -567,12 +570,12 @@ static void dsa_of_free_platform_data(struct dsa_platform_data *pd)
 	kfree(pd->chip);
 }
 
-static int dsa_of_probe(struct platform_device *pdev)
+static int dsa_of_probe(struct device *dev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct device_node *np = dev->of_node;
 	struct device_node *child, *mdio, *ethernet, *port, *link;
 	struct mii_bus *mdio_bus;
-	struct platform_device *ethernet_dev;
+	struct net_device *ethernet_dev;
 	struct dsa_platform_data *pd;
 	struct dsa_chip_data *cd;
 	const char *port_name;
@@ -587,22 +590,22 @@ static int dsa_of_probe(struct platform_device *pdev)
 
 	mdio_bus = of_mdio_find_bus(mdio);
 	if (!mdio_bus)
-		return -EINVAL;
+		return -EPROBE_DEFER;
 
 	ethernet = of_parse_phandle(np, "dsa,ethernet", 0);
 	if (!ethernet)
 		return -EINVAL;
 
-	ethernet_dev = of_find_device_by_node(ethernet);
+	ethernet_dev = of_find_net_device_by_node(ethernet);
 	if (!ethernet_dev)
-		return -ENODEV;
+		return -EPROBE_DEFER;
 
 	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
 	if (!pd)
 		return -ENOMEM;
 
-	pdev->dev.platform_data = pd;
-	pd->netdev = &ethernet_dev->dev;
+	dev->platform_data = pd;
+	pd->of_netdev = ethernet_dev;
 	pd->nr_chips = of_get_available_child_count(np);
 	if (pd->nr_chips > DSA_MAX_SWITCHES)
 		pd->nr_chips = DSA_MAX_SWITCHES;
@@ -658,7 +661,7 @@ static int dsa_of_probe(struct platform_device *pdev)
 			if (!strcmp(port_name, "dsa") && link &&
 					pd->nr_chips > 1) {
 				ret = dsa_of_setup_routing_table(pd, cd,
-						chip_index, link);
+						chip_index, port_index, link);
 				if (ret)
 					goto out_free_chip;
 			}
@@ -674,72 +677,35 @@ out_free_chip:
 	dsa_of_free_platform_data(pd);
 out_free:
 	kfree(pd);
-	pdev->dev.platform_data = NULL;
+	dev->platform_data = NULL;
 	return ret;
 }
 
-static void dsa_of_remove(struct platform_device *pdev)
+static void dsa_of_remove(struct device *dev)
 {
-	struct dsa_platform_data *pd = pdev->dev.platform_data;
+	struct dsa_platform_data *pd = dev->platform_data;
 
-	if (!pdev->dev.of_node)
+	if (!dev->of_node)
 		return;
 
 	dsa_of_free_platform_data(pd);
 	kfree(pd);
 }
 #else
-static inline int dsa_of_probe(struct platform_device *pdev)
+static inline int dsa_of_probe(struct device *dev)
 {
 	return 0;
 }
 
-static inline void dsa_of_remove(struct platform_device *pdev)
+static inline void dsa_of_remove(struct device *dev)
 {
 }
 #endif
 
-static int dsa_probe(struct platform_device *pdev)
+static void dsa_setup_dst(struct dsa_switch_tree *dst, struct net_device *dev,
+			  struct device *parent, struct dsa_platform_data *pd)
 {
-	struct dsa_platform_data *pd = pdev->dev.platform_data;
-	struct net_device *dev;
-	struct dsa_switch_tree *dst;
-	int i, ret;
-
-	pr_notice_once("Distributed Switch Architecture driver version %s\n",
-		       dsa_driver_version);
-
-	if (pdev->dev.of_node) {
-		ret = dsa_of_probe(pdev);
-		if (ret)
-			return ret;
-
-		pd = pdev->dev.platform_data;
-	}
-
-	if (pd == NULL || pd->netdev == NULL)
-		return -EINVAL;
-
-	dev = dev_to_net_device(pd->netdev);
-	if (dev == NULL) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	if (dev->dsa_ptr != NULL) {
-		dev_put(dev);
-		ret = -EEXIST;
-		goto out;
-	}
-
-	dst = kzalloc(sizeof(*dst), GFP_KERNEL);
-	if (dst == NULL) {
-		dev_put(dev);
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	platform_set_drvdata(pdev, dst);
+	int i;
 
 	dst->pd = pd;
 	dst->master_netdev = dev;
@@ -749,7 +715,7 @@ static int dsa_probe(struct platform_device *pdev)
 	for (i = 0; i < pd->nr_chips; i++) {
 		struct dsa_switch *ds;
 
-		ds = dsa_switch_setup(dst, i, &pdev->dev, pd->chip[i].host_dev);
+		ds = dsa_switch_setup(dst, i, parent, pd->chip[i].host_dev);
 		if (IS_ERR(ds)) {
 			netdev_err(dev, "[%d]: couldn't create dsa switch instance (error %ld)\n",
 				   i, PTR_ERR(ds));
@@ -777,18 +743,67 @@ static int dsa_probe(struct platform_device *pdev)
 		dst->link_poll_timer.expires = round_jiffies(jiffies + HZ);
 		add_timer(&dst->link_poll_timer);
 	}
+}
+
+static int dsa_probe(struct platform_device *pdev)
+{
+	struct dsa_platform_data *pd = pdev->dev.platform_data;
+	struct net_device *dev;
+	struct dsa_switch_tree *dst;
+	int ret;
+
+	pr_notice_once("Distributed Switch Architecture driver version %s\n",
+		       dsa_driver_version);
+
+	if (pdev->dev.of_node) {
+		ret = dsa_of_probe(&pdev->dev);
+		if (ret)
+			return ret;
+
+		pd = pdev->dev.platform_data;
+	}
+
+	if (pd == NULL || (pd->netdev == NULL && pd->of_netdev == NULL))
+		return -EINVAL;
+
+	if (pd->of_netdev) {
+		dev = pd->of_netdev;
+		dev_hold(dev);
+	} else {
+		dev = dev_to_net_device(pd->netdev);
+	}
+	if (dev == NULL) {
+		ret = -EPROBE_DEFER;
+		goto out;
+	}
+
+	if (dev->dsa_ptr != NULL) {
+		dev_put(dev);
+		ret = -EEXIST;
+		goto out;
+	}
+
+	dst = kzalloc(sizeof(*dst), GFP_KERNEL);
+	if (dst == NULL) {
+		dev_put(dev);
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	platform_set_drvdata(pdev, dst);
+
+	dsa_setup_dst(dst, dev, &pdev->dev, pd);
 
 	return 0;
 
 out:
-	dsa_of_remove(pdev);
+	dsa_of_remove(&pdev->dev);
 
 	return ret;
 }
 
-static int dsa_remove(struct platform_device *pdev)
+static void dsa_remove_dst(struct dsa_switch_tree *dst)
 {
-	struct dsa_switch_tree *dst = platform_get_drvdata(pdev);
 	int i;
 
 	if (dst->link_poll_needed)
@@ -802,8 +817,14 @@ static int dsa_remove(struct platform_device *pdev)
 		if (ds != NULL)
 			dsa_switch_destroy(ds);
 	}
+}
 
-	dsa_of_remove(pdev);
+static int dsa_remove(struct platform_device *pdev)
+{
+	struct dsa_switch_tree *dst = platform_get_drvdata(pdev);
+
+	dsa_remove_dst(dst);
+	dsa_of_remove(&pdev->dev);
 
 	return 0;
 }
@@ -828,6 +849,10 @@ static int dsa_switch_rcv(struct sk_buff *skb, struct net_device *dev,
 static struct packet_type dsa_pack_type __read_mostly = {
 	.type	= cpu_to_be16(ETH_P_XDSA),
 	.func	= dsa_switch_rcv,
+};
+
+static struct notifier_block dsa_netdevice_nb __read_mostly = {
+	.notifier_call	= dsa_slave_netdevice_event,
 };
 
 #ifdef CONFIG_PM_SLEEP
@@ -888,6 +913,8 @@ static int __init dsa_init_module(void)
 {
 	int rc;
 
+	register_netdevice_notifier(&dsa_netdevice_nb);
+
 	rc = platform_driver_register(&dsa_driver);
 	if (rc)
 		return rc;
@@ -900,6 +927,7 @@ module_init(dsa_init_module);
 
 static void __exit dsa_cleanup_module(void)
 {
+	unregister_netdevice_notifier(&dsa_netdevice_nb);
 	dev_remove_pack(&dsa_pack_type);
 	platform_driver_unregister(&dsa_driver);
 }

@@ -187,6 +187,10 @@ N: Krishna Balasubramanian
 E: balasub@cis.ohio-state.edu
 D: Wrote SYS V IPC (part of standard kernel since 0.99.10)
 
+N: Chris Ball
+E: chris@printf.net
+D: Former maintainer of the MMC/SD/SDIO subsystem.
+
 N: Dario Ballabio
 E: ballabio_dario@emc.com
 E: dario.ballabio@tiscalinet.it
@@ -503,6 +507,10 @@ N: Paul Bristow
 E: paul@paulbristow.net
 W: http://paulbristow.net/linux/idefloppy.html
 D: Maintainer of IDE/ATAPI floppy driver
+
+N: Stefano Brivio
+E: stefano.brivio@polimi.it
+D: Broadcom B43 driver
 
 N: Dominik Brodowski
 E: linux@brodo.de
@@ -2041,6 +2049,10 @@ D: pirq addr, CS5535 alsa audio driver
 S: Gurgaon, India
 S: Kuala Lumpur, Malaysia
 
+N: Mohit Kumar
+D: ST Microelectronics SPEAr13xx PCI host bridge driver
+D: Synopsys Designware PCI host bridge driver
+
 N: Gabor Kuti
 M: seasons@falcon.sch.bme.hu
 M: seasons@makosteszta.sote.hu
@@ -3003,6 +3015,19 @@ W: http://yaina.de/jreuter/
 W: http://www.qsl.net/dl1bke/
 D: Generic Z8530 driver, AX.25 DAMA slave implementation
 D: Several AX.25 hacks
+
+N: Ricardo Ribalda Delgado
+E: ricardo.ribalda@gmail.com
+W: http://ribalda.com
+D: PLX USB338x driver
+D: PCA9634 driver
+D: Option GTM671WFS
+D: Fintek F81216A
+D: Various kernel hacks
+S: Qtechnology A/S
+S: Valby Langgade 142
+S: 2500 Valby
+S: Denmark
 
 N: Francois-Rene Rideau
 E: fare@tunes.org

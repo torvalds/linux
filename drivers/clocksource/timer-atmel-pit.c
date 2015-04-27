@@ -61,12 +61,12 @@ static inline struct pit_data *clkevt_to_pit_data(struct clock_event_device *clk
 
 static inline unsigned int pit_read(void __iomem *base, unsigned int reg_offset)
 {
-	return __raw_readl(base + reg_offset);
+	return readl_relaxed(base + reg_offset);
 }
 
 static inline void pit_write(void __iomem *base, unsigned int reg_offset, unsigned long value)
 {
-	__raw_writel(value, base + reg_offset);
+	writel_relaxed(value, base + reg_offset);
 }
 
 /*

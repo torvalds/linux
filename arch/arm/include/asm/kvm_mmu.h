@@ -149,12 +149,13 @@ static inline bool kvm_s2pmd_readonly(pmd_t *pmd)
 	(__boundary - 1 < (end) - 1)? __boundary: (end);		\
 })
 
+#define kvm_pgd_index(addr)			pgd_index(addr)
+
 static inline bool kvm_page_empty(void *ptr)
 {
 	struct page *ptr_page = virt_to_page(ptr);
 	return page_count(ptr_page) == 1;
 }
-
 
 #define kvm_pte_table_empty(kvm, ptep) kvm_page_empty(ptep)
 #define kvm_pmd_table_empty(kvm, pmdp) kvm_page_empty(pmdp)
@@ -162,16 +163,14 @@ static inline bool kvm_page_empty(void *ptr)
 
 #define KVM_PREALLOC_LEVEL	0
 
-static inline int kvm_prealloc_hwpgd(struct kvm *kvm, pgd_t *pgd)
-{
-	return 0;
-}
-
-static inline void kvm_free_hwpgd(struct kvm *kvm) { }
-
 static inline void *kvm_get_hwpgd(struct kvm *kvm)
 {
 	return kvm->arch.pgd;
+}
+
+static inline unsigned int kvm_get_hwpgd_size(void)
+{
+	return PTRS_PER_S2_PGD * sizeof(pgd_t);
 }
 
 struct kvm;
@@ -207,7 +206,7 @@ static inline void __coherent_cache_guest_page(struct kvm_vcpu *vcpu, pfn_t pfn,
 
 	bool need_flush = !vcpu_has_cache_enabled(vcpu) || ipa_uncached;
 
-	VM_BUG_ON(size & PAGE_MASK);
+	VM_BUG_ON(size & ~PAGE_MASK);
 
 	if (!need_flush && !icache_is_pipt())
 		goto vipt_cache;
@@ -269,6 +268,16 @@ static inline void __kvm_flush_dcache_pud(pud_t pud)
 
 void kvm_set_way_flush(struct kvm_vcpu *vcpu);
 void kvm_toggle_cache(struct kvm_vcpu *vcpu, bool was_enabled);
+
+static inline bool __kvm_cpu_uses_extended_idmap(void)
+{
+	return false;
+}
+
+static inline void __kvm_extend_hypmap(pgd_t *boot_hyp_pgd,
+				       pgd_t *hyp_pgd,
+				       pgd_t *merged_hyp_pgd,
+				       unsigned long hyp_idmap_start) { }
 
 #endif	/* !__ASSEMBLY__ */
 

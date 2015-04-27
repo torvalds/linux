@@ -22,9 +22,7 @@
 #include <target/target_core_fabric.h>
 
 #include <target/iscsi/iscsi_target_core.h>
-#include <target/iscsi/iscsi_transport.h>
 #include "iscsi_target_seq_pdu_list.h"
-#include "iscsi_target_tq.h"
 #include "iscsi_target_erl0.h"
 #include "iscsi_target_erl1.h"
 #include "iscsi_target_erl2.h"
@@ -861,7 +859,10 @@ void iscsit_connection_reinstatement_rcfr(struct iscsi_conn *conn)
 	}
 	spin_unlock_bh(&conn->state_lock);
 
-	iscsi_thread_set_force_reinstatement(conn);
+	if (conn->tx_thread && conn->tx_thread_active)
+		send_sig(SIGINT, conn->tx_thread, 1);
+	if (conn->rx_thread && conn->rx_thread_active)
+		send_sig(SIGINT, conn->rx_thread, 1);
 
 sleep:
 	wait_for_completion(&conn->conn_wait_rcfr_comp);
@@ -886,10 +887,10 @@ void iscsit_cause_connection_reinstatement(struct iscsi_conn *conn, int sleep)
 		return;
 	}
 
-	if (iscsi_thread_set_force_reinstatement(conn) < 0) {
-		spin_unlock_bh(&conn->state_lock);
-		return;
-	}
+	if (conn->tx_thread && conn->tx_thread_active)
+		send_sig(SIGINT, conn->tx_thread, 1);
+	if (conn->rx_thread && conn->rx_thread_active)
+		send_sig(SIGINT, conn->rx_thread, 1);
 
 	atomic_set(&conn->connection_reinstatement, 1);
 	if (!sleep) {
@@ -940,8 +941,7 @@ void iscsit_take_action_for_connection_exit(struct iscsi_conn *conn)
 
 	if (conn->conn_state == TARG_CONN_STATE_IN_LOGOUT) {
 		spin_unlock_bh(&conn->state_lock);
-		if (conn->conn_transport->transport_type == ISCSI_TCP)
-			iscsit_close_connection(conn);
+		iscsit_close_connection(conn);
 		return;
 	}
 

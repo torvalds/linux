@@ -182,7 +182,7 @@ static int wusbhc_rh_get_hub_descr(struct wusbhc *wusbhc, u16 wValue,
 	if (wLength < length)
 		return -ENOSPC;
 	descr->bDescLength = 7 + 2 * temp;
-	descr->bDescriptorType = 0x29;	/* HUB type */
+	descr->bDescriptorType = USB_DT_HUB; /* HUB type */
 	descr->bNbrPorts = wusbhc->ports_max;
 	descr->wHubCharacteristics = cpu_to_le16(
 		HUB_CHAR_COMMON_LPSM	/* All ports power at once */

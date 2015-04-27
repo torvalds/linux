@@ -100,8 +100,8 @@ struct vsock_transport {
 
 	/* DGRAM. */
 	int (*dgram_bind)(struct vsock_sock *, struct sockaddr_vm *);
-	int (*dgram_dequeue)(struct kiocb *kiocb, struct vsock_sock *vsk,
-			     struct msghdr *msg, size_t len, int flags);
+	int (*dgram_dequeue)(struct vsock_sock *vsk, struct msghdr *msg,
+			     size_t len, int flags);
 	int (*dgram_enqueue)(struct vsock_sock *, struct sockaddr_vm *,
 			     struct msghdr *, size_t len);
 	bool (*dgram_allow)(u32 cid, u32 port);

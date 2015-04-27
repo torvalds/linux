@@ -63,6 +63,10 @@ mark_free(struct i915_vma *vma, struct list_head *unwind)
  *
  * This function is used by the object/vma binding code.
  *
+ * Since this function is only used to free up virtual address space it only
+ * ignores pinned vmas, and not object where the backing storage itself is
+ * pinned. Hence obj->pages_pin_count does not protect against eviction.
+ *
  * To clarify: This is for freeing up virtual address space, not for freeing
  * memory in e.g. the shrinker.
  */

@@ -166,6 +166,27 @@ cycle_t gic_read_compare(void)
 
 	return (((cycle_t) hi) << 32) + lo;
 }
+
+void gic_start_count(void)
+{
+	u32 gicconfig;
+
+	/* Start the counter */
+	gicconfig = gic_read(GIC_REG(SHARED, GIC_SH_CONFIG));
+	gicconfig &= ~(1 << GIC_SH_CONFIG_COUNTSTOP_SHF);
+	gic_write(GIC_REG(SHARED, GIC_SH_CONFIG), gicconfig);
+}
+
+void gic_stop_count(void)
+{
+	u32 gicconfig;
+
+	/* Stop the counter */
+	gicconfig = gic_read(GIC_REG(SHARED, GIC_SH_CONFIG));
+	gicconfig |= 1 << GIC_SH_CONFIG_COUNTSTOP_SHF;
+	gic_write(GIC_REG(SHARED, GIC_SH_CONFIG), gicconfig);
+}
+
 #endif
 
 static bool gic_local_irq_is_routable(int intr)
@@ -218,13 +239,36 @@ int gic_get_c0_compare_int(void)
 int gic_get_c0_perfcount_int(void)
 {
 	if (!gic_local_irq_is_routable(GIC_LOCAL_INT_PERFCTR)) {
-		/* Is the erformance counter shared with the timer? */
+		/* Is the performance counter shared with the timer? */
 		if (cp0_perfcount_irq < 0)
 			return -1;
 		return MIPS_CPU_IRQ_BASE + cp0_perfcount_irq;
 	}
 	return irq_create_mapping(gic_irq_domain,
 				  GIC_LOCAL_TO_HWIRQ(GIC_LOCAL_INT_PERFCTR));
+}
+
+int gic_get_c0_fdc_int(void)
+{
+	if (!gic_local_irq_is_routable(GIC_LOCAL_INT_FDC)) {
+		/* Is the FDC IRQ even present? */
+		if (cp0_fdc_irq < 0)
+			return -1;
+		return MIPS_CPU_IRQ_BASE + cp0_fdc_irq;
+	}
+
+	/*
+	 * Some cores claim the FDC is routable but it doesn't actually seem to
+	 * be connected.
+	 */
+	switch (current_cpu_type()) {
+	case CPU_INTERAPTIV:
+	case CPU_PROAPTIV:
+		return -1;
+	}
+
+	return irq_create_mapping(gic_irq_domain,
+				  GIC_LOCAL_TO_HWIRQ(GIC_LOCAL_INT_FDC));
 }
 
 static void gic_handle_shared_int(void)
@@ -345,19 +389,19 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *cpumask,
 	int		i;
 
 	cpumask_and(&tmp, cpumask, cpu_online_mask);
-	if (cpus_empty(tmp))
+	if (cpumask_empty(&tmp))
 		return -EINVAL;
 
 	/* Assumption : cpumask refers to a single CPU */
 	spin_lock_irqsave(&gic_lock, flags);
 
 	/* Re-route this IRQ */
-	gic_map_to_vpe(irq, first_cpu(tmp));
+	gic_map_to_vpe(irq, cpumask_first(&tmp));
 
 	/* Update the pcpu_masks */
 	for (i = 0; i < NR_CPUS; i++)
 		clear_bit(irq, pcpu_masks[i].pcpu_mask);
-	set_bit(irq, pcpu_masks[first_cpu(tmp)].pcpu_mask);
+	set_bit(irq, pcpu_masks[cpumask_first(&tmp)].pcpu_mask);
 
 	cpumask_copy(d->affinity, cpumask);
 	spin_unlock_irqrestore(&gic_lock, flags);
@@ -592,15 +636,20 @@ static int gic_local_irq_domain_map(struct irq_domain *d, unsigned int virq,
 	 * of the MIPS kernel code does not use the percpu IRQ API for
 	 * the CP0 timer and performance counter interrupts.
 	 */
-	if (intr != GIC_LOCAL_INT_TIMER && intr != GIC_LOCAL_INT_PERFCTR) {
+	switch (intr) {
+	case GIC_LOCAL_INT_TIMER:
+	case GIC_LOCAL_INT_PERFCTR:
+	case GIC_LOCAL_INT_FDC:
+		irq_set_chip_and_handler(virq,
+					 &gic_all_vpes_local_irq_controller,
+					 handle_percpu_irq);
+		break;
+	default:
 		irq_set_chip_and_handler(virq,
 					 &gic_local_irq_controller,
 					 handle_percpu_devid_irq);
 		irq_set_percpu_devid(virq);
-	} else {
-		irq_set_chip_and_handler(virq,
-					 &gic_all_vpes_local_irq_controller,
-					 handle_percpu_irq);
+		break;
 	}
 
 	spin_lock_irqsave(&gic_lock, flags);

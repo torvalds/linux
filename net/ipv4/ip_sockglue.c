@@ -351,7 +351,7 @@ int ip_ra_control(struct sock *sk, unsigned char on,
 			return 0;
 		}
 	}
-	if (new_ra == NULL) {
+	if (!new_ra) {
 		spin_unlock_bh(&ip_ra_lock);
 		return -ENOBUFS;
 	}
@@ -387,7 +387,7 @@ void ip_icmp_error(struct sock *sk, struct sk_buff *skb, int err,
 				   skb_network_header(skb);
 	serr->port = port;
 
-	if (skb_pull(skb, payload - skb->data) != NULL) {
+	if (skb_pull(skb, payload - skb->data)) {
 		skb_reset_transport_header(skb);
 		if (sock_queue_err_skb(sk, skb) == 0)
 			return;
@@ -432,17 +432,32 @@ void ip_local_error(struct sock *sk, int err, __be32 daddr, __be16 port, u32 inf
 		kfree_skb(skb);
 }
 
-static bool ipv4_pktinfo_prepare_errqueue(const struct sock *sk,
-					  const struct sk_buff *skb,
-					  int ee_origin)
+/* IPv4 supports cmsg on all imcp errors and some timestamps
+ *
+ * Timestamp code paths do not initialize the fields expected by cmsg:
+ * the PKTINFO fields in skb->cb[]. Fill those in here.
+ */
+static bool ipv4_datagram_support_cmsg(const struct sock *sk,
+				       struct sk_buff *skb,
+				       int ee_origin)
 {
-	struct in_pktinfo *info = PKTINFO_SKB_CB(skb);
+	struct in_pktinfo *info;
 
-	if ((ee_origin != SO_EE_ORIGIN_TIMESTAMPING) ||
-	    (!(sk->sk_tsflags & SOF_TIMESTAMPING_OPT_CMSG)) ||
+	if (ee_origin == SO_EE_ORIGIN_ICMP)
+		return true;
+
+	if (ee_origin == SO_EE_ORIGIN_LOCAL)
+		return false;
+
+	/* Support IP_PKTINFO on tstamp packets if requested, to correlate
+	 * timestamp with egress dev. Not possible for packets without dev
+	 * or without payload (SOF_TIMESTAMPING_OPT_TSONLY).
+	 */
+	if ((!(sk->sk_tsflags & SOF_TIMESTAMPING_OPT_CMSG)) ||
 	    (!skb->dev))
 		return false;
 
+	info = PKTINFO_SKB_CB(skb);
 	info->ipi_spec_dst.s_addr = ip_hdr(skb)->saddr;
 	info->ipi_ifindex = skb->dev->ifindex;
 	return true;
@@ -467,7 +482,7 @@ int ip_recv_error(struct sock *sk, struct msghdr *msg, int len, int *addr_len)
 
 	err = -EAGAIN;
 	skb = sock_dequeue_err_skb(sk);
-	if (skb == NULL)
+	if (!skb)
 		goto out;
 
 	copied = skb->len;
@@ -483,7 +498,7 @@ int ip_recv_error(struct sock *sk, struct msghdr *msg, int len, int *addr_len)
 
 	serr = SKB_EXT_ERR(skb);
 
-	if (sin && skb->len) {
+	if (sin && serr->port) {
 		sin->sin_family = AF_INET;
 		sin->sin_addr.s_addr = *(__be32 *)(skb_network_header(skb) +
 						   serr->addr_offset);
@@ -496,9 +511,7 @@ int ip_recv_error(struct sock *sk, struct msghdr *msg, int len, int *addr_len)
 	sin = &errhdr.offender;
 	memset(sin, 0, sizeof(*sin));
 
-	if (skb->len &&
-	    (serr->ee.ee_origin == SO_EE_ORIGIN_ICMP ||
-	     ipv4_pktinfo_prepare_errqueue(sk, skb, serr->ee.ee_origin))) {
+	if (ipv4_datagram_support_cmsg(sk, skb, serr->ee.ee_origin)) {
 		sin->sin_family = AF_INET;
 		sin->sin_addr.s_addr = ip_hdr(skb)->saddr;
 		if (inet_sk(sk)->cmsg_flags)
@@ -523,12 +536,34 @@ out:
  *	Socket option code for IP. This is the end of the line after any
  *	TCP,UDP etc options on an IP socket.
  */
+static bool setsockopt_needs_rtnl(int optname)
+{
+	switch (optname) {
+	case IP_ADD_MEMBERSHIP:
+	case IP_ADD_SOURCE_MEMBERSHIP:
+	case IP_BLOCK_SOURCE:
+	case IP_DROP_MEMBERSHIP:
+	case IP_DROP_SOURCE_MEMBERSHIP:
+	case IP_MSFILTER:
+	case IP_UNBLOCK_SOURCE:
+	case MCAST_BLOCK_SOURCE:
+	case MCAST_MSFILTER:
+	case MCAST_JOIN_GROUP:
+	case MCAST_JOIN_SOURCE_GROUP:
+	case MCAST_LEAVE_GROUP:
+	case MCAST_LEAVE_SOURCE_GROUP:
+	case MCAST_UNBLOCK_SOURCE:
+		return true;
+	}
+	return false;
+}
 
 static int do_ip_setsockopt(struct sock *sk, int level,
 			    int optname, char __user *optval, unsigned int optlen)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	int val = 0, err;
+	bool needs_rtnl = setsockopt_needs_rtnl(optname);
 
 	switch (optname) {
 	case IP_PKTINFO:
@@ -571,6 +606,8 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 		return ip_mroute_setsockopt(sk, optname, optval, optlen);
 
 	err = 0;
+	if (needs_rtnl)
+		rtnl_lock();
 	lock_sock(sk);
 
 	switch (optname) {
@@ -1105,10 +1142,14 @@ mc_msf_out:
 		break;
 	}
 	release_sock(sk);
+	if (needs_rtnl)
+		rtnl_unlock();
 	return err;
 
 e_inval:
 	release_sock(sk);
+	if (needs_rtnl)
+		rtnl_unlock();
 	return -EINVAL;
 }
 

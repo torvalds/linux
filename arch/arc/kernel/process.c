@@ -49,7 +49,10 @@ void arch_cpu_idle(void)
 
 asmlinkage void ret_from_fork(void);
 
-/* Layout of Child kernel mode stack as setup at the end of this function is
+/*
+ * Copy architecture-specific thread state
+ *
+ * Layout of Child kernel mode stack as setup at the end of this function is
  *
  * |     ...        |
  * |     ...        |
@@ -81,7 +84,7 @@ asmlinkage void ret_from_fork(void);
  * ------------------  <===== END of PAGE
  */
 int copy_thread(unsigned long clone_flags,
-		unsigned long usp, unsigned long arg,
+		unsigned long usp, unsigned long kthread_arg,
 		struct task_struct *p)
 {
 	struct pt_regs *c_regs;        /* child's pt_regs */
@@ -112,7 +115,7 @@ int copy_thread(unsigned long clone_flags,
 	if (unlikely(p->flags & PF_KTHREAD)) {
 		memset(c_regs, 0, sizeof(struct pt_regs));
 
-		c_callee->r13 = arg; /* argument to kernel thread */
+		c_callee->r13 = kthread_arg;
 		c_callee->r14 = usp;  /* function */
 
 		return 0;
@@ -155,8 +158,6 @@ int copy_thread(unsigned long clone_flags,
  */
 void start_thread(struct pt_regs * regs, unsigned long pc, unsigned long usp)
 {
-	set_fs(USER_DS); /* user space */
-
 	regs->sp = usp;
 	regs->ret = pc;
 
@@ -190,29 +191,6 @@ void exit_thread(void)
 int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu)
 {
 	return 0;
-}
-
-/*
- * API: expected by schedular Code: If thread is sleeping where is that.
- * What is this good for? it will be always the scheduler or ret_from_fork.
- * So we hard code that anyways.
- */
-unsigned long thread_saved_pc(struct task_struct *t)
-{
-	struct pt_regs *regs = task_pt_regs(t);
-	unsigned long blink = 0;
-
-	/*
-	 * If the thread being queried for in not itself calling this, then it
-	 * implies it is not executing, which in turn implies it is sleeping,
-	 * which in turn implies it got switched OUT by the schedular.
-	 * In that case, it's kernel mode blink can reliably retrieved as per
-	 * the picture above (right above pt_regs).
-	 */
-	if (t != current && t->state != TASK_RUNNING)
-		blink = *((unsigned int *)regs - 1);
-
-	return blink;
 }
 
 int elf_check_arch(const struct elf32_hdr *x)

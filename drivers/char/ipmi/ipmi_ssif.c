@@ -468,11 +468,13 @@ static int ipmi_ssif_thread(void *data)
 		int result;
 
 		/* Wait for something to do */
-		wait_for_completion(&ssif_info->wake_thread);
-		init_completion(&ssif_info->wake_thread);
-
+		result = wait_for_completion_interruptible(
+						&ssif_info->wake_thread);
 		if (ssif_info->stopping)
 			break;
+		if (result == -ERESTARTSYS)
+			continue;
+		init_completion(&ssif_info->wake_thread);
 
 		if (ssif_info->i2c_read_write == I2C_SMBUS_WRITE) {
 			result = i2c_smbus_write_block_data(

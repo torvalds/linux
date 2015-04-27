@@ -370,8 +370,6 @@ static int __maybe_unused mx51_ecspi_config(struct spi_imx_data *spi_imx,
 	if (spi_imx->dma_is_inited) {
 		dma = readl(spi_imx->base + MX51_ECSPI_DMA);
 
-		spi_imx->tx_wml = spi_imx_get_fifosize(spi_imx) / 2;
-		spi_imx->rx_wml = spi_imx_get_fifosize(spi_imx) / 2;
 		spi_imx->rxt_wml = spi_imx_get_fifosize(spi_imx) / 2;
 		rx_wml_cfg = spi_imx->rx_wml << MX51_ECSPI_DMA_RX_WML_OFFSET;
 		tx_wml_cfg = spi_imx->tx_wml << MX51_ECSPI_DMA_TX_WML_OFFSET;
@@ -868,6 +866,8 @@ static int spi_imx_sdma_init(struct device *dev, struct spi_imx_data *spi_imx,
 	master->max_dma_len = MAX_SDMA_BD_BYTES;
 	spi_imx->bitbang.master->flags = SPI_MASTER_MUST_RX |
 					 SPI_MASTER_MUST_TX;
+	spi_imx->tx_wml = spi_imx_get_fifosize(spi_imx) / 2;
+	spi_imx->rx_wml = spi_imx_get_fifosize(spi_imx) / 2;
 	spi_imx->dma_is_inited = 1;
 
 	return 0;
@@ -903,7 +903,7 @@ static int spi_imx_dma_transfer(struct spi_imx_data *spi_imx,
 
 	if (tx) {
 		desc_tx = dmaengine_prep_slave_sg(master->dma_tx,
-					tx->sgl, tx->nents, DMA_TO_DEVICE,
+					tx->sgl, tx->nents, DMA_MEM_TO_DEV,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 		if (!desc_tx)
 			goto no_dma;
@@ -915,7 +915,7 @@ static int spi_imx_dma_transfer(struct spi_imx_data *spi_imx,
 
 	if (rx) {
 		desc_rx = dmaengine_prep_slave_sg(master->dma_rx,
-					rx->sgl, rx->nents, DMA_FROM_DEVICE,
+					rx->sgl, rx->nents, DMA_DEV_TO_MEM,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 		if (!desc_rx)
 			goto no_dma;

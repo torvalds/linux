@@ -37,7 +37,7 @@ static const struct omap_video_timings dvic_default_timings = {
 	.hsync_level	= OMAPDSS_SIG_ACTIVE_HIGH,
 	.data_pclk_edge	= OMAPDSS_DRIVE_SIG_RISING_EDGE,
 	.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
-	.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
+	.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_FALLING_EDGE,
 };
 
 struct panel_drv_data {

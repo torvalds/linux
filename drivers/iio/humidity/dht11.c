@@ -29,6 +29,7 @@
 #include <linux/wait.h>
 #include <linux/bitops.h>
 #include <linux/completion.h>
+#include <linux/mutex.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
@@ -39,8 +40,12 @@
 
 #define DHT11_DATA_VALID_TIME	2000000000  /* 2s in ns */
 
-#define DHT11_EDGES_PREAMBLE 4
+#define DHT11_EDGES_PREAMBLE 2
 #define DHT11_BITS_PER_READ 40
+/*
+ * Note that when reading the sensor actually 84 edges are detected, but
+ * since the last edge is not significant, we only store 83:
+ */
 #define DHT11_EDGES_PER_READ (2*DHT11_BITS_PER_READ + DHT11_EDGES_PREAMBLE + 1)
 
 /* Data transmission timing (nano seconds) */
@@ -57,6 +62,7 @@ struct dht11 {
 	int				irq;
 
 	struct completion		completion;
+	struct mutex			lock;
 
 	s64				timestamp;
 	int				temperature;
@@ -88,7 +94,7 @@ static int dht11_decode(struct dht11 *dht11, int offset)
 	unsigned char temp_int, temp_dec, hum_int, hum_dec, checksum;
 
 	/* Calculate timestamp resolution */
-	for (i = 0; i < dht11->num_edges; ++i) {
+	for (i = 1; i < dht11->num_edges; ++i) {
 		t = dht11->edges[i].ts - dht11->edges[i-1].ts;
 		if (t > 0 && t < timeres)
 			timeres = t;
@@ -138,6 +144,27 @@ static int dht11_decode(struct dht11 *dht11, int offset)
 	return 0;
 }
 
+/*
+ * IRQ handler called on GPIO edges
+ */
+static irqreturn_t dht11_handle_irq(int irq, void *data)
+{
+	struct iio_dev *iio = data;
+	struct dht11 *dht11 = iio_priv(iio);
+
+	/* TODO: Consider making the handler safe for IRQ sharing */
+	if (dht11->num_edges < DHT11_EDGES_PER_READ && dht11->num_edges >= 0) {
+		dht11->edges[dht11->num_edges].ts = iio_get_time_ns();
+		dht11->edges[dht11->num_edges++].value =
+						gpio_get_value(dht11->gpio);
+
+		if (dht11->num_edges >= DHT11_EDGES_PER_READ)
+			complete(&dht11->completion);
+	}
+
+	return IRQ_HANDLED;
+}
+
 static int dht11_read_raw(struct iio_dev *iio_dev,
 			const struct iio_chan_spec *chan,
 			int *val, int *val2, long m)
@@ -145,6 +172,7 @@ static int dht11_read_raw(struct iio_dev *iio_dev,
 	struct dht11 *dht11 = iio_priv(iio_dev);
 	int ret;
 
+	mutex_lock(&dht11->lock);
 	if (dht11->timestamp + DHT11_DATA_VALID_TIME < iio_get_time_ns()) {
 		reinit_completion(&dht11->completion);
 
@@ -157,8 +185,17 @@ static int dht11_read_raw(struct iio_dev *iio_dev,
 		if (ret)
 			goto err;
 
+		ret = request_irq(dht11->irq, dht11_handle_irq,
+				  IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+				  iio_dev->name, iio_dev);
+		if (ret)
+			goto err;
+
 		ret = wait_for_completion_killable_timeout(&dht11->completion,
 								 HZ);
+
+		free_irq(dht11->irq, iio_dev);
+
 		if (ret == 0 && dht11->num_edges < DHT11_EDGES_PER_READ - 1) {
 			dev_err(&iio_dev->dev,
 					"Only %d signal edges detected\n",
@@ -185,6 +222,7 @@ static int dht11_read_raw(struct iio_dev *iio_dev,
 		ret = -EINVAL;
 err:
 	dht11->num_edges = -1;
+	mutex_unlock(&dht11->lock);
 	return ret;
 }
 
@@ -192,27 +230,6 @@ static const struct iio_info dht11_iio_info = {
 	.driver_module		= THIS_MODULE,
 	.read_raw		= dht11_read_raw,
 };
-
-/*
- * IRQ handler called on GPIO edges
-*/
-static irqreturn_t dht11_handle_irq(int irq, void *data)
-{
-	struct iio_dev *iio = data;
-	struct dht11 *dht11 = iio_priv(iio);
-
-	/* TODO: Consider making the handler safe for IRQ sharing */
-	if (dht11->num_edges < DHT11_EDGES_PER_READ && dht11->num_edges >= 0) {
-		dht11->edges[dht11->num_edges].ts = iio_get_time_ns();
-		dht11->edges[dht11->num_edges++].value =
-						gpio_get_value(dht11->gpio);
-
-		if (dht11->num_edges >= DHT11_EDGES_PER_READ)
-			complete(&dht11->completion);
-	}
-
-	return IRQ_HANDLED;
-}
 
 static const struct iio_chan_spec dht11_chan_spec[] = {
 	{ .type = IIO_TEMP,
@@ -256,11 +273,6 @@ static int dht11_probe(struct platform_device *pdev)
 		dev_err(dev, "GPIO %d has no interrupt\n", dht11->gpio);
 		return -EINVAL;
 	}
-	ret = devm_request_irq(dev, dht11->irq, dht11_handle_irq,
-				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
-				pdev->name, iio);
-	if (ret)
-		return ret;
 
 	dht11->timestamp = iio_get_time_ns() - DHT11_DATA_VALID_TIME - 1;
 	dht11->num_edges = -1;
@@ -268,6 +280,7 @@ static int dht11_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, iio);
 
 	init_completion(&dht11->completion);
+	mutex_init(&dht11->lock);
 	iio->name = pdev->name;
 	iio->dev.parent = &pdev->dev;
 	iio->info = &dht11_iio_info;

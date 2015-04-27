@@ -95,20 +95,6 @@ static unsigned long early_serial_base = 0x3f8;  /* ttyS0 */
 #define DLL             0       /*  Divisor Latch Low         */
 #define DLH             1       /*  Divisor latch High        */
 
-static void mem32_serial_out(unsigned long addr, int offset, int value)
-{
-	uint32_t *vaddr = (uint32_t *)addr;
-	/* shift implied by pointer type */
-	writel(value, vaddr + offset);
-}
-
-static unsigned int mem32_serial_in(unsigned long addr, int offset)
-{
-	uint32_t *vaddr = (uint32_t *)addr;
-	/* shift implied by pointer type */
-	return readl(vaddr + offset);
-}
-
 static unsigned int io_serial_in(unsigned long addr, int offset)
 {
 	return inb(addr + offset);
@@ -205,6 +191,20 @@ static __init void early_serial_init(char *s)
 }
 
 #ifdef CONFIG_PCI
+static void mem32_serial_out(unsigned long addr, int offset, int value)
+{
+	u32 *vaddr = (u32 *)addr;
+	/* shift implied by pointer type */
+	writel(value, vaddr + offset);
+}
+
+static unsigned int mem32_serial_in(unsigned long addr, int offset)
+{
+	u32 *vaddr = (u32 *)addr;
+	/* shift implied by pointer type */
+	return readl(vaddr + offset);
+}
+
 /*
  * early_pci_serial_init()
  *
@@ -217,8 +217,8 @@ static __init void early_pci_serial_init(char *s)
 	unsigned divisor;
 	unsigned long baud = DEFAULT_BAUD;
 	u8 bus, slot, func;
-	uint32_t classcode, bar0;
-	uint16_t cmdreg;
+	u32 classcode, bar0;
+	u16 cmdreg;
 	char *e;
 
 
@@ -374,12 +374,6 @@ static int __init setup_early_printk(char *buf)
 #ifdef CONFIG_HVC_XEN
 		if (!strncmp(buf, "xen", 3))
 			early_console_register(&xenboot_console, keep);
-#endif
-#ifdef CONFIG_EARLY_PRINTK_INTEL_MID
-		if (!strncmp(buf, "hsu", 3)) {
-			hsu_early_console_init(buf + 3);
-			early_console_register(&early_hsu_console, keep);
-		}
 #endif
 #ifdef CONFIG_EARLY_PRINTK_EFI
 		if (!strncmp(buf, "efi", 3))

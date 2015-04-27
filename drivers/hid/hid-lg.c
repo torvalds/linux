@@ -27,6 +27,7 @@
 #include "usbhid/usbhid.h"
 #include "hid-ids.h"
 #include "hid-lg.h"
+#include "hid-lg4ff.h"
 
 #define LG_RDESC		0x001
 #define LG_BAD_RELATIVE_KEYS	0x002
@@ -817,5 +818,11 @@ static struct hid_driver lg_driver = {
 	.remove = lg_remove,
 };
 module_hid_driver(lg_driver);
+
+#ifdef CONFIG_LOGIWHEELS_FF
+int lg4ff_no_autoswitch = 0;
+module_param_named(lg4ff_no_autoswitch, lg4ff_no_autoswitch, int, S_IRUGO);
+MODULE_PARM_DESC(lg4ff_no_autoswitch, "Do not switch multimode wheels to their native mode automatically");
+#endif
 
 MODULE_LICENSE("GPL");

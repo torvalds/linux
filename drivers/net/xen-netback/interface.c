@@ -340,12 +340,11 @@ static void xenvif_get_ethtool_stats(struct net_device *dev,
 	unsigned int num_queues = vif->num_queues;
 	int i;
 	unsigned int queue_index;
-	struct xenvif_stats *vif_stats;
 
 	for (i = 0; i < ARRAY_SIZE(xenvif_stats); i++) {
 		unsigned long accum = 0;
 		for (queue_index = 0; queue_index < num_queues; ++queue_index) {
-			vif_stats = &vif->queues[queue_index].stats;
+			void *vif_stats = &vif->queues[queue_index].stats;
 			accum += *(unsigned long *)(vif_stats + xenvif_stats[i].offset);
 		}
 		data[i] = accum;
@@ -438,7 +437,7 @@ struct xenvif *xenvif_alloc(struct device *parent, domid_t domid,
 	 * stolen by an Ethernet bridge for STP purposes.
 	 * (FE:FF:FF:FF:FF:FF)
 	 */
-	memset(dev->dev_addr, 0xFF, ETH_ALEN);
+	eth_broadcast_addr(dev->dev_addr);
 	dev->dev_addr[0] &= ~0x01;
 
 	netif_carrier_off(dev);
@@ -464,6 +463,7 @@ int xenvif_init_queue(struct xenvif_queue *queue)
 	queue->credit_bytes = queue->remaining_credit = ~0UL;
 	queue->credit_usec  = 0UL;
 	init_timer(&queue->credit_timeout);
+	queue->credit_timeout.function = xenvif_tx_credit_callback;
 	queue->credit_window_start = get_jiffies_64();
 
 	queue->rx_queue_max = XENVIF_RX_QUEUE_BYTES;

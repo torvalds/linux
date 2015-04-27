@@ -129,8 +129,8 @@ struct bnx2x_mac_vals {
 	u32 xmac_val;
 	u32 emac_addr;
 	u32 emac_val;
-	u32 umac_addr;
-	u32 umac_val;
+	u32 umac_addr[2];
+	u32 umac_val[2];
 	u32 bmac_addr;
 	u32 bmac_val[2];
 };
@@ -7866,6 +7866,20 @@ int bnx2x_init_hw_func_cnic(struct bnx2x *bp)
 	return 0;
 }
 
+/* previous driver DMAE transaction may have occurred when pre-boot stage ended
+ * and boot began, or when kdump kernel was loaded. Either case would invalidate
+ * the addresses of the transaction, resulting in was-error bit set in the pci
+ * causing all hw-to-host pcie transactions to timeout. If this happened we want
+ * to clear the interrupt which detected this from the pglueb and the was done
+ * bit
+ */
+static void bnx2x_clean_pglue_errors(struct bnx2x *bp)
+{
+	if (!CHIP_IS_E1x(bp))
+		REG_WR(bp, PGLUE_B_REG_WAS_ERROR_PF_7_0_CLR,
+		       1 << BP_ABS_FUNC(bp));
+}
+
 static int bnx2x_init_hw_func(struct bnx2x *bp)
 {
 	int port = BP_PORT(bp);
@@ -7958,8 +7972,7 @@ static int bnx2x_init_hw_func(struct bnx2x *bp)
 
 	bnx2x_init_block(bp, BLOCK_PGLUE_B, init_phase);
 
-	if (!CHIP_IS_E1x(bp))
-		REG_WR(bp, PGLUE_B_REG_WAS_ERROR_PF_7_0_CLR, func);
+	bnx2x_clean_pglue_errors(bp);
 
 	bnx2x_init_block(bp, BLOCK_ATC, init_phase);
 	bnx2x_init_block(bp, BLOCK_DMAE, init_phase);
@@ -10141,6 +10154,25 @@ static u32 bnx2x_get_pretend_reg(struct bnx2x *bp)
 	return base + (BP_ABS_FUNC(bp)) * stride;
 }
 
+static bool bnx2x_prev_unload_close_umac(struct bnx2x *bp,
+					 u8 port, u32 reset_reg,
+					 struct bnx2x_mac_vals *vals)
+{
+	u32 mask = MISC_REGISTERS_RESET_REG_2_UMAC0 << port;
+	u32 base_addr;
+
+	if (!(mask & reset_reg))
+		return false;
+
+	BNX2X_DEV_INFO("Disable umac Rx %02x\n", port);
+	base_addr = port ? GRCBASE_UMAC1 : GRCBASE_UMAC0;
+	vals->umac_addr[port] = base_addr + UMAC_REG_COMMAND_CONFIG;
+	vals->umac_val[port] = REG_RD(bp, vals->umac_addr[port]);
+	REG_WR(bp, vals->umac_addr[port], 0);
+
+	return true;
+}
+
 static void bnx2x_prev_unload_close_mac(struct bnx2x *bp,
 					struct bnx2x_mac_vals *vals)
 {
@@ -10149,10 +10181,7 @@ static void bnx2x_prev_unload_close_mac(struct bnx2x *bp,
 	u8 port = BP_PORT(bp);
 
 	/* reset addresses as they also mark which values were changed */
-	vals->bmac_addr = 0;
-	vals->umac_addr = 0;
-	vals->xmac_addr = 0;
-	vals->emac_addr = 0;
+	memset(vals, 0, sizeof(*vals));
 
 	reset_reg = REG_RD(bp, MISC_REG_RESET_REG_2);
 
@@ -10201,15 +10230,11 @@ static void bnx2x_prev_unload_close_mac(struct bnx2x *bp,
 			REG_WR(bp, vals->xmac_addr, 0);
 			mac_stopped = true;
 		}
-		mask = MISC_REGISTERS_RESET_REG_2_UMAC0 << port;
-		if (mask & reset_reg) {
-			BNX2X_DEV_INFO("Disable umac Rx\n");
-			base_addr = BP_PORT(bp) ? GRCBASE_UMAC1 : GRCBASE_UMAC0;
-			vals->umac_addr = base_addr + UMAC_REG_COMMAND_CONFIG;
-			vals->umac_val = REG_RD(bp, vals->umac_addr);
-			REG_WR(bp, vals->umac_addr, 0);
-			mac_stopped = true;
-		}
+
+		mac_stopped |= bnx2x_prev_unload_close_umac(bp, 0,
+							    reset_reg, vals);
+		mac_stopped |= bnx2x_prev_unload_close_umac(bp, 1,
+							    reset_reg, vals);
 	}
 
 	if (mac_stopped)
@@ -10505,8 +10530,11 @@ static int bnx2x_prev_unload_common(struct bnx2x *bp)
 		/* Close the MAC Rx to prevent BRB from filling up */
 		bnx2x_prev_unload_close_mac(bp, &mac_vals);
 
-		/* close LLH filters towards the BRB */
+		/* close LLH filters for both ports towards the BRB */
 		bnx2x_set_rx_filter(&bp->link_params, 0);
+		bp->link_params.port ^= 1;
+		bnx2x_set_rx_filter(&bp->link_params, 0);
+		bp->link_params.port ^= 1;
 
 		/* Check if the UNDI driver was previously loaded */
 		if (bnx2x_prev_is_after_undi(bp)) {
@@ -10553,8 +10581,10 @@ static int bnx2x_prev_unload_common(struct bnx2x *bp)
 
 	if (mac_vals.xmac_addr)
 		REG_WR(bp, mac_vals.xmac_addr, mac_vals.xmac_val);
-	if (mac_vals.umac_addr)
-		REG_WR(bp, mac_vals.umac_addr, mac_vals.umac_val);
+	if (mac_vals.umac_addr[0])
+		REG_WR(bp, mac_vals.umac_addr[0], mac_vals.umac_val[0]);
+	if (mac_vals.umac_addr[1])
+		REG_WR(bp, mac_vals.umac_addr[1], mac_vals.umac_val[1]);
 	if (mac_vals.emac_addr)
 		REG_WR(bp, mac_vals.emac_addr, mac_vals.emac_val);
 	if (mac_vals.bmac_addr) {
@@ -10571,26 +10601,6 @@ static int bnx2x_prev_unload_common(struct bnx2x *bp)
 	return bnx2x_prev_mcp_done(bp);
 }
 
-/* previous driver DMAE transaction may have occurred when pre-boot stage ended
- * and boot began, or when kdump kernel was loaded. Either case would invalidate
- * the addresses of the transaction, resulting in was-error bit set in the pci
- * causing all hw-to-host pcie transactions to timeout. If this happened we want
- * to clear the interrupt which detected this from the pglueb and the was done
- * bit
- */
-static void bnx2x_prev_interrupted_dmae(struct bnx2x *bp)
-{
-	if (!CHIP_IS_E1x(bp)) {
-		u32 val = REG_RD(bp, PGLUE_B_REG_PGLUE_B_INT_STS);
-		if (val & PGLUE_B_PGLUE_B_INT_STS_REG_WAS_ERROR_ATTN) {
-			DP(BNX2X_MSG_SP,
-			   "'was error' bit was found to be set in pglueb upon startup. Clearing\n");
-			REG_WR(bp, PGLUE_B_REG_WAS_ERROR_PF_7_0_CLR,
-			       1 << BP_FUNC(bp));
-		}
-	}
-}
-
 static int bnx2x_prev_unload(struct bnx2x *bp)
 {
 	int time_counter = 10;
@@ -10600,7 +10610,7 @@ static int bnx2x_prev_unload(struct bnx2x *bp)
 	/* clear hw from errors which may have resulted from an interrupted
 	 * dmae transaction.
 	 */
-	bnx2x_prev_interrupted_dmae(bp);
+	bnx2x_clean_pglue_errors(bp);
 
 	/* Release previously held locks */
 	hw_lock_reg = (BP_FUNC(bp) <= 5) ?
@@ -11546,13 +11556,13 @@ static void bnx2x_get_cnic_mac_hwinfo(struct bnx2x *bp)
 	/* Disable iSCSI OOO if MAC configuration is invalid. */
 	if (!is_valid_ether_addr(iscsi_mac)) {
 		bp->flags |= NO_ISCSI_OOO_FLAG | NO_ISCSI_FLAG;
-		memset(iscsi_mac, 0, ETH_ALEN);
+		eth_zero_addr(iscsi_mac);
 	}
 
 	/* Disable FCoE if MAC configuration is invalid. */
 	if (!is_valid_ether_addr(fip_mac)) {
 		bp->flags |= NO_FCOE_FLAG;
-		memset(bp->fip_mac, 0, ETH_ALEN);
+		eth_zero_addr(bp->fip_mac);
 	}
 }
 
@@ -11563,7 +11573,7 @@ static void bnx2x_get_mac_hwinfo(struct bnx2x *bp)
 	int port = BP_PORT(bp);
 
 	/* Zero primary MAC configuration */
-	memset(bp->dev->dev_addr, 0, ETH_ALEN);
+	eth_zero_addr(bp->dev->dev_addr);
 
 	if (BP_NOMCP(bp)) {
 		BNX2X_ERROR("warning: random MAC workaround active\n");
@@ -11610,7 +11620,7 @@ static bool bnx2x_get_dropless_info(struct bnx2x *bp)
 	u32 cfg;
 
 	if (IS_VF(bp))
-		return 0;
+		return false;
 
 	if (IS_MF(bp) && !CHIP_IS_E1x(bp)) {
 		/* Take function: tmp = func */
@@ -11649,6 +11659,13 @@ static int bnx2x_get_hwinfo(struct bnx2x *bp)
 	int vn;
 	u32 val = 0, val2 = 0;
 	int rc = 0;
+
+	/* Validate that chip access is feasible */
+	if (REG_RD(bp, MISC_REG_CHIP_NUM) == 0xffffffff) {
+		dev_err(&bp->pdev->dev,
+			"Chip read returns all Fs. Preventing probe from continuing\n");
+		return -EINVAL;
+	}
 
 	bnx2x_get_common_hwinfo(bp);
 
@@ -12037,9 +12054,8 @@ static int bnx2x_init_bp(struct bnx2x *bp)
 	mutex_init(&bp->port.phy_mutex);
 	mutex_init(&bp->fw_mb_mutex);
 	mutex_init(&bp->drv_info_mutex);
+	mutex_init(&bp->stats_lock);
 	bp->drv_info_mng_owner = false;
-	spin_lock_init(&bp->stats_lock);
-	sema_init(&bp->stats_sema, 1);
 
 	INIT_DELAYED_WORK(&bp->sp_task, bnx2x_sp_task);
 	INIT_DELAYED_WORK(&bp->sp_rtnl_task, bnx2x_sp_rtnl_task);
@@ -12557,6 +12573,7 @@ static netdev_features_t bnx2x_features_check(struct sk_buff *skb,
 					      struct net_device *dev,
 					      netdev_features_t features)
 {
+	features = vlan_features_check(skb, features);
 	return vxlan_features_check(skb, features);
 }
 
@@ -12722,6 +12739,9 @@ static int bnx2x_init_dev(struct bnx2x *bp, struct pci_dev *pdev,
 	pci_write_config_dword(bp->pdev, PCICFG_GRC_ADDRESS,
 			       PCICFG_VENDOR_ID_OFFSET);
 
+	/* Set PCIe reset type to fundamental for EEH recovery */
+	pdev->needs_freset = 1;
+
 	/* AER (Advanced Error reporting) configuration */
 	rc = pci_enable_pcie_error_reporting(pdev);
 	if (!rc)
@@ -12766,7 +12786,7 @@ static int bnx2x_init_dev(struct bnx2x *bp, struct pci_dev *pdev,
 		NETIF_F_TSO | NETIF_F_TSO_ECN | NETIF_F_TSO6 |
 		NETIF_F_RXCSUM | NETIF_F_LRO | NETIF_F_GRO |
 		NETIF_F_RXHASH | NETIF_F_HW_VLAN_CTAG_TX;
-	if (!CHIP_IS_E1x(bp)) {
+	if (!chip_is_e1x) {
 		dev->hw_features |= NETIF_F_GSO_GRE | NETIF_F_GSO_UDP_TUNNEL |
 				    NETIF_F_GSO_IPIP | NETIF_F_GSO_SIT;
 		dev->hw_enc_features =
@@ -13275,30 +13295,27 @@ static int bnx2x_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 	return 0;
 }
 
-static int bnx2x_ptp_gettime(struct ptp_clock_info *ptp, struct timespec *ts)
+static int bnx2x_ptp_gettime(struct ptp_clock_info *ptp, struct timespec64 *ts)
 {
 	struct bnx2x *bp = container_of(ptp, struct bnx2x, ptp_clock_info);
 	u64 ns;
-	u32 remainder;
 
 	ns = timecounter_read(&bp->timecounter);
 
 	DP(BNX2X_MSG_PTP, "PTP gettime called, ns = %llu\n", ns);
 
-	ts->tv_sec = div_u64_rem(ns, 1000000000ULL, &remainder);
-	ts->tv_nsec = remainder;
+	*ts = ns_to_timespec64(ns);
 
 	return 0;
 }
 
 static int bnx2x_ptp_settime(struct ptp_clock_info *ptp,
-			     const struct timespec *ts)
+			     const struct timespec64 *ts)
 {
 	struct bnx2x *bp = container_of(ptp, struct bnx2x, ptp_clock_info);
 	u64 ns;
 
-	ns = ts->tv_sec * 1000000000ULL;
-	ns += ts->tv_nsec;
+	ns = timespec64_to_ns(ts);
 
 	DP(BNX2X_MSG_PTP, "PTP settime called, ns = %llu\n", ns);
 
@@ -13330,8 +13347,8 @@ static void bnx2x_register_phc(struct bnx2x *bp)
 	bp->ptp_clock_info.pps = 0;
 	bp->ptp_clock_info.adjfreq = bnx2x_ptp_adjfreq;
 	bp->ptp_clock_info.adjtime = bnx2x_ptp_adjtime;
-	bp->ptp_clock_info.gettime = bnx2x_ptp_gettime;
-	bp->ptp_clock_info.settime = bnx2x_ptp_settime;
+	bp->ptp_clock_info.gettime64 = bnx2x_ptp_gettime;
+	bp->ptp_clock_info.settime64 = bnx2x_ptp_settime;
 	bp->ptp_clock_info.enable = bnx2x_ptp_enable;
 
 	bp->ptp_clock = ptp_clock_register(&bp->ptp_clock_info, &bp->pdev->dev);
@@ -13665,9 +13682,9 @@ static int bnx2x_eeh_nic_unload(struct bnx2x *bp)
 	cancel_delayed_work_sync(&bp->sp_task);
 	cancel_delayed_work_sync(&bp->period_task);
 
-	spin_lock_bh(&bp->stats_lock);
+	mutex_lock(&bp->stats_lock);
 	bp->stats_state = STATS_STATE_DISABLED;
-	spin_unlock_bh(&bp->stats_lock);
+	mutex_unlock(&bp->stats_lock);
 
 	bnx2x_save_statistics(bp);
 

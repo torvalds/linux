@@ -36,7 +36,8 @@
 #define CEPH_MOUNT_OPT_DCACHE          (1<<9) /* use dcache for readdir etc */
 #define CEPH_MOUNT_OPT_FSCACHE         (1<<10) /* use fscache */
 
-#define CEPH_MOUNT_OPT_DEFAULT    (CEPH_MOUNT_OPT_RBYTES)
+#define CEPH_MOUNT_OPT_DEFAULT    (CEPH_MOUNT_OPT_RBYTES | \
+				   CEPH_MOUNT_OPT_DCACHE)
 
 #define ceph_set_mount_opt(fsc, opt) \
 	(fsc)->mount_options->flags |= CEPH_MOUNT_OPT_##opt;
@@ -881,7 +882,6 @@ extern int ceph_mmap(struct file *file, struct vm_area_struct *vma);
 
 /* file.c */
 extern const struct file_operations ceph_file_fops;
-extern const struct address_space_operations ceph_aops;
 
 extern int ceph_open(struct inode *inode, struct file *file);
 extern int ceph_atomic_open(struct inode *dir, struct dentry *dentry,

@@ -1,0 +1,73 @@
+#!/bin/bash
+
+#modprobe pktgen
+
+
+function pgset() {
+    local result
+
+    echo $1 > $PGDEV
+
+    result=`cat $PGDEV | fgrep "Result: OK:"`
+    if [ "$result" = "" ]; then
+         cat $PGDEV | fgrep Result:
+    fi
+}
+
+# Config Start Here -----------------------------------------------------------
+
+
+# thread config
+# Each CPU has its own thread. Two CPU example. We add eth1, eth2 respectively.
+
+PGDEV=/proc/net/pktgen/kpktgend_0
+  echo "Removing all devices"
+ pgset "rem_device_all"
+  echo "Adding eth1"
+ pgset "add_device eth1"
+
+PGDEV=/proc/net/pktgen/kpktgend_1
+  echo "Removing all devices"
+ pgset "rem_device_all"
+  echo "Adding eth2"
+ pgset "add_device eth2"
+
+
+# device config
+# delay 0 means maximum speed.
+
+CLONE_SKB="clone_skb 1000000"
+# NIC adds 4 bytes CRC
+PKT_SIZE="pkt_size 60"
+
+# COUNT 0 means forever
+#COUNT="count 0"
+COUNT="count 10000000"
+DELAY="delay 0"
+
+PGDEV=/proc/net/pktgen/eth1
+  echo "Configuring $PGDEV"
+ pgset "$COUNT"
+ pgset "$CLONE_SKB"
+ pgset "$PKT_SIZE"
+ pgset "$DELAY"
+ pgset "dst 10.10.11.2"
+ pgset "dst_mac  00:04:23:08:91:dc"
+
+PGDEV=/proc/net/pktgen/eth2
+  echo "Configuring $PGDEV"
+ pgset "$COUNT"
+ pgset "$CLONE_SKB"
+ pgset "$PKT_SIZE"
+ pgset "$DELAY"
+ pgset "dst 192.168.2.2"
+ pgset "dst_mac  00:04:23:08:91:de"
+
+# Time to run
+PGDEV=/proc/net/pktgen/pgctrl
+
+ echo "Running... ctrl^C to stop"
+ trap true INT
+ pgset "start"
+ echo "Done"
+ cat /proc/net/pktgen/eth1 /proc/net/pktgen/eth2

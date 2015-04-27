@@ -579,6 +579,7 @@ static int cosa_probe(int base, int irq, int dma)
 		/* Register the network interface */
 		if (!(chan->netdev = alloc_hdlcdev(chan))) {
 			pr_warn("%s: alloc_hdlcdev failed\n", chan->name);
+			err = -ENOMEM;
 			goto err_hdlcdev;
 		}
 		dev_to_hdlc(chan->netdev)->attach = cosa_net_attach;
@@ -806,21 +807,21 @@ static ssize_t cosa_read(struct file *file,
 	spin_lock_irqsave(&cosa->lock, flags);
 	add_wait_queue(&chan->rxwaitq, &wait);
 	while (!chan->rx_status) {
-		current->state = TASK_INTERRUPTIBLE;
+		set_current_state(TASK_INTERRUPTIBLE);
 		spin_unlock_irqrestore(&cosa->lock, flags);
 		schedule();
 		spin_lock_irqsave(&cosa->lock, flags);
 		if (signal_pending(current) && chan->rx_status == 0) {
 			chan->rx_status = 1;
 			remove_wait_queue(&chan->rxwaitq, &wait);
-			current->state = TASK_RUNNING;
+			__set_current_state(TASK_RUNNING);
 			spin_unlock_irqrestore(&cosa->lock, flags);
 			mutex_unlock(&chan->rlock);
 			return -ERESTARTSYS;
 		}
 	}
 	remove_wait_queue(&chan->rxwaitq, &wait);
-	current->state = TASK_RUNNING;
+	__set_current_state(TASK_RUNNING);
 	kbuf = chan->rxdata;
 	count = chan->rxsize;
 	spin_unlock_irqrestore(&cosa->lock, flags);
@@ -890,14 +891,14 @@ static ssize_t cosa_write(struct file *file,
 	spin_lock_irqsave(&cosa->lock, flags);
 	add_wait_queue(&chan->txwaitq, &wait);
 	while (!chan->tx_status) {
-		current->state = TASK_INTERRUPTIBLE;
+		set_current_state(TASK_INTERRUPTIBLE);
 		spin_unlock_irqrestore(&cosa->lock, flags);
 		schedule();
 		spin_lock_irqsave(&cosa->lock, flags);
 		if (signal_pending(current) && chan->tx_status == 0) {
 			chan->tx_status = 1;
 			remove_wait_queue(&chan->txwaitq, &wait);
-			current->state = TASK_RUNNING;
+			__set_current_state(TASK_RUNNING);
 			chan->tx_status = 1;
 			spin_unlock_irqrestore(&cosa->lock, flags);
 			up(&chan->wsem);
@@ -905,7 +906,7 @@ static ssize_t cosa_write(struct file *file,
 		}
 	}
 	remove_wait_queue(&chan->txwaitq, &wait);
-	current->state = TASK_RUNNING;
+	__set_current_state(TASK_RUNNING);
 	up(&chan->wsem);
 	spin_unlock_irqrestore(&cosa->lock, flags);
 	kfree(kbuf);

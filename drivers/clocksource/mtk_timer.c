@@ -224,6 +224,8 @@ static void __init mtk_timer_init(struct device_node *node)
 	}
 	rate = clk_get_rate(clk);
 
+	mtk_timer_global_reset(evt);
+
 	if (request_irq(evt->dev.irq, mtk_timer_interrupt,
 			IRQF_TIMER | IRQF_IRQPOLL, "mtk_timer", evt)) {
 		pr_warn("failed to setup irq %d\n", evt->dev.irq);
@@ -232,8 +234,6 @@ static void __init mtk_timer_init(struct device_node *node)
 
 	evt->ticks_per_jiffy = DIV_ROUND_UP(rate, HZ);
 
-	mtk_timer_global_reset(evt);
-
 	/* Configure clock source */
 	mtk_timer_setup(evt, GPT_CLK_SRC, TIMER_CTRL_OP_FREERUN);
 	clocksource_mmio_init(evt->gpt_base + TIMER_CNT_REG(GPT_CLK_SRC),
@@ -241,10 +241,11 @@ static void __init mtk_timer_init(struct device_node *node)
 
 	/* Configure clock event */
 	mtk_timer_setup(evt, GPT_CLK_EVT, TIMER_CTRL_OP_REPEAT);
-	mtk_timer_enable_irq(evt, GPT_CLK_EVT);
-
 	clockevents_config_and_register(&evt->dev, rate, 0x3,
 					0xffffffff);
+
+	mtk_timer_enable_irq(evt, GPT_CLK_EVT);
+
 	return;
 
 err_clk_disable:

@@ -18,6 +18,7 @@
 #include <linux/time.h>
 
 #include <linux/clockchips.h>
+#include <linux/sched_clock.h>
 
 #include <asm/mach-jz4740/irq.h>
 #include <asm/mach-jz4740/timer.h>
@@ -42,6 +43,11 @@ static struct clocksource jz4740_clocksource = {
 	.mask = CLOCKSOURCE_MASK(16),
 	.flags = CLOCK_SOURCE_IS_CONTINUOUS,
 };
+
+static u64 notrace jz4740_read_sched_clock(void)
+{
+	return jz4740_timer_get_count(TIMER_CLOCKSOURCE);
+}
 
 static irqreturn_t jz4740_clockevent_irq(int irq, void *devid)
 {
@@ -125,6 +131,8 @@ void __init plat_time_init(void)
 
 	if (ret)
 		printk(KERN_ERR "Failed to register clocksource: %d\n", ret);
+
+	sched_clock_register(jz4740_read_sched_clock, 16, clk_rate);
 
 	setup_irq(JZ4740_IRQ_TCU0, &timer_irqaction);
 

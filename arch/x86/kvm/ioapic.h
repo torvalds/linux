@@ -3,7 +3,7 @@
 
 #include <linux/kvm_host.h>
 
-#include "iodev.h"
+#include <kvm/iodev.h>
 
 struct kvm;
 struct kvm_vcpu;
@@ -77,6 +77,7 @@ struct kvm_ioapic {
 	struct rtc_status rtc_status;
 	struct delayed_work eoi_inject;
 	u32 irq_eoi[IOAPIC_NUM_PINS];
+	u32 irr_delivered;
 };
 
 #ifdef DEBUG
@@ -97,13 +98,19 @@ static inline struct kvm_ioapic *ioapic_irqchip(struct kvm *kvm)
 	return kvm->arch.vioapic;
 }
 
+static inline bool kvm_ioapic_handles_vector(struct kvm *kvm, int vector)
+{
+	struct kvm_ioapic *ioapic = kvm->arch.vioapic;
+	smp_rmb();
+	return test_bit(vector, ioapic->handled_vectors);
+}
+
 void kvm_rtc_eoi_tracking_restore_one(struct kvm_vcpu *vcpu);
 bool kvm_apic_match_dest(struct kvm_vcpu *vcpu, struct kvm_lapic *source,
 		int short_hand, unsigned int dest, int dest_mode);
 int kvm_apic_compare_prio(struct kvm_vcpu *vcpu1, struct kvm_vcpu *vcpu2);
 void kvm_ioapic_update_eoi(struct kvm_vcpu *vcpu, int vector,
 			int trigger_mode);
-bool kvm_ioapic_handles_vector(struct kvm *kvm, int vector);
 int kvm_ioapic_init(struct kvm *kvm);
 void kvm_ioapic_destroy(struct kvm *kvm);
 int kvm_ioapic_set_irq(struct kvm_ioapic *ioapic, int irq, int irq_source_id,

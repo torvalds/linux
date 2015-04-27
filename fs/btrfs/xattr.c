@@ -111,6 +111,8 @@ static int do_setxattr(struct btrfs_trans_handle *trans,
 					name, name_len, -1);
 		if (!di && (flags & XATTR_REPLACE))
 			ret = -ENODATA;
+		else if (IS_ERR(di))
+			ret = PTR_ERR(di);
 		else if (di)
 			ret = btrfs_delete_one_dir_name(trans, root, path, di);
 		goto out;
@@ -127,10 +129,12 @@ static int do_setxattr(struct btrfs_trans_handle *trans,
 		ASSERT(mutex_is_locked(&inode->i_mutex));
 		di = btrfs_lookup_xattr(NULL, root, path, btrfs_ino(inode),
 					name, name_len, 0);
-		if (!di) {
+		if (!di)
 			ret = -ENODATA;
+		else if (IS_ERR(di))
+			ret = PTR_ERR(di);
+		if (ret)
 			goto out;
-		}
 		btrfs_release_path(path);
 		di = NULL;
 	}
@@ -257,7 +261,7 @@ out:
 ssize_t btrfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 {
 	struct btrfs_key key, found_key;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_path *path;
 	struct extent_buffer *leaf;
@@ -360,22 +364,42 @@ const struct xattr_handler *btrfs_xattr_handlers[] = {
 /*
  * Check if the attribute is in a supported namespace.
  *
- * This applied after the check for the synthetic attributes in the system
+ * This is applied after the check for the synthetic attributes in the system
  * namespace.
  */
-static bool btrfs_is_valid_xattr(const char *name)
+static int btrfs_is_valid_xattr(const char *name)
 {
-	return !strncmp(name, XATTR_SECURITY_PREFIX,
-			XATTR_SECURITY_PREFIX_LEN) ||
-	       !strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN) ||
-	       !strncmp(name, XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN) ||
-	       !strncmp(name, XATTR_USER_PREFIX, XATTR_USER_PREFIX_LEN) ||
-		!strncmp(name, XATTR_BTRFS_PREFIX, XATTR_BTRFS_PREFIX_LEN);
+	int len = strlen(name);
+	int prefixlen = 0;
+
+	if (!strncmp(name, XATTR_SECURITY_PREFIX,
+			XATTR_SECURITY_PREFIX_LEN))
+		prefixlen = XATTR_SECURITY_PREFIX_LEN;
+	else if (!strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN))
+		prefixlen = XATTR_SYSTEM_PREFIX_LEN;
+	else if (!strncmp(name, XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN))
+		prefixlen = XATTR_TRUSTED_PREFIX_LEN;
+	else if (!strncmp(name, XATTR_USER_PREFIX, XATTR_USER_PREFIX_LEN))
+		prefixlen = XATTR_USER_PREFIX_LEN;
+	else if (!strncmp(name, XATTR_BTRFS_PREFIX, XATTR_BTRFS_PREFIX_LEN))
+		prefixlen = XATTR_BTRFS_PREFIX_LEN;
+	else
+		return -EOPNOTSUPP;
+
+	/*
+	 * The name cannot consist of just prefix
+	 */
+	if (len <= prefixlen)
+		return -EINVAL;
+
+	return 0;
 }
 
 ssize_t btrfs_getxattr(struct dentry *dentry, const char *name,
 		       void *buffer, size_t size)
 {
+	int ret;
+
 	/*
 	 * If this is a request for a synthetic attribute in the system.*
 	 * namespace use the generic infrastructure to resolve a handler
@@ -384,15 +408,17 @@ ssize_t btrfs_getxattr(struct dentry *dentry, const char *name,
 	if (!strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN))
 		return generic_getxattr(dentry, name, buffer, size);
 
-	if (!btrfs_is_valid_xattr(name))
-		return -EOPNOTSUPP;
-	return __btrfs_getxattr(dentry->d_inode, name, buffer, size);
+	ret = btrfs_is_valid_xattr(name);
+	if (ret)
+		return ret;
+	return __btrfs_getxattr(d_inode(dentry), name, buffer, size);
 }
 
 int btrfs_setxattr(struct dentry *dentry, const char *name, const void *value,
 		   size_t size, int flags)
 {
-	struct btrfs_root *root = BTRFS_I(dentry->d_inode)->root;
+	struct btrfs_root *root = BTRFS_I(d_inode(dentry))->root;
+	int ret;
 
 	/*
 	 * The permission on security.* and system.* is not checked
@@ -409,23 +435,25 @@ int btrfs_setxattr(struct dentry *dentry, const char *name, const void *value,
 	if (!strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN))
 		return generic_setxattr(dentry, name, value, size, flags);
 
-	if (!btrfs_is_valid_xattr(name))
-		return -EOPNOTSUPP;
+	ret = btrfs_is_valid_xattr(name);
+	if (ret)
+		return ret;
 
 	if (!strncmp(name, XATTR_BTRFS_PREFIX, XATTR_BTRFS_PREFIX_LEN))
-		return btrfs_set_prop(dentry->d_inode, name,
+		return btrfs_set_prop(d_inode(dentry), name,
 				      value, size, flags);
 
 	if (size == 0)
 		value = "";  /* empty EA, do not remove */
 
-	return __btrfs_setxattr(NULL, dentry->d_inode, name, value, size,
+	return __btrfs_setxattr(NULL, d_inode(dentry), name, value, size,
 				flags);
 }
 
 int btrfs_removexattr(struct dentry *dentry, const char *name)
 {
-	struct btrfs_root *root = BTRFS_I(dentry->d_inode)->root;
+	struct btrfs_root *root = BTRFS_I(d_inode(dentry))->root;
+	int ret;
 
 	/*
 	 * The permission on security.* and system.* is not checked
@@ -442,14 +470,15 @@ int btrfs_removexattr(struct dentry *dentry, const char *name)
 	if (!strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN))
 		return generic_removexattr(dentry, name);
 
-	if (!btrfs_is_valid_xattr(name))
-		return -EOPNOTSUPP;
+	ret = btrfs_is_valid_xattr(name);
+	if (ret)
+		return ret;
 
 	if (!strncmp(name, XATTR_BTRFS_PREFIX, XATTR_BTRFS_PREFIX_LEN))
-		return btrfs_set_prop(dentry->d_inode, name,
+		return btrfs_set_prop(d_inode(dentry), name,
 				      NULL, 0, XATTR_REPLACE);
 
-	return __btrfs_setxattr(NULL, dentry->d_inode, name, NULL, 0,
+	return __btrfs_setxattr(NULL, d_inode(dentry), name, NULL, 0,
 				XATTR_REPLACE);
 }
 

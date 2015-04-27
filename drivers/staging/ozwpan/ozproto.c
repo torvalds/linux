@@ -98,7 +98,7 @@ static void oz_send_conn_rsp(struct oz_pd *pd, u8 status)
 		kfree_skb(skb);
 		return;
 	}
-	oz_hdr->control = (OZ_PROTOCOL_VERSION<<OZ_VERSION_SHIFT);
+	oz_hdr->control = OZ_PROTOCOL_VERSION<<OZ_VERSION_SHIFT;
 	oz_hdr->last_pkt_num = 0;
 	put_unaligned(0, &oz_hdr->pkt_num);
 	elt->type = OZ_ELT_CONNECT_RSP;

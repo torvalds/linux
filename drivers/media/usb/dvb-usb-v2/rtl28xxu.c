@@ -780,8 +780,6 @@ static int rtl2832u_frontend_callback(void *adapter_priv, int component,
 		case TUNER_RTL2832_TUA9001:
 			return rtl2832u_tua9001_tuner_callback(d, cmd, arg);
 		}
-	default:
-		return -EINVAL;
 	}
 
 	return 0;

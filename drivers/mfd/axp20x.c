@@ -29,7 +29,7 @@
 
 #define AXP20X_OFF	0x80
 
-static const char const *axp20x_model_names[] = {
+static const char * const axp20x_model_names[] = {
 	"AXP202",
 	"AXP209",
 	"AXP288",
@@ -87,7 +87,7 @@ static struct resource axp20x_pek_resources[] = {
 	},
 };
 
-static struct resource axp288_battery_resources[] = {
+static struct resource axp288_fuel_gauge_resources[] = {
 	{
 		.start = AXP288_IRQ_QWBTU,
 		.end   = AXP288_IRQ_QWBTU,
@@ -290,6 +290,29 @@ static struct resource axp288_adc_resources[] = {
 	},
 };
 
+static struct resource axp288_extcon_resources[] = {
+	{
+		.start = AXP288_IRQ_VBUS_FALL,
+		.end   = AXP288_IRQ_VBUS_FALL,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = AXP288_IRQ_VBUS_RISE,
+		.end   = AXP288_IRQ_VBUS_RISE,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = AXP288_IRQ_MV_CHNG,
+		.end   = AXP288_IRQ_MV_CHNG,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = AXP288_IRQ_BC_USB_CHNG,
+		.end   = AXP288_IRQ_BC_USB_CHNG,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
 static struct resource axp288_charger_resources[] = {
 	{
 		.start = AXP288_IRQ_OV,
@@ -345,14 +368,19 @@ static struct mfd_cell axp288_cells[] = {
 		.resources = axp288_adc_resources,
 	},
 	{
+		.name = "axp288_extcon",
+		.num_resources = ARRAY_SIZE(axp288_extcon_resources),
+		.resources = axp288_extcon_resources,
+	},
+	{
 		.name = "axp288_charger",
 		.num_resources = ARRAY_SIZE(axp288_charger_resources),
 		.resources = axp288_charger_resources,
 	},
 	{
-		.name = "axp288_battery",
-		.num_resources = ARRAY_SIZE(axp288_battery_resources),
-		.resources = axp288_battery_resources,
+		.name = "axp288_fuel_gauge",
+		.num_resources = ARRAY_SIZE(axp288_fuel_gauge_resources),
+		.resources = axp288_fuel_gauge_resources,
 	},
 	{
 		.name = "axp288_pmic_acpi",

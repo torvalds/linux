@@ -599,6 +599,9 @@ static int clcdfb_of_get_mode(struct device *dev, struct device_node *endpoint,
 
 	len = clcdfb_snprintf_mode(NULL, 0, mode);
 	name = devm_kzalloc(dev, len + 1, GFP_KERNEL);
+	if (!name)
+		return -ENOMEM;
+
 	clcdfb_snprintf_mode(name, len + 1, mode);
 	mode->name = name;
 

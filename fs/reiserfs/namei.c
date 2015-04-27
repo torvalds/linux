@@ -400,7 +400,7 @@ struct dentry *reiserfs_get_parent(struct dentry *child)
 	struct inode *inode = NULL;
 	struct reiserfs_dir_entry de;
 	INITIALIZE_PATH(path_to_entry);
-	struct inode *dir = child->d_inode;
+	struct inode *dir = d_inode(child);
 
 	if (dir->i_nlink == 0) {
 		return ERR_PTR(-ENOENT);
@@ -917,7 +917,7 @@ static int reiserfs_rmdir(struct inode *dir, struct dentry *dentry)
 		goto end_rmdir;
 	}
 
-	inode = dentry->d_inode;
+	inode = d_inode(dentry);
 
 	reiserfs_update_inode_transaction(inode);
 	reiserfs_update_inode_transaction(dir);
@@ -987,7 +987,7 @@ static int reiserfs_unlink(struct inode *dir, struct dentry *dentry)
 
 	dquot_initialize(dir);
 
-	inode = dentry->d_inode;
+	inode = d_inode(dentry);
 
 	/*
 	 * in this transaction we can be doing at max two balancings and
@@ -1174,7 +1174,7 @@ static int reiserfs_link(struct dentry *old_dentry, struct inode *dir,
 			 struct dentry *dentry)
 {
 	int retval;
-	struct inode *inode = old_dentry->d_inode;
+	struct inode *inode = d_inode(old_dentry);
 	struct reiserfs_transaction_handle th;
 	/*
 	 * We need blocks for transaction + update of quotas for
@@ -1311,8 +1311,8 @@ static int reiserfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	dquot_initialize(old_dir);
 	dquot_initialize(new_dir);
 
-	old_inode = old_dentry->d_inode;
-	new_dentry_inode = new_dentry->d_inode;
+	old_inode = d_inode(old_dentry);
+	new_dentry_inode = d_inode(new_dentry);
 
 	/*
 	 * make sure that oldname still exists and points to an object we

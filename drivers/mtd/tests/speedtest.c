@@ -185,7 +185,7 @@ static long calc_speed(void)
 	     (finish.tv_usec - start.tv_usec) / 1000;
 	if (ms == 0)
 		return 0;
-	k = goodebcnt * (mtd->erasesize / 1024) * 1000;
+	k = (uint64_t)goodebcnt * (mtd->erasesize / 1024) * 1000;
 	do_div(k, ms);
 	return k;
 }
@@ -269,7 +269,10 @@ static int __init mtd_speedtest_init(void)
 		err = write_eraseblock(i);
 		if (err)
 			goto out;
-		cond_resched();
+
+		err = mtdtest_relax();
+		if (err)
+			goto out;
 	}
 	stop_timing();
 	speed = calc_speed();
@@ -284,7 +287,10 @@ static int __init mtd_speedtest_init(void)
 		err = read_eraseblock(i);
 		if (err)
 			goto out;
-		cond_resched();
+
+		err = mtdtest_relax();
+		if (err)
+			goto out;
 	}
 	stop_timing();
 	speed = calc_speed();
@@ -303,7 +309,10 @@ static int __init mtd_speedtest_init(void)
 		err = write_eraseblock_by_page(i);
 		if (err)
 			goto out;
-		cond_resched();
+
+		err = mtdtest_relax();
+		if (err)
+			goto out;
 	}
 	stop_timing();
 	speed = calc_speed();
@@ -318,7 +327,10 @@ static int __init mtd_speedtest_init(void)
 		err = read_eraseblock_by_page(i);
 		if (err)
 			goto out;
-		cond_resched();
+
+		err = mtdtest_relax();
+		if (err)
+			goto out;
 	}
 	stop_timing();
 	speed = calc_speed();
@@ -337,7 +349,10 @@ static int __init mtd_speedtest_init(void)
 		err = write_eraseblock_by_2pages(i);
 		if (err)
 			goto out;
-		cond_resched();
+
+		err = mtdtest_relax();
+		if (err)
+			goto out;
 	}
 	stop_timing();
 	speed = calc_speed();
@@ -352,7 +367,10 @@ static int __init mtd_speedtest_init(void)
 		err = read_eraseblock_by_2pages(i);
 		if (err)
 			goto out;
-		cond_resched();
+
+		err = mtdtest_relax();
+		if (err)
+			goto out;
 	}
 	stop_timing();
 	speed = calc_speed();
@@ -385,7 +403,11 @@ static int __init mtd_speedtest_init(void)
 			err = multiblock_erase(i, j);
 			if (err)
 				goto out;
-			cond_resched();
+
+			err = mtdtest_relax();
+			if (err)
+				goto out;
+
 			i += j;
 		}
 		stop_timing();

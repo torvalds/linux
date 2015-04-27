@@ -127,6 +127,8 @@ int exynos_pm_central_resume(void)
 static void exynos_set_wakeupmask(long mask)
 {
 	pmu_raw_writel(mask, S5P_WAKEUP_MASK);
+	if (soc_is_exynos3250())
+		pmu_raw_writel(0x0, S5P_WAKEUP_MASK2);
 }
 
 static void exynos_cpu_set_boot_vector(long flags)
@@ -140,7 +142,7 @@ static int exynos_aftr_finisher(unsigned long flags)
 {
 	int ret;
 
-	exynos_set_wakeupmask(0x0000ff3e);
+	exynos_set_wakeupmask(soc_is_exynos3250() ? 0x40003ffe : 0x0000ff3e);
 	/* Set value of power down register for aftr mode */
 	exynos_sys_powerdown_conf(SYS_AFTR);
 
@@ -157,7 +159,12 @@ static int exynos_aftr_finisher(unsigned long flags)
 
 void exynos_enter_aftr(void)
 {
+	unsigned int cpuid = smp_processor_id();
+
 	cpu_pm_enter();
+
+	if (soc_is_exynos3250())
+		exynos_set_boot_flag(cpuid, C2_STATE);
 
 	exynos_pm_central_suspend();
 
@@ -178,9 +185,13 @@ void exynos_enter_aftr(void)
 
 	exynos_pm_central_resume();
 
+	if (soc_is_exynos3250())
+		exynos_clear_boot_flag(cpuid, C2_STATE);
+
 	cpu_pm_exit();
 }
 
+#if defined(CONFIG_SMP) && defined(CONFIG_ARM_EXYNOS_CPUIDLE)
 static atomic_t cpu1_wakeup = ATOMIC_INIT(0);
 
 static int exynos_cpu0_enter_aftr(void)
@@ -302,3 +313,4 @@ struct cpuidle_exynos_data cpuidle_coupled_exynos_data = {
 	.pre_enter_aftr		= exynos_pre_enter_aftr,
 	.post_enter_aftr		= exynos_post_enter_aftr,
 };
+#endif /* CONFIG_SMP && CONFIG_ARM_EXYNOS_CPUIDLE */

@@ -176,6 +176,17 @@ void __init check_wait(void)
 		cpu_wait = rm7k_wait_irqoff;
 		break;
 
+	case CPU_PROAPTIV:
+	case CPU_P5600:
+		/*
+		 * Incoming Fast Debug Channel (FDC) data during a wait
+		 * instruction causes the wait never to resume, even if an
+		 * interrupt is received. Avoid using wait at all if FDC data is
+		 * likely to be received.
+		 */
+		if (IS_ENABLED(CONFIG_MIPS_EJTAG_FDC_TTY))
+			break;
+		/* fall through */
 	case CPU_M14KC:
 	case CPU_M14KEC:
 	case CPU_24K:
@@ -183,8 +194,6 @@ void __init check_wait(void)
 	case CPU_1004K:
 	case CPU_1074K:
 	case CPU_INTERAPTIV:
-	case CPU_PROAPTIV:
-	case CPU_P5600:
 	case CPU_M5150:
 	case CPU_QEMU_GENERIC:
 		cpu_wait = r4k_wait;

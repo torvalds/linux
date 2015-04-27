@@ -720,7 +720,7 @@ static struct asc_port *asc_of_get_asc_port(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_OF
-static struct of_device_id asc_match[] = {
+static const struct of_device_id asc_match[] = {
 	{ .compatible = "st,asc", },
 	{},
 };

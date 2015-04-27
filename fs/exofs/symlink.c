@@ -37,7 +37,7 @@
 
 static void *exofs_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
-	struct exofs_i_info *oi = exofs_i(dentry->d_inode);
+	struct exofs_i_info *oi = exofs_i(d_inode(dentry));
 
 	nd_set_link(nd, (char *)oi->i_data);
 	return NULL;

@@ -33,12 +33,6 @@ config ARCH_USES_GETTIMEOFFSET
 config GENERIC_CLOCKEVENTS
 	bool
 
-# Migration helper. Builds, but does not invoke
-config GENERIC_CLOCKEVENTS_BUILD
-	bool
-	default y
-	depends on GENERIC_CLOCKEVENTS
-
 # Architecture can handle broadcast in a driver-agnostic way
 config ARCH_HAS_TICK_BROADCAST
 	bool

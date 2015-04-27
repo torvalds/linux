@@ -57,7 +57,7 @@ objio_free_deviceid_node(struct nfs4_deviceid_node *d)
 
 	dprintk("%s: free od=%p\n", __func__, de->od.od);
 	osduld_put_device(de->od.od);
-	kfree(de);
+	kfree_rcu(d, rcu);
 }
 
 struct objio_segment {
@@ -636,6 +636,8 @@ static struct pnfs_layoutdriver_type objlayout_type = {
 	.write_pagelist          = objlayout_write_pagelist,
 	.pg_read_ops             = &objio_pg_read_ops,
 	.pg_write_ops            = &objio_pg_write_ops,
+
+	.sync			 = pnfs_generic_sync,
 
 	.free_deviceid_node	 = objio_free_deviceid_node,
 

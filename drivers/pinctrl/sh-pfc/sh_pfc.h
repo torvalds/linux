@@ -69,9 +69,10 @@ struct pinmux_func {
 };
 
 struct pinmux_cfg_reg {
-	unsigned long reg, reg_width, field_width;
+	u32 reg;
+	u8 reg_width, field_width;
 	const u16 *enum_ids;
-	const unsigned long *var_field_width;
+	const u8 *var_field_width;
 };
 
 #define PINMUX_CFG_REG(name, r, r_width, f_width) \
@@ -80,12 +81,13 @@ struct pinmux_cfg_reg {
 
 #define PINMUX_CFG_REG_VAR(name, r, r_width, var_fw0, var_fwn...) \
 	.reg = r, .reg_width = r_width,	\
-	.var_field_width = (const unsigned long [r_width]) \
+	.var_field_width = (const u8 [r_width]) \
 		{ var_fw0, var_fwn, 0 }, \
 	.enum_ids = (const u16 [])
 
 struct pinmux_data_reg {
-	unsigned long reg, reg_width;
+	u32 reg;
+	u8 reg_width;
 	const u16 *enum_ids;
 };
 
@@ -148,7 +150,7 @@ struct sh_pfc_soc_info {
 	const struct pinmux_irq *gpio_irq;
 	unsigned int gpio_irq_size;
 
-	unsigned long unlock_reg;
+	u32 unlock_reg;
 };
 
 /* -----------------------------------------------------------------------------
@@ -302,20 +304,21 @@ struct sh_pfc_soc_info {
 /*
  * PORTnCR macro
  */
-#define _PCRH(in, in_pd, in_pu, out)	\
-	0, (out), (in), 0,		\
-	0, 0, 0, 0,			\
-	0, 0, (in_pd), 0,		\
-	0, 0, (in_pu), 0
-
 #define PORTCR(nr, reg)							\
 	{								\
-		PINMUX_CFG_REG("PORT" nr "CR", reg, 8, 4) {		\
-			_PCRH(PORT##nr##_IN, 0, 0, PORT##nr##_OUT),	\
-				PORT##nr##_FN0, PORT##nr##_FN1,		\
-				PORT##nr##_FN2, PORT##nr##_FN3,		\
-				PORT##nr##_FN4, PORT##nr##_FN5,		\
-				PORT##nr##_FN6, PORT##nr##_FN7 }	\
+		PINMUX_CFG_REG_VAR("PORT" nr "CR", reg, 8, 2, 2, 1, 3) {\
+			/* PULMD[1:0], handled by .set_bias() */	\
+			0, 0, 0, 0,					\
+			/* IE and OE */					\
+			0, PORT##nr##_OUT, PORT##nr##_IN, 0,		\
+			/* SEC, not supported */			\
+			0, 0,						\
+			/* PTMD[2:0] */					\
+			PORT##nr##_FN0, PORT##nr##_FN1,			\
+			PORT##nr##_FN2, PORT##nr##_FN3,			\
+			PORT##nr##_FN4, PORT##nr##_FN5,			\
+			PORT##nr##_FN6, PORT##nr##_FN7			\
+		}							\
 	}
 
 #endif /* __SH_PFC_H */

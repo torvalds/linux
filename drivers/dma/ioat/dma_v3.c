@@ -15,10 +15,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
- *
  * The full GNU General Public License is included in this distribution in
  * the file called "COPYING".
  *
@@ -230,6 +226,10 @@ static bool is_bwd_noraid(struct pci_dev *pdev)
 	switch (pdev->device) {
 	case PCI_DEVICE_ID_INTEL_IOAT_BWD2:
 	case PCI_DEVICE_ID_INTEL_IOAT_BWD3:
+	case PCI_DEVICE_ID_INTEL_IOAT_BDXDE0:
+	case PCI_DEVICE_ID_INTEL_IOAT_BDXDE1:
+	case PCI_DEVICE_ID_INTEL_IOAT_BDXDE2:
+	case PCI_DEVICE_ID_INTEL_IOAT_BDXDE3:
 		return true;
 	default:
 		return false;

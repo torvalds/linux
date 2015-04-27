@@ -186,7 +186,61 @@ static int error_context(struct mce *m)
 	return ((m->cs & 3) == 3) ? IN_USER : IN_KERNEL;
 }
 
-int mce_severity(struct mce *m, int tolerant, char **msg, bool is_excp)
+/*
+ * See AMD Error Scope Hierarchy table in a newer BKDG. For example
+ * 49125_15h_Models_30h-3Fh_BKDG.pdf, section "RAS Features"
+ */
+static int mce_severity_amd(struct mce *m, int tolerant, char **msg, bool is_excp)
+{
+	enum context ctx = error_context(m);
+
+	/* Processor Context Corrupt, no need to fumble too much, die! */
+	if (m->status & MCI_STATUS_PCC)
+		return MCE_PANIC_SEVERITY;
+
+	if (m->status & MCI_STATUS_UC) {
+
+		/*
+		 * On older systems where overflow_recov flag is not present, we
+		 * should simply panic if an error overflow occurs. If
+		 * overflow_recov flag is present and set, then software can try
+		 * to at least kill process to prolong system operation.
+		 */
+		if (mce_flags.overflow_recov) {
+			/* software can try to contain */
+			if (!(m->mcgstatus & MCG_STATUS_RIPV) && (ctx == IN_KERNEL))
+				return MCE_PANIC_SEVERITY;
+
+			/* kill current process */
+			return MCE_AR_SEVERITY;
+		} else {
+			/* at least one error was not logged */
+			if (m->status & MCI_STATUS_OVER)
+				return MCE_PANIC_SEVERITY;
+		}
+
+		/*
+		 * For any other case, return MCE_UC_SEVERITY so that we log the
+		 * error and exit #MC handler.
+		 */
+		return MCE_UC_SEVERITY;
+	}
+
+	/*
+	 * deferred error: poll handler catches these and adds to mce_ring so
+	 * memory-failure can take recovery actions.
+	 */
+	if (m->status & MCI_STATUS_DEFERRED)
+		return MCE_DEFERRED_SEVERITY;
+
+	/*
+	 * corrected error: poll handler catches these and passes responsibility
+	 * of decoding the error to EDAC
+	 */
+	return MCE_KEEP_SEVERITY;
+}
+
+static int mce_severity_intel(struct mce *m, int tolerant, char **msg, bool is_excp)
 {
 	enum exception excp = (is_excp ? EXCP_CONTEXT : NO_EXCP);
 	enum context ctx = error_context(m);
@@ -214,6 +268,16 @@ int mce_severity(struct mce *m, int tolerant, char **msg, bool is_excp)
 		}
 		return s->sev;
 	}
+}
+
+/* Default to mce_severity_intel */
+int (*mce_severity)(struct mce *m, int tolerant, char **msg, bool is_excp) =
+		    mce_severity_intel;
+
+void __init mcheck_vendor_init_severity(void)
+{
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD)
+		mce_severity = mce_severity_amd;
 }
 
 #ifdef CONFIG_DEBUG_FS

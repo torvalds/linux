@@ -193,6 +193,12 @@ OPTIONS
 	Only display events for these comms. CSV that understands
 	file://filename entries.
 
+--pid=::
+	Only show events for given process ID (comma separated list).
+
+--tid=::
+	Only show events for given thread ID (comma separated list).
+
 -I::
 --show-info::
 	Display extended information about the perf.data file. This adds

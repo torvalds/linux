@@ -21,7 +21,7 @@
 #include <linux/wait.h>
 #include <linux/dmapool.h>
 #include <linux/hw_random.h>
-
+#include <linux/bitops.h>
 
 #define MAX_DMAPOOL_NAME_LEN		32
 
@@ -32,7 +32,6 @@
 
 #define CACHE_NONE			0x00
 #define CACHE_WB_NO_ALLOC		0xb7
-
 
 /****** Register Mappings ******/
 #define Q_MASK_REG			0x000
@@ -54,8 +53,8 @@
 #define CMD_Q_CACHE_BASE		0x228
 #define CMD_Q_CACHE_INC			0x20
 
-#define CMD_Q_ERROR(__qs)		((__qs) & 0x0000003f);
-#define CMD_Q_DEPTH(__qs)		(((__qs) >> 12) & 0x0000000f);
+#define CMD_Q_ERROR(__qs)		((__qs) & 0x0000003f)
+#define CMD_Q_DEPTH(__qs)		(((__qs) >> 12) & 0x0000000f)
 
 /****** REQ0 Related Values ******/
 #define REQ0_WAIT_FOR_WRITE		0x00000004
@@ -103,7 +102,6 @@
 /****** REQ6 Related Values ******/
 #define REQ6_MEMTYPE_SHIFT		16
 
-
 /****** Key Storage Block ******/
 #define KSB_START			77
 #define KSB_END				127
@@ -114,7 +112,7 @@
 #define CCP_JOBID_MASK			0x0000003f
 
 #define CCP_DMAPOOL_MAX_SIZE		64
-#define CCP_DMAPOOL_ALIGN		(1 << 5)
+#define CCP_DMAPOOL_ALIGN		BIT(5)
 
 #define CCP_REVERSE_BUF_SIZE		64
 
@@ -141,7 +139,6 @@
 #define CCP_ECC_OUTPUT_SIZE		64
 #define CCP_ECC_RESULT_OFFSET		60
 #define CCP_ECC_RESULT_SUCCESS		0x0001
-
 
 struct ccp_device;
 struct ccp_cmd;
@@ -260,7 +257,6 @@ struct ccp_device {
 	/* DMA caching attribute support */
 	unsigned int axcache;
 };
-
 
 int ccp_pci_init(void);
 void ccp_pci_exit(void);

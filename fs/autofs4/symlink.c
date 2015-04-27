@@ -18,7 +18,7 @@ static void *autofs4_follow_link(struct dentry *dentry, struct nameidata *nd)
 	struct autofs_info *ino = autofs4_dentry_ino(dentry);
 	if (ino && !autofs4_oz_mode(sbi))
 		ino->last_used = jiffies;
-	nd_set_link(nd, dentry->d_inode->i_private);
+	nd_set_link(nd, d_inode(dentry)->i_private);
 	return NULL;
 }
 

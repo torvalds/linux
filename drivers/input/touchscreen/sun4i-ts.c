@@ -30,6 +30,10 @@
  * These kinds of heuristics are just asking for trouble (and don't belong
  * in the kernel). So this driver offers straight forward, reliable single
  * touch functionality only.
+ *
+ * s.a. A20 User Manual "1.15 TP" (Documentation/arm/sunxi/README)
+ * (looks like the description in the A20 User Manual v1.3 is better
+ * than the one in the A10 User Manual v.1.5)
  */
 
 #include <linux/err.h>
@@ -193,7 +197,7 @@ static int sun4i_get_temp(const struct sun4i_ts_data *ts, long *temp)
 	if (ts->temp_data == -1)
 		return -EAGAIN;
 
-	*temp = (ts->temp_data - ts->temp_offset) * ts->temp_step;
+	*temp = ts->temp_data * ts->temp_step - ts->temp_offset;
 
 	return 0;
 }
@@ -246,6 +250,8 @@ static int sun4i_ts_probe(struct platform_device *pdev)
 	int error;
 	u32 reg;
 	bool ts_attached;
+	u32 tp_sensitive_adjust = 15;
+	u32 filter_type = 1;
 
 	ts = devm_kzalloc(dev, sizeof(struct sun4i_ts_data), GFP_KERNEL);
 	if (!ts)
@@ -255,22 +261,31 @@ static int sun4i_ts_probe(struct platform_device *pdev)
 	ts->ignore_fifo_data = true;
 	ts->temp_data = -1;
 	if (of_device_is_compatible(np, "allwinner,sun6i-a31-ts")) {
-		/* Allwinner SDK has temperature = -271 + (value / 6) (C) */
-		ts->temp_offset = 1626;
+		/* Allwinner SDK has temperature (C) = (value / 6) - 271 */
+		ts->temp_offset = 271000;
 		ts->temp_step = 167;
+	} else if (of_device_is_compatible(np, "allwinner,sun4i-a10-ts")) {
+		/*
+		 * The A10 temperature sensor has quite a wide spread, these
+		 * parameters are based on the averaging of the calibration
+		 * results of 4 completely different boards, with a spread of
+		 * temp_step from 0.096 - 0.170 and temp_offset from 176 - 331.
+		 */
+		ts->temp_offset = 257000;
+		ts->temp_step = 133;
 	} else {
 		/*
 		 * The user manuals do not contain the formula for calculating
 		 * the temperature. The formula used here is from the AXP209,
 		 * which is designed by X-Powers, an affiliate of Allwinner:
 		 *
-		 *     temperature = -144.7 + (value * 0.1)
+		 *     temperature (C) = (value * 0.1) - 144.7
 		 *
 		 * Allwinner does not have any documentation whatsoever for
 		 * this hardware. Moreover, it is claimed that the sensor
 		 * is inaccurate and cannot work properly.
 		 */
-		ts->temp_offset = 1447;
+		ts->temp_offset = 144700;
 		ts->temp_step = 100;
 	}
 
@@ -313,14 +328,20 @@ static int sun4i_ts_probe(struct platform_device *pdev)
 	       ts->base + TP_CTRL0);
 
 	/*
-	 * sensitive_adjust = 15 : max, which is not all that sensitive,
+	 * tp_sensitive_adjust is an optional property
 	 * tp_mode = 0 : only x and y coordinates, as we don't use dual touch
 	 */
-	writel(TP_SENSITIVE_ADJUST(15) | TP_MODE_SELECT(0),
+	of_property_read_u32(np, "allwinner,tp-sensitive-adjust",
+			     &tp_sensitive_adjust);
+	writel(TP_SENSITIVE_ADJUST(tp_sensitive_adjust) | TP_MODE_SELECT(0),
 	       ts->base + TP_CTRL2);
 
-	/* Enable median filter, type 1 : 5/3 */
-	writel(FILTER_EN(1) | FILTER_TYPE(1), ts->base + TP_CTRL3);
+	/*
+	 * Enable median and averaging filter, optional property for
+	 * filter type.
+	 */
+	of_property_read_u32(np, "allwinner,filter-type", &filter_type);
+	writel(FILTER_EN(1) | FILTER_TYPE(filter_type), ts->base + TP_CTRL3);
 
 	/* Enable temperature measurement, period 1953 (2 seconds) */
 	writel(TEMP_ENABLE(1) | TEMP_PERIOD(1953), ts->base + TP_TPR);
@@ -330,10 +351,10 @@ static int sun4i_ts_probe(struct platform_device *pdev)
 	 * finally enable tp mode.
 	 */
 	reg = STYLUS_UP_DEBOUN(5) | STYLUS_UP_DEBOUN_EN(1);
-	if (of_device_is_compatible(np, "allwinner,sun4i-a10-ts"))
-		reg |= TP_MODE_EN(1);
-	else
+	if (of_device_is_compatible(np, "allwinner,sun6i-a31-ts"))
 		reg |= SUN6I_TP_MODE_EN(1);
+	else
+		reg |= TP_MODE_EN(1);
 	writel(reg, ts->base + TP_CTRL1);
 
 	/*
@@ -383,6 +404,7 @@ static int sun4i_ts_remove(struct platform_device *pdev)
 
 static const struct of_device_id sun4i_ts_of_match[] = {
 	{ .compatible = "allwinner,sun4i-a10-ts", },
+	{ .compatible = "allwinner,sun5i-a13-ts", },
 	{ .compatible = "allwinner,sun6i-a31-ts", },
 	{ /* sentinel */ }
 };

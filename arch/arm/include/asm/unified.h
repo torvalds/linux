@@ -24,6 +24,14 @@
 	.syntax unified
 #endif
 
+#ifdef CONFIG_CPU_V7M
+#define AR_CLASS(x...)
+#define M_CLASS(x...)	x
+#else
+#define AR_CLASS(x...)	x
+#define M_CLASS(x...)
+#endif
+
 #ifdef CONFIG_THUMB2_KERNEL
 
 #if __GNUC__ < 4

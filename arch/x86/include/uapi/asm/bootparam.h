@@ -7,7 +7,6 @@
 #define SETUP_DTB			2
 #define SETUP_PCI			3
 #define SETUP_EFI			4
-#define SETUP_KASLR			5
 
 /* ram_size flags */
 #define RAMDISK_IMAGE_START_MASK	0x07FF
@@ -16,6 +15,7 @@
 
 /* loadflags */
 #define LOADED_HIGH	(1<<0)
+#define KASLR_FLAG	(1<<1)
 #define QUIET_FLAG	(1<<5)
 #define KEEP_SEGMENTS	(1<<6)
 #define CAN_USE_HEAP	(1<<7)

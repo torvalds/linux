@@ -152,9 +152,7 @@ static int __init init_lustre_lite(void)
 
 	do_gettimeofday(&tv);
 	cfs_srand(tv.tv_sec ^ seed[0], tv.tv_usec ^ seed[1]);
-
-	init_timer(&ll_capa_timer);
-	ll_capa_timer.function = ll_capa_timer_callback;
+	setup_timer(&ll_capa_timer, ll_capa_timer_callback, 0);
 	rc = ll_capa_thread_start();
 	if (rc != 0)
 		goto out_proc;

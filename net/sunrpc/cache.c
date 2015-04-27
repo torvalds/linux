@@ -921,7 +921,7 @@ static unsigned int cache_poll(struct file *filp, poll_table *wait,
 	poll_wait(filp, &queue_wait, wait);
 
 	/* alway allow write */
-	mask = POLL_OUT | POLLWRNORM;
+	mask = POLLOUT | POLLWRNORM;
 
 	if (!rp)
 		return mask;
@@ -1072,10 +1072,12 @@ void qword_add(char **bpp, int *lp, char *str)
 
 	if (len < 0) return;
 
-	ret = string_escape_str(str, &bp, len, ESCAPE_OCTAL, "\\ \n\t");
-	if (ret < 0 || ret == len)
+	ret = string_escape_str(str, bp, len, ESCAPE_OCTAL, "\\ \n\t");
+	if (ret >= len) {
+		bp += len;
 		len = -1;
-	else {
+	} else {
+		bp += ret;
 		len -= ret;
 		*bp++ = ' ';
 		len--;

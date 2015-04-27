@@ -18,7 +18,7 @@
 #include <linux/kallsyms.h>
 #include <linux/seq_file.h>
 #include <linux/suspend.h>
-#include <linux/debugfs.h>
+#include <linux/tracefs.h>
 #include <linux/hardirq.h>
 #include <linux/kthread.h>
 #include <linux/uaccess.h>
@@ -249,6 +249,19 @@ static void update_function_graph_func(void);
 static inline void update_function_graph_func(void) { }
 #endif
 
+
+static ftrace_func_t ftrace_ops_get_list_func(struct ftrace_ops *ops)
+{
+	/*
+	 * If this is a dynamic ops or we force list func,
+	 * then it needs to call the list anyway.
+	 */
+	if (ops->flags & FTRACE_OPS_FL_DYNAMIC || FTRACE_FORCE_LIST_FUNC)
+		return ftrace_ops_list_func;
+
+	return ftrace_ops_get_func(ops);
+}
+
 static void update_ftrace_function(void)
 {
 	ftrace_func_t func;
@@ -270,7 +283,7 @@ static void update_ftrace_function(void)
 	 * then have the mcount trampoline call the function directly.
 	 */
 	} else if (ftrace_ops_list->next == &ftrace_list_end) {
-		func = ftrace_ops_get_func(ftrace_ops_list);
+		func = ftrace_ops_get_list_func(ftrace_ops_list);
 
 	} else {
 		/* Just use the default ftrace_ops */
@@ -1008,7 +1021,7 @@ static struct tracer_stat function_stats __initdata = {
 	.stat_show	= function_stat_show
 };
 
-static __init void ftrace_profile_debugfs(struct dentry *d_tracer)
+static __init void ftrace_profile_tracefs(struct dentry *d_tracer)
 {
 	struct ftrace_profile_stat *stat;
 	struct dentry *entry;
@@ -1044,20 +1057,26 @@ static __init void ftrace_profile_debugfs(struct dentry *d_tracer)
 		}
 	}
 
-	entry = debugfs_create_file("function_profile_enabled", 0644,
+	entry = tracefs_create_file("function_profile_enabled", 0644,
 				    d_tracer, NULL, &ftrace_profile_fops);
 	if (!entry)
-		pr_warning("Could not create debugfs "
+		pr_warning("Could not create tracefs "
 			   "'function_profile_enabled' entry\n");
 }
 
 #else /* CONFIG_FUNCTION_PROFILER */
-static __init void ftrace_profile_debugfs(struct dentry *d_tracer)
+static __init void ftrace_profile_tracefs(struct dentry *d_tracer)
 {
 }
 #endif /* CONFIG_FUNCTION_PROFILER */
 
 static struct pid * const ftrace_swapper_pid = &init_struct_pid;
+
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+static int ftrace_graph_active;
+#else
+# define ftrace_graph_active 0
+#endif
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 
@@ -2041,8 +2060,12 @@ static int ftrace_check_record(struct dyn_ftrace *rec, int enable, int update)
 		if (!ftrace_rec_count(rec))
 			rec->flags = 0;
 		else
-			/* Just disable the record (keep REGS state) */
-			rec->flags &= ~FTRACE_FL_ENABLED;
+			/*
+			 * Just disable the record, but keep the ops TRAMP
+			 * and REGS states. The _EN flags must be disabled though.
+			 */
+			rec->flags &= ~(FTRACE_FL_ENABLED | FTRACE_FL_TRAMP_EN |
+					FTRACE_FL_REGS_EN);
 	}
 
 	return FTRACE_UPDATE_MAKE_NOP;
@@ -2688,24 +2711,36 @@ static int ftrace_shutdown(struct ftrace_ops *ops, int command)
 
 static void ftrace_startup_sysctl(void)
 {
+	int command;
+
 	if (unlikely(ftrace_disabled))
 		return;
 
 	/* Force update next time */
 	saved_ftrace_func = NULL;
 	/* ftrace_start_up is true if we want ftrace running */
-	if (ftrace_start_up)
-		ftrace_run_update_code(FTRACE_UPDATE_CALLS);
+	if (ftrace_start_up) {
+		command = FTRACE_UPDATE_CALLS;
+		if (ftrace_graph_active)
+			command |= FTRACE_START_FUNC_RET;
+		ftrace_startup_enable(command);
+	}
 }
 
 static void ftrace_shutdown_sysctl(void)
 {
+	int command;
+
 	if (unlikely(ftrace_disabled))
 		return;
 
 	/* ftrace_start_up is true if ftrace is running */
-	if (ftrace_start_up)
-		ftrace_run_update_code(FTRACE_DISABLE_CALLS);
+	if (ftrace_start_up) {
+		command = FTRACE_DISABLE_CALLS;
+		if (ftrace_graph_active)
+			command |= FTRACE_STOP_FUNC_RET;
+		ftrace_run_update_code(command);
+	}
 }
 
 static cycle_t		ftrace_update_time;
@@ -4690,7 +4725,7 @@ void ftrace_destroy_filter_files(struct ftrace_ops *ops)
 	mutex_unlock(&ftrace_lock);
 }
 
-static __init int ftrace_init_dyn_debugfs(struct dentry *d_tracer)
+static __init int ftrace_init_dyn_tracefs(struct dentry *d_tracer)
 {
 
 	trace_create_file("available_filter_functions", 0444,
@@ -4998,7 +5033,7 @@ static int __init ftrace_nodyn_init(void)
 }
 core_initcall(ftrace_nodyn_init);
 
-static inline int ftrace_init_dyn_debugfs(struct dentry *d_tracer) { return 0; }
+static inline int ftrace_init_dyn_tracefs(struct dentry *d_tracer) { return 0; }
 static inline void ftrace_startup_enable(int command) { }
 static inline void ftrace_startup_all(int command) { }
 /* Keep as macros so we do not need to define the commands */
@@ -5186,13 +5221,6 @@ static void ftrace_ops_recurs_func(unsigned long ip, unsigned long parent_ip,
  */
 ftrace_func_t ftrace_ops_get_func(struct ftrace_ops *ops)
 {
-	/*
-	 * If this is a dynamic ops or we force list func,
-	 * then it needs to call the list anyway.
-	 */
-	if (ops->flags & FTRACE_OPS_FL_DYNAMIC || FTRACE_FORCE_LIST_FUNC)
-		return ftrace_ops_list_func;
-
 	/*
 	 * If the func handles its own recursion, call it directly.
 	 * Otherwise call the recursion protected function that
@@ -5451,7 +5479,7 @@ static const struct file_operations ftrace_pid_fops = {
 	.release	= ftrace_pid_release,
 };
 
-static __init int ftrace_init_debugfs(void)
+static __init int ftrace_init_tracefs(void)
 {
 	struct dentry *d_tracer;
 
@@ -5459,16 +5487,16 @@ static __init int ftrace_init_debugfs(void)
 	if (IS_ERR(d_tracer))
 		return 0;
 
-	ftrace_init_dyn_debugfs(d_tracer);
+	ftrace_init_dyn_tracefs(d_tracer);
 
 	trace_create_file("set_ftrace_pid", 0644, d_tracer,
 			    NULL, &ftrace_pid_fops);
 
-	ftrace_profile_debugfs(d_tracer);
+	ftrace_profile_tracefs(d_tracer);
 
 	return 0;
 }
-fs_initcall(ftrace_init_debugfs);
+fs_initcall(ftrace_init_tracefs);
 
 /**
  * ftrace_kill - kill ftrace
@@ -5558,11 +5586,11 @@ ftrace_enable_sysctl(struct ctl_table *table, int write,
 
 	if (ftrace_enabled) {
 
-		ftrace_startup_sysctl();
-
 		/* we are starting ftrace again */
 		if (ftrace_ops_list != &ftrace_list_end)
 			update_ftrace_function();
+
+		ftrace_startup_sysctl();
 
 	} else {
 		/* stopping ftrace calls (just send to ftrace_stub) */
@@ -5589,8 +5617,6 @@ static struct ftrace_ops graph_ops = {
 #endif
 	ASSIGN_OPS_HASH(graph_ops, &global_ops.local_hash)
 };
-
-static int ftrace_graph_active;
 
 int ftrace_graph_entry_stub(struct ftrace_graph_ent *trace)
 {

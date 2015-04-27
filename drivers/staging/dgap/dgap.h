@@ -121,7 +121,7 @@
 #define PCI_IO_OFFSET		0x00200000
 
 /* Size of IO (2MB) */
-#define PCI_IO_SIZE		0x00200000
+#define PCI_IO_SIZE_DGAP	0x00200000
 
 /* Number of boards we support at once. */
 #define	MAXBOARDS	32

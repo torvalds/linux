@@ -569,7 +569,7 @@ fail:
 	return status;
 }
 
-const struct file_operations f_hidg_fops = {
+static const struct file_operations f_hidg_fops = {
 	.owner		= THIS_MODULE,
 	.open		= f_hidg_open,
 	.release	= f_hidg_release,
@@ -908,7 +908,6 @@ static void hidg_unbind(struct usb_configuration *c, struct usb_function *f)
 
 	/* disable/free request and end point */
 	usb_ep_disable(hidg->in_ep);
-	usb_ep_dequeue(hidg->in_ep, hidg->req);
 	kfree(hidg->req->buf);
 	usb_ep_free_request(hidg->in_ep, hidg->req);
 

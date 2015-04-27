@@ -65,8 +65,19 @@ void ieee802154_xmit_complete(struct ieee802154_hw *hw, struct sk_buff *skb,
 {
 	if (ifs_handling) {
 		struct ieee802154_local *local = hw_to_local(hw);
+		u8 max_sifs_size;
 
-		if (skb->len > 18)
+		/* If transceiver sets CRC on his own we need to use lifs
+		 * threshold len above 16 otherwise 18, because it's not
+		 * part of skb->len.
+		 */
+		if (hw->flags & IEEE802154_HW_TX_OMIT_CKSUM)
+			max_sifs_size = IEEE802154_MAX_SIFS_FRAME_SIZE -
+					IEEE802154_FCS_LEN;
+		else
+			max_sifs_size = IEEE802154_MAX_SIFS_FRAME_SIZE;
+
+		if (skb->len > max_sifs_size)
 			hrtimer_start(&local->ifs_timer,
 				      ktime_set(0, hw->phy->lifs_period * NSEC_PER_USEC),
 				      HRTIMER_MODE_REL);

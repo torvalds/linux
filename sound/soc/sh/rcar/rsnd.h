@@ -170,21 +170,47 @@ u32 rsnd_get_adinr(struct rsnd_mod *mod);
 /*
  *	R-Car DMA
  */
-struct rsnd_dma {
-	struct sh_dmae_slave	slave;
-	struct dma_chan		*chan;
-	enum dma_transfer_direction dir;
-	dma_addr_t		addr;
+struct rsnd_dma;
+struct rsnd_dma_ops {
+	void (*start)(struct rsnd_dma *dma);
+	void (*stop)(struct rsnd_dma *dma);
+	int (*init)(struct rsnd_priv *priv, struct rsnd_dma *dma, int id,
+		    struct rsnd_mod *mod_from, struct rsnd_mod *mod_to);
+	void  (*quit)(struct rsnd_dma *dma);
 };
+
+struct rsnd_dmaen {
+	struct dma_chan		*chan;
+};
+
+struct rsnd_dmapp {
+	int			dmapp_id;
+	u32			chcr;
+};
+
+struct rsnd_dma {
+	struct rsnd_dma_ops	*ops;
+	dma_addr_t		src_addr;
+	dma_addr_t		dst_addr;
+	union {
+		struct rsnd_dmaen en;
+		struct rsnd_dmapp pp;
+	} dma;
+};
+#define rsnd_dma_to_dmaen(dma)	(&(dma)->dma.en)
+#define rsnd_dma_to_dmapp(dma)	(&(dma)->dma.pp)
 
 void rsnd_dma_start(struct rsnd_dma *dma);
 void rsnd_dma_stop(struct rsnd_dma *dma);
-int rsnd_dma_available(struct rsnd_dma *dma);
-int rsnd_dma_init(struct rsnd_priv *priv, struct rsnd_dma *dma,
-	int is_play, int id);
-void  rsnd_dma_quit(struct rsnd_priv *priv,
-		    struct rsnd_dma *dma);
+int rsnd_dma_init(struct rsnd_priv *priv, struct rsnd_dma *dma, int id);
+void  rsnd_dma_quit(struct rsnd_dma *dma);
+int rsnd_dma_probe(struct platform_device *pdev,
+		   const struct rsnd_of_data *of_data,
+		   struct rsnd_priv *priv);
+struct dma_chan *rsnd_dma_request_channel(struct device_node *of_node,
+					  struct rsnd_mod *mod, char *name);
 
+#define rsnd_dma_to_mod(_dma) container_of((_dma), struct rsnd_mod, dma)
 
 /*
  *	R-Car sound mod
@@ -198,7 +224,7 @@ enum rsnd_mod_type {
 
 struct rsnd_mod_ops {
 	char *name;
-	char* (*dma_name)(struct rsnd_mod *mod);
+	struct dma_chan* (*dma_req)(struct rsnd_mod *mod);
 	int (*probe)(struct rsnd_mod *mod,
 		     struct rsnd_priv *priv);
 	int (*remove)(struct rsnd_mod *mod,
@@ -213,6 +239,9 @@ struct rsnd_mod_ops {
 		    struct rsnd_priv *priv);
 	int (*pcm_new)(struct rsnd_mod *mod,
 		       struct snd_soc_pcm_runtime *rtd);
+	int (*hw_params)(struct rsnd_mod *mod,
+			 struct snd_pcm_substream *substream,
+			 struct snd_pcm_hw_params *hw_params);
 	int (*fallback)(struct rsnd_mod *mod,
 			struct rsnd_priv *priv);
 };
@@ -236,6 +265,9 @@ struct rsnd_mod {
  * 2	0: start	1: stop
  * 3	0: pcm_new
  * 4	0: fallback
+ *
+ * 31 bit is always called (see __rsnd_mod_call)
+ * 31	0: hw_params
  */
 #define __rsnd_mod_shift_probe		0
 #define __rsnd_mod_shift_remove		0
@@ -245,6 +277,7 @@ struct rsnd_mod {
 #define __rsnd_mod_shift_stop		2
 #define __rsnd_mod_shift_pcm_new	3
 #define __rsnd_mod_shift_fallback	4
+#define __rsnd_mod_shift_hw_params	31 /* always called */
 
 #define __rsnd_mod_call_probe		0
 #define __rsnd_mod_call_remove		1
@@ -254,28 +287,30 @@ struct rsnd_mod {
 #define __rsnd_mod_call_stop		1
 #define __rsnd_mod_call_pcm_new		0
 #define __rsnd_mod_call_fallback	0
+#define __rsnd_mod_call_hw_params	0
 
 #define rsnd_mod_to_priv(mod) (rsnd_io_to_priv(rsnd_mod_to_io(mod)))
 #define rsnd_mod_to_dma(mod) (&(mod)->dma)
-#define rsnd_dma_to_mod(_dma) container_of((_dma), struct rsnd_mod, dma)
 #define rsnd_mod_to_io(mod) ((mod)->io)
 #define rsnd_mod_id(mod) ((mod)->id)
-#define rsnd_mod_hw_start(mod)	clk_prepare_enable((mod)->clk)
-#define rsnd_mod_hw_stop(mod)	clk_disable_unprepare((mod)->clk)
+#define rsnd_mod_hw_start(mod)	clk_enable((mod)->clk)
+#define rsnd_mod_hw_stop(mod)	clk_disable((mod)->clk)
 
-void rsnd_mod_init(struct rsnd_mod *mod,
+int rsnd_mod_init(struct rsnd_mod *mod,
 		   struct rsnd_mod_ops *ops,
 		   struct clk *clk,
 		   enum rsnd_mod_type type,
 		   int id);
+void rsnd_mod_quit(struct rsnd_mod *mod);
 char *rsnd_mod_name(struct rsnd_mod *mod);
-char *rsnd_mod_dma_name(struct rsnd_mod *mod);
+struct dma_chan *rsnd_mod_dma_req(struct rsnd_mod *mod);
 
 /*
  *	R-Car sound DAI
  */
 #define RSND_DAI_NAME_SIZE	16
 struct rsnd_dai_stream {
+	char name[RSND_DAI_NAME_SIZE];
 	struct snd_pcm_substream *substream;
 	struct rsnd_mod *mod[RSND_MOD_MAX];
 	struct rsnd_dai_path_info *info; /* rcar_snd.h */
@@ -331,9 +366,7 @@ int rsnd_gen_probe(struct platform_device *pdev,
 void __iomem *rsnd_gen_reg_get(struct rsnd_priv *priv,
 			       struct rsnd_mod *mod,
 			       enum rsnd_reg reg);
-dma_addr_t rsnd_gen_dma_addr(struct rsnd_priv *priv,
-		       struct rsnd_mod *mod,
-		       int is_play,  int is_from);
+phys_addr_t rsnd_gen_get_phy_addr(struct rsnd_priv *priv, int reg_id);
 
 #define rsnd_is_gen1(s)		(((s)->info->flags & RSND_GEN_MASK) == RSND_GEN1)
 #define rsnd_is_gen2(s)		(((s)->info->flags & RSND_GEN_MASK) == RSND_GEN2)
@@ -389,6 +422,11 @@ struct rsnd_priv {
 	void *adg;
 
 	/*
+	 * below value will be filled on rsnd_dma_probe()
+	 */
+	void *dma;
+
+	/*
 	 * below value will be filled on rsnd_ssi_probe()
 	 */
 	void *ssi;
@@ -413,19 +451,6 @@ struct rsnd_priv {
 #define rsnd_priv_to_info(priv)	((priv)->info)
 #define rsnd_lock(priv, flags) spin_lock_irqsave(&priv->lock, flags)
 #define rsnd_unlock(priv, flags) spin_unlock_irqrestore(&priv->lock, flags)
-
-#define rsnd_info_is_playback(priv, type)				\
-({									\
-	struct rcar_snd_info *info = rsnd_priv_to_info(priv);		\
-	int i, is_play = 0;						\
-	for (i = 0; i < info->dai_info_nr; i++) {			\
-		if (info->dai_info[i].playback.type == (type)->info) {	\
-			is_play = 1;					\
-			break;						\
-		}							\
-	}								\
-	is_play;							\
-})
 
 /*
  *	rsnd_kctrl
@@ -480,6 +505,8 @@ int rsnd_kctrl_new_e(struct rsnd_mod *mod,
 int rsnd_src_probe(struct platform_device *pdev,
 		   const struct rsnd_of_data *of_data,
 		   struct rsnd_priv *priv);
+void rsnd_src_remove(struct platform_device *pdev,
+		     struct rsnd_priv *priv);
 struct rsnd_mod *rsnd_src_mod_get(struct rsnd_priv *priv, int id);
 unsigned int rsnd_src_get_ssi_rate(struct rsnd_priv *priv,
 				   struct rsnd_dai_stream *io,
@@ -498,9 +525,12 @@ int rsnd_src_ssi_irq_disable(struct rsnd_mod *ssi_mod);
 int rsnd_ssi_probe(struct platform_device *pdev,
 		   const struct rsnd_of_data *of_data,
 		   struct rsnd_priv *priv);
+void rsnd_ssi_remove(struct platform_device *pdev,
+		     struct rsnd_priv *priv);
 struct rsnd_mod *rsnd_ssi_mod_get(struct rsnd_priv *priv, int id);
 int rsnd_ssi_is_pin_sharing(struct rsnd_mod *mod);
 int rsnd_ssi_is_dma_mode(struct rsnd_mod *mod);
+int rsnd_ssi_use_busif(struct rsnd_mod *mod);
 
 /*
  *	R-Car DVC

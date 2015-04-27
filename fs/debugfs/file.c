@@ -45,7 +45,7 @@ const struct file_operations debugfs_file_operations = {
 
 static void *debugfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
-	nd_set_link(nd, dentry->d_inode->i_private);
+	nd_set_link(nd, d_inode(dentry)->i_private);
 	return NULL;
 }
 

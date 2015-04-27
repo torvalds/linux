@@ -282,14 +282,15 @@ static int arizona_ldo1_probe(struct platform_device *pdev)
 		arizona->external_dcvdd = true;
 
 	ldo1->regulator = devm_regulator_register(&pdev->dev, desc, &config);
+
+	of_node_put(config.of_node);
+
 	if (IS_ERR(ldo1->regulator)) {
 		ret = PTR_ERR(ldo1->regulator);
 		dev_err(arizona->dev, "Failed to register LDO1 supply: %d\n",
 			ret);
 		return ret;
 	}
-
-	of_node_put(config.of_node);
 
 	platform_set_drvdata(pdev, ldo1);
 

@@ -45,7 +45,8 @@
 #define STACK_TOP		STACK_TOP_MAX
 #endif /* CONFIG_COMPAT */
 
-#define ARCH_LOW_ADDRESS_LIMIT	PHYS_MASK
+extern phys_addr_t arm64_dma_phys_limit;
+#define ARCH_LOW_ADDRESS_LIMIT	(arm64_dma_phys_limit - 1)
 #endif /* __KERNEL__ */
 
 struct debug_info {
@@ -126,7 +127,11 @@ extern void release_thread(struct task_struct *);
 
 unsigned long get_wchan(struct task_struct *p);
 
-#define cpu_relax()			barrier()
+static inline void cpu_relax(void)
+{
+	asm volatile("yield" ::: "memory");
+}
+
 #define cpu_relax_lowlatency()                cpu_relax()
 
 /* Thread switching */

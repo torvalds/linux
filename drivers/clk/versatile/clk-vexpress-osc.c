@@ -110,7 +110,7 @@ static int vexpress_osc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id vexpress_osc_of_match[] = {
+static const struct of_device_id vexpress_osc_of_match[] = {
 	{ .compatible = "arm,vexpress-osc", },
 	{}
 };

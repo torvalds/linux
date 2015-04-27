@@ -55,7 +55,7 @@ static char *radeon_get_mon_name(int type)
 }
 
 
-#if defined(CONFIG_PPC_OF) || defined(CONFIG_SPARC)
+#if defined(CONFIG_PPC) || defined(CONFIG_SPARC)
 /*
  * Try to find monitor informations & EDID data out of the Open Firmware
  * device-tree. This also contains some "hacks" to work around a few machine
@@ -160,7 +160,7 @@ static int radeon_probe_OF_head(struct radeonfb_info *rinfo, int head_no,
 	}
         return MT_NONE;
 }
-#endif /* CONFIG_PPC_OF || CONFIG_SPARC */
+#endif /* CONFIG_PPC || CONFIG_SPARC */
 
 
 static int radeon_get_panel_info_BIOS(struct radeonfb_info *rinfo)
@@ -499,11 +499,11 @@ void radeon_probe_screens(struct radeonfb_info *rinfo,
 		 * Old single head cards
 		 */
 		if (!rinfo->has_CRTC2) {
-#if defined(CONFIG_PPC_OF) || defined(CONFIG_SPARC)
+#if defined(CONFIG_PPC) || defined(CONFIG_SPARC)
 			if (rinfo->mon1_type == MT_NONE)
 				rinfo->mon1_type = radeon_probe_OF_head(rinfo, 0,
 									&rinfo->mon1_EDID);
-#endif /* CONFIG_PPC_OF || CONFIG_SPARC */
+#endif /* CONFIG_PPC || CONFIG_SPARC */
 #ifdef CONFIG_FB_RADEON_I2C
 			if (rinfo->mon1_type == MT_NONE)
 				rinfo->mon1_type =
@@ -548,11 +548,11 @@ void radeon_probe_screens(struct radeonfb_info *rinfo,
 		/*
 		 * Probe primary head (DVI or laptop internal panel)
 		 */
-#if defined(CONFIG_PPC_OF) || defined(CONFIG_SPARC)
+#if defined(CONFIG_PPC) || defined(CONFIG_SPARC)
 		if (rinfo->mon1_type == MT_NONE)
 			rinfo->mon1_type = radeon_probe_OF_head(rinfo, 0,
 								&rinfo->mon1_EDID);
-#endif /* CONFIG_PPC_OF || CONFIG_SPARC */
+#endif /* CONFIG_PPC || CONFIG_SPARC */
 #ifdef CONFIG_FB_RADEON_I2C
 		if (rinfo->mon1_type == MT_NONE)
 			rinfo->mon1_type = radeon_probe_i2c_connector(rinfo, ddc_dvi,
@@ -576,11 +576,11 @@ void radeon_probe_screens(struct radeonfb_info *rinfo,
 		/*
 		 * Probe secondary head (mostly VGA, can be DVI)
 		 */
-#if defined(CONFIG_PPC_OF) || defined(CONFIG_SPARC)
+#if defined(CONFIG_PPC) || defined(CONFIG_SPARC)
 		if (rinfo->mon2_type == MT_NONE)
 			rinfo->mon2_type = radeon_probe_OF_head(rinfo, 1,
 								&rinfo->mon2_EDID);
-#endif /* CONFIG_PPC_OF || defined(CONFIG_SPARC) */
+#endif /* CONFIG_PPC || defined(CONFIG_SPARC) */
 #ifdef CONFIG_FB_RADEON_I2C
 		if (rinfo->mon2_type == MT_NONE)
 			rinfo->mon2_type = radeon_probe_i2c_connector(rinfo, ddc_vga,
@@ -653,7 +653,7 @@ void radeon_probe_screens(struct radeonfb_info *rinfo,
  */
 static void radeon_fixup_panel_info(struct radeonfb_info *rinfo)
 {
-#ifdef CONFIG_PPC_OF
+#ifdef CONFIG_PPC
 	/*
 	 * LCD Flat panels should use fixed dividers, we enfore that on
 	 * PPC only for now...
@@ -676,7 +676,7 @@ static void radeon_fixup_panel_info(struct radeonfb_info *rinfo)
 		       (rinfo->panel_info.post_divider << 16),
 		       ppll_div_sel);
 	}
-#endif /* CONFIG_PPC_OF */
+#endif /* CONFIG_PPC */
 }
 
 

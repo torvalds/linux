@@ -44,6 +44,7 @@ struct task_struct;
 extern unsigned long thread_saved_pc(struct task_struct *);
 
 /* Do necessary setup to start up a newly executed thread.  */
+struct pt_regs;
 extern void start_thread(struct pt_regs *, unsigned long, unsigned long);
 
 /* Free all resources held by a thread. */

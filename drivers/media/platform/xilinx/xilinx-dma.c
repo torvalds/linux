@@ -12,7 +12,7 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/amba/xilinx_dma.h>
+#include <linux/dma/xilinx_dma.h>
 #include <linux/lcm.h>
 #include <linux/list.h>
 #include <linux/module.h>

@@ -30,8 +30,8 @@ struct goldfish_battery_data {
 	int irq;
 	spinlock_t lock;
 
-	struct power_supply battery;
-	struct power_supply ac;
+	struct power_supply *battery;
+	struct power_supply *ac;
 };
 
 #define GOLDFISH_BATTERY_READ(data, addr) \
@@ -67,8 +67,7 @@ static int goldfish_ac_get_property(struct power_supply *psy,
 			enum power_supply_property psp,
 			union power_supply_propval *val)
 {
-	struct goldfish_battery_data *data = container_of(psy,
-		struct goldfish_battery_data, ac);
+	struct goldfish_battery_data *data = power_supply_get_drvdata(psy);
 	int ret = 0;
 
 	switch (psp) {
@@ -86,8 +85,7 @@ static int goldfish_battery_get_property(struct power_supply *psy,
 				 enum power_supply_property psp,
 				 union power_supply_propval *val)
 {
-	struct goldfish_battery_data *data = container_of(psy,
-		struct goldfish_battery_data, battery);
+	struct goldfish_battery_data *data = power_supply_get_drvdata(psy);
 	int ret = 0;
 
 	switch (psp) {
@@ -139,38 +137,42 @@ static irqreturn_t goldfish_battery_interrupt(int irq, void *dev_id)
 	status &= BATTERY_INT_MASK;
 
 	if (status & BATTERY_STATUS_CHANGED)
-		power_supply_changed(&data->battery);
+		power_supply_changed(data->battery);
 	if (status & AC_STATUS_CHANGED)
-		power_supply_changed(&data->ac);
+		power_supply_changed(data->ac);
 
 	spin_unlock_irqrestore(&data->lock, irq_flags);
 	return status ? IRQ_HANDLED : IRQ_NONE;
 }
 
+static const struct power_supply_desc battery_desc = {
+	.properties	= goldfish_battery_props,
+	.num_properties	= ARRAY_SIZE(goldfish_battery_props),
+	.get_property	= goldfish_battery_get_property,
+	.name		= "battery",
+	.type		= POWER_SUPPLY_TYPE_BATTERY,
+};
+
+static const struct power_supply_desc ac_desc = {
+	.properties	= goldfish_ac_props,
+	.num_properties	= ARRAY_SIZE(goldfish_ac_props),
+	.get_property	= goldfish_ac_get_property,
+	.name		= "ac",
+	.type		= POWER_SUPPLY_TYPE_MAINS,
+};
 
 static int goldfish_battery_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct resource *r;
 	struct goldfish_battery_data *data;
+	struct power_supply_config psy_cfg = {};
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (data == NULL)
 		return -ENOMEM;
 
 	spin_lock_init(&data->lock);
-
-	data->battery.properties = goldfish_battery_props;
-	data->battery.num_properties = ARRAY_SIZE(goldfish_battery_props);
-	data->battery.get_property = goldfish_battery_get_property;
-	data->battery.name = "battery";
-	data->battery.type = POWER_SUPPLY_TYPE_BATTERY;
-
-	data->ac.properties = goldfish_ac_props;
-	data->ac.num_properties = ARRAY_SIZE(goldfish_ac_props);
-	data->ac.get_property = goldfish_ac_get_property;
-	data->ac.name = "ac";
-	data->ac.type = POWER_SUPPLY_TYPE_MAINS;
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (r == NULL) {
@@ -195,14 +197,17 @@ static int goldfish_battery_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = power_supply_register(&pdev->dev, &data->ac);
-	if (ret)
-		return ret;
+	psy_cfg.drv_data = data;
 
-	ret = power_supply_register(&pdev->dev, &data->battery);
-	if (ret) {
-		power_supply_unregister(&data->ac);
-		return ret;
+	data->ac = power_supply_register(&pdev->dev, &ac_desc, &psy_cfg);
+	if (IS_ERR(data->ac))
+		return PTR_ERR(data->ac);
+
+	data->battery = power_supply_register(&pdev->dev, &battery_desc,
+						&psy_cfg);
+	if (IS_ERR(data->battery)) {
+		power_supply_unregister(data->ac);
+		return PTR_ERR(data->battery);
 	}
 
 	platform_set_drvdata(pdev, data);
@@ -216,8 +221,8 @@ static int goldfish_battery_remove(struct platform_device *pdev)
 {
 	struct goldfish_battery_data *data = platform_get_drvdata(pdev);
 
-	power_supply_unregister(&data->battery);
-	power_supply_unregister(&data->ac);
+	power_supply_unregister(data->battery);
+	power_supply_unregister(data->ac);
 	battery_data = NULL;
 	return 0;
 }

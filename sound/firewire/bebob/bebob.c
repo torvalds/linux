@@ -116,10 +116,21 @@ end:
 	return err;
 }
 
+/*
+ * This module releases the FireWire unit data after all ALSA character devices
+ * are released by applications. This is for releasing stream data or finishing
+ * transactions safely. Thus at returning from .remove(), this module still keep
+ * references for the unit.
+ */
 static void
 bebob_card_free(struct snd_card *card)
 {
 	struct snd_bebob *bebob = card->private_data;
+
+	snd_bebob_stream_destroy_duplex(bebob);
+	fw_unit_put(bebob->unit);
+
+	kfree(bebob->maudio_special_quirk);
 
 	if (bebob->card_index >= 0) {
 		mutex_lock(&devices_mutex);
@@ -205,7 +216,7 @@ bebob_probe(struct fw_unit *unit,
 	card->private_free = bebob_card_free;
 
 	bebob->card = card;
-	bebob->unit = unit;
+	bebob->unit = fw_unit_get(unit);
 	bebob->spec = spec;
 	mutex_init(&bebob->mutex);
 	spin_lock_init(&bebob->lock);
@@ -306,10 +317,11 @@ static void bebob_remove(struct fw_unit *unit)
 	if (bebob == NULL)
 		return;
 
-	kfree(bebob->maudio_special_quirk);
+	/* Awake bus-reset waiters. */
+	if (!completion_done(&bebob->bus_reset))
+		complete_all(&bebob->bus_reset);
 
-	snd_bebob_stream_destroy_duplex(bebob);
-	snd_card_disconnect(bebob->card);
+	/* No need to wait for releasing card object in this context. */
 	snd_card_free_when_closed(bebob->card);
 }
 

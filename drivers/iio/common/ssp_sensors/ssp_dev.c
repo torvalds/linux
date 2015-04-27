@@ -437,7 +437,7 @@ int ssp_queue_ssp_refresh_task(struct ssp_data *data, unsigned int delay)
 }
 
 #ifdef CONFIG_OF
-static struct of_device_id ssp_of_match[] = {
+static const struct of_device_id ssp_of_match[] = {
 	{
 		.compatible	= "samsung,sensorhub-rinato",
 		.data		= &ssp_rinato_info,
@@ -640,6 +640,7 @@ static int ssp_remove(struct spi_device *spi)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int ssp_suspend(struct device *dev)
 {
 	int ret;
@@ -688,6 +689,7 @@ static int ssp_resume(struct device *dev)
 
 	return 0;
 }
+#endif /* CONFIG_PM_SLEEP */
 
 static const struct dev_pm_ops ssp_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(ssp_suspend, ssp_resume)

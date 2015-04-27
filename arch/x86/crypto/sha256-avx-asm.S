@@ -96,10 +96,10 @@ SHUF_DC00 = %xmm12      # shuffle xDxC -> DC00
 BYTE_FLIP_MASK = %xmm13
 
 NUM_BLKS = %rdx   # 3rd arg
-CTX = %rsi        # 2nd arg
-INP = %rdi        # 1st arg
+INP = %rsi        # 2nd arg
+CTX = %rdi        # 1st arg
 
-SRND = %rdi       # clobbers INP
+SRND = %rsi       # clobbers INP
 c = %ecx
 d = %r8d
 e = %edx
@@ -342,8 +342,8 @@ a = TMP_
 
 ########################################################################
 ## void sha256_transform_avx(void *input_data, UINT32 digest[8], UINT64 num_blks)
-## arg 1 : pointer to input data
-## arg 2 : pointer to digest
+## arg 1 : pointer to digest
+## arg 2 : pointer to input data
 ## arg 3 : Num blocks
 ########################################################################
 .text

@@ -293,7 +293,7 @@ void rtl92se_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 					acm_ctrl &= (~AcmHw_ViqEn);
 					break;
 				case AC3_VO:
-					acm_ctrl &= (~AcmHw_BeqEn);
+					acm_ctrl &= (~AcmHw_VoqEn);
 					break;
 				default:
 					RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
@@ -1204,7 +1204,7 @@ static int _rtl92se_set_media_status(struct ieee80211_hw *hw,
 	if (type != NL80211_IFTYPE_AP &&
 	    rtlpriv->mac80211.link_state < MAC80211_LINKED)
 		bt_msr = rtl_read_byte(rtlpriv, MSR) & ~MSR_LINK_MASK;
-	rtl_write_byte(rtlpriv, (MSR), bt_msr);
+	rtl_write_byte(rtlpriv, MSR, bt_msr);
 
 	temp = rtl_read_dword(rtlpriv, TCR);
 	rtl_write_dword(rtlpriv, TCR, temp & (~BIT(8)));

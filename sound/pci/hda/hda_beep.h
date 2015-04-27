@@ -40,6 +40,7 @@ struct hda_beep {
 	unsigned int playing:1;
 	struct work_struct beep_work; /* scheduled task for beep event */
 	struct mutex mutex;
+	void (*power_hook)(struct hda_beep *beep, bool on);
 };
 
 #ifdef CONFIG_SND_HDA_INPUT_BEEP

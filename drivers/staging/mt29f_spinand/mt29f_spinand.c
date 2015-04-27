@@ -770,7 +770,7 @@ static void spinand_cmdfunc(struct mtd_info *mtd, unsigned int command,
 		break;
 	case NAND_CMD_READID:
 		state->buf_ptr = 0;
-		spinand_read_id(info->spi, (u8 *)state->buf);
+		spinand_read_id(info->spi, state->buf);
 		break;
 	case NAND_CMD_PARAM:
 		state->buf_ptr = 0;

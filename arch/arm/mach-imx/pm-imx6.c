@@ -310,10 +310,12 @@ int imx6q_set_lpm(enum mxc_cpu_pwr_mode mode)
 	 *    Low-Power mode.
 	 * 3) Software should mask IRQ #32 right after CCM Low-Power mode
 	 *    is set (set bits 0-1 of CCM_CLPCR).
+	 *
+	 * Note that IRQ #32 is GIC SPI #0.
 	 */
-	imx_gpc_hwirq_unmask(32);
+	imx_gpc_hwirq_unmask(0);
 	writel_relaxed(val, ccm_base + CLPCR);
-	imx_gpc_hwirq_mask(32);
+	imx_gpc_hwirq_mask(0);
 
 	return 0;
 }

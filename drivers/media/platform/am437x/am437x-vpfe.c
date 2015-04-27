@@ -2509,7 +2509,6 @@ vpfe_get_pdata(struct platform_device *pdev)
 
 		pdata->asd[i]->match_type = V4L2_ASYNC_MATCH_OF;
 		pdata->asd[i]->match.of.node = rem;
-		of_node_put(endpoint);
 		of_node_put(rem);
 	}
 

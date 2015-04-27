@@ -297,7 +297,7 @@ static inline void bprm_clear_caps(struct linux_binprm *bprm)
  */
 int cap_inode_need_killpriv(struct dentry *dentry)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_backing_inode(dentry);
 	int error;
 
 	if (!inode->i_op->getxattr)
@@ -319,7 +319,7 @@ int cap_inode_need_killpriv(struct dentry *dentry)
  */
 int cap_inode_killpriv(struct dentry *dentry)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_backing_inode(dentry);
 
 	if (!inode->i_op->removexattr)
 	       return 0;
@@ -375,7 +375,7 @@ static inline int bprm_caps_from_vfs_caps(struct cpu_vfs_cap_data *caps,
  */
 int get_vfs_caps_from_disk(const struct dentry *dentry, struct cpu_vfs_cap_data *cpu_caps)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_backing_inode(dentry);
 	__u32 magic_etc;
 	unsigned tocopy, i;
 	int size;

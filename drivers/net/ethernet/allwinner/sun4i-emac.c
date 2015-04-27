@@ -757,7 +757,7 @@ static void emac_shutdown(struct net_device *dev)
 	/* Disable all interrupt */
 	writel(0, db->membase + EMAC_INT_CTL_REG);
 
-	/* clear interupt status */
+	/* clear interrupt status */
 	reg_val = readl(db->membase + EMAC_INT_STA_REG);
 	writel(reg_val, db->membase + EMAC_INT_STA_REG);
 

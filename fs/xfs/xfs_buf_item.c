@@ -537,9 +537,9 @@ xfs_buf_item_push(
 
 	/* has a previous flush failed due to IO errors? */
 	if ((bp->b_flags & XBF_WRITE_FAIL) &&
-	    ___ratelimit(&xfs_buf_write_fail_rl_state, "XFS:")) {
+	    ___ratelimit(&xfs_buf_write_fail_rl_state, "XFS: Failing async write")) {
 		xfs_warn(bp->b_target->bt_mount,
-"Detected failing async write on buffer block 0x%llx. Retrying async write.",
+"Failing async write on buffer block 0x%llx. Retrying async write.",
 			 (long long)bp->b_bn);
 	}
 

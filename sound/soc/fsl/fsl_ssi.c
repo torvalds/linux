@@ -603,16 +603,19 @@ static int fsl_ssi_set_bclk(struct snd_pcm_substream *substream,
 	factor = (div2 + 1) * (7 * psr + 1) * 2;
 
 	for (i = 0; i < 255; i++) {
-		/* The bclk rate must be smaller than 1/5 sysclk rate */
-		if (factor * (i + 1) < 5)
-			continue;
-
-		tmprate = freq * factor * (i + 2);
+		tmprate = freq * factor * (i + 1);
 
 		if (baudclk_is_used)
 			clkrate = clk_get_rate(ssi_private->baudclk);
 		else
 			clkrate = clk_round_rate(ssi_private->baudclk, tmprate);
+
+		/*
+		 * Hardware limitation: The bclk rate must be
+		 * never greater than 1/5 IPG clock rate
+		 */
+		if (clkrate * 5 > clk_get_rate(ssi_private->clk))
+			continue;
 
 		clkrate /= factor;
 		afreq = clkrate / (i + 1);
@@ -1224,7 +1227,7 @@ static int fsl_ssi_imx_probe(struct platform_device *pdev,
 	ssi_private->dma_params_tx.addr = ssi_private->ssi_phys + CCSR_SSI_STX0;
 	ssi_private->dma_params_rx.addr = ssi_private->ssi_phys + CCSR_SSI_SRX0;
 
-	ret = !of_property_read_u32_array(np, "dmas", dmas, 4);
+	ret = of_property_read_u32_array(np, "dmas", dmas, 4);
 	if (ssi_private->use_dma && !ret && dmas[2] == IMX_DMATYPE_SSI_DUAL) {
 		ssi_private->use_dual_fifo = true;
 		/* When using dual fifo mode, we need to keep watermark
@@ -1285,7 +1288,7 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 	const struct of_device_id *of_id;
 	const char *p, *sprop;
 	const uint32_t *iprop;
-	struct resource res;
+	struct resource *res;
 	void __iomem *iomem;
 	char name[64];
 
@@ -1332,19 +1335,11 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 	}
 	ssi_private->cpu_dai_drv.name = dev_name(&pdev->dev);
 
-	/* Get the addresses and IRQ */
-	ret = of_address_to_resource(np, 0, &res);
-	if (ret) {
-		dev_err(&pdev->dev, "could not determine device resources\n");
-		return ret;
-	}
-	ssi_private->ssi_phys = res.start;
-
-	iomem = devm_ioremap(&pdev->dev, res.start, resource_size(&res));
-	if (!iomem) {
-		dev_err(&pdev->dev, "could not map device resources\n");
-		return -ENOMEM;
-	}
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	iomem = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(iomem))
+		return PTR_ERR(iomem);
+	ssi_private->ssi_phys = res->start;
 
 	ret = of_property_match_string(np, "clock-names", "ipg");
 	if (ret < 0) {
@@ -1390,8 +1385,8 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	ret = snd_soc_register_component(&pdev->dev, &fsl_ssi_component,
-					 &ssi_private->cpu_dai_drv, 1);
+	ret = devm_snd_soc_register_component(&pdev->dev, &fsl_ssi_component,
+					      &ssi_private->cpu_dai_drv, 1);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register DAI: %d\n", ret);
 		goto error_asoc_register;
@@ -1404,13 +1399,13 @@ static int fsl_ssi_probe(struct platform_device *pdev)
 		if (ret < 0) {
 			dev_err(&pdev->dev, "could not claim irq %u\n",
 					ssi_private->irq);
-			goto error_irq;
+			goto error_asoc_register;
 		}
 	}
 
 	ret = fsl_ssi_debugfs_create(&ssi_private->dbg_stats, &pdev->dev);
 	if (ret)
-		goto error_irq;
+		goto error_asoc_register;
 
 	/*
 	 * If codec-handle property is missing from SSI node, we assume
@@ -1451,9 +1446,6 @@ done:
 error_sound_card:
 	fsl_ssi_debugfs_remove(&ssi_private->dbg_stats);
 
-error_irq:
-	snd_soc_unregister_component(&pdev->dev);
-
 error_asoc_register:
 	if (ssi_private->soc->imx)
 		fsl_ssi_imx_clean(pdev, ssi_private);
@@ -1469,7 +1461,6 @@ static int fsl_ssi_remove(struct platform_device *pdev)
 
 	if (ssi_private->pdev)
 		platform_device_unregister(ssi_private->pdev);
-	snd_soc_unregister_component(&pdev->dev);
 
 	if (ssi_private->soc->imx)
 		fsl_ssi_imx_clean(pdev, ssi_private);

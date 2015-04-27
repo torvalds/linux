@@ -59,6 +59,16 @@
 				status = "okay";
 			};
 
+			isi: isi@f8048000 {
+				status = "disabled";
+				port {
+					isi_0: endpoint@0 {
+						remote-endpoint = <&ov2640_0>;
+						bus-width = <8>;
+					};
+				};
+			};
+
 			i2c0: i2c@f8010000 {
 				status = "okay";
 
@@ -66,9 +76,47 @@
 					compatible = "wm8731";
 					reg = <0x1a>;
 				};
+
+				ov2640: camera@0x30 {
+					compatible = "ovti,ov2640";
+					reg = <0x30>;
+					pinctrl-names = "default";
+					pinctrl-0 = <&pinctrl_pck0_as_isi_mck &pinctrl_sensor_power &pinctrl_sensor_reset>;
+					resetb-gpios = <&pioA 7 GPIO_ACTIVE_LOW>;
+					pwdn-gpios = <&pioA 13 GPIO_ACTIVE_HIGH>;
+					clocks = <&pck0>;
+					clock-names = "xvclk";
+					assigned-clocks = <&pck0>;
+					assigned-clock-rates = <25000000>;
+					status = "disabled";
+
+					port {
+						ov2640_0: endpoint {
+							remote-endpoint = <&isi_0>;
+							bus-width = <8>;
+						};
+					};
+				};
 			};
 
 			pinctrl@fffff400 {
+				camera_sensor {
+					pinctrl_pck0_as_isi_mck: pck0_as_isi_mck-0 {
+						atmel,pins =
+							<AT91_PIOC 15 AT91_PERIPH_C AT91_PINCTRL_NONE>;	/* ISI_MCK */
+					};
+
+					pinctrl_sensor_power: sensor_power-0 {
+						atmel,pins =
+							<AT91_PIOA 13 AT91_PERIPH_GPIO AT91_PINCTRL_NONE>;
+					};
+
+					pinctrl_sensor_reset: sensor_reset-0 {
+						atmel,pins =
+							<AT91_PIOA 7 AT91_PERIPH_GPIO AT91_PINCTRL_NONE>;
+					};
+				};
+
 				mmc0 {
 					pinctrl_board_mmc0: mmc0-board {
 						atmel,pins =

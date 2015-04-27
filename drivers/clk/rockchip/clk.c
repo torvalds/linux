@@ -317,7 +317,8 @@ void __init rockchip_clk_register_armclk(unsigned int lookup_id,
 	rockchip_clk_add_lookup(clk, lookup_id);
 }
 
-void __init rockchip_clk_protect_critical(const char *clocks[], int nclocks)
+void __init rockchip_clk_protect_critical(const char *const clocks[],
+					  int nclocks)
 {
 	int i;
 

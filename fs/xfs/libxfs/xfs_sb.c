@@ -111,14 +111,6 @@ xfs_mount_validate_sb(
 	bool		check_inprogress,
 	bool		check_version)
 {
-
-	/*
-	 * If the log device and data device have the
-	 * same device number, the log is internal.
-	 * Consequently, the sb_logstart should be non-zero.  If
-	 * we have a zero sb_logstart in this case, we may be trying to mount
-	 * a volume filesystem in a non-volume manner.
-	 */
 	if (sbp->sb_magicnum != XFS_SB_MAGIC) {
 		xfs_warn(mp, "bad magic number");
 		return -EWRONGFS;
@@ -743,17 +735,15 @@ xfs_initialize_perag_data(
 		btree += pag->pagf_btreeblks;
 		xfs_perag_put(pag);
 	}
-	/*
-	 * Overwrite incore superblock counters with just-read data
-	 */
+
+	/* Overwrite incore superblock counters with just-read data */
 	spin_lock(&mp->m_sb_lock);
 	sbp->sb_ifree = ifree;
 	sbp->sb_icount = ialloc;
 	sbp->sb_fdblocks = bfree + bfreelst + btree;
 	spin_unlock(&mp->m_sb_lock);
 
-	/* Fixup the per-cpu counters as well. */
-	xfs_icsb_reinit_counters(mp);
+	xfs_reinit_percpu_counters(mp);
 
 	return 0;
 }
@@ -770,6 +760,10 @@ xfs_log_sb(
 {
 	struct xfs_mount	*mp = tp->t_mountp;
 	struct xfs_buf		*bp = xfs_trans_getsb(tp, mp, 0);
+
+	mp->m_sb.sb_icount = percpu_counter_sum(&mp->m_icount);
+	mp->m_sb.sb_ifree = percpu_counter_sum(&mp->m_ifree);
+	mp->m_sb.sb_fdblocks = percpu_counter_sum(&mp->m_fdblocks);
 
 	xfs_sb_to_disk(XFS_BUF_TO_SBP(bp), &mp->m_sb);
 	xfs_trans_buf_set_type(tp, bp, XFS_BLFT_SB_BUF);

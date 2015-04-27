@@ -938,10 +938,8 @@ struct ll_cl_context {
 };
 
 struct vvp_thread_info {
-	struct iovec	 vti_local_iov;
 	struct vvp_io_args   vti_args;
 	struct ra_io_arg     vti_ria;
-	struct kiocb	 vti_kiocb;
 	struct ll_cl_context vti_io_ctx;
 };
 
@@ -1490,7 +1488,7 @@ static inline void d_lustre_invalidate(struct dentry *dentry, int nested)
 {
 	CDEBUG(D_DENTRY, "invalidate dentry %pd (%p) parent %p inode %p refc %d\n",
 	       dentry, dentry,
-	       dentry->d_parent, dentry->d_inode, d_count(dentry));
+	       dentry->d_parent, d_inode(dentry), d_count(dentry));
 
 	spin_lock_nested(&dentry->d_lock,
 			 nested ? DENTRY_D_LOCK_NESTED : DENTRY_D_LOCK_NORMAL);

@@ -34,7 +34,7 @@ static inline struct udphdr *inner_udp_hdr(const struct sk_buff *skb)
 
 #define UDP_HTABLE_SIZE_MIN		(CONFIG_BASE_SMALL ? 128 : 256)
 
-static inline int udp_hashfn(struct net *net, unsigned num, unsigned mask)
+static inline u32 udp_hashfn(const struct net *net, u32 num, u32 mask)
 {
 	return (num + net_hash_mix(net)) & mask;
 }

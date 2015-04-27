@@ -265,7 +265,7 @@ static struct drm_connector_funcs ptn3460_connector_funcs = {
 	.destroy = ptn3460_connector_destroy,
 };
 
-int ptn3460_bridge_attach(struct drm_bridge *bridge)
+static int ptn3460_bridge_attach(struct drm_bridge *bridge)
 {
 	struct ptn3460_bridge *ptn_bridge = bridge_to_ptn3460(bridge);
 	int ret;

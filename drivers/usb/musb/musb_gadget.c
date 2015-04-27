@@ -1876,44 +1876,6 @@ err:
 	return retval;
 }
 
-static void stop_activity(struct musb *musb, struct usb_gadget_driver *driver)
-{
-	int			i;
-	struct musb_hw_ep	*hw_ep;
-
-	/* don't disconnect if it's not connected */
-	if (musb->g.speed == USB_SPEED_UNKNOWN)
-		driver = NULL;
-	else
-		musb->g.speed = USB_SPEED_UNKNOWN;
-
-	/* deactivate the hardware */
-	if (musb->softconnect) {
-		musb->softconnect = 0;
-		musb_pullup(musb, 0);
-	}
-	musb_stop(musb);
-
-	/* killing any outstanding requests will quiesce the driver;
-	 * then report disconnect
-	 */
-	if (driver) {
-		for (i = 0, hw_ep = musb->endpoints;
-				i < musb->nr_endpoints;
-				i++, hw_ep++) {
-			musb_ep_select(musb->mregs, i);
-			if (hw_ep->is_shared_fifo /* || !epnum */) {
-				nuke(&hw_ep->ep_in, -ESHUTDOWN);
-			} else {
-				if (hw_ep->max_packet_sz_tx)
-					nuke(&hw_ep->ep_in, -ESHUTDOWN);
-				if (hw_ep->max_packet_sz_rx)
-					nuke(&hw_ep->ep_out, -ESHUTDOWN);
-			}
-		}
-	}
-}
-
 /*
  * Unregister the gadget driver. Used by gadget drivers when
  * unregistering themselves from the controller.
@@ -1940,7 +1902,7 @@ static int musb_gadget_stop(struct usb_gadget *g)
 	(void) musb_gadget_vbus_draw(&musb->g, 0);
 
 	musb->xceiv->otg->state = OTG_STATE_UNDEFINED;
-	stop_activity(musb, NULL);
+	musb_stop(musb);
 	otg_set_peripheral(musb->xceiv->otg, NULL);
 
 	musb->is_active = 0;

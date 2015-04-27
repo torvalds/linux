@@ -28,7 +28,7 @@
 const char *rxrpc_pkts[] = {
 	"?00",
 	"DATA", "ACK", "BUSY", "ABORT", "ACKALL", "CHALL", "RESP", "DEBUG",
-	"?09", "?10", "?11", "?12", "?13", "?14", "?15"
+	"?09", "?10", "?11", "?12", "VERSION", "?14", "?15"
 };
 
 /*
@@ -593,6 +593,20 @@ static void rxrpc_post_packet_to_conn(struct rxrpc_connection *conn,
 	rxrpc_queue_conn(conn);
 }
 
+/*
+ * post endpoint-level events to the local endpoint
+ * - this includes debug and version messages
+ */
+static void rxrpc_post_packet_to_local(struct rxrpc_local *local,
+				       struct sk_buff *skb)
+{
+	_enter("%p,%p", local, skb);
+
+	atomic_inc(&local->usage);
+	skb_queue_tail(&local->event_queue, skb);
+	rxrpc_queue_work(&local->event_processor);
+}
+
 static struct rxrpc_connection *rxrpc_conn_from_local(struct rxrpc_local *local,
 					       struct sk_buff *skb,
 					       struct rxrpc_skb_priv *sp)
@@ -699,6 +713,11 @@ void rxrpc_data_ready(struct sock *sk)
 		goto bad_message;
 	}
 
+	if (sp->hdr.type == RXRPC_PACKET_TYPE_VERSION) {
+		rxrpc_post_packet_to_local(local, skb);
+		goto out;
+	}
+	
 	if (sp->hdr.type == RXRPC_PACKET_TYPE_DATA &&
 	    (sp->hdr.callNumber == 0 || sp->hdr.seq == 0))
 		goto bad_message;
@@ -731,6 +750,8 @@ void rxrpc_data_ready(struct sock *sk)
 		else
 			goto cant_route_call;
 	}
+
+out:
 	rxrpc_put_local(local);
 	return;
 

@@ -1302,8 +1302,14 @@ struct wmi_tlv_pdev_set_wmm_cmd {
 	__le32 dg_type; /* no idea.. */
 } __packed;
 
+struct wmi_tlv_vdev_wmm_params {
+	__le32 dummy;
+	struct wmi_wmm_params params;
+} __packed;
+
 struct wmi_tlv_vdev_set_wmm_cmd {
 	__le32 vdev_id;
+	struct wmi_tlv_vdev_wmm_params vdev_wmm_params[4];
 } __packed;
 
 struct wmi_tlv_phyerr_ev {
@@ -1437,6 +1443,15 @@ struct wmi_tlv_sta_keepalive_cmd {
 	__le32 enabled;
 	__le32 method; /* WMI_STA_KEEPALIVE_METHOD_ */
 	__le32 interval; /* in seconds */
+} __packed;
+
+struct wmi_tlv_stats_ev {
+	__le32 stats_id; /* WMI_STAT_ */
+	__le32 num_pdev_stats;
+	__le32 num_vdev_stats;
+	__le32 num_peer_stats;
+	__le32 num_bcnflt_stats;
+	__le32 num_chan_stats;
 } __packed;
 
 void ath10k_wmi_tlv_attach(struct ath10k *ar);

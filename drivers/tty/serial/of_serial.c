@@ -89,6 +89,7 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 
 	spin_lock_init(&port->lock);
 	port->mapbase = resource.start;
+	port->mapsize = resource_size(&resource);
 
 	/* Check for shifted address mapping */
 	if (of_property_read_u32(np, "reg-offset", &prop) == 0)
@@ -115,7 +116,8 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 			port->iotype = UPIO_MEM;
 			break;
 		case 4:
-			port->iotype = UPIO_MEM32;
+			port->iotype = of_device_is_big_endian(np) ?
+				       UPIO_MEM32BE : UPIO_MEM32;
 			break;
 		default:
 			dev_warn(&ofdev->dev, "unsupported reg-io-width (%d)\n",
@@ -132,10 +134,6 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 
 	if (of_find_property(np, "no-loopback-test", NULL))
 		port->flags |= UPF_SKIP_TEST;
-
-	ret = of_alias_get_id(np, "serial");
-	if (ret >= 0)
-		port->line = ret;
 
 	port->dev = &ofdev->dev;
 
@@ -159,7 +157,7 @@ out:
 /*
  * Try to register a serial port
  */
-static struct of_device_id of_platform_serial_table[];
+static const struct of_device_id of_platform_serial_table[];
 static int of_platform_serial_probe(struct platform_device *ofdev)
 {
 	const struct of_device_id *match;
@@ -324,7 +322,7 @@ static SIMPLE_DEV_PM_OPS(of_serial_pm_ops, of_serial_suspend, of_serial_resume);
 /*
  * A few common types, add more as needed.
  */
-static struct of_device_id of_platform_serial_table[] = {
+static const struct of_device_id of_platform_serial_table[] = {
 	{ .compatible = "ns8250",   .data = (void *)PORT_8250, },
 	{ .compatible = "ns16450",  .data = (void *)PORT_16450, },
 	{ .compatible = "ns16550a", .data = (void *)PORT_16550A, },

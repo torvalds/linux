@@ -1004,10 +1004,8 @@ static int user_cluster_connect(struct ocfs2_cluster_connection *conn)
 	BUG_ON(conn == NULL);
 
 	lc = kzalloc(sizeof(struct ocfs2_live_connection), GFP_KERNEL);
-	if (!lc) {
-		rc = -ENOMEM;
-		goto out;
-	}
+	if (!lc)
+		return -ENOMEM;
 
 	init_waitqueue_head(&lc->oc_wait);
 	init_completion(&lc->oc_sync_wait);
@@ -1063,7 +1061,7 @@ static int user_cluster_connect(struct ocfs2_cluster_connection *conn)
 	}
 
 out:
-	if (rc && lc)
+	if (rc)
 		kfree(lc);
 	return rc;
 }

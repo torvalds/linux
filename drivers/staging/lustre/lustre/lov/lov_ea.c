@@ -209,8 +209,8 @@ static int lsm_lmm_verify_v1(struct lov_mds_md_v1 *lmm, int lmm_bytes,
 	return lsm_lmm_verify_common(lmm, lmm_bytes, *stripe_count);
 }
 
-int lsm_unpackmd_v1(struct lov_obd *lov, struct lov_stripe_md *lsm,
-		    struct lov_mds_md_v1 *lmm)
+static int lsm_unpackmd_v1(struct lov_obd *lov, struct lov_stripe_md *lsm,
+			   struct lov_mds_md_v1 *lmm)
 {
 	struct lov_oinfo *loi;
 	int i;
@@ -227,6 +227,9 @@ int lsm_unpackmd_v1(struct lov_obd *lov, struct lov_stripe_md *lsm,
 		ostid_le_to_cpu(&lmm->lmm_objects[i].l_ost_oi, &loi->loi_oi);
 		loi->loi_ost_idx = le32_to_cpu(lmm->lmm_objects[i].l_ost_idx);
 		loi->loi_ost_gen = le32_to_cpu(lmm->lmm_objects[i].l_ost_gen);
+		if (lov_oinfo_is_dummy(loi))
+			continue;
+
 		if (loi->loi_ost_idx >= lov->desc.ld_tgt_count) {
 			CERROR("OST index %d more than OST count %d\n",
 			       loi->loi_ost_idx, lov->desc.ld_tgt_count);
@@ -287,8 +290,8 @@ static int lsm_lmm_verify_v3(struct lov_mds_md *lmmv1, int lmm_bytes,
 				     *stripe_count);
 }
 
-int lsm_unpackmd_v3(struct lov_obd *lov, struct lov_stripe_md *lsm,
-		    struct lov_mds_md *lmmv1)
+static int lsm_unpackmd_v3(struct lov_obd *lov, struct lov_stripe_md *lsm,
+			   struct lov_mds_md *lmmv1)
 {
 	struct lov_mds_md_v3 *lmm;
 	struct lov_oinfo *loi;
@@ -314,6 +317,9 @@ int lsm_unpackmd_v3(struct lov_obd *lov, struct lov_stripe_md *lsm,
 		ostid_le_to_cpu(&lmm->lmm_objects[i].l_ost_oi, &loi->loi_oi);
 		loi->loi_ost_idx = le32_to_cpu(lmm->lmm_objects[i].l_ost_idx);
 		loi->loi_ost_gen = le32_to_cpu(lmm->lmm_objects[i].l_ost_gen);
+		if (lov_oinfo_is_dummy(loi))
+			continue;
+
 		if (loi->loi_ost_idx >= lov->desc.ld_tgt_count) {
 			CERROR("OST index %d more than OST count %d\n",
 			       loi->loi_ost_idx, lov->desc.ld_tgt_count);

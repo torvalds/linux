@@ -1354,7 +1354,7 @@ static struct samsung_pll_clock exynos4x12_plls[nr_plls] __initdata = {
 			VPLL_LOCK, VPLL_CON0, NULL),
 };
 
-static void __init exynos4_core_down_clock(enum exynos4_soc soc)
+static void __init exynos4x12_core_down_clock(void)
 {
 	unsigned int tmp;
 
@@ -1373,11 +1373,9 @@ static void __init exynos4_core_down_clock(enum exynos4_soc soc)
 	__raw_writel(tmp, reg_base + PWR_CTRL1);
 
 	/*
-	 * Disable the clock up feature on Exynos4x12, in case it was
-	 * enabled by bootloader.
+	 * Disable the clock up feature in case it was enabled by bootloader.
 	 */
-	if (exynos4_soc == EXYNOS4X12)
-		__raw_writel(0x0, reg_base + E4X12_PWR_CTRL2);
+	__raw_writel(0x0, reg_base + E4X12_PWR_CTRL2);
 }
 
 /* register exynos4 clocks */
@@ -1474,7 +1472,8 @@ static void __init exynos4_clk_init(struct device_node *np,
 	samsung_clk_register_alias(ctx, exynos4_aliases,
 			ARRAY_SIZE(exynos4_aliases));
 
-	exynos4_core_down_clock(soc);
+	if (soc == EXYNOS4X12)
+		exynos4x12_core_down_clock();
 	exynos4_clk_sleep_init();
 
 	samsung_clk_of_add_provider(np, ctx);

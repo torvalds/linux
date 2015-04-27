@@ -47,9 +47,8 @@
  */
 
 #include <linux/module.h>
-#include <linux/pci.h>
 
-#include "../comedidev.h"
+#include "../comedi_pci.h"
 
 /*
  * PCI bar 2 Register I/O map (dev->iobase)

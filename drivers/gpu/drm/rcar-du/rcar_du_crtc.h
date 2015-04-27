@@ -15,12 +15,12 @@
 #define __RCAR_DU_CRTC_H__
 
 #include <linux/mutex.h>
+#include <linux/wait.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
 
 struct rcar_du_group;
-struct rcar_du_plane;
 
 struct rcar_du_crtc {
 	struct drm_crtc crtc;
@@ -32,11 +32,12 @@ struct rcar_du_crtc {
 	bool started;
 
 	struct drm_pending_vblank_event *event;
+	wait_queue_head_t flip_wait;
+
 	unsigned int outputs;
-	int dpms;
+	bool enabled;
 
 	struct rcar_du_group *group;
-	struct rcar_du_plane *plane;
 };
 
 #define to_rcar_crtc(c)	container_of(c, struct rcar_du_crtc, crtc)
@@ -59,6 +60,5 @@ void rcar_du_crtc_resume(struct rcar_du_crtc *rcrtc);
 
 void rcar_du_crtc_route_output(struct drm_crtc *crtc,
 			       enum rcar_du_output output);
-void rcar_du_crtc_update_planes(struct drm_crtc *crtc);
 
 #endif /* __RCAR_DU_CRTC_H__ */

@@ -211,13 +211,22 @@ Thunderbird (GUI)
 Thunderbird is an Outlook clone that likes to mangle text, but there are ways
 to coerce it into behaving.
 
-- Allows use of an external editor:
+- Allow use of an external editor:
   The easiest thing to do with Thunderbird and patches is to use an
   "external editor" extension and then just use your favorite $EDITOR
   for reading/merging patches into the body text.  To do this, download
   and install the extension, then add a button for it using
   View->Toolbars->Customize... and finally just click on it when in the
   Compose dialog.
+
+  Please note that "external editor" requires that your editor must not
+  fork, or in other words, the editor must not return before closing. 
+  You may have to pass additional flags or change the settings of your
+  editor. Most notably if you are using gvim then you must pass the -f
+  option to gvim by putting "/usr/bin/gvim -f" (if the binary is in
+  /usr/bin) to the text editor field in "external editor" settings. If you
+  are using some other editor then please read its manual to find out how
+  to do this.
 
 To beat some sense out of the internal editor, do this:
 

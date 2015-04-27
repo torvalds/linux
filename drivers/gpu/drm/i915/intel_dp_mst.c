@@ -36,11 +36,11 @@ static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	struct intel_dp_mst_encoder *intel_mst = enc_to_mst(&encoder->base);
 	struct intel_digital_port *intel_dig_port = intel_mst->primary;
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
-	struct drm_device *dev = encoder->base.dev;
-	int bpp;
-	int lane_count, slots;
+	struct drm_atomic_state *state;
+	int bpp, i;
+	int lane_count, slots, rate;
 	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
-	struct intel_connector *found = NULL, *intel_connector;
+	struct intel_connector *found = NULL;
 	int mst_pbn;
 
 	pipe_config->dp_encoder_is_mst = true;
@@ -52,15 +52,30 @@ static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	 * seem to suggest we should do otherwise.
 	 */
 	lane_count = drm_dp_max_lane_count(intel_dp->dpcd);
-	intel_dp->link_bw = intel_dp_max_link_bw(intel_dp);
+
+	rate = intel_dp_max_link_rate(intel_dp);
+
+	if (intel_dp->num_sink_rates) {
+		intel_dp->link_bw = 0;
+		intel_dp->rate_select = intel_dp_rate_select(intel_dp, rate);
+	} else {
+		intel_dp->link_bw = drm_dp_link_rate_to_bw_code(rate);
+		intel_dp->rate_select = 0;
+	}
+
 	intel_dp->lane_count = lane_count;
 
 	pipe_config->pipe_bpp = 24;
-	pipe_config->port_clock = drm_dp_bw_code_to_link_rate(intel_dp->link_bw);
+	pipe_config->port_clock = rate;
 
-	list_for_each_entry(intel_connector, &dev->mode_config.connector_list, base.head) {
-		if (intel_connector->new_encoder == encoder) {
-			found = intel_connector;
+	state = pipe_config->base.state;
+
+	for (i = 0; i < state->num_connector; i++) {
+		if (!state->connectors[i])
+			continue;
+
+		if (state->connector_states[i]->best_encoder == &encoder->base) {
+			found = to_intel_connector(state->connectors[i]);
 			break;
 		}
 	}
@@ -140,7 +155,7 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder)
 	struct drm_crtc *crtc = encoder->base.crtc;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 
-	list_for_each_entry(intel_connector, &dev->mode_config.connector_list, base.head) {
+	for_each_intel_connector(dev, intel_connector) {
 		if (intel_connector->new_encoder == encoder) {
 			found = intel_connector;
 			break;
@@ -317,6 +332,7 @@ static const struct drm_connector_funcs intel_dp_mst_connector_funcs = {
 	.atomic_get_property = intel_connector_atomic_get_property,
 	.destroy = intel_dp_mst_connector_destroy,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
 };
 
 static int intel_dp_mst_get_modes(struct drm_connector *connector)
@@ -399,7 +415,7 @@ static struct drm_connector *intel_dp_add_mst_connector(struct drm_dp_mst_topolo
 	struct drm_connector *connector;
 	int i;
 
-	intel_connector = kzalloc(sizeof(*intel_connector), GFP_KERNEL);
+	intel_connector = intel_connector_alloc();
 	if (!intel_connector)
 		return NULL;
 

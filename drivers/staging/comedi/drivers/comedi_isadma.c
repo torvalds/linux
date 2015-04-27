@@ -91,9 +91,10 @@ unsigned int comedi_isadma_disable_on_sample(unsigned int dma_chan,
 			stalled++;
 			if (stalled > 10)
 				break;
+		} else {
+			residue = new_residue;
+			stalled = 0;
 		}
-		residue = new_residue;
-		stalled = 0;
 	}
 	return residue;
 }
@@ -234,7 +235,8 @@ void comedi_isadma_free(struct comedi_isadma *dma)
 			desc = &dma->desc[i];
 			if (desc->virt_addr)
 				dma_free_coherent(NULL, desc->maxsize,
-						desc->virt_addr, desc->hw_addr);
+						  desc->virt_addr,
+						  desc->hw_addr);
 		}
 		kfree(dma->desc);
 	}

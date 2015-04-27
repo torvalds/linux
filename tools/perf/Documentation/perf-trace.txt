@@ -55,6 +55,9 @@ OPTIONS
 --uid=::
         Record events in threads owned by uid. Name or number.
 
+--filter-pids=::
+	Filter out events for these pids and for 'trace' itself (comma separated list).
+
 -v::
 --verbose=::
         Verbosity level.
@@ -114,6 +117,9 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 
 --syscalls::
 	Trace system calls. This options is enabled by default.
+
+--event::
+	Trace other events, see 'perf list' for a complete list.
 
 PAGEFAULTS
 ----------

@@ -50,6 +50,7 @@
 #define CONTEXT_SIZE		VTD_PAGE_SIZE
 
 #define IS_GFX_DEVICE(pdev) ((pdev->class >> 16) == PCI_BASE_CLASS_DISPLAY)
+#define IS_USB_DEVICE(pdev) ((pdev->class >> 8) == PCI_CLASS_SERIAL_USB)
 #define IS_ISA_DEVICE(pdev) ((pdev->class >> 8) == PCI_CLASS_BRIDGE_ISA)
 #define IS_AZALIA(pdev) ((pdev)->vendor == 0x8086 && (pdev)->device == 0x3a3e)
 
@@ -184,32 +185,11 @@ static int force_on = 0;
  * 64-127: Reserved
  */
 struct root_entry {
-	u64	val;
-	u64	rsvd1;
+	u64	lo;
+	u64	hi;
 };
 #define ROOT_ENTRY_NR (VTD_PAGE_SIZE/sizeof(struct root_entry))
-static inline bool root_present(struct root_entry *root)
-{
-	return (root->val & 1);
-}
-static inline void set_root_present(struct root_entry *root)
-{
-	root->val |= 1;
-}
-static inline void set_root_value(struct root_entry *root, unsigned long value)
-{
-	root->val &= ~VTD_PAGE_MASK;
-	root->val |= value & VTD_PAGE_MASK;
-}
 
-static inline struct context_entry *
-get_context_addr_from_root(struct root_entry *root)
-{
-	return (struct context_entry *)
-		(root_present(root)?phys_to_virt(
-		root->val & VTD_PAGE_MASK) :
-		NULL);
-}
 
 /*
  * low 64 bits:
@@ -339,7 +319,7 @@ struct dmar_domain {
 	DECLARE_BITMAP(iommu_bmp, DMAR_UNITS_SUPPORTED);
 					/* bitmap of iommus this domain uses*/
 
-	struct list_head devices; 	/* all devices' list */
+	struct list_head devices;	/* all devices' list */
 	struct iova_domain iovad;	/* iova's that belong to this domain */
 
 	struct dma_pte	*pgd;		/* virtual address */
@@ -358,6 +338,9 @@ struct dmar_domain {
 					   2 == 1GiB, 3 == 512GiB, 4 == 1TiB */
 	spinlock_t	iommu_lock;	/* protect iommu set in domain */
 	u64		max_addr;	/* maximum mapped address */
+
+	struct iommu_domain domain;	/* generic domain data structure for
+					   iommu core */
 };
 
 /* PCI domain-device relationship */
@@ -448,6 +431,12 @@ static DEFINE_SPINLOCK(device_domain_lock);
 static LIST_HEAD(device_domain_list);
 
 static const struct iommu_ops intel_iommu_ops;
+
+/* Convert generic 'struct iommu_domain to private struct dmar_domain */
+static struct dmar_domain *to_dmar_domain(struct iommu_domain *dom)
+{
+	return container_of(dom, struct dmar_domain, domain);
+}
 
 static int __init intel_iommu_setup(char *str)
 {
@@ -595,12 +584,13 @@ static void domain_update_iommu_coherency(struct dmar_domain *domain)
 {
 	struct dmar_drhd_unit *drhd;
 	struct intel_iommu *iommu;
-	int i, found = 0;
+	bool found = false;
+	int i;
 
 	domain->iommu_coherency = 1;
 
 	for_each_set_bit(i, domain->iommu_bmp, g_num_of_iommus) {
-		found = 1;
+		found = true;
 		if (!ecap_coherent(g_iommus[i]->ecap)) {
 			domain->iommu_coherency = 0;
 			break;
@@ -672,6 +662,40 @@ static void domain_update_iommu_cap(struct dmar_domain *domain)
 	domain->iommu_superpage = domain_update_iommu_superpage(NULL);
 }
 
+static inline struct context_entry *iommu_context_addr(struct intel_iommu *iommu,
+						       u8 bus, u8 devfn, int alloc)
+{
+	struct root_entry *root = &iommu->root_entry[bus];
+	struct context_entry *context;
+	u64 *entry;
+
+	if (ecap_ecs(iommu->ecap)) {
+		if (devfn >= 0x80) {
+			devfn -= 0x80;
+			entry = &root->hi;
+		}
+		devfn *= 2;
+	}
+	entry = &root->lo;
+	if (*entry & 1)
+		context = phys_to_virt(*entry & VTD_PAGE_MASK);
+	else {
+		unsigned long phy_addr;
+		if (!alloc)
+			return NULL;
+
+		context = alloc_pgtable_page(iommu->node);
+		if (!context)
+			return NULL;
+
+		__iommu_flush_cache(iommu, (void *)context, CONTEXT_SIZE);
+		phy_addr = virt_to_phys((void *)context);
+		*entry = phy_addr | 1;
+		__iommu_flush_cache(iommu, entry, sizeof(*entry));
+	}
+	return &context[devfn];
+}
+
 static struct intel_iommu *device_to_iommu(struct device *dev, u8 *bus, u8 *devfn)
 {
 	struct dmar_drhd_unit *drhd = NULL;
@@ -684,7 +708,7 @@ static struct intel_iommu *device_to_iommu(struct device *dev, u8 *bus, u8 *devf
 	if (dev_is_pci(dev)) {
 		pdev = to_pci_dev(dev);
 		segment = pci_domain_nr(pdev->bus);
-	} else if (ACPI_COMPANION(dev))
+	} else if (has_acpi_companion(dev))
 		dev = &ACPI_COMPANION(dev)->dev;
 
 	rcu_read_lock();
@@ -731,75 +755,36 @@ static void domain_flush_cache(struct dmar_domain *domain,
 		clflush_cache_range(addr, size);
 }
 
-/* Gets context entry for a given bus and devfn */
-static struct context_entry * device_to_context_entry(struct intel_iommu *iommu,
-		u8 bus, u8 devfn)
-{
-	struct root_entry *root;
-	struct context_entry *context;
-	unsigned long phy_addr;
-	unsigned long flags;
-
-	spin_lock_irqsave(&iommu->lock, flags);
-	root = &iommu->root_entry[bus];
-	context = get_context_addr_from_root(root);
-	if (!context) {
-		context = (struct context_entry *)
-				alloc_pgtable_page(iommu->node);
-		if (!context) {
-			spin_unlock_irqrestore(&iommu->lock, flags);
-			return NULL;
-		}
-		__iommu_flush_cache(iommu, (void *)context, CONTEXT_SIZE);
-		phy_addr = virt_to_phys((void *)context);
-		set_root_value(root, phy_addr);
-		set_root_present(root);
-		__iommu_flush_cache(iommu, root, sizeof(*root));
-	}
-	spin_unlock_irqrestore(&iommu->lock, flags);
-	return &context[devfn];
-}
-
 static int device_context_mapped(struct intel_iommu *iommu, u8 bus, u8 devfn)
 {
-	struct root_entry *root;
 	struct context_entry *context;
-	int ret;
+	int ret = 0;
 	unsigned long flags;
 
 	spin_lock_irqsave(&iommu->lock, flags);
-	root = &iommu->root_entry[bus];
-	context = get_context_addr_from_root(root);
-	if (!context) {
-		ret = 0;
-		goto out;
-	}
-	ret = context_present(&context[devfn]);
-out:
+	context = iommu_context_addr(iommu, bus, devfn, 0);
+	if (context)
+		ret = context_present(context);
 	spin_unlock_irqrestore(&iommu->lock, flags);
 	return ret;
 }
 
 static void clear_context_table(struct intel_iommu *iommu, u8 bus, u8 devfn)
 {
-	struct root_entry *root;
 	struct context_entry *context;
 	unsigned long flags;
 
 	spin_lock_irqsave(&iommu->lock, flags);
-	root = &iommu->root_entry[bus];
-	context = get_context_addr_from_root(root);
+	context = iommu_context_addr(iommu, bus, devfn, 0);
 	if (context) {
-		context_clear_entry(&context[devfn]);
-		__iommu_flush_cache(iommu, &context[devfn], \
-			sizeof(*context));
+		context_clear_entry(context);
+		__iommu_flush_cache(iommu, context, sizeof(*context));
 	}
 	spin_unlock_irqrestore(&iommu->lock, flags);
 }
 
 static void free_context_table(struct intel_iommu *iommu)
 {
-	struct root_entry *root;
 	int i;
 	unsigned long flags;
 	struct context_entry *context;
@@ -809,10 +794,17 @@ static void free_context_table(struct intel_iommu *iommu)
 		goto out;
 	}
 	for (i = 0; i < ROOT_ENTRY_NR; i++) {
-		root = &iommu->root_entry[i];
-		context = get_context_addr_from_root(root);
+		context = iommu_context_addr(iommu, i, 0, 0);
 		if (context)
 			free_pgtable_page(context);
+
+		if (!ecap_ecs(iommu->ecap))
+			continue;
+
+		context = iommu_context_addr(iommu, i, 0x80, 0);
+		if (context)
+			free_pgtable_page(context);
+
 	}
 	free_pgtable_page(iommu->root_entry);
 	iommu->root_entry = NULL;
@@ -1136,14 +1128,16 @@ static int iommu_alloc_root_entry(struct intel_iommu *iommu)
 
 static void iommu_set_root_entry(struct intel_iommu *iommu)
 {
-	void *addr;
+	u64 addr;
 	u32 sts;
 	unsigned long flag;
 
-	addr = iommu->root_entry;
+	addr = virt_to_phys(iommu->root_entry);
+	if (ecap_ecs(iommu->ecap))
+		addr |= DMA_RTADDR_RTT;
 
 	raw_spin_lock_irqsave(&iommu->register_lock, flag);
-	dmar_writeq(iommu->reg + DMAR_RTADDR_REG, virt_to_phys(addr));
+	dmar_writeq(iommu->reg + DMAR_RTADDR_REG, addr);
 
 	writel(iommu->gcmd | DMA_GCMD_SRTP, iommu->reg + DMAR_GCMD_REG);
 
@@ -1267,7 +1261,7 @@ static struct device_domain_info *
 iommu_support_dev_iotlb (struct dmar_domain *domain, struct intel_iommu *iommu,
 			 u8 bus, u8 devfn)
 {
-	int found = 0;
+	bool found = false;
 	unsigned long flags;
 	struct device_domain_info *info;
 	struct pci_dev *pdev;
@@ -1282,7 +1276,7 @@ iommu_support_dev_iotlb (struct dmar_domain *domain, struct intel_iommu *iommu,
 	list_for_each_entry(info, &domain->devices, link)
 		if (info->iommu == iommu && info->bus == bus &&
 		    info->devfn == devfn) {
-			found = 1;
+			found = true;
 			break;
 		}
 	spin_unlock_irqrestore(&device_domain_lock, flags);
@@ -1742,9 +1736,8 @@ static int domain_init(struct dmar_domain *domain, int guest_width)
 
 static void domain_exit(struct dmar_domain *domain)
 {
-	struct dmar_drhd_unit *drhd;
-	struct intel_iommu *iommu;
 	struct page *freelist = NULL;
+	int i;
 
 	/* Domain 0 is reserved, so dont process it */
 	if (!domain)
@@ -1764,8 +1757,8 @@ static void domain_exit(struct dmar_domain *domain)
 
 	/* clear attached or cached domains */
 	rcu_read_lock();
-	for_each_active_iommu(iommu, drhd)
-		iommu_detach_domain(domain, iommu);
+	for_each_set_bit(i, domain->iommu_bmp, g_num_of_iommus)
+		iommu_detach_domain(domain, g_iommus[i]);
 	rcu_read_unlock();
 
 	dma_free_pagelist(freelist);
@@ -1791,7 +1784,9 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 	BUG_ON(translation != CONTEXT_TT_PASS_THROUGH &&
 	       translation != CONTEXT_TT_MULTI_LEVEL);
 
-	context = device_to_context_entry(iommu, bus, devfn);
+	spin_lock_irqsave(&iommu->lock, flags);
+	context = iommu_context_addr(iommu, bus, devfn, 1);
+	spin_unlock_irqrestore(&iommu->lock, flags);
 	if (!context)
 		return -ENOMEM;
 	spin_lock_irqsave(&iommu->lock, flags);
@@ -2555,6 +2550,10 @@ static bool device_has_rmrr(struct device *dev)
  * In both cases we assume that PCI USB devices with RMRRs have them largely
  * for historical reasons and that the RMRR space is not actively used post
  * boot.  This exclusion may change if vendors begin to abuse it.
+ *
+ * The same exception is made for graphics devices, with the requirement that
+ * any use of the RMRR regions will be torn down before assigning the device
+ * to a guest.
  */
 static bool device_is_rmrr_locked(struct device *dev)
 {
@@ -2564,7 +2563,7 @@ static bool device_is_rmrr_locked(struct device *dev)
 	if (dev_is_pci(dev)) {
 		struct pci_dev *pdev = to_pci_dev(dev);
 
-		if ((pdev->class >> 8) == PCI_CLASS_SERIAL_USB)
+		if (IS_USB_DEVICE(pdev) || IS_GFX_DEVICE(pdev))
 			return false;
 	}
 
@@ -4270,7 +4269,7 @@ static void domain_remove_one_dev_info(struct dmar_domain *domain,
 	struct device_domain_info *info, *tmp;
 	struct intel_iommu *iommu;
 	unsigned long flags;
-	int found = 0;
+	bool found = false;
 	u8 bus, devfn;
 
 	iommu = device_to_iommu(dev, &bus, &devfn);
@@ -4302,7 +4301,7 @@ static void domain_remove_one_dev_info(struct dmar_domain *domain,
 		 * update iommu count and coherency
 		 */
 		if (info->iommu == iommu)
-			found = 1;
+			found = true;
 	}
 
 	spin_unlock_irqrestore(&device_domain_lock, flags);
@@ -4340,44 +4339,45 @@ static int md_domain_init(struct dmar_domain *domain, int guest_width)
 	return 0;
 }
 
-static int intel_iommu_domain_init(struct iommu_domain *domain)
+static struct iommu_domain *intel_iommu_domain_alloc(unsigned type)
 {
 	struct dmar_domain *dmar_domain;
+	struct iommu_domain *domain;
+
+	if (type != IOMMU_DOMAIN_UNMANAGED)
+		return NULL;
 
 	dmar_domain = alloc_domain(DOMAIN_FLAG_VIRTUAL_MACHINE);
 	if (!dmar_domain) {
 		printk(KERN_ERR
 			"intel_iommu_domain_init: dmar_domain == NULL\n");
-		return -ENOMEM;
+		return NULL;
 	}
 	if (md_domain_init(dmar_domain, DEFAULT_DOMAIN_ADDRESS_WIDTH)) {
 		printk(KERN_ERR
 			"intel_iommu_domain_init() failed\n");
 		domain_exit(dmar_domain);
-		return -ENOMEM;
+		return NULL;
 	}
 	domain_update_iommu_cap(dmar_domain);
-	domain->priv = dmar_domain;
 
+	domain = &dmar_domain->domain;
 	domain->geometry.aperture_start = 0;
 	domain->geometry.aperture_end   = __DOMAIN_MAX_ADDR(dmar_domain->gaw);
 	domain->geometry.force_aperture = true;
 
-	return 0;
+	return domain;
 }
 
-static void intel_iommu_domain_destroy(struct iommu_domain *domain)
+static void intel_iommu_domain_free(struct iommu_domain *domain)
 {
-	struct dmar_domain *dmar_domain = domain->priv;
-
-	domain->priv = NULL;
-	domain_exit(dmar_domain);
+	domain_exit(to_dmar_domain(domain));
 }
 
 static int intel_iommu_attach_device(struct iommu_domain *domain,
 				     struct device *dev)
 {
-	struct dmar_domain *dmar_domain = domain->priv;
+	struct dmar_domain *dmar_domain = to_dmar_domain(domain);
 	struct intel_iommu *iommu;
 	int addr_width;
 	u8 bus, devfn;
@@ -4442,16 +4442,14 @@ static int intel_iommu_attach_device(struct iommu_domain *domain,
 static void intel_iommu_detach_device(struct iommu_domain *domain,
 				      struct device *dev)
 {
-	struct dmar_domain *dmar_domain = domain->priv;
-
-	domain_remove_one_dev_info(dmar_domain, dev);
+	domain_remove_one_dev_info(to_dmar_domain(domain), dev);
 }
 
 static int intel_iommu_map(struct iommu_domain *domain,
 			   unsigned long iova, phys_addr_t hpa,
 			   size_t size, int iommu_prot)
 {
-	struct dmar_domain *dmar_domain = domain->priv;
+	struct dmar_domain *dmar_domain = to_dmar_domain(domain);
 	u64 max_addr;
 	int prot = 0;
 	int ret;
@@ -4488,7 +4486,7 @@ static int intel_iommu_map(struct iommu_domain *domain,
 static size_t intel_iommu_unmap(struct iommu_domain *domain,
 				unsigned long iova, size_t size)
 {
-	struct dmar_domain *dmar_domain = domain->priv;
+	struct dmar_domain *dmar_domain = to_dmar_domain(domain);
 	struct page *freelist = NULL;
 	struct intel_iommu *iommu;
 	unsigned long start_pfn, last_pfn;
@@ -4536,7 +4534,7 @@ static size_t intel_iommu_unmap(struct iommu_domain *domain,
 static phys_addr_t intel_iommu_iova_to_phys(struct iommu_domain *domain,
 					    dma_addr_t iova)
 {
-	struct dmar_domain *dmar_domain = domain->priv;
+	struct dmar_domain *dmar_domain = to_dmar_domain(domain);
 	struct dma_pte *pte;
 	int level = 0;
 	u64 phys = 0;
@@ -4595,8 +4593,8 @@ static void intel_iommu_remove_device(struct device *dev)
 
 static const struct iommu_ops intel_iommu_ops = {
 	.capable	= intel_iommu_capable,
-	.domain_init	= intel_iommu_domain_init,
-	.domain_destroy = intel_iommu_domain_destroy,
+	.domain_alloc	= intel_iommu_domain_alloc,
+	.domain_free	= intel_iommu_domain_free,
 	.attach_dev	= intel_iommu_attach_device,
 	.detach_dev	= intel_iommu_detach_device,
 	.map		= intel_iommu_map,

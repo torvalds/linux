@@ -213,7 +213,9 @@
 	pinctrl-0 = <&i2c0_pins>;
 
 	gpio@20 {
-		compatible = "mcp,mcp23017";
+		compatible = "microchip,mcp23017";
+		gpio-controller;
+		#gpio-cells = <2>;
 		reg = <0x20>;
 	};
 
@@ -222,7 +224,7 @@
 	};
 
 	eeprom@53 {
-		compatible = "mcp,24c02";
+		compatible = "microchip,24c02";
 		reg = <0x53>;
 		pagesize = <8>;
 	};
@@ -297,8 +299,8 @@
 		|            |-->0x004FFFFF-> Kernel end
 		|            |-->0x00500000-> File system start
 		|            |
-		|            |-->0x014FFFFF-> File system end
-		|            |-->0x01500000-> User data start
+		|            |-->0x01FFFFFF-> File system end
+		|            |-->0x02000000-> User data start
 		|            |
 		|            |-->0x03FFFFFF-> User data end
 		|            |-->0x04000000-> Data storage start
@@ -327,12 +329,12 @@
 
 		partition@4 {
 			label = "rootfs";
-			reg = <0x00500000 0x01000000>; /* 16MB */
+			reg = <0x00500000 0x01b00000>; /* 27MB */
 		};
 
 		partition@5 {
 			label = "user";
-			reg = <0x01500000 0x02b00000>; /* 43MB */
+			reg = <0x02000000 0x02000000>; /* 32MB */
 		};
 
 		partition@6 {
@@ -343,7 +345,7 @@
 };
 
 &mac {
-	dual_emac = <1>;
+	dual_emac;
 	status = "okay";
 };
 
@@ -353,11 +355,13 @@
 
 &cpsw_emac0 {
 	phy_id = <&davinci_mdio>, <0>;
+	phy-mode = "mii";
 	dual_emac_res_vlan = <1>;
 };
 
 &cpsw_emac1 {
 	phy_id = <&davinci_mdio>, <1>;
+	phy-mode = "mii";
 	dual_emac_res_vlan = <2>;
 };
 

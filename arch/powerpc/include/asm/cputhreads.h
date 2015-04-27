@@ -25,7 +25,7 @@ extern cpumask_t threads_core_mask;
 #define threads_per_core	1
 #define threads_per_subcore	1
 #define threads_shift		0
-#define threads_core_mask	(CPU_MASK_CPU0)
+#define threads_core_mask	(*get_cpu_mask(0))
 #endif
 
 /* cpu_thread_mask_to_cores - Return a cpumask of one per cores
@@ -55,7 +55,7 @@ static inline cpumask_t cpu_thread_mask_to_cores(const struct cpumask *threads)
 
 static inline int cpu_nr_cores(void)
 {
-	return NR_CPUS >> threads_shift;
+	return nr_cpu_ids >> threads_shift;
 }
 
 static inline cpumask_t cpu_online_cores_map(void)

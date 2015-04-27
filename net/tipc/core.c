@@ -152,11 +152,11 @@ out_netlink:
 static void __exit tipc_exit(void)
 {
 	tipc_bearer_cleanup();
+	unregister_pernet_subsys(&tipc_net_ops);
 	tipc_netlink_stop();
 	tipc_netlink_compat_stop();
 	tipc_socket_stop();
 	tipc_unregister_sysctl();
-	unregister_pernet_subsys(&tipc_net_ops);
 
 	pr_info("Deactivated\n");
 }

@@ -328,7 +328,7 @@ static void bcm_send_to_user(struct bcm_op *op, struct bcm_msg_head *head,
 	 *  containing the interface index.
 	 */
 
-	BUILD_BUG_ON(sizeof(skb->cb) < sizeof(struct sockaddr_can));
+	sock_skb_cb_check_size(sizeof(struct sockaddr_can));
 	addr = (struct sockaddr_can *)skb->cb;
 	memset(addr, 0, sizeof(*addr));
 	addr->can_family  = AF_CAN;
@@ -1231,8 +1231,7 @@ static int bcm_tx_send(struct msghdr *msg, int ifindex, struct sock *sk)
 /*
  * bcm_sendmsg - process BCM commands (opcodes) from the userspace
  */
-static int bcm_sendmsg(struct kiocb *iocb, struct socket *sock,
-		       struct msghdr *msg, size_t size)
+static int bcm_sendmsg(struct socket *sock, struct msghdr *msg, size_t size)
 {
 	struct sock *sk = sock->sk;
 	struct bcm_sock *bo = bcm_sk(sk);
@@ -1535,8 +1534,8 @@ static int bcm_connect(struct socket *sock, struct sockaddr *uaddr, int len,
 	return 0;
 }
 
-static int bcm_recvmsg(struct kiocb *iocb, struct socket *sock,
-		       struct msghdr *msg, size_t size, int flags)
+static int bcm_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
+		       int flags)
 {
 	struct sock *sk = sock->sk;
 	struct sk_buff *skb;

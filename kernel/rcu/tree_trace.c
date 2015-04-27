@@ -283,8 +283,8 @@ static void print_one_rcu_state(struct seq_file *m, struct rcu_state *rsp)
 			seq_puts(m, "\n");
 			level = rnp->level;
 		}
-		seq_printf(m, "%lx/%lx %c%c>%c %d:%d ^%d    ",
-			   rnp->qsmask, rnp->qsmaskinit,
+		seq_printf(m, "%lx/%lx->%lx %c%c>%c %d:%d ^%d    ",
+			   rnp->qsmask, rnp->qsmaskinit, rnp->qsmaskinitnext,
 			   ".G"[rnp->gp_tasks != NULL],
 			   ".E"[rnp->exp_tasks != NULL],
 			   ".T"[!list_empty(&rnp->blkd_tasks)],
