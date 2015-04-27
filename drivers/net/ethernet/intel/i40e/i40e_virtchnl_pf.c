@@ -542,11 +542,13 @@ static int i40e_alloc_vsi_res(struct i40e_vf *vf, enum i40e_vsi_type type)
 		if (vf->port_vlan_id)
 			i40e_vsi_add_pvid(vsi, vf->port_vlan_id);
 		f = i40e_add_filter(vsi, vf->default_lan_addr.addr,
-				    vf->port_vlan_id, true, false);
+				    vf->port_vlan_id ? vf->port_vlan_id : -1,
+				    true, false);
 		if (!f)
 			dev_info(&pf->pdev->dev,
 				 "Could not allocate VF MAC addr\n");
-		f = i40e_add_filter(vsi, brdcast, vf->port_vlan_id,
+		f = i40e_add_filter(vsi, brdcast,
+				    vf->port_vlan_id ? vf->port_vlan_id : -1,
 				    true, false);
 		if (!f)
 			dev_info(&pf->pdev->dev,
@@ -2023,7 +2025,8 @@ int i40e_ndo_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac)
 	}
 
 	/* delete the temporary mac address */
-	i40e_del_filter(vsi, vf->default_lan_addr.addr, vf->port_vlan_id,
+	i40e_del_filter(vsi, vf->default_lan_addr.addr,
+			vf->port_vlan_id ? vf->port_vlan_id : -1,
 			true, false);
 
 	/* Delete all the filters for this VSI - we're going to kill it
