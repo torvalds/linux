@@ -60,6 +60,7 @@ struct phy_device;
 struct wireless_dev;
 /* 802.15.4 specific */
 struct wpan_dev;
+struct mpls_dev;
 
 void netdev_set_default_ethtool_ops(struct net_device *dev,
 				    const struct ethtool_ops *ops);
@@ -1627,6 +1628,9 @@ struct net_device {
 	void			*ax25_ptr;
 	struct wireless_dev	*ieee80211_ptr;
 	struct wpan_dev		*ieee802154_ptr;
+#if IS_ENABLED(CONFIG_MPLS_ROUTING)
+	struct mpls_dev __rcu	*mpls_ptr;
+#endif
 
 /*
  * Cache lines mostly used on receive path (including eth_type_trans())
@@ -2021,10 +2025,10 @@ struct pcpu_sw_netstats {
 ({								\
 	typeof(type) __percpu *pcpu_stats = alloc_percpu(type); \
 	if (pcpu_stats)	{					\
-		int i;						\
-		for_each_possible_cpu(i) {			\
+		int __cpu;					\
+		for_each_possible_cpu(__cpu) {			\
 			typeof(type) *stat;			\
-			stat = per_cpu_ptr(pcpu_stats, i);	\
+			stat = per_cpu_ptr(pcpu_stats, __cpu);	\
 			u64_stats_init(&stat->syncp);		\
 		}						\
 	}							\

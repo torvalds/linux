@@ -2143,7 +2143,6 @@ int tipc_nl_link_dump(struct sk_buff *skb, struct netlink_callback *cb)
 			err = __tipc_nl_add_node_links(net, &msg, node,
 						       &prev_link);
 			tipc_node_unlock(node);
-			tipc_node_put(node);
 			if (err)
 				goto out;
 

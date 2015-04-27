@@ -53,6 +53,11 @@ static struct mpls_route *mpls_route_input_rcu(struct net *net, unsigned index)
 	return rt;
 }
 
+static inline struct mpls_dev *mpls_dev_get(const struct net_device *dev)
+{
+	return rcu_dereference_rtnl(dev->mpls_ptr);
+}
+
 static bool mpls_output_possible(const struct net_device *dev)
 {
 	return dev && (dev->flags & IFF_UP) && netif_carrier_ok(dev);
@@ -136,12 +141,17 @@ static int mpls_forward(struct sk_buff *skb, struct net_device *dev,
 	struct mpls_route *rt;
 	struct mpls_entry_decoded dec;
 	struct net_device *out_dev;
+	struct mpls_dev *mdev;
 	unsigned int hh_len;
 	unsigned int new_header_size;
 	unsigned int mtu;
 	int err;
 
 	/* Careful this entire function runs inside of an rcu critical section */
+
+	mdev = mpls_dev_get(dev);
+	if (!mdev || !mdev->input_enabled)
+		goto drop;
 
 	if (skb->pkt_type != PACKET_HOST)
 		goto drop;
@@ -352,9 +362,9 @@ static int mpls_route_add(struct mpls_route_config *cfg)
 	if (!dev)
 		goto errout;
 
-	/* For now just support ethernet devices */
+	/* Ensure this is a supported device */
 	err = -EINVAL;
-	if ((dev->type != ARPHRD_ETHER) && (dev->type != ARPHRD_LOOPBACK))
+	if (!mpls_dev_get(dev))
 		goto errout;
 
 	err = -EINVAL;
@@ -428,10 +438,89 @@ errout:
 	return err;
 }
 
+#define MPLS_PERDEV_SYSCTL_OFFSET(field)	\
+	(&((struct mpls_dev *)0)->field)
+
+static const struct ctl_table mpls_dev_table[] = {
+	{
+		.procname	= "input",
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+		.data		= MPLS_PERDEV_SYSCTL_OFFSET(input_enabled),
+	},
+	{ }
+};
+
+static int mpls_dev_sysctl_register(struct net_device *dev,
+				    struct mpls_dev *mdev)
+{
+	char path[sizeof("net/mpls/conf/") + IFNAMSIZ];
+	struct ctl_table *table;
+	int i;
+
+	table = kmemdup(&mpls_dev_table, sizeof(mpls_dev_table), GFP_KERNEL);
+	if (!table)
+		goto out;
+
+	/* Table data contains only offsets relative to the base of
+	 * the mdev at this point, so make them absolute.
+	 */
+	for (i = 0; i < ARRAY_SIZE(mpls_dev_table); i++)
+		table[i].data = (char *)mdev + (uintptr_t)table[i].data;
+
+	snprintf(path, sizeof(path), "net/mpls/conf/%s", dev->name);
+
+	mdev->sysctl = register_net_sysctl(dev_net(dev), path, table);
+	if (!mdev->sysctl)
+		goto free;
+
+	return 0;
+
+free:
+	kfree(table);
+out:
+	return -ENOBUFS;
+}
+
+static void mpls_dev_sysctl_unregister(struct mpls_dev *mdev)
+{
+	struct ctl_table *table;
+
+	table = mdev->sysctl->ctl_table_arg;
+	unregister_net_sysctl_table(mdev->sysctl);
+	kfree(table);
+}
+
+static struct mpls_dev *mpls_add_dev(struct net_device *dev)
+{
+	struct mpls_dev *mdev;
+	int err = -ENOMEM;
+
+	ASSERT_RTNL();
+
+	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
+	if (!mdev)
+		return ERR_PTR(err);
+
+	err = mpls_dev_sysctl_register(dev, mdev);
+	if (err)
+		goto free;
+
+	rcu_assign_pointer(dev->mpls_ptr, mdev);
+
+	return mdev;
+
+free:
+	kfree(mdev);
+	return ERR_PTR(err);
+}
+
 static void mpls_ifdown(struct net_device *dev)
 {
 	struct mpls_route __rcu **platform_label;
 	struct net *net = dev_net(dev);
+	struct mpls_dev *mdev;
 	unsigned index;
 
 	platform_label = rtnl_dereference(net->mpls.platform_label);
@@ -443,14 +532,35 @@ static void mpls_ifdown(struct net_device *dev)
 			continue;
 		rt->rt_dev = NULL;
 	}
+
+	mdev = mpls_dev_get(dev);
+	if (!mdev)
+		return;
+
+	mpls_dev_sysctl_unregister(mdev);
+
+	RCU_INIT_POINTER(dev->mpls_ptr, NULL);
+
+	kfree(mdev);
 }
 
 static int mpls_dev_notify(struct notifier_block *this, unsigned long event,
 			   void *ptr)
 {
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct mpls_dev *mdev;
 
 	switch(event) {
+	case NETDEV_REGISTER:
+		/* For now just support ethernet devices */
+		if ((dev->type == ARPHRD_ETHER) ||
+		    (dev->type == ARPHRD_LOOPBACK)) {
+			mdev = mpls_add_dev(dev);
+			if (IS_ERR(mdev))
+				return notifier_from_errno(PTR_ERR(mdev));
+		}
+		break;
+
 	case NETDEV_UNREGISTER:
 		mpls_ifdown(dev);
 		break;
@@ -535,6 +645,15 @@ int nla_get_labels(const struct nlattr *nla,
 		 */
 		if ((dec.bos != bos) || dec.ttl || dec.tc)
 			return -EINVAL;
+
+		switch (dec.label) {
+		case LABEL_IMPLICIT_NULL:
+			/* RFC3032: This is a label that an LSR may
+			 * assign and distribute, but which never
+			 * actually appears in the encapsulation.
+			 */
+			return -EINVAL;
+		}
 
 		label[i] = dec.label;
 	}
@@ -912,7 +1031,7 @@ static int mpls_platform_labels(struct ctl_table *table, int write,
 	return ret;
 }
 
-static struct ctl_table mpls_table[] = {
+static const struct ctl_table mpls_table[] = {
 	{
 		.procname	= "platform_labels",
 		.data		= NULL,

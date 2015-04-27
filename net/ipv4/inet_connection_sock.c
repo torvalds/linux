@@ -564,6 +564,40 @@ int inet_rtx_syn_ack(struct sock *parent, struct request_sock *req)
 }
 EXPORT_SYMBOL(inet_rtx_syn_ack);
 
+/* return true if req was found in the syn_table[] */
+static bool reqsk_queue_unlink(struct request_sock_queue *queue,
+			       struct request_sock *req)
+{
+	struct listen_sock *lopt = queue->listen_opt;
+	struct request_sock **prev;
+	bool found = false;
+
+	spin_lock(&queue->syn_wait_lock);
+
+	for (prev = &lopt->syn_table[req->rsk_hash]; *prev != NULL;
+	     prev = &(*prev)->dl_next) {
+		if (*prev == req) {
+			*prev = req->dl_next;
+			found = true;
+			break;
+		}
+	}
+
+	spin_unlock(&queue->syn_wait_lock);
+	if (del_timer(&req->rsk_timer))
+		reqsk_put(req);
+	return found;
+}
+
+void inet_csk_reqsk_queue_drop(struct sock *sk, struct request_sock *req)
+{
+	if (reqsk_queue_unlink(&inet_csk(sk)->icsk_accept_queue, req)) {
+		reqsk_queue_removed(&inet_csk(sk)->icsk_accept_queue, req);
+		reqsk_put(req);
+	}
+}
+EXPORT_SYMBOL(inet_csk_reqsk_queue_drop);
+
 static void reqsk_timer_handler(unsigned long data)
 {
 	struct request_sock *req = (struct request_sock *)data;
