@@ -261,7 +261,7 @@ int fpu__copy(struct fpu *dst_fpu, struct fpu *src_fpu)
 /*
  * Initialize the current task's in-memory FPU context:
  */
-void fpstate_alloc_init(struct fpu *fpu)
+void fpstate_init_curr(struct fpu *fpu)
 {
 	WARN_ON_ONCE(fpu != &current->thread.fpu);
 	WARN_ON_ONCE(fpu->fpstate_active);
@@ -271,7 +271,7 @@ void fpstate_alloc_init(struct fpu *fpu)
 	/* Safe to do for the current task: */
 	fpu->fpstate_active = 1;
 }
-EXPORT_SYMBOL_GPL(fpstate_alloc_init);
+EXPORT_SYMBOL_GPL(fpstate_init_curr);
 
 /*
  * This function is called before we modify a stopped child's
@@ -332,7 +332,7 @@ void fpu__restore(void)
 	struct fpu *fpu = &tsk->thread.fpu;
 
 	if (!fpu->fpstate_active)
-		fpstate_alloc_init(fpu);
+		fpstate_init_curr(fpu);
 
 	/* Avoid __kernel_fpu_begin() right after fpregs_activate() */
 	kernel_fpu_disable();
@@ -358,7 +358,7 @@ void fpu__clear(struct task_struct *tsk)
 		drop_fpu(fpu);
 	} else {
 		if (!fpu->fpstate_active) {
-			fpstate_alloc_init(fpu);
+			fpstate_init_curr(fpu);
 			user_fpu_begin();
 		}
 		restore_init_xstate();

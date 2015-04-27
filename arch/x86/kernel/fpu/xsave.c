@@ -359,7 +359,7 @@ int __restore_xstate_sig(void __user *buf, void __user *buf_fx, int size)
 		return -EACCES;
 
 	if (!fpu->fpstate_active)
-		fpstate_alloc_init(fpu);
+		fpstate_init_curr(fpu);
 
 	if (!static_cpu_has(X86_FEATURE_FPU))
 		return fpregs_soft_set(current, NULL,

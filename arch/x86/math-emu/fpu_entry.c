@@ -150,7 +150,7 @@ void math_emulate(struct math_emu_info *info)
 	struct fpu *fpu = &current->thread.fpu;
 
 	if (!fpu->fpstate_active)
-		fpstate_alloc_init(fpu);
+		fpstate_init_curr(fpu);
 
 #ifdef RE_ENTRANT_CHECKING
 	if (emulating) {
