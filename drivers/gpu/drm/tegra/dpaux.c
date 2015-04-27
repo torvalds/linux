@@ -359,6 +359,24 @@ static int tegra_dpaux_probe(struct platform_device *pdev)
 	if (err < 0)
 		return err;
 
+	/*
+	 * Assume that by default the DPAUX/I2C pads will be used for HDMI,
+	 * so power them up and configure them in I2C mode.
+	 *
+	 * The DPAUX code paths reconfigure the pads in AUX mode, but there
+	 * is no possibility to perform the I2C mode configuration in the
+	 * HDMI path.
+	 */
+	value = tegra_dpaux_readl(dpaux, DPAUX_HYBRID_SPARE);
+	value &= ~DPAUX_HYBRID_SPARE_PAD_POWER_DOWN;
+	tegra_dpaux_writel(dpaux, value, DPAUX_HYBRID_SPARE);
+
+	value = tegra_dpaux_readl(dpaux, DPAUX_HYBRID_PADCTL);
+	value = DPAUX_HYBRID_PADCTL_I2C_SDA_INPUT_RCV |
+		DPAUX_HYBRID_PADCTL_I2C_SCL_INPUT_RCV |
+		DPAUX_HYBRID_PADCTL_MODE_I2C;
+	tegra_dpaux_writel(dpaux, value, DPAUX_HYBRID_PADCTL);
+
 	/* enable and clear all interrupts */
 	value = DPAUX_INTR_AUX_DONE | DPAUX_INTR_IRQ_EVENT |
 		DPAUX_INTR_UNPLUG_EVENT | DPAUX_INTR_PLUG_EVENT;
@@ -377,6 +395,12 @@ static int tegra_dpaux_probe(struct platform_device *pdev)
 static int tegra_dpaux_remove(struct platform_device *pdev)
 {
 	struct tegra_dpaux *dpaux = platform_get_drvdata(pdev);
+	u32 value;
+
+	/* make sure pads are powered down when not in use */
+	value = tegra_dpaux_readl(dpaux, DPAUX_HYBRID_SPARE);
+	value |= DPAUX_HYBRID_SPARE_PAD_POWER_DOWN;
+	tegra_dpaux_writel(dpaux, value, DPAUX_HYBRID_SPARE);
 
 	drm_dp_aux_unregister(&dpaux->aux);
 
@@ -394,6 +418,7 @@ static int tegra_dpaux_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id tegra_dpaux_of_match[] = {
+	{ .compatible = "nvidia,tegra210-dpaux", },
 	{ .compatible = "nvidia,tegra124-dpaux", },
 	{ },
 };
