@@ -649,7 +649,7 @@ struct ieee80211_snap_hdr {
 /* Authentication algorithms */
 #define WLAN_AUTH_OPEN 0
 #define WLAN_AUTH_SHARED_KEY 1
-#define WLAN_AUTH_LEAP 2
+#define WLAN_AUTH_LEAP 128
 
 #define WLAN_AUTH_CHALLENGE_LEN 128
 
@@ -961,10 +961,10 @@ struct ieee80211_device;
 struct ieee80211_security {
 	u16 active_key:2,
 	    enabled:1,
-	    auth_mode:2,
 	    auth_algo:4,
 	    unicast_uses_group:1,
 	    encrypt:1;
+	u8 auth_mode;
 	u8 key_sizes[WEP_KEYS];
 	u8 keys[WEP_KEYS][SCM_KEY_LEN];
 	u8 level;
