@@ -382,7 +382,6 @@ static void vp_video_buffer(struct mixer_context *ctx, int win)
 	struct mixer_resources *res = &ctx->mixer_res;
 	unsigned long flags;
 	struct exynos_drm_plane *plane;
-	unsigned int buf_num = 1;
 	dma_addr_t luma_addr[2], chroma_addr[2];
 	bool tiled_mode = false;
 	bool crcb_mode = false;
@@ -393,27 +392,15 @@ static void vp_video_buffer(struct mixer_context *ctx, int win)
 	switch (plane->pixel_format) {
 	case DRM_FORMAT_NV12:
 		crcb_mode = false;
-		buf_num = 2;
 		break;
-	/* TODO: single buffer format NV12, NV21 */
 	default:
-		/* ignore pixel format at disable time */
-		if (!plane->dma_addr[0])
-			break;
-
 		DRM_ERROR("pixel format for vp is wrong [%d].\n",
 				plane->pixel_format);
 		return;
 	}
 
-	if (buf_num == 2) {
-		luma_addr[0] = plane->dma_addr[0];
-		chroma_addr[0] = plane->dma_addr[1];
-	} else {
-		luma_addr[0] = plane->dma_addr[0];
-		chroma_addr[0] = plane->dma_addr[0]
-			+ (plane->pitch * plane->fb_height);
-	}
+	luma_addr[0] = plane->dma_addr[0];
+	chroma_addr[0] = plane->dma_addr[1];
 
 	if (plane->scan_flag & DRM_MODE_FLAG_INTERLACE) {
 		ctx->interlace = true;
