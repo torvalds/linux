@@ -75,11 +75,6 @@ extern const struct clkops clkops_omap2_dflt;
 
 extern struct clk_functions omap2_clk_functions;
 
-struct regmap;
-
-int __init omap2_clk_provider_init(struct device_node *np, int index,
-				   struct regmap *syscon, void __iomem *mem);
-void __init omap2_clk_legacy_provider_init(int index, void __iomem *mem);
 int __init omap2_clk_setup_ll_ops(void);
 
 void __init ti_clk_init_features(void);

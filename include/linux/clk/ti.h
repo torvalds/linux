@@ -250,10 +250,15 @@ void omap2xxx_clkt_dpllcore_init(struct clk_hw *hw);
 void omap2xxx_clkt_vps_init(void);
 unsigned long omap2_get_dpll_rate(struct clk_hw_omap *clk);
 
-void ti_dt_clk_init_provider(struct device_node *np, int index);
 void ti_dt_clk_init_retry_clks(void);
 void ti_dt_clockdomains_setup(void);
 int ti_clk_setup_ll_ops(struct ti_clk_ll_ops *ops);
+
+struct regmap;
+
+int omap2_clk_provider_init(struct device_node *parent, int index,
+			    struct regmap *syscon, void __iomem *mem);
+void omap2_clk_legacy_provider_init(int index, void __iomem *mem);
 
 int omap3430_dt_clk_init(void);
 int omap3630_dt_clk_init(void);

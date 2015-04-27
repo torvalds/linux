@@ -23,9 +23,7 @@
 #include <linux/clk-provider.h>
 #include <linux/io.h>
 #include <linux/bitops.h>
-#include <linux/regmap.h>
 #include <linux/of_address.h>
-#include <linux/bootmem.h>
 #include <asm/cpu.h>
 
 #include <trace/events/power.h>
@@ -55,41 +53,7 @@ u16 cpu_mask;
 #define OMAP3PLUS_DPLL_FINT_MIN		32000
 #define OMAP3PLUS_DPLL_FINT_MAX		52000000
 
-struct clk_iomap {
-	struct regmap *regmap;
-	void __iomem *mem;
-};
-
-static struct clk_iomap *clk_memmaps[CLK_MAX_MEMMAPS];
-
-static void clk_memmap_writel(u32 val, void __iomem *reg)
-{
-	struct clk_omap_reg *r = (struct clk_omap_reg *)&reg;
-	struct clk_iomap *io = clk_memmaps[r->index];
-
-	if (io->regmap)
-		regmap_write(io->regmap, r->offset, val);
-	else
-		writel_relaxed(val, io->mem + r->offset);
-}
-
-static u32 clk_memmap_readl(void __iomem *reg)
-{
-	u32 val;
-	struct clk_omap_reg *r = (struct clk_omap_reg *)&reg;
-	struct clk_iomap *io = clk_memmaps[r->index];
-
-	if (io->regmap)
-		regmap_read(io->regmap, r->offset, &val);
-	else
-		val = readl_relaxed(io->mem + r->offset);
-
-	return val;
-}
-
 static struct ti_clk_ll_ops omap_clk_ll_ops = {
-	.clk_readl = clk_memmap_readl,
-	.clk_writel = clk_memmap_writel,
 	.clkdm_clk_enable = clkdm_clk_enable,
 	.clkdm_clk_disable = clkdm_clk_disable,
 	.cm_wait_module_ready = omap_cm_wait_module_ready,
@@ -107,54 +71,6 @@ static struct ti_clk_ll_ops omap_clk_ll_ops = {
 int __init omap2_clk_setup_ll_ops(void)
 {
 	return ti_clk_setup_ll_ops(&omap_clk_ll_ops);
-}
-
-/**
- * omap2_clk_provider_init - initialize a clock provider
- * @match_table: DT device table to match for devices to init
- * @np: device node pointer for the this clock provider
- * @index: index for the clock provider
- + @syscon: syscon regmap pointer
- * @mem: iomem pointer for the clock provider memory area, only used if
- *	 syscon is not provided
- *
- * Initializes a clock provider module (CM/PRM etc.), registering
- * the memory mapping at specified index and initializing the
- * low level driver infrastructure. Returns 0 in success.
- */
-int __init omap2_clk_provider_init(struct device_node *np, int index,
-				   struct regmap *syscon, void __iomem *mem)
-{
-	struct clk_iomap *io;
-
-	io = kzalloc(sizeof(*io), GFP_KERNEL);
-
-	io->regmap = syscon;
-	io->mem = mem;
-
-	clk_memmaps[index] = io;
-
-	ti_dt_clk_init_provider(np, index);
-
-	return 0;
-}
-
-/**
- * omap2_clk_legacy_provider_init - initialize a legacy clock provider
- * @index: index for the clock provider
- * @mem: iomem pointer for the clock provider memory area
- *
- * Initializes a legacy clock provider memory mapping.
- */
-void __init omap2_clk_legacy_provider_init(int index, void __iomem *mem)
-{
-	struct clk_iomap *io;
-
-	io = memblock_virt_alloc(sizeof(*io), 0);
-
-	io->mem = mem;
-
-	clk_memmaps[index] = io;
 }
 
 /*

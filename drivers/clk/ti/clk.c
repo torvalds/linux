@@ -21,6 +21,8 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/list.h>
+#include <linux/regmap.h>
+#include <linux/bootmem.h>
 
 #include "clock.h"
 
@@ -31,6 +33,38 @@ struct ti_clk_ll_ops *ti_clk_ll_ops;
 static struct device_node *clocks_node_ptr[CLK_MAX_MEMMAPS];
 
 struct ti_clk_features ti_clk_features;
+
+struct clk_iomap {
+	struct regmap *regmap;
+	void __iomem *mem;
+};
+
+static struct clk_iomap *clk_memmaps[CLK_MAX_MEMMAPS];
+
+static void clk_memmap_writel(u32 val, void __iomem *reg)
+{
+	struct clk_omap_reg *r = (struct clk_omap_reg *)&reg;
+	struct clk_iomap *io = clk_memmaps[r->index];
+
+	if (io->regmap)
+		regmap_write(io->regmap, r->offset, val);
+	else
+		writel_relaxed(val, io->mem + r->offset);
+}
+
+static u32 clk_memmap_readl(void __iomem *reg)
+{
+	u32 val;
+	struct clk_omap_reg *r = (struct clk_omap_reg *)&reg;
+	struct clk_iomap *io = clk_memmaps[r->index];
+
+	if (io->regmap)
+		regmap_read(io->regmap, r->offset, &val);
+	else
+		val = readl_relaxed(io->mem + r->offset);
+
+	return val;
+}
 
 /**
  * ti_clk_setup_ll_ops - setup low level clock operations
@@ -49,6 +83,8 @@ int ti_clk_setup_ll_ops(struct ti_clk_ll_ops *ops)
 	}
 
 	ti_clk_ll_ops = ops;
+	ops->clk_readl = clk_memmap_readl;
+	ops->clk_writel = clk_memmap_writel;
 
 	return 0;
 }
@@ -161,28 +197,61 @@ void __iomem *ti_clk_get_reg_addr(struct device_node *node, int index)
 }
 
 /**
- * ti_dt_clk_init_provider - init master clock provider
+ * omap2_clk_provider_init - init master clock provider
  * @parent: master node
  * @index: internal index for clk_reg_ops
+ * @syscon: syscon regmap pointer for accessing clock registers
+ * @mem: iomem pointer for the clock provider memory area, only used if
+ *       syscon is not provided
  *
  * Initializes a master clock IP block. This basically sets up the
  * mapping from clocks node to the memory map index. All the clocks
  * are then initialized through the common of_clk_init call, and the
  * clocks will access their memory maps based on the node layout.
+ * Returns 0 in success.
  */
-void ti_dt_clk_init_provider(struct device_node *parent, int index)
+int __init omap2_clk_provider_init(struct device_node *parent, int index,
+				   struct regmap *syscon, void __iomem *mem)
 {
 	struct device_node *clocks;
+	struct clk_iomap *io;
 
 	/* get clocks for this parent */
 	clocks = of_get_child_by_name(parent, "clocks");
 	if (!clocks) {
 		pr_err("%s missing 'clocks' child node.\n", parent->name);
-		return;
+		return -EINVAL;
 	}
 
 	/* add clocks node info */
 	clocks_node_ptr[index] = clocks;
+
+	io = kzalloc(sizeof(*io), GFP_KERNEL);
+
+	io->regmap = syscon;
+	io->mem = mem;
+
+	clk_memmaps[index] = io;
+
+	return 0;
+}
+
+/**
+ * omap2_clk_legacy_provider_init - initialize a legacy clock provider
+ * @index: index for the clock provider
+ * @mem: iomem pointer for the clock provider memory area
+ *
+ * Initializes a legacy clock provider memory mapping.
+ */
+void __init omap2_clk_legacy_provider_init(int index, void __iomem *mem)
+{
+	struct clk_iomap *io;
+
+	io = memblock_virt_alloc(sizeof(*io), 0);
+
+	io->mem = mem;
+
+	clk_memmaps[index] = io;
 }
 
 /**
