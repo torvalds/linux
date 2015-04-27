@@ -209,7 +209,6 @@ static int omap_wdt_probe(struct platform_device *pdev)
 	struct omap_wd_timer_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct resource *res;
 	struct omap_wdt_dev *wdev;
-	u32 rs;
 	int ret;
 
 	wdev = devm_kzalloc(&pdev->dev, sizeof(*wdev), GFP_KERNEL);
@@ -242,12 +241,11 @@ static int omap_wdt_probe(struct platform_device *pdev)
 	pm_runtime_enable(wdev->dev);
 	pm_runtime_get_sync(wdev->dev);
 
-	if (pdata && pdata->read_reset_sources)
-		rs = pdata->read_reset_sources();
-	else
-		rs = 0;
-	wdev->wdog.bootstatus = (rs & (1 << OMAP_MPU_WD_RST_SRC_ID_SHIFT)) ?
-		WDIOF_CARDRESET : 0;
+	if (pdata && pdata->read_reset_sources) {
+		u32 rs = pdata->read_reset_sources();
+		if (rs & (1 << OMAP_MPU_WD_RST_SRC_ID_SHIFT))
+			wdev->wdog.bootstatus = WDIOF_CARDRESET;
+	}
 
 	omap_wdt_disable(wdev);
 
