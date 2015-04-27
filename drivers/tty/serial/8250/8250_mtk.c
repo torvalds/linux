@@ -131,18 +131,16 @@ static int mtk8250_probe_of(struct platform_device *pdev, struct uart_port *p,
 			   struct mtk8250_data *data)
 {
 	int err;
-	struct device_node *np = pdev->dev.of_node;
 
-	data->uart_clk = of_clk_get(np, 0);
+	data->uart_clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(data->uart_clk)) {
-		dev_warn(&pdev->dev, "Can't get timer clock\n");
+		dev_warn(&pdev->dev, "Can't get uart clock\n");
 		return PTR_ERR(data->uart_clk);
 	}
 
 	err = clk_prepare_enable(data->uart_clk);
 	if (err) {
 		dev_warn(&pdev->dev, "Can't prepare clock\n");
-		clk_put(data->uart_clk);
 		return err;
 	}
 	p->uartclk = clk_get_rate(data->uart_clk);
@@ -215,7 +213,6 @@ static int mtk8250_remove(struct platform_device *pdev)
 
 	serial8250_unregister_port(data->line);
 	clk_disable_unprepare(data->uart_clk);
-	clk_put(data->uart_clk);
 
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_put_noidle(&pdev->dev);
