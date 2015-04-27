@@ -12,6 +12,7 @@
 
 #include <uapi/drm/tegra_drm.h>
 #include <linux/host1x.h>
+#include <linux/of_gpio.h>
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
@@ -200,6 +201,7 @@ struct tegra_output {
 	const struct edid *edid;
 	unsigned int hpd_irq;
 	int hpd_gpio;
+	enum of_gpio_flags hpd_gpio_flags;
 
 	struct drm_encoder encoder;
 	struct drm_connector connector;
