@@ -6109,6 +6109,8 @@ static int read_one_chunk(struct btrfs_root *root, struct btrfs_key *key,
 				free_extent_map(em);
 				return -EIO;
 			}
+			btrfs_warn(root->fs_info, "devid %llu uuid %pU is missing",
+						devid, uuid);
 		}
 		map->stripes[i].dev->in_fs_metadata = 1;
 	}
