@@ -3,9 +3,13 @@
 # Copyright (c) 1999,2001 by Jaroslav Kysela <perex@perex.cz>
 #
 
-snd-y     := sound.o init.o memory.o info.o control.o misc.o device.o
+snd-y     := sound.o init.o memory.o control.o misc.o device.o
+ifneq ($(CONFIG_PROC_FS),)
+snd-y += info.o
+snd-$(CONFIG_SND_OSSEMUL) += info_oss.o
+endif
 snd-$(CONFIG_ISA_DMA_API) += isadma.o
-snd-$(CONFIG_SND_OSSEMUL) += sound_oss.o info_oss.o
+snd-$(CONFIG_SND_OSSEMUL) += sound_oss.o
 snd-$(CONFIG_SND_VMASTER) += vmaster.o
 snd-$(CONFIG_SND_KCTL_JACK) += ctljack.o
 snd-$(CONFIG_SND_JACK)	  += jack.o

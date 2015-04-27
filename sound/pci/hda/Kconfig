@@ -38,9 +38,6 @@ config SND_HDA_TEGRA
 
 if SND_HDA
 
-config SND_HDA_DSP_LOADER
-	bool
-
 config SND_HDA_PREALLOC_SIZE
 	int "Pre-allocated buffer size for HD-audio driver"
 	range 0 32768
