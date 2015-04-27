@@ -34,7 +34,7 @@
  */
 
 #define I40E_FW_API_VERSION_MAJOR	0x0001
-#define I40E_FW_API_VERSION_MINOR	0x0002
+#define I40E_FW_API_VERSION_MINOR	0x0004
 #define I40E_FW_API_VERSION_A0_MINOR  0x0000
 
 struct i40e_aq_desc {
@@ -133,12 +133,7 @@ enum i40e_admin_queue_opc {
 	i40e_aqc_opc_list_func_capabilities	= 0x000A,
 	i40e_aqc_opc_list_dev_capabilities	= 0x000B,
 
-	i40e_aqc_opc_set_cppm_configuration	= 0x0103,
-	i40e_aqc_opc_set_arp_proxy_entry	= 0x0104,
-	i40e_aqc_opc_set_ns_proxy_entry		= 0x0105,
-
 	/* LAA */
-	i40e_aqc_opc_mng_laa		= 0x0106,   /* AQ obsolete */
 	i40e_aqc_opc_mac_address_read	= 0x0107,
 	i40e_aqc_opc_mac_address_write	= 0x0108,
 
@@ -260,7 +255,6 @@ enum i40e_admin_queue_opc {
 	/* Tunnel commands */
 	i40e_aqc_opc_add_udp_tunnel	= 0x0B00,
 	i40e_aqc_opc_del_udp_tunnel	= 0x0B01,
-	i40e_aqc_opc_tunnel_key_structure	= 0x0B10,
 
 	/* Async Events */
 	i40e_aqc_opc_event_lan_overflow		= 0x1001,
@@ -272,8 +266,6 @@ enum i40e_admin_queue_opc {
 	i40e_aqc_opc_oem_ocbb_initialize	= 0xFE03,
 
 	/* debug commands */
-	i40e_aqc_opc_debug_get_deviceid		= 0xFF00,
-	i40e_aqc_opc_debug_set_mode		= 0xFF01,
 	i40e_aqc_opc_debug_read_reg		= 0xFF03,
 	i40e_aqc_opc_debug_write_reg		= 0xFF04,
 	i40e_aqc_opc_debug_modify_reg		= 0xFF07,
@@ -507,7 +499,8 @@ struct i40e_aqc_mac_address_read {
 #define I40E_AQC_SAN_ADDR_VALID		0x20
 #define I40E_AQC_PORT_ADDR_VALID	0x40
 #define I40E_AQC_WOL_ADDR_VALID		0x80
-#define I40E_AQC_ADDR_VALID_MASK	0xf0
+#define I40E_AQC_MC_MAG_EN_VALID	0x100
+#define I40E_AQC_ADDR_VALID_MASK	0x1F0
 	u8	reserved[6];
 	__le32	addr_high;
 	__le32	addr_low;
@@ -530,7 +523,9 @@ struct i40e_aqc_mac_address_write {
 #define I40E_AQC_WRITE_TYPE_LAA_ONLY	0x0000
 #define I40E_AQC_WRITE_TYPE_LAA_WOL	0x4000
 #define I40E_AQC_WRITE_TYPE_PORT	0x8000
-#define I40E_AQC_WRITE_TYPE_MASK	0xc000
+#define I40E_AQC_WRITE_TYPE_UPDATE_MC_MAG	0xC000
+#define I40E_AQC_WRITE_TYPE_MASK	0xC000
+
 	__le16	mac_sah;
 	__le32	mac_sal;
 	u8	reserved[8];
@@ -1066,6 +1061,7 @@ struct i40e_aqc_set_vsi_promiscuous_modes {
 	__le16	seid;
 #define I40E_AQC_VSI_PROM_CMD_SEID_MASK		0x3FF
 	__le16	vlan_tag;
+#define I40E_AQC_SET_VSI_VLAN_MASK		0x0FFF
 #define I40E_AQC_SET_VSI_VLAN_VALID		0x8000
 	u8	reserved[8];
 };
