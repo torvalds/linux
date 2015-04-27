@@ -147,7 +147,7 @@
 
 &i2c5 {
 	status = "okay";
-	vdd_dvfs: max8973@1b {
+	vdd_dvfs: regulator@1b {
 		compatible = "maxim,max8973";
 		reg = <0x1b>;
 
