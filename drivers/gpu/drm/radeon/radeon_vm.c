@@ -1107,7 +1107,8 @@ void radeon_vm_bo_rmv(struct radeon_device *rdev,
 	list_del(&bo_va->bo_list);
 
 	mutex_lock(&vm->mutex);
-	interval_tree_remove(&bo_va->it, &vm->va);
+	if (bo_va->it.start || bo_va->it.last)
+		interval_tree_remove(&bo_va->it, &vm->va);
 	spin_lock(&vm->status_lock);
 	list_del(&bo_va->vm_status);
 
