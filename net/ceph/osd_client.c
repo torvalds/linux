@@ -296,6 +296,9 @@ static void osd_req_op_data_release(struct ceph_osd_request *osd_req,
 	case CEPH_OSD_OP_CMPXATTR:
 		ceph_osd_data_release(&op->xattr.osd_data);
 		break;
+	case CEPH_OSD_OP_STAT:
+		ceph_osd_data_release(&op->raw_data_in);
+		break;
 	default:
 		break;
 	}
