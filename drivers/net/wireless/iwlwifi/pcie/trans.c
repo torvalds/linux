@@ -1164,7 +1164,8 @@ static void iwl_trans_pcie_d3_suspend(struct iwl_trans *trans, bool test)
 	 */
 	iwl_trans_pcie_tx_reset(trans);
 
-	iwl_pcie_set_pwr(trans, true);
+	if (trans->cfg->device_family != IWL_DEVICE_FAMILY_8000)
+		iwl_pcie_set_pwr(trans, true);
 }
 
 static int iwl_trans_pcie_d3_resume(struct iwl_trans *trans,
@@ -1202,7 +1203,8 @@ static int iwl_trans_pcie_d3_resume(struct iwl_trans *trans,
 		return ret;
 	}
 
-	iwl_pcie_set_pwr(trans, false);
+	if (trans->cfg->device_family != IWL_DEVICE_FAMILY_8000)
+		iwl_pcie_set_pwr(trans, false);
 
 	iwl_trans_pcie_tx_reset(trans);
 
