@@ -175,6 +175,17 @@ config LTR501
 	 This driver can also be built as a module.  If so, the module
          will be called ltr501.
 
+config STK3310
+	tristate "STK3310 ALS and proximity sensor"
+	depends on I2C
+	help
+	 Say yes here to get support for the Sensortek STK3310 ambient light
+	 and proximity sensor. The STK3311 model is also supported by this
+	 driver.
+
+	 Choosing M will build the driver as a module. If so, the module
+	 will be called stk3310.
+
 config TCS3414
 	tristate "TAOS TCS3414 digital color sensor"
 	depends on I2C
