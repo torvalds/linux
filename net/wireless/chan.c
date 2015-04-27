@@ -709,7 +709,7 @@ EXPORT_SYMBOL(cfg80211_chandef_usable);
 static bool cfg80211_go_permissive_chan(struct cfg80211_registered_device *rdev,
 					struct ieee80211_channel *chan)
 {
-	struct wireless_dev *wdev_iter;
+	struct wireless_dev *wdev;
 	struct wiphy *wiphy = wiphy_idx_to_wiphy(rdev->wiphy_idx);
 
 	ASSERT_RTNL();
@@ -732,18 +732,27 @@ static bool cfg80211_go_permissive_chan(struct cfg80211_registered_device *rdev,
 	 * and thus fail the GO instantiation, consider only the interfaces of
 	 * the current registered device.
 	 */
-	list_for_each_entry(wdev_iter, &rdev->wdev_list, list) {
+	list_for_each_entry(wdev, &rdev->wdev_list, list) {
 		struct ieee80211_channel *other_chan = NULL;
 		int r1, r2;
 
-		if (wdev_iter->iftype != NL80211_IFTYPE_STATION ||
-		    !netif_running(wdev_iter->netdev))
-			continue;
+		wdev_lock(wdev);
+		if (wdev->iftype == NL80211_IFTYPE_STATION &&
+		    wdev->current_bss)
+			other_chan = wdev->current_bss->pub.channel;
 
-		wdev_lock(wdev_iter);
-		if (wdev_iter->current_bss)
-			other_chan = wdev_iter->current_bss->pub.channel;
-		wdev_unlock(wdev_iter);
+		/*
+		 * If a GO already operates on the same GO_CONCURRENT channel,
+		 * this one (maybe the same one) can beacon as well. We allow
+		 * the operation even if the station we relied on with
+		 * GO_CONCURRENT is disconnected now. But then we must make sure
+		 * we're not outdoor on an indoor-only channel.
+		 */
+		if (wdev->iftype == NL80211_IFTYPE_P2P_GO &&
+		    wdev->beacon_interval &&
+		    !(chan->flags & IEEE80211_CHAN_INDOOR_ONLY))
+			other_chan = wdev->chandef.chan;
+		wdev_unlock(wdev);
 
 		if (!other_chan)
 			continue;
