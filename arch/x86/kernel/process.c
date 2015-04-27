@@ -156,11 +156,13 @@ void flush_thread(void)
 		/* FPU state will be reallocated lazily at the first use. */
 		drop_fpu(tsk);
 		free_thread_xstate(tsk);
-	} else if (!used_math()) {
-		/* kthread execs. TODO: cleanup this horror. */
-		if (WARN_ON(init_fpu(tsk)))
-			force_sig(SIGKILL, tsk);
-		user_fpu_begin();
+	} else {
+		if (!tsk_used_math(tsk)) {
+			/* kthread execs. TODO: cleanup this horror. */
+			if (WARN_ON(init_fpu(tsk)))
+				force_sig(SIGKILL, tsk);
+			user_fpu_begin();
+		}
 		restore_init_xstate();
 	}
 }
