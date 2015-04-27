@@ -276,29 +276,30 @@ void fpu__activate_curr(struct fpu *fpu)
 EXPORT_SYMBOL_GPL(fpu__activate_curr);
 
 /*
- * This function is called before we modify a stopped child's
- * FPU state context.
+ * This function must be called before we modify a stopped child's
+ * fpstate.
  *
  * If the child has not used the FPU before then initialize its
- * FPU context.
+ * fpstate.
  *
  * If the child has used the FPU before then unlazy it.
  *
- * [ After this function call, after the context is modified and
- *   the child task is woken up, the child task will restore
- *   the modified FPU state from the modified context. If we
+ * [ After this function call, after registers in the fpstate are
+ *   modified and the child task has woken up, the child task will
+ *   restore the modified FPU state from the modified context. If we
  *   didn't clear its lazy status here then the lazy in-registers
- *   state pending on its former CPU could be restored, losing
+ *   state pending on its former CPU could be restored, corrupting
  *   the modifications. ]
  *
  * This function is also called before we read a stopped child's
- * FPU state - to make sure it's modified.
+ * FPU state - to make sure it's initialized if the child has
+ * no active FPU state.
  *
  * TODO: A future optimization would be to skip the unlazying in
  *       the read-only case, it's not strictly necessary for
  *       read-only access to the context.
  */
-static void fpu__unlazy_stopped(struct fpu *child_fpu)
+static void fpu__activate_stopped(struct fpu *child_fpu)
 {
 	WARN_ON_ONCE(child_fpu == &current->thread.fpu);
 
@@ -388,7 +389,7 @@ int xfpregs_get(struct task_struct *target, const struct user_regset *regset,
 	if (!cpu_has_fxsr)
 		return -ENODEV;
 
-	fpu__unlazy_stopped(fpu);
+	fpu__activate_stopped(fpu);
 	sanitize_i387_state(target);
 
 	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
@@ -405,7 +406,7 @@ int xfpregs_set(struct task_struct *target, const struct user_regset *regset,
 	if (!cpu_has_fxsr)
 		return -ENODEV;
 
-	fpu__unlazy_stopped(fpu);
+	fpu__activate_stopped(fpu);
 	sanitize_i387_state(target);
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
@@ -437,7 +438,7 @@ int xstateregs_get(struct task_struct *target, const struct user_regset *regset,
 	if (!cpu_has_xsave)
 		return -ENODEV;
 
-	fpu__unlazy_stopped(fpu);
+	fpu__activate_stopped(fpu);
 
 	xsave = &fpu->state.xsave;
 
@@ -466,7 +467,7 @@ int xstateregs_set(struct task_struct *target, const struct user_regset *regset,
 	if (!cpu_has_xsave)
 		return -ENODEV;
 
-	fpu__unlazy_stopped(fpu);
+	fpu__activate_stopped(fpu);
 
 	xsave = &fpu->state.xsave;
 
@@ -628,7 +629,7 @@ int fpregs_get(struct task_struct *target, const struct user_regset *regset,
 	struct fpu *fpu = &target->thread.fpu;
 	struct user_i387_ia32_struct env;
 
-	fpu__unlazy_stopped(fpu);
+	fpu__activate_stopped(fpu);
 
 	if (!static_cpu_has(X86_FEATURE_FPU))
 		return fpregs_soft_get(target, regset, pos, count, kbuf, ubuf);
@@ -658,7 +659,7 @@ int fpregs_set(struct task_struct *target, const struct user_regset *regset,
 	struct user_i387_ia32_struct env;
 	int ret;
 
-	fpu__unlazy_stopped(fpu);
+	fpu__activate_stopped(fpu);
 
 	sanitize_i387_state(target);
 
