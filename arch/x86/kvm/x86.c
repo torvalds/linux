@@ -7408,6 +7408,8 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 
 	vcpu->arch.maxphyaddr = cpuid_query_maxphyaddr(vcpu);
 
+	vcpu->arch.pat = MSR_IA32_CR_PAT_DEFAULT;
+
 	kvm_async_pf_hash_reset(vcpu);
 	kvm_pmu_init(vcpu);
 

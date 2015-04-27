@@ -4,6 +4,8 @@
 #include <linux/kvm_host.h>
 #include "kvm_cache_regs.h"
 
+#define MSR_IA32_CR_PAT_DEFAULT  0x0007040600070406ULL
+
 static inline void kvm_clear_exception_queue(struct kvm_vcpu *vcpu)
 {
 	vcpu->arch.exception.pending = false;
