@@ -550,6 +550,9 @@ int snd_soc_dapm_force_bias_level(struct snd_soc_dapm_context *dapm,
 	if (dapm->set_bias_level)
 		ret = dapm->set_bias_level(dapm, level);
 
+	if (ret == 0)
+		dapm->bias_level = level;
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_force_bias_level);

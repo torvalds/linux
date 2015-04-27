@@ -978,7 +978,6 @@ static int cs42l56_set_bias_level(struct snd_soc_codec *codec,
 						    cs42l56->supplies);
 		break;
 	}
-	codec->dapm.bias_level = level;
 
 	return 0;
 }

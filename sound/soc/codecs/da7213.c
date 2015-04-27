@@ -1387,7 +1387,6 @@ static int da7213_set_bias_level(struct snd_soc_codec *codec,
 				    DA7213_VMID_EN | DA7213_BIAS_EN, 0);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 

@@ -226,7 +226,6 @@ static int sn95031_set_vaud_bias(struct snd_soc_codec *codec,
 		break;
 	}
 
-	codec->dapm.bias_level = level;
 	return 0;
 }
 

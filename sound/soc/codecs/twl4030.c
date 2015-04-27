@@ -1595,7 +1595,6 @@ static int twl4030_set_bias_level(struct snd_soc_codec *codec,
 		twl4030_codec_enable(codec, 0);
 		break;
 	}
-	codec->dapm.bias_level = level;
 
 	return 0;
 }

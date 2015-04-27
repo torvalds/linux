@@ -439,7 +439,6 @@ static int ak4641_set_bias_level(struct snd_soc_codec *codec,
 		regcache_mark_dirty(ak4641->regmap);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 

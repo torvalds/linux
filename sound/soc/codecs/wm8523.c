@@ -344,7 +344,6 @@ static int wm8523_set_bias_level(struct snd_soc_codec *codec,
 				       wm8523->supplies);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 

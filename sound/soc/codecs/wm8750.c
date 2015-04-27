@@ -651,7 +651,6 @@ static int wm8750_set_bias_level(struct snd_soc_codec *codec,
 		snd_soc_write(codec, WM8750_PWR1, 0x0001);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 

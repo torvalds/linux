@@ -890,7 +890,6 @@ static int sta350_set_bias_level(struct snd_soc_codec *codec,
 				       sta350->supplies);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 

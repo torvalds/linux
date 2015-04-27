@@ -1406,7 +1406,6 @@ static int aic3x_set_bias_level(struct snd_soc_codec *codec,
 			aic3x_set_power(codec, 0);
 		break;
 	}
-	codec->dapm.bias_level = level;
 
 	return 0;
 }

@@ -523,7 +523,6 @@ static int wm8731_set_bias_level(struct snd_soc_codec *codec,
 		regcache_mark_dirty(wm8731->regmap);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 

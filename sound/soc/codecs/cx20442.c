@@ -351,8 +351,6 @@ static int cx20442_set_bias_level(struct snd_soc_codec *codec,
 	default:
 		break;
 	}
-	if (!err)
-		codec->dapm.bias_level = level;
 
 	return err;
 }

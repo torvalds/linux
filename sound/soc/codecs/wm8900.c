@@ -1117,7 +1117,6 @@ static int wm8900_set_bias_level(struct snd_soc_codec *codec,
 			     WM8900_REG_POWER2_SYSCLK_ENA);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 

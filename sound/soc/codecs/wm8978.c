@@ -888,7 +888,6 @@ static int wm8978_set_bias_level(struct snd_soc_codec *codec,
 
 	dev_dbg(codec->dev, "%s: %d, %x\n", __func__, level, power1);
 
-	codec->dapm.bias_level = level;
 	return 0;
 }
 

@@ -179,12 +179,6 @@ static int sta529_set_bias_level(struct snd_soc_codec *codec, enum
 		break;
 	}
 
-	/*
-	 * store the label for powers down audio subsystem for suspend.This is
-	 * used by soc core layer
-	 */
-	codec->dapm.bias_level = level;
-
 	return 0;
 
 }

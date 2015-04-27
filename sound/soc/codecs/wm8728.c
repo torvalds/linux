@@ -185,7 +185,6 @@ static int wm8728_set_bias_level(struct snd_soc_codec *codec,
 		snd_soc_write(codec, WM8728_DACCTL, reg | 0x4);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 

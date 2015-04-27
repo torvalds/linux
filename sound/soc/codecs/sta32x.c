@@ -854,7 +854,6 @@ static int sta32x_set_bias_level(struct snd_soc_codec *codec,
 				       sta32x->supplies);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 

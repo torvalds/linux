@@ -1235,7 +1235,6 @@ static int wm8350_set_bias_level(struct snd_soc_codec *codec,
 				       priv->supplies);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 
