@@ -6,6 +6,7 @@ menuconfig ARCH_BERLIN
 	select DW_APB_ICTL
 	select DW_APB_TIMER_OF
 	select GENERIC_IRQ_CHIP
+	select MFD_SYSCON
 	select PINCTRL
 
 if ARCH_BERLIN
