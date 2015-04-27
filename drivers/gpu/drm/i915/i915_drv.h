@@ -2161,10 +2161,12 @@ i915_gem_request_get_ring(struct drm_i915_gem_request *req)
 	return req ? req->ring : NULL;
 }
 
-static inline void
+static inline struct drm_i915_gem_request *
 i915_gem_request_reference(struct drm_i915_gem_request *req)
 {
-	kref_get(&req->ref);
+	if (req)
+		kref_get(&req->ref);
+	return req;
 }
 
 static inline void

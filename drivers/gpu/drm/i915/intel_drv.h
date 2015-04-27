@@ -459,8 +459,9 @@ struct intel_pipe_wm {
 };
 
 struct intel_mmio_flip {
-	struct drm_i915_gem_request *req;
 	struct work_struct work;
+	struct drm_i915_gem_request *rq;
+	struct intel_crtc *crtc;
 };
 
 struct skl_pipe_wm {
@@ -544,7 +545,6 @@ struct intel_crtc {
 	} wm;
 
 	int scanline_offset;
-	struct intel_mmio_flip mmio_flip;
 
 	struct intel_crtc_atomic_commit atomic;
 

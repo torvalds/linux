@@ -10793,22 +10793,18 @@ static void intel_do_mmio_flip(struct intel_crtc *intel_crtc)
 
 static void intel_mmio_flip_work_func(struct work_struct *work)
 {
-	struct intel_crtc *crtc =
-		container_of(work, struct intel_crtc, mmio_flip.work);
-	struct intel_mmio_flip *mmio_flip;
+	struct intel_mmio_flip *mmio_flip =
+		container_of(work, struct intel_mmio_flip, work);
 
-	mmio_flip = &crtc->mmio_flip;
-	if (mmio_flip->req)
-		WARN_ON(__i915_wait_request(mmio_flip->req,
-					    crtc->reset_counter,
-					    false, NULL, NULL) != 0);
+	if (mmio_flip->rq)
+		WARN_ON(__i915_wait_request(mmio_flip->rq,
+					    mmio_flip->crtc->reset_counter,
+					    false, NULL, NULL));
 
-	intel_do_mmio_flip(crtc);
-	if (mmio_flip->req) {
-		mutex_lock(&crtc->base.dev->struct_mutex);
-		i915_gem_request_assign(&mmio_flip->req, NULL);
-		mutex_unlock(&crtc->base.dev->struct_mutex);
-	}
+	intel_do_mmio_flip(mmio_flip->crtc);
+
+	i915_gem_request_unreference__unlocked(mmio_flip->rq);
+	kfree(mmio_flip);
 }
 
 static int intel_queue_mmio_flip(struct drm_device *dev,
@@ -10818,12 +10814,17 @@ static int intel_queue_mmio_flip(struct drm_device *dev,
 				 struct intel_engine_cs *ring,
 				 uint32_t flags)
 {
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_mmio_flip *mmio_flip;
 
-	i915_gem_request_assign(&intel_crtc->mmio_flip.req,
-				obj->last_write_req);
+	mmio_flip = kmalloc(sizeof(*mmio_flip), GFP_KERNEL);
+	if (mmio_flip == NULL)
+		return -ENOMEM;
 
-	schedule_work(&intel_crtc->mmio_flip.work);
+	mmio_flip->rq = i915_gem_request_reference(obj->last_write_req);
+	mmio_flip->crtc = to_intel_crtc(crtc);
+
+	INIT_WORK(&mmio_flip->work, intel_mmio_flip_work_func);
+	schedule_work(&mmio_flip->work);
 
 	return 0;
 }
@@ -13563,8 +13564,6 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 	       dev_priv->plane_to_crtc_mapping[intel_crtc->plane] != NULL);
 	dev_priv->plane_to_crtc_mapping[intel_crtc->plane] = &intel_crtc->base;
 	dev_priv->pipe_to_crtc_mapping[intel_crtc->pipe] = &intel_crtc->base;
-
-	INIT_WORK(&intel_crtc->mmio_flip.work, intel_mmio_flip_work_func);
 
 	drm_crtc_helper_add(&intel_crtc->base, &intel_helper_funcs);
 
