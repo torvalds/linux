@@ -588,8 +588,8 @@ static int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i)
 		EMIT4(0xb9160000, dst_reg, rc_reg);
 		break;
 	}
-	case BPF_ALU64 | BPF_DIV | BPF_X: /* dst = dst / (u32) src */
-	case BPF_ALU64 | BPF_MOD | BPF_X: /* dst = dst % (u32) src */
+	case BPF_ALU64 | BPF_DIV | BPF_X: /* dst = dst / src */
+	case BPF_ALU64 | BPF_MOD | BPF_X: /* dst = dst % src */
 	{
 		int rc_reg = BPF_OP(insn->code) == BPF_DIV ? REG_W1 : REG_W0;
 
@@ -602,10 +602,8 @@ static int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i)
 		EMIT4_IMM(0xa7090000, REG_W0, 0);
 		/* lgr %w1,%dst */
 		EMIT4(0xb9040000, REG_W1, dst_reg);
-		/* llgfr %dst,%src (u32 cast) */
-		EMIT4(0xb9160000, dst_reg, src_reg);
 		/* dlgr %w0,%dst */
-		EMIT4(0xb9870000, REG_W0, dst_reg);
+		EMIT4(0xb9870000, REG_W0, src_reg);
 		/* lgr %dst,%rc */
 		EMIT4(0xb9040000, dst_reg, rc_reg);
 		break;
@@ -632,8 +630,8 @@ static int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i)
 		EMIT4(0xb9160000, dst_reg, rc_reg);
 		break;
 	}
-	case BPF_ALU64 | BPF_DIV | BPF_K: /* dst = dst / (u32) imm */
-	case BPF_ALU64 | BPF_MOD | BPF_K: /* dst = dst % (u32) imm */
+	case BPF_ALU64 | BPF_DIV | BPF_K: /* dst = dst / imm */
+	case BPF_ALU64 | BPF_MOD | BPF_K: /* dst = dst % imm */
 	{
 		int rc_reg = BPF_OP(insn->code) == BPF_DIV ? REG_W1 : REG_W0;
 
@@ -649,7 +647,7 @@ static int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i)
 		EMIT4(0xb9040000, REG_W1, dst_reg);
 		/* dlg %w0,<d(imm)>(%l) */
 		EMIT6_DISP_LH(0xe3000000, 0x0087, REG_W0, REG_0, REG_L,
-			      EMIT_CONST_U64((u32) imm));
+			      EMIT_CONST_U64(imm));
 		/* lgr %dst,%rc */
 		EMIT4(0xb9040000, dst_reg, rc_reg);
 		break;
