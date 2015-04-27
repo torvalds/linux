@@ -299,6 +299,8 @@ static DEFINE_SPINLOCK(wq_mayday_lock);	/* protects wq->maydays list */
 static LIST_HEAD(workqueues);		/* PR: list of all workqueues */
 static bool workqueue_freezing;		/* PL: have wqs started freezing? */
 
+static cpumask_var_t wq_unbound_cpumask;
+
 /* the per-cpu worker pools */
 static DEFINE_PER_CPU_SHARED_ALIGNED(struct worker_pool [NR_STD_WORKER_POOLS],
 				     cpu_worker_pools);
@@ -3532,7 +3534,7 @@ apply_wqattrs_prepare(struct workqueue_struct *wq,
 
 	/* make a copy of @attrs and sanitize it */
 	copy_workqueue_attrs(new_attrs, attrs);
-	cpumask_and(new_attrs->cpumask, new_attrs->cpumask, cpu_possible_mask);
+	cpumask_and(new_attrs->cpumask, new_attrs->cpumask, wq_unbound_cpumask);
 
 	/*
 	 * We may create multiple pwqs with differing cpumasks.  Make a
@@ -4945,9 +4947,29 @@ static struct bus_type wq_subsys = {
 	.dev_groups			= wq_sysfs_groups,
 };
 
+static ssize_t wq_unbound_cpumask_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	int written;
+
+	written = scnprintf(buf, PAGE_SIZE, "%*pb\n",
+			    cpumask_pr_args(wq_unbound_cpumask));
+
+	return written;
+}
+
+static struct device_attribute wq_sysfs_cpumask_attr =
+	__ATTR(cpumask, 0444, wq_unbound_cpumask_show, NULL);
+
 static int __init wq_sysfs_init(void)
 {
-	return subsys_virtual_register(&wq_subsys, NULL);
+	int err;
+
+	err = subsys_virtual_register(&wq_subsys, NULL);
+	if (err)
+		return err;
+
+	return device_create_file(wq_subsys.dev_root, &wq_sysfs_cpumask_attr);
 }
 core_initcall(wq_sysfs_init);
 
@@ -5094,6 +5116,9 @@ static int __init init_workqueues(void)
 	int i, cpu;
 
 	WARN_ON(__alignof__(struct pool_workqueue) < __alignof__(long long));
+
+	BUG_ON(!alloc_cpumask_var(&wq_unbound_cpumask, GFP_KERNEL));
+	cpumask_copy(wq_unbound_cpumask, cpu_possible_mask);
 
 	pwq_cache = KMEM_CACHE(pool_workqueue, SLAB_PANIC);
 
