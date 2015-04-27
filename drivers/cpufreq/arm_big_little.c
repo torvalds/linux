@@ -186,6 +186,15 @@ bL_cpufreq_set_rate(u32 cpu, u32 old_cluster, u32 new_cluster, u32 rate)
 		mutex_unlock(&cluster_lock[old_cluster]);
 	}
 
+	/*
+	 * FIXME: clk_set_rate has to handle the case where clk_change_rate
+	 * can fail due to hardware or firmware issues. Until the clk core
+	 * layer is fixed, we can check here. In most of the cases we will
+	 * be reading only the cached value anyway. This needs to  be removed
+	 * once clk core is fixed.
+	 */
+	if (bL_cpufreq_get_rate(cpu) != new_rate)
+		return -EIO;
 	return 0;
 }
 
