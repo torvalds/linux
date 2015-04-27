@@ -34,6 +34,7 @@
 struct mtk8250_data {
 	int			line;
 	struct clk		*uart_clk;
+	struct clk		*bus_clk;
 };
 
 static void
@@ -120,6 +121,7 @@ static int mtk8250_runtime_suspend(struct device *dev)
 	struct mtk8250_data *data = dev_get_drvdata(dev);
 
 	clk_disable_unprepare(data->uart_clk);
+	clk_disable_unprepare(data->bus_clk);
 
 	return 0;
 }
@@ -132,6 +134,12 @@ static int mtk8250_runtime_resume(struct device *dev)
 	err = clk_prepare_enable(data->uart_clk);
 	if (err) {
 		dev_warn(dev, "Can't enable clock\n");
+		return err;
+	}
+
+	err = clk_prepare_enable(data->bus_clk);
+	if (err) {
+		dev_warn(dev, "Can't enable bus clock\n");
 		return err;
 	}
 
@@ -153,13 +161,24 @@ mtk8250_do_pm(struct uart_port *port, unsigned int state, unsigned int old)
 static int mtk8250_probe_of(struct platform_device *pdev, struct uart_port *p,
 			   struct mtk8250_data *data)
 {
-	data->uart_clk = devm_clk_get(&pdev->dev, NULL);
+	data->uart_clk = devm_clk_get(&pdev->dev, "baud");
 	if (IS_ERR(data->uart_clk)) {
-		dev_warn(&pdev->dev, "Can't get uart clock\n");
-		return PTR_ERR(data->uart_clk);
+		/*
+		 * For compatibility with older device trees try unnamed
+		 * clk when no baud clk can be found.
+		 */
+		data->uart_clk = devm_clk_get(&pdev->dev, NULL);
+		if (IS_ERR(data->uart_clk)) {
+			dev_warn(&pdev->dev, "Can't get uart clock\n");
+			return PTR_ERR(data->uart_clk);
+		}
+
+		return 0;
 	}
 
-	p->uartclk = clk_get_rate(data->uart_clk);
+	data->bus_clk = devm_clk_get(&pdev->dev, "bus");
+	if (IS_ERR(data->bus_clk))
+		return PTR_ERR(data->bus_clk);
 
 	return 0;
 }
@@ -204,6 +223,7 @@ static int mtk8250_probe(struct platform_device *pdev)
 	uart.port.regshift = 2;
 	uart.port.private_data = data;
 	uart.port.set_termios = mtk8250_set_termios;
+	uart.port.uartclk = clk_get_rate(data->uart_clk);
 
 	/* Disable Rate Fix function */
 	writel(0x0, uart.port.membase +
