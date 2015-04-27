@@ -170,7 +170,7 @@ void irq_ts_restore(int TS_state)
 EXPORT_SYMBOL_GPL(irq_ts_restore);
 
 /*
- * Save the FPU state (initialize it if necessary):
+ * Save the FPU state (mark it for reload if necessary):
  *
  * This only ever gets called for the current task.
  */
@@ -180,8 +180,7 @@ void fpu__save(struct fpu *fpu)
 
 	preempt_disable();
 	if (fpu->fpregs_active) {
-		copy_fpregs_to_fpstate(fpu);
-		if (!use_eager_fpu())
+		if (!copy_fpregs_to_fpstate(fpu))
 			fpregs_deactivate(fpu);
 	}
 	preempt_enable();
