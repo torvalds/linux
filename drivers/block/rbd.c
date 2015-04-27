@@ -2376,7 +2376,7 @@ static void rbd_img_obj_request_fill(struct rbd_obj_request *obj_request,
 	}
 
 	if (opcode == CEPH_OSD_OP_DELETE)
-		osd_req_op_init(osd_request, num_ops, opcode);
+		osd_req_op_init(osd_request, num_ops, opcode, 0);
 	else
 		osd_req_op_extent_init(osd_request, num_ops, opcode,
 				       offset, length, 0, 0);
@@ -2848,7 +2848,7 @@ static int rbd_img_obj_exists_submit(struct rbd_obj_request *obj_request)
 		goto out;
 	stat_request->callback = rbd_img_obj_exists_callback;
 
-	osd_req_op_init(stat_request->osd_req, 0, CEPH_OSD_OP_STAT);
+	osd_req_op_init(stat_request->osd_req, 0, CEPH_OSD_OP_STAT, 0);
 	osd_req_op_raw_data_in_pages(stat_request->osd_req, 0, pages, size, 0,
 					false, false);
 	rbd_osd_req_format_read(stat_request);

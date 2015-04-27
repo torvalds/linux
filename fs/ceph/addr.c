@@ -884,7 +884,8 @@ get_more_pages:
 				}
 
 				if (do_sync)
-					osd_req_op_init(req, 1, CEPH_OSD_OP_STARTSYNC);
+					osd_req_op_init(req, 1,
+							CEPH_OSD_OP_STARTSYNC, 0);
 
 				req->r_callback = writepages_finish;
 				req->r_inode = inode;
