@@ -1054,7 +1054,7 @@ static int s5k5baf_set_power(struct v4l2_subdev *sd, int on)
 
 	mutex_lock(&state->lock);
 
-	if (!on != state->power)
+	if (state->power != !on)
 		goto out;
 
 	if (on) {
