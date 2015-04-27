@@ -353,19 +353,19 @@ static int amdgpu_cs_parser_relocs(struct amdgpu_cs_parser *p)
 {
 	struct amdgpu_fpriv *fpriv = p->filp->driver_priv;
 	struct amdgpu_cs_buckets buckets;
-	bool need_mmap_lock;
+	bool need_mmap_lock = false;
 	int i, r;
 
-	if (p->bo_list == NULL)
-		return 0;
+	if (p->bo_list) {
+		need_mmap_lock = p->bo_list->has_userptr;
+		amdgpu_cs_buckets_init(&buckets);
+		for (i = 0; i < p->bo_list->num_entries; i++)
+			amdgpu_cs_buckets_add(&buckets, &p->bo_list->array[i].tv.head,
+								  p->bo_list->array[i].priority);
 
-	need_mmap_lock = p->bo_list->has_userptr;
-	amdgpu_cs_buckets_init(&buckets);
-	for (i = 0; i < p->bo_list->num_entries; i++)
-		amdgpu_cs_buckets_add(&buckets, &p->bo_list->array[i].tv.head,
-					      p->bo_list->array[i].priority);
+		amdgpu_cs_buckets_get_list(&buckets, &p->validated);
+	}
 
-	amdgpu_cs_buckets_get_list(&buckets, &p->validated);
 	p->vm_bos = amdgpu_vm_get_bos(p->adev, &fpriv->vm,
 				      &p->validated);
 
