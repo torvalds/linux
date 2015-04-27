@@ -43,7 +43,7 @@ static int amdgpu_bo_list_create(struct amdgpu_fpriv *fpriv,
 
 	mutex_lock(&fpriv->bo_list_lock);
 	r = idr_alloc(&fpriv->bo_list_handles, *result,
-		      0, 0, GFP_KERNEL);
+		      1, 0, GFP_KERNEL);
 	if (r < 0) {
 		mutex_unlock(&fpriv->bo_list_lock);
 		kfree(*result);
