@@ -97,14 +97,14 @@ static struct rk3288_vpu_fmt formats[] = {
 	},
 };
 
-static struct rk3288_vpu_fmt *find_format(struct v4l2_format *f, bool bitstream)
+static struct rk3288_vpu_fmt *find_format(u32 fourcc, bool bitstream)
 {
 	unsigned int i;
 
 	vpu_debug_enter();
 
 	for (i = 0; i < ARRAY_SIZE(formats); i++) {
-		if (formats[i].fourcc != f->fmt.pix_mp.pixelformat)
+		if (formats[i].fourcc != fourcc)
 			continue;
 		if (bitstream && formats[i].codec_mode != RK_VPU_CODEC_NONE)
 			return &formats[i];
@@ -457,7 +457,7 @@ static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f)
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE:
 		vpu_debug(4, "%s\n", fmt2str(f->fmt.pix_mp.pixelformat, str));
 
-		fmt = find_format(f, true);
+		fmt = find_format(pix_fmt_mp->pixelformat, true);
 		if (!fmt) {
 			vpu_err("failed to try capture format\n");
 			return -EINVAL;
@@ -474,7 +474,7 @@ static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f)
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE:
 		vpu_debug(4, "%s\n", fmt2str(f->fmt.pix_mp.pixelformat, str));
 
-		fmt = find_format(f, false);
+		fmt = find_format(pix_fmt_mp->pixelformat, false);
 		if (!fmt) {
 			vpu_err("failed to try output format\n");
 			return -EINVAL;
@@ -538,7 +538,7 @@ static int vidioc_s_fmt(struct file *file, void *priv, struct v4l2_format *f)
 		if (ret)
 			goto out;
 
-		ctx->vpu_dst_fmt = find_format(f, true);
+		ctx->vpu_dst_fmt = find_format(pix_fmt_mp->pixelformat, true);
 		ctx->dst_fmt = *pix_fmt_mp;
 		break;
 
@@ -557,7 +557,7 @@ static int vidioc_s_fmt(struct file *file, void *priv, struct v4l2_format *f)
 		if (ret)
 			goto out;
 
-		fmt = find_format(f, false);
+		fmt = find_format(pix_fmt_mp->pixelformat, false);
 		ctx->vpu_src_fmt = fmt;
 
 		mb_width = MB_WIDTH(pix_fmt_mp->width);
@@ -1304,13 +1304,10 @@ static const struct rk3288_vpu_run_ops rk3288_vpu_enc_run_ops = {
 int rk3288_vpu_enc_init(struct rk3288_vpu_ctx *ctx)
 {
 	struct rk3288_vpu_dev *vpu = ctx->dev;
-	struct v4l2_format f;
 	int ret;
 
-	f.fmt.pix_mp.pixelformat = DEF_SRC_FMT_ENC;
-	ctx->vpu_src_fmt = find_format(&f, false);
-	f.fmt.pix_mp.pixelformat = DEF_DST_FMT_ENC;
-	ctx->vpu_dst_fmt = find_format(&f, true);
+	ctx->vpu_src_fmt = find_format(DEF_SRC_FMT_ENC, false);
+	ctx->vpu_dst_fmt = find_format(DEF_DST_FMT_ENC, true);
 
 	ret = rk3288_vpu_aux_buf_alloc(vpu, &ctx->run.priv_src,
 					RK3288_HW_PARAMS_SIZE);
