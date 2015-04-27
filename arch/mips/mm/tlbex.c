@@ -1608,22 +1608,29 @@ build_pte_present(u32 **p, struct uasm_reloc **r,
 		  int pte, int ptr, int scratch, enum label_id lid)
 {
 	int t = scratch >= 0 ? scratch : pte;
+	int cur = pte;
 
 	if (cpu_has_rixi) {
 		if (use_bbit_insns()) {
 			uasm_il_bbit0(p, r, pte, ilog2(_PAGE_PRESENT), lid);
 			uasm_i_nop(p);
 		} else {
-			uasm_i_srl(p, t, pte, _PAGE_PRESENT_SHIFT);
-			uasm_i_andi(p, t, t, 1);
+			if (_PAGE_PRESENT_SHIFT) {
+				uasm_i_srl(p, t, cur, _PAGE_PRESENT_SHIFT);
+				cur = t;
+			}
+			uasm_i_andi(p, t, cur, 1);
 			uasm_il_beqz(p, r, t, lid);
 			if (pte == t)
 				/* You lose the SMP race :-(*/
 				iPTE_LW(p, pte, ptr);
 		}
 	} else {
-		uasm_i_srl(p, t, pte, _PAGE_PRESENT_SHIFT);
-		uasm_i_andi(p, t, t,
+		if (_PAGE_PRESENT_SHIFT) {
+			uasm_i_srl(p, t, cur, _PAGE_PRESENT_SHIFT);
+			cur = t;
+		}
+		uasm_i_andi(p, t, cur,
 			(_PAGE_PRESENT | _PAGE_READ) >> _PAGE_PRESENT_SHIFT);
 		uasm_i_xori(p, t, t,
 			(_PAGE_PRESENT | _PAGE_READ) >> _PAGE_PRESENT_SHIFT);
@@ -1654,9 +1661,13 @@ build_pte_writable(u32 **p, struct uasm_reloc **r,
 		   enum label_id lid)
 {
 	int t = scratch >= 0 ? scratch : pte;
+	int cur = pte;
 
-	uasm_i_srl(p, t, pte, _PAGE_PRESENT_SHIFT);
-	uasm_i_andi(p, t, t,
+	if (_PAGE_PRESENT_SHIFT) {
+		uasm_i_srl(p, t, cur, _PAGE_PRESENT_SHIFT);
+		cur = t;
+	}
+	uasm_i_andi(p, t, cur,
 		    (_PAGE_PRESENT | _PAGE_WRITE) >> _PAGE_PRESENT_SHIFT);
 	uasm_i_xori(p, t, t,
 		    (_PAGE_PRESENT | _PAGE_WRITE) >> _PAGE_PRESENT_SHIFT);
