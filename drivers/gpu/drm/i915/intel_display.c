@@ -2985,6 +2985,99 @@ void skl_detach_scalers(struct intel_crtc *intel_crtc)
 	}
 }
 
+u32 skl_plane_ctl_format(uint32_t pixel_format)
+{
+	u32 plane_ctl_format = 0;
+	switch (pixel_format) {
+	case DRM_FORMAT_RGB565:
+		plane_ctl_format = PLANE_CTL_FORMAT_RGB_565;
+		break;
+	case DRM_FORMAT_XBGR8888:
+		plane_ctl_format = PLANE_CTL_FORMAT_XRGB_8888 | PLANE_CTL_ORDER_RGBX;
+		break;
+	case DRM_FORMAT_XRGB8888:
+		plane_ctl_format = PLANE_CTL_FORMAT_XRGB_8888;
+		break;
+	/*
+	 * XXX: For ARBG/ABGR formats we default to expecting scanout buffers
+	 * to be already pre-multiplied. We need to add a knob (or a different
+	 * DRM_FORMAT) for user-space to configure that.
+	 */
+	case DRM_FORMAT_ABGR8888:
+		plane_ctl_format = PLANE_CTL_FORMAT_XRGB_8888 | PLANE_CTL_ORDER_RGBX |
+			PLANE_CTL_ALPHA_SW_PREMULTIPLY;
+		break;
+	case DRM_FORMAT_ARGB8888:
+		plane_ctl_format = PLANE_CTL_FORMAT_XRGB_8888 |
+			PLANE_CTL_ALPHA_SW_PREMULTIPLY;
+		break;
+	case DRM_FORMAT_XRGB2101010:
+		plane_ctl_format = PLANE_CTL_FORMAT_XRGB_2101010;
+		break;
+	case DRM_FORMAT_XBGR2101010:
+		plane_ctl_format = PLANE_CTL_ORDER_RGBX | PLANE_CTL_FORMAT_XRGB_2101010;
+		break;
+	case DRM_FORMAT_YUYV:
+		plane_ctl_format = PLANE_CTL_FORMAT_YUV422 | PLANE_CTL_YUV422_YUYV;
+		break;
+	case DRM_FORMAT_YVYU:
+		plane_ctl_format = PLANE_CTL_FORMAT_YUV422 | PLANE_CTL_YUV422_YVYU;
+		break;
+	case DRM_FORMAT_UYVY:
+		plane_ctl_format = PLANE_CTL_FORMAT_YUV422 | PLANE_CTL_YUV422_UYVY;
+		break;
+	case DRM_FORMAT_VYUY:
+		plane_ctl_format = PLANE_CTL_FORMAT_YUV422 | PLANE_CTL_YUV422_VYUY;
+		break;
+	default:
+		BUG();
+	}
+	return plane_ctl_format;
+}
+
+u32 skl_plane_ctl_tiling(uint64_t fb_modifier)
+{
+	u32 plane_ctl_tiling = 0;
+	switch (fb_modifier) {
+	case DRM_FORMAT_MOD_NONE:
+		break;
+	case I915_FORMAT_MOD_X_TILED:
+		plane_ctl_tiling = PLANE_CTL_TILED_X;
+		break;
+	case I915_FORMAT_MOD_Y_TILED:
+		plane_ctl_tiling = PLANE_CTL_TILED_Y;
+		break;
+	case I915_FORMAT_MOD_Yf_TILED:
+		plane_ctl_tiling = PLANE_CTL_TILED_YF;
+		break;
+	default:
+		MISSING_CASE(fb_modifier);
+	}
+	return plane_ctl_tiling;
+}
+
+u32 skl_plane_ctl_rotation(unsigned int rotation)
+{
+	u32 plane_ctl_rotation = 0;
+	switch (rotation) {
+	case BIT(DRM_ROTATE_0):
+		break;
+	case BIT(DRM_ROTATE_90):
+		plane_ctl_rotation = PLANE_CTL_ROTATE_90;
+		break;
+	case BIT(DRM_ROTATE_180):
+		plane_ctl_rotation = PLANE_CTL_ROTATE_180;
+		break;
+	case BIT(DRM_ROTATE_270):
+		plane_ctl_rotation = PLANE_CTL_ROTATE_270;
+		break;
+	default:
+		MISSING_CASE(rotation);
+	}
+
+	return plane_ctl_rotation;
+}
+
 static void skylake_update_primary_plane(struct drm_crtc *crtc,
 					 struct drm_framebuffer *fb,
 					 int x, int y)
@@ -3000,6 +3093,14 @@ static void skylake_update_primary_plane(struct drm_crtc *crtc,
 	int x_offset, y_offset;
 	unsigned long surf_addr;
 	struct drm_plane *plane;
+	struct intel_crtc_state *crtc_state = intel_crtc->config;
+	struct intel_plane_state *plane_state;
+	int src_x = 0, src_y = 0, src_w = 0, src_h = 0;
+	int dst_x = 0, dst_y = 0, dst_w = 0, dst_h = 0;
+	int scaler_id = -1;
+
+	plane = crtc->primary;
+	plane_state = to_intel_plane_state(plane->state);
 
 	if (!intel_crtc->primary_enabled) {
 		I915_WRITE(PLANE_CTL(pipe, 0), 0);
@@ -3012,99 +3113,76 @@ static void skylake_update_primary_plane(struct drm_crtc *crtc,
 		    PLANE_CTL_PIPE_GAMMA_ENABLE |
 		    PLANE_CTL_PIPE_CSC_ENABLE;
 
-	switch (fb->pixel_format) {
-	case DRM_FORMAT_RGB565:
-		plane_ctl |= PLANE_CTL_FORMAT_RGB_565;
-		break;
-	case DRM_FORMAT_XRGB8888:
-		plane_ctl |= PLANE_CTL_FORMAT_XRGB_8888;
-		break;
-	case DRM_FORMAT_ARGB8888:
-		plane_ctl |= PLANE_CTL_FORMAT_XRGB_8888;
-		plane_ctl |= PLANE_CTL_ALPHA_SW_PREMULTIPLY;
-		break;
-	case DRM_FORMAT_XBGR8888:
-		plane_ctl |= PLANE_CTL_ORDER_RGBX;
-		plane_ctl |= PLANE_CTL_FORMAT_XRGB_8888;
-		break;
-	case DRM_FORMAT_ABGR8888:
-		plane_ctl |= PLANE_CTL_ORDER_RGBX;
-		plane_ctl |= PLANE_CTL_FORMAT_XRGB_8888;
-		plane_ctl |= PLANE_CTL_ALPHA_SW_PREMULTIPLY;
-		break;
-	case DRM_FORMAT_XRGB2101010:
-		plane_ctl |= PLANE_CTL_FORMAT_XRGB_2101010;
-		break;
-	case DRM_FORMAT_XBGR2101010:
-		plane_ctl |= PLANE_CTL_ORDER_RGBX;
-		plane_ctl |= PLANE_CTL_FORMAT_XRGB_2101010;
-		break;
-	default:
-		BUG();
-	}
-
-	switch (fb->modifier[0]) {
-	case DRM_FORMAT_MOD_NONE:
-		break;
-	case I915_FORMAT_MOD_X_TILED:
-		plane_ctl |= PLANE_CTL_TILED_X;
-		break;
-	case I915_FORMAT_MOD_Y_TILED:
-		plane_ctl |= PLANE_CTL_TILED_Y;
-		break;
-	case I915_FORMAT_MOD_Yf_TILED:
-		plane_ctl |= PLANE_CTL_TILED_YF;
-		break;
-	default:
-		MISSING_CASE(fb->modifier[0]);
-	}
-
+	plane_ctl |= skl_plane_ctl_format(fb->pixel_format);
+	plane_ctl |= skl_plane_ctl_tiling(fb->modifier[0]);
 	plane_ctl |= PLANE_CTL_PLANE_GAMMA_DISABLE;
 
-	plane = crtc->primary;
 	rotation = plane->state->rotation;
-	switch (rotation) {
-	case BIT(DRM_ROTATE_90):
-		plane_ctl |= PLANE_CTL_ROTATE_90;
-		break;
-
-	case BIT(DRM_ROTATE_180):
-		plane_ctl |= PLANE_CTL_ROTATE_180;
-		break;
-
-	case BIT(DRM_ROTATE_270):
-		plane_ctl |= PLANE_CTL_ROTATE_270;
-		break;
-	}
+	plane_ctl |= skl_plane_ctl_rotation(rotation);
 
 	obj = intel_fb_obj(fb);
 	stride_div = intel_fb_stride_alignment(dev, fb->modifier[0],
 					       fb->pixel_format);
 	surf_addr = intel_plane_obj_offset(to_intel_plane(plane), obj);
 
+	/*
+	 * FIXME: intel_plane_state->src, dst aren't set when transitional
+	 * update_plane helpers are called from legacy paths.
+	 * Once full atomic crtc is available, below check can be avoided.
+	 */
+	if (drm_rect_width(&plane_state->src)) {
+		scaler_id = plane_state->scaler_id;
+		src_x = plane_state->src.x1 >> 16;
+		src_y = plane_state->src.y1 >> 16;
+		src_w = drm_rect_width(&plane_state->src) >> 16;
+		src_h = drm_rect_height(&plane_state->src) >> 16;
+		dst_x = plane_state->dst.x1;
+		dst_y = plane_state->dst.y1;
+		dst_w = drm_rect_width(&plane_state->dst);
+		dst_h = drm_rect_height(&plane_state->dst);
+
+		WARN_ON(x != src_x || y != src_y);
+	} else {
+		src_w = intel_crtc->config->pipe_src_w;
+		src_h = intel_crtc->config->pipe_src_h;
+	}
+
 	if (intel_rotation_90_or_270(rotation)) {
 		/* stride = Surface height in tiles */
 		tile_height = intel_tile_height(dev, fb->bits_per_pixel,
 						fb->modifier[0]);
 		stride = DIV_ROUND_UP(fb->height, tile_height);
-		x_offset = stride * tile_height - y - (plane->state->src_h >> 16);
+		x_offset = stride * tile_height - y - src_h;
 		y_offset = x;
-		plane_size = ((plane->state->src_w >> 16) - 1) << 16 |
-					((plane->state->src_h >> 16) - 1);
+		plane_size = (src_w - 1) << 16 | (src_h - 1);
 	} else {
 		stride = fb->pitches[0] / stride_div;
 		x_offset = x;
 		y_offset = y;
-		plane_size = ((plane->state->src_h >> 16) - 1) << 16 |
-			((plane->state->src_w >> 16) - 1);
+		plane_size = (src_h - 1) << 16 | (src_w - 1);
 	}
 	plane_offset = y_offset << 16 | x_offset;
 
 	I915_WRITE(PLANE_CTL(pipe, 0), plane_ctl);
-	I915_WRITE(PLANE_POS(pipe, 0), 0);
 	I915_WRITE(PLANE_OFFSET(pipe, 0), plane_offset);
 	I915_WRITE(PLANE_SIZE(pipe, 0), plane_size);
 	I915_WRITE(PLANE_STRIDE(pipe, 0), stride);
+
+	if (scaler_id >= 0) {
+		uint32_t ps_ctrl = 0;
+
+		WARN_ON(!dst_w || !dst_h);
+		ps_ctrl = PS_SCALER_EN | PS_PLANE_SEL(0) |
+			crtc_state->scaler_state.scalers[scaler_id].mode;
+		I915_WRITE(SKL_PS_CTRL(pipe, scaler_id), ps_ctrl);
+		I915_WRITE(SKL_PS_PWR_GATE(pipe, scaler_id), 0);
+		I915_WRITE(SKL_PS_WIN_POS(pipe, scaler_id), (dst_x << 16) | dst_y);
+		I915_WRITE(SKL_PS_WIN_SZ(pipe, scaler_id), (dst_w << 16) | dst_h);
+		I915_WRITE(PLANE_POS(pipe, 0), 0);
+	} else {
+		I915_WRITE(PLANE_POS(pipe, 0), (dst_y << 16) | dst_x);
+	}
+
 	I915_WRITE(PLANE_SURF(pipe, 0), surf_addr);
 
 	POSTING_READ(PLANE_SURF(pipe, 0));
@@ -4383,6 +4461,7 @@ skl_update_scaler_users(
 	int *scaler_id;
 	struct drm_framebuffer *fb;
 	struct intel_crtc_scaler_state *scaler_state;
+	unsigned int rotation;
 
 	if (!intel_crtc || !crtc_state)
 		return 0;
@@ -4398,6 +4477,7 @@ skl_update_scaler_users(
 		dst_w = drm_rect_width(&plane_state->dst);
 		dst_h = drm_rect_height(&plane_state->dst);
 		scaler_id = &plane_state->scaler_id;
+		rotation = plane_state->base.rotation;
 	} else {
 		struct drm_display_mode *adjusted_mode =
 			&crtc_state->base.adjusted_mode;
@@ -4406,8 +4486,12 @@ skl_update_scaler_users(
 		dst_w = adjusted_mode->hdisplay;
 		dst_h = adjusted_mode->vdisplay;
 		scaler_id = &scaler_state->scaler_id;
+		rotation = DRM_ROTATE_0;
 	}
-	need_scaling = (src_w != dst_w || src_h != dst_h);
+
+	need_scaling = intel_rotation_90_or_270(rotation) ?
+		(src_h != dst_w || src_w != dst_h):
+		(src_w != dst_w || src_h != dst_h);
 
 	/*
 	 * if plane is being disabled or scaler is no more required or force detach
@@ -13133,6 +13217,36 @@ intel_cleanup_plane_fb(struct drm_plane *plane,
 	}
 }
 
+int
+skl_max_scale(struct intel_crtc *intel_crtc, struct intel_crtc_state *crtc_state)
+{
+	int max_scale;
+	struct drm_device *dev;
+	struct drm_i915_private *dev_priv;
+	int crtc_clock, cdclk;
+
+	if (!intel_crtc || !crtc_state)
+		return DRM_PLANE_HELPER_NO_SCALING;
+
+	dev = intel_crtc->base.dev;
+	dev_priv = dev->dev_private;
+	crtc_clock = crtc_state->base.adjusted_mode.crtc_clock;
+	cdclk = dev_priv->display.get_display_clock_speed(dev);
+
+	if (!crtc_clock || !cdclk)
+		return DRM_PLANE_HELPER_NO_SCALING;
+
+	/*
+	 * skl max scale is lower of:
+	 *    close to 3 but not 3, -1 is for that purpose
+	 *            or
+	 *    cdclk/crtc_clock
+	 */
+	max_scale = min((1 << 16) * 3 - 1, (1 << 8) * ((cdclk << 8) / crtc_clock));
+
+	return max_scale;
+}
+
 static int
 intel_check_primary_plane(struct drm_plane *plane,
 			  struct intel_plane_state *state)
@@ -13141,23 +13255,31 @@ intel_check_primary_plane(struct drm_plane *plane,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc = state->base.crtc;
 	struct intel_crtc *intel_crtc;
+	struct intel_crtc_state *crtc_state;
 	struct drm_framebuffer *fb = state->base.fb;
 	struct drm_rect *dest = &state->dst;
 	struct drm_rect *src = &state->src;
 	const struct drm_rect *clip = &state->clip;
 	bool can_position = false;
+	int max_scale = DRM_PLANE_HELPER_NO_SCALING;
+	int min_scale = DRM_PLANE_HELPER_NO_SCALING;
 	int ret;
 
 	crtc = crtc ? crtc : plane->crtc;
 	intel_crtc = to_intel_crtc(crtc);
+	crtc_state = state->base.state ?
+		intel_atomic_get_crtc_state(state->base.state, intel_crtc) : NULL;
 
-	if (INTEL_INFO(dev)->gen >= 9)
+	if (INTEL_INFO(dev)->gen >= 9) {
+		min_scale = 1;
+		max_scale = skl_max_scale(intel_crtc, crtc_state);
 		can_position = true;
+	}
 
 	ret = drm_plane_helper_check_update(plane, crtc, fb,
 					    src, dest, clip,
-					    DRM_PLANE_HELPER_NO_SCALING,
-					    DRM_PLANE_HELPER_NO_SCALING,
+					    min_scale,
+					    max_scale,
 					    can_position, true,
 					    &state->visible);
 	if (ret)
@@ -13200,6 +13322,13 @@ intel_check_primary_plane(struct drm_plane *plane,
 
 		if (intel_wm_need_update(plane, &state->base))
 			intel_crtc->atomic.update_wm = true;
+	}
+
+	if (INTEL_INFO(dev)->gen >= 9) {
+		ret = skl_update_scaler_users(intel_crtc, crtc_state,
+			to_intel_plane(plane), state, 0);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
@@ -13381,6 +13510,9 @@ static struct drm_plane *intel_primary_plane_create(struct drm_device *dev,
 
 	primary->can_scale = false;
 	primary->max_downscale = 1;
+	if (INTEL_INFO(dev)->gen >= 9) {
+		primary->can_scale = true;
+	}
 	state->scaler_id = -1;
 	primary->pipe = pipe;
 	primary->plane = pipe;

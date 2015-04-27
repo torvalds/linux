@@ -285,11 +285,11 @@ struct intel_initial_plane_config {
 #define SKL_MIN_SRC_W 8
 #define SKL_MAX_SRC_W 4096
 #define SKL_MIN_SRC_H 8
-#define SKL_MAX_SRC_H 2304
+#define SKL_MAX_SRC_H 4096
 #define SKL_MIN_DST_W 8
 #define SKL_MAX_DST_W 4096
 #define SKL_MIN_DST_H 8
-#define SKL_MAX_DST_H 2304
+#define SKL_MAX_DST_H 4096
 
 struct intel_scaler {
 	int id;
@@ -1145,9 +1145,13 @@ void skl_detach_scalers(struct intel_crtc *intel_crtc);
 int skl_update_scaler_users(struct intel_crtc *intel_crtc,
 	struct intel_crtc_state *crtc_state, struct intel_plane *intel_plane,
 	struct intel_plane_state *plane_state, int force_detach);
+int skl_max_scale(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state);
 
 unsigned long intel_plane_obj_offset(struct intel_plane *intel_plane,
 				     struct drm_i915_gem_object *obj);
+u32 skl_plane_ctl_format(uint32_t pixel_format);
+u32 skl_plane_ctl_tiling(uint64_t fb_modifier);
+u32 skl_plane_ctl_rotation(unsigned int rotation);
 
 /* intel_dp.c */
 void intel_dp_init(struct drm_device *dev, int output_reg, enum port port);

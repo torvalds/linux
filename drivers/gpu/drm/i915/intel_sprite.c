@@ -1150,6 +1150,16 @@ int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
 	}
 
 	intel_plane = to_intel_plane(plane);
+
+	if (INTEL_INFO(dev)->gen >= 9) {
+		/* plane scaling and colorkey are mutually exclusive */
+		if (to_intel_plane_state(plane->state)->scaler_id >= 0) {
+			DRM_ERROR("colorkey not allowed with scaler\n");
+			ret = -EINVAL;
+			goto out_unlock;
+		}
+	}
+
 	intel_plane->ckey = *set;
 
 	/*
