@@ -507,24 +507,33 @@ int __f2fs_add_link(struct inode *dir, const struct qstr *name,
 	unsigned long bidx, block;
 	f2fs_hash_t dentry_hash;
 	unsigned int nbucket, nblock;
-	size_t namelen = name->len;
 	struct page *dentry_page = NULL;
 	struct f2fs_dentry_block *dentry_blk = NULL;
 	struct f2fs_dentry_ptr d;
-	int slots = GET_DENTRY_SLOTS(namelen);
 	struct page *page = NULL;
-	int err = 0;
+	struct f2fs_filename fname;
+	struct qstr new_name;
+	int slots, err;
+
+	err = f2fs_fname_setup_filename(dir, name, 0, &fname);
+	if (err)
+		return err;
+
+	new_name.name = fname_name(&fname);
+	new_name.len = fname_len(&fname);
 
 	if (f2fs_has_inline_dentry(dir)) {
-		err = f2fs_add_inline_entry(dir, name, inode, ino, mode);
+		err = f2fs_add_inline_entry(dir, &new_name, inode, ino, mode);
 		if (!err || err != -EAGAIN)
-			return err;
+			goto out;
 		else
 			err = 0;
 	}
 
-	dentry_hash = f2fs_dentry_hash(name);
 	level = 0;
+	slots = GET_DENTRY_SLOTS(new_name.len);
+	dentry_hash = f2fs_dentry_hash(&new_name);
+
 	current_depth = F2FS_I(dir)->i_current_depth;
 	if (F2FS_I(dir)->chash == dentry_hash) {
 		level = F2FS_I(dir)->clevel;
@@ -532,8 +541,10 @@ int __f2fs_add_link(struct inode *dir, const struct qstr *name,
 	}
 
 start:
-	if (unlikely(current_depth == MAX_DIR_HASH_DEPTH))
-		return -ENOSPC;
+	if (unlikely(current_depth == MAX_DIR_HASH_DEPTH)) {
+		err = -ENOSPC;
+		goto out;
+	}
 
 	/* Increase the depth, if required */
 	if (level == current_depth)
@@ -547,8 +558,10 @@ start:
 
 	for (block = bidx; block <= (bidx + nblock - 1); block++) {
 		dentry_page = get_new_data_page(dir, NULL, block, true);
-		if (IS_ERR(dentry_page))
-			return PTR_ERR(dentry_page);
+		if (IS_ERR(dentry_page)) {
+			err = PTR_ERR(dentry_page);
+			goto out;
+		}
 
 		dentry_blk = kmap(dentry_page);
 		bit_pos = room_for_filename(&dentry_blk->dentry_bitmap,
@@ -568,7 +581,7 @@ add_dentry:
 
 	if (inode) {
 		down_write(&F2FS_I(inode)->i_sem);
-		page = init_inode_metadata(inode, dir, name, NULL);
+		page = init_inode_metadata(inode, dir, &new_name, NULL);
 		if (IS_ERR(page)) {
 			err = PTR_ERR(page);
 			goto fail;
@@ -576,7 +589,7 @@ add_dentry:
 	}
 
 	make_dentry_ptr(&d, (void *)dentry_blk, 1);
-	f2fs_update_dentry(ino, mode, &d, name, dentry_hash, bit_pos);
+	f2fs_update_dentry(ino, mode, &d, &new_name, dentry_hash, bit_pos);
 
 	set_page_dirty(dentry_page);
 
@@ -598,6 +611,8 @@ fail:
 	}
 	kunmap(dentry_page);
 	f2fs_put_page(dentry_page, 1);
+out:
+	f2fs_fname_free_filename(&fname);
 	return err;
 }
 
