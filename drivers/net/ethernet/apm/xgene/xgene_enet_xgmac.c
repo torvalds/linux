@@ -122,7 +122,6 @@ static bool xgene_enet_rd_indirect(void __iomem *addr, void __iomem *rd,
 
 	return true;
 }
-
 static void xgene_enet_rd_mac(struct xgene_enet_pdata *pdata,
 			      u32 rd_addr, u32 *rd_data)
 {

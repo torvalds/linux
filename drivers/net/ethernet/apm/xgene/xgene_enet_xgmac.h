@@ -24,6 +24,23 @@
 #define BLOCK_AXG_MAC_OFFSET		0x0800
 #define BLOCK_AXG_MAC_CSR_OFFSET	0x2000
 
+#define XGENET_SRST_ADDR		0x0000
+#define XGENET_CLKEN_ADDR		0x0008
+
+#define CSR_CLK		BIT(0)
+#define XGENET_CLK	BIT(1)
+#define PCS_CLK		BIT(3)
+#define AN_REF_CLK	BIT(4)
+#define AN_CLK		BIT(5)
+#define AD_CLK		BIT(6)
+
+#define CSR_RST		BIT(0)
+#define XGENET_RST	BIT(1)
+#define PCS_RST		BIT(3)
+#define AN_REF_RST	BIT(4)
+#define AN_RST		BIT(5)
+#define AD_RST		BIT(6)
+
 #define AXGMAC_CONFIG_0			0x0000
 #define AXGMAC_CONFIG_1			0x0004
 #define HSTMACRST			BIT(31)
