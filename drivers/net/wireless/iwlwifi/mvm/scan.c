@@ -452,8 +452,6 @@ static void iwl_scan_build_ssids(struct iwl_mvm_scan_params *params,
 				       params->ssids[j].ssid_len,
 				       ssids);
 		if (index < 0) {
-			if (!params->ssids[j].ssid_len)
-				continue;
 			ssids[i].id = WLAN_EID_SSID;
 			ssids[i].len = params->ssids[j].ssid_len;
 			memcpy(ssids[i].ssid, params->ssids[j].ssid,
