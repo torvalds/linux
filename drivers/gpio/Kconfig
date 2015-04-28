@@ -496,6 +496,17 @@ config GPIO_XILINX
 	help
 	  Say yes here to support the Xilinx FPGA GPIO device
 
+config GPIO_XLP
+	tristate "Netlogic XLP GPIO support"
+	depends on CPU_XLP
+	select GPIOLIB_IRQCHIP
+	help
+	  This driver provides support for GPIO interface on Netlogic XLP MIPS64
+	  SoCs. Currently supported XLP variants are XLP8XX, XLP3XX, XLP2XX,
+	  XLP9XX and XLP5XX.
+
+	  If unsure, say N.
+
 config GPIO_XTENSA
 	bool "Xtensa GPIO32 support"
 	depends on XTENSA
