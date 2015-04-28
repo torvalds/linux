@@ -13,8 +13,6 @@
 #ifndef __GREYBUS_MANIFEST_H
 #define __GREYBUS_MANIFEST_H
 
-#pragma pack(push, 1)
-
 enum greybus_descriptor_type {
 	GREYBUS_TYPE_INVALID		= 0x00,
 	GREYBUS_TYPE_INTERFACE		= 0x01,
@@ -77,7 +75,7 @@ struct greybus_descriptor_string {
 	__u8	length;
 	__u8	id;
 	__u8	string[0];
-};
+} __packed;
 
 /*
  * An interface descriptor describes information about an interface as a whole,
@@ -90,7 +88,7 @@ struct greybus_descriptor_interface {
 	__u8	vendor_stringid;
 	__u8	product_stringid;
 	__le64	unique_id;
-};
+} __packed;
 
 /*
  * An bundle descriptor defines an identification number and a class for
@@ -114,7 +112,7 @@ struct greybus_descriptor_interface {
 struct greybus_descriptor_bundle {
 	__u8	id;	/* interface-relative id (0..) */
 	__u8	class;
-};
+} __packed;
 
 /*
  * A CPort descriptor indicates the id of the bundle within the
@@ -126,7 +124,7 @@ struct greybus_descriptor_cport {
 	__u8	bundle;
 	__le16	id;
 	__u8	protocol_id;	/* enum greybus_protocol */
-};
+} __packed;
 
 /*
  * A class descriptor defines functionality supplied by a module.
@@ -134,12 +132,12 @@ struct greybus_descriptor_cport {
  */
 struct greybus_descriptor_class {
 	__u8	class;		/* enum greybus_class_type */
-};
+} __packed;
 
 struct greybus_descriptor_header {
 	__le16	size;
 	__u8	type;		/* enum greybus_descriptor_type */
-};
+} __packed;
 
 struct greybus_descriptor {
 	struct greybus_descriptor_header		header;
@@ -150,19 +148,17 @@ struct greybus_descriptor {
 		struct greybus_descriptor_cport		cport;
 		struct greybus_descriptor_class		class;
 	};
-};
+} __packed;
 
 struct greybus_manifest_header {
 	__le16	size;
 	__u8	version_major;
 	__u8	version_minor;
-};
+} __packed;
 
 struct greybus_manifest {
 	struct greybus_manifest_header		header;
 	struct greybus_descriptor		descriptors[0];
-};
-
-#pragma pack(pop)
+} __packed;
 
 #endif /* __GREYBUS_MANIFEST_H */
