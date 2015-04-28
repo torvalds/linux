@@ -131,7 +131,7 @@ static void __init init_port(struct earlycon_device *device)
 	serial8250_early_out(port, UART_LCR, c & ~UART_LCR_DLAB);
 }
 
-static int __init early_serial8250_setup(struct earlycon_device *device,
+int __init early_serial8250_setup(struct earlycon_device *device,
 					 const char *options)
 {
 	if (!(device->port.membase || device->port.iobase))
