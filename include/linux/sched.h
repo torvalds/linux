@@ -572,6 +572,23 @@ struct task_cputime {
 		.sum_exec_runtime = 0,				\
 	}
 
+/*
+ * This is the atomic variant of task_cputime, which can be used for
+ * storing and updating task_cputime statistics without locking.
+ */
+struct task_cputime_atomic {
+	atomic64_t utime;
+	atomic64_t stime;
+	atomic64_t sum_exec_runtime;
+};
+
+#define INIT_CPUTIME_ATOMIC \
+	(struct task_cputime_atomic) {				\
+		.utime = ATOMIC64_INIT(0),			\
+		.stime = ATOMIC64_INIT(0),			\
+		.sum_exec_runtime = ATOMIC64_INIT(0),		\
+	}
+
 #ifdef CONFIG_PREEMPT_COUNT
 #define PREEMPT_DISABLED	(1 + PREEMPT_ENABLED)
 #else
