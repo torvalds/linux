@@ -101,6 +101,7 @@ struct adv7511_state {
 	u32 colorspace;
 	u32 ycbcr_enc;
 	u32 quantization;
+	u32 xfer_func;
 	/* controls */
 	struct v4l2_ctrl *hdmi_mode_ctrl;
 	struct v4l2_ctrl *hotplug_ctrl;
@@ -861,11 +862,13 @@ static int adv7511_get_fmt(struct v4l2_subdev *sd,
 		format->format.colorspace = fmt->colorspace;
 		format->format.ycbcr_enc = fmt->ycbcr_enc;
 		format->format.quantization = fmt->quantization;
+		format->format.xfer_func = fmt->xfer_func;
 	} else {
 		format->format.code = state->fmt_code;
 		format->format.colorspace = state->colorspace;
 		format->format.ycbcr_enc = state->ycbcr_enc;
 		format->format.quantization = state->quantization;
+		format->format.xfer_func = state->xfer_func;
 	}
 
 	return 0;
@@ -912,6 +915,7 @@ static int adv7511_set_fmt(struct v4l2_subdev *sd,
 		fmt->colorspace = format->format.colorspace;
 		fmt->ycbcr_enc = format->format.ycbcr_enc;
 		fmt->quantization = format->format.quantization;
+		fmt->xfer_func = format->format.xfer_func;
 		return 0;
 	}
 
@@ -936,6 +940,7 @@ static int adv7511_set_fmt(struct v4l2_subdev *sd,
 	state->colorspace = format->format.colorspace;
 	state->ycbcr_enc = format->format.ycbcr_enc;
 	state->quantization = format->format.quantization;
+	state->xfer_func = format->format.xfer_func;
 
 	switch (format->format.colorspace) {
 	case V4L2_COLORSPACE_ADOBERGB:
