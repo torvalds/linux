@@ -685,7 +685,7 @@ static int bcm3510_reset(struct bcm3510_state *st)
 	if ((ret = bcm3510_writeB(st,0xa0,v)) < 0)
 		return ret;
 
-    t = jiffies + 3*HZ;
+	t = jiffies + 3*HZ;
 	while (time_before(jiffies, t)) {
 		msleep(10);
 		if ((ret = bcm3510_readB(st,0xa2,&v)) < 0)
@@ -708,7 +708,7 @@ static int bcm3510_clear_reset(struct bcm3510_state *st)
 	if ((ret = bcm3510_writeB(st,0xa0,v)) < 0)
 		return ret;
 
-    t = jiffies + 3*HZ;
+	t = jiffies + 3*HZ;
 	while (time_before(jiffies, t)) {
 		msleep(10);
 		if ((ret = bcm3510_readB(st,0xa2,&v)) < 0)
