@@ -36,6 +36,8 @@ struct pci_controller_ops {
 					  int nvec, int type);
 	void		(*teardown_msi_irqs)(struct pci_dev *dev);
 #endif
+
+	int             (*dma_set_mask)(struct pci_dev *dev, u64 dma_mask);
 };
 
 /*
