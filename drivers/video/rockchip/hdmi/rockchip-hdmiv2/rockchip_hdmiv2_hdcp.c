@@ -30,7 +30,7 @@ struct hdcp {
 };
 
 static struct miscdevice mdev;
-static struct hdcp *hdcp = NULL;
+static struct hdcp *hdcp;
 
 static void hdcp_load_key(struct hdmi *hdmi, struct hdcp_keys *key)
 {
@@ -111,6 +111,52 @@ static void hdcp_load_keys_cb(const struct firmware *fw,
 	hdcp_load_key(hdmi, hdcp->keys);
 }
 
+void rockchip_hdmiv2_hdcp2_enable(int enable)
+{
+	struct hdmi_dev *hdmi_dev;
+
+	if (!hdcp) {
+		pr_err("rockchip hdmiv2 hdcp is not exist\n");
+		return;
+	}
+	hdmi_dev = hdcp->hdmi->property->priv;
+	if (hdmi_dev->soctype == HDMI_SOC_RK3368 &&
+	    hdmi_dev->hdcp2_enable != enable) {
+		hdmi_dev->hdcp2_enable = enable;
+		if (hdmi_dev->hdcp2_enable == 0) {
+			hdmi_msk_reg(hdmi_dev, HDCP2REG_CTRL,
+				     m_HDCP2_OVR_EN | m_HDCP2_FORCE,
+				     v_HDCP2_OVR_EN(1) | v_HDCP2_FORCE(0));
+			hdmi_writel(hdmi_dev, HDCP2REG_MASK, 0xff);
+			hdmi_writel(hdmi_dev, HDCP2REG_MUTE, 0xff);
+		} else {
+			hdmi_msk_reg(hdmi_dev, HDCP2REG_CTRL,
+				     m_HDCP2_OVR_EN | m_HDCP2_FORCE,
+				     v_HDCP2_OVR_EN(0) | v_HDCP2_FORCE(0));
+			hdmi_writel(hdmi_dev, HDCP2REG_MASK, 0x00);
+			hdmi_writel(hdmi_dev, HDCP2REG_MUTE, 0x00);
+		}
+	}
+}
+EXPORT_SYMBOL(rockchip_hdmiv2_hdcp2_enable);
+
+void rockchip_hdmiv2_hdcp2_init(void (*hdcp2_enble)(int),
+				void (*hdcp2_reset)(void),
+				void (*hdcp2_start)(void))
+{
+	struct hdmi_dev *hdmi_dev;
+
+	if (!hdcp) {
+		pr_err("rockchip hdmiv2 hdcp is not exist\n");
+		return;
+	}
+	hdmi_dev = hdcp->hdmi->property->priv;
+	hdmi_dev->hdcp2_en = hdcp2_enble;
+	hdmi_dev->hdcp2_reset = hdcp2_reset;
+	hdmi_dev->hdcp2_start = hdcp2_start;
+}
+EXPORT_SYMBOL(rockchip_hdmiv2_hdcp2_init);
+
 static void rockchip_hdmiv2_hdcp_start(struct hdmi *hdmi)
 {
 	struct hdmi_dev *hdmi_dev = hdmi->property->priv;
@@ -118,11 +164,19 @@ static void rockchip_hdmiv2_hdcp_start(struct hdmi *hdmi)
 	if (!hdcp->enable)
 		return;
 	if (hdmi_dev->soctype == HDMI_SOC_RK3368) {
-		hdmi_msk_reg(hdmi_dev, HDCP2REG_CTRL,
-			     m_HDCP2_OVR_EN | m_HDCP2_FORCE,
-			     v_HDCP2_OVR_EN(1) | v_HDCP2_FORCE(0));
-		hdmi_writel(hdmi_dev, HDCP2REG_MASK, 0x00);
-		hdmi_writel(hdmi_dev, HDCP2REG_MUTE, 0x00);
+		if (hdmi_dev->hdcp2_enable == 0) {
+			hdmi_msk_reg(hdmi_dev, HDCP2REG_CTRL,
+				     m_HDCP2_OVR_EN | m_HDCP2_FORCE,
+				     v_HDCP2_OVR_EN(1) | v_HDCP2_FORCE(0));
+			hdmi_writel(hdmi_dev, HDCP2REG_MASK, 0xff);
+			hdmi_writel(hdmi_dev, HDCP2REG_MUTE, 0xff);
+		} else {
+			hdmi_msk_reg(hdmi_dev, HDCP2REG_CTRL,
+				     m_HDCP2_OVR_EN | m_HDCP2_FORCE,
+				     v_HDCP2_OVR_EN(0) | v_HDCP2_FORCE(0));
+			hdmi_writel(hdmi_dev, HDCP2REG_MASK, 0x00);
+			hdmi_writel(hdmi_dev, HDCP2REG_MUTE, 0x00);
+		}
 	}
 
 	hdmi_msk_reg(hdmi_dev, FC_INVIDCONF,
@@ -146,6 +200,8 @@ static void rockchip_hdmiv2_hdcp_start(struct hdmi *hdmi)
 
 	hdmi_msk_reg(hdmi_dev, MC_CLKDIS,
 		     m_HDCPCLK_DISABLE, v_HDCPCLK_DISABLE(0));
+	if (hdmi_dev->hdcp2_start)
+		hdmi_dev->hdcp2_start();
 	pr_info("%s success\n", __func__);
 }
 
@@ -160,6 +216,7 @@ static void rockchip_hdmiv2_hdcp_stop(struct hdmi *hdmi)
 		     m_HDCPCLK_DISABLE, v_HDCPCLK_DISABLE(1));
 	hdmi_writel(hdmi_dev, A_APIINTMSK, 0xff);
 	hdmi_msk_reg(hdmi_dev, A_HDCPCFG0, m_RX_DETECT, v_RX_DETECT(0));
+	rockchip_hdmiv2_hdcp2_enable(0);
 }
 
 static ssize_t hdcp_enable_read(struct device *device,
@@ -296,4 +353,3 @@ void rockchip_hdmiv2_hdcp_init(struct hdmi *hdmi)
 	else
 		hdcp_load_key(hdmi, hdcp->keys);
 }
-
