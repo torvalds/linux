@@ -6360,7 +6360,7 @@ static int zcxx_s_ctrl(struct v4l2_ctrl *ctrl)
 			if (ctrl->val <= jpeg_qual[i])
 				break;
 		}
-		if (i > 0 && i == qual && ctrl->val < jpeg_qual[i])
+		if (i == ARRAY_SIZE(jpeg_qual) || (i > 0 && i == qual && ctrl->val < jpeg_qual[i]))
 			i--;
 
 		/* With high quality settings we need max bandwidth */
