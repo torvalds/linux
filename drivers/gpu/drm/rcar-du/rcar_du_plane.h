@@ -59,7 +59,7 @@ struct rcar_du_plane_state {
 };
 
 static inline struct rcar_du_plane_state *
-to_rcar_du_plane_state(struct drm_plane_state *state)
+to_rcar_plane_state(struct drm_plane_state *state)
 {
 	return container_of(state, struct rcar_du_plane_state, state);
 }

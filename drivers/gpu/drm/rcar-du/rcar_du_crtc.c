@@ -195,13 +195,13 @@ void rcar_du_crtc_route_output(struct drm_crtc *crtc,
 
 static unsigned int plane_zpos(struct rcar_du_plane *plane)
 {
-	return to_rcar_du_plane_state(plane->plane.state)->zpos;
+	return to_rcar_plane_state(plane->plane.state)->zpos;
 }
 
 static const struct rcar_du_format_info *
 plane_format(struct rcar_du_plane *plane)
 {
-	return to_rcar_du_plane_state(plane->plane.state)->format;
+	return to_rcar_plane_state(plane->plane.state)->format;
 }
 
 static void rcar_du_crtc_update_planes(struct rcar_du_crtc *rcrtc)
@@ -234,7 +234,7 @@ static void rcar_du_crtc_update_planes(struct rcar_du_crtc *rcrtc)
 	for (i = 0; i < num_planes; ++i) {
 		struct rcar_du_plane *plane = planes[i];
 		struct drm_plane_state *state = plane->plane.state;
-		unsigned int index = to_rcar_du_plane_state(state)->hwindex;
+		unsigned int index = to_rcar_plane_state(state)->hwindex;
 
 		prio -= 4;
 		dspr |= (index + 1) << prio;

@@ -45,7 +45,7 @@ static void rcar_du_plane_write(struct rcar_du_group *rgrp,
 static void rcar_du_plane_setup_fb(struct rcar_du_plane *plane)
 {
 	struct rcar_du_plane_state *state =
-		to_rcar_du_plane_state(plane->plane.state);
+		to_rcar_plane_state(plane->plane.state);
 	struct drm_framebuffer *fb = plane->plane.state->fb;
 	struct rcar_du_group *rgrp = plane->group;
 	unsigned int src_x = state->state.src_x >> 16;
@@ -109,7 +109,7 @@ static void rcar_du_plane_setup_mode(struct rcar_du_plane *plane,
 				     unsigned int index)
 {
 	struct rcar_du_plane_state *state =
-		to_rcar_du_plane_state(plane->plane.state);
+		to_rcar_plane_state(plane->plane.state);
 	struct rcar_du_group *rgrp = plane->group;
 	u32 colorkey;
 	u32 pnmr;
@@ -172,7 +172,7 @@ static void __rcar_du_plane_setup(struct rcar_du_plane *plane,
 				  unsigned int index)
 {
 	struct rcar_du_plane_state *state =
-		to_rcar_du_plane_state(plane->plane.state);
+		to_rcar_plane_state(plane->plane.state);
 	struct rcar_du_group *rgrp = plane->group;
 	u32 ddcr2 = PnDDCR2_CODE;
 	u32 ddcr4;
@@ -222,7 +222,7 @@ static void __rcar_du_plane_setup(struct rcar_du_plane *plane,
 void rcar_du_plane_setup(struct rcar_du_plane *plane)
 {
 	struct rcar_du_plane_state *state =
-		to_rcar_du_plane_state(plane->plane.state);
+		to_rcar_plane_state(plane->plane.state);
 
 	__rcar_du_plane_setup(plane, state->hwindex);
 	if (state->format->planes == 2)
@@ -234,7 +234,7 @@ void rcar_du_plane_setup(struct rcar_du_plane *plane)
 static int rcar_du_plane_atomic_check(struct drm_plane *plane,
 				      struct drm_plane_state *state)
 {
-	struct rcar_du_plane_state *rstate = to_rcar_du_plane_state(state);
+	struct rcar_du_plane_state *rstate = to_rcar_plane_state(state);
 	struct rcar_du_plane *rplane = to_rcar_plane(plane);
 	struct rcar_du_device *rcdu = rplane->group->dev;
 
@@ -302,7 +302,7 @@ rcar_du_plane_atomic_duplicate_state(struct drm_plane *plane)
 	struct rcar_du_plane_state *state;
 	struct rcar_du_plane_state *copy;
 
-	state = to_rcar_du_plane_state(plane->state);
+	state = to_rcar_plane_state(plane->state);
 	copy = kmemdup(state, sizeof(*state), GFP_KERNEL);
 	if (copy == NULL)
 		return NULL;
@@ -319,7 +319,7 @@ static void rcar_du_plane_atomic_destroy_state(struct drm_plane *plane,
 	if (state->fb)
 		drm_framebuffer_unreference(state->fb);
 
-	kfree(to_rcar_du_plane_state(state));
+	kfree(to_rcar_plane_state(state));
 }
 
 static int rcar_du_plane_atomic_set_property(struct drm_plane *plane,
@@ -327,7 +327,7 @@ static int rcar_du_plane_atomic_set_property(struct drm_plane *plane,
 					     struct drm_property *property,
 					     uint64_t val)
 {
-	struct rcar_du_plane_state *rstate = to_rcar_du_plane_state(state);
+	struct rcar_du_plane_state *rstate = to_rcar_plane_state(state);
 	struct rcar_du_device *rcdu = to_rcar_plane(plane)->group->dev;
 
 	if (property == rcdu->props.alpha)

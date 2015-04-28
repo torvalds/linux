@@ -221,7 +221,7 @@ static bool rcar_du_plane_needs_realloc(struct rcar_du_plane *plane,
 {
 	const struct rcar_du_format_info *cur_format;
 
-	cur_format = to_rcar_du_plane_state(plane->plane.state)->format;
+	cur_format = to_rcar_plane_state(plane->plane.state)->format;
 
 	/* Lowering the number of planes doesn't strictly require reallocation
 	 * as the extra hardware plane will be freed when committing, but doing
@@ -284,7 +284,7 @@ static int rcar_du_atomic_check(struct drm_device *dev,
 			continue;
 
 		plane = to_rcar_plane(state->planes[i]);
-		plane_state = to_rcar_du_plane_state(state->plane_states[i]);
+		plane_state = to_rcar_plane_state(state->plane_states[i]);
 
 		/* If the plane is being disabled we don't need to go through
 		 * the full reallocation procedure. Just mark the hardware
@@ -345,7 +345,7 @@ static int rcar_du_atomic_check(struct drm_device *dev,
 			if (group_freed_planes[index] & (1 << i))
 				continue;
 
-			plane_state = to_rcar_du_plane_state(plane->plane.state);
+			plane_state = to_rcar_plane_state(plane->plane.state);
 			used_planes |= rcar_du_plane_hwmask(plane_state);
 		}
 
@@ -363,7 +363,7 @@ static int rcar_du_atomic_check(struct drm_device *dev,
 			continue;
 
 		plane = to_rcar_plane(state->planes[i]);
-		plane_state = to_rcar_du_plane_state(state->plane_states[i]);
+		plane_state = to_rcar_plane_state(state->plane_states[i]);
 
 		/* Skip planes that are being disabled or don't need to be
 		 * reallocated.
