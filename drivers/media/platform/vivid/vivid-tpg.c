@@ -706,9 +706,9 @@ static void precalculate_color(struct tpg_data *tpg, int k)
 	}
 
 	if (tpg->pattern == TPG_PAT_CSC_COLORBAR && col <= TPG_COLOR_CSC_BLACK) {
-		r = tpg_csc_colors[tpg->colorspace][col].r;
-		g = tpg_csc_colors[tpg->colorspace][col].g;
-		b = tpg_csc_colors[tpg->colorspace][col].b;
+		r = tpg_csc_colors[tpg->colorspace][tpg->real_xfer_func][col].r;
+		g = tpg_csc_colors[tpg->colorspace][tpg->real_xfer_func][col].g;
+		b = tpg_csc_colors[tpg->colorspace][tpg->real_xfer_func][col].b;
 	} else {
 		r <<= 4;
 		g <<= 4;
