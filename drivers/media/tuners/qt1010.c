@@ -294,7 +294,7 @@ static int qt1010_init(struct dvb_frontend *fe)
 	int err = 0;
 	u8 i, tmpval, *valptr = NULL;
 
-	qt1010_i2c_oper_t i2c_data[] = {
+	static const qt1010_i2c_oper_t i2c_data[] = {
 		{ QT1010_WR, 0x01, 0x80 },
 		{ QT1010_WR, 0x0d, 0x84 },
 		{ QT1010_WR, 0x0e, 0xb7 },
