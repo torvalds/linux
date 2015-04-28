@@ -211,20 +211,20 @@ retry:
 	}
 }
 
-static void update_gt_cputime(struct thread_group_cputimer *cputimer, struct task_cputime *sum)
+static void update_gt_cputime(struct task_cputime_atomic *cputime_atomic, struct task_cputime *sum)
 {
-	__update_gt_cputime(&cputimer->utime, sum->utime);
-	__update_gt_cputime(&cputimer->stime, sum->stime);
-	__update_gt_cputime(&cputimer->sum_exec_runtime, sum->sum_exec_runtime);
+	__update_gt_cputime(&cputime_atomic->utime, sum->utime);
+	__update_gt_cputime(&cputime_atomic->stime, sum->stime);
+	__update_gt_cputime(&cputime_atomic->sum_exec_runtime, sum->sum_exec_runtime);
 }
 
-/* Sample thread_group_cputimer values in "cputimer", store results in "times". */
-static inline void sample_group_cputimer(struct task_cputime *times,
-					  struct thread_group_cputimer *cputimer)
+/* Sample task_cputime_atomic values in "atomic_timers", store results in "times". */
+static inline void sample_cputime_atomic(struct task_cputime *times,
+					 struct task_cputime_atomic *atomic_times)
 {
-	times->utime = atomic64_read(&cputimer->utime);
-	times->stime = atomic64_read(&cputimer->stime);
-	times->sum_exec_runtime = atomic64_read(&cputimer->sum_exec_runtime);
+	times->utime = atomic64_read(&atomic_times->utime);
+	times->stime = atomic64_read(&atomic_times->stime);
+	times->sum_exec_runtime = atomic64_read(&atomic_times->sum_exec_runtime);
 }
 
 void thread_group_cputimer(struct task_struct *tsk, struct task_cputime *times)
@@ -240,7 +240,7 @@ void thread_group_cputimer(struct task_struct *tsk, struct task_cputime *times)
 		 * to synchronize the timer to the clock every time we start it.
 		 */
 		thread_group_cputime(tsk, &sum);
-		update_gt_cputime(cputimer, &sum);
+		update_gt_cputime(&cputimer->cputime_atomic, &sum);
 
 		/*
 		 * We're setting cputimer->running without a lock. Ensure
@@ -251,7 +251,7 @@ void thread_group_cputimer(struct task_struct *tsk, struct task_cputime *times)
 		 */
 		WRITE_ONCE(cputimer->running, 1);
 	}
-	sample_group_cputimer(times, cputimer);
+	sample_cputime_atomic(times, &cputimer->cputime_atomic);
 }
 
 /*
@@ -1137,7 +1137,7 @@ static inline int fastpath_timer_check(struct task_struct *tsk)
 	if (READ_ONCE(sig->cputimer.running)) {
 		struct task_cputime group_sample;
 
-		sample_group_cputimer(&group_sample, &sig->cputimer);
+		sample_cputime_atomic(&group_sample, &sig->cputimer.cputime_atomic);
 
 		if (task_cputime_expired(&group_sample, &sig->cputime_expires))
 			return 1;

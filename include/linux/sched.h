@@ -615,9 +615,7 @@ struct task_cputime_atomic {
  * used for thread group CPU timer calculations.
  */
 struct thread_group_cputimer {
-	atomic64_t utime;
-	atomic64_t stime;
-	atomic64_t sum_exec_runtime;
+	struct task_cputime_atomic cputime_atomic;
 	int running;
 };
 

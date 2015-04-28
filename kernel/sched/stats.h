@@ -216,7 +216,7 @@ static inline void account_group_user_time(struct task_struct *tsk,
 	if (!cputimer_running(tsk))
 		return;
 
-	atomic64_add(cputime, &cputimer->utime);
+	atomic64_add(cputime, &cputimer->cputime_atomic.utime);
 }
 
 /**
@@ -237,7 +237,7 @@ static inline void account_group_system_time(struct task_struct *tsk,
 	if (!cputimer_running(tsk))
 		return;
 
-	atomic64_add(cputime, &cputimer->stime);
+	atomic64_add(cputime, &cputimer->cputime_atomic.stime);
 }
 
 /**
@@ -258,5 +258,5 @@ static inline void account_group_exec_runtime(struct task_struct *tsk,
 	if (!cputimer_running(tsk))
 		return;
 
-	atomic64_add(ns, &cputimer->sum_exec_runtime);
+	atomic64_add(ns, &cputimer->cputime_atomic.sum_exec_runtime);
 }
