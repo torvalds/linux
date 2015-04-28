@@ -765,10 +765,11 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 		rgrp->index = i;
 		rgrp->num_crtcs = min(rcdu->num_crtcs - 2 * i, 2U);
 
-		/* Pre-associate all hardware planes with the first CRTC in the
-		 * group.
+		/* If we have more than one CRTCs in this group pre-associate
+		 * planes 0-3 with CRTC 0 and planes 4-7 with CRTC 1 to minimize
+		 * flicker occurring when the association is changed.
 		 */
-		rgrp->dptsr_planes = 0;
+		rgrp->dptsr_planes = rgrp->num_crtcs > 1 ? 0xf0 : 0;
 
 		ret = rcar_du_planes_init(rgrp);
 		if (ret < 0)

@@ -257,9 +257,6 @@ static void rcar_du_crtc_update_planes(struct rcar_du_crtc *rcrtc)
 	 * resulting in visible flicker. To mitigate the issue only update the
 	 * association if needed by enabled planes. Planes being disabled will
 	 * keep their current association.
-	 *
-	 * To mitigate the issue further we could pre-associate planes with
-	 * CRTCs, either with a fixed 4/4 split, or through a module parameter.
 	 */
 	mutex_lock(&rcrtc->group->lock);
 
