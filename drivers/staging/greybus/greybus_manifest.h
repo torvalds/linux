@@ -83,6 +83,7 @@ struct greybus_descriptor_string {
 struct greybus_descriptor_interface {
 	__u8	vendor_stringid;
 	__u8	product_stringid;
+	__u8	pad[2];
 } __packed;
 
 /*
@@ -107,6 +108,7 @@ struct greybus_descriptor_interface {
 struct greybus_descriptor_bundle {
 	__u8	id;	/* interface-relative id (0..) */
 	__u8	class;
+	__u8	pad[2];
 } __packed;
 
 /*
@@ -124,6 +126,7 @@ struct greybus_descriptor_cport {
 struct greybus_descriptor_header {
 	__le16	size;
 	__u8	type;		/* enum greybus_descriptor_type */
+	__u8	pad;
 } __packed;
 
 struct greybus_descriptor {
