@@ -8044,7 +8044,7 @@ static int ixgbe_ndo_bridge_setlink(struct net_device *dev,
 
 static int ixgbe_ndo_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 				    struct net_device *dev,
-				    u32 filter_mask)
+				    u32 filter_mask, int nlflags)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
 
@@ -8052,7 +8052,7 @@ static int ixgbe_ndo_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 		return 0;
 
 	return ndo_dflt_bridge_getlink(skb, pid, seq, dev,
-				       adapter->bridge_mode, 0, 0);
+				       adapter->bridge_mode, 0, 0, nlflags);
 }
 
 static void *ixgbe_fwd_add(struct net_device *pdev, struct net_device *vdev)
