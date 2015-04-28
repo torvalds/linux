@@ -1740,6 +1740,12 @@ irqreturn_t rockchip_hdmiv2_dev_irq(int irq, void *priv)
 	if (hdcp2_int) {
 		hdmi_writel(hdmi_dev, HDCP2REG_STAT, hdcp2_int);
 		pr_info("hdcp2_int is 0x%02x\n", hdcp2_int);
+		if ((hdcp2_int & m_HDCP2_AUTH_FAIL ||
+		     hdcp2_int & m_HDCP2_AUTH_LOST) &&
+		    hdmi_dev->hdcp2_start) {
+			pr_info("hdcp2 failed or lost\n");
+			hdmi_dev->hdcp2_start();
+		}
 	}
 	return IRQ_HANDLED;
 }

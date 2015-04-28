@@ -268,6 +268,8 @@ static int rockchip_hdmiv2_fb_event_notify(struct notifier_block *self,
 							 0, NULL);
 				if (delay_work)
 					flush_delayed_work(delay_work);
+				if (hdmi_dev->hdcp2_en)
+					hdmi_dev->hdcp2_en(0);
 				rockchip_hdmiv2_clk_disable(hdmi_dev);
 				#ifdef CONFIG_PINCTRL
 				if (hdmi_dev->soctype == HDMI_SOC_RK3288)
@@ -297,6 +299,10 @@ static int rockchip_hdmiv2_fb_event_notify(struct notifier_block *self,
 				rockchip_hdmiv2_dev_initial(hdmi_dev);
 				if (hdmi->ops->hdcp_power_on_cb)
 					hdmi->ops->hdcp_power_on_cb();
+				if (hdmi_dev->hdcp2_reset)
+					hdmi_dev->hdcp2_reset();
+				if (hdmi_dev->hdcp2_en)
+					hdmi_dev->hdcp2_en(1);
 				hdmi_submit_work(hdmi, HDMI_RESUME_CTL,
 						 0, NULL);
 			}

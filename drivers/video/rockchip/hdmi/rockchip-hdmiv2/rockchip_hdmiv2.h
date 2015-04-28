@@ -38,6 +38,7 @@ struct hdmi_dev {
 	int			soctype;
 	int			audiosrc;
 	int			enable;
+	int			hdcp2_enable;
 	unsigned char		clk_disable;
 	unsigned char		clk_on;
 
@@ -48,5 +49,9 @@ struct hdmi_dev {
 
 	bool			tmdsclk_ratio_change;
 	struct mutex		ddc_lock;	/*mutex for ddc operation */
+
+	void			(*hdcp2_en)(int);
+	void			(*hdcp2_reset)(void);
+	void			(*hdcp2_start)(void);
 };
 #endif /*__RK32_HDMI_H__*/

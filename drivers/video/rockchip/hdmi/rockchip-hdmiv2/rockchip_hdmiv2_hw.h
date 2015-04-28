@@ -1314,6 +1314,7 @@ enum {
 	#define m_HDCP2_AUTH_LOST	(1 << 2)
 	#define m_HDCP2_AUTH_OK		(1 << 3)
 	#define m_HDCP2_AUTH_FAIL	(1 << 4)
+	#define m_HDCP2_DECRYPTED_CHG	(1 << 5)
 
 /* CEC Engine Registers */
 #define CEC_ENGINE_BASE			0x7d00
@@ -1565,4 +1566,5 @@ void rockchip_hdmiv2_cec_init(struct hdmi *hdmi);
 void rockchip_hdmiv2_cec_isr(struct hdmi_dev *hdmi_dev, char cec_int);
 void rockchip_hdmiv2_dump_phy_regs(struct hdmi_dev *hdmi_dev);
 void rockchip_hdmiv2_hdcp_init(struct hdmi *hdmi);
+void rockchip_hdmiv2_hdcp2_enable(int enable);
 #endif
