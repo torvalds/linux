@@ -262,6 +262,7 @@ enum xgene_enet_ring_type {
 
 enum xgene_ring_owner {
 	RING_OWNER_ETH0,
+	RING_OWNER_ETH1,
 	RING_OWNER_CPU = 15,
 	RING_OWNER_INVALID
 };
