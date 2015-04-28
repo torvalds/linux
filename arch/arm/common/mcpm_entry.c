@@ -321,7 +321,7 @@ int mcpm_wait_for_cpu_powerdown(unsigned int cpu, unsigned int cluster)
 	return ret;
 }
 
-void mcpm_cpu_suspend(u64 expected_residency)
+void mcpm_cpu_suspend(void)
 {
 	if (WARN_ON_ONCE(!platform_ops))
 		return;

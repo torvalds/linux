@@ -137,17 +137,12 @@ int mcpm_wait_for_cpu_powerdown(unsigned int cpu, unsigned int cluster);
 /**
  * mcpm_cpu_suspend - bring the calling CPU in a suspended state
  *
- * @expected_residency: duration in microseconds the CPU is expected
- *			to remain suspended, or 0 if unknown/infinity.
- *
- * The calling CPU is suspended.  The expected residency argument is used
- * as a hint by the platform specific backend to implement the appropriate
- * sleep state level according to the knowledge it has on wake-up latency
- * for the given hardware.
+ * The calling CPU is suspended.  This is similar to mcpm_cpu_power_down()
+ * except for possible extra platform specific configuration steps to allow
+ * an asynchronous wake-up e.g. with a pending interrupt.
  *
  * If this CPU is found to be the "last man standing" in the cluster
- * then the cluster may be prepared for power-down too, if the expected
- * residency makes it worthwhile.
+ * then the cluster may be prepared for power-down too.
  *
  * This must be called with interrupts disabled.
  *
@@ -157,7 +152,7 @@ int mcpm_wait_for_cpu_powerdown(unsigned int cpu, unsigned int cluster);
  * This will return if mcpm_platform_register() has not been called
  * previously in which case the caller should take appropriate action.
  */
-void mcpm_cpu_suspend(u64 expected_residency);
+void mcpm_cpu_suspend(void);
 
 /**
  * mcpm_cpu_powered_up - housekeeping workafter a CPU has been powered up
