@@ -877,6 +877,13 @@ int ci_hdrc_otg_fsm_init(struct ci_hdrc *ci)
 
 void ci_hdrc_otg_fsm_remove(struct ci_hdrc *ci)
 {
+	enum otg_fsm_timer i;
+
+	for (i = 0; i < NUM_OTG_FSM_TIMERS; i++)
+		otg_del_timer(&ci->fsm, i);
+
+	ci->enabled_otg_timer_bits = 0;
+
 	/* Turn off vbus if vbus is on */
 	if (ci->fsm.a_vbus_vld)
 		otg_drv_vbus(&ci->fsm, 0);

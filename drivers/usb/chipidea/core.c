@@ -785,10 +785,10 @@ EXPORT_SYMBOL_GPL(ci_hdrc_query_available_role);
 
 static inline void ci_role_destroy(struct ci_hdrc *ci)
 {
-	ci_hdrc_gadget_destroy(ci);
-	ci_hdrc_host_destroy(ci);
 	if (ci->is_otg)
 		ci_hdrc_otg_destroy(ci);
+	ci_hdrc_gadget_destroy(ci);
+	ci_hdrc_host_destroy(ci);
 }
 
 static void ci_get_otg_capable(struct ci_hdrc *ci)
