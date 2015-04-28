@@ -904,7 +904,7 @@ static int set_dmic_clk(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	struct rt5677_priv *rt5677 = snd_soc_codec_get_drvdata(codec);
-	int idx = rl6231_calc_dmic_clk(rt5677->sysclk);
+	int idx = rl6231_calc_dmic_clk(rt5677->lrck[RT5677_AIF1] << 8);
 
 	if (idx < 0)
 		dev_err(codec->dev, "Failed to set DMIC clock\n");
