@@ -139,7 +139,7 @@ static inline void fx_finit(struct i387_fxsave_struct *fx)
 	fx->mxcsr = MXCSR_DEFAULT;
 }
 
-extern void fpstate_sanitize_xstate(struct task_struct *);
+extern void fpstate_sanitize_xstate(struct fpu *fpu);
 
 #define user_insn(insn, output, input...)				\
 ({									\
