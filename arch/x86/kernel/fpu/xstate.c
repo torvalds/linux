@@ -545,13 +545,12 @@ static void __init setup_xstate_features(void)
 	} while (1);
 }
 
-static void print_xstate_feature(u64 xstate_mask, const char *desc)
+static void print_xstate_feature(u64 xstate_mask)
 {
-	if (xfeatures_mask & xstate_mask) {
-		int xstate_feature = fls64(xstate_mask)-1;
+	const char *feature_name;
 
-		pr_info("x86/fpu: Supporting XSAVE feature %2d: '%s'\n", xstate_feature, desc);
-	}
+	if (cpu_has_xfeatures(xstate_mask, &feature_name))
+		pr_info("x86/fpu: Supporting XSAVE feature 0x%02Lx: '%s'\n", xstate_mask, feature_name);
 }
 
 /*
@@ -559,14 +558,14 @@ static void print_xstate_feature(u64 xstate_mask, const char *desc)
  */
 static void print_xstate_features(void)
 {
-	print_xstate_feature(XSTATE_FP,		"x87 floating point registers");
-	print_xstate_feature(XSTATE_SSE,	"SSE registers");
-	print_xstate_feature(XSTATE_YMM,	"AVX registers");
-	print_xstate_feature(XSTATE_BNDREGS,	"MPX bounds registers");
-	print_xstate_feature(XSTATE_BNDCSR,	"MPX CSR");
-	print_xstate_feature(XSTATE_OPMASK,	"AVX-512 opmask");
-	print_xstate_feature(XSTATE_ZMM_Hi256,	"AVX-512 Hi256");
-	print_xstate_feature(XSTATE_Hi16_ZMM,	"AVX-512 ZMM_Hi256");
+	print_xstate_feature(XSTATE_FP);
+	print_xstate_feature(XSTATE_SSE);
+	print_xstate_feature(XSTATE_YMM);
+	print_xstate_feature(XSTATE_BNDREGS);
+	print_xstate_feature(XSTATE_BNDCSR);
+	print_xstate_feature(XSTATE_OPMASK);
+	print_xstate_feature(XSTATE_ZMM_Hi256);
+	print_xstate_feature(XSTATE_Hi16_ZMM);
 }
 
 /*
