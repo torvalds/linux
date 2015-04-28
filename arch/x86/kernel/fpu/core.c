@@ -395,7 +395,7 @@ int xfpregs_get(struct task_struct *target, const struct user_regset *regset,
 		return -ENODEV;
 
 	fpu__activate_stopped(fpu);
-	sanitize_i387_state(target);
+	fpstate_sanitize_xstate(target);
 
 	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
 				   &fpu->state.fxsave, 0, -1);
@@ -412,7 +412,7 @@ int xfpregs_set(struct task_struct *target, const struct user_regset *regset,
 		return -ENODEV;
 
 	fpu__activate_stopped(fpu);
-	sanitize_i387_state(target);
+	fpstate_sanitize_xstate(target);
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
 				 &fpu->state.fxsave, 0, -1);
@@ -644,7 +644,7 @@ int fpregs_get(struct task_struct *target, const struct user_regset *regset,
 					   &fpu->state.fsave, 0,
 					   -1);
 
-	sanitize_i387_state(target);
+	fpstate_sanitize_xstate(target);
 
 	if (kbuf && pos == 0 && count == sizeof(env)) {
 		convert_from_fxsr(kbuf, target);
@@ -666,7 +666,7 @@ int fpregs_set(struct task_struct *target, const struct user_regset *regset,
 
 	fpu__activate_stopped(fpu);
 
-	sanitize_i387_state(target);
+	fpstate_sanitize_xstate(target);
 
 	if (!static_cpu_has(X86_FEATURE_FPU))
 		return fpregs_soft_set(target, regset, pos, count, kbuf, ubuf);

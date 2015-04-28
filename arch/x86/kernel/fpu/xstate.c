@@ -92,7 +92,7 @@ EXPORT_SYMBOL_GPL(cpu_has_xfeatures);
  * if the corresponding header bit is zero. This is to ensure that user-space doesn't
  * see some stale state in the memory layout during signal handling, debugging etc.
  */
-void __sanitize_i387_state(struct task_struct *tsk)
+void __fpstate_sanitize_xstate(struct task_struct *tsk)
 {
 	struct i387_fxsave_struct *fx = &tsk->thread.fpu.state.fxsave;
 	int feature_bit;
@@ -318,7 +318,7 @@ int save_xstate_sig(void __user *buf, void __user *buf_fx, int size)
 		if (ia32_fxstate)
 			fpu_fxsave(&tsk->thread.fpu);
 	} else {
-		sanitize_i387_state(tsk);
+		fpstate_sanitize_xstate(tsk);
 		if (__copy_to_user(buf_fx, xsave, xstate_size))
 			return -1;
 	}
