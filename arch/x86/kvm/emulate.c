@@ -524,13 +524,9 @@ static void masked_increment(ulong *reg, ulong mask, int inc)
 static inline void
 register_address_increment(struct x86_emulate_ctxt *ctxt, int reg, int inc)
 {
-	ulong mask;
+	ulong *preg = reg_rmw(ctxt, reg);
 
-	if (ctxt->ad_bytes == sizeof(unsigned long))
-		mask = ~0UL;
-	else
-		mask = ad_mask(ctxt);
-	masked_increment(reg_rmw(ctxt, reg), mask, inc);
+	assign_register(preg, *preg + inc, ctxt->ad_bytes);
 }
 
 static void rsp_increment(struct x86_emulate_ctxt *ctxt, int inc)
