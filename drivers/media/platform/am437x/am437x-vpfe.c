@@ -510,7 +510,7 @@ static int vpfe_ccdc_set_params(struct vpfe_ccdc *ccdc, void __user *params)
 
 	if (!vpfe_ccdc_validate_param(ccdc, &raw_params)) {
 		vpfe_ccdc_update_raw_params(ccdc, &raw_params);
-			return 0;
+		return 0;
 	}
 
 	return -EINVAL;
