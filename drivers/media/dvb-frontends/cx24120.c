@@ -36,34 +36,34 @@
 #define CX24120_FIRMWARE "dvb-fe-cx24120-1.20.58.2.fw"
 
 /* cx24120 i2c registers  */
-#define CX24120_REG_CMD_START	(0x00)		/* write cmd_id */
-#define CX24120_REG_CMD_ARGS	(0x01)		/* write command arguments */
-#define CX24120_REG_CMD_END	(0x1f)		/* write 0x01 for end */
+#define CX24120_REG_CMD_START	0x00		/* write cmd_id */
+#define CX24120_REG_CMD_ARGS	0x01		/* write command arguments */
+#define CX24120_REG_CMD_END	0x1f		/* write 0x01 for end */
 
-#define CX24120_REG_MAILBOX	(0x33)
-#define CX24120_REG_FREQ3	(0x34)		/* frequency */
-#define CX24120_REG_FREQ2	(0x35)
-#define CX24120_REG_FREQ1	(0x36)
+#define CX24120_REG_MAILBOX	0x33
+#define CX24120_REG_FREQ3	0x34		/* frequency */
+#define CX24120_REG_FREQ2	0x35
+#define CX24120_REG_FREQ1	0x36
 
-#define CX24120_REG_FECMODE	(0x39)		/* FEC status */
-#define CX24120_REG_STATUS	(0x3a)		/* Tuner status */
-#define CX24120_REG_SIGSTR_H	(0x3a)		/* Signal strength high */
-#define CX24120_REG_SIGSTR_L	(0x3b)		/* Signal strength low byte */
-#define CX24120_REG_QUALITY_H	(0x40)		/* SNR high byte */
-#define CX24120_REG_QUALITY_L	(0x41)		/* SNR low byte */
+#define CX24120_REG_FECMODE	0x39		/* FEC status */
+#define CX24120_REG_STATUS	0x3a		/* Tuner status */
+#define CX24120_REG_SIGSTR_H	0x3a		/* Signal strength high */
+#define CX24120_REG_SIGSTR_L	0x3b		/* Signal strength low byte */
+#define CX24120_REG_QUALITY_H	0x40		/* SNR high byte */
+#define CX24120_REG_QUALITY_L	0x41		/* SNR low byte */
 
-#define CX24120_REG_BER_HH	(0x47)		/* BER high byte of high word */
-#define CX24120_REG_BER_HL	(0x48)		/* BER low byte of high word */
-#define CX24120_REG_BER_LH	(0x49)		/* BER high byte of low word */
-#define CX24120_REG_BER_LL	(0x4a)		/* BER low byte of low word */
+#define CX24120_REG_BER_HH	0x47		/* BER high byte of high word */
+#define CX24120_REG_BER_HL	0x48		/* BER low byte of high word */
+#define CX24120_REG_BER_LH	0x49		/* BER high byte of low word */
+#define CX24120_REG_BER_LL	0x4a		/* BER low byte of low word */
 
-#define CX24120_REG_UCB_H	(0x50)		/* UCB high byte */
-#define CX24120_REG_UCB_L	(0x51)		/* UCB low byte  */
+#define CX24120_REG_UCB_H	0x50		/* UCB high byte */
+#define CX24120_REG_UCB_L	0x51		/* UCB low byte  */
 
-#define CX24120_REG_CLKDIV	(0xe6)
-#define CX24120_REG_RATEDIV	(0xf0)
+#define CX24120_REG_CLKDIV	0xe6
+#define CX24120_REG_RATEDIV	0xf0
 
-#define CX24120_REG_REVISION	(0xff)		/* Chip revision (ro) */
+#define CX24120_REG_REVISION	0xff		/* Chip revision (ro) */
 
 
 /* Command messages */
@@ -94,19 +94,19 @@ enum command_message_id {
 #define CX24120_MAX_CMD_LEN	30
 
 /* pilot mask */
-#define CX24120_PILOT_OFF	(0x00)
-#define CX24120_PILOT_ON	(0x40)
-#define CX24120_PILOT_AUTO	(0x80)
+#define CX24120_PILOT_OFF	0x00
+#define CX24120_PILOT_ON	0x40
+#define CX24120_PILOT_AUTO	0x80
 
 /* signal status */
-#define CX24120_HAS_SIGNAL	(0x01)
-#define CX24120_HAS_CARRIER	(0x02)
-#define CX24120_HAS_VITERBI	(0x04)
-#define CX24120_HAS_LOCK	(0x08)
-#define CX24120_HAS_UNK1	(0x10)
-#define CX24120_HAS_UNK2	(0x20)
-#define CX24120_STATUS_MASK	(0x0f)
-#define CX24120_SIGNAL_MASK	(0xc0)
+#define CX24120_HAS_SIGNAL	0x01
+#define CX24120_HAS_CARRIER	0x02
+#define CX24120_HAS_VITERBI	0x04
+#define CX24120_HAS_LOCK	0x08
+#define CX24120_HAS_UNK1	0x10
+#define CX24120_HAS_UNK2	0x20
+#define CX24120_STATUS_MASK	0x0f
+#define CX24120_SIGNAL_MASK	0xc0
 
 #define info(args...) pr_info("cx24120: " args)
 #define err(args...)  pr_err("cx24120: ### ERROR: " args)
@@ -164,16 +164,18 @@ static int cx24120_readreg(struct cx24120_state *state, u8 reg)
 		{	.addr = state->config->i2c_addr,
 			.flags = 0,
 			.len = 1,
-			.buf = &reg	},
-
-		{	.addr = state->config->i2c_addr,
+			.buf = &reg
+		}, {
+			.addr = state->config->i2c_addr,
 			.flags = I2C_M_RD,
 			.len = 1,
-			.buf = &buf	}
+			.buf = &buf
+		}
 	};
+
 	ret = i2c_transfer(state->i2c, msg, 2);
 	if (ret != 2) {
-		err("Read error: reg=0x%02x, ret=0x%02x)\n", reg, ret);
+		err("Read error: reg=0x%02x, ret=%i)\n", reg, ret);
 		return ret;
 	}
 
@@ -192,7 +194,8 @@ static int cx24120_writereg(struct cx24120_state *state, u8 reg, u8 data)
 		.addr = state->config->i2c_addr,
 		.flags = 0,
 		.buf = buf,
-		.len = 2 };
+		.len = 2
+	};
 	int ret;
 
 	ret = i2c_transfer(state->i2c, &msg, 1);
@@ -246,9 +249,8 @@ static int cx24120_writeregN(struct cx24120_state *state,
 		}
 
 		dev_dbg(&state->i2c->dev,
-			"%s: reg=0x%02x; data=0x%02x,0x%02x,0x%02x,0x%02x\n",
-			__func__, reg,
-			msg.buf[1], msg.buf[2], msg.buf[3], msg.buf[4]);
+			"%s: reg=0x%02x; data=%*ph\n",
+			__func__, reg, msg.len, msg.buf+1);
 	}
 
 	ret = 0;
@@ -268,8 +270,7 @@ struct dvb_frontend *cx24120_attach(const struct cx24120_config *config,
 	int demod_rev;
 
 	info("Conexant cx24120/cx24118 - DVBS/S2 Satellite demod/tuner\n");
-	state = kzalloc(sizeof(struct cx24120_state),
-						GFP_KERNEL);
+	state = kzalloc(sizeof(struct cx24120_state), GFP_KERNEL);
 	if (state == NULL) {
 		err("Unable to allocate memory for cx24120_state\n");
 		goto error;
@@ -297,7 +298,7 @@ struct dvb_frontend *cx24120_attach(const struct cx24120_config *config,
 	/* create dvb_frontend */
 	state->cold_init = 0;
 	memcpy(&state->frontend.ops, &cx24120_ops,
-			sizeof(struct dvb_frontend_ops));
+	       sizeof(struct dvb_frontend_ops));
 	state->frontend.demodulator_priv = state;
 
 	info("Conexant cx24120/cx24118 attached.\n");
@@ -677,30 +678,30 @@ static struct cx24120_modfec {
 	fe_code_rate_t fec;
 	u8 val;
 } modfec_lookup_table[] = {
-/*delsys	mod	fec		val */
-{ SYS_DVBS,	QPSK,	FEC_1_2,	0x01 },
-{ SYS_DVBS,	QPSK,	FEC_2_3,	0x02 },
-{ SYS_DVBS,	QPSK,	FEC_3_4,	0x03 },
-{ SYS_DVBS,	QPSK,	FEC_4_5,	0x04 },
-{ SYS_DVBS,	QPSK,	FEC_5_6,	0x05 },
-{ SYS_DVBS,	QPSK,	FEC_6_7,	0x06 },
-{ SYS_DVBS,	QPSK,	FEC_7_8,	0x07 },
+	/*delsys     mod    fec       val */
+	{ SYS_DVBS,  QPSK,  FEC_1_2,  0x01 },
+	{ SYS_DVBS,  QPSK,  FEC_2_3,  0x02 },
+	{ SYS_DVBS,  QPSK,  FEC_3_4,  0x03 },
+	{ SYS_DVBS,  QPSK,  FEC_4_5,  0x04 },
+	{ SYS_DVBS,  QPSK,  FEC_5_6,  0x05 },
+	{ SYS_DVBS,  QPSK,  FEC_6_7,  0x06 },
+	{ SYS_DVBS,  QPSK,  FEC_7_8,  0x07 },
 
-{ SYS_DVBS2,	QPSK,	FEC_1_2,	0x04 },
-{ SYS_DVBS2,	QPSK,	FEC_3_5,	0x05 },
-{ SYS_DVBS2,	QPSK,	FEC_2_3,	0x06 },
-{ SYS_DVBS2,	QPSK,	FEC_3_4,	0x07 },
-{ SYS_DVBS2,	QPSK,	FEC_4_5,	0x08 },
-{ SYS_DVBS2,	QPSK,	FEC_5_6,	0x09 },
-{ SYS_DVBS2,	QPSK,	FEC_8_9,	0x0a },
-{ SYS_DVBS2,	QPSK,	FEC_9_10,	0x0b },
+	{ SYS_DVBS2, QPSK,  FEC_1_2,  0x04 },
+	{ SYS_DVBS2, QPSK,  FEC_3_5,  0x05 },
+	{ SYS_DVBS2, QPSK,  FEC_2_3,  0x06 },
+	{ SYS_DVBS2, QPSK,  FEC_3_4,  0x07 },
+	{ SYS_DVBS2, QPSK,  FEC_4_5,  0x08 },
+	{ SYS_DVBS2, QPSK,  FEC_5_6,  0x09 },
+	{ SYS_DVBS2, QPSK,  FEC_8_9,  0x0a },
+	{ SYS_DVBS2, QPSK,  FEC_9_10, 0x0b },
 
-{ SYS_DVBS2,	PSK_8,	FEC_3_5,	0x0c },
-{ SYS_DVBS2,	PSK_8,	FEC_2_3,	0x0d },
-{ SYS_DVBS2,	PSK_8,	FEC_3_4,	0x0e },
-{ SYS_DVBS2,	PSK_8,	FEC_5_6,	0x0f },
-{ SYS_DVBS2,	PSK_8,	FEC_8_9,	0x10 },
-{ SYS_DVBS2,	PSK_8,	FEC_9_10,	0x11 },
+	{ SYS_DVBS2, PSK_8, FEC_3_5,  0x0c },
+	{ SYS_DVBS2, PSK_8, FEC_2_3,  0x0d },
+	{ SYS_DVBS2, PSK_8, FEC_3_4,  0x0e },
+	{ SYS_DVBS2, PSK_8, FEC_5_6,  0x0f },
+	{ SYS_DVBS2, PSK_8, FEC_8_9,  0x10 },
+	{ SYS_DVBS2, PSK_8, FEC_9_10, 0x11 },
 };
 
 
@@ -716,7 +717,7 @@ static int cx24120_get_fec(struct dvb_frontend *fe)
 	dev_dbg(&state->i2c->dev, "%s()\n", __func__);
 
 	ret = cx24120_readreg(state, CX24120_REG_FECMODE);
-	GettedFEC = ret & 0x3f;		/* Lower 6 bits */
+	GettedFEC = ret & 0x3f; /* Lower 6 bits */
 
 	dev_dbg(&state->i2c->dev, "%s: Get FEC: %d\n", __func__, GettedFEC);
 
@@ -726,7 +727,7 @@ static int cx24120_get_fec(struct dvb_frontend *fe)
 		if (modfec_lookup_table[idx].val != GettedFEC)
 			continue;
 
-		break;	/* found */
+		break; /* found */
 	}
 
 	if (idx >= ARRAY_SIZE(modfec_lookup_table)) {
@@ -766,40 +767,40 @@ static struct cx24120_clock_ratios_table {
 	u32 n_rat;
 	u32 rate;
 } clock_ratios_table[] = {
-/*delsys	pilot		mod	fec		m_rat	n_rat	rate */
-{ SYS_DVBS2,	PILOT_OFF,	QPSK,	FEC_1_2,	273088,	254505,	274 },
-{ SYS_DVBS2,	PILOT_OFF,	QPSK,	FEC_3_5,	17272,	13395,	330 },
-{ SYS_DVBS2,	PILOT_OFF,	QPSK,	FEC_2_3,	24344,	16967,	367 },
-{ SYS_DVBS2,	PILOT_OFF,	QPSK,	FEC_3_4,	410788,	254505,	413 },
-{ SYS_DVBS2,	PILOT_OFF,	QPSK,	FEC_4_5,	438328,	254505,	440 },
-{ SYS_DVBS2,	PILOT_OFF,	QPSK,	FEC_5_6,	30464,	16967,	459 },
-{ SYS_DVBS2,	PILOT_OFF,	QPSK,	FEC_8_9,	487832,	254505,	490 },
-{ SYS_DVBS2,	PILOT_OFF,	QPSK,	FEC_9_10,	493952,	254505,	496 },
-{ SYS_DVBS2,	PILOT_OFF,	PSK_8,	FEC_3_5,	328168,	169905,	494 },
-{ SYS_DVBS2,	PILOT_OFF,	PSK_8,	FEC_2_3,	24344,	11327,	550 },
-{ SYS_DVBS2,	PILOT_OFF,	PSK_8,	FEC_3_4,	410788,	169905,	618 },
-{ SYS_DVBS2,	PILOT_OFF,	PSK_8,	FEC_5_6,	30464,	11327,	688 },
-{ SYS_DVBS2,	PILOT_OFF,	PSK_8,	FEC_8_9,	487832,	169905,	735 },
-{ SYS_DVBS2,	PILOT_OFF,	PSK_8,	FEC_9_10,	493952,	169905,	744 },
-{ SYS_DVBS2,	PILOT_ON,	QPSK,	FEC_1_2,	273088,	260709,	268 },
-{ SYS_DVBS2,	PILOT_ON,	QPSK,	FEC_3_5,	328168,	260709,	322 },
-{ SYS_DVBS2,	PILOT_ON,	QPSK,	FEC_2_3,	121720,	86903,	358 },
-{ SYS_DVBS2,	PILOT_ON,	QPSK,	FEC_3_4,	410788,	260709,	403 },
-{ SYS_DVBS2,	PILOT_ON,	QPSK,	FEC_4_5,	438328,	260709,	430 },
-{ SYS_DVBS2,	PILOT_ON,	QPSK,	FEC_5_6,	152320,	86903,	448 },
-{ SYS_DVBS2,	PILOT_ON,	QPSK,	FEC_8_9,	487832,	260709,	479 },
-{ SYS_DVBS2,	PILOT_ON,	QPSK,	FEC_9_10,	493952,	260709,	485 },
-{ SYS_DVBS2,	PILOT_ON,	PSK_8,	FEC_3_5,	328168,	173853,	483 },
-{ SYS_DVBS2,	PILOT_ON,	PSK_8,	FEC_2_3,	121720,	57951,	537 },
-{ SYS_DVBS2,	PILOT_ON,	PSK_8,	FEC_3_4,	410788,	173853,	604 },
-{ SYS_DVBS2,	PILOT_ON,	PSK_8,	FEC_5_6,	152320,	57951,	672 },
-{ SYS_DVBS2,	PILOT_ON,	PSK_8,	FEC_8_9,	487832,	173853,	718 },
-{ SYS_DVBS2,	PILOT_ON,	PSK_8,	FEC_9_10,	493952,	173853,	727 },
-{ SYS_DVBS,	PILOT_OFF,	QPSK,	FEC_1_2,	152592,	152592,	256 },
-{ SYS_DVBS,	PILOT_OFF,	QPSK,	FEC_2_3,	305184,	228888,	341 },
-{ SYS_DVBS,	PILOT_OFF,	QPSK,	FEC_3_4,	457776,	305184,	384 },
-{ SYS_DVBS,	PILOT_OFF,	QPSK,	FEC_5_6,	762960,	457776,	427 },
-{ SYS_DVBS,	PILOT_OFF,	QPSK,	FEC_7_8,	1068144, 610368, 448 },
+	/*delsys     pilot      mod    fec       m_rat    n_rat   rate */
+	{ SYS_DVBS2, PILOT_OFF, QPSK,  FEC_1_2,  273088,  254505, 274 },
+	{ SYS_DVBS2, PILOT_OFF, QPSK,  FEC_3_5,  17272,   13395,  330 },
+	{ SYS_DVBS2, PILOT_OFF, QPSK,  FEC_2_3,  24344,   16967,  367 },
+	{ SYS_DVBS2, PILOT_OFF, QPSK,  FEC_3_4,  410788,  254505, 413 },
+	{ SYS_DVBS2, PILOT_OFF, QPSK,  FEC_4_5,  438328,  254505, 440 },
+	{ SYS_DVBS2, PILOT_OFF, QPSK,  FEC_5_6,  30464,   16967,  459 },
+	{ SYS_DVBS2, PILOT_OFF, QPSK,  FEC_8_9,  487832,  254505, 490 },
+	{ SYS_DVBS2, PILOT_OFF, QPSK,  FEC_9_10, 493952,  254505, 496 },
+	{ SYS_DVBS2, PILOT_OFF, PSK_8, FEC_3_5,  328168,  169905, 494 },
+	{ SYS_DVBS2, PILOT_OFF, PSK_8, FEC_2_3,  24344,   11327,  550 },
+	{ SYS_DVBS2, PILOT_OFF, PSK_8, FEC_3_4,  410788,  169905, 618 },
+	{ SYS_DVBS2, PILOT_OFF, PSK_8, FEC_5_6,  30464,   11327,  688 },
+	{ SYS_DVBS2, PILOT_OFF, PSK_8, FEC_8_9,  487832,  169905, 735 },
+	{ SYS_DVBS2, PILOT_OFF, PSK_8, FEC_9_10, 493952,  169905, 744 },
+	{ SYS_DVBS2, PILOT_ON,  QPSK,  FEC_1_2,  273088,  260709, 268 },
+	{ SYS_DVBS2, PILOT_ON,  QPSK,  FEC_3_5,  328168,  260709, 322 },
+	{ SYS_DVBS2, PILOT_ON,  QPSK,  FEC_2_3,  121720,  86903,  358 },
+	{ SYS_DVBS2, PILOT_ON,  QPSK,  FEC_3_4,  410788,  260709, 403 },
+	{ SYS_DVBS2, PILOT_ON,  QPSK,  FEC_4_5,  438328,  260709, 430 },
+	{ SYS_DVBS2, PILOT_ON,  QPSK,  FEC_5_6,  152320,  86903,  448 },
+	{ SYS_DVBS2, PILOT_ON,  QPSK,  FEC_8_9,  487832,  260709, 479 },
+	{ SYS_DVBS2, PILOT_ON,  QPSK,  FEC_9_10, 493952,  260709, 485 },
+	{ SYS_DVBS2, PILOT_ON,  PSK_8, FEC_3_5,  328168,  173853, 483 },
+	{ SYS_DVBS2, PILOT_ON,  PSK_8, FEC_2_3,  121720,  57951,  537 },
+	{ SYS_DVBS2, PILOT_ON,  PSK_8, FEC_3_4,  410788,  173853, 604 },
+	{ SYS_DVBS2, PILOT_ON,  PSK_8, FEC_5_6,  152320,  57951,  672 },
+	{ SYS_DVBS2, PILOT_ON,  PSK_8, FEC_8_9,  487832,  173853, 718 },
+	{ SYS_DVBS2, PILOT_ON,  PSK_8, FEC_9_10, 493952,  173853, 727 },
+	{ SYS_DVBS,  PILOT_OFF, QPSK,  FEC_1_2,  152592,  152592, 256 },
+	{ SYS_DVBS,  PILOT_OFF, QPSK,  FEC_2_3,  305184,  228888, 341 },
+	{ SYS_DVBS,  PILOT_OFF, QPSK,  FEC_3_4,  457776,  305184, 384 },
+	{ SYS_DVBS,  PILOT_OFF, QPSK,  FEC_5_6,  762960,  457776, 427 },
+	{ SYS_DVBS,  PILOT_OFF, QPSK,  FEC_7_8,  1068144, 610368, 448 },
 };
 
 
@@ -835,7 +836,6 @@ static void cx24120_set_clock_ratios(struct dvb_frontend *fe)
 		return;
 	}
 
-
 	/* Read current values? */
 	cmd.id = CMD_CLOCK_READ;
 	cmd.len = 1;
@@ -855,8 +855,6 @@ static void cx24120_set_clock_ratios(struct dvb_frontend *fe)
 		clock_ratios_table[idx].n_rat,
 		clock_ratios_table[idx].rate);
 
-
-
 	/* Set the clock */
 	cmd.id = CMD_CLOCK_SET;
 	cmd.len = 10;
@@ -872,7 +870,6 @@ static void cx24120_set_clock_ratios(struct dvb_frontend *fe)
 	cmd.arg[9] = (clock_ratios_table[idx].rate >> 0) & 0xff;
 
 	cx24120_message_send(state, &cmd);
-
 }
 
 
@@ -902,15 +899,13 @@ static int cx24120_set_inversion(struct cx24120_state *state,
 	return 0;
 }
 
-/* FEC lookup table for tuning
- * Some DVB-S2 val's have been found by trial
- * and error. Sofar it seems to match up with
- * the contents of the REG_FECMODE after tuning
- * The rest will probably be the same but would
- * need testing.
- * Anything not in the table will run with
- * FEC_AUTO and take a while longer to tune in
- * ( c.500ms instead of 30ms )
+/*
+ * FEC lookup table for tuning Some DVB-S2 val's have been found by
+ * trial and error. Sofar it seems to match up with the contents of
+ * the REG_FECMODE after tuning The rest will probably be the same but
+ * would need testing.  Anything not in the table will run with
+ * FEC_AUTO and take a while longer to tune in ( c.500ms instead of
+ * 30ms )
  */
 static struct cx24120_modfec_table {
 	fe_delivery_system_t delsys;
@@ -919,17 +914,17 @@ static struct cx24120_modfec_table {
 	u8 val;
 } modfec_table[] = {
 /*delsys	mod	fec	 val */
-{ SYS_DVBS,	QPSK,	FEC_1_2, 0x2e },
-{ SYS_DVBS,	QPSK,	FEC_2_3, 0x2f },
-{ SYS_DVBS,	QPSK,	FEC_3_4, 0x30 },
-{ SYS_DVBS,	QPSK,	FEC_5_6, 0x31 },
-{ SYS_DVBS,	QPSK,	FEC_6_7, 0x32 },
-{ SYS_DVBS,	QPSK,	FEC_7_8, 0x33 },
+	{ SYS_DVBS,  QPSK,  FEC_1_2, 0x2e },
+	{ SYS_DVBS,  QPSK,  FEC_2_3, 0x2f },
+	{ SYS_DVBS,  QPSK,  FEC_3_4, 0x30 },
+	{ SYS_DVBS,  QPSK,  FEC_5_6, 0x31 },
+	{ SYS_DVBS,  QPSK,  FEC_6_7, 0x32 },
+	{ SYS_DVBS,  QPSK,  FEC_7_8, 0x33 },
 
-{ SYS_DVBS2,	QPSK,	FEC_3_4, 0x07 },
+	{ SYS_DVBS2, QPSK,  FEC_3_4, 0x07 },
 
-{ SYS_DVBS2,	PSK_8,	FEC_2_3, 0x0d },
-{ SYS_DVBS2,	PSK_8,	FEC_3_4, 0x0e },
+	{ SYS_DVBS2, PSK_8, FEC_2_3, 0x0d },
+	{ SYS_DVBS2, PSK_8, FEC_3_4, 0x0e },
 };
 
 /* Set fec_val & fec_mask values from delsys, modulation & fec */
@@ -958,7 +953,6 @@ static int cx24120_set_fec(struct cx24120_state *state,
 		return 0;
 	}
 
-
 	if (state->dnxt.delsys == SYS_DVBS2) {
 		/* DVBS2 auto is 0x00/0x00 */
 		state->dnxt.fec_mask = 0x00;
@@ -977,15 +971,13 @@ static int cx24120_set_fec(struct cx24120_state *state,
 static int cx24120_set_pilot(struct cx24120_state *state,
 		fe_pilot_t pilot) {
 
-	dev_dbg(&state->i2c->dev,
-		"%s(%d)\n", __func__, pilot);
+	dev_dbg(&state->i2c->dev, "%s(%d)\n", __func__, pilot);
 
 	/* Pilot only valid in DVBS2 */
 	if (state->dnxt.delsys != SYS_DVBS2) {
 		state->dnxt.pilot_val = CX24120_PILOT_OFF;
 		return 0;
 	}
-
 
 	switch (pilot) {
 	case PILOT_OFF:
@@ -1038,16 +1030,16 @@ static struct cx24120_symrate_delay {
 	u32 symrate;		/* Check for >= this symrate */
 	u32 delay;		/* Timeout in ms */
 } symrates_delay_table[] = {
-{ SYS_DVBS,	10000000,	400   },
-{ SYS_DVBS,	8000000,	2000  },
-{ SYS_DVBS,	6000000,	5000  },
-{ SYS_DVBS,	3000000,	10000 },
-{ SYS_DVBS,	0,		15000 },
-{ SYS_DVBS2,	10000000,	600   }, /* DVBS2 needs a little longer */
-{ SYS_DVBS2,	8000000,	2000  }, /* (so these might need bumping too) */
-{ SYS_DVBS2,	6000000,	5000  },
-{ SYS_DVBS2,	3000000,	10000 },
-{ SYS_DVBS2,	0,		15000 },
+	{ SYS_DVBS,  10000000,   400 },
+	{ SYS_DVBS,   8000000,  2000 },
+	{ SYS_DVBS,   6000000,  5000 },
+	{ SYS_DVBS,   3000000, 10000 },
+	{ SYS_DVBS,         0, 15000 },
+	{ SYS_DVBS2, 10000000,   600 }, /* DVBS2 needs a little longer */
+	{ SYS_DVBS2,  8000000,  2000 }, /* (so these might need bumping too) */
+	{ SYS_DVBS2,  6000000,  5000 },
+	{ SYS_DVBS2,  3000000, 10000 },
+	{ SYS_DVBS2,        0, 15000 },
 };
 
 
@@ -1077,7 +1069,6 @@ static int cx24120_set_frontend(struct dvb_frontend *fe)
 		break;
 	}
 
-
 	state->dnxt.delsys = c->delivery_system;
 	state->dnxt.modulation = c->modulation;
 	state->dnxt.frequency = c->frequency;
@@ -1098,7 +1089,6 @@ static int cx24120_set_frontend(struct dvb_frontend *fe)
 	ret = cx24120_set_symbolrate(state, c->symbol_rate);
 	if (ret !=  0)
 		return ret;
-
 
 	/* discard the 'current' tuning parameters and prepare to tune */
 	cx24120_clone_params(fe);
@@ -1123,8 +1113,6 @@ static int cx24120_set_frontend(struct dvb_frontend *fe)
 		"%s: Inversion   = %d (val = 0x%02x)\n", __func__,
 		state->dcur.inversion, state->dcur.inversion_val);
 
-
-
 	/* Tune in */
 	cmd.id = CMD_TUNEREQUEST;
 	cmd.len = 15;
@@ -1143,7 +1131,6 @@ static int cx24120_set_frontend(struct dvb_frontend *fe)
 	cmd.arg[12] = state->dcur.ratediv;
 	cmd.arg[13] = state->dcur.clkdiv;
 	cmd.arg[14] = 0;
-
 
 	/* Send tune command */
 	ret = cx24120_message_send(state, &cmd);
@@ -1183,17 +1170,13 @@ static int cx24120_set_frontend(struct dvb_frontend *fe)
 		delay_cnt -= 20;
 	}
 
-
 	/* Fail to tune */
-	dev_dbg(&state->i2c->dev, "%s: Tuning failed\n",
-		__func__);
+	dev_dbg(&state->i2c->dev, "%s: Tuning failed\n", __func__);
 
 	return -EINVAL;
 
-
 tuned:
-	dev_dbg(&state->i2c->dev, "%s: Tuning successful\n",
-		__func__);
+	dev_dbg(&state->i2c->dev, "%s: Tuning successful\n", __func__);
 
 	/* Set clock ratios */
 	cx24120_set_clock_ratios(fe);
