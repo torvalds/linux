@@ -79,6 +79,34 @@ struct i387_soft_struct {
 };
 
 /*
+ * List of XSAVE features Linux knows about:
+ */
+enum xfeature_bit {
+	XSTATE_BIT_FP,
+	XSTATE_BIT_SSE,
+	XSTATE_BIT_YMM,
+	XSTATE_BIT_BNDREGS,
+	XSTATE_BIT_BNDCSR,
+	XSTATE_BIT_OPMASK,
+	XSTATE_BIT_ZMM_Hi256,
+	XSTATE_BIT_Hi16_ZMM,
+
+	XFEATURES_NR_MAX,
+};
+
+#define XSTATE_FP		(1 << XSTATE_BIT_FP)
+#define XSTATE_SSE		(1 << XSTATE_BIT_SSE)
+#define XSTATE_YMM		(1 << XSTATE_BIT_YMM)
+#define XSTATE_BNDREGS		(1 << XSTATE_BIT_BNDREGS)
+#define XSTATE_BNDCSR		(1 << XSTATE_BIT_BNDCSR)
+#define XSTATE_OPMASK		(1 << XSTATE_BIT_OPMASK)
+#define XSTATE_ZMM_Hi256	(1 << XSTATE_BIT_ZMM_Hi256)
+#define XSTATE_Hi16_ZMM		(1 << XSTATE_BIT_Hi16_ZMM)
+
+#define XSTATE_FPSSE		(XSTATE_FP | XSTATE_SSE)
+#define XSTATE_AVX512		(XSTATE_OPMASK | XSTATE_ZMM_Hi256 | XSTATE_Hi16_ZMM)
+
+/*
  * There are 16x 256-bit AVX registers named YMM0-YMM15.
  * The low 128 bits are aliased to the 16 SSE registers (XMM0-XMM15)
  * and are stored in 'struct i387_fxsave_struct::xmm_space[]'.
