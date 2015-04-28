@@ -1197,6 +1197,9 @@ int netvsc_device_add(struct hv_device *device, void *additional_info)
 	 */
 	ndev = net_device->ndev;
 
+	/* Add netvsc_device context to netvsc_device */
+	net_device->nd_ctx = netdev_priv(ndev);
+
 	/* Initialize the NetVSC channel extension */
 	init_completion(&net_device->channel_init_wait);
 
