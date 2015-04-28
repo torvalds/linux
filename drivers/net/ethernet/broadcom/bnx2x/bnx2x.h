@@ -521,6 +521,7 @@ struct bnx2x_fp_txdata {
 };
 
 enum bnx2x_tpa_mode_t {
+	TPA_MODE_DISABLED,
 	TPA_MODE_LRO,
 	TPA_MODE_GRO
 };
@@ -589,7 +590,6 @@ struct bnx2x_fastpath {
 
 	/* TPA related */
 	struct bnx2x_agg_info	*tpa_info;
-	u8			disable_tpa;
 #ifdef BNX2X_STOP_ON_ERROR
 	u64			tpa_queue_used;
 #endif

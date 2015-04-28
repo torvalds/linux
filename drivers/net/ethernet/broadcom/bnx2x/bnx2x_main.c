@@ -3128,7 +3128,7 @@ static unsigned long bnx2x_get_q_flags(struct bnx2x *bp,
 		__set_bit(BNX2X_Q_FLG_FORCE_DEFAULT_PRI, &flags);
 	}
 
-	if (!fp->disable_tpa) {
+	if (fp->mode != TPA_MODE_DISABLED) {
 		__set_bit(BNX2X_Q_FLG_TPA, &flags);
 		__set_bit(BNX2X_Q_FLG_TPA_IPV6, &flags);
 		if (fp->mode == TPA_MODE_GRO)
@@ -3176,7 +3176,7 @@ static void bnx2x_pf_rx_q_prep(struct bnx2x *bp,
 	u16 sge_sz = 0;
 	u16 tpa_agg_size = 0;
 
-	if (!fp->disable_tpa) {
+	if (fp->mode != TPA_MODE_DISABLED) {
 		pause->sge_th_lo = SGE_TH_LO(bp);
 		pause->sge_th_hi = SGE_TH_HI(bp);
 
