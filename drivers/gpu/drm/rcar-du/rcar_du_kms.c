@@ -763,6 +763,7 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 		rgrp->dev = rcdu;
 		rgrp->mmio_offset = mmio_offsets[i];
 		rgrp->index = i;
+		rgrp->num_crtcs = min(rcdu->num_crtcs - 2 * i, 2U);
 
 		/* Pre-associate all hardware planes with the first CRTC in the
 		 * group.
