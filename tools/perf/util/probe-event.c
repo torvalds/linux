@@ -2567,6 +2567,8 @@ err_out:
 	goto out;
 }
 
+bool __weak arch__prefers_symtab(void) { return false; }
+
 static int convert_to_probe_trace_events(struct perf_probe_event *pev,
 					  struct probe_trace_event **tevs,
 					  int max_tevs, const char *target)
@@ -2580,6 +2582,12 @@ static int convert_to_probe_trace_events(struct perf_probe_event *pev,
 			pr_warning("Failed to make a group name.\n");
 			return ret;
 		}
+	}
+
+	if (arch__prefers_symtab() && !perf_probe_event_need_dwarf(pev)) {
+		ret = find_probe_trace_events_from_map(pev, tevs, max_tevs, target);
+		if (ret > 0)
+			return ret; /* Found in symbol table */
 	}
 
 	/* Convert perf_probe_event with debuginfo */
