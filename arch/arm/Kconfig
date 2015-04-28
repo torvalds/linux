@@ -989,6 +989,8 @@ source "arch/arm/mach-vt8500/Kconfig"
 
 source "arch/arm/mach-w90x900/Kconfig"
 
+source "arch/arm/mach-zx/Kconfig"
+
 source "arch/arm/mach-zynq/Kconfig"
 
 # Definitions to make life easier
