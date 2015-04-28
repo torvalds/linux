@@ -26,6 +26,7 @@
 
 struct xgene_enet_pdata;
 struct xgene_enet_stats;
+struct xgene_enet_desc_ring;
 
 /* clears and then set bits */
 static inline void xgene_set_bits(u32 *dst, u32 val, u32 start, u32 len)
@@ -314,9 +315,6 @@ static inline u16 xgene_enet_get_numslots(u16 id, u32 size)
 		      size / WORK_DESC_SIZE;
 }
 
-struct xgene_enet_desc_ring *xgene_enet_setup_ring(
-		struct xgene_enet_desc_ring *ring);
-void xgene_enet_clear_ring(struct xgene_enet_desc_ring *ring);
 void xgene_enet_parse_error(struct xgene_enet_desc_ring *ring,
 			    struct xgene_enet_pdata *pdata,
 			    enum xgene_enet_err_code status);
@@ -327,5 +325,6 @@ bool xgene_ring_mgr_init(struct xgene_enet_pdata *p);
 
 extern struct xgene_mac_ops xgene_gmac_ops;
 extern struct xgene_port_ops xgene_gport_ops;
+extern struct xgene_ring_ops xgene_ring1_ops;
 
 #endif /* __XGENE_ENET_HW_H__ */

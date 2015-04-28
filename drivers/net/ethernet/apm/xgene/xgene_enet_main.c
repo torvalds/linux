@@ -48,6 +48,7 @@ static int xgene_enet_refill_bufpool(struct xgene_enet_desc_ring *buf_pool,
 {
 	struct sk_buff *skb;
 	struct xgene_enet_raw_desc16 *raw_desc;
+	struct xgene_enet_pdata *pdata;
 	struct net_device *ndev;
 	struct device *dev;
 	dma_addr_t dma_addr;
@@ -58,6 +59,7 @@ static int xgene_enet_refill_bufpool(struct xgene_enet_desc_ring *buf_pool,
 
 	ndev = buf_pool->ndev;
 	dev = ndev_to_dev(buf_pool->ndev);
+	pdata = netdev_priv(ndev);
 	bufdatalen = BUF_LEN_CODE_2K | (SKB_BUFFER_SIZE & GENMASK(11, 0));
 	len = XGENE_ENET_MAX_MTU;
 
@@ -82,7 +84,7 @@ static int xgene_enet_refill_bufpool(struct xgene_enet_desc_ring *buf_pool,
 		tail = (tail + 1) & slots;
 	}
 
-	iowrite32(nbuf, buf_pool->cmd);
+	pdata->ring_ops->wr_cmd(buf_pool, nbuf);
 	buf_pool->tail = tail;
 
 	return 0;
@@ -102,26 +104,16 @@ static u8 xgene_enet_hdr_len(const void *data)
 	return (eth->h_proto == htons(ETH_P_8021Q)) ? VLAN_ETH_HLEN : ETH_HLEN;
 }
 
-static u32 xgene_enet_ring_len(struct xgene_enet_desc_ring *ring)
-{
-	u32 __iomem *cmd_base = ring->cmd_base;
-	u32 ring_state, num_msgs;
-
-	ring_state = ioread32(&cmd_base[1]);
-	num_msgs = ring_state & CREATE_MASK(NUMMSGSINQ_POS, NUMMSGSINQ_LEN);
-
-	return num_msgs >> NUMMSGSINQ_POS;
-}
-
 static void xgene_enet_delete_bufpool(struct xgene_enet_desc_ring *buf_pool)
 {
+	struct xgene_enet_pdata *pdata = netdev_priv(buf_pool->ndev);
 	struct xgene_enet_raw_desc16 *raw_desc;
 	u32 slots = buf_pool->slots - 1;
 	u32 tail = buf_pool->tail;
 	u32 userinfo;
 	int i, len;
 
-	len = xgene_enet_ring_len(buf_pool);
+	len = pdata->ring_ops->len(buf_pool);
 	for (i = 0; i < len; i++) {
 		tail = (tail - 1) & slots;
 		raw_desc = &buf_pool->raw_desc16[tail];
@@ -131,7 +123,7 @@ static void xgene_enet_delete_bufpool(struct xgene_enet_desc_ring *buf_pool)
 		dev_kfree_skb_any(buf_pool->rx_skb[userinfo]);
 	}
 
-	iowrite32(-len, buf_pool->cmd);
+	pdata->ring_ops->wr_cmd(buf_pool, -len);
 	buf_pool->tail = tail;
 }
 
@@ -263,8 +255,8 @@ static netdev_tx_t xgene_enet_start_xmit(struct sk_buff *skb,
 	struct xgene_enet_desc_ring *cp_ring = tx_ring->cp_ring;
 	u32 tx_level, cq_level;
 
-	tx_level = xgene_enet_ring_len(tx_ring);
-	cq_level = xgene_enet_ring_len(cp_ring);
+	tx_level = pdata->ring_ops->len(tx_ring);
+	cq_level = pdata->ring_ops->len(cp_ring);
 	if (unlikely(tx_level > pdata->tx_qcnt_hi ||
 		     cq_level > pdata->cp_qcnt_hi)) {
 		netif_stop_queue(ndev);
@@ -276,7 +268,7 @@ static netdev_tx_t xgene_enet_start_xmit(struct sk_buff *skb,
 		return NETDEV_TX_OK;
 	}
 
-	iowrite32(1, tx_ring->cmd);
+	pdata->ring_ops->wr_cmd(tx_ring, 1);
 	skb_tx_timestamp(skb);
 	tx_ring->tail = (tx_ring->tail + 1) & (tx_ring->slots - 1);
 
@@ -389,11 +381,11 @@ static int xgene_enet_process_ring(struct xgene_enet_desc_ring *ring,
 	} while (--budget);
 
 	if (likely(count)) {
-		iowrite32(-count, ring->cmd);
+		pdata->ring_ops->wr_cmd(ring, -count);
 		ring->head = head;
 
 		if (netif_queue_stopped(ring->ndev)) {
-			if (xgene_enet_ring_len(ring) < pdata->cp_qcnt_low)
+			if (pdata->ring_ops->len(ring) < pdata->cp_qcnt_low)
 				netif_wake_queue(ring->ndev);
 		}
 	}
@@ -510,6 +502,7 @@ static int xgene_enet_open(struct net_device *ndev)
 	else
 		schedule_delayed_work(&pdata->link_work, PHY_POLL_LINK_OFF);
 
+	netif_carrier_off(ndev);
 	netif_start_queue(ndev);
 
 	return ret;
@@ -545,7 +538,7 @@ static void xgene_enet_delete_ring(struct xgene_enet_desc_ring *ring)
 	pdata = netdev_priv(ring->ndev);
 	dev = ndev_to_dev(ring->ndev);
 
-	xgene_enet_clear_ring(ring);
+	pdata->ring_ops->clear(ring);
 	dma_free_coherent(dev, ring->size, ring->desc_addr, ring->dma);
 }
 
@@ -598,15 +591,17 @@ static int xgene_enet_get_ring_size(struct device *dev,
 
 static void xgene_enet_free_desc_ring(struct xgene_enet_desc_ring *ring)
 {
+	struct xgene_enet_pdata *pdata;
 	struct device *dev;
 
 	if (!ring)
 		return;
 
 	dev = ndev_to_dev(ring->ndev);
+	pdata = netdev_priv(ring->ndev);
 
 	if (ring->desc_addr) {
-		xgene_enet_clear_ring(ring);
+		pdata->ring_ops->clear(ring);
 		dma_free_coherent(dev, ring->size, ring->desc_addr, ring->dma);
 	}
 	devm_kfree(dev, ring);
@@ -670,7 +665,7 @@ static struct xgene_enet_desc_ring *xgene_enet_create_desc_ring(
 
 	ring->cmd_base = pdata->ring_cmd_addr + (ring->num << 6);
 	ring->cmd = ring->cmd_base + INC_DEC_CMD_ADDR;
-	ring = xgene_enet_setup_ring(ring);
+	ring = pdata->ring_ops->setup(ring);
 	netdev_dbg(ndev, "ring info: num=%d  size=%d  id=%d  slots=%d\n",
 		   ring->num, ring->size, ring->id, ring->slots);
 
@@ -1051,6 +1046,7 @@ static void xgene_enet_setup_ops(struct xgene_enet_pdata *pdata)
 		break;
 	}
 
+	pdata->ring_ops = &xgene_ring1_ops;
 }
 
 static void xgene_enet_napi_add(struct xgene_enet_pdata *pdata)

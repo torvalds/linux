@@ -105,6 +105,15 @@ struct xgene_port_ops {
 	void (*shutdown)(struct xgene_enet_pdata *pdata);
 };
 
+struct xgene_ring_ops {
+	u8 num_ring_config;
+	u8 num_ring_id_shift;
+	struct xgene_enet_desc_ring * (*setup)(struct xgene_enet_desc_ring *);
+	void (*clear)(struct xgene_enet_desc_ring *);
+	void (*wr_cmd)(struct xgene_enet_desc_ring *, int);
+	u32 (*len)(struct xgene_enet_desc_ring *);
+};
+
 /* ethernet private data */
 struct xgene_enet_pdata {
 	struct net_device *ndev;
@@ -136,6 +145,7 @@ struct xgene_enet_pdata {
 	struct rtnl_link_stats64 stats;
 	struct xgene_mac_ops *mac_ops;
 	struct xgene_port_ops *port_ops;
+	struct xgene_ring_ops *ring_ops;
 	struct delayed_work link_work;
 	u32 port_id;
 	u8 cpu_bufnum;
