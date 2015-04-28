@@ -2101,7 +2101,7 @@ static void lgdt3306a_DumpRegs(struct lgdt3306a_state *state)
 		lgdt3306a_read_reg(state, regtab[i], &regval1[i]);
 		if (regval1[i] != regval2[i]) {
 			lg_debug(" %04X = %02X\n", regtab[i], regval1[i]);
-				 regval2[i] = regval1[i];
+			regval2[i] = regval1[i];
 		}
 	}
 	debug = sav_debug;
