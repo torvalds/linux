@@ -2184,6 +2184,7 @@ struct rt5645_priv {
 	struct i2c_client *i2c;
 	struct snd_soc_jack *hp_jack;
 	struct snd_soc_jack *mic_jack;
+	struct snd_soc_jack *btn_jack;
 	struct delayed_work jack_detect_work;
 
 	int codec_type;
@@ -2196,9 +2197,12 @@ struct rt5645_priv {
 	int pll_src;
 	int pll_in;
 	int pll_out;
+
+	int jack_type;
+	bool en_button_func;
 };
 
 int rt5645_set_jack_detect(struct snd_soc_codec *codec,
-	struct snd_soc_jack *hp_jack, struct snd_soc_jack *mic_jack);
-
+	struct snd_soc_jack *hp_jack, struct snd_soc_jack *mic_jack,
+	struct snd_soc_jack *btn_jack);
 #endif /* __RT5645_H__ */
