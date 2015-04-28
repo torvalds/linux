@@ -71,7 +71,6 @@ __be32		nfsd_commit(struct svc_rqst *, struct svc_fh *,
 #endif /* CONFIG_NFSD_V3 */
 __be32		nfsd_open(struct svc_rqst *, struct svc_fh *, umode_t,
 				int, struct file **);
-void		nfsd_close(struct file *);
 struct raparms;
 __be32		nfsd_get_tmp_read_open(struct svc_rqst *, struct svc_fh *,
 				struct file **, struct raparms **);
