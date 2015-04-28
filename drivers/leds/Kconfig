@@ -50,6 +50,14 @@ config LEDS_AAT1290
 	help
 	 This option enables support for the LEDs on the AAT1290.
 
+config LEDS_BCM6328
+	tristate "LED Support for Broadcom BCM6328"
+	depends on LEDS_CLASS
+	depends on OF
+	help
+	  This option enables support for LEDs connected to the BCM6328
+	  LED HW controller accessed via MMIO registers.
+
 config LEDS_LM3530
 	tristate "LCD Backlight driver for LM3530"
 	depends on LEDS_CLASS
