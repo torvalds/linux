@@ -775,6 +775,8 @@ static bool want_demangle(bool is_kernel_sym)
 	return is_kernel_sym ? symbol_conf.demangle_kernel : symbol_conf.demangle;
 }
 
+void __weak arch__elf_sym_adjust(GElf_Sym *sym __maybe_unused) { }
+
 int dso__load_sym(struct dso *dso, struct map *map,
 		  struct symsrc *syms_ss, struct symsrc *runtime_ss,
 		  symbol_filter_t filter, int kmodule)
@@ -938,6 +940,8 @@ int dso__load_sym(struct dso *dso, struct map *map,
 		    (map->type == MAP__FUNCTION) &&
 		    (sym.st_value & 1))
 			--sym.st_value;
+
+		arch__elf_sym_adjust(&sym);
 
 		if (dso->kernel || kmodule) {
 			char dso_name[PATH_MAX];
