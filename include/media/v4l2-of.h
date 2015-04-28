@@ -103,13 +103,13 @@ static inline int v4l2_of_parse_endpoint(const struct device_node *node,
 	return -ENOSYS;
 }
 
-struct v4l2_of_endpoint *v4l2_of_alloc_parse_endpoint(
+static inline struct v4l2_of_endpoint *v4l2_of_alloc_parse_endpoint(
 	const struct device_node *node)
 {
 	return NULL;
 }
 
-static void v4l2_of_free_endpoint(struct v4l2_of_endpoint *endpoint)
+static inline void v4l2_of_free_endpoint(struct v4l2_of_endpoint *endpoint)
 {
 }
 
