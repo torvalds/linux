@@ -257,7 +257,7 @@ static inline int save_xstate_epilog(void __user *buf, int ia32_frame)
 	return err;
 }
 
-static inline int save_user_xstate(struct xsave_struct __user *buf)
+static inline int copy_fpregs_to_sigframe(struct xsave_struct __user *buf)
 {
 	int err;
 
@@ -312,7 +312,7 @@ int copy_fpstate_to_sigframe(void __user *buf, void __user *buf_fx, int size)
 
 	if (user_has_fpu()) {
 		/* Save the live register state to the user directly. */
-		if (save_user_xstate(buf_fx))
+		if (copy_fpregs_to_sigframe(buf_fx))
 			return -1;
 		/* Update the thread's fxstate to save the fsave header. */
 		if (ia32_fxstate)
