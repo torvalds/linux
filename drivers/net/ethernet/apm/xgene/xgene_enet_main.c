@@ -876,14 +876,21 @@ static int xgene_get_port_id(struct device *dev, struct xgene_enet_pdata *pdata)
 	int ret;
 
 	ret = device_property_read_u32(dev, "port-id", &id);
-	if (!ret && id > 1) {
-		dev_err(dev, "Incorrect port-id specified\n");
-		return -ENODEV;
+
+	switch (ret) {
+	case -EINVAL:
+		pdata->port_id = 0;
+		ret = 0;
+		break;
+	case 0:
+		pdata->port_id = id & BIT(0);
+		break;
+	default:
+		dev_err(dev, "Incorrect port-id specified: errno: %d\n", ret);
+		break;
 	}
 
-	pdata->port_id = id;
-
-	return 0;
+	return ret;
 }
 
 static int xgene_get_mac_address(struct device *dev,
@@ -928,6 +935,7 @@ static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 	struct device *dev;
 	struct resource *res;
 	void __iomem *base_addr;
+	u32 offset;
 	int ret;
 
 	pdev = pdata->pdev;
@@ -1024,7 +1032,10 @@ static int xgene_enet_get_resources(struct xgene_enet_pdata *pdata)
 	if (pdata->phy_mode == PHY_INTERFACE_MODE_RGMII ||
 	    pdata->phy_mode == PHY_INTERFACE_MODE_SGMII) {
 		pdata->mcx_mac_addr = pdata->base_addr + BLOCK_ETH_MAC_OFFSET;
-		pdata->mcx_mac_csr_addr = base_addr + BLOCK_ETH_MAC_CSR_OFFSET;
+		offset = (pdata->enet_id == XGENE_ENET1) ?
+			  BLOCK_ETH_MAC_CSR_OFFSET :
+			  X2_BLOCK_ETH_MAC_CSR_OFFSET;
+		pdata->mcx_mac_csr_addr = base_addr + offset;
 	} else {
 		pdata->mcx_mac_addr = base_addr + BLOCK_AXG_MAC_OFFSET;
 		pdata->mcx_mac_csr_addr = base_addr + BLOCK_AXG_MAC_CSR_OFFSET;
@@ -1266,6 +1277,7 @@ static const struct of_device_id xgene_enet_of_match[] = {
 	{.compatible = "apm,xgene-enet",    .data = (void *)XGENE_ENET1},
 	{.compatible = "apm,xgene1-sgenet", .data = (void *)XGENE_ENET1},
 	{.compatible = "apm,xgene1-xgenet", .data = (void *)XGENE_ENET1},
+	{.compatible = "apm,xgene2-sgenet", .data = (void *)XGENE_ENET2},
 	{.compatible = "apm,xgene2-xgenet", .data = (void *)XGENE_ENET2},
 	{},
 };
