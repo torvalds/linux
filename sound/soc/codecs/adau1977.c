@@ -493,10 +493,7 @@ static int adau1977_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	}
 
-	if (ret)
-		return ret;
-
-	return 0;
+	return ret;
 }
 
 static int adau1977_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
