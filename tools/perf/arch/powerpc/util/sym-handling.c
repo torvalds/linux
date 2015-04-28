@@ -64,4 +64,19 @@ bool arch__prefers_symtab(void)
 {
 	return true;
 }
+
+#define PPC64LE_LEP_OFFSET	8
+
+void arch__fix_tev_from_maps(struct perf_probe_event *pev,
+			     struct probe_trace_event *tev, struct map *map)
+{
+	/*
+	 * ppc64 ABIv2 local entry point is currently always 2 instructions
+	 * (8 bytes) after the global entry point.
+	 */
+	if (!pev->uprobes && map->dso->symtab_type == DSO_BINARY_TYPE__KALLSYMS) {
+		tev->point.address += PPC64LE_LEP_OFFSET;
+		tev->point.offset += PPC64LE_LEP_OFFSET;
+	}
+}
 #endif

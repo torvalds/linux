@@ -136,6 +136,8 @@ extern int show_available_vars(struct perf_probe_event *pevs, int npevs,
 extern int show_available_funcs(const char *module, struct strfilter *filter,
 				bool user);
 bool arch__prefers_symtab(void);
+void arch__fix_tev_from_maps(struct perf_probe_event *pev,
+			     struct probe_trace_event *tev, struct map *map);
 
 /* Maximum index number of event-name postfix */
 #define MAX_EVENT_INDEX	1024
