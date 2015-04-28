@@ -40,7 +40,7 @@ struct rcar_du_group {
 
 	struct mutex lock;
 
-	struct rcar_du_planes planes;
+	struct rcar_du_plane planes[RCAR_DU_NUM_KMS_PLANES];
 };
 
 u32 rcar_du_group_read(struct rcar_du_group *rgrp, u32 reg);

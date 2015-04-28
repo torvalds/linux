@@ -291,7 +291,7 @@ static int rcar_du_atomic_check(struct drm_device *dev,
 		 * plane(s) as freed.
 		 */
 		if (!plane_state->format) {
-			index = plane - plane->group->planes.planes;
+			index = plane - plane->group->planes;
 			group_freed_planes[plane->group->index] |= 1 << index;
 			plane_state->hwindex = -1;
 			continue;
@@ -304,7 +304,7 @@ static int rcar_du_atomic_check(struct drm_device *dev,
 			groups |= 1 << plane->group->index;
 			needs_realloc = true;
 
-			index = plane - plane->group->planes.planes;
+			index = plane - plane->group->planes;
 			group_freed_planes[plane->group->index] |= 1 << index;
 			plane_state->hwindex = -1;
 		}
@@ -327,7 +327,7 @@ static int rcar_du_atomic_check(struct drm_device *dev,
 		unsigned int used_planes = 0;
 
 		for (i = 0; i < RCAR_DU_NUM_KMS_PLANES; ++i) {
-			struct rcar_du_plane *plane = &group->planes.planes[i];
+			struct rcar_du_plane *plane = &group->planes[i];
 			struct rcar_du_plane_state *plane_state;
 			struct drm_plane_state *s;
 

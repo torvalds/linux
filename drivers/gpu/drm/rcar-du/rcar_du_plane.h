@@ -38,10 +38,6 @@ static inline struct rcar_du_plane *to_rcar_plane(struct drm_plane *plane)
 	return container_of(plane, struct rcar_du_plane, plane);
 }
 
-struct rcar_du_planes {
-	struct rcar_du_plane planes[RCAR_DU_NUM_KMS_PLANES];
-};
-
 /**
  * struct rcar_du_plane_state - Driver-specific plane state
  * @state: base DRM plane state

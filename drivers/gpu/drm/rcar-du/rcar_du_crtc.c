@@ -213,8 +213,8 @@ static void rcar_du_crtc_update_planes(struct rcar_du_crtc *rcrtc)
 	u32 dptsr = 0;
 	u32 dspr = 0;
 
-	for (i = 0; i < ARRAY_SIZE(rcrtc->group->planes.planes); ++i) {
-		struct rcar_du_plane *plane = &rcrtc->group->planes.planes[i];
+	for (i = 0; i < ARRAY_SIZE(rcrtc->group->planes); ++i) {
+		struct rcar_du_plane *plane = &rcrtc->group->planes[i];
 		unsigned int j;
 
 		if (plane->plane.state->crtc != &rcrtc->crtc)
@@ -427,8 +427,8 @@ void rcar_du_crtc_resume(struct rcar_du_crtc *rcrtc)
 	rcar_du_crtc_start(rcrtc);
 
 	/* Commit the planes state. */
-	for (i = 0; i < ARRAY_SIZE(rcrtc->group->planes.planes); ++i) {
-		struct rcar_du_plane *plane = &rcrtc->group->planes.planes[i];
+	for (i = 0; i < ARRAY_SIZE(rcrtc->group->planes); ++i) {
+		struct rcar_du_plane *plane = &rcrtc->group->planes[i];
 
 		if (plane->plane.state->crtc != &rcrtc->crtc)
 			continue;
@@ -592,7 +592,7 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 	rcrtc->enabled = false;
 
 	ret = drm_crtc_init_with_planes(rcdu->ddev, crtc,
-					&rgrp->planes.planes[index % 2].plane,
+					&rgrp->planes[index % 2].plane,
 					NULL, &crtc_funcs);
 	if (ret < 0)
 		return ret;

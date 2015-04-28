@@ -389,7 +389,6 @@ static const uint32_t formats[] = {
 
 int rcar_du_planes_init(struct rcar_du_group *rgrp)
 {
-	struct rcar_du_planes *planes = &rgrp->planes;
 	struct rcar_du_device *rcdu = rgrp->dev;
 	unsigned int num_planes;
 	unsigned int num_crtcs;
@@ -409,7 +408,7 @@ int rcar_du_planes_init(struct rcar_du_group *rgrp)
 		enum drm_plane_type type = i < num_crtcs
 					 ? DRM_PLANE_TYPE_PRIMARY
 					 : DRM_PLANE_TYPE_OVERLAY;
-		struct rcar_du_plane *plane = &planes->planes[i];
+		struct rcar_du_plane *plane = &rgrp->planes[i];
 
 		plane->group = rgrp;
 
