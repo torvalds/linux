@@ -383,6 +383,8 @@ static int rcar_du_atomic_check(struct drm_device *dev,
 	for (i = 0; i < dev->mode_config.num_total_plane; ++i) {
 		struct rcar_du_plane_state *plane_state;
 		struct rcar_du_plane *plane;
+		unsigned int crtc_planes;
+		unsigned int free;
 		int idx;
 
 		if (!state->planes[i])
@@ -401,8 +403,21 @@ static int rcar_du_atomic_check(struct drm_device *dev,
 		    !rcar_du_plane_needs_realloc(plane, plane_state))
 			continue;
 
+		/* Try to allocate the plane from the free planes currently
+		 * associated with the target CRTC to avoid restarting the CRTC
+		 * group and thus minimize flicker. If it fails fall back to
+		 * allocating from all free planes.
+		 */
+		crtc_planes = to_rcar_crtc(plane_state->state.crtc)->index % 2
+			    ? plane->group->dptsr_planes
+			    : ~plane->group->dptsr_planes;
+		free = group_free_planes[plane->group->index];
+
 		idx = rcar_du_plane_hwalloc(plane_state->format->planes,
-					group_free_planes[plane->group->index]);
+					    free & crtc_planes);
+		if (idx < 0)
+			idx = rcar_du_plane_hwalloc(plane_state->format->planes,
+						    free);
 		if (idx < 0) {
 			dev_dbg(rcdu->dev, "%s: no available hardware plane\n",
 				__func__);
@@ -748,6 +763,11 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 		rgrp->dev = rcdu;
 		rgrp->mmio_offset = mmio_offsets[i];
 		rgrp->index = i;
+
+		/* Pre-associate all hardware planes with the first CRTC in the
+		 * group.
+		 */
+		rgrp->dptsr_planes = 0;
 
 		ret = rcar_du_planes_init(rgrp);
 		if (ret < 0)
