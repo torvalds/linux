@@ -121,7 +121,7 @@ static void store_sigregs(void)
 static void load_sigregs(void)
 {
 	restore_access_regs(current->thread.acrs);
-	/* restore_fp_ctl is done in restore_sigregs */
+	restore_fp_ctl(&current->thread.fp_regs.fpc);
 	if (current->thread.vxrs) {
 		int i;
 
@@ -166,8 +166,8 @@ static int restore_sigregs(struct pt_regs *regs, _sigregs __user *sregs)
 	if (!is_ri_task(current) && (user_sregs.regs.psw.mask & PSW_MASK_RI))
 		return -EINVAL;
 
-	/* Loading the floating-point-control word can fail. Do that first. */
-	if (restore_fp_ctl(&user_sregs.fpregs.fpc))
+	/* Test the floating-point-control word. */
+	if (test_fp_ctl(user_sregs.fpregs.fpc))
 		return -EINVAL;
 
 	/* Use regs->psw.mask instead of PSW_USER_BITS to preserve PER bit. */

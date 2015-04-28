@@ -172,7 +172,7 @@ static void load_sigregs(void)
 	int i;
 
 	restore_access_regs(current->thread.acrs);
-	/* restore_fp_ctl is done in restore_sigregs */
+	restore_fp_ctl(&current->thread.fp_regs.fpc);
 	if (current->thread.vxrs) {
 		for (i = 0; i < __NUM_FPRS; i++)
 			*(freg_t *)(current->thread.vxrs + i) =
@@ -217,8 +217,8 @@ static int restore_sigregs32(struct pt_regs *regs,_sigregs32 __user *sregs)
 	if (!is_ri_task(current) && (user_sregs.regs.psw.mask & PSW32_MASK_RI))
 		return -EINVAL;
 
-	/* Loading the floating-point-control word can fail. Do that first. */
-	if (restore_fp_ctl(&user_sregs.fpregs.fpc))
+	/* Test the floating-point-control word. */
+	if (test_fp_ctl(user_sregs.fpregs.fpc))
 		return -EINVAL;
 
 	/* Use regs->psw.mask instead of PSW_USER_BITS to preserve PER bit. */
