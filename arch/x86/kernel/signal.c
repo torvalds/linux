@@ -235,7 +235,7 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size,
 
 	/* save i387 and extended state */
 	if (fpu->fpstate_active &&
-	    save_xstate_sig(*fpstate, (void __user *)buf_fx, math_size) < 0)
+	    copy_fpstate_to_sigframe(*fpstate, (void __user *)buf_fx, math_size) < 0)
 		return (void __user *)-1L;
 
 	return (void __user *)sp;

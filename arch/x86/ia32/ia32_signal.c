@@ -327,7 +327,7 @@ static void __user *get_sigframe(struct ksignal *ksig, struct pt_regs *regs,
 
 		sp = alloc_mathframe(sp, 1, &fx_aligned, &math_size);
 		*fpstate = (struct _fpstate_ia32 __user *) sp;
-		if (save_xstate_sig(*fpstate, (void __user *)fx_aligned,
+		if (copy_fpstate_to_sigframe(*fpstate, (void __user *)fx_aligned,
 				    math_size) < 0)
 			return (void __user *) -1L;
 	}

@@ -523,7 +523,7 @@ static inline void switch_fpu_finish(struct fpu *new_fpu, fpu_switch_t fpu_switc
 /*
  * Signal frame handlers...
  */
-extern int save_xstate_sig(void __user *buf, void __user *fx, int size);
+extern int copy_fpstate_to_sigframe(void __user *buf, void __user *fx, int size);
 extern int __restore_xstate_sig(void __user *buf, void __user *fx, int size);
 
 static inline int xstate_sigframe_size(void)

@@ -293,7 +293,7 @@ static inline int save_user_xstate(struct xsave_struct __user *buf)
  * For [f]xsave state, update the SW reserved fields in the [f]xsave frame
  * indicating the absence/presence of the extended state to the user.
  */
-int save_xstate_sig(void __user *buf, void __user *buf_fx, int size)
+int copy_fpstate_to_sigframe(void __user *buf, void __user *buf_fx, int size)
 {
 	struct xsave_struct *xsave = &current->thread.fpu.state.xsave;
 	struct task_struct *tsk = current;
