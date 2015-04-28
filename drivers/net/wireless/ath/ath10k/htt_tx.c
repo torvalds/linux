@@ -26,7 +26,7 @@ void __ath10k_htt_tx_dec_pending(struct ath10k_htt *htt)
 {
 	htt->num_pending_tx--;
 	if (htt->num_pending_tx == htt->max_num_pending_tx - 1)
-		ieee80211_wake_queues(htt->ar->hw);
+		ath10k_mac_tx_unlock(htt->ar, ATH10K_TX_PAUSE_Q_FULL);
 }
 
 static void ath10k_htt_tx_dec_pending(struct ath10k_htt *htt)
@@ -49,7 +49,7 @@ static int ath10k_htt_tx_inc_pending(struct ath10k_htt *htt)
 
 	htt->num_pending_tx++;
 	if (htt->num_pending_tx == htt->max_num_pending_tx)
-		ieee80211_stop_queues(htt->ar->hw);
+		ath10k_mac_tx_lock(htt->ar, ATH10K_TX_PAUSE_Q_FULL);
 
 exit:
 	spin_unlock_bh(&htt->tx_lock);
@@ -420,9 +420,8 @@ int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	int res;
 	u8 flags0 = 0;
 	u16 msdu_id, flags1 = 0;
-	dma_addr_t paddr;
-	u32 frags_paddr;
-	bool use_frags;
+	dma_addr_t paddr = 0;
+	u32 frags_paddr = 0;
 
 	res = ath10k_htt_tx_inc_pending(htt);
 	if (res)
@@ -439,12 +438,6 @@ int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 
 	prefetch_len = min(htt->prefetch_len, msdu->len);
 	prefetch_len = roundup(prefetch_len, 4);
-
-	/* Since HTT 3.0 there is no separate mgmt tx command. However in case
-	 * of mgmt tx using TX_FRM there is not tx fragment list. Instead of tx
-	 * fragment list host driver specifies directly frame pointer. */
-	use_frags = htt->target_version_major < 3 ||
-		    !ieee80211_is_mgmt(hdr->frame_control);
 
 	skb_cb->htt.txbuf = dma_pool_alloc(htt->tx_pool, GFP_ATOMIC,
 					   &paddr);
@@ -466,7 +459,12 @@ int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	if (res)
 		goto err_free_txbuf;
 
-	if (likely(use_frags)) {
+	switch (skb_cb->txmode) {
+	case ATH10K_HW_TXRX_RAW:
+	case ATH10K_HW_TXRX_NATIVE_WIFI:
+		flags0 |= HTT_DATA_TX_DESC_FLAGS0_MAC_HDR_PRESENT;
+		/* pass through */
+	case ATH10K_HW_TXRX_ETHERNET:
 		frags = skb_cb->htt.txbuf->frags;
 
 		frags[0].paddr = __cpu_to_le32(skb_cb->paddr);
@@ -474,15 +472,17 @@ int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 		frags[1].paddr = 0;
 		frags[1].len = 0;
 
-		flags0 |= SM(ATH10K_HW_TXRX_NATIVE_WIFI,
-			     HTT_DATA_TX_DESC_FLAGS0_PKT_TYPE);
+		flags0 |= SM(skb_cb->txmode, HTT_DATA_TX_DESC_FLAGS0_PKT_TYPE);
 
 		frags_paddr = skb_cb->htt.txbuf_paddr;
-	} else {
+		break;
+	case ATH10K_HW_TXRX_MGMT:
 		flags0 |= SM(ATH10K_HW_TXRX_MGMT,
 			     HTT_DATA_TX_DESC_FLAGS0_PKT_TYPE);
+		flags0 |= HTT_DATA_TX_DESC_FLAGS0_MAC_HDR_PRESENT;
 
 		frags_paddr = skb_cb->paddr;
+		break;
 	}
 
 	/* Normally all commands go through HTC which manages tx credits for
@@ -508,10 +508,8 @@ int ath10k_htt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 			prefetch_len);
 	skb_cb->htt.txbuf->htc_hdr.flags = 0;
 
-	if (!ieee80211_has_protected(hdr->frame_control))
+	if (!skb_cb->is_protected)
 		flags0 |= HTT_DATA_TX_DESC_FLAGS0_NO_ENCRYPT;
-
-	flags0 |= HTT_DATA_TX_DESC_FLAGS0_MAC_HDR_PRESENT;
 
 	flags1 |= SM((u16)vdev_id, HTT_DATA_TX_DESC_FLAGS1_VDEV_ID);
 	flags1 |= SM((u16)tid, HTT_DATA_TX_DESC_FLAGS1_EXT_TID);
