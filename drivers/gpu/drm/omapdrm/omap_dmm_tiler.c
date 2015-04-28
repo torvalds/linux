@@ -309,6 +309,21 @@ static int fill(struct tcm_area *area, struct page **pages,
 	struct tcm_area slice, area_s;
 	struct dmm_txn *txn;
 
+	/*
+	 * FIXME
+	 *
+	 * Asynchronous fill does not work reliably, as the driver does not
+	 * handle errors in the async code paths. The fill operation may
+	 * silently fail, leading to leaking DMM engines, which may eventually
+	 * lead to deadlock if we run out of DMM engines.
+	 *
+	 * For now, always set 'wait' so that we only use sync fills. Async
+	 * fills should be fixed, or alternatively we could decide to only
+	 * support sync fills and so the whole async code path could be removed.
+	 */
+
+	wait = true;
+
 	txn = dmm_txn_init(omap_dmm, area->tcm);
 	if (IS_ERR_OR_NULL(txn))
 		return -ENOMEM;
