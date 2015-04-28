@@ -20,6 +20,11 @@
 #include <asm/cputype.h>
 #include <asm/suspend.h>
 
+/*
+ * The public API for this code is documented in arch/arm/include/asm/mcpm.h.
+ * For a comprehensive description of the main algorithm used here, please
+ * see Documentation/arm/cluster-pm-race-avoidance.txt.
+ */
 
 struct sync_struct mcpm_sync;
 
