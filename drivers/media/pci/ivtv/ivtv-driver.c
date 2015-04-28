@@ -805,11 +805,11 @@ static void ivtv_init_struct2(struct ivtv *itv)
 {
 	int i;
 
-	for (i = 0; i < IVTV_CARD_MAX_VIDEO_INPUTS; i++)
+	for (i = 0; i < IVTV_CARD_MAX_VIDEO_INPUTS - 1; i++)
 		if (itv->card->video_inputs[i].video_type == 0)
 			break;
 	itv->nof_inputs = i;
-	for (i = 0; i < IVTV_CARD_MAX_AUDIO_INPUTS; i++)
+	for (i = 0; i < IVTV_CARD_MAX_AUDIO_INPUTS - 1; i++)
 		if (itv->card->audio_inputs[i].audio_type == 0)
 			break;
 	itv->nof_audio_inputs = i;
