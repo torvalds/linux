@@ -27,7 +27,8 @@ struct rcar_du_device;
  * @index: group index
  * @use_count: number of users of the group (rcar_du_group_(get|put))
  * @used_crtcs: number of CRTCs currently in use
- * @lock: protects the DPTSR register
+ * @lock: protects the dptsr_planes field and the DPTSR register
+ * @dptsr_planes: bitmask of planes driven by dot-clock and timing generator 1
  * @planes: planes handled by the group
  */
 struct rcar_du_group {
@@ -39,6 +40,7 @@ struct rcar_du_group {
 	unsigned int used_crtcs;
 
 	struct mutex lock;
+	unsigned int dptsr_planes;
 
 	struct rcar_du_plane planes[RCAR_DU_NUM_KMS_PLANES];
 };
