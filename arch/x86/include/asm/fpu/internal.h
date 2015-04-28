@@ -358,7 +358,7 @@ static inline void __fpregs_activate(struct fpu *fpu)
  * to save the FP state - we'll just take a #NM
  * fault and get the FPU access back.
  */
-static inline int user_has_fpu(void)
+static inline int fpregs_active(void)
 {
 	return current->thread.fpu.fpregs_active;
 }
@@ -557,7 +557,7 @@ static inline void user_fpu_begin(void)
 	struct fpu *fpu = &current->thread.fpu;
 
 	preempt_disable();
-	if (!user_has_fpu())
+	if (!fpregs_active())
 		fpregs_activate(fpu);
 	preempt_enable();
 }

@@ -251,7 +251,7 @@ void lguest_arch_run_guest(struct lg_cpu *cpu)
 	 * we set it now, so we can trap and pass that trap to the Guest if it
 	 * uses the FPU.
 	 */
-	if (cpu->ts && user_has_fpu())
+	if (cpu->ts && fpregs_active())
 		stts();
 
 	/*
@@ -283,7 +283,7 @@ void lguest_arch_run_guest(struct lg_cpu *cpu)
 		wrmsr(MSR_IA32_SYSENTER_CS, __KERNEL_CS, 0);
 
 	/* Clear the host TS bit if it was set above. */
-	if (cpu->ts && user_has_fpu())
+	if (cpu->ts && fpregs_active())
 		clts();
 
 	/*
@@ -301,7 +301,7 @@ void lguest_arch_run_guest(struct lg_cpu *cpu)
 	 * a different CPU. So all the critical stuff should be done
 	 * before this.
 	 */
-	else if (cpu->regs->trapnum == 7 && !user_has_fpu())
+	else if (cpu->regs->trapnum == 7 && !fpregs_active())
 		fpu__restore();
 }
 
