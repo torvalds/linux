@@ -118,8 +118,8 @@ struct greybus_descriptor_bundle {
  * exchanged using the CPort.
  */
 struct greybus_descriptor_cport {
-	__u8	bundle;
 	__le16	id;
+	__u8	bundle;
 	__u8	protocol_id;	/* enum greybus_protocol */
 } __packed;
 
