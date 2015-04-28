@@ -288,7 +288,8 @@ cmp_v4l2_format(const struct v4l2_format *lhs, const struct v4l2_format *rhs)
 		lhs->fmt.pix.field == rhs->fmt.pix.field &&
 		lhs->fmt.pix.colorspace == rhs->fmt.pix.colorspace &&
 		lhs->fmt.pix.ycbcr_enc == rhs->fmt.pix.ycbcr_enc &&
-		lhs->fmt.pix.quantization == rhs->fmt.pix.quantization;
+		lhs->fmt.pix.quantization == rhs->fmt.pix.quantization &&
+		lhs->fmt.pix.xfer_func == rhs->fmt.pix.xfer_func;
 }
 
 static inline u32 vpfe_reg_read(struct vpfe_ccdc *ccdc, u32 offset)
