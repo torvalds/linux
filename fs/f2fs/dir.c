@@ -76,20 +76,10 @@ static unsigned long dir_block_index(unsigned int level,
 	return bidx;
 }
 
-static bool early_match_name(size_t namelen, f2fs_hash_t namehash,
-				struct f2fs_dir_entry *de)
-{
-	if (le16_to_cpu(de->name_len) != namelen)
-		return false;
-
-	if (de->hash_code != namehash)
-		return false;
-
-	return true;
-}
-
 static struct f2fs_dir_entry *find_in_block(struct page *dentry_page,
-				struct qstr *name, int *max_slots,
+				struct f2fs_filename *fname,
+				f2fs_hash_t namehash,
+				int *max_slots,
 				struct page **res_page)
 {
 	struct f2fs_dentry_block *dentry_blk;
@@ -99,8 +89,7 @@ static struct f2fs_dir_entry *find_in_block(struct page *dentry_page,
 	dentry_blk = (struct f2fs_dentry_block *)kmap(dentry_page);
 
 	make_dentry_ptr(NULL, &d, (void *)dentry_blk, 1);
-	de = find_target_dentry(name, max_slots, &d);
-
+	de = find_target_dentry(fname, namehash, max_slots, &d);
 	if (de)
 		*res_page = dentry_page;
 	else
@@ -114,13 +103,15 @@ static struct f2fs_dir_entry *find_in_block(struct page *dentry_page,
 	return de;
 }
 
-struct f2fs_dir_entry *find_target_dentry(struct qstr *name, int *max_slots,
-						struct f2fs_dentry_ptr *d)
+struct f2fs_dir_entry *find_target_dentry(struct f2fs_filename *fname,
+			f2fs_hash_t namehash, int *max_slots,
+			struct f2fs_dentry_ptr *d)
 {
 	struct f2fs_dir_entry *de;
 	unsigned long bit_pos = 0;
-	f2fs_hash_t namehash = f2fs_dentry_hash(name);
 	int max_len = 0;
+	struct f2fs_str de_name = FSTR_INIT(NULL, 0);
+	struct f2fs_str *name = &fname->disk_name;
 
 	if (max_slots)
 		*max_slots = 0;
@@ -132,8 +123,18 @@ struct f2fs_dir_entry *find_target_dentry(struct qstr *name, int *max_slots,
 		}
 
 		de = &d->dentry[bit_pos];
-		if (early_match_name(name->len, namehash, de) &&
-			!memcmp(d->filename[bit_pos], name->name, name->len))
+
+		/* encrypted case */
+		de_name.name = d->filename[bit_pos];
+		de_name.len = le16_to_cpu(de->name_len);
+
+		/* show encrypted name */
+		if (fname->hash) {
+			if (de->hash_code == fname->hash)
+				goto found;
+		} else if (de_name.len == name->len &&
+			de->hash_code == namehash &&
+			!memcmp(de_name.name, name->name, name->len))
 			goto found;
 
 		if (max_slots && max_len > *max_slots)
@@ -155,16 +156,21 @@ found:
 }
 
 static struct f2fs_dir_entry *find_in_level(struct inode *dir,
-			unsigned int level, struct qstr *name,
-			f2fs_hash_t namehash, struct page **res_page)
+					unsigned int level,
+					struct f2fs_filename *fname,
+					struct page **res_page)
 {
-	int s = GET_DENTRY_SLOTS(name->len);
+	struct qstr name = FSTR_TO_QSTR(&fname->disk_name);
+	int s = GET_DENTRY_SLOTS(name.len);
 	unsigned int nbucket, nblock;
 	unsigned int bidx, end_block;
 	struct page *dentry_page;
 	struct f2fs_dir_entry *de = NULL;
 	bool room = false;
 	int max_slots;
+	f2fs_hash_t namehash;
+
+	namehash = f2fs_dentry_hash(&name);
 
 	f2fs_bug_on(F2FS_I_SB(dir), level > MAX_DIR_HASH_DEPTH);
 
@@ -183,7 +189,8 @@ static struct f2fs_dir_entry *find_in_level(struct inode *dir,
 			continue;
 		}
 
-		de = find_in_block(dentry_page, name, &max_slots, res_page);
+		de = find_in_block(dentry_page, fname, namehash, &max_slots,
+								res_page);
 		if (de)
 			break;
 
@@ -211,30 +218,34 @@ struct f2fs_dir_entry *f2fs_find_entry(struct inode *dir,
 {
 	unsigned long npages = dir_blocks(dir);
 	struct f2fs_dir_entry *de = NULL;
-	f2fs_hash_t name_hash;
 	unsigned int max_depth;
 	unsigned int level;
+	struct f2fs_filename fname;
+	int err;
 
 	*res_page = NULL;
 
-	if (f2fs_has_inline_dentry(dir))
-		return find_in_inline_dir(dir, child, res_page);
-
-	if (npages == 0)
+	err = f2fs_fname_setup_filename(dir, child, 1, &fname);
+	if (err)
 		return NULL;
 
-	name_hash = f2fs_dentry_hash(child);
+	if (f2fs_has_inline_dentry(dir)) {
+		de = find_in_inline_dir(dir, &fname, res_page);
+		goto out;
+	}
+
+	if (npages == 0)
+		goto out;
+
 	max_depth = F2FS_I(dir)->i_current_depth;
 
 	for (level = 0; level < max_depth; level++) {
-		de = find_in_level(dir, level, child, name_hash, res_page);
+		de = find_in_level(dir, level, &fname, res_page);
 		if (de)
 			break;
 	}
-	if (!de && F2FS_I(dir)->chash != name_hash) {
-		F2FS_I(dir)->chash = name_hash;
-		F2FS_I(dir)->clevel = level - 1;
-	}
+out:
+	f2fs_fname_free_filename(&fname);
 	return de;
 }
 
