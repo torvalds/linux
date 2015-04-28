@@ -9,7 +9,6 @@
 #include <asm/fpu/internal.h>
 #include <asm/sigframe.h>
 #include <asm/tlbflush.h>
-#include <asm/xcr.h>
 
 static const char *xfeature_names[] =
 {

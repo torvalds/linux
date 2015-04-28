@@ -41,7 +41,6 @@
 #include <asm/virtext.h>
 #include <asm/mce.h>
 #include <asm/fpu/internal.h>
-#include <asm/xcr.h>
 #include <asm/perf_event.h>
 #include <asm/debugreg.h>
 #include <asm/kexec.h>
