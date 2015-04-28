@@ -144,7 +144,6 @@ static struct phy_ops ops = {
 	.owner		= THIS_MODULE,
 };
 
-#ifdef CONFIG_OF
 static const struct usb_phy_data omap_usb2_data = {
 	.label = "omap_usb2",
 	.flags = OMAP_USB2_HAS_START_SRP | OMAP_USB2_HAS_SET_VBUS,
@@ -185,7 +184,6 @@ static const struct of_device_id omap_usb2_id_table[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, omap_usb2_id_table);
-#endif
 
 static int omap_usb2_probe(struct platform_device *pdev)
 {
@@ -200,7 +198,7 @@ static int omap_usb2_probe(struct platform_device *pdev)
 	const struct of_device_id *of_id;
 	struct usb_phy_data *phy_data;
 
-	of_id = of_match_device(of_match_ptr(omap_usb2_id_table), &pdev->dev);
+	of_id = of_match_device(omap_usb2_id_table, &pdev->dev);
 
 	if (!of_id)
 		return -EINVAL;
@@ -256,7 +254,7 @@ static int omap_usb2_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, phy);
 	pm_runtime_enable(phy->dev);
 
-	generic_phy = devm_phy_create(phy->dev, NULL, &ops, NULL);
+	generic_phy = devm_phy_create(phy->dev, NULL, &ops);
 	if (IS_ERR(generic_phy)) {
 		pm_runtime_disable(phy->dev);
 		return PTR_ERR(generic_phy);
@@ -318,7 +316,7 @@ static int omap_usb2_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_RUNTIME
+#ifdef CONFIG_PM
 
 static int omap_usb2_runtime_suspend(struct device *dev)
 {
@@ -377,7 +375,7 @@ static struct platform_driver omap_usb2_driver = {
 	.driver		= {
 		.name	= "omap-usb2",
 		.pm	= DEV_PM_OPS,
-		.of_match_table = of_match_ptr(omap_usb2_id_table),
+		.of_match_table = omap_usb2_id_table,
 	},
 };
 
