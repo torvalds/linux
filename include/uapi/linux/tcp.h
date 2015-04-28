@@ -190,6 +190,7 @@ struct tcp_info {
 	__u64	tcpi_pacing_rate;
 	__u64	tcpi_max_pacing_rate;
 	__u64	tcpi_bytes_acked; /* RFC4898 tcpEStatsAppHCThruOctetsAcked */
+	__u64	tcpi_bytes_received; /* RFC4898 tcpEStatsAppHCThruOctetsReceived */
 };
 
 /* for TCP_MD5SIG socket option */

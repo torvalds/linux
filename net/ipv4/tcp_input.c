@@ -3289,6 +3289,15 @@ static void tcp_snd_una_update(struct tcp_sock *tp, u32 ack)
 	tp->snd_una = ack;
 }
 
+/* If we update tp->rcv_nxt, also update tp->bytes_received */
+static void tcp_rcv_nxt_update(struct tcp_sock *tp, u32 seq)
+{
+	u32 delta = seq - tp->rcv_nxt;
+
+	tp->bytes_received += delta;
+	tp->rcv_nxt = seq;
+}
+
 /* Update our send window.
  *
  * Window update algorithm, described in RFC793/RFC1122 (used in linux-2.2
@@ -4245,7 +4254,7 @@ static void tcp_ofo_queue(struct sock *sk)
 
 		tail = skb_peek_tail(&sk->sk_receive_queue);
 		eaten = tail && tcp_try_coalesce(sk, tail, skb, &fragstolen);
-		tp->rcv_nxt = TCP_SKB_CB(skb)->end_seq;
+		tcp_rcv_nxt_update(tp, TCP_SKB_CB(skb)->end_seq);
 		if (!eaten)
 			__skb_queue_tail(&sk->sk_receive_queue, skb);
 		if (TCP_SKB_CB(skb)->tcp_flags & TCPHDR_FIN)
@@ -4413,7 +4422,7 @@ static int __must_check tcp_queue_rcv(struct sock *sk, struct sk_buff *skb, int 
 	__skb_pull(skb, hdrlen);
 	eaten = (tail &&
 		 tcp_try_coalesce(sk, tail, skb, fragstolen)) ? 1 : 0;
-	tcp_sk(sk)->rcv_nxt = TCP_SKB_CB(skb)->end_seq;
+	tcp_rcv_nxt_update(tcp_sk(sk), TCP_SKB_CB(skb)->end_seq);
 	if (!eaten) {
 		__skb_queue_tail(&sk->sk_receive_queue, skb);
 		skb_set_owner_r(skb, sk);
@@ -4506,7 +4515,7 @@ queue_and_out:
 
 			eaten = tcp_queue_rcv(sk, skb, 0, &fragstolen);
 		}
-		tp->rcv_nxt = TCP_SKB_CB(skb)->end_seq;
+		tcp_rcv_nxt_update(tp, TCP_SKB_CB(skb)->end_seq);
 		if (skb->len)
 			tcp_event_data_recv(sk, skb);
 		if (TCP_SKB_CB(skb)->tcp_flags & TCPHDR_FIN)
@@ -5254,7 +5263,7 @@ void tcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 					tcp_rcv_rtt_measure_ts(sk, skb);
 
 					__skb_pull(skb, tcp_header_len);
-					tp->rcv_nxt = TCP_SKB_CB(skb)->end_seq;
+					tcp_rcv_nxt_update(tp, TCP_SKB_CB(skb)->end_seq);
 					NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPHPHITSTOUSER);
 					eaten = 1;
 				}

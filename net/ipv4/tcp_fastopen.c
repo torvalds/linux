@@ -206,6 +206,7 @@ static bool tcp_fastopen_create_child(struct sock *sk,
 			skb_set_owner_r(skb2, child);
 			__skb_queue_tail(&child->sk_receive_queue, skb2);
 			tp->syn_data_acked = 1;
+			tp->bytes_received = end_seq - TCP_SKB_CB(skb)->seq - 1;
 		} else {
 			end_seq = TCP_SKB_CB(skb)->seq + 1;
 		}
