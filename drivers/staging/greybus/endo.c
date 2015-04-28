@@ -61,14 +61,17 @@ struct device_type greybus_endo_type = {
  *
  * List must end with 0x00 in order to properly terminate the list.
  */
-static u8 endo_0555[] = {
+static u8 endo_4755[] = {
 	0x01,
 	0x03,
 	0x05,
+	0x06,
 	0x07,
 	0x08,
 	0x0a,
 	0x0c,
+	0x0d,
+	0x0e,
 	0x00,
 };
 
@@ -81,8 +84,8 @@ static int create_modules(struct gb_endo *endo)
 
 	/* Depending on the endo type, create a bunch of different modules */
 	switch (endo->type) {
-	case 0x0555:
-		endo_modules = &endo_0555[0];
+	case 0x4755:
+		endo_modules = &endo_4755[0];
 		break;
 	default:
 		dev_err(&endo->dev, "Unknown endo type 0x%04x, aborting!",
@@ -120,7 +123,7 @@ struct gb_endo *gb_endo_create(struct greybus_host_device *hd)
 	// using "fake" numbers.
 	strcpy(&endo->svc.serial_number[0], "042");
 	strcpy(&endo->svc.version[0], "0.0");
-	endo->type = 0x0555;
+	endo->type = 0x4755;
 
 	dev_set_name(&endo->dev, "endo-0x%04x", endo->type);
 	retval = device_add(&endo->dev);
