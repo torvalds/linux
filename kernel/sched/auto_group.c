@@ -139,7 +139,7 @@ autogroup_move_group(struct task_struct *p, struct autogroup *ag)
 
 	p->signal->autogroup = autogroup_kref_get(ag);
 
-	if (!ACCESS_ONCE(sysctl_sched_autogroup_enabled))
+	if (!READ_ONCE(sysctl_sched_autogroup_enabled))
 		goto out;
 
 	for_each_thread(p, t)

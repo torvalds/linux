@@ -852,10 +852,10 @@ static void check_thread_timers(struct task_struct *tsk,
 	/*
 	 * Check for the special case thread timers.
 	 */
-	soft = ACCESS_ONCE(sig->rlim[RLIMIT_RTTIME].rlim_cur);
+	soft = READ_ONCE(sig->rlim[RLIMIT_RTTIME].rlim_cur);
 	if (soft != RLIM_INFINITY) {
 		unsigned long hard =
-			ACCESS_ONCE(sig->rlim[RLIMIT_RTTIME].rlim_max);
+			READ_ONCE(sig->rlim[RLIMIT_RTTIME].rlim_max);
 
 		if (hard != RLIM_INFINITY &&
 		    tsk->rt.timeout > DIV_ROUND_UP(hard, USEC_PER_SEC/HZ)) {
@@ -958,11 +958,11 @@ static void check_process_timers(struct task_struct *tsk,
 			 SIGPROF);
 	check_cpu_itimer(tsk, &sig->it[CPUCLOCK_VIRT], &virt_expires, utime,
 			 SIGVTALRM);
-	soft = ACCESS_ONCE(sig->rlim[RLIMIT_CPU].rlim_cur);
+	soft = READ_ONCE(sig->rlim[RLIMIT_CPU].rlim_cur);
 	if (soft != RLIM_INFINITY) {
 		unsigned long psecs = cputime_to_secs(ptime);
 		unsigned long hard =
-			ACCESS_ONCE(sig->rlim[RLIMIT_CPU].rlim_max);
+			READ_ONCE(sig->rlim[RLIMIT_CPU].rlim_max);
 		cputime_t x;
 		if (psecs >= hard) {
 			/*
