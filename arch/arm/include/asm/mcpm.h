@@ -245,35 +245,6 @@ struct mcpm_platform_ops {
  */
 int __init mcpm_platform_register(const struct mcpm_platform_ops *ops);
 
-/* Synchronisation structures for coordinating safe cluster setup/teardown: */
-
-/*
- * When modifying this structure, make sure you update the MCPM_SYNC_ defines
- * to match.
- */
-struct mcpm_sync_struct {
-	/* individual CPU states */
-	struct {
-		s8 cpu __aligned(__CACHE_WRITEBACK_GRANULE);
-	} cpus[MAX_CPUS_PER_CLUSTER];
-
-	/* cluster state */
-	s8 cluster __aligned(__CACHE_WRITEBACK_GRANULE);
-
-	/* inbound-side state */
-	s8 inbound __aligned(__CACHE_WRITEBACK_GRANULE);
-};
-
-struct sync_struct {
-	struct mcpm_sync_struct clusters[MAX_NR_CLUSTERS];
-};
-
-void __mcpm_cpu_going_down(unsigned int cpu, unsigned int cluster);
-void __mcpm_cpu_down(unsigned int cpu, unsigned int cluster);
-void __mcpm_outbound_leave_critical(unsigned int cluster, int state);
-bool __mcpm_outbound_enter_critical(unsigned int this_cpu, unsigned int cluster);
-int __mcpm_cluster_state(unsigned int cluster);
-
 /**
  * mcpm_sync_init - Initialize the cluster synchronization support
  *
@@ -311,6 +282,29 @@ int __init mcpm_sync_init(
 int __init mcpm_loopback(void (*cache_disable)(void));
 
 void __init mcpm_smp_set_ops(void);
+
+/*
+ * Synchronisation structures for coordinating safe cluster setup/teardown.
+ * This is private to the MCPM core code and shared between C and assembly.
+ * When modifying this structure, make sure you update the MCPM_SYNC_ defines
+ * to match.
+ */
+struct mcpm_sync_struct {
+	/* individual CPU states */
+	struct {
+		s8 cpu __aligned(__CACHE_WRITEBACK_GRANULE);
+	} cpus[MAX_CPUS_PER_CLUSTER];
+
+	/* cluster state */
+	s8 cluster __aligned(__CACHE_WRITEBACK_GRANULE);
+
+	/* inbound-side state */
+	s8 inbound __aligned(__CACHE_WRITEBACK_GRANULE);
+};
+
+struct sync_struct {
+	struct mcpm_sync_struct clusters[MAX_NR_CLUSTERS];
+};
 
 #else
 
