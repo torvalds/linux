@@ -591,14 +591,14 @@ void tipc_bearer_stop(struct net *net)
 
 /* Caller should hold rtnl_lock to protect the bearer */
 static int __tipc_nl_add_bearer(struct tipc_nl_msg *msg,
-				struct tipc_bearer *bearer)
+				struct tipc_bearer *bearer, int nlflags)
 {
 	void *hdr;
 	struct nlattr *attrs;
 	struct nlattr *prop;
 
 	hdr = genlmsg_put(msg->skb, msg->portid, msg->seq, &tipc_genl_family,
-			  NLM_F_MULTI, TIPC_NL_BEARER_GET);
+			  nlflags, TIPC_NL_BEARER_GET);
 	if (!hdr)
 		return -EMSGSIZE;
 
@@ -657,7 +657,7 @@ int tipc_nl_bearer_dump(struct sk_buff *skb, struct netlink_callback *cb)
 		if (!bearer)
 			continue;
 
-		err = __tipc_nl_add_bearer(&msg, bearer);
+		err = __tipc_nl_add_bearer(&msg, bearer, NLM_F_MULTI);
 		if (err)
 			break;
 	}
@@ -705,7 +705,7 @@ int tipc_nl_bearer_get(struct sk_buff *skb, struct genl_info *info)
 		goto err_out;
 	}
 
-	err = __tipc_nl_add_bearer(&msg, bearer);
+	err = __tipc_nl_add_bearer(&msg, bearer, 0);
 	if (err)
 		goto err_out;
 	rtnl_unlock();
@@ -857,14 +857,14 @@ int tipc_nl_bearer_set(struct sk_buff *skb, struct genl_info *info)
 }
 
 static int __tipc_nl_add_media(struct tipc_nl_msg *msg,
-			       struct tipc_media *media)
+			       struct tipc_media *media, int nlflags)
 {
 	void *hdr;
 	struct nlattr *attrs;
 	struct nlattr *prop;
 
 	hdr = genlmsg_put(msg->skb, msg->portid, msg->seq, &tipc_genl_family,
-			  NLM_F_MULTI, TIPC_NL_MEDIA_GET);
+			  nlflags, TIPC_NL_MEDIA_GET);
 	if (!hdr)
 		return -EMSGSIZE;
 
@@ -916,7 +916,8 @@ int tipc_nl_media_dump(struct sk_buff *skb, struct netlink_callback *cb)
 
 	rtnl_lock();
 	for (; media_info_array[i] != NULL; i++) {
-		err = __tipc_nl_add_media(&msg, media_info_array[i]);
+		err = __tipc_nl_add_media(&msg, media_info_array[i],
+					  NLM_F_MULTI);
 		if (err)
 			break;
 	}
@@ -963,7 +964,7 @@ int tipc_nl_media_get(struct sk_buff *skb, struct genl_info *info)
 		goto err_out;
 	}
 
-	err = __tipc_nl_add_media(&msg, media);
+	err = __tipc_nl_add_media(&msg, media, 0);
 	if (err)
 		goto err_out;
 	rtnl_unlock();

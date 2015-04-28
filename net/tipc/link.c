@@ -2013,7 +2013,7 @@ msg_full:
 
 /* Caller should hold appropriate locks to protect the link */
 static int __tipc_nl_add_link(struct net *net, struct tipc_nl_msg *msg,
-			      struct tipc_link *link)
+			      struct tipc_link *link, int nlflags)
 {
 	int err;
 	void *hdr;
@@ -2022,7 +2022,7 @@ static int __tipc_nl_add_link(struct net *net, struct tipc_nl_msg *msg,
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 
 	hdr = genlmsg_put(msg->skb, msg->portid, msg->seq, &tipc_genl_family,
-			  NLM_F_MULTI, TIPC_NL_LINK_GET);
+			  nlflags, TIPC_NL_LINK_GET);
 	if (!hdr)
 		return -EMSGSIZE;
 
@@ -2095,7 +2095,7 @@ static int __tipc_nl_add_node_links(struct net *net, struct tipc_nl_msg *msg,
 		if (!node->links[i])
 			continue;
 
-		err = __tipc_nl_add_link(net, msg, node->links[i]);
+		err = __tipc_nl_add_link(net, msg, node->links[i], NLM_F_MULTI);
 		if (err)
 			return err;
 	}
@@ -2209,7 +2209,7 @@ int tipc_nl_link_get(struct sk_buff *skb, struct genl_info *info)
 		goto err_out;
 	}
 
-	err = __tipc_nl_add_link(net, &msg, link);
+	err = __tipc_nl_add_link(net, &msg, link, 0);
 	if (err)
 		goto err_out;
 
