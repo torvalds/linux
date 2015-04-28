@@ -78,15 +78,10 @@ int mcpm_cpu_power_up(unsigned int cpu, unsigned int cluster)
 	bool cpu_is_down, cluster_is_down;
 	int ret = 0;
 
+	pr_debug("%s: cpu %u cluster %u\n", __func__, cpu, cluster);
 	if (!platform_ops)
 		return -EUNATCH; /* try not to shadow power_up errors */
 	might_sleep();
-
-	/* backward compatibility callback */
-	if (platform_ops->power_up)
-		return platform_ops->power_up(cpu, cluster);
-
-	pr_debug("%s: cpu %u cluster %u\n", __func__, cpu, cluster);
 
 	/*
 	 * Since this is called with IRQs enabled, and no arch_spin_lock_irq
@@ -128,29 +123,17 @@ void mcpm_cpu_power_down(void)
 	bool cpu_going_down, last_man;
 	phys_reset_t phys_reset;
 
-	if (WARN_ON_ONCE(!platform_ops))
-	       return;
-	BUG_ON(!irqs_disabled());
-
-	/*
-	 * Do this before calling into the power_down method,
-	 * as it might not always be safe to do afterwards.
-	 */
-	setup_mm_for_reboot();
-
-	/* backward compatibility callback */
-	if (platform_ops->power_down) {
-		platform_ops->power_down();
-		goto not_dead;
-	}
-
 	mpidr = read_cpuid_mpidr();
 	cpu = MPIDR_AFFINITY_LEVEL(mpidr, 0);
 	cluster = MPIDR_AFFINITY_LEVEL(mpidr, 1);
 	pr_debug("%s: cpu %u cluster %u\n", __func__, cpu, cluster);
+	if (WARN_ON_ONCE(!platform_ops))
+	       return;
+	BUG_ON(!irqs_disabled());
+
+	setup_mm_for_reboot();
 
 	__mcpm_cpu_going_down(cpu, cluster);
-
 	arch_spin_lock(&mcpm_lock);
 	BUG_ON(__mcpm_cluster_state(cluster) != CLUSTER_UP);
 
@@ -187,7 +170,6 @@ void mcpm_cpu_power_down(void)
 	if (cpu_going_down)
 		wfi();
 
-not_dead:
 	/*
 	 * It is possible for a power_up request to happen concurrently
 	 * with a power_down request for the same CPU. In this case the
@@ -224,17 +206,6 @@ void mcpm_cpu_suspend(u64 expected_residency)
 	if (WARN_ON_ONCE(!platform_ops))
 		return;
 
-	/* backward compatibility callback */
-	if (platform_ops->suspend) {
-		phys_reset_t phys_reset;
-		BUG_ON(!irqs_disabled());
-		setup_mm_for_reboot();
-		platform_ops->suspend(expected_residency);
-		phys_reset = (phys_reset_t)(unsigned long)virt_to_phys(cpu_reset);
-		phys_reset(virt_to_phys(mcpm_entry_point));
-		BUG();
-	}
-
 	/* Some platforms might have to enable special resume modes, etc. */
 	if (platform_ops->cpu_suspend_prepare) {
 		unsigned int mpidr = read_cpuid_mpidr();
@@ -255,12 +226,6 @@ int mcpm_cpu_powered_up(void)
 
 	if (!platform_ops)
 		return -EUNATCH;
-
-	/* backward compatibility callback */
-	if (platform_ops->powered_up) {
-		platform_ops->powered_up();
-		return 0;
-	}
 
 	mpidr = read_cpuid_mpidr();
 	cpu = MPIDR_AFFINITY_LEVEL(mpidr, 0);

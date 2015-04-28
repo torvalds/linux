@@ -234,12 +234,6 @@ struct mcpm_platform_ops {
 	void (*cpu_is_up)(unsigned int cpu, unsigned int cluster);
 	void (*cluster_is_up)(unsigned int cluster);
 	int (*wait_for_powerdown)(unsigned int cpu, unsigned int cluster);
-
-	/* deprecated callbacks */
-	int (*power_up)(unsigned int cpu, unsigned int cluster);
-	void (*power_down)(void);
-	void (*suspend)(u64);
-	void (*powered_up)(void);
 };
 
 /**
