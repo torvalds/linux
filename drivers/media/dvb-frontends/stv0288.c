@@ -134,20 +134,20 @@ static int stv0288_set_symbolrate(struct dvb_frontend *fe, u32 srate)
 
 	temp = (unsigned int)srate / 1000;
 
-		temp = temp * 32768;
-		temp = temp / 25;
-		temp = temp / 125;
-		b[0] = (unsigned char)((temp >> 12) & 0xff);
-		b[1] = (unsigned char)((temp >> 4) & 0xff);
-		b[2] = (unsigned char)((temp << 4) & 0xf0);
-		stv0288_writeregI(state, 0x28, 0x80); /* SFRH */
-		stv0288_writeregI(state, 0x29, 0); /* SFRM */
-		stv0288_writeregI(state, 0x2a, 0); /* SFRL */
+	temp = temp * 32768;
+	temp = temp / 25;
+	temp = temp / 125;
+	b[0] = (unsigned char)((temp >> 12) & 0xff);
+	b[1] = (unsigned char)((temp >> 4) & 0xff);
+	b[2] = (unsigned char)((temp << 4) & 0xf0);
+	stv0288_writeregI(state, 0x28, 0x80); /* SFRH */
+	stv0288_writeregI(state, 0x29, 0); /* SFRM */
+	stv0288_writeregI(state, 0x2a, 0); /* SFRL */
 
-		stv0288_writeregI(state, 0x28, b[0]);
-		stv0288_writeregI(state, 0x29, b[1]);
-		stv0288_writeregI(state, 0x2a, b[2]);
-		dprintk("stv0288: stv0288_set_symbolrate\n");
+	stv0288_writeregI(state, 0x28, b[0]);
+	stv0288_writeregI(state, 0x29, b[1]);
+	stv0288_writeregI(state, 0x2a, b[2]);
+	dprintk("stv0288: stv0288_set_symbolrate\n");
 
 	return 0;
 }
