@@ -618,12 +618,7 @@ static irqreturn_t saa7164_irq_ts(struct saa7164_port *port)
 static irqreturn_t saa7164_irq(int irq, void *dev_id)
 {
 	struct saa7164_dev *dev = dev_id;
-	struct saa7164_port *porta = &dev->ports[SAA7164_PORT_TS1];
-	struct saa7164_port *portb = &dev->ports[SAA7164_PORT_TS2];
-	struct saa7164_port *portc = &dev->ports[SAA7164_PORT_ENC1];
-	struct saa7164_port *portd = &dev->ports[SAA7164_PORT_ENC2];
-	struct saa7164_port *porte = &dev->ports[SAA7164_PORT_VBI1];
-	struct saa7164_port *portf = &dev->ports[SAA7164_PORT_VBI2];
+	struct saa7164_port *porta, *portb, *portc, *portd, *porte, *portf;
 
 	u32 intid, intstat[INT_SIZE/4];
 	int i, handled = 0, bit;
@@ -633,6 +628,13 @@ static irqreturn_t saa7164_irq(int irq, void *dev_id)
 		handled = 0;
 		goto out;
 	}
+
+	porta = &dev->ports[SAA7164_PORT_TS1];
+	portb = &dev->ports[SAA7164_PORT_TS2];
+	portc = &dev->ports[SAA7164_PORT_ENC1];
+	portd = &dev->ports[SAA7164_PORT_ENC2];
+	porte = &dev->ports[SAA7164_PORT_VBI1];
+	portf = &dev->ports[SAA7164_PORT_VBI2];
 
 	/* Check that the hardware is accessible. If the status bytes are
 	 * 0xFF then the device is not accessible, the the IRQ belongs
