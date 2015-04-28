@@ -648,6 +648,31 @@ static int rcar_du_encoders_init(struct rcar_du_device *rcdu)
 	return num_encoders;
 }
 
+static int rcar_du_properties_init(struct rcar_du_device *rcdu)
+{
+	rcdu->props.alpha =
+		drm_property_create_range(rcdu->ddev, 0, "alpha", 0, 255);
+	if (rcdu->props.alpha == NULL)
+		return -ENOMEM;
+
+	/* The color key is expressed as an RGB888 triplet stored in a 32-bit
+	 * integer in XRGB8888 format. Bit 24 is used as a flag to disable (0)
+	 * or enable source color keying (1).
+	 */
+	rcdu->props.colorkey =
+		drm_property_create_range(rcdu->ddev, 0, "colorkey",
+					  0, 0x01ffffff);
+	if (rcdu->props.colorkey == NULL)
+		return -ENOMEM;
+
+	rcdu->props.zpos =
+		drm_property_create_range(rcdu->ddev, 0, "zpos", 1, 7);
+	if (rcdu->props.zpos == NULL)
+		return -ENOMEM;
+
+	return 0;
+}
+
 int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 {
 	static const unsigned int mmio_offsets[] = {
@@ -671,6 +696,10 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 	dev->mode_config.funcs = &rcar_du_mode_config_funcs;
 
 	rcdu->num_crtcs = rcdu->info->num_crtcs;
+
+	ret = rcar_du_properties_init(rcdu);
+	if (ret < 0)
+		return ret;
 
 	/* Initialize the groups. */
 	num_groups = DIV_ROUND_UP(rcdu->num_crtcs, 2);

@@ -328,14 +328,13 @@ static int rcar_du_plane_atomic_set_property(struct drm_plane *plane,
 					     uint64_t val)
 {
 	struct rcar_du_plane_state *rstate = to_rcar_du_plane_state(state);
-	struct rcar_du_plane *rplane = to_rcar_plane(plane);
-	struct rcar_du_group *rgrp = rplane->group;
+	struct rcar_du_device *rcdu = to_rcar_plane(plane)->group->dev;
 
-	if (property == rgrp->planes.alpha)
+	if (property == rcdu->props.alpha)
 		rstate->alpha = val;
-	else if (property == rgrp->planes.colorkey)
+	else if (property == rcdu->props.colorkey)
 		rstate->colorkey = val;
-	else if (property == rgrp->planes.zpos)
+	else if (property == rcdu->props.zpos)
 		rstate->zpos = val;
 	else
 		return -EINVAL;
@@ -349,14 +348,13 @@ static int rcar_du_plane_atomic_get_property(struct drm_plane *plane,
 {
 	const struct rcar_du_plane_state *rstate =
 		container_of(state, const struct rcar_du_plane_state, state);
-	struct rcar_du_plane *rplane = to_rcar_plane(plane);
-	struct rcar_du_group *rgrp = rplane->group;
+	struct rcar_du_device *rcdu = to_rcar_plane(plane)->group->dev;
 
-	if (property == rgrp->planes.alpha)
+	if (property == rcdu->props.alpha)
 		*val = rstate->alpha;
-	else if (property == rgrp->planes.colorkey)
+	else if (property == rcdu->props.colorkey)
 		*val = rstate->colorkey;
-	else if (property == rgrp->planes.zpos)
+	else if (property == rcdu->props.zpos)
 		*val = rstate->zpos;
 	else
 		return -EINVAL;
@@ -399,27 +397,7 @@ int rcar_du_planes_init(struct rcar_du_group *rgrp)
 	unsigned int i;
 	int ret;
 
-	planes->alpha =
-		drm_property_create_range(rcdu->ddev, 0, "alpha", 0, 255);
-	if (planes->alpha == NULL)
-		return -ENOMEM;
-
-	/* The color key is expressed as an RGB888 triplet stored in a 32-bit
-	 * integer in XRGB8888 format. Bit 24 is used as a flag to disable (0)
-	 * or enable source color keying (1).
-	 */
-	planes->colorkey =
-		drm_property_create_range(rcdu->ddev, 0, "colorkey",
-					  0, 0x01ffffff);
-	if (planes->colorkey == NULL)
-		return -ENOMEM;
-
-	planes->zpos =
-		drm_property_create_range(rcdu->ddev, 0, "zpos", 1, 7);
-	if (planes->zpos == NULL)
-		return -ENOMEM;
-
-	 /* Create one primary plane per in this group CRTC and seven overlay
+	 /* Create one primary plane per CRTC in this group and seven overlay
 	  * planes.
 	  */
 	num_crtcs = min(rcdu->num_crtcs - 2 * rgrp->index, 2U);
@@ -448,12 +426,12 @@ int rcar_du_planes_init(struct rcar_du_group *rgrp)
 			continue;
 
 		drm_object_attach_property(&plane->plane.base,
-					   planes->alpha, 255);
+					   rcdu->props.alpha, 255);
 		drm_object_attach_property(&plane->plane.base,
-					   planes->colorkey,
+					   rcdu->props.colorkey,
 					   RCAR_DU_COLORKEY_NONE);
 		drm_object_attach_property(&plane->plane.base,
-					   planes->zpos, 1);
+					   rcdu->props.zpos, 1);
 	}
 
 	return 0;
