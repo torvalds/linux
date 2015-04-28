@@ -200,6 +200,12 @@
 			OMAP3_CORE1_IOPAD(0x210a, PIN_OUTPUT | MUX_MODE0)   /* dss_data23.dss_data23 */
 		>;
        };
+
+	hdq_pins: hdq_pins {
+		pinctrl-single,pins = <
+			OMAP3_CORE1_IOPAD(0x21c6, PIN_INPUT_PULLUP | MUX_MODE0) /* i2c3_sda.hdq */
+		>;
+	};
 };
 
 &omap3_pmx_core2 {
@@ -516,4 +522,9 @@
 
 &mcbsp2 {
 	status = "okay";
+};
+
+&hdqw1w {
+        pinctrl-names = "default";
+        pinctrl-0 = <&hdq_pins>;
 };
