@@ -1917,6 +1917,14 @@ out:
 	/* return 1 to reconfigure the device */
 	set_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status);
 	set_bit(IWL_MVM_STATUS_D3_RECONFIG, &mvm->status);
+
+	/* We always return 1, which causes mac80211 to do a reconfig
+	 * with IEEE80211_RECONFIG_TYPE_RESTART.  This type of
+	 * reconfig calls iwl_mvm_restart_complete(), where we unref
+	 * the IWL_MVM_REF_UCODE_DOWN, so we need to take the
+	 * reference here.
+	 */
+	iwl_mvm_ref(mvm, IWL_MVM_REF_UCODE_DOWN);
 	return 1;
 }
 
@@ -2023,7 +2031,6 @@ static int iwl_mvm_d3_test_release(struct inode *inode, struct file *file)
 	__iwl_mvm_resume(mvm, true);
 	rtnl_unlock();
 	iwl_abort_notification_waits(&mvm->notif_wait);
-	iwl_mvm_ref(mvm, IWL_MVM_REF_UCODE_DOWN);
 	ieee80211_restart_hw(mvm->hw);
 
 	/* wait for restart and disconnect all interfaces */
