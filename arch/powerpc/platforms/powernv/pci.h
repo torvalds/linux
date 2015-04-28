@@ -106,8 +106,6 @@ struct pnv_phb {
 			 unsigned int hwirq, unsigned int virq,
 			 unsigned int is_64, struct msi_msg *msg);
 	void (*dma_dev_setup)(struct pnv_phb *phb, struct pci_dev *pdev);
-	int (*dma_set_mask)(struct pnv_phb *phb, struct pci_dev *pdev,
-			    u64 dma_mask);
 	u64 (*dma_get_required_mask)(struct pnv_phb *phb,
 				     struct pci_dev *pdev);
 	void (*fixup_phb)(struct pci_controller *hose);

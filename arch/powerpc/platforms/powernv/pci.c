@@ -689,16 +689,6 @@ void pnv_pci_dma_dev_setup(struct pci_dev *pdev)
 		phb->dma_dev_setup(phb, pdev);
 }
 
-int pnv_pci_dma_set_mask(struct pci_dev *pdev, u64 dma_mask)
-{
-	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
-	struct pnv_phb *phb = hose->private_data;
-
-	if (phb && phb->dma_set_mask)
-		return phb->dma_set_mask(phb, pdev, dma_mask);
-	return __dma_set_mask(&pdev->dev, dma_mask);
-}
-
 u64 pnv_pci_dma_get_required_mask(struct pci_dev *pdev)
 {
 	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
