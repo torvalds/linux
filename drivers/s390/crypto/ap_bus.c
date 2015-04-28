@@ -1158,11 +1158,12 @@ static ssize_t poll_timeout_store(struct bus_type *bus, const char *buf,
 	poll_timeout = time;
 	hr_time = ktime_set(0, poll_timeout);
 
-	if (!hrtimer_is_queued(&ap_poll_timer) ||
-	    !hrtimer_forward(&ap_poll_timer, hrtimer_get_expires(&ap_poll_timer), hr_time)) {
-		hrtimer_set_expires(&ap_poll_timer, hr_time);
-		hrtimer_start_expires(&ap_poll_timer, HRTIMER_MODE_ABS);
-	}
+	spin_lock_bh(&ap_poll_timer_lock);
+	hrtimer_cancel(&ap_poll_timer);
+	hrtimer_set_expires(&ap_poll_timer, hr_time);
+	hrtimer_start_expires(&ap_poll_timer, HRTIMER_MODE_ABS);
+	spin_unlock_bh(&ap_poll_timer_lock);
+
 	return count;
 }
 
@@ -1528,14 +1529,11 @@ static inline void __ap_schedule_poll_timer(void)
 	ktime_t hr_time;
 
 	spin_lock_bh(&ap_poll_timer_lock);
-	if (hrtimer_is_queued(&ap_poll_timer) || ap_suspend_flag)
-		goto out;
-	if (ktime_to_ns(hrtimer_expires_remaining(&ap_poll_timer)) <= 0) {
+	if (!hrtimer_is_queued(&ap_poll_timer) && !ap_suspend_flag) {
 		hr_time = ktime_set(0, poll_timeout);
 		hrtimer_forward_now(&ap_poll_timer, hr_time);
 		hrtimer_restart(&ap_poll_timer);
 	}
-out:
 	spin_unlock_bh(&ap_poll_timer_lock);
 }
 
