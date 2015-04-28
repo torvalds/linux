@@ -65,7 +65,6 @@
 
 #define CX24120_REG_REVISION	0xff		/* Chip revision (ro) */
 
-
 /* Command messages */
 enum command_message_id {
 	CMD_VCO_SET		= 0x10,		/* cmd.len = 12; */
@@ -131,7 +130,6 @@ struct cx24120_tuning {
 	u8 pilot_val;
 };
 
-
 /* Private state */
 struct cx24120_state {
 	struct i2c_adapter *i2c;
@@ -146,14 +144,12 @@ struct cx24120_state {
 	struct cx24120_tuning dnxt;
 };
 
-
 /* Command message to firmware */
 struct cx24120_cmd {
 	u8 id;
 	u8 len;
 	u8 arg[CX24120_MAX_CMD_LEN];
 };
-
 
 /* Read single register */
 static int cx24120_readreg(struct cx24120_state *state, u8 reg)
@@ -185,7 +181,6 @@ static int cx24120_readreg(struct cx24120_state *state, u8 reg)
 	return buf;
 }
 
-
 /* Write single register */
 static int cx24120_writereg(struct cx24120_state *state, u8 reg, u8 data)
 {
@@ -201,7 +196,7 @@ static int cx24120_writereg(struct cx24120_state *state, u8 reg, u8 data)
 	ret = i2c_transfer(state->i2c, &msg, 1);
 	if (ret != 1) {
 		err("Write error: i2c_write error(err == %i, 0x%02x: 0x%02x)\n",
-				 ret, reg, data);
+		    ret, reg, data);
 		return ret;
 	}
 
@@ -211,10 +206,9 @@ static int cx24120_writereg(struct cx24120_state *state, u8 reg, u8 data)
 	return 0;
 }
 
-
 /* Write multiple registers in chunks of i2c_wr_max-sized buffers */
-static int cx24120_writeregN(struct cx24120_state *state,
-			u8 reg, const u8 *values, u16 len, u8 incr)
+static int cx24120_writeregs(struct cx24120_state *state,
+			     u8 reg, const u8 *values, u16 len, u8 incr)
 {
 	int ret;
 	u16 max = state->config->i2c_wr_max > 0 ?
@@ -227,7 +221,7 @@ static int cx24120_writeregN(struct cx24120_state *state,
 	};
 
 	msg.buf = kmalloc(max + 1, GFP_KERNEL);
-	if (msg.buf == NULL)
+	if (!msg.buf)
 		return -ENOMEM;
 
 	while (len) {
@@ -250,7 +244,7 @@ static int cx24120_writeregN(struct cx24120_state *state,
 
 		dev_dbg(&state->i2c->dev,
 			"%s: reg=0x%02x; data=%*ph\n",
-			__func__, reg, msg.len, msg.buf+1);
+			__func__, reg, msg.len, msg.buf + 1);
 	}
 
 	ret = 0;
@@ -260,18 +254,17 @@ out:
 	return ret;
 }
 
-
 static struct dvb_frontend_ops cx24120_ops;
 
 struct dvb_frontend *cx24120_attach(const struct cx24120_config *config,
-			struct i2c_adapter *i2c)
+				    struct i2c_adapter *i2c)
 {
-	struct cx24120_state *state = NULL;
+	struct cx24120_state *state;
 	int demod_rev;
 
 	info("Conexant cx24120/cx24118 - DVBS/S2 Satellite demod/tuner\n");
-	state = kzalloc(sizeof(struct cx24120_state), GFP_KERNEL);
-	if (state == NULL) {
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	if (!state) {
 		err("Unable to allocate memory for cx24120_state\n");
 		goto error;
 	}
@@ -290,8 +283,7 @@ struct dvb_frontend *cx24120_attach(const struct cx24120_config *config,
 		info("Demod cx24120 rev. 0x05 detected.\n");
 		break;
 	default:
-		err("Unsupported demod revision: 0x%x detected.\n",
-			demod_rev);
+		err("Unsupported demod revision: 0x%x detected.\n", demod_rev);
 		goto error;
 	}
 
@@ -322,19 +314,16 @@ static int cx24120_test_rom(struct cx24120_state *state)
 	return err;
 }
 
-
 static int cx24120_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
 	struct cx24120_state *state = fe->demodulator_priv;
 
-	*snr =  (cx24120_readreg(state, CX24120_REG_QUALITY_H)<<8) |
+	*snr =  (cx24120_readreg(state, CX24120_REG_QUALITY_H) << 8) |
 		(cx24120_readreg(state, CX24120_REG_QUALITY_L));
-	dev_dbg(&state->i2c->dev, "%s: read SNR index = %d\n",
-			__func__, *snr);
+	dev_dbg(&state->i2c->dev, "%s: read SNR index = %d\n", __func__, *snr);
 
 	return 0;
 }
-
 
 static int cx24120_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
@@ -342,16 +331,15 @@ static int cx24120_read_ber(struct dvb_frontend *fe, u32 *ber)
 
 	*ber =  (cx24120_readreg(state, CX24120_REG_BER_HH) << 24)	|
 		(cx24120_readreg(state, CX24120_REG_BER_HL) << 16)	|
-		(cx24120_readreg(state, CX24120_REG_BER_LH)  << 8)	|
+		(cx24120_readreg(state, CX24120_REG_BER_LH) <<  8)	|
 		 cx24120_readreg(state, CX24120_REG_BER_LL);
-	dev_dbg(&state->i2c->dev, "%s: read BER index = %d\n",
-			__func__, *ber);
+	dev_dbg(&state->i2c->dev, "%s: read BER index = %d\n", __func__, *ber);
 
 	return 0;
 }
 
 static int cx24120_msg_mpeg_output_global_config(struct cx24120_state *state,
-			u8 flag);
+						 u8 flag);
 
 /* Check if we're running a command that needs to disable mpeg out */
 static void cx24120_check_cmd(struct cx24120_state *state, u8 id)
@@ -370,10 +358,9 @@ static void cx24120_check_cmd(struct cx24120_state *state, u8 id)
 	}
 }
 
-
 /* Send a message to the firmware */
 static int cx24120_message_send(struct cx24120_state *state,
-			struct cx24120_cmd *cmd)
+				struct cx24120_cmd *cmd)
 {
 	int ret, ficus;
 
@@ -383,7 +370,7 @@ static int cx24120_message_send(struct cx24120_state *state,
 	}
 
 	ret = cx24120_writereg(state, CX24120_REG_CMD_START, cmd->id);
-	ret = cx24120_writeregN(state, CX24120_REG_CMD_ARGS, &cmd->arg[0],
+	ret = cx24120_writeregs(state, CX24120_REG_CMD_ARGS, &cmd->arg[0],
 				cmd->len, 1);
 	ret = cx24120_writereg(state, CX24120_REG_CMD_END, 0x01);
 
@@ -404,7 +391,7 @@ static int cx24120_message_send(struct cx24120_state *state,
 
 /* Send a message and fill arg[] with the results */
 static int cx24120_message_sendrcv(struct cx24120_state *state,
-			struct cx24120_cmd *cmd, u8 numreg)
+				   struct cx24120_cmd *cmd, u8 numreg)
 {
 	int ret, i;
 
@@ -422,15 +409,13 @@ static int cx24120_message_sendrcv(struct cx24120_state *state,
 
 	/* Read numreg registers starting from register cmd->len */
 	for (i = 0; i < numreg; i++)
-		cmd->arg[i] = cx24120_readreg(state, (cmd->len+i+1));
+		cmd->arg[i] = cx24120_readreg(state, (cmd->len + i + 1));
 
 	return 0;
 }
 
-
-
 static int cx24120_read_signal_strength(struct dvb_frontend *fe,
-			u16 *signal_strength)
+					u16 *signal_strength)
 {
 	struct cx24120_state *state = fe->demodulator_priv;
 	struct cx24120_cmd cmd;
@@ -450,19 +435,18 @@ static int cx24120_read_signal_strength(struct dvb_frontend *fe,
 	sigstr_h = (cx24120_readreg(state, CX24120_REG_SIGSTR_H) >> 6) << 8;
 	sigstr_l = cx24120_readreg(state, CX24120_REG_SIGSTR_L);
 	dev_dbg(&state->i2c->dev, "%s: Signal strength from firmware= 0x%x\n",
-			__func__, (sigstr_h | sigstr_l));
+		__func__, (sigstr_h | sigstr_l));
 
 	/* cooked */
 	*signal_strength = ((sigstr_h | sigstr_l)  << 5) & 0x0000ffff;
 	dev_dbg(&state->i2c->dev, "%s: Signal strength= 0x%x\n",
-			__func__, *signal_strength);
+		__func__, *signal_strength);
 
 	return 0;
 }
 
-
 static int cx24120_msg_mpeg_output_global_config(struct cx24120_state *state,
-			u8 enable)
+						 u8 enable)
 {
 	struct cx24120_cmd cmd;
 	int ret;
@@ -478,19 +462,16 @@ static int cx24120_msg_mpeg_output_global_config(struct cx24120_state *state,
 	if (ret != 0) {
 		dev_dbg(&state->i2c->dev,
 			"%s: Failed to set MPEG output to %s\n",
-			__func__,
-			(enable)?"enabled":"disabled");
+			__func__, enable ? "enabled" : "disabled");
 		return ret;
 	}
 
 	state->mpeg_enabled = enable;
 	dev_dbg(&state->i2c->dev, "%s: MPEG output %s\n",
-		__func__,
-		(enable)?"enabled":"disabled");
+		__func__, enable ? "enabled" : "disabled");
 
 	return 0;
 }
-
 
 static int cx24120_msg_mpeg_output_config(struct cx24120_state *state, u8 seq)
 {
@@ -500,7 +481,7 @@ static int cx24120_msg_mpeg_output_config(struct cx24120_state *state, u8 seq)
 
 	cmd.id = CMD_MPEG_INIT;
 	cmd.len = 7;
-	cmd.arg[0] = seq;		/* sequental number - can be 0,1,2 */
+	cmd.arg[0] = seq; /* sequental number - can be 0,1,2 */
 	cmd.arg[1] = ((i.x1 & 0x01) << 1) | ((i.x1 >> 1) & 0x01);
 	cmd.arg[2] = 0x05;
 	cmd.arg[3] = 0x02;
@@ -511,9 +492,8 @@ static int cx24120_msg_mpeg_output_config(struct cx24120_state *state, u8 seq)
 	return cx24120_message_send(state, &cmd);
 }
 
-
 static int cx24120_diseqc_send_burst(struct dvb_frontend *fe,
-			fe_sec_mini_cmd_t burst)
+				     fe_sec_mini_cmd_t burst)
 {
 	struct cx24120_state *state = fe->demodulator_priv;
 	struct cx24120_cmd cmd;
@@ -529,19 +509,18 @@ static int cx24120_diseqc_send_burst(struct dvb_frontend *fe,
 	cmd.arg[0] = 0x00;
 	if (burst)
 		cmd.arg[1] = 0x01;
+
 	dev_dbg(&state->i2c->dev, "%s: burst sent.\n", __func__);
 
 	return cx24120_message_send(state, &cmd);
 }
-
 
 static int cx24120_set_tone(struct dvb_frontend *fe, fe_sec_tone_mode_t tone)
 {
 	struct cx24120_state *state = fe->demodulator_priv;
 	struct cx24120_cmd cmd;
 
-	dev_dbg(&state->i2c->dev, "%s(%d)\n",
-			__func__, tone);
+	dev_dbg(&state->i2c->dev, "%s(%d)\n", __func__, tone);
 
 	if ((tone != SEC_TONE_ON) && (tone != SEC_TONE_OFF)) {
 		err("Invalid tone=%d\n", tone);
@@ -553,32 +532,29 @@ static int cx24120_set_tone(struct dvb_frontend *fe, fe_sec_tone_mode_t tone)
 	cmd.arg[0] = 0x00;
 	cmd.arg[1] = 0x00;
 	cmd.arg[2] = 0x00;
-	cmd.arg[3] = (tone == SEC_TONE_ON)?0x01:0x00;
+	cmd.arg[3] = (tone == SEC_TONE_ON) ? 0x01 : 0x00;
 
 	return cx24120_message_send(state, &cmd);
 }
 
-
 static int cx24120_set_voltage(struct dvb_frontend *fe,
-			fe_sec_voltage_t voltage)
+			       fe_sec_voltage_t voltage)
 {
 	struct cx24120_state *state = fe->demodulator_priv;
 	struct cx24120_cmd cmd;
 
-	dev_dbg(&state->i2c->dev, "%s(%d)\n",
-			__func__, voltage);
+	dev_dbg(&state->i2c->dev, "%s(%d)\n", __func__, voltage);
 
 	cmd.id = CMD_SETVOLTAGE;
 	cmd.len = 2;
 	cmd.arg[0] = 0x00;
-	cmd.arg[1] = (voltage == SEC_VOLTAGE_18)?0x01:0x00;
+	cmd.arg[1] = (voltage == SEC_VOLTAGE_18) ? 0x01 : 0x00;
 
 	return cx24120_message_send(state, &cmd);
 }
 
-
 static int cx24120_send_diseqc_msg(struct dvb_frontend *fe,
-			struct dvb_diseqc_master_cmd *d)
+				   struct dvb_diseqc_master_cmd *d)
 {
 	struct cx24120_state *state = fe->demodulator_priv;
 	struct cx24120_cmd cmd;
@@ -637,7 +613,6 @@ static int cx24120_send_diseqc_msg(struct dvb_frontend *fe,
 	return -ETIMEDOUT;
 }
 
-
 /* Read current tuning status */
 static int cx24120_read_status(struct dvb_frontend *fe, fe_status_t *status)
 {
@@ -666,7 +641,6 @@ static int cx24120_read_status(struct dvb_frontend *fe, fe_status_t *status)
 
 	return 0;
 }
-
 
 /* FEC & modulation lookup table
  * Used for decoding the REG_FECMODE register
@@ -704,7 +678,6 @@ static struct cx24120_modfec {
 	{ SYS_DVBS2, PSK_8, FEC_9_10, 0x11 },
 };
 
-
 /* Retrieve current fec, modulation & pilot values */
 static int cx24120_get_fec(struct dvb_frontend *fe)
 {
@@ -712,19 +685,19 @@ static int cx24120_get_fec(struct dvb_frontend *fe)
 	struct cx24120_state *state = fe->demodulator_priv;
 	int idx;
 	int ret;
-	int GettedFEC;
+	int fec;
 
 	dev_dbg(&state->i2c->dev, "%s()\n", __func__);
 
 	ret = cx24120_readreg(state, CX24120_REG_FECMODE);
-	GettedFEC = ret & 0x3f; /* Lower 6 bits */
+	fec = ret & 0x3f; /* Lower 6 bits */
 
-	dev_dbg(&state->i2c->dev, "%s: Get FEC: %d\n", __func__, GettedFEC);
+	dev_dbg(&state->i2c->dev, "%s: Get FEC: %d\n", __func__, fec);
 
 	for (idx = 0; idx < ARRAY_SIZE(modfec_lookup_table); idx++) {
 		if (modfec_lookup_table[idx].delsys != state->dcur.delsys)
 			continue;
-		if (modfec_lookup_table[idx].val != GettedFEC)
+		if (modfec_lookup_table[idx].val != fec)
 			continue;
 
 		break; /* found */
@@ -748,7 +721,6 @@ static int cx24120_get_fec(struct dvb_frontend *fe)
 
 	return 0;
 }
-
 
 /* Clock ratios lookup table
  *
@@ -802,7 +774,6 @@ static struct cx24120_clock_ratios_table {
 	{ SYS_DVBS,  PILOT_OFF, QPSK,  FEC_5_6,  762960,  457776, 427 },
 	{ SYS_DVBS,  PILOT_OFF, QPSK,  FEC_7_8,  1068144, 610368, 448 },
 };
-
 
 /* Set clock ratio from lookup table */
 static void cx24120_set_clock_ratios(struct dvb_frontend *fe)
@@ -872,13 +843,11 @@ static void cx24120_set_clock_ratios(struct dvb_frontend *fe)
 	cx24120_message_send(state, &cmd);
 }
 
-
 /* Set inversion value */
 static int cx24120_set_inversion(struct cx24120_state *state,
-	fe_spectral_inversion_t inversion)
+				 fe_spectral_inversion_t inversion)
 {
-	dev_dbg(&state->i2c->dev, "%s(%d)\n",
-		__func__, inversion);
+	dev_dbg(&state->i2c->dev, "%s(%d)\n", __func__, inversion);
 
 	switch (inversion) {
 	case INVERSION_OFF:
@@ -928,13 +897,12 @@ static struct cx24120_modfec_table {
 };
 
 /* Set fec_val & fec_mask values from delsys, modulation & fec */
-static int cx24120_set_fec(struct cx24120_state *state,
-	fe_modulation_t mod, fe_code_rate_t fec)
+static int cx24120_set_fec(struct cx24120_state *state, fe_modulation_t mod,
+			   fe_code_rate_t fec)
 {
 	int idx;
 
-	dev_dbg(&state->i2c->dev,
-		"%s(0x%02x,0x%02x)\n", __func__, mod, fec);
+	dev_dbg(&state->i2c->dev, "%s(0x%02x,0x%02x)\n", __func__, mod, fec);
 
 	state->dnxt.fec = fec;
 
@@ -966,11 +934,9 @@ static int cx24120_set_fec(struct cx24120_state *state,
 	return 0;
 }
 
-
 /* Set pilot */
-static int cx24120_set_pilot(struct cx24120_state *state,
-		fe_pilot_t pilot) {
-
+static int cx24120_set_pilot(struct cx24120_state *state, fe_pilot_t pilot)
+{
 	dev_dbg(&state->i2c->dev, "%s(%d)\n", __func__, pilot);
 
 	/* Pilot only valid in DVBS2 */
@@ -1014,7 +980,6 @@ static int cx24120_set_symbolrate(struct cx24120_state *state, u32 rate)
 	return 0;
 }
 
-
 /* Overwrite the current tuning params, we are about to tune */
 static void cx24120_clone_params(struct dvb_frontend *fe)
 {
@@ -1022,7 +987,6 @@ static void cx24120_clone_params(struct dvb_frontend *fe)
 
 	state->dcur = state->dnxt;
 }
-
 
 /* Table of time to tune for different symrates */
 static struct cx24120_symrate_delay {
@@ -1041,7 +1005,6 @@ static struct cx24120_symrate_delay {
 	{ SYS_DVBS2,  3000000, 10000 },
 	{ SYS_DVBS2,        0, 15000 },
 };
-
 
 static int cx24120_set_frontend(struct dvb_frontend *fe)
 {
@@ -1120,8 +1083,8 @@ static int cx24120_set_frontend(struct dvb_frontend *fe)
 	cmd.arg[1]  = (state->dcur.frequency & 0xff0000) >> 16;
 	cmd.arg[2]  = (state->dcur.frequency & 0x00ff00) >> 8;
 	cmd.arg[3]  = (state->dcur.frequency & 0x0000ff);
-	cmd.arg[4]  = ((state->dcur.symbol_rate/1000) & 0xff00) >> 8;
-	cmd.arg[5]  = ((state->dcur.symbol_rate/1000) & 0x00ff);
+	cmd.arg[4]  = ((state->dcur.symbol_rate / 1000) & 0xff00) >> 8;
+	cmd.arg[5]  = ((state->dcur.symbol_rate / 1000) & 0x00ff);
 	cmd.arg[6]  = state->dcur.inversion;
 	cmd.arg[7]  = state->dcur.fec_val | state->dcur.pilot_val;
 	cmd.arg[8]  = CX24120_SEARCH_RANGE_KHZ >> 8;
@@ -1190,7 +1153,6 @@ tuned:
 	return 0;
 }
 
-
 /* Calculate vco from config */
 static u64 cx24120_calculate_vco(struct cx24120_state *state)
 {
@@ -1212,7 +1174,6 @@ static u64 cx24120_calculate_vco(struct cx24120_state *state)
 
 	return inv_vco;
 }
-
 
 int cx24120_init(struct dvb_frontend *fe)
 {
@@ -1270,8 +1231,8 @@ int cx24120_init(struct dvb_frontend *fe)
 
 	ret = state->config->request_firmware(fe, &fw, CX24120_FIRMWARE);
 	if (ret) {
-		err("Could not load firmware (%s): %d\n",
-			CX24120_FIRMWARE, ret);
+		err("Could not load firmware (%s): %d\n", CX24120_FIRMWARE,
+		    ret);
 		return ret;
 	}
 
@@ -1291,7 +1252,7 @@ int cx24120_init(struct dvb_frontend *fe)
 	ret = cx24120_writereg(state, 0xf7, 0x81);
 	ret = cx24120_writereg(state, 0xf8, 0x00);
 	ret = cx24120_writereg(state, 0xf9, 0x00);
-	ret = cx24120_writeregN(state, 0xfa, fw->data, (fw->size - 1), 0x00);
+	ret = cx24120_writeregs(state, 0xfa, fw->data, (fw->size - 1), 0x00);
 	ret = cx24120_writereg(state, 0xf7, 0xc0);
 	ret = cx24120_writereg(state, 0xe0, 0x00);
 	ret = (fw->size - 2) & 0x00ff;
@@ -1318,7 +1279,6 @@ int cx24120_init(struct dvb_frontend *fe)
 	release_firmware(fw);
 	if (reset_result != 0)
 		return reset_result;
-
 
 	/* Start tuner */
 	cmd.id = CMD_START_TUNER;
@@ -1355,7 +1315,6 @@ int cx24120_init(struct dvb_frontend *fe)
 		return -EREMOTEIO;
 	}
 
-
 	/* set bandwidth */
 	cmd.id = CMD_BANDWIDTH;
 	cmd.len = 12;
@@ -1386,8 +1345,7 @@ int cx24120_init(struct dvb_frontend *fe)
 	}
 
 	dev_dbg(&state->i2c->dev, "%s: Tuner initialised correctly.\n",
-			__func__);
-
+		__func__);
 
 	/* Initialise mpeg outputs */
 	ret = cx24120_writereg(state, 0xeb, 0x0a);
@@ -1399,7 +1357,6 @@ int cx24120_init(struct dvb_frontend *fe)
 		return -EREMOTEIO;
 	}
 
-
 	/* ???? */
 	cmd.id = CMD_TUNER_INIT;
 	cmd.len = 3;
@@ -1410,7 +1367,6 @@ int cx24120_init(struct dvb_frontend *fe)
 		err("Error sending final init message. :(\n");
 		return -EREMOTEIO;
 	}
-
 
 	/* Firmware CMD 35: Get firmware version */
 	cmd.id = CMD_FWVERSION;
@@ -1428,9 +1384,9 @@ int cx24120_init(struct dvb_frontend *fe)
 	return 0;
 }
 
-
 static int cx24120_tune(struct dvb_frontend *fe, bool re_tune,
-	unsigned int mode_flags, unsigned int *delay, fe_status_t *status)
+			unsigned int mode_flags, unsigned int *delay,
+			fe_status_t *status)
 {
 	struct cx24120_state *state = fe->demodulator_priv;
 	int ret;
@@ -1448,26 +1404,15 @@ static int cx24120_tune(struct dvb_frontend *fe, bool re_tune,
 	return cx24120_read_status(fe, status);
 }
 
-
-
 static int cx24120_get_algo(struct dvb_frontend *fe)
 {
 	return DVBFE_ALGO_HW;
 }
 
-
 static int cx24120_sleep(struct dvb_frontend *fe)
 {
 	return 0;
 }
-
-
-/*static int cx24120_wakeup(struct dvb_frontend *fe)
- * {
- *   return 0;
- * }
-*/
-
 
 static int cx24120_get_frontend(struct dvb_frontend *fe)
 {
@@ -1495,7 +1440,6 @@ static int cx24120_get_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-
 static void cx24120_release(struct dvb_frontend *fe)
 {
 	struct cx24120_state *state = fe->demodulator_priv;
@@ -1504,7 +1448,6 @@ static void cx24120_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-
 static int cx24120_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 {
 	struct cx24120_state *state = fe->demodulator_priv;
@@ -1512,11 +1455,9 @@ static int cx24120_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 	*ucblocks = (cx24120_readreg(state, CX24120_REG_UCB_H) << 8) |
 		     cx24120_readreg(state, CX24120_REG_UCB_L);
 
-	dev_dbg(&state->i2c->dev, "%s: Blocks = %d\n",
-			__func__, *ucblocks);
+	dev_dbg(&state->i2c->dev, "%s: Blocks = %d\n", __func__, *ucblocks);
 	return 0;
 }
-
 
 static struct dvb_frontend_ops cx24120_ops = {
 	.delsys = { SYS_DVBS, SYS_DVBS2 },
