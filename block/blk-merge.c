@@ -69,24 +69,13 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
 	struct bio *split;
 	struct bio_vec bv, bvprv;
 	struct bvec_iter iter;
-	unsigned seg_size = 0, nsegs = 0;
+	unsigned seg_size = 0, nsegs = 0, sectors = 0;
 	int prev = 0;
 
-	struct bvec_merge_data bvm = {
-		.bi_bdev	= bio->bi_bdev,
-		.bi_sector	= bio->bi_iter.bi_sector,
-		.bi_size	= 0,
-		.bi_rw		= bio->bi_rw,
-	};
-
 	bio_for_each_segment(bv, bio, iter) {
-		if (q->merge_bvec_fn &&
-		    q->merge_bvec_fn(q, &bvm, &bv) < (int) bv.bv_len)
-			goto split;
+		sectors += bv.bv_len >> 9;
 
-		bvm.bi_size += bv.bv_len;
-
-		if (bvm.bi_size >> 9 > queue_max_sectors(q))
+		if (sectors > queue_max_sectors(q))
 			goto split;
 
 		/*

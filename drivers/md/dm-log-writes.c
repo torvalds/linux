@@ -725,21 +725,6 @@ static int log_writes_ioctl(struct dm_target *ti, unsigned int cmd,
 	return r ? : __blkdev_driver_ioctl(dev->bdev, dev->mode, cmd, arg);
 }
 
-static int log_writes_merge(struct dm_target *ti, struct bvec_merge_data *bvm,
-			    struct bio_vec *biovec, int max_size)
-{
-	struct log_writes_c *lc = ti->private;
-	struct request_queue *q = bdev_get_queue(lc->dev->bdev);
-
-	if (!q->merge_bvec_fn)
-		return max_size;
-
-	bvm->bi_bdev = lc->dev->bdev;
-	bvm->bi_sector = dm_target_offset(ti, bvm->bi_sector);
-
-	return min(max_size, q->merge_bvec_fn(q, bvm, biovec));
-}
-
 static int log_writes_iterate_devices(struct dm_target *ti,
 				      iterate_devices_callout_fn fn,
 				      void *data)
@@ -793,7 +778,6 @@ static struct target_type log_writes_target = {
 	.end_io = normal_end_io,
 	.status = log_writes_status,
 	.ioctl	= log_writes_ioctl,
-	.merge	= log_writes_merge,
 	.message = log_writes_message,
 	.iterate_devices = log_writes_iterate_devices,
 	.io_hints = log_writes_io_hints,

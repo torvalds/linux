@@ -257,18 +257,6 @@ static int multipath_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 			disk_stack_limits(mddev->gendisk, rdev->bdev,
 					  rdev->data_offset << 9);
 
-		/* as we don't honour merge_bvec_fn, we must never risk
-		 * violating it, so limit ->max_segments to one, lying
-		 * within a single page.
-		 * (Note: it is very unlikely that a device with
-		 * merge_bvec_fn will be involved in multipath.)
-		 */
-			if (q->merge_bvec_fn) {
-				blk_queue_max_segments(mddev->queue, 1);
-				blk_queue_segment_boundary(mddev->queue,
-							   PAGE_CACHE_SIZE - 1);
-			}
-
 			spin_lock_irq(&conf->device_lock);
 			mddev->degraded--;
 			rdev->raid_disk = path;
@@ -431,15 +419,6 @@ static int multipath_run (struct mddev *mddev)
 		disk->rdev = rdev;
 		disk_stack_limits(mddev->gendisk, rdev->bdev,
 				  rdev->data_offset << 9);
-
-		/* as we don't honour merge_bvec_fn, we must never risk
-		 * violating it, not that we ever expect a device with
-		 * a merge_bvec_fn to be involved in multipath */
-		if (rdev->bdev->bd_disk->queue->merge_bvec_fn) {
-			blk_queue_max_segments(mddev->queue, 1);
-			blk_queue_segment_boundary(mddev->queue,
-						   PAGE_CACHE_SIZE - 1);
-		}
 
 		if (!test_bit(Faulty, &rdev->flags))
 			working_disks++;

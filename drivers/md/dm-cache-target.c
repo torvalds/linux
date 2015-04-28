@@ -3771,26 +3771,6 @@ static int cache_iterate_devices(struct dm_target *ti,
 	return r;
 }
 
-/*
- * We assume I/O is going to the origin (which is the volume
- * more likely to have restrictions e.g. by being striped).
- * (Looking up the exact location of the data would be expensive
- * and could always be out of date by the time the bio is submitted.)
- */
-static int cache_bvec_merge(struct dm_target *ti,
-			    struct bvec_merge_data *bvm,
-			    struct bio_vec *biovec, int max_size)
-{
-	struct cache *cache = ti->private;
-	struct request_queue *q = bdev_get_queue(cache->origin_dev->bdev);
-
-	if (!q->merge_bvec_fn)
-		return max_size;
-
-	bvm->bi_bdev = cache->origin_dev->bdev;
-	return min(max_size, q->merge_bvec_fn(q, bvm, biovec));
-}
-
 static void set_discard_limits(struct cache *cache, struct queue_limits *limits)
 {
 	/*
@@ -3834,7 +3814,6 @@ static struct target_type cache_target = {
 	.status = cache_status,
 	.message = cache_message,
 	.iterate_devices = cache_iterate_devices,
-	.merge = cache_bvec_merge,
 	.io_hints = cache_io_hints,
 };
 

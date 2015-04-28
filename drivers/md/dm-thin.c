@@ -3845,20 +3845,6 @@ static int pool_iterate_devices(struct dm_target *ti,
 	return fn(ti, pt->data_dev, 0, ti->len, data);
 }
 
-static int pool_merge(struct dm_target *ti, struct bvec_merge_data *bvm,
-		      struct bio_vec *biovec, int max_size)
-{
-	struct pool_c *pt = ti->private;
-	struct request_queue *q = bdev_get_queue(pt->data_dev->bdev);
-
-	if (!q->merge_bvec_fn)
-		return max_size;
-
-	bvm->bi_bdev = pt->data_dev->bdev;
-
-	return min(max_size, q->merge_bvec_fn(q, bvm, biovec));
-}
-
 static void pool_io_hints(struct dm_target *ti, struct queue_limits *limits)
 {
 	struct pool_c *pt = ti->private;
@@ -3935,7 +3921,6 @@ static struct target_type pool_target = {
 	.resume = pool_resume,
 	.message = pool_message,
 	.status = pool_status,
-	.merge = pool_merge,
 	.iterate_devices = pool_iterate_devices,
 	.io_hints = pool_io_hints,
 };
@@ -4262,21 +4247,6 @@ err:
 	DMEMIT("Error");
 }
 
-static int thin_merge(struct dm_target *ti, struct bvec_merge_data *bvm,
-		      struct bio_vec *biovec, int max_size)
-{
-	struct thin_c *tc = ti->private;
-	struct request_queue *q = bdev_get_queue(tc->pool_dev->bdev);
-
-	if (!q->merge_bvec_fn)
-		return max_size;
-
-	bvm->bi_bdev = tc->pool_dev->bdev;
-	bvm->bi_sector = dm_target_offset(ti, bvm->bi_sector);
-
-	return min(max_size, q->merge_bvec_fn(q, bvm, biovec));
-}
-
 static int thin_iterate_devices(struct dm_target *ti,
 				iterate_devices_callout_fn fn, void *data)
 {
@@ -4320,7 +4290,6 @@ static struct target_type thin_target = {
 	.presuspend = thin_presuspend,
 	.postsuspend = thin_postsuspend,
 	.status = thin_status,
-	.merge = thin_merge,
 	.iterate_devices = thin_iterate_devices,
 	.io_hints = thin_io_hints,
 };

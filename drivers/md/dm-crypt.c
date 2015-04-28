@@ -2035,21 +2035,6 @@ error:
 	return -EINVAL;
 }
 
-static int crypt_merge(struct dm_target *ti, struct bvec_merge_data *bvm,
-		       struct bio_vec *biovec, int max_size)
-{
-	struct crypt_config *cc = ti->private;
-	struct request_queue *q = bdev_get_queue(cc->dev->bdev);
-
-	if (!q->merge_bvec_fn)
-		return max_size;
-
-	bvm->bi_bdev = cc->dev->bdev;
-	bvm->bi_sector = cc->start + dm_target_offset(ti, bvm->bi_sector);
-
-	return min(max_size, q->merge_bvec_fn(q, bvm, biovec));
-}
-
 static int crypt_iterate_devices(struct dm_target *ti,
 				 iterate_devices_callout_fn fn, void *data)
 {
@@ -2070,7 +2055,6 @@ static struct target_type crypt_target = {
 	.preresume = crypt_preresume,
 	.resume = crypt_resume,
 	.message = crypt_message,
-	.merge  = crypt_merge,
 	.iterate_devices = crypt_iterate_devices,
 };
 

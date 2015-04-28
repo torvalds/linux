@@ -671,93 +671,6 @@ static sector_t raid10_find_virt(struct r10conf *conf, sector_t sector, int dev)
 	return (vchunk << geo->chunk_shift) + offset;
 }
 
-/**
- *	raid10_mergeable_bvec -- tell bio layer if a two requests can be merged
- *	@mddev: the md device
- *	@bvm: properties of new bio
- *	@biovec: the request that could be merged to it.
- *
- *	Return amount of bytes we can accept at this offset
- *	This requires checking for end-of-chunk if near_copies != raid_disks,
- *	and for subordinate merge_bvec_fns if merge_check_needed.
- */
-static int raid10_mergeable_bvec(struct mddev *mddev,
-				 struct bvec_merge_data *bvm,
-				 struct bio_vec *biovec)
-{
-	struct r10conf *conf = mddev->private;
-	sector_t sector = bvm->bi_sector + get_start_sect(bvm->bi_bdev);
-	int max;
-	unsigned int chunk_sectors;
-	unsigned int bio_sectors = bvm->bi_size >> 9;
-	struct geom *geo = &conf->geo;
-
-	chunk_sectors = (conf->geo.chunk_mask & conf->prev.chunk_mask) + 1;
-	if (conf->reshape_progress != MaxSector &&
-	    ((sector >= conf->reshape_progress) !=
-	     conf->mddev->reshape_backwards))
-		geo = &conf->prev;
-
-	if (geo->near_copies < geo->raid_disks) {
-		max = (chunk_sectors - ((sector & (chunk_sectors - 1))
-					+ bio_sectors)) << 9;
-		if (max < 0)
-			/* bio_add cannot handle a negative return */
-			max = 0;
-		if (max <= biovec->bv_len && bio_sectors == 0)
-			return biovec->bv_len;
-	} else
-		max = biovec->bv_len;
-
-	if (mddev->merge_check_needed) {
-		struct {
-			struct r10bio r10_bio;
-			struct r10dev devs[conf->copies];
-		} on_stack;
-		struct r10bio *r10_bio = &on_stack.r10_bio;
-		int s;
-		if (conf->reshape_progress != MaxSector) {
-			/* Cannot give any guidance during reshape */
-			if (max <= biovec->bv_len && bio_sectors == 0)
-				return biovec->bv_len;
-			return 0;
-		}
-		r10_bio->sector = sector;
-		raid10_find_phys(conf, r10_bio);
-		rcu_read_lock();
-		for (s = 0; s < conf->copies; s++) {
-			int disk = r10_bio->devs[s].devnum;
-			struct md_rdev *rdev = rcu_dereference(
-				conf->mirrors[disk].rdev);
-			if (rdev && !test_bit(Faulty, &rdev->flags)) {
-				struct request_queue *q =
-					bdev_get_queue(rdev->bdev);
-				if (q->merge_bvec_fn) {
-					bvm->bi_sector = r10_bio->devs[s].addr
-						+ rdev->data_offset;
-					bvm->bi_bdev = rdev->bdev;
-					max = min(max, q->merge_bvec_fn(
-							  q, bvm, biovec));
-				}
-			}
-			rdev = rcu_dereference(conf->mirrors[disk].replacement);
-			if (rdev && !test_bit(Faulty, &rdev->flags)) {
-				struct request_queue *q =
-					bdev_get_queue(rdev->bdev);
-				if (q->merge_bvec_fn) {
-					bvm->bi_sector = r10_bio->devs[s].addr
-						+ rdev->data_offset;
-					bvm->bi_bdev = rdev->bdev;
-					max = min(max, q->merge_bvec_fn(
-							  q, bvm, biovec));
-				}
-			}
-		}
-		rcu_read_unlock();
-	}
-	return max;
-}
-
 /*
  * This routine returns the disk from which the requested read should
  * be done. There is a per-array 'next expected sequential IO' sector
@@ -820,12 +733,10 @@ retry:
 		disk = r10_bio->devs[slot].devnum;
 		rdev = rcu_dereference(conf->mirrors[disk].replacement);
 		if (rdev == NULL || test_bit(Faulty, &rdev->flags) ||
-		    test_bit(Unmerged, &rdev->flags) ||
 		    r10_bio->devs[slot].addr + sectors > rdev->recovery_offset)
 			rdev = rcu_dereference(conf->mirrors[disk].rdev);
 		if (rdev == NULL ||
-		    test_bit(Faulty, &rdev->flags) ||
-		    test_bit(Unmerged, &rdev->flags))
+		    test_bit(Faulty, &rdev->flags))
 			continue;
 		if (!test_bit(In_sync, &rdev->flags) &&
 		    r10_bio->devs[slot].addr + sectors > rdev->recovery_offset)
@@ -1325,11 +1236,9 @@ retry_write:
 			blocked_rdev = rrdev;
 			break;
 		}
-		if (rdev && (test_bit(Faulty, &rdev->flags)
-			     || test_bit(Unmerged, &rdev->flags)))
+		if (rdev && (test_bit(Faulty, &rdev->flags)))
 			rdev = NULL;
-		if (rrdev && (test_bit(Faulty, &rrdev->flags)
-			      || test_bit(Unmerged, &rrdev->flags)))
+		if (rrdev && (test_bit(Faulty, &rrdev->flags)))
 			rrdev = NULL;
 
 		r10_bio->devs[i].bio = NULL;
@@ -1776,7 +1685,6 @@ static int raid10_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 	int mirror;
 	int first = 0;
 	int last = conf->geo.raid_disks - 1;
-	struct request_queue *q = bdev_get_queue(rdev->bdev);
 
 	if (mddev->recovery_cp < MaxSector)
 		/* only hot-add to in-sync arrays, as recovery is
@@ -1788,11 +1696,6 @@ static int raid10_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 
 	if (rdev->raid_disk >= 0)
 		first = last = rdev->raid_disk;
-
-	if (q->merge_bvec_fn) {
-		set_bit(Unmerged, &rdev->flags);
-		mddev->merge_check_needed = 1;
-	}
 
 	if (rdev->saved_raid_disk >= first &&
 	    conf->mirrors[rdev->saved_raid_disk].rdev == NULL)
@@ -1831,19 +1734,6 @@ static int raid10_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 			conf->fullsync = 1;
 		rcu_assign_pointer(p->rdev, rdev);
 		break;
-	}
-	if (err == 0 && test_bit(Unmerged, &rdev->flags)) {
-		/* Some requests might not have seen this new
-		 * merge_bvec_fn.  We must wait for them to complete
-		 * before merging the device fully.
-		 * First we make sure any code which has tested
-		 * our function has submitted the request, then
-		 * we wait for all outstanding requests to complete.
-		 */
-		synchronize_sched();
-		freeze_array(conf, 0);
-		unfreeze_array(conf);
-		clear_bit(Unmerged, &rdev->flags);
 	}
 	md_integrity_add_rdev(rdev, mddev);
 	if (mddev->queue && blk_queue_discard(bdev_get_queue(rdev->bdev)))
@@ -2392,7 +2282,6 @@ static void fix_read_error(struct r10conf *conf, struct mddev *mddev, struct r10
 			d = r10_bio->devs[sl].devnum;
 			rdev = rcu_dereference(conf->mirrors[d].rdev);
 			if (rdev &&
-			    !test_bit(Unmerged, &rdev->flags) &&
 			    test_bit(In_sync, &rdev->flags) &&
 			    is_badblock(rdev, r10_bio->devs[sl].addr + sect, s,
 					&first_bad, &bad_sectors) == 0) {
@@ -2446,7 +2335,6 @@ static void fix_read_error(struct r10conf *conf, struct mddev *mddev, struct r10
 			d = r10_bio->devs[sl].devnum;
 			rdev = rcu_dereference(conf->mirrors[d].rdev);
 			if (!rdev ||
-			    test_bit(Unmerged, &rdev->flags) ||
 			    !test_bit(In_sync, &rdev->flags))
 				continue;
 
@@ -3638,8 +3526,6 @@ static int run(struct mddev *mddev)
 			disk->rdev = rdev;
 		}
 		q = bdev_get_queue(rdev->bdev);
-		if (q->merge_bvec_fn)
-			mddev->merge_check_needed = 1;
 		diff = (rdev->new_data_offset - rdev->data_offset);
 		if (!mddev->reshape_backwards)
 			diff = -diff;
@@ -4692,7 +4578,6 @@ static struct md_personality raid10_personality =
 	.start_reshape	= raid10_start_reshape,
 	.finish_reshape	= raid10_finish_reshape,
 	.congested	= raid10_congested,
-	.mergeable_bvec	= raid10_mergeable_bvec,
 };
 
 static int __init raid_init(void)
