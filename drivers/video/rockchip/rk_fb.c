@@ -2641,6 +2641,10 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
 			break;
 		}
 		memset(&win_data, 0, sizeof(struct rk_fb_win_cfg_data));
+
+		if (dev_drv->uboot_logo)
+			dev_drv->uboot_logo = 0;
+
 		break;
 	default:
 		dev_drv->ops->ioctl(dev_drv, cmd, arg, win_id);
@@ -3182,7 +3186,8 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 	struct rk_fb_par *fb_par = NULL;
 	struct rk_lcdc_driver *dev_drv = NULL;
 	char name[6] = {0};
-	int i, win_id, load_screen = 0;
+	int i, win_id;
+	static bool load_screen = false;
 	char *envp[3];
 
 	if (unlikely(!rk_fb) || unlikely(!screen))
@@ -3231,15 +3236,11 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 		    (rk_fb->disp_policy != DISPLAY_POLICY_BOX) &&
 		    (rk_fb->disp_policy != DISPLAY_POLICY_BOX_TEMP))
 			dev_drv->ops->backlight_close(dev_drv, 1);
-		if (dev_drv->ops->dsp_black)
-			dev_drv->ops->dsp_black(dev_drv, 1);
 		if ((dev_drv->ops->set_screen_scaler) &&
 		    (rk_fb->disp_mode == ONE_DUAL))
 			dev_drv->ops->set_screen_scaler(dev_drv,
 							dev_drv->screen0, 0);
 	}
-	if (dev_drv->uboot_logo && (screen->type != dev_drv->cur_screen->type))
-               dev_drv->uboot_logo = 0;
 	if (!enable) {
 		/* if screen type is different, we do not disable lcdc. */
 		if (dev_drv->cur_screen->type != screen->type) {
@@ -3266,6 +3267,17 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 			info->fbops->fb_set_par(info);
 			info->fbops->fb_pan_display(&info->var, info);
 			mutex_unlock(&dev_drv->win_config);
+
+			/*
+			 * if currently is loader display, black until new
+			 * display job.
+			 */
+			if (dev_drv->uboot_logo) {
+				for (i = 0; i < dev_drv->lcdc_win_num; i++) {
+					if (dev_drv->win[i] && dev_drv->win[i]->state)
+						dev_drv->ops->open(dev_drv, i, 0);
+				}
+			}
 
 			/*if (dev_drv->ops->dsp_black)
 				dev_drv->ops->dsp_black(dev_drv, 0);*/
@@ -3300,23 +3312,15 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 		dev_drv->cur_screen->x_mirror = dev_drv->rotate_mode & X_MIRROR;
 		dev_drv->cur_screen->y_mirror = dev_drv->rotate_mode & Y_MIRROR;
 	}
-	if ((!dev_drv->uboot_logo) ||
-	    ((rk_fb->disp_policy != DISPLAY_POLICY_BOX) &&
-	    (rk_fb->disp_policy != DISPLAY_POLICY_BOX_TEMP))) {
+	if (!dev_drv->uboot_logo || load_screen) {
 		for (i = 0; i < dev_drv->lcdc_win_num; i++) {
 			info = rk_fb->fb[dev_drv->fb_index_base + i];
 			fb_par = (struct rk_fb_par *)info->par;
 			win_id = dev_drv->ops->fb_get_win_id(dev_drv, info->fix.id);
 			if (dev_drv->win[win_id]) {
 				if (fb_par->state) {
-					if (!dev_drv->win[win_id]->state) {
-						dev_drv->ops->open(dev_drv, win_id, 1);
-						dev_drv->suspend_flag = 0;
-					}
-					if (!load_screen) {
-						dev_drv->ops->load_screen(dev_drv, 1);
-						load_screen = 1;
-					}
+					dev_drv->ops->load_screen(dev_drv, 1);
+
 					info->var.activate |= FB_ACTIVATE_FORCE;
 					if (rk_fb->disp_mode == ONE_DUAL) {
 						info->var.grayscale &= 0xff;
@@ -3324,19 +3328,25 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 							(dev_drv->cur_screen->xsize << 8) +
 							(dev_drv->cur_screen->ysize << 20);
 					}
-
-					mutex_lock(&dev_drv->win_config);
-					info->var.yoffset = 0;
-					info->fbops->fb_set_par(info);
-					info->fbops->fb_pan_display(&info->var, info);
-					mutex_unlock(&dev_drv->win_config);
+					if (dev_drv->uboot_logo) {
+						for (i = 0; i < dev_drv->lcdc_win_num; i++) {
+							if (dev_drv->win[i] && dev_drv->win[i]->state)
+								dev_drv->ops->open(dev_drv, i, 0);
+						}
+					} else if (!dev_drv->win[win_id]->state) {
+						dev_drv->ops->open(dev_drv, win_id, 1);
+						dev_drv->suspend_flag = 0;
+						mutex_lock(&dev_drv->win_config);
+						info->var.yoffset = 0;
+						info->fbops->fb_set_par(info);
+						info->fbops->fb_pan_display(&info->var, info);
+						mutex_unlock(&dev_drv->win_config);
+					}
 				}
 			}
 		}
-	}else {
-		dev_drv->uboot_logo = 0;
 	}
-        kobject_uevent_env(&dev_drv->dev->kobj, KOBJ_CHANGE, envp);
+	kobject_uevent_env(&dev_drv->dev->kobj, KOBJ_CHANGE, envp);
         kfree(envp[1]);
 
 	hdmi_switch_state = 1;
