@@ -2014,7 +2014,8 @@ static void udc_id_switch_for_host(struct ci_hdrc *ci)
 	 * (in otg fsm mode, means B_IDLE->A_IDLE) due to ID change.
 	 */
 	if (!ci_otg_is_fsm_mode(ci) ||
-			ci->fsm.otg->state == OTG_STATE_B_IDLE)
+			ci->fsm.otg->state == OTG_STATE_B_IDLE ||
+			ci->fsm.otg->state == OTG_STATE_UNDEFINED)
 		hw_write_otgsc(ci, OTGSC_BSVIE | OTGSC_BSVIS, OTGSC_BSVIS);
 }
 
