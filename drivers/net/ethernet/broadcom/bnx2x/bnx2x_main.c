@@ -3304,7 +3304,7 @@ static void bnx2x_pf_init(struct bnx2x *bp)
 	/* This flag is relevant for E1x only.
 	 * E2 doesn't have a TPA configuration in a function level.
 	 */
-	flags |= (bp->flags & TPA_ENABLE_FLAG) ? FUNC_FLG_TPA : 0;
+	flags |= (bp->dev->features & NETIF_F_LRO) ? FUNC_FLG_TPA : 0;
 
 	func_init.func_flgs = flags;
 	func_init.pf_id = BP_FUNC(bp);
@@ -12107,11 +12107,8 @@ static int bnx2x_init_bp(struct bnx2x *bp)
 
 	/* Set TPA flags */
 	if (bp->disable_tpa) {
-		bp->flags &= ~(TPA_ENABLE_FLAG | GRO_ENABLE_FLAG);
 		bp->dev->hw_features &= ~NETIF_F_LRO;
 		bp->dev->features &= ~NETIF_F_LRO;
-	} else {
-		bp->flags |= (TPA_ENABLE_FLAG | GRO_ENABLE_FLAG);
 	}
 
 	if (CHIP_IS_E1(bp))
