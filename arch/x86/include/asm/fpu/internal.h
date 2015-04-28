@@ -17,7 +17,7 @@
 
 #include <asm/user.h>
 #include <asm/fpu/api.h>
-#include <asm/fpu/xsave.h>
+#include <asm/fpu/xstate.h>
 
 #ifdef CONFIG_X86_64
 # include <asm/sigcontext32.h>

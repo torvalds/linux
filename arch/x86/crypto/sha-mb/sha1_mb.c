@@ -66,7 +66,7 @@
 #include <crypto/crypto_wq.h>
 #include <asm/byteorder.h>
 #include <asm/xcr.h>
-#include <asm/fpu/xsave.h>
+#include <asm/fpu/xstate.h>
 #include <linux/hardirq.h>
 #include <asm/fpu/internal.h>
 #include "sha_mb_ctx.h"

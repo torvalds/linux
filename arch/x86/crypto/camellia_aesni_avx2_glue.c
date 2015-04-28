@@ -20,7 +20,7 @@
 #include <crypto/lrw.h>
 #include <crypto/xts.h>
 #include <asm/xcr.h>
-#include <asm/fpu/xsave.h>
+#include <asm/fpu/xstate.h>
 #include <asm/crypto/camellia.h>
 #include <asm/crypto/glue_helper.h>
 

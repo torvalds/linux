@@ -39,7 +39,7 @@
 #include <crypto/sha256_base.h>
 #include <asm/fpu/api.h>
 #include <asm/xcr.h>
-#include <asm/fpu/xsave.h>
+#include <asm/fpu/xstate.h>
 #include <linux/string.h>
 
 asmlinkage void sha256_transform_ssse3(u32 *digest, const char *data,
