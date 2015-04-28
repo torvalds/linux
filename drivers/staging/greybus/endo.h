@@ -18,7 +18,7 @@ struct gb_svc {
 struct gb_endo {
 	struct device dev;
 	struct gb_svc svc;
-	u16 type;
+	u16 id;
 };
 #define to_gb_endo(d) container_of(d, struct gb_endo, dev)
 

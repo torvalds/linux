@@ -82,14 +82,14 @@ static int create_modules(struct gb_endo *endo)
 	u8 *endo_modules;
 	int i;
 
-	/* Depending on the endo type, create a bunch of different modules */
-	switch (endo->type) {
+	/* Depending on the endo id, create a bunch of different modules */
+	switch (endo->id) {
 	case 0x4755:
 		endo_modules = &endo_4755[0];
 		break;
 	default:
-		dev_err(&endo->dev, "Unknown endo type 0x%04x, aborting!",
-			endo->type);
+		dev_err(&endo->dev, "Unknown endo id 0x%04x, aborting!",
+			endo->id);
 		return -EINVAL;
 	}
 
@@ -118,18 +118,18 @@ struct gb_endo *gb_endo_create(struct greybus_host_device *hd)
 	endo->dev.dma_mask = hd->parent->dma_mask;
 	device_initialize(&endo->dev);
 
-	// FIXME - determine endo "type" from the SVC
+	// FIXME - determine endo "id" from the SVC
 	// Also get the version and serial number from the SVC, right now we are
 	// using "fake" numbers.
 	strcpy(&endo->svc.serial_number[0], "042");
 	strcpy(&endo->svc.version[0], "0.0");
-	endo->type = 0x4755;
+	endo->id = 0x4755;
 
-	dev_set_name(&endo->dev, "endo-0x%04x", endo->type);
+	dev_set_name(&endo->dev, "endo-0x%04x", endo->id);
 	retval = device_add(&endo->dev);
 	if (retval) {
-		dev_err(hd->parent, "failed to add endo device of type 0x%04x\n",
-			endo->type);
+		dev_err(hd->parent, "failed to add endo device of id 0x%04x\n",
+			endo->id);
 		put_device(&endo->dev);
 		kfree(endo);
 		return NULL;
