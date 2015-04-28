@@ -304,9 +304,11 @@ static bool gb_manifest_parse_interface(struct gb_interface *intf,
 		goto out_free_vendor_string;
 	}
 
-	intf->vendor = le16_to_cpu(desc_intf->vendor);
-	intf->product = le16_to_cpu(desc_intf->product);
-	intf->unique_id = le64_to_cpu(desc_intf->unique_id);
+	// FIXME
+	// Vendor, Product and Unique id must come via control protocol
+	intf->vendor = 0xffff;
+	intf->product = 0x0001;
+	intf->unique_id = 0;
 
 	/* Release the interface descriptor, now that we're done with it */
 	release_manifest_descriptor(interface_desc);
