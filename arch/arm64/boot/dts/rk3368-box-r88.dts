@@ -600,8 +600,6 @@
 &fb {
 	rockchip,disp-mode = <NO_DUAL>;
 	rockchip,uboot-logo-on = <1>;
-	rockchip,uboot-logo-mode = <DISP_FULLSCREEN>;
-	rockchip,kernel-logo-mode = <DISP_FULLSCREEN>;
 	rockchip,disp-policy = <DISPLAY_POLICY_BOX_TEMP>;
 };
 
