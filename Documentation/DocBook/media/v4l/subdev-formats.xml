@@ -50,8 +50,16 @@ capture streams and by the application for output streams,
 see <xref linkend="colorspaces" />.</entry>
 	</row>
 	<row>
-	  <entry>__u32</entry>
-	  <entry><structfield>reserved</structfield>[6]</entry>
+	  <entry>&v4l2-xfer-func;</entry>
+	  <entry><structfield>xfer_func</structfield></entry>
+	  <entry>This information supplements the
+<structfield>colorspace</structfield> and must be set by the driver for
+capture streams and by the application for output streams,
+see <xref linkend="colorspaces" />.</entry>
+	</row>
+	<row>
+	  <entry>__u16</entry>
+	  <entry><structfield>reserved</structfield>[11]</entry>
 	  <entry>Reserved for future extensions. Applications and drivers must
 	  set the array to zero.</entry>
 	</row>
