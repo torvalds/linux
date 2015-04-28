@@ -216,16 +216,12 @@ static void mdp5_cmd_encoder_mode_set(struct drm_encoder *encoder,
 static void mdp5_cmd_encoder_disable(struct drm_encoder *encoder)
 {
 	struct mdp5_cmd_encoder *mdp5_cmd_enc = to_mdp5_cmd_encoder(encoder);
-	struct mdp5_kms *mdp5_kms = get_kms(encoder);
 	struct mdp5_ctl *ctl = mdp5_crtc_get_ctl(encoder->crtc);
 	struct mdp5_interface *intf = &mdp5_cmd_enc->intf;
-	int lm = mdp5_crtc_get_lm(encoder->crtc);
 
 	if (WARN_ON(!mdp5_cmd_enc->enabled))
 		return;
 
-	/* Wait for the last frame done */
-	mdp_irq_wait(&mdp5_kms->base, lm2ppdone(lm));
 	pingpong_tearcheck_disable(encoder);
 
 	mdp5_ctl_set_encoder_state(ctl, false);
