@@ -388,6 +388,8 @@ config MACH_PISTACHIO
 	select SYS_SUPPORTS_MIPS_CPS
 	select SYS_SUPPORTS_MULTITHREADING
 	select SYS_SUPPORTS_ZBOOT
+	select SYS_HAS_EARLY_PRINTK
+	select USE_GENERIC_EARLY_PRINTK_8250
 	select USE_OF
 	help
 	  This enables support for the IMG Pistachio SoC platform.
