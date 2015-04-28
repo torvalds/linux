@@ -240,6 +240,42 @@ enum v4l2_colorspace {
 	((is_sdtv) ? V4L2_COLORSPACE_SMPTE170M : \
 	 ((is_hdtv) ? V4L2_COLORSPACE_REC709 : V4L2_COLORSPACE_SRGB))
 
+enum v4l2_xfer_func {
+	/*
+	 * Mapping of V4L2_XFER_FUNC_DEFAULT to actual transfer functions
+	 * for the various colorspaces:
+	 *
+	 * V4L2_COLORSPACE_SMPTE170M, V4L2_COLORSPACE_470_SYSTEM_M,
+	 * V4L2_COLORSPACE_470_SYSTEM_BG, V4L2_COLORSPACE_REC709 and
+	 * V4L2_COLORSPACE_BT2020: V4L2_XFER_FUNC_709
+	 *
+	 * V4L2_COLORSPACE_SRGB, V4L2_COLORSPACE_JPEG: V4L2_XFER_FUNC_SRGB
+	 *
+	 * V4L2_COLORSPACE_ADOBERGB: V4L2_XFER_FUNC_ADOBERGB
+	 *
+	 * V4L2_COLORSPACE_SMPTE240M: V4L2_XFER_FUNC_SMPTE240M
+	 *
+	 * V4L2_COLORSPACE_RAW: V4L2_XFER_FUNC_NONE
+	 */
+	V4L2_XFER_FUNC_DEFAULT     = 0,
+	V4L2_XFER_FUNC_709         = 1,
+	V4L2_XFER_FUNC_SRGB        = 2,
+	V4L2_XFER_FUNC_ADOBERGB    = 3,
+	V4L2_XFER_FUNC_SMPTE240M   = 4,
+	V4L2_XFER_FUNC_NONE        = 5,
+};
+
+/*
+ * Determine how XFER_FUNC_DEFAULT should map to a proper transfer function.
+ * This depends on the colorspace.
+ */
+#define V4L2_MAP_XFER_FUNC_DEFAULT(colsp) \
+	((colsp) == V4L2_XFER_FUNC_ADOBERGB ? V4L2_XFER_FUNC_ADOBERGB : \
+	 ((colsp) == V4L2_COLORSPACE_SMPTE240M ? V4L2_XFER_FUNC_SMPTE240M : \
+	  ((colsp) == V4L2_COLORSPACE_RAW ? V4L2_XFER_FUNC_NONE : \
+	   ((colsp) == V4L2_COLORSPACE_SRGB || (colsp) == V4L2_COLORSPACE_JPEG ? \
+	    V4L2_XFER_FUNC_SRGB : V4L2_XFER_FUNC_709))))
+
 enum v4l2_ycbcr_encoding {
 	/*
 	 * Mapping of V4L2_YCBCR_ENC_DEFAULT to actual encodings for the
@@ -409,6 +445,7 @@ struct v4l2_pix_format {
 	__u32			flags;		/* format flags (V4L2_PIX_FMT_FLAG_*) */
 	__u32			ycbcr_enc;	/* enum v4l2_ycbcr_encoding */
 	__u32			quantization;	/* enum v4l2_quantization */
+	__u32			xfer_func;	/* enum v4l2_xfer_func */
 };
 
 /*      Pixel format         FOURCC                          depth  Description  */
@@ -1907,6 +1944,7 @@ struct v4l2_plane_pix_format {
  * @flags:		format flags (V4L2_PIX_FMT_FLAG_*)
  * @ycbcr_enc:		enum v4l2_ycbcr_encoding, Y'CbCr encoding
  * @quantization:	enum v4l2_quantization, colorspace quantization
+ * @xfer_func:		enum v4l2_xfer_func, colorspace transfer function
  */
 struct v4l2_pix_format_mplane {
 	__u32				width;
@@ -1920,7 +1958,8 @@ struct v4l2_pix_format_mplane {
 	__u8				flags;
 	__u8				ycbcr_enc;
 	__u8				quantization;
-	__u8				reserved[8];
+	__u8				xfer_func;
+	__u8				reserved[7];
 } __attribute__ ((packed));
 
 /**
