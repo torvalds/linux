@@ -124,6 +124,7 @@ struct rt6_info {
 	unsigned long			_rt6i_peer;
 
 	u32				rt6i_metric;
+	u32				rt6i_pmtu;
 	/* more non-fragment space at head required */
 	unsigned short			rt6i_nfheader_len;
 	u8				rt6i_protocol;
@@ -187,15 +188,6 @@ static inline void rt6_update_expires(struct rt6_info *rt0, int timeout)
 
 	dst_set_expires(&rt0->dst, timeout);
 	rt0->rt6i_flags |= RTF_EXPIRES;
-}
-
-static inline void rt6_set_from(struct rt6_info *rt, struct rt6_info *from)
-{
-	struct dst_entry *new = (struct dst_entry *) from;
-
-	rt->rt6i_flags &= ~RTF_EXPIRES;
-	dst_hold(new);
-	rt->dst.from = new;
 }
 
 static inline void ip6_rt_put(struct rt6_info *rt)
