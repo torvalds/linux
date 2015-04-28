@@ -1145,11 +1145,8 @@ void tipc_rcv(struct net *net, struct sk_buff *skb, struct tipc_bearer *b_ptr)
 		}
 		/* Synchronize with parallel link if applicable */
 		if (unlikely((l_ptr->flags & LINK_SYNCHING) && !msg_dup(msg))) {
-			link_handle_out_of_seq_msg(l_ptr, skb);
-			if (link_synch(l_ptr))
-				link_retrieve_defq(l_ptr, &head);
-			skb = NULL;
-			goto unlock;
+			if (!link_synch(l_ptr))
+				goto unlock;
 		}
 		l_ptr->next_in_no++;
 		if (unlikely(!skb_queue_empty(&l_ptr->deferdq)))
