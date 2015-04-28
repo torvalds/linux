@@ -82,6 +82,12 @@
 		clocks = <&main_clk>;
 	};
 
+	rtc@f0000c30 {
+		compatible = "cnxt,cx92755-rtc";
+		reg = <0xf0000c30 0x18>;
+		interrupts = <25>;
+	};
+
 	uc_regs: syscon@f00003a0 {
 		compatible = "cnxt,cx92755-uc", "syscon";
 		reg = <0xf00003a0 0x10>;
