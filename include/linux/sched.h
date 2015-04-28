@@ -598,9 +598,10 @@ struct task_cputime {
  * used for thread group CPU timer calculations.
  */
 struct thread_group_cputimer {
-	struct task_cputime cputime;
+	atomic64_t utime;
+	atomic64_t stime;
+	atomic64_t sum_exec_runtime;
 	int running;
-	raw_spinlock_t lock;
 };
 
 #include <linux/rwsem.h>
@@ -2966,11 +2967,6 @@ static __always_inline bool need_resched(void)
  */
 void thread_group_cputime(struct task_struct *tsk, struct task_cputime *times);
 void thread_group_cputimer(struct task_struct *tsk, struct task_cputime *times);
-
-static inline void thread_group_cputime_init(struct signal_struct *sig)
-{
-	raw_spin_lock_init(&sig->cputimer.lock);
-}
 
 /*
  * Reevaluate whether the task has signals pending delivery.

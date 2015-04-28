@@ -50,9 +50,10 @@ extern struct fs_struct init_fs;
 	.cpu_timers	= INIT_CPU_TIMERS(sig.cpu_timers),		\
 	.rlim		= INIT_RLIMITS,					\
 	.cputimer	= { 						\
-		.cputime = INIT_CPUTIME,				\
-		.running = 0,						\
-		.lock = __RAW_SPIN_LOCK_UNLOCKED(sig.cputimer.lock),	\
+		.utime 		  = ATOMIC64_INIT(0),			\
+		.stime		  = ATOMIC64_INIT(0),			\
+		.sum_exec_runtime = ATOMIC64_INIT(0),			\
+		.running 	  = 0					\
 	},								\
 	.cred_guard_mutex =						\
 		 __MUTEX_INITIALIZER(sig.cred_guard_mutex),		\
