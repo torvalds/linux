@@ -19,7 +19,6 @@ enum greybus_descriptor_type {
 	GREYBUS_TYPE_STRING		= 0x02,
 	GREYBUS_TYPE_BUNDLE		= 0x03,
 	GREYBUS_TYPE_CPORT		= 0x04,
-	GREYBUS_TYPE_CLASS		= 0x05,
 };
 
 enum greybus_protocol {
@@ -122,14 +121,6 @@ struct greybus_descriptor_cport {
 	__u8	protocol_id;	/* enum greybus_protocol */
 } __packed;
 
-/*
- * A class descriptor defines functionality supplied by a module.
- * Beyond that, not much else is defined yet...
- */
-struct greybus_descriptor_class {
-	__u8	class;		/* enum greybus_class_type */
-} __packed;
-
 struct greybus_descriptor_header {
 	__le16	size;
 	__u8	type;		/* enum greybus_descriptor_type */
@@ -142,7 +133,6 @@ struct greybus_descriptor {
 		struct greybus_descriptor_interface	interface;
 		struct greybus_descriptor_bundle	bundle;
 		struct greybus_descriptor_cport		cport;
-		struct greybus_descriptor_class		class;
 	};
 } __packed;
 

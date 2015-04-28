@@ -26,8 +26,6 @@ static const char *get_descriptor_type_string(u8 type)
 		return "cport";
 	case GREYBUS_TYPE_BUNDLE:
 		return "bundle";
-	case GREYBUS_TYPE_CLASS:
-		return "class";
 	default:
 		WARN_ON(1);
 		return "unknown";
@@ -112,9 +110,6 @@ static int identify_descriptor(struct gb_interface *intf,
 		break;
 	case GREYBUS_TYPE_CPORT:
 		expected_size += sizeof(struct greybus_descriptor_cport);
-		break;
-	case GREYBUS_TYPE_CLASS:
-		pr_warn("class descriptor found (ignoring)\n");
 		break;
 	case GREYBUS_TYPE_INVALID:
 	default:
