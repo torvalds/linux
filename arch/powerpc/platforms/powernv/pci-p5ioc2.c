@@ -95,6 +95,14 @@ static void pnv_pci_p5ioc2_dma_dev_setup(struct pnv_phb *phb,
 	set_iommu_table_base_and_group(&pdev->dev, &phb->p5ioc2.iommu_table);
 }
 
+static const struct pci_controller_ops pnv_pci_p5ioc2_controller_ops = {
+	.dma_dev_setup = pnv_pci_dma_dev_setup,
+#ifdef CONFIG_PCI_MSI
+       .setup_msi_irqs = pnv_setup_msi_irqs,
+       .teardown_msi_irqs = pnv_teardown_msi_irqs,
+#endif
+};
+
 static void __init pnv_pci_init_p5ioc2_phb(struct device_node *np, u64 hub_id,
 					   void *tce_mem, u64 tce_size)
 {
@@ -133,7 +141,7 @@ static void __init pnv_pci_init_p5ioc2_phb(struct device_node *np, u64 hub_id,
 	phb->hose->first_busno = 0;
 	phb->hose->last_busno = 0xff;
 	phb->hose->private_data = phb;
-	phb->hose->controller_ops = pnv_pci_controller_ops;
+	phb->hose->controller_ops = pnv_pci_p5ioc2_controller_ops;
 	phb->hub_id = hub_id;
 	phb->opal_id = phb_id;
 	phb->type = PNV_PHB_P5IOC2;
