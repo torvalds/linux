@@ -92,18 +92,35 @@ static void w1_therm_remove_slave(struct w1_slave *sl)
 static ssize_t w1_slave_show(struct device *device,
 	struct device_attribute *attr, char *buf);
 
+static ssize_t w1_seq_show(struct device *device,
+	struct device_attribute *attr, char *buf);
+
 static DEVICE_ATTR_RO(w1_slave);
+static DEVICE_ATTR_RO(w1_seq);
 
 static struct attribute *w1_therm_attrs[] = {
 	&dev_attr_w1_slave.attr,
 	NULL,
 };
+
+static struct attribute *w1_ds28ea00_attrs[] = {
+	&dev_attr_w1_slave.attr,
+	&dev_attr_w1_seq.attr,
+	NULL,
+};
 ATTRIBUTE_GROUPS(w1_therm);
+ATTRIBUTE_GROUPS(w1_ds28ea00);
 
 static struct w1_family_ops w1_therm_fops = {
 	.add_slave	= w1_therm_add_slave,
 	.remove_slave	= w1_therm_remove_slave,
 	.groups		= w1_therm_groups,
+};
+
+static struct w1_family_ops w1_ds28ea00_fops = {
+	.add_slave	= w1_therm_add_slave,
+	.remove_slave	= w1_therm_remove_slave,
+	.groups		= w1_ds28ea00_groups,
 };
 
 static struct w1_family w1_therm_family_DS18S20 = {
@@ -123,7 +140,7 @@ static struct w1_family w1_therm_family_DS1822 = {
 
 static struct w1_family w1_therm_family_DS28EA00 = {
 	.fid = W1_THERM_DS28EA00,
-	.fops = &w1_therm_fops,
+	.fops = &w1_ds28ea00_fops,
 };
 
 static struct w1_family w1_therm_family_DS1825 = {
@@ -314,6 +331,89 @@ pre_unlock:
 post_unlock:
 	atomic_dec(THERM_REFCNT(family_data));
 	return ret;
+}
+
+#define W1_42_CHAIN	0x99
+#define W1_42_CHAIN_OFF	0x3C
+#define W1_42_CHAIN_OFF_INV	0xC3
+#define W1_42_CHAIN_ON	0x5A
+#define W1_42_CHAIN_ON_INV	0xA5
+#define W1_42_CHAIN_DONE 0x96
+#define W1_42_CHAIN_DONE_INV 0x69
+#define W1_42_COND_READ	0x0F
+#define W1_42_SUCCESS_CONFIRM_BYTE 0xAA
+#define W1_42_FINISHED_BYTE 0xFF
+static ssize_t w1_seq_show(struct device *device,
+	struct device_attribute *attr, char *buf)
+{
+	struct w1_slave *sl = dev_to_w1_slave(device);
+	ssize_t c = PAGE_SIZE;
+	int rv;
+	int i;
+	u8 ack;
+	u64 rn;
+	struct w1_reg_num *reg_num;
+	int seq = 0;
+
+	mutex_lock(&sl->master->mutex);
+	/* Place all devices in CHAIN state */
+	if (w1_reset_bus(sl->master))
+		goto error;
+	w1_write_8(sl->master, W1_SKIP_ROM);
+	w1_write_8(sl->master, W1_42_CHAIN);
+	w1_write_8(sl->master, W1_42_CHAIN_ON);
+	w1_write_8(sl->master, W1_42_CHAIN_ON_INV);
+	msleep(sl->master->pullup_duration);
+
+	/* check for acknowledgment */
+	ack = w1_read_8(sl->master);
+	if (ack != W1_42_SUCCESS_CONFIRM_BYTE)
+		goto error;
+
+	/* In case the bus fails to send 0xFF, limit*/
+	for (i = 0; i <= 64; i++) {
+		if (w1_reset_bus(sl->master))
+			goto error;
+
+		w1_write_8(sl->master, W1_42_COND_READ);
+		rv = w1_read_block(sl->master, (u8 *)&rn, 8);
+		reg_num = (struct w1_reg_num *) &rn;
+		if ((char)reg_num->family == W1_42_FINISHED_BYTE)
+			break;
+		if (sl->reg_num.id == reg_num->id)
+			seq = i;
+
+		w1_write_8(sl->master, W1_42_CHAIN);
+		w1_write_8(sl->master, W1_42_CHAIN_DONE);
+		w1_write_8(sl->master, W1_42_CHAIN_DONE_INV);
+		w1_read_block(sl->master, &ack, sizeof(ack));
+
+		/* check for acknowledgment */
+		ack = w1_read_8(sl->master);
+		if (ack != W1_42_SUCCESS_CONFIRM_BYTE)
+			goto error;
+
+	}
+
+	/* Exit from CHAIN state */
+	if (w1_reset_bus(sl->master))
+		goto error;
+	w1_write_8(sl->master, W1_SKIP_ROM);
+	w1_write_8(sl->master, W1_42_CHAIN);
+	w1_write_8(sl->master, W1_42_CHAIN_OFF);
+	w1_write_8(sl->master, W1_42_CHAIN_OFF_INV);
+
+	/* check for acknowledgment */
+	ack = w1_read_8(sl->master);
+	if (ack != W1_42_SUCCESS_CONFIRM_BYTE)
+		goto error;
+	mutex_unlock(&sl->master->mutex);
+
+	c -= snprintf(buf + PAGE_SIZE - c, c, "%d\n", seq);
+	return PAGE_SIZE - c;
+error:
+	mutex_unlock(&sl->master->bus_mutex);
+	return -EIO;
 }
 
 static int __init w1_therm_init(void)
