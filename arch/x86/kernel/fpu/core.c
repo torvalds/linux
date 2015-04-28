@@ -319,14 +319,14 @@ static void fpu__activate_stopped(struct fpu *child_fpu)
 }
 
 /*
- * 'fpu__restore()' saves the current math information in the
- * old math state array, and gets the new ones from the current task
+ * 'fpu__restore()' is called to copy FPU registers from
+ * the FPU fpstate to the live hw registers and to activate
+ * access to the hardware registers, so that FPU instructions
+ * can be used afterwards.
  *
- * Careful.. There are problems with IBM-designed IRQ13 behaviour.
- * Don't touch unless you *really* know how it works.
- *
- * Must be called with kernel preemption disabled (eg with local
- * local interrupts as in the case of do_device_not_available).
+ * Must be called with kernel preemption disabled (for example
+ * with local interrupts disabled, as it is in the case of
+ * do_device_not_available()).
  */
 void fpu__restore(void)
 {
