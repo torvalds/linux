@@ -17,3 +17,23 @@ bool elf__needs_adjust_symbols(GElf_Ehdr ehdr)
 	       ehdr.e_type == ET_DYN;
 }
 #endif
+
+#if !defined(_CALL_ELF) || _CALL_ELF != 2
+int arch__choose_best_symbol(struct symbol *syma,
+			     struct symbol *symb __maybe_unused)
+{
+	char *sym = syma->name;
+
+	/* Skip over any initial dot */
+	if (*sym == '.')
+		sym++;
+
+	/* Avoid "SyS" kernel syscall aliases */
+	if (strlen(sym) >= 3 && !strncmp(sym, "SyS", 3))
+		return SYMBOL_B;
+	if (strlen(sym) >= 10 && !strncmp(sym, "compat_SyS", 10))
+		return SYMBOL_B;
+
+	return SYMBOL_A;
+}
+#endif

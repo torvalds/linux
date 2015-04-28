@@ -307,4 +307,9 @@ int setup_intlist(struct intlist **list, const char *list_str,
 bool elf__needs_adjust_symbols(GElf_Ehdr ehdr);
 #endif
 
+#define SYMBOL_A 0
+#define SYMBOL_B 1
+
+int arch__choose_best_symbol(struct symbol *syma, struct symbol *symb);
+
 #endif /* __PERF_SYMBOL */
