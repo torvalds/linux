@@ -844,15 +844,6 @@ static int gen8_alloc_va_range(struct i915_address_space *vm,
 	uint32_t pdpe;
 	int ret;
 
-#ifndef CONFIG_64BIT
-	/* Disallow 64b address on 32b platforms. Nothing is wrong with doing
-	 * this in hardware, but a lot of the drm code is not prepared to handle
-	 * 64b offset on 32b platforms.
-	 * This will be addressed when 48b PPGTT is added */
-	if (start + length > 0x100000000ULL)
-		return -E2BIG;
-#endif
-
 	/* Wrap is never okay since we can only represent 48b, and we don't
 	 * actually use the other side of the canonical address space.
 	 */
