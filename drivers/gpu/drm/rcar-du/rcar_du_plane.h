@@ -46,11 +46,20 @@ struct rcar_du_planes {
 	struct drm_property *zpos;
 };
 
+/**
+ * struct rcar_du_plane_state - Driver-specific plane state
+ * @state: base DRM plane state
+ * @format: information about the pixel format used by the plane
+ * @hwindex: 0-based hardware plane index, -1 means unused
+ * @alpha: value of the plane alpha property
+ * @colorkey: value of the plane colorkey property
+ * @zpos: value of the plane zpos property
+ */
 struct rcar_du_plane_state {
 	struct drm_plane_state state;
 
 	const struct rcar_du_format_info *format;
-	int hwindex;		/* 0-based, -1 means unused */
+	int hwindex;
 
 	unsigned int alpha;
 	unsigned int colorkey;
