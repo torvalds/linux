@@ -94,7 +94,7 @@ static const char * const cdce706_source_name[] = {
 	"clk_in0", "clk_in1",
 };
 
-static const char *cdce706_clkin_name[] = {
+static const char * const cdce706_clkin_name[] = {
 	"clk_in",
 };
 
@@ -102,7 +102,7 @@ static const char * const cdce706_pll_name[] = {
 	"pll1", "pll2", "pll3",
 };
 
-static const char *cdce706_divider_parent_name[] = {
+static const char * const cdce706_divider_parent_name[] = {
 	"clk_in", "pll1", "pll2", "pll2", "pll3",
 };
 
