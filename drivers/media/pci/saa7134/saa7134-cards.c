@@ -7194,7 +7194,7 @@ static int saa7134_xc2028_callback(struct saa7134_dev *dev,
 			saa7134_set_gpio(dev, 20, 1);
 		break;
 		}
-	return 0;
+		return 0;
 	}
 	return -EINVAL;
 }
@@ -7842,7 +7842,8 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 				break;
 			case 0x001d:
 				dev->tuner_type = TUNER_PHILIPS_FMD1216ME_MK3;
-					printk(KERN_INFO "%s Board has DVB-T\n", dev->name);
+				printk(KERN_INFO "%s Board has DVB-T\n",
+				       dev->name);
 				break;
 			default:
 				printk(KERN_ERR "%s Can't determine tuner type %x from EEPROM\n", dev->name, tuner_t);
@@ -7903,13 +7904,15 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 	case SAA7134_BOARD_ASUSTeK_TVFM7135:
 	/* The card below is detected as card=53, but is different */
 	       if (dev->autodetected && (dev->eedata[0x27] == 0x03)) {
-		       dev->board = SAA7134_BOARD_ASUSTeK_P7131_ANALOG;
-		       printk(KERN_INFO "%s: P7131 analog only, using "
-						       "entry of %s\n",
-		       dev->name, saa7134_boards[dev->board].name);
+			dev->board = SAA7134_BOARD_ASUSTeK_P7131_ANALOG;
+			printk(KERN_INFO
+			       "%s: P7131 analog only, using entry of %s\n",
+			dev->name, saa7134_boards[dev->board].name);
 
-			/* IR init has already happened for other cards, so
-			 * we have to catch up. */
+			/*
+			 * IR init has already happened for other cards, so
+			 * we have to catch up.
+			 */
 			dev->has_remote = SAA7134_REMOTE_GPIO;
 			saa7134_input_init1(dev);
 	       }
