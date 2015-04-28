@@ -54,9 +54,6 @@
 #define ROTATE_180	8
 #define ROTATE_270	12
 
-#define DISP_CENTER	0
-#define DISP_FULLSCREEN	1
-
 #define COLOR_RGB	0
 #define COLOR_YCBCR	1
 

@@ -93,8 +93,6 @@
 					 */
 #define ROTATE_270	12		/* clockwise rotate 270 degrees */
 
-#define DISP_CENTER 		0
-#define DISP_FULLSCREEN 	1
 
 /**
 * pixel align value for gpu,align as 64 bytes in an odd number of times
@@ -683,8 +681,6 @@ struct rk_fb_par {
 struct rk_fb {
 	int disp_mode;
 	int disp_policy;
-	int uboot_logo_mode;
-	int kernel_logo_mode;
 	struct rk29fb_info *mach_info;
 	struct fb_info *fb[RK_MAX_FB_SUPPORT*2];
 	int num_fb;

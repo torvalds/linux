@@ -48,8 +48,7 @@ typedef struct bmpinfoheader {
 
 #define range(x, min, max) ((x) < (min)) ? (min) : (((x) > (max)) ? (max) : (x))
 
-int bmp_getsize(void *bmp_addr);
 int bmpencoder(void *__iomem *vaddr,int width, int height, u8 data_format,
 	       void *data, void (*fn)(void *, void *, int));
-int bmpdecoder(void *bmp_addr, void *dst, u16 *width, u16 *height, u16 *bits);
+int bmpdecoder(void *bmp_addr, void *dst, int *width, int *height, int *bits);
 #endif /* _BMP_HELPER_H_ */
