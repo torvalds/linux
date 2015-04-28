@@ -11,10 +11,23 @@
 #include <asm/tlbflush.h>
 #include <asm/xcr.h>
 
+static const char *xfeature_names[] =
+{
+	"x87 floating point registers"	,
+	"SSE registers"			,
+	"AVX registers"			,
+	"MPX bounds registers"		,
+	"MPX CSR"			,
+	"AVX-512 opmask"		,
+	"AVX-512 Hi256"			,
+	"AVX-512 ZMM_Hi256"		,
+	"unknown xstate feature"	,
+};
+
 /*
  * Mask of xstate features supported by the CPU and the kernel:
  */
-u64 xfeatures_mask;
+u64 xfeatures_mask __read_mostly;
 
 /*
  * Represents init state for the supported extended state.
@@ -27,6 +40,44 @@ static unsigned int xstate_comp_offsets[sizeof(xfeatures_mask)*8];
 
 /* The number of supported xfeatures in xfeatures_mask: */
 static unsigned int xfeatures_nr;
+
+/*
+ * Return whether the system supports a given xfeature.
+ *
+ * Also return the name of the (most advanced) feature that the caller requested:
+ */
+int cpu_has_xfeatures(u64 xfeatures_needed, const char **feature_name)
+{
+	u64 xfeatures_missing = xfeatures_needed & ~xfeatures_mask;
+
+	if (unlikely(feature_name)) {
+		long xfeature_idx, max_idx;
+		u64 xfeatures_print;
+		/*
+		 * So we use FLS here to be able to print the most advanced
+		 * feature that was requested but is missing. So if a driver
+		 * asks about "XSTATE_SSE | XSTATE_YMM" we'll print the
+		 * missing AVX feature - this is the most informative message
+		 * to users:
+		 */
+		if (xfeatures_missing)
+			xfeatures_print = xfeatures_missing;
+		else
+			xfeatures_print = xfeatures_needed;
+
+		xfeature_idx = fls64(xfeatures_print)-1;
+		max_idx = ARRAY_SIZE(xfeature_names)-1;
+		xfeature_idx = min(xfeature_idx, max_idx);
+
+		*feature_name = xfeature_names[xfeature_idx];
+	}
+
+	if (xfeatures_missing)
+		return 0;
+
+	return 1;
+}
+EXPORT_SYMBOL_GPL(cpu_has_xfeatures);
 
 /*
  * When executing XSAVEOPT (optimized XSAVE), if a processor implementation

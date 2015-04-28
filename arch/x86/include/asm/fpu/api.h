@@ -36,4 +36,13 @@ extern bool irq_fpu_usable(void);
 extern int  irq_ts_save(void);
 extern void irq_ts_restore(int TS_state);
 
+/*
+ * Query the presence of one or more xfeatures. Works on any legacy CPU as well.
+ *
+ * If 'feature_name' is set then put a human-readable description of
+ * the feature there as well - this can be used to print error (or success)
+ * messages.
+ */
+extern int cpu_has_xfeatures(u64 xfeatures_mask, const char **feature_name);
+
 #endif /* _ASM_X86_FPU_API_H */
