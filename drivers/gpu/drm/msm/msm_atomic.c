@@ -84,6 +84,33 @@ static void commit_destroy(struct msm_commit *c)
 	kfree(c);
 }
 
+static void msm_atomic_wait_for_commit_done(struct drm_device *dev,
+		struct drm_atomic_state *old_state)
+{
+	struct drm_crtc *crtc;
+	struct msm_drm_private *priv = old_state->dev->dev_private;
+	struct msm_kms *kms = priv->kms;
+	int ncrtcs = old_state->dev->mode_config.num_crtc;
+	int i;
+
+	for (i = 0; i < ncrtcs; i++) {
+		crtc = old_state->crtcs[i];
+
+		if (!crtc)
+			continue;
+
+		if (!crtc->state->enable)
+			continue;
+
+		/* Legacy cursor ioctls are completely unsynced, and userspace
+		 * relies on that (by doing tons of cursor updates). */
+		if (old_state->legacy_cursor_update)
+			continue;
+
+		kms->funcs->wait_for_crtc_commit_done(kms, crtc);
+	}
+}
+
 /* The (potentially) asynchronous part of the commit.  At this point
  * nothing can fail short of armageddon.
  */
@@ -115,7 +142,7 @@ static void complete_commit(struct msm_commit *c)
 	 * not be critical path)
 	 */
 
-	drm_atomic_helper_wait_for_vblanks(dev, state);
+	msm_atomic_wait_for_commit_done(dev, state);
 
 	drm_atomic_helper_cleanup_planes(dev, state);
 
@@ -138,7 +165,6 @@ static void add_fb(struct msm_commit *c, struct drm_framebuffer *fb)
 	struct drm_gem_object *obj = msm_framebuffer_bo(fb, 0);
 	c->fence = max(c->fence, msm_gem_fence(to_msm_bo(obj), MSM_PREP_READ));
 }
-
 
 int msm_atomic_check(struct drm_device *dev,
 		     struct drm_atomic_state *state)

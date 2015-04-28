@@ -46,6 +46,11 @@ struct mdp5_crtc {
 	/* if there is a pending flip, these will be non-null: */
 	struct drm_pending_vblank_event *event;
 
+	/* Bits have been flushed at the last commit,
+	 * used to decide if a vsync has happened since last commit.
+	 */
+	u32 flushed_mask;
+
 #define PENDING_CURSOR 0x1
 #define PENDING_FLIP   0x2
 	atomic_t pending;
@@ -82,12 +87,12 @@ static void request_pending(struct drm_crtc *crtc, uint32_t pending)
 	mdp_irq_register(&get_kms(crtc)->base, &mdp5_crtc->vblank);
 }
 
-static void crtc_flush(struct drm_crtc *crtc, u32 flush_mask)
+static u32 crtc_flush(struct drm_crtc *crtc, u32 flush_mask)
 {
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 
 	DBG("%s: flush=%08x", mdp5_crtc->name, flush_mask);
-	mdp5_ctl_commit(mdp5_crtc->ctl, flush_mask);
+	return mdp5_ctl_commit(mdp5_crtc->ctl, flush_mask);
 }
 
 /*
@@ -95,7 +100,7 @@ static void crtc_flush(struct drm_crtc *crtc, u32 flush_mask)
  * so that we can safely queue unref to current fb (ie. next
  * vblank we know hw is done w/ previous scanout_fb).
  */
-static void crtc_flush_all(struct drm_crtc *crtc)
+static u32 crtc_flush_all(struct drm_crtc *crtc)
 {
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 	struct drm_plane *plane;
@@ -103,7 +108,7 @@ static void crtc_flush_all(struct drm_crtc *crtc)
 
 	/* this should not happen: */
 	if (WARN_ON(!mdp5_crtc->ctl))
-		return;
+		return 0;
 
 	drm_atomic_crtc_for_each_plane(plane, crtc) {
 		flush_mask |= mdp5_plane_get_flush(plane);
@@ -111,7 +116,7 @@ static void crtc_flush_all(struct drm_crtc *crtc)
 
 	flush_mask |= mdp_ctl_flush_mask_lm(mdp5_crtc->lm);
 
-	crtc_flush(crtc, flush_mask);
+	return crtc_flush(crtc, flush_mask);
 }
 
 /* if file!=NULL, this is preclose potential cancel-flip path */
@@ -395,7 +400,9 @@ static void mdp5_crtc_atomic_flush(struct drm_crtc *crtc)
 		return;
 
 	blend_setup(crtc);
-	crtc_flush_all(crtc);
+
+	mdp5_crtc->flushed_mask = crtc_flush_all(crtc);
+
 	request_pending(crtc, PENDING_FLIP);
 }
 
@@ -600,6 +607,32 @@ static void mdp5_crtc_err_irq(struct mdp_irq *irq, uint32_t irqstatus)
 	DBG("%s: error: %08x", mdp5_crtc->name, irqstatus);
 }
 
+static void mdp5_crtc_wait_for_flush_done(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
+	int ret;
+
+	/* Should not call this function if crtc is disabled. */
+	if (!mdp5_crtc->ctl)
+		return;
+
+	ret = drm_crtc_vblank_get(crtc);
+	if (ret)
+		return;
+
+	ret = wait_event_timeout(dev->vblank[drm_crtc_index(crtc)].queue,
+		((mdp5_ctl_get_commit_status(mdp5_crtc->ctl) &
+		mdp5_crtc->flushed_mask) == 0),
+		msecs_to_jiffies(50));
+	if (ret <= 0)
+		dev_warn(dev->dev, "vblank time out, crtc=%d\n", mdp5_crtc->id);
+
+	mdp5_crtc->flushed_mask = 0;
+
+	drm_crtc_vblank_put(crtc);
+}
+
 uint32_t mdp5_crtc_vblank(struct drm_crtc *crtc)
 {
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
@@ -631,6 +664,7 @@ void mdp5_crtc_set_intf(struct drm_crtc *crtc, struct mdp5_interface *intf)
 		mdp5_crtc->vblank.irqmask = lm2ppdone(lm);
 	else
 		mdp5_crtc->vblank.irqmask = intf2vblank(lm, intf);
+
 	mdp_irq_update(&mdp5_kms->base);
 
 	mdp5_ctl_set_intf(mdp5_crtc->ctl, intf);
@@ -646,6 +680,15 @@ struct mdp5_ctl *mdp5_crtc_get_ctl(struct drm_crtc *crtc)
 {
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 	return WARN_ON(!crtc) ? NULL : mdp5_crtc->ctl;
+}
+
+void mdp5_crtc_wait_for_commit_done(struct drm_crtc *crtc)
+{
+	/* wait_for_flush_done is the only case for now.
+	 * Later we will have command mode CRTC to wait for
+	 * other event.
+	 */
+	mdp5_crtc_wait_for_flush_done(crtc);
 }
 
 /* initialize crtc */
