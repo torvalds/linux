@@ -211,7 +211,7 @@ void omap_gem_dma_sync(struct drm_gem_object *obj,
 		enum dma_data_direction dir);
 int omap_gem_get_paddr(struct drm_gem_object *obj,
 		dma_addr_t *paddr, bool remap);
-int omap_gem_put_paddr(struct drm_gem_object *obj);
+void omap_gem_put_paddr(struct drm_gem_object *obj);
 int omap_gem_get_pages(struct drm_gem_object *obj, struct page ***pages,
 		bool remap);
 int omap_gem_put_pages(struct drm_gem_object *obj);
