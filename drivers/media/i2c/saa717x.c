@@ -152,9 +152,9 @@ static u32 saa717x_read(struct v4l2_subdev *sd, u32 reg)
 	i2c_transfer(adap, msgs, 2);
 
 	if (fw_addr)
-		value = (mm2[2] & 0xff)  | ((mm2[1] & 0xff) >> 8) | ((mm2[0] & 0xff) >> 16);
+		value = (mm2[2] << 16)  | (mm2[1] << 8) | mm2[0];
 	else
-		value = mm2[0] & 0xff;
+		value = mm2[0];
 
 	v4l2_dbg(2, debug, sd, "read:  reg 0x%03x=0x%08x\n", reg, value);
 	return value;
