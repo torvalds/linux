@@ -1675,12 +1675,9 @@ vpfe_get_subdev_input_index(struct vpfe_device *vpfe,
 			    int *subdev_input_index,
 			    int app_input_index)
 {
-	struct vpfe_config *cfg = vpfe->cfg;
-	struct vpfe_subdev_info *sdinfo;
 	int i, j = 0;
 
 	for (i = 0; i < ARRAY_SIZE(vpfe->cfg->asd); i++) {
-		sdinfo = &cfg->sub_devs[i];
 		if (app_input_index < (j + 1)) {
 			*subdev_index = i;
 			*subdev_input_index = app_input_index - j;
