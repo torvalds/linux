@@ -973,12 +973,8 @@ static int iwl_pcie_load_given_ucode_8000(struct iwl_trans *trans,
 		return ret;
 
 	/* load to FW the binary sections of CPU2 */
-	ret = iwl_pcie_load_cpu_sections_8000(trans, image, 2,
-					      &first_ucode_section);
-	if (ret)
-		return ret;
-
-	return 0;
+	return iwl_pcie_load_cpu_sections_8000(trans, image, 2,
+					       &first_ucode_section);
 }
 
 static int iwl_trans_pcie_start_fw(struct iwl_trans *trans,
