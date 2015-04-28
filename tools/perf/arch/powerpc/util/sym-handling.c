@@ -8,6 +8,7 @@
 
 #include "debug.h"
 #include "symbol.h"
+#include "map.h"
 
 #ifdef HAVE_LIBELF_SUPPORT
 bool elf__needs_adjust_symbols(GElf_Ehdr ehdr)
@@ -35,5 +36,17 @@ int arch__choose_best_symbol(struct symbol *syma,
 		return SYMBOL_B;
 
 	return SYMBOL_A;
+}
+
+/* Allow matching against dot variants */
+int arch__compare_symbol_names(const char *namea, const char *nameb)
+{
+	/* Skip over initial dot */
+	if (*namea == '.')
+		namea++;
+	if (*nameb == '.')
+		nameb++;
+
+	return strcmp(namea, nameb);
 }
 #endif

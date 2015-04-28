@@ -411,7 +411,7 @@ static struct symbol *symbols__find_by_name(struct rb_root *symbols,
 		int cmp;
 
 		s = rb_entry(n, struct symbol_name_rb_node, rb_node);
-		cmp = strcmp(name, s->sym.name);
+		cmp = arch__compare_symbol_names(name, s->sym.name);
 
 		if (cmp < 0)
 			n = n->rb_left;
@@ -429,7 +429,7 @@ static struct symbol *symbols__find_by_name(struct rb_root *symbols,
 		struct symbol_name_rb_node *tmp;
 
 		tmp = rb_entry(n, struct symbol_name_rb_node, rb_node);
-		if (strcmp(tmp->sym.name, s->sym.name))
+		if (arch__compare_symbol_names(tmp->sym.name, s->sym.name))
 			break;
 
 		s = tmp;
