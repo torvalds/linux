@@ -2081,7 +2081,7 @@ static int generic_hdmi_build_jack(struct hda_codec *codec, int pin_idx)
 		strncat(hdmi_str, " Phantom",
 			sizeof(hdmi_str) - strlen(hdmi_str) - 1);
 
-	return snd_hda_jack_add_kctl(codec, per_pin->pin_nid, hdmi_str, 0);
+	return snd_hda_jack_add_kctl(codec, per_pin->pin_nid, hdmi_str);
 }
 
 static int generic_hdmi_build_controls(struct hda_codec *codec)
