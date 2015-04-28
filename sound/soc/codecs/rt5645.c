@@ -2685,7 +2685,7 @@ static int strago_quirk_cb(const struct dmi_system_id *id)
 	return 1;
 }
 
-static struct dmi_system_id dmi_platform_intel_braswell[] __initdata = {
+static struct dmi_system_id dmi_platform_intel_braswell[] = {
 	{
 		.ident = "Intel Strago",
 		.callback = strago_quirk_cb,
