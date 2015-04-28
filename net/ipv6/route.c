@@ -1785,6 +1785,9 @@ static int ip6_route_del(struct fib6_config *cfg)
 
 	if (fn) {
 		for (rt = fn->leaf; rt; rt = rt->dst.rt6_next) {
+			if ((rt->rt6i_flags & RTF_CACHE) &&
+			    !(cfg->fc_flags & RTF_CACHE))
+				continue;
 			if (cfg->fc_ifindex &&
 			    (!rt->dst.dev ||
 			     rt->dst.dev->ifindex != cfg->fc_ifindex))
@@ -2432,6 +2435,9 @@ static int rtm_to_fib6_config(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	if (rtm->rtm_type == RTN_LOCAL)
 		cfg->fc_flags |= RTF_LOCAL;
+
+	if (rtm->rtm_flags & RTM_F_CLONED)
+		cfg->fc_flags |= RTF_CACHE;
 
 	cfg->fc_nlinfo.portid = NETLINK_CB(skb).portid;
 	cfg->fc_nlinfo.nlh = nlh;
