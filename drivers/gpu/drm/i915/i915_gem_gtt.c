@@ -1928,8 +1928,6 @@ static int ggtt_bind_vma(struct i915_vma *vma,
 		vma->vm->insert_entries(vma->vm, pages,
 					vma->node.start,
 					cache_level, pte_flags);
-
-		vma->bound |= GLOBAL_BIND;
 	}
 
 	if (dev_priv->mm.aliasing_ppgtt && flags & LOCAL_BIND) {
@@ -2804,21 +2802,13 @@ i915_get_ggtt_vma_pages(struct i915_vma *vma)
 int i915_vma_bind(struct i915_vma *vma, enum i915_cache_level cache_level,
 		  u32 flags)
 {
-	int ret = 0;
-	u32 bind_flags = 0;
+	int ret;
+	u32 bind_flags;
 
-	if (vma->vm->allocate_va_range) {
-		trace_i915_va_alloc(vma->vm, vma->node.start,
-				    vma->node.size,
-				    VM_TO_TRACE_NAME(vma->vm));
+	if (WARN_ON(flags == 0))
+		return -EINVAL;
 
-		ret = vma->vm->allocate_va_range(vma->vm,
-						 vma->node.start,
-						 vma->node.size);
-		if (ret)
-			return ret;
-	}
-
+	bind_flags = 0;
 	if (flags & PIN_GLOBAL)
 		bind_flags |= GLOBAL_BIND;
 	if (flags & PIN_USER)
@@ -2829,8 +2819,23 @@ int i915_vma_bind(struct i915_vma *vma, enum i915_cache_level cache_level,
 	else
 		bind_flags &= ~vma->bound;
 
-	if (bind_flags)
-		ret = vma->vm->bind_vma(vma, cache_level, bind_flags);
+	if (bind_flags == 0)
+		return 0;
+
+	if (vma->bound == 0 && vma->vm->allocate_va_range) {
+		trace_i915_va_alloc(vma->vm,
+				    vma->node.start,
+				    vma->node.size,
+				    VM_TO_TRACE_NAME(vma->vm));
+
+		ret = vma->vm->allocate_va_range(vma->vm,
+						 vma->node.start,
+						 vma->node.size);
+		if (ret)
+			return ret;
+	}
+
+	ret = vma->vm->bind_vma(vma, cache_level, bind_flags);
 	if (ret)
 		return ret;
 
