@@ -630,6 +630,7 @@ static const struct cx24120_config skystar2_rev3_3_cx24120_config = {
 	.xtal_khz = 10111,
 	.initial_mpeg_config = { 0xa1, 0x76, 0x07 },
 	.request_firmware = flexcop_fe_request_firmware,
+	.i2c_wr_max = 4,
 };
 
 static int skystarS2_rev33_attach(struct flexcop_device *fc,

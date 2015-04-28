@@ -209,46 +209,53 @@ static int cx24120_writereg(struct cx24120_state *state, u8 reg, u8 data)
 }
 
 
-/* Write multiple registers */
+/* Write multiple registers in chunks of i2c_wr_max-sized buffers */
 static int cx24120_writeregN(struct cx24120_state *state,
 			u8 reg, const u8 *values, u16 len, u8 incr)
 {
 	int ret;
-	u8 buf[5]; /* maximum 4 data bytes at once - flexcop limitation
-			(very limited i2c-interface this one) */
+	u16 max = state->config->i2c_wr_max > 0 ?
+				state->config->i2c_wr_max :
+				len;
 
 	struct i2c_msg msg = {
 		.addr = state->config->i2c_addr,
 		.flags = 0,
-		.buf = buf,
-		.len = len };
+	};
+
+	msg.buf = kmalloc(max + 1, GFP_KERNEL);
+	if (msg.buf == NULL)
+		return -ENOMEM;
 
 	while (len) {
-		buf[0] = reg;
-		msg.len = len > 4 ? 4 : len;
-		memcpy(&buf[1], values, msg.len);
+		msg.buf[0] = reg;
+		msg.len = len > max ? max : len;
+		memcpy(&msg.buf[1], values, msg.len);
 
-		len  -= msg.len;		/* data length revers counter */
-		values += msg.len;		/* incr data pointer */
+		len    -= msg.len;      /* data length revers counter */
+		values += msg.len;      /* incr data pointer */
 
 		if (incr)
 			reg += msg.len;
-		msg.len++;			/* don't forget the addr byte */
+		msg.len++;              /* don't forget the addr byte */
 
 		ret = i2c_transfer(state->i2c, &msg, 1);
 		if (ret != 1) {
 			err("i2c_write error(err == %i, 0x%02x)\n", ret, reg);
-			return ret;
+			goto out;
 		}
 
 		dev_dbg(&state->i2c->dev,
 			"%s: reg=0x%02x; data=0x%02x,0x%02x,0x%02x,0x%02x\n",
 			__func__, reg,
-			buf[1], buf[2], buf[3], buf[4]);
-
+			msg.buf[1], msg.buf[2], msg.buf[3], msg.buf[4]);
 	}
 
-	return 0;
+	ret = 0;
+
+out:
+	kfree(msg.buf);
+	return ret;
 }
 
 
@@ -1433,7 +1440,6 @@ int cx24120_init(struct dvb_frontend *fe)
 		vers[i] = cx24120_readreg(state, CX24120_REG_MAILBOX);
 	}
 	info("FW version %i.%i.%i.%i\n", vers[0], vers[1], vers[2], vers[3]);
-
 
 	state->cold_init = 1;
 	return 0;
