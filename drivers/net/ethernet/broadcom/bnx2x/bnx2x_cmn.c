@@ -4834,10 +4834,6 @@ netdev_features_t bnx2x_fix_features(struct net_device *dev,
 		features &= ~NETIF_F_GRO;
 	}
 
-	/* Note: do not disable SW GRO in kernel when HW GRO is off */
-	if (bp->disable_tpa)
-		features &= ~NETIF_F_LRO;
-
 	return features;
 }
 

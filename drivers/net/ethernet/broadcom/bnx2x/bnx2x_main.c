@@ -12108,10 +12108,10 @@ static int bnx2x_init_bp(struct bnx2x *bp)
 	/* Set TPA flags */
 	if (bp->disable_tpa) {
 		bp->flags &= ~(TPA_ENABLE_FLAG | GRO_ENABLE_FLAG);
+		bp->dev->hw_features &= ~NETIF_F_LRO;
 		bp->dev->features &= ~NETIF_F_LRO;
 	} else {
 		bp->flags |= (TPA_ENABLE_FLAG | GRO_ENABLE_FLAG);
-		bp->dev->features |= NETIF_F_LRO;
 	}
 
 	if (CHIP_IS_E1(bp))
