@@ -73,8 +73,7 @@ static inline unsigned int sirfsoc_uart_tx_empty(struct uart_port *port)
 	struct sirfsoc_register *ureg = &sirfport->uart_reg->uart_reg;
 	struct sirfsoc_fifo_status *ufifo_st = &sirfport->uart_reg->fifo_status;
 	reg = rd_regl(port, ureg->sirfsoc_tx_fifo_status);
-
-	return (reg & ufifo_st->ff_empty(port->line)) ? TIOCSER_TEMT : 0;
+	return (reg & ufifo_st->ff_empty(port)) ? TIOCSER_TEMT : 0;
 }
 
 static unsigned int sirfsoc_uart_get_mctrl(struct uart_port *port)
@@ -247,8 +246,7 @@ static void sirfsoc_uart_start_tx(struct uart_port *port)
 	if (sirfport->tx_dma_chan)
 		sirfsoc_uart_tx_with_dma(sirfport);
 	else {
-		sirfsoc_uart_pio_tx_chars(sirfport,
-			SIRFSOC_UART_IO_TX_REASONABLE_CNT);
+		sirfsoc_uart_pio_tx_chars(sirfport, port->fifosize);
 		wr_regl(port, ureg->sirfsoc_tx_fifo_op, SIRFUART_FIFO_START);
 		if (!sirfport->is_atlas7)
 			wr_regl(port, ureg->sirfsoc_int_en_reg,
@@ -374,7 +372,7 @@ sirfsoc_uart_pio_rx_chars(struct uart_port *port, unsigned int max_rx_count)
 	if (!tty)
 		return -ENODEV;
 	while (!(rd_regl(port, ureg->sirfsoc_rx_fifo_status) &
-					ufifo_st->ff_empty(port->line))) {
+					ufifo_st->ff_empty(port))) {
 		ch = rd_regl(port, ureg->sirfsoc_rx_fifo_data) |
 			SIRFUART_DUMMY_READ;
 		if (unlikely(uart_handle_sysrq_char(port, ch)))
@@ -401,7 +399,7 @@ sirfsoc_uart_pio_tx_chars(struct sirfsoc_uart_port *sirfport, int count)
 	unsigned int num_tx = 0;
 	while (!uart_circ_empty(xmit) &&
 		!(rd_regl(port, ureg->sirfsoc_tx_fifo_status) &
-					ufifo_st->ff_full(port->line)) &&
+					ufifo_st->ff_full(port)) &&
 		count--) {
 		wr_regl(port, ureg->sirfsoc_tx_fifo_data,
 				xmit->buf[xmit->tail]);
@@ -626,8 +624,7 @@ recv_char:
 			sirfsoc_uart_handle_rx_done(sirfport);
 	} else {
 		if (intr_status & SIRFUART_RX_IO_INT_ST(uint_st))
-			sirfsoc_uart_pio_rx_chars(port,
-					SIRFSOC_UART_IO_RX_MAX_CNT);
+			sirfsoc_uart_pio_rx_chars(port, port->fifosize);
 	}
 	spin_unlock(&port->lock);
 	tty_flip_buffer_push(&state->port);
@@ -641,10 +638,10 @@ recv_char:
 				return IRQ_HANDLED;
 			} else {
 				sirfsoc_uart_pio_tx_chars(sirfport,
-					SIRFSOC_UART_IO_TX_REASONABLE_CNT);
+						port->fifosize);
 				if ((uart_circ_empty(xmit)) &&
 				(rd_regl(port, ureg->sirfsoc_tx_fifo_status) &
-				ufifo_st->ff_empty(port->line)))
+				ufifo_st->ff_empty(port)))
 					sirfsoc_uart_stop_tx(port);
 			}
 		}
@@ -746,7 +743,7 @@ sirfsoc_usp_calc_sample_div(unsigned long set_rate,
 	unsigned long ioclk_div = 0;
 	unsigned long temp_delta;
 
-	for (sample_div = SIRF_MIN_SAMPLE_DIV;
+	for (sample_div = SIRF_USP_MIN_SAMPLE_DIV;
 			sample_div <= SIRF_MAX_SAMPLE_DIV; sample_div++) {
 		temp_delta = ioclk_rate -
 		(ioclk_rate + (set_rate * sample_div) / 2)
@@ -1012,7 +1009,6 @@ static int sirfsoc_uart_startup(struct uart_port *port)
 							index, port->irq);
 		goto irq_err;
 	}
-
 	/* initial hardware settings */
 	wr_regl(port, ureg->sirfsoc_tx_dma_io_ctrl,
 		rd_regl(port, ureg->sirfsoc_tx_dma_io_ctrl) |
@@ -1174,8 +1170,8 @@ static void sirfsoc_uart_console_putchar(struct uart_port *port, int ch)
 	struct sirfsoc_uart_port *sirfport = to_sirfport(port);
 	struct sirfsoc_register *ureg = &sirfport->uart_reg->uart_reg;
 	struct sirfsoc_fifo_status *ufifo_st = &sirfport->uart_reg->fifo_status;
-	while (rd_regl(port,
-		ureg->sirfsoc_tx_fifo_status) & ufifo_st->ff_full(port->line))
+	while (rd_regl(port, ureg->sirfsoc_tx_fifo_status) &
+		ufifo_st->ff_full(port))
 		cpu_relax();
 	wr_regl(port, ureg->sirfsoc_tx_fifo_data, ch);
 }

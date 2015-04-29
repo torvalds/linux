@@ -6,6 +6,7 @@
  * Licensed under GPLv2 or later.
  */
 #include <linux/bitops.h>
+#include <linux/log2.h>
 struct sirfsoc_uart_param {
 	const char *uart_name;
 	const char *port_name;
@@ -43,8 +44,8 @@ struct sirfsoc_register {
 	u32 sirfsoc_async_param_reg;
 };
 
-typedef u32 (*fifo_full_mask)(int line);
-typedef u32 (*fifo_empty_mask)(int line);
+typedef u32 (*fifo_full_mask)(struct uart_port *port);
+typedef u32 (*fifo_empty_mask)(struct uart_port *port);
 
 struct sirfsoc_fifo_status {
 	fifo_full_mask ff_full;
@@ -103,21 +104,20 @@ struct sirfsoc_uart_register {
 	enum sirfsoc_uart_type uart_type;
 };
 
-u32 usp_ff_full(int line)
+u32 uart_usp_ff_full_mask(struct uart_port *port)
 {
-	return 0x80;
+	u32 full_bit;
+
+	full_bit = ilog2(port->fifosize);
+	return (1 << full_bit);
 }
-u32 usp_ff_empty(int line)
+
+u32 uart_usp_ff_empty_mask(struct uart_port *port)
 {
-	return 0x100;
-}
-u32 uart_ff_full(int line)
-{
-	return (line == 1) ? (0x20) : (0x80);
-}
-u32 uart_ff_empty(int line)
-{
-	return (line == 1) ? (0x40) : (0x100);
+	u32 empty_bit;
+
+	empty_bit = ilog2(port->fifosize);
+	return (1 << empty_bit);
 }
 struct sirfsoc_uart_register sirfsoc_usp = {
 	.uart_reg = {
@@ -175,8 +175,8 @@ struct sirfsoc_uart_register sirfsoc_usp = {
 		.sirfsoc_rxd_brk	= BIT(15),
 	},
 	.fifo_status = {
-		.ff_full		= usp_ff_full,
-		.ff_empty		= usp_ff_empty,
+		.ff_full		= uart_usp_ff_full_mask,
+		.ff_empty		= uart_usp_ff_empty_mask,
 	},
 	.uart_param = {
 		.uart_name = "ttySiRF",
@@ -245,8 +245,8 @@ struct sirfsoc_uart_register sirfsoc_uart = {
 		.sirfsoc_rts		= BIT(15),
 	},
 	.fifo_status = {
-		.ff_full		= uart_ff_full,
-		.ff_empty		= uart_ff_empty,
+		.ff_full		= uart_usp_ff_full_mask,
+		.ff_empty		= uart_usp_ff_empty_mask,
 	},
 	.uart_param = {
 		.uart_name = "ttySiRF",
@@ -294,6 +294,7 @@ struct sirfsoc_uart_register sirfsoc_uart = {
 /* Macro Specific*/
 #define SIRFUART_INT_EN_CLR                    0x0060
 /* Baud Rate Calculation */
+#define SIRF_USP_MIN_SAMPLE_DIV			0x1
 #define SIRF_MIN_SAMPLE_DIV			0xf
 #define SIRF_MAX_SAMPLE_DIV			0x3f
 #define SIRF_IOCLK_DIV_MAX			0xffff
@@ -328,7 +329,7 @@ struct sirfsoc_uart_register sirfsoc_uart = {
 #define SIRFUART_RECV_TIMEOUT(port, x)	\
 		(((port)->line > 2) ? (x & 0xFFFF) : ((x) & 0xFFFF) << 16)
 
-#define SIRFUART_FIFO_THD(port)		((port->line) == 1 ? 16 : 64)
+#define SIRFUART_FIFO_THD(port)		(port->fifosize >> 1)
 #define SIRFUART_ERR_INT_STAT(port, unit_st)			\
 				(uint_st->sirfsoc_rx_oflow |		\
 				uint_st->sirfsoc_frm_err |		\
@@ -365,10 +366,6 @@ struct sirfsoc_uart_register sirfsoc_uart = {
 /* Uart Common Use Macro*/
 #define SIRFSOC_RX_DMA_BUF_SIZE	256
 #define BYTES_TO_ALIGN(dma_addr)	((unsigned long)(dma_addr) & 0x3)
-#define LOOP_DMA_BUFA_FILL	1
-#define LOOP_DMA_BUFB_FILL	2
-#define TX_TRAN_PIO		1
-#define TX_TRAN_DMA		2
 /* Uart Fifo Level Chk */
 #define SIRFUART_TX_FIFO_SC_OFFSET	0
 #define SIRFUART_TX_FIFO_LC_OFFSET	10
@@ -437,10 +434,6 @@ struct sirfsoc_uart_port {
 #define wr_regl(port, reg, val)		__raw_writel(val, portaddr(port, reg))
 
 /* UART Port Mask */
-#define SIRFUART_FIFOLEVEL_MASK(port)	((port->line == 1) ? (0x1f) : (0x7f))
-#define SIRFUART_FIFOFULL_MASK(port)	((port->line == 1) ? (0x20) : (0x80))
-#define SIRFUART_FIFOEMPTY_MASK(port)	((port->line == 1) ? (0x40) : (0x100))
-
-/* I/O Mode */
-#define SIRFSOC_UART_IO_RX_MAX_CNT		256
-#define SIRFSOC_UART_IO_TX_REASONABLE_CNT	256
+#define SIRFUART_FIFOLEVEL_MASK(port)	((port->fifosize - 1) & 0xFFF)
+#define SIRFUART_FIFOFULL_MASK(port)	(port->fifosize & 0xFFF)
+#define SIRFUART_FIFOEMPTY_MASK(port)	((port->fifosize & 0xFFF) << 1)
