@@ -2748,8 +2748,6 @@ static void dwc2_hcd_free(struct dwc2_hsotg *hsotg)
 		destroy_workqueue(hsotg->wq_otg);
 	}
 
-	kfree(hsotg->core_params);
-	hsotg->core_params = NULL;
 	del_timer(&hsotg->wkp_timer);
 }
 
@@ -2762,29 +2760,12 @@ static void dwc2_hcd_release(struct dwc2_hsotg *hsotg)
 }
 
 /*
- * Sets all parameters to the given value.
- *
- * Assumes that the dwc2_core_params struct contains only integers.
- */
-void dwc2_set_all_params(struct dwc2_core_params *params, int value)
-{
-	int *p = (int *)params;
-	size_t size = sizeof(*params) / sizeof(*p);
-	int i;
-
-	for (i = 0; i < size; i++)
-		p[i] = value;
-}
-EXPORT_SYMBOL_GPL(dwc2_set_all_params);
-
-/*
  * Initializes the HCD. This function allocates memory for and initializes the
  * static parts of the usb_hcd and dwc2_hsotg structures. It also registers the
  * USB bus with the core and calls the hc_driver->start() function. It returns
  * a negative error on failure.
  */
-int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq,
-		  const struct dwc2_core_params *params)
+int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq)
 {
 	struct usb_hcd *hcd;
 	struct dwc2_host_chan *channel;
@@ -2796,12 +2777,6 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq,
 		return -ENODEV;
 
 	dev_dbg(hsotg->dev, "DWC OTG HCD INIT\n");
-
-	/* Detect config values from hardware */
-	retval = dwc2_get_hwparams(hsotg);
-
-	if (retval)
-		return retval;
 
 	retval = -ENOMEM;
 
@@ -2820,15 +2795,6 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq,
 		goto error1;
 	hsotg->last_frame_num = HFNUM_MAX_FRNUM;
 #endif
-
-	hsotg->core_params = kzalloc(sizeof(*hsotg->core_params), GFP_KERNEL);
-	if (!hsotg->core_params)
-		goto error1;
-
-	dwc2_set_all_params(hsotg->core_params, -1);
-
-	/* Validate parameter values */
-	dwc2_set_parameters(hsotg, params);
 
 	/* Check if the bus driver or platform code has setup a dma_mask */
 	if (hsotg->core_params->dma_enable > 0 &&

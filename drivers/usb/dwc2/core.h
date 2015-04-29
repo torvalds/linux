@@ -1071,6 +1071,15 @@ extern void dwc2_set_param_ahbcfg(struct dwc2_hsotg *hsotg, int val);
 
 extern void dwc2_set_param_otg_ver(struct dwc2_hsotg *hsotg, int val);
 
+extern void dwc2_set_parameters(struct dwc2_hsotg *hsotg,
+				const struct dwc2_core_params *params);
+
+extern void dwc2_set_all_params(struct dwc2_core_params *params, int value);
+
+extern int dwc2_get_hwparams(struct dwc2_hsotg *hsotg);
+
+
+
 /*
  * Dump core registers and SPRAM
  */
@@ -1119,14 +1128,12 @@ extern int dwc2_hcd_get_frame_number(struct dwc2_hsotg *hsotg);
 extern void dwc2_hcd_disconnect(struct dwc2_hsotg *hsotg);
 extern void dwc2_hcd_start(struct dwc2_hsotg *hsotg);
 #else
-static inline void dwc2_set_all_params(struct dwc2_core_params *params, int value) {}
 static inline int dwc2_hcd_get_frame_number(struct dwc2_hsotg *hsotg)
 { return 0; }
 static inline void dwc2_hcd_disconnect(struct dwc2_hsotg *hsotg) {}
 static inline void dwc2_hcd_start(struct dwc2_hsotg *hsotg) {}
 static inline void dwc2_hcd_remove(struct dwc2_hsotg *hsotg) {}
-static inline int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq,
-				const struct dwc2_core_params *params)
+static inline int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq)
 { return 0; }
 #endif
 

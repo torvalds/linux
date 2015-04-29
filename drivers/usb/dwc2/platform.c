@@ -241,6 +241,21 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	spin_lock_init(&hsotg->lock);
 	mutex_init(&hsotg->init_mutex);
 
+	/* Detect config values from hardware */
+	retval = dwc2_get_hwparams(hsotg);
+	if (retval)
+		return retval;
+
+	hsotg->core_params = devm_kzalloc(&dev->dev,
+				sizeof(*hsotg->core_params), GFP_KERNEL);
+	if (!hsotg->core_params)
+		return -ENOMEM;
+
+	dwc2_set_all_params(hsotg->core_params, -1);
+
+	/* Validate parameter values */
+	dwc2_set_parameters(hsotg, params);
+
 	if (hsotg->dr_mode != USB_DR_MODE_HOST) {
 		retval = dwc2_gadget_init(hsotg, irq);
 		if (retval)
@@ -249,7 +264,7 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	}
 
 	if (hsotg->dr_mode != USB_DR_MODE_PERIPHERAL) {
-		retval = dwc2_hcd_init(hsotg, irq, params);
+		retval = dwc2_hcd_init(hsotg, irq);
 		if (retval) {
 			if (hsotg->gadget_enabled)
 				s3c_hsotg_remove(hsotg);
