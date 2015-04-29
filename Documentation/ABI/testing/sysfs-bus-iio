@@ -1375,3 +1375,15 @@ Description:
 		The emissivity ratio of the surface in the field of view of the
 		contactless temperature sensor.  Emissivity varies from 0 to 1,
 		with 1 being the emissivity of a black body.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_magn_x_oversampling_ratio
+What:		/sys/bus/iio/devices/iio:deviceX/in_magn_y_oversampling_ratio
+What:		/sys/bus/iio/devices/iio:deviceX/in_magn_z_oversampling_ratio
+KernelVersion:	4.2
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Hardware applied number of measurements for acquiring one
+		data point. The HW will do <type>[_name]_oversampling_ratio
+		measurements and return the average value as output data. Each
+		value resulted from <type>[_name]_oversampling_ratio measurements
+		is considered as one sample for <type>[_name]_sampling_frequency.
