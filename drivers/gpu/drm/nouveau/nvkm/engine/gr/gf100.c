@@ -699,7 +699,7 @@ gf100_gr_icmd(struct gf100_gr_priv *priv, const struct gf100_gr_pack *p)
 
 		while (addr < next) {
 			nv_wr32(priv, 0x400200, addr);
-			nv_wait(priv, 0x400700, 0x00000002, 0x00000000);
+			nv_wait(priv, 0x400700, 0x00000004, 0x00000000);
 			addr += init->pitch;
 		}
 	}
