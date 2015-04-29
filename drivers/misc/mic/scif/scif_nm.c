@@ -218,3 +218,20 @@ void scif_disconnect_node(u32 node_id, bool mgmt_initiated)
 				   (atomic_read(&scifdev->disconn_rescnt) == 1),
 				   SCIF_NODE_ALIVE_TIMEOUT);
 }
+
+void scif_get_node_info(void)
+{
+	struct scifmsg msg;
+	DECLARE_COMPLETION_ONSTACK(node_info);
+
+	msg.uop = SCIF_GET_NODE_INFO;
+	msg.src.node = scif_info.nodeid;
+	msg.dst.node = SCIF_MGMT_NODE;
+	msg.payload[3] = (u64)&node_info;
+
+	if ((scif_nodeqp_send(&scif_dev[SCIF_MGMT_NODE], &msg)))
+		return;
+
+	/* Wait for a response with SCIF_GET_NODE_INFO */
+	wait_for_completion(&node_info);
+}

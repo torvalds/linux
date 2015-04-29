@@ -69,6 +69,7 @@ static long scif_fdioctl(struct file *f, unsigned int cmd, unsigned long arg)
 	struct scif_endpt *priv = f->private_data;
 	void __user *argp = (void __user *)arg;
 	int err = 0;
+	struct scifioctl_msg request;
 	bool non_block = false;
 
 	non_block = !!(f->f_flags & O_NONBLOCK);
@@ -196,6 +197,98 @@ static long scif_fdioctl(struct file *f, unsigned int cmd, unsigned long arg)
 		scif_add_epd_to_zombie_list(priv, !SCIF_EPLOCK_HELD);
 		f->private_data = newep;
 		return 0;
+	}
+	case SCIF_SEND:
+	{
+		struct scif_endpt *priv = f->private_data;
+
+		if (copy_from_user(&request, argp,
+				   sizeof(struct scifioctl_msg))) {
+			err = -EFAULT;
+			goto send_err;
+		}
+		err = scif_user_send(priv, (void __user *)request.msg,
+				     request.len, request.flags);
+		if (err < 0)
+			goto send_err;
+		if (copy_to_user(&
+				 ((struct scifioctl_msg __user *)argp)->out_len,
+				 &err, sizeof(err))) {
+			err = -EFAULT;
+			goto send_err;
+		}
+		err = 0;
+send_err:
+		scif_err_debug(err, "scif_send");
+		return err;
+	}
+	case SCIF_RECV:
+	{
+		struct scif_endpt *priv = f->private_data;
+
+		if (copy_from_user(&request, argp,
+				   sizeof(struct scifioctl_msg))) {
+			err = -EFAULT;
+			goto recv_err;
+		}
+
+		err = scif_user_recv(priv, (void __user *)request.msg,
+				     request.len, request.flags);
+		if (err < 0)
+			goto recv_err;
+
+		if (copy_to_user(&
+				 ((struct scifioctl_msg __user *)argp)->out_len,
+			&err, sizeof(err))) {
+			err = -EFAULT;
+			goto recv_err;
+		}
+		err = 0;
+recv_err:
+		scif_err_debug(err, "scif_recv");
+		return err;
+	}
+	case SCIF_GET_NODEIDS:
+	{
+		struct scifioctl_node_ids node_ids;
+		int entries;
+		u16 *nodes;
+		void __user *unodes, *uself;
+		u16 self;
+
+		if (copy_from_user(&node_ids, argp, sizeof(node_ids))) {
+			err = -EFAULT;
+			goto getnodes_err2;
+		}
+
+		entries = min_t(int, scif_info.maxid, node_ids.len);
+		nodes = kmalloc_array(entries, sizeof(u16), GFP_KERNEL);
+		if (entries && !nodes) {
+			err = -ENOMEM;
+			goto getnodes_err2;
+		}
+		node_ids.len = scif_get_node_ids(nodes, entries, &self);
+
+		unodes = (void __user *)node_ids.nodes;
+		if (copy_to_user(unodes, nodes, sizeof(u16) * entries)) {
+			err = -EFAULT;
+			goto getnodes_err1;
+		}
+
+		uself = (void __user *)node_ids.self;
+		if (copy_to_user(uself, &self, sizeof(u16))) {
+			err = -EFAULT;
+			goto getnodes_err1;
+		}
+
+		if (copy_to_user(argp, &node_ids, sizeof(node_ids))) {
+			err = -EFAULT;
+			goto getnodes_err1;
+		}
+getnodes_err1:
+		kfree(nodes);
+getnodes_err2:
+		return err;
 	}
 	}
 	return -EINVAL;

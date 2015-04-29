@@ -319,3 +319,35 @@ void scif_discnt_ack(struct scif_dev *scifdev, struct scifmsg *msg)
 	spin_unlock(&ep->lock);
 	complete(&ep->discon);
 }
+
+/**
+ * scif_clientsend() - Respond to SCIF_CLIENT_SEND interrupt message
+ * @msg:        Interrupt message
+ *
+ * Remote side is confirming send or receive interrupt handling is complete.
+ */
+void scif_clientsend(struct scif_dev *scifdev, struct scifmsg *msg)
+{
+	struct scif_endpt *ep = (struct scif_endpt *)msg->payload[0];
+
+	spin_lock(&ep->lock);
+	if (SCIFEP_CONNECTED == ep->state)
+		wake_up_interruptible(&ep->recvwq);
+	spin_unlock(&ep->lock);
+}
+
+/**
+ * scif_clientrcvd() - Respond to SCIF_CLIENT_RCVD interrupt message
+ * @msg:        Interrupt message
+ *
+ * Remote side is confirming send or receive interrupt handling is complete.
+ */
+void scif_clientrcvd(struct scif_dev *scifdev, struct scifmsg *msg)
+{
+	struct scif_endpt *ep = (struct scif_endpt *)msg->payload[0];
+
+	spin_lock(&ep->lock);
+	if (SCIFEP_CONNECTED == ep->state)
+		wake_up_interruptible(&ep->sendwq);
+	spin_unlock(&ep->lock);
+}

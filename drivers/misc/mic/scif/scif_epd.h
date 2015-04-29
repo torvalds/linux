@@ -144,6 +144,8 @@ int scif_rsrv_port(u16 port);
 void scif_get_port(u16 port);
 int scif_get_new_port(void);
 void scif_put_port(u16 port);
+int scif_user_send(scif_epd_t epd, void __user *msg, int len, int flags);
+int scif_user_recv(scif_epd_t epd, void __user *msg, int len, int flags);
 void scif_cnctreq(struct scif_dev *scifdev, struct scifmsg *msg);
 void scif_cnctgnt(struct scif_dev *scifdev, struct scifmsg *msg);
 void scif_cnctgnt_ack(struct scif_dev *scifdev, struct scifmsg *msg);
@@ -151,6 +153,8 @@ void scif_cnctgnt_nack(struct scif_dev *scifdev, struct scifmsg *msg);
 void scif_cnctrej(struct scif_dev *scifdev, struct scifmsg *msg);
 void scif_discnct(struct scif_dev *scifdev, struct scifmsg *msg);
 void scif_discnt_ack(struct scif_dev *scifdev, struct scifmsg *msg);
+void scif_clientsend(struct scif_dev *scifdev, struct scifmsg *msg);
+void scif_clientrcvd(struct scif_dev *scifdev, struct scifmsg *msg);
 int __scif_connect(scif_epd_t epd, struct scif_port_id *dst, bool non_block);
 int __scif_flush(scif_epd_t epd);
 #endif /* SCIF_EPD_H */

@@ -872,3 +872,405 @@ scif_accept_error_epalloc:
 	return err;
 }
 EXPORT_SYMBOL_GPL(scif_accept);
+
+/*
+ * scif_msg_param_check:
+ * @epd: The end point returned from scif_open()
+ * @len: Length to receive
+ * @flags: blocking or non blocking
+ *
+ * Validate parameters for messaging APIs scif_send(..)/scif_recv(..).
+ */
+static inline int scif_msg_param_check(scif_epd_t epd, int len, int flags)
+{
+	int ret = -EINVAL;
+
+	if (len < 0)
+		goto err_ret;
+	if (flags && (!(flags & SCIF_RECV_BLOCK)))
+		goto err_ret;
+	ret = 0;
+err_ret:
+	return ret;
+}
+
+static int _scif_send(scif_epd_t epd, void *msg, int len, int flags)
+{
+	struct scif_endpt *ep = (struct scif_endpt *)epd;
+	struct scifmsg notif_msg;
+	int curr_xfer_len = 0, sent_len = 0, write_count;
+	int ret = 0;
+	struct scif_qp *qp = ep->qp_info.qp;
+
+	if (flags & SCIF_SEND_BLOCK)
+		might_sleep();
+
+	spin_lock(&ep->lock);
+	while (sent_len != len && SCIFEP_CONNECTED == ep->state) {
+		write_count = scif_rb_space(&qp->outbound_q);
+		if (write_count) {
+			/* Best effort to send as much data as possible */
+			curr_xfer_len = min(len - sent_len, write_count);
+			ret = scif_rb_write(&qp->outbound_q, msg,
+					    curr_xfer_len);
+			if (ret < 0)
+				break;
+			/* Success. Update write pointer */
+			scif_rb_commit(&qp->outbound_q);
+			/*
+			 * Send a notification to the peer about the
+			 * produced data message.
+			 */
+			notif_msg.src = ep->port;
+			notif_msg.uop = SCIF_CLIENT_SENT;
+			notif_msg.payload[0] = ep->remote_ep;
+			ret = _scif_nodeqp_send(ep->remote_dev, &notif_msg);
+			if (ret)
+				break;
+			sent_len += curr_xfer_len;
+			msg = msg + curr_xfer_len;
+			continue;
+		}
+		curr_xfer_len = min(len - sent_len, SCIF_ENDPT_QP_SIZE - 1);
+		/* Not enough RB space. return for the Non Blocking case */
+		if (!(flags & SCIF_SEND_BLOCK))
+			break;
+
+		spin_unlock(&ep->lock);
+		/* Wait for a SCIF_CLIENT_RCVD message in the Blocking case */
+		ret =
+		wait_event_interruptible(ep->sendwq,
+					 (SCIFEP_CONNECTED != ep->state) ||
+					 (scif_rb_space(&qp->outbound_q) >=
+					 curr_xfer_len));
+		spin_lock(&ep->lock);
+		if (ret)
+			break;
+	}
+	if (sent_len)
+		ret = sent_len;
+	else if (!ret && SCIFEP_CONNECTED != ep->state)
+		ret = SCIFEP_DISCONNECTED == ep->state ?
+			-ECONNRESET : -ENOTCONN;
+	spin_unlock(&ep->lock);
+	return ret;
+}
+
+static int _scif_recv(scif_epd_t epd, void *msg, int len, int flags)
+{
+	int read_size;
+	struct scif_endpt *ep = (struct scif_endpt *)epd;
+	struct scifmsg notif_msg;
+	int curr_recv_len = 0, remaining_len = len, read_count;
+	int ret = 0;
+	struct scif_qp *qp = ep->qp_info.qp;
+
+	if (flags & SCIF_RECV_BLOCK)
+		might_sleep();
+	spin_lock(&ep->lock);
+	while (remaining_len && (SCIFEP_CONNECTED == ep->state ||
+				 SCIFEP_DISCONNECTED == ep->state)) {
+		read_count = scif_rb_count(&qp->inbound_q, remaining_len);
+		if (read_count) {
+			/*
+			 * Best effort to recv as much data as there
+			 * are bytes to read in the RB particularly
+			 * important for the Non Blocking case.
+			 */
+			curr_recv_len = min(remaining_len, read_count);
+			read_size = scif_rb_get_next(&qp->inbound_q,
+						     msg, curr_recv_len);
+			if (ep->state == SCIFEP_CONNECTED) {
+				/*
+				 * Update the read pointer only if the endpoint
+				 * is still connected else the read pointer
+				 * might no longer exist since the peer has
+				 * freed resources!
+				 */
+				scif_rb_update_read_ptr(&qp->inbound_q);
+				/*
+				 * Send a notification to the peer about the
+				 * consumed data message only if the EP is in
+				 * SCIFEP_CONNECTED state.
+				 */
+				notif_msg.src = ep->port;
+				notif_msg.uop = SCIF_CLIENT_RCVD;
+				notif_msg.payload[0] = ep->remote_ep;
+				ret = _scif_nodeqp_send(ep->remote_dev,
+							&notif_msg);
+				if (ret)
+					break;
+			}
+			remaining_len -= curr_recv_len;
+			msg = msg + curr_recv_len;
+			continue;
+		}
+		/*
+		 * Bail out now if the EP is in SCIFEP_DISCONNECTED state else
+		 * we will keep looping forever.
+		 */
+		if (ep->state == SCIFEP_DISCONNECTED)
+			break;
+		/*
+		 * Return in the Non Blocking case if there is no data
+		 * to read in this iteration.
+		 */
+		if (!(flags & SCIF_RECV_BLOCK))
+			break;
+		curr_recv_len = min(remaining_len, SCIF_ENDPT_QP_SIZE - 1);
+		spin_unlock(&ep->lock);
+		/*
+		 * Wait for a SCIF_CLIENT_SEND message in the blocking case
+		 * or until other side disconnects.
+		 */
+		ret =
+		wait_event_interruptible(ep->recvwq,
+					 SCIFEP_CONNECTED != ep->state ||
+					 scif_rb_count(&qp->inbound_q,
+						       curr_recv_len)
+					 >= curr_recv_len);
+		spin_lock(&ep->lock);
+		if (ret)
+			break;
+	}
+	if (len - remaining_len)
+		ret = len - remaining_len;
+	else if (!ret && ep->state != SCIFEP_CONNECTED)
+		ret = ep->state == SCIFEP_DISCONNECTED ?
+			-ECONNRESET : -ENOTCONN;
+	spin_unlock(&ep->lock);
+	return ret;
+}
+
+/**
+ * scif_user_send() - Send data to connection queue
+ * @epd: The end point returned from scif_open()
+ * @msg: Address to place data
+ * @len: Length to receive
+ * @flags: blocking or non blocking
+ *
+ * This function is called from the driver IOCTL entry point
+ * only and is a wrapper for _scif_send().
+ */
+int scif_user_send(scif_epd_t epd, void __user *msg, int len, int flags)
+{
+	struct scif_endpt *ep = (struct scif_endpt *)epd;
+	int err = 0;
+	int sent_len = 0;
+	char *tmp;
+	int loop_len;
+	int chunk_len = min(len, (1 << (MAX_ORDER + PAGE_SHIFT - 1)));
+
+	dev_dbg(scif_info.mdev.this_device,
+		"SCIFAPI send (U): ep %p %s\n", ep, scif_ep_states[ep->state]);
+	if (!len)
+		return 0;
+
+	err = scif_msg_param_check(epd, len, flags);
+	if (err)
+		goto send_err;
+
+	tmp = kmalloc(chunk_len, GFP_KERNEL);
+	if (!tmp) {
+		err = -ENOMEM;
+		goto send_err;
+	}
+	/*
+	 * Grabbing the lock before breaking up the transfer in
+	 * multiple chunks is required to ensure that messages do
+	 * not get fragmented and reordered.
+	 */
+	mutex_lock(&ep->sendlock);
+	while (sent_len != len) {
+		loop_len = len - sent_len;
+		loop_len = min(chunk_len, loop_len);
+		if (copy_from_user(tmp, msg, loop_len)) {
+			err = -EFAULT;
+			goto send_free_err;
+		}
+		err = _scif_send(epd, tmp, loop_len, flags);
+		if (err < 0)
+			goto send_free_err;
+		sent_len += err;
+		msg += err;
+		if (err != loop_len)
+			goto send_free_err;
+	}
+send_free_err:
+	mutex_unlock(&ep->sendlock);
+	kfree(tmp);
+send_err:
+	return err < 0 ? err : sent_len;
+}
+
+/**
+ * scif_user_recv() - Receive data from connection queue
+ * @epd: The end point returned from scif_open()
+ * @msg: Address to place data
+ * @len: Length to receive
+ * @flags: blocking or non blocking
+ *
+ * This function is called from the driver IOCTL entry point
+ * only and is a wrapper for _scif_recv().
+ */
+int scif_user_recv(scif_epd_t epd, void __user *msg, int len, int flags)
+{
+	struct scif_endpt *ep = (struct scif_endpt *)epd;
+	int err = 0;
+	int recv_len = 0;
+	char *tmp;
+	int loop_len;
+	int chunk_len = min(len, (1 << (MAX_ORDER + PAGE_SHIFT - 1)));
+
+	dev_dbg(scif_info.mdev.this_device,
+		"SCIFAPI recv (U): ep %p %s\n", ep, scif_ep_states[ep->state]);
+	if (!len)
+		return 0;
+
+	err = scif_msg_param_check(epd, len, flags);
+	if (err)
+		goto recv_err;
+
+	tmp = kmalloc(chunk_len, GFP_KERNEL);
+	if (!tmp) {
+		err = -ENOMEM;
+		goto recv_err;
+	}
+	/*
+	 * Grabbing the lock before breaking up the transfer in
+	 * multiple chunks is required to ensure that messages do
+	 * not get fragmented and reordered.
+	 */
+	mutex_lock(&ep->recvlock);
+	while (recv_len != len) {
+		loop_len = len - recv_len;
+		loop_len = min(chunk_len, loop_len);
+		err = _scif_recv(epd, tmp, loop_len, flags);
+		if (err < 0)
+			goto recv_free_err;
+		if (copy_to_user(msg, tmp, err)) {
+			err = -EFAULT;
+			goto recv_free_err;
+		}
+		recv_len += err;
+		msg += err;
+		if (err != loop_len)
+			goto recv_free_err;
+	}
+recv_free_err:
+	mutex_unlock(&ep->recvlock);
+	kfree(tmp);
+recv_err:
+	return err < 0 ? err : recv_len;
+}
+
+/**
+ * scif_send() - Send data to connection queue
+ * @epd: The end point returned from scif_open()
+ * @msg: Address to place data
+ * @len: Length to receive
+ * @flags: blocking or non blocking
+ *
+ * This function is called from the kernel mode only and is
+ * a wrapper for _scif_send().
+ */
+int scif_send(scif_epd_t epd, void *msg, int len, int flags)
+{
+	struct scif_endpt *ep = (struct scif_endpt *)epd;
+	int ret;
+
+	dev_dbg(scif_info.mdev.this_device,
+		"SCIFAPI send (K): ep %p %s\n", ep, scif_ep_states[ep->state]);
+	if (!len)
+		return 0;
+
+	ret = scif_msg_param_check(epd, len, flags);
+	if (ret)
+		return ret;
+	if (!ep->remote_dev)
+		return -ENOTCONN;
+	/*
+	 * Grab the mutex lock in the blocking case only
+	 * to ensure messages do not get fragmented/reordered.
+	 * The non blocking mode is protected using spin locks
+	 * in _scif_send().
+	 */
+	if (flags & SCIF_SEND_BLOCK)
+		mutex_lock(&ep->sendlock);
+
+	ret = _scif_send(epd, msg, len, flags);
+
+	if (flags & SCIF_SEND_BLOCK)
+		mutex_unlock(&ep->sendlock);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(scif_send);
+
+/**
+ * scif_recv() - Receive data from connection queue
+ * @epd: The end point returned from scif_open()
+ * @msg: Address to place data
+ * @len: Length to receive
+ * @flags: blocking or non blocking
+ *
+ * This function is called from the kernel mode only and is
+ * a wrapper for _scif_recv().
+ */
+int scif_recv(scif_epd_t epd, void *msg, int len, int flags)
+{
+	struct scif_endpt *ep = (struct scif_endpt *)epd;
+	int ret;
+
+	dev_dbg(scif_info.mdev.this_device,
+		"SCIFAPI recv (K): ep %p %s\n", ep, scif_ep_states[ep->state]);
+	if (!len)
+		return 0;
+
+	ret = scif_msg_param_check(epd, len, flags);
+	if (ret)
+		return ret;
+	/*
+	 * Grab the mutex lock in the blocking case only
+	 * to ensure messages do not get fragmented/reordered.
+	 * The non blocking mode is protected using spin locks
+	 * in _scif_send().
+	 */
+	if (flags & SCIF_RECV_BLOCK)
+		mutex_lock(&ep->recvlock);
+
+	ret = _scif_recv(epd, msg, len, flags);
+
+	if (flags & SCIF_RECV_BLOCK)
+		mutex_unlock(&ep->recvlock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(scif_recv);
+
+int scif_get_node_ids(u16 *nodes, int len, u16 *self)
+{
+	int online = 0;
+	int offset = 0;
+	int node;
+
+	if (!scif_is_mgmt_node())
+		scif_get_node_info();
+
+	*self = scif_info.nodeid;
+	mutex_lock(&scif_info.conflock);
+	len = min_t(int, len, scif_info.total);
+	for (node = 0; node <= scif_info.maxid; node++) {
+		if (_scifdev_alive(&scif_dev[node])) {
+			online++;
+			if (offset < len)
+				nodes[offset++] = node;
+		}
+	}
+	dev_dbg(scif_info.mdev.this_device,
+		"SCIFAPI get_node_ids total %d online %d filled in %d nodes\n",
+		scif_info.total, online, offset);
+	mutex_unlock(&scif_info.conflock);
+
+	return online;
+}
+EXPORT_SYMBOL_GPL(scif_get_node_ids);

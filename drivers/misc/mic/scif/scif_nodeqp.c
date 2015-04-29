@@ -570,7 +570,10 @@ static char *message_types[] = {"BAD",
 				"CNCT_GNTNACK",
 				"CNCT_REJ",
 				"DISCNCT",
-				"DISCNT_ACK"};
+				"DISCNT_ACK",
+				"CLIENT_SENT",
+				"CLIENT_RCVD",
+				"SCIF_GET_NODE_INFO"};
 
 static void
 scif_display_message(struct scif_dev *scifdev, struct scifmsg *msg,
@@ -951,6 +954,34 @@ scif_node_remove_ack(struct scif_dev *scifdev, struct scifmsg *msg)
 	wake_up(&sdev->disconn_wq);
 }
 
+/**
+ * scif_get_node_info: Respond to SCIF_GET_NODE_INFO interrupt message
+ * @msg:        Interrupt message
+ *
+ * Retrieve node info i.e maxid and total from the mgmt node.
+ */
+static __always_inline void
+scif_get_node_info_resp(struct scif_dev *scifdev, struct scifmsg *msg)
+{
+	if (scif_is_mgmt_node()) {
+		swap(msg->dst.node, msg->src.node);
+		mutex_lock(&scif_info.conflock);
+		msg->payload[1] = scif_info.maxid;
+		msg->payload[2] = scif_info.total;
+		mutex_unlock(&scif_info.conflock);
+		scif_nodeqp_send(scifdev, msg);
+	} else {
+		struct completion *node_info =
+			(struct completion *)msg->payload[3];
+
+		mutex_lock(&scif_info.conflock);
+		scif_info.maxid = msg->payload[1];
+		scif_info.total = msg->payload[2];
+		complete_all(node_info);
+		mutex_unlock(&scif_info.conflock);
+	}
+}
+
 static void
 scif_msg_unknown(struct scif_dev *scifdev, struct scifmsg *msg)
 {
@@ -978,6 +1009,9 @@ static void (*scif_intr_func[SCIF_MAX_MSG + 1])
 	scif_cnctrej,		/* SCIF_CNCT_REJ */
 	scif_discnct,		/* SCIF_DISCNCT */
 	scif_discnt_ack,	/* SCIF_DISCNT_ACK */
+	scif_clientsend,	/* SCIF_CLIENT_SENT */
+	scif_clientrcvd,	/* SCIF_CLIENT_RCVD */
+	scif_get_node_info_resp,/* SCIF_GET_NODE_INFO */
 };
 
 /**
