@@ -89,7 +89,6 @@ struct imx6_pm_base {
 
 struct imx6_pm_socdata {
 	u32 ddr_type;
-	const char *ccm_compat;
 	const char *mmdc_compat;
 	const char *src_compat;
 	const char *iomuxc_compat;
@@ -139,7 +138,6 @@ static const u32 imx6sx_mmdc_io_offset[] __initconst = {
 };
 
 static const struct imx6_pm_socdata imx6q_pm_data __initconst = {
-	.ccm_compat = "fsl,imx6q-ccm",
 	.mmdc_compat = "fsl,imx6q-mmdc",
 	.src_compat = "fsl,imx6q-src",
 	.iomuxc_compat = "fsl,imx6q-iomuxc",
@@ -149,7 +147,6 @@ static const struct imx6_pm_socdata imx6q_pm_data __initconst = {
 };
 
 static const struct imx6_pm_socdata imx6dl_pm_data __initconst = {
-	.ccm_compat = "fsl,imx6q-ccm",
 	.mmdc_compat = "fsl,imx6q-mmdc",
 	.src_compat = "fsl,imx6q-src",
 	.iomuxc_compat = "fsl,imx6dl-iomuxc",
@@ -159,7 +156,6 @@ static const struct imx6_pm_socdata imx6dl_pm_data __initconst = {
 };
 
 static const struct imx6_pm_socdata imx6sl_pm_data __initconst = {
-	.ccm_compat = "fsl,imx6sl-ccm",
 	.mmdc_compat = "fsl,imx6sl-mmdc",
 	.src_compat = "fsl,imx6sl-src",
 	.iomuxc_compat = "fsl,imx6sl-iomuxc",
@@ -169,7 +165,6 @@ static const struct imx6_pm_socdata imx6sl_pm_data __initconst = {
 };
 
 static const struct imx6_pm_socdata imx6sx_pm_data __initconst = {
-	.ccm_compat = "fsl,imx6sx-ccm",
 	.mmdc_compat = "fsl,imx6sx-mmdc",
 	.src_compat = "fsl,imx6sx-src",
 	.iomuxc_compat = "fsl,imx6sx-iomuxc",
@@ -553,15 +548,10 @@ put_node:
 static void __init imx6_pm_common_init(const struct imx6_pm_socdata
 					*socdata)
 {
-	struct device_node *np;
 	struct regmap *gpr;
 	int ret;
 
-	np = of_find_compatible_node(NULL, NULL, socdata->ccm_compat);
-	ccm_base = of_iomap(np, 0);
 	WARN_ON(!ccm_base);
-
-	imx6_set_lpm(WAIT_CLOCKED);
 
 	if (IS_ENABLED(CONFIG_SUSPEND)) {
 		ret = imx6q_suspend_init(socdata);
@@ -581,6 +571,24 @@ static void __init imx6_pm_common_init(const struct imx6_pm_socdata
 	if (!IS_ERR(gpr))
 		regmap_update_bits(gpr, IOMUXC_GPR1, IMX6Q_GPR1_GINT,
 				   IMX6Q_GPR1_GINT);
+}
+
+void __init imx6_pm_ccm_init(const char *ccm_compat)
+{
+	struct device_node *np;
+	u32 val;
+
+	np = of_find_compatible_node(NULL, NULL, ccm_compat);
+	ccm_base = of_iomap(np, 0);
+	BUG_ON(!ccm_base);
+
+	/*
+	 * Initialize CCM_CLPCR_LPM into RUN mode to avoid ARM core
+	 * clock being shut down unexpectedly by WAIT mode.
+	 */
+	val = readl_relaxed(ccm_base + CLPCR);
+	val &= ~BM_CLPCR_LPM;
+	writel_relaxed(val, ccm_base + CLPCR);
 }
 
 void __init imx6q_pm_init(void)
