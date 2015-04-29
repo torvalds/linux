@@ -136,10 +136,10 @@ static u32 stv0297_get_symbolrate(struct stv0297_state *state)
 {
 	u64 tmp;
 
-	tmp = stv0297_readreg(state, 0x55);
-	tmp |= stv0297_readreg(state, 0x56) << 8;
-	tmp |= stv0297_readreg(state, 0x57) << 16;
-	tmp |= stv0297_readreg(state, 0x58) << 24;
+	tmp = (u64)(stv0297_readreg(state, 0x55)
+		    | (stv0297_readreg(state, 0x56) << 8)
+		    | (stv0297_readreg(state, 0x57) << 16)
+		    | (stv0297_readreg(state, 0x58) << 24));
 
 	tmp *= STV0297_CLOCK_KHZ;
 	tmp >>= 32;
