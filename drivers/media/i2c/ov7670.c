@@ -1362,7 +1362,7 @@ static int ov7670_s_exp(struct v4l2_subdev *sd, int value)
 	unsigned char com1, com8, aech, aechh;
 
 	ret = ov7670_read(sd, REG_COM1, &com1) +
-		ov7670_read(sd, REG_COM8, &com8);
+		ov7670_read(sd, REG_COM8, &com8) +
 		ov7670_read(sd, REG_AECHH, &aechh);
 	if (ret)
 		return ret;
