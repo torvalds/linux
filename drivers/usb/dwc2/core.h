@@ -452,6 +452,82 @@ struct dwc2_hw_params {
 #define DWC2_CTRL_BUFF_SIZE 8
 
 /**
+ * struct dwc2_gregs_backup - Holds global registers state before entering partial
+ * power down
+ * @gotgctl:		Backup of GOTGCTL register
+ * @gintmsk:		Backup of GINTMSK register
+ * @gahbcfg:		Backup of GAHBCFG register
+ * @gusbcfg:		Backup of GUSBCFG register
+ * @grxfsiz:		Backup of GRXFSIZ register
+ * @gnptxfsiz:		Backup of GNPTXFSIZ register
+ * @gi2cctl:		Backup of GI2CCTL register
+ * @hptxfsiz:		Backup of HPTXFSIZ register
+ * @gdfifocfg:		Backup of GDFIFOCFG register
+ * @dtxfsiz:		Backup of DTXFSIZ registers for each endpoint
+ * @gpwrdn:		Backup of GPWRDN register
+ */
+struct dwc2_gregs_backup {
+	u32 gotgctl;
+	u32 gintmsk;
+	u32 gahbcfg;
+	u32 gusbcfg;
+	u32 grxfsiz;
+	u32 gnptxfsiz;
+	u32 gi2cctl;
+	u32 hptxfsiz;
+	u32 pcgcctl;
+	u32 gdfifocfg;
+	u32 dtxfsiz[MAX_EPS_CHANNELS];
+	u32 gpwrdn;
+};
+
+/**
+ * struct  dwc2_dregs_backup - Holds device registers state before entering partial
+ * power down
+ * @dcfg:		Backup of DCFG register
+ * @dctl:		Backup of DCTL register
+ * @daintmsk:		Backup of DAINTMSK register
+ * @diepmsk:		Backup of DIEPMSK register
+ * @doepmsk:		Backup of DOEPMSK register
+ * @diepctl:		Backup of DIEPCTL register
+ * @dieptsiz:		Backup of DIEPTSIZ register
+ * @diepdma:		Backup of DIEPDMA register
+ * @doepctl:		Backup of DOEPCTL register
+ * @doeptsiz:		Backup of DOEPTSIZ register
+ * @doepdma:		Backup of DOEPDMA register
+ */
+struct dwc2_dregs_backup {
+	u32 dcfg;
+	u32 dctl;
+	u32 daintmsk;
+	u32 diepmsk;
+	u32 doepmsk;
+	u32 diepctl[MAX_EPS_CHANNELS];
+	u32 dieptsiz[MAX_EPS_CHANNELS];
+	u32 diepdma[MAX_EPS_CHANNELS];
+	u32 doepctl[MAX_EPS_CHANNELS];
+	u32 doeptsiz[MAX_EPS_CHANNELS];
+	u32 doepdma[MAX_EPS_CHANNELS];
+};
+
+/**
+ * struct  dwc2_hregs_backup - Holds host registers state before entering partial
+ * power down
+ * @hcfg:		Backup of HCFG register
+ * @haintmsk:		Backup of HAINTMSK register
+ * @hcintmsk:		Backup of HCINTMSK register
+ * @hptr0:		Backup of HPTR0 register
+ * @hfir:		Backup of HFIR register
+ */
+struct dwc2_hregs_backup {
+	u32 hcfg;
+	u32 haintmsk;
+	u32 hcintmsk[MAX_EPS_CHANNELS];
+	u32 hprt0;
+	u32 hfir;
+};
+
+/**
  * struct dwc2_hsotg - Holds the state of the driver, including the non-periodic
  * and periodic schedules
  *
@@ -481,6 +557,9 @@ struct dwc2_hw_params {
  *                      interrupt
  * @wkp_timer:          Timer object for handling Wakeup Detected interrupt
  * @lx_state:           Lx state of connected device
+ * @gregs_backup: Backup of global registers during suspend
+ * @dregs_backup: Backup of device registers during suspend
+ * @hregs_backup: Backup of host registers during suspend
  *
  * These are for host mode:
  *
@@ -613,6 +692,9 @@ struct dwc2_hsotg {
 	struct work_struct wf_otg;
 	struct timer_list wkp_timer;
 	enum dwc2_lx_state lx_state;
+	struct dwc2_gregs_backup *gr_backup;
+	struct dwc2_dregs_backup *dr_backup;
+	struct dwc2_hregs_backup *hr_backup;
 
 	struct dentry *debug_root;
 	struct debugfs_regset32 *regset;
@@ -749,6 +831,8 @@ enum dwc2_halt_status {
  * and the DWC_otg controller
  */
 extern void dwc2_core_host_init(struct dwc2_hsotg *hsotg);
+extern int dwc2_enter_hibernation(struct dwc2_hsotg *hsotg);
+extern int dwc2_exit_hibernation(struct dwc2_hsotg *hsotg, bool restore);
 
 /*
  * Host core Functions.
