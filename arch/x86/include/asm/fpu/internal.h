@@ -53,6 +53,7 @@ extern int dump_fpu(struct pt_regs *, struct user_i387_struct *);
  */
 extern void fpu__save(struct fpu *fpu);
 extern void fpu__restore(void);
+extern int  fpu__restore_sig(void __user *buf, int ia32_frame);
 extern void fpu__drop(struct fpu *fpu);
 extern int  fpu__copy(struct fpu *dst_fpu, struct fpu *src_fpu);
 extern void fpu__reset(struct fpu *fpu);
@@ -497,25 +498,6 @@ static inline void switch_fpu_finish(struct fpu *new_fpu, fpu_switch_t fpu_switc
  * Signal frame handlers...
  */
 extern int copy_fpstate_to_sigframe(void __user *buf, void __user *fx, int size);
-extern int __fpu__restore_sig(void __user *buf, void __user *fx, int size);
-
-static inline int xstate_sigframe_size(void)
-{
-	return use_xsave() ? xstate_size + FP_XSTATE_MAGIC2_SIZE : xstate_size;
-}
-
-static inline int fpu__restore_sig(void __user *buf, int ia32_frame)
-{
-	void __user *buf_fx = buf;
-	int size = xstate_sigframe_size();
-
-	if (ia32_frame && use_fxsr()) {
-		buf_fx = buf + sizeof(struct i387_fsave_struct);
-		size += sizeof(struct i387_fsave_struct);
-	}
-
-	return __fpu__restore_sig(buf, buf_fx, size);
-}
 
 /*
  * Needs to be preemption-safe.
@@ -565,20 +547,8 @@ static inline unsigned short get_fpu_mxcsr(struct task_struct *tsk)
 	}
 }
 
-static inline unsigned long
-alloc_mathframe(unsigned long sp, int ia32_frame, unsigned long *buf_fx,
-		unsigned long *size)
-{
-	unsigned long frame_size = xstate_sigframe_size();
-
-	*buf_fx = sp = round_down(sp - frame_size, 64);
-	if (ia32_frame && use_fxsr()) {
-		frame_size += sizeof(struct i387_fsave_struct);
-		sp -= sizeof(struct i387_fsave_struct);
-	}
-
-	*size = frame_size;
-	return sp;
-}
+unsigned long
+fpu__alloc_mathframe(unsigned long sp, int ia32_frame,
+		     unsigned long *buf_fx, unsigned long *size);
 
 #endif /* _ASM_X86_FPU_INTERNAL_H */

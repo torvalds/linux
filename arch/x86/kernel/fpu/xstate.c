@@ -388,7 +388,7 @@ static inline int restore_user_xstate(void __user *buf, u64 xbv, int fx_only)
 		return frstor_user(buf);
 }
 
-int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
+static int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
 {
 	int ia32_fxstate = (buf != buf_fx);
 	struct task_struct *tsk = current;
@@ -482,6 +482,43 @@ int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
 	return 0;
 }
 
+static inline int xstate_sigframe_size(void)
+{
+	return use_xsave() ? xstate_size + FP_XSTATE_MAGIC2_SIZE : xstate_size;
+}
+
+/*
+ * Restore FPU state from a sigframe:
+ */
+int fpu__restore_sig(void __user *buf, int ia32_frame)
+{
+	void __user *buf_fx = buf;
+	int size = xstate_sigframe_size();
+
+	if (ia32_frame && use_fxsr()) {
+		buf_fx = buf + sizeof(struct i387_fsave_struct);
+		size += sizeof(struct i387_fsave_struct);
+	}
+
+	return __fpu__restore_sig(buf, buf_fx, size);
+}
+
+unsigned long
+fpu__alloc_mathframe(unsigned long sp, int ia32_frame,
+		     unsigned long *buf_fx, unsigned long *size)
+{
+	unsigned long frame_size = xstate_sigframe_size();
+
+	*buf_fx = sp = round_down(sp - frame_size, 64);
+	if (ia32_frame && use_fxsr()) {
+		frame_size += sizeof(struct i387_fsave_struct);
+		sp -= sizeof(struct i387_fsave_struct);
+	}
+
+	*size = frame_size;
+
+	return sp;
+}
 /*
  * Prepare the SW reserved portion of the fxsave memory layout, indicating
  * the presence of the extended state information in the memory layout

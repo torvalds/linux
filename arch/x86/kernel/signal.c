@@ -219,8 +219,8 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size,
 	}
 
 	if (fpu->fpstate_active) {
-		sp = alloc_mathframe(sp, config_enabled(CONFIG_X86_32),
-				     &buf_fx, &math_size);
+		sp = fpu__alloc_mathframe(sp, config_enabled(CONFIG_X86_32),
+					  &buf_fx, &math_size);
 		*fpstate = (void __user *)sp;
 	}
 
