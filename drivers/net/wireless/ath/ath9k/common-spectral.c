@@ -15,6 +15,7 @@
  */
 
 #include <linux/relay.h>
+#include <linux/random.h>
 #include "ath9k.h"
 
 static s8 fix_rssi_inv_only(u8 rssi_val)
@@ -647,12 +648,23 @@ int ath_cmn_process_fft(struct ath_spec_scan_priv *spec_priv, struct ieee80211_h
 					    tsf, freq, chan_type);
 
 				memset(sample_buf, 0, SPECTRAL_SAMPLE_MAX_LEN);
+
+				/* Mix the received bins to the /dev/random
+				 * pool
+				 */
+				add_device_randomness(sample_buf, num_bins);
 			}
 
 			/* Process a normal frame */
-			if (sample_bytes == sample_len)
+			if (sample_bytes == sample_len) {
 				ret = fft_handler(rs, spec_priv, sample_start,
 						  tsf, freq, chan_type);
+
+				/* Mix the received bins to the /dev/random
+				 * pool
+				 */
+				add_device_randomness(sample_start, num_bins);
+			}
 
 			/* Short report processed, break out of the
 			 * loop.
