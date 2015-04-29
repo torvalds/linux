@@ -57,4 +57,5 @@ generic-y += types.h
 generic-y += ucontext.h
 generic-y += unaligned.h
 generic-y += vga.h
+generic-y += word-at-a-time.h
 generic-y += xor.h
