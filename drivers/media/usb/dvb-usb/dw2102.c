@@ -437,7 +437,7 @@ static int dw2104_i2c_transfer(struct i2c_adapter *adap, struct i2c_msg msg[], i
 						ibuf, msg[j].len + 2,
 						DW210X_READ_MSG);
 				memcpy(msg[j].buf, ibuf + 2, msg[j].len);
-			mdelay(10);
+				mdelay(10);
 			} else if (((msg[j].buf[0] == 0xb0) &&
 						(msg[j].addr == 0x68)) ||
 						((msg[j].buf[0] == 0xf7) &&
