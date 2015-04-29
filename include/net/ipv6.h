@@ -239,8 +239,10 @@ struct ip6_flowlabel {
 	struct net		*fl_net;
 };
 
-#define IPV6_FLOWINFO_MASK	cpu_to_be32(0x0FFFFFFF)
-#define IPV6_FLOWLABEL_MASK	cpu_to_be32(0x000FFFFF)
+#define IPV6_FLOWINFO_MASK		cpu_to_be32(0x0FFFFFFF)
+#define IPV6_FLOWLABEL_MASK		cpu_to_be32(0x000FFFFF)
+#define IPV6_FLOWLABEL_STATELESS_FLAG	cpu_to_be32(0x00080000)
+
 #define IPV6_TCLASS_MASK (IPV6_FLOWINFO_MASK & ~IPV6_FLOWLABEL_MASK)
 #define IPV6_TCLASS_SHIFT	20
 
@@ -719,6 +721,9 @@ static inline __be32 ip6_make_flowlabel(struct net *net, struct sk_buff *skb,
 		hash ^= hash >> 12;
 
 		flowlabel = (__force __be32)hash & IPV6_FLOWLABEL_MASK;
+
+		if (net->ipv6.sysctl.flowlabel_state_ranges)
+			flowlabel |= IPV6_FLOWLABEL_STATELESS_FLAG;
 	}
 
 	return flowlabel;

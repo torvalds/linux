@@ -1213,6 +1213,14 @@ auto_flowlabels - BOOLEAN
 	FALSE: disabled
 	Default: false
 
+flowlabel_state_ranges - BOOLEAN
+	Split the flow label number space into two ranges. 0-0x7FFFF is
+	reserved for the IPv6 flow manager facility, 0x80000-0xFFFFF
+	is reserved for stateless flow labels as described in RFC6437.
+	TRUE: enabled
+	FALSE: disabled
+	Default: true
+
 anycast_src_echo_reply - BOOLEAN
 	Controls the use of anycast addresses as source addresses for ICMPv6
 	echo reply
