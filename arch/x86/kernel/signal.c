@@ -667,7 +667,7 @@ handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 		 * Ensure the signal handler starts with the new fpu state.
 		 */
 		if (fpu->fpstate_active)
-			fpu_reset_state(fpu);
+			fpu__reset(fpu);
 	}
 	signal_setup_done(failed, ksig, stepping);
 }

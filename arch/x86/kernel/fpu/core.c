@@ -116,7 +116,7 @@ void __kernel_fpu_end(void)
 
 	if (fpu->fpregs_active) {
 		if (WARN_ON(restore_fpu_checking(fpu)))
-			fpu_reset_state(fpu);
+			fpu__reset(fpu);
 	} else {
 		__fpregs_deactivate_hw();
 	}
@@ -339,7 +339,7 @@ void fpu__restore(void)
 	kernel_fpu_disable();
 	fpregs_activate(fpu);
 	if (unlikely(restore_fpu_checking(fpu))) {
-		fpu_reset_state(fpu);
+		fpu__reset(fpu);
 		force_sig_info(SIGSEGV, SEND_SIG_PRIV, tsk);
 	} else {
 		tsk->thread.fpu.counter++;
@@ -360,7 +360,7 @@ void fpu__clear(struct task_struct *tsk)
 
 	if (!use_eager_fpu()) {
 		/* FPU state will be reallocated lazily at the first use. */
-		drop_fpu(fpu);
+		fpu__drop(fpu);
 	} else {
 		if (!fpu->fpstate_active) {
 			fpu__activate_curr(fpu);

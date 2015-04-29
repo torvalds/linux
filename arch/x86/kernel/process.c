@@ -110,7 +110,7 @@ void exit_thread(void)
 		kfree(bp);
 	}
 
-	drop_fpu(fpu);
+	fpu__drop(fpu);
 }
 
 void flush_thread(void)

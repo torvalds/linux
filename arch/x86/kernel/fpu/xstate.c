@@ -401,7 +401,7 @@ int __restore_xstate_sig(void __user *buf, void __user *buf_fx, int size)
 			 config_enabled(CONFIG_IA32_EMULATION));
 
 	if (!buf) {
-		fpu_reset_state(fpu);
+		fpu__reset(fpu);
 		return 0;
 	}
 
@@ -449,7 +449,7 @@ int __restore_xstate_sig(void __user *buf, void __user *buf_fx, int size)
 		 * We will be ready to restore/save the state only after
 		 * fpu->fpstate_active is again set.
 		 */
-		drop_fpu(fpu);
+		fpu__drop(fpu);
 
 		if (__copy_from_user(&fpu->state.xsave, buf_fx, state_size) ||
 		    __copy_from_user(&env, buf, sizeof(env))) {
@@ -474,7 +474,7 @@ int __restore_xstate_sig(void __user *buf, void __user *buf_fx, int size)
 		 */
 		user_fpu_begin();
 		if (restore_user_xstate(buf_fx, xfeatures, fx_only)) {
-			fpu_reset_state(fpu);
+			fpu__reset(fpu);
 			return -1;
 		}
 	}

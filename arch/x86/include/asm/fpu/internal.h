@@ -382,11 +382,17 @@ static inline void fpregs_deactivate(struct fpu *fpu)
 	__fpregs_deactivate_hw();
 }
 
-static inline void drop_fpu(struct fpu *fpu)
+/*
+ * Drops current FPU state: deactivates the fpregs and
+ * the fpstate. NOTE: it still leaves previous contents
+ * in the fpregs in the eager-FPU case.
+ *
+ * This function can be used in cases where we know that
+ * a state-restore is coming: either an explicit one,
+ * or a reschedule.
+ */
+static inline void fpu__drop(struct fpu *fpu)
 {
-	/*
-	 * Forget coprocessor state..
-	 */
 	preempt_disable();
 	fpu->counter = 0;
 
@@ -412,13 +418,12 @@ static inline void restore_init_xstate(void)
 }
 
 /*
- * Reset the FPU state in the eager case and drop it in the lazy case (later use
- * will reinit it).
+ * Reset the FPU state back to init state.
  */
-static inline void fpu_reset_state(struct fpu *fpu)
+static inline void fpu__reset(struct fpu *fpu)
 {
 	if (!use_eager_fpu())
-		drop_fpu(fpu);
+		fpu__drop(fpu);
 	else
 		restore_init_xstate();
 }
@@ -516,7 +521,7 @@ static inline void switch_fpu_finish(struct fpu *new_fpu, fpu_switch_t fpu_switc
 {
 	if (fpu_switch.preload) {
 		if (unlikely(restore_fpu_checking(new_fpu)))
-			fpu_reset_state(new_fpu);
+			fpu__reset(new_fpu);
 	}
 }
 
