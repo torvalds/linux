@@ -160,8 +160,10 @@ int ath_cmn_process_fft(struct ath_spec_scan_priv *spec_priv, struct ieee80211_h
 		upper_mag = spectral_max_magnitude(mag_info->upper_bins);
 		fft_sample_40.lower_max_magnitude = __cpu_to_be16(lower_mag);
 		fft_sample_40.upper_max_magnitude = __cpu_to_be16(upper_mag);
-		lower_max_index = spectral_max_index(mag_info->lower_bins);
-		upper_max_index = spectral_max_index(mag_info->upper_bins);
+		lower_max_index = spectral_max_index(mag_info->lower_bins,
+								num_bins);
+		upper_max_index = spectral_max_index(mag_info->upper_bins,
+								num_bins);
 		fft_sample_40.lower_max_index = lower_max_index;
 		fft_sample_40.upper_max_index = upper_max_index;
 		lower_bitmap_w = spectral_bitmap_weight(mag_info->lower_bins);
@@ -189,7 +191,8 @@ int ath_cmn_process_fft(struct ath_spec_scan_priv *spec_priv, struct ieee80211_h
 		mag_info = ((struct ath_ht20_mag_info *)radar_info) - 1;
 		magnitude = spectral_max_magnitude(mag_info->all_bins);
 		fft_sample_20.max_magnitude = __cpu_to_be16(magnitude);
-		max_index = spectral_max_index(mag_info->all_bins);
+		max_index = spectral_max_index(mag_info->all_bins,
+							num_bins);
 		fft_sample_20.max_index = max_index;
 		bitmap_w = spectral_bitmap_weight(mag_info->all_bins);
 		fft_sample_20.bitmap_weight = bitmap_w;
