@@ -1771,8 +1771,6 @@ static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 		}
 	}
 	dev_drv->ops->ovl_mgr(dev_drv, 0, 1);
-	if (dev_drv->ops->dsp_black)
-	        dev_drv->ops->dsp_black(dev_drv, 0);
 	dev_drv->ops->cfg_done(dev_drv);
 
 	do {
@@ -1915,7 +1913,6 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 					/*return -EINVAL; */
 					break;
 				}
-				reg_win_data->area_num++;
 				reg_win_data->reg_area_data[i].ion_handle = hdl;
 #ifndef CONFIG_ROCKCHIP_IOMMU
 				ret = ion_phys(rk_fb->ion_client, hdl, &phy_addr,
@@ -1937,6 +1934,7 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 					return -ENOMEM;
 				}
 				reg_win_data->reg_area_data[i].smem_start = phy_addr;
+				reg_win_data->area_num++;
 				reg_win_data->area_buf_num++;
 				reg_win_data->reg_area_data[i].index_buf = 1;
 				reg_win_data->reg_area_data[i].buff_len = len;
@@ -1950,8 +1948,13 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 		fbi->screen_base = phys_to_virt(win_par->area_par[0].phy_addr);
 	}
 
-	if (reg_win_data->area_num == 0)
+	if (reg_win_data->area_num == 0) {
+	        for (i = 0; i < RK_WIN_MAX_AREA; i++)
+			reg_win_data->reg_area_data[i].smem_start = 0;
+		reg_win_data->z_order = -1;
+		reg_win_data->win_id = -1;
 		return 0;
+	}
 
 	for (i = 0; i < reg_win_data->area_num; i++) {
 		acq_fence_fd = win_par->area_par[i].acq_fence_fd;
@@ -2181,14 +2184,6 @@ static int rk_fb_set_win_config(struct fb_info *info,
 	int list_is_empty = 0;
         struct rk_screen *screen = dev_drv->cur_screen;
 
-	win_data->ret_fence_fd = get_unused_fd();
-	if (win_data->ret_fence_fd < 0) {
-		pr_err("ret_fence_fd=%d\n", win_data->ret_fence_fd);
-		win_data->ret_fence_fd = -1;
-		ret = -EFAULT;
-		return ret;
-	}
-
 	mutex_lock(&dev_drv->output_lock);
 
         for (i = 0; i < 4; i++) {
@@ -2226,7 +2221,7 @@ static int rk_fb_set_win_config(struct fb_info *info,
 			if (rk_fb_set_win_buffer(info, &win_data->win_par[i],
 						 &regs->reg_win_data[j])) {
 				ret = -ENOMEM;
-				goto err;
+				goto err2;
 			}
 			if (regs->reg_win_data[j].area_num > 0) {
 				regs->win_num++;
@@ -2246,6 +2241,13 @@ static int rk_fb_set_win_config(struct fb_info *info,
 
 	dev_drv->timeline_max++;
 #ifdef H_USE_FENCE
+	win_data->ret_fence_fd = get_unused_fd();
+	if (win_data->ret_fence_fd < 0) {
+		pr_err("ret_fence_fd=%d\n", win_data->ret_fence_fd);
+		win_data->ret_fence_fd = -1;
+		ret = -EFAULT;
+		goto err2;
+	}
 	for (i = 0; i < RK_MAX_BUF_NUM; i++) {
 		if (i < regs->buf_num) {
 			sprintf(fence_name, "fence%d", i);
@@ -2254,7 +2256,7 @@ static int rk_fb_set_win_config(struct fb_info *info,
 				printk(KERN_INFO "rel_fence_fd=%d\n",
 				       win_data->rel_fence_fd[i]);
 				ret = -EFAULT;
-				goto err;
+				goto err2;
 			}
 			release_sync_pt[i] =
 			    sw_sync_pt_create(dev_drv->timeline,
@@ -2306,13 +2308,15 @@ err:
 	mutex_unlock(&dev_drv->output_lock);
 	return ret;
 err_null_frame:
-	kfree(regs);
 	for (j = 0; j < RK_MAX_BUF_NUM; j++)
 		win_data->rel_fence_fd[j] = -1;
 	win_data->ret_fence_fd = -1;
-	mutex_unlock(&dev_drv->output_lock);
 	pr_info("win num = %d,null frame\n", regs->win_num);
-	return 0;
+err2:
+	kfree(regs);
+	mutex_unlock(&dev_drv->output_lock);
+
+	return ret;
 }
 
 #if 1
