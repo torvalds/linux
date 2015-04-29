@@ -307,6 +307,7 @@ static int asoc_simple_card_dai_link_of(struct device_node *node,
 	struct snd_soc_dai_link *dai_link = simple_priv_to_link(priv, idx);
 	struct simple_dai_props *dai_props = simple_priv_to_props(priv, idx);
 	struct device_node *cpu = NULL;
+	struct device_node *plat = NULL;
 	struct device_node *codec = NULL;
 	char *name;
 	char prop[128];
@@ -319,6 +320,9 @@ static int asoc_simple_card_dai_link_of(struct device_node *node,
 
 	snprintf(prop, sizeof(prop), "%scpu", prefix);
 	cpu = of_get_child_by_name(node, prop);
+
+	snprintf(prop, sizeof(prop), "%splat", prefix);
+	plat = of_get_child_by_name(node, prop);
 
 	snprintf(prop, sizeof(prop), "%scodec", prefix);
 	codec = of_get_child_by_name(node, prop);
@@ -352,8 +356,16 @@ static int asoc_simple_card_dai_link_of(struct device_node *node,
 		goto dai_link_of_err;
 	}
 
-	/* Simple Card assumes platform == cpu */
-	dai_link->platform_of_node = dai_link->cpu_of_node;
+	if (plat) {
+		struct of_phandle_args args;
+
+		ret = of_parse_phandle_with_args(plat, "sound-dai",
+						 "#sound-dai-cells", 0, &args);
+		dai_link->platform_of_node = args.np;
+	} else {
+		/* Assumes platform == cpu */
+		dai_link->platform_of_node = dai_link->cpu_of_node;
+	}
 
 	/* DAI link name is created from CPU/CODEC dai name */
 	name = devm_kzalloc(dev,
