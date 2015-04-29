@@ -489,13 +489,13 @@ static int ipmi_ssif_thread(void *data)
 
 		if (ssif_info->i2c_read_write == I2C_SMBUS_WRITE) {
 			result = i2c_smbus_write_block_data(
-				ssif_info->client, SSIF_IPMI_REQUEST,
+				ssif_info->client, ssif_info->i2c_command,
 				ssif_info->i2c_data[0],
 				ssif_info->i2c_data + 1);
 			ssif_info->done_handler(ssif_info, result, NULL, 0);
 		} else {
 			result = i2c_smbus_read_block_data(
-				ssif_info->client, SSIF_IPMI_RESPONSE,
+				ssif_info->client, ssif_info->i2c_command,
 				ssif_info->i2c_data);
 			if (result < 0)
 				ssif_info->done_handler(ssif_info, result,
@@ -534,6 +534,7 @@ static void start_get(struct ssif_info *ssif_info)
 	int rv;
 
 	ssif_info->rtc_us_timer = 0;
+	ssif_info->multi_pos = 0;
 
 	rv = ssif_i2c_send(ssif_info, msg_done_handler, I2C_SMBUS_READ,
 			  SSIF_IPMI_RESPONSE,
@@ -631,9 +632,9 @@ static void msg_done_handler(struct ssif_info *ssif_info, int result,
 		ssif_inc_stat(ssif_info, received_message_parts);
 
 		/* Remove the multi-part read marker. */
-		for (i = 0; i < (len-2); i++)
-			ssif_info->data[i] = data[i+2];
 		len -= 2;
+		for (i = 0; i < len; i++)
+			ssif_info->data[i] = data[i+2];
 		ssif_info->multi_len = len;
 		ssif_info->multi_pos = 1;
 
@@ -660,9 +661,9 @@ static void msg_done_handler(struct ssif_info *ssif_info, int result,
 			goto continue_op;
 		}
 
-		blocknum = data[ssif_info->multi_len];
+		blocknum = data[0];
 
-		if (ssif_info->multi_len+len-1 > IPMI_MAX_MSG_LENGTH) {
+		if (ssif_info->multi_len + len - 1 > IPMI_MAX_MSG_LENGTH) {
 			/* Received message too big, abort the operation. */
 			result = -E2BIG;
 			if (ssif_info->ssif_debug & SSIF_DEBUG_MSG)
@@ -672,15 +673,15 @@ static void msg_done_handler(struct ssif_info *ssif_info, int result,
 		}
 
 		/* Remove the blocknum from the data. */
-		for (i = 0; i < (len-1); i++)
-			ssif_info->data[i+ssif_info->multi_len] = data[i+1];
 		len--;
+		for (i = 0; i < len; i++)
+			ssif_info->data[i + ssif_info->multi_len] = data[i + 1];
 		ssif_info->multi_len += len;
 		if (blocknum == 0xff) {
 			/* End of read */
 			len = ssif_info->multi_len;
 			data = ssif_info->data;
-		} else if ((blocknum+1) != ssif_info->multi_pos) {
+		} else if (blocknum + 1 != ssif_info->multi_pos) {
 			/*
 			 * Out of sequence block, just abort.  Block
 			 * numbers start at zero for the second block,
@@ -880,7 +881,11 @@ static void msg_written_handler(struct ssif_info *ssif_info, int result,
 	}
 
 	if (ssif_info->multi_data) {
-		/* In the middle of a multi-data write. */
+		/*
+		 * In the middle of a multi-data write.  See the comment
+		 * in the SSIF_MULTI_n_PART case in the probe function
+		 * for details on the intricacies of this.
+		 */
 		int left;
 
 		ssif_inc_stat(ssif_info, sent_messages_parts);
@@ -984,7 +989,7 @@ static int start_send(struct ssif_info *ssif_info,
 		return -E2BIG;
 
 	ssif_info->retries_left = SSIF_SEND_RETRIES;
-	memcpy(ssif_info->data+1, data, len);
+	memcpy(ssif_info->data + 1, data, len);
 	ssif_info->data_len = len;
 	return start_resend(ssif_info);
 }
@@ -1487,13 +1492,33 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 			break;
 
 		case SSIF_MULTI_2_PART:
-			if (ssif_info->max_xmit_msg_size > 64)
-				ssif_info->max_xmit_msg_size = 64;
+			if (ssif_info->max_xmit_msg_size > 63)
+				ssif_info->max_xmit_msg_size = 63;
 			if (ssif_info->max_recv_msg_size > 62)
 				ssif_info->max_recv_msg_size = 62;
 			break;
 
 		case SSIF_MULTI_n_PART:
+			/*
+			 * The specification is rather confusing at
+			 * this point, but I think I understand what
+			 * is meant.  At least I have a workable
+			 * solution.  With multi-part messages, you
+			 * cannot send a message that is a multiple of
+			 * 32-bytes in length, because the start and
+			 * middle messages are 32-bytes and the end
+			 * message must be at least one byte.  You
+			 * can't fudge on an extra byte, that would
+			 * screw up things like fru data writes.  So
+			 * we limit the length to 63 bytes.  That way
+			 * a 32-byte message gets sent as a single
+			 * part.  A larger message will be a 32-byte
+			 * start and the next message is always going
+			 * to be 1-31 bytes in length.  Not ideal, but
+			 * it should work.
+			 */
+			if (ssif_info->max_xmit_msg_size > 63)
+				ssif_info->max_xmit_msg_size = 63;
 			break;
 
 		default:
