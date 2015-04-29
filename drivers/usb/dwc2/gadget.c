@@ -2515,6 +2515,7 @@ irq_retry:
 				kill_all_requests(hsotg, hsotg->eps_out[0],
 							  -ECONNRESET);
 
+				hsotg->lx_state = DWC2_L0;
 				s3c_hsotg_core_init_disconnected(hsotg, true);
 			}
 		}
@@ -3205,6 +3206,14 @@ static int s3c_hsotg_vbus_session(struct usb_gadget *gadget, int is_active)
 	spin_lock_irqsave(&hsotg->lock, flags);
 
 	if (is_active) {
+		/*
+		 * If controller is hibernated, it must exit from hibernation
+		 * before being initialized
+		 */
+		if (hsotg->lx_state == DWC2_L2) {
+			dwc2_exit_hibernation(hsotg, false);
+			hsotg->lx_state = DWC2_L0;
+		}
 		/* Kill any ep0 requests as controller will be reinitialized */
 		kill_all_requests(hsotg, hsotg->eps_out[0], -ECONNRESET);
 		s3c_hsotg_core_init_disconnected(hsotg, false);
