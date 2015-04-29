@@ -1,5 +1,5 @@
 /*
- * Copyright 2012, 2014 Freescale Semiconductor, Inc.
+ * Copyright 2012, 2014-2015 Freescale Semiconductor, Inc.
  * Copyright 2012 Linaro Ltd.
  *
  * The code contained herein is licensed under the GNU General Public
@@ -22,6 +22,9 @@
 struct imx_priv {
 	unsigned int mclk_freq;
 	struct platform_device *pdev;
+	struct platform_device *asrc_pdev;
+	u32 asrc_rate;
+	u32 asrc_format;
 };
 
 static struct imx_priv card_priv;
@@ -73,19 +76,75 @@ static struct snd_soc_ops imx_mqs_ops = {
 	.hw_params = imx_mqs_hw_params,
 };
 
-static struct snd_soc_dai_link imx_mqs_dai = {
-	.name = "HiFi",
-	.stream_name = "HiFi",
-	.dai_fmt = SND_SOC_DAIFMT_LEFT_J | SND_SOC_DAIFMT_NB_NF |
-		SND_SOC_DAIFMT_CBS_CFS,
-	.ops = &imx_mqs_ops,
+static struct snd_soc_ops imx_mqs_ops_be = {
+	.hw_params = imx_mqs_hw_params,
+};
+
+static const struct snd_soc_dapm_route audio_map[] = {
+	{"CPU-Playback",  NULL, "ASRC-Playback"},
+	{"Playback",  NULL, "CPU-Playback"},/* dai route for be and fe */
+};
+
+static int be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
+				struct snd_pcm_hw_params *params) {
+
+	struct imx_priv *priv = &card_priv;
+	struct snd_interval *rate;
+	struct snd_mask *mask;
+
+	if (!priv->asrc_pdev)
+		return -EINVAL;
+
+	rate = hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE);
+	rate->max = rate->min = priv->asrc_rate;
+
+	mask = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
+	snd_mask_none(mask);
+	snd_mask_set(mask, priv->asrc_format);
+
+	return 0;
+}
+
+static struct snd_soc_dai_link imx_mqs_dai[] = {
+	{
+		.name = "HiFi",
+		.stream_name = "HiFi",
+		.dai_fmt = SND_SOC_DAIFMT_LEFT_J | SND_SOC_DAIFMT_NB_NF |
+			SND_SOC_DAIFMT_CBS_CFS,
+		.ops = &imx_mqs_ops,
+	},
+	{
+		.name = "HiFi-ASRC-FE",
+		.stream_name = "HiFi-ASRC-FE",
+		.codec_name = "snd-soc-dummy",
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.dynamic = 1,
+		.ignore_pmdown_time = 1,
+		.dpcm_playback = 1,
+		.dpcm_capture = 1,
+	},
+	{
+		.name = "HiFi-ASRC-BE",
+		.stream_name = "HiFi-ASRC-BE",
+		.codec_dai_name = "fsl-mqs-dai",
+		.platform_name = "snd-soc-dummy",
+		.dai_fmt = SND_SOC_DAIFMT_LEFT_J | SND_SOC_DAIFMT_NB_NF |
+			SND_SOC_DAIFMT_CBS_CFS,
+		.no_pcm = 1,
+		.ignore_pmdown_time = 1,
+		.dpcm_playback = 1,
+		.dpcm_capture = 1,
+		.ops = &imx_mqs_ops_be,
+		.be_hw_params_fixup = be_hw_params_fixup,
+	},
 };
 
 static struct snd_soc_card snd_soc_card_imx_mqs = {
 	.name = "mqs-audio",
-	.dai_link = &imx_mqs_dai,
+	.dai_link = imx_mqs_dai,
 	.owner = THIS_MODULE,
-	.num_links = 1,
+	.dapm_routes = audio_map,
+	.num_dapm_routes = ARRAY_SIZE(audio_map),
 };
 
 static int imx_mqs_probe(struct platform_device *pdev)
@@ -94,7 +153,11 @@ static int imx_mqs_probe(struct platform_device *pdev)
 	struct imx_priv *priv = &card_priv;
 	struct clk *codec_clk = NULL;
 	struct platform_device *codec_dev;
+	struct platform_device *asrc_pdev = NULL;
+	struct platform_device *cpu_pdev;
+	struct device_node *asrc_np;
 	int ret;
+	u32 width;
 
 	priv->pdev = pdev;
 
@@ -102,6 +165,19 @@ static int imx_mqs_probe(struct platform_device *pdev)
 	if (!cpu_np) {
 		ret = -EINVAL;
 		goto fail;
+	}
+
+	cpu_pdev = of_find_device_by_node(cpu_np);
+	if (!cpu_pdev) {
+		dev_err(&pdev->dev, "failed to find cpu dai device\n");
+		ret = -EINVAL;
+		goto fail;
+	}
+
+	asrc_np = of_parse_phandle(pdev->dev.of_node, "asrc-controller", 0);
+	if (asrc_np) {
+		asrc_pdev = of_find_device_by_node(asrc_np);
+		priv->asrc_pdev = asrc_pdev;
 	}
 
 	codec_np = of_parse_phandle(pdev->dev.of_node, "audio-codec", 0);
@@ -126,11 +202,44 @@ static int imx_mqs_probe(struct platform_device *pdev)
 	}
 	priv->mclk_freq = clk_get_rate(codec_clk);
 
+	imx_mqs_dai[0].codec_dai_name = "fsl-mqs-dai";
 
-	imx_mqs_dai.cpu_of_node = cpu_np;
-	imx_mqs_dai.platform_of_node = cpu_np;
-	imx_mqs_dai.codec_dai_name = "fsl-mqs-dai";
-	imx_mqs_dai.codec_of_node = codec_np;
+	if (!asrc_pdev) {
+		imx_mqs_dai[0].codec_of_node    = codec_np;
+		imx_mqs_dai[0].cpu_dai_name     = dev_name(&cpu_pdev->dev);
+		imx_mqs_dai[0].platform_of_node = cpu_np;
+		snd_soc_card_imx_mqs.num_links = 1;
+	} else {
+		imx_mqs_dai[0].codec_of_node    = codec_np;
+		imx_mqs_dai[0].cpu_dai_name     = dev_name(&cpu_pdev->dev);
+		imx_mqs_dai[0].platform_of_node = cpu_np;
+		imx_mqs_dai[1].cpu_of_node      = asrc_np;
+		imx_mqs_dai[1].platform_of_node = asrc_np;
+		imx_mqs_dai[2].codec_of_node    = codec_np;
+		imx_mqs_dai[2].cpu_dai_name     = dev_name(&cpu_pdev->dev);
+		snd_soc_card_imx_mqs.num_links = 3;
+
+		ret = of_property_read_u32(asrc_np, "fsl,asrc-rate",
+						&priv->asrc_rate);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to get output rate\n");
+			ret = -EINVAL;
+			goto fail;
+		}
+
+		ret = of_property_read_u32(asrc_np, "fsl,asrc-width", &width);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to get output rate\n");
+			ret = -EINVAL;
+			goto fail;
+		}
+
+		if (width == 24)
+			priv->asrc_format = SNDRV_PCM_FORMAT_S24_LE;
+		else
+			priv->asrc_format = SNDRV_PCM_FORMAT_S16_LE;
+	}
+
 	snd_soc_card_imx_mqs.dev = &pdev->dev;
 
 	ret = devm_snd_soc_register_card(&pdev->dev, &snd_soc_card_imx_mqs);
