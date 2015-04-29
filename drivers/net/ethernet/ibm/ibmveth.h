@@ -161,6 +161,7 @@ struct ibmveth_adapter {
     u64 rx_no_buffer;
     u64 tx_map_failed;
     u64 tx_send_failed;
+    u64 tx_large_packets;
 };
 
 /*

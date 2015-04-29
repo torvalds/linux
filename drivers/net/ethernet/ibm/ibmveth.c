@@ -58,7 +58,7 @@ static struct kobj_type ktype_veth_pool;
 
 static const char ibmveth_driver_name[] = "ibmveth";
 static const char ibmveth_driver_string[] = "IBM Power Virtual Ethernet Driver";
-#define ibmveth_driver_version "1.04"
+#define ibmveth_driver_version "1.05"
 
 MODULE_AUTHOR("Santiago Leon <santil@linux.vnet.ibm.com>");
 MODULE_DESCRIPTION("IBM Power Virtual Ethernet Driver");
@@ -100,6 +100,7 @@ struct ibmveth_stat ibmveth_stats[] = {
 	{ "tx_send_failed", IBMVETH_STAT_OFF(tx_send_failed) },
 	{ "fw_enabled_ipv4_csum", IBMVETH_STAT_OFF(fw_ipv4_csum_support) },
 	{ "fw_enabled_ipv6_csum", IBMVETH_STAT_OFF(fw_ipv6_csum_support) },
+	{ "tx_large_packets", IBMVETH_STAT_OFF(tx_large_packets) },
 };
 
 /* simple methods of getting data from the current rxq entry */
@@ -852,6 +853,10 @@ static int ibmveth_set_features(struct net_device *dev,
 	struct ibmveth_adapter *adapter = netdev_priv(dev);
 	int rx_csum = !!(features & NETIF_F_RXCSUM);
 	int rc;
+	netdev_features_t changed = features ^ dev->features;
+
+	if (features & NETIF_F_TSO & changed)
+		netdev_info(dev, "TSO feature requires all partitions to have updated driver");
 
 	if (rx_csum == adapter->rx_csum)
 		return 0;
@@ -1033,6 +1038,15 @@ retry_bounce:
 
 		descs[i+1].fields.flags_len = desc_flags | skb_frag_size(frag);
 		descs[i+1].fields.address = dma_addr;
+	}
+
+	if (skb_is_gso(skb) && !skb_is_gso_v6(skb)) {
+		/* Put -1 in the IP checksum to tell phyp it
+		 *  is a largesend packet and put the mss in the TCP checksum.
+		 */
+		ip_hdr(skb)->check = 0xffff;
+		tcp_hdr(skb)->check = cpu_to_be16(skb_shinfo(skb)->gso_size);
+		adapter->tx_large_packets++;
 	}
 
 	if (ibmveth_send(adapter, descs)) {
@@ -1421,6 +1435,9 @@ static int ibmveth_probe(struct vio_dev *dev, const struct vio_device_id *id)
 	netdev->hw_features = NETIF_F_SG | NETIF_F_RXCSUM |
 		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
 	netdev->features |= netdev->hw_features;
+
+	/* TSO is disabled by default */
+	netdev->hw_features |= NETIF_F_TSO;
 
 	memcpy(netdev->dev_addr, mac_addr_p, ETH_ALEN);
 
