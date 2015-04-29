@@ -437,6 +437,42 @@ ath_cmn_process_ht20_40_fft(struct ath_rx_status *rs,
 	return 0;
 }
 
+static inline void
+ath_cmn_copy_fft_frame(u8 *in, u8 *out, int sample_len, int sample_bytes)
+{
+	switch (sample_bytes - sample_len) {
+	case -1:
+		/* First byte missing */
+		memcpy(&out[1], in,
+		       sample_len - 1);
+		break;
+	case 0:
+		/* Length correct, nothing to do. */
+		memcpy(out, in, sample_len);
+		break;
+	case 1:
+		/* MAC added 2 extra bytes AND first byte
+		 * is missing.
+		 */
+		memcpy(&out[1], in, 30);
+		out[31] = in[31];
+		memcpy(&out[32], &in[33],
+		       sample_len - 32);
+		break;
+	case 2:
+		/* MAC added 2 extra bytes at bin 30 and 32,
+		 * remove them.
+		 */
+		memcpy(out, in, 30);
+		out[30] = in[31];
+		memcpy(&out[31], &in[33],
+		       sample_len - 31);
+		break;
+	default:
+		break;
+	}
+}
+
 /* returns 1 if this was a spectral frame, even if not handled. */
 int ath_cmn_process_fft(struct ath_spec_scan_priv *spec_priv, struct ieee80211_hdr *hdr,
 		    struct ath_rx_status *rs, u64 tsf)
@@ -570,46 +606,40 @@ int ath_cmn_process_fft(struct ath_spec_scan_priv *spec_priv, struct ieee80211_h
 		if (got_slen) {
 			ath_dbg(common, SPECTRAL_SCAN, "FFT frame len: %i\n",
 				sample_bytes);
-			switch (sample_bytes - sample_len) {
-			case -1:
-				/* First byte missing */
-				memcpy(&sample_buf[1], sample_start,
-				       sample_len - 1);
-				break;
-			case 0:
-				/* Length correct, nothing to do. */
-				memcpy(sample_buf, sample_start, sample_len);
-				break;
-			case 1:
-				/* MAC added 2 extra bytes AND first byte
-				 * is missing.
-				 */
-				memcpy(&sample_buf[1], sample_start, 30);
-				sample_buf[31] = sample_start[31];
-				memcpy(&sample_buf[32], &sample_start[33],
-				       sample_len - 32);
-				break;
-			case 2:
-				/* MAC added 2 extra bytes at bin 30 and 32,
-				 * remove them.
-				 */
-				memcpy(sample_buf, sample_start, 30);
-				sample_buf[30] = sample_start[31];
-				memcpy(&sample_buf[31], &sample_start[33],
-				       sample_len - 31);
-				break;
-			default:
-				break;
+
+			/* Only try to fix a frame if it's the only one
+			 * on the report, else just skip it.
+			 */
+			if (sample_bytes != sample_len && len <= fft_len + 2) {
+				ath_cmn_copy_fft_frame(sample_start,
+						       sample_buf, sample_len,
+						       sample_bytes);
+
+				fft_handler(rs, spec_priv, sample_buf,
+					    tsf, freq, chan_type);
 			}
 
-			ret = fft_handler(rs, spec_priv, sample_buf, tsf,
-							freq, chan_type);
+			/* Process a normal frame */
+			if (sample_bytes == sample_len) {
+				memcpy(sample_buf, sample_start, sample_len);
+				ret = fft_handler(rs, spec_priv, sample_buf,
+						  tsf, freq, chan_type);
+			}
+
+			/* Short report processed, break out of the
+			 * loop.
+			 */
+			if (len <= fft_len + 2)
+				break;
+
 			memset(sample_buf, 0, SPECTRAL_SAMPLE_MAX_LEN);
 			sample_start = &vdata[i + 1];
+
 			/* -1 to grab sample_len -1, -2 since
 			 * they 'll get increased by one. In case
 			 * of failure try to recover by going byte
-			 * by byte instead. */
+			 * by byte instead.
+			 */
 			if (ret == 0) {
 				i += num_bins - 2;
 				sample_bytes = num_bins - 2;
