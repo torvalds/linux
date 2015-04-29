@@ -615,9 +615,6 @@ struct dwc2_hsotg {
 	enum dwc2_lx_state lx_state;
 
 	struct dentry *debug_root;
-	struct dentry *debug_file;
-	struct dentry *debug_testmode;
-	struct dentry *debug_fifo;
 
 	/* DWC OTG HW Release versions */
 #define DWC2_CORE_REV_2_71a	0x4f54271a
@@ -1005,6 +1002,7 @@ extern void s3c_hsotg_core_init_disconnected(struct dwc2_hsotg *dwc2,
 		bool reset);
 extern void s3c_hsotg_core_connect(struct dwc2_hsotg *hsotg);
 extern void s3c_hsotg_disconnect(struct dwc2_hsotg *dwc2);
+extern int s3c_hsotg_set_test_mode(struct dwc2_hsotg *hsotg, int testmode);
 #else
 static inline int s3c_hsotg_remove(struct dwc2_hsotg *dwc2)
 { return 0; }
@@ -1018,6 +1016,9 @@ static inline void s3c_hsotg_core_init_disconnected(struct dwc2_hsotg *dwc2,
 		bool reset) {}
 static inline void s3c_hsotg_core_connect(struct dwc2_hsotg *hsotg) {}
 static inline void s3c_hsotg_disconnect(struct dwc2_hsotg *dwc2) {}
+static inline int s3c_hsotg_set_test_mode(struct dwc2_hsotg *hsotg,
+							int testmode)
+{ return 0; }
 #endif
 
 #if IS_ENABLED(CONFIG_USB_DWC2_HOST) || IS_ENABLED(CONFIG_USB_DWC2_DUAL_ROLE)
