@@ -763,11 +763,9 @@ err1:
 err0:
 	return ret;
 }
-EXPORT_SYMBOL_GPL(dwc2_debugfs_init);
 
 void dwc2_debugfs_exit(struct dwc2_hsotg *hsotg)
 {
 	debugfs_remove_recursive(hsotg->debug_root);
 	hsotg->debug_root = NULL;
 }
-EXPORT_SYMBOL_GPL(dwc2_debugfs_exit);

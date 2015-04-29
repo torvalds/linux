@@ -559,4 +559,3 @@ out:
 	spin_unlock(&hsotg->lock);
 	return retval;
 }
-EXPORT_SYMBOL_GPL(dwc2_handle_common_intr);
