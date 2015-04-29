@@ -12,6 +12,7 @@
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/slab.h>
+#include "clk.h"
 
 struct clk_cpu {
 	struct clk_hw	hw;
