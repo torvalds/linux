@@ -36,6 +36,9 @@ static void fpu__init_cpu_generic(void)
 	if (!cpu_has_fpu)
 		cr0 |= X86_CR0_EM;
 	write_cr0(cr0);
+
+	/* Flush out any pending x87 state: */
+	asm volatile ("fninit");
 }
 
 /*
