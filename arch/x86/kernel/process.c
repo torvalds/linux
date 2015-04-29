@@ -120,7 +120,7 @@ void flush_thread(void)
 	flush_ptrace_hw_breakpoint(tsk);
 	memset(tsk->thread.tls_array, 0, sizeof(tsk->thread.tls_array));
 
-	fpu__clear(tsk);
+	fpu__clear(&tsk->thread.fpu);
 }
 
 static void hard_disable_TSC(void)

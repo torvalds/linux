@@ -390,11 +390,9 @@ void fpu__reset(struct fpu *fpu)
  * Called by sys_execve() to clear the FPU fpregs, so that FPU state
  * of the previous binary does not leak over into the exec()ed binary:
  */
-void fpu__clear(struct task_struct *tsk)
+void fpu__clear(struct fpu *fpu)
 {
-	struct fpu *fpu = &tsk->thread.fpu;
-
-	WARN_ON_ONCE(tsk != current); /* Almost certainly an anomaly */
+	WARN_ON_ONCE(fpu != &current->thread.fpu); /* Almost certainly an anomaly */
 
 	if (!use_eager_fpu()) {
 		/* FPU state will be reallocated lazily at the first use. */

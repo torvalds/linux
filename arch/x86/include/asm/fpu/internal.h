@@ -37,9 +37,8 @@ int ia32_setup_frame(int sig, struct ksignal *ksig,
 #define	MXCSR_DEFAULT		0x1f80
 
 extern unsigned int mxcsr_feature_mask;
-extern void fpu__init_cpu(void);
-extern void eager_fpu_init(void);
 
+extern void fpu__init_cpu(void);
 extern void fpu__init_system_xstate(void);
 extern void fpu__init_cpu_xstate(void);
 extern void fpu__init_system(struct cpuinfo_x86 *c);
@@ -57,7 +56,7 @@ extern void fpu__restore(void);
 extern void fpu__drop(struct fpu *fpu);
 extern int  fpu__copy(struct fpu *dst_fpu, struct fpu *src_fpu);
 extern void fpu__reset(struct fpu *fpu);
-extern void fpu__clear(struct task_struct *tsk);
+extern void fpu__clear(struct fpu *fpu);
 
 extern void fpu__init_check_bugs(void);
 extern void fpu__resume_cpu(void);
