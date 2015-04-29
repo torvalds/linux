@@ -533,13 +533,13 @@ static int zl10353_read_snr(struct dvb_frontend *fe, u16 *snr)
 static int zl10353_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 {
 	struct zl10353_state *state = fe->demodulator_priv;
-       u32 ubl = 0;
+	u32 ubl = 0;
 
-       ubl = zl10353_read_register(state, RS_UBC_1) << 8 |
-	     zl10353_read_register(state, RS_UBC_0);
+	ubl = zl10353_read_register(state, RS_UBC_1) << 8 |
+	      zl10353_read_register(state, RS_UBC_0);
 
-       state->ucblocks += ubl;
-       *ucblocks = state->ucblocks;
+	state->ucblocks += ubl;
+	*ucblocks = state->ucblocks;
 
 	return 0;
 }
