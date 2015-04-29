@@ -35,6 +35,7 @@
 
 exec=/usr/sbin/mpssd
 sysfs="/sys/class/mic"
+mic_modules="mic_host mic_x100_dma scif"
 
 start()
 {
@@ -48,18 +49,15 @@ start()
 	fi
 
 	echo -e $"Starting MPSS Stack"
-	echo -e $"Loading MIC_X100_DMA & MIC_HOST Modules"
+	echo -e $"Loading MIC drivers:" $mic_modules
 
-	for f in "mic_host" "mic_x100_dma"
-	do
-		modprobe $f
-		RETVAL=$?
-		if [ $RETVAL -ne 0 ]; then
-			failure
-			echo
-			return $RETVAL
-		fi
-	done
+	modprobe -a $mic_modules
+	RETVAL=$?
+	if [ $RETVAL -ne 0 ]; then
+		failure
+		echo
+		return $RETVAL
+	fi
 
 	# Start the daemon
 	echo -n $"Starting MPSSD "
@@ -170,8 +168,8 @@ unload()
 	stop
 
 	sleep 5
-	echo -n $"Removing MIC_HOST & MIC_X100_DMA Modules: "
-	modprobe -r mic_host mic_x100_dma
+	echo -n $"Removing MIC drivers:" $mic_modules
+	modprobe -r $mic_modules
 	RETVAL=$?
 	[ $RETVAL -ne 0 ] && failure || success
 	echo
