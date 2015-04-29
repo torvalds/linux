@@ -268,6 +268,10 @@ else
   endif # libelf support
 endif # NO_LIBELF
 
+ifdef NO_DWARF
+  NO_LIBDW_DWARF_UNWIND := 1
+endif
+
 ifndef NO_LIBELF
   CFLAGS += -DHAVE_LIBELF_SUPPORT
   EXTLIBS += -lelf
