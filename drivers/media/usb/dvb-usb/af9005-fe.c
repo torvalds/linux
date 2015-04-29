@@ -481,7 +481,7 @@ static int af9005_fe_read_status(struct dvb_frontend *fe, fe_status_t * stat)
 		return ret;
 	if (temp != state->strong) {
 		deb_info("adjust for strong signal %d\n", temp);
-			state->strong = temp;
+		state->strong = temp;
 	}
 	return 0;
 }
