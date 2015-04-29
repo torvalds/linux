@@ -3312,7 +3312,7 @@ static int rk3368_lcdc_get_win_state(struct rk_lcdc_driver *dev_drv,
 	struct lcdc_device *lcdc_dev =
 	    container_of(dev_drv, struct lcdc_device, driver);
         u32 win_ctrl = 0;
-        u32 area_status = 0;
+        u32 area_status = 0, state = 0;
 
         switch (win_id) {
         case 0:
@@ -3326,7 +3326,7 @@ static int rk3368_lcdc_get_win_state(struct rk_lcdc_driver *dev_drv,
         case 2:
                 win_ctrl = lcdc_readl(lcdc_dev, WIN2_CTRL0);
                 if (area_id == 0)
-                        area_status = win_ctrl & m_WIN2_MST0_EN;
+                        area_status = win_ctrl & (m_WIN2_MST0_EN | m_WIN2_EN);
                 if (area_id == 1)
                         area_status = win_ctrl & m_WIN2_MST1_EN;
                 if (area_id == 2)
@@ -3337,7 +3337,7 @@ static int rk3368_lcdc_get_win_state(struct rk_lcdc_driver *dev_drv,
         case 3:
                 win_ctrl = lcdc_readl(lcdc_dev, WIN3_CTRL0);
                 if (area_id == 0)
-                        area_status = win_ctrl & m_WIN3_MST0_EN;
+                        area_status = win_ctrl & (m_WIN3_MST0_EN | m_WIN3_EN);
                 if (area_id == 1)
                         area_status = win_ctrl & m_WIN3_MST1_EN;
                 if (area_id == 2)
@@ -3353,7 +3353,9 @@ static int rk3368_lcdc_get_win_state(struct rk_lcdc_driver *dev_drv,
                 pr_err("!!!%s,win[%d]area[%d],unsupport!!!\n",__func__,win_id,area_id);
                 break;
         }
-	return area_status;
+
+	state = (area_status > 0) ? 1 : 0;
+	return state;
 }
 
 static int rk3368_lcdc_get_area_num(struct rk_lcdc_driver *dev_drv,
