@@ -415,7 +415,7 @@ start_voice(struct snd_emux_voice *vp)
 	snd_emu10k1_ptr_write(hw, Z2, ch, 0);
 
 	/* invalidate maps */
-	temp = (hw->silent_page.addr << 1) | MAP_PTI_MASK;
+	temp = (hw->silent_page.addr << hw->address_mode) | (hw->address_mode ? MAP_PTI_MASK1 : MAP_PTI_MASK0);
 	snd_emu10k1_ptr_write(hw, MAPA, ch, temp);
 	snd_emu10k1_ptr_write(hw, MAPB, ch, temp);
 #if 0
@@ -436,7 +436,7 @@ start_voice(struct snd_emux_voice *vp)
 		snd_emu10k1_ptr_write(hw, CDF, ch, sample);
 
 		/* invalidate maps */
-		temp = ((unsigned int)hw->silent_page.addr << 1) | MAP_PTI_MASK;
+		temp = ((unsigned int)hw->silent_page.addr << hw_address_mode) | (hw->address_mode ? MAP_PTI_MASK1 : MAP_PTI_MASK0);
 		snd_emu10k1_ptr_write(hw, MAPA, ch, temp);
 		snd_emu10k1_ptr_write(hw, MAPB, ch, temp);
 		
