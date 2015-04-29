@@ -3547,7 +3547,8 @@ static bool
 intel_dp_reset_link_train(struct intel_dp *intel_dp, uint32_t *DP,
 			uint8_t dp_train_pat)
 {
-	memset(intel_dp->train_set, 0, sizeof(intel_dp->train_set));
+	if (!intel_dp->train_set_valid)
+		memset(intel_dp->train_set, 0, sizeof(intel_dp->train_set));
 	intel_dp_set_signal_levels(intel_dp, DP);
 	return intel_dp_set_link_train(intel_dp, DP, dp_train_pat);
 }
@@ -3660,6 +3661,23 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 			break;
 		}
 
+		/*
+		 * if we used previously trained voltage and pre-emphasis values
+		 * and we don't get clock recovery, reset link training values
+		 */
+		if (intel_dp->train_set_valid) {
+			DRM_DEBUG_KMS("clock recovery not ok, reset");
+			/* clear the flag as we are not reusing train set */
+			intel_dp->train_set_valid = false;
+			if (!intel_dp_reset_link_train(intel_dp, &DP,
+						       DP_TRAINING_PATTERN_1 |
+						       DP_LINK_SCRAMBLING_DISABLE)) {
+				DRM_ERROR("failed to enable link training\n");
+				return;
+			}
+			continue;
+		}
+
 		/* Check to see if we've tried the max voltage */
 		for (i = 0; i < intel_dp->lane_count; i++)
 			if ((intel_dp->train_set[i] & DP_TRAIN_MAX_SWING_REACHED) == 0)
@@ -3737,6 +3755,7 @@ intel_dp_complete_link_train(struct intel_dp *intel_dp)
 
 		/* Make sure clock is still ok */
 		if (!drm_dp_clock_recovery_ok(link_status, intel_dp->lane_count)) {
+			intel_dp->train_set_valid = false;
 			intel_dp_start_link_train(intel_dp);
 			intel_dp_set_link_train(intel_dp, &DP,
 						training_pattern |
@@ -3752,6 +3771,7 @@ intel_dp_complete_link_train(struct intel_dp *intel_dp)
 
 		/* Try 5 times, then try clock recovery if that fails */
 		if (tries > 5) {
+			intel_dp->train_set_valid = false;
 			intel_dp_start_link_train(intel_dp);
 			intel_dp_set_link_train(intel_dp, &DP,
 						training_pattern |
@@ -3773,9 +3793,10 @@ intel_dp_complete_link_train(struct intel_dp *intel_dp)
 
 	intel_dp->DP = DP;
 
-	if (channel_eq)
+	if (channel_eq) {
+		intel_dp->train_set_valid = is_edp(intel_dp);
 		DRM_DEBUG_KMS("Channel EQ done. DP Training successful\n");
-
+	}
 }
 
 void intel_dp_stop_link_train(struct intel_dp *intel_dp)
