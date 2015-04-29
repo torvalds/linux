@@ -563,7 +563,14 @@ static char *message_types[] = {"BAD",
 				"SCIF_NODE_ADD_ACK",
 				"SCIF_NODE_ADD_NACK",
 				"REMOVE_NODE",
-				"REMOVE_NODE_ACK"};
+				"REMOVE_NODE_ACK",
+				"CNCT_REQ",
+				"CNCT_GNT",
+				"CNCT_GNTACK",
+				"CNCT_GNTNACK",
+				"CNCT_REJ",
+				"DISCNCT",
+				"DISCNT_ACK"};
 
 static void
 scif_display_message(struct scif_dev *scifdev, struct scifmsg *msg,
@@ -964,6 +971,13 @@ static void (*scif_intr_func[SCIF_MAX_MSG + 1])
 	scif_node_add_nack,	/* SCIF_NODE_ADD_NACK */
 	scif_node_remove,	/* SCIF_NODE_REMOVE */
 	scif_node_remove_ack,	/* SCIF_NODE_REMOVE_ACK */
+	scif_cnctreq,		/* SCIF_CNCT_REQ */
+	scif_cnctgnt,		/* SCIF_CNCT_GNT */
+	scif_cnctgnt_ack,	/* SCIF_CNCT_GNTACK */
+	scif_cnctgnt_nack,	/* SCIF_CNCT_GNTNACK */
+	scif_cnctrej,		/* SCIF_CNCT_REJ */
+	scif_discnct,		/* SCIF_DISCNCT */
+	scif_discnt_ack,	/* SCIF_DISCNT_ACK */
 };
 
 /**

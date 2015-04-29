@@ -20,6 +20,41 @@
 #include "scif_main.h"
 #include "scif_map.h"
 
+/**
+ * scif_invalidate_ep() - Set state for all connected endpoints
+ * to disconnected and wake up all send/recv waitqueues
+ */
+static void scif_invalidate_ep(int node)
+{
+	struct scif_endpt *ep;
+	struct list_head *pos, *tmpq;
+
+	flush_work(&scif_info.conn_work);
+	mutex_lock(&scif_info.connlock);
+	list_for_each_safe(pos, tmpq, &scif_info.disconnected) {
+		ep = list_entry(pos, struct scif_endpt, list);
+		if (ep->remote_dev->node == node) {
+			spin_lock(&ep->lock);
+			scif_cleanup_ep_qp(ep);
+			spin_unlock(&ep->lock);
+		}
+	}
+	list_for_each_safe(pos, tmpq, &scif_info.connected) {
+		ep = list_entry(pos, struct scif_endpt, list);
+		if (ep->remote_dev->node == node) {
+			list_del(pos);
+			spin_lock(&ep->lock);
+			ep->state = SCIFEP_DISCONNECTED;
+			list_add_tail(&ep->list, &scif_info.disconnected);
+			scif_cleanup_ep_qp(ep);
+			wake_up_interruptible(&ep->sendwq);
+			wake_up_interruptible(&ep->recvwq);
+			spin_unlock(&ep->lock);
+		}
+	}
+	mutex_unlock(&scif_info.connlock);
+}
+
 void scif_free_qp(struct scif_dev *scifdev)
 {
 	struct scif_qp *qp = scifdev->qpairs;
@@ -91,6 +126,7 @@ void scif_cleanup_scifdev(struct scif_dev *dev)
 		scif_destroy_intr_wq(dev);
 	}
 	scif_destroy_p2p(dev);
+	scif_invalidate_ep(dev->node);
 	scif_send_acks(dev);
 	if (!dev->node && scif_info.card_initiated_exit) {
 		/*

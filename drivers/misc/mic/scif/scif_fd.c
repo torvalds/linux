@@ -68,6 +68,7 @@ static long scif_fdioctl(struct file *f, unsigned int cmd, unsigned long arg)
 {
 	struct scif_endpt *priv = f->private_data;
 	void __user *argp = (void __user *)arg;
+	int err = 0;
 	bool non_block = false;
 
 	non_block = !!(f->f_flags & O_NONBLOCK);
@@ -91,6 +92,111 @@ static long scif_fdioctl(struct file *f, unsigned int cmd, unsigned long arg)
 	}
 	case SCIF_LISTEN:
 		return scif_listen(priv, arg);
+	case SCIF_CONNECT:
+	{
+		struct scifioctl_connect req;
+		struct scif_endpt *ep = (struct scif_endpt *)priv;
+
+		if (copy_from_user(&req, argp, sizeof(req)))
+			return -EFAULT;
+
+		err = __scif_connect(priv, &req.peer, non_block);
+		if (err < 0)
+			return err;
+
+		req.self.node = ep->port.node;
+		req.self.port = ep->port.port;
+
+		if (copy_to_user(argp, &req, sizeof(req)))
+			return -EFAULT;
+
+		return 0;
+	}
+	/*
+	 * Accept is done in two halves.  The request ioctl does the basic
+	 * functionality of accepting the request and returning the information
+	 * about it including the internal ID of the end point.  The register
+	 * is done with the internal ID on a new file descriptor opened by the
+	 * requesting process.
+	 */
+	case SCIF_ACCEPTREQ:
+	{
+		struct scifioctl_accept request;
+		scif_epd_t *ep = (scif_epd_t *)&request.endpt;
+
+		if (copy_from_user(&request, argp, sizeof(request)))
+			return -EFAULT;
+
+		err = scif_accept(priv, &request.peer, ep, request.flags);
+		if (err < 0)
+			return err;
+
+		if (copy_to_user(argp, &request, sizeof(request))) {
+			scif_close(*ep);
+			return -EFAULT;
+		}
+		/*
+		 * Add to the list of user mode eps where the second half
+		 * of the accept is not yet completed.
+		 */
+		spin_lock(&scif_info.eplock);
+		list_add_tail(&((*ep)->miacceptlist), &scif_info.uaccept);
+		list_add_tail(&((*ep)->liacceptlist), &priv->li_accept);
+		(*ep)->listenep = priv;
+		priv->acceptcnt++;
+		spin_unlock(&scif_info.eplock);
+
+		return 0;
+	}
+	case SCIF_ACCEPTREG:
+	{
+		struct scif_endpt *priv = f->private_data;
+		struct scif_endpt *newep;
+		struct scif_endpt *lisep;
+		struct scif_endpt *fep = NULL;
+		struct scif_endpt *tmpep;
+		struct list_head *pos, *tmpq;
+
+		/* Finally replace the pointer to the accepted endpoint */
+		if (copy_from_user(&newep, argp, sizeof(void *)))
+			return -EFAULT;
+
+		/* Remove form the user accept queue */
+		spin_lock(&scif_info.eplock);
+		list_for_each_safe(pos, tmpq, &scif_info.uaccept) {
+			tmpep = list_entry(pos,
+					   struct scif_endpt, miacceptlist);
+			if (tmpep == newep) {
+				list_del(pos);
+				fep = tmpep;
+				break;
+			}
+		}
+
+		if (!fep) {
+			spin_unlock(&scif_info.eplock);
+			return -ENOENT;
+		}
+
+		lisep = newep->listenep;
+		list_for_each_safe(pos, tmpq, &lisep->li_accept) {
+			tmpep = list_entry(pos,
+					   struct scif_endpt, liacceptlist);
+			if (tmpep == newep) {
+				list_del(pos);
+				lisep->acceptcnt--;
+				break;
+			}
+		}
+
+		spin_unlock(&scif_info.eplock);
+
+		/* Free the resources automatically created from the open. */
+		scif_teardown_ep(priv);
+		scif_add_epd_to_zombie_list(priv, !SCIF_EPLOCK_HELD);
+		f->private_data = newep;
+		return 0;
+	}
 	}
 	return -EINVAL;
 }

@@ -331,6 +331,7 @@ static int _scif_init(void)
 	scif_info.en_msg_log = 0;
 	scif_info.p2p_enable = 1;
 	INIT_WORK(&scif_info.misc_work, scif_misc_handler);
+	INIT_WORK(&scif_info.conn_work, scif_conn_handler);
 	idr_init(&scif_ports);
 	return 0;
 }
