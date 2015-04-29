@@ -24,6 +24,7 @@
 #include <linux/ip.h>
 #include <linux/firmware.h>
 #include <linux/etherdevice.h>
+#include <linux/irq.h>
 
 #include "../wlcore/wlcore.h"
 #include "../wlcore/debug.h"
@@ -578,7 +579,7 @@ static struct wl18xx_priv_conf wl18xx_default_priv_conf = {
 
 static const struct wlcore_partition_set wl18xx_ptable[PART_TABLE_LEN] = {
 	[PART_TOP_PRCM_ELP_SOC] = {
-		.mem  = { .start = 0x00A02000, .size  = 0x00010000 },
+		.mem  = { .start = 0x00A00000, .size  = 0x00012000 },
 		.reg  = { .start = 0x00807000, .size  = 0x00005000 },
 		.mem2 = { .start = 0x00800000, .size  = 0x0000B000 },
 		.mem3 = { .start = 0x00000000, .size  = 0x00000000 },
@@ -862,6 +863,7 @@ static int wl18xx_pre_upload(struct wl1271 *wl)
 {
 	u32 tmp;
 	int ret;
+	u16 irq_invert;
 
 	BUILD_BUG_ON(sizeof(struct wl18xx_mac_and_phy_params) >
 		WL18XX_PHY_INIT_MEM_SIZE);
@@ -911,6 +913,28 @@ static int wl18xx_pre_upload(struct wl1271 *wl)
 	/* re-enable FDSP clock */
 	ret = wlcore_write32(wl, WL18XX_PHY_FPGA_SPARE_1,
 			     MEM_FDSP_CLK_120_ENABLE);
+	if (ret < 0)
+		goto out;
+
+	ret = irq_get_trigger_type(wl->irq);
+	if ((ret == IRQ_TYPE_LEVEL_LOW) || (ret == IRQ_TYPE_EDGE_FALLING)) {
+		wl1271_info("using inverted interrupt logic: %d", ret);
+		ret = wlcore_set_partition(wl,
+					   &wl->ptable[PART_TOP_PRCM_ELP_SOC]);
+		if (ret < 0)
+			goto out;
+
+		ret = wl18xx_top_reg_read(wl, TOP_FN0_CCCR_REG_32, &irq_invert);
+		if (ret < 0)
+			goto out;
+
+		irq_invert |= BIT(1);
+		ret = wl18xx_top_reg_write(wl, TOP_FN0_CCCR_REG_32, irq_invert);
+		if (ret < 0)
+			goto out;
+
+		ret = wlcore_set_partition(wl, &wl->ptable[PART_PHY_INIT]);
+	}
 
 out:
 	return ret;
