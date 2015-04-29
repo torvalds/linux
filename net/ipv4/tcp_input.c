@@ -1820,14 +1820,12 @@ advance_sp:
 	for (j = 0; j < used_sacks; j++)
 		tp->recv_sack_cache[i++] = sp[j];
 
-	tcp_mark_lost_retrans(sk);
-
-	tcp_verify_left_out(tp);
-
 	if ((state.reord < tp->fackets_out) &&
 	    ((inet_csk(sk)->icsk_ca_state != TCP_CA_Loss) || tp->undo_marker))
 		tcp_update_reordering(sk, tp->fackets_out - state.reord, 0);
 
+	tcp_mark_lost_retrans(sk);
+	tcp_verify_left_out(tp);
 out:
 
 #if FASTRETRANS_DEBUG > 0
