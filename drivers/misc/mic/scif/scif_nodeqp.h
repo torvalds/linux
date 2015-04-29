@@ -64,7 +64,17 @@
 #define SCIF_NODE_ADD_NACK 6 /* SCIF_NODE_ADD failed */
 #define SCIF_NODE_REMOVE 7 /* Request to deactivate a SCIF node */
 #define SCIF_NODE_REMOVE_ACK 8 /* Response to a SCIF_NODE_REMOVE message */
-#define SCIF_MAX_MSG SCIF_NODE_REMOVE_ACK
+#define SCIF_CNCT_REQ 9  /* Phys addr of Request connection to a port */
+#define SCIF_CNCT_GNT 10  /* Phys addr of new Grant connection request */
+#define SCIF_CNCT_GNTACK 11  /* Error type Reject a connection request */
+#define SCIF_CNCT_GNTNACK 12  /* Error type Reject a connection request */
+#define SCIF_CNCT_REJ 13  /* Error type Reject a connection request */
+#define SCIF_DISCNCT 14 /* Notify peer that connection is being terminated */
+#define SCIF_DISCNT_ACK 15 /* Notify peer that connection is being terminated */
+#define SCIF_CLIENT_SENT 16 /* Notify the peer that data has been written */
+#define SCIF_CLIENT_RCVD 17 /* Notify the peer that data has been read */
+#define SCIF_GET_NODE_INFO 18 /* Get current node mask from the mgmt node*/
+#define SCIF_MAX_MSG SCIF_GET_NODE_INFO
 
 /*
  * struct scifmsg - Node QP message format

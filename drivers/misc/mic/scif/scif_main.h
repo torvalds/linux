@@ -238,6 +238,8 @@ static inline int _scifdev_alive(struct scif_dev *scifdev)
 	return !!spdev;
 }
 
+#include "scif_epd.h"
+
 void __init scif_init_debugfs(void);
 void scif_exit_debugfs(void);
 int scif_setup_intr_wq(struct scif_dev *scifdev);
