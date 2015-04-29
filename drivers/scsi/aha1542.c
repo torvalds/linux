@@ -950,7 +950,6 @@ static struct scsi_host_template driver_template = {
 	.can_queue		= AHA1542_MAILBOXES, 
 	.this_id		= 7,
 	.sg_tablesize		= 16,
-	.cmd_per_lun		= 1,
 	.unchecked_isa_dma	= 1, 
 	.use_clustering		= ENABLE_CLUSTERING,
 };

@@ -403,7 +403,6 @@ static struct scsi_host_template mac53c94_template = {
 	.can_queue	= 1,
 	.this_id	= 7,
 	.sg_tablesize	= SG_ALL,
-	.cmd_per_lun	= 1,
 	.use_clustering	= DISABLE_CLUSTERING,
 };
 

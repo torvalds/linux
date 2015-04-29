@@ -10,7 +10,6 @@
 #define MAX_SENSE 	14
 #define qcnt	       	32
 #define ATP870U_SCATTER 	128
-#define ATP870U_CMDLUN  	1
 
 #define MAX_ADAPTER	8
 #define MAX_SCSI_ID	16
