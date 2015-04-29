@@ -24,6 +24,10 @@ a virtual bus called mic bus is created and virtual dma devices are
 created on it by the host/card drivers. On host the channels are private
 and used only by the host driver to transfer data for the virtio devices.
 
+The Symmetric Communication Interface (SCIF (pronounced as skiff)) is a
+low level communications API across PCIe currently implemented for MIC.
+More details are available at scif_overview.txt.
+
 Here is a block diagram of the various components described above. The
 virtio backends are situated on the host rather than the card given better
 single threaded performance for the host compared to MIC, the ability of
@@ -47,18 +51,18 @@ the fact that the virtio block storage backend can only be on the host.
                       |               |       | Virtio over PCIe IOCTLs  |
                       |               |       +--------------------------+
 +-----------+         |               |                   |  +-----------+
-| MIC DMA   |         |               |                   |  | MIC DMA   |
-| Driver    |         |               |                   |  | Driver    |
-+-----------+         |               |                   |  +-----------+
-      |               |               |                   |        |
-+---------------+     |               |                   |  +----------------+
-|MIC virtual Bus|     |               |                   |  |MIC virtual Bus |
-+---------------+     |               |                   |  +----------------+
-      |               |               |                   |              |
-      |   +--------------+            |            +---------------+     |
-      |   |Intel MIC     |            |            |Intel MIC      |     |
-      +---|Card Driver   |            |            |Host Driver    |     |
-          +--------------+            |            +---------------+-----+
+| MIC DMA   |         |  +----------+ | +-----------+     |  | MIC DMA   |
+| Driver    |         |  |  SCIF    | | |   SCIF    |     |  | Driver    |
++-----------+         |  +----------+ | +-----------+     |  +-----------+
+      |               |       |       |       |           |        |
++---------------+     | +-----+-----+ | +-----+-----+     | +---------------+
+|MIC virtual Bus|     | |SCIF HW Bus| | |SCIF HW BUS|     | |MIC virtual Bus|
++---------------+     | +-----------+ | +-----+-----+     | +---------------+
+      |               |       |       |       |           |              |
+      |   +--------------+    |       |       |    +---------------+     |
+      |   |Intel MIC     |    |       |       |    |Intel MIC      |     |
+      +---|Card Driver   +----+       |       |    |Host Driver    |     |
+          +--------------+            |       +----+---------------+-----+
                       |               |                   |
              +-------------------------------------------------------------+
              |                                                             |
