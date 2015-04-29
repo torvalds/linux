@@ -889,11 +889,6 @@ int netvsc_send(struct hv_device *device,
 		} else {
 			packet->page_buf_cnt = 0;
 			packet->total_data_buflen += msd_len;
-			if (!packet->part_of_skb) {
-				skb = (struct sk_buff *)(unsigned long)packet->
-				       send_completion_tid;
-				packet->send_completion_tid = 0;
-			}
 		}
 
 		if (msdp->pkt)
