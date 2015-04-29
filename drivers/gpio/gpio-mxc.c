@@ -450,7 +450,8 @@ static int mxc_gpio_probe(struct platform_device *pdev)
 	err = bgpio_init(&port->bgc, &pdev->dev, 4,
 			 port->base + GPIO_PSR,
 			 port->base + GPIO_DR, NULL,
-			 port->base + GPIO_GDIR, NULL, 0);
+			 port->base + GPIO_GDIR, NULL,
+			 BGPIOF_READ_OUTPUT_REG_SET);
 	if (err)
 		goto out_bgio;
 
