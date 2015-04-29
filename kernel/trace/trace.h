@@ -12,7 +12,7 @@
 #include <linux/ftrace.h>
 #include <linux/hw_breakpoint.h>
 #include <linux/trace_seq.h>
-#include <linux/ftrace_event.h>
+#include <linux/trace_events.h>
 #include <linux/compiler.h>
 #include <linux/trace_seq.h>
 
@@ -1180,7 +1180,7 @@ struct event_trigger_ops {
  *	commands need to do this if they themselves log to the trace
  *	buffer (see the @post_trigger() member below).  @trigger_type
  *	values are defined by adding new values to the trigger_type
- *	enum in include/linux/ftrace_event.h.
+ *	enum in include/linux/trace_events.h.
  *
  * @post_trigger: A flag that says whether or not this command needs
  *	to have its action delayed until after the current event has

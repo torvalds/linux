@@ -3,7 +3,7 @@
 
 #include <linux/tracepoint.h>
 #include <linux/unistd.h>
-#include <linux/ftrace_event.h>
+#include <linux/trace_events.h>
 #include <linux/thread_info.h>
 
 #include <asm/ptrace.h>

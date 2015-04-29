@@ -16,7 +16,7 @@
  * in the structure.
  */
 
-#include <linux/ftrace_event.h>
+#include <linux/trace_events.h>
 
 #ifndef TRACE_SYSTEM_VAR
 #define TRACE_SYSTEM_VAR TRACE_SYSTEM
