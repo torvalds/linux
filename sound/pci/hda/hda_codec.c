@@ -857,6 +857,7 @@ void snd_hda_codec_register(struct hda_codec *codec)
 		return;
 	if (device_is_registered(hda_codec_dev(codec))) {
 		snd_hda_register_beep_device(codec);
+		snd_hdac_link_power(&codec->core, true);
 		pm_runtime_enable(hda_codec_dev(codec));
 		/* it was powered up in snd_hda_codec_new(), now all done */
 		snd_hda_power_down(codec);
@@ -883,6 +884,7 @@ static int snd_hda_codec_dev_free(struct snd_device *device)
 	struct hda_codec *codec = device->device_data;
 
 	codec->in_freeing = 1;
+	snd_hdac_link_power(&codec->core, false);
 	snd_hdac_device_unregister(&codec->core);
 	put_device(hda_codec_dev(codec));
 	return 0;
@@ -3102,6 +3104,7 @@ static int hda_codec_runtime_suspend(struct device *dev)
 	if (codec_has_clkstop(codec) && codec_has_epss(codec) &&
 	    (state & AC_PWRST_CLK_STOP_OK))
 		snd_hdac_codec_link_down(&codec->core);
+	snd_hdac_link_power(&codec->core, false);
 	return 0;
 }
 
@@ -3109,6 +3112,7 @@ static int hda_codec_runtime_resume(struct device *dev)
 {
 	struct hda_codec *codec = dev_to_hda_codec(dev);
 
+	snd_hdac_link_power(&codec->core, true);
 	snd_hdac_codec_link_up(&codec->core);
 	hda_call_codec_resume(codec);
 	pm_runtime_mark_last_busy(dev);
