@@ -229,11 +229,13 @@ static struct dwc2_qh *dwc2_hcd_qh_create(struct dwc2_hsotg *hsotg,
  */
 void dwc2_hcd_qh_free(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 {
-	if (hsotg->core_params->dma_desc_enable > 0)
+	if (hsotg->core_params->dma_desc_enable > 0) {
 		dwc2_hcd_qh_free_ddma(hsotg, qh);
-	else if (qh->dw_align_buf)
-		dma_free_coherent(hsotg->dev, qh->dw_align_buf_size,
-				  qh->dw_align_buf, qh->dw_align_buf_dma);
+	} else {
+		/* kfree(NULL) is safe */
+		kfree(qh->dw_align_buf);
+		qh->dw_align_buf_dma = (dma_addr_t)0;
+	}
 	kfree(qh);
 }
 

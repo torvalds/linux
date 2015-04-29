@@ -719,9 +719,7 @@ static int dwc2_hc_setup_align_buf(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh,
 			/* 3072 = 3 max-size Isoc packets */
 			buf_size = 3072;
 
-		qh->dw_align_buf = dma_alloc_coherent(hsotg->dev, buf_size,
-						      &qh->dw_align_buf_dma,
-						      GFP_ATOMIC);
+		qh->dw_align_buf = kmalloc(buf_size, GFP_ATOMIC | GFP_DMA);
 		if (!qh->dw_align_buf)
 			return -ENOMEM;
 		qh->dw_align_buf_size = buf_size;
@@ -744,6 +742,15 @@ static int dwc2_hc_setup_align_buf(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh,
 		} else {
 			dev_warn(hsotg->dev, "no URB in dwc2_urb\n");
 		}
+	}
+
+	qh->dw_align_buf_dma = dma_map_single(hsotg->dev,
+			qh->dw_align_buf, qh->dw_align_buf_size,
+			chan->ep_is_in ? DMA_FROM_DEVICE : DMA_TO_DEVICE);
+	if (dma_mapping_error(hsotg->dev, qh->dw_align_buf_dma)) {
+		dev_err(hsotg->dev, "can't map align_buf\n");
+		chan->align_buf = (dma_addr_t)NULL;
+		return -EINVAL;
 	}
 
 	chan->align_buf = qh->dw_align_buf_dma;
