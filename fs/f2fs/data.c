@@ -1076,20 +1076,22 @@ struct page *get_new_data_page(struct inode *inode,
 	struct page *page;
 	struct dnode_of_data dn;
 	int err;
+repeat:
+	page = grab_cache_page(mapping, index);
+	if (!page)
+		return ERR_PTR(-ENOMEM);
 
 	set_new_dnode(&dn, inode, ipage, NULL, 0);
 	err = f2fs_reserve_block(&dn, index);
-	if (err)
+	if (err) {
+		f2fs_put_page(page, 1);
 		return ERR_PTR(err);
-repeat:
-	page = grab_cache_page(mapping, index);
-	if (!page) {
-		err = -ENOMEM;
-		goto put_err;
 	}
+	if (!ipage)
+		f2fs_put_dnode(&dn);
 
 	if (PageUptodate(page))
-		return page;
+		goto got_it;
 
 	if (dn.data_blkaddr == NEW_ADDR) {
 		zero_user_segment(page, 0, PAGE_CACHE_SIZE);
@@ -1104,20 +1106,19 @@ repeat:
 		};
 		err = f2fs_submit_page_bio(&fio);
 		if (err)
-			goto put_err;
+			return ERR_PTR(err);
 
 		lock_page(page);
 		if (unlikely(!PageUptodate(page))) {
 			f2fs_put_page(page, 1);
-			err = -EIO;
-			goto put_err;
+			return ERR_PTR(-EIO);
 		}
 		if (unlikely(page->mapping != mapping)) {
 			f2fs_put_page(page, 1);
 			goto repeat;
 		}
 	}
-
+got_it:
 	if (new_i_size &&
 		i_size_read(inode) < ((index + 1) << PAGE_CACHE_SHIFT)) {
 		i_size_write(inode, ((index + 1) << PAGE_CACHE_SHIFT));
@@ -1125,10 +1126,6 @@ repeat:
 		set_inode_flag(F2FS_I(inode), FI_UPDATE_DIR);
 	}
 	return page;
-
-put_err:
-	f2fs_put_dnode(&dn);
-	return ERR_PTR(err);
 }
 
 static int __allocate_data_block(struct dnode_of_data *dn)
