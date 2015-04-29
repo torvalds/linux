@@ -350,18 +350,13 @@ int intel_soc_dts_iosf_add_read_only_critical_trip(
 	struct intel_soc_dts_sensors *sensors, int critical_offset)
 {
 	int i, j;
-	int ret;
 
 	for (i = 0; i < SOC_MAX_DTS_SENSORS; ++i) {
 		for (j = 0; j < sensors->soc_dts[i].trip_count; ++j) {
 			if (!(sensors->soc_dts[i].trip_mask & BIT(j))) {
-				ret = update_trip_temp(&sensors->soc_dts[i], j,
+				return update_trip_temp(&sensors->soc_dts[i], j,
 					sensors->tj_max - critical_offset,
 					THERMAL_TRIP_CRITICAL);
-				if (ret)
-					return ret;
-
-				return 0;
 			}
 		}
 	}
