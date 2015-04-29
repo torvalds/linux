@@ -347,7 +347,7 @@ static void dwc2_handle_wakeup_detected_intr(struct dwc2_hsotg *hsotg)
 			dctl &= ~DCTL_RMTWKUPSIG;
 			writel(dctl, hsotg->regs + DCTL);
 			ret = dwc2_exit_hibernation(hsotg, true);
-			if (ret)
+			if (ret && (ret != -ENOTSUPP))
 				dev_err(hsotg->dev, "exit hibernation failed\n");
 
 			call_gadget(hsotg, resume);
@@ -428,8 +428,9 @@ static void dwc2_handle_usb_suspend_intr(struct dwc2_hsotg *hsotg)
 
 			ret = dwc2_enter_hibernation(hsotg);
 			if (ret) {
-				dev_err(hsotg->dev,
-					"enter hibernation failed\n");
+				if (ret != -ENOTSUPP)
+					dev_err(hsotg->dev,
+							"enter hibernation failed\n");
 				goto skip_power_saving;
 			}
 

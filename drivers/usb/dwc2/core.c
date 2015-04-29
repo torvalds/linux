@@ -342,6 +342,9 @@ int dwc2_exit_hibernation(struct dwc2_hsotg *hsotg, bool restore)
 	u32 pcgcctl;
 	int ret = 0;
 
+	if (!hsotg->core_params->hibernation)
+		return -ENOTSUPP;
+
 	pcgcctl = readl(hsotg->regs + PCGCTL);
 	pcgcctl &= ~PCGCTL_STOPPCLK;
 	writel(pcgcctl, hsotg->regs + PCGCTL);
@@ -391,6 +394,9 @@ int dwc2_enter_hibernation(struct dwc2_hsotg *hsotg)
 {
 	u32 pcgcctl;
 	int ret = 0;
+
+	if (!hsotg->core_params->hibernation)
+		return -ENOTSUPP;
 
 	/* Backup all registers */
 	ret = dwc2_backup_global_registers(hsotg);
@@ -2998,6 +3004,23 @@ static void dwc2_set_param_external_id_pin_ctl(struct dwc2_hsotg *hsotg,
 	hsotg->core_params->external_id_pin_ctl = val;
 }
 
+static void dwc2_set_param_hibernation(struct dwc2_hsotg *hsotg,
+		int val)
+{
+	if (DWC2_OUT_OF_BOUNDS(val, 0, 1)) {
+		if (val >= 0) {
+			dev_err(hsotg->dev,
+				"'%d' invalid for parameter hibernation\n",
+				val);
+			dev_err(hsotg->dev, "hibernation must be 0 or 1\n");
+		}
+		val = 0;
+		dev_dbg(hsotg->dev, "Setting hibernation to %d\n", val);
+	}
+
+	hsotg->core_params->hibernation = val;
+}
+
 /*
  * This function is called during module intialization to pass module parameters
  * for the DWC_otg core.
@@ -3043,6 +3066,7 @@ void dwc2_set_parameters(struct dwc2_hsotg *hsotg,
 	dwc2_set_param_otg_ver(hsotg, params->otg_ver);
 	dwc2_set_param_uframe_sched(hsotg, params->uframe_sched);
 	dwc2_set_param_external_id_pin_ctl(hsotg, params->external_id_pin_ctl);
+	dwc2_set_param_hibernation(hsotg, params->hibernation);
 }
 
 /**

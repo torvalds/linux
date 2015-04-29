@@ -336,6 +336,12 @@ enum dwc2_ep0_state {
  *                      case.
  *                      0 - No (default)
  *                      1 - Yes
+ * @hibernation:	Specifies whether the controller support hibernation.
+ *			If hibernation is enabled, the controller will enter
+ *			hibernation in both peripheral and host mode when
+ *			needed.
+ *			0 - No (default)
+ *			1 - Yes
  *
  * The following parameters may be specified when starting the module. These
  * parameters define how the DWC_otg controller should be configured. A
@@ -374,6 +380,7 @@ struct dwc2_core_params {
 	int ahbcfg;
 	int uframe_sched;
 	int external_id_pin_ctl;
+	int hibernation;
 };
 
 /**
