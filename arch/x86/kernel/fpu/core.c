@@ -348,6 +348,10 @@ void fpu__restore(void)
 }
 EXPORT_SYMBOL_GPL(fpu__restore);
 
+/*
+ * Called by sys_execve() to clear the FPU fpregs, so that FPU state
+ * of the previous binary does not leak over into the exec()ed binary:
+ */
 void fpu__clear(struct task_struct *tsk)
 {
 	struct fpu *fpu = &tsk->thread.fpu;
