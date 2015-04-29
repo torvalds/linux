@@ -540,6 +540,14 @@ static int azx_position_check(struct azx *chip, struct azx_dev *azx_dev)
 	return 0;
 }
 
+/* Enable/disable i915 display power for the link */
+static int azx_intel_link_power(struct azx *chip, bool enable)
+{
+	struct hda_intel *hda = container_of(chip, struct hda_intel, chip);
+
+	return hda_display_power(hda, enable);
+}
+
 /*
  * Check whether the current DMA position is acceptable for updating
  * periods.  Returns non-zero if it's OK.
@@ -1786,6 +1794,7 @@ static const struct hda_controller_ops pci_hda_ops = {
 	.substream_free_pages = substream_free_pages,
 	.pcm_mmap_prepare = pcm_mmap_prepare,
 	.position_check = azx_position_check,
+	.link_power = azx_intel_link_power,
 };
 
 static int azx_probe(struct pci_dev *pci,
