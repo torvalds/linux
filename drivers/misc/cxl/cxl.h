@@ -315,8 +315,6 @@ static const cxl_p2n_reg_t CXL_PSL_WED_An     = {0x0A0};
 #define CXL_MAX_SLICES 4
 #define MAX_AFU_MMIO_REGS 3
 
-#define CXL_MODE_DEDICATED   0x1
-#define CXL_MODE_DIRECTED    0x2
 #define CXL_MODE_TIME_SLICED 0x4
 #define CXL_SUPPORTED_MODES (CXL_MODE_DEDICATED | CXL_MODE_DIRECTED)
 

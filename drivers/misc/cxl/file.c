@@ -212,6 +212,25 @@ static long afu_ioctl_process_element(struct cxl_context *ctx,
 	return 0;
 }
 
+static long afu_ioctl_get_afu_id(struct cxl_context *ctx,
+				 struct cxl_afu_id __user *upafuid)
+{
+	struct cxl_afu_id afuid = { 0 };
+
+	afuid.card_id = ctx->afu->adapter->adapter_num;
+	afuid.afu_offset = ctx->afu->slice;
+	afuid.afu_mode = ctx->afu->current_mode;
+
+	/* set the flag bit in case the afu is a slave */
+	if (ctx->afu->current_mode == CXL_MODE_DIRECTED && !ctx->master)
+		afuid.flags |= CXL_AFUID_FLAG_SLAVE;
+
+	if (copy_to_user(upafuid, &afuid, sizeof(afuid)))
+		return -EFAULT;
+
+	return 0;
+}
+
 static long afu_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct cxl_context *ctx = file->private_data;
@@ -225,6 +244,9 @@ static long afu_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return afu_ioctl_start_work(ctx, (struct cxl_ioctl_start_work __user *)arg);
 	case CXL_IOCTL_GET_PROCESS_ELEMENT:
 		return afu_ioctl_process_element(ctx, (__u32 __user *)arg);
+	case CXL_IOCTL_GET_AFU_ID:
+		return afu_ioctl_get_afu_id(ctx, (struct cxl_afu_id __user *)
+					    arg);
 	}
 	return -EINVAL;
 }
