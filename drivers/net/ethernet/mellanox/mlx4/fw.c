@@ -56,11 +56,13 @@ MODULE_PARM_DESC(enable_qos, "Enable Enhanced QoS support (default: on)");
 #define MLX4_GET(dest, source, offset)				      \
 	do {							      \
 		void *__p = (char *) (source) + (offset);	      \
+		u64 val;                                              \
 		switch (sizeof (dest)) {			      \
 		case 1: (dest) = *(u8 *) __p;	    break;	      \
 		case 2: (dest) = be16_to_cpup(__p); break;	      \
 		case 4: (dest) = be32_to_cpup(__p); break;	      \
-		case 8: (dest) = be64_to_cpup(__p); break;	      \
+		case 8: val = get_unaligned((u64 *)__p);              \
+			(dest) = be64_to_cpu(val);  break;            \
 		default: __buggy_use_of_MLX4_GET();		      \
 		}						      \
 	} while (0)
@@ -1605,9 +1607,17 @@ static void get_board_id(void *vsd, char *board_id)
 		 * swaps each 4-byte word before passing it back to
 		 * us.  Therefore we need to swab it before printing.
 		 */
-		for (i = 0; i < 4; ++i)
-			((u32 *) board_id)[i] =
-				swab32(*(u32 *) (vsd + VSD_OFFSET_MLX_BOARD_ID + i * 4));
+		u32 *bid_u32 = (u32 *)board_id;
+
+		for (i = 0; i < 4; ++i) {
+			u32 *addr;
+			u32 val;
+
+			addr = (u32 *) (vsd + VSD_OFFSET_MLX_BOARD_ID + i * 4);
+			val = get_unaligned(addr);
+			val = swab32(val);
+			put_unaligned(val, &bid_u32[i]);
+		}
 	}
 }
 
