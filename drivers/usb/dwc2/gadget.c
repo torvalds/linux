@@ -3525,6 +3525,8 @@ int dwc2_gadget_init(struct dwc2_hsotg *hsotg, int irq)
 	hsotg->gadget.max_speed = USB_SPEED_HIGH;
 	hsotg->gadget.ops = &s3c_hsotg_gadget_ops;
 	hsotg->gadget.name = dev_name(dev);
+	if (hsotg->dr_mode == USB_DR_MODE_OTG)
+		hsotg->gadget.is_otg = 1;
 
 	/* reset the system */
 
