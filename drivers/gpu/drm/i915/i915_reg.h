@@ -670,6 +670,12 @@ enum skl_disp_power_wells {
 #define   FB_FMAX_VMIN_FREQ_LO_SHIFT		27
 #define   FB_FMAX_VMIN_FREQ_LO_MASK		0xf8000000
 
+#define VLV_TURBO_SOC_OVERRIDE	0x04
+#define 	VLV_OVERRIDE_EN	1
+#define 	VLV_SOC_TDP_EN	(1 << 1)
+#define 	VLV_BIAS_CPU_125_SOC_875 (6 << 2)
+#define 	CHV_BIAS_CPU_50_SOC_50 (3 << 2)
+
 #define VLV_CZ_CLOCK_TO_MILLI_SEC		100000
 
 /* vlv2 north clock has */

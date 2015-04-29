@@ -5082,6 +5082,12 @@ static void cherryview_enable_rps(struct drm_device *dev)
 		   GEN6_RP_UP_BUSY_AVG |
 		   GEN6_RP_DOWN_IDLE_AVG);
 
+	/* Setting Fixed Bias */
+	val = VLV_OVERRIDE_EN |
+		  VLV_SOC_TDP_EN |
+		  CHV_BIAS_CPU_50_SOC_50;
+	vlv_punit_write(dev_priv, VLV_TURBO_SOC_OVERRIDE, val);
+
 	val = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
 
 	/* RPS code assumes GPLL is used */
@@ -5165,6 +5171,12 @@ static void valleyview_enable_rps(struct drm_device *dev)
 	intel_print_rc6_info(dev, rc6_mode);
 
 	I915_WRITE(GEN6_RC_CONTROL, rc6_mode);
+
+	/* Setting Fixed Bias */
+	val = VLV_OVERRIDE_EN |
+		  VLV_SOC_TDP_EN |
+		  VLV_BIAS_CPU_125_SOC_875;
+	vlv_punit_write(dev_priv, VLV_TURBO_SOC_OVERRIDE, val);
 
 	val = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
 
