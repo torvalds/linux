@@ -129,6 +129,13 @@ static int identify_descriptor(struct gb_interface *intf,
 		return -EINVAL;
 	}
 
+	/* Descriptor bigger than what we expect */
+	if (desc_size > expected_size) {
+		pr_warn("%s descriptor size mismatch (want %zu got %zu)\n",
+			get_descriptor_type_string(desc_header->type),
+			expected_size, desc_size);
+	}
+
 	descriptor = kzalloc(sizeof(*descriptor), GFP_KERNEL);
 	if (!descriptor)
 		return -ENOMEM;
