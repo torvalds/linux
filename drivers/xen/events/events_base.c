@@ -1279,8 +1279,9 @@ void rebind_evtchn_irq(int evtchn, int irq)
 
 	mutex_unlock(&irq_mapping_update_lock);
 
-	/* new event channels are always bound to cpu 0 */
-	irq_set_affinity(irq, cpumask_of(0));
+        bind_evtchn_to_cpu(evtchn, info->cpu);
+	/* This will be deferred until interrupt is processed */
+	irq_set_affinity(irq, cpumask_of(info->cpu));
 
 	/* Unmask the event channel. */
 	enable_irq(irq);
