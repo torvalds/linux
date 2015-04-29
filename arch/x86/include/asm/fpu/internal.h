@@ -46,10 +46,19 @@ extern void fpu__init_system(struct cpuinfo_x86 *c);
 
 extern void fpu__activate_curr(struct fpu *fpu);
 extern void fpstate_init(struct fpu *fpu);
-extern void fpu__clear(struct task_struct *tsk);
 
 extern int dump_fpu(struct pt_regs *, struct user_i387_struct *);
+
+/*
+ * High level FPU state handling functions:
+ */
+extern void fpu__save(struct fpu *fpu);
 extern void fpu__restore(void);
+extern void fpu__drop(struct fpu *fpu);
+extern int  fpu__copy(struct fpu *dst_fpu, struct fpu *src_fpu);
+extern void fpu__reset(struct fpu *fpu);
+extern void fpu__clear(struct task_struct *tsk);
+
 extern void fpu__init_check_bugs(void);
 extern void fpu__resume_cpu(void);
 
@@ -287,8 +296,6 @@ static inline int copy_fpregs_to_fpstate(struct fpu *fpu)
 	return 0;
 }
 
-extern void fpu__save(struct fpu *fpu);
-
 static inline int __copy_fpstate_to_fpregs(struct fpu *fpu)
 {
 	if (use_xsave())
@@ -382,50 +389,12 @@ static inline void fpregs_deactivate(struct fpu *fpu)
 	__fpregs_deactivate_hw();
 }
 
-/*
- * Drops current FPU state: deactivates the fpregs and
- * the fpstate. NOTE: it still leaves previous contents
- * in the fpregs in the eager-FPU case.
- *
- * This function can be used in cases where we know that
- * a state-restore is coming: either an explicit one,
- * or a reschedule.
- */
-static inline void fpu__drop(struct fpu *fpu)
-{
-	preempt_disable();
-	fpu->counter = 0;
-
-	if (fpu->fpregs_active) {
-		/* Ignore delayed exceptions from user space */
-		asm volatile("1: fwait\n"
-			     "2:\n"
-			     _ASM_EXTABLE(1b, 2b));
-		fpregs_deactivate(fpu);
-	}
-
-	fpu->fpstate_active = 0;
-
-	preempt_enable();
-}
-
 static inline void restore_init_xstate(void)
 {
 	if (use_xsave())
 		xrstor_state(&init_xstate_ctx, -1);
 	else
 		fxrstor_checking(&init_xstate_ctx.i387);
-}
-
-/*
- * Reset the FPU state back to init state.
- */
-static inline void fpu__reset(struct fpu *fpu)
-{
-	if (!use_eager_fpu())
-		fpu__drop(fpu);
-	else
-		restore_init_xstate();
 }
 
 /*
@@ -596,8 +565,6 @@ static inline unsigned short get_fpu_mxcsr(struct task_struct *tsk)
 		return MXCSR_DEFAULT;
 	}
 }
-
-extern int fpu__copy(struct fpu *dst_fpu, struct fpu *src_fpu);
 
 static inline unsigned long
 alloc_mathframe(unsigned long sp, int ia32_frame, unsigned long *buf_fx,

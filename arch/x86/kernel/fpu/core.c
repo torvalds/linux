@@ -349,6 +349,44 @@ void fpu__restore(void)
 EXPORT_SYMBOL_GPL(fpu__restore);
 
 /*
+ * Drops current FPU state: deactivates the fpregs and
+ * the fpstate. NOTE: it still leaves previous contents
+ * in the fpregs in the eager-FPU case.
+ *
+ * This function can be used in cases where we know that
+ * a state-restore is coming: either an explicit one,
+ * or a reschedule.
+ */
+void fpu__drop(struct fpu *fpu)
+{
+	preempt_disable();
+	fpu->counter = 0;
+
+	if (fpu->fpregs_active) {
+		/* Ignore delayed exceptions from user space */
+		asm volatile("1: fwait\n"
+			     "2:\n"
+			     _ASM_EXTABLE(1b, 2b));
+		fpregs_deactivate(fpu);
+	}
+
+	fpu->fpstate_active = 0;
+
+	preempt_enable();
+}
+
+/*
+ * Reset the FPU state back to init state:
+ */
+void fpu__reset(struct fpu *fpu)
+{
+	if (!use_eager_fpu())
+		fpu__drop(fpu);
+	else
+		restore_init_xstate();
+}
+
+/*
  * Called by sys_execve() to clear the FPU fpregs, so that FPU state
  * of the previous binary does not leak over into the exec()ed binary:
  */
