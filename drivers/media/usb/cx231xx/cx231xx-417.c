@@ -1160,9 +1160,9 @@ static int cx231xx_initialize_codec(struct cx231xx *dev)
 	}
 
 	cx231xx_enable656(dev);
-			/* stop mpeg capture */
-			cx231xx_api_cmd(dev, CX2341X_ENC_STOP_CAPTURE,
-				 3, 0, 1, 3, 4);
+
+	/* stop mpeg capture */
+	cx231xx_api_cmd(dev, CX2341X_ENC_STOP_CAPTURE, 3, 0, 1, 3, 4);
 
 	cx231xx_codec_settings(dev);
 	msleep(60);
