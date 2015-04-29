@@ -1679,7 +1679,7 @@ static int dvb_init(struct saa7134_dev *dev)
 						&dev->i2c_adap, 0, 0) == NULL) {
 					wprintk("%s: Asus Tiger 3in1, no lnbp21"
 						" found!\n", __func__);
-				       goto detach_frontend;
+					goto detach_frontend;
 			       }
 		       }
 	       }
