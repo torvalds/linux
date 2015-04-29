@@ -17,6 +17,7 @@
 #include <linux/device-mapper.h>
 
 #define DM_MSG_PREFIX "raid"
+#define	MAX_RAID_DEVICES	253 /* raid4/5/6 limit */
 
 static bool devices_handle_discard_safely = false;
 
@@ -45,25 +46,25 @@ struct raid_dev {
 };
 
 /*
- * Flags for rs->print_flags field.
+ * Flags for rs->ctr_flags field.
  */
-#define DMPF_SYNC              0x1
-#define DMPF_NOSYNC            0x2
-#define DMPF_REBUILD           0x4
-#define DMPF_DAEMON_SLEEP      0x8
-#define DMPF_MIN_RECOVERY_RATE 0x10
-#define DMPF_MAX_RECOVERY_RATE 0x20
-#define DMPF_MAX_WRITE_BEHIND  0x40
-#define DMPF_STRIPE_CACHE      0x80
-#define DMPF_REGION_SIZE       0x100
-#define DMPF_RAID10_COPIES     0x200
-#define DMPF_RAID10_FORMAT     0x400
+#define CTR_FLAG_SYNC              0x1
+#define CTR_FLAG_NOSYNC            0x2
+#define CTR_FLAG_REBUILD           0x4
+#define CTR_FLAG_DAEMON_SLEEP      0x8
+#define CTR_FLAG_MIN_RECOVERY_RATE 0x10
+#define CTR_FLAG_MAX_RECOVERY_RATE 0x20
+#define CTR_FLAG_MAX_WRITE_BEHIND  0x40
+#define CTR_FLAG_STRIPE_CACHE      0x80
+#define CTR_FLAG_REGION_SIZE       0x100
+#define CTR_FLAG_RAID10_COPIES     0x200
+#define CTR_FLAG_RAID10_FORMAT     0x400
 
 struct raid_set {
 	struct dm_target *ti;
 
 	uint32_t bitmap_loaded;
-	uint32_t print_flags;
+	uint32_t ctr_flags;
 
 	struct mddev md;
 	struct raid_type *raid_type;
@@ -119,15 +120,15 @@ static int raid10_format_to_md_layout(char *format, unsigned copies)
 {
 	unsigned n = 1, f = 1;
 
-	if (!strcmp("near", format))
+	if (!strcasecmp("near", format))
 		n = copies;
 	else
 		f = copies;
 
-	if (!strcmp("offset", format))
+	if (!strcasecmp("offset", format))
 		return 0x30000 | (f << 8) | n;
 
-	if (!strcmp("far", format))
+	if (!strcasecmp("far", format))
 		return 0x20000 | (f << 8) | n;
 
 	return (f << 8) | n;
@@ -553,12 +554,12 @@ static int parse_raid_params(struct raid_set *rs, char **argv,
 	for (i = 0; i < num_raid_params; i++) {
 		if (!strcasecmp(argv[i], "nosync")) {
 			rs->md.recovery_cp = MaxSector;
-			rs->print_flags |= DMPF_NOSYNC;
+			rs->ctr_flags |= CTR_FLAG_NOSYNC;
 			continue;
 		}
 		if (!strcasecmp(argv[i], "sync")) {
 			rs->md.recovery_cp = 0;
-			rs->print_flags |= DMPF_SYNC;
+			rs->ctr_flags |= CTR_FLAG_SYNC;
 			continue;
 		}
 
@@ -583,7 +584,7 @@ static int parse_raid_params(struct raid_set *rs, char **argv,
 				return -EINVAL;
 			}
 			raid10_format = argv[i];
-			rs->print_flags |= DMPF_RAID10_FORMAT;
+			rs->ctr_flags |= CTR_FLAG_RAID10_FORMAT;
 			continue;
 		}
 
@@ -600,7 +601,7 @@ static int parse_raid_params(struct raid_set *rs, char **argv,
 			}
 			clear_bit(In_sync, &rs->dev[value].rdev.flags);
 			rs->dev[value].rdev.recovery_offset = 0;
-			rs->print_flags |= DMPF_REBUILD;
+			rs->ctr_flags |= CTR_FLAG_REBUILD;
 		} else if (!strcasecmp(key, "write_mostly")) {
 			if (rs->raid_type->level != 1) {
 				rs->ti->error = "write_mostly option is only valid for RAID1";
@@ -616,7 +617,7 @@ static int parse_raid_params(struct raid_set *rs, char **argv,
 				rs->ti->error = "max_write_behind option is only valid for RAID1";
 				return -EINVAL;
 			}
-			rs->print_flags |= DMPF_MAX_WRITE_BEHIND;
+			rs->ctr_flags |= CTR_FLAG_MAX_WRITE_BEHIND;
 
 			/*
 			 * In device-mapper, we specify things in sectors, but
@@ -629,14 +630,14 @@ static int parse_raid_params(struct raid_set *rs, char **argv,
 			}
 			rs->md.bitmap_info.max_write_behind = value;
 		} else if (!strcasecmp(key, "daemon_sleep")) {
-			rs->print_flags |= DMPF_DAEMON_SLEEP;
+			rs->ctr_flags |= CTR_FLAG_DAEMON_SLEEP;
 			if (!value || (value > MAX_SCHEDULE_TIMEOUT)) {
 				rs->ti->error = "daemon sleep period out of range";
 				return -EINVAL;
 			}
 			rs->md.bitmap_info.daemon_sleep = value;
 		} else if (!strcasecmp(key, "stripe_cache")) {
-			rs->print_flags |= DMPF_STRIPE_CACHE;
+			rs->ctr_flags |= CTR_FLAG_STRIPE_CACHE;
 
 			/*
 			 * In device-mapper, we specify things in sectors, but
@@ -654,21 +655,21 @@ static int parse_raid_params(struct raid_set *rs, char **argv,
 				return -EINVAL;
 			}
 		} else if (!strcasecmp(key, "min_recovery_rate")) {
-			rs->print_flags |= DMPF_MIN_RECOVERY_RATE;
+			rs->ctr_flags |= CTR_FLAG_MIN_RECOVERY_RATE;
 			if (value > INT_MAX) {
 				rs->ti->error = "min_recovery_rate out of range";
 				return -EINVAL;
 			}
 			rs->md.sync_speed_min = (int)value;
 		} else if (!strcasecmp(key, "max_recovery_rate")) {
-			rs->print_flags |= DMPF_MAX_RECOVERY_RATE;
+			rs->ctr_flags |= CTR_FLAG_MAX_RECOVERY_RATE;
 			if (value > INT_MAX) {
 				rs->ti->error = "max_recovery_rate out of range";
 				return -EINVAL;
 			}
 			rs->md.sync_speed_max = (int)value;
 		} else if (!strcasecmp(key, "region_size")) {
-			rs->print_flags |= DMPF_REGION_SIZE;
+			rs->ctr_flags |= CTR_FLAG_REGION_SIZE;
 			region_size = value;
 		} else if (!strcasecmp(key, "raid10_copies") &&
 			   (rs->raid_type->level == 10)) {
@@ -676,7 +677,7 @@ static int parse_raid_params(struct raid_set *rs, char **argv,
 				rs->ti->error = "Bad value for 'raid10_copies'";
 				return -EINVAL;
 			}
-			rs->print_flags |= DMPF_RAID10_COPIES;
+			rs->ctr_flags |= CTR_FLAG_RAID10_COPIES;
 			raid10_copies = value;
 		} else {
 			DMERR("Unable to parse RAID parameter: %s", key);
@@ -945,7 +946,7 @@ static int super_init_validation(struct mddev *mddev, struct md_rdev *rdev)
 		return -EINVAL;
 	}
 
-	if (!(rs->print_flags & (DMPF_SYNC | DMPF_NOSYNC)))
+	if (!(rs->ctr_flags & (CTR_FLAG_SYNC | CTR_FLAG_NOSYNC)))
 		mddev->recovery_cp = le64_to_cpu(sb->array_resync_offset);
 
 	/*
@@ -1071,7 +1072,7 @@ static int analyse_superblocks(struct dm_target *ti, struct raid_set *rs)
 	freshest = NULL;
 	rdev_for_each_safe(rdev, tmp, mddev) {
 		/*
-		 * Skipping super_load due to DMPF_SYNC will cause
+		 * Skipping super_load due to CTR_FLAG_SYNC will cause
 		 * the array to undergo initialization again as
 		 * though it were new.  This is the intended effect
 		 * of the "sync" directive.
@@ -1080,7 +1081,7 @@ static int analyse_superblocks(struct dm_target *ti, struct raid_set *rs)
 		 * that the "sync" directive is disallowed during the
 		 * reshape.
 		 */
-		if (rs->print_flags & DMPF_SYNC)
+		if (rs->ctr_flags & CTR_FLAG_SYNC)
 			continue;
 
 		if (!rdev->meta_bdev)
@@ -1241,7 +1242,7 @@ static int raid_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	}
 
 	if ((kstrtoul(argv[num_raid_params], 10, &num_raid_devs) < 0) ||
-	    (num_raid_devs >= INT_MAX)) {
+	    (num_raid_devs > MAX_RAID_DEVICES)) {
 		ti->error = "Cannot understand number of raid devices";
 		return -EINVAL;
 	}
@@ -1444,7 +1445,7 @@ static void raid_status(struct dm_target *ti, status_type_t type,
 	case STATUSTYPE_TABLE:
 		/* The string you would use to construct this array */
 		for (i = 0; i < rs->md.raid_disks; i++) {
-			if ((rs->print_flags & DMPF_REBUILD) &&
+			if ((rs->ctr_flags & CTR_FLAG_REBUILD) &&
 			    rs->dev[i].data_dev &&
 			    !test_bit(In_sync, &rs->dev[i].rdev.flags))
 				raid_param_cnt += 2; /* for rebuilds */
@@ -1453,33 +1454,33 @@ static void raid_status(struct dm_target *ti, status_type_t type,
 				raid_param_cnt += 2;
 		}
 
-		raid_param_cnt += (hweight32(rs->print_flags & ~DMPF_REBUILD) * 2);
-		if (rs->print_flags & (DMPF_SYNC | DMPF_NOSYNC))
+		raid_param_cnt += (hweight32(rs->ctr_flags & ~CTR_FLAG_REBUILD) * 2);
+		if (rs->ctr_flags & (CTR_FLAG_SYNC | CTR_FLAG_NOSYNC))
 			raid_param_cnt--;
 
 		DMEMIT("%s %u %u", rs->raid_type->name,
 		       raid_param_cnt, rs->md.chunk_sectors);
 
-		if ((rs->print_flags & DMPF_SYNC) &&
+		if ((rs->ctr_flags & CTR_FLAG_SYNC) &&
 		    (rs->md.recovery_cp == MaxSector))
 			DMEMIT(" sync");
-		if (rs->print_flags & DMPF_NOSYNC)
+		if (rs->ctr_flags & CTR_FLAG_NOSYNC)
 			DMEMIT(" nosync");
 
 		for (i = 0; i < rs->md.raid_disks; i++)
-			if ((rs->print_flags & DMPF_REBUILD) &&
+			if ((rs->ctr_flags & CTR_FLAG_REBUILD) &&
 			    rs->dev[i].data_dev &&
 			    !test_bit(In_sync, &rs->dev[i].rdev.flags))
 				DMEMIT(" rebuild %u", i);
 
-		if (rs->print_flags & DMPF_DAEMON_SLEEP)
+		if (rs->ctr_flags & CTR_FLAG_DAEMON_SLEEP)
 			DMEMIT(" daemon_sleep %lu",
 			       rs->md.bitmap_info.daemon_sleep);
 
-		if (rs->print_flags & DMPF_MIN_RECOVERY_RATE)
+		if (rs->ctr_flags & CTR_FLAG_MIN_RECOVERY_RATE)
 			DMEMIT(" min_recovery_rate %d", rs->md.sync_speed_min);
 
-		if (rs->print_flags & DMPF_MAX_RECOVERY_RATE)
+		if (rs->ctr_flags & CTR_FLAG_MAX_RECOVERY_RATE)
 			DMEMIT(" max_recovery_rate %d", rs->md.sync_speed_max);
 
 		for (i = 0; i < rs->md.raid_disks; i++)
@@ -1487,11 +1488,11 @@ static void raid_status(struct dm_target *ti, status_type_t type,
 			    test_bit(WriteMostly, &rs->dev[i].rdev.flags))
 				DMEMIT(" write_mostly %u", i);
 
-		if (rs->print_flags & DMPF_MAX_WRITE_BEHIND)
+		if (rs->ctr_flags & CTR_FLAG_MAX_WRITE_BEHIND)
 			DMEMIT(" max_write_behind %lu",
 			       rs->md.bitmap_info.max_write_behind);
 
-		if (rs->print_flags & DMPF_STRIPE_CACHE) {
+		if (rs->ctr_flags & CTR_FLAG_STRIPE_CACHE) {
 			struct r5conf *conf = rs->md.private;
 
 			/* convert from kiB to sectors */
@@ -1499,15 +1500,15 @@ static void raid_status(struct dm_target *ti, status_type_t type,
 			       conf ? conf->max_nr_stripes * 2 : 0);
 		}
 
-		if (rs->print_flags & DMPF_REGION_SIZE)
+		if (rs->ctr_flags & CTR_FLAG_REGION_SIZE)
 			DMEMIT(" region_size %lu",
 			       rs->md.bitmap_info.chunksize >> 9);
 
-		if (rs->print_flags & DMPF_RAID10_COPIES)
+		if (rs->ctr_flags & CTR_FLAG_RAID10_COPIES)
 			DMEMIT(" raid10_copies %u",
 			       raid10_md_layout_to_copies(rs->md.layout));
 
-		if (rs->print_flags & DMPF_RAID10_FORMAT)
+		if (rs->ctr_flags & CTR_FLAG_RAID10_FORMAT)
 			DMEMIT(" raid10_format %s",
 			       raid10_md_layout_to_format(rs->md.layout));
 
