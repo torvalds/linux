@@ -2335,6 +2335,15 @@ static int patch_generic_hdmi(struct hda_codec *codec)
 		intel_haswell_fixup_enable_dp12(codec);
 	}
 
+	/* For Valleyview/Cherryview, only the display codec is in the display
+	 * power well and can use link_power ops to request/release the power.
+	 * For Haswell/Broadwell, the controller is also in the power well and
+	 * can cover the codec power request, and so need not set this flag.
+	 * For previous platforms, there is no such power well feature.
+	 */
+	if (is_valleyview_plus(codec))
+		codec->core.link_power_control = 1;
+
 	if (is_haswell_plus(codec) || is_valleyview_plus(codec))
 		codec->depop_delay = 0;
 

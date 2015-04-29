@@ -1900,8 +1900,10 @@ static int azx_probe_continue(struct azx *chip)
 	 * display codec needs the power and it can be released after probe.
 	 */
 	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL) {
-		/* Assume the controller needs the power by default */
-		hda->need_i915_power = 1;
+		/* Baytral/Braswell controllers don't need this power */
+		if (pci->device != 0x0f04 && pci->device != 0x2284)
+			hda->need_i915_power = 1;
+
 
 #ifdef CONFIG_SND_HDA_I915
 		err = hda_i915_init(hda);
