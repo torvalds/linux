@@ -3250,6 +3250,7 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 		if (dev_drv->cur_screen->type != screen->type) {
 			dev_drv->hdmi_switch = 0;
 			mutex_unlock(&dev_drv->switch_screen);
+			kfree(envp[1]);
 			return 0;
 		}
 
