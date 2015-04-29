@@ -88,6 +88,7 @@
 
 #ifdef CONFIG_EVENT_TRACING
 #include <trace/trace_events.h>
+#include <trace/perf.h>
 #endif
 
 #undef TRACE_EVENT
