@@ -66,6 +66,8 @@ struct ath_ht20_fft_packet {
 } __packed;
 
 #define SPECTRAL_HT20_TOTAL_DATA_LEN	(sizeof(struct ath_ht20_fft_packet))
+#define	SPECTRAL_HT20_SAMPLE_LEN	(sizeof(struct ath_ht20_mag_info) +\
+					SPECTRAL_HT20_NUM_BINS)
 
 /* Dynamic 20/40 mode:
  *
@@ -101,6 +103,10 @@ struct ath_spec_scan_priv {
 };
 
 #define SPECTRAL_HT20_40_TOTAL_DATA_LEN	(sizeof(struct ath_ht20_40_fft_packet))
+#define	SPECTRAL_HT20_40_SAMPLE_LEN	(sizeof(struct ath_ht20_40_mag_info) +\
+					SPECTRAL_HT20_40_NUM_BINS)
+
+#define	SPECTRAL_SAMPLE_MAX_LEN		SPECTRAL_HT20_40_SAMPLE_LEN
 
 /* grabs the max magnitude from the all/upper/lower bins */
 static inline u16 spectral_max_magnitude(u8 *bins)
