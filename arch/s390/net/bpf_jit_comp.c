@@ -443,8 +443,11 @@ static void bpf_jit_epilogue(struct bpf_jit *jit)
 
 /*
  * Compile one eBPF instruction into s390x code
+ *
+ * NOTE: Use noinline because for gcov (-fprofile-arcs) gcc allocates a lot of
+ * stack space for the large switch statement.
  */
-static int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i)
+static noinline int bpf_jit_insn(struct bpf_jit *jit, struct bpf_prog *fp, int i)
 {
 	struct bpf_insn *insn = &fp->insnsi[i];
 	int jmp_off, last, insn_count = 1;
