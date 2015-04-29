@@ -1639,6 +1639,8 @@ struct drm_mode_config {
 	struct drm_property *prop_crtc_id;
 	struct drm_property *prop_active;
 	struct drm_property *prop_mode_id;
+	struct drm_property *content_protection_property;
+	struct drm_property *content_protection_ksv_property;
 
 	/* DVI-I properties */
 	struct drm_property *dvi_i_subconnector_property;
@@ -1834,6 +1836,7 @@ extern void drm_encoder_cleanup(struct drm_encoder *encoder);
 extern const char *drm_get_connector_status_name(enum drm_connector_status status);
 extern const char *drm_get_subpixel_order_name(enum subpixel_order order);
 extern const char *drm_get_dpms_name(int val);
+extern const char *drm_get_content_protection_name(int val);
 extern const char *drm_get_dvi_i_subconnector_name(int val);
 extern const char *drm_get_dvi_i_select_name(int val);
 extern const char *drm_get_tv_subconnector_name(int val);
