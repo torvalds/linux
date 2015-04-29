@@ -46,6 +46,7 @@ struct hda_intel {
 
 	/* i915 component interface */
 	struct i915_audio_component audio_component;
+	int i915_power_refcount;
 };
 
 #ifdef CONFIG_SND_HDA_I915
