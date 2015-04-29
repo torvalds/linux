@@ -1088,6 +1088,7 @@ extern void s3c_hsotg_core_init_disconnected(struct dwc2_hsotg *dwc2,
 extern void s3c_hsotg_core_connect(struct dwc2_hsotg *hsotg);
 extern void s3c_hsotg_disconnect(struct dwc2_hsotg *dwc2);
 extern int s3c_hsotg_set_test_mode(struct dwc2_hsotg *hsotg, int testmode);
+#define dwc2_is_device_connected(hsotg) (hsotg->connected)
 #else
 static inline int s3c_hsotg_remove(struct dwc2_hsotg *dwc2)
 { return 0; }
@@ -1104,6 +1105,7 @@ static inline void s3c_hsotg_disconnect(struct dwc2_hsotg *dwc2) {}
 static inline int s3c_hsotg_set_test_mode(struct dwc2_hsotg *hsotg,
 							int testmode)
 { return 0; }
+#define dwc2_is_device_connected(hsotg) (0)
 #endif
 
 #if IS_ENABLED(CONFIG_USB_DWC2_HOST) || IS_ENABLED(CONFIG_USB_DWC2_DUAL_ROLE)
