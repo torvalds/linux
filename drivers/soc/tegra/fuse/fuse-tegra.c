@@ -91,6 +91,7 @@ static const struct of_device_id car_match[] __initconst = {
 	{ .compatible = "nvidia,tegra114-car", },
 	{ .compatible = "nvidia,tegra124-car", },
 	{ .compatible = "nvidia,tegra132-car", },
+	{ .compatible = "nvidia,tegra210-car", },
 	{},
 };
 
@@ -100,6 +101,9 @@ static struct tegra_fuse *fuse = &(struct tegra_fuse) {
 };
 
 static const struct of_device_id tegra_fuse_match[] = {
+#ifdef CONFIG_ARCH_TEGRA_210_SOC
+	{ .compatible = "nvidia,tegra210-efuse", .data = &tegra210_fuse_soc },
+#endif
 #ifdef CONFIG_ARCH_TEGRA_132_SOC
 	{ .compatible = "nvidia,tegra132-efuse", .data = &tegra124_fuse_soc },
 #endif

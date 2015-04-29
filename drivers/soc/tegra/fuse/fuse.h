@@ -81,6 +81,10 @@ void tegra114_init_speedo_data(struct tegra_sku_info *sku_info);
 void tegra124_init_speedo_data(struct tegra_sku_info *sku_info);
 #endif
 
+#ifdef CONFIG_ARCH_TEGRA_210_SOC
+void tegra210_init_speedo_data(struct tegra_sku_info *sku_info);
+#endif
+
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
 extern const struct tegra_fuse_soc tegra20_fuse_soc;
 #endif
@@ -95,6 +99,10 @@ extern const struct tegra_fuse_soc tegra114_fuse_soc;
 
 #if defined(CONFIG_ARCH_TEGRA_124_SOC) || defined(CONFIG_ARCH_TEGRA_132_SOC)
 extern const struct tegra_fuse_soc tegra124_fuse_soc;
+#endif
+
+#ifdef CONFIG_ARCH_TEGRA_210_SOC
+extern const struct tegra_fuse_soc tegra210_fuse_soc;
 #endif
 
 #endif
