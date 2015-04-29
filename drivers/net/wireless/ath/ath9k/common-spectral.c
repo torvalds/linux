@@ -645,6 +645,8 @@ int ath_cmn_process_fft(struct ath_spec_scan_priv *spec_priv, struct ieee80211_h
 
 				fft_handler(rs, spec_priv, sample_buf,
 					    tsf, freq, chan_type);
+
+				memset(sample_buf, 0, SPECTRAL_SAMPLE_MAX_LEN);
 			}
 
 			/* Process a normal frame */
@@ -658,7 +660,6 @@ int ath_cmn_process_fft(struct ath_spec_scan_priv *spec_priv, struct ieee80211_h
 			if (len <= fft_len + 2)
 				break;
 
-			memset(sample_buf, 0, SPECTRAL_SAMPLE_MAX_LEN);
 			sample_start = &vdata[i + 1];
 
 			/* -1 to grab sample_len -1, -2 since
