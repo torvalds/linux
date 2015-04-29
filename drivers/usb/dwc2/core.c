@@ -454,8 +454,10 @@ static void dwc2_enable_common_interrupts(struct dwc2_hsotg *hsotg)
 
 	if (hsotg->core_params->dma_enable <= 0)
 		intmsk |= GINTSTS_RXFLVL;
+	if (hsotg->core_params->external_id_pin_ctl <= 0)
+		intmsk |= GINTSTS_CONIDSTSCHNG;
 
-	intmsk |= GINTSTS_CONIDSTSCHNG | GINTSTS_WKUPINT | GINTSTS_USBSUSP |
+	intmsk |= GINTSTS_WKUPINT | GINTSTS_USBSUSP |
 		  GINTSTS_SESSREQINT;
 
 	writel(intmsk, hsotg->regs + GINTMSK);
@@ -2979,6 +2981,23 @@ static void dwc2_set_param_uframe_sched(struct dwc2_hsotg *hsotg, int val)
 	hsotg->core_params->uframe_sched = val;
 }
 
+static void dwc2_set_param_external_id_pin_ctl(struct dwc2_hsotg *hsotg,
+		int val)
+{
+	if (DWC2_OUT_OF_BOUNDS(val, 0, 1)) {
+		if (val >= 0) {
+			dev_err(hsotg->dev,
+				"'%d' invalid for parameter external_id_pin_ctl\n",
+				val);
+			dev_err(hsotg->dev, "external_id_pin_ctl must be 0 or 1\n");
+		}
+		val = 0;
+		dev_dbg(hsotg->dev, "Setting external_id_pin_ctl to %d\n", val);
+	}
+
+	hsotg->core_params->external_id_pin_ctl = val;
+}
+
 /*
  * This function is called during module intialization to pass module parameters
  * for the DWC_otg core.
@@ -3023,6 +3042,7 @@ void dwc2_set_parameters(struct dwc2_hsotg *hsotg,
 	dwc2_set_param_ahbcfg(hsotg, params->ahbcfg);
 	dwc2_set_param_otg_ver(hsotg, params->otg_ver);
 	dwc2_set_param_uframe_sched(hsotg, params->uframe_sched);
+	dwc2_set_param_external_id_pin_ctl(hsotg, params->external_id_pin_ctl);
 }
 
 /**

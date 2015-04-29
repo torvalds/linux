@@ -77,6 +77,7 @@ static const struct dwc2_core_params params_bcm2835 = {
 	.reload_ctl			= 0,
 	.ahbcfg				= 0x10,
 	.uframe_sched			= 0,
+	.external_id_pin_ctl		= -1,
 };
 
 static const struct dwc2_core_params params_rk3066 = {
@@ -105,6 +106,7 @@ static const struct dwc2_core_params params_rk3066 = {
 	.reload_ctl			= -1,
 	.ahbcfg				= 0x7, /* INCR16 */
 	.uframe_sched			= -1,
+	.external_id_pin_ctl		= -1,
 };
 
 /**

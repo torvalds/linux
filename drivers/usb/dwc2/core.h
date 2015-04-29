@@ -331,6 +331,11 @@ enum dwc2_ep0_state {
  *                      by the driver and are ignored in this
  *                      configuration value.
  * @uframe_sched:       True to enable the microframe scheduler
+ * @external_id_pin_ctl: Specifies whether ID pin is handled externally.
+ *                      Disable CONIDSTSCHNG controller interrupt in such
+ *                      case.
+ *                      0 - No (default)
+ *                      1 - Yes
  *
  * The following parameters may be specified when starting the module. These
  * parameters define how the DWC_otg controller should be configured. A
@@ -368,6 +373,7 @@ struct dwc2_core_params {
 	int reload_ctl;
 	int ahbcfg;
 	int uframe_sched;
+	int external_id_pin_ctl;
 };
 
 /**
