@@ -300,7 +300,8 @@ static int i2o_iop_quiesce(struct i2o_controller *c)
 			ADAPTER_TID);
 
 	/* Long timeout needed for quiesce if lots of devices */
-	if ((rc = i2o_msg_post_wait(c, msg, 240)))
+	rc = i2o_msg_post_wait(c, msg, 240);
+	if (rc)
 		osm_info("%s: Unable to quiesce (status=%#x).\n", c->name, -rc);
 	else
 		osm_debug("%s: Quiesced.\n", c->name);
@@ -340,7 +341,8 @@ static int i2o_iop_enable(struct i2o_controller *c)
 			ADAPTER_TID);
 
 	/* How long of a timeout do we need? */
-	if ((rc = i2o_msg_post_wait(c, msg, 240)))
+	rc = i2o_msg_post_wait(c, msg, 240);
+	if (rc)
 		osm_err("%s: Could not enable (status=%#x).\n", c->name, -rc);
 	else
 		osm_debug("%s: Enabled.\n", c->name);
@@ -406,7 +408,8 @@ static int i2o_iop_clear(struct i2o_controller *c)
 	    cpu_to_le32(I2O_CMD_ADAPTER_CLEAR << 24 | HOST_TID << 12 |
 			ADAPTER_TID);
 
-	if ((rc = i2o_msg_post_wait(c, msg, 30)))
+	rc = i2o_msg_post_wait(c, msg, 30);
+	if (rc)
 		osm_info("%s: Unable to clear (status=%#x).\n", c->name, -rc);
 	else
 		osm_debug("%s: Cleared.\n", c->name);
