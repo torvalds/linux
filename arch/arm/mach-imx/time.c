@@ -38,9 +38,11 @@
 #include "hardware.h"
 
 /*
- * There are 2 versions of the timer hardware on Freescale MXC hardware.
- * Version 1: MX1/MXL, MX21, MX27.
- * Version 2: MX25, MX31, MX35, MX37, MX51
+ * There are 4 versions of the timer hardware on Freescale MXC hardware.
+ *  - MX1/MXL
+ *  - MX21, MX27.
+ *  - MX25, MX31, MX35, MX37, MX51, MX6Q(rev1.0)
+ *  - MX6DL, MX6SX, MX6Q(rev1.1+)
  */
 
 /* defines common for all i.MX */
