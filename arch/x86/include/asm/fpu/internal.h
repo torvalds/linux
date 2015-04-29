@@ -289,7 +289,7 @@ static inline int copy_fpregs_to_fpstate(struct fpu *fpu)
 
 extern void fpu__save(struct fpu *fpu);
 
-static inline int fpu_restore_checking(struct fpu *fpu)
+static inline int __copy_fpstate_to_fpregs(struct fpu *fpu)
 {
 	if (use_xsave())
 		return fpu_xrstor_checking(&fpu->state.xsave);
@@ -299,7 +299,7 @@ static inline int fpu_restore_checking(struct fpu *fpu)
 		return frstor_checking(&fpu->state.fsave);
 }
 
-static inline int restore_fpu_checking(struct fpu *fpu)
+static inline int copy_fpstate_to_fpregs(struct fpu *fpu)
 {
 	/*
 	 * AMD K7/K8 CPUs don't save/restore FDP/FIP/FOP unless an exception is
@@ -314,7 +314,7 @@ static inline int restore_fpu_checking(struct fpu *fpu)
 			: : [addr] "m" (fpu->fpregs_active));
 	}
 
-	return fpu_restore_checking(fpu);
+	return __copy_fpstate_to_fpregs(fpu);
 }
 
 /*
@@ -520,7 +520,7 @@ switch_fpu_prepare(struct fpu *old_fpu, struct fpu *new_fpu, int cpu)
 static inline void switch_fpu_finish(struct fpu *new_fpu, fpu_switch_t fpu_switch)
 {
 	if (fpu_switch.preload) {
-		if (unlikely(restore_fpu_checking(new_fpu)))
+		if (unlikely(copy_fpstate_to_fpregs(new_fpu)))
 			fpu__reset(new_fpu);
 	}
 }
