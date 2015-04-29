@@ -59,50 +59,7 @@ static const struct sirfsoc_baudrate_to_regv baudrate_to_regv[] = {
 	{9600, 1114979},
 };
 
-static struct sirfsoc_uart_port sirfsoc_uart_ports[SIRFSOC_UART_NR] = {
-	[0] = {
-		.port = {
-			.iotype		= UPIO_MEM,
-			.flags		= UPF_BOOT_AUTOCONF,
-			.line		= 0,
-		},
-	},
-	[1] = {
-		.port = {
-			.iotype		= UPIO_MEM,
-			.flags		= UPF_BOOT_AUTOCONF,
-			.line		= 1,
-		},
-	},
-	[2] = {
-		.port = {
-			.iotype		= UPIO_MEM,
-			.flags		= UPF_BOOT_AUTOCONF,
-			.line		= 2,
-		},
-	},
-	[3] = {
-		.port = {
-			.iotype		= UPIO_MEM,
-			.flags		= UPF_BOOT_AUTOCONF,
-			.line		= 3,
-		},
-	},
-	[4] = {
-		.port = {
-			.iotype		= UPIO_MEM,
-			.flags		= UPF_BOOT_AUTOCONF,
-			.line		= 4,
-		},
-	},
-	[5] = {
-		.port = {
-			.iotype		= UPIO_MEM,
-			.flags		= UPF_BOOT_AUTOCONF,
-			.line		= 5,
-		},
-	},
-};
+static struct sirfsoc_uart_port *sirf_ports[SIRFSOC_UART_NR];
 
 static inline struct sirfsoc_uart_port *to_sirfport(struct uart_port *port)
 {
@@ -1187,27 +1144,29 @@ sirfsoc_uart_console_setup(struct console *co, char *options)
 	unsigned int bits = 8;
 	unsigned int parity = 'n';
 	unsigned int flow = 'n';
-	struct uart_port *port = &sirfsoc_uart_ports[co->index].port;
-	struct sirfsoc_uart_port *sirfport = to_sirfport(port);
-	struct sirfsoc_register *ureg = &sirfport->uart_reg->uart_reg;
+	struct sirfsoc_uart_port *sirfport;
+	struct sirfsoc_register *ureg;
 	if (co->index < 0 || co->index >= SIRFSOC_UART_NR)
 		return -EINVAL;
-
-	if (!port->mapbase)
+	sirfport = sirf_ports[co->index];
+	if (!sirfport)
+		return -ENODEV;
+	ureg = &sirfport->uart_reg->uart_reg;
+	if (!sirfport->port.mapbase)
 		return -ENODEV;
 
 	/* enable usp in mode1 register */
 	if (sirfport->uart_reg->uart_type == SIRF_USP_UART)
-		wr_regl(port, ureg->sirfsoc_mode1, SIRFSOC_USP_EN |
+		wr_regl(&sirfport->port, ureg->sirfsoc_mode1, SIRFSOC_USP_EN |
 				SIRFSOC_USP_ENDIAN_CTRL_LSBF);
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
-	port->cons = co;
+	sirfport->port.cons = co;
 
 	/* default console tx/rx transfer using io mode */
 	sirfport->rx_dma_chan = NULL;
 	sirfport->tx_dma_chan = NULL;
-	return uart_set_options(port, co, baud, parity, bits, flow);
+	return uart_set_options(&sirfport->port, co, baud, parity, bits, flow);
 }
 
 static void sirfsoc_uart_console_putchar(struct uart_port *port, int ch)
@@ -1224,8 +1183,10 @@ static void sirfsoc_uart_console_putchar(struct uart_port *port, int ch)
 static void sirfsoc_uart_console_write(struct console *co, const char *s,
 							unsigned int count)
 {
-	struct uart_port *port = &sirfsoc_uart_ports[co->index].port;
-	uart_console_write(port, s, count, sirfsoc_uart_console_putchar);
+	struct sirfsoc_uart_port *sirfport = sirf_ports[co->index];
+
+	uart_console_write(&sirfport->port, s, count,
+			sirfsoc_uart_console_putchar);
 }
 
 static struct console sirfsoc_uart_console = {
@@ -1284,16 +1245,15 @@ static int sirfsoc_uart_probe(struct platform_device *pdev)
 	const struct of_device_id *match;
 
 	match = of_match_node(sirfsoc_uart_ids, pdev->dev.of_node);
-	if (of_property_read_u32(pdev->dev.of_node, "cell-index", &pdev->id)) {
-		dev_err(&pdev->dev,
-			"Unable to find cell-index in uart node.\n");
-		ret = -EFAULT;
+	sirfport = devm_kzalloc(&pdev->dev, sizeof(*sirfport), GFP_KERNEL);
+	if (!sirfport) {
+		ret = -ENOMEM;
 		goto err;
 	}
-	if (of_device_is_compatible(pdev->dev.of_node, "sirf,prima2-usp-uart"))
-		pdev->id += ((struct sirfsoc_uart_register *)
-				match->data)->uart_param.register_uart_nr;
-	sirfport = &sirfsoc_uart_ports[pdev->id];
+	sirfport->port.line = of_alias_get_id(pdev->dev.of_node, "serial");
+	sirf_ports[sirfport->port.line] = sirfport;
+	sirfport->port.iotype = UPIO_MEM;
+	sirfport->port.flags = UPF_BOOT_AUTOCONF;
 	port = &sirfport->port;
 	port->dev = &pdev->dev;
 	port->private_data = sirfport;
