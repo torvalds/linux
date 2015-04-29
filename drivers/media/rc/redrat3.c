@@ -405,7 +405,7 @@ static void redrat3_process_ir_data(struct redrat3_dev *rr3)
 }
 
 /* Util fn to send rr3 cmds */
-static u8 redrat3_send_cmd(int cmd, struct redrat3_dev *rr3)
+static int redrat3_send_cmd(int cmd, struct redrat3_dev *rr3)
 {
 	struct usb_device *udev;
 	u8 *data;
