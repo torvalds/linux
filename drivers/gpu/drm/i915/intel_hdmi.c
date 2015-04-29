@@ -327,9 +327,8 @@ static bool vlv_infoframe_enabled(struct drm_encoder *encoder)
 	struct intel_digital_port *intel_dig_port = enc_to_dig_port(encoder);
 	int reg = VLV_TVIDEO_DIP_CTL(intel_crtc->pipe);
 	u32 val = I915_READ(reg);
-	u32 port = intel_dig_port->port;
 
-	if (port == (val & VIDEO_DIP_PORT_MASK))
+	if (VIDEO_DIP_PORT(intel_dig_port->port) == (val & VIDEO_DIP_PORT_MASK))
 		return val & VIDEO_DIP_ENABLE;
 
 	return false;
