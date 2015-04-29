@@ -198,7 +198,10 @@ make_now:
 		inode->i_mapping->a_ops = &f2fs_dblock_aops;
 		mapping_set_gfp_mask(inode->i_mapping, GFP_F2FS_HIGH_ZERO);
 	} else if (S_ISLNK(inode->i_mode)) {
-		inode->i_op = &f2fs_symlink_inode_operations;
+		if (f2fs_encrypted_inode(inode))
+			inode->i_op = &f2fs_encrypted_symlink_inode_operations;
+		else
+			inode->i_op = &f2fs_symlink_inode_operations;
 		inode->i_mapping->a_ops = &f2fs_dblock_aops;
 	} else if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode) ||
 			S_ISFIFO(inode->i_mode) || S_ISSOCK(inode->i_mode)) {

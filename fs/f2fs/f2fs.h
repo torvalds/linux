@@ -1920,6 +1920,7 @@ extern const struct address_space_operations f2fs_node_aops;
 extern const struct address_space_operations f2fs_meta_aops;
 extern const struct inode_operations f2fs_dir_inode_operations;
 extern const struct inode_operations f2fs_symlink_inode_operations;
+extern const struct inode_operations f2fs_encrypted_symlink_inode_operations;
 extern const struct inode_operations f2fs_special_inode_operations;
 extern struct kmem_cache *inode_entry_slab;
 
