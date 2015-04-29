@@ -457,6 +457,32 @@ static void ixgbevf_rx_skb(struct ixgbevf_q_vector *q_vector,
 	napi_gro_receive(&q_vector->napi, skb);
 }
 
+#define IXGBE_RSS_L4_TYPES_MASK \
+	((1ul << IXGBE_RXDADV_RSSTYPE_IPV4_TCP) | \
+	 (1ul << IXGBE_RXDADV_RSSTYPE_IPV4_UDP) | \
+	 (1ul << IXGBE_RXDADV_RSSTYPE_IPV6_TCP) | \
+	 (1ul << IXGBE_RXDADV_RSSTYPE_IPV6_UDP))
+
+static inline void ixgbevf_rx_hash(struct ixgbevf_ring *ring,
+				   union ixgbe_adv_rx_desc *rx_desc,
+				   struct sk_buff *skb)
+{
+	u16 rss_type;
+
+	if (!(ring->netdev->features & NETIF_F_RXHASH))
+		return;
+
+	rss_type = le16_to_cpu(rx_desc->wb.lower.lo_dword.hs_rss.pkt_info) &
+		   IXGBE_RXDADV_RSSTYPE_MASK;
+
+	if (!rss_type)
+		return;
+
+	skb_set_hash(skb, le32_to_cpu(rx_desc->wb.lower.hi_dword.rss),
+		     (IXGBE_RSS_L4_TYPES_MASK & (1ul << rss_type)) ?
+		     PKT_HASH_TYPE_L4 : PKT_HASH_TYPE_L3);
+}
+
 /**
  * ixgbevf_rx_checksum - indicate in skb if hw indicated a good cksum
  * @ring: structure containig ring specific data
@@ -506,6 +532,7 @@ static void ixgbevf_process_skb_fields(struct ixgbevf_ring *rx_ring,
 				       union ixgbe_adv_rx_desc *rx_desc,
 				       struct sk_buff *skb)
 {
+	ixgbevf_rx_hash(rx_ring, rx_desc, skb);
 	ixgbevf_rx_checksum(rx_ring, rx_desc, skb);
 
 	if (ixgbevf_test_staterr(rx_desc, IXGBE_RXD_STAT_VP)) {
