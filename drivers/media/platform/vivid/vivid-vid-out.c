@@ -1152,7 +1152,8 @@ int vivid_vid_out_g_parm(struct file *file, void *priv,
 	parm->parm.output.capability   = V4L2_CAP_TIMEPERFRAME;
 	parm->parm.output.timeperframe = dev->timeperframe_vid_out;
 	parm->parm.output.writebuffers  = 1;
-return 0;
+
+	return 0;
 }
 
 int vidioc_subscribe_event(struct v4l2_fh *fh,
