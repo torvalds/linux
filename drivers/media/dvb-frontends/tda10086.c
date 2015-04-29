@@ -472,8 +472,8 @@ static int tda10086_get_frontend(struct dvb_frontend *fe)
 		return -EINVAL;
 
 	/* calculate the updated frequency (note: we convert from Hz->kHz) */
-	tmp64 = tda10086_read_byte(state, 0x52);
-	tmp64 |= (tda10086_read_byte(state, 0x51) << 8);
+	tmp64 = ((u64)tda10086_read_byte(state, 0x52)
+		| (tda10086_read_byte(state, 0x51) << 8));
 	if (tmp64 & 0x8000)
 		tmp64 |= 0xffffffffffff0000ULL;
 	tmp64 = (tmp64 * (SACLK/1000ULL));
