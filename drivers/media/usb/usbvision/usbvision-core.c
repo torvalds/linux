@@ -2390,8 +2390,8 @@ int usbvision_init_isoc(struct usb_usbvision *usbvision)
 
 	/* Submit all URBs */
 	for (buf_idx = 0; buf_idx < USBVISION_NUMSBUF; buf_idx++) {
-			err_code = usb_submit_urb(usbvision->sbuf[buf_idx].urb,
-						 GFP_KERNEL);
+		err_code = usb_submit_urb(usbvision->sbuf[buf_idx].urb,
+					 GFP_KERNEL);
 		if (err_code) {
 			dev_err(&usbvision->dev->dev,
 				"%s: usb_submit_urb(%d) failed: error %d\n",
