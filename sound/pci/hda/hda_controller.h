@@ -89,6 +89,8 @@ struct hda_controller_ops {
 				 struct vm_area_struct *area);
 	/* Check if current position is acceptable */
 	int (*position_check)(struct azx *chip, struct azx_dev *azx_dev);
+	/* enable/disable the link power */
+	int (*link_power)(struct azx *chip, bool enable);
 };
 
 struct azx_pcm {
