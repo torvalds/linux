@@ -947,10 +947,10 @@ static int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 			u16 frag_size, pages;
 #ifdef BNX2X_STOP_ON_ERROR
 			/* sanity check */
-			if (fp->disable_tpa &&
+			if (fp->mode == TPA_MODE_DISABLED &&
 			    (CQE_TYPE_START(cqe_fp_type) ||
 			     CQE_TYPE_STOP(cqe_fp_type)))
-				BNX2X_ERR("START/STOP packet while disable_tpa type %x\n",
+				BNX2X_ERR("START/STOP packet while TPA disabled, type %x\n",
 					  CQE_TYPE(cqe_fp_type));
 #endif
 
@@ -1396,7 +1396,7 @@ void bnx2x_init_rx_rings(struct bnx2x *bp)
 		DP(NETIF_MSG_IFUP,
 		   "mtu %d  rx_buf_size %d\n", bp->dev->mtu, fp->rx_buf_size);
 
-		if (!fp->disable_tpa) {
+		if (fp->mode != TPA_MODE_DISABLED) {
 			/* Fill the per-aggregation pool */
 			for (i = 0; i < MAX_AGG_QS(bp); i++) {
 				struct bnx2x_agg_info *tpa_info =
@@ -1410,7 +1410,7 @@ void bnx2x_init_rx_rings(struct bnx2x *bp)
 					BNX2X_ERR("Failed to allocate TPA skb pool for queue[%d] - disabling TPA on this queue!\n",
 						  j);
 					bnx2x_free_tpa_pool(bp, fp, i);
-					fp->disable_tpa = 1;
+					fp->mode = TPA_MODE_DISABLED;
 					break;
 				}
 				dma_unmap_addr_set(first_buf, mapping, 0);
@@ -1438,7 +1438,7 @@ void bnx2x_init_rx_rings(struct bnx2x *bp)
 								ring_prod);
 					bnx2x_free_tpa_pool(bp, fp,
 							    MAX_AGG_QS(bp));
-					fp->disable_tpa = 1;
+					fp->mode = TPA_MODE_DISABLED;
 					ring_prod = 0;
 					break;
 				}
@@ -1560,7 +1560,7 @@ static void bnx2x_free_rx_skbs(struct bnx2x *bp)
 
 		bnx2x_free_rx_bds(fp);
 
-		if (!fp->disable_tpa)
+		if (fp->mode != TPA_MODE_DISABLED)
 			bnx2x_free_tpa_pool(bp, fp, MAX_AGG_QS(bp));
 	}
 }
@@ -2477,19 +2477,19 @@ static void bnx2x_bz_fp(struct bnx2x *bp, int index)
 	/* set the tpa flag for each queue. The tpa flag determines the queue
 	 * minimal size so it must be set prior to queue memory allocation
 	 */
-	fp->disable_tpa = !(bp->flags & TPA_ENABLE_FLAG ||
-				  (bp->flags & GRO_ENABLE_FLAG &&
-				   bnx2x_mtu_allows_gro(bp->dev->mtu)));
-	if (bp->flags & TPA_ENABLE_FLAG)
+	if (bp->dev->features & NETIF_F_LRO)
 		fp->mode = TPA_MODE_LRO;
-	else if (bp->flags & GRO_ENABLE_FLAG)
+	else if (bp->dev->features & NETIF_F_GRO &&
+		 bnx2x_mtu_allows_gro(bp->dev->mtu))
 		fp->mode = TPA_MODE_GRO;
+	else
+		fp->mode = TPA_MODE_DISABLED;
 
 	/* We don't want TPA if it's disabled in bp
 	 * or if this is an FCoE L2 ring.
 	 */
 	if (bp->disable_tpa || IS_FCOE_FP(fp))
-		fp->disable_tpa = 1;
+		fp->mode = TPA_MODE_DISABLED;
 }
 
 int bnx2x_load_cnic(struct bnx2x *bp)
@@ -2610,7 +2610,7 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 	/*
 	 * Zero fastpath structures preserving invariants like napi, which are
 	 * allocated only once, fp index, max_cos, bp pointer.
-	 * Also set fp->disable_tpa and txdata_ptr.
+	 * Also set fp->mode and txdata_ptr.
 	 */
 	DP(NETIF_MSG_IFUP, "num queues: %d", bp->num_queues);
 	for_each_queue(bp, i)
@@ -3249,7 +3249,7 @@ int bnx2x_low_latency_recv(struct napi_struct *napi)
 
 	if ((bp->state == BNX2X_STATE_CLOSED) ||
 	    (bp->state == BNX2X_STATE_ERROR) ||
-	    (bp->flags & (TPA_ENABLE_FLAG | GRO_ENABLE_FLAG)))
+	    (bp->dev->features & (NETIF_F_LRO | NETIF_F_GRO)))
 		return LL_FLUSH_FAILED;
 
 	if (!bnx2x_fp_lock_poll(fp))
@@ -4545,7 +4545,7 @@ alloc_mem_err:
 	 * In these cases we disable the queue
 	 * Min size is different for OOO, TPA and non-TPA queues
 	 */
-	if (ring_size < (fp->disable_tpa ?
+	if (ring_size < (fp->mode == TPA_MODE_DISABLED ?
 				MIN_RX_SIZE_NONTPA : MIN_RX_SIZE_TPA)) {
 			/* release memory allocated for this queue */
 			bnx2x_free_fp_mem_at(bp, index);
@@ -4834,29 +4834,15 @@ netdev_features_t bnx2x_fix_features(struct net_device *dev,
 		features &= ~NETIF_F_GRO;
 	}
 
-	/* Note: do not disable SW GRO in kernel when HW GRO is off */
-	if (bp->disable_tpa)
-		features &= ~NETIF_F_LRO;
-
 	return features;
 }
 
 int bnx2x_set_features(struct net_device *dev, netdev_features_t features)
 {
 	struct bnx2x *bp = netdev_priv(dev);
-	u32 flags = bp->flags;
-	u32 changes;
+	netdev_features_t changes = features ^ dev->features;
 	bool bnx2x_reload = false;
-
-	if (features & NETIF_F_LRO)
-		flags |= TPA_ENABLE_FLAG;
-	else
-		flags &= ~TPA_ENABLE_FLAG;
-
-	if (features & NETIF_F_GRO)
-		flags |= GRO_ENABLE_FLAG;
-	else
-		flags &= ~GRO_ENABLE_FLAG;
+	int rc;
 
 	/* VFs or non SRIOV PFs should be able to change loopback feature */
 	if (!pci_num_vf(bp->pdev)) {
@@ -4873,24 +4859,23 @@ int bnx2x_set_features(struct net_device *dev, netdev_features_t features)
 		}
 	}
 
-	changes = flags ^ bp->flags;
-
 	/* if GRO is changed while LRO is enabled, don't force a reload */
-	if ((changes & GRO_ENABLE_FLAG) && (flags & TPA_ENABLE_FLAG))
-		changes &= ~GRO_ENABLE_FLAG;
+	if ((changes & NETIF_F_GRO) && (features & NETIF_F_LRO))
+		changes &= ~NETIF_F_GRO;
 
 	/* if GRO is changed while HW TPA is off, don't force a reload */
-	if ((changes & GRO_ENABLE_FLAG) && bp->disable_tpa)
-		changes &= ~GRO_ENABLE_FLAG;
+	if ((changes & NETIF_F_GRO) && bp->disable_tpa)
+		changes &= ~NETIF_F_GRO;
 
 	if (changes)
 		bnx2x_reload = true;
 
-	bp->flags = flags;
-
 	if (bnx2x_reload) {
-		if (bp->recovery_state == BNX2X_RECOVERY_DONE)
-			return bnx2x_reload_if_running(dev);
+		if (bp->recovery_state == BNX2X_RECOVERY_DONE) {
+			dev->features = features;
+			rc = bnx2x_reload_if_running(dev);
+			return rc ? rc : 1;
+		}
 		/* else: bnx2x_nic_load() will be called at end of recovery */
 	}
 
