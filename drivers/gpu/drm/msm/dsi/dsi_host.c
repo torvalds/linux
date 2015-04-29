@@ -1093,7 +1093,6 @@ static int dsi_cmd_dma_rx(struct msm_dsi_host *msm_host,
 {
 	u32 *lp, *temp, data;
 	int i, j = 0, cnt;
-	bool ack_error = false;
 	u32 read_cnt;
 	u8 reg[16];
 	int repeated_bytes = 0;
@@ -1105,15 +1104,10 @@ static int dsi_cmd_dma_rx(struct msm_dsi_host *msm_host,
 	if (cnt > 4)
 		cnt = 4; /* 4 x 32 bits registers only */
 
-	/* Calculate real read data count */
-	read_cnt = dsi_read(msm_host, 0x1d4) >> 16;
-
-	ack_error = (rx_byte == 4) ?
-		(read_cnt == 8) : /* short pkt + 4-byte error pkt */
-		(read_cnt == (pkt_size + 6 + 4)); /* long pkt+4-byte error pkt*/
-
-	if (ack_error)
-		read_cnt -= 4; /* Remove 4 byte error pkt */
+	if (rx_byte == 4)
+		read_cnt = 4;
+	else
+		read_cnt = pkt_size + 6;
 
 	/*
 	 * In case of multiple reads from the panel, after the first read, there
