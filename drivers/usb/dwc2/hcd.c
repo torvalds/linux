@@ -2913,6 +2913,9 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq)
 	/* Don't support SG list at this point */
 	hcd->self.sg_tablesize = 0;
 
+	if (!IS_ERR_OR_NULL(hsotg->uphy))
+		otg_set_host(hsotg->uphy->otg, &hcd->self);
+
 	/*
 	 * Finish generic HCD initialization and start the HCD. This function
 	 * allocates the DMA buffer pool, registers the USB bus, requests the
@@ -2965,6 +2968,9 @@ void dwc2_hcd_remove(struct dwc2_hsotg *hsotg)
 			__func__);
 		return;
 	}
+
+	if (!IS_ERR_OR_NULL(hsotg->uphy))
+		otg_set_host(hsotg->uphy->otg, NULL);
 
 	usb_remove_hcd(hcd);
 	hsotg->priv = NULL;
