@@ -94,8 +94,8 @@ void __init tegra_init_revision(void)
 		rev = TEGRA_REVISION_A02;
 		break;
 	case 3:
-		if (chip_id == TEGRA20 && (tegra20_spare_fuse_early(18) ||
-					   tegra20_spare_fuse_early(19)))
+		if (chip_id == TEGRA20 && (tegra_fuse_read_spare(18) ||
+					   tegra_fuse_read_spare(19)))
 			rev = TEGRA_REVISION_A03p;
 		else
 			rev = TEGRA_REVISION_A03;
@@ -109,10 +109,7 @@ void __init tegra_init_revision(void)
 
 	tegra_sku_info.revision = rev;
 
-	if (chip_id == TEGRA20)
-		tegra_sku_info.sku_id = tegra20_fuse_early(FUSE_SKU_INFO);
-	else
-		tegra_sku_info.sku_id = tegra30_fuse_readl(FUSE_SKU_INFO);
+	tegra_sku_info.sku_id = tegra_fuse_read_early(FUSE_SKU_INFO);
 }
 
 void __init tegra_init_apbmisc(void)

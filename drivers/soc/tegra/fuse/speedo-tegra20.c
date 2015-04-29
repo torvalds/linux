@@ -80,8 +80,8 @@ void __init tegra20_init_speedo_data(struct tegra_sku_info *sku_info)
 
 	val = 0;
 	for (i = CPU_SPEEDO_MSBIT; i >= CPU_SPEEDO_LSBIT; i--) {
-		reg = tegra20_spare_fuse_early(i) |
-			tegra20_spare_fuse_early(i + CPU_SPEEDO_REDUND_OFFS);
+		reg = tegra_fuse_read_spare(i) |
+			tegra_fuse_read_spare(i + CPU_SPEEDO_REDUND_OFFS);
 		val = (val << 1) | (reg & 0x1);
 	}
 	val = val * SPEEDO_MULT;
@@ -95,8 +95,8 @@ void __init tegra20_init_speedo_data(struct tegra_sku_info *sku_info)
 
 	val = 0;
 	for (i = CORE_SPEEDO_MSBIT; i >= CORE_SPEEDO_LSBIT; i--) {
-		reg = tegra20_spare_fuse_early(i) |
-			tegra20_spare_fuse_early(i + CORE_SPEEDO_REDUND_OFFS);
+		reg = tegra_fuse_read_spare(i) |
+			tegra_fuse_read_spare(i + CORE_SPEEDO_REDUND_OFFS);
 		val = (val << 1) | (reg & 0x1);
 	}
 	val = val * SPEEDO_MULT;

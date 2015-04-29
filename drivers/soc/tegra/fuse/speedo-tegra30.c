@@ -93,25 +93,25 @@ static void __init fuse_speedo_calib(u32 *speedo_g, u32 *speedo_lp)
 	int bit_minus1;
 	int bit_minus2;
 
-	reg = tegra30_fuse_readl(FUSE_SPEEDO_CALIB_0);
+	reg = tegra_fuse_read_early(FUSE_SPEEDO_CALIB_0);
 
 	*speedo_lp = (reg & 0xFFFF) * 4;
 	*speedo_g = ((reg >> 16) & 0xFFFF) * 4;
 
-	ate_ver = tegra30_fuse_readl(FUSE_TEST_PROG_VER);
+	ate_ver = tegra_fuse_read_early(FUSE_TEST_PROG_VER);
 	pr_debug("Tegra ATE prog ver %d.%d\n", ate_ver/10, ate_ver%10);
 
 	if (ate_ver >= 26) {
-		bit_minus1 = tegra30_spare_fuse(LP_SPEEDO_BIT_MINUS1);
-		bit_minus1 |= tegra30_spare_fuse(LP_SPEEDO_BIT_MINUS1_R);
-		bit_minus2 = tegra30_spare_fuse(LP_SPEEDO_BIT_MINUS2);
-		bit_minus2 |= tegra30_spare_fuse(LP_SPEEDO_BIT_MINUS2_R);
+		bit_minus1 = tegra_fuse_read_spare(LP_SPEEDO_BIT_MINUS1);
+		bit_minus1 |= tegra_fuse_read_spare(LP_SPEEDO_BIT_MINUS1_R);
+		bit_minus2 = tegra_fuse_read_spare(LP_SPEEDO_BIT_MINUS2);
+		bit_minus2 |= tegra_fuse_read_spare(LP_SPEEDO_BIT_MINUS2_R);
 		*speedo_lp |= (bit_minus1 << 1) | bit_minus2;
 
-		bit_minus1 = tegra30_spare_fuse(G_SPEEDO_BIT_MINUS1);
-		bit_minus1 |= tegra30_spare_fuse(G_SPEEDO_BIT_MINUS1_R);
-		bit_minus2 = tegra30_spare_fuse(G_SPEEDO_BIT_MINUS2);
-		bit_minus2 |= tegra30_spare_fuse(G_SPEEDO_BIT_MINUS2_R);
+		bit_minus1 = tegra_fuse_read_spare(G_SPEEDO_BIT_MINUS1);
+		bit_minus1 |= tegra_fuse_read_spare(G_SPEEDO_BIT_MINUS1_R);
+		bit_minus2 = tegra_fuse_read_spare(G_SPEEDO_BIT_MINUS2);
+		bit_minus2 |= tegra_fuse_read_spare(G_SPEEDO_BIT_MINUS2_R);
 		*speedo_g |= (bit_minus1 << 1) | bit_minus2;
 	} else {
 		*speedo_lp |= 0x3;
@@ -121,7 +121,7 @@ static void __init fuse_speedo_calib(u32 *speedo_g, u32 *speedo_lp)
 
 static void __init rev_sku_to_speedo_ids(struct tegra_sku_info *sku_info)
 {
-	int package_id = tegra30_fuse_readl(FUSE_PACKAGE_INFO) & 0x0F;
+	int package_id = tegra_fuse_read_early(FUSE_PACKAGE_INFO) & 0x0F;
 
 	switch (sku_info->revision) {
 	case TEGRA_REVISION_A01:

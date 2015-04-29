@@ -122,16 +122,16 @@ void __init tegra124_init_speedo_data(struct tegra_sku_info *sku_info)
 	BUILD_BUG_ON(ARRAY_SIZE(core_process_speedos) !=
 			THRESHOLD_INDEX_COUNT);
 
-	cpu_speedo_0_value = tegra30_fuse_readl(FUSE_CPU_SPEEDO_0);
+	cpu_speedo_0_value = tegra_fuse_read_early(FUSE_CPU_SPEEDO_0);
 
 	/* GPU Speedo is stored in CPU_SPEEDO_2 */
-	sku_info->gpu_speedo_value = tegra30_fuse_readl(FUSE_CPU_SPEEDO_2);
+	sku_info->gpu_speedo_value = tegra_fuse_read_early(FUSE_CPU_SPEEDO_2);
 
-	soc_speedo_0_value = tegra30_fuse_readl(FUSE_SOC_SPEEDO_0);
+	soc_speedo_0_value = tegra_fuse_read_early(FUSE_SOC_SPEEDO_0);
 
-	cpu_iddq_value = tegra30_fuse_readl(FUSE_CPU_IDDQ);
-	soc_iddq_value = tegra30_fuse_readl(FUSE_SOC_IDDQ);
-	gpu_iddq_value = tegra30_fuse_readl(FUSE_GPU_IDDQ);
+	cpu_iddq_value = tegra_fuse_read_early(FUSE_CPU_IDDQ);
+	soc_iddq_value = tegra_fuse_read_early(FUSE_SOC_IDDQ);
+	gpu_iddq_value = tegra_fuse_read_early(FUSE_GPU_IDDQ);
 
 	sku_info->cpu_speedo_value = cpu_speedo_0_value;
 
@@ -143,7 +143,7 @@ void __init tegra124_init_speedo_data(struct tegra_sku_info *sku_info)
 
 	rev_sku_to_speedo_ids(sku_info, &threshold);
 
-	sku_info->cpu_iddq_value = tegra30_fuse_readl(FUSE_CPU_IDDQ);
+	sku_info->cpu_iddq_value = tegra_fuse_read_early(FUSE_CPU_IDDQ);
 
 	for (i = 0; i < GPU_PROCESS_CORNERS; i++)
 		if (sku_info->gpu_speedo_value <
