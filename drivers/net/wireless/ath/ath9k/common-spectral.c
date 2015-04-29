@@ -473,6 +473,24 @@ ath_cmn_copy_fft_frame(u8 *in, u8 *out, int sample_len, int sample_bytes)
 	}
 }
 
+static int
+ath_cmn_is_fft_buf_full(struct ath_spec_scan_priv *spec_priv)
+{
+	int i = 0;
+	int ret = 0;
+	struct rchan *rc = spec_priv->rfs_chan_spec_scan;
+
+	for_each_online_cpu(i)
+		ret += relay_buf_full(rc->buf[i]);
+
+	i = num_online_cpus();
+
+	if (ret == i)
+		return 1;
+	else
+		return 0;
+}
+
 /* returns 1 if this was a spectral frame, even if not handled. */
 int ath_cmn_process_fft(struct ath_spec_scan_priv *spec_priv, struct ieee80211_hdr *hdr,
 		    struct ath_rx_status *rs, u64 tsf)
@@ -508,6 +526,16 @@ int ath_cmn_process_fft(struct ath_spec_scan_priv *spec_priv, struct ieee80211_h
 	radar_info = ((struct ath_radar_info *)&vdata[len]) - 1;
 	if (!(radar_info->pulse_bw_info & SPECTRAL_SCAN_BITMASK))
 		return 0;
+
+	/* Output buffers are full, no need to process anything
+	 * since there is no space to put the result anyway
+	 */
+	ret = ath_cmn_is_fft_buf_full(spec_priv);
+	if (ret == 1) {
+		ath_dbg(common, SPECTRAL_SCAN, "FFT report ignored, no space "
+						"left on output buffers\n");
+		return 1;
+	}
 
 	chan_type = cfg80211_get_chandef_type(&common->hw->conf.chandef);
 	if ((chan_type == NL80211_CHAN_HT40MINUS) ||
