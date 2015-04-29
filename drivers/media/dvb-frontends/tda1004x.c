@@ -650,7 +650,7 @@ static int tda10046_init(struct dvb_frontend* fe)
 
 	if (tda10046_fwupload(fe)) {
 		printk("tda1004x: firmware upload failed\n");
-			return -EIO;
+		return -EIO;
 	}
 
 	// tda setup
