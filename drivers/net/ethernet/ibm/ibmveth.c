@@ -1424,6 +1424,9 @@ static int ibmveth_probe(struct vio_dev *dev, const struct vio_device_id *id)
 
 	memcpy(netdev->dev_addr, mac_addr_p, ETH_ALEN);
 
+	if (firmware_has_feature(FW_FEATURE_CMO))
+		memcpy(pool_count, pool_count_cmo, sizeof(pool_count));
+
 	for (i = 0; i < IBMVETH_NUM_BUFF_POOLS; i++) {
 		struct kobject *kobj = &adapter->rx_buff_pool[i].kobj;
 		int error;
