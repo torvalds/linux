@@ -80,6 +80,12 @@ struct mic_device_ctrl {
  * @h2c_config_db: Host to Card Virtio config doorbell set by card
  * @shutdown_status: Card shutdown status set by card
  * @shutdown_card: Set to 1 by the host when a card shutdown is initiated
+ * @tot_nodes: Total number of nodes in the SCIF network
+ * @node_id: Unique id of the node
+ * @h2c_scif_db - Host to card SCIF doorbell set by card
+ * @c2h_scif_db - Card to host SCIF doorbell set by host
+ * @scif_host_dma_addr - SCIF host queue pair DMA address
+ * @scif_card_dma_addr - SCIF card queue pair DMA address
  */
 struct mic_bootparam {
 	__le32 magic;
@@ -88,6 +94,12 @@ struct mic_bootparam {
 	__s8 h2c_config_db;
 	__u8 shutdown_status;
 	__u8 shutdown_card;
+	__u8 tot_nodes;
+	__u8 node_id;
+	__u8 h2c_scif_db;
+	__u8 c2h_scif_db;
+	__u64 scif_host_dma_addr;
+	__u64 scif_card_dma_addr;
 } __attribute__ ((aligned(8)));
 
 /**
