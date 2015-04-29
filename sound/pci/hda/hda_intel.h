@@ -45,6 +45,7 @@ struct hda_intel {
 	struct dev_pm_domain hdmi_pm_domain;
 
 	/* i915 component interface */
+	bool need_i915_power:1; /* the hda controller needs i915 power */
 	struct i915_audio_component audio_component;
 	int i915_power_refcount;
 };

@@ -814,7 +814,8 @@ static int azx_suspend(struct device *dev)
 
 	if (chip->msi)
 		pci_disable_msi(chip->pci);
-	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL)
+	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL
+		&& hda->need_i915_power)
 		hda_display_power(hda, false);
 	return 0;
 }
@@ -834,7 +835,8 @@ static int azx_resume(struct device *dev)
 	if (chip->disabled || hda->init_failed)
 		return 0;
 
-	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL) {
+	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL
+		&& hda->need_i915_power) {
 		hda_display_power(hda, true);
 		haswell_set_bclk(hda);
 	}
@@ -877,7 +879,8 @@ static int azx_runtime_suspend(struct device *dev)
 	azx_stop_chip(chip);
 	azx_enter_link_reset(chip);
 	azx_clear_irq_pending(chip);
-	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL)
+	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL
+		&& hda->need_i915_power)
 		hda_display_power(hda, false);
 
 	return 0;
@@ -902,7 +905,8 @@ static int azx_runtime_resume(struct device *dev)
 	if (!azx_has_pm_runtime(chip))
 		return 0;
 
-	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL) {
+	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL
+		&& hda->need_i915_power) {
 		hda_display_power(hda, true);
 		haswell_set_bclk(hda);
 	}
@@ -1123,7 +1127,8 @@ static int azx_free(struct azx *chip)
 	release_firmware(chip->fw);
 #endif
 	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL) {
-		hda_display_power(hda, false);
+		if (hda->need_i915_power)
+			hda_display_power(hda, false);
 		hda_i915_exit(hda);
 	}
 	kfree(hda);
@@ -1888,17 +1893,26 @@ static int azx_probe_continue(struct azx *chip)
 	int err;
 
 	hda->probe_continued = 1;
-	/* Request power well for Haswell HDA controller and codec */
+
+	/* Request display power well for the HDA controller or codec. For
+	 * Haswell/Broadwell, both the display HDA controller and codec need
+	 * this power. For other platforms, like Baytrail/Braswell, only the
+	 * display codec needs the power and it can be released after probe.
+	 */
 	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL) {
+		/* Assume the controller needs the power by default */
+		hda->need_i915_power = 1;
+
 #ifdef CONFIG_SND_HDA_I915
 		err = hda_i915_init(hda);
 		if (err < 0)
-			goto out_free;
+			goto i915_power_fail;
+
 		err = hda_display_power(hda, true);
 		if (err < 0) {
 			dev_err(chip->card->dev,
 				"Cannot turn on display power on i915\n");
-			goto out_free;
+			goto i915_power_fail;
 		}
 #endif
 	}
@@ -1945,6 +1959,11 @@ static int azx_probe_continue(struct azx *chip)
 		pm_runtime_put_noidle(&pci->dev);
 
 out_free:
+	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL
+		&& !hda->need_i915_power)
+		hda_display_power(hda, false);
+
+i915_power_fail:
 	if (err < 0)
 		hda->init_failed = 1;
 	complete_all(&hda->probe_wait);
