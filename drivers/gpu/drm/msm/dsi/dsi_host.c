@@ -1797,6 +1797,7 @@ int msm_dsi_host_cmd_rx(struct mipi_dsi_host *host,
 	case MIPI_DSI_RX_ACKNOWLEDGE_AND_ERROR_REPORT:
 		pr_err("%s: rx ACK_ERR_PACLAGE\n", __func__);
 		ret = 0;
+		break;
 	case MIPI_DSI_RX_GENERIC_SHORT_READ_RESPONSE_1BYTE:
 	case MIPI_DSI_RX_DCS_SHORT_READ_RESPONSE_1BYTE:
 		ret = dsi_short_read1_resp(buf, msg);
