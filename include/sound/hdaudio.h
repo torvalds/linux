@@ -74,6 +74,7 @@ struct hdac_device {
 
 	/* misc flags */
 	atomic_t in_pm;		/* suspend/resume being performed */
+	bool  link_power_control:1;
 
 	/* sysfs */
 	struct hdac_widget_tree *widgets;
@@ -184,6 +185,8 @@ struct hdac_bus_ops {
 	/* get a response from the last command */
 	int (*get_response)(struct hdac_bus *bus, unsigned int addr,
 			    unsigned int *res);
+	/* control the link power  */
+	int (*link_power)(struct hdac_bus *bus, bool enable);
 };
 
 /*
@@ -311,6 +314,7 @@ static inline void snd_hdac_codec_link_down(struct hdac_device *codec)
 int snd_hdac_bus_send_cmd(struct hdac_bus *bus, unsigned int val);
 int snd_hdac_bus_get_response(struct hdac_bus *bus, unsigned int addr,
 			      unsigned int *res);
+int snd_hdac_link_power(struct hdac_device *codec, bool enable);
 
 bool snd_hdac_bus_init_chip(struct hdac_bus *bus, bool full_reset);
 void snd_hdac_bus_stop_chip(struct hdac_bus *bus);

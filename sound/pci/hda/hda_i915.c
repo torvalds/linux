@@ -42,10 +42,15 @@ int hda_display_power(struct hda_intel *hda, bool enable)
 
 	dev_dbg(&hda->chip.pci->dev, "display power %s\n",
 		enable ? "enable" : "disable");
-	if (enable)
-		acomp->ops->get_power(acomp->dev);
-	else
-		acomp->ops->put_power(acomp->dev);
+
+	if (enable) {
+		if (!hda->i915_power_refcount++)
+			acomp->ops->get_power(acomp->dev);
+	} else {
+		WARN_ON(!hda->i915_power_refcount);
+		if (!--hda->i915_power_refcount)
+			acomp->ops->put_power(acomp->dev);
+	}
 
 	return 0;
 }
@@ -189,6 +194,11 @@ out_err:
 int hda_i915_exit(struct hda_intel *hda)
 {
 	struct device *dev = &hda->chip.pci->dev;
+	struct i915_audio_component *acomp = &hda->audio_component;
+
+	WARN_ON(hda->i915_power_refcount);
+	if (hda->i915_power_refcount > 0 && acomp->ops)
+		acomp->ops->put_power(acomp->dev);
 
 	component_master_del(dev, &hda_component_master_ops);
 
