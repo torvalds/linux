@@ -2435,6 +2435,7 @@ struct radeon_device {
 	atomic64_t			vram_usage;
 	atomic64_t			gtt_usage;
 	atomic64_t			num_bytes_moved;
+	atomic_t			gpu_reset_counter;
 	/* ACPI interface */
 	struct radeon_atif		atif;
 	struct radeon_atcs		atcs;
