@@ -615,6 +615,7 @@ struct dwc2_hsotg {
 	enum dwc2_lx_state lx_state;
 
 	struct dentry *debug_root;
+	struct debugfs_regset32 *regset;
 
 	/* DWC OTG HW Release versions */
 #define DWC2_CORE_REV_2_71a	0x4f54271a
