@@ -1,0 +1,18 @@
+/*
+ * Copyright (C) 2015 Freescale Semiconductor, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include "imx6ul-14x14-ddr3-arm2.dts"
+
+&uart2{
+	status = "disabled";
+};
+
+&flexcan2 {
+	status = "okay";
+};
+
