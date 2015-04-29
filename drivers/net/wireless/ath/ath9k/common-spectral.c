@@ -620,11 +620,9 @@ int ath_cmn_process_fft(struct ath_spec_scan_priv *spec_priv, struct ieee80211_h
 			}
 
 			/* Process a normal frame */
-			if (sample_bytes == sample_len) {
-				memcpy(sample_buf, sample_start, sample_len);
-				ret = fft_handler(rs, spec_priv, sample_buf,
+			if (sample_bytes == sample_len)
+				ret = fft_handler(rs, spec_priv, sample_start,
 						  tsf, freq, chan_type);
-			}
 
 			/* Short report processed, break out of the
 			 * loop.
