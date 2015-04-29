@@ -146,7 +146,7 @@ static int dib3000mc_setup_pwm_state(struct dib3000mc_state *state)
 	else
 		dib3000mc_write_word(state, 245, 0);
 
-    dib3000mc_write_word(state, 1040, 0x3);
+	dib3000mc_write_word(state, 1040, 0x3);
 	return 0;
 }
 
