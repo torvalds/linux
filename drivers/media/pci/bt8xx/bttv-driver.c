@@ -2676,7 +2676,8 @@ static int bttv_s_fbuf(struct file *file, void *f,
 		fh->ov.w.height = fb->fmt.height;
 		btv->init.ov.w.width  = fb->fmt.width;
 		btv->init.ov.w.height = fb->fmt.height;
-			kfree(fh->ov.clips);
+
+		kfree(fh->ov.clips);
 		fh->ov.clips = NULL;
 		fh->ov.nclips = 0;
 
