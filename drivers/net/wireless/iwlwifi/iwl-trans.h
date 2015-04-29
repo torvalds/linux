@@ -6,7 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -32,7 +32,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -421,8 +421,9 @@ struct iwl_trans_txq_scd_cfg {
  *
  * All the handlers MUST be implemented
  *
- * @start_hw: starts the HW- from that point on, the HW can send interrupts
- *	May sleep
+ * @start_hw: starts the HW. If low_power is true, the NIC needs to be taken
+ *	out of a low power state. From that point on, the HW can send
+ *	interrupts. May sleep.
  * @op_mode_leave: Turn off the HW RF kill indication if on
  *	May sleep
  * @start_fw: allocates and inits all the resources for the transport
@@ -432,10 +433,11 @@ struct iwl_trans_txq_scd_cfg {
  *	the SCD base address in SRAM, then provide it here, or 0 otherwise.
  *	May sleep
  * @stop_device: stops the whole device (embedded CPU put to reset) and stops
- *	the HW. From that point on, the HW will be in low power but will still
- *	issue interrupt if the HW RF kill is triggered. This callback must do
- *	the right thing and not crash even if start_hw() was called but not
- *	start_fw(). May sleep
+ *	the HW. If low_power is true, the NIC will be put in low power state.
+ *	From that point on, the HW will be stopped but will still issue an
+ *	interrupt if the HW RF kill switch is triggered.
+ *	This callback must do the right thing and not crash even if %start_hw()
+ *	was called but not &start_fw(). May sleep.
  * @d3_suspend: put the device into the correct mode for WoWLAN during
  *	suspend. This is optional, if not implemented WoWLAN will not be
  *	supported. This callback may sleep.
@@ -491,14 +493,14 @@ struct iwl_trans_txq_scd_cfg {
  */
 struct iwl_trans_ops {
 
-	int (*start_hw)(struct iwl_trans *iwl_trans);
+	int (*start_hw)(struct iwl_trans *iwl_trans, bool low_power);
 	void (*op_mode_leave)(struct iwl_trans *iwl_trans);
 	int (*start_fw)(struct iwl_trans *trans, const struct fw_img *fw,
 			bool run_in_rfkill);
 	int (*update_sf)(struct iwl_trans *trans,
 			 struct iwl_sf_region *st_fwrd_space);
 	void (*fw_alive)(struct iwl_trans *trans, u32 scd_addr);
-	void (*stop_device)(struct iwl_trans *trans);
+	void (*stop_device)(struct iwl_trans *trans, bool low_power);
 
 	void (*d3_suspend)(struct iwl_trans *trans, bool test);
 	int (*d3_resume)(struct iwl_trans *trans, enum iwl_d3_status *status,
@@ -652,11 +654,16 @@ static inline void iwl_trans_configure(struct iwl_trans *trans,
 	trans->ops->configure(trans, trans_cfg);
 }
 
-static inline int iwl_trans_start_hw(struct iwl_trans *trans)
+static inline int _iwl_trans_start_hw(struct iwl_trans *trans, bool low_power)
 {
 	might_sleep();
 
-	return trans->ops->start_hw(trans);
+	return trans->ops->start_hw(trans, low_power);
+}
+
+static inline int iwl_trans_start_hw(struct iwl_trans *trans)
+{
+	return trans->ops->start_hw(trans, true);
 }
 
 static inline void iwl_trans_op_mode_leave(struct iwl_trans *trans)
@@ -703,13 +710,19 @@ static inline int iwl_trans_update_sf(struct iwl_trans *trans,
 	return 0;
 }
 
-static inline void iwl_trans_stop_device(struct iwl_trans *trans)
+static inline void _iwl_trans_stop_device(struct iwl_trans *trans,
+					  bool low_power)
 {
 	might_sleep();
 
-	trans->ops->stop_device(trans);
+	trans->ops->stop_device(trans, low_power);
 
 	trans->state = IWL_TRANS_NO_FW;
+}
+
+static inline void iwl_trans_stop_device(struct iwl_trans *trans)
+{
+	_iwl_trans_stop_device(trans, true);
 }
 
 static inline void iwl_trans_d3_suspend(struct iwl_trans *trans, bool test)
