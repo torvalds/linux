@@ -2308,8 +2308,9 @@ void s3c_hsotg_core_init_disconnected(struct dwc2_hsotg *hsotg,
 	writel(GINTSTS_ERLYSUSP | GINTSTS_SESSREQINT |
 		GINTSTS_GOUTNAKEFF | GINTSTS_GINNAKEFF |
 		GINTSTS_CONIDSTSCHNG | GINTSTS_USBRST |
-		GINTSTS_ENUMDONE | GINTSTS_OTGINT |
-		GINTSTS_USBSUSP | GINTSTS_WKUPINT,
+		GINTSTS_RESETDET | GINTSTS_ENUMDONE |
+		GINTSTS_OTGINT | GINTSTS_USBSUSP |
+		GINTSTS_WKUPINT,
 		hsotg->regs + GINTMSK);
 
 	if (using_dma(hsotg))
@@ -2475,7 +2476,19 @@ irq_retry:
 		}
 	}
 
-	if (gintsts & GINTSTS_USBRST) {
+	if (gintsts & GINTSTS_RESETDET) {
+		dev_dbg(hsotg->dev, "%s: USBRstDet\n", __func__);
+
+		writel(GINTSTS_RESETDET, hsotg->regs + GINTSTS);
+
+		/* This event must be used only if controller is suspended */
+		if (hsotg->lx_state == DWC2_L2) {
+			dwc2_exit_hibernation(hsotg, true);
+			hsotg->lx_state = DWC2_L0;
+		}
+	}
+
+	if (gintsts & (GINTSTS_USBRST | GINTSTS_RESETDET)) {
 
 		u32 usb_status = readl(hsotg->regs + GOTGCTL);
 
