@@ -354,13 +354,17 @@ static int qt1010_init(struct dvb_frontend *fe)
 				valptr = &priv->reg1f_init_val;
 			else
 				valptr = &tmpval;
+
+			BUG_ON(i >= ARRAY_SIZE(i2c_data) - 1);
+
 			err = qt1010_init_meas1(priv, i2c_data[i+1].reg,
 						i2c_data[i].reg,
 						i2c_data[i].val, valptr);
 			i++;
 			break;
 		}
-		if (err) return err;
+		if (err)
+			return err;
 	}
 
 	for (i = 0x31; i < 0x3a; i++) /* 0x31 - 0x39 */
