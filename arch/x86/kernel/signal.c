@@ -102,7 +102,7 @@ int restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 		get_user_ex(buf, &sc->fpstate);
 	} get_user_catch(err);
 
-	err |= restore_xstate_sig(buf, config_enabled(CONFIG_X86_32));
+	err |= fpu__restore_sig(buf, config_enabled(CONFIG_X86_32));
 
 	force_iret();
 

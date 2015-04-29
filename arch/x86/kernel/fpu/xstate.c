@@ -388,7 +388,7 @@ static inline int restore_user_xstate(void __user *buf, u64 xbv, int fx_only)
 		return frstor_user(buf);
 }
 
-int __restore_xstate_sig(void __user *buf, void __user *buf_fx, int size)
+int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
 {
 	int ia32_fxstate = (buf != buf_fx);
 	struct task_struct *tsk = current;

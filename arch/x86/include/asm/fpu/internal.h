@@ -497,14 +497,14 @@ static inline void switch_fpu_finish(struct fpu *new_fpu, fpu_switch_t fpu_switc
  * Signal frame handlers...
  */
 extern int copy_fpstate_to_sigframe(void __user *buf, void __user *fx, int size);
-extern int __restore_xstate_sig(void __user *buf, void __user *fx, int size);
+extern int __fpu__restore_sig(void __user *buf, void __user *fx, int size);
 
 static inline int xstate_sigframe_size(void)
 {
 	return use_xsave() ? xstate_size + FP_XSTATE_MAGIC2_SIZE : xstate_size;
 }
 
-static inline int restore_xstate_sig(void __user *buf, int ia32_frame)
+static inline int fpu__restore_sig(void __user *buf, int ia32_frame)
 {
 	void __user *buf_fx = buf;
 	int size = xstate_sigframe_size();
@@ -514,7 +514,7 @@ static inline int restore_xstate_sig(void __user *buf, int ia32_frame)
 		size += sizeof(struct i387_fsave_struct);
 	}
 
-	return __restore_xstate_sig(buf, buf_fx, size);
+	return __fpu__restore_sig(buf, buf_fx, size);
 }
 
 /*
