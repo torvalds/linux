@@ -48,6 +48,7 @@
 #define MMP2_CLK_SSP1			78
 #define MMP2_CLK_SSP2			79
 #define MMP2_CLK_SSP3			80
+#define MMP2_CLK_TIMER			81
 
 /* axi periphrals */
 #define MMP2_CLK_SDH0			101
