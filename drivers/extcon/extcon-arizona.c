@@ -145,6 +145,7 @@ static void arizona_extcon_hp_clamp(struct arizona_extcon_info *info,
 
 	switch (arizona->type) {
 	case WM5110:
+	case WM8280:
 		mask = ARIZONA_HP1L_SHRTO | ARIZONA_HP1L_FLWR |
 		       ARIZONA_HP1L_SHRTI;
 		if (clamp)
