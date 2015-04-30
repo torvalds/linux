@@ -231,6 +231,7 @@ int btrfs_truncate_free_space_cache(struct btrfs_root *root,
 {
 	int ret = 0;
 	struct btrfs_path *path = btrfs_alloc_path();
+	bool locked = false;
 
 	if (!path) {
 		ret = -ENOMEM;
@@ -238,6 +239,7 @@ int btrfs_truncate_free_space_cache(struct btrfs_root *root,
 	}
 
 	if (block_group) {
+		locked = true;
 		mutex_lock(&trans->transaction->cache_write_mutex);
 		if (!list_empty(&block_group->io_list)) {
 			list_del_init(&block_group->io_list);
@@ -269,18 +271,14 @@ int btrfs_truncate_free_space_cache(struct btrfs_root *root,
 	 */
 	ret = btrfs_truncate_inode_items(trans, root, inode,
 					 0, BTRFS_EXTENT_DATA_KEY);
-	if (ret) {
-		mutex_unlock(&trans->transaction->cache_write_mutex);
-		btrfs_abort_transaction(trans, root, ret);
-		return ret;
-	}
+	if (ret)
+		goto fail;
 
 	ret = btrfs_update_inode(trans, root, inode);
 
-	if (block_group)
-		mutex_unlock(&trans->transaction->cache_write_mutex);
-
 fail:
+	if (locked)
+		mutex_unlock(&trans->transaction->cache_write_mutex);
 	if (ret)
 		btrfs_abort_transaction(trans, root, ret);
 
