@@ -6467,10 +6467,10 @@ static int skylake_get_display_clock_speed(struct drm_device *dev)
 		return 540000;
 
 	linkrate = (I915_READ(DPLL_CTRL1) &
-		    DPLL_CRTL1_LINK_RATE_MASK(SKL_DPLL0)) >> 1;
+		    DPLL_CTRL1_LINK_RATE_MASK(SKL_DPLL0)) >> 1;
 
-	if (linkrate == DPLL_CRTL1_LINK_RATE_2160 ||
-	    linkrate == DPLL_CRTL1_LINK_RATE_1080) {
+	if (linkrate == DPLL_CTRL1_LINK_RATE_2160 ||
+	    linkrate == DPLL_CTRL1_LINK_RATE_1080) {
 		/* vco 8640 */
 		switch (cdctl & CDCLK_FREQ_SEL_MASK) {
 		case CDCLK_FREQ_450_432:

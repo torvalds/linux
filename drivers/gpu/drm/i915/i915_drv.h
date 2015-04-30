@@ -295,7 +295,7 @@ struct intel_dpll_hw_state {
 	/* skl */
 	/*
 	 * DPLL_CTRL1 has 6 bits for each each this DPLL. We store those in
-	 * lower part of crtl1 and they get shifted into position when writing
+	 * lower part of ctrl1 and they get shifted into position when writing
 	 * the register.  This allows us to easily compare the state to share
 	 * the DPLL.
 	 */

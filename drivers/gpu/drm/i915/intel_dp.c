@@ -1098,30 +1098,30 @@ skl_edp_set_pll_config(struct intel_crtc_state *pipe_config, int link_clock)
 	ctrl1 = DPLL_CTRL1_OVERRIDE(SKL_DPLL0);
 	switch (link_clock / 2) {
 	case 81000:
-		ctrl1 |= DPLL_CRTL1_LINK_RATE(DPLL_CRTL1_LINK_RATE_810,
+		ctrl1 |= DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_810,
 					      SKL_DPLL0);
 		break;
 	case 135000:
-		ctrl1 |= DPLL_CRTL1_LINK_RATE(DPLL_CRTL1_LINK_RATE_1350,
+		ctrl1 |= DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_1350,
 					      SKL_DPLL0);
 		break;
 	case 270000:
-		ctrl1 |= DPLL_CRTL1_LINK_RATE(DPLL_CRTL1_LINK_RATE_2700,
+		ctrl1 |= DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_2700,
 					      SKL_DPLL0);
 		break;
 	case 162000:
-		ctrl1 |= DPLL_CRTL1_LINK_RATE(DPLL_CRTL1_LINK_RATE_1620,
+		ctrl1 |= DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_1620,
 					      SKL_DPLL0);
 		break;
 	/* TBD: For DP link rates 2.16 GHz and 4.32 GHz, VCO is 8640 which
 	results in CDCLK change. Need to handle the change of CDCLK by
 	disabling pipes and re-enabling them */
 	case 108000:
-		ctrl1 |= DPLL_CRTL1_LINK_RATE(DPLL_CRTL1_LINK_RATE_1080,
+		ctrl1 |= DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_1080,
 					      SKL_DPLL0);
 		break;
 	case 216000:
-		ctrl1 |= DPLL_CRTL1_LINK_RATE(DPLL_CRTL1_LINK_RATE_2160,
+		ctrl1 |= DPLL_CTRL1_LINK_RATE(DPLL_CTRL1_LINK_RATE_2160,
 					      SKL_DPLL0);
 		break;
 

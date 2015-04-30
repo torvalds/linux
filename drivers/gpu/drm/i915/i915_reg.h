@@ -7141,16 +7141,16 @@ enum skl_disp_power_wells {
 #define DPLL_CTRL1		0x6C058
 #define  DPLL_CTRL1_HDMI_MODE(id)		(1<<((id)*6+5))
 #define  DPLL_CTRL1_SSC(id)			(1<<((id)*6+4))
-#define  DPLL_CRTL1_LINK_RATE_MASK(id)		(7<<((id)*6+1))
-#define  DPLL_CRTL1_LINK_RATE_SHIFT(id)		((id)*6+1)
-#define  DPLL_CRTL1_LINK_RATE(linkrate, id)	((linkrate)<<((id)*6+1))
+#define  DPLL_CTRL1_LINK_RATE_MASK(id)		(7<<((id)*6+1))
+#define  DPLL_CTRL1_LINK_RATE_SHIFT(id)		((id)*6+1)
+#define  DPLL_CTRL1_LINK_RATE(linkrate, id)	((linkrate)<<((id)*6+1))
 #define  DPLL_CTRL1_OVERRIDE(id)		(1<<((id)*6))
-#define  DPLL_CRTL1_LINK_RATE_2700		0
-#define  DPLL_CRTL1_LINK_RATE_1350		1
-#define  DPLL_CRTL1_LINK_RATE_810		2
-#define  DPLL_CRTL1_LINK_RATE_1620		3
-#define  DPLL_CRTL1_LINK_RATE_1080		4
-#define  DPLL_CRTL1_LINK_RATE_2160		5
+#define  DPLL_CTRL1_LINK_RATE_2700		0
+#define  DPLL_CTRL1_LINK_RATE_1350		1
+#define  DPLL_CTRL1_LINK_RATE_810		2
+#define  DPLL_CTRL1_LINK_RATE_1620		3
+#define  DPLL_CTRL1_LINK_RATE_1080		4
+#define  DPLL_CTRL1_LINK_RATE_2160		5
 
 /* DPLL control2 */
 #define DPLL_CTRL2				0x6C05C
