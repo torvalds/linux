@@ -161,7 +161,8 @@ int ieee802154_register_hw(struct ieee802154_hw *hw)
 
 	rtnl_lock();
 
-	dev = ieee802154_if_add(local, "wpan%d", NL802154_IFTYPE_NODE,
+	dev = ieee802154_if_add(local, "wpan%d", NET_NAME_ENUM,
+				NL802154_IFTYPE_NODE,
 				cpu_to_le64(0x0000000000000000ULL));
 	if (IS_ERR(dev)) {
 		rtnl_unlock();

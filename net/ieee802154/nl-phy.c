@@ -175,6 +175,7 @@ int ieee802154_add_iface(struct sk_buff *skb, struct genl_info *info)
 	int rc = -ENOBUFS;
 	struct net_device *dev;
 	int type = __IEEE802154_DEV_INVALID;
+	unsigned char name_assign_type;
 
 	pr_debug("%s\n", __func__);
 
@@ -190,8 +191,10 @@ int ieee802154_add_iface(struct sk_buff *skb, struct genl_info *info)
 		if (devname[nla_len(info->attrs[IEEE802154_ATTR_DEV_NAME]) - 1]
 				!= '\0')
 			return -EINVAL; /* phy name should be null-terminated */
+		name_assign_type = NET_NAME_USER;
 	} else  {
 		devname = "wpan%d";
+		name_assign_type = NET_NAME_ENUM;
 	}
 
 	if (strlen(devname) >= IFNAMSIZ)
@@ -221,7 +224,7 @@ int ieee802154_add_iface(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	dev = rdev_add_virtual_intf_deprecated(wpan_phy_to_rdev(phy), devname,
-					       type);
+					       name_assign_type, type);
 	if (IS_ERR(dev)) {
 		rc = PTR_ERR(dev);
 		goto nla_put_failure;

@@ -8,10 +8,12 @@
 
 static inline struct net_device *
 rdev_add_virtual_intf_deprecated(struct cfg802154_registered_device *rdev,
-				 const char *name, int type)
+				 const char *name,
+				 unsigned char name_assign_type,
+				 int type)
 {
 	return rdev->ops->add_virtual_intf_deprecated(&rdev->wpan_phy, name,
-						      type);
+						      name_assign_type, type);
 }
 
 static inline void
@@ -23,13 +25,15 @@ rdev_del_virtual_intf_deprecated(struct cfg802154_registered_device *rdev,
 
 static inline int
 rdev_add_virtual_intf(struct cfg802154_registered_device *rdev, char *name,
+		      unsigned char name_assign_type,
 		      enum nl802154_iftype type, __le64 extended_addr)
 {
 	int ret;
 
 	trace_802154_rdev_add_virtual_intf(&rdev->wpan_phy, name, type,
 					   extended_addr);
-	ret = rdev->ops->add_virtual_intf(&rdev->wpan_phy, name, type,
+	ret = rdev->ops->add_virtual_intf(&rdev->wpan_phy, name,
+					  name_assign_type, type,
 					  extended_addr);
 	trace_802154_rdev_return_int(&rdev->wpan_phy, ret);
 	return ret;
