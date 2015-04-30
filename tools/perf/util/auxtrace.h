@@ -80,6 +80,32 @@ struct itrace_synth_opts {
 };
 
 /**
+ * struct auxtrace_index_entry - indexes a AUX area tracing event within a
+ *                               perf.data file.
+ * @file_offset: offset within the perf.data file
+ * @sz: size of the event
+ */
+struct auxtrace_index_entry {
+	u64			file_offset;
+	u64			sz;
+};
+
+#define PERF_AUXTRACE_INDEX_ENTRY_COUNT 256
+
+/**
+ * struct auxtrace_index - index of AUX area tracing events within a perf.data
+ *                         file.
+ * @list: linking a number of arrays of entries
+ * @nr: number of entries
+ * @entries: array of entries
+ */
+struct auxtrace_index {
+	struct list_head	list;
+	size_t			nr;
+	struct auxtrace_index_entry entries[PERF_AUXTRACE_INDEX_ENTRY_COUNT];
+};
+
+/**
  * struct auxtrace - session callbacks to allow AUX area data decoding.
  * @process_event: lets the decoder see all session events
  * @flush_events: process any remaining data
@@ -321,6 +347,8 @@ int auxtrace_queues__add_event(struct auxtrace_queues *queues,
 			       union perf_event *event, off_t data_offset,
 			       struct auxtrace_buffer **buffer_ptr);
 void auxtrace_queues__free(struct auxtrace_queues *queues);
+int auxtrace_queues__process_index(struct auxtrace_queues *queues,
+				   struct perf_session *session);
 struct auxtrace_buffer *auxtrace_buffer__next(struct auxtrace_queue *queue,
 					      struct auxtrace_buffer *buffer);
 void *auxtrace_buffer__get_data(struct auxtrace_buffer *buffer, int fd);
@@ -360,6 +388,13 @@ int auxtrace_record__info_fill(struct auxtrace_record *itr,
 			       size_t priv_size);
 void auxtrace_record__free(struct auxtrace_record *itr);
 u64 auxtrace_record__reference(struct auxtrace_record *itr);
+
+int auxtrace_index__auxtrace_event(struct list_head *head, union perf_event *event,
+				   off_t file_offset);
+int auxtrace_index__write(int fd, struct list_head *head);
+int auxtrace_index__process(int fd, u64 size, struct perf_session *session,
+			    bool needs_swap);
+void auxtrace_index__free(struct list_head *head);
 
 void auxtrace_synth_error(struct auxtrace_error_event *auxtrace_error, int type,
 			  int code, int cpu, pid_t pid, pid_t tid, u64 ip,

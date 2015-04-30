@@ -122,6 +122,18 @@ static s64 perf_event__repipe_auxtrace(struct perf_tool *tool,
 						  tool);
 	int ret;
 
+	if (!inject->output.is_pipe) {
+		off_t offset;
+
+		offset = lseek(inject->output.fd, 0, SEEK_CUR);
+		if (offset == -1)
+			return -errno;
+		ret = auxtrace_index__auxtrace_event(&session->auxtrace_index,
+						     event, offset);
+		if (ret < 0)
+			return ret;
+	}
+
 	if (perf_data_file__is_pipe(session->file) || !session->one_mmap) {
 		ret = output_bytes(inject, event, event->header.size);
 		if (ret < 0)
@@ -486,6 +498,9 @@ static int __cmd_inject(struct perf_inject *inject)
 		/* Allow space in the header for new attributes */
 		output_data_offset = 4096;
 	}
+
+	if (!inject->itrace_synth_opts.set)
+		auxtrace_index__free(&session->auxtrace_index);
 
 	if (!file_out->is_pipe)
 		lseek(fd, output_data_offset, SEEK_SET);

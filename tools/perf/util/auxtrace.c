@@ -344,6 +344,33 @@ out_err:
 	return err;
 }
 
+static int auxtrace_queues__add_indexed_event(struct auxtrace_queues *queues,
+					      struct perf_session *session,
+					      off_t file_offset, size_t sz)
+{
+	union perf_event *event;
+	int err;
+	char buf[PERF_SAMPLE_MAX_SIZE];
+
+	err = perf_session__peek_event(session, file_offset, buf,
+				       PERF_SAMPLE_MAX_SIZE, &event, NULL);
+	if (err)
+		return err;
+
+	if (event->header.type == PERF_RECORD_AUXTRACE) {
+		if (event->header.size < sizeof(struct auxtrace_event) ||
+		    event->header.size != sz) {
+			err = -EINVAL;
+			goto out;
+		}
+		file_offset += event->header.size;
+		err = auxtrace_queues__add_event(queues, session, event,
+						 file_offset, NULL);
+	}
+out:
+	return err;
+}
+
 void auxtrace_queues__free(struct auxtrace_queues *queues)
 {
 	unsigned int i;
@@ -498,6 +525,194 @@ auxtrace_record__init(struct perf_evlist *evlist __maybe_unused, int *err)
 {
 	*err = 0;
 	return NULL;
+}
+
+static int auxtrace_index__alloc(struct list_head *head)
+{
+	struct auxtrace_index *auxtrace_index;
+
+	auxtrace_index = malloc(sizeof(struct auxtrace_index));
+	if (!auxtrace_index)
+		return -ENOMEM;
+
+	auxtrace_index->nr = 0;
+	INIT_LIST_HEAD(&auxtrace_index->list);
+
+	list_add_tail(&auxtrace_index->list, head);
+
+	return 0;
+}
+
+void auxtrace_index__free(struct list_head *head)
+{
+	struct auxtrace_index *auxtrace_index, *n;
+
+	list_for_each_entry_safe(auxtrace_index, n, head, list) {
+		list_del(&auxtrace_index->list);
+		free(auxtrace_index);
+	}
+}
+
+static struct auxtrace_index *auxtrace_index__last(struct list_head *head)
+{
+	struct auxtrace_index *auxtrace_index;
+	int err;
+
+	if (list_empty(head)) {
+		err = auxtrace_index__alloc(head);
+		if (err)
+			return NULL;
+	}
+
+	auxtrace_index = list_entry(head->prev, struct auxtrace_index, list);
+
+	if (auxtrace_index->nr >= PERF_AUXTRACE_INDEX_ENTRY_COUNT) {
+		err = auxtrace_index__alloc(head);
+		if (err)
+			return NULL;
+		auxtrace_index = list_entry(head->prev, struct auxtrace_index,
+					    list);
+	}
+
+	return auxtrace_index;
+}
+
+int auxtrace_index__auxtrace_event(struct list_head *head,
+				   union perf_event *event, off_t file_offset)
+{
+	struct auxtrace_index *auxtrace_index;
+	size_t nr;
+
+	auxtrace_index = auxtrace_index__last(head);
+	if (!auxtrace_index)
+		return -ENOMEM;
+
+	nr = auxtrace_index->nr;
+	auxtrace_index->entries[nr].file_offset = file_offset;
+	auxtrace_index->entries[nr].sz = event->header.size;
+	auxtrace_index->nr += 1;
+
+	return 0;
+}
+
+static int auxtrace_index__do_write(int fd,
+				    struct auxtrace_index *auxtrace_index)
+{
+	struct auxtrace_index_entry ent;
+	size_t i;
+
+	for (i = 0; i < auxtrace_index->nr; i++) {
+		ent.file_offset = auxtrace_index->entries[i].file_offset;
+		ent.sz = auxtrace_index->entries[i].sz;
+		if (writen(fd, &ent, sizeof(ent)) != sizeof(ent))
+			return -errno;
+	}
+	return 0;
+}
+
+int auxtrace_index__write(int fd, struct list_head *head)
+{
+	struct auxtrace_index *auxtrace_index;
+	u64 total = 0;
+	int err;
+
+	list_for_each_entry(auxtrace_index, head, list)
+		total += auxtrace_index->nr;
+
+	if (writen(fd, &total, sizeof(total)) != sizeof(total))
+		return -errno;
+
+	list_for_each_entry(auxtrace_index, head, list) {
+		err = auxtrace_index__do_write(fd, auxtrace_index);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static int auxtrace_index__process_entry(int fd, struct list_head *head,
+					 bool needs_swap)
+{
+	struct auxtrace_index *auxtrace_index;
+	struct auxtrace_index_entry ent;
+	size_t nr;
+
+	if (readn(fd, &ent, sizeof(ent)) != sizeof(ent))
+		return -1;
+
+	auxtrace_index = auxtrace_index__last(head);
+	if (!auxtrace_index)
+		return -1;
+
+	nr = auxtrace_index->nr;
+	if (needs_swap) {
+		auxtrace_index->entries[nr].file_offset =
+						bswap_64(ent.file_offset);
+		auxtrace_index->entries[nr].sz = bswap_64(ent.sz);
+	} else {
+		auxtrace_index->entries[nr].file_offset = ent.file_offset;
+		auxtrace_index->entries[nr].sz = ent.sz;
+	}
+
+	auxtrace_index->nr = nr + 1;
+
+	return 0;
+}
+
+int auxtrace_index__process(int fd, u64 size, struct perf_session *session,
+			    bool needs_swap)
+{
+	struct list_head *head = &session->auxtrace_index;
+	u64 nr;
+
+	if (readn(fd, &nr, sizeof(u64)) != sizeof(u64))
+		return -1;
+
+	if (needs_swap)
+		nr = bswap_64(nr);
+
+	if (sizeof(u64) + nr * sizeof(struct auxtrace_index_entry) > size)
+		return -1;
+
+	while (nr--) {
+		int err;
+
+		err = auxtrace_index__process_entry(fd, head, needs_swap);
+		if (err)
+			return -1;
+	}
+
+	return 0;
+}
+
+static int auxtrace_queues__process_index_entry(struct auxtrace_queues *queues,
+						struct perf_session *session,
+						struct auxtrace_index_entry *ent)
+{
+	return auxtrace_queues__add_indexed_event(queues, session,
+						  ent->file_offset, ent->sz);
+}
+
+int auxtrace_queues__process_index(struct auxtrace_queues *queues,
+				   struct perf_session *session)
+{
+	struct auxtrace_index *auxtrace_index;
+	struct auxtrace_index_entry *ent;
+	size_t i;
+	int err;
+
+	list_for_each_entry(auxtrace_index, &session->auxtrace_index, list) {
+		for (i = 0; i < auxtrace_index->nr; i++) {
+			ent = &auxtrace_index->entries[i];
+			err = auxtrace_queues__process_index_entry(queues,
+								   session,
+								   ent);
+			if (err)
+				return err;
+		}
+	}
+	return 0;
 }
 
 struct auxtrace_buffer *auxtrace_buffer__next(struct auxtrace_queue *queue,

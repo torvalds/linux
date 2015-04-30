@@ -120,6 +120,7 @@ struct perf_session *perf_session__new(struct perf_data_file *file,
 
 	session->repipe = repipe;
 	session->tool   = tool;
+	INIT_LIST_HEAD(&session->auxtrace_index);
 	machines__init(&session->machines);
 	ordered_events__init(&session->ordered_events, ordered_events__deliver_event);
 
@@ -187,6 +188,7 @@ static void perf_session_env__delete(struct perf_session_env *env)
 void perf_session__delete(struct perf_session *session)
 {
 	auxtrace__free(session);
+	auxtrace_index__free(&session->auxtrace_index);
 	perf_session__destroy_kernel_maps(session);
 	perf_session__delete_threads(session);
 	perf_session_env__delete(&session->header.env);
