@@ -282,7 +282,7 @@
 			#phy-cells = <0>;
 			st,syscfg = <&syscfg_core 0x100 0xf4>;
 			resets = <&softreset STIH407_PICOPHY_SOFTRESET>,
-				 <&picophyreset STIH407_PICOPHY0_RESET>;
+				 <&picophyreset STIH407_PICOPHY2_RESET>;
 			reset-names = "global", "port";
 		};
 
