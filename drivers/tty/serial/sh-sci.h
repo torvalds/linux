@@ -65,9 +65,9 @@ enum {
 #define SCIF_DEFAULT_ERROR_MASK (SCIF_PER | SCIF_FER | SCIF_ER | SCIF_BRK)
 
 /* SCFCR (FIFO Control Register) */
-#define SCFCR_MCE	0x0008
-#define SCFCR_TFRST	0x0004
-#define SCFCR_RFRST	0x0002
+#define SCFCR_MCE	0x0008		/* Modem Control Enable */
+#define SCFCR_TFRST	0x0004		/* Transmit FIFO Data Register Reset */
+#define SCFCR_RFRST	0x0002		/* Receive FIFO Data Register Reset */
 #define SCFCR_LOOP	(1 << 0)	/* Loopback Test */
 
 /* SCSPTR (Serial Port Register), optional */
