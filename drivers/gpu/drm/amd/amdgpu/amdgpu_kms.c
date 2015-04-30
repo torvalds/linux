@@ -345,6 +345,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 	case AMDGPU_INFO_GDS_CONFIG: {
 		struct drm_amdgpu_info_gds gds_info;
 
+		memset(&gds_info, 0, sizeof(gds_info));
 		gds_info.gds_gfx_partition_size = adev->gds.mem.gfx_partition_size >> AMDGPU_GDS_SHIFT;
 		gds_info.compute_partition_size = adev->gds.mem.cs_partition_size >> AMDGPU_GDS_SHIFT;
 		gds_info.gds_total_size = adev->gds.mem.total_size >> AMDGPU_GDS_SHIFT;
