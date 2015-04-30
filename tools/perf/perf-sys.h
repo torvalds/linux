@@ -6,11 +6,9 @@
 #include <sys/syscall.h>
 #include <linux/types.h>
 #include <linux/perf_event.h>
+#include <asm/barrier.h>
 
 #if defined(__i386__)
-#define mb()		asm volatile("lock; addl $0,0(%%esp)" ::: "memory")
-#define wmb()		asm volatile("lock; addl $0,0(%%esp)" ::: "memory")
-#define rmb()		asm volatile("lock; addl $0,0(%%esp)" ::: "memory")
 #define cpu_relax()	asm volatile("rep; nop" ::: "memory");
 #define CPUINFO_PROC	{"model name"}
 #ifndef __NR_perf_event_open
@@ -25,9 +23,6 @@
 #endif
 
 #if defined(__x86_64__)
-#define mb()		asm volatile("mfence" ::: "memory")
-#define wmb()		asm volatile("sfence" ::: "memory")
-#define rmb()		asm volatile("lfence" ::: "memory")
 #define cpu_relax()	asm volatile("rep; nop" ::: "memory");
 #define CPUINFO_PROC	{"model name"}
 #ifndef __NR_perf_event_open
