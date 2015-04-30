@@ -2315,11 +2315,6 @@ static int sci_init_single(struct platform_device *dev,
 			SCI_DEFAULT_ERROR_MASK : SCIF_DEFAULT_ERROR_MASK;
 
 	/*
-	 * Establish sensible defaults for the overrun detection, unless
-	 * the part has explicitly disabled support for it.
-	 */
-
-	/*
 	 * Make the error mask inclusive of overrun detection, if
 	 * supported.
 	 */
