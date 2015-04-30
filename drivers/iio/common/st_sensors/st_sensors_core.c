@@ -503,7 +503,8 @@ int st_sensors_check_device_support(struct iio_dev *indio_dev,
 			break;
 	}
 	if (n == ARRAY_SIZE(sensor_settings[i].sensors_supported)) {
-		dev_err(&indio_dev->dev, "device name and WhoAmI mismatch.\n");
+		dev_err(&indio_dev->dev, "device name \"%s\" and WhoAmI (0x%02x) mismatch",
+			indio_dev->name, wai);
 		goto sensor_name_mismatch;
 	}
 
