@@ -551,7 +551,7 @@ static inline void wil_release_cpu(struct wil6210_priv *wil)
 static int wil_target_reset(struct wil6210_priv *wil)
 {
 	int delay = 0;
-	u32 x;
+	u32 x, x1 = 0;
 
 	wil_dbg_misc(wil, "Resetting \"%s\"...\n", wil->hw_name);
 
@@ -606,12 +606,16 @@ static int wil_target_reset(struct wil6210_priv *wil)
 	do {
 		msleep(RST_DELAY);
 		x = R(RGF_USER_BL + offsetof(struct RGF_BL, ready));
+		if (x1 != x) {
+			wil_dbg_misc(wil, "BL.ready 0x%08x => 0x%08x\n", x1, x);
+			x1 = x;
+		}
 		if (delay++ > RST_COUNT) {
 			wil_err(wil, "Reset not completed, bl.ready 0x%08x\n",
 				x);
 			return -ETIME;
 		}
-	} while (!(x & BIT_BL_READY));
+	} while (x != BIT_BL_READY);
 
 	C(RGF_USER_CLKS_CTL_0, BIT_USER_CLKS_RST_PWGD);
 
