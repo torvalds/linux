@@ -202,19 +202,19 @@ static inline void fpstate_init_fstate(struct i387_fsave_struct *fp)
 	fp->fos = 0xffff0000u;
 }
 
-void fpstate_init(struct fpu *fpu)
+void fpstate_init(union thread_xstate *state)
 {
 	if (!cpu_has_fpu) {
-		fpstate_init_soft(&fpu->state.soft);
+		fpstate_init_soft(&state->soft);
 		return;
 	}
 
-	memset(&fpu->state, 0, xstate_size);
+	memset(state, 0, xstate_size);
 
 	if (cpu_has_fxsr)
-		fpstate_init_fxstate(&fpu->state.fxsave);
+		fpstate_init_fxstate(&state->fxsave);
 	else
-		fpstate_init_fstate(&fpu->state.fsave);
+		fpstate_init_fstate(&state->fsave);
 }
 EXPORT_SYMBOL_GPL(fpstate_init);
 
@@ -282,7 +282,7 @@ void fpu__activate_curr(struct fpu *fpu)
 	WARN_ON_ONCE(fpu != &current->thread.fpu);
 
 	if (!fpu->fpstate_active) {
-		fpstate_init(fpu);
+		fpstate_init(&fpu->state);
 
 		/* Safe to do for the current task: */
 		fpu->fpstate_active = 1;
@@ -321,7 +321,7 @@ static void fpu__activate_stopped(struct fpu *child_fpu)
 	if (child_fpu->fpstate_active) {
 		child_fpu->last_cpu = -1;
 	} else {
-		fpstate_init(child_fpu);
+		fpstate_init(&child_fpu->state);
 
 		/* Safe to do for stopped child tasks: */
 		child_fpu->fpstate_active = 1;

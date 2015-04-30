@@ -29,7 +29,7 @@ extern void fpu__init_system(struct cpuinfo_x86 *c);
 
 extern void fpu__activate_curr(struct fpu *fpu);
 
-extern void fpstate_init(struct fpu *fpu);
+extern void fpstate_init(union thread_xstate *state);
 #ifdef CONFIG_MATH_EMULATION
 extern void fpstate_init_soft(struct i387_soft_struct *soft);
 #else
