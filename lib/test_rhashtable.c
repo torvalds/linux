@@ -49,6 +49,8 @@ struct test_obj {
 	struct rhash_head	node;
 };
 
+static struct test_obj array[MAX_ENTRIES];
+
 static struct rhashtable_params test_rht_params = {
 	.head_offset = offsetof(struct test_obj, node),
 	.key_offset = offsetof(struct test_obj, value),
@@ -129,9 +131,7 @@ static void test_bucket_stats(struct rhashtable *ht, bool quiet)
 
 static s64 __init test_rhashtable(struct rhashtable *ht)
 {
-	struct bucket_table *tbl;
 	struct test_obj *obj;
-	struct rhash_head *pos, *next;
 	int err;
 	unsigned int i;
 	s64 start, end;
@@ -143,21 +143,13 @@ static s64 __init test_rhashtable(struct rhashtable *ht)
 	pr_info("  Adding %d keys\n", entries);
 	start = ktime_get_ns();
 	for (i = 0; i < entries; i++) {
-		struct test_obj *obj;
-
-		obj = kzalloc(sizeof(*obj), GFP_KERNEL);
-		if (!obj) {
-			err = -ENOMEM;
-			goto error;
-		}
+		struct test_obj *obj = &array[i];
 
 		obj->value = i * 2;
 
 		err = rhashtable_insert_fast(ht, &obj->node, test_rht_params);
-		if (err) {
-			kfree(obj);
-			goto error;
-		}
+		if (err)
+			return err;
 	}
 
 	rcu_read_lock();
@@ -177,21 +169,12 @@ static s64 __init test_rhashtable(struct rhashtable *ht)
 		BUG_ON(!obj);
 
 		rhashtable_remove_fast(ht, &obj->node, test_rht_params);
-		kfree(obj);
 	}
 
 	end = ktime_get_ns();
 	pr_info("  Duration of test: %lld ns\n", end - start);
 
 	return end - start;
-
-error:
-	tbl = rht_dereference_rcu(ht->tbl, ht);
-	for (i = 0; i < tbl->size; i++)
-		rht_for_each_entry_safe(obj, pos, next, tbl, i, node)
-			kfree(obj);
-
-	return err;
 }
 
 static struct rhashtable ht;
@@ -214,6 +197,7 @@ static int __init test_rht_init(void)
 		s64 time;
 
 		pr_info("Test %02d:\n", i);
+		memset(&array, 0, sizeof(array));
 		err = rhashtable_init(&ht, &test_rht_params);
 		if (err < 0) {
 			pr_warn("Test failed: Unable to initialize hashtable: %d\n",
