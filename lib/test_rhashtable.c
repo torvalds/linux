@@ -89,41 +89,43 @@ static int __init test_rht_lookup(struct rhashtable *ht)
 	return 0;
 }
 
-static void test_bucket_stats(struct rhashtable *ht, bool quiet)
+static void test_bucket_stats(struct rhashtable *ht)
 {
-	unsigned int cnt, rcu_cnt, i, total = 0;
+	unsigned int err, total = 0, chain_len = 0;
+	struct rhashtable_iter hti;
 	struct rhash_head *pos;
-	struct test_obj *obj;
-	struct bucket_table *tbl;
 
-	tbl = rht_dereference_rcu(ht->tbl, ht);
-	for (i = 0; i < tbl->size; i++) {
-		rcu_cnt = cnt = 0;
-
-		if (!quiet)
-			pr_info(" [%#4x/%u]", i, tbl->size);
-
-		rht_for_each_entry_rcu(obj, pos, tbl, i, node) {
-			cnt++;
-			total++;
-			if (!quiet)
-				pr_cont(" [%p],", obj);
-		}
-
-		rht_for_each_entry_rcu(obj, pos, tbl, i, node)
-			rcu_cnt++;
-
-		if (rcu_cnt != cnt)
-			pr_warn("Test failed: Chain count mismach %d != %d",
-				cnt, rcu_cnt);
-
-		if (!quiet)
-			pr_cont("\n  [%#x] first element: %p, chain length: %u\n",
-				i, tbl->buckets[i], cnt);
+	err = rhashtable_walk_init(ht, &hti);
+	if (err) {
+		pr_warn("Test failed: allocation error");
+		return;
 	}
 
-	pr_info("  Traversal complete: counted=%u, nelems=%u, entries=%d\n",
-		total, atomic_read(&ht->nelems), entries);
+	err = rhashtable_walk_start(&hti);
+	if (err && err != -EAGAIN) {
+		pr_warn("Test failed: iterator failed: %d\n", err);
+		return;
+	}
+
+	while ((pos = rhashtable_walk_next(&hti))) {
+		if (PTR_ERR(pos) == -EAGAIN) {
+			pr_info("Info: encountered resize\n");
+			chain_len++;
+			continue;
+		} else if (IS_ERR(pos)) {
+			pr_warn("Test failed: rhashtable_walk_next() error: %ld\n",
+				PTR_ERR(pos));
+			break;
+		}
+
+		total++;
+	}
+
+	rhashtable_walk_stop(&hti);
+	rhashtable_walk_exit(&hti);
+
+	pr_info("  Traversal complete: counted=%u, nelems=%u, entries=%d, table-jumps=%u\n",
+		total, atomic_read(&ht->nelems), entries, chain_len);
 
 	if (total != atomic_read(&ht->nelems) || total != entries)
 		pr_warn("Test failed: Total count mismatch ^^^");
@@ -152,14 +154,12 @@ static s64 __init test_rhashtable(struct rhashtable *ht)
 			return err;
 	}
 
+	test_bucket_stats(ht);
 	rcu_read_lock();
-	test_bucket_stats(ht, true);
 	test_rht_lookup(ht);
 	rcu_read_unlock();
 
-	rcu_read_lock();
-	test_bucket_stats(ht, true);
-	rcu_read_unlock();
+	test_bucket_stats(ht);
 
 	pr_info("  Deleting %d keys\n", entries);
 	for (i = 0; i < entries; i++) {
