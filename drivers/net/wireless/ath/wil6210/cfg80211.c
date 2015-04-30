@@ -425,10 +425,17 @@ static int wil_cfg80211_connect(struct wiphy *wiphy,
 	wil->privacy = sme->privacy;
 
 	if (wil->privacy) {
-		/* For secure assoc, send WMI_DELETE_CIPHER_KEY_CMD */
-		rc = wmi_del_cipher_key(wil, 0, bss->bssid);
+		/* For secure assoc, remove old keys */
+		rc = wmi_del_cipher_key(wil, 0, bss->bssid,
+					WMI_KEY_USE_PAIRWISE);
 		if (rc) {
-			wil_err(wil, "WMI_DELETE_CIPHER_KEY_CMD failed\n");
+			wil_err(wil, "WMI_DELETE_CIPHER_KEY_CMD(PTK) failed\n");
+			goto out;
+		}
+		rc = wmi_del_cipher_key(wil, 0, bss->bssid,
+					WMI_KEY_USE_RX_GROUP);
+		if (rc) {
+			wil_err(wil, "WMI_DELETE_CIPHER_KEY_CMD(GTK) failed\n");
 			goto out;
 		}
 	}
@@ -462,6 +469,8 @@ static int wil_cfg80211_connect(struct wiphy *wiphy,
 		conn.auth_mode = WMI_AUTH_WPA2_PSK;
 		conn.pairwise_crypto_type = WMI_CRYPT_AES_GCMP;
 		conn.pairwise_crypto_len = 16;
+		conn.group_crypto_type = WMI_CRYPT_AES_GCMP;
+		conn.group_crypto_len = 16;
 	} else {
 		conn.dot11_auth_mode = WMI_AUTH11_OPEN;
 		conn.auth_mode = WMI_AUTH_NONE;
@@ -563,6 +572,39 @@ static int wil_cfg80211_set_channel(struct wiphy *wiphy,
 	return 0;
 }
 
+static enum wmi_key_usage wil_detect_key_usage(struct wil6210_priv *wil,
+					       bool pairwise)
+{
+	struct wireless_dev *wdev = wil->wdev;
+	enum wmi_key_usage rc;
+	static const char * const key_usage_str[] = {
+		[WMI_KEY_USE_PAIRWISE]	= "WMI_KEY_USE_PAIRWISE",
+		[WMI_KEY_USE_RX_GROUP]	= "WMI_KEY_USE_RX_GROUP",
+		[WMI_KEY_USE_TX_GROUP]	= "WMI_KEY_USE_TX_GROUP",
+	};
+
+	if (pairwise) {
+		rc = WMI_KEY_USE_PAIRWISE;
+	} else {
+		switch (wdev->iftype) {
+		case NL80211_IFTYPE_STATION:
+			rc = WMI_KEY_USE_RX_GROUP;
+			break;
+		case NL80211_IFTYPE_AP:
+			rc = WMI_KEY_USE_TX_GROUP;
+			break;
+		default:
+			/* TODO: Rx GTK or Tx GTK? */
+			wil_err(wil, "Can't determine GTK type\n");
+			rc = WMI_KEY_USE_RX_GROUP;
+			break;
+		}
+	}
+	wil_dbg_misc(wil, "%s() -> %s\n", __func__, key_usage_str[rc]);
+
+	return rc;
+}
+
 static int wil_cfg80211_add_key(struct wiphy *wiphy,
 				struct net_device *ndev,
 				u8 key_index, bool pairwise,
@@ -570,16 +612,13 @@ static int wil_cfg80211_add_key(struct wiphy *wiphy,
 				struct key_params *params)
 {
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
+	enum wmi_key_usage key_usage = wil_detect_key_usage(wil, pairwise);
 
 	wil_dbg_misc(wil, "%s(%pM[%d] %s)\n", __func__, mac_addr, key_index,
 		     pairwise ? "PTK" : "GTK");
 
-	/* group key is not used */
-	if (!pairwise)
-		return 0;
-
-	return wmi_add_cipher_key(wil, key_index, mac_addr,
-				  params->key_len, params->key);
+	return wmi_add_cipher_key(wil, key_index, mac_addr, params->key_len,
+				  params->key, key_usage);
 }
 
 static int wil_cfg80211_del_key(struct wiphy *wiphy,
@@ -588,15 +627,12 @@ static int wil_cfg80211_del_key(struct wiphy *wiphy,
 				const u8 *mac_addr)
 {
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
+	enum wmi_key_usage key_usage = wil_detect_key_usage(wil, pairwise);
 
 	wil_dbg_misc(wil, "%s(%pM[%d] %s)\n", __func__, mac_addr, key_index,
 		     pairwise ? "PTK" : "GTK");
 
-	/* group key is not used */
-	if (!pairwise)
-		return 0;
-
-	return wmi_del_cipher_key(wil, key_index, mac_addr);
+	return wmi_del_cipher_key(wil, key_index, mac_addr, key_usage);
 }
 
 /* Need to be present or wiphy_new() will WARN */

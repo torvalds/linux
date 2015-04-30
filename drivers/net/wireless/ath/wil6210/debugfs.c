@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 Qualcomm Atheros, Inc.
+ * Copyright (c) 2012-2015 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -124,15 +124,17 @@ static int wil_vring_debugfs_show(struct seq_file *s, void *data)
 
 			if (cid < WIL6210_MAX_CID)
 				seq_printf(s,
-					   "\n%pM CID %d TID %d BACK([%u] %u TU A%s) [%3d|%3d] idle %s\n",
+					   "\n%pM CID %d TID %d 1x%s BACK([%u] %u TU A%s) [%3d|%3d] idle %s\n",
 					   wil->sta[cid].addr, cid, tid,
+					   txdata->dot1x_open ? "+" : "-",
 					   txdata->agg_wsize,
 					   txdata->agg_timeout,
 					   txdata->agg_amsdu ? "+" : "-",
 					   used, avail, sidle);
 			else
 				seq_printf(s,
-					   "\nBroadcast [%3d|%3d] idle %s\n",
+					   "\nBroadcast 1x%s [%3d|%3d] idle %s\n",
+					   txdata->dot1x_open ? "+" : "-",
 					   used, avail, sidle);
 
 			wil_print_vring(s, wil, name, vring, '_', 'H');
@@ -1195,8 +1197,7 @@ static int wil_link_debugfs_show(struct seq_file *s, void *data)
 			status = "connected";
 			break;
 		}
-		seq_printf(s, "[%d] %pM %s%s\n", i, p->addr, status,
-			   (p->data_port_open ? " data_port_open" : ""));
+		seq_printf(s, "[%d] %pM %s\n", i, p->addr, status);
 
 		if (p->status == wil_sta_connected) {
 			rc = wil_cid_fill_sinfo(wil, i, &sinfo);
@@ -1376,8 +1377,7 @@ __acquires(&p->tid_rx_lock) __releases(&p->tid_rx_lock)
 			status = "connected";
 			break;
 		}
-		seq_printf(s, "[%d] %pM %s%s\n", i, p->addr, status,
-			   (p->data_port_open ? " data_port_open" : ""));
+		seq_printf(s, "[%d] %pM %s\n", i, p->addr, status);
 
 		if (p->status == wil_sta_connected) {
 			spin_lock_bh(&p->tid_rx_lock);

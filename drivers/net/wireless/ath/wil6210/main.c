@@ -150,7 +150,6 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 	wil_dbg_misc(wil, "%s(CID %d, status %d)\n", __func__, cid,
 		     sta->status);
 
-	sta->data_port_open = false;
 	if (sta->status != wil_sta_unused) {
 		if (!from_event)
 			wmi_disconnect_sta(wil, sta->addr, reason_code);
@@ -377,9 +376,10 @@ int wil_bcast_init(struct wil6210_priv *wil)
 	if (ri < 0)
 		return ri;
 
+	wil->bcast_vring = ri;
 	rc = wil_vring_init_bcast(wil, ri, 1 << bcast_ring_order);
-	if (rc == 0)
-		wil->bcast_vring = ri;
+	if (rc)
+		wil->bcast_vring = -1;
 
 	return rc;
 }
