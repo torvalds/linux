@@ -2211,9 +2211,13 @@ EXPORT_SYMBOL(user_path_at);
  *     path-walking is complete.
  */
 static struct filename *
-user_path_parent(int dfd, const char __user *path, struct nameidata *nd,
+user_path_parent(int dfd, const char __user *path,
+		 struct path *parent,
+		 struct qstr *last,
+		 int *type,
 		 unsigned int flags)
 {
+	struct nameidata nd;
 	struct filename *s = getname(path);
 	int error;
 
@@ -2223,11 +2227,14 @@ user_path_parent(int dfd, const char __user *path, struct nameidata *nd,
 	if (IS_ERR(s))
 		return s;
 
-	error = filename_lookup(dfd, s, flags | LOOKUP_PARENT, nd);
+	error = filename_lookup(dfd, s, flags | LOOKUP_PARENT, &nd);
 	if (error) {
 		putname(s);
 		return ERR_PTR(error);
 	}
+	*parent = nd.path;
+	*last = nd.last;
+	*type = nd.last_type;
 
 	return s;
 }
@@ -3630,14 +3637,17 @@ static long do_rmdir(int dfd, const char __user *pathname)
 	int error = 0;
 	struct filename *name;
 	struct dentry *dentry;
-	struct nameidata nd;
+	struct path path;
+	struct qstr last;
+	int type;
 	unsigned int lookup_flags = 0;
 retry:
-	name = user_path_parent(dfd, pathname, &nd, lookup_flags);
+	name = user_path_parent(dfd, pathname,
+				&path, &last, &type, lookup_flags);
 	if (IS_ERR(name))
 		return PTR_ERR(name);
 
-	switch(nd.last_type) {
+	switch (type) {
 	case LAST_DOTDOT:
 		error = -ENOTEMPTY;
 		goto exit1;
@@ -3649,13 +3659,12 @@ retry:
 		goto exit1;
 	}
 
-	nd.flags &= ~LOOKUP_PARENT;
-	error = mnt_want_write(nd.path.mnt);
+	error = mnt_want_write(path.mnt);
 	if (error)
 		goto exit1;
 
-	mutex_lock_nested(&nd.path.dentry->d_inode->i_mutex, I_MUTEX_PARENT);
-	dentry = __lookup_hash(&nd.last, nd.path.dentry, nd.flags);
+	mutex_lock_nested(&path.dentry->d_inode->i_mutex, I_MUTEX_PARENT);
+	dentry = __lookup_hash(&last, path.dentry, lookup_flags);
 	error = PTR_ERR(dentry);
 	if (IS_ERR(dentry))
 		goto exit2;
@@ -3663,17 +3672,17 @@ retry:
 		error = -ENOENT;
 		goto exit3;
 	}
-	error = security_path_rmdir(&nd.path, dentry);
+	error = security_path_rmdir(&path, dentry);
 	if (error)
 		goto exit3;
-	error = vfs_rmdir(nd.path.dentry->d_inode, dentry);
+	error = vfs_rmdir(path.dentry->d_inode, dentry);
 exit3:
 	dput(dentry);
 exit2:
-	mutex_unlock(&nd.path.dentry->d_inode->i_mutex);
-	mnt_drop_write(nd.path.mnt);
+	mutex_unlock(&path.dentry->d_inode->i_mutex);
+	mnt_drop_write(path.mnt);
 exit1:
-	path_put(&nd.path);
+	path_put(&path);
 	putname(name);
 	if (retry_estale(error, lookup_flags)) {
 		lookup_flags |= LOOKUP_REVAL;
@@ -3756,43 +3765,45 @@ static long do_unlinkat(int dfd, const char __user *pathname)
 	int error;
 	struct filename *name;
 	struct dentry *dentry;
-	struct nameidata nd;
+	struct path path;
+	struct qstr last;
+	int type;
 	struct inode *inode = NULL;
 	struct inode *delegated_inode = NULL;
 	unsigned int lookup_flags = 0;
 retry:
-	name = user_path_parent(dfd, pathname, &nd, lookup_flags);
+	name = user_path_parent(dfd, pathname,
+				&path, &last, &type, lookup_flags);
 	if (IS_ERR(name))
 		return PTR_ERR(name);
 
 	error = -EISDIR;
-	if (nd.last_type != LAST_NORM)
+	if (type != LAST_NORM)
 		goto exit1;
 
-	nd.flags &= ~LOOKUP_PARENT;
-	error = mnt_want_write(nd.path.mnt);
+	error = mnt_want_write(path.mnt);
 	if (error)
 		goto exit1;
 retry_deleg:
-	mutex_lock_nested(&nd.path.dentry->d_inode->i_mutex, I_MUTEX_PARENT);
-	dentry = __lookup_hash(&nd.last, nd.path.dentry, nd.flags);
+	mutex_lock_nested(&path.dentry->d_inode->i_mutex, I_MUTEX_PARENT);
+	dentry = __lookup_hash(&last, path.dentry, lookup_flags);
 	error = PTR_ERR(dentry);
 	if (!IS_ERR(dentry)) {
 		/* Why not before? Because we want correct error value */
-		if (nd.last.name[nd.last.len])
+		if (last.name[last.len])
 			goto slashes;
 		inode = dentry->d_inode;
 		if (d_is_negative(dentry))
 			goto slashes;
 		ihold(inode);
-		error = security_path_unlink(&nd.path, dentry);
+		error = security_path_unlink(&path, dentry);
 		if (error)
 			goto exit2;
-		error = vfs_unlink(nd.path.dentry->d_inode, dentry, &delegated_inode);
+		error = vfs_unlink(path.dentry->d_inode, dentry, &delegated_inode);
 exit2:
 		dput(dentry);
 	}
-	mutex_unlock(&nd.path.dentry->d_inode->i_mutex);
+	mutex_unlock(&path.dentry->d_inode->i_mutex);
 	if (inode)
 		iput(inode);	/* truncate the inode here */
 	inode = NULL;
@@ -3801,9 +3812,9 @@ exit2:
 		if (!error)
 			goto retry_deleg;
 	}
-	mnt_drop_write(nd.path.mnt);
+	mnt_drop_write(path.mnt);
 exit1:
-	path_put(&nd.path);
+	path_put(&path);
 	putname(name);
 	if (retry_estale(error, lookup_flags)) {
 		lookup_flags |= LOOKUP_REVAL;
@@ -4233,14 +4244,15 @@ EXPORT_SYMBOL(vfs_rename);
 SYSCALL_DEFINE5(renameat2, int, olddfd, const char __user *, oldname,
 		int, newdfd, const char __user *, newname, unsigned int, flags)
 {
-	struct dentry *old_dir, *new_dir;
 	struct dentry *old_dentry, *new_dentry;
 	struct dentry *trap;
-	struct nameidata oldnd, newnd;
+	struct path old_path, new_path;
+	struct qstr old_last, new_last;
+	int old_type, new_type;
 	struct inode *delegated_inode = NULL;
 	struct filename *from;
 	struct filename *to;
-	unsigned int lookup_flags = 0;
+	unsigned int lookup_flags = 0, target_flags = LOOKUP_RENAME_TARGET;
 	bool should_retry = false;
 	int error;
 
@@ -4254,47 +4266,45 @@ SYSCALL_DEFINE5(renameat2, int, olddfd, const char __user *, oldname,
 	if ((flags & RENAME_WHITEOUT) && !capable(CAP_MKNOD))
 		return -EPERM;
 
+	if (flags & RENAME_EXCHANGE)
+		target_flags = 0;
+
 retry:
-	from = user_path_parent(olddfd, oldname, &oldnd, lookup_flags);
+	from = user_path_parent(olddfd, oldname,
+				&old_path, &old_last, &old_type, lookup_flags);
 	if (IS_ERR(from)) {
 		error = PTR_ERR(from);
 		goto exit;
 	}
 
-	to = user_path_parent(newdfd, newname, &newnd, lookup_flags);
+	to = user_path_parent(newdfd, newname,
+				&new_path, &new_last, &new_type, lookup_flags);
 	if (IS_ERR(to)) {
 		error = PTR_ERR(to);
 		goto exit1;
 	}
 
 	error = -EXDEV;
-	if (oldnd.path.mnt != newnd.path.mnt)
+	if (old_path.mnt != new_path.mnt)
 		goto exit2;
 
-	old_dir = oldnd.path.dentry;
 	error = -EBUSY;
-	if (oldnd.last_type != LAST_NORM)
+	if (old_type != LAST_NORM)
 		goto exit2;
 
-	new_dir = newnd.path.dentry;
 	if (flags & RENAME_NOREPLACE)
 		error = -EEXIST;
-	if (newnd.last_type != LAST_NORM)
+	if (new_type != LAST_NORM)
 		goto exit2;
 
-	error = mnt_want_write(oldnd.path.mnt);
+	error = mnt_want_write(old_path.mnt);
 	if (error)
 		goto exit2;
 
-	oldnd.flags &= ~LOOKUP_PARENT;
-	newnd.flags &= ~LOOKUP_PARENT;
-	if (!(flags & RENAME_EXCHANGE))
-		newnd.flags |= LOOKUP_RENAME_TARGET;
-
 retry_deleg:
-	trap = lock_rename(new_dir, old_dir);
+	trap = lock_rename(new_path.dentry, old_path.dentry);
 
-	old_dentry = __lookup_hash(&oldnd.last, oldnd.path.dentry, oldnd.flags);
+	old_dentry = __lookup_hash(&old_last, old_path.dentry, lookup_flags);
 	error = PTR_ERR(old_dentry);
 	if (IS_ERR(old_dentry))
 		goto exit3;
@@ -4302,7 +4312,7 @@ retry_deleg:
 	error = -ENOENT;
 	if (d_is_negative(old_dentry))
 		goto exit4;
-	new_dentry = __lookup_hash(&newnd.last, newnd.path.dentry, newnd.flags);
+	new_dentry = __lookup_hash(&new_last, new_path.dentry, lookup_flags | target_flags);
 	error = PTR_ERR(new_dentry);
 	if (IS_ERR(new_dentry))
 		goto exit4;
@@ -4316,16 +4326,16 @@ retry_deleg:
 
 		if (!d_is_dir(new_dentry)) {
 			error = -ENOTDIR;
-			if (newnd.last.name[newnd.last.len])
+			if (new_last.name[new_last.len])
 				goto exit5;
 		}
 	}
 	/* unless the source is a directory trailing slashes give -ENOTDIR */
 	if (!d_is_dir(old_dentry)) {
 		error = -ENOTDIR;
-		if (oldnd.last.name[oldnd.last.len])
+		if (old_last.name[old_last.len])
 			goto exit5;
-		if (!(flags & RENAME_EXCHANGE) && newnd.last.name[newnd.last.len])
+		if (!(flags & RENAME_EXCHANGE) && new_last.name[new_last.len])
 			goto exit5;
 	}
 	/* source should not be ancestor of target */
@@ -4338,32 +4348,32 @@ retry_deleg:
 	if (new_dentry == trap)
 		goto exit5;
 
-	error = security_path_rename(&oldnd.path, old_dentry,
-				     &newnd.path, new_dentry, flags);
+	error = security_path_rename(&old_path, old_dentry,
+				     &new_path, new_dentry, flags);
 	if (error)
 		goto exit5;
-	error = vfs_rename(old_dir->d_inode, old_dentry,
-			   new_dir->d_inode, new_dentry,
+	error = vfs_rename(old_path.dentry->d_inode, old_dentry,
+			   new_path.dentry->d_inode, new_dentry,
 			   &delegated_inode, flags);
 exit5:
 	dput(new_dentry);
 exit4:
 	dput(old_dentry);
 exit3:
-	unlock_rename(new_dir, old_dir);
+	unlock_rename(new_path.dentry, old_path.dentry);
 	if (delegated_inode) {
 		error = break_deleg_wait(&delegated_inode);
 		if (!error)
 			goto retry_deleg;
 	}
-	mnt_drop_write(oldnd.path.mnt);
+	mnt_drop_write(old_path.mnt);
 exit2:
 	if (retry_estale(error, lookup_flags))
 		should_retry = true;
-	path_put(&newnd.path);
+	path_put(&new_path);
 	putname(to);
 exit1:
-	path_put(&oldnd.path);
+	path_put(&old_path);
 	putname(from);
 	if (should_retry) {
 		should_retry = false;
