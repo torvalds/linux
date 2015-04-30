@@ -106,7 +106,7 @@ static int get_parent_ino(struct inode *inode, nid_t *pino)
 	if (!dentry)
 		return 0;
 
-	if (update_dent_inode(inode, &dentry->d_name)) {
+	if (update_dent_inode(inode, inode, &dentry->d_name)) {
 		dput(dentry);
 		return 0;
 	}
@@ -122,6 +122,8 @@ static inline bool need_do_checkpoint(struct inode *inode)
 	bool need_cp = false;
 
 	if (!S_ISREG(inode->i_mode) || inode->i_nlink != 1)
+		need_cp = true;
+	else if (file_enc_name(inode) && need_dentry_mark(sbi, inode->i_ino))
 		need_cp = true;
 	else if (file_wrong_pino(inode))
 		need_cp = true;

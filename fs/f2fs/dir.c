@@ -314,9 +314,13 @@ static void init_dent_inode(const struct qstr *name, struct page *ipage)
 	set_page_dirty(ipage);
 }
 
-int update_dent_inode(struct inode *inode, const struct qstr *name)
+int update_dent_inode(struct inode *inode, struct inode *to,
+					const struct qstr *name)
 {
 	struct page *page;
+
+	if (file_enc_name(to))
+		return 0;
 
 	page = get_node_page(F2FS_I_SB(inode), inode->i_ino);
 	if (IS_ERR(page))
@@ -597,6 +601,8 @@ add_dentry:
 			err = PTR_ERR(page);
 			goto fail;
 		}
+		if (f2fs_encrypted_inode(dir))
+			file_set_enc_name(inode);
 	}
 
 	make_dentry_ptr(NULL, &d, (void *)dentry_blk, 1);
