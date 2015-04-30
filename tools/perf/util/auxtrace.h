@@ -276,6 +276,10 @@ struct auxtrace_mmap_params {
  * @info_priv_size: return the size of the private data in auxtrace_info_event
  * @info_fill: fill-in the private data in auxtrace_info_event
  * @free: free this auxtrace record structure
+ * @snapshot_start: starting a snapshot
+ * @snapshot_finish: finishing a snapshot
+ * @find_snapshot: find data to snapshot within auxtrace mmap
+ * @parse_snapshot_options: parse snapshot options
  * @reference: provide a 64-bit reference number for auxtrace_event
  * @read_finish: called after reading from an auxtrace mmap
  */
@@ -289,11 +293,35 @@ struct auxtrace_record {
 			 struct auxtrace_info_event *auxtrace_info,
 			 size_t priv_size);
 	void (*free)(struct auxtrace_record *itr);
+	int (*snapshot_start)(struct auxtrace_record *itr);
+	int (*snapshot_finish)(struct auxtrace_record *itr);
+	int (*find_snapshot)(struct auxtrace_record *itr, int idx,
+			     struct auxtrace_mmap *mm, unsigned char *data,
+			     u64 *head, u64 *old);
+	int (*parse_snapshot_options)(struct auxtrace_record *itr,
+				      struct record_opts *opts,
+				      const char *str);
 	u64 (*reference)(struct auxtrace_record *itr);
 	int (*read_finish)(struct auxtrace_record *itr, int idx);
 };
 
 #ifdef HAVE_AUXTRACE_SUPPORT
+
+/*
+ * In snapshot mode the mmapped page is read-only which makes using
+ * __sync_val_compare_and_swap() problematic.  However, snapshot mode expects
+ * the buffer is not updated while the snapshot is made (e.g. Intel PT disables
+ * the event) so there is not a race anyway.
+ */
+static inline u64 auxtrace_mmap__read_snapshot_head(struct auxtrace_mmap *mm)
+{
+	struct perf_event_mmap_page *pc = mm->userpg;
+	u64 head = ACCESS_ONCE(pc->aux_head);
+
+	/* Ensure all reads are done after we read the head */
+	rmb();
+	return head;
+}
 
 static inline u64 auxtrace_mmap__read_head(struct auxtrace_mmap *mm)
 {
@@ -346,6 +374,11 @@ typedef int (*process_auxtrace_t)(struct perf_tool *tool,
 int auxtrace_mmap__read(struct auxtrace_mmap *mm, struct auxtrace_record *itr,
 			struct perf_tool *tool, process_auxtrace_t fn);
 
+int auxtrace_mmap__read_snapshot(struct auxtrace_mmap *mm,
+				 struct auxtrace_record *itr,
+				 struct perf_tool *tool, process_auxtrace_t fn,
+				 size_t snapshot_size);
+
 int auxtrace_queues__init(struct auxtrace_queues *queues);
 int auxtrace_queues__add_event(struct auxtrace_queues *queues,
 			       struct perf_session *session,
@@ -383,6 +416,9 @@ void *auxtrace_cache__lookup(struct auxtrace_cache *c, u32 key);
 struct auxtrace_record *auxtrace_record__init(struct perf_evlist *evlist,
 					      int *err);
 
+int auxtrace_parse_snapshot_options(struct auxtrace_record *itr,
+				    struct record_opts *opts,
+				    const char *str);
 int auxtrace_record__options(struct auxtrace_record *itr,
 			     struct perf_evlist *evlist,
 			     struct record_opts *opts);
@@ -392,6 +428,11 @@ int auxtrace_record__info_fill(struct auxtrace_record *itr,
 			       struct auxtrace_info_event *auxtrace_info,
 			       size_t priv_size);
 void auxtrace_record__free(struct auxtrace_record *itr);
+int auxtrace_record__snapshot_start(struct auxtrace_record *itr);
+int auxtrace_record__snapshot_finish(struct auxtrace_record *itr);
+int auxtrace_record__find_snapshot(struct auxtrace_record *itr, int idx,
+				   struct auxtrace_mmap *mm,
+				   unsigned char *data, u64 *head, u64 *old);
 u64 auxtrace_record__reference(struct auxtrace_record *itr);
 
 int auxtrace_index__auxtrace_event(struct list_head *head, union perf_event *event,

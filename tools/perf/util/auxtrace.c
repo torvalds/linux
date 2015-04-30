@@ -504,6 +504,29 @@ void auxtrace_record__free(struct auxtrace_record *itr)
 		itr->free(itr);
 }
 
+int auxtrace_record__snapshot_start(struct auxtrace_record *itr)
+{
+	if (itr && itr->snapshot_start)
+		return itr->snapshot_start(itr);
+	return 0;
+}
+
+int auxtrace_record__snapshot_finish(struct auxtrace_record *itr)
+{
+	if (itr && itr->snapshot_finish)
+		return itr->snapshot_finish(itr);
+	return 0;
+}
+
+int auxtrace_record__find_snapshot(struct auxtrace_record *itr, int idx,
+				   struct auxtrace_mmap *mm,
+				   unsigned char *data, u64 *head, u64 *old)
+{
+	if (itr && itr->find_snapshot)
+		return itr->find_snapshot(itr, idx, mm, data, head, old);
+	return 0;
+}
+
 int auxtrace_record__options(struct auxtrace_record *itr,
 			     struct perf_evlist *evlist,
 			     struct record_opts *opts)
@@ -518,6 +541,19 @@ u64 auxtrace_record__reference(struct auxtrace_record *itr)
 	if (itr)
 		return itr->reference(itr);
 	return 0;
+}
+
+int auxtrace_parse_snapshot_options(struct auxtrace_record *itr,
+				    struct record_opts *opts, const char *str)
+{
+	if (!str)
+		return 0;
+
+	if (itr)
+		return itr->parse_snapshot_options(itr, opts, str);
+
+	pr_err("No AUX area tracing to snapshot\n");
+	return -EINVAL;
 }
 
 struct auxtrace_record *__weak
@@ -1077,15 +1113,25 @@ int perf_event__process_auxtrace_error(struct perf_tool *tool __maybe_unused,
 	return 0;
 }
 
-int auxtrace_mmap__read(struct auxtrace_mmap *mm, struct auxtrace_record *itr,
-			struct perf_tool *tool, process_auxtrace_t fn)
+static int __auxtrace_mmap__read(struct auxtrace_mmap *mm,
+				 struct auxtrace_record *itr,
+				 struct perf_tool *tool, process_auxtrace_t fn,
+				 bool snapshot, size_t snapshot_size)
 {
-	u64 head = auxtrace_mmap__read_head(mm);
-	u64 old = mm->prev, offset, ref;
+	u64 head, old = mm->prev, offset, ref;
 	unsigned char *data = mm->base;
 	size_t size, head_off, old_off, len1, len2, padding;
 	union perf_event ev;
 	void *data1, *data2;
+
+	if (snapshot) {
+		head = auxtrace_mmap__read_snapshot_head(mm);
+		if (auxtrace_record__find_snapshot(itr, mm->idx, mm, data,
+						   &head, &old))
+			return -1;
+	} else {
+		head = auxtrace_mmap__read_head(mm);
+	}
 
 	if (old == head)
 		return 0;
@@ -1105,6 +1151,9 @@ int auxtrace_mmap__read(struct auxtrace_mmap *mm, struct auxtrace_record *itr,
 		size = head_off - old_off;
 	else
 		size = mm->len - (old_off - head_off);
+
+	if (snapshot && size > snapshot_size)
+		size = snapshot_size;
 
 	ref = auxtrace_record__reference(itr);
 
@@ -1153,16 +1202,32 @@ int auxtrace_mmap__read(struct auxtrace_mmap *mm, struct auxtrace_record *itr,
 
 	mm->prev = head;
 
-	auxtrace_mmap__write_tail(mm, head);
-	if (itr->read_finish) {
-		int err;
+	if (!snapshot) {
+		auxtrace_mmap__write_tail(mm, head);
+		if (itr->read_finish) {
+			int err;
 
-		err = itr->read_finish(itr, mm->idx);
-		if (err < 0)
-			return err;
+			err = itr->read_finish(itr, mm->idx);
+			if (err < 0)
+				return err;
+		}
 	}
 
 	return 1;
+}
+
+int auxtrace_mmap__read(struct auxtrace_mmap *mm, struct auxtrace_record *itr,
+			struct perf_tool *tool, process_auxtrace_t fn)
+{
+	return __auxtrace_mmap__read(mm, itr, tool, fn, false, 0);
+}
+
+int auxtrace_mmap__read_snapshot(struct auxtrace_mmap *mm,
+				 struct auxtrace_record *itr,
+				 struct perf_tool *tool, process_auxtrace_t fn,
+				 size_t snapshot_size)
+{
+	return __auxtrace_mmap__read(mm, itr, tool, fn, true, snapshot_size);
 }
 
 /**
