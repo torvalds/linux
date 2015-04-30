@@ -1206,10 +1206,7 @@ static int cz_dpm_enable(struct amdgpu_device *adev)
 
 static int cz_dpm_hw_init(struct amdgpu_device *adev)
 {
-	int ret;
-
-	if (!amdgpu_dpm)
-		return 0;
+	int ret = 0;
 
 	mutex_lock(&adev->pm.mutex);
 
@@ -1225,6 +1222,12 @@ static int cz_dpm_hw_init(struct amdgpu_device *adev)
 	ret = cz_smu_start(adev);
 	if (ret) {
 		DRM_ERROR("amdgpu: smc start failed\n");
+		mutex_unlock(&adev->pm.mutex);
+		return ret;
+	}
+
+	if (!amdgpu_dpm) {
+		adev->pm.dpm_enabled = false;
 		mutex_unlock(&adev->pm.mutex);
 		return ret;
 	}
@@ -1322,6 +1325,12 @@ static int cz_dpm_resume(struct amdgpu_device *adev)
 	ret = cz_smu_start(adev);
 	if (ret) {
 		DRM_ERROR("amdgpu: smc start failed\n");
+		mutex_unlock(&adev->pm.mutex);
+		return ret;
+	}
+
+	if (!amdgpu_dpm) {
+		adev->pm.dpm_enabled = false;
 		mutex_unlock(&adev->pm.mutex);
 		return ret;
 	}
