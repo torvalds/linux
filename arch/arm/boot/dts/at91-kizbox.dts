@@ -1,16 +1,16 @@
 /*
  * at91-kizbox.dts - Device Tree file for Overkiz Kizbox board
  *
- * Copyright (C) 2012 Boris BREZILLON <linux-arm@overkiz.com>
+ * Copyright (C) 2012-2014 Boris BREZILLON <b.brezillon@overkiz.com>
+ *               2014-2015 Gaël PORTAY <g.portay@overkiz.com>
  *
- * Licensed under GPLv2.
+ * Licensed under GPLv2 or later.
  */
 /dts-v1/;
 #include "at91sam9g20.dtsi"
 
 / {
-
-	model = "Overkiz kizbox";
+	model = "Overkiz Kizbox";
 	compatible = "overkiz,kizbox", "atmel,at91sam9g20", "atmel,at91sam9";
 
 	chosen {
@@ -38,10 +38,6 @@
 
 	ahb {
 		apb {
-			dbgu: serial@fffff200 {
-				status = "okay";
-			};
-
 			usart0: serial@fffb0000 {
 				status = "okay";
 			};
@@ -57,12 +53,21 @@
 				status = "okay";
 			};
 
+			dbgu: serial@fffff200 {
+				status = "okay";
+			};
+
 			watchdog@fffffd40 {
 				timeout-sec = <15>;
 				atmel,max-heartbeat-sec = <16>;
 				atmel,min-heartbeat-sec = <0>;
 				status = "okay";
 			};
+		};
+
+		usb0: ohci@00500000 {
+			num-ports = <1>;
+			status = "okay";
 		};
 
 		nand0: nand@40000000 {
@@ -79,24 +84,36 @@
 				label = "ubi";
 				reg = <0xc0000 0x7f40000>;
 			};
+		};
+	};
 
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		reset {
+			label = "reset";
+			gpios = <&pioB 30 GPIO_ACTIVE_LOW>;
+			linux,code = <0x100>;
+			gpio-key,wakeup;
 		};
 
-		usb0: ohci@00500000 {
-			num-ports = <1>;
-			status = "okay";
+		mode {
+			label = "mode";
+			gpios = <&pioB 31 GPIO_ACTIVE_LOW>;
+			linux,code = <0x101>;
+			gpio-key,wakeup;
 		};
 	};
 
 	i2c@0 {
 		status = "okay";
 
-		pcf8563@51 {
-			/* nxp pcf8563 rtc */
+		rtc: pcf8563@51 {
 			compatible = "nxp,pcf8563";
 			reg = <0x51>;
 		};
-
 	};
 
 	leds {
@@ -125,26 +142,6 @@
 			label = "led2:red";
 			gpios = <&pioB 3 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "none";
-		};
-	};
-
-	gpio_keys {
-		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		reset {
-			label = "reset";
-			gpios = <&pioB 30 GPIO_ACTIVE_LOW>;
-			linux,code = <0x100>;
-			gpio-key,wakeup;
-		};
-
-		mode {
-			label = "mode";
-			gpios = <&pioB 31 GPIO_ACTIVE_LOW>;
-			linux,code = <0x101>;
-			gpio-key,wakeup;
 		};
 	};
 };
