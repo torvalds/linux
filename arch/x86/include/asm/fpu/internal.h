@@ -341,14 +341,6 @@ static inline void fpregs_deactivate(struct fpu *fpu)
 	__fpregs_deactivate_hw();
 }
 
-static inline void restore_init_xstate(void)
-{
-	if (use_xsave())
-		xrstor_state(&init_fpstate.xsave, -1);
-	else
-		fxrstor_checking(&init_fpstate.fxsave);
-}
-
 /*
  * Definitions for the eXtended Control Register instructions
  */

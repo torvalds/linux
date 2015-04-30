@@ -392,6 +392,18 @@ void fpu__drop(struct fpu *fpu)
 }
 
 /*
+ * Clear FPU registers by setting them up from
+ * the init fpstate:
+ */
+static inline void copy_init_fpstate_to_fpregs(void)
+{
+	if (use_xsave())
+		xrstor_state(&init_fpstate.xsave, -1);
+	else
+		fxrstor_checking(&init_fpstate.fxsave);
+}
+
+/*
  * Clear the FPU state back to init state.
  *
  * Called by sys_execve(), by the signal handler code and by various
@@ -409,7 +421,7 @@ void fpu__clear(struct fpu *fpu)
 			fpu__activate_curr(fpu);
 			user_fpu_begin();
 		}
-		restore_init_xstate();
+		copy_init_fpstate_to_fpregs();
 	}
 }
 
