@@ -28,7 +28,18 @@ extern void fpu__init_cpu_xstate(void);
 extern void fpu__init_system(struct cpuinfo_x86 *c);
 
 extern void fpu__activate_curr(struct fpu *fpu);
+
 extern void fpstate_init(struct fpu *fpu);
+#ifdef CONFIG_MATH_EMULATION
+extern void fpstate_init_soft(struct i387_soft_struct *soft);
+#else
+static inline void fpstate_init_soft(struct i387_soft_struct *soft) {}
+#endif
+static inline void fpstate_init_fxstate(struct i387_fxsave_struct *fx)
+{
+	fx->cwd = 0x37f;
+	fx->mxcsr = MXCSR_DEFAULT;
+}
 
 extern int  dump_fpu(struct pt_regs *, struct user_i387_struct *);
 extern int  fpu__exception_code(struct fpu *fpu, int trap_nr);
@@ -47,12 +58,6 @@ extern void fpu__init_check_bugs(void);
 extern void fpu__resume_cpu(void);
 
 DECLARE_PER_CPU(struct fpu *, fpu_fpregs_owner_ctx);
-
-#ifdef CONFIG_MATH_EMULATION
-extern void finit_soft_fpu(struct i387_soft_struct *soft);
-#else
-static inline void finit_soft_fpu(struct i387_soft_struct *soft) {}
-#endif
 
 /*
  * Must be run with preemption disabled: this clears the fpu_fpregs_owner_ctx,
@@ -91,12 +96,6 @@ static __always_inline __pure bool use_xsave(void)
 static __always_inline __pure bool use_fxsr(void)
 {
 	return static_cpu_has_safe(X86_FEATURE_FXSR);
-}
-
-static inline void fx_finit(struct i387_fxsave_struct *fx)
-{
-	fx->cwd = 0x37f;
-	fx->mxcsr = MXCSR_DEFAULT;
 }
 
 extern void fpstate_sanitize_xstate(struct fpu *fpu);

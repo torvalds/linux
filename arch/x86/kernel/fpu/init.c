@@ -121,7 +121,7 @@ static void fpu__init_system_generic(void)
 	 * Set up the legacy init FPU context. (xstate init might overwrite this
 	 * with a more modern format, if the CPU supports it.)
 	 */
-	fx_finit(&init_xstate_ctx.i387);
+	fpstate_init_fxstate(&init_xstate_ctx.i387);
 
 	fpu__init_system_mxcsr();
 }

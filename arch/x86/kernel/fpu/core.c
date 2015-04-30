@@ -191,24 +191,30 @@ void fpu__save(struct fpu *fpu)
 }
 EXPORT_SYMBOL_GPL(fpu__save);
 
+/*
+ * Legacy x87 fpstate state init:
+ */
+static inline void fpstate_init_fstate(struct i387_fsave_struct *fp)
+{
+	fp->cwd = 0xffff037fu;
+	fp->swd = 0xffff0000u;
+	fp->twd = 0xffffffffu;
+	fp->fos = 0xffff0000u;
+}
+
 void fpstate_init(struct fpu *fpu)
 {
 	if (!cpu_has_fpu) {
-		finit_soft_fpu(&fpu->state.soft);
+		fpstate_init_soft(&fpu->state.soft);
 		return;
 	}
 
 	memset(&fpu->state, 0, xstate_size);
 
-	if (cpu_has_fxsr) {
-		fx_finit(&fpu->state.fxsave);
-	} else {
-		struct i387_fsave_struct *fp = &fpu->state.fsave;
-		fp->cwd = 0xffff037fu;
-		fp->swd = 0xffff0000u;
-		fp->twd = 0xffffffffu;
-		fp->fos = 0xffff0000u;
-	}
+	if (cpu_has_fxsr)
+		fpstate_init_fxstate(&fpu->state.fxsave);
+	else
+		fpstate_init_fstate(&fpu->state.fsave);
 }
 EXPORT_SYMBOL_GPL(fpstate_init);
 
