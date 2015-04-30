@@ -29,8 +29,6 @@ extern void fpu__init_system_xstate(void);
 extern void fpu__init_cpu_xstate(void);
 extern void fpu__init_system(struct cpuinfo_x86 *c);
 
-extern void fpu__activate_curr(struct fpu *fpu);
-
 extern void fpstate_init(union thread_xstate *state);
 #ifdef CONFIG_MATH_EMULATION
 extern void fpstate_init_soft(struct i387_soft_struct *soft);
@@ -49,6 +47,8 @@ extern int  fpu__exception_code(struct fpu *fpu, int trap_nr);
 /*
  * High level FPU state handling functions:
  */
+extern void fpu__activate_curr(struct fpu *fpu);
+extern void fpu__activate_stopped(struct fpu *fpu);
 extern void fpu__save(struct fpu *fpu);
 extern void fpu__restore(void);
 extern int  fpu__restore_sig(void __user *buf, int ia32_frame);
