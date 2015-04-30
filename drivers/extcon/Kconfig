@@ -28,6 +28,13 @@ config EXTCON_ARIZONA
 	  with Wolfson Arizona devices. These are audio CODECs with
 	  advanced audio accessory detection support.
 
+config EXTCON_AXP288
+	tristate "X-Power AXP288 EXTCON support"
+	depends on MFD_AXP20X && USB_PHY
+	help
+	  Say Y here to enable support for USB peripheral detection
+	  and USB MUX switching by X-Power AXP288 PMIC.
+
 config EXTCON_GPIO
 	tristate "GPIO extcon support"
 	depends on GPIOLIB
