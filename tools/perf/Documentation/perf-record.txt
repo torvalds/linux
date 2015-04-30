@@ -259,6 +259,13 @@ records. See clock_gettime(). In particular CLOCK_MONOTONIC and
 CLOCK_MONOTONIC_RAW are supported, some events might also allow
 CLOCK_BOOTTIME, CLOCK_REALTIME and CLOCK_TAI.
 
+-S::
+--snapshot::
+Select AUX area tracing Snapshot Mode. This option is valid only with an
+AUX area tracing event. Optionally the number of bytes to capture per
+snapshot can be specified. In Snapshot Mode, trace data is captured only when
+signal SIGUSR2 is received.
+
 SEE ALSO
 --------
 linkperf:perf-stat[1], linkperf:perf-list[1]

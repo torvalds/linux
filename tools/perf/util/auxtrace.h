@@ -564,6 +564,17 @@ int itrace_parse_synth_opts(const struct option *opt __maybe_unused,
 }
 
 static inline
+int auxtrace_parse_snapshot_options(struct auxtrace_record *itr __maybe_unused,
+				    struct record_opts *opts __maybe_unused,
+				    const char *str)
+{
+	if (!str)
+		return 0;
+	pr_err("AUX area tracing not supported\n");
+	return -EINVAL;
+}
+
+static inline
 int auxtrace__process_event(struct perf_session *session __maybe_unused,
 			    union perf_event *event __maybe_unused,
 			    struct perf_sample *sample __maybe_unused,
