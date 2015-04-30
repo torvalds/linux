@@ -39,13 +39,6 @@ static unsigned int empress_nr[] = {[0 ... (SAA7134_MAXBOARDS - 1)] = UNSET };
 module_param_array(empress_nr, int, NULL, 0444);
 MODULE_PARM_DESC(empress_nr,"ts device number");
 
-static unsigned int debug;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug,"enable debug messages");
-
-#define dprintk(fmt, arg...)	if (debug)			\
-	printk(KERN_DEBUG "%s/empress: " fmt, dev->name , ## arg)
-
 /* ------------------------------------------------------------------ */
 
 static int start_streaming(struct vb2_queue *vq, unsigned int count)
@@ -229,9 +222,9 @@ static void empress_signal_update(struct work_struct *work)
 		container_of(work, struct saa7134_dev, empress_workqueue);
 
 	if (dev->nosignal) {
-		dprintk("no video signal\n");
+		pr_debug("no video signal\n");
 	} else {
-		dprintk("video signal acquired\n");
+		pr_debug("video signal acquired\n");
 	}
 }
 
@@ -263,7 +256,7 @@ static int empress_init(struct saa7134_dev *dev)
 	struct vb2_queue *q;
 	int err;
 
-	dprintk("%s: %s\n",dev->name,__func__);
+	pr_debug("%s: %s\n",dev->name,__func__);
 	dev->empress_dev = video_device_alloc();
 	if (NULL == dev->empress_dev)
 		return -ENOMEM;
@@ -325,7 +318,7 @@ static int empress_init(struct saa7134_dev *dev)
 
 static int empress_fini(struct saa7134_dev *dev)
 {
-	dprintk("%s: %s\n",dev->name,__func__);
+	pr_debug("%s: %s\n",dev->name,__func__);
 
 	if (NULL == dev->empress_dev)
 		return 0;
