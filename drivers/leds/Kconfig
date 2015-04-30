@@ -42,6 +42,14 @@ config LEDS_88PM860X
 	  This option enables support for on-chip LED drivers found on Marvell
 	  Semiconductor 88PM8606 PMIC.
 
+config LEDS_AAT1290
+	tristate "LED support for the AAT1290"
+	depends on LEDS_CLASS_FLASH
+	depends on GPIOLIB
+	depends on OF
+	help
+	 This option enables support for the LEDs on the AAT1290.
+
 config LEDS_LM3530
 	tristate "LCD Backlight driver for LM3530"
 	depends on LEDS_CLASS
