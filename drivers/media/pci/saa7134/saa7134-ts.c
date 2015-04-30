@@ -35,8 +35,8 @@ static unsigned int ts_debug;
 module_param(ts_debug, int, 0644);
 MODULE_PARM_DESC(ts_debug,"enable debug messages [ts]");
 
-#define dprintk(fmt, arg...)	if (ts_debug) \
-	printk(KERN_DEBUG "%s/ts: " fmt, dev->name , ## arg)
+#define ts_dbg(fmt, arg...)	if (ts_debug) \
+	printk(KERN_DEBUG pr_fmt("ts: " fmt), ## arg)
 
 /* ------------------------------------------------------------------ */
 static int buffer_activate(struct saa7134_dev *dev,
@@ -44,7 +44,7 @@ static int buffer_activate(struct saa7134_dev *dev,
 			   struct saa7134_buf *next)
 {
 
-	dprintk("buffer_activate [%p]",buf);
+	ts_dbg("buffer_activate [%p]",buf);
 	buf->top_seen = 0;
 
 	if (!dev->ts_started)
@@ -53,12 +53,12 @@ static int buffer_activate(struct saa7134_dev *dev,
 	if (NULL == next)
 		next = buf;
 	if (V4L2_FIELD_TOP == dev->ts_field) {
-		dprintk("- [top]     buf=%p next=%p\n",buf,next);
+		ts_dbg("- [top]     buf=%p next=%p\n",buf,next);
 		saa_writel(SAA7134_RS_BA1(5),saa7134_buffer_base(buf));
 		saa_writel(SAA7134_RS_BA2(5),saa7134_buffer_base(next));
 		dev->ts_field = V4L2_FIELD_BOTTOM;
 	} else {
-		dprintk("- [bottom]  buf=%p next=%p\n",buf,next);
+		ts_dbg("- [bottom]  buf=%p next=%p\n",buf,next);
 		saa_writel(SAA7134_RS_BA1(5),saa7134_buffer_base(next));
 		saa_writel(SAA7134_RS_BA2(5),saa7134_buffer_base(buf));
 		dev->ts_field = V4L2_FIELD_TOP;
@@ -95,7 +95,7 @@ int saa7134_ts_buffer_prepare(struct vb2_buffer *vb2)
 	struct sg_table *dma = vb2_dma_sg_plane_desc(vb2, 0);
 	unsigned int lines, llength, size;
 
-	dprintk("buffer_prepare [%p]\n", buf);
+	ts_dbg("buffer_prepare [%p]\n", buf);
 
 	llength = TS_PACKET_SIZE;
 	lines = dev->ts.nr_packets;
@@ -239,7 +239,7 @@ int saa7134_ts_init1(struct saa7134_dev *dev)
 /* Function for stop TS */
 int saa7134_ts_stop(struct saa7134_dev *dev)
 {
-	dprintk("TS stop\n");
+	ts_dbg("TS stop\n");
 
 	if (!dev->ts_started)
 		return 0;
@@ -261,7 +261,7 @@ int saa7134_ts_stop(struct saa7134_dev *dev)
 /* Function for start TS */
 int saa7134_ts_start(struct saa7134_dev *dev)
 {
-	dprintk("TS start\n");
+	ts_dbg("TS start\n");
 
 	if (WARN_ON(dev->ts_started))
 		return 0;
