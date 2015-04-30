@@ -360,18 +360,18 @@ saa7134_i2c_eeprom(struct saa7134_dev *dev, unsigned char *eedata, int len)
 	dev->i2c_client.addr = 0xa0 >> 1;
 	buf = 0;
 	if (1 != (err = i2c_master_send(&dev->i2c_client,&buf,1))) {
-		printk(KERN_INFO "%s: Huh, no eeprom present (err=%d)?\n",
+		pr_info("%s: Huh, no eeprom present (err=%d)?\n",
 		       dev->name,err);
 		return -1;
 	}
 	if (len != (err = i2c_master_recv(&dev->i2c_client,eedata,len))) {
-		printk(KERN_WARNING "%s: i2c eeprom read error (err=%d)\n",
+		pr_warn("%s: i2c eeprom read error (err=%d)\n",
 		       dev->name,err);
 		return -1;
 	}
 	for (i = 0; i < len; i++) {
 		if (0 == (i % 16))
-			printk(KERN_INFO "%s: i2c eeprom %02x:",dev->name,i);
+			pr_info("%s: i2c eeprom %02x:",dev->name,i);
 		printk(" %02x",eedata[i]);
 		if (15 == (i % 16))
 			printk("\n");

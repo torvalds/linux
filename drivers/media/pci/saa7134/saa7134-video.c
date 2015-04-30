@@ -1229,7 +1229,7 @@ static int saa7134_g_fmt_vid_overlay(struct file *file, void *priv,
 	int i;
 
 	if (saa7134_no_overlay > 0) {
-		printk(KERN_ERR "V4L2_BUF_TYPE_VIDEO_OVERLAY: no_overlay\n");
+		pr_err("V4L2_BUF_TYPE_VIDEO_OVERLAY: no_overlay\n");
 		return -EINVAL;
 	}
 	f->fmt.win = dev->win;
@@ -1305,7 +1305,7 @@ static int saa7134_try_fmt_vid_overlay(struct file *file, void *priv,
 	struct saa7134_dev *dev = video_drvdata(file);
 
 	if (saa7134_no_overlay > 0) {
-		printk(KERN_ERR "V4L2_BUF_TYPE_VIDEO_OVERLAY: no_overlay\n");
+		pr_err("V4L2_BUF_TYPE_VIDEO_OVERLAY: no_overlay\n");
 		return -EINVAL;
 	}
 
@@ -1339,7 +1339,7 @@ static int saa7134_s_fmt_vid_overlay(struct file *file, void *priv,
 	unsigned long flags;
 
 	if (saa7134_no_overlay > 0) {
-		printk(KERN_ERR "V4L2_BUF_TYPE_VIDEO_OVERLAY: no_overlay\n");
+		pr_err("V4L2_BUF_TYPE_VIDEO_OVERLAY: no_overlay\n");
 		return -EINVAL;
 	}
 	if (f->fmt.win.clips == NULL)
@@ -1738,7 +1738,7 @@ static int saa7134_enum_fmt_vid_overlay(struct file *file, void  *priv,
 					struct v4l2_fmtdesc *f)
 {
 	if (saa7134_no_overlay > 0) {
-		printk(KERN_ERR "V4L2_BUF_TYPE_VIDEO_OVERLAY: no_overlay\n");
+		pr_err("V4L2_BUF_TYPE_VIDEO_OVERLAY: no_overlay\n");
 		return -EINVAL;
 	}
 

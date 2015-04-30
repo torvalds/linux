@@ -673,7 +673,7 @@ static inline int saa_dsp_wait_bit(struct saa7134_dev *dev, int bit)
 
 	state = saa_readb(SAA7135_DSP_RWSTATE);
 	if (unlikely(state & SAA7135_DSP_RWSTATE_ERR)) {
-		printk(KERN_WARNING "%s: dsp access error\n", dev->name);
+		pr_warn("%s: dsp access error\n", dev->name);
 		saa_dsp_reset_error_bit(dev);
 		return -EIO;
 	}
@@ -1031,7 +1031,7 @@ int saa7134_tvaudio_init2(struct saa7134_dev *dev)
 		/* start tvaudio thread */
 		dev->thread.thread = kthread_run(my_thread, dev, "%s", dev->name);
 		if (IS_ERR(dev->thread.thread)) {
-			printk(KERN_WARNING "%s: kernel_thread() failed\n",
+			pr_warn("%s: kernel_thread() failed\n",
 			       dev->name);
 			/* XXX: missing error handling here */
 		}

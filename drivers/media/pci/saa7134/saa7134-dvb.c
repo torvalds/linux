@@ -87,7 +87,7 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 /* Print a warning */
 #define wprintk(fmt, arg...) \
-	printk(KERN_WARNING "%s/dvb: " fmt, dev->name, ## arg)
+	pr_warn("%s/dvb: " fmt, dev->name, ## arg)
 
 /* ------------------------------------------------------------------
  * mt352 based DVB-T cards
@@ -1223,10 +1223,10 @@ static int dvb_init(struct saa7134_dev *dev)
 	mutex_init(&dev->frontends.lock);
 	INIT_LIST_HEAD(&dev->frontends.felist);
 
-	printk(KERN_INFO "%s() allocating 1 frontend\n", __func__);
+	pr_info("%s() allocating 1 frontend\n", __func__);
 	fe0 = vb2_dvb_alloc_frontend(&dev->frontends, 1);
 	if (!fe0) {
-		printk(KERN_ERR "%s() failed to alloc\n", __func__);
+		pr_err("%s() failed to alloc\n", __func__);
 		return -ENOMEM;
 	}
 
@@ -1872,14 +1872,14 @@ static int dvb_init(struct saa7134_dev *dev)
 
 		fe = dvb_attach(xc2028_attach, fe0->dvb.frontend, &cfg);
 		if (!fe) {
-			printk(KERN_ERR "%s/2: xc3028 attach failed\n",
+			pr_err("%s/2: xc3028 attach failed\n",
 			       dev->name);
 			goto detach_frontend;
 		}
 	}
 
 	if (NULL == fe0->dvb.frontend) {
-		printk(KERN_ERR "%s/dvb: frontend initialization failed\n", dev->name);
+		pr_err("%s/dvb: frontend initialization failed\n", dev->name);
 		goto detach_frontend;
 	}
 	/* define general-purpose callback pointer */
