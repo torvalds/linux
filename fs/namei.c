@@ -2128,16 +2128,6 @@ int vfs_path_lookup(struct dentry *dentry, struct vfsmount *mnt,
 }
 EXPORT_SYMBOL(vfs_path_lookup);
 
-/*
- * Restricted form of lookup. Doesn't follow links, single-component only,
- * needs parent already locked. Doesn't follow mounts.
- * SMP-safe.
- */
-static struct dentry *lookup_hash(struct nameidata *nd)
-{
-	return __lookup_hash(&nd->last, nd->path.dentry, nd->flags);
-}
-
 /**
  * lookup_one_len - filesystem helper to lookup single pathname component
  * @name:	pathname component to lookup
@@ -3351,7 +3341,7 @@ static struct dentry *filename_create(int dfd, struct filename *name,
 	 * Do the final lookup.
 	 */
 	mutex_lock_nested(&nd.path.dentry->d_inode->i_mutex, I_MUTEX_PARENT);
-	dentry = lookup_hash(&nd);
+	dentry = __lookup_hash(&nd.last, nd.path.dentry, nd.flags);
 	if (IS_ERR(dentry))
 		goto unlock;
 
@@ -3665,7 +3655,7 @@ retry:
 		goto exit1;
 
 	mutex_lock_nested(&nd.path.dentry->d_inode->i_mutex, I_MUTEX_PARENT);
-	dentry = lookup_hash(&nd);
+	dentry = __lookup_hash(&nd.last, nd.path.dentry, nd.flags);
 	error = PTR_ERR(dentry);
 	if (IS_ERR(dentry))
 		goto exit2;
@@ -3785,7 +3775,7 @@ retry:
 		goto exit1;
 retry_deleg:
 	mutex_lock_nested(&nd.path.dentry->d_inode->i_mutex, I_MUTEX_PARENT);
-	dentry = lookup_hash(&nd);
+	dentry = __lookup_hash(&nd.last, nd.path.dentry, nd.flags);
 	error = PTR_ERR(dentry);
 	if (!IS_ERR(dentry)) {
 		/* Why not before? Because we want correct error value */
@@ -4304,7 +4294,7 @@ retry:
 retry_deleg:
 	trap = lock_rename(new_dir, old_dir);
 
-	old_dentry = lookup_hash(&oldnd);
+	old_dentry = __lookup_hash(&oldnd.last, oldnd.path.dentry, oldnd.flags);
 	error = PTR_ERR(old_dentry);
 	if (IS_ERR(old_dentry))
 		goto exit3;
@@ -4312,7 +4302,7 @@ retry_deleg:
 	error = -ENOENT;
 	if (d_is_negative(old_dentry))
 		goto exit4;
-	new_dentry = lookup_hash(&newnd);
+	new_dentry = __lookup_hash(&newnd.last, newnd.path.dentry, newnd.flags);
 	error = PTR_ERR(new_dentry);
 	if (IS_ERR(new_dentry))
 		goto exit4;
