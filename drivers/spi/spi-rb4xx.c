@@ -145,7 +145,7 @@ static int rb4xx_spi_probe(struct platform_device *pdev)
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	spi_base = devm_ioremap_resource(&pdev->dev, r);
-	if (!spi_base)
+	if (IS_ERR(spi_base))
 		return PTR_ERR(spi_base);
 
 	master = spi_alloc_master(&pdev->dev, sizeof(*rbspi));
