@@ -166,13 +166,15 @@ int ieee802154_register_hw(struct ieee802154_hw *hw)
 	if (IS_ERR(dev)) {
 		rtnl_unlock();
 		rc = PTR_ERR(dev);
-		goto out_wq;
+		goto out_phy;
 	}
 
 	rtnl_unlock();
 
 	return 0;
 
+out_phy:
+	wpan_phy_unregister(local->phy);
 out_wq:
 	destroy_workqueue(local->workqueue);
 out:
