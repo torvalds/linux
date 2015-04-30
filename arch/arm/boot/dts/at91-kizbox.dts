@@ -38,18 +38,14 @@
 
 	ahb {
 		apb {
-			usart0: serial@fffb0000 {
-				status = "okay";
-			};
-
-			usart1: serial@fffb4000 {
-				status = "okay";
-			};
-
 			macb0: ethernet@fffc4000 {
 				phy-mode = "mii";
 				pinctrl-0 = <&pinctrl_macb_rmii
 				             &pinctrl_macb_rmii_mii_alt>;
+				status = "okay";
+			};
+
+			usart3: serial@fffd0000 {
 				status = "okay";
 			};
 
