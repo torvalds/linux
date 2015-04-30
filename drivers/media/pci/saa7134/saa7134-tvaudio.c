@@ -674,12 +674,11 @@ static inline int saa_dsp_wait_bit(struct saa7134_dev *dev, int bit)
 	}
 	while (0 == (state & bit)) {
 		if (unlikely(0 == count)) {
-			printk("%s: dsp access wait timeout [bit=%s]\n",
-			       dev->name,
-			       (bit & SAA7135_DSP_RWSTATE_WRR) ? "WRR" :
-			       (bit & SAA7135_DSP_RWSTATE_RDB) ? "RDB" :
-			       (bit & SAA7135_DSP_RWSTATE_IDA) ? "IDA" :
-			       "???");
+			pr_err("dsp access wait timeout [bit=%s]\n",
+				 (bit & SAA7135_DSP_RWSTATE_WRR) ? "WRR" :
+				 (bit & SAA7135_DSP_RWSTATE_RDB) ? "RDB" :
+				 (bit & SAA7135_DSP_RWSTATE_IDA) ? "IDA" :
+				 "???");
 			return -EIO;
 		}
 		saa_wait(DSP_DELAY);

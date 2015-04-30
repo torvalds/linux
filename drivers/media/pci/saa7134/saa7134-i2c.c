@@ -386,7 +386,7 @@ static char *i2c_devs[128] = {
 	[ 0x5a >> 1 ] = "remote control",
 };
 
-static void do_i2c_scan(char *name, struct i2c_client *c)
+static void do_i2c_scan(struct i2c_client *c)
 {
 	unsigned char buf;
 	int i,rc;
@@ -396,8 +396,8 @@ static void do_i2c_scan(char *name, struct i2c_client *c)
 		rc = i2c_master_recv(c,&buf,0);
 		if (rc < 0)
 			continue;
-		printk("%s: i2c scan: found device @ 0x%x  [%s]\n",
-		       name, i << 1, i2c_devs[i] ? i2c_devs[i] : "???");
+		pr_info("i2c scan: found device @ 0x%x  [%s]\n",
+			 i << 1, i2c_devs[i] ? i2c_devs[i] : "???");
 	}
 }
 
@@ -415,7 +415,7 @@ int saa7134_i2c_register(struct saa7134_dev *dev)
 
 	saa7134_i2c_eeprom(dev,dev->eedata,sizeof(dev->eedata));
 	if (i2c_scan)
-		do_i2c_scan(dev->name,&dev->i2c_client);
+		do_i2c_scan(&dev->i2c_client);
 
 	/* Instantiate the IR receiver device, if present */
 	saa7134_probe_i2c_ir(dev);

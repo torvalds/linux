@@ -831,8 +831,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		break;
 	}
 	if (NULL == ir_codes) {
-		printk("%s: Oops: IR config error [card=%d]\n",
-		       dev->name, dev->board);
+		pr_err("Oops: IR config error [card=%d]\n", dev->board);
 		return -ENODEV;
 	}
 
