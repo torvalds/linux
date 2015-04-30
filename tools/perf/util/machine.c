@@ -486,6 +486,14 @@ machine__module_dso(struct machine *machine, struct kmod_path *m,
 	return dso;
 }
 
+int machine__process_aux_event(struct machine *machine __maybe_unused,
+			       union perf_event *event)
+{
+	if (dump_trace)
+		perf_event__fprintf_aux(event, stdout);
+	return 0;
+}
+
 struct map *machine__new_module(struct machine *machine, u64 start,
 				const char *filename)
 {
@@ -1331,6 +1339,8 @@ int machine__process_event(struct machine *machine, union perf_event *event,
 		ret = machine__process_exit_event(machine, event, sample); break;
 	case PERF_RECORD_LOST:
 		ret = machine__process_lost_event(machine, event, sample); break;
+	case PERF_RECORD_AUX:
+		ret = machine__process_aux_event(machine, event); break;
 	default:
 		ret = -1;
 		break;

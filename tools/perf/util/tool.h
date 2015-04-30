@@ -43,6 +43,7 @@ struct perf_tool {
 			fork,
 			exit,
 			lost,
+			aux,
 			throttle,
 			unthrottle;
 	event_attr_op	attr;
