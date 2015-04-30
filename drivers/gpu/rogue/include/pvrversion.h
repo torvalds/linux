@@ -70,5 +70,5 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define PVRVERSION_UNPACK_MIN(VERSION) (((VERSION) >> 0) & 0xFFFF)
 
 //chenli:define rockchip version
-#define RKVERSION                   "Rogue L 0.14"
+#define RKVERSION                   "Rogue L 0.15"
 #endif /* _PVRVERSION_H_ */

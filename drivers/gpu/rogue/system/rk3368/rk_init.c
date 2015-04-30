@@ -19,6 +19,8 @@
 #include <linux/cpufreq.h>
 #include <linux/device.h>
 #include <linux/module.h>
+#include <linux/freezer.h>
+#include <linux/sched/rt.h>
 #include "power.h"
 #include "rk_init.h"
 
@@ -38,7 +40,7 @@ static IMG_UINT32 div_dvfs = 0 ;
 /*dvfs status*/
 static struct workqueue_struct *rgx_dvfs_wq = IMG_NULL;
 spinlock_t rgx_dvfs_spinlock;
-struct mutex rgx_set_clock_lock;
+//struct mutex rgx_set_clock_lock;
 struct mutex rgx_enable_clock_lock;
 static struct cpufreq_frequency_table *rgx_freq_table = NULL;
 #endif
@@ -161,11 +163,11 @@ static void rk33_dvfs_set_clock(int freq)
         printk("gpu_clk_node not init\n");
         return;
     }
-
+    //mutex_lock(&rgx_set_clock_lock);
     rk33_clk_set_normal_node(platform->aclk_gpu_mem, freq);
     rk33_clk_set_normal_node(platform->aclk_gpu_cfg, freq);
     rk33_clk_set_dvfs_node(platform->gpu_clk_node, freq);
-
+    //mutex_unlock(&rgx_set_clock_lock);
     return;
 }
 
@@ -211,16 +213,11 @@ static void rk33_dvfs_set_level(int level)
     if (mali_dvfs_status_current.under_lock >= 0 && level < mali_dvfs_status_current.under_lock)
         level = mali_dvfs_status_current.under_lock;
 #endif
-
-    mutex_lock(&rgx_set_clock_lock);
-
     rk33_dvfs_set_clock(rgx_dvfs_infotbl[level].clock);
 #if 0
     update_time_in_state(prev_level);
 #endif
     prev_level = level;
-
-    mutex_unlock(&rgx_set_clock_lock);
 }
 
 static int rk33_dvfs_get_enable_status(void)
@@ -238,7 +235,7 @@ static int rk33_dvfs_get_enable_status(void)
     return enable;
 }
 
-#if RK_RESERVED
+#if 0
 static int rk33_dvfs_enable(bool enable, int freq)
 {
     struct rk_context       *platform;
@@ -418,6 +415,7 @@ static void rk33_dvfs_event_proc(struct work_struct *w)
 #endif
 
     spin_unlock_irqrestore(&rgx_dvfs_spinlock, flags);
+
     rk33_dvfs_set_level(platform->freq_level);
 
     platform->time_busy = 0;
@@ -552,6 +550,7 @@ static void rk33_dvfs_event_proc(struct work_struct *w)
     }
 #endif
     spin_unlock_irqrestore(&rgx_dvfs_spinlock, flags);
+
     rk33_dvfs_set_level(platform->freq_level);
 
     platform->time_busy = 0;
@@ -661,7 +660,7 @@ err:
     return IMG_FALSE;
 }
 
-
+#if USE_HRTIMER
 static enum hrtimer_restart dvfs_callback(struct hrtimer *timer)
 {
     unsigned long           flags;
@@ -688,10 +687,13 @@ static enum hrtimer_restart dvfs_callback(struct hrtimer *timer)
     }
     else
 #endif
+    spin_lock_irqsave(&platform->timer_lock, flags);
+
+    if(platform->psDeviceNode)
     {
         psDevInfo = platform->psDeviceNode->pvDevice;
 
-        if(psDevInfo && psDevInfo->pfnGetGpuUtilStats && platform->bEnableClk)
+        if(psDevInfo && psDevInfo->pfnGetGpuUtilStats && platform->gpu_active)
         {
             //Measuring GPU Utilisation
             platform->sUtilStats = ((psDevInfo->pfnGetGpuUtilStats)(platform->psDeviceNode));
@@ -702,20 +704,60 @@ static enum hrtimer_restart dvfs_callback(struct hrtimer *timer)
             if(!psDevInfo || !psDevInfo->pfnGetGpuUtilStats)
                 PVR_DPF((PVR_DBG_ERROR,"%s:line=%d,devinfo is null\n",__func__,__LINE__));
         }
-
-        spin_lock_irqsave(&platform->timer_lock, flags);
-        if (platform->timer_active)
-            hrtimer_start(timer,
-                          HR_TIMER_DELAY_MSEC(RK33_DVFS_FREQ),
-                          HRTIMER_MODE_REL);
-        spin_unlock_irqrestore(&platform->timer_lock, flags);
     }
+
+    if (platform->timer_active)
+        hrtimer_start(timer,
+                      HR_TIMER_DELAY_MSEC(RK33_DVFS_FREQ),
+                      HRTIMER_MODE_REL);
+    spin_unlock_irqrestore(&platform->timer_lock, flags);
 
     return HRTIMER_NORESTART;
 }
+#elif USE_KTHREAD
+static int gpu_dvfs_task(void *data)
+{
+	static long sTimeout=msecs_to_jiffies(RK33_DVFS_FREQ);
+	long timeout = sTimeout;
+	unsigned long           flags;
+    struct rk_context *platform=data;
+    PVRSRV_RGXDEV_INFO  *psDevInfo;
+
+    PVR_ASSERT(platform != NULL);
+
+	set_freezable();
+
+	do {
+	        if(platform->psDeviceNode)
+	        {
+                psDevInfo = platform->psDeviceNode->pvDevice;
+                spin_lock_irqsave(&platform->timer_lock, flags);
+                if(psDevInfo && psDevInfo->pfnGetGpuUtilStats && platform->gpu_active)
+                {
+                    //Measuring GPU Utilisation
+                    platform->sUtilStats = ((psDevInfo->pfnGetGpuUtilStats)(platform->psDeviceNode));
+                    rk33_dvfs_event(&platform->sUtilStats);
+                }
+                else
+                {
+                    if(!psDevInfo || !psDevInfo->pfnGetGpuUtilStats)
+                        PVR_DPF((PVR_DBG_ERROR,"%s:line=%d,devinfo is null\n",__func__,__LINE__));
+                }
+                spin_unlock_irqrestore(&platform->timer_lock, flags);
+            }
+		wait_event_freezable_timeout(platform->dvfs_wait, kthread_should_stop(), timeout);
+	} while (!kthread_should_stop());
+
+	return 0;
+}
+#endif
+
 static IMG_VOID rk33_dvfs_utils_init(struct rk_context *platform)
 {
-    static bool timer_inited = false;
+#if USE_KTHREAD
+    int iRet=-1;
+    struct sched_param param = { .sched_priority = MAX_RT_PRIO - 1 };
+#endif
 #if RK33_USE_CUSTOMER_GET_GPU_UTIL
     IMG_INT i;
 #endif
@@ -741,7 +783,7 @@ static IMG_VOID rk33_dvfs_utils_init(struct rk_context *platform)
     platform->time_idle = 0;
     platform->temperature = 0;
     platform->temperature_time = 0;
-    platform->timer_active = IMG_TRUE;
+    platform->timer_active = IMG_FALSE;
     platform->dvfs_enabled = IMG_TRUE;
 
 #if RK33_USE_CL_COUNT_UTILS
@@ -760,13 +802,28 @@ static IMG_VOID rk33_dvfs_utils_init(struct rk_context *platform)
     //dvfs timer
     spin_lock_init(&platform->timer_lock);
 
-    if (!timer_inited)
+#if USE_HRTIMER
     {
         hrtimer_init(&platform->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-        timer_inited = true;
     }
     platform->timer.function = dvfs_callback;
+#endif
 
+#if USE_KTHREAD
+    platform->dvfs_task = kthread_create(gpu_dvfs_task, platform, "GpuDvfsD");
+	if (IS_ERR(platform->dvfs_task)) {
+		iRet = PTR_ERR(platform->dvfs_task);
+		PVR_DPF((PVR_DBG_ERROR, "failed to create kthread! error %d\n", iRet));
+        return;
+	}
+
+	sched_setscheduler_nocheck(platform->dvfs_task, SCHED_FIFO, &param);
+	get_task_struct(platform->dvfs_task);
+	kthread_bind(platform->dvfs_task, 0);
+
+    init_waitqueue_head(&platform->dvfs_wait);
+
+#endif
     //spin_unlock_irqrestore(&rgx_dvfs_spinlock, flags);
 }
 
@@ -776,11 +833,18 @@ static void rk33_dvfs_utils_term(struct rk_context *platform)
 
     PVR_ASSERT(platform != NULL);
 
-    spin_lock_irqsave(&platform->timer_lock, flags);
-    platform->timer_active = IMG_FALSE;
-    spin_unlock_irqrestore(&platform->timer_lock, flags);
 
-    hrtimer_cancel(&platform->timer);
+    if(platform->timer_active)
+    {
+        spin_lock_irqsave(&platform->timer_lock, flags);
+        platform->timer_active = IMG_FALSE;
+        spin_unlock_irqrestore(&platform->timer_lock, flags);
+#if USE_HRTIMER
+        hrtimer_cancel(&platform->timer);
+#elif USE_KTHREAD
+        kthread_stop(platform->dvfs_task);
+#endif
+    }
 }
 
 #if RK33_USE_CUSTOMER_GET_GPU_UTIL
@@ -821,17 +885,21 @@ static void rk33_dvfs_record_idle_utils(struct rk_context *platform)
 static void rk33_dvfs_record_gpu_idle(struct rk_context *platform)
 {
     unsigned long flags;
-
     PVR_ASSERT(platform != NULL);
+
+    if(!platform->gpu_active)
+        return;
 
     spin_lock_irqsave(&platform->timer_lock, flags);
 
     //PVR_ASSERT(platform->gpu_active == IMG_TRUE);
 
     platform->gpu_active = IMG_FALSE;
+
 #if RK33_USE_CUSTOMER_GET_GPU_UTIL
     rk33_dvfs_record_busy_utils(platform);
 #endif
+
     spin_unlock_irqrestore(&platform->timer_lock, flags);
 }
 
@@ -842,11 +910,15 @@ static void rk33_dvfs_record_gpu_active(struct rk_context *platform)
 
     PVR_ASSERT(platform != NULL);
 
+    if(platform->gpu_active)
+        return;
+
     spin_lock_irqsave(&platform->timer_lock, flags);
 
     //PVR_ASSERT(platform->gpu_active == IMG_FALSE);
 
     platform->gpu_active = IMG_TRUE;
+
 #if RK33_USE_CUSTOMER_GET_GPU_UTIL
     rk33_dvfs_record_idle_utils(platform);
 #endif
@@ -909,7 +981,7 @@ IMG_BOOL rk33_dvfs_init(IMG_VOID)
         rgx_dvfs_wq = create_singlethread_workqueue("rgx_dvfs");
 
     spin_lock_init(&rgx_dvfs_spinlock);
-    mutex_init(&rgx_set_clock_lock);
+   // mutex_init(&rgx_set_clock_lock);
     mutex_init(&rgx_enable_clock_lock);
 
     rk33_dvfs_utils_init(platform);
@@ -1333,8 +1405,11 @@ static ssize_t set_fps(struct device *dev, struct device_attribute *attr, const 
     {
         printk("off fps\n");
 
-        bOpen = IMG_FALSE;
-        hrtimer_cancel(&timer);
+        if(bOpen)
+        {
+            bOpen = IMG_FALSE;
+            hrtimer_cancel(&timer);
+        }
     }
     else
     {
@@ -1537,15 +1612,30 @@ static IMG_VOID rk_remove_sysfs_file(struct device *dev)
 IMG_BOOL rk33_set_device_node(IMG_HANDLE hDevCookie)
 {
     struct rk_context *platform;
+    unsigned long flags;
 
     platform = dev_get_drvdata(&gpsPVRLDMDev->dev);
 
     if(platform)
     {
         platform->psDeviceNode = (PVRSRV_DEVICE_NODE*)hDevCookie;
+
         //start timer
-        if(platform->psDeviceNode)
+#if USE_HRTIMER
+        if(platform->psDeviceNode && platform->timer.function && !platform->timer_active)
+#elif USE_KTHREAD
+        if(platform->psDeviceNode && !platform->timer_active)
+#endif
+        {
+            spin_lock_irqsave(&platform->timer_lock, flags);
+            platform->timer_active = IMG_TRUE;
+            spin_unlock_irqrestore(&platform->timer_lock, flags);
+#if USE_HRTIMER
             hrtimer_start(&platform->timer, HR_TIMER_DELAY_MSEC(RK33_DVFS_FREQ), HRTIMER_MODE_REL);
+#elif USE_KTHREAD
+            wake_up_process(platform->dvfs_task);
+#endif
+         }
     }
     else
     {
@@ -1560,13 +1650,22 @@ IMG_BOOL rk33_set_device_node(IMG_HANDLE hDevCookie)
 IMG_BOOL rk33_clear_device_node(IMG_VOID)
 {
     struct rk_context *platform;
+    unsigned long flags;
 
     platform = dev_get_drvdata(&gpsPVRLDMDev->dev);
 
     if(platform)
     {
         //cacel timer
-        hrtimer_cancel(&platform->timer);
+        if(platform->timer_active)
+        {
+            spin_lock_irqsave(&platform->timer_lock, flags);
+            platform->timer_active = IMG_FALSE;
+            spin_unlock_irqrestore(&platform->timer_lock, flags);
+#if USE_HRTIMER
+            hrtimer_cancel(&platform->timer);
+#endif
+        }
         platform->psDeviceNode = NULL;
     }
     else
@@ -1584,22 +1683,30 @@ IMG_BOOL rk33_clear_device_node(IMG_VOID)
 static IMG_VOID RgxEnableClock(IMG_VOID)
 {
     struct rk_context *platform;
+    unsigned long flags;
 
     platform = dev_get_drvdata(&gpsPVRLDMDev->dev);
 
     if (
         platform->gpu_clk_node &&
-        platform->aclk_gpu_mem && platform->aclk_gpu_cfg && !platform->bEnableClk)
+        platform->aclk_gpu_mem && platform->aclk_gpu_cfg && !platform->gpu_active)
     {
         dvfs_clk_prepare_enable(platform->gpu_clk_node);
         clk_prepare_enable(platform->aclk_gpu_mem);
         clk_prepare_enable(platform->aclk_gpu_cfg);
-        platform->bEnableClk = IMG_TRUE;
 
 #if RK33_DVFS_SUPPORT
-        if(platform->psDeviceNode)
-            hrtimer_start(&platform->timer, HR_TIMER_DELAY_MSEC(RK33_DVFS_FREQ), HRTIMER_MODE_REL);
         rk33_dvfs_record_gpu_active(platform);
+
+        if(platform->psDeviceNode && !platform->timer_active)
+        {
+            spin_lock_irqsave(&platform->timer_lock, flags);
+            platform->timer_active = IMG_TRUE;
+            spin_unlock_irqrestore(&platform->timer_lock, flags);
+#if USE_HRTIMER
+            hrtimer_start(&platform->timer, HR_TIMER_DELAY_MSEC(RK33_DVFS_FREQ), HRTIMER_MODE_REL);
+#endif
+        }
 #endif
     }
     else
@@ -1611,25 +1718,32 @@ static IMG_VOID RgxEnableClock(IMG_VOID)
 static IMG_VOID RgxDisableClock(IMG_VOID)
 {
     struct rk_context *platform;
+    unsigned long flags;
 
     platform = dev_get_drvdata(&gpsPVRLDMDev->dev);
 
     if (
         platform->gpu_clk_node &&
-        platform->aclk_gpu_mem && platform->aclk_gpu_cfg && platform->bEnableClk)
+        platform->aclk_gpu_mem && platform->aclk_gpu_cfg && platform->gpu_active)
     {
 #if RK33_DVFS_SUPPORT
         //Force to drop freq to the lowest.
         rk33_dvfs_set_level(0);
-        hrtimer_cancel(&platform->timer);
+
+        if(platform->timer_active)
+        {
+            spin_lock_irqsave(&platform->timer_lock, flags);
+            platform->timer_active = IMG_FALSE;
+            spin_unlock_irqrestore(&platform->timer_lock, flags);
+#if USE_HRTIMER
+            hrtimer_cancel(&platform->timer);
+#endif
+        }
+        rk33_dvfs_record_gpu_idle(platform);
 #endif
         clk_disable_unprepare(platform->aclk_gpu_cfg);
         clk_disable_unprepare(platform->aclk_gpu_mem);
         dvfs_clk_disable_unprepare(platform->gpu_clk_node);
-        platform->bEnableClk = IMG_FALSE;
-#if RK33_DVFS_SUPPORT
-        rk33_dvfs_record_gpu_idle(platform);
-#endif
     }
     else
     {
@@ -1726,6 +1840,7 @@ IMG_VOID RgxSuspend(IMG_VOID)
 #if OPEN_GPU_PD
     RgxDisablePower();
 #endif
+
 }
 
 PVRSRV_ERROR RkPrePowerState(PVRSRV_DEV_POWER_STATE eNewPowerState, PVRSRV_DEV_POWER_STATE eCurrentPowerState, IMG_BOOL bForced)
@@ -1760,7 +1875,6 @@ IMG_VOID RgxRkInit(IMG_VOID)
 
     dev_set_drvdata(&gpsPVRLDMDev->dev, platform);
 
-    platform->bEnableClk = IMG_FALSE;
 #if OPEN_GPU_PD
     platform->bEnablePd = IMG_FALSE;
 #endif

@@ -2,6 +2,7 @@
 #define __RK_INIT__
 
 #include <linux/hrtimer.h>
+#include <linux/kthread.h>
 #include "rgxdevice.h"
 #include "device.h"
 
@@ -10,10 +11,17 @@
 *****************************************************************************/
 #define RK33_DVFS_SUPPORT                   1   // 1:DVFS on   0:DVFS off
 #define RK33_SYSFS_FILE_SUPPORT             1   // 1:add information nodes in /sys/devices/ffa30000.gpu/
+
+//RK33_USE_RGX_GET_GPU_UTIL and RK33_USE_CUSTOMER_GET_GPU_UTIL are mutually exclusive
 #define RK33_USE_RGX_GET_GPU_UTIL           1
 #define RK33_USE_CUSTOMER_GET_GPU_UTIL      0
+
 #define RK33_USE_CL_COUNT_UTILS             0
 #define OPEN_GPU_PD                         1
+
+//USE_KTHREAD and USE_HRTIMER are mutually exclusive
+#define USE_KTHREAD                         0
+#define USE_HRTIMER                         1
 
 #define RK33_MAX_UTILIS                 4
 #define RK33_DVFS_FREQ                  50
@@ -85,8 +93,6 @@ struct rk_context
     /** cmd & pmu lock */
     spinlock_t              cmu_pmu_lock;
 
-    /*clock*/
-    IMG_BOOL                bEnableClk;
 #if OPEN_GPU_PD
     IMG_BOOL                bEnablePd;
     struct clk              *pd_gpu_0;
@@ -112,8 +118,16 @@ struct rk_context
 
     /*Timer*/
     spinlock_t              timer_lock;
+#if USE_HRTIMER
     struct hrtimer          timer;
+#endif
     IMG_BOOL                timer_active;
+
+#if USE_KTHREAD
+    /*dvfs kthread*/
+    struct task_struct      *dvfs_task;
+    wait_queue_head_t       dvfs_wait;
+#endif
 
     /*To calculate utilization for x sec */
     IMG_INT         freq_level;
