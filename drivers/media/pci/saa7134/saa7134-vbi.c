@@ -38,8 +38,8 @@ static unsigned int vbibufs = 4;
 module_param(vbibufs, int, 0444);
 MODULE_PARM_DESC(vbibufs,"number of vbi buffers, range 2-32");
 
-#define dprintk(fmt, arg...)	if (vbi_debug) \
-	printk(KERN_DEBUG "%s/vbi: " fmt, dev->name , ## arg)
+#define vbi_dbg(fmt, arg...)	if (vbi_debug) \
+	printk(KERN_DEBUG pr_fmt("vbi: " fmt), ## arg)
 
 /* ------------------------------------------------------------------ */
 
@@ -84,7 +84,7 @@ static int buffer_activate(struct saa7134_dev *dev,
 	struct saa7134_dmaqueue *dmaq = buf->vb2.vb2_queue->drv_priv;
 	unsigned long control, base;
 
-	dprintk("buffer_activate [%p]\n", buf);
+	vbi_dbg("buffer_activate [%p]\n", buf);
 	buf->top_seen = 0;
 
 	task_init(dev, buf, TASK_A);
