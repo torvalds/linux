@@ -81,6 +81,7 @@ struct sci_port {
 
 	/* Platform configuration */
 	struct plat_sci_port	*cfg;
+	unsigned int		overrun_reg;
 	unsigned int		overrun_mask;
 	unsigned int		error_mask;
 	unsigned int		sampling_rate;
@@ -866,30 +867,17 @@ static int sci_handle_fifo_overrun(struct uart_port *port)
 	struct tty_port *tport = &port->state->port;
 	struct sci_port *s = to_sci_port(port);
 	struct plat_sci_reg *reg;
-	int copied = 0, offset;
+	int copied = 0;
 	u16 status;
 
-	switch (port->type) {
-	case PORT_SCIF:
-	case PORT_HSCIF:
-		offset = SCLSR;
-		break;
-	case PORT_SCIFA:
-	case PORT_SCIFB:
-		offset = SCxSR;
-		break;
-	default:
-		return 0;
-	}
-
-	reg = sci_getreg(port, offset);
+	reg = sci_getreg(port, s->overrun_reg);
 	if (!reg->size)
 		return 0;
 
-	status = serial_port_in(port, offset);
+	status = serial_port_in(port, s->overrun_reg);
 	if (status & s->overrun_mask) {
 		status &= ~s->overrun_mask;
-		serial_port_out(port, offset, status);
+		serial_port_out(port, s->overrun_reg, status);
 
 		port->icount.overrun++;
 
@@ -1041,15 +1029,11 @@ static irqreturn_t sci_mpxed_interrupt(int irq, void *ptr)
 
 	ssr_status = serial_port_in(port, SCxSR);
 	scr_status = serial_port_in(port, SCSCR);
-	switch (port->type) {
-	case PORT_SCIF:
-	case PORT_HSCIF:
-		orer_status = serial_port_in(port, SCLSR);
-		break;
-	case PORT_SCIFA:
-	case PORT_SCIFB:
+	if (s->overrun_reg == SCxSR)
 		orer_status = ssr_status;
-		break;
+	else {
+		if (sci_getreg(port, s->overrun_reg)->size)
+			orer_status = serial_port_in(port, s->overrun_reg);
 	}
 
 	err_enabled = scr_status & port_rx_irq_mask(port);
@@ -2254,31 +2238,37 @@ static int sci_init_single(struct platform_device *dev,
 	switch (p->type) {
 	case PORT_SCIFB:
 		port->fifosize = 256;
+		sci_port->overrun_reg = SCxSR;
 		sci_port->overrun_mask = SCIFA_ORER;
 		sampling_rate = 16;
 		break;
 	case PORT_HSCIF:
 		port->fifosize = 128;
 		sampling_rate = 0;
+		sci_port->overrun_reg = SCLSR;
 		sci_port->overrun_mask = SCLSR_ORER;
 		break;
 	case PORT_SCIFA:
 		port->fifosize = 64;
+		sci_port->overrun_reg = SCxSR;
 		sci_port->overrun_mask = SCIFA_ORER;
 		sampling_rate = 16;
 		break;
 	case PORT_SCIF:
 		port->fifosize = 16;
 		if (p->regtype == SCIx_SH7705_SCIF_REGTYPE) {
+			sci_port->overrun_reg = SCxSR;
 			sci_port->overrun_mask = SCIFA_ORER;
 			sampling_rate = 16;
 		} else {
+			sci_port->overrun_reg = SCLSR;
 			sci_port->overrun_mask = SCLSR_ORER;
 			sampling_rate = 32;
 		}
 		break;
 	default:
 		port->fifosize = 1;
+		sci_port->overrun_reg = SCxSR;
 		sci_port->overrun_mask = SCI_ORER;
 		sampling_rate = 32;
 		break;
