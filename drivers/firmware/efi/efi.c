@@ -86,10 +86,15 @@ static ssize_t systab_show(struct kobject *kobj,
 		str += sprintf(str, "ACPI20=0x%lx\n", efi.acpi20);
 	if (efi.acpi != EFI_INVALID_TABLE_ADDR)
 		str += sprintf(str, "ACPI=0x%lx\n", efi.acpi);
-	if (efi.smbios != EFI_INVALID_TABLE_ADDR)
-		str += sprintf(str, "SMBIOS=0x%lx\n", efi.smbios);
+	/*
+	 * If both SMBIOS and SMBIOS3 entry points are implemented, the
+	 * SMBIOS3 entry point shall be preferred, so we list it first to
+	 * let applications stop parsing after the first match.
+	 */
 	if (efi.smbios3 != EFI_INVALID_TABLE_ADDR)
 		str += sprintf(str, "SMBIOS3=0x%lx\n", efi.smbios3);
+	if (efi.smbios != EFI_INVALID_TABLE_ADDR)
+		str += sprintf(str, "SMBIOS=0x%lx\n", efi.smbios);
 	if (efi.hcdp != EFI_INVALID_TABLE_ADDR)
 		str += sprintf(str, "HCDP=0x%lx\n", efi.hcdp);
 	if (efi.boot_info != EFI_INVALID_TABLE_ADDR)
