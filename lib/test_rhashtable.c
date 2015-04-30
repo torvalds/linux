@@ -22,7 +22,6 @@
 #include <linux/slab.h>
 
 
-#define TEST_PTR	((void *) 0xdeadbeef)
 #define MAX_ENTRIES	1000000
 
 static int entries = 50000;
@@ -46,7 +45,6 @@ module_param(size, int, 0);
 MODULE_PARM_DESC(size, "Initial size hint of table (default: 8)");
 
 struct test_obj {
-	void			*ptr;
 	int			value;
 	struct rhash_head	node;
 };
@@ -78,9 +76,9 @@ static int __init test_rht_lookup(struct rhashtable *ht)
 				key);
 			return -EEXIST;
 		} else if (expected && obj) {
-			if (obj->ptr != TEST_PTR || obj->value != i) {
-				pr_warn("Test failed: Lookup value mismatch %p!=%p, %u!=%u\n",
-					obj->ptr, TEST_PTR, obj->value, i);
+			if (obj->value != i) {
+				pr_warn("Test failed: Lookup value mismatch %u!=%u\n",
+					obj->value, i);
 				return -EINVAL;
 			}
 		}
@@ -153,7 +151,6 @@ static s64 __init test_rhashtable(struct rhashtable *ht)
 			goto error;
 		}
 
-		obj->ptr = TEST_PTR;
 		obj->value = i * 2;
 
 		err = rhashtable_insert_fast(ht, &obj->node, test_rht_params);
