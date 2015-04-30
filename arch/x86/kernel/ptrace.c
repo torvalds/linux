@@ -29,6 +29,7 @@
 #include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/fpu/internal.h>
+#include <asm/fpu/signal.h>
 #include <asm/debugreg.h>
 #include <asm/ldt.h>
 #include <asm/desc.h>

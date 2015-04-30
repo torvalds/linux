@@ -19,21 +19,6 @@
 #include <asm/fpu/api.h>
 #include <asm/fpu/xstate.h>
 
-#ifdef CONFIG_X86_64
-# include <asm/sigcontext32.h>
-# include <asm/user32.h>
-struct ksignal;
-int ia32_setup_rt_frame(int sig, struct ksignal *ksig,
-			compat_sigset_t *set, struct pt_regs *regs);
-int ia32_setup_frame(int sig, struct ksignal *ksig,
-		     compat_sigset_t *set, struct pt_regs *regs);
-#else
-# define user_i387_ia32_struct	user_i387_struct
-# define user32_fxsr_struct	user_fxsr_struct
-# define ia32_setup_frame	__setup_frame
-# define ia32_setup_rt_frame	__setup_rt_frame
-#endif
-
 #define	MXCSR_DEFAULT		0x1f80
 
 extern unsigned int mxcsr_feature_mask;
@@ -62,11 +47,6 @@ extern void fpu__init_check_bugs(void);
 extern void fpu__resume_cpu(void);
 
 DECLARE_PER_CPU(struct fpu *, fpu_fpregs_owner_ctx);
-
-extern void convert_from_fxsr(struct user_i387_ia32_struct *env,
-			      struct task_struct *tsk);
-extern void convert_to_fxsr(struct task_struct *tsk,
-			    const struct user_i387_ia32_struct *env);
 
 extern user_regset_active_fn regset_fpregs_active, regset_xregset_fpregs_active;
 extern user_regset_get_fn fpregs_get, xfpregs_get, fpregs_soft_get,
@@ -529,9 +509,5 @@ static inline unsigned short get_fpu_mxcsr(struct task_struct *tsk)
 		return MXCSR_DEFAULT;
 	}
 }
-
-unsigned long
-fpu__alloc_mathframe(unsigned long sp, int ia32_frame,
-		     unsigned long *buf_fx, unsigned long *size);
 
 #endif /* _ASM_X86_FPU_INTERNAL_H */
