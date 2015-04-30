@@ -228,7 +228,7 @@ config DVB_CX24120
 	depends on DVB_CORE && I2C
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
-	  A DVB-S/DVB-S2 tuner module. Say Y when you want to support this frontend.
+	  A DVB-S/S2 tuner module. Say Y when you want to support this frontend.
 
 config DVB_SI21XX
 	tristate "Silicon Labs SI21XX based"
