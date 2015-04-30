@@ -1023,14 +1023,6 @@ static void clk_core_disable(struct clk_core *core)
 	clk_core_disable(core->parent);
 }
 
-static void __clk_disable(struct clk *clk)
-{
-	if (!clk)
-		return;
-
-	clk_core_disable(clk->core);
-}
-
 /**
  * clk_disable - gate a clock
  * @clk: the clk being gated
@@ -1051,7 +1043,7 @@ void clk_disable(struct clk *clk)
 		return;
 
 	flags = clk_enable_lock();
-	__clk_disable(clk);
+	clk_core_disable(clk->core);
 	clk_enable_unlock(flags);
 }
 EXPORT_SYMBOL_GPL(clk_disable);
@@ -1089,14 +1081,6 @@ static int clk_core_enable(struct clk_core *core)
 	return 0;
 }
 
-static int __clk_enable(struct clk *clk)
-{
-	if (!clk)
-		return 0;
-
-	return clk_core_enable(clk->core);
-}
-
 /**
  * clk_enable - ungate a clock
  * @clk: the clk being ungated
@@ -1115,8 +1099,11 @@ int clk_enable(struct clk *clk)
 	unsigned long flags;
 	int ret;
 
+	if (!clk)
+		return 0;
+
 	flags = clk_enable_lock();
-	ret = __clk_enable(clk);
+	ret = clk_core_enable(clk->core);
 	clk_enable_unlock(flags);
 
 	return ret;
