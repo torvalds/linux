@@ -87,12 +87,13 @@
 };
 
 &usbotg1 {
-	dr_mode = "host";
+	dr_mode = "peripheral";
 	disable-over-current;
 	status = "okay";
 };
 
 &usbotg2 {
+	dr_mode = "host";
 	disable-over-current;
 	status = "okay";
 };
