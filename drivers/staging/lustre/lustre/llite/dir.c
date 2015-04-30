@@ -1436,8 +1436,7 @@ lmv_out_free:
 			goto free_lmv;
 		}
 free_lmv:
-		if (tmp)
-			kfree(tmp);
+		kfree(tmp);
 		return rc;
 	}
 	case LL_IOC_REMOVE_ENTRY: {
