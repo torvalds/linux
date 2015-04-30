@@ -30,7 +30,6 @@
 #define TEST_HT_SIZE	8
 #define TEST_ENTRIES	2048
 #define TEST_PTR	((void *) 0xdeadbeef)
-#define TEST_NEXPANDS	4
 
 struct test_obj {
 	void			*ptr;
