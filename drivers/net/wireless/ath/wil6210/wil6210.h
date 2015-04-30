@@ -21,6 +21,7 @@
 #include <linux/wireless.h>
 #include <net/cfg80211.h>
 #include <linux/timex.h>
+#include <linux/types.h>
 #include "wil_platform.h"
 
 extern bool no_fw_recovery;
@@ -527,6 +528,17 @@ struct wil_probe_client_req {
 	u8 cid;
 };
 
+struct pmc_ctx {
+	/* alloc, free, and read operations must own the lock */
+	struct mutex		lock;
+	struct vring_tx_desc	*pring_va;
+	dma_addr_t		pring_pa;
+	struct desc_alloc_info  *descriptors;
+	int			last_cmd_status;
+	int			num_descriptors;
+	int			descriptor_size;
+};
+
 struct wil6210_priv {
 	struct pci_dev *pdev;
 	int n_msi;
@@ -611,6 +623,8 @@ struct wil6210_priv {
 
 	void *platform_handle;
 	struct wil_platform_ops platform_ops;
+
+	struct pmc_ctx pmc;
 };
 
 #define wil_to_wiphy(i) (i->wdev->wiphy)

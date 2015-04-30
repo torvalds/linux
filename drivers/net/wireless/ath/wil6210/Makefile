@@ -12,6 +12,7 @@ wil6210-y += debug.o
 wil6210-y += rx_reorder.o
 wil6210-y += ioctl.o
 wil6210-y += fw.o
+wil6210-y += pmc.o
 wil6210-$(CONFIG_WIL6210_TRACING) += trace.o
 wil6210-y += wil_platform.o
 wil6210-y += ethtool.o

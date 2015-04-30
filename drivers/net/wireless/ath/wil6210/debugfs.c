@@ -24,6 +24,7 @@
 #include "wil6210.h"
 #include "wmi.h"
 #include "txrx.h"
+#include "pmc.h"
 
 /* Nasty hack. Better have per device instances */
 static u32 mem_addr;
@@ -702,6 +703,89 @@ static const struct file_operations fops_back = {
 	.open  = simple_open,
 };
 
+/* pmc control, write:
+ * - "alloc <num descriptors> <descriptor_size>" to allocate PMC
+ * - "free" to release memory allocated for PMC
+ */
+static ssize_t wil_write_pmccfg(struct file *file, const char __user *buf,
+				size_t len, loff_t *ppos)
+{
+	struct wil6210_priv *wil = file->private_data;
+	int rc;
+	char *kbuf = kmalloc(len + 1, GFP_KERNEL);
+	char cmd[9];
+	int num_descs, desc_size;
+
+	if (!kbuf)
+		return -ENOMEM;
+
+	rc = simple_write_to_buffer(kbuf, len, ppos, buf, len);
+	if (rc != len) {
+		kfree(kbuf);
+		return rc >= 0 ? -EIO : rc;
+	}
+
+	kbuf[len] = '\0';
+	rc = sscanf(kbuf, "%8s %d %d", cmd, &num_descs, &desc_size);
+	kfree(kbuf);
+
+	if (rc < 0)
+		return rc;
+
+	if (rc < 1) {
+		wil_err(wil, "pmccfg: no params given\n");
+		return -EINVAL;
+	}
+
+	if (0 == strcmp(cmd, "alloc")) {
+		if (rc != 3) {
+			wil_err(wil, "pmccfg: alloc requires 2 params\n");
+			return -EINVAL;
+		}
+		wil_pmc_alloc(wil, num_descs, desc_size);
+	} else if (0 == strcmp(cmd, "free")) {
+		if (rc != 1) {
+			wil_err(wil, "pmccfg: free does not have any params\n");
+			return -EINVAL;
+		}
+		wil_pmc_free(wil, true);
+	} else {
+		wil_err(wil, "pmccfg: Unrecognized command \"%s\"\n", cmd);
+		return -EINVAL;
+	}
+
+	return len;
+}
+
+static ssize_t wil_read_pmccfg(struct file *file, char __user *user_buf,
+			       size_t count, loff_t *ppos)
+{
+	struct wil6210_priv *wil = file->private_data;
+	char text[256];
+	char help[] = "pmc control, write:\n"
+	" - \"alloc <num descriptors> <descriptor_size>\" to allocate pmc\n"
+	" - \"free\" to free memory allocated for pmc\n";
+
+	sprintf(text, "Last command status: %d\n\n%s",
+		wil_pmc_last_cmd_status(wil),
+		help);
+
+	return simple_read_from_buffer(user_buf, count, ppos, text,
+				       strlen(text) + 1);
+}
+
+static const struct file_operations fops_pmccfg = {
+	.read = wil_read_pmccfg,
+	.write = wil_write_pmccfg,
+	.open  = simple_open,
+};
+
+static const struct file_operations fops_pmcdata = {
+	.open		= simple_open,
+	.read		= wil_pmc_read,
+	.llseek		= wil_pmc_llseek,
+};
+
 /*---tx_mgmt---*/
 /* Write mgmt frame to this file to send it */
 static ssize_t wil_write_file_txmgmt(struct file *file, const char __user *buf,
@@ -1363,6 +1447,8 @@ static const struct {
 	{"tx_mgmt",		  S_IWUSR,	&fops_txmgmt},
 	{"wmi_send",		  S_IWUSR,	&fops_wmi},
 	{"back",	S_IRUGO | S_IWUSR,	&fops_back},
+	{"pmccfg",	S_IRUGO | S_IWUSR,	&fops_pmccfg},
+	{"pmcdata",	S_IRUGO,		&fops_pmcdata},
 	{"temp",	S_IRUGO,		&fops_temp},
 	{"freq",	S_IRUGO,		&fops_freq},
 	{"link",	S_IRUGO,		&fops_link},
@@ -1440,6 +1526,8 @@ int wil6210_debugfs_init(struct wil6210_priv *wil)
 	if (IS_ERR_OR_NULL(dbg))
 		return -ENODEV;
 
+	wil_pmc_init(wil);
+
 	wil6210_debugfs_init_files(wil, dbg);
 	wil6210_debugfs_init_isr(wil, dbg);
 	wil6210_debugfs_init_blobs(wil, dbg);
@@ -1459,4 +1547,9 @@ void wil6210_debugfs_remove(struct wil6210_priv *wil)
 {
 	debugfs_remove_recursive(wil->debug);
 	wil->debug = NULL;
+
+	/* free pmc memory without sending command to fw, as it will
+	 * be reset on the way down anyway
+	 */
+	wil_pmc_free(wil, false);
 }

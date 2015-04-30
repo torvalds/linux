@@ -836,6 +836,21 @@ struct wmi_temp_sense_cmd {
 } __packed;
 
 /*
+ * WMI_PMC_CMDID
+ */
+enum wmi_pmc_op_e {
+	WMI_PMC_ALLOCATE = 0,
+	WMI_PMC_RELEASE = 1,
+};
+
+struct wmi_pmc_cmd {
+	u8 op;		/* enum wmi_pmc_cmd_op_type */
+	u8 reserved;
+	__le16 ring_size;
+	__le64 mem_base;
+} __packed;
+
+/*
  * WMI Events
  */
 
