@@ -63,7 +63,7 @@ static inline int hda_display_power(struct hda_intel *hda, bool enable)
 static inline void haswell_set_bclk(struct hda_intel *hda) { return; }
 static inline int hda_i915_init(struct hda_intel *hda)
 {
-	return -ENODEV;
+	return 0;
 }
 static inline int hda_i915_exit(struct hda_intel *hda)
 {

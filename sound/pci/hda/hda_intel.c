@@ -1907,8 +1907,6 @@ static int azx_probe_continue(struct azx *chip)
 		if (pci->device != 0x0f04 && pci->device != 0x2284)
 			hda->need_i915_power = 1;
 
-
-#ifdef CONFIG_SND_HDA_I915
 		err = hda_i915_init(hda);
 		if (err < 0)
 			goto i915_power_fail;
@@ -1919,7 +1917,6 @@ static int azx_probe_continue(struct azx *chip)
 				"Cannot turn on display power on i915\n");
 			goto i915_power_fail;
 		}
-#endif
 	}
 
 	err = azx_first_init(chip);
