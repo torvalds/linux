@@ -167,7 +167,6 @@ static struct kset *esrt_kset;
 
 static int esre_create_sysfs_entry(void *esre, int entry_num)
 {
-	int rc = 0;
 	struct esre_entry *entry;
 	char name[20];
 
@@ -180,13 +179,15 @@ static int esre_create_sysfs_entry(void *esre, int entry_num)
 	entry->kobj.kset = esrt_kset;
 
 	if (esrt->fw_resource_version == 1) {
+		int rc = 0;
+
 		entry->esre.esre1 = esre;
 		rc = kobject_init_and_add(&entry->kobj, &esre1_ktype, NULL,
 					  "%s", name);
-	}
-	if (rc) {
-		kfree(entry);
-		return rc;
+		if (rc) {
+			kfree(entry);
+			return rc;
+		}
 	}
 
 	list_add_tail(&entry->list, &entry_list);
@@ -248,6 +249,7 @@ void __init efi_esrt_init(void)
 	size_t size, max, entry_size, entries_size;
 	efi_memory_desc_t md;
 	int rc;
+	phys_addr_t end;
 
 	pr_debug("esrt-init: loading.\n");
 	if (!esrt_table_exists())
@@ -335,8 +337,8 @@ void __init efi_esrt_init(void)
 	esrt_data = (phys_addr_t)efi.esrt;
 	esrt_data_size = size;
 
-	pr_info("Reserving ESRT space from %p to %p.\n", (void *)esrt_data,
-		(char *)esrt_data + size);
+	end = esrt_data + size;
+	pr_info("Reserving ESRT space from %pa to %pa.\n", &esrt_data, &end);
 	memblock_reserve(esrt_data, esrt_data_size);
 
 	pr_debug("esrt-init: loaded.\n");
@@ -353,11 +355,16 @@ static int __init register_entries(void)
 		return 0;
 
 	for (i = 0; i < le32_to_cpu(esrt->fw_resource_count); i++) {
-		void *entry;
+		void *esre = NULL;
 		if (esrt->fw_resource_version == 1) {
-			entry = &v1_entries[i];
+			esre = &v1_entries[i];
+		} else {
+			pr_err("Unsupported ESRT version %lld.\n",
+			       esrt->fw_resource_version);
+			return -EINVAL;
 		}
-		rc = esre_create_sysfs_entry(entry, i);
+
+		rc = esre_create_sysfs_entry(esre, i);
 		if (rc < 0) {
 			pr_err("ESRT entry creation failed with error %d.\n",
 			       rc);
@@ -387,7 +394,7 @@ static int __init esrt_sysfs_init(void)
 
 	ioesrt = ioremap(esrt_data, esrt_data_size);
 	if (!ioesrt) {
-		pr_err("ioremap(%p, %zu) failed.\n", (void *)esrt_data,
+		pr_err("ioremap(%pa, %zu) failed.\n", &esrt_data,
 		       esrt_data_size);
 		return -ENOMEM;
 	}
