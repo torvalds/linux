@@ -1782,7 +1782,8 @@ static int __exit amiga_serial_remove(struct platform_device *pdev)
 	struct serial_state *state = platform_get_drvdata(pdev);
 
 	/* printk("Unloading %s: version %s\n", serial_name, serial_version); */
-	if ((error = tty_unregister_driver(serial_driver)))
+	error = tty_unregister_driver(serial_driver);
+	if (error)
 		printk("SERIAL: failed to unregister serial driver (%d)\n",
 		       error);
 	put_tty_driver(serial_driver);
