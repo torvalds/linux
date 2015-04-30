@@ -95,6 +95,7 @@ struct at86rf230_local {
 	unsigned long cal_timeout;
 	s8 max_frame_retries;
 	bool is_tx;
+	bool is_tx_from_off;
 	u8 tx_retry;
 	struct sk_buff *tx_skb;
 	struct at86rf230_state_change tx;
@@ -991,12 +992,21 @@ at86rf230_xmit_start(void *context)
 	 * are in STATE_TX_ON. The pfad differs here, so we change
 	 * the complete handler.
 	 */
-	if (lp->tx_aret)
-		at86rf230_async_state_change(lp, ctx, STATE_TX_ON,
-					     at86rf230_xmit_tx_on, false);
-	else
+	if (lp->tx_aret) {
+		if (lp->is_tx_from_off) {
+			lp->is_tx_from_off = false;
+			at86rf230_async_state_change(lp, ctx, STATE_TX_ARET_ON,
+						     at86rf230_xmit_tx_on,
+						     false);
+		} else {
+			at86rf230_async_state_change(lp, ctx, STATE_TX_ON,
+						     at86rf230_xmit_tx_on,
+						     false);
+		}
+	} else {
 		at86rf230_async_state_change(lp, ctx, STATE_TX_ON,
 					     at86rf230_write_frame, false);
+	}
 }
 
 static int
@@ -1015,11 +1025,13 @@ at86rf230_xmit(struct ieee802154_hw *hw, struct sk_buff *skb)
 	 * to TX_ON, the lp->cal_timeout should be reinit by state_delay
 	 * function then to start in the next 5 minutes.
 	 */
-	if (time_is_before_jiffies(lp->cal_timeout))
+	if (time_is_before_jiffies(lp->cal_timeout)) {
+		lp->is_tx_from_off = true;
 		at86rf230_async_state_change(lp, ctx, STATE_TRX_OFF,
 					     at86rf230_xmit_start, false);
-	else
+	} else {
 		at86rf230_xmit_start(ctx);
+	}
 
 	return 0;
 }
