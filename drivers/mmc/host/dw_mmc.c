@@ -589,9 +589,11 @@ static int dw_mci_idmac_init(struct dw_mci *host)
 		host->ring_size = PAGE_SIZE / sizeof(struct idmac_desc);
 
 		/* Forward link the descriptor list */
-		for (i = 0, p = host->sg_cpu; i < host->ring_size - 1; i++, p++)
+		for (i = 0, p = host->sg_cpu; i < host->ring_size - 1; i++, p++) {
 			p->des3 = cpu_to_le32(host->sg_dma +
 					(sizeof(struct idmac_desc) * (i + 1)));
+			p->des1 = 0;
+		}
 
 		/* Set the last descriptor as the end-of-ring descriptor */
 		p->des3 = cpu_to_le32(host->sg_dma);
