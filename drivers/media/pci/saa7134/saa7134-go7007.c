@@ -11,6 +11,9 @@
  * GNU General Public License for more details.
  */
 
+#include "saa7134.h"
+#include "saa7134-reg.h"
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -27,8 +30,6 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-subdev.h>
 
-#include "saa7134.h"
-#include "saa7134-reg.h"
 #include "go7007-priv.h"
 
 /*#define GO7007_HPI_DEBUG*/

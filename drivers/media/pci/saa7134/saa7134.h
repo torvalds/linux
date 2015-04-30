@@ -21,6 +21,8 @@
 
 #define SAA7134_VERSION "0, 2, 17"
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/pci.h>
 #include <linux/i2c.h>
 #include <linux/videodev2.h>

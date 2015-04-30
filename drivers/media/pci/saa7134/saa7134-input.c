@@ -18,14 +18,14 @@
  *
  */
 
+#include "saa7134.h"
+#include "saa7134-reg.h"
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
-
-#include "saa7134-reg.h"
-#include "saa7134.h"
 
 #define MODULE_NAME "saa7134"
 

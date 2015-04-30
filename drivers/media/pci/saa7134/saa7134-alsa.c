@@ -16,6 +16,9 @@
  *
  */
 
+#include "saa7134.h"
+#include "saa7134-reg.h"
+
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/time.h>
@@ -28,9 +31,6 @@
 #include <sound/initval.h>
 #include <linux/interrupt.h>
 #include <linux/vmalloc.h>
-
-#include "saa7134.h"
-#include "saa7134-reg.h"
 
 static unsigned int debug;
 module_param(debug, int, 0644);
