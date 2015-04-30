@@ -27,6 +27,7 @@ struct perf_inject {
 	struct perf_session	*session;
 	bool			build_ids;
 	bool			sched_stat;
+	bool			have_auxtrace;
 	const char		*input_name;
 	struct perf_data_file	output;
 	u64			bytes_written;
@@ -121,6 +122,8 @@ static s64 perf_event__repipe_auxtrace(struct perf_tool *tool,
 	struct perf_inject *inject = container_of(tool, struct perf_inject,
 						  tool);
 	int ret;
+
+	inject->have_auxtrace = true;
 
 	if (!inject->output.is_pipe) {
 		off_t offset;
@@ -508,9 +511,12 @@ static int __cmd_inject(struct perf_inject *inject)
 	ret = perf_session__process_events(session);
 
 	if (!file_out->is_pipe) {
-		if (inject->build_ids)
+		if (inject->build_ids) {
 			perf_header__set_feat(&session->header,
 					      HEADER_BUILD_ID);
+			if (inject->have_auxtrace)
+				dsos__hit_all(session);
+		}
 		/*
 		 * The AUX areas have been removed and replaced with
 		 * synthesized hardware events, so clear the feature flag.
