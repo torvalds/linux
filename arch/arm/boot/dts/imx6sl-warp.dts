@@ -82,14 +82,6 @@
 			gpio = <&gpio4 2 0>;
 			enable-active-high;
 		};
-
-		reg_1p8v: regulator@2 {
-			compatible = "regulator-fixed";
-			reg = <2>;
-			regulator-name = "1P8V";
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
-		};
 	};
 
 	usdhc3_pwrseq: usdhc3_pwrseq {
