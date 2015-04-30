@@ -772,22 +772,20 @@ static void must_configure_manually(int has_eeprom)
 	unsigned int i,p;
 
 	if (!has_eeprom)
-		printk(KERN_WARNING
-		       "saa7134: <rant>\n"
-		       "saa7134:  Congratulations!  Your TV card vendor saved a few\n"
-		       "saa7134:  cents for a eeprom, thus your pci board has no\n"
-		       "saa7134:  subsystem ID and I can't identify it automatically\n"
-		       "saa7134: </rant>\n"
-		       "saa7134: I feel better now.  Ok, here are the good news:\n"
-		       "saa7134: You can use the card=<nr> insmod option to specify\n"
-		       "saa7134: which board do you have.  The list:\n");
+		pr_warn("saa7134: <rant>\n"
+			"saa7134:  Congratulations!  Your TV card vendor saved a few\n"
+			"saa7134:  cents for a eeprom, thus your pci board has no\n"
+			"saa7134:  subsystem ID and I can't identify it automatically\n"
+			"saa7134: </rant>\n"
+			"saa7134: I feel better now.  Ok, here are the good news:\n"
+			"saa7134: You can use the card=<nr> insmod option to specify\n"
+			"saa7134: which board do you have.  The list:\n");
 	else
-		printk(KERN_WARNING
-		       "saa7134: Board is currently unknown. You might try to use the card=<nr>\n"
-		       "saa7134: insmod option to specify which board do you have, but this is\n"
-		       "saa7134: somewhat risky, as might damage your card. It is better to ask\n"
-		       "saa7134: for support at linux-media@vger.kernel.org.\n"
-		       "saa7134: The supported cards are:\n");
+		pr_warn("saa7134: Board is currently unknown. You might try to use the card=<nr>\n"
+			"saa7134: insmod option to specify which board do you have, but this is\n"
+			"saa7134: somewhat risky, as might damage your card. It is better to ask\n"
+			"saa7134: for support at linux-media@vger.kernel.org.\n"
+			"saa7134: The supported cards are:\n");
 
 	for (i = 0; i < saa7134_bcount; i++) {
 		pr_warn("saa7134:   card=%d -> %-40.40s",

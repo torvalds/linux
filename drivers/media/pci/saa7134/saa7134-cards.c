@@ -7906,9 +7906,8 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 	/* The card below is detected as card=53, but is different */
 	       if (dev->autodetected && (dev->eedata[0x27] == 0x03)) {
 			dev->board = SAA7134_BOARD_ASUSTeK_P7131_ANALOG;
-			printk(KERN_INFO
-			       "%s: P7131 analog only, using entry of %s\n",
-			dev->name, saa7134_boards[dev->board].name);
+			pr_info("%s: P7131 analog only, using entry of %s\n",
+				dev->name, saa7134_boards[dev->board].name);
 
 			/*
 			 * IR init has already happened for other cards, so
@@ -8047,9 +8046,8 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 			msg.buf = &buffer[i][0];
 			msg.len = ARRAY_SIZE(buffer[0]);
 			if (i2c_transfer(&dev->i2c_adap, &msg, 1) != 1)
-				printk(KERN_WARNING
-				       "%s: Unable to enable tuner(%i).\n",
-				       dev->name, i);
+				pr_warn("%s: Unable to enable tuner(%i).\n",
+				        dev->name, i);
 		}
 		break;
 	}
@@ -8065,9 +8063,8 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		/* watch TV without software reboot. For solve this problem */
 		/* switch the tuner to analog TV mode manually.             */
 		if (i2c_transfer(&dev->i2c_adap, &msg, 1) != 1)
-				printk(KERN_WARNING
-				      "%s: Unable to enable IF of the tuner.\n",
-				       dev->name);
+			pr_warn("%s: Unable to enable IF of the tuner.\n",
+				dev->name);
 		break;
 	}
 	case SAA7134_BOARD_KWORLD_PCI_SBTVD_FULLSEG:
