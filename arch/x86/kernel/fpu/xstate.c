@@ -401,7 +401,7 @@ static int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
 			 config_enabled(CONFIG_IA32_EMULATION));
 
 	if (!buf) {
-		fpu__reset(fpu);
+		fpu__clear(fpu);
 		return 0;
 	}
 
@@ -474,7 +474,7 @@ static int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
 		 */
 		user_fpu_begin();
 		if (restore_user_xstate(buf_fx, xfeatures, fx_only)) {
-			fpu__reset(fpu);
+			fpu__clear(fpu);
 			return -1;
 		}
 	}

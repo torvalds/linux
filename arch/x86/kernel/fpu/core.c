@@ -116,7 +116,7 @@ void __kernel_fpu_end(void)
 
 	if (fpu->fpregs_active) {
 		if (WARN_ON(copy_fpstate_to_fpregs(fpu)))
-			fpu__reset(fpu);
+			fpu__clear(fpu);
 	} else {
 		__fpregs_deactivate_hw();
 	}
@@ -339,7 +339,7 @@ void fpu__restore(void)
 	kernel_fpu_disable();
 	fpregs_activate(fpu);
 	if (unlikely(copy_fpstate_to_fpregs(fpu))) {
-		fpu__reset(fpu);
+		fpu__clear(fpu);
 		force_sig_info(SIGSEGV, SEND_SIG_PRIV, tsk);
 	} else {
 		tsk->thread.fpu.counter++;
@@ -376,19 +376,10 @@ void fpu__drop(struct fpu *fpu)
 }
 
 /*
- * Reset the FPU state back to init state:
- */
-void fpu__reset(struct fpu *fpu)
-{
-	if (!use_eager_fpu())
-		fpu__drop(fpu);
-	else
-		restore_init_xstate();
-}
-
-/*
- * Called by sys_execve() to clear the FPU fpregs, so that FPU state
- * of the previous binary does not leak over into the exec()ed binary:
+ * Clear the FPU state back to init state.
+ *
+ * Called by sys_execve(), by the signal handler code and by various
+ * error paths.
  */
 void fpu__clear(struct fpu *fpu)
 {

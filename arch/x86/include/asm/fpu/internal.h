@@ -56,7 +56,6 @@ extern void fpu__restore(void);
 extern int  fpu__restore_sig(void __user *buf, int ia32_frame);
 extern void fpu__drop(struct fpu *fpu);
 extern int  fpu__copy(struct fpu *dst_fpu, struct fpu *src_fpu);
-extern void fpu__reset(struct fpu *fpu);
 extern void fpu__clear(struct fpu *fpu);
 
 extern void fpu__init_check_bugs(void);
@@ -490,7 +489,7 @@ static inline void switch_fpu_finish(struct fpu *new_fpu, fpu_switch_t fpu_switc
 {
 	if (fpu_switch.preload) {
 		if (unlikely(copy_fpstate_to_fpregs(new_fpu)))
-			fpu__reset(new_fpu);
+			fpu__clear(new_fpu);
 	}
 }
 
