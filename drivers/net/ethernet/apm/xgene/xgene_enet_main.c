@@ -1173,7 +1173,9 @@ static int xgene_enet_probe(struct platform_device *pdev)
 	struct xgene_enet_pdata *pdata;
 	struct device *dev = &pdev->dev;
 	struct xgene_mac_ops *mac_ops;
+#ifdef CONFIG_OF
 	const struct of_device_id *of_id;
+#endif
 	int ret;
 
 	ndev = alloc_etherdev(sizeof(struct xgene_enet_pdata));

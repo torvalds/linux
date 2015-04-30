@@ -83,7 +83,7 @@ struct xgene_enet_desc_ring {
 	u16 irq;
 	char irq_name[IRQ_ID_SIZE];
 	u32 size;
-	u32 state[NUM_RING_CONFIG];
+	u32 state[X2_NUM_RING_CONFIG];
 	void __iomem *cmd_base;
 	void __iomem *cmd;
 	dma_addr_t dma;
