@@ -30,7 +30,8 @@ extern void fpu__init_system(struct cpuinfo_x86 *c);
 extern void fpu__activate_curr(struct fpu *fpu);
 extern void fpstate_init(struct fpu *fpu);
 
-extern int dump_fpu(struct pt_regs *, struct user_i387_struct *);
+extern int  dump_fpu(struct pt_regs *, struct user_i387_struct *);
+extern int  fpu__exception_code(struct fpu *fpu, int trap_nr);
 
 /*
  * High level FPU state handling functions:
@@ -465,36 +466,6 @@ static inline void user_fpu_begin(void)
 	if (!fpregs_active())
 		fpregs_activate(fpu);
 	preempt_enable();
-}
-
-/*
- * i387 state interaction
- */
-static inline unsigned short get_fpu_cwd(struct task_struct *tsk)
-{
-	if (cpu_has_fxsr) {
-		return tsk->thread.fpu.state.fxsave.cwd;
-	} else {
-		return (unsigned short)tsk->thread.fpu.state.fsave.cwd;
-	}
-}
-
-static inline unsigned short get_fpu_swd(struct task_struct *tsk)
-{
-	if (cpu_has_fxsr) {
-		return tsk->thread.fpu.state.fxsave.swd;
-	} else {
-		return (unsigned short)tsk->thread.fpu.state.fsave.swd;
-	}
-}
-
-static inline unsigned short get_fpu_mxcsr(struct task_struct *tsk)
-{
-	if (cpu_has_xmm) {
-		return tsk->thread.fpu.state.fxsave.mxcsr;
-	} else {
-		return MXCSR_DEFAULT;
-	}
 }
 
 #endif /* _ASM_X86_FPU_INTERNAL_H */
