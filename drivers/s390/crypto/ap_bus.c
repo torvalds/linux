@@ -1950,7 +1950,7 @@ static void ap_reset_domain(void)
 {
 	int i;
 
-	if (ap_domain_index != -1)
+	if ((ap_domain_index != -1) && (ap_test_config_domain(ap_domain_index)))
 		for (i = 0; i < AP_DEVICES; i++)
 			ap_reset_queue(AP_MKQID(i, ap_domain_index));
 }
@@ -2095,7 +2095,6 @@ void ap_module_exit(void)
 	hrtimer_cancel(&ap_poll_timer);
 	destroy_workqueue(ap_work_queue);
 	tasklet_kill(&ap_tasklet);
-	root_device_unregister(ap_root_device);
 	while ((dev = bus_find_device(&ap_bus_type, NULL, NULL,
 		    __ap_match_all)))
 	{
@@ -2104,6 +2103,7 @@ void ap_module_exit(void)
 	}
 	for (i = 0; ap_bus_attrs[i]; i++)
 		bus_remove_file(&ap_bus_type, ap_bus_attrs[i]);
+	root_device_unregister(ap_root_device);
 	bus_unregister(&ap_bus_type);
 	unregister_reset_call(&ap_reset_call);
 	if (ap_using_interrupts())
