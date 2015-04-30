@@ -611,6 +611,11 @@ at86rf230_async_state_delay(void *context)
 		switch (ctx->to_state) {
 		case STATE_RX_AACK_ON:
 			tim = ktime_set(0, c->t_off_to_aack * NSEC_PER_USEC);
+			/* state change from TRX_OFF to RX_AACK_ON to do a
+			 * calibration, we need to reset the timeout for the
+			 * next one.
+			 */
+			lp->cal_timeout = jiffies + AT86RF2XX_CAL_LOOP_TIMEOUT;
 			goto change;
 		case STATE_TX_ON:
 			tim = ktime_set(0, c->t_off_to_tx_on * NSEC_PER_USEC);
@@ -1039,9 +1044,6 @@ at86rf230_ed(struct ieee802154_hw *hw, u8 *level)
 static int
 at86rf230_start(struct ieee802154_hw *hw)
 {
-	struct at86rf230_local *lp = hw->priv;
-
-	lp->cal_timeout = jiffies + AT86RF2XX_CAL_LOOP_TIMEOUT;
 	return at86rf230_sync_state_change(hw->priv, STATE_RX_AACK_ON);
 }
 
