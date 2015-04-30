@@ -299,7 +299,8 @@ down_write_failed(struct ld_semaphore *sem, long count, long timeout)
 		timeout = schedule_timeout(timeout);
 		raw_spin_lock_irq(&sem->wait_lock);
 		set_task_state(tsk, TASK_UNINTERRUPTIBLE);
-		if ((locked = writer_trylock(sem)))
+		locked = writer_trylock(sem);
+		if (locked)
 			break;
 	}
 
