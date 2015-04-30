@@ -1023,7 +1023,7 @@ static int dsi_short_read1_resp(u8 *buf, const struct mipi_dsi_msg *msg)
 		*data = buf[1]; /* strip out dcs type */
 		return 1;
 	} else {
-		pr_err("%s: read data does not match with rx_buf len %d\n",
+		pr_err("%s: read data does not match with rx_buf len %zu\n",
 			__func__, msg->rx_len);
 		return -EINVAL;
 	}
@@ -1040,7 +1040,7 @@ static int dsi_short_read2_resp(u8 *buf, const struct mipi_dsi_msg *msg)
 		data[1] = buf[2];
 		return 2;
 	} else {
-		pr_err("%s: read data does not match with rx_buf len %d\n",
+		pr_err("%s: read data does not match with rx_buf len %zu\n",
 			__func__, msg->rx_len);
 		return -EINVAL;
 	}
