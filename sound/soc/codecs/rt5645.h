@@ -105,6 +105,7 @@
 #define RT5645_TDM_CTRL_1			0x77
 #define RT5645_TDM_CTRL_2			0x78
 #define RT5645_TDM_CTRL_3			0x79
+#define RT5650_TDM_CTRL_4			0x7a
 
 /* Function - Analog */
 #define RT5645_GLB_CLK				0x80
