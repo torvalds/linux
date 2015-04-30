@@ -1,13 +1,8 @@
 /*
  * Resizable, Scalable, Concurrent Hash Table
  *
- * Copyright (c) 2014 Thomas Graf <tgraf@suug.ch>
+ * Copyright (c) 2014-2015 Thomas Graf <tgraf@suug.ch>
  * Copyright (c) 2008-2014 Patrick McHardy <kaber@trash.net>
- *
- * Based on the following paper:
- * https://www.usenix.org/legacy/event/atc11/tech/final_files/Triplett.pdf
- *
- * Code partially derived from nft_hash
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -27,9 +22,28 @@
 #include <linux/slab.h>
 
 
-#define TEST_HT_SIZE	8
-#define TEST_ENTRIES	2048
 #define TEST_PTR	((void *) 0xdeadbeef)
+#define MAX_ENTRIES	1000000
+
+static int entries = 50000;
+module_param(entries, int, 0);
+MODULE_PARM_DESC(entries, "Number of entries to add (default: 50000)");
+
+static int runs = 4;
+module_param(runs, int, 0);
+MODULE_PARM_DESC(runs, "Number of test runs per variant (default: 4)");
+
+static int max_size = 65536;
+module_param(max_size, int, 0);
+MODULE_PARM_DESC(runs, "Maximum table size (default: 65536)");
+
+static bool shrinking = false;
+module_param(shrinking, bool, 0);
+MODULE_PARM_DESC(shrinking, "Enable automatic shrinking (default: off)");
+
+static int size = 8;
+module_param(size, int, 0);
+MODULE_PARM_DESC(size, "Initial size hint of table (default: 8)");
 
 struct test_obj {
 	void			*ptr;
@@ -37,8 +51,7 @@ struct test_obj {
 	struct rhash_head	node;
 };
 
-static const struct rhashtable_params test_rht_params = {
-	.nelem_hint = TEST_HT_SIZE,
+static struct rhashtable_params test_rht_params = {
 	.head_offset = offsetof(struct test_obj, node),
 	.key_offset = offsetof(struct test_obj, value),
 	.key_len = sizeof(int),
@@ -50,7 +63,7 @@ static int __init test_rht_lookup(struct rhashtable *ht)
 {
 	unsigned int i;
 
-	for (i = 0; i < TEST_ENTRIES * 2; i++) {
+	for (i = 0; i < entries * 2; i++) {
 		struct test_obj *obj;
 		bool expected = !(i % 2);
 		u32 key = i;
@@ -110,26 +123,28 @@ static void test_bucket_stats(struct rhashtable *ht, bool quiet)
 	}
 
 	pr_info("  Traversal complete: counted=%u, nelems=%u, entries=%d\n",
-		total, atomic_read(&ht->nelems), TEST_ENTRIES);
+		total, atomic_read(&ht->nelems), entries);
 
-	if (total != atomic_read(&ht->nelems) || total != TEST_ENTRIES)
+	if (total != atomic_read(&ht->nelems) || total != entries)
 		pr_warn("Test failed: Total count mismatch ^^^");
 }
 
-static int __init test_rhashtable(struct rhashtable *ht)
+static s64 __init test_rhashtable(struct rhashtable *ht)
 {
 	struct bucket_table *tbl;
 	struct test_obj *obj;
 	struct rhash_head *pos, *next;
 	int err;
 	unsigned int i;
+	s64 start, end;
 
 	/*
 	 * Insertion Test:
-	 * Insert TEST_ENTRIES into table with all keys even numbers
+	 * Insert entries into table with all keys even numbers
 	 */
-	pr_info("  Adding %d keys\n", TEST_ENTRIES);
-	for (i = 0; i < TEST_ENTRIES; i++) {
+	pr_info("  Adding %d keys\n", entries);
+	start = ktime_get_ns();
+	for (i = 0; i < entries; i++) {
 		struct test_obj *obj;
 
 		obj = kzalloc(sizeof(*obj), GFP_KERNEL);
@@ -157,8 +172,8 @@ static int __init test_rhashtable(struct rhashtable *ht)
 	test_bucket_stats(ht, true);
 	rcu_read_unlock();
 
-	pr_info("  Deleting %d keys\n", TEST_ENTRIES);
-	for (i = 0; i < TEST_ENTRIES; i++) {
+	pr_info("  Deleting %d keys\n", entries);
+	for (i = 0; i < entries; i++) {
 		u32 key = i * 2;
 
 		obj = rhashtable_lookup_fast(ht, &key, test_rht_params);
@@ -168,7 +183,10 @@ static int __init test_rhashtable(struct rhashtable *ht)
 		kfree(obj);
 	}
 
-	return 0;
+	end = ktime_get_ns();
+	pr_info("  Duration of test: %lld ns\n", end - start);
+
+	return end - start;
 
 error:
 	tbl = rht_dereference_rcu(ht->tbl, ht);
@@ -183,22 +201,42 @@ static struct rhashtable ht;
 
 static int __init test_rht_init(void)
 {
-	int err;
+	int i, err;
+	u64 total_time = 0;
 
-	pr_info("Running resizable hashtable tests...\n");
+	entries = min(entries, MAX_ENTRIES);
 
-	err = rhashtable_init(&ht, &test_rht_params);
-	if (err < 0) {
-		pr_warn("Test failed: Unable to initialize hashtable: %d\n",
-			err);
-		return err;
+	test_rht_params.automatic_shrinking = shrinking;
+	test_rht_params.max_size = max_size;
+	test_rht_params.nelem_hint = size;
+
+	pr_info("Running rhashtable test nelem=%d, max_size=%d, shrinking=%d\n",
+		size, max_size, shrinking);
+
+	for (i = 0; i < runs; i++) {
+		s64 time;
+
+		pr_info("Test %02d:\n", i);
+		err = rhashtable_init(&ht, &test_rht_params);
+		if (err < 0) {
+			pr_warn("Test failed: Unable to initialize hashtable: %d\n",
+				err);
+			continue;
+		}
+
+		time = test_rhashtable(&ht);
+		rhashtable_destroy(&ht);
+		if (time < 0) {
+			pr_warn("Test failed: return code %lld\n", time);
+			return -EINVAL;
+		}
+
+		total_time += time;
 	}
 
-	err = test_rhashtable(&ht);
+	pr_info("Average test time: %llu\n", total_time / runs);
 
-	rhashtable_destroy(&ht);
-
-	return err;
+	return 0;
 }
 
 static void __exit test_rht_exit(void)
