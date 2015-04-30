@@ -1,5 +1,5 @@
 /*
- * kizbox.dts - Device Tree file for Overkiz Kizbox board
+ * at91-kizbox.dts - Device Tree file for Overkiz Kizbox board
  *
  * Copyright (C) 2012 Boris BREZILLON <linux-arm@overkiz.com>
  *
