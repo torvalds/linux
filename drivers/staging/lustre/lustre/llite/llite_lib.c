@@ -985,10 +985,8 @@ int ll_fill_super(struct super_block *sb, struct vfsmount *mnt)
 	err = client_common_fill_super(sb, md, dt, mnt);
 
 out_free:
-	if (md)
-		kfree(md);
-	if (dt)
-		kfree(dt);
+	kfree(md);
+	kfree(dt);
 	if (err)
 		ll_put_super(sb);
 	else if (sbi->ll_flags & LL_SBI_VERBOSE)
