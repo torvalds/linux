@@ -119,7 +119,7 @@ static inline int xsave_state(struct xsave_struct *fx)
 	u32 hmask = mask >> 32;
 	int err = 0;
 
-	WARN_ON(system_state == SYSTEM_BOOTING);
+	WARN_ON(!alternatives_patched);
 
 	/*
 	 * If xsaves is enabled, xsaves replaces xsaveopt because
