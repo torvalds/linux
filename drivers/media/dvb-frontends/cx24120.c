@@ -138,6 +138,7 @@ struct cx24120_state {
 
 	u8 cold_init;
 	u8 mpeg_enabled;
+	u8 need_clock_set;
 
 	/* current and next tuning parameters */
 	struct cx24120_tuning dcur;
@@ -613,6 +614,8 @@ static int cx24120_send_diseqc_msg(struct dvb_frontend *fe,
 	return -ETIMEDOUT;
 }
 
+static void cx24120_set_clock_ratios(struct dvb_frontend *fe);
+
 /* Read current tuning status */
 static int cx24120_read_status(struct dvb_frontend *fe, fe_status_t *status)
 {
@@ -638,6 +641,20 @@ static int cx24120_read_status(struct dvb_frontend *fe, fe_status_t *status)
 	/* TODO: is FE_HAS_SYNC in the right place?
 	 * Other cx241xx drivers have this slightly
 	 * different */
+
+	/* Set the clock once tuned in */
+	if (state->need_clock_set && *status & FE_HAS_LOCK) {
+		/* Set clock ratios */
+		cx24120_set_clock_ratios(fe);
+
+		/* Old driver would do a msleep(200) here */
+
+		/* Renable mpeg output */
+		if (!state->mpeg_enabled)
+			cx24120_msg_mpeg_output_global_config(state, 1);
+
+		state->need_clock_set = 0;
+	}
 
 	return 0;
 }
@@ -988,32 +1005,12 @@ static void cx24120_clone_params(struct dvb_frontend *fe)
 	state->dcur = state->dnxt;
 }
 
-/* Table of time to tune for different symrates */
-static struct cx24120_symrate_delay {
-	fe_delivery_system_t delsys;
-	u32 symrate;		/* Check for >= this symrate */
-	u32 delay;		/* Timeout in ms */
-} symrates_delay_table[] = {
-	{ SYS_DVBS,  10000000,   400 },
-	{ SYS_DVBS,   8000000,  2000 },
-	{ SYS_DVBS,   6000000,  5000 },
-	{ SYS_DVBS,   3000000, 10000 },
-	{ SYS_DVBS,         0, 15000 },
-	{ SYS_DVBS2, 10000000,   600 }, /* DVBS2 needs a little longer */
-	{ SYS_DVBS2,  8000000,  2000 }, /* (so these might need bumping too) */
-	{ SYS_DVBS2,  6000000,  5000 },
-	{ SYS_DVBS2,  3000000, 10000 },
-	{ SYS_DVBS2,        0, 15000 },
-};
-
 static int cx24120_set_frontend(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct cx24120_state *state = fe->demodulator_priv;
 	struct cx24120_cmd cmd;
 	int ret;
-	int delay_cnt, sd_idx = 0;
-	fe_status_t status;
 
 	switch (c->delivery_system) {
 	case SYS_DVBS2:
@@ -1076,6 +1073,9 @@ static int cx24120_set_frontend(struct dvb_frontend *fe)
 		"%s: Inversion   = %d (val = 0x%02x)\n", __func__,
 		state->dcur.inversion, state->dcur.inversion_val);
 
+	/* Flag that clock needs to be set after tune */
+	state->need_clock_set = 1;
+
 	/* Tune in */
 	cmd.id = CMD_TUNEREQUEST;
 	cmd.len = 15;
@@ -1106,49 +1106,6 @@ static int cx24120_set_frontend(struct dvb_frontend *fe)
 	ret &= 0xfffffff0;
 	ret |= state->dcur.ratediv;
 	ret = cx24120_writereg(state, CX24120_REG_RATEDIV, ret);
-
-	/* Default time to tune */
-	delay_cnt = 500;
-
-	/* Establish time to tune from symrates_delay_table */
-	for (sd_idx = 0; sd_idx < ARRAY_SIZE(symrates_delay_table); sd_idx++) {
-		if (state->dcur.delsys != symrates_delay_table[sd_idx].delsys)
-			continue;
-		if (c->symbol_rate < symrates_delay_table[sd_idx].symrate)
-			continue;
-
-		/* found */
-		delay_cnt = symrates_delay_table[sd_idx].delay;
-		dev_dbg(&state->i2c->dev, "%s: Found symrate delay = %d\n",
-			__func__, delay_cnt);
-		break;
-	}
-
-	/* Wait for tuning */
-	while (delay_cnt >= 0) {
-		cx24120_read_status(fe, &status);
-		if (status & FE_HAS_LOCK)
-			goto tuned;
-		msleep(20);
-		delay_cnt -= 20;
-	}
-
-	/* Fail to tune */
-	dev_dbg(&state->i2c->dev, "%s: Tuning failed\n", __func__);
-
-	return -EINVAL;
-
-tuned:
-	dev_dbg(&state->i2c->dev, "%s: Tuning successful\n", __func__);
-
-	/* Set clock ratios */
-	cx24120_set_clock_ratios(fe);
-
-	/* Old driver would do a msleep(200) here */
-
-	/* Renable mpeg output */
-	if (!state->mpeg_enabled)
-		cx24120_msg_mpeg_output_global_config(state, 1);
 
 	return 0;
 }
@@ -1419,11 +1376,13 @@ static int cx24120_get_frontend(struct dvb_frontend *fe)
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct cx24120_state *state = fe->demodulator_priv;
 	u8 freq1, freq2, freq3;
+	fe_status_t status;
 
 	dev_dbg(&state->i2c->dev, "%s()", __func__);
 
 	/* don't return empty data if we're not tuned in */
-	if (state->mpeg_enabled)
+	cx24120_read_status(fe, &status);
+	if ((status & FE_HAS_LOCK) == 0)
 		return 0;
 
 	/* Get frequency */
