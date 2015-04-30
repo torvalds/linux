@@ -14,8 +14,6 @@ resets them for you, so invoke skb_act_clone() rather than skb_clone().
 
 2) If you munge any packet thou shalt call pskb_expand_head in the case
 someone else is referencing the skb. After that you "own" the skb.
-You must also tell us if it is ok to munge the packet (TC_OK2MUNGE),
-this way any action downstream can stomp on the packet.
 
 3) Dropping packets you don't own is a no-no. You simply return
 TC_ACT_SHOT to the caller and they will drop it.
