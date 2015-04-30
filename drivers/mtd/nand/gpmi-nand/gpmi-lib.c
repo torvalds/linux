@@ -233,7 +233,8 @@ void gpmi_dump_info(struct gpmi_nand_data *this)
 		"ECC Strength           : %u\n"
 		"Page Size in Bytes     : %u\n"
 		"Metadata Size in Bytes : %u\n"
-		"ECC Chunk Size in Bytes: %u\n"
+		"ECC Chunk0 Size in Bytes: %u\n"
+		"ECC Chunkn Size in Bytes: %u\n"
 		"ECC Chunk Count        : %u\n"
 		"Payload Size in Bytes  : %u\n"
 		"Auxiliary Size in Bytes: %u\n"
@@ -244,7 +245,8 @@ void gpmi_dump_info(struct gpmi_nand_data *this)
 		geo->ecc_strength,
 		geo->page_size,
 		geo->metadata_size,
-		geo->ecc_chunk_size,
+		geo->ecc_chunk0_size,
+		geo->ecc_chunkn_size,
 		geo->ecc_chunk_count,
 		geo->payload_size,
 		geo->auxiliary_size,
@@ -259,7 +261,8 @@ int bch_set_geometry(struct gpmi_nand_data *this)
 	struct resources *r = &this->resources;
 	struct bch_geometry *bch_geo = &this->bch_geometry;
 	unsigned int block_count;
-	unsigned int block_size;
+	unsigned int block0_size;
+	unsigned int blockn_size;
 	unsigned int metadata_size;
 	unsigned int ecc_strength;
 	unsigned int page_size;
@@ -271,7 +274,8 @@ int bch_set_geometry(struct gpmi_nand_data *this)
 		return !0;
 
 	block_count   = bch_geo->ecc_chunk_count - 1;
-	block_size    = bch_geo->ecc_chunk_size;
+	block0_size    = bch_geo->ecc_chunk0_size;
+	blockn_size    = bch_geo->ecc_chunkn_size;
 	metadata_size = bch_geo->metadata_size;
 	ecc_strength  = bch_geo->ecc_strength >> 1;
 	page_size     = bch_geo->page_size;
@@ -314,13 +318,13 @@ int bch_set_geometry(struct gpmi_nand_data *this)
 			| BF_BCH_FLASH0LAYOUT0_META_SIZE(metadata_size)
 			| BF_BCH_FLASH0LAYOUT0_ECC0(ecc_strength, this)
 			| BF_BCH_FLASH0LAYOUT0_GF(gf_len, this)
-			| BF_BCH_FLASH0LAYOUT0_DATA0_SIZE(block_size, this),
+			| BF_BCH_FLASH0LAYOUT0_DATA0_SIZE(block0_size, this),
 			r->bch_regs + HW_BCH_FLASH0LAYOUT0);
 
 	writel(BF_BCH_FLASH0LAYOUT1_PAGE_SIZE(page_size)
 			| BF_BCH_FLASH0LAYOUT1_ECCN(ecc_strength, this)
 			| BF_BCH_FLASH0LAYOUT1_GF(gf_len, this)
-			| BF_BCH_FLASH0LAYOUT1_DATAN_SIZE(block_size, this),
+			| BF_BCH_FLASH0LAYOUT1_DATAN_SIZE(blockn_size, this),
 			r->bch_regs + HW_BCH_FLASH0LAYOUT1);
 
 	/* Set erase threshold to gf/2 for mx6ul, mx6qp and mx7 */

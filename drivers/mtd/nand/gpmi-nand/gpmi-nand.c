@@ -152,6 +152,36 @@ static inline bool gpmi_check_ecc(struct gpmi_nand_data *this)
 	return geo->ecc_strength <= this->devdata->bch_max_ecc_strength;
 }
 
+static inline bool bbm_in_data_chunk(struct gpmi_nand_data *this,
+		unsigned int *chunk_num)
+{
+	struct bch_geometry *geo = &this->bch_geometry;
+	struct mtd_info *mtd = &this->mtd;
+	unsigned int i, j;
+
+	if (geo->ecc_chunk0_size != geo->ecc_chunk0_size) {
+		dev_err(this->dev, "The size of chunk0 must equal to chunkn\n");
+		return false;
+	}
+
+	i = (mtd->writesize * 8 - geo->metadata_size * 8) /
+		(geo->gf_len * geo->ecc_strength +
+				geo->ecc_chunkn_size * 8);
+
+	j = (mtd->writesize * 8 - geo->metadata_size * 8) -
+		(geo->gf_len * geo->ecc_strength +
+				geo->ecc_chunkn_size * 8) * i;
+
+	if (j < geo->ecc_chunkn_size * 8) {
+		*chunk_num = i+1;
+		dev_dbg(this->dev, "Set ecc to %d and bbm in chunk %d\n",
+				geo->ecc_strength, *chunk_num);
+		return true;
+	}
+
+	return false;
+}
+
 /*
  * If we can get the ECC information from the nand chip, we do not
  * need to calculate them ourselves.
@@ -182,15 +212,14 @@ static int set_geometry_by_ecc_info(struct gpmi_nand_data *this)
 			chip->ecc_strength_ds, chip->ecc_step_ds);
 		return -EINVAL;
 	}
-	geo->ecc_chunk_size = chip->ecc_step_ds;
+	geo->ecc_chunk0_size = chip->ecc_step_ds;
+	geo->ecc_chunkn_size = chip->ecc_step_ds;
 	geo->ecc_strength = round_up(chip->ecc_strength_ds, 2);
 	if (!gpmi_check_ecc(this))
 		return -EINVAL;
-	/* set the ecc strength to the maximum ecc controller can support */
-	geo->ecc_strength = this->devdata->bch_max_ecc_strength;
 
 	/* Keep the C >= O */
-	if (geo->ecc_chunk_size < mtd->oobsize) {
+	if (geo->ecc_chunkn_size < mtd->oobsize) {
 		dev_err(this->dev,
 			"unsupported nand chip. ecc size: %d, oob size : %d\n",
 			chip->ecc_step_ds, mtd->oobsize);
@@ -200,7 +229,7 @@ static int set_geometry_by_ecc_info(struct gpmi_nand_data *this)
 	/* The default value, see comment in the legacy_set_geometry(). */
 	geo->metadata_size = 10;
 
-	geo->ecc_chunk_count = mtd->writesize / geo->ecc_chunk_size;
+	geo->ecc_chunk_count = mtd->writesize / geo->ecc_chunkn_size;
 
 	/*
 	 * Now, the NAND chip with 2K page(data chunk is 512byte) shows below:
@@ -278,6 +307,131 @@ static int set_geometry_by_ecc_info(struct gpmi_nand_data *this)
 	return 0;
 }
 
+static int set_geometry_for_large_oob(struct gpmi_nand_data *this)
+{
+	struct bch_geometry *geo = &this->bch_geometry;
+	struct mtd_info *mtd = &this->mtd;
+	struct nand_chip *chip = mtd->priv;
+	unsigned int block_mark_bit_offset;
+	unsigned int max_ecc;
+	unsigned int bbm_chunk;
+	unsigned int i;
+
+
+	/* sanity check for the minimum ecc nand required */
+	if (!(chip->ecc_strength_ds > 0 && chip->ecc_step_ds > 0))
+		return -EINVAL;
+	geo->ecc_strength = chip->ecc_strength_ds;
+
+	/* check if platform can support this nand */
+	if (!gpmi_check_ecc(this)) {
+		dev_err(this->dev,
+				"unsupported NAND chip,\
+				minimum ecc required %d\n"
+				, geo->ecc_strength);
+		return -EINVAL;
+	}
+
+	/* calculate the maximum ecc platform can support*/
+	geo->metadata_size = 10;
+	geo->gf_len = 14;
+	geo->ecc_chunk0_size = 1024;
+	geo->ecc_chunkn_size = 1024;
+	geo->ecc_chunk_count = mtd->writesize / geo->ecc_chunkn_size;
+	max_ecc = min(get_ecc_strength(this),
+			this->devdata->bch_max_ecc_strength);
+
+	/* search a supported ecc strength that makes bbm */
+	/* located in data chunk  */
+	geo->ecc_strength = chip->ecc_strength_ds;
+	while (!(geo->ecc_strength > max_ecc)) {
+		if (bbm_in_data_chunk(this, &bbm_chunk))
+			goto geo_setting;
+		geo->ecc_strength += 2;
+	}
+
+	/* if none of them works, keep using the minimum ecc */
+	/* nand required but changing ecc page layout  */
+	geo->ecc_strength = chip->ecc_strength_ds;
+	/* add extra ecc for meta data */
+	geo->ecc_chunk0_size = 0;
+	geo->ecc_chunk_count = (mtd->writesize / geo->ecc_chunkn_size) + 1;
+	geo->ecc_for_meta = 1;
+	/* check if oob can afford this extra ecc chunk */
+	if (mtd->oobsize * 8 < geo->metadata_size * 8 +
+			geo->gf_len * geo->ecc_strength
+			* geo->ecc_chunk_count) {
+		dev_err(this->dev, "unsupported NAND chip with new layout\n");
+		return -EINVAL;
+	}
+
+	/* calculate in which chunk bbm located */
+	bbm_chunk = (mtd->writesize * 8 - geo->metadata_size * 8 -
+		geo->gf_len * geo->ecc_strength) /
+		(geo->gf_len * geo->ecc_strength +
+				geo->ecc_chunkn_size * 8) + 1;
+
+geo_setting:
+
+	geo->page_size = mtd->writesize + mtd->oobsize;
+	geo->payload_size = mtd->writesize;
+
+	/*
+	 * The auxiliary buffer contains the metadata and the ECC status. The
+	 * metadata is padded to the nearest 32-bit boundary. The ECC status
+	 * contains one byte for every ECC chunk, and is also padded to the
+	 * nearest 32-bit boundary.
+	 */
+	geo->auxiliary_status_offset = ALIGN(geo->metadata_size, 4);
+	geo->auxiliary_size = ALIGN(geo->metadata_size, 4)
+				+ ALIGN(geo->ecc_chunk_count, 4);
+
+	if (!this->swap_block_mark)
+		return 0;
+
+	/* calculate the number of ecc chunk behind the bbm */
+	i = (mtd->writesize / geo->ecc_chunkn_size) - bbm_chunk + 1;
+
+	block_mark_bit_offset = mtd->writesize * 8 -
+		(geo->ecc_strength * geo->gf_len * (geo->ecc_chunk_count - i)
+				+ geo->metadata_size * 8);
+
+	geo->block_mark_byte_offset = block_mark_bit_offset / 8;
+	geo->block_mark_bit_offset  = block_mark_bit_offset % 8;
+
+	dev_dbg(this->dev, "BCH Geometry :\n"
+		"GF length              : %u\n"
+		"ECC Strength           : %u\n"
+		"Page Size in Bytes     : %u\n"
+		"Metadata Size in Bytes : %u\n"
+		"ECC Chunk0 Size in Bytes: %u\n"
+		"ECC Chunkn Size in Bytes: %u\n"
+		"ECC Chunk Count        : %u\n"
+		"Payload Size in Bytes  : %u\n"
+		"Auxiliary Size in Bytes: %u\n"
+		"Auxiliary Status Offset: %u\n"
+		"Block Mark Byte Offset : %u\n"
+		"Block Mark Bit Offset  : %u\n"
+		"Block Mark in chunk	: %u\n"
+		"Ecc for Meta data	: %u\n",
+		geo->gf_len,
+		geo->ecc_strength,
+		geo->page_size,
+		geo->metadata_size,
+		geo->ecc_chunk0_size,
+		geo->ecc_chunkn_size,
+		geo->ecc_chunk_count,
+		geo->payload_size,
+		geo->auxiliary_size,
+		geo->auxiliary_status_offset,
+		geo->block_mark_byte_offset,
+		geo->block_mark_bit_offset,
+		bbm_chunk,
+		geo->ecc_for_meta);
+
+	return 0;
+}
+
 static int legacy_set_geometry(struct gpmi_nand_data *this)
 {
 	struct bch_geometry *geo = &this->bch_geometry;
@@ -297,13 +451,15 @@ static int legacy_set_geometry(struct gpmi_nand_data *this)
 	geo->gf_len = 13;
 
 	/* The default for chunk size. */
-	geo->ecc_chunk_size = 512;
-	while (geo->ecc_chunk_size < mtd->oobsize) {
-		geo->ecc_chunk_size *= 2; /* keep C >= O */
+	geo->ecc_chunk0_size = 512;
+	geo->ecc_chunkn_size = 512;
+	while (geo->ecc_chunkn_size < mtd->oobsize) {
+		geo->ecc_chunk0_size *= 2; /* keep C >= O */
+		geo->ecc_chunkn_size *= 2; /* keep C >= O */
 		geo->gf_len = 14;
 	}
 
-	geo->ecc_chunk_count = mtd->writesize / geo->ecc_chunk_size;
+	geo->ecc_chunk_count = mtd->writesize / geo->ecc_chunkn_size;
 
 	/* We use the same ECC strength for all chunks. */
 	geo->ecc_strength = get_ecc_strength(this);
@@ -393,15 +549,24 @@ static int legacy_set_geometry(struct gpmi_nand_data *this)
 
 int common_nfc_set_geometry(struct gpmi_nand_data *this)
 {
+	struct mtd_info *mtd = &this->mtd;
+	struct nand_chip *chip = mtd->priv;
 
-	if ((of_property_read_bool(this->dev->of_node, "fsl,use-minimum-ecc"))
-				|| legacy_set_geometry(this))
-		/* To align with the kobs-ng, use the maximum ecc strength */
-		/* controller can support, rather than the minimum ecc nand */
-		/* spec required. */
-		return set_geometry_by_ecc_info(this);
+	if (chip->ecc_strength_ds > this->devdata->bch_max_ecc_strength) {
+		dev_err(this->dev,
+			"unsupported NAND chip, minimum ecc required %d\n"
+			, chip->ecc_strength_ds);
+		return -EINVAL;
+	}
 
-	return 0;
+	if (!(chip->ecc_strength_ds > 0 && chip->ecc_step_ds > 0) &&
+			!(mtd->oobsize > 1024))
+		return legacy_set_geometry(this);
+
+	if (mtd->oobsize > 1024 || chip->ecc_step_ds < mtd->oobsize)
+		return set_geometry_for_large_oob(this);
+
+	return set_geometry_by_ecc_info(this);
 }
 
 struct dma_chan *get_dma_chan(struct gpmi_nand_data *this)
@@ -1231,9 +1396,23 @@ static int gpmi_ecc_read_subpage(struct mtd_info *mtd, struct nand_chip *chip,
 		}
 	}
 
+	/*
+	 * if there is an ECC dedicate for meta:
+	 * - need to add an extra ECC size when calculating col and page_size,
+	 *   if the meta size is NOT zero.
+	 *
+	 * - chunk0 size need to set to the same size as other chunks,
+	 *   if the meta size is zero.
+	 */
+
 	meta = geo->metadata_size;
 	if (first) {
-		col = meta + (size + ecc_parity_size) * first;
+		if (geo->ecc_for_meta)
+			col = meta + ecc_parity_size
+				+ (size + ecc_parity_size) * first;
+		else
+			col = meta + (size + ecc_parity_size) * first;
+
 		chip->cmdfunc(mtd, NAND_CMD_RNDOUT, col, -1);
 
 		meta = 0;
@@ -1246,21 +1425,37 @@ static int gpmi_ecc_read_subpage(struct mtd_info *mtd, struct nand_chip *chip,
 
 	/* change the BCH registers and bch_geometry{} */
 	n = last - first + 1;
-	page_size = meta + (size + ecc_parity_size) * n;
+
+	if (geo->ecc_for_meta && meta)
+		page_size = meta + ecc_parity_size
+			+ (size + ecc_parity_size) * n;
+	else
+		page_size = meta + (size + ecc_parity_size) * n;
 
 	r1_new &= ~(BM_BCH_FLASH0LAYOUT0_NBLOCKS |
 			BM_BCH_FLASH0LAYOUT0_META_SIZE);
-	r1_new |= BF_BCH_FLASH0LAYOUT0_NBLOCKS(n - 1)
+	r1_new |= BF_BCH_FLASH0LAYOUT0_NBLOCKS(
+			(geo->ecc_for_meta && meta) ? n : n - 1)
 			| BF_BCH_FLASH0LAYOUT0_META_SIZE(meta);
+
+	/* set chunk0 size if meta size is 0 */
+	if (!meta) {
+		if (GPMI_IS_MX6(this) || GPMI_IS_MX7(this))
+			r1_new &= ~MX6Q_BM_BCH_FLASH0LAYOUT0_DATA0_SIZE;
+		else
+			r1_new &= ~BM_BCH_FLASH0LAYOUT0_DATA0_SIZE;
+		r1_new |= BF_BCH_FLASH0LAYOUT0_DATA0_SIZE(size, this);
+	}
 	writel(r1_new, bch_regs + HW_BCH_FLASH0LAYOUT0);
 
 	r2_new &= ~BM_BCH_FLASH0LAYOUT1_PAGE_SIZE;
 	r2_new |= BF_BCH_FLASH0LAYOUT1_PAGE_SIZE(page_size);
 	writel(r2_new, bch_regs + HW_BCH_FLASH0LAYOUT1);
 
-	geo->ecc_chunk_count = n;
+	geo->ecc_chunk_count = (geo->ecc_for_meta && meta) ? n + 1 : n;
 	geo->payload_size = n * size;
 	geo->page_size = page_size;
+	geo->metadata_size = meta;
 	geo->auxiliary_status_offset = ALIGN(meta, 4);
 
 	dev_dbg(this->dev, "page:%d(%d:%d)%d, chunk:(%d:%d), BCH PG size:%d\n",
@@ -1978,7 +2173,7 @@ static int gpmi_init_last(struct gpmi_nand_data *this)
 	ecc->read_oob_raw = gpmi_ecc_read_oob_raw;
 	ecc->write_oob_raw = gpmi_ecc_write_oob_raw;
 	ecc->mode	= NAND_ECC_HW;
-	ecc->size	= bch_geo->ecc_chunk_size;
+	ecc->size	= bch_geo->ecc_chunkn_size;
 	ecc->strength	= bch_geo->ecc_strength;
 	ecc->layout	= &gpmi_hw_ecclayout;
 
