@@ -87,6 +87,10 @@ static int snd_jack_dev_register(struct snd_device *device)
 
 	snprintf(jack->name, sizeof(jack->name), "%s %s",
 		 card->shortname, jack->id);
+
+	if (!jack->input_dev)
+		return 0;
+
 	jack->input_dev->name = jack->name;
 
 	/* Default to the sound card device. */
@@ -278,6 +282,8 @@ EXPORT_SYMBOL(snd_jack_new);
 void snd_jack_set_parent(struct snd_jack *jack, struct device *parent)
 {
 	WARN_ON(jack->registered);
+	if (!jack->input_dev)
+		return;
 
 	jack->input_dev->dev.parent = parent;
 }
@@ -339,6 +345,13 @@ void snd_jack_report(struct snd_jack *jack, int status)
 	if (!jack)
 		return;
 
+	list_for_each_entry(jack_kctl, &jack->kctl_list, list)
+		snd_kctl_jack_report(jack->card, jack_kctl->kctl,
+					    status & jack_kctl->mask_bits);
+
+	if (!jack->input_dev)
+		return;
+
 	for (i = 0; i < ARRAY_SIZE(jack->key); i++) {
 		int testbit = SND_JACK_BTN_0 >> i;
 
@@ -356,10 +369,6 @@ void snd_jack_report(struct snd_jack *jack, int status)
 	}
 
 	input_sync(jack->input_dev);
-
-	list_for_each_entry(jack_kctl, &jack->kctl_list, list)
-		snd_kctl_jack_report(jack->card, jack_kctl->kctl,
-					    status & jack_kctl->mask_bits);
 
 }
 EXPORT_SYMBOL(snd_jack_report);
