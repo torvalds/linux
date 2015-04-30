@@ -1066,6 +1066,15 @@ nfsd4_run_cb_work(struct work_struct *work)
 			cb->cb_ops->release(cb);
 		return;
 	}
+
+	/*
+	 * Don't send probe messages for 4.1 or later.
+	 */
+	if (!cb->cb_ops && clp->cl_minorversion) {
+		clp->cl_cb_state = NFSD4_CB_UP;
+		return;
+	}
+
 	cb->cb_msg.rpc_cred = clp->cl_cb_cred;
 	rpc_call_async(clnt, &cb->cb_msg, RPC_TASK_SOFT | RPC_TASK_SOFTCONN,
 			cb->cb_ops ? &nfsd4_cb_ops : &nfsd4_cb_probe_ops, cb);
