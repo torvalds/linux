@@ -2104,9 +2104,8 @@ static int rt5645_hw_params(struct snd_pcm_substream *substream,
 
 	switch (dai->id) {
 	case RT5645_AIF1:
-		mask_clk = RT5645_I2S_BCLK_MS1_MASK | RT5645_I2S_PD1_MASK;
-		val_clk = bclk_ms << RT5645_I2S_BCLK_MS1_SFT |
-			pre_div << RT5645_I2S_PD1_SFT;
+		mask_clk = RT5645_I2S_PD1_MASK;
+		val_clk = pre_div << RT5645_I2S_PD1_SFT;
 		snd_soc_update_bits(codec, RT5645_I2S1_SDP,
 			(0x3 << dl_sft), (val_len << dl_sft));
 		snd_soc_update_bits(codec, RT5645_ADDA_CLK1, mask_clk, val_clk);

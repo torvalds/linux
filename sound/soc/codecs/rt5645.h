@@ -942,10 +942,6 @@
 #define RT5645_I2S2_SDI_I2S2			(0x1 << 6)
 
 /* ADC/DAC Clock Control 1 (0x73) */
-#define RT5645_I2S_BCLK_MS1_MASK		(0x1 << 15)
-#define RT5645_I2S_BCLK_MS1_SFT			15
-#define RT5645_I2S_BCLK_MS1_32			(0x0 << 15)
-#define RT5645_I2S_BCLK_MS1_64			(0x1 << 15)
 #define RT5645_I2S_PD1_MASK			(0x7 << 12)
 #define RT5645_I2S_PD1_SFT			12
 #define RT5645_I2S_PD1_1			(0x0 << 12)
