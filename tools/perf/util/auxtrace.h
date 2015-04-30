@@ -26,6 +26,7 @@
 #include "../perf.h"
 #include "event.h"
 #include "session.h"
+#include "debug.h"
 
 union perf_event;
 struct perf_session;
@@ -290,6 +291,8 @@ struct auxtrace_record {
 	int (*read_finish)(struct auxtrace_record *itr, int idx);
 };
 
+#ifdef HAVE_AUXTRACE_SUPPORT
+
 static inline u64 auxtrace_mmap__read_head(struct auxtrace_mmap *mm)
 {
 	struct perf_event_mmap_page *pc = mm->userpg;
@@ -457,5 +460,130 @@ static inline void auxtrace__free(struct perf_session *session)
 
 	return session->auxtrace->free(session);
 }
+
+#else
+
+static inline struct auxtrace_record *
+auxtrace_record__init(struct perf_evlist *evlist __maybe_unused,
+		      int *err __maybe_unused)
+{
+	*err = 0;
+	return NULL;
+}
+
+static inline
+void auxtrace_record__free(struct auxtrace_record *itr __maybe_unused)
+{
+}
+
+static inline int
+perf_event__synthesize_auxtrace_info(struct auxtrace_record *itr __maybe_unused,
+				     struct perf_tool *tool __maybe_unused,
+				     struct perf_session *session __maybe_unused,
+				     perf_event__handler_t process __maybe_unused)
+{
+	return -EINVAL;
+}
+
+static inline
+int auxtrace_record__options(struct auxtrace_record *itr __maybe_unused,
+			     struct perf_evlist *evlist __maybe_unused,
+			     struct record_opts *opts __maybe_unused)
+{
+	return 0;
+}
+
+#define perf_event__process_auxtrace_info		0
+#define perf_event__process_auxtrace			0
+#define perf_event__process_auxtrace_error		0
+
+static inline
+void perf_session__auxtrace_error_inc(struct perf_session *session
+				      __maybe_unused,
+				      union perf_event *event
+				      __maybe_unused)
+{
+}
+
+static inline
+void events_stats__auxtrace_error_warn(const struct events_stats *stats
+				       __maybe_unused)
+{
+}
+
+static inline
+int itrace_parse_synth_opts(const struct option *opt __maybe_unused,
+			    const char *str __maybe_unused,
+			    int unset __maybe_unused)
+{
+	pr_err("AUX area tracing not supported\n");
+	return -EINVAL;
+}
+
+static inline
+int auxtrace__process_event(struct perf_session *session __maybe_unused,
+			    union perf_event *event __maybe_unused,
+			    struct perf_sample *sample __maybe_unused,
+			    struct perf_tool *tool __maybe_unused)
+{
+	return 0;
+}
+
+static inline
+int auxtrace__flush_events(struct perf_session *session __maybe_unused,
+			   struct perf_tool *tool __maybe_unused)
+{
+	return 0;
+}
+
+static inline
+void auxtrace__free_events(struct perf_session *session __maybe_unused)
+{
+}
+
+static inline
+void auxtrace_cache__free(struct auxtrace_cache *auxtrace_cache __maybe_unused)
+{
+}
+
+static inline
+void auxtrace__free(struct perf_session *session __maybe_unused)
+{
+}
+
+static inline
+int auxtrace_index__write(int fd __maybe_unused,
+			  struct list_head *head __maybe_unused)
+{
+	return -EINVAL;
+}
+
+static inline
+int auxtrace_index__process(int fd __maybe_unused,
+			    u64 size __maybe_unused,
+			    struct perf_session *session __maybe_unused,
+			    bool needs_swap __maybe_unused)
+{
+	return -EINVAL;
+}
+
+static inline
+void auxtrace_index__free(struct list_head *head __maybe_unused)
+{
+}
+
+int auxtrace_mmap__mmap(struct auxtrace_mmap *mm,
+			struct auxtrace_mmap_params *mp,
+			void *userpg, int fd);
+void auxtrace_mmap__munmap(struct auxtrace_mmap *mm);
+void auxtrace_mmap_params__init(struct auxtrace_mmap_params *mp,
+				off_t auxtrace_offset,
+				unsigned int auxtrace_pages,
+				bool auxtrace_overwrite);
+void auxtrace_mmap_params__set_idx(struct auxtrace_mmap_params *mp,
+				   struct perf_evlist *evlist, int idx,
+				   bool per_cpu);
+
+#endif
 
 #endif

@@ -53,25 +53,6 @@ static int output_bytes(struct perf_inject *inject, void *buf, size_t sz)
 	return 0;
 }
 
-static int copy_bytes(struct perf_inject *inject, int fd, off_t size)
-{
-	char buf[4096];
-	ssize_t ssz;
-	int ret;
-
-	while (size > 0) {
-		ssz = read(fd, buf, min(size, (off_t)sizeof(buf)));
-		if (ssz < 0)
-			return -errno;
-		ret = output_bytes(inject, buf, ssz);
-		if (ret)
-			return ret;
-		size -= ssz;
-	}
-
-	return 0;
-}
-
 static int perf_event__repipe_synth(struct perf_tool *tool,
 				    union perf_event *event)
 {
@@ -114,6 +95,27 @@ static int perf_event__repipe_attr(struct perf_tool *tool,
 	return perf_event__repipe_synth(tool, event);
 }
 
+#ifdef HAVE_AUXTRACE_SUPPORT
+
+static int copy_bytes(struct perf_inject *inject, int fd, off_t size)
+{
+	char buf[4096];
+	ssize_t ssz;
+	int ret;
+
+	while (size > 0) {
+		ssz = read(fd, buf, min(size, (off_t)sizeof(buf)));
+		if (ssz < 0)
+			return -errno;
+		ret = output_bytes(inject, buf, ssz);
+		if (ret)
+			return ret;
+		size -= ssz;
+	}
+
+	return 0;
+}
+
 static s64 perf_event__repipe_auxtrace(struct perf_tool *tool,
 				       union perf_event *event,
 				       struct perf_session *session
@@ -152,6 +154,19 @@ static s64 perf_event__repipe_auxtrace(struct perf_tool *tool,
 
 	return event->auxtrace.size;
 }
+
+#else
+
+static s64
+perf_event__repipe_auxtrace(struct perf_tool *tool __maybe_unused,
+			    union perf_event *event __maybe_unused,
+			    struct perf_session *session __maybe_unused)
+{
+	pr_err("AUX area tracing not supported\n");
+	return -EINVAL;
+}
+
+#endif
 
 static int perf_event__repipe(struct perf_tool *tool,
 			      union perf_event *event,

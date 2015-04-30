@@ -112,6 +112,8 @@ out:
 	return rc;
 }
 
+#ifdef HAVE_AUXTRACE_SUPPORT
+
 static int record__process_auxtrace(struct perf_tool *tool,
 				    union perf_event *event, void *data1,
 				    size_t len1, void *data2, size_t len2)
@@ -164,6 +166,17 @@ static int record__auxtrace_mmap_read(struct record *rec,
 
 	return 0;
 }
+
+#else
+
+static inline
+int record__auxtrace_mmap_read(struct record *rec __maybe_unused,
+			       struct auxtrace_mmap *mm __maybe_unused)
+{
+	return 0;
+}
+
+#endif
 
 static volatile int done = 0;
 static volatile int signr = -1;

@@ -73,6 +73,8 @@ include config/utilities.mak
 # for CTF data format.
 #
 # Define NO_LZMA if you do not want to support compressed (xz) kernel modules
+#
+# Define NO_AUXTRACE if you do not want AUX area tracing support
 
 ifeq ($(srctree),)
 srctree := $(patsubst %/,%,$(dir $(shell pwd)))
