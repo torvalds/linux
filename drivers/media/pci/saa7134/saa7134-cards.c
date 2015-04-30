@@ -7159,10 +7159,10 @@ MODULE_DEVICE_TABLE(pci, saa7134_pci_tbl);
 
 static void board_flyvideo(struct saa7134_dev *dev)
 {
-	printk("%s: there are different flyvideo cards with different tuners\n"
-	       "%s: out there, you might have to use the tuner=<nr> insmod\n"
-	       "%s: option to override the default value.\n",
-	       dev->name, dev->name, dev->name);
+	pr_warn("%s: there are different flyvideo cards with different tuners\n"
+		"%s: out there, you might have to use the tuner=<nr> insmod\n"
+		"%s: option to override the default value.\n",
+		dev->name, dev->name, dev->name);
 }
 
 static int saa7134_xc2028_callback(struct saa7134_dev *dev,
@@ -7513,10 +7513,10 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 		dev->has_remote = SAA7134_REMOTE_GPIO;
 		break;
 	case SAA7134_BOARD_MD5044:
-		printk("%s: seems there are two different versions of the MD5044\n"
-		       "%s: (with the same ID) out there.  If sound doesn't work for\n"
-		       "%s: you try the audio_clock_override=0x200000 insmod option.\n",
-		       dev->name,dev->name,dev->name);
+		pr_warn("%s: seems there are two different versions of the MD5044\n"
+			"%s: (with the same ID) out there.  If sound doesn't work for\n"
+			"%s: you try the audio_clock_override=0x200000 insmod option.\n",
+			dev->name,dev->name,dev->name);
 		break;
 	case SAA7134_BOARD_CINERGY400_CARDBUS:
 		/* power-up tuner chip */
@@ -7641,10 +7641,10 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 		dev->has_remote = SAA7134_REMOTE_I2C;
 		break;
 	case SAA7134_BOARD_AVERMEDIA_A169_B:
-		printk("%s: %s: dual saa713x broadcast decoders\n"
-		       "%s: Sorry, none of the inputs to this chip are supported yet.\n"
-		       "%s: Dual decoder functionality is disabled for now, use the other chip.\n",
-		       dev->name,card(dev).name,dev->name,dev->name);
+		pr_warn("%s: %s: dual saa713x broadcast decoders\n"
+			"%s: Sorry, none of the inputs to this chip are supported yet.\n"
+			"%s: Dual decoder functionality is disabled for now, use the other chip.\n",
+			dev->name,card(dev).name,dev->name,dev->name);
 		break;
 	case SAA7134_BOARD_AVERMEDIA_M102:
 		/* enable tuner */
@@ -7790,7 +7790,7 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		if (board == dev->board)
 			break;
 		dev->board = board;
-		printk("%s: board type fixup: %s\n", dev->name,
+		pr_warn("%s: board type fixup: %s\n", dev->name,
 		saa7134_boards[dev->board].name);
 		dev->tuner_type = saa7134_boards[dev->board].tuner_type;
 
@@ -8047,7 +8047,7 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 			msg.len = ARRAY_SIZE(buffer[0]);
 			if (i2c_transfer(&dev->i2c_adap, &msg, 1) != 1)
 				pr_warn("%s: Unable to enable tuner(%i).\n",
-				        dev->name, i);
+					dev->name, i);
 		}
 		break;
 	}

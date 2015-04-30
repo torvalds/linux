@@ -947,7 +947,7 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 	       dev->pci_lat,(unsigned long long)pci_resource_start(pci_dev,0));
 	pci_set_master(pci_dev);
 	if (!pci_dma_supported(pci_dev, DMA_BIT_MASK(32))) {
-		printk("%s: Oops: no 32bit PCI DMA ???\n",dev->name);
+		pr_warn("%s: Oops: no 32bit PCI DMA ???\n", dev->name);
 		err = -EIO;
 		goto fail1;
 	}
