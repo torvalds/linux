@@ -665,15 +665,12 @@ static bool rspi_can_dma(struct spi_master *master, struct spi_device *spi,
 static int rspi_dma_check_then_transfer(struct rspi_data *rspi,
 					 struct spi_transfer *xfer)
 {
-	if (rspi->master->can_dma && __rspi_can_dma(rspi, xfer)) {
-		/* rx_buf can be NULL on RSPI on SH in TX-only Mode */
-		int ret = rspi_dma_transfer(rspi, &xfer->tx_sg,
-					xfer->rx_buf ? &xfer->rx_sg : NULL);
-		if (ret != -EAGAIN)
-			return 0;
-	}
+	if (!rspi->master->can_dma || !__rspi_can_dma(rspi, xfer))
+		return -EAGAIN;
 
-	return -EAGAIN;
+	/* rx_buf can be NULL on RSPI on SH in TX-only Mode */
+	return rspi_dma_transfer(rspi, &xfer->tx_sg,
+				xfer->rx_buf ? &xfer->rx_sg : NULL);
 }
 
 static int rspi_common_transfer(struct rspi_data *rspi,
