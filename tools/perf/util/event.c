@@ -24,6 +24,7 @@ static const char *perf_event__names[] = {
 	[PERF_RECORD_READ]			= "READ",
 	[PERF_RECORD_SAMPLE]			= "SAMPLE",
 	[PERF_RECORD_AUX]			= "AUX",
+	[PERF_RECORD_ITRACE_START]		= "ITRACE_START",
 	[PERF_RECORD_HEADER_ATTR]		= "ATTR",
 	[PERF_RECORD_HEADER_EVENT_TYPE]		= "EVENT_TYPE",
 	[PERF_RECORD_HEADER_TRACING_DATA]	= "TRACING_DATA",
@@ -704,6 +705,14 @@ int perf_event__process_aux(struct perf_tool *tool __maybe_unused,
 	return machine__process_aux_event(machine, event);
 }
 
+int perf_event__process_itrace_start(struct perf_tool *tool __maybe_unused,
+				     union perf_event *event,
+				     struct perf_sample *sample __maybe_unused,
+				     struct machine *machine)
+{
+	return machine__process_itrace_start_event(machine, event);
+}
+
 size_t perf_event__fprintf_mmap(union perf_event *event, FILE *fp)
 {
 	return fprintf(fp, " %d/%d: [%#" PRIx64 "(%#" PRIx64 ") @ %#" PRIx64 "]: %c %s\n",
@@ -776,6 +785,12 @@ size_t perf_event__fprintf_aux(union perf_event *event, FILE *fp)
 		       event->aux.flags & PERF_AUX_FLAG_OVERWRITE ? "O" : "");
 }
 
+size_t perf_event__fprintf_itrace_start(union perf_event *event, FILE *fp)
+{
+	return fprintf(fp, " pid: %u tid: %u\n",
+		       event->itrace_start.pid, event->itrace_start.tid);
+}
+
 size_t perf_event__fprintf(union perf_event *event, FILE *fp)
 {
 	size_t ret = fprintf(fp, "PERF_RECORD_%s",
@@ -797,6 +812,9 @@ size_t perf_event__fprintf(union perf_event *event, FILE *fp)
 		break;
 	case PERF_RECORD_AUX:
 		ret += perf_event__fprintf_aux(event, fp);
+		break;
+	case PERF_RECORD_ITRACE_START:
+		ret += perf_event__fprintf_itrace_start(event, fp);
 		break;
 	default:
 		ret += fprintf(fp, "\n");

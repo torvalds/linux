@@ -494,6 +494,14 @@ int machine__process_aux_event(struct machine *machine __maybe_unused,
 	return 0;
 }
 
+int machine__process_itrace_start_event(struct machine *machine __maybe_unused,
+					union perf_event *event)
+{
+	if (dump_trace)
+		perf_event__fprintf_itrace_start(event, stdout);
+	return 0;
+}
+
 struct map *machine__new_module(struct machine *machine, u64 start,
 				const char *filename)
 {
@@ -1341,6 +1349,9 @@ int machine__process_event(struct machine *machine, union perf_event *event,
 		ret = machine__process_lost_event(machine, event, sample); break;
 	case PERF_RECORD_AUX:
 		ret = machine__process_aux_event(machine, event); break;
+	case PERF_RECORD_ITRACE_START:
+		ret = machine__process_itrace_start_event(machine, event);
+		break;
 	default:
 		ret = -1;
 		break;
