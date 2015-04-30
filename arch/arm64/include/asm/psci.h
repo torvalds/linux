@@ -14,7 +14,15 @@
 #ifndef __ASM_PSCI_H
 #define __ASM_PSCI_H
 
-int psci_dt_init(void);
-int psci_acpi_init(void);
+int __init psci_dt_init(void);
+
+#ifdef CONFIG_ACPI
+int __init psci_acpi_init(void);
+bool __init acpi_psci_present(void);
+bool __init acpi_psci_use_hvc(void);
+#else
+static inline int psci_acpi_init(void) { return 0; }
+static inline bool acpi_psci_present(void) { return false; }
+#endif
 
 #endif /* __ASM_PSCI_H */

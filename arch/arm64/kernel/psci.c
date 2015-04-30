@@ -15,7 +15,6 @@
 
 #define pr_fmt(fmt) "psci: " fmt
 
-#include <linux/acpi.h>
 #include <linux/init.h>
 #include <linux/of.h>
 #include <linux/smp.h>
@@ -25,7 +24,6 @@
 #include <linux/slab.h>
 #include <uapi/linux/psci.h>
 
-#include <asm/acpi.h>
 #include <asm/compiler.h>
 #include <asm/cputype.h>
 #include <asm/cpu_ops.h>
@@ -446,6 +444,7 @@ int __init psci_dt_init(void)
 	return init_fn(np);
 }
 
+#ifdef CONFIG_ACPI
 /*
  * We use PSCI 0.2+ when ACPI is deployed on ARM64 and it's
  * explicitly clarified in SBBR
@@ -466,6 +465,7 @@ int __init psci_acpi_init(void)
 
 	return psci_probe();
 }
+#endif
 
 #ifdef CONFIG_SMP
 
