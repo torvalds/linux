@@ -398,9 +398,9 @@ void fpu__drop(struct fpu *fpu)
 static inline void copy_init_fpstate_to_fpregs(void)
 {
 	if (use_xsave())
-		xrstor_state(&init_fpstate.xsave, -1);
+		copy_kernel_to_xregs(&init_fpstate.xsave, -1);
 	else
-		fxrstor_checking(&init_fpstate.fxsave);
+		copy_kernel_to_fxregs(&init_fpstate.fxsave);
 }
 
 /*

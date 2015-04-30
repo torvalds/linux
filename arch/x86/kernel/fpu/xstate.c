@@ -260,11 +260,11 @@ static inline int copy_fpregs_to_sigframe(struct xsave_struct __user *buf)
 	int err;
 
 	if (use_xsave())
-		err = xsave_user(buf);
+		err = copy_xregs_to_user(buf);
 	else if (use_fxsr())
-		err = fxsave_user((struct i387_fxsave_struct __user *) buf);
+		err = copy_fxregs_to_user((struct i387_fxsave_struct __user *) buf);
 	else
-		err = fsave_user((struct i387_fsave_struct __user *) buf);
+		err = copy_fregs_to_user((struct i387_fsave_struct __user *) buf);
 
 	if (unlikely(err) && __clear_user(buf, xstate_size))
 		err = -EFAULT;
@@ -314,7 +314,7 @@ int copy_fpstate_to_sigframe(void __user *buf, void __user *buf_fx, int size)
 			return -1;
 		/* Update the thread's fxstate to save the fsave header. */
 		if (ia32_fxstate)
-			fpu_fxsave(&tsk->thread.fpu);
+			copy_fxregs_to_kernel(&tsk->thread.fpu);
 	} else {
 		fpstate_sanitize_xstate(&tsk->thread.fpu);
 		if (__copy_to_user(buf_fx, xsave, xstate_size))
@@ -367,23 +367,23 @@ sanitize_restored_xstate(struct task_struct *tsk,
 /*
  * Restore the extended state if present. Otherwise, restore the FP/SSE state.
  */
-static inline int restore_user_xstate(void __user *buf, u64 xbv, int fx_only)
+static inline int copy_user_to_fpregs_zeroing(void __user *buf, u64 xbv, int fx_only)
 {
 	if (use_xsave()) {
 		if ((unsigned long)buf % 64 || fx_only) {
 			u64 init_bv = xfeatures_mask & ~XSTATE_FPSSE;
-			xrstor_state(&init_fpstate.xsave, init_bv);
-			return fxrstor_user(buf);
+			copy_kernel_to_xregs(&init_fpstate.xsave, init_bv);
+			return copy_user_to_fxregs(buf);
 		} else {
 			u64 init_bv = xfeatures_mask & ~xbv;
 			if (unlikely(init_bv))
-				xrstor_state(&init_fpstate.xsave, init_bv);
-			return xrestore_user(buf, xbv);
+				copy_kernel_to_xregs(&init_fpstate.xsave, init_bv);
+			return copy_user_to_xregs(buf, xbv);
 		}
 	} else if (use_fxsr()) {
-		return fxrstor_user(buf);
+		return copy_user_to_fxregs(buf);
 	} else
-		return frstor_user(buf);
+		return copy_user_to_fregs(buf);
 }
 
 static int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
@@ -471,7 +471,7 @@ static int __fpu__restore_sig(void __user *buf, void __user *buf_fx, int size)
 		 * state to the registers directly (with exceptions handled).
 		 */
 		user_fpu_begin();
-		if (restore_user_xstate(buf_fx, xfeatures, fx_only)) {
+		if (copy_user_to_fpregs_zeroing(buf_fx, xfeatures, fx_only)) {
 			fpu__clear(fpu);
 			return -1;
 		}
@@ -667,13 +667,13 @@ static void setup_init_fpu_buf(void)
 	/*
 	 * Init all the features state with header_bv being 0x0
 	 */
-	xrstor_state_booting(&init_fpstate.xsave, -1);
+	copy_kernel_to_xregs_booting(&init_fpstate.xsave, -1);
 
 	/*
 	 * Dump the init state again. This is to identify the init state
 	 * of any feature which is not represented by all zero's.
 	 */
-	xsave_state_booting(&init_fpstate.xsave);
+	copy_xregs_to_kernel_booting(&init_fpstate.xsave);
 }
 
 /*

@@ -133,57 +133,57 @@ extern void fpstate_sanitize_xstate(struct fpu *fpu);
 	err;								\
 })
 
-static inline int fsave_user(struct i387_fsave_struct __user *fx)
+static inline int copy_fregs_to_user(struct i387_fsave_struct __user *fx)
 {
 	return user_insn(fnsave %[fx]; fwait,  [fx] "=m" (*fx), "m" (*fx));
 }
 
-static inline int fxsave_user(struct i387_fxsave_struct __user *fx)
+static inline int copy_fxregs_to_user(struct i387_fxsave_struct __user *fx)
 {
 	if (config_enabled(CONFIG_X86_32))
 		return user_insn(fxsave %[fx], [fx] "=m" (*fx), "m" (*fx));
 	else if (config_enabled(CONFIG_AS_FXSAVEQ))
 		return user_insn(fxsaveq %[fx], [fx] "=m" (*fx), "m" (*fx));
 
-	/* See comment in fpu_fxsave() below. */
+	/* See comment in copy_fxregs_to_kernel() below. */
 	return user_insn(rex64/fxsave (%[fx]), "=m" (*fx), [fx] "R" (fx));
 }
 
-static inline int fxrstor_checking(struct i387_fxsave_struct *fx)
+static inline int copy_kernel_to_fxregs(struct i387_fxsave_struct *fx)
 {
 	if (config_enabled(CONFIG_X86_32))
 		return check_insn(fxrstor %[fx], "=m" (*fx), [fx] "m" (*fx));
 	else if (config_enabled(CONFIG_AS_FXSAVEQ))
 		return check_insn(fxrstorq %[fx], "=m" (*fx), [fx] "m" (*fx));
 
-	/* See comment in fpu_fxsave() below. */
+	/* See comment in copy_fxregs_to_kernel() below. */
 	return check_insn(rex64/fxrstor (%[fx]), "=m" (*fx), [fx] "R" (fx),
 			  "m" (*fx));
 }
 
-static inline int fxrstor_user(struct i387_fxsave_struct __user *fx)
+static inline int copy_user_to_fxregs(struct i387_fxsave_struct __user *fx)
 {
 	if (config_enabled(CONFIG_X86_32))
 		return user_insn(fxrstor %[fx], "=m" (*fx), [fx] "m" (*fx));
 	else if (config_enabled(CONFIG_AS_FXSAVEQ))
 		return user_insn(fxrstorq %[fx], "=m" (*fx), [fx] "m" (*fx));
 
-	/* See comment in fpu_fxsave() below. */
+	/* See comment in copy_fxregs_to_kernel() below. */
 	return user_insn(rex64/fxrstor (%[fx]), "=m" (*fx), [fx] "R" (fx),
 			  "m" (*fx));
 }
 
-static inline int frstor_checking(struct i387_fsave_struct *fx)
+static inline int copy_kernel_to_fregs(struct i387_fsave_struct *fx)
 {
 	return check_insn(frstor %[fx], "=m" (*fx), [fx] "m" (*fx));
 }
 
-static inline int frstor_user(struct i387_fsave_struct __user *fx)
+static inline int copy_user_to_fregs(struct i387_fsave_struct __user *fx)
 {
 	return user_insn(frstor %[fx], "=m" (*fx), [fx] "m" (*fx));
 }
 
-static inline void fpu_fxsave(struct fpu *fpu)
+static inline void copy_fxregs_to_kernel(struct fpu *fpu)
 {
 	if (config_enabled(CONFIG_X86_32))
 		asm volatile( "fxsave %[fx]" : [fx] "=m" (fpu->state.fxsave));
@@ -230,12 +230,12 @@ static inline void fpu_fxsave(struct fpu *fpu)
 static inline int copy_fpregs_to_fpstate(struct fpu *fpu)
 {
 	if (likely(use_xsave())) {
-		xsave_state(&fpu->state.xsave);
+		copy_xregs_to_kernel(&fpu->state.xsave);
 		return 1;
 	}
 
 	if (likely(use_fxsr())) {
-		fpu_fxsave(fpu);
+		copy_fxregs_to_kernel(fpu);
 		return 1;
 	}
 
@@ -251,11 +251,11 @@ static inline int copy_fpregs_to_fpstate(struct fpu *fpu)
 static inline int __copy_fpstate_to_fpregs(struct fpu *fpu)
 {
 	if (use_xsave())
-		return fpu_xrstor_checking(&fpu->state.xsave);
+		return copy_kernel_to_xregs(&fpu->state.xsave, -1);
 	else if (use_fxsr())
-		return fxrstor_checking(&fpu->state.fxsave);
+		return copy_kernel_to_fxregs(&fpu->state.fxsave);
 	else
-		return frstor_checking(&fpu->state.fsave);
+		return copy_kernel_to_fregs(&fpu->state.fsave);
 }
 
 static inline int copy_fpstate_to_fpregs(struct fpu *fpu)
