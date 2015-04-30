@@ -2662,9 +2662,6 @@ static int dm_init_request_based_queue(struct mapped_device *md)
 {
 	struct request_queue *q = NULL;
 
-	if (md->queue->elevator)
-		return 0;
-
 	/* Fully initialize the queue */
 	q = blk_init_allocated_queue(md->queue, dm_request_fn, NULL);
 	if (!q)
