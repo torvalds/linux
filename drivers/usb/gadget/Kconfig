@@ -820,6 +820,9 @@ config USB_G_PRINTER
 
 config USB_G_ANDROID
 	boolean "Android Composite Gadget"
+	depends on SND
+	select SND_PCM
+	select SND_RAWMIDI
 	select USB_F_ACM
 	select USB_LIBCOMPOSITE
 	select USB_U_SERIAL
