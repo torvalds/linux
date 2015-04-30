@@ -64,6 +64,8 @@ int mwifiex_wait_queue_complete(struct mwifiex_adapter *adapter,
 						  *(cmd_queued->condition),
 						  (12 * HZ));
 	if (status <= 0) {
+		if (status == 0)
+			status = -ETIMEDOUT;
 		dev_err(adapter->dev, "cmd_wait_q terminated: %d\n", status);
 		mwifiex_cancel_all_pending_cmd(adapter);
 		return status;
