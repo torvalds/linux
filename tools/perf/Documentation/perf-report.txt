@@ -324,9 +324,6 @@ OPTIONS
 --header-only::
 	Show only perf.data header (forces --stdio).
 
-
-include::callchain-overhead-calculation.txt[]
-
 --itrace::
 	Options for decoding instruction tracing data. The options are:
 
@@ -353,6 +350,9 @@ include::callchain-overhead-calculation.txt[]
 	events can be specified.
 
 	To disable decoding entirely, use --no-itrace.
+
+
+include::callchain-overhead-calculation.txt[]
 
 SEE ALSO
 --------
