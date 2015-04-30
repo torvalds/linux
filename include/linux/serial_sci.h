@@ -1,6 +1,7 @@
 #ifndef __LINUX_SERIAL_SCI_H
 #define __LINUX_SERIAL_SCI_H
 
+#include <linux/bitops.h>
 #include <linux/serial_core.h>
 #include <linux/sh_dma.h>
 
@@ -11,14 +12,14 @@
 #define SCIx_NOT_SUPPORTED	(-1)
 
 /* Serial Control Register (@ = not supported by all parts) */
-#define SCSCR_TIE	(1 << 7)	/* Transmit Interrupt Enable */
-#define SCSCR_RIE	(1 << 6)	/* Receive Interrupt Enable */
-#define SCSCR_TE	(1 << 5)	/* Transmit Enable */
-#define SCSCR_RE	(1 << 4)	/* Receive Enable */
-#define SCSCR_REIE	(1 << 3)	/* Receive Error Interrupt Enable @ */
-#define SCSCR_TOIE	(1 << 2)	/* Timeout Interrupt Enable @ */
-#define SCSCR_CKE1	(1 << 1)	/* Clock Enable 1 */
-#define SCSCR_CKE0	(1 << 0)	/* Clock Enable 0 */
+#define SCSCR_TIE	BIT(7)	/* Transmit Interrupt Enable */
+#define SCSCR_RIE	BIT(6)	/* Receive Interrupt Enable */
+#define SCSCR_TE	BIT(5)	/* Transmit Enable */
+#define SCSCR_RE	BIT(4)	/* Receive Enable */
+#define SCSCR_REIE	BIT(3)	/* Receive Error Interrupt Enable @ */
+#define SCSCR_TOIE	BIT(2)	/* Timeout Interrupt Enable @ */
+#define SCSCR_CKE1	BIT(1)	/* Clock Enable 1 */
+#define SCSCR_CKE0	BIT(0)	/* Clock Enable 0 */
 
 
 enum {
@@ -48,7 +49,7 @@ struct plat_sci_port_ops {
 /*
  * Port-specific capabilities
  */
-#define SCIx_HAVE_RTSCTS	(1 << 0)
+#define SCIx_HAVE_RTSCTS	BIT(0)
 
 /*
  * Platform device specific platform_data struct

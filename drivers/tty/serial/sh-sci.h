@@ -1,3 +1,4 @@
+#include <linux/bitops.h>
 #include <linux/serial_core.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
@@ -32,62 +33,62 @@ enum {
 
 
 /* SCSMR (Serial Mode Register) */
-#define SCSMR_CHR	(1 << 6)	/* 7-bit Character Length */
-#define SCSMR_PE	(1 << 5)	/* Parity Enable */
-#define SCSMR_ODD	(1 << 4)	/* Odd Parity */
-#define SCSMR_STOP	(1 << 3)	/* Stop Bit Length */
-#define SCSMR_CKS	0x0003		/* Clock Select */
+#define SCSMR_CHR	BIT(6)	/* 7-bit Character Length */
+#define SCSMR_PE	BIT(5)	/* Parity Enable */
+#define SCSMR_ODD	BIT(4)	/* Odd Parity */
+#define SCSMR_STOP	BIT(3)	/* Stop Bit Length */
+#define SCSMR_CKS	0x0003	/* Clock Select */
 
 /* Serial Control Register, SCIFA/SCIFB only bits */
-#define SCSCR_TDRQE	(1 << 15)	/* Tx Data Transfer Request Enable */
-#define SCSCR_RDRQE	(1 << 14)	/* Rx Data Transfer Request Enable */
+#define SCSCR_TDRQE	BIT(15)	/* Tx Data Transfer Request Enable */
+#define SCSCR_RDRQE	BIT(14)	/* Rx Data Transfer Request Enable */
 
 /* SCxSR (Serial Status Register) on SCI */
-#define SCI_TDRE  0x80			/* Transmit Data Register Empty */
-#define SCI_RDRF  0x40			/* Receive Data Register Full */
-#define SCI_ORER  0x20			/* Overrun Error */
-#define SCI_FER   0x10			/* Framing Error */
-#define SCI_PER   0x08			/* Parity Error */
-#define SCI_TEND  0x04			/* Transmit End */
+#define SCI_TDRE	BIT(7)	/* Transmit Data Register Empty */
+#define SCI_RDRF	BIT(6)	/* Receive Data Register Full */
+#define SCI_ORER	BIT(5)	/* Overrun Error */
+#define SCI_FER		BIT(4)	/* Framing Error */
+#define SCI_PER		BIT(3)	/* Parity Error */
+#define SCI_TEND	BIT(2)	/* Transmit End */
 
 #define SCI_DEFAULT_ERROR_MASK (SCI_PER | SCI_FER)
 
 /* SCxSR (Serial Status Register) on SCIF, HSCIF */
-#define SCIF_ER    0x0080		/* Receive Error */
-#define SCIF_TEND  0x0040		/* Transmission End */
-#define SCIF_TDFE  0x0020		/* Transmit FIFO Data Empty */
-#define SCIF_BRK   0x0010		/* Break Detect */
-#define SCIF_FER   0x0008		/* Framing Error */
-#define SCIF_PER   0x0004		/* Parity Error */
-#define SCIF_RDF   0x0002		/* Receive FIFO Data Full */
-#define SCIF_DR    0x0001		/* Receive Data Ready */
+#define SCIF_ER		BIT(7)	/* Receive Error */
+#define SCIF_TEND	BIT(6)	/* Transmission End */
+#define SCIF_TDFE	BIT(5)	/* Transmit FIFO Data Empty */
+#define SCIF_BRK	BIT(4)	/* Break Detect */
+#define SCIF_FER	BIT(3)	/* Framing Error */
+#define SCIF_PER	BIT(2)	/* Parity Error */
+#define SCIF_RDF	BIT(1)	/* Receive FIFO Data Full */
+#define SCIF_DR		BIT(0)	/* Receive Data Ready */
 
 #define SCIF_DEFAULT_ERROR_MASK (SCIF_PER | SCIF_FER | SCIF_ER | SCIF_BRK)
 
 /* SCFCR (FIFO Control Register) */
-#define SCFCR_MCE	0x0008		/* Modem Control Enable */
-#define SCFCR_TFRST	0x0004		/* Transmit FIFO Data Register Reset */
-#define SCFCR_RFRST	0x0002		/* Receive FIFO Data Register Reset */
-#define SCFCR_LOOP	(1 << 0)	/* Loopback Test */
+#define SCFCR_MCE	BIT(3)	/* Modem Control Enable */
+#define SCFCR_TFRST	BIT(2)	/* Transmit FIFO Data Register Reset */
+#define SCFCR_RFRST	BIT(1)	/* Receive FIFO Data Register Reset */
+#define SCFCR_LOOP	BIT(0)	/* Loopback Test */
 
 /* SCSPTR (Serial Port Register), optional */
-#define SCSPTR_RTSIO	(1 << 7)	/* Serial Port RTS Pin Input/Output */
-#define SCSPTR_RTSDT	(1 << 6)	/* Serial Port RTS Pin Data */
-#define SCSPTR_CTSIO	(1 << 5)	/* Serial Port CTS Pin Input/Output */
-#define SCSPTR_CTSDT	(1 << 4)	/* Serial Port CTS Pin Data */
-#define SCSPTR_SPB2IO	(1 << 1)	/* Serial Port Break Input/Output */
-#define SCSPTR_SPB2DT	(1 << 0)	/* Serial Port Break Data */
+#define SCSPTR_RTSIO	BIT(7)	/* Serial Port RTS Pin Input/Output */
+#define SCSPTR_RTSDT	BIT(6)	/* Serial Port RTS Pin Data */
+#define SCSPTR_CTSIO	BIT(5)	/* Serial Port CTS Pin Input/Output */
+#define SCSPTR_CTSDT	BIT(4)	/* Serial Port CTS Pin Data */
+#define SCSPTR_SPB2IO	BIT(1)	/* Serial Port Break Input/Output */
+#define SCSPTR_SPB2DT	BIT(0)	/* Serial Port Break Data */
 
 /* HSSRR HSCIF */
-#define HSCIF_SRE	0x8000		/* Sampling Rate Register Enable */
+#define HSCIF_SRE	BIT(15)	/* Sampling Rate Register Enable */
 
 /* SCPCR (Serial Port Control Register), SCIFA/SCIFB only */
-#define SCPCR_RTSC	(1 << 4)	/* Serial Port RTS Pin / Output Pin */
-#define SCPCR_CTSC	(1 << 3)	/* Serial Port CTS Pin / Input Pin */
+#define SCPCR_RTSC	BIT(4)	/* Serial Port RTS Pin / Output Pin */
+#define SCPCR_CTSC	BIT(3)	/* Serial Port CTS Pin / Input Pin */
 
 /* SCPDR (Serial Port Data Register), SCIFA/SCIFB only */
-#define SCPDR_RTSD	(1 << 4)	/* Serial Port RTS Output Pin Data */
-#define SCPDR_CTSD	(1 << 3)	/* Serial Port CTS Input Pin Data */
+#define SCPDR_RTSD	BIT(4)	/* Serial Port RTS Output Pin Data */
+#define SCPDR_CTSD	BIT(3)	/* Serial Port CTS Input Pin Data */
 
 
 #define SCxSR_TEND(port)	(((port)->type == PORT_SCI) ? SCI_TEND   : SCIF_TEND)
