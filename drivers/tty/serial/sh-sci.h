@@ -87,6 +87,9 @@ enum {
 #define SCFCR_RFRST	BIT(1)	/* Receive FIFO Data Register Reset */
 #define SCFCR_LOOP	BIT(0)	/* Loopback Test */
 
+/* SCLSR (Line Status Register) on (H)SCIF */
+#define SCLSR_ORER	BIT(0)	/* Overrun Error */
+
 /* SCSPTR (Serial Port Register), optional */
 #define SCSPTR_RTSIO	BIT(7)	/* Serial Port RTS Pin Input/Output */
 #define SCSPTR_RTSDT	BIT(6)	/* Serial Port RTS Pin Data */
