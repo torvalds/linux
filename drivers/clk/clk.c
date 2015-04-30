@@ -2182,16 +2182,12 @@ EXPORT_SYMBOL_GPL(clk_set_phase);
 
 static int clk_core_get_phase(struct clk_core *core)
 {
-	int ret = 0;
-
-	if (!core)
-		goto out;
+	int ret;
 
 	clk_prepare_lock();
 	ret = core->phase;
 	clk_prepare_unlock();
 
-out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(clk_get_phase);
