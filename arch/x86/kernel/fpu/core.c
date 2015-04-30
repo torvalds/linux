@@ -6,6 +6,7 @@
  *	Gareth Hughes <gareth@valinux.com>, May 2000
  */
 #include <asm/fpu/internal.h>
+#include <asm/fpu/regset.h>
 #include <asm/fpu/signal.h>
 
 #include <linux/hardirq.h>

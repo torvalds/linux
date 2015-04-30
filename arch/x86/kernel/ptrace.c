@@ -11,7 +11,6 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/ptrace.h>
-#include <linux/regset.h>
 #include <linux/tracehook.h>
 #include <linux/user.h>
 #include <linux/elf.h>
@@ -30,6 +29,7 @@
 #include <asm/processor.h>
 #include <asm/fpu/internal.h>
 #include <asm/fpu/signal.h>
+#include <asm/fpu/regset.h>
 #include <asm/debugreg.h>
 #include <asm/ldt.h>
 #include <asm/desc.h>

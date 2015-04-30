@@ -3,6 +3,7 @@
 
 #include <linux/types.h>
 #include <asm/processor.h>
+#include <linux/uaccess.h>
 
 /* Bit 63 of XCR0 is reserved for future expansion */
 #define XSTATE_EXTEND_MASK	(~(XSTATE_FPSSE | (1ULL << 63)))

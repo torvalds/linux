@@ -10,7 +10,6 @@
 #ifndef _ASM_X86_FPU_INTERNAL_H
 #define _ASM_X86_FPU_INTERNAL_H
 
-#include <linux/regset.h>
 #include <linux/compat.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
@@ -47,18 +46,6 @@ extern void fpu__init_check_bugs(void);
 extern void fpu__resume_cpu(void);
 
 DECLARE_PER_CPU(struct fpu *, fpu_fpregs_owner_ctx);
-
-extern user_regset_active_fn regset_fpregs_active, regset_xregset_fpregs_active;
-extern user_regset_get_fn fpregs_get, xfpregs_get, fpregs_soft_get,
-				xstateregs_get;
-extern user_regset_set_fn fpregs_set, xfpregs_set, fpregs_soft_set,
-				 xstateregs_set;
-
-/*
- * xstateregs_active == regset_fpregs_active. Please refer to the comment
- * at the definition of regset_fpregs_active.
- */
-#define xstateregs_active	regset_fpregs_active
 
 #ifdef CONFIG_MATH_EMULATION
 extern void finit_soft_fpu(struct i387_soft_struct *soft);
