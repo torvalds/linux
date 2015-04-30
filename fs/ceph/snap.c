@@ -455,6 +455,7 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 {
 	struct inode *inode = &ci->vfs_inode;
 	struct ceph_cap_snap *capsnap;
+	struct ceph_snap_context *old_snapc;
 	int used, dirty;
 
 	capsnap = kzalloc(sizeof(*capsnap), GFP_NOFS);
@@ -466,6 +467,8 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 	spin_lock(&ci->i_ceph_lock);
 	used = __ceph_caps_used(ci);
 	dirty = __ceph_caps_dirty(ci);
+
+	old_snapc = ci->i_head_snapc;
 
 	/*
 	 * If there is a write in progress, treat that as a dirty Fw,
@@ -481,76 +484,79 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 		   writes in progress now were started before the previous
 		   cap_snap.  lucky us. */
 		dout("queue_cap_snap %p already pending\n", inode);
-		kfree(capsnap);
-	} else if (ci->i_snap_realm->cached_context == ceph_empty_snapc) {
+		goto update_snapc;
+	}
+	if (ci->i_snap_realm->cached_context == ceph_empty_snapc) {
 		dout("queue_cap_snap %p empty snapc\n", inode);
-		kfree(capsnap);
-	} else if (dirty & (CEPH_CAP_AUTH_EXCL|CEPH_CAP_XATTR_EXCL|
-			    CEPH_CAP_FILE_EXCL|CEPH_CAP_FILE_WR)) {
-		struct ceph_snap_context *snapc = ci->i_head_snapc;
-
-		/*
-		 * if we are a sync write, we may need to go to the snaprealm
-		 * to get the current snapc.
-		 */
-		if (!snapc)
-			snapc = ci->i_snap_realm->cached_context;
-
-		dout("queue_cap_snap %p cap_snap %p queuing under %p %s\n",
-		     inode, capsnap, snapc, ceph_cap_string(dirty));
-		ihold(inode);
-
-		atomic_set(&capsnap->nref, 1);
-		capsnap->ci = ci;
-		INIT_LIST_HEAD(&capsnap->ci_item);
-		INIT_LIST_HEAD(&capsnap->flushing_item);
-
-		capsnap->follows = snapc->seq;
-		capsnap->issued = __ceph_caps_issued(ci, NULL);
-		capsnap->dirty = dirty;
-
-		capsnap->mode = inode->i_mode;
-		capsnap->uid = inode->i_uid;
-		capsnap->gid = inode->i_gid;
-
-		if (dirty & CEPH_CAP_XATTR_EXCL) {
-			__ceph_build_xattrs_blob(ci);
-			capsnap->xattr_blob =
-				ceph_buffer_get(ci->i_xattrs.blob);
-			capsnap->xattr_version = ci->i_xattrs.version;
-		} else {
-			capsnap->xattr_blob = NULL;
-			capsnap->xattr_version = 0;
-		}
-
-		capsnap->inline_data = ci->i_inline_version != CEPH_INLINE_NONE;
-
-		/* dirty page count moved from _head to this cap_snap;
-		   all subsequent writes page dirties occur _after_ this
-		   snapshot. */
-		capsnap->dirty_pages = ci->i_wrbuffer_ref_head;
-		ci->i_wrbuffer_ref_head = 0;
-		capsnap->context = snapc;
-		ci->i_head_snapc =
-			ceph_get_snap_context(ci->i_snap_realm->cached_context);
-		dout(" new snapc is %p\n", ci->i_head_snapc);
-		list_add_tail(&capsnap->ci_item, &ci->i_cap_snaps);
-
-		if (used & CEPH_CAP_FILE_WR) {
-			dout("queue_cap_snap %p cap_snap %p snapc %p"
-			     " seq %llu used WR, now pending\n", inode,
-			     capsnap, snapc, snapc->seq);
-			capsnap->writing = 1;
-		} else {
-			/* note mtime, size NOW. */
-			__ceph_finish_cap_snap(ci, capsnap);
-		}
-	} else {
+		goto update_snapc;
+	}
+	if (!(dirty & (CEPH_CAP_AUTH_EXCL|CEPH_CAP_XATTR_EXCL|
+		       CEPH_CAP_FILE_EXCL|CEPH_CAP_FILE_WR))) {
 		dout("queue_cap_snap %p nothing dirty|writing\n", inode);
-		kfree(capsnap);
+		goto update_snapc;
 	}
 
+	BUG_ON(!old_snapc);
+
+	dout("queue_cap_snap %p cap_snap %p queuing under %p %s\n",
+	     inode, capsnap, old_snapc, ceph_cap_string(dirty));
+	ihold(inode);
+
+	atomic_set(&capsnap->nref, 1);
+	capsnap->ci = ci;
+	INIT_LIST_HEAD(&capsnap->ci_item);
+	INIT_LIST_HEAD(&capsnap->flushing_item);
+
+	capsnap->follows = old_snapc->seq;
+	capsnap->issued = __ceph_caps_issued(ci, NULL);
+	capsnap->dirty = dirty;
+
+	capsnap->mode = inode->i_mode;
+	capsnap->uid = inode->i_uid;
+	capsnap->gid = inode->i_gid;
+
+	if (dirty & CEPH_CAP_XATTR_EXCL) {
+		__ceph_build_xattrs_blob(ci);
+		capsnap->xattr_blob =
+			ceph_buffer_get(ci->i_xattrs.blob);
+		capsnap->xattr_version = ci->i_xattrs.version;
+	} else {
+		capsnap->xattr_blob = NULL;
+		capsnap->xattr_version = 0;
+	}
+
+	capsnap->inline_data = ci->i_inline_version != CEPH_INLINE_NONE;
+
+	/* dirty page count moved from _head to this cap_snap;
+	   all subsequent writes page dirties occur _after_ this
+	   snapshot. */
+	capsnap->dirty_pages = ci->i_wrbuffer_ref_head;
+	ci->i_wrbuffer_ref_head = 0;
+	capsnap->context = old_snapc;
+	list_add_tail(&capsnap->ci_item, &ci->i_cap_snaps);
+	old_snapc = NULL;
+
+	if (used & CEPH_CAP_FILE_WR) {
+		dout("queue_cap_snap %p cap_snap %p snapc %p"
+		     " seq %llu used WR, now pending\n", inode,
+		     capsnap, old_snapc, old_snapc->seq);
+		capsnap->writing = 1;
+	} else {
+		/* note mtime, size NOW. */
+		__ceph_finish_cap_snap(ci, capsnap);
+	}
+	capsnap = NULL;
+
+update_snapc:
+	if (ci->i_head_snapc) {
+		ci->i_head_snapc = ceph_get_snap_context(
+				ci->i_snap_realm->cached_context);
+		dout(" new snapc is %p\n", ci->i_head_snapc);
+	}
 	spin_unlock(&ci->i_ceph_lock);
+
+	kfree(capsnap);
+	ceph_put_snap_context(old_snapc);
 }
 
 /*

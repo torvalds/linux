@@ -87,17 +87,21 @@ static int ceph_set_page_dirty(struct page *page)
 	inode = mapping->host;
 	ci = ceph_inode(inode);
 
-	/*
-	 * Note that we're grabbing a snapc ref here without holding
-	 * any locks!
-	 */
-	snapc = ceph_get_snap_context(ci->i_snap_realm->cached_context);
-
 	/* dirty the head */
 	spin_lock(&ci->i_ceph_lock);
-	if (ci->i_head_snapc == NULL)
-		ci->i_head_snapc = ceph_get_snap_context(snapc);
-	++ci->i_wrbuffer_ref_head;
+	BUG_ON(ci->i_wr_ref == 0); // caller should hold Fw reference
+	if (__ceph_have_pending_cap_snap(ci)) {
+		struct ceph_cap_snap *capsnap =
+				list_last_entry(&ci->i_cap_snaps,
+						struct ceph_cap_snap,
+						ci_item);
+		snapc = ceph_get_snap_context(capsnap->context);
+		capsnap->dirty_pages++;
+	} else {
+		BUG_ON(!ci->i_head_snapc);
+		snapc = ceph_get_snap_context(ci->i_head_snapc);
+		++ci->i_wrbuffer_ref_head;
+	}
 	if (ci->i_wrbuffer_ref == 0)
 		ihold(inode);
 	++ci->i_wrbuffer_ref;
@@ -1033,7 +1037,6 @@ static int ceph_update_writeable_page(struct file *file,
 {
 	struct inode *inode = file_inode(file);
 	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct ceph_mds_client *mdsc = ceph_inode_to_client(inode)->mdsc;
 	loff_t page_off = pos & PAGE_CACHE_MASK;
 	int pos_in_page = pos & ~PAGE_CACHE_MASK;
 	int end_in_page = pos_in_page + len;
@@ -1045,10 +1048,6 @@ retry_locked:
 	/* writepages currently holds page lock, but if we change that later, */
 	wait_on_page_writeback(page);
 
-	/* check snap context */
-	BUG_ON(!ci->i_snap_realm);
-	down_read(&mdsc->snap_rwsem);
-	BUG_ON(!ci->i_snap_realm->cached_context);
 	snapc = page_snap_context(page);
 	if (snapc && snapc != ci->i_head_snapc) {
 		/*
@@ -1056,7 +1055,6 @@ retry_locked:
 		 * context!  is it writeable now?
 		 */
 		oldest = get_oldest_context(inode, NULL);
-		up_read(&mdsc->snap_rwsem);
 
 		if (snapc->seq > oldest->seq) {
 			ceph_put_snap_context(oldest);
@@ -1113,7 +1111,6 @@ retry_locked:
 	}
 
 	/* we need to read it. */
-	up_read(&mdsc->snap_rwsem);
 	r = readpage_nounlock(file, page);
 	if (r < 0)
 		goto fail_nosnap;
@@ -1158,16 +1155,13 @@ static int ceph_write_begin(struct file *file, struct address_space *mapping,
 
 /*
  * we don't do anything in here that simple_write_end doesn't do
- * except adjust dirty page accounting and drop read lock on
- * mdsc->snap_rwsem.
+ * except adjust dirty page accounting
  */
 static int ceph_write_end(struct file *file, struct address_space *mapping,
 			  loff_t pos, unsigned len, unsigned copied,
 			  struct page *page, void *fsdata)
 {
 	struct inode *inode = file_inode(file);
-	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
-	struct ceph_mds_client *mdsc = fsc->mdsc;
 	unsigned from = pos & (PAGE_CACHE_SIZE - 1);
 	int check_cap = 0;
 
@@ -1189,7 +1183,6 @@ static int ceph_write_end(struct file *file, struct address_space *mapping,
 	set_page_dirty(page);
 
 	unlock_page(page);
-	up_read(&mdsc->snap_rwsem);
 	page_cache_release(page);
 
 	if (check_cap)
@@ -1315,7 +1308,6 @@ static int ceph_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	struct inode *inode = file_inode(vma->vm_file);
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_file_info *fi = vma->vm_file->private_data;
-	struct ceph_mds_client *mdsc = ceph_inode_to_client(inode)->mdsc;
 	struct page *page = vmf->page;
 	loff_t off = page_offset(page);
 	loff_t size = i_size_read(inode);
@@ -1374,7 +1366,6 @@ static int ceph_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	if (ret == 0) {
 		/* success.  we'll keep the page locked. */
 		set_page_dirty(page);
-		up_read(&mdsc->snap_rwsem);
 		ret = VM_FAULT_LOCKED;
 	} else {
 		if (ret == -ENOMEM)
