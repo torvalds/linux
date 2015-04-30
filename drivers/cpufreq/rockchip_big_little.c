@@ -89,8 +89,8 @@ static DEFINE_MUTEX(cpufreq_mutex);
 static struct dvfs_node *clk_cpu_dvfs_node[RK_MAX_CLUSTERS];
 static struct dvfs_node *clk_gpu_dvfs_node;
 static struct dvfs_node *clk_ddr_dvfs_node;
-static u32 cluster_policy_cpu[RK_MAX_CLUSTERS];
 static unsigned int big_little = 1;
+static struct cpumask *cluster_policy_mask[RK_MAX_CLUSTERS];
 
 /*******************************************************/
 static inline int cpu_to_cluster(int cpu)
@@ -192,10 +192,12 @@ static int rockchip_bl_cpufreq_scale_rate_for_dvfs(struct clk *clk,
 	int ret;
 	struct cpufreq_freqs freqs;
 	struct cpufreq_policy *policy;
-	u32 cur_cluster;
+	u32 cur_cluster, cpu;
 
 	cur_cluster = clk_node_get_cluster_id(clk);
-	policy = cpufreq_cpu_get(cluster_policy_cpu[cur_cluster]);
+	cpu = cpumask_first_and(cluster_policy_mask[cur_cluster],
+				cpu_online_mask);
+	policy = cpufreq_cpu_get(cpu);
 	if (!policy)
 		return 0;
 
@@ -283,7 +285,7 @@ static int rockchip_bl_cpufreq_init(struct cpufreq_policy *policy)
 	if (cpu0_err)
 		return cpu0_err;
 
-	cluster_policy_cpu[cur_cluster] = policy->cpu;
+	cluster_policy_mask[cur_cluster] = policy->cpus;
 
 	/* set freq min max */
 	cpufreq_frequency_table_cpuinfo(policy, freq_table[cur_cluster]);
@@ -417,11 +419,13 @@ static int rockchip_bl_cpufreq_pm_notifier_event(struct notifier_block *this,
 {
 	int ret = NOTIFY_DONE;
 	int i;
+	struct cpufreq_policy *policy;
+	u32 cpu;
 
 	for (i = 0; i < RK_MAX_CLUSTERS; i++) {
-		struct cpufreq_policy *policy =
-			cpufreq_cpu_get(cluster_policy_cpu[i]);
-
+		cpu = cpumask_first_and(cluster_policy_mask[i],
+					cpu_online_mask);
+		policy = cpufreq_cpu_get(cpu);
 		if (!policy)
 			return ret;
 
