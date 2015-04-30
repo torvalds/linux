@@ -159,7 +159,7 @@ __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 	skb_pull_inline(skb, ETH_HLEN);
 	eth = eth_hdr(skb);
 
-	if (unlikely(is_multicast_ether_addr(eth->h_dest))) {
+	if (unlikely(is_multicast_ether_addr_64bits(eth->h_dest))) {
 		if (ether_addr_equal_64bits(eth->h_dest, dev->broadcast))
 			skb->pkt_type = PACKET_BROADCAST;
 		else
