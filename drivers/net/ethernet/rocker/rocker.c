@@ -2500,7 +2500,7 @@ static int rocker_flow_tbl_bridge(struct rocker_port *rocker_port,
 	if (eth_dst_mask) {
 		entry->key.bridge.has_eth_dst_mask = 1;
 		ether_addr_copy(entry->key.bridge.eth_dst_mask, eth_dst_mask);
-		if (memcmp(eth_dst_mask, ff_mac, ETH_ALEN))
+		if (!ether_addr_equal(eth_dst_mask, ff_mac))
 			wild = true;
 	}
 
@@ -2573,7 +2573,7 @@ static int rocker_flow_tbl_acl(struct rocker_port *rocker_port,
 
 	priority = ROCKER_PRIORITY_ACL_NORMAL;
 	if (eth_dst && eth_dst_mask) {
-		if (memcmp(eth_dst_mask, mcast_mac, ETH_ALEN) == 0)
+		if (ether_addr_equal(eth_dst_mask, mcast_mac))
 			priority = ROCKER_PRIORITY_ACL_DFLT;
 		else if (is_link_local_ether_addr(eth_dst))
 			priority = ROCKER_PRIORITY_ACL_CTRL;
