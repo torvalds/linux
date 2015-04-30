@@ -3159,9 +3159,6 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 	rtt_update = tcp_ack_update_rtt(sk, flag, seq_rtt_us, sack_rtt_us);
 
 	if (flag & FLAG_ACKED) {
-		const struct tcp_congestion_ops *ca_ops
-			= inet_csk(sk)->icsk_ca_ops;
-
 		tcp_rearm_rto(sk);
 		if (unlikely(icsk->icsk_mtup.probe_size &&
 			     !after(tp->mtu_probe.probe_seq_end, tp->snd_una))) {
@@ -3184,9 +3181,6 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 
 		tp->fackets_out -= min(pkts_acked, tp->fackets_out);
 
-		if (ca_ops->pkts_acked)
-			ca_ops->pkts_acked(sk, pkts_acked, ca_rtt_us);
-
 	} else if (skb && rtt_update && sack_rtt_us >= 0 &&
 		   sack_rtt_us > skb_mstamp_us_delta(&now, &skb->skb_mstamp)) {
 		/* Do not re-arm RTO if the sack RTT is measured from data sent
@@ -3195,6 +3189,9 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets,
 		 */
 		tcp_rearm_rto(sk);
 	}
+
+	if (icsk->icsk_ca_ops->pkts_acked)
+		icsk->icsk_ca_ops->pkts_acked(sk, pkts_acked, ca_rtt_us);
 
 #if FASTRETRANS_DEBUG > 0
 	WARN_ON((int)tp->sacked_out < 0);
