@@ -194,7 +194,7 @@ static int lpass_cpu_daiops_trigger(struct snd_pcm_substream *substream,
 		int cmd, struct snd_soc_dai *dai)
 {
 	struct lpass_data *drvdata = snd_soc_dai_get_drvdata(dai);
-	int ret;
+	int ret = -EINVAL;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
