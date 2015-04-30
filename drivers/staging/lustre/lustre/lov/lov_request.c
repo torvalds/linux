@@ -70,8 +70,7 @@ void lov_finish_set(struct lov_request_set *set)
 			OBDO_FREE(req->rq_oi.oi_oa);
 		if (req->rq_oi.oi_md)
 			OBD_FREE_LARGE(req->rq_oi.oi_md, req->rq_buflen);
-		if (req->rq_oi.oi_osfs)
-			kfree(req->rq_oi.oi_osfs);
+		kfree(req->rq_oi.oi_osfs);
 		kfree(req);
 	}
 
