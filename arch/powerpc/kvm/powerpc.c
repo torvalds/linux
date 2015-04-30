@@ -115,7 +115,7 @@ int kvmppc_prepare_to_enter(struct kvm_vcpu *vcpu)
 			continue;
 		}
 
-		kvm_guest_enter();
+		__kvm_guest_enter();
 		return 1;
 	}
 

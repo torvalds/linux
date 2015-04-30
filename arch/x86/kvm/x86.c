@@ -6347,7 +6347,7 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 	if (req_immediate_exit)
 		smp_send_reschedule(vcpu->cpu);
 
-	kvm_guest_enter();
+	__kvm_guest_enter();
 
 	if (unlikely(vcpu->arch.switch_db_regs)) {
 		set_debugreg(0, 7);
