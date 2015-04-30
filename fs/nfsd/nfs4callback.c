@@ -224,7 +224,7 @@ static int nfs_cb_stat_to_errno(int status)
 }
 
 static int decode_cb_op_status(struct xdr_stream *xdr, enum nfs_opnum4 expected,
-			       enum nfsstat4 *status)
+			       int *status)
 {
 	__be32 *p;
 	u32 op;
@@ -235,7 +235,7 @@ static int decode_cb_op_status(struct xdr_stream *xdr, enum nfs_opnum4 expected,
 	op = be32_to_cpup(p++);
 	if (unlikely(op != expected))
 		goto out_unexpected;
-	*status = be32_to_cpup(p);
+	*status = nfs_cb_stat_to_errno(be32_to_cpup(p));
 	return 0;
 out_overflow:
 	print_overflow_msg(__func__, xdr);
@@ -446,22 +446,16 @@ out_overflow:
 static int decode_cb_sequence4res(struct xdr_stream *xdr,
 				  struct nfsd4_callback *cb)
 {
-	enum nfsstat4 nfserr;
 	int status;
 
 	if (cb->cb_minorversion == 0)
 		return 0;
 
-	status = decode_cb_op_status(xdr, OP_CB_SEQUENCE, &nfserr);
-	if (unlikely(status))
-		goto out;
-	if (unlikely(nfserr != NFS4_OK))
-		goto out_default;
-	status = decode_cb_sequence4resok(xdr, cb);
-out:
-	return status;
-out_default:
-	return nfs_cb_stat_to_errno(nfserr);
+	status = decode_cb_op_status(xdr, OP_CB_SEQUENCE, &cb->cb_status);
+	if (unlikely(status || cb->cb_status))
+		return status;
+
+	return decode_cb_sequence4resok(xdr, cb);
 }
 
 /*
@@ -524,26 +518,19 @@ static int nfs4_xdr_dec_cb_recall(struct rpc_rqst *rqstp,
 				  struct nfsd4_callback *cb)
 {
 	struct nfs4_cb_compound_hdr hdr;
-	enum nfsstat4 nfserr;
 	int status;
 
 	status = decode_cb_compound4res(xdr, &hdr);
 	if (unlikely(status))
-		goto out;
+		return status;
 
 	if (cb != NULL) {
 		status = decode_cb_sequence4res(xdr, cb);
-		if (unlikely(status))
-			goto out;
+		if (unlikely(status || cb->cb_status))
+			return status;
 	}
 
-	status = decode_cb_op_status(xdr, OP_CB_RECALL, &nfserr);
-	if (unlikely(status))
-		goto out;
-	if (unlikely(nfserr != NFS4_OK))
-		status = nfs_cb_stat_to_errno(nfserr);
-out:
-	return status;
+	return decode_cb_op_status(xdr, OP_CB_RECALL, &cb->cb_status);
 }
 
 #ifdef CONFIG_NFSD_PNFS
@@ -621,24 +608,18 @@ static int nfs4_xdr_dec_cb_layout(struct rpc_rqst *rqstp,
 				  struct nfsd4_callback *cb)
 {
 	struct nfs4_cb_compound_hdr hdr;
-	enum nfsstat4 nfserr;
 	int status;
 
 	status = decode_cb_compound4res(xdr, &hdr);
 	if (unlikely(status))
-		goto out;
+		return status;
+
 	if (cb) {
 		status = decode_cb_sequence4res(xdr, cb);
-		if (unlikely(status))
-			goto out;
+		if (unlikely(status || cb->cb_status))
+			return status;
 	}
-	status = decode_cb_op_status(xdr, OP_CB_LAYOUTRECALL, &nfserr);
-	if (unlikely(status))
-		goto out;
-	if (unlikely(nfserr != NFS4_OK))
-		status = nfs_cb_stat_to_errno(nfserr);
-out:
-	return status;
+	return decode_cb_op_status(xdr, OP_CB_LAYOUTRECALL, &cb->cb_status);
 }
 #endif /* CONFIG_NFSD_PNFS */
 
@@ -918,7 +899,8 @@ static void nfsd4_cb_done(struct rpc_task *task, void *calldata)
 
 	if (clp->cl_minorversion) {
 		/* No need for lock, access serialized in nfsd4_cb_prepare */
-		++clp->cl_cb_session->se_cb_seq_nr;
+		if (!task->tk_status)
+			++clp->cl_cb_session->se_cb_seq_nr;
 		clear_bit(0, &clp->cl_cb_slot_busy);
 		rpc_wake_up_next(&clp->cl_cb_waitq);
 		dprintk("%s: freed slot, new seqid=%d\n", __func__,
@@ -934,6 +916,11 @@ static void nfsd4_cb_done(struct rpc_task *task, void *calldata)
 
 	if (cb->cb_done)
 		return;
+
+	if (cb->cb_status) {
+		WARN_ON_ONCE(task->tk_status);
+		task->tk_status = cb->cb_status;
+	}
 
 	switch (cb->cb_ops->done(cb, task)) {
 	case 0:
@@ -1099,6 +1086,7 @@ void nfsd4_init_cb(struct nfsd4_callback *cb, struct nfs4_client *clp,
 	cb->cb_ops = ops;
 	INIT_WORK(&cb->cb_work, nfsd4_run_cb_work);
 	INIT_LIST_HEAD(&cb->cb_per_client);
+	cb->cb_status = 0;
 	cb->cb_done = true;
 }
 
