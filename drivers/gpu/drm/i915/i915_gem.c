@@ -3069,6 +3069,7 @@ int i915_vma_unbind(struct i915_vma *vma)
 	trace_i915_vma_unbind(vma);
 
 	vma->vm->unbind_vma(vma);
+	vma->bound = 0;
 
 	list_del_init(&vma->mm_list);
 	if (i915_is_ggtt(vma->vm)) {
