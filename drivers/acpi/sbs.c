@@ -684,7 +684,7 @@ static int acpi_sbs_add(struct acpi_device *device)
 	if (!sbs_manager_broken) {
 		result = acpi_manager_get_info(sbs);
 		if (!result) {
-			sbs->manager_present = 0;
+			sbs->manager_present = 1;
 			for (id = 0; id < MAX_SBS_BAT; ++id)
 				if ((sbs->batteries_supported & (1 << id)))
 					acpi_battery_add(sbs, id);
