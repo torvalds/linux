@@ -777,11 +777,7 @@ static int i2o_iop_online(struct i2o_controller *c)
 
 	/* In READY state */
 	osm_debug("%s: Attempting to enable...\n", c->name);
-	rc = i2o_iop_enable(c);
-	if (rc)
-		return rc;
-
-	return 0;
+	return i2o_iop_enable(c);
 }
 
 /**
