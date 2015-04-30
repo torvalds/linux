@@ -24,6 +24,8 @@ enum {
 	SCRFDR,				/* Receive FIFO Data Count Register */
 	SCSPTR,				/* Serial Port Register */
 	HSSRR,				/* Sampling Rate Register */
+	SCPCR,				/* Serial Port Control Register */
+	SCPDR,				/* Serial Port Data Register */
 
 	SCIx_NR_REGS,
 };
@@ -78,6 +80,14 @@ enum {
 
 /* HSSRR HSCIF */
 #define HSCIF_SRE	0x8000		/* Sampling Rate Register Enable */
+
+/* SCPCR (Serial Port Control Register), SCIFA/SCIFB only */
+#define SCPCR_RTSC	(1 << 4)	/* Serial Port RTS Pin / Output Pin */
+#define SCPCR_CTSC	(1 << 3)	/* Serial Port CTS Pin / Input Pin */
+
+/* SCPDR (Serial Port Data Register), SCIFA/SCIFB only */
+#define SCPDR_RTSD	(1 << 4)	/* Serial Port RTS Output Pin Data */
+#define SCPDR_CTSD	(1 << 3)	/* Serial Port CTS Input Pin Data */
 
 
 #define SCxSR_TEND(port)	(((port)->type == PORT_SCI) ? SCI_TEND   : SCIF_TEND)
