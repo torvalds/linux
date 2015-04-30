@@ -593,6 +593,22 @@ badframe:
 	return 0;
 }
 
+static inline int is_ia32_compat_frame(void)
+{
+	return config_enabled(CONFIG_IA32_EMULATION) &&
+	       test_thread_flag(TIF_IA32);
+}
+
+static inline int is_ia32_frame(void)
+{
+	return config_enabled(CONFIG_X86_32) || is_ia32_compat_frame();
+}
+
+static inline int is_x32_frame(void)
+{
+	return config_enabled(CONFIG_X86_X32_ABI) && test_thread_flag(TIF_X32);
+}
+
 static int
 setup_rt_frame(struct ksignal *ksig, struct pt_regs *regs)
 {

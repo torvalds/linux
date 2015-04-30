@@ -103,22 +103,6 @@ static inline int fpu_want_lazy_restore(struct fpu *fpu, unsigned int cpu)
 	return fpu == this_cpu_read_stable(fpu_fpregs_owner_ctx) && cpu == fpu->last_cpu;
 }
 
-static inline int is_ia32_compat_frame(void)
-{
-	return config_enabled(CONFIG_IA32_EMULATION) &&
-	       test_thread_flag(TIF_IA32);
-}
-
-static inline int is_ia32_frame(void)
-{
-	return config_enabled(CONFIG_X86_32) || is_ia32_compat_frame();
-}
-
-static inline int is_x32_frame(void)
-{
-	return config_enabled(CONFIG_X86_X32_ABI) && test_thread_flag(TIF_X32);
-}
-
 #define X87_FSW_ES (1 << 7)	/* Exception Summary */
 
 static __always_inline __pure bool use_eager_fpu(void)
