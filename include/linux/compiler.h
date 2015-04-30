@@ -450,7 +450,7 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
  * with an explicit memory barrier or atomic instruction that provides the
  * required ordering.
  *
- * If possible use READ_ONCE/ASSIGN_ONCE instead.
+ * If possible use READ_ONCE()/WRITE_ONCE() instead.
  */
 #define __ACCESS_ONCE(x) ({ \
 	 __maybe_unused typeof(x) __var = (__force typeof(x)) 0; \
