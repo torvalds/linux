@@ -13,6 +13,12 @@
 #include <linux/hardirq.h>
 
 /*
+ * Represents the initial FPU state. It's mostly (but not completely) zeroes,
+ * depending on the FPU hardware format:
+ */
+union thread_xstate init_fpstate __read_mostly;
+
+/*
  * Track whether the kernel is using the FPU state
  * currently.
  *

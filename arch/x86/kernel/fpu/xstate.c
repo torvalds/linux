@@ -31,11 +31,6 @@ static const char *xfeature_names[] =
  */
 u64 xfeatures_mask __read_mostly;
 
-/*
- * Represents init state for the supported extended state.
- */
-struct xsave_struct init_xstate_ctx;
-
 static struct _fpx_sw_bytes fx_sw_reserved, fx_sw_reserved_ia32;
 static unsigned int xstate_offsets[XFEATURES_NR_MAX], xstate_sizes[XFEATURES_NR_MAX];
 static unsigned int xstate_comp_offsets[sizeof(xfeatures_mask)*8];
@@ -150,7 +145,7 @@ void fpstate_sanitize_xstate(struct fpu *fpu)
 			int size = xstate_sizes[feature_bit];
 
 			memcpy((void *)fx + offset,
-			       (void *)&init_xstate_ctx + offset,
+			       (void *)&init_fpstate.xsave + offset,
 			       size);
 		}
 
@@ -377,12 +372,12 @@ static inline int restore_user_xstate(void __user *buf, u64 xbv, int fx_only)
 	if (use_xsave()) {
 		if ((unsigned long)buf % 64 || fx_only) {
 			u64 init_bv = xfeatures_mask & ~XSTATE_FPSSE;
-			xrstor_state(&init_xstate_ctx, init_bv);
+			xrstor_state(&init_fpstate.xsave, init_bv);
 			return fxrstor_user(buf);
 		} else {
 			u64 init_bv = xfeatures_mask & ~xbv;
 			if (unlikely(init_bv))
-				xrstor_state(&init_xstate_ctx, init_bv);
+				xrstor_state(&init_fpstate.xsave, init_bv);
 			return xrestore_user(buf, xbv);
 		}
 	} else if (use_fxsr()) {
@@ -665,20 +660,20 @@ static void setup_init_fpu_buf(void)
 	print_xstate_features();
 
 	if (cpu_has_xsaves) {
-		init_xstate_ctx.header.xcomp_bv = (u64)1 << 63 | xfeatures_mask;
-		init_xstate_ctx.header.xfeatures = xfeatures_mask;
+		init_fpstate.xsave.header.xcomp_bv = (u64)1 << 63 | xfeatures_mask;
+		init_fpstate.xsave.header.xfeatures = xfeatures_mask;
 	}
 
 	/*
 	 * Init all the features state with header_bv being 0x0
 	 */
-	xrstor_state_booting(&init_xstate_ctx, -1);
+	xrstor_state_booting(&init_fpstate.xsave, -1);
 
 	/*
 	 * Dump the init state again. This is to identify the init state
 	 * of any feature which is not represented by all zero's.
 	 */
-	xsave_state_booting(&init_xstate_ctx);
+	xsave_state_booting(&init_fpstate.xsave);
 }
 
 /*

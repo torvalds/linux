@@ -22,6 +22,8 @@
 
 extern unsigned int mxcsr_feature_mask;
 
+extern union thread_xstate init_fpstate;
+
 extern void fpu__init_cpu(void);
 extern void fpu__init_system_xstate(void);
 extern void fpu__init_cpu_xstate(void);
@@ -342,9 +344,9 @@ static inline void fpregs_deactivate(struct fpu *fpu)
 static inline void restore_init_xstate(void)
 {
 	if (use_xsave())
-		xrstor_state(&init_xstate_ctx, -1);
+		xrstor_state(&init_fpstate.xsave, -1);
 	else
-		fxrstor_checking(&init_xstate_ctx.i387);
+		fxrstor_checking(&init_fpstate.fxsave);
 }
 
 /*
