@@ -433,6 +433,43 @@ struct __addr_die_search_param {
 	Dwarf_Die	*die_mem;
 };
 
+static int __die_search_func_tail_cb(Dwarf_Die *fn_die, void *data)
+{
+	struct __addr_die_search_param *ad = data;
+	Dwarf_Addr addr = 0;
+
+	if (dwarf_tag(fn_die) == DW_TAG_subprogram &&
+	    !dwarf_highpc(fn_die, &addr) &&
+	    addr == ad->addr) {
+		memcpy(ad->die_mem, fn_die, sizeof(Dwarf_Die));
+		return DWARF_CB_ABORT;
+	}
+	return DWARF_CB_OK;
+}
+
+/**
+ * die_find_tailfunc - Search for a non-inlined function with tail call at
+ * given address
+ * @cu_die: a CU DIE which including @addr
+ * @addr: target address
+ * @die_mem: a buffer for result DIE
+ *
+ * Search for a non-inlined function DIE with tail call at @addr. Stores the
+ * DIE to @die_mem and returns it if found. Returns NULL if failed.
+ */
+Dwarf_Die *die_find_tailfunc(Dwarf_Die *cu_die, Dwarf_Addr addr,
+				    Dwarf_Die *die_mem)
+{
+	struct __addr_die_search_param ad;
+	ad.addr = addr;
+	ad.die_mem = die_mem;
+	/* dwarf_getscopes can't find subprogram. */
+	if (!dwarf_getfuncs(cu_die, __die_search_func_tail_cb, &ad, 0))
+		return NULL;
+	else
+		return die_mem;
+}
+
 /* die_find callback for non-inlined function search */
 static int __die_search_func_cb(Dwarf_Die *fn_die, void *data)
 {
