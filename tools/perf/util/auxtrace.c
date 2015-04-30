@@ -888,6 +888,7 @@ void itrace_synth_opts__set_default(struct itrace_synth_opts *synth_opts)
 {
 	synth_opts->instructions = true;
 	synth_opts->branches = true;
+	synth_opts->transactions = true;
 	synth_opts->errors = true;
 	synth_opts->period_type = PERF_ITRACE_DEFAULT_PERIOD_TYPE;
 	synth_opts->period = PERF_ITRACE_DEFAULT_PERIOD;
@@ -960,6 +961,9 @@ int itrace_parse_synth_opts(const struct option *opt, const char *str,
 		case 'b':
 			synth_opts->branches = true;
 			break;
+		case 'x':
+			synth_opts->transactions = true;
+			break;
 		case 'e':
 			synth_opts->errors = true;
 			break;
@@ -975,7 +979,6 @@ int itrace_parse_synth_opts(const struct option *opt, const char *str,
 			synth_opts->returns = true;
 			break;
 		case 'g':
-			synth_opts->instructions = true;
 			synth_opts->callchain = true;
 			synth_opts->callchain_sz =
 					PERF_ITRACE_DEFAULT_CALLCHAIN_SZ;

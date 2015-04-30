@@ -54,6 +54,7 @@ enum itrace_period_type {
  *          because 'perf inject' will write it out
  * @instructions: whether to synthesize 'instructions' events
  * @branches: whether to synthesize 'branches' events
+ * @transactions: whether to synthesize events for transactions
  * @errors: whether to synthesize decoder error events
  * @dont_decode: whether to skip decoding entirely
  * @log: write a decoding log
@@ -69,6 +70,7 @@ struct itrace_synth_opts {
 	bool			inject;
 	bool			instructions;
 	bool			branches;
+	bool			transactions;
 	bool			errors;
 	bool			dont_decode;
 	bool			log;
