@@ -369,13 +369,12 @@ saa7134_i2c_eeprom(struct saa7134_dev *dev, unsigned char *eedata, int len)
 		       dev->name,err);
 		return -1;
 	}
-	for (i = 0; i < len; i++) {
-		if (0 == (i % 16))
-			pr_info("%s: i2c eeprom %02x:",dev->name,i);
-		printk(" %02x",eedata[i]);
-		if (15 == (i % 16))
-			printk("\n");
+
+	for (i = 0; i < len; i+= 16) {
+		int size = (len - i) > 16 ? 16 : len - i;
+		pr_info("i2c eeprom %02x: %*ph\n", i, size, &eedata[i]);
 	}
+
 	return 0;
 }
 
