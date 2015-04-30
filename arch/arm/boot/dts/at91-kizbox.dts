@@ -89,15 +89,15 @@
 		#size-cells = <0>;
 
 		reset {
-			label = "reset";
-			gpios = <&pioB 30 GPIO_ACTIVE_LOW>;
+			label = "PB_RST";
+			gpios = <&pioB 30 GPIO_ACTIVE_HIGH>;
 			linux,code = <0x100>;
 			gpio-key,wakeup;
 		};
 
-		mode {
-			label = "mode";
-			gpios = <&pioB 31 GPIO_ACTIVE_LOW>;
+		user {
+			label = "PB_USER";
+			gpios = <&pioB 31 GPIO_ACTIVE_HIGH>;
 			linux,code = <0x101>;
 			gpio-key,wakeup;
 		};
