@@ -727,4 +727,5 @@ int rk_fb_get_display_policy(void);
 int rk_fb_pixel_width(int data_format);
 void trace_buffer_dump(struct device *dev,
 			      struct rk_lcdc_driver *dev_drv);
+extern int rockchip_get_screen_type(void);
 #endif

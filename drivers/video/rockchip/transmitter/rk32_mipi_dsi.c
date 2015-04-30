@@ -85,6 +85,26 @@ static int rk32_mipi_power_down_DDR(void);
 static int rk32_mipi_power_up_DDR(void);
 int rk_mipi_screen_standby(u8 enable);
 
+int rockchip_get_screen_type(void)
+{
+	struct device_node *type_node;
+	struct device_node *childnode;
+	u32 val = 0;
+
+	type_node = of_find_node_by_name(NULL, "display-timings");
+	if (!type_node) {
+		pr_err("could not find display-timings node\n");
+		return -1;
+	}
+
+	for_each_child_of_node(type_node, childnode) {
+		if (!of_property_read_u32(childnode, "screen-type", &val))
+			return val;
+	}
+
+	return 0;
+}
+
 static int rk32_dsi_read_reg(struct dsi *dsi, u16 reg, u32 *pval)
 {
 	if (dsi->ops.id == DWC_DSI_VERSION)
