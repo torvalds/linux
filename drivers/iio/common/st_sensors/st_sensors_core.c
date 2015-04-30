@@ -245,6 +245,16 @@ static int st_sensors_set_drdy_int_pin(struct iio_dev *indio_dev,
 {
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
 
+	/* Sensor does not support interrupts */
+	if (sdata->sensor_settings->drdy_irq.addr == 0) {
+		if (pdata->drdy_int_pin)
+			dev_info(&indio_dev->dev,
+				 "DRDY on pin INT%d specified, but sensor "
+				 "does not support interrupts\n",
+				 pdata->drdy_int_pin);
+		return 0;
+	}
+
 	switch (pdata->drdy_int_pin) {
 	case 1:
 		if (sdata->sensor_settings->drdy_irq.mask_int1 == 0) {
@@ -285,7 +295,7 @@ static struct st_sensors_platform_data *st_sensors_of_probe(struct device *dev,
 	if (!of_property_read_u32(np, "st,drdy-int-pin", &val) && (val <= 2))
 		pdata->drdy_int_pin = (u8) val;
 	else
-		pdata->drdy_int_pin = defdata ? defdata->drdy_int_pin : 1;
+		pdata->drdy_int_pin = defdata ? defdata->drdy_int_pin : 0;
 
 	return pdata;
 }
