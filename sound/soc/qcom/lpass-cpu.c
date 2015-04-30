@@ -380,10 +380,6 @@ static int lpass_cpu_platform_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, drvdata);
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "lpass-lpaif");
-	if (!res) {
-		dev_err(&pdev->dev, "%s() error getting resource\n", __func__);
-		return -ENODEV;
-	}
 
 	drvdata->lpaif = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR((void const __force *)drvdata->lpaif)) {
