@@ -1635,7 +1635,8 @@ alloc_recv_buffer(unsigned int size)
 {
 	struct etrax_recv_buffer *buffer;
 
-	if (!(buffer = kmalloc(sizeof *buffer + size, GFP_ATOMIC)))
+	buffer = kmalloc(sizeof *buffer + size, GFP_ATOMIC);
+	if (!buffer)
 		return NULL;
 
 	buffer->next = NULL;
@@ -1671,7 +1672,8 @@ add_char_and_flag(struct e100_serial *info, unsigned char data, unsigned char fl
 {
 	struct etrax_recv_buffer *buffer;
 	if (info->uses_dma_in) {
-		if (!(buffer = alloc_recv_buffer(4)))
+		buffer = alloc_recv_buffer(4);
+		if (!buffer)
 			return 0;
 
 		buffer->length = 1;
@@ -1709,7 +1711,8 @@ static unsigned int handle_descr_data(struct e100_serial *info,
 
 	append_recv_buffer(info, buffer);
 
-	if (!(buffer = alloc_recv_buffer(SERIAL_DESCR_BUF_SIZE)))
+	buffer = alloc_recv_buffer(SERIAL_DESCR_BUF_SIZE);
+	if (!buffer)
 		panic("%s: Failed to allocate memory for receive buffer!\n", __func__);
 
 	descr->buf = virt_to_phys(buffer->buffer);
@@ -1825,7 +1828,8 @@ static int start_recv_dma(struct e100_serial *info)
 
 	/* Set up the receiving descriptors */
 	for (i = 0; i < SERIAL_RECV_DESCRIPTORS; i++) {
-		if (!(buffer = alloc_recv_buffer(SERIAL_DESCR_BUF_SIZE)))
+		buffer = alloc_recv_buffer(SERIAL_DESCR_BUF_SIZE);
+		if (!buffer)
 			panic("%s: Failed to allocate memory for receive buffer!\n", __func__);
 
 		descr[i].ctrl = d_int;
