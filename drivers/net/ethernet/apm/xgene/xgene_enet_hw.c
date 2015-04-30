@@ -87,10 +87,11 @@ static void xgene_enet_ring_rd32(struct xgene_enet_desc_ring *ring,
 
 static void xgene_enet_write_ring_state(struct xgene_enet_desc_ring *ring)
 {
+	struct xgene_enet_pdata *pdata = netdev_priv(ring->ndev);
 	int i;
 
 	xgene_enet_ring_wr32(ring, CSR_RING_CONFIG, ring->num);
-	for (i = 0; i < NUM_RING_CONFIG; i++) {
+	for (i = 0; i < pdata->ring_ops->num_ring_config; i++) {
 		xgene_enet_ring_wr32(ring, CSR_RING_WR_BASE + (i * 4),
 				     ring->state[i]);
 	}
@@ -98,7 +99,7 @@ static void xgene_enet_write_ring_state(struct xgene_enet_desc_ring *ring)
 
 static void xgene_enet_clr_ring_state(struct xgene_enet_desc_ring *ring)
 {
-	memset(ring->state, 0, sizeof(u32) * NUM_RING_CONFIG);
+	memset(ring->state, 0, sizeof(ring->state));
 	xgene_enet_write_ring_state(ring);
 }
 
@@ -141,8 +142,8 @@ static void xgene_enet_clr_desc_ring_id(struct xgene_enet_desc_ring *ring)
 	xgene_enet_ring_wr32(ring, CSR_RING_ID_BUF, 0);
 }
 
-struct xgene_enet_desc_ring *xgene_enet_setup_ring(
-					struct xgene_enet_desc_ring *ring)
+static struct xgene_enet_desc_ring *xgene_enet_setup_ring(
+				    struct xgene_enet_desc_ring *ring)
 {
 	u32 size = ring->size;
 	u32 i, data;
@@ -168,7 +169,7 @@ struct xgene_enet_desc_ring *xgene_enet_setup_ring(
 	return ring;
 }
 
-void xgene_enet_clear_ring(struct xgene_enet_desc_ring *ring)
+static void xgene_enet_clear_ring(struct xgene_enet_desc_ring *ring)
 {
 	u32 data;
 	bool is_bufpool;
@@ -184,6 +185,22 @@ void xgene_enet_clear_ring(struct xgene_enet_desc_ring *ring)
 out:
 	xgene_enet_clr_desc_ring_id(ring);
 	xgene_enet_clr_ring_state(ring);
+}
+
+static void xgene_enet_wr_cmd(struct xgene_enet_desc_ring *ring, int count)
+{
+	iowrite32(count, ring->cmd);
+}
+
+static u32 xgene_enet_ring_len(struct xgene_enet_desc_ring *ring)
+{
+	u32 __iomem *cmd_base = ring->cmd_base;
+	u32 ring_state, num_msgs;
+
+	ring_state = ioread32(&cmd_base[1]);
+	num_msgs = GET_VAL(NUMMSGSINQ, ring_state);
+
+	return num_msgs;
 }
 
 void xgene_enet_parse_error(struct xgene_enet_desc_ring *ring,
@@ -802,4 +819,13 @@ struct xgene_port_ops xgene_gport_ops = {
 	.reset = xgene_enet_reset,
 	.cle_bypass = xgene_enet_cle_bypass,
 	.shutdown = xgene_gport_shutdown,
+};
+
+struct xgene_ring_ops xgene_ring1_ops = {
+	.num_ring_config = NUM_RING_CONFIG,
+	.num_ring_id_shift = 6,
+	.setup = xgene_enet_setup_ring,
+	.clear = xgene_enet_clear_ring,
+	.wr_cmd = xgene_enet_wr_cmd,
+	.len = xgene_enet_ring_len,
 };
