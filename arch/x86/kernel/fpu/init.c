@@ -143,12 +143,6 @@ EXPORT_SYMBOL_GPL(xstate_size);
  */
 static void fpu__init_system_xstate_size_legacy(void)
 {
-	static bool on_boot_cpu = 1;
-
-	if (!on_boot_cpu)
-		return;
-	on_boot_cpu = 0;
-
 	/*
 	 * Note that xstate_size might be overwriten later during
 	 * fpu__init_system_xstate().

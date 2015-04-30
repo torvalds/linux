@@ -658,12 +658,6 @@ void setup_xstate_comp(void)
  */
 static void setup_init_fpu_buf(void)
 {
-	static int on_boot_cpu = 1;
-
-	if (!on_boot_cpu)
-		return;
-	on_boot_cpu = 0;
-
 	if (!cpu_has_xsave)
 		return;
 
@@ -719,11 +713,6 @@ static void __init init_xstate_size(void)
 void fpu__init_system_xstate(void)
 {
 	unsigned int eax, ebx, ecx, edx;
-	static bool on_boot_cpu = 1;
-
-	if (!on_boot_cpu)
-		return;
-	on_boot_cpu = 0;
 
 	if (!cpu_has_xsave) {
 		pr_info("x86/fpu: Legacy x87 FPU detected.\n");
