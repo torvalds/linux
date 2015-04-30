@@ -63,13 +63,12 @@ typedef struct {
 
 struct nfsd4_callback {
 	struct nfs4_client *cb_clp;
-	struct list_head cb_per_client;
 	u32 cb_minorversion;
 	struct rpc_message cb_msg;
 	struct nfsd4_callback_ops *cb_ops;
 	struct work_struct cb_work;
 	int cb_status;
-	bool cb_done;
+	bool cb_need_restart;
 };
 
 struct nfsd4_callback_ops {
@@ -334,7 +333,6 @@ struct nfs4_client {
 	int			cl_cb_state;
 	struct nfsd4_callback	cl_cb_null;
 	struct nfsd4_session	*cl_cb_session;
-	struct list_head	cl_callbacks; /* list of in-progress callbacks */
 
 	/* for all client information that callback code might need: */
 	spinlock_t		cl_lock;

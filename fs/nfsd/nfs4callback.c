@@ -879,13 +879,6 @@ static void nfsd4_cb_prepare(struct rpc_task *task, void *calldata)
 		if (!nfsd41_cb_get_slot(clp, task))
 			return;
 	}
-	spin_lock(&clp->cl_lock);
-	if (list_empty(&cb->cb_per_client)) {
-		/* This is the first call, not a restart */
-		cb->cb_done = false;
-		list_add(&cb->cb_per_client, &clp->cl_callbacks);
-	}
-	spin_unlock(&clp->cl_lock);
 	rpc_call_start(task);
 }
 
@@ -907,15 +900,20 @@ static void nfsd4_cb_done(struct rpc_task *task, void *calldata)
 			clp->cl_cb_session->se_cb_seq_nr);
 	}
 
-	if (clp->cl_cb_client != task->tk_client) {
-		/* We're shutting down or changing cl_cb_client; leave
-		 * it to nfsd4_process_cb_update to restart the call if
-		 * necessary. */
+	/*
+	 * If the backchannel connection was shut down while this
+	 * task was queued, we need to resubmit it after setting up
+	 * a new backchannel connection.
+	 *
+	 * Note that if we lost our callback connection permanently
+	 * the submission code will error out, so we don't need to
+	 * handle that case here.
+	 */
+	if (task->tk_flags & RPC_TASK_KILLED) {
+		task->tk_status = 0;
+		cb->cb_need_restart = true;
 		return;
 	}
-
-	if (cb->cb_done)
-		return;
 
 	if (cb->cb_status) {
 		WARN_ON_ONCE(task->tk_status);
@@ -936,21 +934,17 @@ static void nfsd4_cb_done(struct rpc_task *task, void *calldata)
 	default:
 		BUG();
 	}
-	cb->cb_done = true;
 }
 
 static void nfsd4_cb_release(void *calldata)
 {
 	struct nfsd4_callback *cb = calldata;
-	struct nfs4_client *clp = cb->cb_clp;
 
-	if (cb->cb_done) {
-		spin_lock(&clp->cl_lock);
-		list_del(&cb->cb_per_client);
-		spin_unlock(&clp->cl_lock);
-
+	if (cb->cb_need_restart)
+		nfsd4_run_cb(cb);
+	else
 		cb->cb_ops->release(cb);
-	}
+
 }
 
 static const struct rpc_call_ops nfsd4_cb_ops = {
@@ -1045,9 +1039,6 @@ static void nfsd4_process_cb_update(struct nfsd4_callback *cb)
 		nfsd4_mark_cb_down(clp, err);
 		return;
 	}
-	/* Yay, the callback channel's back! Restart any callbacks: */
-	list_for_each_entry(cb, &clp->cl_callbacks, cb_per_client)
-		queue_work(callback_wq, &cb->cb_work);
 }
 
 static void
@@ -1058,8 +1049,12 @@ nfsd4_run_cb_work(struct work_struct *work)
 	struct nfs4_client *clp = cb->cb_clp;
 	struct rpc_clnt *clnt;
 
-	if (cb->cb_ops && cb->cb_ops->prepare)
-		cb->cb_ops->prepare(cb);
+	if (cb->cb_need_restart) {
+		cb->cb_need_restart = false;
+	} else {
+		if (cb->cb_ops && cb->cb_ops->prepare)
+			cb->cb_ops->prepare(cb);
+	}
 
 	if (clp->cl_flags & NFSD4_CLIENT_CB_FLAG_MASK)
 		nfsd4_process_cb_update(cb);
@@ -1085,9 +1080,8 @@ void nfsd4_init_cb(struct nfsd4_callback *cb, struct nfs4_client *clp,
 	cb->cb_msg.rpc_resp = cb;
 	cb->cb_ops = ops;
 	INIT_WORK(&cb->cb_work, nfsd4_run_cb_work);
-	INIT_LIST_HEAD(&cb->cb_per_client);
 	cb->cb_status = 0;
-	cb->cb_done = true;
+	cb->cb_need_restart = false;
 }
 
 void nfsd4_run_cb(struct nfsd4_callback *cb)
