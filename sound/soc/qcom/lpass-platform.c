@@ -13,17 +13,11 @@
  * lpass-platform.c -- ALSA SoC platform driver for QTi LPASS
  */
 
-#include <linux/compiler.h>
-#include <linux/device.h>
 #include <linux/dma-mapping.h>
-#include <linux/err.h>
 #include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/io.h>
 #include <linux/platform_device.h>
-#include <sound/memalloc.h>
-#include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <linux/regmap.h>
 #include <sound/soc.h>

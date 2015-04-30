@@ -14,12 +14,7 @@
  */
 
 #include <linux/clk.h>
-#include <linux/compiler.h>
-#include <linux/device.h>
-#include <linux/err.h>
-#include <linux/ioport.h>
 #include <linux/kernel.h>
-#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
@@ -28,6 +23,7 @@
 #include <linux/regmap.h>
 #include <sound/soc.h>
 #include <sound/soc-dai.h>
+
 #include "lpass-lpaif-ipq806x.h"
 #include "lpass.h"
 
