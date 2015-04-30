@@ -98,7 +98,7 @@
 		      <0x00000008 0x80000000 0x1 0x80000000>;
 	};
 
-	gic: interrupt-controller@2c001000 {
+	gic: interrupt-controller@2c010000 {
 		compatible = "arm,gic-400", "arm,cortex-a15-gic";
 		reg = <0x0 0x2c010000 0 0x1000>,
 		      <0x0 0x2c02f000 0 0x2000>,
