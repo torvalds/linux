@@ -2323,7 +2323,8 @@ static int sci_init_single(struct platform_device *dev,
 	 * Make the error mask inclusive of overrun detection, if
 	 * supported.
 	 */
-	sci_port->error_mask |= sci_port->overrun_mask;
+	if (sci_port->overrun_reg == SCxSR)
+		sci_port->error_mask |= sci_port->overrun_mask;
 
 	port->type		= p->type;
 	port->flags		= UPF_FIXED_PORT | p->flags;
