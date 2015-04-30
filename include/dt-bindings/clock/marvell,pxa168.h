@@ -19,6 +19,7 @@
 #define PXA168_CLK_PLL1_2_1_5		19
 #define PXA168_CLK_PLL1_3_16		20
 #define PXA168_CLK_UART_PLL		27
+#define PXA168_CLK_USB_PLL		28
 
 /* apb periphrals */
 #define PXA168_CLK_TWSI0		60
