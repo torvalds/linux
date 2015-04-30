@@ -1092,6 +1092,8 @@ struct sched_group_energy {
 	struct capacity_state *cap_states; /* ptr to capacity state array */
 };
 
+unsigned long capacity_curr_of(int cpu);
+
 struct sched_group;
 
 struct sched_domain_shared {
