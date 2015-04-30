@@ -22,20 +22,20 @@
 
 extern unsigned int mxcsr_feature_mask;
 
-extern union thread_xstate init_fpstate;
+extern union fpregs_state init_fpstate;
 
 extern void fpu__init_cpu(void);
 extern void fpu__init_system_xstate(void);
 extern void fpu__init_cpu_xstate(void);
 extern void fpu__init_system(struct cpuinfo_x86 *c);
 
-extern void fpstate_init(union thread_xstate *state);
+extern void fpstate_init(union fpregs_state *state);
 #ifdef CONFIG_MATH_EMULATION
-extern void fpstate_init_soft(struct i387_soft_struct *soft);
+extern void fpstate_init_soft(struct swregs_state *soft);
 #else
-static inline void fpstate_init_soft(struct i387_soft_struct *soft) {}
+static inline void fpstate_init_soft(struct swregs_state *soft) {}
 #endif
-static inline void fpstate_init_fxstate(struct i387_fxsave_struct *fx)
+static inline void fpstate_init_fxstate(struct fxregs_state *fx)
 {
 	fx->cwd = 0x37f;
 	fx->mxcsr = MXCSR_DEFAULT;
@@ -133,12 +133,12 @@ extern void fpstate_sanitize_xstate(struct fpu *fpu);
 	err;								\
 })
 
-static inline int copy_fregs_to_user(struct i387_fsave_struct __user *fx)
+static inline int copy_fregs_to_user(struct fregs_state __user *fx)
 {
 	return user_insn(fnsave %[fx]; fwait,  [fx] "=m" (*fx), "m" (*fx));
 }
 
-static inline int copy_fxregs_to_user(struct i387_fxsave_struct __user *fx)
+static inline int copy_fxregs_to_user(struct fxregs_state __user *fx)
 {
 	if (config_enabled(CONFIG_X86_32))
 		return user_insn(fxsave %[fx], [fx] "=m" (*fx), "m" (*fx));
@@ -149,7 +149,7 @@ static inline int copy_fxregs_to_user(struct i387_fxsave_struct __user *fx)
 	return user_insn(rex64/fxsave (%[fx]), "=m" (*fx), [fx] "R" (fx));
 }
 
-static inline int copy_kernel_to_fxregs(struct i387_fxsave_struct *fx)
+static inline int copy_kernel_to_fxregs(struct fxregs_state *fx)
 {
 	if (config_enabled(CONFIG_X86_32))
 		return check_insn(fxrstor %[fx], "=m" (*fx), [fx] "m" (*fx));
@@ -161,7 +161,7 @@ static inline int copy_kernel_to_fxregs(struct i387_fxsave_struct *fx)
 			  "m" (*fx));
 }
 
-static inline int copy_user_to_fxregs(struct i387_fxsave_struct __user *fx)
+static inline int copy_user_to_fxregs(struct fxregs_state __user *fx)
 {
 	if (config_enabled(CONFIG_X86_32))
 		return user_insn(fxrstor %[fx], "=m" (*fx), [fx] "m" (*fx));
@@ -173,12 +173,12 @@ static inline int copy_user_to_fxregs(struct i387_fxsave_struct __user *fx)
 			  "m" (*fx));
 }
 
-static inline int copy_kernel_to_fregs(struct i387_fsave_struct *fx)
+static inline int copy_kernel_to_fregs(struct fregs_state *fx)
 {
 	return check_insn(frstor %[fx], "=m" (*fx), [fx] "m" (*fx));
 }
 
-static inline int copy_user_to_fregs(struct i387_fsave_struct __user *fx)
+static inline int copy_user_to_fregs(struct fregs_state __user *fx)
 {
 	return user_insn(frstor %[fx], "=m" (*fx), [fx] "m" (*fx));
 }

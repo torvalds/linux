@@ -272,7 +272,7 @@ bad_opcode:
  * The caller is expected to kfree() the returned siginfo_t.
  */
 siginfo_t *mpx_generate_siginfo(struct pt_regs *regs,
-				struct xsave_struct *xsave_buf)
+				struct xregs_state *xsave_buf)
 {
 	struct bndreg *bndregs, *bndreg;
 	siginfo_t *info = NULL;
@@ -497,7 +497,7 @@ out_unmap:
  * bound table is 16KB. With 64-bit mode, the size of BD is 2GB,
  * and the size of each bound table is 4MB.
  */
-static int do_mpx_bt_fault(struct xsave_struct *xsave_buf)
+static int do_mpx_bt_fault(struct xregs_state *xsave_buf)
 {
 	unsigned long bd_entry, bd_base;
 	struct bndcsr *bndcsr;
@@ -525,7 +525,7 @@ static int do_mpx_bt_fault(struct xsave_struct *xsave_buf)
 	return allocate_bt((long __user *)bd_entry);
 }
 
-int mpx_handle_bd_fault(struct xsave_struct *xsave_buf)
+int mpx_handle_bd_fault(struct xregs_state *xsave_buf)
 {
 	/*
 	 * Userspace never asked us to manage the bounds tables,

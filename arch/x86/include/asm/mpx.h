@@ -60,8 +60,8 @@
 
 #ifdef CONFIG_X86_INTEL_MPX
 siginfo_t *mpx_generate_siginfo(struct pt_regs *regs,
-				struct xsave_struct *xsave_buf);
-int mpx_handle_bd_fault(struct xsave_struct *xsave_buf);
+				struct xregs_state *xsave_buf);
+int mpx_handle_bd_fault(struct xregs_state *xsave_buf);
 static inline int kernel_managing_mpx_tables(struct mm_struct *mm)
 {
 	return (mm->bd_addr != MPX_INVALID_BOUNDS_DIR);
@@ -78,11 +78,11 @@ void mpx_notify_unmap(struct mm_struct *mm, struct vm_area_struct *vma,
 		      unsigned long start, unsigned long end);
 #else
 static inline siginfo_t *mpx_generate_siginfo(struct pt_regs *regs,
-					      struct xsave_struct *xsave_buf)
+					      struct xregs_state *xsave_buf)
 {
 	return NULL;
 }
-static inline int mpx_handle_bd_fault(struct xsave_struct *xsave_buf)
+static inline int mpx_handle_bd_fault(struct xregs_state *xsave_buf)
 {
 	return -EINVAL;
 }

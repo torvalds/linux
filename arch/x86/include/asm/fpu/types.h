@@ -4,7 +4,7 @@
 #ifndef _ASM_X86_FPU_H
 #define _ASM_X86_FPU_H
 
-struct i387_fsave_struct {
+struct fregs_state {
 	u32			cwd;	/* FPU Control Word		*/
 	u32			swd;	/* FPU Status Word		*/
 	u32			twd;	/* FPU Tag Word			*/
@@ -20,7 +20,7 @@ struct i387_fsave_struct {
 	u32			status;
 };
 
-struct i387_fxsave_struct {
+struct fxregs_state {
 	u16			cwd; /* Control Word			*/
 	u16			swd; /* Status Word			*/
 	u16			twd; /* Tag Word			*/
@@ -58,7 +58,7 @@ struct i387_fxsave_struct {
 /*
  * Software based FPU emulation state:
  */
-struct i387_soft_struct {
+struct swregs_state {
 	u32			cwd;
 	u32			swd;
 	u32			twd;
@@ -109,7 +109,7 @@ enum xfeature_bit {
 /*
  * There are 16x 256-bit AVX registers named YMM0-YMM15.
  * The low 128 bits are aliased to the 16 SSE registers (XMM0-XMM15)
- * and are stored in 'struct i387_fxsave_struct::xmm_space[]'.
+ * and are stored in 'struct fxregs_state::xmm_space[]'.
  *
  * The high 128 bits are stored here:
  *    16x 128 bits == 256 bytes.
@@ -140,8 +140,8 @@ struct xstate_header {
 	u64				reserved[6];
 } __attribute__((packed));
 
-struct xsave_struct {
-	struct i387_fxsave_struct	i387;
+struct xregs_state {
+	struct fxregs_state		i387;
 	struct xstate_header		header;
 	struct ymmh_struct		ymmh;
 	struct lwp_struct		lwp;
@@ -150,11 +150,11 @@ struct xsave_struct {
 	/* New processor state extensions will go here. */
 } __attribute__ ((packed, aligned (64)));
 
-union thread_xstate {
-	struct i387_fsave_struct	fsave;
-	struct i387_fxsave_struct	fxsave;
-	struct i387_soft_struct		soft;
-	struct xsave_struct		xsave;
+union fpregs_state {
+	struct fregs_state		fsave;
+	struct fxregs_state		fxsave;
+	struct swregs_state		soft;
+	struct xregs_state		xsave;
 };
 
 struct fpu {
@@ -171,7 +171,7 @@ struct fpu {
 	unsigned int			last_cpu;
 
 	unsigned int			fpregs_active;
-	union thread_xstate		state;
+	union fpregs_state		state;
 	/*
 	 * This counter contains the number of consecutive context switches
 	 * during which the FPU stays used. If this is over a threshold, the

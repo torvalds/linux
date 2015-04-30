@@ -30,7 +30,7 @@ static void fclex(void)
 }
 
 /* Needs to be externally visible */
-void fpstate_init_soft(struct i387_soft_struct *soft)
+void fpstate_init_soft(struct swregs_state *soft)
 {
 	struct address *oaddr, *iaddr;
 	memset(soft, 0, sizeof(*soft));

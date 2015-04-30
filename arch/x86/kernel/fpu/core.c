@@ -16,7 +16,7 @@
  * Represents the initial FPU state. It's mostly (but not completely) zeroes,
  * depending on the FPU hardware format:
  */
-union thread_xstate init_fpstate __read_mostly;
+union fpregs_state init_fpstate __read_mostly;
 
 /*
  * Track whether the kernel is using the FPU state
@@ -200,7 +200,7 @@ EXPORT_SYMBOL_GPL(fpu__save);
 /*
  * Legacy x87 fpstate state init:
  */
-static inline void fpstate_init_fstate(struct i387_fsave_struct *fp)
+static inline void fpstate_init_fstate(struct fregs_state *fp)
 {
 	fp->cwd = 0xffff037fu;
 	fp->swd = 0xffff0000u;
@@ -208,7 +208,7 @@ static inline void fpstate_init_fstate(struct i387_fsave_struct *fp)
 	fp->fos = 0xffff0000u;
 }
 
-void fpstate_init(union thread_xstate *state)
+void fpstate_init(union fpregs_state *state)
 {
 	if (!cpu_has_fpu) {
 		fpstate_init_soft(&state->soft);

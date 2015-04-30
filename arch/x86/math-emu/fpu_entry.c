@@ -669,7 +669,7 @@ void math_abort(struct math_emu_info *info, unsigned int signal)
 #endif /* PARANOID */
 }
 
-#define S387 ((struct i387_soft_struct *)s387)
+#define S387 ((struct swregs_state *)s387)
 #define sstatus_word() \
   ((S387->swd & ~SW_Top & 0xffff) | ((S387->ftop << SW_Top_Shift) & SW_Top))
 
@@ -678,14 +678,14 @@ int fpregs_soft_set(struct task_struct *target,
 		    unsigned int pos, unsigned int count,
 		    const void *kbuf, const void __user *ubuf)
 {
-	struct i387_soft_struct *s387 = &target->thread.fpu.state.soft;
+	struct swregs_state *s387 = &target->thread.fpu.state.soft;
 	void *space = s387->st_space;
 	int ret;
 	int offset, other, i, tags, regnr, tag, newtop;
 
 	RE_ENTRANT_CHECK_OFF;
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, s387, 0,
-				 offsetof(struct i387_soft_struct, st_space));
+				 offsetof(struct swregs_state, st_space));
 	RE_ENTRANT_CHECK_ON;
 
 	if (ret)
@@ -730,7 +730,7 @@ int fpregs_soft_get(struct task_struct *target,
 		    unsigned int pos, unsigned int count,
 		    void *kbuf, void __user *ubuf)
 {
-	struct i387_soft_struct *s387 = &target->thread.fpu.state.soft;
+	struct swregs_state *s387 = &target->thread.fpu.state.soft;
 	const void *space = s387->st_space;
 	int ret;
 	int offset = (S387->ftop & 7) * 10, other = 80 - offset;
@@ -748,7 +748,7 @@ int fpregs_soft_get(struct task_struct *target,
 #endif /* PECULIAR_486 */
 
 	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf, s387, 0,
-				  offsetof(struct i387_soft_struct, st_space));
+				  offsetof(struct swregs_state, st_space));
 
 	/* Copy all registers in stack order. */
 	if (!ret)

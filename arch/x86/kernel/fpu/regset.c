@@ -76,7 +76,7 @@ int xstateregs_get(struct task_struct *target, const struct user_regset *regset,
 		void *kbuf, void __user *ubuf)
 {
 	struct fpu *fpu = &target->thread.fpu;
-	struct xsave_struct *xsave;
+	struct xregs_state *xsave;
 	int ret;
 
 	if (!cpu_has_xsave)
@@ -105,7 +105,7 @@ int xstateregs_set(struct task_struct *target, const struct user_regset *regset,
 		  const void *kbuf, const void __user *ubuf)
 {
 	struct fpu *fpu = &target->thread.fpu;
-	struct xsave_struct *xsave;
+	struct xregs_state *xsave;
 	int ret;
 
 	if (!cpu_has_xsave)
@@ -156,7 +156,7 @@ static inline unsigned short twd_i387_to_fxsr(unsigned short twd)
 #define FP_EXP_TAG_SPECIAL	2
 #define FP_EXP_TAG_EMPTY	3
 
-static inline u32 twd_fxsr_to_i387(struct i387_fxsave_struct *fxsave)
+static inline u32 twd_fxsr_to_i387(struct fxregs_state *fxsave)
 {
 	struct _fpxreg *st;
 	u32 tos = (fxsave->swd >> 11) & 7;
@@ -204,7 +204,7 @@ static inline u32 twd_fxsr_to_i387(struct i387_fxsave_struct *fxsave)
 void
 convert_from_fxsr(struct user_i387_ia32_struct *env, struct task_struct *tsk)
 {
-	struct i387_fxsave_struct *fxsave = &tsk->thread.fpu.state.fxsave;
+	struct fxregs_state *fxsave = &tsk->thread.fpu.state.fxsave;
 	struct _fpreg *to = (struct _fpreg *) &env->st_space[0];
 	struct _fpxreg *from = (struct _fpxreg *) &fxsave->st_space[0];
 	int i;
@@ -242,7 +242,7 @@ void convert_to_fxsr(struct task_struct *tsk,
 		     const struct user_i387_ia32_struct *env)
 
 {
-	struct i387_fxsave_struct *fxsave = &tsk->thread.fpu.state.fxsave;
+	struct fxregs_state *fxsave = &tsk->thread.fpu.state.fxsave;
 	struct _fpreg *from = (struct _fpreg *) &env->st_space[0];
 	struct _fpxreg *to = (struct _fpxreg *) &fxsave->st_space[0];
 	int i;

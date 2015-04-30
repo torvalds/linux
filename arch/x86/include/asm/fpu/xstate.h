@@ -58,7 +58,7 @@ extern void update_regset_xstate_info(unsigned int size, u64 xstate_mask);
  * This function is called only during boot time when x86 caps are not set
  * up and alternative can not be used yet.
  */
-static inline int copy_xregs_to_kernel_booting(struct xsave_struct *fx)
+static inline int copy_xregs_to_kernel_booting(struct xregs_state *fx)
 {
 	u64 mask = -1;
 	u32 lmask = mask;
@@ -86,7 +86,7 @@ static inline int copy_xregs_to_kernel_booting(struct xsave_struct *fx)
  * This function is called only during boot time when x86 caps are not set
  * up and alternative can not be used yet.
  */
-static inline int copy_kernel_to_xregs_booting(struct xsave_struct *fx, u64 mask)
+static inline int copy_kernel_to_xregs_booting(struct xregs_state *fx, u64 mask)
 {
 	u32 lmask = mask;
 	u32 hmask = mask >> 32;
@@ -112,7 +112,7 @@ static inline int copy_kernel_to_xregs_booting(struct xsave_struct *fx, u64 mask
 /*
  * Save processor xstate to xsave area.
  */
-static inline int copy_xregs_to_kernel(struct xsave_struct *fx)
+static inline int copy_xregs_to_kernel(struct xregs_state *fx)
 {
 	u64 mask = -1;
 	u32 lmask = mask;
@@ -151,7 +151,7 @@ static inline int copy_xregs_to_kernel(struct xsave_struct *fx)
 /*
  * Restore processor xstate from xsave area.
  */
-static inline int copy_kernel_to_xregs(struct xsave_struct *fx, u64 mask)
+static inline int copy_kernel_to_xregs(struct xregs_state *fx, u64 mask)
 {
 	int err = 0;
 	u32 lmask = mask;
@@ -186,7 +186,7 @@ static inline int copy_kernel_to_xregs(struct xsave_struct *fx, u64 mask)
  * backward compatibility for old applications which don't understand
  * compacted format of xsave area.
  */
-static inline int copy_xregs_to_user(struct xsave_struct __user *buf)
+static inline int copy_xregs_to_user(struct xregs_state __user *buf)
 {
 	int err;
 
@@ -210,10 +210,10 @@ static inline int copy_xregs_to_user(struct xsave_struct __user *buf)
 /*
  * Restore xstate from user space xsave area.
  */
-static inline int copy_user_to_xregs(struct xsave_struct __user *buf, u64 mask)
+static inline int copy_user_to_xregs(struct xregs_state __user *buf, u64 mask)
 {
 	int err = 0;
-	struct xsave_struct *xstate = ((__force struct xsave_struct *)buf);
+	struct xregs_state *xstate = ((__force struct xregs_state *)buf);
 	u32 lmask = mask;
 	u32 hmask = mask >> 32;
 
@@ -226,7 +226,7 @@ static inline int copy_user_to_xregs(struct xsave_struct __user *buf, u64 mask)
 	return err;
 }
 
-void *get_xsave_addr(struct xsave_struct *xsave, int xstate);
+void *get_xsave_addr(struct xregs_state *xsave, int xstate);
 void setup_xstate_comp(void);
 
 #endif

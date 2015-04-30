@@ -95,7 +95,7 @@ static void fpu__init_system_mxcsr(void)
 	unsigned int mask = 0;
 
 	if (cpu_has_fxsr) {
-		struct i387_fxsave_struct fx_tmp __aligned(32) = { };
+		struct fxregs_state fx_tmp __aligned(32) = { };
 
 		asm volatile("fxsave %0" : "+m" (fx_tmp));
 
@@ -155,12 +155,12 @@ static void fpu__init_system_xstate_size_legacy(void)
 		 */
 		setup_clear_cpu_cap(X86_FEATURE_XSAVE);
 		setup_clear_cpu_cap(X86_FEATURE_XSAVEOPT);
-		xstate_size = sizeof(struct i387_soft_struct);
+		xstate_size = sizeof(struct swregs_state);
 	} else {
 		if (cpu_has_fxsr)
-			xstate_size = sizeof(struct i387_fxsave_struct);
+			xstate_size = sizeof(struct fxregs_state);
 		else
-			xstate_size = sizeof(struct i387_fsave_struct);
+			xstate_size = sizeof(struct fregs_state);
 	}
 }
 

@@ -91,7 +91,7 @@ EXPORT_SYMBOL_GPL(cpu_has_xfeatures);
  */
 void fpstate_sanitize_xstate(struct fpu *fpu)
 {
-	struct i387_fxsave_struct *fx = &fpu->state.fxsave;
+	struct fxregs_state *fx = &fpu->state.fxsave;
 	int feature_bit;
 	u64 xfeatures;
 
@@ -231,7 +231,7 @@ void setup_xstate_comp(void)
 	 * or standard form.
 	 */
 	xstate_comp_offsets[0] = 0;
-	xstate_comp_offsets[1] = offsetof(struct i387_fxsave_struct, xmm_space);
+	xstate_comp_offsets[1] = offsetof(struct fxregs_state, xmm_space);
 
 	if (!cpu_has_xsaves) {
 		for (i = 2; i < xfeatures_nr; i++) {
@@ -386,7 +386,7 @@ void fpu__resume_cpu(void)
  * Output:
  *	address of the state in the xsave area.
  */
-void *get_xsave_addr(struct xsave_struct *xsave, int xstate)
+void *get_xsave_addr(struct xregs_state *xsave, int xstate)
 {
 	int feature = fls64(xstate) - 1;
 	if (!test_bit(feature, (unsigned long *)&xfeatures_mask))

@@ -371,7 +371,7 @@ dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code)
 dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
 {
 	struct task_struct *tsk = current;
-	struct xsave_struct *xsave_buf;
+	struct xregs_state *xsave_buf;
 	enum ctx_state prev_state;
 	struct bndcsr *bndcsr;
 	siginfo_t *info;
