@@ -58,7 +58,7 @@ TRACE_EVENT(802154_rdev_add_virtual_intf,
 	),
 	TP_printk(WPAN_PHY_PR_FMT ", virtual intf name: %s, type: %d, ea %llx",
 		  WPAN_PHY_PR_ARG, __get_str(vir_intf_name), __entry->type,
-		  __entry->extended_addr)
+		  __le64_to_cpu(__entry->extended_addr))
 );
 
 TRACE_EVENT(802154_rdev_del_virtual_intf,
@@ -138,7 +138,8 @@ DEFINE_EVENT_PRINT(802154_le16_template, 802154_rdev_set_short_addr,
 		 __le16 le16arg),
 	TP_ARGS(wpan_phy, wpan_dev, le16arg),
 	TP_printk(WPAN_PHY_PR_FMT ", " WPAN_DEV_PR_FMT ", sa: 0x%04x",
-		  WPAN_PHY_PR_ARG, WPAN_DEV_PR_ARG, __entry->le16arg)
+		  WPAN_PHY_PR_ARG, WPAN_DEV_PR_ARG,
+		  __le16_to_cpu(__entry->le16arg))
 );
 
 TRACE_EVENT(802154_rdev_set_backoff_exponent,
