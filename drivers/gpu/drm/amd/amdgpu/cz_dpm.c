@@ -1274,8 +1274,6 @@ static int cz_dpm_hw_fini(struct amdgpu_device *adev)
 
 	if (adev->pm.dpm_enabled) {
 		ret = cz_dpm_disable(adev);
-		if (ret)
-			return -EINVAL;
 
 		adev->pm.dpm.current_ps =
 			adev->pm.dpm.requested_ps =
@@ -1286,7 +1284,7 @@ static int cz_dpm_hw_fini(struct amdgpu_device *adev)
 
 	mutex_unlock(&adev->pm.mutex);
 
-	return 0;
+	return ret;
 }
 
 static int cz_dpm_suspend(struct amdgpu_device *adev)
@@ -1297,8 +1295,6 @@ static int cz_dpm_suspend(struct amdgpu_device *adev)
 		mutex_lock(&adev->pm.mutex);
 
 		ret = cz_dpm_disable(adev);
-		if (ret)
-			return -EINVAL;
 
 		adev->pm.dpm.current_ps =
 			adev->pm.dpm.requested_ps =
@@ -1307,7 +1303,7 @@ static int cz_dpm_suspend(struct amdgpu_device *adev)
 		mutex_unlock(&adev->pm.mutex);
 	}
 
-	return 0;
+	return ret;
 }
 
 static int cz_dpm_resume(struct amdgpu_device *adev)
