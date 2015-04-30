@@ -344,11 +344,13 @@ int st_sensors_init_sensor(struct iio_dev *indio_dev,
 		return err;
 
 	/* set BDU */
-	err = st_sensors_write_data_with_mask(indio_dev,
+	if (sdata->sensor_settings->bdu.addr) {
+		err = st_sensors_write_data_with_mask(indio_dev,
 					sdata->sensor_settings->bdu.addr,
 					sdata->sensor_settings->bdu.mask, true);
-	if (err < 0)
-		return err;
+		if (err < 0)
+			return err;
+	}
 
 	err = st_sensors_set_axis_enable(indio_dev, ST_SENSORS_ENABLE_ALL_AXIS);
 
