@@ -2693,7 +2693,8 @@ static int rt5645_irq_detection(struct rt5645_priv *rt5645)
 	snd_soc_jack_report(rt5645->mic_jack, report, SND_JACK_MICROPHONE);
 	if (rt5645->en_button_func)
 		snd_soc_jack_report(rt5645->btn_jack,
-			report, SND_JACK_MICROPHONE);
+			report, SND_JACK_BTN_0 | SND_JACK_BTN_1 |
+				SND_JACK_BTN_2 | SND_JACK_BTN_3);
 
 	return report;
 }
