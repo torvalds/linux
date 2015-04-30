@@ -72,14 +72,14 @@
 			nand-ecc-mode = "soft";
 			status = "okay";
 
-			bootloaderkernel@0 {
-				label = "bootloader-kernel";
-				reg = <0x0 0xc0000>;
+			bootstrap@0 {
+				label = "bootstrap";
+				reg = <0x0 0x20000>;
 			};
 
-			ubi@c0000 {
+			ubi@20000 {
 				label = "ubi";
-				reg = <0xc0000 0x7f40000>;
+				reg = <0x20000 0x7fe0000>;
 			};
 		};
 	};
