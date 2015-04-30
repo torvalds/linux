@@ -161,6 +161,7 @@ static const struct mxs_phy_data imx6sx_phy_data = {
 };
 
 static const struct of_device_id mxs_phy_dt_ids[] = {
+	{ .compatible = "fsl,imx6ul-usbphy", .data = &imx6sx_phy_data, },
 	{ .compatible = "fsl,imx6sx-usbphy", .data = &imx6sx_phy_data, },
 	{ .compatible = "fsl,imx6sl-usbphy", .data = &imx6sl_phy_data, },
 	{ .compatible = "fsl,imx6q-usbphy", .data = &imx6q_phy_data, },
