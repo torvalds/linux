@@ -19,10 +19,16 @@
 #ifndef _MITE_H_
 #define _MITE_H_
 
+#include <linux/io.h>
 #include <linux/log2.h>
-#include "../comedi_pci.h"
+#include <linux/spinlock.h>
 
 #define MAX_MITE_DMA_CHANNELS 8
+
+struct comedi_device;
+struct comedi_subdevice;
+struct device;
+struct pci_dev;
 
 struct mite_dma_descriptor {
 	__le32 count;
