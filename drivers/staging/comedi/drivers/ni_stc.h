@@ -276,6 +276,8 @@
 #define NISTC_CLK_FOUT_TO_DIVIDER(x)	(((x) >> 0) & 0xf)
 #define NISTC_CLK_FOUT_DIVIDER_MASK	NISTC_CLK_FOUT_DIVIDER(0xf)
 
+#define NISTC_IO_BIDIR_PIN_REG		57
+
 #define AI_Status_1_Register		2
 #define Interrupt_A_St				0x8000
 #define AI_FIFO_Full_St				0x4000
@@ -334,7 +336,6 @@ enum Joint_Status_2_Bits {
 #define AO_BC_Save_Registers		18
 #define AO_UC_Save_Registers		20
 
-#define IO_Bidirection_Pin_Register	57
 #define	RTSI_Trig_Direction_Register	58
 enum RTSI_Trig_Direction_Bits {
 	Drive_RTSI_Clock_Bit = 0x1,

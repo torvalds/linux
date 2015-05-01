@@ -353,7 +353,7 @@ static const struct mio_regmap m_series_stc_write_regmap[] = {
 	[NISTC_AO_UC_LOADA_REG]		= { 0x160, 4 },
 	[NISTC_AO_UC_LOADB_REG]		= { 0x164, 4 },
 	[NISTC_CLK_FOUT_REG]		= { 0x170, 2 },
-	[IO_Bidirection_Pin_Register]	= { 0x172, 2 },
+	[NISTC_IO_BIDIR_PIN_REG]	= { 0x172, 2 },
 	[RTSI_Trig_Direction_Register]	= { 0x174, 2 },
 	[Interrupt_Control_Register]	= { 0x176, 2 },
 	[AI_Output_Control_Register]	= { 0x178, 2 },
@@ -542,7 +542,7 @@ static inline void ni_set_bitfield(struct comedi_device *dev, int reg,
 		devpriv->int_b_enable_reg |= bit_values & bit_mask;
 		ni_stc_writew(dev, devpriv->int_b_enable_reg, reg);
 		break;
-	case IO_Bidirection_Pin_Register:
+	case NISTC_IO_BIDIR_PIN_REG:
 		devpriv->io_bidirection_pin_reg &= ~bit_mask;
 		devpriv->io_bidirection_pin_reg |= bit_values & bit_mask;
 		ni_stc_writew(dev, devpriv->io_bidirection_pin_reg, reg);
@@ -4434,10 +4434,10 @@ static int ni_pfi_insn_config(struct comedi_device *dev,
 
 	switch (data[0]) {
 	case COMEDI_OUTPUT:
-		ni_set_bits(dev, IO_Bidirection_Pin_Register, 1 << chan, 1);
+		ni_set_bits(dev, NISTC_IO_BIDIR_PIN_REG, 1 << chan, 1);
 		break;
 	case COMEDI_INPUT:
-		ni_set_bits(dev, IO_Bidirection_Pin_Register, 1 << chan, 0);
+		ni_set_bits(dev, NISTC_IO_BIDIR_PIN_REG, 1 << chan, 0);
 		break;
 	case INSN_CONFIG_DIO_QUERY:
 		data[1] =
@@ -5303,7 +5303,7 @@ static int ni_E_init(struct comedi_device *dev,
 	}
 	s->insn_config	= ni_pfi_insn_config;
 
-	ni_set_bits(dev, IO_Bidirection_Pin_Register, ~0, 0);
+	ni_set_bits(dev, NISTC_IO_BIDIR_PIN_REG, ~0, 0);
 
 	/* cs5529 calibration adc */
 	s = &dev->subdevices[NI_CS5529_CALIBRATION_SUBDEV];
