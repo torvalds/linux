@@ -355,7 +355,7 @@ static const struct mio_regmap m_series_stc_write_regmap[] = {
 	[NISTC_IO_BIDIR_PIN_REG]	= { 0x172, 2 },
 	[NISTC_RTSI_TRIG_DIR_REG]	= { 0x174, 2 },
 	[NISTC_INT_CTRL_REG]		= { 0x176, 2 },
-	[AI_Output_Control_Register]	= { 0x178, 2 },
+	[NISTC_AI_OUT_CTRL_REG]		= { 0x178, 2 },
 	[Analog_Trigger_Etc_Register]	= { 0x17a, 2 },
 	[AI_START_STOP_Select_Register]	= { 0x17c, 2 },
 	[AI_Trigger_Select_Register]	= { 0x17e, 2 },
@@ -1608,6 +1608,7 @@ static int ni_ao_setup_MITE_dma(struct comedi_device *dev)
 static int ni_ai_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct ni_private *devpriv = dev->private;
+	unsigned ai_out_ctrl;
 
 	ni_release_ai_mite_channel(dev);
 	/* ai configuration */
@@ -1633,65 +1634,45 @@ static int ni_ai_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 	ni_stc_writew(dev, 0, NISTC_AI_MODE2_REG);
 	/* generate FIFO interrupts on non-empty */
 	ni_stc_writew(dev, (0 << 6) | 0x0000, AI_Mode_3_Register);
+
+	ai_out_ctrl = NISTC_AI_OUT_CTRL_SCAN_IN_PROG_SEL(3) |
+		      NISTC_AI_OUT_CTRL_EXTMUX_CLK_SEL(0) |
+		      NISTC_AI_OUT_CTRL_LOCALMUX_CLK_SEL(2) |
+		      NISTC_AI_OUT_CTRL_SC_TC_SEL(3);
 	if (devpriv->is_611x) {
 		ni_stc_writew(dev,
 			      AI_SHIFTIN_Pulse_Width |
 			      AI_SOC_Polarity |
 			      AI_LOCALMUX_CLK_Pulse_Width,
 			      AI_Personal_Register);
-		ni_stc_writew(dev,
-			      AI_SCAN_IN_PROG_Output_Select(3) |
-			      AI_EXTMUX_CLK_Output_Select(0) |
-			      AI_LOCALMUX_CLK_Output_Select(2) |
-			      AI_SC_TC_Output_Select(3) |
-			      AI_CONVERT_Output_Select
-			      (AI_CONVERT_Output_Enable_High),
-			      AI_Output_Control_Register);
+		ai_out_ctrl |= NISTC_AI_OUT_CTRL_CONVERT_HIGH;
 	} else if (devpriv->is_6143) {
 		ni_stc_writew(dev, AI_SHIFTIN_Pulse_Width |
 				   AI_SOC_Polarity |
 				   AI_LOCALMUX_CLK_Pulse_Width,
 			      AI_Personal_Register);
-		ni_stc_writew(dev,
-			      AI_SCAN_IN_PROG_Output_Select(3) |
-			      AI_EXTMUX_CLK_Output_Select(0) |
-			      AI_LOCALMUX_CLK_Output_Select(2) |
-			      AI_SC_TC_Output_Select(3) |
-			      AI_CONVERT_Output_Select
-			      (AI_CONVERT_Output_Enable_Low),
-			      AI_Output_Control_Register);
+		ai_out_ctrl |= NISTC_AI_OUT_CTRL_CONVERT_LOW;
 	} else {
-		unsigned ai_output_control_bits;
-
 		ni_stc_writew(dev,
 			      AI_SHIFTIN_Pulse_Width |
 			      AI_SOC_Polarity |
 			      AI_CONVERT_Pulse_Width |
 			      AI_LOCALMUX_CLK_Pulse_Width,
 			      AI_Personal_Register);
-		ai_output_control_bits =
-		    AI_SCAN_IN_PROG_Output_Select(3) |
-		    AI_EXTMUX_CLK_Output_Select(0) |
-		    AI_LOCALMUX_CLK_Output_Select(2) |
-		    AI_SC_TC_Output_Select(3);
 		if (devpriv->is_622x)
-			ai_output_control_bits |=
-			    AI_CONVERT_Output_Select
-			    (AI_CONVERT_Output_Enable_High);
+			ai_out_ctrl |= NISTC_AI_OUT_CTRL_CONVERT_HIGH;
 		else
-			ai_output_control_bits |=
-			    AI_CONVERT_Output_Select
-			    (AI_CONVERT_Output_Enable_Low);
-		ni_stc_writew(dev, ai_output_control_bits,
-			      AI_Output_Control_Register);
+			ai_out_ctrl |= NISTC_AI_OUT_CTRL_CONVERT_LOW;
 	}
+	ni_stc_writew(dev, ai_out_ctrl, NISTC_AI_OUT_CTRL_REG);
+
 	/* the following registers should not be changed, because there
 	 * are no backup registers in devpriv.  If you want to change
 	 * any of these, add a backup register and other appropriate code:
 	 *      NISTC_AI_MODE1_REG
 	 *      AI_Mode_3_Register
 	 *      AI_Personal_Register
-	 *      AI_Output_Control_Register
+	 *      NISTC_AI_OUT_CTRL_REG
 	 */
 
 	/* clear interrupts */

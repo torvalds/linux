@@ -295,6 +295,18 @@
 #define NISTC_INT_CTRL_3PIN_INT		BIT(1)
 #define NISTC_INT_CTRL_INT_POL		BIT(0)
 
+#define NISTC_AI_OUT_CTRL_REG		60
+#define NISTC_AI_OUT_CTRL_START_SEL	BIT(10)
+#define NISTC_AI_OUT_CTRL_SCAN_IN_PROG_SEL(x)	(((x) & 0x3) << 8)
+#define NISTC_AI_OUT_CTRL_EXTMUX_CLK_SEL(x)	(((x) & 0x3) << 6)
+#define NISTC_AI_OUT_CTRL_LOCALMUX_CLK_SEL(x)	(((x) & 0x3) << 4)
+#define NISTC_AI_OUT_CTRL_SC_TC_SEL(x)		(((x) & 0x3) << 2)
+#define NISTC_AI_OUT_CTRL_CONVERT_SEL(x)	(((x) & 0x3) << 0)
+#define NISTC_AI_OUT_CTRL_CONVERT_HIGH_Z	NISTC_AI_OUT_CTRL_CONVERT_SEL(0)
+#define NISTC_AI_OUT_CTRL_CONVERT_GND		NISTC_AI_OUT_CTRL_CONVERT_SEL(1)
+#define NISTC_AI_OUT_CTRL_CONVERT_LOW		NISTC_AI_OUT_CTRL_CONVERT_SEL(2)
+#define NISTC_AI_OUT_CTRL_CONVERT_HIGH		NISTC_AI_OUT_CTRL_CONVERT_SEL(3)
+
 #define AI_Status_1_Register		2
 #define Interrupt_A_St				0x8000
 #define AI_FIFO_Full_St				0x4000
@@ -352,24 +364,6 @@ enum Joint_Status_2_Bits {
 #define AO_UI_Save_Registers		16
 #define AO_BC_Save_Registers		18
 #define AO_UC_Save_Registers		20
-
-#define AI_Output_Control_Register	60
-#define AI_START_Output_Select			_bit10
-#define AI_SCAN_IN_PROG_Output_Select(x)	(((x) & 0x3) << 8)
-#define AI_EXTMUX_CLK_Output_Select(x)		(((x) & 0x3) << 6)
-#define AI_LOCALMUX_CLK_Output_Select(x)	((x)<<4)
-#define AI_SC_TC_Output_Select(x)		((x)<<2)
-enum ai_convert_output_selection {
-	AI_CONVERT_Output_High_Z = 0,
-	AI_CONVERT_Output_Ground = 1,
-	AI_CONVERT_Output_Enable_Low = 2,
-	AI_CONVERT_Output_Enable_High = 3
-};
-static unsigned AI_CONVERT_Output_Select(enum ai_convert_output_selection
-					 selection)
-{
-	return selection & 0x3;
-}
 
 #define AI_START_STOP_Select_Register	62
 #define AI_START_Polarity			_bit15
