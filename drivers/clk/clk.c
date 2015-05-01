@@ -1998,7 +1998,7 @@ static int clk_dump(struct seq_file *s, void *data)
 
 	clk_prepare_unlock();
 
-	seq_printf(s, "}");
+	seq_puts(s, "}\n");
 	return 0;
 }
 
