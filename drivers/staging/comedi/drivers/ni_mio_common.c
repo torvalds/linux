@@ -5204,7 +5204,8 @@ static int ni_E_init(struct comedi_device *dev,
 	/* 8255 device */
 	s = &dev->subdevices[NI_8255_DIO_SUBDEV];
 	if (board->has_8255) {
-		ret = subdev_8255_init(dev, s, ni_8255_callback, Port_A);
+		ret = subdev_8255_init(dev, s, ni_8255_callback,
+				       NI_E_8255_BASE);
 		if (ret)
 			return ret;
 	} else {

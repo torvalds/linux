@@ -582,14 +582,6 @@
 #define NI_E_MISC_CMD_EXT_ATRIG		NI_E_MISC_CMD_INTEXT_ATRIG(0)
 #define NI_E_MISC_CMD_INT_ATRIG		NI_E_MISC_CMD_INTEXT_ATRIG(1)
 
-#define Port_A				0x19
-#define Port_B				0x1b
-#define Port_C				0x1d
-#define Configuration			0x1f
-#define Strobes				0x01
-#define Channel_A_Mode			0x03
-#define Channel_B_Mode			0x05
-#define Channel_C_Mode			0x07
 #define AI_AO_Select			0x09
 enum AI_AO_Select_Bits {
 	AI_DMA_Select_Shift = 0,
@@ -642,6 +634,8 @@ static inline unsigned int AI_CONFIG_CHANNEL(unsigned int channel)
 {
 	return channel & 0x3f;
 }
+
+#define NI_E_8255_BASE			0x19	/* rw8 */
 
 #define ADC_FIFO_Data_Register		0x1c
 
