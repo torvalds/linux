@@ -1005,6 +1005,10 @@ static const struct comedi_lrange range_ni_E_ao_ext;
 #define NI_M_PLL_STATUS_REG		0x1c8
 #define NI_M_PLL_STATUS_LOCKED		BIT(0)
 #define NI_M_PFI_OUT_SEL_REG(x)		(0x1d0 + ((x) * 2))
+#define NI_M_PFI_CHAN(_c)		(((_c) % 3) * 5)
+#define NI_M_PFI_OUT_SEL(_c, _s)	(((_s) & 0x1f) << NI_M_PFI_CHAN(_c))
+#define NI_M_PFI_OUT_SEL_MASK(_c)	(0x1f << NI_M_PFI_CHAN(_c))
+#define NI_M_PFI_OUT_SEL_TO_SRC(_c, _b)	(((_b) >> NI_M_PFI_CHAN(_c)) & 0x1f)
 #define NI_M_PFI_DI_REG			0x1dc
 #define NI_M_PFI_DO_REG			0x1de
 #define NI_M_CFG_BYPASS_FIFO_REG	0x218
@@ -1040,24 +1044,6 @@ static const struct comedi_lrange range_ni_E_ao_ext;
 #define NI_M_STATIC_AI_CTRL_REG(x)	((x) ? (0x260 + (x)) : 0x064)
 #define NI_M_AO_REF_ATTENUATION_REG(x)	(0x264 + (x))
 #define NI_M_AO_REF_ATTENUATION_X5	BIT(0)
-
-static inline unsigned MSeries_PFI_Output_Select_Mask(unsigned channel)
-{
-	return 0x1f << (channel % 3) * 5;
-};
-
-static inline unsigned MSeries_PFI_Output_Select_Bits(unsigned channel,
-						      unsigned source)
-{
-	return (source & 0x1f) << ((channel % 3) * 5);
-};
-
-/* inverse to MSeries_PFI_Output_Select_Bits */
-static inline unsigned MSeries_PFI_Output_Select_Source(unsigned channel,
-							unsigned bits)
-{
-	return (bits >> ((channel % 3) * 5)) & 0x1f;
-};
 
 static inline unsigned MSeries_PFI_Filter_Select_Mask(unsigned channel)
 {

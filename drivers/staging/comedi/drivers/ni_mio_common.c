@@ -4367,7 +4367,7 @@ static unsigned ni_m_series_get_pfi_routing(struct comedi_device *dev,
 	struct ni_private *devpriv = dev->private;
 	const unsigned array_offset = chan / 3;
 
-	return MSeries_PFI_Output_Select_Source(chan,
+	return NI_M_PFI_OUT_SEL_TO_SRC(chan,
 				devpriv->pfi_output_select_reg[array_offset]);
 }
 
@@ -4381,8 +4381,8 @@ static int ni_m_series_set_pfi_routing(struct comedi_device *dev,
 	if ((source & 0x1f) != source)
 		return -EINVAL;
 
-	val &= ~MSeries_PFI_Output_Select_Mask(chan);
-	val |= MSeries_PFI_Output_Select_Bits(chan, source);
+	val &= ~NI_M_PFI_OUT_SEL_MASK(chan);
+	val |= NI_M_PFI_OUT_SEL(chan, source);
 	ni_writew(dev, val, NI_M_PFI_OUT_SEL_REG(index));
 	devpriv->pfi_output_select_reg[index] = val;
 
