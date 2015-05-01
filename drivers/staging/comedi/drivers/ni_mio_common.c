@@ -3371,7 +3371,7 @@ static int ni_cdio_cmdtest(struct comedi_device *dev,
 	err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
 
 	tmp = cmd->scan_begin_arg;
-	tmp &= CR_PACK_FLAGS(CDO_Sample_Source_Select_Mask, 0, 0, CR_INVERT);
+	tmp &= CR_PACK_FLAGS(NI_M_CDO_MODE_SAMPLE_SRC_MASK, 0, 0, CR_INVERT);
 	if (tmp != cmd->scan_begin_arg)
 		err |= -EINVAL;
 
@@ -3456,14 +3456,15 @@ static int ni_cdo_inttrig(struct comedi_device *dev,
 static int ni_cdio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	const struct comedi_cmd *cmd = &s->async->cmd;
-	unsigned cdo_mode_bits = CDO_FIFO_Mode_Bit | CDO_Halt_On_Error_Bit;
+	unsigned cdo_mode_bits;
 	int retval;
 
 	ni_writel(dev, NI_M_CDO_CMD_RESET, NI_M_CDIO_CMD_REG);
-	cdo_mode_bits |= CR_CHAN(cmd->scan_begin_arg) &
-			 CDO_Sample_Source_Select_Mask;
+	cdo_mode_bits = NI_M_CDO_MODE_FIFO_MODE |
+			NI_M_CDO_MODE_HALT_ON_ERROR |
+			NI_M_CDO_MODE_SAMPLE_SRC(CR_CHAN(cmd->scan_begin_arg));
 	if (cmd->scan_begin_arg & CR_INVERT)
-		cdo_mode_bits |= CDO_Polarity_Bit;
+		cdo_mode_bits |= NI_M_CDO_MODE_POLARITY;
 	ni_writel(dev, cdo_mode_bits, NI_M_CDO_MODE_REG);
 	if (s->io_bits) {
 		ni_writel(dev, s->state, NI_M_CDO_FIFO_DATA_REG);
