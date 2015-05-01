@@ -574,10 +574,8 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 		get_uuid2fsid(uuid->uuid, strlen(uuid->uuid), &sbi->ll_fsid);
 	}
 
-	if (data != NULL)
-		kfree(data);
-	if (osfs != NULL)
-		kfree(osfs);
+	kfree(data);
+	kfree(osfs);
 
 	return err;
 out_root:
@@ -595,10 +593,8 @@ out_md:
 	obd_disconnect(sbi->ll_md_exp);
 	sbi->ll_md_exp = NULL;
 out:
-	if (data != NULL)
-		kfree(data);
-	if (osfs != NULL)
-		kfree(osfs);
+	kfree(data);
+	kfree(osfs);
 	lprocfs_unregister_mountpoint(sbi);
 	return err;
 }
