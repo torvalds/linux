@@ -546,6 +546,10 @@
 #define NISTC_G0_SAVE_REG		12
 #define NISTC_G1_SAVE_REG		14
 
+#define NISTC_AO_UI_SAVE_REG		16
+#define NISTC_AO_BC_SAVE_REG		18
+#define NISTC_AO_UC_SAVE_REG		20
+
 #define AI_SI_Save_Registers		64
 #define AI_SC_Save_Registers		66
 
@@ -557,10 +561,6 @@
 enum Joint_Status_2_Bits {
 	AO_TMRDACWRs_In_Progress_St = 0x20,
 };
-
-#define AO_UI_Save_Registers		16
-#define AO_BC_Save_Registers		18
-#define AO_UC_Save_Registers		20
 
 /* command register */
 #define G_Disarm_Copy			_bit15	/* strobe */
