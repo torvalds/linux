@@ -354,7 +354,7 @@ static const struct mio_regmap m_series_stc_write_regmap[] = {
 	[NISTC_CLK_FOUT_REG]		= { 0x170, 2 },
 	[NISTC_IO_BIDIR_PIN_REG]	= { 0x172, 2 },
 	[NISTC_RTSI_TRIG_DIR_REG]	= { 0x174, 2 },
-	[Interrupt_Control_Register]	= { 0x176, 2 },
+	[NISTC_INT_CTRL_REG]		= { 0x176, 2 },
 	[AI_Output_Control_Register]	= { 0x178, 2 },
 	[Analog_Trigger_Etc_Register]	= { 0x17a, 2 },
 	[AI_START_STOP_Select_Register]	= { 0x17c, 2 },
@@ -5389,12 +5389,13 @@ static int ni_E_init(struct comedi_device *dev,
 
 	if (dev->irq) {
 		ni_stc_writew(dev,
-			      (irq_polarity ? Interrupt_Output_Polarity : 0) |
-			      (Interrupt_Output_On_3_Pins & 0) |
-			      Interrupt_A_Enable | Interrupt_B_Enable |
-			      Interrupt_A_Output_Select(interrupt_pin) |
-			      Interrupt_B_Output_Select(interrupt_pin),
-			      Interrupt_Control_Register);
+			      (irq_polarity ? NISTC_INT_CTRL_INT_POL : 0) |
+			      (NISTC_INT_CTRL_3PIN_INT & 0) |
+			      NISTC_INT_CTRL_INTA_ENA |
+			      NISTC_INT_CTRL_INTB_ENA |
+			      NISTC_INT_CTRL_INTA_SEL(interrupt_pin) |
+			      NISTC_INT_CTRL_INTB_SEL(interrupt_pin),
+			      NISTC_INT_CTRL_REG);
 	}
 
 	/* DMA setup */

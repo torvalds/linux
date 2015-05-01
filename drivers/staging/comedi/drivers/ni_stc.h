@@ -285,6 +285,16 @@
 #define NISTC_RTSI_TRIG_USE_CLK		BIT(1)
 #define NISTC_RTSI_TRIG_DRV_CLK		BIT(0)
 
+#define NISTC_INT_CTRL_REG		59
+#define NISTC_INT_CTRL_INTB_ENA		BIT(15)
+#define NISTC_INT_CTRL_INTB_SEL(x)	(((x) & 0x7) << 12)
+#define NISTC_INT_CTRL_INTA_ENA		BIT(11)
+#define NISTC_INT_CTRL_INTA_SEL(x)	(((x) & 0x7) << 8)
+#define NISTC_INT_CTRL_PASSTHRU0_POL	BIT(3)
+#define NISTC_INT_CTRL_PASSTHRU1_POL	BIT(2)
+#define NISTC_INT_CTRL_3PIN_INT		BIT(1)
+#define NISTC_INT_CTRL_INT_POL		BIT(0)
+
 #define AI_Status_1_Register		2
 #define Interrupt_A_St				0x8000
 #define AI_FIFO_Full_St				0x4000
@@ -342,16 +352,6 @@ enum Joint_Status_2_Bits {
 #define AO_UI_Save_Registers		16
 #define AO_BC_Save_Registers		18
 #define AO_UC_Save_Registers		20
-
-#define Interrupt_Control_Register	59
-#define Interrupt_B_Enable			_bit15
-#define Interrupt_B_Output_Select(x)		((x)<<12)
-#define Interrupt_A_Enable			_bit11
-#define Interrupt_A_Output_Select(x)		((x)<<8)
-#define Pass_Thru_0_Interrupt_Polarity		_bit3
-#define Pass_Thru_1_Interrupt_Polarity		_bit2
-#define Interrupt_Output_On_3_Pins		_bit1
-#define Interrupt_Output_Polarity		_bit0
 
 #define AI_Output_Control_Register	60
 #define AI_START_Output_Select			_bit10

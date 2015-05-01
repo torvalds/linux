@@ -1085,7 +1085,7 @@ static void init_6143(struct comedi_device *dev)
 	struct ni_private *devpriv = dev->private;
 
 	/*  Disable interrupts */
-	ni_stc_writew(dev, 0, Interrupt_Control_Register);
+	ni_stc_writew(dev, 0, NISTC_INT_CTRL_REG);
 
 	/*  Initialise 6143 AI specific bits */
 
