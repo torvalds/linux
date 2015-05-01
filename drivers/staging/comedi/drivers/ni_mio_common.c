@@ -367,7 +367,7 @@ static const struct mio_regmap m_series_stc_write_regmap[] = {
 	[NISTC_AO_MODE3_REG]		= { 0x18c, 2 },
 	[NISTC_RESET_REG]		= { 0x190, 2 },
 	[NISTC_INTA_ENA_REG]		= { 0x192, 2 },
-	[Second_IRQ_A_Enable_Register]	= { 0, 0 }, /* E-Series only */
+	[NISTC_INTA2_ENA_REG]		= { 0, 0 }, /* E-Series only */
 	[Interrupt_B_Enable_Register]	= { 0x196, 2 },
 	[Second_IRQ_B_Enable_Register]	= { 0, 0 }, /* E-Series only */
 	[AI_Personal_Register]		= { 0x19a, 2 },
@@ -818,9 +818,9 @@ static void ni_e_series_enable_second_irq(struct comedi_device *dev,
 	 * dma requests for their counters
 	 */
 	if (gpct_index == 0) {
-		reg = Second_IRQ_A_Enable_Register;
+		reg = NISTC_INTA2_ENA_REG;
 		if (enable)
-			val = G0_Gate_Second_Irq_Enable;
+			val = NISTC_INTA_ENA_G0_GATE;
 	} else {
 		reg = Second_IRQ_B_Enable_Register;
 		if (enable)

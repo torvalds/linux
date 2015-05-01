@@ -385,6 +385,7 @@
 #define NISTC_RESET_AI			BIT(0)
 
 #define NISTC_INTA_ENA_REG		73
+#define NISTC_INTA2_ENA_REG		74
 #define NISTC_INTA_ENA_PASSTHRU0	BIT(9)
 #define NISTC_INTA_ENA_G0_GATE		BIT(8)
 #define NISTC_INTA_ENA_AI_FIFO		BIT(7)
@@ -474,20 +475,6 @@ enum Joint_Status_2_Bits {
 #define AO_UPDATE_Interrupt_Enable		_bit2
 #define AO_START1_Interrupt_Enable		_bit1
 #define AO_BC_TC_Interrupt_Enable		_bit0
-
-#define Second_IRQ_A_Enable_Register	74
-enum Second_IRQ_A_Enable_Bits {
-	AI_SC_TC_Second_Irq_Enable = _bit0,
-	AI_START1_Second_Irq_Enable = _bit1,
-	AI_START2_Second_Irq_Enable = _bit2,
-	AI_START_Second_Irq_Enable = _bit3,
-	AI_STOP_Second_Irq_Enable = _bit4,
-	AI_Error_Second_Irq_Enable = _bit5,
-	G0_TC_Second_Irq_Enable = _bit6,
-	AI_FIFO_Second_Irq_Enable = _bit7,
-	G0_Gate_Second_Irq_Enable = _bit8,
-	Pass_Thru_0_Second_Irq_Enable = _bit9
-};
 
 #define Second_IRQ_B_Enable_Register	76
 enum Second_IRQ_B_Enable_Bits {
