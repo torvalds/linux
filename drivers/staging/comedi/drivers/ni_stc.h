@@ -616,13 +616,13 @@ static inline unsigned GPCT_DMA_Select_Mask(unsigned gpct_index)
 	return 0xf << (4 * gpct_index);
 }
 
-/* 16 bit registers */
+#define NI_E_AI_CFG_LO_REG		0x10	/* w16 */
+#define NI_E_AI_CFG_LO_LAST_CHAN	BIT(15)
+#define NI_E_AI_CFG_LO_GEN_TRIG		BIT(12)
+#define NI_E_AI_CFG_LO_DITHER		BIT(9)
+#define NI_E_AI_CFG_LO_UNI		BIT(8)
+#define NI_E_AI_CFG_LO_GAIN(x)		((x) << 0)
 
-#define Configuration_Memory_Low	0x10
-enum Configuration_Memory_Low_Bits {
-	AI_DITHER = 0x200,
-	AI_LAST_CHANNEL = 0x8000,
-};
 #define Configuration_Memory_High	0x12
 enum Configuration_Memory_High_Bits {
 	AI_AC_COUPLE = 0x800,

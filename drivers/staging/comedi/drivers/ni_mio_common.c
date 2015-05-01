@@ -1902,13 +1902,14 @@ static void ni_load_channelgain_list(struct comedi_device *dev,
 		ni_writew(dev, hi, Configuration_Memory_High);
 
 		if (!devpriv->is_6143) {
-			lo = range;
-			if (i == n_chan - 1)
-				lo |= AI_LAST_CHANNEL;
-			if (dither)
-				lo |= AI_DITHER;
+			lo = NI_E_AI_CFG_LO_GAIN(range);
 
-			ni_writew(dev, lo, Configuration_Memory_Low);
+			if (i == n_chan - 1)
+				lo |= NI_E_AI_CFG_LO_LAST_CHAN;
+			if (dither)
+				lo |= NI_E_AI_CFG_LO_DITHER;
+
+			ni_writew(dev, lo, NI_E_AI_CFG_LO_REG);
 		}
 	}
 
