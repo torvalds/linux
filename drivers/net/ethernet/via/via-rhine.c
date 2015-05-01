@@ -2075,6 +2075,7 @@ static int rhine_rx(struct net_device *dev, int limit)
 				break;
 			}
 			rp->rx_ring[entry].addr = cpu_to_le32(rp->rx_skbuff_dma[entry]);
+			dma_wmb();
 		}
 		rp->rx_ring[entry].rx_status = cpu_to_le32(DescOwn);
 	}
