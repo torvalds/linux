@@ -924,54 +924,53 @@ static const struct comedi_lrange range_ni_E_ao_ext;
  * M-Series specific registers not handled by the DAQ-STC and GPCT register
  * remapping.
  */
-#define M_Offset_CDIO_DMA_Select		0x007
-#define M_Offset_SCXI_Status			0x007
-#define M_Offset_AI_AO_Select			0x009
-#define M_Offset_G0_G1_Select			0x00b
-#define M_Offset_Misc_Command			0x00f
-#define M_Offset_SCXI_Serial_Data_Out		0x011
-#define M_Offset_SCXI_Control			0x013
-#define M_Offset_SCXI_Output_Enable		0x015
-#define M_Offset_AI_FIFO_Data			0x01c
-#define M_Offset_Static_Digital_Output		0x024
-#define M_Offset_Static_Digital_Input		0x024
-#define M_Offset_DIO_Direction			0x028
-#define M_Offset_Cal_PWM			0x040
-#define M_Offset_Gen_PWM(x)			(0x044 + ((x) * 2))
-#define M_Offset_AI_Config_FIFO_Data		0x05e
-#define M_Offset_Interrupt_C_Enable		0x088
-#define M_Offset_Interrupt_C_Status		0x088
-#define M_Offset_Analog_Trigger_Control		0x08c
-#define M_Offset_AO_Serial_Interrupt_Enable	0x0a0
-#define M_Offset_AO_Serial_Interrupt_Ack	0x0a1
-#define M_Offset_AO_Serial_Interrupt_Status	0x0a1
-#define M_Offset_AO_Calibration			0x0a3
-#define M_Offset_AO_FIFO_Data			0x0a4
-#define M_Offset_PFI_Filter			0x0b0
-#define M_Offset_RTSI_Filter			0x0b4
-#define M_Offset_SCXI_Legacy_Compatibility	0x0bc
-#define M_Offset_DAC_Direct_Data(x)		(0x0c0 + ((x) * 4))
-#define M_Offset_AO_Waveform_Order(x)		(0x0c2 + ((x) * 4))
-#define M_Offset_AO_Config_Bank(x)		(0x0c3 + ((x) * 4))
-#define M_Offset_RTSI_Shared_MUX		0x1a2
-#define M_Offset_Clock_and_Fout2		0x1c4
-#define M_Offset_PLL_Control			0x1c6
-#define M_Offset_PLL_Status			0x1c8
-#define M_Offset_PFI_Output_Select(x)		(0x1d0 + ((x) * 2))
-#define M_Offset_PFI_DI				0x1dc
-#define M_Offset_PFI_DO				0x1de
-#define M_Offset_AI_Config_FIFO_Bypass		0x218
-#define M_Offset_SCXI_DIO_Enable		0x21c
-#define M_Offset_CDI_FIFO_Data			0x220
-#define M_Offset_CDO_FIFO_Data			0x220
-#define M_Offset_CDIO_Status			0x224
-#define M_Offset_CDIO_Command			0x224
-#define M_Offset_CDI_Mode			0x228
-#define M_Offset_CDO_Mode			0x22c
-#define M_Offset_CDI_Mask_Enable		0x230
-#define M_Offset_CDO_Mask_Enable		0x234
-#define M_Offset_Static_AI_Control(x)		((x) ? (0x260 + (x)) : 0x064)
-#define M_Offset_AO_Reference_Attenuation(x)	(0x264 + (x))
+#define NI_M_CDIO_DMA_SEL_REG		0x007
+#define NI_M_SCXI_STATUS_REG		0x007
+#define NI_M_AI_AO_SEL_REG		0x009
+#define NI_M_G0_G1_SEL_REG		0x00b
+#define NI_M_MISC_CMD_REG		0x00f
+#define NI_M_SCXI_SER_DO_REG		0x011
+#define NI_M_SCXI_CTRL_REG		0x013
+#define NI_M_SCXI_OUT_ENA_REG		0x015
+#define NI_M_AI_FIFO_DATA_REG		0x01c
+#define NI_M_DIO_REG			0x024
+#define NI_M_DIO_DIR_REG		0x028
+#define NI_M_CAL_PWM_REG		0x040
+#define NI_M_GEN_PWM_REG(x)		(0x044 + ((x) * 2))
+#define NI_M_AI_CFG_FIFO_DATA_REG	0x05e
+#define NI_M_INTC_ENA_REG		0x088
+#define NI_M_INTC_STATUS_REG		0x088
+#define NI_M_ATRIG_CTRL_REG		0x08c
+#define NI_M_AO_SER_INT_ENA_REG		0x0a0
+#define NI_M_AO_SER_INT_ACK_REG		0x0a1
+#define NI_M_AO_SER_INT_STATUS_REG	0x0a1
+#define NI_M_AO_CALIB_REG		0x0a3
+#define NI_M_AO_FIFO_DATA_REG		0x0a4
+#define NI_M_PFI_FILTER_REG		0x0b0
+#define NI_M_RTSI_FILTER_REG		0x0b4
+#define NI_M_SCXI_LEGACY_COMPAT_REG	0x0bc
+#define NI_M_DAC_DIRECT_DATA_REG(x)	(0x0c0 + ((x) * 4))
+#define NI_M_AO_WAVEFORM_ORDER_REG(x)	(0x0c2 + ((x) * 4))
+#define NI_M_AO_CFG_BANK_REG(x)		(0x0c3 + ((x) * 4))
+#define NI_M_RTSI_SHARED_MUX_REG	0x1a2
+#define NI_M_CLK_FOUT2_REG		0x1c4
+#define NI_M_PLL_CTRL_REG		0x1c6
+#define NI_M_PLL_STATUS_REG		0x1c8
+#define NI_M_PFI_OUT_SEL_REG(x)		(0x1d0 + ((x) * 2))
+#define NI_M_PFI_DI_REG			0x1dc
+#define NI_M_PFI_DO_REG			0x1de
+#define NI_M_AI_CFG_BYPASS_FIFO_REG	0x218
+#define NI_M_SCXI_DIO_ENA_REG		0x21c
+#define NI_M_CDI_FIFO_DATA_REG		0x220
+#define NI_M_CDO_FIFO_DATA_REG		0x220
+#define NI_M_CDIO_STATUS_REG		0x224
+#define NI_M_CDIO_CMD_REG		0x224
+#define NI_M_CDI_MODE_REG		0x228
+#define NI_M_CDO_MODE_REG		0x22c
+#define NI_M_CDI_MASK_ENA_REG		0x230
+#define NI_M_CDO_MASK_ENA_REG		0x234
+#define NI_M_STATIC_AI_CTRL_REG(x)	((x) ? (0x260 + (x)) : 0x064)
+#define NI_M_AO_REF_ATTENUATION_REG(x)	(0x264 + (x))
 
 enum MSeries_AI_Config_FIFO_Data_Bits {
 	MSeries_AI_Config_Channel_Type_Mask = 0x7 << 6,
