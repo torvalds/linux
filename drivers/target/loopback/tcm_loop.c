@@ -520,10 +520,14 @@ static char *tcm_loop_get_fabric_name(void)
 	return "loopback";
 }
 
+static inline struct tcm_loop_tpg *tl_tpg(struct se_portal_group *se_tpg)
+{
+	return container_of(se_tpg, struct tcm_loop_tpg, tl_se_tpg);
+}
+
 static u8 tcm_loop_get_fabric_proto_ident(struct se_portal_group *se_tpg)
 {
-	struct tcm_loop_tpg *tl_tpg = se_tpg->se_tpg_fabric_ptr;
-	struct tcm_loop_hba *tl_hba = tl_tpg->tl_hba;
+	struct tcm_loop_hba *tl_hba = tl_tpg(se_tpg)->tl_hba;
 	/*
 	 * tl_proto_id is set at tcm_loop_configfs.c:tcm_loop_make_scsi_hba()
 	 * time based on the protocol dependent prefix of the passed configfs group.
@@ -549,21 +553,19 @@ static u8 tcm_loop_get_fabric_proto_ident(struct se_portal_group *se_tpg)
 
 static char *tcm_loop_get_endpoint_wwn(struct se_portal_group *se_tpg)
 {
-	struct tcm_loop_tpg *tl_tpg = se_tpg->se_tpg_fabric_ptr;
 	/*
 	 * Return the passed NAA identifier for the SAS Target Port
 	 */
-	return &tl_tpg->tl_hba->tl_wwn_address[0];
+	return &tl_tpg(se_tpg)->tl_hba->tl_wwn_address[0];
 }
 
 static u16 tcm_loop_get_tag(struct se_portal_group *se_tpg)
 {
-	struct tcm_loop_tpg *tl_tpg = se_tpg->se_tpg_fabric_ptr;
 	/*
 	 * This Tag is used when forming SCSI Name identifier in EVPD=1 0x83
 	 * to represent the SCSI Target Port.
 	 */
-	return tl_tpg->tl_tpgt;
+	return tl_tpg(se_tpg)->tl_tpgt;
 }
 
 static u32 tcm_loop_get_pr_transport_id(
@@ -573,8 +575,7 @@ static u32 tcm_loop_get_pr_transport_id(
 	int *format_code,
 	unsigned char *buf)
 {
-	struct tcm_loop_tpg *tl_tpg = se_tpg->se_tpg_fabric_ptr;
-	struct tcm_loop_hba *tl_hba = tl_tpg->tl_hba;
+	struct tcm_loop_hba *tl_hba = tl_tpg(se_tpg)->tl_hba;
 
 	switch (tl_hba->tl_proto_id) {
 	case SCSI_PROTOCOL_SAS:
@@ -602,8 +603,7 @@ static u32 tcm_loop_get_pr_transport_id_len(
 	struct t10_pr_registration *pr_reg,
 	int *format_code)
 {
-	struct tcm_loop_tpg *tl_tpg = se_tpg->se_tpg_fabric_ptr;
-	struct tcm_loop_hba *tl_hba = tl_tpg->tl_hba;
+	struct tcm_loop_hba *tl_hba = tl_tpg(se_tpg)->tl_hba;
 
 	switch (tl_hba->tl_proto_id) {
 	case SCSI_PROTOCOL_SAS:
@@ -635,8 +635,7 @@ static char *tcm_loop_parse_pr_out_transport_id(
 	u32 *out_tid_len,
 	char **port_nexus_ptr)
 {
-	struct tcm_loop_tpg *tl_tpg = se_tpg->se_tpg_fabric_ptr;
-	struct tcm_loop_hba *tl_hba = tl_tpg->tl_hba;
+	struct tcm_loop_hba *tl_hba = tl_tpg(se_tpg)->tl_hba;
 
 	switch (tl_hba->tl_proto_id) {
 	case SCSI_PROTOCOL_SAS:
