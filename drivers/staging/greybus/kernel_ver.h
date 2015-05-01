@@ -18,14 +18,14 @@
 
 #ifndef __ATTR_WO
 #define __ATTR_WO(_name) {						\
-        .attr   = { .name = __stringify(_name), .mode = S_IWUSR },      \
-        .store  = _name##_store,                                        \
+	.attr	= { .name = __stringify(_name), .mode = S_IWUSR },	\
+	.store	= _name##_store,					\
 }
 #endif
 
 #ifndef __ATTR_RW
 #define __ATTR_RW(_name) __ATTR(_name, (S_IWUSR | S_IRUGO),		\
-		                         _name##_show, _name##_store)
+				_name##_show, _name##_store)
 #endif
 
 #ifndef DEVICE_ATTR_RO
