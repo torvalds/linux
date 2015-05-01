@@ -605,17 +605,18 @@
 
 #define NI_E_AO_FIFO_DATA_REG		0x1e	/* w16 */
 
-/* 611x registers (these boards differ from the e-series) */
+/*
+ * 611x registers (these boards differ from the e-series)
+ */
+#define NI611X_MAGIC_REG		0x19	/* w8 (new) */
+#define NI611X_CALIB_CHAN_SEL_REG	0x1a	/* w16 (new) */
+#define NI611X_AI_FIFO_DATA_REG		0x1c	/* r32 (incompatible) */
+#define NI611X_AI_FIFO_OFFSET_LOAD_REG	0x05	/* r8 (new) */
+#define NI611X_AO_FIFO_DATA_REG		0x14	/* w32 (incompatible) */
+#define NI611X_CAL_GAIN_SEL_REG		0x05	/* w8 (new) */
 
-#define Magic_611x			0x19	/* w8 (new) */
-#define Calibration_Channel_Select_611x	0x1a	/* w16 (new) */
-#define ADC_FIFO_Data_611x		0x1c	/* r32 (incompatible) */
-#define AI_FIFO_Offset_Load_611x	0x05	/* r8 (new) */
-#define DAC_FIFO_Data_611x		0x14	/* w32 (incompatible) */
-#define Cal_Gain_Select_611x		0x05	/* w8 (new) */
-
-#define AO_Window_Address_611x		0x18
-#define AO_Window_Data_611x		0x1e
+#define NI611X_AO_WINDOW_ADDR_REG	0x18
+#define NI611X_AO_WINDOW_DATA_REG	0x1e
 
 /* 6143 registers */
 #define Magic_6143			0x19	/* w8 */

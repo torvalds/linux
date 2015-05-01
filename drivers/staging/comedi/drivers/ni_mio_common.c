@@ -879,8 +879,8 @@ static inline void ni_ao_win_outw(struct comedi_device *dev, uint16_t data,
 	unsigned long flags;
 
 	spin_lock_irqsave(&devpriv->window_lock, flags);
-	ni_writew(dev, addr, AO_Window_Address_611x);
-	ni_writew(dev, data, AO_Window_Data_611x);
+	ni_writew(dev, addr, NI611X_AO_WINDOW_ADDR_REG);
+	ni_writew(dev, data, NI611X_AO_WINDOW_DATA_REG);
 	spin_unlock_irqrestore(&devpriv->window_lock, flags);
 }
 
@@ -891,8 +891,8 @@ static inline void ni_ao_win_outl(struct comedi_device *dev, uint32_t data,
 	unsigned long flags;
 
 	spin_lock_irqsave(&devpriv->window_lock, flags);
-	ni_writew(dev, addr, AO_Window_Address_611x);
-	ni_writel(dev, data, AO_Window_Data_611x);
+	ni_writew(dev, addr, NI611X_AO_WINDOW_ADDR_REG);
+	ni_writel(dev, data, NI611X_AO_WINDOW_DATA_REG);
 	spin_unlock_irqrestore(&devpriv->window_lock, flags);
 }
 
@@ -903,8 +903,8 @@ static inline unsigned short ni_ao_win_inw(struct comedi_device *dev, int addr)
 	unsigned short data;
 
 	spin_lock_irqsave(&devpriv->window_lock, flags);
-	ni_writew(dev, addr, AO_Window_Address_611x);
-	data = ni_readw(dev, AO_Window_Data_611x);
+	ni_writew(dev, addr, NI611X_AO_WINDOW_ADDR_REG);
+	data = ni_readw(dev, NI611X_AO_WINDOW_DATA_REG);
 	spin_unlock_irqrestore(&devpriv->window_lock, flags);
 	return data;
 }
@@ -1035,7 +1035,7 @@ static void ni_ao_fifo_load(struct comedi_device *dev,
 				i++;
 				packed_data |= (d << 16) & 0xffff0000;
 			}
-			ni_writel(dev, packed_data, DAC_FIFO_Data_611x);
+			ni_writel(dev, packed_data, NI611X_AO_FIFO_DATA_REG);
 		} else {
 			ni_writew(dev, d, NI_E_AO_FIFO_DATA_REG);
 		}
@@ -1118,7 +1118,7 @@ static void ni_ai_fifo_read(struct comedi_device *dev,
 
 	if (devpriv->is_611x) {
 		for (i = 0; i < n / 2; i++) {
-			dl = ni_readl(dev, ADC_FIFO_Data_611x);
+			dl = ni_readl(dev, NI611X_AI_FIFO_DATA_REG);
 			/* This may get the hi/lo data in the wrong order */
 			data = (dl >> 16) & 0xffff;
 			comedi_buf_write_samples(s, &data, 1);
@@ -1127,7 +1127,7 @@ static void ni_ai_fifo_read(struct comedi_device *dev,
 		}
 		/* Check if there's a single sample stuck in the FIFO */
 		if (n % 2) {
-			dl = ni_readl(dev, ADC_FIFO_Data_611x);
+			dl = ni_readl(dev, NI611X_AI_FIFO_DATA_REG);
 			data = dl & 0xffff;
 			comedi_buf_write_samples(s, &data, 1);
 		}
@@ -1192,7 +1192,7 @@ static void ni_handle_fifo_dregs(struct comedi_device *dev)
 	if (devpriv->is_611x) {
 		while ((ni_stc_readw(dev, NISTC_AI_STATUS1_REG) &
 			NISTC_AI_STATUS1_FIFO_E) == 0) {
-			dl = ni_readl(dev, ADC_FIFO_Data_611x);
+			dl = ni_readl(dev, NI611X_AI_FIFO_DATA_REG);
 
 			/* This may get the hi/lo data in the wrong order */
 			data = dl >> 16;
@@ -1254,7 +1254,7 @@ static void get_last_sample_611x(struct comedi_device *dev)
 
 	/* Check if there's a single sample stuck in the FIFO */
 	if (ni_readb(dev, NI_E_STATUS_REG) & 0x80) {
-		dl = ni_readl(dev, ADC_FIFO_Data_611x);
+		dl = ni_readl(dev, NI611X_AI_FIFO_DATA_REG);
 		data = dl & 0xffff;
 		comedi_buf_write_samples(s, &data, 1);
 	}
@@ -1882,7 +1882,7 @@ static void ni_load_channelgain_list(struct comedi_device *dev,
 		if ((list[i] & CR_ALT_SOURCE)) {
 			if (devpriv->is_611x)
 				ni_writew(dev, CR_CHAN(list[i]) & 0x0003,
-					  Calibration_Channel_Select_611x);
+					  NI611X_CALIB_CHAN_SEL_REG);
 		} else {
 			if (devpriv->is_611x)
 				aref = AREF_DIFF;
@@ -1953,14 +1953,16 @@ static int ni_ai_insn_read(struct comedi_device *dev,
 			d = 0;
 			for (i = 0; i < NI_TIMEOUT; i++) {
 				if (ni_readb(dev, NI_E_STATUS_REG) & 0x80) {
-					d = ni_readl(dev, ADC_FIFO_Data_611x);
+					d = ni_readl(dev,
+						     NI611X_AI_FIFO_DATA_REG);
 					d >>= 16;
 					d &= 0xffff;
 					break;
 				}
 				if (!(ni_stc_readw(dev, NISTC_AI_STATUS1_REG) &
 				      NISTC_AI_STATUS1_FIFO_E)) {
-					d = ni_readl(dev, ADC_FIFO_Data_611x);
+					d = ni_readl(dev,
+						     NI611X_AI_FIFO_DATA_REG);
 					d &= 0xffff;
 					break;
 				}
@@ -2552,7 +2554,7 @@ static int ni_ai_insn_config(struct comedi_device *dev,
 			devpriv->ai_calib_source = calib_source;
 			if (devpriv->is_611x) {
 				ni_writeb(dev, calib_source_adjust,
-					  Cal_Gain_Select_611x);
+					  NI611X_CAL_GAIN_SEL_REG);
 			}
 		}
 		return 2;
@@ -5384,7 +5386,7 @@ static int ni_E_init(struct comedi_device *dev,
 	ni_writeb(dev, devpriv->g0_g1_select_reg, NI_E_DMA_G0_G1_SEL_REG);
 
 	if (devpriv->is_6xxx) {
-		ni_writeb(dev, 0, Magic_611x);
+		ni_writeb(dev, 0, NI611X_MAGIC_REG);
 	} else if (devpriv->is_m_series) {
 		int channel;
 
