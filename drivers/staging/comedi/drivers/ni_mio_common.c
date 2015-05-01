@@ -410,7 +410,7 @@ static void m_series_stc_write(struct comedi_device *dev,
 }
 
 static const struct mio_regmap m_series_stc_read_regmap[] = {
-	[AI_Status_1_Register]		= { 0x104, 2 },
+	[NISTC_AI_STATUS1_REG]		= { 0x104, 2 },
 	[AO_Status_1_Register]		= { 0x106, 2 },
 	[G_Status_Register]		= { 0x108, 2 },
 	[AI_Status_2_Register]		= { 0, 0 }, /* Unknown */
@@ -950,8 +950,8 @@ static int ni_ai_drain_dma(struct comedi_device *dev)
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	if (devpriv->ai_mite_chan) {
 		for (i = 0; i < timeout; i++) {
-			if ((ni_stc_readw(dev, AI_Status_1_Register) &
-			     AI_FIFO_Empty_St)
+			if ((ni_stc_readw(dev, NISTC_AI_STATUS1_REG) &
+			     NISTC_AI_STATUS1_FIFO_E)
 			    && mite_bytes_in_transit(devpriv->ai_mite_chan) ==
 			    0)
 				break;
@@ -962,7 +962,7 @@ static int ni_ai_drain_dma(struct comedi_device *dev)
 			dev_err(dev->class_dev,
 				"mite_bytes_in_transit=%i, AI_Status1_Register=0x%x\n",
 				mite_bytes_in_transit(devpriv->ai_mite_chan),
-				ni_stc_readw(dev, AI_Status_1_Register));
+				ni_stc_readw(dev, NISTC_AI_STATUS1_REG));
 			retval = -1;
 		}
 	}
@@ -1185,8 +1185,8 @@ static void ni_handle_fifo_dregs(struct comedi_device *dev)
 	int i;
 
 	if (devpriv->is_611x) {
-		while ((ni_stc_readw(dev, AI_Status_1_Register) &
-			AI_FIFO_Empty_St) == 0) {
+		while ((ni_stc_readw(dev, NISTC_AI_STATUS1_REG) &
+			NISTC_AI_STATUS1_FIFO_E) == 0) {
 			dl = ni_readl(dev, ADC_FIFO_Data_611x);
 
 			/* This may get the hi/lo data in the wrong order */
@@ -1217,16 +1217,16 @@ static void ni_handle_fifo_dregs(struct comedi_device *dev)
 		}
 
 	} else {
-		fifo_empty = ni_stc_readw(dev, AI_Status_1_Register) &
-			     AI_FIFO_Empty_St;
+		fifo_empty = ni_stc_readw(dev, NISTC_AI_STATUS1_REG) &
+			     NISTC_AI_STATUS1_FIFO_E;
 		while (fifo_empty == 0) {
 			for (i = 0;
 			     i <
 			     sizeof(devpriv->ai_fifo_buffer) /
 			     sizeof(devpriv->ai_fifo_buffer[0]); i++) {
 				fifo_empty = ni_stc_readw(dev,
-							  AI_Status_1_Register) &
-						AI_FIFO_Empty_St;
+							  NISTC_AI_STATUS1_REG) &
+						NISTC_AI_STATUS1_FIFO_E;
 				if (fifo_empty)
 					break;
 				devpriv->ai_fifo_buffer[i] =
@@ -1335,13 +1335,13 @@ static void ack_a_interrupt(struct comedi_device *dev, unsigned short a_status)
 {
 	unsigned short ack = 0;
 
-	if (a_status & AI_SC_TC_St)
+	if (a_status & NISTC_AI_STATUS1_SC_TC)
 		ack |= NISTC_INTA_ACK_AI_SC_TC;
-	if (a_status & AI_START1_St)
+	if (a_status & NISTC_AI_STATUS1_START1)
 		ack |= NISTC_INTA_ACK_AI_START1;
-	if (a_status & AI_START_St)
+	if (a_status & NISTC_AI_STATUS1_START)
 		ack |= NISTC_INTA_ACK_AI_START;
-	if (a_status & AI_STOP_St)
+	if (a_status & NISTC_AI_STATUS1_STOP)
 		ack |= NISTC_INTA_ACK_AI_STOP;
 	if (ack)
 		ni_stc_writew(dev, ack, NISTC_INTA_ACK_REG);
@@ -1373,8 +1373,8 @@ static void handle_a_interrupt(struct comedi_device *dev, unsigned short status,
 #endif
 
 	/* test for all uncommon interrupt events at the same time */
-	if (status & (AI_Overrun_St | AI_Overflow_St | AI_SC_TC_Error_St |
-		      AI_SC_TC_St | AI_START1_St)) {
+	if (status & (NISTC_AI_STATUS1_ERR |
+		      NISTC_AI_STATUS1_SC_TC | NISTC_AI_STATUS1_START1)) {
 		if (status == 0xffff) {
 			dev_err(dev->class_dev, "Card removed?\n");
 			/* we probably aren't even running a command now,
@@ -1385,41 +1385,40 @@ static void handle_a_interrupt(struct comedi_device *dev, unsigned short status,
 			}
 			return;
 		}
-		if (status & (AI_Overrun_St | AI_Overflow_St |
-			      AI_SC_TC_Error_St)) {
+		if (status & NISTC_AI_STATUS1_ERR) {
 			dev_err(dev->class_dev, "ai error a_status=%04x\n",
 				status);
 
 			shutdown_ai_command(dev);
 
 			s->async->events |= COMEDI_CB_ERROR;
-			if (status & (AI_Overrun_St | AI_Overflow_St))
+			if (status & NISTC_AI_STATUS1_OVER)
 				s->async->events |= COMEDI_CB_OVERFLOW;
 
 			comedi_handle_events(dev, s);
 			return;
 		}
-		if (status & AI_SC_TC_St) {
+		if (status & NISTC_AI_STATUS1_SC_TC) {
 			if (cmd->stop_src == TRIG_COUNT)
 				shutdown_ai_command(dev);
 		}
 	}
 #ifndef PCIDMA
-	if (status & AI_FIFO_Half_Full_St) {
+	if (status & NISTC_AI_STATUS1_FIFO_HF) {
 		int i;
 		static const int timeout = 10;
 		/* pcmcia cards (at least 6036) seem to stop producing interrupts if we
 		 *fail to get the fifo less than half full, so loop to be sure.*/
 		for (i = 0; i < timeout; ++i) {
 			ni_handle_fifo_half_full(dev);
-			if ((ni_stc_readw(dev, AI_Status_1_Register) &
-			     AI_FIFO_Half_Full_St) == 0)
+			if ((ni_stc_readw(dev, NISTC_AI_STATUS1_REG) &
+			     NISTC_AI_STATUS1_FIFO_HF) == 0)
 				break;
 		}
 	}
 #endif /*  !PCIDMA */
 
-	if ((status & AI_STOP_St))
+	if (status & NISTC_AI_STATUS1_STOP)
 		ni_handle_eos(dev, s);
 
 	comedi_handle_events(dev, s);
@@ -1695,8 +1694,8 @@ static void ni_prime_channelgain_list(struct comedi_device *dev)
 
 	ni_stc_writew(dev, NISTC_AI_CMD1_CONVERT_PULSE, NISTC_AI_CMD1_REG);
 	for (i = 0; i < NI_TIMEOUT; ++i) {
-		if (!(ni_stc_readw(dev, AI_Status_1_Register) &
-		      AI_FIFO_Empty_St)) {
+		if (!(ni_stc_readw(dev, NISTC_AI_STATUS1_REG) &
+		      NISTC_AI_STATUS1_FIFO_E)) {
 			ni_stc_writew(dev, 1, NISTC_ADC_FIFO_CLR_REG);
 			return;
 		}
@@ -1953,8 +1952,8 @@ static int ni_ai_insn_read(struct comedi_device *dev,
 					d &= 0xffff;
 					break;
 				}
-				if (!(ni_stc_readw(dev, AI_Status_1_Register) &
-				      AI_FIFO_Empty_St)) {
+				if (!(ni_stc_readw(dev, NISTC_AI_STATUS1_REG) &
+				      NISTC_AI_STATUS1_FIFO_E)) {
 					d = ni_readl(dev, ADC_FIFO_Data_611x);
 					d &= 0xffff;
 					break;
@@ -1994,8 +1993,8 @@ static int ni_ai_insn_read(struct comedi_device *dev,
 			ni_stc_writew(dev, NISTC_AI_CMD1_CONVERT_PULSE,
 				      NISTC_AI_CMD1_REG);
 			for (i = 0; i < NI_TIMEOUT; i++) {
-				if (!(ni_stc_readw(dev, AI_Status_1_Register) &
-				      AI_FIFO_Empty_St))
+				if (!(ni_stc_readw(dev, NISTC_AI_STATUS1_REG) &
+				      NISTC_AI_STATUS1_FIFO_E))
 					break;
 			}
 			if (i == NI_TIMEOUT) {
@@ -3736,7 +3735,7 @@ static const struct mio_regmap ni_gpct_to_stc_regmap[] = {
 	[NITIO_G1_ABZ]		= { 0x1c2, 2 },	/* M-Series only */
 	[NITIO_G0_INT_ACK]	= { NISTC_INTA_ACK_REG, 2 },
 	[NITIO_G1_INT_ACK]	= { NISTC_INTB_ACK_REG, 2 },
-	[NITIO_G0_STATUS]	= { AI_Status_1_Register, 2 },
+	[NITIO_G0_STATUS]	= { NISTC_AI_STATUS1_REG, 2 },
 	[NITIO_G1_STATUS]	= { AO_Status_1_Register, 2 },
 	[NITIO_G0_INT_ENA]	= { NISTC_INTA_ENA_REG, 2 },
 	[NITIO_G1_INT_ENA]	= { NISTC_INTB_ENA_REG, 2 },
@@ -4992,7 +4991,7 @@ static irqreturn_t ni_E_interrupt(int irq, void *d)
 
 	/*  lock to avoid race with comedi_poll */
 	spin_lock_irqsave(&dev->spinlock, flags);
-	a_status = ni_stc_readw(dev, AI_Status_1_Register);
+	a_status = ni_stc_readw(dev, NISTC_AI_STATUS1_REG);
 	b_status = ni_stc_readw(dev, AO_Status_1_Register);
 #ifdef PCIDMA
 	if (mite) {
@@ -5021,7 +5020,7 @@ static irqreturn_t ni_E_interrupt(int irq, void *d)
 #endif
 	ack_a_interrupt(dev, a_status);
 	ack_b_interrupt(dev, b_status);
-	if ((a_status & Interrupt_A_St) || (ai_mite_status & CHSR_INT))
+	if ((a_status & NISTC_AI_STATUS1_INTA) || (ai_mite_status & CHSR_INT))
 		handle_a_interrupt(dev, a_status, ai_mite_status);
 	if ((b_status & Interrupt_B_St) || (ao_mite_status & CHSR_INT))
 		handle_b_interrupt(dev, b_status, ao_mite_status);

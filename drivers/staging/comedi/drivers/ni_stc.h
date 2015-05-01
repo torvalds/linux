@@ -492,23 +492,27 @@
 #define NISTC_AI_MODE3_EXT_GATE_POL	BIT(5)
 #define NISTC_AI_MODE3_EXT_GATE_SEL(x)	(((x) & 0x1f) << 0)
 
-#define AI_Status_1_Register		2
-#define Interrupt_A_St				0x8000
-#define AI_FIFO_Full_St				0x4000
-#define AI_FIFO_Half_Full_St			0x2000
-#define AI_FIFO_Empty_St			0x1000
-#define AI_Overrun_St				0x0800
-#define AI_Overflow_St				0x0400
-#define AI_SC_TC_Error_St			0x0200
-#define AI_START2_St				0x0100
-#define AI_START1_St				0x0080
-#define AI_SC_TC_St				0x0040
-#define AI_START_St				0x0020
-#define AI_STOP_St				0x0010
-#define G0_TC_St				0x0008
-#define G0_Gate_Interrupt_St			0x0004
-#define AI_FIFO_Request_St			0x0002
-#define Pass_Thru_0_Interrupt_St		0x0001
+#define NISTC_AI_STATUS1_REG		2
+#define NISTC_AI_STATUS1_INTA		BIT(15)
+#define NISTC_AI_STATUS1_FIFO_F		BIT(14)
+#define NISTC_AI_STATUS1_FIFO_HF	BIT(13)
+#define NISTC_AI_STATUS1_FIFO_E		BIT(12)
+#define NISTC_AI_STATUS1_OVERRUN	BIT(11)
+#define NISTC_AI_STATUS1_OVERFLOW	BIT(10)
+#define NISTC_AI_STATUS1_SC_TC_ERR	BIT(9)
+#define NISTC_AI_STATUS1_OVER		(NISTC_AI_STATUS1_OVERRUN |	\
+					 NISTC_AI_STATUS1_OVERFLOW)
+#define NISTC_AI_STATUS1_ERR		(NISTC_AI_STATUS1_OVER |	\
+					 NISTC_AI_STATUS1_SC_TC_ERR)
+#define NISTC_AI_STATUS1_START2		BIT(8)
+#define NISTC_AI_STATUS1_START1		BIT(7)
+#define NISTC_AI_STATUS1_SC_TC		BIT(6)
+#define NISTC_AI_STATUS1_START		BIT(5)
+#define NISTC_AI_STATUS1_STOP		BIT(4)
+#define NISTC_AI_STATUS1_G0_TC		BIT(3)
+#define NISTC_AI_STATUS1_G0_GATE	BIT(2)
+#define NISTC_AI_STATUS1_FIFO_REQ	BIT(1)
+#define NISTC_AI_STATUS1_PASSTHRU0	BIT(0)
 
 #define AI_Status_2_Register		5
 
