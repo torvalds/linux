@@ -47,6 +47,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
+#include <linux/slab.h>
 
 #include "../comedi_pci.h"
 

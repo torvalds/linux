@@ -20,7 +20,6 @@
 #define _MITE_H_
 
 #include <linux/log2.h>
-#include <linux/slab.h>
 #include "../comedi_pci.h"
 
 #define PCIMIO_COMPAT
