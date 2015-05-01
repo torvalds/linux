@@ -1042,6 +1042,20 @@ static const struct comedi_lrange range_ni_E_ao_ext;
 #define NI_M_CDI_FIFO_DATA_REG		0x220
 #define NI_M_CDO_FIFO_DATA_REG		0x220
 #define NI_M_CDIO_STATUS_REG		0x224
+#define NI_M_CDIO_STATUS_CDI_OVERFLOW	BIT(20)
+#define NI_M_CDIO_STATUS_CDI_OVERRUN	BIT(19)
+#define NI_M_CDIO_STATUS_CDI_ERROR	(NI_M_CDIO_STATUS_CDI_OVERFLOW | \
+					 NI_M_CDIO_STATUS_CDI_OVERRUN)
+#define NI_M_CDIO_STATUS_CDI_FIFO_REQ	BIT(18)
+#define NI_M_CDIO_STATUS_CDI_FIFO_FULL	BIT(17)
+#define NI_M_CDIO_STATUS_CDI_FIFO_EMPTY	BIT(16)
+#define NI_M_CDIO_STATUS_CDO_UNDERFLOW	BIT(4)
+#define NI_M_CDIO_STATUS_CDO_OVERRUN	BIT(3)
+#define NI_M_CDIO_STATUS_CDO_ERROR	(NI_M_CDIO_STATUS_CDO_UNDERFLOW | \
+					 NI_M_CDIO_STATUS_CDO_OVERRUN)
+#define NI_M_CDIO_STATUS_CDO_FIFO_REQ	BIT(2)
+#define NI_M_CDIO_STATUS_CDO_FIFO_FULL	BIT(1)
+#define NI_M_CDIO_STATUS_CDO_FIFO_EMPTY	BIT(0)
 #define NI_M_CDIO_CMD_REG		0x224
 #define NI_M_CDI_MODE_REG		0x228
 #define NI_M_CDO_MODE_REG		0x22c
@@ -1050,19 +1064,6 @@ static const struct comedi_lrange range_ni_E_ao_ext;
 #define NI_M_STATIC_AI_CTRL_REG(x)	((x) ? (0x260 + (x)) : 0x064)
 #define NI_M_AO_REF_ATTENUATION_REG(x)	(0x264 + (x))
 #define NI_M_AO_REF_ATTENUATION_X5	BIT(0)
-
-enum CDIO_Status_Bits {
-	CDO_FIFO_Empty_Bit = 0x1,
-	CDO_FIFO_Full_Bit = 0x2,
-	CDO_FIFO_Request_Bit = 0x4,
-	CDO_Overrun_Bit = 0x8,
-	CDO_Underflow_Bit = 0x10,
-	CDI_FIFO_Empty_Bit = 0x10000,
-	CDI_FIFO_Full_Bit = 0x20000,
-	CDI_FIFO_Request_Bit = 0x40000,
-	CDI_Overrun_Bit = 0x80000,
-	CDI_Overflow_Bit = 0x100000
-};
 
 enum CDIO_Command_Bits {
 	CDO_Disarm_Bit = 0x1,

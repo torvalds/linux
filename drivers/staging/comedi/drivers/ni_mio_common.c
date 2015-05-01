@@ -3436,7 +3436,8 @@ static int ni_cdo_inttrig(struct comedi_device *dev,
 	 * ni_writeb(dev, Interrupt_Group_C_Enable_Bit, NI_M_INTC_ENA_REG);
 	 */
 	for (i = 0; i < timeout; ++i) {
-		if (ni_readl(dev, NI_M_CDIO_STATUS_REG) & CDO_FIFO_Full_Bit)
+		if (ni_readl(dev, NI_M_CDIO_STATUS_REG) &
+		    NI_M_CDIO_STATUS_CDO_FIFO_FULL)
 			break;
 		udelay(10);
 	}
@@ -3531,13 +3532,13 @@ static void handle_cdio_interrupt(struct comedi_device *dev)
 #endif
 
 	cdio_status = ni_readl(dev, NI_M_CDIO_STATUS_REG);
-	if (cdio_status & (CDO_Overrun_Bit | CDO_Underflow_Bit)) {
+	if (cdio_status & NI_M_CDIO_STATUS_CDO_ERROR) {
 		/* XXX just guessing this is needed and does something useful */
 		ni_writel(dev, CDO_Error_Interrupt_Confirm_Bit,
 			  NI_M_CDIO_CMD_REG);
 		s->async->events |= COMEDI_CB_OVERFLOW;
 	}
-	if (cdio_status & CDO_FIFO_Empty_Bit) {
+	if (cdio_status & NI_M_CDIO_STATUS_CDO_FIFO_EMPTY) {
 		ni_writel(dev, CDO_Empty_FIFO_Interrupt_Enable_Clear_Bit,
 			  NI_M_CDIO_CMD_REG);
 		/* s->async->events |= COMEDI_CB_EOA; */
