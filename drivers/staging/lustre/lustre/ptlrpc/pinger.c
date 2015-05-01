@@ -427,7 +427,7 @@ struct timeout_item *ptlrpc_new_timeout(int time, enum timeout_event event,
 {
 	struct timeout_item *ti;
 
-	OBD_ALLOC_PTR(ti);
+	ti = kzalloc(sizeof(*ti), GFP_NOFS);
 	if (!ti)
 		return NULL;
 
@@ -514,7 +514,7 @@ int ptlrpc_del_timeout_client(struct list_head *obd_list,
 	LASSERTF(ti != NULL, "ti is NULL !\n");
 	if (list_empty(&ti->ti_obd_list)) {
 		list_del(&ti->ti_chain);
-		OBD_FREE_PTR(ti);
+		kfree(ti);
 	}
 	mutex_unlock(&pinger_mutex);
 	return 0;
@@ -529,7 +529,7 @@ int ptlrpc_pinger_remove_timeouts(void)
 	list_for_each_entry_safe(item, tmp, &timeout_list, ti_chain) {
 		LASSERT(list_empty(&item->ti_obd_list));
 		list_del(&item->ti_chain);
-		OBD_FREE_PTR(item);
+		kfree(item);
 	}
 	mutex_unlock(&pinger_mutex);
 	return 0;

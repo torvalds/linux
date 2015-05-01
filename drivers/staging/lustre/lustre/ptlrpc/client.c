@@ -103,7 +103,8 @@ struct ptlrpc_bulk_desc *ptlrpc_new_bulk(unsigned npages, unsigned max_brw,
 	struct ptlrpc_bulk_desc *desc;
 	int i;
 
-	OBD_ALLOC(desc, offsetof(struct ptlrpc_bulk_desc, bd_iov[npages]));
+	desc = kzalloc(offsetof(struct ptlrpc_bulk_desc, bd_iov[npages]),
+		       GFP_NOFS);
 	if (!desc)
 		return NULL;
 
@@ -205,8 +206,7 @@ void __ptlrpc_free_bulk(struct ptlrpc_bulk_desc *desc, int unpin)
 			page_cache_release(desc->bd_iov[i].kiov_page);
 	}
 
-	OBD_FREE(desc, offsetof(struct ptlrpc_bulk_desc,
-				bd_iov[desc->bd_max_iov]));
+	kfree(desc);
 }
 EXPORT_SYMBOL(__ptlrpc_free_bulk);
 
@@ -439,7 +439,7 @@ void ptlrpc_free_rq_pool(struct ptlrpc_request_pool *pool)
 		ptlrpc_request_cache_free(req);
 	}
 	spin_unlock(&pool->prp_lock);
-	OBD_FREE(pool, sizeof(*pool));
+	kfree(pool);
 }
 EXPORT_SYMBOL(ptlrpc_free_rq_pool);
 
@@ -498,7 +498,7 @@ ptlrpc_init_rq_pool(int num_rq, int msgsize,
 {
 	struct ptlrpc_request_pool *pool;
 
-	OBD_ALLOC(pool, sizeof(struct ptlrpc_request_pool));
+	pool = kzalloc(sizeof(struct ptlrpc_request_pool), GFP_NOFS);
 	if (!pool)
 		return NULL;
 
@@ -514,7 +514,7 @@ ptlrpc_init_rq_pool(int num_rq, int msgsize,
 
 	if (list_empty(&pool->prp_req_list)) {
 		/* have not allocated a single request for the pool */
-		OBD_FREE(pool, sizeof(struct ptlrpc_request_pool));
+		kfree(pool);
 		pool = NULL;
 	}
 	return pool;
@@ -856,7 +856,7 @@ struct ptlrpc_request_set *ptlrpc_prep_set(void)
 {
 	struct ptlrpc_request_set *set;
 
-	OBD_ALLOC(set, sizeof(*set));
+	set = kzalloc(sizeof(*set), GFP_NOFS);
 	if (!set)
 		return NULL;
 	atomic_set(&set->set_refcount, 1);
@@ -970,7 +970,7 @@ int ptlrpc_set_add_cb(struct ptlrpc_request_set *set,
 {
 	struct ptlrpc_set_cbdata *cbdata;
 
-	OBD_ALLOC_PTR(cbdata);
+	cbdata = kzalloc(sizeof(*cbdata), GFP_NOFS);
 	if (cbdata == NULL)
 		return -ENOMEM;
 
@@ -2214,7 +2214,7 @@ int ptlrpc_set_wait(struct ptlrpc_request_set *set)
 			err = cbdata->psc_interpret(set, cbdata->psc_data, rc);
 			if (err && !rc)
 				rc = err;
-			OBD_FREE_PTR(cbdata);
+			kfree(cbdata);
 		}
 	}
 

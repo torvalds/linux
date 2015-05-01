@@ -242,8 +242,7 @@ void sptlrpc_rule_set_free(struct sptlrpc_rule_set *rset)
 		(rset->srs_nrule == 0 && rset->srs_rules == NULL));
 
 	if (rset->srs_nslot) {
-		OBD_FREE(rset->srs_rules,
-			 rset->srs_nslot * sizeof(*rset->srs_rules));
+		kfree(rset->srs_rules);
 		sptlrpc_rule_set_init(rset);
 	}
 }
@@ -265,7 +264,7 @@ int sptlrpc_rule_set_expand(struct sptlrpc_rule_set *rset)
 	nslot = rset->srs_nslot + 8;
 
 	/* better use realloc() if available */
-	OBD_ALLOC(rules, nslot * sizeof(*rset->srs_rules));
+	rules = kcalloc(nslot, sizeof(*rset->srs_rules), GFP_NOFS);
 	if (rules == NULL)
 		return -ENOMEM;
 
@@ -274,8 +273,7 @@ int sptlrpc_rule_set_expand(struct sptlrpc_rule_set *rset)
 		memcpy(rules, rset->srs_rules,
 		       rset->srs_nrule * sizeof(*rset->srs_rules));
 
-		OBD_FREE(rset->srs_rules,
-			 rset->srs_nslot * sizeof(*rset->srs_rules));
+		kfree(rset->srs_rules);
 	}
 
 	rset->srs_rules = rules;
@@ -509,7 +507,7 @@ static void sptlrpc_conf_free_rsets(struct sptlrpc_conf *conf)
 				     &conf->sc_tgts, sct_list) {
 		sptlrpc_rule_set_free(&conf_tgt->sct_rset);
 		list_del(&conf_tgt->sct_list);
-		OBD_FREE_PTR(conf_tgt);
+		kfree(conf_tgt);
 	}
 	LASSERT(list_empty(&conf->sc_tgts));
 
@@ -523,7 +521,7 @@ static void sptlrpc_conf_free(struct sptlrpc_conf *conf)
 
 	sptlrpc_conf_free_rsets(conf);
 	list_del(&conf->sc_list);
-	OBD_FREE_PTR(conf);
+	kfree(conf);
 }
 
 static
@@ -541,7 +539,7 @@ struct sptlrpc_conf_tgt *sptlrpc_conf_get_tgt(struct sptlrpc_conf *conf,
 	if (!create)
 		return NULL;
 
-	OBD_ALLOC_PTR(conf_tgt);
+	conf_tgt = kzalloc(sizeof(*conf_tgt), GFP_NOFS);
 	if (conf_tgt) {
 		strlcpy(conf_tgt->sct_name, name, sizeof(conf_tgt->sct_name));
 		sptlrpc_rule_set_init(&conf_tgt->sct_rset);
@@ -565,7 +563,7 @@ struct sptlrpc_conf *sptlrpc_conf_get(const char *fsname,
 	if (!create)
 		return NULL;
 
-	OBD_ALLOC_PTR(conf);
+	conf = kzalloc(sizeof(*conf), GFP_NOFS);
 	if (conf == NULL)
 		return NULL;
 

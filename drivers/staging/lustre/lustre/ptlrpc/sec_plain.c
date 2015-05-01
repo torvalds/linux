@@ -376,7 +376,7 @@ struct ptlrpc_cli_ctx *plain_sec_install_ctx(struct plain_sec *plsec)
 {
 	struct ptlrpc_cli_ctx  *ctx, *ctx_new;
 
-	OBD_ALLOC_PTR(ctx_new);
+	ctx_new = kzalloc(sizeof(*ctx_new), GFP_NOFS);
 
 	write_lock(&plsec->pls_lock);
 
@@ -385,7 +385,7 @@ struct ptlrpc_cli_ctx *plain_sec_install_ctx(struct plain_sec *plsec)
 		atomic_inc(&ctx->cc_refcount);
 
 		if (ctx_new)
-			OBD_FREE_PTR(ctx_new);
+			kfree(ctx_new);
 	} else if (ctx_new) {
 		ctx = ctx_new;
 
@@ -424,7 +424,7 @@ void plain_destroy_sec(struct ptlrpc_sec *sec)
 
 	class_import_put(sec->ps_import);
 
-	OBD_FREE_PTR(plsec);
+	kfree(plsec);
 }
 
 static
@@ -444,7 +444,7 @@ struct ptlrpc_sec *plain_create_sec(struct obd_import *imp,
 
 	LASSERT(SPTLRPC_FLVR_POLICY(sf->sf_rpc) == SPTLRPC_POLICY_PLAIN);
 
-	OBD_ALLOC_PTR(plsec);
+	plsec = kzalloc(sizeof(*plsec), GFP_NOFS);
 	if (plsec == NULL)
 		return NULL;
 
@@ -508,7 +508,7 @@ void plain_release_ctx(struct ptlrpc_sec *sec,
 	LASSERT(atomic_read(&ctx->cc_refcount) == 0);
 	LASSERT(ctx->cc_sec == sec);
 
-	OBD_FREE_PTR(ctx);
+	kfree(ctx);
 
 	atomic_dec(&sec->ps_nctx);
 	sptlrpc_sec_put(sec);

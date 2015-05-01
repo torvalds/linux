@@ -105,7 +105,7 @@ static void nrs_fifo_stop(struct ptlrpc_nrs_policy *policy)
 	LASSERT(head != NULL);
 	LASSERT(list_empty(&head->fh_list));
 
-	OBD_FREE_PTR(head);
+	kfree(head);
 }
 
 /**

@@ -866,7 +866,7 @@ void sptlrpc_request_out_callback(struct ptlrpc_request *req)
 	if (req->rq_pool || !req->rq_reqbuf)
 		return;
 
-	OBD_FREE(req->rq_reqbuf, req->rq_reqbuf_len);
+	kfree(req->rq_reqbuf);
 	req->rq_reqbuf = NULL;
 	req->rq_reqbuf_len = 0;
 }

@@ -210,7 +210,7 @@ static void enc_pools_release_free_pages(long npages)
 	/* free unused pools */
 	while (p_idx_max1 < p_idx_max2) {
 		LASSERT(page_pools.epp_pools[p_idx_max2]);
-		OBD_FREE(page_pools.epp_pools[p_idx_max2], PAGE_CACHE_SIZE);
+		kfree(page_pools.epp_pools[p_idx_max2]);
 		page_pools.epp_pools[p_idx_max2] = NULL;
 		p_idx_max2--;
 	}
@@ -294,7 +294,7 @@ static unsigned long enc_pools_cleanup(struct page ***pools, int npools)
 					cleaned++;
 				}
 			}
-			OBD_FREE(pools[i], PAGE_CACHE_SIZE);
+			kfree(pools[i]);
 			pools[i] = NULL;
 		}
 	}
@@ -409,12 +409,12 @@ static int enc_pools_add_pages(int npages)
 	page_pools.epp_st_grows++;
 
 	npools = npages_to_npools(npages);
-	OBD_ALLOC(pools, npools * sizeof(*pools));
+	pools = kcalloc(npools, sizeof(*pools), GFP_NOFS);
 	if (pools == NULL)
 		goto out;
 
 	for (i = 0; i < npools; i++) {
-		OBD_ALLOC(pools[i], PAGE_CACHE_SIZE);
+		pools[i] = kzalloc(PAGE_CACHE_SIZE, GFP_NOFS);
 		if (pools[i] == NULL)
 			goto out_pools;
 
@@ -435,7 +435,7 @@ static int enc_pools_add_pages(int npages)
 
 out_pools:
 	enc_pools_cleanup(pools, npools);
-	OBD_FREE(pools, npools * sizeof(*pools));
+	kfree(pools);
 out:
 	if (rc) {
 		page_pools.epp_st_grow_fails++;
@@ -508,8 +508,8 @@ int sptlrpc_enc_pool_get_pages(struct ptlrpc_bulk_desc *desc)
 	if (desc->bd_enc_iov != NULL)
 		return 0;
 
-	OBD_ALLOC(desc->bd_enc_iov,
-		  desc->bd_iov_count * sizeof(*desc->bd_enc_iov));
+	desc->bd_enc_iov = kcalloc(desc->bd_iov_count,
+				   sizeof(*desc->bd_enc_iov), GFP_NOFS);
 	if (desc->bd_enc_iov == NULL)
 		return -ENOMEM;
 
@@ -646,8 +646,7 @@ void sptlrpc_enc_pool_put_pages(struct ptlrpc_bulk_desc *desc)
 
 	spin_unlock(&page_pools.epp_lock);
 
-	OBD_FREE(desc->bd_enc_iov,
-		 desc->bd_iov_count * sizeof(*desc->bd_enc_iov));
+	kfree(desc->bd_enc_iov);
 	desc->bd_enc_iov = NULL;
 }
 EXPORT_SYMBOL(sptlrpc_enc_pool_put_pages);
