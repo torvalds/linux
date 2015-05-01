@@ -590,7 +590,7 @@ struct ldlm_namespace *ldlm_namespace_new(struct obd_device *obd, char *name,
 			break;
 	}
 
-	OBD_ALLOC_PTR(ns);
+	ns = kzalloc(sizeof(*ns), GFP_NOFS);
 	if (!ns)
 		goto out_ref;
 
@@ -657,7 +657,7 @@ out_proc:
 out_hash:
 	cfs_hash_putref(ns->ns_rs_hash);
 out_ns:
-	OBD_FREE_PTR(ns);
+	kfree(ns);
 out_ref:
 	ldlm_put_ref();
 	return NULL;
@@ -904,7 +904,7 @@ void ldlm_namespace_free_post(struct ldlm_namespace *ns)
 	 * this will cause issues related to using freed \a ns in poold
 	 * thread. */
 	LASSERT(list_empty(&ns->ns_list_chain));
-	OBD_FREE_PTR(ns);
+	kfree(ns);
 	ldlm_put_ref();
 }
 
@@ -1138,7 +1138,7 @@ ldlm_resource_get(struct ldlm_namespace *ns, struct ldlm_resource *parent,
 			       ns->ns_obd->obd_name, name->name[0],
 			       name->name[1], rc);
 			if (res->lr_lvb_data) {
-				OBD_FREE(res->lr_lvb_data, res->lr_lvb_len);
+				kfree(res->lr_lvb_data);
 				res->lr_lvb_data = NULL;
 			}
 			res->lr_lvb_len = rc;

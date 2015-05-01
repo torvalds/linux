@@ -746,7 +746,7 @@ static int ldlm_pool_proc_init(struct ldlm_pool *pl)
 	char *var_name = NULL;
 	int rc = 0;
 
-	OBD_ALLOC(var_name, MAX_STRING_SIZE + 1);
+	var_name = kzalloc(MAX_STRING_SIZE + 1, GFP_NOFS);
 	if (!var_name)
 		return -ENOMEM;
 
@@ -828,7 +828,7 @@ static int ldlm_pool_proc_init(struct ldlm_pool *pl)
 	rc = lprocfs_register_stats(pl->pl_proc_dir, "stats", pl->pl_stats);
 
 out_free_name:
-	OBD_FREE(var_name, MAX_STRING_SIZE + 1);
+	kfree(var_name);
 	return rc;
 }
 
@@ -1383,7 +1383,7 @@ static int ldlm_pools_thread_start(void)
 	if (ldlm_pools_thread != NULL)
 		return -EALREADY;
 
-	OBD_ALLOC_PTR(ldlm_pools_thread);
+	ldlm_pools_thread = kzalloc(sizeof(*ldlm_pools_thread), GFP_NOFS);
 	if (ldlm_pools_thread == NULL)
 		return -ENOMEM;
 
@@ -1394,7 +1394,7 @@ static int ldlm_pools_thread_start(void)
 			   "ldlm_poold");
 	if (IS_ERR(task)) {
 		CERROR("Can't start pool thread, error %ld\n", PTR_ERR(task));
-		OBD_FREE(ldlm_pools_thread, sizeof(*ldlm_pools_thread));
+		kfree(ldlm_pools_thread);
 		ldlm_pools_thread = NULL;
 		return PTR_ERR(task);
 	}
@@ -1417,7 +1417,7 @@ static void ldlm_pools_thread_stop(void)
 	 * in pools thread.
 	 */
 	wait_for_completion(&ldlm_pools_comp);
-	OBD_FREE_PTR(ldlm_pools_thread);
+	kfree(ldlm_pools_thread);
 	ldlm_pools_thread = NULL;
 }
 

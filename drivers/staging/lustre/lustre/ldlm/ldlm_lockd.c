@@ -220,7 +220,7 @@ static void ldlm_handle_cp_callback(struct ptlrpc_request *req,
 						     * variable length */
 			void *lvb_data;
 
-			OBD_ALLOC(lvb_data, lvb_len);
+			lvb_data = kzalloc(lvb_len, GFP_NOFS);
 			if (lvb_data == NULL) {
 				LDLM_ERROR(lock, "No memory: %d.\n", lvb_len);
 				rc = -ENOMEM;
@@ -448,7 +448,7 @@ static int ldlm_bl_to_thread(struct ldlm_namespace *ns,
 	if (cancel_flags & LCF_ASYNC) {
 		struct ldlm_bl_work_item *blwi;
 
-		OBD_ALLOC(blwi, sizeof(*blwi));
+		blwi = kzalloc(sizeof(*blwi), GFP_NOFS);
 		if (blwi == NULL)
 			return -ENOMEM;
 		init_blwi(blwi, ns, ld, cancels, count, lock, cancel_flags);
@@ -849,7 +849,7 @@ static int ldlm_bl_thread_main(void *arg)
 			memory_pressure_clr();
 
 		if (blwi->blwi_flags & LCF_ASYNC)
-			OBD_FREE(blwi, sizeof(*blwi));
+			kfree(blwi);
 		else
 			complete(&blwi->blwi_comp);
 	}
@@ -1012,7 +1012,7 @@ static int ldlm_setup(void)
 	if (ldlm_state != NULL)
 		return -EALREADY;
 
-	OBD_ALLOC(ldlm_state, sizeof(*ldlm_state));
+	ldlm_state = kzalloc(sizeof(*ldlm_state), GFP_NOFS);
 	if (ldlm_state == NULL)
 		return -ENOMEM;
 
@@ -1059,7 +1059,7 @@ static int ldlm_setup(void)
 	}
 
 
-	OBD_ALLOC(blp, sizeof(*blp));
+	blp = kzalloc(sizeof(*blp), GFP_NOFS);
 	if (blp == NULL) {
 		rc = -ENOMEM;
 		goto out;
@@ -1129,7 +1129,7 @@ static int ldlm_cleanup(void)
 			wait_for_completion(&blp->blp_comp);
 		}
 
-		OBD_FREE(blp, sizeof(*blp));
+		kfree(blp);
 	}
 
 	if (ldlm_state->ldlm_cb_service != NULL)
@@ -1138,7 +1138,7 @@ static int ldlm_cleanup(void)
 	ldlm_proc_cleanup();
 
 
-	OBD_FREE(ldlm_state, sizeof(*ldlm_state));
+	kfree(ldlm_state);
 	ldlm_state = NULL;
 
 	return 0;

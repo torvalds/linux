@@ -209,7 +209,7 @@ void ldlm_lock_put(struct ldlm_lock *lock)
 		}
 
 		if (lock->l_lvb_data != NULL)
-			OBD_FREE(lock->l_lvb_data, lock->l_lvb_len);
+			kfree(lock->l_lvb_data);
 
 		ldlm_interval_free(ldlm_interval_detach(lock));
 		lu_ref_fini(&lock->l_reference);
@@ -1527,7 +1527,7 @@ struct ldlm_lock *ldlm_lock_create(struct ldlm_namespace *ns,
 
 	if (lvb_len) {
 		lock->l_lvb_len = lvb_len;
-		OBD_ALLOC(lock->l_lvb_data, lvb_len);
+		lock->l_lvb_data = kzalloc(lvb_len, GFP_NOFS);
 		if (lock->l_lvb_data == NULL)
 			goto out;
 	}
@@ -1791,7 +1791,7 @@ int ldlm_work_gl_ast_lock(struct ptlrpc_request_set *rqset, void *opaq)
 	LDLM_LOCK_RELEASE(lock);
 
 	if ((gl_work->gl_flags & LDLM_GL_WORK_NOFREE) == 0)
-		OBD_FREE_PTR(gl_work);
+		kfree(gl_work);
 
 	return rc;
 }
@@ -1812,7 +1812,7 @@ int ldlm_run_ast_work(struct ldlm_namespace *ns, struct list_head *rpc_list,
 	if (list_empty(rpc_list))
 		return 0;
 
-	OBD_ALLOC_PTR(arg);
+	arg = kzalloc(sizeof(*arg), GFP_NOFS);
 	if (arg == NULL)
 		return -ENOMEM;
 
@@ -1857,7 +1857,7 @@ int ldlm_run_ast_work(struct ldlm_namespace *ns, struct list_head *rpc_list,
 	rc = atomic_read(&arg->restart) ? -ERESTART : 0;
 	goto out;
 out:
-	OBD_FREE_PTR(arg);
+	kfree(arg);
 	return rc;
 }
 
