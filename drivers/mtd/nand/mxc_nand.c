@@ -1350,7 +1350,7 @@ static inline int is_imx53_nfc(struct mxc_nand_host *host)
 	return host->devtype_data == &imx53_nand_devtype_data;
 }
 
-static struct platform_device_id mxcnd_devtype[] = {
+static const struct platform_device_id mxcnd_devtype[] = {
 	{
 		.name = "imx21-nand",
 		.driver_data = (kernel_ulong_t) &imx21_nand_devtype_data,
