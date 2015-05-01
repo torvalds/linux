@@ -1734,9 +1734,8 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 	 */
 
 	/* FIXME this is _way_ too much in-line logic for Mentor DMA */
-
-#if !defined(CONFIG_USB_INVENTRA_DMA) && !defined(CONFIG_USB_UX500_DMA)
-	if (rx_csr & MUSB_RXCSR_H_REQPKT)  {
+	if (!musb_dma_inventra(musb) && !musb_dma_ux500(musb) &&
+	    (rx_csr & MUSB_RXCSR_H_REQPKT)) {
 		/* REVISIT this happened for a while on some short reads...
 		 * the cleanup still needs investigation... looks bad...
 		 * and also duplicates dma cleanup code above ... plus,
@@ -1757,7 +1756,7 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 		musb_writew(epio, MUSB_RXCSR,
 				MUSB_RXCSR_H_WZC_BITS | rx_csr);
 	}
-#endif
+
 	if (dma && (rx_csr & MUSB_RXCSR_DMAENAB)) {
 		xfer_len = dma->actual_len;
 
