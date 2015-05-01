@@ -321,7 +321,7 @@ static int hid_dev_rot_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_device_id hid_dev_rot_ids[] = {
+static const struct platform_device_id hid_dev_rot_ids[] = {
 	{
 		/* Format: HID-SENSOR-usage_id_in_hex_lowercase */
 		.name = "HID-SENSOR-20008a",
