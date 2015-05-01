@@ -1078,26 +1078,25 @@ static const struct comedi_lrange range_ni_E_ao_ext;
 #define NI_M_CDO_CMD_ARM		BIT(1)
 #define NI_M_CDO_CMD_DISARM		BIT(0)
 #define NI_M_CDI_MODE_REG		0x228
+#define NI_M_CDI_MODE_DATA_LANE(x)	(((x) & 0x3) << 12)
+#define NI_M_CDI_MODE_DATA_LANE_MASK	NI_M_CDI_MODE_DATA_LANE(3)
+#define NI_M_CDI_MODE_DATA_LANE_0_15	NI_M_CDI_MODE_DATA_LANE(0)
+#define NI_M_CDI_MODE_DATA_LANE_16_31	NI_M_CDI_MODE_DATA_LANE(1)
+#define NI_M_CDI_MODE_DATA_LANE_0_7	NI_M_CDI_MODE_DATA_LANE(0)
+#define NI_M_CDI_MODE_DATA_LANE_8_15	NI_M_CDI_MODE_DATA_LANE(1)
+#define NI_M_CDI_MODE_DATA_LANE_16_23	NI_M_CDI_MODE_DATA_LANE(2)
+#define NI_M_CDI_MODE_DATA_LANE_24_31	NI_M_CDI_MODE_DATA_LANE(3)
+#define NI_M_CDI_MODE_FIFO_MODE		BIT(11)
+#define NI_M_CDI_MODE_POLARITY		BIT(10)
+#define NI_M_CDI_MODE_HALT_ON_ERROR	BIT(9)
+#define NI_M_CDI_MODE_SAMPLE_SRC(x)	(((x) & 0x3f) << 0)
+#define NI_M_CDI_MODE_SAMPLE_SRC_MASK	NI_M_CDI_MODE_SAMPLE_SRC(0x3f)
 #define NI_M_CDO_MODE_REG		0x22c
 #define NI_M_CDI_MASK_ENA_REG		0x230
 #define NI_M_CDO_MASK_ENA_REG		0x234
 #define NI_M_STATIC_AI_CTRL_REG(x)	((x) ? (0x260 + (x)) : 0x064)
 #define NI_M_AO_REF_ATTENUATION_REG(x)	(0x264 + (x))
 #define NI_M_AO_REF_ATTENUATION_X5	BIT(0)
-
-enum CDI_Mode_Bits {
-	CDI_Sample_Source_Select_Mask = 0x3f,
-	CDI_Halt_On_Error_Bit = 0x200,
-	CDI_Polarity_Bit = 0x400,	/*  sample clock on falling edge */
-	CDI_FIFO_Mode_Bit = 0x800,	/*  set for half full mode, clear for not empty mode */
-	CDI_Data_Lane_Mask = 0x3000,	/*  data lanes specify which dio channels map to byte or word accesses to the dio fifos */
-	CDI_Data_Lane_0_15_Bits = 0x0,
-	CDI_Data_Lane_16_31_Bits = 0x1000,
-	CDI_Data_Lane_0_7_Bits = 0x0,
-	CDI_Data_Lane_8_15_Bits = 0x1000,
-	CDI_Data_Lane_16_23_Bits = 0x2000,
-	CDI_Data_Lane_24_31_Bits = 0x3000
-};
 
 enum CDO_Mode_Bits {
 	CDO_Sample_Source_Select_Mask = 0x3f,
