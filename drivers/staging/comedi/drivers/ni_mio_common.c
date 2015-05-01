@@ -361,7 +361,7 @@ static const struct mio_regmap m_series_stc_write_regmap[] = {
 	[NISTC_AI_TRIG_SEL_REG]		= { 0x17e, 2 },
 	[NISTC_AI_DIV_LOADA_REG]	= { 0x180, 4 },
 	[NISTC_AO_START_SEL_REG]	= { 0x184, 2 },
-	[AO_Trigger_Select_Register]	= { 0x186, 2 },
+	[NISTC_AO_TRIG_SEL_REG]		= { 0x186, 2 },
 	[G_Autoincrement_Register(0)]	= { 0x188, 2 },
 	[G_Autoincrement_Register(1)]	= { 0x18a, 2 },
 	[AO_Mode_3_Register]		= { 0x18c, 2 },
@@ -2902,6 +2902,7 @@ static int ni_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	int bits;
 	int i;
 	unsigned trigvar;
+	unsigned val;
 
 	if (dev->irq == 0) {
 		dev_err(dev->class_dev, "cannot run command without an irq\n");
@@ -2936,29 +2937,36 @@ static int ni_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		devpriv->ao_mode1 |= NISTC_AO_MODE1_TRIGGER_ONCE;
 	}
 	ni_stc_writew(dev, devpriv->ao_mode1, NISTC_AO_MODE1_REG);
+
+	val = devpriv->ao_trigger_select;
 	switch (cmd->start_src) {
 	case TRIG_INT:
 	case TRIG_NOW:
-		devpriv->ao_trigger_select &=
-		    ~(AO_START1_Polarity | AO_START1_Select(-1));
-		devpriv->ao_trigger_select |= AO_START1_Edge | AO_START1_Sync;
-		ni_stc_writew(dev, devpriv->ao_trigger_select,
-			      AO_Trigger_Select_Register);
+		val &= ~(NISTC_AO_TRIG_START1_POLARITY |
+			 NISTC_AO_TRIG_START1_SEL_MASK);
+		val |= NISTC_AO_TRIG_START1_EDGE |
+		       NISTC_AO_TRIG_START1_SYNC;
 		break;
 	case TRIG_EXT:
-		devpriv->ao_trigger_select =
-		    AO_START1_Select(CR_CHAN(cmd->start_arg) + 1);
-		if (cmd->start_arg & CR_INVERT)
-			devpriv->ao_trigger_select |= AO_START1_Polarity;	/*  0=active high, 1=active low. see daq-stc 3-24 (p186) */
-		if (cmd->start_arg & CR_EDGE)
-			devpriv->ao_trigger_select |= AO_START1_Edge;	/*  0=edge detection disabled, 1=enabled */
+		val = NISTC_AO_TRIG_START1_SEL(CR_CHAN(cmd->start_arg) + 1);
+		if (cmd->start_arg & CR_INVERT) {
+			/* 0=active high, 1=active low. see daq-stc 3-24 (p186) */
+			val |= NISTC_AO_TRIG_START1_POLARITY;
+		}
+		if (cmd->start_arg & CR_EDGE) {
+			/* 0=edge detection disabled, 1=enabled */
+			val |= NISTC_AO_TRIG_START1_EDGE;
+		}
 		ni_stc_writew(dev, devpriv->ao_trigger_select,
-			      AO_Trigger_Select_Register);
+			      NISTC_AO_TRIG_SEL_REG);
 		break;
 	default:
 		BUG();
 		break;
 	}
+	devpriv->ao_trigger_select = val;
+	ni_stc_writew(dev, devpriv->ao_trigger_select, NISTC_AO_TRIG_SEL_REG);
+
 	devpriv->ao_mode3 &= ~AO_Trigger_Length;
 	ni_stc_writew(dev, devpriv->ao_mode3, AO_Mode_3_Register);
 
@@ -3211,7 +3219,7 @@ static int ni_ao_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 	ni_stc_writew(dev, devpriv->ao_mode3, AO_Mode_3_Register);
 	devpriv->ao_trigger_select = 0;
 	ni_stc_writew(dev, devpriv->ao_trigger_select,
-		      AO_Trigger_Select_Register);
+		      NISTC_AO_TRIG_SEL_REG);
 	if (devpriv->is_6xxx) {
 		unsigned immediate_bits = 0;
 		unsigned i;
