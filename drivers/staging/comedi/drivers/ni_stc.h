@@ -577,6 +577,10 @@
 #define NI_E_DMA_AO_SEL(x)		(((x) & 0xf) << 4)
 #define NI_E_DMA_AO_SEL_MASK		NI_E_DMA_AO_SEL(0xf)
 
+#define NI_E_DMA_G0_G1_SEL_REG		0x0b	/* w8 */
+#define NI_E_DMA_G0_G1_SEL(_g, _c)	(((_c) & 0xf) << ((_g) * 4))
+#define NI_E_DMA_G0_G1_SEL_MASK(_g)	NI_E_DMA_G0_G1_SEL((_g), 0xf)
+
 #define NI_E_SERIAL_CMD_REG		0x0d	/* w8 */
 #define NI_E_SERIAL_CMD_DAC_LD(x)	BIT(3 + (x))
 #define NI_E_SERIAL_CMD_EEPROM_CS	BIT(2)
@@ -588,7 +592,6 @@
 #define NI_E_MISC_CMD_EXT_ATRIG		NI_E_MISC_CMD_INTEXT_ATRIG(0)
 #define NI_E_MISC_CMD_INT_ATRIG		NI_E_MISC_CMD_INTEXT_ATRIG(1)
 
-#define G0_G1_Select			0x0b
 static inline unsigned ni_stc_dma_channel_select_bitfield(unsigned channel)
 {
 	if (channel < 4)
@@ -599,18 +602,6 @@ static inline unsigned ni_stc_dma_channel_select_bitfield(unsigned channel)
 		return 0x5;
 	BUG();
 	return 0;
-}
-
-static inline unsigned GPCT_DMA_Select_Bits(unsigned gpct_index,
-					    unsigned mite_channel)
-{
-	return ni_stc_dma_channel_select_bitfield(mite_channel) << (4 *
-								    gpct_index);
-}
-
-static inline unsigned GPCT_DMA_Select_Mask(unsigned gpct_index)
-{
-	return 0xf << (4 * gpct_index);
 }
 
 #define NI_E_AI_CFG_LO_REG		0x10	/* w16 */

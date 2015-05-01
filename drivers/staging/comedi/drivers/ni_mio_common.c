@@ -551,7 +551,7 @@ static inline void ni_set_bitfield(struct comedi_device *dev, int reg,
 		devpriv->ai_ao_select_reg |= bit_values & bit_mask;
 		ni_writeb(dev, devpriv->ai_ao_select_reg, reg);
 		break;
-	case G0_G1_Select:
+	case NI_E_DMA_G0_G1_SEL_REG:
 		devpriv->g0_g1_select_reg &= ~bit_mask;
 		devpriv->g0_g1_select_reg |= bit_values & bit_mask;
 		ni_writeb(dev, devpriv->g0_g1_select_reg, reg);
@@ -592,19 +592,19 @@ static inline void ni_set_ao_dma_channel(struct comedi_device *dev, int channel)
 			NI_E_DMA_AO_SEL_MASK, NI_E_DMA_AO_SEL(bits));
 }
 
-/* negative mite_channel means no channel */
+/* negative channel means no channel */
 static inline void ni_set_gpct_dma_channel(struct comedi_device *dev,
 					   unsigned gpct_index,
-					   int mite_channel)
+					   int channel)
 {
-	unsigned bitfield;
+	unsigned bits = 0;
 
-	if (mite_channel >= 0)
-		bitfield = GPCT_DMA_Select_Bits(gpct_index, mite_channel);
-	else
-		bitfield = 0;
-	ni_set_bitfield(dev, G0_G1_Select, GPCT_DMA_Select_Mask(gpct_index),
-			bitfield);
+	if (channel >= 0)
+		bits = ni_stc_dma_channel_select_bitfield(channel);
+
+	ni_set_bitfield(dev, NI_E_DMA_G0_G1_SEL_REG,
+			NI_E_DMA_G0_G1_SEL_MASK(gpct_index),
+			NI_E_DMA_G0_G1_SEL(gpct_index, bits));
 }
 
 /* negative mite_channel means no channel */
@@ -5370,7 +5370,7 @@ static int ni_E_init(struct comedi_device *dev,
 
 	/* DMA setup */
 	ni_writeb(dev, devpriv->ai_ao_select_reg, NI_E_DMA_AI_AO_SEL_REG);
-	ni_writeb(dev, devpriv->g0_g1_select_reg, G0_G1_Select);
+	ni_writeb(dev, devpriv->g0_g1_select_reg, NI_E_DMA_G0_G1_SEL_REG);
 
 	if (devpriv->is_6xxx) {
 		ni_writeb(dev, 0, Magic_611x);
