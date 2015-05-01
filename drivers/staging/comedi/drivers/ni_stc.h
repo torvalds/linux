@@ -605,14 +605,12 @@ static inline unsigned ni_stc_dma_channel_select_bitfield(unsigned channel)
 static inline unsigned GPCT_DMA_Select_Bits(unsigned gpct_index,
 					    unsigned mite_channel)
 {
-	BUG_ON(gpct_index > 1);
 	return ni_stc_dma_channel_select_bitfield(mite_channel) << (4 *
 								    gpct_index);
 }
 
 static inline unsigned GPCT_DMA_Select_Mask(unsigned gpct_index)
 {
-	BUG_ON(gpct_index > 1);
 	return 0xf << (4 * gpct_index);
 }
 

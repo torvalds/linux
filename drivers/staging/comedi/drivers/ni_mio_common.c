@@ -686,7 +686,6 @@ static int ni_request_gpct_mite_channel(struct comedi_device *dev,
 	unsigned long flags;
 	struct mite_channel *mite_chan;
 
-	BUG_ON(gpct_index >= NUM_GPCT);
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	BUG_ON(devpriv->counter_dev->counters[gpct_index].mite_chan);
 	mite_chan =
@@ -770,7 +769,6 @@ static void ni_release_gpct_mite_channel(struct comedi_device *dev,
 	struct ni_private *devpriv = dev->private;
 	unsigned long flags;
 
-	BUG_ON(gpct_index >= NUM_GPCT);
 	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	if (devpriv->counter_dev->counters[gpct_index].mite_chan) {
 		struct mite_channel *mite_chan =
