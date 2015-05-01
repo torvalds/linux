@@ -754,10 +754,8 @@ int ll_dir_setstripe(struct inode *inode, struct lov_user_md *lump,
 		char *buf;
 
 		param = kzalloc(MGS_PARAM_MAXLEN, GFP_NOFS);
-		if (!param) {
-			rc = -ENOMEM;
-			goto end;
-		}
+		if (!param)
+			return -ENOMEM;
 
 		buf = param;
 		/* Get fsname and assume devname to be -MDT0000. */
@@ -786,8 +784,7 @@ int ll_dir_setstripe(struct inode *inode, struct lov_user_md *lump,
 		rc = ll_send_mgc_param(mgc->u.cli.cl_mgc_mgsexp, param);
 
 end:
-		if (param != NULL)
-			kfree(param);
+		kfree(param);
 	}
 	return rc;
 }
