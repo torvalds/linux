@@ -1719,8 +1719,7 @@ int do_statahead_enter(struct inode *dir, struct dentry **dentryp,
 	return -EAGAIN;
 
 out:
-	if (sai != NULL)
-		kfree(sai);
+	kfree(sai);
 	spin_lock(&lli->lli_sa_lock);
 	lli->lli_opendir_key = NULL;
 	lli->lli_opendir_pid = 0;
