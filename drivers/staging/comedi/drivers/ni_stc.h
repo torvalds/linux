@@ -963,6 +963,8 @@ static const struct comedi_lrange range_ni_E_ao_ext;
 #define NI_M_AO_CALIB_REG		0x0a3
 #define NI_M_AO_FIFO_DATA_REG		0x0a4
 #define NI_M_PFI_FILTER_REG		0x0b0
+#define NI_M_PFI_FILTER_SEL(_c, _f)	(((_f) & 0x3) << ((_c) * 2))
+#define NI_M_PFI_FILTER_SEL_MASK(_c)	NI_M_PFI_FILTER_SEL((_c), 0x3)
 #define NI_M_RTSI_FILTER_REG		0x0b4
 #define NI_M_SCXI_LEGACY_COMPAT_REG	0x0bc
 #define NI_M_DAC_DIRECT_DATA_REG(x)	(0x0c0 + ((x) * 4))
@@ -1044,18 +1046,6 @@ static const struct comedi_lrange range_ni_E_ao_ext;
 #define NI_M_STATIC_AI_CTRL_REG(x)	((x) ? (0x260 + (x)) : 0x064)
 #define NI_M_AO_REF_ATTENUATION_REG(x)	(0x264 + (x))
 #define NI_M_AO_REF_ATTENUATION_X5	BIT(0)
-
-static inline unsigned MSeries_PFI_Filter_Select_Mask(unsigned channel)
-{
-	return 0x3 << (channel * 2);
-}
-
-static inline unsigned MSeries_PFI_Filter_Select_Bits(unsigned channel,
-						      unsigned filter)
-{
-	return (filter << (channel *
-			   2)) & MSeries_PFI_Filter_Select_Mask(channel);
-}
 
 enum CDIO_DMA_Select_Bits {
 	CDI_DMA_Select_Shift = 0,

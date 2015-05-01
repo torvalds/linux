@@ -4419,8 +4419,8 @@ static int ni_config_filter(struct comedi_device *dev,
 		return -ENOTSUPP;
 
 	bits = ni_readl(dev, NI_M_PFI_FILTER_REG);
-	bits &= ~MSeries_PFI_Filter_Select_Mask(pfi_channel);
-	bits |= MSeries_PFI_Filter_Select_Bits(pfi_channel, filter);
+	bits &= ~NI_M_PFI_FILTER_SEL_MASK(pfi_channel);
+	bits |= NI_M_PFI_FILTER_SEL(pfi_channel, filter);
 	ni_writel(dev, bits, NI_M_PFI_FILTER_REG);
 	return 0;
 }
