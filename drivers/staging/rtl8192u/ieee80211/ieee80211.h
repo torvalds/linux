@@ -24,7 +24,7 @@
 #ifndef IEEE80211_H
 #define IEEE80211_H
 #include <linux/if_ether.h> /* ETH_ALEN */
-#include <linux/kernel.h>   /* ARRAY_SIZE */
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/jiffies.h>
 #include <linux/timer.h>
@@ -47,21 +47,6 @@
 
 #ifndef IWEVCUSTOM
 #define IWEVCUSTOM 0x8c02
-#endif
-
-
-#ifndef container_of
-/**
- * container_of - cast a member of a structure out to the containing structure
- *
- * @ptr:        the pointer to the member.
- * @type:       the type of the container struct this is embedded in.
- * @member:     the name of the member within the struct.
- *
- */
-#define container_of(ptr, type, member) ({                      \
-	const typeof( ((type *)0)->member ) *__mptr = (ptr);    \
-	(type *)( (char *)__mptr - offsetof(type,member) );})
 #endif
 
 #define KEY_TYPE_NA		0x0
