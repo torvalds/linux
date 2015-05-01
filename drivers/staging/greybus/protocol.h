@@ -110,10 +110,10 @@ static int get_version(struct __device *dev)		\
 	struct gb_protocol_version_response response;	\
 	int retval;					\
 							\
-	retval = gb_protocol_get_version(dev->connection,			\
-					 GB_##__protocol##_TYPE_PROTOCOL_VERSION,\
-					 NULL, 0, &response,			\
-					 GB_##__protocol##_VERSION_MAJOR);	\
+	retval = gb_protocol_get_version(dev->connection,		\
+				GB_##__protocol##_TYPE_PROTOCOL_VERSION,\
+				NULL, 0, &response,			\
+				GB_##__protocol##_VERSION_MAJOR);	\
 	if (retval)					\
 		return retval;				\
 							\
