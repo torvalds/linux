@@ -213,12 +213,9 @@ int class_register_type(struct obd_ops *dt_ops, struct md_ops *md_ops,
 	return 0;
 
  failed:
-	if (type->typ_name != NULL)
-		kfree(type->typ_name);
-	if (type->typ_md_ops != NULL)
-		kfree(type->typ_md_ops);
-	if (type->typ_dt_ops != NULL)
-		kfree(type->typ_dt_ops);
+	kfree(type->typ_name);
+	kfree(type->typ_md_ops);
+	kfree(type->typ_dt_ops);
 	kfree(type);
 	return rc;
 }
@@ -253,10 +250,8 @@ int class_unregister_type(const char *name)
 	list_del(&type->typ_chain);
 	spin_unlock(&obd_types_lock);
 	kfree(type->typ_name);
-	if (type->typ_dt_ops != NULL)
-		kfree(type->typ_dt_ops);
-	if (type->typ_md_ops != NULL)
-		kfree(type->typ_md_ops);
+	kfree(type->typ_dt_ops);
+	kfree(type->typ_md_ops);
 	kfree(type);
 	return 0;
 } /* class_unregister_type */
