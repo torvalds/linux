@@ -995,7 +995,27 @@ static const struct comedi_lrange range_ni_E_ao_ext;
 #define NI_M_PFI_OUT_SEL_REG(x)		(0x1d0 + ((x) * 2))
 #define NI_M_PFI_DI_REG			0x1dc
 #define NI_M_PFI_DO_REG			0x1de
-#define NI_M_AI_CFG_BYPASS_FIFO_REG	0x218
+#define NI_M_CFG_BYPASS_FIFO_REG	0x218
+#define NI_M_CFG_BYPASS_FIFO		BIT(31)
+#define NI_M_CFG_BYPASS_AI_POLARITY	BIT(22)
+#define NI_M_CFG_BYPASS_AI_DITHER	BIT(21)
+#define NI_M_CFG_BYPASS_AI_GAIN(x)	(((x) & 0x7) << 18)
+#define NI_M_CFG_BYPASS_AO_CAL(x)	(((x) & 0xf) << 15)
+#define NI_M_CFG_BYPASS_AO_CAL_MASK	NI_M_CFG_BYPASS_AO_CAL(0xf)
+#define NI_M_CFG_BYPASS_AI_MODE_MUX(x)	(((x) & 0x3) << 13)
+#define NI_M_CFG_BYPASS_AI_MODE_MUX_MASK NI_M_CFG_BYPASS_AI_MODE_MUX(3)
+#define NI_M_CFG_BYPASS_AI_CAL_NEG(x)	(((x) & 0x7) << 10)
+#define NI_M_CFG_BYPASS_AI_CAL_NEG_MASK	NI_M_CFG_BYPASS_AI_CAL_NEG(7)
+#define NI_M_CFG_BYPASS_AI_CAL_POS(x)	(((x) & 0x7) << 7)
+#define NI_M_CFG_BYPASS_AI_CAL_POS_MASK	NI_M_CFG_BYPASS_AI_CAL_POS(7)
+#define NI_M_CFG_BYPASS_AI_CAL_MASK	(NI_M_CFG_BYPASS_AI_CAL_POS_MASK | \
+					 NI_M_CFG_BYPASS_AI_CAL_NEG_MASK | \
+					 NI_M_CFG_BYPASS_AI_MODE_MUX_MASK | \
+					 NI_M_CFG_BYPASS_AO_CAL_MASK)
+#define NI_M_CFG_BYPASS_AI_BANK(x)	(((x) & 0xf) << 3)
+#define NI_M_CFG_BYPASS_AI_BANK_MASK	NI_M_CFG_BYPASS_AI_BANK(0xf)
+#define NI_M_CFG_BYPASS_AI_CHAN(x)	(((x) & 0x7) << 0)
+#define NI_M_CFG_BYPASS_AI_CHAN_MASK	NI_M_CFG_BYPASS_AI_CHAN(7)
 #define NI_M_SCXI_DIO_ENA_REG		0x21c
 #define NI_M_CDI_FIFO_DATA_REG		0x220
 #define NI_M_CDO_FIFO_DATA_REG		0x220
@@ -1007,35 +1027,6 @@ static const struct comedi_lrange range_ni_E_ao_ext;
 #define NI_M_CDO_MASK_ENA_REG		0x234
 #define NI_M_STATIC_AI_CTRL_REG(x)	((x) ? (0x260 + (x)) : 0x064)
 #define NI_M_AO_REF_ATTENUATION_REG(x)	(0x264 + (x))
-
-enum MSeries_AI_Config_FIFO_Bypass_Bits {
-	MSeries_AI_Bypass_Channel_Mask = 0x7,
-	MSeries_AI_Bypass_Bank_Mask = 0x78,
-	MSeries_AI_Bypass_Cal_Sel_Pos_Mask = 0x380,
-	MSeries_AI_Bypass_Cal_Sel_Neg_Mask = 0x1c00,
-	MSeries_AI_Bypass_Mode_Mux_Mask = 0x6000,
-	MSeries_AO_Bypass_AO_Cal_Sel_Mask = 0x38000,
-	MSeries_AI_Bypass_Gain_Mask = 0x1c0000,
-	MSeries_AI_Bypass_Dither_Bit = 0x200000,
-	MSeries_AI_Bypass_Polarity_Bit = 0x400000,	/*  0 for 2's complement encoding */
-	MSeries_AI_Bypass_Config_FIFO_Bit = 0x80000000
-};
-static inline unsigned MSeries_AI_Bypass_Cal_Sel_Pos_Bits(int
-							  calibration_source)
-{
-	return (calibration_source << 7) & MSeries_AI_Bypass_Cal_Sel_Pos_Mask;
-}
-
-static inline unsigned MSeries_AI_Bypass_Cal_Sel_Neg_Bits(int
-							  calibration_source)
-{
-	return (calibration_source << 10) & MSeries_AI_Bypass_Cal_Sel_Pos_Mask;
-}
-
-static inline unsigned MSeries_AI_Bypass_Gain_Bits(int gain)
-{
-	return (gain << 18) & MSeries_AI_Bypass_Gain_Mask;
-}
 
 enum MSeries_AO_Config_Bank_Bits {
 	MSeries_AO_DAC_Offset_Select_Mask = 0x7,

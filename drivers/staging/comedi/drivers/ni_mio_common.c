@@ -1763,22 +1763,17 @@ static void ni_m_series_load_channelgain_list(struct comedi_device *dev,
 		range = CR_RANGE(list[0]);
 		range_code = ni_gainlkup[board->gainlkup][range];
 		dither = (list[0] & CR_ALT_FILTER) != 0;
-		bypass_bits = MSeries_AI_Bypass_Config_FIFO_Bit;
-		bypass_bits |= chan;
-		bypass_bits |=
-		    (devpriv->ai_calib_source) &
-		    (MSeries_AI_Bypass_Cal_Sel_Pos_Mask |
-		     MSeries_AI_Bypass_Cal_Sel_Neg_Mask |
-		     MSeries_AI_Bypass_Mode_Mux_Mask |
-		     MSeries_AO_Bypass_AO_Cal_Sel_Mask);
-		bypass_bits |= MSeries_AI_Bypass_Gain_Bits(range_code);
+		bypass_bits = NI_M_CFG_BYPASS_FIFO |
+			      NI_M_CFG_BYPASS_AI_CHAN(chan) |
+			      NI_M_CFG_BYPASS_AI_GAIN(range_code) |
+			      devpriv->ai_calib_source;
 		if (dither)
-			bypass_bits |= MSeries_AI_Bypass_Dither_Bit;
+			bypass_bits |= NI_M_CFG_BYPASS_AI_DITHER;
 		/*  don't use 2's complement encoding */
-		bypass_bits |= MSeries_AI_Bypass_Polarity_Bit;
-		ni_writel(dev, bypass_bits, NI_M_AI_CFG_BYPASS_FIFO_REG);
+		bypass_bits |= NI_M_CFG_BYPASS_AI_POLARITY;
+		ni_writel(dev, bypass_bits, NI_M_CFG_BYPASS_FIFO_REG);
 	} else {
-		ni_writel(dev, 0, NI_M_AI_CFG_BYPASS_FIFO_REG);
+		ni_writel(dev, 0, NI_M_CFG_BYPASS_FIFO_REG);
 	}
 	for (i = 0; i < n_chan; i++) {
 		unsigned config_bits = 0;
@@ -2579,12 +2574,8 @@ static int ni_ai_insn_config(struct comedi_device *dev,
 	switch (data[0]) {
 	case INSN_CONFIG_ALT_SOURCE:
 		if (devpriv->is_m_series) {
-			if (data[1] & ~(MSeries_AI_Bypass_Cal_Sel_Pos_Mask |
-					MSeries_AI_Bypass_Cal_Sel_Neg_Mask |
-					MSeries_AI_Bypass_Mode_Mux_Mask |
-					MSeries_AO_Bypass_AO_Cal_Sel_Mask)) {
+			if (data[1] & ~NI_M_CFG_BYPASS_AI_CAL_MASK)
 				return -EINVAL;
-			}
 			devpriv->ai_calib_source = data[1];
 		} else if (devpriv->is_6143) {
 			unsigned int calib_source;
