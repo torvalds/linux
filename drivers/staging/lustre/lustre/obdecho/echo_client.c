@@ -1737,10 +1737,8 @@ static int echo_client_prep_commit(const struct lu_env *env,
 	}
 
 out:
-	if (lnb)
-		kfree(lnb);
-	if (rnb)
-		kfree(rnb);
+	kfree(lnb);
+	kfree(rnb);
 	return ret;
 }
 
