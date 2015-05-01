@@ -42,4 +42,20 @@ static inline __be32 skb_flow_get_ports(const struct sk_buff *skb, int thoff, u8
 u32 flow_hash_from_keys(struct flow_keys *keys);
 unsigned int flow_get_hlen(const unsigned char *data, unsigned int max_len,
 			   __be16 protocol);
+
+/* struct flow_keys_digest:
+ *
+ * This structure is used to hold a digest of the full flow keys. This is a
+ * larger "hash" of a flow to allow definitively matching specific flows where
+ * the 32 bit skb->hash is not large enough. The size is limited to 16 bytes so
+ * that it can by used in CB of skb (see sch_choke for an example).
+ */
+#define FLOW_KEYS_DIGEST_LEN	16
+struct flow_keys_digest {
+	u8	data[FLOW_KEYS_DIGEST_LEN];
+};
+
+void make_flow_keys_digest(struct flow_keys_digest *digest,
+			   const struct flow_keys *flow);
+
 #endif

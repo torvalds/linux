@@ -310,6 +310,33 @@ static inline u32 ___skb_get_hash(const struct sk_buff *skb,
 	return __flow_hash_from_keys(keys, keyval);
 }
 
+struct _flow_keys_digest_data {
+	__be16	n_proto;
+	u8	ip_proto;
+	u8	padding;
+	__be32	ports;
+	__be32	src;
+	__be32	dst;
+};
+
+void make_flow_keys_digest(struct flow_keys_digest *digest,
+			   const struct flow_keys *flow)
+{
+	struct _flow_keys_digest_data *data =
+	    (struct _flow_keys_digest_data *)digest;
+
+	BUILD_BUG_ON(sizeof(*data) > sizeof(*digest));
+
+	memset(digest, 0, sizeof(*digest));
+
+	data->n_proto = flow->n_proto;
+	data->ip_proto = flow->ip_proto;
+	data->ports = flow->ports;
+	data->src = flow->src;
+	data->dst = flow->dst;
+}
+EXPORT_SYMBOL(make_flow_keys_digest);
+
 /*
  * __skb_get_hash: calculate a flow hash based on src/dst addresses
  * and src/dst port numbers.  Sets hash in skb to non-zero hash value
