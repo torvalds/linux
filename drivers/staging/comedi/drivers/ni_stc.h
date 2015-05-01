@@ -146,6 +146,24 @@
 #define NISTC_AI_CMD1_SC_TC_PULSE	BIT(1)
 #define NISTC_AI_CMD1_CONVERT_PULSE	BIT(0)
 
+#define NISTC_AO_CMD1_REG		9
+#define NISTC_AO_CMD1_ATRIG_RESET	BIT(15)
+#define NISTC_AO_CMD1_START_PULSE	BIT(14)
+#define NISTC_AO_CMD1_DISARM		BIT(13)
+#define NISTC_AO_CMD1_UI2_ARM_DISARM	BIT(12)
+#define NISTC_AO_CMD1_UI2_LOAD		BIT(11)
+#define NISTC_AO_CMD1_UI_ARM		BIT(10)
+#define NISTC_AO_CMD1_UI_LOAD		BIT(9)
+#define NISTC_AO_CMD1_UC_ARM		BIT(8)
+#define NISTC_AO_CMD1_UC_LOAD		BIT(7)
+#define NISTC_AO_CMD1_BC_ARM		BIT(6)
+#define NISTC_AO_CMD1_BC_LOAD		BIT(5)
+#define NISTC_AO_CMD1_DAC1_UPDATE_MODE	BIT(4)
+#define NISTC_AO_CMD1_LDAC1_SRC_SEL	BIT(3)
+#define NISTC_AO_CMD1_DAC0_UPDATE_MODE	BIT(2)
+#define NISTC_AO_CMD1_LDAC0_SRC_SEL	BIT(1)
+#define NISTC_AO_CMD1_UPDATE_PULSE	BIT(0)
+
 #define AI_Status_1_Register		2
 #define Interrupt_A_St				0x8000
 #define AI_FIFO_Full_St				0x4000
@@ -187,24 +205,6 @@
 #define AO_Status_2_Register		6
 
 #define DIO_Parallel_Input_Register	7
-
-#define AO_Command_1_Register		9
-#define AO_Analog_Trigger_Reset			_bit15
-#define AO_START_Pulse				_bit14
-#define AO_Disarm				_bit13
-#define AO_UI2_Arm_Disarm			_bit12
-#define AO_UI2_Load				_bit11
-#define AO_UI_Arm				_bit10
-#define AO_UI_Load				_bit9
-#define AO_UC_Arm				_bit8
-#define AO_UC_Load				_bit7
-#define AO_BC_Arm				_bit6
-#define AO_BC_Load				_bit5
-#define AO_DAC1_Update_Mode			_bit4
-#define AO_LDAC1_Source_Select			_bit3
-#define AO_DAC0_Update_Mode			_bit2
-#define AO_LDAC0_Source_Select			_bit1
-#define AO_UPDATE_Pulse				_bit0
 
 #define DIO_Output_Register		10
 #define DIO_Parallel_Data_Out(a)                ((a)&0xff)
