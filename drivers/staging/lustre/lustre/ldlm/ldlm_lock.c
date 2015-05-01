@@ -208,8 +208,7 @@ void ldlm_lock_put(struct ldlm_lock *lock)
 			lock->l_export = NULL;
 		}
 
-		if (lock->l_lvb_data != NULL)
-			kfree(lock->l_lvb_data);
+		kfree(lock->l_lvb_data);
 
 		ldlm_interval_free(ldlm_interval_detach(lock));
 		lu_ref_fini(&lock->l_reference);
