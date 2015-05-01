@@ -1300,13 +1300,14 @@ void sbc_dif_copy_prot(struct se_cmd *cmd, unsigned int sectors, bool read,
 			copied += len;
 			psg_len -= len;
 
+			kunmap_atomic(addr - sg->offset - offset);
+
 			if (offset >= sg->length) {
 				sg = sg_next(sg);
 				offset = 0;
 			}
-			kunmap_atomic(addr);
 		}
-		kunmap_atomic(paddr);
+		kunmap_atomic(paddr - psg->offset);
 	}
 }
 EXPORT_SYMBOL(sbc_dif_copy_prot);
