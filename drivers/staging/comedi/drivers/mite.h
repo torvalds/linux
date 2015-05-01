@@ -1,20 +1,20 @@
 /*
-    module/mite.h
-    Hardware driver for NI Mite PCI interface chip
-
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 1999 David A. Schleef <ds@schleef.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
+ * module/mite.h
+ * Hardware driver for NI Mite PCI interface chip
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 1999 David A. Schleef <ds@schleef.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 
 #ifndef _MITE_H_
 #define _MITE_H_
@@ -115,12 +115,14 @@ int mite_buf_change(struct mite_dma_descriptor_ring *ring,
 		    struct comedi_subdevice *s);
 
 enum mite_registers {
-	/* The bits 0x90180700 in MITE_UNKNOWN_DMA_BURST_REG can be
-	   written and read back.  The bits 0x1f always read as 1.
-	   The rest always read as zero. */
+	/*
+	 * The bits 0x90180700 in MITE_UNKNOWN_DMA_BURST_REG can be
+	 * written and read back.  The bits 0x1f always read as 1.
+	 * The rest always read as zero.
+	 */
 	MITE_UNKNOWN_DMA_BURST_REG = 0x28,
 	MITE_IODWBSR = 0xc0,	/* IO Device Window Base Size Register */
-	MITE_IODWBSR_1 = 0xc4,	/*  IO Device Window Base Size Register 1 */
+	MITE_IODWBSR_1 = 0xc4,	/* IO Device Window Base Size Register 1 */
 	MITE_IODWCR_1 = 0xf4,
 	MITE_PCI_CONFIG_OFFSET = 0x300,
 	MITE_CSIGR = 0x460	/* chip signature */
@@ -146,7 +148,7 @@ enum mite_registers {
 #define MITE_FCR(x)	(0x40 + MITE_CHAN(x))	/* fifo count */
 
 enum MITE_IODWBSR_bits {
-	WENAB = 0x80,		/*  window enable */
+	WENAB = 0x80,		/* window enable */
 };
 
 static inline unsigned MITE_IODWBSR_1_WSIZE_bits(unsigned size)
@@ -169,27 +171,27 @@ static inline int mite_csigr_version(u32 csigr_bits)
 };
 
 static inline int mite_csigr_type(u32 csigr_bits)
-{				/*  original mite = 0, minimite = 1 */
+{				/* original mite = 0, minimite = 1 */
 	return (csigr_bits >> 4) & 0xf;
 };
 
 static inline int mite_csigr_mmode(u32 csigr_bits)
-{				/*  mite mode, minimite = 1 */
+{				/* mite mode, minimite = 1 */
 	return (csigr_bits >> 8) & 0x3;
 };
 
 static inline int mite_csigr_imode(u32 csigr_bits)
-{				/*  cpu port interface mode, pci = 0x3 */
+{				/* cpu port interface mode, pci = 0x3 */
 	return (csigr_bits >> 12) & 0x3;
 };
 
 static inline int mite_csigr_dmac(u32 csigr_bits)
-{				/*  number of dma channels */
+{				/* number of dma channels */
 	return (csigr_bits >> 16) & 0xf;
 };
 
 static inline int mite_csigr_wpdep(u32 csigr_bits)
-{				/*  write post fifo depth */
+{				/* write post fifo depth */
 	unsigned int wpdep_bits = (csigr_bits >> 20) & 0x7;
 
 	return (wpdep_bits) ? (1 << (wpdep_bits - 1)) : 0;
@@ -201,7 +203,7 @@ static inline int mite_csigr_wins(u32 csigr_bits)
 };
 
 static inline int mite_csigr_iowins(u32 csigr_bits)
-{				/*  number of io windows */
+{				/* number of io windows */
 	return (csigr_bits >> 29) & 0x7;
 };
 
@@ -290,8 +292,7 @@ static inline int CR_REQS(int source)
 
 static inline int CR_REQSDRQ(unsigned drq_line)
 {
-	/* This also works on m-series when
-	   using channels (drq_line) 4 or 5. */
+	/* This also works on m-series when using channels (drq_line) 4 or 5. */
 	return CR_REQS((drq_line & 0x3) | 0x4);
 }
 
