@@ -423,7 +423,7 @@ static const struct mio_regmap m_series_stc_read_regmap[] = {
 	[NISTC_AO_UI_SAVE_REG]		= { 0x120, 4 },
 	[NISTC_AO_BC_SAVE_REG]		= { 0x124, 4 },
 	[NISTC_AO_UC_SAVE_REG]		= { 0x128, 4 },
-	[Joint_Status_1_Register]	= { 0x136, 2 },
+	[NISTC_STATUS1_REG]		= { 0x136, 2 },
 	[DIO_Serial_Input_Register]	= { 0x009, 1 },
 	[Joint_Status_2_Register]	= { 0x13a, 2 },
 	[AI_SI_Save_Registers]		= { 0x180, 4 },
@@ -3522,8 +3522,8 @@ static int ni_serial_hw_readwrite8(struct comedi_device *dev,
 	devpriv->dio_output |= NISTC_DIO_OUT_SERIAL(data_out);
 	ni_stc_writew(dev, devpriv->dio_output, NISTC_DIO_OUT_REG);
 
-	status1 = ni_stc_readw(dev, Joint_Status_1_Register);
-	if (status1 & DIO_Serial_IO_In_Progress_St) {
+	status1 = ni_stc_readw(dev, NISTC_STATUS1_REG);
+	if (status1 & NISTC_STATUS1_SERIO_IN_PROG) {
 		err = -EBUSY;
 		goto Error;
 	}
@@ -3533,8 +3533,8 @@ static int ni_serial_hw_readwrite8(struct comedi_device *dev,
 	devpriv->dio_control &= ~NISTC_DIO_CTRL_HW_SER_START;
 
 	/* Wait until STC says we're done, but don't loop infinitely. */
-	while ((status1 = ni_stc_readw(dev, Joint_Status_1_Register)) &
-	       DIO_Serial_IO_In_Progress_St) {
+	while ((status1 = ni_stc_readw(dev, NISTC_STATUS1_REG)) &
+	       NISTC_STATUS1_SERIO_IN_PROG) {
 		/* Delay one bit per loop */
 		udelay((devpriv->serial_interval_ns + 999) / 1000);
 		if (--count < 0) {
@@ -3545,8 +3545,10 @@ static int ni_serial_hw_readwrite8(struct comedi_device *dev,
 		}
 	}
 
-	/* Delay for last bit. This delay is absolutely necessary, because
-	   DIO_Serial_IO_In_Progress_St goes high one bit too early. */
+	/*
+	 * Delay for last bit. This delay is absolutely necessary, because
+	 * NISTC_STATUS1_SERIO_IN_PROG goes high one bit too early.
+	 */
 	udelay((devpriv->serial_interval_ns + 999) / 1000);
 
 	if (data_in)
@@ -3724,7 +3726,7 @@ static const struct mio_regmap ni_gpct_to_stc_regmap[] = {
 	[NITIO_G1_GATE2]	= { 0x1b6, 2 },	/* M-Series only */
 	[NITIO_G01_STATUS]	= { NISTC_G01_STATUS_REG, 2 },
 	[NITIO_G01_RESET]	= { NISTC_RESET_REG, 2 },
-	[NITIO_G01_STATUS1]	= { Joint_Status_1_Register, 2 },
+	[NITIO_G01_STATUS1]	= { NISTC_STATUS1_REG, 2 },
 	[NITIO_G01_STATUS2]	= { Joint_Status_2_Register, 2 },
 	[NITIO_G0_DMA_CFG]	= { 0x1b8, 2 },	/* M-Series only */
 	[NITIO_G1_DMA_CFG]	= { 0x1ba, 2 },	/* M-Series only */

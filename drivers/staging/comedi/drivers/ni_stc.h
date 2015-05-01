@@ -550,11 +550,11 @@
 #define NISTC_AO_BC_SAVE_REG		18
 #define NISTC_AO_UC_SAVE_REG		20
 
+#define NISTC_STATUS1_REG		27
+#define NISTC_STATUS1_SERIO_IN_PROG	BIT(12)
+
 #define AI_SI_Save_Registers		64
 #define AI_SC_Save_Registers		66
-
-#define Joint_Status_1_Register         27
-#define DIO_Serial_IO_In_Progress_St            _bit12
 
 #define DIO_Serial_Input_Register       28
 #define Joint_Status_2_Register         29
