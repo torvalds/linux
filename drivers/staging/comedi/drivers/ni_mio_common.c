@@ -415,7 +415,7 @@ static const struct mio_regmap m_series_stc_read_regmap[] = {
 	[NISTC_G01_STATUS_REG]		= { 0x108, 2 },
 	[NISTC_AI_STATUS2_REG]		= { 0, 0 }, /* Unknown */
 	[NISTC_AO_STATUS2_REG]		= { 0x10c, 2 },
-	[DIO_Parallel_Input_Register]	= { 0, 0 }, /* Unknown */
+	[NISTC_DIO_IN_REG]		= { 0, 0 }, /* Unknown */
 	[G_HW_Save_Register(0)]		= { 0x110, 4 },
 	[G_HW_Save_Register(1)]		= { 0x114, 4 },
 	[G_Save_Register(0)]		= { 0x118, 4 },
@@ -3264,7 +3264,7 @@ static int ni_dio_insn_bits(struct comedi_device *dev,
 		ni_stc_writew(dev, devpriv->dio_output, NISTC_DIO_OUT_REG);
 	}
 
-	data[1] = ni_stc_readw(dev, DIO_Parallel_Input_Register);
+	data[1] = ni_stc_readw(dev, NISTC_DIO_IN_REG);
 
 	return insn->n;
 }
@@ -3591,8 +3591,7 @@ static int ni_serial_sw_readwrite8(struct comedi_device *dev,
 		udelay((devpriv->serial_interval_ns + 999) / 2000);
 
 		/* Input current bit */
-		if (ni_stc_readw(dev, DIO_Parallel_Input_Register) &
-		    NISTC_DIO_SDIN)
+		if (ni_stc_readw(dev, NISTC_DIO_IN_REG) & NISTC_DIO_SDIN)
 			input |= mask;
 	}
 
