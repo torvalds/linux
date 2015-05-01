@@ -553,10 +553,11 @@
 #define NISTC_STATUS1_REG		27
 #define NISTC_STATUS1_SERIO_IN_PROG	BIT(12)
 
+#define NISTC_DIO_SERIAL_IN_REG		28
+
 #define AI_SI_Save_Registers		64
 #define AI_SC_Save_Registers		66
 
-#define DIO_Serial_Input_Register       28
 #define Joint_Status_2_Register         29
 enum Joint_Status_2_Bits {
 	AO_TMRDACWRs_In_Progress_St = 0x20,

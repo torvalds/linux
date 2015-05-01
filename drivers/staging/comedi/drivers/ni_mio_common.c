@@ -424,7 +424,7 @@ static const struct mio_regmap m_series_stc_read_regmap[] = {
 	[NISTC_AO_BC_SAVE_REG]		= { 0x124, 4 },
 	[NISTC_AO_UC_SAVE_REG]		= { 0x128, 4 },
 	[NISTC_STATUS1_REG]		= { 0x136, 2 },
-	[DIO_Serial_Input_Register]	= { 0x009, 1 },
+	[NISTC_DIO_SERIAL_IN_REG]	= { 0x009, 1 },
 	[Joint_Status_2_Register]	= { 0x13a, 2 },
 	[AI_SI_Save_Registers]		= { 0x180, 4 },
 	[AI_SC_Save_Registers]		= { 0x184, 4 },
@@ -3552,7 +3552,7 @@ static int ni_serial_hw_readwrite8(struct comedi_device *dev,
 	udelay((devpriv->serial_interval_ns + 999) / 1000);
 
 	if (data_in)
-		*data_in = ni_stc_readw(dev, DIO_Serial_Input_Register);
+		*data_in = ni_stc_readw(dev, NISTC_DIO_SERIAL_IN_REG);
 
 Error:
 	ni_stc_writew(dev, devpriv->dio_control, NISTC_DIO_CTRL_REG);
