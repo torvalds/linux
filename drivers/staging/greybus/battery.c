@@ -7,6 +7,7 @@
  * Released under the GPLv2 only.
  */
 
+#include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -14,7 +15,19 @@
 #include "greybus.h"
 
 struct gb_battery {
+	/*
+	 * The power supply api changed in 4.1, so handle both the old
+	 * and new apis in the same driver for now, until this is merged
+	 * upstream, when all of these version checks can be removed.
+	 */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 1, 0)
 	struct power_supply bat;
+#define to_gb_battery(x) container_of(x, struct gb_battery, bat)
+#else
+	struct power_supply *bat;
+	struct power_supply_desc desc;
+#define to_gb_battery(x) power_supply_get_drvdata(x)
+#endif
 	// FIXME
 	// we will want to keep the battery stats in here as we will be getting
 	// updates from the SVC "on the fly" so we don't have to always go ask
@@ -24,7 +37,6 @@ struct gb_battery {
 	u8 version_minor;
 
 };
-#define to_gb_battery(x) container_of(x, struct gb_battery, bat)
 
 /* Version of the Greybus battery protocol we support */
 #define	GB_BATTERY_VERSION_MAJOR		0x00
@@ -283,10 +295,56 @@ static enum power_supply_property battery_props[] = {
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 };
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 1, 0)
+static int init_and_register(struct gb_connection *connection,
+			     struct gb_battery *gb)
+{
+	int retval;
+
+	// FIXME - get a better (i.e. unique) name
+	// FIXME - anything else needs to be set?
+	gb->bat.name		= "gb_battery";
+	gb->bat.type		= POWER_SUPPLY_TYPE_BATTERY;
+	gb->bat.properties	= battery_props;
+	gb->bat.num_properties	= ARRAY_SIZE(battery_props);
+	gb->bat.get_property	= get_property;
+
+	retval = power_supply_register(&connection->bundle->intf->dev,
+				       &gb->bat);
+	if (retval)
+		kfree(gb);
+	return retval;
+}
+#else
+static int init_and_register(struct gb_connection *connection,
+			     struct gb_battery *gb)
+{
+	struct power_supply_config cfg = {};
+	int retval = 0;
+
+	cfg.drv_data = gb;
+
+	// FIXME - get a better (i.e. unique) name
+	// FIXME - anything else needs to be set?
+	gb->desc.name		= "gb_battery";
+	gb->desc.type		= POWER_SUPPLY_TYPE_BATTERY;
+	gb->desc.properties	= battery_props;
+	gb->desc.num_properties	= ARRAY_SIZE(battery_props);
+	gb->desc.get_property	= get_property;
+
+	gb->bat = power_supply_register(&connection->bundle->intf->dev,
+					&gb->desc, &cfg);
+	if (IS_ERR(gb->bat)) {
+		retval = PTR_ERR(gb->bat);
+		kfree(gb);
+	}
+	return retval;
+}
+#endif
+
 static int gb_battery_connection_init(struct gb_connection *connection)
 {
 	struct gb_battery *gb;
-	struct power_supply *b;
 	int retval;
 
 	gb = kzalloc(sizeof(*gb), GFP_KERNEL);
@@ -303,29 +361,18 @@ static int gb_battery_connection_init(struct gb_connection *connection)
 		return retval;
 	}
 
-	b = &gb->bat;
-	// FIXME - get a better (i.e. unique) name
-	// FIXME - anything else needs to be set?
-	b->name			= "gb_battery";
-	b->type			= POWER_SUPPLY_TYPE_BATTERY,
-	b->properties		= battery_props,
-	b->num_properties	= ARRAY_SIZE(battery_props),
-	b->get_property		= get_property,
-
-	retval = power_supply_register(&connection->bundle->intf->dev, b);
-	if (retval) {
-		kfree(gb);
-		return retval;
-	}
-
-	return 0;
+	return init_and_register(connection, gb);
 }
 
 static void gb_battery_connection_exit(struct gb_connection *connection)
 {
 	struct gb_battery *gb = connection->private;
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 1, 0)
 	power_supply_unregister(&gb->bat);
+#else
+	power_supply_unregister(gb->bat);
+#endif
 	kfree(gb);
 }
 
