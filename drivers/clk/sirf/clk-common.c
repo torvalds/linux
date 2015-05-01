@@ -10,8 +10,8 @@
 #define KHZ     1000
 #define MHZ     (KHZ * KHZ)
 
-static void *sirfsoc_clk_vbase;
-static void *sirfsoc_rsc_vbase;
+static void __iomem *sirfsoc_clk_vbase;
+static void __iomem *sirfsoc_rsc_vbase;
 static struct clk_onecell_data clk_data;
 
 /*
