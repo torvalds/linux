@@ -637,7 +637,7 @@ static inline unsigned int AI_CONFIG_CHANNEL(unsigned int channel)
 
 #define NI_E_8255_BASE			0x19	/* rw8 */
 
-#define ADC_FIFO_Data_Register		0x1c
+#define NI_E_AI_FIFO_DATA_REG		0x1c	/* r16 */
 
 #define AO_Configuration		0x16
 #define AO_Bipolar		_bit0

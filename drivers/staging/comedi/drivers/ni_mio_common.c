@@ -1154,7 +1154,7 @@ static void ni_ai_fifo_read(struct comedi_device *dev,
 		}
 		for (i = 0; i < n; i++) {
 			devpriv->ai_fifo_buffer[i] =
-			    ni_readw(dev, ADC_FIFO_Data_Register);
+			    ni_readw(dev, NI_E_AI_FIFO_DATA_REG);
 		}
 		comedi_buf_write_samples(s, devpriv->ai_fifo_buffer, n);
 	}
@@ -1230,7 +1230,7 @@ static void ni_handle_fifo_dregs(struct comedi_device *dev)
 				if (fifo_empty)
 					break;
 				devpriv->ai_fifo_buffer[i] =
-				    ni_readw(dev, ADC_FIFO_Data_Register);
+				    ni_readw(dev, NI_E_AI_FIFO_DATA_REG);
 			}
 			comedi_buf_write_samples(s, devpriv->ai_fifo_buffer, i);
 		}
@@ -2006,7 +2006,7 @@ static int ni_ai_insn_read(struct comedi_device *dev,
 				dl &= mask;
 				data[n] = dl;
 			} else {
-				d = ni_readw(dev, ADC_FIFO_Data_Register);
+				d = ni_readw(dev, NI_E_AI_FIFO_DATA_REG);
 				d += signbits;	/* subtle: needs to be short addition */
 				data[n] = d;
 			}
