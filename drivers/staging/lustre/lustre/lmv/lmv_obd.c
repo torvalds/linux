@@ -504,8 +504,7 @@ static int lmv_add_target(struct obd_device *obd, struct obd_uuid *uuidp,
 		lmv->tgts = newtgts;
 		lmv->tgts_size = newsize;
 		smp_rmb();
-		if (old)
-			kfree(old);
+		kfree(old);
 
 		CDEBUG(D_CONFIG, "tgts: %p size: %d\n", lmv->tgts,
 		       lmv->tgts_size);
@@ -780,8 +779,7 @@ repeat_fid2path:
 	goto repeat_fid2path;
 
 out_fid2path:
-	if (remote_gf != NULL)
-		kfree(remote_gf);
+	kfree(remote_gf);
 	return rc;
 }
 
