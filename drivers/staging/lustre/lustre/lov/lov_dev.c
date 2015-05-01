@@ -298,8 +298,7 @@ static struct lu_device *lov_device_free(const struct lu_env *env,
 	const int	  nr = ld->ld_target_nr;
 
 	cl_device_fini(lu2cl_dev(d));
-	if (ld->ld_target != NULL)
-		kfree(ld->ld_target);
+	kfree(ld->ld_target);
 	if (ld->ld_emrg != NULL)
 		lov_emerg_free(ld->ld_emrg, nr);
 	kfree(ld);
