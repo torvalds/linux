@@ -202,7 +202,7 @@ struct lu_device *ccc_device_alloc(const struct lu_env *env,
 	struct cl_site    *site;
 	int rc;
 
-	OBD_ALLOC_PTR(vdv);
+	vdv = kzalloc(sizeof(*vdv), GFP_NOFS);
 	if (vdv == NULL)
 		return ERR_PTR(-ENOMEM);
 
@@ -211,7 +211,7 @@ struct lu_device *ccc_device_alloc(const struct lu_env *env,
 	ccc2lu_dev(vdv)->ld_ops = luops;
 	vdv->cdv_cl.cd_ops = clops;
 
-	OBD_ALLOC_PTR(site);
+	site = kzalloc(sizeof(*site), GFP_NOFS);
 	if (site != NULL) {
 		rc = cl_site_init(site, &vdv->cdv_cl);
 		if (rc == 0)
@@ -219,7 +219,7 @@ struct lu_device *ccc_device_alloc(const struct lu_env *env,
 		else {
 			LASSERT(lud->ld_site == NULL);
 			CERROR("Cannot init lu_site, rc %d.\n", rc);
-			OBD_FREE_PTR(site);
+			kfree(site);
 		}
 	} else
 		rc = -ENOMEM;
@@ -239,10 +239,10 @@ struct lu_device *ccc_device_free(const struct lu_env *env,
 
 	if (d->ld_site != NULL) {
 		cl_site_fini(site);
-		OBD_FREE_PTR(site);
+		kfree(site);
 	}
 	cl_device_fini(lu2cl_dev(d));
-	OBD_FREE_PTR(vdv);
+	kfree(vdv);
 	return next;
 }
 
