@@ -131,7 +131,7 @@ static struct mxc_gpio_hwdata *mxc_gpio_hwdata;
 #define GPIO_INT_FALL_EDGE	(mxc_gpio_hwdata->fall_edge)
 #define GPIO_INT_BOTH_EDGES	0x4
 
-static struct platform_device_id mxc_gpio_devtype[] = {
+static const struct platform_device_id mxc_gpio_devtype[] = {
 	{
 		.name = "imx1-gpio",
 		.driver_data = IMX1_GPIO,
