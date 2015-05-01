@@ -442,7 +442,7 @@ static void lmv_del_target(struct lmv_obd *lmv, int index)
 	if (lmv->tgts[index] == NULL)
 		return;
 
-	OBD_FREE_PTR(lmv->tgts[index]);
+	kfree(lmv->tgts[index]);
 	lmv->tgts[index] = NULL;
 	return;
 }
@@ -488,7 +488,7 @@ static int lmv_add_target(struct obd_device *obd, struct obd_uuid *uuidp,
 
 		while (newsize < index + 1)
 			newsize <<= 1;
-		OBD_ALLOC(newtgts, sizeof(*newtgts) * newsize);
+		newtgts = kcalloc(newsize, sizeof(*newtgts), GFP_NOFS);
 		if (newtgts == NULL) {
 			lmv_init_unlock(lmv);
 			return -ENOMEM;
@@ -505,13 +505,13 @@ static int lmv_add_target(struct obd_device *obd, struct obd_uuid *uuidp,
 		lmv->tgts_size = newsize;
 		smp_rmb();
 		if (old)
-			OBD_FREE(old, sizeof(*old) * oldsize);
+			kfree(old);
 
 		CDEBUG(D_CONFIG, "tgts: %p size: %d\n", lmv->tgts,
 		       lmv->tgts_size);
 	}
 
-	OBD_ALLOC_PTR(tgt);
+	tgt = kzalloc(sizeof(*tgt), GFP_NOFS);
 	if (!tgt) {
 		lmv_init_unlock(lmv);
 		return -ENOMEM;
@@ -750,7 +750,7 @@ repeat_fid2path:
 	/* sigh, has to go to another MDT to do path building further */
 	if (remote_gf == NULL) {
 		remote_gf_size = sizeof(*remote_gf) + PATH_MAX;
-		OBD_ALLOC(remote_gf, remote_gf_size);
+		remote_gf = kzalloc(remote_gf_size, GFP_NOFS);
 		if (remote_gf == NULL) {
 			rc = -ENOMEM;
 			goto out_fid2path;
@@ -781,7 +781,7 @@ repeat_fid2path:
 
 out_fid2path:
 	if (remote_gf != NULL)
-		OBD_FREE(remote_gf, remote_gf_size);
+		kfree(remote_gf);
 	return rc;
 }
 
@@ -984,7 +984,7 @@ static int lmv_iocontrol(unsigned int cmd, struct obd_export *exp,
 			return -EAGAIN;
 
 		LASSERT(tgt && tgt->ltd_exp);
-		OBD_ALLOC_PTR(oqctl);
+		oqctl = kzalloc(sizeof(*oqctl), GFP_NOFS);
 		if (!oqctl)
 			return -ENOMEM;
 
@@ -995,7 +995,7 @@ static int lmv_iocontrol(unsigned int cmd, struct obd_export *exp,
 			qctl->qc_valid = QC_MDTIDX;
 			qctl->obd_uuid = tgt->ltd_uuid;
 		}
-		OBD_FREE_PTR(oqctl);
+		kfree(oqctl);
 		break;
 	}
 	case OBD_IOC_CHANGELOG_SEND:
@@ -1327,7 +1327,7 @@ static int lmv_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 		return -EINVAL;
 	}
 
-	OBD_ALLOC(lmv->tgts, sizeof(*lmv->tgts) * 32);
+	lmv->tgts = kcalloc(32, sizeof(*lmv->tgts), GFP_NOFS);
 	if (lmv->tgts == NULL)
 		return -ENOMEM;
 	lmv->tgts_size = 32;
@@ -1380,7 +1380,7 @@ static int lmv_cleanup(struct obd_device *obd)
 				continue;
 			lmv_del_target(lmv, i);
 		}
-		OBD_FREE(lmv->tgts, sizeof(*lmv->tgts) * lmv->tgts_size);
+		kfree(lmv->tgts);
 		lmv->tgts_size = 0;
 	}
 	return 0;
@@ -1437,7 +1437,7 @@ static int lmv_statfs(const struct lu_env *env, struct obd_export *exp,
 	if (rc)
 		return rc;
 
-	OBD_ALLOC(temp, sizeof(*temp));
+	temp = kzalloc(sizeof(*temp), GFP_NOFS);
 	if (temp == NULL)
 		return -ENOMEM;
 
@@ -1473,7 +1473,7 @@ static int lmv_statfs(const struct lu_env *env, struct obd_export *exp,
 	}
 
 out_free_temp:
-	OBD_FREE(temp, sizeof(*temp));
+	kfree(temp);
 	return rc;
 }
 
@@ -1769,7 +1769,7 @@ lmv_enqueue_remote(struct obd_export *exp, struct ldlm_enqueue_info *einfo,
 		goto out;
 	}
 
-	OBD_ALLOC_PTR(rdata);
+	rdata = kzalloc(sizeof(*rdata), GFP_NOFS);
 	if (rdata == NULL) {
 		rc = -ENOMEM;
 		goto out;
@@ -1780,7 +1780,7 @@ lmv_enqueue_remote(struct obd_export *exp, struct ldlm_enqueue_info *einfo,
 
 	rc = md_enqueue(tgt->ltd_exp, einfo, it, rdata, lockh,
 			lmm, lmmsize, NULL, extra_lock_flags);
-	OBD_FREE_PTR(rdata);
+	kfree(rdata);
 out:
 	ldlm_lock_decref(&plock, pmode);
 	return rc;
