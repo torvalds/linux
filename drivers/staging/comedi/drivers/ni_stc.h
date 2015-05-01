@@ -475,6 +475,23 @@
 #define NISTC_AO_OUT_CTRL_UPDATE_SEL_LOW	NISTC_AO_OUT_CTRL_UPDATE_SEL(2)
 #define NISTC_AO_OUT_CTRL_UPDATE_SEL_HIGH	NISTC_AO_OUT_CTRL_UPDATE_SEL(3)
 
+#define NISTC_AI_MODE3_REG		87
+#define NISTC_AI_MODE3_TRIG_LEN		BIT(15)
+#define NISTC_AI_MODE3_DELAY_START	BIT(14)
+#define NISTC_AI_MODE3_SOFTWARE_GATE	BIT(13)
+#define NISTC_AI_MODE3_SI_TRIG_DELAY	BIT(12)
+#define NISTC_AI_MODE3_SI2_SRC_SEL	BIT(11)
+#define NISTC_AI_MODE3_DELAYED_START2	BIT(10)
+#define NISTC_AI_MODE3_DELAYED_START1	BIT(9)
+#define NISTC_AI_MODE3_EXT_GATE_MODE	BIT(8)
+#define NISTC_AI_MODE3_FIFO_MODE(x)	(((x) & 0x3) << 6)
+#define NISTC_AI_MODE3_FIFO_MODE_NE	NISTC_AI_MODE3_FIFO_MODE(0)
+#define NISTC_AI_MODE3_FIFO_MODE_HF	NISTC_AI_MODE3_FIFO_MODE(1)
+#define NISTC_AI_MODE3_FIFO_MODE_F	NISTC_AI_MODE3_FIFO_MODE(2)
+#define NISTC_AI_MODE3_FIFO_MODE_HF_E	NISTC_AI_MODE3_FIFO_MODE(3)
+#define NISTC_AI_MODE3_EXT_GATE_POL	BIT(5)
+#define NISTC_AI_MODE3_EXT_GATE_SEL(x)	(((x) & 0x1f) << 0)
+
 #define AI_Status_1_Register		2
 #define Interrupt_A_St				0x8000
 #define AI_FIFO_Full_St				0x4000
@@ -532,22 +549,6 @@ enum Joint_Status_2_Bits {
 #define AO_UI_Save_Registers		16
 #define AO_BC_Save_Registers		18
 #define AO_UC_Save_Registers		20
-
-#define AI_Mode_3_Register		87
-#define AI_Trigger_Length			_bit15
-#define AI_Delay_START				_bit14
-#define AI_Software_Gate			_bit13
-#define AI_SI_Special_Trigger_Delay		_bit12
-#define AI_SI2_Source_Select			_bit11
-#define AI_Delayed_START2			_bit10
-#define AI_Delayed_START1			_bit9
-#define AI_External_Gate_Mode			_bit8
-#define AI_FIFO_Mode_HF_to_E			(3<<6)
-#define AI_FIFO_Mode_F				(2<<6)
-#define AI_FIFO_Mode_HF				(1<<6)
-#define AI_FIFO_Mode_NE				(0<<6)
-#define AI_External_Gate_Polarity		_bit5
-#define AI_External_Gate_Select(a)		((a) & 0x1f)
 
 #define G_HW_Save_Register(a)		(8+(a)*2)
 #define G_HW_Save_Register_High(a)	(8+(a)*2)

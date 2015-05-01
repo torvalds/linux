@@ -379,7 +379,7 @@ static const struct mio_regmap m_series_stc_write_regmap[] = {
 	[NISTC_ADC_FIFO_CLR_REG]	= { 0x1a6, 2 },
 	[NISTC_DAC_FIFO_CLR_REG]	= { 0x1a8, 2 },
 	[NISTC_AO_OUT_CTRL_REG]		= { 0x1ac, 2 },
-	[AI_Mode_3_Register]		= { 0x1ae, 2 },
+	[NISTC_AI_MODE3_REG]		= { 0x1ae, 2 },
 };
 
 static void m_series_stc_write(struct comedi_device *dev,
@@ -1630,7 +1630,8 @@ static int ni_ai_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 		      NISTC_AI_MODE1_REG);
 	ni_stc_writew(dev, 0, NISTC_AI_MODE2_REG);
 	/* generate FIFO interrupts on non-empty */
-	ni_stc_writew(dev, (0 << 6) | 0x0000, AI_Mode_3_Register);
+	ni_stc_writew(dev, NISTC_AI_MODE3_FIFO_MODE_NE,
+		      NISTC_AI_MODE3_REG);
 
 	ai_personal = NISTC_AI_PERSONAL_SHIFTIN_PW |
 		      NISTC_AI_PERSONAL_SOC_POLARITY |
@@ -1657,7 +1658,7 @@ static int ni_ai_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 	 * are no backup registers in devpriv.  If you want to change
 	 * any of these, add a backup register and other appropriate code:
 	 *      NISTC_AI_MODE1_REG
-	 *      AI_Mode_3_Register
+	 *      NISTC_AI_MODE3_REG
 	 *      NISTC_AI_PERSONAL_REG
 	 *      NISTC_AI_OUT_CTRL_REG
 	 */
@@ -2335,7 +2336,7 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	case TRIG_TIMER:
 		/*
 		 * stop bits for non 611x boards
-		 * AI_SI_Special_Trigger_Delay=0
+		 * NISTC_AI_MODE3_SI_TRIG_DELAY=0
 		 * NISTC_AI_MODE2_PRE_TRIGGER=0
 		 * NISTC_AI_START_STOP_REG:
 		 * NISTC_AI_START_POLARITY=0	(?) rising edge
@@ -2432,25 +2433,25 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		case AIMODE_HALF_FULL:
 			/*generate FIFO interrupts and DMA requests on half-full */
 #ifdef PCIDMA
-			ni_stc_writew(dev, AI_FIFO_Mode_HF_to_E,
-				      AI_Mode_3_Register);
+			ni_stc_writew(dev, NISTC_AI_MODE3_FIFO_MODE_HF_E,
+				      NISTC_AI_MODE3_REG);
 #else
-			ni_stc_writew(dev, AI_FIFO_Mode_HF,
-				      AI_Mode_3_Register);
+			ni_stc_writew(dev, NISTC_AI_MODE3_FIFO_MODE_HF,
+				      NISTC_AI_MODE3_REG);
 #endif
 			break;
 		case AIMODE_SAMPLE:
 			/*generate FIFO interrupts on non-empty */
-			ni_stc_writew(dev, AI_FIFO_Mode_NE,
-				      AI_Mode_3_Register);
+			ni_stc_writew(dev, NISTC_AI_MODE3_FIFO_MODE_NE,
+				      NISTC_AI_MODE3_REG);
 			break;
 		case AIMODE_SCAN:
 #ifdef PCIDMA
-			ni_stc_writew(dev, AI_FIFO_Mode_NE,
-				      AI_Mode_3_Register);
+			ni_stc_writew(dev, NISTC_AI_MODE3_FIFO_MODE_NE,
+				      NISTC_AI_MODE3_REG);
 #else
-			ni_stc_writew(dev, AI_FIFO_Mode_HF,
-				      AI_Mode_3_Register);
+			ni_stc_writew(dev, NISTC_AI_MODE3_FIFO_MODE_HF,
+				      NISTC_AI_MODE3_REG);
 #endif
 			interrupt_a_enable |= NISTC_INTA_ENA_AI_STOP;
 			break;
