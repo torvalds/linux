@@ -259,6 +259,23 @@
 #define NISTC_AO_UC_LOADA_REG		48
 #define NISTC_AO_UC_LOADB_REG		50
 
+#define NISTC_CLK_FOUT_REG		56
+#define NISTC_CLK_FOUT_ENA		BIT(15)
+#define NISTC_CLK_FOUT_TIMEBASE_SEL	BIT(14)
+#define NISTC_CLK_FOUT_DIO_SER_OUT_DIV2	BIT(13)
+#define NISTC_CLK_FOUT_SLOW_DIV2	BIT(12)
+#define NISTC_CLK_FOUT_SLOW_TIMEBASE	BIT(11)
+#define NISTC_CLK_FOUT_G_SRC_DIV2	BIT(10)
+#define NISTC_CLK_FOUT_TO_BOARD_DIV2	BIT(9)
+#define NISTC_CLK_FOUT_TO_BOARD		BIT(8)
+#define NISTC_CLK_FOUT_AI_OUT_DIV2	BIT(7)
+#define NISTC_CLK_FOUT_AI_SRC_DIV2	BIT(6)
+#define NISTC_CLK_FOUT_AO_OUT_DIV2	BIT(5)
+#define NISTC_CLK_FOUT_AO_SRC_DIV2	BIT(4)
+#define NISTC_CLK_FOUT_DIVIDER(x)	(((x) & 0xf) << 0)
+#define NISTC_CLK_FOUT_TO_DIVIDER(x)	(((x) >> 0) & 0xf)
+#define NISTC_CLK_FOUT_DIVIDER_MASK	NISTC_CLK_FOUT_DIVIDER(0xf)
+
 #define AI_Status_1_Register		2
 #define Interrupt_A_St				0x8000
 #define AI_FIFO_Full_St				0x4000
@@ -316,27 +333,6 @@ enum Joint_Status_2_Bits {
 #define AO_UI_Save_Registers		16
 #define AO_BC_Save_Registers		18
 #define AO_UC_Save_Registers		20
-
-#define Clock_and_FOUT_Register		56
-enum Clock_and_FOUT_bits {
-	FOUT_Enable = _bit15,
-	FOUT_Timebase_Select = _bit14,
-	DIO_Serial_Out_Divide_By_2 = _bit13,
-	Slow_Internal_Time_Divide_By_2 = _bit12,
-	Slow_Internal_Timebase = _bit11,
-	G_Source_Divide_By_2 = _bit10,
-	Clock_To_Board_Divide_By_2 = _bit9,
-	Clock_To_Board = _bit8,
-	AI_Output_Divide_By_2 = _bit7,
-	AI_Source_Divide_By_2 = _bit6,
-	AO_Output_Divide_By_2 = _bit5,
-	AO_Source_Divide_By_2 = _bit4,
-	FOUT_Divider_mask = 0xf
-};
-static inline unsigned FOUT_Divider(unsigned divider)
-{
-	return divider & FOUT_Divider_mask;
-}
 
 #define IO_Bidirection_Pin_Register	57
 #define	RTSI_Trig_Direction_Register	58

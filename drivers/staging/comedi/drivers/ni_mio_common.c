@@ -352,7 +352,7 @@ static const struct mio_regmap m_series_stc_write_regmap[] = {
 	[NISTC_AO_BC_LOADB_REG]		= { 0x15c, 4 },
 	[NISTC_AO_UC_LOADA_REG]		= { 0x160, 4 },
 	[NISTC_AO_UC_LOADB_REG]		= { 0x164, 4 },
-	[Clock_and_FOUT_Register]	= { 0x170, 2 },
+	[NISTC_CLK_FOUT_REG]		= { 0x170, 2 },
 	[IO_Bidirection_Pin_Register]	= { 0x172, 2 },
 	[RTSI_Trig_Direction_Register]	= { 0x174, 2 },
 	[Interrupt_Control_Register]	= { 0x176, 2 },
@@ -3637,6 +3637,7 @@ static int ni_serial_insn_config(struct comedi_device *dev,
 				 unsigned int *data)
 {
 	struct ni_private *devpriv = dev->private;
+	unsigned clk_fout = devpriv->clock_and_fout;
 	int err = insn->n;
 	unsigned char byte_out, byte_in = 0;
 
@@ -3658,21 +3659,21 @@ static int ni_serial_insn_config(struct comedi_device *dev,
 			/* Warning: this clock speed is too fast to reliably
 			   control SCXI. */
 			devpriv->dio_control &= ~NISTC_DIO_CTRL_HW_SER_TIMEBASE;
-			devpriv->clock_and_fout |= Slow_Internal_Timebase;
-			devpriv->clock_and_fout &= ~DIO_Serial_Out_Divide_By_2;
+			clk_fout |= NISTC_CLK_FOUT_SLOW_TIMEBASE;
+			clk_fout &= ~NISTC_CLK_FOUT_DIO_SER_OUT_DIV2;
 			data[1] = SERIAL_600NS;
 			devpriv->serial_interval_ns = data[1];
 		} else if (data[1] <= SERIAL_1_2US) {
 			devpriv->dio_control &= ~NISTC_DIO_CTRL_HW_SER_TIMEBASE;
-			devpriv->clock_and_fout |= Slow_Internal_Timebase |
-			    DIO_Serial_Out_Divide_By_2;
+			clk_fout |= NISTC_CLK_FOUT_SLOW_TIMEBASE |
+				    NISTC_CLK_FOUT_DIO_SER_OUT_DIV2;
 			data[1] = SERIAL_1_2US;
 			devpriv->serial_interval_ns = data[1];
 		} else if (data[1] <= SERIAL_10US) {
 			devpriv->dio_control |= NISTC_DIO_CTRL_HW_SER_TIMEBASE;
-			devpriv->clock_and_fout |= Slow_Internal_Timebase |
-			    DIO_Serial_Out_Divide_By_2;
-			/* Note: DIO_Serial_Out_Divide_By_2 only affects
+			clk_fout |= NISTC_CLK_FOUT_SLOW_TIMEBASE |
+				    NISTC_CLK_FOUT_DIO_SER_OUT_DIV2;
+			/* Note: NISTC_CLK_FOUT_DIO_SER_OUT_DIV2 only affects
 			   600ns/1.2us. If you turn divide_by_2 off with the
 			   slow clock, you will still get 10us, except then
 			   all your delays are wrong. */
@@ -3685,10 +3686,10 @@ static int ni_serial_insn_config(struct comedi_device *dev,
 			data[1] = (data[1] / 1000) * 1000;
 			devpriv->serial_interval_ns = data[1];
 		}
+		devpriv->clock_and_fout = clk_fout;
 
 		ni_stc_writew(dev, devpriv->dio_control, NISTC_DIO_CTRL_REG);
-		ni_stc_writew(dev, devpriv->clock_and_fout,
-			      Clock_and_FOUT_Register);
+		ni_stc_writew(dev, devpriv->clock_and_fout, NISTC_CLK_FOUT_REG);
 		return 1;
 
 	case INSN_CONFIG_BIDIRECTIONAL_DATA:
@@ -3874,7 +3875,7 @@ static int ni_freq_out_insn_read(struct comedi_device *dev,
 				 unsigned int *data)
 {
 	struct ni_private *devpriv = dev->private;
-	unsigned int val = devpriv->clock_and_fout & FOUT_Divider_mask;
+	unsigned int val = NISTC_CLK_FOUT_TO_DIVIDER(devpriv->clock_and_fout);
 	int i;
 
 	for (i = 0; i < insn->n; i++)
@@ -3891,17 +3892,17 @@ static int ni_freq_out_insn_write(struct comedi_device *dev,
 	struct ni_private *devpriv = dev->private;
 
 	if (insn->n) {
-		devpriv->clock_and_fout &= ~FOUT_Enable;
-		ni_stc_writew(dev, devpriv->clock_and_fout,
-			      Clock_and_FOUT_Register);
-		devpriv->clock_and_fout &= ~FOUT_Divider_mask;
+		unsigned int val = data[insn->n - 1];
+
+		devpriv->clock_and_fout &= ~NISTC_CLK_FOUT_ENA;
+		ni_stc_writew(dev, devpriv->clock_and_fout, NISTC_CLK_FOUT_REG);
+		devpriv->clock_and_fout &= ~NISTC_CLK_FOUT_DIVIDER_MASK;
 
 		/* use the last data value to set the fout divider */
-		devpriv->clock_and_fout |= FOUT_Divider(data[insn->n - 1]);
+		devpriv->clock_and_fout |= NISTC_CLK_FOUT_DIVIDER(val);
 
-		devpriv->clock_and_fout |= FOUT_Enable;
-		ni_stc_writew(dev, devpriv->clock_and_fout,
-			      Clock_and_FOUT_Register);
+		devpriv->clock_and_fout |= NISTC_CLK_FOUT_ENA;
+		ni_stc_writew(dev, devpriv->clock_and_fout, NISTC_CLK_FOUT_REG);
 	}
 	return insn->n;
 }
@@ -3917,19 +3918,18 @@ static int ni_freq_out_insn_config(struct comedi_device *dev,
 	case INSN_CONFIG_SET_CLOCK_SRC:
 		switch (data[1]) {
 		case NI_FREQ_OUT_TIMEBASE_1_DIV_2_CLOCK_SRC:
-			devpriv->clock_and_fout &= ~FOUT_Timebase_Select;
+			devpriv->clock_and_fout &= ~NISTC_CLK_FOUT_TIMEBASE_SEL;
 			break;
 		case NI_FREQ_OUT_TIMEBASE_2_CLOCK_SRC:
-			devpriv->clock_and_fout |= FOUT_Timebase_Select;
+			devpriv->clock_and_fout |= NISTC_CLK_FOUT_TIMEBASE_SEL;
 			break;
 		default:
 			return -EINVAL;
 		}
-		ni_stc_writew(dev, devpriv->clock_and_fout,
-			      Clock_and_FOUT_Register);
+		ni_stc_writew(dev, devpriv->clock_and_fout, NISTC_CLK_FOUT_REG);
 		break;
 	case INSN_CONFIG_GET_CLOCK_SRC:
-		if (devpriv->clock_and_fout & FOUT_Timebase_Select) {
+		if (devpriv->clock_and_fout & NISTC_CLK_FOUT_TIMEBASE_SEL) {
 			data[1] = NI_FREQ_OUT_TIMEBASE_2_CLOCK_SRC;
 			data[2] = TIMEBASE_2_NS;
 		} else {
@@ -5106,16 +5106,16 @@ static int ni_E_init(struct comedi_device *dev,
 	}
 
 	/* initialize clock dividers */
-	devpriv->clock_and_fout = Slow_Internal_Time_Divide_By_2 |
-				  Slow_Internal_Timebase |
-				  Clock_To_Board_Divide_By_2 |
-				  Clock_To_Board;
+	devpriv->clock_and_fout = NISTC_CLK_FOUT_SLOW_DIV2 |
+				  NISTC_CLK_FOUT_SLOW_TIMEBASE |
+				  NISTC_CLK_FOUT_TO_BOARD_DIV2 |
+				  NISTC_CLK_FOUT_TO_BOARD;
 	if (!devpriv->is_6xxx) {
 		/* BEAM is this needed for PCI-6143 ?? */
-		devpriv->clock_and_fout |= (AI_Output_Divide_By_2 |
-					    AO_Output_Divide_By_2);
+		devpriv->clock_and_fout |= (NISTC_CLK_FOUT_AI_OUT_DIV2 |
+					    NISTC_CLK_FOUT_AO_OUT_DIV2);
 	}
-	ni_stc_writew(dev, devpriv->clock_and_fout, Clock_and_FOUT_Register);
+	ni_stc_writew(dev, devpriv->clock_and_fout, NISTC_CLK_FOUT_REG);
 
 	ret = comedi_alloc_subdevices(dev, NI_NUM_SUBDEVICES);
 	if (ret)
