@@ -371,7 +371,7 @@ static const struct mio_regmap m_series_stc_write_regmap[] = {
 	[NISTC_INTB_ENA_REG]		= { 0x196, 2 },
 	[NISTC_INTB2_ENA_REG]		= { 0, 0 }, /* E-Series only */
 	[NISTC_AI_PERSONAL_REG]		= { 0x19a, 2 },
-	[AO_Personal_Register]		= { 0x19c, 2 },
+	[NISTC_AO_PERSONAL_REG]		= { 0x19c, 2 },
 	[RTSI_Trig_A_Output_Register]	= { 0x19e, 2 },
 	[RTSI_Trig_B_Output_Register]	= { 0x1a0, 2 },
 	[RTSI_Board_Register]		= { 0, 0 }, /* Unknown */
@@ -3062,19 +3062,22 @@ static int ni_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->ao_mode2 &= ~NISTC_AO_MODE2_FIFO_REXMIT_ENA;
 	ni_stc_writew(dev, devpriv->ao_mode2, NISTC_AO_MODE2_REG);
 
-	bits = AO_BC_Source_Select | AO_UPDATE_Pulse_Width |
-	    AO_TMRDACWR_Pulse_Width;
+	bits = NISTC_AO_PERSONAL_BC_SRC_SEL |
+	       NISTC_AO_PERSONAL_UPDATE_PW |
+	       NISTC_AO_PERSONAL_TMRDACWR_PW;
 	if (board->ao_fifo_depth)
-		bits |= AO_FIFO_Enable;
+		bits |= NISTC_AO_PERSONAL_FIFO_ENA;
 	else
-		bits |= AO_DMA_PIO_Control;
+		bits |= NISTC_AO_PERSONAL_DMA_PIO_CTRL;
 #if 0
-	/* F Hess: windows driver does not set AO_Number_Of_DAC_Packages bit for 6281,
-	   verified with bus analyzer. */
+	/*
+	 * F Hess: windows driver does not set NISTC_AO_PERSONAL_NUM_DAC bit
+	 * for 6281, verified with bus analyzer.
+	 */
 	if (devpriv->is_m_series)
-		bits |= AO_Number_Of_DAC_Packages;
+		bits |= NISTC_AO_PERSONAL_NUM_DAC;
 #endif
-	ni_stc_writew(dev, bits, AO_Personal_Register);
+	ni_stc_writew(dev, bits, NISTC_AO_PERSONAL_REG);
 	/*  enable sending of ao dma requests */
 	ni_stc_writew(dev, NISTC_AO_START_AOFREQ_ENA, NISTC_AO_START_SEL_REG);
 
@@ -3184,10 +3187,12 @@ static int ni_ao_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 	ni_stc_writew(dev, NISTC_RESET_AO_CFG_START, NISTC_RESET_REG);
 	ni_stc_writew(dev, NISTC_AO_CMD1_DISARM, NISTC_AO_CMD1_REG);
 	ni_set_bits(dev, NISTC_INTB_ENA_REG, ~0, 0);
-	ni_stc_writew(dev, AO_BC_Source_Select, AO_Personal_Register);
+	ni_stc_writew(dev, NISTC_AO_PERSONAL_BC_SRC_SEL, NISTC_AO_PERSONAL_REG);
 	ni_stc_writew(dev, NISTC_INTB_ACK_AO_ALL, NISTC_INTB_ACK_REG);
-	ni_stc_writew(dev, AO_BC_Source_Select | AO_UPDATE_Pulse_Width |
-		      AO_TMRDACWR_Pulse_Width, AO_Personal_Register);
+	ni_stc_writew(dev, NISTC_AO_PERSONAL_BC_SRC_SEL |
+			   NISTC_AO_PERSONAL_UPDATE_PW |
+			   NISTC_AO_PERSONAL_TMRDACWR_PW,
+		      NISTC_AO_PERSONAL_REG);
 	ni_stc_writew(dev, 0, AO_Output_Control_Register);
 	ni_stc_writew(dev, 0, NISTC_AO_START_SEL_REG);
 	devpriv->ao_cmd1 = 0;

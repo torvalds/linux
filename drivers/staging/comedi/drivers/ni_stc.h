@@ -433,6 +433,21 @@
 #define NISTC_AI_PERSONAL_LOCALMUX_CLK_PW	BIT(5)
 #define NISTC_AI_PERSONAL_AIFREQ_POL		BIT(4)
 
+#define NISTC_AO_PERSONAL_REG		78
+#define NISTC_AO_PERSONAL_MULTI_DACS		BIT(15)	/* M-Series only */
+#define NISTC_AO_PERSONAL_NUM_DAC		BIT(14)	/* 1:single; 0:dual */
+#define NISTC_AO_PERSONAL_FAST_CPU		BIT(13)	/* M-Series reserved */
+#define NISTC_AO_PERSONAL_TMRDACWR_PW		BIT(12)
+#define NISTC_AO_PERSONAL_FIFO_FLAGS_POL	BIT(11)	/* M-Series reserved */
+#define NISTC_AO_PERSONAL_FIFO_ENA		BIT(10)
+#define NISTC_AO_PERSONAL_AOFREQ_POL		BIT(9)	/* M-Series reserved */
+#define NISTC_AO_PERSONAL_DMA_PIO_CTRL		BIT(8)	/* M-Series reserved */
+#define NISTC_AO_PERSONAL_UPDATE_ORIG_PULSE	BIT(7)
+#define NISTC_AO_PERSONAL_UPDATE_TIMEBASE	BIT(6)
+#define NISTC_AO_PERSONAL_UPDATE_PW		BIT(5)
+#define NISTC_AO_PERSONAL_BC_SRC_SEL		BIT(4)
+#define NISTC_AO_PERSONAL_INTERVAL_BUFFER_MODE	BIT(3)
+
 #define AI_Status_1_Register		2
 #define Interrupt_A_St				0x8000
 #define AI_FIFO_Full_St				0x4000
@@ -491,22 +506,6 @@ enum Joint_Status_2_Bits {
 #define AO_BC_Save_Registers		18
 #define AO_UC_Save_Registers		20
 
-#define AO_Personal_Register		78
-enum AO_Personal_Bits {
-	AO_Interval_Buffer_Mode = 1 << 3,
-	AO_BC_Source_Select = 1 << 4,
-	AO_UPDATE_Pulse_Width = 1 << 5,
-	AO_UPDATE_Pulse_Timebase = 1 << 6,
-	AO_UPDATE_Original_Pulse = 1 << 7,
-	AO_DMA_PIO_Control = 1 << 8,	/* M Series: reserved */
-	AO_AOFREQ_Polarity = 1 << 9,	/* M Series: reserved */
-	AO_FIFO_Enable = 1 << 10,
-	AO_FIFO_Flags_Polarity = 1 << 11,	/* M Series: reserved */
-	AO_TMRDACWR_Pulse_Width = 1 << 12,
-	AO_Fast_CPU = 1 << 13,	/* M Series: reserved */
-	AO_Number_Of_DAC_Packages = 1 << 14,	/*  1 for "single" mode, 0 for "dual" */
-	AO_Multiple_DACS_Per_Package = 1 << 15	/*  m-series only */
-};
 #define	RTSI_Trig_A_Output_Register	79
 #define	RTSI_Trig_B_Output_Register	80
 enum RTSI_Trig_B_Output_Bits {
