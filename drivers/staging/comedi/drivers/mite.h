@@ -77,16 +77,13 @@ static inline int mite_setup(struct comedi_device *dev,
 void mite_detach(struct mite_struct *mite);
 struct mite_dma_descriptor_ring *mite_alloc_ring(struct mite_struct *mite);
 void mite_free_ring(struct mite_dma_descriptor_ring *ring);
-struct mite_channel *mite_request_channel_in_range(struct mite_struct *mite,
-						   struct
-						   mite_dma_descriptor_ring
-						   *ring, unsigned min_channel,
-						   unsigned max_channel);
-static inline struct mite_channel *mite_request_channel(struct mite_struct
-							*mite,
-							struct
-							mite_dma_descriptor_ring
-							*ring)
+struct mite_channel *
+mite_request_channel_in_range(struct mite_struct *mite,
+			      struct mite_dma_descriptor_ring *ring,
+			      unsigned min_channel, unsigned max_channel);
+static inline struct mite_channel *
+mite_request_channel(struct mite_struct *mite,
+		     struct mite_dma_descriptor_ring *ring)
 {
 	return mite_request_channel_in_range(mite, ring, 0,
 					     mite->num_channels - 1);
@@ -285,6 +282,7 @@ enum ConfigRegister_bits {
 	CR_PORTMXI = (3 << 6),
 	CR_AMDEVICE = (1 << 0),
 };
+
 static inline int CR_REQS(int source)
 {
 	return (source & 0x7) << 16;
