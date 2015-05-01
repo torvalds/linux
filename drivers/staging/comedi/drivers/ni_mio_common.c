@@ -621,16 +621,19 @@ static inline void ni_set_cdo_dma_channel(struct comedi_device *dev,
 {
 	struct ni_private *devpriv = dev->private;
 	unsigned long flags;
+	unsigned bits;
 
 	spin_lock_irqsave(&devpriv->soft_reg_copy_lock, flags);
-	devpriv->cdio_dma_select_reg &= ~CDO_DMA_Select_Mask;
+	devpriv->cdio_dma_select_reg &= ~NI_M_CDIO_DMA_SEL_CDO_MASK;
 	if (mite_channel >= 0) {
-		/*XXX just guessing ni_stc_dma_channel_select_bitfield() returns the right bits,
-		   under the assumption the cdio dma selection works just like ai/ao/gpct.
-		   Definitely works for dma channels 0 and 1. */
-		devpriv->cdio_dma_select_reg |=
-		    (ni_stc_dma_channel_select_bitfield(mite_channel) <<
-		     CDO_DMA_Select_Shift) & CDO_DMA_Select_Mask;
+		/*
+		 * XXX just guessing ni_stc_dma_channel_select_bitfield()
+		 * returns the right bits, under the assumption the cdio dma
+		 * selection works just like ai/ao/gpct.
+		 * Definitely works for dma channels 0 and 1.
+		 */
+		bits = ni_stc_dma_channel_select_bitfield(mite_channel);
+		devpriv->cdio_dma_select_reg |= NI_M_CDIO_DMA_SEL_CDO(bits);
 	}
 	ni_writeb(dev, devpriv->cdio_dma_select_reg, NI_M_CDIO_DMA_SEL_REG);
 	mmiowb();

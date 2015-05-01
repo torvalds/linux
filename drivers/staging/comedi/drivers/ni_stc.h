@@ -925,6 +925,10 @@ static const struct comedi_lrange range_ni_E_ao_ext;
  * remapping.
  */
 #define NI_M_CDIO_DMA_SEL_REG		0x007
+#define NI_M_CDIO_DMA_SEL_CDO(x)	(((x) & 0xf) << 4)
+#define NI_M_CDIO_DMA_SEL_CDO_MASK	NI_M_CDIO_DMA_SEL_CDO(0xf)
+#define NI_M_CDIO_DMA_SEL_CDI(x)	(((x) & 0xf) << 0)
+#define NI_M_CDIO_DMA_SEL_CDI_MASK	NI_M_CDIO_DMA_SEL_CDI(0xf)
 #define NI_M_SCXI_STATUS_REG		0x007
 #define NI_M_AI_AO_SEL_REG		0x009
 #define NI_M_G0_G1_SEL_REG		0x00b
@@ -1046,13 +1050,6 @@ static const struct comedi_lrange range_ni_E_ao_ext;
 #define NI_M_STATIC_AI_CTRL_REG(x)	((x) ? (0x260 + (x)) : 0x064)
 #define NI_M_AO_REF_ATTENUATION_REG(x)	(0x264 + (x))
 #define NI_M_AO_REF_ATTENUATION_X5	BIT(0)
-
-enum CDIO_DMA_Select_Bits {
-	CDI_DMA_Select_Shift = 0,
-	CDI_DMA_Select_Mask = 0xf,
-	CDO_DMA_Select_Shift = 4,
-	CDO_DMA_Select_Mask = 0xf << CDO_DMA_Select_Shift
-};
 
 enum CDIO_Status_Bits {
 	CDO_FIFO_Empty_Bit = 0x1,
