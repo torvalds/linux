@@ -220,6 +220,18 @@
 #define NISTC_G0_INPUT_SEL_REG		36
 #define NISTC_G1_INPUT_SEL_REG		37
 
+#define NISTC_AO_MODE1_REG		38
+#define NISTC_AO_MODE1_UPDATE_SRC(x)	(((x) & 0x1f) << 11)
+#define NISTC_AO_MODE1_UPDATE_SRC_MASK	NISTC_AO_MODE1_UPDATE_SRC(0x1f)
+#define NISTC_AO_MODE1_UI_SRC(x)	(((x) & 0x1f) << 6)
+#define NISTC_AO_MODE1_UI_SRC_MASK	NISTC_AO_MODE1_UI_SRC(0x1f)
+#define NISTC_AO_MODE1_MULTI_CHAN	BIT(5)
+#define NISTC_AO_MODE1_UPDATE_SRC_POLARITY BIT(4)
+#define NISTC_AO_MODE1_UI_SRC_POLARITY	BIT(3)
+#define NISTC_AO_MODE1_UC_SW_EVERY_TC	BIT(2)
+#define NISTC_AO_MODE1_CONTINUOUS	BIT(1)
+#define NISTC_AO_MODE1_TRIGGER_ONCE	BIT(0)
+
 #define AI_Status_1_Register		2
 #define Interrupt_A_St				0x8000
 #define AI_FIFO_Full_St				0x4000
@@ -273,16 +285,6 @@
 enum Joint_Status_2_Bits {
 	AO_TMRDACWRs_In_Progress_St = 0x20,
 };
-
-#define AO_Mode_1_Register		38
-#define AO_UPDATE_Source_Select(x)		(((x)&0x1f)<<11)
-#define AO_UI_Source_Select(x)			(((x)&0x1f)<<6)
-#define AO_Multiple_Channels			_bit5
-#define AO_UPDATE_Source_Polarity		_bit4
-#define AO_UI_Source_Polarity			_bit3
-#define AO_UC_Switch_Load_Every_TC		_bit2
-#define AO_Continuous				_bit1
-#define AO_Trigger_Once				_bit0
 
 #define AO_Mode_2_Register		39
 #define AO_FIFO_Mode_Mask (0x3 << 14)
