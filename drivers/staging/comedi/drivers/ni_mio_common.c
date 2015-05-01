@@ -1620,7 +1620,7 @@ static int ni_ai_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 	ni_clear_ai_fifo(dev);
 
 	if (!devpriv->is_6143)
-		ni_writeb(dev, 0, Misc_Command);
+		ni_writeb(dev, NI_E_MISC_CMD_EXT_ATRIG, NI_E_MISC_CMD_REG);
 
 	ni_stc_writew(dev, NISTC_AI_CMD1_DISARM, NISTC_AI_CMD1_REG);
 	ni_stc_writew(dev, NISTC_AI_MODE1_START_STOP |

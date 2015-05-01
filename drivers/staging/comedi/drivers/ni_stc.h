@@ -577,7 +577,11 @@
 #define NI_E_SERIAL_CMD_SDATA		BIT(1)
 #define NI_E_SERIAL_CMD_SCLK		BIT(0)
 
-#define Misc_Command			0x0f
+#define NI_E_MISC_CMD_REG		0x0f	/* w8 */
+#define NI_E_MISC_CMD_INTEXT_ATRIG(x)	(((x) & 0x1) << 7)
+#define NI_E_MISC_CMD_EXT_ATRIG		NI_E_MISC_CMD_INTEXT_ATRIG(0)
+#define NI_E_MISC_CMD_INT_ATRIG		NI_E_MISC_CMD_INTEXT_ATRIG(1)
+
 #define Port_A				0x19
 #define Port_B				0x1b
 #define Port_C				0x1d
