@@ -22,8 +22,6 @@
 #include <linux/log2.h>
 #include "../comedi_pci.h"
 
-#define PCIMIO_COMPAT
-
 #define MAX_MITE_DMA_CHANNELS 8
 
 struct mite_dma_descriptor {
