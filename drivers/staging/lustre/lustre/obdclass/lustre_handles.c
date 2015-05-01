@@ -186,7 +186,7 @@ void class_handle_free_cb(struct rcu_head *rcu)
 	if (h->h_ops->hop_free != NULL)
 		h->h_ops->hop_free(ptr, h->h_size);
 	else
-		OBD_FREE(ptr, h->h_size);
+		kfree(ptr);
 }
 EXPORT_SYMBOL(class_handle_free_cb);
 

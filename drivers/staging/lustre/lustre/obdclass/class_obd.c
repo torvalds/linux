@@ -231,7 +231,7 @@ int class_handle_ioctl(unsigned int cmd, unsigned long arg)
 			err = -EINVAL;
 			goto out;
 		}
-		OBD_ALLOC(lcfg, data->ioc_plen1);
+		lcfg = kzalloc(data->ioc_plen1, GFP_NOFS);
 		if (lcfg == NULL) {
 			err = -ENOMEM;
 			goto out;
@@ -243,7 +243,7 @@ int class_handle_ioctl(unsigned int cmd, unsigned long arg)
 		if (!err)
 			err = class_process_config(lcfg);
 
-		OBD_FREE(lcfg, data->ioc_plen1);
+		kfree(lcfg);
 		goto out;
 	}
 

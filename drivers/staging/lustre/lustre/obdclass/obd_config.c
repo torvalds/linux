@@ -860,13 +860,13 @@ int class_add_profile(int proflen, char *prof, int osclen, char *osc,
 
 	CDEBUG(D_CONFIG, "Add profile %s\n", prof);
 
-	OBD_ALLOC(lprof, sizeof(*lprof));
+	lprof = kzalloc(sizeof(*lprof), GFP_NOFS);
 	if (lprof == NULL)
 		return -ENOMEM;
 	INIT_LIST_HEAD(&lprof->lp_list);
 
 	LASSERT(proflen == (strlen(prof) + 1));
-	OBD_ALLOC(lprof->lp_profile, proflen);
+	lprof->lp_profile = kzalloc(proflen, GFP_NOFS);
 	if (lprof->lp_profile == NULL) {
 		err = -ENOMEM;
 		goto out;
@@ -874,7 +874,7 @@ int class_add_profile(int proflen, char *prof, int osclen, char *osc,
 	memcpy(lprof->lp_profile, prof, proflen);
 
 	LASSERT(osclen == (strlen(osc) + 1));
-	OBD_ALLOC(lprof->lp_dt, osclen);
+	lprof->lp_dt = kzalloc(osclen, GFP_NOFS);
 	if (lprof->lp_dt == NULL) {
 		err = -ENOMEM;
 		goto out;
@@ -883,7 +883,7 @@ int class_add_profile(int proflen, char *prof, int osclen, char *osc,
 
 	if (mdclen > 0) {
 		LASSERT(mdclen == (strlen(mdc) + 1));
-		OBD_ALLOC(lprof->lp_md, mdclen);
+		lprof->lp_md = kzalloc(mdclen, GFP_NOFS);
 		if (lprof->lp_md == NULL) {
 			err = -ENOMEM;
 			goto out;
@@ -896,12 +896,12 @@ int class_add_profile(int proflen, char *prof, int osclen, char *osc,
 
 out:
 	if (lprof->lp_md)
-		OBD_FREE(lprof->lp_md, mdclen);
+		kfree(lprof->lp_md);
 	if (lprof->lp_dt)
-		OBD_FREE(lprof->lp_dt, osclen);
+		kfree(lprof->lp_dt);
 	if (lprof->lp_profile)
-		OBD_FREE(lprof->lp_profile, proflen);
-	OBD_FREE(lprof, sizeof(*lprof));
+		kfree(lprof->lp_profile);
+	kfree(lprof);
 	return err;
 }
 
@@ -914,11 +914,11 @@ void class_del_profile(const char *prof)
 	lprof = class_get_profile(prof);
 	if (lprof) {
 		list_del(&lprof->lp_list);
-		OBD_FREE(lprof->lp_profile, strlen(lprof->lp_profile) + 1);
-		OBD_FREE(lprof->lp_dt, strlen(lprof->lp_dt) + 1);
+		kfree(lprof->lp_profile);
+		kfree(lprof->lp_dt);
 		if (lprof->lp_md)
-			OBD_FREE(lprof->lp_md, strlen(lprof->lp_md) + 1);
-		OBD_FREE(lprof, sizeof(*lprof));
+			kfree(lprof->lp_md);
+		kfree(lprof);
 	}
 }
 EXPORT_SYMBOL(class_del_profile);
@@ -930,11 +930,11 @@ void class_del_profiles(void)
 
 	list_for_each_entry_safe(lprof, n, &lustre_profile_list, lp_list) {
 		list_del(&lprof->lp_list);
-		OBD_FREE(lprof->lp_profile, strlen(lprof->lp_profile) + 1);
-		OBD_FREE(lprof->lp_dt, strlen(lprof->lp_dt) + 1);
+		kfree(lprof->lp_profile);
+		kfree(lprof->lp_dt);
 		if (lprof->lp_md)
-			OBD_FREE(lprof->lp_md, strlen(lprof->lp_md) + 1);
-		OBD_FREE(lprof, sizeof(*lprof));
+			kfree(lprof->lp_md);
+		kfree(lprof);
 	}
 }
 EXPORT_SYMBOL(class_del_profiles);
@@ -1011,7 +1011,7 @@ struct lustre_cfg *lustre_cfg_rename(struct lustre_cfg *cfg,
 
 	new_len = LUSTRE_CFG_BUFLEN(cfg, 1) + strlen(new_name) - name_len;
 
-	OBD_ALLOC(new_param, new_len);
+	new_param = kzalloc(new_len, GFP_NOFS);
 	if (new_param == NULL)
 		return ERR_PTR(-ENOMEM);
 
@@ -1019,9 +1019,9 @@ struct lustre_cfg *lustre_cfg_rename(struct lustre_cfg *cfg,
 	if (value != NULL)
 		strcat(new_param, value);
 
-	OBD_ALLOC_PTR(bufs);
+	bufs = kzalloc(sizeof(*bufs), GFP_NOFS);
 	if (bufs == NULL) {
-		OBD_FREE(new_param, new_len);
+		kfree(new_param);
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -1031,8 +1031,8 @@ struct lustre_cfg *lustre_cfg_rename(struct lustre_cfg *cfg,
 
 	new_cfg = lustre_cfg_new(cfg->lcfg_command, bufs);
 
-	OBD_FREE(new_param, new_len);
-	OBD_FREE_PTR(bufs);
+	kfree(new_param);
+	kfree(bufs);
 	if (new_cfg == NULL)
 		return ERR_PTR(-ENOMEM);
 
@@ -1493,7 +1493,7 @@ int class_config_llog_handler(const struct lu_env *env,
 			inst = 1;
 			inst_len = LUSTRE_CFG_BUFLEN(lcfg, 0) +
 				   sizeof(clli->cfg_instance) * 2 + 4;
-			OBD_ALLOC(inst_name, inst_len);
+			inst_name = kzalloc(inst_len, GFP_NOFS);
 			if (inst_name == NULL) {
 				rc = -ENOMEM;
 				goto out;
@@ -1556,7 +1556,7 @@ int class_config_llog_handler(const struct lu_env *env,
 		lustre_cfg_free(lcfg_new);
 
 		if (inst)
-			OBD_FREE(inst_name, inst_len);
+			kfree(inst_name);
 		break;
 	}
 	default:
@@ -1671,7 +1671,7 @@ int class_config_dump_handler(const struct lu_env *env,
 	char	*outstr;
 	int	 rc = 0;
 
-	OBD_ALLOC(outstr, 256);
+	outstr = kzalloc(256, GFP_NOFS);
 	if (outstr == NULL)
 		return -ENOMEM;
 
@@ -1683,7 +1683,7 @@ int class_config_dump_handler(const struct lu_env *env,
 		rc = -EINVAL;
 	}
 
-	OBD_FREE(outstr, 256);
+	kfree(outstr);
 	return rc;
 }
 

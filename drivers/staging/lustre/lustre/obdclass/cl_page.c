@@ -270,7 +270,7 @@ static void cl_page_free(const struct lu_env *env, struct cl_page *page)
 	lu_object_ref_del_at(&obj->co_lu, &page->cp_obj_ref, "cl_page", page);
 	cl_object_put(env, obj);
 	lu_ref_fini(&page->cp_reference);
-	OBD_FREE(page, pagesize);
+	kfree(page);
 }
 
 /**

@@ -276,7 +276,7 @@ struct proc_dir_entry *lprocfs_add_symlink(const char *name,
 	if (parent == NULL || format == NULL)
 		return NULL;
 
-	OBD_ALLOC_WAIT(dest, MAX_STRING_SIZE + 1);
+	dest = kzalloc(MAX_STRING_SIZE + 1, GFP_KERNEL);
 	if (dest == NULL)
 		return NULL;
 
@@ -289,7 +289,7 @@ struct proc_dir_entry *lprocfs_add_symlink(const char *name,
 		CERROR("LprocFS: Could not create symbolic link from %s to %s",
 			name, dest);
 
-	OBD_FREE(dest, MAX_STRING_SIZE + 1);
+	kfree(dest);
 	return entry;
 }
 EXPORT_SYMBOL(lprocfs_add_symlink);
@@ -1006,7 +1006,7 @@ static void lprocfs_free_client_stats(struct nid_stat *client_stat)
 	if (client_stat->nid_ldlm_stats)
 		lprocfs_free_stats(&client_stat->nid_ldlm_stats);
 
-	OBD_FREE_PTR(client_stat);
+	kfree(client_stat);
 	return;
 
 }
@@ -1681,7 +1681,7 @@ int lprocfs_exp_setup(struct obd_export *exp, lnet_nid_t *nid, int *newnid)
 
 	CDEBUG(D_CONFIG, "using hash %p\n", obd->obd_nid_stats_hash);
 
-	OBD_ALLOC_PTR(new_stat);
+	new_stat = kzalloc(sizeof(*new_stat), GFP_NOFS);
 	if (new_stat == NULL)
 		return -ENOMEM;
 
@@ -1711,7 +1711,7 @@ int lprocfs_exp_setup(struct obd_export *exp, lnet_nid_t *nid, int *newnid)
 		goto destroy_new;
 	}
 	/* not found - create */
-	OBD_ALLOC(buffer, LNET_NIDSTR_SIZE);
+	buffer = kzalloc(LNET_NIDSTR_SIZE, GFP_NOFS);
 	if (buffer == NULL) {
 		rc = -ENOMEM;
 		goto destroy_new;
@@ -1721,7 +1721,7 @@ int lprocfs_exp_setup(struct obd_export *exp, lnet_nid_t *nid, int *newnid)
 	new_stat->nid_proc = lprocfs_register(buffer,
 					      obd->obd_proc_exports_entry,
 					      NULL, NULL);
-	OBD_FREE(buffer, LNET_NIDSTR_SIZE);
+	kfree(buffer);
 
 	if (IS_ERR(new_stat->nid_proc)) {
 		CERROR("Error making export directory for nid %s\n",
@@ -1763,7 +1763,7 @@ destroy_new_ns:
 
 destroy_new:
 	nidstat_putref(new_stat);
-	OBD_FREE_PTR(new_stat);
+	kfree(new_stat);
 	return rc;
 }
 EXPORT_SYMBOL(lprocfs_exp_setup);
