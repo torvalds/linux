@@ -45,20 +45,29 @@
 
 #define NUM_PFI_OUTPUT_SELECT_REGS 6
 
-/* Registers in the National Instruments DAQ-STC chip */
+/*
+ * Registers in the National Instruments DAQ-STC chip
+ */
 
-#define Interrupt_A_Ack_Register	2
-#define G0_Gate_Interrupt_Ack			_bit15
-#define G0_TC_Interrupt_Ack			_bit14
-#define AI_Error_Interrupt_Ack			_bit13
-#define AI_STOP_Interrupt_Ack			_bit12
-#define AI_START_Interrupt_Ack			_bit11
-#define AI_START2_Interrupt_Ack			_bit10
-#define AI_START1_Interrupt_Ack			_bit9
-#define AI_SC_TC_Interrupt_Ack			_bit8
-#define AI_SC_TC_Error_Confirm			_bit7
-#define G0_TC_Error_Confirm			_bit6
-#define G0_Gate_Error_Confirm			_bit5
+#define NISTC_INTA_ACK_REG		2
+#define NISTC_INTA_ACK_G0_GATE		BIT(15)
+#define NISTC_INTA_ACK_G0_TC		BIT(14)
+#define NISTC_INTA_ACK_AI_ERR		BIT(13)
+#define NISTC_INTA_ACK_AI_STOP		BIT(12)
+#define NISTC_INTA_ACK_AI_START		BIT(11)
+#define NISTC_INTA_ACK_AI_START2	BIT(10)
+#define NISTC_INTA_ACK_AI_START1	BIT(9)
+#define NISTC_INTA_ACK_AI_SC_TC		BIT(8)
+#define NISTC_INTA_ACK_AI_SC_TC_ERR	BIT(7)
+#define NISTC_INTA_ACK_G0_TC_ERR	BIT(6)
+#define NISTC_INTA_ACK_G0_GATE_ERR	BIT(5)
+#define NISTC_INTA_ACK_AI_ALL		(NISTC_INTA_ACK_AI_ERR |	\
+					 NISTC_INTA_ACK_AI_STOP |	\
+					 NISTC_INTA_ACK_AI_START |	\
+					 NISTC_INTA_ACK_AI_START2 |	\
+					 NISTC_INTA_ACK_AI_START1 |	\
+					 NISTC_INTA_ACK_AI_SC_TC |	\
+					 NISTC_INTA_ACK_AI_SC_TC_ERR)
 
 #define AI_Status_1_Register		2
 #define Interrupt_A_St				0x8000

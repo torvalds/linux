@@ -314,7 +314,7 @@ struct mio_regmap {
 };
 
 static const struct mio_regmap m_series_stc_write_regmap[] = {
-	[Interrupt_A_Ack_Register]	= { 0x104, 2 },
+	[NISTC_INTA_ACK_REG]		= { 0x104, 2 },
 	[Interrupt_B_Ack_Register]	= { 0x106, 2 },
 	[AI_Command_2_Register]		= { 0x108, 2 },
 	[AO_Command_2_Register]		= { 0x10a, 2 },
@@ -1340,16 +1340,15 @@ static void ack_a_interrupt(struct comedi_device *dev, unsigned short a_status)
 	unsigned short ack = 0;
 
 	if (a_status & AI_SC_TC_St)
-		ack |= AI_SC_TC_Interrupt_Ack;
+		ack |= NISTC_INTA_ACK_AI_SC_TC;
 	if (a_status & AI_START1_St)
-		ack |= AI_START1_Interrupt_Ack;
+		ack |= NISTC_INTA_ACK_AI_START1;
 	if (a_status & AI_START_St)
-		ack |= AI_START_Interrupt_Ack;
+		ack |= NISTC_INTA_ACK_AI_START;
 	if (a_status & AI_STOP_St)
-		/* not sure why we used to ack the START here also, instead of doing it independently. Frank Hess 2007-07-06 */
-		ack |= AI_STOP_Interrupt_Ack /*| AI_START_Interrupt_Ack */;
+		ack |= NISTC_INTA_ACK_AI_STOP;
 	if (ack)
-		ni_stc_writew(dev, ack, Interrupt_A_Ack_Register);
+		ni_stc_writew(dev, ack, NISTC_INTA_ACK_REG);
 }
 
 static void handle_a_interrupt(struct comedi_device *dev, unsigned short status,
@@ -1697,15 +1696,9 @@ static int ni_ai_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 	 *      AI_Personal_Register
 	 *      AI_Output_Control_Register
 	 */
-	ni_stc_writew(dev,
-		      AI_SC_TC_Error_Confirm |
-		      AI_START_Interrupt_Ack |
-		      AI_START2_Interrupt_Ack |
-		      AI_START1_Interrupt_Ack |
-		      AI_SC_TC_Interrupt_Ack |
-		      AI_Error_Interrupt_Ack |
-		      AI_STOP_Interrupt_Ack,
-		      Interrupt_A_Ack_Register);	/* clear interrupts */
+
+	/* clear interrupts */
+	ni_stc_writew(dev, NISTC_INTA_ACK_AI_ALL, NISTC_INTA_ACK_REG);
 
 	ni_stc_writew(dev, AI_Configuration_End, Joint_Reset_Register);
 
@@ -2506,15 +2499,7 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		}
 
 		/* clear interrupts */
-		ni_stc_writew(dev,
-			      AI_Error_Interrupt_Ack |
-			      AI_STOP_Interrupt_Ack |
-			      AI_START_Interrupt_Ack |
-			      AI_START2_Interrupt_Ack |
-			      AI_START1_Interrupt_Ack |
-			      AI_SC_TC_Interrupt_Ack |
-			      AI_SC_TC_Error_Confirm,
-			      Interrupt_A_Ack_Register);
+		ni_stc_writew(dev, NISTC_INTA_ACK_AI_ALL, NISTC_INTA_ACK_REG);
 
 		ni_set_bits(dev, Interrupt_A_Enable_Register,
 			    interrupt_a_enable, 1);
@@ -3763,7 +3748,7 @@ static const struct mio_regmap ni_gpct_to_stc_regmap[] = {
 	[NITIO_G1_DMA_STATUS]	= { 0x1ba, 2 },	/* M-Series only */
 	[NITIO_G0_ABZ]		= { 0x1c0, 2 },	/* M-Series only */
 	[NITIO_G1_ABZ]		= { 0x1c2, 2 },	/* M-Series only */
-	[NITIO_G0_INT_ACK]	= { Interrupt_A_Ack_Register, 2 },
+	[NITIO_G0_INT_ACK]	= { NISTC_INTA_ACK_REG, 2 },
 	[NITIO_G1_INT_ACK]	= { Interrupt_B_Ack_Register, 2 },
 	[NITIO_G0_STATUS]	= { AI_Status_1_Register, 2 },
 	[NITIO_G1_STATUS]	= { AO_Status_1_Register, 2 },
