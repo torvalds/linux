@@ -1227,8 +1227,8 @@ static int gfs2_mknod(struct inode *dir, struct dentry *dentry, umode_t mode,
  */
 
 static int gfs2_atomic_open(struct inode *dir, struct dentry *dentry,
-                            struct file *file, unsigned flags,
-                            umode_t mode, int *opened)
+			    struct file *file, unsigned flags,
+			    umode_t mode, int *opened)
 {
 	struct dentry *d;
 	bool excl = !!(flags & O_EXCL);
