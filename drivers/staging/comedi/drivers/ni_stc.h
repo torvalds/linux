@@ -623,17 +623,13 @@ static inline unsigned GPCT_DMA_Select_Mask(unsigned gpct_index)
 #define NI_E_AI_CFG_LO_UNI		BIT(8)
 #define NI_E_AI_CFG_LO_GAIN(x)		((x) << 0)
 
-#define Configuration_Memory_High	0x12
-enum Configuration_Memory_High_Bits {
-	AI_AC_COUPLE = 0x800,
-	AI_DIFFERENTIAL = 0x1000,
-	AI_COMMON = 0x2000,
-	AI_GROUND = 0x3000,
-};
-static inline unsigned int AI_CONFIG_CHANNEL(unsigned int channel)
-{
-	return channel & 0x3f;
-}
+#define NI_E_AI_CFG_HI_REG		0x12	/* w16 */
+#define NI_E_AI_CFG_HI_TYPE(x)		(((x) & 0x7) << 12)
+#define NI_E_AI_CFG_HI_TYPE_DIFF	NI_E_AI_CFG_HI_TYPE(1)
+#define NI_E_AI_CFG_HI_TYPE_COMMON	NI_E_AI_CFG_HI_TYPE(2)
+#define NI_E_AI_CFG_HI_TYPE_GROUND	NI_E_AI_CFG_HI_TYPE(3)
+#define NI_E_AI_CFG_HI_AC_COUPLE	BIT(11)
+#define NI_E_AI_CFG_HI_CHAN(x)		(((x) & 0x3f) << 0)
 
 #define NI_E_8255_BASE			0x19	/* rw8 */
 

@@ -1885,21 +1885,21 @@ static void ni_load_channelgain_list(struct comedi_device *dev,
 				aref = AREF_OTHER;
 			switch (aref) {
 			case AREF_DIFF:
-				hi |= AI_DIFFERENTIAL;
+				hi |= NI_E_AI_CFG_HI_TYPE_DIFF;
 				break;
 			case AREF_COMMON:
-				hi |= AI_COMMON;
+				hi |= NI_E_AI_CFG_HI_TYPE_COMMON;
 				break;
 			case AREF_GROUND:
-				hi |= AI_GROUND;
+				hi |= NI_E_AI_CFG_HI_TYPE_GROUND;
 				break;
 			case AREF_OTHER:
 				break;
 			}
 		}
-		hi |= AI_CONFIG_CHANNEL(chan);
+		hi |= NI_E_AI_CFG_HI_CHAN(chan);
 
-		ni_writew(dev, hi, Configuration_Memory_High);
+		ni_writew(dev, hi, NI_E_AI_CFG_HI_REG);
 
 		if (!devpriv->is_6143) {
 			lo = NI_E_AI_CFG_LO_GAIN(range);
