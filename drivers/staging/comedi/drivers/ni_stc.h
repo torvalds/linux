@@ -405,6 +405,7 @@
 					 NISTC_INTA_ENA_AI_SC_TC)
 
 #define NISTC_INTB_ENA_REG		75
+#define NISTC_INTB2_ENA_REG		76
 #define NISTC_INTB_ENA_PASSTHRU1	BIT(11)
 #define NISTC_INTB_ENA_G1_GATE		BIT(10)
 #define NISTC_INTB_ENA_G1_TC		BIT(9)
@@ -475,22 +476,6 @@ enum Joint_Status_2_Bits {
 #define AO_UI_Save_Registers		16
 #define AO_BC_Save_Registers		18
 #define AO_UC_Save_Registers		20
-
-#define Second_IRQ_B_Enable_Register	76
-enum Second_IRQ_B_Enable_Bits {
-	AO_BC_TC_Second_Irq_Enable = _bit0,
-	AO_START1_Second_Irq_Enable = _bit1,
-	AO_UPDATE_Second_Irq_Enable = _bit2,
-	AO_START_Second_Irq_Enable = _bit3,
-	AO_STOP_Second_Irq_Enable = _bit4,
-	AO_Error_Second_Irq_Enable = _bit5,
-	AO_UC_TC_Second_Irq_Enable = _bit6,
-	AO_UI2_TC_Second_Irq_Enable = _bit7,
-	AO_FIFO_Second_Irq_Enable = _bit8,
-	G1_TC_Second_Irq_Enable = _bit9,
-	G1_Gate_Second_Irq_Enable = _bit10,
-	Pass_Thru_1_Second_Irq_Enable = _bit11
-};
 
 #define AI_Personal_Register		77
 #define AI_SHIFTIN_Pulse_Width			_bit15

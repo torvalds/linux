@@ -369,7 +369,7 @@ static const struct mio_regmap m_series_stc_write_regmap[] = {
 	[NISTC_INTA_ENA_REG]		= { 0x192, 2 },
 	[NISTC_INTA2_ENA_REG]		= { 0, 0 }, /* E-Series only */
 	[NISTC_INTB_ENA_REG]		= { 0x196, 2 },
-	[Second_IRQ_B_Enable_Register]	= { 0, 0 }, /* E-Series only */
+	[NISTC_INTB2_ENA_REG]		= { 0, 0 }, /* E-Series only */
 	[AI_Personal_Register]		= { 0x19a, 2 },
 	[AO_Personal_Register]		= { 0x19c, 2 },
 	[RTSI_Trig_A_Output_Register]	= { 0x19e, 2 },
@@ -822,9 +822,9 @@ static void ni_e_series_enable_second_irq(struct comedi_device *dev,
 		if (enable)
 			val = NISTC_INTA_ENA_G0_GATE;
 	} else {
-		reg = Second_IRQ_B_Enable_Register;
+		reg = NISTC_INTB2_ENA_REG;
 		if (enable)
-			val = G1_Gate_Second_Irq_Enable;
+			val = NISTC_INTB_ENA_G1_GATE;
 	}
 	ni_stc_writew(dev, val, reg);
 }
