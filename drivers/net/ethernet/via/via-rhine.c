@@ -1993,6 +1993,18 @@ static inline u16 rhine_get_vlan_tci(struct sk_buff *skb, int data_size)
 	return be16_to_cpup((__be16 *)trailer);
 }
 
+static inline void rhine_rx_vlan_tag(struct sk_buff *skb, struct rx_desc *desc,
+				     int data_size)
+{
+	dma_rmb();
+	if (unlikely(desc->desc_length & cpu_to_le32(DescTag))) {
+		u16 vlan_tci;
+
+		vlan_tci = rhine_get_vlan_tci(skb, data_size);
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan_tci);
+	}
+}
+
 /* Process up to limit frames from receive ring */
 static int rhine_rx(struct net_device *dev, int limit)
 {
@@ -2008,7 +2020,6 @@ static int rhine_rx(struct net_device *dev, int limit)
 	for (count = 0; count < limit; ++count) {
 		struct rx_desc *desc = rp->rx_ring + entry;
 		u32 desc_status = le32_to_cpu(desc->rx_status);
-		u32 desc_length = le32_to_cpu(desc->desc_length);
 		int data_size = desc_status >> 16;
 
 		if (desc_status & DescOwn)
@@ -2048,7 +2059,6 @@ static int rhine_rx(struct net_device *dev, int limit)
 			/* Length should omit the CRC */
 			int pkt_len = data_size - 4;
 			struct sk_buff *skb;
-			u16 vlan_tci = 0;
 
 			/* Check if the packet is long enough to accept without
 			   copying to a minimally-sized skbuff. */
@@ -2086,14 +2096,10 @@ static int rhine_rx(struct net_device *dev, int limit)
 			}
 
 			skb_put(skb, pkt_len);
-
-			if (unlikely(desc_length & DescTag))
-				vlan_tci = rhine_get_vlan_tci(skb, data_size);
-
 			skb->protocol = eth_type_trans(skb, dev);
 
-			if (unlikely(desc_length & DescTag))
-				__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan_tci);
+			rhine_rx_vlan_tag(skb, desc, data_size);
+
 			netif_receive_skb(skb);
 
 			u64_stats_update_begin(&rp->rx_stats.syncp);
