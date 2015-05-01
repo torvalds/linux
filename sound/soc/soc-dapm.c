@@ -308,6 +308,8 @@ static int dapm_kcontrol_data_alloc(struct snd_soc_dapm_widget *widget,
 {
 	struct dapm_kcontrol_data *data;
 	struct soc_mixer_control *mc;
+	const char *name;
+	int ret;
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
@@ -324,6 +326,13 @@ static int dapm_kcontrol_data_alloc(struct snd_soc_dapm_widget *widget,
 		if (mc->autodisable) {
 			struct snd_soc_dapm_widget template;
 
+			name = kasprintf(GFP_KERNEL, "%s %s", kcontrol->id.name,
+					 "Autodisable");
+			if (!name) {
+				ret = -ENOMEM;
+				goto err_data;
+			}
+
 			memset(&template, 0, sizeof(template));
 			template.reg = mc->reg;
 			template.mask = (1 << fls(mc->max)) - 1;
@@ -334,15 +343,15 @@ static int dapm_kcontrol_data_alloc(struct snd_soc_dapm_widget *widget,
 				template.off_val = 0;
 			template.on_val = template.off_val;
 			template.id = snd_soc_dapm_kcontrol;
-			template.name = kcontrol->id.name;
+			template.name = name;
 
 			data->value = template.on_val;
 
 			data->widget = snd_soc_dapm_new_control(widget->dapm,
 				&template);
 			if (!data->widget) {
-				kfree(data);
-				return -ENOMEM;
+				ret = -ENOMEM;
+				goto err_name;
 			}
 		}
 		break;
@@ -353,11 +362,19 @@ static int dapm_kcontrol_data_alloc(struct snd_soc_dapm_widget *widget,
 	kcontrol->private_data = data;
 
 	return 0;
+
+err_name:
+	kfree(name);
+err_data:
+	kfree(data);
+	return ret;
 }
 
 static void dapm_kcontrol_free(struct snd_kcontrol *kctl)
 {
 	struct dapm_kcontrol_data *data = snd_kcontrol_chip(kctl);
+	if (data->widget)
+		kfree(data->widget->name);
 	kfree(data->wlist);
 	kfree(data);
 }
