@@ -362,7 +362,7 @@ static int hid_press_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_device_id hid_press_ids[] = {
+static const struct platform_device_id hid_press_ids[] = {
 	{
 		/* Format: HID-SENSOR-usage_id_in_hex_lowercase */
 		.name = "HID-SENSOR-200031",
