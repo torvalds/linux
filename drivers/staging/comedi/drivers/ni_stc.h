@@ -650,32 +650,27 @@
 #define NI6143_RELEASE_DATE_REG		0x54	/* w32 */
 #define NI6143_RELEASE_OLDEST_DATE_REG	0x58	/* w32 */
 
-/* 671x, 611x registers */
-
-/* 671xi, 611x windowed ao registers */
-enum windowed_regs_67xx_61xx {
-	AO_Immediate_671x = 0x11,	/* W 16 */
-	AO_Timed_611x = 0x10,	/* W 16 */
-	AO_FIFO_Offset_Load_611x = 0x13,	/* W32 */
-	AO_Later_Single_Point_Updates = 0x14,	/* W 16 */
-	AO_Waveform_Generation_611x = 0x15,	/* W 16 */
-	AO_Misc_611x = 0x16,	/* W 16 */
-	AO_Calibration_Channel_Select_67xx = 0x17,	/* W 16 */
-	AO_Configuration_2_67xx = 0x18,	/* W 16 */
-	CAL_ADC_Command_67xx = 0x19,	/* W 8 */
-	CAL_ADC_Status_67xx = 0x1a,	/* R 8 */
-	CAL_ADC_Data_67xx = 0x1b,	/* R 16 */
-	CAL_ADC_Config_Data_High_Word_67xx = 0x1c,	/* RW 16 */
-	CAL_ADC_Config_Data_Low_Word_67xx = 0x1d,	/* RW 16 */
-};
-static inline unsigned int DACx_Direct_Data_671x(int channel)
-{
-	return channel;
-}
-
-enum AO_Misc_611x_Bits {
-	CLEAR_WG = 1,
-};
+/*
+ * 671x, 611x windowed ao registers
+ */
+#define NI671X_DAC_DIRECT_DATA_REG(x)	(0x00 + (x))	/* w16 */
+#define NI611X_AO_TIMED_REG		0x10	/* w16 */
+#define NI671X_AO_IMMEDIATE_REG		0x11	/* w16 */
+#define NI611X_AO_FIFO_OFFSET_LOAD_REG	0x13	/* w32 */
+#define NI67XX_AO_SP_UPDATES_REG	0x14	/* w16 */
+#define NI611X_AO_WAVEFORM_GEN_REG	0x15	/* w16 */
+#define NI611X_AO_MISC_REG		0x16	/* w16 */
+#define NI611X_AO_MISC_CLEAR_WG		BIT(0)
+#define NI67XX_AO_CAL_CHAN_SEL_REG	0x17	/* w16 */
+#define NI67XX_AO_CFG2_REG		0x18	/* w16 */
+#define NI67XX_CAL_CMD_REG		0x19	/* w16 */
+#define NI67XX_CAL_STATUS_REG		0x1a	/* r8 */
+#define NI67XX_CAL_STATUS_BUSY		BIT(0)
+#define NI67XX_CAL_STATUS_OSC_DETECT	BIT(1)
+#define NI67XX_CAL_STATUS_OVERRANGE	BIT(2)
+#define NI67XX_CAL_DATA_REG		0x1b	/* r16 */
+#define NI67XX_CAL_CFG_HI_REG		0x1c	/* rw16 */
+#define NI67XX_CAL_CFG_LO_REG		0x1d	/* rw16 */
 
 #define CS5529_CMD_CB			BIT(7)
 #define CS5529_CMD_SINGLE_CONV		BIT(6)
@@ -717,12 +712,6 @@ enum AO_Misc_611x_Bits {
 #define CS5529_CFG_CALIB_BOTH_SELF	CS5529_CFG_CALIB(3)
 #define CS5529_CFG_CALIB_OFFSET_SYS	CS5529_CFG_CALIB(5)
 #define CS5529_CFG_CALIB_GAIN_SYS	CS5529_CFG_CALIB(6)
-
-enum cs5529_status_bits {
-	CSS_ADC_BUSY = 0x1,
-	CSS_OSC_DETECT = 0x2,	/* indicates adc error */
-	CSS_OVERRANGE = 0x4,
-};
 
 /*
 	This is stuff unique to the NI E series drivers,

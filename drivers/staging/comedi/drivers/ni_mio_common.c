@@ -1091,7 +1091,7 @@ static int ni_ao_prep_fifo(struct comedi_device *dev,
 	/* reset fifo */
 	ni_stc_writew(dev, 1, NISTC_DAC_FIFO_CLR_REG);
 	if (devpriv->is_6xxx)
-		ni_ao_win_outl(dev, 0x6, AO_FIFO_Offset_Load_611x);
+		ni_ao_win_outl(dev, 0x6, NI611X_AO_FIFO_OFFSET_LOAD_REG);
 
 	/* load some data */
 	nbytes = comedi_buf_read_n_available(s);
@@ -2736,9 +2736,9 @@ static int ni_ao_insn_write(struct comedi_device *dev,
 	int i;
 
 	if (devpriv->is_6xxx) {
-		ni_ao_win_outw(dev, 1 << chan, AO_Immediate_671x);
+		ni_ao_win_outw(dev, 1 << chan, NI671X_AO_IMMEDIATE_REG);
 
-		reg = DACx_Direct_Data_671x(chan);
+		reg = NI671X_DAC_DIRECT_DATA_REG(chan);
 	} else if (devpriv->is_m_series) {
 		reg = NI_M_DAC_DIRECT_DATA_REG(chan);
 	} else {
@@ -2838,7 +2838,7 @@ static int ni_ao_inttrig(struct comedi_device *dev,
 #ifdef PCIDMA
 	ni_stc_writew(dev, 1, NISTC_DAC_FIFO_CLR_REG);
 	if (devpriv->is_6xxx)
-		ni_ao_win_outl(dev, 0x6, AO_FIFO_Offset_Load_611x);
+		ni_ao_win_outl(dev, 0x6, NI611X_AO_FIFO_OFFSET_LOAD_REG);
 	ret = ni_ao_setup_MITE_dma(dev);
 	if (ret)
 		return ret;
@@ -2910,7 +2910,8 @@ static int ni_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	ni_stc_writew(dev, NISTC_AO_CMD1_DISARM, NISTC_AO_CMD1_REG);
 
 	if (devpriv->is_6xxx) {
-		ni_ao_win_outw(dev, CLEAR_WG, AO_Misc_611x);
+		ni_ao_win_outw(dev, NI611X_AO_MISC_CLEAR_WG,
+			       NI611X_AO_MISC_REG);
 
 		bits = 0;
 		for (i = 0; i < cmd->chanlist_len; i++) {
@@ -2918,9 +2919,9 @@ static int ni_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 			chan = CR_CHAN(cmd->chanlist[i]);
 			bits |= 1 << chan;
-			ni_ao_win_outw(dev, chan, AO_Waveform_Generation_611x);
+			ni_ao_win_outw(dev, chan, NI611X_AO_WAVEFORM_GEN_REG);
 		}
-		ni_ao_win_outw(dev, bits, AO_Timed_611x);
+		ni_ao_win_outw(dev, bits, NI611X_AO_TIMED_REG);
 	}
 
 	ni_ao_config_chanlist(dev, s, cmd->chanlist, cmd->chanlist_len, 1);
@@ -3227,8 +3228,9 @@ static int ni_ao_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 
 		for (i = 0; i < s->n_chan; ++i)
 			immediate_bits |= 1 << i;
-		ni_ao_win_outw(dev, immediate_bits, AO_Immediate_671x);
-		ni_ao_win_outw(dev, CLEAR_WG, AO_Misc_611x);
+		ni_ao_win_outw(dev, immediate_bits, NI671X_AO_IMMEDIATE_REG);
+		ni_ao_win_outw(dev, NI611X_AO_MISC_CLEAR_WG,
+			       NI611X_AO_MISC_REG);
 	}
 	ni_stc_writew(dev, NISTC_RESET_AO_CFG_END, NISTC_RESET_REG);
 
@@ -3708,9 +3710,9 @@ static void init_ao_67xx(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	for (i = 0; i < s->n_chan; i++) {
 		ni_ao_win_outw(dev, NI_E_AO_DACSEL(i) | 0x0,
-			       AO_Configuration_2_67xx);
+			       NI67XX_AO_CFG2_REG);
 	}
-	ni_ao_win_outw(dev, 0x0, AO_Later_Single_Point_Updates);
+	ni_ao_win_outw(dev, 0x0, NI67XX_AO_SP_UPDATES_REG);
 }
 
 static const struct mio_regmap ni_gpct_to_stc_regmap[] = {
@@ -4472,8 +4474,8 @@ static int cs5529_wait_for_idle(struct comedi_device *dev)
 	int i;
 
 	for (i = 0; i < timeout; i++) {
-		status = ni_ao_win_inw(dev, CAL_ADC_Status_67xx);
-		if ((status & CSS_ADC_BUSY) == 0)
+		status = ni_ao_win_inw(dev, NI67XX_CAL_STATUS_REG);
+		if ((status & NI67XX_CAL_STATUS_BUSY) == 0)
 			break;
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (schedule_timeout(1))
@@ -4491,13 +4493,14 @@ static void cs5529_command(struct comedi_device *dev, unsigned short value)
 	static const int timeout = 100;
 	int i;
 
-	ni_ao_win_outw(dev, value, CAL_ADC_Command_67xx);
+	ni_ao_win_outw(dev, value, NI67XX_CAL_CMD_REG);
 	/* give time for command to start being serially clocked into cs5529.
-	 * this insures that the CSS_ADC_BUSY bit will get properly
+	 * this insures that the NI67XX_CAL_STATUS_BUSY bit will get properly
 	 * set before we exit this function.
 	 */
 	for (i = 0; i < timeout; i++) {
-		if ((ni_ao_win_inw(dev, CAL_ADC_Status_67xx) & CSS_ADC_BUSY))
+		if (ni_ao_win_inw(dev, NI67XX_CAL_STATUS_REG) &
+		    NI67XX_CAL_STATUS_BUSY)
 			break;
 		udelay(1);
 	}
@@ -4519,18 +4522,18 @@ static int cs5529_do_conversion(struct comedi_device *dev,
 			"timeout or signal in cs5529_do_conversion()\n");
 		return -ETIME;
 	}
-	status = ni_ao_win_inw(dev, CAL_ADC_Status_67xx);
-	if (status & CSS_OSC_DETECT) {
+	status = ni_ao_win_inw(dev, NI67XX_CAL_STATUS_REG);
+	if (status & NI67XX_CAL_STATUS_OSC_DETECT) {
 		dev_err(dev->class_dev,
 			"cs5529 conversion error, status CSS_OSC_DETECT\n");
 		return -EIO;
 	}
-	if (status & CSS_OVERRANGE) {
+	if (status & NI67XX_CAL_STATUS_OVERRANGE) {
 		dev_err(dev->class_dev,
 			"cs5529 conversion error, overrange (ignoring)\n");
 	}
 	if (data) {
-		*data = ni_ao_win_inw(dev, CAL_ADC_Data_67xx);
+		*data = ni_ao_win_inw(dev, NI67XX_CAL_DATA_REG);
 		/* cs5529 returns 16 bit signed data in bipolar mode */
 		*data ^= (1 << 15);
 	}
@@ -4554,7 +4557,7 @@ static int cs5529_ai_insn_read(struct comedi_device *dev,
 		channel_select = INTERNAL_REF;
 	else
 		channel_select = CR_CHAN(insn->chanspec);
-	ni_ao_win_outw(dev, channel_select, AO_Calibration_Channel_Select_67xx);
+	ni_ao_win_outw(dev, channel_select, NI67XX_AO_CAL_CHAN_SEL_REG);
 
 	for (n = 0; n < insn->n; n++) {
 		retval = cs5529_do_conversion(dev, &sample);
@@ -4568,10 +4571,8 @@ static int cs5529_ai_insn_read(struct comedi_device *dev,
 static void cs5529_config_write(struct comedi_device *dev, unsigned int value,
 				unsigned int reg_select_bits)
 {
-	ni_ao_win_outw(dev, ((value >> 16) & 0xff),
-		       CAL_ADC_Config_Data_High_Word_67xx);
-	ni_ao_win_outw(dev, (value & 0xffff),
-		       CAL_ADC_Config_Data_Low_Word_67xx);
+	ni_ao_win_outw(dev, (value >> 16) & 0xff, NI67XX_CAL_CFG_HI_REG);
+	ni_ao_win_outw(dev, value & 0xffff, NI67XX_CAL_CFG_LO_REG);
 	reg_select_bits &= CS5529_CMD_REG_MASK;
 	cs5529_command(dev, CS5529_CMD_CB | reg_select_bits);
 	if (cs5529_wait_for_idle(dev))
