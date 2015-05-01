@@ -1857,9 +1857,8 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 		}
 
 		/* we are expecting IN packets */
-#if defined(CONFIG_USB_INVENTRA_DMA) || defined(CONFIG_USB_UX500_DMA) || \
-	defined(CONFIG_USB_TI_CPPI41_DMA)
-		if (dma) {
+		if ((musb_dma_inventra(musb) || musb_dma_ux500(musb) ||
+		    musb_dma_cppi41(musb)) && dma) {
 			struct dma_controller	*c;
 			u16			rx_count;
 			int			ret, length;
@@ -1976,7 +1975,6 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 				musb_writew(epio, MUSB_RXCSR, val);
 			}
 		}
-#endif	/* Mentor DMA */
 
 		if (!dma) {
 			unsigned int received_len;
