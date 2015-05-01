@@ -436,6 +436,14 @@ static int dup_array(u64 **dst, __le64 *src, u32 num)
 	return 0;
 }
 
+static bool has_new_snaps(struct ceph_snap_context *o,
+			  struct ceph_snap_context *n)
+{
+	if (n->num_snaps == 0)
+		return false;
+	/* snaps are in descending order */
+	return n->snaps[0] > o->seq;
+}
 
 /*
  * When a snapshot is applied, the size/mtime inode metadata is queued
@@ -455,7 +463,7 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 {
 	struct inode *inode = &ci->vfs_inode;
 	struct ceph_cap_snap *capsnap;
-	struct ceph_snap_context *old_snapc;
+	struct ceph_snap_context *old_snapc, *new_snapc;
 	int used, dirty;
 
 	capsnap = kzalloc(sizeof(*capsnap), GFP_NOFS);
@@ -469,6 +477,7 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 	dirty = __ceph_caps_dirty(ci);
 
 	old_snapc = ci->i_head_snapc;
+	new_snapc = ci->i_snap_realm->cached_context;
 
 	/*
 	 * If there is a write in progress, treat that as a dirty Fw,
@@ -486,20 +495,37 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 		dout("queue_cap_snap %p already pending\n", inode);
 		goto update_snapc;
 	}
-	if (ci->i_snap_realm->cached_context == ceph_empty_snapc) {
-		dout("queue_cap_snap %p empty snapc\n", inode);
-		goto update_snapc;
-	}
-	if (!(dirty & (CEPH_CAP_AUTH_EXCL|CEPH_CAP_XATTR_EXCL|
-		       CEPH_CAP_FILE_EXCL|CEPH_CAP_FILE_WR))) {
+	if (ci->i_wrbuffer_ref_head == 0 &&
+	    !(dirty & (CEPH_CAP_ANY_EXCL|CEPH_CAP_FILE_WR))) {
 		dout("queue_cap_snap %p nothing dirty|writing\n", inode);
 		goto update_snapc;
 	}
 
 	BUG_ON(!old_snapc);
 
-	dout("queue_cap_snap %p cap_snap %p queuing under %p %s\n",
-	     inode, capsnap, old_snapc, ceph_cap_string(dirty));
+	/*
+	 * There is no need to send FLUSHSNAP message to MDS if there is
+	 * no new snapshot. But when there is dirty pages or on-going
+	 * writes, we still need to create cap_snap. cap_snap is needed
+	 * by the write path and page writeback path.
+	 *
+	 * also see ceph_try_drop_cap_snap()
+	 */
+	if (has_new_snaps(old_snapc, new_snapc)) {
+		if (dirty & (CEPH_CAP_ANY_EXCL|CEPH_CAP_FILE_WR))
+			capsnap->need_flush = true;
+	} else {
+		if (!(used & CEPH_CAP_FILE_WR) &&
+		    ci->i_wrbuffer_ref_head == 0) {
+			dout("queue_cap_snap %p "
+			     "no new_snap|dirty_page|writing\n", inode);
+			goto update_snapc;
+		}
+	}
+
+	dout("queue_cap_snap %p cap_snap %p queuing under %p %s %s\n",
+	     inode, capsnap, old_snapc, ceph_cap_string(dirty),
+	     capsnap->need_flush ? "" : "no_flush");
 	ihold(inode);
 
 	atomic_set(&capsnap->nref, 1);
@@ -549,9 +575,8 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 
 update_snapc:
 	if (ci->i_head_snapc) {
-		ci->i_head_snapc = ceph_get_snap_context(
-				ci->i_snap_realm->cached_context);
-		dout(" new snapc is %p\n", ci->i_head_snapc);
+		ci->i_head_snapc = ceph_get_snap_context(new_snapc);
+		dout(" new snapc is %p\n", new_snapc);
 	}
 	spin_unlock(&ci->i_ceph_lock);
 

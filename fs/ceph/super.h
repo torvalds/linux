@@ -164,6 +164,7 @@ struct ceph_cap_snap {
 	int writing;   /* a sync write is still in progress */
 	int dirty_pages;     /* dirty pages awaiting writeback */
 	bool inline_data;
+	bool need_flush;
 };
 
 static inline void ceph_put_cap_snap(struct ceph_cap_snap *capsnap)
@@ -719,8 +720,8 @@ extern void ceph_snap_exit(void);
 static inline bool __ceph_have_pending_cap_snap(struct ceph_inode_info *ci)
 {
 	return !list_empty(&ci->i_cap_snaps) &&
-		list_entry(ci->i_cap_snaps.prev, struct ceph_cap_snap,
-			   ci_item)->writing;
+	       list_last_entry(&ci->i_cap_snaps, struct ceph_cap_snap,
+			       ci_item)->writing;
 }
 
 /* inode.c */
