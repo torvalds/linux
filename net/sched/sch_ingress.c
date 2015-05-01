@@ -65,11 +65,11 @@ static int ingress_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 
 	result = tc_classify(skb, fl, &res);
 
-	qdisc_bstats_update(sch, skb);
+	qdisc_bstats_update_cpu(sch, skb);
 	switch (result) {
 	case TC_ACT_SHOT:
 		result = TC_ACT_SHOT;
-		qdisc_qstats_drop(sch);
+		qdisc_qstats_drop_cpu(sch);
 		break;
 	case TC_ACT_STOLEN:
 	case TC_ACT_QUEUED:
@@ -91,6 +91,7 @@ static int ingress_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 static int ingress_init(struct Qdisc *sch, struct nlattr *opt)
 {
 	net_inc_ingress_queue();
+	sch->flags |= TCQ_F_CPUSTATS;
 
 	return 0;
 }
