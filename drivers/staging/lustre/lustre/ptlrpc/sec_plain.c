@@ -384,8 +384,7 @@ struct ptlrpc_cli_ctx *plain_sec_install_ctx(struct plain_sec *plsec)
 	if (ctx) {
 		atomic_inc(&ctx->cc_refcount);
 
-		if (ctx_new)
-			kfree(ctx_new);
+		kfree(ctx_new);
 	} else if (ctx_new) {
 		ctx = ctx_new;
 
