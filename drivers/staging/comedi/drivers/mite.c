@@ -624,5 +624,5 @@ module_init(mite_module_init);
 module_exit(mite_module_exit);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
-MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_DESCRIPTION("Comedi helper for NI Mite PCI interface chip");
 MODULE_LICENSE("GPL");
