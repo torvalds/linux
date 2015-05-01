@@ -96,7 +96,7 @@ struct hdmi_device {
 	struct hdmi_resources res;
 };
 
-static struct platform_device_id hdmi_driver_types[] = {
+static const struct platform_device_id hdmi_driver_types[] = {
 	{
 		.name		= "s5pv210-hdmi",
 	}, {

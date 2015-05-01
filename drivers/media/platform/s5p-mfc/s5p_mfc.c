@@ -1461,7 +1461,7 @@ static struct s5p_mfc_variant mfc_drvdata_v8 = {
 	.fw_name[0]     = "s5p-mfc-v8.fw",
 };
 
-static struct platform_device_id mfc_driver_ids[] = {
+static const struct platform_device_id mfc_driver_ids[] = {
 	{
 		.name = "s5p-mfc",
 		.driver_data = (unsigned long)&mfc_drvdata_v5,
