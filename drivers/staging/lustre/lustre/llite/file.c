@@ -2109,8 +2109,7 @@ putgl:
 	}
 
 free:
-	if (llss != NULL)
-		kfree(llss);
+	kfree(llss);
 
 	return rc;
 }
@@ -2152,22 +2151,20 @@ static int ll_hsm_import(struct inode *inode, struct file *file,
 
 	/* set HSM flags */
 	hss = kzalloc(sizeof(*hss), GFP_NOFS);
-	if (!hss) {
-		rc = -ENOMEM;
-		goto out;
-	}
+	if (!hss)
+		return -ENOMEM;
 
 	hss->hss_valid = HSS_SETMASK | HSS_ARCHIVE_ID;
 	hss->hss_archive_id = hui->hui_archive_id;
 	hss->hss_setmask = HS_ARCHIVED | HS_EXISTS | HS_RELEASED;
 	rc = ll_hsm_state_set(inode, hss);
 	if (rc != 0)
-		goto out;
+		goto free_hss;
 
 	attr = kzalloc(sizeof(*attr), GFP_NOFS);
 	if (!attr) {
 		rc = -ENOMEM;
-		goto out;
+		goto free_hss;
 	}
 
 	attr->ia_mode = hui->hui_mode & (S_IRWXU | S_IRWXG | S_IRWXO);
@@ -2193,13 +2190,9 @@ static int ll_hsm_import(struct inode *inode, struct file *file,
 
 	mutex_unlock(&inode->i_mutex);
 
-out:
-	if (hss != NULL)
-		kfree(hss);
-
-	if (attr != NULL)
-		kfree(attr);
-
+	kfree(attr);
+free_hss:
+	kfree(hss);
 	return rc;
 }
 
