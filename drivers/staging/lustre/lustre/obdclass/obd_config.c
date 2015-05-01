@@ -869,7 +869,7 @@ int class_add_profile(int proflen, char *prof, int osclen, char *osc,
 	lprof->lp_profile = kzalloc(proflen, GFP_NOFS);
 	if (lprof->lp_profile == NULL) {
 		err = -ENOMEM;
-		goto out;
+		goto free_lprof;
 	}
 	memcpy(lprof->lp_profile, prof, proflen);
 
@@ -877,7 +877,7 @@ int class_add_profile(int proflen, char *prof, int osclen, char *osc,
 	lprof->lp_dt = kzalloc(osclen, GFP_NOFS);
 	if (lprof->lp_dt == NULL) {
 		err = -ENOMEM;
-		goto out;
+		goto free_lp_profile;
 	}
 	memcpy(lprof->lp_dt, osc, osclen);
 
@@ -886,7 +886,7 @@ int class_add_profile(int proflen, char *prof, int osclen, char *osc,
 		lprof->lp_md = kzalloc(mdclen, GFP_NOFS);
 		if (lprof->lp_md == NULL) {
 			err = -ENOMEM;
-			goto out;
+			goto free_lp_dt;
 		}
 		memcpy(lprof->lp_md, mdc, mdclen);
 	}
@@ -894,13 +894,11 @@ int class_add_profile(int proflen, char *prof, int osclen, char *osc,
 	list_add(&lprof->lp_list, &lustre_profile_list);
 	return err;
 
-out:
-	if (lprof->lp_md)
-		kfree(lprof->lp_md);
-	if (lprof->lp_dt)
-		kfree(lprof->lp_dt);
-	if (lprof->lp_profile)
-		kfree(lprof->lp_profile);
+free_lp_dt:
+	kfree(lprof->lp_dt);
+free_lp_profile:
+	kfree(lprof->lp_profile);
+free_lprof:
 	kfree(lprof);
 	return err;
 }
@@ -916,8 +914,7 @@ void class_del_profile(const char *prof)
 		list_del(&lprof->lp_list);
 		kfree(lprof->lp_profile);
 		kfree(lprof->lp_dt);
-		if (lprof->lp_md)
-			kfree(lprof->lp_md);
+		kfree(lprof->lp_md);
 		kfree(lprof);
 	}
 }
@@ -932,8 +929,7 @@ void class_del_profiles(void)
 		list_del(&lprof->lp_list);
 		kfree(lprof->lp_profile);
 		kfree(lprof->lp_dt);
-		if (lprof->lp_md)
-			kfree(lprof->lp_md);
+		kfree(lprof->lp_md);
 		kfree(lprof);
 	}
 }
