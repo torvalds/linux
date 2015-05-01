@@ -140,7 +140,7 @@ static const struct regulator_desc max77843_supported_regulators[] = {
 		.type		= REGULATOR_CURRENT,
 		.owner		= THIS_MODULE,
 		.enable_reg	= MAX77843_CHG_REG_CHG_CNFG_00,
-		.enable_mask	= MAX77843_CHG_MASK,
+		.enable_mask	= MAX77843_CHG_MASK | MAX77843_CHG_BUCK_MASK,
 	},
 };
 
