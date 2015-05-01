@@ -920,109 +920,58 @@ enum ni_reg_type {
 
 static const struct comedi_lrange range_ni_E_ao_ext;
 
-enum m_series_register_offsets {
-	M_Offset_CDIO_DMA_Select = 0x7,	/*  write */
-	M_Offset_SCXI_Status = 0x7,	/*  read */
-	M_Offset_AI_AO_Select = 0x9,	/*  write, same offset as e-series */
-	M_Offset_G0_G1_Select = 0xb,	/*  write, same offset as e-series */
-	M_Offset_Misc_Command = 0xf,
-	M_Offset_SCXI_Serial_Data_Out = 0x11,
-	M_Offset_SCXI_Control = 0x13,
-	M_Offset_SCXI_Output_Enable = 0x15,
-	M_Offset_AI_FIFO_Data = 0x1c,
-	M_Offset_Static_Digital_Output = 0x24,	/*  write */
-	M_Offset_Static_Digital_Input = 0x24,	/*  read */
-	M_Offset_DIO_Direction = 0x28,
-	M_Offset_Cal_PWM = 0x40,
-	M_Offset_AI_Config_FIFO_Data = 0x5e,
-	M_Offset_Interrupt_C_Enable = 0x88,	/*  write */
-	M_Offset_Interrupt_C_Status = 0x88,	/*  read */
-	M_Offset_Analog_Trigger_Control = 0x8c,
-	M_Offset_AO_Serial_Interrupt_Enable = 0xa0,
-	M_Offset_AO_Serial_Interrupt_Ack = 0xa1,	/*  write */
-	M_Offset_AO_Serial_Interrupt_Status = 0xa1,	/*  read */
-	M_Offset_AO_Calibration = 0xa3,
-	M_Offset_AO_FIFO_Data = 0xa4,
-	M_Offset_PFI_Filter = 0xb0,
-	M_Offset_RTSI_Filter = 0xb4,
-	M_Offset_SCXI_Legacy_Compatibility = 0xbc,
-	M_Offset_RTSI_Shared_MUX = 0x1a2,
-	M_Offset_Clock_and_Fout2 = 0x1c4,
-	M_Offset_PLL_Control = 0x1c6,
-	M_Offset_PLL_Status = 0x1c8,
-	M_Offset_PFI_Output_Select_1 = 0x1d0,
-	M_Offset_PFI_Output_Select_2 = 0x1d2,
-	M_Offset_PFI_Output_Select_3 = 0x1d4,
-	M_Offset_PFI_Output_Select_4 = 0x1d6,
-	M_Offset_PFI_Output_Select_5 = 0x1d8,
-	M_Offset_PFI_Output_Select_6 = 0x1da,
-	M_Offset_PFI_DI = 0x1dc,
-	M_Offset_PFI_DO = 0x1de,
-	M_Offset_AI_Config_FIFO_Bypass = 0x218,
-	M_Offset_SCXI_DIO_Enable = 0x21c,
-	M_Offset_CDI_FIFO_Data = 0x220,	/*  read */
-	M_Offset_CDO_FIFO_Data = 0x220,	/*  write */
-	M_Offset_CDIO_Status = 0x224,	/*  read */
-	M_Offset_CDIO_Command = 0x224,	/*  write */
-	M_Offset_CDI_Mode = 0x228,
-	M_Offset_CDO_Mode = 0x22c,
-	M_Offset_CDI_Mask_Enable = 0x230,
-	M_Offset_CDO_Mask_Enable = 0x234,
-};
-static inline int M_Offset_AO_Waveform_Order(int channel)
-{
-	return 0xc2 + 0x4 * channel;
-};
-
-static inline int M_Offset_AO_Config_Bank(int channel)
-{
-	return 0xc3 + 0x4 * channel;
-};
-
-static inline int M_Offset_DAC_Direct_Data(int channel)
-{
-	return 0xc0 + 0x4 * channel;
-}
-
-static inline int M_Offset_Gen_PWM(int channel)
-{
-	return 0x44 + 0x2 * channel;
-}
-
-static inline int M_Offset_Static_AI_Control(int i)
-{
-	int offset[] = {
-		0x64,
-		0x261,
-		0x262,
-		0x263,
-	};
-	if (((unsigned)i) >= ARRAY_SIZE(offset)) {
-		pr_err("%s: invalid channel=%i\n", __func__, i);
-		return offset[0];
-	}
-	return offset[i];
-};
-
-static inline int M_Offset_AO_Reference_Attenuation(int channel)
-{
-	int offset[] = {
-		0x264,
-		0x265,
-		0x266,
-		0x267
-	};
-	if (((unsigned)channel) >= ARRAY_SIZE(offset)) {
-		pr_err("%s: invalid channel=%i\n", __func__, channel);
-		return offset[0];
-	}
-	return offset[channel];
-};
-
-static inline unsigned M_Offset_PFI_Output_Select(unsigned n)
-{
-	return M_Offset_PFI_Output_Select_1 + (n * 2);
-}
+/*
+ * M-Series specific registers not handled by the DAQ-STC and GPCT register
+ * remapping.
+ */
+#define M_Offset_CDIO_DMA_Select		0x007
+#define M_Offset_SCXI_Status			0x007
+#define M_Offset_AI_AO_Select			0x009
+#define M_Offset_G0_G1_Select			0x00b
+#define M_Offset_Misc_Command			0x00f
+#define M_Offset_SCXI_Serial_Data_Out		0x011
+#define M_Offset_SCXI_Control			0x013
+#define M_Offset_SCXI_Output_Enable		0x015
+#define M_Offset_AI_FIFO_Data			0x01c
+#define M_Offset_Static_Digital_Output		0x024
+#define M_Offset_Static_Digital_Input		0x024
+#define M_Offset_DIO_Direction			0x028
+#define M_Offset_Cal_PWM			0x040
+#define M_Offset_Gen_PWM(x)			(0x044 + ((x) * 2))
+#define M_Offset_AI_Config_FIFO_Data		0x05e
+#define M_Offset_Interrupt_C_Enable		0x088
+#define M_Offset_Interrupt_C_Status		0x088
+#define M_Offset_Analog_Trigger_Control		0x08c
+#define M_Offset_AO_Serial_Interrupt_Enable	0x0a0
+#define M_Offset_AO_Serial_Interrupt_Ack	0x0a1
+#define M_Offset_AO_Serial_Interrupt_Status	0x0a1
+#define M_Offset_AO_Calibration			0x0a3
+#define M_Offset_AO_FIFO_Data			0x0a4
+#define M_Offset_PFI_Filter			0x0b0
+#define M_Offset_RTSI_Filter			0x0b4
+#define M_Offset_SCXI_Legacy_Compatibility	0x0bc
+#define M_Offset_DAC_Direct_Data(x)		(0x0c0 + ((x) * 4))
+#define M_Offset_AO_Waveform_Order(x)		(0x0c2 + ((x) * 4))
+#define M_Offset_AO_Config_Bank(x)		(0x0c3 + ((x) * 4))
+#define M_Offset_RTSI_Shared_MUX		0x1a2
+#define M_Offset_Clock_and_Fout2		0x1c4
+#define M_Offset_PLL_Control			0x1c6
+#define M_Offset_PLL_Status			0x1c8
+#define M_Offset_PFI_Output_Select(x)		(0x1d0 + ((x) * 2))
+#define M_Offset_PFI_DI				0x1dc
+#define M_Offset_PFI_DO				0x1de
+#define M_Offset_AI_Config_FIFO_Bypass		0x218
+#define M_Offset_SCXI_DIO_Enable		0x21c
+#define M_Offset_CDI_FIFO_Data			0x220
+#define M_Offset_CDO_FIFO_Data			0x220
+#define M_Offset_CDIO_Status			0x224
+#define M_Offset_CDIO_Command			0x224
+#define M_Offset_CDI_Mode			0x228
+#define M_Offset_CDO_Mode			0x22c
+#define M_Offset_CDI_Mask_Enable		0x230
+#define M_Offset_CDO_Mask_Enable		0x234
+#define M_Offset_Static_AI_Control(x)		((x) ? (0x260 + (x)) : 0x064)
+#define M_Offset_AO_Reference_Attenuation(x)	(0x264 + (x))
 
 enum MSeries_AI_Config_FIFO_Data_Bits {
 	MSeries_AI_Config_Channel_Type_Mask = 0x7 << 6,
