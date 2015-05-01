@@ -60,7 +60,7 @@
 #include <linux/version.h>
 #include <linux/gpio.h>
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,17,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)
 static inline void gb_gpiochip_remove(struct gpio_chip *chip)
 {
 	gpiochip_remove(chip);
@@ -77,7 +77,7 @@ static inline void gb_gpiochip_remove(struct gpio_chip *chip)
  * ATTRIBUTE_GROUPS showed up in 3.11-rc2, but we need to build on 3.10, so add
  * it here.
  */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,11,0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 11, 0)
 #include <linux/sysfs.h>
 
 #define ATTRIBUTE_GROUPS(name)					\
