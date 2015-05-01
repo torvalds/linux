@@ -514,7 +514,12 @@ static void write_orphan_inodes(struct f2fs_sb_info *sbi, block_t start_blk)
 		grab_meta_page(sbi, start_blk + index);
 
 	index = 1;
-	spin_lock(&im->ino_lock);
+
+	/*
+	 * we don't need to do spin_lock(&im->ino_lock) here, since all the
+	 * orphan inode operations are covered under f2fs_lock_op().
+	 * And, spin_lock should be avoided due to page operations below.
+	 */
 	head = &im->ino_list;
 
 	/* loop for each orphan inode entry and write them in Jornal block */
@@ -554,8 +559,6 @@ static void write_orphan_inodes(struct f2fs_sb_info *sbi, block_t start_blk)
 		set_page_dirty(page);
 		f2fs_put_page(page, 1);
 	}
-
-	spin_unlock(&im->ino_lock);
 }
 
 static struct page *validate_checkpoint(struct f2fs_sb_info *sbi,
