@@ -211,6 +211,15 @@
 #define NISTC_AI_SI2_LOADA_REG		23
 #define NISTC_AI_SI2_LOADB_REG		25
 
+#define NISTC_G0_MODE_REG		26
+#define NISTC_G1_MODE_REG		27
+#define NISTC_G0_LOADA_REG		28
+#define NISTC_G0_LOADB_REG		30
+#define NISTC_G1_LOADA_REG		32
+#define NISTC_G1_LOADB_REG		34
+#define NISTC_G0_INPUT_SEL_REG		36
+#define NISTC_G1_INPUT_SEL_REG		37
+
 #define AI_Status_1_Register		2
 #define Interrupt_A_St				0x8000
 #define AI_FIFO_Full_St				0x4000
@@ -605,14 +614,6 @@ static unsigned AO_UPDATE_Output_Select(enum ao_update_output_selection
 #define G_HW_Save_Register(a)		(8+(a)*2)
 #define G_HW_Save_Register_High(a)	(8+(a)*2)
 #define G_HW_Save_Register_Low(a)	(9+(a)*2)
-#define G_Input_Select_Register(a)	(36+(a))
-#define G_Load_A_Register(a)		(28+(a)*4)
-#define G_Load_A_Register_High(a)	(28+(a)*4)
-#define G_Load_A_Register_Low(a)	(29+(a)*4)
-#define G_Load_B_Register(a)		(30+(a)*4)
-#define G_Load_B_Register_High(a)	(30+(a)*4)
-#define G_Load_B_Register_Low(a)	(31+(a)*4)
-#define G_Mode_Register(a)		(26+(a))
 #define G_Save_Register(a)		(12+(a)*2)
 #define G_Save_Register_High(a)		(12+(a)*2)
 #define G_Save_Register_Low(a)		(13+(a)*2)
