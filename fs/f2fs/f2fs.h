@@ -117,6 +117,8 @@ enum {
 #define DEF_BATCHED_TRIM_SECTIONS	32
 #define BATCHED_TRIM_SEGMENTS(sbi)	\
 		(SM_I(sbi)->trim_sections * (sbi)->segs_per_sec)
+#define BATCHED_TRIM_BLOCKS(sbi)	\
+		(BATCHED_TRIM_SEGMENTS(sbi) << (sbi)->log_blocks_per_seg)
 
 struct cp_control {
 	int reason;
@@ -698,6 +700,7 @@ struct f2fs_sb_info {
 	block_t user_block_count;		/* # of user blocks */
 	block_t total_valid_block_count;	/* # of valid blocks */
 	block_t alloc_valid_block_count;	/* # of allocated blocks */
+	block_t discard_blks;			/* discard command candidats */
 	block_t last_valid_block_count;		/* for recovery */
 	u32 s_next_generation;			/* for NFS support */
 	atomic_t nr_pages[NR_COUNT_TYPE];	/* # of pages, see count_type */
@@ -1223,6 +1226,24 @@ static inline int f2fs_test_bit(unsigned int nr, char *addr)
 	addr += (nr >> 3);
 	mask = 1 << (7 - (nr & 0x07));
 	return mask & *addr;
+}
+
+static inline void f2fs_set_bit(unsigned int nr, char *addr)
+{
+	int mask;
+
+	addr += (nr >> 3);
+	mask = 1 << (7 - (nr & 0x07));
+	*addr |= mask;
+}
+
+static inline void f2fs_clear_bit(unsigned int nr, char *addr)
+{
+	int mask;
+
+	addr += (nr >> 3);
+	mask = 1 << (7 - (nr & 0x07));
+	*addr &= ~mask;
 }
 
 static inline int f2fs_test_and_set_bit(unsigned int nr, char *addr)
