@@ -2675,12 +2675,12 @@ static int ni_m_series_ao_config_chanlist(struct comedi_device *dev,
 			break;
 		case 4000000:
 			conf |= NI_M_AO_CFG_BANK_REF_INT_10V;
-			ni_writeb(dev, MSeries_Attenuate_x5_Bit,
+			ni_writeb(dev, NI_M_AO_REF_ATTENUATION_X5,
 				  NI_M_AO_REF_ATTENUATION_REG(chan));
 			break;
 		case 2000000:
 			conf |= NI_M_AO_CFG_BANK_REF_INT_5V;
-			ni_writeb(dev, MSeries_Attenuate_x5_Bit,
+			ni_writeb(dev, NI_M_AO_REF_ATTENUATION_X5,
 				  NI_M_AO_REF_ATTENUATION_REG(chan));
 			break;
 		default:

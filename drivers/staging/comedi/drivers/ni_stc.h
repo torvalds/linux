@@ -1037,10 +1037,7 @@ static const struct comedi_lrange range_ni_E_ao_ext;
 #define NI_M_CDO_MASK_ENA_REG		0x234
 #define NI_M_STATIC_AI_CTRL_REG(x)	((x) ? (0x260 + (x)) : 0x064)
 #define NI_M_AO_REF_ATTENUATION_REG(x)	(0x264 + (x))
-
-enum MSeries_AO_Reference_Attenuation_Bits {
-	MSeries_Attenuate_x5_Bit = 0x1
-};
+#define NI_M_AO_REF_ATTENUATION_X5	BIT(0)
 
 static inline unsigned MSeries_Cal_PWM_High_Time_Bits(unsigned count)
 {
