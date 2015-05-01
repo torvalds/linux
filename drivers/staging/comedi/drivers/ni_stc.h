@@ -936,6 +936,8 @@ static const struct comedi_lrange range_ni_E_ao_ext;
 #define NI_M_DIO_REG			0x024
 #define NI_M_DIO_DIR_REG		0x028
 #define NI_M_CAL_PWM_REG		0x040
+#define NI_M_CAL_PWM_HIGH_TIME(x)	(((x) & 0xffff) << 16)
+#define NI_M_CAL_PWM_LOW_TIME(x)	(((x) & 0xffff) << 0)
 #define NI_M_GEN_PWM_REG(x)		(0x044 + ((x) * 2))
 #define NI_M_AI_CFG_FIFO_DATA_REG	0x05e
 #define NI_M_AI_CFG_LAST_CHAN		BIT(14)
@@ -1038,16 +1040,6 @@ static const struct comedi_lrange range_ni_E_ao_ext;
 #define NI_M_STATIC_AI_CTRL_REG(x)	((x) ? (0x260 + (x)) : 0x064)
 #define NI_M_AO_REF_ATTENUATION_REG(x)	(0x264 + (x))
 #define NI_M_AO_REF_ATTENUATION_X5	BIT(0)
-
-static inline unsigned MSeries_Cal_PWM_High_Time_Bits(unsigned count)
-{
-	return (count << 16) & 0xffff0000;
-}
-
-static inline unsigned MSeries_Cal_PWM_Low_Time_Bits(unsigned count)
-{
-	return count & 0xffff;
-}
 
 static inline unsigned MSeries_PFI_Output_Select_Mask(unsigned channel)
 {

@@ -4016,8 +4016,8 @@ static int ni_m_series_pwm_config(struct comedi_device *dev,
 			data[4] = down_count * devpriv->clock_ns;
 			return -EAGAIN;
 		}
-		ni_writel(dev, MSeries_Cal_PWM_High_Time_Bits(up_count) |
-			       MSeries_Cal_PWM_Low_Time_Bits(down_count),
+		ni_writel(dev, NI_M_CAL_PWM_HIGH_TIME(up_count) |
+			       NI_M_CAL_PWM_LOW_TIME(down_count),
 			  NI_M_CAL_PWM_REG);
 		devpriv->pwm_up_count = up_count;
 		devpriv->pwm_down_count = down_count;
