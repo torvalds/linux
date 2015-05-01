@@ -66,6 +66,7 @@ static int ext4_fname_encrypt(struct ext4_fname_crypto_ctx *ctx,
 	int res = 0;
 	char iv[EXT4_CRYPTO_BLOCK_SIZE];
 	struct scatterlist sg[1];
+	int padding = 4 << (ctx->flags & EXT4_POLICY_FLAGS_PAD_MASK);
 	char *workbuf;
 
 	if (iname->len <= 0 || iname->len > ctx->lim)
@@ -73,6 +74,7 @@ static int ext4_fname_encrypt(struct ext4_fname_crypto_ctx *ctx,
 
 	ciphertext_len = (iname->len < EXT4_CRYPTO_BLOCK_SIZE) ?
 		EXT4_CRYPTO_BLOCK_SIZE : iname->len;
+	ciphertext_len = ext4_fname_crypto_round_up(ciphertext_len, padding);
 	ciphertext_len = (ciphertext_len > ctx->lim)
 			? ctx->lim : ciphertext_len;
 
@@ -101,7 +103,7 @@ static int ext4_fname_encrypt(struct ext4_fname_crypto_ctx *ctx,
 	/* Create encryption request */
 	sg_init_table(sg, 1);
 	sg_set_page(sg, ctx->workpage, PAGE_SIZE, 0);
-	ablkcipher_request_set_crypt(req, sg, sg, iname->len, iv);
+	ablkcipher_request_set_crypt(req, sg, sg, ciphertext_len, iv);
 	res = crypto_ablkcipher_encrypt(req);
 	if (res == -EINPROGRESS || res == -EBUSY) {
 		BUG_ON(req->base.data != &ecr);
@@ -356,6 +358,7 @@ struct ext4_fname_crypto_ctx *ext4_get_fname_crypto_ctx(
 	if (IS_ERR(ctx))
 		return ctx;
 
+	ctx->flags = ei->i_crypt_policy_flags;
 	if (ctx->has_valid_key) {
 		if (ctx->key.mode != EXT4_ENCRYPTION_MODE_AES_256_CTS) {
 			printk_once(KERN_WARNING
@@ -468,6 +471,7 @@ int ext4_fname_crypto_namelen_on_disk(struct ext4_fname_crypto_ctx *ctx,
 				      u32 namelen)
 {
 	u32 ciphertext_len;
+	int padding = 4 << (ctx->flags & EXT4_POLICY_FLAGS_PAD_MASK);
 
 	if (ctx == NULL)
 		return -EIO;
@@ -475,6 +479,7 @@ int ext4_fname_crypto_namelen_on_disk(struct ext4_fname_crypto_ctx *ctx,
 		return -EACCES;
 	ciphertext_len = (namelen < EXT4_CRYPTO_BLOCK_SIZE) ?
 		EXT4_CRYPTO_BLOCK_SIZE : namelen;
+	ciphertext_len = ext4_fname_crypto_round_up(ciphertext_len, padding);
 	ciphertext_len = (ciphertext_len > ctx->lim)
 			? ctx->lim : ciphertext_len;
 	return (int) ciphertext_len;
@@ -490,10 +495,13 @@ int ext4_fname_crypto_alloc_buffer(struct ext4_fname_crypto_ctx *ctx,
 				   u32 ilen, struct ext4_str *crypto_str)
 {
 	unsigned int olen;
+	int padding = 4 << (ctx->flags & EXT4_POLICY_FLAGS_PAD_MASK);
 
 	if (!ctx)
 		return -EIO;
-	olen = ext4_fname_crypto_round_up(ilen, EXT4_CRYPTO_BLOCK_SIZE);
+	if (padding < EXT4_CRYPTO_BLOCK_SIZE)
+		padding = EXT4_CRYPTO_BLOCK_SIZE;
+	olen = ext4_fname_crypto_round_up(ilen, padding);
 	crypto_str->len = olen;
 	if (olen < EXT4_FNAME_CRYPTO_DIGEST_SIZE*2)
 		olen = EXT4_FNAME_CRYPTO_DIGEST_SIZE*2;

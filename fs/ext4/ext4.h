@@ -911,6 +911,7 @@ struct ext4_inode_info {
 
 	/* on-disk additional length */
 	__u16 i_extra_isize;
+	char i_crypt_policy_flags;
 
 	/* Indicate the inline data space. */
 	u16 i_inline_off;
