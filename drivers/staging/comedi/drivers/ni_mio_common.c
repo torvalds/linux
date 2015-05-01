@@ -411,7 +411,7 @@ static void m_series_stc_write(struct comedi_device *dev,
 
 static const struct mio_regmap m_series_stc_read_regmap[] = {
 	[NISTC_AI_STATUS1_REG]		= { 0x104, 2 },
-	[AO_Status_1_Register]		= { 0x106, 2 },
+	[NISTC_AO_STATUS1_REG]		= { 0x106, 2 },
 	[G_Status_Register]		= { 0x108, 2 },
 	[AI_Status_2_Register]		= { 0, 0 }, /* Unknown */
 	[AO_Status_2_Register]		= { 0x10c, 2 },
@@ -994,8 +994,8 @@ static int ni_ao_wait_for_dma_load(struct comedi_device *dev)
 	for (i = 0; i < timeout; i++) {
 		unsigned short b_status;
 
-		b_status = ni_stc_readw(dev, AO_Status_1_Register);
-		if (b_status & AO_FIFO_Half_Full_St)
+		b_status = ni_stc_readw(dev, NISTC_AO_STATUS1_REG);
+		if (b_status & NISTC_AO_STATUS1_FIFO_HF)
 			break;
 		/* if we poll too often, the pci bus activity seems
 		   to slow the dma transfer down */
@@ -1428,19 +1428,19 @@ static void ack_b_interrupt(struct comedi_device *dev, unsigned short b_status)
 {
 	unsigned short ack = 0;
 
-	if (b_status & AO_BC_TC_St)
+	if (b_status & NISTC_AO_STATUS1_BC_TC)
 		ack |= NISTC_INTB_ACK_AO_BC_TC;
-	if (b_status & AO_Overrun_St)
+	if (b_status & NISTC_AO_STATUS1_OVERRUN)
 		ack |= NISTC_INTB_ACK_AO_ERR;
-	if (b_status & AO_START_St)
+	if (b_status & NISTC_AO_STATUS1_START)
 		ack |= NISTC_INTB_ACK_AO_START;
-	if (b_status & AO_START1_St)
+	if (b_status & NISTC_AO_STATUS1_START1)
 		ack |= NISTC_INTB_ACK_AO_START1;
-	if (b_status & AO_UC_TC_St)
+	if (b_status & NISTC_AO_STATUS1_UC_TC)
 		ack |= NISTC_INTB_ACK_AO_UC_TC;
-	if (b_status & AO_UI2_TC_St)
+	if (b_status & NISTC_AO_STATUS1_UI2_TC)
 		ack |= NISTC_INTB_ACK_AO_UI2_TC;
-	if (b_status & AO_UPDATE_St)
+	if (b_status & NISTC_AO_STATUS1_UPDATE)
 		ack |= NISTC_INTB_ACK_AO_UPDATE;
 	if (ack)
 		ni_stc_writew(dev, ack, NISTC_INTB_ACK_REG);
@@ -1472,18 +1472,18 @@ static void handle_b_interrupt(struct comedi_device *dev,
 
 	if (b_status == 0xffff)
 		return;
-	if (b_status & AO_Overrun_St) {
+	if (b_status & NISTC_AO_STATUS1_OVERRUN) {
 		dev_err(dev->class_dev,
 			"AO FIFO underrun status=0x%04x status2=0x%04x\n",
 			b_status, ni_stc_readw(dev, AO_Status_2_Register));
 		s->async->events |= COMEDI_CB_OVERFLOW;
 	}
 
-	if (b_status & AO_BC_TC_St)
+	if (b_status & NISTC_AO_STATUS1_BC_TC)
 		s->async->events |= COMEDI_CB_EOA;
 
 #ifndef PCIDMA
-	if (b_status & AO_FIFO_Request_St) {
+	if (b_status & NISTC_AO_STATUS1_FIFO_REQ) {
 		int ret;
 
 		ret = ni_ao_fifo_half_empty(dev, s);
@@ -3736,7 +3736,7 @@ static const struct mio_regmap ni_gpct_to_stc_regmap[] = {
 	[NITIO_G0_INT_ACK]	= { NISTC_INTA_ACK_REG, 2 },
 	[NITIO_G1_INT_ACK]	= { NISTC_INTB_ACK_REG, 2 },
 	[NITIO_G0_STATUS]	= { NISTC_AI_STATUS1_REG, 2 },
-	[NITIO_G1_STATUS]	= { AO_Status_1_Register, 2 },
+	[NITIO_G1_STATUS]	= { NISTC_AO_STATUS1_REG, 2 },
 	[NITIO_G0_INT_ENA]	= { NISTC_INTA_ENA_REG, 2 },
 	[NITIO_G1_INT_ENA]	= { NISTC_INTB_ENA_REG, 2 },
 };
@@ -4992,7 +4992,7 @@ static irqreturn_t ni_E_interrupt(int irq, void *d)
 	/*  lock to avoid race with comedi_poll */
 	spin_lock_irqsave(&dev->spinlock, flags);
 	a_status = ni_stc_readw(dev, NISTC_AI_STATUS1_REG);
-	b_status = ni_stc_readw(dev, AO_Status_1_Register);
+	b_status = ni_stc_readw(dev, NISTC_AO_STATUS1_REG);
 #ifdef PCIDMA
 	if (mite) {
 		struct ni_private *devpriv = dev->private;
@@ -5022,7 +5022,7 @@ static irqreturn_t ni_E_interrupt(int irq, void *d)
 	ack_b_interrupt(dev, b_status);
 	if ((a_status & NISTC_AI_STATUS1_INTA) || (ai_mite_status & CHSR_INT))
 		handle_a_interrupt(dev, a_status, ai_mite_status);
-	if ((b_status & Interrupt_B_St) || (ao_mite_status & CHSR_INT))
+	if ((b_status & NISTC_AO_STATUS1_INTB) || (ao_mite_status & CHSR_INT))
 		handle_b_interrupt(dev, b_status, ao_mite_status);
 	handle_gpct_interrupt(dev, 0);
 	handle_gpct_interrupt(dev, 1);

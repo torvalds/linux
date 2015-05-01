@@ -514,25 +514,25 @@
 #define NISTC_AI_STATUS1_FIFO_REQ	BIT(1)
 #define NISTC_AI_STATUS1_PASSTHRU0	BIT(0)
 
-#define AI_Status_2_Register		5
+#define NISTC_AO_STATUS1_REG		3
+#define NISTC_AO_STATUS1_INTB		BIT(15)
+#define NISTC_AO_STATUS1_FIFO_F		BIT(14)
+#define NISTC_AO_STATUS1_FIFO_HF	BIT(13)
+#define NISTC_AO_STATUS1_FIFO_E		BIT(12)
+#define NISTC_AO_STATUS1_BC_TC_ERR	BIT(11)
+#define NISTC_AO_STATUS1_START		BIT(10)
+#define NISTC_AO_STATUS1_OVERRUN	BIT(9)
+#define NISTC_AO_STATUS1_START1		BIT(8)
+#define NISTC_AO_STATUS1_BC_TC		BIT(7)
+#define NISTC_AO_STATUS1_UC_TC		BIT(6)
+#define NISTC_AO_STATUS1_UPDATE		BIT(5)
+#define NISTC_AO_STATUS1_UI2_TC		BIT(4)
+#define NISTC_AO_STATUS1_G1_TC		BIT(3)
+#define NISTC_AO_STATUS1_G1_GATE	BIT(2)
+#define NISTC_AO_STATUS1_FIFO_REQ	BIT(1)
+#define NISTC_AO_STATUS1_PASSTHRU1	BIT(0)
 
-#define AO_Status_1_Register		3
-#define Interrupt_B_St				_bit15
-#define AO_FIFO_Full_St				_bit14
-#define AO_FIFO_Half_Full_St			_bit13
-#define AO_FIFO_Empty_St			_bit12
-#define AO_BC_TC_Error_St			_bit11
-#define AO_START_St				_bit10
-#define AO_Overrun_St				_bit9
-#define AO_START1_St				_bit8
-#define AO_BC_TC_St				_bit7
-#define AO_UC_TC_St				_bit6
-#define AO_UPDATE_St				_bit5
-#define AO_UI2_TC_St				_bit4
-#define G1_TC_St				_bit3
-#define G1_Gate_Interrupt_St			_bit2
-#define AO_FIFO_Request_St			_bit1
-#define Pass_Thru_1_Interrupt_St		_bit0
+#define AI_Status_2_Register		5
 
 #define AO_Status_2_Register		6
 
