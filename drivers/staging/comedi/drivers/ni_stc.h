@@ -536,7 +536,7 @@
 
 #define NISTC_AI_STATUS2_REG		5
 
-#define AO_Status_2_Register		6
+#define NISTC_AO_STATUS2_REG		6
 
 #define DIO_Parallel_Input_Register	7
 

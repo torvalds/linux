@@ -414,7 +414,7 @@ static const struct mio_regmap m_series_stc_read_regmap[] = {
 	[NISTC_AO_STATUS1_REG]		= { 0x106, 2 },
 	[NISTC_G01_STATUS_REG]		= { 0x108, 2 },
 	[NISTC_AI_STATUS2_REG]		= { 0, 0 }, /* Unknown */
-	[AO_Status_2_Register]		= { 0x10c, 2 },
+	[NISTC_AO_STATUS2_REG]		= { 0x10c, 2 },
 	[DIO_Parallel_Input_Register]	= { 0, 0 }, /* Unknown */
 	[G_HW_Save_Register(0)]		= { 0x110, 4 },
 	[G_HW_Save_Register(1)]		= { 0x114, 4 },
@@ -1475,7 +1475,7 @@ static void handle_b_interrupt(struct comedi_device *dev,
 	if (b_status & NISTC_AO_STATUS1_OVERRUN) {
 		dev_err(dev->class_dev,
 			"AO FIFO underrun status=0x%04x status2=0x%04x\n",
-			b_status, ni_stc_readw(dev, AO_Status_2_Register));
+			b_status, ni_stc_readw(dev, NISTC_AO_STATUS2_REG));
 		s->async->events |= COMEDI_CB_OVERFLOW;
 	}
 
