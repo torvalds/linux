@@ -546,7 +546,7 @@ static inline void ni_set_bitfield(struct comedi_device *dev, int reg,
 		devpriv->io_bidirection_pin_reg |= bit_values & bit_mask;
 		ni_stc_writew(dev, devpriv->io_bidirection_pin_reg, reg);
 		break;
-	case AI_AO_Select:
+	case NI_E_DMA_AI_AO_SEL_REG:
 		devpriv->ai_ao_select_reg &= ~bit_mask;
 		devpriv->ai_ao_select_reg |= bit_values & bit_mask;
 		ni_writeb(dev, devpriv->ai_ao_select_reg, reg);
@@ -571,29 +571,25 @@ static inline void ni_set_bitfield(struct comedi_device *dev, int reg,
 /* negative channel means no channel */
 static inline void ni_set_ai_dma_channel(struct comedi_device *dev, int channel)
 {
-	unsigned bitfield;
+	unsigned bits = 0;
 
 	if (channel >= 0)
-		bitfield =
-		    (ni_stc_dma_channel_select_bitfield(channel) <<
-		     AI_DMA_Select_Shift) & AI_DMA_Select_Mask;
-	else
-		bitfield = 0;
-	ni_set_bitfield(dev, AI_AO_Select, AI_DMA_Select_Mask, bitfield);
+		bits = ni_stc_dma_channel_select_bitfield(channel);
+
+	ni_set_bitfield(dev, NI_E_DMA_AI_AO_SEL_REG,
+			NI_E_DMA_AI_SEL_MASK, NI_E_DMA_AI_SEL(bits));
 }
 
 /* negative channel means no channel */
 static inline void ni_set_ao_dma_channel(struct comedi_device *dev, int channel)
 {
-	unsigned bitfield;
+	unsigned bits = 0;
 
 	if (channel >= 0)
-		bitfield =
-		    (ni_stc_dma_channel_select_bitfield(channel) <<
-		     AO_DMA_Select_Shift) & AO_DMA_Select_Mask;
-	else
-		bitfield = 0;
-	ni_set_bitfield(dev, AI_AO_Select, AO_DMA_Select_Mask, bitfield);
+		bits = ni_stc_dma_channel_select_bitfield(channel);
+
+	ni_set_bitfield(dev, NI_E_DMA_AI_AO_SEL_REG,
+			NI_E_DMA_AO_SEL_MASK, NI_E_DMA_AO_SEL(bits));
 }
 
 /* negative mite_channel means no channel */
@@ -5373,7 +5369,7 @@ static int ni_E_init(struct comedi_device *dev,
 	}
 
 	/* DMA setup */
-	ni_writeb(dev, devpriv->ai_ao_select_reg, AI_AO_Select);
+	ni_writeb(dev, devpriv->ai_ao_select_reg, NI_E_DMA_AI_AO_SEL_REG);
 	ni_writeb(dev, devpriv->g0_g1_select_reg, G0_G1_Select);
 
 	if (devpriv->is_6xxx) {
