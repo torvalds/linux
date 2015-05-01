@@ -1440,12 +1440,15 @@ static void wacom_update_name(struct wacom *wacom)
 	snprintf(wacom_wac->pad_name, sizeof(wacom_wac->pad_name),
 		"%s Pad", wacom_wac->name);
 
-	if (features->device_type != BTN_TOOL_FINGER)
+	if (features->device_type == BTN_TOOL_PEN) {
 		strlcat(wacom_wac->name, " Pen", WACOM_NAME_MAX);
-	else if (features->touch_max)
-		strlcat(wacom_wac->name, " Finger", WACOM_NAME_MAX);
-	else
-		strlcat(wacom_wac->name, " Pad", WACOM_NAME_MAX);
+	}
+	else if (features->device_type == BTN_TOOL_FINGER) {
+		if (features->touch_max)
+			strlcat(wacom_wac->name, " Finger", WACOM_NAME_MAX);
+		else
+			strlcat(wacom_wac->name, " Pad", WACOM_NAME_MAX);
+	}
 }
 
 static int wacom_probe(struct hid_device *hdev,
