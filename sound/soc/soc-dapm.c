@@ -310,12 +310,8 @@ static int dapm_kcontrol_data_alloc(struct snd_soc_dapm_widget *widget,
 	struct soc_mixer_control *mc;
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
-	if (!data) {
-		dev_err(widget->dapm->dev,
-				"ASoC: can't allocate kcontrol data for %s\n",
-				widget->name);
+	if (!data)
 		return -ENOMEM;
-	}
 
 	INIT_LIST_HEAD(&data->paths);
 
