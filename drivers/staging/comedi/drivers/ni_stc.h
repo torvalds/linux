@@ -592,18 +592,6 @@
 #define NI_E_MISC_CMD_EXT_ATRIG		NI_E_MISC_CMD_INTEXT_ATRIG(0)
 #define NI_E_MISC_CMD_INT_ATRIG		NI_E_MISC_CMD_INTEXT_ATRIG(1)
 
-static inline unsigned ni_stc_dma_channel_select_bitfield(unsigned channel)
-{
-	if (channel < 4)
-		return 1 << channel;
-	if (channel == 4)
-		return 0x3;
-	if (channel == 5)
-		return 0x5;
-	BUG();
-	return 0;
-}
-
 #define NI_E_AI_CFG_LO_REG		0x10	/* w16 */
 #define NI_E_AI_CFG_LO_LAST_CHAN	BIT(15)
 #define NI_E_AI_CFG_LO_GEN_TRIG		BIT(12)

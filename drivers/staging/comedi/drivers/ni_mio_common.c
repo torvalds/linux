@@ -567,6 +567,17 @@ static inline void ni_set_bitfield(struct comedi_device *dev, int reg,
 
 #ifdef PCIDMA
 /* DMA channel setup */
+static inline unsigned ni_stc_dma_channel_select_bitfield(unsigned channel)
+{
+	if (channel < 4)
+		return 1 << channel;
+	if (channel == 4)
+		return 0x3;
+	if (channel == 5)
+		return 0x5;
+	BUG();
+	return 0;
+}
 
 /* negative channel means no channel */
 static inline void ni_set_ai_dma_channel(struct comedi_device *dev, int channel)
