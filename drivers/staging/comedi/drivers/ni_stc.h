@@ -555,13 +555,11 @@
 
 #define NISTC_DIO_SERIAL_IN_REG		28
 
+#define NISTC_STATUS2_REG		29
+#define NISTC_STATUS2_AO_TMRDACWRS_IN_PROGRESS	BIT(5)
+
 #define AI_SI_Save_Registers		64
 #define AI_SC_Save_Registers		66
-
-#define Joint_Status_2_Register         29
-enum Joint_Status_2_Bits {
-	AO_TMRDACWRs_In_Progress_St = 0x20,
-};
 
 /* command register */
 #define G_Disarm_Copy			_bit15	/* strobe */

@@ -425,7 +425,7 @@ static const struct mio_regmap m_series_stc_read_regmap[] = {
 	[NISTC_AO_UC_SAVE_REG]		= { 0x128, 4 },
 	[NISTC_STATUS1_REG]		= { 0x136, 2 },
 	[NISTC_DIO_SERIAL_IN_REG]	= { 0x009, 1 },
-	[Joint_Status_2_Register]	= { 0x13a, 2 },
+	[NISTC_STATUS2_REG]		= { 0x13a, 2 },
 	[AI_SI_Save_Registers]		= { 0x180, 4 },
 	[AI_SC_Save_Registers]		= { 0x184, 4 },
 };
@@ -2849,8 +2849,8 @@ static int ni_ao_inttrig(struct comedi_device *dev,
 	/* wait for DACs to be loaded */
 	for (i = 0; i < timeout; i++) {
 		udelay(1);
-		if ((ni_stc_readw(dev, Joint_Status_2_Register) &
-		     AO_TMRDACWRs_In_Progress_St) == 0)
+		if ((ni_stc_readw(dev, NISTC_STATUS2_REG) &
+		     NISTC_STATUS2_AO_TMRDACWRS_IN_PROGRESS) == 0)
 			break;
 	}
 	if (i == timeout) {
@@ -3727,7 +3727,7 @@ static const struct mio_regmap ni_gpct_to_stc_regmap[] = {
 	[NITIO_G01_STATUS]	= { NISTC_G01_STATUS_REG, 2 },
 	[NITIO_G01_RESET]	= { NISTC_RESET_REG, 2 },
 	[NITIO_G01_STATUS1]	= { NISTC_STATUS1_REG, 2 },
-	[NITIO_G01_STATUS2]	= { Joint_Status_2_Register, 2 },
+	[NITIO_G01_STATUS2]	= { NISTC_STATUS2_REG, 2 },
 	[NITIO_G0_DMA_CFG]	= { 0x1b8, 2 },	/* M-Series only */
 	[NITIO_G1_DMA_CFG]	= { 0x1ba, 2 },	/* M-Series only */
 	[NITIO_G0_DMA_STATUS]	= { 0x1b8, 2 },	/* M-Series only */
