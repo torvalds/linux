@@ -961,6 +961,7 @@ static const struct comedi_lrange range_ni_E_ao_ext;
 #define NI_M_INTC_ENA_REG		0x088
 #define NI_M_INTC_ENA			BIT(0)
 #define NI_M_INTC_STATUS_REG		0x088
+#define NI_M_INTC_STATUS		BIT(0)
 #define NI_M_ATRIG_CTRL_REG		0x08c
 #define NI_M_AO_SER_INT_ENA_REG		0x0a0
 #define NI_M_AO_SER_INT_ACK_REG		0x0a1
@@ -1112,10 +1113,6 @@ static const struct comedi_lrange range_ni_E_ao_ext;
 #define NI_M_STATIC_AI_CTRL_REG(x)	((x) ? (0x260 + (x)) : 0x064)
 #define NI_M_AO_REF_ATTENUATION_REG(x)	(0x264 + (x))
 #define NI_M_AO_REF_ATTENUATION_X5	BIT(0)
-
-enum Interrupt_C_Status_Bits {
-	Interrupt_Group_C_Status_Bit = 0x1
-};
 
 #define M_SERIES_EEPROM_SIZE 1024
 
