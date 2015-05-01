@@ -865,11 +865,14 @@ get_link(struct path *link, struct nameidata *nd, void **p)
 
 	nd->last_type = LAST_BIND;
 	*p = NULL;
-	res = inode->i_op->follow_link(dentry, p, nd);
-	if (IS_ERR(res)) {
+	res = inode->i_link;
+	if (!res) {
+		res = inode->i_op->follow_link(dentry, p, nd);
+		if (IS_ERR(res)) {
 out:
-		path_put(&nd->path);
-		path_put(link);
+			path_put(&nd->path);
+			path_put(link);
+		}
 	}
 	return res;
 }
@@ -4418,11 +4421,14 @@ EXPORT_SYMBOL(readlink_copy);
 int generic_readlink(struct dentry *dentry, char __user *buffer, int buflen)
 {
 	void *cookie;
-	const char *link = dentry->d_inode->i_op->follow_link(dentry, &cookie, NULL);
+	const char *link = dentry->d_inode->i_link;
 	int res;
 
-	if (IS_ERR(link))
-		return PTR_ERR(link);
+	if (!link) {
+		link = dentry->d_inode->i_op->follow_link(dentry, &cookie, NULL);
+		if (IS_ERR(link))
+			return PTR_ERR(link);
+	}
 	res = readlink_copy(buffer, buflen, link);
 	if (cookie && dentry->d_inode->i_op->put_link)
 		dentry->d_inode->i_op->put_link(dentry, cookie);
