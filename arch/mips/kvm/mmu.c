@@ -308,6 +308,7 @@ bool kvm_mips_flush_gpa_pt(struct kvm *kvm, gfn_t start_gfn, gfn_t end_gfn)
  * kvm_mips_map_page() - Map a guest physical page.
  * @vcpu:		VCPU pointer.
  * @gpa:		Guest physical address of fault.
+ * @write_fault:	Whether the fault was due to a write.
  * @out_entry:		New PTE for @gpa (written on success unless NULL).
  * @out_buddy:		New PTE for @gpa's buddy (written on success unless
  *			NULL).
@@ -327,6 +328,7 @@ bool kvm_mips_flush_gpa_pt(struct kvm *kvm, gfn_t start_gfn, gfn_t end_gfn)
  *		as an MMIO access.
  */
 static int kvm_mips_map_page(struct kvm_vcpu *vcpu, unsigned long gpa,
+			     bool write_fault,
 			     pte_t *out_entry, pte_t *out_buddy)
 {
 	struct kvm *kvm = vcpu->kvm;
@@ -558,7 +560,8 @@ void kvm_mips_flush_gva_pt(pgd_t *pgd, enum kvm_mips_flush flags)
 
 /* XXXKYMA: Must be called with interrupts disabled */
 int kvm_mips_handle_kseg0_tlb_fault(unsigned long badvaddr,
-				    struct kvm_vcpu *vcpu)
+				    struct kvm_vcpu *vcpu,
+				    bool write_fault)
 {
 	unsigned long gpa;
 	kvm_pfn_t pfn0, pfn1;
@@ -576,10 +579,11 @@ int kvm_mips_handle_kseg0_tlb_fault(unsigned long badvaddr,
 	gpa = KVM_GUEST_CPHYSADDR(badvaddr & (PAGE_MASK << 1));
 	vaddr = badvaddr & (PAGE_MASK << 1);
 
-	if (kvm_mips_map_page(vcpu, gpa, &pte_gpa[0], NULL) < 0)
+	if (kvm_mips_map_page(vcpu, gpa, write_fault, &pte_gpa[0], NULL) < 0)
 		return -1;
 
-	if (kvm_mips_map_page(vcpu, gpa | PAGE_SIZE, &pte_gpa[1], NULL) < 0)
+	if (kvm_mips_map_page(vcpu, gpa | PAGE_SIZE, write_fault, &pte_gpa[1],
+			      NULL) < 0)
 		return -1;
 
 	pfn0 = pte_pfn(pte_gpa[0]);
@@ -604,7 +608,8 @@ int kvm_mips_handle_kseg0_tlb_fault(unsigned long badvaddr,
 
 int kvm_mips_handle_mapped_seg_tlb_fault(struct kvm_vcpu *vcpu,
 					 struct kvm_mips_tlb *tlb,
-					 unsigned long gva)
+					 unsigned long gva,
+					 bool write_fault)
 {
 	kvm_pfn_t pfn;
 	long tlb_lo = 0;
@@ -621,8 +626,8 @@ int kvm_mips_handle_mapped_seg_tlb_fault(struct kvm_vcpu *vcpu,
 		tlb_lo = tlb->tlb_lo[idx];
 
 	/* Find host PFN */
-	if (kvm_mips_map_page(vcpu, mips3_tlbpfn_to_paddr(tlb_lo), &pte_gpa,
-			      NULL) < 0)
+	if (kvm_mips_map_page(vcpu, mips3_tlbpfn_to_paddr(tlb_lo), write_fault,
+			      &pte_gpa, NULL) < 0)
 		return -1;
 	pfn = pte_pfn(pte_gpa);
 
@@ -757,7 +762,7 @@ enum kvm_mips_fault_result kvm_trap_emul_gva_fault(struct kvm_vcpu *vcpu,
 	int index;
 
 	if (KVM_GUEST_KSEGX(gva) == KVM_GUEST_KSEG0) {
-		if (kvm_mips_handle_kseg0_tlb_fault(gva, vcpu) < 0)
+		if (kvm_mips_handle_kseg0_tlb_fault(gva, vcpu, write) < 0)
 			return KVM_MIPS_GPA;
 	} else if ((KVM_GUEST_KSEGX(gva) < KVM_GUEST_KSEG0) ||
 		   KVM_GUEST_KSEGX(gva) == KVM_GUEST_KSEG23) {
@@ -774,7 +779,7 @@ enum kvm_mips_fault_result kvm_trap_emul_gva_fault(struct kvm_vcpu *vcpu,
 		if (write && !TLB_IS_DIRTY(*tlb, gva))
 			return KVM_MIPS_TLBMOD;
 
-		if (kvm_mips_handle_mapped_seg_tlb_fault(vcpu, tlb, gva))
+		if (kvm_mips_handle_mapped_seg_tlb_fault(vcpu, tlb, gva, write))
 			return KVM_MIPS_GPA;
 	} else {
 		return KVM_MIPS_GVA;

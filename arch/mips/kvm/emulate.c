@@ -2704,7 +2704,8 @@ enum emulation_result kvm_mips_check_privilege(u32 cause,
 enum emulation_result kvm_mips_handle_tlbmiss(u32 cause,
 					      u32 *opc,
 					      struct kvm_run *run,
-					      struct kvm_vcpu *vcpu)
+					      struct kvm_vcpu *vcpu,
+					      bool write_fault)
 {
 	enum emulation_result er = EMULATE_DONE;
 	u32 exccode = (cause >> CAUSEB_EXCCODE) & 0x1f;
@@ -2760,8 +2761,8 @@ enum emulation_result kvm_mips_handle_tlbmiss(u32 cause,
 			 * OK we have a Guest TLB entry, now inject it into the
 			 * shadow host TLB
 			 */
-			if (kvm_mips_handle_mapped_seg_tlb_fault(vcpu, tlb,
-								 va)) {
+			if (kvm_mips_handle_mapped_seg_tlb_fault(vcpu, tlb, va,
+								 write_fault)) {
 				kvm_err("%s: handling mapped seg tlb fault for %lx, index: %u, vcpu: %p, ASID: %#lx\n",
 					__func__, va, index, vcpu,
 					read_c0_entryhi());

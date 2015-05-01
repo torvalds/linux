@@ -597,19 +597,22 @@ u32 kvm_get_user_asid(struct kvm_vcpu *vcpu);
 u32 kvm_get_commpage_asid (struct kvm_vcpu *vcpu);
 
 extern int kvm_mips_handle_kseg0_tlb_fault(unsigned long badbaddr,
-					   struct kvm_vcpu *vcpu);
+					   struct kvm_vcpu *vcpu,
+					   bool write_fault);
 
 extern int kvm_mips_handle_commpage_tlb_fault(unsigned long badvaddr,
 					      struct kvm_vcpu *vcpu);
 
 extern int kvm_mips_handle_mapped_seg_tlb_fault(struct kvm_vcpu *vcpu,
 						struct kvm_mips_tlb *tlb,
-						unsigned long gva);
+						unsigned long gva,
+						bool write_fault);
 
 extern enum emulation_result kvm_mips_handle_tlbmiss(u32 cause,
 						     u32 *opc,
 						     struct kvm_run *run,
-						     struct kvm_vcpu *vcpu);
+						     struct kvm_vcpu *vcpu,
+						     bool write_fault);
 
 extern enum emulation_result kvm_mips_handle_tlbmod(u32 cause,
 						    u32 *opc,
