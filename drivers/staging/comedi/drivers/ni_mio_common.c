@@ -360,7 +360,7 @@ static const struct mio_regmap m_series_stc_write_regmap[] = {
 	[NISTC_AI_START_STOP_REG]	= { 0x17c, 2 },
 	[NISTC_AI_TRIG_SEL_REG]		= { 0x17e, 2 },
 	[NISTC_AI_DIV_LOADA_REG]	= { 0x180, 4 },
-	[AO_Start_Select_Register]	= { 0x184, 2 },
+	[NISTC_AO_START_SEL_REG]	= { 0x184, 2 },
 	[AO_Trigger_Select_Register]	= { 0x186, 2 },
 	[G_Autoincrement_Register(0)]	= { 0x188, 2 },
 	[G_Autoincrement_Register(1)]	= { 0x18a, 2 },
@@ -3082,7 +3082,7 @@ static int ni_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 #endif
 	ni_stc_writew(dev, bits, AO_Personal_Register);
 	/*  enable sending of ao dma requests */
-	ni_stc_writew(dev, AO_AOFREQ_Enable, AO_Start_Select_Register);
+	ni_stc_writew(dev, NISTC_AO_START_AOFREQ_ENA, NISTC_AO_START_SEL_REG);
 
 	ni_stc_writew(dev, AO_Configuration_End, Joint_Reset_Register);
 
@@ -3195,7 +3195,7 @@ static int ni_ao_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 	ni_stc_writew(dev, AO_BC_Source_Select | AO_UPDATE_Pulse_Width |
 		      AO_TMRDACWR_Pulse_Width, AO_Personal_Register);
 	ni_stc_writew(dev, 0, AO_Output_Control_Register);
-	ni_stc_writew(dev, 0, AO_Start_Select_Register);
+	ni_stc_writew(dev, 0, NISTC_AO_START_SEL_REG);
 	devpriv->ao_cmd1 = 0;
 	ni_stc_writew(dev, devpriv->ao_cmd1, NISTC_AO_CMD1_REG);
 	devpriv->ao_cmd2 = 0;

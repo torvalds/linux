@@ -338,6 +338,16 @@
 
 #define NISTC_AI_DIV_LOADA_REG		64
 
+#define NISTC_AO_START_SEL_REG		66
+#define NISTC_AO_START_UI2_SW_GATE	BIT(15)
+#define NISTC_AO_START_UI2_EXT_GATE_POL	BIT(14)
+#define NISTC_AO_START_POLARITY		BIT(13)
+#define NISTC_AO_START_AOFREQ_ENA	BIT(12)
+#define NISTC_AO_START_UI2_EXT_GATE_SEL(x) (((x) & 0x1f) << 7)
+#define NISTC_AO_START_SYNC		BIT(6)
+#define NISTC_AO_START_EDGE		BIT(5)
+#define NISTC_AO_START_SEL(x)		(((x) & 0x1f) << 0)
+
 #define AI_Status_1_Register		2
 #define Interrupt_A_St				0x8000
 #define AI_FIFO_Full_St				0x4000
@@ -395,16 +405,6 @@ enum Joint_Status_2_Bits {
 #define AO_UI_Save_Registers		16
 #define AO_BC_Save_Registers		18
 #define AO_UC_Save_Registers		20
-
-#define AO_Start_Select_Register	66
-#define AO_UI2_Software_Gate			_bit15
-#define AO_UI2_External_Gate_Polarity		_bit14
-#define AO_START_Polarity			_bit13
-#define AO_AOFREQ_Enable			_bit12
-#define AO_UI2_External_Gate_Select(a)		(((a) & 0x1f) << 7)
-#define AO_START_Sync				_bit6
-#define AO_START_Edge				_bit5
-#define AO_START_Select(a)			((a) & 0x1f)
 
 #define AO_Trigger_Select_Register	67
 #define AO_UI2_External_Gate_Enable		_bit15
