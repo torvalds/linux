@@ -1159,7 +1159,7 @@ static struct mixer_drv_data exynos4210_mxr_drv_data = {
 	.has_sclk = 1,
 };
 
-static struct platform_device_id mixer_driver_types[] = {
+static const struct platform_device_id mixer_driver_types[] = {
 	{
 		.name		= "s5p-mixer",
 		.driver_data	= (unsigned long)&exynos4210_mxr_drv_data,
