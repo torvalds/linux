@@ -532,6 +532,8 @@
 #define NISTC_AO_STATUS1_FIFO_REQ	BIT(1)
 #define NISTC_AO_STATUS1_PASSTHRU1	BIT(0)
 
+#define NISTC_G01_STATUS_REG		4
+
 #define AI_Status_2_Register		5
 
 #define AO_Status_2_Register		6
@@ -560,7 +562,6 @@ enum Joint_Status_2_Bits {
 #define G_Save_Register(a)		(12+(a)*2)
 #define G_Save_Register_High(a)		(12+(a)*2)
 #define G_Save_Register_Low(a)		(13+(a)*2)
-#define G_Status_Register		4
 
 /* command register */
 #define G_Disarm_Copy			_bit15	/* strobe */

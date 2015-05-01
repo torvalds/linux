@@ -412,7 +412,7 @@ static void m_series_stc_write(struct comedi_device *dev,
 static const struct mio_regmap m_series_stc_read_regmap[] = {
 	[NISTC_AI_STATUS1_REG]		= { 0x104, 2 },
 	[NISTC_AO_STATUS1_REG]		= { 0x106, 2 },
-	[G_Status_Register]		= { 0x108, 2 },
+	[NISTC_G01_STATUS_REG]		= { 0x108, 2 },
 	[AI_Status_2_Register]		= { 0, 0 }, /* Unknown */
 	[AO_Status_2_Register]		= { 0x10c, 2 },
 	[DIO_Parallel_Input_Register]	= { 0, 0 }, /* Unknown */
@@ -3723,7 +3723,7 @@ static const struct mio_regmap ni_gpct_to_stc_regmap[] = {
 	[NITIO_G1_CNT_MODE]	= { 0x1b2, 2 },	/* M-Series only */
 	[NITIO_G0_GATE2]	= { 0x1b4, 2 },	/* M-Series only */
 	[NITIO_G1_GATE2]	= { 0x1b6, 2 },	/* M-Series only */
-	[NITIO_G01_STATUS]	= { G_Status_Register, 2 },
+	[NITIO_G01_STATUS]	= { NISTC_G01_STATUS_REG, 2 },
 	[NITIO_G01_RESET]	= { NISTC_RESET_REG, 2 },
 	[NITIO_G01_STATUS1]	= { Joint_Status_1_Register, 2 },
 	[NITIO_G01_STATUS2]	= { Joint_Status_2_Register, 2 },
