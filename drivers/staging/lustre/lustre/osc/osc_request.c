@@ -2064,8 +2064,7 @@ out:
 
 		if (oa)
 			OBDO_FREE(oa);
-		if (pga)
-			kfree(pga);
+		kfree(pga);
 		/* this should happen rarely and is pretty bad, it makes the
 		 * pending list not follow the dirty order */
 		while (!list_empty(ext_list)) {
