@@ -1021,12 +1021,7 @@ static inline int M_Offset_AO_Reference_Attenuation(int channel)
 
 static inline unsigned M_Offset_PFI_Output_Select(unsigned n)
 {
-	if (n < 1 || n > NUM_PFI_OUTPUT_SELECT_REGS) {
-		pr_err("%s: invalid pfi output select register=%i\n",
-		       __func__, n);
-		return M_Offset_PFI_Output_Select_1;
-	}
-	return M_Offset_PFI_Output_Select_1 + (n - 1) * 2;
+	return M_Offset_PFI_Output_Select_1 + (n * 2);
 }
 
 enum MSeries_AI_Config_FIFO_Data_Bits {

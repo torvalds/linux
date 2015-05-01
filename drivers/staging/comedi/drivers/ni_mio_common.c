@@ -4391,19 +4391,17 @@ static int ni_m_series_set_pfi_routing(struct comedi_device *dev,
 				       unsigned chan, unsigned source)
 {
 	struct ni_private *devpriv = dev->private;
-	unsigned pfi_reg_index;
-	unsigned array_offset;
+	unsigned index = chan / 3;
+	unsigned short val = devpriv->pfi_output_select_reg[index];
 
 	if ((source & 0x1f) != source)
 		return -EINVAL;
-	pfi_reg_index = 1 + chan / 3;
-	array_offset = pfi_reg_index - 1;
-	devpriv->pfi_output_select_reg[array_offset] &=
-	    ~MSeries_PFI_Output_Select_Mask(chan);
-	devpriv->pfi_output_select_reg[array_offset] |=
-	    MSeries_PFI_Output_Select_Bits(chan, source);
-	ni_writew(dev, devpriv->pfi_output_select_reg[array_offset],
-		  M_Offset_PFI_Output_Select(pfi_reg_index));
+
+	val &= ~MSeries_PFI_Output_Select_Mask(chan);
+	val |= MSeries_PFI_Output_Select_Bits(chan, source);
+	ni_writew(dev, val, M_Offset_PFI_Output_Select(index));
+	devpriv->pfi_output_select_reg[index] = val;
+
 	return 2;
 }
 
@@ -5409,7 +5407,7 @@ static int ni_E_init(struct comedi_device *dev,
 		ni_writew(dev, s->state, M_Offset_PFI_DO);
 		for (i = 0; i < NUM_PFI_OUTPUT_SELECT_REGS; ++i) {
 			ni_writew(dev, devpriv->pfi_output_select_reg[i],
-				  M_Offset_PFI_Output_Select(i + 1));
+				  M_Offset_PFI_Output_Select(i));
 		}
 	} else {
 		s->n_chan	= 10;
