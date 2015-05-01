@@ -563,8 +563,7 @@ int llog_reverse_process(const struct lu_env *env,
 	}
 
 out:
-	if (buf)
-		kfree(buf);
+	kfree(buf);
 	return rc;
 }
 EXPORT_SYMBOL(llog_reverse_process);
