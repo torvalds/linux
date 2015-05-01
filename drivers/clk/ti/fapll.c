@@ -621,13 +621,13 @@ static void __init ti_fapll_setup(struct device_node *node)
 
 		/* Check for hardwired audio_pll_clk1 */
 		if (is_audio_pll_clk1(freq)) {
-			freq = 0;
-			div = 0;
+			freq = NULL;
+			div = NULL;
 		} else {
 			/* Does the synthesizer have a FREQ register? */
 			v = readl_relaxed(freq);
 			if (!v)
-				freq = 0;
+				freq = NULL;
 		}
 		synth_clk = ti_fapll_synth_setup(fd, freq, div, output_instance,
 						 output_name, node->name,
