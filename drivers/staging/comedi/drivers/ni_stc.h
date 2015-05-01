@@ -336,6 +336,8 @@
 #define NISTC_AI_TRIG_START1_EDGE	BIT(5)
 #define NISTC_AI_TRIG_START1_SEL(x)	(((x) & 0x1f) << 0)
 
+#define NISTC_AI_DIV_LOADA_REG		64
+
 #define AI_Status_1_Register		2
 #define Interrupt_A_St				0x8000
 #define AI_FIFO_Full_St				0x4000
@@ -393,8 +395,6 @@ enum Joint_Status_2_Bits {
 #define AO_UI_Save_Registers		16
 #define AO_BC_Save_Registers		18
 #define AO_UC_Save_Registers		20
-
-#define AI_DIV_Load_A_Register	64
 
 #define AO_Start_Select_Register	66
 #define AO_UI2_Software_Gate			_bit15
