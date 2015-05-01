@@ -1849,7 +1849,7 @@ static netdev_tx_t rhine_start_tx(struct sk_buff *skb,
 
 	netdev_sent_queue(dev, skb->len);
 	/* lock eth irq */
-	wmb();
+	dma_wmb();
 	rp->tx_ring[entry].tx_status |= cpu_to_le32(DescOwn);
 	wmb();
 
