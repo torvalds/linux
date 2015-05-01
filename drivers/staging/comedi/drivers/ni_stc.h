@@ -359,6 +359,9 @@
 #define NISTC_AO_TRIG_START1_SEL(x)	(((x) & 0x1f) << 0)
 #define NISTC_AO_TRIG_START1_SEL_MASK	NISTC_AO_TRIG_START1_SEL(0x1f)
 
+#define NISTC_G0_AUTOINC_REG		68
+#define NISTC_G1_AUTOINC_REG		69
+
 #define AI_Status_1_Register		2
 #define Interrupt_A_St				0x8000
 #define AI_FIFO_Full_St				0x4000
@@ -589,7 +592,6 @@ static unsigned AO_UPDATE_Output_Select(enum ao_update_output_selection
 #define AI_External_Gate_Polarity		_bit5
 #define AI_External_Gate_Select(a)		((a) & 0x1f)
 
-#define G_Autoincrement_Register(a)	(68+(a))
 #define G_HW_Save_Register(a)		(8+(a)*2)
 #define G_HW_Save_Register_High(a)	(8+(a)*2)
 #define G_HW_Save_Register_Low(a)	(9+(a)*2)
