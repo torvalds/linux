@@ -267,13 +267,12 @@ static __always_inline void __flow_hash_secret_init(void)
 	net_get_random_once(&hashrnd, sizeof(hashrnd));
 }
 
-static __always_inline u32 __flow_hash_3words(u32 a, u32 b, u32 c)
+static __always_inline u32 __flow_hash_3words(u32 a, u32 b, u32 c, u32 keyval)
 {
-	__flow_hash_secret_init();
-	return jhash_3words(a, b, c, hashrnd);
+	return jhash_3words(a, b, c, keyval);
 }
 
-static inline u32 __flow_hash_from_keys(struct flow_keys *keys)
+static inline u32 __flow_hash_from_keys(struct flow_keys *keys, u32 keyval)
 {
 	u32 hash;
 
@@ -287,7 +286,8 @@ static inline u32 __flow_hash_from_keys(struct flow_keys *keys)
 
 	hash = __flow_hash_3words((__force u32)keys->dst,
 				  (__force u32)keys->src,
-				  (__force u32)keys->ports);
+				  (__force u32)keys->ports,
+				  keyval);
 	if (!hash)
 		hash = 1;
 
@@ -296,9 +296,19 @@ static inline u32 __flow_hash_from_keys(struct flow_keys *keys)
 
 u32 flow_hash_from_keys(struct flow_keys *keys)
 {
-	return __flow_hash_from_keys(keys);
+	__flow_hash_secret_init();
+	return __flow_hash_from_keys(keys, hashrnd);
 }
 EXPORT_SYMBOL(flow_hash_from_keys);
+
+static inline u32 ___skb_get_hash(const struct sk_buff *skb,
+				  struct flow_keys *keys, u32 keyval)
+{
+	if (!skb_flow_dissect(skb, keys))
+		return 0;
+
+	return __flow_hash_from_keys(keys, keyval);
+}
 
 /*
  * __skb_get_hash: calculate a flow hash based on src/dst addresses
@@ -309,8 +319,12 @@ EXPORT_SYMBOL(flow_hash_from_keys);
 void __skb_get_hash(struct sk_buff *skb)
 {
 	struct flow_keys keys;
+	u32 hash;
 
-	if (!skb_flow_dissect(skb, &keys))
+	__flow_hash_secret_init();
+
+	hash = ___skb_get_hash(skb, &keys, hashrnd);
+	if (!hash)
 		return;
 
 	if (keys.ports)
@@ -318,9 +332,17 @@ void __skb_get_hash(struct sk_buff *skb)
 
 	skb->sw_hash = 1;
 
-	skb->hash = __flow_hash_from_keys(&keys);
+	skb->hash = hash;
 }
 EXPORT_SYMBOL(__skb_get_hash);
+
+__u32 skb_get_hash_perturb(const struct sk_buff *skb, u32 perturb)
+{
+	struct flow_keys keys;
+
+	return ___skb_get_hash(skb, &keys, perturb);
+}
+EXPORT_SYMBOL(skb_get_hash_perturb);
 
 /*
  * Returns a Tx hash based on the given packet descriptor a Tx queues' number
