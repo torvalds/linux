@@ -534,7 +534,7 @@
 
 #define NISTC_G01_STATUS_REG		4
 
-#define AI_Status_2_Register		5
+#define NISTC_AI_STATUS2_REG		5
 
 #define AO_Status_2_Register		6
 
