@@ -97,7 +97,7 @@ static void __exit protocol_exit(void)			\
 {							\
 	gb_protocol_deregister(__protocol);		\
 }							\
-module_exit(protocol_exit);
+module_exit(protocol_exit)
 
 /*
  * Macro to create get_version() routine for protocols
