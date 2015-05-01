@@ -307,6 +307,15 @@
 #define NISTC_AI_OUT_CTRL_CONVERT_LOW		NISTC_AI_OUT_CTRL_CONVERT_SEL(2)
 #define NISTC_AI_OUT_CTRL_CONVERT_HIGH		NISTC_AI_OUT_CTRL_CONVERT_SEL(3)
 
+#define NISTC_ATRIG_ETC_REG		61
+#define NISTC_ATRIG_ETC_GPFO_1_ENA	BIT(15)
+#define NISTC_ATRIG_ETC_GPFO_0_ENA	BIT(14)
+#define NISTC_ATRIG_ETC_GPFO_0_SEL(x)	(((x) & 0x3) << 11)
+#define NISTC_ATRIG_ETC_GPFO_1_SEL	BIT(7)
+#define NISTC_ATRIG_ETC_DRV		BIT(4)
+#define NISTC_ATRIG_ETC_ENA		BIT(3)
+#define NISTC_ATRIG_ETC_MODE(x)		(((x) & 0x7) << 0)
+
 #define AI_Status_1_Register		2
 #define Interrupt_A_St				0x8000
 #define AI_FIFO_Full_St				0x4000
@@ -587,7 +596,6 @@ static unsigned AO_UPDATE_Output_Select(enum ao_update_output_selection
 #define G_Save_Register_High(a)		(12+(a)*2)
 #define G_Save_Register_Low(a)		(13+(a)*2)
 #define G_Status_Register		4
-#define Analog_Trigger_Etc_Register	61
 
 /* command register */
 #define G_Disarm_Copy			_bit15	/* strobe */
@@ -656,15 +664,6 @@ static unsigned AO_UPDATE_Output_Select(enum ao_update_output_selection
 
 /* general purpose counter timer */
 #define G_Autoincrement(a)              ((a)<<0)
-
-/*Analog_Trigger_Etc_Register*/
-#define Analog_Trigger_Mode(x) ((x) & 0x7)
-#define Analog_Trigger_Enable _bit3
-#define Analog_Trigger_Drive _bit4
-#define GPFO_1_Output_Select		_bit7
-#define GPFO_0_Output_Select(a)		((a)<<11)
-#define GPFO_0_Output_Enable		_bit14
-#define GPFO_1_Output_Enable		_bit15
 
 /* Additional windowed registers unique to E series */
 

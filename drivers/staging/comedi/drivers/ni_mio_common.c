@@ -356,7 +356,7 @@ static const struct mio_regmap m_series_stc_write_regmap[] = {
 	[NISTC_RTSI_TRIG_DIR_REG]	= { 0x174, 2 },
 	[NISTC_INT_CTRL_REG]		= { 0x176, 2 },
 	[NISTC_AI_OUT_CTRL_REG]		= { 0x178, 2 },
-	[Analog_Trigger_Etc_Register]	= { 0x17a, 2 },
+	[NISTC_ATRIG_ETC_REG]		= { 0x17a, 2 },
 	[AI_START_STOP_Select_Register]	= { 0x17c, 2 },
 	[AI_Trigger_Select_Register]	= { 0x17e, 2 },
 	[AI_DIV_Load_A_Register]	= { 0x180, 4 },
@@ -2262,9 +2262,8 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	/* disable analog triggering for now, since it
 	 * interferes with the use of pfi0 */
-	devpriv->an_trig_etc_reg &= ~Analog_Trigger_Enable;
-	ni_stc_writew(dev, devpriv->an_trig_etc_reg,
-		      Analog_Trigger_Etc_Register);
+	devpriv->an_trig_etc_reg &= ~NISTC_ATRIG_ETC_ENA;
+	ni_stc_writew(dev, devpriv->an_trig_etc_reg, NISTC_ATRIG_ETC_REG);
 
 	switch (cmd->start_src) {
 	case TRIG_INT:
