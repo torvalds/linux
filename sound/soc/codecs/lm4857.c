@@ -100,7 +100,7 @@ static const struct snd_soc_dapm_route lm4857_routes[] = {
 	{ "EP", "Earpiece", "Mode" },
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_lm4857 = {
+static struct snd_soc_component_driver lm4857_component_driver = {
 	.controls = lm4857_controls,
 	.num_controls = ARRAY_SIZE(lm4857_controls),
 	.dapm_widgets = lm4857_dapm_widgets,
@@ -129,13 +129,8 @@ static int lm4857_i2c_probe(struct i2c_client *i2c,
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	return snd_soc_register_codec(&i2c->dev, &soc_codec_dev_lm4857, NULL, 0);
-}
-
-static int lm4857_i2c_remove(struct i2c_client *i2c)
-{
-	snd_soc_unregister_codec(&i2c->dev);
-	return 0;
+	return devm_snd_soc_register_component(&i2c->dev,
+		&lm4857_component_driver, NULL, 0);
 }
 
 static const struct i2c_device_id lm4857_i2c_id[] = {
@@ -150,7 +145,6 @@ static struct i2c_driver lm4857_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = lm4857_i2c_probe,
-	.remove = lm4857_i2c_remove,
 	.id_table = lm4857_i2c_id,
 };
 
