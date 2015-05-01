@@ -102,11 +102,10 @@ void cfs_tracefile_fini_arch(void)
 	int    j;
 
 	for (i = 0; i < num_possible_cpus(); i++)
-		for (j = 0; j < 3; j++)
-			if (cfs_trace_console_buffers[i][j] != NULL) {
-				kfree(cfs_trace_console_buffers[i][j]);
-				cfs_trace_console_buffers[i][j] = NULL;
-			}
+		for (j = 0; j < 3; j++) {
+			kfree(cfs_trace_console_buffers[i][j]);
+			cfs_trace_console_buffers[i][j] = NULL;
+		}
 
 	for (i = 0; cfs_trace_data[i] != NULL; i++) {
 		kfree(cfs_trace_data[i]);
