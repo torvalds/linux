@@ -1510,8 +1510,7 @@ int ceph_uninline_data(struct file *filp, struct page *locked_page)
 				    ceph_vino(inode), 0, &len, 0, 1,
 				    CEPH_OSD_OP_CREATE,
 				    CEPH_OSD_FLAG_ONDISK | CEPH_OSD_FLAG_WRITE,
-				    ci->i_snap_realm->cached_context,
-				    0, 0, false);
+				    ceph_empty_snapc, 0, 0, false);
 	if (IS_ERR(req)) {
 		err = PTR_ERR(req);
 		goto out;
@@ -1529,7 +1528,7 @@ int ceph_uninline_data(struct file *filp, struct page *locked_page)
 				    ceph_vino(inode), 0, &len, 1, 3,
 				    CEPH_OSD_OP_WRITE,
 				    CEPH_OSD_FLAG_ONDISK | CEPH_OSD_FLAG_WRITE,
-				    ci->i_snap_realm->cached_context,
+				    ceph_empty_snapc,
 				    ci->i_truncate_seq, ci->i_truncate_size,
 				    false);
 	if (IS_ERR(req)) {
@@ -1653,7 +1652,7 @@ static int __ceph_pool_perm_get(struct ceph_inode_info *ci, u32 pool)
 	}
 
 	rd_req = ceph_osdc_alloc_request(&fsc->client->osdc,
-					 ci->i_snap_realm->cached_context,
+					 ceph_empty_snapc,
 					 1, false, GFP_NOFS);
 	if (!rd_req) {
 		err = -ENOMEM;
@@ -1668,7 +1667,7 @@ static int __ceph_pool_perm_get(struct ceph_inode_info *ci, u32 pool)
 	rd_req->r_base_oid.name_len = strlen(rd_req->r_base_oid.name);
 
 	wr_req = ceph_osdc_alloc_request(&fsc->client->osdc,
-					 ci->i_snap_realm->cached_context,
+					 ceph_empty_snapc,
 					 1, false, GFP_NOFS);
 	if (!wr_req) {
 		err = -ENOMEM;
