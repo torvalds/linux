@@ -54,6 +54,22 @@ bool is_nvdimm_bus_locked(struct device *dev)
 }
 EXPORT_SYMBOL(is_nvdimm_bus_locked);
 
+u64 nd_fletcher64(void *addr, size_t len, bool le)
+{
+	u32 *buf = addr;
+	u32 lo32 = 0;
+	u64 hi32 = 0;
+	int i;
+
+	for (i = 0; i < len / sizeof(u32); i++) {
+		lo32 += le ? le32_to_cpu((__le32) buf[i]) : buf[i];
+		hi32 += lo32;
+	}
+
+	return hi32 << 32 | lo32;
+}
+EXPORT_SYMBOL_GPL(nd_fletcher64);
+
 static void nvdimm_bus_release(struct device *dev)
 {
 	struct nvdimm_bus *nvdimm_bus;
@@ -175,6 +191,7 @@ struct nvdimm_bus *__nvdimm_bus_register(struct device *parent,
 	if (!nvdimm_bus)
 		return NULL;
 	INIT_LIST_HEAD(&nvdimm_bus->list);
+	init_waitqueue_head(&nvdimm_bus->probe_wait);
 	nvdimm_bus->id = ida_simple_get(&nd_ida, 0, 0, GFP_KERNEL);
 	mutex_init(&nvdimm_bus->reconfig_mutex);
 	if (nvdimm_bus->id < 0) {

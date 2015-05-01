@@ -61,11 +61,16 @@ struct nd_cmd_desc {
 	int out_sizes[ND_CMD_MAX_ELEM];
 };
 
+struct nd_interleave_set {
+	u64 cookie;
+};
+
 struct nd_region_desc {
 	struct resource *res;
 	struct nd_mapping *nd_mapping;
 	u16 num_mappings;
 	const struct attribute_group **attr_groups;
+	struct nd_interleave_set *nd_set;
 	void *provider_data;
 };
 
@@ -101,4 +106,5 @@ struct nd_region *nvdimm_blk_region_create(struct nvdimm_bus *nvdimm_bus,
 		struct nd_region_desc *ndr_desc);
 struct nd_region *nvdimm_volatile_region_create(struct nvdimm_bus *nvdimm_bus,
 		struct nd_region_desc *ndr_desc);
+u64 nd_fletcher64(void *addr, size_t len, bool le);
 #endif /* __LIBNVDIMM_H__ */

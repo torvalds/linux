@@ -35,6 +35,7 @@ struct nd_region {
 	u64 ndr_start;
 	int id;
 	void *provider_data;
+	struct nd_interleave_set *nd_set;
 	struct nd_mapping mapping[0];
 };
 

@@ -185,7 +185,24 @@ static ssize_t commands_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(commands);
 
+static ssize_t state_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	struct nvdimm *nvdimm = to_nvdimm(dev);
+
+	/*
+	 * The state may be in the process of changing, userspace should
+	 * quiesce probing if it wants a static answer
+	 */
+	nvdimm_bus_lock(dev);
+	nvdimm_bus_unlock(dev);
+	return sprintf(buf, "%s\n", atomic_read(&nvdimm->busy)
+			? "active" : "idle");
+}
+static DEVICE_ATTR_RO(state);
+
 static struct attribute *nvdimm_attributes[] = {
+	&dev_attr_state.attr,
 	&dev_attr_commands.attr,
 	NULL,
 };
@@ -213,7 +230,7 @@ struct nvdimm *nvdimm_create(struct nvdimm_bus *nvdimm_bus, void *provider_data,
 	nvdimm->provider_data = provider_data;
 	nvdimm->flags = flags;
 	nvdimm->dsm_mask = dsm_mask;
-
+	atomic_set(&nvdimm->busy, 0);
 	dev = &nvdimm->dev;
 	dev_set_name(dev, "nmem%d", nvdimm->id);
 	dev->parent = &nvdimm_bus->dev;

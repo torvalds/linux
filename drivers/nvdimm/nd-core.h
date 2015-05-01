@@ -14,6 +14,9 @@
 #define __ND_CORE_H__
 #include <linux/libnvdimm.h>
 #include <linux/device.h>
+#include <linux/libnvdimm.h>
+#include <linux/sizes.h>
+#include <linux/mutex.h>
 
 extern struct list_head nvdimm_bus_list;
 extern struct mutex nvdimm_bus_list_mutex;
@@ -21,10 +24,11 @@ extern int nvdimm_major;
 
 struct nvdimm_bus {
 	struct nvdimm_bus_descriptor *nd_desc;
+	wait_queue_head_t probe_wait;
 	struct module *module;
 	struct list_head list;
 	struct device dev;
-	int id;
+	int id, probe_active;
 	struct mutex reconfig_mutex;
 };
 
@@ -33,6 +37,7 @@ struct nvdimm {
 	void *provider_data;
 	unsigned long *dsm_mask;
 	struct device dev;
+	atomic_t busy;
 	int id;
 };
 
@@ -42,10 +47,13 @@ bool is_nd_pmem(struct device *dev);
 struct nvdimm_bus *walk_to_nvdimm_bus(struct device *nd_dev);
 int __init nvdimm_bus_init(void);
 void nvdimm_bus_exit(void);
+void nd_region_probe_success(struct nvdimm_bus *nvdimm_bus, struct device *dev);
+void nd_region_disable(struct nvdimm_bus *nvdimm_bus, struct device *dev);
 int nvdimm_bus_create_ndctl(struct nvdimm_bus *nvdimm_bus);
 void nvdimm_bus_destroy_ndctl(struct nvdimm_bus *nvdimm_bus);
 void nd_synchronize(void);
 int nvdimm_bus_register_dimms(struct nvdimm_bus *nvdimm_bus);
 int nvdimm_bus_register_regions(struct nvdimm_bus *nvdimm_bus);
+int nvdimm_bus_init_interleave_sets(struct nvdimm_bus *nvdimm_bus);
 int nd_match_dimm(struct device *dev, void *data);
 #endif /* __ND_CORE_H__ */

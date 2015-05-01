@@ -68,6 +68,21 @@ static struct module *to_bus_provider(struct device *dev)
 	return NULL;
 }
 
+static void nvdimm_bus_probe_start(struct nvdimm_bus *nvdimm_bus)
+{
+	nvdimm_bus_lock(&nvdimm_bus->dev);
+	nvdimm_bus->probe_active++;
+	nvdimm_bus_unlock(&nvdimm_bus->dev);
+}
+
+static void nvdimm_bus_probe_end(struct nvdimm_bus *nvdimm_bus)
+{
+	nvdimm_bus_lock(&nvdimm_bus->dev);
+	if (--nvdimm_bus->probe_active == 0)
+		wake_up(&nvdimm_bus->probe_wait);
+	nvdimm_bus_unlock(&nvdimm_bus->dev);
+}
+
 static int nvdimm_bus_probe(struct device *dev)
 {
 	struct nd_device_driver *nd_drv = to_nd_device_driver(dev->driver);
@@ -78,7 +93,12 @@ static int nvdimm_bus_probe(struct device *dev)
 	if (!try_module_get(provider))
 		return -ENXIO;
 
+	nvdimm_bus_probe_start(nvdimm_bus);
 	rc = nd_drv->probe(dev);
+	if (rc == 0)
+		nd_region_probe_success(nvdimm_bus, dev);
+	nvdimm_bus_probe_end(nvdimm_bus);
+
 	dev_dbg(&nvdimm_bus->dev, "%s.probe(%s) = %d\n", dev->driver->name,
 			dev_name(dev), rc);
 	if (rc != 0)
@@ -94,6 +114,8 @@ static int nvdimm_bus_remove(struct device *dev)
 	int rc;
 
 	rc = nd_drv->remove(dev);
+	nd_region_disable(nvdimm_bus, dev);
+
 	dev_dbg(&nvdimm_bus->dev, "%s.remove(%s) = %d\n", dev->driver->name,
 			dev_name(dev), rc);
 	module_put(provider);
@@ -359,6 +381,34 @@ u32 nd_cmd_out_size(struct nvdimm *nvdimm, int cmd,
 }
 EXPORT_SYMBOL_GPL(nd_cmd_out_size);
 
+static void wait_nvdimm_bus_probe_idle(struct nvdimm_bus *nvdimm_bus)
+{
+	do {
+		if (nvdimm_bus->probe_active == 0)
+			break;
+		nvdimm_bus_unlock(&nvdimm_bus->dev);
+		wait_event(nvdimm_bus->probe_wait,
+				nvdimm_bus->probe_active == 0);
+		nvdimm_bus_lock(&nvdimm_bus->dev);
+	} while (true);
+}
+
+/* set_config requires an idle interleave set */
+static int nd_cmd_clear_to_send(struct nvdimm *nvdimm, unsigned int cmd)
+{
+	struct nvdimm_bus *nvdimm_bus;
+
+	if (!nvdimm || cmd != ND_CMD_SET_CONFIG_DATA)
+		return 0;
+
+	nvdimm_bus = walk_to_nvdimm_bus(&nvdimm->dev);
+	wait_nvdimm_bus_probe_idle(nvdimm_bus);
+
+	if (atomic_read(&nvdimm->busy))
+		return -EBUSY;
+	return 0;
+}
+
 static int __nd_ioctl(struct nvdimm_bus *nvdimm_bus, struct nvdimm *nvdimm,
 		int read_only, unsigned int ioctl_cmd, unsigned long arg)
 {
@@ -469,11 +519,18 @@ static int __nd_ioctl(struct nvdimm_bus *nvdimm_bus, struct nvdimm *nvdimm,
 		goto out;
 	}
 
+	nvdimm_bus_lock(&nvdimm_bus->dev);
+	rc = nd_cmd_clear_to_send(nvdimm, cmd);
+	if (rc)
+		goto out_unlock;
+
 	rc = nd_desc->ndctl(nd_desc, nvdimm, cmd, buf, buf_len);
 	if (rc < 0)
-		goto out;
+		goto out_unlock;
 	if (copy_to_user(p, buf, buf_len))
 		rc = -EFAULT;
+ out_unlock:
+	nvdimm_bus_unlock(&nvdimm_bus->dev);
  out:
 	vfree(buf);
 	return rc;
