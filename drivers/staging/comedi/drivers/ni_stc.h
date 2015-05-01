@@ -26,23 +26,6 @@
 
 #include "ni_tio.h"
 
-#define _bit15		0x8000
-#define _bit14		0x4000
-#define _bit13		0x2000
-#define _bit12		0x1000
-#define _bit11		0x0800
-#define _bit10		0x0400
-#define _bit9		0x0200
-#define _bit8		0x0100
-#define _bit7		0x0080
-#define _bit6		0x0040
-#define _bit5		0x0020
-#define _bit4		0x0010
-#define _bit3		0x0008
-#define _bit2		0x0004
-#define _bit1		0x0002
-#define _bit0		0x0001
-
 #define NUM_PFI_OUTPUT_SELECT_REGS 6
 
 /*
