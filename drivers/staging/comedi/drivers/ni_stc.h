@@ -129,6 +129,23 @@
 #define NISTC_G0_CMD_REG		6
 #define NISTC_G1_CMD_REG		7
 
+#define NISTC_AI_CMD1_REG		8
+#define NISTC_AI_CMD1_ATRIG_RESET	BIT(14)
+#define NISTC_AI_CMD1_DISARM		BIT(13)
+#define NISTC_AI_CMD1_SI2_ARM		BIT(12)
+#define NISTC_AI_CMD1_SI2_LOAD		BIT(11)
+#define NISTC_AI_CMD1_SI_ARM		BIT(10)
+#define NISTC_AI_CMD1_SI_LOAD		BIT(9)
+#define NISTC_AI_CMD1_DIV_ARM		BIT(8)
+#define NISTC_AI_CMD1_DIV_LOAD		BIT(7)
+#define NISTC_AI_CMD1_SC_ARM		BIT(6)
+#define NISTC_AI_CMD1_SC_LOAD		BIT(5)
+#define NISTC_AI_CMD1_SCAN_IN_PROG_PULSE BIT(4)
+#define NISTC_AI_CMD1_EXTMUX_CLK_PULSE	BIT(3)
+#define NISTC_AI_CMD1_LOCALMUX_CLK_PULSE BIT(2)
+#define NISTC_AI_CMD1_SC_TC_PULSE	BIT(1)
+#define NISTC_AI_CMD1_CONVERT_PULSE	BIT(0)
+
 #define AI_Status_1_Register		2
 #define Interrupt_A_St				0x8000
 #define AI_FIFO_Full_St				0x4000
@@ -170,23 +187,6 @@
 #define AO_Status_2_Register		6
 
 #define DIO_Parallel_Input_Register	7
-
-#define AI_Command_1_Register		8
-#define AI_Analog_Trigger_Reset			_bit14
-#define AI_Disarm				_bit13
-#define AI_SI2_Arm				_bit12
-#define AI_SI2_Load				_bit11
-#define AI_SI_Arm				_bit10
-#define AI_SI_Load				_bit9
-#define AI_DIV_Arm				_bit8
-#define AI_DIV_Load				_bit7
-#define AI_SC_Arm				_bit6
-#define AI_SC_Load				_bit5
-#define AI_SCAN_IN_PROG_Pulse			_bit4
-#define AI_EXTMUX_CLK_Pulse			_bit3
-#define AI_LOCALMUX_CLK_Pulse			_bit2
-#define AI_SC_TC_Pulse			 	_bit1
-#define AI_CONVERT_Pulse			_bit0
 
 #define AO_Command_1_Register		9
 #define AO_Analog_Trigger_Reset			_bit15

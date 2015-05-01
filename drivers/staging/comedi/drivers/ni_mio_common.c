@@ -320,7 +320,7 @@ static const struct mio_regmap m_series_stc_write_regmap[] = {
 	[NISTC_AO_CMD2_REG]		= { 0x10a, 2 },
 	[NISTC_G0_CMD_REG]		= { 0x10c, 2 },
 	[NISTC_G1_CMD_REG]		= { 0x10e, 2 },
-	[AI_Command_1_Register]		= { 0x110, 2 },
+	[NISTC_AI_CMD1_REG]		= { 0x110, 2 },
 	[AO_Command_1_Register]		= { 0x112, 2 },
 	/*
 	 * DIO_Output_Register maps to:
@@ -860,12 +860,12 @@ static void ni_clear_ai_fifo(struct comedi_device *dev)
 #if 0
 			/* the NI example code does 3 convert pulses for 625x boards,
 			   but that appears to be wrong in practice. */
-			ni_stc_writew(dev, AI_CONVERT_Pulse,
-				      AI_Command_1_Register);
-			ni_stc_writew(dev, AI_CONVERT_Pulse,
-				      AI_Command_1_Register);
-			ni_stc_writew(dev, AI_CONVERT_Pulse,
-				      AI_Command_1_Register);
+			ni_stc_writew(dev, NISTC_AI_CMD1_CONVERT_PULSE,
+				      NISTC_AI_CMD1_REG);
+			ni_stc_writew(dev, NISTC_AI_CMD1_CONVERT_PULSE,
+				      NISTC_AI_CMD1_REG);
+			ni_stc_writew(dev, NISTC_AI_CMD1_CONVERT_PULSE,
+				      NISTC_AI_CMD1_REG);
 #endif
 		}
 	}
@@ -1629,7 +1629,7 @@ static int ni_ai_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 	if (!devpriv->is_6143)
 		ni_writeb(dev, 0, Misc_Command);
 
-	ni_stc_writew(dev, AI_Disarm, AI_Command_1_Register); /* reset pulses */
+	ni_stc_writew(dev, NISTC_AI_CMD1_DISARM, NISTC_AI_CMD1_REG);
 	ni_stc_writew(dev, AI_Start_Stop | AI_Mode_1_Reserved
 			    /*| AI_Trigger_Once */,
 		      AI_Mode_1_Register);
@@ -1727,7 +1727,7 @@ static void ni_prime_channelgain_list(struct comedi_device *dev)
 {
 	int i;
 
-	ni_stc_writew(dev, AI_CONVERT_Pulse, AI_Command_1_Register);
+	ni_stc_writew(dev, NISTC_AI_CMD1_CONVERT_PULSE, NISTC_AI_CMD1_REG);
 	for (i = 0; i < NI_TIMEOUT; ++i) {
 		if (!(ni_stc_readw(dev, AI_Status_1_Register) &
 		      AI_FIFO_Empty_St)) {
@@ -1971,13 +1971,13 @@ static int ni_ai_insn_read(struct comedi_device *dev,
 	signbits = devpriv->ai_offset[0];
 	if (devpriv->is_611x) {
 		for (n = 0; n < num_adc_stages_611x; n++) {
-			ni_stc_writew(dev, AI_CONVERT_Pulse,
-				      AI_Command_1_Register);
+			ni_stc_writew(dev, NISTC_AI_CMD1_CONVERT_PULSE,
+				      NISTC_AI_CMD1_REG);
 			udelay(1);
 		}
 		for (n = 0; n < insn->n; n++) {
-			ni_stc_writew(dev, AI_CONVERT_Pulse,
-				      AI_Command_1_Register);
+			ni_stc_writew(dev, NISTC_AI_CMD1_CONVERT_PULSE,
+				      NISTC_AI_CMD1_REG);
 			/* The 611x has screwy 32-bit FIFOs. */
 			d = 0;
 			for (i = 0; i < NI_TIMEOUT; i++) {
@@ -2003,8 +2003,8 @@ static int ni_ai_insn_read(struct comedi_device *dev,
 		}
 	} else if (devpriv->is_6143) {
 		for (n = 0; n < insn->n; n++) {
-			ni_stc_writew(dev, AI_CONVERT_Pulse,
-				      AI_Command_1_Register);
+			ni_stc_writew(dev, NISTC_AI_CMD1_CONVERT_PULSE,
+				      NISTC_AI_CMD1_REG);
 
 			/* The 6143 has 32-bit FIFOs. You need to strobe a bit to move a single 16bit stranded sample into the FIFO */
 			dl = 0;
@@ -2025,8 +2025,8 @@ static int ni_ai_insn_read(struct comedi_device *dev,
 		}
 	} else {
 		for (n = 0; n < insn->n; n++) {
-			ni_stc_writew(dev, AI_CONVERT_Pulse,
-				      AI_Command_1_Register);
+			ni_stc_writew(dev, NISTC_AI_CMD1_CONVERT_PULSE,
+				      NISTC_AI_CMD1_REG);
 			for (i = 0; i < NI_TIMEOUT; i++) {
 				if (!(ni_stc_readw(dev, AI_Status_1_Register) &
 				      AI_FIFO_Empty_St))
@@ -2341,7 +2341,7 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		mode1 |= AI_Start_Stop | AI_Mode_1_Reserved | AI_Trigger_Once;
 		ni_stc_writew(dev, mode1, AI_Mode_1_Register);
 		/* load SC (Scan Count) */
-		ni_stc_writew(dev, AI_SC_Load, AI_Command_1_Register);
+		ni_stc_writew(dev, NISTC_AI_CMD1_SC_LOAD, NISTC_AI_CMD1_REG);
 
 		if (stop_count == 0) {
 			devpriv->ai_cmd2 |= NISTC_AI_CMD2_END_ON_EOS;
@@ -2360,7 +2360,7 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		ni_stc_writew(dev, mode1, AI_Mode_1_Register);
 
 		/* load SC (Scan Count) */
-		ni_stc_writew(dev, AI_SC_Load, AI_Command_1_Register);
+		ni_stc_writew(dev, NISTC_AI_CMD1_SC_LOAD, NISTC_AI_CMD1_REG);
 		break;
 	}
 
@@ -2394,7 +2394,7 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		timer = ni_ns_to_timer(dev, cmd->scan_begin_arg,
 				       CMDF_ROUND_NEAREST);
 		ni_stc_writel(dev, timer, AI_SI_Load_A_Registers);
-		ni_stc_writew(dev, AI_SI_Load, AI_Command_1_Register);
+		ni_stc_writew(dev, NISTC_AI_CMD1_SI_LOAD, NISTC_AI_CMD1_REG);
 		break;
 	case TRIG_EXT:
 		if (cmd->scan_begin_arg & CR_EDGE)
@@ -2431,8 +2431,7 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		mode2 |= AI_SI2_Reload_Mode;
 		ni_stc_writew(dev, mode2, AI_Mode_2_Register);
 
-		/* AI_SI2_Load */
-		ni_stc_writew(dev, AI_SI2_Load, AI_Command_1_Register);
+		ni_stc_writew(dev, NISTC_AI_CMD1_SI2_LOAD, NISTC_AI_CMD1_REG);
 
 		mode2 |= AI_SI2_Reload_Mode;	/*  alternate */
 		mode2 |= AI_SI2_Initial_Load_Source;	/*  B */
@@ -2515,15 +2514,18 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	switch (cmd->scan_begin_src) {
 	case TRIG_TIMER:
-		ni_stc_writew(dev,
-			      AI_SI2_Arm | AI_SI_Arm | AI_DIV_Arm | AI_SC_Arm,
-			      AI_Command_1_Register);
+		ni_stc_writew(dev, NISTC_AI_CMD1_SI2_ARM |
+				   NISTC_AI_CMD1_SI_ARM |
+				   NISTC_AI_CMD1_DIV_ARM |
+				   NISTC_AI_CMD1_SC_ARM,
+			      NISTC_AI_CMD1_REG);
 		break;
 	case TRIG_EXT:
-		/* XXX AI_SI_Arm? */
-		ni_stc_writew(dev,
-			      AI_SI2_Arm | AI_SI_Arm | AI_DIV_Arm | AI_SC_Arm,
-			      AI_Command_1_Register);
+		ni_stc_writew(dev, NISTC_AI_CMD1_SI2_ARM |
+				   NISTC_AI_CMD1_SI_ARM |	/* XXX ? */
+				   NISTC_AI_CMD1_DIV_ARM |
+				   NISTC_AI_CMD1_SC_ARM,
+			      NISTC_AI_CMD1_REG);
 		break;
 	}
 
