@@ -1201,7 +1201,7 @@ static int mdc_ioc_fid2path(struct obd_export *exp, struct getinfo_fid2path *gf)
 
 	/* Key is KEY_FID2PATH + getinfo_fid2path description */
 	keylen = cfs_size_round(sizeof(KEY_FID2PATH)) + sizeof(*gf);
-	OBD_ALLOC(key, keylen);
+	key = kzalloc(keylen, GFP_NOFS);
 	if (key == NULL)
 		return -ENOMEM;
 	memcpy(key, KEY_FID2PATH, sizeof(KEY_FID2PATH));
@@ -1234,7 +1234,7 @@ static int mdc_ioc_fid2path(struct obd_export *exp, struct getinfo_fid2path *gf)
 	       PFID(&gf->gf_fid), gf->gf_recno, gf->gf_linkno, gf->gf_path);
 
 out:
-	OBD_FREE(key, keylen);
+	kfree(key);
 	return rc;
 }
 
@@ -1604,7 +1604,7 @@ static int mdc_changelog_send_thread(void *csdata)
 	CDEBUG(D_CHANGELOG, "changelog to fp=%p start %llu\n",
 	       cs->cs_fp, cs->cs_startrec);
 
-	OBD_ALLOC(cs->cs_buf, KUC_CHANGELOG_MSG_MAXSIZE);
+	cs->cs_buf = kzalloc(KUC_CHANGELOG_MSG_MAXSIZE, GFP_NOFS);
 	if (cs->cs_buf == NULL) {
 		rc = -ENOMEM;
 		goto out;
@@ -1645,8 +1645,8 @@ out:
 	if (ctxt)
 		llog_ctxt_put(ctxt);
 	if (cs->cs_buf)
-		OBD_FREE(cs->cs_buf, KUC_CHANGELOG_MSG_MAXSIZE);
-	OBD_FREE_PTR(cs);
+		kfree(cs->cs_buf);
+	kfree(cs);
 	return rc;
 }
 
@@ -1657,7 +1657,7 @@ static int mdc_ioc_changelog_send(struct obd_device *obd,
 	int rc;
 
 	/* Freed in mdc_changelog_send_thread */
-	OBD_ALLOC_PTR(cs);
+	cs = kzalloc(sizeof(*cs), GFP_NOFS);
 	if (!cs)
 		return -ENOMEM;
 
@@ -1679,7 +1679,7 @@ static int mdc_ioc_changelog_send(struct obd_device *obd,
 	}
 
 	CERROR("Failed to start changelog thread: %d\n", rc);
-	OBD_FREE_PTR(cs);
+	kfree(cs);
 	return rc;
 }
 
@@ -1937,7 +1937,7 @@ static int mdc_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 		struct if_quotactl *qctl = karg;
 		struct obd_quotactl *oqctl;
 
-		OBD_ALLOC_PTR(oqctl);
+		oqctl = kzalloc(sizeof(*oqctl), GFP_NOFS);
 		if (oqctl == NULL) {
 			rc = -ENOMEM;
 			goto out;
@@ -1951,7 +1951,7 @@ static int mdc_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 			qctl->obd_uuid = obd->u.cli.cl_target_uuid;
 		}
 
-		OBD_FREE_PTR(oqctl);
+		kfree(oqctl);
 		goto out;
 	}
 	case LL_IOC_GET_CONNECT_FLAGS:
@@ -2430,14 +2430,14 @@ static int mdc_setup(struct obd_device *obd, struct lustre_cfg *cfg)
 	struct lprocfs_static_vars lvars = { NULL };
 	int rc;
 
-	OBD_ALLOC(cli->cl_rpc_lock, sizeof(*cli->cl_rpc_lock));
+	cli->cl_rpc_lock = kzalloc(sizeof(*cli->cl_rpc_lock), GFP_NOFS);
 	if (!cli->cl_rpc_lock)
 		return -ENOMEM;
 	mdc_init_rpc_lock(cli->cl_rpc_lock);
 
 	ptlrpcd_addref();
 
-	OBD_ALLOC(cli->cl_close_lock, sizeof(*cli->cl_close_lock));
+	cli->cl_close_lock = kzalloc(sizeof(*cli->cl_close_lock), GFP_NOFS);
 	if (!cli->cl_close_lock) {
 		rc = -ENOMEM;
 		goto err_rpc_lock;
@@ -2465,9 +2465,9 @@ static int mdc_setup(struct obd_device *obd, struct lustre_cfg *cfg)
 	return rc;
 
 err_close_lock:
-	OBD_FREE(cli->cl_close_lock, sizeof(*cli->cl_close_lock));
+	kfree(cli->cl_close_lock);
 err_rpc_lock:
-	OBD_FREE(cli->cl_rpc_lock, sizeof(*cli->cl_rpc_lock));
+	kfree(cli->cl_rpc_lock);
 	ptlrpcd_decref();
 	return rc;
 }
@@ -2525,8 +2525,8 @@ static int mdc_cleanup(struct obd_device *obd)
 {
 	struct client_obd *cli = &obd->u.cli;
 
-	OBD_FREE(cli->cl_rpc_lock, sizeof(*cli->cl_rpc_lock));
-	OBD_FREE(cli->cl_close_lock, sizeof(*cli->cl_close_lock));
+	kfree(cli->cl_rpc_lock);
+	kfree(cli->cl_close_lock);
 
 	ptlrpcd_decref();
 

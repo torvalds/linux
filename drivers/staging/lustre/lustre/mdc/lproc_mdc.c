@@ -106,7 +106,7 @@ static ssize_t mdc_kuc_write(struct file *file,
 	len = sizeof(*lh) + sizeof(*hal) + MTI_NAME_MAXLEN +
 		/* for mockup below */ 2 * cfs_size_round(sizeof(*hai));
 
-	OBD_ALLOC(lh, len);
+	lh = kzalloc(len, GFP_NOFS);
 	if (!lh)
 		return -ENOMEM;
 
@@ -141,7 +141,7 @@ static ssize_t mdc_kuc_write(struct file *file,
 		rc = libcfs_kkuc_msg_put(fp, lh);
 		fput(fp);
 	}
-	OBD_FREE(lh, len);
+	kfree(lh);
 	if (rc < 0)
 		return rc;
 	return count;

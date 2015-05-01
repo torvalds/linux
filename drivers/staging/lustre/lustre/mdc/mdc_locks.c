@@ -1251,7 +1251,7 @@ static int mdc_intent_getattr_async_interpret(const struct lu_env *env,
 	rc = mdc_finish_intent_lock(exp, req, &minfo->mi_data, it, lockh);
 
 out:
-	OBD_FREE_PTR(einfo);
+	kfree(einfo);
 	minfo->mi_cb(req, minfo, rc);
 	return 0;
 }
