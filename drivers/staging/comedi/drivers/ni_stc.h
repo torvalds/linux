@@ -172,6 +172,14 @@
 #define NISTC_DIO_SDIN			BIT(4)
 #define NISTC_DIO_SDOUT			BIT(0)
 
+#define NISTC_DIO_CTRL_REG		11
+#define NISTC_DIO_SDCLK			BIT(11)
+#define NISTC_DIO_CTRL_HW_SER_TIMEBASE	BIT(10)
+#define NISTC_DIO_CTRL_HW_SER_ENA	BIT(9)
+#define NISTC_DIO_CTRL_HW_SER_START	BIT(8)
+#define NISTC_DIO_CTRL_DIR(x)		((x) & 0xff)
+#define NISTC_DIO_CTRL_DIR_MASK		NISTC_DIO_CTRL_DIR(0xff)
+
 #define AI_Status_1_Register		2
 #define Interrupt_A_St				0x8000
 #define AI_FIFO_Full_St				0x4000
@@ -213,14 +221,6 @@
 #define AO_Status_2_Register		6
 
 #define DIO_Parallel_Input_Register	7
-
-#define DIO_Control_Register		11
-#define DIO_Software_Serial_Control             _bit11
-#define DIO_HW_Serial_Timebase                  _bit10
-#define DIO_HW_Serial_Enable                    _bit9
-#define DIO_HW_Serial_Start                     _bit8
-#define DIO_Pins_Dir(a)                         ((a)&0xff)
-#define DIO_Pins_Dir_Mask                       0xff
 
 #define AI_Mode_1_Register		12
 #define AI_CONVERT_Source_Select(a)		(((a) & 0x1f) << 11)

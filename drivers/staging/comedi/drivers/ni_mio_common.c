@@ -327,7 +327,7 @@ static const struct mio_regmap m_series_stc_write_regmap[] = {
 	 * { NI_M_DIO_REG, 4 } and { NI_M_SCXI_SER_DO_REG, 1 }
 	 */
 	[NISTC_DIO_OUT_REG]		= { 0, 0 }, /* DOES NOT MAP CLEANLY */
-	[DIO_Control_Register]		= { 0, 0 }, /* DOES NOT MAP CLEANLY */
+	[NISTC_DIO_CTRL_REG]		= { 0, 0 }, /* DOES NOT MAP CLEANLY */
 	[AI_Mode_1_Register]		= { 0x118, 2 },
 	[AI_Mode_2_Register]		= { 0x11a, 2 },
 	[AI_SI_Load_A_Registers]	= { 0x11c, 4 },
@@ -3265,9 +3265,9 @@ static int ni_dio_insn_config(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	devpriv->dio_control &= ~DIO_Pins_Dir_Mask;
-	devpriv->dio_control |= DIO_Pins_Dir(s->io_bits);
-	ni_stc_writew(dev, devpriv->dio_control, DIO_Control_Register);
+	devpriv->dio_control &= ~NISTC_DIO_CTRL_DIR_MASK;
+	devpriv->dio_control |= NISTC_DIO_CTRL_DIR(s->io_bits);
+	ni_stc_writew(dev, devpriv->dio_control, NISTC_DIO_CTRL_REG);
 
 	return insn->n;
 }
@@ -3554,9 +3554,9 @@ static int ni_serial_hw_readwrite8(struct comedi_device *dev,
 		goto Error;
 	}
 
-	devpriv->dio_control |= DIO_HW_Serial_Start;
-	ni_stc_writew(dev, devpriv->dio_control, DIO_Control_Register);
-	devpriv->dio_control &= ~DIO_HW_Serial_Start;
+	devpriv->dio_control |= NISTC_DIO_CTRL_HW_SER_START;
+	ni_stc_writew(dev, devpriv->dio_control, NISTC_DIO_CTRL_REG);
+	devpriv->dio_control &= ~NISTC_DIO_CTRL_HW_SER_START;
 
 	/* Wait until STC says we're done, but don't loop infinitely. */
 	while ((status1 = ni_stc_readw(dev, Joint_Status_1_Register)) &
@@ -3579,7 +3579,7 @@ static int ni_serial_hw_readwrite8(struct comedi_device *dev,
 		*data_in = ni_stc_readw(dev, DIO_Serial_Input_Register);
 
 Error:
-	ni_stc_writew(dev, devpriv->dio_control, DIO_Control_Register);
+	ni_stc_writew(dev, devpriv->dio_control, NISTC_DIO_CTRL_REG);
 
 	return err;
 }
@@ -3606,13 +3606,13 @@ static int ni_serial_sw_readwrite8(struct comedi_device *dev,
 
 		/* Assert SDCLK (active low, inverted), wait for half of
 		   the delay, deassert SDCLK, and wait for the other half. */
-		devpriv->dio_control |= DIO_Software_Serial_Control;
-		ni_stc_writew(dev, devpriv->dio_control, DIO_Control_Register);
+		devpriv->dio_control |= NISTC_DIO_SDCLK;
+		ni_stc_writew(dev, devpriv->dio_control, NISTC_DIO_CTRL_REG);
 
 		udelay((devpriv->serial_interval_ns + 999) / 2000);
 
-		devpriv->dio_control &= ~DIO_Software_Serial_Control;
-		ni_stc_writew(dev, devpriv->dio_control, DIO_Control_Register);
+		devpriv->dio_control &= ~NISTC_DIO_SDCLK;
+		ni_stc_writew(dev, devpriv->dio_control, NISTC_DIO_CTRL_REG);
 
 		udelay((devpriv->serial_interval_ns + 999) / 2000);
 
@@ -3643,30 +3643,30 @@ static int ni_serial_insn_config(struct comedi_device *dev,
 	switch (data[0]) {
 	case INSN_CONFIG_SERIAL_CLOCK:
 		devpriv->serial_hw_mode = 1;
-		devpriv->dio_control |= DIO_HW_Serial_Enable;
+		devpriv->dio_control |= NISTC_DIO_CTRL_HW_SER_ENA;
 
 		if (data[1] == SERIAL_DISABLED) {
 			devpriv->serial_hw_mode = 0;
-			devpriv->dio_control &= ~(DIO_HW_Serial_Enable |
-						  DIO_Software_Serial_Control);
+			devpriv->dio_control &= ~(NISTC_DIO_CTRL_HW_SER_ENA |
+						  NISTC_DIO_SDCLK);
 			data[1] = SERIAL_DISABLED;
 			devpriv->serial_interval_ns = data[1];
 		} else if (data[1] <= SERIAL_600NS) {
 			/* Warning: this clock speed is too fast to reliably
 			   control SCXI. */
-			devpriv->dio_control &= ~DIO_HW_Serial_Timebase;
+			devpriv->dio_control &= ~NISTC_DIO_CTRL_HW_SER_TIMEBASE;
 			devpriv->clock_and_fout |= Slow_Internal_Timebase;
 			devpriv->clock_and_fout &= ~DIO_Serial_Out_Divide_By_2;
 			data[1] = SERIAL_600NS;
 			devpriv->serial_interval_ns = data[1];
 		} else if (data[1] <= SERIAL_1_2US) {
-			devpriv->dio_control &= ~DIO_HW_Serial_Timebase;
+			devpriv->dio_control &= ~NISTC_DIO_CTRL_HW_SER_TIMEBASE;
 			devpriv->clock_and_fout |= Slow_Internal_Timebase |
 			    DIO_Serial_Out_Divide_By_2;
 			data[1] = SERIAL_1_2US;
 			devpriv->serial_interval_ns = data[1];
 		} else if (data[1] <= SERIAL_10US) {
-			devpriv->dio_control |= DIO_HW_Serial_Timebase;
+			devpriv->dio_control |= NISTC_DIO_CTRL_HW_SER_TIMEBASE;
 			devpriv->clock_and_fout |= Slow_Internal_Timebase |
 			    DIO_Serial_Out_Divide_By_2;
 			/* Note: DIO_Serial_Out_Divide_By_2 only affects
@@ -3676,14 +3676,14 @@ static int ni_serial_insn_config(struct comedi_device *dev,
 			data[1] = SERIAL_10US;
 			devpriv->serial_interval_ns = data[1];
 		} else {
-			devpriv->dio_control &= ~(DIO_HW_Serial_Enable |
-						  DIO_Software_Serial_Control);
+			devpriv->dio_control &= ~(NISTC_DIO_CTRL_HW_SER_ENA |
+						  NISTC_DIO_SDCLK);
 			devpriv->serial_hw_mode = 0;
 			data[1] = (data[1] / 1000) * 1000;
 			devpriv->serial_interval_ns = data[1];
 		}
 
-		ni_stc_writew(dev, devpriv->dio_control, DIO_Control_Register);
+		ni_stc_writew(dev, devpriv->dio_control, NISTC_DIO_CTRL_REG);
 		ni_stc_writew(dev, devpriv->clock_and_fout,
 			      Clock_and_FOUT_Register);
 		return 1;
@@ -5230,8 +5230,8 @@ static int ni_E_init(struct comedi_device *dev,
 		s->insn_config	= ni_dio_insn_config;
 
 		/* set all channels to inputs */
-		devpriv->dio_control = DIO_Pins_Dir(s->io_bits);
-		ni_writew(dev, devpriv->dio_control, DIO_Control_Register);
+		devpriv->dio_control = NISTC_DIO_CTRL_DIR(s->io_bits);
+		ni_writew(dev, devpriv->dio_control, NISTC_DIO_CTRL_REG);
 	}
 
 	/* 8255 device */
