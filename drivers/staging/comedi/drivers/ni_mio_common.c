@@ -4129,6 +4129,7 @@ static void ni_write_caldac(struct comedi_device *dev, int addr, int val)
 	const struct ni_board_struct *board = dev->board_ptr;
 	struct ni_private *devpriv = dev->private;
 	unsigned int loadbit = 0, bits = 0, bit, bitstring = 0;
+	unsigned int cmd;
 	int i;
 	int type;
 
@@ -4142,7 +4143,7 @@ static void ni_write_caldac(struct comedi_device *dev, int addr, int val)
 			break;
 		if (addr < caldacs[type].n_chans) {
 			bits = caldacs[type].packbits(addr, val, &bitstring);
-			loadbit = SerDacLd(i);
+			loadbit = NI_E_SERIAL_CMD_DAC_LD(i);
 			break;
 		}
 		addr -= caldacs[type].n_chans;
@@ -4153,15 +4154,15 @@ static void ni_write_caldac(struct comedi_device *dev, int addr, int val)
 		return;
 
 	for (bit = 1 << (bits - 1); bit; bit >>= 1) {
-		ni_writeb(dev, ((bit & bitstring) ? 0x02 : 0), Serial_Command);
+		cmd = (bit & bitstring) ? NI_E_SERIAL_CMD_SDATA : 0;
+		ni_writeb(dev, cmd, NI_E_SERIAL_CMD_REG);
 		udelay(1);
-		ni_writeb(dev, 1 | ((bit & bitstring) ? 0x02 : 0),
-			  Serial_Command);
+		ni_writeb(dev, NI_E_SERIAL_CMD_SCLK | cmd, NI_E_SERIAL_CMD_REG);
 		udelay(1);
 	}
-	ni_writeb(dev, loadbit, Serial_Command);
+	ni_writeb(dev, loadbit, NI_E_SERIAL_CMD_REG);
 	udelay(1);
-	ni_writeb(dev, 0, Serial_Command);
+	ni_writeb(dev, 0, NI_E_SERIAL_CMD_REG);
 }
 
 static int ni_calib_insn_write(struct comedi_device *dev,
@@ -4243,25 +4244,30 @@ static void caldac_setup(struct comedi_device *dev, struct comedi_subdevice *s)
 
 static int ni_read_eeprom(struct comedi_device *dev, int addr)
 {
+	unsigned int cmd = NI_E_SERIAL_CMD_EEPROM_CS;
 	int bit;
 	int bitstring;
 
 	bitstring = 0x0300 | ((addr & 0x100) << 3) | (addr & 0xff);
-	ni_writeb(dev, 0x04, Serial_Command);
+	ni_writeb(dev, cmd, NI_E_SERIAL_CMD_REG);
 	for (bit = 0x8000; bit; bit >>= 1) {
-		ni_writeb(dev, 0x04 | ((bit & bitstring) ? 0x02 : 0),
-			  Serial_Command);
-		ni_writeb(dev, 0x05 | ((bit & bitstring) ? 0x02 : 0),
-			  Serial_Command);
+		if (bit & bitstring)
+			cmd |= NI_E_SERIAL_CMD_SDATA;
+		else
+			cmd &= ~NI_E_SERIAL_CMD_SDATA;
+
+		ni_writeb(dev, cmd, NI_E_SERIAL_CMD_REG);
+		ni_writeb(dev, NI_E_SERIAL_CMD_SCLK | cmd, NI_E_SERIAL_CMD_REG);
 	}
+	cmd = NI_E_SERIAL_CMD_EEPROM_CS;
 	bitstring = 0;
 	for (bit = 0x80; bit; bit >>= 1) {
-		ni_writeb(dev, 0x04, Serial_Command);
-		ni_writeb(dev, 0x05, Serial_Command);
+		ni_writeb(dev, cmd, NI_E_SERIAL_CMD_REG);
+		ni_writeb(dev, NI_E_SERIAL_CMD_SCLK | cmd, NI_E_SERIAL_CMD_REG);
 		if (ni_readb(dev, NI_E_STATUS_REG) & NI_E_STATUS_PROMOUT)
 			bitstring |= bit;
 	}
-	ni_writeb(dev, 0x00, Serial_Command);
+	ni_writeb(dev, 0, NI_E_SERIAL_CMD_REG);
 
 	return bitstring;
 }

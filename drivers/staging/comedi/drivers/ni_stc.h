@@ -571,7 +571,12 @@
 #define NI_E_STATUS_AI_FIFO_LOWER_NE	BIT(3)
 #define NI_E_STATUS_PROMOUT		BIT(0)
 
-#define Serial_Command			0x0d
+#define NI_E_SERIAL_CMD_REG		0x0d	/* w8 */
+#define NI_E_SERIAL_CMD_DAC_LD(x)	BIT(3 + (x))
+#define NI_E_SERIAL_CMD_EEPROM_CS	BIT(2)
+#define NI_E_SERIAL_CMD_SDATA		BIT(1)
+#define NI_E_SERIAL_CMD_SCLK		BIT(0)
+
 #define Misc_Command			0x0f
 #define Port_A				0x19
 #define Port_B				0x1b
@@ -765,7 +770,6 @@ enum cs5529_status_bits {
 	CSS_OSC_DETECT = 0x2,	/* indicates adc error */
 	CSS_OVERRANGE = 0x4,
 };
-#define SerDacLd(x)			(0x08<<(x))
 
 /*
 	This is stuff unique to the NI E series drivers,
