@@ -204,7 +204,7 @@ static struct lu_device *osc_device_free(const struct lu_env *env,
 	struct osc_device *od = lu2osc_dev(d);
 
 	cl_device_fini(lu2cl_dev(d));
-	OBD_FREE_PTR(od);
+	kfree(od);
 	return NULL;
 }
 
@@ -217,7 +217,7 @@ static struct lu_device *osc_device_alloc(const struct lu_env *env,
 	struct obd_device *obd;
 	int rc;
 
-	OBD_ALLOC_PTR(od);
+	od = kzalloc(sizeof(*od), GFP_NOFS);
 	if (od == NULL)
 		return ERR_PTR(-ENOMEM);
 
