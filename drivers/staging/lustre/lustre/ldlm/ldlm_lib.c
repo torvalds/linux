@@ -119,8 +119,7 @@ static int import_set_conn(struct obd_import *imp, struct obd_uuid *uuid,
 	spin_unlock(&imp->imp_lock);
 	return 0;
 out_free:
-	if (imp_conn)
-		kfree(imp_conn);
+	kfree(imp_conn);
 out_put:
 	ptlrpc_connection_put(ptlrpc_conn);
 	return rc;
