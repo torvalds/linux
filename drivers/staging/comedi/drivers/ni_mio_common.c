@@ -317,7 +317,7 @@ static const struct mio_regmap m_series_stc_write_regmap[] = {
 	[NISTC_INTA_ACK_REG]		= { 0x104, 2 },
 	[NISTC_INTB_ACK_REG]		= { 0x106, 2 },
 	[NISTC_AI_CMD2_REG]		= { 0x108, 2 },
-	[AO_Command_2_Register]		= { 0x10a, 2 },
+	[NISTC_AO_CMD2_REG]		= { 0x10a, 2 },
 	[G_Command_Register(0)]		= { 0x10c, 2 },
 	[G_Command_Register(1)]		= { 0x10e, 2 },
 	[AI_Command_1_Register]		= { 0x110, 2 },
@@ -2909,8 +2909,8 @@ static int ni_ao_inttrig(struct comedi_device *dev,
 		      AO_DAC1_Update_Mode | AO_DAC0_Update_Mode,
 		      AO_Command_1_Register);
 
-	ni_stc_writew(dev, devpriv->ao_cmd2 | AO_START1_Pulse,
-		      AO_Command_2_Register);
+	ni_stc_writew(dev, NISTC_AO_CMD2_START1_PULSE | devpriv->ao_cmd2,
+		      NISTC_AO_CMD2_REG);
 
 	return 0;
 }
@@ -3024,7 +3024,7 @@ static int ni_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	      AO_UPDATE_Source_Select(0x1f) | AO_UPDATE_Source_Polarity);
 	switch (cmd->scan_begin_src) {
 	case TRIG_TIMER:
-		devpriv->ao_cmd2 &= ~AO_BC_Gate_Enable;
+		devpriv->ao_cmd2 &= ~NISTC_AO_CMD2_BC_GATE_ENA;
 		trigvar =
 		    ni_ns_to_timer(dev, cmd->scan_begin_arg,
 				   CMDF_ROUND_NEAREST);
@@ -3037,13 +3037,13 @@ static int ni_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		    AO_UPDATE_Source_Select(cmd->scan_begin_arg);
 		if (cmd->scan_begin_arg & CR_INVERT)
 			devpriv->ao_mode1 |= AO_UPDATE_Source_Polarity;
-		devpriv->ao_cmd2 |= AO_BC_Gate_Enable;
+		devpriv->ao_cmd2 |= NISTC_AO_CMD2_BC_GATE_ENA;
 		break;
 	default:
 		BUG();
 		break;
 	}
-	ni_stc_writew(dev, devpriv->ao_cmd2, AO_Command_2_Register);
+	ni_stc_writew(dev, devpriv->ao_cmd2, NISTC_AO_CMD2_REG);
 	ni_stc_writew(dev, devpriv->ao_mode1, AO_Mode_1_Register);
 	devpriv->ao_mode2 &=
 	    ~(AO_UI_Reload_Mode(3) | AO_UI_Initial_Load_Source);
@@ -3216,7 +3216,7 @@ static int ni_ao_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->ao_cmd1 = 0;
 	ni_stc_writew(dev, devpriv->ao_cmd1, AO_Command_1_Register);
 	devpriv->ao_cmd2 = 0;
-	ni_stc_writew(dev, devpriv->ao_cmd2, AO_Command_2_Register);
+	ni_stc_writew(dev, devpriv->ao_cmd2, NISTC_AO_CMD2_REG);
 	devpriv->ao_mode1 = 0;
 	ni_stc_writew(dev, devpriv->ao_mode1, AO_Mode_1_Register);
 	devpriv->ao_mode2 = 0;

@@ -109,6 +109,23 @@
 #define NISTC_AI_CMD2_START2_PULSE	BIT(1)
 #define NISTC_AI_CMD2_START1_PULSE	BIT(0)
 
+#define NISTC_AO_CMD2_REG		5
+#define NISTC_AO_CMD2_END_ON_BC_TC(x)	(((x) & 0x3) << 14)
+#define NISTC_AO_CMD2_START_STOP_GATE_ENA BIT(13)
+#define NISTC_AO_CMD2_UC_SAVE_TRACE	BIT(12)
+#define NISTC_AO_CMD2_BC_GATE_ENA	BIT(11)
+#define NISTC_AO_CMD2_BC_SAVE_TRACE	BIT(10)
+#define NISTC_AO_CMD2_UI_SW_ON_BC_TC	BIT(9)
+#define NISTC_AO_CMD2_UI_SW_ON_STOP	BIT(8)
+#define NISTC_AO_CMD2_UI_SW_ON_TC	BIT(7)
+#define NISTC_AO_CMD2_UC_SW_ON_BC_TC	BIT(6)
+#define NISTC_AO_CMD2_UC_SW_ON_TC	BIT(5)
+#define NISTC_AO_CMD2_BC_SW_ON_TC	BIT(4)
+#define NISTC_AO_CMD2_MUTE_B		BIT(3)
+#define NISTC_AO_CMD2_MUTE_A		BIT(2)
+#define NISTC_AO_CMD2_UPDATE2_PULSE	BIT(1)
+#define NISTC_AO_CMD2_START1_PULSE	BIT(0)
+
 #define AI_Status_1_Register		2
 #define Interrupt_A_St				0x8000
 #define AI_FIFO_Full_St				0x4000
@@ -146,23 +163,6 @@
 #define G1_Gate_Interrupt_St			_bit2
 #define AO_FIFO_Request_St			_bit1
 #define Pass_Thru_1_Interrupt_St		_bit0
-
-#define AO_Command_2_Register		5
-#define AO_End_On_BC_TC(x)			(((x) & 0x3) << 14)
-#define AO_Start_Stop_Gate_Enable		_bit13
-#define AO_UC_Save_Trace			_bit12
-#define AO_BC_Gate_Enable			_bit11
-#define AO_BC_Save_Trace			_bit10
-#define AO_UI_Switch_Load_On_BC_TC		_bit9
-#define AO_UI_Switch_Load_On_Stop		_bit8
-#define AO_UI_Switch_Load_On_TC			_bit7
-#define AO_UC_Switch_Load_On_BC_TC		_bit6
-#define AO_UC_Switch_Load_On_TC			_bit5
-#define AO_BC_Switch_Load_On_TC			_bit4
-#define AO_Mute_B				_bit3
-#define AO_Mute_A				_bit2
-#define AO_UPDATE2_Pulse			_bit1
-#define AO_START1_Pulse				_bit0
 
 #define AO_Status_2_Register		6
 
