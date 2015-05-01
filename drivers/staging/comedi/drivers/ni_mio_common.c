@@ -330,12 +330,12 @@ static const struct mio_regmap m_series_stc_write_regmap[] = {
 	[NISTC_DIO_CTRL_REG]		= { 0, 0 }, /* DOES NOT MAP CLEANLY */
 	[NISTC_AI_MODE1_REG]		= { 0x118, 2 },
 	[NISTC_AI_MODE2_REG]		= { 0x11a, 2 },
-	[AI_SI_Load_A_Registers]	= { 0x11c, 4 },
-	[AI_SI_Load_B_Registers]	= { 0x120, 4 },
-	[AI_SC_Load_A_Registers]	= { 0x124, 4 },
-	[AI_SC_Load_B_Registers]	= { 0x128, 4 },
-	[AI_SI2_Load_A_Register]	= { 0x12c, 4 },
-	[AI_SI2_Load_B_Register]	= { 0x130, 4 },
+	[NISTC_AI_SI_LOADA_REG]		= { 0x11c, 4 },
+	[NISTC_AI_SI_LOADB_REG]		= { 0x120, 4 },
+	[NISTC_AI_SC_LOADA_REG]		= { 0x124, 4 },
+	[NISTC_AI_SC_LOADB_REG]		= { 0x128, 4 },
+	[NISTC_AI_SI2_LOADA_REG]	= { 0x12c, 4 },
+	[NISTC_AI_SI2_LOADB_REG]	= { 0x130, 4 },
 	[G_Mode_Register(0)]		= { 0x134, 2 },
 	[G_Mode_Register(1)]		= { 0x136, 2 },
 	[G_Load_A_Register(0)]		= { 0x138, 4 },
@@ -2337,7 +2337,7 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			stop_count += num_adc_stages_611x;
 		}
 		/* stage number of scans */
-		ni_stc_writel(dev, stop_count, AI_SC_Load_A_Registers);
+		ni_stc_writel(dev, stop_count, NISTC_AI_SC_LOADA_REG);
 
 		mode1 |= NISTC_AI_MODE1_START_STOP |
 			 NISTC_AI_MODE1_RSVD |
@@ -2357,7 +2357,7 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		break;
 	case TRIG_NONE:
 		/* stage number of scans */
-		ni_stc_writel(dev, 0, AI_SC_Load_A_Registers);
+		ni_stc_writel(dev, 0, NISTC_AI_SC_LOADA_REG);
 
 		mode1 |= NISTC_AI_MODE1_START_STOP |
 			 NISTC_AI_MODE1_RSVD |
@@ -2397,7 +2397,7 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		/* load SI */
 		timer = ni_ns_to_timer(dev, cmd->scan_begin_arg,
 				       CMDF_ROUND_NEAREST);
-		ni_stc_writel(dev, timer, AI_SI_Load_A_Registers);
+		ni_stc_writel(dev, timer, NISTC_AI_SI_LOADA_REG);
 		ni_stc_writew(dev, NISTC_AI_CMD1_SI_LOAD, NISTC_AI_CMD1_REG);
 		break;
 	case TRIG_EXT:
@@ -2426,8 +2426,8 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			timer = ni_ns_to_timer(dev, cmd->convert_arg,
 					       CMDF_ROUND_NEAREST);
 		/* 0,0 does not work */
-		ni_stc_writew(dev, 1, AI_SI2_Load_A_Register);
-		ni_stc_writew(dev, timer, AI_SI2_Load_B_Register);
+		ni_stc_writew(dev, 1, NISTC_AI_SI2_LOADA_REG);
+		ni_stc_writew(dev, timer, NISTC_AI_SI2_LOADB_REG);
 
 		mode2 &= ~NISTC_AI_MODE2_SI2_INIT_LOAD_SRC;	/* A */
 		mode2 |= NISTC_AI_MODE2_SI2_RELOAD_MODE;	/* alternate */

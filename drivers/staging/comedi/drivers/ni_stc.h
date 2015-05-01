@@ -204,6 +204,13 @@
 #define NISTC_AI_MODE2_SC_RELOAD_MODE	BIT(1)
 #define NISTC_AI_MODE2_SC_WR_SWITCH	BIT(0)
 
+#define NISTC_AI_SI_LOADA_REG		14
+#define NISTC_AI_SI_LOADB_REG		16
+#define NISTC_AI_SC_LOADA_REG		18
+#define NISTC_AI_SC_LOADB_REG		20
+#define NISTC_AI_SI2_LOADA_REG		23
+#define NISTC_AI_SI2_LOADB_REG		25
+
 #define AI_Status_1_Register		2
 #define Interrupt_A_St				0x8000
 #define AI_FIFO_Full_St				0x4000
@@ -246,15 +253,8 @@
 
 #define DIO_Parallel_Input_Register	7
 
-#define AI_SI_Load_A_Registers		14
-#define AI_SI_Load_B_Registers		16
-#define AI_SC_Load_A_Registers		18
-#define AI_SC_Load_B_Registers		20
 #define AI_SI_Save_Registers		64
 #define AI_SC_Save_Registers		66
-
-#define AI_SI2_Load_A_Register		23
-#define AI_SI2_Load_B_Register		25
 
 #define Joint_Status_1_Register         27
 #define DIO_Serial_IO_In_Progress_St            _bit12
