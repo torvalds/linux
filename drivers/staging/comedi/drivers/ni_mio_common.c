@@ -2650,7 +2650,7 @@ static int ni_m_series_ao_config_chanlist(struct comedi_device *dev,
 
 	if (timed) {
 		for (i = 0; i < s->n_chan; ++i) {
-			devpriv->ao_conf[i] &= ~MSeries_AO_Update_Timed_Bit;
+			devpriv->ao_conf[i] &= ~NI_M_AO_CFG_BANK_UPDATE_TIMED;
 			ni_writeb(dev, devpriv->ao_conf[i],
 				  NI_M_AO_CFG_BANK_REG(i));
 			ni_writeb(dev, 0xf, NI_M_AO_WAVEFORM_ORDER_REG(i));
@@ -2666,20 +2666,20 @@ static int ni_m_series_ao_config_chanlist(struct comedi_device *dev,
 		conf = 0;
 		switch (krange->max - krange->min) {
 		case 20000000:
-			conf |= MSeries_AO_DAC_Reference_10V_Internal_Bits;
+			conf |= NI_M_AO_CFG_BANK_REF_INT_10V;
 			ni_writeb(dev, 0, NI_M_AO_REF_ATTENUATION_REG(chan));
 			break;
 		case 10000000:
-			conf |= MSeries_AO_DAC_Reference_5V_Internal_Bits;
+			conf |= NI_M_AO_CFG_BANK_REF_INT_5V;
 			ni_writeb(dev, 0, NI_M_AO_REF_ATTENUATION_REG(chan));
 			break;
 		case 4000000:
-			conf |= MSeries_AO_DAC_Reference_10V_Internal_Bits;
+			conf |= NI_M_AO_CFG_BANK_REF_INT_10V;
 			ni_writeb(dev, MSeries_Attenuate_x5_Bit,
 				  NI_M_AO_REF_ATTENUATION_REG(chan));
 			break;
 		case 2000000:
-			conf |= MSeries_AO_DAC_Reference_5V_Internal_Bits;
+			conf |= NI_M_AO_CFG_BANK_REF_INT_5V;
 			ni_writeb(dev, MSeries_Attenuate_x5_Bit,
 				  NI_M_AO_REF_ATTENUATION_REG(chan));
 			break;
@@ -2690,10 +2690,10 @@ static int ni_m_series_ao_config_chanlist(struct comedi_device *dev,
 		}
 		switch (krange->max + krange->min) {
 		case 0:
-			conf |= MSeries_AO_DAC_Offset_0V_Bits;
+			conf |= NI_M_AO_CFG_BANK_OFFSET_0V;
 			break;
 		case 10000000:
-			conf |= MSeries_AO_DAC_Offset_5V_Bits;
+			conf |= NI_M_AO_CFG_BANK_OFFSET_5V;
 			break;
 		default:
 			dev_err(dev->class_dev,
@@ -2701,7 +2701,7 @@ static int ni_m_series_ao_config_chanlist(struct comedi_device *dev,
 			break;
 		}
 		if (timed)
-			conf |= MSeries_AO_Update_Timed_Bit;
+			conf |= NI_M_AO_CFG_BANK_UPDATE_TIMED;
 		ni_writeb(dev, conf, NI_M_AO_CFG_BANK_REG(chan));
 		devpriv->ao_conf[chan] = conf;
 		ni_writeb(dev, i, NI_M_AO_WAVEFORM_ORDER_REG(chan));

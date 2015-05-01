@@ -966,6 +966,16 @@ static const struct comedi_lrange range_ni_E_ao_ext;
 #define NI_M_DAC_DIRECT_DATA_REG(x)	(0x0c0 + ((x) * 4))
 #define NI_M_AO_WAVEFORM_ORDER_REG(x)	(0x0c2 + ((x) * 4))
 #define NI_M_AO_CFG_BANK_REG(x)		(0x0c3 + ((x) * 4))
+#define NI_M_AO_CFG_BANK_BIPOLAR	BIT(7)
+#define NI_M_AO_CFG_BANK_UPDATE_TIMED	BIT(6)
+#define NI_M_AO_CFG_BANK_REF(x)		(((x) & 0x7) << 3)
+#define NI_M_AO_CFG_BANK_REF_MASK	NI_M_AO_CFG_BANK_REF(7)
+#define NI_M_AO_CFG_BANK_REF_INT_10V	NI_M_AO_CFG_BANK_REF(0)
+#define NI_M_AO_CFG_BANK_REF_INT_5V	NI_M_AO_CFG_BANK_REF(1)
+#define NI_M_AO_CFG_BANK_OFFSET(x)	(((x) & 0x7) << 0)
+#define NI_M_AO_CFG_BANK_OFFSET_MASK	NI_M_AO_CFG_BANK_OFFSET(7)
+#define NI_M_AO_CFG_BANK_OFFSET_0V	NI_M_AO_CFG_BANK_OFFSET(0)
+#define NI_M_AO_CFG_BANK_OFFSET_5V	NI_M_AO_CFG_BANK_OFFSET(1)
 #define NI_M_RTSI_SHARED_MUX_REG	0x1a2
 #define NI_M_CLK_FOUT2_REG		0x1c4
 #define NI_M_CLK_FOUT2_RTSI_10MHZ	BIT(7)
@@ -1027,17 +1037,6 @@ static const struct comedi_lrange range_ni_E_ao_ext;
 #define NI_M_CDO_MASK_ENA_REG		0x234
 #define NI_M_STATIC_AI_CTRL_REG(x)	((x) ? (0x260 + (x)) : 0x064)
 #define NI_M_AO_REF_ATTENUATION_REG(x)	(0x264 + (x))
-
-enum MSeries_AO_Config_Bank_Bits {
-	MSeries_AO_DAC_Offset_Select_Mask = 0x7,
-	MSeries_AO_DAC_Offset_0V_Bits = 0x0,
-	MSeries_AO_DAC_Offset_5V_Bits = 0x1,
-	MSeries_AO_DAC_Reference_Mask = 0x38,
-	MSeries_AO_DAC_Reference_10V_Internal_Bits = 0x0,
-	MSeries_AO_DAC_Reference_5V_Internal_Bits = 0x8,
-	MSeries_AO_Update_Timed_Bit = 0x40,
-	MSeries_AO_Bipolar_Bit = 0x80	/*  turns on 2's complement encoding */
-};
 
 enum MSeries_AO_Reference_Attenuation_Bits {
 	MSeries_Attenuate_x5_Bit = 0x1
