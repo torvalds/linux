@@ -384,6 +384,25 @@
 #define NISTC_RESET_AO			BIT(1)
 #define NISTC_RESET_AI			BIT(0)
 
+#define NISTC_INTA_ENA_REG		73
+#define NISTC_INTA_ENA_PASSTHRU0	BIT(9)
+#define NISTC_INTA_ENA_G0_GATE		BIT(8)
+#define NISTC_INTA_ENA_AI_FIFO		BIT(7)
+#define NISTC_INTA_ENA_G0_TC		BIT(6)
+#define NISTC_INTA_ENA_AI_ERR		BIT(5)
+#define NISTC_INTA_ENA_AI_STOP		BIT(4)
+#define NISTC_INTA_ENA_AI_START		BIT(3)
+#define NISTC_INTA_ENA_AI_START2	BIT(2)
+#define NISTC_INTA_ENA_AI_START1	BIT(1)
+#define NISTC_INTA_ENA_AI_SC_TC		BIT(0)
+#define NISTC_INTA_ENA_AI_MASK		(NISTC_INTA_ENA_AI_FIFO |	\
+					 NISTC_INTA_ENA_AI_ERR |	\
+					 NISTC_INTA_ENA_AI_STOP |	\
+					 NISTC_INTA_ENA_AI_START |	\
+					 NISTC_INTA_ENA_AI_START2 |	\
+					 NISTC_INTA_ENA_AI_START1 |	\
+					 NISTC_INTA_ENA_AI_SC_TC)
+
 #define AI_Status_1_Register		2
 #define Interrupt_A_St				0x8000
 #define AI_FIFO_Full_St				0x4000
@@ -441,18 +460,6 @@ enum Joint_Status_2_Bits {
 #define AO_UI_Save_Registers		16
 #define AO_BC_Save_Registers		18
 #define AO_UC_Save_Registers		20
-
-#define Interrupt_A_Enable_Register	73
-#define Pass_Thru_0_Interrupt_Enable		_bit9
-#define G0_Gate_Interrupt_Enable		_bit8
-#define AI_FIFO_Interrupt_Enable		_bit7
-#define G0_TC_Interrupt_Enable			_bit6
-#define AI_Error_Interrupt_Enable		_bit5
-#define AI_STOP_Interrupt_Enable		_bit4
-#define AI_START_Interrupt_Enable		_bit3
-#define AI_START2_Interrupt_Enable		_bit2
-#define AI_START1_Interrupt_Enable		_bit1
-#define AI_SC_TC_Interrupt_Enable		_bit0
 
 #define Interrupt_B_Enable_Register	75
 #define Pass_Thru_1_Interrupt_Enable		_bit11

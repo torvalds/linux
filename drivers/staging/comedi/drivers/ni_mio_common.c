@@ -366,7 +366,7 @@ static const struct mio_regmap m_series_stc_write_regmap[] = {
 	[NISTC_G1_AUTOINC_REG]		= { 0x18a, 2 },
 	[NISTC_AO_MODE3_REG]		= { 0x18c, 2 },
 	[NISTC_RESET_REG]		= { 0x190, 2 },
-	[Interrupt_A_Enable_Register]	= { 0x192, 2 },
+	[NISTC_INTA_ENA_REG]		= { 0x192, 2 },
 	[Second_IRQ_A_Enable_Register]	= { 0, 0 }, /* E-Series only */
 	[Interrupt_B_Enable_Register]	= { 0x196, 2 },
 	[Second_IRQ_B_Enable_Register]	= { 0, 0 }, /* E-Series only */
@@ -531,7 +531,7 @@ static inline void ni_set_bitfield(struct comedi_device *dev, int reg,
 
 	spin_lock_irqsave(&devpriv->soft_reg_copy_lock, flags);
 	switch (reg) {
-	case Interrupt_A_Enable_Register:
+	case NISTC_INTA_ENA_REG:
 		devpriv->int_a_enable_reg &= ~bit_mask;
 		devpriv->int_a_enable_reg |= bit_values & bit_mask;
 		ni_stc_writew(dev, devpriv->int_a_enable_reg, reg);
@@ -1615,11 +1615,7 @@ static int ni_ai_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 	ni_stc_writew(dev, NISTC_RESET_AI_CFG_START | NISTC_RESET_AI,
 		      NISTC_RESET_REG);
 
-	ni_set_bits(dev, Interrupt_A_Enable_Register,
-		    AI_SC_TC_Interrupt_Enable | AI_START1_Interrupt_Enable |
-		    AI_START2_Interrupt_Enable | AI_START_Interrupt_Enable |
-		    AI_STOP_Interrupt_Enable | AI_Error_Interrupt_Enable |
-		    AI_FIFO_Interrupt_Enable, 0);
+	ni_set_bits(dev, NISTC_INTA_ENA_REG, NISTC_INTA_ENA_AI_MASK, 0);
 
 	ni_clear_ai_fifo(dev);
 
@@ -2323,7 +2319,7 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 		if (stop_count == 0) {
 			devpriv->ai_cmd2 |= NISTC_AI_CMD2_END_ON_EOS;
-			interrupt_a_enable |= AI_STOP_Interrupt_Enable;
+			interrupt_a_enable |= NISTC_INTA_ENA_AI_STOP;
 			/*  this is required to get the last sample for chanlist_len > 1, not sure why */
 			if (cmd->chanlist_len > 1)
 				start_stop_select |= NISTC_AI_STOP_POLARITY |
@@ -2426,11 +2422,11 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	if (dev->irq) {
 		/* interrupt on FIFO, errors, SC_TC */
-		interrupt_a_enable |= AI_Error_Interrupt_Enable |
-		    AI_SC_TC_Interrupt_Enable;
+		interrupt_a_enable |= NISTC_INTA_ENA_AI_ERR |
+				      NISTC_INTA_ENA_AI_SC_TC;
 
 #ifndef PCIDMA
-		interrupt_a_enable |= AI_FIFO_Interrupt_Enable;
+		interrupt_a_enable |= NISTC_INTA_ENA_AI_FIFO;
 #endif
 
 		if ((cmd->flags & CMDF_WAKE_EOS) ||
@@ -2465,7 +2461,7 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			ni_stc_writew(dev, AI_FIFO_Mode_HF,
 				      AI_Mode_3_Register);
 #endif
-			interrupt_a_enable |= AI_STOP_Interrupt_Enable;
+			interrupt_a_enable |= NISTC_INTA_ENA_AI_STOP;
 			break;
 		default:
 			break;
@@ -2474,11 +2470,10 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		/* clear interrupts */
 		ni_stc_writew(dev, NISTC_INTA_ACK_AI_ALL, NISTC_INTA_ACK_REG);
 
-		ni_set_bits(dev, Interrupt_A_Enable_Register,
-			    interrupt_a_enable, 1);
+		ni_set_bits(dev, NISTC_INTA_ENA_REG, interrupt_a_enable, 1);
 	} else {
 		/* interrupt on nothing */
-		ni_set_bits(dev, Interrupt_A_Enable_Register, ~0, 0);
+		ni_set_bits(dev, NISTC_INTA_ENA_REG, ~0, 0);
 
 		/* XXX start polling if necessary */
 	}
@@ -3746,7 +3741,7 @@ static const struct mio_regmap ni_gpct_to_stc_regmap[] = {
 	[NITIO_G1_INT_ACK]	= { NISTC_INTB_ACK_REG, 2 },
 	[NITIO_G0_STATUS]	= { AI_Status_1_Register, 2 },
 	[NITIO_G1_STATUS]	= { AO_Status_1_Register, 2 },
-	[NITIO_G0_INT_ENA]	= { Interrupt_A_Enable_Register, 2 },
+	[NITIO_G0_INT_ENA]	= { NISTC_INTA_ENA_REG, 2 },
 	[NITIO_G1_INT_ENA]	= { Interrupt_B_Enable_Register, 2 },
 };
 
@@ -3772,7 +3767,7 @@ static void ni_gpct_write_register(struct ni_gpct *counter, unsigned bits,
 	struct comedi_device *dev = counter->counter_dev->dev;
 	unsigned int stc_register = ni_gpct_to_stc_register(dev, reg);
 	static const unsigned gpct_interrupt_a_enable_mask =
-	    G0_Gate_Interrupt_Enable | G0_TC_Interrupt_Enable;
+	    NISTC_INTA_ENA_G0_GATE | NISTC_INTA_ENA_G0_TC;
 	static const unsigned gpct_interrupt_b_enable_mask =
 	    G1_Gate_Interrupt_Enable | G1_TC_Interrupt_Enable;
 
