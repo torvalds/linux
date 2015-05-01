@@ -505,11 +505,11 @@ int client_fid_init(struct obd_device *obd,
 	char *prefix;
 	int rc;
 
-	OBD_ALLOC_PTR(cli->cl_seq);
+	cli->cl_seq = kzalloc(sizeof(*cli->cl_seq), GFP_NOFS);
 	if (cli->cl_seq == NULL)
 		return -ENOMEM;
 
-	OBD_ALLOC(prefix, MAX_OBD_NAME + 5);
+	prefix = kzalloc(MAX_OBD_NAME + 5, GFP_NOFS);
 	if (prefix == NULL) {
 		rc = -ENOMEM;
 		goto out_free_seq;
@@ -519,13 +519,13 @@ int client_fid_init(struct obd_device *obd,
 
 	/* Init client side sequence-manager */
 	rc = seq_client_init(cli->cl_seq, exp, type, prefix, NULL);
-	OBD_FREE(prefix, MAX_OBD_NAME + 5);
+	kfree(prefix);
 	if (rc)
 		goto out_free_seq;
 
 	return rc;
 out_free_seq:
-	OBD_FREE_PTR(cli->cl_seq);
+	kfree(cli->cl_seq);
 	cli->cl_seq = NULL;
 	return rc;
 }
@@ -537,7 +537,7 @@ int client_fid_fini(struct obd_device *obd)
 
 	if (cli->cl_seq != NULL) {
 		seq_client_fini(cli->cl_seq);
-		OBD_FREE_PTR(cli->cl_seq);
+		kfree(cli->cl_seq);
 		cli->cl_seq = NULL;
 	}
 
