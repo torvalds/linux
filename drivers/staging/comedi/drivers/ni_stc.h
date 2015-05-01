@@ -543,6 +543,9 @@
 #define NISTC_G0_HW_SAVE_REG		8
 #define NISTC_G1_HW_SAVE_REG		10
 
+#define NISTC_G0_SAVE_REG		12
+#define NISTC_G1_SAVE_REG		14
+
 #define AI_SI_Save_Registers		64
 #define AI_SC_Save_Registers		66
 
@@ -558,10 +561,6 @@ enum Joint_Status_2_Bits {
 #define AO_UI_Save_Registers		16
 #define AO_BC_Save_Registers		18
 #define AO_UC_Save_Registers		20
-
-#define G_Save_Register(a)		(12+(a)*2)
-#define G_Save_Register_High(a)		(12+(a)*2)
-#define G_Save_Register_Low(a)		(13+(a)*2)
 
 /* command register */
 #define G_Disarm_Copy			_bit15	/* strobe */
