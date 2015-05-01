@@ -1644,8 +1644,7 @@ out:
 		llog_cat_close(NULL, llh);
 	if (ctxt)
 		llog_ctxt_put(ctxt);
-	if (cs->cs_buf)
-		kfree(cs->cs_buf);
+	kfree(cs->cs_buf);
 	kfree(cs);
 	return rc;
 }
