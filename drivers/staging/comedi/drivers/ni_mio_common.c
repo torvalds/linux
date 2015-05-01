@@ -372,8 +372,8 @@ static const struct mio_regmap m_series_stc_write_regmap[] = {
 	[NISTC_INTB2_ENA_REG]		= { 0, 0 }, /* E-Series only */
 	[NISTC_AI_PERSONAL_REG]		= { 0x19a, 2 },
 	[NISTC_AO_PERSONAL_REG]		= { 0x19c, 2 },
-	[RTSI_Trig_A_Output_Register]	= { 0x19e, 2 },
-	[RTSI_Trig_B_Output_Register]	= { 0x1a0, 2 },
+	[NISTC_RTSI_TRIGA_OUT_REG]	= { 0x19e, 2 },
+	[NISTC_RTSI_TRIGB_OUT_REG]	= { 0x1a0, 2 },
 	[RTSI_Board_Register]		= { 0, 0 }, /* Unknown */
 	[Configuration_Memory_Clear]	= { 0x1a4, 2 },
 	[ADC_FIFO_Clear]		= { 0x1a6, 2 },
@@ -4791,24 +4791,22 @@ static int ni_valid_rtsi_output_source(struct comedi_device *dev,
 }
 
 static int ni_set_rtsi_routing(struct comedi_device *dev,
-			       unsigned chan, unsigned source)
+			       unsigned chan, unsigned src)
 {
 	struct ni_private *devpriv = dev->private;
 
-	if (ni_valid_rtsi_output_source(dev, chan, source) == 0)
+	if (ni_valid_rtsi_output_source(dev, chan, src) == 0)
 		return -EINVAL;
 	if (chan < 4) {
-		devpriv->rtsi_trig_a_output_reg &= ~RTSI_Trig_Output_Mask(chan);
-		devpriv->rtsi_trig_a_output_reg |=
-		    RTSI_Trig_Output_Bits(chan, source);
+		devpriv->rtsi_trig_a_output_reg &= ~NISTC_RTSI_TRIG_MASK(chan);
+		devpriv->rtsi_trig_a_output_reg |= NISTC_RTSI_TRIG(chan, src);
 		ni_stc_writew(dev, devpriv->rtsi_trig_a_output_reg,
-			      RTSI_Trig_A_Output_Register);
+			      NISTC_RTSI_TRIGA_OUT_REG);
 	} else if (chan < 8) {
-		devpriv->rtsi_trig_b_output_reg &= ~RTSI_Trig_Output_Mask(chan);
-		devpriv->rtsi_trig_b_output_reg |=
-		    RTSI_Trig_Output_Bits(chan, source);
+		devpriv->rtsi_trig_b_output_reg &= ~NISTC_RTSI_TRIG_MASK(chan);
+		devpriv->rtsi_trig_b_output_reg |= NISTC_RTSI_TRIG(chan, src);
 		ni_stc_writew(dev, devpriv->rtsi_trig_b_output_reg,
-			      RTSI_Trig_B_Output_Register);
+			      NISTC_RTSI_TRIGB_OUT_REG);
 	}
 	return 2;
 }
@@ -4818,11 +4816,11 @@ static unsigned ni_get_rtsi_routing(struct comedi_device *dev, unsigned chan)
 	struct ni_private *devpriv = dev->private;
 
 	if (chan < 4) {
-		return RTSI_Trig_Output_Source(chan,
-					       devpriv->rtsi_trig_a_output_reg);
+		return NISTC_RTSI_TRIG_TO_SRC(chan,
+					      devpriv->rtsi_trig_a_output_reg);
 	} else if (chan < NISTC_RTSI_TRIG_NUM_CHAN(devpriv->is_m_series)) {
-		return RTSI_Trig_Output_Source(chan,
-					       devpriv->rtsi_trig_b_output_reg);
+		return NISTC_RTSI_TRIG_TO_SRC(chan,
+					      devpriv->rtsi_trig_b_output_reg);
 	} else {
 		if (chan == NISTC_RTSI_TRIG_OLD_CLK_CHAN)
 			return NI_RTSI_OUTPUT_RTSI_OSC;
@@ -4921,26 +4919,21 @@ static void ni_rtsi_init(struct comedi_device *dev)
 		dev_err(dev->class_dev, "ni_set_master_clock failed, bug?\n");
 	/*  default internal lines routing to RTSI bus lines */
 	devpriv->rtsi_trig_a_output_reg =
-	    RTSI_Trig_Output_Bits(0,
-				  NI_RTSI_OUTPUT_ADR_START1) |
-	    RTSI_Trig_Output_Bits(1,
-				  NI_RTSI_OUTPUT_ADR_START2) |
-	    RTSI_Trig_Output_Bits(2,
-				  NI_RTSI_OUTPUT_SCLKG) |
-	    RTSI_Trig_Output_Bits(3, NI_RTSI_OUTPUT_DACUPDN);
+	    NISTC_RTSI_TRIG(0, NI_RTSI_OUTPUT_ADR_START1) |
+	    NISTC_RTSI_TRIG(1, NI_RTSI_OUTPUT_ADR_START2) |
+	    NISTC_RTSI_TRIG(2, NI_RTSI_OUTPUT_SCLKG) |
+	    NISTC_RTSI_TRIG(3, NI_RTSI_OUTPUT_DACUPDN);
 	ni_stc_writew(dev, devpriv->rtsi_trig_a_output_reg,
-		      RTSI_Trig_A_Output_Register);
+		      NISTC_RTSI_TRIGA_OUT_REG);
 	devpriv->rtsi_trig_b_output_reg =
-	    RTSI_Trig_Output_Bits(4,
-				  NI_RTSI_OUTPUT_DA_START1) |
-	    RTSI_Trig_Output_Bits(5,
-				  NI_RTSI_OUTPUT_G_SRC0) |
-	    RTSI_Trig_Output_Bits(6, NI_RTSI_OUTPUT_G_GATE0);
+	    NISTC_RTSI_TRIG(4, NI_RTSI_OUTPUT_DA_START1) |
+	    NISTC_RTSI_TRIG(5, NI_RTSI_OUTPUT_G_SRC0) |
+	    NISTC_RTSI_TRIG(6, NI_RTSI_OUTPUT_G_GATE0);
 	if (devpriv->is_m_series)
 		devpriv->rtsi_trig_b_output_reg |=
-		    RTSI_Trig_Output_Bits(7, NI_RTSI_OUTPUT_RTSI_OSC);
+		    NISTC_RTSI_TRIG(7, NI_RTSI_OUTPUT_RTSI_OSC);
 	ni_stc_writew(dev, devpriv->rtsi_trig_b_output_reg,
-		      RTSI_Trig_B_Output_Register);
+		      NISTC_RTSI_TRIGB_OUT_REG);
 
 /*
 * Sets the source and direction of the 4 on board lines

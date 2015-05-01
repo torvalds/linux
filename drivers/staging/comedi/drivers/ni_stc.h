@@ -448,6 +448,13 @@
 #define NISTC_AO_PERSONAL_BC_SRC_SEL		BIT(4)
 #define NISTC_AO_PERSONAL_INTERVAL_BUFFER_MODE	BIT(3)
 
+#define NISTC_RTSI_TRIGA_OUT_REG	79
+#define NISTC_RTSI_TRIGB_OUT_REG	80
+#define NISTC_RTSI_TRIGB_SUB_SEL1	BIT(15)	/* not for M-Series */
+#define NISTC_RTSI_TRIG(_c, _s)		(((_s) & 0xf) << (((_c) % 4) * 4))
+#define NISTC_RTSI_TRIG_MASK(_c)	NISTC_RTSI_TRIG((_c), 0xf)
+#define NISTC_RTSI_TRIG_TO_SRC(_c, _b)	(((_b) >> (((_c) % 4) * 4)) & 0xf)
+
 #define AI_Status_1_Register		2
 #define Interrupt_A_St				0x8000
 #define AI_FIFO_Full_St				0x4000
@@ -505,29 +512,6 @@ enum Joint_Status_2_Bits {
 #define AO_UI_Save_Registers		16
 #define AO_BC_Save_Registers		18
 #define AO_UC_Save_Registers		20
-
-#define	RTSI_Trig_A_Output_Register	79
-#define	RTSI_Trig_B_Output_Register	80
-enum RTSI_Trig_B_Output_Bits {
-	RTSI_Sub_Selection_1_Bit = 0x8000	/*  not for m-series */
-};
-static inline unsigned RTSI_Trig_Output_Bits(unsigned rtsi_channel,
-					     unsigned source)
-{
-	return (source & 0xf) << ((rtsi_channel % 4) * 4);
-};
-
-static inline unsigned RTSI_Trig_Output_Mask(unsigned rtsi_channel)
-{
-	return 0xf << ((rtsi_channel % 4) * 4);
-};
-
-/* inverse to RTSI_Trig_Output_Bits() */
-static inline unsigned RTSI_Trig_Output_Source(unsigned rtsi_channel,
-					       unsigned bits)
-{
-	return (bits >> ((rtsi_channel % 4) * 4)) & 0xf;
-};
 
 #define	RTSI_Board_Register		81
 #define Write_Strobe_0_Register		82
