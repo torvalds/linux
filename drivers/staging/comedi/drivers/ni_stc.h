@@ -232,6 +232,26 @@
 #define NISTC_AO_MODE1_CONTINUOUS	BIT(1)
 #define NISTC_AO_MODE1_TRIGGER_ONCE	BIT(0)
 
+#define NISTC_AO_MODE2_REG		39
+#define NISTC_AO_MODE2_FIFO_MODE(x)	(((x) & 0x3) << 14)
+#define NISTC_AO_MODE2_FIFO_MODE_MASK	NISTC_AO_MODE2_FIFO_MODE(3)
+#define NISTC_AO_MODE2_FIFO_MODE_E	NISTC_AO_MODE2_FIFO_MODE(0)
+#define NISTC_AO_MODE2_FIFO_MODE_HF	NISTC_AO_MODE2_FIFO_MODE(1)
+#define NISTC_AO_MODE2_FIFO_MODE_F	NISTC_AO_MODE2_FIFO_MODE(2)
+#define NISTC_AO_MODE2_FIFO_MODE_HF_F	NISTC_AO_MODE2_FIFO_MODE(3)
+#define NISTC_AO_MODE2_FIFO_REXMIT_ENA	BIT(13)
+#define NISTC_AO_MODE2_START1_DISABLE	BIT(12)
+#define NISTC_AO_MODE2_UC_INIT_LOAD_SRC	BIT(11)
+#define NISTC_AO_MODE2_UC_WR_SWITCH	BIT(10)
+#define NISTC_AO_MODE2_UI2_INIT_LOAD_SRC BIT(9)
+#define NISTC_AO_MODE2_UI2_RELOAD_MODE	BIT(8)
+#define NISTC_AO_MODE2_UI_INIT_LOAD_SRC	BIT(7)
+#define NISTC_AO_MODE2_UI_RELOAD_MODE(x) (((x) & 0x7) << 4)
+#define NISTC_AO_MODE2_UI_WR_SWITCH	BIT(3)
+#define NISTC_AO_MODE2_BC_INIT_LOAD_SRC	BIT(2)
+#define NISTC_AO_MODE2_BC_RELOAD_MODE	BIT(1)
+#define NISTC_AO_MODE2_BC_WR_SWITCH	BIT(0)
+
 #define AI_Status_1_Register		2
 #define Interrupt_A_St				0x8000
 #define AI_FIFO_Full_St				0x4000
@@ -285,27 +305,6 @@
 enum Joint_Status_2_Bits {
 	AO_TMRDACWRs_In_Progress_St = 0x20,
 };
-
-#define AO_Mode_2_Register		39
-#define AO_FIFO_Mode_Mask (0x3 << 14)
-enum AO_FIFO_Mode_Bits {
-	AO_FIFO_Mode_HF_to_F = (3 << 14),
-	AO_FIFO_Mode_F = (2 << 14),
-	AO_FIFO_Mode_HF = (1 << 14),
-	AO_FIFO_Mode_E = (0 << 14),
-};
-#define AO_FIFO_Retransmit_Enable		_bit13
-#define AO_START1_Disable			_bit12
-#define AO_UC_Initial_Load_Source		_bit11
-#define AO_UC_Write_Switch			_bit10
-#define AO_UI2_Initial_Load_Source		_bit9
-#define AO_UI2_Reload_Mode			_bit8
-#define AO_UI_Initial_Load_Source		_bit7
-#define AO_UI_Reload_Mode(x)			(((x) & 0x7) << 4)
-#define AO_UI_Write_Switch			_bit3
-#define AO_BC_Initial_Load_Source		_bit2
-#define AO_BC_Reload_Mode			_bit1
-#define AO_BC_Write_Switch			_bit0
 
 #define AO_UI_Load_A_Register		40
 #define AO_UI_Load_A_Register_High	40
