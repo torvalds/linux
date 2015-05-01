@@ -373,6 +373,17 @@
 #define NISTC_AO_MODE3_SW_GATE			BIT(1)
 #define NISTC_AO_MODE3_LAST_GATE_DISABLE	BIT(0)	/* M-Series only */
 
+#define NISTC_RESET_REG			72
+#define NISTC_RESET_SOFTWARE		BIT(11)
+#define NISTC_RESET_AO_CFG_END		BIT(9)
+#define NISTC_RESET_AI_CFG_END		BIT(8)
+#define NISTC_RESET_AO_CFG_START	BIT(5)
+#define NISTC_RESET_AI_CFG_START	BIT(4)
+#define NISTC_RESET_G1			BIT(3)
+#define NISTC_RESET_G0			BIT(2)
+#define NISTC_RESET_AO			BIT(1)
+#define NISTC_RESET_AI			BIT(0)
+
 #define AI_Status_1_Register		2
 #define Interrupt_A_St				0x8000
 #define AI_FIFO_Full_St				0x4000
@@ -430,17 +441,6 @@ enum Joint_Status_2_Bits {
 #define AO_UI_Save_Registers		16
 #define AO_BC_Save_Registers		18
 #define AO_UC_Save_Registers		20
-
-#define Joint_Reset_Register		72
-#define Software_Reset			_bit11
-#define AO_Configuration_End			_bit9
-#define AI_Configuration_End			_bit8
-#define AO_Configuration_Start			_bit5
-#define AI_Configuration_Start			_bit4
-#define G1_Reset				_bit3
-#define G0_Reset				_bit2
-#define AO_Reset				_bit1
-#define AI_Reset				_bit0
 
 #define Interrupt_A_Enable_Register	73
 #define Pass_Thru_0_Interrupt_Enable		_bit9

@@ -365,7 +365,7 @@ static const struct mio_regmap m_series_stc_write_regmap[] = {
 	[NISTC_G0_AUTOINC_REG]		= { 0x188, 2 },
 	[NISTC_G1_AUTOINC_REG]		= { 0x18a, 2 },
 	[NISTC_AO_MODE3_REG]		= { 0x18c, 2 },
-	[Joint_Reset_Register]		= { 0x190, 2 },
+	[NISTC_RESET_REG]		= { 0x190, 2 },
 	[Interrupt_A_Enable_Register]	= { 0x192, 2 },
 	[Second_IRQ_A_Enable_Register]	= { 0, 0 }, /* E-Series only */
 	[Interrupt_B_Enable_Register]	= { 0x196, 2 },
@@ -1612,8 +1612,8 @@ static int ni_ai_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	ni_release_ai_mite_channel(dev);
 	/* ai configuration */
-	ni_stc_writew(dev, AI_Configuration_Start | AI_Reset,
-		      Joint_Reset_Register);
+	ni_stc_writew(dev, NISTC_RESET_AI_CFG_START | NISTC_RESET_AI,
+		      NISTC_RESET_REG);
 
 	ni_set_bits(dev, Interrupt_A_Enable_Register,
 		    AI_SC_TC_Interrupt_Enable | AI_START1_Interrupt_Enable |
@@ -1678,7 +1678,7 @@ static int ni_ai_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 	/* clear interrupts */
 	ni_stc_writew(dev, NISTC_INTA_ACK_AI_ALL, NISTC_INTA_ACK_REG);
 
-	ni_stc_writew(dev, AI_Configuration_End, Joint_Reset_Register);
+	ni_stc_writew(dev, NISTC_RESET_AI_CFG_END, NISTC_RESET_REG);
 
 	return 0;
 }
@@ -2259,7 +2259,7 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	ni_load_channelgain_list(dev, s, cmd->chanlist_len, cmd->chanlist);
 
 	/* start configuration */
-	ni_stc_writew(dev, AI_Configuration_Start, Joint_Reset_Register);
+	ni_stc_writew(dev, NISTC_RESET_AI_CFG_START, NISTC_RESET_REG);
 
 	/* disable analog triggering for now, since it
 	 * interferes with the use of pfi0 */
@@ -2484,7 +2484,7 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 
 	/* end configuration */
-	ni_stc_writew(dev, AI_Configuration_End, Joint_Reset_Register);
+	ni_stc_writew(dev, NISTC_RESET_AI_CFG_END, NISTC_RESET_REG);
 
 	switch (cmd->scan_begin_src) {
 	case TRIG_TIMER:
@@ -2909,7 +2909,7 @@ static int ni_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		return -EIO;
 	}
 
-	ni_stc_writew(dev, AO_Configuration_Start, Joint_Reset_Register);
+	ni_stc_writew(dev, NISTC_RESET_AO_CFG_START, NISTC_RESET_REG);
 
 	ni_stc_writew(dev, NISTC_AO_CMD1_DISARM, NISTC_AO_CMD1_REG);
 
@@ -3092,7 +3092,7 @@ static int ni_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/*  enable sending of ao dma requests */
 	ni_stc_writew(dev, NISTC_AO_START_AOFREQ_ENA, NISTC_AO_START_SEL_REG);
 
-	ni_stc_writew(dev, AO_Configuration_End, Joint_Reset_Register);
+	ni_stc_writew(dev, NISTC_RESET_AO_CFG_END, NISTC_RESET_REG);
 
 	if (cmd->stop_src == TRIG_COUNT) {
 		ni_stc_writew(dev, NISTC_INTB_ACK_AO_BC_TC,
@@ -3195,7 +3195,7 @@ static int ni_ao_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	ni_release_ao_mite_channel(dev);
 
-	ni_stc_writew(dev, AO_Configuration_Start, Joint_Reset_Register);
+	ni_stc_writew(dev, NISTC_RESET_AO_CFG_START, NISTC_RESET_REG);
 	ni_stc_writew(dev, NISTC_AO_CMD1_DISARM, NISTC_AO_CMD1_REG);
 	ni_set_bits(dev, Interrupt_B_Enable_Register, ~0, 0);
 	ni_stc_writew(dev, AO_BC_Source_Select, AO_Personal_Register);
@@ -3229,7 +3229,7 @@ static int ni_ao_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 		ni_ao_win_outw(dev, immediate_bits, AO_Immediate_671x);
 		ni_ao_win_outw(dev, CLEAR_WG, AO_Misc_611x);
 	}
-	ni_stc_writew(dev, AO_Configuration_End, Joint_Reset_Register);
+	ni_stc_writew(dev, NISTC_RESET_AO_CFG_END, NISTC_RESET_REG);
 
 	return 0;
 }
@@ -3733,7 +3733,7 @@ static const struct mio_regmap ni_gpct_to_stc_regmap[] = {
 	[NITIO_G0_GATE2]	= { 0x1b4, 2 },	/* M-Series only */
 	[NITIO_G1_GATE2]	= { 0x1b6, 2 },	/* M-Series only */
 	[NITIO_G01_STATUS]	= { G_Status_Register, 2 },
-	[NITIO_G01_RESET]	= { Joint_Reset_Register, 2 },
+	[NITIO_G01_RESET]	= { NISTC_RESET_REG, 2 },
 	[NITIO_G01_STATUS1]	= { Joint_Status_1_Register, 2 },
 	[NITIO_G01_STATUS2]	= { Joint_Status_2_Register, 2 },
 	[NITIO_G0_DMA_CFG]	= { 0x1b8, 2 },	/* M-Series only */
@@ -3771,8 +3771,6 @@ static void ni_gpct_write_register(struct ni_gpct *counter, unsigned bits,
 {
 	struct comedi_device *dev = counter->counter_dev->dev;
 	unsigned int stc_register = ni_gpct_to_stc_register(dev, reg);
-	/* bits in the join reset register which are relevant to counters */
-	static const unsigned gpct_joint_reset_mask = G0_Reset | G1_Reset;
 	static const unsigned gpct_interrupt_a_enable_mask =
 	    G0_Gate_Interrupt_Enable | G0_TC_Interrupt_Enable;
 	static const unsigned gpct_interrupt_b_enable_mask =
@@ -3814,7 +3812,7 @@ static void ni_gpct_write_register(struct ni_gpct *counter, unsigned bits,
 				gpct_interrupt_b_enable_mask, bits);
 		break;
 	case NITIO_G01_RESET:
-		BUG_ON(bits & ~gpct_joint_reset_mask);
+		BUG_ON(bits & ~(NISTC_RESET_G0 | NISTC_RESET_G1));
 		/* fall-through */
 	default:
 		ni_stc_writew(dev, bits, stc_register);
