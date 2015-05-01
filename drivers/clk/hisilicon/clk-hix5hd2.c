@@ -252,8 +252,9 @@ static struct clk_ops clk_complex_ops = {
 	.disable = clk_complex_disable,
 };
 
-void __init hix5hd2_clk_register_complex(struct hix5hd2_complex_clock *clks,
-					 int nums, struct hisi_clock_data *data)
+static void __init
+hix5hd2_clk_register_complex(struct hix5hd2_complex_clock *clks, int nums,
+			     struct hisi_clock_data *data)
 {
 	void __iomem *base = data->base;
 	int i;
