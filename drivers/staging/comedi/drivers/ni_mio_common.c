@@ -3749,103 +3749,66 @@ static void init_ao_67xx(struct comedi_device *dev, struct comedi_subdevice *s)
 	ni_ao_win_outw(dev, 0x0, AO_Later_Single_Point_Updates);
 }
 
-static unsigned ni_gpct_to_stc_register(enum ni_gpct_register reg)
-{
-	unsigned stc_register;
+static const struct mio_regmap ni_gpct_to_stc_regmap[] = {
+	[NITIO_G0_AUTO_INC]	= { G_Autoincrement_Register(0), 2 },
+	[NITIO_G1_AUTO_INC]	= { G_Autoincrement_Register(1), 2 },
+	[NITIO_G0_CMD]		= { G_Command_Register(0), 2 },
+	[NITIO_G1_CMD]		= { G_Command_Register(1), 2 },
+	[NITIO_G0_HW_SAVE]	= { G_HW_Save_Register(0), 4 },
+	[NITIO_G1_HW_SAVE]	= { G_HW_Save_Register(1), 4 },
+	[NITIO_G0_SW_SAVE]	= { G_Save_Register(0), 4 },
+	[NITIO_G1_SW_SAVE]	= { G_Save_Register(1), 4 },
+	[NITIO_G0_MODE]		= { G_Mode_Register(0), 2 },
+	[NITIO_G1_MODE]		= { G_Mode_Register(1), 2 },
+	[NITIO_G0_LOADA]	= { G_Load_A_Register(0), 4 },
+	[NITIO_G1_LOADA]	= { G_Load_A_Register(1), 4 },
+	[NITIO_G0_LOADB]	= { G_Load_B_Register(0), 4 },
+	[NITIO_G1_LOADB]	= { G_Load_B_Register(1), 4 },
+	[NITIO_G0_INPUT_SEL]	= { G_Input_Select_Register(0), 2 },
+	[NITIO_G1_INPUT_SEL]	= { G_Input_Select_Register(1), 2 },
+	[NITIO_G0_CNT_MODE]	= { M_Offset_G0_Counting_Mode, 2 },
+	[NITIO_G1_CNT_MODE]	= { M_Offset_G1_Counting_Mode, 2 },
+	[NITIO_G0_GATE2]	= { M_Offset_G0_Second_Gate, 2 },
+	[NITIO_G1_GATE2]	= { M_Offset_G1_Second_Gate, 2 },
+	[NITIO_G01_STATUS]	= { G_Status_Register, 2 },
+	[NITIO_G01_RESET]	= { Joint_Reset_Register, 2 },
+	[NITIO_G01_STATUS1]	= { Joint_Status_1_Register, 2 },
+	[NITIO_G01_STATUS2]	= { Joint_Status_2_Register, 2 },
+	[NITIO_G0_DMA_CFG]	= { M_Offset_G0_DMA_Config, 2 },
+	[NITIO_G1_DMA_CFG]	= { M_Offset_G1_DMA_Config, 2 },
+	[NITIO_G0_DMA_STATUS]	= { M_Offset_G0_DMA_Status, 2 },
+	[NITIO_G1_DMA_STATUS]	= { M_Offset_G1_DMA_Status, 2 },
+	[NITIO_G0_ABZ]		= { M_Offset_G0_MSeries_ABZ, 2 },
+	[NITIO_G1_ABZ]		= { M_Offset_G1_MSeries_ABZ, 2 },
+	[NITIO_G0_INT_ACK]	= { Interrupt_A_Ack_Register, 2 },
+	[NITIO_G1_INT_ACK]	= { Interrupt_B_Ack_Register, 2 },
+	[NITIO_G0_STATUS]	= { AI_Status_1_Register, 2 },
+	[NITIO_G1_STATUS]	= { AO_Status_1_Register, 2 },
+	[NITIO_G0_INT_ENA]	= { Interrupt_A_Enable_Register, 2 },
+	[NITIO_G1_INT_ENA]	= { Interrupt_B_Enable_Register, 2 },
+};
 
-	switch (reg) {
-	case NITIO_G0_AUTO_INC:
-		stc_register = G_Autoincrement_Register(0);
-		break;
-	case NITIO_G1_AUTO_INC:
-		stc_register = G_Autoincrement_Register(1);
-		break;
-	case NITIO_G0_CMD:
-		stc_register = G_Command_Register(0);
-		break;
-	case NITIO_G1_CMD:
-		stc_register = G_Command_Register(1);
-		break;
-	case NITIO_G0_HW_SAVE:
-		stc_register = G_HW_Save_Register(0);
-		break;
-	case NITIO_G1_HW_SAVE:
-		stc_register = G_HW_Save_Register(1);
-		break;
-	case NITIO_G0_SW_SAVE:
-		stc_register = G_Save_Register(0);
-		break;
-	case NITIO_G1_SW_SAVE:
-		stc_register = G_Save_Register(1);
-		break;
-	case NITIO_G0_MODE:
-		stc_register = G_Mode_Register(0);
-		break;
-	case NITIO_G1_MODE:
-		stc_register = G_Mode_Register(1);
-		break;
-	case NITIO_G0_LOADA:
-		stc_register = G_Load_A_Register(0);
-		break;
-	case NITIO_G1_LOADA:
-		stc_register = G_Load_A_Register(1);
-		break;
-	case NITIO_G0_LOADB:
-		stc_register = G_Load_B_Register(0);
-		break;
-	case NITIO_G1_LOADB:
-		stc_register = G_Load_B_Register(1);
-		break;
-	case NITIO_G0_INPUT_SEL:
-		stc_register = G_Input_Select_Register(0);
-		break;
-	case NITIO_G1_INPUT_SEL:
-		stc_register = G_Input_Select_Register(1);
-		break;
-	case NITIO_G01_STATUS:
-		stc_register = G_Status_Register;
-		break;
-	case NITIO_G01_RESET:
-		stc_register = Joint_Reset_Register;
-		break;
-	case NITIO_G01_STATUS1:
-		stc_register = Joint_Status_1_Register;
-		break;
-	case NITIO_G01_STATUS2:
-		stc_register = Joint_Status_2_Register;
-		break;
-	case NITIO_G0_INT_ACK:
-		stc_register = Interrupt_A_Ack_Register;
-		break;
-	case NITIO_G1_INT_ACK:
-		stc_register = Interrupt_B_Ack_Register;
-		break;
-	case NITIO_G0_STATUS:
-		stc_register = AI_Status_1_Register;
-		break;
-	case NITIO_G1_STATUS:
-		stc_register = AO_Status_1_Register;
-		break;
-	case NITIO_G0_INT_ENA:
-		stc_register = Interrupt_A_Enable_Register;
-		break;
-	case NITIO_G1_INT_ENA:
-		stc_register = Interrupt_B_Enable_Register;
-		break;
-	default:
-		pr_err("%s: unhandled register 0x%x in switch.\n",
-		       __func__, reg);
-		BUG();
+static unsigned int ni_gpct_to_stc_register(struct comedi_device *dev,
+					    enum ni_gpct_register reg)
+{
+	const struct mio_regmap *regmap;
+
+	if (reg < ARRAY_SIZE(ni_gpct_to_stc_regmap)) {
+		regmap = &ni_gpct_to_stc_regmap[reg];
+	} else {
+		dev_warn(dev->class_dev,"%s: unhandled register 0x%x\n",
+			 __func__, reg);
 		return 0;
 	}
-	return stc_register;
+
+	return regmap->mio_reg;
 }
 
 static void ni_gpct_write_register(struct ni_gpct *counter, unsigned bits,
 				   enum ni_gpct_register reg)
 {
 	struct comedi_device *dev = counter->counter_dev->dev;
-	unsigned stc_register;
+	unsigned int stc_register = ni_gpct_to_stc_register(dev, reg);
 	/* bits in the join reset register which are relevant to counters */
 	static const unsigned gpct_joint_reset_mask = G0_Reset | G1_Reset;
 	static const unsigned gpct_interrupt_a_enable_mask =
@@ -3853,31 +3816,20 @@ static void ni_gpct_write_register(struct ni_gpct *counter, unsigned bits,
 	static const unsigned gpct_interrupt_b_enable_mask =
 	    G1_Gate_Interrupt_Enable | G1_TC_Interrupt_Enable;
 
+	if (stc_register == 0)
+		return;
+
 	switch (reg) {
-		/* m-series-only registers */
+		/* m-series only registers */
 	case NITIO_G0_CNT_MODE:
-		ni_writew(dev, bits, M_Offset_G0_Counting_Mode);
-		break;
 	case NITIO_G1_CNT_MODE:
-		ni_writew(dev, bits, M_Offset_G1_Counting_Mode);
-		break;
 	case NITIO_G0_GATE2:
-		ni_writew(dev, bits, M_Offset_G0_Second_Gate);
-		break;
 	case NITIO_G1_GATE2:
-		ni_writew(dev, bits, M_Offset_G1_Second_Gate);
-		break;
 	case NITIO_G0_DMA_CFG:
-		ni_writew(dev, bits, M_Offset_G0_DMA_Config);
-		break;
 	case NITIO_G1_DMA_CFG:
-		ni_writew(dev, bits, M_Offset_G1_DMA_Config);
-		break;
 	case NITIO_G0_ABZ:
-		ni_writew(dev, bits, M_Offset_G0_MSeries_ABZ);
-		break;
 	case NITIO_G1_ABZ:
-		ni_writew(dev, bits, M_Offset_G1_MSeries_ABZ);
+		ni_writew(dev, bits, stc_register);
 		break;
 
 		/* 32 bit registers */
@@ -3885,26 +3837,24 @@ static void ni_gpct_write_register(struct ni_gpct *counter, unsigned bits,
 	case NITIO_G1_LOADA:
 	case NITIO_G0_LOADB:
 	case NITIO_G1_LOADB:
-		stc_register = ni_gpct_to_stc_register(reg);
 		ni_stc_writel(dev, bits, stc_register);
 		break;
 
 		/* 16 bit registers */
 	case NITIO_G0_INT_ENA:
 		BUG_ON(bits & ~gpct_interrupt_a_enable_mask);
-		ni_set_bitfield(dev, Interrupt_A_Enable_Register,
+		ni_set_bitfield(dev, stc_register,
 				gpct_interrupt_a_enable_mask, bits);
 		break;
 	case NITIO_G1_INT_ENA:
 		BUG_ON(bits & ~gpct_interrupt_b_enable_mask);
-		ni_set_bitfield(dev, Interrupt_B_Enable_Register,
+		ni_set_bitfield(dev, stc_register,
 				gpct_interrupt_b_enable_mask, bits);
 		break;
 	case NITIO_G01_RESET:
 		BUG_ON(bits & ~gpct_joint_reset_mask);
 		/* fall-through */
 	default:
-		stc_register = ni_gpct_to_stc_register(reg);
 		ni_stc_writew(dev, bits, stc_register);
 	}
 }
@@ -3913,29 +3863,28 @@ static unsigned ni_gpct_read_register(struct ni_gpct *counter,
 				      enum ni_gpct_register reg)
 {
 	struct comedi_device *dev = counter->counter_dev->dev;
-	unsigned stc_register;
+	unsigned int stc_register = ni_gpct_to_stc_register(dev, reg);
+
+	if (stc_register == 0)
+		return 0;
 
 	switch (reg) {
 		/* m-series only registers */
 	case NITIO_G0_DMA_STATUS:
-		return ni_readw(dev, M_Offset_G0_DMA_Status);
 	case NITIO_G1_DMA_STATUS:
-		return ni_readw(dev, M_Offset_G1_DMA_Status);
+		return ni_readw(dev, stc_register);
 
 		/* 32 bit registers */
 	case NITIO_G0_HW_SAVE:
 	case NITIO_G1_HW_SAVE:
 	case NITIO_G0_SW_SAVE:
 	case NITIO_G1_SW_SAVE:
-		stc_register = ni_gpct_to_stc_register(reg);
 		return ni_stc_readl(dev, stc_register);
 
 		/* 16 bit registers */
 	default:
-		stc_register = ni_gpct_to_stc_register(reg);
 		return ni_stc_readw(dev, stc_register);
 	}
-	return 0;
 }
 
 static int ni_freq_out_insn_read(struct comedi_device *dev,
