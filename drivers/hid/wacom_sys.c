@@ -1528,8 +1528,14 @@ static int wacom_probe(struct hid_device *hdev,
 	wacom_setup_device_quirks(wacom);
 
 	if (!features->device_type && features->type != WIRELESS) {
+		error = features->type == HID_GENERIC ? -ENODEV : 0;
+
 		dev_warn(&hdev->dev, "Unknown device_type for '%s'. %s.",
-			 hdev->name, "Assuming pen");
+			 hdev->name,
+			 error ? "Ignoring" : "Assuming pen");
+
+		if (error)
+			goto fail_shared_data;
 
 		features->device_type = BTN_TOOL_PEN;
 	}
