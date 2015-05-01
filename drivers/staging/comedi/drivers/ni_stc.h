@@ -326,6 +326,16 @@
 #define NISTC_AI_START_EDGE		BIT(5)
 #define NISTC_AI_START_SEL(x)		(((x) & 0x1f) << 0)
 
+#define NISTC_AI_TRIG_SEL_REG		63
+#define NISTC_AI_TRIG_START1_POLARITY	BIT(15)
+#define NISTC_AI_TRIG_START2_POLARITY	BIT(14)
+#define NISTC_AI_TRIG_START2_SYNC	BIT(13)
+#define NISTC_AI_TRIG_START2_EDGE	BIT(12)
+#define NISTC_AI_TRIG_START2_SEL(x)	(((x) & 0x1f) << 7)
+#define NISTC_AI_TRIG_START1_SYNC	BIT(6)
+#define NISTC_AI_TRIG_START1_EDGE	BIT(5)
+#define NISTC_AI_TRIG_START1_SEL(x)	(((x) & 0x1f) << 0)
+
 #define AI_Status_1_Register		2
 #define Interrupt_A_St				0x8000
 #define AI_FIFO_Full_St				0x4000
@@ -383,16 +393,6 @@ enum Joint_Status_2_Bits {
 #define AO_UI_Save_Registers		16
 #define AO_BC_Save_Registers		18
 #define AO_UC_Save_Registers		20
-
-#define AI_Trigger_Select_Register	63
-#define AI_START1_Polarity			_bit15
-#define AI_START2_Polarity			_bit14
-#define AI_START2_Sync				_bit13
-#define AI_START2_Edge				_bit12
-#define AI_START2_Select(a)			(((a) & 0x1f) << 7)
-#define AI_START1_Sync				_bit6
-#define AI_START1_Edge				_bit5
-#define AI_START1_Select(a)			((a) & 0x1f)
 
 #define AI_DIV_Load_A_Register	64
 

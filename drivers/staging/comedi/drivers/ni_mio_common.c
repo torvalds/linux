@@ -358,7 +358,7 @@ static const struct mio_regmap m_series_stc_write_regmap[] = {
 	[NISTC_AI_OUT_CTRL_REG]		= { 0x178, 2 },
 	[NISTC_ATRIG_ETC_REG]		= { 0x17a, 2 },
 	[NISTC_AI_START_STOP_REG]	= { 0x17c, 2 },
-	[AI_Trigger_Select_Register]	= { 0x17e, 2 },
+	[NISTC_AI_TRIG_SEL_REG]		= { 0x17e, 2 },
 	[AI_DIV_Load_A_Register]	= { 0x180, 4 },
 	[AO_Start_Select_Register]	= { 0x184, 2 },
 	[AO_Trigger_Select_Register]	= { 0x186, 2 },
@@ -2248,6 +2248,7 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	int start_stop_select = 0;
 	unsigned int stop_count;
 	int interrupt_a_enable = 0;
+	unsigned ai_trig;
 
 	if (dev->irq == 0) {
 		dev_err(dev->class_dev, "cannot run command without an irq\n");
@@ -2265,29 +2266,25 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->an_trig_etc_reg &= ~NISTC_ATRIG_ETC_ENA;
 	ni_stc_writew(dev, devpriv->an_trig_etc_reg, NISTC_ATRIG_ETC_REG);
 
+	ai_trig = NISTC_AI_TRIG_START2_SEL(0) | NISTC_AI_TRIG_START1_SYNC;
 	switch (cmd->start_src) {
 	case TRIG_INT:
 	case TRIG_NOW:
-		ni_stc_writew(dev,
-			      AI_START2_Select(0) |
-			      AI_START1_Sync | AI_START1_Edge |
-			      AI_START1_Select(0),
-			      AI_Trigger_Select_Register);
+		ai_trig |= NISTC_AI_TRIG_START1_EDGE |
+			   NISTC_AI_TRIG_START1_SEL(0),
+			   NISTC_AI_TRIG_SEL_REG;
 		break;
 	case TRIG_EXT:
-		{
-			int chan = CR_CHAN(cmd->start_arg);
-			unsigned int bits = AI_START2_Select(0) |
-			    AI_START1_Sync | AI_START1_Select(chan + 1);
+		ai_trig |= NISTC_AI_TRIG_START1_SEL(CR_CHAN(cmd->start_arg) +
+						    1);
 
-			if (cmd->start_arg & CR_INVERT)
-				bits |= AI_START1_Polarity;
-			if (cmd->start_arg & CR_EDGE)
-				bits |= AI_START1_Edge;
-			ni_stc_writew(dev, bits, AI_Trigger_Select_Register);
-			break;
-		}
+		if (cmd->start_arg & CR_INVERT)
+			ai_trig |= NISTC_AI_TRIG_START1_POLARITY;
+		if (cmd->start_arg & CR_EDGE)
+			ai_trig |= NISTC_AI_TRIG_START1_EDGE;
+		break;
 	}
+	ni_stc_writew(dev, ai_trig, NISTC_AI_TRIG_SEL_REG);
 
 	mode2 &= ~NISTC_AI_MODE2_PRE_TRIGGER;
 	mode2 &= ~NISTC_AI_MODE2_SC_INIT_LOAD_SRC;
