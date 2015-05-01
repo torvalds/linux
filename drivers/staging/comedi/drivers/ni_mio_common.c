@@ -316,7 +316,7 @@ struct mio_regmap {
 static const struct mio_regmap m_series_stc_write_regmap[] = {
 	[NISTC_INTA_ACK_REG]		= { 0x104, 2 },
 	[NISTC_INTB_ACK_REG]		= { 0x106, 2 },
-	[AI_Command_2_Register]		= { 0x108, 2 },
+	[NISTC_AI_CMD2_REG]		= { 0x108, 2 },
 	[AO_Command_2_Register]		= { 0x10a, 2 },
 	[G_Command_Register(0)]		= { 0x10c, 2 },
 	[G_Command_Register(1)]		= { 0x10e, 2 },
@@ -1315,8 +1315,8 @@ static void ni_handle_eos(struct comedi_device *dev, struct comedi_subdevice *s)
 		s->async->events |= COMEDI_CB_EOS;
 #endif
 	}
-	/* handle special case of single scan using AI_End_On_End_Of_Scan */
-	if ((devpriv->ai_cmd2 & AI_End_On_End_Of_Scan))
+	/* handle special case of single scan */
+	if (devpriv->ai_cmd2 & NISTC_AI_CMD2_END_ON_EOS)
 		shutdown_ai_command(dev);
 }
 
@@ -2253,8 +2253,8 @@ static int ni_ai_inttrig(struct comedi_device *dev,
 	if (trig_num != cmd->start_arg)
 		return -EINVAL;
 
-	ni_stc_writew(dev, AI_START1_Pulse | devpriv->ai_cmd2,
-		      AI_Command_2_Register);
+	ni_stc_writew(dev, NISTC_AI_CMD2_START1_PULSE | devpriv->ai_cmd2,
+		      NISTC_AI_CMD2_REG);
 	s->async->inttrig = NULL;
 
 	return 1;
@@ -2344,7 +2344,7 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		ni_stc_writew(dev, AI_SC_Load, AI_Command_1_Register);
 
 		if (stop_count == 0) {
-			devpriv->ai_cmd2 |= AI_End_On_End_Of_Scan;
+			devpriv->ai_cmd2 |= NISTC_AI_CMD2_END_ON_EOS;
 			interrupt_a_enable |= AI_STOP_Interrupt_Enable;
 			/*  this is required to get the last sample for chanlist_len > 1, not sure why */
 			if (cmd->chanlist_len > 1)
@@ -2460,8 +2460,8 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		interrupt_a_enable |= AI_FIFO_Interrupt_Enable;
 #endif
 
-		if (cmd->flags & CMDF_WAKE_EOS
-		    || (devpriv->ai_cmd2 & AI_End_On_End_Of_Scan)) {
+		if ((cmd->flags & CMDF_WAKE_EOS) ||
+		    (devpriv->ai_cmd2 & NISTC_AI_CMD2_END_ON_EOS)) {
 			/* wake on end-of-scan */
 			devpriv->aimode = AIMODE_SCAN;
 		} else {
@@ -2537,9 +2537,9 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 #endif
 
 	if (cmd->start_src == TRIG_NOW) {
-		/* AI_START1_Pulse */
-		ni_stc_writew(dev, AI_START1_Pulse | devpriv->ai_cmd2,
-			      AI_Command_2_Register);
+		ni_stc_writew(dev, NISTC_AI_CMD2_START1_PULSE |
+				   devpriv->ai_cmd2,
+			      NISTC_AI_CMD2_REG);
 		s->async->inttrig = NULL;
 	} else if (cmd->start_src == TRIG_EXT) {
 		s->async->inttrig = NULL;

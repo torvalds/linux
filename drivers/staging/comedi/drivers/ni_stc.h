@@ -95,6 +95,20 @@
 					 NISTC_INTB_ACK_AO_BC_TC_ERR |	\
 					 NISTC_INTB_ACK_AO_BC_TC_TRIG_ERR)
 
+#define NISTC_AI_CMD2_REG		4
+#define NISTC_AI_CMD2_END_ON_SC_TC	BIT(15)
+#define NISTC_AI_CMD2_END_ON_EOS	BIT(14)
+#define NISTC_AI_CMD2_START1_DISABLE	BIT(11)
+#define NISTC_AI_CMD2_SC_SAVE_TRACE	BIT(10)
+#define NISTC_AI_CMD2_SI_SW_ON_SC_TC	BIT(9)
+#define NISTC_AI_CMD2_SI_SW_ON_STOP	BIT(8)
+#define NISTC_AI_CMD2_SI_SW_ON_TC	BIT(7)
+#define NISTC_AI_CMD2_SC_SW_ON_TC	BIT(4)
+#define NISTC_AI_CMD2_STOP_PULSE	BIT(3)
+#define NISTC_AI_CMD2_START_PULSE	BIT(2)
+#define NISTC_AI_CMD2_START2_PULSE	BIT(1)
+#define NISTC_AI_CMD2_START1_PULSE	BIT(0)
+
 #define AI_Status_1_Register		2
 #define Interrupt_A_St				0x8000
 #define AI_FIFO_Full_St				0x4000
@@ -132,20 +146,6 @@
 #define G1_Gate_Interrupt_St			_bit2
 #define AO_FIFO_Request_St			_bit1
 #define Pass_Thru_1_Interrupt_St		_bit0
-
-#define AI_Command_2_Register		4
-#define AI_End_On_SC_TC				_bit15
-#define AI_End_On_End_Of_Scan			_bit14
-#define AI_START1_Disable			_bit11
-#define AI_SC_Save_Trace			_bit10
-#define AI_SI_Switch_Load_On_SC_TC		_bit9
-#define AI_SI_Switch_Load_On_STOP		_bit8
-#define AI_SI_Switch_Load_On_TC			_bit7
-#define AI_SC_Switch_Load_On_TC			_bit4
-#define AI_STOP_Pulse				_bit3
-#define AI_START_Pulse				_bit2
-#define AI_START2_Pulse				_bit1
-#define AI_START1_Pulse				_bit0
 
 #define AO_Command_2_Register		5
 #define AO_End_On_BC_TC(x)			(((x) & 0x3) << 14)
