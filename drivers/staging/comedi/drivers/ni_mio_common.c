@@ -368,7 +368,7 @@ static const struct mio_regmap m_series_stc_write_regmap[] = {
 	[NISTC_RESET_REG]		= { 0x190, 2 },
 	[NISTC_INTA_ENA_REG]		= { 0x192, 2 },
 	[NISTC_INTA2_ENA_REG]		= { 0, 0 }, /* E-Series only */
-	[Interrupt_B_Enable_Register]	= { 0x196, 2 },
+	[NISTC_INTB_ENA_REG]		= { 0x196, 2 },
 	[Second_IRQ_B_Enable_Register]	= { 0, 0 }, /* E-Series only */
 	[AI_Personal_Register]		= { 0x19a, 2 },
 	[AO_Personal_Register]		= { 0x19c, 2 },
@@ -536,7 +536,7 @@ static inline void ni_set_bitfield(struct comedi_device *dev, int reg,
 		devpriv->int_a_enable_reg |= bit_values & bit_mask;
 		ni_stc_writew(dev, devpriv->int_a_enable_reg, reg);
 		break;
-	case Interrupt_B_Enable_Register:
+	case NISTC_INTB_ENA_REG:
 		devpriv->int_b_enable_reg &= ~bit_mask;
 		devpriv->int_b_enable_reg |= bit_values & bit_mask;
 		ni_stc_writew(dev, devpriv->int_b_enable_reg, reg);
@@ -1490,9 +1490,9 @@ static void handle_b_interrupt(struct comedi_device *dev,
 		ret = ni_ao_fifo_half_empty(dev, s);
 		if (!ret) {
 			dev_err(dev->class_dev, "AO buffer underrun\n");
-			ni_set_bits(dev, Interrupt_B_Enable_Register,
-				    AO_FIFO_Interrupt_Enable |
-				    AO_Error_Interrupt_Enable, 0);
+			ni_set_bits(dev, NISTC_INTB_ENA_REG,
+				    NISTC_INTB_ENA_AO_FIFO |
+				    NISTC_INTB_ENA_AO_ERR, 0);
 			s->async->events |= COMEDI_CB_OVERFLOW;
 		}
 	}
@@ -2831,9 +2831,9 @@ static int ni_ao_inttrig(struct comedi_device *dev,
 	   multiple times) */
 	s->async->inttrig = NULL;
 
-	ni_set_bits(dev, Interrupt_B_Enable_Register,
-		    AO_FIFO_Interrupt_Enable | AO_Error_Interrupt_Enable, 0);
-	interrupt_b_bits = AO_Error_Interrupt_Enable;
+	ni_set_bits(dev, NISTC_INTB_ENA_REG,
+		    NISTC_INTB_ENA_AO_FIFO | NISTC_INTB_ENA_AO_ERR, 0);
+	interrupt_b_bits = NISTC_INTB_ENA_AO_ERR;
 #ifdef PCIDMA
 	ni_stc_writew(dev, 1, DAC_FIFO_Clear);
 	if (devpriv->is_6xxx)
@@ -2849,7 +2849,7 @@ static int ni_ao_inttrig(struct comedi_device *dev,
 	if (ret == 0)
 		return -EPIPE;
 
-	interrupt_b_bits |= AO_FIFO_Interrupt_Enable;
+	interrupt_b_bits |= NISTC_INTB_ENA_AO_FIFO;
 #endif
 
 	ni_stc_writew(dev, devpriv->ao_mode3 | NISTC_AO_MODE3_NOT_AN_UPDATE,
@@ -2873,7 +2873,7 @@ static int ni_ao_inttrig(struct comedi_device *dev,
 	 */
 	ni_stc_writew(dev, NISTC_INTB_ACK_AO_ERR, NISTC_INTB_ACK_REG);
 
-	ni_set_bits(dev, Interrupt_B_Enable_Register, interrupt_b_bits, 1);
+	ni_set_bits(dev, NISTC_INTB_ENA_REG, interrupt_b_bits, 1);
 
 	ni_stc_writew(dev, NISTC_AO_CMD1_UI_ARM |
 			   NISTC_AO_CMD1_UC_ARM |
@@ -3092,8 +3092,8 @@ static int ni_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	if (cmd->stop_src == TRIG_COUNT) {
 		ni_stc_writew(dev, NISTC_INTB_ACK_AO_BC_TC,
 			      NISTC_INTB_ACK_REG);
-		ni_set_bits(dev, Interrupt_B_Enable_Register,
-			    AO_BC_TC_Interrupt_Enable, 1);
+		ni_set_bits(dev, NISTC_INTB_ENA_REG,
+			    NISTC_INTB_ENA_AO_BC_TC, 1);
 	}
 
 	s->async->inttrig = ni_ao_inttrig;
@@ -3192,7 +3192,7 @@ static int ni_ao_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	ni_stc_writew(dev, NISTC_RESET_AO_CFG_START, NISTC_RESET_REG);
 	ni_stc_writew(dev, NISTC_AO_CMD1_DISARM, NISTC_AO_CMD1_REG);
-	ni_set_bits(dev, Interrupt_B_Enable_Register, ~0, 0);
+	ni_set_bits(dev, NISTC_INTB_ENA_REG, ~0, 0);
 	ni_stc_writew(dev, AO_BC_Source_Select, AO_Personal_Register);
 	ni_stc_writew(dev, NISTC_INTB_ACK_AO_ALL, NISTC_INTB_ACK_REG);
 	ni_stc_writew(dev, AO_BC_Source_Select | AO_UPDATE_Pulse_Width |
@@ -3742,7 +3742,7 @@ static const struct mio_regmap ni_gpct_to_stc_regmap[] = {
 	[NITIO_G0_STATUS]	= { AI_Status_1_Register, 2 },
 	[NITIO_G1_STATUS]	= { AO_Status_1_Register, 2 },
 	[NITIO_G0_INT_ENA]	= { NISTC_INTA_ENA_REG, 2 },
-	[NITIO_G1_INT_ENA]	= { Interrupt_B_Enable_Register, 2 },
+	[NITIO_G1_INT_ENA]	= { NISTC_INTB_ENA_REG, 2 },
 };
 
 static unsigned int ni_gpct_to_stc_register(struct comedi_device *dev,
@@ -3769,7 +3769,7 @@ static void ni_gpct_write_register(struct ni_gpct *counter, unsigned bits,
 	static const unsigned gpct_interrupt_a_enable_mask =
 	    NISTC_INTA_ENA_G0_GATE | NISTC_INTA_ENA_G0_TC;
 	static const unsigned gpct_interrupt_b_enable_mask =
-	    G1_Gate_Interrupt_Enable | G1_TC_Interrupt_Enable;
+	    NISTC_INTB_ENA_G1_GATE | NISTC_INTB_ENA_G1_TC;
 
 	if (stc_register == 0)
 		return;
