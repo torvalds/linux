@@ -617,23 +617,22 @@ musb_rx_reinit(struct musb *musb, struct musb_qh *qh, struct musb_hw_ep *ep)
 	ep->rx_reinit = 0;
 }
 
-static bool musb_tx_dma_program(struct dma_controller *dma,
+static int musb_tx_dma_set_mode_mentor(struct dma_controller *dma,
 		struct musb_hw_ep *hw_ep, struct musb_qh *qh,
-		struct urb *urb, u32 offset, u32 length)
+		struct urb *urb, u32 offset,
+		u32 *length, u8 *mode)
 {
 	struct dma_channel	*channel = hw_ep->tx_channel;
 	void __iomem		*epio = hw_ep->regs;
 	u16			pkt_size = qh->maxpacket;
 	u16			csr;
-	u8			mode;
 
-#if defined(CONFIG_USB_INVENTRA_DMA) || defined(CONFIG_USB_UX500_DMA)
-	if (length > channel->max_len)
-		length = channel->max_len;
+	if (*length > channel->max_len)
+		*length = channel->max_len;
 
 	csr = musb_readw(epio, MUSB_TXCSR);
-	if (length > pkt_size) {
-		mode = 1;
+	if (*length > pkt_size) {
+		*mode = 1;
 		csr |= MUSB_TXCSR_DMAMODE | MUSB_TXCSR_DMAENAB;
 		/* autoset shouldn't be set in high bandwidth */
 		/*
@@ -649,15 +648,28 @@ static bool musb_tx_dma_program(struct dma_controller *dma,
 					can_bulk_split(hw_ep->musb, qh->type)))
 			csr |= MUSB_TXCSR_AUTOSET;
 	} else {
-		mode = 0;
+		*mode = 0;
 		csr &= ~(MUSB_TXCSR_AUTOSET | MUSB_TXCSR_DMAMODE);
 		csr |= MUSB_TXCSR_DMAENAB; /* against programmer's guide */
 	}
 	channel->desired_mode = mode;
 	musb_writew(epio, MUSB_TXCSR, csr);
-#else
+
+	return 0;
+}
+
+static int musb_tx_dma_set_mode_cppi_tusb(struct dma_controller *dma,
+					  struct musb_hw_ep *hw_ep,
+					  struct musb_qh *qh,
+					  struct urb *urb,
+					  u32 offset,
+					  u32 *length,
+					  u8 *mode)
+{
+	struct dma_channel *channel = hw_ep->tx_channel;
+
 	if (!is_cppi_enabled(hw_ep->musb) && !tusb_dma_omap(hw_ep->musb))
-		return false;
+		return -ENODEV;
 
 	channel->actual_len = 0;
 
@@ -665,8 +677,28 @@ static bool musb_tx_dma_program(struct dma_controller *dma,
 	 * TX uses "RNDIS" mode automatically but needs help
 	 * to identify the zero-length-final-packet case.
 	 */
-	mode = (urb->transfer_flags & URB_ZERO_PACKET) ? 1 : 0;
-#endif
+	*mode = (urb->transfer_flags & URB_ZERO_PACKET) ? 1 : 0;
+
+	return 0;
+}
+
+static bool musb_tx_dma_program(struct dma_controller *dma,
+		struct musb_hw_ep *hw_ep, struct musb_qh *qh,
+		struct urb *urb, u32 offset, u32 length)
+{
+	struct dma_channel	*channel = hw_ep->tx_channel;
+	u16			pkt_size = qh->maxpacket;
+	u8			mode;
+	int			res;
+
+	if (musb_dma_inventra(hw_ep->musb) || musb_dma_ux500(hw_ep->musb))
+		res = musb_tx_dma_set_mode_mentor(dma, hw_ep, qh, urb,
+						 offset, &length, &mode);
+	else
+		res = musb_tx_dma_set_mode_cppi_tusb(dma, hw_ep, qh, urb,
+						     offset, &length, &mode);
+	if (res)
+		return false;
 
 	qh->segsize = length;
 
@@ -678,6 +710,9 @@ static bool musb_tx_dma_program(struct dma_controller *dma,
 
 	if (!dma->channel_program(channel, pkt_size, mode,
 			urb->transfer_dma + offset, length)) {
+		void __iomem *epio = hw_ep->regs;
+		u16 csr;
+
 		dma->channel_release(channel);
 		hw_ep->tx_channel = NULL;
 
