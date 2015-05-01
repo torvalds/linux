@@ -947,16 +947,6 @@ enum m_series_register_offsets {
 	M_Offset_RTSI_Filter = 0xb4,
 	M_Offset_SCXI_Legacy_Compatibility = 0xbc,
 	M_Offset_RTSI_Shared_MUX = 0x1a2,
-	M_Offset_G0_Counting_Mode = 0x1b0,
-	M_Offset_G1_Counting_Mode = 0x1b2,
-	M_Offset_G0_Second_Gate = 0x1b4,
-	M_Offset_G1_Second_Gate = 0x1b6,
-	M_Offset_G0_DMA_Config = 0x1b8,	/*  write */
-	M_Offset_G0_DMA_Status = 0x1b8,	/*  read */
-	M_Offset_G1_DMA_Config = 0x1ba,	/*  write */
-	M_Offset_G1_DMA_Status = 0x1ba,	/*  read */
-	M_Offset_G0_MSeries_ABZ = 0x1c0,
-	M_Offset_G1_MSeries_ABZ = 0x1c2,
 	M_Offset_Clock_and_Fout2 = 0x1c4,
 	M_Offset_PLL_Control = 0x1c6,
 	M_Offset_PLL_Status = 0x1c8,
