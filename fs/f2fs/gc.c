@@ -607,9 +607,8 @@ next_step:
 				continue;
 
 			start_bidx = start_bidx_of_node(nofs, F2FS_I(inode));
-
-			data_page = find_data_page(inode,
-					start_bidx + ofs_in_node, false);
+			data_page = get_read_data_page(inode,
+					start_bidx + ofs_in_node, READA);
 			if (IS_ERR(data_page)) {
 				iput(inode);
 				continue;

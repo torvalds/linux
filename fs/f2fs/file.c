@@ -461,28 +461,32 @@ void truncate_data_blocks(struct dnode_of_data *dn)
 }
 
 static int truncate_partial_data_page(struct inode *inode, u64 from,
-								bool force)
+								bool cache_only)
 {
 	unsigned offset = from & (PAGE_CACHE_SIZE - 1);
+	pgoff_t index = from >> PAGE_CACHE_SHIFT;
+	struct address_space *mapping = inode->i_mapping;
 	struct page *page;
 
-	if (!offset && !force)
+	if (!offset && !cache_only)
 		return 0;
 
-	page = find_data_page(inode, from >> PAGE_CACHE_SHIFT, force);
+	if (cache_only) {
+		page = grab_cache_page(mapping, index);
+		if (page && PageUptodate(page))
+			goto truncate_out;
+		f2fs_put_page(page, 1);
+		return 0;
+	}
+
+	page = get_lock_data_page(inode, index);
 	if (IS_ERR(page))
 		return 0;
-
-	lock_page(page);
-	if (unlikely(!PageUptodate(page) ||
-			page->mapping != inode->i_mapping))
-		goto out;
-
+truncate_out:
 	f2fs_wait_on_page_writeback(page, DATA);
 	zero_user(page, offset, PAGE_CACHE_SIZE - offset);
-	if (!force)
+	if (!cache_only)
 		set_page_dirty(page);
-out:
 	f2fs_put_page(page, 1);
 	return 0;
 }
