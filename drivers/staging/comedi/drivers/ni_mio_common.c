@@ -3460,16 +3460,8 @@ static int ni_cdio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	int retval;
 
 	ni_writel(dev, NI_M_CDO_CMD_RESET, NI_M_CDIO_CMD_REG);
-	switch (cmd->scan_begin_src) {
-	case TRIG_EXT:
-		cdo_mode_bits |=
-		    CR_CHAN(cmd->scan_begin_arg) &
-		    CDO_Sample_Source_Select_Mask;
-		break;
-	default:
-		BUG();
-		break;
-	}
+	cdo_mode_bits |= CR_CHAN(cmd->scan_begin_arg) &
+			 CDO_Sample_Source_Select_Mask;
 	if (cmd->scan_begin_arg & CR_INVERT)
 		cdo_mode_bits |= CDO_Polarity_Bit;
 	ni_writel(dev, cdo_mode_bits, NI_M_CDO_MODE_REG);
