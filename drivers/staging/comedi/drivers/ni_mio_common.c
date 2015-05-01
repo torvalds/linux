@@ -426,8 +426,8 @@ static const struct mio_regmap m_series_stc_read_regmap[] = {
 	[NISTC_STATUS1_REG]		= { 0x136, 2 },
 	[NISTC_DIO_SERIAL_IN_REG]	= { 0x009, 1 },
 	[NISTC_STATUS2_REG]		= { 0x13a, 2 },
-	[AI_SI_Save_Registers]		= { 0x180, 4 },
-	[AI_SC_Save_Registers]		= { 0x184, 4 },
+	[NISTC_AI_SI_SAVE_REG]		= { 0x180, 4 },
+	[NISTC_AI_SC_SAVE_REG]		= { 0x184, 4 },
 };
 
 static unsigned int m_series_stc_read(struct comedi_device *dev,

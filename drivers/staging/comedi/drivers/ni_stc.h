@@ -558,8 +558,8 @@
 #define NISTC_STATUS2_REG		29
 #define NISTC_STATUS2_AO_TMRDACWRS_IN_PROGRESS	BIT(5)
 
-#define AI_SI_Save_Registers		64
-#define AI_SC_Save_Registers		66
+#define NISTC_AI_SI_SAVE_REG		64
+#define NISTC_AI_SC_SAVE_REG		66
 
 /* command register */
 #define G_Disarm_Copy			_bit15	/* strobe */
