@@ -472,7 +472,6 @@ struct rhine_private {
 
 	/* Frequently used values: keep some adjacent for cache effect. */
 	u32 quirks;
-	struct rx_desc *rx_head_desc;
 	unsigned int cur_rx;
 	unsigned int cur_tx, dirty_tx;
 	unsigned int rx_buf_sz;		/* Based on MTU+slack. */
@@ -1244,7 +1243,6 @@ static void rhine_reset_rbufs(struct rhine_private *rp)
 	int i;
 
 	rp->cur_rx = 0;
-	rp->rx_head_desc = rp->rx_ring;
 
 	for (i = 0; i < RX_RING_SIZE; i++)
 		rp->rx_ring[i].rx_status = cpu_to_le32(DescOwn);
@@ -2000,15 +1998,15 @@ static int rhine_rx(struct net_device *dev, int limit)
 {
 	struct rhine_private *rp = netdev_priv(dev);
 	struct device *hwdev = dev->dev.parent;
-	int count;
 	int entry = rp->cur_rx % RX_RING_SIZE;
+	int count;
 
 	netif_dbg(rp, rx_status, dev, "%s(), entry %d status %08x\n", __func__,
-		  entry, le32_to_cpu(rp->rx_head_desc->rx_status));
+		  entry, le32_to_cpu(rp->rx_ring[entry].rx_status));
 
 	/* If EOP is set on the next entry, it's a new packet. Send it up. */
 	for (count = 0; count < limit; ++count) {
-		struct rx_desc *desc = rp->rx_head_desc;
+		struct rx_desc *desc = rp->rx_ring + entry;
 		u32 desc_status = le32_to_cpu(desc->rx_status);
 		u32 desc_length = le32_to_cpu(desc->desc_length);
 		int data_size = desc_status >> 16;
@@ -2026,10 +2024,6 @@ static int rhine_rx(struct net_device *dev, int limit)
 	"entry %#x length %d status %08x!\n",
 					    entry, data_size,
 					    desc_status);
-				netdev_warn(dev,
-					    "Oversized Ethernet frame %p vs %p\n",
-					    rp->rx_head_desc,
-					    &rp->rx_ring[entry]);
 				dev->stats.rx_length_errors++;
 			} else if (desc_status & RxErr) {
 				/* There was a error. */
@@ -2110,7 +2104,6 @@ static int rhine_rx(struct net_device *dev, int limit)
 give_descriptor_to_nic:
 		desc->rx_status = cpu_to_le32(DescOwn);
 		entry = (++rp->cur_rx) % RX_RING_SIZE;
-		rp->rx_head_desc = &rp->rx_ring[entry];
 	}
 
 	return count;
