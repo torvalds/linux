@@ -1032,7 +1032,7 @@ static void ni_ao_fifo_load(struct comedi_device *dev,
 			}
 			ni_writel(dev, packed_data, DAC_FIFO_Data_611x);
 		} else {
-			ni_writew(dev, d, DAC_FIFO_Data);
+			ni_writew(dev, d, NI_E_AO_FIFO_DATA_REG);
 		}
 	}
 }

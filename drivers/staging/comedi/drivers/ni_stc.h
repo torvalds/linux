@@ -642,7 +642,7 @@ static inline unsigned GPCT_DMA_Select_Mask(unsigned gpct_index)
 
 #define NI_E_AI_FIFO_DATA_REG		0x1c	/* r16 */
 
-#define DAC_FIFO_Data			0x1e
+#define NI_E_AO_FIFO_DATA_REG		0x1e	/* w16 */
 #define DAC0_Direct_Data		0x18
 #define DAC1_Direct_Data		0x1a
 
