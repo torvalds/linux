@@ -190,23 +190,6 @@ static char *tcm_qla2xxx_npiv_get_fabric_name(void)
 	return "qla2xxx_npiv";
 }
 
-static u8 tcm_qla2xxx_get_fabric_proto_ident(struct se_portal_group *se_tpg)
-{
-	struct tcm_qla2xxx_tpg *tpg = container_of(se_tpg,
-				struct tcm_qla2xxx_tpg, se_tpg);
-	struct tcm_qla2xxx_lport *lport = tpg->lport;
-	u8 proto_id;
-
-	switch (lport->lport_proto_id) {
-	case SCSI_PROTOCOL_FCP:
-	default:
-		proto_id = fc_get_fabric_proto_ident(se_tpg);
-		break;
-	}
-
-	return proto_id;
-}
-
 static char *tcm_qla2xxx_get_fabric_wwn(struct se_portal_group *se_tpg)
 {
 	struct tcm_qla2xxx_tpg *tpg = container_of(se_tpg,
@@ -1928,7 +1911,6 @@ static const struct target_core_fabric_ops tcm_qla2xxx_ops = {
 	.name				= "qla2xxx",
 	.node_acl_size			= sizeof(struct tcm_qla2xxx_nacl),
 	.get_fabric_name		= tcm_qla2xxx_get_fabric_name,
-	.get_fabric_proto_ident		= tcm_qla2xxx_get_fabric_proto_ident,
 	.tpg_get_wwn			= tcm_qla2xxx_get_fabric_wwn,
 	.tpg_get_tag			= tcm_qla2xxx_get_tag,
 	.tpg_get_pr_transport_id	= tcm_qla2xxx_get_pr_transport_id,
@@ -1979,7 +1961,6 @@ static const struct target_core_fabric_ops tcm_qla2xxx_npiv_ops = {
 	.name				= "qla2xxx_npiv",
 	.node_acl_size			= sizeof(struct tcm_qla2xxx_nacl),
 	.get_fabric_name		= tcm_qla2xxx_npiv_get_fabric_name,
-	.get_fabric_proto_ident		= tcm_qla2xxx_get_fabric_proto_ident,
 	.tpg_get_wwn			= tcm_qla2xxx_get_fabric_wwn,
 	.tpg_get_tag			= tcm_qla2xxx_get_tag,
 	.tpg_get_pr_transport_id	= tcm_qla2xxx_get_pr_transport_id,

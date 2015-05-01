@@ -1274,23 +1274,6 @@ static char *usbg_get_fabric_name(void)
 	return "usb_gadget";
 }
 
-static u8 usbg_get_fabric_proto_ident(struct se_portal_group *se_tpg)
-{
-	struct usbg_tpg *tpg = container_of(se_tpg,
-				struct usbg_tpg, se_tpg);
-	struct usbg_tport *tport = tpg->tport;
-	u8 proto_id;
-
-	switch (tport->tport_proto_id) {
-	case SCSI_PROTOCOL_SAS:
-	default:
-		proto_id = sas_get_fabric_proto_ident(se_tpg);
-		break;
-	}
-
-	return proto_id;
-}
-
 static char *usbg_get_fabric_wwn(struct se_portal_group *se_tpg)
 {
 	struct usbg_tpg *tpg = container_of(se_tpg,
@@ -1803,7 +1786,6 @@ static const struct target_core_fabric_ops usbg_ops = {
 	.module				= THIS_MODULE,
 	.name				= "usb_gadget",
 	.get_fabric_name		= usbg_get_fabric_name,
-	.get_fabric_proto_ident		= usbg_get_fabric_proto_ident,
 	.tpg_get_wwn			= usbg_get_fabric_wwn,
 	.tpg_get_tag			= usbg_get_tag,
 	.tpg_get_pr_transport_id	= usbg_get_pr_transport_id,

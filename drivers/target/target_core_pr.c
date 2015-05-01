@@ -1447,7 +1447,7 @@ core_scsi3_decode_spec_i_port(
 	struct pr_transport_id_holder *tidh_new, *tidh, *tidh_tmp;
 	const struct target_core_fabric_ops *tmp_tf_ops;
 	unsigned char *buf;
-	unsigned char *ptr, *i_str = NULL, proto_ident, tmp_proto_ident;
+	unsigned char *ptr, *i_str = NULL, proto_ident;
 	char *iport_ptr = NULL, i_buf[PR_REG_ISID_ID_LEN];
 	sense_reason_t ret;
 	u32 tpdl, tid_len = 0;
@@ -1536,15 +1536,13 @@ core_scsi3_decode_spec_i_port(
 			tmp_tf_ops = tmp_tpg->se_tpg_tfo;
 			if (!tmp_tf_ops)
 				continue;
-			if (!tmp_tf_ops->get_fabric_proto_ident ||
-			    !tmp_tf_ops->tpg_parse_pr_out_transport_id)
+			if (!tmp_tf_ops->tpg_parse_pr_out_transport_id)
 				continue;
 			/*
 			 * Look for the matching proto_ident provided by
 			 * the received TransportID
 			 */
-			tmp_proto_ident = tmp_tf_ops->get_fabric_proto_ident(tmp_tpg);
-			if (tmp_proto_ident != proto_ident)
+			if (tmp_tpg->proto_id != proto_ident)
 				continue;
 			dest_rtpi = tmp_port->sep_rtpi;
 
@@ -3230,11 +3228,11 @@ core_scsi3_emulate_pro_register_and_move(struct se_cmd *cmd, u64 res_key,
 	pr_debug("SPC-3 PR REGISTER_AND_MOVE: Extracted Protocol Identifier:"
 			" 0x%02x\n", proto_ident);
 
-	if (proto_ident != dest_tf_ops->get_fabric_proto_ident(dest_se_tpg)) {
+	if (proto_ident != dest_se_tpg->proto_id) {
 		pr_err("SPC-3 PR REGISTER_AND_MOVE: Received"
 			" proto_ident: 0x%02x does not match ident: 0x%02x"
 			" from fabric: %s\n", proto_ident,
-			dest_tf_ops->get_fabric_proto_ident(dest_se_tpg),
+			dest_se_tpg->proto_id,
 			dest_tf_ops->get_fabric_name());
 		ret = TCM_INVALID_PARAMETER_LIST;
 		goto out;

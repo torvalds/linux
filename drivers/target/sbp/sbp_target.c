@@ -1832,18 +1832,6 @@ static int sbp_check_stop_free(struct se_cmd *se_cmd)
 	return 1;
 }
 
-/*
- * Handlers for Serial Bus Protocol 2/3 (SBP-2 / SBP-3)
- */
-static u8 sbp_get_fabric_proto_ident(struct se_portal_group *se_tpg)
-{
-	/*
-	 * Return a IEEE 1394 SCSI Protocol identifier for loopback operations
-	 * This is defined in section 7.5.1 Table 362 in spc4r17
-	 */
-	return SCSI_PROTOCOL_SBP;
-}
-
 static u32 sbp_get_pr_transport_id(
 	struct se_portal_group *se_tpg,
 	struct se_node_acl *se_nacl,
@@ -2442,7 +2430,6 @@ static const struct target_core_fabric_ops sbp_ops = {
 	.module				= THIS_MODULE,
 	.name				= "sbp",
 	.get_fabric_name		= sbp_get_fabric_name,
-	.get_fabric_proto_ident		= sbp_get_fabric_proto_ident,
 	.tpg_get_wwn			= sbp_get_fabric_wwn,
 	.tpg_get_tag			= sbp_get_tag,
 	.tpg_get_pr_transport_id	= sbp_get_pr_transport_id,

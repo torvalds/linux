@@ -42,16 +42,6 @@
 /*
  * Handlers for Serial Attached SCSI (SAS)
  */
-u8 sas_get_fabric_proto_ident(struct se_portal_group *se_tpg)
-{
-	/*
-	 * Return a SAS Serial SCSI Protocol identifier for loopback operations
-	 * This is defined in  section 7.5.1 Table 362 in spc4r17
-	 */
-	return 0x6;
-}
-EXPORT_SYMBOL(sas_get_fabric_proto_ident);
-
 u32 sas_get_pr_transport_id(
 	struct se_portal_group *se_tpg,
 	struct se_node_acl *se_nacl,
@@ -128,12 +118,6 @@ EXPORT_SYMBOL(sas_parse_pr_out_transport_id);
 /*
  * Handlers for Fibre Channel Protocol (FCP)
  */
-u8 fc_get_fabric_proto_ident(struct se_portal_group *se_tpg)
-{
-	return 0x0;	/* 0 = fcp-2 per SPC4 section 7.5.1 */
-}
-EXPORT_SYMBOL(fc_get_fabric_proto_ident);
-
 u32 fc_get_pr_transport_id_len(
 	struct se_portal_group *se_tpg,
 	struct se_node_acl *se_nacl,
@@ -208,17 +192,6 @@ EXPORT_SYMBOL(fc_parse_pr_out_transport_id);
 /*
  * Handlers for Internet Small Computer Systems Interface (iSCSI)
  */
-
-u8 iscsi_get_fabric_proto_ident(struct se_portal_group *se_tpg)
-{
-	/*
-	 * This value is defined for "Internet SCSI (iSCSI)"
-	 * in spc4r17 section 7.5.1 Table 362
-	 */
-	return 0x5;
-}
-EXPORT_SYMBOL(iscsi_get_fabric_proto_ident);
-
 u32 iscsi_get_pr_transport_id(
 	struct se_portal_group *se_tpg,
 	struct se_node_acl *se_nacl,

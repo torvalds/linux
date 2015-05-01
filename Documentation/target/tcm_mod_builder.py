@@ -300,9 +300,7 @@ def tcm_mod_build_configfs(proto_ident, fabric_mod_dir_var, fabric_mod_name):
 	buf += "static const struct target_core_fabric_ops " + fabric_mod_name + "_ops = {\n"
 	buf += "	.module				= THIS_MODULE,\n"
 	buf += "	.name				= " + fabric_mod_name + ",\n"
-	buf += "	.get_fabric_proto_ident		= " + fabric_mod_name + "_get_fabric_proto_ident,\n"
 	buf += "	.get_fabric_name		= " + fabric_mod_name + "_get_fabric_name,\n"
-	buf += "	.get_fabric_proto_ident		= " + fabric_mod_name + "_get_fabric_proto_ident,\n"
 	buf += "	.tpg_get_wwn			= " + fabric_mod_name + "_get_fabric_wwn,\n"
 	buf += "	.tpg_get_tag			= " + fabric_mod_name + "_get_tag,\n"
 	buf += "	.tpg_get_pr_transport_id	= " + fabric_mod_name + "_get_pr_transport_id,\n"
@@ -460,35 +458,6 @@ def tcm_mod_dump_fabric_ops(proto_ident, fabric_mod_dir_var, fabric_mod_name):
 			buf += "}\n\n"
 			bufi += "char *" + fabric_mod_name + "_get_fabric_name(void);\n"
 			continue
-
-		if re.search('get_fabric_proto_ident', fo):
-			buf += "u8 " + fabric_mod_name + "_get_fabric_proto_ident(struct se_portal_group *se_tpg)\n"
-			buf += "{\n"
-			buf += "	struct " + fabric_mod_name + "_tpg *tpg = container_of(se_tpg,\n"
-			buf += "				struct " + fabric_mod_name + "_tpg, se_tpg);\n"
-			buf += "	struct " + fabric_mod_name + "_" + fabric_mod_port + " *" + fabric_mod_port + " = tpg->" + fabric_mod_port + ";\n"
-			buf += "	u8 proto_id;\n\n"
-			buf += "	switch (" + fabric_mod_port + "->" + fabric_mod_port + "_proto_id) {\n"
-			if proto_ident == "FC":
-				buf += "	case SCSI_PROTOCOL_FCP:\n"
-				buf += "	default:\n"
-				buf += "		proto_id = fc_get_fabric_proto_ident(se_tpg);\n"
-				buf += "		break;\n"
-			elif proto_ident == "SAS":
-				buf += "	case SCSI_PROTOCOL_SAS:\n"
-				buf += "	default:\n"
-				buf += "		proto_id = sas_get_fabric_proto_ident(se_tpg);\n"
-				buf += "		break;\n"
-			elif proto_ident == "iSCSI":
-				buf += "	case SCSI_PROTOCOL_ISCSI:\n"
-				buf += "	default:\n"
-				buf += "		proto_id = iscsi_get_fabric_proto_ident(se_tpg);\n"
-				buf += "		break;\n"
-
-			buf += "	}\n\n"
-			buf += "	return proto_id;\n"
-			buf += "}\n\n"
-			bufi += "u8 " + fabric_mod_name + "_get_fabric_proto_ident(struct se_portal_group *);\n"
 
 		if re.search('get_wwn', fo):
 			buf += "char *" + fabric_mod_name + "_get_fabric_wwn(struct se_portal_group *se_tpg)\n"

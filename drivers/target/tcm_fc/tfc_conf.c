@@ -452,7 +452,6 @@ static const struct target_core_fabric_ops ft_fabric_ops = {
 	.name =				"fc",
 	.node_acl_size =		sizeof(struct ft_node_acl),
 	.get_fabric_name =		ft_get_fabric_name,
-	.get_fabric_proto_ident =	fc_get_fabric_proto_ident,
 	.tpg_get_wwn =			ft_get_fabric_wwn,
 	.tpg_get_tag =			ft_get_tag,
 	.tpg_get_pr_transport_id =	fc_get_pr_transport_id,

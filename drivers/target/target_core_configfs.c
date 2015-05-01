@@ -318,10 +318,6 @@ static int target_fabric_tf_ops_check(const struct target_core_fabric_ops *tfo)
 		pr_err("Missing tfo->get_fabric_name()\n");
 		return -EINVAL;
 	}
-	if (!tfo->get_fabric_proto_ident) {
-		pr_err("Missing tfo->get_fabric_proto_ident()\n");
-		return -EINVAL;
-	}
 	if (!tfo->tpg_get_wwn) {
 		pr_err("Missing tfo->tpg_get_wwn()\n");
 		return -EINVAL;

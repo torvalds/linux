@@ -3394,11 +3394,6 @@ static char *srpt_get_fabric_name(void)
 	return "srpt";
 }
 
-static u8 srpt_get_fabric_proto_ident(struct se_portal_group *se_tpg)
-{
-	return SCSI_TRANSPORTID_PROTOCOLID_SRP;
-}
-
 static char *srpt_get_fabric_wwn(struct se_portal_group *tpg)
 {
 	struct srpt_port *sport = container_of(tpg, struct srpt_port, port_tpg_1);
@@ -3863,7 +3858,6 @@ static const struct target_core_fabric_ops srpt_template = {
 	.name				= "srpt",
 	.node_acl_size			= sizeof(struct srpt_node_acl),
 	.get_fabric_name		= srpt_get_fabric_name,
-	.get_fabric_proto_ident		= srpt_get_fabric_proto_ident,
 	.tpg_get_wwn			= srpt_get_fabric_wwn,
 	.tpg_get_tag			= srpt_get_tag,
 	.tpg_get_pr_transport_id	= srpt_get_pr_transport_id,

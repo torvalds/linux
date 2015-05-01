@@ -1918,7 +1918,6 @@ const struct target_core_fabric_ops iscsi_ops = {
 	.name				= "iscsi",
 	.node_acl_size			= sizeof(struct iscsi_node_acl),
 	.get_fabric_name		= iscsi_get_fabric_name,
-	.get_fabric_proto_ident		= iscsi_get_fabric_proto_ident,
 	.tpg_get_wwn			= lio_tpg_get_endpoint_wwn,
 	.tpg_get_tag			= lio_tpg_get_tag,
 	.tpg_get_default_depth		= lio_tpg_get_default_depth,
