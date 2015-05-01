@@ -713,7 +713,7 @@ static int rcar_i2c_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_device_id rcar_i2c_id_table[] = {
+static const struct platform_device_id rcar_i2c_id_table[] = {
 	{ "i2c-rcar",		I2C_RCAR_GEN1 },
 	{ "i2c-rcar_gen1",	I2C_RCAR_GEN1 },
 	{ "i2c-rcar_gen2",	I2C_RCAR_GEN2 },
