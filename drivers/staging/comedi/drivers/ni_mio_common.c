@@ -535,30 +535,27 @@ static inline void ni_set_bitfield(struct comedi_device *dev, int reg,
 	case Interrupt_A_Enable_Register:
 		devpriv->int_a_enable_reg &= ~bit_mask;
 		devpriv->int_a_enable_reg |= bit_values & bit_mask;
-		ni_stc_writew(dev, devpriv->int_a_enable_reg,
-			      Interrupt_A_Enable_Register);
+		ni_stc_writew(dev, devpriv->int_a_enable_reg, reg);
 		break;
 	case Interrupt_B_Enable_Register:
 		devpriv->int_b_enable_reg &= ~bit_mask;
 		devpriv->int_b_enable_reg |= bit_values & bit_mask;
-		ni_stc_writew(dev, devpriv->int_b_enable_reg,
-			      Interrupt_B_Enable_Register);
+		ni_stc_writew(dev, devpriv->int_b_enable_reg, reg);
 		break;
 	case IO_Bidirection_Pin_Register:
 		devpriv->io_bidirection_pin_reg &= ~bit_mask;
 		devpriv->io_bidirection_pin_reg |= bit_values & bit_mask;
-		ni_stc_writew(dev, devpriv->io_bidirection_pin_reg,
-			      IO_Bidirection_Pin_Register);
+		ni_stc_writew(dev, devpriv->io_bidirection_pin_reg, reg);
 		break;
 	case AI_AO_Select:
 		devpriv->ai_ao_select_reg &= ~bit_mask;
 		devpriv->ai_ao_select_reg |= bit_values & bit_mask;
-		ni_writeb(dev, devpriv->ai_ao_select_reg, AI_AO_Select);
+		ni_writeb(dev, devpriv->ai_ao_select_reg, reg);
 		break;
 	case G0_G1_Select:
 		devpriv->g0_g1_select_reg &= ~bit_mask;
 		devpriv->g0_g1_select_reg |= bit_values & bit_mask;
-		ni_writeb(dev, devpriv->g0_g1_select_reg, G0_G1_Select);
+		ni_writeb(dev, devpriv->g0_g1_select_reg, reg);
 		break;
 	default:
 		dev_err(dev->class_dev, "called with invalid register %d\n",
