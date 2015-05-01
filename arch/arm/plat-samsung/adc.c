@@ -475,7 +475,7 @@ static int s3c_adc_resume(struct device *dev)
 #define s3c_adc_resume NULL
 #endif
 
-static struct platform_device_id s3c_adc_driver_ids[] = {
+static const struct platform_device_id s3c_adc_driver_ids[] = {
 	{
 		.name           = "s3c24xx-adc",
 		.driver_data    = TYPE_ADCV1,
