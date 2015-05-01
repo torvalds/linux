@@ -698,7 +698,7 @@ int saa7164_dvb_register(struct saa7164_port *port)
 			request_module(info.type);
 			client_demod = i2c_new_device(&dev->i2c_bus[2].i2c_adap,
 						      &info);
-			if (!client_tuner || !client_tuner->dev.driver)
+			if (!client_demod || !client_demod->dev.driver)
 				goto frontend_detach;
 
 			if (!try_module_get(client_demod->dev.driver->owner)) {
