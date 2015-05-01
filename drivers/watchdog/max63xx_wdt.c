@@ -214,7 +214,7 @@ static int max63xx_wdt_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_device_id max63xx_id_table[] = {
+static const struct platform_device_id max63xx_id_table[] = {
 	{ "max6369_wdt", (kernel_ulong_t)max6369_table, },
 	{ "max6370_wdt", (kernel_ulong_t)max6369_table, },
 	{ "max6371_wdt", (kernel_ulong_t)max6371_table, },
