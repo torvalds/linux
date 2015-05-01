@@ -3433,7 +3433,7 @@ static int ni_cdo_inttrig(struct comedi_device *dev,
 	/*
 	 * XXX not sure what interrupt C group does
 	 * wait for dma to fill output fifo
-	 * ni_writeb(dev, Interrupt_Group_C_Enable_Bit, NI_M_INTC_ENA_REG);
+	 * ni_writeb(dev, NI_M_INTC_ENA, NI_M_INTC_ENA_REG);
 	 */
 	for (i = 0; i < timeout; ++i) {
 		if (ni_readl(dev, NI_M_CDIO_STATUS_REG) &
