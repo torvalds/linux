@@ -510,7 +510,7 @@ static int ptlrpc_lprocfs_nrs_seq_show(struct seq_file *m, void *n)
 	infos = kcalloc(num_pols, sizeof(*infos), GFP_NOFS);
 	if (infos == NULL) {
 		rc = -ENOMEM;
-		goto out;
+		goto unlock;
 	}
 again:
 
@@ -617,10 +617,8 @@ again:
 		goto again;
 	}
 
-out:
-	if (infos)
-		kfree(infos);
-
+	kfree(infos);
+unlock:
 	mutex_unlock(&nrs_core.nrs_mutex);
 
 	return rc;
@@ -650,16 +648,12 @@ static ssize_t ptlrpc_lprocfs_nrs_seq_write(struct file *file,
 	char			       *token;
 	int				rc = 0;
 
-	if (count >= LPROCFS_NRS_WR_MAX_CMD) {
-		rc = -EINVAL;
-		goto out;
-	}
+	if (count >= LPROCFS_NRS_WR_MAX_CMD)
+		return -EINVAL;
 
 	cmd = kzalloc(LPROCFS_NRS_WR_MAX_CMD, GFP_NOFS);
-	if (cmd == NULL) {
-		rc = -ENOMEM;
-		goto out;
-	}
+	if (cmd == NULL)
+		return -ENOMEM;
 	/**
 	 * strsep() modifies its argument, so keep a copy
 	 */
@@ -716,8 +710,7 @@ default_queue:
 
 	mutex_unlock(&nrs_core.nrs_mutex);
 out:
-	if (cmd_copy)
-		kfree(cmd_copy);
+	kfree(cmd_copy);
 
 	return rc < 0 ? rc : count;
 }
@@ -860,8 +853,7 @@ ptlrpc_lprocfs_svc_req_history_stop(struct seq_file *s, void *iter)
 {
 	struct ptlrpc_srh_iterator *srhi = iter;
 
-	if (srhi != NULL)
-		kfree(srhi);
+	kfree(srhi);
 }
 
 static void *
