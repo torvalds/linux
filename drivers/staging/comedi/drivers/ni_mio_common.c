@@ -4684,6 +4684,7 @@ static int ni_mseries_set_pll_master_clock(struct comedi_device *dev,
 	unsigned pll_control_bits;
 	unsigned freq_divider;
 	unsigned freq_multiplier;
+	unsigned rtsi;
 	unsigned i;
 	int retval;
 
@@ -4701,37 +4702,27 @@ static int ni_mseries_set_pll_master_clock(struct comedi_device *dev,
 		      RTSI_Trig_Direction_Register);
 	pll_control_bits =
 	    MSeries_PLL_Enable_Bit | MSeries_PLL_VCO_Mode_75_150MHz_Bits;
-	devpriv->clock_and_fout2 |=
-	    MSeries_Timebase1_Select_Bit | MSeries_Timebase3_Select_Bit;
-	devpriv->clock_and_fout2 &= ~MSeries_PLL_In_Source_Select_Mask;
+	devpriv->clock_and_fout2 |= NI_M_CLK_FOUT2_TIMEBASE1_PLL |
+				    NI_M_CLK_FOUT2_TIMEBASE3_PLL;
+	devpriv->clock_and_fout2 &= ~NI_M_CLK_FOUT2_PLL_SRC_MASK;
 	switch (source) {
 	case NI_MIO_PLL_PXI_STAR_TRIGGER_CLOCK:
-		devpriv->clock_and_fout2 |=
-		    MSeries_PLL_In_Source_Select_Star_Trigger_Bits;
+		devpriv->clock_and_fout2 |= NI_M_CLK_FOUT2_PLL_SRC_STAR;
 		break;
 	case NI_MIO_PLL_PXI10_CLOCK:
 		/* pxi clock is 10MHz */
-		devpriv->clock_and_fout2 |=
-		    MSeries_PLL_In_Source_Select_PXI_Clock10;
+		devpriv->clock_and_fout2 |= NI_M_CLK_FOUT2_PLL_SRC_PXI10;
 		break;
 	default:
-		{
-			unsigned rtsi_channel;
-			static const unsigned max_rtsi_channel = 7;
-
-			for (rtsi_channel = 0; rtsi_channel <= max_rtsi_channel;
-			     ++rtsi_channel) {
-				if (source ==
-				    NI_MIO_PLL_RTSI_CLOCK(rtsi_channel)) {
-					devpriv->clock_and_fout2 |=
-					    MSeries_PLL_In_Source_Select_RTSI_Bits
-					    (rtsi_channel);
-					break;
-				}
+		for (rtsi = 0; rtsi <= NI_M_MAX_RTSI_CHAN; ++rtsi) {
+			if (source == NI_MIO_PLL_RTSI_CLOCK(rtsi)) {
+				devpriv->clock_and_fout2 |=
+					NI_M_CLK_FOUT2_PLL_SRC_RTSI(rtsi);
+				break;
 			}
-			if (rtsi_channel > max_rtsi_channel)
-				return -EINVAL;
 		}
+		if (rtsi > NI_M_MAX_RTSI_CHAN)
+			return -EINVAL;
 		break;
 	}
 	retval = ni_mseries_get_pll_parameters(period_ns,
@@ -4778,8 +4769,8 @@ static int ni_set_master_clock(struct comedi_device *dev,
 		devpriv->clock_ns = TIMEBASE_1_NS;
 		if (devpriv->is_m_series) {
 			devpriv->clock_and_fout2 &=
-			    ~(MSeries_Timebase1_Select_Bit |
-			      MSeries_Timebase3_Select_Bit);
+			    ~(NI_M_CLK_FOUT2_TIMEBASE1_PLL |
+			      NI_M_CLK_FOUT2_TIMEBASE3_PLL);
 			ni_writew(dev, devpriv->clock_and_fout2,
 				  NI_M_CLK_FOUT2_REG);
 			ni_writew(dev, 0, NI_M_PLL_CTRL_REG);
@@ -4972,8 +4963,13 @@ static void ni_rtsi_init(struct comedi_device *dev)
 
 	/*  Initialises the RTSI bus signal switch to a default state */
 
+	/*
+	 * Use 10MHz instead of 20MHz for RTSI clock frequency. Appears
+	 * to have no effect, at least on pxi-6281, which always uses
+	 * 20MHz rtsi clock frequency
+	 */
+	devpriv->clock_and_fout2 = NI_M_CLK_FOUT2_RTSI_10MHZ;
 	/*  Set clock mode to internal */
-	devpriv->clock_and_fout2 = MSeries_RTSI_10MHz_Bit;
 	if (ni_set_master_clock(dev, NI_MIO_INTERNAL_CLOCK, 0) < 0)
 		dev_err(dev->class_dev, "ni_set_master_clock failed, bug?\n");
 	/*  default internal lines routing to RTSI bus lines */

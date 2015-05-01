@@ -968,6 +968,17 @@ static const struct comedi_lrange range_ni_E_ao_ext;
 #define NI_M_AO_CFG_BANK_REG(x)		(0x0c3 + ((x) * 4))
 #define NI_M_RTSI_SHARED_MUX_REG	0x1a2
 #define NI_M_CLK_FOUT2_REG		0x1c4
+#define NI_M_CLK_FOUT2_RTSI_10MHZ	BIT(7)
+#define NI_M_CLK_FOUT2_TIMEBASE3_PLL	BIT(6)
+#define NI_M_CLK_FOUT2_TIMEBASE1_PLL	BIT(5)
+#define NI_M_CLK_FOUT2_PLL_SRC(x)	(((x) & 0x1f) << 0)
+#define NI_M_CLK_FOUT2_PLL_SRC_MASK	NI_M_CLK_FOUT2_PLL_SRC(0x1f)
+#define NI_M_MAX_RTSI_CHAN		7
+#define NI_M_CLK_FOUT2_PLL_SRC_RTSI(x)	(((x) == NI_M_MAX_RTSI_CHAN)	\
+					 ? NI_M_CLK_FOUT2_PLL_SRC(0x1b)	\
+					 : NI_M_CLK_FOUT2_PLL_SRC(0xb + (x)))
+#define NI_M_CLK_FOUT2_PLL_SRC_STAR	NI_M_CLK_FOUT2_PLL_SRC(0x14)
+#define NI_M_CLK_FOUT2_PLL_SRC_PXI10	NI_M_CLK_FOUT2_PLL_SRC(0x1d)
 #define NI_M_PLL_CTRL_REG		0x1c6
 #define NI_M_PLL_STATUS_REG		0x1c8
 #define NI_M_PFI_OUT_SEL_REG(x)		(0x1d0 + ((x) * 2))
@@ -985,33 +996,6 @@ static const struct comedi_lrange range_ni_E_ao_ext;
 #define NI_M_CDO_MASK_ENA_REG		0x234
 #define NI_M_STATIC_AI_CTRL_REG(x)	((x) ? (0x260 + (x)) : 0x064)
 #define NI_M_AO_REF_ATTENUATION_REG(x)	(0x264 + (x))
-
-enum MSeries_Clock_and_Fout2_Bits {
-	MSeries_PLL_In_Source_Select_RTSI0_Bits = 0xb,
-	MSeries_PLL_In_Source_Select_Star_Trigger_Bits = 0x14,
-	MSeries_PLL_In_Source_Select_RTSI7_Bits = 0x1b,
-	MSeries_PLL_In_Source_Select_PXI_Clock10 = 0x1d,
-	MSeries_PLL_In_Source_Select_Mask = 0x1f,
-	MSeries_Timebase1_Select_Bit = 0x20,	/*  use PLL for timebase 1 */
-	MSeries_Timebase3_Select_Bit = 0x40,	/*  use PLL for timebase 3 */
-	/* use 10MHz instead of 20MHz for RTSI clock frequency.  Appears
-	   to have no effect, at least on pxi-6281, which always uses
-	   20MHz rtsi clock frequency */
-	MSeries_RTSI_10MHz_Bit = 0x80
-};
-static inline unsigned MSeries_PLL_In_Source_Select_RTSI_Bits(unsigned
-							      RTSI_channel)
-{
-	if (RTSI_channel > 7) {
-		pr_err("%s: bug, invalid RTSI_channel=%i\n", __func__,
-		       RTSI_channel);
-		return 0;
-	}
-	if (RTSI_channel == 7)
-		return MSeries_PLL_In_Source_Select_RTSI7_Bits;
-	else
-		return MSeries_PLL_In_Source_Select_RTSI0_Bits + RTSI_channel;
-}
 
 enum MSeries_PLL_Control_Bits {
 	MSeries_PLL_Enable_Bit = 0x1000,
