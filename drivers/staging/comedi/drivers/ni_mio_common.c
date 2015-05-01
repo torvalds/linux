@@ -323,10 +323,10 @@ static const struct mio_regmap m_series_stc_write_regmap[] = {
 	[NISTC_AI_CMD1_REG]		= { 0x110, 2 },
 	[NISTC_AO_CMD1_REG]		= { 0x112, 2 },
 	/*
-	 * DIO_Output_Register maps to:
+	 * NISTC_DIO_OUT_REG maps to:
 	 * { NI_M_DIO_REG, 4 } and { NI_M_SCXI_SER_DO_REG, 1 }
 	 */
-	[DIO_Output_Register]		= { 0, 0 }, /* DOES NOT MAP CLEANLY */
+	[NISTC_DIO_OUT_REG]		= { 0, 0 }, /* DOES NOT MAP CLEANLY */
 	[DIO_Control_Register]		= { 0, 0 }, /* DOES NOT MAP CLEANLY */
 	[AI_Mode_1_Register]		= { 0x118, 2 },
 	[AI_Mode_2_Register]		= { 0x11a, 2 },
@@ -3280,13 +3280,14 @@ static int ni_dio_insn_bits(struct comedi_device *dev,
 	struct ni_private *devpriv = dev->private;
 
 	/* Make sure we're not using the serial part of the dio */
-	if ((data[0] & (DIO_SDIN | DIO_SDOUT)) && devpriv->serial_interval_ns)
+	if ((data[0] & (NISTC_DIO_SDIN | NISTC_DIO_SDOUT)) &&
+	    devpriv->serial_interval_ns)
 		return -EBUSY;
 
 	if (comedi_dio_update_state(s, data)) {
-		devpriv->dio_output &= ~DIO_Parallel_Data_Mask;
-		devpriv->dio_output |= DIO_Parallel_Data_Out(s->state);
-		ni_stc_writew(dev, devpriv->dio_output, DIO_Output_Register);
+		devpriv->dio_output &= ~NISTC_DIO_OUT_PARALLEL_MASK;
+		devpriv->dio_output |= NISTC_DIO_OUT_PARALLEL(s->state);
+		ni_stc_writew(dev, devpriv->dio_output, NISTC_DIO_OUT_REG);
 	}
 
 	data[1] = ni_stc_readw(dev, DIO_Parallel_Input_Register);
@@ -3543,9 +3544,9 @@ static int ni_serial_hw_readwrite8(struct comedi_device *dev,
 	unsigned int status1;
 	int err = 0, count = 20;
 
-	devpriv->dio_output &= ~DIO_Serial_Data_Mask;
-	devpriv->dio_output |= DIO_Serial_Data_Out(data_out);
-	ni_stc_writew(dev, devpriv->dio_output, DIO_Output_Register);
+	devpriv->dio_output &= ~NISTC_DIO_OUT_SERIAL_MASK;
+	devpriv->dio_output |= NISTC_DIO_OUT_SERIAL(data_out);
+	ni_stc_writew(dev, devpriv->dio_output, NISTC_DIO_OUT_REG);
 
 	status1 = ni_stc_readw(dev, Joint_Status_1_Register);
 	if (status1 & DIO_Serial_IO_In_Progress_St) {
@@ -3598,10 +3599,10 @@ static int ni_serial_sw_readwrite8(struct comedi_device *dev,
 		/* Output current bit; note that we cannot touch s->state
 		   because it is a per-subdevice field, and serial is
 		   a separate subdevice from DIO. */
-		devpriv->dio_output &= ~DIO_SDOUT;
+		devpriv->dio_output &= ~NISTC_DIO_SDOUT;
 		if (data_out & mask)
-			devpriv->dio_output |= DIO_SDOUT;
-		ni_stc_writew(dev, devpriv->dio_output, DIO_Output_Register);
+			devpriv->dio_output |= NISTC_DIO_SDOUT;
+		ni_stc_writew(dev, devpriv->dio_output, NISTC_DIO_OUT_REG);
 
 		/* Assert SDCLK (active low, inverted), wait for half of
 		   the delay, deassert SDCLK, and wait for the other half. */
@@ -3616,7 +3617,8 @@ static int ni_serial_sw_readwrite8(struct comedi_device *dev,
 		udelay((devpriv->serial_interval_ns + 999) / 2000);
 
 		/* Input current bit */
-		if (ni_stc_readw(dev, DIO_Parallel_Input_Register) & DIO_SDIN)
+		if (ni_stc_readw(dev, DIO_Parallel_Input_Register) &
+		    NISTC_DIO_SDIN)
 			input |= mask;
 	}
 

@@ -164,6 +164,14 @@
 #define NISTC_AO_CMD1_LDAC0_SRC_SEL	BIT(1)
 #define NISTC_AO_CMD1_UPDATE_PULSE	BIT(0)
 
+#define NISTC_DIO_OUT_REG		10
+#define NISTC_DIO_OUT_SERIAL(x)	(((x) & 0xff) << 8)
+#define NISTC_DIO_OUT_SERIAL_MASK	NISTC_DIO_OUT_SERIAL(0xff)
+#define NISTC_DIO_OUT_PARALLEL(x)	((x) & 0xff)
+#define NISTC_DIO_OUT_PARALLEL_MASK	NISTC_DIO_OUT_PARALLEL(0xff)
+#define NISTC_DIO_SDIN			BIT(4)
+#define NISTC_DIO_SDOUT			BIT(0)
+
 #define AI_Status_1_Register		2
 #define Interrupt_A_St				0x8000
 #define AI_FIFO_Full_St				0x4000
@@ -205,14 +213,6 @@
 #define AO_Status_2_Register		6
 
 #define DIO_Parallel_Input_Register	7
-
-#define DIO_Output_Register		10
-#define DIO_Parallel_Data_Out(a)                ((a)&0xff)
-#define DIO_Parallel_Data_Mask                  0xff
-#define DIO_SDOUT                               _bit0
-#define DIO_SDIN                                _bit4
-#define DIO_Serial_Data_Out(a)                  (((a)&0xff)<<8)
-#define DIO_Serial_Data_Mask                    0xff00
 
 #define DIO_Control_Register		11
 #define DIO_Software_Serial_Control             _bit11
