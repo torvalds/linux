@@ -60,7 +60,6 @@
 
 /* A timeout count */
 #define NI_TIMEOUT 1000
-static const unsigned old_RTSI_clock_channel = 7;
 
 /* Note: this table must match the ai_gain_* definitions */
 static const short ni_gainlkup[][16] = {
@@ -354,7 +353,7 @@ static const struct mio_regmap m_series_stc_write_regmap[] = {
 	[NISTC_AO_UC_LOADB_REG]		= { 0x164, 4 },
 	[NISTC_CLK_FOUT_REG]		= { 0x170, 2 },
 	[NISTC_IO_BIDIR_PIN_REG]	= { 0x172, 2 },
-	[RTSI_Trig_Direction_Register]	= { 0x174, 2 },
+	[NISTC_RTSI_TRIG_DIR_REG]	= { 0x174, 2 },
 	[Interrupt_Control_Register]	= { 0x176, 2 },
 	[AI_Output_Control_Register]	= { 0x178, 2 },
 	[Analog_Trigger_Etc_Register]	= { 0x17a, 2 },
@@ -4680,9 +4679,9 @@ static int ni_mseries_set_pll_master_clock(struct comedi_device *dev,
 			__func__, min_period_ns, max_period_ns);
 		return -EINVAL;
 	}
-	devpriv->rtsi_trig_direction_reg &= ~Use_RTSI_Clock_Bit;
+	devpriv->rtsi_trig_direction_reg &= ~NISTC_RTSI_TRIG_USE_CLK;
 	ni_stc_writew(dev, devpriv->rtsi_trig_direction_reg,
-		      RTSI_Trig_Direction_Register);
+		      NISTC_RTSI_TRIG_DIR_REG);
 	pll_control_bits = NI_M_PLL_CTRL_ENA | NI_M_PLL_CTRL_VCO_MODE_75_150MHZ;
 	devpriv->clock_and_fout2 |= NI_M_CLK_FOUT2_TIMEBASE1_PLL |
 				    NI_M_CLK_FOUT2_TIMEBASE3_PLL;
@@ -4744,9 +4743,9 @@ static int ni_set_master_clock(struct comedi_device *dev,
 	struct ni_private *devpriv = dev->private;
 
 	if (source == NI_MIO_INTERNAL_CLOCK) {
-		devpriv->rtsi_trig_direction_reg &= ~Use_RTSI_Clock_Bit;
+		devpriv->rtsi_trig_direction_reg &= ~NISTC_RTSI_TRIG_USE_CLK;
 		ni_stc_writew(dev, devpriv->rtsi_trig_direction_reg,
-			      RTSI_Trig_Direction_Register);
+			      NISTC_RTSI_TRIG_DIR_REG);
 		devpriv->clock_ns = TIMEBASE_1_NS;
 		if (devpriv->is_m_series) {
 			devpriv->clock_and_fout2 &=
@@ -4764,10 +4763,10 @@ static int ni_set_master_clock(struct comedi_device *dev,
 		} else {
 			if (source == NI_MIO_RTSI_CLOCK) {
 				devpriv->rtsi_trig_direction_reg |=
-				    Use_RTSI_Clock_Bit;
+				    NISTC_RTSI_TRIG_USE_CLK;
 				ni_stc_writew(dev,
 					      devpriv->rtsi_trig_direction_reg,
-					      RTSI_Trig_Direction_Register);
+					      NISTC_RTSI_TRIG_DIR_REG);
 				if (period_ns == 0) {
 					dev_err(dev->class_dev,
 						"we don't handle an unspecified clock period correctly yet, returning error\n");
@@ -4783,26 +4782,19 @@ static int ni_set_master_clock(struct comedi_device *dev,
 	return 3;
 }
 
-static unsigned num_configurable_rtsi_channels(struct comedi_device *dev)
-{
-	struct ni_private *devpriv = dev->private;
-
-	return (devpriv->is_m_series) ? 8 : 7;
-}
-
 static int ni_valid_rtsi_output_source(struct comedi_device *dev,
 				       unsigned chan, unsigned source)
 {
 	struct ni_private *devpriv = dev->private;
 
-	if (chan >= num_configurable_rtsi_channels(dev)) {
-		if (chan == old_RTSI_clock_channel) {
+	if (chan >= NISTC_RTSI_TRIG_NUM_CHAN(devpriv->is_m_series)) {
+		if (chan == NISTC_RTSI_TRIG_OLD_CLK_CHAN) {
 			if (source == NI_RTSI_OUTPUT_RTSI_OSC)
 				return 1;
 
 			dev_err(dev->class_dev,
 				"%s: invalid source for channel=%i, channel %i is always the RTSI clock for pre-m-series boards\n",
-				__func__, chan, old_RTSI_clock_channel);
+				__func__, chan, NISTC_RTSI_TRIG_OLD_CLK_CHAN);
 			return 0;
 		}
 		return 0;
@@ -4855,11 +4847,11 @@ static unsigned ni_get_rtsi_routing(struct comedi_device *dev, unsigned chan)
 	if (chan < 4) {
 		return RTSI_Trig_Output_Source(chan,
 					       devpriv->rtsi_trig_a_output_reg);
-	} else if (chan < num_configurable_rtsi_channels(dev)) {
+	} else if (chan < NISTC_RTSI_TRIG_NUM_CHAN(devpriv->is_m_series)) {
 		return RTSI_Trig_Output_Source(chan,
 					       devpriv->rtsi_trig_b_output_reg);
 	} else {
-		if (chan == old_RTSI_clock_channel)
+		if (chan == NISTC_RTSI_TRIG_OLD_CLK_CHAN)
 			return NI_RTSI_OUTPUT_RTSI_OSC;
 		dev_err(dev->class_dev, "bug! should never get here?\n");
 		return 0;
@@ -4873,42 +4865,43 @@ static int ni_rtsi_insn_config(struct comedi_device *dev,
 {
 	struct ni_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int max_chan = NISTC_RTSI_TRIG_NUM_CHAN(devpriv->is_m_series);
 
 	switch (data[0]) {
 	case INSN_CONFIG_DIO_OUTPUT:
-		if (chan < num_configurable_rtsi_channels(dev)) {
+		if (chan < max_chan) {
 			devpriv->rtsi_trig_direction_reg |=
-			    RTSI_Output_Bit(chan, devpriv->is_m_series);
-		} else if (chan == old_RTSI_clock_channel) {
+			    NISTC_RTSI_TRIG_DIR(chan, devpriv->is_m_series);
+		} else if (chan == NISTC_RTSI_TRIG_OLD_CLK_CHAN) {
 			devpriv->rtsi_trig_direction_reg |=
-			    Drive_RTSI_Clock_Bit;
+			    NISTC_RTSI_TRIG_DRV_CLK;
 		}
 		ni_stc_writew(dev, devpriv->rtsi_trig_direction_reg,
-			      RTSI_Trig_Direction_Register);
+			      NISTC_RTSI_TRIG_DIR_REG);
 		break;
 	case INSN_CONFIG_DIO_INPUT:
-		if (chan < num_configurable_rtsi_channels(dev)) {
+		if (chan < max_chan) {
 			devpriv->rtsi_trig_direction_reg &=
-			    ~RTSI_Output_Bit(chan, devpriv->is_m_series);
-		} else if (chan == old_RTSI_clock_channel) {
+			    ~NISTC_RTSI_TRIG_DIR(chan, devpriv->is_m_series);
+		} else if (chan == NISTC_RTSI_TRIG_OLD_CLK_CHAN) {
 			devpriv->rtsi_trig_direction_reg &=
-			    ~Drive_RTSI_Clock_Bit;
+			    ~NISTC_RTSI_TRIG_DRV_CLK;
 		}
 		ni_stc_writew(dev, devpriv->rtsi_trig_direction_reg,
-			      RTSI_Trig_Direction_Register);
+			      NISTC_RTSI_TRIG_DIR_REG);
 		break;
 	case INSN_CONFIG_DIO_QUERY:
-		if (chan < num_configurable_rtsi_channels(dev)) {
+		if (chan < max_chan) {
 			data[1] =
 			    (devpriv->rtsi_trig_direction_reg &
-			     RTSI_Output_Bit(chan, devpriv->is_m_series))
+			     NISTC_RTSI_TRIG_DIR(chan, devpriv->is_m_series))
 				? INSN_CONFIG_DIO_OUTPUT
 				: INSN_CONFIG_DIO_INPUT;
-		} else if (chan == old_RTSI_clock_channel) {
-			data[1] =
-			    (devpriv->rtsi_trig_direction_reg &
-			     Drive_RTSI_Clock_Bit)
-			    ? INSN_CONFIG_DIO_OUTPUT : INSN_CONFIG_DIO_INPUT;
+		} else if (chan == NISTC_RTSI_TRIG_OLD_CLK_CHAN) {
+			data[1] = (devpriv->rtsi_trig_direction_reg &
+				   NISTC_RTSI_TRIG_DRV_CLK)
+				  ? INSN_CONFIG_DIO_OUTPUT
+				  : INSN_CONFIG_DIO_INPUT;
 		}
 		return 2;
 	case INSN_CONFIG_SET_CLOCK_SRC:

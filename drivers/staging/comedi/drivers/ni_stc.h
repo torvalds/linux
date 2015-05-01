@@ -278,6 +278,13 @@
 
 #define NISTC_IO_BIDIR_PIN_REG		57
 
+#define NISTC_RTSI_TRIG_DIR_REG		58
+#define NISTC_RTSI_TRIG_OLD_CLK_CHAN	7
+#define NISTC_RTSI_TRIG_NUM_CHAN(_m)	((_m) ? 8 : 7)
+#define NISTC_RTSI_TRIG_DIR(_c, _m)	((_m) ? BIT(8 + (_c)) : BIT(7 + (_c)))
+#define NISTC_RTSI_TRIG_USE_CLK		BIT(1)
+#define NISTC_RTSI_TRIG_DRV_CLK		BIT(0)
+
 #define AI_Status_1_Register		2
 #define Interrupt_A_St				0x8000
 #define AI_FIFO_Full_St				0x4000
@@ -335,25 +342,6 @@ enum Joint_Status_2_Bits {
 #define AO_UI_Save_Registers		16
 #define AO_BC_Save_Registers		18
 #define AO_UC_Save_Registers		20
-
-#define	RTSI_Trig_Direction_Register	58
-enum RTSI_Trig_Direction_Bits {
-	Drive_RTSI_Clock_Bit = 0x1,
-	Use_RTSI_Clock_Bit = 0x2,
-};
-static inline unsigned RTSI_Output_Bit(unsigned channel, int is_mseries)
-{
-	unsigned max_channel;
-	unsigned base_bit_shift;
-	if (is_mseries) {
-		base_bit_shift = 8;
-		max_channel = 7;
-	} else {
-		base_bit_shift = 9;
-		max_channel = 6;
-	}
-	return 1 << (base_bit_shift + channel);
-}
 
 #define Interrupt_Control_Register	59
 #define Interrupt_B_Enable			_bit15
