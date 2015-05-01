@@ -318,8 +318,8 @@ static const struct mio_regmap m_series_stc_write_regmap[] = {
 	[NISTC_INTB_ACK_REG]		= { 0x106, 2 },
 	[NISTC_AI_CMD2_REG]		= { 0x108, 2 },
 	[NISTC_AO_CMD2_REG]		= { 0x10a, 2 },
-	[G_Command_Register(0)]		= { 0x10c, 2 },
-	[G_Command_Register(1)]		= { 0x10e, 2 },
+	[NISTC_G0_CMD_REG]		= { 0x10c, 2 },
+	[NISTC_G1_CMD_REG]		= { 0x10e, 2 },
 	[AI_Command_1_Register]		= { 0x110, 2 },
 	[AO_Command_1_Register]		= { 0x112, 2 },
 	/*
@@ -3720,8 +3720,8 @@ static void init_ao_67xx(struct comedi_device *dev, struct comedi_subdevice *s)
 static const struct mio_regmap ni_gpct_to_stc_regmap[] = {
 	[NITIO_G0_AUTO_INC]	= { G_Autoincrement_Register(0), 2 },
 	[NITIO_G1_AUTO_INC]	= { G_Autoincrement_Register(1), 2 },
-	[NITIO_G0_CMD]		= { G_Command_Register(0), 2 },
-	[NITIO_G1_CMD]		= { G_Command_Register(1), 2 },
+	[NITIO_G0_CMD]		= { NISTC_G0_CMD_REG, 2 },
+	[NITIO_G1_CMD]		= { NISTC_G1_CMD_REG, 2 },
 	[NITIO_G0_HW_SAVE]	= { G_HW_Save_Register(0), 4 },
 	[NITIO_G1_HW_SAVE]	= { G_HW_Save_Register(1), 4 },
 	[NITIO_G0_SW_SAVE]	= { G_Save_Register(0), 4 },
