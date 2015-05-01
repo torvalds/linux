@@ -2186,13 +2186,15 @@ void wacom_setup_device_quirks(struct wacom *wacom)
 
 			features->x_max = 4096;
 			features->y_max = 4096;
-		} else {
-			features->device_type = BTN_TOOL_PEN;
 		}
 	}
 
 	/*
-	 * Same thing for Bamboo PAD
+	 * Raw Wacom-mode pen and touch events both come from interface
+	 * 0, whose HID descriptor has an application usage of 0xFF0D
+	 * (i.e., WACOM_VENDORDEFINED_PEN). We route pen packets back
+	 * out through the HID_GENERIC device created for interface 1,
+	 * so rewrite this one to be of type BTN_TOOL_FINGER.
 	 */
 	if (features->type == BAMBOO_PAD)
 		features->device_type = BTN_TOOL_FINGER;

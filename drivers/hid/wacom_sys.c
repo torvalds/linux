@@ -181,7 +181,11 @@ static void wacom_usage_mapping(struct hid_device *hdev,
 	* X/Y values and some cases of invalid Digitizer X/Y
 	* values commonly reported.
 	*/
-	if (!pen && !finger)
+	if (pen)
+		features->device_type = BTN_TOOL_PEN;
+	else if (finger)
+		features->device_type = BTN_TOOL_FINGER;
+	else
 		return;
 
 	/*
@@ -198,14 +202,11 @@ static void wacom_usage_mapping(struct hid_device *hdev,
 	case HID_GD_X:
 		features->x_max = field->logical_maximum;
 		if (finger) {
-			features->device_type = BTN_TOOL_FINGER;
 			features->x_phy = field->physical_maximum;
 			if (features->type != BAMBOO_PT) {
 				features->unit = field->unit;
 				features->unitExpo = field->unit_exponent;
 			}
-		} else {
-			features->device_type = BTN_TOOL_PEN;
 		}
 		break;
 	case HID_GD_Y:
@@ -425,7 +426,6 @@ static void wacom_retrieve_hid_descriptor(struct hid_device *hdev,
 	struct usb_interface *intf = wacom->intf;
 
 	/* default features */
-	features->device_type = BTN_TOOL_PEN;
 	features->x_fuzz = 4;
 	features->y_fuzz = 4;
 	features->pressure_fuzz = 0;
@@ -445,10 +445,6 @@ static void wacom_retrieve_hid_descriptor(struct hid_device *hdev,
 			features->pktlen = WACOM_PKGLEN_BBTOUCH3;
 		}
 	}
-
-	/* only devices that support touch need to retrieve the info */
-	if (features->type < BAMBOO_PT)
-		return;
 
 	wacom_parse_hid(hdev, features);
 }
@@ -1529,8 +1525,15 @@ static int wacom_probe(struct hid_device *hdev,
 
 	/* Retrieve the physical and logical size for touch devices */
 	wacom_retrieve_hid_descriptor(hdev, features);
-
 	wacom_setup_device_quirks(wacom);
+
+	if (!features->device_type && features->type != WIRELESS) {
+		dev_warn(&hdev->dev, "Unknown device_type for '%s'. %s.",
+			 hdev->name, "Assuming pen");
+
+		features->device_type = BTN_TOOL_PEN;
+	}
+
 	wacom_calculate_res(features);
 
 	wacom_update_name(wacom);
