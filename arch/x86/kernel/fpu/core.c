@@ -109,6 +109,8 @@ void __kernel_fpu_begin(void)
 {
 	struct fpu *fpu = &current->thread.fpu;
 
+	WARN_ON_ONCE(!irq_fpu_usable());
+
 	kernel_fpu_disable();
 
 	if (fpu->fpregs_active) {
@@ -138,7 +140,6 @@ EXPORT_SYMBOL(__kernel_fpu_end);
 void kernel_fpu_begin(void)
 {
 	preempt_disable();
-	WARN_ON_ONCE(!irq_fpu_usable());
 	__kernel_fpu_begin();
 }
 EXPORT_SYMBOL_GPL(kernel_fpu_begin);
