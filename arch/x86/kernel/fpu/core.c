@@ -227,10 +227,8 @@ EXPORT_SYMBOL_GPL(fpstate_init);
 /*
  * Copy the current task's FPU state to a new task's FPU context.
  *
- * In the 'eager' case we just save to the destination context.
- *
- * In the 'lazy' case we save to the source context, mark the FPU lazy
- * via stts() and copy the source context into the destination context.
+ * In both the 'eager' and the 'lazy' case we save hardware registers
+ * directly to the destination buffer.
  */
 static void fpu_copy(struct fpu *dst_fpu, struct fpu *src_fpu)
 {

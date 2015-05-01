@@ -76,10 +76,11 @@ int cpu_has_xfeatures(u64 xfeatures_needed, const char **feature_name)
 EXPORT_SYMBOL_GPL(cpu_has_xfeatures);
 
 /*
- * When executing XSAVEOPT (optimized XSAVE), if a processor implementation
- * detects that an FPU state component is still (or is again) in its
- * initialized state, it may clear the corresponding bit in the header.xfeatures
- * field, and can skip the writeout of registers to the corresponding memory layout.
+ * When executing XSAVEOPT (or other optimized XSAVE instructions), if
+ * a processor implementation detects that an FPU state component is still
+ * (or is again) in its initialized state, it may clear the corresponding
+ * bit in the header.xfeatures field, and can skip the writeout of registers
+ * to the corresponding memory layout.
  *
  * This means that when the bit is zero, the state component might still contain
  * some previous - non-initialized register state.
