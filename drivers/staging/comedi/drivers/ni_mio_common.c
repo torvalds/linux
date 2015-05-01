@@ -346,12 +346,12 @@ static const struct mio_regmap m_series_stc_write_regmap[] = {
 	[NISTC_G1_INPUT_SEL_REG]	= { 0x14a, 2 },
 	[NISTC_AO_MODE1_REG]		= { 0x14c, 2 },
 	[NISTC_AO_MODE2_REG]		= { 0x14e, 2 },
-	[AO_UI_Load_A_Register]		= { 0x150, 4 },
-	[AO_UI_Load_B_Register]		= { 0x154, 4 },
-	[AO_BC_Load_A_Register]		= { 0x158, 4 },
-	[AO_BC_Load_B_Register]		= { 0x15c, 4 },
-	[AO_UC_Load_A_Register]		= { 0x160, 4 },
-	[AO_UC_Load_B_Register]		= { 0x164, 4 },
+	[NISTC_AO_UI_LOADA_REG]		= { 0x150, 4 },
+	[NISTC_AO_UI_LOADB_REG]		= { 0x154, 4 },
+	[NISTC_AO_BC_LOADA_REG]		= { 0x158, 4 },
+	[NISTC_AO_BC_LOADB_REG]		= { 0x15c, 4 },
+	[NISTC_AO_UC_LOADA_REG]		= { 0x160, 4 },
+	[NISTC_AO_UC_LOADB_REG]		= { 0x164, 4 },
 	[Clock_and_FOUT_Register]	= { 0x170, 2 },
 	[IO_Bidirection_Pin_Register]	= { 0x172, 2 },
 	[RTSI_Trig_Direction_Register]	= { 0x174, 2 },
@@ -2994,9 +2994,9 @@ static int ni_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->ao_mode2 &= ~NISTC_AO_MODE2_BC_INIT_LOAD_SRC;
 	ni_stc_writew(dev, devpriv->ao_mode2, NISTC_AO_MODE2_REG);
 	if (cmd->stop_src == TRIG_NONE)
-		ni_stc_writel(dev, 0xffffff, AO_BC_Load_A_Register);
+		ni_stc_writel(dev, 0xffffff, NISTC_AO_BC_LOADA_REG);
 	else
-		ni_stc_writel(dev, 0, AO_BC_Load_A_Register);
+		ni_stc_writel(dev, 0, NISTC_AO_BC_LOADA_REG);
 	ni_stc_writew(dev, NISTC_AO_CMD1_BC_LOAD, NISTC_AO_CMD1_REG);
 	devpriv->ao_mode2 &= ~NISTC_AO_MODE2_UC_INIT_LOAD_SRC;
 	ni_stc_writew(dev, devpriv->ao_mode2, NISTC_AO_MODE2_REG);
@@ -3005,27 +3005,27 @@ static int ni_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		if (devpriv->is_m_series) {
 			/*  this is how the NI example code does it for m-series boards, verified correct with 6259 */
 			ni_stc_writel(dev, cmd->stop_arg - 1,
-				      AO_UC_Load_A_Register);
+				      NISTC_AO_UC_LOADA_REG);
 			ni_stc_writew(dev, NISTC_AO_CMD1_UC_LOAD,
 				      NISTC_AO_CMD1_REG);
 		} else {
 			ni_stc_writel(dev, cmd->stop_arg,
-				      AO_UC_Load_A_Register);
+				      NISTC_AO_UC_LOADA_REG);
 			ni_stc_writew(dev, NISTC_AO_CMD1_UC_LOAD,
 				      NISTC_AO_CMD1_REG);
 			ni_stc_writel(dev, cmd->stop_arg - 1,
-				      AO_UC_Load_A_Register);
+				      NISTC_AO_UC_LOADA_REG);
 		}
 		break;
 	case TRIG_NONE:
-		ni_stc_writel(dev, 0xffffff, AO_UC_Load_A_Register);
+		ni_stc_writel(dev, 0xffffff, NISTC_AO_UC_LOADA_REG);
 		ni_stc_writew(dev, NISTC_AO_CMD1_UC_LOAD, NISTC_AO_CMD1_REG);
-		ni_stc_writel(dev, 0xffffff, AO_UC_Load_A_Register);
+		ni_stc_writel(dev, 0xffffff, NISTC_AO_UC_LOADA_REG);
 		break;
 	default:
-		ni_stc_writel(dev, 0, AO_UC_Load_A_Register);
+		ni_stc_writel(dev, 0, NISTC_AO_UC_LOADA_REG);
 		ni_stc_writew(dev, NISTC_AO_CMD1_UC_LOAD, NISTC_AO_CMD1_REG);
-		ni_stc_writel(dev, cmd->stop_arg, AO_UC_Load_A_Register);
+		ni_stc_writel(dev, cmd->stop_arg, NISTC_AO_UC_LOADA_REG);
 	}
 
 	devpriv->ao_mode1 &= ~(NISTC_AO_MODE1_UPDATE_SRC_MASK |
@@ -3038,9 +3038,9 @@ static int ni_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		trigvar =
 		    ni_ns_to_timer(dev, cmd->scan_begin_arg,
 				   CMDF_ROUND_NEAREST);
-		ni_stc_writel(dev, 1, AO_UI_Load_A_Register);
+		ni_stc_writel(dev, 1, NISTC_AO_UI_LOADA_REG);
 		ni_stc_writew(dev, NISTC_AO_CMD1_UI_LOAD, NISTC_AO_CMD1_REG);
-		ni_stc_writel(dev, trigvar, AO_UI_Load_A_Register);
+		ni_stc_writel(dev, trigvar, NISTC_AO_UI_LOADA_REG);
 		break;
 	case TRIG_EXT:
 		devpriv->ao_mode1 |=

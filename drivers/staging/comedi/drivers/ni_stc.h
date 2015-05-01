@@ -252,6 +252,13 @@
 #define NISTC_AO_MODE2_BC_RELOAD_MODE	BIT(1)
 #define NISTC_AO_MODE2_BC_WR_SWITCH	BIT(0)
 
+#define NISTC_AO_UI_LOADA_REG		40
+#define NISTC_AO_UI_LOADB_REG		42
+#define NISTC_AO_BC_LOADA_REG		44
+#define NISTC_AO_BC_LOADB_REG		46
+#define NISTC_AO_UC_LOADA_REG		48
+#define NISTC_AO_UC_LOADB_REG		50
+
 #define AI_Status_1_Register		2
 #define Interrupt_A_St				0x8000
 #define AI_FIFO_Full_St				0x4000
@@ -306,22 +313,8 @@ enum Joint_Status_2_Bits {
 	AO_TMRDACWRs_In_Progress_St = 0x20,
 };
 
-#define AO_UI_Load_A_Register		40
-#define AO_UI_Load_A_Register_High	40
-#define AO_UI_Load_A_Register_Low	41
-#define AO_UI_Load_B_Register		42
 #define AO_UI_Save_Registers		16
-#define AO_BC_Load_A_Register		44
-#define AO_BC_Load_A_Register_High	44
-#define AO_BC_Load_A_Register_Low	45
-#define AO_BC_Load_B_Register		46
-#define AO_BC_Load_B_Register_High	46
-#define AO_BC_Load_B_Register_Low	47
 #define AO_BC_Save_Registers		18
-#define AO_UC_Load_A_Register		48
-#define AO_UC_Load_A_Register_High	48
-#define AO_UC_Load_A_Register_Low	49
-#define AO_UC_Load_B_Register		50
 #define AO_UC_Save_Registers		20
 
 #define Clock_and_FOUT_Register		56
