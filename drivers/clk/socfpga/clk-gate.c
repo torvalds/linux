@@ -224,7 +224,7 @@ static void __init __socfpga_gate_init(struct device_node *node,
 		socfpga_clk->shift = div_reg[1];
 		socfpga_clk->width = div_reg[2];
 	} else {
-		socfpga_clk->div_reg = 0;
+		socfpga_clk->div_reg = NULL;
 	}
 
 	rc = of_property_read_u32_array(node, "clk-phase", clk_phase, 2);
