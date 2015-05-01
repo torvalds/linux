@@ -1808,8 +1808,7 @@ static void ni_m_series_load_channelgain_list(struct comedi_device *dev,
 			break;
 		}
 		config_bits |= MSeries_AI_Config_Channel_Bits(chan);
-		config_bits |=
-		    MSeries_AI_Config_Bank_Bits(board->reg_type, chan);
+		config_bits |= MSeries_AI_Config_Bank_Bits(chan);
 		config_bits |= MSeries_AI_Config_Gain_Bits(range_code);
 		if (i == n_chan - 1)
 			config_bits |= MSeries_AI_Config_Last_Channel_Bit;
