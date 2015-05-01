@@ -221,7 +221,7 @@ int fld_client_add_target(struct lu_client_fld *fld,
 	CDEBUG(D_INFO, "%s: Adding target %s (idx %llu)\n",
 			fld->lcf_name, name, tar->ft_idx);
 
-	OBD_ALLOC_PTR(target);
+	target = kzalloc(sizeof(*target), GFP_NOFS);
 	if (target == NULL)
 		return -ENOMEM;
 
@@ -229,7 +229,7 @@ int fld_client_add_target(struct lu_client_fld *fld,
 	list_for_each_entry(tmp, &fld->lcf_targets, ft_chain) {
 		if (tmp->ft_idx == tar->ft_idx) {
 			spin_unlock(&fld->lcf_lock);
-			OBD_FREE_PTR(target);
+			kfree(target);
 			CERROR("Target %s exists in FLD and known as %s:#%llu\n",
 			       name, fld_target_name(tmp), tmp->ft_idx);
 			return -EEXIST;
@@ -268,7 +268,7 @@ int fld_client_del_target(struct lu_client_fld *fld, __u64 idx)
 			if (target->ft_exp != NULL)
 				class_export_put(target->ft_exp);
 
-			OBD_FREE_PTR(target);
+			kfree(target);
 			return 0;
 		}
 	}
@@ -396,7 +396,7 @@ void fld_client_fini(struct lu_client_fld *fld)
 		list_del(&target->ft_chain);
 		if (target->ft_exp != NULL)
 			class_export_put(target->ft_exp);
-		OBD_FREE_PTR(target);
+		kfree(target);
 	}
 	spin_unlock(&fld->lcf_lock);
 
