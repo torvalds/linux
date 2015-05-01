@@ -848,7 +848,7 @@ static void mxsfb_free_videomem(struct mxsfb_info *host)
 	free_pages_exact(fb_info->screen_base, fb_info->fix.smem_len);
 }
 
-static struct platform_device_id mxsfb_devtype[] = {
+static const struct platform_device_id mxsfb_devtype[] = {
 	{
 		.name = "imx23-fb",
 		.driver_data = MXSFB_V3,
