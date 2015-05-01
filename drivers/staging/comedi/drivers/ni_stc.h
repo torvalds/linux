@@ -316,6 +316,16 @@
 #define NISTC_ATRIG_ETC_ENA		BIT(3)
 #define NISTC_ATRIG_ETC_MODE(x)		(((x) & 0x7) << 0)
 
+#define NISTC_AI_START_STOP_REG		62
+#define NISTC_AI_START_POLARITY		BIT(15)
+#define NISTC_AI_STOP_POLARITY		BIT(14)
+#define NISTC_AI_STOP_SYNC		BIT(13)
+#define NISTC_AI_STOP_EDGE		BIT(12)
+#define NISTC_AI_STOP_SEL(x)		(((x) & 0x1f) << 7)
+#define NISTC_AI_START_SYNC		BIT(6)
+#define NISTC_AI_START_EDGE		BIT(5)
+#define NISTC_AI_START_SEL(x)		(((x) & 0x1f) << 0)
+
 #define AI_Status_1_Register		2
 #define Interrupt_A_St				0x8000
 #define AI_FIFO_Full_St				0x4000
@@ -373,16 +383,6 @@ enum Joint_Status_2_Bits {
 #define AO_UI_Save_Registers		16
 #define AO_BC_Save_Registers		18
 #define AO_UC_Save_Registers		20
-
-#define AI_START_STOP_Select_Register	62
-#define AI_START_Polarity			_bit15
-#define AI_STOP_Polarity			_bit14
-#define AI_STOP_Sync				_bit13
-#define AI_STOP_Edge				_bit12
-#define AI_STOP_Select(a)			(((a) & 0x1f)<<7)
-#define AI_START_Sync				_bit6
-#define AI_START_Edge				_bit5
-#define AI_START_Select(a)			((a) & 0x1f)
 
 #define AI_Trigger_Select_Register	63
 #define AI_START1_Polarity			_bit15

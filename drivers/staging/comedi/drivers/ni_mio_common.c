@@ -357,7 +357,7 @@ static const struct mio_regmap m_series_stc_write_regmap[] = {
 	[NISTC_INT_CTRL_REG]		= { 0x176, 2 },
 	[NISTC_AI_OUT_CTRL_REG]		= { 0x178, 2 },
 	[NISTC_ATRIG_ETC_REG]		= { 0x17a, 2 },
-	[AI_START_STOP_Select_Register]	= { 0x17c, 2 },
+	[NISTC_AI_START_STOP_REG]	= { 0x17c, 2 },
 	[AI_Trigger_Select_Register]	= { 0x17e, 2 },
 	[AI_DIV_Load_A_Register]	= { 0x180, 4 },
 	[AO_Start_Select_Register]	= { 0x184, 2 },
@@ -2295,13 +2295,15 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	ni_stc_writew(dev, mode2, NISTC_AI_MODE2_REG);
 
 	if (cmd->chanlist_len == 1 || devpriv->is_611x || devpriv->is_6143) {
-		start_stop_select |= AI_STOP_Polarity;
-		start_stop_select |= AI_STOP_Select(31);	/*  logic low */
-		start_stop_select |= AI_STOP_Sync;
+		/* logic low */
+		start_stop_select |= NISTC_AI_STOP_POLARITY |
+				     NISTC_AI_STOP_SEL(31) |
+				     NISTC_AI_STOP_SYNC;
 	} else {
-		start_stop_select |= AI_STOP_Select(19);	/*  ai configuration memory */
+		/*  ai configuration memory */
+		start_stop_select |= NISTC_AI_STOP_SEL(19);
 	}
-	ni_stc_writew(dev, start_stop_select, AI_START_STOP_Select_Register);
+	ni_stc_writew(dev, start_stop_select, NISTC_AI_START_STOP_REG);
 
 	devpriv->ai_cmd2 = 0;
 	switch (cmd->stop_src) {
@@ -2327,8 +2329,8 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			interrupt_a_enable |= AI_STOP_Interrupt_Enable;
 			/*  this is required to get the last sample for chanlist_len > 1, not sure why */
 			if (cmd->chanlist_len > 1)
-				start_stop_select |=
-				    AI_STOP_Polarity | AI_STOP_Edge;
+				start_stop_select |= NISTC_AI_STOP_POLARITY |
+						     NISTC_AI_STOP_EDGE;
 		}
 		break;
 	case TRIG_NONE:
@@ -2348,22 +2350,21 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	switch (cmd->scan_begin_src) {
 	case TRIG_TIMER:
 		/*
-		   stop bits for non 611x boards
-		   AI_SI_Special_Trigger_Delay=0
-		   NISTC_AI_MODE2_PRE_TRIGGER=0
-		   AI_START_STOP_Select_Register:
-		   AI_START_Polarity=0 (?)      rising edge
-		   AI_START_Edge=1              edge triggered
-		   AI_START_Sync=1 (?)
-		   AI_START_Select=0            SI_TC
-		   AI_STOP_Polarity=0           rising edge
-		   AI_STOP_Edge=0               level
-		   AI_STOP_Sync=1
-		   AI_STOP_Select=19            external pin (configuration mem)
+		 * stop bits for non 611x boards
+		 * AI_SI_Special_Trigger_Delay=0
+		 * NISTC_AI_MODE2_PRE_TRIGGER=0
+		 * NISTC_AI_START_STOP_REG:
+		 * NISTC_AI_START_POLARITY=0	(?) rising edge
+		 * NISTC_AI_START_EDGE=1	edge triggered
+		 * NISTC_AI_START_SYNC=1	(?)
+		 * NISTC_AI_START_SEL=0		SI_TC
+		 * NISTC_AI_STOP_POLARITY=0	rising edge
+		 * NISTC_AI_STOP_EDGE=0		level
+		 * NISTC_AI_STOP_SYNC=1
+		 * NISTC_AI_STOP_SEL=19		external pin (configuration mem)
 		 */
-		start_stop_select |= AI_START_Edge | AI_START_Sync;
-		ni_stc_writew(dev, start_stop_select,
-			      AI_START_STOP_Select_Register);
+		start_stop_select |= NISTC_AI_START_EDGE | NISTC_AI_START_SYNC;
+		ni_stc_writew(dev, start_stop_select, NISTC_AI_START_STOP_REG);
 
 		mode2 &= ~NISTC_AI_MODE2_SI_INIT_LOAD_SRC;	/* A */
 		mode2 |= NISTC_AI_MODE2_SI_RELOAD_MODE(0);
@@ -2378,18 +2379,16 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		break;
 	case TRIG_EXT:
 		if (cmd->scan_begin_arg & CR_EDGE)
-			start_stop_select |= AI_START_Edge;
-		/* AI_START_Polarity==1 is falling edge */
-		if (cmd->scan_begin_arg & CR_INVERT)
-			start_stop_select |= AI_START_Polarity;
+			start_stop_select |= NISTC_AI_START_EDGE;
+		if (cmd->scan_begin_arg & CR_INVERT)	/* falling edge */
+			start_stop_select |= NISTC_AI_START_POLARITY;
 		if (cmd->scan_begin_src != cmd->convert_src ||
 		    (cmd->scan_begin_arg & ~CR_EDGE) !=
 		    (cmd->convert_arg & ~CR_EDGE))
-			start_stop_select |= AI_START_Sync;
+			start_stop_select |= NISTC_AI_START_SYNC;
 		start_stop_select |=
-		    AI_START_Select(1 + CR_CHAN(cmd->scan_begin_arg));
-		ni_stc_writew(dev, start_stop_select,
-			      AI_START_STOP_Select_Register);
+		    NISTC_AI_START_SEL(1 + CR_CHAN(cmd->scan_begin_arg));
+		ni_stc_writew(dev, start_stop_select, NISTC_AI_START_STOP_REG);
 		break;
 	}
 
