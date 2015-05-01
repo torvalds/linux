@@ -1206,12 +1206,16 @@ int arizona_dev_init(struct arizona *arizona)
 		/* Default for both is 0 so noop with defaults */
 		val = arizona->pdata.dmic_ref[i]
 			<< ARIZONA_IN1_DMIC_SUP_SHIFT;
-		val |= arizona->pdata.inmode[i] << ARIZONA_IN1_MODE_SHIFT;
+		if (arizona->pdata.inmode[i] & ARIZONA_INMODE_DMIC)
+			val |= 1 << ARIZONA_IN1_MODE_SHIFT;
+		if (arizona->pdata.inmode[i] & ARIZONA_INMODE_SE)
+			val |= 1 << ARIZONA_IN1_SINGLE_ENDED_SHIFT;
 
 		regmap_update_bits(arizona->regmap,
 				   ARIZONA_IN1L_CONTROL + (i * 8),
 				   ARIZONA_IN1_DMIC_SUP_MASK |
-				   ARIZONA_IN1_MODE_MASK, val);
+				   ARIZONA_IN1_MODE_MASK |
+				   ARIZONA_IN1_SINGLE_ENDED_MASK, val);
 	}
 
 	for (i = 0; i < ARIZONA_MAX_OUTPUT; i++) {
