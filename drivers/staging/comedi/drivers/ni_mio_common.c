@@ -4740,7 +4740,7 @@ static int ni_mseries_set_pll_master_clock(struct comedi_device *dev,
 	devpriv->clock_source = source;
 	/* it seems to typically take a few hundred microseconds for PLL to lock */
 	for (i = 0; i < timeout; ++i) {
-		if (ni_readw(dev, NI_M_PLL_STATUS_REG) & MSeries_PLL_Locked_Bit)
+		if (ni_readw(dev, NI_M_PLL_STATUS_REG) & NI_M_PLL_STATUS_LOCKED)
 			break;
 		udelay(1);
 	}
