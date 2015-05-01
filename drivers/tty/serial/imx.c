@@ -239,7 +239,7 @@ static struct imx_uart_data imx_uart_devdata[] = {
 	},
 };
 
-static struct platform_device_id imx_uart_devtype[] = {
+static const struct platform_device_id imx_uart_devtype[] = {
 	{
 		.name = "imx1-uart",
 		.driver_data = (kernel_ulong_t) &imx_uart_devdata[IMX1_UART],
