@@ -375,9 +375,9 @@ static const struct mio_regmap m_series_stc_write_regmap[] = {
 	[NISTC_RTSI_TRIGA_OUT_REG]	= { 0x19e, 2 },
 	[NISTC_RTSI_TRIGB_OUT_REG]	= { 0x1a0, 2 },
 	[NISTC_RTSI_BOARD_REG]		= { 0, 0 }, /* Unknown */
-	[Configuration_Memory_Clear]	= { 0x1a4, 2 },
-	[ADC_FIFO_Clear]		= { 0x1a6, 2 },
-	[DAC_FIFO_Clear]		= { 0x1a8, 2 },
+	[NISTC_CFG_MEM_CLR_REG]		= { 0x1a4, 2 },
+	[NISTC_ADC_FIFO_CLR_REG]	= { 0x1a6, 2 },
+	[NISTC_DAC_FIFO_CLR_REG]	= { 0x1a8, 2 },
 	[AO_Output_Control_Register]	= { 0x1ac, 2 },
 	[AI_Mode_3_Register]		= { 0x1ae, 2 },
 };
@@ -849,7 +849,7 @@ static void ni_clear_ai_fifo(struct comedi_device *dev)
 		if (i == timeout)
 			dev_err(dev->class_dev, "FIFO flush timeout\n");
 	} else {
-		ni_stc_writew(dev, 1, ADC_FIFO_Clear);
+		ni_stc_writew(dev, 1, NISTC_ADC_FIFO_CLR_REG);
 		if (devpriv->is_625x) {
 			ni_writeb(dev, 0, NI_M_STATIC_AI_CTRL_REG(0));
 			ni_writeb(dev, 1, NI_M_STATIC_AI_CTRL_REG(0));
@@ -1084,7 +1084,7 @@ static int ni_ao_prep_fifo(struct comedi_device *dev,
 	unsigned int nsamples;
 
 	/* reset fifo */
-	ni_stc_writew(dev, 1, DAC_FIFO_Clear);
+	ni_stc_writew(dev, 1, NISTC_DAC_FIFO_CLR_REG);
 	if (devpriv->is_6xxx)
 		ni_ao_win_outl(dev, 0x6, AO_FIFO_Offset_Load_611x);
 
@@ -1696,7 +1696,7 @@ static void ni_prime_channelgain_list(struct comedi_device *dev)
 	for (i = 0; i < NI_TIMEOUT; ++i) {
 		if (!(ni_stc_readw(dev, AI_Status_1_Register) &
 		      AI_FIFO_Empty_St)) {
-			ni_stc_writew(dev, 1, ADC_FIFO_Clear);
+			ni_stc_writew(dev, 1, NISTC_ADC_FIFO_CLR_REG);
 			return;
 		}
 		udelay(1);
@@ -1715,7 +1715,7 @@ static void ni_m_series_load_channelgain_list(struct comedi_device *dev,
 	unsigned int dither;
 	unsigned range_code;
 
-	ni_stc_writew(dev, 1, Configuration_Memory_Clear);
+	ni_stc_writew(dev, 1, NISTC_CFG_MEM_CLR_REG);
 
 	if ((list[0] & CR_ALT_SOURCE)) {
 		unsigned bypass_bits;
@@ -1830,7 +1830,7 @@ static void ni_load_channelgain_list(struct comedi_device *dev,
 		devpriv->changain_state = 0;
 	}
 
-	ni_stc_writew(dev, 1, Configuration_Memory_Clear);
+	ni_stc_writew(dev, 1, NISTC_CFG_MEM_CLR_REG);
 
 	/*  Set up Calibration mode if required */
 	if (devpriv->is_6143) {
@@ -2826,7 +2826,7 @@ static int ni_ao_inttrig(struct comedi_device *dev,
 		    NISTC_INTB_ENA_AO_FIFO | NISTC_INTB_ENA_AO_ERR, 0);
 	interrupt_b_bits = NISTC_INTB_ENA_AO_ERR;
 #ifdef PCIDMA
-	ni_stc_writew(dev, 1, DAC_FIFO_Clear);
+	ni_stc_writew(dev, 1, NISTC_DAC_FIFO_CLR_REG);
 	if (devpriv->is_6xxx)
 		ni_ao_win_outl(dev, 0x6, AO_FIFO_Offset_Load_611x);
 	ret = ni_ao_setup_MITE_dma(dev);

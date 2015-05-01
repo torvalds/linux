@@ -457,6 +457,11 @@
 
 #define NISTC_RTSI_BOARD_REG		81
 
+#define NISTC_CFG_MEM_CLR_REG		82
+#define NISTC_ADC_FIFO_CLR_REG		83
+#define NISTC_DAC_FIFO_CLR_REG		84
+#define NISTC_WR_STROBE3_REG		85
+
 #define AI_Status_1_Register		2
 #define Interrupt_A_St				0x8000
 #define AI_FIFO_Full_St				0x4000
@@ -514,11 +519,6 @@ enum Joint_Status_2_Bits {
 #define AO_UI_Save_Registers		16
 #define AO_BC_Save_Registers		18
 #define AO_UC_Save_Registers		20
-
-#define Write_Strobe_0_Register		82
-#define Write_Strobe_1_Register		83
-#define Write_Strobe_2_Register		84
-#define Write_Strobe_3_Register		85
 
 #define AO_Output_Control_Register	86
 #define AO_External_Gate_Enable			_bit15
@@ -636,10 +636,6 @@ static unsigned AO_UPDATE_Output_Select(enum ao_update_output_selection
 /* 16 bit registers shadowed from DAQ-STC */
 #define Window_Address			0x00
 #define Window_Data			0x02
-
-#define Configuration_Memory_Clear	82
-#define ADC_FIFO_Clear			83
-#define DAC_FIFO_Clear			84
 
 /* i/o port offsets */
 
