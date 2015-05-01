@@ -63,7 +63,7 @@ static int bt_sco_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_device_id bt_sco_driver_ids[] = {
+static const struct platform_device_id bt_sco_driver_ids[] = {
 	{
 		.name		= "dfbmcs320",
 	},
