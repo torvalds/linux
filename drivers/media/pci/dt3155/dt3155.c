@@ -303,7 +303,8 @@ static const struct v4l2_file_operations dt3155_fops = {
 	.poll = vb2_fop_poll
 };
 
-static int dt3155_querycap(struct file *filp, void *p, struct v4l2_capability *cap)
+static int dt3155_querycap(struct file *filp, void *p,
+			   struct v4l2_capability *cap)
 {
 	struct dt3155_priv *pd = video_drvdata(filp);
 
@@ -316,7 +317,8 @@ static int dt3155_querycap(struct file *filp, void *p, struct v4l2_capability *c
 	return 0;
 }
 
-static int dt3155_enum_fmt_vid_cap(struct file *filp, void *p, struct v4l2_fmtdesc *f)
+static int dt3155_enum_fmt_vid_cap(struct file *filp,
+				   void *p, struct v4l2_fmtdesc *f)
 {
 	if (f->index)
 		return -EINVAL;
@@ -368,12 +370,14 @@ static int dt3155_s_std(struct file *filp, void *p, v4l2_std_id norm)
 	return 0;
 }
 
-static int dt3155_enum_input(struct file *filp, void *p, struct v4l2_input *input)
+static int dt3155_enum_input(struct file *filp, void *p,
+			     struct v4l2_input *input)
 {
 	if (input->index > 3)
 		return -EINVAL;
 	if (input->index)
-		snprintf(input->name, sizeof(input->name), "VID%d", input->index);
+		snprintf(input->name, sizeof(input->name), "VID%d",
+			 input->index);
 	else
 		strlcpy(input->name, "J2/VID0", sizeof(input->name));
 	input->type = V4L2_INPUT_TYPE_CAMERA;
@@ -594,7 +598,8 @@ err_v4l2_dev_unreg:
 static void dt3155_remove(struct pci_dev *pdev)
 {
 	struct v4l2_device *v4l2_dev = pci_get_drvdata(pdev);
-	struct dt3155_priv *pd = container_of(v4l2_dev, struct dt3155_priv, v4l2_dev);
+	struct dt3155_priv *pd = container_of(v4l2_dev, struct dt3155_priv,
+					      v4l2_dev);
 
 	video_unregister_device(&pd->vdev);
 	free_irq(pd->pdev->irq, pd);
