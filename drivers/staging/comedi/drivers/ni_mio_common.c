@@ -1792,29 +1792,26 @@ static void ni_m_series_load_channelgain_list(struct comedi_device *dev,
 		devpriv->ai_offset[i] = 0;
 		switch (aref) {
 		case AREF_DIFF:
-			config_bits |=
-			    MSeries_AI_Config_Channel_Type_Differential_Bits;
+			config_bits |= NI_M_AI_CFG_CHAN_TYPE_DIFF;
 			break;
 		case AREF_COMMON:
-			config_bits |=
-			    MSeries_AI_Config_Channel_Type_Common_Ref_Bits;
+			config_bits |= NI_M_AI_CFG_CHAN_TYPE_COMMON;
 			break;
 		case AREF_GROUND:
-			config_bits |=
-			    MSeries_AI_Config_Channel_Type_Ground_Ref_Bits;
+			config_bits |= NI_M_AI_CFG_CHAN_TYPE_GROUND;
 			break;
 		case AREF_OTHER:
 			break;
 		}
-		config_bits |= MSeries_AI_Config_Channel_Bits(chan);
-		config_bits |= MSeries_AI_Config_Bank_Bits(chan);
-		config_bits |= MSeries_AI_Config_Gain_Bits(range_code);
+		config_bits |= NI_M_AI_CFG_CHAN_SEL(chan);
+		config_bits |= NI_M_AI_CFG_BANK_SEL(chan);
+		config_bits |= NI_M_AI_CFG_GAIN(range_code);
 		if (i == n_chan - 1)
-			config_bits |= MSeries_AI_Config_Last_Channel_Bit;
+			config_bits |= NI_M_AI_CFG_LAST_CHAN;
 		if (dither)
-			config_bits |= MSeries_AI_Config_Dither_Bit;
+			config_bits |= NI_M_AI_CFG_DITHER;
 		/*  don't use 2's complement encoding */
-		config_bits |= MSeries_AI_Config_Polarity_Bit;
+		config_bits |= NI_M_AI_CFG_POLARITY;
 		ni_writew(dev, config_bits, NI_M_AI_CFG_FIFO_DATA_REG);
 	}
 	ni_prime_channelgain_list(dev);

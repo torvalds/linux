@@ -938,6 +938,20 @@ static const struct comedi_lrange range_ni_E_ao_ext;
 #define NI_M_CAL_PWM_REG		0x040
 #define NI_M_GEN_PWM_REG(x)		(0x044 + ((x) * 2))
 #define NI_M_AI_CFG_FIFO_DATA_REG	0x05e
+#define NI_M_AI_CFG_LAST_CHAN		BIT(14)
+#define NI_M_AI_CFG_DITHER		BIT(13)
+#define NI_M_AI_CFG_POLARITY		BIT(12)
+#define NI_M_AI_CFG_GAIN(x)		(((x) & 0x7) << 9)
+#define NI_M_AI_CFG_CHAN_TYPE(x)	(((x) & 0x7) << 6)
+#define NI_M_AI_CFG_CHAN_TYPE_MASK	NI_M_AI_CFG_CHAN_TYPE(7)
+#define NI_M_AI_CFG_CHAN_TYPE_CALIB	NI_M_AI_CFG_CHAN_TYPE(0)
+#define NI_M_AI_CFG_CHAN_TYPE_DIFF	NI_M_AI_CFG_CHAN_TYPE(1)
+#define NI_M_AI_CFG_CHAN_TYPE_COMMON	NI_M_AI_CFG_CHAN_TYPE(2)
+#define NI_M_AI_CFG_CHAN_TYPE_GROUND	NI_M_AI_CFG_CHAN_TYPE(3)
+#define NI_M_AI_CFG_CHAN_TYPE_AUX	NI_M_AI_CFG_CHAN_TYPE(5)
+#define NI_M_AI_CFG_CHAN_TYPE_GHOST	NI_M_AI_CFG_CHAN_TYPE(7)
+#define NI_M_AI_CFG_BANK_SEL(x)		((((x) & 0x40) << 4) | ((x) & 0x30))
+#define NI_M_AI_CFG_CHAN_SEL(x)		(((x) & 0xf) << 0)
 #define NI_M_INTC_ENA_REG		0x088
 #define NI_M_INTC_STATUS_REG		0x088
 #define NI_M_ATRIG_CTRL_REG		0x08c
@@ -971,33 +985,6 @@ static const struct comedi_lrange range_ni_E_ao_ext;
 #define NI_M_CDO_MASK_ENA_REG		0x234
 #define NI_M_STATIC_AI_CTRL_REG(x)	((x) ? (0x260 + (x)) : 0x064)
 #define NI_M_AO_REF_ATTENUATION_REG(x)	(0x264 + (x))
-
-enum MSeries_AI_Config_FIFO_Data_Bits {
-	MSeries_AI_Config_Channel_Type_Mask = 0x7 << 6,
-	MSeries_AI_Config_Channel_Type_Calibration_Bits = 0x0,
-	MSeries_AI_Config_Channel_Type_Differential_Bits = 0x1 << 6,
-	MSeries_AI_Config_Channel_Type_Common_Ref_Bits = 0x2 << 6,
-	MSeries_AI_Config_Channel_Type_Ground_Ref_Bits = 0x3 << 6,
-	MSeries_AI_Config_Channel_Type_Aux_Bits = 0x5 << 6,
-	MSeries_AI_Config_Channel_Type_Ghost_Bits = 0x7 << 6,
-	MSeries_AI_Config_Polarity_Bit = 0x1000,	/*  0 for 2's complement encoding */
-	MSeries_AI_Config_Dither_Bit = 0x2000,
-	MSeries_AI_Config_Last_Channel_Bit = 0x4000,
-};
-static inline unsigned MSeries_AI_Config_Channel_Bits(unsigned channel)
-{
-	return channel & 0xf;
-}
-
-static inline unsigned MSeries_AI_Config_Bank_Bits(unsigned channel)
-{
-	return ((channel & 0x40) << 4) | (channel & 0x30);
-}
-
-static inline unsigned MSeries_AI_Config_Gain_Bits(unsigned range)
-{
-	return (range & 0x7) << 9;
-}
 
 enum MSeries_Clock_and_Fout2_Bits {
 	MSeries_PLL_In_Source_Select_RTSI0_Bits = 0xb,
