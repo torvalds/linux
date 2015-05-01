@@ -116,7 +116,7 @@ static long flexgen_round_rate(struct clk_hw *hw, unsigned long rate,
 	return *prate / div;
 }
 
-unsigned long flexgen_recalc_rate(struct clk_hw *hw,
+static unsigned long flexgen_recalc_rate(struct clk_hw *hw,
 		unsigned long parent_rate)
 {
 	struct flexgen *flexgen = to_flexgen(hw);
@@ -174,7 +174,7 @@ static const struct clk_ops flexgen_ops = {
 	.set_rate = flexgen_set_rate,
 };
 
-struct clk *clk_register_flexgen(const char *name,
+static struct clk *clk_register_flexgen(const char *name,
 				const char **parent_names, u8 num_parents,
 				void __iomem *reg, spinlock_t *lock, u32 idx,
 				unsigned long flexgen_flags) {
@@ -260,7 +260,7 @@ static const char ** __init flexgen_get_parents(struct device_node *np,
 	return parents;
 }
 
-void __init st_of_flexgen_setup(struct device_node *np)
+static void __init st_of_flexgen_setup(struct device_node *np)
 {
 	struct device_node *pnode;
 	void __iomem *reg;
