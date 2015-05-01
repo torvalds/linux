@@ -638,6 +638,10 @@ static struct musb_platform_ops dsps_ops = {
 	.init		= dsps_musb_init,
 	.exit		= dsps_musb_exit,
 
+#ifdef CONFIG_USB_TI_CPPI41_DMA
+	.dma_init	= cppi41_dma_controller_create,
+	.dma_exit	= cppi41_dma_controller_destroy,
+#endif
 	.enable		= dsps_musb_enable,
 	.disable	= dsps_musb_disable,
 

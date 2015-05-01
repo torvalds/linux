@@ -389,6 +389,15 @@ EXPORT_SYMBOL_GPL(musb_readl);
 void (*musb_writel)(void __iomem *addr, unsigned offset, u32 data);
 EXPORT_SYMBOL_GPL(musb_writel);
 
+#ifndef CONFIG_MUSB_PIO_ONLY
+struct dma_controller *
+(*musb_dma_controller_create)(struct musb *musb, void __iomem *base);
+EXPORT_SYMBOL(musb_dma_controller_create);
+
+void (*musb_dma_controller_destroy)(struct dma_controller *c);
+EXPORT_SYMBOL(musb_dma_controller_destroy);
+#endif
+
 /*
  * New style IO functions
  */
@@ -2059,6 +2068,15 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	if (musb->ops->writel)
 		musb_writel = musb->ops->writel;
 
+#ifndef CONFIG_MUSB_PIO_ONLY
+	if (!musb->ops->dma_init || !musb->ops->dma_exit) {
+		dev_err(dev, "DMA controller not set\n");
+		goto fail2;
+	}
+	musb_dma_controller_create = musb->ops->dma_init;
+	musb_dma_controller_destroy = musb->ops->dma_exit;
+#endif
+
 	if (musb->ops->read_fifo)
 		musb->io.read_fifo = musb->ops->read_fifo;
 	else
@@ -2078,7 +2096,8 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	pm_runtime_get_sync(musb->controller);
 
 	if (use_dma && dev->dma_mask) {
-		musb->dma_controller = dma_controller_create(musb, musb->mregs);
+		musb->dma_controller =
+			musb_dma_controller_create(musb, musb->mregs);
 		if (IS_ERR(musb->dma_controller)) {
 			status = PTR_ERR(musb->dma_controller);
 			goto fail2_5;
@@ -2189,7 +2208,7 @@ fail3:
 	cancel_delayed_work_sync(&musb->finish_resume_work);
 	cancel_delayed_work_sync(&musb->deassert_reset_work);
 	if (musb->dma_controller)
-		dma_controller_destroy(musb->dma_controller);
+		musb_dma_controller_destroy(musb->dma_controller);
 fail2_5:
 	pm_runtime_put_sync(musb->controller);
 
@@ -2248,7 +2267,7 @@ static int musb_remove(struct platform_device *pdev)
 	musb_shutdown(pdev);
 
 	if (musb->dma_controller)
-		dma_controller_destroy(musb->dma_controller);
+		musb_dma_controller_destroy(musb->dma_controller);
 
 	cancel_work_sync(&musb->irq_work);
 	cancel_delayed_work_sync(&musb->finish_resume_work);

@@ -478,6 +478,10 @@ static const struct musb_platform_ops bfin_ops = {
 	.fifo_mode	= 2,
 	.read_fifo	= bfin_read_fifo,
 	.write_fifo	= bfin_write_fifo,
+#ifdef CONFIG_USB_INVENTRA_DMA
+	.dma_init	= musbhs_dma_controller_create,
+	.dma_exit	= musbhs_dma_controller_destroy,
+#endif
 	.enable		= bfin_musb_enable,
 	.disable	= bfin_musb_disable,
 

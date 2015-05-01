@@ -189,6 +189,10 @@ static int ux500_musb_exit(struct musb *musb)
 
 static const struct musb_platform_ops ux500_ops = {
 	.quirks		= MUSB_DMA_UX500 | MUSB_INDEXED_EP,
+#ifdef CONFIG_USB_UX500_DMA
+	.dma_init	= ux500_dma_controller_create,
+	.dma_exit	= ux500_dma_controller_destroy,
+#endif
 	.init		= ux500_musb_init,
 	.exit		= ux500_musb_exit,
 	.fifo_mode	= 5,

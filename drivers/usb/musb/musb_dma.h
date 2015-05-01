@@ -202,19 +202,41 @@ struct dma_controller {
 extern void musb_dma_completion(struct musb *musb, u8 epnum, u8 transmit);
 
 #ifdef CONFIG_MUSB_PIO_ONLY
-static inline struct dma_controller *dma_controller_create(struct musb *m,
-		void __iomem *io)
+static inline struct dma_controller *
+musb_dma_controller_create(struct musb *m, void __iomem *io)
 {
 	return NULL;
 }
 
-static inline void dma_controller_destroy(struct dma_controller *d) { }
+static inline void musb_dma_controller_destroy(struct dma_controller *d) { }
 
 #else
 
-extern struct dma_controller *dma_controller_create(struct musb *, void __iomem *);
+extern struct dma_controller *
+(*musb_dma_controller_create)(struct musb *, void __iomem *);
 
-extern void dma_controller_destroy(struct dma_controller *);
+extern void (*musb_dma_controller_destroy)(struct dma_controller *);
 #endif
+
+/* Platform specific DMA functions */
+extern struct dma_controller *
+musbhs_dma_controller_create(struct musb *musb, void __iomem *base);
+extern void musbhs_dma_controller_destroy(struct dma_controller *c);
+
+extern struct dma_controller *
+tusb_dma_controller_create(struct musb *musb, void __iomem *base);
+extern void tusb_dma_controller_destroy(struct dma_controller *c);
+
+extern struct dma_controller *
+cppi_dma_controller_create(struct musb *musb, void __iomem *base);
+extern void cppi_dma_controller_destroy(struct dma_controller *c);
+
+extern struct dma_controller *
+cppi41_dma_controller_create(struct musb *musb, void __iomem *base);
+extern void cppi41_dma_controller_destroy(struct dma_controller *c);
+
+extern struct dma_controller *
+ux500_dma_controller_create(struct musb *musb, void __iomem *base);
+extern void ux500_dma_controller_destroy(struct dma_controller *c);
 
 #endif	/* __MUSB_DMA_H__ */

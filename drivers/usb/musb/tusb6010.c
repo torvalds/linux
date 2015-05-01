@@ -1192,6 +1192,10 @@ static const struct musb_platform_ops tusb_ops = {
 	.writeb		= tusb_writeb,
 	.read_fifo	= tusb_read_fifo,
 	.write_fifo	= tusb_write_fifo,
+#ifdef CONFIG_USB_TUSB_OMAP_DMA
+	.dma_init	= tusb_dma_controller_create,
+	.dma_exit	= tusb_dma_controller_destroy,
+#endif
 	.enable		= tusb_musb_enable,
 	.disable	= tusb_musb_disable,
 

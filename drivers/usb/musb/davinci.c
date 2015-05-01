@@ -495,6 +495,10 @@ static const struct musb_platform_ops davinci_ops = {
 	.init		= davinci_musb_init,
 	.exit		= davinci_musb_exit,
 
+#ifdef CONFIG_USB_TI_CPPI_DMA
+	.dma_init	= cppi_dma_controller_create,
+	.dma_exit	= cppi_dma_controller_destroy,
+#endif
 	.enable		= davinci_musb_enable,
 	.disable	= davinci_musb_disable,
 
