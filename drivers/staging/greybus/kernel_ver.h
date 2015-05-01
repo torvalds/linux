@@ -69,6 +69,7 @@ static inline void gb_gpiochip_remove(struct gpio_chip *chip)
 static inline void gb_gpiochip_remove(struct gpio_chip *chip)
 {
 	int ret;
+
 	ret = gpiochip_remove(chip);
 }
 #endif
