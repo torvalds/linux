@@ -318,7 +318,7 @@ static int hid_time_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_device_id hid_time_ids[] = {
+static const struct platform_device_id hid_time_ids[] = {
 	{
 		/* Format: HID-SENSOR-usage_id_in_hex_lowercase */
 		.name = "HID-SENSOR-2000a0",
