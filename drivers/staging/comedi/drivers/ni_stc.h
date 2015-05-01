@@ -561,11 +561,11 @@
 #define NISTC_AI_SI_SAVE_REG		64
 #define NISTC_AI_SC_SAVE_REG		66
 
-/* Additional windowed registers unique to E series */
-
-/* 16 bit registers shadowed from DAQ-STC */
-#define Window_Address			0x00
-#define Window_Data			0x02
+/*
+ * PCI E Series Registers
+ */
+#define NI_E_STC_WINDOW_ADDR_REG	0x00	/* rw16 */
+#define NI_E_STC_WINDOW_DATA_REG	0x02	/* rw16 */
 
 /* i/o port offsets */
 

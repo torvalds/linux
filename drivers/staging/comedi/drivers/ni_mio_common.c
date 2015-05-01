@@ -469,8 +469,8 @@ static void ni_stc_writew(struct comedi_device *dev, uint16_t data, int reg)
 		if (!devpriv->mite && reg < 8) {
 			ni_writew(dev, data, reg * 2);
 		} else {
-			ni_writew(dev, reg, Window_Address);
-			ni_writew(dev, data, Window_Data);
+			ni_writew(dev, reg, NI_E_STC_WINDOW_ADDR_REG);
+			ni_writew(dev, data, NI_E_STC_WINDOW_DATA_REG);
 		}
 		spin_unlock_irqrestore(&devpriv->window_lock, flags);
 	}
@@ -501,8 +501,8 @@ static uint16_t ni_stc_readw(struct comedi_device *dev, int reg)
 		if (!devpriv->mite && reg < 8) {
 			val = ni_readw(dev, reg * 2);
 		} else {
-			ni_writew(dev, reg, Window_Address);
-			val = ni_readw(dev, Window_Data);
+			ni_writew(dev, reg, NI_E_STC_WINDOW_ADDR_REG);
+			val = ni_readw(dev, NI_E_STC_WINDOW_DATA_REG);
 		}
 		spin_unlock_irqrestore(&devpriv->window_lock, flags);
 	}
