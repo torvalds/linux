@@ -15,7 +15,7 @@ Contents:
   a) Discovering and configuring TCMU uio devices
   b) Waiting for events on the device(s)
   c) Managing the command ring
-3) Command filtering and pass_level
+3) Command filtering
 4) A final note
 
 
@@ -360,17 +360,13 @@ int handle_device_events(int fd, void *map)
 }
 
 
-Command filtering and pass_level
---------------------------------
+Command filtering
+-----------------
 
-TCMU supports a "pass_level" option with valid values of 0 or 1.  When
-the value is 0 (the default), nearly all SCSI commands received for
-the device are passed through to the handler. This allows maximum
-flexibility but increases the amount of code required by the handler,
-to support all mandatory SCSI commands. If pass_level is set to 1,
-then only IO-related commands are presented, and the rest are handled
-by LIO's in-kernel command emulation. The commands presented at level
-1 include all versions of:
+Initial TCMU support is for a filtered commandset.  Only IO-related
+commands are presented to userspace, and the rest are handled by LIO's
+in-kernel command emulation. The commands presented are all versions
+of:
 
 READ
 WRITE

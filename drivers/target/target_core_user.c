@@ -71,13 +71,6 @@ struct tcmu_hba {
 	u32 host_id;
 };
 
-/* User wants all cmds or just some */
-enum passthru_level {
-	TCMU_PASS_ALL = 0,
-	TCMU_PASS_IO,
-	TCMU_PASS_INVALID,
-};
-
 #define TCMU_CONFIG_LEN 256
 
 struct tcmu_dev {
@@ -89,7 +82,6 @@ struct tcmu_dev {
 #define TCMU_DEV_BIT_OPEN 0
 #define TCMU_DEV_BIT_BROKEN 1
 	unsigned long flags;
-	enum passthru_level pass_level;
 
 	struct uio_info uio_info;
 
@@ -683,8 +675,6 @@ static struct se_device *tcmu_alloc_device(struct se_hba *hba, const char *name)
 	setup_timer(&udev->timeout, tcmu_device_timedout,
 		(unsigned long)udev);
 
-	udev->pass_level = TCMU_PASS_ALL;
-
 	return &udev->se_dev;
 }
 
@@ -948,13 +938,12 @@ static void tcmu_free_device(struct se_device *dev)
 }
 
 enum {
-	Opt_dev_config, Opt_dev_size, Opt_err, Opt_pass_level,
+	Opt_dev_config, Opt_dev_size, Opt_err,
 };
 
 static match_table_t tokens = {
 	{Opt_dev_config, "dev_config=%s"},
 	{Opt_dev_size, "dev_size=%u"},
-	{Opt_pass_level, "pass_level=%u"},
 	{Opt_err, NULL}
 };
 
@@ -965,7 +954,6 @@ static ssize_t tcmu_set_configfs_dev_params(struct se_device *dev,
 	char *orig, *ptr, *opts, *arg_p;
 	substring_t args[MAX_OPT_ARGS];
 	int ret = 0, token;
-	int arg;
 
 	opts = kstrdup(page, GFP_KERNEL);
 	if (!opts)
@@ -998,16 +986,6 @@ static ssize_t tcmu_set_configfs_dev_params(struct se_device *dev,
 			if (ret < 0)
 				pr_err("kstrtoul() failed for dev_size=\n");
 			break;
-		case Opt_pass_level:
-			match_int(args, &arg);
-			if (arg >= TCMU_PASS_INVALID) {
-				pr_warn("TCMU: Invalid pass_level: %d\n", arg);
-				break;
-			}
-
-			pr_debug("TCMU: Setting pass_level to %d\n", arg);
-			udev->pass_level = arg;
-			break;
 		default:
 			break;
 		}
@@ -1024,8 +1002,7 @@ static ssize_t tcmu_show_configfs_dev_params(struct se_device *dev, char *b)
 
 	bl = sprintf(b + bl, "Config: %s ",
 		     udev->dev_config[0] ? udev->dev_config : "NULL");
-	bl += sprintf(b + bl, "Size: %zu PassLevel: %u\n",
-		      udev->dev_size, udev->pass_level);
+	bl += sprintf(b + bl, "Size: %zu\n", udev->dev_size);
 
 	return bl;
 }
@@ -1074,46 +1051,7 @@ static struct sbc_ops tcmu_sbc_ops = {
 static sense_reason_t
 tcmu_parse_cdb(struct se_cmd *cmd)
 {
-	unsigned char *cdb = cmd->t_task_cdb;
-	struct tcmu_dev *udev = TCMU_DEV(cmd->se_dev);
-	sense_reason_t ret;
-
-	switch (udev->pass_level) {
-	case TCMU_PASS_ALL:
-		/* We're just like pscsi, then */
-		/*
-		 * For REPORT LUNS we always need to emulate the response, for everything
-		 * else, pass it up.
-		 */
-		switch (cdb[0]) {
-		case REPORT_LUNS:
-			cmd->execute_cmd = spc_emulate_report_luns;
-			break;
-		case READ_6:
-		case READ_10:
-		case READ_12:
-		case READ_16:
-		case WRITE_6:
-		case WRITE_10:
-		case WRITE_12:
-		case WRITE_16:
-		case WRITE_VERIFY:
-			cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
-			/* FALLTHROUGH */
-		default:
-			cmd->execute_cmd = tcmu_pass_op;
-		}
-		ret = TCM_NO_SENSE;
-		break;
-	case TCMU_PASS_IO:
-		ret = sbc_parse_cdb(cmd, &tcmu_sbc_ops);
-		break;
-	default:
-		pr_err("Unknown tcm-user pass level %d\n", udev->pass_level);
-		ret = TCM_CHECK_CONDITION_ABORT_CMD;
-	}
-
-	return ret;
+	return sbc_parse_cdb(cmd, &tcmu_sbc_ops);
 }
 
 DEF_TB_DEFAULT_ATTRIBS(tcmu);
