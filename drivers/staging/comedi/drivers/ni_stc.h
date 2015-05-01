@@ -26,8 +26,6 @@
 
 #include "ni_tio.h"
 
-#define NUM_PFI_OUTPUT_SELECT_REGS 6
-
 /*
  * Registers in the National Instruments DAQ-STC chip
  */
@@ -714,34 +712,6 @@
 #define CS5529_CFG_CALIB_GAIN_SYS	CS5529_CFG_CALIB(6)
 
 /*
-	This is stuff unique to the NI E series drivers,
-	but I thought I'd put it here anyway.
-*/
-
-enum { ai_gain_16 =
-	    0, ai_gain_8, ai_gain_14, ai_gain_4, ai_gain_611x, ai_gain_622x,
-	ai_gain_628x, ai_gain_6143
-};
-enum caldac_enum { caldac_none = 0, mb88341, dac8800, dac8043, ad8522,
-	ad8804, ad8842, ad8804_debug
-};
-enum ni_reg_type {
-	ni_reg_normal = 0x0,
-	ni_reg_611x = 0x1,
-	ni_reg_6711 = 0x2,
-	ni_reg_6713 = 0x4,
-	ni_reg_67xx_mask = 0x6,
-	ni_reg_6xxx_mask = 0x7,
-	ni_reg_622x = 0x8,
-	ni_reg_625x = 0x10,
-	ni_reg_628x = 0x18,
-	ni_reg_m_series_mask = 0x18,
-	ni_reg_6143 = 0x20
-};
-
-static const struct comedi_lrange range_ni_E_ao_ext;
-
-/*
  * M-Series specific registers not handled by the DAQ-STC and GPCT register
  * remapping.
  */
@@ -935,7 +905,41 @@ static const struct comedi_lrange range_ni_E_ao_ext;
 #define NI_M_AO_REF_ATTENUATION_REG(x)	(0x264 + (x))
 #define NI_M_AO_REF_ATTENUATION_X5	BIT(0)
 
-#define M_SERIES_EEPROM_SIZE 1024
+enum {
+	ai_gain_16 = 0,
+	ai_gain_8,
+	ai_gain_14,
+	ai_gain_4,
+	ai_gain_611x,
+	ai_gain_622x,
+	ai_gain_628x,
+	ai_gain_6143
+};
+
+enum caldac_enum {
+	caldac_none = 0,
+	mb88341,
+	dac8800,
+	dac8043,
+	ad8522,
+	ad8804,
+	ad8842,
+	ad8804_debug
+};
+
+enum ni_reg_type {
+	ni_reg_normal = 0x0,
+	ni_reg_611x = 0x1,
+	ni_reg_6711 = 0x2,
+	ni_reg_6713 = 0x4,
+	ni_reg_67xx_mask = 0x6,
+	ni_reg_6xxx_mask = 0x7,
+	ni_reg_622x = 0x8,
+	ni_reg_625x = 0x10,
+	ni_reg_628x = 0x18,
+	ni_reg_m_series_mask = 0x18,
+	ni_reg_6143 = 0x20
+};
 
 struct ni_board_struct {
 	const char *name;
@@ -963,9 +967,13 @@ struct ni_board_struct {
 	enum caldac_enum caldac[3];
 };
 
-#define MAX_N_CALDACS	34
-#define MAX_N_AO_CHAN	8
-#define NUM_GPCT	2
+#define MAX_N_CALDACS			34
+#define MAX_N_AO_CHAN			8
+#define NUM_GPCT			2
+
+#define NUM_PFI_OUTPUT_SELECT_REGS	6
+
+#define M_SERIES_EEPROM_SIZE		1024
 
 struct ni_private {
 	unsigned short dio_output;
@@ -973,8 +981,11 @@ struct ni_private {
 	int aimode;
 	unsigned int ai_calib_source;
 	unsigned int ai_calib_source_enabled;
+	/* protects access to windowed registers */
 	spinlock_t window_lock;
+	/* protects interrupt/dma register access */
 	spinlock_t soft_reg_copy_lock;
+	/* protects mite DMA channel request/release */
 	spinlock_t mite_channel_lock;
 
 	int changain_state;
@@ -1045,5 +1056,7 @@ struct ni_private {
 	unsigned int is_6711:1;
 	unsigned int is_6713:1;
 };
+
+static const struct comedi_lrange range_ni_E_ao_ext;
 
 #endif /* _COMEDI_NI_STC_H */
