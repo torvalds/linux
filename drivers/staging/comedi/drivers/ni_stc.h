@@ -362,6 +362,17 @@
 #define NISTC_G0_AUTOINC_REG		68
 #define NISTC_G1_AUTOINC_REG		69
 
+#define NISTC_AO_MODE3_REG		70
+#define NISTC_AO_MODE3_UI2_SW_NEXT_TC		BIT(13)
+#define NISTC_AO_MODE3_UC_SW_EVERY_BC_TC	BIT(12)
+#define NISTC_AO_MODE3_TRIG_LEN			BIT(11)
+#define NISTC_AO_MODE3_STOP_ON_OVERRUN_ERR	BIT(5)
+#define NISTC_AO_MODE3_STOP_ON_BC_TC_TRIG_ERR	BIT(4)
+#define NISTC_AO_MODE3_STOP_ON_BC_TC_ERR	BIT(3)
+#define NISTC_AO_MODE3_NOT_AN_UPDATE		BIT(2)
+#define NISTC_AO_MODE3_SW_GATE			BIT(1)
+#define NISTC_AO_MODE3_LAST_GATE_DISABLE	BIT(0)	/* M-Series only */
+
 #define AI_Status_1_Register		2
 #define Interrupt_A_St				0x8000
 #define AI_FIFO_Full_St				0x4000
@@ -419,17 +430,6 @@ enum Joint_Status_2_Bits {
 #define AO_UI_Save_Registers		16
 #define AO_BC_Save_Registers		18
 #define AO_UC_Save_Registers		20
-
-#define AO_Mode_3_Register		70
-#define AO_UI2_Switch_Load_Next_TC		_bit13
-#define AO_UC_Switch_Load_Every_BC_TC		_bit12
-#define AO_Trigger_Length			_bit11
-#define AO_Stop_On_Overrun_Error		_bit5
-#define AO_Stop_On_BC_TC_Trigger_Error		_bit4
-#define AO_Stop_On_BC_TC_Error			_bit3
-#define AO_Not_An_UPDATE			_bit2
-#define AO_Software_Gate			_bit1
-#define AO_Last_Gate_Disable		_bit0	/* M Series only */
 
 #define Joint_Reset_Register		72
 #define Software_Reset			_bit11

@@ -364,7 +364,7 @@ static const struct mio_regmap m_series_stc_write_regmap[] = {
 	[NISTC_AO_TRIG_SEL_REG]		= { 0x186, 2 },
 	[NISTC_G0_AUTOINC_REG]		= { 0x188, 2 },
 	[NISTC_G1_AUTOINC_REG]		= { 0x18a, 2 },
-	[AO_Mode_3_Register]		= { 0x18c, 2 },
+	[NISTC_AO_MODE3_REG]		= { 0x18c, 2 },
 	[Joint_Reset_Register]		= { 0x190, 2 },
 	[Interrupt_A_Enable_Register]	= { 0x192, 2 },
 	[Second_IRQ_A_Enable_Register]	= { 0, 0 }, /* E-Series only */
@@ -2857,9 +2857,9 @@ static int ni_ao_inttrig(struct comedi_device *dev,
 	interrupt_b_bits |= AO_FIFO_Interrupt_Enable;
 #endif
 
-	ni_stc_writew(dev, devpriv->ao_mode3 | AO_Not_An_UPDATE,
-		      AO_Mode_3_Register);
-	ni_stc_writew(dev, devpriv->ao_mode3, AO_Mode_3_Register);
+	ni_stc_writew(dev, devpriv->ao_mode3 | NISTC_AO_MODE3_NOT_AN_UPDATE,
+		      NISTC_AO_MODE3_REG);
+	ni_stc_writew(dev, devpriv->ao_mode3, NISTC_AO_MODE3_REG);
 	/* wait for DACs to be loaded */
 	for (i = 0; i < timeout; i++) {
 		udelay(1);
@@ -2967,8 +2967,8 @@ static int ni_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->ao_trigger_select = val;
 	ni_stc_writew(dev, devpriv->ao_trigger_select, NISTC_AO_TRIG_SEL_REG);
 
-	devpriv->ao_mode3 &= ~AO_Trigger_Length;
-	ni_stc_writew(dev, devpriv->ao_mode3, AO_Mode_3_Register);
+	devpriv->ao_mode3 &= ~NISTC_AO_MODE3_TRIG_LEN;
+	ni_stc_writew(dev, devpriv->ao_mode3, NISTC_AO_MODE3_REG);
 
 	ni_stc_writew(dev, devpriv->ao_mode1, NISTC_AO_MODE1_REG);
 	devpriv->ao_mode2 &= ~NISTC_AO_MODE2_BC_INIT_LOAD_SRC;
@@ -3064,8 +3064,8 @@ static int ni_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			   NISTC_AO_CMD1_DAC0_UPDATE_MODE,
 		      NISTC_AO_CMD1_REG);
 
-	devpriv->ao_mode3 |= AO_Stop_On_Overrun_Error;
-	ni_stc_writew(dev, devpriv->ao_mode3, AO_Mode_3_Register);
+	devpriv->ao_mode3 |= NISTC_AO_MODE3_STOP_ON_OVERRUN_ERR;
+	ni_stc_writew(dev, devpriv->ao_mode3, NISTC_AO_MODE3_REG);
 
 	devpriv->ao_mode2 &= ~NISTC_AO_MODE2_FIFO_MODE_MASK;
 #ifdef PCIDMA
@@ -3213,10 +3213,10 @@ static int ni_ao_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 	devpriv->ao_mode2 = 0;
 	ni_stc_writew(dev, devpriv->ao_mode2, NISTC_AO_MODE2_REG);
 	if (devpriv->is_m_series)
-		devpriv->ao_mode3 = AO_Last_Gate_Disable;
+		devpriv->ao_mode3 = NISTC_AO_MODE3_LAST_GATE_DISABLE;
 	else
 		devpriv->ao_mode3 = 0;
-	ni_stc_writew(dev, devpriv->ao_mode3, AO_Mode_3_Register);
+	ni_stc_writew(dev, devpriv->ao_mode3, NISTC_AO_MODE3_REG);
 	devpriv->ao_trigger_select = 0;
 	ni_stc_writew(dev, devpriv->ao_trigger_select,
 		      NISTC_AO_TRIG_SEL_REG);
