@@ -107,8 +107,8 @@ extern int arizona_mixer_values[ARIZONA_NUM_MIXER_INPUTS];
 			     arizona_mixer_tlv)
 
 #define ARIZONA_MUX_ENUM_DECL(name, reg) \
-	SOC_VALUE_ENUM_SINGLE_DECL(name, reg, 0, 0xff,			\
-				   arizona_mixer_texts, arizona_mixer_values)
+	SOC_VALUE_ENUM_SINGLE_AUTODISABLE_DECL( \
+		name, reg, 0, 0xff, arizona_mixer_texts, arizona_mixer_values)
 
 #define ARIZONA_MUX_CTL_DECL(name) \
 	const struct snd_kcontrol_new name##_mux =	\
