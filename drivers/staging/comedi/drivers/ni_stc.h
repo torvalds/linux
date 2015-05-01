@@ -638,13 +638,13 @@ static inline unsigned GPCT_DMA_Select_Mask(unsigned gpct_index)
 #define NI_E_AO_DEGLITCH		BIT(1)
 #define NI_E_AO_CFG_BIP			BIT(0)
 
+#define NI_E_DAC_DIRECT_DATA_REG(x)	(0x18 + ((x) * 2)) /* w16 */
+
 #define NI_E_8255_BASE			0x19	/* rw8 */
 
 #define NI_E_AI_FIFO_DATA_REG		0x1c	/* r16 */
 
 #define NI_E_AO_FIFO_DATA_REG		0x1e	/* w16 */
-#define DAC0_Direct_Data		0x18
-#define DAC1_Direct_Data		0x1a
 
 /* 611x registers (these boards differ from the e-series) */
 

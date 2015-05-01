@@ -2733,7 +2733,7 @@ static int ni_ao_insn_write(struct comedi_device *dev,
 	} else if (devpriv->is_m_series) {
 		reg = NI_M_DAC_DIRECT_DATA_REG(chan);
 	} else {
-		reg = (chan) ? DAC1_Direct_Data : DAC0_Direct_Data;
+		reg = NI_E_DAC_DIRECT_DATA_REG(chan);
 	}
 
 	ni_ao_config_chanlist(dev, s, &insn->chanspec, 1, 0);
