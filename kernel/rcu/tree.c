@@ -3290,7 +3290,7 @@ void synchronize_sched_expedited(void)
 	if (ULONG_CMP_GE((ulong)atomic_long_read(&rsp->expedited_start),
 			 (ulong)atomic_long_read(&rsp->expedited_done) +
 			 ULONG_MAX / 8)) {
-		synchronize_sched();
+		wait_rcu_gp(call_rcu_sched);
 		atomic_long_inc(&rsp->expedited_wrap);
 		return;
 	}
