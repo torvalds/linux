@@ -4512,7 +4512,7 @@ static int cs5529_do_conversion(struct comedi_device *dev,
 	int retval;
 	unsigned short status;
 
-	cs5529_command(dev, CSCMD_COMMAND | CSCMD_SINGLE_CONVERSION);
+	cs5529_command(dev, CS5529_CMD_CB | CS5529_CMD_SINGLE_CONV);
 	retval = cs5529_wait_for_idle(dev);
 	if (retval) {
 		dev_err(dev->class_dev,
@@ -4572,8 +4572,8 @@ static void cs5529_config_write(struct comedi_device *dev, unsigned int value,
 		       CAL_ADC_Config_Data_High_Word_67xx);
 	ni_ao_win_outw(dev, (value & 0xffff),
 		       CAL_ADC_Config_Data_Low_Word_67xx);
-	reg_select_bits &= CSCMD_REGISTER_SELECT_MASK;
-	cs5529_command(dev, CSCMD_COMMAND | reg_select_bits);
+	reg_select_bits &= CS5529_CMD_REG_MASK;
+	cs5529_command(dev, CS5529_CMD_CB | reg_select_bits);
 	if (cs5529_wait_for_idle(dev))
 		dev_err(dev->class_dev,
 			"timeout or signal in %s\n", __func__);
@@ -4587,14 +4587,14 @@ static int init_cs5529(struct comedi_device *dev)
 #if 1
 	/* do self-calibration */
 	cs5529_config_write(dev, config_bits | CS5529_CFG_CALIB_BOTH_SELF,
-			    CSCMD_CONFIG_REGISTER);
+			    CS5529_CFG_REG);
 	/* need to force a conversion for calibration to run */
 	cs5529_do_conversion(dev, NULL);
 #else
 	/* force gain calibration to 1 */
-	cs5529_config_write(dev, 0x400000, CSCMD_GAIN_REGISTER);
+	cs5529_config_write(dev, 0x400000, CS5529_GAIN_REG);
 	cs5529_config_write(dev, config_bits | CS5529_CFG_CALIB_OFFSET_SELF,
-			    CSCMD_CONFIG_REGISTER);
+			    CS5529_CFG_REG);
 	if (cs5529_wait_for_idle(dev))
 		dev_err(dev->class_dev,
 			"timeout or signal in %s\n", __func__);
