@@ -153,9 +153,8 @@ struct kvm_arch_memory_slot {
 };
 
 struct kvm_arch {
-	/* Guest GVA->HPA page table */
-	unsigned long *guest_pmap;
-	unsigned long guest_pmap_npages;
+	/* Guest physical mm */
+	struct mm_struct gpa_mm;
 };
 
 #define N_MIPS_COPROC_REGS	32
@@ -636,6 +635,8 @@ enum kvm_mips_flush {
 	KMF_GPA		= 0x2,
 };
 void kvm_mips_flush_gva_pt(pgd_t *pgd, enum kvm_mips_flush flags);
+bool kvm_mips_flush_gpa_pt(struct kvm *kvm, gfn_t start_gfn, gfn_t end_gfn);
+pgd_t *kvm_pgd_alloc(void);
 void kvm_mmu_free_memory_caches(struct kvm_vcpu *vcpu);
 void kvm_trap_emul_invalidate_gva(struct kvm_vcpu *vcpu, unsigned long addr,
 				  bool user);

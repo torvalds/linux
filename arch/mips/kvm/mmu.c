@@ -63,6 +63,63 @@ void kvm_mmu_free_memory_caches(struct kvm_vcpu *vcpu)
 }
 
 /**
+ * kvm_pgd_init() - Initialise KVM GPA page directory.
+ * @page:	Pointer to page directory (PGD) for KVM GPA.
+ *
+ * Initialise a KVM GPA page directory with pointers to the invalid table, i.e.
+ * representing no mappings. This is similar to pgd_init(), however it
+ * initialises all the page directory pointers, not just the ones corresponding
+ * to the userland address space (since it is for the guest physical address
+ * space rather than a virtual address space).
+ */
+static void kvm_pgd_init(void *page)
+{
+	unsigned long *p, *end;
+	unsigned long entry;
+
+#ifdef __PAGETABLE_PMD_FOLDED
+	entry = (unsigned long)invalid_pte_table;
+#else
+	entry = (unsigned long)invalid_pmd_table;
+#endif
+
+	p = (unsigned long *)page;
+	end = p + PTRS_PER_PGD;
+
+	do {
+		p[0] = entry;
+		p[1] = entry;
+		p[2] = entry;
+		p[3] = entry;
+		p[4] = entry;
+		p += 8;
+		p[-3] = entry;
+		p[-2] = entry;
+		p[-1] = entry;
+	} while (p != end);
+}
+
+/**
+ * kvm_pgd_alloc() - Allocate and initialise a KVM GPA page directory.
+ *
+ * Allocate a blank KVM GPA page directory (PGD) for representing guest physical
+ * to host physical page mappings.
+ *
+ * Returns:	Pointer to new KVM GPA page directory.
+ *		NULL on allocation failure.
+ */
+pgd_t *kvm_pgd_alloc(void)
+{
+	pgd_t *ret;
+
+	ret = (pgd_t *)__get_free_pages(GFP_KERNEL, PGD_ORDER);
+	if (ret)
+		kvm_pgd_init(ret);
+
+	return ret;
+}
+
+/**
  * kvm_mips_walk_pgd() - Walk page table with optional allocation.
  * @pgd:	Page directory pointer.
  * @addr:	Address to index page table using.
@@ -112,15 +169,182 @@ static pte_t *kvm_mips_walk_pgd(pgd_t *pgd, struct kvm_mmu_memory_cache *cache,
 	return pte_offset(pmd, addr);
 }
 
-static int kvm_mips_map_page(struct kvm *kvm, gfn_t gfn)
+/* Caller must hold kvm->mm_lock */
+static pte_t *kvm_mips_pte_for_gpa(struct kvm *kvm,
+				   struct kvm_mmu_memory_cache *cache,
+				   unsigned long addr)
 {
-	int srcu_idx, err = 0;
-	kvm_pfn_t pfn;
+	return kvm_mips_walk_pgd(kvm->arch.gpa_mm.pgd, cache, addr);
+}
 
-	if (kvm->arch.guest_pmap[gfn] != KVM_INVALID_PAGE)
-		return 0;
+/*
+ * kvm_mips_flush_gpa_{pte,pmd,pud,pgd,pt}.
+ * Flush a range of guest physical address space from the VM's GPA page tables.
+ */
+
+static bool kvm_mips_flush_gpa_pte(pte_t *pte, unsigned long start_gpa,
+				   unsigned long end_gpa)
+{
+	int i_min = __pte_offset(start_gpa);
+	int i_max = __pte_offset(end_gpa);
+	bool safe_to_remove = (i_min == 0 && i_max == PTRS_PER_PTE - 1);
+	int i;
+
+	for (i = i_min; i <= i_max; ++i) {
+		if (!pte_present(pte[i]))
+			continue;
+
+		kvm_release_pfn_clean(pte_pfn(pte[i]));
+		set_pte(pte + i, __pte(0));
+	}
+	return safe_to_remove;
+}
+
+static bool kvm_mips_flush_gpa_pmd(pmd_t *pmd, unsigned long start_gpa,
+				   unsigned long end_gpa)
+{
+	pte_t *pte;
+	unsigned long end = ~0ul;
+	int i_min = __pmd_offset(start_gpa);
+	int i_max = __pmd_offset(end_gpa);
+	bool safe_to_remove = (i_min == 0 && i_max == PTRS_PER_PMD - 1);
+	int i;
+
+	for (i = i_min; i <= i_max; ++i, start_gpa = 0) {
+		if (!pmd_present(pmd[i]))
+			continue;
+
+		pte = pte_offset(pmd + i, 0);
+		if (i == i_max)
+			end = end_gpa;
+
+		if (kvm_mips_flush_gpa_pte(pte, start_gpa, end)) {
+			pmd_clear(pmd + i);
+			pte_free_kernel(NULL, pte);
+		} else {
+			safe_to_remove = false;
+		}
+	}
+	return safe_to_remove;
+}
+
+static bool kvm_mips_flush_gpa_pud(pud_t *pud, unsigned long start_gpa,
+				   unsigned long end_gpa)
+{
+	pmd_t *pmd;
+	unsigned long end = ~0ul;
+	int i_min = __pud_offset(start_gpa);
+	int i_max = __pud_offset(end_gpa);
+	bool safe_to_remove = (i_min == 0 && i_max == PTRS_PER_PUD - 1);
+	int i;
+
+	for (i = i_min; i <= i_max; ++i, start_gpa = 0) {
+		if (!pud_present(pud[i]))
+			continue;
+
+		pmd = pmd_offset(pud + i, 0);
+		if (i == i_max)
+			end = end_gpa;
+
+		if (kvm_mips_flush_gpa_pmd(pmd, start_gpa, end)) {
+			pud_clear(pud + i);
+			pmd_free(NULL, pmd);
+		} else {
+			safe_to_remove = false;
+		}
+	}
+	return safe_to_remove;
+}
+
+static bool kvm_mips_flush_gpa_pgd(pgd_t *pgd, unsigned long start_gpa,
+				   unsigned long end_gpa)
+{
+	pud_t *pud;
+	unsigned long end = ~0ul;
+	int i_min = pgd_index(start_gpa);
+	int i_max = pgd_index(end_gpa);
+	bool safe_to_remove = (i_min == 0 && i_max == PTRS_PER_PGD - 1);
+	int i;
+
+	for (i = i_min; i <= i_max; ++i, start_gpa = 0) {
+		if (!pgd_present(pgd[i]))
+			continue;
+
+		pud = pud_offset(pgd + i, 0);
+		if (i == i_max)
+			end = end_gpa;
+
+		if (kvm_mips_flush_gpa_pud(pud, start_gpa, end)) {
+			pgd_clear(pgd + i);
+			pud_free(NULL, pud);
+		} else {
+			safe_to_remove = false;
+		}
+	}
+	return safe_to_remove;
+}
+
+/**
+ * kvm_mips_flush_gpa_pt() - Flush a range of guest physical addresses.
+ * @kvm:	KVM pointer.
+ * @start_gfn:	Guest frame number of first page in GPA range to flush.
+ * @end_gfn:	Guest frame number of last page in GPA range to flush.
+ *
+ * Flushes a range of GPA mappings from the GPA page tables.
+ *
+ * The caller must hold the @kvm->mmu_lock spinlock.
+ *
+ * Returns:	Whether its safe to remove the top level page directory because
+ *		all lower levels have been removed.
+ */
+bool kvm_mips_flush_gpa_pt(struct kvm *kvm, gfn_t start_gfn, gfn_t end_gfn)
+{
+	return kvm_mips_flush_gpa_pgd(kvm->arch.gpa_mm.pgd,
+				      start_gfn << PAGE_SHIFT,
+				      end_gfn << PAGE_SHIFT);
+}
+
+/**
+ * kvm_mips_map_page() - Map a guest physical page.
+ * @vcpu:		VCPU pointer.
+ * @gpa:		Guest physical address of fault.
+ * @out_entry:		New PTE for @gpa (written on success unless NULL).
+ * @out_buddy:		New PTE for @gpa's buddy (written on success unless
+ *			NULL).
+ *
+ * Handle GPA faults by creating a new GPA mapping (or updating an existing
+ * one).
+ *
+ * This takes care of asking KVM for the corresponding PFN, and creating a
+ * mapping in the GPA page tables. Derived mappings (GVA page tables and TLBs)
+ * must be handled by the caller.
+ *
+ * Returns:	0 on success, in which case the caller may use the @out_entry
+ *		and @out_buddy PTEs to update derived mappings and resume guest
+ *		execution.
+ *		-EFAULT if there is no memory region at @gpa or a write was
+ *		attempted to a read-only memory region. This is usually handled
+ *		as an MMIO access.
+ */
+static int kvm_mips_map_page(struct kvm_vcpu *vcpu, unsigned long gpa,
+			     pte_t *out_entry, pte_t *out_buddy)
+{
+	struct kvm *kvm = vcpu->kvm;
+	struct kvm_mmu_memory_cache *memcache = &vcpu->arch.mmu_page_cache;
+	gfn_t gfn = gpa >> PAGE_SHIFT;
+	int srcu_idx, err;
+	kvm_pfn_t pfn;
+	pte_t *ptep, entry, old_pte;
+	unsigned long prot_bits;
 
 	srcu_idx = srcu_read_lock(&kvm->srcu);
+
+	/* We need a minimum of cached pages ready for page table creation */
+	err = mmu_topup_memory_cache(memcache, KVM_MMU_CACHE_MIN_PAGES,
+				     KVM_NR_MEM_OBJS);
+	if (err)
+		goto out;
+
 	pfn = gfn_to_pfn(kvm, gfn);
 
 	if (is_error_noslot_pfn(pfn)) {
@@ -129,7 +353,25 @@ static int kvm_mips_map_page(struct kvm *kvm, gfn_t gfn)
 		goto out;
 	}
 
-	kvm->arch.guest_pmap[gfn] = pfn;
+	spin_lock(&kvm->mmu_lock);
+
+	ptep = kvm_mips_pte_for_gpa(kvm, memcache, gpa);
+
+	prot_bits = __READABLE | _PAGE_PRESENT | __WRITEABLE;
+	entry = pfn_pte(pfn, __pgprot(prot_bits));
+
+	old_pte = *ptep;
+	set_pte(ptep, entry);
+	if (pte_present(old_pte))
+		kvm_release_pfn_clean(pte_pfn(old_pte));
+
+	err = 0;
+	if (out_entry)
+		*out_entry = *ptep;
+	if (out_buddy)
+		*out_buddy = *ptep_buddy(ptep);
+
+	spin_unlock(&kvm->mmu_lock);
 out:
 	srcu_read_unlock(&kvm->srcu, srcu_idx);
 	return err;
@@ -318,11 +560,10 @@ void kvm_mips_flush_gva_pt(pgd_t *pgd, enum kvm_mips_flush flags)
 int kvm_mips_handle_kseg0_tlb_fault(unsigned long badvaddr,
 				    struct kvm_vcpu *vcpu)
 {
-	gfn_t gfn;
+	unsigned long gpa;
 	kvm_pfn_t pfn0, pfn1;
-	unsigned long vaddr = 0;
-	struct kvm *kvm = vcpu->kvm;
-	pte_t *ptep_gva;
+	unsigned long vaddr;
+	pte_t pte_gpa[2], *ptep_gva;
 
 	if (KVM_GUEST_KSEGX(badvaddr) != KVM_GUEST_KSEG0) {
 		kvm_err("%s: Invalid BadVaddr: %#lx\n", __func__, badvaddr);
@@ -332,23 +573,17 @@ int kvm_mips_handle_kseg0_tlb_fault(unsigned long badvaddr,
 
 	/* Find host PFNs */
 
-	gfn = (KVM_GUEST_CPHYSADDR(badvaddr) >> PAGE_SHIFT);
-	if ((gfn | 1) >= kvm->arch.guest_pmap_npages) {
-		kvm_err("%s: Invalid gfn: %#llx, BadVaddr: %#lx\n", __func__,
-			gfn, badvaddr);
-		kvm_mips_dump_host_tlbs();
-		return -1;
-	}
+	gpa = KVM_GUEST_CPHYSADDR(badvaddr & (PAGE_MASK << 1));
 	vaddr = badvaddr & (PAGE_MASK << 1);
 
-	if (kvm_mips_map_page(vcpu->kvm, gfn) < 0)
+	if (kvm_mips_map_page(vcpu, gpa, &pte_gpa[0], NULL) < 0)
 		return -1;
 
-	if (kvm_mips_map_page(vcpu->kvm, gfn ^ 0x1) < 0)
+	if (kvm_mips_map_page(vcpu, gpa | PAGE_SIZE, &pte_gpa[1], NULL) < 0)
 		return -1;
 
-	pfn0 = kvm->arch.guest_pmap[gfn & ~0x1];
-	pfn1 = kvm->arch.guest_pmap[gfn | 0x1];
+	pfn0 = pte_pfn(pte_gpa[0]);
+	pfn1 = pte_pfn(pte_gpa[1]);
 
 	/* Find GVA page table entry */
 
@@ -371,11 +606,9 @@ int kvm_mips_handle_mapped_seg_tlb_fault(struct kvm_vcpu *vcpu,
 					 struct kvm_mips_tlb *tlb,
 					 unsigned long gva)
 {
-	struct kvm *kvm = vcpu->kvm;
 	kvm_pfn_t pfn;
-	gfn_t gfn;
 	long tlb_lo = 0;
-	pte_t *ptep_gva;
+	pte_t pte_gpa, *ptep_gva;
 	unsigned int idx;
 	bool kernel = KVM_GUEST_KERNEL_MODE(vcpu);
 
@@ -388,16 +621,10 @@ int kvm_mips_handle_mapped_seg_tlb_fault(struct kvm_vcpu *vcpu,
 		tlb_lo = tlb->tlb_lo[idx];
 
 	/* Find host PFN */
-	gfn = mips3_tlbpfn_to_paddr(tlb_lo) >> PAGE_SHIFT;
-	if (gfn >= kvm->arch.guest_pmap_npages) {
-		kvm_err("%s: Invalid gfn: %#llx, EHi: %#lx\n",
-			__func__, gfn, tlb->tlb_hi);
-		kvm_mips_dump_guest_tlbs(vcpu);
+	if (kvm_mips_map_page(vcpu, mips3_tlbpfn_to_paddr(tlb_lo), &pte_gpa,
+			      NULL) < 0)
 		return -1;
-	}
-	if (kvm_mips_map_page(kvm, gfn) < 0)
-		return -1;
-	pfn = kvm->arch.guest_pmap[gfn];
+	pfn = pte_pfn(pte_gpa);
 
 	/* Find GVA page table entry */
 	ptep_gva = kvm_trap_emul_pte_for_gva(vcpu, gva);

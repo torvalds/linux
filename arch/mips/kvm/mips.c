@@ -22,6 +22,7 @@
 #include <asm/page.h>
 #include <asm/cacheflush.h>
 #include <asm/mmu_context.h>
+#include <asm/pgalloc.h>
 #include <asm/pgtable.h>
 
 #include <linux/kvm_host.h>
@@ -94,6 +95,11 @@ void kvm_arch_check_processor_compat(void *rtn)
 
 int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 {
+	/* Allocate page table to map GPA -> RPA */
+	kvm->arch.gpa_mm.pgd = kvm_pgd_alloc();
+	if (!kvm->arch.gpa_mm.pgd)
+		return -ENOMEM;
+
 	return 0;
 }
 
@@ -112,13 +118,6 @@ void kvm_mips_free_vcpus(struct kvm *kvm)
 	unsigned int i;
 	struct kvm_vcpu *vcpu;
 
-	/* Put the pages we reserved for the guest pmap */
-	for (i = 0; i < kvm->arch.guest_pmap_npages; i++) {
-		if (kvm->arch.guest_pmap[i] != KVM_INVALID_PAGE)
-			kvm_release_pfn_clean(kvm->arch.guest_pmap[i]);
-	}
-	kfree(kvm->arch.guest_pmap);
-
 	kvm_for_each_vcpu(i, vcpu, kvm) {
 		kvm_arch_vcpu_free(vcpu);
 	}
@@ -133,9 +132,17 @@ void kvm_mips_free_vcpus(struct kvm *kvm)
 	mutex_unlock(&kvm->lock);
 }
 
+static void kvm_mips_free_gpa_pt(struct kvm *kvm)
+{
+	/* It should always be safe to remove after flushing the whole range */
+	WARN_ON(!kvm_mips_flush_gpa_pt(kvm, 0, ~0));
+	pgd_free(NULL, kvm->arch.gpa_mm.pgd);
+}
+
 void kvm_arch_destroy_vm(struct kvm *kvm)
 {
 	kvm_mips_free_vcpus(kvm);
+	kvm_mips_free_gpa_pt(kvm);
 }
 
 long kvm_arch_dev_ioctl(struct file *filp, unsigned int ioctl,
@@ -164,36 +171,9 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 				   const struct kvm_memory_slot *new,
 				   enum kvm_mr_change change)
 {
-	unsigned long npages = 0;
-	int i;
-
 	kvm_debug("%s: kvm: %p slot: %d, GPA: %llx, size: %llx, QVA: %llx\n",
 		  __func__, kvm, mem->slot, mem->guest_phys_addr,
 		  mem->memory_size, mem->userspace_addr);
-
-	/* Setup Guest PMAP table */
-	if (!kvm->arch.guest_pmap) {
-		if (mem->slot == 0)
-			npages = mem->memory_size >> PAGE_SHIFT;
-
-		if (npages) {
-			kvm->arch.guest_pmap_npages = npages;
-			kvm->arch.guest_pmap =
-			    kzalloc(npages * sizeof(unsigned long), GFP_KERNEL);
-
-			if (!kvm->arch.guest_pmap) {
-				kvm_err("Failed to allocate guest PMAP\n");
-				return;
-			}
-
-			kvm_debug("Allocated space for Guest PMAP Table (%ld pages) @ %p\n",
-				  npages, kvm->arch.guest_pmap);
-
-			/* Now setup the page table */
-			for (i = 0; i < npages; i++)
-				kvm->arch.guest_pmap[i] = KVM_INVALID_PAGE;
-		}
-	}
 }
 
 static inline void dump_handler(const char *symbol, void *start, void *end)
