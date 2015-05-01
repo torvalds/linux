@@ -419,6 +419,20 @@
 #define NISTC_INTB_ENA_AO_START1	BIT(1)
 #define NISTC_INTB_ENA_AO_BC_TC		BIT(0)
 
+#define NISTC_AI_PERSONAL_REG		77
+#define NISTC_AI_PERSONAL_SHIFTIN_PW		BIT(15)
+#define NISTC_AI_PERSONAL_EOC_POLARITY		BIT(14)
+#define NISTC_AI_PERSONAL_SOC_POLARITY		BIT(13)
+#define NISTC_AI_PERSONAL_SHIFTIN_POL		BIT(12)
+#define NISTC_AI_PERSONAL_CONVERT_TIMEBASE	BIT(11)
+#define NISTC_AI_PERSONAL_CONVERT_PW		BIT(10)
+#define NISTC_AI_PERSONAL_CONVERT_ORIG_PULSE	BIT(9)
+#define NISTC_AI_PERSONAL_FIFO_FLAGS_POL	BIT(8)
+#define NISTC_AI_PERSONAL_OVERRUN_MODE		BIT(7)
+#define NISTC_AI_PERSONAL_EXTMUX_CLK_PW		BIT(6)
+#define NISTC_AI_PERSONAL_LOCALMUX_CLK_PW	BIT(5)
+#define NISTC_AI_PERSONAL_AIFREQ_POL		BIT(4)
+
 #define AI_Status_1_Register		2
 #define Interrupt_A_St				0x8000
 #define AI_FIFO_Full_St				0x4000
@@ -476,20 +490,6 @@ enum Joint_Status_2_Bits {
 #define AO_UI_Save_Registers		16
 #define AO_BC_Save_Registers		18
 #define AO_UC_Save_Registers		20
-
-#define AI_Personal_Register		77
-#define AI_SHIFTIN_Pulse_Width			_bit15
-#define AI_EOC_Polarity				_bit14
-#define AI_SOC_Polarity				_bit13
-#define AI_SHIFTIN_Polarity			_bit12
-#define AI_CONVERT_Pulse_Timebase		_bit11
-#define AI_CONVERT_Pulse_Width			_bit10
-#define AI_CONVERT_Original_Pulse		_bit9
-#define AI_FIFO_Flags_Polarity			_bit8
-#define AI_Overrun_Mode				_bit7
-#define AI_EXTMUX_CLK_Pulse_Width		_bit6
-#define AI_LOCALMUX_CLK_Pulse_Width		_bit5
-#define AI_AIFREQ_Polarity			_bit4
 
 #define AO_Personal_Register		78
 enum AO_Personal_Bits {

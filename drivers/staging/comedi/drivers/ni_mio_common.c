@@ -370,7 +370,7 @@ static const struct mio_regmap m_series_stc_write_regmap[] = {
 	[NISTC_INTA2_ENA_REG]		= { 0, 0 }, /* E-Series only */
 	[NISTC_INTB_ENA_REG]		= { 0x196, 2 },
 	[NISTC_INTB2_ENA_REG]		= { 0, 0 }, /* E-Series only */
-	[AI_Personal_Register]		= { 0x19a, 2 },
+	[NISTC_AI_PERSONAL_REG]		= { 0x19a, 2 },
 	[AO_Personal_Register]		= { 0x19c, 2 },
 	[RTSI_Trig_A_Output_Register]	= { 0x19e, 2 },
 	[RTSI_Trig_B_Output_Register]	= { 0x1a0, 2 },
@@ -1608,6 +1608,7 @@ static int ni_ao_setup_MITE_dma(struct comedi_device *dev)
 static int ni_ai_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct ni_private *devpriv = dev->private;
+	unsigned ai_personal;
 	unsigned ai_out_ctrl;
 
 	ni_release_ai_mite_channel(dev);
@@ -1631,35 +1632,25 @@ static int ni_ai_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 	/* generate FIFO interrupts on non-empty */
 	ni_stc_writew(dev, (0 << 6) | 0x0000, AI_Mode_3_Register);
 
+	ai_personal = NISTC_AI_PERSONAL_SHIFTIN_PW |
+		      NISTC_AI_PERSONAL_SOC_POLARITY |
+		      NISTC_AI_PERSONAL_LOCALMUX_CLK_PW;
 	ai_out_ctrl = NISTC_AI_OUT_CTRL_SCAN_IN_PROG_SEL(3) |
 		      NISTC_AI_OUT_CTRL_EXTMUX_CLK_SEL(0) |
 		      NISTC_AI_OUT_CTRL_LOCALMUX_CLK_SEL(2) |
 		      NISTC_AI_OUT_CTRL_SC_TC_SEL(3);
 	if (devpriv->is_611x) {
-		ni_stc_writew(dev,
-			      AI_SHIFTIN_Pulse_Width |
-			      AI_SOC_Polarity |
-			      AI_LOCALMUX_CLK_Pulse_Width,
-			      AI_Personal_Register);
 		ai_out_ctrl |= NISTC_AI_OUT_CTRL_CONVERT_HIGH;
 	} else if (devpriv->is_6143) {
-		ni_stc_writew(dev, AI_SHIFTIN_Pulse_Width |
-				   AI_SOC_Polarity |
-				   AI_LOCALMUX_CLK_Pulse_Width,
-			      AI_Personal_Register);
 		ai_out_ctrl |= NISTC_AI_OUT_CTRL_CONVERT_LOW;
 	} else {
-		ni_stc_writew(dev,
-			      AI_SHIFTIN_Pulse_Width |
-			      AI_SOC_Polarity |
-			      AI_CONVERT_Pulse_Width |
-			      AI_LOCALMUX_CLK_Pulse_Width,
-			      AI_Personal_Register);
+		ai_personal |= NISTC_AI_PERSONAL_CONVERT_PW;
 		if (devpriv->is_622x)
 			ai_out_ctrl |= NISTC_AI_OUT_CTRL_CONVERT_HIGH;
 		else
 			ai_out_ctrl |= NISTC_AI_OUT_CTRL_CONVERT_LOW;
 	}
+	ni_stc_writew(dev, ai_personal, NISTC_AI_PERSONAL_REG);
 	ni_stc_writew(dev, ai_out_ctrl, NISTC_AI_OUT_CTRL_REG);
 
 	/* the following registers should not be changed, because there
@@ -1667,7 +1658,7 @@ static int ni_ai_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 	 * any of these, add a backup register and other appropriate code:
 	 *      NISTC_AI_MODE1_REG
 	 *      AI_Mode_3_Register
-	 *      AI_Personal_Register
+	 *      NISTC_AI_PERSONAL_REG
 	 *      NISTC_AI_OUT_CTRL_REG
 	 */
 
