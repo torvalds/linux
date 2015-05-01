@@ -1727,6 +1727,7 @@ int ceph_setattr(struct dentry *dentry, struct iattr *attr)
 	int mask = 0;
 	int err = 0;
 	int inode_dirty_flags = 0;
+	bool lock_snap_rwsem = false;
 
 	if (ceph_snap(inode) != CEPH_NOSNAP)
 		return -EROFS;
@@ -1742,6 +1743,18 @@ int ceph_setattr(struct dentry *dentry, struct iattr *attr)
 
 	spin_lock(&ci->i_ceph_lock);
 	issued = __ceph_caps_issued(ci, NULL);
+
+	if (!ci->i_head_snapc &&
+	    (issued & (CEPH_CAP_ANY_EXCL | CEPH_CAP_FILE_WR))) {
+		lock_snap_rwsem = true;
+		if (!down_read_trylock(&mdsc->snap_rwsem)) {
+			spin_unlock(&ci->i_ceph_lock);
+			down_read(&mdsc->snap_rwsem);
+			spin_lock(&ci->i_ceph_lock);
+			issued = __ceph_caps_issued(ci, NULL);
+		}
+	}
+
 	dout("setattr %p issued %s\n", inode, ceph_cap_string(issued));
 
 	if (ia_valid & ATTR_UID) {
@@ -1890,6 +1903,8 @@ int ceph_setattr(struct dentry *dentry, struct iattr *attr)
 
 	release &= issued;
 	spin_unlock(&ci->i_ceph_lock);
+	if (lock_snap_rwsem)
+		up_read(&mdsc->snap_rwsem);
 
 	if (inode_dirty_flags)
 		__mark_inode_dirty(inode, inode_dirty_flags);

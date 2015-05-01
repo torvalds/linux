@@ -1413,9 +1413,11 @@ int __ceph_mark_dirty_caps(struct ceph_inode_info *ci, int mask)
 	     ceph_cap_string(was | mask));
 	ci->i_dirty_caps |= mask;
 	if (was == 0) {
-		if (!ci->i_head_snapc)
+		if (!ci->i_head_snapc) {
+			WARN_ON_ONCE(!rwsem_is_locked(&mdsc->snap_rwsem));
 			ci->i_head_snapc = ceph_get_snap_context(
 				ci->i_snap_realm->cached_context);
+		}
 		dout(" inode %p now dirty snapc %p auth cap %p\n",
 		     &ci->vfs_inode, ci->i_head_snapc, ci->i_auth_cap);
 		BUG_ON(!list_empty(&ci->i_dirty_item));
