@@ -112,7 +112,6 @@ static int xgene_gpio_sb_probe(struct platform_device *pdev)
 				   GFP_KERNEL);
 	if (!priv->irq)
 		return -ENOMEM;
-	memset(priv->irq, 0, sizeof(u32) * XGENE_MAX_GPIO_DS);
 
 	for (i = 0; i < priv->nirq; i++) {
 		priv->irq[default_lines[i]] = platform_get_irq(pdev, i);
