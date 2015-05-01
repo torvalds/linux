@@ -62,7 +62,7 @@ config ACPI_SLEEP
 
 config ACPI_PROCFS_POWER
 	bool "Deprecated power /proc/acpi directories"
-	depends on PROC_FS
+	depends on X86 && PROC_FS
 	help
 	  For backwards compatibility, this option allows
           deprecated power /proc/acpi/ directories to exist, even when
