@@ -328,7 +328,7 @@ static const struct mio_regmap m_series_stc_write_regmap[] = {
 	 */
 	[NISTC_DIO_OUT_REG]		= { 0, 0 }, /* DOES NOT MAP CLEANLY */
 	[NISTC_DIO_CTRL_REG]		= { 0, 0 }, /* DOES NOT MAP CLEANLY */
-	[AI_Mode_1_Register]		= { 0x118, 2 },
+	[NISTC_AI_MODE1_REG]		= { 0x118, 2 },
 	[AI_Mode_2_Register]		= { 0x11a, 2 },
 	[AI_SI_Load_A_Registers]	= { 0x11c, 4 },
 	[AI_SI_Load_B_Registers]	= { 0x120, 4 },
@@ -1630,9 +1630,10 @@ static int ni_ai_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 		ni_writeb(dev, 0, Misc_Command);
 
 	ni_stc_writew(dev, NISTC_AI_CMD1_DISARM, NISTC_AI_CMD1_REG);
-	ni_stc_writew(dev, AI_Start_Stop | AI_Mode_1_Reserved
-			    /*| AI_Trigger_Once */,
-		      AI_Mode_1_Register);
+	ni_stc_writew(dev, NISTC_AI_MODE1_START_STOP |
+			   NISTC_AI_MODE1_RSVD
+			    /*| NISTC_AI_MODE1_TRIGGER_ONCE */,
+		      NISTC_AI_MODE1_REG);
 	ni_stc_writew(dev, 0x0000, AI_Mode_2_Register);
 	/* generate FIFO interrupts on non-empty */
 	ni_stc_writew(dev, (0 << 6) | 0x0000, AI_Mode_3_Register);
@@ -1691,7 +1692,7 @@ static int ni_ai_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 	/* the following registers should not be changed, because there
 	 * are no backup registers in devpriv.  If you want to change
 	 * any of these, add a backup register and other appropriate code:
-	 *      AI_Mode_1_Register
+	 *      NISTC_AI_MODE1_REG
 	 *      AI_Mode_3_Register
 	 *      AI_Personal_Register
 	 *      AI_Output_Control_Register
@@ -2338,8 +2339,10 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		/* stage number of scans */
 		ni_stc_writel(dev, stop_count, AI_SC_Load_A_Registers);
 
-		mode1 |= AI_Start_Stop | AI_Mode_1_Reserved | AI_Trigger_Once;
-		ni_stc_writew(dev, mode1, AI_Mode_1_Register);
+		mode1 |= NISTC_AI_MODE1_START_STOP |
+			 NISTC_AI_MODE1_RSVD |
+			 NISTC_AI_MODE1_TRIGGER_ONCE;
+		ni_stc_writew(dev, mode1, NISTC_AI_MODE1_REG);
 		/* load SC (Scan Count) */
 		ni_stc_writew(dev, NISTC_AI_CMD1_SC_LOAD, NISTC_AI_CMD1_REG);
 
@@ -2356,8 +2359,10 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		/* stage number of scans */
 		ni_stc_writel(dev, 0, AI_SC_Load_A_Registers);
 
-		mode1 |= AI_Start_Stop | AI_Mode_1_Reserved | AI_Continuous;
-		ni_stc_writew(dev, mode1, AI_Mode_1_Register);
+		mode1 |= NISTC_AI_MODE1_START_STOP |
+			 NISTC_AI_MODE1_RSVD |
+			 NISTC_AI_MODE1_CONTINUOUS;
+		ni_stc_writew(dev, mode1, NISTC_AI_MODE1_REG);
 
 		/* load SC (Scan Count) */
 		ni_stc_writew(dev, NISTC_AI_CMD1_SC_LOAD, NISTC_AI_CMD1_REG);
@@ -2439,10 +2444,10 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		ni_stc_writew(dev, mode2, AI_Mode_2_Register);
 		break;
 	case TRIG_EXT:
-		mode1 |= AI_CONVERT_Source_Select(1 + cmd->convert_arg);
+		mode1 |= NISTC_AI_MODE1_CONVERT_SRC(1 + cmd->convert_arg);
 		if ((cmd->convert_arg & CR_INVERT) == 0)
-			mode1 |= AI_CONVERT_Source_Polarity;
-		ni_stc_writew(dev, mode1, AI_Mode_1_Register);
+			mode1 |= NISTC_AI_MODE1_CONVERT_POLARITY;
+		ni_stc_writew(dev, mode1, NISTC_AI_MODE1_REG);
 
 		mode2 |= AI_Start_Stop_Gate_Enable | AI_SC_Gate_Enable;
 		ni_stc_writew(dev, mode2, AI_Mode_2_Register);

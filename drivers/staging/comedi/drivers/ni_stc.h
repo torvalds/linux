@@ -180,6 +180,16 @@
 #define NISTC_DIO_CTRL_DIR(x)		((x) & 0xff)
 #define NISTC_DIO_CTRL_DIR_MASK		NISTC_DIO_CTRL_DIR(0xff)
 
+#define NISTC_AI_MODE1_REG		12
+#define NISTC_AI_MODE1_CONVERT_SRC(x)	(((x) & 0x1f) << 11)
+#define NISTC_AI_MODE1_SI_SRC(x)	(((x) & 0x1f) << 6)
+#define NISTC_AI_MODE1_CONVERT_POLARITY	BIT(5)
+#define NISTC_AI_MODE1_SI_POLARITY	BIT(4)
+#define NISTC_AI_MODE1_START_STOP	BIT(3)
+#define NISTC_AI_MODE1_RSVD		BIT(2)
+#define NISTC_AI_MODE1_CONTINUOUS	BIT(1)
+#define NISTC_AI_MODE1_TRIGGER_ONCE	BIT(0)
+
 #define AI_Status_1_Register		2
 #define Interrupt_A_St				0x8000
 #define AI_FIFO_Full_St				0x4000
@@ -221,16 +231,6 @@
 #define AO_Status_2_Register		6
 
 #define DIO_Parallel_Input_Register	7
-
-#define AI_Mode_1_Register		12
-#define AI_CONVERT_Source_Select(a)		(((a) & 0x1f) << 11)
-#define AI_SI_Source_select(a)			(((a) & 0x1f) << 6)
-#define AI_CONVERT_Source_Polarity		_bit5
-#define AI_SI_Source_Polarity		_bit4
-#define AI_Start_Stop				_bit3
-#define AI_Mode_1_Reserved			_bit2
-#define AI_Continuous				_bit1
-#define AI_Trigger_Once				_bit0
 
 #define AI_Mode_2_Register		13
 #define AI_SC_Gate_Enable			_bit15
