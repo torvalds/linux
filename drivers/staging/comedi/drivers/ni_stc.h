@@ -567,14 +567,10 @@
 #define NI_E_STC_WINDOW_ADDR_REG	0x00	/* rw16 */
 #define NI_E_STC_WINDOW_DATA_REG	0x02	/* rw16 */
 
-/* i/o port offsets */
+#define NI_E_STATUS_REG			0x01	/* r8 */
+#define NI_E_STATUS_AI_FIFO_LOWER_NE	BIT(3)
+#define NI_E_STATUS_PROMOUT		BIT(0)
 
-/* 8 bit registers */
-#define XXX_Status			0x01
-enum XXX_Status_Bits {
-	PROMOUT = 0x1,
-	AI_FIFO_LOWER_NOT_EMPTY = 0x8,
-};
 #define Serial_Command			0x0d
 #define Misc_Command			0x0f
 #define Port_A				0x19

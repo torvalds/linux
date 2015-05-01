@@ -1248,7 +1248,7 @@ static void get_last_sample_611x(struct comedi_device *dev)
 		return;
 
 	/* Check if there's a single sample stuck in the FIFO */
-	if (ni_readb(dev, XXX_Status) & 0x80) {
+	if (ni_readb(dev, NI_E_STATUS_REG) & 0x80) {
 		dl = ni_readl(dev, ADC_FIFO_Data_611x);
 		data = dl & 0xffff;
 		comedi_buf_write_samples(s, &data, 1);
@@ -1946,7 +1946,7 @@ static int ni_ai_insn_read(struct comedi_device *dev,
 			/* The 611x has screwy 32-bit FIFOs. */
 			d = 0;
 			for (i = 0; i < NI_TIMEOUT; i++) {
-				if (ni_readb(dev, XXX_Status) & 0x80) {
+				if (ni_readb(dev, NI_E_STATUS_REG) & 0x80) {
 					d = ni_readl(dev, ADC_FIFO_Data_611x);
 					d >>= 16;
 					d &= 0xffff;
@@ -4258,7 +4258,8 @@ static int ni_read_eeprom(struct comedi_device *dev, int addr)
 	for (bit = 0x80; bit; bit >>= 1) {
 		ni_writeb(dev, 0x04, Serial_Command);
 		ni_writeb(dev, 0x05, Serial_Command);
-		bitstring |= ((ni_readb(dev, XXX_Status) & PROMOUT) ? bit : 0);
+		if (ni_readb(dev, NI_E_STATUS_REG) & NI_E_STATUS_PROMOUT)
+			bitstring |= bit;
 	}
 	ni_writeb(dev, 0x00, Serial_Command);
 
