@@ -4638,10 +4638,8 @@ static int ni_mseries_get_pll_parameters(unsigned reference_period_ns,
 {
 	unsigned div;
 	unsigned best_div = 1;
-	static const unsigned max_div = 0x10;
 	unsigned mult;
 	unsigned best_mult = 1;
-	static const unsigned max_mult = 0x100;
 	static const unsigned pico_per_nano = 1000;
 
 	const unsigned reference_picosec = reference_period_ns * pico_per_nano;
@@ -4651,8 +4649,8 @@ static int ni_mseries_get_pll_parameters(unsigned reference_period_ns,
 	static const unsigned fudge_factor_80_to_20Mhz = 4;
 	int best_period_picosec = 0;
 
-	for (div = 1; div <= max_div; ++div) {
-		for (mult = 1; mult <= max_mult; ++mult) {
+	for (div = 1; div <= NI_M_PLL_MAX_DIVISOR; ++div) {
+		for (mult = 1; mult <= NI_M_PLL_MAX_MULTIPLIER; ++mult) {
 			unsigned new_period_ps =
 			    (reference_picosec * div) / mult;
 			if (abs(new_period_ps - target_picosec) <
@@ -4700,8 +4698,7 @@ static int ni_mseries_set_pll_master_clock(struct comedi_device *dev,
 	devpriv->rtsi_trig_direction_reg &= ~Use_RTSI_Clock_Bit;
 	ni_stc_writew(dev, devpriv->rtsi_trig_direction_reg,
 		      RTSI_Trig_Direction_Register);
-	pll_control_bits =
-	    MSeries_PLL_Enable_Bit | MSeries_PLL_VCO_Mode_75_150MHz_Bits;
+	pll_control_bits = NI_M_PLL_CTRL_ENA | NI_M_PLL_CTRL_VCO_MODE_75_150MHZ;
 	devpriv->clock_and_fout2 |= NI_M_CLK_FOUT2_TIMEBASE1_PLL |
 				    NI_M_CLK_FOUT2_TIMEBASE3_PLL;
 	devpriv->clock_and_fout2 &= ~NI_M_CLK_FOUT2_PLL_SRC_MASK;
@@ -4736,9 +4733,8 @@ static int ni_mseries_set_pll_master_clock(struct comedi_device *dev,
 	}
 
 	ni_writew(dev, devpriv->clock_and_fout2, NI_M_CLK_FOUT2_REG);
-	pll_control_bits |=
-	    MSeries_PLL_Divisor_Bits(freq_divider) |
-	    MSeries_PLL_Multiplier_Bits(freq_multiplier);
+	pll_control_bits |= NI_M_PLL_CTRL_DIVISOR(freq_divider) |
+			    NI_M_PLL_CTRL_MULTIPLIER(freq_multiplier);
 
 	ni_writew(dev, pll_control_bits, NI_M_PLL_CTRL_REG);
 	devpriv->clock_source = source;

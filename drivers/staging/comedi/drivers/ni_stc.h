@@ -980,6 +980,16 @@ static const struct comedi_lrange range_ni_E_ao_ext;
 #define NI_M_CLK_FOUT2_PLL_SRC_STAR	NI_M_CLK_FOUT2_PLL_SRC(0x14)
 #define NI_M_CLK_FOUT2_PLL_SRC_PXI10	NI_M_CLK_FOUT2_PLL_SRC(0x1d)
 #define NI_M_PLL_CTRL_REG		0x1c6
+#define NI_M_PLL_CTRL_VCO_MODE(x)	(((x) & 0x3) << 13)
+#define NI_M_PLL_CTRL_VCO_MODE_200_325MHZ NI_M_PLL_CTRL_VCO_MODE(0)
+#define NI_M_PLL_CTRL_VCO_MODE_175_225MHZ NI_M_PLL_CTRL_VCO_MODE(1)
+#define NI_M_PLL_CTRL_VCO_MODE_100_225MHZ NI_M_PLL_CTRL_VCO_MODE(2)
+#define NI_M_PLL_CTRL_VCO_MODE_75_150MHZ  NI_M_PLL_CTRL_VCO_MODE(3)
+#define NI_M_PLL_CTRL_ENA		BIT(12)
+#define NI_M_PLL_MAX_DIVISOR		0x10
+#define NI_M_PLL_CTRL_DIVISOR(x)	(((x) & 0xf) << 8)
+#define NI_M_PLL_MAX_MULTIPLIER		0x100
+#define NI_M_PLL_CTRL_MULTIPLIER(x)	(((x) & 0xff) << 0)
 #define NI_M_PLL_STATUS_REG		0x1c8
 #define NI_M_PFI_OUT_SEL_REG(x)		(0x1d0 + ((x) * 2))
 #define NI_M_PFI_DI_REG			0x1dc
@@ -996,34 +1006,6 @@ static const struct comedi_lrange range_ni_E_ao_ext;
 #define NI_M_CDO_MASK_ENA_REG		0x234
 #define NI_M_STATIC_AI_CTRL_REG(x)	((x) ? (0x260 + (x)) : 0x064)
 #define NI_M_AO_REF_ATTENUATION_REG(x)	(0x264 + (x))
-
-enum MSeries_PLL_Control_Bits {
-	MSeries_PLL_Enable_Bit = 0x1000,
-	MSeries_PLL_VCO_Mode_200_325MHz_Bits = 0x0,
-	MSeries_PLL_VCO_Mode_175_225MHz_Bits = 0x2000,
-	MSeries_PLL_VCO_Mode_100_225MHz_Bits = 0x4000,
-	MSeries_PLL_VCO_Mode_75_150MHz_Bits = 0x6000,
-};
-static inline unsigned MSeries_PLL_Divisor_Bits(unsigned divisor)
-{
-	static const unsigned max_divisor = 0x10;
-	if (divisor < 1 || divisor > max_divisor) {
-		pr_err("%s: bug, invalid divisor=%i\n", __func__, divisor);
-		return 0;
-	}
-	return (divisor & 0xf) << 8;
-}
-
-static inline unsigned MSeries_PLL_Multiplier_Bits(unsigned multiplier)
-{
-	static const unsigned max_multiplier = 0x100;
-	if (multiplier < 1 || multiplier > max_multiplier) {
-		pr_err("%s: bug, invalid multiplier=%i\n", __func__,
-		       multiplier);
-		return 0;
-	}
-	return multiplier & 0xff;
-}
 
 enum MSeries_PLL_Status {
 	MSeries_PLL_Locked_Bit = 0x1
