@@ -1057,6 +1057,26 @@ static const struct comedi_lrange range_ni_E_ao_ext;
 #define NI_M_CDIO_STATUS_CDO_FIFO_FULL	BIT(1)
 #define NI_M_CDIO_STATUS_CDO_FIFO_EMPTY	BIT(0)
 #define NI_M_CDIO_CMD_REG		0x224
+#define NI_M_CDI_CMD_SW_UPDATE		BIT(20)
+#define NI_M_CDO_CMD_SW_UPDATE		BIT(19)
+#define NI_M_CDO_CMD_F_E_INT_ENA_CLR	BIT(17)
+#define NI_M_CDO_CMD_F_E_INT_ENA_SET	BIT(16)
+#define NI_M_CDI_CMD_ERR_INT_CONFIRM	BIT(15)
+#define NI_M_CDO_CMD_ERR_INT_CONFIRM	BIT(14)
+#define NI_M_CDI_CMD_F_REQ_INT_ENA_CLR	BIT(13)
+#define NI_M_CDI_CMD_F_REQ_INT_ENA_SET	BIT(12)
+#define NI_M_CDO_CMD_F_REQ_INT_ENA_CLR	BIT(11)
+#define NI_M_CDO_CMD_F_REQ_INT_ENA_SET	BIT(10)
+#define NI_M_CDI_CMD_ERR_INT_ENA_CLR	BIT(9)
+#define NI_M_CDI_CMD_ERR_INT_ENA_SET	BIT(8)
+#define NI_M_CDO_CMD_ERR_INT_ENA_CLR	BIT(7)
+#define NI_M_CDO_CMD_ERR_INT_ENA_SET	BIT(6)
+#define NI_M_CDI_CMD_RESET		BIT(5)
+#define NI_M_CDO_CMD_RESET		BIT(4)
+#define NI_M_CDI_CMD_ARM		BIT(3)
+#define NI_M_CDI_CMD_DISARM		BIT(2)
+#define NI_M_CDO_CMD_ARM		BIT(1)
+#define NI_M_CDO_CMD_DISARM		BIT(0)
 #define NI_M_CDI_MODE_REG		0x228
 #define NI_M_CDO_MODE_REG		0x22c
 #define NI_M_CDI_MASK_ENA_REG		0x230
@@ -1064,29 +1084,6 @@ static const struct comedi_lrange range_ni_E_ao_ext;
 #define NI_M_STATIC_AI_CTRL_REG(x)	((x) ? (0x260 + (x)) : 0x064)
 #define NI_M_AO_REF_ATTENUATION_REG(x)	(0x264 + (x))
 #define NI_M_AO_REF_ATTENUATION_X5	BIT(0)
-
-enum CDIO_Command_Bits {
-	CDO_Disarm_Bit = 0x1,
-	CDO_Arm_Bit = 0x2,
-	CDI_Disarm_Bit = 0x4,
-	CDI_Arm_Bit = 0x8,
-	CDO_Reset_Bit = 0x10,
-	CDI_Reset_Bit = 0x20,
-	CDO_Error_Interrupt_Enable_Set_Bit = 0x40,
-	CDO_Error_Interrupt_Enable_Clear_Bit = 0x80,
-	CDI_Error_Interrupt_Enable_Set_Bit = 0x100,
-	CDI_Error_Interrupt_Enable_Clear_Bit = 0x200,
-	CDO_FIFO_Request_Interrupt_Enable_Set_Bit = 0x400,
-	CDO_FIFO_Request_Interrupt_Enable_Clear_Bit = 0x800,
-	CDI_FIFO_Request_Interrupt_Enable_Set_Bit = 0x1000,
-	CDI_FIFO_Request_Interrupt_Enable_Clear_Bit = 0x2000,
-	CDO_Error_Interrupt_Confirm_Bit = 0x4000,
-	CDI_Error_Interrupt_Confirm_Bit = 0x8000,
-	CDO_Empty_FIFO_Interrupt_Enable_Set_Bit = 0x10000,
-	CDO_Empty_FIFO_Interrupt_Enable_Clear_Bit = 0x20000,
-	CDO_SW_Update_Bit = 0x80000,
-	CDI_SW_Update_Bit = 0x100000
-};
 
 enum CDI_Mode_Bits {
 	CDI_Sample_Source_Select_Mask = 0x3f,

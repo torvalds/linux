@@ -3446,8 +3446,9 @@ static int ni_cdo_inttrig(struct comedi_device *dev,
 		s->cancel(dev, s);
 		return -EIO;
 	}
-	ni_writel(dev, CDO_Arm_Bit | CDO_Error_Interrupt_Enable_Set_Bit |
-		       CDO_Empty_FIFO_Interrupt_Enable_Set_Bit,
+	ni_writel(dev, NI_M_CDO_CMD_ARM |
+		       NI_M_CDO_CMD_ERR_INT_ENA_SET |
+		       NI_M_CDO_CMD_F_E_INT_ENA_SET,
 		  NI_M_CDIO_CMD_REG);
 	return retval;
 }
@@ -3458,7 +3459,7 @@ static int ni_cdio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	unsigned cdo_mode_bits = CDO_FIFO_Mode_Bit | CDO_Halt_On_Error_Bit;
 	int retval;
 
-	ni_writel(dev, CDO_Reset_Bit, NI_M_CDIO_CMD_REG);
+	ni_writel(dev, NI_M_CDO_CMD_RESET, NI_M_CDIO_CMD_REG);
 	switch (cmd->scan_begin_src) {
 	case TRIG_EXT:
 		cdo_mode_bits |=
@@ -3474,7 +3475,7 @@ static int ni_cdio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	ni_writel(dev, cdo_mode_bits, NI_M_CDO_MODE_REG);
 	if (s->io_bits) {
 		ni_writel(dev, s->state, NI_M_CDO_FIFO_DATA_REG);
-		ni_writel(dev, CDO_SW_Update_Bit, NI_M_CDIO_CMD_REG);
+		ni_writel(dev, NI_M_CDO_CMD_SW_UPDATE, NI_M_CDIO_CMD_REG);
 		ni_writel(dev, s->io_bits, NI_M_CDO_MASK_ENA_REG);
 	} else {
 		dev_err(dev->class_dev,
@@ -3492,9 +3493,10 @@ static int ni_cdio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 static int ni_cdio_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	ni_writel(dev, CDO_Disarm_Bit | CDO_Error_Interrupt_Enable_Clear_Bit |
-		       CDO_Empty_FIFO_Interrupt_Enable_Clear_Bit |
-		       CDO_FIFO_Request_Interrupt_Enable_Clear_Bit,
+	ni_writel(dev, NI_M_CDO_CMD_DISARM |
+		       NI_M_CDO_CMD_ERR_INT_ENA_CLR |
+		       NI_M_CDO_CMD_F_E_INT_ENA_CLR |
+		       NI_M_CDO_CMD_F_REQ_INT_ENA_CLR,
 		  NI_M_CDIO_CMD_REG);
 	/*
 	 * XXX not sure what interrupt C group does
@@ -3534,12 +3536,12 @@ static void handle_cdio_interrupt(struct comedi_device *dev)
 	cdio_status = ni_readl(dev, NI_M_CDIO_STATUS_REG);
 	if (cdio_status & NI_M_CDIO_STATUS_CDO_ERROR) {
 		/* XXX just guessing this is needed and does something useful */
-		ni_writel(dev, CDO_Error_Interrupt_Confirm_Bit,
+		ni_writel(dev, NI_M_CDO_CMD_ERR_INT_CONFIRM,
 			  NI_M_CDIO_CMD_REG);
 		s->async->events |= COMEDI_CB_OVERFLOW;
 	}
 	if (cdio_status & NI_M_CDIO_STATUS_CDO_FIFO_EMPTY) {
-		ni_writel(dev, CDO_Empty_FIFO_Interrupt_Enable_Clear_Bit,
+		ni_writel(dev, NI_M_CDO_CMD_F_E_INT_ENA_CLR,
 			  NI_M_CDIO_CMD_REG);
 		/* s->async->events |= COMEDI_CB_EOA; */
 	}
@@ -5313,7 +5315,8 @@ static int ni_E_init(struct comedi_device *dev,
 		}
 
 		/* reset DIO and set all channels to inputs */
-		ni_writel(dev, CDO_Reset_Bit | CDI_Reset_Bit,
+		ni_writel(dev, NI_M_CDO_CMD_RESET |
+			       NI_M_CDI_CMD_RESET,
 			  NI_M_CDIO_CMD_REG);
 		ni_writel(dev, s->io_bits, NI_M_DIO_DIR_REG);
 	} else {
