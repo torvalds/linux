@@ -315,7 +315,7 @@ struct mio_regmap {
 
 static const struct mio_regmap m_series_stc_write_regmap[] = {
 	[NISTC_INTA_ACK_REG]		= { 0x104, 2 },
-	[Interrupt_B_Ack_Register]	= { 0x106, 2 },
+	[NISTC_INTB_ACK_REG]		= { 0x106, 2 },
 	[AI_Command_2_Register]		= { 0x108, 2 },
 	[AO_Command_2_Register]		= { 0x10a, 2 },
 	[G_Command_Register(0)]		= { 0x10c, 2 },
@@ -1434,21 +1434,21 @@ static void ack_b_interrupt(struct comedi_device *dev, unsigned short b_status)
 	unsigned short ack = 0;
 
 	if (b_status & AO_BC_TC_St)
-		ack |= AO_BC_TC_Interrupt_Ack;
+		ack |= NISTC_INTB_ACK_AO_BC_TC;
 	if (b_status & AO_Overrun_St)
-		ack |= AO_Error_Interrupt_Ack;
+		ack |= NISTC_INTB_ACK_AO_ERR;
 	if (b_status & AO_START_St)
-		ack |= AO_START_Interrupt_Ack;
+		ack |= NISTC_INTB_ACK_AO_START;
 	if (b_status & AO_START1_St)
-		ack |= AO_START1_Interrupt_Ack;
+		ack |= NISTC_INTB_ACK_AO_START1;
 	if (b_status & AO_UC_TC_St)
-		ack |= AO_UC_TC_Interrupt_Ack;
+		ack |= NISTC_INTB_ACK_AO_UC_TC;
 	if (b_status & AO_UI2_TC_St)
-		ack |= AO_UI2_TC_Interrupt_Ack;
+		ack |= NISTC_INTB_ACK_AO_UI2_TC;
 	if (b_status & AO_UPDATE_St)
-		ack |= AO_UPDATE_Interrupt_Ack;
+		ack |= NISTC_INTB_ACK_AO_UPDATE;
 	if (ack)
-		ni_stc_writew(dev, ack, Interrupt_B_Ack_Register);
+		ni_stc_writew(dev, ack, NISTC_INTB_ACK_REG);
 }
 
 static void handle_b_interrupt(struct comedi_device *dev,
@@ -2900,7 +2900,7 @@ static int ni_ao_inttrig(struct comedi_device *dev,
 	 * stc manual says we are need to clear error interrupt after
 	 * AO_TMRDACWRs_In_Progress_St clears
 	 */
-	ni_stc_writew(dev, AO_Error_Interrupt_Ack, Interrupt_B_Ack_Register);
+	ni_stc_writew(dev, NISTC_INTB_ACK_AO_ERR, NISTC_INTB_ACK_REG);
 
 	ni_set_bits(dev, Interrupt_B_Enable_Register, interrupt_b_bits, 1);
 
@@ -3104,8 +3104,8 @@ static int ni_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	ni_stc_writew(dev, AO_Configuration_End, Joint_Reset_Register);
 
 	if (cmd->stop_src == TRIG_COUNT) {
-		ni_stc_writew(dev, AO_BC_TC_Interrupt_Ack,
-			      Interrupt_B_Ack_Register);
+		ni_stc_writew(dev, NISTC_INTB_ACK_AO_BC_TC,
+			      NISTC_INTB_ACK_REG);
 		ni_set_bits(dev, Interrupt_B_Enable_Register,
 			    AO_BC_TC_Interrupt_Enable, 1);
 	}
@@ -3208,7 +3208,7 @@ static int ni_ao_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 	ni_stc_writew(dev, AO_Disarm, AO_Command_1_Register);
 	ni_set_bits(dev, Interrupt_B_Enable_Register, ~0, 0);
 	ni_stc_writew(dev, AO_BC_Source_Select, AO_Personal_Register);
-	ni_stc_writew(dev, 0x3f98, Interrupt_B_Ack_Register);
+	ni_stc_writew(dev, NISTC_INTB_ACK_AO_ALL, NISTC_INTB_ACK_REG);
 	ni_stc_writew(dev, AO_BC_Source_Select | AO_UPDATE_Pulse_Width |
 		      AO_TMRDACWR_Pulse_Width, AO_Personal_Register);
 	ni_stc_writew(dev, 0, AO_Output_Control_Register);
@@ -3749,7 +3749,7 @@ static const struct mio_regmap ni_gpct_to_stc_regmap[] = {
 	[NITIO_G0_ABZ]		= { 0x1c0, 2 },	/* M-Series only */
 	[NITIO_G1_ABZ]		= { 0x1c2, 2 },	/* M-Series only */
 	[NITIO_G0_INT_ACK]	= { NISTC_INTA_ACK_REG, 2 },
-	[NITIO_G1_INT_ACK]	= { Interrupt_B_Ack_Register, 2 },
+	[NITIO_G1_INT_ACK]	= { NISTC_INTB_ACK_REG, 2 },
 	[NITIO_G0_STATUS]	= { AI_Status_1_Register, 2 },
 	[NITIO_G1_STATUS]	= { AO_Status_1_Register, 2 },
 	[NITIO_G0_INT_ENA]	= { Interrupt_A_Enable_Register, 2 },

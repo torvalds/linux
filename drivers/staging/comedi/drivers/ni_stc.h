@@ -69,6 +69,32 @@
 					 NISTC_INTA_ACK_AI_SC_TC |	\
 					 NISTC_INTA_ACK_AI_SC_TC_ERR)
 
+#define NISTC_INTB_ACK_REG		3
+#define NISTC_INTB_ACK_G1_GATE		BIT(15)
+#define NISTC_INTB_ACK_G1_TC		BIT(14)
+#define NISTC_INTB_ACK_AO_ERR		BIT(13)
+#define NISTC_INTB_ACK_AO_STOP		BIT(12)
+#define NISTC_INTB_ACK_AO_START		BIT(11)
+#define NISTC_INTB_ACK_AO_UPDATE	BIT(10)
+#define NISTC_INTB_ACK_AO_START1	BIT(9)
+#define NISTC_INTB_ACK_AO_BC_TC		BIT(8)
+#define NISTC_INTB_ACK_AO_UC_TC		BIT(7)
+#define NISTC_INTB_ACK_AO_UI2_TC	BIT(6)
+#define NISTC_INTB_ACK_AO_UI2_TC_ERR	BIT(5)
+#define NISTC_INTB_ACK_AO_BC_TC_ERR	BIT(4)
+#define NISTC_INTB_ACK_AO_BC_TC_TRIG_ERR BIT(3)
+#define NISTC_INTB_ACK_G1_TC_ERR	BIT(2)
+#define NISTC_INTB_ACK_G1_GATE_ERR	BIT(1)
+#define NISTC_INTB_ACK_AO_ALL		(NISTC_INTB_ACK_AO_ERR |	\
+					 NISTC_INTB_ACK_AO_STOP |	\
+					 NISTC_INTB_ACK_AO_START |	\
+					 NISTC_INTB_ACK_AO_UPDATE |	\
+					 NISTC_INTB_ACK_AO_START1 |	\
+					 NISTC_INTB_ACK_AO_BC_TC |	\
+					 NISTC_INTB_ACK_AO_UC_TC |	\
+					 NISTC_INTB_ACK_AO_BC_TC_ERR |	\
+					 NISTC_INTB_ACK_AO_BC_TC_TRIG_ERR)
+
 #define AI_Status_1_Register		2
 #define Interrupt_A_St				0x8000
 #define AI_FIFO_Full_St				0x4000
@@ -88,25 +114,6 @@
 #define Pass_Thru_0_Interrupt_St		0x0001
 
 #define AI_Status_2_Register		5
-
-#define Interrupt_B_Ack_Register	3
-enum Interrupt_B_Ack_Bits {
-	G1_Gate_Error_Confirm = _bit1,
-	G1_TC_Error_Confirm = _bit2,
-	AO_BC_TC_Trigger_Error_Confirm = _bit3,
-	AO_BC_TC_Error_Confirm = _bit4,
-	AO_UI2_TC_Error_Confrim = _bit5,
-	AO_UI2_TC_Interrupt_Ack = _bit6,
-	AO_UC_TC_Interrupt_Ack = _bit7,
-	AO_BC_TC_Interrupt_Ack = _bit8,
-	AO_START1_Interrupt_Ack = _bit9,
-	AO_UPDATE_Interrupt_Ack = _bit10,
-	AO_START_Interrupt_Ack = _bit11,
-	AO_STOP_Interrupt_Ack = _bit12,
-	AO_Error_Interrupt_Ack = _bit13,
-	G1_TC_Interrupt_Ack = _bit14,
-	G1_Gate_Interrupt_Ack = _bit15
-};
 
 #define AO_Status_1_Register		3
 #define Interrupt_B_St				_bit15
