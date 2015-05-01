@@ -1883,8 +1883,8 @@ scsiback_make_tpg(struct se_wwn *wwn,
 	tpg->tport = tport;
 	tpg->tport_tpgt = tpgt;
 
-	ret = core_tpg_register(&scsiback_ops, wwn,
-				&tpg->se_tpg, tpg, TRANSPORT_TPG_TYPE_NORMAL);
+	ret = core_tpg_register(&scsiback_ops, wwn, &tpg->se_tpg,
+				tport->tport_proto_id);
 	if (ret < 0) {
 		kfree(tpg);
 		return NULL;

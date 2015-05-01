@@ -125,12 +125,6 @@ enum transport_lun_status_table {
 	TRANSPORT_LUN_STATUS_ACTIVE = 1,
 };
 
-/* struct se_portal_group->se_tpg_type */
-enum transport_tpg_type_table {
-	TRANSPORT_TPG_TYPE_NORMAL = 0,
-	TRANSPORT_TPG_TYPE_DISCOVERY = 1,
-};
-
 /* Special transport agnostic struct se_cmd->t_states */
 enum transport_state_table {
 	TRANSPORT_NO_STATE	= 0,
@@ -864,8 +858,12 @@ struct se_tpg_np {
 };
 
 struct se_portal_group {
-	/* Type of target portal group, see transport_tpg_type_table */
-	enum transport_tpg_type_table se_tpg_type;
+	/*
+	 * PROTOCOL IDENTIFIER value per SPC4, 7.5.1.
+	 *
+	 * Negative values can be used by fabric drivers for internal use TPGs.
+	 */
+	int			proto_id;
 	/* Number of ACLed Initiator Nodes for this TPG */
 	u32			num_node_acls;
 	/* Used for PR SPEC_I_PT=1 and REGISTER_AND_MOVE */
@@ -875,8 +873,6 @@ struct se_portal_group {
 	/* Spinlock for adding/removing sessions */
 	spinlock_t		session_lock;
 	spinlock_t		tpg_lun_lock;
-	/* Pointer to $FABRIC_MOD portal group */
-	void			*se_tpg_fabric_ptr;
 	struct list_head	se_tpg_node;
 	/* linked list for initiator ACL list */
 	struct list_head	acl_node_list;

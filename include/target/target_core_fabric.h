@@ -175,7 +175,7 @@ int	core_tpg_set_initiator_node_queue_depth(struct se_portal_group *,
 int	core_tpg_set_initiator_node_tag(struct se_portal_group *,
 		struct se_node_acl *, const char *);
 int	core_tpg_register(const struct target_core_fabric_ops *,
-		struct se_wwn *, struct se_portal_group *, void *, int);
+		struct se_wwn *, struct se_portal_group *, int);
 int	core_tpg_deregister(struct se_portal_group *);
 
 /* SAS helpers */

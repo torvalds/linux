@@ -1113,8 +1113,8 @@ static struct se_portal_group *tcm_qla2xxx_make_tpg(
 	tpg->tpg_attrib.cache_dynamic_acls = 1;
 	tpg->tpg_attrib.demo_mode_login_only = 1;
 
-	ret = core_tpg_register(&tcm_qla2xxx_ops, wwn,
-				&tpg->se_tpg, tpg, TRANSPORT_TPG_TYPE_NORMAL);
+	ret = core_tpg_register(&tcm_qla2xxx_ops, wwn, &tpg->se_tpg,
+				SCSI_PROTOCOL_FCP);
 	if (ret < 0) {
 		kfree(tpg);
 		return NULL;
@@ -1233,8 +1233,8 @@ static struct se_portal_group *tcm_qla2xxx_npiv_make_tpg(
 	tpg->tpg_attrib.cache_dynamic_acls = 1;
 	tpg->tpg_attrib.demo_mode_login_only = 1;
 
-	ret = core_tpg_register(&tcm_qla2xxx_npiv_ops, wwn,
-				&tpg->se_tpg, tpg, TRANSPORT_TPG_TYPE_NORMAL);
+	ret = core_tpg_register(&tcm_qla2xxx_npiv_ops, wwn, &tpg->se_tpg,
+				SCSI_PROTOCOL_FCP);
 	if (ret < 0) {
 		kfree(tpg);
 		return NULL;

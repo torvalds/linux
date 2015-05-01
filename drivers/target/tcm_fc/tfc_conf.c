@@ -284,7 +284,7 @@ static struct se_portal_group *ft_add_tpg(
 	}
 
 	ret = core_tpg_register(&ft_fabric_ops, wwn, &tpg->se_tpg,
-				tpg, TRANSPORT_TPG_TYPE_NORMAL);
+				SCSI_PROTOCOL_FCP);
 	if (ret < 0) {
 		destroy_workqueue(wq);
 		kfree(tpg);

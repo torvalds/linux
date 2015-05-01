@@ -3791,7 +3791,7 @@ static struct se_portal_group *srpt_make_tpg(struct se_wwn *wwn,
 
 	/* Initialize sport->port_wwn and sport->port_tpg_1 */
 	res = core_tpg_register(&srpt_template, &sport->port_wwn,
-			&sport->port_tpg_1, sport, TRANSPORT_TPG_TYPE_NORMAL);
+			&sport->port_tpg_1, SCSI_PROTOCOL_SRP);
 	if (res)
 		return ERR_PTR(res);
 

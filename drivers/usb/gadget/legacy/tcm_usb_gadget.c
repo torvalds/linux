@@ -1508,8 +1508,8 @@ static struct se_portal_group *usbg_make_tpg(
 	tpg->tport = tport;
 	tpg->tport_tpgt = tpgt;
 
-	ret = core_tpg_register(&usbg_ops, wwn, &tpg->se_tpg, tpg,
-				TRANSPORT_TPG_TYPE_NORMAL);
+	ret = core_tpg_register(&usbg_ops, wwn, &tpg->se_tpg,
+				tport->tport_proto_id);
 	if (ret < 0) {
 		destroy_workqueue(tpg->workqueue);
 		kfree(tpg);

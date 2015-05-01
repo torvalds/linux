@@ -634,8 +634,7 @@ int core_tpg_register(
 	const struct target_core_fabric_ops *tfo,
 	struct se_wwn *se_wwn,
 	struct se_portal_group *se_tpg,
-	void *tpg_fabric_ptr,
-	int se_tpg_type)
+	int proto_id)
 {
 	struct se_lun *lun;
 	u32 i;
@@ -661,8 +660,7 @@ int core_tpg_register(
 		init_completion(&lun->lun_ref_comp);
 	}
 
-	se_tpg->se_tpg_type = se_tpg_type;
-	se_tpg->se_tpg_fabric_ptr = tpg_fabric_ptr;
+	se_tpg->proto_id = proto_id;
 	se_tpg->se_tpg_tfo = tfo;
 	se_tpg->se_tpg_wwn = se_wwn;
 	atomic_set(&se_tpg->tpg_pr_ref_count, 0);
@@ -673,7 +671,7 @@ int core_tpg_register(
 	spin_lock_init(&se_tpg->session_lock);
 	spin_lock_init(&se_tpg->tpg_lun_lock);
 
-	if (se_tpg->se_tpg_type == TRANSPORT_TPG_TYPE_NORMAL) {
+	if (se_tpg->proto_id >= 0) {
 		if (core_tpg_setup_virtual_lun0(se_tpg) < 0) {
 			array_free(se_tpg->tpg_lun_list,
 				   TRANSPORT_MAX_LUNS_PER_TPG);
@@ -685,11 +683,10 @@ int core_tpg_register(
 	list_add_tail(&se_tpg->se_tpg_node, &tpg_list);
 	spin_unlock_bh(&tpg_lock);
 
-	pr_debug("TARGET_CORE[%s]: Allocated %s struct se_portal_group for"
-		" endpoint: %s, Portal Tag: %u\n", tfo->get_fabric_name(),
-		(se_tpg->se_tpg_type == TRANSPORT_TPG_TYPE_NORMAL) ?
-		"Normal" : "Discovery", (tfo->tpg_get_wwn(se_tpg) == NULL) ?
-		"None" : tfo->tpg_get_wwn(se_tpg), tfo->tpg_get_tag(se_tpg));
+	pr_debug("TARGET_CORE[%s]: Allocated portal_group for endpoint: %s, "
+		 "Proto: %d, Portal Tag: %u\n", tfo->get_fabric_name(),
+		tfo->tpg_get_wwn(se_tpg) ? tfo->tpg_get_wwn(se_tpg) : NULL,
+		se_tpg->proto_id, tfo->tpg_get_tag(se_tpg));
 
 	return 0;
 }
@@ -697,14 +694,13 @@ EXPORT_SYMBOL(core_tpg_register);
 
 int core_tpg_deregister(struct se_portal_group *se_tpg)
 {
+	const struct target_core_fabric_ops *tfo = se_tpg->se_tpg_tfo;
 	struct se_node_acl *nacl, *nacl_tmp;
 
-	pr_debug("TARGET_CORE[%s]: Deallocating %s struct se_portal_group"
-		" for endpoint: %s Portal Tag %u\n",
-		(se_tpg->se_tpg_type == TRANSPORT_TPG_TYPE_NORMAL) ?
-		"Normal" : "Discovery", se_tpg->se_tpg_tfo->get_fabric_name(),
-		se_tpg->se_tpg_tfo->tpg_get_wwn(se_tpg),
-		se_tpg->se_tpg_tfo->tpg_get_tag(se_tpg));
+	pr_debug("TARGET_CORE[%s]: Deallocating portal_group for endpoint: %s, "
+		 "Proto: %d, Portal Tag: %u\n", tfo->get_fabric_name(),
+		tfo->tpg_get_wwn(se_tpg) ? tfo->tpg_get_wwn(se_tpg) : NULL,
+		se_tpg->proto_id, tfo->tpg_get_tag(se_tpg));
 
 	spin_lock_bh(&tpg_lock);
 	list_del(&se_tpg->se_tpg_node);
@@ -732,10 +728,9 @@ int core_tpg_deregister(struct se_portal_group *se_tpg)
 	}
 	spin_unlock_irq(&se_tpg->acl_node_lock);
 
-	if (se_tpg->se_tpg_type == TRANSPORT_TPG_TYPE_NORMAL)
+	if (se_tpg->proto_id >= 0)
 		core_tpg_remove_lun(se_tpg, &se_tpg->tpg_virt_lun0);
 
-	se_tpg->se_tpg_fabric_ptr = NULL;
 	array_free(se_tpg->tpg_lun_list, TRANSPORT_MAX_LUNS_PER_TPG);
 	return 0;
 }
