@@ -348,7 +348,7 @@ static void s3c24xx_serial_start_next_tx(struct s3c24xx_uart_port *ourport)
 		s3c24xx_serial_start_tx_dma(ourport, count);
 }
 
-void s3c24xx_serial_start_tx(struct uart_port *port)
+static void s3c24xx_serial_start_tx(struct uart_port *port)
 {
 	struct s3c24xx_uart_port *ourport = to_ourport(port);
 	struct circ_buf *xmit = &port->state->xmit;
