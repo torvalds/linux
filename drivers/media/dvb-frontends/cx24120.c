@@ -245,7 +245,7 @@ static int cx24120_writeregs(struct cx24120_state *state,
 
 		dev_dbg(&state->i2c->dev,
 			"%s: reg=0x%02x; data=%*ph\n",
-			__func__, reg, msg.len, msg.buf + 1);
+			__func__, reg, msg.len - 1, msg.buf + 1);
 	}
 
 	ret = 0;
