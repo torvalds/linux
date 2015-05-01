@@ -117,14 +117,14 @@ static int misc_open(struct inode * inode, struct file * file)
 	const struct file_operations *new_fops = NULL;
 
 	mutex_lock(&misc_mtx);
-	
+
 	list_for_each_entry(c, &misc_list, list) {
 		if (c->minor == minor) {
-			new_fops = fops_get(c->fops);		
+			new_fops = fops_get(c->fops);
 			break;
 		}
 	}
-		
+
 	if (!new_fops) {
 		mutex_unlock(&misc_mtx);
 		request_module("char-major-%d-%d", MISC_MAJOR, minor);
@@ -167,7 +167,7 @@ static const struct file_operations misc_fops = {
 /**
  *	misc_register	-	register a miscellaneous device
  *	@misc: device structure
- *	
+ *
  *	Register a miscellaneous device with the kernel. If the minor
  *	number is set to %MISC_DYNAMIC_MINOR a minor number is assigned
  *	and placed in the minor field of the structure. For other cases
@@ -181,7 +181,7 @@ static const struct file_operations misc_fops = {
  *	A zero is returned on success and a negative errno code for
  *	failure.
  */
- 
+
 int misc_register(struct miscdevice * misc)
 {
 	dev_t dev;
