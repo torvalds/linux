@@ -404,7 +404,7 @@ static struct s3c24xx_dclk_drv_data dclk_variants[] = {
 	},
 };
 
-static struct platform_device_id s3c24xx_dclk_driver_ids[] = {
+static const struct platform_device_id s3c24xx_dclk_driver_ids[] = {
 	{
 		.name		= "s3c2410-dclk",
 		.driver_data	= (kernel_ulong_t)&dclk_variants[S3C2410],
