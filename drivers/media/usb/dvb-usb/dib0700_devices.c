@@ -3944,6 +3944,8 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 
 				DIB0700_DEFAULT_STREAMING_CONFIG(0x02),
 			}},
+				.size_of_priv = sizeof(struct
+						dib0700_adapter_state),
 			}, {
 			.num_frontends = 1,
 			.fe = {{
@@ -3956,6 +3958,8 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 
 				DIB0700_DEFAULT_STREAMING_CONFIG(0x03),
 			}},
+				.size_of_priv = sizeof(struct
+						dib0700_adapter_state),
 			}
 		},
 
@@ -4009,6 +4013,8 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 
 				DIB0700_DEFAULT_STREAMING_CONFIG(0x02),
 			}},
+				.size_of_priv = sizeof(struct
+						dib0700_adapter_state),
 			},
 		},
 
