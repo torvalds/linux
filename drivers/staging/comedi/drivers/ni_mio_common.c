@@ -4581,19 +4581,19 @@ static void cs5529_config_write(struct comedi_device *dev, unsigned int value,
 
 static int init_cs5529(struct comedi_device *dev)
 {
-	unsigned int config_bits =
-	    CSCFG_PORT_MODE | CSCFG_WORD_RATE_2180_CYCLES;
+	unsigned int config_bits = CS5529_CFG_PORT_FLAG |
+				   CS5529_CFG_WORD_RATE_2180;
 
 #if 1
 	/* do self-calibration */
-	cs5529_config_write(dev, config_bits | CSCFG_SELF_CAL_OFFSET_GAIN,
+	cs5529_config_write(dev, config_bits | CS5529_CFG_CALIB_BOTH_SELF,
 			    CSCMD_CONFIG_REGISTER);
 	/* need to force a conversion for calibration to run */
 	cs5529_do_conversion(dev, NULL);
 #else
 	/* force gain calibration to 1 */
 	cs5529_config_write(dev, 0x400000, CSCMD_GAIN_REGISTER);
-	cs5529_config_write(dev, config_bits | CSCFG_SELF_CAL_OFFSET,
+	cs5529_config_write(dev, config_bits | CS5529_CFG_CALIB_OFFSET_SELF,
 			    CSCMD_CONFIG_REGISTER);
 	if (cs5529_wait_for_idle(dev))
 		dev_err(dev->class_dev,
