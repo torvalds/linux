@@ -378,7 +378,7 @@ static const struct mio_regmap m_series_stc_write_regmap[] = {
 	[NISTC_CFG_MEM_CLR_REG]		= { 0x1a4, 2 },
 	[NISTC_ADC_FIFO_CLR_REG]	= { 0x1a6, 2 },
 	[NISTC_DAC_FIFO_CLR_REG]	= { 0x1a8, 2 },
-	[AO_Output_Control_Register]	= { 0x1ac, 2 },
+	[NISTC_AO_OUT_CTRL_REG]		= { 0x1ac, 2 },
 	[AI_Mode_3_Register]		= { 0x1ae, 2 },
 };
 
@@ -3028,21 +3028,21 @@ static int ni_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	if (cmd->scan_end_arg > 1) {
 		devpriv->ao_mode1 |= NISTC_AO_MODE1_MULTI_CHAN;
 		ni_stc_writew(dev,
-			      AO_Number_Of_Channels(cmd->scan_end_arg - 1) |
-			      AO_UPDATE_Output_Select(AO_Update_Output_High_Z),
-			      AO_Output_Control_Register);
+			      NISTC_AO_OUT_CTRL_CHANS(cmd->scan_end_arg - 1) |
+			      NISTC_AO_OUT_CTRL_UPDATE_SEL_HIGHZ,
+			      NISTC_AO_OUT_CTRL_REG);
 	} else {
 		unsigned bits;
 
 		devpriv->ao_mode1 &= ~NISTC_AO_MODE1_MULTI_CHAN;
-		bits = AO_UPDATE_Output_Select(AO_Update_Output_High_Z);
+		bits = NISTC_AO_OUT_CTRL_UPDATE_SEL_HIGHZ;
 		if (devpriv->is_m_series || devpriv->is_6xxx) {
-			bits |= AO_Number_Of_Channels(0);
+			bits |= NISTC_AO_OUT_CTRL_CHANS(0);
 		} else {
 			bits |=
-			    AO_Number_Of_Channels(CR_CHAN(cmd->chanlist[0]));
+			    NISTC_AO_OUT_CTRL_CHANS(CR_CHAN(cmd->chanlist[0]));
 		}
-		ni_stc_writew(dev, bits, AO_Output_Control_Register);
+		ni_stc_writew(dev, bits, NISTC_AO_OUT_CTRL_REG);
 	}
 	ni_stc_writew(dev, devpriv->ao_mode1, NISTC_AO_MODE1_REG);
 
@@ -3193,7 +3193,7 @@ static int ni_ao_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 			   NISTC_AO_PERSONAL_UPDATE_PW |
 			   NISTC_AO_PERSONAL_TMRDACWR_PW,
 		      NISTC_AO_PERSONAL_REG);
-	ni_stc_writew(dev, 0, AO_Output_Control_Register);
+	ni_stc_writew(dev, 0, NISTC_AO_OUT_CTRL_REG);
 	ni_stc_writew(dev, 0, NISTC_AO_START_SEL_REG);
 	devpriv->ao_cmd1 = 0;
 	ni_stc_writew(dev, devpriv->ao_cmd1, NISTC_AO_CMD1_REG);

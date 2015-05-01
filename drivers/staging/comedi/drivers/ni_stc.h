@@ -462,6 +462,19 @@
 #define NISTC_DAC_FIFO_CLR_REG		84
 #define NISTC_WR_STROBE3_REG		85
 
+#define NISTC_AO_OUT_CTRL_REG		86
+#define NISTC_AO_OUT_CTRL_EXT_GATE_ENA		BIT(15)
+#define NISTC_AO_OUT_CTRL_EXT_GATE_SEL(x)	(((x) & 0x1f) << 10)
+#define NISTC_AO_OUT_CTRL_CHANS(x)		(((x) & 0xf) << 6)
+#define NISTC_AO_OUT_CTRL_UPDATE2_SEL(x)	(((x) & 0x3) << 4)
+#define NISTC_AO_OUT_CTRL_EXT_GATE_POL		BIT(3)
+#define NISTC_AO_OUT_CTRL_UPDATE2_TOGGLE	BIT(2)
+#define NISTC_AO_OUT_CTRL_UPDATE_SEL(x)		(((x) & 0x3) << 0)
+#define NISTC_AO_OUT_CTRL_UPDATE_SEL_HIGHZ	NISTC_AO_OUT_CTRL_UPDATE_SEL(0)
+#define NISTC_AO_OUT_CTRL_UPDATE_SEL_GND	NISTC_AO_OUT_CTRL_UPDATE_SEL(1)
+#define NISTC_AO_OUT_CTRL_UPDATE_SEL_LOW	NISTC_AO_OUT_CTRL_UPDATE_SEL(2)
+#define NISTC_AO_OUT_CTRL_UPDATE_SEL_HIGH	NISTC_AO_OUT_CTRL_UPDATE_SEL(3)
+
 #define AI_Status_1_Register		2
 #define Interrupt_A_St				0x8000
 #define AI_FIFO_Full_St				0x4000
@@ -519,25 +532,6 @@ enum Joint_Status_2_Bits {
 #define AO_UI_Save_Registers		16
 #define AO_BC_Save_Registers		18
 #define AO_UC_Save_Registers		20
-
-#define AO_Output_Control_Register	86
-#define AO_External_Gate_Enable			_bit15
-#define AO_External_Gate_Select(x)		(((x)&0x1f)<<10)
-#define AO_Number_Of_Channels(x)		(((x)&0xf)<<6)
-#define AO_UPDATE2_Output_Select(x)		(((x)&0x3)<<4)
-#define AO_External_Gate_Polarity		_bit3
-#define AO_UPDATE2_Output_Toggle		_bit2
-enum ao_update_output_selection {
-	AO_Update_Output_High_Z = 0,
-	AO_Update_Output_Ground = 1,
-	AO_Update_Output_Enable_Low = 2,
-	AO_Update_Output_Enable_High = 3
-};
-static unsigned AO_UPDATE_Output_Select(enum ao_update_output_selection
-					selection)
-{
-	return selection & 0x3;
-}
 
 #define AI_Mode_3_Register		87
 #define AI_Trigger_Length			_bit15
