@@ -42,10 +42,10 @@
 #include <linux/spinlock.h>
 #include <linux/timer.h>
 #include <linux/clk.h>
+#include <linux/scatterlist.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/scatterlist.h>
 
 #include <asm/types.h>
 #include <asm/io.h>

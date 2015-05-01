@@ -55,7 +55,7 @@ void pcibios_set_master(struct pci_dev *dev);
 
 #include <linux/types.h>
 #include <linux/slab.h>
-#include <asm/scatterlist.h>
+#include <linux/scatterlist.h>
 #include <linux/string.h>
 #include <asm/io.h>
 

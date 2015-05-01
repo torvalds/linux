@@ -1,7 +1,7 @@
 #ifndef __ASM_PARISC_PCI_H
 #define __ASM_PARISC_PCI_H
 
-#include <asm/scatterlist.h>
+#include <linux/scatterlist.h>
 
 
 

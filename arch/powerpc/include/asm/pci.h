@@ -13,9 +13,9 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/dma-mapping.h>
+#include <linux/scatterlist.h>
 
 #include <asm/machdep.h>
-#include <asm/scatterlist.h>
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/pci-bridge.h>

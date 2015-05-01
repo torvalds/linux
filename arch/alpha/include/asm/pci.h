@@ -5,7 +5,7 @@
 
 #include <linux/spinlock.h>
 #include <linux/dma-mapping.h>
-#include <asm/scatterlist.h>
+#include <linux/scatterlist.h>
 #include <asm/machvec.h>
 #include <asm-generic/pci-bridge.h>
 
