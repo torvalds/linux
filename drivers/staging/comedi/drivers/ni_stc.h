@@ -352,10 +352,6 @@ static inline unsigned RTSI_Output_Bit(unsigned channel, int is_mseries)
 		base_bit_shift = 9;
 		max_channel = 6;
 	}
-	if (channel > max_channel) {
-		pr_err("%s: bug, invalid RTSI_channel=%i\n", __func__, channel);
-		return 0;
-	}
 	return 1 << (base_bit_shift + channel);
 }
 
