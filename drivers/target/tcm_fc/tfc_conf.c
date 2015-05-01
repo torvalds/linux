@@ -409,6 +409,11 @@ static struct configfs_attribute *ft_wwn_attrs[] = {
 	NULL,
 };
 
+static inline struct ft_tpg *ft_tpg(struct se_portal_group *se_tpg)
+{
+	return container_of(se_tpg, struct ft_tpg, se_tpg);
+}
+
 static char *ft_get_fabric_name(void)
 {
 	return "fc";
@@ -416,20 +421,16 @@ static char *ft_get_fabric_name(void)
 
 static char *ft_get_fabric_wwn(struct se_portal_group *se_tpg)
 {
-	struct ft_tpg *tpg = se_tpg->se_tpg_fabric_ptr;
-
-	return tpg->lport_wwn->name;
+	return ft_tpg(se_tpg)->lport_wwn->name;
 }
 
 static u16 ft_get_tag(struct se_portal_group *se_tpg)
 {
-	struct ft_tpg *tpg = se_tpg->se_tpg_fabric_ptr;
-
 	/*
 	 * This tag is used when forming SCSI Name identifier in EVPD=1 0x83
 	 * to represent the SCSI Target Port.
 	 */
-	return tpg->index;
+	return ft_tpg(se_tpg)->index;
 }
 
 static int ft_check_false(struct se_portal_group *se_tpg)
@@ -443,9 +444,7 @@ static void ft_set_default_node_attr(struct se_node_acl *se_nacl)
 
 static u32 ft_tpg_get_inst_index(struct se_portal_group *se_tpg)
 {
-	struct ft_tpg *tpg = se_tpg->se_tpg_fabric_ptr;
-
-	return tpg->index;
+	return ft_tpg(se_tpg)->index;
 }
 
 static const struct target_core_fabric_ops ft_fabric_ops = {
