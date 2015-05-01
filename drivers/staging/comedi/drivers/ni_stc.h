@@ -992,11 +992,7 @@ static inline unsigned MSeries_AI_Config_Channel_Bits(unsigned channel)
 
 static inline unsigned MSeries_AI_Config_Bank_Bits(unsigned channel)
 {
-	unsigned bits = channel & 0x30;
-
-	if (channel & 0x40)
-		bits |= 0x400;
-	return bits;
+	return ((channel & 0x40) << 4) | (channel & 0x30);
 }
 
 static inline unsigned MSeries_AI_Config_Gain_Bits(unsigned range)
