@@ -1467,7 +1467,8 @@ int saa7164_api_i2c_write(struct saa7164_i2c *bus, u8 addr, u32 datalen,
 		return -EIO;
 	}
 
-	dprintk(DBGLVL_API, "%s() len = %d bytes unitid=0x%x\n", __func__, len, unitid);
+	dprintk(DBGLVL_API, "%s() len = %d bytes unitid=0x%x\n", __func__,
+		len, unitid);
 
 	/* Prepare the send buffer */
 	/* Bytes 00-03 dest register length

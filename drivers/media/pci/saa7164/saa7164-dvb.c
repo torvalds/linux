@@ -629,11 +629,13 @@ int saa7164_dvb_register(struct saa7164_port *port)
 		if (port->dvb.frontend != NULL) {
 
 			if (port->nr == 0) {
-				si2157_attach(port, &dev->i2c_bus[0].i2c_adap, port->dvb.frontend,
-					0xc0, &hauppauge_hvr2255_tuner_config);
+				si2157_attach(port, &dev->i2c_bus[0].i2c_adap,
+					      port->dvb.frontend, 0xc0,
+					      &hauppauge_hvr2255_tuner_config);
 			} else {
-				si2157_attach(port, &dev->i2c_bus[1].i2c_adap, port->dvb.frontend,
-					0xc0, &hauppauge_hvr2255_tuner_config);
+				si2157_attach(port, &dev->i2c_bus[1].i2c_adap,
+					      port->dvb.frontend, 0xc0,
+					      &hauppauge_hvr2255_tuner_config);
 			}
 		}
 		break;
@@ -650,10 +652,11 @@ int saa7164_dvb_register(struct saa7164_port *port)
 			info.addr = 0xc8 >> 1;
 			info.platform_data = &si2168_config;
 			request_module(info.type);
-			client_demod = i2c_new_device(&dev->i2c_bus[2].i2c_adap, &info);
-			if (client_demod == NULL || client_demod->dev.driver == NULL) {
+			client_demod = i2c_new_device(&dev->i2c_bus[2].i2c_adap,
+						      &info);
+			if (!client_demod || !client_demod->dev.driver)
 				goto frontend_detach;
-			}
+
 			if (!try_module_get(client_demod->dev.driver->owner)) {
 				i2c_unregister_device(client_demod);
 				goto frontend_detach;
@@ -668,8 +671,9 @@ int saa7164_dvb_register(struct saa7164_port *port)
 			info.addr = 0xc0 >> 1;
 			info.platform_data = &si2157_config;
 			request_module(info.type);
-			client_tuner = i2c_new_device(&dev->i2c_bus[0].i2c_adap, &info);
-			if (client_tuner == NULL || client_tuner->dev.driver == NULL) {
+			client_tuner = i2c_new_device(&dev->i2c_bus[0].i2c_adap,
+						      &info);
+			if (!client_tuner || !client_tuner->dev.driver) {
 				module_put(client_demod->dev.driver->owner);
 				i2c_unregister_device(client_demod);
 				goto frontend_detach;
@@ -692,10 +696,11 @@ int saa7164_dvb_register(struct saa7164_port *port)
 			info.addr = 0xcc >> 1;
 			info.platform_data = &si2168_config;
 			request_module(info.type);
-			client_demod = i2c_new_device(&dev->i2c_bus[2].i2c_adap, &info);
-			if (client_demod == NULL || client_demod->dev.driver == NULL) {
+			client_demod = i2c_new_device(&dev->i2c_bus[2].i2c_adap,
+						      &info);
+			if (!client_tuner || !client_tuner->dev.driver)
 				goto frontend_detach;
-			}
+
 			if (!try_module_get(client_demod->dev.driver->owner)) {
 				i2c_unregister_device(client_demod);
 				goto frontend_detach;
@@ -710,8 +715,9 @@ int saa7164_dvb_register(struct saa7164_port *port)
 			info.addr = 0xc0 >> 1;
 			info.platform_data = &si2157_config;
 			request_module(info.type);
-			client_tuner = i2c_new_device(&dev->i2c_bus[1].i2c_adap, &info);
-			if (client_tuner == NULL || client_tuner->dev.driver == NULL) {
+			client_tuner = i2c_new_device(&dev->i2c_bus[1].i2c_adap,
+						      &info);
+			if (!client_tuner || !client_tuner->dev.driver) {
 				module_put(client_demod->dev.driver->owner);
 				i2c_unregister_device(client_demod);
 				goto frontend_detach;
