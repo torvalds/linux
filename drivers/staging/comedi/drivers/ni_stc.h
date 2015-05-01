@@ -455,6 +455,8 @@
 #define NISTC_RTSI_TRIG_MASK(_c)	NISTC_RTSI_TRIG((_c), 0xf)
 #define NISTC_RTSI_TRIG_TO_SRC(_c, _b)	(((_b) >> (((_c) % 4) * 4)) & 0xf)
 
+#define NISTC_RTSI_BOARD_REG		81
+
 #define AI_Status_1_Register		2
 #define Interrupt_A_St				0x8000
 #define AI_FIFO_Full_St				0x4000
@@ -513,7 +515,6 @@ enum Joint_Status_2_Bits {
 #define AO_BC_Save_Registers		18
 #define AO_UC_Save_Registers		20
 
-#define	RTSI_Board_Register		81
 #define Write_Strobe_0_Register		82
 #define Write_Strobe_1_Register		83
 #define Write_Strobe_2_Register		84

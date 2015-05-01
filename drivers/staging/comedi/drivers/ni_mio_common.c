@@ -374,7 +374,7 @@ static const struct mio_regmap m_series_stc_write_regmap[] = {
 	[NISTC_AO_PERSONAL_REG]		= { 0x19c, 2 },
 	[NISTC_RTSI_TRIGA_OUT_REG]	= { 0x19e, 2 },
 	[NISTC_RTSI_TRIGB_OUT_REG]	= { 0x1a0, 2 },
-	[RTSI_Board_Register]		= { 0, 0 }, /* Unknown */
+	[NISTC_RTSI_BOARD_REG]		= { 0, 0 }, /* Unknown */
 	[Configuration_Memory_Clear]	= { 0x1a4, 2 },
 	[ADC_FIFO_Clear]		= { 0x1a6, 2 },
 	[DAC_FIFO_Clear]		= { 0x1a8, 2 },
@@ -4935,10 +4935,10 @@ static void ni_rtsi_init(struct comedi_device *dev)
 	ni_stc_writew(dev, devpriv->rtsi_trig_b_output_reg,
 		      NISTC_RTSI_TRIGB_OUT_REG);
 
-/*
-* Sets the source and direction of the 4 on board lines
-* ni_stc_writew(dev, 0x0000, RTSI_Board_Register);
-*/
+	/*
+	 * Sets the source and direction of the 4 on board lines
+	 * ni_stc_writew(dev, 0, NISTC_RTSI_BOARD_REG);
+	 */
 }
 
 #ifdef PCIDMA
