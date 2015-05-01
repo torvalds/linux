@@ -618,35 +618,37 @@
 #define NI611X_AO_WINDOW_ADDR_REG	0x18
 #define NI611X_AO_WINDOW_DATA_REG	0x1e
 
-/* 6143 registers */
-#define Magic_6143			0x19	/* w8 */
-#define G0G1_DMA_Select_6143		0x0B	/* w8 */
-#define PipelineDelay_6143		0x1f	/* w8 */
-#define EOC_Set_6143			0x1D	/* w8 */
-#define AIDMA_Select_6143		0x09	/* w8 */
-#define AIFIFO_Data_6143		0x8C	/* w32 */
-#define AIFIFO_Flag_6143		0x84	/* w32 */
-#define AIFIFO_Control_6143		0x88	/* w32 */
-#define AIFIFO_Status_6143		0x88	/* w32 */
-#define AIFIFO_DMAThreshold_6143	0x90	/* w32 */
-#define AIFIFO_Words_Available_6143	0x94	/* w32 */
+/*
+ * 6143 registers
+ */
+#define NI6143_MAGIC_REG		0x19	/* w8 */
+#define NI6143_DMA_G0_G1_SEL_REG	0x0b	/* w8 */
+#define NI6143_PIPELINE_DELAY_REG	0x1f	/* w8 */
+#define NI6143_EOC_SET_REG		0x1d	/* w8 */
+#define NI6143_DMA_AI_SEL_REG		0x09	/* w8 */
+#define NI6143_AI_FIFO_DATA_REG		0x8c	/* r32 */
+#define NI6143_AI_FIFO_FLAG_REG		0x84	/* w32 */
+#define NI6143_AI_FIFO_CTRL_REG		0x88	/* w32 */
+#define NI6143_AI_FIFO_STATUS_REG	0x88	/* r32 */
+#define NI6143_AI_FIFO_DMA_THRESH_REG	0x90	/* w32 */
+#define NI6143_AI_FIFO_WORDS_AVAIL_REG	0x94	/* w32 */
 
-#define Calibration_Channel_6143	0x42	/* w16 */
-#define Calibration_LowTime_6143	0x20	/* w16 */
-#define Calibration_HighTime_6143	0x22	/* w16 */
-#define Relay_Counter_Load_Val__6143	0x4C	/* w32 */
-#define Signature_6143			0x50	/* w32 */
-#define Release_Date_6143		0x54	/* w32 */
-#define Release_Oldest_Date_6143	0x58	/* w32 */
-
-#define Calibration_Channel_6143_RelayOn	0x8000	/* Calibration relay switch On */
-#define Calibration_Channel_6143_RelayOff	0x4000	/* Calibration relay switch Off */
-#define Calibration_Channel_Gnd_Gnd	0x00	/* Offset Calibration */
-#define Calibration_Channel_2v5_Gnd	0x02	/* 2.5V Reference */
-#define Calibration_Channel_Pwm_Gnd	0x05	/* +/- 5V Self Cal */
-#define Calibration_Channel_2v5_Pwm	0x0a	/* PWM Calibration */
-#define Calibration_Channel_Pwm_Pwm	0x0d	/* CMRR */
-#define Calibration_Channel_Gnd_Pwm	0x0e	/* PWM Calibration */
+#define NI6143_CALIB_CHAN_REG		0x42	/* w16 */
+#define NI6143_CALIB_CHAN_RELAY_ON	BIT(15)
+#define NI6143_CALIB_CHAN_RELAY_OFF	BIT(14)
+#define NI6143_CALIB_CHAN(x)		(((x) & 0xf) << 0)
+#define NI6143_CALIB_CHAN_GND_GND	NI6143_CALIB_CHAN(0) /* Offset Cal */
+#define NI6143_CALIB_CHAN_2V5_GND	NI6143_CALIB_CHAN(2) /* 2.5V ref */
+#define NI6143_CALIB_CHAN_PWM_GND	NI6143_CALIB_CHAN(5) /* +-5V Self Cal */
+#define NI6143_CALIB_CHAN_2V5_PWM	NI6143_CALIB_CHAN(10) /* PWM Cal */
+#define NI6143_CALIB_CHAN_PWM_PWM	NI6143_CALIB_CHAN(13) /* CMRR */
+#define NI6143_CALIB_CHAN_GND_PWM	NI6143_CALIB_CHAN(14) /* PWM Cal */
+#define NI6143_CALIB_LO_TIME_REG	0x20	/* w16 */
+#define NI6143_CALIB_HI_TIME_REG	0x22	/* w16 */
+#define NI6143_RELAY_COUNTER_LOAD_REG	0x4c	/* w32 */
+#define NI6143_SIGNATURE_REG		0x50	/* w32 */
+#define NI6143_RELEASE_DATE_REG		0x54	/* w32 */
+#define NI6143_RELEASE_OLDEST_DATE_REG	0x58	/* w32 */
 
 /* 671x, 611x registers */
 

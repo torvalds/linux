@@ -843,11 +843,11 @@ static void ni_clear_ai_fifo(struct comedi_device *dev)
 
 	if (devpriv->is_6143) {
 		/*  Flush the 6143 data FIFO */
-		ni_writel(dev, 0x10, AIFIFO_Control_6143);
-		ni_writel(dev, 0x00, AIFIFO_Control_6143);
+		ni_writel(dev, 0x10, NI6143_AI_FIFO_CTRL_REG);
+		ni_writel(dev, 0x00, NI6143_AI_FIFO_CTRL_REG);
 		/*  Wait for complete */
 		for (i = 0; i < timeout; i++) {
-			if (!(ni_readl(dev, AIFIFO_Status_6143) & 0x10))
+			if (!(ni_readl(dev, NI6143_AI_FIFO_STATUS_REG) & 0x10))
 				break;
 			udelay(1);
 		}
@@ -1134,7 +1134,7 @@ static void ni_ai_fifo_read(struct comedi_device *dev,
 	} else if (devpriv->is_6143) {
 		/*  This just reads the FIFO assuming the data is present, no checks on the FIFO status are performed */
 		for (i = 0; i < n / 2; i++) {
-			dl = ni_readl(dev, AIFIFO_Data_6143);
+			dl = ni_readl(dev, NI6143_AI_FIFO_DATA_REG);
 
 			data = (dl >> 16) & 0xffff;
 			comedi_buf_write_samples(s, &data, 1);
@@ -1144,8 +1144,8 @@ static void ni_ai_fifo_read(struct comedi_device *dev,
 		if (n % 2) {
 			/* Assume there is a single sample stuck in the FIFO */
 			/* Get stranded sample into FIFO */
-			ni_writel(dev, 0x01, AIFIFO_Control_6143);
-			dl = ni_readl(dev, AIFIFO_Data_6143);
+			ni_writel(dev, 0x01, NI6143_AI_FIFO_CTRL_REG);
+			dl = ni_readl(dev, NI6143_AI_FIFO_DATA_REG);
 			data = (dl >> 16) & 0xffff;
 			comedi_buf_write_samples(s, &data, 1);
 		}
@@ -1202,8 +1202,8 @@ static void ni_handle_fifo_dregs(struct comedi_device *dev)
 		}
 	} else if (devpriv->is_6143) {
 		i = 0;
-		while (ni_readl(dev, AIFIFO_Status_6143) & 0x04) {
-			dl = ni_readl(dev, AIFIFO_Data_6143);
+		while (ni_readl(dev, NI6143_AI_FIFO_STATUS_REG) & 0x04) {
+			dl = ni_readl(dev, NI6143_AI_FIFO_DATA_REG);
 
 			/* This may get the hi/lo data in the wrong order */
 			data = dl >> 16;
@@ -1213,10 +1213,10 @@ static void ni_handle_fifo_dregs(struct comedi_device *dev)
 			i += 2;
 		}
 		/*  Check if stranded sample is present */
-		if (ni_readl(dev, AIFIFO_Status_6143) & 0x01) {
+		if (ni_readl(dev, NI6143_AI_FIFO_STATUS_REG) & 0x01) {
 			/* Get stranded sample into FIFO */
-			ni_writel(dev, 0x01, AIFIFO_Control_6143);
-			dl = ni_readl(dev, AIFIFO_Data_6143);
+			ni_writel(dev, 0x01, NI6143_AI_FIFO_CTRL_REG);
+			dl = ni_readl(dev, NI6143_AI_FIFO_DATA_REG);
 			data = (dl >> 16) & 0xffff;
 			comedi_buf_write_samples(s, &data, 1);
 		}
@@ -1271,10 +1271,10 @@ static void get_last_sample_6143(struct comedi_device *dev)
 		return;
 
 	/* Check if there's a single sample stuck in the FIFO */
-	if (ni_readl(dev, AIFIFO_Status_6143) & 0x01) {
+	if (ni_readl(dev, NI6143_AI_FIFO_STATUS_REG) & 0x01) {
 		/* Get stranded sample into FIFO */
-		ni_writel(dev, 0x01, AIFIFO_Control_6143);
-		dl = ni_readl(dev, AIFIFO_Data_6143);
+		ni_writel(dev, 0x01, NI6143_AI_FIFO_CTRL_REG);
+		dl = ni_readl(dev, NI6143_AI_FIFO_DATA_REG);
 
 		/* This may get the hi/lo data in the wrong order */
 		data = (dl >> 16) & 0xffff;
@@ -1843,20 +1843,20 @@ static void ni_load_channelgain_list(struct comedi_device *dev,
 		    && !devpriv->ai_calib_source_enabled) {
 			/*  Strobe Relay enable bit */
 			ni_writew(dev, devpriv->ai_calib_source |
-				       Calibration_Channel_6143_RelayOn,
-				  Calibration_Channel_6143);
+				       NI6143_CALIB_CHAN_RELAY_ON,
+				  NI6143_CALIB_CHAN_REG);
 			ni_writew(dev, devpriv->ai_calib_source,
-				  Calibration_Channel_6143);
+				  NI6143_CALIB_CHAN_REG);
 			devpriv->ai_calib_source_enabled = 1;
 			msleep_interruptible(100);	/*  Allow relays to change */
 		} else if (!(list[0] & CR_ALT_SOURCE)
 			   && devpriv->ai_calib_source_enabled) {
 			/*  Strobe Relay disable bit */
 			ni_writew(dev, devpriv->ai_calib_source |
-				       Calibration_Channel_6143_RelayOff,
-				  Calibration_Channel_6143);
+				       NI6143_CALIB_CHAN_RELAY_OFF,
+				  NI6143_CALIB_CHAN_REG);
 			ni_writew(dev, devpriv->ai_calib_source,
-				  Calibration_Channel_6143);
+				  NI6143_CALIB_CHAN_REG);
 			devpriv->ai_calib_source_enabled = 0;
 			msleep_interruptible(100);	/*  Allow relays to change */
 		}
@@ -1982,11 +1982,13 @@ static int ni_ai_insn_read(struct comedi_device *dev,
 			/* The 6143 has 32-bit FIFOs. You need to strobe a bit to move a single 16bit stranded sample into the FIFO */
 			dl = 0;
 			for (i = 0; i < NI_TIMEOUT; i++) {
-				if (ni_readl(dev, AIFIFO_Status_6143) & 0x01) {
+				if (ni_readl(dev, NI6143_AI_FIFO_STATUS_REG) &
+				    0x01) {
 					/* Get stranded sample into FIFO */
 					ni_writel(dev, 0x01,
-						  AIFIFO_Control_6143);
-					dl = ni_readl(dev, AIFIFO_Data_6143);
+						  NI6143_AI_FIFO_CTRL_REG);
+					dl = ni_readl(dev,
+						      NI6143_AI_FIFO_DATA_REG);
 					break;
 				}
 			}
@@ -2541,7 +2543,7 @@ static int ni_ai_insn_config(struct comedi_device *dev,
 			calib_source = data[1] & 0xf;
 
 			devpriv->ai_calib_source = calib_source;
-			ni_writew(dev, calib_source, Calibration_Channel_6143);
+			ni_writew(dev, calib_source, NI6143_CALIB_CHAN_REG);
 		} else {
 			unsigned int calib_source;
 			unsigned int calib_source_adjust;
@@ -4055,9 +4057,9 @@ static int ni_6143_pwm_config(struct comedi_device *dev,
 			data[4] = down_count * devpriv->clock_ns;
 			return -EAGAIN;
 		}
-		ni_writel(dev, up_count, Calibration_HighTime_6143);
+		ni_writel(dev, up_count, NI6143_CALIB_HI_TIME_REG);
 		devpriv->pwm_up_count = up_count;
-		ni_writel(dev, down_count, Calibration_LowTime_6143);
+		ni_writel(dev, down_count, NI6143_CALIB_LO_TIME_REG);
 		devpriv->pwm_down_count = down_count;
 		return 5;
 	case INSN_CONFIG_GET_PWM_OUTPUT:
