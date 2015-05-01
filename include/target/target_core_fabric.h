@@ -9,15 +9,6 @@ struct target_core_fabric_ops {
 	char *(*tpg_get_wwn)(struct se_portal_group *);
 	u16 (*tpg_get_tag)(struct se_portal_group *);
 	u32 (*tpg_get_default_depth)(struct se_portal_group *);
-	u32 (*tpg_get_pr_transport_id)(struct se_portal_group *,
-				struct se_node_acl *,
-				struct t10_pr_registration *, int *,
-				unsigned char *);
-	u32 (*tpg_get_pr_transport_id_len)(struct se_portal_group *,
-				struct se_node_acl *,
-				struct t10_pr_registration *, int *);
-	char *(*tpg_parse_pr_out_transport_id)(struct se_portal_group *,
-				const char *, u32 *, char **);
 	int (*tpg_check_demo_mode)(struct se_portal_group *);
 	int (*tpg_check_demo_mode_cache)(struct se_portal_group *);
 	int (*tpg_check_demo_mode_write_protect)(struct se_portal_group *);
@@ -176,30 +167,6 @@ int	core_tpg_set_initiator_node_tag(struct se_portal_group *,
 int	core_tpg_register(const struct target_core_fabric_ops *,
 		struct se_wwn *, struct se_portal_group *, int);
 int	core_tpg_deregister(struct se_portal_group *);
-
-/* SAS helpers */
-u32	sas_get_pr_transport_id(struct se_portal_group *, struct se_node_acl *,
-		struct t10_pr_registration *, int *, unsigned char *);
-u32	sas_get_pr_transport_id_len(struct se_portal_group *, struct se_node_acl *,
-		struct t10_pr_registration *, int *);
-char	*sas_parse_pr_out_transport_id(struct se_portal_group *, const char *,
-		u32 *, char **);
-
-/* FC helpers */
-u32	fc_get_pr_transport_id(struct se_portal_group *, struct se_node_acl *,
-		struct t10_pr_registration *, int *, unsigned char *);
-u32	fc_get_pr_transport_id_len(struct se_portal_group *, struct se_node_acl *,
-		struct t10_pr_registration *, int *);
-char	*fc_parse_pr_out_transport_id(struct se_portal_group *, const char *,
-		u32 *, char **);
-
-/* iSCSI helpers */
-u32	iscsi_get_pr_transport_id(struct se_portal_group *, struct se_node_acl *,
-		struct t10_pr_registration *, int *, unsigned char *);
-u32	iscsi_get_pr_transport_id_len(struct se_portal_group *, struct se_node_acl *,
-		struct t10_pr_registration *, int *);
-char	*iscsi_parse_pr_out_transport_id(struct se_portal_group *, const char *,
-		u32 *, char **);
 
 /*
  * The LIO target core uses DMA_TO_DEVICE to mean that data is going

@@ -206,73 +206,6 @@ static u16 tcm_qla2xxx_get_tag(struct se_portal_group *se_tpg)
 	return tpg->lport_tpgt;
 }
 
-static u32 tcm_qla2xxx_get_pr_transport_id(
-	struct se_portal_group *se_tpg,
-	struct se_node_acl *se_nacl,
-	struct t10_pr_registration *pr_reg,
-	int *format_code,
-	unsigned char *buf)
-{
-	struct tcm_qla2xxx_tpg *tpg = container_of(se_tpg,
-				struct tcm_qla2xxx_tpg, se_tpg);
-	struct tcm_qla2xxx_lport *lport = tpg->lport;
-	int ret = 0;
-
-	switch (lport->lport_proto_id) {
-	case SCSI_PROTOCOL_FCP:
-	default:
-		ret = fc_get_pr_transport_id(se_tpg, se_nacl, pr_reg,
-					format_code, buf);
-		break;
-	}
-
-	return ret;
-}
-
-static u32 tcm_qla2xxx_get_pr_transport_id_len(
-	struct se_portal_group *se_tpg,
-	struct se_node_acl *se_nacl,
-	struct t10_pr_registration *pr_reg,
-	int *format_code)
-{
-	struct tcm_qla2xxx_tpg *tpg = container_of(se_tpg,
-				struct tcm_qla2xxx_tpg, se_tpg);
-	struct tcm_qla2xxx_lport *lport = tpg->lport;
-	int ret = 0;
-
-	switch (lport->lport_proto_id) {
-	case SCSI_PROTOCOL_FCP:
-	default:
-		ret = fc_get_pr_transport_id_len(se_tpg, se_nacl, pr_reg,
-					format_code);
-		break;
-	}
-
-	return ret;
-}
-
-static char *tcm_qla2xxx_parse_pr_out_transport_id(
-	struct se_portal_group *se_tpg,
-	const char *buf,
-	u32 *out_tid_len,
-	char **port_nexus_ptr)
-{
-	struct tcm_qla2xxx_tpg *tpg = container_of(se_tpg,
-				struct tcm_qla2xxx_tpg, se_tpg);
-	struct tcm_qla2xxx_lport *lport = tpg->lport;
-	char *tid = NULL;
-
-	switch (lport->lport_proto_id) {
-	case SCSI_PROTOCOL_FCP:
-	default:
-		tid = fc_parse_pr_out_transport_id(se_tpg, buf, out_tid_len,
-					port_nexus_ptr);
-		break;
-	}
-
-	return tid;
-}
-
 static int tcm_qla2xxx_check_demo_mode(struct se_portal_group *se_tpg)
 {
 	struct tcm_qla2xxx_tpg *tpg = container_of(se_tpg,
@@ -1913,9 +1846,6 @@ static const struct target_core_fabric_ops tcm_qla2xxx_ops = {
 	.get_fabric_name		= tcm_qla2xxx_get_fabric_name,
 	.tpg_get_wwn			= tcm_qla2xxx_get_fabric_wwn,
 	.tpg_get_tag			= tcm_qla2xxx_get_tag,
-	.tpg_get_pr_transport_id	= tcm_qla2xxx_get_pr_transport_id,
-	.tpg_get_pr_transport_id_len	= tcm_qla2xxx_get_pr_transport_id_len,
-	.tpg_parse_pr_out_transport_id	= tcm_qla2xxx_parse_pr_out_transport_id,
 	.tpg_check_demo_mode		= tcm_qla2xxx_check_demo_mode,
 	.tpg_check_demo_mode_cache	= tcm_qla2xxx_check_demo_mode_cache,
 	.tpg_check_demo_mode_write_protect =
@@ -1963,9 +1893,6 @@ static const struct target_core_fabric_ops tcm_qla2xxx_npiv_ops = {
 	.get_fabric_name		= tcm_qla2xxx_npiv_get_fabric_name,
 	.tpg_get_wwn			= tcm_qla2xxx_get_fabric_wwn,
 	.tpg_get_tag			= tcm_qla2xxx_get_tag,
-	.tpg_get_pr_transport_id	= tcm_qla2xxx_get_pr_transport_id,
-	.tpg_get_pr_transport_id_len	= tcm_qla2xxx_get_pr_transport_id_len,
-	.tpg_parse_pr_out_transport_id	= tcm_qla2xxx_parse_pr_out_transport_id,
 	.tpg_check_demo_mode		= tcm_qla2xxx_check_demo_mode,
 	.tpg_check_demo_mode_cache	= tcm_qla2xxx_check_demo_mode_cache,
 	.tpg_check_demo_mode_write_protect = tcm_qla2xxx_check_demo_mode,

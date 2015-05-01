@@ -542,95 +542,6 @@ static u16 tcm_loop_get_tag(struct se_portal_group *se_tpg)
 	return tl_tpg(se_tpg)->tl_tpgt;
 }
 
-static u32 tcm_loop_get_pr_transport_id(
-	struct se_portal_group *se_tpg,
-	struct se_node_acl *se_nacl,
-	struct t10_pr_registration *pr_reg,
-	int *format_code,
-	unsigned char *buf)
-{
-	struct tcm_loop_hba *tl_hba = tl_tpg(se_tpg)->tl_hba;
-
-	switch (tl_hba->tl_proto_id) {
-	case SCSI_PROTOCOL_SAS:
-		return sas_get_pr_transport_id(se_tpg, se_nacl, pr_reg,
-					format_code, buf);
-	case SCSI_PROTOCOL_FCP:
-		return fc_get_pr_transport_id(se_tpg, se_nacl, pr_reg,
-					format_code, buf);
-	case SCSI_PROTOCOL_ISCSI:
-		return iscsi_get_pr_transport_id(se_tpg, se_nacl, pr_reg,
-					format_code, buf);
-	default:
-		pr_err("Unknown tl_proto_id: 0x%02x, using"
-			" SAS emulation\n", tl_hba->tl_proto_id);
-		break;
-	}
-
-	return sas_get_pr_transport_id(se_tpg, se_nacl, pr_reg,
-			format_code, buf);
-}
-
-static u32 tcm_loop_get_pr_transport_id_len(
-	struct se_portal_group *se_tpg,
-	struct se_node_acl *se_nacl,
-	struct t10_pr_registration *pr_reg,
-	int *format_code)
-{
-	struct tcm_loop_hba *tl_hba = tl_tpg(se_tpg)->tl_hba;
-
-	switch (tl_hba->tl_proto_id) {
-	case SCSI_PROTOCOL_SAS:
-		return sas_get_pr_transport_id_len(se_tpg, se_nacl, pr_reg,
-					format_code);
-	case SCSI_PROTOCOL_FCP:
-		return fc_get_pr_transport_id_len(se_tpg, se_nacl, pr_reg,
-					format_code);
-	case SCSI_PROTOCOL_ISCSI:
-		return iscsi_get_pr_transport_id_len(se_tpg, se_nacl, pr_reg,
-					format_code);
-	default:
-		pr_err("Unknown tl_proto_id: 0x%02x, using"
-			" SAS emulation\n", tl_hba->tl_proto_id);
-		break;
-	}
-
-	return sas_get_pr_transport_id_len(se_tpg, se_nacl, pr_reg,
-			format_code);
-}
-
-/*
- * Used for handling SCSI fabric dependent TransportIDs in SPC-3 and above
- * Persistent Reservation SPEC_I_PT=1 and PROUT REGISTER_AND_MOVE operations.
- */
-static char *tcm_loop_parse_pr_out_transport_id(
-	struct se_portal_group *se_tpg,
-	const char *buf,
-	u32 *out_tid_len,
-	char **port_nexus_ptr)
-{
-	struct tcm_loop_hba *tl_hba = tl_tpg(se_tpg)->tl_hba;
-
-	switch (tl_hba->tl_proto_id) {
-	case SCSI_PROTOCOL_SAS:
-		return sas_parse_pr_out_transport_id(se_tpg, buf, out_tid_len,
-					port_nexus_ptr);
-	case SCSI_PROTOCOL_FCP:
-		return fc_parse_pr_out_transport_id(se_tpg, buf, out_tid_len,
-					port_nexus_ptr);
-	case SCSI_PROTOCOL_ISCSI:
-		return iscsi_parse_pr_out_transport_id(se_tpg, buf, out_tid_len,
-					port_nexus_ptr);
-	default:
-		pr_err("Unknown tl_proto_id: 0x%02x, using"
-			" SAS emulation\n", tl_hba->tl_proto_id);
-		break;
-	}
-
-	return sas_parse_pr_out_transport_id(se_tpg, buf, out_tid_len,
-			port_nexus_ptr);
-}
-
 /*
  * Returning (1) here allows for target_core_mod struct se_node_acl to be generated
  * based upon the incoming fabric dependent SCSI Initiator Port
@@ -1332,9 +1243,6 @@ static const struct target_core_fabric_ops loop_ops = {
 	.get_fabric_name		= tcm_loop_get_fabric_name,
 	.tpg_get_wwn			= tcm_loop_get_endpoint_wwn,
 	.tpg_get_tag			= tcm_loop_get_tag,
-	.tpg_get_pr_transport_id	= tcm_loop_get_pr_transport_id,
-	.tpg_get_pr_transport_id_len	= tcm_loop_get_pr_transport_id_len,
-	.tpg_parse_pr_out_transport_id	= tcm_loop_parse_pr_out_transport_id,
 	.tpg_check_demo_mode		= tcm_loop_check_demo_mode,
 	.tpg_check_demo_mode_cache	= tcm_loop_check_demo_mode_cache,
 	.tpg_check_demo_mode_write_protect =

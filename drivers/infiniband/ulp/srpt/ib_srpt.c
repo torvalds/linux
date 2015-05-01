@@ -3406,42 +3406,6 @@ static u16 srpt_get_tag(struct se_portal_group *tpg)
 	return 1;
 }
 
-static u32 srpt_get_pr_transport_id(struct se_portal_group *se_tpg,
-				    struct se_node_acl *se_nacl,
-				    struct t10_pr_registration *pr_reg,
-				    int *format_code, unsigned char *buf)
-{
-	struct srpt_node_acl *nacl;
-	struct spc_rdma_transport_id *tr_id;
-
-	nacl = container_of(se_nacl, struct srpt_node_acl, nacl);
-	tr_id = (void *)buf;
-	tr_id->protocol_identifier = SCSI_TRANSPORTID_PROTOCOLID_SRP;
-	memcpy(tr_id->i_port_id, nacl->i_port_id, sizeof(tr_id->i_port_id));
-	return sizeof(*tr_id);
-}
-
-static u32 srpt_get_pr_transport_id_len(struct se_portal_group *se_tpg,
-					struct se_node_acl *se_nacl,
-					struct t10_pr_registration *pr_reg,
-					int *format_code)
-{
-	*format_code = 0;
-	return sizeof(struct spc_rdma_transport_id);
-}
-
-static char *srpt_parse_pr_out_transport_id(struct se_portal_group *se_tpg,
-					    const char *buf, u32 *out_tid_len,
-					    char **port_nexus_ptr)
-{
-	struct spc_rdma_transport_id *tr_id;
-
-	*port_nexus_ptr = NULL;
-	*out_tid_len = sizeof(struct spc_rdma_transport_id);
-	tr_id = (void *)buf;
-	return (char *)tr_id->i_port_id;
-}
-
 static u32 srpt_tpg_get_inst_index(struct se_portal_group *se_tpg)
 {
 	return 1;
@@ -3860,9 +3824,6 @@ static const struct target_core_fabric_ops srpt_template = {
 	.get_fabric_name		= srpt_get_fabric_name,
 	.tpg_get_wwn			= srpt_get_fabric_wwn,
 	.tpg_get_tag			= srpt_get_tag,
-	.tpg_get_pr_transport_id	= srpt_get_pr_transport_id,
-	.tpg_get_pr_transport_id_len	= srpt_get_pr_transport_id_len,
-	.tpg_parse_pr_out_transport_id	= srpt_parse_pr_out_transport_id,
 	.tpg_check_demo_mode		= srpt_check_false,
 	.tpg_check_demo_mode_cache	= srpt_check_true,
 	.tpg_check_demo_mode_write_protect = srpt_check_true,

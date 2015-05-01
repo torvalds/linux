@@ -38,6 +38,15 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name);
 int	target_configure_device(struct se_device *dev);
 void	target_free_device(struct se_device *);
 
+/* target_core_fabric_lib.c */
+int	target_get_pr_transport_id_len(struct se_node_acl *nacl,
+		struct t10_pr_registration *pr_reg, int *format_code);
+int	target_get_pr_transport_id(struct se_node_acl *nacl,
+		struct t10_pr_registration *pr_reg, int *format_code,
+		unsigned char *buf);
+const char *target_parse_pr_out_transport_id(struct se_portal_group *tpg,
+		const char *buf, u32 *out_tid_len, char **port_nexus_ptr);
+
 /* target_core_hba.c */
 struct se_hba *core_alloc_hba(const char *, u32, u32);
 int	core_delete_hba(struct se_hba *);

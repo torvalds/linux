@@ -57,8 +57,6 @@ struct tcm_qla2xxx_fc_loopid {
 };
 
 struct tcm_qla2xxx_lport {
-	/* SCSI protocol the lport is providing */
-	u8 lport_proto_id;
 	/* Binary World Wide unique Port Name for FC Target Lport */
 	u64 lport_wwpn;
 	/* Binary World Wide unique Port Name for FC NPIV Target Lport */

@@ -1832,73 +1832,6 @@ static int sbp_check_stop_free(struct se_cmd *se_cmd)
 	return 1;
 }
 
-static u32 sbp_get_pr_transport_id(
-	struct se_portal_group *se_tpg,
-	struct se_node_acl *se_nacl,
-	struct t10_pr_registration *pr_reg,
-	int *format_code,
-	unsigned char *buf)
-{
-	int ret;
-
-	/*
-	 * Set PROTOCOL IDENTIFIER to 3h for SBP
-	 */
-	buf[0] = SCSI_PROTOCOL_SBP;
-	/*
-	 * From spc4r17, 7.5.4.4 TransportID for initiator ports using SCSI
-	 * over IEEE 1394
-	 */
-	ret = hex2bin(&buf[8], se_nacl->initiatorname, 8);
-	if (ret < 0)
-		pr_debug("sbp transport_id: invalid hex string\n");
-
-	/*
-	 * The IEEE 1394 Transport ID is a hardcoded 24-byte length
-	 */
-	return 24;
-}
-
-static u32 sbp_get_pr_transport_id_len(
-	struct se_portal_group *se_tpg,
-	struct se_node_acl *se_nacl,
-	struct t10_pr_registration *pr_reg,
-	int *format_code)
-{
-	*format_code = 0;
-	/*
-	 * From spc4r17, 7.5.4.4 TransportID for initiator ports using SCSI
-	 * over IEEE 1394
-	 *
-	 * The SBP Transport ID is a hardcoded 24-byte length
-	 */
-	return 24;
-}
-
-/*
- * Used for handling SCSI fabric dependent TransportIDs in SPC-3 and above
- * Persistent Reservation SPEC_I_PT=1 and PROUT REGISTER_AND_MOVE operations.
- */
-static char *sbp_parse_pr_out_transport_id(
-	struct se_portal_group *se_tpg,
-	const char *buf,
-	u32 *out_tid_len,
-	char **port_nexus_ptr)
-{
-	/*
-	 * Assume the FORMAT CODE 00b from spc4r17, 7.5.4.4 TransportID
-	 * for initiator ports using SCSI over SBP Serial SCSI Protocol
-	 *
-	 * The TransportID for a IEEE 1394 Initiator Port is of fixed size of
-	 * 24 bytes, and IEEE 1394 does not contain a I_T nexus identifier,
-	 * so we return the **port_nexus_ptr set to NULL.
-	 */
-	*port_nexus_ptr = NULL;
-	*out_tid_len = 24;
-
-	return (char *)&buf[8];
-}
-
 static int sbp_count_se_tpg_luns(struct se_portal_group *tpg)
 {
 	int i, count = 0;
@@ -2432,9 +2365,6 @@ static const struct target_core_fabric_ops sbp_ops = {
 	.get_fabric_name		= sbp_get_fabric_name,
 	.tpg_get_wwn			= sbp_get_fabric_wwn,
 	.tpg_get_tag			= sbp_get_tag,
-	.tpg_get_pr_transport_id	= sbp_get_pr_transport_id,
-	.tpg_get_pr_transport_id_len	= sbp_get_pr_transport_id_len,
-	.tpg_parse_pr_out_transport_id	= sbp_parse_pr_out_transport_id,
 	.tpg_check_demo_mode		= sbp_check_true,
 	.tpg_check_demo_mode_cache	= sbp_check_true,
 	.tpg_check_demo_mode_write_protect = sbp_check_false,

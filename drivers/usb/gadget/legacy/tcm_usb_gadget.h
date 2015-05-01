@@ -44,8 +44,6 @@ struct usbg_tpg {
 };
 
 struct usbg_tport {
-	/* SCSI protocol the tport is providing */
-	u8 tport_proto_id;
 	/* Binary World Wide unique Port Name for SAS Target port */
 	u64 tport_wwpn;
 	/* ASCII formatted WWPN for SAS Target port */

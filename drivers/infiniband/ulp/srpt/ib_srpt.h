@@ -422,22 +422,4 @@ struct srpt_node_acl {
 	struct list_head	list;
 };
 
-/*
- * SRP-releated SCSI persistent reservation definitions.
- *
- * See also SPC4r28, section 7.6.1 (Protocol specific parameters introduction).
- * See also SPC4r28, section 7.6.4.5 (TransportID for initiator ports using
- * SCSI over an RDMA interface).
- */
-
-enum {
-	SCSI_TRANSPORTID_PROTOCOLID_SRP	= 4,
-};
-
-struct spc_rdma_transport_id {
-	uint8_t protocol_identifier;
-	uint8_t reserved[7];
-	uint8_t i_port_id[16];
-};
-
 #endif				/* IB_SRPT_H */

@@ -326,14 +326,6 @@ static int target_fabric_tf_ops_check(const struct target_core_fabric_ops *tfo)
 		pr_err("Missing tfo->tpg_get_tag()\n");
 		return -EINVAL;
 	}
-	if (!tfo->tpg_get_pr_transport_id) {
-		pr_err("Missing tfo->tpg_get_pr_transport_id()\n");
-		return -EINVAL;
-	}
-	if (!tfo->tpg_get_pr_transport_id_len) {
-		pr_err("Missing tfo->tpg_get_pr_transport_id_len()\n");
-		return -EINVAL;
-	}
 	if (!tfo->tpg_check_demo_mode) {
 		pr_err("Missing tfo->tpg_check_demo_mode()\n");
 		return -EINVAL;

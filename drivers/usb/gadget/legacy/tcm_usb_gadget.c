@@ -1290,72 +1290,6 @@ static u16 usbg_get_tag(struct se_portal_group *se_tpg)
 	return tpg->tport_tpgt;
 }
 
-static u32 usbg_get_pr_transport_id(
-	struct se_portal_group *se_tpg,
-	struct se_node_acl *se_nacl,
-	struct t10_pr_registration *pr_reg,
-	int *format_code,
-	unsigned char *buf)
-{
-	struct usbg_tpg *tpg = container_of(se_tpg,
-				struct usbg_tpg, se_tpg);
-	struct usbg_tport *tport = tpg->tport;
-	int ret = 0;
-
-	switch (tport->tport_proto_id) {
-	case SCSI_PROTOCOL_SAS:
-	default:
-		ret = sas_get_pr_transport_id(se_tpg, se_nacl, pr_reg,
-					format_code, buf);
-		break;
-	}
-
-	return ret;
-}
-
-static u32 usbg_get_pr_transport_id_len(
-	struct se_portal_group *se_tpg,
-	struct se_node_acl *se_nacl,
-	struct t10_pr_registration *pr_reg,
-	int *format_code)
-{
-	struct usbg_tpg *tpg = container_of(se_tpg,
-				struct usbg_tpg, se_tpg);
-	struct usbg_tport *tport = tpg->tport;
-	int ret = 0;
-
-	switch (tport->tport_proto_id) {
-	case SCSI_PROTOCOL_SAS:
-	default:
-		ret = sas_get_pr_transport_id_len(se_tpg, se_nacl, pr_reg,
-					format_code);
-		break;
-	}
-
-	return ret;
-}
-
-static char *usbg_parse_pr_out_transport_id(
-	struct se_portal_group *se_tpg,
-	const char *buf,
-	u32 *out_tid_len,
-	char **port_nexus_ptr)
-{
-	struct usbg_tpg *tpg = container_of(se_tpg,
-				struct usbg_tpg, se_tpg);
-	struct usbg_tport *tport = tpg->tport;
-	char *tid = NULL;
-
-	switch (tport->tport_proto_id) {
-	case SCSI_PROTOCOL_SAS:
-	default:
-		tid = sas_parse_pr_out_transport_id(se_tpg, buf, out_tid_len,
-					port_nexus_ptr);
-	}
-
-	return tid;
-}
-
 static u32 usbg_tpg_get_inst_index(struct se_portal_group *se_tpg)
 {
 	return 1;
@@ -1491,8 +1425,12 @@ static struct se_portal_group *usbg_make_tpg(
 	tpg->tport = tport;
 	tpg->tport_tpgt = tpgt;
 
+	/*
+	 * SPC doesn't assign a protocol identifier for USB-SCSI, so we
+	 * pretend to be SAS..
+	 */
 	ret = core_tpg_register(&usbg_ops, wwn, &tpg->se_tpg,
-				tport->tport_proto_id);
+				SCSI_PROTOCOL_SAS);
 	if (ret < 0) {
 		destroy_workqueue(tpg->workqueue);
 		kfree(tpg);
@@ -1788,9 +1726,6 @@ static const struct target_core_fabric_ops usbg_ops = {
 	.get_fabric_name		= usbg_get_fabric_name,
 	.tpg_get_wwn			= usbg_get_fabric_wwn,
 	.tpg_get_tag			= usbg_get_tag,
-	.tpg_get_pr_transport_id	= usbg_get_pr_transport_id,
-	.tpg_get_pr_transport_id_len	= usbg_get_pr_transport_id_len,
-	.tpg_parse_pr_out_transport_id	= usbg_parse_pr_out_transport_id,
 	.tpg_check_demo_mode		= usbg_check_true,
 	.tpg_check_demo_mode_cache	= usbg_check_false,
 	.tpg_check_demo_mode_write_protect = usbg_check_false,

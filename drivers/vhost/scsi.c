@@ -304,97 +304,6 @@ static u16 vhost_scsi_get_tpgt(struct se_portal_group *se_tpg)
 	return tpg->tport_tpgt;
 }
 
-static u32
-vhost_scsi_get_pr_transport_id(struct se_portal_group *se_tpg,
-			      struct se_node_acl *se_nacl,
-			      struct t10_pr_registration *pr_reg,
-			      int *format_code,
-			      unsigned char *buf)
-{
-	struct vhost_scsi_tpg *tpg = container_of(se_tpg,
-				struct vhost_scsi_tpg, se_tpg);
-	struct vhost_scsi_tport *tport = tpg->tport;
-
-	switch (tport->tport_proto_id) {
-	case SCSI_PROTOCOL_SAS:
-		return sas_get_pr_transport_id(se_tpg, se_nacl, pr_reg,
-					format_code, buf);
-	case SCSI_PROTOCOL_FCP:
-		return fc_get_pr_transport_id(se_tpg, se_nacl, pr_reg,
-					format_code, buf);
-	case SCSI_PROTOCOL_ISCSI:
-		return iscsi_get_pr_transport_id(se_tpg, se_nacl, pr_reg,
-					format_code, buf);
-	default:
-		pr_err("Unknown tport_proto_id: 0x%02x, using"
-			" SAS emulation\n", tport->tport_proto_id);
-		break;
-	}
-
-	return sas_get_pr_transport_id(se_tpg, se_nacl, pr_reg,
-			format_code, buf);
-}
-
-static u32
-vhost_scsi_get_pr_transport_id_len(struct se_portal_group *se_tpg,
-				  struct se_node_acl *se_nacl,
-				  struct t10_pr_registration *pr_reg,
-				  int *format_code)
-{
-	struct vhost_scsi_tpg *tpg = container_of(se_tpg,
-				struct vhost_scsi_tpg, se_tpg);
-	struct vhost_scsi_tport *tport = tpg->tport;
-
-	switch (tport->tport_proto_id) {
-	case SCSI_PROTOCOL_SAS:
-		return sas_get_pr_transport_id_len(se_tpg, se_nacl, pr_reg,
-					format_code);
-	case SCSI_PROTOCOL_FCP:
-		return fc_get_pr_transport_id_len(se_tpg, se_nacl, pr_reg,
-					format_code);
-	case SCSI_PROTOCOL_ISCSI:
-		return iscsi_get_pr_transport_id_len(se_tpg, se_nacl, pr_reg,
-					format_code);
-	default:
-		pr_err("Unknown tport_proto_id: 0x%02x, using"
-			" SAS emulation\n", tport->tport_proto_id);
-		break;
-	}
-
-	return sas_get_pr_transport_id_len(se_tpg, se_nacl, pr_reg,
-			format_code);
-}
-
-static char *
-vhost_scsi_parse_pr_out_transport_id(struct se_portal_group *se_tpg,
-				    const char *buf,
-				    u32 *out_tid_len,
-				    char **port_nexus_ptr)
-{
-	struct vhost_scsi_tpg *tpg = container_of(se_tpg,
-				struct vhost_scsi_tpg, se_tpg);
-	struct vhost_scsi_tport *tport = tpg->tport;
-
-	switch (tport->tport_proto_id) {
-	case SCSI_PROTOCOL_SAS:
-		return sas_parse_pr_out_transport_id(se_tpg, buf, out_tid_len,
-					port_nexus_ptr);
-	case SCSI_PROTOCOL_FCP:
-		return fc_parse_pr_out_transport_id(se_tpg, buf, out_tid_len,
-					port_nexus_ptr);
-	case SCSI_PROTOCOL_ISCSI:
-		return iscsi_parse_pr_out_transport_id(se_tpg, buf, out_tid_len,
-					port_nexus_ptr);
-	default:
-		pr_err("Unknown tport_proto_id: 0x%02x, using"
-			" SAS emulation\n", tport->tport_proto_id);
-		break;
-	}
-
-	return sas_parse_pr_out_transport_id(se_tpg, buf, out_tid_len,
-			port_nexus_ptr);
-}
-
 static int vhost_scsi_check_prot_fabric_only(struct se_portal_group *se_tpg)
 {
 	struct vhost_scsi_tpg *tpg = container_of(se_tpg,
@@ -2224,9 +2133,6 @@ static struct target_core_fabric_ops vhost_scsi_ops = {
 	.get_fabric_name		= vhost_scsi_get_fabric_name,
 	.tpg_get_wwn			= vhost_scsi_get_fabric_wwn,
 	.tpg_get_tag			= vhost_scsi_get_tpgt,
-	.tpg_get_pr_transport_id	= vhost_scsi_get_pr_transport_id,
-	.tpg_get_pr_transport_id_len	= vhost_scsi_get_pr_transport_id_len,
-	.tpg_parse_pr_out_transport_id	= vhost_scsi_parse_pr_out_transport_id,
 	.tpg_check_demo_mode		= vhost_scsi_check_true,
 	.tpg_check_demo_mode_cache	= vhost_scsi_check_true,
 	.tpg_check_demo_mode_write_protect = vhost_scsi_check_false,
