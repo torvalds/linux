@@ -493,6 +493,7 @@ static int omap2430_musb_exit(struct musb *musb)
 }
 
 static const struct musb_platform_ops omap2430_ops = {
+	.quirks		= MUSB_DMA_INVENTRA,
 	.init		= omap2430_musb_init,
 	.exit		= omap2430_musb_exit,
 
