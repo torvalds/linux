@@ -106,14 +106,13 @@
 		compatible = "simple-bus";
 		ranges;
 
-		syscfg_pctl_a: syscfg_pctl_a@10005000 {
-			compatible = "mediatek,mt8173-pctl-a-syscfg", "syscon";
-			reg = <0 0x10005000 0 0x1000>;
-		};
-
-		pio: pinctrl@0x10005000 {
+		/*
+		 * Pinctrl access register at 0x10005000 through regmap.
+		 * Register 0x1000b000 is used by EINT.
+		 */
+		pio: pinctrl@10005000 {
 			compatible = "mediatek,mt8173-pinctrl";
-			reg = <0 0x1000B000 0 0x1000>;
+			reg = <0 0x1000b000 0 0x1000>;
 			mediatek,pctl-regmap = <&syscfg_pctl_a>;
 			pins-are-numbered;
 			gpio-controller;
@@ -121,8 +120,13 @@
 			interrupt-controller;
 			#interrupt-cells = <2>;
 			interrupts = <GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>,
-						<GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>,
-						<GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>;
+				     <GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		syscfg_pctl_a: syscfg_pctl_a@10005000 {
+			compatible = "mediatek,mt8173-pctl-a-syscfg", "syscon";
+			reg = <0 0x10005000 0 0x1000>;
 		};
 
 		sysirq: intpol-controller@10200620 {
