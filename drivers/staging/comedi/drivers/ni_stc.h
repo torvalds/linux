@@ -190,6 +190,20 @@
 #define NISTC_AI_MODE1_CONTINUOUS	BIT(1)
 #define NISTC_AI_MODE1_TRIGGER_ONCE	BIT(0)
 
+#define NISTC_AI_MODE2_REG		13
+#define NISTC_AI_MODE2_SC_GATE_ENA	BIT(15)
+#define NISTC_AI_MODE2_START_STOP_GATE_ENA BIT(14)
+#define NISTC_AI_MODE2_PRE_TRIGGER	BIT(13)
+#define NISTC_AI_MODE2_EXTMUX_PRESENT	BIT(12)
+#define NISTC_AI_MODE2_SI2_INIT_LOAD_SRC BIT(9)
+#define NISTC_AI_MODE2_SI2_RELOAD_MODE	BIT(8)
+#define NISTC_AI_MODE2_SI_INIT_LOAD_SRC	BIT(7)
+#define NISTC_AI_MODE2_SI_RELOAD_MODE(x) (((x) & 0x7) << 4)
+#define NISTC_AI_MODE2_SI_WR_SWITCH	BIT(3)
+#define NISTC_AI_MODE2_SC_INIT_LOAD_SRC	BIT(2)
+#define NISTC_AI_MODE2_SC_RELOAD_MODE	BIT(1)
+#define NISTC_AI_MODE2_SC_WR_SWITCH	BIT(0)
+
 #define AI_Status_1_Register		2
 #define Interrupt_A_St				0x8000
 #define AI_FIFO_Full_St				0x4000
@@ -231,20 +245,6 @@
 #define AO_Status_2_Register		6
 
 #define DIO_Parallel_Input_Register	7
-
-#define AI_Mode_2_Register		13
-#define AI_SC_Gate_Enable			_bit15
-#define AI_Start_Stop_Gate_Enable		_bit14
-#define AI_Pre_Trigger				_bit13
-#define AI_External_MUX_Present			_bit12
-#define AI_SI2_Initial_Load_Source		_bit9
-#define AI_SI2_Reload_Mode			_bit8
-#define AI_SI_Initial_Load_Source		_bit7
-#define AI_SI_Reload_Mode(a)			(((a) & 0x7)<<4)
-#define AI_SI_Write_Switch			_bit3
-#define AI_SC_Initial_Load_Source		_bit2
-#define AI_SC_Reload_Mode			_bit1
-#define AI_SC_Write_Switch			_bit0
 
 #define AI_SI_Load_A_Registers		14
 #define AI_SI_Load_B_Registers		16

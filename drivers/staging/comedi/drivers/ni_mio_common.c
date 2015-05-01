@@ -329,7 +329,7 @@ static const struct mio_regmap m_series_stc_write_regmap[] = {
 	[NISTC_DIO_OUT_REG]		= { 0, 0 }, /* DOES NOT MAP CLEANLY */
 	[NISTC_DIO_CTRL_REG]		= { 0, 0 }, /* DOES NOT MAP CLEANLY */
 	[NISTC_AI_MODE1_REG]		= { 0x118, 2 },
-	[AI_Mode_2_Register]		= { 0x11a, 2 },
+	[NISTC_AI_MODE2_REG]		= { 0x11a, 2 },
 	[AI_SI_Load_A_Registers]	= { 0x11c, 4 },
 	[AI_SI_Load_B_Registers]	= { 0x120, 4 },
 	[AI_SC_Load_A_Registers]	= { 0x124, 4 },
@@ -1634,7 +1634,7 @@ static int ni_ai_reset(struct comedi_device *dev, struct comedi_subdevice *s)
 			   NISTC_AI_MODE1_RSVD
 			    /*| NISTC_AI_MODE1_TRIGGER_ONCE */,
 		      NISTC_AI_MODE1_REG);
-	ni_stc_writew(dev, 0x0000, AI_Mode_2_Register);
+	ni_stc_writew(dev, 0, NISTC_AI_MODE2_REG);
 	/* generate FIFO interrupts on non-empty */
 	ni_stc_writew(dev, (0 << 6) | 0x0000, AI_Mode_3_Register);
 	if (devpriv->is_611x) {
@@ -2313,10 +2313,10 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		}
 	}
 
-	mode2 &= ~AI_Pre_Trigger;
-	mode2 &= ~AI_SC_Initial_Load_Source;
-	mode2 &= ~AI_SC_Reload_Mode;
-	ni_stc_writew(dev, mode2, AI_Mode_2_Register);
+	mode2 &= ~NISTC_AI_MODE2_PRE_TRIGGER;
+	mode2 &= ~NISTC_AI_MODE2_SC_INIT_LOAD_SRC;
+	mode2 &= ~NISTC_AI_MODE2_SC_RELOAD_MODE;
+	ni_stc_writew(dev, mode2, NISTC_AI_MODE2_REG);
 
 	if (cmd->chanlist_len == 1 || devpriv->is_611x || devpriv->is_6143) {
 		start_stop_select |= AI_STOP_Polarity;
@@ -2374,7 +2374,7 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		/*
 		   stop bits for non 611x boards
 		   AI_SI_Special_Trigger_Delay=0
-		   AI_Pre_Trigger=0
+		   NISTC_AI_MODE2_PRE_TRIGGER=0
 		   AI_START_STOP_Select_Register:
 		   AI_START_Polarity=0 (?)      rising edge
 		   AI_START_Edge=1              edge triggered
@@ -2389,11 +2389,10 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		ni_stc_writew(dev, start_stop_select,
 			      AI_START_STOP_Select_Register);
 
-		mode2 |= AI_SI_Reload_Mode(0);
-		/* AI_SI_Initial_Load_Source=A */
-		mode2 &= ~AI_SI_Initial_Load_Source;
-		/* mode2 |= AI_SC_Reload_Mode; */
-		ni_stc_writew(dev, mode2, AI_Mode_2_Register);
+		mode2 &= ~NISTC_AI_MODE2_SI_INIT_LOAD_SRC;	/* A */
+		mode2 |= NISTC_AI_MODE2_SI_RELOAD_MODE(0);
+		/* mode2 |= NISTC_AI_MODE2_SC_RELOAD_MODE; */
+		ni_stc_writew(dev, mode2, NISTC_AI_MODE2_REG);
 
 		/* load SI */
 		timer = ni_ns_to_timer(dev, cmd->scan_begin_arg,
@@ -2430,18 +2429,15 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		ni_stc_writew(dev, 1, AI_SI2_Load_A_Register);
 		ni_stc_writew(dev, timer, AI_SI2_Load_B_Register);
 
-		/* AI_SI2_Reload_Mode = alternate */
-		/* AI_SI2_Initial_Load_Source = A */
-		mode2 &= ~AI_SI2_Initial_Load_Source;
-		mode2 |= AI_SI2_Reload_Mode;
-		ni_stc_writew(dev, mode2, AI_Mode_2_Register);
+		mode2 &= ~NISTC_AI_MODE2_SI2_INIT_LOAD_SRC;	/* A */
+		mode2 |= NISTC_AI_MODE2_SI2_RELOAD_MODE;	/* alternate */
+		ni_stc_writew(dev, mode2, NISTC_AI_MODE2_REG);
 
 		ni_stc_writew(dev, NISTC_AI_CMD1_SI2_LOAD, NISTC_AI_CMD1_REG);
 
-		mode2 |= AI_SI2_Reload_Mode;	/*  alternate */
-		mode2 |= AI_SI2_Initial_Load_Source;	/*  B */
-
-		ni_stc_writew(dev, mode2, AI_Mode_2_Register);
+		mode2 |= NISTC_AI_MODE2_SI2_INIT_LOAD_SRC;	/* B */
+		mode2 |= NISTC_AI_MODE2_SI2_RELOAD_MODE;	/* alternate */
+		ni_stc_writew(dev, mode2, NISTC_AI_MODE2_REG);
 		break;
 	case TRIG_EXT:
 		mode1 |= NISTC_AI_MODE1_CONVERT_SRC(1 + cmd->convert_arg);
@@ -2449,8 +2445,9 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			mode1 |= NISTC_AI_MODE1_CONVERT_POLARITY;
 		ni_stc_writew(dev, mode1, NISTC_AI_MODE1_REG);
 
-		mode2 |= AI_Start_Stop_Gate_Enable | AI_SC_Gate_Enable;
-		ni_stc_writew(dev, mode2, AI_Mode_2_Register);
+		mode2 |= NISTC_AI_MODE2_SC_GATE_ENA |
+			 NISTC_AI_MODE2_START_STOP_GATE_ENA;
+		ni_stc_writew(dev, mode2, NISTC_AI_MODE2_REG);
 
 		break;
 	}
