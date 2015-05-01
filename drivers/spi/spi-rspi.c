@@ -1300,7 +1300,7 @@ error1:
 	return ret;
 }
 
-static struct platform_device_id spi_driver_ids[] = {
+static const struct platform_device_id spi_driver_ids[] = {
 	{ "rspi",	(kernel_ulong_t)&rspi_ops },
 	{ "rspi-rz",	(kernel_ulong_t)&rspi_rz_ops },
 	{ "qspi",	(kernel_ulong_t)&qspi_ops },
