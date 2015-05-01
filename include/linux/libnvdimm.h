@@ -27,6 +27,9 @@ enum {
 	ND_CMD_MAX_ENVELOPE = 16,
 	ND_CMD_ARS_STATUS_MAX = SZ_4K,
 	ND_MAX_MAPPINGS = 32,
+
+	/* mark newly adjusted resources as requiring a label update */
+	DPA_RESOURCE_ADJUSTED = 1 << 0,
 };
 
 extern struct attribute_group nvdimm_bus_attribute_group;

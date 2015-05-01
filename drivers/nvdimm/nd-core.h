@@ -17,6 +17,7 @@
 #include <linux/libnvdimm.h>
 #include <linux/sizes.h>
 #include <linux/mutex.h>
+#include <linux/nd.h>
 
 extern struct list_head nvdimm_bus_list;
 extern struct mutex nvdimm_bus_list_mutex;
@@ -48,6 +49,8 @@ struct nvdimm_bus *walk_to_nvdimm_bus(struct device *nd_dev);
 int __init nvdimm_bus_init(void);
 void nvdimm_bus_exit(void);
 void nd_region_probe_success(struct nvdimm_bus *nvdimm_bus, struct device *dev);
+struct nd_region;
+void nd_region_create_blk_seed(struct nd_region *nd_region);
 void nd_region_disable(struct nvdimm_bus *nvdimm_bus, struct device *dev);
 int nvdimm_bus_create_ndctl(struct nvdimm_bus *nvdimm_bus);
 void nvdimm_bus_destroy_ndctl(struct nvdimm_bus *nvdimm_bus);
@@ -64,8 +67,13 @@ struct nvdimm_drvdata;
 struct nd_mapping;
 resource_size_t nd_pmem_available_dpa(struct nd_region *nd_region,
 		struct nd_mapping *nd_mapping, resource_size_t *overlap);
+resource_size_t nd_blk_available_dpa(struct nd_mapping *nd_mapping);
 resource_size_t nd_region_available_dpa(struct nd_region *nd_region);
 resource_size_t nvdimm_allocated_dpa(struct nvdimm_drvdata *ndd,
 		struct nd_label_id *label_id);
+struct nd_mapping;
+struct resource *nsblk_add_resource(struct nd_region *nd_region,
+		struct nvdimm_drvdata *ndd, struct nd_namespace_blk *nsblk,
+		resource_size_t start);
 void get_ndd(struct nvdimm_drvdata *ndd);
 #endif /* __ND_CORE_H__ */

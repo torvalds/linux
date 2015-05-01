@@ -290,6 +290,42 @@ struct nvdimm *nvdimm_create(struct nvdimm_bus *nvdimm_bus, void *provider_data,
 EXPORT_SYMBOL_GPL(nvdimm_create);
 
 /**
+ * nd_blk_available_dpa - account the unused dpa of BLK region
+ * @nd_mapping: container of dpa-resource-root + labels
+ *
+ * Unlike PMEM, BLK namespaces can occupy discontiguous DPA ranges.
+ */
+resource_size_t nd_blk_available_dpa(struct nd_mapping *nd_mapping)
+{
+	struct nvdimm_drvdata *ndd = to_ndd(nd_mapping);
+	resource_size_t map_end, busy = 0, available;
+	struct resource *res;
+
+	if (!ndd)
+		return 0;
+
+	map_end = nd_mapping->start + nd_mapping->size - 1;
+	for_each_dpa_resource(ndd, res)
+		if (res->start >= nd_mapping->start && res->start < map_end) {
+			resource_size_t end = min(map_end, res->end);
+
+			busy += end - res->start + 1;
+		} else if (res->end >= nd_mapping->start
+				&& res->end <= map_end) {
+			busy += res->end - nd_mapping->start;
+		} else if (nd_mapping->start > res->start
+				&& nd_mapping->start < res->end) {
+			/* total eclipse of the BLK region mapping */
+			busy += nd_mapping->size;
+		}
+
+	available = map_end - nd_mapping->start + 1;
+	if (busy < available)
+		return available - busy;
+	return 0;
+}
+
+/**
  * nd_pmem_available_dpa - for the given dimm+region account unallocated dpa
  * @nd_mapping: container of dpa-resource-root + labels
  * @nd_region: constrain available space check to this reference region

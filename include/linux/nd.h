@@ -50,6 +50,26 @@ struct nd_namespace_pmem {
 	u8 *uuid;
 };
 
+/**
+ * struct nd_namespace_blk - namespace for dimm-bounded persistent memory
+ * @dev: namespace device creation by the nd region driver
+ * @alt_name: namespace name supplied in the dimm label
+ * @uuid: namespace name supplied in the dimm label
+ * @id: ida allocated id
+ * @lbasize: blk namespaces have a native sector size when btt not present
+ * @num_resources: number of dpa extents to claim
+ * @res: discontiguous dpa extents for given dimm
+ */
+struct nd_namespace_blk {
+	struct device dev;
+	char *alt_name;
+	u8 *uuid;
+	int id;
+	unsigned long lbasize;
+	int num_resources;
+	struct resource **res;
+};
+
 static inline struct nd_namespace_io *to_nd_namespace_io(struct device *dev)
 {
 	return container_of(dev, struct nd_namespace_io, dev);
@@ -60,6 +80,11 @@ static inline struct nd_namespace_pmem *to_nd_namespace_pmem(struct device *dev)
 	struct nd_namespace_io *nsio = to_nd_namespace_io(dev);
 
 	return container_of(nsio, struct nd_namespace_pmem, nsio);
+}
+
+static inline struct nd_namespace_blk *to_nd_namespace_blk(struct device *dev)
+{
+	return container_of(dev, struct nd_namespace_blk, dev);
 }
 
 #define MODULE_ALIAS_ND_DEVICE(type) \
