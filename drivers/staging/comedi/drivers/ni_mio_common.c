@@ -2675,27 +2675,27 @@ static int ni_old_ao_config_chanlist(struct comedi_device *dev,
 	for (i = 0; i < n_chans; i++) {
 		chan = CR_CHAN(chanspec[i]);
 		range = CR_RANGE(chanspec[i]);
-		conf = AO_Channel(chan);
+		conf = NI_E_AO_DACSEL(chan);
 
 		if (comedi_range_is_bipolar(s, range)) {
-			conf |= AO_Bipolar;
+			conf |= NI_E_AO_CFG_BIP;
 			invert = (s->maxdata + 1) >> 1;
 		} else {
 			invert = 0;
 		}
 		if (comedi_range_is_external(s, range))
-			conf |= AO_Ext_Ref;
+			conf |= NI_E_AO_EXT_REF;
 
 		/* not all boards can deglitch, but this shouldn't hurt */
 		if (chanspec[i] & CR_DEGLITCH)
-			conf |= AO_Deglitch;
+			conf |= NI_E_AO_DEGLITCH;
 
 		/* analog reference */
 		/* AREF_OTHER connects AO ground to AI ground, i think */
-		conf |= (CR_AREF(chanspec[i]) ==
-			 AREF_OTHER) ? AO_Ground_Ref : 0;
+		if (CR_AREF(chanspec[i]) == AREF_OTHER)
+			conf |= NI_E_AO_GROUND_REF;
 
-		ni_writew(dev, conf, AO_Configuration);
+		ni_writew(dev, conf, NI_E_AO_CFG_REG);
 		devpriv->ao_conf[chan] = conf;
 	}
 	return invert;
@@ -3698,7 +3698,7 @@ static void init_ao_67xx(struct comedi_device *dev, struct comedi_subdevice *s)
 	int i;
 
 	for (i = 0; i < s->n_chan; i++) {
-		ni_ao_win_outw(dev, AO_Channel(i) | 0x0,
+		ni_ao_win_outw(dev, NI_E_AO_DACSEL(i) | 0x0,
 			       AO_Configuration_2_67xx);
 	}
 	ni_ao_win_outw(dev, 0x0, AO_Later_Single_Point_Updates);

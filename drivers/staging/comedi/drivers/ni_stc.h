@@ -631,16 +631,16 @@ static inline unsigned GPCT_DMA_Select_Mask(unsigned gpct_index)
 #define NI_E_AI_CFG_HI_AC_COUPLE	BIT(11)
 #define NI_E_AI_CFG_HI_CHAN(x)		(((x) & 0x3f) << 0)
 
+#define NI_E_AO_CFG_REG			0x16	/* w16 */
+#define NI_E_AO_DACSEL(x)		((x) << 8)
+#define NI_E_AO_GROUND_REF		BIT(3)
+#define NI_E_AO_EXT_REF			BIT(2)
+#define NI_E_AO_DEGLITCH		BIT(1)
+#define NI_E_AO_CFG_BIP			BIT(0)
+
 #define NI_E_8255_BASE			0x19	/* rw8 */
 
 #define NI_E_AI_FIFO_DATA_REG		0x1c	/* r16 */
-
-#define AO_Configuration		0x16
-#define AO_Bipolar		_bit0
-#define AO_Deglitch		_bit1
-#define AO_Ext_Ref		_bit2
-#define AO_Ground_Ref		_bit3
-#define AO_Channel(x)		((x) << 8)
 
 #define DAC_FIFO_Data			0x1e
 #define DAC0_Direct_Data		0x18
