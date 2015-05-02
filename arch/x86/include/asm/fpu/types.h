@@ -4,6 +4,10 @@
 #ifndef _ASM_X86_FPU_H
 #define _ASM_X86_FPU_H
 
+/*
+ * The legacy x87 FPU state format, as saved by FSAVE and
+ * restored by the FRSTOR instructions:
+ */
 struct fregs_state {
 	u32			cwd;	/* FPU Control Word		*/
 	u32			swd;	/* FPU Status Word		*/
@@ -16,10 +20,16 @@ struct fregs_state {
 	/* 8*10 bytes for each FP-reg = 80 bytes:			*/
 	u32			st_space[20];
 
-	/* Software status information [not touched by FSAVE ]:		*/
+	/* Software status information [not touched by FSAVE]:		*/
 	u32			status;
 };
 
+/*
+ * The legacy fx SSE/MMX FPU state format, as saved by FXSAVE and
+ * restored by the FXRSTOR instructions. It's similar to the FSAVE
+ * format, but differs in some areas, plus has extensions at
+ * the end for the XMM registers.
+ */
 struct fxregs_state {
 	u16			cwd; /* Control Word			*/
 	u16			swd; /* Status Word			*/
@@ -56,7 +66,8 @@ struct fxregs_state {
 } __attribute__((aligned(16)));
 
 /*
- * Software based FPU emulation state:
+ * Software based FPU emulation state. This is arbitrary really,
+ * it matches the x87 format to make it easier to understand:
  */
 struct swregs_state {
 	u32			cwd;
@@ -140,6 +151,14 @@ struct xstate_header {
 	u64				reserved[6];
 } __attribute__((packed));
 
+/*
+ * This is our most modern FPU state format, as saved by the XSAVE
+ * and restored by the XRSTOR instructions.
+ *
+ * It consists of a legacy fxregs portion, an xstate header and
+ * subsequent fixed size areas as defined by the xstate header.
+ * Not all CPUs support all the extensions.
+ */
 struct xregs_state {
 	struct fxregs_state		i387;
 	struct xstate_header		header;
@@ -150,6 +169,13 @@ struct xregs_state {
 	/* New processor state extensions will go here. */
 } __attribute__ ((packed, aligned (64)));
 
+/*
+ * This is a union of all the possible FPU state formats
+ * put together, so that we can pick the right one runtime.
+ *
+ * The size of the structure is determined by the largest
+ * member - which is the xsave area:
+ */
 union fpregs_state {
 	struct fregs_state		fsave;
 	struct fxregs_state		fxsave;
@@ -157,6 +183,11 @@ union fpregs_state {
 	struct xregs_state		xsave;
 };
 
+/*
+ * Highest level per task FPU state data structure that
+ * contains the FPU register state plus various FPU
+ * state fields:
+ */
 struct fpu {
 	/*
 	 * @state:
