@@ -880,7 +880,6 @@ static int jfs_symlink(struct inode *dip, struct dentry *dentry,
 	int ssize;		/* source pathname size */
 	struct btstack btstack;
 	struct inode *ip = d_inode(dentry);
-	unchar *i_fastsymlink;
 	s64 xlen = 0;
 	int bmask = 0, xsize;
 	s64 xaddr;
@@ -946,8 +945,8 @@ static int jfs_symlink(struct inode *dip, struct dentry *dentry,
 	if (ssize <= IDATASIZE) {
 		ip->i_op = &jfs_fast_symlink_inode_operations;
 
-		i_fastsymlink = JFS_IP(ip)->i_inline;
-		memcpy(i_fastsymlink, name, ssize);
+		ip->i_link = JFS_IP(ip)->i_inline;
+		memcpy(ip->i_link, name, ssize);
 		ip->i_size = ssize - 1;
 
 		/*
