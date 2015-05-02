@@ -976,7 +976,7 @@ static int ltr501_write_event_config(struct iio_dev *indio_dev,
 	int ret;
 
 	/* only 1 and 0 are valid inputs */
-	if (state != 1  || state != 0)
+	if (state != 1  && state != 0)
 		return -EINVAL;
 
 	switch (chan->type) {
