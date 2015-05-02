@@ -144,7 +144,8 @@ static int ufs_symlink (struct inode * dir, struct dentry * dentry,
 	} else {
 		/* fast symlink */
 		inode->i_op = &ufs_fast_symlink_inode_operations;
-		memcpy(UFS_I(inode)->i_u1.i_symlink, symname, l);
+		inode->i_link = (char *)UFS_I(inode)->i_u1.i_symlink;
+		memcpy(inode->i_link, symname, l);
 		inode->i_size = l-1;
 	}
 	mark_inode_dirty(inode);
