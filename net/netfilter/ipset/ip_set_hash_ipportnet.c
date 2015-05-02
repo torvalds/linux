@@ -248,7 +248,7 @@ hash_ipportnet4_uadt(struct ip_set *set, struct nlattr *tb[],
 	} else if (tb[IPSET_ATTR_CIDR]) {
 		cidr = nla_get_u8(tb[IPSET_ATTR_CIDR]);
 
-		if (!cidr || cidr > 32)
+		if (!cidr || cidr > HOST_MASK)
 			return -IPSET_ERR_INVALID_CIDR;
 		ip_set_mask_from_to(ip, ip_to, cidr);
 	}
