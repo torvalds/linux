@@ -62,7 +62,6 @@ hash_mac4_data_next(struct hash_mac4_elem *next,
 }
 
 #define MTYPE		hash_mac4
-#define PF		4
 #define HOST_MASK	32
 #define IP_SET_EMIT_CREATE
 #define IP_SET_PROTO_UNDEF

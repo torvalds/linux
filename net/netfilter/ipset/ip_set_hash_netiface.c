@@ -207,7 +207,6 @@ hash_netiface4_data_next(struct hash_netiface4_elem *next,
 }
 
 #define MTYPE		hash_netiface4
-#define PF		4
 #define HOST_MASK	32
 #define HKEY_DATALEN	sizeof(struct hash_netiface4_elem_hashed)
 #include "ip_set_hash_gen.h"
@@ -457,12 +456,10 @@ hash_netiface6_data_next(struct hash_netiface4_elem *next,
 }
 
 #undef MTYPE
-#undef PF
 #undef HOST_MASK
 #undef HKEY_DATALEN
 
 #define MTYPE		hash_netiface6
-#define PF		6
 #define HOST_MASK	128
 #define HKEY_DATALEN	sizeof(struct hash_netiface6_elem_hashed)
 #define IP_SET_EMIT_CREATE

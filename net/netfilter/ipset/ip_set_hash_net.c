@@ -109,7 +109,6 @@ hash_net4_data_next(struct hash_net4_elem *next,
 }
 
 #define MTYPE		hash_net4
-#define PF		4
 #define HOST_MASK	32
 #include "ip_set_hash_gen.h"
 
@@ -277,11 +276,9 @@ hash_net6_data_next(struct hash_net4_elem *next,
 }
 
 #undef MTYPE
-#undef PF
 #undef HOST_MASK
 
 #define MTYPE		hash_net6
-#define PF		6
 #define HOST_MASK	128
 #define IP_SET_EMIT_CREATE
 #include "ip_set_hash_gen.h"

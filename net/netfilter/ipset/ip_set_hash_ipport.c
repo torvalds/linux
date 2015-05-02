@@ -84,7 +84,6 @@ hash_ipport4_data_next(struct hash_ipport4_elem *next,
 }
 
 #define MTYPE           hash_ipport4
-#define PF              4
 #define HOST_MASK       32
 #define HKEY_DATALEN	sizeof(struct hash_ipport4_elem)
 #include "ip_set_hash_gen.h"
@@ -245,12 +244,10 @@ hash_ipport6_data_next(struct hash_ipport4_elem *next,
 }
 
 #undef MTYPE
-#undef PF
 #undef HOST_MASK
 #undef HKEY_DATALEN
 
 #define MTYPE		hash_ipport6
-#define PF		6
 #define HOST_MASK	128
 #define HKEY_DATALEN	sizeof(struct hash_ipport6_elem)
 #define	IP_SET_EMIT_CREATE
