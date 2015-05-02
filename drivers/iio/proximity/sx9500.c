@@ -859,11 +859,7 @@ static int sx9500_init_device(struct iio_dev *indio_dev)
 			return ret;
 	}
 
-	ret = sx9500_init_compensation(indio_dev);
-	if (ret < 0)
-		return ret;
-
-	return 0;
+	return sx9500_init_compensation(indio_dev);
 }
 
 static void sx9500_gpio_probe(struct i2c_client *client,
