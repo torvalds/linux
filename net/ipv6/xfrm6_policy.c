@@ -71,13 +71,6 @@ static int xfrm6_get_tos(const struct flowi *fl)
 	return 0;
 }
 
-static void xfrm6_init_dst(struct net *net, struct xfrm_dst *xdst)
-{
-	struct rt6_info *rt = (struct rt6_info *)xdst;
-
-	rt6_init_peer(rt, net->ipv6.peers);
-}
-
 static int xfrm6_init_path(struct xfrm_dst *path, struct dst_entry *dst,
 			   int nfheader_len)
 {
@@ -105,8 +98,6 @@ static int xfrm6_fill_dst(struct xfrm_dst *xdst, struct net_device *dev,
 		dev_put(dev);
 		return -ENODEV;
 	}
-
-	rt6_transfer_peer(&xdst->u.rt6, rt);
 
 	/* Sheit... I remember I did this right. Apparently,
 	 * it was magically lost, so this code needs audit */
@@ -255,10 +246,6 @@ static void xfrm6_dst_destroy(struct dst_entry *dst)
 	if (likely(xdst->u.rt6.rt6i_idev))
 		in6_dev_put(xdst->u.rt6.rt6i_idev);
 	dst_destroy_metrics_generic(dst);
-	if (rt6_has_peer(&xdst->u.rt6)) {
-		struct inet_peer *peer = rt6_peer_ptr(&xdst->u.rt6);
-		inet_putpeer(peer);
-	}
 	xfrm_dst_destroy(xdst);
 }
 
@@ -308,7 +295,6 @@ static struct xfrm_policy_afinfo xfrm6_policy_afinfo = {
 	.get_saddr =		xfrm6_get_saddr,
 	.decode_session =	_decode_session6,
 	.get_tos =		xfrm6_get_tos,
-	.init_dst =		xfrm6_init_dst,
 	.init_path =		xfrm6_init_path,
 	.fill_dst =		xfrm6_fill_dst,
 	.blackhole_route =	ip6_blackhole_route,
