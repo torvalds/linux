@@ -133,7 +133,7 @@
 
 &ir0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&ir0_pins_a>;
+	pinctrl-0 = <&ir0_rx_pins_a>;
 	status = "okay";
 };
 

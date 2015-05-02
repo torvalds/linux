@@ -92,11 +92,11 @@
 
 &ir0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&ir0_pins_a>;
+	pinctrl-0 = <&ir0_rx_pins_a>;
 	status = "okay";
 };
 
-&ir0_pins_a {
+&ir0_rx_pins_a {
 	/* The ir receiver is not always populated */
 	allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
 };

@@ -1000,15 +1000,29 @@
 				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
-			ir0_pins_a: ir0@0 {
-				    allwinner,pins = "PB3","PB4";
+			ir0_rx_pins_a: ir0@0 {
+				    allwinner,pins = "PB4";
 				    allwinner,function = "ir0";
 				    allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 				    allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
-			ir1_pins_a: ir1@0 {
-				    allwinner,pins = "PB22","PB23";
+			ir0_tx_pins_a: ir0@1 {
+				    allwinner,pins = "PB3";
+				    allwinner,function = "ir0";
+				    allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				    allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+			};
+
+			ir1_rx_pins_a: ir1@0 {
+				    allwinner,pins = "PB23";
+				    allwinner,function = "ir1";
+				    allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+				    allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+			};
+
+			ir1_tx_pins_a: ir1@1 {
+				    allwinner,pins = "PB22";
 				    allwinner,function = "ir1";
 				    allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 				    allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
