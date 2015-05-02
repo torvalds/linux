@@ -1115,13 +1115,13 @@ int btrfs_add_qgroup_relation(struct btrfs_trans_handle *trans,
 	struct ulist *tmp;
 	int ret = 0;
 
-	tmp = ulist_alloc(GFP_NOFS);
-	if (!tmp)
-		return -ENOMEM;
-
 	/* Check the level of src and dst first */
 	if (btrfs_qgroup_level(src) >= btrfs_qgroup_level(dst))
 		return -EINVAL;
+
+	tmp = ulist_alloc(GFP_NOFS);
+	if (!tmp)
+		return -ENOMEM;
 
 	mutex_lock(&fs_info->qgroup_ioctl_lock);
 	quota_root = fs_info->quota_root;
