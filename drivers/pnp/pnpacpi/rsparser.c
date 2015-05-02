@@ -873,7 +873,7 @@ int pnpacpi_encode_resources(struct pnp_dev *dev, struct acpi_buffer *buffer)
 	/* pnpacpi_build_resource_template allocates extra mem */
 	int res_cnt = (buffer->length - 1) / sizeof(struct acpi_resource) - 1;
 	struct acpi_resource *resource = buffer->pointer;
-	int port = 0, irq = 0, dma = 0, mem = 0;
+	unsigned int port = 0, irq = 0, dma = 0, mem = 0;
 
 	pnp_dbg(&dev->dev, "encode %d resources\n", res_cnt);
 	while (i < res_cnt) {
