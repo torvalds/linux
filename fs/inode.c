@@ -152,6 +152,7 @@ int inode_init_always(struct super_block *sb, struct inode *inode)
 	inode->i_pipe = NULL;
 	inode->i_bdev = NULL;
 	inode->i_cdev = NULL;
+	inode->i_link = NULL;
 	inode->i_rdev = 0;
 	inode->dirtied_when = 0;
 
