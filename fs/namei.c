@@ -2344,31 +2344,28 @@ out:
  */
 static int
 path_mountpoint(int dfd, const struct filename *name, struct path *path,
-		unsigned int flags)
+		struct nameidata *nd, unsigned int flags)
 {
-	struct nameidata nd;
-	int err;
-
-	err = path_init(dfd, name, flags, &nd);
+	int err = path_init(dfd, name, flags, nd);
 	if (unlikely(err))
 		goto out;
 
-	err = mountpoint_last(&nd, path);
+	err = mountpoint_last(nd, path);
 	while (err > 0) {
 		void *cookie;
 		struct path link = *path;
-		err = may_follow_link(&link, &nd);
+		err = may_follow_link(&link, nd);
 		if (unlikely(err))
 			break;
-		nd.flags |= LOOKUP_PARENT;
-		err = follow_link(&link, &nd, &cookie);
+		nd->flags |= LOOKUP_PARENT;
+		err = follow_link(&link, nd, &cookie);
 		if (err)
 			break;
-		err = mountpoint_last(&nd, path);
-		put_link(&nd, &link, cookie);
+		err = mountpoint_last(nd, path);
+		put_link(nd, &link, cookie);
 	}
 out:
-	path_cleanup(&nd);
+	path_cleanup(nd);
 	return err;
 }
 
@@ -2376,14 +2373,15 @@ static int
 filename_mountpoint(int dfd, struct filename *name, struct path *path,
 			unsigned int flags)
 {
+	struct nameidata nd;
 	int error;
 	if (IS_ERR(name))
 		return PTR_ERR(name);
-	error = path_mountpoint(dfd, name, path, flags | LOOKUP_RCU);
+	error = path_mountpoint(dfd, name, path, &nd, flags | LOOKUP_RCU);
 	if (unlikely(error == -ECHILD))
-		error = path_mountpoint(dfd, name, path, flags);
+		error = path_mountpoint(dfd, name, path, &nd, flags);
 	if (unlikely(error == -ESTALE))
-		error = path_mountpoint(dfd, name, path, flags | LOOKUP_REVAL);
+		error = path_mountpoint(dfd, name, path, &nd, flags | LOOKUP_REVAL);
 	if (likely(!error))
 		audit_inode(name, path->dentry, 0);
 	putname(name);
