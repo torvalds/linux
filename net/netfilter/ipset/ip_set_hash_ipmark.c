@@ -128,7 +128,7 @@ hash_ipmark4_uadt(struct ip_set *set, struct nlattr *tb[],
 	if (ret)
 		return ret;
 
-	e.mark = ntohl(nla_get_u32(tb[IPSET_ATTR_MARK]));
+	e.mark = ntohl(nla_get_be32(tb[IPSET_ATTR_MARK]));
 	e.mark &= h->markmask;
 
 	if (adt == IPSET_TEST ||
@@ -263,7 +263,7 @@ hash_ipmark6_uadt(struct ip_set *set, struct nlattr *tb[],
 	if (ret)
 		return ret;
 
-	e.mark = ntohl(nla_get_u32(tb[IPSET_ATTR_MARK]));
+	e.mark = ntohl(nla_get_be32(tb[IPSET_ATTR_MARK]));
 	e.mark &= h->markmask;
 
 	if (adt == IPSET_TEST) {
