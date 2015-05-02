@@ -344,12 +344,12 @@ static int mn88472_init(struct dvb_frontend *fe)
 	if (ret) {
 		dev_err(&client->dev,
 				"parity reg read failed=%d\n", ret);
-		goto err;
+		goto firmware_release;
 	}
 	if (tmp & 0x10) {
 		dev_err(&client->dev,
 				"firmware parity check failed=0x%x\n", tmp);
-		goto err;
+		goto firmware_release;
 	}
 	dev_err(&client->dev, "firmware parity check succeeded=0x%x\n", tmp);
 
