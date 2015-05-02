@@ -2475,7 +2475,7 @@ static int shmem_symlink(struct inode *dir, struct dentry *dentry, const char *s
 	return 0;
 }
 
-static const char *shmem_follow_link(struct dentry *dentry, void **cookie, struct nameidata *nd)
+static const char *shmem_follow_link(struct dentry *dentry, void **cookie)
 {
 	struct page *page = NULL;
 	int error = shmem_getpage(d_inode(dentry), 0, &page, SGP_READ, NULL);

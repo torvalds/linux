@@ -910,7 +910,7 @@ error:
  */
 
 static const char *
-v9fs_vfs_follow_link_dotl(struct dentry *dentry, void **cookie, struct nameidata *nd)
+v9fs_vfs_follow_link_dotl(struct dentry *dentry, void **cookie)
 {
 	struct p9_fid *fid = v9fs_fid_lookup(dentry);
 	char *target;

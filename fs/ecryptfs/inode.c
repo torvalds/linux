@@ -675,7 +675,7 @@ out:
 	return rc ? ERR_PTR(rc) : buf;
 }
 
-static const char *ecryptfs_follow_link(struct dentry *dentry, void **cookie, struct nameidata *nd)
+static const char *ecryptfs_follow_link(struct dentry *dentry, void **cookie)
 {
 	size_t len;
 	char *buf = ecryptfs_readlink_lower(dentry, &len);

@@ -42,7 +42,7 @@ error:
 	return -EIO;
 }
 
-static const char *nfs_follow_link(struct dentry *dentry, void **cookie, struct nameidata *nd)
+static const char *nfs_follow_link(struct dentry *dentry, void **cookie)
 {
 	struct inode *inode = d_inode(dentry);
 	struct page *page;

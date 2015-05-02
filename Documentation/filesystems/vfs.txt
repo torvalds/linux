@@ -350,7 +350,7 @@ struct inode_operations {
 	int (*rename2) (struct inode *, struct dentry *,
 			struct inode *, struct dentry *, unsigned int);
 	int (*readlink) (struct dentry *, char __user *,int);
-	const char *(*follow_link) (struct dentry *, void **, struct nameidata *);
+	const char *(*follow_link) (struct dentry *, void **);
 	void (*put_link) (struct dentry *, void *);
 	int (*permission) (struct inode *, int);
 	int (*get_acl)(struct inode *, int);

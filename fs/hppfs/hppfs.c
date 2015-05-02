@@ -642,11 +642,11 @@ static int hppfs_readlink(struct dentry *dentry, char __user *buffer,
 						    buflen);
 }
 
-static const char *hppfs_follow_link(struct dentry *dentry, void **cookie, struct nameidata *nd)
+static const char *hppfs_follow_link(struct dentry *dentry, void **cookie)
 {
 	struct dentry *proc_dentry = HPPFS_I(d_inode(dentry))->proc_dentry;
 
-	return d_inode(proc_dentry)->i_op->follow_link(proc_dentry, cookie, nd);
+	return d_inode(proc_dentry)->i_op->follow_link(proc_dentry, cookie);
 }
 
 static void hppfs_put_link(struct dentry *dentry, void *cookie)

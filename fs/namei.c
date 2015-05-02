@@ -753,8 +753,9 @@ static inline void path_to_nameidata(const struct path *path,
  * Helper to directly jump to a known parsed path from ->follow_link,
  * caller must have taken a reference to path beforehand.
  */
-void nd_jump_link(struct nameidata *nd, struct path *path)
+void nd_jump_link(struct path *path)
 {
+	struct nameidata *nd = current->nameidata;
 	path_put(&nd->path);
 
 	nd->path = *path;
@@ -916,7 +917,7 @@ const char *get_link(struct nameidata *nd)
 	nd->last_type = LAST_BIND;
 	res = inode->i_link;
 	if (!res) {
-		res = inode->i_op->follow_link(dentry, &last->cookie, nd);
+		res = inode->i_op->follow_link(dentry, &last->cookie);
 		if (IS_ERR(res)) {
 out:
 			path_put(&last->link);
@@ -4485,12 +4486,12 @@ int generic_readlink(struct dentry *dentry, char __user *buffer, int buflen)
 	int res;
 
 	if (!link) {
-		link = dentry->d_inode->i_op->follow_link(dentry, &cookie, NULL);
+		link = dentry->d_inode->i_op->follow_link(dentry, &cookie);
 		if (IS_ERR(link))
 			return PTR_ERR(link);
 	}
 	res = readlink_copy(buffer, buflen, link);
-	if (cookie && dentry->d_inode->i_op->put_link)
+	if (dentry->d_inode->i_op->put_link)
 		dentry->d_inode->i_op->put_link(dentry, cookie);
 	return res;
 }
@@ -4523,7 +4524,7 @@ int page_readlink(struct dentry *dentry, char __user *buffer, int buflen)
 }
 EXPORT_SYMBOL(page_readlink);
 
-const char *page_follow_link_light(struct dentry *dentry, void **cookie, struct nameidata *nd)
+const char *page_follow_link_light(struct dentry *dentry, void **cookie)
 {
 	struct page *page = NULL;
 	char *res = page_getlink(dentry, &page);

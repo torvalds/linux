@@ -118,7 +118,7 @@ failed:
 	return rc;
 }
 
-static const char *ll_follow_link(struct dentry *dentry, void **cookie, struct nameidata *nd)
+static const char *ll_follow_link(struct dentry *dentry, void **cookie)
 {
 	struct inode *inode = d_inode(dentry);
 	struct ptlrpc_request *request = NULL;

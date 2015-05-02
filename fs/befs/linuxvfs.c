@@ -42,7 +42,7 @@ static struct inode *befs_iget(struct super_block *, unsigned long);
 static struct inode *befs_alloc_inode(struct super_block *sb);
 static void befs_destroy_inode(struct inode *inode);
 static void befs_destroy_inodecache(void);
-static const char *befs_follow_link(struct dentry *, void **, struct nameidata *nd);
+static const char *befs_follow_link(struct dentry *, void **);
 static int befs_utf2nls(struct super_block *sb, const char *in, int in_len,
 			char **out, int *out_len);
 static int befs_nls2utf(struct super_block *sb, const char *in, int in_len,
@@ -464,7 +464,7 @@ befs_destroy_inodecache(void)
  * flag is set.
  */
 static const char *
-befs_follow_link(struct dentry *dentry, void **cookie, struct nameidata *nd)
+befs_follow_link(struct dentry *dentry, void **cookie)
 {
 	struct super_block *sb = dentry->d_sb;
 	struct befs_inode_info *befs_ino = BEFS_I(d_inode(dentry));

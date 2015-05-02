@@ -627,7 +627,7 @@ cifs_hl_exit:
 }
 
 const char *
-cifs_follow_link(struct dentry *direntry, void **cookie, struct nameidata *nd)
+cifs_follow_link(struct dentry *direntry, void **cookie)
 {
 	struct inode *inode = d_inode(direntry);
 	int rc = -ENOMEM;

@@ -1091,7 +1091,7 @@ simple_nosetlease(struct file *filp, long arg, struct file_lock **flp,
 }
 EXPORT_SYMBOL(simple_nosetlease);
 
-const char *simple_follow_link(struct dentry *dentry, void **cookie, struct nameidata *nd)
+const char *simple_follow_link(struct dentry *dentry, void **cookie)
 {
 	return d_inode(dentry)->i_link;
 }

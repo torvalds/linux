@@ -19,7 +19,7 @@ static int proc_thread_self_readlink(struct dentry *dentry, char __user *buffer,
 	return readlink_copy(buffer, buflen, tmp);
 }
 
-static const char *proc_thread_self_follow_link(struct dentry *dentry, void **cookie, struct nameidata *nd)
+static const char *proc_thread_self_follow_link(struct dentry *dentry, void **cookie)
 {
 	struct pid_namespace *ns = dentry->d_sb->s_fs_info;
 	pid_t tgid = task_tgid_nr_ns(current, ns);

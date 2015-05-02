@@ -1365,7 +1365,7 @@ static int fuse_readdir(struct file *file, struct dir_context *ctx)
 	return err;
 }
 
-static const char *fuse_follow_link(struct dentry *dentry, void **cookie, struct nameidata *nd)
+static const char *fuse_follow_link(struct dentry *dentry, void **cookie)
 {
 	struct inode *inode = d_inode(dentry);
 	struct fuse_conn *fc = get_fuse_conn(inode);

@@ -12,7 +12,7 @@
 
 #include "autofs_i.h"
 
-static const char *autofs4_follow_link(struct dentry *dentry, void **cookie, struct nameidata *nd)
+static const char *autofs4_follow_link(struct dentry *dentry, void **cookie)
 {
 	struct autofs_sb_info *sbi = autofs4_sbi(dentry->d_sb);
 	struct autofs_info *ino = autofs4_dentry_ino(dentry);

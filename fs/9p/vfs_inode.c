@@ -1230,7 +1230,7 @@ ino_t v9fs_qid2ino(struct p9_qid *qid)
  *
  */
 
-static const char *v9fs_vfs_follow_link(struct dentry *dentry, void **cookie, struct nameidata *nd)
+static const char *v9fs_vfs_follow_link(struct dentry *dentry, void **cookie)
 {
 	struct v9fs_session_info *v9ses = v9fs_dentry2v9ses(dentry);
 	struct p9_fid *fid = v9fs_fid_lookup(dentry);

@@ -296,9 +296,9 @@ fail:
 	return err;
 }
 
-static const char *f2fs_follow_link(struct dentry *dentry, void **cookie, struct nameidata *nd)
+static const char *f2fs_follow_link(struct dentry *dentry, void **cookie)
 {
-	const char *link = page_follow_link_light(dentry, cookie, nd);
+	const char *link = page_follow_link_light(dentry, cookie);
 	if (!IS_ERR(link) && !*link) {
 		/* this is broken symlink case */
 		page_put_link(dentry, *cookie);

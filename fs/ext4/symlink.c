@@ -23,7 +23,7 @@
 #include "xattr.h"
 
 #ifdef CONFIG_EXT4_FS_ENCRYPTION
-static const char *ext4_follow_link(struct dentry *dentry, void **cookie, struct nameidata *nd)
+static const char *ext4_follow_link(struct dentry *dentry, void **cookie)
 {
 	struct page *cpage = NULL;
 	char *caddr, *paddr = NULL;

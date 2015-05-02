@@ -393,7 +393,7 @@ static const struct file_operations proc_reg_file_ops_no_compat = {
 };
 #endif
 
-static const char *proc_follow_link(struct dentry *dentry, void **cookie, struct nameidata *nd)
+static const char *proc_follow_link(struct dentry *dentry, void **cookie)
 {
 	struct proc_dir_entry *pde = PDE(d_inode(dentry));
 	if (unlikely(!use_pde(pde)))

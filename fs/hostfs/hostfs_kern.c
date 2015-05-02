@@ -892,7 +892,7 @@ static const struct inode_operations hostfs_dir_iops = {
 	.setattr	= hostfs_setattr,
 };
 
-static const char *hostfs_follow_link(struct dentry *dentry, void **cookie, struct nameidata *nd)
+static const char *hostfs_follow_link(struct dentry *dentry, void **cookie)
 {
 	char *link = __getname();
 	if (link) {

@@ -416,8 +416,7 @@ xfs_vn_rename(
 STATIC const char *
 xfs_vn_follow_link(
 	struct dentry		*dentry,
-	void			**cookie,
-	struct nameidata	*nd)
+	void			**cookie)
 {
 	char			*link;
 	int			error = -ENOMEM;
