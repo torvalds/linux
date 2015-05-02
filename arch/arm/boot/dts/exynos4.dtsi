@@ -266,7 +266,7 @@
 		status = "disabled";
 	};
 
-	rtc@10070000 {
+	rtc: rtc@10070000 {
 		compatible = "samsung,s3c6410-rtc";
 		reg = <0x10070000 0x100>;
 		interrupt-parent = <&pmu_system_controller>;

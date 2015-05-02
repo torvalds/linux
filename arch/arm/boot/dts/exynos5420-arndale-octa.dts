@@ -13,6 +13,7 @@
 #include "exynos5420.dtsi"
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/clock/samsung,s2mps11.h>
 
 / {
 	model = "Insignal Arndale Octa evaluation board based on EXYNOS5420";
@@ -36,10 +37,6 @@
 			compatible = "samsung,exynos5420-oscclk";
 			clock-frequency = <24000000>;
 		};
-	};
-
-	rtc@101E0000 {
-		status = "okay";
 	};
 
 	codec@11000000 {
@@ -386,4 +383,10 @@
 		samsung,pin-pud = <0>;
 		samsung,pin-drv = <0>;
 	};
+};
+
+&rtc {
+	status = "okay";
+	clocks = <&clock CLK_RTC>, <&s2mps11_osc S2MPS11_CLK_AP>;
+	clock-names = "rtc", "rtc_src";
 };
