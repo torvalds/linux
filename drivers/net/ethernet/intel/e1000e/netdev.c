@@ -3807,7 +3807,7 @@ void e1000e_reset(struct e1000_adapter *adapter)
 	/* reset Packet Buffer Allocation to default */
 	ew32(PBA, pba);
 
-	if (adapter->max_frame_size > ETH_FRAME_LEN + ETH_FCS_LEN) {
+	if (adapter->max_frame_size > (VLAN_ETH_FRAME_LEN + ETH_FCS_LEN)) {
 		/* To maintain wire speed transmits, the Tx FIFO should be
 		 * large enough to accommodate two full transmit packets,
 		 * rounded up to the next 1KB and expressed in KB.  Likewise,
@@ -4196,9 +4196,9 @@ static int e1000_sw_init(struct e1000_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 
-	adapter->rx_buffer_len = ETH_FRAME_LEN + VLAN_HLEN + ETH_FCS_LEN;
+	adapter->rx_buffer_len = VLAN_ETH_FRAME_LEN + ETH_FCS_LEN;
 	adapter->rx_ps_bsize0 = 128;
-	adapter->max_frame_size = netdev->mtu + ETH_HLEN + ETH_FCS_LEN;
+	adapter->max_frame_size = netdev->mtu + VLAN_ETH_HLEN + ETH_FCS_LEN;
 	adapter->min_frame_size = ETH_ZLEN + ETH_FCS_LEN;
 	adapter->tx_ring_count = E1000_DEFAULT_TXD;
 	adapter->rx_ring_count = E1000_DEFAULT_RXD;
@@ -5781,17 +5781,17 @@ struct rtnl_link_stats64 *e1000e_get_stats64(struct net_device *netdev,
 static int e1000_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
-	int max_frame = new_mtu + VLAN_HLEN + ETH_HLEN + ETH_FCS_LEN;
+	int max_frame = new_mtu + VLAN_ETH_HLEN + ETH_FCS_LEN;
 
 	/* Jumbo frame support */
-	if ((max_frame > ETH_FRAME_LEN + ETH_FCS_LEN) &&
+	if ((max_frame > (VLAN_ETH_FRAME_LEN + ETH_FCS_LEN)) &&
 	    !(adapter->flags & FLAG_HAS_JUMBO_FRAMES)) {
 		e_err("Jumbo Frames not supported.\n");
 		return -EINVAL;
 	}
 
 	/* Supported frame sizes */
-	if ((new_mtu < ETH_ZLEN + ETH_FCS_LEN + VLAN_HLEN) ||
+	if ((new_mtu < (VLAN_ETH_ZLEN + ETH_FCS_LEN)) ||
 	    (max_frame > adapter->max_hw_frame_size)) {
 		e_err("Unsupported MTU setting\n");
 		return -EINVAL;
@@ -5831,10 +5831,8 @@ static int e1000_change_mtu(struct net_device *netdev, int new_mtu)
 		adapter->rx_buffer_len = 4096;
 
 	/* adjust allocation if LPE protects us, and we aren't using SBP */
-	if ((max_frame == ETH_FRAME_LEN + ETH_FCS_LEN) ||
-	    (max_frame == ETH_FRAME_LEN + VLAN_HLEN + ETH_FCS_LEN))
-		adapter->rx_buffer_len = ETH_FRAME_LEN + VLAN_HLEN
-		    + ETH_FCS_LEN;
+	if (max_frame <= (VLAN_ETH_FRAME_LEN + ETH_FCS_LEN))
+		adapter->rx_buffer_len = VLAN_ETH_FRAME_LEN + ETH_FCS_LEN;
 
 	if (netif_running(netdev))
 		e1000e_up(adapter);

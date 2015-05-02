@@ -2010,7 +2010,7 @@ const struct e1000_info e1000_82573_info = {
 	.flags2			= FLAG2_DISABLE_ASPM_L1
 				  | FLAG2_DISABLE_ASPM_L0S,
 	.pba			= 20,
-	.max_hw_frame_size	= ETH_FRAME_LEN + ETH_FCS_LEN,
+	.max_hw_frame_size	= VLAN_ETH_FRAME_LEN + ETH_FCS_LEN,
 	.get_variants		= e1000_get_variants_82571,
 	.mac_ops		= &e82571_mac_ops,
 	.phy_ops		= &e82_phy_ops_m88,
