@@ -11,6 +11,8 @@ struct nameidata;
 
 enum { MAX_NESTED_LINKS = 8 };
 
+#define MAXSYMLINKS 40
+
 /*
  * Type of the last component on LOOKUP_PARENT
  */

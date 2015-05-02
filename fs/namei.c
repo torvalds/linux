@@ -492,6 +492,7 @@ void path_put(const struct path *path)
 }
 EXPORT_SYMBOL(path_put);
 
+#define EMBEDDED_LEVELS 2
 struct nameidata {
 	struct path	path;
 	union {
@@ -509,8 +510,41 @@ struct nameidata {
 		struct path link;
 		void *cookie;
 		const char *name;
-	} stack[MAX_NESTED_LINKS + 1];
+	} *stack, internal[EMBEDDED_LEVELS];
 };
+
+static void set_nameidata(struct nameidata *nd)
+{
+	nd->stack = nd->internal;
+}
+
+static void restore_nameidata(struct nameidata *nd)
+{
+	if (nd->stack != nd->internal) {
+		kfree(nd->stack);
+		nd->stack = nd->internal;
+	}
+}
+
+static int __nd_alloc_stack(struct nameidata *nd)
+{
+	struct saved *p = kmalloc((MAXSYMLINKS + 1) * sizeof(struct saved),
+				  GFP_KERNEL);
+	if (unlikely(!p))
+		return -ENOMEM;
+	memcpy(p, nd->internal, sizeof(nd->internal));
+	nd->stack = p;
+	return 0;
+}
+
+static inline int nd_alloc_stack(struct nameidata *nd)
+{
+	if (likely(nd->depth != EMBEDDED_LEVELS - 1))
+		return 0;
+	if (likely(nd->stack != nd->internal))
+		return 0;
+	return __nd_alloc_stack(nd);
+}
 
 /*
  * Path walking has 2 modes, rcu-walk and ref-walk (see
@@ -857,7 +891,7 @@ const char *get_link(struct nameidata *nd)
 	if (nd->link.mnt == nd->path.mnt)
 		mntget(nd->link.mnt);
 
-	if (unlikely(current->total_link_count >= 40)) {
+	if (unlikely(current->total_link_count >= MAXSYMLINKS)) {
 		path_put(&nd->path);
 		path_put(&nd->link);
 		return ERR_PTR(-ELOOP);
@@ -1789,22 +1823,18 @@ Walked:
 		if (err) {
 			const char *s;
 
-			if (unlikely(current->link_count >= MAX_NESTED_LINKS)) {
-				path_put_conditional(&nd->link, nd);
-				path_put(&nd->path);
-				err = -ELOOP;
-				goto Err;
+			err = nd_alloc_stack(nd);
+			if (unlikely(err)) {
+				path_to_nameidata(&nd->link, nd);
+				break;
 			}
-			BUG_ON(nd->depth >= MAX_NESTED_LINKS);
 
 			nd->depth++;
-			current->link_count++;
 
 			s = get_link(nd);
 
 			if (unlikely(IS_ERR(s))) {
 				err = PTR_ERR(s);
-				current->link_count--;
 				nd->depth--;
 				goto Err;
 			}
@@ -1812,7 +1842,6 @@ Walked:
 			if (unlikely(!s)) {
 				/* jumped */
 				put_link(nd);
-				current->link_count--;
 				nd->depth--;
 			} else {
 				if (*s == '/') {
@@ -1842,7 +1871,6 @@ Walked:
 Err:
 	while (unlikely(nd->depth)) {
 		put_link(nd);
-		current->link_count--;
 		nd->depth--;
 	}
 	return err;
@@ -1851,7 +1879,6 @@ OK:
 		name = nd->stack[nd->depth].name;
 		err = walk_component(nd, LOOKUP_FOLLOW);
 		put_link(nd);
-		current->link_count--;
 		nd->depth--;
 		goto Walked;
 	}
@@ -2055,7 +2082,11 @@ static int path_lookupat(int dfd, const struct filename *name,
 static int filename_lookup(int dfd, struct filename *name,
 				unsigned int flags, struct nameidata *nd)
 {
-	int retval = path_lookupat(dfd, name, flags | LOOKUP_RCU, nd);
+	int retval;
+
+	set_nameidata(nd);
+	retval = path_lookupat(dfd, name, flags | LOOKUP_RCU, nd);
+
 	if (unlikely(retval == -ECHILD))
 		retval = path_lookupat(dfd, name, flags, nd);
 	if (unlikely(retval == -ESTALE))
@@ -2063,6 +2094,7 @@ static int filename_lookup(int dfd, struct filename *name,
 
 	if (likely(!retval))
 		audit_inode(name, nd->path.dentry, flags & LOOKUP_PARENT);
+	restore_nameidata(nd);
 	return retval;
 }
 
@@ -2393,6 +2425,7 @@ filename_mountpoint(int dfd, struct filename *name, struct path *path,
 	int error;
 	if (IS_ERR(name))
 		return PTR_ERR(name);
+	set_nameidata(&nd);
 	error = path_mountpoint(dfd, name, path, &nd, flags | LOOKUP_RCU);
 	if (unlikely(error == -ECHILD))
 		error = path_mountpoint(dfd, name, path, &nd, flags);
@@ -2400,6 +2433,7 @@ filename_mountpoint(int dfd, struct filename *name, struct path *path,
 		error = path_mountpoint(dfd, name, path, &nd, flags | LOOKUP_REVAL);
 	if (likely(!error))
 		audit_inode(name, path->dentry, 0);
+	restore_nameidata(&nd);
 	putname(name);
 	return error;
 }
@@ -3288,11 +3322,13 @@ struct file *do_filp_open(int dfd, struct filename *pathname,
 	int flags = op->lookup_flags;
 	struct file *filp;
 
+	set_nameidata(&nd);
 	filp = path_openat(dfd, pathname, &nd, op, flags | LOOKUP_RCU);
 	if (unlikely(filp == ERR_PTR(-ECHILD)))
 		filp = path_openat(dfd, pathname, &nd, op, flags);
 	if (unlikely(filp == ERR_PTR(-ESTALE)))
 		filp = path_openat(dfd, pathname, &nd, op, flags | LOOKUP_REVAL);
+	restore_nameidata(&nd);
 	return filp;
 }
 
@@ -3306,6 +3342,7 @@ struct file *do_file_open_root(struct dentry *dentry, struct vfsmount *mnt,
 
 	nd.root.mnt = mnt;
 	nd.root.dentry = dentry;
+	set_nameidata(&nd);
 
 	if (d_is_symlink(dentry) && op->intent & LOOKUP_OPEN)
 		return ERR_PTR(-ELOOP);
@@ -3319,6 +3356,7 @@ struct file *do_file_open_root(struct dentry *dentry, struct vfsmount *mnt,
 		file = path_openat(-1, filename, &nd, op, flags);
 	if (unlikely(file == ERR_PTR(-ESTALE)))
 		file = path_openat(-1, filename, &nd, op, flags | LOOKUP_REVAL);
+	restore_nameidata(&nd);
 	putname(filename);
 	return file;
 }
