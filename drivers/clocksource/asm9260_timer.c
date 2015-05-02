@@ -178,7 +178,7 @@ static void __init asm9260_timer_init(struct device_node *np)
 	unsigned long rate;
 
 	priv.base = of_io_request_and_map(np, 0, np->name);
-	if (!priv.base)
+	if (IS_ERR(priv.base))
 		panic("%s: unable to map resource", np->name);
 
 	clk = of_clk_get(np, 0);
