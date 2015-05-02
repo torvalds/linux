@@ -505,6 +505,11 @@ struct nameidata {
 	int		last_type;
 	unsigned	depth;
 	struct file	*base;
+	struct saved {
+		struct path link;
+		void *cookie;
+		const char *name;
+	} stack[MAX_NESTED_LINKS + 1];
 };
 
 /*
@@ -1711,11 +1716,7 @@ static inline u64 hash_name(const char *name)
  */
 static int link_path_walk(const char *name, struct nameidata *nd)
 {
-	struct saved {
-		struct path link;
-		void *cookie;
-		const char *name;
-	} stack[MAX_NESTED_LINKS], *last = stack + nd->depth - 1;
+	struct saved *last = nd->stack;
 	int err;
 
 	while (*name=='/')
@@ -2030,13 +2031,13 @@ static int path_lookupat(int dfd, const struct filename *name,
 	if (!err && !(flags & LOOKUP_PARENT)) {
 		err = lookup_last(nd);
 		while (err > 0) {
-			void *cookie;
-			struct path link = nd->link;
-			err = trailing_symlink(&link, nd, &cookie);
+			nd->stack[0].link = nd->link;
+			err = trailing_symlink(&nd->stack[0].link,
+						nd, &nd->stack[0].cookie);
 			if (err)
 				break;
 			err = lookup_last(nd);
-			put_link(nd, &link, cookie);
+			put_link(nd, &nd->stack[0].link, nd->stack[0].cookie);
 		}
 	}
 
@@ -2376,13 +2377,13 @@ path_mountpoint(int dfd, const struct filename *name, struct path *path,
 
 	err = mountpoint_last(nd, path);
 	while (err > 0) {
-		void *cookie;
-		struct path link = *path;
-		err = trailing_symlink(&link, nd, &cookie);
+		nd->stack[0].link = nd->link;
+		err = trailing_symlink(&nd->stack[0].link,
+					nd, &nd->stack[0].cookie);
 		if (err)
 			break;
 		err = mountpoint_last(nd, path);
-		put_link(nd, &link, cookie);
+		put_link(nd, &nd->stack[0].link, nd->stack[0].cookie);
 	}
 out:
 	path_cleanup(nd);
@@ -3259,14 +3260,14 @@ static struct file *path_openat(int dfd, struct filename *pathname,
 
 	error = do_last(nd, file, op, &opened, pathname);
 	while (unlikely(error > 0)) { /* trailing symlink */
-		struct path link = nd->link;
-		void *cookie;
 		nd->flags &= ~(LOOKUP_OPEN|LOOKUP_CREATE|LOOKUP_EXCL);
-		error = trailing_symlink(&link, nd, &cookie);
+		nd->stack[0].link = nd->link;
+		error= trailing_symlink(&nd->stack[0].link,
+					nd, &nd->stack[0].cookie);
 		if (unlikely(error))
 			break;
 		error = do_last(nd, file, op, &opened, pathname);
-		put_link(nd, &link, cookie);
+		put_link(nd, &nd->stack[0].link, nd->stack[0].cookie);
 	}
 out:
 	path_cleanup(nd);
