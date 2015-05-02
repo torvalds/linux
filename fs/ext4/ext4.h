@@ -1067,12 +1067,6 @@ extern void ext4_set_bits(void *bm, int cur, int len);
 /* Metadata checksum algorithm codes */
 #define EXT4_CRC32C_CHKSUM		1
 
-/* Encryption algorithms */
-#define EXT4_ENCRYPTION_MODE_INVALID		0
-#define EXT4_ENCRYPTION_MODE_AES_256_XTS	1
-#define EXT4_ENCRYPTION_MODE_AES_256_GCM	2
-#define EXT4_ENCRYPTION_MODE_AES_256_CBC	3
-
 /*
  * Structure of the super block
  */
