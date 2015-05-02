@@ -17,7 +17,6 @@
 #include <linux/fs.h>
 #include <linux/seq_file.h>
 #include <linux/pagemap.h>
-#include <linux/namei.h>
 #include <linux/debugfs.h>
 #include <linux/io.h>
 #include <linux/slab.h>
@@ -41,17 +40,6 @@ const struct file_operations debugfs_file_operations = {
 	.write =	default_write_file,
 	.open =		simple_open,
 	.llseek =	noop_llseek,
-};
-
-static void *debugfs_follow_link(struct dentry *dentry, struct nameidata *nd)
-{
-	nd_set_link(nd, d_inode(dentry)->i_private);
-	return NULL;
-}
-
-const struct inode_operations debugfs_link_operations = {
-	.readlink       = generic_readlink,
-	.follow_link    = debugfs_follow_link,
 };
 
 static int debugfs_u8_set(void *data, u64 val)
