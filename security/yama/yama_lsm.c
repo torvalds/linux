@@ -366,12 +366,12 @@ int yama_ptrace_traceme(struct task_struct *parent)
 
 #ifndef CONFIG_SECURITY_YAMA_STACKED
 static struct security_operations yama_ops = {
-	.name =			"yama",
+	LSM_HOOK_INIT(name, "yama"),
 
-	.ptrace_access_check =	yama_ptrace_access_check,
-	.ptrace_traceme =	yama_ptrace_traceme,
-	.task_prctl =		yama_task_prctl,
-	.task_free =		yama_task_free,
+	LSM_HOOK_INIT(ptrace_access_check, yama_ptrace_access_check),
+	LSM_HOOK_INIT(ptrace_traceme, yama_ptrace_traceme),
+	LSM_HOOK_INIT(task_prctl, yama_task_prctl),
+	LSM_HOOK_INIT(task_free, yama_task_free),
 };
 #endif
 
