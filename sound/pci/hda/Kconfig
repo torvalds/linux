@@ -4,7 +4,7 @@ config SND_HDA
 	tristate
 	select SND_PCM
 	select SND_VMASTER
-	select SND_JACK
+	select SND_JACK if INPUT=y || INPUT=SND
 	select SND_HDA_CORE
 
 config SND_HDA_INTEL
@@ -83,14 +83,6 @@ config SND_HDA_INPUT_BEEP_MODE
 	  Set 0 to disable the digital beep interface for HD-audio by default.
 	  Set 1 to always enable the digital beep interface for HD-audio by
 	  default.
-
-config SND_HDA_INPUT_JACK
-	bool "Support jack plugging notification via input layer"
-	depends on INPUT=y || INPUT=SND
-	select SND_JACK
-	help
-	  Say Y here to enable the jack plugging notification via
-	  input layer.
 
 config SND_HDA_PATCH_LOADER
 	bool "Support initialization patch loading for HD-audio"
