@@ -174,10 +174,9 @@ static int __init vf610_mscm_ir_of_init(struct device_node *node,
 		return -ENOMEM;
 
 	mscm_ir_data->mscm_ir_base = of_io_request_and_map(node, 0, "mscm-ir");
-
-	if (!mscm_ir_data->mscm_ir_base) {
+	if (IS_ERR(mscm_ir_data->mscm_ir_base)) {
 		pr_err("vf610_mscm_ir: unable to map mscm register\n");
-		ret = -ENOMEM;
+		ret = PTR_ERR(mscm_ir_data->mscm_ir_base);
 		goto out_free;
 	}
 
