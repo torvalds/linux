@@ -2451,6 +2451,7 @@ static int shmem_symlink(struct inode *dir, struct dentry *dentry, const char *s
 			return -ENOMEM;
 		}
 		inode->i_op = &shmem_short_symlink_operations;
+		inode->i_link = info->symlink;
 	} else {
 		error = shmem_getpage(inode, 0, &page, SGP_WRITE, NULL);
 		if (error) {
@@ -2472,12 +2473,6 @@ static int shmem_symlink(struct inode *dir, struct dentry *dentry, const char *s
 	d_instantiate(dentry, inode);
 	dget(dentry);
 	return 0;
-}
-
-static void *shmem_follow_short_symlink(struct dentry *dentry, struct nameidata *nd)
-{
-	nd_set_link(nd, SHMEM_I(d_inode(dentry))->symlink);
-	return NULL;
 }
 
 static void *shmem_follow_link(struct dentry *dentry, struct nameidata *nd)
@@ -2642,7 +2637,7 @@ static ssize_t shmem_listxattr(struct dentry *dentry, char *buffer, size_t size)
 
 static const struct inode_operations shmem_short_symlink_operations = {
 	.readlink	= generic_readlink,
-	.follow_link	= shmem_follow_short_symlink,
+	.follow_link	= simple_follow_link,
 #ifdef CONFIG_TMPFS_XATTR
 	.setxattr	= shmem_setxattr,
 	.getxattr	= shmem_getxattr,
