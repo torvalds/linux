@@ -1106,5 +1106,4 @@ static __init int pt_init(void)
 
 	return ret;
 }
-
-module_init(pt_init);
+arch_initcall(pt_init);
