@@ -15,7 +15,7 @@
 
 #include <linux/capability.h>
 #include <linux/spinlock.h>
-#include <linux/security.h>
+#include <linux/lsm_hooks.h>
 #include <linux/in.h>
 #include <net/netlabel.h>
 #include <linux/list.h>

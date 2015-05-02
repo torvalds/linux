@@ -12,7 +12,7 @@
  * License.
  */
 
-#include <linux/security.h>
+#include <linux/lsm_hooks.h>
 #include <linux/moduleparam.h>
 #include <linux/mm.h>
 #include <linux/mman.h>

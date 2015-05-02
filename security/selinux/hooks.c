@@ -29,7 +29,7 @@
 #include <linux/tracehook.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
-#include <linux/security.h>
+#include <linux/lsm_hooks.h>
 #include <linux/xattr.h>
 #include <linux/capability.h>
 #include <linux/unistd.h>

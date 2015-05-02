@@ -12,7 +12,7 @@
  *
  */
 
-#include <linux/security.h>
+#include <linux/lsm_hooks.h>
 #include <linux/sysctl.h>
 #include <linux/ptrace.h>
 #include <linux/prctl.h>
