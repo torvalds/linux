@@ -56,15 +56,15 @@ hash_ip4_data_equal(const struct hash_ip4_elem *e1,
 	return e1->ip == e2->ip;
 }
 
-static inline bool
+static bool
 hash_ip4_data_list(struct sk_buff *skb, const struct hash_ip4_elem *e)
 {
 	if (nla_put_ipaddr4(skb, IPSET_ATTR_IP, e->ip))
 		goto nla_put_failure;
-	return 0;
+	return false;
 
 nla_put_failure:
-	return 1;
+	return true;
 }
 
 static inline void
@@ -198,10 +198,10 @@ hash_ip6_data_list(struct sk_buff *skb, const struct hash_ip6_elem *e)
 {
 	if (nla_put_ipaddr6(skb, IPSET_ATTR_IP, &e->ip.in6))
 		goto nla_put_failure;
-	return 0;
+	return false;
 
 nla_put_failure:
-	return 1;
+	return true;
 }
 
 static inline void

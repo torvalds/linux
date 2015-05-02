@@ -52,7 +52,12 @@ hash_mac4_data_equal(const struct hash_mac4_elem *e1,
 static inline bool
 hash_mac4_data_list(struct sk_buff *skb, const struct hash_mac4_elem *e)
 {
-	return nla_put(skb, IPSET_ATTR_ETHER, ETH_ALEN, e->ether);
+	if (nla_put(skb, IPSET_ATTR_ETHER, ETH_ALEN, e->ether))
+		goto nla_put_failure;
+	return false;
+
+nla_put_failure:
+	return true;
 }
 
 static inline void

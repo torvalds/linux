@@ -63,10 +63,10 @@ hash_ipmark4_data_list(struct sk_buff *skb,
 	if (nla_put_ipaddr4(skb, IPSET_ATTR_IP, data->ip) ||
 	    nla_put_net32(skb, IPSET_ATTR_MARK, htonl(data->mark)))
 		goto nla_put_failure;
-	return 0;
+	return false;
 
 nla_put_failure:
-	return 1;
+	return true;
 }
 
 static inline void
@@ -193,10 +193,10 @@ hash_ipmark6_data_list(struct sk_buff *skb,
 	if (nla_put_ipaddr6(skb, IPSET_ATTR_IP, &data->ip.in6) ||
 	    nla_put_net32(skb, IPSET_ATTR_MARK, htonl(data->mark)))
 		goto nla_put_failure;
-	return 0;
+	return false;
 
 nla_put_failure:
-	return 1;
+	return true;
 }
 
 static inline void
