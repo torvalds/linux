@@ -83,8 +83,8 @@ hash_ipport4_data_next(struct hash_ipport4_elem *next,
 	next->port = d->port;
 }
 
-#define MTYPE           hash_ipport4
-#define HOST_MASK       32
+#define MTYPE		hash_ipport4
+#define HOST_MASK	32
 #include "ip_set_hash_gen.h"
 
 static int
@@ -247,7 +247,7 @@ hash_ipport6_data_next(struct hash_ipport4_elem *next,
 
 #define MTYPE		hash_ipport6
 #define HOST_MASK	128
-#define	IP_SET_EMIT_CREATE
+#define IP_SET_EMIT_CREATE
 #include "ip_set_hash_gen.h"
 
 static int

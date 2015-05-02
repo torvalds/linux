@@ -76,8 +76,8 @@ hash_ipmark4_data_next(struct hash_ipmark4_elem *next,
 	next->ip = d->ip;
 }
 
-#define MTYPE           hash_ipmark4
-#define HOST_MASK       32
+#define MTYPE		hash_ipmark4
+#define HOST_MASK	32
 #include "ip_set_hash_gen.h"
 
 static int
@@ -209,7 +209,7 @@ hash_ipmark6_data_next(struct hash_ipmark4_elem *next,
 
 #define MTYPE		hash_ipmark6
 #define HOST_MASK	128
-#define	IP_SET_EMIT_CREATE
+#define IP_SET_EMIT_CREATE
 #include "ip_set_hash_gen.h"
 
 
