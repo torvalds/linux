@@ -106,13 +106,6 @@ const struct inode_operations ext4_encrypted_symlink_inode_operations = {
 };
 #endif
 
-static void *ext4_follow_fast_link(struct dentry *dentry, struct nameidata *nd)
-{
-	struct ext4_inode_info *ei = EXT4_I(d_inode(dentry));
-	nd_set_link(nd, (char *) ei->i_data);
-	return NULL;
-}
-
 const struct inode_operations ext4_symlink_inode_operations = {
 	.readlink	= generic_readlink,
 	.follow_link	= page_follow_link_light,
@@ -126,7 +119,7 @@ const struct inode_operations ext4_symlink_inode_operations = {
 
 const struct inode_operations ext4_fast_symlink_inode_operations = {
 	.readlink	= generic_readlink,
-	.follow_link    = ext4_follow_fast_link,
+	.follow_link    = simple_follow_link,
 	.setattr	= ext4_setattr,
 	.setxattr	= generic_setxattr,
 	.getxattr	= generic_getxattr,

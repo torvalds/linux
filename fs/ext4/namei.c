@@ -3251,8 +3251,10 @@ static int ext4_symlink(struct inode *dir,
 	} else {
 		/* clear the extent format for fast symlink */
 		ext4_clear_inode_flag(inode, EXT4_INODE_EXTENTS);
-		if (!encryption_required)
+		if (!encryption_required) {
 			inode->i_op = &ext4_fast_symlink_inode_operations;
+			inode->i_link = (char *)&EXT4_I(inode)->i_data;
+		}
 		memcpy((char *)&EXT4_I(inode)->i_data, disk_link.name,
 		       disk_link.len);
 		inode->i_size = disk_link.len - 1;
