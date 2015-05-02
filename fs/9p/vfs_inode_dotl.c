@@ -909,8 +909,8 @@ error:
  *
  */
 
-static void *
-v9fs_vfs_follow_link_dotl(struct dentry *dentry, struct nameidata *nd)
+static const char *
+v9fs_vfs_follow_link_dotl(struct dentry *dentry, void **cookie, struct nameidata *nd)
 {
 	struct p9_fid *fid = v9fs_fid_lookup(dentry);
 	char *target;
@@ -923,8 +923,7 @@ v9fs_vfs_follow_link_dotl(struct dentry *dentry, struct nameidata *nd)
 	retval = p9_client_readlink(fid, &target);
 	if (retval)
 		return ERR_PTR(retval);
-	nd_set_link(nd, target);
-	return NULL;
+	return *cookie = target;
 }
 
 int v9fs_refresh_inode_dotl(struct p9_fid *fid, struct inode *inode)

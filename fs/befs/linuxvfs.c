@@ -42,7 +42,7 @@ static struct inode *befs_iget(struct super_block *, unsigned long);
 static struct inode *befs_alloc_inode(struct super_block *sb);
 static void befs_destroy_inode(struct inode *inode);
 static void befs_destroy_inodecache(void);
-static void *befs_follow_link(struct dentry *, struct nameidata *);
+static const char *befs_follow_link(struct dentry *, void **, struct nameidata *nd);
 static int befs_utf2nls(struct super_block *sb, const char *in, int in_len,
 			char **out, int *out_len);
 static int befs_nls2utf(struct super_block *sb, const char *in, int in_len,
@@ -463,8 +463,8 @@ befs_destroy_inodecache(void)
  * The data stream become link name. Unless the LONG_SYMLINK
  * flag is set.
  */
-static void *
-befs_follow_link(struct dentry *dentry, struct nameidata *nd)
+static const char *
+befs_follow_link(struct dentry *dentry, void **cookie, struct nameidata *nd)
 {
 	struct super_block *sb = dentry->d_sb;
 	struct befs_inode_info *befs_ino = BEFS_I(d_inode(dentry));
@@ -474,23 +474,20 @@ befs_follow_link(struct dentry *dentry, struct nameidata *nd)
 
 	if (len == 0) {
 		befs_error(sb, "Long symlink with illegal length");
-		link = ERR_PTR(-EIO);
-	} else {
-		befs_debug(sb, "Follow long symlink");
-
-		link = kmalloc(len, GFP_NOFS);
-		if (!link) {
-			link = ERR_PTR(-ENOMEM);
-		} else if (befs_read_lsymlink(sb, data, link, len) != len) {
-			kfree(link);
-			befs_error(sb, "Failed to read entire long symlink");
-			link = ERR_PTR(-EIO);
-		} else {
-			link[len - 1] = '\0';
-		}
+		return ERR_PTR(-EIO);
 	}
-	nd_set_link(nd, link);
-	return NULL;
+	befs_debug(sb, "Follow long symlink");
+
+	link = kmalloc(len, GFP_NOFS);
+	if (!link)
+		return ERR_PTR(-ENOMEM);
+	if (befs_read_lsymlink(sb, data, link, len) != len) {
+		kfree(link);
+		befs_error(sb, "Failed to read entire long symlink");
+		return ERR_PTR(-EIO);
+	}
+	link[len - 1] = '\0';
+	return *cookie = link;
 }
 
 /*

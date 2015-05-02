@@ -1024,12 +1024,9 @@ int noop_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 }
 EXPORT_SYMBOL(noop_fsync);
 
-void kfree_put_link(struct dentry *dentry, struct nameidata *nd,
-				void *cookie)
+void kfree_put_link(struct dentry *dentry, void *cookie)
 {
-	char *s = nd_get_link(nd);
-	if (!IS_ERR(s))
-		kfree(s);
+	kfree(cookie);
 }
 EXPORT_SYMBOL(kfree_put_link);
 
@@ -1094,10 +1091,9 @@ simple_nosetlease(struct file *filp, long arg, struct file_lock **flp,
 }
 EXPORT_SYMBOL(simple_nosetlease);
 
-void *simple_follow_link(struct dentry *dentry, struct nameidata *nd)
+const char *simple_follow_link(struct dentry *dentry, void **cookie, struct nameidata *nd)
 {
-	nd_set_link(nd, d_inode(dentry)->i_link);
-	return NULL;
+	return d_inode(dentry)->i_link;
 }
 EXPORT_SYMBOL(simple_follow_link);
 

@@ -140,12 +140,12 @@ struct ovl_link_data {
 	void *cookie;
 };
 
-static void *ovl_follow_link(struct dentry *dentry, struct nameidata *nd)
+static const char *ovl_follow_link(struct dentry *dentry, void **cookie, struct nameidata *nd)
 {
-	void *ret;
 	struct dentry *realdentry;
 	struct inode *realinode;
 	struct ovl_link_data *data = NULL;
+	const char *ret;
 
 	realdentry = ovl_dentry_real(dentry);
 	realinode = realdentry->d_inode;
@@ -160,19 +160,21 @@ static void *ovl_follow_link(struct dentry *dentry, struct nameidata *nd)
 		data->realdentry = realdentry;
 	}
 
-	ret = realinode->i_op->follow_link(realdentry, nd);
-	if (IS_ERR(ret)) {
+	ret = realinode->i_op->follow_link(realdentry, cookie, nd);
+	if (IS_ERR_OR_NULL(ret)) {
 		kfree(data);
 		return ret;
 	}
 
 	if (data)
-		data->cookie = ret;
+		data->cookie = *cookie;
 
-	return data;
+	*cookie = data;
+
+	return ret;
 }
 
-static void ovl_put_link(struct dentry *dentry, struct nameidata *nd, void *c)
+static void ovl_put_link(struct dentry *dentry, void *c)
 {
 	struct inode *realinode;
 	struct ovl_link_data *data = c;
@@ -181,7 +183,7 @@ static void ovl_put_link(struct dentry *dentry, struct nameidata *nd, void *c)
 		return;
 
 	realinode = data->realdentry->d_inode;
-	realinode->i_op->put_link(data->realdentry, nd, data->cookie);
+	realinode->i_op->put_link(data->realdentry, data->cookie);
 	kfree(data);
 }
 

@@ -118,7 +118,7 @@ failed:
 	return rc;
 }
 
-static void *ll_follow_link(struct dentry *dentry, struct nameidata *nd)
+static const char *ll_follow_link(struct dentry *dentry, void **cookie, struct nameidata *nd)
 {
 	struct inode *inode = d_inode(dentry);
 	struct ptlrpc_request *request = NULL;
@@ -140,18 +140,17 @@ static void *ll_follow_link(struct dentry *dentry, struct nameidata *nd)
 	}
 	if (rc) {
 		ptlrpc_req_finished(request);
-		request = NULL;
-		symname = ERR_PTR(rc);
+		return ERR_PTR(rc);
 	}
 
-	nd_set_link(nd, symname);
 	/* symname may contain a pointer to the request message buffer,
 	 * we delay request releasing until ll_put_link then.
 	 */
-	return request;
+	*cookie = request;
+	return symname;
 }
 
-static void ll_put_link(struct dentry *dentry, struct nameidata *nd, void *cookie)
+static void ll_put_link(struct dentry *dentry, void *cookie)
 {
 	ptlrpc_req_finished(cookie);
 }

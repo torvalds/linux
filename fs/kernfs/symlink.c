@@ -112,25 +112,23 @@ static int kernfs_getlink(struct dentry *dentry, char *path)
 	return error;
 }
 
-static void *kernfs_iop_follow_link(struct dentry *dentry, struct nameidata *nd)
+static const char *kernfs_iop_follow_link(struct dentry *dentry, void **cookie, struct nameidata *nd)
 {
 	int error = -ENOMEM;
 	unsigned long page = get_zeroed_page(GFP_KERNEL);
-	if (page) {
-		error = kernfs_getlink(dentry, (char *) page);
-		if (error < 0)
-			free_page((unsigned long)page);
+	if (!page)
+		return ERR_PTR(-ENOMEM);
+	error = kernfs_getlink(dentry, (char *)page);
+	if (unlikely(error < 0)) {
+		free_page((unsigned long)page);
+		return ERR_PTR(error);
 	}
-	nd_set_link(nd, error ? ERR_PTR(error) : (char *)page);
-	return NULL;
+	return *cookie = (char *)page;
 }
 
-static void kernfs_iop_put_link(struct dentry *dentry, struct nameidata *nd,
-				void *cookie)
+static void kernfs_iop_put_link(struct dentry *dentry, void *cookie)
 {
-	char *page = nd_get_link(nd);
-	if (!IS_ERR(page))
-		free_page((unsigned long)page);
+	free_page((unsigned long)cookie);
 }
 
 const struct inode_operations kernfs_symlink_iops = {

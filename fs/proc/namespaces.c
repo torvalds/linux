@@ -30,7 +30,7 @@ static const struct proc_ns_operations *ns_entries[] = {
 	&mntns_operations,
 };
 
-static void *proc_ns_follow_link(struct dentry *dentry, struct nameidata *nd)
+static const char *proc_ns_follow_link(struct dentry *dentry, void **cookie, struct nameidata *nd)
 {
 	struct inode *inode = d_inode(dentry);
 	const struct proc_ns_operations *ns_ops = PROC_I(inode)->ns_ops;

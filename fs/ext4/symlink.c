@@ -23,7 +23,7 @@
 #include "xattr.h"
 
 #ifdef CONFIG_EXT4_FS_ENCRYPTION
-static void *ext4_follow_link(struct dentry *dentry, struct nameidata *nd)
+static const char *ext4_follow_link(struct dentry *dentry, void **cookie, struct nameidata *nd)
 {
 	struct page *cpage = NULL;
 	char *caddr, *paddr = NULL;
@@ -37,7 +37,7 @@ static void *ext4_follow_link(struct dentry *dentry, struct nameidata *nd)
 
 	ctx = ext4_get_fname_crypto_ctx(inode, inode->i_sb->s_blocksize);
 	if (IS_ERR(ctx))
-		return ctx;
+		return ERR_CAST(ctx);
 
 	if (ext4_inode_is_fast_symlink(inode)) {
 		caddr = (char *) EXT4_I(inode)->i_data;
@@ -46,7 +46,7 @@ static void *ext4_follow_link(struct dentry *dentry, struct nameidata *nd)
 		cpage = read_mapping_page(inode->i_mapping, 0, NULL);
 		if (IS_ERR(cpage)) {
 			ext4_put_fname_crypto_ctx(&ctx);
-			return cpage;
+			return ERR_CAST(cpage);
 		}
 		caddr = kmap(cpage);
 		caddr[size] = 0;
@@ -77,13 +77,12 @@ static void *ext4_follow_link(struct dentry *dentry, struct nameidata *nd)
 	/* Null-terminate the name */
 	if (res <= plen)
 		paddr[res] = '\0';
-	nd_set_link(nd, paddr);
 	ext4_put_fname_crypto_ctx(&ctx);
 	if (cpage) {
 		kunmap(cpage);
 		page_cache_release(cpage);
 	}
-	return NULL;
+	return *cookie = paddr;
 errout:
 	ext4_put_fname_crypto_ctx(&ctx);
 	if (cpage) {

@@ -675,18 +675,16 @@ out:
 	return rc ? ERR_PTR(rc) : buf;
 }
 
-static void *ecryptfs_follow_link(struct dentry *dentry, struct nameidata *nd)
+static const char *ecryptfs_follow_link(struct dentry *dentry, void **cookie, struct nameidata *nd)
 {
 	size_t len;
 	char *buf = ecryptfs_readlink_lower(dentry, &len);
 	if (IS_ERR(buf))
-		goto out;
+		return buf;
 	fsstack_copy_attr_atime(d_inode(dentry),
 				d_inode(ecryptfs_dentry_to_lower(dentry)));
 	buf[len] = '\0';
-out:
-	nd_set_link(nd, buf);
-	return NULL;
+	return *cookie = buf;
 }
 
 /**

@@ -1380,7 +1380,7 @@ static int proc_exe_link(struct dentry *dentry, struct path *exe_path)
 		return -ENOENT;
 }
 
-static void *proc_pid_follow_link(struct dentry *dentry, struct nameidata *nd)
+static const char *proc_pid_follow_link(struct dentry *dentry, void **cookie, struct nameidata *nd)
 {
 	struct inode *inode = d_inode(dentry);
 	struct path path;

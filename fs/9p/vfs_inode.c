@@ -1230,11 +1230,12 @@ ino_t v9fs_qid2ino(struct p9_qid *qid)
  *
  */
 
-static void *v9fs_vfs_follow_link(struct dentry *dentry, struct nameidata *nd)
+static const char *v9fs_vfs_follow_link(struct dentry *dentry, void **cookie, struct nameidata *nd)
 {
 	struct v9fs_session_info *v9ses = v9fs_dentry2v9ses(dentry);
 	struct p9_fid *fid = v9fs_fid_lookup(dentry);
 	struct p9_wstat *st;
+	char *res;
 
 	p9_debug(P9_DEBUG_VFS, "%pd\n", dentry);
 
@@ -1253,14 +1254,14 @@ static void *v9fs_vfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 		kfree(st);
 		return ERR_PTR(-EINVAL);
 	}
-	if (strlen(st->extension) >= PATH_MAX)
-		st->extension[PATH_MAX - 1] = '\0';
-
-	nd_set_link(nd, st->extension);
+	res = st->extension;
 	st->extension = NULL;
+	if (strlen(res) >= PATH_MAX)
+		res[PATH_MAX - 1] = '\0';
+
 	p9stat_free(st);
 	kfree(st);
-	return NULL;
+	return *cookie = res;
 }
 
 /**
