@@ -196,7 +196,8 @@ static void divvy_up_power(u32 *req_power, u32 *max_power, int num_actors,
 	for (i = 0; i < num_actors; i++) {
 		u64 req_range = req_power[i] * power_range;
 
-		granted_power[i] = div_u64(req_range, total_req_power);
+		granted_power[i] = DIV_ROUND_CLOSEST_ULL(req_range,
+							 total_req_power);
 
 		if (granted_power[i] > max_power[i]) {
 			extra_power += granted_power[i] - max_power[i];
