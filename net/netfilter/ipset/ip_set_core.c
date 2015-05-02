@@ -365,7 +365,7 @@ size_t
 ip_set_elem_len(struct ip_set *set, struct nlattr *tb[], size_t len)
 {
 	enum ip_set_ext_id id;
-	size_t offset = 0;
+	size_t offset = len;
 	u32 cadt_flags = 0;
 
 	if (tb[IPSET_ATTR_CADT_FLAGS])
@@ -375,12 +375,12 @@ ip_set_elem_len(struct ip_set *set, struct nlattr *tb[], size_t len)
 	for (id = 0; id < IPSET_EXT_ID_MAX; id++) {
 		if (!add_extension(id, cadt_flags, tb))
 			continue;
-		offset += ALIGN(len + offset, ip_set_extensions[id].align);
+		offset = ALIGN(offset, ip_set_extensions[id].align);
 		set->offset[id] = offset;
 		set->extensions |= ip_set_extensions[id].type;
 		offset += ip_set_extensions[id].len;
 	}
-	return len + offset;
+	return offset;
 }
 EXPORT_SYMBOL_GPL(ip_set_elem_len);
 
