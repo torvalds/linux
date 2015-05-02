@@ -78,7 +78,6 @@ hash_ipmark4_data_next(struct hash_ipmark4_elem *next,
 
 #define MTYPE           hash_ipmark4
 #define HOST_MASK       32
-#define HKEY_DATALEN	sizeof(struct hash_ipmark4_elem)
 #include "ip_set_hash_gen.h"
 
 static int
@@ -207,11 +206,9 @@ hash_ipmark6_data_next(struct hash_ipmark4_elem *next,
 
 #undef MTYPE
 #undef HOST_MASK
-#undef HKEY_DATALEN
 
 #define MTYPE		hash_ipmark6
 #define HOST_MASK	128
-#define HKEY_DATALEN	sizeof(struct hash_ipmark6_elem)
 #define	IP_SET_EMIT_CREATE
 #include "ip_set_hash_gen.h"
 

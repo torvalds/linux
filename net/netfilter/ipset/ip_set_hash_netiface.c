@@ -460,7 +460,6 @@ hash_netiface6_data_next(struct hash_netiface4_elem *next,
 
 #undef MTYPE
 #undef HOST_MASK
-#undef HKEY_DATALEN
 
 #define MTYPE		hash_netiface6
 #define HOST_MASK	128

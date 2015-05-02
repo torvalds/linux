@@ -1166,3 +1166,5 @@ IPSET_TOKEN(HTYPE, _create)(struct net *net, struct ip_set *set,
 	return 0;
 }
 #endif /* IP_SET_EMIT_CREATE */
+
+#undef HKEY_DATALEN

@@ -211,7 +211,6 @@ hash_ip6_data_next(struct hash_ip4_elem *next, const struct hash_ip6_elem *e)
 
 #undef MTYPE
 #undef HOST_MASK
-#undef HKEY_DATALEN
 
 #define MTYPE		hash_ip6
 #define HOST_MASK	128
