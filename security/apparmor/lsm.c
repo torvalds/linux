@@ -96,19 +96,11 @@ static void apparmor_cred_transfer(struct cred *new, const struct cred *old)
 static int apparmor_ptrace_access_check(struct task_struct *child,
 					unsigned int mode)
 {
-	int error = cap_ptrace_access_check(child, mode);
-	if (error)
-		return error;
-
 	return aa_ptrace(current, child, mode);
 }
 
 static int apparmor_ptrace_traceme(struct task_struct *parent)
 {
-	int error = cap_ptrace_traceme(parent);
-	if (error)
-		return error;
-
 	return aa_ptrace(parent, current, PTRACE_MODE_ATTACH);
 }
 
@@ -123,10 +115,10 @@ static int apparmor_capget(struct task_struct *target, kernel_cap_t *effective,
 	cred = __task_cred(target);
 	profile = aa_cred_profile(cred);
 
-	*effective = cred->cap_effective;
-	*inheritable = cred->cap_inheritable;
-	*permitted = cred->cap_permitted;
-
+	/*
+	 * cap_capget is stacked ahead of this and will
+	 * initialize effective and permitted.
+	 */
 	if (!unconfined(profile) && !COMPLAIN_MODE(profile)) {
 		*effective = cap_intersect(*effective, profile->caps.allow);
 		*permitted = cap_intersect(*permitted, profile->caps.allow);
@@ -140,13 +132,11 @@ static int apparmor_capable(const struct cred *cred, struct user_namespace *ns,
 			    int cap, int audit)
 {
 	struct aa_profile *profile;
-	/* cap_capable returns 0 on success, else -EPERM */
-	int error = cap_capable(cred, ns, cap, audit);
-	if (!error) {
-		profile = aa_cred_profile(cred);
-		if (!unconfined(profile))
-			error = aa_capable(profile, cap, audit);
-	}
+	int error = 0;
+
+	profile = aa_cred_profile(cred);
+	if (!unconfined(profile))
+		error = aa_capable(profile, cap, audit);
 	return error;
 }
 
@@ -615,9 +605,7 @@ static int apparmor_task_setrlimit(struct task_struct *task,
 	return error;
 }
 
-static struct security_operations apparmor_ops = {
-	LSM_HOOK_INIT(name, "apparmor"),
-
+static struct security_hook_list apparmor_hooks[] = {
 	LSM_HOOK_INIT(ptrace_access_check, apparmor_ptrace_access_check),
 	LSM_HOOK_INIT(ptrace_traceme, apparmor_ptrace_traceme),
 	LSM_HOOK_INIT(capget, apparmor_capget),
@@ -640,7 +628,6 @@ static struct security_operations apparmor_ops = {
 	LSM_HOOK_INIT(file_alloc_security, apparmor_file_alloc_security),
 	LSM_HOOK_INIT(file_free_security, apparmor_file_free_security),
 	LSM_HOOK_INIT(mmap_file, apparmor_mmap_file),
-	LSM_HOOK_INIT(mmap_addr, cap_mmap_addr),
 	LSM_HOOK_INIT(file_mprotect, apparmor_file_mprotect),
 	LSM_HOOK_INIT(file_lock, apparmor_file_lock),
 
@@ -898,7 +885,7 @@ static int __init apparmor_init(void)
 {
 	int error;
 
-	if (!apparmor_enabled || !security_module_enable(&apparmor_ops)) {
+	if (!apparmor_enabled || !security_module_enable("apparmor")) {
 		aa_info_message("AppArmor disabled by boot time parameter");
 		apparmor_enabled = 0;
 		return 0;
@@ -913,17 +900,10 @@ static int __init apparmor_init(void)
 	error = set_init_cxt();
 	if (error) {
 		AA_ERROR("Failed to set context on init task\n");
-		goto register_security_out;
+		aa_free_root_ns();
+		goto alloc_out;
 	}
-
-	error = register_security(&apparmor_ops);
-	if (error) {
-		struct cred *cred = (struct cred *)current->real_cred;
-		aa_free_task_context(cred_cxt(cred));
-		cred_cxt(cred) = NULL;
-		AA_ERROR("Unable to register AppArmor\n");
-		goto register_security_out;
-	}
+	security_add_hooks(apparmor_hooks, ARRAY_SIZE(apparmor_hooks));
 
 	/* Report that AppArmor successfully initialized */
 	apparmor_initialized = 1;
@@ -935,9 +915,6 @@ static int __init apparmor_init(void)
 		aa_info_message("AppArmor initialized");
 
 	return error;
-
-register_security_out:
-	aa_free_root_ns();
 
 alloc_out:
 	aa_destroy_aafs();

@@ -29,23 +29,12 @@
 
 #define MAX_LSM_EVM_XATTR	2
 
+/* Maximum number of letters for an LSM name string */
+#define SECURITY_NAME_MAX	10
+
 /* Boot-time LSM user choice */
 static __initdata char chosen_lsm[SECURITY_NAME_MAX + 1] =
 	CONFIG_DEFAULT_SECURITY;
-
-static struct security_operations *security_ops;
-static struct security_operations default_security_ops = {
-	.name	= "default",
-};
-
-static inline int __init verify(struct security_operations *ops)
-{
-	/* verify the security_operations structure exists */
-	if (!ops)
-		return -EINVAL;
-	security_fixup_ops(ops);
-	return 0;
-}
 
 static void __init do_security_initcalls(void)
 {
@@ -64,18 +53,25 @@ static void __init do_security_initcalls(void)
  */
 int __init security_init(void)
 {
-	printk(KERN_INFO "Security Framework initialized\n");
+	pr_info("Security Framework initialized\n");
 
-	security_fixup_ops(&default_security_ops);
-	security_ops = &default_security_ops;
+	/*
+	 * Always load the capability module.
+	 */
+	capability_add_hooks();
+#ifdef CONFIG_SECURITY_YAMA_STACKED
+	/*
+	 * If Yama is configured for stacking load it next.
+	 */
+	yama_add_hooks();
+#endif
+	/*
+	 * Load the chosen module if there is one.
+	 * This will also find yama if it is stacking
+	 */
 	do_security_initcalls();
 
 	return 0;
-}
-
-void reset_security_ops(void)
-{
-	security_ops = &default_security_ops;
 }
 
 /* Save user chosen LSM */
@@ -88,7 +84,7 @@ __setup("security=", choose_lsm);
 
 /**
  * security_module_enable - Load given security module on boot ?
- * @ops: a pointer to the struct security_operations that is to be checked.
+ * @module: the name of the module
  *
  * Each LSM must pass this method before registering its own operations
  * to avoid security registration races. This method may also be used
@@ -100,41 +96,13 @@ __setup("security=", choose_lsm);
  *	 choose an alternate LSM at boot time.
  * Otherwise, return false.
  */
-int __init security_module_enable(struct security_operations *ops)
+int __init security_module_enable(const char *module)
 {
-	return !strcmp(ops->name, chosen_lsm);
-}
-
-/**
- * register_security - registers a security framework with the kernel
- * @ops: a pointer to the struct security_options that is to be registered
- *
- * This function allows a security module to register itself with the
- * kernel security subsystem.  Some rudimentary checking is done on the @ops
- * value passed to this function. You'll need to check first if your LSM
- * is allowed to register its @ops by calling security_module_enable(@ops).
- *
- * If there is already a security module registered with the kernel,
- * an error will be returned.  Otherwise %0 is returned on success.
- */
-int __init register_security(struct security_operations *ops)
-{
-	if (verify(ops)) {
-		printk(KERN_DEBUG "%s could not verify "
-		       "security_operations structure.\n", __func__);
-		return -EINVAL;
-	}
-
-	if (security_ops != &default_security_ops)
-		return -EAGAIN;
-
-	security_ops = ops;
-
-	return 0;
+	return !strcmp(module, chosen_lsm);
 }
 
 /*
- * Hook operation macros.
+ * Hook list operation macros.
  *
  * call_void_hook:
  *	This is a hook that does not return a value.
@@ -143,8 +111,27 @@ int __init register_security(struct security_operations *ops)
  *	This is a hook that returns a value.
  */
 
-#define call_void_hook(FUNC, ...)	security_ops->FUNC(__VA_ARGS__)
-#define call_int_hook(FUNC, IRC, ...)	security_ops->FUNC(__VA_ARGS__)
+#define call_void_hook(FUNC, ...)				\
+	do {							\
+		struct security_hook_list *P;			\
+								\
+		list_for_each_entry(P, &security_hook_heads.FUNC, list)	\
+			P->hook.FUNC(__VA_ARGS__);		\
+	} while (0)
+
+#define call_int_hook(FUNC, IRC, ...) ({			\
+	int RC = IRC;						\
+	do {							\
+		struct security_hook_list *P;			\
+								\
+		list_for_each_entry(P, &security_hook_heads.FUNC, list) { \
+			RC = P->hook.FUNC(__VA_ARGS__);		\
+			if (RC != 0)				\
+				break;				\
+		}						\
+	} while (0);						\
+	RC;							\
+})
 
 /* Security operations */
 
@@ -173,23 +160,11 @@ int security_binder_transfer_file(struct task_struct *from,
 
 int security_ptrace_access_check(struct task_struct *child, unsigned int mode)
 {
-#ifdef CONFIG_SECURITY_YAMA_STACKED
-	int rc;
-	rc = yama_ptrace_access_check(child, mode);
-	if (rc)
-		return rc;
-#endif
 	return call_int_hook(ptrace_access_check, 0, child, mode);
 }
 
 int security_ptrace_traceme(struct task_struct *parent)
 {
-#ifdef CONFIG_SECURITY_YAMA_STACKED
-	int rc;
-	rc = yama_ptrace_traceme(parent);
-	if (rc)
-		return rc;
-#endif
 	return call_int_hook(ptrace_traceme, 0, parent);
 }
 
@@ -245,7 +220,25 @@ int security_settime(const struct timespec *ts, const struct timezone *tz)
 
 int security_vm_enough_memory_mm(struct mm_struct *mm, long pages)
 {
-	return call_int_hook(vm_enough_memory, 0, mm, pages);
+	struct security_hook_list *hp;
+	int cap_sys_admin = 1;
+	int rc;
+
+	/*
+	 * The module will respond with a positive value if
+	 * it thinks the __vm_enough_memory() call should be
+	 * made with the cap_sys_admin set. If all of the modules
+	 * agree that it should be set it will. If any module
+	 * thinks it should not be set it won't.
+	 */
+	list_for_each_entry(hp, &security_hook_heads.vm_enough_memory, list) {
+		rc = hp->hook.vm_enough_memory(mm, pages);
+		if (rc <= 0) {
+			cap_sys_admin = 0;
+			break;
+		}
+	}
+	return __vm_enough_memory(mm, pages, cap_sys_admin);
 }
 
 int security_bprm_set_creds(struct linux_binprm *bprm)
@@ -335,8 +328,9 @@ int security_sb_set_mnt_opts(struct super_block *sb,
 				unsigned long kern_flags,
 				unsigned long *set_kern_flags)
 {
-	return call_int_hook(sb_set_mnt_opts, 0, sb, opts, kern_flags,
-						set_kern_flags);
+	return call_int_hook(sb_set_mnt_opts,
+				opts->num_mnt_opts ? -EOPNOTSUPP : 0, sb,
+				opts, kern_flags, set_kern_flags);
 }
 EXPORT_SYMBOL(security_sb_set_mnt_opts);
 
@@ -369,8 +363,8 @@ int security_dentry_init_security(struct dentry *dentry, int mode,
 					struct qstr *name, void **ctx,
 					u32 *ctxlen)
 {
-	return call_int_hook(dentry_init_security, 0, dentry, mode, name,
-							ctx, ctxlen);
+	return call_int_hook(dentry_init_security, -EOPNOTSUPP, dentry, mode,
+				name, ctx, ctxlen);
 }
 EXPORT_SYMBOL(security_dentry_init_security);
 
@@ -390,7 +384,7 @@ int security_inode_init_security(struct inode *inode, struct inode *dir,
 							 NULL, NULL, NULL);
 	memset(new_xattrs, 0, sizeof(new_xattrs));
 	lsm_xattr = new_xattrs;
-	ret = call_int_hook(inode_init_security, 0, inode, dir, qstr,
+	ret = call_int_hook(inode_init_security, -EOPNOTSUPP, inode, dir, qstr,
 						&lsm_xattr->name,
 						&lsm_xattr->value,
 						&lsm_xattr->value_len);
@@ -636,8 +630,15 @@ int security_inode_setxattr(struct dentry *dentry, const char *name,
 
 	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
 		return 0;
-	ret = call_int_hook(inode_setxattr, 0, dentry, name, value, size,
+	/*
+	 * SELinux and Smack integrate the cap call,
+	 * so assume that all LSMs supplying this call do so.
+	 */
+	ret = call_int_hook(inode_setxattr, 1, dentry, name, value, size,
 				flags);
+
+	if (ret == 1)
+		ret = cap_inode_setxattr(dentry, name, value, size, flags);
 	if (ret)
 		return ret;
 	ret = ima_inode_setxattr(dentry, name, value, size);
@@ -675,7 +676,13 @@ int security_inode_removexattr(struct dentry *dentry, const char *name)
 
 	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
 		return 0;
-	ret = call_int_hook(inode_removexattr, 0, dentry, name);
+	/*
+	 * SELinux and Smack integrate the cap call,
+	 * so assume that all LSMs supplying this call do so.
+	 */
+	ret = call_int_hook(inode_removexattr, 1, dentry, name);
+	if (ret == 1)
+		ret = cap_inode_removexattr(dentry, name);
 	if (ret)
 		return ret;
 	ret = ima_inode_removexattr(dentry, name);
@@ -698,15 +705,16 @@ int security_inode_getsecurity(const struct inode *inode, const char *name, void
 {
 	if (unlikely(IS_PRIVATE(inode)))
 		return -EOPNOTSUPP;
-	return call_int_hook(inode_getsecurity, 0, inode, name, buffer, alloc);
+	return call_int_hook(inode_getsecurity, -EOPNOTSUPP, inode, name,
+				buffer, alloc);
 }
 
 int security_inode_setsecurity(struct inode *inode, const char *name, const void *value, size_t size, int flags)
 {
 	if (unlikely(IS_PRIVATE(inode)))
 		return -EOPNOTSUPP;
-	return call_int_hook(inode_setsecurity, 0, inode, name, value, size,
-				flags);
+	return call_int_hook(inode_setsecurity, -EOPNOTSUPP, inode, name,
+				value, size, flags);
 }
 
 int security_inode_listsecurity(struct inode *inode, char *buffer, size_t buffer_size)
@@ -847,9 +855,6 @@ int security_task_create(unsigned long clone_flags)
 
 void security_task_free(struct task_struct *task)
 {
-#ifdef CONFIG_SECURITY_YAMA_STACKED
-	yama_task_free(task);
-#endif
 	call_void_hook(task_free, task);
 }
 
@@ -932,6 +937,7 @@ int security_task_getsid(struct task_struct *p)
 
 void security_task_getsecid(struct task_struct *p, u32 *secid)
 {
+	*secid = 0;
 	call_void_hook(task_getsecid, p, secid);
 }
 EXPORT_SYMBOL(security_task_getsecid);
@@ -986,13 +992,19 @@ int security_task_wait(struct task_struct *p)
 int security_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 			 unsigned long arg4, unsigned long arg5)
 {
-#ifdef CONFIG_SECURITY_YAMA_STACKED
-	int rc;
-	rc = yama_task_prctl(option, arg2, arg3, arg4, arg5);
-	if (rc != -ENOSYS)
-		return rc;
-#endif
-	return call_int_hook(task_prctl, 0, option, arg2, arg3, arg4, arg5);
+	int thisrc;
+	int rc = -ENOSYS;
+	struct security_hook_list *hp;
+
+	list_for_each_entry(hp, &security_hook_heads.task_prctl, list) {
+		thisrc = hp->hook.task_prctl(option, arg2, arg3, arg4, arg5);
+		if (thisrc != -ENOSYS) {
+			rc = thisrc;
+			if (thisrc != 0)
+				break;
+		}
+	}
+	return rc;
 }
 
 void security_task_to_inode(struct task_struct *p, struct inode *inode)
@@ -1007,6 +1019,7 @@ int security_ipc_permission(struct kern_ipc_perm *ipcp, short flag)
 
 void security_ipc_getsecid(struct kern_ipc_perm *ipcp, u32 *secid)
 {
+	*secid = 0;
 	call_void_hook(ipc_getsecid, ipcp, secid);
 }
 
@@ -1113,12 +1126,12 @@ EXPORT_SYMBOL(security_d_instantiate);
 
 int security_getprocattr(struct task_struct *p, char *name, char **value)
 {
-	return call_int_hook(getprocattr, 0, p, name, value);
+	return call_int_hook(getprocattr, -EINVAL, p, name, value);
 }
 
 int security_setprocattr(struct task_struct *p, char *name, void *value, size_t size)
 {
-	return call_int_hook(setprocattr, 0, p, name, value, size);
+	return call_int_hook(setprocattr, -EINVAL, p, name, value, size);
 }
 
 int security_netlink_send(struct sock *sk, struct sk_buff *skb)
@@ -1134,12 +1147,14 @@ EXPORT_SYMBOL(security_ismaclabel);
 
 int security_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
 {
-	return call_int_hook(secid_to_secctx, 0, secid, secdata, seclen);
+	return call_int_hook(secid_to_secctx, -EOPNOTSUPP, secid, secdata,
+				seclen);
 }
 EXPORT_SYMBOL(security_secid_to_secctx);
 
 int security_secctx_to_secid(const char *secdata, u32 seclen, u32 *secid)
 {
+	*secid = 0;
 	return call_int_hook(secctx_to_secid, 0, secdata, seclen, secid);
 }
 EXPORT_SYMBOL(security_secctx_to_secid);
@@ -1164,7 +1179,7 @@ EXPORT_SYMBOL(security_inode_setsecctx);
 
 int security_inode_getsecctx(struct inode *inode, void **ctx, u32 *ctxlen)
 {
-	return call_int_hook(inode_getsecctx, 0, inode, ctx, ctxlen);
+	return call_int_hook(inode_getsecctx, -EOPNOTSUPP, inode, ctx, ctxlen);
 }
 EXPORT_SYMBOL(security_inode_getsecctx);
 
@@ -1259,8 +1274,8 @@ EXPORT_SYMBOL(security_sock_rcv_skb);
 int security_socket_getpeersec_stream(struct socket *sock, char __user *optval,
 				      int __user *optlen, unsigned len)
 {
-	return call_int_hook(socket_getpeersec_stream, 0, sock, optval,
-				optlen, len);
+	return call_int_hook(socket_getpeersec_stream, -ENOPROTOOPT, sock,
+				optval, optlen, len);
 }
 
 int security_socket_getpeersec_dgram(struct socket *sock, struct sk_buff *skb, u32 *secid)
@@ -1438,7 +1453,24 @@ int security_xfrm_state_pol_flow_match(struct xfrm_state *x,
 				       struct xfrm_policy *xp,
 				       const struct flowi *fl)
 {
-	return call_int_hook(xfrm_state_pol_flow_match, 0, x, xp, fl);
+	struct security_hook_list *hp;
+	int rc = 1;
+
+	/*
+	 * Since this function is expected to return 0 or 1, the judgment
+	 * becomes difficult if multiple LSMs supply this call. Fortunately,
+	 * we can use the first LSM's judgment because currently only SELinux
+	 * supplies this call.
+	 *
+	 * For speed optimization, we explicitly break the loop rather than
+	 * using the macro
+	 */
+	list_for_each_entry(hp, &security_hook_heads.xfrm_state_pol_flow_match,
+				list) {
+		rc = hp->hook.xfrm_state_pol_flow_match(x, xp, fl);
+		break;
+	}
+	return rc;
 }
 
 int security_xfrm_decode_session(struct sk_buff *skb, u32 *secid)
@@ -1478,6 +1510,7 @@ int security_key_permission(key_ref_t key_ref,
 
 int security_key_getsecurity(struct key *key, char **_buffer)
 {
+	*_buffer = NULL;
 	return call_int_hook(key_getsecurity, 0, key, _buffer);
 }
 
@@ -1506,5 +1539,350 @@ int security_audit_rule_match(u32 secid, u32 field, u32 op, void *lsmrule,
 	return call_int_hook(audit_rule_match, 0, secid, field, op, lsmrule,
 				actx);
 }
-
 #endif /* CONFIG_AUDIT */
+
+struct security_hook_heads security_hook_heads = {
+	.binder_set_context_mgr =
+		LIST_HEAD_INIT(security_hook_heads.binder_set_context_mgr),
+	.binder_transaction =
+		LIST_HEAD_INIT(security_hook_heads.binder_transaction),
+	.binder_transfer_binder =
+		LIST_HEAD_INIT(security_hook_heads.binder_transfer_binder),
+	.binder_transfer_file =
+		LIST_HEAD_INIT(security_hook_heads.binder_transfer_file),
+
+	.ptrace_access_check =
+		LIST_HEAD_INIT(security_hook_heads.ptrace_access_check),
+	.ptrace_traceme =
+		LIST_HEAD_INIT(security_hook_heads.ptrace_traceme),
+	.capget =	LIST_HEAD_INIT(security_hook_heads.capget),
+	.capset =	LIST_HEAD_INIT(security_hook_heads.capset),
+	.capable =	LIST_HEAD_INIT(security_hook_heads.capable),
+	.quotactl =	LIST_HEAD_INIT(security_hook_heads.quotactl),
+	.quota_on =	LIST_HEAD_INIT(security_hook_heads.quota_on),
+	.syslog =	LIST_HEAD_INIT(security_hook_heads.syslog),
+	.settime =	LIST_HEAD_INIT(security_hook_heads.settime),
+	.vm_enough_memory =
+		LIST_HEAD_INIT(security_hook_heads.vm_enough_memory),
+	.bprm_set_creds =
+		LIST_HEAD_INIT(security_hook_heads.bprm_set_creds),
+	.bprm_check_security =
+		LIST_HEAD_INIT(security_hook_heads.bprm_check_security),
+	.bprm_secureexec =
+		LIST_HEAD_INIT(security_hook_heads.bprm_secureexec),
+	.bprm_committing_creds =
+		LIST_HEAD_INIT(security_hook_heads.bprm_committing_creds),
+	.bprm_committed_creds =
+		LIST_HEAD_INIT(security_hook_heads.bprm_committed_creds),
+	.sb_alloc_security =
+		LIST_HEAD_INIT(security_hook_heads.sb_alloc_security),
+	.sb_free_security =
+		LIST_HEAD_INIT(security_hook_heads.sb_free_security),
+	.sb_copy_data =	LIST_HEAD_INIT(security_hook_heads.sb_copy_data),
+	.sb_remount =	LIST_HEAD_INIT(security_hook_heads.sb_remount),
+	.sb_kern_mount =
+		LIST_HEAD_INIT(security_hook_heads.sb_kern_mount),
+	.sb_show_options =
+		LIST_HEAD_INIT(security_hook_heads.sb_show_options),
+	.sb_statfs =	LIST_HEAD_INIT(security_hook_heads.sb_statfs),
+	.sb_mount =	LIST_HEAD_INIT(security_hook_heads.sb_mount),
+	.sb_umount =	LIST_HEAD_INIT(security_hook_heads.sb_umount),
+	.sb_pivotroot =	LIST_HEAD_INIT(security_hook_heads.sb_pivotroot),
+	.sb_set_mnt_opts =
+		LIST_HEAD_INIT(security_hook_heads.sb_set_mnt_opts),
+	.sb_clone_mnt_opts =
+		LIST_HEAD_INIT(security_hook_heads.sb_clone_mnt_opts),
+	.sb_parse_opts_str =
+		LIST_HEAD_INIT(security_hook_heads.sb_parse_opts_str),
+	.dentry_init_security =
+		LIST_HEAD_INIT(security_hook_heads.dentry_init_security),
+#ifdef CONFIG_SECURITY_PATH
+	.path_unlink =	LIST_HEAD_INIT(security_hook_heads.path_unlink),
+	.path_mkdir =	LIST_HEAD_INIT(security_hook_heads.path_mkdir),
+	.path_rmdir =	LIST_HEAD_INIT(security_hook_heads.path_rmdir),
+	.path_mknod =	LIST_HEAD_INIT(security_hook_heads.path_mknod),
+	.path_truncate =
+		LIST_HEAD_INIT(security_hook_heads.path_truncate),
+	.path_symlink =	LIST_HEAD_INIT(security_hook_heads.path_symlink),
+	.path_link =	LIST_HEAD_INIT(security_hook_heads.path_link),
+	.path_rename =	LIST_HEAD_INIT(security_hook_heads.path_rename),
+	.path_chmod =	LIST_HEAD_INIT(security_hook_heads.path_chmod),
+	.path_chown =	LIST_HEAD_INIT(security_hook_heads.path_chown),
+	.path_chroot =	LIST_HEAD_INIT(security_hook_heads.path_chroot),
+#endif
+	.inode_alloc_security =
+		LIST_HEAD_INIT(security_hook_heads.inode_alloc_security),
+	.inode_free_security =
+		LIST_HEAD_INIT(security_hook_heads.inode_free_security),
+	.inode_init_security =
+		LIST_HEAD_INIT(security_hook_heads.inode_init_security),
+	.inode_create =	LIST_HEAD_INIT(security_hook_heads.inode_create),
+	.inode_link =	LIST_HEAD_INIT(security_hook_heads.inode_link),
+	.inode_unlink =	LIST_HEAD_INIT(security_hook_heads.inode_unlink),
+	.inode_symlink =
+		LIST_HEAD_INIT(security_hook_heads.inode_symlink),
+	.inode_mkdir =	LIST_HEAD_INIT(security_hook_heads.inode_mkdir),
+	.inode_rmdir =	LIST_HEAD_INIT(security_hook_heads.inode_rmdir),
+	.inode_mknod =	LIST_HEAD_INIT(security_hook_heads.inode_mknod),
+	.inode_rename =	LIST_HEAD_INIT(security_hook_heads.inode_rename),
+	.inode_readlink =
+		LIST_HEAD_INIT(security_hook_heads.inode_readlink),
+	.inode_follow_link =
+		LIST_HEAD_INIT(security_hook_heads.inode_follow_link),
+	.inode_permission =
+		LIST_HEAD_INIT(security_hook_heads.inode_permission),
+	.inode_setattr =
+		LIST_HEAD_INIT(security_hook_heads.inode_setattr),
+	.inode_getattr =
+		LIST_HEAD_INIT(security_hook_heads.inode_getattr),
+	.inode_setxattr =
+		LIST_HEAD_INIT(security_hook_heads.inode_setxattr),
+	.inode_post_setxattr =
+		LIST_HEAD_INIT(security_hook_heads.inode_post_setxattr),
+	.inode_getxattr =
+		LIST_HEAD_INIT(security_hook_heads.inode_getxattr),
+	.inode_listxattr =
+		LIST_HEAD_INIT(security_hook_heads.inode_listxattr),
+	.inode_removexattr =
+		LIST_HEAD_INIT(security_hook_heads.inode_removexattr),
+	.inode_need_killpriv =
+		LIST_HEAD_INIT(security_hook_heads.inode_need_killpriv),
+	.inode_killpriv =
+		LIST_HEAD_INIT(security_hook_heads.inode_killpriv),
+	.inode_getsecurity =
+		LIST_HEAD_INIT(security_hook_heads.inode_getsecurity),
+	.inode_setsecurity =
+		LIST_HEAD_INIT(security_hook_heads.inode_setsecurity),
+	.inode_listsecurity =
+		LIST_HEAD_INIT(security_hook_heads.inode_listsecurity),
+	.inode_getsecid =
+		LIST_HEAD_INIT(security_hook_heads.inode_getsecid),
+	.file_permission =
+		LIST_HEAD_INIT(security_hook_heads.file_permission),
+	.file_alloc_security =
+		LIST_HEAD_INIT(security_hook_heads.file_alloc_security),
+	.file_free_security =
+		LIST_HEAD_INIT(security_hook_heads.file_free_security),
+	.file_ioctl =	LIST_HEAD_INIT(security_hook_heads.file_ioctl),
+	.mmap_addr =	LIST_HEAD_INIT(security_hook_heads.mmap_addr),
+	.mmap_file =	LIST_HEAD_INIT(security_hook_heads.mmap_file),
+	.file_mprotect =
+		LIST_HEAD_INIT(security_hook_heads.file_mprotect),
+	.file_lock =	LIST_HEAD_INIT(security_hook_heads.file_lock),
+	.file_fcntl =	LIST_HEAD_INIT(security_hook_heads.file_fcntl),
+	.file_set_fowner =
+		LIST_HEAD_INIT(security_hook_heads.file_set_fowner),
+	.file_send_sigiotask =
+		LIST_HEAD_INIT(security_hook_heads.file_send_sigiotask),
+	.file_receive =	LIST_HEAD_INIT(security_hook_heads.file_receive),
+	.file_open =	LIST_HEAD_INIT(security_hook_heads.file_open),
+	.task_create =	LIST_HEAD_INIT(security_hook_heads.task_create),
+	.task_free =	LIST_HEAD_INIT(security_hook_heads.task_free),
+	.cred_alloc_blank =
+		LIST_HEAD_INIT(security_hook_heads.cred_alloc_blank),
+	.cred_free =	LIST_HEAD_INIT(security_hook_heads.cred_free),
+	.cred_prepare =	LIST_HEAD_INIT(security_hook_heads.cred_prepare),
+	.cred_transfer =
+		LIST_HEAD_INIT(security_hook_heads.cred_transfer),
+	.kernel_act_as =
+		LIST_HEAD_INIT(security_hook_heads.kernel_act_as),
+	.kernel_create_files_as =
+		LIST_HEAD_INIT(security_hook_heads.kernel_create_files_as),
+	.kernel_fw_from_file =
+		LIST_HEAD_INIT(security_hook_heads.kernel_fw_from_file),
+	.kernel_module_request =
+		LIST_HEAD_INIT(security_hook_heads.kernel_module_request),
+	.kernel_module_from_file =
+		LIST_HEAD_INIT(security_hook_heads.kernel_module_from_file),
+	.task_fix_setuid =
+		LIST_HEAD_INIT(security_hook_heads.task_fix_setuid),
+	.task_setpgid =	LIST_HEAD_INIT(security_hook_heads.task_setpgid),
+	.task_getpgid =	LIST_HEAD_INIT(security_hook_heads.task_getpgid),
+	.task_getsid =	LIST_HEAD_INIT(security_hook_heads.task_getsid),
+	.task_getsecid =
+		LIST_HEAD_INIT(security_hook_heads.task_getsecid),
+	.task_setnice =	LIST_HEAD_INIT(security_hook_heads.task_setnice),
+	.task_setioprio =
+		LIST_HEAD_INIT(security_hook_heads.task_setioprio),
+	.task_getioprio =
+		LIST_HEAD_INIT(security_hook_heads.task_getioprio),
+	.task_setrlimit =
+		LIST_HEAD_INIT(security_hook_heads.task_setrlimit),
+	.task_setscheduler =
+		LIST_HEAD_INIT(security_hook_heads.task_setscheduler),
+	.task_getscheduler =
+		LIST_HEAD_INIT(security_hook_heads.task_getscheduler),
+	.task_movememory =
+		LIST_HEAD_INIT(security_hook_heads.task_movememory),
+	.task_kill =	LIST_HEAD_INIT(security_hook_heads.task_kill),
+	.task_wait =	LIST_HEAD_INIT(security_hook_heads.task_wait),
+	.task_prctl =	LIST_HEAD_INIT(security_hook_heads.task_prctl),
+	.task_to_inode =
+		LIST_HEAD_INIT(security_hook_heads.task_to_inode),
+	.ipc_permission =
+		LIST_HEAD_INIT(security_hook_heads.ipc_permission),
+	.ipc_getsecid =	LIST_HEAD_INIT(security_hook_heads.ipc_getsecid),
+	.msg_msg_alloc_security =
+		LIST_HEAD_INIT(security_hook_heads.msg_msg_alloc_security),
+	.msg_msg_free_security =
+		LIST_HEAD_INIT(security_hook_heads.msg_msg_free_security),
+	.msg_queue_alloc_security =
+		LIST_HEAD_INIT(security_hook_heads.msg_queue_alloc_security),
+	.msg_queue_free_security =
+		LIST_HEAD_INIT(security_hook_heads.msg_queue_free_security),
+	.msg_queue_associate =
+		LIST_HEAD_INIT(security_hook_heads.msg_queue_associate),
+	.msg_queue_msgctl =
+		LIST_HEAD_INIT(security_hook_heads.msg_queue_msgctl),
+	.msg_queue_msgsnd =
+		LIST_HEAD_INIT(security_hook_heads.msg_queue_msgsnd),
+	.msg_queue_msgrcv =
+		LIST_HEAD_INIT(security_hook_heads.msg_queue_msgrcv),
+	.shm_alloc_security =
+		LIST_HEAD_INIT(security_hook_heads.shm_alloc_security),
+	.shm_free_security =
+		LIST_HEAD_INIT(security_hook_heads.shm_free_security),
+	.shm_associate =
+		LIST_HEAD_INIT(security_hook_heads.shm_associate),
+	.shm_shmctl =	LIST_HEAD_INIT(security_hook_heads.shm_shmctl),
+	.shm_shmat =	LIST_HEAD_INIT(security_hook_heads.shm_shmat),
+	.sem_alloc_security =
+		LIST_HEAD_INIT(security_hook_heads.sem_alloc_security),
+	.sem_free_security =
+		LIST_HEAD_INIT(security_hook_heads.sem_free_security),
+	.sem_associate =
+		LIST_HEAD_INIT(security_hook_heads.sem_associate),
+	.sem_semctl =	LIST_HEAD_INIT(security_hook_heads.sem_semctl),
+	.sem_semop =	LIST_HEAD_INIT(security_hook_heads.sem_semop),
+	.netlink_send =	LIST_HEAD_INIT(security_hook_heads.netlink_send),
+	.d_instantiate =
+		LIST_HEAD_INIT(security_hook_heads.d_instantiate),
+	.getprocattr =	LIST_HEAD_INIT(security_hook_heads.getprocattr),
+	.setprocattr =	LIST_HEAD_INIT(security_hook_heads.setprocattr),
+	.ismaclabel =	LIST_HEAD_INIT(security_hook_heads.ismaclabel),
+	.secid_to_secctx =
+		LIST_HEAD_INIT(security_hook_heads.secid_to_secctx),
+	.secctx_to_secid =
+		LIST_HEAD_INIT(security_hook_heads.secctx_to_secid),
+	.release_secctx =
+		LIST_HEAD_INIT(security_hook_heads.release_secctx),
+	.inode_notifysecctx =
+		LIST_HEAD_INIT(security_hook_heads.inode_notifysecctx),
+	.inode_setsecctx =
+		LIST_HEAD_INIT(security_hook_heads.inode_setsecctx),
+	.inode_getsecctx =
+		LIST_HEAD_INIT(security_hook_heads.inode_getsecctx),
+#ifdef CONFIG_SECURITY_NETWORK
+	.unix_stream_connect =
+		LIST_HEAD_INIT(security_hook_heads.unix_stream_connect),
+	.unix_may_send =
+		LIST_HEAD_INIT(security_hook_heads.unix_may_send),
+	.socket_create =
+		LIST_HEAD_INIT(security_hook_heads.socket_create),
+	.socket_post_create =
+		LIST_HEAD_INIT(security_hook_heads.socket_post_create),
+	.socket_bind =	LIST_HEAD_INIT(security_hook_heads.socket_bind),
+	.socket_connect =
+		LIST_HEAD_INIT(security_hook_heads.socket_connect),
+	.socket_listen =
+		LIST_HEAD_INIT(security_hook_heads.socket_listen),
+	.socket_accept =
+		LIST_HEAD_INIT(security_hook_heads.socket_accept),
+	.socket_sendmsg =
+		LIST_HEAD_INIT(security_hook_heads.socket_sendmsg),
+	.socket_recvmsg =
+		LIST_HEAD_INIT(security_hook_heads.socket_recvmsg),
+	.socket_getsockname =
+		LIST_HEAD_INIT(security_hook_heads.socket_getsockname),
+	.socket_getpeername =
+		LIST_HEAD_INIT(security_hook_heads.socket_getpeername),
+	.socket_getsockopt =
+		LIST_HEAD_INIT(security_hook_heads.socket_getsockopt),
+	.socket_setsockopt =
+		LIST_HEAD_INIT(security_hook_heads.socket_setsockopt),
+	.socket_shutdown =
+		LIST_HEAD_INIT(security_hook_heads.socket_shutdown),
+	.socket_sock_rcv_skb =
+		LIST_HEAD_INIT(security_hook_heads.socket_sock_rcv_skb),
+	.socket_getpeersec_stream =
+		LIST_HEAD_INIT(security_hook_heads.socket_getpeersec_stream),
+	.socket_getpeersec_dgram =
+		LIST_HEAD_INIT(security_hook_heads.socket_getpeersec_dgram),
+	.sk_alloc_security =
+		LIST_HEAD_INIT(security_hook_heads.sk_alloc_security),
+	.sk_free_security =
+		LIST_HEAD_INIT(security_hook_heads.sk_free_security),
+	.sk_clone_security =
+		LIST_HEAD_INIT(security_hook_heads.sk_clone_security),
+	.sk_getsecid =	LIST_HEAD_INIT(security_hook_heads.sk_getsecid),
+	.sock_graft =	LIST_HEAD_INIT(security_hook_heads.sock_graft),
+	.inet_conn_request =
+		LIST_HEAD_INIT(security_hook_heads.inet_conn_request),
+	.inet_csk_clone =
+		LIST_HEAD_INIT(security_hook_heads.inet_csk_clone),
+	.inet_conn_established =
+		LIST_HEAD_INIT(security_hook_heads.inet_conn_established),
+	.secmark_relabel_packet =
+		LIST_HEAD_INIT(security_hook_heads.secmark_relabel_packet),
+	.secmark_refcount_inc =
+		LIST_HEAD_INIT(security_hook_heads.secmark_refcount_inc),
+	.secmark_refcount_dec =
+		LIST_HEAD_INIT(security_hook_heads.secmark_refcount_dec),
+	.req_classify_flow =
+		LIST_HEAD_INIT(security_hook_heads.req_classify_flow),
+	.tun_dev_alloc_security =
+		LIST_HEAD_INIT(security_hook_heads.tun_dev_alloc_security),
+	.tun_dev_free_security =
+		LIST_HEAD_INIT(security_hook_heads.tun_dev_free_security),
+	.tun_dev_create =
+		LIST_HEAD_INIT(security_hook_heads.tun_dev_create),
+	.tun_dev_attach_queue =
+		LIST_HEAD_INIT(security_hook_heads.tun_dev_attach_queue),
+	.tun_dev_attach =
+		LIST_HEAD_INIT(security_hook_heads.tun_dev_attach),
+	.tun_dev_open =	LIST_HEAD_INIT(security_hook_heads.tun_dev_open),
+	.skb_owned_by =	LIST_HEAD_INIT(security_hook_heads.skb_owned_by),
+#endif	/* CONFIG_SECURITY_NETWORK */
+#ifdef CONFIG_SECURITY_NETWORK_XFRM
+	.xfrm_policy_alloc_security =
+		LIST_HEAD_INIT(security_hook_heads.xfrm_policy_alloc_security),
+	.xfrm_policy_clone_security =
+		LIST_HEAD_INIT(security_hook_heads.xfrm_policy_clone_security),
+	.xfrm_policy_free_security =
+		LIST_HEAD_INIT(security_hook_heads.xfrm_policy_free_security),
+	.xfrm_policy_delete_security =
+		LIST_HEAD_INIT(security_hook_heads.xfrm_policy_delete_security),
+	.xfrm_state_alloc =
+		LIST_HEAD_INIT(security_hook_heads.xfrm_state_alloc),
+	.xfrm_state_alloc_acquire =
+		LIST_HEAD_INIT(security_hook_heads.xfrm_state_alloc_acquire),
+	.xfrm_state_free_security =
+		LIST_HEAD_INIT(security_hook_heads.xfrm_state_free_security),
+	.xfrm_state_delete_security =
+		LIST_HEAD_INIT(security_hook_heads.xfrm_state_delete_security),
+	.xfrm_policy_lookup =
+		LIST_HEAD_INIT(security_hook_heads.xfrm_policy_lookup),
+	.xfrm_state_pol_flow_match =
+		LIST_HEAD_INIT(security_hook_heads.xfrm_state_pol_flow_match),
+	.xfrm_decode_session =
+		LIST_HEAD_INIT(security_hook_heads.xfrm_decode_session),
+#endif	/* CONFIG_SECURITY_NETWORK_XFRM */
+#ifdef CONFIG_KEYS
+	.key_alloc =	LIST_HEAD_INIT(security_hook_heads.key_alloc),
+	.key_free =	LIST_HEAD_INIT(security_hook_heads.key_free),
+	.key_permission =
+		LIST_HEAD_INIT(security_hook_heads.key_permission),
+	.key_getsecurity =
+		LIST_HEAD_INIT(security_hook_heads.key_getsecurity),
+#endif	/* CONFIG_KEYS */
+#ifdef CONFIG_AUDIT
+	.audit_rule_init =
+		LIST_HEAD_INIT(security_hook_heads.audit_rule_init),
+	.audit_rule_known =
+		LIST_HEAD_INIT(security_hook_heads.audit_rule_known),
+	.audit_rule_match =
+		LIST_HEAD_INIT(security_hook_heads.audit_rule_match),
+	.audit_rule_free =
+		LIST_HEAD_INIT(security_hook_heads.audit_rule_free),
+#endif /* CONFIG_AUDIT */
+};

@@ -276,8 +276,6 @@ extern struct mutex	smack_known_lock;
 extern struct list_head smack_known_list;
 extern struct list_head smk_netlbladdr_list;
 
-extern struct security_operations smack_ops;
-
 #define SMACK_HASH_SLOTS 16
 extern struct hlist_head smack_known_hash[SMACK_HASH_SLOTS];
 

@@ -25,21 +25,10 @@
 #define __LINUX_LSM_HOOKS_H
 
 #include <linux/security.h>
-
-/* Maximum number of letters for an LSM name string */
-#define SECURITY_NAME_MAX	10
-
-#ifdef CONFIG_SECURITY
+#include <linux/init.h>
+#include <linux/rculist.h>
 
 /**
- * struct security_operations - main security structure
- *
- * Security module identifier.
- *
- * @name:
- *	A string that acts as a unique identifier for the LSM with max number
- *	of characters = SECURITY_NAME_MAX.
- *
  * Security hooks for program execution operations.
  *
  * @bprm_set_creds:
@@ -1310,9 +1299,7 @@
  * This is the main security structure.
  */
 
-struct security_operations {
-	char name[SECURITY_NAME_MAX + 1];
-
+union security_list_options {
 	int (*binder_set_context_mgr)(struct task_struct *mgr);
 	int (*binder_transaction)(struct task_struct *from,
 					struct task_struct *to);
@@ -1838,20 +1825,62 @@ struct security_hook_heads {
 };
 
 /*
+ * Security module hook list structure.
+ * For use with generic list macros for common operations.
+ */
+struct security_hook_list {
+	struct list_head		list;
+	struct list_head		*head;
+	union security_list_options	hook;
+};
+
+/*
  * Initializing a security_hook_list structure takes
  * up a lot of space in a source file. This macro takes
  * care of the common case and reduces the amount of
  * text involved.
- * Casey says: Comment is true in the next patch.
  */
-#define LSM_HOOK_INIT(HEAD, HOOK)	.HEAD = HOOK
+#define LSM_HOOK_INIT(HEAD, HOOK) \
+	{ .head = &security_hook_heads.HEAD, .hook = { .HEAD = HOOK } }
 
-/* prototypes */
-extern int security_module_enable(struct security_operations *ops);
-extern int register_security(struct security_operations *ops);
-extern void __init security_fixup_ops(struct security_operations *ops);
-extern void reset_security_ops(void);
+extern struct security_hook_heads security_hook_heads;
 
-#endif /* CONFIG_SECURITY */
+static inline void security_add_hooks(struct security_hook_list *hooks,
+				      int count)
+{
+	int i;
+
+	for (i = 0; i < count; i++)
+		list_add_tail_rcu(&hooks[i].list, hooks[i].head);
+}
+
+#ifdef CONFIG_SECURITY_SELINUX_DISABLE
+/*
+ * Assuring the safety of deleting a security module is up to
+ * the security module involved. This may entail ordering the
+ * module's hook list in a particular way, refusing to disable
+ * the module once a policy is loaded or any number of other
+ * actions better imagined than described.
+ *
+ * The name of the configuration option reflects the only module
+ * that currently uses the mechanism. Any developer who thinks
+ * disabling their module is a good idea needs to be at least as
+ * careful as the SELinux team.
+ */
+static inline void security_delete_hooks(struct security_hook_list *hooks,
+						int count)
+{
+	int i;
+
+	for (i = 0; i < count; i++)
+		list_del_rcu(&hooks[i].list);
+}
+#endif /* CONFIG_SECURITY_SELINUX_DISABLE */
+
+extern int __init security_module_enable(const char *module);
+extern void __init capability_add_hooks(void);
+#ifdef CONFIG_SECURITY_YAMA_STACKED
+void __init yama_add_hooks(void);
+#endif
 
 #endif /* ! __LINUX_LSM_HOOKS_H */
