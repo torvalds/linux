@@ -198,6 +198,8 @@ static void __init sun6i_ahb1_clk_setup(struct device_node *node)
 	int i = 0;
 
 	reg = of_io_request_and_map(node, 0, of_node_full_name(node));
+	if (IS_ERR(reg))
+		return;
 
 	/* we have a mux, we will have >1 parents */
 	while (i < SUN6I_AHB1_MAX_PARENTS &&
