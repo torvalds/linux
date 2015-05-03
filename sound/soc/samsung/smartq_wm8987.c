@@ -137,8 +137,7 @@ static const struct snd_soc_dapm_route audio_map[] = {
 
 static int smartq_wm8987_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_codec *codec = rtd->codec;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
+	struct snd_soc_dapm_context *dapm = &rtd->card->dapm;
 	int err = 0;
 
 	/* set endpoints to not connected */
