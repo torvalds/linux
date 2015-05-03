@@ -36,7 +36,6 @@
 #include <target/target_core_base.h>
 #include <target/target_core_backend.h>
 #include <target/target_core_fabric.h>
-#include <target/target_core_configfs.h>
 
 #include "target_core_internal.h"
 

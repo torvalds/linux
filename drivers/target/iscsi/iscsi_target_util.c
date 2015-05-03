@@ -22,7 +22,6 @@
 #include <scsi/iscsi_proto.h>
 #include <target/target_core_base.h>
 #include <target/target_core_fabric.h>
-#include <target/target_core_configfs.h>
 #include <target/iscsi/iscsi_transport.h>
 
 #include <target/iscsi/iscsi_target_core.h>

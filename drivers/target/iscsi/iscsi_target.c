@@ -28,7 +28,6 @@
 #include <scsi/scsi_tcq.h>
 #include <target/target_core_base.h>
 #include <target/target_core_fabric.h>
-#include <target/target_core_configfs.h>
 
 #include <target/iscsi/iscsi_target_core.h>
 #include "iscsi_target_parameters.h"
