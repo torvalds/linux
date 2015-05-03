@@ -976,14 +976,12 @@ int rtc_timer_start(struct rtc_device *rtc, struct rtc_timer *timer,
  *
  * Kernel interface to cancel an rtc_timer
  */
-int rtc_timer_cancel(struct rtc_device *rtc, struct rtc_timer *timer)
+void rtc_timer_cancel(struct rtc_device *rtc, struct rtc_timer *timer)
 {
-	int ret = 0;
 	mutex_lock(&rtc->ops_lock);
 	if (timer->enabled)
 		rtc_timer_remove(rtc, timer);
 	mutex_unlock(&rtc->ops_lock);
-	return ret;
 }
 
 
