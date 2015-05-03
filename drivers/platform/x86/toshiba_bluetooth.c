@@ -99,8 +99,6 @@ static int toshiba_bluetooth_status(acpi_handle handle)
 		return -ENXIO;
 	}
 
-	pr_info("Bluetooth status %llu\n", status);
-
 	return status;
 }
 
@@ -156,6 +154,9 @@ static int toshiba_bluetooth_sync_status(struct toshiba_bluetooth_dev *bt_dev)
 	bt_dev->killswitch = (status & BT_KILLSWITCH_MASK) ? true : false;
 	bt_dev->plugged = (status & BT_PLUGGED_MASK) ? true : false;
 	bt_dev->powered = (status & BT_POWER_MASK) ? true : false;
+
+	pr_debug("Bluetooth status %d killswitch %d plugged %d powered %d\n",
+		 status, bt_dev->killswitch, bt_dev->plugged, bt_dev->powered);
 
 	return 0;
 }
