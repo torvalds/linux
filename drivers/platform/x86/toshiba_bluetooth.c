@@ -107,33 +107,6 @@ static int toshiba_bluetooth_status(acpi_handle handle)
 static int toshiba_bluetooth_enable(acpi_handle handle)
 {
 	acpi_status result;
-	bool killswitch;
-	bool powered;
-	bool plugged;
-	int status;
-
-	/*
-	 * Query ACPI to verify RFKill switch is set to 'on'.
-	 * If not, we return silently, no need to report it as
-	 * an error.
-	 */
-	status = toshiba_bluetooth_status(handle);
-	if (status < 0)
-		return status;
-
-	killswitch = (status & BT_KILLSWITCH_MASK) ? true : false;
-	powered = (status & BT_POWER_MASK) ? true : false;
-	plugged = (status & BT_PLUGGED_MASK) ? true : false;
-
-	if (!killswitch)
-		return 0;
-	/*
-	 * This check ensures to only enable the device if it is powered
-	 * off or detached, as some recent devices somehow pass the killswitch
-	 * test, causing a loop enabling/disabling the device, see bug 93911.
-	 */
-	if (powered || plugged)
-		return 0;
 
 	result = acpi_evaluate_object(handle, "AUSB", NULL, NULL);
 	if (ACPI_FAILURE(result)) {
@@ -233,13 +206,29 @@ static const struct rfkill_ops rfk_ops = {
 /* ACPI driver functions */
 static void toshiba_bt_rfkill_notify(struct acpi_device *device, u32 event)
 {
-	toshiba_bluetooth_enable(device->handle);
+	struct toshiba_bluetooth_dev *bt_dev = acpi_driver_data(device);
+
+	if (toshiba_bluetooth_sync_status(bt_dev))
+		return;
+
+	rfkill_set_hw_state(bt_dev->rfk, !bt_dev->killswitch);
 }
 
 #ifdef CONFIG_PM_SLEEP
 static int toshiba_bt_resume(struct device *dev)
 {
-	return toshiba_bluetooth_enable(to_acpi_device(dev)->handle);
+	struct toshiba_bluetooth_dev *bt_dev;
+	int ret;
+
+	bt_dev = acpi_driver_data(to_acpi_device(dev));
+
+	ret = toshiba_bluetooth_sync_status(bt_dev);
+	if (ret)
+		return ret;
+
+	rfkill_set_hw_state(bt_dev->rfk, !bt_dev->killswitch);
+
+	return 0;
 }
 #endif
 
