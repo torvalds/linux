@@ -52,7 +52,7 @@ static void target_fabric_setup_##_name##_cit(struct target_fabric_configfs *tf)
 	cit->ct_item_ops = _item_ops;					\
 	cit->ct_group_ops = _group_ops;					\
 	cit->ct_attrs = _attrs;						\
-	cit->ct_owner = tf->tf_module;					\
+	cit->ct_owner = tf->tf_ops->module;				\
 	pr_debug("Setup generic %s\n", __stringify(_name));		\
 }
 
@@ -66,7 +66,7 @@ static void target_fabric_setup_##_name##_cit(struct target_fabric_configfs *tf)
 	cit->ct_item_ops = _item_ops;					\
 	cit->ct_group_ops = _group_ops;					\
 	cit->ct_attrs = attrs;						\
-	cit->ct_owner = tf->tf_module;					\
+	cit->ct_owner = tf->tf_ops->module;				\
 	pr_debug("Setup generic %s\n", __stringify(_name));		\
 }
 

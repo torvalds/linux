@@ -30,18 +30,11 @@ struct target_fabric_configfs_template {
 };
 
 struct target_fabric_configfs {
-	char			tf_name[TARGET_FABRIC_NAME_SIZE];
 	atomic_t		tf_access_cnt;
 	struct list_head	tf_list;
 	struct config_group	tf_group;
 	struct config_group	tf_disc_group;
 	struct config_group	*tf_default_groups[2];
-	/* Pointer to fabric's config_item */
-	struct config_item	*tf_fabric;
-	/* Passed from fabric modules */
-	struct config_item_type	*tf_fabric_cit;
-	/* Pointer to fabric's struct module */
-	struct module *tf_module;
 	const struct target_core_fabric_ops *tf_ops;
 	struct target_fabric_configfs_template tf_cit_tmpl;
 };

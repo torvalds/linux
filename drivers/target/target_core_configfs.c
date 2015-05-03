@@ -116,7 +116,7 @@ static struct target_fabric_configfs *target_core_get_fabric(
 
 	mutex_lock(&g_tf_lock);
 	list_for_each_entry(tf, &g_tf_list, tf_list) {
-		if (!strcmp(tf->tf_name, name)) {
+		if (!strcmp(tf->tf_ops->name, name)) {
 			atomic_inc(&tf->tf_access_cnt);
 			mutex_unlock(&g_tf_lock);
 			return tf;
@@ -193,7 +193,7 @@ static struct config_group *target_core_register_fabric(
 		return ERR_PTR(-EINVAL);
 	}
 	pr_debug("Target_Core_ConfigFS: REGISTER -> Located fabric:"
-			" %s\n", tf->tf_name);
+			" %s\n", tf->tf_ops->name);
 	/*
 	 * On a successful target_core_get_fabric() look, the returned
 	 * struct target_fabric_configfs *tf will contain a usage reference.
@@ -212,10 +212,6 @@ static struct config_group *target_core_register_fabric(
 
 	pr_debug("Target_Core_ConfigFS: REGISTER -> Allocated Fabric:"
 			" %s\n", tf->tf_group.cg_item.ci_name);
-	tf->tf_fabric = &tf->tf_group.cg_item;
-	pr_debug("Target_Core_ConfigFS: REGISTER -> Set tf->tf_fabric"
-			" for %s\n", name);
-
 	return &tf->tf_group;
 }
 
@@ -236,12 +232,8 @@ static void target_core_deregister_fabric(
 		" tf list\n", config_item_name(item));
 
 	pr_debug("Target_Core_ConfigFS: DEREGISTER -> located fabric:"
-			" %s\n", tf->tf_name);
+			" %s\n", tf->tf_ops->name);
 	atomic_dec(&tf->tf_access_cnt);
-
-	pr_debug("Target_Core_ConfigFS: DEREGISTER -> Releasing"
-			" tf->tf_fabric for %s\n", tf->tf_name);
-	tf->tf_fabric = NULL;
 
 	pr_debug("Target_Core_ConfigFS: DEREGISTER -> Releasing ci"
 			" %s\n", config_item_name(item));
@@ -436,14 +428,6 @@ int target_register_template(const struct target_core_fabric_ops *fo)
 
 	INIT_LIST_HEAD(&tf->tf_list);
 	atomic_set(&tf->tf_access_cnt, 0);
-
-	/*
-	 * Setup the default generic struct config_item_type's (cits) in
-	 * struct target_fabric_configfs->tf_cit_tmpl
-	 */
-	tf->tf_module = fo->module;
-	snprintf(tf->tf_name, TARGET_FABRIC_NAME_SIZE, "%s", fo->name);
-
 	tf->tf_ops = fo;
 	target_fabric_setup_cits(tf);
 
@@ -461,7 +445,7 @@ void target_unregister_template(const struct target_core_fabric_ops *fo)
 
 	mutex_lock(&g_tf_lock);
 	list_for_each_entry(t, &g_tf_list, tf_list) {
-		if (!strcmp(t->tf_name, fo->name)) {
+		if (!strcmp(t->tf_ops->name, fo->name)) {
 			BUG_ON(atomic_read(&t->tf_access_cnt));
 			list_del(&t->tf_list);
 			kfree(t);
