@@ -107,11 +107,11 @@
 			clocks = <&cpu>;
 			clock-latency = <244144>; /* 8 32k periods */
 			operating-points = <
-				/* kHz    uV */
+				/* kHz	  uV */
 				1008000 1400000
-				912000  1350000
-				864000  1300000
-				624000  1250000
+				912000	1350000
+				864000	1300000
+				624000	1250000
 				>;
 			#cooling-cells = <2>;
 			cooling-min-level = <0>;
@@ -431,7 +431,7 @@
 
 		usb_clk: clk@01c200cc {
 			#clock-cells = <1>;
-		        #reset-cells = <1>;
+			#reset-cells = <1>;
 			compatible = "allwinner,sun4i-a10-usb-clk";
 			reg = <0x01c200cc 0x4>;
 			clocks = <&pll6 1>;
