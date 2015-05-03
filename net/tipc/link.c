@@ -1145,11 +1145,8 @@ void tipc_rcv(struct net *net, struct sk_buff *skb, struct tipc_bearer *b_ptr)
 		}
 		/* Synchronize with parallel link if applicable */
 		if (unlikely((l_ptr->flags & LINK_SYNCHING) && !msg_dup(msg))) {
-			link_handle_out_of_seq_msg(l_ptr, skb);
-			if (link_synch(l_ptr))
-				link_retrieve_defq(l_ptr, &head);
-			skb = NULL;
-			goto unlock;
+			if (!link_synch(l_ptr))
+				goto unlock;
 		}
 		l_ptr->next_in_no++;
 		if (unlikely(!skb_queue_empty(&l_ptr->deferdq)))
@@ -2013,7 +2010,7 @@ msg_full:
 
 /* Caller should hold appropriate locks to protect the link */
 static int __tipc_nl_add_link(struct net *net, struct tipc_nl_msg *msg,
-			      struct tipc_link *link)
+			      struct tipc_link *link, int nlflags)
 {
 	int err;
 	void *hdr;
@@ -2022,7 +2019,7 @@ static int __tipc_nl_add_link(struct net *net, struct tipc_nl_msg *msg,
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 
 	hdr = genlmsg_put(msg->skb, msg->portid, msg->seq, &tipc_genl_family,
-			  NLM_F_MULTI, TIPC_NL_LINK_GET);
+			  nlflags, TIPC_NL_LINK_GET);
 	if (!hdr)
 		return -EMSGSIZE;
 
@@ -2095,7 +2092,7 @@ static int __tipc_nl_add_node_links(struct net *net, struct tipc_nl_msg *msg,
 		if (!node->links[i])
 			continue;
 
-		err = __tipc_nl_add_link(net, msg, node->links[i]);
+		err = __tipc_nl_add_link(net, msg, node->links[i], NLM_F_MULTI);
 		if (err)
 			return err;
 	}
@@ -2209,7 +2206,7 @@ int tipc_nl_link_get(struct sk_buff *skb, struct genl_info *info)
 		goto err_out;
 	}
 
-	err = __tipc_nl_add_link(net, &msg, link);
+	err = __tipc_nl_add_link(net, &msg, link, 0);
 	if (err)
 		goto err_out;
 
