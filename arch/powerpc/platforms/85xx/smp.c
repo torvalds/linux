@@ -360,10 +360,10 @@ static void mpc85xx_smp_kexec_down(void *arg)
 static void map_and_flush(unsigned long paddr)
 {
 	struct page *page = pfn_to_page(paddr >> PAGE_SHIFT);
-	unsigned long kaddr  = (unsigned long)kmap(page);
+	unsigned long kaddr  = (unsigned long)kmap_atomic(page);
 
 	flush_dcache_range(kaddr, kaddr + PAGE_SIZE);
-	kunmap(page);
+	kunmap_atomic((void *)kaddr);
 }
 
 /**

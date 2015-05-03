@@ -36,195 +36,74 @@
 #include <linux/cryptohash.h>
 #include <linux/types.h>
 #include <crypto/sha.h>
-#include <asm/byteorder.h>
+#include <crypto/sha256_base.h>
 #include <asm/i387.h>
 #include <asm/xcr.h>
 #include <asm/xsave.h>
 #include <linux/string.h>
 
-asmlinkage void sha256_transform_ssse3(const char *data, u32 *digest,
-				     u64 rounds);
+asmlinkage void sha256_transform_ssse3(u32 *digest, const char *data,
+				       u64 rounds);
 #ifdef CONFIG_AS_AVX
-asmlinkage void sha256_transform_avx(const char *data, u32 *digest,
+asmlinkage void sha256_transform_avx(u32 *digest, const char *data,
 				     u64 rounds);
 #endif
 #ifdef CONFIG_AS_AVX2
-asmlinkage void sha256_transform_rorx(const char *data, u32 *digest,
-				     u64 rounds);
+asmlinkage void sha256_transform_rorx(u32 *digest, const char *data,
+				      u64 rounds);
 #endif
 
-static asmlinkage void (*sha256_transform_asm)(const char *, u32 *, u64);
-
-
-static int sha256_ssse3_init(struct shash_desc *desc)
-{
-	struct sha256_state *sctx = shash_desc_ctx(desc);
-
-	sctx->state[0] = SHA256_H0;
-	sctx->state[1] = SHA256_H1;
-	sctx->state[2] = SHA256_H2;
-	sctx->state[3] = SHA256_H3;
-	sctx->state[4] = SHA256_H4;
-	sctx->state[5] = SHA256_H5;
-	sctx->state[6] = SHA256_H6;
-	sctx->state[7] = SHA256_H7;
-	sctx->count = 0;
-
-	return 0;
-}
-
-static int __sha256_ssse3_update(struct shash_desc *desc, const u8 *data,
-			       unsigned int len, unsigned int partial)
-{
-	struct sha256_state *sctx = shash_desc_ctx(desc);
-	unsigned int done = 0;
-
-	sctx->count += len;
-
-	if (partial) {
-		done = SHA256_BLOCK_SIZE - partial;
-		memcpy(sctx->buf + partial, data, done);
-		sha256_transform_asm(sctx->buf, sctx->state, 1);
-	}
-
-	if (len - done >= SHA256_BLOCK_SIZE) {
-		const unsigned int rounds = (len - done) / SHA256_BLOCK_SIZE;
-
-		sha256_transform_asm(data + done, sctx->state, (u64) rounds);
-
-		done += rounds * SHA256_BLOCK_SIZE;
-	}
-
-	memcpy(sctx->buf, data + done, len - done);
-
-	return 0;
-}
+static void (*sha256_transform_asm)(u32 *, const char *, u64);
 
 static int sha256_ssse3_update(struct shash_desc *desc, const u8 *data,
 			     unsigned int len)
 {
 	struct sha256_state *sctx = shash_desc_ctx(desc);
-	unsigned int partial = sctx->count % SHA256_BLOCK_SIZE;
-	int res;
 
-	/* Handle the fast case right here */
-	if (partial + len < SHA256_BLOCK_SIZE) {
-		sctx->count += len;
-		memcpy(sctx->buf + partial, data, len);
+	if (!irq_fpu_usable() ||
+	    (sctx->count % SHA256_BLOCK_SIZE) + len < SHA256_BLOCK_SIZE)
+		return crypto_sha256_update(desc, data, len);
 
-		return 0;
-	}
+	/* make sure casting to sha256_block_fn() is safe */
+	BUILD_BUG_ON(offsetof(struct sha256_state, state) != 0);
 
-	if (!irq_fpu_usable()) {
-		res = crypto_sha256_update(desc, data, len);
-	} else {
-		kernel_fpu_begin();
-		res = __sha256_ssse3_update(desc, data, len, partial);
-		kernel_fpu_end();
-	}
+	kernel_fpu_begin();
+	sha256_base_do_update(desc, data, len,
+			      (sha256_block_fn *)sha256_transform_asm);
+	kernel_fpu_end();
 
-	return res;
+	return 0;
 }
 
+static int sha256_ssse3_finup(struct shash_desc *desc, const u8 *data,
+			      unsigned int len, u8 *out)
+{
+	if (!irq_fpu_usable())
+		return crypto_sha256_finup(desc, data, len, out);
+
+	kernel_fpu_begin();
+	if (len)
+		sha256_base_do_update(desc, data, len,
+				      (sha256_block_fn *)sha256_transform_asm);
+	sha256_base_do_finalize(desc, (sha256_block_fn *)sha256_transform_asm);
+	kernel_fpu_end();
+
+	return sha256_base_finish(desc, out);
+}
 
 /* Add padding and return the message digest. */
 static int sha256_ssse3_final(struct shash_desc *desc, u8 *out)
 {
-	struct sha256_state *sctx = shash_desc_ctx(desc);
-	unsigned int i, index, padlen;
-	__be32 *dst = (__be32 *)out;
-	__be64 bits;
-	static const u8 padding[SHA256_BLOCK_SIZE] = { 0x80, };
-
-	bits = cpu_to_be64(sctx->count << 3);
-
-	/* Pad out to 56 mod 64 and append length */
-	index = sctx->count % SHA256_BLOCK_SIZE;
-	padlen = (index < 56) ? (56 - index) : ((SHA256_BLOCK_SIZE+56)-index);
-
-	if (!irq_fpu_usable()) {
-		crypto_sha256_update(desc, padding, padlen);
-		crypto_sha256_update(desc, (const u8 *)&bits, sizeof(bits));
-	} else {
-		kernel_fpu_begin();
-		/* We need to fill a whole block for __sha256_ssse3_update() */
-		if (padlen <= 56) {
-			sctx->count += padlen;
-			memcpy(sctx->buf + index, padding, padlen);
-		} else {
-			__sha256_ssse3_update(desc, padding, padlen, index);
-		}
-		__sha256_ssse3_update(desc, (const u8 *)&bits,
-					sizeof(bits), 56);
-		kernel_fpu_end();
-	}
-
-	/* Store state in digest */
-	for (i = 0; i < 8; i++)
-		dst[i] = cpu_to_be32(sctx->state[i]);
-
-	/* Wipe context */
-	memset(sctx, 0, sizeof(*sctx));
-
-	return 0;
-}
-
-static int sha256_ssse3_export(struct shash_desc *desc, void *out)
-{
-	struct sha256_state *sctx = shash_desc_ctx(desc);
-
-	memcpy(out, sctx, sizeof(*sctx));
-
-	return 0;
-}
-
-static int sha256_ssse3_import(struct shash_desc *desc, const void *in)
-{
-	struct sha256_state *sctx = shash_desc_ctx(desc);
-
-	memcpy(sctx, in, sizeof(*sctx));
-
-	return 0;
-}
-
-static int sha224_ssse3_init(struct shash_desc *desc)
-{
-	struct sha256_state *sctx = shash_desc_ctx(desc);
-
-	sctx->state[0] = SHA224_H0;
-	sctx->state[1] = SHA224_H1;
-	sctx->state[2] = SHA224_H2;
-	sctx->state[3] = SHA224_H3;
-	sctx->state[4] = SHA224_H4;
-	sctx->state[5] = SHA224_H5;
-	sctx->state[6] = SHA224_H6;
-	sctx->state[7] = SHA224_H7;
-	sctx->count = 0;
-
-	return 0;
-}
-
-static int sha224_ssse3_final(struct shash_desc *desc, u8 *hash)
-{
-	u8 D[SHA256_DIGEST_SIZE];
-
-	sha256_ssse3_final(desc, D);
-
-	memcpy(hash, D, SHA224_DIGEST_SIZE);
-	memzero_explicit(D, SHA256_DIGEST_SIZE);
-
-	return 0;
+	return sha256_ssse3_finup(desc, NULL, 0, out);
 }
 
 static struct shash_alg algs[] = { {
 	.digestsize	=	SHA256_DIGEST_SIZE,
-	.init		=	sha256_ssse3_init,
+	.init		=	sha256_base_init,
 	.update		=	sha256_ssse3_update,
 	.final		=	sha256_ssse3_final,
-	.export		=	sha256_ssse3_export,
-	.import		=	sha256_ssse3_import,
+	.finup		=	sha256_ssse3_finup,
 	.descsize	=	sizeof(struct sha256_state),
-	.statesize	=	sizeof(struct sha256_state),
 	.base		=	{
 		.cra_name	=	"sha256",
 		.cra_driver_name =	"sha256-ssse3",
@@ -235,13 +114,11 @@ static struct shash_alg algs[] = { {
 	}
 }, {
 	.digestsize	=	SHA224_DIGEST_SIZE,
-	.init		=	sha224_ssse3_init,
+	.init		=	sha224_base_init,
 	.update		=	sha256_ssse3_update,
-	.final		=	sha224_ssse3_final,
-	.export		=	sha256_ssse3_export,
-	.import		=	sha256_ssse3_import,
+	.final		=	sha256_ssse3_final,
+	.finup		=	sha256_ssse3_finup,
 	.descsize	=	sizeof(struct sha256_state),
-	.statesize	=	sizeof(struct sha256_state),
 	.base		=	{
 		.cra_name	=	"sha224",
 		.cra_driver_name =	"sha224-ssse3",

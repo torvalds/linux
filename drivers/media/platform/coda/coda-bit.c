@@ -15,6 +15,7 @@
 #include <linux/clk.h>
 #include <linux/irqreturn.h>
 #include <linux/kernel.h>
+#include <linux/log2.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 #include <linux/slab.h>
@@ -29,12 +30,17 @@
 #include <media/videobuf2-vmalloc.h>
 
 #include "coda.h"
+#define CREATE_TRACE_POINTS
+#include "trace.h"
 
+#define CODA_PARA_BUF_SIZE	(10 * 1024)
 #define CODA7_PS_BUF_SIZE	0x28000
 #define CODA9_PS_SAVE_SIZE	(512 * 1024)
 
 #define CODA_DEFAULT_GAMMA	4096
 #define CODA9_DEFAULT_GAMMA	24576	/* 0.75 * 32768 */
+
+static void coda_free_bitstream_buffer(struct coda_ctx *ctx);
 
 static inline int coda_is_initialized(struct coda_dev *dev)
 {
@@ -84,15 +90,21 @@ static void coda_command_async(struct coda_ctx *ctx, int cmd)
 	coda_write(dev, ctx->params.codec_mode, CODA_REG_BIT_RUN_COD_STD);
 	coda_write(dev, ctx->params.codec_mode_aux, CODA7_REG_BIT_RUN_AUX_STD);
 
+	trace_coda_bit_run(ctx, cmd);
+
 	coda_write(dev, cmd, CODA_REG_BIT_RUN_COMMAND);
 }
 
 static int coda_command_sync(struct coda_ctx *ctx, int cmd)
 {
 	struct coda_dev *dev = ctx->dev;
+	int ret;
 
 	coda_command_async(ctx, cmd);
-	return coda_wait_timeout(dev);
+	ret = coda_wait_timeout(dev);
+	trace_coda_bit_done(ctx);
+
+	return ret;
 }
 
 int coda_hw_reset(struct coda_ctx *ctx)
@@ -177,10 +189,6 @@ static int coda_bitstream_queue(struct coda_ctx *ctx,
 	if (n < src_size)
 		return -ENOSPC;
 
-	dma_sync_single_for_device(&ctx->dev->plat_dev->dev,
-				   ctx->bitstream.paddr, ctx->bitstream.size,
-				   DMA_TO_DEVICE);
-
 	src_buf->v4l2_buf.sequence = ctx->qsequence++;
 
 	return 0;
@@ -214,7 +222,7 @@ static bool coda_bitstream_try_queue(struct coda_ctx *ctx,
 	return true;
 }
 
-void coda_fill_bitstream(struct coda_ctx *ctx)
+void coda_fill_bitstream(struct coda_ctx *ctx, bool streaming)
 {
 	struct vb2_buffer *src_buf;
 	struct coda_buffer_meta *meta;
@@ -235,9 +243,12 @@ void coda_fill_bitstream(struct coda_ctx *ctx)
 		if (ctx->codec->src_fourcc == V4L2_PIX_FMT_JPEG &&
 		    !coda_jpeg_check_buffer(ctx, src_buf)) {
 			v4l2_err(&ctx->dev->v4l2_dev,
-				 "dropping invalid JPEG frame\n");
+				 "dropping invalid JPEG frame %d\n",
+				 ctx->qsequence);
 			src_buf = v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx);
-			v4l2_m2m_buf_done(src_buf, VB2_BUF_STATE_ERROR);
+			v4l2_m2m_buf_done(src_buf, streaming ?
+					  VB2_BUF_STATE_ERROR :
+					  VB2_BUF_STATE_QUEUED);
 			continue;
 		}
 
@@ -262,6 +273,8 @@ void coda_fill_bitstream(struct coda_ctx *ctx)
 					    ctx->bitstream_fifo.kfifo.mask;
 				list_add_tail(&meta->list,
 					      &ctx->buffer_meta_list);
+
+				trace_coda_bit_queue(ctx, src_buf, meta);
 			}
 
 			v4l2_m2m_buf_done(src_buf, VB2_BUF_STATE_DONE);
@@ -296,6 +309,14 @@ static void coda_parabuf_write(struct coda_ctx *ctx, int index, u32 value)
 	else
 		p[index ^ 1] = value;
 }
+
+static inline int coda_alloc_context_buf(struct coda_ctx *ctx,
+					 struct coda_aux_buf *buf, size_t size,
+					 const char *name)
+{
+	return coda_alloc_aux_buf(ctx->dev, buf, size, name, ctx->debugfs_entry);
+}
+
 
 static void coda_free_framebuffers(struct coda_ctx *ctx)
 {
@@ -377,6 +398,7 @@ static void coda_free_context_buffers(struct coda_ctx *ctx)
 	coda_free_aux_buf(dev, &ctx->psbuf);
 	if (dev->devtype->product != CODA_DX6)
 		coda_free_aux_buf(dev, &ctx->workbuf);
+	coda_free_aux_buf(dev, &ctx->parabuf);
 }
 
 static int coda_alloc_context_buffers(struct coda_ctx *ctx,
@@ -386,57 +408,42 @@ static int coda_alloc_context_buffers(struct coda_ctx *ctx,
 	size_t size;
 	int ret;
 
+	if (!ctx->parabuf.vaddr) {
+		ret = coda_alloc_context_buf(ctx, &ctx->parabuf,
+					     CODA_PARA_BUF_SIZE, "parabuf");
+		if (ret < 0)
+			return ret;
+	}
+
 	if (dev->devtype->product == CODA_DX6)
 		return 0;
 
-	if (ctx->psbuf.vaddr) {
-		v4l2_err(&dev->v4l2_dev, "psmembuf still allocated\n");
-		return -EBUSY;
-	}
-	if (ctx->slicebuf.vaddr) {
-		v4l2_err(&dev->v4l2_dev, "slicebuf still allocated\n");
-		return -EBUSY;
-	}
-	if (ctx->workbuf.vaddr) {
-		v4l2_err(&dev->v4l2_dev, "context buffer still allocated\n");
-		ret = -EBUSY;
-		return -ENOMEM;
-	}
-
-	if (q_data->fourcc == V4L2_PIX_FMT_H264) {
+	if (!ctx->slicebuf.vaddr && q_data->fourcc == V4L2_PIX_FMT_H264) {
 		/* worst case slice size */
 		size = (DIV_ROUND_UP(q_data->width, 16) *
 			DIV_ROUND_UP(q_data->height, 16)) * 3200 / 8 + 512;
 		ret = coda_alloc_context_buf(ctx, &ctx->slicebuf, size,
 					     "slicebuf");
-		if (ret < 0) {
-			v4l2_err(&dev->v4l2_dev,
-				 "failed to allocate %d byte slice buffer",
-				 ctx->slicebuf.size);
-			return ret;
-		}
+		if (ret < 0)
+			goto err;
 	}
 
-	if (dev->devtype->product == CODA_7541) {
+	if (!ctx->psbuf.vaddr && dev->devtype->product == CODA_7541) {
 		ret = coda_alloc_context_buf(ctx, &ctx->psbuf,
 					     CODA7_PS_BUF_SIZE, "psbuf");
-		if (ret < 0) {
-			v4l2_err(&dev->v4l2_dev,
-				 "failed to allocate psmem buffer");
+		if (ret < 0)
 			goto err;
-		}
 	}
 
-	size = dev->devtype->workbuf_size;
-	if (dev->devtype->product == CODA_960 &&
-	    q_data->fourcc == V4L2_PIX_FMT_H264)
-		size += CODA9_PS_SAVE_SIZE;
-	ret = coda_alloc_context_buf(ctx, &ctx->workbuf, size, "workbuf");
-	if (ret < 0) {
-		v4l2_err(&dev->v4l2_dev,
-			 "failed to allocate %d byte context buffer",
-			 ctx->workbuf.size);
-		goto err;
+	if (!ctx->workbuf.vaddr) {
+		size = dev->devtype->workbuf_size;
+		if (dev->devtype->product == CODA_960 &&
+		    q_data->fourcc == V4L2_PIX_FMT_H264)
+			size += CODA9_PS_SAVE_SIZE;
+		ret = coda_alloc_context_buf(ctx, &ctx->workbuf, size,
+					     "workbuf");
+		if (ret < 0)
+			goto err;
 	}
 
 	return 0;
@@ -709,6 +716,27 @@ err_clk_per:
  * Encoder context operations
  */
 
+static int coda_encoder_reqbufs(struct coda_ctx *ctx,
+				struct v4l2_requestbuffers *rb)
+{
+	struct coda_q_data *q_data_src;
+	int ret;
+
+	if (rb->type != V4L2_BUF_TYPE_VIDEO_OUTPUT)
+		return 0;
+
+	if (rb->count) {
+		q_data_src = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_OUTPUT);
+		ret = coda_alloc_context_buffers(ctx, q_data_src);
+		if (ret < 0)
+			return ret;
+	} else {
+		coda_free_context_buffers(ctx);
+	}
+
+	return 0;
+}
+
 static int coda_start_encoding(struct coda_ctx *ctx)
 {
 	struct coda_dev *dev = ctx->dev;
@@ -724,11 +752,6 @@ static int coda_start_encoding(struct coda_ctx *ctx)
 	q_data_src = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_OUTPUT);
 	q_data_dst = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE);
 	dst_fourcc = q_data_dst->fourcc;
-
-	/* Allocate per-instance buffers */
-	ret = coda_alloc_context_buffers(ctx, q_data_src);
-	if (ret < 0)
-		return ret;
 
 	buf = v4l2_m2m_next_dst_buf(ctx->fh.m2m_ctx);
 	bitstream_buf = vb2_dma_contig_plane_dma_addr(buf, 0);
@@ -1227,6 +1250,8 @@ static int coda_prepare_encode(struct coda_ctx *ctx)
 		coda_write(dev, ctx->iram_info.axi_sram_use,
 				CODA7_REG_BIT_AXI_SRAM_USE);
 
+	trace_coda_enc_pic_run(ctx, src_buf);
+
 	coda_command_async(ctx, CODA_COMMAND_PIC_RUN);
 
 	return 0;
@@ -1240,6 +1265,8 @@ static void coda_finish_encode(struct coda_ctx *ctx)
 
 	src_buf = v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx);
 	dst_buf = v4l2_m2m_next_dst_buf(ctx->fh.m2m_ctx);
+
+	trace_coda_enc_pic_done(ctx, dst_buf);
 
 	/* Get results from the coda */
 	start_ptr = coda_read(dev, CODA_CMD_ENC_PIC_BB_START);
@@ -1311,7 +1338,6 @@ static void coda_seq_end_work(struct work_struct *work)
 		ctx->bitstream.vaddr, ctx->bitstream.size);
 
 	coda_free_framebuffers(ctx);
-	coda_free_context_buffers(ctx);
 
 	mutex_unlock(&dev->coda_mutex);
 	mutex_unlock(&ctx->buffer_mutex);
@@ -1322,11 +1348,13 @@ static void coda_bit_release(struct coda_ctx *ctx)
 	mutex_lock(&ctx->buffer_mutex);
 	coda_free_framebuffers(ctx);
 	coda_free_context_buffers(ctx);
+	coda_free_bitstream_buffer(ctx);
 	mutex_unlock(&ctx->buffer_mutex);
 }
 
 const struct coda_context_ops coda_bit_encode_ops = {
 	.queue_init = coda_encoder_queue_init,
+	.reqbufs = coda_encoder_reqbufs,
 	.start_streaming = coda_start_encoding,
 	.prepare_run = coda_prepare_encode,
 	.finish_run = coda_finish_encode,
@@ -1337,6 +1365,65 @@ const struct coda_context_ops coda_bit_encode_ops = {
 /*
  * Decoder context operations
  */
+
+static int coda_alloc_bitstream_buffer(struct coda_ctx *ctx,
+				       struct coda_q_data *q_data)
+{
+	if (ctx->bitstream.vaddr)
+		return 0;
+
+	ctx->bitstream.size = roundup_pow_of_two(q_data->sizeimage * 2);
+	ctx->bitstream.vaddr = dma_alloc_writecombine(
+			&ctx->dev->plat_dev->dev, ctx->bitstream.size,
+			&ctx->bitstream.paddr, GFP_KERNEL);
+	if (!ctx->bitstream.vaddr) {
+		v4l2_err(&ctx->dev->v4l2_dev,
+			 "failed to allocate bitstream ringbuffer");
+		return -ENOMEM;
+	}
+	kfifo_init(&ctx->bitstream_fifo,
+		   ctx->bitstream.vaddr, ctx->bitstream.size);
+
+	return 0;
+}
+
+static void coda_free_bitstream_buffer(struct coda_ctx *ctx)
+{
+	if (ctx->bitstream.vaddr == NULL)
+		return;
+
+	dma_free_writecombine(&ctx->dev->plat_dev->dev, ctx->bitstream.size,
+			      ctx->bitstream.vaddr, ctx->bitstream.paddr);
+	ctx->bitstream.vaddr = NULL;
+	kfifo_init(&ctx->bitstream_fifo, NULL, 0);
+}
+
+static int coda_decoder_reqbufs(struct coda_ctx *ctx,
+				struct v4l2_requestbuffers *rb)
+{
+	struct coda_q_data *q_data_src;
+	int ret;
+
+	if (rb->type != V4L2_BUF_TYPE_VIDEO_OUTPUT)
+		return 0;
+
+	if (rb->count) {
+		q_data_src = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_OUTPUT);
+		ret = coda_alloc_context_buffers(ctx, q_data_src);
+		if (ret < 0)
+			return ret;
+		ret = coda_alloc_bitstream_buffer(ctx, q_data_src);
+		if (ret < 0) {
+			coda_free_context_buffers(ctx);
+			return ret;
+		}
+	} else {
+		coda_free_bitstream_buffer(ctx);
+		coda_free_context_buffers(ctx);
+	}
+
+	return 0;
+}
 
 static int __coda_start_decoding(struct coda_ctx *ctx)
 {
@@ -1355,11 +1442,6 @@ static int __coda_start_decoding(struct coda_ctx *ctx)
 	bitstream_size = ctx->bitstream.size;
 	src_fourcc = q_data_src->fourcc;
 	dst_fourcc = q_data_dst->fourcc;
-
-	/* Allocate per-instance buffers */
-	ret = coda_alloc_context_buffers(ctx, q_data_src);
-	if (ret < 0)
-		return ret;
 
 	coda_write(dev, ctx->parabuf.paddr, CODA_REG_BIT_PARA_BUF_ADDR);
 
@@ -1579,7 +1661,7 @@ static int coda_prepare_decode(struct coda_ctx *ctx)
 
 	/* Try to copy source buffer contents into the bitstream ringbuffer */
 	mutex_lock(&ctx->bitstream_mutex);
-	coda_fill_bitstream(ctx);
+	coda_fill_bitstream(ctx, true);
 	mutex_unlock(&ctx->bitstream_mutex);
 
 	if (coda_get_bitstream_payload(ctx) < 512 &&
@@ -1675,6 +1757,8 @@ static int coda_prepare_decode(struct coda_ctx *ctx)
 	/* Clear decode success flag */
 	coda_write(dev, 0, CODA_RET_DEC_PIC_SUCCESS);
 
+	trace_coda_dec_pic_run(ctx, meta);
+
 	coda_command_async(ctx, CODA_COMMAND_PIC_RUN);
 
 	return 0;
@@ -1704,7 +1788,7 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 	 * by up to 512 bytes
 	 */
 	if (ctx->bit_stream_param & CODA_BIT_STREAM_END_FLAG) {
-		if (coda_get_bitstream_payload(ctx) >= CODA_MAX_FRAME_SIZE - 512)
+		if (coda_get_bitstream_payload(ctx) >= ctx->bitstream.size - 512)
 			kfifo_init(&ctx->bitstream_fifo,
 				ctx->bitstream.vaddr, ctx->bitstream.size);
 	}
@@ -1835,6 +1919,8 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 		}
 		mutex_unlock(&ctx->bitstream_mutex);
 
+		trace_coda_dec_pic_done(ctx, &ctx->frame_metas[decoded_idx]);
+
 		val = coda_read(dev, CODA_RET_DEC_PIC_TYPE) & 0x7;
 		if (val == 0)
 			ctx->frame_types[decoded_idx] = V4L2_BUF_FLAG_KEYFRAME;
@@ -1874,6 +1960,8 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 		dst_buf->v4l2_buf.timecode = meta->timecode;
 		dst_buf->v4l2_buf.timestamp = meta->timestamp;
 
+		trace_coda_dec_rot_done(ctx, meta, dst_buf);
+
 		switch (q_data_dst->fourcc) {
 		case V4L2_PIX_FMT_YUV420:
 		case V4L2_PIX_FMT_YVU420:
@@ -1906,6 +1994,7 @@ static void coda_finish_decode(struct coda_ctx *ctx)
 
 const struct coda_context_ops coda_bit_decode_ops = {
 	.queue_init = coda_decoder_queue_init,
+	.reqbufs = coda_decoder_reqbufs,
 	.start_streaming = coda_start_decoding,
 	.prepare_run = coda_prepare_decode,
 	.finish_run = coda_finish_decode,
@@ -1930,6 +2019,8 @@ irqreturn_t coda_irq_handler(int irq, void *data)
 		mutex_unlock(&dev->coda_mutex);
 		return IRQ_HANDLED;
 	}
+
+	trace_coda_bit_done(ctx);
 
 	if (ctx->aborting) {
 		v4l2_dbg(1, coda_debug, &ctx->dev->v4l2_dev,

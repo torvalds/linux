@@ -520,14 +520,38 @@ static int radeon_audio_set_avi_packet(struct drm_encoder *encoder,
 	struct radeon_device *rdev = encoder->dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
+	struct drm_connector *connector;
+	struct radeon_connector *radeon_connector = NULL;
 	u8 buffer[HDMI_INFOFRAME_HEADER_SIZE + HDMI_AVI_INFOFRAME_SIZE];
 	struct hdmi_avi_infoframe frame;
 	int err;
+
+	list_for_each_entry(connector,
+		&encoder->dev->mode_config.connector_list, head) {
+		if (connector->encoder == encoder) {
+			radeon_connector = to_radeon_connector(connector);
+			break;
+		}
+	}
+
+	if (!radeon_connector) {
+		DRM_ERROR("Couldn't find encoder's connector\n");
+		return -ENOENT;
+	}
 
 	err = drm_hdmi_avi_infoframe_from_display_mode(&frame, mode);
 	if (err < 0) {
 		DRM_ERROR("failed to setup AVI infoframe: %d\n", err);
 		return err;
+	}
+
+	if (drm_rgb_quant_range_selectable(radeon_connector_edid(connector))) {
+		if (radeon_encoder->output_csc == RADEON_OUTPUT_CSC_TVRGB)
+			frame.quantization_range = HDMI_QUANTIZATION_RANGE_LIMITED;
+		else
+			frame.quantization_range = HDMI_QUANTIZATION_RANGE_FULL;
+	} else {
+		frame.quantization_range = HDMI_QUANTIZATION_RANGE_DEFAULT;
 	}
 
 	err = hdmi_avi_infoframe_pack(&frame, buffer, sizeof(buffer));

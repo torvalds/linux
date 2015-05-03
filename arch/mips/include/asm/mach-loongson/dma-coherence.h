@@ -78,4 +78,8 @@ static inline int plat_device_is_coherent(struct device *dev)
 #endif /* CONFIG_DMA_NONCOHERENT */
 }
 
+static inline void plat_post_dma_flush(struct device *dev)
+{
+}
+
 #endif /* __ASM_MACH_LOONGSON_DMA_COHERENCE_H */

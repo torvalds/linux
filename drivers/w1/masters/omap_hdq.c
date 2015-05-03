@@ -72,7 +72,7 @@ struct hdq_data {
 static int omap_hdq_probe(struct platform_device *pdev);
 static int omap_hdq_remove(struct platform_device *pdev);
 
-static struct of_device_id omap_hdq_dt_ids[] = {
+static const struct of_device_id omap_hdq_dt_ids[] = {
 	{ .compatible = "ti,omap3-1w" },
 	{}
 };

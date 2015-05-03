@@ -126,7 +126,14 @@ enum max17047_register {
 	MAX17047_QRTbl30	= 0x42,
 };
 
-enum max170xx_chip_type {MAX17042, MAX17047};
+enum max170xx_chip_type {
+	MAXIM_DEVICE_TYPE_UNKNOWN	= 0,
+	MAXIM_DEVICE_TYPE_MAX17042,
+	MAXIM_DEVICE_TYPE_MAX17047,
+	MAXIM_DEVICE_TYPE_MAX17050,
+
+	MAXIM_DEVICE_TYPE_NUM
+};
 
 /*
  * used for setting a register to a desired value

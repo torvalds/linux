@@ -309,7 +309,7 @@ detect_analog:
 		nv_encoder = find_encoder(connector, DCB_OUTPUT_TV);
 	if (nv_encoder && force) {
 		struct drm_encoder *encoder = to_drm_encoder(nv_encoder);
-		struct drm_encoder_helper_funcs *helper =
+		const struct drm_encoder_helper_funcs *helper =
 						encoder->helper_private;
 
 		if (helper->detect(encoder, connector) ==
@@ -592,7 +592,7 @@ nouveau_connector_set_property(struct drm_connector *connector,
 static struct drm_display_mode *
 nouveau_connector_native_mode(struct drm_connector *connector)
 {
-	struct drm_connector_helper_funcs *helper = connector->helper_private;
+	const struct drm_connector_helper_funcs *helper = connector->helper_private;
 	struct nouveau_drm *drm = nouveau_drm(connector->dev);
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	struct drm_device *dev = connector->dev;

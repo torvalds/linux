@@ -52,13 +52,13 @@ static BLOCKING_NOTIFIER_HEAD(memory_chain);
 
 int register_memory_notifier(struct notifier_block *nb)
 {
-        return blocking_notifier_chain_register(&memory_chain, nb);
+	return blocking_notifier_chain_register(&memory_chain, nb);
 }
 EXPORT_SYMBOL(register_memory_notifier);
 
 void unregister_memory_notifier(struct notifier_block *nb)
 {
-        blocking_notifier_chain_unregister(&memory_chain, nb);
+	blocking_notifier_chain_unregister(&memory_chain, nb);
 }
 EXPORT_SYMBOL(unregister_memory_notifier);
 
@@ -152,20 +152,20 @@ static ssize_t show_mem_state(struct device *dev,
 	 * so that they're not open-coded
 	 */
 	switch (mem->state) {
-		case MEM_ONLINE:
-			len = sprintf(buf, "online\n");
-			break;
-		case MEM_OFFLINE:
-			len = sprintf(buf, "offline\n");
-			break;
-		case MEM_GOING_OFFLINE:
-			len = sprintf(buf, "going-offline\n");
-			break;
-		default:
-			len = sprintf(buf, "ERROR-UNKNOWN-%ld\n",
-					mem->state);
-			WARN_ON(1);
-			break;
+	case MEM_ONLINE:
+		len = sprintf(buf, "online\n");
+		break;
+	case MEM_OFFLINE:
+		len = sprintf(buf, "offline\n");
+		break;
+	case MEM_GOING_OFFLINE:
+		len = sprintf(buf, "going-offline\n");
+		break;
+	default:
+		len = sprintf(buf, "ERROR-UNKNOWN-%ld\n",
+				mem->state);
+		WARN_ON(1);
+		break;
 	}
 
 	return len;
@@ -219,6 +219,7 @@ static bool pages_correctly_reserved(unsigned long start_pfn)
 /*
  * MEMORY_HOTPLUG depends on SPARSEMEM in mm/Kconfig, so it is
  * OK to have direct references to sparsemem variables in here.
+ * Must already be protected by mem_hotplug_begin().
  */
 static int
 memory_block_action(unsigned long phys_index, unsigned long action, int online_type)
@@ -228,23 +229,23 @@ memory_block_action(unsigned long phys_index, unsigned long action, int online_t
 	struct page *first_page;
 	int ret;
 
-	start_pfn = phys_index << PFN_SECTION_SHIFT;
+	start_pfn = section_nr_to_pfn(phys_index);
 	first_page = pfn_to_page(start_pfn);
 
 	switch (action) {
-		case MEM_ONLINE:
-			if (!pages_correctly_reserved(start_pfn))
-				return -EBUSY;
+	case MEM_ONLINE:
+		if (!pages_correctly_reserved(start_pfn))
+			return -EBUSY;
 
-			ret = online_pages(start_pfn, nr_pages, online_type);
-			break;
-		case MEM_OFFLINE:
-			ret = offline_pages(start_pfn, nr_pages);
-			break;
-		default:
-			WARN(1, KERN_WARNING "%s(%ld, %ld) unknown action: "
-			     "%ld\n", __func__, phys_index, action, action);
-			ret = -EINVAL;
+		ret = online_pages(start_pfn, nr_pages, online_type);
+		break;
+	case MEM_OFFLINE:
+		ret = offline_pages(start_pfn, nr_pages);
+		break;
+	default:
+		WARN(1, KERN_WARNING "%s(%ld, %ld) unknown action: "
+		     "%ld\n", __func__, phys_index, action, action);
+		ret = -EINVAL;
 	}
 
 	return ret;
@@ -286,6 +287,7 @@ static int memory_subsys_online(struct device *dev)
 	if (mem->online_type < 0)
 		mem->online_type = MMOP_ONLINE_KEEP;
 
+	/* Already under protection of mem_hotplug_begin() */
 	ret = memory_block_change_state(mem, MEM_ONLINE, MEM_OFFLINE);
 
 	/* clear online_type */
@@ -328,17 +330,19 @@ store_mem_state(struct device *dev,
 		goto err;
 	}
 
+	/*
+	 * Memory hotplug needs to hold mem_hotplug_begin() for probe to find
+	 * the correct memory block to online before doing device_online(dev),
+	 * which will take dev->mutex.  Take the lock early to prevent an
+	 * inversion, memory_subsys_online() callbacks will be implemented by
+	 * assuming it's already protected.
+	 */
+	mem_hotplug_begin();
+
 	switch (online_type) {
 	case MMOP_ONLINE_KERNEL:
 	case MMOP_ONLINE_MOVABLE:
 	case MMOP_ONLINE_KEEP:
-		/*
-		 * mem->online_type is not protected so there can be a
-		 * race here.  However, when racing online, the first
-		 * will succeed and the second will just return as the
-		 * block will already be online.  The online type
-		 * could be either one, but that is expected.
-		 */
 		mem->online_type = online_type;
 		ret = device_online(&mem->dev);
 		break;
@@ -349,6 +353,7 @@ store_mem_state(struct device *dev,
 		ret = -EINVAL; /* should never happen */
 	}
 
+	mem_hotplug_done();
 err:
 	unlock_device_hotplug();
 

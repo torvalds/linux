@@ -169,24 +169,34 @@
 #define SDMMC_CTRL_ALL_RESET_FLAGS \
 	(SDMMC_CTRL_RESET | SDMMC_CTRL_FIFO_RESET | SDMMC_CTRL_DMA_RESET)
 
+/* FIFO register access macros. These should not change the data endian-ness
+ * as they are written to memory to be dealt with by the upper layers */
+#define mci_fifo_readw(__reg)	__raw_readw(__reg)
+#define mci_fifo_readl(__reg)	__raw_readl(__reg)
+#define mci_fifo_readq(__reg)	__raw_readq(__reg)
+
+#define mci_fifo_writew(__value, __reg)	__raw_writew(__reg, __value)
+#define mci_fifo_writel(__value, __reg)	__raw_writel(__reg, __value)
+#define mci_fifo_writeq(__value, __reg)	__raw_writeq(__reg, __value)
+
 /* Register access macros */
 #define mci_readl(dev, reg)			\
-	__raw_readl((dev)->regs + SDMMC_##reg)
+	readl_relaxed((dev)->regs + SDMMC_##reg)
 #define mci_writel(dev, reg, value)			\
-	__raw_writel((value), (dev)->regs + SDMMC_##reg)
+	writel_relaxed((value), (dev)->regs + SDMMC_##reg)
 
 /* 16-bit FIFO access macros */
 #define mci_readw(dev, reg)			\
-	__raw_readw((dev)->regs + SDMMC_##reg)
+	readw_relaxed((dev)->regs + SDMMC_##reg)
 #define mci_writew(dev, reg, value)			\
-	__raw_writew((value), (dev)->regs + SDMMC_##reg)
+	writew_relaxed((value), (dev)->regs + SDMMC_##reg)
 
 /* 64-bit FIFO access macros */
 #ifdef readq
 #define mci_readq(dev, reg)			\
-	__raw_readq((dev)->regs + SDMMC_##reg)
+	readq_relaxed((dev)->regs + SDMMC_##reg)
 #define mci_writeq(dev, reg, value)			\
-	__raw_writeq((value), (dev)->regs + SDMMC_##reg)
+	writeq_relaxed((value), (dev)->regs + SDMMC_##reg)
 #else
 /*
  * Dummy readq implementation for architectures that don't define it.
@@ -200,6 +210,10 @@
 	(*(volatile u64 __force *)((dev)->regs + SDMMC_##reg))
 #define mci_writeq(dev, reg, value)			\
 	(*(volatile u64 __force *)((dev)->regs + SDMMC_##reg) = (value))
+
+#define __raw_writeq(__value, __reg) \
+	(*(volatile u64 __force *)(__reg) = (__value))
+#define __raw_readq(__reg) (*(volatile u64 __force *)(__reg))
 #endif
 
 extern int dw_mci_probe(struct dw_mci *host);
@@ -271,5 +285,7 @@ struct dw_mci_drv_data {
 	void		(*set_ios)(struct dw_mci *host, struct mmc_ios *ios);
 	int		(*parse_dt)(struct dw_mci *host);
 	int		(*execute_tuning)(struct dw_mci_slot *slot);
+	int		(*prepare_hs400_tuning)(struct dw_mci *host,
+						struct mmc_ios *ios);
 };
 #endif /* _DW_MMC_H_ */

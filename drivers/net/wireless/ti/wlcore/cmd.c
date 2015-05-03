@@ -367,7 +367,7 @@ void wl12xx_free_link(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 *hlid)
 	wl->links[*hlid].allocated_pkts = 0;
 	wl->links[*hlid].prev_freed_pkts = 0;
 	wl->links[*hlid].ba_bitmap = 0;
-	memset(wl->links[*hlid].addr, 0, ETH_ALEN);
+	eth_zero_addr(wl->links[*hlid].addr);
 
 	/*
 	 * At this point op_tx() will not add more packets to the queues. We
@@ -1293,7 +1293,7 @@ int wl1271_cmd_build_arp_rsp(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	hdr->frame_control = cpu_to_le16(fc);
 	memcpy(hdr->addr1, vif->bss_conf.bssid, ETH_ALEN);
 	memcpy(hdr->addr2, vif->addr, ETH_ALEN);
-	memset(hdr->addr3, 0xff, ETH_ALEN);
+	eth_broadcast_addr(hdr->addr3);
 
 	ret = wl1271_cmd_template_set(wl, wlvif->role_id, CMD_TEMPL_ARP_RSP,
 				      skb->data, skb->len, 0,

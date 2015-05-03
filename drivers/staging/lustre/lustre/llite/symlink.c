@@ -120,7 +120,7 @@ failed:
 
 static void *ll_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct ptlrpc_request *request = NULL;
 	int rc;
 	char *symname = NULL;

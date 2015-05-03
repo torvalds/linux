@@ -207,7 +207,8 @@ static struct alauda_card_info alauda_card_ids[] = {
 	{ 0,}
 };
 
-static struct alauda_card_info *alauda_card_find_id(unsigned char id) {
+static struct alauda_card_info *alauda_card_find_id(unsigned char id)
+{
 	int i;
 
 	for (i = 0; alauda_card_ids[i].id != 0; i++)
@@ -223,7 +224,8 @@ static struct alauda_card_info *alauda_card_find_id(unsigned char id) {
 static unsigned char parity[256];
 static unsigned char ecc2[256];
 
-static void nand_init_ecc(void) {
+static void nand_init_ecc(void)
+{
 	int i, j, a;
 
 	parity[0] = 0;
@@ -247,7 +249,8 @@ static void nand_init_ecc(void) {
 }
 
 /* compute 3-byte ecc on 256 bytes */
-static void nand_compute_ecc(unsigned char *data, unsigned char *ecc) {
+static void nand_compute_ecc(unsigned char *data, unsigned char *ecc)
+{
 	int i, j, a;
 	unsigned char par = 0, bit, bits[8] = {0};
 
@@ -270,11 +273,13 @@ static void nand_compute_ecc(unsigned char *data, unsigned char *ecc) {
 	ecc[2] = ecc2[par];
 }
 
-static int nand_compare_ecc(unsigned char *data, unsigned char *ecc) {
+static int nand_compare_ecc(unsigned char *data, unsigned char *ecc)
+{
 	return (data[0] == ecc[0] && data[1] == ecc[1] && data[2] == ecc[2]);
 }
 
-static void nand_store_ecc(unsigned char *data, unsigned char *ecc) {
+static void nand_store_ecc(unsigned char *data, unsigned char *ecc)
+{
 	memcpy(data, ecc, 3);
 }
 

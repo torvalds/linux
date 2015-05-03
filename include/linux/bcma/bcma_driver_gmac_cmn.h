@@ -91,10 +91,4 @@ struct bcma_drv_gmac_cmn {
 #define gmac_cmn_write16(gc, offset, val)	bcma_write16((gc)->core, offset, val)
 #define gmac_cmn_write32(gc, offset, val)	bcma_write32((gc)->core, offset, val)
 
-#ifdef CONFIG_BCMA_DRIVER_GMAC_CMN
-extern void bcma_core_gmac_cmn_init(struct bcma_drv_gmac_cmn *gc);
-#else
-static inline void bcma_core_gmac_cmn_init(struct bcma_drv_gmac_cmn *gc) { }
-#endif
-
 #endif /* LINUX_BCMA_DRIVER_GMAC_CMN_H_ */

@@ -55,4 +55,4 @@
 #define MAKEDWORD(lw, hw)   ((unsigned long)(((unsigned short)(lw)) | (((unsigned long)((unsigned short)(hw))) << 16)))
 #endif
 
-#endif // __TMACRO_H__
+#endif /* __TMACRO_H__ */

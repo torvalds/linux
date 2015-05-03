@@ -4,6 +4,9 @@
  * Written by Rusty Russell <rusty@rustcorp.com.au>
  * (Inspired by David Howell's find_next_bit implementation)
  *
+ * Rewritten by Yury Norov <yury.norov@gmail.com> to decrease
+ * size and improve performance, 2015.
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version
@@ -11,37 +14,26 @@
  */
 
 #include <linux/bitops.h>
+#include <linux/bitmap.h>
 #include <linux/export.h>
-#include <asm/types.h>
-#include <asm/byteorder.h>
+#include <linux/kernel.h>
 
 #ifndef find_last_bit
 
 unsigned long find_last_bit(const unsigned long *addr, unsigned long size)
 {
-	unsigned long words;
-	unsigned long tmp;
+	if (size) {
+		unsigned long val = BITMAP_LAST_WORD_MASK(size);
+		unsigned long idx = (size-1) / BITS_PER_LONG;
 
-	/* Start at final word. */
-	words = size / BITS_PER_LONG;
+		do {
+			val &= addr[idx];
+			if (val)
+				return idx * BITS_PER_LONG + __fls(val);
 
-	/* Partial final word? */
-	if (size & (BITS_PER_LONG-1)) {
-		tmp = (addr[words] & (~0UL >> (BITS_PER_LONG
-					 - (size & (BITS_PER_LONG-1)))));
-		if (tmp)
-			goto found;
+			val = ~0ul;
+		} while (idx--);
 	}
-
-	while (words) {
-		tmp = addr[--words];
-		if (tmp) {
-found:
-			return words * BITS_PER_LONG + __fls(tmp);
-		}
-	}
-
-	/* Not found */
 	return size;
 }
 EXPORT_SYMBOL(find_last_bit);

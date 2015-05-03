@@ -115,7 +115,7 @@ int adf_dev_restarted_notify(struct adf_accel_dev *accel_dev);
 int adf_ae_init(struct adf_accel_dev *accel_dev);
 int adf_ae_shutdown(struct adf_accel_dev *accel_dev);
 int adf_ae_fw_load(struct adf_accel_dev *accel_dev);
-int adf_ae_fw_release(struct adf_accel_dev *accel_dev);
+void adf_ae_fw_release(struct adf_accel_dev *accel_dev);
 int adf_ae_start(struct adf_accel_dev *accel_dev);
 int adf_ae_stop(struct adf_accel_dev *accel_dev);
 

@@ -513,7 +513,7 @@ void __init kvm_guest_init(void)
 	 * can get false positives too easily, for example if the host is
 	 * overcommitted.
 	 */
-	watchdog_enable_hardlockup_detector(false);
+	hardlockup_detector_disable();
 }
 
 static noinline uint32_t __kvm_cpuid_base(void)

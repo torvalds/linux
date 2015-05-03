@@ -5,9 +5,12 @@ config HAVE_NET_DSA
 # Drivers must select NET_DSA and the appropriate tagging format
 
 config NET_DSA
-	tristate
-	depends on HAVE_NET_DSA
+	tristate "Distributed Switch Architecture"
+	depends on HAVE_NET_DSA && NET_SWITCHDEV
 	select PHYLIB
+	---help---
+	  Say Y if you want to enable support for the hardware switches supported
+	  by the Distributed Switch Architecture.
 
 if NET_DSA
 

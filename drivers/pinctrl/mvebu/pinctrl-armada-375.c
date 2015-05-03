@@ -399,7 +399,7 @@ static struct mvebu_mpp_mode mv88f6720_mpp_modes[] = {
 
 static struct mvebu_pinctrl_soc_info armada_375_pinctrl_info;
 
-static struct of_device_id armada_375_pinctrl_of_match[] = {
+static const struct of_device_id armada_375_pinctrl_of_match[] = {
 	{ .compatible = "marvell,mv88f6720-pinctrl" },
 	{ },
 };

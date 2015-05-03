@@ -35,7 +35,7 @@ static int
 xfs_xattr_get(struct dentry *dentry, const char *name,
 		void *value, size_t size, int xflags)
 {
-	struct xfs_inode *ip = XFS_I(dentry->d_inode);
+	struct xfs_inode *ip = XFS_I(d_inode(dentry));
 	int error, asize = size;
 
 	if (strcmp(name, "") == 0)
@@ -57,7 +57,7 @@ static int
 xfs_xattr_set(struct dentry *dentry, const char *name, const void *value,
 		size_t size, int flags, int xflags)
 {
-	struct xfs_inode *ip = XFS_I(dentry->d_inode);
+	struct xfs_inode *ip = XFS_I(d_inode(dentry));
 
 	if (strcmp(name, "") == 0)
 		return -EINVAL;
@@ -197,7 +197,7 @@ xfs_vn_listxattr(struct dentry *dentry, char *data, size_t size)
 {
 	struct xfs_attr_list_context context;
 	struct attrlist_cursor_kern cursor = { 0 };
-	struct inode		*inode = dentry->d_inode;
+	struct inode		*inode = d_inode(dentry);
 	int			error;
 
 	/*

@@ -178,7 +178,7 @@
 169	common	reboot			sys_reboot
 170	common	sethostname		sys_sethostname
 171	common	setdomainname		sys_setdomainname
-172	common	iopl			stub_iopl
+172	common	iopl			sys_iopl
 173	common	ioperm			sys_ioperm
 174	64	create_module
 175	common	init_module		sys_init_module

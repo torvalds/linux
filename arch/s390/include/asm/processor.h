@@ -19,7 +19,6 @@
 #define _CIF_ASCE		(1<<CIF_ASCE)
 #define _CIF_NOHZ_DELAY		(1<<CIF_NOHZ_DELAY)
 
-
 #ifndef __ASSEMBLY__
 
 #include <linux/linkage.h>
@@ -66,13 +65,6 @@ extern void execve_tail(void);
 /*
  * User space process size: 2GB for 31 bit, 4TB or 8PT for 64 bit.
  */
-#ifndef CONFIG_64BIT
-
-#define TASK_SIZE		(1UL << 31)
-#define TASK_MAX_SIZE		(1UL << 31)
-#define TASK_UNMAPPED_BASE	(1UL << 30)
-
-#else /* CONFIG_64BIT */
 
 #define TASK_SIZE_OF(tsk)	((tsk)->mm->context.asce_limit)
 #define TASK_UNMAPPED_BASE	(test_thread_flag(TIF_31BIT) ? \
@@ -80,15 +72,8 @@ extern void execve_tail(void);
 #define TASK_SIZE		TASK_SIZE_OF(current)
 #define TASK_MAX_SIZE		(1UL << 53)
 
-#endif /* CONFIG_64BIT */
-
-#ifndef CONFIG_64BIT
-#define STACK_TOP		(1UL << 31)
-#define STACK_TOP_MAX		(1UL << 31)
-#else /* CONFIG_64BIT */
 #define STACK_TOP		(1UL << (test_thread_flag(TIF_31BIT) ? 31:42))
 #define STACK_TOP_MAX		(1UL << 42)
-#endif /* CONFIG_64BIT */
 
 #define HAVE_ARCH_PICK_MMAP_LAYOUT
 
@@ -115,10 +100,8 @@ struct thread_struct {
 	/* cpu runtime instrumentation */
 	struct runtime_instr_cb *ri_cb;
 	int ri_signum;
-#ifdef CONFIG_64BIT
 	unsigned char trap_tdb[256];	/* Transaction abort diagnose block */
 	__vector128 *vxrs;		/* Vector register save area */
-#endif
 };
 
 /* Flag to disable transactions. */
@@ -181,11 +164,7 @@ struct task_struct;
 struct mm_struct;
 struct seq_file;
 
-#ifdef CONFIG_64BIT
-extern void show_cacheinfo(struct seq_file *m);
-#else
-static inline void show_cacheinfo(struct seq_file *m) { }
-#endif
+void show_cacheinfo(struct seq_file *m);
 
 /* Free all resources held by a thread. */
 extern void release_thread(struct task_struct *);
@@ -229,11 +208,7 @@ static inline void psw_set_key(unsigned int key)
  */
 static inline void __load_psw(psw_t psw)
 {
-#ifndef CONFIG_64BIT
-	asm volatile("lpsw  %0" : : "Q" (psw) : "cc");
-#else
 	asm volatile("lpswe %0" : : "Q" (psw) : "cc");
-#endif
 }
 
 /*
@@ -247,22 +222,12 @@ static inline void __load_psw_mask (unsigned long mask)
 
 	psw.mask = mask;
 
-#ifndef CONFIG_64BIT
-	asm volatile(
-		"	basr	%0,0\n"
-		"0:	ahi	%0,1f-0b\n"
-		"	st	%0,%O1+4(%R1)\n"
-		"	lpsw	%1\n"
-		"1:"
-		: "=&d" (addr), "=Q" (psw) : "Q" (psw) : "memory", "cc");
-#else /* CONFIG_64BIT */
 	asm volatile(
 		"	larl	%0,1f\n"
 		"	stg	%0,%O1+8(%R1)\n"
 		"	lpswe	%1\n"
 		"1:"
 		: "=&d" (addr), "=Q" (psw) : "Q" (psw) : "memory", "cc");
-#endif /* CONFIG_64BIT */
 }
 
 /*
@@ -270,20 +235,12 @@ static inline void __load_psw_mask (unsigned long mask)
  */
 static inline unsigned long __rewind_psw(psw_t psw, unsigned long ilc)
 {
-#ifndef CONFIG_64BIT
-	if (psw.addr & PSW_ADDR_AMODE)
-		/* 31 bit mode */
-		return (psw.addr - ilc) | PSW_ADDR_AMODE;
-	/* 24 bit mode */
-	return (psw.addr - ilc) & ((1UL << 24) - 1);
-#else
 	unsigned long mask;
 
 	mask = (psw.mask & PSW_MASK_EA) ? -1UL :
 	       (psw.mask & PSW_MASK_BA) ? (1UL << 31) - 1 :
 					  (1UL << 24) - 1;
 	return (psw.addr - ilc) & mask;
-#endif
 }
 
 /*
@@ -305,26 +262,6 @@ static inline void __noreturn disabled_wait(unsigned long code)
          * Store status and then load disabled wait psw,
          * the processor is dead afterwards
          */
-#ifndef CONFIG_64BIT
-	asm volatile(
-		"	stctl	0,0,0(%2)\n"
-		"	ni	0(%2),0xef\n"	/* switch off protection */
-		"	lctl	0,0,0(%2)\n"
-		"	stpt	0xd8\n"		/* store timer */
-		"	stckc	0xe0\n"		/* store clock comparator */
-		"	stpx	0x108\n"	/* store prefix register */
-		"	stam	0,15,0x120\n"	/* store access registers */
-		"	std	0,0x160\n"	/* store f0 */
-		"	std	2,0x168\n"	/* store f2 */
-		"	std	4,0x170\n"	/* store f4 */
-		"	std	6,0x178\n"	/* store f6 */
-		"	stm	0,15,0x180\n"	/* store general registers */
-		"	stctl	0,15,0x1c0\n"	/* store control registers */
-		"	oi	0x1c0,0x10\n"	/* fake protection bit */
-		"	lpsw	0(%1)"
-		: "=m" (ctl_buf)
-		: "a" (&dw_psw), "a" (&ctl_buf), "m" (dw_psw) : "cc");
-#else /* CONFIG_64BIT */
 	asm volatile(
 		"	stctg	0,0,0(%2)\n"
 		"	ni	4(%2),0xef\n"	/* switch off protection */
@@ -357,7 +294,6 @@ static inline void __noreturn disabled_wait(unsigned long code)
 		"	lpswe	0(%1)"
 		: "=m" (ctl_buf)
 		: "a" (&dw_psw), "a" (&ctl_buf), "m" (dw_psw) : "cc", "0", "1");
-#endif /* CONFIG_64BIT */
 	while (1);
 }
 

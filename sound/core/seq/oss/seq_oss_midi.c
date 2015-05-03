@@ -173,10 +173,9 @@ snd_seq_oss_midi_check_new_port(struct snd_seq_port_info *pinfo)
 	/*
 	 * allocate midi info record
 	 */
-	if ((mdev = kzalloc(sizeof(*mdev), GFP_KERNEL)) == NULL) {
-		pr_err("ALSA: seq_oss: can't malloc midi info\n");
+	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
+	if (!mdev)
 		return -ENOMEM;
-	}
 
 	/* copy the port information */
 	mdev->client = pinfo->addr.client;

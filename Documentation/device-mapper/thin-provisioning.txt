@@ -380,9 +380,6 @@ then you'll have no access to blocks mapped beyond the end.  If you
 load a target that is bigger than before, then extra blocks will be
 provisioned as and when needed.
 
-If you wish to reduce the size of your thin device and potentially
-regain some space then send the 'trim' message to the pool.
-
 ii) Status
 
      <nr mapped sectors> <highest mapped sector>

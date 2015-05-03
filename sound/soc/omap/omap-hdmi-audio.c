@@ -142,8 +142,6 @@ static int hdmi_dai_hw_params(struct snd_pcm_substream *substream,
 
 	iec->status[0] |= IEC958_AES0_CON_EMPHASIS_NONE;
 
-	iec->status[0] |= IEC958_AES1_PRO_MODE_NOTID;
-
 	iec->status[1] = IEC958_AES1_CON_GENERAL;
 
 	iec->status[2] |= IEC958_AES2_CON_SOURCE_UNSPEC;

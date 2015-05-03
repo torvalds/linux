@@ -23,6 +23,7 @@
 
 #include "i915_drv.h"
 #include "intel_drv.h"
+#include "i915_vgpu.h"
 
 #include <linux/pm_runtime.h>
 
@@ -210,6 +211,13 @@ static void fw_domains_put_with_fifo(struct drm_i915_private *dev_priv,
 	gen6_gt_check_fifodbg(dev_priv);
 }
 
+static inline u32 fifo_free_entries(struct drm_i915_private *dev_priv)
+{
+	u32 count = __raw_i915_read32(dev_priv, GTFIFOCTL);
+
+	return count & GT_FIFO_FREE_ENTRIES_MASK;
+}
+
 static int __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
 {
 	int ret = 0;
@@ -217,16 +225,15 @@ static int __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
 	/* On VLV, FIFO will be shared by both SW and HW.
 	 * So, we need to read the FREE_ENTRIES everytime */
 	if (IS_VALLEYVIEW(dev_priv->dev))
-		dev_priv->uncore.fifo_count =
-			__raw_i915_read32(dev_priv, GTFIFOCTL) &
-						GT_FIFO_FREE_ENTRIES_MASK;
+		dev_priv->uncore.fifo_count = fifo_free_entries(dev_priv);
 
 	if (dev_priv->uncore.fifo_count < GT_FIFO_NUM_RESERVED_ENTRIES) {
 		int loop = 500;
-		u32 fifo = __raw_i915_read32(dev_priv, GTFIFOCTL) & GT_FIFO_FREE_ENTRIES_MASK;
+		u32 fifo = fifo_free_entries(dev_priv);
+
 		while (fifo <= GT_FIFO_NUM_RESERVED_ENTRIES && loop--) {
 			udelay(10);
-			fifo = __raw_i915_read32(dev_priv, GTFIFOCTL) & GT_FIFO_FREE_ENTRIES_MASK;
+			fifo = fifo_free_entries(dev_priv);
 		}
 		if (WARN_ON(loop < 0 && fifo <= GT_FIFO_NUM_RESERVED_ENTRIES))
 			++ret;
@@ -314,8 +321,7 @@ void intel_uncore_forcewake_reset(struct drm_device *dev, bool restore)
 
 		if (IS_GEN6(dev) || IS_GEN7(dev))
 			dev_priv->uncore.fifo_count =
-				__raw_i915_read32(dev_priv, GTFIFOCTL) &
-				GT_FIFO_FREE_ENTRIES_MASK;
+				fifo_free_entries(dev_priv);
 	}
 
 	if (!restore)
@@ -328,8 +334,9 @@ static void intel_uncore_ellc_detect(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if ((IS_HASWELL(dev) || IS_BROADWELL(dev)) &&
-	    (__raw_i915_read32(dev_priv, HSW_EDRAM_PRESENT) == 1)) {
+	if ((IS_HASWELL(dev) || IS_BROADWELL(dev) ||
+	     INTEL_INFO(dev)->gen >= 9) &&
+	    (__raw_i915_read32(dev_priv, HSW_EDRAM_PRESENT) & EDRAM_ENABLED)) {
 		/* The docs do not explain exactly how the calculation can be
 		 * made. It is somewhat guessable, but for now, it's always
 		 * 128MB.
@@ -550,18 +557,24 @@ hsw_unclaimed_reg_debug(struct drm_i915_private *dev_priv, u32 reg, bool read,
 		WARN(1, "Unclaimed register detected %s %s register 0x%x\n",
 		     when, op, reg);
 		__raw_i915_write32(dev_priv, FPGA_DBG, FPGA_DBG_RM_NOCLAIM);
+		i915.mmio_debug--; /* Only report the first N failures */
 	}
 }
 
 static void
 hsw_unclaimed_reg_detect(struct drm_i915_private *dev_priv)
 {
-	if (i915.mmio_debug)
+	static bool mmio_debug_once = true;
+
+	if (i915.mmio_debug || !mmio_debug_once)
 		return;
 
 	if (__raw_i915_read32(dev_priv, FPGA_DBG) & FPGA_DBG_RM_NOCLAIM) {
-		DRM_ERROR("Unclaimed register detected. Please use the i915.mmio_debug=1 to debug this problem.");
+		DRM_DEBUG("Unclaimed register detected, "
+			  "enabling oneshot unclaimed register reporting. "
+			  "Please use i915.mmio_debug=N for more information.\n");
 		__raw_i915_write32(dev_priv, FPGA_DBG, FPGA_DBG_RM_NOCLAIM);
+		i915.mmio_debug = mmio_debug_once--;
 	}
 }
 
@@ -640,6 +653,14 @@ static inline void __force_wake_get(struct drm_i915_private *dev_priv,
 		dev_priv->uncore.funcs.force_wake_get(dev_priv, fw_domains);
 }
 
+#define __vgpu_read(x) \
+static u##x \
+vgpu_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
+	GEN6_READ_HEADER(x); \
+	val = __raw_i915_read##x(dev_priv, reg); \
+	GEN6_READ_FOOTER; \
+}
+
 #define __gen6_read(x) \
 static u##x \
 gen6_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
@@ -703,6 +724,10 @@ gen9_read##x(struct drm_i915_private *dev_priv, off_t reg, bool trace) { \
 	GEN6_READ_FOOTER; \
 }
 
+__vgpu_read(8)
+__vgpu_read(16)
+__vgpu_read(32)
+__vgpu_read(64)
 __gen9_read(8)
 __gen9_read(16)
 __gen9_read(32)
@@ -724,6 +749,7 @@ __gen6_read(64)
 #undef __chv_read
 #undef __vlv_read
 #undef __gen6_read
+#undef __vgpu_read
 #undef GEN6_READ_FOOTER
 #undef GEN6_READ_HEADER
 
@@ -804,6 +830,14 @@ hsw_write##x(struct drm_i915_private *dev_priv, off_t reg, u##x val, bool trace)
 	} \
 	hsw_unclaimed_reg_debug(dev_priv, reg, false, false); \
 	hsw_unclaimed_reg_detect(dev_priv); \
+	GEN6_WRITE_FOOTER; \
+}
+
+#define __vgpu_write(x) \
+static void vgpu_write##x(struct drm_i915_private *dev_priv, \
+			  off_t reg, u##x val, bool trace) { \
+	GEN6_WRITE_HEADER; \
+	__raw_i915_write##x(dev_priv, reg, val); \
 	GEN6_WRITE_FOOTER; \
 }
 
@@ -924,12 +958,17 @@ __gen6_write(8)
 __gen6_write(16)
 __gen6_write(32)
 __gen6_write(64)
+__vgpu_write(8)
+__vgpu_write(16)
+__vgpu_write(32)
+__vgpu_write(64)
 
 #undef __gen9_write
 #undef __chv_write
 #undef __gen8_write
 #undef __hsw_write
 #undef __gen6_write
+#undef __vgpu_write
 #undef GEN6_WRITE_FOOTER
 #undef GEN6_WRITE_HEADER
 
@@ -972,6 +1011,7 @@ static void fw_domain_init(struct drm_i915_private *dev_priv,
 		d->val_set = FORCEWAKE_KERNEL;
 		d->val_clear = 0;
 	} else {
+		/* WaRsClearFWBitsAtReset:bdw,skl */
 		d->val_reset = _MASKED_BIT_DISABLE(0xffff);
 		d->val_set = _MASKED_BIT_ENABLE(FORCEWAKE_KERNEL);
 		d->val_clear = _MASKED_BIT_DISABLE(FORCEWAKE_KERNEL);
@@ -1088,6 +1128,8 @@ void intel_uncore_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
+	i915_check_vgpu(dev);
+
 	intel_uncore_ellc_detect(dev);
 	intel_uncore_fw_domains_init(dev);
 	__intel_uncore_early_sanitize(dev, false);
@@ -1134,6 +1176,11 @@ void intel_uncore_init(struct drm_device *dev)
 		ASSIGN_WRITE_MMIO_VFUNCS(gen2);
 		ASSIGN_READ_MMIO_VFUNCS(gen2);
 		break;
+	}
+
+	if (intel_vgpu_active(dev)) {
+		ASSIGN_WRITE_MMIO_VFUNCS(vgpu);
+		ASSIGN_READ_MMIO_VFUNCS(vgpu);
 	}
 
 	i915_check_and_clear_faults(dev);

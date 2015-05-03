@@ -33,19 +33,13 @@ void mdp5_ctlm_destroy(struct mdp5_ctl_manager *ctlm);
  * which is then used to call the other mdp5_ctl_*(ctl, ...) functions.
  */
 struct mdp5_ctl *mdp5_ctlm_request(struct mdp5_ctl_manager *ctlm, struct drm_crtc *crtc);
+int mdp5_ctl_get_ctl_id(struct mdp5_ctl *ctl);
 
-int mdp5_ctl_set_intf(struct mdp5_ctl *ctl, int intf);
+struct mdp5_interface;
+int mdp5_ctl_set_intf(struct mdp5_ctl *ctl, struct mdp5_interface *intf);
+int mdp5_ctl_set_encoder_state(struct mdp5_ctl *ctl, bool enabled);
 
-int mdp5_ctl_set_cursor(struct mdp5_ctl *ctl, bool enable);
-
-/* @blend_cfg: see LM blender config definition below */
-int mdp5_ctl_blend(struct mdp5_ctl *ctl, u32 lm, u32 blend_cfg);
-
-/* @flush_mask: see CTL flush masks definitions below */
-int mdp5_ctl_commit(struct mdp5_ctl *ctl, u32 flush_mask);
-u32 mdp5_ctl_get_flush(struct mdp5_ctl *ctl);
-
-void mdp5_ctl_release(struct mdp5_ctl *ctl);
+int mdp5_ctl_set_cursor(struct mdp5_ctl *ctl, int cursor_id, bool enable);
 
 /*
  * blend_cfg (LM blender config):
@@ -72,51 +66,32 @@ static inline u32 mdp_ctl_blend_mask(enum mdp5_pipe pipe,
 }
 
 /*
- * flush_mask (CTL flush masks):
+ * mdp5_ctl_blend() - Blend multiple layers on a Layer Mixer (LM)
  *
- * The following functions allow each DRM entity to get and store
- * their own flush mask.
- * Once stored, these masks will then be accessed through each DRM's
- * interface and used by the caller of mdp5_ctl_commit() to specify
- * which block(s) need to be flushed through @flush_mask parameter.
+ * @blend_cfg: see LM blender config definition below
+ *
+ * Note:
+ * CTL registers need to be flushed after calling this function
+ * (call mdp5_ctl_commit() with mdp_ctl_flush_mask_ctl() mask)
  */
+int mdp5_ctl_blend(struct mdp5_ctl *ctl, u32 lm, u32 blend_cfg);
 
-#define MDP5_CTL_FLUSH_CURSOR_DUMMY	0x80000000
+/**
+ * mdp_ctl_flush_mask...() - Register FLUSH masks
+ *
+ * These masks are used to specify which block(s) need to be flushed
+ * through @flush_mask parameter in mdp5_ctl_commit(.., flush_mask).
+ */
+u32 mdp_ctl_flush_mask_lm(int lm);
+u32 mdp_ctl_flush_mask_pipe(enum mdp5_pipe pipe);
+u32 mdp_ctl_flush_mask_cursor(int cursor_id);
+u32 mdp_ctl_flush_mask_encoder(struct mdp5_interface *intf);
 
-static inline u32 mdp_ctl_flush_mask_cursor(int cursor_id)
-{
-	/* TODO: use id once multiple cursor support is present */
-	(void)cursor_id;
+/* @flush_mask: see CTL flush masks definitions below */
+int mdp5_ctl_commit(struct mdp5_ctl *ctl, u32 flush_mask);
 
-	return MDP5_CTL_FLUSH_CURSOR_DUMMY;
-}
+void mdp5_ctl_release(struct mdp5_ctl *ctl);
 
-static inline u32 mdp_ctl_flush_mask_lm(int lm)
-{
-	switch (lm) {
-	case 0:  return MDP5_CTL_FLUSH_LM0;
-	case 1:  return MDP5_CTL_FLUSH_LM1;
-	case 2:  return MDP5_CTL_FLUSH_LM2;
-	case 5:  return MDP5_CTL_FLUSH_LM5;
-	default: return 0;
-	}
-}
 
-static inline u32 mdp_ctl_flush_mask_pipe(enum mdp5_pipe pipe)
-{
-	switch (pipe) {
-	case SSPP_VIG0: return MDP5_CTL_FLUSH_VIG0;
-	case SSPP_VIG1: return MDP5_CTL_FLUSH_VIG1;
-	case SSPP_VIG2: return MDP5_CTL_FLUSH_VIG2;
-	case SSPP_RGB0: return MDP5_CTL_FLUSH_RGB0;
-	case SSPP_RGB1: return MDP5_CTL_FLUSH_RGB1;
-	case SSPP_RGB2: return MDP5_CTL_FLUSH_RGB2;
-	case SSPP_DMA0: return MDP5_CTL_FLUSH_DMA0;
-	case SSPP_DMA1: return MDP5_CTL_FLUSH_DMA1;
-	case SSPP_VIG3: return MDP5_CTL_FLUSH_VIG3;
-	case SSPP_RGB3: return MDP5_CTL_FLUSH_RGB3;
-	default:        return 0;
-	}
-}
 
 #endif /* __MDP5_CTL_H__ */

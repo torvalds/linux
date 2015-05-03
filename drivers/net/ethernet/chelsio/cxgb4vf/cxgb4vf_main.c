@@ -3034,7 +3034,7 @@ static void cxgb4vf_pci_shutdown(struct pci_dev *pdev)
 /* Macros needed to support the PCI Device ID Table ...
  */
 #define CH_PCI_DEVICE_ID_TABLE_DEFINE_BEGIN \
-	static struct pci_device_id cxgb4vf_pci_tbl[] = {
+	static const struct pci_device_id cxgb4vf_pci_tbl[] = {
 #define CH_PCI_DEVICE_ID_FUNCTION	0x8
 
 #define CH_PCI_ID_TABLE_ENTRY(devid) \

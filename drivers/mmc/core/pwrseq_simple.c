@@ -85,7 +85,6 @@ static void mmc_pwrseq_simple_free(struct mmc_host *host)
 		clk_put(pwrseq->ext_clk);
 
 	kfree(pwrseq);
-	host->pwrseq = NULL;
 }
 
 static struct mmc_pwrseq_ops mmc_pwrseq_simple_ops = {
@@ -95,7 +94,8 @@ static struct mmc_pwrseq_ops mmc_pwrseq_simple_ops = {
 	.free = mmc_pwrseq_simple_free,
 };
 
-int mmc_pwrseq_simple_alloc(struct mmc_host *host, struct device *dev)
+struct mmc_pwrseq *mmc_pwrseq_simple_alloc(struct mmc_host *host,
+					   struct device *dev)
 {
 	struct mmc_pwrseq_simple *pwrseq;
 	int i, nr_gpios, ret = 0;
@@ -107,7 +107,7 @@ int mmc_pwrseq_simple_alloc(struct mmc_host *host, struct device *dev)
 	pwrseq = kzalloc(sizeof(struct mmc_pwrseq_simple) + nr_gpios *
 			 sizeof(struct gpio_desc *), GFP_KERNEL);
 	if (!pwrseq)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	pwrseq->ext_clk = clk_get(dev, "ext_clock");
 	if (IS_ERR(pwrseq->ext_clk) &&
@@ -133,13 +133,12 @@ int mmc_pwrseq_simple_alloc(struct mmc_host *host, struct device *dev)
 
 	pwrseq->nr_gpios = nr_gpios;
 	pwrseq->pwrseq.ops = &mmc_pwrseq_simple_ops;
-	host->pwrseq = &pwrseq->pwrseq;
 
-	return 0;
+	return &pwrseq->pwrseq;
 clk_put:
 	if (!IS_ERR(pwrseq->ext_clk))
 		clk_put(pwrseq->ext_clk);
 free:
 	kfree(pwrseq);
-	return ret;
+	return ERR_PTR(ret);
 }

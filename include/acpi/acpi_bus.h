@@ -252,6 +252,7 @@ struct acpi_device_pnp {
 #define acpi_device_bid(d)	((d)->pnp.bus_id)
 #define acpi_device_adr(d)	((d)->pnp.bus_address)
 const char *acpi_device_hid(struct acpi_device *device);
+#define acpi_device_uid(d)	((d)->pnp.unique_id)
 #define acpi_device_name(d)	((d)->pnp.device_name)
 #define acpi_device_class(d)	((d)->pnp.device_class)
 
@@ -386,7 +387,8 @@ static inline bool is_acpi_node(struct fwnode_handle *fwnode)
 
 static inline struct acpi_device *acpi_node(struct fwnode_handle *fwnode)
 {
-	return fwnode ? container_of(fwnode, struct acpi_device, fwnode) : NULL;
+	return is_acpi_node(fwnode) ?
+		container_of(fwnode, struct acpi_device, fwnode) : NULL;
 }
 
 static inline struct fwnode_handle *acpi_fwnode_handle(struct acpi_device *adev)

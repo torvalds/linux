@@ -260,16 +260,28 @@ static __init const char *test_string_find_match(const struct test_string_2 *s2,
 	return NULL;
 }
 
+static __init void
+test_string_escape_overflow(const char *in, int p, unsigned int flags, const char *esc,
+			    int q_test, const char *name)
+{
+	int q_real;
+
+	q_real = string_escape_mem(in, p, NULL, 0, flags, esc);
+	if (q_real != q_test)
+		pr_warn("Test '%s' failed: flags = %u, osz = 0, expected %d, got %d\n",
+			name, flags, q_test, q_real);
+}
+
 static __init void test_string_escape(const char *name,
 				      const struct test_string_2 *s2,
 				      unsigned int flags, const char *esc)
 {
-	int q_real = 512;
-	char *out_test = kmalloc(q_real, GFP_KERNEL);
-	char *out_real = kmalloc(q_real, GFP_KERNEL);
+	size_t out_size = 512;
+	char *out_test = kmalloc(out_size, GFP_KERNEL);
+	char *out_real = kmalloc(out_size, GFP_KERNEL);
 	char *in = kmalloc(256, GFP_KERNEL);
-	char *buf = out_real;
 	int p = 0, q_test = 0;
+	int q_real;
 
 	if (!out_test || !out_real || !in)
 		goto out;
@@ -301,27 +313,17 @@ static __init void test_string_escape(const char *name,
 		q_test += len;
 	}
 
-	q_real = string_escape_mem(in, p, &buf, q_real, flags, esc);
+	q_real = string_escape_mem(in, p, out_real, out_size, flags, esc);
 
 	test_string_check_buf(name, flags, in, p, out_real, q_real, out_test,
 			      q_test);
+
+	test_string_escape_overflow(in, p, flags, esc, q_test, name);
+
 out:
 	kfree(in);
 	kfree(out_real);
 	kfree(out_test);
-}
-
-static __init void test_string_escape_nomem(void)
-{
-	char *in = "\eb \\C\007\"\x90\r]";
-	char out[64], *buf = out;
-	int rc = -ENOMEM, ret;
-
-	ret = string_escape_str_any_np(in, &buf, strlen(in), NULL);
-	if (ret == rc)
-		return;
-
-	pr_err("Test 'escape nomem' failed: got %d instead of %d\n", ret, rc);
 }
 
 static int __init test_string_helpers_init(void)
@@ -341,8 +343,6 @@ static int __init test_string_helpers_init(void)
 	/* With dictionary */
 	for (i = 0; i < (ESCAPE_ANY_NP | ESCAPE_HEX) + 1; i++)
 		test_string_escape("escape 1", escape1, i, TEST_STRING_2_DICT_1);
-
-	test_string_escape_nomem();
 
 	return -EINVAL;
 }

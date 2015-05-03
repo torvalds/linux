@@ -181,10 +181,9 @@ extern __visible void smp_call_function_single_interrupt(struct pt_regs *);
 extern __visible void smp_invalidate_interrupt(struct pt_regs *);
 #endif
 
-extern void (*__initconst interrupt[FIRST_SYSTEM_VECTOR
-				    - FIRST_EXTERNAL_VECTOR])(void);
+extern char irq_entries_start[];
 #ifdef CONFIG_TRACING
-#define trace_interrupt interrupt
+#define trace_irq_entries_start irq_entries_start
 #endif
 
 #define VECTOR_UNDEFINED	(-1)

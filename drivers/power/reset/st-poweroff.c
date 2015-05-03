@@ -97,7 +97,7 @@ static struct notifier_block st_restart_nb = {
 	.priority = 192,
 };
 
-static struct of_device_id st_reset_of_match[] = {
+static const struct of_device_id st_reset_of_match[] = {
 	{
 		.compatible = "st,stih415-restart",
 		.data = (void *)&stih415_reset,

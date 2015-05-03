@@ -52,7 +52,7 @@ static void __init of_ti_clockdomain_setup(struct device_node *node)
 	}
 }
 
-static struct of_device_id ti_clkdm_match_table[] __initdata = {
+static const struct of_device_id ti_clkdm_match_table[] __initconst = {
 	{ .compatible = "ti,clockdomain" },
 	{ }
 };

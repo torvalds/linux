@@ -125,6 +125,7 @@ static int ipmi_powernv_recv(struct ipmi_smi_powernv *smi)
 	spin_lock_irqsave(&smi->msg_lock, flags);
 
 	if (!smi->cur_msg) {
+		spin_unlock_irqrestore(&smi->msg_lock, flags);
 		pr_warn("no current message?\n");
 		return 0;
 	}

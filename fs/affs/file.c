@@ -12,7 +12,7 @@
  *  affs regular file handling primitives
  */
 
-#include <linux/aio.h>
+#include <linux/uio.h>
 #include "affs.h"
 
 static struct buffer_head *affs_get_extblock_slow(struct inode *inode, u32 ext);
@@ -389,8 +389,7 @@ static void affs_write_failed(struct address_space *mapping, loff_t to)
 }
 
 static ssize_t
-affs_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter,
-	       loff_t offset)
+affs_direct_IO(struct kiocb *iocb, struct iov_iter *iter, loff_t offset)
 {
 	struct file *file = iocb->ki_filp;
 	struct address_space *mapping = file->f_mapping;
@@ -398,15 +397,15 @@ affs_direct_IO(int rw, struct kiocb *iocb, struct iov_iter *iter,
 	size_t count = iov_iter_count(iter);
 	ssize_t ret;
 
-	if (rw == WRITE) {
+	if (iov_iter_rw(iter) == WRITE) {
 		loff_t size = offset + count;
 
 		if (AFFS_I(inode)->mmu_private < size)
 			return 0;
 	}
 
-	ret = blockdev_direct_IO(rw, iocb, inode, iter, offset, affs_get_block);
-	if (ret < 0 && (rw & WRITE))
+	ret = blockdev_direct_IO(iocb, inode, iter, offset, affs_get_block);
+	if (ret < 0 && iov_iter_rw(iter) == WRITE)
 		affs_write_failed(mapping, offset + count);
 	return ret;
 }
@@ -915,7 +914,7 @@ affs_truncate(struct inode *inode)
 	if (inode->i_size) {
 		AFFS_I(inode)->i_blkcnt = last_blk + 1;
 		AFFS_I(inode)->i_extcnt = ext + 1;
-		if (AFFS_SB(sb)->s_flags & SF_OFS) {
+		if (affs_test_opt(AFFS_SB(sb)->s_flags, SF_OFS)) {
 			struct buffer_head *bh = affs_bread_ino(inode, last_blk, 0);
 			u32 tmp;
 			if (IS_ERR(bh)) {
@@ -969,9 +968,7 @@ int affs_file_fsync(struct file *filp, loff_t start, loff_t end, int datasync)
 }
 const struct file_operations affs_file_operations = {
 	.llseek		= generic_file_llseek,
-	.read		= new_sync_read,
 	.read_iter	= generic_file_read_iter,
-	.write		= new_sync_write,
 	.write_iter	= generic_file_write_iter,
 	.mmap		= generic_file_mmap,
 	.open		= affs_file_open,

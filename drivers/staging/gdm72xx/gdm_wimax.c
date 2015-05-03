@@ -129,11 +129,11 @@ static void __gdm_wimax_event_send(struct work_struct *work)
 	int idx;
 	unsigned long flags;
 	struct evt_entry *e;
+	struct evt_entry *tmp;
 
 	spin_lock_irqsave(&wm_event.evt_lock, flags);
 
-	while (!list_empty(&wm_event.evtq)) {
-		e = list_entry(wm_event.evtq.next, struct evt_entry, list);
+	list_for_each_entry_safe(e, tmp, &wm_event.evtq, list) {
 		spin_unlock_irqrestore(&wm_event.evt_lock, flags);
 
 		if (sscanf(e->dev->name, "wm%d", &idx) == 1)
@@ -749,7 +749,7 @@ int register_wimax_device(struct phy_dev *phy_dev, struct device *pdev)
 	dev = alloc_netdev(sizeof(*nic), "wm%d", NET_NAME_UNKNOWN,
 			   ether_setup);
 
-	if (dev == NULL) {
+	if (!dev) {
 		pr_err("alloc_etherdev failed\n");
 		return -ENOMEM;
 	}

@@ -50,7 +50,7 @@ static int iser_prepare_read_cmd(struct iscsi_task *task)
 {
 	struct iscsi_iser_task *iser_task = task->dd_data;
 	struct iser_device  *device = iser_task->iser_conn->ib_conn.device;
-	struct iser_regd_buf *regd_buf;
+	struct iser_mem_reg *mem_reg;
 	int err;
 	struct iser_hdr *hdr = &iser_task->desc.iser_header;
 	struct iser_data_buf *buf_in = &iser_task->data[ISER_DIR_IN];
@@ -78,15 +78,15 @@ static int iser_prepare_read_cmd(struct iscsi_task *task)
 		iser_err("Failed to set up Data-IN RDMA\n");
 		return err;
 	}
-	regd_buf = &iser_task->rdma_regd[ISER_DIR_IN];
+	mem_reg = &iser_task->rdma_reg[ISER_DIR_IN];
 
 	hdr->flags    |= ISER_RSV;
-	hdr->read_stag = cpu_to_be32(regd_buf->reg.rkey);
-	hdr->read_va   = cpu_to_be64(regd_buf->reg.va);
+	hdr->read_stag = cpu_to_be32(mem_reg->rkey);
+	hdr->read_va   = cpu_to_be64(mem_reg->sge.addr);
 
 	iser_dbg("Cmd itt:%d READ tags RKEY:%#.4X VA:%#llX\n",
-		 task->itt, regd_buf->reg.rkey,
-		 (unsigned long long)regd_buf->reg.va);
+		 task->itt, mem_reg->rkey,
+		 (unsigned long long)mem_reg->sge.addr);
 
 	return 0;
 }
@@ -104,7 +104,7 @@ iser_prepare_write_cmd(struct iscsi_task *task,
 {
 	struct iscsi_iser_task *iser_task = task->dd_data;
 	struct iser_device  *device = iser_task->iser_conn->ib_conn.device;
-	struct iser_regd_buf *regd_buf;
+	struct iser_mem_reg *mem_reg;
 	int err;
 	struct iser_hdr *hdr = &iser_task->desc.iser_header;
 	struct iser_data_buf *buf_out = &iser_task->data[ISER_DIR_OUT];
@@ -134,25 +134,25 @@ iser_prepare_write_cmd(struct iscsi_task *task,
 		return err;
 	}
 
-	regd_buf = &iser_task->rdma_regd[ISER_DIR_OUT];
+	mem_reg = &iser_task->rdma_reg[ISER_DIR_OUT];
 
 	if (unsol_sz < edtl) {
 		hdr->flags     |= ISER_WSV;
-		hdr->write_stag = cpu_to_be32(regd_buf->reg.rkey);
-		hdr->write_va   = cpu_to_be64(regd_buf->reg.va + unsol_sz);
+		hdr->write_stag = cpu_to_be32(mem_reg->rkey);
+		hdr->write_va   = cpu_to_be64(mem_reg->sge.addr + unsol_sz);
 
 		iser_dbg("Cmd itt:%d, WRITE tags, RKEY:%#.4X "
 			 "VA:%#llX + unsol:%d\n",
-			 task->itt, regd_buf->reg.rkey,
-			 (unsigned long long)regd_buf->reg.va, unsol_sz);
+			 task->itt, mem_reg->rkey,
+			 (unsigned long long)mem_reg->sge.addr, unsol_sz);
 	}
 
 	if (imm_sz > 0) {
 		iser_dbg("Cmd itt:%d, WRITE, adding imm.data sz: %d\n",
 			 task->itt, imm_sz);
-		tx_dsg->addr   = regd_buf->reg.va;
+		tx_dsg->addr = mem_reg->sge.addr;
 		tx_dsg->length = imm_sz;
-		tx_dsg->lkey   = regd_buf->reg.lkey;
+		tx_dsg->lkey = mem_reg->sge.lkey;
 		iser_task->desc.num_sge = 2;
 	}
 
@@ -401,16 +401,16 @@ int iser_send_command(struct iscsi_conn *conn,
 	}
 
 	if (scsi_sg_count(sc)) { /* using a scatter list */
-		data_buf->buf  = scsi_sglist(sc);
+		data_buf->sg = scsi_sglist(sc);
 		data_buf->size = scsi_sg_count(sc);
 	}
 	data_buf->data_len = scsi_bufflen(sc);
 
 	if (scsi_prot_sg_count(sc)) {
-		prot_buf->buf  = scsi_prot_sglist(sc);
+		prot_buf->sg  = scsi_prot_sglist(sc);
 		prot_buf->size = scsi_prot_sg_count(sc);
-		prot_buf->data_len = data_buf->data_len >>
-				     ilog2(sc->device->sector_size) * 8;
+		prot_buf->data_len = (data_buf->data_len >>
+				     ilog2(sc->device->sector_size)) * 8;
 	}
 
 	if (hdr->flags & ISCSI_FLAG_CMD_READ) {
@@ -450,7 +450,7 @@ int iser_send_data_out(struct iscsi_conn *conn,
 	struct iser_conn *iser_conn = conn->dd_data;
 	struct iscsi_iser_task *iser_task = task->dd_data;
 	struct iser_tx_desc *tx_desc = NULL;
-	struct iser_regd_buf *regd_buf;
+	struct iser_mem_reg *mem_reg;
 	unsigned long buf_offset;
 	unsigned long data_seg_len;
 	uint32_t itt;
@@ -477,11 +477,11 @@ int iser_send_data_out(struct iscsi_conn *conn,
 	/* build the tx desc */
 	iser_initialize_task_headers(task, tx_desc);
 
-	regd_buf = &iser_task->rdma_regd[ISER_DIR_OUT];
+	mem_reg = &iser_task->rdma_reg[ISER_DIR_OUT];
 	tx_dsg = &tx_desc->tx_sg[1];
-	tx_dsg->addr    = regd_buf->reg.va + buf_offset;
-	tx_dsg->length  = data_seg_len;
-	tx_dsg->lkey    = regd_buf->reg.lkey;
+	tx_dsg->addr = mem_reg->sge.addr + buf_offset;
+	tx_dsg->length = data_seg_len;
+	tx_dsg->lkey = mem_reg->sge.lkey;
 	tx_desc->num_sge = 2;
 
 	if (buf_offset + data_seg_len > iser_task->data[ISER_DIR_OUT].data_len) {
@@ -658,10 +658,10 @@ void iser_task_rdma_init(struct iscsi_iser_task *iser_task)
 	iser_task->prot[ISER_DIR_IN].data_len  = 0;
 	iser_task->prot[ISER_DIR_OUT].data_len = 0;
 
-	memset(&iser_task->rdma_regd[ISER_DIR_IN], 0,
-	       sizeof(struct iser_regd_buf));
-	memset(&iser_task->rdma_regd[ISER_DIR_OUT], 0,
-	       sizeof(struct iser_regd_buf));
+	memset(&iser_task->rdma_reg[ISER_DIR_IN], 0,
+	       sizeof(struct iser_mem_reg));
+	memset(&iser_task->rdma_reg[ISER_DIR_OUT], 0,
+	       sizeof(struct iser_mem_reg));
 }
 
 void iser_task_rdma_finalize(struct iscsi_iser_task *iser_task)
@@ -674,35 +674,31 @@ void iser_task_rdma_finalize(struct iscsi_iser_task *iser_task)
 	/* if we were reading, copy back to unaligned sglist,
 	 * anyway dma_unmap and free the copy
 	 */
-	if (iser_task->data_copy[ISER_DIR_IN].copy_buf != NULL) {
+	if (iser_task->data[ISER_DIR_IN].orig_sg) {
 		is_rdma_data_aligned = 0;
 		iser_finalize_rdma_unaligned_sg(iser_task,
 						&iser_task->data[ISER_DIR_IN],
-						&iser_task->data_copy[ISER_DIR_IN],
 						ISER_DIR_IN);
 	}
 
-	if (iser_task->data_copy[ISER_DIR_OUT].copy_buf != NULL) {
+	if (iser_task->data[ISER_DIR_OUT].orig_sg) {
 		is_rdma_data_aligned = 0;
 		iser_finalize_rdma_unaligned_sg(iser_task,
 						&iser_task->data[ISER_DIR_OUT],
-						&iser_task->data_copy[ISER_DIR_OUT],
 						ISER_DIR_OUT);
 	}
 
-	if (iser_task->prot_copy[ISER_DIR_IN].copy_buf != NULL) {
+	if (iser_task->prot[ISER_DIR_IN].orig_sg) {
 		is_rdma_prot_aligned = 0;
 		iser_finalize_rdma_unaligned_sg(iser_task,
 						&iser_task->prot[ISER_DIR_IN],
-						&iser_task->prot_copy[ISER_DIR_IN],
 						ISER_DIR_IN);
 	}
 
-	if (iser_task->prot_copy[ISER_DIR_OUT].copy_buf != NULL) {
+	if (iser_task->prot[ISER_DIR_OUT].orig_sg) {
 		is_rdma_prot_aligned = 0;
 		iser_finalize_rdma_unaligned_sg(iser_task,
 						&iser_task->prot[ISER_DIR_OUT],
-						&iser_task->prot_copy[ISER_DIR_OUT],
 						ISER_DIR_OUT);
 	}
 

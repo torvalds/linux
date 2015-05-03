@@ -159,6 +159,25 @@ struct ath10k_fw_stats_peer {
 	u32 peer_rx_rate; /* 10x only */
 };
 
+struct ath10k_fw_stats_vdev {
+	struct list_head list;
+
+	u32 vdev_id;
+	u32 beacon_snr;
+	u32 data_snr;
+	u32 num_tx_frames[4];
+	u32 num_rx_frames;
+	u32 num_tx_frames_retries[4];
+	u32 num_tx_frames_failures[4];
+	u32 num_rts_fail;
+	u32 num_rts_success;
+	u32 num_rx_err;
+	u32 num_rx_discard;
+	u32 num_tx_not_acked;
+	u32 tx_rate_history[10];
+	u32 beacon_rssi_history[10];
+};
+
 struct ath10k_fw_stats_pdev {
 	struct list_head list;
 
@@ -220,6 +239,7 @@ struct ath10k_fw_stats_pdev {
 
 struct ath10k_fw_stats {
 	struct list_head pdevs;
+	struct list_head vdevs;
 	struct list_head peers;
 };
 
@@ -288,6 +308,7 @@ struct ath10k_vif {
 	bool is_started;
 	bool is_up;
 	bool spectral_enabled;
+	bool ps;
 	u32 aid;
 	u8 bssid[ETH_ALEN];
 
@@ -412,6 +433,12 @@ enum ath10k_fw_features {
 	 * code.
 	 */
 	ATH10K_FW_FEATURE_WMI_10_2 = 4,
+
+	/* Some firmware revisions lack proper multi-interface client powersave
+	 * implementation. Enabling PS could result in connection drops,
+	 * traffic stalls, etc.
+	 */
+	ATH10K_FW_FEATURE_MULTI_VIF_PS_SUPPORT = 5,
 
 	/* keep last */
 	ATH10K_FW_FEATURE_COUNT,

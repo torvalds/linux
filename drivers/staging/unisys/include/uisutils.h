@@ -65,17 +65,7 @@ struct req_handler_info {
 	struct list_head list_link;	/* links into ReqHandlerInfo_list */
 };
 
-struct req_handler_info *req_handler_add(uuid_le switch_uuid,
-				const char *switch_type_name,
-				int (*controlfunc)(struct io_msgs *),
-				unsigned long min_channel_bytes,
-				int (*svr_channel_ok)(unsigned long
-							 channel_bytes),
-				int (*svr_channel_init)(void *x,
-						unsigned char *client_str,
-						u32 client_str_len, u64 bytes));
 struct req_handler_info *req_handler_find(uuid_le switch_uuid);
-int req_handler_del(uuid_le switch_uuid);
 
 #define uislib_ioremap_cache(addr, size) \
 	dbg_ioremap_cache(addr, size, __FILE__, __LINE__)
@@ -115,19 +105,7 @@ int uisutil_add_proc_line_ex(int *total, char **buffer, int *buffer_remaining,
 
 int uisctrl_register_req_handler(int type, void *fptr,
 			struct ultra_vbus_deviceinfo *chipset_driver_info);
-int uisctrl_register_req_handler_ex(uuid_le switch_guid,
-			const char *switch_type_name,
-			int (*fptr)(struct io_msgs *),
-			unsigned long min_channel_bytes,
-			int (*svr_channel_ok)(unsigned long
-					      channel_bytes),
-			int (*svr_channel_init)(void *x,
-						unsigned char *client_str,
-						u32 client_str_len,
-						u64 bytes),
-			struct ultra_vbus_deviceinfo *chipset_driver_info);
 
-int uisctrl_unregister_req_handler_ex(uuid_le switch_uuid);
 unsigned char *util_map_virt(struct phys_info *sg);
 void util_unmap_virt(struct phys_info *sg);
 unsigned char *util_map_virt_atomic(struct phys_info *sg);
@@ -206,20 +184,9 @@ wait_for_valid_guid(uuid_le __iomem *guid)
 			      (void __iomem *)guid, sizeof(uuid_le));
 		if (uuid_le_cmp(tmpguid, NULL_UUID_LE) != 0)
 			break;
-		LOGERR("Waiting for non-0 GUID (why???)...\n");
 		UIS_THREAD_WAIT_SEC(5);
 	}
-	LOGERR("OK... GUID is non-0 now\n");
 }
-
-/* CopyFragsInfoFromSkb returns the number of entries added to frags array
- * Returns -1 on failure.
- */
-unsigned int uisutil_copy_fragsinfo_from_skb(unsigned char *calling_ctx,
-					     void *skb_in,
-					     unsigned int firstfraglen,
-					     unsigned int frags_max,
-					     struct phys_info frags[]);
 
 static inline unsigned int
 issue_vmcall_io_controlvm_addr(u64 *control_addr, u32 *control_bytes)

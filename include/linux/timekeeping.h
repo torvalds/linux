@@ -214,12 +214,18 @@ static inline u64 ktime_get_boot_ns(void)
 	return ktime_to_ns(ktime_get_boottime());
 }
 
+static inline u64 ktime_get_tai_ns(void)
+{
+	return ktime_to_ns(ktime_get_clocktai());
+}
+
 static inline u64 ktime_get_raw_ns(void)
 {
 	return ktime_to_ns(ktime_get_raw());
 }
 
 extern u64 ktime_get_mono_fast_ns(void);
+extern u64 ktime_get_raw_fast_ns(void);
 
 /*
  * Timespec interfaces utilizing the ktime based ones
@@ -242,6 +248,9 @@ static inline void timekeeping_clocktai(struct timespec *ts)
 /*
  * RTC specific
  */
+extern bool timekeeping_rtc_skipsuspend(void);
+extern bool timekeeping_rtc_skipresume(void);
+
 extern void timekeeping_inject_sleeptime64(struct timespec64 *delta);
 
 /*
@@ -253,17 +262,14 @@ extern void getnstime_raw_and_real(struct timespec *ts_raw,
 /*
  * Persistent clock related interfaces
  */
-extern bool persistent_clock_exist;
 extern int persistent_clock_is_local;
 
-static inline bool has_persistent_clock(void)
-{
-	return persistent_clock_exist;
-}
-
 extern void read_persistent_clock(struct timespec *ts);
+extern void read_persistent_clock64(struct timespec64 *ts);
 extern void read_boot_clock(struct timespec *ts);
+extern void read_boot_clock64(struct timespec64 *ts);
 extern int update_persistent_clock(struct timespec now);
+extern int update_persistent_clock64(struct timespec64 now);
 
 
 #endif

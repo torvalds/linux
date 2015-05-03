@@ -35,6 +35,7 @@
 #include <linux/syscalls.h>
 #include <linux/uaccess.h>
 #include <linux/kdebug.h>
+#include <linux/context_tracking.h>
 
 #include <asm/pgalloc.h>
 #include <asm/sections.h>
@@ -702,6 +703,7 @@ void do_page_fault(struct pt_regs *regs, int fault_num,
 		   unsigned long address, unsigned long write)
 {
 	int is_page_fault;
+	enum ctx_state prev_state = exception_enter();
 
 #ifdef CONFIG_KPROBES
 	/*
@@ -711,7 +713,7 @@ void do_page_fault(struct pt_regs *regs, int fault_num,
 	 */
 	if (notify_die(DIE_PAGE_FAULT, "page fault", regs, -1,
 		       regs->faultnum, SIGSEGV) == NOTIFY_STOP)
-		return;
+		goto done;
 #endif
 
 #ifdef __tilegx__
@@ -750,7 +752,6 @@ void do_page_fault(struct pt_regs *regs, int fault_num,
 				 current->comm, current->pid, pc, address);
 			show_regs(regs);
 			do_group_exit(SIGKILL);
-			return;
 		}
 	}
 #else
@@ -834,12 +835,15 @@ void do_page_fault(struct pt_regs *regs, int fault_num,
 			async->is_fault = is_page_fault;
 			async->is_write = write;
 			async->address = address;
-			return;
+			goto done;
 		}
 	}
 #endif
 
 	handle_page_fault(regs, fault_num, is_page_fault, address, write);
+
+done:
+	exception_exit(prev_state);
 }
 
 

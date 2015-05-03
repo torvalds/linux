@@ -14,45 +14,63 @@
 	compatible = "ti,omap2420", "ti,omap2";
 
 	ocp {
-		prcm: prcm@48008000 {
-			compatible = "ti,omap2-prcm";
-			reg = <0x48008000 0x1000>;
-
-			prcm_clocks: clocks {
-				#address-cells = <1>;
-				#size-cells = <0>;
-			};
-
-			prcm_clockdomains: clockdomains {
-			};
-		};
-
-		scrm: scrm@48000000 {
-			compatible = "ti,omap2-scrm";
-			reg = <0x48000000 0x1000>;
-
-			scrm_clocks: clocks {
-				#address-cells = <1>;
-				#size-cells = <0>;
-			};
-
-			scrm_clockdomains: clockdomains {
-			};
-		};
-
-		counter32k: counter@48004000 {
-			compatible = "ti,omap-counter32k";
-			reg = <0x48004000 0x20>;
-			ti,hwmods = "counter_32k";
-		};
-
-		omap2420_pmx: pinmux@48000030 {
-			compatible = "ti,omap2420-padconf", "pinctrl-single";
-			reg = <0x48000030 0x0113>;
+		l4: l4@48000000 {
+			compatible = "ti,omap2-l4", "simple-bus";
 			#address-cells = <1>;
-			#size-cells = <0>;
-			pinctrl-single,register-width = <8>;
-			pinctrl-single,function-mask = <0x3f>;
+			#size-cells = <1>;
+			ranges = <0 0x48000000 0x100000>;
+
+			prcm: prcm@8000 {
+				compatible = "ti,omap2-prcm";
+				reg = <0x8000 0x1000>;
+
+				prcm_clocks: clocks {
+					#address-cells = <1>;
+					#size-cells = <0>;
+				};
+
+				prcm_clockdomains: clockdomains {
+				};
+			};
+
+			scm: scm@0 {
+				compatible = "ti,omap2-scm", "simple-bus";
+				reg = <0x0 0x1000>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x0 0x1000>;
+
+				omap2420_pmx: pinmux@30 {
+					compatible = "ti,omap2420-padconf",
+						     "pinctrl-single";
+					reg = <0x30 0x0113>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+					pinctrl-single,register-width = <8>;
+					pinctrl-single,function-mask = <0x3f>;
+				};
+
+				scm_conf: scm_conf@270 {
+					compatible = "syscon";
+					reg = <0x270 0x100>;
+					#address-cells = <1>;
+					#size-cells = <1>;
+
+					scm_clocks: clocks {
+						#address-cells = <1>;
+						#size-cells = <0>;
+					};
+				};
+
+				scm_clockdomains: clockdomains {
+				};
+			};
+
+			counter32k: counter@4000 {
+				compatible = "ti,omap-counter32k";
+				reg = <0x4000 0x20>;
+				ti,hwmods = "counter_32k";
+			};
 		};
 
 		gpio1: gpio@48018000 {

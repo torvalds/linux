@@ -24,6 +24,7 @@ enum arizona_type {
 	WM5102 = 1,
 	WM5110 = 2,
 	WM8997 = 3,
+	WM8280 = 4,
 };
 
 #define ARIZONA_IRQ_GP1                    0
@@ -126,7 +127,7 @@ struct arizona {
 	struct regmap_irq_chip_data *aod_irq_chip;
 	struct regmap_irq_chip_data *irq_chip;
 
-	bool hpdet_magic;
+	bool hpdet_clamp;
 	unsigned int hp_ena;
 
 	struct mutex clk_lock;

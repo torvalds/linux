@@ -63,7 +63,7 @@ static void mei_txe_pci_iounmap(struct pci_dev *pdev, struct mei_txe_hw *hw)
 	}
 }
 /**
- * mei_probe - Device Initialization Routine
+ * mei_txe_probe - Device Initialization Routine
  *
  * @pdev: PCI device structure
  * @ent: entry in mei_txe_pci_tbl
@@ -193,7 +193,7 @@ end:
 }
 
 /**
- * mei_remove - Device Removal Routine
+ * mei_txe_remove - Device Removal Routine
  *
  * @pdev: PCI device structure
  *

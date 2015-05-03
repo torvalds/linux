@@ -24,7 +24,7 @@
 int
 befs_load_sb(struct super_block *sb, befs_super_block * disk_sb)
 {
-	befs_sb_info *befs_sb = BEFS_SB(sb);
+	struct befs_sb_info *befs_sb = BEFS_SB(sb);
 
 	/* Check the byte order of the filesystem */
 	if (disk_sb->fs_byte_order == BEFS_BYTEORDER_NATIVE_LE)
@@ -59,7 +59,7 @@ befs_load_sb(struct super_block *sb, befs_super_block * disk_sb)
 int
 befs_check_sb(struct super_block *sb)
 {
-	befs_sb_info *befs_sb = BEFS_SB(sb);
+	struct befs_sb_info *befs_sb = BEFS_SB(sb);
 
 	/* Check magic headers of super block */
 	if ((befs_sb->magic1 != BEFS_SUPER_MAGIC1)

@@ -58,9 +58,9 @@ static void RxPktPendingTimeout(unsigned long data)
 					pRxTs->RxIndicateSeq =
 					      (pRxTs->RxIndicateSeq + 1) % 4096;
 
-				RTLLIB_DEBUG(RTLLIB_DL_REORDER, "%s(): Indicate"
-					     " SeqNum: %d\n", __func__,
-					     pReorderEntry->SeqNum);
+				RTLLIB_DEBUG(RTLLIB_DL_REORDER,
+					     "%s(): Indicate SeqNum: %d\n",
+					     __func__, pReorderEntry->SeqNum);
 				ieee->stats_IndicateArray[index] =
 							 pReorderEntry->prxb;
 				index++;
@@ -78,8 +78,8 @@ static void RxPktPendingTimeout(unsigned long data)
 		pRxTs->RxTimeoutIndicateSeq = 0xffff;
 
 		if (index > REORDER_WIN_SIZE) {
-			RTLLIB_DEBUG(RTLLIB_DL_ERR, "RxReorderIndicatePacket():"
-				     " Rx Reorder struct buffer full!!\n");
+			RTLLIB_DEBUG(RTLLIB_DL_ERR,
+				     "RxReorderIndicatePacket(): Rx Reorder struct buffer full!!\n");
 			spin_unlock_irqrestore(&(ieee->reorder_spinlock),
 					       flags);
 			return;
@@ -91,7 +91,7 @@ static void RxPktPendingTimeout(unsigned long data)
 	if (bPktInBuf && (pRxTs->RxTimeoutIndicateSeq == 0xffff)) {
 		pRxTs->RxTimeoutIndicateSeq = pRxTs->RxIndicateSeq;
 		mod_timer(&pRxTs->RxPktPendingTimer,  jiffies +
-			  MSECS(ieee->pHTInfo->RxReorderPendingTime));
+			  msecs_to_jiffies(ieee->pHTInfo->RxReorderPendingTime));
 	}
 	spin_unlock_irqrestore(&(ieee->reorder_spinlock), flags);
 }
@@ -104,8 +104,8 @@ static void TsAddBaProcess(unsigned long data)
 				     TxTsRecord[num]);
 
 	TsInitAddBA(ieee, pTxTs, BA_POLICY_IMMEDIATE, false);
-	RTLLIB_DEBUG(RTLLIB_DL_BA, "TsAddBaProcess(): ADDBA Req is "
-		     "started!!\n");
+	RTLLIB_DEBUG(RTLLIB_DL_BA,
+		     "TsAddBaProcess(): ADDBA Req is started!!\n");
 }
 
 static void ResetTsCommonInfo(struct ts_common_info *pTsCommonInfo)
@@ -223,7 +223,7 @@ static void AdmitTS(struct rtllib_device *ieee,
 
 	if (InactTime != 0)
 		mod_timer(&pTsCommonInfo->InactTimer, jiffies +
-			  MSECS(InactTime));
+			  msecs_to_jiffies(InactTime));
 }
 
 static struct ts_common_info *SearchAdmitTRStream(struct rtllib_device *ieee,
@@ -311,18 +311,24 @@ bool GetTs(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 	   u8 *Addr, u8 TID, enum tr_select TxRxSelect, bool bAddNewTs)
 {
 	u8	UP = 0;
+	union tspec_body TSpec;
+	union qos_tsinfo *pTSInfo = &TSpec.f.TSInfo;
+	struct list_head *pUnusedList;
+	struct list_head *pAddmitList;
+	enum direction_value Dir;
 
 	if (is_multicast_ether_addr(Addr)) {
-		RTLLIB_DEBUG(RTLLIB_DL_ERR, "ERR! get TS for Broadcast or "
-			     "Multicast\n");
+		RTLLIB_DEBUG(RTLLIB_DL_ERR,
+			     "ERR! get TS for Broadcast or Multicast\n");
 		return false;
 	}
 	if (ieee->current_network.qos_data.supported == 0) {
 		UP = 0;
 	} else {
 		if (!IsACValid(TID)) {
-			RTLLIB_DEBUG(RTLLIB_DL_ERR, "ERR! in %s(), TID(%d) is "
-				     "not valid\n", __func__, TID);
+			RTLLIB_DEBUG(RTLLIB_DL_ERR,
+				     "ERR! in %s(), TID(%d) is not valid\n",
+				     __func__, TID);
 			return false;
 		}
 
@@ -347,77 +353,70 @@ bool GetTs(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 	}
 
 	*ppTS = SearchAdmitTRStream(ieee, Addr, UP, TxRxSelect);
-	if (*ppTS != NULL) {
+	if (*ppTS != NULL)
 		return true;
-	} else {
-		if (!bAddNewTs) {
-			RTLLIB_DEBUG(RTLLIB_DL_TS, "add new TS failed"
-				     "(tid:%d)\n", UP);
-			return false;
-		} else {
-			union tspec_body TSpec;
-			union qos_tsinfo *pTSInfo = &TSpec.f.TSInfo;
-			struct list_head *pUnusedList =
-				(TxRxSelect == TX_DIR) ?
+
+	if (!bAddNewTs) {
+		RTLLIB_DEBUG(RTLLIB_DL_TS,
+			     "add new TS failed(tid:%d)\n", UP);
+		return false;
+	}
+
+	pUnusedList = (TxRxSelect == TX_DIR) ?
 				(&ieee->Tx_TS_Unused_List) :
 				(&ieee->Rx_TS_Unused_List);
 
-			struct list_head *pAddmitList =
-				(TxRxSelect == TX_DIR) ?
+	pAddmitList = (TxRxSelect == TX_DIR) ?
 				(&ieee->Tx_TS_Admit_List) :
 				(&ieee->Rx_TS_Admit_List);
 
-			enum direction_value Dir =
-				 (ieee->iw_mode == IW_MODE_MASTER) ?
-				 ((TxRxSelect == TX_DIR) ? DIR_DOWN : DIR_UP) :
-				 ((TxRxSelect == TX_DIR) ? DIR_UP : DIR_DOWN);
-			RTLLIB_DEBUG(RTLLIB_DL_TS, "to add Ts\n");
-			if (!list_empty(pUnusedList)) {
-				(*ppTS) = list_entry(pUnusedList->next,
-					  struct ts_common_info, List);
-				list_del_init(&(*ppTS)->List);
-				if (TxRxSelect == TX_DIR) {
-					struct tx_ts_record *tmp =
-						container_of(*ppTS,
-						struct tx_ts_record,
-						TsCommonInfo);
-					ResetTxTsEntry(tmp);
-				} else {
-					struct rx_ts_record *tmp =
-						 container_of(*ppTS,
-						 struct rx_ts_record,
-						 TsCommonInfo);
-					ResetRxTsEntry(tmp);
-				}
+	Dir = (ieee->iw_mode == IW_MODE_MASTER) ?
+				((TxRxSelect == TX_DIR) ? DIR_DOWN : DIR_UP) :
+				((TxRxSelect == TX_DIR) ? DIR_UP : DIR_DOWN);
 
-				RTLLIB_DEBUG(RTLLIB_DL_TS, "to init current TS"
-					     ", UP:%d, Dir:%d, addr: %pM"
-					     " ppTs=%p\n", UP, Dir,
-					      Addr, *ppTS);
-				pTSInfo->field.ucTrafficType = 0;
-				pTSInfo->field.ucTSID = UP;
-				pTSInfo->field.ucDirection = Dir;
-				pTSInfo->field.ucAccessPolicy = 1;
-				pTSInfo->field.ucAggregation = 0;
-				pTSInfo->field.ucPSB = 0;
-				pTSInfo->field.ucUP = UP;
-				pTSInfo->field.ucTSInfoAckPolicy = 0;
-				pTSInfo->field.ucSchedule = 0;
-
-				MakeTSEntry(*ppTS, Addr, &TSpec, NULL, 0, 0);
-				AdmitTS(ieee, *ppTS, 0);
-				list_add_tail(&((*ppTS)->List), pAddmitList);
-
-				return true;
-			} else {
-				RTLLIB_DEBUG(RTLLIB_DL_ERR, "ERR!!in function "
-					     "%s() There is not enough dir=%d"
-					     "(0=up down=1) TS record to be "
-					     "used!!", __func__, Dir);
-				return false;
-			}
+	RTLLIB_DEBUG(RTLLIB_DL_TS, "to add Ts\n");
+	if (!list_empty(pUnusedList)) {
+		(*ppTS) = list_entry(pUnusedList->next,
+			  struct ts_common_info, List);
+		list_del_init(&(*ppTS)->List);
+		if (TxRxSelect == TX_DIR) {
+			struct tx_ts_record *tmp =
+				container_of(*ppTS,
+				struct tx_ts_record,
+				TsCommonInfo);
+			ResetTxTsEntry(tmp);
+		} else {
+			struct rx_ts_record *tmp =
+				 container_of(*ppTS,
+				 struct rx_ts_record,
+				 TsCommonInfo);
+			ResetRxTsEntry(tmp);
 		}
+
+		RTLLIB_DEBUG(RTLLIB_DL_TS,
+			     "to init current TS, UP:%d, Dir:%d, addr: %pM ppTs=%p\n",
+			     UP, Dir, Addr, *ppTS);
+		pTSInfo->field.ucTrafficType = 0;
+		pTSInfo->field.ucTSID = UP;
+		pTSInfo->field.ucDirection = Dir;
+		pTSInfo->field.ucAccessPolicy = 1;
+		pTSInfo->field.ucAggregation = 0;
+		pTSInfo->field.ucPSB = 0;
+		pTSInfo->field.ucUP = UP;
+		pTSInfo->field.ucTSInfoAckPolicy = 0;
+		pTSInfo->field.ucSchedule = 0;
+
+		MakeTSEntry(*ppTS, Addr, &TSpec, NULL, 0, 0);
+		AdmitTS(ieee, *ppTS, 0);
+		list_add_tail(&((*ppTS)->List), pAddmitList);
+
+		return true;
 	}
+
+	RTLLIB_DEBUG(RTLLIB_DL_ERR,
+		     "ERR!!in function %s() There is not enough dir=%d(0=up down=1) TS record to be used!!",
+		     __func__, Dir);
+	return false;
 }
 
 static void RemoveTsEntry(struct rtllib_device *ieee, struct ts_common_info *pTs,
@@ -438,8 +437,8 @@ static void RemoveTsEntry(struct rtllib_device *ieee, struct ts_common_info *pTs
 			pRxReorderEntry = (struct rx_reorder_entry *)
 					list_entry(pRxTS->RxPendingPktList.prev,
 					struct rx_reorder_entry, List);
-			RTLLIB_DEBUG(RTLLIB_DL_REORDER, "%s(): Delete SeqNum "
-				     "%d!\n", __func__,
+			RTLLIB_DEBUG(RTLLIB_DL_REORDER,
+				     "%s(): Delete SeqNum %d!\n", __func__,
 				     pRxReorderEntry->SeqNum);
 			list_del_init(&pRxReorderEntry->List);
 			{
@@ -467,7 +466,7 @@ void RemovePeerTS(struct rtllib_device *ieee, u8 *Addr)
 {
 	struct ts_common_info *pTS, *pTmpTS;
 
-	printk(KERN_INFO "===========>RemovePeerTS, %pM\n", Addr);
+	netdev_info(ieee->dev, "===========>RemovePeerTS, %pM\n", Addr);
 
 	list_for_each_entry_safe(pTS, pTmpTS, &ieee->Tx_TS_Pending_List, List) {
 		if (memcmp(pTS->Addr, Addr, 6) == 0) {
@@ -479,7 +478,8 @@ void RemovePeerTS(struct rtllib_device *ieee, u8 *Addr)
 
 	list_for_each_entry_safe(pTS, pTmpTS, &ieee->Tx_TS_Admit_List, List) {
 		if (memcmp(pTS->Addr, Addr, 6) == 0) {
-			printk(KERN_INFO "====>remove Tx_TS_admin_list\n");
+			netdev_info(ieee->dev,
+				    "====>remove Tx_TS_admin_list\n");
 			RemoveTsEntry(ieee, pTS, TX_DIR);
 			list_del_init(&pTS->List);
 			list_add_tail(&pTS->List, &ieee->Tx_TS_Unused_List);
@@ -539,13 +539,13 @@ void TsStartAddBaProcess(struct rtllib_device *ieee, struct tx_ts_record *pTxTS)
 		pTxTS->bAddBaReqInProgress = true;
 
 		if (pTxTS->bAddBaReqDelayed) {
-			RTLLIB_DEBUG(RTLLIB_DL_BA, "TsStartAddBaProcess(): "
-				     "Delayed Start ADDBA after 60 sec!!\n");
+			RTLLIB_DEBUG(RTLLIB_DL_BA,
+				     "TsStartAddBaProcess(): Delayed Start ADDBA after 60 sec!!\n");
 			mod_timer(&pTxTS->TsAddBaTimer, jiffies +
-				  MSECS(TS_ADDBA_DELAY));
+				  msecs_to_jiffies(TS_ADDBA_DELAY));
 		} else {
-			RTLLIB_DEBUG(RTLLIB_DL_BA, "TsStartAddBaProcess(): "
-				     "Immediately Start ADDBA now!!\n");
+			RTLLIB_DEBUG(RTLLIB_DL_BA,
+				     "TsStartAddBaProcess(): Immediately Start ADDBA now!!\n");
 			mod_timer(&pTxTS->TsAddBaTimer, jiffies+10);
 		}
 	} else

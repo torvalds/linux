@@ -83,7 +83,6 @@
 
 struct si3054_spec {
 	unsigned international;
-	struct hda_pcm pcm;
 };
 
 
@@ -199,15 +198,15 @@ static const struct hda_pcm_stream si3054_pcm = {
 
 static int si3054_build_pcms(struct hda_codec *codec)
 {
-	struct si3054_spec *spec = codec->spec;
-	struct hda_pcm *info = &spec->pcm;
-	codec->num_pcms = 1;
-	codec->pcm_info = info;
-	info->name = "Si3054 Modem";
+	struct hda_pcm *info;
+
+	info = snd_hda_codec_pcm_new(codec, "Si3054 Modem");
+	if (!info)
+		return -ENOMEM;
 	info->stream[SNDRV_PCM_STREAM_PLAYBACK] = si3054_pcm;
 	info->stream[SNDRV_PCM_STREAM_CAPTURE]  = si3054_pcm;
-	info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid = codec->mfg;
-	info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = codec->mfg;
+	info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid = codec->core.mfg;
+	info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = codec->core.mfg;
 	info->pcm_type = HDA_PCM_TYPE_MODEM;
 	return 0;
 }
@@ -223,8 +222,12 @@ static int si3054_init(struct hda_codec *codec)
 	unsigned wait_count;
 	u16 val;
 
+	if (snd_hdac_regmap_add_vendor_verb(&codec->core,
+					    SI3054_VERB_WRITE_NODE))
+		return -ENOMEM;
+
 	snd_hda_codec_write(codec, AC_NODE_ROOT, 0, AC_VERB_SET_CODEC_RESET, 0);
-	snd_hda_codec_write(codec, codec->mfg, 0, AC_VERB_SET_STREAM_FORMAT, 0);
+	snd_hda_codec_write(codec, codec->core.mfg, 0, AC_VERB_SET_STREAM_FORMAT, 0);
 	SET_REG(codec, SI3054_LINE_RATE, 9600);
 	SET_REG(codec, SI3054_LINE_LEVEL, SI3054_DTAG_MASK|SI3054_ATAG_MASK);
 	SET_REG(codec, SI3054_EXTENDED_MID, 0);
@@ -319,20 +322,8 @@ MODULE_ALIAS("snd-hda-codec-id:18540018");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Si3054 HD-audio modem codec");
 
-static struct hda_codec_preset_list si3054_list = {
+static struct hda_codec_driver si3054_driver = {
 	.preset = snd_hda_preset_si3054,
-	.owner = THIS_MODULE,
 };
 
-static int __init patch_si3054_init(void)
-{
-	return snd_hda_add_codec_preset(&si3054_list);
-}
-
-static void __exit patch_si3054_exit(void)
-{
-	snd_hda_delete_codec_preset(&si3054_list);
-}
-
-module_init(patch_si3054_init)
-module_exit(patch_si3054_exit)
+module_hda_codec_driver(si3054_driver);

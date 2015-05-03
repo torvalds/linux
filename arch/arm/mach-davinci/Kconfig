@@ -200,17 +200,6 @@ config DA850_UI_SD_VIDEO_PORT
 
 endchoice
 
-config DA850_WL12XX
-	bool "AM18x wl1271 daughter board"
-	depends on MACH_DAVINCI_DA850_EVM
-	help
-	  The wl1271 daughter card for AM18x EVMs is a combo wireless
-	  connectivity add-on card, based on the LS Research TiWi module with
-	  Texas Instruments' wl1271 solution.
-	  Say Y if you want to use a wl1271 expansion card connected to the
-	  AM18x EVM.
-
-
 config MACH_MITYOMAPL138
 	bool "Critical Link MityDSP-L138/MityARM-1808 SoM"
 	depends on ARCH_DAVINCI_DA850

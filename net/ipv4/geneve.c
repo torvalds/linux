@@ -113,10 +113,6 @@ int geneve_xmit_skb(struct geneve_sock *gs, struct rtable *rt,
 	int min_headroom;
 	int err;
 
-	skb = udp_tunnel_handle_offloads(skb, csum);
-	if (IS_ERR(skb))
-		return PTR_ERR(skb);
-
 	min_headroom = LL_RESERVED_SPACE(rt->dst.dev) + rt->dst.header_len
 			+ GENEVE_BASE_HLEN + opt_len + sizeof(struct iphdr)
 			+ (skb_vlan_tag_present(skb) ? VLAN_HLEN : 0);
@@ -131,12 +127,16 @@ int geneve_xmit_skb(struct geneve_sock *gs, struct rtable *rt,
 	if (unlikely(!skb))
 		return -ENOMEM;
 
+	skb = udp_tunnel_handle_offloads(skb, csum);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
 	gnvh = (struct genevehdr *)__skb_push(skb, sizeof(*gnvh) + opt_len);
 	geneve_build_header(gnvh, tun_flags, vni, opt_len, opt);
 
 	skb_set_inner_protocol(skb, htons(ETH_P_TEB));
 
-	return udp_tunnel_xmit_skb(rt, skb, src, dst,
+	return udp_tunnel_xmit_skb(rt, gs->sock->sk, skb, src, dst,
 				   tos, ttl, df, src_port, dst_port, xnet,
 				   !csum);
 }
@@ -196,7 +196,7 @@ static struct sk_buff **geneve_gro_receive(struct sk_buff **head,
 
 	rcu_read_lock();
 	ptype = gro_find_receive_by_type(type);
-	if (ptype == NULL) {
+	if (!ptype) {
 		flush = 1;
 		goto out_unlock;
 	}
@@ -230,7 +230,7 @@ static int geneve_gro_complete(struct sk_buff *skb, int nhoff,
 
 	rcu_read_lock();
 	ptype = gro_find_complete_by_type(type);
-	if (ptype != NULL)
+	if (ptype)
 		err = ptype->callbacks.gro_complete(skb, nhoff + gh_len);
 
 	rcu_read_unlock();

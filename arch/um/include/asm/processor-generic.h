@@ -98,16 +98,8 @@ struct cpuinfo_um {
 
 extern struct cpuinfo_um boot_cpu_data;
 
-#define my_cpu_data		cpu_data[smp_processor_id()]
-
-#ifdef CONFIG_SMP
-extern struct cpuinfo_um cpu_data[];
-#define current_cpu_data cpu_data[smp_processor_id()]
-#else
 #define cpu_data (&boot_cpu_data)
 #define current_cpu_data boot_cpu_data
-#endif
-
 
 #define KSTK_REG(tsk, reg) get_thread_reg(reg, &tsk->thread.switch_buf)
 extern unsigned long get_wchan(struct task_struct *p);

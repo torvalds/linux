@@ -19,8 +19,9 @@
 extern void __iomem *prm_base;
 extern u16 prm_features;
 extern void omap2_set_globals_prm(void __iomem *prm);
-int of_prcm_init(void);
-void omap3_prcm_legacy_iomaps_init(void);
+int omap_prcm_init(void);
+int omap2_prm_base_init(void);
+int omap2_prcm_base_init(void);
 # endif
 
 /*
@@ -28,9 +29,11 @@ void omap3_prcm_legacy_iomaps_init(void);
  *
  * PRM_HAS_IO_WAKEUP: has IO wakeup capability
  * PRM_HAS_VOLTAGE: has voltage domains
+ * PRM_IRQ_DEFAULT: use default irq number for PRM irq
  */
-#define PRM_HAS_IO_WAKEUP	(1 << 0)
-#define PRM_HAS_VOLTAGE		(1 << 1)
+#define PRM_HAS_IO_WAKEUP	BIT(0)
+#define PRM_HAS_VOLTAGE		BIT(1)
+#define PRM_IRQ_DEFAULT		BIT(2)
 
 /*
  * MAX_MODULE_SOFTRESET_WAIT: Maximum microseconds to wait for OMAP
@@ -146,6 +149,9 @@ struct prm_ll_data {
 	int (*is_hardreset_asserted)(u8 shift, u8 part, s16 prm_mod,
 				     u16 offset);
 	void (*reset_system)(void);
+	int (*clear_mod_irqs)(s16 module, u8 regs, u32 wkst_mask);
+	u32 (*vp_check_txdone)(u8 vp_id);
+	void (*vp_clear_txdone)(u8 vp_id);
 };
 
 extern int prm_register(struct prm_ll_data *pld);
@@ -161,6 +167,19 @@ extern void prm_clear_context_loss_flags_old(u8 part, s16 inst, u16 idx);
 void omap_prm_reset_system(void);
 
 void omap_prm_reconfigure_io_chain(void);
+int omap_prm_clear_mod_irqs(s16 module, u8 regs, u32 wkst_mask);
+
+/*
+ * Voltage Processor (VP) identifiers
+ */
+#define OMAP3_VP_VDD_MPU_ID	0
+#define OMAP3_VP_VDD_CORE_ID	1
+#define OMAP4_VP_VDD_CORE_ID	0
+#define OMAP4_VP_VDD_IVA_ID	1
+#define OMAP4_VP_VDD_MPU_ID	2
+
+u32 omap_prm_vp_check_txdone(u8 vp_id);
+void omap_prm_vp_clear_txdone(u8 vp_id);
 
 #endif
 

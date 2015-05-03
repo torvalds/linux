@@ -22,10 +22,8 @@
  */
 
 #include <linux/fs.h>
-#include <linux/jbd2.h>
 #include <linux/buffer_head.h>
 #include <linux/slab.h>
-#include <linux/rbtree.h>
 #include "ext4.h"
 #include "xattr.h"
 
@@ -110,7 +108,10 @@ static int ext4_readdir(struct file *file, struct dir_context *ctx)
 	int err;
 	struct inode *inode = file_inode(file);
 	struct super_block *sb = inode->i_sb;
+	struct buffer_head *bh = NULL;
 	int dir_has_error = 0;
+	struct ext4_fname_crypto_ctx *enc_ctx = NULL;
+	struct ext4_str fname_crypto_str = {.name = NULL, .len = 0};
 
 	if (is_dx_dir(inode)) {
 		err = ext4_dx_readdir(file, ctx);
@@ -127,17 +128,28 @@ static int ext4_readdir(struct file *file, struct dir_context *ctx)
 
 	if (ext4_has_inline_data(inode)) {
 		int has_inline_data = 1;
-		int ret = ext4_read_inline_dir(file, ctx,
+		err = ext4_read_inline_dir(file, ctx,
 					   &has_inline_data);
 		if (has_inline_data)
-			return ret;
+			return err;
+	}
+
+	enc_ctx = ext4_get_fname_crypto_ctx(inode, EXT4_NAME_LEN);
+	if (IS_ERR(enc_ctx))
+		return PTR_ERR(enc_ctx);
+	if (enc_ctx) {
+		err = ext4_fname_crypto_alloc_buffer(enc_ctx, EXT4_NAME_LEN,
+						     &fname_crypto_str);
+		if (err < 0) {
+			ext4_put_fname_crypto_ctx(&enc_ctx);
+			return err;
+		}
 	}
 
 	offset = ctx->pos & (sb->s_blocksize - 1);
 
 	while (ctx->pos < inode->i_size) {
 		struct ext4_map_blocks map;
-		struct buffer_head *bh = NULL;
 
 		map.m_lblk = ctx->pos >> EXT4_BLOCK_SIZE_BITS(sb);
 		map.m_len = 1;
@@ -180,6 +192,7 @@ static int ext4_readdir(struct file *file, struct dir_context *ctx)
 					(unsigned long long)ctx->pos);
 			ctx->pos += sb->s_blocksize - offset;
 			brelse(bh);
+			bh = NULL;
 			continue;
 		}
 		set_buffer_verified(bh);
@@ -226,25 +239,44 @@ static int ext4_readdir(struct file *file, struct dir_context *ctx)
 			offset += ext4_rec_len_from_disk(de->rec_len,
 					sb->s_blocksize);
 			if (le32_to_cpu(de->inode)) {
-				if (!dir_emit(ctx, de->name,
-						de->name_len,
-						le32_to_cpu(de->inode),
-						get_dtype(sb, de->file_type))) {
-					brelse(bh);
-					return 0;
+				if (enc_ctx == NULL) {
+					/* Directory is not encrypted */
+					if (!dir_emit(ctx, de->name,
+					    de->name_len,
+					    le32_to_cpu(de->inode),
+					    get_dtype(sb, de->file_type)))
+						goto done;
+				} else {
+					/* Directory is encrypted */
+					err = ext4_fname_disk_to_usr(enc_ctx,
+							de, &fname_crypto_str);
+					if (err < 0)
+						goto errout;
+					if (!dir_emit(ctx,
+					    fname_crypto_str.name, err,
+					    le32_to_cpu(de->inode),
+					    get_dtype(sb, de->file_type)))
+						goto done;
 				}
 			}
 			ctx->pos += ext4_rec_len_from_disk(de->rec_len,
 						sb->s_blocksize);
 		}
-		offset = 0;
+		if ((ctx->pos < inode->i_size) && !dir_relax(inode))
+			goto done;
 		brelse(bh);
-		if (ctx->pos < inode->i_size) {
-			if (!dir_relax(inode))
-				return 0;
-		}
+		bh = NULL;
+		offset = 0;
 	}
-	return 0;
+done:
+	err = 0;
+errout:
+#ifdef CONFIG_EXT4_FS_ENCRYPTION
+	ext4_put_fname_crypto_ctx(&enc_ctx);
+	ext4_fname_crypto_free_buffer(&fname_crypto_str);
+#endif
+	brelse(bh);
+	return err;
 }
 
 static inline int is_32bit_api(void)
@@ -384,10 +416,15 @@ void ext4_htree_free_dir_info(struct dir_private_info *p)
 
 /*
  * Given a directory entry, enter it into the fname rb tree.
+ *
+ * When filename encryption is enabled, the dirent will hold the
+ * encrypted filename, while the htree will hold decrypted filename.
+ * The decrypted filename is passed in via ent_name.  parameter.
  */
 int ext4_htree_store_dirent(struct file *dir_file, __u32 hash,
 			     __u32 minor_hash,
-			     struct ext4_dir_entry_2 *dirent)
+			    struct ext4_dir_entry_2 *dirent,
+			    struct ext4_str *ent_name)
 {
 	struct rb_node **p, *parent = NULL;
 	struct fname *fname, *new_fn;
@@ -398,17 +435,17 @@ int ext4_htree_store_dirent(struct file *dir_file, __u32 hash,
 	p = &info->root.rb_node;
 
 	/* Create and allocate the fname structure */
-	len = sizeof(struct fname) + dirent->name_len + 1;
+	len = sizeof(struct fname) + ent_name->len + 1;
 	new_fn = kzalloc(len, GFP_KERNEL);
 	if (!new_fn)
 		return -ENOMEM;
 	new_fn->hash = hash;
 	new_fn->minor_hash = minor_hash;
 	new_fn->inode = le32_to_cpu(dirent->inode);
-	new_fn->name_len = dirent->name_len;
+	new_fn->name_len = ent_name->len;
 	new_fn->file_type = dirent->file_type;
-	memcpy(new_fn->name, dirent->name, dirent->name_len);
-	new_fn->name[dirent->name_len] = 0;
+	memcpy(new_fn->name, ent_name->name, ent_name->len);
+	new_fn->name[ent_name->len] = 0;
 
 	while (*p) {
 		parent = *p;

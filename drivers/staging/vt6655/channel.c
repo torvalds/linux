@@ -193,7 +193,8 @@ bool set_channel(void *pDeviceHandler, struct ieee80211_channel *ch)
 	/* clear NAV */
 	MACvRegBitsOn(pDevice->PortOffset, MAC_REG_MACCR, MACCR_CLRNAV);
 
-	/* TX_PE will reserve 3 us for MAX2829 A mode only, it is for better TX throughput */
+	/* TX_PE will reserve 3 us for MAX2829 A mode only,
+	   it is for better TX throughput */
 
 	if (pDevice->byRFType == RF_AIROHA7230)
 		RFbAL7230SelectChannelPostProcess(pDevice, pDevice->byCurrentCh,
@@ -217,9 +218,11 @@ bool set_channel(void *pDeviceHandler, struct ieee80211_channel *ch)
 		/* set HW default power register */
 		MACvSelectPage1(pDevice->PortOffset);
 		RFbSetPower(pDevice, RATE_1M, pDevice->byCurrentCh);
-		VNSvOutPortB(pDevice->PortOffset + MAC_REG_PWRCCK, pDevice->byCurPwr);
+		VNSvOutPortB(pDevice->PortOffset + MAC_REG_PWRCCK,
+			     pDevice->byCurPwr);
 		RFbSetPower(pDevice, RATE_6M, pDevice->byCurrentCh);
-		VNSvOutPortB(pDevice->PortOffset + MAC_REG_PWROFDM, pDevice->byCurPwr);
+		VNSvOutPortB(pDevice->PortOffset + MAC_REG_PWROFDM,
+			     pDevice->byCurPwr);
 		MACvSelectPage0(pDevice->PortOffset);
 
 		spin_unlock_irqrestore(&pDevice->lock, flags);

@@ -4,7 +4,7 @@
  * This display uses 9-bit SPI: Data/Command bit + 8 data bits
  * For platforms that doesn't support 9-bit, the driver is capable
  * of emulating this using 8-bit transfer.
- * This is done by transfering eight 9-bit words in 9 bytes.
+ * This is done by transferring eight 9-bit words in 9 bytes.
  *
  * Copyright (C) 2013 Noralf Tronnes
  *
@@ -47,8 +47,6 @@ MODULE_PARM_DESC(emulate, "Force emulation in 9-bit mode");
 
 static int init_display(struct fbtft_par *par)
 {
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	par->fbtftops.reset(par);
 
 	/* BTL221722-276L startup sequence, from datasheet */
@@ -108,11 +106,8 @@ static int init_display(struct fbtft_par *par)
 	return 0;
 }
 
-void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
+static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 {
-	fbtft_par_dbg(DEBUG_SET_ADDR_WIN, par,
-		"%s(xs=%d, ys=%d, xe=%d, ye=%d)\n", __func__, xs, ys, xe, ye);
-
 	write_reg(par, FBTFT_CASET, 0x00, xs, 0x00, xe);
 	write_reg(par, FBTFT_RASET, 0x00, ys, 0x00, ye);
 	write_reg(par, FBTFT_RAMWR);
@@ -120,8 +115,6 @@ void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 
 static int set_var(struct fbtft_par *par)
 {
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
-
 	/* MADCTL - Memory data access control */
 	/* RGB/BGR can be set with H/W pin SRGB and MADCTL BGR bit */
 #define MY (1 << 7)
@@ -129,7 +122,7 @@ static int set_var(struct fbtft_par *par)
 #define MV (1 << 5)
 	switch (par->info->var.rotate) {
 	case 0:
-		write_reg(par, 0x36, (par->bgr << 3));
+		write_reg(par, 0x36, par->bgr << 3);
 		break;
 	case 270:
 		write_reg(par, 0x36, MX | MV | (par->bgr << 3));
@@ -156,13 +149,11 @@ static int set_var(struct fbtft_par *par)
 static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 {
 	unsigned long mask[] = {
-		0b1111, 0b1111, 0b11111, 0b1111, 0b1111, 0b1111, 0b11111,
-		0b111, 0b111, 0b111, 0b111, 0b111, 0b111, 0b11, 0b11,
-		0b1111, 0b1111, 0b11111, 0b1111, 0b1111, 0b1111, 0b11111,
-		0b111, 0b111, 0b111, 0b111, 0b111, 0b111, 0b0, 0b0 };
+		0x0f, 0x0f, 0x1f, 0x0f, 0x0f, 0x0f, 0x1f, 0x07, 0x07, 0x07,
+		0x07, 0x07, 0x07, 0x03, 0x03, 0x0f, 0x0f, 0x1f, 0x0f, 0x0f,
+		0x0f, 0x1f, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x00, 0x00,
+	};
 	int i, j;
-
-	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par, "%s()\n", __func__);
 
 	/* apply mask */
 	for (i = 0; i < par->gamma.num_curves; i++)

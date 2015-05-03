@@ -270,7 +270,7 @@ static void gdm_mux_rcv_complete(struct urb *urb)
 
 	if (urb->status) {
 		if (mux_dev->usb_state == PM_NORMAL)
-			pr_err("%s: urb status error %d\n",
+			dev_err(&urb->dev->dev, "%s: urb status error %d\n",
 			       __func__, urb->status);
 		put_rx_struct(rx, r);
 	} else {
@@ -342,7 +342,7 @@ static void gdm_mux_send_complete(struct urb *urb)
 	struct mux_tx *t = urb->context;
 
 	if (urb->status == -ECONNRESET) {
-		pr_info("CONNRESET\n");
+		dev_info(&urb->dev->dev, "CONNRESET\n");
 		free_mux_tx(t);
 		return;
 	}
@@ -608,7 +608,7 @@ static int gdm_mux_suspend(struct usb_interface *intf, pm_message_t pm_msg)
 	rx = &mux_dev->rx;
 
 	if (mux_dev->usb_state != PM_NORMAL) {
-		pr_err("usb suspend - invalid state\n");
+		dev_err(intf->usb_dev, "usb suspend - invalid state\n");
 		return -1;
 	}
 
@@ -637,7 +637,7 @@ static int gdm_mux_resume(struct usb_interface *intf)
 	mux_dev = tty_dev->priv_dev;
 
 	if (mux_dev->usb_state != PM_SUSPEND) {
-		pr_err("usb resume - invalid state\n");
+		dev_err(intf->usb_dev, "usb resume - invalid state\n");
 		return -1;
 	}
 

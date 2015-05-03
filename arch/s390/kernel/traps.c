@@ -26,7 +26,6 @@ int show_unhandled_signals = 1;
 
 static inline void __user *get_trap_ip(struct pt_regs *regs)
 {
-#ifdef CONFIG_64BIT
 	unsigned long address;
 
 	if (regs->int_code & 0x200)
@@ -35,10 +34,6 @@ static inline void __user *get_trap_ip(struct pt_regs *regs)
 		address = regs->psw.addr;
 	return (void __user *)
 		((address - (regs->int_code >> 16)) & PSW_ADDR_INSN);
-#else
-	return (void __user *)
-		((regs->psw.addr - (regs->int_code >> 16)) & PSW_ADDR_INSN);
-#endif
 }
 
 static inline void report_user_fault(struct pt_regs *regs, int signr)
@@ -153,11 +148,8 @@ DO_ERROR_INFO(privileged_op, SIGILL, ILL_PRVOPC,
 	      "privileged operation")
 DO_ERROR_INFO(special_op_exception, SIGILL, ILL_ILLOPN,
 	      "special operation exception")
-
-#ifdef CONFIG_64BIT
 DO_ERROR_INFO(transaction_exception, SIGILL, ILL_ILLOPN,
 	      "transaction constraint exception")
-#endif
 
 static inline void do_fp_trap(struct pt_regs *regs, int fpc)
 {
@@ -182,7 +174,7 @@ static inline void do_fp_trap(struct pt_regs *regs, int fpc)
 void translation_exception(struct pt_regs *regs)
 {
 	/* May never happen. */
-	die(regs, "Translation exception");
+	panic("Translation exception");
 }
 
 void illegal_op(struct pt_regs *regs)
@@ -211,29 +203,6 @@ void illegal_op(struct pt_regs *regs)
 		} else if (*((__u16 *) opcode) == UPROBE_SWBP_INSN) {
 			is_uprobe_insn = 1;
 #endif
-#ifdef CONFIG_MATHEMU
-		} else if (opcode[0] == 0xb3) {
-			if (get_user(*((__u16 *) (opcode+2)), location+1))
-				return;
-			signal = math_emu_b3(opcode, regs);
-                } else if (opcode[0] == 0xed) {
-			if (get_user(*((__u32 *) (opcode+2)),
-				     (__u32 __user *)(location+1)))
-				return;
-			signal = math_emu_ed(opcode, regs);
-		} else if (*((__u16 *) opcode) == 0xb299) {
-			if (get_user(*((__u16 *) (opcode+2)), location+1))
-				return;
-			signal = math_emu_srnm(opcode, regs);
-		} else if (*((__u16 *) opcode) == 0xb29c) {
-			if (get_user(*((__u16 *) (opcode+2)), location+1))
-				return;
-			signal = math_emu_stfpc(opcode, regs);
-		} else if (*((__u16 *) opcode) == 0xb29d) {
-			if (get_user(*((__u16 *) (opcode+2)), location+1))
-				return;
-			signal = math_emu_lfpc(opcode, regs);
-#endif
 		} else
 			signal = SIGILL;
 	}
@@ -247,71 +216,14 @@ void illegal_op(struct pt_regs *regs)
 			       3, SIGTRAP) != NOTIFY_STOP)
 			signal = SIGILL;
 	}
-
-#ifdef CONFIG_MATHEMU
-        if (signal == SIGFPE)
-		do_fp_trap(regs, current->thread.fp_regs.fpc);
-	else if (signal == SIGSEGV)
-		do_trap(regs, signal, SEGV_MAPERR, "user address fault");
-	else
-#endif
 	if (signal)
 		do_trap(regs, signal, ILL_ILLOPC, "illegal operation");
 }
 NOKPROBE_SYMBOL(illegal_op);
 
-#ifdef CONFIG_MATHEMU
-void specification_exception(struct pt_regs *regs)
-{
-        __u8 opcode[6];
-	__u16 __user *location = NULL;
-	int signal = 0;
-
-	location = (__u16 __user *) get_trap_ip(regs);
-
-	if (user_mode(regs)) {
-		get_user(*((__u16 *) opcode), location);
-		switch (opcode[0]) {
-		case 0x28: /* LDR Rx,Ry   */
-			signal = math_emu_ldr(opcode);
-			break;
-		case 0x38: /* LER Rx,Ry   */
-			signal = math_emu_ler(opcode);
-			break;
-		case 0x60: /* STD R,D(X,B) */
-			get_user(*((__u16 *) (opcode+2)), location+1);
-			signal = math_emu_std(opcode, regs);
-			break;
-		case 0x68: /* LD R,D(X,B) */
-			get_user(*((__u16 *) (opcode+2)), location+1);
-			signal = math_emu_ld(opcode, regs);
-			break;
-		case 0x70: /* STE R,D(X,B) */
-			get_user(*((__u16 *) (opcode+2)), location+1);
-			signal = math_emu_ste(opcode, regs);
-			break;
-		case 0x78: /* LE R,D(X,B) */
-			get_user(*((__u16 *) (opcode+2)), location+1);
-			signal = math_emu_le(opcode, regs);
-			break;
-		default:
-			signal = SIGILL;
-			break;
-                }
-        } else
-		signal = SIGILL;
-
-        if (signal == SIGFPE)
-		do_fp_trap(regs, current->thread.fp_regs.fpc);
-	else if (signal)
-		do_trap(regs, signal, ILL_ILLOPN, "specification exception");
-}
-#else
 DO_ERROR_INFO(specification_exception, SIGILL, ILL_ILLOPN,
 	      "specification exception");
-#endif
 
-#ifdef CONFIG_64BIT
 int alloc_vector_registers(struct task_struct *tsk)
 {
 	__vector128 *vxrs;
@@ -377,7 +289,6 @@ static int __init disable_vector_extension(char *str)
 	return 1;
 }
 __setup("novx", disable_vector_extension);
-#endif
 
 void data_exception(struct pt_regs *regs)
 {
@@ -386,65 +297,7 @@ void data_exception(struct pt_regs *regs)
 
 	location = get_trap_ip(regs);
 
-	if (MACHINE_HAS_IEEE)
-		asm volatile("stfpc %0" : "=m" (current->thread.fp_regs.fpc));
-
-#ifdef CONFIG_MATHEMU
-	else if (user_mode(regs)) {
-        	__u8 opcode[6];
-		get_user(*((__u16 *) opcode), location);
-		switch (opcode[0]) {
-		case 0x28: /* LDR Rx,Ry   */
-			signal = math_emu_ldr(opcode);
-			break;
-		case 0x38: /* LER Rx,Ry   */
-			signal = math_emu_ler(opcode);
-			break;
-		case 0x60: /* STD R,D(X,B) */
-			get_user(*((__u16 *) (opcode+2)), location+1);
-			signal = math_emu_std(opcode, regs);
-			break;
-		case 0x68: /* LD R,D(X,B) */
-			get_user(*((__u16 *) (opcode+2)), location+1);
-			signal = math_emu_ld(opcode, regs);
-			break;
-		case 0x70: /* STE R,D(X,B) */
-			get_user(*((__u16 *) (opcode+2)), location+1);
-			signal = math_emu_ste(opcode, regs);
-			break;
-		case 0x78: /* LE R,D(X,B) */
-			get_user(*((__u16 *) (opcode+2)), location+1);
-			signal = math_emu_le(opcode, regs);
-			break;
-		case 0xb3:
-			get_user(*((__u16 *) (opcode+2)), location+1);
-			signal = math_emu_b3(opcode, regs);
-			break;
-                case 0xed:
-			get_user(*((__u32 *) (opcode+2)),
-				 (__u32 __user *)(location+1));
-			signal = math_emu_ed(opcode, regs);
-			break;
-	        case 0xb2:
-			if (opcode[1] == 0x99) {
-				get_user(*((__u16 *) (opcode+2)), location+1);
-				signal = math_emu_srnm(opcode, regs);
-			} else if (opcode[1] == 0x9c) {
-				get_user(*((__u16 *) (opcode+2)), location+1);
-				signal = math_emu_stfpc(opcode, regs);
-			} else if (opcode[1] == 0x9d) {
-				get_user(*((__u16 *) (opcode+2)), location+1);
-				signal = math_emu_lfpc(opcode, regs);
-			} else
-				signal = SIGILL;
-			break;
-		default:
-			signal = SIGILL;
-			break;
-                }
-        }
-#endif 
-#ifdef CONFIG_64BIT
+	asm volatile("stfpc %0" : "=m" (current->thread.fp_regs.fpc));
 	/* Check for vector register enablement */
 	if (MACHINE_HAS_VX && !current->thread.vxrs &&
 	    (current->thread.fp_regs.fpc & FPC_DXC_MASK) == 0xfe00) {
@@ -454,13 +307,11 @@ void data_exception(struct pt_regs *regs)
 		clear_pt_regs_flag(regs, PIF_PER_TRAP);
 		return;
 	}
-#endif
-
 	if (current->thread.fp_regs.fpc & FPC_DXC_MASK)
 		signal = SIGFPE;
 	else
 		signal = SIGILL;
-        if (signal == SIGFPE)
+	if (signal == SIGFPE)
 		do_fp_trap(regs, current->thread.fp_regs.fpc);
 	else if (signal)
 		do_trap(regs, signal, ILL_ILLOPN, "data exception");

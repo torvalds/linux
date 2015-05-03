@@ -53,8 +53,8 @@ static int reiserfs_dir_fsync(struct file *filp, loff_t start, loff_t end,
 static inline bool is_privroot_deh(struct inode *dir, struct reiserfs_de_head *deh)
 {
 	struct dentry *privroot = REISERFS_SB(dir->i_sb)->priv_root;
-	return (privroot->d_inode &&
-	        deh->deh_objectid == INODE_PKEY(privroot->d_inode)->k_objectid);
+	return (d_really_is_positive(privroot) &&
+	        deh->deh_objectid == INODE_PKEY(d_inode(privroot))->k_objectid);
 }
 
 int reiserfs_readdir_inode(struct inode *inode, struct dir_context *ctx)

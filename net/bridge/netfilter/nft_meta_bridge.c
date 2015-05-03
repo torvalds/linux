@@ -19,12 +19,12 @@
 #include "../br_private.h"
 
 static void nft_meta_bridge_get_eval(const struct nft_expr *expr,
-				     struct nft_data data[NFT_REG_MAX + 1],
+				     struct nft_regs *regs,
 				     const struct nft_pktinfo *pkt)
 {
 	const struct nft_meta *priv = nft_expr_priv(expr);
 	const struct net_device *in = pkt->in, *out = pkt->out;
-	struct nft_data *dest = &data[priv->dreg];
+	u32 *dest = &regs->data[priv->dreg];
 	const struct net_bridge_port *p;
 
 	switch (priv->key) {
@@ -40,12 +40,12 @@ static void nft_meta_bridge_get_eval(const struct nft_expr *expr,
 		goto out;
 	}
 
-	strncpy((char *)dest->data, p->br->dev->name, sizeof(dest->data));
+	strncpy((char *)dest, p->br->dev->name, IFNAMSIZ);
 	return;
 out:
-	return nft_meta_get_eval(expr, data, pkt);
+	return nft_meta_get_eval(expr, regs, pkt);
 err:
-	data[NFT_REG_VERDICT].verdict = NFT_BREAK;
+	regs->verdict.code = NFT_BREAK;
 }
 
 static int nft_meta_bridge_get_init(const struct nft_ctx *ctx,
@@ -53,27 +53,21 @@ static int nft_meta_bridge_get_init(const struct nft_ctx *ctx,
 				    const struct nlattr * const tb[])
 {
 	struct nft_meta *priv = nft_expr_priv(expr);
-	int err;
+	unsigned int len;
 
 	priv->key = ntohl(nla_get_be32(tb[NFTA_META_KEY]));
 	switch (priv->key) {
 	case NFT_META_BRI_IIFNAME:
 	case NFT_META_BRI_OIFNAME:
+		len = IFNAMSIZ;
 		break;
 	default:
 		return nft_meta_get_init(ctx, expr, tb);
 	}
 
-	priv->dreg = ntohl(nla_get_be32(tb[NFTA_META_DREG]));
-	err = nft_validate_output_register(priv->dreg);
-	if (err < 0)
-		return err;
-
-	err = nft_validate_data_load(ctx, priv->dreg, NULL, NFT_DATA_VALUE);
-	if (err < 0)
-		return err;
-
-	return 0;
+	priv->dreg = nft_parse_register(tb[NFTA_META_DREG]);
+	return nft_validate_register_store(ctx, priv->dreg, NULL,
+					   NFT_DATA_VALUE, len);
 }
 
 static struct nft_expr_type nft_meta_bridge_type;

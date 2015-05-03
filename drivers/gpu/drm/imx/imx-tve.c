@@ -301,11 +301,11 @@ static void imx_tve_encoder_prepare(struct drm_encoder *encoder)
 
 	switch (tve->mode) {
 	case TVE_MODE_VGA:
-		imx_drm_panel_format_pins(encoder, IPU_PIX_FMT_GBR24,
-				tve->hsync_pin, tve->vsync_pin);
+		imx_drm_set_bus_format_pins(encoder, MEDIA_BUS_FMT_YUV8_1X24,
+					    tve->hsync_pin, tve->vsync_pin);
 		break;
 	case TVE_MODE_TVOUT:
-		imx_drm_panel_format(encoder, V4L2_PIX_FMT_YUV444);
+		imx_drm_set_bus_format(encoder, MEDIA_BUS_FMT_YUV8_1X24);
 		break;
 	}
 }

@@ -94,6 +94,7 @@ struct iwl_nvm_data {
 	u32 nvm_version;
 	s8 max_tx_pwr_half_dbm;
 
+	bool lar_enabled;
 	struct ieee80211_supported_band bands[IEEE80211_NUM_BANDS];
 	struct ieee80211_channel channels[];
 };

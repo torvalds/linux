@@ -82,6 +82,5 @@ static inline union ieee754sp buildsp(int s, int bx, unsigned m)
 	return r;
 }
 
-extern int ieee754sp_isnan(union ieee754sp);
 extern union ieee754sp __cold ieee754sp_nanxcpt(union ieee754sp);
 extern union ieee754sp ieee754sp_format(int, int, unsigned);

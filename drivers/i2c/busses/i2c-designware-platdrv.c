@@ -143,10 +143,8 @@ static int dw_i2c_probe(struct platform_device *pdev)
 	u32 clk_freq, ht = 0;
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "no irq resource?\n");
-		return irq; /* -ENXIO */
-	}
+	if (irq < 0)
+		return irq;
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(struct dw_i2c_dev), GFP_KERNEL);
 	if (!dev)
@@ -166,7 +164,7 @@ static int dw_i2c_probe(struct platform_device *pdev)
 	/* fast mode by default because of legacy reasons */
 	clk_freq = 400000;
 
-	if (ACPI_COMPANION(&pdev->dev)) {
+	if (has_acpi_companion(&pdev->dev)) {
 		dw_i2c_acpi_configure(pdev);
 	} else if (pdev->dev.of_node) {
 		of_property_read_u32(pdev->dev.of_node,
@@ -286,7 +284,7 @@ static int dw_i2c_remove(struct platform_device *pdev)
 	pm_runtime_put(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
-	if (ACPI_COMPANION(&pdev->dev))
+	if (has_acpi_companion(&pdev->dev))
 		dw_i2c_acpi_unconfigure(pdev);
 
 	return 0;

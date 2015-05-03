@@ -19,4 +19,11 @@ extern void timekeeping_clocktai(struct timespec *ts);
 extern int timekeeping_suspend(void);
 extern void timekeeping_resume(void);
 
+extern void do_timer(unsigned long ticks);
+extern void update_wall_time(void);
+
+extern seqlock_t jiffies_lock;
+
+#define CS_NAME_LEN	32
+
 #endif

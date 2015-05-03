@@ -34,7 +34,7 @@ static void omap_irq_update(struct drm_device *dev)
 	struct omap_drm_irq *irq;
 	uint32_t irqmask = priv->vblank_mask;
 
-	BUG_ON(!spin_is_locked(&list_lock));
+	assert_spin_locked(&list_lock);
 
 	list_for_each_entry(irq, &priv->irq_list, node)
 		irqmask |= irq->irqmask;

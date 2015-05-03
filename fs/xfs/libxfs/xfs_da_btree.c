@@ -538,12 +538,12 @@ xfs_da3_root_split(
 	oldroot = blk1->bp->b_addr;
 	if (oldroot->hdr.info.magic == cpu_to_be16(XFS_DA_NODE_MAGIC) ||
 	    oldroot->hdr.info.magic == cpu_to_be16(XFS_DA3_NODE_MAGIC)) {
-		struct xfs_da3_icnode_hdr nodehdr;
+		struct xfs_da3_icnode_hdr icnodehdr;
 
-		dp->d_ops->node_hdr_from_disk(&nodehdr, oldroot);
+		dp->d_ops->node_hdr_from_disk(&icnodehdr, oldroot);
 		btree = dp->d_ops->node_tree_p(oldroot);
-		size = (int)((char *)&btree[nodehdr.count] - (char *)oldroot);
-		level = nodehdr.level;
+		size = (int)((char *)&btree[icnodehdr.count] - (char *)oldroot);
+		level = icnodehdr.level;
 
 		/*
 		 * we are about to copy oldroot to bp, so set up the type

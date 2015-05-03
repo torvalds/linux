@@ -55,6 +55,7 @@ static int sg_version_num = 30534;	/* 2 digits for each component */
 #define VPD_SERIAL_NUMBER				0x80
 #define VPD_DEVICE_IDENTIFIERS				0x83
 #define VPD_EXTENDED_INQUIRY				0x86
+#define VPD_BLOCK_LIMITS				0xB0
 #define VPD_BLOCK_DEV_CHARACTERISTICS			0xB1
 
 /* CDB offsets */
@@ -132,9 +133,10 @@ static int sg_version_num = 30534;	/* 2 digits for each component */
 #define INQ_UNIT_SERIAL_NUMBER_PAGE			0x80
 #define INQ_DEVICE_IDENTIFICATION_PAGE			0x83
 #define INQ_EXTENDED_INQUIRY_DATA_PAGE			0x86
+#define INQ_BDEV_LIMITS_PAGE				0xB0
 #define INQ_BDEV_CHARACTERISTICS_PAGE			0xB1
 #define INQ_SERIAL_NUMBER_LENGTH			0x14
-#define INQ_NUM_SUPPORTED_VPD_PAGES			5
+#define INQ_NUM_SUPPORTED_VPD_PAGES			6
 #define VERSION_SPC_4					0x06
 #define ACA_UNSUPPORTED					0
 #define STANDARD_INQUIRY_LENGTH				36
@@ -747,6 +749,7 @@ static int nvme_trans_supported_vpd_pages(struct nvme_ns *ns,
 	inq_response[6] = INQ_DEVICE_IDENTIFICATION_PAGE;
 	inq_response[7] = INQ_EXTENDED_INQUIRY_DATA_PAGE;
 	inq_response[8] = INQ_BDEV_CHARACTERISTICS_PAGE;
+	inq_response[9] = INQ_BDEV_LIMITS_PAGE;
 
 	xfer_len = min(alloc_len, STANDARD_INQUIRY_LENGTH);
 	res = nvme_trans_copy_to_user(hdr, inq_response, xfer_len);
@@ -936,6 +939,25 @@ static int nvme_trans_ext_inq_page(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 	kfree(inq_response);
  out_mem:
 	return res;
+}
+
+static int nvme_trans_bdev_limits_page(struct nvme_ns *ns, struct sg_io_hdr *hdr,
+					u8 *inq_response, int alloc_len)
+{
+	__be32 max_sectors = cpu_to_be32(queue_max_hw_sectors(ns->queue));
+	__be32 max_discard = cpu_to_be32(ns->queue->limits.max_discard_sectors);
+	__be32 discard_desc_count = cpu_to_be32(0x100);
+
+	memset(inq_response, 0, STANDARD_INQUIRY_LENGTH);
+	inq_response[1] = VPD_BLOCK_LIMITS;
+	inq_response[3] = 0x3c; /* Page Length */
+	memcpy(&inq_response[8], &max_sectors, sizeof(u32));
+	memcpy(&inq_response[20], &max_discard, sizeof(u32));
+
+	if (max_discard)
+		memcpy(&inq_response[24], &discard_desc_count, sizeof(u32));
+
+	return nvme_trans_copy_to_user(hdr, inq_response, 0x3c);
 }
 
 static int nvme_trans_bdev_char_page(struct nvme_ns *ns, struct sg_io_hdr *hdr,
@@ -2267,6 +2289,10 @@ static int nvme_trans_inquiry(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 			break;
 		case VPD_EXTENDED_INQUIRY:
 			res = nvme_trans_ext_inq_page(ns, hdr, alloc_len);
+			break;
+		case VPD_BLOCK_LIMITS:
+			res = nvme_trans_bdev_limits_page(ns, hdr, inq_response,
+								alloc_len);
 			break;
 		case VPD_BLOCK_DEV_CHARACTERISTICS:
 			res = nvme_trans_bdev_char_page(ns, hdr, alloc_len);

@@ -281,7 +281,7 @@ static inline void buffer_swap32(u32 *buf, int len)
 	int i;
 
 	for (i = 0; i < ((len + 3) / 4); i++) {
-		st_le32(buf, *buf);
+		*buf = swab32(*buf);
 		buf++;
 	}
 }

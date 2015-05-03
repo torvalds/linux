@@ -2003,7 +2003,6 @@ static int ab8500_audio_setup_mics(struct snd_soc_codec *codec,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(ab8500_audio_setup_mics);
 
 static int ab8500_audio_set_ear_cmv(struct snd_soc_codec *codec,
 				enum ear_cm_voltage ear_cmv)
@@ -2036,7 +2035,6 @@ static int ab8500_audio_set_ear_cmv(struct snd_soc_codec *codec,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(ab8500_audio_set_ear_cmv);
 
 static int ab8500_audio_set_bit_delay(struct snd_soc_dai *dai,
 				unsigned int delay)

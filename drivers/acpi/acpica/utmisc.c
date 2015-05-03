@@ -75,6 +75,7 @@ u8 acpi_ut_is_pci_root_bridge(char *id)
 	return (FALSE);
 }
 
+#if (defined ACPI_ASL_COMPILER || defined ACPI_EXEC_APP)
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ut_is_aml_table
@@ -102,6 +103,7 @@ u8 acpi_ut_is_aml_table(struct acpi_table_header *table)
 
 	return (FALSE);
 }
+#endif
 
 /*******************************************************************************
  *

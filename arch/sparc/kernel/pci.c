@@ -639,10 +639,7 @@ static void pci_claim_bus_resources(struct pci_bus *bus)
 				       (unsigned long long)r->end,
 				       (unsigned int)r->flags);
 
-			if (pci_claim_resource(dev, i) == 0)
-				continue;
-
-			pci_claim_bridge_resource(dev, i);
+			pci_claim_resource(dev, i);
 		}
 	}
 
@@ -677,11 +674,10 @@ struct pci_bus *pci_scan_one_pbm(struct pci_pbm_info *pbm,
 	}
 
 	pci_of_scan_bus(pbm, node, bus);
-	pci_bus_add_devices(bus);
 	pci_bus_register_of_sysfs(bus);
 
 	pci_claim_bus_resources(bus);
-
+	pci_bus_add_devices(bus);
 	return bus;
 }
 

@@ -545,7 +545,7 @@ void ptlrpc_pinger_wake_up(void)
 #define PET_READY     1
 #define PET_TERMINATE 2
 
-static int	       pet_refcount = 0;
+static int pet_refcount;
 static int	       pet_state;
 static wait_queue_head_t       pet_waitq;
 LIST_HEAD(pet_list);

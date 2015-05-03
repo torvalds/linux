@@ -171,6 +171,35 @@ static const struct reg_offset_data bam_v1_4_reg_info[] = {
 	[BAM_P_FIFO_SIZES]	= { 0x1820, 0x00, 0x1000, 0x00 },
 };
 
+static const struct reg_offset_data bam_v1_7_reg_info[] = {
+	[BAM_CTRL]		= { 0x00000, 0x00, 0x00, 0x00 },
+	[BAM_REVISION]		= { 0x01000, 0x00, 0x00, 0x00 },
+	[BAM_NUM_PIPES]		= { 0x01008, 0x00, 0x00, 0x00 },
+	[BAM_DESC_CNT_TRSHLD]	= { 0x00008, 0x00, 0x00, 0x00 },
+	[BAM_IRQ_SRCS]		= { 0x03010, 0x00, 0x00, 0x00 },
+	[BAM_IRQ_SRCS_MSK]	= { 0x03014, 0x00, 0x00, 0x00 },
+	[BAM_IRQ_SRCS_UNMASKED]	= { 0x03018, 0x00, 0x00, 0x00 },
+	[BAM_IRQ_STTS]		= { 0x00014, 0x00, 0x00, 0x00 },
+	[BAM_IRQ_CLR]		= { 0x00018, 0x00, 0x00, 0x00 },
+	[BAM_IRQ_EN]		= { 0x0001C, 0x00, 0x00, 0x00 },
+	[BAM_CNFG_BITS]		= { 0x0007C, 0x00, 0x00, 0x00 },
+	[BAM_IRQ_SRCS_EE]	= { 0x03000, 0x00, 0x00, 0x1000 },
+	[BAM_IRQ_SRCS_MSK_EE]	= { 0x03004, 0x00, 0x00, 0x1000 },
+	[BAM_P_CTRL]		= { 0x13000, 0x1000, 0x00, 0x00 },
+	[BAM_P_RST]		= { 0x13004, 0x1000, 0x00, 0x00 },
+	[BAM_P_HALT]		= { 0x13008, 0x1000, 0x00, 0x00 },
+	[BAM_P_IRQ_STTS]	= { 0x13010, 0x1000, 0x00, 0x00 },
+	[BAM_P_IRQ_CLR]		= { 0x13014, 0x1000, 0x00, 0x00 },
+	[BAM_P_IRQ_EN]		= { 0x13018, 0x1000, 0x00, 0x00 },
+	[BAM_P_EVNT_DEST_ADDR]	= { 0x1382C, 0x00, 0x1000, 0x00 },
+	[BAM_P_EVNT_REG]	= { 0x13818, 0x00, 0x1000, 0x00 },
+	[BAM_P_SW_OFSTS]	= { 0x13800, 0x00, 0x1000, 0x00 },
+	[BAM_P_DATA_FIFO_ADDR]	= { 0x13824, 0x00, 0x1000, 0x00 },
+	[BAM_P_DESC_FIFO_ADDR]	= { 0x1381C, 0x00, 0x1000, 0x00 },
+	[BAM_P_EVNT_GEN_TRSHLD]	= { 0x13828, 0x00, 0x1000, 0x00 },
+	[BAM_P_FIFO_SIZES]	= { 0x13820, 0x00, 0x1000, 0x00 },
+};
+
 /* BAM CTRL */
 #define BAM_SW_RST			BIT(0)
 #define BAM_EN				BIT(1)
@@ -1051,6 +1080,7 @@ static void bam_channel_init(struct bam_device *bdev, struct bam_chan *bchan,
 static const struct of_device_id bam_of_match[] = {
 	{ .compatible = "qcom,bam-v1.3.0", .data = &bam_v1_3_reg_info },
 	{ .compatible = "qcom,bam-v1.4.0", .data = &bam_v1_4_reg_info },
+	{ .compatible = "qcom,bam-v1.7.0", .data = &bam_v1_7_reg_info },
 	{}
 };
 
@@ -1113,7 +1143,7 @@ static int bam_dma_probe(struct platform_device *pdev)
 
 	if (!bdev->channels) {
 		ret = -ENOMEM;
-		goto err_disable_clk;
+		goto err_tasklet_kill;
 	}
 
 	/* allocate and initialize channels */
@@ -1125,7 +1155,7 @@ static int bam_dma_probe(struct platform_device *pdev)
 	ret = devm_request_irq(bdev->dev, bdev->irq, bam_dma_irq,
 			IRQF_TRIGGER_HIGH, "bam_dma", bdev);
 	if (ret)
-		goto err_disable_clk;
+		goto err_bam_channel_exit;
 
 	/* set max dma segment size */
 	bdev->common.dev = bdev->dev;
@@ -1133,7 +1163,7 @@ static int bam_dma_probe(struct platform_device *pdev)
 	ret = dma_set_max_seg_size(bdev->common.dev, BAM_MAX_DATA_SIZE);
 	if (ret) {
 		dev_err(bdev->dev, "cannot set maximum segment size\n");
-		goto err_disable_clk;
+		goto err_bam_channel_exit;
 	}
 
 	platform_set_drvdata(pdev, bdev);
@@ -1161,7 +1191,7 @@ static int bam_dma_probe(struct platform_device *pdev)
 	ret = dma_async_device_register(&bdev->common);
 	if (ret) {
 		dev_err(bdev->dev, "failed to register dma async device\n");
-		goto err_disable_clk;
+		goto err_bam_channel_exit;
 	}
 
 	ret = of_dma_controller_register(pdev->dev.of_node, bam_dma_xlate,
@@ -1173,8 +1203,14 @@ static int bam_dma_probe(struct platform_device *pdev)
 
 err_unregister_dma:
 	dma_async_device_unregister(&bdev->common);
+err_bam_channel_exit:
+	for (i = 0; i < bdev->num_channels; i++)
+		tasklet_kill(&bdev->channels[i].vc.task);
+err_tasklet_kill:
+	tasklet_kill(&bdev->task);
 err_disable_clk:
 	clk_disable_unprepare(bdev->bamclk);
+
 	return ret;
 }
 

@@ -65,36 +65,6 @@ int nr_rx_ip(struct sk_buff *skb, struct net_device *dev)
 	return 1;
 }
 
-#ifdef CONFIG_INET
-
-static int nr_rebuild_header(struct sk_buff *skb)
-{
-	unsigned char *bp = skb->data;
-
-	if (arp_find(bp + 7, skb))
-		return 1;
-
-	bp[6] &= ~AX25_CBIT;
-	bp[6] &= ~AX25_EBIT;
-	bp[6] |= AX25_SSSID_SPARE;
-	bp    += AX25_ADDR_LEN;
-
-	bp[6] &= ~AX25_CBIT;
-	bp[6] |= AX25_EBIT;
-	bp[6] |= AX25_SSSID_SPARE;
-
-	return 0;
-}
-
-#else
-
-static int nr_rebuild_header(struct sk_buff *skb)
-{
-	return 1;
-}
-
-#endif
-
 static int nr_header(struct sk_buff *skb, struct net_device *dev,
 		     unsigned short type,
 		     const void *daddr, const void *saddr, unsigned int len)
@@ -188,7 +158,6 @@ static netdev_tx_t nr_xmit(struct sk_buff *skb, struct net_device *dev)
 
 static const struct header_ops nr_header_ops = {
 	.create	= nr_header,
-	.rebuild= nr_rebuild_header,
 };
 
 static const struct net_device_ops nr_netdev_ops = {

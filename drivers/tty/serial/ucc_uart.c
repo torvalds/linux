@@ -1473,7 +1473,7 @@ static int ucc_uart_remove(struct platform_device *ofdev)
 	return 0;
 }
 
-static struct of_device_id ucc_uart_match[] = {
+static const struct of_device_id ucc_uart_match[] = {
 	{
 		.type = "serial",
 		.compatible = "ucc_uart",

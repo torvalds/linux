@@ -41,7 +41,10 @@ struct netcp_tx_pipe {
 	struct netcp_device	*netcp_device;
 	void			*dma_queue;
 	unsigned int		dma_queue_id;
-	u8			dma_psflags;
+	/* To port for packet forwarded to switch. Used only by ethss */
+	u8			switch_to_port;
+#define	SWITCH_TO_PORT_IN_TAGINFO	BIT(0)
+	u8			flags;
 	void			*dma_channel;
 	const char		*dma_chan_name;
 };

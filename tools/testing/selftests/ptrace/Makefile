@@ -6,5 +6,6 @@ all: peeksiginfo
 clean:
 	rm -f peeksiginfo
 
-run_tests: all
-	@./peeksiginfo || echo "peeksiginfo selftests: [FAIL]"
+TEST_PROGS := peeksiginfo
+
+include ../lib.mk

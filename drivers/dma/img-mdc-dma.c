@@ -689,11 +689,6 @@ static int mdc_slave_config(struct dma_chan *chan,
 	return 0;
 }
 
-static int mdc_alloc_chan_resources(struct dma_chan *chan)
-{
-	return 0;
-}
-
 static void mdc_free_chan_resources(struct dma_chan *chan)
 {
 	struct mdc_chan *mchan = to_mdc_chan(chan);
@@ -910,7 +905,6 @@ static int mdc_dma_probe(struct platform_device *pdev)
 	mdma->dma_dev.device_prep_slave_sg = mdc_prep_slave_sg;
 	mdma->dma_dev.device_prep_dma_cyclic = mdc_prep_dma_cyclic;
 	mdma->dma_dev.device_prep_dma_memcpy = mdc_prep_dma_memcpy;
-	mdma->dma_dev.device_alloc_chan_resources = mdc_alloc_chan_resources;
 	mdma->dma_dev.device_free_chan_resources = mdc_free_chan_resources;
 	mdma->dma_dev.device_tx_status = mdc_tx_status;
 	mdma->dma_dev.device_issue_pending = mdc_issue_pending;

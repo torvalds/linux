@@ -333,11 +333,9 @@ ENDPROC(omap4_cpu_resume)
 
 #endif	/* defined(CONFIG_SMP) && defined(CONFIG_PM) */
 
-#ifndef CONFIG_OMAP4_ERRATA_I688
 ENTRY(omap_bus_sync)
 	ret	lr
 ENDPROC(omap_bus_sync)
-#endif
 
 ENTRY(omap_do_wfi)
 	stmfd	sp!, {lr}

@@ -38,6 +38,13 @@
 #include "addr.h"
 #include "core.h"
 
+u32 tipc_own_addr(struct net *net)
+{
+	struct tipc_net *tn = net_generic(net, tipc_net_id);
+
+	return tn->own_addr;
+}
+
 /**
  * in_own_cluster - test for cluster inclusion; <0.0.0> always matches
  */

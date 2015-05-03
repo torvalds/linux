@@ -280,7 +280,8 @@ Possible BPF extensions are shown in the following table:
   rxhash                                skb->hash
   cpu                                   raw_smp_processor_id()
   vlan_tci                              skb_vlan_tag_get(skb)
-  vlan_pr                               skb_vlan_tag_present(skb)
+  vlan_avail                            skb_vlan_tag_present(skb)
+  vlan_tpid                             skb->vlan_proto
   rand                                  prandom_u32()
 
 These extensions can also be prefixed with '#'.

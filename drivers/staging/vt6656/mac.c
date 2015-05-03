@@ -30,6 +30,8 @@
  * Revision History:
  */
 
+#include <linux/etherdevice.h>
+
 #include "desc.h"
 #include "mac.h"
 #include "usbpipe.h"
@@ -126,7 +128,7 @@ void vnt_mac_set_keyentry(struct vnt_private *priv, u16 key_ctl, u32 entry_idx,
 	offset += (entry_idx * MISCFIFO_KEYENTRYSIZE);
 
 	set_key.u.write.key_ctl = cpu_to_le16(key_ctl);
-	memcpy(set_key.u.write.addr, addr, ETH_ALEN);
+	ether_addr_copy(set_key.u.write.addr, addr);
 
 	/* swap over swap[0] and swap[1] to get correct write order */
 	swap(set_key.u.swap[0], set_key.u.swap[1]);

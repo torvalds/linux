@@ -138,22 +138,22 @@ static int __oprofilefs_create_file(struct dentry *root, char const *name,
 	struct dentry *dentry;
 	struct inode *inode;
 
-	mutex_lock(&root->d_inode->i_mutex);
+	mutex_lock(&d_inode(root)->i_mutex);
 	dentry = d_alloc_name(root, name);
 	if (!dentry) {
-		mutex_unlock(&root->d_inode->i_mutex);
+		mutex_unlock(&d_inode(root)->i_mutex);
 		return -ENOMEM;
 	}
 	inode = oprofilefs_get_inode(root->d_sb, S_IFREG | perm);
 	if (!inode) {
 		dput(dentry);
-		mutex_unlock(&root->d_inode->i_mutex);
+		mutex_unlock(&d_inode(root)->i_mutex);
 		return -ENOMEM;
 	}
 	inode->i_fop = fops;
 	inode->i_private = priv;
 	d_add(dentry, inode);
-	mutex_unlock(&root->d_inode->i_mutex);
+	mutex_unlock(&d_inode(root)->i_mutex);
 	return 0;
 }
 
@@ -215,22 +215,22 @@ struct dentry *oprofilefs_mkdir(struct dentry *parent, char const *name)
 	struct dentry *dentry;
 	struct inode *inode;
 
-	mutex_lock(&parent->d_inode->i_mutex);
+	mutex_lock(&d_inode(parent)->i_mutex);
 	dentry = d_alloc_name(parent, name);
 	if (!dentry) {
-		mutex_unlock(&parent->d_inode->i_mutex);
+		mutex_unlock(&d_inode(parent)->i_mutex);
 		return NULL;
 	}
 	inode = oprofilefs_get_inode(parent->d_sb, S_IFDIR | 0755);
 	if (!inode) {
 		dput(dentry);
-		mutex_unlock(&parent->d_inode->i_mutex);
+		mutex_unlock(&d_inode(parent)->i_mutex);
 		return NULL;
 	}
 	inode->i_op = &simple_dir_inode_operations;
 	inode->i_fop = &simple_dir_operations;
 	d_add(dentry, inode);
-	mutex_unlock(&parent->d_inode->i_mutex);
+	mutex_unlock(&d_inode(parent)->i_mutex);
 	return dentry;
 }
 
