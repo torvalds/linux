@@ -77,6 +77,7 @@ config SPI_ATMEL
 
 config SPI_BCM2835
 	tristate "BCM2835 SPI controller"
+	depends on GPIOLIB
 	depends on ARCH_BCM2835 || COMPILE_TEST
 	help
 	  This selects a driver for the Broadcom BCM2835 SPI master.
