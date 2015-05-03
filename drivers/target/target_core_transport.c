@@ -409,12 +409,6 @@ EXPORT_SYMBOL(target_get_session);
 
 void target_put_session(struct se_session *se_sess)
 {
-	struct se_portal_group *tpg = se_sess->se_tpg;
-
-	if (tpg->se_tpg_tfo->put_session != NULL) {
-		tpg->se_tpg_tfo->put_session(se_sess);
-		return;
-	}
 	kref_put(&se_sess->sess_kref, target_release_session);
 }
 EXPORT_SYMBOL(target_put_session);

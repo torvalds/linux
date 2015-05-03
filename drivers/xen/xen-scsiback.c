@@ -1817,7 +1817,6 @@ static const struct target_core_fabric_ops scsiback_ops = {
 	.tpg_get_inst_index		= scsiback_tpg_get_inst_index,
 	.check_stop_free		= scsiback_check_stop_free,
 	.release_cmd			= scsiback_release_cmd,
-	.put_session			= NULL,
 	.shutdown_session		= scsiback_shutdown_session,
 	.close_session			= scsiback_close_session,
 	.sess_get_index			= scsiback_sess_get_index,

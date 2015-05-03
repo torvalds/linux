@@ -37,7 +37,6 @@ struct target_core_fabric_ops {
 	 */
 	int (*check_stop_free)(struct se_cmd *);
 	void (*release_cmd)(struct se_cmd *);
-	void (*put_session)(struct se_session *);
 	/*
 	 * Called with spin_lock_bh(struct se_portal_group->session_lock held.
 	 */
