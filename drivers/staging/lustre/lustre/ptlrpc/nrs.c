@@ -746,8 +746,9 @@ static int nrs_policy_register(struct ptlrpc_nrs *nrs,
 	LASSERT(desc->pd_ops->op_req_dequeue != NULL);
 	LASSERT(desc->pd_compat != NULL);
 
-	OBD_CPT_ALLOC_GFP(policy, svcpt->scp_service->srv_cptable,
-			  svcpt->scp_cpt, sizeof(*policy), GFP_NOFS);
+	policy = kzalloc_node(sizeof(*policy), GFP_NOFS,
+			cfs_cpt_spread_node(svcpt->scp_service->srv_cptable,
+					    svcpt->scp_cpt));
 	if (policy == NULL)
 		return -ENOMEM;
 
@@ -961,9 +962,10 @@ static int nrs_svcpt_setup_locked(struct ptlrpc_service_part *svcpt)
 	if (svcpt->scp_service->srv_ops.so_hpreq_handler == NULL)
 		goto out;
 
-	OBD_CPT_ALLOC_PTR(svcpt->scp_nrs_hp,
-			  svcpt->scp_service->srv_cptable,
-			  svcpt->scp_cpt);
+	svcpt->scp_nrs_hp =
+		kzalloc_node(sizeof(*svcpt->scp_nrs_hp), GFP_NOFS,
+			cfs_cpt_spread_node(svcpt->scp_service->srv_cptable,
+					    svcpt->scp_cpt));
 	if (svcpt->scp_nrs_hp == NULL) {
 		rc = -ENOMEM;
 		goto out;
