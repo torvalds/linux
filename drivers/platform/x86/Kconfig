@@ -642,6 +642,7 @@ config ACPI_TOSHIBA
 config TOSHIBA_BT_RFKILL
 	tristate "Toshiba Bluetooth RFKill switch support"
 	depends on ACPI
+	depends on RFKILL || RFKILL = n
 	---help---
 	  This driver adds support for Bluetooth events for the RFKill
 	  switch on modern Toshiba laptops with full ACPI support and
