@@ -1111,26 +1111,38 @@ static int cx24120_set_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-/* Calculate vco from config */
-static u64 cx24120_calculate_vco(struct cx24120_state *state)
+/* Set vco from config */
+static int cx24120_set_vco(struct cx24120_state *state)
 {
-	u32 vco;
-	u64 inv_vco, res, xxyyzz;
+	struct cx24120_cmd cmd;
+	u32 nxtal_khz, vco;
+	u64 inv_vco;
 	u32 xtal_khz = state->config->xtal_khz;
 
-	xxyyzz = 0x400000000ULL;
-	vco = xtal_khz * 10 * 4;
-	inv_vco = xxyyzz / vco;
-	res = xxyyzz % vco;
-
-	if (inv_vco > xtal_khz * 10 * 2)
-		++inv_vco;
+	nxtal_khz = xtal_khz * 4;
+	vco = nxtal_khz * 10;
+	inv_vco = DIV_ROUND_CLOSEST_ULL(0x400000000ULL, vco);
 
 	dev_dbg(&state->i2c->dev,
-		"%s: xtal=%d, vco=%d, inv_vco=%lld, res=%lld\n",
-		__func__, xtal_khz, vco, inv_vco, res);
+		"%s: xtal=%d, vco=%d, inv_vco=%lld\n",
+		__func__, xtal_khz, vco, inv_vco);
 
-	return inv_vco;
+	cmd.id = CMD_VCO_SET;
+	cmd.len = 12;
+	cmd.arg[0] = (vco >> 16) & 0xff;
+	cmd.arg[1] = (vco >> 8) & 0xff;
+	cmd.arg[2] = vco & 0xff;
+	cmd.arg[3] = (inv_vco >> 8) & 0xff;
+	cmd.arg[4] = (inv_vco) & 0xff;
+	cmd.arg[5] = 0x03;
+	cmd.arg[6] = (nxtal_khz >> 8) & 0xff;
+	cmd.arg[7] = nxtal_khz & 0xff;
+	cmd.arg[8] = 0x06;
+	cmd.arg[9] = 0x03;
+	cmd.arg[10] = (xtal_khz >> 16) & 0xff;
+	cmd.arg[11] = xtal_khz & 0xff;
+
+	return cx24120_message_send(state, &cmd);
 }
 
 int cx24120_init(struct dvb_frontend *fe)
@@ -1139,7 +1151,6 @@ int cx24120_init(struct dvb_frontend *fe)
 	struct cx24120_state *state = fe->demodulator_priv;
 	struct cx24120_cmd cmd;
 	u8 ret, ret_EA, reg1;
-	u64 inv_vco;
 	int reset_result;
 
 	int i;
@@ -1251,26 +1262,10 @@ int cx24120_init(struct dvb_frontend *fe)
 	}
 
 	/* Set VCO */
-	inv_vco = cx24120_calculate_vco(state);
-
-	cmd.id = CMD_VCO_SET;
-	cmd.len = 12;
-	cmd.arg[0] = 0x06;
-	cmd.arg[1] = 0x2b;
-	cmd.arg[2] = 0xd8;
-	cmd.arg[3] = (inv_vco >> 8) & 0xff;
-	cmd.arg[4] = (inv_vco) & 0xff;
-	cmd.arg[5] = 0x03;
-	cmd.arg[6] = 0x9d;
-	cmd.arg[7] = 0xfc;
-	cmd.arg[8] = 0x06;
-	cmd.arg[9] = 0x03;
-	cmd.arg[10] = 0x27;
-	cmd.arg[11] = 0x7f;
-
-	if (cx24120_message_send(state, &cmd)) {
+	ret = cx24120_set_vco(state);
+	if (ret != 0) {
 		err("Error set VCO! :(\n");
-		return -EREMOTEIO;
+		return ret;
 	}
 
 	/* set bandwidth */
