@@ -4,9 +4,6 @@
 /* target_core_alua.c */
 extern struct t10_alua_lu_gp *default_lu_gp;
 
-/* target_core_configfs.c */
-extern struct configfs_subsystem *target_core_subsystem[];
-
 /* target_core_device.c */
 extern struct mutex g_device_mutex;
 extern struct list_head g_device_list;
