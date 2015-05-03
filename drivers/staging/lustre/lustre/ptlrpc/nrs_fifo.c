@@ -80,7 +80,9 @@ static int nrs_fifo_start(struct ptlrpc_nrs_policy *policy)
 {
 	struct nrs_fifo_head *head;
 
-	OBD_CPT_ALLOC_PTR(head, nrs_pol2cptab(policy), nrs_pol2cptid(policy));
+	head = kzalloc_node(sizeof(*head), GFP_NOFS,
+			    cfs_cpt_spread_node(nrs_pol2cptab(policy),
+						nrs_pol2cptid(policy)));
 	if (head == NULL)
 		return -ENOMEM;
 
