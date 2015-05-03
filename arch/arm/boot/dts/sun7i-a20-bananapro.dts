@@ -238,7 +238,9 @@
 
 &spi0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&spi0_pins_a>;
+	pinctrl-0 = <&spi0_pins_a>,
+		    <&spi0_cs0_pins_a>,
+		    <&spi0_cs1_pins_a>;
 	status = "okay";
 };
 
