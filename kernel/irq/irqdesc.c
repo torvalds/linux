@@ -639,7 +639,7 @@ unsigned int kstat_irqs(unsigned int irq)
  */
 unsigned int kstat_irqs_usr(unsigned int irq)
 {
-	int sum;
+	unsigned int sum;
 
 	irq_lock_sparse();
 	sum = kstat_irqs(irq);
