@@ -61,7 +61,7 @@ static void target_fabric_setup_##_name##_cit(struct target_fabric_configfs *tf)
 {									\
 	struct target_fabric_configfs_template *tfc = &tf->tf_cit_tmpl;	\
 	struct config_item_type *cit = &tfc->tfc_##_name##_cit;		\
-	struct configfs_attribute **attrs = tf->tf_ops.tfc_##_name##_attrs; \
+	struct configfs_attribute **attrs = tf->tf_ops->tfc_##_name##_attrs; \
 									\
 	cit->ct_item_ops = _item_ops;					\
 	cit->ct_group_ops = _group_ops;					\
@@ -460,8 +460,8 @@ static void target_fabric_nacl_base_release(struct config_item *item)
 			struct se_node_acl, acl_group);
 	struct target_fabric_configfs *tf = se_nacl->se_tpg->se_tpg_wwn->wwn_tf;
 
-	if (tf->tf_ops.fabric_cleanup_nodeacl)
-		tf->tf_ops.fabric_cleanup_nodeacl(se_nacl);
+	if (tf->tf_ops->fabric_cleanup_nodeacl)
+		tf->tf_ops->fabric_cleanup_nodeacl(se_nacl);
 	core_tpg_del_initiator_node_acl(se_nacl);
 }
 
@@ -506,8 +506,8 @@ static struct config_group *target_fabric_make_nodeacl(
 	if (IS_ERR(se_nacl))
 		return ERR_CAST(se_nacl);
 
-	if (tf->tf_ops.fabric_init_nodeacl) {
-		int ret = tf->tf_ops.fabric_init_nodeacl(se_nacl, name);
+	if (tf->tf_ops->fabric_init_nodeacl) {
+		int ret = tf->tf_ops->fabric_init_nodeacl(se_nacl, name);
 		if (ret) {
 			core_tpg_del_initiator_node_acl(se_nacl);
 			return ERR_PTR(ret);
@@ -579,7 +579,7 @@ static void target_fabric_np_base_release(struct config_item *item)
 	struct se_portal_group *se_tpg = se_tpg_np->tpg_np_parent;
 	struct target_fabric_configfs *tf = se_tpg->se_tpg_wwn->wwn_tf;
 
-	tf->tf_ops.fabric_drop_np(se_tpg_np);
+	tf->tf_ops->fabric_drop_np(se_tpg_np);
 }
 
 static struct configfs_item_operations target_fabric_np_base_item_ops = {
@@ -603,12 +603,12 @@ static struct config_group *target_fabric_make_np(
 	struct target_fabric_configfs *tf = se_tpg->se_tpg_wwn->wwn_tf;
 	struct se_tpg_np *se_tpg_np;
 
-	if (!tf->tf_ops.fabric_make_np) {
+	if (!tf->tf_ops->fabric_make_np) {
 		pr_err("tf->tf_ops.fabric_make_np is NULL\n");
 		return ERR_PTR(-ENOSYS);
 	}
 
-	se_tpg_np = tf->tf_ops.fabric_make_np(se_tpg, group, name);
+	se_tpg_np = tf->tf_ops->fabric_make_np(se_tpg, group, name);
 	if (!se_tpg_np || IS_ERR(se_tpg_np))
 		return ERR_PTR(-EINVAL);
 
@@ -808,13 +808,13 @@ static int target_fabric_port_link(
 		goto out;
 	}
 
-	if (tf->tf_ops.fabric_post_link) {
+	if (tf->tf_ops->fabric_post_link) {
 		/*
 		 * Call the optional fabric_post_link() to allow a
 		 * fabric module to setup any additional state once
 		 * core_dev_add_lun() has been called..
 		 */
-		tf->tf_ops.fabric_post_link(se_tpg, lun);
+		tf->tf_ops->fabric_post_link(se_tpg, lun);
 	}
 
 	return 0;
@@ -831,13 +831,13 @@ static int target_fabric_port_unlink(
 	struct se_portal_group *se_tpg = lun->lun_sep->sep_tpg;
 	struct target_fabric_configfs *tf = se_tpg->se_tpg_wwn->wwn_tf;
 
-	if (tf->tf_ops.fabric_pre_unlink) {
+	if (tf->tf_ops->fabric_pre_unlink) {
 		/*
 		 * Call the optional fabric_pre_unlink() to allow a
 		 * fabric module to release any additional stat before
 		 * core_dev_del_lun() is called.
 		*/
-		tf->tf_ops.fabric_pre_unlink(se_tpg, lun);
+		tf->tf_ops->fabric_pre_unlink(se_tpg, lun);
 	}
 
 	core_dev_del_lun(se_tpg, lun);
@@ -1027,7 +1027,7 @@ static void target_fabric_tpg_release(struct config_item *item)
 	struct se_wwn *wwn = se_tpg->se_tpg_wwn;
 	struct target_fabric_configfs *tf = wwn->wwn_tf;
 
-	tf->tf_ops.fabric_drop_tpg(se_tpg);
+	tf->tf_ops->fabric_drop_tpg(se_tpg);
 }
 
 static struct configfs_item_operations target_fabric_tpg_base_item_ops = {
@@ -1050,12 +1050,12 @@ static struct config_group *target_fabric_make_tpg(
 	struct target_fabric_configfs *tf = wwn->wwn_tf;
 	struct se_portal_group *se_tpg;
 
-	if (!tf->tf_ops.fabric_make_tpg) {
-		pr_err("tf->tf_ops.fabric_make_tpg is NULL\n");
+	if (!tf->tf_ops->fabric_make_tpg) {
+		pr_err("tf->tf_ops->fabric_make_tpg is NULL\n");
 		return ERR_PTR(-ENOSYS);
 	}
 
-	se_tpg = tf->tf_ops.fabric_make_tpg(wwn, group, name);
+	se_tpg = tf->tf_ops->fabric_make_tpg(wwn, group, name);
 	if (!se_tpg || IS_ERR(se_tpg))
 		return ERR_PTR(-EINVAL);
 	/*
@@ -1116,7 +1116,7 @@ static void target_fabric_release_wwn(struct config_item *item)
 				struct se_wwn, wwn_group);
 	struct target_fabric_configfs *tf = wwn->wwn_tf;
 
-	tf->tf_ops.fabric_drop_wwn(wwn);
+	tf->tf_ops->fabric_drop_wwn(wwn);
 }
 
 static struct configfs_item_operations target_fabric_tpg_item_ops = {
@@ -1152,12 +1152,12 @@ static struct config_group *target_fabric_make_wwn(
 				struct target_fabric_configfs, tf_group);
 	struct se_wwn *wwn;
 
-	if (!tf->tf_ops.fabric_make_wwn) {
+	if (!tf->tf_ops->fabric_make_wwn) {
 		pr_err("tf->tf_ops.fabric_make_wwn is NULL\n");
 		return ERR_PTR(-ENOSYS);
 	}
 
-	wwn = tf->tf_ops.fabric_make_wwn(tf, group, name);
+	wwn = tf->tf_ops->fabric_make_wwn(tf, group, name);
 	if (!wwn || IS_ERR(wwn))
 		return ERR_PTR(-EINVAL);
 

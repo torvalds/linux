@@ -42,7 +42,7 @@ struct target_fabric_configfs {
 	struct config_item_type	*tf_fabric_cit;
 	/* Pointer to fabric's struct module */
 	struct module *tf_module;
-	struct target_core_fabric_ops tf_ops;
+	const struct target_core_fabric_ops *tf_ops;
 	struct target_fabric_configfs_template tf_cit_tmpl;
 };
 

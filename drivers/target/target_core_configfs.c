@@ -444,7 +444,7 @@ int target_register_template(const struct target_core_fabric_ops *fo)
 	tf->tf_module = fo->module;
 	snprintf(tf->tf_name, TARGET_FABRIC_NAME_SIZE, "%s", fo->name);
 
-	tf->tf_ops = *fo;
+	tf->tf_ops = fo;
 	target_fabric_setup_cits(tf);
 
 	mutex_lock(&g_tf_lock);
