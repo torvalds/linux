@@ -64,16 +64,15 @@ static const struct fc2580_pll fc2580_pll_lut[] = {
 
 struct fc2580_if_filter {
 	u32 freq;
-	u16 mul;
 	u8 r36_val;
 	u8 r39_val;
 };
 
 static const struct fc2580_if_filter fc2580_if_filter_lut[] = {
-	{   6000000, 4400, 0x18, 0x00},
-	{   7000000, 3910, 0x18, 0x80},
-	{   8000000, 3300, 0x18, 0x80},
-	{0xffffffff, 3300, 0x18, 0x80},
+	{   6000000, 0x18, 0x00},
+	{   7000000, 0x18, 0x80},
+	{   8000000, 0x18, 0x80},
+	{0xffffffff, 0x18, 0x80},
 };
 
 struct fc2580_freq_regs {

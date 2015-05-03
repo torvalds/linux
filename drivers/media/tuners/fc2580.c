@@ -46,7 +46,7 @@ static int fc2580_set_params(struct dvb_frontend *fe)
 	int ret, i;
 	unsigned int uitmp, div_ref, div_ref_val, div_n, k, k_cw, div_out;
 	u64 f_vco;
-	u8 u8tmp, synth_config;
+	u8 synth_config;
 	unsigned long timeout;
 
 	dev_dbg(&client->dev,
@@ -249,9 +249,9 @@ static int fc2580_set_params(struct dvb_frontend *fe)
 	if (ret)
 		goto err;
 
-	u8tmp = div_u64((u64) dev->clk * fc2580_if_filter_lut[i].mul,
-			1000000000);
-	ret = regmap_write(dev->regmap, 0x37, u8tmp);
+	uitmp = (unsigned int) 8058000 - (c->bandwidth_hz * 122 / 100 / 2);
+	uitmp = div64_u64((u64) dev->clk * uitmp, 1000000000000ULL);
+	ret = regmap_write(dev->regmap, 0x37, uitmp);
 	if (ret)
 		goto err;
 
