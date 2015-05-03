@@ -37,6 +37,16 @@ config APDS9300
 	 To compile this driver as a module, choose M here: the
 	 module will be called apds9300.
 
+config BH1750
+	tristate "ROHM BH1750 ambient light sensor"
+	depends on I2C
+	help
+	 Say Y here to build support for the ROHM BH1710, BH1715, BH1721,
+	 BH1750, BH1751 ambient light sensors.
+
+	 To compile this driver as a module, choose M here: the module will
+	 be called bh1750.
+
 config CM32181
 	depends on I2C
 	tristate "CM32181 driver"
