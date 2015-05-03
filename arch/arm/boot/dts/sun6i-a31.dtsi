@@ -62,7 +62,8 @@
 		ranges;
 
 		framebuffer@0 {
-			compatible = "allwinner,simple-framebuffer", "simple-framebuffer";
+			compatible = "allwinner,simple-framebuffer",
+				     "simple-framebuffer";
 			allwinner,pipeline = "de_be0-lcd0-hdmi";
 			clocks = <&pll6 0>;
 			status = "disabled";
@@ -299,9 +300,10 @@
 			reg = <0x01c2006c 0x4>;
 			clocks = <&apb2>;
 			clock-output-names = "apb2_i2c0", "apb2_i2c1",
-					"apb2_i2c2", "apb2_i2c3", "apb2_uart0",
-					"apb2_uart1", "apb2_uart2", "apb2_uart3",
-					"apb2_uart4", "apb2_uart5";
+					     "apb2_i2c2", "apb2_i2c3",
+					     "apb2_uart0", "apb2_uart1",
+					     "apb2_uart2", "apb2_uart3",
+					     "apb2_uart4", "apb2_uart5";
 		};
 
 		mmc0_clk: clk@01c20088 {
@@ -388,10 +390,13 @@
 		};
 
 		/*
-		 * The following two are dummy clocks, placeholders used in the gmac_tx
-		 * clock. The gmac driver will choose one parent depending on the PHY
-		 * interface mode, using clk_set_rate auto-reparenting.
-		 * The actual TX clock rate is not controlled by the gmac_tx clock.
+		 * The following two are dummy clocks, placeholders
+		 * used in the gmac_tx clock. The gmac driver will
+		 * choose one parent depending on the PHY interface
+		 * mode, using clk_set_rate auto-reparenting.
+		 *
+		 * The actual TX clock rate is not controlled by the
+		 * gmac_tx clock.
 		 */
 		mii_phy_tx_clk: clk@1 {
 			#clock-cells = <0>;
@@ -627,7 +632,8 @@
 			};
 
 			mmc0_pins_a: mmc0@0 {
-				allwinner,pins = "PF0","PF1","PF2","PF3","PF4","PF5";
+				allwinner,pins = "PF0", "PF1", "PF2",
+						 "PF3", "PF4", "PF5";
 				allwinner,function = "mmc0";
 				allwinner,drive = <SUN4I_PINCTRL_30_MA>;
 				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
@@ -865,7 +871,8 @@
 		};
 
 		timer@01c60000 {
-			compatible = "allwinner,sun6i-a31-hstimer", "allwinner,sun7i-a20-hstimer";
+			compatible = "allwinner,sun6i-a31-hstimer",
+				     "allwinner,sun7i-a20-hstimer";
 			reg = <0x01c60000 0x1000>;
 			interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>,
@@ -956,7 +963,8 @@
 			ar100: ar100_clk {
 				compatible = "allwinner,sun6i-a31-ar100-clk";
 				#clock-cells = <0>;
-				clocks = <&osc32k>, <&osc24M>, <&pll6 0>, <&pll6 0>;
+				clocks = <&osc32k>, <&osc24M>, <&pll6 0>,
+					 <&pll6 0>;
 				clock-output-names = "ar100";
 			};
 

@@ -63,7 +63,8 @@
 		ranges;
 
 		framebuffer@0 {
-			compatible = "allwinner,simple-framebuffer", "simple-framebuffer";
+			compatible = "allwinner,simple-framebuffer",
+				     "simple-framebuffer";
 			allwinner,pipeline = "de_be0-lcd0-hdmi";
 			clocks = <&pll5 1>, <&ahb_gates 36>, <&ahb_gates 43>,
 				 <&ahb_gates 44>;
@@ -447,7 +448,8 @@
 			compatible = "allwinner,sun4i-a10-usb-clk";
 			reg = <0x01c200cc 0x4>;
 			clocks = <&pll6 1>;
-			clock-output-names = "usb_ohci0", "usb_ohci1", "usb_phy";
+			clock-output-names = "usb_ohci0", "usb_ohci1",
+					     "usb_phy";
 		};
 
 		spi3_clk: clk@01c200d4 {
@@ -467,10 +469,13 @@
 		};
 
 		/*
-		 * The following two are dummy clocks, placeholders used in the gmac_tx
-		 * clock. The gmac driver will choose one parent depending on the PHY
-		 * interface mode, using clk_set_rate auto-reparenting.
-		 * The actual TX clock rate is not controlled by the gmac_tx clock.
+		 * The following two are dummy clocks, placeholders
+		 * used in the gmac_tx clock. The gmac driver will
+		 * choose one parent depending on the PHY interface
+		 * mode, using clk_set_rate auto-reparenting.
+		 *
+		 * The actual TX clock rate is not controlled by the
+		 * gmac_tx clock.
 		 */
 		mii_phy_tx_clk: clk@2 {
 			#clock-cells = <0>;
@@ -968,7 +973,8 @@
 			};
 
 			mmc0_pins_a: mmc0@0 {
-				allwinner,pins = "PF0","PF1","PF2","PF3","PF4","PF5";
+				allwinner,pins = "PF0", "PF1", "PF2",
+						 "PF3", "PF4", "PF5";
 				allwinner,function = "mmc0";
 				allwinner,drive = <SUN4I_PINCTRL_30_MA>;
 				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
@@ -982,14 +988,16 @@
 			};
 
 			mmc2_pins_a: mmc2@0 {
-				allwinner,pins = "PC6","PC7","PC8","PC9","PC10","PC11";
+				allwinner,pins = "PC6", "PC7", "PC8",
+						 "PC9", "PC10", "PC11";
 				allwinner,function = "mmc2";
 				allwinner,drive = <SUN4I_PINCTRL_30_MA>;
 				allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
 			};
 
 			mmc3_pins_a: mmc3@0 {
-				allwinner,pins = "PI4","PI5","PI6","PI7","PI8","PI9";
+				allwinner,pins = "PI4", "PI5", "PI6",
+						 "PI7", "PI8", "PI9";
 				allwinner,function = "mmc3";
 				allwinner,drive = <SUN4I_PINCTRL_30_MA>;
 				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
@@ -1187,7 +1195,8 @@
 		};
 
 		i2c0: i2c@01c2ac00 {
-			compatible = "allwinner,sun7i-a20-i2c", "allwinner,sun4i-a10-i2c";
+			compatible = "allwinner,sun7i-a20-i2c",
+				     "allwinner,sun4i-a10-i2c";
 			reg = <0x01c2ac00 0x400>;
 			interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&apb1_gates 0>;
@@ -1197,7 +1206,8 @@
 		};
 
 		i2c1: i2c@01c2b000 {
-			compatible = "allwinner,sun7i-a20-i2c", "allwinner,sun4i-a10-i2c";
+			compatible = "allwinner,sun7i-a20-i2c",
+				     "allwinner,sun4i-a10-i2c";
 			reg = <0x01c2b000 0x400>;
 			interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&apb1_gates 1>;
@@ -1207,7 +1217,8 @@
 		};
 
 		i2c2: i2c@01c2b400 {
-			compatible = "allwinner,sun7i-a20-i2c", "allwinner,sun4i-a10-i2c";
+			compatible = "allwinner,sun7i-a20-i2c",
+				     "allwinner,sun4i-a10-i2c";
 			reg = <0x01c2b400 0x400>;
 			interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&apb1_gates 2>;
@@ -1217,7 +1228,8 @@
 		};
 
 		i2c3: i2c@01c2b800 {
-			compatible = "allwinner,sun7i-a20-i2c", "allwinner,sun4i-a10-i2c";
+			compatible = "allwinner,sun7i-a20-i2c",
+				     "allwinner,sun4i-a10-i2c";
 			reg = <0x01c2b800 0x400>;
 			interrupts = <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&apb1_gates 3>;
@@ -1227,7 +1239,8 @@
 		};
 
 		i2c4: i2c@01c2c000 {
-			compatible = "allwinner,sun7i-a20-i2c", "allwinner,sun4i-a10-i2c";
+			compatible = "allwinner,sun7i-a20-i2c",
+				     "allwinner,sun4i-a10-i2c";
 			reg = <0x01c2c000 0x400>;
 			interrupts = <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&apb1_gates 15>;

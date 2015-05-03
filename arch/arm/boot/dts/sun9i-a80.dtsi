@@ -284,7 +284,7 @@
 					"ahb0_ss", "ahb0_sd", "ahb0_nand1",
 					"ahb0_nand0", "ahb0_sdram",
 					"ahb0_mipi_hsi", "ahb0_sata", "ahb0_ts",
-					"ahb0_spi0","ahb0_spi1", "ahb0_spi2",
+					"ahb0_spi0", "ahb0_spi1", "ahb0_spi2",
 					"ahb0_spi3";
 		};
 

@@ -104,12 +104,16 @@
 			compatible = "allwinner,sun5i-a13-ahb-gates-clk";
 			reg = <0x01c20060 0x8>;
 			clocks = <&ahb>;
-			clock-output-names = "ahb_usbotg", "ahb_ehci", "ahb_ohci",
-				"ahb_ss", "ahb_dma", "ahb_bist", "ahb_mmc0",
-				"ahb_mmc1", "ahb_mmc2", "ahb_nand", "ahb_sdram",
-				"ahb_spi0", "ahb_spi1", "ahb_spi2", "ahb_stimer",
-				"ahb_ve", "ahb_lcd", "ahb_csi", "ahb_de_be",
-				"ahb_de_fe", "ahb_iep", "ahb_mali400";
+			clock-output-names = "ahb_usbotg", "ahb_ehci",
+					     "ahb_ohci", "ahb_ss", "ahb_dma",
+					     "ahb_bist", "ahb_mmc0", "ahb_mmc1",
+					     "ahb_mmc2", "ahb_nand",
+					     "ahb_sdram", "ahb_spi0",
+					     "ahb_spi1", "ahb_spi2",
+					     "ahb_stimer", "ahb_ve", "ahb_lcd",
+					     "ahb_csi", "ahb_de_be",
+					     "ahb_de_fe", "ahb_iep",
+					     "ahb_mali400";
 		};
 
 		apb0_gates: clk@01c20068 {
@@ -117,7 +121,8 @@
 			compatible = "allwinner,sun5i-a13-apb0-gates-clk";
 			reg = <0x01c20068 0x4>;
 			clocks = <&apb0>;
-			clock-output-names = "apb0_codec", "apb0_pio", "apb0_ir";
+			clock-output-names = "apb0_codec", "apb0_pio",
+					     "apb0_ir";
 		};
 
 		apb1_gates: clk@01c2006c {
