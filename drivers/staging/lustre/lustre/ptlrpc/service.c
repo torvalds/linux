@@ -75,7 +75,9 @@ ptlrpc_alloc_rqbd(struct ptlrpc_service_part *svcpt)
 	struct ptlrpc_service		  *svc = svcpt->scp_service;
 	struct ptlrpc_request_buffer_desc *rqbd;
 
-	OBD_CPT_ALLOC_PTR(rqbd, svc->srv_cptable, svcpt->scp_cpt);
+	rqbd = kzalloc_node(sizeof(*rqbd), GFP_NOFS,
+			    cfs_cpt_spread_node(svc->srv_cptable,
+						svcpt->scp_cpt));
 	if (rqbd == NULL)
 		return NULL;
 
@@ -630,16 +632,18 @@ ptlrpc_service_part_init(struct ptlrpc_service *svc,
 	array->paa_deadline = -1;
 
 	/* allocate memory for scp_at_array (ptlrpc_at_array) */
-	OBD_CPT_ALLOC(array->paa_reqs_array,
-		      svc->srv_cptable, cpt, sizeof(struct list_head) * size);
+	array->paa_reqs_array =
+		kzalloc_node(sizeof(struct list_head) * size, GFP_NOFS,
+			     cfs_cpt_spread_node(svc->srv_cptable, cpt));
 	if (array->paa_reqs_array == NULL)
 		return -ENOMEM;
 
 	for (index = 0; index < size; index++)
 		INIT_LIST_HEAD(&array->paa_reqs_array[index]);
 
-	OBD_CPT_ALLOC(array->paa_reqs_count,
-		      svc->srv_cptable, cpt, sizeof(__u32) * size);
+	array->paa_reqs_count =
+		kzalloc_node(sizeof(__u32) * size, GFP_NOFS,
+			     cfs_cpt_spread_node(svc->srv_cptable, cpt));
 	if (array->paa_reqs_count == NULL)
 		goto free_reqs_array;
 
@@ -772,7 +776,8 @@ ptlrpc_register_service(struct ptlrpc_service_conf *conf,
 		else
 			cpt = cpts != NULL ? cpts[i] : i;
 
-		OBD_CPT_ALLOC(svcpt, cptable, cpt, sizeof(*svcpt));
+		svcpt = kzalloc_node(sizeof(*svcpt), GFP_NOFS,
+				     cfs_cpt_spread_node(cptable, cpt));
 		if (svcpt == NULL) {
 			rc = -ENOMEM;
 			goto failed;
@@ -2664,7 +2669,9 @@ int ptlrpc_start_thread(struct ptlrpc_service_part *svcpt, int wait)
 	     svcpt->scp_nthrs_running == svc->srv_nthrs_cpt_init - 1))
 		return -EMFILE;
 
-	OBD_CPT_ALLOC_PTR(thread, svc->srv_cptable, svcpt->scp_cpt);
+	thread = kzalloc_node(sizeof(*thread), GFP_NOFS,
+			      cfs_cpt_spread_node(svc->srv_cptable,
+						  svcpt->scp_cpt));
 	if (thread == NULL)
 		return -ENOMEM;
 	init_waitqueue_head(&thread->t_ctl_waitq);
@@ -2774,8 +2781,10 @@ int ptlrpc_hr_init(void)
 		hrp->hrp_nthrs /= weight;
 
 		LASSERT(hrp->hrp_nthrs > 0);
-		OBD_CPT_ALLOC(hrp->hrp_thrs, ptlrpc_hr.hr_cpt_table, i,
-			      hrp->hrp_nthrs * sizeof(*hrt));
+		hrp->hrp_thrs =
+			kzalloc_node(hrp->hrp_nthrs * sizeof(*hrt), GFP_NOFS,
+				cfs_cpt_spread_node(ptlrpc_hr.hr_cpt_table,
+						    i));
 		if (hrp->hrp_thrs == NULL) {
 			rc = -ENOMEM;
 			goto out;
