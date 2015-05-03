@@ -219,9 +219,6 @@ struct ftrace_event_class {
 extern int ftrace_event_reg(struct ftrace_event_call *event,
 			    enum trace_reg type, void *data);
 
-int ftrace_output_event(struct trace_iterator *iter, struct ftrace_event_call *event,
-			char *fmt, ...);
-
 int ftrace_event_define_field(struct ftrace_event_call *call,
 			      char *type, int len, char *item, int offset,
 			      int field_size, int sign, int filter);
