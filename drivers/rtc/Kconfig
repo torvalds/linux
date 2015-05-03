@@ -1094,7 +1094,7 @@ config RTC_DRV_WM8350
 
 config RTC_DRV_SPEAR
 	tristate "SPEAR ST RTC"
-	depends on PLAT_SPEAR
+	depends on PLAT_SPEAR || COMPILE_TEST
 	default y
 	help
 	 If you say Y here you will get support for the RTC found on
@@ -1126,7 +1126,7 @@ config RTC_DRV_AB8500
 
 config RTC_DRV_NUC900
 	tristate "NUC910/NUC920 RTC driver"
-	depends on ARCH_W90X900
+	depends on ARCH_W90X900 || COMPILE_TEST
 	help
 	  If you say yes here you get support for the RTC subsystem of the
 	  NUC910/NUC920 used in embedded systems.
@@ -1163,7 +1163,7 @@ config RTC_DRV_ASM9260
 
 config RTC_DRV_DAVINCI
 	tristate "TI DaVinci RTC"
-	depends on ARCH_DAVINCI_DM365
+	depends on ARCH_DAVINCI_DM365 || COMPILE_TEST
 	help
 	  If you say yes here you get support for the RTC on the
 	  DaVinci platforms (DM365).
@@ -1173,7 +1173,7 @@ config RTC_DRV_DAVINCI
 
 config RTC_DRV_DIGICOLOR
 	tristate "Conexant Digicolor RTC"
-	depends on ARCH_DIGICOLOR
+	depends on ARCH_DIGICOLOR || COMPILE_TEST
 	help
 	  If you say yes here you get support for the RTC on Conexant
 	  Digicolor platforms. This currently includes the CX92755 SoC.
@@ -1192,7 +1192,7 @@ config RTC_DRV_IMXDI
 
 config RTC_DRV_OMAP
 	tristate "TI OMAP Real Time Clock"
-	depends on ARCH_OMAP || ARCH_DAVINCI
+	depends on ARCH_OMAP || ARCH_DAVINCI || COMPILE_TEST
 	help
 	  Say "yes" here to support the on chip real time clock
 	  present on TI OMAP1, AM33xx, DA8xx/OMAP-L13x, AM43xx and DRA7xx.
@@ -1209,7 +1209,7 @@ config HAVE_S3C_RTC
 
 config RTC_DRV_S3C
 	tristate "Samsung S3C series SoC RTC"
-	depends on ARCH_S3C64XX || HAVE_S3C_RTC
+	depends on ARCH_S3C64XX || HAVE_S3C_RTC || COMPILE_TEST
 	help
 	  RTC (Realtime Clock) driver for the clock inbuilt into the
 	  Samsung S3C24XX series of SoCs. This can provide periodic
@@ -1225,7 +1225,7 @@ config RTC_DRV_S3C
 
 config RTC_DRV_EP93XX
 	tristate "Cirrus Logic EP93XX"
-	depends on ARCH_EP93XX
+	depends on ARCH_EP93XX || COMPILE_TEST
 	help
 	  If you say yes here you get support for the
 	  RTC embedded in the Cirrus Logic EP93XX processors.
@@ -1255,7 +1255,7 @@ config RTC_DRV_SH
 
 config RTC_DRV_VR41XX
 	tristate "NEC VR41XX"
-	depends on CPU_VR41XX
+	depends on CPU_VR41XX || COMPILE_TEST
 	help
 	  If you say Y here you will get access to the real time clock
 	  built into your NEC VR41XX CPU.
@@ -1285,14 +1285,14 @@ config RTC_DRV_PL031
 
 config RTC_DRV_AT32AP700X
 	tristate "AT32AP700X series RTC"
-	depends on PLATFORM_AT32AP
+	depends on PLATFORM_AT32AP || COMPILE_TEST
 	help
 	  Driver for the internal RTC (Realtime Clock) on Atmel AVR32
 	  AT32AP700x family processors.
 
 config RTC_DRV_AT91RM9200
 	tristate "AT91RM9200 or some AT91SAM9 RTC"
-	depends on ARCH_AT91
+	depends on ARCH_AT91 || COMPILE_TEST
 	help
 	  Driver for the internal RTC (Realtime Clock) module found on
 	  Atmel AT91RM9200's and some  AT91SAM9 chips. On AT91SAM9 chips
@@ -1300,7 +1300,7 @@ config RTC_DRV_AT91RM9200
 
 config RTC_DRV_AT91SAM9
 	tristate "AT91SAM9 RTT as RTC"
-	depends on ARCH_AT91
+	depends on ARCH_AT91 || COMPILE_TEST
 	select MFD_SYSCON
 	help
 	  Some AT91SAM9 SoCs provide an RTT (Real Time Timer) block which
@@ -1342,7 +1342,7 @@ config RTC_DRV_GENERIC
 	tristate "Generic RTC support"
 	# Please consider writing a new RTC driver instead of using the generic
 	# RTC abstraction
-	depends on PARISC || M68K || PPC || SUPERH32
+	depends on PARISC || M68K || PPC || SUPERH32 || COMPILE_TEST
 	help
 	  Say Y or M here to enable RTC support on systems using the generic
 	  RTC abstraction. If you do not know what you are doing, you should
@@ -1362,7 +1362,7 @@ config RTC_DRV_PXA
 
 config RTC_DRV_VT8500
 	tristate "VIA/WonderMedia 85xx SoC RTC"
-	depends on ARCH_VT8500
+	depends on ARCH_VT8500 || COMPILE_TEST
 	help
 	  If you say Y here you will get access to the real time clock
 	  built into your VIA VT8500 SoC or its relatives.
@@ -1377,7 +1377,7 @@ config RTC_DRV_SUN4V
 
 config RTC_DRV_SUN6I
 	tristate "Allwinner A31 RTC"
-	default MACH_SUN6I || MACH_SUN8I
+	default MACH_SUN6I || MACH_SUN8I || COMPILE_TEST
 	depends on ARCH_SUNXI
 	help
 	  If you say Y here you will get support for the RTC found in
@@ -1385,7 +1385,7 @@ config RTC_DRV_SUN6I
 
 config RTC_DRV_SUNXI
 	tristate "Allwinner sun4i/sun7i RTC"
-	depends on MACH_SUN4I || MACH_SUN7I
+	depends on MACH_SUN4I || MACH_SUN7I || COMPILE_TEST
 	help
 	  If you say Y here you will get support for the RTC found on
 	  Allwinner A10/A20.
@@ -1406,7 +1406,7 @@ config RTC_DRV_TX4939
 
 config RTC_DRV_MV
 	tristate "Marvell SoC RTC"
-	depends on ARCH_DOVE || ARCH_MVEBU
+	depends on ARCH_DOVE || ARCH_MVEBU || COMPILE_TEST
 	help
 	  If you say yes here you will get support for the in-chip RTC
 	  that can be found in some of Marvell's SoC devices, such as
@@ -1417,7 +1417,7 @@ config RTC_DRV_MV
 
 config RTC_DRV_ARMADA38X
 	tristate "Armada 38x Marvell SoC RTC"
-	depends on ARCH_MVEBU
+	depends on ARCH_MVEBU || COMPILE_TEST
 	help
 	  If you say yes here you will get support for the in-chip RTC
 	  that can be found in the Armada 38x Marvell's SoC device
@@ -1447,7 +1447,7 @@ config RTC_DRV_PS3
 
 config RTC_DRV_COH901331
 	tristate "ST-Ericsson COH 901 331 RTC"
-	depends on ARCH_U300
+	depends on ARCH_U300 || COMPILE_TEST
 	help
 	  If you say Y here you will get access to ST-Ericsson
 	  COH 901 331 RTC clock found in some ST-Ericsson Mobile
@@ -1459,7 +1459,7 @@ config RTC_DRV_COH901331
 
 config RTC_DRV_STMP
 	tristate "Freescale STMP3xxx/i.MX23/i.MX28 RTC"
-	depends on ARCH_MXS
+	depends on ARCH_MXS || COMPILE_TEST
 	select STMP_DEVICE
 	help
 	  If you say yes here you will get support for the onboard
@@ -1494,7 +1494,7 @@ config RTC_DRV_MPC5121
 
 config RTC_DRV_JZ4740
 	tristate "Ingenic JZ4740 SoC"
-	depends on MACH_JZ4740
+	depends on MACH_JZ4740 || COMPILE_TEST
 	help
 	  If you say yes here you get support for the Ingenic JZ4740 SoC RTC
 	  controller.
@@ -1515,7 +1515,7 @@ config RTC_DRV_LPC24XX
 	  so, the module will be called rtc-lpc24xx.
 
 config RTC_DRV_LPC32XX
-	depends on ARCH_LPC32XX
+	depends on ARCH_LPC32XX || COMPILE_TEST
 	tristate "NXP LPC32XX RTC"
 	help
 	  This enables support for the NXP RTC in the LPC32XX
@@ -1525,7 +1525,7 @@ config RTC_DRV_LPC32XX
 
 config RTC_DRV_PM8XXX
 	tristate "Qualcomm PMIC8XXX RTC"
-	depends on MFD_PM8XXX || MFD_SPMI_PMIC
+	depends on MFD_PM8XXX || MFD_SPMI_PMIC || COMPILE_TEST
 	help
 	  If you say yes here you get support for the
 	  Qualcomm PMIC8XXX RTC.
@@ -1535,7 +1535,7 @@ config RTC_DRV_PM8XXX
 
 config RTC_DRV_TEGRA
 	tristate "NVIDIA Tegra Internal RTC driver"
-	depends on ARCH_TEGRA
+	depends on ARCH_TEGRA || COMPILE_TEST
 	help
 	  If you say yes here you get support for the
 	  Tegra 200 series internal RTC module.
