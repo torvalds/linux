@@ -973,6 +973,8 @@ static void br_nf_pre_routing_finish_bridge_slow(struct sk_buff *skb)
 				       nf_bridge->neigh_header,
 				       ETH_HLEN - ETH_ALEN);
 	skb->dev = nf_bridge->physindev;
+
+	nf_bridge->physoutdev = NULL;
 	br_handle_frame_finish(NULL, skb);
 }
 
