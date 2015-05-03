@@ -147,9 +147,6 @@ static int smartq_wm8987_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_nc_pin(dapm, "OUT3");
 	snd_soc_dapm_nc_pin(dapm, "ROUT1");
 
-	/* set endpoints to default off mode */
-	snd_soc_dapm_disable_pin(dapm, "Headphone Jack");
-
 	/* Headphone jack detection */
 	err = snd_soc_card_jack_new(rtd->card, "Headphone Jack",
 				    SND_JACK_HEADPHONE, &smartq_jack,
