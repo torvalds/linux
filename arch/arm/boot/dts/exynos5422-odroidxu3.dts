@@ -11,6 +11,7 @@
 */
 
 /dts-v1/;
+#include <dt-bindings/clock/samsung,s2mps11.h>
 #include <dt-bindings/gpio/gpio.h>
 #include "exynos5800.dtsi"
 
@@ -283,10 +284,6 @@
 		};
 	};
 
-	rtc@101E0000 {
-		status = "okay";
-	};
-
 	leds {
 		compatible = "gpio-leds";
 		heartbeat {
@@ -414,4 +411,10 @@
 		reg = <0x45>;
 		shunt-resistor = <10000>;
 	};
+};
+
+&rtc {
+	status = "okay";
+	clocks = <&clock CLK_RTC>, <&s2mps11_osc S2MPS11_CLK_AP>;
+	clock-names = "rtc", "rtc_src";
 };
