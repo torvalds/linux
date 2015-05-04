@@ -92,9 +92,6 @@ struct gpio_desc {
 #define FLAG_SYSFS_DIR	10	/* show sysfs direction attribute */
 #define FLAG_IS_HOGGED	11	/* GPIO is hogged */
 
-#define ID_SHIFT	16	/* add new flags before this one */
-
-#define GPIO_FLAGS_MASK		((1 << ID_SHIFT) - 1)
 #define GPIO_TRIGGER_MASK	(BIT(FLAG_TRIG_FALL) | BIT(FLAG_TRIG_RISE))
 
 	const char		*label;
