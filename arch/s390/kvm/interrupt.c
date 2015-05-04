@@ -972,7 +972,26 @@ static int __inject_prog(struct kvm_vcpu *vcpu, struct kvm_s390_irq *irq)
 	trace_kvm_s390_inject_vcpu(vcpu->vcpu_id, KVM_S390_PROGRAM_INT,
 				   irq->u.pgm.code, 0);
 
-	li->irq.pgm = irq->u.pgm;
+	if (irq->u.pgm.code == PGM_PER) {
+		li->irq.pgm.code |= PGM_PER;
+		/* only modify PER related information */
+		li->irq.pgm.per_address = irq->u.pgm.per_address;
+		li->irq.pgm.per_code = irq->u.pgm.per_code;
+		li->irq.pgm.per_atmid = irq->u.pgm.per_atmid;
+		li->irq.pgm.per_access_id = irq->u.pgm.per_access_id;
+	} else if (!(irq->u.pgm.code & PGM_PER)) {
+		li->irq.pgm.code = (li->irq.pgm.code & PGM_PER) |
+				   irq->u.pgm.code;
+		/* only modify non-PER information */
+		li->irq.pgm.trans_exc_code = irq->u.pgm.trans_exc_code;
+		li->irq.pgm.mon_code = irq->u.pgm.mon_code;
+		li->irq.pgm.data_exc_code = irq->u.pgm.data_exc_code;
+		li->irq.pgm.mon_class_nr = irq->u.pgm.mon_class_nr;
+		li->irq.pgm.exc_access_id = irq->u.pgm.exc_access_id;
+		li->irq.pgm.op_access_id = irq->u.pgm.op_access_id;
+	} else {
+		li->irq.pgm = irq->u.pgm;
+	}
 	set_bit(IRQ_PEND_PROG, &li->pending_irqs);
 	return 0;
 }
