@@ -300,12 +300,12 @@ struct msm_dsi_phy *msm_dsi_phy_init(struct platform_device *pdev,
 		return NULL;
 
 	phy->base = msm_ioremap(pdev, "dsi_phy", "DSI_PHY");
-	if (IS_ERR_OR_NULL(phy->base)) {
+	if (IS_ERR(phy->base)) {
 		pr_err("%s: failed to map phy base\n", __func__);
 		return NULL;
 	}
 	phy->reg_base = msm_ioremap(pdev, "dsi_phy_regulator", "DSI_PHY_REG");
-	if (IS_ERR_OR_NULL(phy->reg_base)) {
+	if (IS_ERR(phy->reg_base)) {
 		pr_err("%s: failed to map phy regulator base\n", __func__);
 		return NULL;
 	}
