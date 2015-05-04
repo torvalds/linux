@@ -1763,6 +1763,7 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 	if (!*name)
 		return 0;
 
+	nd->depth++;
 	/* At this point we know we have a real path component. */
 	for(;;) {
 		u64 hash_len;
@@ -1823,15 +1824,18 @@ Walked:
 		if (err) {
 			const char *s;
 
+			nd->depth--;
 			err = nd_alloc_stack(nd);
+			nd->depth++;
 			if (unlikely(err)) {
 				path_to_nameidata(&nd->link, nd);
 				break;
 			}
 
 			nd->depth++;
-
+			nd->depth--;
 			s = get_link(nd);
+			nd->depth++;
 
 			if (unlikely(IS_ERR(s))) {
 				err = PTR_ERR(s);
@@ -1841,7 +1845,9 @@ Walked:
 			err = 0;
 			if (unlikely(!s)) {
 				/* jumped */
+				nd->depth--;
 				put_link(nd);
+				nd->depth++;
 				nd->depth--;
 			} else {
 				if (*s == '/') {
@@ -1855,7 +1861,7 @@ Walked:
 						;
 				}
 				nd->inode = nd->path.dentry->d_inode;
-				nd->stack[nd->depth].name = name;
+				nd->stack[nd->depth - 1].name = name;
 				if (!*s)
 					goto OK;
 				name = s;
@@ -1869,19 +1875,25 @@ Walked:
 	}
 	terminate_walk(nd);
 Err:
-	while (unlikely(nd->depth)) {
+	while (unlikely(nd->depth > 1)) {
+		nd->depth--;
 		put_link(nd);
+		nd->depth++;
 		nd->depth--;
 	}
+	nd->depth--;
 	return err;
 OK:
-	if (unlikely(nd->depth)) {
-		name = nd->stack[nd->depth].name;
+	if (unlikely(nd->depth > 1)) {
+		name = nd->stack[nd->depth - 1].name;
 		err = walk_component(nd, LOOKUP_FOLLOW);
+		nd->depth--;
 		put_link(nd);
+		nd->depth++;
 		nd->depth--;
 		goto Walked;
 	}
+	nd->depth--;
 	return 0;
 }
 
