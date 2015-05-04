@@ -2009,10 +2009,8 @@ static int trailing_symlink(struct nameidata *nd)
 	s = get_link(nd);
 	if (unlikely(IS_ERR(s)))
 		return PTR_ERR(s);
-	if (unlikely(!s)) {
-		nd->depth--;
+	if (unlikely(!s))
 		return 0;
-	}
 	if (*s == '/') {
 		if (!nd->root.mnt)
 			set_root(nd);
@@ -2028,7 +2026,6 @@ static int trailing_symlink(struct nameidata *nd)
 		put_link(nd);
 		return error;
 	}
-	nd->depth--;
 	return 0;
 }
 
@@ -2069,6 +2066,7 @@ static int path_lookupat(int dfd, const struct filename *name,
 			if (err)
 				break;
 			err = lookup_last(nd);
+			nd->depth--;
 			put_link(nd);
 		}
 	}
@@ -2418,6 +2416,7 @@ path_mountpoint(int dfd, const struct filename *name, struct path *path,
 		if (err)
 			break;
 		err = mountpoint_last(nd, path);
+		nd->depth--;
 		put_link(nd);
 	}
 out:
@@ -3302,6 +3301,7 @@ static struct file *path_openat(int dfd, struct filename *pathname,
 		if (unlikely(error))
 			break;
 		error = do_last(nd, file, op, &opened, pathname);
+		nd->depth--;
 		put_link(nd);
 	}
 out:
