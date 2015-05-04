@@ -539,7 +539,7 @@ static int __nd_alloc_stack(struct nameidata *nd)
 
 static inline int nd_alloc_stack(struct nameidata *nd)
 {
-	if (likely(nd->depth != EMBEDDED_LEVELS - 1))
+	if (likely(nd->depth != EMBEDDED_LEVELS))
 		return 0;
 	if (likely(nd->stack != nd->internal))
 		return 0;
@@ -1824,9 +1824,7 @@ Walked:
 		if (err) {
 			const char *s;
 
-			nd->depth--;
 			err = nd_alloc_stack(nd);
-			nd->depth++;
 			if (unlikely(err)) {
 				path_to_nameidata(&nd->link, nd);
 				break;
