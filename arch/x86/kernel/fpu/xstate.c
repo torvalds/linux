@@ -218,11 +218,8 @@ static void print_xstate_features(void)
  * This function sets up offsets and sizes of all extended states in
  * xsave area. This supports both standard format and compacted format
  * of the xsave aread.
- *
- * Input: void
- * Output: void
  */
-void setup_xstate_comp(void)
+static void setup_xstate_comp(void)
 {
 	unsigned int xstate_comp_sizes[sizeof(xfeatures_mask)*8];
 	int i;
@@ -355,6 +352,7 @@ void fpu__init_system_xstate(void)
 	update_regset_xstate_info(xstate_size, xfeatures_mask);
 	fpu__init_prepare_fx_sw_frame();
 	setup_init_fpu_buf();
+	setup_xstate_comp();
 
 	pr_info("x86/fpu: Enabled xstate features 0x%llx, context size is 0x%x bytes, using '%s' format.\n",
 		xfeatures_mask,

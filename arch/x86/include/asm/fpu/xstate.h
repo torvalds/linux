@@ -227,6 +227,5 @@ static inline int copy_user_to_xregs(struct xregs_state __user *buf, u64 mask)
 }
 
 void *get_xsave_addr(struct xregs_state *xsave, int xstate);
-void setup_xstate_comp(void);
 
 #endif
