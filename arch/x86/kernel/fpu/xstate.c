@@ -168,26 +168,27 @@ void fpu__init_cpu_xstate(void)
 }
 
 /*
- * Record the offsets and sizes of different state managed by the xsave
- * memory layout.
+ * Record the offsets and sizes of various xstates contained
+ * in the XSAVE state memory layout.
+ *
+ * ( Note that certain features might be non-present, for them
+ *   we'll have 0 offset and 0 size. )
  */
 static void __init setup_xstate_features(void)
 {
-	int eax, ebx, ecx, edx, leaf = 0x2;
+	u32 eax, ebx, ecx, edx, leaf;
 
 	xfeatures_nr = fls64(xfeatures_mask);
 
-	do {
+	for (leaf = 2; leaf < xfeatures_nr; leaf++) {
 		cpuid_count(XSTATE_CPUID, leaf, &eax, &ebx, &ecx, &edx);
-
-		if (eax == 0)
-			break;
 
 		xstate_offsets[leaf] = ebx;
 		xstate_sizes[leaf] = eax;
 
+		printk(KERN_INFO "x86/fpu: xstate_offset[%d]: %04x, xstate_sizes[%d]: %04x\n", leaf, ebx, leaf, eax);
 		leaf++;
-	} while (1);
+	}
 }
 
 static void print_xstate_feature(u64 xstate_mask)
