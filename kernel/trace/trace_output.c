@@ -60,9 +60,9 @@ enum print_line_t trace_print_printk_msg_only(struct trace_iterator *iter)
 }
 
 const char *
-ftrace_print_flags_seq(struct trace_seq *p, const char *delim,
-		       unsigned long flags,
-		       const struct trace_print_flags *flag_array)
+trace_print_flags_seq(struct trace_seq *p, const char *delim,
+		      unsigned long flags,
+		      const struct trace_print_flags *flag_array)
 {
 	unsigned long mask;
 	const char *str;
@@ -95,11 +95,11 @@ ftrace_print_flags_seq(struct trace_seq *p, const char *delim,
 
 	return ret;
 }
-EXPORT_SYMBOL(ftrace_print_flags_seq);
+EXPORT_SYMBOL(trace_print_flags_seq);
 
 const char *
-ftrace_print_symbols_seq(struct trace_seq *p, unsigned long val,
-			 const struct trace_print_flags *symbol_array)
+trace_print_symbols_seq(struct trace_seq *p, unsigned long val,
+			const struct trace_print_flags *symbol_array)
 {
 	int i;
 	const char *ret = trace_seq_buffer_ptr(p);
@@ -120,11 +120,11 @@ ftrace_print_symbols_seq(struct trace_seq *p, unsigned long val,
 
 	return ret;
 }
-EXPORT_SYMBOL(ftrace_print_symbols_seq);
+EXPORT_SYMBOL(trace_print_symbols_seq);
 
 #if BITS_PER_LONG == 32
 const char *
-ftrace_print_symbols_seq_u64(struct trace_seq *p, unsigned long long val,
+trace_print_symbols_seq_u64(struct trace_seq *p, unsigned long long val,
 			 const struct trace_print_flags_u64 *symbol_array)
 {
 	int i;
@@ -146,12 +146,12 @@ ftrace_print_symbols_seq_u64(struct trace_seq *p, unsigned long long val,
 
 	return ret;
 }
-EXPORT_SYMBOL(ftrace_print_symbols_seq_u64);
+EXPORT_SYMBOL(trace_print_symbols_seq_u64);
 #endif
 
 const char *
-ftrace_print_bitmask_seq(struct trace_seq *p, void *bitmask_ptr,
-			 unsigned int bitmask_size)
+trace_print_bitmask_seq(struct trace_seq *p, void *bitmask_ptr,
+			unsigned int bitmask_size)
 {
 	const char *ret = trace_seq_buffer_ptr(p);
 
@@ -160,10 +160,10 @@ ftrace_print_bitmask_seq(struct trace_seq *p, void *bitmask_ptr,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(ftrace_print_bitmask_seq);
+EXPORT_SYMBOL_GPL(trace_print_bitmask_seq);
 
 const char *
-ftrace_print_hex_seq(struct trace_seq *p, const unsigned char *buf, int buf_len)
+trace_print_hex_seq(struct trace_seq *p, const unsigned char *buf, int buf_len)
 {
 	int i;
 	const char *ret = trace_seq_buffer_ptr(p);
@@ -175,11 +175,11 @@ ftrace_print_hex_seq(struct trace_seq *p, const unsigned char *buf, int buf_len)
 
 	return ret;
 }
-EXPORT_SYMBOL(ftrace_print_hex_seq);
+EXPORT_SYMBOL(trace_print_hex_seq);
 
 const char *
-ftrace_print_array_seq(struct trace_seq *p, const void *buf, int count,
-		       size_t el_size)
+trace_print_array_seq(struct trace_seq *p, const void *buf, int count,
+		      size_t el_size)
 {
 	const char *ret = trace_seq_buffer_ptr(p);
 	const char *prefix = "";
@@ -220,7 +220,7 @@ ftrace_print_array_seq(struct trace_seq *p, const void *buf, int count,
 
 	return ret;
 }
-EXPORT_SYMBOL(ftrace_print_array_seq);
+EXPORT_SYMBOL(trace_print_array_seq);
 
 int ftrace_raw_output_prep(struct trace_iterator *iter,
 			   struct trace_event *trace_event)

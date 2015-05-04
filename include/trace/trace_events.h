@@ -258,7 +258,7 @@ TRACE_MAKE_SYSTEM_STR();
 		void *__bitmask = __get_dynamic_array(field);		\
 		unsigned int __bitmask_size;				\
 		__bitmask_size = __get_dynamic_array_len(field);	\
-		ftrace_print_bitmask_seq(p, __bitmask, __bitmask_size);	\
+		trace_print_bitmask_seq(p, __bitmask, __bitmask_size);	\
 	})
 
 #undef __print_flags
@@ -266,7 +266,7 @@ TRACE_MAKE_SYSTEM_STR();
 	({								\
 		static const struct trace_print_flags __flags[] =	\
 			{ flag_array, { -1, NULL }};			\
-		ftrace_print_flags_seq(p, delim, flag, __flags);	\
+		trace_print_flags_seq(p, delim, flag, __flags);	\
 	})
 
 #undef __print_symbolic
@@ -274,7 +274,7 @@ TRACE_MAKE_SYSTEM_STR();
 	({								\
 		static const struct trace_print_flags symbols[] =	\
 			{ symbol_array, { -1, NULL }};			\
-		ftrace_print_symbols_seq(p, value, symbols);		\
+		trace_print_symbols_seq(p, value, symbols);		\
 	})
 
 #undef __print_symbolic_u64
@@ -283,7 +283,7 @@ TRACE_MAKE_SYSTEM_STR();
 	({								\
 		static const struct trace_print_flags_u64 symbols[] =	\
 			{ symbol_array, { -1, NULL } };			\
-		ftrace_print_symbols_seq_u64(p, value, symbols);	\
+		trace_print_symbols_seq_u64(p, value, symbols);	\
 	})
 #else
 #define __print_symbolic_u64(value, symbol_array...)			\
@@ -291,14 +291,14 @@ TRACE_MAKE_SYSTEM_STR();
 #endif
 
 #undef __print_hex
-#define __print_hex(buf, buf_len) ftrace_print_hex_seq(p, buf, buf_len)
+#define __print_hex(buf, buf_len) trace_print_hex_seq(p, buf, buf_len)
 
 #undef __print_array
 #define __print_array(array, count, el_size)				\
 	({								\
 		BUILD_BUG_ON(el_size != 1 && el_size != 2 &&		\
 			     el_size != 4 && el_size != 8);		\
-		ftrace_print_array_seq(p, array, count, el_size);	\
+		trace_print_array_seq(p, array, count, el_size);	\
 	})
 
 #undef DECLARE_EVENT_CLASS
