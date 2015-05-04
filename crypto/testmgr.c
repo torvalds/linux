@@ -2320,6 +2320,15 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.alg = "compress_null",
 		.test = alg_test_null,
 	}, {
+		.alg = "crc32",
+		.test = alg_test_hash,
+		.suite = {
+			.hash = {
+				.vecs = crc32_tv_template,
+				.count = CRC32_TEST_VECTORS
+			}
+		}
+	}, {
 		.alg = "crc32c",
 		.test = alg_test_crc32c,
 		.fips_allowed = 1,
