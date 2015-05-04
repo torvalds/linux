@@ -18,6 +18,7 @@
 #include <linux/rcupdate.h>
 #include <linux/slab.h>
 #include <linux/swapops.h>
+#include <linux/sysctl.h>
 #include <linux/ksm.h>
 #include <linux/mman.h>
 
@@ -920,6 +921,40 @@ unsigned long get_guest_storage_key(struct mm_struct *mm, unsigned long addr)
 }
 EXPORT_SYMBOL(get_guest_storage_key);
 
+static int page_table_allocate_pgste_min = 0;
+static int page_table_allocate_pgste_max = 1;
+int page_table_allocate_pgste = 0;
+EXPORT_SYMBOL(page_table_allocate_pgste);
+
+static struct ctl_table page_table_sysctl[] = {
+	{
+		.procname	= "allocate_pgste",
+		.data		= &page_table_allocate_pgste,
+		.maxlen		= sizeof(int),
+		.mode		= S_IRUGO | S_IWUSR,
+		.proc_handler	= proc_dointvec,
+		.extra1		= &page_table_allocate_pgste_min,
+		.extra2		= &page_table_allocate_pgste_max,
+	},
+	{ }
+};
+
+static struct ctl_table page_table_sysctl_dir[] = {
+	{
+		.procname	= "vm",
+		.maxlen		= 0,
+		.mode		= 0555,
+		.child		= page_table_sysctl,
+	},
+	{ }
+};
+
+static int __init page_table_register_sysctl(void)
+{
+	return register_sysctl_table(page_table_sysctl_dir) ? 0 : -ENOMEM;
+}
+__initcall(page_table_register_sysctl);
+
 #else /* CONFIG_PGSTE */
 
 static inline int page_table_with_pgste(struct page *page)
@@ -963,7 +998,7 @@ unsigned long *page_table_alloc(struct mm_struct *mm)
 	struct page *uninitialized_var(page);
 	unsigned int mask, bit;
 
-	if (mm_has_pgste(mm))
+	if (mm_alloc_pgste(mm))
 		return page_table_alloc_pgste(mm);
 	/* Allocate fragments of a 4K page as 1K/2K page table */
 	spin_lock_bh(&mm->context.list_lock);
@@ -1165,116 +1200,25 @@ static inline void thp_split_mm(struct mm_struct *mm)
 }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
-static unsigned long page_table_realloc_pmd(struct mmu_gather *tlb,
-				struct mm_struct *mm, pud_t *pud,
-				unsigned long addr, unsigned long end)
-{
-	unsigned long next, *table, *new;
-	struct page *page;
-	spinlock_t *ptl;
-	pmd_t *pmd;
-
-	pmd = pmd_offset(pud, addr);
-	do {
-		next = pmd_addr_end(addr, end);
-again:
-		if (pmd_none_or_clear_bad(pmd))
-			continue;
-		table = (unsigned long *) pmd_deref(*pmd);
-		page = pfn_to_page(__pa(table) >> PAGE_SHIFT);
-		if (page_table_with_pgste(page))
-			continue;
-		/* Allocate new page table with pgstes */
-		new = page_table_alloc_pgste(mm);
-		if (!new)
-			return -ENOMEM;
-
-		ptl = pmd_lock(mm, pmd);
-		if (likely((unsigned long *) pmd_deref(*pmd) == table)) {
-			/* Nuke pmd entry pointing to the "short" page table */
-			pmdp_flush_lazy(mm, addr, pmd);
-			pmd_clear(pmd);
-			/* Copy ptes from old table to new table */
-			memcpy(new, table, PAGE_SIZE/2);
-			clear_table(table, _PAGE_INVALID, PAGE_SIZE/2);
-			/* Establish new table */
-			pmd_populate(mm, pmd, (pte_t *) new);
-			/* Free old table with rcu, there might be a walker! */
-			page_table_free_rcu(tlb, table, addr);
-			new = NULL;
-		}
-		spin_unlock(ptl);
-		if (new) {
-			page_table_free_pgste(new);
-			goto again;
-		}
-	} while (pmd++, addr = next, addr != end);
-
-	return addr;
-}
-
-static unsigned long page_table_realloc_pud(struct mmu_gather *tlb,
-				   struct mm_struct *mm, pgd_t *pgd,
-				   unsigned long addr, unsigned long end)
-{
-	unsigned long next;
-	pud_t *pud;
-
-	pud = pud_offset(pgd, addr);
-	do {
-		next = pud_addr_end(addr, end);
-		if (pud_none_or_clear_bad(pud))
-			continue;
-		next = page_table_realloc_pmd(tlb, mm, pud, addr, next);
-		if (unlikely(IS_ERR_VALUE(next)))
-			return next;
-	} while (pud++, addr = next, addr != end);
-
-	return addr;
-}
-
-static unsigned long page_table_realloc(struct mmu_gather *tlb, struct mm_struct *mm,
-					unsigned long addr, unsigned long end)
-{
-	unsigned long next;
-	pgd_t *pgd;
-
-	pgd = pgd_offset(mm, addr);
-	do {
-		next = pgd_addr_end(addr, end);
-		if (pgd_none_or_clear_bad(pgd))
-			continue;
-		next = page_table_realloc_pud(tlb, mm, pgd, addr, next);
-		if (unlikely(IS_ERR_VALUE(next)))
-			return next;
-	} while (pgd++, addr = next, addr != end);
-
-	return 0;
-}
-
 /*
  * switch on pgstes for its userspace process (for kvm)
  */
 int s390_enable_sie(void)
 {
-	struct task_struct *tsk = current;
-	struct mm_struct *mm = tsk->mm;
-	struct mmu_gather tlb;
+	struct mm_struct *mm = current->mm;
 
 	/* Do we have pgstes? if yes, we are done */
-	if (mm_has_pgste(tsk->mm))
+	if (mm_has_pgste(mm))
 		return 0;
-
+	/* Fail if the page tables are 2K */
+	if (!mm_alloc_pgste(mm))
+		return -EINVAL;
 	down_write(&mm->mmap_sem);
+	mm->context.has_pgste = 1;
 	/* split thp mappings and disable thp for future mappings */
 	thp_split_mm(mm);
-	/* Reallocate the page tables with pgstes */
-	tlb_gather_mmu(&tlb, mm, 0, TASK_SIZE);
-	if (!page_table_realloc(&tlb, mm, 0, TASK_SIZE))
-		mm->context.has_pgste = 1;
-	tlb_finish_mmu(&tlb, 0, TASK_SIZE);
 	up_write(&mm->mmap_sem);
-	return mm->context.has_pgste ? 0 : -ENOMEM;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(s390_enable_sie);
 

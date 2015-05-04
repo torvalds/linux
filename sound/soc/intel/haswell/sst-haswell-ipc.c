@@ -2201,7 +2201,6 @@ dma_err:
 dsp_new_err:
 	sst_ipc_fini(ipc);
 ipc_init_err:
-	kfree(hsw);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(sst_hsw_dsp_init);
