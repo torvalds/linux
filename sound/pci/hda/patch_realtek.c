@@ -3738,7 +3738,6 @@ static void alc_headset_mode_default(struct hda_codec *codec)
 	case 0x10ec0288:
 		alc_process_coef_fw(codec, coef0288);
 		break;
-		break;
 	case 0x10ec0292:
 		alc_process_coef_fw(codec, coef0292);
 		break;
