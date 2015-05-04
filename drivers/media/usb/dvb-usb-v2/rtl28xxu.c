@@ -1201,6 +1201,7 @@ static int rtl2832u_tuner_attach(struct dvb_usb_adapter *adap)
 				break;
 			}
 			dev->i2c_client_tuner = client;
+			subdev = fc2580_pdata.get_v4l2_subdev(client);
 		}
 		break;
 	case TUNER_RTL2832_TUA9001: {
@@ -1299,6 +1300,7 @@ static int rtl2832u_tuner_attach(struct dvb_usb_adapter *adap)
 
 	/* register SDR */
 	switch (dev->tuner) {
+	case TUNER_RTL2832_FC2580:
 	case TUNER_RTL2832_FC0012:
 	case TUNER_RTL2832_FC0013:
 	case TUNER_RTL2832_E4000:
