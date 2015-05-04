@@ -812,7 +812,6 @@ static int wm8580_set_bias_level(struct snd_soc_codec *codec,
 				    WM8580_PWRDN1_PWDN, WM8580_PWRDN1_PWDN);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 

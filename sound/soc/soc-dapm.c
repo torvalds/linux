@@ -526,6 +526,38 @@ static void soc_dapm_async_complete(struct snd_soc_dapm_context *dapm)
 }
 
 /**
+ * snd_soc_dapm_force_bias_level() - Sets the DAPM bias level
+ * @dapm: The DAPM context for which to set the level
+ * @level: The level to set
+ *
+ * Forces the DAPM bias level to a specific state. It will call the bias level
+ * callback of DAPM context with the specified level. This will even happen if
+ * the context is already at the same level. Furthermore it will not go through
+ * the normal bias level sequencing, meaning any intermediate states between the
+ * current and the target state will not be entered.
+ *
+ * Note that the change in bias level is only temporary and the next time
+ * snd_soc_dapm_sync() is called the state will be set to the level as
+ * determined by the DAPM core. The function is mainly intended to be used to
+ * used during probe or resume from suspend to power up the device so
+ * initialization can be done, before the DAPM core takes over.
+ */
+int snd_soc_dapm_force_bias_level(struct snd_soc_dapm_context *dapm,
+	enum snd_soc_bias_level level)
+{
+	int ret = 0;
+
+	if (dapm->set_bias_level)
+		ret = dapm->set_bias_level(dapm, level);
+
+	if (ret == 0)
+		dapm->bias_level = level;
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dapm_force_bias_level);
+
+/**
  * snd_soc_dapm_set_bias_level - set the bias level for the system
  * @dapm: DAPM context
  * @level: level to configure
@@ -547,10 +579,8 @@ static int snd_soc_dapm_set_bias_level(struct snd_soc_dapm_context *dapm,
 	if (ret != 0)
 		goto out;
 
-	if (dapm->set_bias_level)
-		ret = dapm->set_bias_level(dapm, level);
-	else if (!card || dapm != &card->dapm)
-		dapm->bias_level = level;
+	if (!card || dapm != &card->dapm)
+		ret = snd_soc_dapm_force_bias_level(dapm, level);
 
 	if (ret != 0)
 		goto out;

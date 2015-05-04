@@ -536,7 +536,6 @@ static int ml26124_set_bias_level(struct snd_soc_codec *codec,
 				    ML26124_VMID, 0);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 

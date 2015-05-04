@@ -1228,7 +1228,6 @@ static int cs42l73_set_bias_level(struct snd_soc_codec *codec,
 		snd_soc_update_bits(codec, CS42L73_DMMCC, CS42L73_MCLKDIS, 1);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 

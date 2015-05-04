@@ -807,7 +807,7 @@ struct snd_soc_codec {
 	/* component */
 	struct snd_soc_component component;
 
-	/* dapm */
+	/* Don't access this directly, use snd_soc_codec_get_dapm() */
 	struct snd_soc_dapm_context dapm;
 
 #ifdef CONFIG_DEBUG_FS
@@ -1267,6 +1267,58 @@ static inline struct snd_soc_dapm_context *snd_soc_component_get_dapm(
 	struct snd_soc_component *component)
 {
 	return component->dapm_ptr;
+}
+
+/**
+ * snd_soc_codec_get_dapm() - Returns the DAPM context for the CODEC
+ * @codec: The CODEC for which to get the DAPM context
+ *
+ * Note: Use this function instead of directly accessing the CODEC's dapm field
+ */
+static inline struct snd_soc_dapm_context *snd_soc_codec_get_dapm(
+	struct snd_soc_codec *codec)
+{
+	return &codec->dapm;
+}
+
+/**
+ * snd_soc_dapm_init_bias_level() - Initialize CODEC DAPM bias level
+ * @dapm: The CODEC for which to initialize the DAPM bias level
+ * @level: The DAPM level to initialize to
+ *
+ * Initializes the CODEC DAPM bias level. See snd_soc_dapm_init_bias_level().
+ */
+static inline void snd_soc_codec_init_bias_level(struct snd_soc_codec *codec,
+	enum snd_soc_bias_level level)
+{
+	snd_soc_dapm_init_bias_level(snd_soc_codec_get_dapm(codec), level);
+}
+
+/**
+ * snd_soc_dapm_get_bias_level() - Get current CODEC DAPM bias level
+ * @codec: The CODEC for which to get the DAPM bias level
+ *
+ * Returns: The current DAPM bias level of the CODEC.
+ */
+static inline enum snd_soc_bias_level snd_soc_codec_get_bias_level(
+	struct snd_soc_codec *codec)
+{
+	return snd_soc_dapm_get_bias_level(snd_soc_codec_get_dapm(codec));
+}
+
+/**
+ * snd_soc_codec_force_bias_level() - Set the CODEC DAPM bias level
+ * @codec: The CODEC for which to set the level
+ * @level: The level to set to
+ *
+ * Forces the CODEC bias level to a specific state. See
+ * snd_soc_dapm_force_bias_level().
+ */
+static inline int snd_soc_codec_force_bias_level(struct snd_soc_codec *codec,
+	enum snd_soc_bias_level level)
+{
+	return snd_soc_dapm_force_bias_level(snd_soc_codec_get_dapm(codec),
+		level);
 }
 
 /**

@@ -510,8 +510,6 @@ static int wm8940_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	}
 
-	codec->dapm.bias_level = level;
-
 	return ret;
 }
 
@@ -707,7 +705,7 @@ static int wm8940_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
-	wm8940_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
+	snd_soc_codec_force_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	ret = snd_soc_write(codec, WM8940_POWER1, 0x180);
 	if (ret < 0)

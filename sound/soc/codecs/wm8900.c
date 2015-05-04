@@ -1117,7 +1117,6 @@ static int wm8900_set_bias_level(struct snd_soc_codec *codec,
 			     WM8900_REG_POWER2_SYSCLK_ENA);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 
@@ -1138,7 +1137,7 @@ static int wm8900_suspend(struct snd_soc_codec *codec)
 	wm8900->fll_out = fll_out;
 	wm8900->fll_in = fll_in;
 
-	wm8900_set_bias_level(codec, SND_SOC_BIAS_OFF);
+	snd_soc_codec_force_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	return 0;
 }
@@ -1156,7 +1155,7 @@ static int wm8900_resume(struct snd_soc_codec *codec)
 		return ret;
 	}
 
-	wm8900_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
+	snd_soc_codec_force_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	/* Restart the FLL? */
 	if (wm8900->fll_out) {
@@ -1189,7 +1188,7 @@ static int wm8900_probe(struct snd_soc_codec *codec)
 	wm8900_reset(codec);
 
 	/* Turn the chip on */
-	wm8900_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
+	snd_soc_codec_force_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	/* Latch the volume update bits */
 	snd_soc_update_bits(codec, WM8900_REG_LINVOL, 0x100, 0x100);

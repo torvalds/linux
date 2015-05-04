@@ -1377,7 +1377,6 @@ static int da9055_set_bias_level(struct snd_soc_codec *codec,
 				    DA9055_VMID_EN | DA9055_BIAS_EN, 0);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 

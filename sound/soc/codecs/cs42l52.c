@@ -908,7 +908,6 @@ static int cs42l52_set_bias_level(struct snd_soc_codec *codec,
 		regcache_cache_only(cs42l52->regmap, true);
 		break;
 	}
-	codec->dapm.bias_level = level;
 
 	return 0;
 }

@@ -1824,7 +1824,6 @@ static int max98090_set_bias_level(struct snd_soc_codec *codec,
 		regcache_mark_dirty(max98090->regmap);
 		break;
 	}
-	codec->dapm.bias_level = level;
 	return 0;
 }
 
