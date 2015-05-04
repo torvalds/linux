@@ -60,7 +60,7 @@ static void __init check_fpu(void)
 	}
 }
 
-void fpu__init_check_bugs(void)
+void __init fpu__init_check_bugs(void)
 {
 	/*
 	 * kernel_fpu_begin/end() in check_fpu() relies on the patched

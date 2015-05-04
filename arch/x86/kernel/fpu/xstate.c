@@ -191,7 +191,7 @@ static void __init setup_xstate_features(void)
 	}
 }
 
-static void print_xstate_feature(u64 xstate_mask)
+static void __init print_xstate_feature(u64 xstate_mask)
 {
 	const char *feature_name;
 
@@ -202,7 +202,7 @@ static void print_xstate_feature(u64 xstate_mask)
 /*
  * Print out all the supported xstate features:
  */
-static void print_xstate_features(void)
+static void __init print_xstate_features(void)
 {
 	print_xstate_feature(XSTATE_FP);
 	print_xstate_feature(XSTATE_SSE);
@@ -219,7 +219,7 @@ static void print_xstate_features(void)
  * xsave area. This supports both standard format and compacted format
  * of the xsave aread.
  */
-static void setup_xstate_comp(void)
+static void __init setup_xstate_comp(void)
 {
 	unsigned int xstate_comp_sizes[sizeof(xfeatures_mask)*8];
 	int i;
@@ -260,7 +260,7 @@ static void setup_xstate_comp(void)
 /*
  * setup the xstate image representing the init state
  */
-static void setup_init_fpu_buf(void)
+static void __init setup_init_fpu_buf(void)
 {
 	if (!cpu_has_xsave)
 		return;
@@ -314,7 +314,7 @@ static void __init init_xstate_size(void)
  *
  * ( Not marked __init because of false positive section warnings. )
  */
-void fpu__init_system_xstate(void)
+void __init fpu__init_system_xstate(void)
 {
 	unsigned int eax, ebx, ecx, edx;
 

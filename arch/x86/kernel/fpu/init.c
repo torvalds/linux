@@ -90,7 +90,7 @@ static void fpu__init_system_early_generic(struct cpuinfo_x86 *c)
  */
 unsigned int mxcsr_feature_mask __read_mostly = 0xffffffffu;
 
-static void fpu__init_system_mxcsr(void)
+static void __init fpu__init_system_mxcsr(void)
 {
 	unsigned int mask = 0;
 
@@ -115,7 +115,7 @@ static void fpu__init_system_mxcsr(void)
 /*
  * Once per bootup FPU initialization sequences that will run on most x86 CPUs:
  */
-static void fpu__init_system_generic(void)
+static void __init fpu__init_system_generic(void)
 {
 	/*
 	 * Set up the legacy init FPU context. (xstate init might overwrite this
@@ -141,7 +141,7 @@ EXPORT_SYMBOL_GPL(xstate_size);
  * We set this up first, and later it will be overwritten by
  * fpu__init_system_xstate() if the CPU knows about xstates.
  */
-static void fpu__init_system_xstate_size_legacy(void)
+static void __init fpu__init_system_xstate_size_legacy(void)
 {
 	/*
 	 * Note that xstate_size might be overwriten later during
@@ -212,7 +212,7 @@ __setup("eagerfpu=", eager_fpu_setup);
 /*
  * Pick the FPU context switching strategy:
  */
-static void fpu__init_system_ctx_switch(void)
+static void __init fpu__init_system_ctx_switch(void)
 {
 	WARN_ON(current->thread.fpu.fpstate_active);
 	current_thread_info()->status = 0;
@@ -234,14 +234,14 @@ static void fpu__init_system_ctx_switch(void)
 	if (eagerfpu == ENABLE)
 		setup_force_cpu_cap(X86_FEATURE_EAGER_FPU);
 
-	printk_once(KERN_INFO "x86/fpu: Using '%s' FPU context switches.\n", eagerfpu == ENABLE ? "eager" : "lazy");
+	printk(KERN_INFO "x86/fpu: Using '%s' FPU context switches.\n", eagerfpu == ENABLE ? "eager" : "lazy");
 }
 
 /*
  * Called on the boot CPU once per system bootup, to set up the initial
  * FPU state that is later cloned into all processes:
  */
-void fpu__init_system(struct cpuinfo_x86 *c)
+void __init fpu__init_system(struct cpuinfo_x86 *c)
 {
 	fpu__init_system_early_generic(c);
 
