@@ -891,16 +891,10 @@ const char *get_link(struct nameidata *nd)
 	if (nd->link.mnt == nd->path.mnt)
 		mntget(nd->link.mnt);
 
-	if (unlikely(current->total_link_count >= MAXSYMLINKS)) {
-		path_put(&nd->link);
-		return ERR_PTR(-ELOOP);
-	}
-
 	last->link = nd->link;
 	last->cookie = NULL;
 
 	cond_resched();
-	current->total_link_count++;
 
 	touch_atime(&last->link);
 
@@ -1568,12 +1562,23 @@ static void terminate_walk(struct nameidata *nd)
 
 static int pick_link(struct nameidata *nd, struct path *link)
 {
+	int error;
+	if (unlikely(current->total_link_count++ >= MAXSYMLINKS)) {
+		path_to_nameidata(link, nd);
+		return -ELOOP;
+	}
 	if (nd->flags & LOOKUP_RCU) {
 		if (unlikely(nd->path.mnt != link->mnt ||
 			     unlazy_walk(nd, link->dentry))) {
 			return -ECHILD;
 		}
 	}
+	error = nd_alloc_stack(nd);
+	if (unlikely(error)) {
+		path_to_nameidata(link, nd);
+		return error;
+	}
+
 	nd->link = *link;
 	return 1;
 }
@@ -1840,15 +1845,7 @@ OK:
 			break;
 
 		if (err) {
-			const char *s;
-
-			err = nd_alloc_stack(nd);
-			if (unlikely(err)) {
-				path_to_nameidata(&nd->link, nd);
-				break;
-			}
-
-			s = get_link(nd);
+			const char *s = get_link(nd);
 
 			if (unlikely(IS_ERR(s))) {
 				err = PTR_ERR(s);
