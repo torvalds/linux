@@ -184,4 +184,8 @@ static inline void *__container_of(void *ptr, unsigned long shift)
 
 #define _LIBCFS_H
 
+void *libcfs_kvzalloc(size_t size, gfp_t flags);
+void *libcfs_kvzalloc_cpt(struct cfs_cpt_table *cptab, int cpt, size_t size,
+			  gfp_t flags);
+
 #endif /* _LIBCFS_H */

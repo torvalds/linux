@@ -676,37 +676,19 @@ do {									      \
 	 __OBD_VMALLOC_VEROBSE(ptr, cptab, cpt, size)
 
 
-/* Allocations above this size are considered too big and could not be done
- * atomically.
- *
- * Be very careful when changing this value, especially when decreasing it,
- * since vmalloc in Linux doesn't perform well on multi-cores system, calling
- * vmalloc in critical path would hurt performance badly. See LU-66.
- */
-#define OBD_ALLOC_BIG (4 * PAGE_CACHE_SIZE)
-
 #define OBD_ALLOC_LARGE(ptr, size)					    \
 do {									  \
-	if (size > OBD_ALLOC_BIG)					     \
-		OBD_VMALLOC(ptr, size);				       \
-	else								  \
-		OBD_ALLOC(ptr, size);					 \
+	ptr = libcfs_kvzalloc(size, GFP_NOFS);				  \
 } while (0)
 
 #define OBD_CPT_ALLOC_LARGE(ptr, cptab, cpt, size)			      \
 do {									      \
-	if (size > OBD_ALLOC_BIG)					      \
-		OBD_CPT_VMALLOC(ptr, cptab, cpt, size);			      \
-	else								      \
-		OBD_CPT_ALLOC(ptr, cptab, cpt, size);			      \
+	ptr = libcfs_kvzalloc_cpt(cptab, cpt, size, GFP_NOFS);		      \
 } while (0)
 
 #define OBD_FREE_LARGE(ptr, size)					     \
 do {									  \
-	if (size > OBD_ALLOC_BIG)					     \
-		OBD_VFREE(ptr, size);					 \
-	else								  \
-		OBD_FREE(ptr, size);					  \
+	kvfree(ptr);							  \
 } while (0)
 
 
