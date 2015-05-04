@@ -1896,7 +1896,7 @@ Input:
 Output:
     None.
 *******************************************************/
-static void goodix_ts_early_suspend(struct tp_device *tp_d)
+static int goodix_ts_early_suspend(struct tp_device *tp_d)
 {
     struct goodix_ts_data *ts;
     s8 ret = -1;
@@ -1930,6 +1930,8 @@ static void goodix_ts_early_suspend(struct tp_device *tp_d)
     // to avoid waking up while not sleeping
     //  delay 48 + 10ms to ensure reliability
     msleep(58);
+
+	return 0;
 }
 
 /*******************************************************
@@ -1940,7 +1942,7 @@ Input:
 Output:
     None.
 *******************************************************/
-static void goodix_ts_early_resume(struct tp_device *tp_d)
+static int goodix_ts_early_resume(struct tp_device *tp_d)
 {
     struct goodix_ts_data *ts;
     s8 ret = -1;
@@ -1983,6 +1985,8 @@ static void goodix_ts_early_resume(struct tp_device *tp_d)
 #if GTP_ESD_PROTECT
     gtp_esd_switch(ts->client, SWITCH_ON);
 #endif
+
+	return 0;
 }
 
 /*******************************************************
