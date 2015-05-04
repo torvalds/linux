@@ -552,7 +552,8 @@ static int c_show(struct seq_file *m, void *v)
 		 * software which does already (at least for 32-bit).
 		 */
 		seq_puts(m, "Features\t:");
-		if (personality(current->personality) == PER_LINUX32) {
+		if (personality(current->personality) == PER_LINUX32 ||
+		    is_compat_task()) {
 #ifdef CONFIG_COMPAT
 			for (j = 0; compat_hwcap_str[j]; j++)
 				if (COMPAT_ELF_HWCAP & (1 << j))
