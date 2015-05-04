@@ -132,15 +132,10 @@ static void drm_master_destroy(struct kref *kref)
 			r_list = NULL;
 		}
 	}
-
-	if (master->unique) {
-		kfree(master->unique);
-		master->unique = NULL;
-		master->unique_len = 0;
-	}
 	mutex_unlock(&dev->struct_mutex);
 
 	idr_destroy(&master->magic_map);
+	kfree(master->unique);
 	kfree(master);
 }
 
