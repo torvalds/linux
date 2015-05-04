@@ -195,20 +195,28 @@ static int gpio_setup_irq(struct gpio_desc *desc, struct device *dev,
 		}
 	}
 
-	ret = request_any_context_irq(irq, gpio_sysfs_irq, irq_flags,
-				"gpiolib", value_sd);
+	/*
+	 * FIXME: This should be done in the irq_request_resources callback
+	 *        when the irq is requested, but a few drivers currently fail
+	 *        to do so.
+	 *
+	 *        Remove this redundant call (along with the corresponding
+	 *        unlock) when those drivers have been fixed.
+	 */
+	ret = gpiochip_lock_as_irq(desc->chip, gpio_chip_hwgpio(desc));
 	if (ret < 0)
 		goto free_id;
 
-	ret = gpiochip_lock_as_irq(desc->chip, gpio_chip_hwgpio(desc));
-	if (ret < 0) {
-		gpiod_warn(desc, "failed to flag the GPIO for IRQ\n");
-		goto free_id;
-	}
+	ret = request_any_context_irq(irq, gpio_sysfs_irq, irq_flags,
+				"gpiolib", value_sd);
+	if (ret < 0)
+		goto err_unlock;
 
 	desc->flags |= gpio_flags;
 	return 0;
 
+err_unlock:
+	gpiochip_unlock_as_irq(desc->chip, gpio_chip_hwgpio(desc));
 free_id:
 	idr_remove(&dirent_idr, id);
 	desc->flags &= GPIO_FLAGS_MASK;
