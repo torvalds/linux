@@ -10,12 +10,18 @@
 
 #include "gpiolib.h"
 
+#define GPIO_IRQF_TRIGGER_FALLING	BIT(0)
+#define GPIO_IRQF_TRIGGER_RISING	BIT(1)
+#define GPIO_IRQF_TRIGGER_BOTH		(GPIO_IRQF_TRIGGER_FALLING | \
+					 GPIO_IRQF_TRIGGER_RISING)
+
 struct gpiod_data {
 	struct gpio_desc *desc;
 
 	struct mutex mutex;
 	struct kernfs_node *value_kn;
 	int irq;
+	unsigned char irq_flags;
 
 	bool direction_can_change;
 };
@@ -143,7 +149,7 @@ static irqreturn_t gpio_sysfs_irq(int irq, void *priv)
 }
 
 /* Caller holds gpiod-data mutex. */
-static int gpio_sysfs_request_irq(struct device *dev, unsigned long gpio_flags)
+static int gpio_sysfs_request_irq(struct device *dev, unsigned char flags)
 {
 	struct gpiod_data	*data = dev_get_drvdata(dev);
 	struct gpio_desc	*desc = data->desc;
@@ -159,10 +165,10 @@ static int gpio_sysfs_request_irq(struct device *dev, unsigned long gpio_flags)
 		return -ENODEV;
 
 	irq_flags = IRQF_SHARED;
-	if (test_bit(FLAG_TRIG_FALL, &gpio_flags))
+	if (flags & GPIO_IRQF_TRIGGER_FALLING)
 		irq_flags |= test_bit(FLAG_ACTIVE_LOW, &desc->flags) ?
 			IRQF_TRIGGER_RISING : IRQF_TRIGGER_FALLING;
-	if (test_bit(FLAG_TRIG_RISE, &gpio_flags))
+	if (flags & GPIO_IRQF_TRIGGER_RISING)
 		irq_flags |= test_bit(FLAG_ACTIVE_LOW, &desc->flags) ?
 			IRQF_TRIGGER_FALLING : IRQF_TRIGGER_RISING;
 
@@ -183,7 +189,7 @@ static int gpio_sysfs_request_irq(struct device *dev, unsigned long gpio_flags)
 	if (ret < 0)
 		goto err_unlock;
 
-	desc->flags |= gpio_flags;
+	data->irq_flags = flags;
 
 	return 0;
 
@@ -204,7 +210,7 @@ static void gpio_sysfs_free_irq(struct device *dev)
 	struct gpiod_data *data = dev_get_drvdata(dev);
 	struct gpio_desc *desc = data->desc;
 
-	desc->flags &= ~GPIO_TRIGGER_MASK;
+	data->irq_flags = 0;
 	free_irq(data->irq, data);
 	gpiochip_unlock_as_irq(desc->chip, gpio_chip_hwgpio(desc));
 	sysfs_put(data->value_kn);
@@ -212,28 +218,25 @@ static void gpio_sysfs_free_irq(struct device *dev)
 
 static const struct {
 	const char *name;
-	unsigned long flags;
+	unsigned char flags;
 } trigger_types[] = {
 	{ "none",    0 },
-	{ "falling", BIT(FLAG_TRIG_FALL) },
-	{ "rising",  BIT(FLAG_TRIG_RISE) },
-	{ "both",    BIT(FLAG_TRIG_FALL) | BIT(FLAG_TRIG_RISE) },
+	{ "falling", GPIO_IRQF_TRIGGER_FALLING },
+	{ "rising",  GPIO_IRQF_TRIGGER_RISING },
+	{ "both",    GPIO_IRQF_TRIGGER_BOTH },
 };
 
 static ssize_t edge_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct gpiod_data *data = dev_get_drvdata(dev);
-	struct gpio_desc *desc = data->desc;
-	unsigned long mask;
 	ssize_t	status = 0;
 	int i;
 
 	mutex_lock(&data->mutex);
 
 	for (i = 0; i < ARRAY_SIZE(trigger_types); i++) {
-		mask = desc->flags & GPIO_TRIGGER_MASK;
-		if (mask == trigger_types[i].flags) {
+		if (data->irq_flags == trigger_types[i].flags) {
 			status = sprintf(buf, "%s\n", trigger_types[i].name);
 			break;
 		}
@@ -248,8 +251,7 @@ static ssize_t edge_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
 	struct gpiod_data *data = dev_get_drvdata(dev);
-	struct gpio_desc *desc = data->desc;
-	unsigned long flags;
+	unsigned char flags;
 	ssize_t	status = size;
 	int i;
 
@@ -265,12 +267,12 @@ static ssize_t edge_store(struct device *dev,
 
 	mutex_lock(&data->mutex);
 
-	if ((desc->flags & GPIO_TRIGGER_MASK) == flags) {
+	if (flags == data->irq_flags) {
 		status = size;
 		goto out_unlock;
 	}
 
-	if (desc->flags & GPIO_TRIGGER_MASK)
+	if (data->irq_flags)
 		gpio_sysfs_free_irq(dev);
 
 	if (flags) {
@@ -292,6 +294,7 @@ static int gpio_sysfs_set_active_low(struct device *dev, int value)
 	struct gpiod_data	*data = dev_get_drvdata(dev);
 	struct gpio_desc	*desc = data->desc;
 	int			status = 0;
+	unsigned int		flags = data->irq_flags;
 
 	if (!!test_bit(FLAG_ACTIVE_LOW, &desc->flags) == !!value)
 		return 0;
@@ -302,12 +305,10 @@ static int gpio_sysfs_set_active_low(struct device *dev, int value)
 		clear_bit(FLAG_ACTIVE_LOW, &desc->flags);
 
 	/* reconfigure poll(2) support if enabled on one edge only */
-	if (!!test_bit(FLAG_TRIG_RISE, &desc->flags) ^
-				!!test_bit(FLAG_TRIG_FALL, &desc->flags)) {
-		unsigned long trigger_flags = desc->flags & GPIO_TRIGGER_MASK;
-
+	if (flags == GPIO_IRQF_TRIGGER_FALLING ||
+					flags == GPIO_IRQF_TRIGGER_RISING) {
 		gpio_sysfs_free_irq(dev);
-		status = gpio_sysfs_request_irq(dev, trigger_flags);
+		status = gpio_sysfs_request_irq(dev, flags);
 	}
 
 	return status;
@@ -700,7 +701,7 @@ void gpiod_unexport(struct gpio_desc *desc)
 	/*
 	 * Release irq after deregistration to prevent race with edge_store.
 	 */
-	if (desc->flags & GPIO_TRIGGER_MASK)
+	if (data->irq_flags)
 		gpio_sysfs_free_irq(dev);
 
 	mutex_unlock(&sysfs_lock);
