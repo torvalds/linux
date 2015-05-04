@@ -110,7 +110,29 @@ static inline bool is_zero_ether_addr(const u8 *addr)
  */
 static inline bool is_multicast_ether_addr(const u8 *addr)
 {
-	return 0x01 & addr[0];
+#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)
+	u32 a = *(const u32 *)addr;
+#else
+	u16 a = *(const u16 *)addr;
+#endif
+#ifdef __BIG_ENDIAN
+	return 0x01 & (a >> ((sizeof(a) * 8) - 8));
+#else
+	return 0x01 & a;
+#endif
+}
+
+static inline bool is_multicast_ether_addr_64bits(const u8 addr[6+2])
+{
+#if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) && BITS_PER_LONG == 64
+#ifdef __BIG_ENDIAN
+	return 0x01 & ((*(const u64 *)addr) >> 56);
+#else
+	return 0x01 & (*(const u64 *)addr);
+#endif
+#else
+	return is_multicast_ether_addr(addr);
+#endif
 }
 
 /**

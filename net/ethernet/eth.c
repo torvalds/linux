@@ -156,10 +156,11 @@ __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 
 	skb->dev = dev;
 	skb_reset_mac_header(skb);
-	skb_pull_inline(skb, ETH_HLEN);
-	eth = eth_hdr(skb);
 
-	if (unlikely(is_multicast_ether_addr(eth->h_dest))) {
+	eth = (struct ethhdr *)skb->data;
+	skb_pull_inline(skb, ETH_HLEN);
+
+	if (unlikely(is_multicast_ether_addr_64bits(eth->h_dest))) {
 		if (ether_addr_equal_64bits(eth->h_dest, dev->broadcast))
 			skb->pkt_type = PACKET_BROADCAST;
 		else
@@ -178,7 +179,7 @@ __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 	if (unlikely(netdev_uses_dsa(dev)))
 		return htons(ETH_P_XDSA);
 
-	if (likely(ntohs(eth->h_proto) >= ETH_P_802_3_MIN))
+	if (likely((eth->h_proto & htons(0xFF00)) >= htons(ETH_P_802_3_MIN)))
 		return eth->h_proto;
 
 	/*
