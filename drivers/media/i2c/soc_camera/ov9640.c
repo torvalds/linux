@@ -486,11 +486,8 @@ static int ov9640_s_fmt(struct v4l2_subdev *sd,
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ov9640_reg_alt alts = {0};
-	enum v4l2_colorspace cspace;
-	u32 code = mf->code;
 	int ret;
 
-	ov9640_res_roundup(&mf->width, &mf->height);
 	ov9640_alter_regs(mf->code, &alts);
 
 	ov9640_reset(client);
@@ -499,24 +496,7 @@ static int ov9640_s_fmt(struct v4l2_subdev *sd,
 	if (ret)
 		return ret;
 
-	switch (code) {
-	case MEDIA_BUS_FMT_RGB555_2X8_PADHI_LE:
-	case MEDIA_BUS_FMT_RGB565_2X8_LE:
-		cspace = V4L2_COLORSPACE_SRGB;
-		break;
-	default:
-		code = MEDIA_BUS_FMT_UYVY8_2X8;
-	case MEDIA_BUS_FMT_UYVY8_2X8:
-		cspace = V4L2_COLORSPACE_JPEG;
-	}
-
-	ret = ov9640_write_regs(client, mf->width, code, &alts);
-	if (!ret) {
-		mf->code	= code;
-		mf->colorspace	= cspace;
-	}
-
-	return ret;
+	return ov9640_write_regs(client, mf->width, mf->code, &alts);
 }
 
 static int ov9640_set_fmt(struct v4l2_subdev *sd,
@@ -539,8 +519,10 @@ static int ov9640_set_fmt(struct v4l2_subdev *sd,
 		break;
 	default:
 		mf->code = MEDIA_BUS_FMT_UYVY8_2X8;
+		/* fall through */
 	case MEDIA_BUS_FMT_UYVY8_2X8:
 		mf->colorspace = V4L2_COLORSPACE_JPEG;
+		break;
 	}
 
 	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE)
