@@ -188,6 +188,18 @@ static inline const uuid_le *mei_cl_uuid(const struct mei_cl *cl)
 	return mei_me_cl_uuid(cl->me_cl);
 }
 
+/**
+ * mei_cl_host_addr - client's host address
+ *
+ * @cl: host client
+ *
+ * Return: 0 for fixed address client, host address for dynamic client
+ */
+static inline u8 mei_cl_host_addr(const struct mei_cl *cl)
+{
+	return  mei_cl_is_fixed_address(cl) ? 0 : cl->host_client_id;
+}
+
 int mei_cl_disconnect(struct mei_cl *cl);
 void mei_cl_set_disconnected(struct mei_cl *cl);
 int mei_cl_irq_disconnect(struct mei_cl *cl, struct mei_cl_cb *cb,

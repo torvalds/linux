@@ -764,10 +764,18 @@ void mei_cl_set_disconnected(struct mei_cl *cl)
 
 static int mei_cl_set_connecting(struct mei_cl *cl, struct mei_me_client *me_cl)
 {
-	cl->me_cl = mei_me_cl_get(me_cl);
-	if (!cl->me_cl)
+	if (!mei_me_cl_get(me_cl))
 		return -ENOENT;
 
+	/* only one connection is allowed for fixed address clients */
+	if (me_cl->props.fixed_address) {
+		if (me_cl->connect_count) {
+			mei_me_cl_put(me_cl);
+			return -EBUSY;
+		}
+	}
+
+	cl->me_cl = me_cl;
 	cl->state = MEI_FILE_CONNECTING;
 	cl->me_cl->connect_count++;
 
@@ -859,6 +867,11 @@ int mei_cl_disconnect(struct mei_cl *cl)
 
 	if (!mei_cl_is_connected(cl))
 		return 0;
+
+	if (mei_cl_is_fixed_address(cl)) {
+		mei_cl_set_disconnected(cl);
+		return 0;
+	}
 
 	rets = pm_runtime_get(dev->dev);
 	if (rets < 0 && rets != -EINPROGRESS) {
@@ -1013,16 +1026,25 @@ int mei_cl_connect(struct mei_cl *cl, struct mei_me_client *me_cl,
 	struct mei_cl_cb *cb;
 	int rets;
 
-	if (WARN_ON(!cl || !cl->dev))
+	if (WARN_ON(!cl || !cl->dev || !me_cl))
 		return -ENODEV;
 
 	dev = cl->dev;
+
+	rets = mei_cl_set_connecting(cl, me_cl);
+	if (rets)
+		return rets;
+
+	if (mei_cl_is_fixed_address(cl)) {
+		cl->state = MEI_FILE_CONNECTED;
+		return 0;
+	}
 
 	rets = pm_runtime_get(dev->dev);
 	if (rets < 0 && rets != -EINPROGRESS) {
 		pm_runtime_put_noidle(dev->dev);
 		cl_err(dev, cl, "rpm: get failed %d\n", rets);
-		return rets;
+		goto nortpm;
 	}
 
 	cb = mei_io_cb_init(cl, MEI_FOP_CONNECT, file);
@@ -1030,9 +1052,6 @@ int mei_cl_connect(struct mei_cl *cl, struct mei_me_client *me_cl,
 	if (rets)
 		goto out;
 
-	rets = mei_cl_set_connecting(cl, me_cl);
-	if (rets)
-		goto out;
 	list_add_tail(&cb->list, &dev->ctrl_wr_list.list);
 
 	/* run hbuf acquire last so we don't have to undo */
@@ -1063,6 +1082,7 @@ out:
 
 	mei_io_cb_free(cb);
 
+nortpm:
 	if (!mei_cl_is_connected(cl))
 		mei_cl_set_disconnected(cl);
 
@@ -1109,11 +1129,20 @@ err:
  */
 int mei_cl_flow_ctrl_creds(struct mei_cl *cl)
 {
+	int rets;
+
 	if (WARN_ON(!cl || !cl->me_cl))
 		return -EINVAL;
 
 	if (cl->mei_flow_ctrl_creds > 0)
 		return 1;
+
+	if (mei_cl_is_fixed_address(cl)) {
+		rets = mei_cl_read_start(cl, mei_cl_mtu(cl), NULL);
+		if (rets && rets != -EBUSY)
+			return rets;
+		return 1;
+	}
 
 	if (mei_cl_is_single_recv_buf(cl)) {
 		if (cl->me_cl->mei_flow_ctrl_creds > 0)
@@ -1135,6 +1164,9 @@ int mei_cl_flow_ctrl_reduce(struct mei_cl *cl)
 {
 	if (WARN_ON(!cl || !cl->me_cl))
 		return -EINVAL;
+
+	if (mei_cl_is_fixed_address(cl))
+		return 0;
 
 	if (mei_cl_is_single_recv_buf(cl)) {
 		if (WARN_ON(cl->me_cl->mei_flow_ctrl_creds <= 0))
@@ -1179,20 +1211,24 @@ int mei_cl_read_start(struct mei_cl *cl, size_t length, struct file *fp)
 		cl_err(dev, cl, "no such me client\n");
 		return  -ENOTTY;
 	}
+
 	/* always allocate at least client max message */
 	length = max_t(size_t, length, mei_cl_mtu(cl));
+	cb = mei_cl_alloc_cb(cl, length, MEI_FOP_READ, fp);
+	if (!cb)
+		return -ENOMEM;
+
+	if (mei_cl_is_fixed_address(cl)) {
+		list_add_tail(&cb->list, &cl->rd_pending);
+		return 0;
+	}
 
 	rets = pm_runtime_get(dev->dev);
 	if (rets < 0 && rets != -EINPROGRESS) {
 		pm_runtime_put_noidle(dev->dev);
 		cl_err(dev, cl, "rpm: get failed %d\n", rets);
-		return rets;
+		goto nortpm;
 	}
-
-	cb = mei_cl_alloc_cb(cl, length, MEI_FOP_READ, fp);
-	rets = cb ? 0 : -ENOMEM;
-	if (rets)
-		goto out;
 
 	if (mei_hbuf_acquire(dev)) {
 		rets = mei_hbm_cl_flow_control_req(dev, cl);
@@ -1201,6 +1237,7 @@ int mei_cl_read_start(struct mei_cl *cl, size_t length, struct file *fp)
 
 		list_add_tail(&cb->list, &cl->rd_pending);
 	} else {
+		rets = 0;
 		list_add_tail(&cb->list, &dev->ctrl_wr_list.list);
 	}
 
@@ -1208,7 +1245,7 @@ out:
 	cl_dbg(dev, cl, "rpm: autosuspend\n");
 	pm_runtime_mark_last_busy(dev->dev);
 	pm_runtime_put_autosuspend(dev->dev);
-
+nortpm:
 	if (rets)
 		mei_io_cb_free(cb);
 
@@ -1256,7 +1293,7 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 	len = buf->size - cb->buf_idx;
 	msg_slots = mei_data2slots(len);
 
-	mei_hdr.host_addr = cl->host_client_id;
+	mei_hdr.host_addr = mei_cl_host_addr(cl);
 	mei_hdr.me_addr = mei_cl_me_id(cl);
 	mei_hdr.reserved = 0;
 	mei_hdr.internal = cb->internal;
@@ -1340,7 +1377,7 @@ int mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb, bool blocking)
 	cb->buf_idx = 0;
 	cl->writing_state = MEI_IDLE;
 
-	mei_hdr.host_addr = cl->host_client_id;
+	mei_hdr.host_addr = mei_cl_host_addr(cl);
 	mei_hdr.me_addr = mei_cl_me_id(cl);
 	mei_hdr.reserved = 0;
 	mei_hdr.msg_complete = 0;

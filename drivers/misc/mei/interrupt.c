@@ -65,7 +65,7 @@ EXPORT_SYMBOL_GPL(mei_irq_compl_handler);
 static inline int mei_cl_hbm_equal(struct mei_cl *cl,
 			struct mei_msg_hdr *mei_hdr)
 {
-	return cl->host_client_id == mei_hdr->host_addr &&
+	return  mei_cl_host_addr(cl) == mei_hdr->host_addr &&
 		mei_cl_me_id(cl) == mei_hdr->me_addr;
 }
 
