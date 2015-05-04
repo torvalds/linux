@@ -161,10 +161,13 @@ static void drm_update_vblank_count(struct drm_device *dev, int crtc)
 
 	/*
 	 * Only reinitialize corresponding vblank timestamp if high-precision query
-	 * available and didn't fail. Will reinitialize delayed at next vblank
-	 * interrupt in that case.
+	 * available and didn't fail. Otherwise reinitialize delayed at next vblank
+	 * interrupt and assign 0 for now, to mark the vblanktimestamp as invalid.
 	 */
-	store_vblank(dev, crtc, diff, rc ? &t_vblank : NULL);
+	if (!rc)
+		t_vblank = (struct timeval) {0, 0};
+
+	store_vblank(dev, crtc, diff, &t_vblank);
 }
 
 /*
