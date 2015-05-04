@@ -772,15 +772,15 @@ static const struct ov2640_win_size *ov2640_select_win(u32 *width, u32 *height)
 	return &ov2640_supported_win_sizes[default_size];
 }
 
-static int ov2640_set_params(struct i2c_client *client, u32 *width, u32 *height,
-			     u32 code)
+static int ov2640_set_params(struct i2c_client *client,
+			     const struct ov2640_win_size *win, u32 code)
 {
 	struct ov2640_priv       *priv = to_ov2640(client);
 	const struct regval_list *selected_cfmt_regs;
 	int ret;
 
 	/* select win */
-	priv->win = ov2640_select_win(width, height);
+	priv->win = win;
 
 	/* select format */
 	priv->cfmt_code = 0;
@@ -836,8 +836,6 @@ static int ov2640_set_params(struct i2c_client *client, u32 *width, u32 *height,
 		goto err;
 
 	priv->cfmt_code = code;
-	*width = priv->win->width;
-	*height = priv->win->height;
 
 	return 0;
 
@@ -881,14 +879,13 @@ static int ov2640_set_fmt(struct v4l2_subdev *sd,
 {
 	struct v4l2_mbus_framefmt *mf = &format->format;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	const struct ov2640_win_size *win;
 
 	if (format->pad)
 		return -EINVAL;
 
-	/*
-	 * select suitable win, but don't store it
-	 */
-	ov2640_select_win(&mf->width, &mf->height);
+	/* select suitable win */
+	win = ov2640_select_win(&mf->width, &mf->height);
 
 	mf->field	= V4L2_FIELD_NONE;
 	mf->colorspace	= V4L2_COLORSPACE_SRGB;
@@ -905,8 +902,7 @@ static int ov2640_set_fmt(struct v4l2_subdev *sd,
 	}
 
 	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE)
-		return ov2640_set_params(client, &mf->width,
-					 &mf->height, mf->code);
+		return ov2640_set_params(client, win, mf->code);
 	cfg->try_fmt = *mf;
 	return 0;
 }
