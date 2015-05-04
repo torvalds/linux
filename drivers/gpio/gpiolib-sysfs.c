@@ -674,9 +674,8 @@ EXPORT_SYMBOL_GPL(gpiod_export_link);
  */
 void gpiod_unexport(struct gpio_desc *desc)
 {
-	struct gpiod_data	*data;
-	int			status = 0;
-	struct device		*dev = NULL;
+	struct gpiod_data *data;
+	struct device *dev;
 
 	if (!desc) {
 		pr_warn("%s: invalid GPIO\n", __func__);
@@ -685,33 +684,35 @@ void gpiod_unexport(struct gpio_desc *desc)
 
 	mutex_lock(&sysfs_lock);
 
-	if (test_bit(FLAG_EXPORT, &desc->flags)) {
+	if (!test_bit(FLAG_EXPORT, &desc->flags))
+		goto err_unlock;
 
-		dev = class_find_device(&gpio_class, NULL, desc, match_export);
-		if (dev) {
-			clear_bit(FLAG_SYSFS_DIR, &desc->flags);
-			clear_bit(FLAG_EXPORT, &desc->flags);
-		} else
-			status = -ENODEV;
-	}
+	dev = class_find_device(&gpio_class, NULL, desc, match_export);
+	if (!dev)
+		goto err_unlock;
+
+	data = dev_get_drvdata(dev);
+
+	clear_bit(FLAG_SYSFS_DIR, &desc->flags);
+	clear_bit(FLAG_EXPORT, &desc->flags);
+
+	device_unregister(dev);
+
+	/*
+	 * Release irq after deregistration to prevent race with edge_store.
+	 */
+	if (desc->flags & GPIO_TRIGGER_MASK)
+		gpio_sysfs_free_irq(dev);
 
 	mutex_unlock(&sysfs_lock);
 
-	if (dev) {
-		data = dev_get_drvdata(dev);
-		device_unregister(dev);
-		/*
-		 * Release irq after deregistration to prevent race with
-		 * edge_store.
-		 */
-		if (desc->flags & GPIO_TRIGGER_MASK)
-			gpio_sysfs_free_irq(dev);
-		put_device(dev);
-		kfree(data);
-	}
+	put_device(dev);
+	kfree(data);
 
-	if (status)
-		gpiod_dbg(desc, "%s: status %d\n", __func__, status);
+	return;
+
+err_unlock:
+	mutex_unlock(&sysfs_lock);
 }
 EXPORT_SYMBOL_GPL(gpiod_unexport);
 
