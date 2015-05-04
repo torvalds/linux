@@ -1558,12 +1558,8 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		 * dispatch_execbuffer implementations. We specifically
 		 * don't want that set when the command parser is
 		 * enabled.
-		 *
-		 * FIXME: with aliasing ppgtt, buffers that should only
-		 * be in ggtt still end up in the aliasing ppgtt. remove
-		 * this check when that is fixed.
 		 */
-		if (USES_FULL_PPGTT(dev))
+		if (USES_PPGTT(dev))
 			dispatch_flags |= I915_DISPATCH_SECURE;
 
 		exec_start = 0;
