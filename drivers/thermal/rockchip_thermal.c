@@ -731,6 +731,12 @@ static int rockchip_thermal_user_mode_get_temp(struct rockchip_thermal_data *the
 {
 	unsigned long flags;
 	int ret;
+#ifdef TSADC_CPU_GATE
+	int val_cpu, temp_cpu;
+#endif
+#ifdef TSADC_GPU_GATE
+	int val_gpu, temp_gpu;
+#endif
 
 	local_irq_save(flags);
 	/* GPU_GATING*/
@@ -757,13 +763,12 @@ static int rockchip_thermal_user_mode_get_temp(struct rockchip_thermal_data *the
 
 #ifdef TSADC_CPU_GATE
 	/*channe 0*/
-	u32 val_cpu_pd;
-	int val_cpu, temp_cpu;
-
 	/*power up, channel 0*/
 	writel_relaxed(0x208, thermal->regs + TSADCV2_USER_CON);
 	while(1)
 	{
+		u32 val_cpu_pd;
+
 		val_cpu_pd = readl_relaxed(thermal->regs + TSADCV2_INT_PD);
 		udelay(TSADC_CLK_CYCLE_TIME);
 		if ((val_cpu_pd & 0x100) == 0x100) {
@@ -783,13 +788,12 @@ static int rockchip_thermal_user_mode_get_temp(struct rockchip_thermal_data *the
 	udelay(10);
 
 	/*channe 1*/
-	u32 val_gpu_pd;
-	int val_gpu, temp_gpu;
-
 	/*power up, channel */
 	writel_relaxed(0x208 | 0x1, thermal->regs + TSADCV2_USER_CON);
 	while(1)
 	{
+		u32 val_gpu_pd;
+
 		val_gpu_pd = readl_relaxed(thermal->regs + TSADCV2_INT_PD);
 		udelay(TSADC_CLK_CYCLE_TIME);
 		if ((val_gpu_pd & 0x100) == 0x100) {
