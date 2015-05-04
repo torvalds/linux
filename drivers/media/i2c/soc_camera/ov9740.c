@@ -673,19 +673,7 @@ static int ov9740_s_fmt(struct v4l2_subdev *sd,
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ov9740_priv *priv = to_ov9740(sd);
-	enum v4l2_colorspace cspace;
-	u32 code = mf->code;
 	int ret;
-
-	ov9740_res_roundup(&mf->width, &mf->height);
-
-	switch (code) {
-	case MEDIA_BUS_FMT_YUYV8_2X8:
-		cspace = V4L2_COLORSPACE_SRGB;
-		break;
-	default:
-		return -EINVAL;
-	}
 
 	ret = ov9740_reg_write_array(client, ov9740_defaults,
 				     ARRAY_SIZE(ov9740_defaults));
@@ -696,11 +684,7 @@ static int ov9740_s_fmt(struct v4l2_subdev *sd,
 	if (ret < 0)
 		return ret;
 
-	mf->code	= code;
-	mf->colorspace	= cspace;
-
-	memcpy(&priv->current_mf, mf, sizeof(struct v4l2_mbus_framefmt));
-
+	priv->current_mf = *mf;
 	return ret;
 }
 
