@@ -1806,11 +1806,21 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 		do {
 			name++;
 		} while (unlikely(*name == '/'));
-		if (!*name)
-			goto OK;
-
-		err = walk_component(nd, LOOKUP_FOLLOW);
-Walked:
+		if (unlikely(!*name)) {
+OK:
+			/* called from path_init(), done */
+			if (!nd->depth)
+				return 0;
+			name = nd->stack[nd->depth - 1].name;
+			/* called from trailing_symlink(), done */
+			if (!name)
+				return 0;
+			/* last component of nested symlink */
+			err = walk_component(nd, LOOKUP_FOLLOW);
+			put_link(nd);
+		} else {
+			err = walk_component(nd, LOOKUP_FOLLOW);
+		}
 		if (err < 0)
 			break;
 
@@ -1859,16 +1869,6 @@ Walked:
 	}
 	terminate_walk(nd);
 	return err;
-OK:
-	if (!nd->depth)		/* called from path_init(), done */
-		return 0;
-	name = nd->stack[nd->depth - 1].name;
-	if (!name)		/* called from trailing_symlink(), done */
-		return 0;
-
-	err = walk_component(nd, LOOKUP_FOLLOW);
-	put_link(nd);
-	goto Walked;
 }
 
 static int path_init(int dfd, const struct filename *name, unsigned int flags,
