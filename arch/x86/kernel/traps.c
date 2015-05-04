@@ -803,7 +803,7 @@ do_device_not_available(struct pt_regs *regs, long error_code)
 		return;
 	}
 #endif
-	fpu__restore(); /* interrupts still off */
+	fpu__restore(&current->thread.fpu); /* interrupts still off */
 #ifdef CONFIG_X86_32
 	conditional_sti(regs);
 #endif

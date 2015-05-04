@@ -50,7 +50,7 @@ extern int  fpu__exception_code(struct fpu *fpu, int trap_nr);
 extern void fpu__activate_curr(struct fpu *fpu);
 extern void fpu__activate_stopped(struct fpu *fpu);
 extern void fpu__save(struct fpu *fpu);
-extern void fpu__restore(void);
+extern void fpu__restore(struct fpu *fpu);
 extern int  fpu__restore_sig(void __user *buf, int ia32_frame);
 extern void fpu__drop(struct fpu *fpu);
 extern int  fpu__copy(struct fpu *dst_fpu, struct fpu *src_fpu);

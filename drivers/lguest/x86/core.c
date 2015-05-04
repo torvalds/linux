@@ -302,7 +302,7 @@ void lguest_arch_run_guest(struct lg_cpu *cpu)
 	 * before this.
 	 */
 	else if (cpu->regs->trapnum == 7 && !fpregs_active())
-		fpu__restore();
+		fpu__restore(&current->thread.fpu);
 }
 
 /*H:130

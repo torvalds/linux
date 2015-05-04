@@ -343,11 +343,8 @@ void fpu__activate_stopped(struct fpu *child_fpu)
  * with local interrupts disabled, as it is in the case of
  * do_device_not_available()).
  */
-void fpu__restore(void)
+void fpu__restore(struct fpu *fpu)
 {
-	struct task_struct *tsk = current;
-	struct fpu *fpu = &tsk->thread.fpu;
-
 	fpu__activate_curr(fpu);
 
 	/* Avoid __kernel_fpu_begin() right after fpregs_activate() */
@@ -355,9 +352,9 @@ void fpu__restore(void)
 	fpregs_activate(fpu);
 	if (unlikely(copy_fpstate_to_fpregs(fpu))) {
 		fpu__clear(fpu);
-		force_sig_info(SIGSEGV, SEND_SIG_PRIV, tsk);
+		force_sig_info(SIGSEGV, SEND_SIG_PRIV, current);
 	} else {
-		tsk->thread.fpu.counter++;
+		fpu->counter++;
 	}
 	kernel_fpu_enable();
 }
