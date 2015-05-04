@@ -183,8 +183,7 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 
 	err = mei_cl_read_start(cl, length, file);
 	if (err && err != -EBUSY) {
-		dev_dbg(dev->dev,
-			"mei start read failure with status = %d\n", err);
+		cl_dbg(dev, cl, "mei start read failure status = %d\n", err);
 		rets = err;
 		goto out;
 	}
@@ -228,11 +227,11 @@ copy_buffer:
 	/* now copy the data to user space */
 	if (cb->status) {
 		rets = cb->status;
-		dev_dbg(dev->dev, "read operation failed %d\n", rets);
+		cl_dbg(dev, cl, "read operation failed %d\n", rets);
 		goto free;
 	}
 
-	dev_dbg(dev->dev, "buf.size = %d buf.idx= %ld\n",
+	cl_dbg(dev, cl, "buf.size = %d buf.idx = %ld\n",
 	    cb->buf.size, cb->buf_idx);
 	if (length == 0 || ubuf == NULL || *offset > cb->buf_idx) {
 		rets = -EMSGSIZE;
@@ -258,7 +257,7 @@ free:
 	mei_io_cb_free(cb);
 
 out:
-	dev_dbg(dev->dev, "end mei read rets= %d\n", rets);
+	cl_dbg(dev, cl, "end mei read rets = %d\n", rets);
 	mutex_unlock(&dev->device_lock);
 	return rets;
 }
