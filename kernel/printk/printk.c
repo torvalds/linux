@@ -1852,11 +1852,12 @@ DEFINE_PER_CPU(printk_func_t, printk_func) = vprintk_default;
  */
 
 // Shared with 3DS's ARM9 CPU
-volatile unsigned char shared_3ds_char = 0;
+#define SHARED_CHAR_PA (0x27FFFFFF)
+#define SHARED_CHAR    (*(volatile char *)__va(SHARED_CHAR_PA))
 
 static void shared_3ds_putch(char c)
 {
-	shared_3ds_char = c;
+	SHARED_CHAR = c;
 	// Clean and Invalidate Entire Data Cache
 	// Data Synchronization Barrier
 	asm volatile (
@@ -1872,7 +1873,7 @@ static void shared_3ds_putch(char c)
 			"mcr p15, 0, r0, c7, c6, 0\n\t"
 			: : : "r0"
 		);
-	} while (shared_3ds_char != 0);
+	} while (SHARED_CHAR != 0);
 }
 
 void shared_3ds_print(const char *str)
