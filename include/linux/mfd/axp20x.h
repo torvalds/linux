@@ -275,4 +275,11 @@ struct axp20x_fg_pdata {
 	int thermistor_curve[MAX_THERM_CURVE_SIZE][2];
 };
 
+struct axp20x_chrg_pdata {
+	int max_cc;
+	int max_cv;
+	int def_cc;
+	int def_cv;
+};
+
 #endif /* __LINUX_MFD_AXP20X_H */

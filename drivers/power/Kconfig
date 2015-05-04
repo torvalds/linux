@@ -204,6 +204,13 @@ config CHARGER_DA9150
 	  This driver can also be built as a module. If so, the module will be
 	  called da9150-charger.
 
+config AXP288_CHARGER
+	tristate "X-Powers AXP288 Charger"
+	depends on MFD_AXP20X && EXTCON_AXP288
+	help
+	  Say yes here to have support X-Power AXP288 power management IC (PMIC)
+	  integrated charger.
+
 config AXP288_FUEL_GAUGE
 	tristate "X-Powers AXP288 Fuel Gauge"
 	depends on MFD_AXP20X && IIO
