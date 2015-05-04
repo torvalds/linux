@@ -967,7 +967,7 @@ static int iscsi_check_acceptor_state(struct iscsi_param *param, char *value,
 				struct iscsi_conn *conn)
 {
 	u8 acceptor_boolean_value = 0, proposer_boolean_value = 0;
-	char *negoitated_value = NULL;
+	char *negotiated_value = NULL;
 
 	if (IS_PSTATE_ACCEPTOR(param)) {
 		pr_err("Received key \"%s\" twice, protocol error.\n",
@@ -1068,15 +1068,15 @@ static int iscsi_check_acceptor_state(struct iscsi_param *param, char *value,
 					param->name, param->value);
 		}
 	} else if (IS_TYPE_VALUE_LIST(param)) {
-		negoitated_value = iscsi_check_valuelist_for_support(
+		negotiated_value = iscsi_check_valuelist_for_support(
 					param, value);
-		if (!negoitated_value) {
+		if (!negotiated_value) {
 			pr_err("Proposer's value list \"%s\" contains"
 				" no valid values from Acceptor's value list"
 				" \"%s\".\n", value, param->value);
 			return -1;
 		}
-		if (iscsi_update_param_value(param, negoitated_value) < 0)
+		if (iscsi_update_param_value(param, negotiated_value) < 0)
 			return -1;
 	} else if (IS_PHASE_DECLARATIVE(param)) {
 		if (iscsi_update_param_value(param, value) < 0)
