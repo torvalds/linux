@@ -88,6 +88,10 @@ static void hdcp_load_keys_cb(const struct firmware *fw,
 {
 	struct hdmi *hdmi = (struct hdmi *)context;
 
+	if (fw == NULL) {
+		pr_info("HDCP: firmware is not loaded\n");
+		return;
+	}
 	if (fw->size < HDCP_KEY_SIZE) {
 		pr_err("HDCP: firmware wrong size %d\n", (int)fw->size);
 		return;
@@ -181,7 +185,10 @@ static ssize_t hdcp_enable_write(struct device *device,
 
 	if (hdcp == NULL)
 		return -EINVAL;
-
+	if (hdcp->keys == NULL) {
+		pr_err("HDCP: key is not loaded\n");
+		return -EINVAL;
+	}
 	if (kstrtoint(buf, 0, &enable))
 		return -EINVAL;
 
