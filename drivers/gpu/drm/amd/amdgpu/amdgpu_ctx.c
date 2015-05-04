@@ -69,7 +69,6 @@ int amdgpu_ctx_alloc(struct amdgpu_device *adev, struct amdgpu_fpriv *fpriv, uin
 
 int amdgpu_ctx_free(struct amdgpu_device *adev, struct amdgpu_fpriv *fpriv, uint32_t id)
 {
-	int r;
 	struct amdgpu_ctx *ctx;
 	struct amdgpu_ctx_mgr *mgr = &fpriv->ctx_mgr;
 
@@ -77,15 +76,8 @@ int amdgpu_ctx_free(struct amdgpu_device *adev, struct amdgpu_fpriv *fpriv, uint
 	ctx = idr_find(&mgr->ctx_handles, id);
 	rcu_read_unlock();
 	if (ctx) {
-		/* if no task is pending on this context, free it */
-		r = kref_put(&ctx->refcount, amdgpu_ctx_do_release);
-		if (r == 1)
-			return 0;//context is removed successfully
-		else {
-			/* context is still in using */
-			kref_get(&ctx->refcount);
-			return -ERESTARTSYS;
-		}
+		kref_put(&ctx->refcount, amdgpu_ctx_do_release);
+		return 0;
 	}
 	return -EINVAL;
 }
