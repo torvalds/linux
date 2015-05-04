@@ -1310,12 +1310,12 @@ retry:
 	plane_state->src_h = src_h;
 	plane_state->src_w = src_w;
 
+	if (plane == crtc->cursor)
+		state->legacy_cursor_update = true;
+
 	ret = drm_atomic_commit(state);
 	if (ret != 0)
 		goto fail;
-
-	if (plane == crtc->cursor)
-		state->legacy_cursor_update = true;
 
 	/* Driver takes ownership of state on successful commit. */
 	return 0;
