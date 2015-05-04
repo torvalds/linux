@@ -1559,8 +1559,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		 * don't want that set when the command parser is
 		 * enabled.
 		 */
-		if (USES_PPGTT(dev))
-			dispatch_flags |= I915_DISPATCH_SECURE;
+		dispatch_flags |= I915_DISPATCH_SECURE;
 
 		exec_start = 0;
 	}
