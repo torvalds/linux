@@ -4093,7 +4093,7 @@ struct sk_buff *skb_checksum_trimmed(struct sk_buff *skb,
 {
 	struct sk_buff *skb_chk;
 	unsigned int offset = skb_transport_offset(skb);
-	int ret;
+	__sum16 ret;
 
 	skb_chk = skb_checksum_maybe_trim(skb, transport_len);
 	if (!skb_chk)

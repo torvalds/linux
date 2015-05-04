@@ -47,7 +47,7 @@ static int ipv6_mc_check_ip6hdr(struct sk_buff *skb)
 static int ipv6_mc_check_exthdrs(struct sk_buff *skb)
 {
 	const struct ipv6hdr *ip6h;
-	unsigned int offset;
+	int offset;
 	u8 nexthdr;
 	__be16 frag_off;
 
