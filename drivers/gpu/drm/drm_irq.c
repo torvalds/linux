@@ -352,6 +352,13 @@ int drm_vblank_init(struct drm_device *dev, int num_crtcs)
 	else
 		DRM_INFO("No driver support for vblank timestamp query.\n");
 
+	/* Must have precise timestamping for reliable vblank instant disable */
+	if (dev->vblank_disable_immediate && !dev->driver->get_vblank_timestamp) {
+		dev->vblank_disable_immediate = false;
+		DRM_INFO("Setting vblank_disable_immediate to false because "
+			 "get_vblank_timestamp == NULL\n");
+	}
+
 	dev->vblank_disable_allowed = false;
 
 	return 0;
