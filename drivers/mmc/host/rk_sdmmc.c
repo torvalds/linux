@@ -4244,7 +4244,7 @@ int dw_mci_resume(struct dw_mci *host)
 						mmc_hostname(host->mmc));
 				if (pinctrl_select_state(host->pinctrl, host->pins_udbg) < 0)
 					MMC_DBG_ERR_FUNC(host->mmc,
-						"%s: Udbg pinctrl setting failed! [%s]",
+						"Udbg pinctrl setting failed! [%s]",
 						mmc_hostname(host->mmc));
 			} else {
 				if (pinctrl_select_state(host->pinctrl, host->pins_default) < 0)
