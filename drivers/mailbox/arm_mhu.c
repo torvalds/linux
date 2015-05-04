@@ -110,7 +110,7 @@ static void mhu_shutdown(struct mbox_chan *chan)
 	free_irq(mlink->irq, chan);
 }
 
-static struct mbox_chan_ops mhu_ops = {
+static const struct mbox_chan_ops mhu_ops = {
 	.send_data = mhu_send_data,
 	.startup = mhu_startup,
 	.shutdown = mhu_shutdown,

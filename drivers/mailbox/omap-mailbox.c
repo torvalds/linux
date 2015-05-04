@@ -604,7 +604,7 @@ static int omap_mbox_chan_send_data(struct mbox_chan *chan, void *data)
 	return ret;
 }
 
-static struct mbox_chan_ops omap_mbox_chan_ops = {
+static const struct mbox_chan_ops omap_mbox_chan_ops = {
 	.startup        = omap_mbox_chan_startup,
 	.send_data      = omap_mbox_chan_send_data,
 	.shutdown       = omap_mbox_chan_shutdown,
