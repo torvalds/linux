@@ -555,7 +555,7 @@ wakeup_secondary_cpu_via_nmi(int apicid, unsigned long start_eip)
 static int
 wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 {
-	unsigned long send_status, accept_status = 0;
+	unsigned long send_status = 0, accept_status = 0;
 	int maxlvt, num_starts, j;
 
 	maxlvt = lapic_get_maxlvt();
@@ -580,22 +580,34 @@ wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 	apic_icr_write(APIC_INT_LEVELTRIG | APIC_INT_ASSERT | APIC_DM_INIT,
 		       phys_apicid);
 
-	pr_debug("Waiting for send to finish...\n");
-	send_status = safe_apic_wait_icr_idle();
+	if (!cpu_has_x2apic) {
+		pr_debug("Waiting for send to finish...\n");
+		send_status = safe_apic_wait_icr_idle();
 
-	mdelay(10);
+		mdelay(10);
 
-	pr_debug("Deasserting INIT\n");
+		pr_debug("Deasserting INIT\n");
 
-	/* Target chip */
-	/* Send IPI */
-	apic_icr_write(APIC_INT_LEVELTRIG | APIC_DM_INIT, phys_apicid);
+		/* Target chip */
+		/* Send IPI */
+		apic_icr_write(APIC_INT_LEVELTRIG | APIC_DM_INIT, phys_apicid);
 
-	pr_debug("Waiting for send to finish...\n");
-	send_status = safe_apic_wait_icr_idle();
+		pr_debug("Waiting for send to finish...\n");
+		send_status = safe_apic_wait_icr_idle();
 
-	mb();
-	atomic_set(&init_deasserted, 1);
+		mb();
+		atomic_set(&init_deasserted, 1);
+	} else if (tboot_enabled()) {
+		/*
+		 * With tboot AP is actually spinning in a mini-guest before
+		 * receiving INIT. Upon receiving INIT ipi, AP need time to
+		 * VMExit, update VMCS to tracking SIPIs and VMResume.
+		 *
+		 * While AP is in root mode handling the INIT the CPU will drop
+		 * any SIPIs
+		 */
+		udelay(10);
+	}
 
 	/*
 	 * Should we send STARTUP IPIs ?
@@ -637,20 +649,23 @@ wakeup_secondary_cpu_via_init(int phys_apicid, unsigned long start_eip)
 		apic_icr_write(APIC_DM_STARTUP | (start_eip >> 12),
 			       phys_apicid);
 
-		/*
-		 * Give the other CPU some time to accept the IPI.
-		 */
-		udelay(300);
+		if (!cpu_has_x2apic) {
+			/*
+			 * Give the other CPU some time to accept the IPI.
+			 */
+			udelay(300);
 
-		pr_debug("Startup point 1\n");
+			pr_debug("Startup point 1\n");
 
-		pr_debug("Waiting for send to finish...\n");
-		send_status = safe_apic_wait_icr_idle();
+			pr_debug("Waiting for send to finish...\n");
+			send_status = safe_apic_wait_icr_idle();
 
-		/*
-		 * Give the other CPU some time to accept the IPI.
-		 */
-		udelay(200);
+			/*
+			 * Give the other CPU some time to accept the IPI.
+			 */
+			udelay(200);
+		}
+
 		if (maxlvt > 3)		/* Due to the Pentium erratum 3AP.  */
 			apic_write(APIC_ESR, 0);
 		accept_status = (apic_read(APIC_ESR) & 0xEF);
