@@ -149,6 +149,7 @@ const struct tegra_fuse_soc tegra124_fuse_soc = {
 static const struct tegra_fuse_info tegra210_fuse_info = {
 	.read = tegra30_fuse_read,
 	.size = 0x300,
+	.spare = 0x280,
 };
 
 const struct tegra_fuse_soc tegra210_fuse_soc = {
