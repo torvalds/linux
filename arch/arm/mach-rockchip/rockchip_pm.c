@@ -26,7 +26,7 @@ void  rkpm_ddr_regs_dump(void __iomem * base_addr,u32 start_offset,u32 end_offse
         //u32 line=0;
 
         rkpm_ddr_printascii("start from:");     
-        rkpm_ddr_printhex((u32)(base_addr +start_offset));       
+	rkpm_ddr_printhex((unsigned long)base_addr + start_offset);
         rkpm_ddr_printch('\n');
                    
         
