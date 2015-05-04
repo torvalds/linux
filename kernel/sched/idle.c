@@ -67,6 +67,18 @@ void __weak arch_cpu_idle(void)
 	local_irq_enable();
 }
 
+static void default_idle_call(void)
+{
+	/*
+	 * We can't use the cpuidle framework, let's use the default idle
+	 * routine.
+	 */
+	if (current_clr_polling_and_test())
+		local_irq_enable();
+	else
+		arch_cpu_idle();
+}
+
 /**
  * cpuidle_idle_call - the main idle function
  *
@@ -105,8 +117,10 @@ static void cpuidle_idle_call(void)
 	 */
 	rcu_idle_enter();
 
-	if (cpuidle_not_available(drv, dev))
-		goto use_default;
+	if (cpuidle_not_available(drv, dev)) {
+		default_idle_call();
+		goto exit_idle;
+	}
 
 	/*
 	 * Suspend-to-idle ("freeze") is a system state in which all user space
@@ -134,8 +148,10 @@ static void cpuidle_idle_call(void)
 		next_state = cpuidle_select(drv, dev);
 	}
 	/* Fall back to the default arch idle method on errors. */
-	if (next_state < 0)
-		goto use_default;
+	if (next_state < 0) {
+		default_idle_call();
+		goto exit_idle;
+	}
 
 	/*
 	 * The idle task must be scheduled, it is pointless to
@@ -162,8 +178,10 @@ static void cpuidle_idle_call(void)
 	/* The cpu is no longer idle or about to enter idle. */
 	idle_set_state(this_rq(), NULL);
 
-	if (entered_state == -EBUSY)
-		goto use_default;
+	if (entered_state == -EBUSY) {
+		default_idle_call();
+		goto exit_idle;
+	}
 
 	/*
 	 * Give the governor an opportunity to reflect on the outcome
@@ -182,19 +200,6 @@ exit_idle:
 
 	rcu_idle_exit();
 	start_critical_timings();
-	return;
-
-use_default:
-	/*
-	 * We can't use the cpuidle framework, let's use the default
-	 * idle routine.
-	 */
-	if (current_clr_polling_and_test())
-		local_irq_enable();
-	else
-		arch_cpu_idle();
-
-	goto exit_idle;
 }
 
 DEFINE_PER_CPU(bool, cpu_dead_idle);
