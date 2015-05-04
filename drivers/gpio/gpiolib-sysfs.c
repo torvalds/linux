@@ -695,7 +695,6 @@ void gpiod_unexport(struct gpio_desc *desc)
 
 		dev = class_find_device(&gpio_class, NULL, desc, match_export);
 		if (dev) {
-			gpio_setup_irq(desc, dev, 0);
 			clear_bit(FLAG_SYSFS_DIR, &desc->flags);
 			clear_bit(FLAG_EXPORT, &desc->flags);
 		} else
@@ -706,6 +705,11 @@ void gpiod_unexport(struct gpio_desc *desc)
 
 	if (dev) {
 		device_unregister(dev);
+		/*
+		 * Release irq after deregistration to prevent race with
+		 * edge_store.
+		 */
+		gpio_setup_irq(desc, dev, 0);
 		put_device(dev);
 	}
 
