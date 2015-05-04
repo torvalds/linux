@@ -779,7 +779,6 @@ int gpiochip_export(struct gpio_chip *chip)
 		return 0;
 
 	/* use chip->base for the ID; it's already known to be unique */
-	mutex_lock(&sysfs_lock);
 	dev = device_create_with_groups(&gpio_class, chip->dev, MKDEV(0, 0),
 					chip, gpiochip_groups,
 					"gpiochip%d", chip->base);
@@ -787,6 +786,8 @@ int gpiochip_export(struct gpio_chip *chip)
 		status = PTR_ERR(dev);
 	else
 		status = 0;
+
+	mutex_lock(&sysfs_lock);
 	chip->exported = (status == 0);
 	mutex_unlock(&sysfs_lock);
 
@@ -803,17 +804,17 @@ void gpiochip_unexport(struct gpio_chip *chip)
 	struct gpio_desc *desc;
 	unsigned int i;
 
-	mutex_lock(&sysfs_lock);
 	dev = class_find_device(&gpio_class, NULL, chip, match_export);
 	if (dev) {
 		put_device(dev);
 		device_unregister(dev);
 		/* prevent further gpiod exports */
+		mutex_lock(&sysfs_lock);
 		chip->exported = false;
+		mutex_unlock(&sysfs_lock);
 		status = 0;
 	} else
 		status = -ENODEV;
-	mutex_unlock(&sysfs_lock);
 
 	if (status)
 		chip_dbg(chip, "%s: status %d\n", __func__, status);
