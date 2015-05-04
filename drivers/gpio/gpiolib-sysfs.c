@@ -582,7 +582,7 @@ int gpiod_export(struct gpio_desc *desc, bool direction_may_change)
 	mutex_lock(&sysfs_lock);
 
 	/* check if chip is being removed */
-	if (!chip || !chip->exported) {
+	if (!chip || !chip->cdev) {
 		status = -ENODEV;
 		goto fail_unlock;
 	}
@@ -767,7 +767,6 @@ EXPORT_SYMBOL_GPL(gpiod_unexport);
 
 int gpiochip_export(struct gpio_chip *chip)
 {
-	int		status;
 	struct device	*dev;
 
 	/* Many systems register gpio chips for SOC support very early,
@@ -783,41 +782,29 @@ int gpiochip_export(struct gpio_chip *chip)
 					chip, gpiochip_groups,
 					"gpiochip%d", chip->base);
 	if (IS_ERR(dev))
-		status = PTR_ERR(dev);
-	else
-		status = 0;
+		return PTR_ERR(dev);
 
 	mutex_lock(&sysfs_lock);
-	chip->exported = (status == 0);
+	chip->cdev = dev;
 	mutex_unlock(&sysfs_lock);
 
-	if (status)
-		chip_dbg(chip, "%s: status %d\n", __func__, status);
-
-	return status;
+	return 0;
 }
 
 void gpiochip_unexport(struct gpio_chip *chip)
 {
-	int			status;
-	struct device		*dev;
 	struct gpio_desc *desc;
 	unsigned int i;
 
-	dev = class_find_device(&gpio_class, NULL, chip, match_export);
-	if (dev) {
-		put_device(dev);
-		device_unregister(dev);
-		/* prevent further gpiod exports */
-		mutex_lock(&sysfs_lock);
-		chip->exported = false;
-		mutex_unlock(&sysfs_lock);
-		status = 0;
-	} else
-		status = -ENODEV;
+	if (!chip->cdev)
+		return;
 
-	if (status)
-		chip_dbg(chip, "%s: status %d\n", __func__, status);
+	device_unregister(chip->cdev);
+
+	/* prevent further gpiod exports */
+	mutex_lock(&sysfs_lock);
+	chip->cdev = NULL;
+	mutex_unlock(&sysfs_lock);
 
 	/* unregister gpiod class devices owned by sysfs */
 	for (i = 0; i < chip->ngpio; i++) {
@@ -845,7 +832,7 @@ static int __init gpiolib_sysfs_init(void)
 	 */
 	spin_lock_irqsave(&gpio_lock, flags);
 	list_for_each_entry(chip, &gpio_chips, list) {
-		if (chip->exported)
+		if (chip->cdev)
 			continue;
 
 		/*

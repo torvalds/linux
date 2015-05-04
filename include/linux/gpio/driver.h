@@ -20,6 +20,7 @@ struct seq_file;
  * struct gpio_chip - abstract a GPIO controller
  * @label: for diagnostics
  * @dev: optional device providing the GPIOs
+ * @cdev: class device used by sysfs interface (may be NULL)
  * @owner: helps prevent removal of modules exporting active GPIOs
  * @list: links gpio_chips together for traversal
  * @request: optional hook for chip-specific activation, such as
@@ -57,7 +58,6 @@ struct seq_file;
  *	implies that if the chip supports IRQs, these IRQs need to be threaded
  *	as the chip access may sleep when e.g. reading out the IRQ status
  *	registers.
- * @exported: flags if the gpiochip is exported for use from sysfs. Private.
  * @irq_not_threaded: flag must be set if @can_sleep is set but the
  *	IRQs don't need to be threaded
  *
@@ -74,6 +74,7 @@ struct seq_file;
 struct gpio_chip {
 	const char		*label;
 	struct device		*dev;
+	struct device		*cdev;
 	struct module		*owner;
 	struct list_head        list;
 
@@ -109,7 +110,6 @@ struct gpio_chip {
 	const char		*const *names;
 	bool			can_sleep;
 	bool			irq_not_threaded;
-	bool			exported;
 
 #ifdef CONFIG_GPIOLIB_IRQCHIP
 	/*
