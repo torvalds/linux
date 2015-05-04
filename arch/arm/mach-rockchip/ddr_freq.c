@@ -229,7 +229,7 @@ static void ddr_auto_freq(void)
 {
 	unsigned long freq, new_freq=0, vop_req_freq=0, total_bw_req_freq=0;
 	u32 ddr_percent, target_load;
-	static u32 local_jiffies=0, max_ddr_percent=0;
+	static unsigned long local_jiffies=0, max_ddr_percent=0;
 
 	if (!local_jiffies)
 		local_jiffies = jiffies;
@@ -552,7 +552,7 @@ static ssize_t video_state_write(struct file *file, const char __user *buffer,
 		return -EFAULT;
 	}
 
-	dprintk(DEBUG_VIDEO_STATE, "%s: %s,len %d\n", __func__, cookie_pot,count);
+	dprintk(DEBUG_VIDEO_STATE, "%s: %s,len %zu\n", __func__, cookie_pot,count);
 
 	state=cookie_pot[0];
 	if( (count>=3) && (cookie_pot[2]=='w') )
