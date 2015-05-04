@@ -188,7 +188,7 @@ void rds_ib_cm_connect_complete(struct rds_connection *conn, struct rdma_cm_even
 		 * Since dp_ack_seq is 64-bit extended load operations can be
 		 * used so go through get_unaligned to avoid unaligned errors.
 		 */
-		u64 dp_ack_seq = get_unaligned(&dp->dp_ack_seq);
+		__be64 dp_ack_seq = get_unaligned(&dp->dp_ack_seq);
 
 		if (dp_ack_seq)
 			rds_send_drop_acked(conn, be64_to_cpu(dp_ack_seq),
