@@ -1314,7 +1314,7 @@ static int rk_mipi_dsi_probe(struct dsi *dsi)
 #include <asm/uaccess.h>
 #include <linux/slab.h>
 
-int reg_proc_write(struct file *file, const char __user *buff, size_t count, loff_t *offp)
+ssize_t reg_proc_write(struct file *file, const char __user *buff, size_t count, loff_t *offp)
 {
 	int ret = -1, i = 0;
 	u32 read_val = 0;
@@ -1443,7 +1443,7 @@ struct file_operations reg_proc_fops = {
 	.read = seq_read,
 };
 
-int reg_proc_write1(struct file *file, const char __user *buff, size_t count, loff_t *offp)
+ssize_t reg_proc_write1(struct file *file, const char __user *buff, size_t count, loff_t *offp)
 {
 	int ret = -1, i = 0;
 	u32 read_val = 0;
