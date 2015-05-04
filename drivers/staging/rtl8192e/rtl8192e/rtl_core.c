@@ -2311,7 +2311,7 @@ static void rtl8192_rx_normal(struct net_device *dev)
 
 	struct rtllib_rx_stats stats = {
 		.signal = 0,
-		.noise = -98,
+		.noise = (u8) -98,
 		.rate = 0,
 		.freq = RTLLIB_24GHZ_BAND,
 	};
