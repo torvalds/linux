@@ -98,7 +98,7 @@ int iptunnel_pull_header(struct sk_buff *skb, int hdr_len, __be16 inner_proto)
 			return -ENOMEM;
 
 		eh = (struct ethhdr *)skb->data;
-		if (likely(ntohs(eh->h_proto) >= ETH_P_802_3_MIN))
+		if (likely(eth_proto_is_802_3(eh->h_proto)))
 			skb->protocol = eh->h_proto;
 		else
 			skb->protocol = htons(ETH_P_802_2);
