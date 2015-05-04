@@ -733,12 +733,6 @@ uvc_function_bind(struct usb_configuration *c, struct usb_function *f)
 	uvc->control_req->complete = uvc_function_ep0_complete;
 	uvc->control_req->context = uvc;
 
-	/* Avoid letting this gadget enumerate until the userspace server is
-	 * active.
-	 */
-	if ((ret = usb_function_deactivate(f)) < 0)
-		goto error;
-
 	if (v4l2_device_register(&cdev->gadget->dev, &uvc->v4l2_dev)) {
 		printk(KERN_INFO "v4l2_device_register failed\n");
 		goto error;
@@ -949,6 +943,7 @@ static struct usb_function *uvc_alloc(struct usb_function_instance *fi)
 	uvc->func.disable = uvc_function_disable;
 	uvc->func.setup = uvc_function_setup;
 	uvc->func.free_func = uvc_free;
+	uvc->func.bind_deactivated = true;
 
 	return &uvc->func;
 }
