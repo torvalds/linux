@@ -320,6 +320,7 @@ static int a_aidl_bdis_tmout(struct ci_hdrc *ci)
 static int b_ase0_brst_tmout(struct ci_hdrc *ci)
 {
 	ci->fsm.b_ase0_brst_tmout = 1;
+	dev_warn(ci->dev, "Device No Response\n");
 	return 0;
 }
 
