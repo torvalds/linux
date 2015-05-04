@@ -57,7 +57,7 @@ __visible DEFINE_PER_CPU_SHARED_ALIGNED(struct tss_struct, cpu_tss) = {
 	.io_bitmap		= { [0 ... IO_BITMAP_LONGS] = ~0 },
 #endif
 };
-EXPORT_PER_CPU_SYMBOL_GPL(cpu_tss);
+EXPORT_PER_CPU_SYMBOL(cpu_tss);
 
 #ifdef CONFIG_X86_64
 static DEFINE_PER_CPU(unsigned char, is_idle);
