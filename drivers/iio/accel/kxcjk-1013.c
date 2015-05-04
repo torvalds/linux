@@ -1156,8 +1156,10 @@ static const char *kxcjk1013_match_acpi_device(struct device *dev,
 	id = acpi_match_device(dev->driver->acpi_match_table, dev);
 	if (!id)
 		return NULL;
+
 	if (strcmp(id->id, "SMO8500") == 0)
 		*is_smo8500_device = true;
+
 	*chipset = (enum kx_chipset)id->driver_data;
 
 	return dev_name(dev);
@@ -1172,6 +1174,7 @@ static int kxcjk1013_gpio_probe(struct i2c_client *client,
 
 	if (!client)
 		return -EINVAL;
+
 	if (data->is_smo8500_device)
 		return -ENOTSUPP;
 
