@@ -201,6 +201,7 @@ static void tipc_subscrp_cancel(struct tipc_subscr *s,
 {
 	struct tipc_subscription *sub, *temp;
 
+	spin_lock_bh(&subscriber->lock);
 	/* Find first matching subscription, exit if not found */
 	list_for_each_entry_safe(sub, temp, &subscriber->subscrp_list,
 				 subscrp_list) {
@@ -212,6 +213,7 @@ static void tipc_subscrp_cancel(struct tipc_subscr *s,
 			break;
 		}
 	}
+	spin_unlock_bh(&subscriber->lock);
 }
 
 static int tipc_subscrp_create(struct net *net, struct tipc_subscr *s,
@@ -260,7 +262,9 @@ static int tipc_subscrp_create(struct net *net, struct tipc_subscr *s,
 		kfree(sub);
 		return -EINVAL;
 	}
+	spin_lock_bh(&subscriber->lock);
 	list_add(&sub->subscrp_list, &subscriber->subscrp_list);
+	spin_unlock_bh(&subscriber->lock);
 	sub->subscriber = subscriber;
 	sub->swap = swap;
 	memcpy(&sub->evt.s, s, sizeof(*s));
@@ -289,13 +293,11 @@ static void tipc_subscrb_rcv_cb(struct net *net, int conid,
 	struct tipc_subscription *sub = NULL;
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 
-	spin_lock_bh(&subscriber->lock);
 	tipc_subscrp_create(net, (struct tipc_subscr *)buf, subscriber, &sub);
 	if (sub)
 		tipc_nametbl_subscribe(sub);
 	else
 		tipc_conn_terminate(tn->topsrv, subscriber->conid);
-	spin_unlock_bh(&subscriber->lock);
 }
 
 /* Handle one request to establish a new subscriber */
