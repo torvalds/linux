@@ -325,8 +325,10 @@ static void gpiochip_free_hogs(struct gpio_chip *chip);
  */
 void gpiochip_remove(struct gpio_chip *chip)
 {
+	struct gpio_desc *desc;
 	unsigned long	flags;
 	unsigned	id;
+	bool		requested = false;
 
 	gpiochip_unexport(chip);
 
@@ -339,14 +341,16 @@ void gpiochip_remove(struct gpio_chip *chip)
 
 	spin_lock_irqsave(&gpio_lock, flags);
 	for (id = 0; id < chip->ngpio; id++) {
-		if (test_bit(FLAG_REQUESTED, &chip->desc[id].flags))
-			dev_crit(chip->dev, "REMOVING GPIOCHIP WITH GPIOS STILL REQUESTED\n");
+		desc = &chip->desc[id];
+		desc->chip = NULL;
+		if (test_bit(FLAG_REQUESTED, &desc->flags))
+			requested = true;
 	}
-	for (id = 0; id < chip->ngpio; id++)
-		chip->desc[id].chip = NULL;
-
 	list_del(&chip->list);
 	spin_unlock_irqrestore(&gpio_lock, flags);
+
+	if (requested)
+		dev_crit(chip->dev, "REMOVING GPIOCHIP WITH GPIOS STILL REQUESTED\n");
 
 	kfree(chip->desc);
 	chip->desc = NULL;
