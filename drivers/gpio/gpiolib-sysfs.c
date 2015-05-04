@@ -236,14 +236,16 @@ static ssize_t edge_store(struct device *dev,
 	struct gpio_desc *desc = data->desc;
 	unsigned long flags;
 	ssize_t	status = size;
-	int			i;
+	int i;
 
-	for (i = 0; i < ARRAY_SIZE(trigger_types); i++)
+	for (i = 0; i < ARRAY_SIZE(trigger_types); i++) {
 		if (sysfs_streq(trigger_types[i].name, buf))
-			goto found;
-	return -EINVAL;
+			break;
+	}
 
-found:
+	if (i == ARRAY_SIZE(trigger_types))
+		return -EINVAL;
+
 	flags = trigger_types[i].flags;
 
 	mutex_lock(&sysfs_lock);
