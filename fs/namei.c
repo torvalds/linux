@@ -2009,8 +2009,11 @@ static int trailing_symlink(struct nameidata *nd)
 	s = get_link(nd);
 	if (unlikely(IS_ERR(s)))
 		return PTR_ERR(s);
-	if (unlikely(!s))
+	nd->depth++;
+	if (unlikely(!s)) {
+		nd->depth--;
 		return 0;
+	}
 	if (*s == '/') {
 		if (!nd->root.mnt)
 			set_root(nd);
@@ -2020,12 +2023,14 @@ static int trailing_symlink(struct nameidata *nd)
 		nd->flags |= LOOKUP_JUMPED;
 	}
 	nd->inode = nd->path.dentry->d_inode;
-	nd->depth++;
 	error = link_path_walk(s, nd);
-	nd->depth--;
-	if (unlikely(error))
+	if (unlikely(error)) {
+		nd->depth--;
 		put_link(nd);
-	return error;
+		return error;
+	}
+	nd->depth--;
+	return 0;
 }
 
 static inline int lookup_last(struct nameidata *nd)
