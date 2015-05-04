@@ -79,7 +79,7 @@ static int apk_close(struct inode *inode, struct file *file)
 
 	return 0;
 }
-static int apk_write(struct file *file, const char __user *buff, size_t count, loff_t *offp)
+static ssize_t apk_write(struct file *file, const char __user *buff, size_t count, loff_t *offp)
 {
 	struct i2c_client *client = ts_object->driver->client;	
 	unsigned char frame_data[255] = {0};
@@ -130,7 +130,7 @@ static int apk_write(struct file *file, const char __user *buff, size_t count, l
 				}break;
 		}
 	}else if(frame_data[0]==LINUX_SHELL){
-		printk("CMD: %s,count = %d\n",frame_data,count);
+		printk("CMD: %s,count = %zu\n",frame_data,count);
 		switch(frame_data[1]){
 			case	SHELL_CHECKSUM_CMD :{
 					chip_get_checksum(client,&bin_checksum,&fw_checksum);
@@ -164,7 +164,7 @@ static int apk_write(struct file *file, const char __user *buff, size_t count, l
  	return count;
 }
 
-static int apk_read(struct file *file, char __user *buff, size_t count, loff_t *offp)
+static ssize_t apk_read(struct file *file, char __user *buff, size_t count, loff_t *offp)
 {
 	struct i2c_client *client = ts_object->driver->client;
 	unsigned char frame_data[255];
