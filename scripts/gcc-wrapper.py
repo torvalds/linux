@@ -48,6 +48,7 @@ allowed_warnings = set([
     "menu.c:129",
     "bus.c:318", # FIXME
     "atags_to_fdt.c:96",
+    "compat_binfmt_elf.c:58",
  ])
 
 # Capture the name of the object file, can find it.
