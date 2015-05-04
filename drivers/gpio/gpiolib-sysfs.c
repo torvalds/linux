@@ -13,6 +13,7 @@
 struct gpiod_data {
 	struct gpio_desc *desc;
 	struct kernfs_node *value_kn;
+	int irq;
 };
 
 /* lock protects against unexport_gpio() being called while
@@ -132,27 +133,20 @@ static irqreturn_t gpio_sysfs_irq(int irq, void *priv)
 	return IRQ_HANDLED;
 }
 
-static int gpio_setup_irq(struct device *dev, unsigned long gpio_flags)
+static int gpio_sysfs_request_irq(struct device *dev, unsigned long gpio_flags)
 {
 	struct gpiod_data	*data = dev_get_drvdata(dev);
 	struct gpio_desc	*desc = data->desc;
 	unsigned long		irq_flags;
-	int			ret, irq;
+	int			ret;
 
-	irq = gpiod_to_irq(desc);
-	if (irq < 0)
+	data->irq = gpiod_to_irq(desc);
+	if (data->irq < 0)
 		return -EIO;
 
-	if (data->value_kn)
-		free_irq(irq, data);
-
-	desc->flags &= ~GPIO_TRIGGER_MASK;
-
-	if (!gpio_flags) {
-		gpiochip_unlock_as_irq(desc->chip, gpio_chip_hwgpio(desc));
-		ret = 0;
-		goto free_kn;
-	}
+	data->value_kn = sysfs_get_dirent(dev->kobj.sd, "value");
+	if (!data->value_kn)
+		return -ENODEV;
 
 	irq_flags = IRQF_SHARED;
 	if (test_bit(FLAG_TRIG_FALL, &gpio_flags))
@@ -161,14 +155,6 @@ static int gpio_setup_irq(struct device *dev, unsigned long gpio_flags)
 	if (test_bit(FLAG_TRIG_RISE, &gpio_flags))
 		irq_flags |= test_bit(FLAG_ACTIVE_LOW, &desc->flags) ?
 			IRQF_TRIGGER_FALLING : IRQF_TRIGGER_RISING;
-
-	if (!data->value_kn) {
-		data->value_kn = sysfs_get_dirent(dev->kobj.sd, "value");
-		if (!data->value_kn) {
-			ret = -ENODEV;
-			goto err_out;
-		}
-	}
 
 	/*
 	 * FIXME: This should be done in the irq_request_resources callback
@@ -180,25 +166,34 @@ static int gpio_setup_irq(struct device *dev, unsigned long gpio_flags)
 	 */
 	ret = gpiochip_lock_as_irq(desc->chip, gpio_chip_hwgpio(desc));
 	if (ret < 0)
-		goto free_kn;
+		goto err_put_kn;
 
-	ret = request_any_context_irq(irq, gpio_sysfs_irq, irq_flags,
+	ret = request_any_context_irq(data->irq, gpio_sysfs_irq, irq_flags,
 				"gpiolib", data);
 	if (ret < 0)
 		goto err_unlock;
 
 	desc->flags |= gpio_flags;
+
 	return 0;
 
 err_unlock:
 	gpiochip_unlock_as_irq(desc->chip, gpio_chip_hwgpio(desc));
-free_kn:
-	if (data->value_kn) {
-		sysfs_put(data->value_kn);
-		data->value_kn = NULL;
-	}
-err_out:
+err_put_kn:
+	sysfs_put(data->value_kn);
+
 	return ret;
+}
+
+static void gpio_sysfs_free_irq(struct device *dev)
+{
+	struct gpiod_data *data = dev_get_drvdata(dev);
+	struct gpio_desc *desc = data->desc;
+
+	desc->flags &= ~GPIO_TRIGGER_MASK;
+	free_irq(data->irq, data);
+	gpiochip_unlock_as_irq(desc->chip, gpio_chip_hwgpio(desc));
+	sysfs_put(data->value_kn);
 }
 
 static const struct {
@@ -240,7 +235,7 @@ static ssize_t edge_store(struct device *dev,
 	struct gpiod_data *data = dev_get_drvdata(dev);
 	struct gpio_desc *desc = data->desc;
 	unsigned long flags;
-	ssize_t			status;
+	ssize_t	status = size;
 	int			i;
 
 	for (i = 0; i < ARRAY_SIZE(trigger_types); i++)
@@ -258,9 +253,14 @@ found:
 		goto out_unlock;
 	}
 
-	status = gpio_setup_irq(dev, flags);
-	if (!status)
-		status = size;
+	if (desc->flags & GPIO_TRIGGER_MASK)
+		gpio_sysfs_free_irq(dev);
+
+	if (flags) {
+		status = gpio_sysfs_request_irq(dev, flags);
+		if (!status)
+			status = size;
+	}
 
 out_unlock:
 	mutex_unlock(&sysfs_lock);
@@ -288,8 +288,8 @@ static int sysfs_set_active_low(struct device *dev, int value)
 				!!test_bit(FLAG_TRIG_FALL, &desc->flags)) {
 		unsigned long trigger_flags = desc->flags & GPIO_TRIGGER_MASK;
 
-		gpio_setup_irq(dev, 0);
-		status = gpio_setup_irq(dev, trigger_flags);
+		gpio_sysfs_free_irq(dev);
+		status = gpio_sysfs_request_irq(dev, trigger_flags);
 	}
 
 	return status;
@@ -699,7 +699,7 @@ void gpiod_unexport(struct gpio_desc *desc)
 		 * edge_store.
 		 */
 		if (desc->flags & GPIO_TRIGGER_MASK)
-			gpio_setup_irq(dev, 0);
+			gpio_sysfs_free_irq(dev);
 		put_device(dev);
 		kfree(data);
 	}
