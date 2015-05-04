@@ -180,55 +180,11 @@ static int mei_cl_irq_disconnect_rsp(struct mei_cl *cl, struct mei_cl_cb *cb,
 		return -EMSGSIZE;
 
 	ret = mei_hbm_cl_disconnect_rsp(dev, cl);
-
-	cl->state = MEI_FILE_DISCONNECTED;
-	cl->status = 0;
+	mei_cl_set_disconnected(cl);
 	mei_io_cb_free(cb);
 
 	return ret;
 }
-
-
-
-/**
- * mei_cl_irq_disconnect - processes close related operation from
- *	interrupt thread context - send disconnect request
- *
- * @cl: client
- * @cb: callback block.
- * @cmpl_list: complete list.
- *
- * Return: 0, OK; otherwise, error.
- */
-static int mei_cl_irq_disconnect(struct mei_cl *cl, struct mei_cl_cb *cb,
-			    struct mei_cl_cb *cmpl_list)
-{
-	struct mei_device *dev = cl->dev;
-	u32 msg_slots;
-	int slots;
-
-	msg_slots = mei_data2slots(sizeof(struct hbm_client_connect_request));
-	slots = mei_hbuf_empty_slots(dev);
-
-	if (slots < msg_slots)
-		return -EMSGSIZE;
-
-	if (mei_hbm_cl_disconnect_req(dev, cl)) {
-		cl->status = 0;
-		cb->buf_idx = 0;
-		list_move_tail(&cb->list, &cmpl_list->list);
-		return -EIO;
-	}
-
-	cl->state = MEI_FILE_DISCONNECTING;
-	cl->status = 0;
-	cb->buf_idx = 0;
-	list_move_tail(&cb->list, &dev->ctrl_rd_list.list);
-	cl->timer_count = MEI_CONNECT_TIMEOUT;
-
-	return 0;
-}
-
 
 /**
  * mei_cl_irq_read - processes client read related operation from the

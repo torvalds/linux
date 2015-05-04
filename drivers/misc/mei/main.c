@@ -94,7 +94,7 @@ static int mei_release(struct inode *inode, struct file *file)
 {
 	struct mei_cl *cl = file->private_data;
 	struct mei_device *dev;
-	int rets = 0;
+	int rets;
 
 	if (WARN_ON(!cl || !cl->dev))
 		return -ENODEV;
@@ -106,11 +106,8 @@ static int mei_release(struct inode *inode, struct file *file)
 		rets = mei_amthif_release(dev, file);
 		goto out;
 	}
-	if (mei_cl_is_connected(cl)) {
-		cl->state = MEI_FILE_DISCONNECTING;
-		cl_dbg(dev, cl, "disconnecting\n");
-		rets = mei_cl_disconnect(cl);
-	}
+	rets = mei_cl_disconnect(cl);
+
 	mei_cl_flush_queues(cl, file);
 	cl_dbg(dev, cl, "removing\n");
 

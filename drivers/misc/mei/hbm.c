@@ -572,7 +572,7 @@ static void mei_hbm_cl_disconnect_res(struct mei_device *dev, struct mei_cl *cl,
 	cl_dbg(dev, cl, "hbm: disconnect response status=%d\n", rs->status);
 
 	if (rs->status == MEI_CL_DISCONN_SUCCESS)
-		cl->state = MEI_FILE_DISCONNECTED;
+		cl->state = MEI_FILE_DISCONNECT_REPLY;
 	cl->status = 0;
 }
 
@@ -611,7 +611,7 @@ static void mei_hbm_cl_connect_res(struct mei_device *dev, struct mei_cl *cl,
 	if (rs->status == MEI_CL_CONN_SUCCESS)
 		cl->state = MEI_FILE_CONNECTED;
 	else
-		cl->state = MEI_FILE_DISCONNECTED;
+		cl->state = MEI_FILE_DISCONNECT_REPLY;
 	cl->status = mei_cl_conn_status_to_errno(rs->status);
 }
 
@@ -680,8 +680,8 @@ static int mei_hbm_fw_disconnect_req(struct mei_device *dev,
 
 	cl = mei_hbm_cl_find_by_cmd(dev, disconnect_req);
 	if (cl) {
-		cl_dbg(dev, cl, "disconnect request received\n");
-		cl->state = MEI_FILE_DISCONNECTED;
+		cl_dbg(dev, cl, "fw disconnect request received\n");
+		cl->state = MEI_FILE_DISCONNECTING;
 		cl->timer_count = 0;
 
 		cb = mei_io_cb_init(cl, MEI_FOP_DISCONNECT_RSP, NULL);

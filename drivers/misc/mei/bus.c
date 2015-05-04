@@ -480,8 +480,6 @@ int mei_cl_disable_device(struct mei_cl_device *device)
 		goto out;
 	}
 
-	cl->state = MEI_FILE_DISCONNECTING;
-
 	err = mei_cl_disconnect(cl);
 	if (err < 0) {
 		dev_err(dev->dev, "Could not disconnect from the ME client");
