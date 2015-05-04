@@ -177,6 +177,8 @@ struct mei_fw_status {
  * @props: client properties
  * @client_id: me client id
  * @mei_flow_ctrl_creds: flow control credits
+ * @connect_count: number connections to this client
+ * @reserved: reserved
  */
 struct mei_me_client {
 	struct list_head list;
@@ -184,6 +186,8 @@ struct mei_me_client {
 	struct mei_client_properties props;
 	u8 client_id;
 	u8 mei_flow_ctrl_creds;
+	u8 connect_count;
+	u8 reserved;
 };
 
 

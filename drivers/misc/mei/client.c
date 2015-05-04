@@ -749,8 +749,29 @@ void mei_cl_set_disconnected(struct mei_cl *cl)
 	cl->mei_flow_ctrl_creds = 0;
 	cl->timer_count = 0;
 
+	if (!cl->me_cl)
+		return;
+
+	if (!WARN_ON(cl->me_cl->connect_count == 0))
+		cl->me_cl->connect_count--;
+
+	if (cl->me_cl->connect_count == 0)
+		cl->me_cl->mei_flow_ctrl_creds = 0;
+
 	mei_me_cl_put(cl->me_cl);
 	cl->me_cl = NULL;
+}
+
+static int mei_cl_set_connecting(struct mei_cl *cl, struct mei_me_client *me_cl)
+{
+	cl->me_cl = mei_me_cl_get(me_cl);
+	if (!cl->me_cl)
+		return -ENOENT;
+
+	cl->state = MEI_FILE_CONNECTING;
+	cl->me_cl->connect_count++;
+
+	return 0;
 }
 
 /*
@@ -1009,13 +1030,9 @@ int mei_cl_connect(struct mei_cl *cl, struct mei_me_client *me_cl,
 	if (rets)
 		goto out;
 
-	cl->me_cl = mei_me_cl_get(me_cl);
-	if (!cl->me_cl) {
-		rets = -ENODEV;
+	rets = mei_cl_set_connecting(cl, me_cl);
+	if (rets)
 		goto out;
-	}
-
-	cl->state = MEI_FILE_CONNECTING;
 	list_add_tail(&cb->list, &dev->ctrl_wr_list.list);
 
 	/* run hbuf acquire last so we don't have to undo */
