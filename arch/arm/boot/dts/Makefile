@@ -653,7 +653,8 @@ dtb-$(CONFIG_MACH_DOVE) += \
 	dove-cubox-es.dtb \
 	dove-d2plug.dtb \
 	dove-d3plug.dtb \
-	dove-dove-db.dtb
+	dove-dove-db.dtb \
+	dove-sbc-a510.dtb
 dtb-$(CONFIG_ARCH_MEDIATEK) += \
 	mt6589-aquaris5.dtb \
 	mt6592-evb.dtb \
