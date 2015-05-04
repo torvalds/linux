@@ -37,7 +37,6 @@ struct f_obex {
 	u8				data_id;
 	u8				cur_alt;
 	u8				port_num;
-	u8				can_activate;
 };
 
 static inline struct f_obex *func_to_obex(struct usb_function *f)
@@ -268,9 +267,6 @@ static void obex_connect(struct gserial *g)
 	struct usb_composite_dev *cdev = g->func.config->cdev;
 	int			status;
 
-	if (!obex->can_activate)
-		return;
-
 	status = usb_function_activate(&g->func);
 	if (status)
 		dev_dbg(&cdev->gadget->dev,
@@ -283,9 +279,6 @@ static void obex_disconnect(struct gserial *g)
 	struct f_obex		*obex = port_to_obex(g);
 	struct usb_composite_dev *cdev = g->func.config->cdev;
 	int			status;
-
-	if (!obex->can_activate)
-		return;
 
 	status = usb_function_deactivate(&g->func);
 	if (status)
@@ -377,17 +370,6 @@ static int obex_bind(struct usb_configuration *c, struct usb_function *f)
 	status = usb_assign_descriptors(f, fs_function, hs_function, NULL);
 	if (status)
 		goto fail;
-
-	/* Avoid letting this gadget enumerate until the userspace
-	 * OBEX server is active.
-	 */
-	status = usb_function_deactivate(f);
-	if (status < 0)
-		WARNING(cdev, "obex ttyGS%d: can't prevent enumeration, %d\n",
-			obex->port_num, status);
-	else
-		obex->can_activate = true;
-
 
 	dev_dbg(&cdev->gadget->dev, "obex ttyGS%d: %s speed IN/%s OUT/%s\n",
 		obex->port_num,
@@ -529,6 +511,7 @@ static struct usb_function *obex_alloc(struct usb_function_instance *fi)
 	obex->port.func.get_alt = obex_get_alt;
 	obex->port.func.disable = obex_disable;
 	obex->port.func.free_func = obex_free;
+	obex->port.func.bind_deactivated = true;
 
 	return &obex->port.func;
 }
