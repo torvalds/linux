@@ -599,7 +599,7 @@ int gpiod_export(struct gpio_desc *desc, bool direction_may_change)
 		goto fail_unlock;
 	}
 
-	if (desc->chip->direction_input && desc->chip->direction_output &&
+	if (chip->direction_input && chip->direction_output &&
 			direction_may_change) {
 		set_bit(FLAG_SYSFS_DIR, &desc->flags);
 	}
@@ -607,10 +607,10 @@ int gpiod_export(struct gpio_desc *desc, bool direction_may_change)
 	spin_unlock_irqrestore(&gpio_lock, flags);
 
 	offset = gpio_chip_hwgpio(desc);
-	if (desc->chip->names && desc->chip->names[offset])
-		ioname = desc->chip->names[offset];
+	if (chip->names && chip->names[offset])
+		ioname = chip->names[offset];
 
-	dev = device_create_with_groups(&gpio_class, desc->chip->dev,
+	dev = device_create_with_groups(&gpio_class, chip->dev,
 					MKDEV(0, 0), desc, gpio_groups,
 					ioname ? ioname : "gpio%u",
 					desc_to_gpio(desc));
