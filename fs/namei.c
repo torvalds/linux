@@ -528,7 +528,7 @@ static void restore_nameidata(struct nameidata *nd)
 
 static int __nd_alloc_stack(struct nameidata *nd)
 {
-	struct saved *p = kmalloc((MAXSYMLINKS + 1) * sizeof(struct saved),
+	struct saved *p = kmalloc(MAXSYMLINKS * sizeof(struct saved),
 				  GFP_KERNEL);
 	if (unlikely(!p))
 		return -ENOMEM;
