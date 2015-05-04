@@ -1577,7 +1577,9 @@ static inline int should_follow_link(struct dentry *dentry, int follow)
 	return unlikely(d_is_symlink(dentry)) ? follow : 0;
 }
 
-static int walk_component(struct nameidata *nd, int follow)
+enum {WALK_GET = 1, WALK_PUT = 2};
+
+static int walk_component(struct nameidata *nd, int flags)
 {
 	struct path path;
 	struct inode *inode;
@@ -1587,8 +1589,12 @@ static int walk_component(struct nameidata *nd, int follow)
 	 * to be able to know about the current root directory and
 	 * parent relationships.
 	 */
-	if (unlikely(nd->last_type != LAST_NORM))
-		return handle_dots(nd, nd->last_type);
+	if (unlikely(nd->last_type != LAST_NORM)) {
+		err = handle_dots(nd, nd->last_type);
+		if (flags & WALK_PUT)
+			put_link(nd);
+		return err;
+	}
 	err = lookup_fast(nd, &path, &inode);
 	if (unlikely(err)) {
 		if (err < 0)
@@ -1604,7 +1610,9 @@ static int walk_component(struct nameidata *nd, int follow)
 			goto out_path_put;
 	}
 
-	if (should_follow_link(path.dentry, follow)) {
+	if (flags & WALK_PUT)
+		put_link(nd);
+	if (should_follow_link(path.dentry, flags & WALK_GET)) {
 		if (nd->flags & LOOKUP_RCU) {
 			if (unlikely(nd->path.mnt != path.mnt ||
 				     unlazy_walk(nd, path.dentry))) {
@@ -1816,10 +1824,9 @@ OK:
 			if (!name)
 				return 0;
 			/* last component of nested symlink */
-			err = walk_component(nd, LOOKUP_FOLLOW);
-			put_link(nd);
+			err = walk_component(nd, WALK_GET | WALK_PUT);
 		} else {
-			err = walk_component(nd, LOOKUP_FOLLOW);
+			err = walk_component(nd, WALK_GET);
 		}
 		if (err < 0)
 			break;
@@ -2017,9 +2024,12 @@ static inline int lookup_last(struct nameidata *nd)
 		nd->flags |= LOOKUP_FOLLOW | LOOKUP_DIRECTORY;
 
 	nd->flags &= ~LOOKUP_PARENT;
-	err = walk_component(nd, nd->flags & LOOKUP_FOLLOW);
-	if (nd->depth)
-		put_link(nd);
+	err = walk_component(nd,
+			nd->flags & LOOKUP_FOLLOW
+				? nd->depth
+					? WALK_PUT | WALK_GET
+					: WALK_GET
+				: 0);
 	if (err < 0)
 		terminate_walk(nd);
 	return err;
