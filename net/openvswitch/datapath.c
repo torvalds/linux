@@ -545,7 +545,7 @@ static int ovs_packet_cmd_execute(struct sk_buff *skb, struct genl_info *info)
 	/* Normally, setting the skb 'protocol' field would be handled by a
 	 * call to eth_type_trans(), but it assumes there's a sending
 	 * device, which we may not have. */
-	if (ntohs(eth->h_proto) >= ETH_P_802_3_MIN)
+	if (eth_proto_is_802_3(eth->h_proto))
 		packet->protocol = eth->h_proto;
 	else
 		packet->protocol = htons(ETH_P_802_2);
