@@ -16,6 +16,8 @@ struct gpiod_data {
 	struct mutex mutex;
 	struct kernfs_node *value_kn;
 	int irq;
+
+	bool direction_can_change;
 };
 
 /*
@@ -354,7 +356,7 @@ static umode_t gpio_is_visible(struct kobject *kobj, struct attribute *attr,
 	struct gpiod_data *data = dev_get_drvdata(dev);
 	struct gpio_desc *desc = data->desc;
 	umode_t mode = attr->mode;
-	bool show_direction = test_bit(FLAG_SYSFS_DIR, &desc->flags);
+	bool show_direction = data->direction_can_change;
 
 	if (attr == &dev_attr_direction.attr) {
 		if (!show_direction)
@@ -583,12 +585,6 @@ int gpiod_export(struct gpio_desc *desc, bool direction_may_change)
 		status = -EPERM;
 		goto err_unlock;
 	}
-
-	if (chip->direction_input && chip->direction_output &&
-			direction_may_change) {
-		set_bit(FLAG_SYSFS_DIR, &desc->flags);
-	}
-
 	spin_unlock_irqrestore(&gpio_lock, flags);
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
@@ -599,6 +595,10 @@ int gpiod_export(struct gpio_desc *desc, bool direction_may_change)
 
 	data->desc = desc;
 	mutex_init(&data->mutex);
+	if (chip->direction_input && chip->direction_output)
+		data->direction_can_change = direction_may_change;
+	else
+		data->direction_can_change = false;
 
 	offset = gpio_chip_hwgpio(desc);
 	if (chip->names && chip->names[offset])
@@ -693,7 +693,6 @@ void gpiod_unexport(struct gpio_desc *desc)
 
 	data = dev_get_drvdata(dev);
 
-	clear_bit(FLAG_SYSFS_DIR, &desc->flags);
 	clear_bit(FLAG_EXPORT, &desc->flags);
 
 	device_unregister(dev);
