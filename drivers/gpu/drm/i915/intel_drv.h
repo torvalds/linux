@@ -740,6 +740,8 @@ struct intel_dp {
 
 	/* Displayport compliance testing */
 	unsigned long compliance_test_type;
+	unsigned long compliance_test_data;
+	bool compliance_test_active;
 };
 
 struct intel_digital_port {

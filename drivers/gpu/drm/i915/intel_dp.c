@@ -41,6 +41,12 @@
 
 #define DP_LINK_CHECK_TIMEOUT	(10 * 1000)
 
+/* Compliance test status bits  */
+#define INTEL_DP_RESOLUTION_SHIFT_MASK	0
+#define INTEL_DP_RESOLUTION_PREFERRED	(1 << INTEL_DP_RESOLUTION_SHIFT_MASK)
+#define INTEL_DP_RESOLUTION_STANDARD	(2 << INTEL_DP_RESOLUTION_SHIFT_MASK)
+#define INTEL_DP_RESOLUTION_FAILSAFE	(3 << INTEL_DP_RESOLUTION_SHIFT_MASK)
+
 struct dp_link_dpll {
 	int link_bw;
 	struct dpll dpll;
@@ -4079,6 +4085,39 @@ static uint8_t intel_dp_autotest_video_pattern(struct intel_dp *intel_dp)
 static uint8_t intel_dp_autotest_edid(struct intel_dp *intel_dp)
 {
 	uint8_t test_result = DP_TEST_NAK;
+	struct intel_connector *intel_connector = intel_dp->attached_connector;
+	struct drm_connector *connector = &intel_connector->base;
+
+	if (intel_connector->detect_edid == NULL ||
+	    connector->edid_corrupt == 1 ||
+	    intel_dp->aux.i2c_defer_count > 6) {
+		/* Check EDID read for NACKs, DEFERs and corruption
+		 * (DP CTS 1.2 Core r1.1)
+		 *    4.2.2.4 : Failed EDID read, I2C_NAK
+		 *    4.2.2.5 : Failed EDID read, I2C_DEFER
+		 *    4.2.2.6 : EDID corruption detected
+		 * Use failsafe mode for all cases
+		 */
+		if (intel_dp->aux.i2c_nack_count > 0 ||
+			intel_dp->aux.i2c_defer_count > 0)
+			DRM_DEBUG_KMS("EDID read had %d NACKs, %d DEFERs\n",
+				      intel_dp->aux.i2c_nack_count,
+				      intel_dp->aux.i2c_defer_count);
+		intel_dp->compliance_test_data = INTEL_DP_RESOLUTION_FAILSAFE;
+	} else {
+		if (!drm_dp_dpcd_write(&intel_dp->aux,
+					DP_TEST_EDID_CHECKSUM,
+					&intel_connector->detect_edid->checksum,
+					1));
+			DRM_DEBUG_KMS("Failed to write EDID checksum\n");
+
+		test_result = DP_TEST_ACK | DP_TEST_EDID_CHECKSUM_WRITE;
+		intel_dp->compliance_test_data = INTEL_DP_RESOLUTION_STANDARD;
+	}
+
+	/* Set test active flag here so userspace doesn't interrupt things */
+	intel_dp->compliance_test_active = 1;
+
 	return test_result;
 }
 
@@ -4094,7 +4133,10 @@ static void intel_dp_handle_test_request(struct intel_dp *intel_dp)
 	uint8_t rxdata = 0;
 	int status = 0;
 
+	intel_dp->compliance_test_active = 0;
 	intel_dp->compliance_test_type = 0;
+	intel_dp->compliance_test_data = 0;
+
 	intel_dp->aux.i2c_nack_count = 0;
 	intel_dp->aux.i2c_defer_count = 0;
 
