@@ -1,3 +1,4 @@
+#ifdef CONFIG_ARM64
 #include "camsys_soc_priv.h"
 #include "camsys_soc_rk3368.h"
 
@@ -279,5 +280,4 @@ int camsys_rk3368_cfg (camsys_soc_cfg_t cfg_cmd, void* cfg_para)
 
     return 0;
 }
-
-
+#endif /* CONFIG_ARM64 */

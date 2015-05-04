@@ -1,3 +1,4 @@
+#ifdef CONFIG_ARM
 #include "camsys_soc_priv.h"
 #include "camsys_soc_rk3288.h"
 
@@ -279,4 +280,4 @@ int camsys_rk3288_cfg (camsys_soc_cfg_t cfg_cmd, void* cfg_para)
 
 
 }
-
+#endif /* CONFIG_ARM */
