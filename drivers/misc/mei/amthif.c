@@ -72,12 +72,6 @@ int mei_amthif_host_init(struct mei_device *dev, struct mei_me_client *me_cl)
 
 	mei_cl_init(cl, dev);
 
-	/* Assign iamthif_mtu to the value received from ME  */
-
-	dev->iamthif_mtu = me_cl->props.max_msg_length;
-	dev_dbg(dev->dev, "IAMTHIF_MTU = %d\n", dev->iamthif_mtu);
-
-
 	ret = mei_cl_link(cl, MEI_IAMTHIF_HOST_CLIENT_ID);
 	if (ret < 0) {
 		dev_err(dev->dev, "amthif: failed cl_link %d\n", ret);
@@ -239,7 +233,6 @@ static int mei_amthif_read_start(struct mei_cl *cl, struct file *file)
 {
 	struct mei_device *dev = cl->dev;
 	struct mei_cl_cb *cb;
-	size_t length = dev->iamthif_mtu;
 	int rets;
 
 	cb = mei_io_cb_init(cl, MEI_FOP_READ, file);
@@ -248,7 +241,7 @@ static int mei_amthif_read_start(struct mei_cl *cl, struct file *file)
 		goto err;
 	}
 
-	rets = mei_io_cb_alloc_buf(cb, length);
+	rets = mei_io_cb_alloc_buf(cb, mei_cl_mtu(cl));
 	if (rets)
 		goto err;
 
