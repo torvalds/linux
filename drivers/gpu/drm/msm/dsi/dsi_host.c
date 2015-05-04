@@ -273,7 +273,7 @@ static const struct dsi_config *dsi_get_config(struct msm_dsi_host *msm_host)
 	u32 major = 0, minor = 0;
 
 	gdsc_reg = regulator_get(&msm_host->pdev->dev, "gdsc");
-	if (IS_ERR_OR_NULL(gdsc_reg)) {
+	if (IS_ERR(gdsc_reg)) {
 		pr_err("%s: cannot get gdsc\n", __func__);
 		goto fail;
 	}
