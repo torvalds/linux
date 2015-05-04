@@ -44,6 +44,7 @@
 #include <linux/regulator/machine.h>
 #include <linux/regmap.h>
 #include <linux/delay.h>
+#include <linux/syscore_ops.h>
 
 struct ricoh619 *g_ricoh619;
 struct sleep_control_data {
@@ -396,7 +397,7 @@ out:
 }
 
 static struct i2c_client *ricoh619_i2c_client;
-static void ricoh619_device_shutdown(struct i2c_client *client)
+static void ricoh619_device_shutdown(void)
 {
 	int ret;
 	uint8_t val;
@@ -770,6 +771,10 @@ static struct ricoh619_platform_data *ricoh619_parse_dt(struct ricoh619 *ricoh61
 }
 #endif
 
+static struct syscore_ops ricoh619_syscore_ops = {
+	.shutdown = ricoh619_device_shutdown,
+};
+
 static void ricoh619_noe_init(struct ricoh619 *ricoh)
 {
 	int ret;
@@ -892,6 +897,7 @@ static int ricoh619_i2c_probe(struct i2c_client *client,
 	ricoh619_debuginit(ricoh619);
 
 	ricoh619_i2c_client = client;
+	register_syscore_ops(&ricoh619_syscore_ops);
 	return 0;
 err:
 	mfd_remove_devices(ricoh619->dev);
@@ -901,6 +907,8 @@ err:
 static int ricoh619_i2c_remove(struct i2c_client *client)
 {
 	struct ricoh619 *ricoh619 = i2c_get_clientdata(client);
+
+	unregister_syscore_ops(&ricoh619_syscore_ops);
 	ricoh619_remove_subdevs(ricoh619);
 	return 0;
 }
@@ -985,7 +993,6 @@ static struct i2c_driver ricoh619_i2c_driver = {
 		   },
 	.probe = ricoh619_i2c_probe,
 	.remove = ricoh619_i2c_remove,
-	.shutdown = ricoh619_device_shutdown,
 
 	.id_table = ricoh619_i2c_id,
 };
