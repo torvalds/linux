@@ -199,6 +199,7 @@ struct tcp_sock {
 		syn_fastopen:1,	/* SYN includes Fast Open option */
 		syn_fastopen_exp:1,/* SYN includes Fast Open exp. option */
 		syn_data_acked:1,/* data in SYN is acked by SYN-ACK */
+		save_syn:1,	/* Save headers of SYN packet */
 		is_cwnd_limited:1;/* forward progress limited by snd_cwnd? */
 	u32	tlp_high_seq;	/* snd_nxt at the time of TLP retransmit. */
 
@@ -326,6 +327,7 @@ struct tcp_sock {
 	 * socket. Used to retransmit SYNACKs etc.
 	 */
 	struct request_sock *fastopen_rsk;
+	u32	*saved_syn;
 };
 
 enum tsq_flags {
@@ -391,6 +393,12 @@ static inline int fastopen_init_queue(struct sock *sk, int backlog)
 	}
 	queue->fastopenq->max_qlen = backlog;
 	return 0;
+}
+
+static inline void tcp_saved_syn_free(struct tcp_sock *tp)
+{
+	kfree(tp->saved_syn);
+	tp->saved_syn = NULL;
 }
 
 #endif	/* _LINUX_TCP_H */

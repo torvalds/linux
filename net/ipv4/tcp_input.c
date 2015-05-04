@@ -6060,6 +6060,23 @@ static bool tcp_syn_flood_action(struct sock *sk,
 	return want_cookie;
 }
 
+static void tcp_reqsk_record_syn(const struct sock *sk,
+				 struct request_sock *req,
+				 const struct sk_buff *skb)
+{
+	if (tcp_sk(sk)->save_syn) {
+		u32 len = skb_network_header_len(skb) + tcp_hdrlen(skb);
+		u32 *copy;
+
+		copy = kmalloc(len + sizeof(u32), GFP_ATOMIC);
+		if (copy) {
+			copy[0] = len;
+			memcpy(&copy[1], skb_network_header(skb), len);
+			req->saved_syn = copy;
+		}
+	}
+}
+
 int tcp_conn_request(struct request_sock_ops *rsk_ops,
 		     const struct tcp_request_sock_ops *af_ops,
 		     struct sock *sk, struct sk_buff *skb)
@@ -6192,6 +6209,7 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 		tcp_rsk(req)->tfo_listener = false;
 		af_ops->queue_hash_add(sk, req, TCP_TIMEOUT_INIT);
 	}
+	tcp_reqsk_record_syn(sk, req, skb);
 
 	return 0;
 

@@ -2482,6 +2482,13 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 			icsk->icsk_syn_retries = val;
 		break;
 
+	case TCP_SAVE_SYN:
+		if (val < 0 || val > 1)
+			err = -EINVAL;
+		else
+			tp->save_syn = val;
+		break;
+
 	case TCP_LINGER2:
 		if (val < 0)
 			tp->linger2 = -1;
@@ -2818,6 +2825,34 @@ static int do_tcp_getsockopt(struct sock *sk, int level,
 	case TCP_NOTSENT_LOWAT:
 		val = tp->notsent_lowat;
 		break;
+	case TCP_SAVE_SYN:
+		val = tp->save_syn;
+		break;
+	case TCP_SAVED_SYN: {
+		if (get_user(len, optlen))
+			return -EFAULT;
+
+		lock_sock(sk);
+		if (tp->saved_syn) {
+			len = min_t(unsigned int, tp->saved_syn[0], len);
+			if (put_user(len, optlen)) {
+				release_sock(sk);
+				return -EFAULT;
+			}
+			if (copy_to_user(optval, tp->saved_syn + 1, len)) {
+				release_sock(sk);
+				return -EFAULT;
+			}
+			tcp_saved_syn_free(tp);
+			release_sock(sk);
+		} else {
+			release_sock(sk);
+			len = 0;
+			if (put_user(len, optlen))
+				return -EFAULT;
+		}
+		return 0;
+	}
 	default:
 		return -ENOPROTOOPT;
 	}
