@@ -1113,7 +1113,7 @@ static int intel_irq_remapping_alloc(struct irq_domain *domain,
 {
 	struct intel_iommu *iommu = domain->host_data;
 	struct irq_alloc_info *info = arg;
-	struct intel_ir_data *data;
+	struct intel_ir_data *data, *ird;
 	struct irq_data *irq_data;
 	struct irq_cfg *irq_cfg;
 	int i, ret, index;
@@ -1158,14 +1158,20 @@ static int intel_irq_remapping_alloc(struct irq_domain *domain,
 		}
 
 		if (i > 0) {
-			data = kzalloc(sizeof(*data), GFP_KERNEL);
-			if (!data)
+			ird = kzalloc(sizeof(*ird), GFP_KERNEL);
+			if (!ird)
 				goto out_free_data;
+			/* Initialize the common data */
+			ird->irq_2_iommu = data->irq_2_iommu;
+			ird->irq_2_iommu.sub_handle = i;
+		} else {
+			ird = data;
 		}
+
 		irq_data->hwirq = (index << 16) + i;
-		irq_data->chip_data = data;
+		irq_data->chip_data = ird;
 		irq_data->chip = &intel_ir_chip;
-		intel_irq_remapping_prepare_irte(data, irq_cfg, info, index, i);
+		intel_irq_remapping_prepare_irte(ird, irq_cfg, info, index, i);
 		irq_set_status_flags(virq + i, IRQ_MOVE_PCNTXT);
 	}
 	return 0;
