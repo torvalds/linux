@@ -355,7 +355,7 @@ struct drm_lock_data {
  * @minor: Link back to minor char device we are master for. Immutable.
  * @unique: Unique identifier: e.g. busid. Protected by drm_global_mutex.
  * @unique_len: Length of unique field. Protected by drm_global_mutex.
- * @magiclist: Hash of used authentication tokens. Protected by struct_mutex.
+ * @magic_map: Map of used authentication tokens. Protected by struct_mutex.
  * @lock: DRI lock information.
  * @driver_priv: Pointer to driver-private information.
  */
@@ -364,7 +364,7 @@ struct drm_master {
 	struct drm_minor *minor;
 	char *unique;
 	int unique_len;
-	struct drm_open_hash magiclist;
+	struct idr magic_map;
 	struct drm_lock_data lock;
 	void *driver_priv;
 };
