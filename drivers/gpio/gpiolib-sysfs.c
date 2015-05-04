@@ -38,7 +38,7 @@ static DEFINE_MUTEX(sysfs_lock);
  *        /edge configuration
  */
 
-static ssize_t gpio_direction_show(struct device *dev,
+static ssize_t direction_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct gpio_desc	*desc = dev_get_drvdata(dev);
@@ -59,7 +59,7 @@ static ssize_t gpio_direction_show(struct device *dev,
 	return status;
 }
 
-static ssize_t gpio_direction_store(struct device *dev,
+static ssize_t direction_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
 	struct gpio_desc	*desc = dev_get_drvdata(dev);
@@ -81,11 +81,9 @@ static ssize_t gpio_direction_store(struct device *dev,
 	mutex_unlock(&sysfs_lock);
 	return status ? : size;
 }
+static DEVICE_ATTR_RW(direction);
 
-static /* const */ DEVICE_ATTR(direction, 0644,
-		gpio_direction_show, gpio_direction_store);
-
-static ssize_t gpio_value_show(struct device *dev,
+static ssize_t value_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct gpio_desc	*desc = dev_get_drvdata(dev);
@@ -102,7 +100,7 @@ static ssize_t gpio_value_show(struct device *dev,
 	return status;
 }
 
-static ssize_t gpio_value_store(struct device *dev,
+static ssize_t value_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
 	struct gpio_desc	*desc = dev_get_drvdata(dev);
@@ -127,9 +125,7 @@ static ssize_t gpio_value_store(struct device *dev,
 	mutex_unlock(&sysfs_lock);
 	return status;
 }
-
-static DEVICE_ATTR(value, 0644,
-		gpio_value_show, gpio_value_store);
+static DEVICE_ATTR_RW(value);
 
 static irqreturn_t gpio_sysfs_irq(int irq, void *priv)
 {
@@ -237,7 +233,7 @@ static const struct {
 	{ "both",    BIT(FLAG_TRIG_FALL) | BIT(FLAG_TRIG_RISE) },
 };
 
-static ssize_t gpio_edge_show(struct device *dev,
+static ssize_t edge_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	const struct gpio_desc	*desc = dev_get_drvdata(dev);
@@ -264,7 +260,7 @@ static ssize_t gpio_edge_show(struct device *dev,
 	return status;
 }
 
-static ssize_t gpio_edge_store(struct device *dev,
+static ssize_t edge_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
 	struct gpio_desc	*desc = dev_get_drvdata(dev);
@@ -291,8 +287,7 @@ found:
 
 	return status;
 }
-
-static DEVICE_ATTR(edge, 0644, gpio_edge_show, gpio_edge_store);
+static DEVICE_ATTR_RW(edge);
 
 static int sysfs_set_active_low(struct gpio_desc *desc, struct device *dev,
 				int value)
@@ -319,7 +314,7 @@ static int sysfs_set_active_low(struct gpio_desc *desc, struct device *dev,
 	return status;
 }
 
-static ssize_t gpio_active_low_show(struct device *dev,
+static ssize_t active_low_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	const struct gpio_desc	*desc = dev_get_drvdata(dev);
@@ -338,7 +333,7 @@ static ssize_t gpio_active_low_show(struct device *dev,
 	return status;
 }
 
-static ssize_t gpio_active_low_store(struct device *dev,
+static ssize_t active_low_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
 	struct gpio_desc	*desc = dev_get_drvdata(dev);
@@ -360,9 +355,7 @@ static ssize_t gpio_active_low_store(struct device *dev,
 
 	return status ? : size;
 }
-
-static DEVICE_ATTR(active_low, 0644,
-		gpio_active_low_show, gpio_active_low_store);
+static DEVICE_ATTR_RW(active_low);
 
 static umode_t gpio_is_visible(struct kobject *kobj, struct attribute *attr,
 			       int n)
@@ -410,32 +403,32 @@ static const struct attribute_group *gpio_groups[] = {
  *   /ngpio ... matching gpio_chip.ngpio
  */
 
-static ssize_t chip_base_show(struct device *dev,
+static ssize_t base_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
 	const struct gpio_chip	*chip = dev_get_drvdata(dev);
 
 	return sprintf(buf, "%d\n", chip->base);
 }
-static DEVICE_ATTR(base, 0444, chip_base_show, NULL);
+static DEVICE_ATTR_RO(base);
 
-static ssize_t chip_label_show(struct device *dev,
+static ssize_t label_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
 	const struct gpio_chip	*chip = dev_get_drvdata(dev);
 
 	return sprintf(buf, "%s\n", chip->label ? : "");
 }
-static DEVICE_ATTR(label, 0444, chip_label_show, NULL);
+static DEVICE_ATTR_RO(label);
 
-static ssize_t chip_ngpio_show(struct device *dev,
+static ssize_t ngpio_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
 	const struct gpio_chip	*chip = dev_get_drvdata(dev);
 
 	return sprintf(buf, "%u\n", chip->ngpio);
 }
-static DEVICE_ATTR(ngpio, 0444, chip_ngpio_show, NULL);
+static DEVICE_ATTR_RO(ngpio);
 
 static struct attribute *gpiochip_attrs[] = {
 	&dev_attr_base.attr,
