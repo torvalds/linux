@@ -631,34 +631,22 @@ static int match_export(struct device *dev, const void *desc)
 int gpiod_export_link(struct device *dev, const char *name,
 		      struct gpio_desc *desc)
 {
-	int			status = -EINVAL;
+	struct device *cdev;
+	int ret;
 
 	if (!desc) {
 		pr_warn("%s: invalid GPIO\n", __func__);
 		return -EINVAL;
 	}
 
-	mutex_lock(&sysfs_lock);
+	cdev = class_find_device(&gpio_class, NULL, desc, match_export);
+	if (!cdev)
+		return -ENODEV;
 
-	if (test_bit(FLAG_EXPORT, &desc->flags)) {
-		struct device *tdev;
+	ret = sysfs_create_link(&dev->kobj, &cdev->kobj, name);
+	put_device(cdev);
 
-		tdev = class_find_device(&gpio_class, NULL, desc, match_export);
-		if (tdev != NULL) {
-			status = sysfs_create_link(&dev->kobj, &tdev->kobj,
-						name);
-			put_device(tdev);
-		} else {
-			status = -ENODEV;
-		}
-	}
-
-	mutex_unlock(&sysfs_lock);
-
-	if (status)
-		gpiod_dbg(desc, "%s: status %d\n", __func__, status);
-
-	return status;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(gpiod_export_link);
 
