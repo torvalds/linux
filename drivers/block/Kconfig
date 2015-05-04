@@ -406,6 +406,7 @@ config BLK_DEV_RAM_DAX
 
 config BLK_DEV_PMEM
 	tristate "Persistent memory block device support"
+	depends on HAS_IOMEM
 	help
 	  Saying Y here will allow you to use a contiguous range of reserved
 	  memory as one or more persistent block devices.
