@@ -17,7 +17,8 @@ Required properties:
 - #clock-cells: from common clock binding; shall be set to 1.
 - clocks: from common clock binding; list of parent clock
   handles, shall be xtal reference clock or xtal and clkin for
-  si5351c only.
+  si5351c only. Corresponding clock input names are "xtal" and
+  "clkin" respectively.
 - #address-cells: shall be set to 1.
 - #size-cells: shall be set to 0.
 
@@ -71,6 +72,7 @@ i2c-master-node {
 
 		/* connect xtal input to 25MHz reference */
 		clocks = <&ref25>;
+		clock-names = "xtal";
 
 		/* connect xtal input as source of pll0 and pll1 */
 		silabs,pll-source = <0 0>, <1 0>;
