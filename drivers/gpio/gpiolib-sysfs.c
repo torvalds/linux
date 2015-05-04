@@ -133,9 +133,10 @@ static irqreturn_t gpio_sysfs_irq(int irq, void *priv)
 	return IRQ_HANDLED;
 }
 
-static int gpio_setup_irq(struct gpio_desc *desc, struct device *dev,
-		unsigned long gpio_flags)
+static int gpio_setup_irq(struct device *dev, unsigned long gpio_flags)
 {
+	struct gpiod_data	*data = dev_get_drvdata(dev);
+	struct gpio_desc	*desc = data->desc;
 	struct kernfs_node	*value_sd;
 	unsigned long		irq_flags;
 	int			ret, irq, id;
@@ -257,8 +258,6 @@ static ssize_t edge_show(struct device *dev,
 static ssize_t edge_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
-	struct gpiod_data *data = dev_get_drvdata(dev);
-	struct gpio_desc *desc = data->desc;
 	ssize_t			status;
 	int			i;
 
@@ -270,7 +269,7 @@ static ssize_t edge_store(struct device *dev,
 found:
 	mutex_lock(&sysfs_lock);
 
-	status = gpio_setup_irq(desc, dev, trigger_types[i].flags);
+	status = gpio_setup_irq(dev, trigger_types[i].flags);
 	if (!status)
 		status = size;
 
@@ -280,9 +279,10 @@ found:
 }
 static DEVICE_ATTR_RW(edge);
 
-static int sysfs_set_active_low(struct gpio_desc *desc, struct device *dev,
-				int value)
+static int sysfs_set_active_low(struct device *dev, int value)
 {
+	struct gpiod_data	*data = dev_get_drvdata(dev);
+	struct gpio_desc	*desc = data->desc;
 	int			status = 0;
 
 	if (!!test_bit(FLAG_ACTIVE_LOW, &desc->flags) == !!value)
@@ -298,8 +298,8 @@ static int sysfs_set_active_low(struct gpio_desc *desc, struct device *dev,
 				!!test_bit(FLAG_TRIG_FALL, &desc->flags)) {
 		unsigned long trigger_flags = desc->flags & GPIO_TRIGGER_MASK;
 
-		gpio_setup_irq(desc, dev, 0);
-		status = gpio_setup_irq(desc, dev, trigger_flags);
+		gpio_setup_irq(dev, 0);
+		status = gpio_setup_irq(dev, trigger_flags);
 	}
 
 	return status;
@@ -325,8 +325,6 @@ static ssize_t active_low_show(struct device *dev,
 static ssize_t active_low_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
-	struct gpiod_data *data = dev_get_drvdata(dev);
-	struct gpio_desc *desc = data->desc;
 	ssize_t			status;
 	long			value;
 
@@ -334,7 +332,7 @@ static ssize_t active_low_store(struct device *dev,
 
 	status = kstrtol(buf, 0, &value);
 	if (status == 0)
-		status = sysfs_set_active_low(desc, dev, value != 0);
+		status = sysfs_set_active_low(dev, value != 0);
 
 	mutex_unlock(&sysfs_lock);
 
@@ -710,7 +708,7 @@ void gpiod_unexport(struct gpio_desc *desc)
 		 * Release irq after deregistration to prevent race with
 		 * edge_store.
 		 */
-		gpio_setup_irq(desc, dev, 0);
+		gpio_setup_irq(dev, 0);
 		put_device(dev);
 		kfree(data);
 	}
