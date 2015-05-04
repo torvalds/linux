@@ -1872,13 +1872,15 @@ Err:
 		put_link(nd);
 	return err;
 OK:
-	if (unlikely(nd->depth > orig_depth)) {
-		name = nd->stack[nd->depth - 1].name;
-		err = walk_component(nd, LOOKUP_FOLLOW);
-		put_link(nd);
-		goto Walked;
-	}
-	return 0;
+	if (!nd->depth)		/* called from path_init(), done */
+		return 0;
+	name = nd->stack[nd->depth - 1].name;
+	if (!name)		/* called from trailing_symlink(), done */
+		return 0;
+
+	err = walk_component(nd, LOOKUP_FOLLOW);
+	put_link(nd);
+	goto Walked;
 }
 
 static int path_init(int dfd, const struct filename *name, unsigned int flags,
@@ -2014,6 +2016,7 @@ static int trailing_symlink(struct nameidata *nd)
 		nd->flags |= LOOKUP_JUMPED;
 	}
 	nd->inode = nd->path.dentry->d_inode;
+	nd->stack[0].name = NULL;
 	error = link_path_walk(s, nd);
 	if (unlikely(error))
 		put_link(nd);
