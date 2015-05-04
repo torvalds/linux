@@ -815,7 +815,7 @@ static inline int of_property_read_string_index(struct device_node *np,
  * @propname:	name of the property to be searched.
  *
  * Search for a property in a device node.
- * Returns true if the property exist false otherwise.
+ * Returns true if the property exists false otherwise.
  */
 static inline bool of_property_read_bool(const struct device_node *np,
 					 const char *propname)
