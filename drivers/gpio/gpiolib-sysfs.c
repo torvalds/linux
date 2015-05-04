@@ -139,9 +139,6 @@ static int gpio_setup_irq(struct device *dev, unsigned long gpio_flags)
 	unsigned long		irq_flags;
 	int			ret, irq;
 
-	if ((desc->flags & GPIO_TRIGGER_MASK) == gpio_flags)
-		return 0;
-
 	irq = gpiod_to_irq(desc);
 	if (irq < 0)
 		return -EIO;
@@ -240,6 +237,9 @@ static ssize_t edge_show(struct device *dev,
 static ssize_t edge_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t size)
 {
+	struct gpiod_data *data = dev_get_drvdata(dev);
+	struct gpio_desc *desc = data->desc;
+	unsigned long flags;
 	ssize_t			status;
 	int			i;
 
@@ -249,12 +249,20 @@ static ssize_t edge_store(struct device *dev,
 	return -EINVAL;
 
 found:
+	flags = trigger_types[i].flags;
+
 	mutex_lock(&sysfs_lock);
 
-	status = gpio_setup_irq(dev, trigger_types[i].flags);
+	if ((desc->flags & GPIO_TRIGGER_MASK) == flags) {
+		status = size;
+		goto out_unlock;
+	}
+
+	status = gpio_setup_irq(dev, flags);
 	if (!status)
 		status = size;
 
+out_unlock:
 	mutex_unlock(&sysfs_lock);
 
 	return status;
@@ -690,7 +698,8 @@ void gpiod_unexport(struct gpio_desc *desc)
 		 * Release irq after deregistration to prevent race with
 		 * edge_store.
 		 */
-		gpio_setup_irq(dev, 0);
+		if (desc->flags & GPIO_TRIGGER_MASK)
+			gpio_setup_irq(dev, 0);
 		put_device(dev);
 		kfree(data);
 	}
