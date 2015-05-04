@@ -2170,8 +2170,7 @@ static void vmx_set_msr_bitmap(struct kvm_vcpu *vcpu)
 
 	if (is_guest_mode(vcpu))
 		msr_bitmap = vmx_msr_bitmap_nested;
-	else if (irqchip_in_kernel(vcpu->kvm) &&
-		apic_x2apic_mode(vcpu->arch.apic)) {
+	else if (vcpu->arch.apic_base & X2APIC_ENABLE) {
 		if (is_long_mode(vcpu))
 			msr_bitmap = vmx_msr_bitmap_longmode_x2apic;
 		else
@@ -9076,7 +9075,7 @@ static int nested_vmx_msr_check_common(struct kvm_vcpu *vcpu,
 				       struct vmx_msr_entry *e)
 {
 	/* x2APIC MSR accesses are not allowed */
-	if (apic_x2apic_mode(vcpu->arch.apic) && e->index >> 8 == 0x8)
+	if (vcpu->arch.apic_base & X2APIC_ENABLE && e->index >> 8 == 0x8)
 		return -EINVAL;
 	if (e->index == MSR_IA32_UCODE_WRITE || /* SDM Table 35-2 */
 	    e->index == MSR_IA32_UCODE_REV)
