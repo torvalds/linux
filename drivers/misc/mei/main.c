@@ -215,6 +215,11 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 
 	cb = mei_cl_read_cb(cl, file);
 	if (!cb) {
+		if (mei_cl_is_fixed_address(cl) && dev->allow_fixed_address) {
+			cb = mei_cl_read_cb(cl, NULL);
+			if (cb)
+				goto copy_buffer;
+		}
 		rets = 0;
 		goto out;
 	}
@@ -389,7 +394,8 @@ static int mei_ioctl_connect_client(struct file *file,
 
 	/* find ME client we're trying to connect to */
 	me_cl = mei_me_cl_by_uuid(dev, &data->in_client_uuid);
-	if (!me_cl || me_cl->props.fixed_address) {
+	if (!me_cl ||
+	    (me_cl->props.fixed_address && !dev->allow_fixed_address)) {
 		dev_dbg(dev->dev, "Cannot connect to FW Client UUID = %pUl\n",
 			&data->in_client_uuid);
 		mei_me_cl_put(me_cl);

@@ -209,6 +209,12 @@ int mei_dbgfs_register(struct mei_device *dev, const char *name)
 		dev_err(dev->dev, "devstate: registration failed\n");
 		goto err;
 	}
+	f = debugfs_create_bool("allow_fixed_address", S_IRUSR | S_IWUSR, dir,
+				&dev->allow_fixed_address);
+	if (!f) {
+		dev_err(dev->dev, "allow_fixed_address: registration failed\n");
+		goto err;
+	}
 	dev->dbgfs_dir = dir;
 	return 0;
 err:
