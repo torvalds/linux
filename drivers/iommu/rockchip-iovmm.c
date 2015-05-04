@@ -149,7 +149,7 @@ dma_addr_t rockchip_iovmm_map(struct device *dev,
 	if (ret)
 		goto err_map_map;
 
-	dev_dbg(dev->archdata.iommu, "IOVMM: Allocated VM region @ %pad%#zx bytes.\n",
+	dev_dbg(dev->archdata.iommu, "IOVMM: Allocated VM region @ %p/%#X bytes.\n",
 	&region->start, region->size);
 	
 	return region->start;
