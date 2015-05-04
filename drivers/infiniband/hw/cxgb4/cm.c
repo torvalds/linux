@@ -2058,9 +2058,12 @@ static int act_open_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 	     status, status2errno(status));
 
 	if (is_neg_adv(status)) {
-		dev_warn(&dev->rdev.lldi.pdev->dev,
-			 "Connection problems for atid %u status %u (%s)\n",
-			 atid, status, neg_adv_str(status));
+		PDBG("%s Connection problems for atid %u status %u (%s)\n",
+		     __func__, atid, status, neg_adv_str(status));
+		ep->stats.connect_neg_adv++;
+		mutex_lock(&dev->rdev.stats.lock);
+		dev->rdev.stats.neg_adv++;
+		mutex_unlock(&dev->rdev.stats.lock);
 		return 0;
 	}
 
@@ -2566,9 +2569,13 @@ static int peer_abort(struct c4iw_dev *dev, struct sk_buff *skb)
 
 	ep = lookup_tid(t, tid);
 	if (is_neg_adv(req->status)) {
-		dev_warn(&dev->rdev.lldi.pdev->dev,
-			 "Negative advice on abort - tid %u status %d (%s)\n",
-			 ep->hwtid, req->status, neg_adv_str(req->status));
+		PDBG("%s Negative advice on abort- tid %u status %d (%s)\n",
+		     __func__, ep->hwtid, req->status,
+		     neg_adv_str(req->status));
+		ep->stats.abort_neg_adv++;
+		mutex_lock(&dev->rdev.stats.lock);
+		dev->rdev.stats.neg_adv++;
+		mutex_unlock(&dev->rdev.stats.lock);
 		return 0;
 	}
 	PDBG("%s ep %p tid %u state %u\n", __func__, ep, ep->hwtid,
@@ -3977,9 +3984,11 @@ static int peer_abort_intr(struct c4iw_dev *dev, struct sk_buff *skb)
 		return 0;
 	}
 	if (is_neg_adv(req->status)) {
-		dev_warn(&dev->rdev.lldi.pdev->dev,
-			 "Negative advice on abort - tid %u status %d (%s)\n",
-			 ep->hwtid, req->status, neg_adv_str(req->status));
+		PDBG("%s Negative advice on abort- tid %u status %d (%s)\n",
+		     __func__, ep->hwtid, req->status,
+		     neg_adv_str(req->status));
+		ep->stats.abort_neg_adv++;
+		dev->rdev.stats.neg_adv++;
 		kfree_skb(skb);
 		return 0;
 	}
