@@ -69,6 +69,7 @@ static void otg_leave_state(struct otg_fsm *fsm, enum usb_otg_state old_state)
 	switch (old_state) {
 	case OTG_STATE_B_IDLE:
 		otg_del_timer(fsm, B_SE0_SRP);
+		otg_del_timer(fsm, B_SRP_FAIL);
 		fsm->b_se0_srp = 0;
 		fsm->adp_sns = 0;
 		fsm->adp_prb = 0;

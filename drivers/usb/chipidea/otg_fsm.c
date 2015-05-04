@@ -338,6 +338,7 @@ static int b_se0_srp_tmout(struct ci_hdrc *ci)
 static int b_srp_fail_tmout(struct ci_hdrc *ci)
 {
 	ci->fsm.b_srp_done = 1;
+	dev_warn(ci->dev, "Device No Response\n");
 	return 1;
 }
 
