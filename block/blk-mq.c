@@ -858,6 +858,16 @@ static void __blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx)
 		spin_lock(&hctx->lock);
 		list_splice(&rq_list, &hctx->dispatch);
 		spin_unlock(&hctx->lock);
+		/*
+		 * the queue is expected stopped with BLK_MQ_RQ_QUEUE_BUSY, but
+		 * it's possible the queue is stopped and restarted again
+		 * before this. Queue restart will dispatch requests. And since
+		 * requests in rq_list aren't added into hctx->dispatch yet,
+		 * the requests in rq_list might get lost.
+		 *
+		 * blk_mq_run_hw_queue() already checks the STOPPED bit
+		 **/
+		blk_mq_run_hw_queue(hctx, true);
 	}
 }
 
