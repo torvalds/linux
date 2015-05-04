@@ -37,7 +37,6 @@
 #include "drm_internal.h"
 
 struct drm_magic_entry {
-	struct list_head head;
 	struct drm_hash_item hash_item;
 	struct drm_file *priv;
 };
@@ -93,7 +92,6 @@ static int drm_add_magic(struct drm_master *master, struct drm_file *priv,
 	entry->hash_item.key = (unsigned long)magic;
 	mutex_lock(&dev->struct_mutex);
 	drm_ht_insert_item(&master->magiclist, &entry->hash_item);
-	list_add_tail(&entry->head, &master->magicfree);
 	mutex_unlock(&dev->struct_mutex);
 
 	return 0;
@@ -123,7 +121,6 @@ int drm_remove_magic(struct drm_master *master, drm_magic_t magic)
 	}
 	pt = drm_hash_entry(hash, struct drm_magic_entry, hash_item);
 	drm_ht_remove_item(&master->magiclist, hash);
-	list_del(&pt->head);
 	mutex_unlock(&dev->struct_mutex);
 
 	kfree(pt);

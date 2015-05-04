@@ -109,7 +109,6 @@ struct drm_master *drm_master_create(struct drm_minor *minor)
 		kfree(master);
 		return NULL;
 	}
-	INIT_LIST_HEAD(&master->magicfree);
 	master->minor = minor;
 
 	return master;
