@@ -1365,6 +1365,23 @@
 		};
 	};
 
+	usbphy: phy {
+		compatible = "rockchip,rk3368-usb-phy";
+		rockchip,grf = <&grf>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		usbphy0: usb-phy0 {
+			#phy-cells = <0>;
+			reg = <0x700>;
+		};
+
+		usbphy1: usb-phy1 {
+			#phy-cells = <0>;
+			reg = <0x728>;
+		};
+	};
+
 	usb0: usb@ff580000 {
 		compatible = "rockchip,rk3368_usb20_otg";
 		reg = <0x0 0xff580000 0x0 0x40000>;
@@ -1384,6 +1401,8 @@
 		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clk_gates8 1>, <&clk_gates20 3>;
 		clock-names = "clk_usbphy0", "hclk_ehci";
+		phys = <&usbphy1>;
+		phy-names = "usb";
 		//resets = <&reset RK3288_SOFT_RST_USBHOST0_H>, <&reset RK3288_SOFT_RST_USBHOST0PHY>,
 		//		<&reset RK3288_SOFT_RST_USBHOST0C>, <&reset RK3288_SOFT_RST_USB_HOST0>;
 		//reset-names = "ehci_ahb", "ehci_phy", "ehci_controller", "ehci";
