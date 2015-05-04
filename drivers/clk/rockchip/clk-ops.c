@@ -7,6 +7,7 @@
 #include <linux/clk-private.h>
 #include <linux/delay.h>
 #include <linux/rockchip/common.h>
+#include <linux/rockchip/cpu.h>
 
 #include "clk-ops.h"
 
@@ -613,6 +614,7 @@ static int clk_3288_dclk_lcdc0_set_rate(struct clk_hw *hw, unsigned long rate,
 {
 	struct clk* aclk_vio0 = clk_get(NULL, "aclk_vio0");
 	struct clk* hclk_vio = clk_get(NULL, "hclk_vio");
+	struct clk *aclk_vio1;
 	struct clk* parent;
 
 	clk_divider_ops.set_rate(hw, rate, parent_rate);
@@ -626,6 +628,13 @@ static int clk_3288_dclk_lcdc0_set_rate(struct clk_hw *hw, unsigned long rate,
 	clk_set_parent(aclk_vio0, parent);
 	clk_set_rate(aclk_vio0, __clk_get_rate(parent));
 	clk_set_rate(hclk_vio, 100*MHZ);
+
+	/* make aclk_isp and hclk_isp share a same pll in rk3288_eco */
+	if (rockchip_get_cpu_version() > 0) {
+		aclk_vio1 = clk_get(NULL, "aclk_vio1");
+		clk_set_parent(aclk_vio1, parent);
+		clk_set_rate(aclk_vio1, __clk_get_rate(parent));
+	}
 
 	return 0;
 }
@@ -683,8 +692,10 @@ static int clk_3288_dclk_lcdc1_set_rate(struct clk_hw *hw, unsigned long rate,
 	else
 		parent = clk_get(NULL, "clk_cpll");
 
-	clk_set_parent(aclk_vio1, parent);
-	clk_set_rate(aclk_vio1, __clk_get_rate(parent));
+	if (rockchip_get_cpu_version() == 0) {
+		clk_set_parent(aclk_vio1, parent);
+		clk_set_rate(aclk_vio1, __clk_get_rate(parent));
+	}
 
 	return 0;
 }

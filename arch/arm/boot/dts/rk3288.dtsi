@@ -493,8 +493,8 @@
 			<&hclk_bus 150000000>,	<&pclk_bus 75000000>,
 			<&clk_crypto 150000000>,	<&aclk_peri 300000000>,
 			<&hclk_peri 150000000>,	<&pclk_peri 75000000>,
-			<&clk_gpu 200000000>,	<&aclk_vio0 300000000>,
-			<&aclk_vio1 300000000>,	<&hclk_vio 75000000>,
+			<&clk_gpu 200000000>,	/*<&aclk_vio0 300000000>,
+			<&aclk_vio1 300000000>,	<&hclk_vio 75000000>,*/
 			<&pclk_pd_alive 100000000>,	<&pclk_pd_pmu 100000000>,
 			<&aclk_hevc 400000000>,	<&hclk_hevc 200000000>,
 			<&clk_hevc_cabac 300000000>, <&clk_hevc_core 300000000>,
@@ -503,8 +503,8 @@
 			<&clk_edp 200000000>, <&clk_isp 200000000>,
 			<&clk_isp_jpe 400000000>, <&clk_tsp 80000000>,
 			<&clk_tspout 80000000>, <&clk_mac 125000000>;
-		rockchip,clocks-uboot-has-init =
-			<&aclk_vio0>;
+		/* rockchip,clocks-uboot-has-init =
+			<&aclk_vio0>; */
 	};
 
 	clocks-enable {
