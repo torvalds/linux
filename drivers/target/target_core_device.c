@@ -1071,7 +1071,7 @@ EXPORT_SYMBOL(se_dev_set_is_nonrot);
 int se_dev_set_emulate_rest_reord(struct se_device *dev, int flag)
 {
 	if (flag != 0) {
-		printk(KERN_ERR "dev[%p]: SE Device emulatation of restricted"
+		printk(KERN_ERR "dev[%p]: SE Device emulation of restricted"
 			" reordering not implemented\n", dev);
 		return -ENOSYS;
 	}
