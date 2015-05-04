@@ -66,7 +66,7 @@ static inline int mei_cl_hbm_equal(struct mei_cl *cl,
 			struct mei_msg_hdr *mei_hdr)
 {
 	return cl->host_client_id == mei_hdr->host_addr &&
-		cl->me_client_id == mei_hdr->me_addr;
+		mei_cl_me_id(cl) == mei_hdr->me_addr;
 }
 
 /**
@@ -182,6 +182,8 @@ static int mei_cl_irq_disconnect_rsp(struct mei_cl *cl, struct mei_cl_cb *cb,
 	ret = mei_hbm_cl_disconnect_rsp(dev, cl);
 	mei_cl_set_disconnected(cl);
 	mei_io_cb_free(cb);
+	mei_me_cl_put(cl->me_cl);
+	cl->me_cl = NULL;
 
 	return ret;
 }

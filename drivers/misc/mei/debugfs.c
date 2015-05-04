@@ -116,7 +116,7 @@ static ssize_t mei_dbgfs_read_active(struct file *fp, char __user *ubuf,
 
 		pos += scnprintf(buf + pos, bufsz - pos,
 			"%2d|%2d|%4d|%5d|%2d|%2d|\n",
-			i, cl->me_client_id, cl->host_client_id, cl->state,
+			i, mei_cl_me_id(cl), cl->host_client_id, cl->state,
 			!list_empty(&cl->rd_completed), cl->writing_state);
 		i++;
 	}

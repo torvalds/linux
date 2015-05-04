@@ -133,7 +133,13 @@ static struct bus_type mei_cl_bus_type = {
 
 static void mei_cl_dev_release(struct device *dev)
 {
-	kfree(to_mei_cl_device(dev));
+	struct mei_cl_device *device = to_mei_cl_device(dev);
+
+	if (!device)
+		return;
+
+	mei_me_cl_put(device->me_cl);
+	kfree(device);
 }
 
 static struct device_type mei_cl_device_type = {
@@ -141,33 +147,37 @@ static struct device_type mei_cl_device_type = {
 };
 
 struct mei_cl *mei_cl_bus_find_cl_by_uuid(struct mei_device *dev,
-						uuid_le uuid)
+					 uuid_le uuid)
 {
 	struct mei_cl *cl;
 
 	list_for_each_entry(cl, &dev->device_list, device_link) {
-		if (!uuid_le_cmp(uuid, cl->cl_uuid))
+		if (cl->device && cl->device->me_cl &&
+		    !uuid_le_cmp(uuid, *mei_me_cl_uuid(cl->device->me_cl)))
 			return cl;
 	}
 
 	return NULL;
 }
+
 struct mei_cl_device *mei_cl_add_device(struct mei_device *dev,
-					uuid_le uuid, char *name,
+					struct mei_me_client *me_cl,
+					struct mei_cl *cl,
+					char *name,
 					struct mei_cl_ops *ops)
 {
 	struct mei_cl_device *device;
-	struct mei_cl *cl;
 	int status;
-
-	cl = mei_cl_bus_find_cl_by_uuid(dev, uuid);
-	if (cl == NULL)
-		return NULL;
 
 	device = kzalloc(sizeof(struct mei_cl_device), GFP_KERNEL);
 	if (!device)
 		return NULL;
 
+	device->me_cl = mei_me_cl_get(me_cl);
+	if (!device->me_cl) {
+		kfree(device);
+		return NULL;
+	}
 	device->cl = cl;
 	device->ops = ops;
 
@@ -180,6 +190,7 @@ struct mei_cl_device *mei_cl_add_device(struct mei_device *dev,
 	status = device_register(&device->dev);
 	if (status) {
 		dev_err(dev->dev, "Failed to register MEI device\n");
+		mei_me_cl_put(device->me_cl);
 		kfree(device);
 		return NULL;
 	}
@@ -228,7 +239,6 @@ static ssize_t ___mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length,
 			bool blocking)
 {
 	struct mei_device *dev;
-	struct mei_me_client *me_cl = NULL;
 	struct mei_cl_cb *cb = NULL;
 	ssize_t rets;
 
@@ -244,13 +254,12 @@ static ssize_t ___mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length,
 	}
 
 	/* Check if we have an ME client device */
-	me_cl = mei_me_cl_by_uuid_id(dev, &cl->cl_uuid, cl->me_client_id);
-	if (!me_cl) {
+	if (!mei_me_cl_is_active(cl->me_cl)) {
 		rets = -ENOTTY;
 		goto out;
 	}
 
-	if (length > me_cl->props.max_msg_length) {
+	if (length > mei_cl_mtu(cl)) {
 		rets = -EFBIG;
 		goto out;
 	}
@@ -266,7 +275,6 @@ static ssize_t ___mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length,
 	rets = mei_cl_write(cl, cb, blocking);
 
 out:
-	mei_me_cl_put(me_cl);
 	mutex_unlock(&dev->device_lock);
 	if (rets < 0)
 		mei_io_cb_free(cb);
@@ -442,7 +450,7 @@ int mei_cl_enable_device(struct mei_cl_device *device)
 		return -EBUSY;
 	}
 
-	err = mei_cl_connect(cl, NULL);
+	err = mei_cl_connect(cl, device->me_cl, NULL);
 	if (err < 0) {
 		mutex_unlock(&dev->device_lock);
 		dev_err(dev->dev, "Could not connect to the ME client");

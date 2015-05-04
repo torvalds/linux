@@ -151,7 +151,7 @@ void mei_hbm_cl_hdr(struct mei_cl *cl, u8 hbm_cmd, void *buf, size_t len)
 
 	cmd->hbm_cmd = hbm_cmd;
 	cmd->host_addr = cl->host_client_id;
-	cmd->me_addr = cl->me_client_id;
+	cmd->me_addr = mei_cl_me_id(cl);
 }
 
 /**
@@ -189,7 +189,7 @@ static inline
 bool mei_hbm_cl_addr_equal(struct mei_cl *cl, struct mei_hbm_cl_cmd *cmd)
 {
 	return cl->host_client_id == cmd->host_addr &&
-		cl->me_client_id == cmd->me_addr;
+		mei_cl_me_id(cl) == cmd->me_addr;
 }
 
 /**

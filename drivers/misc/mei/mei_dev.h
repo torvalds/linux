@@ -227,11 +227,11 @@ struct mei_cl_cb {
  * @rx_wait: wait queue for rx completion
  * @wait:  wait queue for management operation
  * @status: connection status
- * @cl_uuid: client uuid name
+ * @me_cl: fw client connected
  * @host_client_id: host id
- * @me_client_id: me/fw id
  * @mei_flow_ctrl_creds: transmit flow credentials
  * @timer_count:  watchdog timer for operation completion
+ * @reserved: reserved for alignment
  * @writing_state: state of the tx
  * @rd_pending: pending read credits
  * @rd_completed: completed read
@@ -247,11 +247,11 @@ struct mei_cl {
 	wait_queue_head_t rx_wait;
 	wait_queue_head_t wait;
 	int status;
-	uuid_le cl_uuid;
+	struct mei_me_client *me_cl;
 	u8 host_client_id;
-	u8 me_client_id;
 	u8 mei_flow_ctrl_creds;
 	u8 timer_count;
+	u8 reserved;
 	enum mei_file_transaction_states writing_state;
 	struct list_head rd_pending;
 	struct list_head rd_completed;
@@ -346,7 +346,9 @@ struct mei_cl_ops {
 };
 
 struct mei_cl_device *mei_cl_add_device(struct mei_device *dev,
-					uuid_le uuid, char *name,
+					struct mei_me_client *me_cl,
+					struct mei_cl *cl,
+					char *name,
 					struct mei_cl_ops *ops);
 void mei_cl_remove_device(struct mei_cl_device *device);
 
@@ -368,6 +370,7 @@ struct mei_cl *mei_cl_bus_find_cl_by_uuid(struct mei_device *dev, uuid_le uuid);
  * when being probed and shall use it for doing ME bus I/O.
  *
  * @dev: linux driver model device pointer
+ * @me_cl: me client
  * @cl: mei client
  * @ops: ME transport ops
  * @event_work: async work to execute event callback
@@ -380,6 +383,7 @@ struct mei_cl *mei_cl_bus_find_cl_by_uuid(struct mei_device *dev, uuid_le uuid);
 struct mei_cl_device {
 	struct device dev;
 
+	struct mei_me_client *me_cl;
 	struct mei_cl *cl;
 
 	const struct mei_cl_ops *ops;
@@ -653,7 +657,7 @@ void mei_irq_compl_handler(struct mei_device *dev, struct mei_cl_cb *cmpl_list);
  */
 void mei_amthif_reset_params(struct mei_device *dev);
 
-int mei_amthif_host_init(struct mei_device *dev);
+int mei_amthif_host_init(struct mei_device *dev, struct mei_me_client *me_cl);
 
 int mei_amthif_read(struct mei_device *dev, struct file *file,
 		char __user *ubuf, size_t length, loff_t *offset);
@@ -680,7 +684,7 @@ int mei_amthif_irq_read(struct mei_device *dev, s32 *slots);
 /*
  * NFC functions
  */
-int mei_nfc_host_init(struct mei_device *dev);
+int mei_nfc_host_init(struct mei_device *dev, struct mei_me_client *me_cl);
 void mei_nfc_host_exit(struct mei_device *dev);
 
 /*
@@ -690,7 +694,7 @@ extern const uuid_le mei_nfc_guid;
 
 int mei_wd_send(struct mei_device *dev);
 int mei_wd_stop(struct mei_device *dev);
-int mei_wd_host_init(struct mei_device *dev);
+int mei_wd_host_init(struct mei_device *dev, struct mei_me_client *me_cl);
 /*
  * mei_watchdog_register  - Registering watchdog interface
  *   once we got connection to the WD Client
