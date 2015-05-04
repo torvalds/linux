@@ -103,12 +103,13 @@ static inline bool mei_cl_is_connected(struct mei_cl *cl)
 	return  cl->state == MEI_FILE_CONNECTED;
 }
 
-bool mei_cl_is_other_connecting(struct mei_cl *cl);
 int mei_cl_disconnect(struct mei_cl *cl);
 void mei_cl_set_disconnected(struct mei_cl *cl);
 int mei_cl_irq_disconnect(struct mei_cl *cl, struct mei_cl_cb *cb,
 			  struct mei_cl_cb *cmpl_list);
 int mei_cl_connect(struct mei_cl *cl, struct file *file);
+int mei_cl_irq_connect(struct mei_cl *cl, struct mei_cl_cb *cb,
+			      struct mei_cl_cb *cmpl_list);
 int mei_cl_read_start(struct mei_cl *cl, size_t length, struct file *fp);
 int mei_cl_irq_read_msg(struct mei_cl *cl, struct mei_msg_hdr *hdr,
 			struct mei_cl_cb *cmpl_list);

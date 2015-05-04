@@ -223,49 +223,6 @@ static int mei_cl_irq_read(struct mei_cl *cl, struct mei_cl_cb *cb,
 	return 0;
 }
 
-
-/**
- * mei_cl_irq_connect - send connect request in irq_thread context
- *
- * @cl: client
- * @cb: callback block.
- * @cmpl_list: complete list.
- *
- * Return: 0, OK; otherwise, error.
- */
-static int mei_cl_irq_connect(struct mei_cl *cl, struct mei_cl_cb *cb,
-			      struct mei_cl_cb *cmpl_list)
-{
-	struct mei_device *dev = cl->dev;
-	u32 msg_slots;
-	int slots;
-	int ret;
-
-	msg_slots = mei_data2slots(sizeof(struct hbm_client_connect_request));
-	slots = mei_hbuf_empty_slots(dev);
-
-	if (mei_cl_is_other_connecting(cl))
-		return 0;
-
-	if (slots < msg_slots)
-		return -EMSGSIZE;
-
-	cl->state = MEI_FILE_CONNECTING;
-
-	ret = mei_hbm_cl_connect_req(dev, cl);
-	if (ret) {
-		cl->status = ret;
-		cb->buf_idx = 0;
-		list_del_init(&cb->list);
-		return ret;
-	}
-
-	list_move_tail(&cb->list, &dev->ctrl_rd_list.list);
-	cl->timer_count = MEI_CONNECT_TIMEOUT;
-	return 0;
-}
-
-
 /**
  * mei_irq_read_handler - bottom half read routine after ISR to
  * handle the read processing.

@@ -881,25 +881,80 @@ out:
  *
  * Return: true if other client is connected, false - otherwise.
  */
-bool mei_cl_is_other_connecting(struct mei_cl *cl)
+static bool mei_cl_is_other_connecting(struct mei_cl *cl)
 {
 	struct mei_device *dev;
-	struct mei_cl *ocl; /* the other client */
-
-	if (WARN_ON(!cl || !cl->dev))
-		return false;
+	struct mei_cl_cb *cb;
 
 	dev = cl->dev;
 
-	list_for_each_entry(ocl, &dev->file_list, link) {
-		if (ocl->state == MEI_FILE_CONNECTING &&
-		    ocl != cl &&
-		    cl->me_client_id == ocl->me_client_id)
+	list_for_each_entry(cb, &dev->ctrl_rd_list.list, list) {
+		if (cb->fop_type == MEI_FOP_CONNECT &&
+		    cl->me_client_id == cb->cl->me_client_id)
 			return true;
-
 	}
 
 	return false;
+}
+
+/**
+ * mei_cl_send_connect - send connect request
+ *
+ * @cl: host client
+ * @cb: callback block
+ *
+ * Return: 0, OK; otherwise, error.
+ */
+static int mei_cl_send_connect(struct mei_cl *cl, struct mei_cl_cb *cb)
+{
+	struct mei_device *dev;
+	int ret;
+
+	dev = cl->dev;
+
+	ret = mei_hbm_cl_connect_req(dev, cl);
+	cl->status = ret;
+	if (ret) {
+		cl->state = MEI_FILE_DISCONNECT_REPLY;
+		return ret;
+	}
+
+	list_move_tail(&cb->list, &dev->ctrl_rd_list.list);
+	cl->timer_count = MEI_CONNECT_TIMEOUT;
+	return 0;
+}
+
+/**
+ * mei_cl_irq_connect - send connect request in irq_thread context
+ *
+ * @cl: host client
+ * @cb: callback block
+ * @cmpl_list: complete list
+ *
+ * Return: 0, OK; otherwise, error.
+ */
+int mei_cl_irq_connect(struct mei_cl *cl, struct mei_cl_cb *cb,
+			      struct mei_cl_cb *cmpl_list)
+{
+	struct mei_device *dev = cl->dev;
+	u32 msg_slots;
+	int slots;
+	int rets;
+
+	msg_slots = mei_data2slots(sizeof(struct hbm_client_connect_request));
+	slots = mei_hbuf_empty_slots(dev);
+
+	if (mei_cl_is_other_connecting(cl))
+		return 0;
+
+	if (slots < msg_slots)
+		return -EMSGSIZE;
+
+	rets = mei_cl_send_connect(cl, cb);
+	if (rets)
+		list_move_tail(&cb->list, &cmpl_list->list);
+
+	return rets;
 }
 
 /**
@@ -935,18 +990,14 @@ int mei_cl_connect(struct mei_cl *cl, struct file *file)
 	if (rets)
 		goto out;
 
+	cl->state = MEI_FILE_CONNECTING;
+	list_add_tail(&cb->list, &dev->ctrl_wr_list.list);
+
 	/* run hbuf acquire last so we don't have to undo */
 	if (!mei_cl_is_other_connecting(cl) && mei_hbuf_acquire(dev)) {
-		cl->state = MEI_FILE_CONNECTING;
-		if (mei_hbm_cl_connect_req(dev, cl)) {
-			rets = -ENODEV;
+		rets = mei_cl_send_connect(cl, cb);
+		if (rets)
 			goto out;
-		}
-		cl->timer_count = MEI_CONNECT_TIMEOUT;
-		list_add_tail(&cb->list, &dev->ctrl_rd_list.list);
-	} else {
-		cl->state = MEI_FILE_INITIALIZING;
-		list_add_tail(&cb->list, &dev->ctrl_wr_list.list);
 	}
 
 	mutex_unlock(&dev->device_lock);
@@ -957,20 +1008,22 @@ int mei_cl_connect(struct mei_cl *cl, struct file *file)
 	mutex_lock(&dev->device_lock);
 
 	if (!mei_cl_is_connected(cl)) {
-		/* something went really wrong */
+		/* timeout or something went really wrong */
 		if (!cl->status)
 			cl->status = -EFAULT;
-		mei_cl_set_disconnected(cl);
 	}
 
 	rets = cl->status;
-
 out:
 	cl_dbg(dev, cl, "rpm: autosuspend\n");
 	pm_runtime_mark_last_busy(dev->dev);
 	pm_runtime_put_autosuspend(dev->dev);
 
 	mei_io_cb_free(cb);
+
+	if (!mei_cl_is_connected(cl))
+		mei_cl_set_disconnected(cl);
+
 	return rets;
 }
 

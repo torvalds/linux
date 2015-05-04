@@ -436,6 +436,12 @@ int mei_cl_enable_device(struct mei_cl_device *device)
 
 	mutex_lock(&dev->device_lock);
 
+	if (mei_cl_is_connected(cl)) {
+		mutex_unlock(&dev->device_lock);
+		dev_warn(dev->dev, "Already connected");
+		return -EBUSY;
+	}
+
 	err = mei_cl_connect(cl, NULL);
 	if (err < 0) {
 		mutex_unlock(&dev->device_lock);
