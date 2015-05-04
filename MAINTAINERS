@@ -5053,6 +5053,8 @@ S:	Supported
 F:	Documentation/infiniband/
 F:	drivers/infiniband/
 F:	include/uapi/linux/if_infiniband.h
+F:	include/uapi/rdma/
+F:	include/rdma/
 
 INOTIFY
 M:	John McCutchan <john@johnmccutchan.com>
