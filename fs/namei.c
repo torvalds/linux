@@ -1587,20 +1587,16 @@ static int walk_component(struct nameidata *nd, int follow)
 	 * to be able to know about the current root directory and
 	 * parent relationships.
 	 */
-	if (unlikely(nd->last_type != LAST_NORM)) {
-		err = handle_dots(nd, nd->last_type);
-		if (err)
-			goto out_err;
-		return 0;
-	}
+	if (unlikely(nd->last_type != LAST_NORM))
+		return handle_dots(nd, nd->last_type);
 	err = lookup_fast(nd, &path, &inode);
 	if (unlikely(err)) {
 		if (err < 0)
-			goto out_err;
+			return err;
 
 		err = lookup_slow(nd, &path);
 		if (err < 0)
-			goto out_err;
+			return err;
 
 		inode = path.dentry->d_inode;
 		err = -ENOENT;
@@ -1612,8 +1608,7 @@ static int walk_component(struct nameidata *nd, int follow)
 		if (nd->flags & LOOKUP_RCU) {
 			if (unlikely(nd->path.mnt != path.mnt ||
 				     unlazy_walk(nd, path.dentry))) {
-				err = -ECHILD;
-				goto out_err;
+				return -ECHILD;
 			}
 		}
 		BUG_ON(inode != path.dentry->d_inode);
@@ -1626,8 +1621,6 @@ static int walk_component(struct nameidata *nd, int follow)
 
 out_path_put:
 	path_to_nameidata(&path, nd);
-out_err:
-	terminate_walk(nd);
 	return err;
 }
 
@@ -1819,7 +1812,7 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 		err = walk_component(nd, LOOKUP_FOLLOW);
 Walked:
 		if (err < 0)
-			goto Err;
+			break;
 
 		if (err) {
 			const char *s;
@@ -2020,11 +2013,15 @@ static int trailing_symlink(struct nameidata *nd)
 
 static inline int lookup_last(struct nameidata *nd)
 {
+	int err;
 	if (nd->last_type == LAST_NORM && nd->last.name[nd->last.len])
 		nd->flags |= LOOKUP_FOLLOW | LOOKUP_DIRECTORY;
 
 	nd->flags &= ~LOOKUP_PARENT;
-	return walk_component(nd, nd->flags & LOOKUP_FOLLOW);
+	err = walk_component(nd, nd->flags & LOOKUP_FOLLOW);
+	if (err < 0)
+		terminate_walk(nd);
+	return err;
 }
 
 /* Returns 0 and nd will be valid on success; Retuns error, otherwise. */
