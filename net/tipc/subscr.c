@@ -154,6 +154,22 @@ static void tipc_subscrp_delete(struct tipc_subscription *sub)
 	atomic_dec(&tn->subscription_count);
 }
 
+static struct tipc_subscriber *tipc_subscrb_create(int conid)
+{
+	struct tipc_subscriber *subscriber;
+
+	subscriber = kzalloc(sizeof(*subscriber), GFP_ATOMIC);
+	if (!subscriber) {
+		pr_warn("Subscriber rejected, no memory\n");
+		return NULL;
+	}
+	INIT_LIST_HEAD(&subscriber->subscrp_list);
+	subscriber->conid = conid;
+	spin_lock_init(&subscriber->lock);
+
+	return subscriber;
+}
+
 static void tipc_subscrb_delete(struct tipc_subscriber *subscriber)
 {
 	struct tipc_subscription *sub;
@@ -301,19 +317,7 @@ static void tipc_subscrb_rcv_cb(struct net *net, int conid,
 /* Handle one request to establish a new subscriber */
 static void *tipc_subscrb_connect_cb(int conid)
 {
-	struct tipc_subscriber *subscriber;
-
-	/* Create subscriber object */
-	subscriber = kzalloc(sizeof(struct tipc_subscriber), GFP_ATOMIC);
-	if (subscriber == NULL) {
-		pr_warn("Subscriber rejected, no memory\n");
-		return NULL;
-	}
-	INIT_LIST_HEAD(&subscriber->subscrp_list);
-	subscriber->conid = conid;
-	spin_lock_init(&subscriber->lock);
-
-	return (void *)subscriber;
+	return (void *)tipc_subscrb_create(conid);
 }
 
 int tipc_topsrv_start(struct net *net)
