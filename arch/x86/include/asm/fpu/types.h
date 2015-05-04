@@ -145,12 +145,21 @@ struct bndcsr {
 	u64				bndstatus;
 } __packed;
 
+struct mpx_struct {
+	struct bndreg			bndreg[4];
+	struct bndcsr			bndcsr;
+};
+
 struct xstate_header {
 	u64				xfeatures;
 	u64				xcomp_bv;
 	u64				reserved[6];
 } __attribute__((packed));
 
+/* New processor state extensions should be added here: */
+#define XSTATE_RESERVE			(sizeof(struct ymmh_struct) + \
+					 sizeof(struct lwp_struct)  + \
+					 sizeof(struct mpx_struct)  )
 /*
  * This is our most modern FPU state format, as saved by the XSAVE
  * and restored by the XRSTOR instructions.
@@ -162,11 +171,7 @@ struct xstate_header {
 struct xregs_state {
 	struct fxregs_state		i387;
 	struct xstate_header		header;
-	struct ymmh_struct		ymmh;
-	struct lwp_struct		lwp;
-	struct bndreg			bndreg[4];
-	struct bndcsr			bndcsr;
-	/* New processor state extensions will go here. */
+	u8				__reserved[XSTATE_RESERVE];
 } __attribute__ ((packed, aligned (64)));
 
 /*
