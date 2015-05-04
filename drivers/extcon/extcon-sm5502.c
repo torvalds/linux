@@ -623,7 +623,6 @@ static int sm5022_muic_i2c_probe(struct i2c_client *i2c,
 		dev_err(info->dev, "failed to allocate memory for extcon\n");
 		return -ENOMEM;
 	}
-	info->edev->name = np->name;
 
 	/* Register extcon device */
 	ret = devm_extcon_dev_register(info->dev, info->edev);

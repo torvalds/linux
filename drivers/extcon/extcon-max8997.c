@@ -696,7 +696,6 @@ static int max8997_muic_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto err_irq;
 	}
-	info->edev->name = DEV_NAME;
 
 	ret = devm_extcon_dev_register(&pdev->dev, info->edev);
 	if (ret) {

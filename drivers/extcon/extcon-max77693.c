@@ -1158,7 +1158,6 @@ static int max77693_muic_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to allocate memory for extcon\n");
 		return -ENOMEM;
 	}
-	info->edev->name = DEV_NAME;
 
 	ret = devm_extcon_dev_register(&pdev->dev, info->edev);
 	if (ret) {

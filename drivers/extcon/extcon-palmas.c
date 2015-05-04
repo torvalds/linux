@@ -193,7 +193,6 @@ static int palmas_usb_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to allocate extcon device\n");
 		return -ENOMEM;
 	}
-	palmas_usb->edev->name = kstrdup(node->name, GFP_KERNEL);
 	palmas_usb->edev->mutually_exclusive = mutually_exclusive;
 
 	status = devm_extcon_dev_register(&pdev->dev, palmas_usb->edev);

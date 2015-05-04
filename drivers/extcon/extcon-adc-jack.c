@@ -110,7 +110,6 @@ static int adc_jack_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to allocate extcon device\n");
 		return -ENOMEM;
 	}
-	data->edev->name = pdata->name;
 
 	if (!pdata->adc_conditions ||
 			!pdata->adc_conditions[0].state) {
