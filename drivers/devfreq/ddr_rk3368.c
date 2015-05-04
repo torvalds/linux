@@ -246,9 +246,12 @@ end:
 
 static void ddr_init(u32 dram_speed_bin, u32 freq)
 {
-	printk(KERN_DEBUG pr_fmt("In Func:%s,dram_speed_bin:%d,freq:%d\n"),
-	       __func__, dram_speed_bin, freq);
-	if (scpi_ddr_init(dram_speed_bin, freq))
+	int lcdc_type;
+
+	lcdc_type = rockchip_get_screen_type();
+	printk(KERN_DEBUG pr_fmt("In Func:%s,dram_speed_bin:%d,freq:%d,lcdc_type:%d\n"),
+	       __func__, dram_speed_bin, freq, lcdc_type);
+	if (scpi_ddr_init(dram_speed_bin, freq, lcdc_type))
 		pr_info("ddr init error\n");
 	else
 		printk(KERN_DEBUG pr_fmt("%s out\n"), __func__);

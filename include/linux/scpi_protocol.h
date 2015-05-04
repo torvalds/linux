@@ -37,7 +37,7 @@ struct scpi_opp *scpi_dvfs_get_opps(u8 domain);
 int scpi_get_sensor(char *name);
 int scpi_get_sensor_value(u16 sensor, u32 *val);
 
-int scpi_ddr_init(u32 dram_speed_bin, u32 freq);
+int scpi_ddr_init(u32 dram_speed_bin, u32 freq, u32 lcdc_type);
 int scpi_ddr_set_clk_rate(u32 rate);
 int scpi_ddr_round_rate(u32 m_hz);
 int scpi_ddr_set_auto_self_refresh(u32 en);
