@@ -403,6 +403,7 @@ static int mt9v022_get_fmt(struct v4l2_subdev *sd,
 }
 
 static int mt9v022_s_fmt(struct v4l2_subdev *sd,
+			 const struct mt9v022_datafmt *fmt,
 			 struct v4l2_mbus_framefmt *mf)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -441,9 +442,8 @@ static int mt9v022_s_fmt(struct v4l2_subdev *sd,
 	if (!ret) {
 		mf->width	= mt9v022->rect.width;
 		mf->height	= mt9v022->rect.height;
-		mt9v022->fmt	= mt9v022_find_datafmt(mf->code,
-					mt9v022->fmts, mt9v022->num_fmts);
-		mf->colorspace	= mt9v022->fmt->colorspace;
+		mt9v022->fmt	= fmt;
+		mf->colorspace	= fmt->colorspace;
 	}
 
 	return ret;
@@ -478,7 +478,7 @@ static int mt9v022_set_fmt(struct v4l2_subdev *sd,
 	mf->colorspace	= fmt->colorspace;
 
 	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE)
-		return mt9v022_s_fmt(sd, mf);
+		return mt9v022_s_fmt(sd, fmt, mf);
 	cfg->try_fmt = *mf;
 	return 0;
 }
