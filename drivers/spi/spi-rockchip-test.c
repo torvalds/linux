@@ -96,7 +96,7 @@ static ssize_t spi_test_write(struct file *file,
 	k2 = ktime_get();
 	k2 = ktime_sub(k2, k1);
 	if(!ret)
-	printk("%s:bus_num=%d,chip_select=%d,ok cost:%dus data rate:%d Kbits/s\n",__func__,spi->master->bus_num, spi->chip_select, ktime_to_us(k2), 1536*5000*8/ktime_to_ms(k2));
+	printk("%s:bus_num=%d,chip_select=%d,ok cost:%lldus data rate:%lld Kbits/s\n",__func__,spi->master->bus_num, spi->chip_select, ktime_to_us(k2), 1536*5000*8/ktime_to_ms(k2));
 	else
 	printk("%s:bus_num=%d,chip_select=%d,error\n",__func__,spi->master->bus_num, spi->chip_select);
 	
