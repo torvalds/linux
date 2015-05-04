@@ -22,6 +22,8 @@
 #define FC2580_PRIV_H
 
 #include "fc2580.h"
+#include <media/v4l2-ctrls.h>
+#include <media/v4l2-subdev.h>
 #include <linux/regmap.h>
 #include <linux/math64.h>
 
@@ -131,6 +133,15 @@ struct fc2580_dev {
 	u32 clk;
 	struct i2c_client *client;
 	struct regmap *regmap;
+	struct v4l2_subdev subdev;
+	bool active;
+	unsigned int f_frequency;
+	unsigned int f_bandwidth;
+
+	/* Controls */
+	struct v4l2_ctrl_handler hdl;
+	struct v4l2_ctrl *bandwidth_auto;
+	struct v4l2_ctrl *bandwidth;
 };
 
 #endif
