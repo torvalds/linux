@@ -248,8 +248,8 @@ int camsys_rk3368_cfg (camsys_soc_cfg_t cfg_cmd, void* cfg_para)
 
         case Isp_SoftRst:         /* ddl@rock-chips.com: v0.d.0 */
         {
-            unsigned int reset;
-            reset = (unsigned int)cfg_para;
+            unsigned long reset;
+            reset = (unsigned long)cfg_para;
 			#if 0
             if (reset == 1)
                 write_cru_reg(0x318,0x40004000);
@@ -265,7 +265,7 @@ int camsys_rk3368_cfg (camsys_soc_cfg_t cfg_cmd, void* cfg_para)
 				__raw_writel(0x00,
 					     (void*)(rk_isp_base + MRV_AFM_BASE +
 					     VI_IRCL));
-			camsys_trace(1, "Isp self soft rst: %d", reset);
+			camsys_trace(1, "Isp self soft rst: %ld", reset);
             break;
         }
 
