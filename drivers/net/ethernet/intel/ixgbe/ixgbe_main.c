@@ -4757,7 +4757,7 @@ static int ixgbe_non_sfp_link_config(struct ixgbe_hw *hw)
 {
 	u32 speed;
 	bool autoneg, link_up = false;
-	u32 ret = IXGBE_ERR_LINK_SETUP;
+	int ret = IXGBE_ERR_LINK_SETUP;
 
 	if (hw->mac.ops.check_link)
 		ret = hw->mac.ops.check_link(hw, &speed, &link_up, false);
@@ -8022,7 +8022,7 @@ static int ixgbe_ndo_bridge_setlink(struct net_device *dev,
 		return -EINVAL;
 
 	nla_for_each_nested(attr, br_spec, rem) {
-		u32 status;
+		int status;
 		__u16 mode;
 
 		if (nla_type(attr) != IFLA_BRIDGE_MODE)

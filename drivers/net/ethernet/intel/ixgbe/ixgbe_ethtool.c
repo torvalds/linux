@@ -3053,7 +3053,7 @@ static int ixgbe_get_module_info(struct net_device *dev,
 {
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
 	struct ixgbe_hw *hw = &adapter->hw;
-	u32 status;
+	s32 status;
 	u8 sff8472_rev, addr_mode;
 	bool page_swap = false;
 
@@ -3061,14 +3061,14 @@ static int ixgbe_get_module_info(struct net_device *dev,
 	status = hw->phy.ops.read_i2c_eeprom(hw,
 					     IXGBE_SFF_SFF_8472_COMP,
 					     &sff8472_rev);
-	if (status != 0)
+	if (status)
 		return -EIO;
 
 	/* addressing mode is not supported */
 	status = hw->phy.ops.read_i2c_eeprom(hw,
 					     IXGBE_SFF_SFF_8472_SWAP,
 					     &addr_mode);
-	if (status != 0)
+	if (status)
 		return -EIO;
 
 	if (addr_mode & IXGBE_SFF_ADDRESSING_MODE) {
@@ -3095,7 +3095,7 @@ static int ixgbe_get_module_eeprom(struct net_device *dev,
 {
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
 	struct ixgbe_hw *hw = &adapter->hw;
-	u32 status = IXGBE_ERR_PHY_ADDR_INVALID;
+	s32 status = IXGBE_ERR_PHY_ADDR_INVALID;
 	u8 databyte = 0xFF;
 	int i = 0;
 
@@ -3112,7 +3112,7 @@ static int ixgbe_get_module_eeprom(struct net_device *dev,
 		else
 			status = hw->phy.ops.read_i2c_sff8472(hw, i, &databyte);
 
-		if (status != 0)
+		if (status)
 			return -EIO;
 
 		data[i - ee->offset] = databyte;

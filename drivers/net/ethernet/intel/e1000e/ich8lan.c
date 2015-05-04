@@ -1015,7 +1015,7 @@ static s32 e1000_platform_pm_pch_lpt(struct e1000_hw *hw, bool link)
 		u16 max_snoop, max_nosnoop;
 		u16 max_ltr_enc;	/* max LTR latency encoded */
 		s64 lat_ns;	/* latency (ns) */
-		s64 value;
+		u64 value;
 		u32 rxa;
 
 		if (!hw->adapter->max_frame_size) {
@@ -1042,12 +1042,13 @@ static s32 e1000_platform_pm_pch_lpt(struct e1000_hw *hw, bool link)
 		 */
 		lat_ns = ((s64)rxa * 1024 -
 			  (2 * (s64)hw->adapter->max_frame_size)) * 8 * 1000;
-		if (lat_ns < 0)
-			lat_ns = 0;
-		else
-			do_div(lat_ns, speed);
+		if (lat_ns < 0) {
+			value = 0;
+		} else {
+			value = lat_ns;
+			do_div(value, speed);
+		}
 
-		value = lat_ns;
 		while (value > PCI_LTR_VALUE_MASK) {
 			scale++;
 			value = DIV_ROUND_UP(value, (1 << 5));
@@ -1563,7 +1564,7 @@ static s32 e1000_get_variants_ich8lan(struct e1000_adapter *adapter)
 	    ((adapter->hw.mac.type >= e1000_pch2lan) &&
 	     (!(er32(CTRL_EXT) & E1000_CTRL_EXT_LSECCK)))) {
 		adapter->flags &= ~FLAG_HAS_JUMBO_FRAMES;
-		adapter->max_hw_frame_size = ETH_FRAME_LEN + ETH_FCS_LEN;
+		adapter->max_hw_frame_size = VLAN_ETH_FRAME_LEN + ETH_FCS_LEN;
 
 		hw->mac.ops.blink_led = NULL;
 	}
@@ -5681,7 +5682,7 @@ const struct e1000_info e1000_ich8_info = {
 				  | FLAG_HAS_FLASH
 				  | FLAG_APME_IN_WUC,
 	.pba			= 8,
-	.max_hw_frame_size	= ETH_FRAME_LEN + ETH_FCS_LEN,
+	.max_hw_frame_size	= VLAN_ETH_FRAME_LEN + ETH_FCS_LEN,
 	.get_variants		= e1000_get_variants_ich8lan,
 	.mac_ops		= &ich8_mac_ops,
 	.phy_ops		= &ich8_phy_ops,
@@ -5754,7 +5755,7 @@ const struct e1000_info e1000_pch2_info = {
 	.flags2			= FLAG2_HAS_PHY_STATS
 				  | FLAG2_HAS_EEE,
 	.pba			= 26,
-	.max_hw_frame_size	= 9018,
+	.max_hw_frame_size	= 9022,
 	.get_variants		= e1000_get_variants_ich8lan,
 	.mac_ops		= &ich8_mac_ops,
 	.phy_ops		= &ich8_phy_ops,
@@ -5774,7 +5775,7 @@ const struct e1000_info e1000_pch_lpt_info = {
 	.flags2			= FLAG2_HAS_PHY_STATS
 				  | FLAG2_HAS_EEE,
 	.pba			= 26,
-	.max_hw_frame_size	= 9018,
+	.max_hw_frame_size	= 9022,
 	.get_variants		= e1000_get_variants_ich8lan,
 	.mac_ops		= &ich8_mac_ops,
 	.phy_ops		= &ich8_phy_ops,
@@ -5794,7 +5795,7 @@ const struct e1000_info e1000_pch_spt_info = {
 	.flags2			= FLAG2_HAS_PHY_STATS
 				  | FLAG2_HAS_EEE,
 	.pba			= 26,
-	.max_hw_frame_size	= 9018,
+	.max_hw_frame_size	= 9022,
 	.get_variants		= e1000_get_variants_ich8lan,
 	.mac_ops		= &ich8_mac_ops,
 	.phy_ops		= &ich8_phy_ops,
