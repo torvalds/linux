@@ -56,6 +56,7 @@ config PCC
 
 config ALTERA_MBOX
 	tristate "Altera Mailbox"
+	depends on HAS_IOMEM
 	help
 	  An implementation of the Altera Mailbox soft core. It is used
 	  to send message between processors. Say Y here if you want to use the
