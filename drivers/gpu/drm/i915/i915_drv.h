@@ -669,6 +669,15 @@ struct intel_uncore {
 #define for_each_fw_domain(domain__, dev_priv__, i__) \
 	for_each_fw_domain_mask(domain__, FORCEWAKE_ALL, dev_priv__, i__)
 
+struct intel_csr {
+	const char *fw_path;
+	__be32 *dmc_payload;
+	uint32_t dmc_fw_size;
+	uint32_t mmio_count;
+	uint32_t mmioaddr[8];
+	uint32_t mmiodata[8];
+};
+
 #define DEV_INFO_FOR_EACH_FLAG(func, sep) \
 	func(is_mobile) sep \
 	func(is_i85x) sep \
@@ -1574,6 +1583,11 @@ struct drm_i915_private {
 
 	struct i915_virtual_gpu vgpu;
 
+	struct intel_csr csr;
+
+	/* Display CSR-related protection */
+	struct mutex csr_lock;
+
 	struct intel_gmbus gmbus[GMBUS_NUM_PINS];
 
 	/** gmbus_mutex protects against concurrent usage of the single hw gmbus
@@ -2426,6 +2440,8 @@ struct drm_i915_cmd_table {
 #define HAS_RC6(dev)		(INTEL_INFO(dev)->gen >= 6)
 #define HAS_RC6p(dev)		(INTEL_INFO(dev)->gen == 6 || IS_IVYBRIDGE(dev))
 
+#define HAS_CSR(dev)	(IS_SKYLAKE(dev))
+
 #define INTEL_PCH_DEVICE_ID_MASK		0xff00
 #define INTEL_PCH_IBX_DEVICE_ID_TYPE		0x3b00
 #define INTEL_PCH_CPT_DEVICE_ID_TYPE		0x1c00
@@ -2516,6 +2532,7 @@ extern unsigned long i915_gfx_val(struct drm_i915_private *dev_priv);
 extern void i915_update_gfx_val(struct drm_i915_private *dev_priv);
 int vlv_force_gfx_clock(struct drm_i915_private *dev_priv, bool on);
 void intel_hpd_cancel_work(struct drm_i915_private *dev_priv);
+void i915_firmware_load_error_print(const char *fw_path, int err);
 
 /* i915_irq.c */
 void i915_queue_hangcheck(struct drm_device *dev);

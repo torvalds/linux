@@ -1153,6 +1153,11 @@ u32 skl_plane_ctl_format(uint32_t pixel_format);
 u32 skl_plane_ctl_tiling(uint64_t fb_modifier);
 u32 skl_plane_ctl_rotation(unsigned int rotation);
 
+/* intel_csr.c */
+void intel_csr_ucode_init(struct drm_device *dev);
+void intel_csr_load_program(struct drm_device *dev);
+void intel_csr_ucode_fini(struct drm_device *dev);
+
 /* intel_dp.c */
 void intel_dp_init(struct drm_device *dev, int output_reg, enum port port);
 bool intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
