@@ -765,13 +765,14 @@ void gpiod_unexport(struct gpio_desc *desc)
 }
 EXPORT_SYMBOL_GPL(gpiod_unexport);
 
-int gpiochip_export(struct gpio_chip *chip)
+int gpiochip_sysfs_register(struct gpio_chip *chip)
 {
 	struct device	*dev;
 
-	/* Many systems register gpio chips for SOC support very early,
+	/*
+	 * Many systems add gpio chips for SOC support very early,
 	 * before driver model support is available.  In those cases we
-	 * export this later, in gpiolib_sysfs_init() ... here we just
+	 * register later, in gpiolib_sysfs_init() ... here we just
 	 * verify that _some_ field of gpio_class got initialized.
 	 */
 	if (!gpio_class.p)
@@ -791,7 +792,7 @@ int gpiochip_export(struct gpio_chip *chip)
 	return 0;
 }
 
-void gpiochip_unexport(struct gpio_chip *chip)
+void gpiochip_sysfs_unregister(struct gpio_chip *chip)
 {
 	struct gpio_desc *desc;
 	unsigned int i;
@@ -836,15 +837,16 @@ static int __init gpiolib_sysfs_init(void)
 			continue;
 
 		/*
-		 * TODO we yield gpio_lock here because gpiochip_export()
-		 * acquires a mutex. This is unsafe and needs to be fixed.
+		 * TODO we yield gpio_lock here because
+		 * gpiochip_sysfs_register() acquires a mutex. This is unsafe
+		 * and needs to be fixed.
 		 *
 		 * Also it would be nice to use gpiochip_find() here so we
 		 * can keep gpio_chips local to gpiolib.c, but the yield of
 		 * gpio_lock prevents us from doing this.
 		 */
 		spin_unlock_irqrestore(&gpio_lock, flags);
-		status = gpiochip_export(chip);
+		status = gpiochip_sysfs_register(chip);
 		spin_lock_irqsave(&gpio_lock, flags);
 	}
 	spin_unlock_irqrestore(&gpio_lock, flags);

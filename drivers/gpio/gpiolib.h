@@ -151,17 +151,17 @@ static int __maybe_unused gpio_chip_hwgpio(const struct gpio_desc *desc)
 
 #ifdef CONFIG_GPIO_SYSFS
 
-int gpiochip_export(struct gpio_chip *chip);
-void gpiochip_unexport(struct gpio_chip *chip);
+int gpiochip_sysfs_register(struct gpio_chip *chip);
+void gpiochip_sysfs_unregister(struct gpio_chip *chip);
 
 #else
 
-static inline int gpiochip_export(struct gpio_chip *chip)
+static inline int gpiochip_sysfs_register(struct gpio_chip *chip)
 {
 	return 0;
 }
 
-static inline void gpiochip_unexport(struct gpio_chip *chip)
+static inline void gpiochip_sysfs_unregister(struct gpio_chip *chip)
 {
 }
 
