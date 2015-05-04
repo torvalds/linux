@@ -1566,15 +1566,31 @@ static void terminate_walk(struct nameidata *nd)
 		put_link(nd);
 }
 
+static int pick_link(struct nameidata *nd, struct path *link)
+{
+	if (nd->flags & LOOKUP_RCU) {
+		if (unlikely(nd->path.mnt != link->mnt ||
+			     unlazy_walk(nd, link->dentry))) {
+			return -ECHILD;
+		}
+	}
+	nd->link = *link;
+	return 1;
+}
+
 /*
  * Do we need to follow links? We _really_ want to be able
  * to do this check without having to look at inode->i_op,
  * so we keep a cache of "no, this doesn't need follow_link"
  * for the common case.
  */
-static inline int should_follow_link(struct dentry *dentry, int follow)
+static inline int should_follow_link(struct nameidata *nd, struct path *link, int follow)
 {
-	return unlikely(d_is_symlink(dentry)) ? follow : 0;
+	if (likely(!d_is_symlink(link->dentry)))
+		return 0;
+	if (!follow)
+		return 0;
+	return pick_link(nd, link);
 }
 
 enum {WALK_GET = 1, WALK_PUT = 2};
@@ -1612,17 +1628,9 @@ static int walk_component(struct nameidata *nd, int flags)
 
 	if (flags & WALK_PUT)
 		put_link(nd);
-	if (should_follow_link(path.dentry, flags & WALK_GET)) {
-		if (nd->flags & LOOKUP_RCU) {
-			if (unlikely(nd->path.mnt != path.mnt ||
-				     unlazy_walk(nd, path.dentry))) {
-				return -ECHILD;
-			}
-		}
-		BUG_ON(inode != path.dentry->d_inode);
-		nd->link = path;
-		return 1;
-	}
+	err = should_follow_link(nd, &path, flags & WALK_GET);
+	if (unlikely(err))
+		return err;
 	path_to_nameidata(&path, nd);
 	nd->inode = inode;
 	return 0;
@@ -2375,9 +2383,11 @@ done:
 		put_link(nd);
 	path->dentry = dentry;
 	path->mnt = nd->path.mnt;
-	if (should_follow_link(dentry, nd->flags & LOOKUP_FOLLOW)) {
-		nd->link = *path;
-		return 1;
+	error = should_follow_link(nd, path, nd->flags & LOOKUP_FOLLOW);
+	if (unlikely(error)) {
+		if (error < 0)
+			goto out;
+		return error;
 	}
 	mntget(path->mnt);
 	follow_mount(path);
@@ -3095,19 +3105,13 @@ retry_lookup:
 		goto out;
 	}
 finish_lookup:
-	if (should_follow_link(path.dentry, nd->flags & LOOKUP_FOLLOW)) {
-		if (nd->flags & LOOKUP_RCU) {
-			if (unlikely(nd->path.mnt != path.mnt ||
-				     unlazy_walk(nd, path.dentry))) {
-				error = -ECHILD;
-				goto out;
-			}
-		}
-		BUG_ON(inode != path.dentry->d_inode);
-		if (nd->depth)
-			put_link(nd);
-		nd->link = path;
-		return 1;
+	if (nd->depth)
+		put_link(nd);
+	error = should_follow_link(nd, &path, nd->flags & LOOKUP_FOLLOW);
+	if (unlikely(error)) {
+		if (error < 0)
+			goto out;
+		return error;
 	}
 
 	if (unlikely(d_is_symlink(path.dentry)) && !(open_flag & O_PATH)) {
