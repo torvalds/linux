@@ -526,6 +526,9 @@ struct usb_gadget_ops {
  * @quirk_ep_out_aligned_size: epout requires buffer size to be aligned to
  *	MaxPacketSize.
  * @is_selfpowered: if the gadget is self-powered.
+ * @deactivated: True if gadget is deactivated - in deactivated state it cannot
+ *	be connected.
+ * @connected: True if gadget is connected.
  *
  * Gadgets have a mostly-portable "gadget driver" implementing device
  * functions, handling all usb configurations and interfaces.  Gadget
@@ -568,6 +571,8 @@ struct usb_gadget {
 	unsigned			a_alt_hnp_support:1;
 	unsigned			quirk_ep_out_aligned_size:1;
 	unsigned			is_selfpowered:1;
+	unsigned			deactivated:1;
+	unsigned			connected:1;
 };
 #define work_to_gadget(w)	(container_of((w), struct usb_gadget, work))
 
@@ -771,9 +776,24 @@ static inline int usb_gadget_vbus_disconnect(struct usb_gadget *gadget)
  */
 static inline int usb_gadget_connect(struct usb_gadget *gadget)
 {
+	int ret;
+
 	if (!gadget->ops->pullup)
 		return -EOPNOTSUPP;
-	return gadget->ops->pullup(gadget, 1);
+
+	if (gadget->deactivated) {
+		/*
+		 * If gadget is deactivated we only save new state.
+		 * Gadget will be connected automatically after activation.
+		 */
+		gadget->connected = true;
+		return 0;
+	}
+
+	ret = gadget->ops->pullup(gadget, 1);
+	if (!ret)
+		gadget->connected = 1;
+	return ret;
 }
 
 /**
@@ -784,20 +804,88 @@ static inline int usb_gadget_connect(struct usb_gadget *gadget)
  * as a disconnect (when a VBUS session is active).  Not all systems
  * support software pullup controls.
  *
- * This routine may be used during the gadget driver bind() call to prevent
- * the peripheral from ever being visible to the USB host, unless later
- * usb_gadget_connect() is called.  For example, user mode components may
- * need to be activated before the system can talk to hosts.
- *
  * Returns zero on success, else negative errno.
  */
 static inline int usb_gadget_disconnect(struct usb_gadget *gadget)
 {
+	int ret;
+
 	if (!gadget->ops->pullup)
 		return -EOPNOTSUPP;
-	return gadget->ops->pullup(gadget, 0);
+
+	if (gadget->deactivated) {
+		/*
+		 * If gadget is deactivated we only save new state.
+		 * Gadget will stay disconnected after activation.
+		 */
+		gadget->connected = false;
+		return 0;
+	}
+
+	ret = gadget->ops->pullup(gadget, 0);
+	if (!ret)
+		gadget->connected = 0;
+	return ret;
 }
 
+/**
+ * usb_gadget_deactivate - deactivate function which is not ready to work
+ * @gadget: the peripheral being deactivated
+ *
+ * This routine may be used during the gadget driver bind() call to prevent
+ * the peripheral from ever being visible to the USB host, unless later
+ * usb_gadget_activate() is called.  For example, user mode components may
+ * need to be activated before the system can talk to hosts.
+ *
+ * Returns zero on success, else negative errno.
+ */
+static inline int usb_gadget_deactivate(struct usb_gadget *gadget)
+{
+	int ret;
+
+	if (gadget->deactivated)
+		return 0;
+
+	if (gadget->connected) {
+		ret = usb_gadget_disconnect(gadget);
+		if (ret)
+			return ret;
+		/*
+		 * If gadget was being connected before deactivation, we want
+		 * to reconnect it in usb_gadget_activate().
+		 */
+		gadget->connected = true;
+	}
+	gadget->deactivated = true;
+
+	return 0;
+}
+
+/**
+ * usb_gadget_activate - activate function which is not ready to work
+ * @gadget: the peripheral being activated
+ *
+ * This routine activates gadget which was previously deactivated with
+ * usb_gadget_deactivate() call. It calls usb_gadget_connect() if needed.
+ *
+ * Returns zero on success, else negative errno.
+ */
+static inline int usb_gadget_activate(struct usb_gadget *gadget)
+{
+	if (!gadget->deactivated)
+		return 0;
+
+	gadget->deactivated = false;
+
+	/*
+	 * If gadget has been connected before deactivation, or became connected
+	 * while it was being deactivated, we call usb_gadget_connect().
+	 */
+	if (gadget->connected)
+		return usb_gadget_connect(gadget);
+
+	return 0;
+}
 
 /*-------------------------------------------------------------------------*/
 
