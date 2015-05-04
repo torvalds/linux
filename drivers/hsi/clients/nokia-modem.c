@@ -208,7 +208,7 @@ static int nokia_modem_probe(struct device *dev)
 
 	err = device_attach(&modem->ssi_protocol->device);
 	if (err == 0) {
-		dev_err(dev, "Missing ssi-protocol driver\n");
+		dev_dbg(dev, "Missing ssi-protocol driver\n");
 		err = -EPROBE_DEFER;
 		goto error3;
 	} else if (err < 0) {
@@ -231,7 +231,7 @@ static int nokia_modem_probe(struct device *dev)
 
 	err = device_attach(&modem->cmt_speech->device);
 	if (err == 0) {
-		dev_err(dev, "Missing cmt-speech driver\n");
+		dev_dbg(dev, "Missing cmt-speech driver\n");
 		err = -EPROBE_DEFER;
 		goto error4;
 	} else if (err < 0) {
