@@ -27,6 +27,7 @@
 #include <linux/kernel.h>
 #include <linux/tracehook.h>
 #include <linux/signal.h>
+#include <linux/delay.h>
 #include <linux/context_tracking.h>
 #include <asm/stack.h>
 #include <asm/switch_to.h>
@@ -574,3 +575,103 @@ void show_regs(struct pt_regs *regs)
 
 	dump_stack_regs(regs);
 }
+
+/* To ensure stack dump on tiles occurs one by one. */
+static DEFINE_SPINLOCK(backtrace_lock);
+/* To ensure no backtrace occurs before all of the stack dump are done. */
+static atomic_t backtrace_cpus;
+/* The cpu mask to avoid reentrance. */
+static struct cpumask backtrace_mask;
+
+void do_nmi_dump_stack(struct pt_regs *regs)
+{
+	int is_idle = is_idle_task(current) && !in_interrupt();
+	int cpu;
+
+	nmi_enter();
+	cpu = smp_processor_id();
+	if (WARN_ON_ONCE(!cpumask_test_and_clear_cpu(cpu, &backtrace_mask)))
+		goto done;
+
+	spin_lock(&backtrace_lock);
+	if (is_idle)
+		pr_info("CPU: %d idle\n", cpu);
+	else
+		show_regs(regs);
+	spin_unlock(&backtrace_lock);
+	atomic_dec(&backtrace_cpus);
+done:
+	nmi_exit();
+}
+
+#ifdef __tilegx__
+void arch_trigger_all_cpu_backtrace(bool self)
+{
+	struct cpumask mask;
+	HV_Coord tile;
+	unsigned int timeout;
+	int cpu;
+	int ongoing;
+	HV_NMI_Info info[NR_CPUS];
+
+	ongoing = atomic_cmpxchg(&backtrace_cpus, 0, num_online_cpus() - 1);
+	if (ongoing != 0) {
+		pr_err("Trying to do all-cpu backtrace.\n");
+		pr_err("But another all-cpu backtrace is ongoing (%d cpus left)\n",
+		       ongoing);
+		if (self) {
+			pr_err("Reporting the stack on this cpu only.\n");
+			dump_stack();
+		}
+		return;
+	}
+
+	cpumask_copy(&mask, cpu_online_mask);
+	cpumask_clear_cpu(smp_processor_id(), &mask);
+	cpumask_copy(&backtrace_mask, &mask);
+
+	/* Backtrace for myself first. */
+	if (self)
+		dump_stack();
+
+	/* Tentatively dump stack on remote tiles via NMI. */
+	timeout = 100;
+	while (!cpumask_empty(&mask) && timeout) {
+		for_each_cpu(cpu, &mask) {
+			tile.x = cpu_x(cpu);
+			tile.y = cpu_y(cpu);
+			info[cpu] = hv_send_nmi(tile, TILE_NMI_DUMP_STACK, 0);
+			if (info[cpu].result == HV_NMI_RESULT_OK)
+				cpumask_clear_cpu(cpu, &mask);
+		}
+
+		mdelay(10);
+		timeout--;
+	}
+
+	/* Warn about cpus stuck in ICS and decrement their counts here. */
+	if (!cpumask_empty(&mask)) {
+		for_each_cpu(cpu, &mask) {
+			switch (info[cpu].result) {
+			case HV_NMI_RESULT_FAIL_ICS:
+				pr_warn("Skipping stack dump of cpu %d in ICS at pc %#llx\n",
+					cpu, info[cpu].pc);
+				break;
+			case HV_NMI_RESULT_FAIL_HV:
+				pr_warn("Skipping stack dump of cpu %d in hypervisor\n",
+					cpu);
+				break;
+			case HV_ENOSYS:
+				pr_warn("Hypervisor too old to allow remote stack dumps.\n");
+				goto skip_for_each;
+			default:  /* should not happen */
+				pr_warn("Skipping stack dump of cpu %d [%d,%#llx]\n",
+					cpu, info[cpu].result, info[cpu].pc);
+				break;
+			}
+		}
+skip_for_each:
+		atomic_sub(cpumask_weight(&mask), &backtrace_cpus);
+	}
+}
+#endif /* __tilegx_ */
