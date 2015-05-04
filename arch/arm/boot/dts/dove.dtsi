@@ -33,6 +33,42 @@
 		marvell,tauros2-cache-features = <0>;
 	};
 
+	i2c-mux {
+		compatible = "i2c-mux-pinctrl";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		i2c-parent = <&i2c>;
+
+		pinctrl-names = "i2c0", "i2c1", "i2c2";
+		pinctrl-0 = <&pmx_i2cmux_0>;
+		pinctrl-1 = <&pmx_i2cmux_1>;
+		pinctrl-2 = <&pmx_i2cmux_2>;
+
+		i2c0: i2c@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "okay";
+		};
+
+		i2c1: i2c@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			/* Requires pmx_i2c1 on i2c controller node */
+			status = "disabled";
+		};
+
+		i2c2: i2c@2 {
+			reg = <2>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			/* Requires pmx_i2c2 on i2c controller node */
+			status = "disabled";
+		};
+	};
+
 	mbus {
 		compatible = "marvell,dove-mbus", "marvell,mbus", "simple-bus";
 		#address-cells = <2>;
@@ -123,7 +159,7 @@
 				status = "disabled";
 			};
 
-			i2c0: i2c-ctrl@11000 {
+			i2c: i2c-ctrl@11000 {
 				compatible = "marvell,mv64xxx-i2c";
 				reg = <0x11000 0x20>;
 				#address-cells = <1>;
@@ -132,7 +168,7 @@
 				clock-frequency = <400000>;
 				timeout-ms = <1000>;
 				clocks = <&core_clk 0>;
-				status = "disabled";
+				status = "okay";
 			};
 
 			uart0: serial@12000 {
