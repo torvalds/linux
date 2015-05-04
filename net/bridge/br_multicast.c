@@ -975,9 +975,6 @@ static int br_ip4_multicast_igmp3_report(struct net_bridge *br,
 	int err = 0;
 	__be32 group;
 
-	if (!pskb_may_pull(skb, sizeof(*ih)))
-		return -EINVAL;
-
 	ih = igmpv3_report_hdr(skb);
 	num = ntohs(ih->ngrec);
 	len = sizeof(*ih);
@@ -1248,25 +1245,14 @@ static int br_ip4_multicast_query(struct net_bridge *br,
 			max_delay = 10 * HZ;
 			group = 0;
 		}
-	} else {
-		if (!pskb_may_pull(skb, sizeof(struct igmpv3_query))) {
-			err = -EINVAL;
-			goto out;
-		}
-
+	} else if (skb->len >= sizeof(*ih3)) {
 		ih3 = igmpv3_query_hdr(skb);
 		if (ih3->nsrcs)
 			goto out;
 
 		max_delay = ih3->code ?
 			    IGMPV3_MRC(ih3->code) * (HZ / IGMP_TIMER_SCALE) : 1;
-	}
-
-	/* RFC2236+RFC3376 (IGMPv2+IGMPv3) require the multicast link layer
-	 * all-systems destination addresses (224.0.0.1) for general queries
-	 */
-	if (!group && iph->daddr != htonl(INADDR_ALLHOSTS_GROUP)) {
-		err = -EINVAL;
+	} else {
 		goto out;
 	}
 
@@ -1329,12 +1315,6 @@ static int br_ip6_multicast_query(struct net_bridge *br,
 	    (port && port->state == BR_STATE_DISABLED))
 		goto out;
 
-	/* RFC2710+RFC3810 (MLDv1+MLDv2) require link-local source addresses */
-	if (!(ipv6_addr_type(&ip6h->saddr) & IPV6_ADDR_LINKLOCAL)) {
-		err = -EINVAL;
-		goto out;
-	}
-
 	if (skb->len == sizeof(*mld)) {
 		if (!pskb_may_pull(skb, sizeof(*mld))) {
 			err = -EINVAL;
@@ -1357,14 +1337,6 @@ static int br_ip6_multicast_query(struct net_bridge *br,
 	}
 
 	is_general_query = group && ipv6_addr_any(group);
-
-	/* RFC2710+RFC3810 (MLDv1+MLDv2) require the multicast link layer
-	 * all-nodes destination address (ff02::1) for general queries
-	 */
-	if (is_general_query && !ipv6_addr_is_ll_all_nodes(&ip6h->daddr)) {
-		err = -EINVAL;
-		goto out;
-	}
 
 	if (is_general_query) {
 		saddr.proto = htons(ETH_P_IPV6);
@@ -1557,74 +1529,22 @@ static int br_multicast_ipv4_rcv(struct net_bridge *br,
 				 struct sk_buff *skb,
 				 u16 vid)
 {
-	struct sk_buff *skb2 = skb;
-	const struct iphdr *iph;
+	struct sk_buff *skb_trimmed = NULL;
 	struct igmphdr *ih;
-	unsigned int len;
-	unsigned int offset;
 	int err;
 
-	/* We treat OOM as packet loss for now. */
-	if (!pskb_may_pull(skb, sizeof(*iph)))
-		return -EINVAL;
+	err = ip_mc_check_igmp(skb, &skb_trimmed);
 
-	iph = ip_hdr(skb);
-
-	if (iph->ihl < 5 || iph->version != 4)
-		return -EINVAL;
-
-	if (!pskb_may_pull(skb, ip_hdrlen(skb)))
-		return -EINVAL;
-
-	iph = ip_hdr(skb);
-
-	if (unlikely(ip_fast_csum((u8 *)iph, iph->ihl)))
-		return -EINVAL;
-
-	if (iph->protocol != IPPROTO_IGMP) {
-		if (!ipv4_is_local_multicast(iph->daddr))
+	if (err == -ENOMSG) {
+		if (!ipv4_is_local_multicast(ip_hdr(skb)->daddr))
 			BR_INPUT_SKB_CB(skb)->mrouters_only = 1;
 		return 0;
+	} else if (err < 0) {
+		return err;
 	}
-
-	len = ntohs(iph->tot_len);
-	if (skb->len < len || len < ip_hdrlen(skb))
-		return -EINVAL;
-
-	if (skb->len > len) {
-		skb2 = skb_clone(skb, GFP_ATOMIC);
-		if (!skb2)
-			return -ENOMEM;
-
-		err = pskb_trim_rcsum(skb2, len);
-		if (err)
-			goto err_out;
-	}
-
-	len -= ip_hdrlen(skb2);
-	offset = skb_network_offset(skb2) + ip_hdrlen(skb2);
-	__skb_pull(skb2, offset);
-	skb_reset_transport_header(skb2);
-
-	err = -EINVAL;
-	if (!pskb_may_pull(skb2, sizeof(*ih)))
-		goto out;
-
-	switch (skb2->ip_summed) {
-	case CHECKSUM_COMPLETE:
-		if (!csum_fold(skb2->csum))
-			break;
-		/* fall through */
-	case CHECKSUM_NONE:
-		skb2->csum = 0;
-		if (skb_checksum_complete(skb2))
-			goto out;
-	}
-
-	err = 0;
 
 	BR_INPUT_SKB_CB(skb)->igmp = 1;
-	ih = igmp_hdr(skb2);
+	ih = igmp_hdr(skb);
 
 	switch (ih->type) {
 	case IGMP_HOST_MEMBERSHIP_REPORT:
@@ -1633,21 +1553,19 @@ static int br_multicast_ipv4_rcv(struct net_bridge *br,
 		err = br_ip4_multicast_add_group(br, port, ih->group, vid);
 		break;
 	case IGMPV3_HOST_MEMBERSHIP_REPORT:
-		err = br_ip4_multicast_igmp3_report(br, port, skb2, vid);
+		err = br_ip4_multicast_igmp3_report(br, port, skb_trimmed, vid);
 		break;
 	case IGMP_HOST_MEMBERSHIP_QUERY:
-		err = br_ip4_multicast_query(br, port, skb2, vid);
+		err = br_ip4_multicast_query(br, port, skb_trimmed, vid);
 		break;
 	case IGMP_HOST_LEAVE_MESSAGE:
 		br_ip4_multicast_leave_group(br, port, ih->group, vid);
 		break;
 	}
 
-out:
-	__skb_push(skb2, offset);
-err_out:
-	if (skb2 != skb)
-		kfree_skb(skb2);
+	if (skb_trimmed)
+		kfree_skb(skb_trimmed);
+
 	return err;
 }
 
@@ -1657,138 +1575,42 @@ static int br_multicast_ipv6_rcv(struct net_bridge *br,
 				 struct sk_buff *skb,
 				 u16 vid)
 {
-	struct sk_buff *skb2;
-	const struct ipv6hdr *ip6h;
-	u8 icmp6_type;
-	u8 nexthdr;
-	__be16 frag_off;
-	unsigned int len;
-	int offset;
+	struct sk_buff *skb_trimmed = NULL;
+	struct mld_msg *mld;
 	int err;
 
-	if (!pskb_may_pull(skb, sizeof(*ip6h)))
-		return -EINVAL;
+	err = ipv6_mc_check_mld(skb, &skb_trimmed);
 
-	ip6h = ipv6_hdr(skb);
-
-	/*
-	 * We're interested in MLD messages only.
-	 *  - Version is 6
-	 *  - MLD has always Router Alert hop-by-hop option
-	 *  - But we do not support jumbrograms.
-	 */
-	if (ip6h->version != 6)
+	if (err == -ENOMSG) {
+		if (!ipv6_addr_is_ll_all_nodes(&ipv6_hdr(skb)->daddr))
+			BR_INPUT_SKB_CB(skb)->mrouters_only = 1;
 		return 0;
-
-	/* Prevent flooding this packet if there is no listener present */
-	if (!ipv6_addr_is_ll_all_nodes(&ip6h->daddr))
-		BR_INPUT_SKB_CB(skb)->mrouters_only = 1;
-
-	if (ip6h->nexthdr != IPPROTO_HOPOPTS ||
-	    ip6h->payload_len == 0)
-		return 0;
-
-	len = ntohs(ip6h->payload_len) + sizeof(*ip6h);
-	if (skb->len < len)
-		return -EINVAL;
-
-	nexthdr = ip6h->nexthdr;
-	offset = ipv6_skip_exthdr(skb, sizeof(*ip6h), &nexthdr, &frag_off);
-
-	if (offset < 0 || nexthdr != IPPROTO_ICMPV6)
-		return 0;
-
-	/* Okay, we found ICMPv6 header */
-	skb2 = skb_clone(skb, GFP_ATOMIC);
-	if (!skb2)
-		return -ENOMEM;
-
-	err = -EINVAL;
-	if (!pskb_may_pull(skb2, offset + sizeof(struct icmp6hdr)))
-		goto out;
-
-	len -= offset - skb_network_offset(skb2);
-
-	__skb_pull(skb2, offset);
-	skb_reset_transport_header(skb2);
-	skb_postpull_rcsum(skb2, skb_network_header(skb2),
-			   skb_network_header_len(skb2));
-
-	icmp6_type = icmp6_hdr(skb2)->icmp6_type;
-
-	switch (icmp6_type) {
-	case ICMPV6_MGM_QUERY:
-	case ICMPV6_MGM_REPORT:
-	case ICMPV6_MGM_REDUCTION:
-	case ICMPV6_MLD2_REPORT:
-		break;
-	default:
-		err = 0;
-		goto out;
+	} else if (err < 0) {
+		return err;
 	}
-
-	/* Okay, we found MLD message. Check further. */
-	if (skb2->len > len) {
-		err = pskb_trim_rcsum(skb2, len);
-		if (err)
-			goto out;
-		err = -EINVAL;
-	}
-
-	ip6h = ipv6_hdr(skb2);
-
-	switch (skb2->ip_summed) {
-	case CHECKSUM_COMPLETE:
-		if (!csum_ipv6_magic(&ip6h->saddr, &ip6h->daddr, skb2->len,
-					IPPROTO_ICMPV6, skb2->csum))
-			break;
-		/*FALLTHROUGH*/
-	case CHECKSUM_NONE:
-		skb2->csum = ~csum_unfold(csum_ipv6_magic(&ip6h->saddr,
-							&ip6h->daddr,
-							skb2->len,
-							IPPROTO_ICMPV6, 0));
-		if (__skb_checksum_complete(skb2))
-			goto out;
-	}
-
-	err = 0;
 
 	BR_INPUT_SKB_CB(skb)->igmp = 1;
+	mld = (struct mld_msg *)skb_transport_header(skb);
 
-	switch (icmp6_type) {
+	switch (mld->mld_type) {
 	case ICMPV6_MGM_REPORT:
-	    {
-		struct mld_msg *mld;
-		if (!pskb_may_pull(skb2, sizeof(*mld))) {
-			err = -EINVAL;
-			goto out;
-		}
-		mld = (struct mld_msg *)skb_transport_header(skb2);
 		BR_INPUT_SKB_CB(skb)->mrouters_only = 1;
 		err = br_ip6_multicast_add_group(br, port, &mld->mld_mca, vid);
 		break;
-	    }
 	case ICMPV6_MLD2_REPORT:
-		err = br_ip6_multicast_mld2_report(br, port, skb2, vid);
+		err = br_ip6_multicast_mld2_report(br, port, skb_trimmed, vid);
 		break;
 	case ICMPV6_MGM_QUERY:
-		err = br_ip6_multicast_query(br, port, skb2, vid);
+		err = br_ip6_multicast_query(br, port, skb_trimmed, vid);
 		break;
 	case ICMPV6_MGM_REDUCTION:
-	    {
-		struct mld_msg *mld;
-		if (!pskb_may_pull(skb2, sizeof(*mld))) {
-			err = -EINVAL;
-			goto out;
-		}
-		mld = (struct mld_msg *)skb_transport_header(skb2);
 		br_ip6_multicast_leave_group(br, port, &mld->mld_mca, vid);
-	    }
+		break;
 	}
 
-out:
-	kfree_skb(skb2);
+	if (skb_trimmed)
+		kfree_skb(skb_trimmed);
+
 	return err;
 }
 #endif
