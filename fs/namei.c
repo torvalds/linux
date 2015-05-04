@@ -1759,6 +1759,7 @@ static inline u64 hash_name(const char *name)
 static int link_path_walk(const char *name, struct nameidata *nd)
 {
 	int err;
+	int orig_depth = nd->depth;
 
 	while (*name=='/')
 		name++;
@@ -1867,11 +1868,11 @@ Walked:
 	}
 	terminate_walk(nd);
 Err:
-	while (unlikely(nd->depth > 1))
+	while (unlikely(nd->depth > orig_depth))
 		put_link(nd);
 	return err;
 OK:
-	if (unlikely(nd->depth > 1)) {
+	if (unlikely(nd->depth > orig_depth)) {
 		name = nd->stack[nd->depth - 1].name;
 		err = walk_component(nd, LOOKUP_FOLLOW);
 		put_link(nd);
@@ -1979,10 +1980,7 @@ static int path_init(int dfd, const struct filename *name, unsigned int flags,
 	return -ECHILD;
 done:
 	current->total_link_count = 0;
-	nd->depth++;
-	retval = link_path_walk(s, nd);
-	nd->depth--;
-	return retval;
+	return link_path_walk(s, nd);
 }
 
 static void path_cleanup(struct nameidata *nd)
