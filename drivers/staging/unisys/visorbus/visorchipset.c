@@ -470,18 +470,12 @@ cleanup:
 	return rc;
 }
 
-struct parser_context *
-parser_init(u64 addr, u32 bytes, bool local, bool *retry)
-{
-	return parser_init_guts(addr, bytes, local, true, retry);
-}
-
 /* Call this instead of parser_init() if the payload area consists of just
  * a sequence of bytes, rather than a struct spar_controlvm_parameters_header
  * structures.  Afterwards, you can call parser_simpleString_get() or
  * parser_byteStream_get() to obtain the data.
  */
-struct parser_context *
+static struct parser_context *
 parser_init_byte_stream(u64 addr, u32 bytes, bool local, bool *retry)
 {
 	return parser_init_guts(addr, bytes, local, false, retry);
