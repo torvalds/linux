@@ -23,7 +23,11 @@
 /* struct memregion is an opaque structure to users.
  * Fields are declared only in the implementation .c files.
  */
-struct memregion;
+struct memregion {
+	HOSTADDRESS physaddr;
+	ulong nbytes;
+	void __iomem *mapped;
+};
 
 struct memregion *visor_memregion_create(HOSTADDRESS physaddr, ulong nbytes);
 int visor_memregion_resize(struct memregion *memregion, ulong newsize);

@@ -25,12 +25,6 @@
 
 #define MYDRVNAME "memregion"
 
-struct memregion {
-	HOSTADDRESS physaddr;
-	ulong nbytes;
-	void __iomem *mapped;
-};
-
 static int mapit(struct memregion *memregion);
 static void unmapit(struct memregion *memregion);
 
