@@ -122,6 +122,27 @@ static const struct iwl_ht_params iwl8000_ht_params = {
 	.ht40_bands = BIT(IEEE80211_BAND_2GHZ) | BIT(IEEE80211_BAND_5GHZ),
 };
 
+static const struct iwl_tt_params iwl8000_tt_params = {
+	.ct_kill_entry = 115,
+	.ct_kill_exit = 93,
+	.ct_kill_duration = 5,
+	.dynamic_smps_entry = 111,
+	.dynamic_smps_exit = 107,
+	.tx_protection_entry = 112,
+	.tx_protection_exit = 105,
+	.tx_backoff = {
+		{.temperature = 110, .backoff = 200},
+		{.temperature = 111, .backoff = 600},
+		{.temperature = 112, .backoff = 1200},
+		{.temperature = 113, .backoff = 2000},
+		{.temperature = 114, .backoff = 4000},
+	},
+	.support_ct_kill = true,
+	.support_dynamic_smps = true,
+	.support_tx_protection = true,
+	.support_tx_backoff = true,
+};
+
 #define IWL_DEVICE_8000							\
 	.ucode_api_max = IWL8000_UCODE_API_MAX,				\
 	.ucode_api_ok = IWL8000_UCODE_API_OK,				\
@@ -141,7 +162,8 @@ static const struct iwl_ht_params iwl8000_ht_params = {
 	.smem_offset = IWL8260_SMEM_OFFSET,				\
 	.smem_len = IWL8260_SMEM_LEN,					\
 	.default_nvm_file_B_step = DEFAULT_NVM_FILE_FAMILY_8000B,	\
-	.default_nvm_file_C_step = DEFAULT_NVM_FILE_FAMILY_8000C
+	.default_nvm_file_C_step = DEFAULT_NVM_FILE_FAMILY_8000C,	\
+	.thermal_params = &iwl8000_tt_params
 
 const struct iwl_cfg iwl8260_2n_cfg = {
 	.name = "Intel(R) Dual Band Wireless N 8260",
