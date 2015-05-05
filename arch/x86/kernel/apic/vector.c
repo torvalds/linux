@@ -330,9 +330,9 @@ error:
 	return err;
 }
 
-static struct irq_domain_ops x86_vector_domain_ops = {
-	.alloc = x86_vector_alloc_irqs,
-	.free = x86_vector_free_irqs,
+static const struct irq_domain_ops x86_vector_domain_ops = {
+	.alloc	= x86_vector_alloc_irqs,
+	.free	= x86_vector_free_irqs,
 };
 
 int __init arch_probe_nr_irqs(void)

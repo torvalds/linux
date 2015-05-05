@@ -149,11 +149,11 @@ static void uv_domain_deactivate(struct irq_domain *domain,
 	uv_program_mmr(irqd_cfg(irq_data), irq_data->chip_data);
 }
 
-static struct irq_domain_ops uv_domain_ops = {
-	.alloc = uv_domain_alloc,
-	.free = uv_domain_free,
-	.activate = uv_domain_activate,
-	.deactivate = uv_domain_deactivate,
+static const struct irq_domain_ops uv_domain_ops = {
+	.alloc		= uv_domain_alloc,
+	.free		= uv_domain_free,
+	.activate	= uv_domain_activate,
+	.deactivate	= uv_domain_deactivate,
 };
 
 static struct irq_domain *uv_get_irq_domain(void)

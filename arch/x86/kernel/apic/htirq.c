@@ -143,11 +143,11 @@ static void htirq_domain_deactivate(struct irq_domain *domain,
 	write_ht_irq_msg(irq_data->irq, &msg);
 }
 
-static struct irq_domain_ops htirq_domain_ops = {
-	.alloc = htirq_domain_alloc,
-	.free = htirq_domain_free,
-	.activate = htirq_domain_activate,
-	.deactivate = htirq_domain_deactivate,
+static const struct irq_domain_ops htirq_domain_ops = {
+	.alloc		= htirq_domain_alloc,
+	.free		= htirq_domain_free,
+	.activate	= htirq_domain_activate,
+	.deactivate	= htirq_domain_deactivate,
 };
 
 void arch_init_htirq_domain(struct irq_domain *parent)
