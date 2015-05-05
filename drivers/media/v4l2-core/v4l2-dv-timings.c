@@ -25,6 +25,7 @@
 #include <linux/videodev2.h>
 #include <linux/v4l2-dv-timings.h>
 #include <media/v4l2-dv-timings.h>
+#include <linux/math64.h>
 
 MODULE_AUTHOR("Hans Verkuil");
 MODULE_DESCRIPTION("V4L2 DV Timings Helper Functions");
@@ -554,16 +555,23 @@ bool v4l2_detect_gtf(unsigned frame_height,
 	image_width = (image_width + GTF_CELL_GRAN/2) & ~(GTF_CELL_GRAN - 1);
 
 	/* Horizontal */
-	if (default_gtf)
-		h_blank = ((image_width * GTF_D_C_PRIME * hfreq) -
-					(image_width * GTF_D_M_PRIME * 1000) +
-			(hfreq * (100 - GTF_D_C_PRIME) + GTF_D_M_PRIME * 1000) / 2) /
-			(hfreq * (100 - GTF_D_C_PRIME) + GTF_D_M_PRIME * 1000);
-	else
-		h_blank = ((image_width * GTF_S_C_PRIME * hfreq) -
-					(image_width * GTF_S_M_PRIME * 1000) +
-			(hfreq * (100 - GTF_S_C_PRIME) + GTF_S_M_PRIME * 1000) / 2) /
-			(hfreq * (100 - GTF_S_C_PRIME) + GTF_S_M_PRIME * 1000);
+	if (default_gtf) {
+		u64 num;
+		u32 den;
+
+		num = ((image_width * GTF_D_C_PRIME * (u64)hfreq) -
+		      ((u64)image_width * GTF_D_M_PRIME * 1000));
+		den = hfreq * (100 - GTF_D_C_PRIME) + GTF_D_M_PRIME * 1000;
+		h_blank = div_u64((num + (den >> 1)), den);
+	} else {
+		u64 num;
+		u32 den;
+
+		num = ((image_width * GTF_S_C_PRIME * (u64)hfreq) -
+		      ((u64)image_width * GTF_S_M_PRIME * 1000));
+		den = hfreq * (100 - GTF_S_C_PRIME) + GTF_S_M_PRIME * 1000;
+		h_blank = div_u64((num + (den >> 1)), den);
+	}
 
 	h_blank = ((h_blank + GTF_CELL_GRAN) / (2 * GTF_CELL_GRAN)) *
 		  (2 * GTF_CELL_GRAN);
