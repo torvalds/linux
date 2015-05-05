@@ -1465,6 +1465,15 @@ static void intel_disable_sdvo(struct intel_encoder *encoder)
 	}
 }
 
+static void pch_disable_sdvo(struct intel_encoder *encoder)
+{
+}
+
+static void pch_post_disable_sdvo(struct intel_encoder *encoder)
+{
+	intel_disable_sdvo(encoder);
+}
+
 static void intel_enable_sdvo(struct intel_encoder *encoder)
 {
 	struct drm_device *dev = encoder->base.dev;
@@ -1477,14 +1486,9 @@ static void intel_enable_sdvo(struct intel_encoder *encoder)
 	bool success;
 
 	temp = I915_READ(intel_sdvo->sdvo_reg);
-	if ((temp & SDVO_ENABLE) == 0) {
-		/* HW workaround for IBX, we need to move the port
-		 * to transcoder A before disabling it, so restore it here. */
-		if (HAS_PCH_IBX(dev))
-			temp |= SDVO_PIPE_SEL(intel_crtc->pipe);
+	temp |= SDVO_ENABLE;
+	intel_sdvo_write_sdvox(intel_sdvo, temp);
 
-		intel_sdvo_write_sdvox(intel_sdvo, temp | SDVO_ENABLE);
-	}
 	for (i = 0; i < 2; i++)
 		intel_wait_for_vblank(dev, intel_crtc->pipe);
 
@@ -2987,7 +2991,12 @@ bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg, bool is_sdvob)
 	}
 
 	intel_encoder->compute_config = intel_sdvo_compute_config;
-	intel_encoder->disable = intel_disable_sdvo;
+	if (HAS_PCH_SPLIT(dev)) {
+		intel_encoder->disable = pch_disable_sdvo;
+		intel_encoder->post_disable = pch_post_disable_sdvo;
+	} else {
+		intel_encoder->disable = intel_disable_sdvo;
+	}
 	intel_encoder->pre_enable = intel_sdvo_pre_enable;
 	intel_encoder->enable = intel_enable_sdvo;
 	intel_encoder->get_hw_state = intel_sdvo_get_hw_state;
