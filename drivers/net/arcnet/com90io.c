@@ -151,16 +151,17 @@ static int __init com90io_probe(struct net_device *dev)
 	}
 
 	if (!ioaddr) {
-		BUGMSG(D_NORMAL, "No autoprobe for IO mapped cards; you must specify the base address!\n");
+		arc_printk(D_NORMAL, dev, "No autoprobe for IO mapped cards; you must specify the base address!\n");
 		return -ENODEV;
 	}
 	if (!request_region(ioaddr, ARCNET_TOTAL_SIZE, "com90io probe")) {
-		BUGMSG(D_INIT_REASONS, "IO request_region %x-%x failed.\n",
-		       ioaddr, ioaddr + ARCNET_TOTAL_SIZE - 1);
+		arc_printk(D_INIT_REASONS, dev, "IO request_region %x-%x failed\n",
+			   ioaddr, ioaddr + ARCNET_TOTAL_SIZE - 1);
 		return -ENXIO;
 	}
 	if (ASTATUS() == 0xFF) {
-		BUGMSG(D_INIT_REASONS, "IO address %x empty\n", ioaddr);
+		arc_printk(D_INIT_REASONS, dev, "IO address %x empty\n",
+			   ioaddr);
 		goto err_out;
 	}
 	inb(_RESET);
@@ -169,19 +170,22 @@ static int __init com90io_probe(struct net_device *dev)
 	status = ASTATUS();
 
 	if ((status & 0x9D) != (NORXflag | RECONflag | TXFREEflag | RESETflag)) {
-		BUGMSG(D_INIT_REASONS, "Status invalid (%Xh).\n", status);
+		arc_printk(D_INIT_REASONS, dev, "Status invalid (%Xh)\n",
+			   status);
 		goto err_out;
 	}
-	BUGMSG(D_INIT_REASONS, "Status after reset: %X\n", status);
+	arc_printk(D_INIT_REASONS, dev, "Status after reset: %X\n", status);
 
 	ACOMMAND(CFLAGScmd | RESETclear | CONFIGclear);
 
-	BUGMSG(D_INIT_REASONS, "Status after reset acknowledged: %X\n", status);
+	arc_printk(D_INIT_REASONS, dev, "Status after reset acknowledged: %X\n",
+		   status);
 
 	status = ASTATUS();
 
 	if (status & RESETflag) {
-		BUGMSG(D_INIT_REASONS, "Eternal reset (status=%Xh)\n", status);
+		arc_printk(D_INIT_REASONS, dev, "Eternal reset (status=%Xh)\n",
+			   status);
 		goto err_out;
 	}
 	outb((0x16 | IOMAPflag) & ~ENABLE16flag, _CONFIG);
@@ -192,8 +196,8 @@ static int __init com90io_probe(struct net_device *dev)
 	outb(0, _ADDR_LO);
 
 	if ((status = inb(_MEMDATA)) != 0xd1) {
-		BUGMSG(D_INIT_REASONS, "Signature byte not found (%Xh instead).\n",
-		       status);
+		arc_printk(D_INIT_REASONS, dev, "Signature byte not found (%Xh instead).\n",
+			   status);
 		goto err_out;
 	}
 	if (!dev->irq) {
@@ -209,7 +213,7 @@ static int __init com90io_probe(struct net_device *dev)
 		dev->irq = probe_irq_off(airqmask);
 
 		if ((int)dev->irq <= 0) {
-			BUGMSG(D_INIT_REASONS, "Autoprobe IRQ failed\n");
+			arc_printk(D_INIT_REASONS, dev, "Autoprobe IRQ failed\n");
 			goto err_out;
 		}
 	}
@@ -232,7 +236,7 @@ static int __init com90io_found(struct net_device *dev)
 
 	/* Reserve the irq */
 	if (request_irq(dev->irq, arcnet_interrupt, 0, "arcnet (COM90xx-IO)", dev)) {
-		BUGMSG(D_NORMAL, "Can't get IRQ %d!\n", dev->irq);
+		arc_printk(D_NORMAL, dev, "Can't get IRQ %d!\n", dev->irq);
 		return -ENODEV;
 	}
 	/* Reserve the I/O region */
@@ -266,8 +270,8 @@ static int __init com90io_found(struct net_device *dev)
 		return err;
 	}
 
-	BUGMSG(D_NORMAL, "COM90IO: station %02Xh found at %03lXh, IRQ %d.\n",
-	       dev->dev_addr[0], dev->base_addr, dev->irq);
+	arc_printk(D_NORMAL, dev, "COM90IO: station %02Xh found at %03lXh, IRQ %d.\n",
+		   dev->dev_addr[0], dev->base_addr, dev->irq);
 
 	return 0;
 }
@@ -284,7 +288,8 @@ static int com90io_reset(struct net_device *dev, int really_reset)
 	struct arcnet_local *lp = netdev_priv(dev);
 	short ioaddr = dev->base_addr;
 
-	BUGMSG(D_INIT, "Resetting %s (status=%02Xh)\n", dev->name, ASTATUS());
+	arc_printk(D_INIT, dev, "Resetting %s (status=%02Xh)\n",
+		   dev->name, ASTATUS());
 
 	if (really_reset) {
 		/* reset the card */
@@ -300,7 +305,7 @@ static int com90io_reset(struct net_device *dev, int really_reset)
 
 	/* verify that the ARCnet signature byte is present */
 	if (get_buffer_byte(dev, 0) != TESTvalue) {
-		BUGMSG(D_NORMAL, "reset failed: TESTvalue not present.\n");
+		arc_printk(D_NORMAL, dev, "reset failed: TESTvalue not present.\n");
 		return 1;
 	}
 	/* enable extended (512-byte) packets */
@@ -334,13 +339,15 @@ static void com90io_setmask(struct net_device *dev, int mask)
 static void com90io_copy_to_card(struct net_device *dev, int bufnum, int offset,
 				 void *buf, int count)
 {
-	TIME("put_whole_buffer", count, put_whole_buffer(dev, bufnum * 512 + offset, count, buf));
+	TIME(dev, "put_whole_buffer", count,
+	     put_whole_buffer(dev, bufnum * 512 + offset, count, buf));
 }
 
 static void com90io_copy_from_card(struct net_device *dev, int bufnum, int offset,
 				   void *buf, int count)
 {
-	TIME("get_whole_buffer", count, get_whole_buffer(dev, bufnum * 512 + offset, count, buf));
+	TIME(dev, "get_whole_buffer", count,
+	     get_whole_buffer(dev, bufnum * 512 + offset, count, buf));
 }
 
 static int io;			/* use the insmod io= irq= shmem= options */

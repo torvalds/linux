@@ -157,24 +157,24 @@ static void __init com90xx_probe(void)
 		numprint++;
 		numprint %= 8;
 		if (!numprint) {
-			BUGMSG2(D_INIT, "\n");
-			BUGMSG2(D_INIT, "S1: ");
+			arc_cont(D_INIT, "\n");
+			arc_cont(D_INIT, "S1: ");
 		}
-		BUGMSG2(D_INIT, "%Xh ", *port);
+		arc_cont(D_INIT, "%Xh ", *port);
 
 		ioaddr = *port;
 
 		if (!request_region(*port, ARCNET_TOTAL_SIZE, "arcnet (90xx)")) {
-			BUGMSG2(D_INIT_REASONS, "(request_region)\n");
-			BUGMSG2(D_INIT_REASONS, "S1: ");
+			arc_cont(D_INIT_REASONS, "(request_region)\n");
+			arc_cont(D_INIT_REASONS, "S1: ");
 			if (BUGLVL(D_INIT_REASONS))
 				numprint = 0;
 			*port-- = ports[--numports];
 			continue;
 		}
 		if (ASTATUS() == 0xFF) {
-			BUGMSG2(D_INIT_REASONS, "(empty)\n");
-			BUGMSG2(D_INIT_REASONS, "S1: ");
+			arc_cont(D_INIT_REASONS, "(empty)\n");
+			arc_cont(D_INIT_REASONS, "S1: ");
 			if (BUGLVL(D_INIT_REASONS))
 				numprint = 0;
 			release_region(*port, ARCNET_TOTAL_SIZE);
@@ -183,15 +183,15 @@ static void __init com90xx_probe(void)
 		}
 		inb(_RESET);	/* begin resetting card */
 
-		BUGMSG2(D_INIT_REASONS, "\n");
-		BUGMSG2(D_INIT_REASONS, "S1: ");
+		arc_cont(D_INIT_REASONS, "\n");
+		arc_cont(D_INIT_REASONS, "S1: ");
 		if (BUGLVL(D_INIT_REASONS))
 			numprint = 0;
 	}
-	BUGMSG2(D_INIT, "\n");
+	arc_cont(D_INIT, "\n");
 
 	if (!numports) {
-		BUGMSG2(D_NORMAL, "S1: No ARCnet cards found.\n");
+		arc_cont(D_NORMAL, "S1: No ARCnet cards found.\n");
 		kfree(shmems);
 		kfree(iomem);
 		return;
@@ -205,12 +205,12 @@ static void __init com90xx_probe(void)
 		numprint++;
 		numprint %= 8;
 		if (!numprint) {
-			BUGMSG2(D_INIT, "\n");
-			BUGMSG2(D_INIT, "S2: ");
+			arc_cont(D_INIT, "\n");
+			arc_cont(D_INIT, "S2: ");
 		}
-		BUGMSG2(D_INIT, "%Xh ", *port);
+		arc_cont(D_INIT, "%Xh ", *port);
 	}
-	BUGMSG2(D_INIT, "\n");
+	arc_cont(D_INIT, "\n");
 	mdelay(RESETtime);
 
 	/* Stage 3: abandon any shmem addresses that don't have the signature
@@ -223,30 +223,30 @@ static void __init com90xx_probe(void)
 		numprint++;
 		numprint %= 8;
 		if (!numprint) {
-			BUGMSG2(D_INIT, "\n");
-			BUGMSG2(D_INIT, "S3: ");
+			arc_cont(D_INIT, "\n");
+			arc_cont(D_INIT, "S3: ");
 		}
-		BUGMSG2(D_INIT, "%lXh ", *p);
+		arc_cont(D_INIT, "%lXh ", *p);
 
 		if (!request_mem_region(*p, MIRROR_SIZE, "arcnet (90xx)")) {
-			BUGMSG2(D_INIT_REASONS, "(request_mem_region)\n");
-			BUGMSG2(D_INIT_REASONS, "Stage 3: ");
+			arc_cont(D_INIT_REASONS, "(request_mem_region)\n");
+			arc_cont(D_INIT_REASONS, "Stage 3: ");
 			if (BUGLVL(D_INIT_REASONS))
 				numprint = 0;
 			goto out;
 		}
 		base = ioremap(*p, MIRROR_SIZE);
 		if (!base) {
-			BUGMSG2(D_INIT_REASONS, "(ioremap)\n");
-			BUGMSG2(D_INIT_REASONS, "Stage 3: ");
+			arc_cont(D_INIT_REASONS, "(ioremap)\n");
+			arc_cont(D_INIT_REASONS, "Stage 3: ");
 			if (BUGLVL(D_INIT_REASONS))
 				numprint = 0;
 			goto out1;
 		}
 		if (readb(base) != TESTvalue) {
-			BUGMSG2(D_INIT_REASONS, "(%02Xh != %02Xh)\n",
-				readb(base), TESTvalue);
-			BUGMSG2(D_INIT_REASONS, "S3: ");
+			arc_cont(D_INIT_REASONS, "(%02Xh != %02Xh)\n",
+				 readb(base), TESTvalue);
+			arc_cont(D_INIT_REASONS, "S3: ");
 			if (BUGLVL(D_INIT_REASONS))
 				numprint = 0;
 			goto out2;
@@ -258,12 +258,12 @@ static void __init com90xx_probe(void)
 		 */
 		writeb(0x42, base);
 		if (readb(base) != 0x42) {
-			BUGMSG2(D_INIT_REASONS, "(read only)\n");
-			BUGMSG2(D_INIT_REASONS, "S3: ");
+			arc_cont(D_INIT_REASONS, "(read only)\n");
+			arc_cont(D_INIT_REASONS, "S3: ");
 			goto out2;
 		}
-		BUGMSG2(D_INIT_REASONS, "\n");
-		BUGMSG2(D_INIT_REASONS, "S3: ");
+		arc_cont(D_INIT_REASONS, "\n");
+		arc_cont(D_INIT_REASONS, "S3: ");
 		if (BUGLVL(D_INIT_REASONS))
 			numprint = 0;
 		iomem[index] = base;
@@ -276,10 +276,10 @@ static void __init com90xx_probe(void)
 		*p-- = shmems[--numshmems];
 		index--;
 	}
-	BUGMSG2(D_INIT, "\n");
+	arc_cont(D_INIT, "\n");
 
 	if (!numshmems) {
-		BUGMSG2(D_NORMAL, "S3: No ARCnet cards found.\n");
+		arc_cont(D_NORMAL, "S3: No ARCnet cards found.\n");
 		for (port = &ports[0]; port < ports + numports; port++)
 			release_region(*port, ARCNET_TOTAL_SIZE);
 		kfree(shmems);
@@ -294,12 +294,12 @@ static void __init com90xx_probe(void)
 		numprint++;
 		numprint %= 8;
 		if (!numprint) {
-			BUGMSG2(D_INIT, "\n");
-			BUGMSG2(D_INIT, "S4: ");
+			arc_cont(D_INIT, "\n");
+			arc_cont(D_INIT, "S4: ");
 		}
-		BUGMSG2(D_INIT, "%lXh ", *p);
+		arc_cont(D_INIT, "%lXh ", *p);
 	}
-	BUGMSG2(D_INIT, "\n");
+	arc_cont(D_INIT, "\n");
 
 	/* Stage 5: for any ports that have the correct status, can disable
 	 * the RESET flag, and (if no irq is given) generate an autoirq,
@@ -315,18 +315,18 @@ static void __init com90xx_probe(void)
 		numprint++;
 		numprint %= 8;
 		if (!numprint) {
-			BUGMSG2(D_INIT, "\n");
-			BUGMSG2(D_INIT, "S5: ");
+			arc_cont(D_INIT, "\n");
+			arc_cont(D_INIT, "S5: ");
 		}
-		BUGMSG2(D_INIT, "%Xh ", *port);
+		arc_cont(D_INIT, "%Xh ", *port);
 
 		ioaddr = *port;
 		status = ASTATUS();
 
 		if ((status & 0x9D)
 		    != (NORXflag | RECONflag | TXFREEflag | RESETflag)) {
-			BUGMSG2(D_INIT_REASONS, "(status=%Xh)\n", status);
-			BUGMSG2(D_INIT_REASONS, "S5: ");
+			arc_cont(D_INIT_REASONS, "(status=%Xh)\n", status);
+			arc_cont(D_INIT_REASONS, "S5: ");
 			if (BUGLVL(D_INIT_REASONS))
 				numprint = 0;
 			release_region(*port, ARCNET_TOTAL_SIZE);
@@ -336,9 +336,9 @@ static void __init com90xx_probe(void)
 		ACOMMAND(CFLAGScmd | RESETclear | CONFIGclear);
 		status = ASTATUS();
 		if (status & RESETflag) {
-			BUGMSG2(D_INIT_REASONS, " (eternal reset, status=%Xh)\n",
-				status);
-			BUGMSG2(D_INIT_REASONS, "S5: ");
+			arc_cont(D_INIT_REASONS, " (eternal reset, status=%Xh)\n",
+				 status);
+			arc_cont(D_INIT_REASONS, "S5: ");
 			if (BUGLVL(D_INIT_REASONS))
 				numprint = 0;
 			release_region(*port, ARCNET_TOTAL_SIZE);
@@ -360,8 +360,8 @@ static void __init com90xx_probe(void)
 			airq = probe_irq_off(airqmask);
 
 			if (airq <= 0) {
-				BUGMSG2(D_INIT_REASONS, "(airq=%d)\n", airq);
-				BUGMSG2(D_INIT_REASONS, "S5: ");
+				arc_cont(D_INIT_REASONS, "(airq=%d)\n", airq);
+				arc_cont(D_INIT_REASONS, "S5: ");
 				if (BUGLVL(D_INIT_REASONS))
 					numprint = 0;
 				release_region(*port, ARCNET_TOTAL_SIZE);
@@ -372,7 +372,7 @@ static void __init com90xx_probe(void)
 			airq = irq;
 		}
 
-		BUGMSG2(D_INIT, "(%d,", airq);
+		arc_cont(D_INIT, "(%d,", airq);
 		openparen = 1;
 
 		/* Everything seems okay.  But which shmem, if any, puts
@@ -399,7 +399,7 @@ static void __init com90xx_probe(void)
 			void __iomem *base = iomem[index];
 
 			if (readb(base) == TESTvalue) {	/* found one */
-				BUGMSG2(D_INIT, "%lXh)\n", *p);
+				arc_cont(D_INIT, "%lXh)\n", *p);
 				openparen = 0;
 
 				/* register the card */
@@ -412,7 +412,7 @@ static void __init com90xx_probe(void)
 				iomem[index] = iomem[numshmems];
 				break;	/* go to the next I/O port */
 			} else {
-				BUGMSG2(D_INIT_REASONS, "%Xh-", readb(base));
+				arc_cont(D_INIT_REASONS, "%Xh-", readb(base));
 			}
 		}
 
@@ -476,7 +476,7 @@ static int __init com90xx_found(int ioaddr, int airq, u_long shmem, void __iomem
 	/* allocate struct net_device */
 	dev = alloc_arcdev(device);
 	if (!dev) {
-		BUGMSG2(D_NORMAL, "com90xx: Can't allocate device!\n");
+		arc_cont(D_NORMAL, "com90xx: Can't allocate device!\n");
 		iounmap(p);
 		release_mem_region(shmem, MIRROR_SIZE);
 		return -ENOMEM;
@@ -515,7 +515,7 @@ static int __init com90xx_found(int ioaddr, int airq, u_long shmem, void __iomem
 
 	/* reserve the irq */
 	if (request_irq(airq, arcnet_interrupt, 0, "arcnet (90xx)", dev)) {
-		BUGMSG(D_NORMAL, "Can't get IRQ %d!\n", airq);
+		arc_printk(D_NORMAL, dev, "Can't get IRQ %d!\n", airq);
 		goto err_release_mem;
 	}
 	dev->irq = airq;
@@ -531,7 +531,7 @@ static int __init com90xx_found(int ioaddr, int airq, u_long shmem, void __iomem
 	lp->hw.copy_from_card = com90xx_copy_from_card;
 	lp->mem_start = ioremap(dev->mem_start, dev->mem_end - dev->mem_start + 1);
 	if (!lp->mem_start) {
-		BUGMSG(D_NORMAL, "Can't remap device memory!\n");
+		arc_printk(D_NORMAL, dev, "Can't remap device memory!\n");
 		goto err_free_irq;
 	}
 
@@ -540,10 +540,11 @@ static int __init com90xx_found(int ioaddr, int airq, u_long shmem, void __iomem
 
 	dev->base_addr = ioaddr;
 
-	BUGMSG(D_NORMAL, "COM90xx station %02Xh found at %03lXh, IRQ %d, ShMem %lXh (%ld*%xh).\n",
-	       dev->dev_addr[0],
-	       dev->base_addr, dev->irq, dev->mem_start,
-	 (dev->mem_end - dev->mem_start + 1) / mirror_size, mirror_size);
+	arc_printk(D_NORMAL, dev, "COM90xx station %02Xh found at %03lXh, IRQ %d, ShMem %lXh (%ld*%xh).\n",
+		   dev->dev_addr[0],
+		   dev->base_addr, dev->irq, dev->mem_start,
+		   (dev->mem_end - dev->mem_start + 1) / mirror_size,
+		   mirror_size);
 
 	if (register_netdev(dev))
 		goto err_unmap;
@@ -595,7 +596,7 @@ static int com90xx_reset(struct net_device *dev, int really_reset)
 	struct arcnet_local *lp = netdev_priv(dev);
 	short ioaddr = dev->base_addr;
 
-	BUGMSG(D_INIT, "Resetting (status=%02Xh)\n", ASTATUS());
+	arc_printk(D_INIT, dev, "Resetting (status=%02Xh)\n", ASTATUS());
 
 	if (really_reset) {
 		/* reset the card */
@@ -611,7 +612,7 @@ static int com90xx_reset(struct net_device *dev, int really_reset)
 	/* verify that the ARCnet signature byte is present */
 	if (readb(lp->mem_start) != TESTvalue) {
 		if (really_reset)
-			BUGMSG(D_NORMAL, "reset failed: TESTvalue not present.\n");
+			arc_printk(D_NORMAL, dev, "reset failed: TESTvalue not present.\n");
 		return 1;
 	}
 	/* enable extended (512-byte) packets */
@@ -631,7 +632,7 @@ static void com90xx_copy_to_card(struct net_device *dev, int bufnum, int offset,
 	struct arcnet_local *lp = netdev_priv(dev);
 	void __iomem *memaddr = lp->mem_start + bufnum * 512 + offset;
 
-	TIME("memcpy_toio", count, memcpy_toio(memaddr, buf, count));
+	TIME(dev, "memcpy_toio", count, memcpy_toio(memaddr, buf, count));
 }
 
 static void com90xx_copy_from_card(struct net_device *dev, int bufnum, int offset,
@@ -640,7 +641,7 @@ static void com90xx_copy_from_card(struct net_device *dev, int bufnum, int offse
 	struct arcnet_local *lp = netdev_priv(dev);
 	void __iomem *memaddr = lp->mem_start + bufnum * 512 + offset;
 
-	TIME("memcpy_fromio", count, memcpy_fromio(buf, memaddr, count));
+	TIME(dev, "memcpy_fromio", count, memcpy_fromio(buf, memaddr, count));
 }
 
 MODULE_LICENSE("GPL");

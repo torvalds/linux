@@ -99,7 +99,7 @@ static int com20020pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 
 		lp = netdev_priv(dev);
 
-		BUGMSG(D_NORMAL, "%s Controls\n", ci->name);
+		arc_printk(D_NORMAL, dev, "%s Controls\n", ci->name);
 		ioaddr = pci_resource_start(pdev, cm->bar) + cm->offset;
 
 		r = devm_request_region(&pdev->dev, ioaddr, cm->size,

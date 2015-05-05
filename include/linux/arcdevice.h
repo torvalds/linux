@@ -81,34 +81,36 @@ extern int arcnet_debug;
 #define BUGLVL(x)	((x) & ARCNET_DEBUG_MAX & arcnet_debug)
 
 /* macros to simplify debug checking */
-#define BUGMSG(x, fmt, ...)						\
+#define arc_printk(x, dev, fmt, ...)					\
 do {									\
-	if (BUGLVL(x))						\
-		printk("%s%6s: " fmt,					\
-		       (x) == D_NORMAL	? KERN_WARNING :		\
-		       (x) < D_DURING ? KERN_INFO : KERN_DEBUG,		\
-		       dev->name, ##__VA_ARGS__);			\
+	if (BUGLVL(x)) {						\
+		if ((x) == D_NORMAL)					\
+			netdev_warn(dev, fmt, ##__VA_ARGS__);		\
+		else if ((x) < D_DURING)				\
+			netdev_info(dev, fmt, ##__VA_ARGS__);		\
+		else							\
+			netdev_dbg(dev, fmt, ##__VA_ARGS__);		\
+	}								\
 } while (0)
 
-#define BUGMSG2(x, fmt, ...)						\
+#define arc_cont(x, fmt, ...)						\
 do {									\
-	if (BUGLVL(x))						\
-		printk(fmt, ##__VA_ARGS__);				\
+	if (BUGLVL(x))							\
+		pr_cont(fmt, ##__VA_ARGS__);				\
 } while (0)
 
 /* see how long a function call takes to run, expressed in CPU cycles */
-#define TIME(name, bytes, call)						\
+#define TIME(dev, name, bytes, call)					\
 do {									\
 	if (BUGLVL(D_TIMING)) {						\
 		unsigned long _x, _y;					\
 		_x = get_cycles();					\
 		call;							\
 		_y = get_cycles();					\
-		BUGMSG(D_TIMING,					\
-		       "%s: %d bytes in %lu cycles == "			\
-		       "%lu Kbytes/100Mcycle\n",			\
-		       name, bytes, _y - _x,				\
-		       100000000 / 1024 * bytes / (_y - _x + 1));	\
+		arc_printk(D_TIMING, dev,				\
+			   "%s: %d bytes in %lu cycles == %lu Kbytes/100Mcycle\n", \
+			   name, bytes, _y - _x,			\
+			   100000000 / 1024 * bytes / (_y - _x + 1));	\
 	} else {							\
 		call;							\
 	}								\

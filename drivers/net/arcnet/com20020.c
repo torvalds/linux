@@ -68,7 +68,7 @@ static void com20020_copy_from_card(struct net_device *dev, int bufnum,
 	outb(ofs & 0xff, _ADDR_LO);
 
 	/* copy the data */
-	TIME("insb", count, insb(_MEMDATA, buf, count));
+	TIME(dev, "insb", count, insb(_MEMDATA, buf, count));
 }
 
 static void com20020_copy_to_card(struct net_device *dev, int bufnum,
@@ -81,7 +81,7 @@ static void com20020_copy_to_card(struct net_device *dev, int bufnum,
 	outb(ofs & 0xff, _ADDR_LO);
 
 	/* copy the data */
-	TIME("outsb", count, outsb(_MEMDATA, buf, count));
+	TIME(dev, "outsb", count, outsb(_MEMDATA, buf, count));
 }
 
 /* Reset the card and check some basic stuff during the detection stage. */
@@ -120,10 +120,10 @@ int com20020_check(struct net_device *dev)
 	status = ASTATUS();
 
 	if ((status & 0x99) != (NORXflag | TXFREEflag | RESETflag)) {
-		BUGMSG(D_NORMAL, "status invalid (%Xh).\n", status);
+		arc_printk(D_NORMAL, dev, "status invalid (%Xh).\n", status);
 		return -ENODEV;
 	}
-	BUGMSG(D_INIT_REASONS, "status after reset: %X\n", status);
+	arc_printk(D_INIT_REASONS, dev, "status after reset: %X\n", status);
 
 	/* Enable TX */
 	outb(0x39, _CONFIG);
@@ -132,16 +132,16 @@ int com20020_check(struct net_device *dev)
 	ACOMMAND(CFLAGScmd | RESETclear | CONFIGclear);
 
 	status = ASTATUS();
-	BUGMSG(D_INIT_REASONS, "status after reset acknowledged: %X\n",
-	       status);
+	arc_printk(D_INIT_REASONS, dev, "status after reset acknowledged: %X\n",
+		   status);
 
 	/* Read first location of memory */
 	outb(0 | RDDATAflag | AUTOINCflag, _ADDR_HI);
 	outb(0, _ADDR_LO);
 
 	if ((status = inb(_MEMDATA)) != TESTvalue) {
-		BUGMSG(D_NORMAL, "Signature byte not found (%02Xh != D1h).\n",
-		       status);
+		arc_printk(D_NORMAL, dev, "Signature byte not found (%02Xh != D1h).\n",
+			   status);
 		return -ENODEV;
 	}
 	return 0;
@@ -213,24 +213,25 @@ int com20020_found(struct net_device *dev, int shared)
 	/* reserve the irq */
 	if (request_irq(dev->irq, arcnet_interrupt, shared,
 			"arcnet (COM20020)", dev)) {
-		BUGMSG(D_NORMAL, "Can't get IRQ %d!\n", dev->irq);
+		arc_printk(D_NORMAL, dev, "Can't get IRQ %d!\n", dev->irq);
 		return -ENODEV;
 	}
 
 	dev->base_addr = ioaddr;
 
-	BUGMSG(D_NORMAL, "%s: station %02Xh found at %03lXh, IRQ %d.\n",
-	       lp->card_name, dev->dev_addr[0], dev->base_addr, dev->irq);
+	arc_printk(D_NORMAL, dev, "%s: station %02Xh found at %03lXh, IRQ %d.\n",
+		   lp->card_name, dev->dev_addr[0], dev->base_addr, dev->irq);
 
 	if (lp->backplane)
-		BUGMSG(D_NORMAL, "Using backplane mode.\n");
+		arc_printk(D_NORMAL, dev, "Using backplane mode.\n");
 
 	if (lp->timeout != 3)
-		BUGMSG(D_NORMAL, "Using extended timeout value of %d.\n", lp->timeout);
+		arc_printk(D_NORMAL, dev, "Using extended timeout value of %d\n",
+			   lp->timeout);
 
-	BUGMSG(D_NORMAL, "Using CKP %d - data rate %s.\n",
-	       lp->setup >> 1,
-	       clockrates[3 - ((lp->setup2 & 0xF0) >> 4) + ((lp->setup & 0x0F) >> 1)]);
+	arc_printk(D_NORMAL, dev, "Using CKP %d - data rate %s\n",
+		   lp->setup >> 1,
+		   clockrates[3 - ((lp->setup2 & 0xF0) >> 4) + ((lp->setup & 0x0F) >> 1)]);
 
 	if (register_netdev(dev)) {
 		free_irq(dev->irq, dev);
@@ -252,16 +253,16 @@ static int com20020_reset(struct net_device *dev, int really_reset)
 	u_int ioaddr = dev->base_addr;
 	u_char inbyte;
 
-	BUGMSG(D_DEBUG, "%s: %d: %s: dev: %p, lp: %p, dev->name: %s\n",
-	       __FILE__, __LINE__, __func__, dev, lp, dev->name);
-	BUGMSG(D_INIT, "Resetting %s (status=%02Xh)\n",
-	       dev->name, ASTATUS());
+	arc_printk(D_DEBUG, dev, "%s: %d: %s: dev: %p, lp: %p, dev->name: %s\n",
+		   __FILE__, __LINE__, __func__, dev, lp, dev->name);
+	arc_printk(D_INIT, dev, "Resetting %s (status=%02Xh)\n",
+		   dev->name, ASTATUS());
 
-	BUGMSG(D_DEBUG, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
+	arc_printk(D_DEBUG, dev, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
 	lp->config = TXENcfg | (lp->timeout << 3) | (lp->backplane << 2);
 	/* power-up defaults */
 	SETCONF;
-	BUGMSG(D_DEBUG, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
+	arc_printk(D_DEBUG, dev, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
 
 	if (really_reset) {
 		/* reset the card */
@@ -269,22 +270,23 @@ static int com20020_reset(struct net_device *dev, int really_reset)
 		mdelay(RESETtime * 2);	/* COM20020 seems to be slower sometimes */
 	}
 	/* clear flags & end reset */
-	BUGMSG(D_DEBUG, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
+	arc_printk(D_DEBUG, dev, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
 	ACOMMAND(CFLAGScmd | RESETclear | CONFIGclear);
 
 	/* verify that the ARCnet signature byte is present */
-	BUGMSG(D_DEBUG, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
+	arc_printk(D_DEBUG, dev, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
 
 	com20020_copy_from_card(dev, 0, 0, &inbyte, 1);
-	BUGMSG(D_DEBUG, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
+	arc_printk(D_DEBUG, dev, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
 	if (inbyte != TESTvalue) {
-		BUGMSG(D_DEBUG, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
-		BUGMSG(D_NORMAL, "reset failed: TESTvalue not present.\n");
+		arc_printk(D_DEBUG, dev, "%s: %d: %s\n",
+			   __FILE__, __LINE__, __func__);
+		arc_printk(D_NORMAL, dev, "reset failed: TESTvalue not present.\n");
 		return 1;
 	}
 	/* enable extended (512-byte) packets */
 	ACOMMAND(CONFIGcmd | EXTconf);
-	BUGMSG(D_DEBUG, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
+	arc_printk(D_DEBUG, dev, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
 
 	/* done!  return success. */
 	return 0;
@@ -294,7 +296,7 @@ static void com20020_setmask(struct net_device *dev, int mask)
 {
 	u_int ioaddr = dev->base_addr;
 
-	BUGMSG(D_DURING, "Setting mask to %x at %x\n", mask, ioaddr);
+	arc_printk(D_DURING, dev, "Setting mask to %x at %x\n", mask, ioaddr);
 	AINTMASK(mask);
 }
 
@@ -336,7 +338,7 @@ static void com20020_set_mc_list(struct net_device *dev)
 
 	if ((dev->flags & IFF_PROMISC) && (dev->flags & IFF_UP)) {	/* Enable promiscuous mode */
 		if (!(lp->setup & PROMISCset))
-			BUGMSG(D_NORMAL, "Setting promiscuous flag...\n");
+			arc_printk(D_NORMAL, dev, "Setting promiscuous flag...\n");
 		SET_SUBADR(SUB_SETUP1);
 		lp->setup |= PROMISCset;
 		outb(lp->setup, _XREG);
@@ -344,7 +346,7 @@ static void com20020_set_mc_list(struct net_device *dev)
 		/* Disable promiscuous mode, use normal mode */
 	{
 		if ((lp->setup & PROMISCset))
-			BUGMSG(D_NORMAL, "Resetting promiscuous flag...\n");
+			arc_printk(D_NORMAL, dev, "Resetting promiscuous flag...\n");
 		SET_SUBADR(SUB_SETUP1);
 		lp->setup &= ~PROMISCset;
 		outb(lp->setup, _XREG);

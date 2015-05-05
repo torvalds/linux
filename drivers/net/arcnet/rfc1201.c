@@ -136,7 +136,8 @@ static void rx(struct net_device *dev, int bufnum,
 	int saddr = pkt->hard.source, ofs;
 	struct Incoming *in = &lp->rfc1201.incoming[saddr];
 
-	BUGMSG(D_DURING, "it's an RFC1201 packet (length=%d)\n", length);
+	arc_printk(D_DURING, dev, "it's an RFC1201 packet (length=%d)\n",
+		   length);
 
 	if (length >= MinTU)
 		ofs = 512 - length;
@@ -145,10 +146,10 @@ static void rx(struct net_device *dev, int bufnum,
 
 	if (soft->split_flag == 0xFF) {		/* Exception Packet */
 		if (length >= 4 + RFC1201_HDR_SIZE) {
-			BUGMSG(D_DURING, "compensating for exception packet\n");
+			arc_printk(D_DURING, dev, "compensating for exception packet\n");
 		} else {
-			BUGMSG(D_EXTRA, "short RFC1201 exception packet from %02Xh",
-			       saddr);
+			arc_printk(D_EXTRA, dev, "short RFC1201 exception packet from %02Xh",
+				   saddr);
 			return;
 		}
 
@@ -159,12 +160,13 @@ static void rx(struct net_device *dev, int bufnum,
 				      soft, sizeof(pkt->soft));
 	}
 	if (!soft->split_flag) {	/* not split */
-		BUGMSG(D_RX, "incoming is not split (splitflag=%d)\n",
-		       soft->split_flag);
+		arc_printk(D_RX, dev, "incoming is not split (splitflag=%d)\n",
+			   soft->split_flag);
 
 		if (in->skb) {	/* already assembling one! */
-			BUGMSG(D_EXTRA, "aborting assembly (seq=%d) for unsplit packet (splitflag=%d, seq=%d)\n",
-			       in->sequence, soft->split_flag, soft->sequence);
+			arc_printk(D_EXTRA, dev, "aborting assembly (seq=%d) for unsplit packet (splitflag=%d, seq=%d)\n",
+				   in->sequence, soft->split_flag,
+				   soft->sequence);
 			lp->rfc1201.aborted_seq = soft->sequence;
 			dev_kfree_skb_irq(in->skb);
 			dev->stats.rx_errors++;
@@ -175,7 +177,7 @@ static void rx(struct net_device *dev, int bufnum,
 
 		skb = alloc_skb(length + ARC_HDR_SIZE, GFP_ATOMIC);
 		if (skb == NULL) {
-			BUGMSG(D_NORMAL, "Memory squeeze, dropping packet.\n");
+			arc_printk(D_NORMAL, dev, "Memory squeeze, dropping packet\n");
 			dev->stats.rx_dropped++;
 			return;
 		}
@@ -205,18 +207,18 @@ static void rx(struct net_device *dev, int bufnum,
 				uint8_t *cptr = (uint8_t *)arp + sizeof(struct arphdr);
 
 				if (!*cptr) {	/* is saddr = 00? */
-					BUGMSG(D_EXTRA,
-					       "ARP source address was 00h, set to %02Xh.\n",
-					       saddr);
+					arc_printk(D_EXTRA, dev,
+						   "ARP source address was 00h, set to %02Xh\n",
+						   saddr);
 					dev->stats.rx_crc_errors++;
 					*cptr = saddr;
 				} else {
-					BUGMSG(D_DURING, "ARP source address (%Xh) is fine.\n",
-					       *cptr);
+					arc_printk(D_DURING, dev, "ARP source address (%Xh) is fine.\n",
+						   *cptr);
 				}
 			} else {
-				BUGMSG(D_NORMAL, "funny-shaped ARP packet. (%Xh, %Xh)\n",
-				       arp->ar_hln, arp->ar_pln);
+				arc_printk(D_NORMAL, dev, "funny-shaped ARP packet. (%Xh, %Xh)\n",
+					   arp->ar_hln, arp->ar_pln);
 				dev->stats.rx_errors++;
 				dev->stats.rx_crc_errors++;
 			}
@@ -245,13 +247,13 @@ static void rx(struct net_device *dev, int bufnum,
 		 * other way to be reliable.
 		 */
 
-		BUGMSG(D_RX, "packet is split (splitflag=%d, seq=%d)\n",
-		       soft->split_flag, in->sequence);
+		arc_printk(D_RX, dev, "packet is split (splitflag=%d, seq=%d)\n",
+			   soft->split_flag, in->sequence);
 
 		if (in->skb && in->sequence != soft->sequence) {
-			BUGMSG(D_EXTRA, "wrong seq number (saddr=%d, expected=%d, seq=%d, splitflag=%d)\n",
-			       saddr, in->sequence, soft->sequence,
-			       soft->split_flag);
+			arc_printk(D_EXTRA, dev, "wrong seq number (saddr=%d, expected=%d, seq=%d, splitflag=%d)\n",
+				   saddr, in->sequence, soft->sequence,
+				   soft->split_flag);
 			dev_kfree_skb_irq(in->skb);
 			in->skb = NULL;
 			dev->stats.rx_errors++;
@@ -259,12 +261,12 @@ static void rx(struct net_device *dev, int bufnum,
 			in->lastpacket = in->numpackets = 0;
 		}
 		if (soft->split_flag & 1) {	/* first packet in split */
-			BUGMSG(D_RX, "brand new splitpacket (splitflag=%d)\n",
-			       soft->split_flag);
+			arc_printk(D_RX, dev, "brand new splitpacket (splitflag=%d)\n",
+				   soft->split_flag);
 			if (in->skb) {	/* already assembling one! */
-				BUGMSG(D_EXTRA, "aborting previous (seq=%d) assembly (splitflag=%d, seq=%d)\n",
-				       in->sequence, soft->split_flag,
-				       soft->sequence);
+				arc_printk(D_EXTRA, dev, "aborting previous (seq=%d) assembly (splitflag=%d, seq=%d)\n",
+					   in->sequence, soft->split_flag,
+					   soft->sequence);
 				dev->stats.rx_errors++;
 				dev->stats.rx_missed_errors++;
 				dev_kfree_skb_irq(in->skb);
@@ -274,8 +276,8 @@ static void rx(struct net_device *dev, int bufnum,
 			in->lastpacket = 1;
 
 			if (in->numpackets > 16) {
-				BUGMSG(D_EXTRA, "incoming packet more than 16 segments; dropping. (splitflag=%d)\n",
-				       soft->split_flag);
+				arc_printk(D_EXTRA, dev, "incoming packet more than 16 segments; dropping. (splitflag=%d)\n",
+					   soft->split_flag);
 				lp->rfc1201.aborted_seq = soft->sequence;
 				dev->stats.rx_errors++;
 				dev->stats.rx_length_errors++;
@@ -284,7 +286,7 @@ static void rx(struct net_device *dev, int bufnum,
 			in->skb = skb = alloc_skb(508 * in->numpackets + ARC_HDR_SIZE,
 						  GFP_ATOMIC);
 			if (skb == NULL) {
-				BUGMSG(D_NORMAL, "(split) memory squeeze, dropping packet.\n");
+				arc_printk(D_NORMAL, dev, "(split) memory squeeze, dropping packet.\n");
 				lp->rfc1201.aborted_seq = soft->sequence;
 				dev->stats.rx_dropped++;
 				return;
@@ -305,9 +307,10 @@ static void rx(struct net_device *dev, int bufnum,
 			 */
 			if (!in->skb) {
 				if (lp->rfc1201.aborted_seq != soft->sequence) {
-					BUGMSG(D_EXTRA, "can't continue split without starting first! (splitflag=%d, seq=%d, aborted=%d)\n",
-					soft->split_flag, soft->sequence,
-					       lp->rfc1201.aborted_seq);
+					arc_printk(D_EXTRA, dev, "can't continue split without starting first! (splitflag=%d, seq=%d, aborted=%d)\n",
+						   soft->split_flag,
+						   soft->sequence,
+						   lp->rfc1201.aborted_seq);
 					dev->stats.rx_errors++;
 					dev->stats.rx_missed_errors++;
 				}
@@ -317,15 +320,16 @@ static void rx(struct net_device *dev, int bufnum,
 			if (packetnum != in->lastpacket) {	/* not the right flag! */
 				/* harmless duplicate? ignore. */
 				if (packetnum <= in->lastpacket - 1) {
-					BUGMSG(D_EXTRA, "duplicate splitpacket ignored! (splitflag=%d)\n",
-					       soft->split_flag);
+					arc_printk(D_EXTRA, dev, "duplicate splitpacket ignored! (splitflag=%d)\n",
+						   soft->split_flag);
 					dev->stats.rx_errors++;
 					dev->stats.rx_frame_errors++;
 					return;
 				}
 				/* "bad" duplicate, kill reassembly */
-				BUGMSG(D_EXTRA, "out-of-order splitpacket, reassembly (seq=%d) aborted (splitflag=%d, seq=%d)\n",
-				       in->sequence, soft->split_flag, soft->sequence);
+				arc_printk(D_EXTRA, dev, "out-of-order splitpacket, reassembly (seq=%d) aborted (splitflag=%d, seq=%d)\n",
+					   in->sequence, soft->split_flag,
+					   soft->sequence);
 				lp->rfc1201.aborted_seq = soft->sequence;
 				dev_kfree_skb_irq(in->skb);
 				in->skb = NULL;
@@ -350,10 +354,10 @@ static void rx(struct net_device *dev, int bufnum,
 			in->skb = NULL;
 			in->lastpacket = in->numpackets = 0;
 
-			BUGMSG(D_SKB_SIZE, "skb: received %d bytes from %02X (unsplit)\n",
-			       skb->len, pkt->hard.source);
-			BUGMSG(D_SKB_SIZE, "skb: received %d bytes from %02X (split)\n",
-			       skb->len, pkt->hard.source);
+			arc_printk(D_SKB_SIZE, dev, "skb: received %d bytes from %02X (unsplit)\n",
+				   skb->len, pkt->hard.source);
+			arc_printk(D_SKB_SIZE, dev, "skb: received %d bytes from %02X (split)\n",
+				   skb->len, pkt->hard.source);
 			if (BUGLVL(D_SKB))
 				arcnet_dump_skb(dev, skb, "rx");
 
@@ -395,8 +399,8 @@ static int build_header(struct sk_buff *skb, struct net_device *dev,
 		soft->proto = ARC_P_ATALK;
 		break;
 	default:
-		BUGMSG(D_NORMAL, "RFC1201: I don't understand protocol %d (%Xh)\n",
-		       type, type);
+		arc_printk(D_NORMAL, dev, "RFC1201: I don't understand protocol %d (%Xh)\n",
+			   type, type);
 		dev->stats.tx_errors++;
 		dev->stats.tx_aborted_errors++;
 		return 0;
@@ -469,8 +473,8 @@ static int prepare_tx(struct net_device *dev, struct archdr *pkt, int length,
 	const int maxsegsize = XMTU - RFC1201_HDR_SIZE;
 	struct Outgoing *out;
 
-	BUGMSG(D_DURING, "prepare_tx: txbufs=%d/%d/%d\n",
-	       lp->next_tx, lp->cur_tx, bufnum);
+	arc_printk(D_DURING, dev, "prepare_tx: txbufs=%d/%d/%d\n",
+		   lp->next_tx, lp->cur_tx, bufnum);
 
 	length -= ARC_HDR_SIZE;	/* hard header is not included in packet length */
 	pkt->soft.rfc1201.split_flag = 0;
@@ -484,9 +488,9 @@ static int prepare_tx(struct net_device *dev, struct archdr *pkt, int length,
 		out->numsegs = (out->dataleft + maxsegsize - 1) / maxsegsize;
 		out->segnum = 0;
 
-		BUGMSG(D_DURING, "rfc1201 prep_tx: ready for %d-segment split (%d bytes, seq=%d)\n",
-		       out->numsegs, out->length,
-		       pkt->soft.rfc1201.sequence);
+		arc_printk(D_DURING, dev, "rfc1201 prep_tx: ready for %d-segment split (%d bytes, seq=%d)\n",
+			   out->numsegs, out->length,
+			   pkt->soft.rfc1201.sequence);
 
 		return 0;	/* not done */
 	}
@@ -505,9 +509,9 @@ static int continue_tx(struct net_device *dev, int bufnum)
 	int maxsegsize = XMTU - RFC1201_HDR_SIZE;
 	int seglen;
 
-	BUGMSG(D_DURING,
-	       "rfc1201 continue_tx: loading segment %d(+1) of %d (seq=%d)\n",
-	       out->segnum, out->numsegs, soft->sequence);
+	arc_printk(D_DURING, dev,
+		   "rfc1201 continue_tx: loading segment %d(+1) of %d (seq=%d)\n",
+		   out->segnum, out->numsegs, soft->sequence);
 
 	/* the "new" soft header comes right before the data chunk */
 	newsoft = (struct arc_rfc1201 *)

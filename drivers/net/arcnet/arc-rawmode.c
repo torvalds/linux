@@ -89,7 +89,7 @@ static void rx(struct net_device *dev, int bufnum,
 	struct archdr *pkt = pkthdr;
 	int ofs;
 
-	BUGMSG(D_DURING, "it's a raw packet (length=%d)\n", length);
+	arc_printk(D_DURING, dev, "it's a raw packet (length=%d)\n", length);
 
 	if (length > MTU)
 		ofs = 512 - length;
@@ -98,7 +98,7 @@ static void rx(struct net_device *dev, int bufnum,
 
 	skb = alloc_skb(length + ARC_HDR_SIZE, GFP_ATOMIC);
 	if (skb == NULL) {
-		BUGMSG(D_NORMAL, "Memory squeeze, dropping packet.\n");
+		arc_printk(D_NORMAL, dev, "Memory squeeze, dropping packet\n");
 		dev->stats.rx_dropped++;
 		return;
 	}
@@ -163,15 +163,15 @@ static int prepare_tx(struct net_device *dev, struct archdr *pkt, int length,
 	struct arc_hardware *hard = &pkt->hard;
 	int ofs;
 
-	BUGMSG(D_DURING, "prepare_tx: txbufs=%d/%d/%d\n",
-	       lp->next_tx, lp->cur_tx, bufnum);
+	arc_printk(D_DURING, dev, "prepare_tx: txbufs=%d/%d/%d\n",
+		   lp->next_tx, lp->cur_tx, bufnum);
 
 	length -= ARC_HDR_SIZE;	/* hard header is not included in packet length */
 
 	if (length > XMTU) {
 		/* should never happen! other people already check for this. */
-		BUGMSG(D_NORMAL, "Bug!  prepare_tx with size %d (> %d)\n",
-		       length, XMTU);
+		arc_printk(D_NORMAL, dev, "Bug!  prepare_tx with size %d (> %d)\n",
+			   length, XMTU);
 		length = XMTU;
 	}
 	if (length >= MinTU) {
@@ -184,8 +184,8 @@ static int prepare_tx(struct net_device *dev, struct archdr *pkt, int length,
 		hard->offset[0] = ofs = 256 - length;
 	}
 
-	BUGMSG(D_DURING, "prepare_tx: length=%d ofs=%d\n",
-	       length, ofs);
+	arc_printk(D_DURING, dev, "prepare_tx: length=%d ofs=%d\n",
+		   length, ofs);
 
 	lp->hw.copy_to_card(dev, bufnum, 0, hard, ARC_HDR_SIZE);
 	lp->hw.copy_to_card(dev, bufnum, ofs, &pkt->soft, length);

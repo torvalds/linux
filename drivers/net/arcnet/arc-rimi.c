@@ -147,7 +147,7 @@ static int __init arcrimi_found(struct net_device *dev)
 	p = ioremap(dev->mem_start, MIRROR_SIZE);
 	if (!p) {
 		release_mem_region(dev->mem_start, MIRROR_SIZE);
-		BUGMSG(D_NORMAL, "Can't ioremap\n");
+		arc_printk(D_NORMAL, dev, "Can't ioremap\n");
 		return -ENODEV;
 	}
 
@@ -155,7 +155,7 @@ static int __init arcrimi_found(struct net_device *dev)
 	if (request_irq(dev->irq, arcnet_interrupt, 0, "arcnet (RIM I)", dev)) {
 		iounmap(p);
 		release_mem_region(dev->mem_start, MIRROR_SIZE);
-		BUGMSG(D_NORMAL, "Can't get IRQ %d!\n", dev->irq);
+		arc_printk(D_NORMAL, dev, "Can't get IRQ %d!\n", dev->irq);
 		return -ENODEV;
 	}
 
@@ -210,23 +210,24 @@ static int __init arcrimi_found(struct net_device *dev)
 	if (!request_mem_region(dev->mem_start,
 				dev->mem_end - dev->mem_start + 1,
 				"arcnet (90xx)")) {
-		BUGMSG(D_NORMAL, "Card memory already allocated\n");
+		arc_printk(D_NORMAL, dev, "Card memory already allocated\n");
 		goto err_free_irq;
 	}
 
 	lp->mem_start = ioremap(dev->mem_start, dev->mem_end - dev->mem_start + 1);
 	if (!lp->mem_start) {
-		BUGMSG(D_NORMAL, "Can't remap device memory!\n");
+		arc_printk(D_NORMAL, dev, "Can't remap device memory!\n");
 		goto err_release_mem;
 	}
 
 	/* get and check the station ID from offset 1 in shmem */
 	dev->dev_addr[0] = readb(lp->mem_start + 1);
 
-	BUGMSG(D_NORMAL, "ARCnet RIM I: station %02Xh found at IRQ %d, ShMem %lXh (%ld*%d bytes)\n",
-	       dev->dev_addr[0],
-	       dev->irq, dev->mem_start,
-	 (dev->mem_end - dev->mem_start + 1) / mirror_size, mirror_size);
+	arc_printk(D_NORMAL, dev, "ARCnet RIM I: station %02Xh found at IRQ %d, ShMem %lXh (%ld*%d bytes)\n",
+		   dev->dev_addr[0],
+		   dev->irq, dev->mem_start,
+		   (dev->mem_end - dev->mem_start + 1) / mirror_size,
+		   mirror_size);
 
 	err = register_netdev(dev);
 	if (err)
@@ -255,7 +256,8 @@ static int arcrimi_reset(struct net_device *dev, int really_reset)
 	struct arcnet_local *lp = netdev_priv(dev);
 	void __iomem *ioaddr = lp->mem_start + 0x800;
 
-	BUGMSG(D_INIT, "Resetting %s (status=%02Xh)\n", dev->name, ASTATUS());
+	arc_printk(D_INIT, dev, "Resetting %s (status=%02Xh)\n",
+		   dev->name, ASTATUS());
 
 	if (really_reset) {
 		writeb(TESTvalue, ioaddr - 0x800);	/* fake reset */
@@ -301,7 +303,7 @@ static void arcrimi_copy_to_card(struct net_device *dev, int bufnum, int offset,
 	struct arcnet_local *lp = netdev_priv(dev);
 	void __iomem *memaddr = lp->mem_start + 0x800 + bufnum * 512 + offset;
 
-	TIME("memcpy_toio", count, memcpy_toio(memaddr, buf, count));
+	TIME(dev, "memcpy_toio", count, memcpy_toio(memaddr, buf, count));
 }
 
 static void arcrimi_copy_from_card(struct net_device *dev, int bufnum, int offset,
@@ -310,7 +312,7 @@ static void arcrimi_copy_from_card(struct net_device *dev, int bufnum, int offse
 	struct arcnet_local *lp = netdev_priv(dev);
 	void __iomem *memaddr = lp->mem_start + 0x800 + bufnum * 512 + offset;
 
-	TIME("memcpy_fromio", count, memcpy_fromio(buf, memaddr, count));
+	TIME(dev, "memcpy_fromio", count, memcpy_fromio(buf, memaddr, count));
 }
 
 static int node;

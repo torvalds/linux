@@ -47,7 +47,8 @@ static void rx(struct net_device *dev, int bufnum,
 	char *pktbuf, *pkthdrbuf;
 	int ofs;
 
-	BUGMSG(D_DURING, "it's a raw(cap) packet (length=%d)\n", length);
+	arc_printk(D_DURING, dev, "it's a raw(cap) packet (length=%d)\n",
+		   length);
 
 	if (length >= MinTU)
 		ofs = 512 - length;
@@ -56,7 +57,7 @@ static void rx(struct net_device *dev, int bufnum,
 
 	skb = alloc_skb(length + ARC_HDR_SIZE + sizeof(int), GFP_ATOMIC);
 	if (skb == NULL) {
-		BUGMSG(D_NORMAL, "Memory squeeze, dropping packet.\n");
+		arc_printk(D_NORMAL, dev, "Memory squeeze, dropping packet\n");
 		dev->stats.rx_dropped++;
 		return;
 	}
@@ -102,8 +103,8 @@ static int build_header(struct sk_buff *skb,
 	int hdr_size = ARC_HDR_SIZE;
 	struct archdr *pkt = (struct archdr *)skb_push(skb, hdr_size);
 
-	BUGMSG(D_PROTO, "Preparing header for cap packet %x.\n",
-	       *((int *)&pkt->soft.cap.cookie[0]));
+	arc_printk(D_PROTO, dev, "Preparing header for cap packet %x.\n",
+		   *((int *)&pkt->soft.cap.cookie[0]));
 
 	/* Set the source hardware address.
 	 *
@@ -140,16 +141,16 @@ static int prepare_tx(struct net_device *dev, struct archdr *pkt, int length,
 	/* And neither is the cookie field */
 	length -= sizeof(int);
 
-	BUGMSG(D_DURING, "prepare_tx: txbufs=%d/%d/%d\n",
-	       lp->next_tx, lp->cur_tx, bufnum);
+	arc_printk(D_DURING, dev, "prepare_tx: txbufs=%d/%d/%d\n",
+		   lp->next_tx, lp->cur_tx, bufnum);
 
-	BUGMSG(D_PROTO, "Sending for cap packet %x.\n",
-	       *((int *)&pkt->soft.cap.cookie[0]));
+	arc_printk(D_PROTO, dev, "Sending for cap packet %x.\n",
+		   *((int *)&pkt->soft.cap.cookie[0]));
 
 	if (length > XMTU) {
 		/* should never happen! other people already check for this. */
-		BUGMSG(D_NORMAL, "Bug!  prepare_tx with size %d (> %d)\n",
-		       length, XMTU);
+		arc_printk(D_NORMAL, dev, "Bug!  prepare_tx with size %d (> %d)\n",
+			   length, XMTU);
 		length = XMTU;
 	}
 	if (length > MinTU) {
@@ -162,8 +163,8 @@ static int prepare_tx(struct net_device *dev, struct archdr *pkt, int length,
 		hard->offset[0] = ofs = 256 - length;
 	}
 
-	BUGMSG(D_DURING, "prepare_tx: length=%d ofs=%d\n",
-	       length, ofs);
+	arc_printk(D_DURING, dev, "prepare_tx: length=%d ofs=%d\n",
+		   length, ofs);
 
 	/* Copy the arcnet-header + the protocol byte down: */
 	lp->hw.copy_to_card(dev, bufnum, 0, hard, ARC_HDR_SIZE);
@@ -188,8 +189,8 @@ static int ack_tx(struct net_device *dev, int acked)
 	struct archdr *ackpkt;
 	int length = sizeof(struct arc_cap);
 
-	BUGMSG(D_DURING, "capmode: ack_tx: protocol: %x: result: %d\n",
-	       lp->outgoing.skb->protocol, acked);
+	arc_printk(D_DURING, dev, "capmode: ack_tx: protocol: %x: result: %d\n",
+		   lp->outgoing.skb->protocol, acked);
 
 	if (BUGLVL(D_SKB))
 		arcnet_dump_skb(dev, lp->outgoing.skb, "ack_tx");
@@ -197,7 +198,7 @@ static int ack_tx(struct net_device *dev, int acked)
 	/* Now alloc a skb to send back up through the layers: */
 	ackskb = alloc_skb(length + ARC_HDR_SIZE, GFP_ATOMIC);
 	if (ackskb == NULL) {
-		BUGMSG(D_NORMAL, "Memory squeeze, can't acknowledge.\n");
+		arc_printk(D_NORMAL, dev, "Memory squeeze, can't acknowledge\n");
 		goto free_outskb;
 	}
 
@@ -213,8 +214,8 @@ static int ack_tx(struct net_device *dev, int acked)
 	ackpkt->soft.cap.proto = 0; /* using protocol 0 for acknowledge */
 	ackpkt->soft.cap.mes.ack = acked;
 
-	BUGMSG(D_PROTO, "Ackknowledge for cap packet %x.\n",
-	       *((int *)&ackpkt->soft.cap.cookie[0]));
+	arc_printk(D_PROTO, dev, "Ackknowledge for cap packet %x.\n",
+		   *((int *)&ackpkt->soft.cap.cookie[0]));
 
 	ackskb->protocol = cpu_to_be16(ETH_P_ARCNET);
 

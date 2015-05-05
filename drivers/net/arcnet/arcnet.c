@@ -236,11 +236,11 @@ static void release_arcbuf(struct net_device *dev, int bufnum)
 	lp->first_free_buf %= 5;
 
 	if (BUGLVL(D_DURING)) {
-		BUGMSG(D_DURING, "release_arcbuf: freed #%d; buffer queue is now: ",
-		       bufnum);
+		arc_printk(D_DURING, dev, "release_arcbuf: freed #%d; buffer queue is now: ",
+			   bufnum);
 		for (i = lp->next_buf; i != lp->first_free_buf; i = (i + 1) % 5)
-			BUGMSG2(D_DURING, "#%d ", lp->buf_queue[i]);
-		BUGMSG2(D_DURING, "\n");
+			arc_cont(D_DURING, "#%d ", lp->buf_queue[i]);
+		arc_cont(D_DURING, "\n");
 	}
 }
 
@@ -254,14 +254,14 @@ static int get_arcbuf(struct net_device *dev)
 
 	if (!atomic_dec_and_test(&lp->buf_lock)) {
 		/* already in this function */
-		BUGMSG(D_NORMAL, "get_arcbuf: overlap (%d)!\n",
-		       lp->buf_lock.counter);
+		arc_printk(D_NORMAL, dev, "get_arcbuf: overlap (%d)!\n",
+			   lp->buf_lock.counter);
 	} else {			/* we can continue */
 		if (lp->next_buf >= 5)
 			lp->next_buf -= 5;
 
 		if (lp->next_buf == lp->first_free_buf) {
-			BUGMSG(D_NORMAL, "get_arcbuf: BUG: no buffers are available??\n");
+			arc_printk(D_NORMAL, dev, "get_arcbuf: BUG: no buffers are available??\n");
 		} else {
 			buf = lp->buf_queue[lp->next_buf++];
 			lp->next_buf %= 5;
@@ -269,10 +269,11 @@ static int get_arcbuf(struct net_device *dev)
 	}
 
 	if (BUGLVL(D_DURING)) {
-		BUGMSG(D_DURING, "get_arcbuf: got #%d; buffer queue is now: ", buf);
+		arc_printk(D_DURING, dev, "get_arcbuf: got #%d; buffer queue is now: ",
+			   buf);
 		for (i = lp->next_buf; i != lp->first_free_buf; i = (i + 1) % 5)
-			BUGMSG2(D_DURING, "#%d ", lp->buf_queue[i]);
-		BUGMSG2(D_DURING, "\n");
+			arc_cont(D_DURING, "#%d ", lp->buf_queue[i]);
+		arc_cont(D_DURING, "\n");
 	}
 
 	atomic_inc(&lp->buf_lock);
@@ -351,20 +352,20 @@ int arcnet_open(struct net_device *dev)
 	struct arcnet_local *lp = netdev_priv(dev);
 	int count, newmtu, error;
 
-	BUGMSG(D_INIT, "opened.");
+	arc_printk(D_INIT, dev, "opened.");
 
 	if (!try_module_get(lp->hw.owner))
 		return -ENODEV;
 
 	if (BUGLVL(D_PROTO)) {
-		BUGMSG(D_PROTO, "protocol map (default is '%c'): ",
-		       arc_proto_default->suffix);
+		arc_printk(D_PROTO, dev, "protocol map (default is '%c'): ",
+			   arc_proto_default->suffix);
 		for (count = 0; count < 256; count++)
-			BUGMSG2(D_PROTO, "%c", arc_proto_map[count]->suffix);
-		BUGMSG2(D_PROTO, "\n");
+			arc_cont(D_PROTO, "%c", arc_proto_map[count]->suffix);
+		arc_cont(D_PROTO, "\n");
 	}
 
-	BUGMSG(D_INIT, "arcnet_open: resetting card.\n");
+	arc_printk(D_INIT, dev, "arcnet_open: resetting card.\n");
 
 	/* try to put the card in a defined state - if it fails the first
 	 * time, actually reset it.
@@ -377,7 +378,7 @@ int arcnet_open(struct net_device *dev)
 	if (newmtu < dev->mtu)
 		dev->mtu = newmtu;
 
-	BUGMSG(D_INIT, "arcnet_open: mtu: %d.\n", dev->mtu);
+	arc_printk(D_INIT, dev, "arcnet_open: mtu: %d.\n", dev->mtu);
 
 	/* autodetect the encapsulation for each host. */
 	memset(lp->default_proto, 0, sizeof(lp->default_proto));
@@ -408,27 +409,28 @@ int arcnet_open(struct net_device *dev)
 		lp->hw.open(dev);
 
 	if (dev->dev_addr[0] == 0)
-		BUGMSG(D_NORMAL, "WARNING!  Station address 00 is reserved for broadcasts!\n");
+		arc_printk(D_NORMAL, dev, "WARNING!  Station address 00 is reserved for broadcasts!\n");
 	else if (dev->dev_addr[0] == 255)
-		BUGMSG(D_NORMAL, "WARNING!  Station address FF may confuse DOS networking programs!\n");
+		arc_printk(D_NORMAL, dev, "WARNING!  Station address FF may confuse DOS networking programs!\n");
 
-	BUGMSG(D_DEBUG, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
+	arc_printk(D_DEBUG, dev, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
 	if (ASTATUS() & RESETflag) {
-		BUGMSG(D_DEBUG, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
+		arc_printk(D_DEBUG, dev, "%s: %d: %s\n",
+			   __FILE__, __LINE__, __func__);
 		ACOMMAND(CFLAGScmd | RESETclear);
 	}
 
-	BUGMSG(D_DEBUG, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
+	arc_printk(D_DEBUG, dev, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
 	/* make sure we're ready to receive IRQ's. */
 	AINTMASK(0);
 	udelay(1);		/* give it time to set the mask before
 				 * we reset it again. (may not even be
 				 * necessary)
 				 */
-	BUGMSG(D_DEBUG, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
+	arc_printk(D_DEBUG, dev, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
 	lp->intmask = NORXflag | RECONflag;
 	AINTMASK(lp->intmask);
-	BUGMSG(D_DEBUG, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
+	arc_printk(D_DEBUG, dev, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
 
 	netif_start_queue(dev);
 
@@ -466,20 +468,21 @@ static int arcnet_header(struct sk_buff *skb, struct net_device *dev,
 	uint8_t _daddr, proto_num;
 	struct ArcProto *proto;
 
-	BUGMSG(D_DURING,
-	       "create header from %d to %d; protocol %d (%Xh); size %u.\n",
-	       saddr ? *(uint8_t *)saddr : -1,
-	       daddr ? *(uint8_t *)daddr : -1,
-	       type, type, len);
+	arc_printk(D_DURING, dev,
+		   "create header from %d to %d; protocol %d (%Xh); size %u.\n",
+		   saddr ? *(uint8_t *)saddr : -1,
+		   daddr ? *(uint8_t *)daddr : -1,
+		   type, type, len);
 
 	if (skb->len != 0 && len != skb->len)
-		BUGMSG(D_NORMAL, "arcnet_header: Yikes!  skb->len(%d) != len(%d)!\n",
-		       skb->len, len);
+		arc_printk(D_NORMAL, dev, "arcnet_header: Yikes!  skb->len(%d) != len(%d)!\n",
+			   skb->len, len);
 
 	/* Type is host order - ? */
 	if (type == ETH_P_ARCNET) {
 		proto = arc_raw_proto;
-		BUGMSG(D_DEBUG, "arc_raw_proto used. proto='%c'\n", proto->suffix);
+		arc_printk(D_DEBUG, dev, "arc_raw_proto used. proto='%c'\n",
+			   proto->suffix);
 		_daddr = daddr ? *(uint8_t *)daddr : 0;
 	} else if (!daddr) {
 		/* if the dest addr isn't provided, we can't choose an
@@ -490,19 +493,19 @@ static int arcnet_header(struct sk_buff *skb, struct net_device *dev,
 		*(uint16_t *)skb_push(skb, 2) = type;
 		/* XXX: Why not use skb->mac_len? */
 		if (skb->network_header - skb->mac_header != 2)
-			BUGMSG(D_NORMAL, "arcnet_header: Yikes!  diff (%d) is not 2!\n",
-			       (int)(skb->network_header - skb->mac_header));
+			arc_printk(D_NORMAL, dev, "arcnet_header: Yikes!  diff (%u) is not 2!\n",
+				   skb->network_header - skb->mac_header);
 		return -2;	/* return error -- can't transmit yet! */
 	} else {
 		/* otherwise, we can just add the header as usual. */
 		_daddr = *(uint8_t *)daddr;
 		proto_num = lp->default_proto[_daddr];
 		proto = arc_proto_map[proto_num];
-		BUGMSG(D_DURING, "building header for %02Xh using protocol '%c'\n",
-		       proto_num, proto->suffix);
+		arc_printk(D_DURING, dev, "building header for %02Xh using protocol '%c'\n",
+			   proto_num, proto->suffix);
 		if (proto == &arc_proto_null && arc_bcast_proto != proto) {
-			BUGMSG(D_DURING, "actually, let's use '%c' instead.\n",
-			       arc_bcast_proto->suffix);
+			arc_printk(D_DURING, dev, "actually, let's use '%c' instead.\n",
+				   arc_bcast_proto->suffix);
 			proto = arc_bcast_proto;
 		}
 	}
@@ -521,22 +524,22 @@ netdev_tx_t arcnet_send_packet(struct sk_buff *skb,
 	unsigned long flags;
 	int freeskb, retval;
 
-	BUGMSG(D_DURING,
-	       "transmit requested (status=%Xh, txbufs=%d/%d, len=%d, protocol %x)\n",
-	       ASTATUS(), lp->cur_tx, lp->next_tx, skb->len, skb->protocol);
+	arc_printk(D_DURING, dev,
+		   "transmit requested (status=%Xh, txbufs=%d/%d, len=%d, protocol %x)\n",
+		   ASTATUS(), lp->cur_tx, lp->next_tx, skb->len, skb->protocol);
 
 	pkt = (struct archdr *)skb->data;
 	soft = &pkt->soft.rfc1201;
 	proto = arc_proto_map[soft->proto];
 
-	BUGMSG(D_SKB_SIZE, "skb: transmitting %d bytes to %02X\n",
-	       skb->len, pkt->hard.dest);
+	arc_printk(D_SKB_SIZE, dev, "skb: transmitting %d bytes to %02X\n",
+		   skb->len, pkt->hard.dest);
 	if (BUGLVL(D_SKB))
 		arcnet_dump_skb(dev, skb, "tx");
 
 	/* fits in one packet? */
 	if (skb->len - ARC_HDR_SIZE > XMTU && !proto->continue_tx) {
-		BUGMSG(D_NORMAL, "fixme: packet too large: compensating badly!\n");
+		arc_printk(D_NORMAL, dev, "fixme: packet too large: compensating badly!\n");
 		dev_kfree_skb(skb);
 		return NETDEV_TX_OK;	/* don't try again */
 	}
@@ -569,9 +572,9 @@ netdev_tx_t arcnet_send_packet(struct sk_buff *skb,
 
 			if (proto->continue_tx &&
 			    proto->continue_tx(dev, txbuf)) {
-				BUGMSG(D_NORMAL,
-				       "bug! continue_tx finished the first time! (proto='%c')\n",
-				       proto->suffix);
+				arc_printk(D_NORMAL, dev,
+					   "bug! continue_tx finished the first time! (proto='%c')\n",
+					   proto->suffix);
 			}
 		}
 		retval = NETDEV_TX_OK;
@@ -581,14 +584,16 @@ netdev_tx_t arcnet_send_packet(struct sk_buff *skb,
 		freeskb = 0;
 	}
 
-	BUGMSG(D_DEBUG, "%s: %d: %s, status: %x\n", __FILE__, __LINE__, __func__, ASTATUS());
+	arc_printk(D_DEBUG, dev, "%s: %d: %s, status: %x\n",
+		   __FILE__, __LINE__, __func__, ASTATUS());
 	/* make sure we didn't ignore a TX IRQ while we were in here */
 	AINTMASK(0);
 
-	BUGMSG(D_DEBUG, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
+	arc_printk(D_DEBUG, dev, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
 	lp->intmask |= TXFREEflag | EXCNAKflag;
 	AINTMASK(lp->intmask);
-	BUGMSG(D_DEBUG, "%s: %d: %s, status: %x\n", __FILE__, __LINE__, __func__, ASTATUS());
+	arc_printk(D_DEBUG, dev, "%s: %d: %s, status: %x\n",
+		   __FILE__, __LINE__, __func__, ASTATUS());
 
 	spin_unlock_irqrestore(&lp->lock, flags);
 	if (freeskb)
@@ -604,8 +609,8 @@ static int go_tx(struct net_device *dev)
 {
 	struct arcnet_local *lp = netdev_priv(dev);
 
-	BUGMSG(D_DURING, "go_tx: status=%Xh, intmask=%Xh, next_tx=%d, cur_tx=%d\n",
-	       ASTATUS(), lp->intmask, lp->next_tx, lp->cur_tx);
+	arc_printk(D_DURING, dev, "go_tx: status=%Xh, intmask=%Xh, next_tx=%d, cur_tx=%d\n",
+		   ASTATUS(), lp->intmask, lp->next_tx, lp->cur_tx);
 
 	if (lp->cur_tx != -1 || lp->next_tx == -1)
 		return 0;
@@ -655,8 +660,8 @@ void arcnet_timeout(struct net_device *dev)
 	spin_unlock_irqrestore(&lp->lock, flags);
 
 	if (time_after(jiffies, lp->last_timeout + 10 * HZ)) {
-		BUGMSG(D_EXTRA, "tx timed out%s (status=%Xh, intmask=%Xh, dest=%02Xh)\n",
-		       msg, status, lp->intmask, lp->lasttrans_dest);
+		arc_printk(D_EXTRA, dev, "tx timed out%s (status=%Xh, intmask=%Xh, dest=%02Xh)\n",
+			   msg, status, lp->intmask, lp->lasttrans_dest);
 		lp->last_timeout = jiffies;
 	}
 
@@ -675,9 +680,9 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 	int recbuf, status, diagstatus, didsomething, boguscount;
 	int retval = IRQ_NONE;
 
-	BUGMSG(D_DURING, "\n");
+	arc_printk(D_DURING, dev, "\n");
 
-	BUGMSG(D_DURING, "in arcnet_interrupt\n");
+	arc_printk(D_DURING, dev, "in arcnet_interrupt\n");
 
 	lp = netdev_priv(dev);
 	BUG_ON(!lp);
@@ -695,16 +700,16 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 		return retval;
 	}
 
-	BUGMSG(D_DURING, "in arcnet_inthandler (status=%Xh, intmask=%Xh)\n",
-	       ASTATUS(), lp->intmask);
+	arc_printk(D_DURING, dev, "in arcnet_inthandler (status=%Xh, intmask=%Xh)\n",
+		   ASTATUS(), lp->intmask);
 
 	boguscount = 5;
 	do {
 		status = ASTATUS();
 		diagstatus = (status >> 8) & 0xFF;
 
-		BUGMSG(D_DEBUG, "%s: %d: %s: status=%x\n",
-		       __FILE__, __LINE__, __func__, status);
+		arc_printk(D_DEBUG, dev, "%s: %d: %s: status=%x\n",
+			   __FILE__, __LINE__, __func__, status);
 		didsomething = 0;
 
 		/* RESET flag was enabled - card is resetting and if RX is
@@ -714,7 +719,8 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 		 * Clear it out and start over.
 		 */
 		if (status & RESETflag) {
-			BUGMSG(D_NORMAL, "spurious reset (status=%Xh)\n", status);
+			arc_printk(D_NORMAL, dev, "spurious reset (status=%Xh)\n",
+				   status);
 			arcnet_close(dev);
 			arcnet_open(dev);
 
@@ -732,21 +738,21 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 		recbuf = -1;
 		if (status & lp->intmask & NORXflag) {
 			recbuf = lp->cur_rx;
-			BUGMSG(D_DURING, "Buffer #%d: receive irq (status=%Xh)\n",
-			       recbuf, status);
+			arc_printk(D_DURING, dev, "Buffer #%d: receive irq (status=%Xh)\n",
+				   recbuf, status);
 
 			lp->cur_rx = get_arcbuf(dev);
 			if (lp->cur_rx != -1) {
-				BUGMSG(D_DURING, "enabling receive to buffer #%d\n",
-				       lp->cur_rx);
+				arc_printk(D_DURING, dev, "enabling receive to buffer #%d\n",
+					   lp->cur_rx);
 				ACOMMAND(RXcmd | (lp->cur_rx << 3) | RXbcasts);
 			}
 			didsomething++;
 		}
 
 		if ((diagstatus & EXCNAKflag)) {
-			BUGMSG(D_DURING, "EXCNAK IRQ (diagstat=%Xh)\n",
-			       diagstatus);
+			arc_printk(D_DURING, dev, "EXCNAK IRQ (diagstat=%Xh)\n",
+				   diagstatus);
 
 			ACOMMAND(NOTXcmd);      /* disable transmit */
 			lp->excnak_pending = 1;
@@ -760,20 +766,22 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 		if ((status & lp->intmask & TXFREEflag) || lp->timed_out) {
 			lp->intmask &= ~(TXFREEflag | EXCNAKflag);
 
-			BUGMSG(D_DURING, "TX IRQ (stat=%Xh)\n", status);
+			arc_printk(D_DURING, dev, "TX IRQ (stat=%Xh)\n", status);
 
 			if (lp->cur_tx != -1 && !lp->timed_out) {
 				if (!(status & TXACKflag)) {
 					if (lp->lasttrans_dest != 0) {
-						BUGMSG(D_EXTRA,
-						       "transmit was not acknowledged! (status=%Xh, dest=%02Xh)\n",
-						       status, lp->lasttrans_dest);
+						arc_printk(D_EXTRA, dev,
+							   "transmit was not acknowledged! (status=%Xh, dest=%02Xh)\n",
+							   status,
+							   lp->lasttrans_dest);
 						dev->stats.tx_errors++;
 						dev->stats.tx_carrier_errors++;
 					} else {
-						BUGMSG(D_DURING,
-						       "broadcast was not acknowledged; that's normal (status=%Xh, dest=%02Xh)\n",
-						       status, lp->lasttrans_dest);
+						arc_printk(D_DURING, dev,
+							   "broadcast was not acknowledged; that's normal (status=%Xh, dest=%02Xh)\n",
+							   status,
+							   lp->lasttrans_dest);
 					}
 				}
 
@@ -836,29 +844,29 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 			ACOMMAND(CFLAGScmd | CONFIGclear);
 			dev->stats.tx_carrier_errors++;
 
-			BUGMSG(D_RECON, "Network reconfiguration detected (status=%Xh)\n",
-			       status);
+			arc_printk(D_RECON, dev, "Network reconfiguration detected (status=%Xh)\n",
+				   status);
 			/* MYRECON bit is at bit 7 of diagstatus */
 			if (diagstatus & 0x80)
-				BUGMSG(D_RECON, "Put out that recon myself\n");
+				arc_printk(D_RECON, dev, "Put out that recon myself\n");
 
 			/* is the RECON info empty or old? */
 			if (!lp->first_recon || !lp->last_recon ||
 			    time_after(jiffies, lp->last_recon + HZ * 10)) {
 				if (lp->network_down)
-					BUGMSG(D_NORMAL, "reconfiguration detected: cabling restored?\n");
+					arc_printk(D_NORMAL, dev, "reconfiguration detected: cabling restored?\n");
 				lp->first_recon = lp->last_recon = jiffies;
 				lp->num_recons = lp->network_down = 0;
 
-				BUGMSG(D_DURING, "recon: clearing counters.\n");
+				arc_printk(D_DURING, dev, "recon: clearing counters.\n");
 			} else {	/* add to current RECON counter */
 				lp->last_recon = jiffies;
 				lp->num_recons++;
 
-				BUGMSG(D_DURING, "recon: counter=%d, time=%lds, net=%d\n",
-				       lp->num_recons,
-				       (lp->last_recon - lp->first_recon) / HZ,
-				       lp->network_down);
+				arc_printk(D_DURING, dev, "recon: counter=%d, time=%lds, net=%d\n",
+					   lp->num_recons,
+					   (lp->last_recon - lp->first_recon) / HZ,
+					   lp->network_down);
 
 				/* if network is marked up;
 				 * and first_recon and last_recon are 60+ apart;
@@ -870,7 +878,7 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 				    (lp->last_recon - lp->first_recon) <= HZ * 60 &&
 				    lp->num_recons >= RECON_THRESHOLD) {
 					lp->network_down = 1;
-					BUGMSG(D_NORMAL, "many reconfigurations detected: cabling problem?\n");
+					arc_printk(D_NORMAL, dev, "many reconfigurations detected: cabling problem?\n");
 				} else if (!lp->network_down &&
 					   lp->last_recon - lp->first_recon > HZ * 60) {
 					/* reset counters if we've gone for over a minute. */
@@ -881,20 +889,20 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 		} else if (lp->network_down &&
 			   time_after(jiffies, lp->last_recon + HZ * 10)) {
 			if (lp->network_down)
-				BUGMSG(D_NORMAL, "cabling restored?\n");
+				arc_printk(D_NORMAL, dev, "cabling restored?\n");
 			lp->first_recon = lp->last_recon = 0;
 			lp->num_recons = lp->network_down = 0;
 
-			BUGMSG(D_DURING, "not recon: clearing counters anyway.\n");
+			arc_printk(D_DURING, dev, "not recon: clearing counters anyway.\n");
 		}
 
 		if (didsomething)
 			retval |= IRQ_HANDLED;
 	} while (--boguscount && didsomething);
 
-	BUGMSG(D_DURING, "arcnet_interrupt complete (status=%Xh, count=%d)\n",
-	       ASTATUS(), boguscount);
-	BUGMSG(D_DURING, "\n");
+	arc_printk(D_DURING, dev, "arcnet_interrupt complete (status=%Xh, count=%d)\n",
+		   ASTATUS(), boguscount);
+	arc_printk(D_DURING, dev, "\n");
 
 	AINTMASK(0);
 	udelay(1);
@@ -933,8 +941,8 @@ static void arcnet_rx(struct net_device *dev, int bufnum)
 		lp->hw.copy_from_card(dev, bufnum, ofs, soft, length);
 	}
 
-	BUGMSG(D_DURING, "Buffer #%d: received packet from %02Xh to %02Xh (%d+4 bytes)\n",
-	       bufnum, pkt.hard.source, pkt.hard.dest, length);
+	arc_printk(D_DURING, dev, "Buffer #%d: received packet from %02Xh to %02Xh (%d+4 bytes)\n",
+		   bufnum, pkt.hard.source, pkt.hard.dest, length);
 
 	dev->stats.rx_packets++;
 	dev->stats.rx_bytes += length + ARC_HDR_SIZE;
@@ -947,10 +955,10 @@ static void arcnet_rx(struct net_device *dev, int bufnum)
 			*newp = arc_proto_map[soft->proto];
 
 			if (oldp != newp) {
-				BUGMSG(D_PROTO,
-				       "got protocol %02Xh; encap for host %02Xh is now '%c' (was '%c')\n",
-				       soft->proto, pkt.hard.source,
-				       newp->suffix, oldp->suffix);
+				arc_printk(D_PROTO, dev,
+					   "got protocol %02Xh; encap for host %02Xh is now '%c' (was '%c')\n",
+					   soft->proto, pkt.hard.source,
+					   newp->suffix, oldp->suffix);
 			}
 		}
 
@@ -967,9 +975,9 @@ static void arcnet_rx(struct net_device *dev, int bufnum)
 static void null_rx(struct net_device *dev, int bufnum,
 		    struct archdr *pkthdr, int length)
 {
-	BUGMSG(D_PROTO,
-	       "rx: don't know how to deal with proto %02Xh from host %02Xh.\n",
-	       pkthdr->soft.rfc1201.proto, pkthdr->hard.source);
+	arc_printk(D_PROTO, dev,
+		   "rx: don't know how to deal with proto %02Xh from host %02Xh.\n",
+		   pkthdr->soft.rfc1201.proto, pkthdr->hard.source);
 }
 
 static int null_build_header(struct sk_buff *skb, struct net_device *dev,
@@ -977,9 +985,9 @@ static int null_build_header(struct sk_buff *skb, struct net_device *dev,
 {
 	struct arcnet_local *lp = netdev_priv(dev);
 
-	BUGMSG(D_PROTO,
-	       "tx: can't build header for encap %02Xh; load a protocol driver.\n",
-	       lp->default_proto[daddr]);
+	arc_printk(D_PROTO, dev,
+		   "tx: can't build header for encap %02Xh; load a protocol driver.\n",
+		   lp->default_proto[daddr]);
 
 	/* always fails */
 	return 0;
@@ -992,7 +1000,7 @@ static int null_prepare_tx(struct net_device *dev, struct archdr *pkt,
 	struct arcnet_local *lp = netdev_priv(dev);
 	struct arc_hardware newpkt;
 
-	BUGMSG(D_PROTO, "tx: no encap for this host; load a protocol driver.\n");
+	arc_printk(D_PROTO, dev, "tx: no encap for this host; load a protocol driver.\n");
 
 	/* send a packet to myself -- will never get received, of course */
 	newpkt.source = newpkt.dest = dev->dev_addr[0];

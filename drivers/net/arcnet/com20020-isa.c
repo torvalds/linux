@@ -58,16 +58,16 @@ static int __init com20020isa_probe(struct net_device *dev)
 
 	ioaddr = dev->base_addr;
 	if (!ioaddr) {
-		BUGMSG(D_NORMAL, "No autoprobe (yet) for IO mapped cards; you must specify the base address!\n");
+		arc_printk(D_NORMAL, dev, "No autoprobe (yet) for IO mapped cards; you must specify the base address!\n");
 		return -ENODEV;
 	}
 	if (!request_region(ioaddr, ARCNET_TOTAL_SIZE, "arcnet (COM20020)")) {
-		BUGMSG(D_NORMAL, "IO region %xh-%xh already allocated.\n",
-		       ioaddr, ioaddr + ARCNET_TOTAL_SIZE - 1);
+		arc_printk(D_NORMAL, dev, "IO region %xh-%xh already allocated.\n",
+			   ioaddr, ioaddr + ARCNET_TOTAL_SIZE - 1);
 		return -ENXIO;
 	}
 	if (ASTATUS() == 0xFF) {
-		BUGMSG(D_NORMAL, "IO address %x empty\n", ioaddr);
+		arc_printk(D_NORMAL, dev, "IO address %x empty\n", ioaddr);
 		err = -ENODEV;
 		goto out;
 	}
@@ -81,7 +81,8 @@ static int __init com20020isa_probe(struct net_device *dev)
 		 * card has just reset and the NORXflag is on until
 		 * we tell it to start receiving.
 		 */
-		BUGMSG(D_INIT_REASONS, "intmask was %02Xh\n", inb(_INTMASK));
+		arc_printk(D_INIT_REASONS, dev, "intmask was %02Xh\n",
+			   inb(_INTMASK));
 		outb(0, _INTMASK);
 		airqmask = probe_irq_on();
 		outb(NORXflag, _INTMASK);
@@ -90,14 +91,14 @@ static int __init com20020isa_probe(struct net_device *dev)
 		dev->irq = probe_irq_off(airqmask);
 
 		if ((int)dev->irq <= 0) {
-			BUGMSG(D_INIT_REASONS, "Autoprobe IRQ failed first time\n");
+			arc_printk(D_INIT_REASONS, dev, "Autoprobe IRQ failed first time\n");
 			airqmask = probe_irq_on();
 			outb(NORXflag, _INTMASK);
 			udelay(5);
 			outb(0, _INTMASK);
 			dev->irq = probe_irq_off(airqmask);
 			if ((int)dev->irq <= 0) {
-				BUGMSG(D_NORMAL, "Autoprobe IRQ failed.\n");
+				arc_printk(D_NORMAL, dev, "Autoprobe IRQ failed.\n");
 				err = -ENODEV;
 				goto out;
 			}
