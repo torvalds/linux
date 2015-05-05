@@ -77,22 +77,6 @@ visor_memregion_get_pointer(struct memregion *memregion)
 EXPORT_SYMBOL_GPL(visor_memregion_get_pointer);
 
 int
-visor_memregion_resize(struct memregion *memregion, ulong newsize)
-{
-	int rc;
-
-	if (newsize == memregion->nbytes)
-		return 0;
-
-	unmapit(memregion);
-	memregion->nbytes = newsize;
-	rc = mapit(memregion);
-
-	return rc;
-}
-EXPORT_SYMBOL_GPL(visor_memregion_resize);
-
-int
 visor_memregion_read(struct memregion *memregion, ulong offset, void *dest,
 		     ulong nbytes)
 {

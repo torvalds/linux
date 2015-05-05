@@ -89,9 +89,22 @@ visorchannel_create_guts(HOSTADDRESS physaddr, ulong channel_bytes,
 	if (uuid_le_cmp(guid, NULL_UUID_LE) == 0)
 		guid = channel->chan_hdr.chtype;
 
-	err = visor_memregion_resize(&channel->memregion, channel_bytes);
-	if (err)
+	iounmap(channel->memregion.mapped);
+	release_mem_region(channel->memregion.physaddr,
+			   channel->memregion.nbytes);
+	channel->memregion.mapped = NULL;
+	if (!request_mem_region(channel->memregion.physaddr, channel_bytes,
+				MYDRVNAME))
 		goto cleanup;
+
+	channel->memregion.mapped = ioremap_cache(channel->memregion.physaddr,
+						  channel_bytes);
+	if (!channel->memregion.mapped) {
+		release_mem_region(channel->memregion.physaddr, channel_bytes);
+		goto cleanup;
+	}
+
+	channel->memregion.nbytes = channel_bytes;
 
 	channel->size = channel_bytes;
 	channel->guid = guid;
