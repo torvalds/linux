@@ -196,8 +196,6 @@ affected_cpus :			List of Online CPUs that require software
 related_cpus :			List of Online + Offline CPUs that need software
 				coordination of frequency.
 
-scaling_driver :		Hardware driver for cpufreq.
-
 scaling_cur_freq :		Current frequency of the CPU as determined by
 				the governor and cpufreq core, in KHz. This is
 				the frequency the kernel thinks the CPU runs
