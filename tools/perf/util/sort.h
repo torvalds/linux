@@ -109,6 +109,8 @@ struct hist_entry {
 			u16	row_offset;
 			u16	nr_rows;
 			bool	init_have_children;
+			bool	unfolded;
+			bool	has_children;
 		};
 	};
 	char			*srcline;

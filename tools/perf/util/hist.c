@@ -1163,7 +1163,7 @@ static void hists__remove_entry_filter(struct hists *hists, struct hist_entry *h
 		return;
 
 	/* force fold unfiltered entry for simplicity */
-	h->ms.unfolded = false;
+	h->unfolded = false;
 	h->row_offset = 0;
 	h->nr_rows = 0;
 

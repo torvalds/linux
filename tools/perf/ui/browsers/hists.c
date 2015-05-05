@@ -63,7 +63,7 @@ static int hist_browser__get_folding(struct hist_browser *browser)
 		struct hist_entry *he =
 			rb_entry(nd, struct hist_entry, rb_node);
 
-		if (he->ms.unfolded)
+		if (he->unfolded)
 			unfolded_rows += he->nr_rows;
 	}
 	return unfolded_rows;
@@ -139,24 +139,19 @@ static char tree__folded_sign(bool unfolded)
 	return unfolded ? '-' : '+';
 }
 
-static char map_symbol__folded(const struct map_symbol *ms)
-{
-	return ms->has_children ? tree__folded_sign(ms->unfolded) : ' ';
-}
-
 static char hist_entry__folded(const struct hist_entry *he)
 {
-	return map_symbol__folded(&he->ms);
+	return he->has_children ? tree__folded_sign(he->unfolded) : ' ';
 }
 
 static char callchain_list__folded(const struct callchain_list *cl)
 {
-	return map_symbol__folded(&cl->ms);
+	return cl->has_children ? tree__folded_sign(cl->unfolded) : ' ';
 }
 
-static void map_symbol__set_folding(struct map_symbol *ms, bool unfold)
+static void callchain_list__set_folding(struct callchain_list *cl, bool unfold)
 {
-	ms->unfolded = unfold ? ms->has_children : false;
+	cl->unfolded = unfold ? cl->has_children : false;
 }
 
 static int callchain_node__count_rows_rb_tree(struct callchain_node *node)
@@ -192,7 +187,7 @@ static int callchain_node__count_rows(struct callchain_node *node)
 
 	list_for_each_entry(chain, &node->val, list) {
 		++n;
-		unfolded = chain->ms.unfolded;
+		unfolded = chain->unfolded;
 	}
 
 	if (unfolded)
@@ -214,15 +209,27 @@ static int callchain__count_rows(struct rb_root *chain)
 	return n;
 }
 
-static bool map_symbol__toggle_fold(struct map_symbol *ms)
+static bool hist_entry__toggle_fold(struct hist_entry *he)
 {
-	if (!ms)
+	if (!he)
 		return false;
 
-	if (!ms->has_children)
+	if (!he->has_children)
 		return false;
 
-	ms->unfolded = !ms->unfolded;
+	he->unfolded = !he->unfolded;
+	return true;
+}
+
+static bool callchain_list__toggle_fold(struct callchain_list *cl)
+{
+	if (!cl)
+		return false;
+
+	if (!cl->has_children)
+		return false;
+
+	cl->unfolded = !cl->unfolded;
 	return true;
 }
 
@@ -238,10 +245,10 @@ static void callchain_node__init_have_children_rb_tree(struct callchain_node *no
 		list_for_each_entry(chain, &child->val, list) {
 			if (first) {
 				first = false;
-				chain->ms.has_children = chain->list.next != &child->val ||
+				chain->has_children = chain->list.next != &child->val ||
 							 !RB_EMPTY_ROOT(&child->rb_root);
 			} else
-				chain->ms.has_children = chain->list.next == &child->val &&
+				chain->has_children = chain->list.next == &child->val &&
 							 !RB_EMPTY_ROOT(&child->rb_root);
 		}
 
@@ -255,11 +262,11 @@ static void callchain_node__init_have_children(struct callchain_node *node,
 	struct callchain_list *chain;
 
 	chain = list_entry(node->val.next, struct callchain_list, list);
-	chain->ms.has_children = has_sibling;
+	chain->has_children = has_sibling;
 
 	if (!list_empty(&node->val)) {
 		chain = list_entry(node->val.prev, struct callchain_list, list);
-		chain->ms.has_children = !RB_EMPTY_ROOT(&node->rb_root);
+		chain->has_children = !RB_EMPTY_ROOT(&node->rb_root);
 	}
 
 	callchain_node__init_have_children_rb_tree(node);
@@ -279,7 +286,7 @@ static void callchain__init_have_children(struct rb_root *root)
 static void hist_entry__init_have_children(struct hist_entry *he)
 {
 	if (!he->init_have_children) {
-		he->ms.has_children = !RB_EMPTY_ROOT(&he->sorted_chain);
+		he->has_children = !RB_EMPTY_ROOT(&he->sorted_chain);
 		callchain__init_have_children(&he->sorted_chain);
 		he->init_have_children = true;
 	}
@@ -287,14 +294,22 @@ static void hist_entry__init_have_children(struct hist_entry *he)
 
 static bool hist_browser__toggle_fold(struct hist_browser *browser)
 {
-	if (map_symbol__toggle_fold(browser->selection)) {
-		struct hist_entry *he = browser->he_selection;
+	struct hist_entry *he = browser->he_selection;
+	struct map_symbol *ms = browser->selection;
+	struct callchain_list *cl = container_of(ms, struct callchain_list, ms);
+	bool has_children;
 
+	if (ms == &he->ms)
+		has_children = hist_entry__toggle_fold(he);
+	else
+		has_children = callchain_list__toggle_fold(cl);
+
+	if (has_children) {
 		hist_entry__init_have_children(he);
 		browser->b.nr_entries -= he->nr_rows;
 		browser->nr_callchain_rows -= he->nr_rows;
 
-		if (he->ms.unfolded)
+		if (he->unfolded)
 			he->nr_rows = callchain__count_rows(&he->sorted_chain);
 		else
 			he->nr_rows = 0;
@@ -321,8 +336,8 @@ static int callchain_node__set_folding_rb_tree(struct callchain_node *node, bool
 
 		list_for_each_entry(chain, &child->val, list) {
 			++n;
-			map_symbol__set_folding(&chain->ms, unfold);
-			has_children = chain->ms.has_children;
+			callchain_list__set_folding(chain, unfold);
+			has_children = chain->has_children;
 		}
 
 		if (has_children)
@@ -340,8 +355,8 @@ static int callchain_node__set_folding(struct callchain_node *node, bool unfold)
 
 	list_for_each_entry(chain, &node->val, list) {
 		++n;
-		map_symbol__set_folding(&chain->ms, unfold);
-		has_children = chain->ms.has_children;
+		callchain_list__set_folding(chain, unfold);
+		has_children = chain->has_children;
 	}
 
 	if (has_children)
@@ -366,9 +381,9 @@ static int callchain__set_folding(struct rb_root *chain, bool unfold)
 static void hist_entry__set_folding(struct hist_entry *he, bool unfold)
 {
 	hist_entry__init_have_children(he);
-	map_symbol__set_folding(&he->ms, unfold);
+	he->unfolded = unfold ? he->has_children : false;
 
-	if (he->ms.has_children) {
+	if (he->has_children) {
 		int n = callchain__set_folding(&he->sorted_chain, unfold);
 		he->nr_rows = unfold ? n : 0;
 	} else
@@ -1019,7 +1034,7 @@ do_offset:
 	if (offset > 0) {
 		do {
 			h = rb_entry(nd, struct hist_entry, rb_node);
-			if (h->ms.unfolded) {
+			if (h->unfolded) {
 				u16 remaining = h->nr_rows - h->row_offset;
 				if (offset > remaining) {
 					offset -= remaining;
@@ -1040,7 +1055,7 @@ do_offset:
 	} else if (offset < 0) {
 		while (1) {
 			h = rb_entry(nd, struct hist_entry, rb_node);
-			if (h->ms.unfolded) {
+			if (h->unfolded) {
 				if (first) {
 					if (-offset > h->row_offset) {
 						offset += h->row_offset;
@@ -1077,7 +1092,7 @@ do_offset:
 				 * row_offset at its last entry.
 				 */
 				h = rb_entry(nd, struct hist_entry, rb_node);
-				if (h->ms.unfolded)
+				if (h->unfolded)
 					h->row_offset = h->nr_rows;
 				break;
 			}
