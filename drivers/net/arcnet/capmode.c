@@ -159,8 +159,9 @@ static int prepare_tx(struct net_device *dev, struct archdr *pkt, int length,
 	} else if (length > MTU) {
 		hard->offset[0] = 0;
 		hard->offset[1] = ofs = 512 - length - 3;
-	} else
+	} else {
 		hard->offset[0] = ofs = 256 - length;
+	}
 
 	BUGMSG(D_DURING, "prepare_tx: length=%d ofs=%d\n",
 	       length, ofs);
@@ -226,8 +227,7 @@ free_outskb:
 	return 0;
 }
 
-static struct ArcProto capmode_proto =
-{
+static struct ArcProto capmode_proto = {
 	'r',
 	XMTU,
 	0,

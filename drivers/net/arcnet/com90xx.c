@@ -112,8 +112,7 @@ static void __init com90xx_probe(void)
 {
 	int count, status, ioaddr, numprint, airq, openparen = 0;
 	unsigned long airqmask;
-	int ports[(0x3f0 - 0x200) / 16 + 1] =
-	{0};
+	int ports[(0x3f0 - 0x200) / 16 + 1] = {	0 };
 	unsigned long *shmems;
 	void __iomem **iomem;
 	int numports, numshmems, *port;

@@ -41,10 +41,11 @@
 
 #define VERSION "arcnet: COM20020 chipset support (by David Woodhouse et al.)\n"
 
-static char *clockrates[] =
-{"10 Mb/s", "Reserved", "5 Mb/s",
- "2.5 Mb/s", "1.25Mb/s", "625 Kb/s", "312.5 Kb/s",
- "156.25 Kb/s", "Reserved", "Reserved", "Reserved"};
+static char *clockrates[] = {
+	"XXXXXXX", "XXXXXXXX", "XXXXXX",
+	"2.5 Mb/s", "1.25Mb/s", "625 Kb/s", "312.5 Kb/s",
+	"156.25 Kb/s", "Reserved", "Reserved", "Reserved"
+};
 
 static void com20020_command(struct net_device *dev, int command);
 static int com20020_status(struct net_device *dev);
@@ -102,8 +103,7 @@ int com20020_check(struct net_device *dev)
 	SET_SUBADR(SUB_SETUP1);
 	outb(lp->setup, _XREG);
 
-	if (lp->clockm != 0)
-	{
+	if (lp->clockm != 0) {
 		SET_SUBADR(SUB_SETUP2);
 		outb(lp->setup2, _XREG);
 
@@ -196,8 +196,7 @@ int com20020_found(struct net_device *dev, int shared)
 	SET_SUBADR(SUB_SETUP1);
 	outb(lp->setup, _XREG);
 
-	if (lp->card_flags & ARC_CAN_10MBIT)
-	{
+	if (lp->card_flags & ARC_CAN_10MBIT) {
 		SET_SUBADR(SUB_SETUP2);
 		outb(lp->setup2, _XREG);
 

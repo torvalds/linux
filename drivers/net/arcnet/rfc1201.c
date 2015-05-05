@@ -43,8 +43,7 @@ static int prepare_tx(struct net_device *dev, struct archdr *pkt, int length,
 		      int bufnum);
 static int continue_tx(struct net_device *dev, int bufnum);
 
-static struct ArcProto rfc1201_proto =
-{
+static struct ArcProto rfc1201_proto = {
 	.suffix		= 'a',
 	.mtu		= 1500,	/* could be more, but some receivers can't handle it... */
 	.is_ip          = 1,    /* This is for sending IP and ARP packages */
@@ -97,9 +96,9 @@ static __be16 type_trans(struct sk_buff *skb, struct net_device *dev)
 	skb_reset_mac_header(skb);
 	skb_pull(skb, hdr_size);
 
-	if (pkt->hard.dest == 0)
+	if (pkt->hard.dest == 0) {
 		skb->pkt_type = PACKET_BROADCAST;
-	else if (dev->flags & IFF_PROMISC) {
+	} else if (dev->flags & IFF_PROMISC) {
 		/* if we're not sending to ourselves :) */
 		if (pkt->hard.dest != dev->dev_addr[0])
 			skb->pkt_type = PACKET_OTHERHOST;
@@ -146,9 +145,9 @@ static void rx(struct net_device *dev, int bufnum,
 		ofs = 256 - length;
 
 	if (soft->split_flag == 0xFF) {		/* Exception Packet */
-		if (length >= 4 + RFC1201_HDR_SIZE)
+		if (length >= 4 + RFC1201_HDR_SIZE) {
 			BUGMSG(D_DURING, "compensating for exception packet\n");
-		else {
+		} else {
 			BUGMSG(D_EXTRA, "short RFC1201 exception packet from %02Xh",
 			       saddr);
 			return;
@@ -456,8 +455,9 @@ static void load_pkt(struct net_device *dev, struct arc_hardware *hard,
 		hard->offset[1] = ofs - RFC1201_HDR_SIZE;
 		lp->hw.copy_to_card(dev, bufnum, ofs - RFC1201_HDR_SIZE,
 				    &excsoft, RFC1201_HDR_SIZE);
-	} else
+	} else {
 		hard->offset[0] = ofs = 256 - softlen;
+	}
 
 	lp->hw.copy_to_card(dev, bufnum, 0, hard, ARC_HDR_SIZE);
 	lp->hw.copy_to_card(dev, bufnum, ofs, soft, softlen);

@@ -72,8 +72,7 @@ static void arcnet_rx(struct net_device *dev, int bufnum);
 struct ArcProto *arc_proto_map[256], *arc_proto_default,
 	*arc_bcast_proto, *arc_raw_proto;
 
-static struct ArcProto arc_proto_null =
-{
+static struct ArcProto arc_proto_null = {
 	.suffix		= '?',
 	.mtu		= XMTU,
 	.is_ip          = 0,
@@ -264,14 +263,13 @@ static int get_arcbuf(struct net_device *dev)
 		/* already in this function */
 		BUGMSG(D_NORMAL, "get_arcbuf: overlap (%d)!\n",
 		       lp->buf_lock.counter);
-	}
-	else {			/* we can continue */
+	} else {			/* we can continue */
 		if (lp->next_buf >= 5)
 			lp->next_buf -= 5;
 
-		if (lp->next_buf == lp->first_free_buf)
+		if (lp->next_buf == lp->first_free_buf) {
 			BUGMSG(D_NORMAL, "get_arcbuf: BUG: no buffers are available??\n");
-		else {
+		} else {
 			buf = lp->buf_queue[lp->next_buf++];
 			lp->next_buf %= 5;
 		}
@@ -330,7 +328,6 @@ static void arcdev_setup(struct net_device *dev)
 
 	/* New-style flags. */
 	dev->flags = IFF_BROADCAST;
-
 }
 
 struct net_device *alloc_arcdev(const char *name)
@@ -494,8 +491,7 @@ static int arcnet_header(struct sk_buff *skb, struct net_device *dev,
 		proto = arc_raw_proto;
 		BUGMSG(D_DEBUG, "arc_raw_proto used. proto='%c'\n", proto->suffix);
 		_daddr = daddr ? *(uint8_t *)daddr : 0;
-	}
-	else if (!daddr) {
+	} else if (!daddr) {
 		/*
 		 * if the dest addr isn't provided, we can't choose an encapsulation!
 		 * Store the packet type (eg. ETH_P_IP) for now, and we'll push on a
@@ -509,8 +505,7 @@ static int arcnet_header(struct sk_buff *skb, struct net_device *dev,
 			BUGMSG(D_NORMAL, "arcnet_header: Yikes!  diff (%d) is not 2!\n",
 			       (int)(skb->network_header - skb->mac_header));
 		return -2;	/* return error -- can't transmit yet! */
-	}
-	else {
+	} else {
 		/* otherwise, we can just add the header as usual. */
 		_daddr = *(uint8_t *)daddr;
 		proto_num = lp->default_proto[_daddr];
@@ -564,9 +559,9 @@ netdev_tx_t arcnet_send_packet(struct sk_buff *skb,
 	AINTMASK(0);
 	if (lp->next_tx == -1)
 		txbuf = get_arcbuf(dev);
-	else {
+	else
 		txbuf = -1;
-	}
+
 	if (txbuf != -1) {
 		if (proto->prepare_tx(dev, pkt, skb->len, txbuf) &&
 		    !proto->ack_tx) {
@@ -606,9 +601,9 @@ netdev_tx_t arcnet_send_packet(struct sk_buff *skb,
 	BUGMSG(D_DEBUG, "%s: %d: %s, status: %x\n", __FILE__, __LINE__, __func__, ASTATUS());
 
 	spin_unlock_irqrestore(&lp->lock, flags);
-	if (freeskb) {
+	if (freeskb)
 		dev_kfree_skb(skb);
-	}
+
 	return retval;		/* no need to try again */
 }
 
@@ -830,8 +825,7 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 					if (lp->outgoing.proto->continue_tx(dev, txbuf)) {
 						/* that was the last segment */
 						dev->stats.tx_bytes += lp->outgoing.skb->len;
-						if (!lp->outgoing.proto->ack_tx)
-						{
+						if (!lp->outgoing.proto->ack_tx) {
 							dev_kfree_skb_irq(lp->outgoing.skb);
 							lp->outgoing.proto = NULL;
 						}
@@ -908,11 +902,9 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 			BUGMSG(D_DURING, "not recon: clearing counters anyway.\n");
 		}
 
-		if (didsomething) {
+		if (didsomething)
 			retval |= IRQ_HANDLED;
-		}
-	}
-	while (--boguscount && didsomething);
+	} while (--boguscount && didsomething);
 
 	BUGMSG(D_DURING, "arcnet_interrupt complete (status=%Xh, count=%d)\n",
 	       ASTATUS(), boguscount);
@@ -949,9 +941,9 @@ static void arcnet_rx(struct net_device *dev, int bufnum)
 	}
 
 	/* get the full header, if possible */
-	if (sizeof(pkt.soft) <= length)
+	if (sizeof(pkt.soft) <= length) {
 		lp->hw.copy_from_card(dev, bufnum, ofs, soft, sizeof(pkt.soft));
-	else {
+	} else {
 		memset(&pkt.soft, 0, sizeof(pkt.soft));
 		lp->hw.copy_from_card(dev, bufnum, ofs, soft, length);
 	}

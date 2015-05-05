@@ -42,8 +42,7 @@ static int build_header(struct sk_buff *skb, struct net_device *dev,
 static int prepare_tx(struct net_device *dev, struct archdr *pkt, int length,
 		      int bufnum);
 
-static struct ArcProto rawmode_proto =
-{
+static struct ArcProto rawmode_proto = {
 	.suffix		= 'r',
 	.mtu		= XMTU,
 	.rx		= rx,
@@ -183,8 +182,9 @@ static int prepare_tx(struct net_device *dev, struct archdr *pkt, int length,
 	} else if (length > MTU) {
 		hard->offset[0] = 0;
 		hard->offset[1] = ofs = 512 - length - 3;
-	} else
+	} else {
 		hard->offset[0] = ofs = 256 - length;
+	}
 
 	BUGMSG(D_DURING, "prepare_tx: length=%d ofs=%d\n",
 	       length, ofs);

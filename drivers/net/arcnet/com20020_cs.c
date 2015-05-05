@@ -56,8 +56,7 @@ static void regdump(struct net_device *dev)
 	int count;
 
 	netdev_dbg(dev, "register dump:\n");
-	for (count = ioaddr; count < ioaddr + 16; count++)
-	{
+	for (count = ioaddr; count < ioaddr + 16; count++) {
 		if (!(count % 16))
 			pr_cont("%04X:", count);
 		pr_cont(" %02X", inb(count));
@@ -70,8 +69,7 @@ static void regdump(struct net_device *dev)
 	outb((count >> 8) | RDDATAflag | AUTOINCflag, _ADDR_HI);
 	outb(count & 0xff, _ADDR_LO);
 
-	for (count = 0; count < 256 + 32; count++)
-	{
+	for (count = 0; count < 256 + 32; count++) {
 		if (!(count % 16))
 			pr_cont("%04X:", count);
 
@@ -175,11 +173,9 @@ static void com20020_detach(struct pcmcia_device *link)
 
 	/* Unlink device structure, free bits */
 	dev_dbg(&link->dev, "unlinking...\n");
-	if (link->priv)
-	{
+	if (link->priv) {
 		dev = info->dev;
-		if (dev)
-		{
+		if (dev) {
 			dev_dbg(&link->dev, "kfree...\n");
 			free_netdev(dev);
 		}
@@ -210,21 +206,18 @@ static int com20020_config(struct pcmcia_device *link)
 	i = -ENODEV;
 	link->io_lines = 16;
 
-	if (!link->resource[0]->start)
-	{
-		for (ioaddr = 0x100; ioaddr < 0x400; ioaddr += 0x10)
-		{
+	if (!link->resource[0]->start) {
+		for (ioaddr = 0x100; ioaddr < 0x400; ioaddr += 0x10) {
 			link->resource[0]->start = ioaddr;
 			i = pcmcia_request_io(link);
 			if (i == 0)
 				break;
 		}
-	}
-	else
+	} else {
 		i = pcmcia_request_io(link);
+	}
 
-	if (i != 0)
-	{
+	if (i != 0) {
 		dev_dbg(&link->dev, "requestIO failed totally!\n");
 		goto failed;
 	}
@@ -234,8 +227,7 @@ static int com20020_config(struct pcmcia_device *link)
 
 	dev_dbg(&link->dev, "request IRQ %d\n",
 		link->irq);
-	if (!link->irq)
-	{
+	if (!link->irq) {
 		dev_dbg(&link->dev, "requestIRQ failed totally!\n");
 		goto failed;
 	}
@@ -246,8 +238,7 @@ static int com20020_config(struct pcmcia_device *link)
 	if (ret)
 		goto failed;
 
-	if (com20020_check(dev))
-	{
+	if (com20020_check(dev)) {
 		regdump(dev);
 		goto failed;
 	}

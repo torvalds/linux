@@ -42,8 +42,7 @@ static int build_header(struct sk_buff *skb, struct net_device *dev,
 static int prepare_tx(struct net_device *dev, struct archdr *pkt, int length,
 		      int bufnum);
 
-static struct ArcProto rfc1051_proto =
-{
+static struct ArcProto rfc1051_proto = {
 	.suffix		= 's',
 	.mtu		= XMTU - RFC1051_HDR_SIZE,
 	.is_ip          = 1,
@@ -94,9 +93,9 @@ static __be16 type_trans(struct sk_buff *skb, struct net_device *dev)
 	skb_reset_mac_header(skb);
 	skb_pull(skb, hdr_size);
 
-	if (pkt->hard.dest == 0)
+	if (pkt->hard.dest == 0) {
 		skb->pkt_type = PACKET_BROADCAST;
-	else if (dev->flags & IFF_PROMISC) {
+	} else if (dev->flags & IFF_PROMISC) {
 		/* if we're not sending to ourselves :) */
 		if (pkt->hard.dest != dev->dev_addr[0])
 			skb->pkt_type = PACKET_OTHERHOST;
@@ -232,8 +231,9 @@ static int prepare_tx(struct net_device *dev, struct archdr *pkt, int length,
 	} else if (length > MTU) {
 		hard->offset[0] = 0;
 		hard->offset[1] = ofs = 512 - length - 3;
-	} else
+	} else {
 		hard->offset[0] = ofs = 256 - length;
+	}
 
 	lp->hw.copy_to_card(dev, bufnum, 0, hard, ARC_HDR_SIZE);
 	lp->hw.copy_to_card(dev, bufnum, ofs, &pkt->soft, length);
