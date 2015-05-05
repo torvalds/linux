@@ -54,7 +54,7 @@ static const uuid_le spar_vbus_channel_protocol_uuid =
 #define SPAR_VBUS_CHANNEL_OK_SERVER(actual_bytes)    \
 	(spar_check_channel_server(spar_vbus_channel_protocol_uuid,	\
 				   "vbus",				\
-				   sizeof(struct ultra_vbus_channel_protocol),\
+				   sizeof(struct spar_vbus_channel_protocol),\
 				   actual_bytes))
 
 #pragma pack(push, 1)		/* both GCC and VC now allow this pragma */
