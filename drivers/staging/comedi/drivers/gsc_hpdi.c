@@ -123,20 +123,6 @@
 #define NUM_DMA_BUFFERS				4
 #define NUM_DMA_DESCRIPTORS			256
 
-struct hpdi_board {
-	const char *name;
-	int device_id;
-	int subdevice_id;
-};
-
-static const struct hpdi_board hpdi_boards[] = {
-	{
-		.name		= "pci-hpdi32",
-		.device_id	= PCI_DEVICE_ID_PLX_9080,
-		.subdevice_id	= 0x2400,
-	 },
-};
-
 struct hpdi_private {
 	void __iomem *plx9080_mmio;
 	uint32_t *dio_buffer[NUM_DMA_BUFFERS];	/* dma buffers */
@@ -601,35 +587,16 @@ static void gsc_hpdi_init_plx9080(struct comedi_device *dev)
 	writel(bits, plx_iobase + PLX_DMA0_MODE_REG);
 }
 
-static const struct hpdi_board *gsc_hpdi_find_board(struct pci_dev *pcidev)
-{
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(hpdi_boards); i++)
-		if (pcidev->device == hpdi_boards[i].device_id &&
-		    pcidev->subsystem_device == hpdi_boards[i].subdevice_id)
-			return &hpdi_boards[i];
-	return NULL;
-}
-
 static int gsc_hpdi_auto_attach(struct comedi_device *dev,
 				unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct hpdi_board *thisboard;
 	struct hpdi_private *devpriv;
 	struct comedi_subdevice *s;
 	int i;
 	int retval;
 
-	thisboard = gsc_hpdi_find_board(pcidev);
-	if (!thisboard) {
-		dev_err(dev->class_dev, "gsc_hpdi: pci %s not supported\n",
-			pci_name(pcidev));
-		return -EINVAL;
-	}
-	dev->board_ptr = thisboard;
-	dev->board_name = thisboard->name;
+	dev->board_name = "pci-hpdi32";
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
