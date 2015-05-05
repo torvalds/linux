@@ -517,14 +517,11 @@ extern struct list_head rcu_struct_flavors;
  * RCU implementation internal declarations:
  */
 extern struct rcu_state rcu_sched_state;
-DECLARE_PER_CPU(struct rcu_data, rcu_sched_data);
 
 extern struct rcu_state rcu_bh_state;
-DECLARE_PER_CPU(struct rcu_data, rcu_bh_data);
 
 #ifdef CONFIG_PREEMPT_RCU
 extern struct rcu_state rcu_preempt_state;
-DECLARE_PER_CPU(struct rcu_data, rcu_preempt_data);
 #endif /* #ifdef CONFIG_PREEMPT_RCU */
 
 #ifdef CONFIG_RCU_BOOST

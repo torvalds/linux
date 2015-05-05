@@ -91,7 +91,7 @@ static const char *tp_##sname##_varname __used __tracepoint_string = sname##_var
 
 #define RCU_STATE_INITIALIZER(sname, sabbr, cr) \
 DEFINE_RCU_TPS(sname) \
-DEFINE_PER_CPU_SHARED_ALIGNED(struct rcu_data, sname##_data); \
+static DEFINE_PER_CPU_SHARED_ALIGNED(struct rcu_data, sname##_data); \
 struct rcu_state sname##_state = { \
 	.level = { &sname##_state.node[0] }, \
 	.rda = &sname##_data, \
