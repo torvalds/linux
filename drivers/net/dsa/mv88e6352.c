@@ -32,6 +32,8 @@ static char *mv88e6352_probe(struct device *host_dev, int sw_addr)
 
 	ret = __mv88e6xxx_reg_read(bus, sw_addr, REG_PORT(0), PORT_SWITCH_ID);
 	if (ret >= 0) {
+		if ((ret & 0xfff0) == PORT_SWITCH_ID_6172)
+			return "Marvell 88E6172";
 		if ((ret & 0xfff0) == PORT_SWITCH_ID_6176)
 			return "Marvell 88E6176";
 		if (ret == PORT_SWITCH_ID_6352_A0)
@@ -393,3 +395,4 @@ struct dsa_switch_driver mv88e6352_switch_driver = {
 };
 
 MODULE_ALIAS("platform:mv88e6352");
+MODULE_ALIAS("platform:mv88e6172");

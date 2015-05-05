@@ -1,4 +1,4 @@
-/* net/dsa/mv88e6171.c - Marvell 88e6171/8826172 switch chip support
+/* net/dsa/mv88e6171.c - Marvell 88e6171 switch chip support
  * Copyright (c) 2008-2009 Marvell Semiconductor
  * Copyright (c) 2014 Claudio Leite <leitec@staticky.com>
  *
@@ -29,8 +29,6 @@ static char *mv88e6171_probe(struct device *host_dev, int sw_addr)
 	if (ret >= 0) {
 		if ((ret & 0xfff0) == PORT_SWITCH_ID_6171)
 			return "Marvell 88E6171";
-		if ((ret & 0xfff0) == PORT_SWITCH_ID_6172)
-			return "Marvell 88E6172";
 	}
 
 	return NULL;
@@ -40,6 +38,7 @@ static int mv88e6171_setup_global(struct dsa_switch *ds)
 {
 	u32 upstream_port = dsa_upstream_port(ds);
 	int ret;
+	u32 reg;
 
 	ret = mv88e6xxx_setup_global(ds);
 	if (ret)
@@ -55,24 +54,11 @@ static int mv88e6171_setup_global(struct dsa_switch *ds)
 	 * port as the port to which ingress and egress monitor frames
 	 * are to be sent.
 	 */
-	if (REG_READ(REG_PORT(0), PORT_SWITCH_ID) == PORT_SWITCH_ID_6171)
-		REG_WRITE(REG_GLOBAL, GLOBAL_MONITOR_CONTROL,
-			  upstream_port <<
-			  GLOBAL_MONITOR_CONTROL_INGRESS_SHIFT |
-			  upstream_port <<
-			  GLOBAL_MONITOR_CONTROL_EGRESS_SHIFT |
-			  upstream_port <<
-			  GLOBAL_MONITOR_CONTROL_ARP_SHIFT |
-			  upstream_port <<
-			  GLOBAL_MONITOR_CONTROL_MIRROR_SHIFT);
-	else
-		REG_WRITE(REG_GLOBAL, GLOBAL_MONITOR_CONTROL,
-			  upstream_port <<
-			  GLOBAL_MONITOR_CONTROL_INGRESS_SHIFT |
-			  upstream_port <<
-			  GLOBAL_MONITOR_CONTROL_EGRESS_SHIFT |
-			  upstream_port <<
-			  GLOBAL_MONITOR_CONTROL_ARP_SHIFT);
+	reg = upstream_port << GLOBAL_MONITOR_CONTROL_INGRESS_SHIFT |
+		upstream_port << GLOBAL_MONITOR_CONTROL_EGRESS_SHIFT |
+		upstream_port << GLOBAL_MONITOR_CONTROL_ARP_SHIFT |
+		upstream_port << GLOBAL_MONITOR_CONTROL_MIRROR_SHIFT;
+	REG_WRITE(REG_GLOBAL, GLOBAL_MONITOR_CONTROL, reg);
 
 	/* Disable remote management for now, and set the switch's
 	 * DSA device number.
@@ -104,28 +90,6 @@ static int mv88e6171_setup(struct dsa_switch *ds)
 	return mv88e6xxx_setup_ports(ds);
 }
 
-static int mv88e6171_get_eee(struct dsa_switch *ds, int port,
-			     struct ethtool_eee *e)
-{
-	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-
-	if (ps->id == PORT_SWITCH_ID_6172)
-		return mv88e6xxx_get_eee(ds, port, e);
-
-	return -EOPNOTSUPP;
-}
-
-static int mv88e6171_set_eee(struct dsa_switch *ds, int port,
-			     struct phy_device *phydev, struct ethtool_eee *e)
-{
-	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-
-	if (ps->id == PORT_SWITCH_ID_6172)
-		return mv88e6xxx_set_eee(ds, port, phydev, e);
-
-	return -EOPNOTSUPP;
-}
-
 struct dsa_switch_driver mv88e6171_switch_driver = {
 	.tag_protocol		= DSA_TAG_PROTO_EDSA,
 	.priv_size		= sizeof(struct mv88e6xxx_priv_state),
@@ -138,8 +102,6 @@ struct dsa_switch_driver mv88e6171_switch_driver = {
 	.get_strings		= mv88e6xxx_get_strings,
 	.get_ethtool_stats	= mv88e6xxx_get_ethtool_stats,
 	.get_sset_count		= mv88e6xxx_get_sset_count,
-	.set_eee		= mv88e6171_set_eee,
-	.get_eee		= mv88e6171_get_eee,
 #ifdef CONFIG_NET_DSA_HWMON
 	.get_temp               = mv88e6xxx_get_temp,
 #endif
@@ -154,4 +116,3 @@ struct dsa_switch_driver mv88e6171_switch_driver = {
 };
 
 MODULE_ALIAS("platform:mv88e6171");
-MODULE_ALIAS("platform:mv88e6172");
