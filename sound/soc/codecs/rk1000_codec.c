@@ -391,9 +391,9 @@ static int rk1000_codec_set_bias_level(struct snd_soc_codec *codec,
 
 	case SND_SOC_BIAS_STANDBY:
 		DBG("rk1000 standby\n");
-		rk1000_codec_write(codec, ACCELCODEC_R1D, 0xFF);
-		rk1000_codec_write(codec, ACCELCODEC_R1E, 0xFF);
-		rk1000_codec_write(codec, ACCELCODEC_R1F, 0xFF);
+		rk1000_codec_write(codec, ACCELCODEC_R1D, 0x2a);
+		rk1000_codec_write(codec, ACCELCODEC_R1E, 0x40);
+		rk1000_codec_write(codec, ACCELCODEC_R1F, 0x49);
 		break;
 
 	case SND_SOC_BIAS_OFF:
@@ -738,7 +738,7 @@ static int rk1000_codec_suspend(struct snd_soc_codec *codec)
 {
 	DBG("Enter::%s----%d\n", __func__, __LINE__);
 	spk_ctrl_fun(GPIO_LOW);
-	rk1000_codec_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
+	rk1000_codec_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;
 }
 
