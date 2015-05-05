@@ -124,27 +124,15 @@ visor_memregion_resize(struct memregion *memregion, ulong newsize)
 }
 EXPORT_SYMBOL_GPL(visor_memregion_resize);
 
-static int
-memregion_readwrite(BOOL is_write,
-		    struct memregion *memregion, ulong offset,
-		    void *local, ulong nbytes)
-{
-	if (offset + nbytes > memregion->nbytes)
-		return -EIO;
-
-	if (is_write)
-		memcpy_toio(memregion->mapped + offset, local, nbytes);
-	else
-		memcpy_fromio(local, memregion->mapped + offset, nbytes);
-
-	return 0;
-}
-
 int
 visor_memregion_read(struct memregion *memregion, ulong offset, void *dest,
 		     ulong nbytes)
 {
-	return memregion_readwrite(FALSE, memregion, offset, dest, nbytes);
+	if (offset + nbytes > memregion->nbytes)
+		return -EIO;
+
+	memcpy_fromio(dest, memregion->mapped + offset, nbytes);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(visor_memregion_read);
 
@@ -152,7 +140,11 @@ int
 visor_memregion_write(struct memregion *memregion, ulong offset, void *src,
 		      ulong nbytes)
 {
-	return memregion_readwrite(TRUE, memregion, offset, src, nbytes);
+	if (offset + nbytes > memregion->nbytes)
+		return -EIO;
+
+	memcpy_toio(memregion->mapped + offset, src, nbytes);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(visor_memregion_write);
 
