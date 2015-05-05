@@ -928,8 +928,6 @@ static int su3000_read_mac_address(struct dvb_usb_device *d, u8 mac[6])
 			break;
 		else
 			mac[i] = ibuf[0];
-
-		debug_dump(mac, 6, printk);
 	}
 
 	return 0;
