@@ -320,24 +320,6 @@ struct controlvm_message {
 	struct controlvm_message_packet cmd;
 };
 
-struct device_map {
-	u64 device_channel_address;
-	u64 device_channel_size;
-	u32 ca_index;
-	u32 reserved;		/* natural alignment */
-	u64 reserved2;		/* Align structure on 32-byte boundary */
-};
-
-struct guest_devices {
-	struct device_map video_channel;
-	struct device_map keyboard_channel;
-	struct device_map network_channel;
-	struct device_map storage_channel;
-	struct device_map console_channel;
-	u32 partition_index;
-	u32 pad;
-};
-
 struct spar_controlvm_channel_protocol {
 	struct channel_header header;
 	u64 gp_controlvm;	/* guest phys addr of this channel */
@@ -361,7 +343,7 @@ struct spar_controlvm_channel_protocol {
 	u64 gp_smbios_table;		/* guest phys addr of SMBIOS tables */
 	u64 gp_physical_smbios_table;	/* guest phys addr of SMBIOS table  */
 	/* ULTRA_MAX_GUESTS_PER_SERVICE */
-	struct guest_devices gp_obsolete_guest_devices[16];
+	char gp_reserved[2688];
 
 	/* guest physical address of EFI firmware image base  */
 	u64 virtual_guest_firmware_image_base;
