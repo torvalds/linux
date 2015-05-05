@@ -782,7 +782,7 @@ EXPORT_SYMBOL_GPL(visorchipset_save_message);
 static void
 bus_responder(enum controlvm_id cmd_id, u32 bus_no, int response)
 {
-	struct visorchipset_bus_info *p = NULL;
+	struct visorchipset_bus_info *p;
 	bool need_clear = false;
 
 	p = findbus(&bus_info_list, bus_no);
@@ -818,7 +818,7 @@ device_changestate_responder(enum controlvm_id cmd_id,
 			     u32 bus_no, u32 dev_no, int response,
 			     struct spar_segment_state response_state)
 {
-	struct visorchipset_device_info *p = NULL;
+	struct visorchipset_device_info *p;
 	struct controlvm_message outmsg;
 
 	p = finddevice(&dev_info_list, bus_no, dev_no);
@@ -845,7 +845,7 @@ device_changestate_responder(enum controlvm_id cmd_id,
 static void
 device_responder(enum controlvm_id cmd_id, u32 bus_no, u32 dev_no, int response)
 {
-	struct visorchipset_device_info *p = NULL;
+	struct visorchipset_device_info *p;
 	bool need_clear = false;
 
 	p = finddevice(&dev_info_list, bus_no, dev_no);
@@ -943,7 +943,7 @@ device_epilog(u32 bus_no, u32 dev_no, struct spar_segment_state state, u32 cmd,
 	      struct controlvm_message_header *msg_hdr, int response,
 	      bool need_response, bool for_visorbus)
 {
-	struct visorchipset_busdev_notifiers *notifiers = NULL;
+	struct visorchipset_busdev_notifiers *notifiers;
 	bool notified = false;
 
 	struct visorchipset_device_info *dev_info =
@@ -1041,7 +1041,7 @@ bus_create(struct controlvm_message *inmsg)
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
 	u32 bus_no = cmd->create_bus.bus_no;
 	int rc = CONTROLVM_RESP_SUCCESS;
-	struct visorchipset_bus_info *bus_info = NULL;
+	struct visorchipset_bus_info *bus_info;
 
 	bus_info = findbus(&bus_info_list, bus_no);
 	if (bus_info && (bus_info->state.created == 1)) {
@@ -1108,8 +1108,8 @@ bus_configure(struct controlvm_message *inmsg,
 	      struct parser_context *parser_ctx)
 {
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
-	u32 bus_no = cmd->configure_bus.bus_no;
-	struct visorchipset_bus_info *bus_info = NULL;
+	u32 bus_no;
+	struct visorchipset_bus_info *bus_info;
 	int rc = CONTROLVM_RESP_SUCCESS;
 	char s[99];
 
@@ -1150,8 +1150,8 @@ my_device_create(struct controlvm_message *inmsg)
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
 	u32 bus_no = cmd->create_device.bus_no;
 	u32 dev_no = cmd->create_device.dev_no;
-	struct visorchipset_device_info *dev_info = NULL;
-	struct visorchipset_bus_info *bus_info = NULL;
+	struct visorchipset_device_info *dev_info;
+	struct visorchipset_bus_info *bus_info;
 	int rc = CONTROLVM_RESP_SUCCESS;
 
 	dev_info = finddevice(&dev_info_list, bus_no, dev_no);
@@ -1221,7 +1221,7 @@ my_device_changestate(struct controlvm_message *inmsg)
 	u32 bus_no = cmd->device_change_state.bus_no;
 	u32 dev_no = cmd->device_change_state.dev_no;
 	struct spar_segment_state state = cmd->device_change_state.state;
-	struct visorchipset_device_info *dev_info = NULL;
+	struct visorchipset_device_info *dev_info;
 	int rc = CONTROLVM_RESP_SUCCESS;
 
 	dev_info = finddevice(&dev_info_list, bus_no, dev_no);
@@ -1248,7 +1248,7 @@ my_device_destroy(struct controlvm_message *inmsg)
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
 	u32 bus_no = cmd->destroy_device.bus_no;
 	u32 dev_no = cmd->destroy_device.dev_no;
-	struct visorchipset_device_info *dev_info = NULL;
+	struct visorchipset_device_info *dev_info;
 	int rc = CONTROLVM_RESP_SUCCESS;
 
 	dev_info = finddevice(&dev_info_list, bus_no, dev_no);
@@ -1538,8 +1538,8 @@ parahotplug_request_kickoff(struct parahotplug_request *req)
 static void
 parahotplug_process_list(void)
 {
-	struct list_head *pos = NULL;
-	struct list_head *tmp = NULL;
+	struct list_head *pos;
+	struct list_head *tmp;
 
 	spin_lock(&parahotplug_request_list_lock);
 
@@ -1570,8 +1570,8 @@ parahotplug_process_list(void)
 static int
 parahotplug_request_complete(int id, u16 active)
 {
-	struct list_head *pos = NULL;
-	struct list_head *tmp = NULL;
+	struct list_head *pos;
+	struct list_head *tmp;
 
 	spin_lock(&parahotplug_request_list_lock);
 
@@ -1656,10 +1656,10 @@ static bool
 handle_command(struct controlvm_message inmsg, HOSTADDRESS channel_addr)
 {
 	struct controlvm_message_packet *cmd = &inmsg.cmd;
-	u64 parm_addr = 0;
-	u32 parm_bytes = 0;
+	u64 parm_addr;
+	u32 parm_bytes;
 	struct parser_context *parser_ctx = NULL;
-	bool local_addr = false;
+	bool local_addr;
 	struct controlvm_message ackmsg;
 
 	/* create parsing context if necessary */
