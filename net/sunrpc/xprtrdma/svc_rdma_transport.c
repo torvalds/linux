@@ -851,7 +851,7 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	struct ib_qp_init_attr qp_attr;
 	struct ib_device_attr devattr;
 	int uninitialized_var(dma_mr_acc);
-	int need_dma_mr;
+	int need_dma_mr = 0;
 	int ret;
 	int i;
 
@@ -985,34 +985,25 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	/*
 	 * Determine if a DMA MR is required and if so, what privs are required
 	 */
-	switch (rdma_node_get_transport(newxprt->sc_cm_id->device->node_type)) {
-	case RDMA_TRANSPORT_IWARP:
-		newxprt->sc_dev_caps |= SVCRDMA_DEVCAP_READ_W_INV;
-		if (!(newxprt->sc_dev_caps & SVCRDMA_DEVCAP_FAST_REG)) {
-			need_dma_mr = 1;
-			dma_mr_acc =
-				(IB_ACCESS_LOCAL_WRITE |
-				 IB_ACCESS_REMOTE_WRITE);
-		} else if (!(devattr.device_cap_flags & IB_DEVICE_LOCAL_DMA_LKEY)) {
-			need_dma_mr = 1;
-			dma_mr_acc = IB_ACCESS_LOCAL_WRITE;
-		} else
-			need_dma_mr = 0;
-		break;
-	case RDMA_TRANSPORT_IB:
-		if (!(newxprt->sc_dev_caps & SVCRDMA_DEVCAP_FAST_REG)) {
-			need_dma_mr = 1;
-			dma_mr_acc = IB_ACCESS_LOCAL_WRITE;
-		} else if (!(devattr.device_cap_flags &
-			     IB_DEVICE_LOCAL_DMA_LKEY)) {
-			need_dma_mr = 1;
-			dma_mr_acc = IB_ACCESS_LOCAL_WRITE;
-		} else
-			need_dma_mr = 0;
-		break;
-	default:
+	if (!rdma_protocol_iwarp(newxprt->sc_cm_id->device,
+				 newxprt->sc_cm_id->port_num) &&
+	    !rdma_ib_or_iboe(newxprt->sc_cm_id->device,
+			     newxprt->sc_cm_id->port_num))
 		goto errout;
+
+	if (!(newxprt->sc_dev_caps & SVCRDMA_DEVCAP_FAST_REG) ||
+	    !(devattr.device_cap_flags & IB_DEVICE_LOCAL_DMA_LKEY)) {
+		need_dma_mr = 1;
+		dma_mr_acc = IB_ACCESS_LOCAL_WRITE;
+		if (rdma_protocol_iwarp(newxprt->sc_cm_id->device,
+					newxprt->sc_cm_id->port_num) &&
+		    !(newxprt->sc_dev_caps & SVCRDMA_DEVCAP_FAST_REG))
+			dma_mr_acc |= IB_ACCESS_REMOTE_WRITE;
 	}
+
+	if (rdma_protocol_iwarp(newxprt->sc_cm_id->device,
+				newxprt->sc_cm_id->port_num))
+		newxprt->sc_dev_caps |= SVCRDMA_DEVCAP_READ_W_INV;
 
 	/* Create the DMA MR if needed, otherwise, use the DMA LKEY */
 	if (need_dma_mr) {
