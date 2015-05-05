@@ -16,7 +16,6 @@
  */
 
 #include "version.h"
-#include "visorchipset.h"
 #include "procobjecttree.h"
 #include "visorbus.h"
 #include "periodic_work.h"
@@ -24,7 +23,10 @@
 #include "uisutils.h"
 #include "controlvmcompletionstatus.h"
 #include "guestlinuxdebug.h"
+#include "visorchipset.h"
 
+#include <linux/fs.h>
+#include <linux/mm.h>
 #include <linux/nls.h>
 #include <linux/netdevice.h>
 #include <linux/platform_device.h>
@@ -56,6 +58,23 @@ static int visorchipset_testteardown;
 static int visorchipset_disable_controlvm;
 static int visorchipset_holdchipsetready;
 
+static int
+visorchipset_open(struct inode *inode, struct file *file)
+{
+	unsigned minor_number = iminor(inode);
+
+	if (minor_number)
+		return -ENODEV;
+	file->private_data = NULL;
+	return 0;
+}
+
+static int
+visorchipset_release(struct inode *inode, struct file *file)
+{
+	return 0;
+}
+
 /* When the controlvm channel is idle for at least MIN_IDLE_SECONDS,
 * we switch to slow polling mode.  As soon as we get a controlvm
 * message, we switch back to fast polling mode.
@@ -74,6 +93,8 @@ static struct delayed_work periodic_controlvm_work;
 static struct workqueue_struct *periodic_controlvm_workqueue;
 static DEFINE_SEMAPHORE(notifier_lock);
 
+static struct cdev file_cdev;
+static struct visorchannel **file_controlvm_channel;
 static struct controlvm_message_header g_chipset_msg_hdr;
 static const uuid_le spar_diag_pool_channel_protocol_uuid =
 	SPAR_DIAG_POOL_CHANNEL_PROTOCOL_UUID;
@@ -2169,6 +2190,110 @@ static ssize_t deviceenabled_store(struct device *dev,
 	return count;
 }
 
+static int
+visorchipset_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	unsigned long physaddr = 0;
+	unsigned long offset = vma->vm_pgoff << PAGE_SHIFT;
+	GUEST_PHYSICAL_ADDRESS addr = 0;
+
+	/* sv_enable_dfp(); */
+	if (offset & (PAGE_SIZE - 1))
+		return -ENXIO;	/* need aligned offsets */
+
+	switch (offset) {
+	case VISORCHIPSET_MMAP_CONTROLCHANOFFSET:
+		vma->vm_flags |= VM_IO;
+		if (!*file_controlvm_channel)
+			return -ENXIO;
+
+		visorchannel_read(*file_controlvm_channel,
+			offsetof(struct spar_controlvm_channel_protocol,
+				 gp_control_channel),
+			&addr, sizeof(addr));
+		if (!addr)
+			return -ENXIO;
+
+		physaddr = (unsigned long)addr;
+		if (remap_pfn_range(vma, vma->vm_start,
+				    physaddr >> PAGE_SHIFT,
+				    vma->vm_end - vma->vm_start,
+				    /*pgprot_noncached */
+				    (vma->vm_page_prot))) {
+			return -EAGAIN;
+		}
+		break;
+	default:
+		return -ENXIO;
+	}
+	return 0;
+}
+
+static long visorchipset_ioctl(struct file *file, unsigned int cmd,
+			       unsigned long arg)
+{
+	s64 adjustment;
+	s64 vrtc_offset;
+
+	switch (cmd) {
+	case VMCALL_QUERY_GUEST_VIRTUAL_TIME_OFFSET:
+		/* get the physical rtc offset */
+		vrtc_offset = issue_vmcall_query_guest_virtual_time_offset();
+		if (copy_to_user((void __user *)arg, &vrtc_offset,
+				 sizeof(vrtc_offset))) {
+			return -EFAULT;
+		}
+		return SUCCESS;
+	case VMCALL_UPDATE_PHYSICAL_TIME:
+		if (copy_from_user(&adjustment, (void __user *)arg,
+				   sizeof(adjustment))) {
+			return -EFAULT;
+		}
+		return issue_vmcall_update_physical_time(adjustment);
+	default:
+		return -EFAULT;
+	}
+}
+
+static const struct file_operations visorchipset_fops = {
+	.owner = THIS_MODULE,
+	.open = visorchipset_open,
+	.read = NULL,
+	.write = NULL,
+	.unlocked_ioctl = visorchipset_ioctl,
+	.release = visorchipset_release,
+	.mmap = visorchipset_mmap,
+};
+
+int
+visorchipset_file_init(dev_t major_dev, struct visorchannel **controlvm_channel)
+{
+	int rc = 0;
+
+	file_controlvm_channel = controlvm_channel;
+	cdev_init(&file_cdev, &visorchipset_fops);
+	file_cdev.owner = THIS_MODULE;
+	if (MAJOR(major_dev) == 0) {
+		rc = alloc_chrdev_region(&major_dev, 0, 1, MYDRVNAME);
+		/* dynamic major device number registration required */
+		if (rc < 0)
+			return rc;
+	} else {
+		/* static major device number registration required */
+		rc = register_chrdev_region(major_dev, 1, MYDRVNAME);
+		if (rc < 0)
+			return rc;
+	}
+	rc = cdev_add(&file_cdev, MKDEV(MAJOR(major_dev), 0), 1);
+	if (rc < 0) {
+		unregister_chrdev_region(major_dev, 1);
+		return rc;
+	}
+	return 0;
+}
+
+
+
 static int __init
 visorchipset_init(void)
 {
@@ -2260,6 +2385,15 @@ cleanup:
 				 POSTCODE_SEVERITY_ERR);
 	}
 	return rc;
+}
+
+void
+visorchipset_file_cleanup(dev_t major_dev)
+{
+	if (file_cdev.ops)
+		cdev_del(&file_cdev);
+	file_cdev.ops = NULL;
+	unregister_chrdev_region(major_dev, 1);
 }
 
 static void
