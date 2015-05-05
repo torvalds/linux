@@ -1083,9 +1083,7 @@ void efx_mcdi_process_event(struct efx_channel *channel,
 
 void efx_mcdi_print_fwver(struct efx_nic *efx, char *buf, size_t len)
 {
-	MCDI_DECLARE_BUF(outbuf,
-			 max(MC_CMD_GET_VERSION_OUT_LEN,
-			     MC_CMD_GET_CAPABILITIES_OUT_LEN));
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_VERSION_OUT_LEN);
 	size_t outlength;
 	const __le16 *ver_words;
 	size_t offset;
@@ -1110,19 +1108,11 @@ void efx_mcdi_print_fwver(struct efx_nic *efx, char *buf, size_t len)
 	 * single version.  Report which variants are running.
 	 */
 	if (efx_nic_rev(efx) >= EFX_REV_HUNT_A0) {
-		BUILD_BUG_ON(MC_CMD_GET_CAPABILITIES_IN_LEN != 0);
-		rc = efx_mcdi_rpc(efx, MC_CMD_GET_CAPABILITIES, NULL, 0,
-				  outbuf, sizeof(outbuf), &outlength);
-		if (rc || outlength < MC_CMD_GET_CAPABILITIES_OUT_LEN)
-			offset += snprintf(
-				buf + offset, len - offset, " rx? tx?");
-		else
-			offset += snprintf(
-				buf + offset, len - offset, " rx%x tx%x",
-				MCDI_WORD(outbuf,
-					  GET_CAPABILITIES_OUT_RX_DPCPU_FW_ID),
-				MCDI_WORD(outbuf,
-					  GET_CAPABILITIES_OUT_TX_DPCPU_FW_ID));
+		struct efx_ef10_nic_data *nic_data = efx->nic_data;
+
+		offset += snprintf(buf + offset, len - offset, " rx%x tx%x",
+				   nic_data->rx_dpcpu_fw_id,
+				   nic_data->tx_dpcpu_fw_id);
 
 		/* It's theoretically possible for the string to exceed 31
 		 * characters, though in practice the first three version

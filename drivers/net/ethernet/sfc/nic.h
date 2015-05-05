@@ -491,6 +491,8 @@ enum {
  *	after MC reboot
  * @datapath_caps: Capabilities of datapath firmware (FLAGS1 field of
  *	%MC_CMD_GET_CAPABILITIES response)
+ * @rx_dpcpu_fw_id: Firmware ID of the RxDPCPU
+ * @tx_dpcpu_fw_id: Firmware ID of the TxDPCPU
  */
 struct efx_ef10_nic_data {
 	struct efx_buffer mcdi_buf;
@@ -509,6 +511,8 @@ struct efx_ef10_nic_data {
 	bool workaround_35388;
 	bool must_check_datapath_caps;
 	u32 datapath_caps;
+	unsigned int rx_dpcpu_fw_id;
+	unsigned int tx_dpcpu_fw_id;
 };
 
 int efx_init_sriov(void);

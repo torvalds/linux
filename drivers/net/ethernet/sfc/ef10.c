@@ -118,6 +118,13 @@ static int efx_ef10_init_datapath_caps(struct efx_nic *efx)
 	nic_data->datapath_caps =
 		MCDI_DWORD(outbuf, GET_CAPABILITIES_OUT_FLAGS1);
 
+	/* record the DPCPU firmware IDs to determine VEB vswitching support.
+	 */
+	nic_data->rx_dpcpu_fw_id =
+		MCDI_WORD(outbuf, GET_CAPABILITIES_OUT_RX_DPCPU_FW_ID);
+	nic_data->tx_dpcpu_fw_id =
+		MCDI_WORD(outbuf, GET_CAPABILITIES_OUT_TX_DPCPU_FW_ID);
+
 	if (!(nic_data->datapath_caps &
 	      (1 << MC_CMD_GET_CAPABILITIES_OUT_TX_TSO_LBN))) {
 		netif_err(efx, drv, efx->net_dev,
