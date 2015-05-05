@@ -1134,7 +1134,7 @@ static inline int managed_dentry_rcu(struct dentry *dentry)
  * we meet a managed dentry that would need blocking.
  */
 static bool __follow_mount_rcu(struct nameidata *nd, struct path *path,
-			       struct inode **inode)
+			       struct inode **inode, unsigned *seqp)
 {
 	for (;;) {
 		struct mount *mounted;
@@ -1161,7 +1161,7 @@ static bool __follow_mount_rcu(struct nameidata *nd, struct path *path,
 		path->mnt = &mounted->mnt;
 		path->dentry = mounted->mnt.mnt_root;
 		nd->flags |= LOOKUP_JUMPED;
-		nd->seq = read_seqcount_begin(&path->dentry->d_seq);
+		*seqp = read_seqcount_begin(&path->dentry->d_seq);
 		/*
 		 * Update the inode too. We don't need to re-check the
 		 * dentry sequence number here after this d_inode read,
@@ -1397,7 +1397,8 @@ static struct dentry *__lookup_hash(struct qstr *name,
  *  It _is_ time-critical.
  */
 static int lookup_fast(struct nameidata *nd,
-		       struct path *path, struct inode **inode)
+		       struct path *path, struct inode **inode,
+		       unsigned *seqp)
 {
 	struct vfsmount *mnt = nd->path.mnt;
 	struct dentry *dentry, *parent = nd->path.dentry;
@@ -1437,8 +1438,8 @@ static int lookup_fast(struct nameidata *nd,
 		 */
 		if (__read_seqcount_retry(&parent->d_seq, nd->seq))
 			return -ECHILD;
-		nd->seq = seq;
 
+		*seqp = seq;
 		if (unlikely(dentry->d_flags & DCACHE_OP_REVALIDATE)) {
 			status = d_revalidate(dentry, nd->flags);
 			if (unlikely(status <= 0)) {
@@ -1449,10 +1450,10 @@ static int lookup_fast(struct nameidata *nd,
 		}
 		path->mnt = mnt;
 		path->dentry = dentry;
-		if (likely(__follow_mount_rcu(nd, path, inode)))
+		if (likely(__follow_mount_rcu(nd, path, inode, seqp)))
 			return 0;
 unlazy:
-		if (unlazy_walk(nd, dentry, nd->seq))
+		if (unlazy_walk(nd, dentry, seq))
 			return -ECHILD;
 	} else {
 		dentry = __d_lookup(parent, &nd->last);
@@ -1543,7 +1544,7 @@ static void terminate_walk(struct nameidata *nd)
 		put_link(nd);
 }
 
-static int pick_link(struct nameidata *nd, struct path *link)
+static int pick_link(struct nameidata *nd, struct path *link, unsigned seq)
 {
 	int error;
 	struct saved *last;
@@ -1553,7 +1554,7 @@ static int pick_link(struct nameidata *nd, struct path *link)
 	}
 	if (nd->flags & LOOKUP_RCU) {
 		if (unlikely(nd->path.mnt != link->mnt ||
-			     unlazy_walk(nd, link->dentry, nd->seq))) {
+			     unlazy_walk(nd, link->dentry, seq))) {
 			return -ECHILD;
 		}
 	}
@@ -1577,13 +1578,14 @@ static int pick_link(struct nameidata *nd, struct path *link)
  * so we keep a cache of "no, this doesn't need follow_link"
  * for the common case.
  */
-static inline int should_follow_link(struct nameidata *nd, struct path *link, int follow)
+static inline int should_follow_link(struct nameidata *nd, struct path *link,
+				     int follow, unsigned seq)
 {
 	if (likely(!d_is_symlink(link->dentry)))
 		return 0;
 	if (!follow)
 		return 0;
-	return pick_link(nd, link);
+	return pick_link(nd, link, seq);
 }
 
 enum {WALK_GET = 1, WALK_PUT = 2};
@@ -1592,6 +1594,7 @@ static int walk_component(struct nameidata *nd, int flags)
 {
 	struct path path;
 	struct inode *inode;
+	unsigned seq;
 	int err;
 	/*
 	 * "." and ".." are special - ".." especially so because it has
@@ -1604,7 +1607,7 @@ static int walk_component(struct nameidata *nd, int flags)
 			put_link(nd);
 		return err;
 	}
-	err = lookup_fast(nd, &path, &inode);
+	err = lookup_fast(nd, &path, &inode, &seq);
 	if (unlikely(err)) {
 		if (err < 0)
 			return err;
@@ -1614,6 +1617,7 @@ static int walk_component(struct nameidata *nd, int flags)
 			return err;
 
 		inode = path.dentry->d_inode;
+		seq = 0;	/* we are already out of RCU mode */
 		err = -ENOENT;
 		if (d_is_negative(path.dentry))
 			goto out_path_put;
@@ -1621,11 +1625,12 @@ static int walk_component(struct nameidata *nd, int flags)
 
 	if (flags & WALK_PUT)
 		put_link(nd);
-	err = should_follow_link(nd, &path, flags & WALK_GET);
+	err = should_follow_link(nd, &path, flags & WALK_GET, seq);
 	if (unlikely(err))
 		return err;
 	path_to_nameidata(&path, nd);
 	nd->inode = inode;
+	nd->seq = seq;
 	return 0;
 
 out_path_put:
@@ -2342,7 +2347,7 @@ done:
 		put_link(nd);
 	path->dentry = dentry;
 	path->mnt = nd->path.mnt;
-	error = should_follow_link(nd, path, nd->flags & LOOKUP_FOLLOW);
+	error = should_follow_link(nd, path, nd->flags & LOOKUP_FOLLOW, 0);
 	if (unlikely(error))
 		return error;
 	mntget(path->mnt);
@@ -2939,6 +2944,7 @@ static int do_last(struct nameidata *nd,
 	bool will_truncate = (open_flag & O_TRUNC) != 0;
 	bool got_write = false;
 	int acc_mode = op->acc_mode;
+	unsigned seq;
 	struct inode *inode;
 	struct path save_parent = { .dentry = NULL, .mnt = NULL };
 	struct path path;
@@ -2959,7 +2965,7 @@ static int do_last(struct nameidata *nd,
 		if (nd->last.name[nd->last.len])
 			nd->flags |= LOOKUP_FOLLOW | LOOKUP_DIRECTORY;
 		/* we _can_ be in RCU mode here */
-		error = lookup_fast(nd, &path, &inode);
+		error = lookup_fast(nd, &path, &inode, &seq);
 		if (likely(!error))
 			goto finish_lookup;
 
@@ -3047,6 +3053,7 @@ retry_lookup:
 
 	BUG_ON(nd->flags & LOOKUP_RCU);
 	inode = path.dentry->d_inode;
+	seq = 0;	/* out of RCU mode, so the value doesn't matter */
 	if (unlikely(d_is_negative(path.dentry))) {
 		path_to_nameidata(&path, nd);
 		return -ENOENT;
@@ -3054,7 +3061,7 @@ retry_lookup:
 finish_lookup:
 	if (nd->depth)
 		put_link(nd);
-	error = should_follow_link(nd, &path, nd->flags & LOOKUP_FOLLOW);
+	error = should_follow_link(nd, &path, nd->flags & LOOKUP_FOLLOW, seq);
 	if (unlikely(error))
 		return error;
 
@@ -3072,6 +3079,7 @@ finish_lookup:
 
 	}
 	nd->inode = inode;
+	nd->seq = seq;
 	/* Why this, you ask?  _Now_ we might have grown LOOKUP_JUMPED... */
 finish_open:
 	error = complete_walk(nd);
