@@ -318,42 +318,38 @@ sig_read_header(struct visorchannel *channel, u32 queue,
 	return TRUE;
 }
 
-static BOOL
-sig_do_data(struct visorchannel *channel, u32 queue,
-	    struct signal_queue_header *sig_hdr, u32 slot, void *data,
-	    BOOL is_write)
-{
-	int err;
-	int signal_data_offset = SIG_DATA_OFFSET(&channel->chan_hdr, queue,
-						 sig_hdr, slot);
-	if (is_write) {
-		err = visor_memregion_write(channel->memregion,
-					    signal_data_offset,
-					    data, sig_hdr->signal_size);
-		if (err)
-			return FALSE;
-	} else {
-		err = visor_memregion_read(channel->memregion,
-					   signal_data_offset,
-					   data, sig_hdr->signal_size);
-		if (err)
-			return FALSE;
-	}
-	return TRUE;
-}
-
 static inline BOOL
 sig_read_data(struct visorchannel *channel, u32 queue,
 	      struct signal_queue_header *sig_hdr, u32 slot, void *data)
 {
-	return sig_do_data(channel, queue, sig_hdr, slot, data, FALSE);
+	int err;
+	int signal_data_offset = SIG_DATA_OFFSET(&channel->chan_hdr, queue,
+						 sig_hdr, slot);
+
+	err = visor_memregion_read(channel->memregion,
+				   signal_data_offset,
+				   data, sig_hdr->signal_size);
+	if (err)
+		return FALSE;
+
+	return TRUE;
 }
 
 static inline BOOL
 sig_write_data(struct visorchannel *channel, u32 queue,
 	       struct signal_queue_header *sig_hdr, u32 slot, void *data)
 {
-	return sig_do_data(channel, queue, sig_hdr, slot, data, TRUE);
+	int err;
+	int signal_data_offset = SIG_DATA_OFFSET(&channel->chan_hdr, queue,
+						 sig_hdr, slot);
+
+	err = visor_memregion_write(channel->memregion,
+				    signal_data_offset,
+				    data, sig_hdr->signal_size);
+	if (err)
+		return FALSE;
+
+	return TRUE;
 }
 
 static BOOL
