@@ -1882,6 +1882,7 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
 	};
 	struct perf_session *session;
 	int ret = -1;
+	const char errmsg[] = "No %s allocation events found.  Have you run 'perf kmem record --%s'?\n";
 
 	perf_config(kmem_config, NULL);
 	argc = parse_options_subcommand(argc, argv, kmem_options,
@@ -1908,11 +1909,21 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (session == NULL)
 		return -1;
 
-	if (kmem_page) {
-		struct perf_evsel *evsel = perf_evlist__first(session->evlist);
+	if (kmem_slab) {
+		if (!perf_evlist__find_tracepoint_by_name(session->evlist,
+							  "kmem:kmalloc")) {
+			pr_err(errmsg, "slab", "slab");
+			return -1;
+		}
+	}
 
-		if (evsel == NULL || evsel->tp_format == NULL) {
-			pr_err("invalid event found.. aborting\n");
+	if (kmem_page) {
+		struct perf_evsel *evsel;
+
+		evsel = perf_evlist__find_tracepoint_by_name(session->evlist,
+							     "kmem:mm_page_alloc");
+		if (evsel == NULL) {
+			pr_err(errmsg, "page", "page");
 			return -1;
 		}
 
