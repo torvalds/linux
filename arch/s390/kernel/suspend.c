@@ -11,6 +11,7 @@
 #include <linux/mm.h>
 #include <asm/sections.h>
 #include <asm/ctl_reg.h>
+#include <asm/ipl.h>
 
 /*
  * The restore of the saved pages in an hibernation image will set
