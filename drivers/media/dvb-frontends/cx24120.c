@@ -608,8 +608,8 @@ static void cx24120_get_stats(struct cx24120_state *state)
 	struct dvb_frontend *fe = &state->frontend;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct cx24120_cmd cmd;
-	int ret, sigstr_h, sigstr_l;
-	u16 u16tmp;
+	int ret;
+	u16 sig;
 
 	dev_dbg(&state->i2c->dev, "%s()\n", __func__);
 
@@ -626,18 +626,18 @@ static void cx24120_get_stats(struct cx24120_state *state)
 		}
 
 		/* raw */
-		sigstr_h = (cx24120_readreg(state, CX24120_REG_SIGSTR_H) >> 6) << 8;
-		sigstr_l = cx24120_readreg(state, CX24120_REG_SIGSTR_L);
-		dev_dbg(&state->i2c->dev, "%s: Signal strength from firmware= 0x%x\n",
-			__func__, (sigstr_h | sigstr_l));
+		sig = cx24120_readreg(state, CX24120_REG_SIGSTR_H) >> 6;
+		sig = sig << 8;
+		sig |= cx24120_readreg(state, CX24120_REG_SIGSTR_L);
+		dev_dbg(&state->i2c->dev,
+			"%s: Signal strength from firmware= 0x%x\n",
+			__func__, sig);
 
 		/* cooked */
-		u16tmp = ((sigstr_h | sigstr_l)  << 5) & 0x0000ffff;
-		dev_dbg(&state->i2c->dev, "%s: Signal strength= 0x%x\n",
-			__func__, u16tmp);
+		sig = -100 * sig + 94324;
 
 		c->strength.stat[0].scale = FE_SCALE_RELATIVE;
-		c->strength.stat[0].uvalue = u16tmp;
+		c->strength.stat[0].uvalue = sig;
 	} else {
 		c->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 	}
