@@ -5111,13 +5111,14 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 
 	ironlake_pfit_disable(intel_crtc);
 
+	if (intel_crtc->config->has_pch_encoder)
+		ironlake_fdi_disable(crtc);
+
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		if (encoder->post_disable)
 			encoder->post_disable(encoder);
 
 	if (intel_crtc->config->has_pch_encoder) {
-		ironlake_fdi_disable(crtc);
-
 		ironlake_disable_pch_transcoder(dev_priv, pipe);
 
 		if (HAS_PCH_CPT(dev)) {
