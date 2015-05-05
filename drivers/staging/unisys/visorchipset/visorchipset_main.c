@@ -76,7 +76,6 @@ static struct workqueue_struct *periodic_controlvm_workqueue;
 static DEFINE_SEMAPHORE(notifier_lock);
 
 static struct controlvm_message_header g_chipset_msg_hdr;
-static struct controlvm_message_header g_del_dump_msg_hdr;
 static const uuid_le spar_diag_pool_channel_protocol_uuid =
 	SPAR_DIAG_POOL_CHANNEL_PROTOCOL_UUID;
 /* 0xffffff is an invalid Bus/Device number */
@@ -2220,8 +2219,6 @@ visorchipset_init(void)
 
 	memset(&g_chipset_msg_hdr, 0, sizeof(struct controlvm_message_header));
 
-	memset(&g_del_dump_msg_hdr, 0, sizeof(struct controlvm_message_header));
-
 	if (!visorchipset_disable_controlvm) {
 		/* if booting in a crash kernel */
 		if (is_kdump_kernel())
@@ -2284,8 +2281,6 @@ visorchipset_exit(void)
 	cleanup_controlvm_structures();
 
 	memset(&g_chipset_msg_hdr, 0, sizeof(struct controlvm_message_header));
-
-	memset(&g_del_dump_msg_hdr, 0, sizeof(struct controlvm_message_header));
 
 	visorchannel_destroy(controlvm_channel);
 
