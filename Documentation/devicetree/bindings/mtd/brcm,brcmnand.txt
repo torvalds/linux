@@ -12,9 +12,14 @@ iProc/Cygnus. Its history includes several similar (but not fully register
 compatible) versions.
 
 Required properties:
-- compatible       : should contain "brcm,brcmnand" and an appropriate version
-                      compatibility string, like "brcm,brcmnand-v7.0"
-                      Possible values:
+- compatible       : May contain an SoC-specific compatibility string (see below)
+                     to account for any SoC-specific hardware bits that may be
+                     added on top of the base core controller.
+                     In addition, must contain compatibility information about
+                     the core NAND controller, of the following form:
+                     "brcm,brcmnand" and an appropriate version compatibility
+                     string, like "brcm,brcmnand-v7.0"
+                     Possible values:
                          brcm,brcmnand-v4.0
                          brcm,brcmnand-v5.0
                          brcm,brcmnand-v6.0
@@ -30,7 +35,11 @@ Required properties:
                      "flash-dma" and/or "nand-cache".
 - interrupts       : The NAND CTLRDY interrupt and (if Flash DMA is available)
                      FLASH_DMA_DONE
-- interrupt-names  : May be "nand_ctlrdy" or "flash_dma_done"
+- interrupt-names  : May be "nand_ctlrdy" or "flash_dma_done", if broken out as
+                     individual interrupts.
+                     May be "nand", if the SoC has the individual NAND
+                     interrupts multiplexed behind another custom piece of
+                     hardware
 - interrupt-parent : See standard interrupt bindings
 - #address-cells   : <1> - subnodes give the chip-select number
 - #size-cells      : <0>
@@ -40,6 +49,36 @@ Optional properties:
                               (WP) control bit. It is always available on >=
                               v7.0. Use this property to describe the rare
                               earlier versions of this core that include WP
+
+ -- Additonal SoC-specific NAND controller properties --
+
+The NAND controller is integrated differently on the variety of SoCs on which it
+is found. Part of this integration involves providing status and enable bits
+with which to control the 8 exposed NAND interrupts, as well as hardware for
+configuring the endianness of the data bus. On some SoCs, these features are
+handled via standard, modular components (e.g., their interrupts look like a
+normal IRQ chip), but on others, they are controlled in unique and interesting
+ways, sometimes with registers that lump multiple NAND-related functions
+together. The former case can be described simply by the standard interrupts
+properties in the main controller node. But for the latter exceptional cases,
+we define additional 'compatible' properties and associated register resources within the NAND controller node above.
+
+ - compatible: Can be one of several SoC-specific strings. Each SoC may have
+   different requirements for its additional properties, as described below each
+   bullet point below.
+
+   * "brcm,nand-bcm63138"
+     - reg: (required) the 'NAND_INT_BASE' register range, with separate status
+       and enable registers
+     - reg-names: (required) "nand-int-base"
+
+   * "brcm,nand-iproc"
+     - reg: (required) the "IDM" register range, for interrupt enable and APB
+       bus access endianness configuration, and the "EXT" register range,
+       for interrupt status/ack.
+     - reg-names: (required) a list of the names corresponding to the previous
+       register ranges. Should contain "iproc-idm" and "iproc-ext".
+
 
 * NAND chip-select
 
@@ -73,6 +112,7 @@ Optional properties:
 
 Each nandcs device node may optionally contain sub-nodes describing the flash
 partition mapping. See partition.txt for more detail.
+
 
 Example:
 
