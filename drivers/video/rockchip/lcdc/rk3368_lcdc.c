@@ -479,25 +479,26 @@ static void rk3368_lcdc_deint(struct lcdc_device *lcdc_dev)
 {
 	u32 mask, val;
 
-	rk3368_lcdc_disable_irq(lcdc_dev);
-	spin_lock(&lcdc_dev->reg_lock);
-	mask = m_WIN0_EN;
-	val = v_WIN0_EN(0);
-	lcdc_msk_reg(lcdc_dev, WIN0_CTRL0, mask, val);
-	lcdc_msk_reg(lcdc_dev, WIN1_CTRL0, mask, val);
+	if (lcdc_dev->clk_on) {
+		rk3368_lcdc_disable_irq(lcdc_dev);
+		spin_lock(&lcdc_dev->reg_lock);
+		mask = m_WIN0_EN;
+		val = v_WIN0_EN(0);
+		lcdc_msk_reg(lcdc_dev, WIN0_CTRL0, mask, val);
+		lcdc_msk_reg(lcdc_dev, WIN1_CTRL0, mask, val);
 
-	mask = m_WIN2_EN | m_WIN2_MST0_EN |
-		m_WIN2_MST1_EN |
-		m_WIN2_MST2_EN | m_WIN2_MST3_EN;
-	val = v_WIN2_EN(0) | v_WIN2_MST0_EN(0) |
-		v_WIN2_MST1_EN(0) |
-		v_WIN2_MST2_EN(0) | v_WIN2_MST3_EN(0);
-	lcdc_msk_reg(lcdc_dev, WIN2_CTRL0, mask, val);
-	lcdc_msk_reg(lcdc_dev, WIN3_CTRL0, mask, val);
-	lcdc_cfg_done(lcdc_dev);
-	spin_unlock(&lcdc_dev->reg_lock);
-	mdelay(50);
-
+		mask = m_WIN2_EN | m_WIN2_MST0_EN |
+			m_WIN2_MST1_EN |
+			m_WIN2_MST2_EN | m_WIN2_MST3_EN;
+		val = v_WIN2_EN(0) | v_WIN2_MST0_EN(0) |
+			v_WIN2_MST1_EN(0) |
+			v_WIN2_MST2_EN(0) | v_WIN2_MST3_EN(0);
+		lcdc_msk_reg(lcdc_dev, WIN2_CTRL0, mask, val);
+		lcdc_msk_reg(lcdc_dev, WIN3_CTRL0, mask, val);
+		lcdc_cfg_done(lcdc_dev);
+		spin_unlock(&lcdc_dev->reg_lock);
+		mdelay(50);
+	}
 }
 
 static int rk3368_lcdc_post_cfg(struct rk_lcdc_driver *dev_drv)
@@ -4847,8 +4848,8 @@ static void rk3368_lcdc_shutdown(struct platform_device *pdev)
 	flush_kthread_worker(&dev_drv->update_regs_worker);
 	kthread_stop(dev_drv->update_regs_thread);
 	rk3368_lcdc_deint(lcdc_dev);
-	if (dev_drv->trsm_ops && dev_drv->trsm_ops->disable)
-		dev_drv->trsm_ops->disable();
+	/*if (dev_drv->trsm_ops && dev_drv->trsm_ops->disable)
+		dev_drv->trsm_ops->disable();*/
 
 	rk3368_lcdc_clk_disable(lcdc_dev);
 	rk_disp_pwr_disable(dev_drv);
