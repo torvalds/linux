@@ -326,7 +326,10 @@ struct arcnet_local {
 #if ARCNET_DEBUG_MAX & D_SKB
 void arcnet_dump_skb(struct net_device *dev, struct sk_buff *skb, char *desc);
 #else
-#define arcnet_dump_skb(dev, skb, desc) ;
+static inline
+void arcnet_dump_skb(struct net_device *dev, struct sk_buff *skb, char *desc)
+{
+}
 #endif
 
 void arcnet_unregister_proto(struct ArcProto *proto);
