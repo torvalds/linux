@@ -211,8 +211,8 @@ struct trace_array {
 #ifdef CONFIG_FTRACE_SYSCALLS
 	int			sys_refcount_enter;
 	int			sys_refcount_exit;
-	struct ftrace_event_file __rcu *enter_syscall_files[NR_syscalls];
-	struct ftrace_event_file __rcu *exit_syscall_files[NR_syscalls];
+	struct trace_event_file __rcu *enter_syscall_files[NR_syscalls];
+	struct trace_event_file __rcu *exit_syscall_files[NR_syscalls];
 #endif
 	int			stop_count;
 	int			clock_id;
@@ -1052,9 +1052,9 @@ struct filter_pred {
 
 extern enum regex_type
 filter_parse_regex(char *buff, int len, char **search, int *not);
-extern void print_event_filter(struct ftrace_event_file *file,
+extern void print_event_filter(struct trace_event_file *file,
 			       struct trace_seq *s);
-extern int apply_event_filter(struct ftrace_event_file *file,
+extern int apply_event_filter(struct trace_event_file *file,
 			      char *filter_string);
 extern int apply_subsystem_event_filter(struct ftrace_subsystem_dir *dir,
 					char *filter_string);
@@ -1073,9 +1073,9 @@ extern void trace_event_enable_cmd_record(bool enable);
 extern int event_trace_add_tracer(struct dentry *parent, struct trace_array *tr);
 extern int event_trace_del_tracer(struct trace_array *tr);
 
-extern struct ftrace_event_file *find_event_file(struct trace_array *tr,
-						 const char *system,
-						 const char *event);
+extern struct trace_event_file *find_event_file(struct trace_array *tr,
+						const char *system,
+						const char *event);
 
 static inline void *event_file_data(struct file *filp)
 {
@@ -1242,23 +1242,23 @@ struct event_command {
 	enum event_trigger_type	trigger_type;
 	bool			post_trigger;
 	int			(*func)(struct event_command *cmd_ops,
-					struct ftrace_event_file *file,
+					struct trace_event_file *file,
 					char *glob, char *cmd, char *params);
 	int			(*reg)(char *glob,
 				       struct event_trigger_ops *ops,
 				       struct event_trigger_data *data,
-				       struct ftrace_event_file *file);
+				       struct trace_event_file *file);
 	void			(*unreg)(char *glob,
 					 struct event_trigger_ops *ops,
 					 struct event_trigger_data *data,
-					 struct ftrace_event_file *file);
+					 struct trace_event_file *file);
 	int			(*set_filter)(char *filter_str,
 					      struct event_trigger_data *data,
-					      struct ftrace_event_file *file);
+					      struct trace_event_file *file);
 	struct event_trigger_ops *(*get_trigger_ops)(char *cmd, char *param);
 };
 
-extern int trace_event_enable_disable(struct ftrace_event_file *file,
+extern int trace_event_enable_disable(struct trace_event_file *file,
 				      int enable, int soft_disable);
 extern int tracing_alloc_snapshot(void);
 

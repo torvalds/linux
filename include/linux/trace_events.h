@@ -157,11 +157,11 @@ static inline enum print_line_t trace_handle_return(struct trace_seq *s)
 void tracing_generic_entry_update(struct trace_entry *entry,
 				  unsigned long flags,
 				  int pc);
-struct ftrace_event_file;
+struct trace_event_file;
 
 struct ring_buffer_event *
 trace_event_buffer_lock_reserve(struct ring_buffer **current_buffer,
-				struct ftrace_event_file *ftrace_file,
+				struct trace_event_file *trace_file,
 				int type, unsigned long len,
 				unsigned long flags, int pc);
 struct ring_buffer_event *
@@ -222,14 +222,14 @@ extern int trace_event_reg(struct ftrace_event_call *event,
 struct ftrace_event_buffer {
 	struct ring_buffer		*buffer;
 	struct ring_buffer_event	*event;
-	struct ftrace_event_file	*ftrace_file;
+	struct trace_event_file		*trace_file;
 	void				*entry;
 	unsigned long			flags;
 	int				pc;
 };
 
 void *ftrace_event_buffer_reserve(struct ftrace_event_buffer *fbuffer,
-				  struct ftrace_event_file *ftrace_file,
+				  struct trace_event_file *trace_file,
 				  unsigned long len);
 
 void ftrace_event_buffer_commit(struct ftrace_event_buffer *fbuffer);
@@ -349,7 +349,7 @@ enum {
 	FTRACE_EVENT_FL_TRIGGER_COND	= (1 << FTRACE_EVENT_FL_TRIGGER_COND_BIT),
 };
 
-struct ftrace_event_file {
+struct trace_event_file {
 	struct list_head		list;
 	struct ftrace_event_call	*event_call;
 	struct event_filter		*filter;
@@ -414,15 +414,15 @@ enum event_trigger_type {
 
 extern int filter_match_preds(struct event_filter *filter, void *rec);
 
-extern int filter_check_discard(struct ftrace_event_file *file, void *rec,
+extern int filter_check_discard(struct trace_event_file *file, void *rec,
 				struct ring_buffer *buffer,
 				struct ring_buffer_event *event);
 extern int call_filter_check_discard(struct ftrace_event_call *call, void *rec,
 				     struct ring_buffer *buffer,
 				     struct ring_buffer_event *event);
-extern enum event_trigger_type event_triggers_call(struct ftrace_event_file *file,
+extern enum event_trigger_type event_triggers_call(struct trace_event_file *file,
 						   void *rec);
-extern void event_triggers_post_call(struct ftrace_event_file *file,
+extern void event_triggers_post_call(struct trace_event_file *file,
 				     enum event_trigger_type tt);
 
 /**
@@ -435,7 +435,7 @@ extern void event_triggers_post_call(struct ftrace_event_file *file,
  * otherwise false.
  */
 static inline bool
-ftrace_trigger_soft_disabled(struct ftrace_event_file *file)
+ftrace_trigger_soft_disabled(struct trace_event_file *file)
 {
 	unsigned long eflags = file->flags;
 
@@ -462,7 +462,7 @@ ftrace_trigger_soft_disabled(struct ftrace_event_file *file)
  * Returns true if the event is discarded, false otherwise.
  */
 static inline bool
-__event_trigger_test_discard(struct ftrace_event_file *file,
+__event_trigger_test_discard(struct trace_event_file *file,
 			     struct ring_buffer *buffer,
 			     struct ring_buffer_event *event,
 			     void *entry,
@@ -495,7 +495,7 @@ __event_trigger_test_discard(struct ftrace_event_file *file,
  * if the event is soft disabled and should be discarded.
  */
 static inline void
-event_trigger_unlock_commit(struct ftrace_event_file *file,
+event_trigger_unlock_commit(struct trace_event_file *file,
 			    struct ring_buffer *buffer,
 			    struct ring_buffer_event *event,
 			    void *entry, unsigned long irq_flags, int pc)
@@ -526,7 +526,7 @@ event_trigger_unlock_commit(struct ftrace_event_file *file,
  * trace_buffer_unlock_commit_regs() instead of trace_buffer_unlock_commit().
  */
 static inline void
-event_trigger_unlock_commit_regs(struct ftrace_event_file *file,
+event_trigger_unlock_commit_regs(struct trace_event_file *file,
 				 struct ring_buffer *buffer,
 				 struct ring_buffer_event *event,
 				 void *entry, unsigned long irq_flags, int pc,

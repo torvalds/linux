@@ -770,7 +770,7 @@ static void uprobe_buffer_put(struct uprobe_cpu_buffer *ucb)
 static void __uprobe_trace_func(struct trace_uprobe *tu,
 				unsigned long func, struct pt_regs *regs,
 				struct uprobe_cpu_buffer *ucb, int dsize,
-				struct ftrace_event_file *ftrace_file)
+				struct trace_event_file *trace_file)
 {
 	struct uprobe_trace_entry_head *entry;
 	struct ring_buffer_event *event;
@@ -779,17 +779,17 @@ static void __uprobe_trace_func(struct trace_uprobe *tu,
 	int size, esize;
 	struct ftrace_event_call *call = &tu->tp.call;
 
-	WARN_ON(call != ftrace_file->event_call);
+	WARN_ON(call != trace_file->event_call);
 
 	if (WARN_ON_ONCE(tu->tp.size + dsize > PAGE_SIZE))
 		return;
 
-	if (ftrace_trigger_soft_disabled(ftrace_file))
+	if (ftrace_trigger_soft_disabled(trace_file))
 		return;
 
 	esize = SIZEOF_TRACE_ENTRY(is_ret_probe(tu));
 	size = esize + tu->tp.size + dsize;
-	event = trace_event_buffer_lock_reserve(&buffer, ftrace_file,
+	event = trace_event_buffer_lock_reserve(&buffer, trace_file,
 						call->event.type, size, 0, 0);
 	if (!event)
 		return;
@@ -806,7 +806,7 @@ static void __uprobe_trace_func(struct trace_uprobe *tu,
 
 	memcpy(data, ucb->buf, tu->tp.size + dsize);
 
-	event_trigger_unlock_commit(ftrace_file, buffer, event, entry, 0, 0);
+	event_trigger_unlock_commit(trace_file, buffer, event, entry, 0, 0);
 }
 
 /* uprobe handler */
@@ -881,7 +881,7 @@ typedef bool (*filter_func_t)(struct uprobe_consumer *self,
 				struct mm_struct *mm);
 
 static int
-probe_event_enable(struct trace_uprobe *tu, struct ftrace_event_file *file,
+probe_event_enable(struct trace_uprobe *tu, struct trace_event_file *file,
 		   filter_func_t filter)
 {
 	bool enabled = trace_probe_is_enabled(&tu->tp);
@@ -938,7 +938,7 @@ probe_event_enable(struct trace_uprobe *tu, struct ftrace_event_file *file,
 }
 
 static void
-probe_event_disable(struct trace_uprobe *tu, struct ftrace_event_file *file)
+probe_event_disable(struct trace_uprobe *tu, struct trace_event_file *file)
 {
 	if (!trace_probe_is_enabled(&tu->tp))
 		return;
@@ -1163,7 +1163,7 @@ trace_uprobe_register(struct ftrace_event_call *event, enum trace_reg type,
 		      void *data)
 {
 	struct trace_uprobe *tu = event->data;
-	struct ftrace_event_file *file = data;
+	struct trace_event_file *file = data;
 
 	switch (type) {
 	case TRACE_REG_REGISTER:

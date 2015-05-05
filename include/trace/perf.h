@@ -9,10 +9,10 @@
  *
  * static void ftrace_raw_event_<call>(void *__data, proto)
  * {
- *	struct ftrace_event_file *ftrace_file = __data;
- *	struct ftrace_event_call *event_call = ftrace_file->event_call;
+ *	struct trace_event_file *trace_file = __data;
+ *	struct ftrace_event_call *event_call = trace_file->event_call;
  *	struct ftrace_data_offsets_<call> __maybe_unused __data_offsets;
- *	unsigned long eflags = ftrace_file->flags;
+ *	unsigned long eflags = trace_file->flags;
  *	enum event_trigger_type __tt = ETT_NONE;
  *	struct ring_buffer_event *event;
  *	struct ftrace_raw_<call> *entry; <-- defined in stage 1
@@ -23,7 +23,7 @@
  *
  *	if (!(eflags & FTRACE_EVENT_FL_TRIGGER_COND)) {
  *		if (eflags & FTRACE_EVENT_FL_TRIGGER_MODE)
- *			event_triggers_call(ftrace_file, NULL);
+ *			event_triggers_call(trace_file, NULL);
  *		if (eflags & FTRACE_EVENT_FL_SOFT_DISABLED)
  *			return;
  *	}
@@ -33,7 +33,7 @@
  *
  *	__data_size = ftrace_get_offsets_<call>(&__data_offsets, args);
  *
- *	event = trace_event_buffer_lock_reserve(&buffer, ftrace_file,
+ *	event = trace_event_buffer_lock_reserve(&buffer, trace_file,
  *				  event_<call>->event.type,
  *				  sizeof(*entry) + __data_size,
  *				  irq_flags, pc);
@@ -45,16 +45,16 @@
  *			   __array macros.
  *
  *	if (eflags & FTRACE_EVENT_FL_TRIGGER_COND)
- *		__tt = event_triggers_call(ftrace_file, entry);
+ *		__tt = event_triggers_call(trace_file, entry);
  *
  *	if (test_bit(FTRACE_EVENT_FL_SOFT_DISABLED_BIT,
- *		     &ftrace_file->flags))
+ *		     &trace_file->flags))
  *		ring_buffer_discard_commit(buffer, event);
- *	else if (!filter_check_discard(ftrace_file, entry, buffer, event))
+ *	else if (!filter_check_discard(trace_file, entry, buffer, event))
  *		trace_buffer_unlock_commit(buffer, event, irq_flags, pc);
  *
  *	if (__tt)
- *		event_triggers_post_call(ftrace_file, __tt);
+ *		event_triggers_post_call(trace_file, __tt);
  * }
  *
  * static struct trace_event ftrace_event_type_<call> = {
@@ -153,18 +153,18 @@
 static notrace void							\
 ftrace_raw_event_##call(void *__data, proto)				\
 {									\
-	struct ftrace_event_file *ftrace_file = __data;			\
+	struct trace_event_file *trace_file = __data;			\
 	struct ftrace_data_offsets_##call __maybe_unused __data_offsets;\
 	struct ftrace_event_buffer fbuffer;				\
 	struct ftrace_raw_##call *entry;				\
 	int __data_size;						\
 									\
-	if (ftrace_trigger_soft_disabled(ftrace_file))			\
+	if (ftrace_trigger_soft_disabled(trace_file))			\
 		return;							\
 									\
 	__data_size = ftrace_get_offsets_##call(&__data_offsets, args); \
 									\
-	entry = ftrace_event_buffer_reserve(&fbuffer, ftrace_file,	\
+	entry = ftrace_event_buffer_reserve(&fbuffer, trace_file,	\
 				 sizeof(*entry) + __data_size);		\
 									\
 	if (!entry)							\

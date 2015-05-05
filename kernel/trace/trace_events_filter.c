@@ -643,7 +643,7 @@ static void append_filter_err(struct filter_parse_state *ps,
 	free_page((unsigned long) buf);
 }
 
-static inline struct event_filter *event_filter(struct ftrace_event_file *file)
+static inline struct event_filter *event_filter(struct trace_event_file *file)
 {
 	if (file->event_call->flags & TRACE_EVENT_FL_USE_CALL_FILTER)
 		return file->event_call->filter;
@@ -652,7 +652,7 @@ static inline struct event_filter *event_filter(struct ftrace_event_file *file)
 }
 
 /* caller must hold event_mutex */
-void print_event_filter(struct ftrace_event_file *file, struct trace_seq *s)
+void print_event_filter(struct trace_event_file *file, struct trace_seq *s)
 {
 	struct event_filter *filter = event_filter(file);
 
@@ -780,7 +780,7 @@ static void __free_preds(struct event_filter *filter)
 	filter->n_preds = 0;
 }
 
-static void filter_disable(struct ftrace_event_file *file)
+static void filter_disable(struct trace_event_file *file)
 {
 	struct ftrace_event_call *call = file->event_call;
 
@@ -837,7 +837,7 @@ static int __alloc_preds(struct event_filter *filter, int n_preds)
 	return 0;
 }
 
-static inline void __remove_filter(struct ftrace_event_file *file)
+static inline void __remove_filter(struct trace_event_file *file)
 {
 	struct ftrace_event_call *call = file->event_call;
 
@@ -851,7 +851,7 @@ static inline void __remove_filter(struct ftrace_event_file *file)
 static void filter_free_subsystem_preds(struct ftrace_subsystem_dir *dir,
 					struct trace_array *tr)
 {
-	struct ftrace_event_file *file;
+	struct trace_event_file *file;
 
 	list_for_each_entry(file, &tr->events, list) {
 		if (file->system != dir)
@@ -860,7 +860,7 @@ static void filter_free_subsystem_preds(struct ftrace_subsystem_dir *dir,
 	}
 }
 
-static inline void __free_subsystem_filter(struct ftrace_event_file *file)
+static inline void __free_subsystem_filter(struct trace_event_file *file)
 {
 	struct ftrace_event_call *call = file->event_call;
 
@@ -876,7 +876,7 @@ static inline void __free_subsystem_filter(struct ftrace_event_file *file)
 static void filter_free_subsystem_filters(struct ftrace_subsystem_dir *dir,
 					  struct trace_array *tr)
 {
-	struct ftrace_event_file *file;
+	struct trace_event_file *file;
 
 	list_for_each_entry(file, &tr->events, list) {
 		if (file->system != dir)
@@ -1662,7 +1662,7 @@ fail:
 	return err;
 }
 
-static inline void event_set_filtered_flag(struct ftrace_event_file *file)
+static inline void event_set_filtered_flag(struct trace_event_file *file)
 {
 	struct ftrace_event_call *call = file->event_call;
 
@@ -1672,7 +1672,7 @@ static inline void event_set_filtered_flag(struct ftrace_event_file *file)
 		file->flags |= FTRACE_EVENT_FL_FILTERED;
 }
 
-static inline void event_set_filter(struct ftrace_event_file *file,
+static inline void event_set_filter(struct trace_event_file *file,
 				    struct event_filter *filter)
 {
 	struct ftrace_event_call *call = file->event_call;
@@ -1683,7 +1683,7 @@ static inline void event_set_filter(struct ftrace_event_file *file,
 		rcu_assign_pointer(file->filter, filter);
 }
 
-static inline void event_clear_filter(struct ftrace_event_file *file)
+static inline void event_clear_filter(struct trace_event_file *file)
 {
 	struct ftrace_event_call *call = file->event_call;
 
@@ -1694,7 +1694,7 @@ static inline void event_clear_filter(struct ftrace_event_file *file)
 }
 
 static inline void
-event_set_no_set_filter_flag(struct ftrace_event_file *file)
+event_set_no_set_filter_flag(struct trace_event_file *file)
 {
 	struct ftrace_event_call *call = file->event_call;
 
@@ -1705,7 +1705,7 @@ event_set_no_set_filter_flag(struct ftrace_event_file *file)
 }
 
 static inline void
-event_clear_no_set_filter_flag(struct ftrace_event_file *file)
+event_clear_no_set_filter_flag(struct trace_event_file *file)
 {
 	struct ftrace_event_call *call = file->event_call;
 
@@ -1716,7 +1716,7 @@ event_clear_no_set_filter_flag(struct ftrace_event_file *file)
 }
 
 static inline bool
-event_no_set_filter_flag(struct ftrace_event_file *file)
+event_no_set_filter_flag(struct trace_event_file *file)
 {
 	struct ftrace_event_call *call = file->event_call;
 
@@ -1740,7 +1740,7 @@ static int replace_system_preds(struct ftrace_subsystem_dir *dir,
 				struct filter_parse_state *ps,
 				char *filter_string)
 {
-	struct ftrace_event_file *file;
+	struct trace_event_file *file;
 	struct filter_list *filter_item;
 	struct filter_list *tmp;
 	LIST_HEAD(filter_list);
@@ -1961,7 +1961,7 @@ static int create_system_filter(struct ftrace_subsystem_dir *dir,
 }
 
 /* caller must hold event_mutex */
-int apply_event_filter(struct ftrace_event_file *file, char *filter_string)
+int apply_event_filter(struct trace_event_file *file, char *filter_string)
 {
 	struct ftrace_event_call *call = file->event_call;
 	struct event_filter *filter;
