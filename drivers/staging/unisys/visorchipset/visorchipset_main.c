@@ -138,13 +138,6 @@ static struct visor_livedump_info livedump_info;
 static struct controlvm_message controlvm_pending_msg;
 static bool controlvm_pending_msg_valid = false;
 
-/* Pool of struct putfile_buffer_entry, for keeping track of pending (incoming)
- * TRANSMIT_FILE PutFile payloads.
- */
-static struct kmem_cache *putfile_buffer_list_pool;
-static const char putfile_buffer_list_pool_name[] =
-	"controlvm_putfile_buffer_list_pool";
-
 /* This identifies a data buffer that has been received via a controlvm messages
  * in a remote --> local CONTROLVM_TRANSMIT_FILE conversation.
  */
@@ -2195,15 +2188,6 @@ visorchipset_init(void)
 
 	memset(&g_del_dump_msg_hdr, 0, sizeof(struct controlvm_message_header));
 
-	putfile_buffer_list_pool =
-	    kmem_cache_create(putfile_buffer_list_pool_name,
-			      sizeof(struct putfile_buffer_entry),
-			      0, SLAB_HWCACHE_ALIGN, NULL);
-	if (!putfile_buffer_list_pool) {
-		POSTCODE_LINUX_2(CHIPSET_INIT_FAILURE_PC, DIAG_SEVERITY_ERR);
-		rc = -1;
-		goto cleanup;
-	}
 	if (!visorchipset_disable_controlvm) {
 		/* if booting in a crash kernel */
 		if (is_kdump_kernel())
@@ -2261,10 +2245,6 @@ visorchipset_exit(void)
 		destroy_workqueue(periodic_controlvm_workqueue);
 		periodic_controlvm_workqueue = NULL;
 		destroy_controlvm_payload_info(&controlvm_payload_info);
-	}
-	if (putfile_buffer_list_pool) {
-		kmem_cache_destroy(putfile_buffer_list_pool);
-		putfile_buffer_list_pool = NULL;
 	}
 
 	cleanup_controlvm_structures();
