@@ -22,7 +22,8 @@
  *  a CM2 implementation and a direct memory implementation.)
  */
 
-#include "globals.h"
+#include "memregion.h"
+#include "version.h"
 #include "visorbus.h"
 #include <linux/uuid.h>
 
