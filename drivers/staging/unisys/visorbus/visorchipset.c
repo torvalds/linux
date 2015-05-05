@@ -25,7 +25,6 @@
 #include "guestlinuxdebug.h"
 #include "visorbus_private.h"
 
-
 #include <linux/ctype.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
@@ -36,10 +35,6 @@
 #include <linux/crash_dump.h>
 
 #define CURRENT_FILE_PC VISOR_CHIPSET_PC_visorchipset_main_c
-#define TEST_VNIC_PHYSITF "eth0"	/* physical network itf for
-					 * vnic loopback test */
-#define TEST_VNIC_SWITCHNO 1
-#define TEST_VNIC_BUSNO 9
 
 #define MAX_NAME_SIZE 128
 #define MAX_IP_SIZE   50
@@ -54,14 +49,8 @@
 /*
  * Module parameters
  */
-static int visorchipset_testvnic;
-static int visorchipset_testvnicclient;
-static int visorchipset_testmsg;
 static int visorchipset_major;
-static int visorchipset_serverregwait;
-static int visorchipset_clientregwait = 1;	/* default is on */
-static int visorchipset_testteardown;
-static int visorchipset_disable_controlvm;
+static int visorchipset_visorbusregwait = 1;	/* default is on */
 static int visorchipset_holdchipsetready;
 static unsigned long controlvm_payload_bytes_buffered;
 
@@ -90,8 +79,7 @@ visorchipset_release(struct inode *inode, struct file *file)
 static unsigned long poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_FAST;
 static unsigned long most_recent_message_jiffies;	/* when we got our last
 						 * controlvm message */
-static int serverregistered;
-static int clientregistered;
+static int visorbusregistered;
 
 #define MAX_CHIPSET_EVENTS 2
 static u8 chipset_events[MAX_CHIPSET_EVENTS] = { 0, 0 };
@@ -118,16 +106,6 @@ static const uuid_le spar_diag_pool_channel_protocol_uuid =
 static u32 g_diagpool_bus_no = 0xffffff;
 static u32 g_diagpool_dev_no = 0xffffff;
 static struct controlvm_message_packet g_devicechangestate_packet;
-
-/* Only VNIC and VHBA channels are sent to visorclientbus (aka
- * "visorhackbus")
- */
-#define FOR_VISORHACKBUS(channel_type_guid) \
-	(((uuid_le_cmp(channel_type_guid,\
-		       spar_vnic_channel_protocol_uuid) == 0) ||\
-	(uuid_le_cmp(channel_type_guid,\
-			spar_vhba_channel_protocol_uuid) == 0)))
-#define FOR_VISORBUS(channel_type_guid) (!(FOR_VISORHACKBUS(channel_type_guid)))
 
 #define is_diagpool_channel(channel_type_guid) \
 	(uuid_le_cmp(channel_type_guid,\
@@ -254,8 +232,7 @@ static void parahotplug_process_list(void);
 /* Manages the info for a CONTROLVM_DUMP_CAPTURESTATE /
  * CONTROLVM_REPORTEVENT.
  */
-static struct visorchipset_busdev_notifiers busdev_server_notifiers;
-static struct visorchipset_busdev_notifiers busdev_client_notifiers;
+static struct visorchipset_busdev_notifiers busdev_notifiers;
 
 static void bus_create_response(u32 bus_no, int response);
 static void bus_destroy_response(u32 bus_no, int response);
@@ -1028,19 +1005,19 @@ clear_chipset_events(void)
 }
 
 void
-visorchipset_register_busdev_server(
+visorchipset_register_busdev(
 			struct visorchipset_busdev_notifiers *notifiers,
 			struct visorchipset_busdev_responders *responders,
 			struct ultra_vbus_deviceinfo *driver_info)
 {
 	down(&notifier_lock);
 	if (!notifiers) {
-		memset(&busdev_server_notifiers, 0,
-		       sizeof(busdev_server_notifiers));
-		serverregistered = 0;	/* clear flag */
+		memset(&busdev_notifiers, 0,
+		       sizeof(busdev_notifiers));
+		visorbusregistered = 0;	/* clear flag */
 	} else {
-		busdev_server_notifiers = *notifiers;
-		serverregistered = 1;	/* set flag */
+		busdev_notifiers = *notifiers;
+		visorbusregistered = 1;	/* set flag */
 	}
 	if (responders)
 		*responders = busdev_responders;
@@ -1050,37 +1027,7 @@ visorchipset_register_busdev_server(
 
 	up(&notifier_lock);
 }
-EXPORT_SYMBOL_GPL(visorchipset_register_busdev_server);
-
-/** Register functions (in the bus driver) to get called by visorchipset
- *  whenever a bus or device appears for which this service partition is
- *  to be the server for.  visorchipset will fill in <responders>, to
- *  indicate functions the bus driver should call to indicate message
- *  responses.
- */
-void
-visorchipset_register_busdev_client(
-			struct visorchipset_busdev_notifiers *notifiers,
-			struct visorchipset_busdev_responders *responders,
-			struct ultra_vbus_deviceinfo *driver_info)
-{
-	down(&notifier_lock);
-	if (!notifiers) {
-		memset(&busdev_client_notifiers, 0,
-		       sizeof(busdev_client_notifiers));
-		clientregistered = 0;	/* clear flag */
-	} else {
-		busdev_client_notifiers = *notifiers;
-		clientregistered = 1;	/* set flag */
-	}
-	if (responders)
-		*responders = busdev_responders;
-	if (driver_info)
-		bus_device_info_init(driver_info, "chipset(bolts)",
-				     "visorchipset", VERSION, NULL);
-	up(&notifier_lock);
-}
-EXPORT_SYMBOL_GPL(visorchipset_register_busdev_client);
+EXPORT_SYMBOL_GPL(visorchipset_register_busdev);
 
 static void
 cleanup_controlvm_structures(void)
@@ -1377,34 +1324,14 @@ bus_epilog(u32 bus_no,
 	if (response == CONTROLVM_RESP_SUCCESS) {
 		switch (cmd) {
 		case CONTROLVM_BUS_CREATE:
-			/* We can't tell from the bus_create
-			* information which of our 2 bus flavors the
-			* devices on this bus will ultimately end up.
-			* FORTUNATELY, it turns out it is harmless to
-			* send the bus_create to both of them.  We can
-			* narrow things down a little bit, though,
-			* because we know: - BusDev_Server can handle
-			* either server or client devices
-			* - BusDev_Client can handle ONLY client
-			* devices */
-			if (busdev_server_notifiers.bus_create) {
-				(*busdev_server_notifiers.bus_create) (bus_no);
-				notified = true;
-			}
-			if ((!bus_info->flags.server) /*client */ &&
-			    busdev_client_notifiers.bus_create) {
-				(*busdev_client_notifiers.bus_create) (bus_no);
+			if (busdev_notifiers.bus_create) {
+				(*busdev_notifiers.bus_create) (bus_no);
 				notified = true;
 			}
 			break;
 		case CONTROLVM_BUS_DESTROY:
-			if (busdev_server_notifiers.bus_destroy) {
-				(*busdev_server_notifiers.bus_destroy) (bus_no);
-				notified = true;
-			}
-			if ((!bus_info->flags.server) /*client */ &&
-			    busdev_client_notifiers.bus_destroy) {
-				(*busdev_client_notifiers.bus_destroy) (bus_no);
+			if (busdev_notifiers.bus_destroy) {
+				(*busdev_notifiers.bus_destroy) (bus_no);
 				notified = true;
 			}
 			break;
@@ -1439,10 +1366,8 @@ device_epilog(u32 bus_no, u32 dev_no, struct spar_segment_state state, u32 cmd,
 	if (!dev_info)
 		return;
 
-	if (for_visorbus)
-		notifiers = &busdev_server_notifiers;
-	else
-		notifiers = &busdev_client_notifiers;
+	notifiers = &busdev_notifiers;
+
 	if (need_response) {
 		memcpy(&dev_info->pending_msg_hdr, msg_hdr,
 		       sizeof(struct controlvm_message_header));
@@ -1692,8 +1617,7 @@ cleanup:
 	}
 	device_epilog(bus_no, dev_no, segment_state_running,
 		      CONTROLVM_DEVICE_CREATE, &inmsg->hdr, rc,
-		      inmsg->hdr.flags.response_expected == 1,
-		      FOR_VISORBUS(dev_info->chan_info.channel_type_uuid));
+		      inmsg->hdr.flags.response_expected == 1, 1);
 }
 
 static void
@@ -1719,9 +1643,7 @@ my_device_changestate(struct controlvm_message *inmsg)
 	if ((rc >= CONTROLVM_RESP_SUCCESS) && dev_info)
 		device_epilog(bus_no, dev_no, state,
 			      CONTROLVM_DEVICE_CHANGESTATE, &inmsg->hdr, rc,
-			      inmsg->hdr.flags.response_expected == 1,
-			      FOR_VISORBUS(
-					dev_info->chan_info.channel_type_uuid));
+			      inmsg->hdr.flags.response_expected == 1, 1);
 }
 
 static void
@@ -1742,9 +1664,7 @@ my_device_destroy(struct controlvm_message *inmsg)
 	if ((rc >= CONTROLVM_RESP_SUCCESS) && dev_info)
 		device_epilog(bus_no, dev_no, segment_state_running,
 			      CONTROLVM_DEVICE_DESTROY, &inmsg->hdr, rc,
-			      inmsg->hdr.flags.response_expected == 1,
-			      FOR_VISORBUS(
-					dev_info->chan_info.channel_type_uuid));
+			      inmsg->hdr.flags.response_expected == 1, 1);
 }
 
 /* When provided with the physical address of the controlvm channel
@@ -2251,12 +2171,7 @@ controlvm_periodic_work(struct work_struct *work)
 	static u64 poll_count;
 
 	/* make sure visorbus server is registered for controlvm callbacks */
-	if (visorchipset_serverregwait && !serverregistered)
-		goto cleanup;
-	/* make sure visorclientbus server is regsitered for controlvm
-	 * callbacks
-	 */
-	if (visorchipset_clientregwait && !clientregistered)
+	if (visorchipset_visorbusregwait && !visorbusregistered)
 		goto cleanup;
 
 	poll_count++;
@@ -2347,14 +2262,8 @@ setup_crash_devices_work_queue(struct work_struct *work)
 	u32 local_crash_msg_offset;
 	u16 local_crash_msg_count;
 
-	/* make sure visorbus server is registered for controlvm callbacks */
-	if (visorchipset_serverregwait && !serverregistered)
-		goto cleanup;
-
-	/* make sure visorclientbus server is regsitered for controlvm
-	 * callbacks
-	 */
-	if (visorchipset_clientregwait && !clientregistered)
+	/* make sure visorbus is registered for controlvm callbacks */
+	if (visorchipset_visorbusregwait && !visorbusregistered)
 		goto cleanup;
 
 	POSTCODE_LINUX_2(CRASH_DEV_ENTRY_PC, POSTCODE_SEVERITY_INFO);
@@ -2739,17 +2648,10 @@ visorchipset_init(void)
 	if (!unisys_spar_platform)
 		return -ENODEV;
 
-	memset(&busdev_server_notifiers, 0, sizeof(busdev_server_notifiers));
-	memset(&busdev_client_notifiers, 0, sizeof(busdev_client_notifiers));
+	memset(&busdev_notifiers, 0, sizeof(busdev_notifiers));
 	memset(&controlvm_payload_info, 0, sizeof(controlvm_payload_info));
 	memset(&livedump_info, 0, sizeof(livedump_info));
 	atomic_set(&livedump_info.buffers_in_use, 0);
-
-	if (visorchipset_testvnic) {
-		POSTCODE_LINUX_3(CHIPSET_INIT_FAILURE_PC, x, DIAG_SEVERITY_ERR);
-		rc = x;
-		goto cleanup;
-	}
 
 	addr = controlvm_get_channel_address();
 	if (addr) {
@@ -2779,32 +2681,30 @@ visorchipset_init(void)
 
 	memset(&g_chipset_msg_hdr, 0, sizeof(struct controlvm_message_header));
 
-	if (!visorchipset_disable_controlvm) {
-		/* if booting in a crash kernel */
-		if (is_kdump_kernel())
-			INIT_DELAYED_WORK(&periodic_controlvm_work,
-					  setup_crash_devices_work_queue);
-		else
-			INIT_DELAYED_WORK(&periodic_controlvm_work,
-					  controlvm_periodic_work);
-		periodic_controlvm_workqueue =
-		    create_singlethread_workqueue("visorchipset_controlvm");
+	/* if booting in a crash kernel */
+	if (is_kdump_kernel())
+		INIT_DELAYED_WORK(&periodic_controlvm_work,
+				  setup_crash_devices_work_queue);
+	else
+		INIT_DELAYED_WORK(&periodic_controlvm_work,
+				  controlvm_periodic_work);
+	periodic_controlvm_workqueue =
+	    create_singlethread_workqueue("visorchipset_controlvm");
 
-		if (!periodic_controlvm_workqueue) {
-			POSTCODE_LINUX_2(CREATE_WORKQUEUE_FAILED_PC,
-					 DIAG_SEVERITY_ERR);
-			rc = -ENOMEM;
-			goto cleanup;
-		}
-		most_recent_message_jiffies = jiffies;
-		poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_FAST;
-		rc = queue_delayed_work(periodic_controlvm_workqueue,
-					&periodic_controlvm_work, poll_jiffies);
-		if (rc < 0) {
-			POSTCODE_LINUX_2(QUEUE_DELAYED_WORK_PC,
-					 DIAG_SEVERITY_ERR);
-			goto cleanup;
-		}
+	if (!periodic_controlvm_workqueue) {
+		POSTCODE_LINUX_2(CREATE_WORKQUEUE_FAILED_PC,
+				 DIAG_SEVERITY_ERR);
+		rc = -ENOMEM;
+		goto cleanup;
+	}
+	most_recent_message_jiffies = jiffies;
+	poll_jiffies = POLLJIFFIES_CONTROLVMCHANNEL_FAST;
+	rc = queue_delayed_work(periodic_controlvm_workqueue,
+				&periodic_controlvm_work, poll_jiffies);
+	if (rc < 0) {
+		POSTCODE_LINUX_2(QUEUE_DELAYED_WORK_PC,
+				 DIAG_SEVERITY_ERR);
+		goto cleanup;
 	}
 
 	visorchipset_platform_device.dev.devt = major_dev;
@@ -2840,15 +2740,11 @@ visorchipset_exit(void)
 
 	visorbus_exit();
 
-	if (visorchipset_disable_controlvm) {
-		;
-	} else {
-		cancel_delayed_work(&periodic_controlvm_work);
-		flush_workqueue(periodic_controlvm_workqueue);
-		destroy_workqueue(periodic_controlvm_workqueue);
-		periodic_controlvm_workqueue = NULL;
-		destroy_controlvm_payload_info(&controlvm_payload_info);
-	}
+	cancel_delayed_work(&periodic_controlvm_work);
+	flush_workqueue(periodic_controlvm_workqueue);
+	destroy_workqueue(periodic_controlvm_workqueue);
+	periodic_controlvm_workqueue = NULL;
+	destroy_controlvm_payload_info(&controlvm_payload_info);
 
 	cleanup_controlvm_structures();
 
@@ -2860,28 +2756,12 @@ visorchipset_exit(void)
 	POSTCODE_LINUX_2(DRIVER_EXIT_PC, POSTCODE_SEVERITY_INFO);
 }
 
-module_param_named(testvnic, visorchipset_testvnic, int, S_IRUGO);
-MODULE_PARM_DESC(visorchipset_testvnic, "1 to test vnic, using dummy VNIC connected via a loopback to a physical ethernet");
-module_param_named(testvnicclient, visorchipset_testvnicclient, int, S_IRUGO);
-MODULE_PARM_DESC(visorchipset_testvnicclient, "1 to test vnic, using real VNIC channel attached to a separate IOVM guest");
-module_param_named(testmsg, visorchipset_testmsg, int, S_IRUGO);
-MODULE_PARM_DESC(visorchipset_testmsg,
-		 "1 to manufacture the chipset, bus, and switch messages");
 module_param_named(major, visorchipset_major, int, S_IRUGO);
 MODULE_PARM_DESC(visorchipset_major,
 		 "major device number to use for the device node");
-module_param_named(serverregwait, visorchipset_serverregwait, int, S_IRUGO);
-MODULE_PARM_DESC(visorchipset_serverreqwait,
+module_param_named(visorbusregwait, visorchipset_visorbusregwait, int, S_IRUGO);
+MODULE_PARM_DESC(visorchipset_visorbusreqwait,
 		 "1 to have the module wait for the visor bus to register");
-module_param_named(clientregwait, visorchipset_clientregwait, int, S_IRUGO);
-MODULE_PARM_DESC(visorchipset_clientregwait, "1 to have the module wait for the visorclientbus to register");
-module_param_named(testteardown, visorchipset_testteardown, int, S_IRUGO);
-MODULE_PARM_DESC(visorchipset_testteardown,
-		 "1 to test teardown of the chipset, bus, and switch");
-module_param_named(disable_controlvm, visorchipset_disable_controlvm, int,
-		   S_IRUGO);
-MODULE_PARM_DESC(visorchipset_disable_controlvm,
-		 "1 to disable polling of controlVm channel");
 module_param_named(holdchipsetready, visorchipset_holdchipsetready,
 		   int, S_IRUGO);
 MODULE_PARM_DESC(visorchipset_holdchipsetready,

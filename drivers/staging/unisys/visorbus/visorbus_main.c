@@ -2066,9 +2066,9 @@ visorbus_init(void)
 	/* This enables us to receive notifications when devices appear for
 	 * which this service partition is to be a server for.
 	 */
-	visorchipset_register_busdev_server(&chipset_notifiers,
-					    &chipset_responders,
-					    &chipset_driverinfo);
+	visorchipset_register_busdev(&chipset_notifiers,
+				     &chipset_responders,
+				     &chipset_driverinfo);
 
 	rc = 0;
 
@@ -2084,7 +2084,7 @@ visorbus_exit(void)
 {
 	struct list_head *listentry, *listtmp;
 
-	visorchipset_register_busdev_server(NULL, NULL, NULL);
+	visorchipset_register_busdev(NULL, NULL, NULL);
 	remove_all_visor_devices();
 
 	flush_workqueue(periodic_dev_workqueue); /* better not be any work! */

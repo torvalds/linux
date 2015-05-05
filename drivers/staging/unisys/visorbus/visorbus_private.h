@@ -138,13 +138,12 @@ struct visorchipset_busdev_responders {
 };
 
 /** Register functions (in the bus driver) to get called by visorchipset
- *  whenever a bus or device appears for which this service partition is
- *  to be the client for.  visorchipset will fill in <responders>, to
- *  indicate functions the bus driver should call to indicate message
- *  responses.
+ *  whenever a bus or device appears for which this guest is to be the
+ *  client for.  visorchipset will fill in <responders>, to indicate
+ *  functions the bus driver should call to indicate message responses.
  */
 void
-visorchipset_register_busdev_server(
+visorchipset_register_busdev(
 			struct visorchipset_busdev_notifiers *notifiers,
 			struct visorchipset_busdev_responders *responders,
 			struct ultra_vbus_deviceinfo *driver_info);
