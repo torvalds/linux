@@ -71,7 +71,7 @@ static unsigned long __initdata node_percpu[MAX_NUMNODES];
  * per-CPU stack and boot info.
  */
 DEFINE_PER_CPU(unsigned long, boot_sp) =
-	(unsigned long)init_stack + THREAD_SIZE;
+	(unsigned long)init_stack + THREAD_SIZE - STACK_TOP_DELTA;
 
 #ifdef CONFIG_SMP
 DEFINE_PER_CPU(unsigned long, boot_pc) = (unsigned long)start_kernel;
