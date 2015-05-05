@@ -216,10 +216,15 @@ visorchannel_write(struct visorchannel *channel, ulong offset,
 {
 	size_t size = sizeof(struct channel_header);
 
+	if (offset + nbytes > channel->memregion.nbytes)
+		return -EIO;
+
 	if (!offset && nbytes >= size)
 		memcpy(&channel->chan_hdr, local, size);
-	return visor_memregion_write(&channel->memregion,
-				     offset, local, nbytes);
+
+	memcpy_toio(channel->memregion.mapped + offset, local, nbytes);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(visorchannel_write);
 
