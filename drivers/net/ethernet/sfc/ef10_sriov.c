@@ -46,6 +46,23 @@ int efx_ef10_sriov_configure(struct efx_nic *efx, int num_vfs)
 		return efx_ef10_pci_sriov_enable(efx, num_vfs);
 }
 
+int efx_ef10_sriov_init(struct efx_nic *efx)
+{
+	return 0;
+}
+
+void efx_ef10_sriov_fini(struct efx_nic *efx)
+{
+	int rc;
+
+	rc = efx_ef10_pci_sriov_disable(efx);
+	if (rc)
+		netif_dbg(efx, drv, efx->net_dev,
+			  "Disabling SRIOV was not successful rc=%d\n", rc);
+	else
+		netif_dbg(efx, drv, efx->net_dev, "SRIOV disabled\n");
+}
+
 static int efx_ef10_vswitch_alloc(struct efx_nic *efx, unsigned int port_id,
 				  unsigned int vswitch_type)
 {

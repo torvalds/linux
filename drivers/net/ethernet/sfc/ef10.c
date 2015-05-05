@@ -93,7 +93,10 @@ static int efx_ef10_get_warm_boot_count(struct efx_nic *efx)
 
 static unsigned int efx_ef10_mem_map_size(struct efx_nic *efx)
 {
-	return resource_size(&efx->pci_dev->resource[EFX_MEM_BAR]);
+	int bar;
+
+	bar = efx->type->mem_bar;
+	return resource_size(&efx->pci_dev->resource[bar]);
 }
 
 static int efx_ef10_get_pf_index(struct efx_nic *efx)
@@ -204,7 +207,7 @@ static int efx_ef10_probe(struct efx_nic *efx)
 	efx->max_channels =
 		min_t(unsigned int,
 		      EFX_MAX_CHANNELS,
-		      resource_size(&efx->pci_dev->resource[EFX_MEM_BAR]) /
+		      efx_ef10_mem_map_size(efx) /
 		      (EFX_VI_PAGE_SIZE * EFX_TXQ_TYPES));
 	if (WARN_ON(efx->max_channels == 0))
 		return -EIO;
@@ -310,6 +313,23 @@ fail1:
 	efx->nic_data = NULL;
 	return rc;
 }
+
+static int efx_ef10_probe_pf(struct efx_nic *efx)
+{
+	return efx_ef10_probe(efx);
+}
+
+#ifdef CONFIG_SFC_SRIOV
+static int efx_ef10_probe_vf(struct efx_nic *efx)
+{
+	return efx_ef10_probe(efx);
+}
+#else
+static int efx_ef10_probe_vf(struct efx_nic *efx __attribute__ ((unused)))
+{
+	return 0;
+}
+#endif
 
 static int efx_ef10_free_vis(struct efx_nic *efx)
 {
@@ -1074,6 +1094,14 @@ static void efx_ef10_push_irq_moderation(struct efx_channel *channel)
 		efx_writed_page(efx, &timer_cmd, ER_DZ_EVQ_TMR,
 				channel->channel);
 	}
+}
+
+static void efx_ef10_get_wol_vf(struct efx_nic *efx,
+				struct ethtool_wolinfo *wol) {}
+
+static int efx_ef10_set_wol_vf(struct efx_nic *efx, u32 type)
+{
+	return -EOPNOTSUPP;
 }
 
 static void efx_ef10_get_wol(struct efx_nic *efx, struct ethtool_wolinfo *wol)
@@ -3534,6 +3562,9 @@ static void efx_ef10_ptp_write_host_time(struct efx_nic *efx, u32 host_time)
 	_efx_writed(efx, cpu_to_le32(host_time), ER_DZ_MC_DB_LWRD);
 }
 
+static void efx_ef10_ptp_write_host_time_vf(struct efx_nic *efx,
+					    u32 host_time) {}
+
 static int efx_ef10_rx_enable_timestamping(struct efx_channel *channel,
 					   bool temp)
 {
@@ -3611,6 +3642,12 @@ static int efx_ef10_ptp_set_ts_sync_events(struct efx_nic *efx, bool en,
 	return 0;
 }
 
+static int efx_ef10_ptp_set_ts_config_vf(struct efx_nic *efx,
+					 struct hwtstamp_config *init)
+{
+	return -EOPNOTSUPP;
+}
+
 static int efx_ef10_ptp_set_ts_config(struct efx_nic *efx,
 				      struct hwtstamp_config *init)
 {
@@ -3647,9 +3684,107 @@ static int efx_ef10_ptp_set_ts_config(struct efx_nic *efx,
 	}
 }
 
-const struct efx_nic_type efx_hunt_a0_nic_type = {
+const struct efx_nic_type efx_hunt_a0_vf_nic_type = {
+	.mem_bar = EFX_MEM_VF_BAR,
 	.mem_map_size = efx_ef10_mem_map_size,
-	.probe = efx_ef10_probe,
+	.probe = efx_ef10_probe_vf,
+	.remove = efx_ef10_remove,
+	.dimension_resources = efx_ef10_dimension_resources,
+	.init = efx_ef10_init_nic,
+	.fini = efx_port_dummy_op_void,
+	.map_reset_reason = efx_mcdi_map_reset_reason,
+	.map_reset_flags = efx_ef10_map_reset_flags,
+	.reset = efx_ef10_reset,
+	.probe_port = efx_mcdi_port_probe,
+	.remove_port = efx_mcdi_port_remove,
+	.fini_dmaq = efx_ef10_fini_dmaq,
+	.prepare_flr = efx_ef10_prepare_flr,
+	.finish_flr = efx_port_dummy_op_void,
+	.describe_stats = efx_ef10_describe_stats,
+	.update_stats = efx_ef10_update_stats,
+	.start_stats = efx_port_dummy_op_void,
+	.pull_stats = efx_port_dummy_op_void,
+	.stop_stats = efx_port_dummy_op_void,
+	.set_id_led = efx_mcdi_set_id_led,
+	.push_irq_moderation = efx_ef10_push_irq_moderation,
+	.reconfigure_mac = efx_ef10_mac_reconfigure,
+	.check_mac_fault = efx_mcdi_mac_check_fault,
+	.reconfigure_port = efx_mcdi_port_reconfigure,
+	.get_wol = efx_ef10_get_wol_vf,
+	.set_wol = efx_ef10_set_wol_vf,
+	.resume_wol = efx_port_dummy_op_void,
+	.mcdi_request = efx_ef10_mcdi_request,
+	.mcdi_poll_response = efx_ef10_mcdi_poll_response,
+	.mcdi_read_response = efx_ef10_mcdi_read_response,
+	.mcdi_poll_reboot = efx_ef10_mcdi_poll_reboot,
+	.irq_enable_master = efx_port_dummy_op_void,
+	.irq_test_generate = efx_ef10_irq_test_generate,
+	.irq_disable_non_ev = efx_port_dummy_op_void,
+	.irq_handle_msi = efx_ef10_msi_interrupt,
+	.irq_handle_legacy = efx_ef10_legacy_interrupt,
+	.tx_probe = efx_ef10_tx_probe,
+	.tx_init = efx_ef10_tx_init,
+	.tx_remove = efx_ef10_tx_remove,
+	.tx_write = efx_ef10_tx_write,
+	.rx_push_rss_config = efx_ef10_rx_push_rss_config,
+	.rx_probe = efx_ef10_rx_probe,
+	.rx_init = efx_ef10_rx_init,
+	.rx_remove = efx_ef10_rx_remove,
+	.rx_write = efx_ef10_rx_write,
+	.rx_defer_refill = efx_ef10_rx_defer_refill,
+	.ev_probe = efx_ef10_ev_probe,
+	.ev_init = efx_ef10_ev_init,
+	.ev_fini = efx_ef10_ev_fini,
+	.ev_remove = efx_ef10_ev_remove,
+	.ev_process = efx_ef10_ev_process,
+	.ev_read_ack = efx_ef10_ev_read_ack,
+	.ev_test_generate = efx_ef10_ev_test_generate,
+	.filter_table_probe = efx_ef10_filter_table_probe,
+	.filter_table_restore = efx_ef10_filter_table_restore,
+	.filter_table_remove = efx_ef10_filter_table_remove,
+	.filter_update_rx_scatter = efx_ef10_filter_update_rx_scatter,
+	.filter_insert = efx_ef10_filter_insert,
+	.filter_remove_safe = efx_ef10_filter_remove_safe,
+	.filter_get_safe = efx_ef10_filter_get_safe,
+	.filter_clear_rx = efx_ef10_filter_clear_rx,
+	.filter_count_rx_used = efx_ef10_filter_count_rx_used,
+	.filter_get_rx_id_limit = efx_ef10_filter_get_rx_id_limit,
+	.filter_get_rx_ids = efx_ef10_filter_get_rx_ids,
+#ifdef CONFIG_RFS_ACCEL
+	.filter_rfs_insert = efx_ef10_filter_rfs_insert,
+	.filter_rfs_expire_one = efx_ef10_filter_rfs_expire_one,
+#endif
+#ifdef CONFIG_SFC_MTD
+	.mtd_probe = efx_port_dummy_op_int,
+#endif
+	.ptp_write_host_time = efx_ef10_ptp_write_host_time_vf,
+	.ptp_set_ts_config = efx_ef10_ptp_set_ts_config_vf,
+#ifdef CONFIG_SFC_SRIOV
+	.vswitching_probe = efx_port_dummy_op_int,
+	.vswitching_restore = efx_port_dummy_op_int,
+	.vswitching_remove = efx_port_dummy_op_void,
+#endif
+	.revision = EFX_REV_HUNT_A0,
+	.max_dma_mask = DMA_BIT_MASK(ESF_DZ_TX_KER_BUF_ADDR_WIDTH),
+	.rx_prefix_size = ES_DZ_RX_PREFIX_SIZE,
+	.rx_hash_offset = ES_DZ_RX_PREFIX_HASH_OFST,
+	.rx_ts_offset = ES_DZ_RX_PREFIX_TSTAMP_OFST,
+	.can_rx_scatter = true,
+	.always_rx_scatter = true,
+	.max_interrupt_mode = EFX_INT_MODE_MSIX,
+	.timer_period_max = 1 << ERF_DD_EVQ_IND_TIMER_VAL_WIDTH,
+	.offload_features = (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
+			     NETIF_F_RXHASH | NETIF_F_NTUPLE),
+	.mcdi_max_ver = 2,
+	.max_rx_ip_filters = HUNT_FILTER_TBL_ROWS,
+	.hwtstamp_filters = 1 << HWTSTAMP_FILTER_NONE |
+			    1 << HWTSTAMP_FILTER_ALL,
+};
+
+const struct efx_nic_type efx_hunt_a0_nic_type = {
+	.mem_bar = EFX_MEM_BAR,
+	.mem_map_size = efx_ef10_mem_map_size,
+	.probe = efx_ef10_probe_pf,
 	.remove = efx_ef10_remove,
 	.dimension_resources = efx_ef10_dimension_resources,
 	.init = efx_ef10_init_nic,

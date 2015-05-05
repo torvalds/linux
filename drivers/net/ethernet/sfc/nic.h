@@ -555,6 +555,7 @@ extern const struct efx_nic_type falcon_a1_nic_type;
 extern const struct efx_nic_type falcon_b0_nic_type;
 extern const struct efx_nic_type siena_a0_nic_type;
 extern const struct efx_nic_type efx_hunt_a0_nic_type;
+extern const struct efx_nic_type efx_hunt_a0_vf_nic_type;
 
 /**************************************************************************
  *

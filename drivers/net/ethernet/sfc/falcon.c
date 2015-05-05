@@ -2687,6 +2687,7 @@ static int falcon_set_wol(struct efx_nic *efx, u32 type)
  */
 
 const struct efx_nic_type falcon_a1_nic_type = {
+	.mem_bar = EFX_MEM_BAR,
 	.mem_map_size = falcon_a1_mem_map_size,
 	.probe = falcon_probe_nic,
 	.remove = falcon_remove_nic,
@@ -2783,6 +2784,7 @@ const struct efx_nic_type falcon_a1_nic_type = {
 };
 
 const struct efx_nic_type falcon_b0_nic_type = {
+	.mem_bar = EFX_MEM_BAR,
 	.mem_map_size = falcon_b0_mem_map_size,
 	.probe = falcon_probe_nic,
 	.remove = falcon_remove_nic,

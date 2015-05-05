@@ -912,6 +912,7 @@ fail:
  */
 
 const struct efx_nic_type siena_a0_nic_type = {
+	.mem_bar = EFX_MEM_BAR,
 	.mem_map_size = siena_mem_map_size,
 	.probe = siena_probe_nic,
 	.remove = siena_remove_nic,
