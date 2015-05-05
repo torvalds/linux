@@ -477,8 +477,6 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 			usage_with_options(probe_usage, options);
 		}
 		ret = show_perf_probe_events(params.filter);
-		strfilter__delete(params.filter);
-		params.filter = NULL;
 		if (ret < 0)
 			pr_err_with_code("  Error: Failed to show event list.", ret);
 		return ret;
@@ -486,8 +484,6 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (params.show_funcs) {
 		ret = show_available_funcs(params.target, params.filter,
 					params.uprobes);
-		strfilter__delete(params.filter);
-		params.filter = NULL;
 		if (ret < 0)
 			pr_err_with_code("  Error: Failed to show functions.", ret);
 		return ret;
@@ -511,8 +507,6 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 					  params.target,
 					  params.filter,
 					  params.show_ext_vars);
-		strfilter__delete(params.filter);
-		params.filter = NULL;
 		if (ret < 0)
 			pr_err_with_code("  Error: Failed to show vars.", ret);
 		return ret;
