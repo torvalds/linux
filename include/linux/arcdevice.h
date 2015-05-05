@@ -78,14 +78,24 @@
 #endif
 extern int arcnet_debug;
 
+#define BUGLVL_TEST(x)	((x) & ARCNET_DEBUG_MAX & arcnet_debug)
+#define BUGLVL(x)	if (BUGLVL_TEST(x))
+
 /* macros to simplify debug checking */
-#define BUGLVL(x) if ((ARCNET_DEBUG_MAX) & arcnet_debug & (x))
-#define BUGMSG2(x, msg, args...) do { BUGLVL(x) printk(msg, ## args); } while (0)
-#define BUGMSG(x, msg, args...)						\
-	BUGMSG2(x, "%s%6s: " msg,					\
-		x == D_NORMAL	? KERN_WARNING				\
-		: x < D_DURING ? KERN_INFO : KERN_DEBUG,		\
-		dev->name, ## args)
+#define BUGMSG(x, fmt, ...)						\
+do {									\
+	if (BUGLVL_TEST(x))						\
+		printk("%s%6s: " fmt,					\
+		       (x) == D_NORMAL	? KERN_WARNING :		\
+		       (x) < D_DURING ? KERN_INFO : KERN_DEBUG,		\
+		       dev->name, ##__VA_ARGS__);			\
+} while (0)
+
+#define BUGMSG2(x, fmt, ...)						\
+do {									\
+	if (BUGLVL_TEST(x))						\
+		printk(fmt, ##__VA_ARGS__);				\
+} while (0)
 
 /* see how long a function call takes to run, expressed in CPU cycles */
 #define TIME(name, bytes, call) BUGLVL(D_TIMING) {			\
