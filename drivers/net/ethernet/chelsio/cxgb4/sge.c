@@ -2691,7 +2691,7 @@ int t4_sge_alloc_ctrl_txq(struct adapter *adap, struct sge_ctrl_txq *txq,
 
 	txq->q.desc = alloc_ring(adap->pdev_dev, nentries,
 				 sizeof(struct tx_desc), 0, &txq->q.phys_addr,
-				 NULL, 0, NUMA_NO_NODE);
+				 NULL, 0, dev_to_node(adap->pdev_dev));
 	if (!txq->q.desc)
 		return -ENOMEM;
 
