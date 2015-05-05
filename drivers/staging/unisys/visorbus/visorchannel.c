@@ -214,17 +214,18 @@ visorchannel_clear(struct visorchannel *channel, ulong offset, u8 ch,
 		   ulong nbytes)
 {
 	int err;
-	int bufsize = 65536;
+	int bufsize = PAGE_SIZE;
 	int written = 0;
 	u8 *buf;
 
-	buf = vmalloc(bufsize);
+	buf = (u8 *) __get_free_page(GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
 	memset(buf, ch, bufsize);
+
 	while (nbytes > 0) {
-		ulong thisbytes = bufsize;
+		int thisbytes = bufsize;
 
 		if (nbytes < thisbytes)
 			thisbytes = nbytes;
@@ -239,7 +240,7 @@ visorchannel_clear(struct visorchannel *channel, ulong offset, u8 ch,
 	err = 0;
 
 cleanup:
-	vfree(buf);
+	free_page((unsigned long) buf);
 	return err;
 }
 EXPORT_SYMBOL_GPL(visorchannel_clear);
