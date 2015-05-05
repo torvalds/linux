@@ -168,10 +168,11 @@ void visorbus_disable_channel_interrupts(struct visor_device *dev);
  * In this case, the values can simply be read from the channel header.
  */
 struct visorchannel *visorchannel_create(u64 physaddr,
-					 ulong channel_bytes, uuid_le guid);
+					 unsigned long channel_bytes,
+					 gfp_t gfp, uuid_le guid);
 struct visorchannel *visorchannel_create_with_lock(u64 physaddr,
-						   ulong channel_bytes,
-						   uuid_le guid);
+						   unsigned long channel_bytes,
+						   gfp_t gfp, uuid_le guid);
 void visorchannel_destroy(struct visorchannel *channel);
 int visorchannel_read(struct visorchannel *channel, ulong offset,
 		      void *local, ulong nbytes);

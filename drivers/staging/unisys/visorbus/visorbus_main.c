@@ -1308,8 +1308,8 @@ create_visor_device(struct visorbus_devdata *devdata,
 			 POSTCODE_SEVERITY_INFO);
 	/* prepare chan_hdr (abstraction to read/write channel memory) */
 	visorchannel = visorchannel_create(chan_info.channel_addr,
-					   (unsigned long)
 					   chan_info.n_channel_bytes,
+					   GFP_KERNEL,
 					   chan_info.channel_type_uuid);
 	if (!visorchannel) {
 		POSTCODE_LINUX_3(DEVICE_CREATE_FAILURE_PC, chipset_dev_no,
@@ -1676,6 +1676,7 @@ create_bus_instance(int id)
 
 		devdata->chan = visorchannel_create(channel_addr,
 						    n_channel_bytes,
+						    GFP_KERNEL,
 						    channel_type_guid);
 		if (!devdata->chan) {
 			POSTCODE_LINUX_3(DEVICE_CREATE_FAILURE_PC, channel_addr,

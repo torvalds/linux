@@ -25,9 +25,6 @@
 		UUID_LE(0x2b3c2d10, 0x7ef5, 0x4ad8, \
 			0xb9, 0x66, 0x34, 0x48, 0xb7, 0x38, 0x6b, 0x3d)
 
-static const uuid_le spar_controlvm_channel_protocol_uuid =
-	SPAR_CONTROLVM_CHANNEL_PROTOCOL_UUID;
-
 #define ULTRA_CONTROLVM_CHANNEL_PROTOCOL_SIGNATURE \
 	ULTRA_CHANNEL_PROTOCOL_SIGNATURE
 #define CONTROLVM_MESSAGE_MAX 64
@@ -42,7 +39,7 @@ static const uuid_le spar_controlvm_channel_protocol_uuid =
 
 #define SPAR_CONTROLVM_CHANNEL_OK_CLIENT(ch)           \
 	spar_check_channel_client(ch, \
-		spar_controlvm_channel_protocol_uuid, \
+		SPAR_CONTROLVM_CHANNEL_PROTOCOL_UUID, \
 		"controlvm", \
 		sizeof(struct spar_controlvm_channel_protocol), \
 		ULTRA_CONTROLVM_CHANNEL_PROTOCOL_VERSIONID, \

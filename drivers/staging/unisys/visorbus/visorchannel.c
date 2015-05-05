@@ -50,14 +50,15 @@ struct visorchannel {
  * but does NOT modify this data area.
  */
 static struct visorchannel *
-visorchannel_create_guts(u64 physaddr, ulong channel_bytes,
-			 ulong off, uuid_le guid, bool needs_lock)
+visorchannel_create_guts(u64 physaddr, unsigned long channel_bytes,
+			 gfp_t gfp, unsigned long off,
+			 uuid_le guid, bool needs_lock)
 {
 	struct visorchannel *channel;
 	int err;
 	size_t size = sizeof(struct channel_header);
 
-	channel = kzalloc(sizeof(*channel), GFP_KERNEL|__GFP_NORETRY);
+	channel = kzalloc(sizeof(*channel), gfp);
 	if (!channel)
 		goto cleanup;
 
@@ -112,18 +113,19 @@ cleanup:
 }
 
 struct visorchannel *
-visorchannel_create(u64 physaddr, ulong channel_bytes, uuid_le guid)
+visorchannel_create(u64 physaddr, unsigned long channel_bytes,
+		    gfp_t gfp, uuid_le guid)
 {
-	return visorchannel_create_guts(physaddr, channel_bytes, 0, guid,
+	return visorchannel_create_guts(physaddr, channel_bytes, gfp, 0, guid,
 					false);
 }
 EXPORT_SYMBOL_GPL(visorchannel_create);
 
 struct visorchannel *
-visorchannel_create_with_lock(u64 physaddr, ulong channel_bytes,
-			      uuid_le guid)
+visorchannel_create_with_lock(u64 physaddr, unsigned long channel_bytes,
+			      gfp_t gfp, uuid_le guid)
 {
-	return visorchannel_create_guts(physaddr, channel_bytes, 0, guid,
+	return visorchannel_create_guts(physaddr, channel_bytes, gfp, 0, guid,
 					true);
 }
 EXPORT_SYMBOL_GPL(visorchannel_create_with_lock);
