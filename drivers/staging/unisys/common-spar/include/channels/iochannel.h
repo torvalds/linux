@@ -140,10 +140,6 @@
 * MAX_SKB_FRAGS size, which is 18 which is smaller than MAX_PHYS_INFO for
 * now.  */
 
-#ifndef MAX_SERIAL_NUM
-#define MAX_SERIAL_NUM		32
-#endif				/* MAX_SERIAL_NUM */
-
 #define MAX_SCSI_BUSES		1
 #define MAX_SCSI_TARGETS	8
 #define MAX_SCSI_LUNS		16
