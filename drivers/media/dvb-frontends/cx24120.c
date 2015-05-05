@@ -615,6 +615,32 @@ static int cx24120_send_diseqc_msg(struct dvb_frontend *fe,
 	return -ETIMEDOUT;
 }
 
+static void cx24120_get_stats(struct cx24120_state *state, fe_status_t status)
+{
+	struct dvb_frontend *fe = &state->frontend;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	int ret;
+	u16 u16tmp;
+
+	dev_dbg(&state->i2c->dev, "%s()\n", __func__);
+
+	/* signal strength */
+	if (status & FE_HAS_SIGNAL) {
+		ret = cx24120_read_signal_strength(fe, &u16tmp);
+		if (ret != 0)
+			return;
+
+		c->strength.stat[0].scale = FE_SCALE_RELATIVE;
+		c->strength.stat[0].uvalue = u16tmp;
+	} else {
+		c->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	}
+
+	/* FIXME: add CNR */
+
+	/* FIXME: add UCB/BER */
+}
+
 static void cx24120_set_clock_ratios(struct dvb_frontend *fe);
 
 /* Read current tuning status */
@@ -642,6 +668,8 @@ static int cx24120_read_status(struct dvb_frontend *fe, fe_status_t *status)
 	/* TODO: is FE_HAS_SYNC in the right place?
 	 * Other cx241xx drivers have this slightly
 	 * different */
+
+	cx24120_get_stats(state, *status);
 
 	/* Set the clock once tuned in */
 	if (state->need_clock_set && *status & FE_HAS_LOCK) {
