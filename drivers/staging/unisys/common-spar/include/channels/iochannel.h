@@ -4,29 +4,29 @@
 #define __IOCHANNEL_H__
 
 /*
-* Everything needed for IOPart-GuestPart communication is define in
-* this file.  Note: Everything is OS-independent because this file is
-* used by Windows, Linux and possible EFI drivers.  */
+ * Everything needed for IOPart-GuestPart communication is define in
+ * this file.  Note: Everything is OS-independent because this file is
+ * used by Windows, Linux and possible EFI drivers.  */
 
 /*
-* Communication flow between the IOPart and GuestPart uses the channel headers
-* channel state.  The following states are currently being used:
-*       UNINIT(All Zeroes), CHANNEL_ATTACHING, CHANNEL_ATTACHED, CHANNEL_OPENED
-*
-* additional states will be used later.  No locking is needed to switch between
-* states due to the following rules:
-*
-*      1.  IOPart is only the only partition allowed to change from UNIT
-*      2.  IOPart is only the only partition allowed to change from
-*		CHANNEL_ATTACHING
-*      3.  GuestPart is only the only partition allowed to change from
-*		CHANNEL_ATTACHED
-*
-* The state changes are the following: IOPart sees the channel is in UNINIT,
-*        UNINIT -> CHANNEL_ATTACHING (performed only by IOPart)
-*        CHANNEL_ATTACHING -> CHANNEL_ATTACHED (performed only by IOPart)
-*        CHANNEL_ATTACHED -> CHANNEL_OPENED (performed only by GuestPart)
-*/
+ * Communication flow between the IOPart and GuestPart uses the channel headers
+ * channel state.  The following states are currently being used:
+ *       UNINIT(All Zeroes), CHANNEL_ATTACHING, CHANNEL_ATTACHED, CHANNEL_OPENED
+ *
+ * additional states will be used later.  No locking is needed to switch between
+ * states due to the following rules:
+ *
+ *      1.  IOPart is only the only partition allowed to change from UNIT
+ *      2.  IOPart is only the only partition allowed to change from
+ *		CHANNEL_ATTACHING
+ *      3.  GuestPart is only the only partition allowed to change from
+ *		CHANNEL_ATTACHED
+ *
+ * The state changes are the following: IOPart sees the channel is in UNINIT,
+ *        UNINIT -> CHANNEL_ATTACHING (performed only by IOPart)
+ *        CHANNEL_ATTACHING -> CHANNEL_ATTACHED (performed only by IOPart)
+ *        CHANNEL_ATTACHED -> CHANNEL_OPENED (performed only by GuestPart)
+ */
 
 #include <linux/uuid.h>
 
@@ -38,11 +38,6 @@
 #include "vbuschannel.h"
 #undef _ULTRA_CONTROLVM_CHANNEL_INLINE_
 #include "channel.h"
-
-/*
- * CHANNEL Guids
- */
-
 #include "channel_guid.h"
 
 #define ULTRA_VHBA_CHANNEL_PROTOCOL_SIGNATURE ULTRA_CHANNEL_PROTOCOL_SIGNATURE
@@ -51,10 +46,11 @@
 	ULTRA_CHANNEL_PROTOCOL_SIGNATURE
 
 /* Must increment these whenever you insert or delete fields within this channel
-* struct.  Also increment whenever you change the meaning of fields within this
-* channel struct so as to break pre-existing software.  Note that you can
-* usually add fields to the END of the channel struct withOUT needing to
-* increment this. */
+ * struct.  Also increment whenever you change the meaning of fields within this
+ * channel struct so as to break pre-existing software.  Note that you can
+ * usually add fields to the END of the channel struct withOUT needing to
+ * increment this.
+ */
 #define ULTRA_VHBA_CHANNEL_PROTOCOL_VERSIONID 2
 #define ULTRA_VNIC_CHANNEL_PROTOCOL_VERSIONID 2
 #define ULTRA_VSWITCH_CHANNEL_PROTOCOL_VERSIONID 1
@@ -72,18 +68,20 @@
 				   ULTRA_VNIC_CHANNEL_PROTOCOL_SIGNATURE))
 
 /*
-* Everything necessary to handle SCSI & NIC traffic between Guest Partition and
-* IO Partition is defined below.  */
+ * Everything necessary to handle SCSI & NIC traffic between Guest Partition and
+ * IO Partition is defined below.
+ */
 
 /*
-* Defines and enums.
-*/
+ * Defines and enums.
+ */
 
 #define MINNUM(a, b) (((a) < (b)) ? (a) : (b))
 #define MAXNUM(a, b) (((a) > (b)) ? (a) : (b))
 
 /* these define the two queues per data channel between iopart and
- * ioguestparts */
+ * ioguestparts
+ */
 #define IOCHAN_TO_IOPART 0 /* used by ioguestpart to 'insert' signals to
 			    * iopart */
 
@@ -120,7 +118,7 @@ enum net_types {
 	/* uisnic -> virtnic */
 	NET_MACADDR,		/* indicates the client has requested to update
 				 * its MAC addr */
-	NET_MACADDR_ACK,	/* MAC address  */
+	NET_MACADDR_ACK,	/* MAC address */
 
 };
 
@@ -149,8 +147,7 @@ enum vdisk_mgmt_types {
 	VDISK_MGMT_RELEASE,
 };
 
-/*
- * structs with pragma pack  */
+/* structs with pragma pack  */
 
 /* ///////////// BEGIN PRAGMA PACK PUSH 1 ///////////////////////// */
 /* ///////////// ONLY STRUCT TYPE SHOULD BE BELOW */
@@ -221,17 +218,19 @@ struct uiscmdrsp_scsi {
 	/* see that struct for details. */
 	void *vdisk; /* contains pointer to the vdisk so that we can clean up
 		      * when the IO completes. */
-	int no_disk_result;	/* used to return no disk inquiry result */
-	/* when no_disk_result is set to 1,  */
-	/* scsi.scsistat is SAM_STAT_GOOD */
-	/* scsi.addlstat is 0 */
-	/* scsi.linuxstat is SAM_STAT_GOOD */
-	/* That is, there is NO error. */
+	int no_disk_result;
+	/* used to return no disk inquiry result
+	 * when no_disk_result is set to 1,
+	 * scsi.scsistat is SAM_STAT_GOOD
+	 * scsi.addlstat is 0
+	 * scsi.linuxstat is SAM_STAT_GOOD
+	 * That is, there is NO error.
+	 */
 };
 
-/*
-* Defines to support sending correct inquiry result when no disk is
-* configured.  */
+/* Defines to support sending correct inquiry result when no disk is
+ * configured.
+ */
 
 /* From SCSI SPC2 -
  *
@@ -245,20 +244,21 @@ struct uiscmdrsp_scsi {
  */
 
 #define DEV_NOT_CAPABLE 0x7f	/* peripheral qualifier of 0x3  */
-    /* peripheral type of 0x1f */
-    /* specifies no device but target present */
+				/* peripheral type of 0x1f */
+				/* specifies no device but target present */
 
 #define DEV_DISK_CAPABLE_NOT_PRESENT 0x20 /* peripheral qualifier of 0x1 */
     /* peripheral type of 0 - disk */
     /* specifies device capable, but not present */
 
 #define DEV_HISUPPORT 0x10	/* HiSup = 1; shows support for report luns */
-    /* must be returned for lun 0. */
+				/* must be returned for lun 0. */
 
 /* NOTE: Linux code assumes inquiry contains 36 bytes. Without checking length
-* in buf[4] some linux code accesses bytes beyond 5 to retrieve vendor, product
-* & revision.  Yikes! So let us always send back 36 bytes, the minimum for
-* inquiry result. */
+ * in buf[4] some linux code accesses bytes beyond 5 to retrieve vendor, product
+ * & revision.  Yikes! So let us always send back 36 bytes, the minimum for
+ * inquiry result.
+ */
 #define NO_DISK_INQUIRY_RESULT_LEN 36
 
 #define MIN_INQUIRY_RESULT_LEN 5 /* we need at least 5 bytes minimum for inquiry
@@ -309,21 +309,21 @@ struct uiscmdrsp_scsi {
 	} while (0)
 
 /*
-* Struct & Defines to support sense information.
-*/
+ * Struct & Defines to support sense information.
+ */
 
 /* The following struct is returned in sensebuf field in uiscmdrsp_scsi.  It is
-* initialized in exactly the manner that is recommended in Windows (hence the
-* odd values).
-* When set, these fields will have the following values:
-* ErrorCode = 0x70		indicates current error
-* Valid = 1			indicates sense info is valid
-* SenseKey			contains sense key as defined by SCSI specs.
-* AdditionalSenseCode		contains sense key as defined by SCSI specs.
-* AdditionalSenseCodeQualifier	contains qualifier to sense code as defined by
-*				scsi docs.
-* AdditionalSenseLength		contains will be sizeof(sense_data)-8=10.
-*/
+ * initialized in exactly the manner that is recommended in Windows (hence the
+ * odd values).
+ * When set, these fields will have the following values:
+ * ErrorCode = 0x70		indicates current error
+ * Valid = 1			indicates sense info is valid
+ * SenseKey			contains sense key as defined by SCSI specs.
+ * AdditionalSenseCode		contains sense key as defined by SCSI specs.
+ * AdditionalSenseCodeQualifier	contains qualifier to sense code as defined by
+ *				scsi docs.
+ * AdditionalSenseLength	contains will be sizeof(sense_data)-8=10.
+ */
 struct sense_data {
 	u8 errorcode:7;
 	u8 valid:1;
@@ -375,24 +375,25 @@ struct net_pkt_xmtdone {
 };
 
 /* RCVPOST_BUF_SIZe must be at most page_size(4096) - cache_line_size (64) The
-* reason is because dev_skb_alloc which is used to generate RCV_POST skbs in
-* virtnic requires that there is "overhead" in the buffer, and pads 16 bytes.  I
-* prefer to use 1 full cache line size for "overhead" so that transfers are
-* better.  IOVM requires that a buffer be represented by 1 phys_info structure
-* which can only cover page_size. */
+ * reason is because dev_skb_alloc which is used to generate RCV_POST skbs in
+ * virtnic requires that there is "overhead" in the buffer, and pads 16 bytes. I
+ * prefer to use 1 full cache line size for "overhead" so that transfers are
+ * better.  IOVM requires that a buffer be represented by 1 phys_info structure
+ * which can only cover page_size.
+ */
 #define RCVPOST_BUF_SIZE 4032
 #define MAX_NET_RCV_CHAIN \
 	((ETH_MAX_MTU+ETH_HEADER_SIZE + RCVPOST_BUF_SIZE-1) / RCVPOST_BUF_SIZE)
 
 struct net_pkt_rcvpost {
 	    /* rcv buf size must be large enough to include ethernet data len +
-	    * ethernet header len - we are choosing 2K because it is guaranteed
-	    * to be describable */
+	     * ethernet header len - we are choosing 2K because it is guaranteed
+	     * to be describable */
 	    struct phys_info frag;	/* physical page information for the
 					 * single fragment 2K rcv buf */
 	    u64 unique_num;		/* This is used to make sure that
 					 * receive posts are returned to  */
-	    /* the Adapter which sent them origonally. */
+	    /* the Adapter which we sent them originally. */
 };
 
 struct net_pkt_rcv {
@@ -424,14 +425,14 @@ struct uiscmdrsp_net {
 	enum net_types type;
 	void *buf;
 	union {
-		struct net_pkt_xmt xmt;	/* used for NET_XMIT */
+		struct net_pkt_xmt xmt;		/* used for NET_XMIT */
 		struct net_pkt_xmtdone xmtdone;	/* used for NET_XMIT_DONE */
 		struct net_pkt_rcvpost rcvpost;	/* used for NET_RCV_POST */
-		struct net_pkt_rcv rcv;	/* used for NET_RCV */
+		struct net_pkt_rcv rcv;		/* used for NET_RCV */
 		struct net_pkt_enbdis enbdis;	/* used for NET_RCV_ENBDIS, */
-		/* NET_RCV_ENBDIS_ACK,  */
-		/* NET_RCV_PROMSIC, */
-		/* and NET_CONNECT_STATUS */
+						/* NET_RCV_ENBDIS_ACK,  */
+						/* NET_RCV_PROMSIC, */
+						/* and NET_CONNECT_STATUS */
 		struct net_pkt_macaddr macaddr;
 	};
 };
@@ -446,24 +447,27 @@ struct uiscmdrsp_scsitaskmgmt {
 	void *scsicmd;
 
 	    /* This is some handle that the guest has saved off for its own use.
-	    * Its value is preserved by iopart & returned as is in the task mgmt
-	    * rsp. */
+	     * Its value is preserved by iopart & returned as is in the task
+	     * mgmt rsp.
+	     */
 	void *notify;
 
-	    /* For linux guests, this is a pointer to wait_queue_head that a
+	   /* For linux guests, this is a pointer to wait_queue_head that a
 	    * thread is waiting on to see if the taskmgmt command has completed.
 	    * For windows guests, this is a pointer to a location that a waiting
 	    * thread is testing to see if the taskmgmt command has completed.
 	    * When the rsp is received by guest, the thread receiving the
 	    * response uses this to notify the thread waiting for taskmgmt
 	    * command completion.  Its value is preserved by iopart & returned
-	    * as is in the task mgmt rsp. */
+	    * as is in the task mgmt rsp.
+	    */
 	void *notifyresult;
 
 	    /* this is a handle to location in guest where the result of the
-	    * taskmgmt command (result field) is to saved off when the response
-	    * is handled.  Its value is preserved by iopart & returned as is in
-	    * the task mgmt rsp. */
+	     * taskmgmt command (result field) is to saved off when the response
+	     * is handled.  Its value is preserved by iopart & returned as is in
+	     * the task mgmt rsp.
+	     */
 	char result;
 
 	    /* result of taskmgmt command - set by IOPart - values are: */
@@ -474,14 +478,14 @@ struct uiscmdrsp_scsitaskmgmt {
  * Guest */
 /* Note that the vHba pointer is not used by the Client/Guest side. */
 struct uiscmdrsp_disknotify {
-	u8 add;		/* 0-remove, 1-add */
+	u8 add;			/* 0-remove, 1-add */
 	void *v_hba;		/* Pointer to vhba_info for channel info to
 				 * route msg */
 	u32 channel, id, lun;	/* SCSI Path of Disk to added or removed */
 };
 
 /* The following is used by virthba/vSCSI to send the Acquire/Release commands
-* to the IOVM.  */
+ * to the IOVM. */
 struct uiscmdrsp_vdiskmgmt {
 	enum vdisk_mgmt_types vdisktype;
 
@@ -492,24 +496,27 @@ struct uiscmdrsp_vdiskmgmt {
 	void *scsicmd;
 
 	    /* This is some handle that the guest has saved off for its own use.
-	    * Its value is preserved by iopart & returned as is in the task mgmt
-	    * rsp. */
+	     * Its value is preserved by iopart & returned as is in the task
+	     * mgmt rsp.
+	     */
 	void *notify;
 
 	    /* For linux guests, this is a pointer to wait_queue_head that a
-	    * thread is waiting on to see if the taskmgmt command has completed.
-	    * For windows guests, this is a pointer to a location that a waiting
-	    * thread is testing to see if the taskmgmt command has completed.
-	    * When the rsp is received by guest, the thread receiving the
-	    * response uses this to notify the thread waiting for taskmgmt
-	    * command completion.  Its value is preserved by iopart & returned
-	    * as is in the task mgmt rsp. */
+	     * thread is waiting on to see if the tskmgmt command has completed.
+	     * For win32 guests, this is a pointer to a location that a waiting
+	     * thread is testing to see if the taskmgmt command has completed.
+	     * When the rsp is received by guest, the thread receiving the
+	     * response uses this to notify the thread waiting for taskmgmt
+	     * command completion.  Its value is preserved by iopart & returned
+	     * as is in the task mgmt rsp.
+	     */
 	void *notifyresult;
 
 	    /* this is a handle to location in guest where the result of the
-	    * taskmgmt command (result field) is to saved off when the response
-	    * is handled.  Its value is preserved by iopart & returned as is in
-	    * the task mgmt rsp. */
+	     * taskmgmt command (result field) is to saved off when the response
+	     * is handled.  Its value is preserved by iopart & returned as is in
+	     * the task mgmt rsp.
+	     */
 	char result;
 
 	    /* result of taskmgmt command - set by IOPart - values are: */
@@ -520,7 +527,7 @@ struct uiscmdrsp_vdiskmgmt {
 struct uiscmdrsp {
 	char cmdtype;
 
-	    /* describes what type of information is in the struct */
+/* describes what type of information is in the struct */
 #define CMD_SCSI_TYPE		1
 #define CMD_NET_TYPE		2
 #define CMD_SCSITASKMGMT_TYPE	3
@@ -534,30 +541,31 @@ struct uiscmdrsp {
 		struct uiscmdrsp_vdiskmgmt vdiskmgmt;
 	};
 	void *private_data;	/* used to send the response when the cmd is
-				 * done (scsi & scsittaskmgmt).  */
+				 * done (scsi & scsittaskmgmt). */
 	struct uiscmdrsp *next;	/* General Purpose Queue Link */
 	struct uiscmdrsp *activeQ_next;	/* Used to track active commands */
-	struct uiscmdrsp *activeQ_prev;	/* Used to track active commands  */
+	struct uiscmdrsp *activeQ_prev;	/* Used to track active commands */
 };
 
 /* This is just the header of the IO channel.  It is assumed that directly after
-* this header there is a large region of memory which contains the command and
-* response queues as specified in cmd_q and rsp_q SIGNAL_QUEUE_HEADERS. */
+ * this header there is a large region of memory which contains the command and
+ * response queues as specified in cmd_q and rsp_q SIGNAL_QUEUE_HEADERS.
+ */
 struct spar_io_channel_protocol {
 	struct channel_header channel_header;
 	struct signal_queue_header cmd_q;
 	struct signal_queue_header rsp_q;
 	union {
 		struct {
-			struct vhba_wwnn wwnn;	/* 8 bytes */
+			struct vhba_wwnn wwnn;		/* 8 bytes */
 			struct vhba_config_max max;	/* 20 bytes */
-		} vhba;		/* 28 */
+		} vhba;					/* total = 28 bytes */
 		struct {
 			u8 macaddr[MAX_MACADDR_LEN];	/* 6 bytes */
-			u32 num_rcv_bufs;	/* 4 */
-			u32 mtu;	/* 4 */
-			uuid_le zone_uuid;	/* 16 */
-		} vnic;		/* total     30 */
+			u32 num_rcv_bufs;		/* 4 bytes */
+			u32 mtu;			/* 4 bytes */
+			uuid_le zone_uuid;		/* 16 bytes */
+		} vnic;					/* total = 30 bytes */
 	};
 
 #define MAX_CLIENTSTRING_LEN 1024
@@ -569,8 +577,8 @@ struct spar_io_channel_protocol {
 /* ///////////// END PRAGMA PACK PUSH 1 /////////////////////////// */
 
 /*
-* INLINE functions for initializing and accessing I/O data channels
-*/
+ * INLINE functions for initializing and accessing I/O data channels
+ */
 
 #define SIZEOF_PROTOCOL (COVER(sizeof(struct spar_io_channel_protocol), 64))
 #define SIZEOF_CMDRSP (COVER(sizeof(struct uiscmdrsp), 64))
@@ -579,9 +587,9 @@ struct spar_io_channel_protocol {
 				  2 * MIN_NUMSIGNALS * SIZEOF_CMDRSP, 4096)
 
 /*
-* INLINE function for expanding a guest's pfn-off-size into multiple 4K page
-* pfn-off-size entires.
-*/
+ * INLINE function for expanding a guest's pfn-off-size into multiple 4K page
+ * pfn-off-size entires.
+ */
 
 /* we deal with 4K page sizes when we it comes to passing page information
  * between */
