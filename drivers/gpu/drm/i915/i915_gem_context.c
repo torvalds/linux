@@ -135,8 +135,7 @@ static int get_context_size(struct drm_device *dev)
 
 void i915_gem_context_free(struct kref *ctx_ref)
 {
-	struct intel_context *ctx = container_of(ctx_ref,
-						 typeof(*ctx), ref);
+	struct intel_context *ctx = container_of(ctx_ref, typeof(*ctx), ref);
 
 	trace_i915_context_free(ctx);
 
@@ -195,6 +194,7 @@ __create_hw_context(struct drm_device *dev,
 
 	kref_init(&ctx->ref);
 	list_add_tail(&ctx->link, &dev_priv->context_list);
+	ctx->i915 = dev_priv;
 
 	if (dev_priv->hw_context_size) {
 		struct drm_i915_gem_object *obj =
