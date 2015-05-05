@@ -40,7 +40,7 @@ static int hwpoison_inject(void *data, u64 val)
 	 * This implies unable to support non-LRU pages.
 	 */
 	if (!PageLRU(p) && !PageHuge(p))
-		return 0;
+		goto put_out;
 
 	/*
 	 * do a racy check with elevated page count, to make sure PG_hwpoison
@@ -52,11 +52,14 @@ static int hwpoison_inject(void *data, u64 val)
 	err = hwpoison_filter(hpage);
 	unlock_page(hpage);
 	if (err)
-		return 0;
+		goto put_out;
 
 inject:
 	pr_info("Injecting memory failure at pfn %#lx\n", pfn);
 	return memory_failure(pfn, 18, MF_COUNT_INCREASED);
+put_out:
+	put_page(hpage);
+	return 0;
 }
 
 static int hwpoison_unpoison(void *data, u64 val)
