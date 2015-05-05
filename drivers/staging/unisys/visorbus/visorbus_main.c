@@ -35,7 +35,6 @@ int visorbus_forcenomatch;
 #define MAXDEVICETEST 4
 int visorbus_devicetest;
 int visorbus_debugref;
-int visorbus_serialloopbacktest;
 #define SERIALLOOPBACKCHANADDR (100 * 1024 * 1024)
 
 /** This is the private data that we store for each bus device instance.
@@ -2130,12 +2129,6 @@ int visorbus_devicetest = 0;
 module_param_named(debugref, visorbus_debugref, int, S_IRUGO);
 MODULE_PARM_DESC(visorbus_debugref, "1 to debug reference counting");
 int visorbus_debugref = 0;
-
-module_param_named(serialloopbacktest, visorbus_serialloopbacktest,
-		   int, S_IRUGO);
-MODULE_PARM_DESC(visorbus_serialloopbacktest,
-		 "non-0 to just create 2 serial devices on the same channel");
-int visorbus_serialloopbacktest = 0;
 
 MODULE_AUTHOR("Unisys");
 MODULE_LICENSE("GPL");

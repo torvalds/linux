@@ -2642,7 +2642,7 @@ visorchipset_file_init(dev_t major_dev, struct visorchannel **controlvm_channel)
 static int __init
 visorchipset_init(void)
 {
-	int rc = 0, x = 0;
+	int rc = 0;
 	HOSTADDRESS addr;
 
 	if (!unisys_spar_platform)
