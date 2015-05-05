@@ -11,7 +11,6 @@ menuconfig UNISYSSPAR
 
 if UNISYSSPAR
 
-source "drivers/staging/unisys/visorutil/Kconfig"
 source "drivers/staging/unisys/visorbus/Kconfig"
 
 endif # UNISYSSPAR
