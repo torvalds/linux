@@ -198,9 +198,7 @@ static int axienet_dma_bd_init(struct net_device *ndev)
 	lp->tx_bd_tail = 0;
 	lp->rx_bd_ci = 0;
 
-	/*
-	 * Allocate the Tx and Rx buffer descriptors.
-	 */
+	/* Allocate the Tx and Rx buffer descriptors. */
 	lp->tx_bd_v = dma_zalloc_coherent(ndev->dev.parent,
 					  sizeof(*lp->tx_bd_v) * TX_BD_NUM,
 					  &lp->tx_bd_p, GFP_KERNEL);
@@ -263,7 +261,8 @@ static int axienet_dma_bd_init(struct net_device *ndev)
 	axienet_dma_out32(lp, XAXIDMA_TX_CR_OFFSET, cr);
 
 	/* Populate the tail pointer and bring the Rx Axi DMA engine out of
-	 * halted state. This will make the Rx side ready for reception.*/
+	 * halted state. This will make the Rx side ready for reception.
+	 */
 	axienet_dma_out32(lp, XAXIDMA_RX_CDESC_OFFSET, lp->rx_bd_p);
 	cr = axienet_dma_in32(lp, XAXIDMA_RX_CR_OFFSET);
 	axienet_dma_out32(lp, XAXIDMA_RX_CR_OFFSET,
@@ -273,7 +272,8 @@ static int axienet_dma_bd_init(struct net_device *ndev)
 
 	/* Write to the RS (Run-stop) bit in the Tx channel control register.
 	 * Tx channel is now ready to run. But only after we write to the
-	 * tail pointer register that the Tx channel will start transmitting */
+	 * tail pointer register that the Tx channel will start transmitting.
+	 */
 	axienet_dma_out32(lp, XAXIDMA_TX_CDESC_OFFSET, lp->tx_bd_p);
 	cr = axienet_dma_in32(lp, XAXIDMA_TX_CR_OFFSET);
 	axienet_dma_out32(lp, XAXIDMA_TX_CR_OFFSET,
@@ -354,7 +354,8 @@ static void axienet_set_multicast_list(struct net_device *ndev)
 	    netdev_mc_count(ndev) > XAE_MULTICAST_CAM_TABLE_NUM) {
 		/* We must make the kernel realize we had to move into
 		 * promiscuous mode. If it was a promiscuous mode request
-		 * the flag is already set. If not we set it. */
+		 * the flag is already set. If not we set it.
+		 */
 		ndev->flags |= IFF_PROMISC;
 		reg = axienet_ior(lp, XAE_FMI_OFFSET);
 		reg |= XAE_FMI_PM_MASK;
@@ -438,7 +439,8 @@ static void __axienet_device_reset(struct axienet_local *lp,
 	/* Reset Axi DMA. This would reset Axi Ethernet core as well. The reset
 	 * process of Axi DMA takes a while to complete as all pending
 	 * commands/transfers will be flushed or completed during this
-	 * reset process. */
+	 * reset process.
+	 */
 	axienet_dma_out32(lp, offset, XAXIDMA_CR_RESET_MASK);
 	timeout = DELAY_OF_ONE_MILLISEC;
 	while (axienet_dma_in32(lp, offset) & XAXIDMA_CR_RESET_MASK) {
@@ -499,7 +501,8 @@ static void axienet_device_reset(struct net_device *ndev)
 	axienet_iow(lp, XAE_FCC_OFFSET, XAE_FCC_FCRX_MASK);
 
 	/* Sync default options with HW but leave receiver and
-	 * transmitter disabled.*/
+	 * transmitter disabled.
+	 */
 	axienet_setoptions(ndev, lp->options &
 			   ~(XAE_OPTION_TXEN | XAE_OPTION_RXEN));
 	axienet_set_mac_address(ndev, NULL);
@@ -919,7 +922,8 @@ static int axienet_open(struct net_device *ndev)
 	/* Disable the MDIO interface till Axi Ethernet Reset is completed.
 	 * When we do an Axi Ethernet reset, it resets the complete core
 	 * including the MDIO. If MDIO is not disabled when the reset
-	 * process is started, MDIO will be broken afterwards. */
+	 * process is started, MDIO will be broken afterwards.
+	 */
 	axienet_iow(lp, XAE_MDIO_MC_OFFSET,
 		    (mdio_mcreg & (~XAE_MDIO_MC_MDIOEN_MASK)));
 	axienet_device_reset(ndev);
@@ -1365,7 +1369,8 @@ static void axienet_dma_err_handler(unsigned long data)
 	/* Disable the MDIO interface till Axi Ethernet Reset is completed.
 	 * When we do an Axi Ethernet reset, it resets the complete core
 	 * including the MDIO. So if MDIO is not disabled when the reset
-	 * process is started, MDIO will be broken afterwards. */
+	 * process is started, MDIO will be broken afterwards.
+	 */
 	axienet_iow(lp, XAE_MDIO_MC_OFFSET, (mdio_mcreg &
 		    ~XAE_MDIO_MC_MDIOEN_MASK));
 
@@ -1436,7 +1441,8 @@ static void axienet_dma_err_handler(unsigned long data)
 	axienet_dma_out32(lp, XAXIDMA_TX_CR_OFFSET, cr);
 
 	/* Populate the tail pointer and bring the Rx Axi DMA engine out of
-	 * halted state. This will make the Rx side ready for reception.*/
+	 * halted state. This will make the Rx side ready for reception.
+	 */
 	axienet_dma_out32(lp, XAXIDMA_RX_CDESC_OFFSET, lp->rx_bd_p);
 	cr = axienet_dma_in32(lp, XAXIDMA_RX_CR_OFFSET);
 	axienet_dma_out32(lp, XAXIDMA_RX_CR_OFFSET,
@@ -1446,7 +1452,8 @@ static void axienet_dma_err_handler(unsigned long data)
 
 	/* Write to the RS (Run-stop) bit in the Tx channel control register.
 	 * Tx channel is now ready to run. But only after we write to the
-	 * tail pointer register that the Tx channel will start transmitting */
+	 * tail pointer register that the Tx channel will start transmitting
+	 */
 	axienet_dma_out32(lp, XAXIDMA_TX_CDESC_OFFSET, lp->tx_bd_p);
 	cr = axienet_dma_in32(lp, XAXIDMA_TX_CR_OFFSET);
 	axienet_dma_out32(lp, XAXIDMA_TX_CR_OFFSET,
@@ -1462,7 +1469,8 @@ static void axienet_dma_err_handler(unsigned long data)
 	axienet_iow(lp, XAE_FCC_OFFSET, XAE_FCC_FCRX_MASK);
 
 	/* Sync default options with HW but leave receiver and
-	 * transmitter disabled.*/
+	 * transmitter disabled.
+	 */
 	axienet_setoptions(ndev, lp->options &
 			   ~(XAE_OPTION_TXEN | XAE_OPTION_RXEN));
 	axienet_set_mac_address(ndev, NULL);
