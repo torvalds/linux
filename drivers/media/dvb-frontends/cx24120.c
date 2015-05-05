@@ -160,7 +160,8 @@ static int cx24120_readreg(struct cx24120_state *state, u8 reg)
 	int ret;
 	u8 buf = 0;
 	struct i2c_msg msg[] = {
-		{	.addr = state->config->i2c_addr,
+		{
+			.addr = state->config->i2c_addr,
 			.flags = 0,
 			.len = 1,
 			.buf = &reg
@@ -488,7 +489,8 @@ static int cx24120_diseqc_send_burst(struct dvb_frontend *fe,
 	struct cx24120_state *state = fe->demodulator_priv;
 	struct cx24120_cmd cmd;
 
-	/* Yes, cmd.len is set to zero. The old driver
+	/*
+	 * Yes, cmd.len is set to zero. The old driver
 	 * didn't specify any len, but also had a
 	 * memset 0 before every use of the cmd struct
 	 * which would have set it to zero.
@@ -671,9 +673,11 @@ static int cx24120_read_status(struct dvb_frontend *fe, fe_status_t *status)
 	if (lock & CX24120_HAS_LOCK)
 		*status |= FE_HAS_LOCK;
 
-	/* TODO: is FE_HAS_SYNC in the right place?
+	/*
+	 * TODO: is FE_HAS_SYNC in the right place?
 	 * Other cx241xx drivers have this slightly
-	 * different */
+	 * different
+	 */
 
 	state->fe_status = *status;
 	cx24120_get_stats(state);
@@ -695,7 +699,8 @@ static int cx24120_read_status(struct dvb_frontend *fe, fe_status_t *status)
 	return 0;
 }
 
-/* FEC & modulation lookup table
+/*
+ * FEC & modulation lookup table
  * Used for decoding the REG_FECMODE register
  * once tuned in.
  */
@@ -775,14 +780,15 @@ static int cx24120_get_fec(struct dvb_frontend *fe)
 	return 0;
 }
 
-/* Clock ratios lookup table
+/*
+ * Clock ratios lookup table
  *
  * Values obtained from much larger table in old driver
  * which had numerous entries which would never match.
  *
  * There's probably some way of calculating these but I
  * can't determine the pattern
-*/
+ */
 static struct cx24120_clock_ratios_table {
 	fe_delivery_system_t delsys;
 	fe_pilot_t pilot;
@@ -935,7 +941,7 @@ static struct cx24120_modfec_table {
 	fe_code_rate_t fec;
 	u8 val;
 } modfec_table[] = {
-/*delsys	mod	fec	 val */
+	/*delsys	mod	fec	 val */
 	{ SYS_DVBS,  QPSK,  FEC_1_2, 0x2e },
 	{ SYS_DVBS,  QPSK,  FEC_2_3, 0x2f },
 	{ SYS_DVBS,  QPSK,  FEC_3_4, 0x30 },
