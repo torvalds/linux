@@ -229,7 +229,8 @@ static int __init test_rht_init(void)
 		total_time += time;
 	}
 
-	pr_info("Average test time: %llu\n", total_time / runs);
+	do_div(total_time, runs);
+	pr_info("Average test time: %llu\n", total_time);
 
 	return 0;
 }
