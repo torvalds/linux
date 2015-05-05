@@ -236,7 +236,7 @@ visorchannel_clear(struct visorchannel *channel, ulong offset, u8 ch,
 		written += thisbytes;
 		nbytes -= thisbytes;
 	}
-	return 0;
+	err = 0;
 
 cleanup:
 	vfree(buf);
