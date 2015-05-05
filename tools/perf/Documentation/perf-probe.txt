@@ -84,9 +84,10 @@ OPTIONS
 	variables.
 
 -F::
---funcs::
+--funcs[=FILTER]::
 	Show available functions in given module or kernel. With -x/--exec,
 	can also list functions in a user space executable / shared library.
+	This also can accept a FILTER rule argument.
 
 --filter=FILTER::
 	(Only for --vars and --funcs) Set filter. FILTER is a combination of glob

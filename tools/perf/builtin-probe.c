@@ -290,6 +290,17 @@ static int opt_show_vars(const struct option *opt __maybe_unused,
 	return ret;
 }
 #endif
+static int opt_show_funcs(const struct option *opt __maybe_unused,
+			  const char *str, int unset)
+{
+	if (!unset)
+		params.show_funcs = true;
+
+	if (str)
+		return params_add_filter(str);
+
+	return 0;
+}
 
 static int opt_set_filter(const struct option *opt __maybe_unused,
 			  const char *str, int unset __maybe_unused)
@@ -399,8 +410,9 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT__DRY_RUN(&probe_event_dry_run),
 	OPT_INTEGER('\0', "max-probes", &params.max_probe_points,
 		 "Set how many probe points can be found for a probe."),
-	OPT_BOOLEAN('F', "funcs", &params.show_funcs,
-		    "Show potential probe-able functions."),
+	OPT_CALLBACK_DEFAULT('F', "funcs", NULL, "[FILTER]",
+			     "Show potential probe-able functions.",
+			     opt_show_funcs, DEFAULT_FUNC_FILTER),
 	OPT_CALLBACK('\0', "filter", NULL,
 		     "[!]FILTER", "Set a filter (with --vars/funcs only)\n"
 		     "\t\t\t(default: \"" DEFAULT_VAR_FILTER "\" for --vars,\n"
@@ -472,9 +484,6 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 		return ret;
 	}
 	if (params.show_funcs) {
-		if (!params.filter)
-			params.filter = strfilter__new(DEFAULT_FUNC_FILTER,
-						       NULL);
 		ret = show_available_funcs(params.target, params.filter,
 					params.uprobes);
 		strfilter__delete(params.filter);
