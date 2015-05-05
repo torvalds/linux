@@ -19,13 +19,14 @@
  * communicate with the visorchipset driver using a device/file interface.
  */
 
-#include <linux/mm.h>
 #include <linux/fs.h>
+#include <linux/mm.h>
+
 #include "version.h"
 #include "visorchipset.h"
 #include "visorbus.h"
 #include "uisutils.h"
-#include "file.h"
+#include "visorchipset.h"
 
 #define CURRENT_FILE_PC VISOR_CHIPSET_PC_file_c
 

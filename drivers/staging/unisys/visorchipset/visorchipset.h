@@ -188,5 +188,7 @@ void *visorchipset_cache_alloc(struct kmem_cache *pool,
 			       bool ok_to_block, char *fn, int ln);
 void visorchipset_cache_free(struct kmem_cache *pool, void *p,
 			     char *fn, int ln);
-
+int visorchipset_file_init(dev_t majorDev,
+			   struct visorchannel **pControlVm_channel);
+void visorchipset_file_cleanup(dev_t major_dev);
 #endif

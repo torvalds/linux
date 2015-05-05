@@ -20,7 +20,6 @@
 #include "procobjecttree.h"
 #include "visorbus.h"
 #include "periodic_work.h"
-#include "file.h"
 #include "parser.h"
 #include "uisutils.h"
 #include "controlvmcompletionstatus.h"
