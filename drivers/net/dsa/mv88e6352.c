@@ -136,7 +136,6 @@ static int mv88e6352_setup(struct dsa_switch *ds)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int ret;
-	int i;
 
 	ret = mv88e6xxx_setup_common(ds);
 	if (ret < 0)
@@ -154,13 +153,7 @@ static int mv88e6352_setup(struct dsa_switch *ds)
 	if (ret < 0)
 		return ret;
 
-	for (i = 0; i < ps->num_ports; i++) {
-		ret = mv88e6xxx_setup_port(ds, i);
-		if (ret < 0)
-			return ret;
-	}
-
-	return 0;
+	return mv88e6xxx_setup_ports(ds);
 }
 
 static int mv88e6352_read_eeprom_word(struct dsa_switch *ds, int addr)

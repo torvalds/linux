@@ -1309,7 +1309,7 @@ static void mv88e6xxx_bridge_work(struct work_struct *work)
 	}
 }
 
-int mv88e6xxx_setup_port(struct dsa_switch *ds, int port)
+static int mv88e6xxx_setup_port(struct dsa_switch *ds, int port)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int ret, fid;
@@ -1546,6 +1546,20 @@ int mv88e6xxx_setup_port(struct dsa_switch *ds, int port)
 abort:
 	mutex_unlock(&ps->smi_mutex);
 	return ret;
+}
+
+int mv88e6xxx_setup_ports(struct dsa_switch *ds)
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	int ret;
+	int i;
+
+	for (i = 0; i < ps->num_ports; i++) {
+		ret = mv88e6xxx_setup_port(ds, i);
+		if (ret < 0)
+			return ret;
+	}
+	return 0;
 }
 
 int mv88e6xxx_setup_common(struct dsa_switch *ds)

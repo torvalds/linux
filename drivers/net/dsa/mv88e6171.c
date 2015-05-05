@@ -69,7 +69,6 @@ static int mv88e6171_setup_global(struct dsa_switch *ds)
 static int mv88e6171_setup(struct dsa_switch *ds)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
-	int i;
 	int ret;
 
 	ret = mv88e6xxx_setup_common(ds);
@@ -86,16 +85,7 @@ static int mv88e6171_setup(struct dsa_switch *ds)
 	if (ret < 0)
 		return ret;
 
-	for (i = 0; i < ps->num_ports; i++) {
-		if (!(dsa_is_cpu_port(ds, i) || ds->phys_port_mask & (1 << i)))
-			continue;
-
-		ret = mv88e6xxx_setup_port(ds, i);
-		if (ret < 0)
-			return ret;
-	}
-
-	return 0;
+	return mv88e6xxx_setup_ports(ds);
 }
 
 static int mv88e6171_get_eee(struct dsa_switch *ds, int port,
