@@ -4,7 +4,7 @@
 
 obj-$(CONFIG_UNISYS_VISORBUS)	+= visorbus.o
 
-visorbus-y := visorbus_main.o devmajorminor_attr.o businst_attr.o channel_attr.o
+visorbus-y := visorbus_main.o devmajorminor_attr.o channel_attr.o
 visorbus-y	+= visorchannel_funcs.o
 
 ccflags-y += -Idrivers/staging/unisys/include
