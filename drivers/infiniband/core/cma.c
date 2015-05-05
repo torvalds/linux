@@ -448,7 +448,7 @@ static int cma_resolve_ib_dev(struct rdma_id_private *id_priv)
 
 	list_for_each_entry(cur_dev, &dev_list, list) {
 		for (p = 1; p <= cur_dev->device->phys_port_cnt; ++p) {
-			if (!rdma_ib_or_iboe(cur_dev->device, p))
+			if (!rdma_cap_af_ib(cur_dev->device, p))
 				continue;
 
 			if (ib_find_cached_pkey(cur_dev->device, p, pkey, &index))
