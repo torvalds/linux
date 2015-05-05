@@ -520,7 +520,7 @@ static int gsc_hpdi_init(struct comedi_device *dev)
 
 	/* wait 10usec after reset before accessing fifos */
 	writel(BOARD_RESET_BIT, dev->mmio + BOARD_CONTROL_REG);
-	udelay(10);
+	usleep_range(10, 1000);
 
 	writel(ALMOST_EMPTY_BITS(32) | ALMOST_FULL_BITS(32),
 	       dev->mmio + RX_PROG_ALMOST_REG);
