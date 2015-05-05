@@ -174,10 +174,14 @@ static bool g4x_infoframe_enabled(struct drm_encoder *encoder)
 	struct intel_digital_port *intel_dig_port = enc_to_dig_port(encoder);
 	u32 val = I915_READ(VIDEO_DIP_CTL);
 
-	if (VIDEO_DIP_PORT(intel_dig_port->port) == (val & VIDEO_DIP_PORT_MASK))
-		return val & VIDEO_DIP_ENABLE;
+	if ((val & VIDEO_DIP_ENABLE) == 0)
+		return false;
 
-	return false;
+	if ((val & VIDEO_DIP_PORT_MASK) != VIDEO_DIP_PORT(intel_dig_port->port))
+		return false;
+
+	return val & (VIDEO_DIP_ENABLE_AVI |
+		      VIDEO_DIP_ENABLE_VENDOR | VIDEO_DIP_ENABLE_SPD);
 }
 
 static void ibx_write_infoframe(struct drm_encoder *encoder,
@@ -227,10 +231,15 @@ static bool ibx_infoframe_enabled(struct drm_encoder *encoder)
 	int reg = TVIDEO_DIP_CTL(intel_crtc->pipe);
 	u32 val = I915_READ(reg);
 
-	if (VIDEO_DIP_PORT(intel_dig_port->port) == (val & VIDEO_DIP_PORT_MASK))
-		return val & VIDEO_DIP_ENABLE;
+	if ((val & VIDEO_DIP_ENABLE) == 0)
+		return false;
 
-	return false;
+	if ((val & VIDEO_DIP_PORT_MASK) != VIDEO_DIP_PORT(intel_dig_port->port))
+		return false;
+
+	return val & (VIDEO_DIP_ENABLE_AVI |
+		      VIDEO_DIP_ENABLE_VENDOR | VIDEO_DIP_ENABLE_GAMUT |
+		      VIDEO_DIP_ENABLE_SPD | VIDEO_DIP_ENABLE_GCP);
 }
 
 static void cpt_write_infoframe(struct drm_encoder *encoder,
@@ -282,7 +291,12 @@ static bool cpt_infoframe_enabled(struct drm_encoder *encoder)
 	int reg = TVIDEO_DIP_CTL(intel_crtc->pipe);
 	u32 val = I915_READ(reg);
 
-	return val & VIDEO_DIP_ENABLE;
+	if ((val & VIDEO_DIP_ENABLE) == 0)
+		return false;
+
+	return val & (VIDEO_DIP_ENABLE_AVI |
+		      VIDEO_DIP_ENABLE_VENDOR | VIDEO_DIP_ENABLE_GAMUT |
+		      VIDEO_DIP_ENABLE_SPD | VIDEO_DIP_ENABLE_GCP);
 }
 
 static void vlv_write_infoframe(struct drm_encoder *encoder,
@@ -332,10 +346,15 @@ static bool vlv_infoframe_enabled(struct drm_encoder *encoder)
 	int reg = VLV_TVIDEO_DIP_CTL(intel_crtc->pipe);
 	u32 val = I915_READ(reg);
 
-	if (VIDEO_DIP_PORT(intel_dig_port->port) == (val & VIDEO_DIP_PORT_MASK))
-		return val & VIDEO_DIP_ENABLE;
+	if ((val & VIDEO_DIP_ENABLE) == 0)
+		return false;
 
-	return false;
+	if ((val & VIDEO_DIP_PORT_MASK) != VIDEO_DIP_PORT(intel_dig_port->port))
+		return false;
+
+	return val & (VIDEO_DIP_ENABLE_AVI |
+		      VIDEO_DIP_ENABLE_VENDOR | VIDEO_DIP_ENABLE_GAMUT |
+		      VIDEO_DIP_ENABLE_SPD | VIDEO_DIP_ENABLE_GCP);
 }
 
 static void hsw_write_infoframe(struct drm_encoder *encoder,
@@ -383,8 +402,9 @@ static bool hsw_infoframe_enabled(struct drm_encoder *encoder)
 	u32 ctl_reg = HSW_TVIDEO_DIP_CTL(intel_crtc->config->cpu_transcoder);
 	u32 val = I915_READ(ctl_reg);
 
-	return val & (VIDEO_DIP_ENABLE_AVI_HSW | VIDEO_DIP_ENABLE_SPD_HSW |
-		      VIDEO_DIP_ENABLE_VS_HSW);
+	return val & (VIDEO_DIP_ENABLE_VSC_HSW | VIDEO_DIP_ENABLE_AVI_HSW |
+		      VIDEO_DIP_ENABLE_GCP_HSW | VIDEO_DIP_ENABLE_VS_HSW |
+		      VIDEO_DIP_ENABLE_GMP_HSW | VIDEO_DIP_ENABLE_SPD_HSW);
 }
 
 /*
