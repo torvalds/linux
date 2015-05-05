@@ -874,9 +874,6 @@ static void intel_disable_hdmi(struct intel_encoder *encoder)
 	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
 	u32 temp;
 
-	if (crtc->config->has_audio)
-		intel_audio_codec_disable(encoder);
-
 	temp = I915_READ(intel_hdmi->hdmi_reg);
 
 	temp &= ~(SDVO_ENABLE | SDVO_AUDIO_ENABLE);
@@ -904,6 +901,29 @@ static void intel_disable_hdmi(struct intel_encoder *encoder)
 		I915_WRITE(intel_hdmi->hdmi_reg, temp);
 		POSTING_READ(intel_hdmi->hdmi_reg);
 	}
+}
+
+static void g4x_disable_hdmi(struct intel_encoder *encoder)
+{
+	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
+
+	if (crtc->config->has_audio)
+		intel_audio_codec_disable(encoder);
+
+	intel_disable_hdmi(encoder);
+}
+
+static void pch_disable_hdmi(struct intel_encoder *encoder)
+{
+	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
+
+	if (crtc->config->has_audio)
+		intel_audio_codec_disable(encoder);
+}
+
+static void pch_post_disable_hdmi(struct intel_encoder *encoder)
+{
+	intel_disable_hdmi(encoder);
 }
 
 static int hdmi_portclock_limit(struct intel_hdmi *hdmi, bool respect_dvi_limit)
@@ -1786,7 +1806,12 @@ void intel_hdmi_init(struct drm_device *dev, int hdmi_reg, enum port port)
 			 DRM_MODE_ENCODER_TMDS);
 
 	intel_encoder->compute_config = intel_hdmi_compute_config;
-	intel_encoder->disable = intel_disable_hdmi;
+	if (HAS_PCH_SPLIT(dev)) {
+		intel_encoder->disable = pch_disable_hdmi;
+		intel_encoder->post_disable = pch_post_disable_hdmi;
+	} else {
+		intel_encoder->disable = g4x_disable_hdmi;
+	}
 	intel_encoder->get_hw_state = intel_hdmi_get_hw_state;
 	intel_encoder->get_config = intel_hdmi_get_config;
 	if (IS_CHERRYVIEW(dev)) {
