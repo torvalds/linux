@@ -194,9 +194,6 @@ visorchipset_register_busdev_server(
 			struct visorchipset_busdev_responders *responders,
 			struct ultra_vbus_deviceinfo *driver_info);
 
-typedef void (*SPARREPORTEVENT_COMPLETE_FUNC) (struct controlvm_message *msg,
-					       int status);
-
 void visorchipset_device_pause_response(u32 bus_no, u32 dev_no, int response);
 
 bool visorchipset_get_bus_info(u32 bus_no,
