@@ -17,12 +17,37 @@
 
 #include <linux/uuid.h>
 
-#include "visorbus_private.h"
+#include "visorbus.h"
+#include "visorchipset.h"
+#include "version.h"
 #include "timskmod.h"
 #include "periodic_work.h"
 #include "vbuschannel.h"
 #include "guestlinuxdebug.h"
 #include "vbusdeviceinfo.h"
+
+/* module parameters */
+int visorbus_debug;
+int visorbus_forcematch;
+int visorbus_forcenomatch;
+#define MAXDEVICETEST 4
+int visorbus_devicetest;
+int visorbus_debugref;
+int visorbus_serialloopbacktest;
+#define SERIALLOOPBACKCHANADDR (100 * 1024 * 1024)
+
+/** This is the private data that we store for each bus device instance.
+ */
+struct visorbus_devdata {
+	int devno;		/* this is the chipset busNo */
+	struct list_head list_all;
+	struct device *dev;
+	struct kobject kobj;
+	struct visorchannel *chan;	/* channel area for bus itself */
+	bool vbus_valid;
+	struct spar_vbus_headerinfo vbus_hdr_info;
+};
+
 /* These forward declarations are required since our drivers are out-of-tree.
  * The structures referenced are kernel-private and are not in the headers, but
  * it is impossible to make a functioning bus driver without them.
