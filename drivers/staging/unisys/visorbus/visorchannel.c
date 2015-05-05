@@ -149,7 +149,7 @@ EXPORT_SYMBOL_GPL(visorchannel_destroy);
 HOSTADDRESS
 visorchannel_get_physaddr(struct visorchannel *channel)
 {
-	return visor_memregion_get_physaddr(&channel->memregion);
+	return channel->memregion.physaddr;
 }
 EXPORT_SYMBOL_GPL(visorchannel_get_physaddr);
 
@@ -501,7 +501,6 @@ visorchannel_debug(struct visorchannel *channel, int num_queues,
 {
 	HOSTADDRESS addr = 0;
 	ulong nbytes = 0, nbytes_region = 0;
-	struct memregion *memregion = NULL;
 	struct channel_header hdr;
 	struct channel_header *phdr = &hdr;
 	int i = 0;
@@ -510,8 +509,8 @@ visorchannel_debug(struct visorchannel *channel, int num_queues,
 	if (!channel)
 		return;
 
-	addr = visor_memregion_get_physaddr(memregion);
-	nbytes_region = visor_memregion_get_nbytes(memregion);
+	addr = visorchannel_get_physaddr(channel);
+	nbytes_region = visorchannel_get_nbytes(channel);
 	errcode = visorchannel_read(channel, off,
 				    phdr, sizeof(struct channel_header));
 	if (errcode < 0) {

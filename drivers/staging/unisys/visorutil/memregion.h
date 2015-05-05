@@ -33,10 +33,7 @@ int visor_memregion_read(struct memregion *memregion,
 			 ulong offset, void *dest, ulong nbytes);
 int visor_memregion_write(struct memregion *memregion,
 			  ulong offset, void *src, ulong nbytes);
-HOSTADDRESS visor_memregion_get_physaddr(struct memregion *memregion);
-ulong visor_memregion_get_nbytes(struct memregion *memregion);
 void memregion_dump(struct memregion *memregion, char *s,
 		    ulong off, ulong len, struct seq_file *seq);
-void __iomem *visor_memregion_get_pointer(struct memregion *memregion);
 
 #endif

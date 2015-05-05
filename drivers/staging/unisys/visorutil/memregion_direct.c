@@ -55,27 +55,6 @@ unmapit(struct memregion *memregion)
 	}
 }
 
-HOSTADDRESS
-visor_memregion_get_physaddr(struct memregion *memregion)
-{
-	return memregion->physaddr;
-}
-EXPORT_SYMBOL_GPL(visor_memregion_get_physaddr);
-
-ulong
-visor_memregion_get_nbytes(struct memregion *memregion)
-{
-	return memregion->nbytes;
-}
-EXPORT_SYMBOL_GPL(visor_memregion_get_nbytes);
-
-void __iomem *
-visor_memregion_get_pointer(struct memregion *memregion)
-{
-	return memregion->mapped;
-}
-EXPORT_SYMBOL_GPL(visor_memregion_get_pointer);
-
 int
 visor_memregion_read(struct memregion *memregion, ulong offset, void *dest,
 		     ulong nbytes)
