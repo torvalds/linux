@@ -1011,6 +1011,9 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.sriov_set_vf_vlan = efx_siena_sriov_set_vf_vlan,
 	.sriov_set_vf_spoofchk = efx_siena_sriov_set_vf_spoofchk,
 	.sriov_get_vf_config = efx_siena_sriov_get_vf_config,
+	.vswitching_probe = efx_port_dummy_op_int,
+	.vswitching_restore = efx_port_dummy_op_int,
+	.vswitching_remove = efx_port_dummy_op_void,
 #endif
 
 	.revision = EFX_REV_SIENA_A0,

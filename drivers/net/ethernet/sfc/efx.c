@@ -1721,21 +1721,33 @@ static int efx_probe_all(struct efx_nic *efx)
 	}
 	efx->rxq_entries = efx->txq_entries = EFX_DEFAULT_DMAQ_SIZE;
 
+#ifdef CONFIG_SFC_SRIOV
+	rc = efx->type->vswitching_probe(efx);
+	if (rc) /* not fatal; the PF will still work fine */
+		netif_warn(efx, probe, efx->net_dev,
+			   "failed to setup vswitching rc=%d;"
+			   " VFs may not function\n", rc);
+#endif
+
 	rc = efx_probe_filters(efx);
 	if (rc) {
 		netif_err(efx, probe, efx->net_dev,
 			  "failed to create filter tables\n");
-		goto fail3;
+		goto fail4;
 	}
 
 	rc = efx_probe_channels(efx);
 	if (rc)
-		goto fail4;
+		goto fail5;
 
 	return 0;
 
- fail4:
+ fail5:
 	efx_remove_filters(efx);
+ fail4:
+#ifdef CONFIG_SFC_SRIOV
+	efx->type->vswitching_remove(efx);
+#endif
  fail3:
 	efx_remove_port(efx);
  fail2:
@@ -1825,6 +1837,9 @@ static void efx_remove_all(struct efx_nic *efx)
 {
 	efx_remove_channels(efx);
 	efx_remove_filters(efx);
+#ifdef CONFIG_SFC_SRIOV
+	efx->type->vswitching_remove(efx);
+#endif
 	efx_remove_port(efx);
 	efx_remove_nic(efx);
 }
@@ -2417,6 +2432,15 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 	rc = efx_enable_interrupts(efx);
 	if (rc)
 		goto fail;
+
+#ifdef CONFIG_SFC_SRIOV
+	rc = efx->type->vswitching_restore(efx);
+	if (rc) /* not fatal; the PF will still work fine */
+		netif_warn(efx, probe, efx->net_dev,
+			   "failed to restore vswitching rc=%d;"
+			   " VFs may not function\n", rc);
+#endif
+
 	efx_restore_filters(efx);
 	if (efx->type->sriov_reset)
 		efx->type->sriov_reset(efx);

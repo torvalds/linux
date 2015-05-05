@@ -53,4 +53,8 @@ static inline int efx_ef10_sriov_get_vf_config(struct efx_nic *efx, int vf,
 	return -EOPNOTSUPP;
 }
 
+int efx_ef10_vswitching_probe(struct efx_nic *efx);
+int efx_ef10_vswitching_restore(struct efx_nic *efx);
+void efx_ef10_vswitching_remove(struct efx_nic *efx);
+
 #endif /* EF10_SRIOV_H */

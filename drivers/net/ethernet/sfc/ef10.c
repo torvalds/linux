@@ -1133,6 +1133,10 @@ static int efx_ef10_mcdi_poll_reboot(struct efx_nic *efx)
 	/* All our allocations have been reset */
 	efx_ef10_reset_mc_allocations(efx);
 
+	/* Driver-created vswitches and vports must be re-created */
+	nic_data->must_probe_vswitching = true;
+	nic_data->vport_id = EVB_PORT_ID_ASSIGNED;
+
 	/* The datapath firmware might have been changed */
 	nic_data->must_check_datapath_caps = true;
 
@@ -3715,6 +3719,9 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.sriov_set_vf_vlan = efx_ef10_sriov_set_vf_vlan,
 	.sriov_set_vf_spoofchk = efx_ef10_sriov_set_vf_spoofchk,
 	.sriov_get_vf_config = efx_ef10_sriov_get_vf_config,
+	.vswitching_probe = efx_ef10_vswitching_probe,
+	.vswitching_restore = efx_ef10_vswitching_restore,
+	.vswitching_remove = efx_ef10_vswitching_remove,
 #endif
 
 	.revision = EFX_REV_HUNT_A0,
