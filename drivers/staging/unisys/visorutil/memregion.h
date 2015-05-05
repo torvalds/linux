@@ -29,8 +29,6 @@ struct memregion {
 	void __iomem *mapped;
 };
 
-int visor_memregion_write(struct memregion *memregion,
-			  ulong offset, void *src, ulong nbytes);
 void memregion_dump(struct memregion *memregion, char *s,
 		    ulong off, ulong len, struct seq_file *seq);
 

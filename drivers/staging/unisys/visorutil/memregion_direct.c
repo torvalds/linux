@@ -24,15 +24,3 @@
 #include "memregion.h"
 
 #define MYDRVNAME "memregion"
-
-int
-visor_memregion_write(struct memregion *memregion, ulong offset, void *src,
-		      ulong nbytes)
-{
-	if (offset + nbytes > memregion->nbytes)
-		return -EIO;
-
-	memcpy_toio(memregion->mapped + offset, src, nbytes);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(visor_memregion_write);

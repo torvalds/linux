@@ -250,8 +250,8 @@ visorchannel_clear(struct visorchannel *channel, ulong offset, u8 ch,
 
 		if (nbytes < thisbytes)
 			thisbytes = nbytes;
-		err = visor_memregion_write(&channel->memregion,
-					    offset + written, buf, thisbytes);
+		err = visorchannel_write(channel, offset + written,
+					 buf, thisbytes);
 		if (err)
 			goto cleanup;
 
@@ -290,12 +290,12 @@ EXPORT_SYMBOL_GPL(visorchannel_get_header);
 /** Write the contents of a specific field within a SIGNAL_QUEUE_HEADER back
  *  into host memory
  */
-#define SIG_WRITE_FIELD(channel, queue, sig_hdr, FIELD)			\
-	(visor_memregion_write(&channel->memregion,			\
-			       SIG_QUEUE_OFFSET(&channel->chan_hdr, queue)+ \
-			       offsetof(struct signal_queue_header, FIELD),\
-			       &((sig_hdr)->FIELD),			\
-			       sizeof((sig_hdr)->FIELD)) >= 0)
+#define SIG_WRITE_FIELD(channel, queue, sig_hdr, FIELD)			 \
+	(visorchannel_write(channel,					 \
+			    SIG_QUEUE_OFFSET(&channel->chan_hdr, queue)+ \
+			    offsetof(struct signal_queue_header, FIELD), \
+			    &((sig_hdr)->FIELD),			 \
+			    sizeof((sig_hdr)->FIELD)) >= 0)
 
 static BOOL
 sig_read_header(struct visorchannel *channel, u32 queue,
@@ -340,9 +340,8 @@ sig_write_data(struct visorchannel *channel, u32 queue,
 	int signal_data_offset = SIG_DATA_OFFSET(&channel->chan_hdr, queue,
 						 sig_hdr, slot);
 
-	err = visor_memregion_write(&channel->memregion,
-				    signal_data_offset,
-				    data, sig_hdr->signal_size);
+	err = visorchannel_write(channel, signal_data_offset,
+				 data, sig_hdr->signal_size);
 	if (err)
 		return FALSE;
 
@@ -403,13 +402,12 @@ signalinsert_inner(struct visorchannel *channel, u32 queue, void *msg)
 	sig_hdr.head = ((sig_hdr.head + 1) % sig_hdr.max_slots);
 	if (sig_hdr.head == sig_hdr.tail) {
 		sig_hdr.num_overflows++;
-		visor_memregion_write(&channel->memregion,
-				      SIG_QUEUE_OFFSET(&channel->chan_hdr,
-						       queue) +
-				      offsetof(struct signal_queue_header,
-					       num_overflows),
-				      &(sig_hdr.num_overflows),
-				      sizeof(sig_hdr.num_overflows));
+		visorchannel_write(channel,
+				   SIG_QUEUE_OFFSET(&channel->chan_hdr, queue) +
+				   offsetof(struct signal_queue_header,
+					    num_overflows),
+				   &(sig_hdr.num_overflows),
+				   sizeof(sig_hdr.num_overflows));
 		return FALSE;
 	}
 
