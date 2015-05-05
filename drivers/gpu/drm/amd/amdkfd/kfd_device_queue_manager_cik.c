@@ -34,7 +34,7 @@ static int register_process_cik(struct device_queue_manager *dqm,
 					struct qcm_process_device *qpd);
 static int initialize_cpsch_cik(struct device_queue_manager *dqm);
 
-void device_queue_manager_init_cik(struct device_queue_manager_ops *ops)
+void device_queue_manager_init_cik(struct device_queue_manager_asic_ops *ops)
 {
 	ops->set_cache_memory_policy = set_cache_memory_policy_cik;
 	ops->register_process = register_process_cik;
