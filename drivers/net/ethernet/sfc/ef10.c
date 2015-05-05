@@ -3760,9 +3760,9 @@ const struct efx_nic_type efx_hunt_a0_vf_nic_type = {
 	.ptp_write_host_time = efx_ef10_ptp_write_host_time_vf,
 	.ptp_set_ts_config = efx_ef10_ptp_set_ts_config_vf,
 #ifdef CONFIG_SFC_SRIOV
-	.vswitching_probe = efx_port_dummy_op_int,
-	.vswitching_restore = efx_port_dummy_op_int,
-	.vswitching_remove = efx_port_dummy_op_void,
+	.vswitching_probe = efx_ef10_vswitching_probe_vf,
+	.vswitching_restore = efx_ef10_vswitching_restore_vf,
+	.vswitching_remove = efx_ef10_vswitching_remove_vf,
 #endif
 	.revision = EFX_REV_HUNT_A0,
 	.max_dma_mask = DMA_BIT_MASK(ESF_DZ_TX_KER_BUF_ADDR_WIDTH),
@@ -3876,9 +3876,9 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.sriov_set_vf_vlan = efx_ef10_sriov_set_vf_vlan,
 	.sriov_set_vf_spoofchk = efx_ef10_sriov_set_vf_spoofchk,
 	.sriov_get_vf_config = efx_ef10_sriov_get_vf_config,
-	.vswitching_probe = efx_ef10_vswitching_probe,
-	.vswitching_restore = efx_ef10_vswitching_restore,
-	.vswitching_remove = efx_ef10_vswitching_remove,
+	.vswitching_probe = efx_ef10_vswitching_probe_pf,
+	.vswitching_restore = efx_ef10_vswitching_restore_pf,
+	.vswitching_remove = efx_ef10_vswitching_remove_pf,
 #endif
 
 	.revision = EFX_REV_HUNT_A0,

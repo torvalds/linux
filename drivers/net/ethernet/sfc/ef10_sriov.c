@@ -117,6 +117,24 @@ static int efx_ef10_vport_free(struct efx_nic *efx, unsigned int port_id)
 			    NULL, 0, NULL);
 }
 
+static int efx_ef10_vadaptor_alloc(struct efx_nic *efx, unsigned int port_id)
+{
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_VADAPTOR_ALLOC_IN_LEN);
+
+	MCDI_SET_DWORD(inbuf, VADAPTOR_ALLOC_IN_UPSTREAM_PORT_ID, port_id);
+	return efx_mcdi_rpc(efx, MC_CMD_VADAPTOR_ALLOC, inbuf, sizeof(inbuf),
+			    NULL, 0, NULL);
+}
+
+static int efx_ef10_vadaptor_free(struct efx_nic *efx, unsigned int port_id)
+{
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_VADAPTOR_FREE_IN_LEN);
+
+	MCDI_SET_DWORD(inbuf, VADAPTOR_FREE_IN_UPSTREAM_PORT_ID, port_id);
+	return efx_mcdi_rpc(efx, MC_CMD_VADAPTOR_FREE, inbuf, sizeof(inbuf),
+			    NULL, 0, NULL);
+}
+
 static void efx_ef10_sriov_free_vf_vports(struct efx_nic *efx)
 {
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
@@ -231,14 +249,17 @@ fail:
 /* On top of the default firmware vswitch setup, create a VEB vswitch and
  * expansion vport for use by this function.
  */
-int efx_ef10_vswitching_probe(struct efx_nic *efx)
+int efx_ef10_vswitching_probe_pf(struct efx_nic *efx)
 {
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	struct net_device *net_dev = efx->net_dev;
 	int rc;
 
-	if (pci_sriov_get_totalvfs(efx->pci_dev) <= 0)
-		return 0; /* vswitch not needed as we have no VFs */
+	if (pci_sriov_get_totalvfs(efx->pci_dev) <= 0) {
+		/* vswitch not needed as we have no VFs */
+		efx_ef10_vadaptor_alloc(efx, nic_data->vport_id);
+		return 0;
+	}
 
 	rc = efx_ef10_vswitch_alloc(efx, EVB_PORT_ID_ASSIGNED,
 				    MC_CMD_VSWITCH_ALLOC_IN_VSWITCH_TYPE_VEB);
@@ -254,10 +275,16 @@ int efx_ef10_vswitching_probe(struct efx_nic *efx)
 	rc = efx_ef10_vport_add_mac(efx, nic_data->vport_id, net_dev->dev_addr);
 	if (rc)
 		goto fail3;
-
 	ether_addr_copy(nic_data->vport_mac, net_dev->dev_addr);
 
+	rc = efx_ef10_vadaptor_alloc(efx, nic_data->vport_id);
+	if (rc)
+		goto fail4;
+
 	return 0;
+fail4:
+	efx_ef10_vport_del_mac(efx, nic_data->vport_id, nic_data->vport_mac);
+	eth_zero_addr(nic_data->vport_mac);
 fail3:
 	efx_ef10_vport_free(efx, nic_data->vport_id);
 	nic_data->vport_id = EVB_PORT_ID_ASSIGNED;
@@ -267,7 +294,14 @@ fail1:
 	return rc;
 }
 
-int efx_ef10_vswitching_restore(struct efx_nic *efx)
+int efx_ef10_vswitching_probe_vf(struct efx_nic *efx)
+{
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+
+	return efx_ef10_vadaptor_alloc(efx, nic_data->vport_id);
+}
+
+int efx_ef10_vswitching_restore_pf(struct efx_nic *efx)
 {
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	int rc;
@@ -275,7 +309,7 @@ int efx_ef10_vswitching_restore(struct efx_nic *efx)
 	if (!nic_data->must_probe_vswitching)
 		return 0;
 
-	rc = efx_ef10_vswitching_probe(efx);
+	rc = efx_ef10_vswitching_probe_pf(efx);
 	if (rc)
 		goto fail;
 
@@ -288,11 +322,29 @@ fail:
 	return rc;
 }
 
-void efx_ef10_vswitching_remove(struct efx_nic *efx)
+int efx_ef10_vswitching_restore_vf(struct efx_nic *efx)
+{
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	int rc;
+
+	if (!nic_data->must_probe_vswitching)
+		return 0;
+
+	rc = efx_ef10_vadaptor_free(efx, EVB_PORT_ID_ASSIGNED);
+	if (rc)
+		return rc;
+
+	nic_data->must_probe_vswitching = false;
+	return 0;
+}
+
+void efx_ef10_vswitching_remove_pf(struct efx_nic *efx)
 {
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 
 	efx_ef10_sriov_free_vf_vswitching(efx);
+
+	efx_ef10_vadaptor_free(efx, nic_data->vport_id);
 
 	if (nic_data->vport_id == EVB_PORT_ID_ASSIGNED)
 		return; /* No vswitch was ever created */
@@ -306,6 +358,11 @@ void efx_ef10_vswitching_remove(struct efx_nic *efx)
 	nic_data->vport_id = EVB_PORT_ID_ASSIGNED;
 
 	efx_ef10_vswitch_free(efx, nic_data->vport_id);
+}
+
+void efx_ef10_vswitching_remove_vf(struct efx_nic *efx)
+{
+	efx_ef10_vadaptor_free(efx, EVB_PORT_ID_ASSIGNED);
 }
 
 static int efx_ef10_pci_sriov_enable(struct efx_nic *efx, int num_vfs)
