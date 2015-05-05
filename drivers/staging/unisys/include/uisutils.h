@@ -284,11 +284,6 @@ static inline unsigned int issue_vmcall_channel_mismatch(const char *chname,
 }
 
 #define UIS_DAEMONIZE(nam)
-void *uislib_cache_alloc(struct kmem_cache *cur_pool, char *fn, int ln);
-#define UISCACHEALLOC(cur_pool) uislib_cache_alloc(cur_pool, __FILE__, __LINE__)
-void uislib_cache_free(struct kmem_cache *cur_pool, void *p, char *fn, int ln);
-#define UISCACHEFREE(cur_pool, p) \
-	uislib_cache_free(cur_pool, p, __FILE__, __LINE__)
 
 void uislib_enable_channel_interrupts(u32 bus_no, u32 dev_no,
 				      int (*interrupt)(void *),
