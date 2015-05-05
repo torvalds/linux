@@ -786,4 +786,14 @@ config INPUT_DRV2667_HAPTICS
 	  To compile this driver as a module, choose M here: the
 	  module will be called drv260x-haptics.
 
+config INPUT_MPL3115
+	tristate "MPL3115 pressure temperature sensor"
+	depends on I2C && SYSFS
+	help
+	  If you say yes here you get support for the Freescale MPL3115
+	  pressure temperature sensor.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called mpl3115
+
 endif
