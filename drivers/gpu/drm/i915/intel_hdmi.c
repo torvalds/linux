@@ -541,6 +541,66 @@ static void g4x_set_infoframes(struct drm_encoder *encoder,
 	intel_hdmi_set_hdmi_infoframe(encoder, adjusted_mode);
 }
 
+static bool hdmi_sink_is_deep_color(struct drm_encoder *encoder)
+{
+	struct drm_device *dev = encoder->dev;
+	struct drm_connector *connector;
+
+	WARN_ON(!drm_modeset_is_locked(&dev->mode_config.connection_mutex));
+
+	/*
+	 * HDMI cloning is only supported on g4x which doesn't
+	 * support deep color or GCP infoframes anyway so no
+	 * need to worry about multiple HDMI sinks here.
+	 */
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
+		if (connector->encoder == encoder)
+			return connector->display_info.bpc > 8;
+
+	return false;
+}
+
+static bool intel_hdmi_set_gcp_infoframe(struct drm_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = encoder->dev->dev_private;
+	struct intel_crtc *crtc = to_intel_crtc(encoder->crtc);
+	u32 reg, val = 0;
+
+	if (HAS_DDI(dev_priv))
+		reg = HSW_TVIDEO_DIP_GCP(crtc->config->cpu_transcoder);
+	else if (IS_VALLEYVIEW(dev_priv))
+		reg = VLV_TVIDEO_DIP_GCP(crtc->pipe);
+	else if (HAS_PCH_SPLIT(dev_priv->dev))
+		reg = TVIDEO_DIP_GCP(crtc->pipe);
+	else
+		return false;
+
+	/* Indicate color depth whenever the sink supports deep color */
+	if (hdmi_sink_is_deep_color(encoder))
+		val |= GCP_COLOR_INDICATION;
+
+	I915_WRITE(reg, val);
+
+	return val != 0;
+}
+
+static void intel_disable_gcp_infoframe(struct intel_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	u32 reg;
+
+	if (HAS_DDI(dev_priv))
+		reg = HSW_TVIDEO_DIP_CTL(crtc->config->cpu_transcoder);
+	else if (IS_VALLEYVIEW(dev_priv))
+		reg = VLV_TVIDEO_DIP_CTL(crtc->pipe);
+	else if (HAS_PCH_SPLIT(dev_priv->dev))
+		reg = TVIDEO_DIP_CTL(crtc->pipe);
+	else
+		return;
+
+	I915_WRITE(reg, I915_READ(reg) & ~VIDEO_DIP_ENABLE_GCP);
+}
+
 static void ibx_set_infoframes(struct drm_encoder *encoder,
 			       bool enable,
 			       struct drm_display_mode *adjusted_mode)
@@ -581,6 +641,9 @@ static void ibx_set_infoframes(struct drm_encoder *encoder,
 	val &= ~(VIDEO_DIP_ENABLE_VENDOR | VIDEO_DIP_ENABLE_GAMUT |
 		 VIDEO_DIP_ENABLE_GCP);
 
+	if (intel_hdmi_set_gcp_infoframe(encoder))
+		val |= VIDEO_DIP_ENABLE_GCP;
+
 	I915_WRITE(reg, val);
 	POSTING_READ(reg);
 
@@ -617,6 +680,9 @@ static void cpt_set_infoframes(struct drm_encoder *encoder,
 	val |= VIDEO_DIP_ENABLE | VIDEO_DIP_ENABLE_AVI;
 	val &= ~(VIDEO_DIP_ENABLE_VENDOR | VIDEO_DIP_ENABLE_GAMUT |
 		 VIDEO_DIP_ENABLE_GCP);
+
+	if (intel_hdmi_set_gcp_infoframe(encoder))
+		val |= VIDEO_DIP_ENABLE_GCP;
 
 	I915_WRITE(reg, val);
 	POSTING_READ(reg);
@@ -666,6 +732,9 @@ static void vlv_set_infoframes(struct drm_encoder *encoder,
 	val &= ~(VIDEO_DIP_ENABLE_AVI | VIDEO_DIP_ENABLE_VENDOR |
 		 VIDEO_DIP_ENABLE_GAMUT | VIDEO_DIP_ENABLE_GCP);
 
+	if (intel_hdmi_set_gcp_infoframe(encoder))
+		val |= VIDEO_DIP_ENABLE_GCP;
+
 	I915_WRITE(reg, val);
 	POSTING_READ(reg);
 
@@ -694,6 +763,9 @@ static void hsw_set_infoframes(struct drm_encoder *encoder,
 
 	val &= ~(VIDEO_DIP_ENABLE_VSC_HSW | VIDEO_DIP_ENABLE_GCP_HSW |
 		 VIDEO_DIP_ENABLE_VS_HSW | VIDEO_DIP_ENABLE_GMP_HSW);
+
+	if (intel_hdmi_set_gcp_infoframe(encoder))
+		val |= VIDEO_DIP_ENABLE_GCP_HSW;
 
 	I915_WRITE(reg, val);
 	POSTING_READ(reg);
@@ -960,6 +1032,8 @@ static void intel_disable_hdmi(struct intel_encoder *encoder)
 		I915_WRITE(intel_hdmi->hdmi_reg, temp);
 		POSTING_READ(intel_hdmi->hdmi_reg);
 	}
+
+	intel_disable_gcp_infoframe(to_intel_crtc(encoder->base.crtc));
 }
 
 static void g4x_disable_hdmi(struct intel_encoder *encoder)

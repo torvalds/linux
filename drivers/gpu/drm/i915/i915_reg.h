@@ -6061,6 +6061,9 @@ enum skl_disp_power_wells {
 #define _VIDEO_DIP_CTL_A         0xe0200
 #define _VIDEO_DIP_DATA_A        0xe0208
 #define _VIDEO_DIP_GCP_A         0xe0210
+#define  GCP_COLOR_INDICATION		(1 << 2)
+#define  GCP_DEFAULT_PHASE_ENABLE	(1 << 1)
+#define  GCP_AV_MUTE			(1 << 0)
 
 #define _VIDEO_DIP_CTL_B         0xe1200
 #define _VIDEO_DIP_DATA_B        0xe1208
