@@ -200,13 +200,12 @@ int
 visorchannel_read(struct visorchannel *channel, ulong offset,
 		  void *local, ulong nbytes)
 {
-	int rc;
-	size_t size = sizeof(struct channel_header);
+	if (offset + nbytes > channel->memregion.nbytes)
+		return -EIO;
 
-	rc = visor_memregion_read(&channel->memregion, offset, local, nbytes);
-	if (rc && !offset && (nbytes >= size))
-		memcpy(&channel->chan_hdr, local, size);
-	return rc;
+	memcpy_fromio(local, channel->memregion.mapped + offset, nbytes);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(visorchannel_read);
 
