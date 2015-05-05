@@ -26,8 +26,6 @@
 struct memregion;
 
 struct memregion *visor_memregion_create(HOSTADDRESS physaddr, ulong nbytes);
-struct memregion *visor_memregion_create_overlapped(struct memregion *parent,
-						    ulong offset, ulong nbytes);
 int visor_memregion_resize(struct memregion *memregion, ulong newsize);
 int visor_memregion_read(struct memregion *memregion,
 			 ulong offset, void *dest, ulong nbytes);

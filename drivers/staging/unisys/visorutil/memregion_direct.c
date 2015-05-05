@@ -30,7 +30,6 @@ struct memregion {
 	ulong nbytes;
 	void __iomem *mapped;
 	BOOL requested;
-	BOOL overlapped;
 };
 
 static BOOL mapit(struct memregion *memregion);
@@ -48,7 +47,6 @@ visor_memregion_create(HOSTADDRESS physaddr, ulong nbytes)
 
 	memregion->physaddr = physaddr;
 	memregion->nbytes = nbytes;
-	memregion->overlapped = FALSE;
 	if (!mapit(memregion)) {
 		rc = NULL;
 		goto cleanup;
@@ -62,35 +60,6 @@ cleanup:
 	return rc;
 }
 EXPORT_SYMBOL_GPL(visor_memregion_create);
-
-struct memregion *
-visor_memregion_create_overlapped(struct memregion *parent, ulong offset,
-				  ulong nbytes)
-{
-	struct memregion *memregion = NULL;
-
-	if (parent == NULL)
-		return NULL;
-
-	if (parent->mapped == NULL)
-		return NULL;
-
-	if ((offset >= parent->nbytes) ||
-	    ((offset + nbytes) >= parent->nbytes))
-		return NULL;
-
-	memregion = kzalloc(sizeof(*memregion), GFP_KERNEL|__GFP_NORETRY);
-	if (memregion == NULL)
-		return NULL;
-
-	memregion->physaddr = parent->physaddr + offset;
-	memregion->nbytes = nbytes;
-	memregion->mapped = ((u8 __iomem *)(parent->mapped)) + offset;
-	memregion->requested = FALSE;
-	memregion->overlapped = TRUE;
-	return memregion;
-}
-EXPORT_SYMBOL_GPL(visor_memregion_create_overlapped);
 
 static BOOL
 mapit(struct memregion *memregion)
@@ -147,17 +116,12 @@ visor_memregion_resize(struct memregion *memregion, ulong newsize)
 {
 	if (newsize == memregion->nbytes)
 		return 0;
-	if (memregion->overlapped)
-		/* no error check here - we no longer know the
-		 * parent's range!
-		 */
-		memregion->nbytes = newsize;
-	else {
-		unmapit(memregion);
-		memregion->nbytes = newsize;
-		if (!mapit(memregion))
-			return -EIO;
-	}
+
+	unmapit(memregion);
+	memregion->nbytes = newsize;
+	if (!mapit(memregion))
+		return -EIO;
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(visor_memregion_resize);
@@ -199,9 +163,7 @@ visor_memregion_destroy(struct memregion *memregion)
 {
 	if (!memregion)
 		return;
-	if (!memregion->overlapped)
-		unmapit(memregion);
+	unmapit(memregion);
 	kfree(memregion);
 }
 EXPORT_SYMBOL_GPL(visor_memregion_destroy);
-
