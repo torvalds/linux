@@ -3780,7 +3780,7 @@ static void cm_add_one(struct ib_device *ib_device)
 
 	set_bit(IB_MGMT_METHOD_SEND, reg_req.method_mask);
 	for (i = 1; i <= ib_device->phys_port_cnt; i++) {
-		if (!rdma_ib_or_iboe(ib_device, i))
+		if (!rdma_cap_ib_cm(ib_device, i))
 			continue;
 
 		port = kzalloc(sizeof *port, GFP_KERNEL);
@@ -3831,7 +3831,7 @@ error1:
 	port_modify.set_port_cap_mask = 0;
 	port_modify.clr_port_cap_mask = IB_PORT_CM_SUP;
 	while (--i) {
-		if (!rdma_ib_or_iboe(ib_device, i))
+		if (!rdma_cap_ib_cm(ib_device, i))
 			continue;
 
 		port = cm_dev->port[i-1];
@@ -3863,7 +3863,7 @@ static void cm_remove_one(struct ib_device *ib_device)
 	write_unlock_irqrestore(&cm.device_lock, flags);
 
 	for (i = 1; i <= ib_device->phys_port_cnt; i++) {
-		if (!rdma_ib_or_iboe(ib_device, i))
+		if (!rdma_cap_ib_cm(ib_device, i))
 			continue;
 
 		port = cm_dev->port[i-1];
