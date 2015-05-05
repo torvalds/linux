@@ -1570,7 +1570,7 @@ static void intel_dp_prepare(struct intel_encoder *encoder)
 
 	/* Split out the IBX/CPU vs CPT settings */
 
-	if (port == PORT_A && IS_GEN7(dev) && !IS_VALLEYVIEW(dev)) {
+	if (IS_GEN7(dev) && port == PORT_A) {
 		if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
 			intel_dp->DP |= DP_SYNC_HS_HIGH;
 		if (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC)
@@ -1581,7 +1581,9 @@ static void intel_dp_prepare(struct intel_encoder *encoder)
 			intel_dp->DP |= DP_ENHANCED_FRAMING;
 
 		intel_dp->DP |= crtc->pipe << 29;
-	} else if (!HAS_PCH_CPT(dev) || port == PORT_A) {
+	} else if (HAS_PCH_CPT(dev) && port != PORT_A) {
+		intel_dp->DP |= DP_LINK_TRAIN_OFF_CPT;
+	} else {
 		if (!HAS_PCH_SPLIT(dev) && !IS_VALLEYVIEW(dev))
 			intel_dp->DP |= intel_dp->color_range;
 
@@ -1594,14 +1596,10 @@ static void intel_dp_prepare(struct intel_encoder *encoder)
 		if (drm_dp_enhanced_frame_cap(intel_dp->dpcd))
 			intel_dp->DP |= DP_ENHANCED_FRAMING;
 
-		if (!IS_CHERRYVIEW(dev)) {
-			if (crtc->pipe == 1)
-				intel_dp->DP |= DP_PIPEB_SELECT;
-		} else {
+		if (IS_CHERRYVIEW(dev))
 			intel_dp->DP |= DP_PIPE_SELECT_CHV(crtc->pipe);
-		}
-	} else {
-		intel_dp->DP |= DP_LINK_TRAIN_OFF_CPT;
+		else if (crtc->pipe == PIPE_B)
+			intel_dp->DP |= DP_PIPEB_SELECT;
 	}
 }
 
@@ -2185,13 +2183,9 @@ static bool intel_dp_get_hw_state(struct intel_encoder *encoder,
 	if (!(tmp & DP_PORT_EN))
 		return false;
 
-	if (port == PORT_A && IS_GEN7(dev) && !IS_VALLEYVIEW(dev)) {
+	if (IS_GEN7(dev) && port == PORT_A) {
 		*pipe = PORT_TO_PIPE_CPT(tmp);
-	} else if (IS_CHERRYVIEW(dev)) {
-		*pipe = DP_PORT_TO_PIPE_CHV(tmp);
-	} else if (!HAS_PCH_CPT(dev) || port == PORT_A) {
-		*pipe = PORT_TO_PIPE(tmp);
-	} else {
+	} else if (HAS_PCH_CPT(dev) && port != PORT_A) {
 		u32 trans_sel;
 		u32 trans_dp;
 		int i;
@@ -2220,6 +2214,10 @@ static bool intel_dp_get_hw_state(struct intel_encoder *encoder,
 
 		DRM_DEBUG_KMS("No pipe for dp port 0x%x found\n",
 			      intel_dp->output_reg);
+	} else if (IS_CHERRYVIEW(dev)) {
+		*pipe = DP_PORT_TO_PIPE_CHV(tmp);
+	} else {
+		*pipe = PORT_TO_PIPE(tmp);
 	}
 
 	return true;
@@ -2240,17 +2238,7 @@ static void intel_dp_get_config(struct intel_encoder *encoder,
 
 	pipe_config->has_audio = tmp & DP_AUDIO_OUTPUT_ENABLE && port != PORT_A;
 
-	if ((port == PORT_A) || !HAS_PCH_CPT(dev)) {
-		if (tmp & DP_SYNC_HS_HIGH)
-			flags |= DRM_MODE_FLAG_PHSYNC;
-		else
-			flags |= DRM_MODE_FLAG_NHSYNC;
-
-		if (tmp & DP_SYNC_VS_HIGH)
-			flags |= DRM_MODE_FLAG_PVSYNC;
-		else
-			flags |= DRM_MODE_FLAG_NVSYNC;
-	} else {
+	if (HAS_PCH_CPT(dev) && port != PORT_A) {
 		tmp = I915_READ(TRANS_DP_CTL(crtc->pipe));
 		if (tmp & TRANS_DP_HSYNC_ACTIVE_HIGH)
 			flags |= DRM_MODE_FLAG_PHSYNC;
@@ -2258,6 +2246,16 @@ static void intel_dp_get_config(struct intel_encoder *encoder,
 			flags |= DRM_MODE_FLAG_NHSYNC;
 
 		if (tmp & TRANS_DP_VSYNC_ACTIVE_HIGH)
+			flags |= DRM_MODE_FLAG_PVSYNC;
+		else
+			flags |= DRM_MODE_FLAG_NVSYNC;
+	} else {
+		if (tmp & DP_SYNC_HS_HIGH)
+			flags |= DRM_MODE_FLAG_PHSYNC;
+		else
+			flags |= DRM_MODE_FLAG_NHSYNC;
+
+		if (tmp & DP_SYNC_VS_HIGH)
 			flags |= DRM_MODE_FLAG_PVSYNC;
 		else
 			flags |= DRM_MODE_FLAG_NVSYNC;
@@ -2422,7 +2420,8 @@ _intel_dp_set_link_train(struct intel_dp *intel_dp,
 		}
 		I915_WRITE(DP_TP_CTL(port), temp);
 
-	} else if (HAS_PCH_CPT(dev) && (IS_GEN7(dev) || port != PORT_A)) {
+	} else if ((IS_GEN7(dev) && port == PORT_A) ||
+		   (HAS_PCH_CPT(dev) && port != PORT_A)) {
 		*DP &= ~DP_LINK_TRAIN_MASK_CPT;
 
 		switch (dp_train_pat & DP_TRAINING_PATTERN_MASK) {
@@ -3864,7 +3863,8 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 
 	DRM_DEBUG_KMS("\n");
 
-	if (HAS_PCH_CPT(dev) && (IS_GEN7(dev) || port != PORT_A)) {
+	if ((IS_GEN7(dev) && port == PORT_A) ||
+	    (HAS_PCH_CPT(dev) && port != PORT_A)) {
 		DP &= ~DP_LINK_TRAIN_MASK_CPT;
 		I915_WRITE(intel_dp->output_reg, DP | DP_LINK_TRAIN_PAT_IDLE_CPT);
 	} else {
