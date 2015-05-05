@@ -810,11 +810,18 @@ static int dsa_slave_phy_setup(struct dsa_slave_priv *p,
 	return 0;
 }
 
+static struct lock_class_key dsa_slave_netdev_xmit_lock_key;
+static void dsa_slave_set_lockdep_class_one(struct net_device *dev,
+					    struct netdev_queue *txq,
+					    void *_unused)
+{
+	lockdep_set_class(&txq->_xmit_lock,
+			  &dsa_slave_netdev_xmit_lock_key);
+}
+
 int dsa_slave_suspend(struct net_device *slave_dev)
 {
 	struct dsa_slave_priv *p = netdev_priv(slave_dev);
-
-	netif_device_detach(slave_dev);
 
 	if (p->phy) {
 		phy_stop(p->phy);
@@ -860,6 +867,9 @@ int dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 	slave_dev->tx_queue_len = 0;
 	slave_dev->netdev_ops = &dsa_slave_netdev_ops;
 	slave_dev->swdev_ops = &dsa_slave_swdev_ops;
+
+	netdev_for_each_tx_queue(slave_dev, dsa_slave_set_lockdep_class_one,
+				 NULL);
 
 	SET_NETDEV_DEV(slave_dev, parent);
 	slave_dev->dev.of_node = ds->pd->port_dn[port];
