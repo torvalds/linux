@@ -63,8 +63,7 @@ static int null_prepare_tx(struct net_device *dev, struct archdr *pkt,
 
 static void arcnet_rx(struct net_device *dev, int bufnum);
 
-/*
- * one ArcProto per possible proto ID.  None of the elements of
+/* one ArcProto per possible proto ID.  None of the elements of
  * arc_proto_map are allowed to be NULL; they will get set to
  * arc_proto_default instead.  It also must not be NULL; if you would like
  * to set it to NULL, set it to &arc_proto_null instead.
@@ -149,9 +148,7 @@ static void __exit arcnet_exit(void)
 module_init(arcnet_init);
 module_exit(arcnet_exit);
 
-/*
- * Dump the contents of an sk_buff
- */
+/* Dump the contents of an sk_buff */
 #if ARCNET_DEBUG_MAX & D_SKB
 void arcnet_dump_skb(struct net_device *dev,
 		     struct sk_buff *skb, char *desc)
@@ -167,9 +164,7 @@ void arcnet_dump_skb(struct net_device *dev,
 EXPORT_SYMBOL(arcnet_dump_skb);
 #endif
 
-/*
- * Dump the contents of an ARCnet buffer
- */
+/* Dump the contents of an ARCnet buffer */
 #if (ARCNET_DEBUG_MAX & (D_RX | D_TX))
 static void arcnet_dump_packet(struct net_device *dev, int bufnum,
 			       char *desc, int take_arcnet_lock)
@@ -181,7 +176,8 @@ static void arcnet_dump_packet(struct net_device *dev, int bufnum,
 	char hdr[32];
 
 	/* hw.copy_from_card expects IRQ context so take the IRQ lock
-	   to keep it single threaded */
+	 * to keep it single threaded
+	 */
 	if (take_arcnet_lock)
 		spin_lock_irqsave(&lp->lock, flags);
 
@@ -204,8 +200,7 @@ static void arcnet_dump_packet(struct net_device *dev, int bufnum,
 
 #endif
 
-/*
- * Unregister a protocol driver from the arc_proto_map.  Protocol drivers
+/* Unregister a protocol driver from the arc_proto_map.  Protocol drivers
  * are responsible for registering themselves, but the unregister routine
  * is pretty generic so we'll do it here.
  */
@@ -226,8 +221,7 @@ void arcnet_unregister_proto(struct ArcProto *proto)
 	}
 }
 
-/*
- * Add a buffer to the queue.  Only the interrupt handler is allowed to do
+/* Add a buffer to the queue.  Only the interrupt handler is allowed to do
  * this, unless interrupts are disabled.
  *
  * Note: we don't check for a full queue, since there aren't enough buffers
@@ -250,9 +244,8 @@ static void release_arcbuf(struct net_device *dev, int bufnum)
 	}
 }
 
-/*
- * Get a buffer from the queue.  If this returns -1, there are no buffers
- * available.
+/* Get a buffer from the queue.
+ * If this returns -1, there are no buffers available.
  */
 static int get_arcbuf(struct net_device *dev)
 {
@@ -346,8 +339,7 @@ struct net_device *alloc_arcdev(const char *name)
 	return dev;
 }
 
-/*
- * Open/initialize the board.  This is called sometime after booting when
+/* Open/initialize the board.  This is called sometime after booting when
  * the 'ifconfig' program is run.
  *
  * This routine should set everything up anew at each open, even registers
@@ -490,15 +482,13 @@ static int arcnet_header(struct sk_buff *skb, struct net_device *dev,
 		BUGMSG(D_DEBUG, "arc_raw_proto used. proto='%c'\n", proto->suffix);
 		_daddr = daddr ? *(uint8_t *)daddr : 0;
 	} else if (!daddr) {
-		/*
-		 * if the dest addr isn't provided, we can't choose an encapsulation!
-		 * Store the packet type (eg. ETH_P_IP) for now, and we'll push on a
-		 * real header when we do rebuild_header.
+		/* if the dest addr isn't provided, we can't choose an
+		 * encapsulation!  Store the packet type (eg. ETH_P_IP)
+		 * for now, and we'll push on a real header when we do
+		 * rebuild_header.
 		 */
 		*(uint16_t *)skb_push(skb, 2) = type;
-		/*
-		 * XXX: Why not use skb->mac_len?
-		 */
+		/* XXX: Why not use skb->mac_len? */
 		if (skb->network_header - skb->mac_header != 2)
 			BUGMSG(D_NORMAL, "arcnet_header: Yikes!  diff (%d) is not 2!\n",
 			       (int)(skb->network_header - skb->mac_header));
@@ -564,7 +554,8 @@ netdev_tx_t arcnet_send_packet(struct sk_buff *skb,
 		if (proto->prepare_tx(dev, pkt, skb->len, txbuf) &&
 		    !proto->ack_tx) {
 			/* done right away and we don't want to acknowledge
-			   the package later - forget about it now */
+			 *  the package later - forget about it now
+			 */
 			dev->stats.tx_bytes += skb->len;
 			freeskb = 1;
 		} else {
@@ -605,8 +596,7 @@ netdev_tx_t arcnet_send_packet(struct sk_buff *skb,
 	return retval;		/* no need to try again */
 }
 
-/*
- * Actually start transmitting a packet that was loaded into a buffer
+/* Actually start transmitting a packet that was loaded into a buffer
  * by prepare_tx.  This should _only_ be called by the interrupt handler.
  */
 static int go_tx(struct net_device *dev)
@@ -672,8 +662,7 @@ void arcnet_timeout(struct net_device *dev)
 		netif_wake_queue(dev);
 }
 
-/*
- * The typical workload of the driver: Handle the network interface
+/* The typical workload of the driver: Handle the network interface
  * interrupts. Establish which device needs attention, and call the correct
  * chipset interrupt handler.
  */
@@ -693,9 +682,8 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 
 	spin_lock(&lp->lock);
 
-	/*
-	 * RESET flag was enabled - if device is not running, we must clear it right
-	 * away (but nothing else).
+	/* RESET flag was enabled - if device is not running, we must
+	 * clear it right away (but nothing else).
 	 */
 	if (!netif_running(dev)) {
 		if (ASTATUS() & RESETflag)
@@ -717,11 +705,11 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 		       __FILE__, __LINE__, __func__, status);
 		didsomething = 0;
 
-		/*
-		 * RESET flag was enabled - card is resetting and if RX is
+		/* RESET flag was enabled - card is resetting and if RX is
 		 * disabled, it's NOT because we just got a packet.
 		 *
-		 * The card is in an undefined state.  Clear it out and start over.
+		 * The card is in an undefined state.
+		 * Clear it out and start over.
 		 */
 		if (status & RESETflag) {
 			BUGMSG(D_NORMAL, "spurious reset (status=%Xh)\n", status);
@@ -731,14 +719,13 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 			/* get out of the interrupt handler! */
 			break;
 		}
-		/*
-		 * RX is inhibited - we must have received something. Prepare to
-		 * receive into the next buffer.
+		/* RX is inhibited - we must have received something.
+		 * Prepare to receive into the next buffer.
 		 *
-		 * We don't actually copy the received packet from the card until
-		 * after the transmit handler runs (and possibly launches the next
-		 * tx); this should improve latency slightly if we get both types
-		 * of interrupts at once.
+		 * We don't actually copy the received packet from the card
+		 * until after the transmit handler runs (and possibly
+		 * launches the next tx); this should improve latency slightly
+		 * if we get both types of interrupts at once.
 		 */
 		recbuf = -1;
 		if (status & lp->intmask & NORXflag) {
@@ -914,8 +901,7 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 	return retval;
 }
 
-/*
- * This is a generic packet receiver that calls arcnet??_rx depending on the
+/* This is a generic packet receiver that calls arcnet??_rx depending on the
  * protocol ID found.
  */
 static void arcnet_rx(struct net_device *dev, int bufnum)

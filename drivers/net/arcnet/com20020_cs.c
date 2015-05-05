@@ -162,8 +162,7 @@ static void com20020_detach(struct pcmcia_device *link)
 
 	unregister_netdev(dev);
 
-	/*
-	 * this is necessary because we register our IRQ separately
+	/* this is necessary because we register our IRQ separately
 	 * from card services.
 	 */
 	if (dev->irq)

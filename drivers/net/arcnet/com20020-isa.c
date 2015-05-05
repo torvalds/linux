@@ -43,8 +43,7 @@
 
 #define VERSION "arcnet: COM20020 ISA support (by David Woodhouse et al.)\n"
 
-/*
- * We cannot (yet) probe for an IO mapped card, although we can check that
+/* We cannot (yet) probe for an IO mapped card, although we can check that
  * it's where we were told it was, and even do autoirq.
  */
 static int __init com20020isa_probe(struct net_device *dev)

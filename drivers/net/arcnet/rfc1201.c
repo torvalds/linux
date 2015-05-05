@@ -81,8 +81,7 @@ static void __exit arcnet_rfc1201_exit(void)
 module_init(arcnet_rfc1201_init);
 module_exit(arcnet_rfc1201_exit);
 
-/*
- * Determine a packet's protocol ID.
+/* Determine a packet's protocol ID.
  *
  * With ARCnet we have to convert everything to Ethernet-style stuff.
  */
@@ -193,10 +192,10 @@ static void rx(struct net_device *dev, int bufnum,
 				       pkt->soft.raw + sizeof(pkt->soft),
 					      length - sizeof(pkt->soft));
 
-		/*
-		 * ARP packets have problems when sent from some DOS systems: the
-		 * source address is always 0!  So we take the hardware source addr
-		 * (which is impossible to fumble) and insert it ourselves.
+		/* ARP packets have problems when sent from some DOS systems:
+		 * the source address is always 0!
+		 * So we take the hardware source addr (which is impossible
+		 * to fumble) and insert it ourselves.
 		 */
 		if (soft->proto == ARC_P_ARP) {
 			struct arphdr *arp = (struct arphdr *)soft->payload;
@@ -227,21 +226,22 @@ static void rx(struct net_device *dev, int bufnum,
 		skb->protocol = type_trans(skb, dev);
 		netif_rx(skb);
 	} else {		/* split packet */
-		/*
-		 * NOTE: MSDOS ARP packet correction should only need to apply to
-		 * unsplit packets, since ARP packets are so short.
+		/* NOTE: MSDOS ARP packet correction should only need to
+		 * apply to unsplit packets, since ARP packets are so short.
 		 *
-		 * My interpretation of the RFC1201 document is that if a packet is
-		 * received out of order, the entire assembly process should be
-		 * aborted.
+		 * My interpretation of the RFC1201 document is that if a
+		 * packet is received out of order, the entire assembly
+		 * process should be aborted.
 		 *
-		 * The RFC also mentions "it is possible for successfully received
-		 * packets to be retransmitted." As of 0.40 all previously received
-		 * packets are allowed, not just the most recent one.
+		 * The RFC also mentions "it is possible for successfully
+		 * received packets to be retransmitted." As of 0.40 all
+		 * previously received packets are allowed, not just the
+		 * most recent one.
 		 *
-		 * We allow multiple assembly processes, one for each ARCnet card
-		 * possible on the network.  Seems rather like a waste of memory,
-		 * but there's no other way to be reliable.
+		 * We allow multiple assembly processes, one for each
+		 * ARCnet card possible on the network.
+		 * Seems rather like a waste of memory, but there's no
+		 * other way to be reliable.
 		 */
 
 		BUGMSG(D_RX, "packet is split (splitflag=%d, seq=%d)\n",
@@ -299,8 +299,7 @@ static void rx(struct net_device *dev, int bufnum,
 		} else {	/* not first packet */
 			int packetnum = ((unsigned)soft->split_flag >> 1) + 1;
 
-			/*
-			 * if we're not assembling, there's no point trying to
+			/* if we're not assembling, there's no point trying to
 			 * continue.
 			 */
 			if (!in->skb) {
@@ -401,12 +400,11 @@ static int build_header(struct sk_buff *skb, struct net_device *dev,
 		return 0;
 	}
 
-	/*
-	 * Set the source hardware address.
+	/* Set the source hardware address.
 	 *
 	 * This is pretty pointless for most purposes, but it can help in
-	 * debugging.  ARCnet does not allow us to change the source address in
-	 * the actual packet sent)
+	 * debugging.  ARCnet does not allow us to change the source address
+	 * in the actual packet sent.
 	 */
 	pkt->hard.source = *dev->dev_addr;
 
@@ -416,10 +414,10 @@ static int build_header(struct sk_buff *skb, struct net_device *dev,
 	/* see linux/net/ethernet/eth.c to see where I got the following */
 
 	if (dev->flags & (IFF_LOOPBACK | IFF_NOARP)) {
-		/*
-		 * FIXME: fill in the last byte of the dest ipaddr here to better
-		 * comply with RFC1051 in "noarp" mode.  For now, always broadcasting
-		 * will probably at least get packets sent out :)
+		/* FIXME: fill in the last byte of the dest ipaddr here
+		 * to better comply with RFC1051 in "noarp" mode.
+		 * For now, always broadcasting will probably at least get
+		 * packets sent out :)
 		 */
 		pkt->hard.dest = 0;
 		return hdr_size;

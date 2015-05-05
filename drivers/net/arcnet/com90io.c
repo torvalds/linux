@@ -137,8 +137,7 @@ static void put_whole_buffer(struct net_device *dev, unsigned offset, unsigned l
 #endif
 }
 
-/*
- * We cannot probe for an IO mapped card either, although we can check that
+/* We cannot probe for an IO mapped card either, although we can check that
  * it's where we were told it was, and even autoirq
  */
 static int __init com90io_probe(struct net_device *dev)
@@ -196,8 +195,7 @@ static int __init com90io_probe(struct net_device *dev)
 		goto err_out;
 	}
 	if (!dev->irq) {
-		/*
-		 * if we do this, we're sure to get an IRQ since the
+		/* if we do this, we're sure to get an IRQ since the
 		 * card has just reset and the NORXflag is on until
 		 * we tell it to start receiving.
 		 */
@@ -272,8 +270,7 @@ static int __init com90io_found(struct net_device *dev)
 	return 0;
 }
 
-/*
- * Do a hardware reset on the card, and set up necessary registers.
+/* Do a hardware reset on the card, and set up necessary registers.
  *
  * This should be called as little as possible, because it disrupts the
  * token on the network (causes a RECON) and requires a significant delay.

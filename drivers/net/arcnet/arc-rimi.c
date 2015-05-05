@@ -76,8 +76,7 @@ static void arcrimi_copy_from_card(struct net_device *dev, int bufnum, int offse
 #define AINTMASK(msk)	writeb((msk), _INTMASK)
 #define SETCONF()	writeb(lp->config, _CONFIG)
 
-/*
- * We cannot probe for a RIM I card; one reason is I don't know how to reset
+/* We cannot probe for a RIM I card; one reason is I don't know how to reset
  * them.  In fact, we can't even get their node ID automatically.  So, we
  * need to be passed a specific shmem address, IRQ, and node ID.
  */
@@ -97,8 +96,7 @@ static int __init arcrimi_probe(struct net_device *dev)
 		BUGLVL(D_NORMAL) printk("You need to specify your card's station ID!\n");
 		return -ENODEV;
 	}
-	/*
-	 * Grab the memory region at mem_start for MIRROR_SIZE bytes.
+	/* Grab the memory region at mem_start for MIRROR_SIZE bytes.
 	 * Later in arcrimi_found() the real size will be determined
 	 * and this reserve will be released and the correct size
 	 * will be taken.
@@ -131,9 +129,8 @@ static int check_mirror(unsigned long addr, size_t size)
 	return res;
 }
 
-/*
- * Set up the struct net_device associated with this card.  Called after
- * probing succeeds.
+/* Set up the struct net_device associated with this card.
+ * Called after probing succeeds.
  */
 static int __init arcrimi_found(struct net_device *dev)
 {
@@ -199,8 +196,7 @@ static int __init arcrimi_found(struct net_device *dev)
 	lp->hw.copy_to_card = arcrimi_copy_to_card;
 	lp->hw.copy_from_card = arcrimi_copy_from_card;
 
-	/*
-	 * re-reserve the memory region - arcrimi_probe() alloced this reqion
+	/* re-reserve the memory region - arcrimi_probe() alloced this reqion
 	 * but didn't know the real size.  Free that region and then re-get
 	 * with the correct size.  There is a VERY slim chance this could
 	 * fail.
@@ -243,8 +239,7 @@ err_free_irq:
 	return -EIO;
 }
 
-/*
- * Do a hardware reset on the card, and set up necessary registers.
+/* Do a hardware reset on the card, and set up necessary registers.
  *
  * This should be called as little as possible, because it disrupts the
  * token on the network (causes a RECON) and requires a significant delay.

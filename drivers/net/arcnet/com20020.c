@@ -239,8 +239,7 @@ int com20020_found(struct net_device *dev, int shared)
 	return 0;
 }
 
-/*
- * Do a hardware reset on the card, and set up necessary registers.
+/* Do a hardware reset on the card, and set up necessary registers.
  *
  * This should be called as little as possible, because it disrupts the
  * token on the network (causes a RECON) and requires a significant delay.

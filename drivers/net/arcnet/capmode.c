@@ -66,11 +66,11 @@ static void rx(struct net_device *dev, int bufnum,
 	pkt = (struct archdr *)skb_mac_header(skb);
 	skb_pull(skb, ARC_HDR_SIZE);
 
-	/* up to sizeof(pkt->soft) has already been copied from the card */
-	/* squeeze in an int for the cap encapsulation */
-
-	/* use these variables to be sure we count in bytes, not in
-	   sizeof(struct archdr) */
+	/* up to sizeof(pkt->soft) has already been copied from the card
+	 * squeeze in an int for the cap encapsulation
+	 * use these variables to be sure we count in bytes, not in
+	 * sizeof(struct archdr)
+	 */
 	pktbuf = (char *)pkt;
 	pkthdrbuf = (char *)pkthdr;
 	memcpy(pktbuf, pkthdrbuf, ARC_HDR_SIZE + sizeof(pkt->soft.cap.proto));
@@ -90,8 +90,7 @@ static void rx(struct net_device *dev, int bufnum,
 	netif_rx(skb);
 }
 
-/*
- * Create the ARCnet hard/soft headers for cap mode.
+/* Create the ARCnet hard/soft headers for cap mode.
  * There aren't any soft headers in cap mode - not even the protocol id.
  */
 static int build_header(struct sk_buff *skb,
@@ -104,8 +103,8 @@ static int build_header(struct sk_buff *skb,
 
 	BUGMSG(D_PROTO, "Preparing header for cap packet %x.\n",
 	       *((int *)&pkt->soft.cap.cookie[0]));
-	/*
-	 * Set the source hardware address.
+
+	/* Set the source hardware address.
 	 *
 	 * This is pretty pointless for most purposes, but it can help in
 	 * debugging.  ARCnet does not allow us to change the source address in
@@ -116,9 +115,8 @@ static int build_header(struct sk_buff *skb,
 	/* see linux/net/ethernet/eth.c to see where I got the following */
 
 	if (dev->flags & (IFF_LOOPBACK | IFF_NOARP)) {
-		/*
-		 * FIXME: fill in the last byte of the dest ipaddr here to better
-		 * comply with RFC1051 in "noarp" mode.
+		/* FIXME: fill in the last byte of the dest ipaddr here to
+		 * better comply with RFC1051 in "noarp" mode.
 		 */
 		pkt->hard.dest = 0;
 		return hdr_size;
@@ -172,7 +170,8 @@ static int prepare_tx(struct net_device *dev, struct archdr *pkt, int length,
 			    sizeof(pkt->soft.cap.proto));
 
 	/* Skip the extra integer we have written into it as a cookie
-	   but write the rest of the message: */
+	 * but write the rest of the message:
+	 */
 	lp->hw.copy_to_card(dev, bufnum, ofs + 1,
 			    ((unsigned char *)&pkt->soft.cap.mes), length - 1);
 

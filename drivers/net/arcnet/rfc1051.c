@@ -78,8 +78,7 @@ module_exit(arcnet_rfc1051_exit);
 
 MODULE_LICENSE("GPL");
 
-/*
- * Determine a packet's protocol ID.
+/* Determine a packet's protocol ID.
  *
  * With ARCnet we have to convert everything to Ethernet-style stuff.
  */
@@ -156,9 +155,7 @@ static void rx(struct net_device *dev, int bufnum,
 	netif_rx(skb);
 }
 
-/*
- * Create the ARCnet hard/soft headers for RFC1051.
- */
+/* Create the ARCnet hard/soft headers for RFC1051 */
 static int build_header(struct sk_buff *skb, struct net_device *dev,
 			unsigned short type, uint8_t daddr)
 {
@@ -182,21 +179,19 @@ static int build_header(struct sk_buff *skb, struct net_device *dev,
 		return 0;
 	}
 
-	/*
-	 * Set the source hardware address.
+	/* Set the source hardware address.
 	 *
 	 * This is pretty pointless for most purposes, but it can help in
-	 * debugging.  ARCnet does not allow us to change the source address in
-	 * the actual packet sent)
+	 * debugging.  ARCnet does not allow us to change the source address
+	 * in the actual packet sent.
 	 */
 	pkt->hard.source = *dev->dev_addr;
 
 	/* see linux/net/ethernet/eth.c to see where I got the following */
 
 	if (dev->flags & (IFF_LOOPBACK | IFF_NOARP)) {
-		/*
-		 * FIXME: fill in the last byte of the dest ipaddr here to better
-		 * comply with RFC1051 in "noarp" mode.
+		/* FIXME: fill in the last byte of the dest ipaddr here to
+		 * better comply with RFC1051 in "noarp" mode.
 		 */
 		pkt->hard.dest = 0;
 		return hdr_size;

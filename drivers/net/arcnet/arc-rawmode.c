@@ -123,8 +123,7 @@ static void rx(struct net_device *dev, int bufnum,
 	netif_rx(skb);
 }
 
-/*
- * Create the ARCnet hard/soft headers for raw mode.
+/* Create the ARCnet hard/soft headers for raw mode.
  * There aren't any soft headers in raw mode - not even the protocol id.
  */
 static int build_header(struct sk_buff *skb, struct net_device *dev,
@@ -133,21 +132,19 @@ static int build_header(struct sk_buff *skb, struct net_device *dev,
 	int hdr_size = ARC_HDR_SIZE;
 	struct archdr *pkt = (struct archdr *)skb_push(skb, hdr_size);
 
-	/*
-	 * Set the source hardware address.
+	/* Set the source hardware address.
 	 *
 	 * This is pretty pointless for most purposes, but it can help in
-	 * debugging.  ARCnet does not allow us to change the source address in
-	 * the actual packet sent)
+	 * debugging.  ARCnet does not allow us to change the source address
+	 * in the actual packet sent.
 	 */
 	pkt->hard.source = *dev->dev_addr;
 
 	/* see linux/net/ethernet/eth.c to see where I got the following */
 
 	if (dev->flags & (IFF_LOOPBACK | IFF_NOARP)) {
-		/*
-		 * FIXME: fill in the last byte of the dest ipaddr here to better
-		 * comply with RFC1051 in "noarp" mode.
+		/* FIXME: fill in the last byte of the dest ipaddr here
+		 * to better comply with RFC1051 in "noarp" mode.
 		 */
 		pkt->hard.dest = 0;
 		return hdr_size;
