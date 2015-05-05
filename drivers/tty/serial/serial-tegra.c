@@ -949,6 +949,28 @@ static int tegra_uart_hw_init(struct tegra_uart_port *tup)
 	return 0;
 }
 
+static void tegra_uart_dma_channel_free(struct tegra_uart_port *tup,
+		bool dma_to_memory)
+{
+	if (dma_to_memory) {
+		dmaengine_terminate_all(tup->rx_dma_chan);
+		dma_release_channel(tup->rx_dma_chan);
+		dma_free_coherent(tup->uport.dev, TEGRA_UART_RX_DMA_BUFFER_SIZE,
+				tup->rx_dma_buf_virt, tup->rx_dma_buf_phys);
+		tup->rx_dma_chan = NULL;
+		tup->rx_dma_buf_phys = 0;
+		tup->rx_dma_buf_virt = NULL;
+	} else {
+		dmaengine_terminate_all(tup->tx_dma_chan);
+		dma_release_channel(tup->tx_dma_chan);
+		dma_unmap_single(tup->uport.dev, tup->tx_dma_buf_phys,
+			UART_XMIT_SIZE, DMA_TO_DEVICE);
+		tup->tx_dma_chan = NULL;
+		tup->tx_dma_buf_phys = 0;
+		tup->tx_dma_buf_virt = NULL;
+	}
+}
+
 static int tegra_uart_dma_channel_allocate(struct tegra_uart_port *tup,
 			bool dma_to_memory)
 {
@@ -981,6 +1003,11 @@ static int tegra_uart_dma_channel_allocate(struct tegra_uart_port *tup,
 		dma_phys = dma_map_single(tup->uport.dev,
 			tup->uport.state->xmit.buf, UART_XMIT_SIZE,
 			DMA_TO_DEVICE);
+		if (dma_mapping_error(tup->uport.dev, dma_phys)) {
+			dev_err(tup->uport.dev, "dma_map_single tx failed\n");
+			dma_release_channel(dma_chan);
+			return -ENOMEM;
+		}
 		dma_buf = tup->uport.state->xmit.buf;
 	}
 
@@ -1013,30 +1040,8 @@ static int tegra_uart_dma_channel_allocate(struct tegra_uart_port *tup,
 	return 0;
 
 scrub:
-	dma_release_channel(dma_chan);
+	tegra_uart_dma_channel_free(tup, dma_to_memory);
 	return ret;
-}
-
-static void tegra_uart_dma_channel_free(struct tegra_uart_port *tup,
-		bool dma_to_memory)
-{
-	if (dma_to_memory) {
-		dmaengine_terminate_all(tup->rx_dma_chan);
-		dma_release_channel(tup->rx_dma_chan);
-		dma_free_coherent(tup->uport.dev, TEGRA_UART_RX_DMA_BUFFER_SIZE,
-				tup->rx_dma_buf_virt, tup->rx_dma_buf_phys);
-		tup->rx_dma_chan = NULL;
-		tup->rx_dma_buf_phys = 0;
-		tup->rx_dma_buf_virt = NULL;
-	} else {
-		dmaengine_terminate_all(tup->tx_dma_chan);
-		dma_release_channel(tup->tx_dma_chan);
-		dma_unmap_single(tup->uport.dev, tup->tx_dma_buf_phys,
-			UART_XMIT_SIZE, DMA_TO_DEVICE);
-		tup->tx_dma_chan = NULL;
-		tup->tx_dma_buf_phys = 0;
-		tup->tx_dma_buf_virt = NULL;
-	}
 }
 
 static int tegra_uart_startup(struct uart_port *u)
