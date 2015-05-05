@@ -8,7 +8,7 @@ menu "Magnetometer sensors"
 config AK8975
 	tristate "Asahi Kasei AK 3-Axis Magnetometer"
 	depends on I2C
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
 	help
 	  Say yes here to build support for Asahi Kasei AK8975, AK8963,
 	  AK09911 or AK09912 3-Axis Magnetometer.
@@ -19,7 +19,7 @@ config AK8975
 config AK09911
 	tristate "Asahi Kasei AK09911 3-axis Compass"
 	depends on I2C
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
 	select AK8975
 	help
 	  Deprecated: AK09911 is now supported by AK8975 driver.
