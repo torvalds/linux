@@ -54,7 +54,7 @@ enum visorchipset_addresstype {
  */
 struct visorchipset_channel_info {
 	enum visorchipset_addresstype addr_type;
-	HOSTADDRESS channel_addr;
+	u64 channel_addr;
 	struct irq_info intr;
 	u64 n_channel_bytes;
 	uuid_le channel_type_uuid;

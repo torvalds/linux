@@ -4,6 +4,6 @@
 
 obj-$(CONFIG_UNISYS_VISORUTIL)	+= visorutil.o
 
-visorutil-y := charqueue.o periodic_work.o visorkmodutils.o
+visorutil-y := charqueue.o periodic_work.o
 
 ccflags-y += -Idrivers/staging/unisys/include

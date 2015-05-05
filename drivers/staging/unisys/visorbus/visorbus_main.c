@@ -1428,7 +1428,7 @@ remove_visor_device(struct visor_device *dev)
 }
 
 static struct visor_device *
-find_visor_device_by_channel(HOSTADDRESS channel_physaddr)
+find_visor_device_by_channel(u64 channel_physaddr)
 {
 	struct list_head *listentry, *listtmp;
 
@@ -1607,8 +1607,9 @@ fix_vbus_dev_info(struct visor_device *visordev)
 	 * type name
 	 */
 	for (i = 0; visordrv->channel_types[i].name; i++) {
-		if (STRUCTSEQUAL(visordrv->channel_types[i].guid,
-				 visordev->channel_type_guid)) {
+		if (memcmp(&visordrv->channel_types[i].guid,
+			   &visordev->channel_type_guid,
+			   sizeof(visordrv->channel_types[i].guid)) == 0) {
 			chan_type_name = visordrv->channel_types[i].name;
 			break;
 		}
@@ -1667,7 +1668,7 @@ create_bus_instance(int id)
 	if ((visorchipset_get_bus_info(id, &bus_info)) &&
 	    (bus_info.chan_info.channel_addr > 0) &&
 	    (bus_info.chan_info.n_channel_bytes > 0)) {
-		HOSTADDRESS channel_addr = bus_info.chan_info.channel_addr;
+		u64 channel_addr = bus_info.chan_info.channel_addr;
 		unsigned long n_channel_bytes =
 				(unsigned long)
 				bus_info.chan_info.n_channel_bytes;

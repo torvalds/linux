@@ -18,6 +18,7 @@
 /*
  *  Helper functions to schedule periodic work in Linux kernel mode.
  */
+#include <linux/sched.h>
 
 #include "timskmod.h"
 #include "periodic_work.h"
@@ -192,7 +193,8 @@ bool visor_periodic_work_stop(struct periodic_work *pw)
 		}
 		if (pw->is_scheduled) {
 			write_unlock(&pw->lock);
-			SLEEPJIFFIES(10);
+			__set_current_state(TASK_INTERRUPTIBLE);
+			schedule_timeout(10);
 			write_lock(&pw->lock);
 		} else {
 			pw->want_to_stop = false;

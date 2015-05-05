@@ -37,10 +37,6 @@
 #include "periodic_work.h"
 #include "channel.h"
 
-#ifndef HOSTADDRESS
-#define HOSTADDRESS u64
-#endif
-
 struct visor_driver;
 struct visor_device;
 
@@ -170,9 +166,9 @@ void visorbus_disable_channel_interrupts(struct visor_device *dev);
  * <channel_bytes> and <guid> arguments may be 0 if we are a channel CLIENT.
  * In this case, the values can simply be read from the channel header.
  */
-struct visorchannel *visorchannel_create(HOSTADDRESS physaddr,
+struct visorchannel *visorchannel_create(u64 physaddr,
 					 ulong channel_bytes, uuid_le guid);
-struct visorchannel *visorchannel_create_with_lock(HOSTADDRESS physaddr,
+struct visorchannel *visorchannel_create_with_lock(u64 physaddr,
 						   ulong channel_bytes,
 						   uuid_le guid);
 void visorchannel_destroy(struct visorchannel *channel);
@@ -189,7 +185,7 @@ bool visorchannel_signalinsert(struct visorchannel *channel, u32 queue,
 int visorchannel_signalqueue_slots_avail(struct visorchannel *channel,
 					 u32 queue);
 int visorchannel_signalqueue_max_slots(struct visorchannel *channel, u32 queue);
-HOSTADDRESS visorchannel_get_physaddr(struct visorchannel *channel);
+u64 visorchannel_get_physaddr(struct visorchannel *channel);
 ulong visorchannel_get_nbytes(struct visorchannel *channel);
 char *visorchannel_id(struct visorchannel *channel, char *s);
 char *visorchannel_zoneid(struct visorchannel *channel, char *s);

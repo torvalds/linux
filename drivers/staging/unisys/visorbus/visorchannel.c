@@ -27,7 +27,7 @@
 #define MYDRVNAME "visorchannel"
 
 struct visorchannel {
-	HOSTADDRESS physaddr;
+	u64 physaddr;
 	ulong nbytes;
 	void __iomem *mapped;
 	struct channel_header chan_hdr;
@@ -50,7 +50,7 @@ struct visorchannel {
  * but does NOT modify this data area.
  */
 static struct visorchannel *
-visorchannel_create_guts(HOSTADDRESS physaddr, ulong channel_bytes,
+visorchannel_create_guts(u64 physaddr, ulong channel_bytes,
 			 ulong off, uuid_le guid, bool needs_lock)
 {
 	struct visorchannel *channel;
@@ -112,7 +112,7 @@ cleanup:
 }
 
 struct visorchannel *
-visorchannel_create(HOSTADDRESS physaddr, ulong channel_bytes, uuid_le guid)
+visorchannel_create(u64 physaddr, ulong channel_bytes, uuid_le guid)
 {
 	return visorchannel_create_guts(physaddr, channel_bytes, 0, guid,
 					false);
@@ -120,7 +120,7 @@ visorchannel_create(HOSTADDRESS physaddr, ulong channel_bytes, uuid_le guid)
 EXPORT_SYMBOL_GPL(visorchannel_create);
 
 struct visorchannel *
-visorchannel_create_with_lock(HOSTADDRESS physaddr, ulong channel_bytes,
+visorchannel_create_with_lock(u64 physaddr, ulong channel_bytes,
 			      uuid_le guid)
 {
 	return visorchannel_create_guts(physaddr, channel_bytes, 0, guid,
@@ -141,7 +141,7 @@ visorchannel_destroy(struct visorchannel *channel)
 }
 EXPORT_SYMBOL_GPL(visorchannel_destroy);
 
-HOSTADDRESS
+u64
 visorchannel_get_physaddr(struct visorchannel *channel)
 {
 	return channel->physaddr;
@@ -177,7 +177,7 @@ visorchannel_zoneid(struct visorchannel *channel, char *s)
 }
 EXPORT_SYMBOL_GPL(visorchannel_zoneid);
 
-HOSTADDRESS
+u64
 visorchannel_get_clientpartition(struct visorchannel *channel)
 {
 	return channel->chan_hdr.partition_handle;
@@ -498,7 +498,7 @@ void
 visorchannel_debug(struct visorchannel *channel, int num_queues,
 		   struct seq_file *seq, u32 off)
 {
-	HOSTADDRESS addr = 0;
+	u64 addr = 0;
 	ulong nbytes = 0, nbytes_region = 0;
 	struct channel_header hdr;
 	struct channel_header *phdr = &hdr;

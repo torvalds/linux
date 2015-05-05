@@ -47,6 +47,14 @@
 
 #define VISORCHIPSET_MMAP_CONTROLCHANOFFSET	0x00000000
 
+
+#define UNISYS_SPAR_LEAF_ID 0x40000000
+
+/* The s-Par leaf ID returns "UnisysSpar64" encoded across ebx, ecx, edx */
+#define UNISYS_SPAR_ID_EBX 0x73696e55
+#define UNISYS_SPAR_ID_ECX 0x70537379
+#define UNISYS_SPAR_ID_EDX 0x34367261
+
 /*
  * Module parameters
  */
@@ -1675,7 +1683,7 @@ my_device_destroy(struct controlvm_message *inmsg)
  * for failure.
  */
 static int
-initialize_controlvm_payload_info(HOSTADDRESS phys_addr, u64 offset, u32 bytes,
+initialize_controlvm_payload_info(u64 phys_addr, u64 offset, u32 bytes,
 				  struct visor_controlvm_payload_info *info)
 {
 	u8 __iomem *payload = NULL;
@@ -1723,7 +1731,7 @@ destroy_controlvm_payload_info(struct visor_controlvm_payload_info *info)
 static void
 initialize_controlvm_payload(void)
 {
-	HOSTADDRESS phys_addr = visorchannel_get_physaddr(controlvm_channel);
+	u64 phys_addr = visorchannel_get_physaddr(controlvm_channel);
 	u64 payload_offset = 0;
 	u32 payload_bytes = 0;
 
@@ -2056,7 +2064,7 @@ parahotplug_process_message(struct controlvm_message *inmsg)
  *            either successfully or with an error.
  */
 static bool
-handle_command(struct controlvm_message inmsg, HOSTADDRESS channel_addr)
+handle_command(struct controlvm_message inmsg, u64 channel_addr)
 {
 	struct controlvm_message_packet *cmd = &inmsg.cmd;
 	u64 parm_addr;
@@ -2152,7 +2160,7 @@ handle_command(struct controlvm_message inmsg, HOSTADDRESS channel_addr)
 	return true;
 }
 
-static HOSTADDRESS controlvm_get_channel_address(void)
+static u64 controlvm_get_channel_address(void)
 {
 	u64 addr = 0;
 	u32 size = 0;
@@ -2589,7 +2597,7 @@ static long visorchipset_ioctl(struct file *file, unsigned int cmd,
 				 sizeof(vrtc_offset))) {
 			return -EFAULT;
 		}
-		return SUCCESS;
+		return 0;
 	case VMCALL_UPDATE_PHYSICAL_TIME:
 		if (copy_from_user(&adjustment, (void __user *)arg,
 				   sizeof(adjustment))) {
@@ -2642,7 +2650,7 @@ static int
 visorchipset_init(struct acpi_device *acpi_device)
 {
 	int rc = 0;
-	HOSTADDRESS addr;
+	u64 addr;
 
 	memset(&busdev_notifiers, 0, sizeof(busdev_notifiers));
 	memset(&controlvm_payload_info, 0, sizeof(controlvm_payload_info));
@@ -2758,7 +2766,6 @@ static const struct acpi_device_id unisys_device_ids[] = {
 	{"PNP0A07", 0},
 	{"", 0},
 };
-MODULE_DEVICE_TABLE(acpi, unisys_device_ids);
 
 static struct acpi_driver unisys_acpi_driver = {
 	.name = "unisys_acpi",
@@ -2770,12 +2777,25 @@ static struct acpi_driver unisys_acpi_driver = {
 		.remove = visorchipset_exit,
 		},
 };
+static __init uint32_t visorutil_spar_detect(void)
+{
+	unsigned int eax, ebx, ecx, edx;
+
+	if (cpu_has_hypervisor) {
+		/* check the ID */
+		cpuid(UNISYS_SPAR_LEAF_ID, &eax, &ebx, &ecx, &edx);
+		return  (ebx == UNISYS_SPAR_ID_EBX) &&
+			(ecx == UNISYS_SPAR_ID_ECX) &&
+			(edx == UNISYS_SPAR_ID_EDX);
+	} else {
+		return 0;
+	}
+}
 
 static int init_unisys(void)
 {
 	int result;
-
-	if (!unisys_spar_platform)
+	if (!visorutil_spar_detect())
 		return -ENODEV;
 
 	result = acpi_bus_register_driver(&unisys_acpi_driver);
