@@ -54,6 +54,9 @@ static int ipvlan_port_create(struct net_device *dev)
 	for (idx = 0; idx < IPVLAN_HASH_SIZE; idx++)
 		INIT_HLIST_HEAD(&port->hlhead[idx]);
 
+	skb_queue_head_init(&port->backlog);
+	INIT_WORK(&port->wq, ipvlan_process_multicast);
+
 	err = netdev_rx_handler_register(dev, ipvlan_handle_frame, port);
 	if (err)
 		goto err;
@@ -72,6 +75,8 @@ static void ipvlan_port_destroy(struct net_device *dev)
 
 	dev->priv_flags &= ~IFF_IPVLAN_MASTER;
 	netdev_rx_handler_unregister(dev);
+	cancel_work_sync(&port->wq);
+	__skb_queue_purge(&port->backlog);
 	kfree_rcu(port, rcu);
 }
 
