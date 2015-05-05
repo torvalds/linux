@@ -4,7 +4,6 @@
 
 config UNISYS_VISORBUS
 	tristate "Unisys visorbus driver"
-	depends on UNISYSSPAR && UNISYS_VISORUTIL && UNISYS_VISORCHANNEL && UNISYS_VISORCHIPSET
+	depends on UNISYSSPAR && UNISYS_VISORUTIL && UNISYS_VISORCHIPSET
 	---help---
 	If you say Y here, you will enable the Unisys visorbus driver.
-

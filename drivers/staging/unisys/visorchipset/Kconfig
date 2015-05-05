@@ -6,6 +6,7 @@ config UNISYS_VISORCHIPSET
 	tristate "Unisys visorchipset driver"
 	select UNISYS_VISORUTIL
 	select UNISYS_VISORCHANNEL
+	select UNISYS_VISORBUS
 	---help---
 	If you say Y here, you will enable the Unisys visorchipset driver.
 
