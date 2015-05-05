@@ -11,16 +11,16 @@
 #include <linux/netdevice.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
+#include <linux/if_vlan.h>
 
 /* Packet size info */
 #define XAE_HDR_SIZE			14 /* Size of Ethernet header */
-#define XAE_HDR_VLAN_SIZE		18 /* Size of an Ethernet hdr + VLAN */
 #define XAE_TRL_SIZE			 4 /* Size of Ethernet trailer (FCS) */
 #define XAE_MTU			      1500 /* Max MTU of an Ethernet frame */
 #define XAE_JUMBO_MTU		      9000 /* Max MTU of a jumbo Eth. frame */
 
 #define XAE_MAX_FRAME_SIZE	 (XAE_MTU + XAE_HDR_SIZE + XAE_TRL_SIZE)
-#define XAE_MAX_VLAN_FRAME_SIZE  (XAE_MTU + XAE_HDR_VLAN_SIZE + XAE_TRL_SIZE)
+#define XAE_MAX_VLAN_FRAME_SIZE  (XAE_MTU + VLAN_ETH_HLEN + XAE_TRL_SIZE)
 #define XAE_MAX_JUMBO_FRAME_SIZE (XAE_JUMBO_MTU + XAE_HDR_SIZE + XAE_TRL_SIZE)
 
 /* Configuration options */
@@ -407,8 +407,7 @@ struct axidma_bd {
  *		  Txed/Rxed in the existing hardware. If jumbo option is
  *		  supported, the maximum frame size would be 9k. Else it is
  *		  1522 bytes (assuming support for basic VLAN)
- * @jumbo_support: Stores hardware configuration for jumbo support. If hardware
- *		   can handle jumbo packets, this entry will be 1, else 0.
+ * @rxmem:	Stores rx memory size for jumbo frame handling.
  */
 struct axienet_local {
 	struct net_device *ndev;
@@ -446,7 +445,7 @@ struct axienet_local {
 	u32 rx_bd_ci;
 
 	u32 max_frm_size;
-	u32 jumbo_support;
+	u32 rxmem;
 
 	int csum_offload_on_tx_path;
 	int csum_offload_on_rx_path;

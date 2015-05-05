@@ -471,14 +471,16 @@ static void axienet_device_reset(struct net_device *ndev)
 	__axienet_device_reset(lp, &ndev->dev, XAXIDMA_RX_CR_OFFSET);
 
 	lp->max_frm_size = XAE_MAX_VLAN_FRAME_SIZE;
+	lp->options |= XAE_OPTION_VLAN;
 	lp->options &= (~XAE_OPTION_JUMBO);
 
 	if ((ndev->mtu > XAE_MTU) &&
-	    (ndev->mtu <= XAE_JUMBO_MTU) &&
-	    (lp->jumbo_support)) {
-		lp->max_frm_size = ndev->mtu + XAE_HDR_VLAN_SIZE +
-				   XAE_TRL_SIZE;
-		lp->options |= XAE_OPTION_JUMBO;
+		(ndev->mtu <= XAE_JUMBO_MTU)) {
+		lp->max_frm_size = ndev->mtu + VLAN_ETH_HLEN +
+					XAE_TRL_SIZE;
+
+		if (lp->max_frm_size <= lp->rxmem)
+			lp->options |= XAE_OPTION_JUMBO;
 	}
 
 	if (axienet_dma_bd_init(ndev)) {
@@ -1027,15 +1029,15 @@ static int axienet_change_mtu(struct net_device *ndev, int new_mtu)
 
 	if (netif_running(ndev))
 		return -EBUSY;
-	if (lp->jumbo_support) {
-		if ((new_mtu > XAE_JUMBO_MTU) || (new_mtu < 64))
-			return -EINVAL;
-		ndev->mtu = new_mtu;
-	} else {
-		if ((new_mtu > XAE_MTU) || (new_mtu < 64))
-			return -EINVAL;
-		ndev->mtu = new_mtu;
-	}
+
+	if ((new_mtu + VLAN_ETH_HLEN +
+		XAE_TRL_SIZE) > lp->rxmem)
+		return -EINVAL;
+
+	if ((new_mtu > XAE_JUMBO_MTU) || (new_mtu < 64))
+		return -EINVAL;
+
+	ndev->mtu = new_mtu;
 
 	return 0;
 }
@@ -1556,16 +1558,14 @@ static int axienet_of_probe(struct platform_device *op)
 		}
 	}
 	/* For supporting jumbo frames, the Axi Ethernet hardware must have
-	 * a larger Rx/Tx Memory. Typically, the size must be more than or
-	 * equal to 16384 bytes, so that we can enable jumbo option and start
-	 * supporting jumbo frames. Here we check for memory allocated for
-	 * Rx/Tx in the hardware from the device-tree and accordingly set
-	 * flags. */
+	 * a larger Rx/Tx Memory. Typically, the size must be large so that
+	 * we can enable jumbo option and start supporting jumbo frames.
+	 * Here we check for memory allocated for Rx/Tx in the hardware from
+	 * the device-tree and accordingly set flags.
+	 */
 	p = (__be32 *) of_get_property(op->dev.of_node, "xlnx,rxmem", NULL);
-	if (p) {
-		if ((be32_to_cpup(p)) >= 0x4000)
-			lp->jumbo_support = 1;
-	}
+	if (p)
+		lp->rxmem = be32_to_cpup(p);
 	p = (__be32 *) of_get_property(op->dev.of_node, "xlnx,phy-type", NULL);
 	if (p)
 		lp->phy_type = be32_to_cpup(p);
