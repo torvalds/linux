@@ -342,5 +342,30 @@ netdev_tx_t arcnet_send_packet(struct sk_buff *skb,
 			       struct net_device *dev);
 void arcnet_timeout(struct net_device *dev);
 
+/* I/O equivalents */
+
+/* addr and offset allow register like names to define the actual IO  address.
+ * A configuration option multiplies the offset for alignment.
+ */
+#define arcnet_inb(addr, offset)					\
+	inb((addr) + (offset))
+#define arcnet_outb(value, addr, offset)				\
+	outb(value, (addr) + (offset))
+
+#define arcnet_insb(addr, offset, buffer, count)			\
+	insb((addr) + (offset), buffer, count)
+#define arcnet_outsb(addr, offset, buffer, count)			\
+	outsb((addr) + (offset), buffer, count)
+
+#define arcnet_inw(addr, offset)					\
+	inw((addr) + (offset))
+#define arcnet_outw(value, addr, offset)				\
+	outw(value, (addr) + (offset))
+
+#define arcnet_insw(addr, offset, buffer, count)			\
+	insw((addr) + (offset), buffer, count)
+#define arcnet_outsw(addr, offset, buffer, count)			\
+	outsw((addr) + (offset), buffer, count)
+
 #endif				/* __KERNEL__ */
 #endif				/* _LINUX_ARCDEVICE_H */
