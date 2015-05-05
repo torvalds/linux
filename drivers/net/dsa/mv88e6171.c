@@ -38,6 +38,7 @@ static char *mv88e6171_probe(struct device *host_dev, int sw_addr)
 
 static int mv88e6171_setup_global(struct dsa_switch *ds)
 {
+	u32 upstream_port = dsa_upstream_port(ds);
 	int ret;
 
 	ret = mv88e6xxx_setup_global(ds);
@@ -47,21 +48,36 @@ static int mv88e6171_setup_global(struct dsa_switch *ds)
 	/* Discard packets with excessive collisions, mask all
 	 * interrupt sources, enable PPU.
 	 */
-	REG_WRITE(REG_GLOBAL, 0x04, 0x6000);
+	REG_WRITE(REG_GLOBAL, GLOBAL_CONTROL,
+		  GLOBAL_CONTROL_PPU_ENABLE | GLOBAL_CONTROL_DISCARD_EXCESS);
 
 	/* Configure the upstream port, and configure the upstream
 	 * port as the port to which ingress and egress monitor frames
 	 * are to be sent.
 	 */
-	if (REG_READ(REG_PORT(0), 0x03) == 0x1710)
-		REG_WRITE(REG_GLOBAL, 0x1a, (dsa_upstream_port(ds) * 0x1111));
+	if (REG_READ(REG_PORT(0), PORT_SWITCH_ID) == PORT_SWITCH_ID_6171)
+		REG_WRITE(REG_GLOBAL, GLOBAL_MONITOR_CONTROL,
+			  upstream_port <<
+			  GLOBAL_MONITOR_CONTROL_INGRESS_SHIFT |
+			  upstream_port <<
+			  GLOBAL_MONITOR_CONTROL_EGRESS_SHIFT |
+			  upstream_port <<
+			  GLOBAL_MONITOR_CONTROL_ARP_SHIFT |
+			  upstream_port <<
+			  GLOBAL_MONITOR_CONTROL_MIRROR_SHIFT);
 	else
-		REG_WRITE(REG_GLOBAL, 0x1a, (dsa_upstream_port(ds) * 0x1110));
+		REG_WRITE(REG_GLOBAL, GLOBAL_MONITOR_CONTROL,
+			  upstream_port <<
+			  GLOBAL_MONITOR_CONTROL_INGRESS_SHIFT |
+			  upstream_port <<
+			  GLOBAL_MONITOR_CONTROL_EGRESS_SHIFT |
+			  upstream_port <<
+			  GLOBAL_MONITOR_CONTROL_ARP_SHIFT);
 
 	/* Disable remote management for now, and set the switch's
 	 * DSA device number.
 	 */
-	REG_WRITE(REG_GLOBAL, 0x1c, ds->index & 0x1f);
+	REG_WRITE(REG_GLOBAL, GLOBAL_CONTROL_2, ds->index & 0x1f);
 
 	return 0;
 }
