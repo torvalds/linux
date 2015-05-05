@@ -725,7 +725,7 @@ static int loop_set_fd(struct loop_device *lo, fmode_t mode,
 		goto out_putf;
 	error = -ENOMEM;
 	lo->wq = alloc_workqueue("kloopd%d",
-			WQ_MEM_RECLAIM | WQ_HIGHPRI | WQ_UNBOUND, 0,
+			WQ_MEM_RECLAIM | WQ_HIGHPRI | WQ_UNBOUND, 16,
 			lo->lo_number);
 	if (!lo->wq)
 		goto out_putf;
