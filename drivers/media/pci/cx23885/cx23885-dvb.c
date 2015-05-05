@@ -1912,6 +1912,7 @@ static int dvb_register(struct cx23885_tsport *port)
 			/* attach tuner */
 			memset(&si2157_config, 0, sizeof(si2157_config));
 			si2157_config.fe = fe0->dvb.frontend;
+			si2157_config.if_port = 1;
 			memset(&info, 0, sizeof(struct i2c_board_info));
 			strlcpy(info.type, "si2157", I2C_NAME_SIZE);
 			info.addr = 0x60;
@@ -1957,6 +1958,7 @@ static int dvb_register(struct cx23885_tsport *port)
 		/* attach tuner */
 		memset(&si2157_config, 0, sizeof(si2157_config));
 		si2157_config.fe = fe0->dvb.frontend;
+		si2157_config.if_port = 1;
 		memset(&info, 0, sizeof(struct i2c_board_info));
 		strlcpy(info.type, "si2157", I2C_NAME_SIZE);
 		info.addr = 0x60;
@@ -2093,6 +2095,7 @@ static int dvb_register(struct cx23885_tsport *port)
 		/* attach tuner */
 		memset(&si2157_config, 0, sizeof(si2157_config));
 		si2157_config.fe = fe0->dvb.frontend;
+		si2157_config.if_port = 1;
 		memset(&info, 0, sizeof(struct i2c_board_info));
 		strlcpy(info.type, "si2157", I2C_NAME_SIZE);
 		info.addr = 0x60;
@@ -2172,6 +2175,7 @@ static int dvb_register(struct cx23885_tsport *port)
 			/* attach tuner */
 			memset(&si2157_config, 0, sizeof(si2157_config));
 			si2157_config.fe = fe0->dvb.frontend;
+			si2157_config.if_port = 1;
 			memset(&info, 0, sizeof(struct i2c_board_info));
 			strlcpy(info.type, "si2157", I2C_NAME_SIZE);
 			info.addr = 0x60;

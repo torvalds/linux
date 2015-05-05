@@ -298,7 +298,8 @@ static int si2157_set_params(struct dvb_frontend *fe)
 	if (dev->chiptype == SI2157_CHIPTYPE_SI2146)
 		memcpy(cmd.args, "\x14\x00\x02\x07\x00\x01", 6);
 	else
-		memcpy(cmd.args, "\x14\x00\x02\x07\x01\x00", 6);
+		memcpy(cmd.args, "\x14\x00\x02\x07\x00\x00", 6);
+	cmd.args[4] = dev->if_port;
 	cmd.wlen = 6;
 	cmd.rlen = 4;
 	ret = si2157_cmd_execute(client, &cmd);
@@ -378,6 +379,7 @@ static int si2157_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, dev);
 	dev->fe = cfg->fe;
 	dev->inversion = cfg->inversion;
+	dev->if_port = cfg->if_port;
 	dev->fw_loaded = false;
 	dev->chiptype = (u8)id->driver_data;
 	dev->if_frequency = 5000000; /* default value of property 0x0706 */

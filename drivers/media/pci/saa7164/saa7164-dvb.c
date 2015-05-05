@@ -111,6 +111,7 @@ static struct lgdt3306a_config hauppauge_hvr2255b_config = {
 
 static struct si2157_config hauppauge_hvr2255_tuner_config = {
 	.inversion = 1,
+	.if_port = 1,
 };
 
 static int si2157_attach(struct saa7164_port *port, struct i2c_adapter *adapter,
@@ -665,6 +666,7 @@ int saa7164_dvb_register(struct saa7164_port *port)
 
 			/* attach tuner */
 			memset(&si2157_config, 0, sizeof(si2157_config));
+			si2157_config.if_port = 1;
 			si2157_config.fe = port->dvb.frontend;
 			memset(&info, 0, sizeof(struct i2c_board_info));
 			strlcpy(info.type, "si2157", I2C_NAME_SIZE);
@@ -710,6 +712,7 @@ int saa7164_dvb_register(struct saa7164_port *port)
 			/* attach tuner */
 			memset(&si2157_config, 0, sizeof(si2157_config));
 			si2157_config.fe = port->dvb.frontend;
+			si2157_config.if_port = 1;
 			memset(&info, 0, sizeof(struct i2c_board_info));
 			strlcpy(info.type, "si2157", I2C_NAME_SIZE);
 			info.addr = 0xc0 >> 1;

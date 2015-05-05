@@ -1569,6 +1569,7 @@ static int it930x_tuner_attach(struct dvb_usb_adapter *adap)
 
 	memset(&si2157_config, 0, sizeof(si2157_config));
 	si2157_config.fe = adap->fe[0];
+	si2157_config.if_port = 1;
 	ret = af9035_add_i2c_dev(d, "si2157", 0x63,
 			&si2157_config, state->i2c_adapter_demod);
 

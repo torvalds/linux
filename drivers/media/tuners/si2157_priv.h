@@ -28,6 +28,7 @@ struct si2157_dev {
 	bool fw_loaded;
 	bool inversion;
 	u8 chiptype;
+	u8 if_port;
 	u32 if_frequency;
 };
 
