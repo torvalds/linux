@@ -211,4 +211,8 @@ void visorchipset_cache_free(struct kmem_cache *pool, void *p,
 int visorchipset_file_init(dev_t majorDev,
 			   struct visorchannel **pControlVm_channel);
 void visorchipset_file_cleanup(dev_t major_dev);
+
+/* visorbus init and exit functions */
+int __init visorbus_init(void);
+void visorbus_exit(void);
 #endif

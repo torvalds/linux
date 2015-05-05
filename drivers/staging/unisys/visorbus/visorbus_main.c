@@ -18,13 +18,15 @@
 #include <linux/uuid.h>
 
 #include "visorbus.h"
-#include "visorchipset.h"
+#include "visorbus_private.h"
 #include "version.h"
 #include "timskmod.h"
 #include "periodic_work.h"
 #include "vbuschannel.h"
 #include "guestlinuxdebug.h"
 #include "vbusdeviceinfo.h"
+
+#define MYDRVNAME "visorbus"
 
 /* module parameters */
 int visorbus_debug;
@@ -2033,7 +2035,7 @@ struct channel_size_info {
 	unsigned long max_size;
 };
 
-static int __init
+int __init
 visorbus_init(void)
 {
 	int rc = 0;
@@ -2077,7 +2079,7 @@ away:
 	return rc;
 }
 
-static void
+void
 visorbus_exit(void)
 {
 	struct list_head *listentry, *listtmp;
@@ -2134,9 +2136,6 @@ module_param_named(serialloopbacktest, visorbus_serialloopbacktest,
 MODULE_PARM_DESC(visorbus_serialloopbacktest,
 		 "non-0 to just create 2 serial devices on the same channel");
 int visorbus_serialloopbacktest = 0;
-
-module_init(visorbus_init);
-module_exit(visorbus_exit);
 
 MODULE_AUTHOR("Unisys");
 MODULE_LICENSE("GPL");

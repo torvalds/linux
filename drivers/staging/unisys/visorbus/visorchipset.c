@@ -24,7 +24,7 @@
 #include "uisutils.h"
 #include "controlvmcompletionstatus.h"
 #include "guestlinuxdebug.h"
-#include "visorchipset.h"
+#include "visorbus_private.h"
 
 
 #include <linux/ctype.h>
@@ -168,7 +168,7 @@ static struct visor_livedump_info livedump_info;
  * process it again the next time controlvm_periodic_work() runs.
  */
 static struct controlvm_message controlvm_pending_msg;
-static bool controlvm_pending_msg_valid = false;
+static bool controlvm_pending_msg_valid;
 
 /* This identifies a data buffer that has been received via a controlvm messages
  * in a remote --> local CONTROLVM_TRANSMIT_FILE conversation.
@@ -2783,7 +2783,8 @@ visorchipset_init(void)
 		goto cleanup;
 	}
 	POSTCODE_LINUX_2(CHIPSET_INIT_SUCCESS_PC, POSTCODE_SEVERITY_INFO);
-	rc = 0;
+
+	rc = visorbus_init();
 cleanup:
 	if (rc) {
 		POSTCODE_LINUX_3(CHIPSET_INIT_FAILURE_PC, rc,
@@ -2805,6 +2806,8 @@ static void
 visorchipset_exit(void)
 {
 	POSTCODE_LINUX_2(DRIVER_EXIT_PC, POSTCODE_SEVERITY_INFO);
+
+	visorbus_exit();
 
 	if (visorchipset_disable_controlvm) {
 		;
