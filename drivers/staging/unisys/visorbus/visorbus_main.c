@@ -2040,7 +2040,7 @@ visorbus_init(void)
 
 	POSTCODE_LINUX_3(DRIVER_ENTRY_PC, rc, POSTCODE_SEVERITY_INFO);
 	bus_device_info_init(&clientbus_driverinfo,
-			     "clientbus", MYDRVNAME,
+			     "clientbus", "visorbus",
 			     VERSION, NULL);
 
 	/* process module options */

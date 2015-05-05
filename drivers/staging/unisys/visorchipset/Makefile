@@ -4,7 +4,7 @@
 
 obj-$(CONFIG_UNISYS_VISORCHIPSET)	+= visorchipset.o
 
-visorchipset-y := visorchipset_main.o parser.o
+visorchipset-y := visorchipset_main.o
 
 ccflags-y += -Idrivers/staging/unisys/include
 ccflags-y += -Idrivers/staging/unisys/uislib
