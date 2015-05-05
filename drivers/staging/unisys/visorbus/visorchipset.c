@@ -2631,7 +2631,7 @@ visorchipset_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	unsigned long physaddr = 0;
 	unsigned long offset = vma->vm_pgoff << PAGE_SHIFT;
-	GUEST_PHYSICAL_ADDRESS addr = 0;
+	u64 addr = 0;
 
 	/* sv_enable_dfp(); */
 	if (offset & (PAGE_SIZE - 1))

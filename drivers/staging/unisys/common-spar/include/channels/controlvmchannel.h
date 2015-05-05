@@ -20,8 +20,6 @@
 #include "channel.h"
 #include "controlframework.h"
 
-typedef u64 GUEST_PHYSICAL_ADDRESS;
-
 enum { INVALID_GUEST_FIRMWARE, SAMPLE_GUEST_FIRMWARE,
 	    TIANO32_GUEST_FIRMWARE, TIANO64_GUEST_FIRMWARE
 };
@@ -343,7 +341,7 @@ struct controlvm_message {
 };
 
 struct device_map {
-	GUEST_PHYSICAL_ADDRESS device_channel_address;
+	u64 device_channel_address;
 	u64 device_channel_size;
 	u32 ca_index;
 	u32 reserved;		/* natural alignment */
@@ -362,23 +360,23 @@ struct guest_devices  {
 
 struct spar_controlvm_channel_protocol {
 	 struct channel_header header;
-	 GUEST_PHYSICAL_ADDRESS gp_controlvm;	/* guest physical address of
+	 u64 gp_controlvm;	/* guest physical address of
 						 * this channel */
-	 GUEST_PHYSICAL_ADDRESS gp_partition_tables;/* guest physical address of
+	 u64 gp_partition_tables;/* guest physical address of
 						     * partition tables */
-	 GUEST_PHYSICAL_ADDRESS gp_diag_guest;	/* guest physical address of
+	 u64 gp_diag_guest;	/* guest physical address of
 						 * diagnostic channel */
-	 GUEST_PHYSICAL_ADDRESS gp_boot_romdisk;/* guest phys addr of (read
+	 u64 gp_boot_romdisk;/* guest phys addr of (read
 						 * only) Boot ROM disk */
-	 GUEST_PHYSICAL_ADDRESS gp_boot_ramdisk;/* guest phys addr of writable
+	 u64 gp_boot_ramdisk;/* guest phys addr of writable
 						 * Boot RAM disk */
-	 GUEST_PHYSICAL_ADDRESS gp_acpi_table;	/* guest phys addr of acpi
+	 u64 gp_acpi_table;	/* guest phys addr of acpi
 						 * table */
-	 GUEST_PHYSICAL_ADDRESS gp_control_channel;/* guest phys addr of control
+	 u64 gp_control_channel;/* guest phys addr of control
 						    * channel */
-	 GUEST_PHYSICAL_ADDRESS gp_diag_romdisk;/* guest phys addr of diagnostic
+	 u64 gp_diag_romdisk;/* guest phys addr of diagnostic
 						 * ROM disk */
-	 GUEST_PHYSICAL_ADDRESS gp_nvram;	/* guest phys addr of NVRAM
+	 u64 gp_nvram;	/* guest phys addr of NVRAM
 						 * channel */
 	 u64 request_payload_offset;	/* Offset to request payload area */
 	 u64 event_payload_offset;	/* Offset to event payload area */
@@ -389,28 +387,28 @@ struct spar_controlvm_channel_protocol {
 	 u32 nvram_channel_bytes;	/* Bytes in PartitionNvram segment */
 	 u32 message_bytes;	/* sizeof(CONTROLVM_MESSAGE) */
 	 u32 message_count;	/* CONTROLVM_MESSAGE_MAX */
-	 GUEST_PHYSICAL_ADDRESS gp_smbios_table;/* guest phys addr of SMBIOS
+	 u64 gp_smbios_table;/* guest phys addr of SMBIOS
 						 * tables */
-	 GUEST_PHYSICAL_ADDRESS gp_physical_smbios_table;/* guest phys addr of
+	 u64 gp_physical_smbios_table;/* guest phys addr of
 							  * SMBIOS table  */
 	 /* ULTRA_MAX_GUESTS_PER_SERVICE */
 	 struct guest_devices gp_obsolete_guest_devices[16];
 
 	 /* guest physical address of EFI firmware image base  */
-	 GUEST_PHYSICAL_ADDRESS virtual_guest_firmware_image_base;
+	 u64 virtual_guest_firmware_image_base;
 
 	 /* guest physical address of EFI firmware entry point  */
-	 GUEST_PHYSICAL_ADDRESS virtual_guest_firmware_entry_point;
+	 u64 virtual_guest_firmware_entry_point;
 
 	 /* guest EFI firmware image size  */
 	 u64 virtual_guest_firmware_image_size;
 
 	 /* GPA = 1MB where EFI firmware image is copied to  */
-	 GUEST_PHYSICAL_ADDRESS virtual_guest_firmware_boot_base;
-	 GUEST_PHYSICAL_ADDRESS virtual_guest_image_base;
-	 GUEST_PHYSICAL_ADDRESS virtual_guest_image_size;
+	 u64 virtual_guest_firmware_boot_base;
+	 u64 virtual_guest_image_base;
+	 u64 virtual_guest_image_size;
 	 u64 prototype_control_channel_offset;
-	 GUEST_PHYSICAL_ADDRESS virtual_guest_partition_handle;
+	 u64 virtual_guest_partition_handle;
 
 	 u16 restore_action;	/* Restore Action field to restore the guest
 				 * partition */
