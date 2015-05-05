@@ -23,7 +23,6 @@
 #include <linux/fs.h>
 #include "version.h"
 #include "visorchipset.h"
-#include "visorchipset_umode.h"
 #include "visorbus.h"
 #include "uisutils.h"
 #include "file.h"

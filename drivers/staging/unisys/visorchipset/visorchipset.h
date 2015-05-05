@@ -28,6 +28,7 @@
 #include "vbushelper.h"
 
 #define MYDRVNAME "visorchipset"
+#define VISORCHIPSET_MMAP_CONTROLCHANOFFSET	0x00000000
 
 /** Describes the state from the perspective of which controlvm messages have
  *  been received for a bus or device.
