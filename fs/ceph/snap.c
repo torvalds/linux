@@ -730,6 +730,8 @@ more:
 
 		/* queue realm for cap_snap creation */
 		list_add(&realm->dirty_item, &dirty_realms);
+		if (realm->seq > mdsc->last_snap_seq)
+			mdsc->last_snap_seq = realm->seq;
 
 		invalidate = 1;
 	} else if (!realm->cached_context) {

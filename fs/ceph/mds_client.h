@@ -290,6 +290,7 @@ struct ceph_mds_client {
 	 * references (implying they contain no inodes with caps) that
 	 * should be destroyed.
 	 */
+	u64			last_snap_seq;
 	struct rw_semaphore     snap_rwsem;
 	struct rb_root          snap_realms;
 	struct list_head        snap_empty;

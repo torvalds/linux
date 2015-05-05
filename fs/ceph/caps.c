@@ -1259,14 +1259,14 @@ static int __send_cap(struct ceph_mds_client *mdsc, struct ceph_cap *cap,
  * asynchronously back to the MDS once sync writes complete and dirty
  * data is written out.
  *
- * Unless @again is true, skip cap_snaps that were already sent to
+ * Unless @kick is true, skip cap_snaps that were already sent to
  * the MDS (i.e., during this session).
  *
  * Called under i_ceph_lock.  Takes s_mutex as needed.
  */
 void __ceph_flush_snaps(struct ceph_inode_info *ci,
 			struct ceph_mds_session **psession,
-			int again)
+			int kick)
 		__releases(ci->i_ceph_lock)
 		__acquires(ci->i_ceph_lock)
 {
@@ -1307,7 +1307,7 @@ retry:
 		}
 
 		/* only flush each capsnap once */
-		if (!again && !list_empty(&capsnap->flushing_item)) {
+		if (!kick && !list_empty(&capsnap->flushing_item)) {
 			dout("already flushed %p, skipping\n", capsnap);
 			continue;
 		}
@@ -1317,6 +1317,9 @@ retry:
 
 		if (session && session->s_mds != mds) {
 			dout("oops, wrong session %p mutex\n", session);
+			if (kick)
+				goto out;
+
 			mutex_unlock(&session->s_mutex);
 			ceph_put_mds_session(session);
 			session = NULL;
@@ -1342,10 +1345,9 @@ retry:
 
 		capsnap->flush_tid = ++ci->i_cap_flush_last_tid;
 		atomic_inc(&capsnap->nref);
-		if (!list_empty(&capsnap->flushing_item))
-			list_del_init(&capsnap->flushing_item);
-		list_add_tail(&capsnap->flushing_item,
-			      &session->s_cap_snaps_flushing);
+		if (list_empty(&capsnap->flushing_item))
+			list_add_tail(&capsnap->flushing_item,
+				      &session->s_cap_snaps_flushing);
 		spin_unlock(&ci->i_ceph_lock);
 
 		dout("flush_snaps %p cap_snap %p follows %lld tid %llu\n",
@@ -2876,6 +2878,7 @@ static void handle_cap_flushsnap_ack(struct inode *inode, u64 flush_tid,
 				     struct ceph_mds_session *session)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ceph_mds_client *mdsc = ceph_sb_to_client(inode->i_sb)->mdsc;
 	u64 follows = le64_to_cpu(m->snap_follows);
 	struct ceph_cap_snap *capsnap;
 	int drop = 0;
@@ -2899,6 +2902,7 @@ static void handle_cap_flushsnap_ack(struct inode *inode, u64 flush_tid,
 			list_del(&capsnap->ci_item);
 			list_del(&capsnap->flushing_item);
 			ceph_put_cap_snap(capsnap);
+			wake_up_all(&mdsc->cap_flushing_wq);
 			drop = 1;
 			break;
 		} else {
