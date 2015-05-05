@@ -17,12 +17,9 @@
 
 /*
  *  This provides Supervisor channel communication primitives, which are
- *  independent of the mechanism used to access the channel data.  All channel
- *  data is accessed using the memregion abstraction.  (memregion has both
- *  a CM2 implementation and a direct memory implementation.)
+ *  independent of the mechanism used to access the channel data.
  */
 
-#include "memregion.h"
 #include "version.h"
 #include "visorbus.h"
 #include <linux/uuid.h>
@@ -30,7 +27,9 @@
 #define MYDRVNAME "visorchannel"
 
 struct visorchannel {
-	struct memregion memregion;	/* from visor_memregion_create() */
+	HOSTADDRESS physaddr;
+	ulong nbytes;
+	void __iomem *mapped;
 	struct channel_header chan_hdr;
 	uuid_le guid;
 	ulong size;
@@ -69,14 +68,14 @@ visorchannel_create_guts(HOSTADDRESS physaddr, ulong channel_bytes,
 	if (!request_mem_region(physaddr, size, MYDRVNAME))
 		goto cleanup;
 
-	channel->memregion.mapped = ioremap_cache(physaddr, size);
-	if (!channel->memregion.mapped) {
+	channel->mapped = ioremap_cache(physaddr, size);
+	if (!channel->mapped) {
 		release_mem_region(physaddr, size);
 		goto cleanup;
 	}
 
-	channel->memregion.physaddr = physaddr;
-	channel->memregion.nbytes = size;
+	channel->physaddr = physaddr;
+	channel->nbytes = size;
 
 	err = visorchannel_read(channel, 0, &channel->chan_hdr,
 				sizeof(struct channel_header));
@@ -89,22 +88,19 @@ visorchannel_create_guts(HOSTADDRESS physaddr, ulong channel_bytes,
 	if (uuid_le_cmp(guid, NULL_UUID_LE) == 0)
 		guid = channel->chan_hdr.chtype;
 
-	iounmap(channel->memregion.mapped);
-	release_mem_region(channel->memregion.physaddr,
-			   channel->memregion.nbytes);
-	channel->memregion.mapped = NULL;
-	if (!request_mem_region(channel->memregion.physaddr, channel_bytes,
-				MYDRVNAME))
+	iounmap(channel->mapped);
+	release_mem_region(channel->physaddr, channel->nbytes);
+	channel->mapped = NULL;
+	if (!request_mem_region(channel->physaddr, channel_bytes, MYDRVNAME))
 		goto cleanup;
 
-	channel->memregion.mapped = ioremap_cache(channel->memregion.physaddr,
-						  channel_bytes);
-	if (!channel->memregion.mapped) {
-		release_mem_region(channel->memregion.physaddr, channel_bytes);
+	channel->mapped = ioremap_cache(channel->physaddr, channel_bytes);
+	if (!channel->mapped) {
+		release_mem_region(channel->physaddr, channel_bytes);
 		goto cleanup;
 	}
 
-	channel->memregion.nbytes = channel_bytes;
+	channel->nbytes = channel_bytes;
 
 	channel->size = channel_bytes;
 	channel->guid = guid;
@@ -137,10 +133,9 @@ visorchannel_destroy(struct visorchannel *channel)
 {
 	if (!channel)
 		return;
-	if (channel->memregion.mapped) {
-		iounmap(channel->memregion.mapped);
-		release_mem_region(channel->memregion.physaddr,
-				   channel->memregion.nbytes);
+	if (channel->mapped) {
+		iounmap(channel->mapped);
+		release_mem_region(channel->physaddr, channel->nbytes);
 	}
 	kfree(channel);
 }
@@ -149,7 +144,7 @@ EXPORT_SYMBOL_GPL(visorchannel_destroy);
 HOSTADDRESS
 visorchannel_get_physaddr(struct visorchannel *channel)
 {
-	return channel->memregion.physaddr;
+	return channel->physaddr;
 }
 EXPORT_SYMBOL_GPL(visorchannel_get_physaddr);
 
@@ -200,10 +195,10 @@ int
 visorchannel_read(struct visorchannel *channel, ulong offset,
 		  void *local, ulong nbytes)
 {
-	if (offset + nbytes > channel->memregion.nbytes)
+	if (offset + nbytes > channel->nbytes)
 		return -EIO;
 
-	memcpy_fromio(local, channel->memregion.mapped + offset, nbytes);
+	memcpy_fromio(local, channel->mapped + offset, nbytes);
 
 	return 0;
 }
@@ -216,7 +211,7 @@ visorchannel_write(struct visorchannel *channel, ulong offset,
 	size_t chdr_size = sizeof(struct channel_header);
 	size_t copy_size;
 
-	if (offset + nbytes > channel->memregion.nbytes)
+	if (offset + nbytes > channel->nbytes)
 		return -EIO;
 
 	if (offset < chdr_size) {
@@ -224,7 +219,7 @@ visorchannel_write(struct visorchannel *channel, ulong offset,
 		memcpy(&channel->chan_hdr + offset, local, copy_size);
 	}
 
-	memcpy_toio(channel->memregion.mapped + offset, local, nbytes);
+	memcpy_toio(channel->mapped + offset, local, nbytes);
 
 	return 0;
 }

@@ -36,7 +36,6 @@
 
 #include "periodic_work.h"
 #include "channel.h"
-#include "memregion.h"
 
 #ifndef HOSTADDRESS
 #define HOSTADDRESS u64
