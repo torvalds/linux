@@ -485,15 +485,17 @@ ieee80211_key_alloc(u32 cipher, int idx, size_t key_len,
 		break;
 	default:
 		if (cs) {
-			size_t len = (seq_len > IEEE80211_MAX_PN_LEN) ?
-						IEEE80211_MAX_PN_LEN : seq_len;
+			if (seq_len && seq_len != cs->pn_len) {
+				kfree(key);
+				return ERR_PTR(-EINVAL);
+			}
 
 			key->conf.iv_len = cs->hdr_len;
 			key->conf.icv_len = cs->mic_len;
 			for (i = 0; i < IEEE80211_NUM_TIDS + 1; i++)
-				for (j = 0; j < len; j++)
+				for (j = 0; j < seq_len; j++)
 					key->u.gen.rx_pn[i][j] =
-							seq[len - j - 1];
+							seq[seq_len - j - 1];
 			key->flags |= KEY_FLAG_CIPHER_SCHEME;
 		}
 	}

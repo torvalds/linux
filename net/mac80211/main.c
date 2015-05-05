@@ -768,8 +768,11 @@ static int ieee80211_init_cipher_suites(struct ieee80211_local *local)
 			suites[w++] = WLAN_CIPHER_SUITE_BIP_GMAC_256;
 		}
 
-		for (r = 0; r < local->hw.n_cipher_schemes; r++)
+		for (r = 0; r < local->hw.n_cipher_schemes; r++) {
 			suites[w++] = cs[r].cipher;
+			if (WARN_ON(cs[r].pn_len > IEEE80211_MAX_PN_LEN))
+				return -EINVAL;
+		}
 	}
 
 	local->hw.wiphy->cipher_suites = suites;
