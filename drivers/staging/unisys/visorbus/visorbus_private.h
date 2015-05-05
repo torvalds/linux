@@ -26,32 +26,7 @@
 #include "vbusdeviceinfo.h"
 #include "vbushelper.h"
 
-#define VISORCHIPSET_MMAP_CONTROLCHANOFFSET	0x00000000
-
-/** Describes the state from the perspective of which controlvm messages have
- *  been received for a bus or device.
- */
-
-enum PARSER_WHICH_STRING {
-	PARSERSTRING_INITIATOR,
-	PARSERSTRING_TARGET,
-	PARSERSTRING_CONNECTION,
-	PARSERSTRING_NAME,
-};
-
 struct visorchannel;
-struct parser_context *parser_init(u64 addr, u32 bytes, bool isLocal,
-				   bool *tryAgain);
-struct parser_context *parser_init_byte_stream(u64 addr, u32 bytes, bool local,
-				       bool *retry);
-void parser_param_start(struct parser_context *ctx,
-			PARSER_WHICH_STRING which_string);
-void *parser_param_get(struct parser_context *ctx, char *nam, int namesize);
-void *parser_string_get(struct parser_context *ctx);
-uuid_le parser_id_get(struct parser_context *ctx);
-char *parser_simpleString_get(struct parser_context *ctx);
-void *parser_byte_stream_get(struct parser_context *ctx, unsigned long *nbytes);
-void parser_done(struct parser_context *ctx);
 
 struct visorchipset_state {
 	u32 created:1;
@@ -73,11 +48,6 @@ enum visorchipset_addresstype {
 	 *  physical memory controlled by the running OS.
 	 */
 	ADDRTYPE_LOCALTEST,
-};
-
-enum crash_obj_type {
-	CRASH_DEV,
-	CRASH_BUS,
 };
 
 /** Attributes for a particular Supervisor channel.
@@ -169,18 +139,6 @@ struct visorchipset_busdev_responders {
 
 /** Register functions (in the bus driver) to get called by visorchipset
  *  whenever a bus or device appears for which this service partition is
- *  to be the server for.  visorchipset will fill in <responders>, to
- *  indicate functions the bus driver should call to indicate message
- *  responses.
- */
-void
-visorchipset_register_busdev_client(
-			struct visorchipset_busdev_notifiers *notifiers,
-			struct visorchipset_busdev_responders *responders,
-			struct ultra_vbus_deviceinfo *driver_info);
-
-/** Register functions (in the bus driver) to get called by visorchipset
- *  whenever a bus or device appears for which this service partition is
  *  to be the client for.  visorchipset will fill in <responders>, to
  *  indicate functions the bus driver should call to indicate message
  *  responses.
@@ -191,26 +149,11 @@ visorchipset_register_busdev_server(
 			struct visorchipset_busdev_responders *responders,
 			struct ultra_vbus_deviceinfo *driver_info);
 
-void visorchipset_device_pause_response(u32 bus_no, u32 dev_no, int response);
-
 bool visorchipset_get_bus_info(u32 bus_no,
 			       struct visorchipset_bus_info *bus_info);
 bool visorchipset_get_device_info(u32 bus_no, u32 dev_no,
 				  struct visorchipset_device_info *dev_info);
 bool visorchipset_set_bus_context(u32 bus_no, void *context);
-bool visorchipset_set_device_context(u32 bus_no, u32 dev_no, void *context);
-int visorchipset_chipset_ready(void);
-int visorchipset_chipset_selftest(void);
-int visorchipset_chipset_notready(void);
-void visorchipset_save_message(struct controlvm_message *msg,
-			       enum crash_obj_type type);
-void *visorchipset_cache_alloc(struct kmem_cache *pool,
-			       bool ok_to_block, char *fn, int ln);
-void visorchipset_cache_free(struct kmem_cache *pool, void *p,
-			     char *fn, int ln);
-int visorchipset_file_init(dev_t majorDev,
-			   struct visorchannel **pControlVm_channel);
-void visorchipset_file_cleanup(dev_t major_dev);
 
 /* visorbus init and exit functions */
 int __init visorbus_init(void);

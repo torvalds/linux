@@ -49,6 +49,9 @@
 #define POLLJIFFIES_CONTROLVMCHANNEL_SLOW 100
 
 #define MAX_CONTROLVM_PAYLOAD_BYTES (1024*128)
+
+#define VISORCHIPSET_MMAP_CONTROLCHANOFFSET	0x00000000
+
 /*
  * Module parameters
  */
@@ -261,6 +264,9 @@ static void device_create_response(u32 bus_no, u32 dev_no, int response);
 static void device_destroy_response(u32 bus_no, u32 dev_no, int response);
 static void device_resume_response(u32 bus_no, u32 dev_no, int response);
 
+static void visorchipset_device_pause_response(u32 bus_no, u32 dev_no,
+					       int response);
+
 static struct visorchipset_busdev_responders busdev_responders = {
 	.bus_create = bus_create_response,
 	.bus_destroy = bus_destroy_response,
@@ -381,6 +387,8 @@ static void controlvm_respond_physdev_changestate(
 		struct controlvm_message_header *msg_hdr, int response,
 		struct spar_segment_state state);
 
+
+static void parser_done(struct parser_context *ctx);
 
 static struct parser_context *
 parser_init_guts(u64 addr, u32 bytes, bool local,
@@ -527,8 +535,20 @@ parser_id_get(struct parser_context *ctx)
 	return phdr->id;
 }
 
+/** Describes the state from the perspective of which controlvm messages have
+ *  been received for a bus or device.
+ */
+
+enum PARSER_WHICH_STRING {
+	PARSERSTRING_INITIATOR,
+	PARSERSTRING_TARGET,
+	PARSERSTRING_CONNECTION,
+	PARSERSTRING_NAME, /* TODO: only PARSERSTRING_NAME is used ? */
+};
+
 void
-parser_param_start(struct parser_context *ctx, PARSER_WHICH_STRING which_string)
+parser_param_start(struct parser_context *ctx,
+		   enum PARSER_WHICH_STRING which_string)
 {
 	struct spar_controlvm_parameters_header *phdr = NULL;
 
@@ -1032,6 +1052,12 @@ visorchipset_register_busdev_server(
 }
 EXPORT_SYMBOL_GPL(visorchipset_register_busdev_server);
 
+/** Register functions (in the bus driver) to get called by visorchipset
+ *  whenever a bus or device appears for which this service partition is
+ *  to be the server for.  visorchipset will fill in <responders>, to
+ *  indicate functions the bus driver should call to indicate message
+ *  responses.
+ */
 void
 visorchipset_register_busdev_client(
 			struct visorchipset_busdev_notifiers *notifiers,
@@ -1175,6 +1201,11 @@ static void controlvm_respond_physdev_changestate(
 	}
 }
 
+enum crash_obj_type {
+	CRASH_DEV,
+	CRASH_BUS,
+};
+
 void
 visorchipset_save_message(struct controlvm_message *msg,
 			  enum crash_obj_type type)
@@ -1218,7 +1249,7 @@ visorchipset_save_message(struct controlvm_message *msg,
 					 POSTCODE_SEVERITY_ERR);
 			return;
 		}
-	} else {
+	} else { /* CRASH_DEV */
 		if (visorchannel_write(controlvm_channel,
 				       crash_msg_offset +
 				       sizeof(struct controlvm_message), msg,
