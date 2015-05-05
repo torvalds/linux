@@ -23,7 +23,12 @@ static double __initdata y = 3145727.0;
  */
 static void __init check_fpu(void)
 {
+	u32 cr0_saved;
 	s32 fdiv_bug;
+
+	/* We might have CR0::TS set already, clear it: */
+	cr0_saved = read_cr0();
+	write_cr0(cr0_saved & ~X86_CR0_TS);
 
 	kernel_fpu_begin();
 
@@ -46,6 +51,8 @@ static void __init check_fpu(void)
 		: "m" (*&x), "m" (*&y));
 
 	kernel_fpu_end();
+
+	write_cr0(cr0_saved);
 
 	if (fdiv_bug) {
 		set_cpu_bug(&boot_cpu_data, X86_BUG_FDIV);
