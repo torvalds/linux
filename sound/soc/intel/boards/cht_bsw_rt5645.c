@@ -41,8 +41,7 @@ struct cht_acpi_card {
 };
 
 struct cht_mc_private {
-	struct snd_soc_jack hp_jack;
-	struct snd_soc_jack mic_jack;
+	struct snd_soc_jack jack;
 	struct cht_acpi_card *acpi_card;
 };
 
@@ -179,6 +178,7 @@ static int cht_aif1_hw_params(struct snd_pcm_substream *substream,
 static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
 {
 	int ret;
+	int jack_type;
 	struct snd_soc_codec *codec = runtime->codec;
 	struct snd_soc_dai *codec_dai = runtime->codec_dai;
 	struct cht_mc_private *ctx = snd_soc_card_get_drvdata(runtime->card);
@@ -198,23 +198,22 @@ static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
 		return ret;
 	}
 
-	ret = snd_soc_card_jack_new(runtime->card, "Headphone Jack",
-				    SND_JACK_HEADPHONE, &ctx->hp_jack,
+	if (ctx->acpi_card->codec_type == CODEC_TYPE_RT5650)
+		jack_type = SND_JACK_HEADPHONE | SND_JACK_MICROPHONE |
+					SND_JACK_BTN_0 | SND_JACK_BTN_1 |
+					SND_JACK_BTN_2 | SND_JACK_BTN_3;
+	else
+		jack_type = SND_JACK_HEADPHONE | SND_JACK_MICROPHONE;
+
+	ret = snd_soc_card_jack_new(runtime->card, "Headset Jack",
+				    jack_type, &ctx->jack,
 				    NULL, 0);
 	if (ret) {
-		dev_err(runtime->dev, "HP jack creation failed %d\n", ret);
+		dev_err(runtime->dev, "Headset jack creation failed %d\n", ret);
 		return ret;
 	}
 
-	ret = snd_soc_card_jack_new(runtime->card, "Mic Jack",
-				    SND_JACK_MICROPHONE, &ctx->mic_jack,
-				    NULL, 0);
-	if (ret) {
-		dev_err(runtime->dev, "Mic jack creation failed %d\n", ret);
-		return ret;
-	}
-
-	rt5645_set_jack_detect(codec, &ctx->hp_jack, &ctx->mic_jack, NULL);
+	rt5645_set_jack_detect(codec, &ctx->jack, &ctx->jack, &ctx->jack);
 
 	return ret;
 }
