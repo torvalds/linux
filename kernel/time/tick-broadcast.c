@@ -255,18 +255,18 @@ int tick_receive_broadcast(void)
 /*
  * Broadcast the event to the cpus, which are set in the mask (mangled).
  */
-static void tick_do_broadcast(struct cpumask *mask)
+static bool tick_do_broadcast(struct cpumask *mask)
 {
 	int cpu = smp_processor_id();
 	struct tick_device *td;
+	bool local = false;
 
 	/*
 	 * Check, if the current cpu is in the mask
 	 */
 	if (cpumask_test_cpu(cpu, mask)) {
 		cpumask_clear_cpu(cpu, mask);
-		td = &per_cpu(tick_cpu_device, cpu);
-		td->evtdev->event_handler(td->evtdev);
+		local = true;
 	}
 
 	if (!cpumask_empty(mask)) {
@@ -279,16 +279,17 @@ static void tick_do_broadcast(struct cpumask *mask)
 		td = &per_cpu(tick_cpu_device, cpumask_first(mask));
 		td->evtdev->broadcast(mask);
 	}
+	return local;
 }
 
 /*
  * Periodic broadcast:
  * - invoke the broadcast handlers
  */
-static void tick_do_periodic_broadcast(void)
+static bool tick_do_periodic_broadcast(void)
 {
 	cpumask_and(tmpmask, cpu_online_mask, tick_broadcast_mask);
-	tick_do_broadcast(tmpmask);
+	return tick_do_broadcast(tmpmask);
 }
 
 /*
@@ -296,34 +297,26 @@ static void tick_do_periodic_broadcast(void)
  */
 static void tick_handle_periodic_broadcast(struct clock_event_device *dev)
 {
-	ktime_t next;
+	struct tick_device *td = this_cpu_ptr(&tick_cpu_device);
+	bool bc_local;
 
 	raw_spin_lock(&tick_broadcast_lock);
+	bc_local = tick_do_periodic_broadcast();
 
-	tick_do_periodic_broadcast();
+	if (dev->state == CLOCK_EVT_STATE_ONESHOT) {
+		ktime_t next = ktime_add(dev->next_event, tick_period);
 
-	/*
-	 * The device is in periodic mode. No reprogramming necessary:
-	 */
-	if (dev->state == CLOCK_EVT_STATE_PERIODIC)
-		goto unlock;
-
-	/*
-	 * Setup the next period for devices, which do not have
-	 * periodic mode. We read dev->next_event first and add to it
-	 * when the event already expired. clockevents_program_event()
-	 * sets dev->next_event only when the event is really
-	 * programmed to the device.
-	 */
-	for (next = dev->next_event; ;) {
-		next = ktime_add(next, tick_period);
-
-		if (!clockevents_program_event(dev, next, false))
-			goto unlock;
-		tick_do_periodic_broadcast();
+		clockevents_program_event(dev, next, true);
 	}
-unlock:
 	raw_spin_unlock(&tick_broadcast_lock);
+
+	/*
+	 * We run the handler of the local cpu after dropping
+	 * tick_broadcast_lock because the handler might deadlock when
+	 * trying to switch to oneshot mode.
+	 */
+	if (bc_local)
+		td->evtdev->event_handler(td->evtdev);
 }
 
 /**
@@ -622,9 +615,13 @@ again:
 		cpumask_and(tmpmask, tmpmask, cpu_online_mask);
 
 	/*
-	 * Wakeup the cpus which have an expired event.
+	 * Wakeup the cpus which have an expired event and handle the
+	 * broadcast event of the local cpu.
 	 */
-	tick_do_broadcast(tmpmask);
+	if (tick_do_broadcast(tmpmask)) {
+		td = this_cpu_ptr(&tick_cpu_device);
+		td->evtdev->event_handler(td->evtdev);
+	}
 
 	/*
 	 * Two reasons for reprogram:
