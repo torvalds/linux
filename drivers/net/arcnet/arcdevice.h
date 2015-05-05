@@ -318,11 +318,6 @@ struct arcnet_local {
 	void __iomem *mem_start;	/* pointer to ioremap'ed MMIO */
 };
 
-#define ARCRESET(x)  (lp->hw.reset(dev, (x)))
-#define ACOMMAND(x)  (lp->hw.command(dev, (x)))
-#define ASTATUS()    (lp->hw.status(dev))
-#define AINTMASK(x)  (lp->hw.intmask(dev, (x)))
-
 #if ARCNET_DEBUG_MAX & D_SKB
 void arcnet_dump_skb(struct net_device *dev, struct sk_buff *skb, char *desc);
 #else
