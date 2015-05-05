@@ -416,11 +416,9 @@ int arcnet_open(struct net_device *dev)
 		lp->hw.open(dev);
 
 	if (dev->dev_addr[0] == 0)
-		BUGMSG(D_NORMAL, "WARNING!  Station address 00 is reserved "
-		       "for broadcasts!\n");
+		BUGMSG(D_NORMAL, "WARNING!  Station address 00 is reserved for broadcasts!\n");
 	else if (dev->dev_addr[0] == 255)
-		BUGMSG(D_NORMAL, "WARNING!  Station address FF may confuse "
-		       "DOS networking programs!\n");
+		BUGMSG(D_NORMAL, "WARNING!  Station address FF may confuse DOS networking programs!\n");
 
 	BUGMSG(D_DEBUG, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
 	if (ASTATUS() & RESETflag) {
@@ -580,8 +578,8 @@ netdev_tx_t arcnet_send_packet(struct sk_buff *skb,
 			if (proto->continue_tx &&
 			    proto->continue_tx(dev, txbuf)) {
 				BUGMSG(D_NORMAL,
-				       "bug! continue_tx finished the first time! "
-				       "(proto='%c')\n", proto->suffix);
+				       "bug! continue_tx finished the first time! (proto='%c')\n",
+				       proto->suffix);
 			}
 		}
 		retval = NETDEV_TX_OK;
@@ -779,15 +777,13 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 				if (!(status & TXACKflag)) {
 					if (lp->lasttrans_dest != 0) {
 						BUGMSG(D_EXTRA,
-						       "transmit was not acknowledged! "
-						       "(status=%Xh, dest=%02Xh)\n",
+						       "transmit was not acknowledged! (status=%Xh, dest=%02Xh)\n",
 						       status, lp->lasttrans_dest);
 						dev->stats.tx_errors++;
 						dev->stats.tx_carrier_errors++;
 					} else {
 						BUGMSG(D_DURING,
-						       "broadcast was not acknowledged; that's normal "
-						       "(status=%Xh, dest=%02Xh)\n",
+						       "broadcast was not acknowledged; that's normal (status=%Xh, dest=%02Xh)\n",
 						       status, lp->lasttrans_dest);
 					}
 				}
@@ -948,8 +944,7 @@ static void arcnet_rx(struct net_device *dev, int bufnum)
 		lp->hw.copy_from_card(dev, bufnum, ofs, soft, length);
 	}
 
-	BUGMSG(D_DURING, "Buffer #%d: received packet from %02Xh to %02Xh "
-	       "(%d+4 bytes)\n",
+	BUGMSG(D_DURING, "Buffer #%d: received packet from %02Xh to %02Xh (%d+4 bytes)\n",
 	       bufnum, pkt.hard.source, pkt.hard.dest, length);
 
 	dev->stats.rx_packets++;
@@ -964,8 +959,8 @@ static void arcnet_rx(struct net_device *dev, int bufnum)
 
 			if (oldp != newp) {
 				BUGMSG(D_PROTO,
-				       "got protocol %02Xh; encap for host %02Xh is now '%c'"
-				       " (was '%c')\n", soft->proto, pkt.hard.source,
+				       "got protocol %02Xh; encap for host %02Xh is now '%c' (was '%c')\n",
+				       soft->proto, pkt.hard.source,
 				       newp->suffix, oldp->suffix);
 			}
 		}

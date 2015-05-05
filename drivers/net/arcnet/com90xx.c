@@ -525,8 +525,7 @@ static int __init com90xx_found(int ioaddr, int airq, u_long shmem, void __iomem
 
 	dev->base_addr = ioaddr;
 
-	BUGMSG(D_NORMAL, "COM90xx station %02Xh found at %03lXh, IRQ %d, "
-	       "ShMem %lXh (%ld*%xh).\n",
+	BUGMSG(D_NORMAL, "COM90xx station %02Xh found at %03lXh, IRQ %d, ShMem %lXh (%ld*%xh).\n",
 	       dev->dev_addr[0],
 	       dev->base_addr, dev->irq, dev->mem_start,
 	 (dev->mem_end - dev->mem_start + 1) / mirror_size, mirror_size);

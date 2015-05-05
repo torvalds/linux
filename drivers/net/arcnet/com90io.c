@@ -150,8 +150,7 @@ static int __init com90io_probe(struct net_device *dev)
 	BUGLVL(D_NORMAL) printk("E-mail me if you actually test this driver, please!\n");
 
 	if (!ioaddr) {
-		BUGMSG(D_NORMAL, "No autoprobe for IO mapped cards; you "
-		       "must specify the base address!\n");
+		BUGMSG(D_NORMAL, "No autoprobe for IO mapped cards; you must specify the base address!\n");
 		return -ENODEV;
 	}
 	if (!request_region(ioaddr, ARCNET_TOTAL_SIZE, "com90io probe")) {
@@ -192,8 +191,8 @@ static int __init com90io_probe(struct net_device *dev)
 	outb(0, _ADDR_LO);
 
 	if ((status = inb(_MEMDATA)) != 0xd1) {
-		BUGMSG(D_INIT_REASONS, "Signature byte not found"
-		       " (%Xh instead).\n", status);
+		BUGMSG(D_INIT_REASONS, "Signature byte not found (%Xh instead).\n",
+		       status);
 		goto err_out;
 	}
 	if (!dev->irq) {

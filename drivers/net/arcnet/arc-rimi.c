@@ -90,13 +90,11 @@ static int __init arcrimi_probe(struct net_device *dev)
 				dev->dev_addr[0], dev->mem_start, dev->irq);
 
 	if (dev->mem_start <= 0 || dev->irq <= 0) {
-		BUGLVL(D_NORMAL) printk("No autoprobe for RIM I; you "
-		       "must specify the shmem and irq!\n");
+		BUGLVL(D_NORMAL) printk("No autoprobe for RIM I; you must specify the shmem and irq!\n");
 		return -ENODEV;
 	}
 	if (dev->dev_addr[0] == 0) {
-		BUGLVL(D_NORMAL) printk("You need to specify your card's station "
-		       "ID!\n");
+		BUGLVL(D_NORMAL) printk("You need to specify your card's station ID!\n");
 		return -ENODEV;
 	}
 	/*
@@ -225,8 +223,7 @@ static int __init arcrimi_found(struct net_device *dev)
 	/* get and check the station ID from offset 1 in shmem */
 	dev->dev_addr[0] = readb(lp->mem_start + 1);
 
-	BUGMSG(D_NORMAL, "ARCnet RIM I: station %02Xh found at IRQ %d, "
-	       "ShMem %lXh (%ld*%d bytes).\n",
+	BUGMSG(D_NORMAL, "ARCnet RIM I: station %02Xh found at IRQ %d, ShMem %lXh (%ld*%d bytes)\n",
 	       dev->dev_addr[0],
 	       dev->irq, dev->mem_start,
 	 (dev->mem_end - dev->mem_start + 1) / mirror_size, mirror_size);

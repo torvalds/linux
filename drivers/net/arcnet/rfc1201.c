@@ -261,8 +261,7 @@ static void rx(struct net_device *dev, int bufnum,
 			BUGMSG(D_RX, "brand new splitpacket (splitflag=%d)\n",
 			       soft->split_flag);
 			if (in->skb) {	/* already assembling one! */
-				BUGMSG(D_EXTRA, "aborting previous (seq=%d) assembly "
-				       "(splitflag=%d, seq=%d)\n",
+				BUGMSG(D_EXTRA, "aborting previous (seq=%d) assembly (splitflag=%d, seq=%d)\n",
 				       in->sequence, soft->split_flag,
 				       soft->sequence);
 				dev->stats.rx_errors++;
@@ -306,8 +305,7 @@ static void rx(struct net_device *dev, int bufnum,
 			 */
 			if (!in->skb) {
 				if (lp->rfc1201.aborted_seq != soft->sequence) {
-					BUGMSG(D_EXTRA, "can't continue split without starting "
-					       "first! (splitflag=%d, seq=%d, aborted=%d)\n",
+					BUGMSG(D_EXTRA, "can't continue split without starting first! (splitflag=%d, seq=%d, aborted=%d)\n",
 					soft->split_flag, soft->sequence,
 					       lp->rfc1201.aborted_seq);
 					dev->stats.rx_errors++;
@@ -326,8 +324,7 @@ static void rx(struct net_device *dev, int bufnum,
 					return;
 				}
 				/* "bad" duplicate, kill reassembly */
-				BUGMSG(D_EXTRA, "out-of-order splitpacket, reassembly "
-				       "(seq=%d) aborted (splitflag=%d, seq=%d)\n",
+				BUGMSG(D_EXTRA, "out-of-order splitpacket, reassembly (seq=%d) aborted (splitflag=%d, seq=%d)\n",
 				       in->sequence, soft->split_flag, soft->sequence);
 				lp->rfc1201.aborted_seq = soft->sequence;
 				dev_kfree_skb_irq(in->skb);
@@ -487,8 +484,8 @@ static int prepare_tx(struct net_device *dev, struct archdr *pkt, int length,
 		out->numsegs = (out->dataleft + maxsegsize - 1) / maxsegsize;
 		out->segnum = 0;
 
-		BUGMSG(D_DURING, "rfc1201 prep_tx: ready for %d-segment split "
-		       "(%d bytes, seq=%d)\n", out->numsegs, out->length,
+		BUGMSG(D_DURING, "rfc1201 prep_tx: ready for %d-segment split (%d bytes, seq=%d)\n",
+		       out->numsegs, out->length,
 		       pkt->soft.rfc1201.sequence);
 
 		return 0;	/* not done */

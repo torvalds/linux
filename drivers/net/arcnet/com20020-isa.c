@@ -58,8 +58,7 @@ static int __init com20020isa_probe(struct net_device *dev)
 
 	ioaddr = dev->base_addr;
 	if (!ioaddr) {
-		BUGMSG(D_NORMAL, "No autoprobe (yet) for IO mapped cards; you "
-		       "must specify the base address!\n");
+		BUGMSG(D_NORMAL, "No autoprobe (yet) for IO mapped cards; you must specify the base address!\n");
 		return -ENODEV;
 	}
 	if (!request_region(ioaddr, ARCNET_TOTAL_SIZE, "arcnet (COM20020)")) {
