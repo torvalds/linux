@@ -1020,24 +1020,23 @@ scrub:
 static void tegra_uart_dma_channel_free(struct tegra_uart_port *tup,
 		bool dma_to_memory)
 {
-	struct dma_chan *dma_chan;
-
 	if (dma_to_memory) {
+		dmaengine_terminate_all(tup->rx_dma_chan);
+		dma_release_channel(tup->rx_dma_chan);
 		dma_free_coherent(tup->uport.dev, TEGRA_UART_RX_DMA_BUFFER_SIZE,
 				tup->rx_dma_buf_virt, tup->rx_dma_buf_phys);
-		dma_chan = tup->rx_dma_chan;
 		tup->rx_dma_chan = NULL;
 		tup->rx_dma_buf_phys = 0;
 		tup->rx_dma_buf_virt = NULL;
 	} else {
+		dmaengine_terminate_all(tup->tx_dma_chan);
+		dma_release_channel(tup->tx_dma_chan);
 		dma_unmap_single(tup->uport.dev, tup->tx_dma_buf_phys,
 			UART_XMIT_SIZE, DMA_TO_DEVICE);
-		dma_chan = tup->tx_dma_chan;
 		tup->tx_dma_chan = NULL;
 		tup->tx_dma_buf_phys = 0;
 		tup->tx_dma_buf_virt = NULL;
 	}
-	dma_release_channel(dma_chan);
 }
 
 static int tegra_uart_startup(struct uart_port *u)
@@ -1104,8 +1103,6 @@ static void tegra_uart_shutdown(struct uart_port *u)
 	tegra_uart_dma_channel_free(tup, true);
 	tegra_uart_dma_channel_free(tup, false);
 	free_irq(u->irq, tup);
-
-	tegra_uart_flush_buffer(u);
 }
 
 static void tegra_uart_enable_ms(struct uart_port *u)
