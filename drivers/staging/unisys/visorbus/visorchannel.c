@@ -78,8 +78,8 @@ visorchannel_create_guts(HOSTADDRESS physaddr, ulong channel_bytes,
 	channel->memregion.physaddr = physaddr;
 	channel->memregion.nbytes = size;
 
-	err = visor_memregion_read(&channel->memregion, 0, &channel->chan_hdr,
-				   sizeof(struct channel_header));
+	err = visorchannel_read(channel, 0, &channel->chan_hdr,
+				sizeof(struct channel_header));
 	if (err)
 		goto cleanup;
 
