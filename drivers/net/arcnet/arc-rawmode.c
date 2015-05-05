@@ -1,6 +1,6 @@
 /*
  * Linux ARCnet driver - "raw mode" packet encapsulation (no soft headers)
- * 
+ *
  * Written 1994-1999 by Avery Pennarun.
  * Derived from skeleton.c by Donald Becker.
  *
@@ -109,7 +109,7 @@ static void rx(struct net_device *dev, int bufnum,
 	skb_put(skb, length + ARC_HDR_SIZE);
 	skb->dev = dev;
 
-	pkt = (struct archdr *) skb->data;
+	pkt = (struct archdr *)skb->data;
 
 	skb_reset_mac_header(skb);
 	skb_pull(skb, ARC_HDR_SIZE);
@@ -136,7 +136,7 @@ static int build_header(struct sk_buff *skb, struct net_device *dev,
 			unsigned short type, uint8_t daddr)
 {
 	int hdr_size = ARC_HDR_SIZE;
-	struct archdr *pkt = (struct archdr *) skb_push(skb, hdr_size);
+	struct archdr *pkt = (struct archdr *)skb_push(skb, hdr_size);
 
 	/*
 	 * Set the source hardware address.
@@ -150,7 +150,7 @@ static int build_header(struct sk_buff *skb, struct net_device *dev,
 	/* see linux/net/ethernet/eth.c to see where I got the following */
 
 	if (dev->flags & (IFF_LOOPBACK | IFF_NOARP)) {
-		/* 
+		/*
 		 * FIXME: fill in the last byte of the dest ipaddr here to better
 		 * comply with RFC1051 in "noarp" mode.
 		 */
@@ -192,7 +192,7 @@ static int prepare_tx(struct net_device *dev, struct archdr *pkt, int length,
 		hard->offset[0] = ofs = 256 - length;
 
 	BUGMSG(D_DURING, "prepare_tx: length=%d ofs=%d\n",
-	       length,ofs);
+	       length, ofs);
 
 	lp->hw.copy_to_card(dev, bufnum, 0, hard, ARC_HDR_SIZE);
 	lp->hw.copy_to_card(dev, bufnum, ofs, &pkt->soft, length);

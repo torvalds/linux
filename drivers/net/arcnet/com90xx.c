@@ -1,6 +1,6 @@
 /*
  * Linux ARCnet driver - COM90xx chipset (memory-mapped buffers)
- * 
+ *
  * Written 1994-1999 by Avery Pennarun.
  * Written 1999 by Martin Mares <mj@ucw.cz>.
  * Derived from skeleton.c by Donald Becker.
@@ -77,25 +77,25 @@ static int numcards;
 
 /* Amount of I/O memory used by the card */
 #define BUFFER_SIZE (512)
-#define MIRROR_SIZE (BUFFER_SIZE*4)
+#define MIRROR_SIZE (BUFFER_SIZE * 4)
 
 /* COM 9026 controller chip --> ARCnet register addresses */
-#define _INTMASK (ioaddr+0)	/* writable */
-#define _STATUS  (ioaddr+0)	/* readable */
-#define _COMMAND (ioaddr+1)	/* writable, returns random vals on read (?) */
-#define _CONFIG  (ioaddr+2)	/* Configuration register */
-#define _RESET   (ioaddr+8)	/* software reset (on read) */
-#define _MEMDATA (ioaddr+12)	/* Data port for IO-mapped memory */
-#define _ADDR_HI (ioaddr+15)	/* Control registers for said */
-#define _ADDR_LO (ioaddr+14)
+#define _INTMASK	(ioaddr + 0)	/* writable */
+#define _STATUS		(ioaddr + 0)	/* readable */
+#define _COMMAND	(ioaddr + 1)	/* writable, returns random vals on read (?) */
+#define _CONFIG		(ioaddr + 2)	/* Configuration register */
+#define _RESET		(ioaddr + 8)	/* software reset (on read) */
+#define _MEMDATA	(ioaddr + 12)	/* Data port for IO-mapped memory */
+#define _ADDR_HI	(ioaddr + 15)	/* Control registers for said */
+#define _ADDR_LO	(ioaddr + 14)
 
 #undef ASTATUS
 #undef ACOMMAND
 #undef AINTMASK
 
 #define ASTATUS()	inb(_STATUS)
-#define ACOMMAND(cmd) 	outb((cmd),_COMMAND)
-#define AINTMASK(msk)	outb((msk),_INTMASK)
+#define ACOMMAND(cmd)	outb((cmd), _COMMAND)
+#define AINTMASK(msk)	outb((msk), _INTMASK)
 
 
 static int com90xx_skip_probe __initdata = 0;
@@ -127,12 +127,12 @@ static void __init com90xx_probe(void)
 	if (!io && !irq && !shmem && !*device && com90xx_skip_probe)
 		return;
 
-	shmems = kzalloc(((0x100000-0xa0000) / 0x800) * sizeof(unsigned long),
+	shmems = kzalloc(((0x100000 - 0xa0000) / 0x800) * sizeof(unsigned long),
 			 GFP_KERNEL);
 	if (!shmems)
 		return;
-	iomem = kzalloc(((0x100000-0xa0000) / 0x800) * sizeof(void __iomem *),
-			 GFP_KERNEL);
+	iomem = kzalloc(((0x100000 - 0xa0000) / 0x800) * sizeof(void __iomem *),
+			GFP_KERNEL);
 	if (!iomem) {
 		kfree(shmems);
 		return;
@@ -579,7 +579,7 @@ static void com90xx_setmask(struct net_device *dev, int mask)
 
 /*
  * Do a hardware reset on the card, and set up necessary registers.
- * 
+ *
  * This should be called as little as possible, because it disrupts the
  * token on the network (causes a RECON) and requires a significant delay.
  *

@@ -51,7 +51,7 @@
 
 /*
  * Debugging bitflags: each option can be enabled individually.
- * 
+ *
  * Note: only debug flags included in the ARCNET_DEBUG_MAX define will
  *   actually be available.  GCC will (at least, GCC 2.7.0 will) notice
  *   lines using a BUGLVL not in ARCNET_DEBUG_MAX and automatically optimize
@@ -77,33 +77,33 @@
 #endif
 
 #ifndef ARCNET_DEBUG
-#define ARCNET_DEBUG (D_NORMAL|D_EXTRA)
+#define ARCNET_DEBUG (D_NORMAL | D_EXTRA)
 #endif
 extern int arcnet_debug;
 
 /* macros to simplify debug checking */
-#define BUGLVL(x) if ((ARCNET_DEBUG_MAX)&arcnet_debug&(x))
-#define BUGMSG2(x,msg,args...) do { BUGLVL(x) printk(msg, ## args); } while (0)
-#define BUGMSG(x,msg,args...) \
-	BUGMSG2(x, "%s%6s: " msg, \
-            x==D_NORMAL	? KERN_WARNING \
-            		: x < D_DURING ? KERN_INFO : KERN_DEBUG, \
-	    dev->name , ## args)
+#define BUGLVL(x) if ((ARCNET_DEBUG_MAX) & arcnet_debug & (x))
+#define BUGMSG2(x, msg, args...) do { BUGLVL(x) printk(msg, ## args); } while (0)
+#define BUGMSG(x, msg, args...)						\
+	BUGMSG2(x, "%s%6s: " msg,					\
+		x == D_NORMAL	? KERN_WARNING				\
+		: x < D_DURING ? KERN_INFO : KERN_DEBUG,		\
+		dev->name, ## args)
 
 /* see how long a function call takes to run, expressed in CPU cycles */
-#define TIME(name, bytes, call) BUGLVL(D_TIMING) { \
-	    unsigned long _x, _y; \
-	    _x = get_cycles(); \
-	    call; \
-	    _y = get_cycles(); \
-	    BUGMSG(D_TIMING, \
-	       "%s: %d bytes in %lu cycles == " \
-	       "%lu Kbytes/100Mcycle\n",\
-		   name, bytes, _y - _x, \
-		   100000000 / 1024 * bytes / (_y - _x + 1));\
-	} \
-	else { \
-		    call;\
+#define TIME(name, bytes, call) BUGLVL(D_TIMING) {			\
+		unsigned long _x, _y;					\
+		_x = get_cycles();					\
+		call;							\
+		_y = get_cycles();					\
+		BUGMSG(D_TIMING,					\
+		       "%s: %d bytes in %lu cycles == "			\
+		       "%lu Kbytes/100Mcycle\n",			\
+		       name, bytes, _y - _x,				\
+		       100000000 / 1024 * bytes / (_y - _x + 1));	\
+	}								\
+	else {								\
+		call;							\
 	}
 
 
@@ -189,16 +189,16 @@ struct ArcProto {
 	int mtu;		/* largest possible packet */
 	int is_ip;              /* This is a ip plugin - not a raw thing */
 
-	void (*rx) (struct net_device * dev, int bufnum,
-		    struct archdr * pkthdr, int length);
-	int (*build_header) (struct sk_buff * skb, struct net_device *dev,
-			     unsigned short ethproto, uint8_t daddr);
+	void (*rx)(struct net_device *dev, int bufnum,
+		   struct archdr *pkthdr, int length);
+	int (*build_header)(struct sk_buff *skb, struct net_device *dev,
+			    unsigned short ethproto, uint8_t daddr);
 
 	/* these functions return '1' if the skb can now be freed */
-	int (*prepare_tx) (struct net_device * dev, struct archdr * pkt, int length,
-			   int bufnum);
-	int (*continue_tx) (struct net_device * dev, int bufnum);
-	int (*ack_tx) (struct net_device * dev, int acked);
+	int (*prepare_tx)(struct net_device *dev, struct archdr *pkt, int length,
+			  int bufnum);
+	int (*continue_tx)(struct net_device *dev, int bufnum);
+	int (*ack_tx)(struct net_device *dev, int acked);
 };
 
 extern struct ArcProto *arc_proto_map[256], *arc_proto_default,
@@ -263,13 +263,13 @@ struct arcnet_local {
 	 * situations in which we (for example) want to pre-load a transmit
 	 * buffer, or start receiving while we copy a received packet to
 	 * memory.
-	 * 
+	 *
 	 * The rules: only the interrupt handler is allowed to _add_ buffers to
 	 * the queue; thus, this doesn't require a lock.  Both the interrupt
 	 * handler and the transmit function will want to _remove_ buffers, so
 	 * we need to handle the situation where they try to do it at the same
 	 * time.
-	 * 
+	 *
 	 * If next_buf == first_free_buf, the queue is empty.  Since there are
 	 * only four possible buffers, the queue should never be full.
 	 */
@@ -298,17 +298,17 @@ struct arcnet_local {
 	/* hardware-specific functions */
 	struct {
 		struct module *owner;
-		void (*command) (struct net_device * dev, int cmd);
-		int (*status) (struct net_device * dev);
-		void (*intmask) (struct net_device * dev, int mask);
-		int (*reset) (struct net_device * dev, int really_reset);
-		void (*open) (struct net_device * dev);
-		void (*close) (struct net_device * dev);
+		void (*command)(struct net_device *dev, int cmd);
+		int (*status)(struct net_device *dev);
+		void (*intmask)(struct net_device *dev, int mask);
+		int (*reset)(struct net_device *dev, int really_reset);
+		void (*open)(struct net_device *dev);
+		void (*close)(struct net_device *dev);
 
-		void (*copy_to_card) (struct net_device * dev, int bufnum, int offset,
-				      void *buf, int count);
-		void (*copy_from_card) (struct net_device * dev, int bufnum, int offset,
-					void *buf, int count);
+		void (*copy_to_card)(struct net_device *dev, int bufnum, int offset,
+				     void *buf, int count);
+		void (*copy_from_card)(struct net_device *dev, int bufnum, int offset,
+				       void *buf, int count);
 	} hw;
 
 	void __iomem *mem_start;	/* pointer to ioremap'ed MMIO */
@@ -325,7 +325,7 @@ struct arcnet_local {
 #if ARCNET_DEBUG_MAX & D_SKB
 void arcnet_dump_skb(struct net_device *dev, struct sk_buff *skb, char *desc);
 #else
-#define arcnet_dump_skb(dev,skb,desc) ;
+#define arcnet_dump_skb(dev, skb, desc) ;
 #endif
 
 void arcnet_unregister_proto(struct ArcProto *proto);
@@ -335,7 +335,7 @@ struct net_device *alloc_arcdev(const char *name);
 int arcnet_open(struct net_device *dev);
 int arcnet_close(struct net_device *dev);
 netdev_tx_t arcnet_send_packet(struct sk_buff *skb,
-				     struct net_device *dev);
+			       struct net_device *dev);
 void arcnet_timeout(struct net_device *dev);
 
 #endif				/* __KERNEL__ */

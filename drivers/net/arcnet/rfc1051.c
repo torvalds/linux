@@ -1,6 +1,6 @@
 /*
  * Linux ARCnet driver - RFC1051 ("simple" standard) packet encapsulation
- * 
+ *
  * Written 1994-1999 by Avery Pennarun.
  * Derived from skeleton.c by Donald Becker.
  *
@@ -84,12 +84,12 @@ MODULE_LICENSE("GPL");
 
 /*
  * Determine a packet's protocol ID.
- * 
+ *
  * With ARCnet we have to convert everything to Ethernet-style stuff.
  */
 static __be16 type_trans(struct sk_buff *skb, struct net_device *dev)
 {
-	struct archdr *pkt = (struct archdr *) skb->data;
+	struct archdr *pkt = (struct archdr *)skb->data;
 	struct arc_rfc1051 *soft = &pkt->soft.rfc1051;
 	int hdr_size = ARC_HDR_SIZE + RFC1051_HDR_SIZE;
 
@@ -146,7 +146,7 @@ static void rx(struct net_device *dev, int bufnum,
 	skb_put(skb, length + ARC_HDR_SIZE);
 	skb->dev = dev;
 
-	pkt = (struct archdr *) skb->data;
+	pkt = (struct archdr *)skb->data;
 
 	/* up to sizeof(pkt->soft) has already been copied from the card */
 	memcpy(pkt, pkthdr, sizeof(struct archdr));
@@ -169,7 +169,7 @@ static int build_header(struct sk_buff *skb, struct net_device *dev,
 			unsigned short type, uint8_t daddr)
 {
 	int hdr_size = ARC_HDR_SIZE + RFC1051_HDR_SIZE;
-	struct archdr *pkt = (struct archdr *) skb_push(skb, hdr_size);
+	struct archdr *pkt = (struct archdr *)skb_push(skb, hdr_size);
 	struct arc_rfc1051 *soft = &pkt->soft.rfc1051;
 
 	/* set the protocol ID according to RFC1051 */
@@ -201,7 +201,7 @@ static int build_header(struct sk_buff *skb, struct net_device *dev,
 	/* see linux/net/ethernet/eth.c to see where I got the following */
 
 	if (dev->flags & (IFF_LOOPBACK | IFF_NOARP)) {
-		/* 
+		/*
 		 * FIXME: fill in the last byte of the dest ipaddr here to better
 		 * comply with RFC1051 in "noarp" mode.
 		 */

@@ -1,6 +1,6 @@
 /*
  * Linux ARCnet driver - "RIM I" (entirely mem-mapped) cards
- * 
+ *
  * Written 1994-1999 by Avery Pennarun.
  * Written 1999-2000 by Martin Mares <mj@ucw.cz>.
  * Derived from skeleton.c by Donald Becker.
@@ -56,27 +56,27 @@ static void arcrimi_copy_from_card(struct net_device *dev, int bufnum, int offse
 /* Handy defines for ARCnet specific stuff */
 
 /* Amount of I/O memory used by the card */
-#define BUFFER_SIZE (512)
-#define MIRROR_SIZE (BUFFER_SIZE*4)
+#define BUFFER_SIZE	(512)
+#define MIRROR_SIZE	(BUFFER_SIZE * 4)
 
 /* COM 9026 controller chip --> ARCnet register addresses */
-#define _INTMASK (ioaddr+0)	/* writable */
-#define _STATUS  (ioaddr+0)	/* readable */
-#define _COMMAND (ioaddr+1)	/* writable, returns random vals on read (?) */
-#define _RESET  (ioaddr+8)	/* software reset (on read) */
-#define _MEMDATA  (ioaddr+12)	/* Data port for IO-mapped memory */
-#define _ADDR_HI  (ioaddr+15)	/* Control registers for said */
-#define _ADDR_LO  (ioaddr+14)
-#define _CONFIG  (ioaddr+2)	/* Configuration register */
+#define _INTMASK	(ioaddr + 0)	/* writable */
+#define _STATUS		(ioaddr + 0)	/* readable */
+#define _COMMAND	(ioaddr + 1)	/* writable, returns random vals on read (?) */
+#define _RESET		(ioaddr + 8)	/* software reset (on read) */
+#define _MEMDATA	(ioaddr + 12)	/* Data port for IO-mapped memory */
+#define _ADDR_HI	(ioaddr + 15)	/* Control registers for said */
+#define _ADDR_LO	(ioaddr + 14)
+#define _CONFIG		(ioaddr + 2)	/* Configuration register */
 
 #undef ASTATUS
 #undef ACOMMAND
 #undef AINTMASK
 
 #define ASTATUS()	readb(_STATUS)
-#define ACOMMAND(cmd)	writeb((cmd),_COMMAND)
-#define AINTMASK(msk)	writeb((msk),_INTMASK)
-#define SETCONF()	writeb(lp->config,_CONFIG)
+#define ACOMMAND(cmd)	writeb((cmd), _COMMAND)
+#define AINTMASK(msk)	writeb((msk), _INTMASK)
+#define SETCONF()	writeb(lp->config, _CONFIG)
 
 
 /*
@@ -90,7 +90,7 @@ static int __init arcrimi_probe(struct net_device *dev)
 	BUGLVL(D_NORMAL) printk("E-mail me if you actually test the RIM I driver, please!\n");
 
 	BUGLVL(D_NORMAL) printk("Given: node %02Xh, shmem %lXh, irq %d\n",
-	       dev->dev_addr[0], dev->mem_start, dev->irq);
+				dev->dev_addr[0], dev->mem_start, dev->irq);
 
 	if (dev->mem_start <= 0 || dev->irq <= 0) {
 		BUGLVL(D_NORMAL) printk("No autoprobe for RIM I; you "

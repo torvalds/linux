@@ -1,6 +1,6 @@
 /*
  * Linux ARCnet driver - COM20020 chipset support
- * 
+ *
  * Written 1997 by David Woodhouse.
  * Written 1994-1999 by Avery Pennarun.
  * Written 1999-2000 by Martin Mares <mj@ucw.cz>.

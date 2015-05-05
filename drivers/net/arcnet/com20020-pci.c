@@ -1,7 +1,7 @@
 /*
  * Linux ARCnet driver - COM20020 PCI support
  * Contemporary Controls PCI20 and SOHARD SH-ARC PCI
- * 
+ *
  * Written 1994-1999 by Avery Pennarun,
  *    based on an ISA version by David Woodhouse.
  * Written 1999-2000 by Martin Mares <mj@ucw.cz>.

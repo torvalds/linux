@@ -1,6 +1,6 @@
 /*
  * Linux ARCnet driver - COM90xx chipset (IO-mapped buffers)
- * 
+ *
  * Written 1997 by David Woodhouse.
  * Written 1994-1999 by Avery Pennarun.
  * Written 1999-2000 by Martin Mares <mj@ucw.cz>.
@@ -60,23 +60,23 @@ static void com90io_copy_from_card(struct net_device *dev, int bufnum, int offse
 #define ARCNET_TOTAL_SIZE 16
 
 /* COM 9026 controller chip --> ARCnet register addresses */
-#define _INTMASK (ioaddr+0)	/* writable */
-#define _STATUS  (ioaddr+0)	/* readable */
-#define _COMMAND (ioaddr+1)	/* writable, returns random vals on read (?) */
-#define _RESET  (ioaddr+8)	/* software reset (on read) */
-#define _MEMDATA  (ioaddr+12)	/* Data port for IO-mapped memory */
-#define _ADDR_HI  (ioaddr+15)	/* Control registers for said */
-#define _ADDR_LO  (ioaddr+14)
-#define _CONFIG  (ioaddr+2)	/* Configuration register */
+#define _INTMASK	(ioaddr + 0)	/* writable */
+#define _STATUS		(ioaddr + 0)	/* readable */
+#define _COMMAND	(ioaddr + 1)	/* writable, returns random vals on read (?) */
+#define _RESET		(ioaddr + 8)	/* software reset (on read) */
+#define _MEMDATA	(ioaddr + 12)	/* Data port for IO-mapped memory */
+#define _ADDR_HI	(ioaddr + 15)	/* Control registers for said */
+#define _ADDR_LO	(ioaddr + 14)
+#define _CONFIG		(ioaddr + 2)	/* Configuration register */
 
 #undef ASTATUS
 #undef ACOMMAND
 #undef AINTMASK
 
 #define ASTATUS()	inb(_STATUS)
-#define ACOMMAND(cmd) outb((cmd),_COMMAND)
-#define AINTMASK(msk)	outb((msk),_INTMASK)
-#define SETCONF() 	outb((lp->config),_CONFIG)
+#define ACOMMAND(cmd)	outb((cmd), _COMMAND)
+#define AINTMASK(msk)	outb((msk), _INTMASK)
+#define SETCONF()	outb((lp->config), _CONFIG)
 
 
 /****************************************************************************
