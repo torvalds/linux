@@ -904,14 +904,6 @@ static void intel_disable_hdmi(struct intel_encoder *encoder)
 		}
 	}
 
-	/* HW workaround, need to toggle enable bit off and on for 12bpc, but
-	 * we do this anyway which shows more stable in testing.
-	 */
-	if (HAS_PCH_SPLIT(dev)) {
-		I915_WRITE(intel_hdmi->hdmi_reg, temp & ~SDVO_ENABLE);
-		POSTING_READ(intel_hdmi->hdmi_reg);
-	}
-
 	temp &= ~enable_bits;
 
 	I915_WRITE(intel_hdmi->hdmi_reg, temp);
