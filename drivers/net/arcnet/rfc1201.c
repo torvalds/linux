@@ -178,7 +178,7 @@ static void rx(struct net_device *dev, int bufnum,
 		in->sequence = soft->sequence;
 
 		skb = alloc_skb(length + ARC_HDR_SIZE, GFP_ATOMIC);
-		if (skb == NULL) {
+		if (!skb) {
 			dev->stats.rx_dropped++;
 			return;
 		}
@@ -286,7 +286,7 @@ static void rx(struct net_device *dev, int bufnum,
 			}
 			in->skb = skb = alloc_skb(508 * in->numpackets + ARC_HDR_SIZE,
 						  GFP_ATOMIC);
-			if (skb == NULL) {
+			if (!skb) {
 				arc_printk(D_NORMAL, dev, "(split) memory squeeze, dropping packet.\n");
 				lp->rfc1201.aborted_seq = soft->sequence;
 				dev->stats.rx_dropped++;
