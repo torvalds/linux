@@ -539,6 +539,19 @@ bus_find(struct list_head *list, u32 bus_no)
 	return NULL;
 }
 
+static struct visorchipset_device_info *
+device_find(struct list_head *list, u32 bus_no, u32 dev_no)
+{
+	struct visorchipset_device_info *p;
+
+	list_for_each_entry(p, list, entry) {
+		if (p->bus_no == bus_no && p->dev_no == dev_no)
+			return p;
+	}
+
+	return NULL;
+}
+
 static u8
 check_chipset_events(void)
 {
@@ -825,7 +838,7 @@ device_changestate_responder(enum controlvm_id cmd_id,
 	struct visorchipset_device_info *p;
 	struct controlvm_message outmsg;
 
-	p = finddevice(&dev_info_list, bus_no, dev_no);
+	p = device_find(&dev_info_list, bus_no, dev_no);
 	if (!p)
 		return;
 	if (p->pending_msg_hdr.id == CONTROLVM_INVALID)
@@ -852,7 +865,7 @@ device_responder(enum controlvm_id cmd_id, u32 bus_no, u32 dev_no, int response)
 	struct visorchipset_device_info *p;
 	bool need_clear = false;
 
-	p = finddevice(&dev_info_list, bus_no, dev_no);
+	p = device_find(&dev_info_list, bus_no, dev_no);
 	if (!p)
 		return;
 	if (response >= 0) {
@@ -951,7 +964,7 @@ device_epilog(u32 bus_no, u32 dev_no, struct spar_segment_state state, u32 cmd,
 	bool notified = false;
 
 	struct visorchipset_device_info *dev_info =
-		finddevice(&dev_info_list, bus_no, dev_no);
+		device_find(&dev_info_list, bus_no, dev_no);
 	char *envp[] = {
 		"SPARSP_DIAGPOOL_PAUSED_STATE = 1",
 		NULL
@@ -1157,7 +1170,7 @@ my_device_create(struct controlvm_message *inmsg)
 	struct visorchipset_bus_info *bus_info;
 	int rc = CONTROLVM_RESP_SUCCESS;
 
-	dev_info = finddevice(&dev_info_list, bus_no, dev_no);
+	dev_info = device_find(&dev_info_list, bus_no, dev_no);
 	if (dev_info && (dev_info->state.created == 1)) {
 		POSTCODE_LINUX_4(DEVICE_CREATE_FAILURE_PC, dev_no, bus_no,
 				 POSTCODE_SEVERITY_ERR);
@@ -1227,7 +1240,7 @@ my_device_changestate(struct controlvm_message *inmsg)
 	struct visorchipset_device_info *dev_info;
 	int rc = CONTROLVM_RESP_SUCCESS;
 
-	dev_info = finddevice(&dev_info_list, bus_no, dev_no);
+	dev_info = device_find(&dev_info_list, bus_no, dev_no);
 	if (!dev_info) {
 		POSTCODE_LINUX_4(DEVICE_CHANGESTATE_FAILURE_PC, dev_no, bus_no,
 				 POSTCODE_SEVERITY_ERR);
@@ -1254,7 +1267,7 @@ my_device_destroy(struct controlvm_message *inmsg)
 	struct visorchipset_device_info *dev_info;
 	int rc = CONTROLVM_RESP_SUCCESS;
 
-	dev_info = finddevice(&dev_info_list, bus_no, dev_no);
+	dev_info = device_find(&dev_info_list, bus_no, dev_no);
 	if (!dev_info)
 		rc = -CONTROLVM_RESP_ERROR_DEVICE_INVALID;
 	else if (dev_info->state.created == 0)
@@ -2033,7 +2046,7 @@ bool
 visorchipset_get_device_info(u32 bus_no, u32 dev_no,
 			     struct visorchipset_device_info *dev_info)
 {
-	void *p = finddevice(&dev_info_list, bus_no, dev_no);
+	void *p = device_find(&dev_info_list, bus_no, dev_no);
 
 	if (!p)
 		return false;
@@ -2045,8 +2058,9 @@ EXPORT_SYMBOL_GPL(visorchipset_get_device_info);
 bool
 visorchipset_set_device_context(u32 bus_no, u32 dev_no, void *context)
 {
-	struct visorchipset_device_info *p =
-			finddevice(&dev_info_list, bus_no, dev_no);
+	struct visorchipset_device_info *p;
+
+	p = device_find(&dev_info_list, bus_no, dev_no);
 
 	if (!p)
 		return false;

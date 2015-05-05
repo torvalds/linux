@@ -91,18 +91,6 @@ struct visorchipset_device_info {
 	void *bus_driver_context;
 };
 
-static inline struct visorchipset_device_info *finddevice(
-		struct list_head *list, u32 bus_no, u32 dev_no)
-{
-	struct visorchipset_device_info *p;
-
-	list_for_each_entry(p, list, entry) {
-		if (p->bus_no == bus_no && p->dev_no == dev_no)
-			return p;
-	}
-	return NULL;
-}
-
 static inline void delbusdevices(struct list_head *list, u32 bus_no)
 {
 	struct visorchipset_device_info *p, *tmp;
