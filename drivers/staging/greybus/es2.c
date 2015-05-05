@@ -686,7 +686,7 @@ error:
 }
 
 static struct usb_driver es1_ap_driver = {
-	.name =		"es1_ap_driver",
+	.name =		"es2_ap_driver",
 	.probe =	ap_probe,
 	.disconnect =	ap_disconnect,
 	.id_table =	id_table,
