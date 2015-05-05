@@ -397,9 +397,7 @@ parser_init_guts(u64 addr, u32 bytes, bool local,
 	int allocbytes = sizeof(struct parser_context) + bytes;
 	struct parser_context *rc = NULL;
 	struct parser_context *ctx = NULL;
-	struct memregion *rgn = NULL;
 	struct spar_controlvm_parameters_header *phdr = NULL;
-	int cnt;
 
 	if (retry)
 		*retry = false;
@@ -438,18 +436,21 @@ parser_init_guts(u64 addr, u32 bytes, bool local,
 		p = __va((unsigned long) (addr));
 		memcpy(ctx->data, p, bytes);
 	} else {
-		rgn = visor_memregion_create(addr, bytes);
-		if (!rgn) {
-			rc = NULL;
-			goto cleanup;
-		}
-		cnt = visor_memregion_read(rgn, 0, ctx->data, bytes);
-		visor_memregion_destroy(rgn);
+		void __iomem *mapping;
 
-		if (cnt < 0) {
+		if (!request_mem_region(addr, bytes, "visorchipset")) {
 			rc = NULL;
 			goto cleanup;
 		}
+
+		mapping = ioremap_cache(addr, bytes);
+		if (!mapping) {
+			release_mem_region(addr, bytes);
+			rc = NULL;
+			goto cleanup;
+		}
+		memcpy_fromio(ctx->data, mapping, bytes);
+		release_mem_region(addr, bytes);
 	}
 	if (!standard_payload_header) {
 		ctx->byte_stream = true;
