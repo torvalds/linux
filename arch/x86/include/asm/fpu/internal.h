@@ -59,6 +59,15 @@ extern void fpu__clear(struct fpu *fpu);
 extern void fpu__init_check_bugs(void);
 extern void fpu__resume_cpu(void);
 
+/*
+ * Debugging facility:
+ */
+#ifdef CONFIG_X86_DEBUG_FPU
+# define WARN_ON_FPU(x) WARN_ON_ONCE(x)
+#else
+# define WARN_ON_FPU(x) ({ 0; })
+#endif
+
 DECLARE_PER_CPU(struct fpu *, fpu_fpregs_owner_ctx);
 
 /*
@@ -296,6 +305,8 @@ static inline void __fpregs_deactivate_hw(void)
 /* Must be paired with an 'stts' (fpregs_deactivate_hw()) after! */
 static inline void __fpregs_deactivate(struct fpu *fpu)
 {
+	WARN_ON_FPU(!fpu->fpregs_active);
+
 	fpu->fpregs_active = 0;
 	this_cpu_write(fpu_fpregs_owner_ctx, NULL);
 }
@@ -303,6 +314,8 @@ static inline void __fpregs_deactivate(struct fpu *fpu)
 /* Must be paired with a 'clts' (fpregs_activate_hw()) before! */
 static inline void __fpregs_activate(struct fpu *fpu)
 {
+	WARN_ON_FPU(fpu->fpregs_active);
+
 	fpu->fpregs_active = 1;
 	this_cpu_write(fpu_fpregs_owner_ctx, fpu);
 }
@@ -433,8 +446,10 @@ switch_fpu_prepare(struct fpu *old_fpu, struct fpu *new_fpu, int cpu)
 static inline void switch_fpu_finish(struct fpu *new_fpu, fpu_switch_t fpu_switch)
 {
 	if (fpu_switch.preload) {
-		if (unlikely(copy_fpstate_to_fpregs(new_fpu)))
+		if (unlikely(copy_fpstate_to_fpregs(new_fpu))) {
+			WARN_ON_FPU(1);
 			fpu__clear(new_fpu);
+		}
 	}
 }
 

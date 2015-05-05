@@ -38,13 +38,13 @@ DEFINE_PER_CPU(struct fpu *, fpu_fpregs_owner_ctx);
 
 static void kernel_fpu_disable(void)
 {
-	WARN_ON(this_cpu_read(in_kernel_fpu));
+	WARN_ON_FPU(this_cpu_read(in_kernel_fpu));
 	this_cpu_write(in_kernel_fpu, true);
 }
 
 static void kernel_fpu_enable(void)
 {
-	WARN_ON_ONCE(!this_cpu_read(in_kernel_fpu));
+	WARN_ON_FPU(!this_cpu_read(in_kernel_fpu));
 	this_cpu_write(in_kernel_fpu, false);
 }
 
@@ -109,7 +109,7 @@ void __kernel_fpu_begin(void)
 {
 	struct fpu *fpu = &current->thread.fpu;
 
-	WARN_ON_ONCE(!irq_fpu_usable());
+	WARN_ON_FPU(!irq_fpu_usable());
 
 	kernel_fpu_disable();
 
@@ -127,7 +127,7 @@ void __kernel_fpu_end(void)
 	struct fpu *fpu = &current->thread.fpu;
 
 	if (fpu->fpregs_active) {
-		if (WARN_ON(copy_fpstate_to_fpregs(fpu)))
+		if (WARN_ON_FPU(copy_fpstate_to_fpregs(fpu)))
 			fpu__clear(fpu);
 	} else {
 		__fpregs_deactivate_hw();
@@ -187,7 +187,7 @@ EXPORT_SYMBOL_GPL(irq_ts_restore);
  */
 void fpu__save(struct fpu *fpu)
 {
-	WARN_ON(fpu != &current->thread.fpu);
+	WARN_ON_FPU(fpu != &current->thread.fpu);
 
 	preempt_disable();
 	if (fpu->fpregs_active) {
@@ -233,7 +233,7 @@ EXPORT_SYMBOL_GPL(fpstate_init);
  */
 static void fpu_copy(struct fpu *dst_fpu, struct fpu *src_fpu)
 {
-	WARN_ON(src_fpu != &current->thread.fpu);
+	WARN_ON_FPU(src_fpu != &current->thread.fpu);
 
 	/*
 	 * Don't let 'init optimized' areas of the XSAVE area
@@ -284,7 +284,7 @@ int fpu__copy(struct fpu *dst_fpu, struct fpu *src_fpu)
  */
 void fpu__activate_curr(struct fpu *fpu)
 {
-	WARN_ON_ONCE(fpu != &current->thread.fpu);
+	WARN_ON_FPU(fpu != &current->thread.fpu);
 
 	if (!fpu->fpstate_active) {
 		fpstate_init(&fpu->state);
@@ -321,7 +321,7 @@ EXPORT_SYMBOL_GPL(fpu__activate_curr);
  */
 void fpu__activate_stopped(struct fpu *child_fpu)
 {
-	WARN_ON_ONCE(child_fpu == &current->thread.fpu);
+	WARN_ON_FPU(child_fpu == &current->thread.fpu);
 
 	if (child_fpu->fpstate_active) {
 		child_fpu->last_cpu = -1;
@@ -407,7 +407,7 @@ static inline void copy_init_fpstate_to_fpregs(void)
  */
 void fpu__clear(struct fpu *fpu)
 {
-	WARN_ON_ONCE(fpu != &current->thread.fpu); /* Almost certainly an anomaly */
+	WARN_ON_FPU(fpu != &current->thread.fpu); /* Almost certainly an anomaly */
 
 	if (!use_eager_fpu()) {
 		/* FPU state will be reallocated lazily at the first use. */

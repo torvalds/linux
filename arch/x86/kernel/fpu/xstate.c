@@ -262,6 +262,11 @@ static void __init setup_xstate_comp(void)
  */
 static void __init setup_init_fpu_buf(void)
 {
+	static int on_boot_cpu = 1;
+
+	WARN_ON_FPU(!on_boot_cpu);
+	on_boot_cpu = 0;
+
 	if (!cpu_has_xsave)
 		return;
 
@@ -317,6 +322,10 @@ static void __init init_xstate_size(void)
 void __init fpu__init_system_xstate(void)
 {
 	unsigned int eax, ebx, ecx, edx;
+	static int on_boot_cpu = 1;
+
+	WARN_ON_FPU(!on_boot_cpu);
+	on_boot_cpu = 0;
 
 	if (!cpu_has_xsave) {
 		pr_info("x86/fpu: Legacy x87 FPU detected.\n");
@@ -324,7 +333,7 @@ void __init fpu__init_system_xstate(void)
 	}
 
 	if (boot_cpu_data.cpuid_level < XSTATE_CPUID) {
-		WARN(1, "x86/fpu: XSTATE_CPUID missing!\n");
+		WARN_ON_FPU(1);
 		return;
 	}
 

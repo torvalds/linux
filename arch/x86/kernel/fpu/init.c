@@ -143,6 +143,11 @@ EXPORT_SYMBOL_GPL(xstate_size);
  */
 static void __init fpu__init_system_xstate_size_legacy(void)
 {
+	static int on_boot_cpu = 1;
+
+	WARN_ON_FPU(!on_boot_cpu);
+	on_boot_cpu = 0;
+
 	/*
 	 * Note that xstate_size might be overwriten later during
 	 * fpu__init_system_xstate().
@@ -214,7 +219,12 @@ __setup("eagerfpu=", eager_fpu_setup);
  */
 static void __init fpu__init_system_ctx_switch(void)
 {
-	WARN_ON(current->thread.fpu.fpstate_active);
+	static bool on_boot_cpu = 1;
+
+	WARN_ON_FPU(!on_boot_cpu);
+	on_boot_cpu = 0;
+
+	WARN_ON_FPU(current->thread.fpu.fpstate_active);
 	current_thread_info()->status = 0;
 
 	/* Auto enable eagerfpu for xsaveopt */
