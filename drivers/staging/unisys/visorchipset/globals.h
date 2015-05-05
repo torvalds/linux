@@ -24,8 +24,6 @@
 #include "visorchipset_umode.h"
 #include "version.h"
 
-#define MYDRVNAME "visorchipset"
-
 /* module parameters */
 
 #endif

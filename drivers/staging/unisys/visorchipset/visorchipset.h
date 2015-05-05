@@ -28,6 +28,8 @@
 #include "vbusdeviceinfo.h"
 #include "vbushelper.h"
 
+#define MYDRVNAME "visorchipset"
+
 /** Describes the state from the perspective of which controlvm messages have
  *  been received for a bus or device.
  */
