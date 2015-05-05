@@ -54,6 +54,7 @@ struct loop_device {
 	gfp_t		old_gfp_mask;
 
 	spinlock_t		lo_lock;
+	struct workqueue_struct *wq;
 	struct list_head	write_cmd_head;
 	struct work_struct	write_work;
 	bool			write_started;
