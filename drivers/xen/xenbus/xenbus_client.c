@@ -388,7 +388,7 @@ int xenbus_grant_ring(struct xenbus_device *dev, void *vaddr,
 		}
 		grefs[i] = err;
 
-		vaddr = vaddr + PAGE_SIZE;
+		vaddr = vaddr + XEN_PAGE_SIZE;
 	}
 
 	return 0;
@@ -555,7 +555,7 @@ static int xenbus_map_ring_valloc_pv(struct xenbus_device *dev,
 	if (!node)
 		return -ENOMEM;
 
-	area = alloc_vm_area(PAGE_SIZE * nr_grefs, ptes);
+	area = alloc_vm_area(XEN_PAGE_SIZE * nr_grefs, ptes);
 	if (!area) {
 		kfree(node);
 		return -ENOMEM;
@@ -749,7 +749,7 @@ static int xenbus_unmap_ring_vfree_pv(struct xenbus_device *dev, void *vaddr)
 		unsigned long addr;
 
 		memset(&unmap[i], 0, sizeof(unmap[i]));
-		addr = (unsigned long)vaddr + (PAGE_SIZE * i);
+		addr = (unsigned long)vaddr + (XEN_PAGE_SIZE * i);
 		unmap[i].host_addr = arbitrary_virt_to_machine(
 			lookup_address(addr, &level)).maddr;
 		unmap[i].dev_bus_addr = 0;
