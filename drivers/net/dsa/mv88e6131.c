@@ -37,6 +37,8 @@ static char *mv88e6131_probe(struct device *host_dev, int sw_addr)
 			return "Marvell 88E6131 (B2)";
 		if (ret_masked == PORT_SWITCH_ID_6131)
 			return "Marvell 88E6131";
+		if (ret_masked == PORT_SWITCH_ID_6185)
+			return "Marvell 88E6185";
 	}
 
 	return NULL;
@@ -110,6 +112,7 @@ static int mv88e6131_setup(struct dsa_switch *ds)
 
 	switch (ps->id) {
 	case PORT_SWITCH_ID_6085:
+	case PORT_SWITCH_ID_6185:
 		ps->num_ports = 10;
 		break;
 	case PORT_SWITCH_ID_6095:
