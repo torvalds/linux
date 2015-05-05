@@ -40,7 +40,7 @@
 #include <linux/com20020.h>
 #include <linux/list.h>
 
-#include <asm/io.h>
+#include <linux/io.h>
 
 #define VERSION "arcnet: COM20020 PCI support\n"
 

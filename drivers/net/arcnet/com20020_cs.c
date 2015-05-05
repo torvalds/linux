@@ -45,7 +45,7 @@
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 
-#include <asm/io.h>
+#include <linux/io.h>
 
 #define VERSION "arcnet: COM20020 PCMCIA support loaded.\n"
 

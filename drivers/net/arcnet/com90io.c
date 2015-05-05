@@ -34,7 +34,7 @@
 #include <linux/bootmem.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/arcdevice.h>
 
 #define VERSION "arcnet: COM90xx IO-mapped mode support (by David Woodhouse et el.)\n"

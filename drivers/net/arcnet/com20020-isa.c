@@ -39,7 +39,7 @@
 #include <linux/arcdevice.h>
 #include <linux/com20020.h>
 
-#include <asm/io.h>
+#include <linux/io.h>
 
 #define VERSION "arcnet: COM20020 ISA support (by David Woodhouse et al.)\n"
 

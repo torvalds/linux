@@ -33,7 +33,7 @@
 #include <linux/bootmem.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/arcdevice.h>
 
 #define VERSION "arcnet: RIM I (entirely mem-mapped) support\n"
