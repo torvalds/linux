@@ -211,13 +211,12 @@ int
 visorchannel_read(struct visorchannel *channel, ulong offset,
 		  void *local, ulong nbytes)
 {
-	int rc = visor_memregion_read(channel->memregion, offset,
-				      local, nbytes);
-	if ((rc >= 0) && (offset == 0) &&
-	    (nbytes >= sizeof(struct channel_header))) {
-		memcpy(&channel->chan_hdr, local,
-		       sizeof(struct channel_header));
-	}
+	int rc;
+	size_t size = sizeof(struct channel_header);
+
+	rc = visor_memregion_read(channel->memregion, offset, local, nbytes);
+	if (rc && !offset && (nbytes >= size))
+		memcpy(&channel->chan_hdr, local, size);
 	return rc;
 }
 EXPORT_SYMBOL_GPL(visorchannel_read);
@@ -226,9 +225,10 @@ int
 visorchannel_write(struct visorchannel *channel, ulong offset,
 		   void *local, ulong nbytes)
 {
-	if (offset == 0 && nbytes >= sizeof(struct channel_header))
-		memcpy(&channel->chan_hdr, local,
-		       sizeof(struct channel_header));
+	size_t size = sizeof(struct channel_header);
+
+	if (!offset && nbytes >= size)
+		memcpy(&channel->chan_hdr, local, size);
 	return visor_memregion_write(channel->memregion, offset, local, nbytes);
 }
 EXPORT_SYMBOL_GPL(visorchannel_write);
@@ -237,38 +237,34 @@ int
 visorchannel_clear(struct visorchannel *channel, ulong offset, u8 ch,
 		   ulong nbytes)
 {
-	int rc = -1;
+	int err;
 	int bufsize = 65536;
 	int written = 0;
-	u8 *buf = vmalloc(bufsize);
+	u8 *buf;
 
+	buf = vmalloc(bufsize);
 	if (!buf)
-		goto cleanup;
+		return -ENOMEM;
 
 	memset(buf, ch, bufsize);
 	while (nbytes > 0) {
 		ulong thisbytes = bufsize;
-		int x = -1;
 
 		if (nbytes < thisbytes)
 			thisbytes = nbytes;
-		x = visor_memregion_write(channel->memregion, offset + written,
-					  buf, thisbytes);
-		if (x < 0) {
-			rc = x;
+		err = visor_memregion_write(channel->memregion,
+					    offset + written, buf, thisbytes);
+		if (err)
 			goto cleanup;
-		}
+
 		written += thisbytes;
 		nbytes -= thisbytes;
 	}
-	rc = 0;
+	return 0;
 
 cleanup:
-	if (buf) {
-		vfree(buf);
-		buf = NULL;
-	}
-	return rc;
+	vfree(buf);
+	return err;
 }
 EXPORT_SYMBOL_GPL(visorchannel_clear);
 
@@ -307,22 +303,19 @@ static BOOL
 sig_read_header(struct visorchannel *channel, u32 queue,
 		struct signal_queue_header *sig_hdr)
 {
-	BOOL rc = FALSE;
+	int err;
 
 	if (channel->chan_hdr.ch_space_offset < sizeof(struct channel_header))
-		goto cleanup;
+		return FALSE;
 
 	/* Read the appropriate SIGNAL_QUEUE_HEADER into local memory. */
+	err = visor_memregion_read(channel->memregion,
+				   SIG_QUEUE_OFFSET(&channel->chan_hdr, queue),
+				   sig_hdr, sizeof(struct signal_queue_header));
+	if (err)
+		return FALSE;
 
-	if (visor_memregion_read(channel->memregion,
-				 SIG_QUEUE_OFFSET(&channel->chan_hdr, queue),
-				 sig_hdr,
-				 sizeof(struct signal_queue_header)) < 0) {
-		goto cleanup;
-	}
-	rc = TRUE;
-cleanup:
-	return rc;
+	return TRUE;
 }
 
 static BOOL
@@ -330,24 +323,23 @@ sig_do_data(struct visorchannel *channel, u32 queue,
 	    struct signal_queue_header *sig_hdr, u32 slot, void *data,
 	    BOOL is_write)
 {
-	BOOL rc = FALSE;
+	int err;
 	int signal_data_offset = SIG_DATA_OFFSET(&channel->chan_hdr, queue,
 						 sig_hdr, slot);
 	if (is_write) {
-		if (visor_memregion_write(channel->memregion,
-					  signal_data_offset,
-					  data, sig_hdr->signal_size) < 0) {
-			goto cleanup;
-		}
+		err = visor_memregion_write(channel->memregion,
+					    signal_data_offset,
+					    data, sig_hdr->signal_size);
+		if (err)
+			return FALSE;
 	} else {
-		if (visor_memregion_read(channel->memregion, signal_data_offset,
-					 data, sig_hdr->signal_size) < 0) {
-			goto cleanup;
-		}
+		err = visor_memregion_read(channel->memregion,
+					   signal_data_offset,
+					   data, sig_hdr->signal_size);
+		if (err)
+			return FALSE;
 	}
-	rc = TRUE;
-cleanup:
-	return rc;
+	return TRUE;
 }
 
 static inline BOOL
@@ -363,26 +355,6 @@ sig_write_data(struct visorchannel *channel, u32 queue,
 {
 	return sig_do_data(channel, queue, sig_hdr, slot, data, TRUE);
 }
-
-static inline unsigned char
-safe_sig_queue_validate(struct signal_queue_header *psafe_sqh,
-			struct signal_queue_header *punsafe_sqh,
-			u32 *phead, u32 *ptail)
-{
-	if ((*phead >= psafe_sqh->max_slots) ||
-	    (*ptail >= psafe_sqh->max_slots)) {
-		/* Choose 0 or max, maybe based on current tail value */
-		*phead = 0;
-		*ptail = 0;
-
-		/* Sync with client as necessary */
-		punsafe_sqh->head = *phead;
-		punsafe_sqh->tail = *ptail;
-
-		return 0;
-	}
-	return 1;
-}				/* end safe_sig_queue_validate */
 
 static BOOL
 signalremove_inner(struct visorchannel *channel, u32 queue, void *msg)
