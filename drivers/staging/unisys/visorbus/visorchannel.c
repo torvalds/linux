@@ -307,9 +307,9 @@ sig_read_header(struct visorchannel *channel, u32 queue,
 		return FALSE;
 
 	/* Read the appropriate SIGNAL_QUEUE_HEADER into local memory. */
-	err = visor_memregion_read(&channel->memregion,
-				   SIG_QUEUE_OFFSET(&channel->chan_hdr, queue),
-				   sig_hdr, sizeof(struct signal_queue_header));
+	err = visorchannel_read(channel,
+				SIG_QUEUE_OFFSET(&channel->chan_hdr, queue),
+				sig_hdr, sizeof(struct signal_queue_header));
 	if (err)
 		return FALSE;
 
@@ -324,9 +324,8 @@ sig_read_data(struct visorchannel *channel, u32 queue,
 	int signal_data_offset = SIG_DATA_OFFSET(&channel->chan_hdr, queue,
 						 sig_hdr, slot);
 
-	err = visor_memregion_read(&channel->memregion,
-				   signal_data_offset,
-				   data, sig_hdr->signal_size);
+	err = visorchannel_read(channel, signal_data_offset,
+				data, sig_hdr->signal_size);
 	if (err)
 		return FALSE;
 
