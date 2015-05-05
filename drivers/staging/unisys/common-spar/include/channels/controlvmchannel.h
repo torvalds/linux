@@ -88,11 +88,6 @@ enum controlvm_id {
 	CONTROLVM_DEVICE_CHANGESTATE = 0x204,	/* CP --> SP, GP */
 	CONTROLVM_DEVICE_CHANGESTATE_EVENT = 0x205, /* SP, GP --> CP */
 	CONTROLVM_DEVICE_RECONFIGURE = 0x206,	/* CP --> Boot */
-/* DISK commands required Parameter: BusNumber, DeviceNumber  */
-	CONTROLVM_DISK_CREATE = 0x221,	/* CP --> SP */
-	CONTROLVM_DISK_DESTROY = 0x222,	/* CP --> SP */
-	CONTROLVM_DISK_CONFIGURE = 0x223,	/* CP --> SP */
-	CONTROLVM_DISK_CHANGESTATE = 0x224,	/* CP --> SP */
 /* CHIPSET commands */
 	CONTROLVM_CHIPSET_INIT = 0x301,	/* CP --> SP, GP */
 	CONTROLVM_CHIPSET_STOP = 0x302,	/* CP --> SP, GP */
