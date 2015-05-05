@@ -23,20 +23,21 @@
 /* {2B3C2D10-7EF5-4ad8-B966-3448B7386B3D} */
 #define SPAR_CONTROLVM_CHANNEL_PROTOCOL_UUID	\
 		UUID_LE(0x2b3c2d10, 0x7ef5, 0x4ad8, \
-				0xb9, 0x66, 0x34, 0x48, 0xb7, 0x38, 0x6b, 0x3d)
+			0xb9, 0x66, 0x34, 0x48, 0xb7, 0x38, 0x6b, 0x3d)
 
 static const uuid_le spar_controlvm_channel_protocol_uuid =
 	SPAR_CONTROLVM_CHANNEL_PROTOCOL_UUID;
 
 #define ULTRA_CONTROLVM_CHANNEL_PROTOCOL_SIGNATURE \
 	ULTRA_CHANNEL_PROTOCOL_SIGNATURE
-#define CONTROLVM_MESSAGE_MAX     64
+#define CONTROLVM_MESSAGE_MAX 64
 
 /* Must increment this whenever you insert or delete fields within
-* this channel struct.  Also increment whenever you change the meaning
-* of fields within this channel struct so as to break pre-existing
-* software.  Note that you can usually add fields to the END of the
-* channel struct withOUT needing to increment this. */
+ * this channel struct.  Also increment whenever you change the meaning
+ * of fields within this channel struct so as to break pre-existing
+ * software.  Note that you can usually add fields to the END of the
+ * channel struct withOUT needing to increment this.
+ */
 #define ULTRA_CONTROLVM_CHANNEL_PROTOCOL_VERSIONID  1
 
 #define SPAR_CONTROLVM_CHANNEL_OK_CLIENT(ch)           \
@@ -49,17 +50,16 @@ static const uuid_le spar_controlvm_channel_protocol_uuid =
 
 #define MAX_SERIAL_NUM	32
 
-/* Defines for various channel queues... */
+/* Defines for various channel queues */
 #define CONTROLVM_QUEUE_REQUEST		0
 #define CONTROLVM_QUEUE_RESPONSE	1
-#define	CONTROLVM_QUEUE_EVENT		2
+#define CONTROLVM_QUEUE_EVENT		2
 #define CONTROLVM_QUEUE_ACK		3
 
-/* Max number of messages stored during IOVM creation to be reused
- * after crash */
+/* Max num of messages stored during IOVM creation to be reused after crash */
 #define CONTROLVM_CRASHMSG_MAX		2
 
-/** Ids for commands that may appear in either queue of a ControlVm channel.
+/* Ids for commands that may appear in either queue of a ControlVm channel.
  *
  *  Commands that are initiated by the command partition (CP), by an IO or
  *  console service partition (SP), or by a guest partition (GP)are:
@@ -73,55 +73,50 @@ static const uuid_le spar_controlvm_channel_protocol_uuid =
  */
 enum controlvm_id {
 	CONTROLVM_INVALID = 0,
-	/* SWITCH commands required Parameter: SwitchNumber  */
-	/* BUS commands required Parameter: BusNumber  */
-	CONTROLVM_BUS_CREATE = 0x101,	/* CP --> SP, GP */
-	CONTROLVM_BUS_DESTROY = 0x102,	/* CP --> SP, GP */
-	CONTROLVM_BUS_CONFIGURE = 0x104,	/* CP --> SP */
-	CONTROLVM_BUS_CHANGESTATE = 0x105,	/* CP --> SP, GP */
-	CONTROLVM_BUS_CHANGESTATE_EVENT = 0x106, /* SP, GP --> CP */
-/* DEVICE commands required Parameter: BusNumber, DeviceNumber  */
+	/* SWITCH commands required Parameter: SwitchNumber */
+	/* BUS commands required Parameter: BusNumber */
+	CONTROLVM_BUS_CREATE = 0x101,			/* CP --> SP, GP */
+	CONTROLVM_BUS_DESTROY = 0x102,			/* CP --> SP, GP */
+	CONTROLVM_BUS_CONFIGURE = 0x104,		/* CP --> SP */
+	CONTROLVM_BUS_CHANGESTATE = 0x105,		/* CP --> SP, GP */
+	CONTROLVM_BUS_CHANGESTATE_EVENT = 0x106,	/* SP, GP --> CP */
+/* DEVICE commands required Parameter: BusNumber, DeviceNumber */
 
-	CONTROLVM_DEVICE_CREATE = 0x201,	/* CP --> SP, GP */
-	CONTROLVM_DEVICE_DESTROY = 0x202,	/* CP --> SP, GP */
-	CONTROLVM_DEVICE_CONFIGURE = 0x203,	/* CP --> SP */
-	CONTROLVM_DEVICE_CHANGESTATE = 0x204,	/* CP --> SP, GP */
-	CONTROLVM_DEVICE_CHANGESTATE_EVENT = 0x205, /* SP, GP --> CP */
-	CONTROLVM_DEVICE_RECONFIGURE = 0x206,	/* CP --> Boot */
+	CONTROLVM_DEVICE_CREATE = 0x201,		/* CP --> SP, GP */
+	CONTROLVM_DEVICE_DESTROY = 0x202,		/* CP --> SP, GP */
+	CONTROLVM_DEVICE_CONFIGURE = 0x203,		/* CP --> SP */
+	CONTROLVM_DEVICE_CHANGESTATE = 0x204,		/* CP --> SP, GP */
+	CONTROLVM_DEVICE_CHANGESTATE_EVENT = 0x205,	/* SP, GP --> CP */
+	CONTROLVM_DEVICE_RECONFIGURE = 0x206,		/* CP --> Boot */
 /* CHIPSET commands */
-	CONTROLVM_CHIPSET_INIT = 0x301,	/* CP --> SP, GP */
-	CONTROLVM_CHIPSET_STOP = 0x302,	/* CP --> SP, GP */
-	CONTROLVM_CHIPSET_SHUTDOWN = 0x303,	/* CP --> SP */
-	CONTROLVM_CHIPSET_READY = 0x304,	/* CP --> SP */
-	CONTROLVM_CHIPSET_SELFTEST = 0x305,	/* CP --> SP */
+	CONTROLVM_CHIPSET_INIT = 0x301,			/* CP --> SP, GP */
+	CONTROLVM_CHIPSET_STOP = 0x302,			/* CP --> SP, GP */
+	CONTROLVM_CHIPSET_SHUTDOWN = 0x303,		/* CP --> SP */
+	CONTROLVM_CHIPSET_READY = 0x304,		/* CP --> SP */
+	CONTROLVM_CHIPSET_SELFTEST = 0x305,		/* CP --> SP */
 
 };
 
 struct irq_info {
-	 /**< specifies interrupt info. It is used to send interrupts
-	  *   for this channel. The peer at the end of this channel
-	  *   who has registered an interrupt (using recv fields
-	  *   above) will receive the interrupt. Passed as a parameter
-	  *   to Issue_VMCALL_IO_QUEUE_TRANSITION, which generates the
-	  *   interrupt.  Currently this is used by IOPart-SP to wake
-	  *   up GP when Data Channel transitions from empty to
-	  *   non-empty.*/
 	u64 reserved1;
 
-	 /**< specifies interrupt handle. It is used to retrieve the
+	 /* specifies interrupt handle. It is used to retrieve the
 	  *   corresponding interrupt pin from Monitor; and the
 	  *   interrupt pin is used to connect to the corresponding
-	  *   interrupt.  Used by IOPart-GP only. */
+	  *   interrupt.  Used by IOPart-GP only.
+	  */
 	u64 recv_irq_handle;
 
-	 /**< specifies interrupt vector. It, interrupt pin, and shared are
+	 /* specifies interrupt vector. It, interrupt pin, and shared are
 	  *   used to connect to the corresponding interrupt.  Used by
-	  *   IOPart-GP only. */
+	  *   IOPart-GP only.
+	  */
 	u32 recv_irq_vector;
 
-    /**< specifies if the recvInterrupt is shared.  It, interrupt pin
-     *   and vector are used to connect to 0 = not shared; 1 = shared.
-     *   the corresponding interrupt.  Used by IOPart-GP only. */
+    /* specifies if the recvInterrupt is shared.  It, interrupt pin
+     * and vector are used to connect to 0 = not shared; 1 = shared.
+     * the corresponding interrupt.  Used by IOPart-GP only.
+     */
 	u8 recv_irq_shared;
 	u8 reserved[3];	/* Natural alignment purposes */
 };
@@ -135,10 +130,10 @@ struct pci_id {
 };
 
 struct efi_spar_indication  {
-	u64 boot_to_fw_ui:1;	/* Bit 0: Stop in uefi ui */
-	u64 clear_nvram:1;	/* Bit 1: Clear NVRAM */
-	u64 clear_cmos:1;	/* Bit 2: Clear CMOS */
-	u64 boot_to_tool:1;	/* Bit 3: Run install tool */
+	u64 boot_to_fw_ui:1;		/* Bit 0: Stop in uefi ui */
+	u64 clear_nvram:1;		/* Bit 1: Clear NVRAM */
+	u64 clear_cmos:1;		/* Bit 2: Clear CMOS */
+	u64 boot_to_tool:1;		/* Bit 3: Run install tool */
 	/* remaining bits are available */
 };
 
@@ -148,7 +143,7 @@ enum ultra_chipset_feature {
 	ULTRA_CHIPSET_FEATURE_PCIVBUS = 0x00000004
 };
 
-/** This is the common structure that is at the beginning of every
+/* This is the common structure that is at the beginning of every
  *  ControlVm message (both commands and responses) in any ControlVm
  *  queue.  Commands are easily distinguished from responses by
  *  looking at the flags.response field.
@@ -165,26 +160,26 @@ struct controlvm_message_header  {
 	u32 completion_status;	/* Error status code or result of
 				 * message completion */
 	struct  {
-		u32 failed:1;		   /**< =1 in a response to * signify
+		u32 failed:1;		   /* =1 in a response to * signify
 					    * failure */
-		u32 response_expected:1;   /**< =1 in all messages that expect a
-					   * response (Control ignores this
-					   * bit) */
-		u32 server:1;		   /**< =1 in all bus & device-related
+		u32 response_expected:1;   /* =1 in all messages that expect a
+					    * response (Control ignores this
+					    * bit) */
+		u32 server:1;		   /* =1 in all bus & device-related
 					    * messages where the message
 					    * receiver is to act as the bus or
 					    * device server */
-		u32 test_message:1;	   /**< =1 for testing use only
+		u32 test_message:1;	   /* =1 for testing use only
 					    * (Control and Command ignore this
 					    * bit) */
-		u32 partial_completion:1;  /**< =1 if there are forthcoming
-					   * responses/acks associated
-					   * with this message */
-		u32 preserve:1;	       /**< =1 this is to let us know to
-					* preserve channel contents
-					* (for running guests)*/
-		u32 writer_in_diag:1;	/**< =1 the DiagWriter is active in the
-					 * Diagnostic Partition*/
+		u32 partial_completion:1;  /* =1 if there are forthcoming
+					    * responses/acks associated
+					    * with this message */
+		u32 preserve:1;		   /* =1 this is to let us know to
+					    * preserve channel contents
+					    * (for running guests)*/
+		u32 writer_in_diag:1;	   /* =1 the DiagWriter is active in the
+					    * Diagnostic Partition*/
 	} flags;
 	u32 reserved;		/* Natural alignment */
 	u64 message_handle;	/* Identifies the particular message instance,
@@ -200,8 +195,8 @@ struct controlvm_message_header  {
 };
 
 struct controlvm_packet_device_create  {
-	u32 bus_no;	/* bus # (0..n-1) from the msg receiver's end */
-	u32 dev_no;	/* bus-relative (0..n-1) device number */
+	u32 bus_no;		/* bus # (0..n-1) from the msg receiver's end */
+	u32 dev_no;		/* bus-relative (0..n-1) device number */
 	u64 channel_addr;	/* Guest physical address of the channel, which
 				 * can be dereferenced by the receiver of this
 				 * ControlVm command */
@@ -212,11 +207,10 @@ struct controlvm_packet_device_create  {
 };	/* for CONTROLVM_DEVICE_CREATE */
 
 struct controlvm_packet_device_configure  {
-	u32 bus_no;	      /**< bus # (0..n-1) from the msg
+	u32 bus_no;	      /* bus # (0..n-1) from the msg
 			       * receiver's perspective */
-
-	    /* Control uses header SegmentIndex field to access bus number... */
-	u32 dev_no;	      /**< bus-relative (0..n-1) device number */
+	/* Control uses header SegmentIndex field to access bus number... */
+	u32 dev_no;	      /* bus-relative (0..n-1) device number */
 } ;	/* for CONTROLVM_DEVICE_CONFIGURE */
 
 struct controlvm_message_device_create {
@@ -334,7 +328,7 @@ struct device_map {
 	u64 reserved2;		/* Align structure on 32-byte boundary */
 };
 
-struct guest_devices  {
+struct guest_devices {
 	struct device_map video_channel;
 	struct device_map keyboard_channel;
 	struct device_map network_channel;
@@ -345,58 +339,47 @@ struct guest_devices  {
 };
 
 struct spar_controlvm_channel_protocol {
-	 struct channel_header header;
-	 u64 gp_controlvm;	/* guest physical address of
-						 * this channel */
-	 u64 gp_partition_tables;/* guest physical address of
-						     * partition tables */
-	 u64 gp_diag_guest;	/* guest physical address of
-						 * diagnostic channel */
-	 u64 gp_boot_romdisk;/* guest phys addr of (read
-						 * only) Boot ROM disk */
-	 u64 gp_boot_ramdisk;/* guest phys addr of writable
-						 * Boot RAM disk */
-	 u64 gp_acpi_table;	/* guest phys addr of acpi
-						 * table */
-	 u64 gp_control_channel;/* guest phys addr of control
-						    * channel */
-	 u64 gp_diag_romdisk;/* guest phys addr of diagnostic
-						 * ROM disk */
-	 u64 gp_nvram;	/* guest phys addr of NVRAM
-						 * channel */
-	 u64 request_payload_offset;	/* Offset to request payload area */
-	 u64 event_payload_offset;	/* Offset to event payload area */
-	 u32 request_payload_bytes;	/* Bytes available in request payload
+	struct channel_header header;
+	u64 gp_controlvm;	/* guest phys addr of this channel */
+	u64 gp_partition_tables;/* guest phys addr of partition tables */
+	u64 gp_diag_guest;	/* guest phys addr of diagnostic channel */
+	u64 gp_boot_romdisk;/* guest phys addr of (read* only) Boot ROM disk */
+	u64 gp_boot_ramdisk;/* guest phys addr of writable Boot RAM disk */
+	u64 gp_acpi_table;	/* guest phys addr of acpi table */
+	u64 gp_control_channel;/* guest phys addr of control channel */
+	u64 gp_diag_romdisk;/* guest phys addr of diagnostic ROM disk */
+	u64 gp_nvram;	/* guest phys addr of NVRAM channel */
+	u64 request_payload_offset;	/* Offset to request payload area */
+	u64 event_payload_offset;	/* Offset to event payload area */
+	u32 request_payload_bytes;	/* Bytes available in request payload
 					 * area */
-	 u32 event_payload_bytes;/* Bytes available in event payload area */
-	 u32 control_channel_bytes;
-	 u32 nvram_channel_bytes;	/* Bytes in PartitionNvram segment */
-	 u32 message_bytes;	/* sizeof(CONTROLVM_MESSAGE) */
-	 u32 message_count;	/* CONTROLVM_MESSAGE_MAX */
-	 u64 gp_smbios_table;/* guest phys addr of SMBIOS
-						 * tables */
-	 u64 gp_physical_smbios_table;/* guest phys addr of
-							  * SMBIOS table  */
-	 /* ULTRA_MAX_GUESTS_PER_SERVICE */
-	 struct guest_devices gp_obsolete_guest_devices[16];
+	u32 event_payload_bytes;/* Bytes available in event payload area */
+	u32 control_channel_bytes;
+	u32 nvram_channel_bytes;	/* Bytes in PartitionNvram segment */
+	u32 message_bytes;		/* sizeof(CONTROLVM_MESSAGE) */
+	u32 message_count;		/* CONTROLVM_MESSAGE_MAX */
+	u64 gp_smbios_table;		/* guest phys addr of SMBIOS tables */
+	u64 gp_physical_smbios_table;	/* guest phys addr of SMBIOS table  */
+	/* ULTRA_MAX_GUESTS_PER_SERVICE */
+	struct guest_devices gp_obsolete_guest_devices[16];
 
-	 /* guest physical address of EFI firmware image base  */
-	 u64 virtual_guest_firmware_image_base;
+	/* guest physical address of EFI firmware image base  */
+	u64 virtual_guest_firmware_image_base;
 
-	 /* guest physical address of EFI firmware entry point  */
-	 u64 virtual_guest_firmware_entry_point;
+	/* guest physical address of EFI firmware entry point  */
+	u64 virtual_guest_firmware_entry_point;
 
-	 /* guest EFI firmware image size  */
-	 u64 virtual_guest_firmware_image_size;
+	/* guest EFI firmware image size  */
+	u64 virtual_guest_firmware_image_size;
 
-	 /* GPA = 1MB where EFI firmware image is copied to  */
-	 u64 virtual_guest_firmware_boot_base;
-	 u64 virtual_guest_image_base;
-	 u64 virtual_guest_image_size;
-	 u64 prototype_control_channel_offset;
-	 u64 virtual_guest_partition_handle;
+	/* GPA = 1MB where EFI firmware image is copied to  */
+	u64 virtual_guest_firmware_boot_base;
+	u64 virtual_guest_image_base;
+	u64 virtual_guest_image_size;
+	u64 prototype_control_channel_offset;
+	u64 virtual_guest_partition_handle;
 
-	 u16 restore_action;	/* Restore Action field to restore the guest
+	u16 restore_action;	/* Restore Action field to restore the guest
 				 * partition */
 	u16 dump_action;	/* For Windows guests it shows if the visordisk
 				 * is running in dump mode */
@@ -446,7 +429,7 @@ struct spar_controlvm_channel_protocol {
 	 struct controlvm_message saved_crash_msg[CONTROLVM_CRASHMSG_MAX];
 };
 
-/* Offsets for VM channel attributes... */
+/* Offsets for VM channel attributes */
 #define VM_CH_REQ_QUEUE_OFFSET \
 	offsetof(struct spar_controlvm_channel_protocol, request_queue)
 #define VM_CH_RESP_QUEUE_OFFSET \
