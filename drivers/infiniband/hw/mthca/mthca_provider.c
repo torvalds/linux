@@ -179,6 +179,12 @@ static int mthca_query_port(struct ib_device *ibdev,
 	return err;
 }
 
+static enum rdma_protocol_type
+mthca_query_protocol(struct ib_device *device, u8 port_num)
+{
+	return RDMA_PROTOCOL_IB;
+}
+
 static int mthca_modify_device(struct ib_device *ibdev,
 			       int mask,
 			       struct ib_device_modify *props)
@@ -1281,6 +1287,7 @@ int mthca_register_device(struct mthca_dev *dev)
 	dev->ib_dev.dma_device           = &dev->pdev->dev;
 	dev->ib_dev.query_device         = mthca_query_device;
 	dev->ib_dev.query_port           = mthca_query_port;
+	dev->ib_dev.query_protocol       = mthca_query_protocol;
 	dev->ib_dev.modify_device        = mthca_modify_device;
 	dev->ib_dev.modify_port          = mthca_modify_port;
 	dev->ib_dev.query_pkey           = mthca_query_pkey;

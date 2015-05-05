@@ -262,6 +262,12 @@ out:
 	return err;
 }
 
+static enum rdma_protocol_type
+mlx5_ib_query_protocol(struct ib_device *device, u8 port_num)
+{
+	return RDMA_PROTOCOL_IB;
+}
+
 static int mlx5_ib_query_gid(struct ib_device *ibdev, u8 port, int index,
 			     union ib_gid *gid)
 {
@@ -1244,6 +1250,7 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 
 	dev->ib_dev.query_device	= mlx5_ib_query_device;
 	dev->ib_dev.query_port		= mlx5_ib_query_port;
+	dev->ib_dev.query_protocol	= mlx5_ib_query_protocol;
 	dev->ib_dev.query_gid		= mlx5_ib_query_gid;
 	dev->ib_dev.query_pkey		= mlx5_ib_query_pkey;
 	dev->ib_dev.modify_device	= mlx5_ib_modify_device;

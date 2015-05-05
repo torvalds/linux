@@ -1232,6 +1232,12 @@ static int iwch_query_port(struct ib_device *ibdev,
 	return 0;
 }
 
+static enum rdma_protocol_type
+iwch_query_protocol(struct ib_device *device, u8 port_num)
+{
+	return RDMA_PROTOCOL_IWARP;
+}
+
 static ssize_t show_rev(struct device *dev, struct device_attribute *attr,
 			char *buf)
 {
@@ -1385,6 +1391,7 @@ int iwch_register_device(struct iwch_dev *dev)
 	dev->ibdev.dma_device = &(dev->rdev.rnic_info.pdev->dev);
 	dev->ibdev.query_device = iwch_query_device;
 	dev->ibdev.query_port = iwch_query_port;
+	dev->ibdev.query_protocol = iwch_query_protocol;
 	dev->ibdev.query_pkey = iwch_query_pkey;
 	dev->ibdev.query_gid = iwch_query_gid;
 	dev->ibdev.alloc_ucontext = iwch_alloc_ucontext;

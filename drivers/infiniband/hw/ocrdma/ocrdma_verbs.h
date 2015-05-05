@@ -41,6 +41,9 @@ int ocrdma_query_port(struct ib_device *, u8 port, struct ib_port_attr *props);
 int ocrdma_modify_port(struct ib_device *, u8 port, int mask,
 		       struct ib_port_modify *props);
 
+enum rdma_protocol_type
+ocrdma_query_protocol(struct ib_device *device, u8 port_num);
+
 void ocrdma_get_guid(struct ocrdma_dev *, u8 *guid);
 int ocrdma_query_gid(struct ib_device *, u8 port,
 		     int index, union ib_gid *gid);

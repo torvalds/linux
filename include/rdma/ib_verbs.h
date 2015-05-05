@@ -81,6 +81,13 @@ enum rdma_transport_type {
 	RDMA_TRANSPORT_USNIC_UDP
 };
 
+enum rdma_protocol_type {
+	RDMA_PROTOCOL_IB,
+	RDMA_PROTOCOL_IBOE,
+	RDMA_PROTOCOL_IWARP,
+	RDMA_PROTOCOL_USNIC_UDP
+};
+
 __attribute_const__ enum rdma_transport_type
 rdma_node_get_transport(enum rdma_node_type node_type);
 
@@ -1501,6 +1508,8 @@ struct ib_device {
 	int		           (*query_port)(struct ib_device *device,
 						 u8 port_num,
 						 struct ib_port_attr *port_attr);
+	enum rdma_protocol_type    (*query_protocol)(struct ib_device *device,
+						     u8 port_num);
 	enum rdma_link_layer	   (*get_link_layer)(struct ib_device *device,
 						     u8 port_num);
 	int		           (*query_gid)(struct ib_device *device,
