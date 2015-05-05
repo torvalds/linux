@@ -1,0 +1,10 @@
+What:		/sys/class/net/<iface>/termination
+Date:		May 2010
+KernelVersion:	2.6.35
+Contact:	Ira W. Snyder <ira.snyder@gmail.com>
+Description:
+		Value representing the can bus termination
+
+		Default: 1 (termination active)
+		Reading: get actual termination state
+		Writing: set actual termination state (0=no termination, 1=termination active)
