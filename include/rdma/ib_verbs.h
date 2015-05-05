@@ -1834,6 +1834,21 @@ static inline bool rdma_cap_iw_cm(struct ib_device *device, u8 port_num)
 	return rdma_protocol_iwarp(device, port_num);
 }
 
+/**
+ * rdma_cap_ib_sa - Check if the port of device has the capability Infiniband
+ * Subnet Administration.
+ *
+ * @device: Device to be checked
+ * @port_num: Port number of the device
+ *
+ * Return false when port of the device don't support Infiniband
+ * Subnet Administration.
+ */
+static inline bool rdma_cap_ib_sa(struct ib_device *device, u8 port_num)
+{
+	return rdma_protocol_ib(device, port_num);
+}
+
 int ib_query_gid(struct ib_device *device,
 		 u8 port_num, int index, union ib_gid *gid);
 

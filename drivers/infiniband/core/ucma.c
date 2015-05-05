@@ -723,7 +723,7 @@ static ssize_t ucma_query_route(struct ucma_file *file,
 	resp.node_guid = (__force __u64) ctx->cm_id->device->node_guid;
 	resp.port_num = ctx->cm_id->port_num;
 
-	if (rdma_protocol_ib(ctx->cm_id->device, ctx->cm_id->port_num))
+	if (rdma_cap_ib_sa(ctx->cm_id->device, ctx->cm_id->port_num))
 		ucma_copy_ib_route(&resp, &ctx->cm_id->route);
 	else if (rdma_protocol_iboe(ctx->cm_id->device, ctx->cm_id->port_num))
 		ucma_copy_iboe_route(&resp, &ctx->cm_id->route);

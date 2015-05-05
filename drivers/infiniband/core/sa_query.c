@@ -450,7 +450,7 @@ static void ib_sa_event(struct ib_event_handler *handler, struct ib_event *event
 		struct ib_sa_port *port =
 			&sa_dev->port[event->element.port_num - sa_dev->start_port];
 
-		if (WARN_ON(!rdma_protocol_ib(handler->device, port->port_num)))
+		if (WARN_ON(!rdma_cap_ib_sa(handler->device, port->port_num)))
 			return;
 
 		spin_lock_irqsave(&port->ah_lock, flags);
@@ -1173,7 +1173,7 @@ static void ib_sa_add_one(struct ib_device *device)
 
 	for (i = 0; i <= e - s; ++i) {
 		spin_lock_init(&sa_dev->port[i].ah_lock);
-		if (!rdma_protocol_ib(device, i + 1))
+		if (!rdma_cap_ib_sa(device, i + 1))
 			continue;
 
 		sa_dev->port[i].sm_ah    = NULL;
@@ -1208,7 +1208,7 @@ static void ib_sa_add_one(struct ib_device *device)
 		goto err;
 
 	for (i = 0; i <= e - s; ++i) {
-		if (rdma_protocol_ib(device, i + 1))
+		if (rdma_cap_ib_sa(device, i + 1))
 			update_sm_ah(&sa_dev->port[i].update_task);
 	}
 
@@ -1216,7 +1216,7 @@ static void ib_sa_add_one(struct ib_device *device)
 
 err:
 	while (--i >= 0) {
-		if (rdma_protocol_ib(device, i + 1))
+		if (rdma_cap_ib_sa(device, i + 1))
 			ib_unregister_mad_agent(sa_dev->port[i].agent);
 	}
 free:
@@ -1237,7 +1237,7 @@ static void ib_sa_remove_one(struct ib_device *device)
 	flush_workqueue(ib_wq);
 
 	for (i = 0; i <= sa_dev->end_port - sa_dev->start_port; ++i) {
-		if (rdma_protocol_ib(device, i + 1)) {
+		if (rdma_cap_ib_sa(device, i + 1)) {
 			ib_unregister_mad_agent(sa_dev->port[i].agent);
 			if (sa_dev->port[i].sm_ah)
 				kref_put(&sa_dev->port[i].sm_ah->ref, free_sm_ah);

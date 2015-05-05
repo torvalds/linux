@@ -940,7 +940,7 @@ static inline int cma_user_data_offset(struct rdma_id_private *id_priv)
 
 static void cma_cancel_route(struct rdma_id_private *id_priv)
 {
-	if (rdma_protocol_ib(id_priv->id.device, id_priv->id.port_num)) {
+	if (rdma_cap_ib_sa(id_priv->id.device, id_priv->id.port_num)) {
 		if (id_priv->query)
 			ib_sa_cancel_query(id_priv->query_id, id_priv->query);
 	}
@@ -1964,7 +1964,7 @@ int rdma_resolve_route(struct rdma_cm_id *id, int timeout_ms)
 		return -EINVAL;
 
 	atomic_inc(&id_priv->refcount);
-	if (rdma_protocol_ib(id->device, id->port_num))
+	if (rdma_cap_ib_sa(id->device, id->port_num))
 		ret = cma_resolve_ib_route(id_priv, timeout_ms);
 	else if (rdma_protocol_iboe(id->device, id->port_num))
 		ret = cma_resolve_iboe_route(id_priv);
