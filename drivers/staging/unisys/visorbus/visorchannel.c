@@ -174,13 +174,6 @@ visorchannel_get_uuid(struct visorchannel *channel)
 }
 EXPORT_SYMBOL_GPL(visorchannel_get_uuid);
 
-struct memregion *
-visorchannel_get_memregion(struct visorchannel *channel)
-{
-	return &channel->memregion;
-}
-EXPORT_SYMBOL_GPL(visorchannel_get_memregion);
-
 int
 visorchannel_read(struct visorchannel *channel, ulong offset,
 		  void *local, ulong nbytes)
