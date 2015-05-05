@@ -28,14 +28,4 @@
 
 /* module parameters */
 
-extern int visorchipset_testvnic;
-extern int visorchipset_testvnicclient;
-extern int visorchipset_testmsg;
-extern int visorchipset_major;
-extern int visorchipset_serverregwait;
-extern int visorchipset_clientregwait;
-extern int visorchipset_testteardown;
-extern int visorchipset_disable_controlvm;
-extern int visorchipset_holdchipsetready;
-
 #endif

@@ -44,6 +44,19 @@
 #define POLLJIFFIES_CONTROLVMCHANNEL_FAST   1
 #define POLLJIFFIES_CONTROLVMCHANNEL_SLOW 100
 
+/*
+ * Module parameters
+ */
+static int visorchipset_testvnic;
+static int visorchipset_testvnicclient;
+static int visorchipset_testmsg;
+static int visorchipset_major;
+static int visorchipset_serverregwait;
+static int visorchipset_clientregwait = 1;	/* default is on */
+static int visorchipset_testteardown;
+static int visorchipset_disable_controlvm;
+static int visorchipset_holdchipsetready;
+
 /* When the controlvm channel is idle for at least MIN_IDLE_SECONDS,
 * we switch to slow polling mode.  As soon as we get a controlvm
 * message, we switch back to fast polling mode.
@@ -2280,43 +2293,31 @@ visorchipset_exit(void)
 
 module_param_named(testvnic, visorchipset_testvnic, int, S_IRUGO);
 MODULE_PARM_DESC(visorchipset_testvnic, "1 to test vnic, using dummy VNIC connected via a loopback to a physical ethernet");
-int visorchipset_testvnic = 0;
-
 module_param_named(testvnicclient, visorchipset_testvnicclient, int, S_IRUGO);
 MODULE_PARM_DESC(visorchipset_testvnicclient, "1 to test vnic, using real VNIC channel attached to a separate IOVM guest");
-int visorchipset_testvnicclient = 0;
-
 module_param_named(testmsg, visorchipset_testmsg, int, S_IRUGO);
 MODULE_PARM_DESC(visorchipset_testmsg,
 		 "1 to manufacture the chipset, bus, and switch messages");
-int visorchipset_testmsg = 0;
-
 module_param_named(major, visorchipset_major, int, S_IRUGO);
-MODULE_PARM_DESC(visorchipset_major, "major device number to use for the device node");
-int visorchipset_major = 0;
-
+MODULE_PARM_DESC(visorchipset_major,
+		 "major device number to use for the device node");
 module_param_named(serverregwait, visorchipset_serverregwait, int, S_IRUGO);
 MODULE_PARM_DESC(visorchipset_serverreqwait,
 		 "1 to have the module wait for the visor bus to register");
-int visorchipset_serverregwait = 0;	/* default is off */
 module_param_named(clientregwait, visorchipset_clientregwait, int, S_IRUGO);
 MODULE_PARM_DESC(visorchipset_clientregwait, "1 to have the module wait for the visorclientbus to register");
-int visorchipset_clientregwait = 1;	/* default is on */
 module_param_named(testteardown, visorchipset_testteardown, int, S_IRUGO);
 MODULE_PARM_DESC(visorchipset_testteardown,
 		 "1 to test teardown of the chipset, bus, and switch");
-int visorchipset_testteardown = 0;	/* default is off */
 module_param_named(disable_controlvm, visorchipset_disable_controlvm, int,
 		   S_IRUGO);
 MODULE_PARM_DESC(visorchipset_disable_controlvm,
 		 "1 to disable polling of controlVm channel");
-int visorchipset_disable_controlvm = 0;	/* default is off */
 module_param_named(holdchipsetready, visorchipset_holdchipsetready,
 		   int, S_IRUGO);
 MODULE_PARM_DESC(visorchipset_holdchipsetready,
 		 "1 to hold response to CHIPSET_READY");
-int visorchipset_holdchipsetready = 0; /* default is to send CHIPSET_READY
-				      * response immediately */
+
 module_init(visorchipset_init);
 module_exit(visorchipset_exit);
 
