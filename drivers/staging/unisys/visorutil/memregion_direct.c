@@ -29,7 +29,6 @@ struct memregion {
 	HOSTADDRESS physaddr;
 	ulong nbytes;
 	void __iomem *mapped;
-	BOOL requested;
 };
 
 static int mapit(struct memregion *memregion);
@@ -67,16 +66,12 @@ mapit(struct memregion *memregion)
 	ulong physaddr = (ulong)(memregion->physaddr);
 	ulong nbytes = memregion->nbytes;
 
-	memregion->requested = FALSE;
 	if (!request_mem_region(physaddr, nbytes, MYDRVNAME))
 		return -EBUSY;
 
-	memregion->requested = TRUE;
 	memregion->mapped = ioremap_cache(physaddr, nbytes);
-	if (!memregion->mapped) {
-		memregion->requested = TRUE;
+	if (!memregion->mapped)
 		return -EFAULT;
-	}
 
 	return 0;
 }
@@ -84,14 +79,11 @@ mapit(struct memregion *memregion)
 static void
 unmapit(struct memregion *memregion)
 {
-	if (memregion->mapped != NULL) {
+	if (memregion->mapped) {
 		iounmap(memregion->mapped);
 		memregion->mapped = NULL;
-	}
-	if (memregion->requested) {
-		release_mem_region((ulong)(memregion->physaddr),
+		release_mem_region((unsigned long)memregion->physaddr,
 				   memregion->nbytes);
-		memregion->requested = FALSE;
 	}
 }
 
