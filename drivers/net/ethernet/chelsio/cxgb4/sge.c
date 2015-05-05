@@ -2473,6 +2473,15 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 	c.iqaddr = cpu_to_be64(iq->phys_addr);
 
 	if (fl) {
+		/* Allocate the ring for the hardware free list (with space
+		 * for its status page) along with the associated software
+		 * descriptor ring.  The free list size needs to be a multiple
+		 * of the Egress Queue Unit and at least 2 Egress Units larger
+		 * than the SGE's Egress Congrestion Threshold
+		 * (fl_starve_thres - 1).
+		 */
+		if (fl->size < s->fl_starve_thres - 1 + 2 * 8)
+			fl->size = s->fl_starve_thres - 1 + 2 * 8;
 		fl->size = roundup(fl->size, 8);
 		fl->desc = alloc_ring(adap->pdev_dev, fl->size, sizeof(__be64),
 				      sizeof(struct rx_sw_desc), &fl->addr,
