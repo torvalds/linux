@@ -232,8 +232,14 @@ static int rtl28xxu_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 			req.data = msg[0].buf;
 			ret = rtl28xxu_ctrl_msg(d, &req);
 		}
+	} else if (num == 1 && (msg[0].flags & I2C_M_RD)) {
+		req.value = (msg[0].addr << 1);
+		req.index = CMD_I2C_DA_RD;
+		req.size = msg[0].len;
+		req.data = msg[0].buf;
+		ret = rtl28xxu_ctrl_msg(d, &req);
 	} else {
-		ret = -EINVAL;
+		ret = -EOPNOTSUPP;
 	}
 
 err_mutex_unlock:
