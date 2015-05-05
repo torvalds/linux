@@ -15,7 +15,6 @@
  * details.
  */
 
-#include "memregion.h"
 #include "controlvmchannel.h"
 #include "version.h"
 #include "procobjecttree.h"
