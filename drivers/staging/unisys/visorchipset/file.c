@@ -36,7 +36,7 @@ static struct visorchannel **file_controlvm_channel;
 void
 visorchipset_file_cleanup(dev_t major_dev)
 {
-	if (file_cdev.ops != NULL)
+	if (file_cdev.ops)
 		cdev_del(&file_cdev);
 	file_cdev.ops = NULL;
 	unregister_chrdev_region(major_dev, 1);
@@ -47,7 +47,7 @@ visorchipset_open(struct inode *inode, struct file *file)
 {
 	unsigned minor_number = iminor(inode);
 
-	if (minor_number != 0)
+	if (minor_number)
 		return -ENODEV;
 	file->private_data = NULL;
 	return 0;
@@ -73,16 +73,16 @@ visorchipset_mmap(struct file *file, struct vm_area_struct *vma)
 	switch (offset) {
 	case VISORCHIPSET_MMAP_CONTROLCHANOFFSET:
 		vma->vm_flags |= VM_IO;
-		if (*file_controlvm_channel == NULL) {
+		if (!*file_controlvm_channel)
 			return -ENXIO;
-		}
+
 		visorchannel_read(*file_controlvm_channel,
 			offsetof(struct spar_controlvm_channel_protocol,
 				 gp_control_channel),
 			&addr, sizeof(addr));
-		if (addr == 0) {
+		if (!addr)
 			return -ENXIO;
-		}
+
 		physaddr = (unsigned long)addr;
 		if (remap_pfn_range(vma, vma->vm_start,
 				    physaddr >> PAGE_SHIFT,
