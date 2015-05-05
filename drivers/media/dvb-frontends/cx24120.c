@@ -499,8 +499,7 @@ static int cx24120_diseqc_send_burst(struct dvb_frontend *fe,
 	cmd.id = CMD_DISEQC_BURST;
 	cmd.len = 0;
 	cmd.arg[0] = 0x00;
-	if (burst)
-		cmd.arg[1] = 0x01;
+	cmd.arg[1] = (burst == SEC_MINI_B) ? 0x01 : 0x00;
 
 	dev_dbg(&state->i2c->dev, "%s: burst sent.\n", __func__);
 
