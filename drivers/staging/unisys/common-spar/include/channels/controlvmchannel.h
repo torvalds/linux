@@ -139,7 +139,6 @@ struct efi_spar_indication  {
 enum ultra_chipset_feature {
 	ULTRA_CHIPSET_FEATURE_REPLY = 0x00000001,
 	ULTRA_CHIPSET_FEATURE_PARA_HOTPLUG = 0x00000002,
-	ULTRA_CHIPSET_FEATURE_PCIVBUS = 0x00000004
 };
 
 /* This is the common structure that is at the beginning of every
