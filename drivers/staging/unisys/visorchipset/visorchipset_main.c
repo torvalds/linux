@@ -368,7 +368,7 @@ static ssize_t toolaction_store(struct device *dev,
 	u8 tool_action;
 	int ret;
 
-	if (kstrtou8(buf, 10, &tool_action) != 0)
+	if (kstrtou8(buf, 10, &tool_action))
 		return -EINVAL;
 
 	ret = visorchannel_write(controlvm_channel,
@@ -402,7 +402,7 @@ static ssize_t boottotool_store(struct device *dev,
 	int val, ret;
 	struct efi_spar_indication efi_spar_indication;
 
-	if (kstrtoint(buf, 10, &val) != 0)
+	if (kstrtoint(buf, 10, &val))
 		return -EINVAL;
 
 	efi_spar_indication.boot_to_tool = val;
@@ -434,7 +434,7 @@ static ssize_t error_store(struct device *dev, struct device_attribute *attr,
 	u32 error;
 	int ret;
 
-	if (kstrtou32(buf, 10, &error) != 0)
+	if (kstrtou32(buf, 10, &error))
 		return -EINVAL;
 
 	ret = visorchannel_write(controlvm_channel,
@@ -464,7 +464,7 @@ static ssize_t textid_store(struct device *dev, struct device_attribute *attr,
 	u32 text_id;
 	int ret;
 
-	if (kstrtou32(buf, 10, &text_id) != 0)
+	if (kstrtou32(buf, 10, &text_id))
 		return -EINVAL;
 
 	ret = visorchannel_write(controlvm_channel,
@@ -495,7 +495,7 @@ static ssize_t remaining_steps_store(struct device *dev,
 	u16 remaining_steps;
 	int ret;
 
-	if (kstrtou16(buf, 10, &remaining_steps) != 0)
+	if (kstrtou16(buf, 10, &remaining_steps))
 		return -EINVAL;
 
 	ret = visorchannel_write(controlvm_channel,
@@ -1701,7 +1701,7 @@ handle_command(struct controlvm_message inmsg, HOSTADDRESS channel_addr)
 	 * within our OS-controlled memory.  We need to know that, because it
 	 * makes a difference in how we compute the virtual address.
 	 */
-	if (parm_addr != 0 && parm_bytes != 0) {
+	if (parm_addr && parm_bytes) {
 		bool retry = false;
 
 		parser_ctx =
@@ -1962,7 +1962,7 @@ setup_crash_devices_work_queue(struct work_struct *work)
 	}
 
 	/* reuse IOVM create bus message */
-	if (local_crash_bus_msg.cmd.create_bus.channel_addr != 0) {
+	if (local_crash_bus_msg.cmd.create_bus.channel_addr) {
 		bus_create(&local_crash_bus_msg);
 	} else {
 		POSTCODE_LINUX_2(CRASH_DEV_BUS_NULL_FAILURE_PC,
@@ -1971,7 +1971,7 @@ setup_crash_devices_work_queue(struct work_struct *work)
 	}
 
 	/* reuse create device message for storage device */
-	if (local_crash_dev_msg.cmd.create_device.channel_addr != 0) {
+	if (local_crash_dev_msg.cmd.create_device.channel_addr) {
 		my_device_create(&local_crash_dev_msg);
 	} else {
 		POSTCODE_LINUX_2(CRASH_DEV_DEV_NULL_FAILURE_PC,
@@ -2129,10 +2129,10 @@ static ssize_t chipsetready_store(struct device *dev,
 	if (sscanf(buf, "%63s", msgtype) != 1)
 		return -EINVAL;
 
-	if (strcmp(msgtype, "CALLHOMEDISK_MOUNTED") == 0) {
+	if (!strcmp(msgtype, "CALLHOMEDISK_MOUNTED")) {
 		chipset_events[0] = 1;
 		return count;
-	} else if (strcmp(msgtype, "MODULES_LOADED") == 0) {
+	} else if (!strcmp(msgtype, "MODULES_LOADED")) {
 		chipset_events[1] = 1;
 		return count;
 	}
@@ -2149,7 +2149,7 @@ static ssize_t devicedisabled_store(struct device *dev,
 {
 	unsigned int id;
 
-	if (kstrtouint(buf, 10, &id) != 0)
+	if (kstrtouint(buf, 10, &id))
 		return -EINVAL;
 
 	parahotplug_request_complete(id, 0);
@@ -2166,7 +2166,7 @@ static ssize_t deviceenabled_store(struct device *dev,
 {
 	unsigned int id;
 
-	if (kstrtouint(buf, 10, &id) != 0)
+	if (kstrtouint(buf, 10, &id))
 		return -EINVAL;
 
 	parahotplug_request_complete(id, 1);
@@ -2195,7 +2195,7 @@ visorchipset_init(void)
 	}
 
 	addr = controlvm_get_channel_address();
-	if (addr != 0) {
+	if (addr) {
 		controlvm_channel =
 		    visorchannel_create_with_lock
 		    (addr,
