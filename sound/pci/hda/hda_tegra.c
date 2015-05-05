@@ -316,14 +316,20 @@ static int hda_tegra_init_chip(struct azx *chip, struct platform_device *pdev)
 	int err;
 
 	hda->hda_clk = devm_clk_get(dev, "hda");
-	if (IS_ERR(hda->hda_clk))
+	if (IS_ERR(hda->hda_clk)) {
+		dev_err(dev, "failed to get hda clock\n");
 		return PTR_ERR(hda->hda_clk);
+	}
 	hda->hda2codec_2x_clk = devm_clk_get(dev, "hda2codec_2x");
-	if (IS_ERR(hda->hda2codec_2x_clk))
+	if (IS_ERR(hda->hda2codec_2x_clk)) {
+		dev_err(dev, "failed to get hda2codec_2x clock\n");
 		return PTR_ERR(hda->hda2codec_2x_clk);
+	}
 	hda->hda2hdmi_clk = devm_clk_get(dev, "hda2hdmi");
-	if (IS_ERR(hda->hda2hdmi_clk))
+	if (IS_ERR(hda->hda2hdmi_clk)) {
+		dev_err(dev, "failed to get hda2hdmi clock\n");
 		return PTR_ERR(hda->hda2hdmi_clk);
+	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	hda->regs = devm_ioremap_resource(dev, res);
@@ -334,8 +340,10 @@ static int hda_tegra_init_chip(struct azx *chip, struct platform_device *pdev)
 	bus->addr = res->start + HDA_BAR0;
 
 	err = hda_tegra_enable_clocks(hda);
-	if (err)
+	if (err) {
+		dev_err(dev, "failed to get enable clocks\n");
 		return err;
+	}
 
 	hda_tegra_init(hda);
 
@@ -385,12 +393,17 @@ static int hda_tegra_first_init(struct azx *chip, struct platform_device *pdev)
 
 	/* initialize streams */
 	err = azx_init_streams(chip);
-	if (err < 0)
+	if (err < 0) {
+		dev_err(card->dev, "failed to initialize streams: %d\n", err);
 		return err;
+	}
 
 	err = azx_alloc_stream_pages(chip);
-	if (err < 0)
+	if (err < 0) {
+		dev_err(card->dev, "failed to allocate stream pages: %d\n",
+			err);
 		return err;
+	}
 
 	/* initialize chip */
 	azx_init_chip(chip, 1);
