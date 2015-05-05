@@ -217,6 +217,8 @@ static int efx_ef10_probe(struct efx_nic *efx)
 
 	nic_data->rx_rss_context = EFX_EF10_RSS_CONTEXT_INVALID;
 
+	nic_data->vport_id = EVB_PORT_ID_ASSIGNED;
+
 	/* In case we're recovering from a crash (kexec), we want to
 	 * cancel any outstanding request by the previous user of this
 	 * function.  We send a special message using the least
@@ -1245,6 +1247,7 @@ static void efx_ef10_tx_init(struct efx_tx_queue *tx_queue)
 	size_t entries = tx_queue->txd.buf.len / EFX_BUF_SIZE;
 	struct efx_channel *channel = tx_queue->channel;
 	struct efx_nic *efx = tx_queue->efx;
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	size_t inlen, outlen;
 	dma_addr_t dma_addr;
 	efx_qword_t *txd;
@@ -1259,7 +1262,7 @@ static void efx_ef10_tx_init(struct efx_tx_queue *tx_queue)
 			      INIT_TXQ_IN_FLAG_IP_CSUM_DIS, !csum_offload,
 			      INIT_TXQ_IN_FLAG_TCP_CSUM_DIS, !csum_offload);
 	MCDI_SET_DWORD(inbuf, INIT_TXQ_IN_OWNER_ID, 0);
-	MCDI_SET_DWORD(inbuf, INIT_TXQ_IN_PORT_ID, EVB_PORT_ID_ASSIGNED);
+	MCDI_SET_DWORD(inbuf, INIT_TXQ_IN_PORT_ID, nic_data->vport_id);
 
 	dma_addr = tx_queue->txd.buf.dma_addr;
 
@@ -1390,11 +1393,12 @@ static int efx_ef10_alloc_rss_context(struct efx_nic *efx, u32 *context)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_RSS_CONTEXT_ALLOC_IN_LEN);
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_RSS_CONTEXT_ALLOC_OUT_LEN);
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	size_t outlen;
 	int rc;
 
 	MCDI_SET_DWORD(inbuf, RSS_CONTEXT_ALLOC_IN_UPSTREAM_PORT_ID,
-		       EVB_PORT_ID_ASSIGNED);
+		       nic_data->vport_id);
 	MCDI_SET_DWORD(inbuf, RSS_CONTEXT_ALLOC_IN_TYPE,
 		       MC_CMD_RSS_CONTEXT_ALLOC_IN_TYPE_EXCLUSIVE);
 	MCDI_SET_DWORD(inbuf, RSS_CONTEXT_ALLOC_IN_NUM_QUEUES,
@@ -1508,6 +1512,7 @@ static void efx_ef10_rx_init(struct efx_rx_queue *rx_queue)
 	struct efx_channel *channel = efx_rx_queue_channel(rx_queue);
 	size_t entries = rx_queue->rxd.buf.len / EFX_BUF_SIZE;
 	struct efx_nic *efx = rx_queue->efx;
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	size_t inlen, outlen;
 	dma_addr_t dma_addr;
 	int rc;
@@ -1525,7 +1530,7 @@ static void efx_ef10_rx_init(struct efx_rx_queue *rx_queue)
 			      INIT_RXQ_IN_FLAG_PREFIX, 1,
 			      INIT_RXQ_IN_FLAG_TIMESTAMP, 1);
 	MCDI_SET_DWORD(inbuf, INIT_RXQ_IN_OWNER_ID, 0);
-	MCDI_SET_DWORD(inbuf, INIT_RXQ_IN_PORT_ID, EVB_PORT_ID_ASSIGNED);
+	MCDI_SET_DWORD(inbuf, INIT_RXQ_IN_PORT_ID, nic_data->vport_id);
 
 	dma_addr = rx_queue->rxd.buf.dma_addr;
 
@@ -2294,7 +2299,7 @@ static void efx_ef10_filter_push_prep(struct efx_nic *efx,
 			       match_fields);
 	}
 
-	MCDI_SET_DWORD(inbuf, FILTER_OP_IN_PORT_ID, EVB_PORT_ID_ASSIGNED);
+	MCDI_SET_DWORD(inbuf, FILTER_OP_IN_PORT_ID, nic_data->vport_id);
 	MCDI_SET_DWORD(inbuf, FILTER_OP_IN_RX_DEST,
 		       spec->dmaq_id == EFX_FILTER_RX_DMAQ_ID_DROP ?
 		       MC_CMD_FILTER_OP_IN_RX_DEST_DROP :

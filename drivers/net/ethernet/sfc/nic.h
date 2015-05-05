@@ -493,6 +493,7 @@ enum {
  *	%MC_CMD_GET_CAPABILITIES response)
  * @rx_dpcpu_fw_id: Firmware ID of the RxDPCPU
  * @tx_dpcpu_fw_id: Firmware ID of the TxDPCPU
+ * @vport_id: The function's vport ID, only relevant for PFs
  */
 struct efx_ef10_nic_data {
 	struct efx_buffer mcdi_buf;
@@ -513,6 +514,7 @@ struct efx_ef10_nic_data {
 	u32 datapath_caps;
 	unsigned int rx_dpcpu_fw_id;
 	unsigned int tx_dpcpu_fw_id;
+	unsigned int vport_id;
 };
 
 int efx_init_sriov(void);
