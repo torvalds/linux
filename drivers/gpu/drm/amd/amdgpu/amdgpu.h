@@ -1056,7 +1056,7 @@ struct amdgpu_ctx_mgr {
 	struct amdgpu_device *adev;
 	struct idr ctx_handles;
 	/* lock for IDR system */
-	struct mutex hlock;
+	struct mutex lock;
 };
 
 /*

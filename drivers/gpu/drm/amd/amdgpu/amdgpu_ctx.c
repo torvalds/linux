@@ -33,9 +33,7 @@ static void amdgpu_ctx_do_release(struct kref *ref)
 	ctx = container_of(ref, struct amdgpu_ctx, refcount);
 	mgr = &ctx->fpriv->ctx_mgr;
 
-	mutex_lock(&mgr->hlock);
 	idr_remove(&mgr->ctx_handles, ctx->id);
-	mutex_unlock(&mgr->hlock);
 	kfree(ctx);
 }
 
@@ -49,20 +47,20 @@ int amdgpu_ctx_alloc(struct amdgpu_device *adev, struct amdgpu_fpriv *fpriv, uin
 	if (!ctx)
 		return -ENOMEM;
 
-	mutex_lock(&mgr->hlock);
+	mutex_lock(&mgr->lock);
 	r = idr_alloc(&mgr->ctx_handles, ctx, 0, 0, GFP_KERNEL);
 	if (r < 0) {
-		mutex_unlock(&mgr->hlock);
+		mutex_unlock(&mgr->lock);
 		kfree(ctx);
 		return r;
 	}
-	mutex_unlock(&mgr->hlock);
 	*id = (uint32_t)r;
 
 	memset(ctx, 0, sizeof(*ctx));
 	ctx->id = *id;
 	ctx->fpriv = fpriv;
 	kref_init(&ctx->refcount);
+	mutex_unlock(&mgr->lock);
 
 	return 0;
 }
@@ -72,13 +70,14 @@ int amdgpu_ctx_free(struct amdgpu_device *adev, struct amdgpu_fpriv *fpriv, uint
 	struct amdgpu_ctx *ctx;
 	struct amdgpu_ctx_mgr *mgr = &fpriv->ctx_mgr;
 
-	rcu_read_lock();
+	mutex_lock(&mgr->lock);
 	ctx = idr_find(&mgr->ctx_handles, id);
-	rcu_read_unlock();
 	if (ctx) {
 		kref_put(&ctx->refcount, amdgpu_ctx_do_release);
+		mutex_unlock(&mgr->lock);
 		return 0;
 	}
+	mutex_unlock(&mgr->lock);
 	return -EINVAL;
 }
 
@@ -87,14 +86,15 @@ int amdgpu_ctx_query(struct amdgpu_device *adev, struct amdgpu_fpriv *fpriv, uin
 	struct amdgpu_ctx *ctx;
 	struct amdgpu_ctx_mgr *mgr = &fpriv->ctx_mgr;
 
-	rcu_read_lock();
+	mutex_lock(&mgr->lock);
 	ctx = idr_find(&mgr->ctx_handles, id);
-	rcu_read_unlock();
 	if (ctx) {
 		/* state should alter with CS activity */
 		*state = ctx->state;
+		mutex_unlock(&mgr->lock);
 		return 0;
 	}
+	mutex_unlock(&mgr->lock);
 	return -EINVAL;
 }
 
@@ -111,7 +111,7 @@ void amdgpu_ctx_fini(struct amdgpu_fpriv *fpriv)
 			DRM_ERROR("ctx (id=%ul) is still alive\n",ctx->id);
 	}
 
-	mutex_destroy(&mgr->hlock);
+	mutex_destroy(&mgr->lock);
 }
 
 int amdgpu_ctx_ioctl(struct drm_device *dev, void *data,

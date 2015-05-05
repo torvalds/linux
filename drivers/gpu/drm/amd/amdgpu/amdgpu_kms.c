@@ -497,7 +497,7 @@ int amdgpu_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 	idr_init(&fpriv->bo_list_handles);
 
 	/* init context manager */
-	mutex_init(&fpriv->ctx_mgr.hlock);
+	mutex_init(&fpriv->ctx_mgr.lock);
 	idr_init(&fpriv->ctx_mgr.ctx_handles);
 	fpriv->ctx_mgr.adev = adev;
 
