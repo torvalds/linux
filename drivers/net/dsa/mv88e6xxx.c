@@ -165,24 +165,6 @@ int mv88e6xxx_reg_write(struct dsa_switch *ds, int addr, int reg, u16 val)
 	return ret;
 }
 
-int mv88e6xxx_config_prio(struct dsa_switch *ds)
-{
-	/* Configure the IP ToS mapping registers. */
-	REG_WRITE(REG_GLOBAL, GLOBAL_IP_PRI_0, 0x0000);
-	REG_WRITE(REG_GLOBAL, GLOBAL_IP_PRI_1, 0x0000);
-	REG_WRITE(REG_GLOBAL, GLOBAL_IP_PRI_2, 0x5555);
-	REG_WRITE(REG_GLOBAL, GLOBAL_IP_PRI_3, 0x5555);
-	REG_WRITE(REG_GLOBAL, GLOBAL_IP_PRI_4, 0xaaaa);
-	REG_WRITE(REG_GLOBAL, GLOBAL_IP_PRI_5, 0xaaaa);
-	REG_WRITE(REG_GLOBAL, GLOBAL_IP_PRI_6, 0xffff);
-	REG_WRITE(REG_GLOBAL, GLOBAL_IP_PRI_7, 0xffff);
-
-	/* Configure the IEEE 802.1p priority mapping register. */
-	REG_WRITE(REG_GLOBAL, GLOBAL_IEEE_PRI, 0xfa41);
-
-	return 0;
-}
-
 int mv88e6xxx_set_addr_direct(struct dsa_switch *ds, u8 *addr)
 {
 	REG_WRITE(REG_GLOBAL, GLOBAL_MAC_01, (addr[0] << 8) | addr[1]);
@@ -434,14 +416,100 @@ void mv88e6xxx_poll_link(struct dsa_switch *ds)
 	}
 }
 
+static bool mv88e6xxx_6065_family(struct dsa_switch *ds)
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+
+	switch (ps->id) {
+	case PORT_SWITCH_ID_6031:
+	case PORT_SWITCH_ID_6061:
+	case PORT_SWITCH_ID_6035:
+	case PORT_SWITCH_ID_6065:
+		return true;
+	}
+	return false;
+}
+
+static bool mv88e6xxx_6095_family(struct dsa_switch *ds)
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+
+	switch (ps->id) {
+	case PORT_SWITCH_ID_6092:
+	case PORT_SWITCH_ID_6095:
+		return true;
+	}
+	return false;
+}
+
+static bool mv88e6xxx_6097_family(struct dsa_switch *ds)
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+
+	switch (ps->id) {
+	case PORT_SWITCH_ID_6046:
+	case PORT_SWITCH_ID_6085:
+	case PORT_SWITCH_ID_6096:
+	case PORT_SWITCH_ID_6097:
+		return true;
+	}
+	return false;
+}
+
+static bool mv88e6xxx_6165_family(struct dsa_switch *ds)
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+
+	switch (ps->id) {
+	case PORT_SWITCH_ID_6123:
+	case PORT_SWITCH_ID_6161:
+	case PORT_SWITCH_ID_6165:
+		return true;
+	}
+	return false;
+}
+
+static bool mv88e6xxx_6185_family(struct dsa_switch *ds)
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+
+	switch (ps->id) {
+	case PORT_SWITCH_ID_6121:
+	case PORT_SWITCH_ID_6122:
+	case PORT_SWITCH_ID_6152:
+	case PORT_SWITCH_ID_6155:
+	case PORT_SWITCH_ID_6182:
+	case PORT_SWITCH_ID_6185:
+	case PORT_SWITCH_ID_6108:
+	case PORT_SWITCH_ID_6131:
+		return true;
+	}
+	return false;
+}
+
+static bool mv88e6xxx_6351_family(struct dsa_switch *ds)
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+
+	switch (ps->id) {
+	case PORT_SWITCH_ID_6171:
+	case PORT_SWITCH_ID_6175:
+	case PORT_SWITCH_ID_6350:
+	case PORT_SWITCH_ID_6351:
+		return true;
+	}
+	return false;
+}
+
 static bool mv88e6xxx_6352_family(struct dsa_switch *ds)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 
 	switch (ps->id) {
-	case PORT_SWITCH_ID_6352:
 	case PORT_SWITCH_ID_6172:
 	case PORT_SWITCH_ID_6176:
+	case PORT_SWITCH_ID_6240:
+	case PORT_SWITCH_ID_6352:
 		return true;
 	}
 	return false;
@@ -1241,12 +1309,211 @@ static void mv88e6xxx_bridge_work(struct work_struct *work)
 	}
 }
 
-int mv88e6xxx_setup_port_common(struct dsa_switch *ds, int port)
+int mv88e6xxx_setup_port(struct dsa_switch *ds, int port)
 {
 	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
 	int ret, fid;
+	u16 reg;
 
 	mutex_lock(&ps->smi_mutex);
+
+	if (mv88e6xxx_6352_family(ds) || mv88e6xxx_6351_family(ds) ||
+	    mv88e6xxx_6165_family(ds) || mv88e6xxx_6097_family(ds) ||
+	    mv88e6xxx_6185_family(ds) || mv88e6xxx_6095_family(ds) ||
+	    mv88e6xxx_6065_family(ds)) {
+		/* MAC Forcing register: don't force link, speed,
+		 * duplex or flow control state to any particular
+		 * values on physical ports, but force the CPU port
+		 * and all DSA ports to their maximum bandwidth and
+		 * full duplex.
+		 */
+		reg = _mv88e6xxx_reg_read(ds, REG_PORT(port), PORT_PCS_CTRL);
+		if (dsa_is_cpu_port(ds, port) ||
+		    ds->dsa_port_mask & (1 << port)) {
+			reg |= PORT_PCS_CTRL_FORCE_LINK |
+				PORT_PCS_CTRL_LINK_UP |
+				PORT_PCS_CTRL_DUPLEX_FULL |
+				PORT_PCS_CTRL_FORCE_DUPLEX;
+			if (mv88e6xxx_6065_family(ds))
+				reg |= PORT_PCS_CTRL_100;
+			else
+				reg |= PORT_PCS_CTRL_1000;
+		} else {
+			reg |= PORT_PCS_CTRL_UNFORCED;
+		}
+
+		ret = _mv88e6xxx_reg_write(ds, REG_PORT(port),
+					   PORT_PCS_CTRL, reg);
+		if (ret)
+			goto abort;
+	}
+
+	/* Port Control: disable Drop-on-Unlock, disable Drop-on-Lock,
+	 * disable Header mode, enable IGMP/MLD snooping, disable VLAN
+	 * tunneling, determine priority by looking at 802.1p and IP
+	 * priority fields (IP prio has precedence), and set STP state
+	 * to Forwarding.
+	 *
+	 * If this is the CPU link, use DSA or EDSA tagging depending
+	 * on which tagging mode was configured.
+	 *
+	 * If this is a link to another switch, use DSA tagging mode.
+	 *
+	 * If this is the upstream port for this switch, enable
+	 * forwarding of unknown unicasts and multicasts.
+	 */
+	reg = 0;
+	if (mv88e6xxx_6352_family(ds) || mv88e6xxx_6351_family(ds) ||
+	    mv88e6xxx_6165_family(ds) || mv88e6xxx_6097_family(ds) ||
+	    mv88e6xxx_6095_family(ds) || mv88e6xxx_6065_family(ds) ||
+	    mv88e6xxx_6185_family(ds))
+		reg = PORT_CONTROL_IGMP_MLD_SNOOP |
+		PORT_CONTROL_USE_TAG | PORT_CONTROL_USE_IP |
+		PORT_CONTROL_STATE_FORWARDING;
+	if (dsa_is_cpu_port(ds, port)) {
+		if (mv88e6xxx_6095_family(ds) || mv88e6xxx_6185_family(ds))
+			reg |= PORT_CONTROL_DSA_TAG;
+		if (mv88e6xxx_6352_family(ds) || mv88e6xxx_6351_family(ds) ||
+		    mv88e6xxx_6165_family(ds) || mv88e6xxx_6097_family(ds)) {
+			if (ds->dst->tag_protocol == DSA_TAG_PROTO_EDSA)
+				reg |= PORT_CONTROL_FRAME_ETHER_TYPE_DSA;
+			else
+				reg |= PORT_CONTROL_FRAME_MODE_DSA;
+		}
+
+		if (mv88e6xxx_6352_family(ds) || mv88e6xxx_6351_family(ds) ||
+		    mv88e6xxx_6165_family(ds) || mv88e6xxx_6097_family(ds) ||
+		    mv88e6xxx_6095_family(ds) || mv88e6xxx_6065_family(ds) ||
+		    mv88e6xxx_6185_family(ds)) {
+			if (ds->dst->tag_protocol == DSA_TAG_PROTO_EDSA)
+				reg |= PORT_CONTROL_EGRESS_ADD_TAG;
+		}
+	}
+	if (mv88e6xxx_6352_family(ds) || mv88e6xxx_6351_family(ds) ||
+	    mv88e6xxx_6165_family(ds) || mv88e6xxx_6097_family(ds) ||
+	    mv88e6xxx_6095_family(ds) || mv88e6xxx_6065_family(ds)) {
+		if (ds->dsa_port_mask & (1 << port))
+			reg |= PORT_CONTROL_FRAME_MODE_DSA;
+		if (port == dsa_upstream_port(ds))
+			reg |= PORT_CONTROL_FORWARD_UNKNOWN |
+				PORT_CONTROL_FORWARD_UNKNOWN_MC;
+	}
+	if (reg) {
+		ret = _mv88e6xxx_reg_write(ds, REG_PORT(port),
+					   PORT_CONTROL, reg);
+		if (ret)
+			goto abort;
+	}
+
+	/* Port Control 2: don't force a good FCS, set the maximum
+	 * frame size to 10240 bytes, don't let the switch add or
+	 * strip 802.1q tags, don't discard tagged or untagged frames
+	 * on this port, do a destination address lookup on all
+	 * received packets as usual, disable ARP mirroring and don't
+	 * send a copy of all transmitted/received frames on this port
+	 * to the CPU.
+	 */
+	reg = 0;
+	if (mv88e6xxx_6352_family(ds) || mv88e6xxx_6351_family(ds) ||
+	    mv88e6xxx_6165_family(ds) || mv88e6xxx_6097_family(ds) ||
+	    mv88e6xxx_6095_family(ds))
+		reg = PORT_CONTROL_2_MAP_DA;
+
+	if (mv88e6xxx_6352_family(ds) || mv88e6xxx_6351_family(ds) ||
+	    mv88e6xxx_6165_family(ds))
+		reg |= PORT_CONTROL_2_JUMBO_10240;
+
+	if (mv88e6xxx_6095_family(ds) || mv88e6xxx_6185_family(ds)) {
+		/* Set the upstream port this port should use */
+		reg |= dsa_upstream_port(ds);
+		/* enable forwarding of unknown multicast addresses to
+		 * the upstream port
+		 */
+		if (port == dsa_upstream_port(ds))
+			reg |= PORT_CONTROL_2_FORWARD_UNKNOWN;
+	}
+
+	if (reg) {
+		ret = _mv88e6xxx_reg_write(ds, REG_PORT(port),
+					   PORT_CONTROL_2, reg);
+		if (ret)
+			goto abort;
+	}
+
+	/* Port Association Vector: when learning source addresses
+	 * of packets, add the address to the address database using
+	 * a port bitmap that has only the bit for this port set and
+	 * the other bits clear.
+	 */
+	ret = _mv88e6xxx_reg_write(ds, REG_PORT(port), PORT_ASSOC_VECTOR,
+				   1 << port);
+	if (ret)
+		goto abort;
+
+	/* Egress rate control 2: disable egress rate control. */
+	ret = _mv88e6xxx_reg_write(ds, REG_PORT(port), PORT_RATE_CONTROL_2,
+				   0x0000);
+	if (ret)
+		goto abort;
+
+	if (mv88e6xxx_6352_family(ds) || mv88e6xxx_6351_family(ds) ||
+	    mv88e6xxx_6165_family(ds) || mv88e6xxx_6097_family(ds)) {
+		/* Do not limit the period of time that this port can
+		 * be paused for by the remote end or the period of
+		 * time that this port can pause the remote end.
+		 */
+		ret = _mv88e6xxx_reg_write(ds, REG_PORT(port),
+					   PORT_PAUSE_CTRL, 0x0000);
+		if (ret)
+			goto abort;
+
+		/* Port ATU control: disable limiting the number of
+		 * address database entries that this port is allowed
+		 * to use.
+		 */
+		ret = _mv88e6xxx_reg_write(ds, REG_PORT(port),
+					   PORT_ATU_CONTROL, 0x0000);
+		/* Priority Override: disable DA, SA and VTU priority
+		 * override.
+		 */
+		ret = _mv88e6xxx_reg_write(ds, REG_PORT(port),
+					   PORT_PRI_OVERRIDE, 0x0000);
+		if (ret)
+			goto abort;
+
+		/* Port Ethertype: use the Ethertype DSA Ethertype
+		 * value.
+		 */
+		ret = _mv88e6xxx_reg_write(ds, REG_PORT(port),
+					   PORT_ETH_TYPE, ETH_P_EDSA);
+		if (ret)
+			goto abort;
+		/* Tag Remap: use an identity 802.1p prio -> switch
+		 * prio mapping.
+		 */
+		ret = _mv88e6xxx_reg_write(ds, REG_PORT(port),
+					   PORT_TAG_REGMAP_0123, 0x3210);
+		if (ret)
+			goto abort;
+
+		/* Tag Remap 2: use an identity 802.1p prio -> switch
+		 * prio mapping.
+		 */
+		ret = _mv88e6xxx_reg_write(ds, REG_PORT(port),
+					   PORT_TAG_REGMAP_4567, 0x7654);
+		if (ret)
+			goto abort;
+	}
+
+	if (mv88e6xxx_6352_family(ds) || mv88e6xxx_6351_family(ds) ||
+	    mv88e6xxx_6165_family(ds) || mv88e6xxx_6097_family(ds) ||
+	    mv88e6xxx_6185_family(ds) || mv88e6xxx_6095_family(ds)) {
+		/* Rate Control: disable ingress rate limiting. */
+		ret = _mv88e6xxx_reg_write(ds, REG_PORT(port),
+					   PORT_RATE_CONTROL, 0x0001);
+		if (ret)
+			goto abort;
+	}
 
 	/* Port Control 1: disable trunking, disable sending
 	 * learning messages to this port.
@@ -1294,6 +1561,104 @@ int mv88e6xxx_setup_common(struct dsa_switch *ds)
 	ps->fid_mask = (1 << DSA_MAX_PORTS) - 1;
 
 	INIT_WORK(&ps->bridge_work, mv88e6xxx_bridge_work);
+
+	return 0;
+}
+
+int mv88e6xxx_setup_global(struct dsa_switch *ds)
+{
+	struct mv88e6xxx_priv_state *ps = ds_to_priv(ds);
+	int i;
+
+	/* Set the default address aging time to 5 minutes, and
+	 * enable address learn messages to be sent to all message
+	 * ports.
+	 */
+	REG_WRITE(REG_GLOBAL, GLOBAL_ATU_CONTROL,
+		  0x0140 | GLOBAL_ATU_CONTROL_LEARN2ALL);
+
+	/* Configure the IP ToS mapping registers. */
+	REG_WRITE(REG_GLOBAL, GLOBAL_IP_PRI_0, 0x0000);
+	REG_WRITE(REG_GLOBAL, GLOBAL_IP_PRI_1, 0x0000);
+	REG_WRITE(REG_GLOBAL, GLOBAL_IP_PRI_2, 0x5555);
+	REG_WRITE(REG_GLOBAL, GLOBAL_IP_PRI_3, 0x5555);
+	REG_WRITE(REG_GLOBAL, GLOBAL_IP_PRI_4, 0xaaaa);
+	REG_WRITE(REG_GLOBAL, GLOBAL_IP_PRI_5, 0xaaaa);
+	REG_WRITE(REG_GLOBAL, GLOBAL_IP_PRI_6, 0xffff);
+	REG_WRITE(REG_GLOBAL, GLOBAL_IP_PRI_7, 0xffff);
+
+	/* Configure the IEEE 802.1p priority mapping register. */
+	REG_WRITE(REG_GLOBAL, GLOBAL_IEEE_PRI, 0xfa41);
+
+	/* Send all frames with destination addresses matching
+	 * 01:80:c2:00:00:0x to the CPU port.
+	 */
+	REG_WRITE(REG_GLOBAL2, GLOBAL2_MGMT_EN_0X, 0xffff);
+
+	/* Ignore removed tag data on doubly tagged packets, disable
+	 * flow control messages, force flow control priority to the
+	 * highest, and send all special multicast frames to the CPU
+	 * port at the highest priority.
+	 */
+	REG_WRITE(REG_GLOBAL2, GLOBAL2_SWITCH_MGMT,
+		  0x7 | GLOBAL2_SWITCH_MGMT_RSVD2CPU | 0x70 |
+		  GLOBAL2_SWITCH_MGMT_FORCE_FLOW_CTRL_PRI);
+
+	/* Program the DSA routing table. */
+	for (i = 0; i < 32; i++) {
+		int nexthop = 0x1f;
+
+		if (ds->pd->rtable &&
+		    i != ds->index && i < ds->dst->pd->nr_chips)
+			nexthop = ds->pd->rtable[i] & 0x1f;
+
+		REG_WRITE(REG_GLOBAL2, GLOBAL2_DEVICE_MAPPING,
+			  GLOBAL2_DEVICE_MAPPING_UPDATE |
+			  (i << GLOBAL2_DEVICE_MAPPING_TARGET_SHIFT) |
+			  nexthop);
+	}
+
+	/* Clear all trunk masks. */
+	for (i = 0; i < 8; i++)
+		REG_WRITE(REG_GLOBAL2, GLOBAL2_TRUNK_MASK,
+			  0x8000 | (i << GLOBAL2_TRUNK_MASK_NUM_SHIFT) |
+			  ((1 << ps->num_ports) - 1));
+
+	/* Clear all trunk mappings. */
+	for (i = 0; i < 16; i++)
+		REG_WRITE(REG_GLOBAL2, GLOBAL2_TRUNK_MAPPING,
+			  GLOBAL2_TRUNK_MAPPING_UPDATE |
+			  (i << GLOBAL2_TRUNK_MAPPING_ID_SHIFT));
+
+	if (mv88e6xxx_6352_family(ds) || mv88e6xxx_6351_family(ds) ||
+	    mv88e6xxx_6165_family(ds) || mv88e6xxx_6097_family(ds)) {
+		/* Send all frames with destination addresses matching
+		 * 01:80:c2:00:00:2x to the CPU port.
+		 */
+		REG_WRITE(REG_GLOBAL2, GLOBAL2_MGMT_EN_2X, 0xffff);
+
+		/* Initialise cross-chip port VLAN table to reset
+		 * defaults.
+		 */
+		REG_WRITE(REG_GLOBAL2, GLOBAL2_PVT_ADDR, 0x9000);
+
+		/* Clear the priority override table. */
+		for (i = 0; i < 16; i++)
+			REG_WRITE(REG_GLOBAL2, GLOBAL2_PRIO_OVERRIDE,
+				  0x8000 | (i << 8));
+	}
+
+	if (mv88e6xxx_6352_family(ds) || mv88e6xxx_6351_family(ds) ||
+	    mv88e6xxx_6165_family(ds) || mv88e6xxx_6097_family(ds) ||
+	    mv88e6xxx_6185_family(ds) || mv88e6xxx_6095_family(ds)) {
+		/* Disable ingress rate limiting by resetting all
+		 * ingress rate limit registers to their initial
+		 * state.
+		 */
+		for (i = 0; i < ps->num_ports; i++)
+			REG_WRITE(REG_GLOBAL2, GLOBAL2_INGRESS_OP,
+				  0x9000 | (i << 8));
+	}
 
 	return 0;
 }
