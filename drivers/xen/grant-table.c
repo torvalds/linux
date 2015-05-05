@@ -642,7 +642,7 @@ int gnttab_setup_auto_xlat_frames(phys_addr_t addr)
 	if (xen_auto_xlat_grant_frames.count)
 		return -EINVAL;
 
-	vaddr = xen_remap(addr, PAGE_SIZE * max_nr_gframes);
+	vaddr = xen_remap(addr, XEN_PAGE_SIZE * max_nr_gframes);
 	if (vaddr == NULL) {
 		pr_warn("Failed to ioremap gnttab share frames (addr=%pa)!\n",
 			&addr);
@@ -654,7 +654,7 @@ int gnttab_setup_auto_xlat_frames(phys_addr_t addr)
 		return -ENOMEM;
 	}
 	for (i = 0; i < max_nr_gframes; i++)
-		pfn[i] = PFN_DOWN(addr) + i;
+		pfn[i] = XEN_PFN_DOWN(addr) + i;
 
 	xen_auto_xlat_grant_frames.vaddr = vaddr;
 	xen_auto_xlat_grant_frames.pfn = pfn;
@@ -1004,7 +1004,7 @@ static void gnttab_request_version(void)
 {
 	/* Only version 1 is used, which will always be available. */
 	grant_table_version = 1;
-	grefs_per_grant_frame = PAGE_SIZE / sizeof(struct grant_entry_v1);
+	grefs_per_grant_frame = XEN_PAGE_SIZE / sizeof(struct grant_entry_v1);
 	gnttab_interface = &gnttab_v1_ops;
 
 	pr_info("Grant tables using version %d layout\n", grant_table_version);
