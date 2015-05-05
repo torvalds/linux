@@ -560,6 +560,49 @@ static bool hdmi_sink_is_deep_color(struct drm_encoder *encoder)
 	return false;
 }
 
+/*
+ * Determine if default_phase=1 can be indicated in the GCP infoframe.
+ *
+ * From HDMI specification 1.4a:
+ * - The first pixel of each Video Data Period shall always have a pixel packing phase of 0
+ * - The first pixel following each Video Data Period shall have a pixel packing phase of 0
+ * - The PP bits shall be constant for all GCPs and will be equal to the last packing phase
+ * - The first pixel following every transition of HSYNC or VSYNC shall have a pixel packing
+ *   phase of 0
+ */
+static bool gcp_default_phase_possible(int pipe_bpp,
+				       const struct drm_display_mode *mode)
+{
+	unsigned int pixels_per_group;
+
+	switch (pipe_bpp) {
+	case 30:
+		/* 4 pixels in 5 clocks */
+		pixels_per_group = 4;
+		break;
+	case 36:
+		/* 2 pixels in 3 clocks */
+		pixels_per_group = 2;
+		break;
+	case 48:
+		/* 1 pixel in 2 clocks */
+		pixels_per_group = 1;
+		break;
+	default:
+		/* phase information not relevant for 8bpc */
+		return false;
+	}
+
+	return mode->crtc_hdisplay % pixels_per_group == 0 &&
+		mode->crtc_htotal % pixels_per_group == 0 &&
+		mode->crtc_hblank_start % pixels_per_group == 0 &&
+		mode->crtc_hblank_end % pixels_per_group == 0 &&
+		mode->crtc_hsync_start % pixels_per_group == 0 &&
+		mode->crtc_hsync_end % pixels_per_group == 0 &&
+		((mode->flags & DRM_MODE_FLAG_INTERLACE) == 0 ||
+		 mode->crtc_htotal/2 % pixels_per_group == 0);
+}
+
 static bool intel_hdmi_set_gcp_infoframe(struct drm_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = encoder->dev->dev_private;
@@ -578,6 +621,11 @@ static bool intel_hdmi_set_gcp_infoframe(struct drm_encoder *encoder)
 	/* Indicate color depth whenever the sink supports deep color */
 	if (hdmi_sink_is_deep_color(encoder))
 		val |= GCP_COLOR_INDICATION;
+
+	/* Enable default_phase whenever the display mode is suitably aligned */
+	if (gcp_default_phase_possible(crtc->config->pipe_bpp,
+				       &crtc->config->base.adjusted_mode))
+		val |= GCP_DEFAULT_PHASE_ENABLE;
 
 	I915_WRITE(reg, val);
 
