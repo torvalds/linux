@@ -32,7 +32,7 @@ struct memregion {
 	BOOL requested;
 };
 
-static BOOL mapit(struct memregion *memregion);
+static int mapit(struct memregion *memregion);
 static void unmapit(struct memregion *memregion);
 
 struct memregion *
@@ -47,7 +47,7 @@ visor_memregion_create(HOSTADDRESS physaddr, ulong nbytes)
 
 	memregion->physaddr = physaddr;
 	memregion->nbytes = nbytes;
-	if (!mapit(memregion)) {
+	if (mapit(memregion)) {
 		rc = NULL;
 		goto cleanup;
 	}
@@ -61,19 +61,24 @@ cleanup:
 }
 EXPORT_SYMBOL_GPL(visor_memregion_create);
 
-static BOOL
+static int
 mapit(struct memregion *memregion)
 {
 	ulong physaddr = (ulong)(memregion->physaddr);
 	ulong nbytes = memregion->nbytes;
 
 	memregion->requested = FALSE;
-	if (request_mem_region(physaddr, nbytes, MYDRVNAME))
-		memregion->requested = TRUE;
+	if (!request_mem_region(physaddr, nbytes, MYDRVNAME))
+		return -EBUSY;
+
+	memregion->requested = TRUE;
 	memregion->mapped = ioremap_cache(physaddr, nbytes);
-	if (!memregion->mapped)
-		return FALSE;
-	return TRUE;
+	if (!memregion->mapped) {
+		memregion->requested = TRUE;
+		return -EFAULT;
+	}
+
+	return 0;
 }
 
 static void
@@ -114,15 +119,16 @@ EXPORT_SYMBOL_GPL(visor_memregion_get_pointer);
 int
 visor_memregion_resize(struct memregion *memregion, ulong newsize)
 {
+	int rc;
+
 	if (newsize == memregion->nbytes)
 		return 0;
 
 	unmapit(memregion);
 	memregion->nbytes = newsize;
-	if (!mapit(memregion))
-		return -EIO;
+	rc = mapit(memregion);
 
-	return 0;
+	return rc;
 }
 EXPORT_SYMBOL_GPL(visor_memregion_resize);
 
