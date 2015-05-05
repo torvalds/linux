@@ -30,7 +30,7 @@ void visor_charqueue_enqueue(struct charqueue *charqueue, unsigned char c);
 int charqueue_dequeue(struct charqueue *charqueue);
 int visor_charqueue_dequeue_n(struct charqueue *charqueue, unsigned char *buf,
 			      int n);
-BOOL visor_charqueue_is_empty(struct charqueue *charqueue);
+bool visor_charqueue_is_empty(struct charqueue *charqueue);
 void visor_charqueue_destroy(struct charqueue *charqueue);
 
 #endif

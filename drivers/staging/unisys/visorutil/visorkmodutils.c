@@ -53,7 +53,7 @@ static __init uint32_t visorutil_spar_detect(void)
 static __init int visorutil_mod_init(void)
 {
 	if (visorutil_spar_detect()) {
-		unisys_spar_platform = TRUE;
+		unisys_spar_platform = true;
 		return 0;
 	} else {
 		return -ENODEV;

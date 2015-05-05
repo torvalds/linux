@@ -2045,7 +2045,7 @@ parahotplug_process_message(struct controlvm_message *inmsg)
 
 /* Process a controlvm message.
  * Return result:
- *    false - this function will return FALSE only in the case where the
+ *    false - this function will return false only in the case where the
  *            controlvm message was NOT processed, but processing must be
  *            retried before reading the next controlvm message; a
  *            scenario where this can occur is when we need to throttle

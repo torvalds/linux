@@ -52,11 +52,6 @@
 #include <linux/mm.h>
 
 /* #define DEBUG */
-#ifndef BOOL
-#define BOOL    int
-#endif
-#define FALSE   0
-#define TRUE    1
 #if !defined SUCCESS
 #define SUCCESS 0
 #endif

@@ -64,9 +64,9 @@ void visor_charqueue_enqueue(struct charqueue *charqueue, unsigned char c)
 }
 EXPORT_SYMBOL_GPL(visor_charqueue_enqueue);
 
-BOOL visor_charqueue_is_empty(struct charqueue *charqueue)
+bool visor_charqueue_is_empty(struct charqueue *charqueue)
 {
-	BOOL b;
+	bool b;
 
 	spin_lock(&charqueue->lock);
 	b = IS_EMPTY(charqueue);

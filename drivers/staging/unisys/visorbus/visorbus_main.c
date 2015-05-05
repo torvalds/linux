@@ -1076,7 +1076,7 @@ visordriver_probe_device(struct device *xdev)
 	drv = to_visor_driver(xdev->driver);
 	dev = to_visor_device(xdev);
 	down(&dev->visordriver_callback_lock);
-	dev->being_removed = FALSE;
+	dev->being_removed = false;
 	/*
 	 * ensure that the dev->being_removed flag is cleared before
 	 * we start the probe
@@ -1106,7 +1106,7 @@ away:
 	 *  initialized.
 	 */
 	if (!dev->responded_to_device_create) {
-		dev->responded_to_device_create = TRUE;
+		dev->responded_to_device_create = true;
 		if (chipset_responders.device_create)
 			(*chipset_responders.device_create)(dev->chipset_bus_no,
 							    dev->chipset_dev_no,
@@ -1129,7 +1129,7 @@ visordriver_remove_device(struct device *xdev)
 	dev = to_visor_device(xdev);
 	drv = to_visor_driver(xdev->driver);
 	down(&dev->visordriver_callback_lock);
-	dev->being_removed = TRUE;
+	dev->being_removed = true;
 	/*
 	 * ensure that the dev->being_removed flag is set before we start the
 	 * actual removal
@@ -1303,7 +1303,7 @@ create_visor_device(struct visorbus_devdata *devdata,
 	int rc = -1;
 	struct visorchannel *visorchannel = NULL;
 	struct visor_device *dev = NULL;
-	bool gotten = FALSE, registered1 = FALSE, registered2 = FALSE;
+	bool gotten = false, registered1 = false, registered2 = false;
 
 	POSTCODE_LINUX_4(DEVICE_CREATE_ENTRY_PC, chipset_dev_no, chipset_bus_no,
 			 POSTCODE_SEVERITY_INFO);
@@ -1337,7 +1337,7 @@ create_visor_device(struct visorbus_devdata *devdata,
 	dev->device.release = visorbus_release_device;
 	/* keep a reference just for us (now 2) */
 	get_device(&dev->device);
-	gotten = TRUE;
+	gotten = true;
 	dev->periodic_work =
 		visor_periodic_work_create(POLLJIFFIES_NORMALCHANNEL,
 					   periodic_dev_workqueue,
@@ -1387,7 +1387,7 @@ create_visor_device(struct visorbus_devdata *devdata,
 		goto away;
 	}
 
-	registered1 = TRUE;
+	registered1 = true;
 
 	rc = register_devmajorminor_attributes(dev);
 	if (rc < 0) {
@@ -1396,7 +1396,7 @@ create_visor_device(struct visorbus_devdata *devdata,
 		goto away;
 	}
 
-	registered2 = TRUE;
+	registered2 = true;
 	rc = 0;
 
 away:
@@ -1687,7 +1687,7 @@ create_bus_instance(int id)
 				if (get_vbus_header_info(devdata->chan,
 							 &devdata->
 							 vbus_hdr_info) >= 0) {
-					devdata->vbus_valid = TRUE;
+					devdata->vbus_valid = true;
 					write_vbus_chp_info(devdata->chan,
 							    &devdata->
 							    vbus_hdr_info,
@@ -1775,7 +1775,7 @@ remove_all_visor_devices(void)
 	}
 }
 
-static bool entered_testing_mode = FALSE;
+static bool entered_testing_mode;
 static struct visorchipset_channel_info test_channel_infos[MAXDEVICETEST];
 static unsigned long test_bus_nos[MAXDEVICETEST];
 static unsigned long test_dev_nos[MAXDEVICETEST];
@@ -1909,7 +1909,7 @@ pause_state_change_complete(struct visor_device *dev, int status)
 	if (!dev->pausing)
 			return;
 
-	dev->pausing = FALSE;
+	dev->pausing = false;
 	if (!chipset_responders.device_pause) /* this can never happen! */
 			return;
 
@@ -1930,7 +1930,7 @@ resume_state_change_complete(struct visor_device *dev, int status)
 	if (!dev->resuming)
 			return;
 
-	dev->resuming = FALSE;
+	dev->resuming = false;
 	if (!chipset_responders.device_resume) /* this can never happen! */
 			return;
 
@@ -1986,7 +1986,7 @@ initiate_chipset_device_pause_resume(u32 bus_no, u32 dev_no, bool is_pause)
 		if (!drv->pause)
 				goto away;
 
-		dev->pausing = TRUE;
+		dev->pausing = true;
 		x = drv->pause(dev, pause_state_change_complete);
 	} else {
 		/* This should be done at BUS resume time, but an
@@ -1998,14 +1998,14 @@ initiate_chipset_device_pause_resume(u32 bus_no, u32 dev_no, bool is_pause)
 		if (!drv->resume)
 				goto away;
 
-		dev->resuming = TRUE;
+		dev->resuming = true;
 		x = drv->resume(dev, resume_state_change_complete);
 	}
 	if (x < 0) {
 		if (is_pause)
-			dev->pausing = FALSE;
+			dev->pausing = false;
 		else
-			dev->resuming = FALSE;
+			dev->resuming = false;
 		goto away;
 	}
 	rc = 0;
@@ -2019,13 +2019,13 @@ away:
 static void
 chipset_device_pause(u32 bus_no, u32 dev_no)
 {
-	initiate_chipset_device_pause_resume(bus_no, dev_no, TRUE);
+	initiate_chipset_device_pause_resume(bus_no, dev_no, true);
 }
 
 static void
 chipset_device_resume(u32 bus_no, u32 dev_no)
 {
-	initiate_chipset_device_pause_resume(bus_no, dev_no, FALSE);
+	initiate_chipset_device_pause_resume(bus_no, dev_no, false);
 }
 
 struct channel_size_info {

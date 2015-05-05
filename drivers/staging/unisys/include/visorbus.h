@@ -182,9 +182,9 @@ int visorchannel_write(struct visorchannel *channel, ulong offset,
 		       void *local, ulong nbytes);
 int visorchannel_clear(struct visorchannel *channel, ulong offset,
 		       u8 ch, ulong nbytes);
-BOOL visorchannel_signalremove(struct visorchannel *channel, u32 queue,
+bool visorchannel_signalremove(struct visorchannel *channel, u32 queue,
 			       void *msg);
-BOOL visorchannel_signalinsert(struct visorchannel *channel, u32 queue,
+bool visorchannel_signalinsert(struct visorchannel *channel, u32 queue,
 			       void *msg);
 int visorchannel_signalqueue_slots_avail(struct visorchannel *channel,
 					 u32 queue);
