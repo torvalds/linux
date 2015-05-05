@@ -525,18 +525,14 @@ static void tick_broadcast_set_affinity(struct clock_event_device *bc,
 	irq_set_affinity(bc->irq, bc->cpumask);
 }
 
-static int tick_broadcast_set_event(struct clock_event_device *bc, int cpu,
-				    ktime_t expires, int force)
+static void tick_broadcast_set_event(struct clock_event_device *bc, int cpu,
+				     ktime_t expires)
 {
-	int ret;
-
 	if (bc->state != CLOCK_EVT_STATE_ONESHOT)
 		clockevents_set_state(bc, CLOCK_EVT_STATE_ONESHOT);
 
-	ret = clockevents_program_event(bc, expires, force);
-	if (!ret)
-		tick_broadcast_set_affinity(bc, cpumask_of(cpu));
-	return ret;
+	clockevents_program_event(bc, expires, 1);
+	tick_broadcast_set_affinity(bc, cpumask_of(cpu));
 }
 
 static void tick_resume_broadcast_oneshot(struct clock_event_device *bc)
@@ -573,9 +569,9 @@ static void tick_handle_oneshot_broadcast(struct clock_event_device *dev)
 	struct tick_device *td;
 	ktime_t now, next_event;
 	int cpu, next_cpu = 0;
+	bool bc_local;
 
 	raw_spin_lock(&tick_broadcast_lock);
-again:
 	dev->next_event.tv64 = KTIME_MAX;
 	next_event.tv64 = KTIME_MAX;
 	cpumask_clear(tmpmask);
@@ -615,13 +611,9 @@ again:
 		cpumask_and(tmpmask, tmpmask, cpu_online_mask);
 
 	/*
-	 * Wakeup the cpus which have an expired event and handle the
-	 * broadcast event of the local cpu.
+	 * Wakeup the cpus which have an expired event.
 	 */
-	if (tick_do_broadcast(tmpmask)) {
-		td = this_cpu_ptr(&tick_cpu_device);
-		td->evtdev->event_handler(td->evtdev);
-	}
+	bc_local = tick_do_broadcast(tmpmask);
 
 	/*
 	 * Two reasons for reprogram:
@@ -633,15 +625,15 @@ again:
 	 * - There are pending events on sleeping CPUs which were not
 	 * in the event mask
 	 */
-	if (next_event.tv64 != KTIME_MAX) {
-		/*
-		 * Rearm the broadcast device. If event expired,
-		 * repeat the above
-		 */
-		if (tick_broadcast_set_event(dev, next_cpu, next_event, 0))
-			goto again;
-	}
+	if (next_event.tv64 != KTIME_MAX)
+		tick_broadcast_set_event(dev, next_cpu, next_event);
+
 	raw_spin_unlock(&tick_broadcast_lock);
+
+	if (bc_local) {
+		td = this_cpu_ptr(&tick_cpu_device);
+		td->evtdev->event_handler(td->evtdev);
+	}
 }
 
 static int broadcast_needs_cpu(struct clock_event_device *bc, int cpu)
@@ -723,7 +715,7 @@ int tick_broadcast_oneshot_control(enum tick_broadcast_state state)
 			 */
 			if (!cpumask_test_cpu(cpu, tick_broadcast_force_mask) &&
 			    dev->next_event.tv64 < bc->next_event.tv64)
-				tick_broadcast_set_event(bc, cpu, dev->next_event, 1);
+				tick_broadcast_set_event(bc, cpu, dev->next_event);
 		}
 		/*
 		 * If the current CPU owns the hrtimer broadcast
@@ -858,7 +850,7 @@ void tick_broadcast_setup_oneshot(struct clock_event_device *bc)
 			clockevents_set_state(bc, CLOCK_EVT_STATE_ONESHOT);
 			tick_broadcast_init_next_event(tmpmask,
 						       tick_next_period);
-			tick_broadcast_set_event(bc, cpu, tick_next_period, 1);
+			tick_broadcast_set_event(bc, cpu, tick_next_period);
 		} else
 			bc->next_event.tv64 = KTIME_MAX;
 	} else {
