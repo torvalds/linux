@@ -9,6 +9,7 @@ dtb-$(CONFIG_DT_BCM97360SVMB)		+= bcm97360svmb.dtb
 dtb-$(CONFIG_DT_BCM97362SVMB)		+= bcm97362svmb.dtb
 dtb-$(CONFIG_DT_BCM97420C)		+= bcm97420c.dtb
 dtb-$(CONFIG_DT_BCM97425SVMB)		+= bcm97425svmb.dtb
+dtb-$(CONFIG_DT_BCM97435SVMB)		+= bcm97435svmb.dtb
 
 obj-y				+= $(patsubst %.dtb, %.dtb.o, $(dtb-y))
 
