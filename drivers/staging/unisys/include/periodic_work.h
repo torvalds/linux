@@ -18,7 +18,8 @@
 #ifndef __PERIODIC_WORK_H__
 #define __PERIODIC_WORK_H__
 
-#include "timskmod.h"
+#include <linux/seq_file.h>
+#include <linux/slab.h>
 
 
 /* PERIODIC_WORK an opaque structure to users.

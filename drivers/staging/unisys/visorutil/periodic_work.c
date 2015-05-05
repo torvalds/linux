@@ -20,7 +20,6 @@
  */
 #include <linux/sched.h>
 
-#include "timskmod.h"
 #include "periodic_work.h"
 
 #define MYDRVNAME "periodic_work"

@@ -18,7 +18,6 @@
 #ifndef __VISORCHANNEL_GLOBALS_H__
 #define __VISORCHANNEL_GLOBALS_H__
 
-#include "timskmod.h"
 #include "version.h"
 
 #define MYDRVNAME "visorchannel"

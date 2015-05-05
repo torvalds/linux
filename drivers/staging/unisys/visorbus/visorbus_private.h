@@ -22,7 +22,6 @@
 
 #include "channel.h"
 #include "controlvmchannel.h"
-#include "procobjecttree.h"
 #include "vbusdeviceinfo.h"
 #include "vbushelper.h"
 

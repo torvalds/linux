@@ -16,6 +16,7 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/cdev.h>
 #include <linux/ctype.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
@@ -29,7 +30,6 @@
 #include "controlvmcompletionstatus.h"
 #include "guestlinuxdebug.h"
 #include "periodic_work.h"
-#include "procobjecttree.h"
 #include "uisutils.h"
 #include "version.h"
 #include "visorbus.h"

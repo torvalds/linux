@@ -18,7 +18,6 @@
 #ifndef __SPARSTOP_H__
 #define __SPARSTOP_H__
 
-#include "timskmod.h"
 #include "version.h"
 #include <linux/ctype.h>
 
