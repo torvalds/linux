@@ -68,7 +68,6 @@ struct visorchipset_channel_info {
 	u64 n_channel_bytes;
 	uuid_le channel_type_uuid;
 	uuid_le channel_inst_uuid;
-
 };
 
 /** Attributes for a particular Supervisor device.
@@ -90,7 +89,6 @@ struct visorchipset_device_info {
 	struct controlvm_message_header pending_msg_hdr;/* CONTROLVM_MESSAGE */
 	/** For private use by the bus driver */
 	void *bus_driver_context;
-
 };
 
 static inline struct visorchipset_device_info *finddevice(
