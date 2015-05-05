@@ -2551,6 +2551,41 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 					     &fl->bar2_qid);
 		refill_fl(adap, fl, fl_cap(fl), GFP_KERNEL);
 	}
+
+	/* For T5 and later we attempt to set up the Congestion Manager values
+	 * of the new RX Ethernet Queue.  This should really be handled by
+	 * firmware because it's more complex than any host driver wants to
+	 * get involved with and it's different per chip and this is almost
+	 * certainly wrong.  Firmware would be wrong as well, but it would be
+	 * a lot easier to fix in one place ...  For now we do something very
+	 * simple (and hopefully less wrong).
+	 */
+	if (!is_t4(adap->params.chip) && cong >= 0) {
+		u32 param, val;
+		int i;
+
+		param = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DMAQ) |
+			 FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DMAQ_CONM_CTXT) |
+			 FW_PARAMS_PARAM_YZ_V(iq->cntxt_id));
+		if (cong == 0) {
+			val = CONMCTXT_CNGTPMODE_V(CONMCTXT_CNGTPMODE_QUEUE_X);
+		} else {
+			val =
+			    CONMCTXT_CNGTPMODE_V(CONMCTXT_CNGTPMODE_CHANNEL_X);
+			for (i = 0; i < 4; i++) {
+				if (cong & (1 << i))
+					val |=
+					     CONMCTXT_CNGCHMAP_V(1 << (i << 2));
+			}
+		}
+		ret = t4_set_params(adap, adap->mbox, adap->fn, 0, 1,
+				    &param, &val);
+		if (ret)
+			dev_warn(adap->pdev_dev, "Failed to set Congestion"
+				 " Manager Context for Ingress Queue %d: %d\n",
+				 iq->cntxt_id, -ret);
+	}
+
 	return 0;
 
 fl_nomem:
