@@ -33,6 +33,27 @@
 #define AZX_REG_EM4			0x100c
 #define AZX_REG_EM5			0x1010
 
+int hda_set_codec_wakeup(struct hda_intel *hda, bool enable)
+{
+	struct i915_audio_component *acomp = &hda->audio_component;
+
+	if (!acomp->ops)
+		return -ENODEV;
+
+	if (!acomp->ops->codec_wake_override) {
+		dev_warn(&hda->chip.pci->dev,
+			"Invalid codec wake callback\n");
+		return 0;
+	}
+
+	dev_dbg(&hda->chip.pci->dev, "%s codec wakeup\n",
+		enable ? "enable" : "disable");
+
+	acomp->ops->codec_wake_override(acomp->dev, enable);
+
+	return 0;
+}
+
 int hda_display_power(struct hda_intel *hda, bool enable)
 {
 	struct i915_audio_component *acomp = &hda->audio_component;
