@@ -117,7 +117,8 @@ static void rx(struct net_device *dev, int bufnum,
 				      pkt->soft.raw + sizeof(pkt->soft),
 				      length - sizeof(pkt->soft));
 
-	BUGLVL(D_SKB) arcnet_dump_skb(dev, skb, "rx");
+	if (BUGLVL(D_SKB))
+		arcnet_dump_skb(dev, skb, "rx");
 
 	skb->protocol = cpu_to_be16(ETH_P_ARCNET);
 	netif_rx(skb);

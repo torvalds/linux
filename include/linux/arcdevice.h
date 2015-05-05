@@ -78,13 +78,12 @@
 #endif
 extern int arcnet_debug;
 
-#define BUGLVL_TEST(x)	((x) & ARCNET_DEBUG_MAX & arcnet_debug)
-#define BUGLVL(x)	if (BUGLVL_TEST(x))
+#define BUGLVL(x)	((x) & ARCNET_DEBUG_MAX & arcnet_debug)
 
 /* macros to simplify debug checking */
 #define BUGMSG(x, fmt, ...)						\
 do {									\
-	if (BUGLVL_TEST(x))						\
+	if (BUGLVL(x))						\
 		printk("%s%6s: " fmt,					\
 		       (x) == D_NORMAL	? KERN_WARNING :		\
 		       (x) < D_DURING ? KERN_INFO : KERN_DEBUG,		\
@@ -93,12 +92,14 @@ do {									\
 
 #define BUGMSG2(x, fmt, ...)						\
 do {									\
-	if (BUGLVL_TEST(x))						\
+	if (BUGLVL(x))						\
 		printk(fmt, ##__VA_ARGS__);				\
 } while (0)
 
 /* see how long a function call takes to run, expressed in CPU cycles */
-#define TIME(name, bytes, call) BUGLVL(D_TIMING) {			\
+#define TIME(name, bytes, call)						\
+do {									\
+	if (BUGLVL(D_TIMING)) {						\
 		unsigned long _x, _y;					\
 		_x = get_cycles();					\
 		call;							\
@@ -108,10 +109,10 @@ do {									\
 		       "%lu Kbytes/100Mcycle\n",			\
 		       name, bytes, _y - _x,				\
 		       100000000 / 1024 * bytes / (_y - _x + 1));	\
-	}								\
-	else {								\
+	} else {							\
 		call;							\
-	}
+	}								\
+} while (0)
 
 /*
  * Time needed to reset the card - in ms (milliseconds).  This works on my

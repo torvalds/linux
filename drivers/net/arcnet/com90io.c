@@ -145,8 +145,10 @@ static int __init com90io_probe(struct net_device *dev)
 	int ioaddr = dev->base_addr, status;
 	unsigned long airqmask;
 
-	BUGLVL(D_NORMAL) printk(VERSION);
-	BUGLVL(D_NORMAL) printk("E-mail me if you actually test this driver, please!\n");
+	if (BUGLVL(D_NORMAL)) {
+		printk(VERSION);
+		printk("E-mail me if you actually test this driver, please!\n");
+	}
 
 	if (!ioaddr) {
 		BUGMSG(D_NORMAL, "No autoprobe for IO mapped cards; you must specify the base address!\n");

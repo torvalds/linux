@@ -84,7 +84,8 @@ static void rx(struct net_device *dev, int bufnum,
 				      + sizeof(int),
 				      length - sizeof(pkt->soft));
 
-	BUGLVL(D_SKB) arcnet_dump_skb(dev, skb, "rx");
+	if (BUGLVL(D_SKB))
+		arcnet_dump_skb(dev, skb, "rx");
 
 	skb->protocol = cpu_to_be16(ETH_P_ARCNET);
 	netif_rx(skb);
@@ -190,7 +191,8 @@ static int ack_tx(struct net_device *dev, int acked)
 	BUGMSG(D_DURING, "capmode: ack_tx: protocol: %x: result: %d\n",
 	       lp->outgoing.skb->protocol, acked);
 
-	BUGLVL(D_SKB) arcnet_dump_skb(dev, lp->outgoing.skb, "ack_tx");
+	if (BUGLVL(D_SKB))
+		arcnet_dump_skb(dev, lp->outgoing.skb, "ack_tx");
 
 	/* Now alloc a skb to send back up through the layers: */
 	ackskb = alloc_skb(length + ARC_HDR_SIZE, GFP_ATOMIC);
@@ -216,7 +218,8 @@ static int ack_tx(struct net_device *dev, int acked)
 
 	ackskb->protocol = cpu_to_be16(ETH_P_ARCNET);
 
-	BUGLVL(D_SKB) arcnet_dump_skb(dev, ackskb, "ack_tx_recv");
+	if (BUGLVL(D_SKB))
+		arcnet_dump_skb(dev, ackskb, "ack_tx_recv");
 	netif_rx(ackskb);
 
 free_outskb:

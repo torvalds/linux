@@ -82,18 +82,21 @@ static void arcrimi_copy_from_card(struct net_device *dev, int bufnum, int offse
  */
 static int __init arcrimi_probe(struct net_device *dev)
 {
-	BUGLVL(D_NORMAL) printk(VERSION);
-	BUGLVL(D_NORMAL) printk("E-mail me if you actually test the RIM I driver, please!\n");
-
-	BUGLVL(D_NORMAL) printk("Given: node %02Xh, shmem %lXh, irq %d\n",
-				dev->dev_addr[0], dev->mem_start, dev->irq);
+	if (BUGLVL(D_NORMAL)) {
+		printk(VERSION);
+		printk("E-mail me if you actually test the RIM I driver, please!\n");
+		printk("Given: node %02Xh, shmem %lXh, irq %d\n",
+		       dev->dev_addr[0], dev->mem_start, dev->irq);
+	}
 
 	if (dev->mem_start <= 0 || dev->irq <= 0) {
-		BUGLVL(D_NORMAL) printk("No autoprobe for RIM I; you must specify the shmem and irq!\n");
+		if (BUGLVL(D_NORMAL))
+			printk("No autoprobe for RIM I; you must specify the shmem and irq!\n");
 		return -ENODEV;
 	}
 	if (dev->dev_addr[0] == 0) {
-		BUGLVL(D_NORMAL) printk("You need to specify your card's station ID!\n");
+		if (BUGLVL(D_NORMAL))
+			printk("You need to specify your card's station ID!\n");
 		return -ENODEV;
 	}
 	/* Grab the memory region at mem_start for MIRROR_SIZE bytes.
@@ -102,7 +105,8 @@ static int __init arcrimi_probe(struct net_device *dev)
 	 * will be taken.
 	 */
 	if (!request_mem_region(dev->mem_start, MIRROR_SIZE, "arcnet (90xx)")) {
-		BUGLVL(D_NORMAL) printk("Card memory already allocated\n");
+		if (BUGLVL(D_NORMAL))
+			printk("Card memory already allocated\n");
 		return -ENODEV;
 	}
 	return arcrimi_found(dev);

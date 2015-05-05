@@ -221,7 +221,8 @@ static void rx(struct net_device *dev, int bufnum,
 				dev->stats.rx_crc_errors++;
 			}
 		}
-		BUGLVL(D_SKB) arcnet_dump_skb(dev, skb, "rx");
+		if (BUGLVL(D_SKB))
+			arcnet_dump_skb(dev, skb, "rx");
 
 		skb->protocol = type_trans(skb, dev);
 		netif_rx(skb);
@@ -353,7 +354,8 @@ static void rx(struct net_device *dev, int bufnum,
 			       skb->len, pkt->hard.source);
 			BUGMSG(D_SKB_SIZE, "skb: received %d bytes from %02X (split)\n",
 			       skb->len, pkt->hard.source);
-			BUGLVL(D_SKB) arcnet_dump_skb(dev, skb, "rx");
+			if (BUGLVL(D_SKB))
+				arcnet_dump_skb(dev, skb, "rx");
 
 			skb->protocol = type_trans(skb, dev);
 			netif_rx(skb);

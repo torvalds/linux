@@ -133,7 +133,8 @@ static void __init com90xx_probe(void)
 		return;
 	}
 
-	BUGLVL(D_NORMAL) printk(VERSION);
+	if (BUGLVL(D_NORMAL))
+		printk(VERSION);
 
 	/* set up the arrays where we'll store the possible probe addresses */
 	numports = numshmems = 0;
@@ -166,14 +167,16 @@ static void __init com90xx_probe(void)
 		if (!request_region(*port, ARCNET_TOTAL_SIZE, "arcnet (90xx)")) {
 			BUGMSG2(D_INIT_REASONS, "(request_region)\n");
 			BUGMSG2(D_INIT_REASONS, "S1: ");
-			BUGLVL(D_INIT_REASONS) numprint = 0;
+			if (BUGLVL(D_INIT_REASONS))
+				numprint = 0;
 			*port-- = ports[--numports];
 			continue;
 		}
 		if (ASTATUS() == 0xFF) {
 			BUGMSG2(D_INIT_REASONS, "(empty)\n");
 			BUGMSG2(D_INIT_REASONS, "S1: ");
-			BUGLVL(D_INIT_REASONS) numprint = 0;
+			if (BUGLVL(D_INIT_REASONS))
+				numprint = 0;
 			release_region(*port, ARCNET_TOTAL_SIZE);
 			*port-- = ports[--numports];
 			continue;
@@ -182,7 +185,8 @@ static void __init com90xx_probe(void)
 
 		BUGMSG2(D_INIT_REASONS, "\n");
 		BUGMSG2(D_INIT_REASONS, "S1: ");
-		BUGLVL(D_INIT_REASONS) numprint = 0;
+		if (BUGLVL(D_INIT_REASONS))
+			numprint = 0;
 	}
 	BUGMSG2(D_INIT, "\n");
 
@@ -227,21 +231,24 @@ static void __init com90xx_probe(void)
 		if (!request_mem_region(*p, MIRROR_SIZE, "arcnet (90xx)")) {
 			BUGMSG2(D_INIT_REASONS, "(request_mem_region)\n");
 			BUGMSG2(D_INIT_REASONS, "Stage 3: ");
-			BUGLVL(D_INIT_REASONS) numprint = 0;
+			if (BUGLVL(D_INIT_REASONS))
+				numprint = 0;
 			goto out;
 		}
 		base = ioremap(*p, MIRROR_SIZE);
 		if (!base) {
 			BUGMSG2(D_INIT_REASONS, "(ioremap)\n");
 			BUGMSG2(D_INIT_REASONS, "Stage 3: ");
-			BUGLVL(D_INIT_REASONS) numprint = 0;
+			if (BUGLVL(D_INIT_REASONS))
+				numprint = 0;
 			goto out1;
 		}
 		if (readb(base) != TESTvalue) {
 			BUGMSG2(D_INIT_REASONS, "(%02Xh != %02Xh)\n",
 				readb(base), TESTvalue);
 			BUGMSG2(D_INIT_REASONS, "S3: ");
-			BUGLVL(D_INIT_REASONS) numprint = 0;
+			if (BUGLVL(D_INIT_REASONS))
+				numprint = 0;
 			goto out2;
 		}
 		/* By writing 0x42 to the TESTvalue location, we also make
@@ -257,7 +264,8 @@ static void __init com90xx_probe(void)
 		}
 		BUGMSG2(D_INIT_REASONS, "\n");
 		BUGMSG2(D_INIT_REASONS, "S3: ");
-		BUGLVL(D_INIT_REASONS) numprint = 0;
+		if (BUGLVL(D_INIT_REASONS))
+			numprint = 0;
 		iomem[index] = base;
 		continue;
 	out2:
@@ -319,7 +327,8 @@ static void __init com90xx_probe(void)
 		    != (NORXflag | RECONflag | TXFREEflag | RESETflag)) {
 			BUGMSG2(D_INIT_REASONS, "(status=%Xh)\n", status);
 			BUGMSG2(D_INIT_REASONS, "S5: ");
-			BUGLVL(D_INIT_REASONS) numprint = 0;
+			if (BUGLVL(D_INIT_REASONS))
+				numprint = 0;
 			release_region(*port, ARCNET_TOTAL_SIZE);
 			*port-- = ports[--numports];
 			continue;
@@ -330,7 +339,8 @@ static void __init com90xx_probe(void)
 			BUGMSG2(D_INIT_REASONS, " (eternal reset, status=%Xh)\n",
 				status);
 			BUGMSG2(D_INIT_REASONS, "S5: ");
-			BUGLVL(D_INIT_REASONS) numprint = 0;
+			if (BUGLVL(D_INIT_REASONS))
+				numprint = 0;
 			release_region(*port, ARCNET_TOTAL_SIZE);
 			*port-- = ports[--numports];
 			continue;
@@ -352,7 +362,8 @@ static void __init com90xx_probe(void)
 			if (airq <= 0) {
 				BUGMSG2(D_INIT_REASONS, "(airq=%d)\n", airq);
 				BUGMSG2(D_INIT_REASONS, "S5: ");
-				BUGLVL(D_INIT_REASONS) numprint = 0;
+				if (BUGLVL(D_INIT_REASONS))
+					numprint = 0;
 				release_region(*port, ARCNET_TOTAL_SIZE);
 				*port-- = ports[--numports];
 				continue;
@@ -406,16 +417,20 @@ static void __init com90xx_probe(void)
 		}
 
 		if (openparen) {
-			BUGLVL(D_INIT) printk("no matching shmem)\n");
-			BUGLVL(D_INIT_REASONS) printk("S5: ");
-			BUGLVL(D_INIT_REASONS) numprint = 0;
+			if (BUGLVL(D_INIT))
+				printk("no matching shmem)\n");
+			if (BUGLVL(D_INIT_REASONS)) {
+				printk("S5: ");
+				numprint = 0;
+			}
 		}
 		if (!found)
 			release_region(*port, ARCNET_TOTAL_SIZE);
 		*port-- = ports[--numports];
 	}
 
-	BUGLVL(D_INIT_REASONS) printk("\n");
+	if (BUGLVL(D_INIT_REASONS))
+		printk("\n");
 
 	/* Now put back TESTvalue on all leftover shmems. */
 	for (index = 0; index < numshmems; index++) {
@@ -603,8 +618,8 @@ static int com90xx_reset(struct net_device *dev, int really_reset)
 	ACOMMAND(CONFIGcmd | EXTconf);
 
 	/* clean out all the memory to make debugging make more sense :) */
-	BUGLVL(D_DURING)
-	    memset_io(lp->mem_start, 0x42, 2048);
+	if (BUGLVL(D_DURING))
+		memset_io(lp->mem_start, 0x42, 2048);
 
 	/* done!  return success. */
 	return 0;

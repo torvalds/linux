@@ -53,7 +53,8 @@ static int __init com20020isa_probe(struct net_device *dev)
 	struct arcnet_local *lp = netdev_priv(dev);
 	int err;
 
-	BUGLVL(D_NORMAL) printk(VERSION);
+	if (BUGLVL(D_NORMAL))
+		printk(VERSION);
 
 	ioaddr = dev->base_addr;
 	if (!ioaddr) {

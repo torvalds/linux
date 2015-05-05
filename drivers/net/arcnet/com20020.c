@@ -365,7 +365,8 @@ MODULE_LICENSE("GPL");
 
 static int __init com20020_module_init(void)
 {
-	BUGLVL(D_NORMAL) printk(VERSION);
+	if (BUGLVL(D_NORMAL))
+		printk(VERSION);
 	return 0;
 }
 

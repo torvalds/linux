@@ -117,7 +117,7 @@ static int __init arcnet_init(void)
 	printk("arcnet loaded.\n");
 
 #ifdef ALPHA_WARNING
-	BUGLVL(D_EXTRA) {
+	if (BUGLVL(D_EXTRA)) {
 		printk("arcnet: ***\n"
 		"arcnet: * Read arcnet.txt for important release notes!\n"
 		       "arcnet: *\n"
@@ -132,11 +132,11 @@ static int __init arcnet_init(void)
 	for (count = 0; count < 256; count++)
 		arc_proto_map[count] = arc_proto_default;
 
-	BUGLVL(D_DURING)
-	    printk("arcnet: struct sizes: %Zd %Zd %Zd %Zd %Zd\n",
-		   sizeof(struct arc_hardware), sizeof(struct arc_rfc1201),
-		   sizeof(struct arc_rfc1051), sizeof(struct arc_eth_encap),
-		   sizeof(struct archdr));
+	if (BUGLVL(D_DURING))
+		printk("arcnet: struct sizes: %Zd %Zd %Zd %Zd %Zd\n",
+		       sizeof(struct arc_hardware), sizeof(struct arc_rfc1201),
+		       sizeof(struct arc_rfc1051), sizeof(struct arc_eth_encap),
+		       sizeof(struct archdr));
 
 	return 0;
 }
@@ -235,7 +235,7 @@ static void release_arcbuf(struct net_device *dev, int bufnum)
 	lp->buf_queue[lp->first_free_buf++] = bufnum;
 	lp->first_free_buf %= 5;
 
-	BUGLVL(D_DURING) {
+	if (BUGLVL(D_DURING)) {
 		BUGMSG(D_DURING, "release_arcbuf: freed #%d; buffer queue is now: ",
 		       bufnum);
 		for (i = lp->next_buf; i != lp->first_free_buf; i = (i + 1) % 5)
@@ -268,7 +268,7 @@ static int get_arcbuf(struct net_device *dev)
 		}
 	}
 
-	BUGLVL(D_DURING) {
+	if (BUGLVL(D_DURING)) {
 		BUGMSG(D_DURING, "get_arcbuf: got #%d; buffer queue is now: ", buf);
 		for (i = lp->next_buf; i != lp->first_free_buf; i = (i + 1) % 5)
 			BUGMSG2(D_DURING, "#%d ", lp->buf_queue[i]);
@@ -356,7 +356,7 @@ int arcnet_open(struct net_device *dev)
 	if (!try_module_get(lp->hw.owner))
 		return -ENODEV;
 
-	BUGLVL(D_PROTO) {
+	if (BUGLVL(D_PROTO)) {
 		BUGMSG(D_PROTO, "protocol map (default is '%c'): ",
 		       arc_proto_default->suffix);
 		for (count = 0; count < 256; count++)
@@ -531,7 +531,8 @@ netdev_tx_t arcnet_send_packet(struct sk_buff *skb,
 
 	BUGMSG(D_SKB_SIZE, "skb: transmitting %d bytes to %02X\n",
 	       skb->len, pkt->hard.dest);
-	BUGLVL(D_SKB) arcnet_dump_skb(dev, skb, "tx");
+	if (BUGLVL(D_SKB))
+		arcnet_dump_skb(dev, skb, "tx");
 
 	/* fits in one packet? */
 	if (skb->len - ARC_HDR_SIZE > XMTU && !proto->continue_tx) {
@@ -609,7 +610,8 @@ static int go_tx(struct net_device *dev)
 	if (lp->cur_tx != -1 || lp->next_tx == -1)
 		return 0;
 
-	BUGLVL(D_TX) arcnet_dump_packet(dev, lp->next_tx, "go_tx", 0);
+	if (BUGLVL(D_TX))
+		arcnet_dump_packet(dev, lp->next_tx, "go_tx", 0);
 
 	lp->cur_tx = lp->next_tx;
 	lp->next_tx = -1;
@@ -822,7 +824,8 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 		}
 		/* now process the received packet, if any */
 		if (recbuf != -1) {
-			BUGLVL(D_RX) arcnet_dump_packet(dev, recbuf, "rx irq", 0);
+			if (BUGLVL(D_RX))
+				arcnet_dump_packet(dev, recbuf, "rx irq", 0);
 
 			arcnet_rx(dev, recbuf);
 			release_arcbuf(dev, recbuf);
@@ -938,7 +941,7 @@ static void arcnet_rx(struct net_device *dev, int bufnum)
 
 	/* call the right receiver for the protocol */
 	if (arc_proto_map[soft->proto]->is_ip) {
-		BUGLVL(D_PROTO) {
+		if (BUGLVL(D_PROTO)) {
 			struct ArcProto
 			*oldp = arc_proto_map[lp->default_proto[pkt.hard.source]],
 			*newp = arc_proto_map[soft->proto];
