@@ -586,6 +586,23 @@ void pwm_add_table(struct pwm_lookup *table, size_t num)
 }
 
 /**
+ * pwm_remove_table() - unregister PWM device consumers
+ * @table: array of consumers to unregister
+ * @num: number of consumers in table
+ */
+void pwm_remove_table(struct pwm_lookup *table, size_t num)
+{
+	mutex_lock(&pwm_lookup_lock);
+
+	while (num--) {
+		list_del(&table->list);
+		table++;
+	}
+
+	mutex_unlock(&pwm_lookup_lock);
+}
+
+/**
  * pwm_get() - look up and request a PWM device
  * @dev: device for PWM consumer
  * @con_id: consumer name

@@ -290,8 +290,13 @@ struct pwm_lookup {
 
 #if IS_ENABLED(CONFIG_PWM)
 void pwm_add_table(struct pwm_lookup *table, size_t num);
+void pwm_remove_table(struct pwm_lookup *table, size_t num);
 #else
 static inline void pwm_add_table(struct pwm_lookup *table, size_t num)
+{
+}
+
+static inline void pwm_remove_table(struct pwm_lookup *table, size_t num)
 {
 }
 #endif
