@@ -99,7 +99,7 @@ visorchipset_mmap(struct file *file, struct vm_area_struct *vma)
 }
 
 static long visorchipset_ioctl(struct file *file, unsigned int cmd,
-				unsigned long arg)
+			       unsigned long arg)
 {
 	s64 adjustment;
 	s64 vrtc_offset;
@@ -108,14 +108,14 @@ static long visorchipset_ioctl(struct file *file, unsigned int cmd,
 	case VMCALL_QUERY_GUEST_VIRTUAL_TIME_OFFSET:
 		/* get the physical rtc offset */
 		vrtc_offset = issue_vmcall_query_guest_virtual_time_offset();
-		if (copy_to_user
-		    ((void __user *)arg, &vrtc_offset, sizeof(vrtc_offset))) {
+		if (copy_to_user((void __user *)arg, &vrtc_offset,
+				 sizeof(vrtc_offset))) {
 			return -EFAULT;
 		}
 		return SUCCESS;
 	case VMCALL_UPDATE_PHYSICAL_TIME:
-		if (copy_from_user
-		    (&adjustment, (void __user *)arg, sizeof(adjustment))) {
+		if (copy_from_user(&adjustment, (void __user *)arg,
+				   sizeof(adjustment))) {
 			return -EFAULT;
 		}
 		return issue_vmcall_update_physical_time(adjustment);
