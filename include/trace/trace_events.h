@@ -203,7 +203,7 @@ TRACE_MAKE_SYSTEM_STR();
  * Override the macros in <trace/trace_events.h> to include the following:
  *
  * enum print_line_t
- * ftrace_raw_output_<call>(struct trace_iterator *iter, int flags)
+ * trace_raw_output_<call>(struct trace_iterator *iter, int flags)
  * {
  *	struct trace_seq *s = &iter->seq;
  *	struct ftrace_raw_<call> *field; <-- defined in stage 1
@@ -304,8 +304,8 @@ TRACE_MAKE_SYSTEM_STR();
 #undef DECLARE_EVENT_CLASS
 #define DECLARE_EVENT_CLASS(call, proto, args, tstruct, assign, print)	\
 static notrace enum print_line_t					\
-ftrace_raw_output_##call(struct trace_iterator *iter, int flags,	\
-			 struct trace_event *trace_event)		\
+trace_raw_output_##call(struct trace_iterator *iter, int flags,		\
+			struct trace_event *trace_event)		\
 {									\
 	struct trace_seq *s = &iter->seq;				\
 	struct trace_seq __maybe_unused *p = &iter->tmp_seq;		\
@@ -314,7 +314,7 @@ ftrace_raw_output_##call(struct trace_iterator *iter, int flags,	\
 									\
 	field = (typeof(field))iter->ent;				\
 									\
-	ret = ftrace_raw_output_prep(iter, trace_event);		\
+	ret = trace_raw_output_prep(iter, trace_event);			\
 	if (ret != TRACE_TYPE_HANDLED)					\
 		return ret;						\
 									\
@@ -323,13 +323,13 @@ ftrace_raw_output_##call(struct trace_iterator *iter, int flags,	\
 	return trace_handle_return(s);					\
 }									\
 static struct trace_event_functions ftrace_event_type_funcs_##call = {	\
-	.trace			= ftrace_raw_output_##call,		\
+	.trace			= trace_raw_output_##call,		\
 };
 
 #undef DEFINE_EVENT_PRINT
 #define DEFINE_EVENT_PRINT(template, call, proto, args, print)		\
 static notrace enum print_line_t					\
-ftrace_raw_output_##call(struct trace_iterator *iter, int flags,	\
+trace_raw_output_##call(struct trace_iterator *iter, int flags,		\
 			 struct trace_event *event)			\
 {									\
 	struct ftrace_raw_##template *field;				\
@@ -346,10 +346,10 @@ ftrace_raw_output_##call(struct trace_iterator *iter, int flags,	\
 	field = (typeof(field))entry;					\
 									\
 	trace_seq_init(p);						\
-	return ftrace_output_call(iter, #call, print);			\
+	return trace_output_call(iter, #call, print);			\
 }									\
 static struct trace_event_functions ftrace_event_type_funcs_##call = {	\
-	.trace			= ftrace_raw_output_##call,		\
+	.trace			= trace_raw_output_##call,		\
 };
 
 #include TRACE_INCLUDE(TRACE_INCLUDE_FILE)

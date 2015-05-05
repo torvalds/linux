@@ -52,8 +52,8 @@ const char *trace_print_array_seq(struct trace_seq *p,
 struct trace_iterator;
 struct trace_event;
 
-int ftrace_raw_output_prep(struct trace_iterator *iter,
-			   struct trace_event *event);
+int trace_raw_output_prep(struct trace_iterator *iter,
+			  struct trace_event *event);
 
 /*
  * The trace entry - the most basic unit of tracing. This is what
@@ -183,7 +183,7 @@ void trace_current_buffer_discard_commit(struct ring_buffer *buffer,
 
 void tracing_record_cmdline(struct task_struct *tsk);
 
-int ftrace_output_call(struct trace_iterator *iter, char *name, char *fmt, ...);
+int trace_output_call(struct trace_iterator *iter, char *name, char *fmt, ...);
 
 struct event_filter;
 

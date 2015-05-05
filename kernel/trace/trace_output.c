@@ -222,8 +222,8 @@ trace_print_array_seq(struct trace_seq *p, const void *buf, int count,
 }
 EXPORT_SYMBOL(trace_print_array_seq);
 
-int ftrace_raw_output_prep(struct trace_iterator *iter,
-			   struct trace_event *trace_event)
+int trace_raw_output_prep(struct trace_iterator *iter,
+			  struct trace_event *trace_event)
 {
 	struct trace_event_call *event;
 	struct trace_seq *s = &iter->seq;
@@ -243,10 +243,10 @@ int ftrace_raw_output_prep(struct trace_iterator *iter,
 
 	return trace_handle_return(s);
 }
-EXPORT_SYMBOL(ftrace_raw_output_prep);
+EXPORT_SYMBOL(trace_raw_output_prep);
 
-static int ftrace_output_raw(struct trace_iterator *iter, char *name,
-			     char *fmt, va_list ap)
+static int trace_output_raw(struct trace_iterator *iter, char *name,
+			    char *fmt, va_list ap)
 {
 	struct trace_seq *s = &iter->seq;
 
@@ -256,18 +256,18 @@ static int ftrace_output_raw(struct trace_iterator *iter, char *name,
 	return trace_handle_return(s);
 }
 
-int ftrace_output_call(struct trace_iterator *iter, char *name, char *fmt, ...)
+int trace_output_call(struct trace_iterator *iter, char *name, char *fmt, ...)
 {
 	va_list ap;
 	int ret;
 
 	va_start(ap, fmt);
-	ret = ftrace_output_raw(iter, name, fmt, ap);
+	ret = trace_output_raw(iter, name, fmt, ap);
 	va_end(ap);
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(ftrace_output_call);
+EXPORT_SYMBOL_GPL(trace_output_call);
 
 #ifdef CONFIG_KRETPROBES
 static inline const char *kretprobed(const char *name)

@@ -58,7 +58,7 @@
  * }
  *
  * static struct trace_event ftrace_event_type_<call> = {
- *	.trace			= ftrace_raw_output_<call>, <-- stage 2
+ *	.trace			= trace_raw_output_<call>, <-- stage 2
  * };
  *
  * static char print_fmt_<call>[] = <TP_printk>;
