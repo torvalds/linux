@@ -514,7 +514,13 @@ static void g4x_set_infoframes(struct drm_encoder *encoder,
 	if (!enable) {
 		if (!(val & VIDEO_DIP_ENABLE))
 			return;
-		val &= ~VIDEO_DIP_ENABLE;
+		if (port != (val & VIDEO_DIP_PORT_MASK)) {
+			DRM_DEBUG_KMS("video DIP still enabled on port %c\n",
+				      (val & VIDEO_DIP_PORT_MASK) >> 29);
+			return;
+		}
+		val &= ~(VIDEO_DIP_ENABLE | VIDEO_DIP_ENABLE_AVI |
+			 VIDEO_DIP_ENABLE_VENDOR | VIDEO_DIP_ENABLE_SPD);
 		I915_WRITE(reg, val);
 		POSTING_READ(reg);
 		return;
@@ -522,16 +528,17 @@ static void g4x_set_infoframes(struct drm_encoder *encoder,
 
 	if (port != (val & VIDEO_DIP_PORT_MASK)) {
 		if (val & VIDEO_DIP_ENABLE) {
-			val &= ~VIDEO_DIP_ENABLE;
-			I915_WRITE(reg, val);
-			POSTING_READ(reg);
+			DRM_DEBUG_KMS("video DIP already enabled on port %c\n",
+				      (val & VIDEO_DIP_PORT_MASK) >> 29);
+			return;
 		}
 		val &= ~VIDEO_DIP_PORT_MASK;
 		val |= port;
 	}
 
 	val |= VIDEO_DIP_ENABLE;
-	val &= ~VIDEO_DIP_ENABLE_VENDOR;
+	val &= ~(VIDEO_DIP_ENABLE_AVI |
+		 VIDEO_DIP_ENABLE_VENDOR | VIDEO_DIP_ENABLE_SPD);
 
 	I915_WRITE(reg, val);
 	POSTING_READ(reg);
@@ -632,23 +639,6 @@ static bool intel_hdmi_set_gcp_infoframe(struct drm_encoder *encoder)
 	return val != 0;
 }
 
-static void intel_disable_gcp_infoframe(struct intel_crtc *crtc)
-{
-	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
-	u32 reg;
-
-	if (HAS_DDI(dev_priv))
-		reg = HSW_TVIDEO_DIP_CTL(crtc->config->cpu_transcoder);
-	else if (IS_VALLEYVIEW(dev_priv))
-		reg = VLV_TVIDEO_DIP_CTL(crtc->pipe);
-	else if (HAS_PCH_SPLIT(dev_priv->dev))
-		reg = TVIDEO_DIP_CTL(crtc->pipe);
-	else
-		return;
-
-	I915_WRITE(reg, I915_READ(reg) & ~VIDEO_DIP_ENABLE_GCP);
-}
-
 static void ibx_set_infoframes(struct drm_encoder *encoder,
 			       bool enable,
 			       struct drm_display_mode *adjusted_mode)
@@ -669,25 +659,26 @@ static void ibx_set_infoframes(struct drm_encoder *encoder,
 	if (!enable) {
 		if (!(val & VIDEO_DIP_ENABLE))
 			return;
-		val &= ~VIDEO_DIP_ENABLE;
+		val &= ~(VIDEO_DIP_ENABLE | VIDEO_DIP_ENABLE_AVI |
+			 VIDEO_DIP_ENABLE_VENDOR | VIDEO_DIP_ENABLE_GAMUT |
+			 VIDEO_DIP_ENABLE_SPD | VIDEO_DIP_ENABLE_GCP);
 		I915_WRITE(reg, val);
 		POSTING_READ(reg);
 		return;
 	}
 
 	if (port != (val & VIDEO_DIP_PORT_MASK)) {
-		if (val & VIDEO_DIP_ENABLE) {
-			val &= ~VIDEO_DIP_ENABLE;
-			I915_WRITE(reg, val);
-			POSTING_READ(reg);
-		}
+		WARN(val & VIDEO_DIP_ENABLE,
+		     "DIP already enabled on port %c\n",
+		     (val & VIDEO_DIP_PORT_MASK) >> 29);
 		val &= ~VIDEO_DIP_PORT_MASK;
 		val |= port;
 	}
 
 	val |= VIDEO_DIP_ENABLE;
-	val &= ~(VIDEO_DIP_ENABLE_VENDOR | VIDEO_DIP_ENABLE_GAMUT |
-		 VIDEO_DIP_ENABLE_GCP);
+	val &= ~(VIDEO_DIP_ENABLE_AVI |
+		 VIDEO_DIP_ENABLE_VENDOR | VIDEO_DIP_ENABLE_GAMUT |
+		 VIDEO_DIP_ENABLE_SPD | VIDEO_DIP_ENABLE_GCP);
 
 	if (intel_hdmi_set_gcp_infoframe(encoder))
 		val |= VIDEO_DIP_ENABLE_GCP;
@@ -718,7 +709,9 @@ static void cpt_set_infoframes(struct drm_encoder *encoder,
 	if (!enable) {
 		if (!(val & VIDEO_DIP_ENABLE))
 			return;
-		val &= ~(VIDEO_DIP_ENABLE | VIDEO_DIP_ENABLE_AVI);
+		val &= ~(VIDEO_DIP_ENABLE | VIDEO_DIP_ENABLE_AVI |
+			 VIDEO_DIP_ENABLE_VENDOR | VIDEO_DIP_ENABLE_GAMUT |
+			 VIDEO_DIP_ENABLE_SPD | VIDEO_DIP_ENABLE_GCP);
 		I915_WRITE(reg, val);
 		POSTING_READ(reg);
 		return;
@@ -727,7 +720,7 @@ static void cpt_set_infoframes(struct drm_encoder *encoder,
 	/* Set both together, unset both together: see the spec. */
 	val |= VIDEO_DIP_ENABLE | VIDEO_DIP_ENABLE_AVI;
 	val &= ~(VIDEO_DIP_ENABLE_VENDOR | VIDEO_DIP_ENABLE_GAMUT |
-		 VIDEO_DIP_ENABLE_GCP);
+		 VIDEO_DIP_ENABLE_SPD | VIDEO_DIP_ENABLE_GCP);
 
 	if (intel_hdmi_set_gcp_infoframe(encoder))
 		val |= VIDEO_DIP_ENABLE_GCP;
@@ -760,25 +753,26 @@ static void vlv_set_infoframes(struct drm_encoder *encoder,
 	if (!enable) {
 		if (!(val & VIDEO_DIP_ENABLE))
 			return;
-		val &= ~VIDEO_DIP_ENABLE;
+		val &= ~(VIDEO_DIP_ENABLE | VIDEO_DIP_ENABLE_AVI |
+			 VIDEO_DIP_ENABLE_VENDOR | VIDEO_DIP_ENABLE_GAMUT |
+			 VIDEO_DIP_ENABLE_SPD | VIDEO_DIP_ENABLE_GCP);
 		I915_WRITE(reg, val);
 		POSTING_READ(reg);
 		return;
 	}
 
 	if (port != (val & VIDEO_DIP_PORT_MASK)) {
-		if (val & VIDEO_DIP_ENABLE) {
-			val &= ~VIDEO_DIP_ENABLE;
-			I915_WRITE(reg, val);
-			POSTING_READ(reg);
-		}
+		WARN(val & VIDEO_DIP_ENABLE,
+		     "DIP already enabled on port %c\n",
+		     (val & VIDEO_DIP_PORT_MASK) >> 29);
 		val &= ~VIDEO_DIP_PORT_MASK;
 		val |= port;
 	}
 
 	val |= VIDEO_DIP_ENABLE;
-	val &= ~(VIDEO_DIP_ENABLE_AVI | VIDEO_DIP_ENABLE_VENDOR |
-		 VIDEO_DIP_ENABLE_GAMUT | VIDEO_DIP_ENABLE_GCP);
+	val &= ~(VIDEO_DIP_ENABLE_AVI |
+		 VIDEO_DIP_ENABLE_VENDOR | VIDEO_DIP_ENABLE_GAMUT |
+		 VIDEO_DIP_ENABLE_SPD | VIDEO_DIP_ENABLE_GCP);
 
 	if (intel_hdmi_set_gcp_infoframe(encoder))
 		val |= VIDEO_DIP_ENABLE_GCP;
@@ -803,14 +797,15 @@ static void hsw_set_infoframes(struct drm_encoder *encoder,
 
 	assert_hdmi_port_disabled(intel_hdmi);
 
+	val &= ~(VIDEO_DIP_ENABLE_VSC_HSW | VIDEO_DIP_ENABLE_AVI_HSW |
+		 VIDEO_DIP_ENABLE_GCP_HSW | VIDEO_DIP_ENABLE_VS_HSW |
+		 VIDEO_DIP_ENABLE_GMP_HSW | VIDEO_DIP_ENABLE_SPD_HSW);
+
 	if (!enable) {
-		I915_WRITE(reg, 0);
+		I915_WRITE(reg, val);
 		POSTING_READ(reg);
 		return;
 	}
-
-	val &= ~(VIDEO_DIP_ENABLE_VSC_HSW | VIDEO_DIP_ENABLE_GCP_HSW |
-		 VIDEO_DIP_ENABLE_VS_HSW | VIDEO_DIP_ENABLE_GMP_HSW);
 
 	if (intel_hdmi_set_gcp_infoframe(encoder))
 		val |= VIDEO_DIP_ENABLE_GCP_HSW;
@@ -1107,7 +1102,7 @@ static void intel_disable_hdmi(struct intel_encoder *encoder)
 		POSTING_READ(intel_hdmi->hdmi_reg);
 	}
 
-	intel_disable_gcp_infoframe(to_intel_crtc(encoder->base.crtc));
+	intel_hdmi->set_infoframes(&encoder->base, false, NULL);
 }
 
 static void g4x_disable_hdmi(struct intel_encoder *encoder)
