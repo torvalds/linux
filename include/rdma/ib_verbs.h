@@ -1752,6 +1752,28 @@ int ib_query_port(struct ib_device *device,
 enum rdma_link_layer rdma_port_get_link_layer(struct ib_device *device,
 					       u8 port_num);
 
+static inline bool rdma_protocol_ib(struct ib_device *device, u8 port_num)
+{
+	return device->query_protocol(device, port_num) == RDMA_PROTOCOL_IB;
+}
+
+static inline bool rdma_protocol_iboe(struct ib_device *device, u8 port_num)
+{
+	return device->query_protocol(device, port_num) == RDMA_PROTOCOL_IBOE;
+}
+
+static inline bool rdma_protocol_iwarp(struct ib_device *device, u8 port_num)
+{
+	return device->query_protocol(device, port_num) == RDMA_PROTOCOL_IWARP;
+}
+
+static inline bool rdma_ib_or_iboe(struct ib_device *device, u8 port_num)
+{
+	enum rdma_protocol_type pt = device->query_protocol(device, port_num);
+
+	return (pt == RDMA_PROTOCOL_IB || pt == RDMA_PROTOCOL_IBOE);
+}
+
 int ib_query_gid(struct ib_device *device,
 		 u8 port_num, int index, union ib_gid *gid);
 
