@@ -324,6 +324,16 @@ config ISL29020
 	  This driver can also be built as a module.  If so, the module
 	  will be called isl29020.
 
+config SENSORS_FXOS8700
+	tristate "Freescale FXOS8700 M+G combo sensor"
+	depends on I2C && SYSFS
+	help
+	  If you say yes here you get support for the Freescale FXOS8700
+	  m+g combo  sensor.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called fxos8700.
+
 config SENSORS_FXAS2100X
 	tristate "Freescale FXAS2100X gyroscope sensor"
 	depends on I2C && SYSFS
