@@ -481,30 +481,7 @@ parser_init_byte_stream(u64 addr, u32 bytes, bool local, bool *retry)
 	return parser_init_guts(addr, bytes, local, false, retry);
 }
 
-/* Obtain '\0'-terminated copy of string in payload area.
- */
-char *
-parser_simpleString_get(struct parser_context *ctx)
-{
-	if (!ctx->byte_stream)
-		return NULL;
-	return ctx->data;	/* note this IS '\0'-terminated, because of
-				 * the num of bytes we alloc+clear in
-				 * parser_init_byteStream() */
-}
-
-/* Obtain a copy of the buffer in the payload area.
- */
-void *parser_byte_stream_get(struct parser_context *ctx, unsigned long *nbytes)
-{
-	if (!ctx->byte_stream)
-		return NULL;
-	if (nbytes)
-		*nbytes = ctx->param_bytes;
-	return (void *)ctx->data;
-}
-
-uuid_le
+static uuid_le
 parser_id_get(struct parser_context *ctx)
 {
 	struct spar_controlvm_parameters_header *phdr = NULL;
@@ -526,7 +503,7 @@ enum PARSER_WHICH_STRING {
 	PARSERSTRING_NAME, /* TODO: only PARSERSTRING_NAME is used ? */
 };
 
-void
+static void
 parser_param_start(struct parser_context *ctx,
 		   enum PARSER_WHICH_STRING which_string)
 {
@@ -560,8 +537,7 @@ Away:
 	return;
 }
 
-void
-parser_done(struct parser_context *ctx)
+static void parser_done(struct parser_context *ctx)
 {
 	if (!ctx)
 		return;
@@ -569,176 +545,7 @@ parser_done(struct parser_context *ctx)
 	kfree(ctx);
 }
 
-/** Return length of string not counting trailing spaces. */
-static int
-string_length_no_trail(char *s, int len)
-{
-	int i = len - 1;
-
-	while (i >= 0) {
-		if (!isspace(s[i]))
-			return i + 1;
-		i--;
-	}
-	return 0;
-}
-
-/** Grab the next name and value out of the parameter buffer.
- *  The entire parameter buffer looks like this:
- *      <name>=<value>\0
- *      <name>=<value>\0
- *      ...
- *      \0
- *  If successful, the next <name> value is returned within the supplied
- *  <nam> buffer (the value is always upper-cased), and the corresponding
- *  <value> is returned within a kmalloc()ed buffer, whose pointer is
- *  provided as the return value of this function.
- *  (The total number of bytes allocated is strlen(<value>)+1.)
- *
- *  NULL is returned to indicate failure, which can occur for several reasons:
- *  - all <name>=<value> pairs have already been processed
- *  - bad parameter
- *  - parameter buffer ends prematurely (couldn't find an '=' or '\0' within
- *    the confines of the parameter buffer)
- *  - the <nam> buffer is not large enough to hold the <name> of the next
- *    parameter
- */
-void *
-parser_param_get(struct parser_context *ctx, char *nam, int namesize)
-{
-	u8 *pscan, *pnam = nam;
-	unsigned long nscan;
-	int value_length = -1, orig_value_length = -1;
-	void *value = NULL;
-	int i;
-	int closing_quote = 0;
-
-	if (!ctx)
-		return NULL;
-	pscan = ctx->curr;
-	nscan = ctx->bytes_remaining;
-	if (nscan == 0)
-		return NULL;
-	if (*pscan == '\0')
-		/*  This is the normal return point after you have processed
-		 *  all of the <name>=<value> pairs in a syntactically-valid
-		 *  parameter buffer.
-		 */
-		return NULL;
-
-	/* skip whitespace */
-	while (isspace(*pscan)) {
-		pscan++;
-		nscan--;
-		if (nscan == 0)
-			return NULL;
-	}
-
-	while (*pscan != ':') {
-		if (namesize <= 0)
-			return NULL;
-		*pnam = toupper(*pscan);
-		pnam++;
-		namesize--;
-		pscan++;
-		nscan--;
-		if (nscan == 0)
-			return NULL;
-	}
-	if (namesize <= 0)
-		return NULL;
-	*pnam = '\0';
-	nam[string_length_no_trail(nam, strlen(nam))] = '\0';
-
-	/* point to char immediately after ":" in "<name>:<value>" */
-	pscan++;
-	nscan--;
-	/* skip whitespace */
-	while (isspace(*pscan)) {
-		pscan++;
-		nscan--;
-		if (nscan == 0)
-			return NULL;
-	}
-	if (nscan == 0)
-		return NULL;
-	if (*pscan == '\'' || *pscan == '"') {
-		closing_quote = *pscan;
-		pscan++;
-		nscan--;
-		if (nscan == 0)
-			return NULL;
-	}
-
-	/* look for a separator character, terminator character, or
-	 * end of data
-	 */
-	for (i = 0, value_length = -1; i < nscan; i++) {
-		if (closing_quote) {
-			if (pscan[i] == '\0')
-				return NULL;
-			if (pscan[i] == closing_quote) {
-				value_length = i;
-				break;
-			}
-		} else
-		    if (pscan[i] == ',' || pscan[i] == ';'
-			|| pscan[i] == '\0') {
-			value_length = i;
-			break;
-		}
-	}
-	if (value_length < 0) {
-		if (closing_quote)
-			return NULL;
-		value_length = nscan;
-	}
-	orig_value_length = value_length;
-	if (closing_quote == 0)
-		value_length = string_length_no_trail(pscan, orig_value_length);
-	value = kmalloc(value_length + 1, GFP_KERNEL|__GFP_NORETRY);
-	if (value == NULL)
-		return NULL;
-	memcpy(value, pscan, value_length);
-	((u8 *) (value))[value_length] = '\0';
-
-	pscan += orig_value_length;
-	nscan -= orig_value_length;
-
-	/* skip past separator or closing quote */
-	if (nscan > 0) {
-		if (*pscan != '\0') {
-			pscan++;
-			nscan--;
-		}
-	}
-
-	if (closing_quote && (nscan > 0)) {
-		/* we still need to skip around the real separator if present */
-		/* first, skip whitespace */
-		while (isspace(*pscan)) {
-			pscan++;
-			nscan--;
-			if (nscan == 0)
-				break;
-		}
-		if (nscan > 0) {
-			if (*pscan == ',' || *pscan == ';') {
-				pscan++;
-				nscan--;
-			} else if (*pscan != '\0') {
-				kfree(value);
-				value = NULL;
-				return NULL;
-			}
-		}
-	}
-	ctx->curr = pscan;
-	ctx->bytes_remaining = nscan;
-	return value;
-}
-
-void *
+static void *
 parser_string_get(struct parser_context *ctx)
 {
 	u8 *pscan;
