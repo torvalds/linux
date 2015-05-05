@@ -117,8 +117,13 @@
 
 struct dw2102_state {
 	u8 initialized;
+	u8 last_lock;
 	struct i2c_client *i2c_client_tuner;
+
+	/* fe hook functions*/
 	int (*old_set_voltage)(struct dvb_frontend *f, fe_sec_voltage_t v);
+	int (*fe_read_status)(struct dvb_frontend *fe,
+		fe_status_t *status);
 };
 
 /* debug */
@@ -999,6 +1004,23 @@ static void dw210x_led_ctrl(struct dvb_frontend *fe, int offon)
 	i2c_transfer(&udev_adap->dev->i2c_adap, &msg, 1);
 }
 
+static int tt_s2_4600_read_status(struct dvb_frontend *fe, fe_status_t *status)
+{
+	struct dvb_usb_adapter *d =
+		(struct dvb_usb_adapter *)(fe->dvb->priv);
+	struct dw2102_state *st = (struct dw2102_state *)d->dev->priv;
+	int ret;
+
+	ret = st->fe_read_status(fe, status);
+
+	/* resync slave fifo when signal change from unlock to lock */
+	if ((*status & FE_HAS_LOCK) && (!st->last_lock))
+		su3000_streaming_ctrl(d, 1);
+
+	st->last_lock = (*status & FE_HAS_LOCK) ? 1 : 0;
+	return ret;
+}
+
 static struct stv0299_config sharp_z0194a_config = {
 	.demod_address = 0x68,
 	.inittab = sharp_z0194a_inittab,
@@ -1550,6 +1572,12 @@ static int tt_s2_4600_frontend_attach(struct dvb_usb_adapter *adap)
 			adap->fe_adap[0].fe->ops.tuner_ops.get_rf_strength;
 
 	state->i2c_client_tuner = client;
+
+	/* hook fe: need to resync the slave fifo when signal locks */
+	state->fe_read_status = adap->fe_adap[0].fe->ops.read_status;
+	adap->fe_adap[0].fe->ops.read_status = tt_s2_4600_read_status;
+
+	state->last_lock = 0;
 
 	return 0;
 }
