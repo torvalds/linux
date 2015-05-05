@@ -29,8 +29,6 @@ struct memregion {
 	void __iomem *mapped;
 };
 
-struct memregion *visor_memregion_create(struct memregion *memregion,
-					 HOSTADDRESS physaddr, ulong nbytes);
 int visor_memregion_resize(struct memregion *memregion, ulong newsize);
 int visor_memregion_read(struct memregion *memregion,
 			 ulong offset, void *dest, ulong nbytes);

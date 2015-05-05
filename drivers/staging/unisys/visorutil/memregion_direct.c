@@ -28,28 +28,6 @@
 static int mapit(struct memregion *memregion);
 static void unmapit(struct memregion *memregion);
 
-struct memregion *
-visor_memregion_create(struct memregion *memregion,
-		       HOSTADDRESS physaddr, ulong nbytes)
-{
-	struct memregion *rc = NULL;
-
-	memregion->physaddr = physaddr;
-	memregion->nbytes = nbytes;
-	if (mapit(memregion)) {
-		rc = NULL;
-		goto cleanup;
-	}
-	rc = memregion;
-cleanup:
-	if (rc == NULL) {
-		visor_memregion_destroy(memregion);
-		memregion = NULL;
-	}
-	return rc;
-}
-EXPORT_SYMBOL_GPL(visor_memregion_create);
-
 static int
 mapit(struct memregion *memregion)
 {

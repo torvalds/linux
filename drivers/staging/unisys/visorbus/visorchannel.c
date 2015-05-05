@@ -57,9 +57,8 @@ visorchannel_create_guts(HOSTADDRESS physaddr, ulong channel_bytes,
 	struct visorchannel *channel;
 	int err;
 	size_t size = sizeof(struct channel_header);
-	struct memregion *memregion;
 
-	channel = kmalloc(sizeof(*channel), GFP_KERNEL|__GFP_NORETRY);
+	channel = kzalloc(sizeof(*channel), GFP_KERNEL|__GFP_NORETRY);
 	if (!channel)
 		goto cleanup;
 
@@ -67,11 +66,17 @@ visorchannel_create_guts(HOSTADDRESS physaddr, ulong channel_bytes,
 	spin_lock_init(&channel->insert_lock);
 	spin_lock_init(&channel->remove_lock);
 
-	/* prepare chan_hdr (abstraction to read/write channel memory) */
-	memregion = visor_memregion_create(&channel->memregion, physaddr, size);
-
-	if (!memregion)
+	if (!request_mem_region(physaddr, size, MYDRVNAME))
 		goto cleanup;
+
+	channel->memregion.mapped = ioremap_cache(physaddr, size);
+	if (!channel->memregion.mapped) {
+		release_mem_region(physaddr, size);
+		goto cleanup;
+	}
+
+	channel->memregion.physaddr = physaddr;
+	channel->memregion.nbytes = size;
 
 	err = visor_memregion_read(&channel->memregion, 0, &channel->chan_hdr,
 				   sizeof(struct channel_header));
