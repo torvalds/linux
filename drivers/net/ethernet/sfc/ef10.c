@@ -31,6 +31,9 @@ enum {
 
 /* The reserved RSS context value */
 #define EFX_EF10_RSS_CONTEXT_INVALID	0xffffffff
+/* The maximum size of a shared RSS context */
+/* TODO: this should really be from the mcdi protocol export */
+#define EFX_EF10_MAX_SHARED_RSS_CONTEXT_SIZE 64UL
 
 /* The filter table(s) are managed by firmware and we have write-only
  * access.  When removing filters we must identify them to the
@@ -78,7 +81,6 @@ struct efx_ef10_filter_table {
 /* An arbitrary search limit for the software hash table */
 #define EFX_EF10_FILTER_SEARCH_LIMIT 200
 
-static void efx_ef10_rx_push_rss_config(struct efx_nic *efx);
 static void efx_ef10_rx_free_indir_table(struct efx_nic *efx);
 static void efx_ef10_filter_table_remove(struct efx_nic *efx);
 
@@ -751,7 +753,9 @@ static int efx_ef10_init_nic(struct efx_nic *efx)
 		nic_data->must_restore_piobufs = false;
 	}
 
-	efx_ef10_rx_push_rss_config(efx);
+	/* don't fail init if RSS setup doesn't work */
+	efx->type->rx_push_rss_config(efx, false, efx->rx_indir_table);
+
 	return 0;
 }
 
@@ -1455,20 +1459,33 @@ static void efx_ef10_tx_write(struct efx_tx_queue *tx_queue)
 	}
 }
 
-static int efx_ef10_alloc_rss_context(struct efx_nic *efx, u32 *context)
+static int efx_ef10_alloc_rss_context(struct efx_nic *efx, u32 *context,
+				      bool exclusive, unsigned *context_size)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_RSS_CONTEXT_ALLOC_IN_LEN);
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_RSS_CONTEXT_ALLOC_OUT_LEN);
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	size_t outlen;
 	int rc;
+	u32 alloc_type = exclusive ?
+				MC_CMD_RSS_CONTEXT_ALLOC_IN_TYPE_EXCLUSIVE :
+				MC_CMD_RSS_CONTEXT_ALLOC_IN_TYPE_SHARED;
+	unsigned rss_spread = exclusive ?
+				efx->rss_spread :
+				min(rounddown_pow_of_two(efx->rss_spread),
+				    EFX_EF10_MAX_SHARED_RSS_CONTEXT_SIZE);
+
+	if (!exclusive && rss_spread == 1) {
+		*context = EFX_EF10_RSS_CONTEXT_INVALID;
+		if (context_size)
+			*context_size = 1;
+		return 0;
+	}
 
 	MCDI_SET_DWORD(inbuf, RSS_CONTEXT_ALLOC_IN_UPSTREAM_PORT_ID,
 		       nic_data->vport_id);
-	MCDI_SET_DWORD(inbuf, RSS_CONTEXT_ALLOC_IN_TYPE,
-		       MC_CMD_RSS_CONTEXT_ALLOC_IN_TYPE_EXCLUSIVE);
-	MCDI_SET_DWORD(inbuf, RSS_CONTEXT_ALLOC_IN_NUM_QUEUES,
-		       EFX_MAX_CHANNELS);
+	MCDI_SET_DWORD(inbuf, RSS_CONTEXT_ALLOC_IN_TYPE, alloc_type);
+	MCDI_SET_DWORD(inbuf, RSS_CONTEXT_ALLOC_IN_NUM_QUEUES, rss_spread);
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_RSS_CONTEXT_ALLOC, inbuf, sizeof(inbuf),
 		outbuf, sizeof(outbuf), &outlen);
@@ -1479,6 +1496,9 @@ static int efx_ef10_alloc_rss_context(struct efx_nic *efx, u32 *context)
 		return -EIO;
 
 	*context = MCDI_DWORD(outbuf, RSS_CONTEXT_ALLOC_OUT_RSS_CONTEXT_ID);
+
+	if (context_size)
+		*context_size = rss_spread;
 
 	return 0;
 }
@@ -1496,7 +1516,8 @@ static void efx_ef10_free_rss_context(struct efx_nic *efx, u32 context)
 	WARN_ON(rc != 0);
 }
 
-static int efx_ef10_populate_rss_table(struct efx_nic *efx, u32 context)
+static int efx_ef10_populate_rss_table(struct efx_nic *efx, u32 context,
+				       const u32 *rx_indir_table)
 {
 	MCDI_DECLARE_BUF(tablebuf, MC_CMD_RSS_CONTEXT_SET_TABLE_IN_LEN);
 	MCDI_DECLARE_BUF(keybuf, MC_CMD_RSS_CONTEXT_SET_KEY_IN_LEN);
@@ -1510,7 +1531,7 @@ static int efx_ef10_populate_rss_table(struct efx_nic *efx, u32 context)
 	for (i = 0; i < ARRAY_SIZE(efx->rx_indir_table); ++i)
 		MCDI_PTR(tablebuf,
 			 RSS_CONTEXT_SET_TABLE_IN_INDIRECTION_TABLE)[i] =
-				(u8) efx->rx_indir_table[i];
+				(u8) rx_indir_table[i];
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_RSS_CONTEXT_SET_TABLE, tablebuf,
 			  sizeof(tablebuf), NULL, 0, NULL);
@@ -1538,27 +1559,119 @@ static void efx_ef10_rx_free_indir_table(struct efx_nic *efx)
 	nic_data->rx_rss_context = EFX_EF10_RSS_CONTEXT_INVALID;
 }
 
-static void efx_ef10_rx_push_rss_config(struct efx_nic *efx)
+static int efx_ef10_rx_push_shared_rss_config(struct efx_nic *efx,
+					      unsigned *context_size)
+{
+	u32 new_rx_rss_context;
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	int rc = efx_ef10_alloc_rss_context(efx, &new_rx_rss_context,
+					    false, context_size);
+
+	if (rc != 0)
+		return rc;
+
+	nic_data->rx_rss_context = new_rx_rss_context;
+	nic_data->rx_rss_context_exclusive = false;
+	efx_set_default_rx_indir_table(efx);
+	return 0;
+}
+
+static int efx_ef10_rx_push_exclusive_rss_config(struct efx_nic *efx,
+						 const u32 *rx_indir_table)
 {
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	int rc;
+	u32 new_rx_rss_context;
 
-	netif_dbg(efx, drv, efx->net_dev, "pushing RSS config\n");
-
-	if (nic_data->rx_rss_context == EFX_EF10_RSS_CONTEXT_INVALID) {
-		rc = efx_ef10_alloc_rss_context(efx, &nic_data->rx_rss_context);
-		if (rc != 0)
-			goto fail;
+	if (nic_data->rx_rss_context == EFX_EF10_RSS_CONTEXT_INVALID ||
+	    !nic_data->rx_rss_context_exclusive) {
+		rc = efx_ef10_alloc_rss_context(efx, &new_rx_rss_context,
+						true, NULL);
+		if (rc == -EOPNOTSUPP)
+			return rc;
+		else if (rc != 0)
+			goto fail1;
+	} else {
+		new_rx_rss_context = nic_data->rx_rss_context;
 	}
 
-	rc = efx_ef10_populate_rss_table(efx, nic_data->rx_rss_context);
+	rc = efx_ef10_populate_rss_table(efx, new_rx_rss_context,
+					 rx_indir_table);
 	if (rc != 0)
-		goto fail;
+		goto fail2;
 
-	return;
+	if (nic_data->rx_rss_context != new_rx_rss_context)
+		efx_ef10_rx_free_indir_table(efx);
+	nic_data->rx_rss_context = new_rx_rss_context;
+	nic_data->rx_rss_context_exclusive = true;
+	if (rx_indir_table != efx->rx_indir_table)
+		memcpy(efx->rx_indir_table, rx_indir_table,
+		       sizeof(efx->rx_indir_table));
+	return 0;
 
-fail:
+fail2:
+	if (new_rx_rss_context != nic_data->rx_rss_context)
+		efx_ef10_free_rss_context(efx, new_rx_rss_context);
+fail1:
 	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
+	return rc;
+}
+
+static int efx_ef10_pf_rx_push_rss_config(struct efx_nic *efx, bool user,
+					  const u32 *rx_indir_table)
+{
+	int rc;
+
+	if (efx->rss_spread == 1)
+		return 0;
+
+	rc = efx_ef10_rx_push_exclusive_rss_config(efx, rx_indir_table);
+
+	if (rc == -ENOBUFS && !user) {
+		unsigned context_size;
+		bool mismatch = false;
+		size_t i;
+
+		for (i = 0; i < ARRAY_SIZE(efx->rx_indir_table) && !mismatch;
+		     i++)
+			mismatch = rx_indir_table[i] !=
+				ethtool_rxfh_indir_default(i, efx->rss_spread);
+
+		rc = efx_ef10_rx_push_shared_rss_config(efx, &context_size);
+		if (rc == 0) {
+			if (context_size != efx->rss_spread)
+				netif_warn(efx, probe, efx->net_dev,
+					   "Could not allocate an exclusive RSS"
+					   " context; allocated a shared one of"
+					   " different size."
+					   " Wanted %u, got %u.\n",
+					   efx->rss_spread, context_size);
+			else if (mismatch)
+				netif_warn(efx, probe, efx->net_dev,
+					   "Could not allocate an exclusive RSS"
+					   " context; allocated a shared one but"
+					   " could not apply custom"
+					   " indirection.\n");
+			else
+				netif_info(efx, probe, efx->net_dev,
+					   "Could not allocate an exclusive RSS"
+					   " context; allocated a shared one.\n");
+		}
+	}
+	return rc;
+}
+
+static int efx_ef10_vf_rx_push_rss_config(struct efx_nic *efx, bool user,
+					  const u32 *rx_indir_table
+					  __attribute__ ((unused)))
+{
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+
+	if (user)
+		return -EOPNOTSUPP;
+	if (nic_data->rx_rss_context != EFX_EF10_RSS_CONTEXT_INVALID)
+		return 0;
+	return efx_ef10_rx_push_shared_rss_config(efx, NULL);
 }
 
 static int efx_ef10_rx_probe(struct efx_rx_queue *rx_queue)
@@ -3738,7 +3851,7 @@ const struct efx_nic_type efx_hunt_a0_vf_nic_type = {
 	.tx_init = efx_ef10_tx_init,
 	.tx_remove = efx_ef10_tx_remove,
 	.tx_write = efx_ef10_tx_write,
-	.rx_push_rss_config = efx_ef10_rx_push_rss_config,
+	.rx_push_rss_config = efx_ef10_vf_rx_push_rss_config,
 	.rx_probe = efx_ef10_rx_probe,
 	.rx_init = efx_ef10_rx_init,
 	.rx_remove = efx_ef10_rx_remove,
@@ -3837,7 +3950,7 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.tx_init = efx_ef10_tx_init,
 	.tx_remove = efx_ef10_tx_remove,
 	.tx_write = efx_ef10_tx_write,
-	.rx_push_rss_config = efx_ef10_rx_push_rss_config,
+	.rx_push_rss_config = efx_ef10_pf_rx_push_rss_config,
 	.rx_probe = efx_ef10_rx_probe,
 	.rx_init = efx_ef10_rx_init,
 	.rx_remove = efx_ef10_rx_remove,

@@ -1290,6 +1290,15 @@ static void efx_fini_io(struct efx_nic *efx)
 	pci_disable_device(efx->pci_dev);
 }
 
+void efx_set_default_rx_indir_table(struct efx_nic *efx)
+{
+	size_t i;
+
+	for (i = 0; i < ARRAY_SIZE(efx->rx_indir_table); i++)
+		efx->rx_indir_table[i] =
+			ethtool_rxfh_indir_default(i, efx->rss_spread);
+}
+
 static unsigned int efx_wanted_parallelism(struct efx_nic *efx)
 {
 	cpumask_var_t thread_mask;
@@ -1607,7 +1616,6 @@ static void efx_set_channels(struct efx_nic *efx)
 
 static int efx_probe_nic(struct efx_nic *efx)
 {
-	size_t i;
 	int rc;
 
 	netif_dbg(efx, probe, efx->net_dev, "creating NIC\n");
@@ -1630,10 +1638,9 @@ static int efx_probe_nic(struct efx_nic *efx)
 		goto fail2;
 
 	if (efx->n_channels > 1)
-		netdev_rss_key_fill(&efx->rx_hash_key, sizeof(efx->rx_hash_key));
-	for (i = 0; i < ARRAY_SIZE(efx->rx_indir_table); i++)
-		efx->rx_indir_table[i] =
-			ethtool_rxfh_indir_default(i, efx->rss_spread);
+		netdev_rss_key_fill(&efx->rx_hash_key,
+				    sizeof(efx->rx_hash_key));
+	efx_set_default_rx_indir_table(efx);
 
 	netif_set_real_num_tx_queues(efx->net_dev, efx->n_tx_channels);
 	netif_set_real_num_rx_queues(efx->net_dev, efx->n_rx_channels);

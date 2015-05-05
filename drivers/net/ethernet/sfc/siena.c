@@ -324,7 +324,8 @@ fail1:
 	return rc;
 }
 
-static void siena_rx_push_rss_config(struct efx_nic *efx)
+static int siena_rx_push_rss_config(struct efx_nic *efx, bool user,
+				    const u32 *rx_indir_table)
 {
 	efx_oword_t temp;
 
@@ -346,7 +347,11 @@ static void siena_rx_push_rss_config(struct efx_nic *efx)
 	       FRF_CZ_RX_RSS_IPV6_TKEY_HI_WIDTH / 8);
 	efx_writeo(efx, &temp, FR_CZ_RX_RSS_IPV6_REG3);
 
+	memcpy(efx->rx_indir_table, rx_indir_table,
+	       sizeof(efx->rx_indir_table));
 	efx_farch_rx_push_indir_table(efx);
+
+	return 0;
 }
 
 /* This call performs hardware-specific global initialisation, such as
@@ -389,7 +394,7 @@ static int siena_init_nic(struct efx_nic *efx)
 			    EFX_RX_USR_BUF_SIZE >> 5);
 	efx_writeo(efx, &temp, FR_AZ_RX_CFG);
 
-	siena_rx_push_rss_config(efx);
+	siena_rx_push_rss_config(efx, false, efx->rx_indir_table);
 
 	/* Enable event logging */
 	rc = efx_mcdi_log_ctrl(efx, true, false, 0);

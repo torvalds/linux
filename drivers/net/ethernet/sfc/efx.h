@@ -34,6 +34,7 @@ unsigned int efx_tx_max_skb_descs(struct efx_nic *efx);
 extern unsigned int efx_piobuf_size;
 
 /* RX */
+void efx_set_default_rx_indir_table(struct efx_nic *efx);
 void efx_rx_config_page_split(struct efx_nic *efx);
 int efx_probe_rx_queue(struct efx_rx_queue *rx_queue);
 void efx_remove_rx_queue(struct efx_rx_queue *rx_queue);

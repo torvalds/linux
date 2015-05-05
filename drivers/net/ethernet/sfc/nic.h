@@ -485,6 +485,7 @@ enum {
  * @must_restore_piobufs: Flag: PIO buffers have yet to be restored after MC
  *	reboot
  * @rx_rss_context: Firmware handle for our RSS context
+ * @rx_rss_context_exclusive: Whether our RSS context is exclusive or shared
  * @stats: Hardware statistics
  * @workaround_35388: Flag: firmware supports workaround for bug 35388
  * @must_check_datapath_caps: Flag: @datapath_caps needs to be revalidated
@@ -513,6 +514,7 @@ struct efx_ef10_nic_data {
 	unsigned int piobuf_handle[EF10_TX_PIOBUF_COUNT];
 	bool must_restore_piobufs;
 	u32 rx_rss_context;
+	bool rx_rss_context_exclusive;
 	u64 stats[EF10_STAT_COUNT];
 	bool workaround_35388;
 	bool must_check_datapath_caps;
