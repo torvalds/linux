@@ -344,28 +344,34 @@ void arcnet_timeout(struct net_device *dev);
 
 /* I/O equivalents */
 
+#ifdef CONFIG_SA1100_CT6001
+#define BUS_ALIGN  2  /* 8 bit device on a 16 bit bus - needs padding */
+#else
+#define BUS_ALIGN  1
+#endif
+
 /* addr and offset allow register like names to define the actual IO  address.
  * A configuration option multiplies the offset for alignment.
  */
 #define arcnet_inb(addr, offset)					\
-	inb((addr) + (offset))
+	inb((addr) + BUS_ALIGN * (offset))
 #define arcnet_outb(value, addr, offset)				\
-	outb(value, (addr) + (offset))
+	outb(value, (addr) + BUS_ALIGN * (offset))
 
 #define arcnet_insb(addr, offset, buffer, count)			\
-	insb((addr) + (offset), buffer, count)
+	insb((addr) + BUS_ALIGN * (offset), buffer, count)
 #define arcnet_outsb(addr, offset, buffer, count)			\
-	outsb((addr) + (offset), buffer, count)
+	outsb((addr) + BUS_ALIGN * (offset), buffer, count)
 
 #define arcnet_inw(addr, offset)					\
-	inw((addr) + (offset))
+	inw((addr) + BUS_ALIGN * (offset))
 #define arcnet_outw(value, addr, offset)				\
-	outw(value, (addr) + (offset))
+	outw(value, (addr) + BUS_ALIGN * (offset))
 
 #define arcnet_insw(addr, offset, buffer, count)			\
-	insw((addr) + (offset), buffer, count)
+	insw((addr) + BUS_ALIGN * (offset), buffer, count)
 #define arcnet_outsw(addr, offset, buffer, count)			\
-	outsw((addr) + (offset), buffer, count)
+	outsw((addr) + BUS_ALIGN * (offset), buffer, count)
 
 #endif				/* __KERNEL__ */
 #endif				/* _LINUX_ARCDEVICE_H */

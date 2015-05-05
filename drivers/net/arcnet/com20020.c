@@ -65,11 +65,13 @@ static void com20020_copy_from_card(struct net_device *dev, int bufnum,
 	int ioaddr = dev->base_addr, ofs = 512 * bufnum + offset;
 
 	/* set up the address register */
-	outb((ofs >> 8) | RDDATAflag | AUTOINCflag, _ADDR_HI);
-	outb(ofs & 0xff, _ADDR_LO);
+	arcnet_outb((ofs >> 8) | RDDATAflag | AUTOINCflag,
+		    ioaddr, COM20020_REG_W_ADDR_HI);
+	arcnet_outb(ofs & 0xff, ioaddr, COM20020_REG_W_ADDR_LO);
 
 	/* copy the data */
-	TIME(dev, "insb", count, insb(_MEMDATA, buf, count));
+	TIME(dev, "insb", count,
+	     arcnet_insb(ioaddr, COM20020_REG_RW_MEMDATA, buf, count));
 }
 
 static void com20020_copy_to_card(struct net_device *dev, int bufnum,
@@ -78,11 +80,12 @@ static void com20020_copy_to_card(struct net_device *dev, int bufnum,
 	int ioaddr = dev->base_addr, ofs = 512 * bufnum + offset;
 
 	/* set up the address register */
-	outb((ofs >> 8) | AUTOINCflag, _ADDR_HI);
-	outb(ofs & 0xff, _ADDR_LO);
+	arcnet_outb((ofs >> 8) | AUTOINCflag, ioaddr, COM20020_REG_W_ADDR_HI);
+	arcnet_outb(ofs & 0xff, ioaddr, COM20020_REG_W_ADDR_LO);
 
 	/* copy the data */
-	TIME(dev, "outsb", count, outsb(_MEMDATA, buf, count));
+	TIME(dev, "outsb", count,
+	     arcnet_outsb(ioaddr, COM20020_REG_RW_MEMDATA, buf, count));
 }
 
 /* Reset the card and check some basic stuff during the detection stage. */
@@ -91,7 +94,9 @@ int com20020_check(struct net_device *dev)
 	int ioaddr = dev->base_addr, status;
 	struct arcnet_local *lp = netdev_priv(dev);
 
-	ARCRESET0;
+	arcnet_outb(0x18 | 0x80, ioaddr, COM20020_REG_W_CONFIG);
+	udelay(5);
+	arcnet_outb(0x18 , ioaddr, COM20020_REG_W_CONFIG);
 	mdelay(RESETtime);
 
 	lp->setup = lp->clockm ? 0 : (lp->clockp << 1);
@@ -101,24 +106,24 @@ int com20020_check(struct net_device *dev)
 	/* Enable P1Mode for backplane mode */
 	lp->setup = lp->setup | P1MODE;
 
-	SET_SUBADR(SUB_SETUP1);
-	outb(lp->setup, _XREG);
+	com20020_set_subaddress(lp, ioaddr, SUB_SETUP1);
+	arcnet_outb(lp->setup, ioaddr, COM20020_REG_W_XREG);
 
 	if (lp->clockm != 0) {
-		SET_SUBADR(SUB_SETUP2);
-		outb(lp->setup2, _XREG);
+		com20020_set_subaddress(lp, ioaddr, SUB_SETUP2);
+		arcnet_outb(lp->setup2, ioaddr, COM20020_REG_W_XREG);
 
 		/* must now write the magic "restart operation" command */
 		mdelay(1);
-		outb(0x18, _COMMAND);
+		arcnet_outb(0x18, ioaddr, COM20020_REG_W_COMMAND);
 	}
 
 	lp->config = 0x21 | (lp->timeout << 3) | (lp->backplane << 2);
 	/* set node ID to 0x42 (but transmitter is disabled, so it's okay) */
-	SETCONF;
-	outb(0x42, ioaddr + BUS_ALIGN * 7);
+	arcnet_outb(lp->config, ioaddr, COM20020_REG_W_CONFIG);
+	arcnet_outb(0x42, ioaddr, COM20020_REG_W_XREG);
 
-	status = ASTATUS();
+	status = arcnet_inb(ioaddr, COM20020_REG_R_STATUS);
 
 	if ((status & 0x99) != (NORXflag | TXFREEflag | RESETflag)) {
 		arc_printk(D_NORMAL, dev, "status invalid (%Xh).\n", status);
@@ -127,20 +132,21 @@ int com20020_check(struct net_device *dev)
 	arc_printk(D_INIT_REASONS, dev, "status after reset: %X\n", status);
 
 	/* Enable TX */
-	outb(0x39, _CONFIG);
-	outb(inb(ioaddr + BUS_ALIGN * 8), ioaddr + BUS_ALIGN * 7);
+	arcnet_outb(0x39, ioaddr, COM20020_REG_W_CONFIG);
+	arcnet_outb(arcnet_inb(ioaddr, 8), ioaddr, COM20020_REG_W_XREG);
 
-	ACOMMAND(CFLAGScmd | RESETclear | CONFIGclear);
-
-	status = ASTATUS();
+	arcnet_outb(CFLAGScmd | RESETclear | CONFIGclear,
+		    ioaddr, COM20020_REG_W_COMMAND);
+	status = arcnet_inb(ioaddr, COM20020_REG_R_STATUS);
 	arc_printk(D_INIT_REASONS, dev, "status after reset acknowledged: %X\n",
 		   status);
 
 	/* Read first location of memory */
-	outb(0 | RDDATAflag | AUTOINCflag, _ADDR_HI);
-	outb(0, _ADDR_LO);
+	arcnet_outb(0 | RDDATAflag | AUTOINCflag,
+		    ioaddr, COM20020_REG_W_ADDR_HI);
+	arcnet_outb(0, ioaddr, COM20020_REG_W_ADDR_LO);
 
-	status = inb(_MEMDATA);
+	status = arcnet_inb(ioaddr, COM20020_REG_RW_MEMDATA);
 	if (status != TESTvalue) {
 		arc_printk(D_NORMAL, dev, "Signature byte not found (%02Xh != D1h).\n",
 			   status);
@@ -156,8 +162,8 @@ static int com20020_set_hwaddr(struct net_device *dev, void *addr)
 	struct sockaddr *hwaddr = addr;
 
 	memcpy(dev->dev_addr, hwaddr->sa_data, 1);
-	SET_SUBADR(SUB_NODE);
-	outb(dev->dev_addr[0], _XREG);
+	com20020_set_subaddress(lp, ioaddr, SUB_NODE);
+	arcnet_outb(dev->dev_addr[0], ioaddr, COM20020_REG_W_XREG);
 
 	return 0;
 }
@@ -194,24 +200,24 @@ int com20020_found(struct net_device *dev, int shared)
 
 	/* FIXME: do this some other way! */
 	if (!dev->dev_addr[0])
-		dev->dev_addr[0] = inb(ioaddr + BUS_ALIGN * 8);
+		dev->dev_addr[0] = arcnet_inb(ioaddr, 8);
 
-	SET_SUBADR(SUB_SETUP1);
-	outb(lp->setup, _XREG);
+	com20020_set_subaddress(lp, ioaddr, SUB_SETUP1);
+	arcnet_outb(lp->setup, ioaddr, COM20020_REG_W_XREG);
 
 	if (lp->card_flags & ARC_CAN_10MBIT) {
-		SET_SUBADR(SUB_SETUP2);
-		outb(lp->setup2, _XREG);
+		com20020_set_subaddress(lp, ioaddr, SUB_SETUP2);
+		arcnet_outb(lp->setup2, ioaddr, COM20020_REG_W_XREG);
 
 		/* must now write the magic "restart operation" command */
 		mdelay(1);
-		outb(0x18, _COMMAND);
+		arcnet_outb(0x18, ioaddr, COM20020_REG_W_COMMAND);
 	}
 
 	lp->config = 0x20 | (lp->timeout << 3) | (lp->backplane << 2) | 1;
 	/* Default 0x38 + register: Node ID */
-	SETCONF;
-	outb(dev->dev_addr[0], _XREG);
+	arcnet_outb(lp->config, ioaddr, COM20020_REG_W_CONFIG);
+	arcnet_outb(dev->dev_addr[0], ioaddr, COM20020_REG_W_XREG);
 
 	/* reserve the irq */
 	if (request_irq(dev->irq, arcnet_interrupt, shared,
@@ -264,23 +270,26 @@ static int com20020_reset(struct net_device *dev, int really_reset)
 	arc_printk(D_DEBUG, dev, "%s: %d: %s: dev: %p, lp: %p, dev->name: %s\n",
 		   __FILE__, __LINE__, __func__, dev, lp, dev->name);
 	arc_printk(D_INIT, dev, "Resetting %s (status=%02Xh)\n",
-		   dev->name, ASTATUS());
+		   dev->name, arcnet_inb(ioaddr, COM20020_REG_R_STATUS));
 
 	arc_printk(D_DEBUG, dev, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
 	lp->config = TXENcfg | (lp->timeout << 3) | (lp->backplane << 2);
 	/* power-up defaults */
-	SETCONF;
+	arcnet_outb(lp->config, ioaddr, COM20020_REG_W_CONFIG);
 	arc_printk(D_DEBUG, dev, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
 
 	if (really_reset) {
 		/* reset the card */
-		ARCRESET;
+		arcnet_outb(lp->config | 0x80, ioaddr, COM20020_REG_W_CONFIG);
+		udelay(5);
+		arcnet_outb(lp->config, ioaddr, COM20020_REG_W_CONFIG);
 		mdelay(RESETtime * 2);
 				/* COM20020 seems to be slower sometimes */
 	}
 	/* clear flags & end reset */
 	arc_printk(D_DEBUG, dev, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
-	ACOMMAND(CFLAGScmd | RESETclear | CONFIGclear);
+	arcnet_outb(CFLAGScmd | RESETclear | CONFIGclear,
+		    ioaddr, COM20020_REG_W_COMMAND);
 
 	/* verify that the ARCnet signature byte is present */
 	arc_printk(D_DEBUG, dev, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
@@ -294,7 +303,8 @@ static int com20020_reset(struct net_device *dev, int really_reset)
 		return 1;
 	}
 	/* enable extended (512-byte) packets */
-	ACOMMAND(CONFIGcmd | EXTconf);
+	arcnet_outb(CONFIGcmd | EXTconf, ioaddr, COM20020_REG_W_COMMAND);
+
 	arc_printk(D_DEBUG, dev, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
 
 	/* done!  return success. */
@@ -306,21 +316,22 @@ static void com20020_setmask(struct net_device *dev, int mask)
 	u_int ioaddr = dev->base_addr;
 
 	arc_printk(D_DURING, dev, "Setting mask to %x at %x\n", mask, ioaddr);
-	AINTMASK(mask);
+	arcnet_outb(mask, ioaddr, COM20020_REG_W_INTMASK);
 }
 
 static void com20020_command(struct net_device *dev, int cmd)
 {
 	u_int ioaddr = dev->base_addr;
 
-	ACOMMAND(cmd);
+	arcnet_outb(cmd, ioaddr, COM20020_REG_W_COMMAND);
 }
 
 static int com20020_status(struct net_device *dev)
 {
 	u_int ioaddr = dev->base_addr;
 
-	return ASTATUS() + (ADIAGSTATUS() << 8);
+	return arcnet_inb(ioaddr, COM20020_REG_R_STATUS) +
+		(arcnet_inb(ioaddr, COM20020_REG_R_DIAGSTAT) << 8);
 }
 
 static void com20020_close(struct net_device *dev)
@@ -330,7 +341,7 @@ static void com20020_close(struct net_device *dev)
 
 	/* disable transmitter */
 	lp->config &= ~TXENcfg;
-	SETCONF;
+	arcnet_outb(lp->config, ioaddr, COM20020_REG_W_CONFIG);
 }
 
 /* Set or clear the multicast filter for this adaptor.
@@ -349,16 +360,16 @@ static void com20020_set_mc_list(struct net_device *dev)
 		/* Enable promiscuous mode */
 		if (!(lp->setup & PROMISCset))
 			arc_printk(D_NORMAL, dev, "Setting promiscuous flag...\n");
-		SET_SUBADR(SUB_SETUP1);
+		com20020_set_subaddress(lp, ioaddr, SUB_SETUP1);
 		lp->setup |= PROMISCset;
-		outb(lp->setup, _XREG);
+		arcnet_outb(lp->setup, ioaddr, COM20020_REG_W_XREG);
 	} else {
 		/* Disable promiscuous mode, use normal mode */
 		if ((lp->setup & PROMISCset))
 			arc_printk(D_NORMAL, dev, "Resetting promiscuous flag...\n");
-		SET_SUBADR(SUB_SETUP1);
+		com20020_set_subaddress(lp, ioaddr, SUB_SETUP1);
 		lp->setup &= ~PROMISCset;
-		outb(lp->setup, _XREG);
+		arcnet_outb(lp->setup, ioaddr, COM20020_REG_W_XREG);
 	}
 }
 

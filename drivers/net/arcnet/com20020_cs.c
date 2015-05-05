@@ -56,25 +56,26 @@ static void regdump(struct net_device *dev)
 	int count;
 
 	netdev_dbg(dev, "register dump:\n");
-	for (count = ioaddr; count < ioaddr + 16; count++) {
+	for (count = 0; count < 16; count++) {
 		if (!(count % 16))
-			pr_cont("%04X:", count);
-		pr_cont(" %02X", inb(count));
+			pr_cont("%04X:", ioaddr + count);
+		pr_cont(" %02X", arcnet_inb(ioaddr, count));
 	}
 	pr_cont("\n");
 
 	netdev_dbg(dev, "buffer0 dump:\n");
 	/* set up the address register */
 	count = 0;
-	outb((count >> 8) | RDDATAflag | AUTOINCflag, _ADDR_HI);
-	outb(count & 0xff, _ADDR_LO);
+	arcnet_outb((count >> 8) | RDDATAflag | AUTOINCflag,
+		    ioaddr, com20020_REG_W_ADDR_HI);
+	arcnet_outb(count & 0xff, ioaddr, COM20020_REG_W_ADDR_LO);
 
 	for (count = 0; count < 256 + 32; count++) {
 		if (!(count % 16))
 			pr_cont("%04X:", count);
 
 		/* copy the data */
-		pr_cont(" %02X", inb(_MEMDATA));
+		pr_cont(" %02X", arcnet_inb(ioaddr, COM20020_REG_RW_MEMDATA));
 	}
 	pr_cont("\n");
 #endif
@@ -292,7 +293,9 @@ static int com20020_resume(struct pcmcia_device *link)
 		int ioaddr = dev->base_addr;
 		struct arcnet_local *lp = netdev_priv(dev);
 
-		ARCRESET;
+		arcnet_outb(lp->config | 0x80, ioaddr, COM20020_REG_W_CONFIG);
+		udelay(5);
+		arcnet_outb(lp->config, ioaddr, COM20020_REG_W_CONFIG);
 	}
 
 	return 0;
