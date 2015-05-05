@@ -1819,6 +1819,21 @@ static inline bool rdma_cap_ib_cm(struct ib_device *device, u8 port_num)
 	return rdma_ib_or_iboe(device, port_num);
 }
 
+/**
+ * rdma_cap_iw_cm - Check if the port of device has the capability IWARP
+ * Communication Manager.
+ *
+ * @device: Device to be checked
+ * @port_num: Port number of the device
+ *
+ * Return false when port of the device don't support IWARP
+ * Communication Manager.
+ */
+static inline bool rdma_cap_iw_cm(struct ib_device *device, u8 port_num)
+{
+	return rdma_protocol_iwarp(device, port_num);
+}
+
 int ib_query_gid(struct ib_device *device,
 		 u8 port_num, int index, union ib_gid *gid);
 
