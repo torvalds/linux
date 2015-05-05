@@ -526,6 +526,19 @@ dev_info_clear(void *v)
 	memset(p, 0, sizeof(struct visorchipset_device_info));
 }
 
+static struct visorchipset_bus_info *
+bus_find(struct list_head *list, u32 bus_no)
+{
+	struct visorchipset_bus_info *p;
+
+	list_for_each_entry(p, list, entry) {
+		if (p->bus_no == bus_no)
+			return p;
+	}
+
+	return NULL;
+}
+
 static u8
 check_chipset_events(void)
 {
@@ -776,7 +789,7 @@ bus_responder(enum controlvm_id cmd_id, u32 bus_no, int response)
 	struct visorchipset_bus_info *p;
 	bool need_clear = false;
 
-	p = findbus(&bus_info_list, bus_no);
+	p = bus_find(&bus_info_list, bus_no);
 	if (!p)
 		return;
 
@@ -866,10 +879,10 @@ bus_epilog(u32 bus_no,
 	   u32 cmd, struct controlvm_message_header *msg_hdr,
 	   int response, bool need_response)
 {
+	struct visorchipset_bus_info *bus_info;
 	bool notified = false;
 
-	struct visorchipset_bus_info *bus_info = findbus(&bus_info_list,
-							 bus_no);
+	bus_info = bus_find(&bus_info_list, bus_no);
 
 	if (!bus_info)
 		return;
@@ -1034,7 +1047,7 @@ bus_create(struct controlvm_message *inmsg)
 	int rc = CONTROLVM_RESP_SUCCESS;
 	struct visorchipset_bus_info *bus_info;
 
-	bus_info = findbus(&bus_info_list, bus_no);
+	bus_info = bus_find(&bus_info_list, bus_no);
 	if (bus_info && (bus_info->state.created == 1)) {
 		POSTCODE_LINUX_3(BUS_CREATE_FAILURE_PC, bus_no,
 				 POSTCODE_SEVERITY_ERR);
@@ -1083,7 +1096,7 @@ bus_destroy(struct controlvm_message *inmsg)
 	struct visorchipset_bus_info *bus_info;
 	int rc = CONTROLVM_RESP_SUCCESS;
 
-	bus_info = findbus(&bus_info_list, bus_no);
+	bus_info = bus_find(&bus_info_list, bus_no);
 	if (!bus_info)
 		rc = -CONTROLVM_RESP_ERROR_BUS_INVALID;
 	else if (bus_info->state.created == 0)
@@ -1107,7 +1120,7 @@ bus_configure(struct controlvm_message *inmsg,
 	POSTCODE_LINUX_3(BUS_CONFIGURE_ENTRY_PC, bus_no,
 			 POSTCODE_SEVERITY_INFO);
 
-	bus_info = findbus(&bus_info_list, bus_no);
+	bus_info = bus_find(&bus_info_list, bus_no);
 	if (!bus_info) {
 		POSTCODE_LINUX_3(BUS_CONFIGURE_FAILURE_PC, bus_no,
 				 POSTCODE_SEVERITY_ERR);
@@ -1151,7 +1164,7 @@ my_device_create(struct controlvm_message *inmsg)
 		rc = -CONTROLVM_RESP_ERROR_ALREADY_DONE;
 		goto cleanup;
 	}
-	bus_info = findbus(&bus_info_list, bus_no);
+	bus_info = bus_find(&bus_info_list, bus_no);
 	if (!bus_info) {
 		POSTCODE_LINUX_4(DEVICE_CREATE_FAILURE_PC, dev_no, bus_no,
 				 POSTCODE_SEVERITY_ERR);
@@ -1995,7 +2008,7 @@ device_resume_response(u32 bus_no, u32 dev_no, int response)
 bool
 visorchipset_get_bus_info(u32 bus_no, struct visorchipset_bus_info *bus_info)
 {
-	void *p = findbus(&bus_info_list, bus_no);
+	void *p = bus_find(&bus_info_list, bus_no);
 
 	if (!p)
 		return false;
@@ -2007,7 +2020,7 @@ EXPORT_SYMBOL_GPL(visorchipset_get_bus_info);
 bool
 visorchipset_set_bus_context(u32 bus_no, void *context)
 {
-	struct visorchipset_bus_info *p = findbus(&bus_info_list, bus_no);
+	struct visorchipset_bus_info *p = bus_find(&bus_info_list, bus_no);
 
 	if (!p)
 		return false;
