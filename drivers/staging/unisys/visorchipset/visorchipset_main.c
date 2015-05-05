@@ -75,7 +75,6 @@ static struct delayed_work periodic_controlvm_work;
 static struct workqueue_struct *periodic_controlvm_workqueue;
 static DEFINE_SEMAPHORE(notifier_lock);
 
-static struct controlvm_message_header g_diag_msg_hdr;
 static struct controlvm_message_header g_chipset_msg_hdr;
 static struct controlvm_message_header g_del_dump_msg_hdr;
 static const uuid_le spar_diag_pool_channel_protocol_uuid =
@@ -1742,7 +1741,6 @@ handle_command(struct controlvm_message inmsg, HOSTADDRESS channel_addr)
 			/* save the hdr and cmd structures for later use */
 			/* when sending back the response to Command */
 			my_device_changestate(&inmsg);
-			g_diag_msg_hdr = inmsg.hdr;
 			g_devicechangestate_packet = inmsg.cmd;
 			break;
 		}
@@ -2220,8 +2218,6 @@ visorchipset_init(void)
 		goto cleanup;
 	}
 
-	memset(&g_diag_msg_hdr, 0, sizeof(struct controlvm_message_header));
-
 	memset(&g_chipset_msg_hdr, 0, sizeof(struct controlvm_message_header));
 
 	memset(&g_del_dump_msg_hdr, 0, sizeof(struct controlvm_message_header));
@@ -2286,8 +2282,6 @@ visorchipset_exit(void)
 	}
 
 	cleanup_controlvm_structures();
-
-	memset(&g_diag_msg_hdr, 0, sizeof(struct controlvm_message_header));
 
 	memset(&g_chipset_msg_hdr, 0, sizeof(struct controlvm_message_header));
 
