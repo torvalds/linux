@@ -308,21 +308,21 @@ static ssize_t display_show_color(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
 	struct rk_display_device *dsp = dev_get_drvdata(dev);
-	
-	if(dsp->ops && dsp->ops->getcolor)
+
+	if (dsp->ops && dsp->ops->getcolor)
 		return dsp->ops->getcolor(dsp, buf);
 	else
 		return 0;
 }
 
-static ssize_t display_store_color(struct device *dev, 
+static ssize_t display_store_color(struct device *dev,
 				   struct device_attribute *attr,
 				   const char *buf, size_t count)
 {
 	struct rk_display_device *dsp = dev_get_drvdata(dev);
 
-	if(dsp->ops && dsp->ops->setcolor) {
-		if (!dsp->ops->setcolor(dsp, buf, count));
+	if (dsp->ops && dsp->ops->setcolor) {
+		if (!dsp->ops->setcolor(dsp, buf, count))
 			return count;
 	}
 	return -EINVAL;
@@ -374,8 +374,8 @@ static ssize_t display_store_debug(struct device *dev,
 	int cmd;
 	struct rk_display_device *dsp = dev_get_drvdata(dev);
 
-	if(dsp->ops && dsp->ops->setdebug) {
-		if (sscanf(buf, "%d", &cmd) != -1)
+	if (dsp->ops && dsp->ops->setdebug) {
+		if (kstrtoint(buf, 0, &cmd) == 0)
 			dsp->ops->setdebug(dsp, cmd);
 		return count;
 	}
