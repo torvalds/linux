@@ -1479,7 +1479,7 @@ static void axienet_dma_err_handler(unsigned long data)
 }
 
 /**
- * axienet_of_probe - Axi Ethernet probe function.
+ * axienet_probe - Axi Ethernet probe function.
  * @pdev:	Pointer to platform device structure.
  * @match:	Pointer to device id structure
  *
@@ -1491,7 +1491,7 @@ static void axienet_dma_err_handler(unsigned long data)
  * device. Parses through device tree and populates fields of
  * axienet_local. It registers the Ethernet device.
  */
-static int axienet_of_probe(struct platform_device *pdev)
+static int axienet_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct device_node *np;
@@ -1636,7 +1636,7 @@ free_netdev:
 	return ret;
 }
 
-static int axienet_of_remove(struct platform_device *pdev)
+static int axienet_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct axienet_local *lp = netdev_priv(ndev);
@@ -1652,16 +1652,16 @@ static int axienet_of_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver axienet_of_driver = {
-	.probe = axienet_of_probe,
-	.remove = axienet_of_remove,
+static struct platform_driver axienet_driver = {
+	.probe = axienet_probe,
+	.remove = axienet_remove,
 	.driver = {
 		 .name = "xilinx_axienet",
 		 .of_match_table = axienet_of_match,
 	},
 };
 
-module_platform_driver(axienet_of_driver);
+module_platform_driver(axienet_driver);
 
 MODULE_DESCRIPTION("Xilinx Axi Ethernet driver");
 MODULE_AUTHOR("Xilinx");
