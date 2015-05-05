@@ -93,10 +93,6 @@ static void v4l2_of_parse_parallel_bus(const struct device_node *node,
 		flags |= v ? V4L2_MBUS_VSYNC_ACTIVE_HIGH :
 			V4L2_MBUS_VSYNC_ACTIVE_LOW;
 
-	if (!of_property_read_u32(node, "pclk-sample", &v))
-		flags |= v ? V4L2_MBUS_PCLK_SAMPLE_RISING :
-			V4L2_MBUS_PCLK_SAMPLE_FALLING;
-
 	if (!of_property_read_u32(node, "field-even-active", &v))
 		flags |= v ? V4L2_MBUS_FIELD_EVEN_HIGH :
 			V4L2_MBUS_FIELD_EVEN_LOW;
@@ -104,6 +100,10 @@ static void v4l2_of_parse_parallel_bus(const struct device_node *node,
 		endpoint->bus_type = V4L2_MBUS_PARALLEL;
 	else
 		endpoint->bus_type = V4L2_MBUS_BT656;
+
+	if (!of_property_read_u32(node, "pclk-sample", &v))
+		flags |= v ? V4L2_MBUS_PCLK_SAMPLE_RISING :
+			V4L2_MBUS_PCLK_SAMPLE_FALLING;
 
 	if (!of_property_read_u32(node, "data-active", &v))
 		flags |= v ? V4L2_MBUS_DATA_ACTIVE_HIGH :
