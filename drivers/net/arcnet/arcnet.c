@@ -53,6 +53,7 @@
 #include <linux/jiffies.h>
 
 #include "arcdevice.h"
+#include "com9026.h"
 
 /* "do nothing" functions for protocol drivers */
 static void null_rx(struct net_device *dev, int bufnum,

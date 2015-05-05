@@ -40,6 +40,7 @@
 #include <linux/io.h>
 
 #include "arcdevice.h"
+#include "com9026.h"
 
 /* Internal function declarations */
 
@@ -57,16 +58,6 @@ static void com90io_copy_from_card(struct net_device *dev, int bufnum,
 
 /* The number of low I/O ports used by the card. */
 #define ARCNET_TOTAL_SIZE 16
-
-/* COM 9026 controller chip --> ARCnet register addresses */
-#define COM9026_REG_W_INTMASK	0	/* writable */
-#define COM9026_REG_R_STATUS	0	/* readable */
-#define COM9026_REG_W_COMMAND	1	/* writable, returns random vals on read (?) */
-#define COM9026_REG_RW_CONFIG	2	/* Configuration register */
-#define COM9026_REG_R_RESET	8	/* software reset (on read) */
-#define COM9026_REG_RW_MEMDATA	12	/* Data port for IO-mapped memory */
-#define COM9026_REG_W_ADDR_LO	14	/* Control registers for said */
-#define COM9026_REG_W_ADDR_HI	15
 
 /****************************************************************************
  *                                                                          *
