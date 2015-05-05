@@ -15,16 +15,7 @@
  * details.
  */
 
-#include "controlvmchannel.h"
-#include "version.h"
-#include "procobjecttree.h"
-#include "visorbus.h"
-#include "periodic_work.h"
-#include "uisutils.h"
-#include "controlvmcompletionstatus.h"
-#include "guestlinuxdebug.h"
-#include "visorbus_private.h"
-
+#include <linux/acpi.h>
 #include <linux/ctype.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
@@ -33,6 +24,16 @@
 #include <linux/platform_device.h>
 #include <linux/uuid.h>
 #include <linux/crash_dump.h>
+
+#include "controlvmchannel.h"
+#include "controlvmcompletionstatus.h"
+#include "guestlinuxdebug.h"
+#include "periodic_work.h"
+#include "procobjecttree.h"
+#include "uisutils.h"
+#include "version.h"
+#include "visorbus.h"
+#include "visorbus_private.h"
 
 #define CURRENT_FILE_PC VISOR_CHIPSET_PC_visorchipset_main_c
 
@@ -2637,16 +2638,11 @@ visorchipset_file_init(dev_t major_dev, struct visorchannel **controlvm_channel)
 	return 0;
 }
 
-
-
-static int __init
-visorchipset_init(void)
+static int
+visorchipset_init(struct acpi_device *acpi_device)
 {
 	int rc = 0;
 	HOSTADDRESS addr;
-
-	if (!unisys_spar_platform)
-		return -ENODEV;
 
 	memset(&busdev_notifiers, 0, sizeof(busdev_notifiers));
 	memset(&controlvm_payload_info, 0, sizeof(controlvm_payload_info));
@@ -2733,8 +2729,8 @@ visorchipset_file_cleanup(dev_t major_dev)
 	unregister_chrdev_region(major_dev, 1);
 }
 
-static void
-visorchipset_exit(void)
+static int
+visorchipset_exit(struct acpi_device *acpi_device)
 {
 	POSTCODE_LINUX_2(DRIVER_EXIT_PC, POSTCODE_SEVERITY_INFO);
 
@@ -2754,6 +2750,45 @@ visorchipset_exit(void)
 
 	visorchipset_file_cleanup(visorchipset_platform_device.dev.devt);
 	POSTCODE_LINUX_2(DRIVER_EXIT_PC, POSTCODE_SEVERITY_INFO);
+
+	return 0;
+}
+
+static const struct acpi_device_id unisys_device_ids[] = {
+	{"PNP0A07", 0},
+	{"", 0},
+};
+MODULE_DEVICE_TABLE(acpi, unisys_device_ids);
+
+static struct acpi_driver unisys_acpi_driver = {
+	.name = "unisys_acpi",
+	.class = "unisys_acpi_class",
+	.owner = THIS_MODULE,
+	.ids = unisys_device_ids,
+	.ops = {
+		.add = visorchipset_init,
+		.remove = visorchipset_exit,
+		},
+};
+
+static int init_unisys(void)
+{
+	int result;
+
+	if (!unisys_spar_platform)
+		return -ENODEV;
+
+	result = acpi_bus_register_driver(&unisys_acpi_driver);
+	if (result)
+		return -ENODEV;
+
+	pr_info("Unisys Visorchipset Driver Loaded.\n");
+	return 0;
+};
+
+static void exit_unisys(void)
+{
+	acpi_bus_unregister_driver(&unisys_acpi_driver);
 }
 
 module_param_named(major, visorchipset_major, int, S_IRUGO);
@@ -2767,8 +2802,8 @@ module_param_named(holdchipsetready, visorchipset_holdchipsetready,
 MODULE_PARM_DESC(visorchipset_holdchipsetready,
 		 "1 to hold response to CHIPSET_READY");
 
-module_init(visorchipset_init);
-module_exit(visorchipset_exit);
+module_init(init_unisys);
+module_exit(exit_unisys);
 
 MODULE_AUTHOR("Unisys");
 MODULE_LICENSE("GPL");

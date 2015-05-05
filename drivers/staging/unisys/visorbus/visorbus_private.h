@@ -155,6 +155,6 @@ bool visorchipset_get_device_info(u32 bus_no, u32 dev_no,
 bool visorchipset_set_bus_context(u32 bus_no, void *context);
 
 /* visorbus init and exit functions */
-int __init visorbus_init(void);
+int visorbus_init(void);
 void visorbus_exit(void);
 #endif

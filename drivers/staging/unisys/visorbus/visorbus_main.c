@@ -2034,7 +2034,7 @@ struct channel_size_info {
 	unsigned long max_size;
 };
 
-int __init
+int
 visorbus_init(void)
 {
 	int rc = 0;
