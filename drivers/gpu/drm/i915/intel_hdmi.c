@@ -944,47 +944,73 @@ static void intel_enable_hdmi_audio(struct intel_encoder *encoder)
 	intel_audio_codec_enable(encoder);
 }
 
-static void intel_enable_hdmi(struct intel_encoder *encoder)
+static void g4x_enable_hdmi(struct intel_encoder *encoder)
 {
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
+	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
 	u32 temp;
-	u32 enable_bits = SDVO_ENABLE;
-
-	if (intel_crtc->config->has_audio)
-		enable_bits |= SDVO_AUDIO_ENABLE;
 
 	temp = I915_READ(intel_hdmi->hdmi_reg);
 
-	/* HW workaround for IBX, we need to move the port to transcoder A
-	 * before disabling it, so restore the transcoder select bit here. */
-	if (HAS_PCH_IBX(dev))
-		enable_bits |= SDVO_PIPE_SEL(intel_crtc->pipe);
-
-	/* HW workaround, need to toggle enable bit off and on for 12bpc, but
-	 * we do this anyway which shows more stable in testing.
-	 */
-	if (HAS_PCH_SPLIT(dev)) {
-		I915_WRITE(intel_hdmi->hdmi_reg, temp & ~SDVO_ENABLE);
-		POSTING_READ(intel_hdmi->hdmi_reg);
-	}
-
-	temp |= enable_bits;
+	temp |= SDVO_ENABLE;
+	if (crtc->config->has_audio)
+		temp |= SDVO_AUDIO_ENABLE;
 
 	I915_WRITE(intel_hdmi->hdmi_reg, temp);
 	POSTING_READ(intel_hdmi->hdmi_reg);
 
-	/* HW workaround, need to write this twice for issue that may result
-	 * in first write getting masked.
+	if (crtc->config->has_audio)
+		intel_enable_hdmi_audio(encoder);
+}
+
+static void ibx_enable_hdmi(struct intel_encoder *encoder)
+{
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
+	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
+	u32 temp;
+
+	temp = I915_READ(intel_hdmi->hdmi_reg);
+
+	temp |= SDVO_ENABLE;
+	if (crtc->config->has_audio)
+		temp |= SDVO_AUDIO_ENABLE;
+
+	/*
+	 * HW workaround, need to write this twice for issue
+	 * that may result in first write getting masked.
 	 */
-	if (HAS_PCH_SPLIT(dev)) {
+	I915_WRITE(intel_hdmi->hdmi_reg, temp);
+	POSTING_READ(intel_hdmi->hdmi_reg);
+	I915_WRITE(intel_hdmi->hdmi_reg, temp);
+	POSTING_READ(intel_hdmi->hdmi_reg);
+
+	/*
+	 * HW workaround, need to toggle enable bit off and on
+	 * for 12bpc with pixel repeat.
+	 *
+	 * FIXME: BSpec says this should be done at the end of
+	 * of the modeset sequence, so not sure if this isn't too soon.
+	 */
+	if (crtc->config->pipe_bpp > 24 &&
+	    crtc->config->pixel_multiplier > 1) {
+		I915_WRITE(intel_hdmi->hdmi_reg, temp & ~SDVO_ENABLE);
+		POSTING_READ(intel_hdmi->hdmi_reg);
+
+		/*
+		 * HW workaround, need to write this twice for issue
+		 * that may result in first write getting masked.
+		 */
+		I915_WRITE(intel_hdmi->hdmi_reg, temp);
+		POSTING_READ(intel_hdmi->hdmi_reg);
 		I915_WRITE(intel_hdmi->hdmi_reg, temp);
 		POSTING_READ(intel_hdmi->hdmi_reg);
 	}
 
-	if (intel_crtc->config->has_audio)
+	if (crtc->config->has_audio)
 		intel_enable_hdmi_audio(encoder);
 }
 
@@ -1504,7 +1530,7 @@ static void vlv_hdmi_pre_enable(struct intel_encoder *encoder)
 				   intel_crtc->config->has_hdmi_sink,
 				   adjusted_mode);
 
-	intel_enable_hdmi(encoder);
+	g4x_enable_hdmi(encoder);
 
 	vlv_wait_port_ready(dev_priv, dport, 0x0);
 }
@@ -1821,7 +1847,7 @@ static void chv_hdmi_pre_enable(struct intel_encoder *encoder)
 				   intel_crtc->config->has_hdmi_sink,
 				   adjusted_mode);
 
-	intel_enable_hdmi(encoder);
+	g4x_enable_hdmi(encoder);
 
 	vlv_wait_port_ready(dev_priv, dport, 0x0);
 }
@@ -2010,8 +2036,10 @@ void intel_hdmi_init(struct drm_device *dev, int hdmi_reg, enum port port)
 		intel_encoder->pre_enable = intel_hdmi_pre_enable;
 		if (HAS_PCH_CPT(dev))
 			intel_encoder->enable = cpt_enable_hdmi;
+		else if (HAS_PCH_IBX(dev))
+			intel_encoder->enable = ibx_enable_hdmi;
 		else
-			intel_encoder->enable = intel_enable_hdmi;
+			intel_encoder->enable = g4x_enable_hdmi;
 	}
 
 	intel_encoder->type = INTEL_OUTPUT_HDMI;
