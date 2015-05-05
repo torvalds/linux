@@ -106,7 +106,7 @@ struct irq_info {
 	  *   interrupt.  Currently this is used by IOPart-SP to wake
 	  *   up GP when Data Channel transitions from empty to
 	  *   non-empty.*/
-	u64 send_irq_handle;
+	u64 reserved1;
 
 	 /**< specifies interrupt handle. It is used to retrieve the
 	  *   corresponding interrupt pin from Monitor; and the
