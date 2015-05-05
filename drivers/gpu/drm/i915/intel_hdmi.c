@@ -814,6 +814,16 @@ static void intel_hdmi_get_config(struct intel_encoder *encoder,
 	pipe_config->base.adjusted_mode.crtc_clock = dotclock;
 }
 
+static void intel_enable_hdmi_audio(struct intel_encoder *encoder)
+{
+	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
+
+	WARN_ON(!crtc->config->has_hdmi_sink);
+	DRM_DEBUG_DRIVER("Enabling HDMI audio on pipe %c\n",
+			 pipe_name(crtc->pipe));
+	intel_audio_codec_enable(encoder);
+}
+
 static void intel_enable_hdmi(struct intel_encoder *encoder)
 {
 	struct drm_device *dev = encoder->base.dev;
@@ -854,12 +864,61 @@ static void intel_enable_hdmi(struct intel_encoder *encoder)
 		POSTING_READ(intel_hdmi->hdmi_reg);
 	}
 
-	if (intel_crtc->config->has_audio) {
-		WARN_ON(!intel_crtc->config->has_hdmi_sink);
-		DRM_DEBUG_DRIVER("Enabling HDMI audio on pipe %c\n",
-				 pipe_name(intel_crtc->pipe));
-		intel_audio_codec_enable(encoder);
+	if (intel_crtc->config->has_audio)
+		intel_enable_hdmi_audio(encoder);
+}
+
+static void cpt_enable_hdmi(struct intel_encoder *encoder)
+{
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
+	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
+	enum pipe pipe = crtc->pipe;
+	u32 temp;
+
+	temp = I915_READ(intel_hdmi->hdmi_reg);
+
+	temp |= SDVO_ENABLE;
+	if (crtc->config->has_audio)
+		temp |= SDVO_AUDIO_ENABLE;
+
+	/*
+	 * WaEnableHDMI8bpcBefore12bpc:snb,ivb
+	 *
+	 * The procedure for 12bpc is as follows:
+	 * 1. disable HDMI clock gating
+	 * 2. enable HDMI with 8bpc
+	 * 3. enable HDMI with 12bpc
+	 * 4. enable HDMI clock gating
+	 */
+
+	if (crtc->config->pipe_bpp > 24) {
+		I915_WRITE(TRANS_CHICKEN1(pipe),
+			   I915_READ(TRANS_CHICKEN1(pipe)) |
+			   TRANS_CHICKEN1_HDMIUNIT_GC_DISABLE);
+
+		temp &= ~SDVO_COLOR_FORMAT_MASK;
+		temp |= SDVO_COLOR_FORMAT_8bpc;
 	}
+
+	I915_WRITE(intel_hdmi->hdmi_reg, temp);
+	POSTING_READ(intel_hdmi->hdmi_reg);
+
+	if (crtc->config->pipe_bpp > 24) {
+		temp &= ~SDVO_COLOR_FORMAT_MASK;
+		temp |= HDMI_COLOR_FORMAT_12bpc;
+
+		I915_WRITE(intel_hdmi->hdmi_reg, temp);
+		POSTING_READ(intel_hdmi->hdmi_reg);
+
+		I915_WRITE(TRANS_CHICKEN1(pipe),
+			   I915_READ(TRANS_CHICKEN1(pipe)) &
+			   ~TRANS_CHICKEN1_HDMIUNIT_GC_DISABLE);
+	}
+
+	if (crtc->config->has_audio)
+		intel_enable_hdmi_audio(encoder);
 }
 
 static void vlv_enable_hdmi(struct intel_encoder *encoder)
@@ -1827,7 +1886,10 @@ void intel_hdmi_init(struct drm_device *dev, int hdmi_reg, enum port port)
 		intel_encoder->post_disable = vlv_hdmi_post_disable;
 	} else {
 		intel_encoder->pre_enable = intel_hdmi_pre_enable;
-		intel_encoder->enable = intel_enable_hdmi;
+		if (HAS_PCH_CPT(dev))
+			intel_encoder->enable = cpt_enable_hdmi;
+		else
+			intel_encoder->enable = intel_enable_hdmi;
 	}
 
 	intel_encoder->type = INTEL_OUTPUT_HDMI;
