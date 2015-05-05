@@ -91,7 +91,6 @@ enum controlvm_id {
 /* CHIPSET commands */
 	CONTROLVM_CHIPSET_INIT = 0x301,			/* CP --> SP, GP */
 	CONTROLVM_CHIPSET_STOP = 0x302,			/* CP --> SP, GP */
-	CONTROLVM_CHIPSET_SHUTDOWN = 0x303,		/* CP --> SP */
 	CONTROLVM_CHIPSET_READY = 0x304,		/* CP --> SP */
 	CONTROLVM_CHIPSET_SELFTEST = 0x305,		/* CP --> SP */
 
