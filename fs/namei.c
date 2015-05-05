@@ -802,7 +802,7 @@ static inline int may_follow_link(struct path *link, struct nameidata *nd)
 		return 0;
 
 	audit_log_link_denied("follow_link", link);
-	path_put_conditional(link, nd);
+	path_put(link);
 	path_put(&nd->path);
 	return -EACCES;
 }
@@ -886,9 +886,6 @@ const char *get_link(struct nameidata *nd)
 	const char *res;
 
 	BUG_ON(nd->flags & LOOKUP_RCU);
-
-	if (nd->link.mnt == nd->path.mnt)
-		mntget(nd->link.mnt);
 
 	last->link = nd->link;
 	last->cookie = NULL;
@@ -1574,9 +1571,11 @@ static int pick_link(struct nameidata *nd, struct path *link)
 			return -ECHILD;
 		}
 	}
+	if (link->mnt == nd->path.mnt)
+		mntget(link->mnt);
 	error = nd_alloc_stack(nd);
 	if (unlikely(error)) {
-		path_to_nameidata(link, nd);
+		path_put(link);
 		return error;
 	}
 
