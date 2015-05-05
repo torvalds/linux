@@ -179,7 +179,7 @@ __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 	if (unlikely(netdev_uses_dsa(dev)))
 		return htons(ETH_P_XDSA);
 
-	if (likely((eth->h_proto & htons(0xFF00)) >= htons(ETH_P_802_3_MIN)))
+	if (likely(eth_proto_is_802_3(eth->h_proto)))
 		return eth->h_proto;
 
 	/*

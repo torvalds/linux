@@ -191,6 +191,24 @@ static inline bool is_valid_ether_addr(const u8 *addr)
 }
 
 /**
+ * eth_proto_is_802_3 - Determine if a given Ethertype/length is a protocol
+ * @proto: Ethertype/length value to be tested
+ *
+ * Check that the value from the Ethertype/length field is a valid Ethertype.
+ *
+ * Return true if the valid is an 802.3 supported Ethertype.
+ */
+static inline bool eth_proto_is_802_3(__be16 proto)
+{
+#ifndef __BIG_ENDIAN
+	/* if CPU is little endian mask off bits representing LSB */
+	proto &= htons(0xFF00);
+#endif
+	/* cast both to u16 and compare since LSB can be ignored */
+	return (__force u16)proto >= (__force u16)htons(ETH_P_802_3_MIN);
+}
+
+/**
  * eth_random_addr - Generate software assigned random Ethernet address
  * @addr: Pointer to a six-byte array containing the Ethernet address
  *
