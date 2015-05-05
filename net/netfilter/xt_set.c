@@ -423,6 +423,8 @@ set_target_v2(struct sk_buff *skb, const struct xt_action_param *par)
 
 /* Revision 3 target */
 
+#define MOPT(opt, member)	((opt).ext.skbinfo.member)
+
 static unsigned int
 set_target_v3(struct sk_buff *skb, const struct xt_action_param *par)
 {
@@ -453,14 +455,14 @@ set_target_v3(struct sk_buff *skb, const struct xt_action_param *par)
 		if (!ret)
 			return XT_CONTINUE;
 		if (map_opt.cmdflags & IPSET_FLAG_MAP_SKBMARK)
-			skb->mark = (skb->mark & ~(map_opt.ext.skbmarkmask))
-				    ^ (map_opt.ext.skbmark);
+			skb->mark = (skb->mark & ~MOPT(map_opt,skbmarkmask))
+				    ^ MOPT(map_opt, skbmark);
 		if (map_opt.cmdflags & IPSET_FLAG_MAP_SKBPRIO)
-			skb->priority = map_opt.ext.skbprio;
+			skb->priority = MOPT(map_opt, skbprio);
 		if ((map_opt.cmdflags & IPSET_FLAG_MAP_SKBQUEUE) &&
 		    skb->dev &&
-		    skb->dev->real_num_tx_queues > map_opt.ext.skbqueue)
-			skb_set_queue_mapping(skb, map_opt.ext.skbqueue);
+		    skb->dev->real_num_tx_queues > MOPT(map_opt, skbqueue))
+			skb_set_queue_mapping(skb, MOPT(map_opt, skbqueue));
 	}
 	return XT_CONTINUE;
 }

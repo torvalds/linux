@@ -426,20 +426,20 @@ ip_set_get_extensions(struct ip_set *set, struct nlattr *tb[],
 		if (!SET_WITH_SKBINFO(set))
 			return -IPSET_ERR_SKBINFO;
 		fullmark = be64_to_cpu(nla_get_be64(tb[IPSET_ATTR_SKBMARK]));
-		ext->skbmark = fullmark >> 32;
-		ext->skbmarkmask = fullmark & 0xffffffff;
+		ext->skbinfo.skbmark = fullmark >> 32;
+		ext->skbinfo.skbmarkmask = fullmark & 0xffffffff;
 	}
 	if (tb[IPSET_ATTR_SKBPRIO]) {
 		if (!SET_WITH_SKBINFO(set))
 			return -IPSET_ERR_SKBINFO;
-		ext->skbprio = be32_to_cpu(nla_get_be32(
-					    tb[IPSET_ATTR_SKBPRIO]));
+		ext->skbinfo.skbprio =
+			be32_to_cpu(nla_get_be32(tb[IPSET_ATTR_SKBPRIO]));
 	}
 	if (tb[IPSET_ATTR_SKBQUEUE]) {
 		if (!SET_WITH_SKBINFO(set))
 			return -IPSET_ERR_SKBINFO;
-		ext->skbqueue = be16_to_cpu(nla_get_be16(
-					    tb[IPSET_ATTR_SKBQUEUE]));
+		ext->skbinfo.skbqueue =
+			be16_to_cpu(nla_get_be16(tb[IPSET_ATTR_SKBQUEUE]));
 	}
 	return 0;
 }
