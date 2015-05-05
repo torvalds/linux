@@ -192,8 +192,9 @@ int com20020_found(struct net_device *dev, int shared)
 	lp->hw.copy_from_card = com20020_copy_from_card;
 	lp->hw.close = com20020_close;
 
+	/* FIXME: do this some other way! */
 	if (!dev->dev_addr[0])
-		dev->dev_addr[0] = inb(ioaddr + BUS_ALIGN * 8);	/* FIXME: do this some other way! */
+		dev->dev_addr[0] = inb(ioaddr + BUS_ALIGN * 8);
 
 	SET_SUBADR(SUB_SETUP1);
 	outb(lp->setup, _XREG);
@@ -269,7 +270,8 @@ static int com20020_reset(struct net_device *dev, int really_reset)
 	if (really_reset) {
 		/* reset the card */
 		ARCRESET;
-		mdelay(RESETtime * 2);	/* COM20020 seems to be slower sometimes */
+		mdelay(RESETtime * 2);
+				/* COM20020 seems to be slower sometimes */
 	}
 	/* clear flags & end reset */
 	arc_printk(D_DEBUG, dev, "%s: %d: %s\n", __FILE__, __LINE__, __func__);
@@ -338,15 +340,15 @@ static void com20020_set_mc_list(struct net_device *dev)
 	struct arcnet_local *lp = netdev_priv(dev);
 	int ioaddr = dev->base_addr;
 
-	if ((dev->flags & IFF_PROMISC) && (dev->flags & IFF_UP)) {	/* Enable promiscuous mode */
+	if ((dev->flags & IFF_PROMISC) && (dev->flags & IFF_UP)) {
+		/* Enable promiscuous mode */
 		if (!(lp->setup & PROMISCset))
 			arc_printk(D_NORMAL, dev, "Setting promiscuous flag...\n");
 		SET_SUBADR(SUB_SETUP1);
 		lp->setup |= PROMISCset;
 		outb(lp->setup, _XREG);
-	} else
+	} else {
 		/* Disable promiscuous mode, use normal mode */
-	{
 		if ((lp->setup & PROMISCset))
 			arc_printk(D_NORMAL, dev, "Resetting promiscuous flag...\n");
 		SET_SUBADR(SUB_SETUP1);
@@ -370,7 +372,7 @@ MODULE_LICENSE("GPL");
 static int __init com20020_module_init(void)
 {
 	if (BUGLVL(D_NORMAL))
-		pr_info("%s\n", "COM20020 chipset support (by David Woodhouse et al.)\n");
+		pr_info("%s\n", "COM20020 chipset support (by David Woodhouse et al.)");
 	return 0;
 }
 

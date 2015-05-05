@@ -60,8 +60,8 @@ static void com90xx_setmask(struct net_device *dev, int mask);
 static int com90xx_reset(struct net_device *dev, int really_reset);
 static void com90xx_copy_to_card(struct net_device *dev, int bufnum, int offset,
 				 void *buf, int count);
-static void com90xx_copy_from_card(struct net_device *dev, int bufnum, int offset,
-				   void *buf, int count);
+static void com90xx_copy_from_card(struct net_device *dev, int bufnum,
+				   int offset, void *buf, int count);
 
 /* Known ARCnet cards */
 
@@ -165,7 +165,8 @@ static void __init com90xx_probe(void)
 
 		ioaddr = *port;
 
-		if (!request_region(*port, ARCNET_TOTAL_SIZE, "arcnet (90xx)")) {
+		if (!request_region(*port, ARCNET_TOTAL_SIZE,
+				    "arcnet (90xx)")) {
 			arc_cont(D_INIT_REASONS, "(request_region)\n");
 			arc_cont(D_INIT_REASONS, "S1: ");
 			if (BUGLVL(D_INIT_REASONS))
@@ -467,7 +468,8 @@ static int check_mirror(unsigned long addr, size_t size)
 /* Set up the struct net_device associated with this card.  Called after
  * probing succeeds.
  */
-static int __init com90xx_found(int ioaddr, int airq, u_long shmem, void __iomem *p)
+static int __init com90xx_found(int ioaddr, int airq, u_long shmem,
+				void __iomem *p)
 {
 	struct net_device *dev = NULL;
 	struct arcnet_local *lp;
@@ -511,7 +513,9 @@ static int __init com90xx_found(int ioaddr, int airq, u_long shmem, void __iomem
 	iounmap(p);
 	release_mem_region(shmem, MIRROR_SIZE);
 
-	if (!request_mem_region(dev->mem_start, dev->mem_end - dev->mem_start + 1, "arcnet (90xx)"))
+	if (!request_mem_region(dev->mem_start,
+				dev->mem_end - dev->mem_start + 1,
+				"arcnet (90xx)"))
 		goto err_free_dev;
 
 	/* reserve the irq */
@@ -530,7 +534,8 @@ static int __init com90xx_found(int ioaddr, int airq, u_long shmem, void __iomem
 	lp->hw.owner = THIS_MODULE;
 	lp->hw.copy_to_card = com90xx_copy_to_card;
 	lp->hw.copy_from_card = com90xx_copy_from_card;
-	lp->mem_start = ioremap(dev->mem_start, dev->mem_end - dev->mem_start + 1);
+	lp->mem_start = ioremap(dev->mem_start,
+				dev->mem_end - dev->mem_start + 1);
 	if (!lp->mem_start) {
 		arc_printk(D_NORMAL, dev, "Can't remap device memory!\n");
 		goto err_free_irq;
@@ -627,8 +632,8 @@ static int com90xx_reset(struct net_device *dev, int really_reset)
 	return 0;
 }
 
-static void com90xx_copy_to_card(struct net_device *dev, int bufnum, int offset,
-				 void *buf, int count)
+static void com90xx_copy_to_card(struct net_device *dev, int bufnum,
+				 int offset, void *buf, int count)
 {
 	struct arcnet_local *lp = netdev_priv(dev);
 	void __iomem *memaddr = lp->mem_start + bufnum * 512 + offset;
@@ -636,8 +641,8 @@ static void com90xx_copy_to_card(struct net_device *dev, int bufnum, int offset,
 	TIME(dev, "memcpy_toio", count, memcpy_toio(memaddr, buf, count));
 }
 
-static void com90xx_copy_from_card(struct net_device *dev, int bufnum, int offset,
-				   void *buf, int count)
+static void com90xx_copy_from_card(struct net_device *dev, int bufnum,
+				   int offset, void *buf, int count)
 {
 	struct arcnet_local *lp = netdev_priv(dev);
 	void __iomem *memaddr = lp->mem_start + bufnum * 512 + offset;
@@ -671,7 +676,8 @@ static void __exit com90xx_exit(void)
 		free_irq(dev->irq, dev);
 		iounmap(lp->mem_start);
 		release_region(dev->base_addr, ARCNET_TOTAL_SIZE);
-		release_mem_region(dev->mem_start, dev->mem_end - dev->mem_start + 1);
+		release_mem_region(dev->mem_start,
+				   dev->mem_end - dev->mem_start + 1);
 		free_netdev(dev);
 	}
 }

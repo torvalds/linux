@@ -759,7 +759,8 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 		if ((status & lp->intmask & TXFREEflag) || lp->timed_out) {
 			lp->intmask &= ~(TXFREEflag | EXCNAKflag);
 
-			arc_printk(D_DURING, dev, "TX IRQ (stat=%Xh)\n", status);
+			arc_printk(D_DURING, dev, "TX IRQ (stat=%Xh)\n",
+				   status);
 
 			if (lp->cur_tx != -1 && !lp->timed_out) {
 				if (!(status & TXACKflag)) {
@@ -804,7 +805,8 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 			go_tx(dev);
 
 			/* continue a split packet, if any */
-			if (lp->outgoing.proto && lp->outgoing.proto->continue_tx) {
+			if (lp->outgoing.proto &&
+			    lp->outgoing.proto->continue_tx) {
 				int txbuf = get_arcbuf(dev);
 
 				if (txbuf != -1) {
@@ -874,7 +876,9 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 					arc_printk(D_NORMAL, dev, "many reconfigurations detected: cabling problem?\n");
 				} else if (!lp->network_down &&
 					   lp->last_recon - lp->first_recon > HZ * 60) {
-					/* reset counters if we've gone for over a minute. */
+					/* reset counters if we've gone for
+					 *  over a minute.
+					 */
 					lp->first_recon = lp->last_recon;
 					lp->num_recons = 1;
 				}

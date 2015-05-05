@@ -188,11 +188,14 @@ static void rx(struct net_device *dev, int bufnum,
 		pkt = (struct archdr *)skb->data;
 		soft = &pkt->soft.rfc1201;
 
-		/* up to sizeof(pkt->soft) has already been copied from the card */
+		/* up to sizeof(pkt->soft) has already
+		 * been copied from the card
+		 */
 		memcpy(pkt, pkthdr, sizeof(struct archdr));
 		if (length > sizeof(pkt->soft))
-			lp->hw.copy_from_card(dev, bufnum, ofs + sizeof(pkt->soft),
-				       pkt->soft.raw + sizeof(pkt->soft),
+			lp->hw.copy_from_card(dev, bufnum,
+					      ofs + sizeof(pkt->soft),
+					      pkt->soft.raw + sizeof(pkt->soft),
 					      length - sizeof(pkt->soft));
 
 		/* ARP packets have problems when sent from some DOS systems:
@@ -318,7 +321,8 @@ static void rx(struct net_device *dev, int bufnum,
 				return;
 			}
 			in->lastpacket++;
-			if (packetnum != in->lastpacket) {	/* not the right flag! */
+			/* if not the right flag */
+			if (packetnum != in->lastpacket) {
 				/* harmless duplicate? ignore. */
 				if (packetnum <= in->lastpacket - 1) {
 					arc_printk(D_EXTRA, dev, "duplicate splitpacket ignored! (splitflag=%d)\n",
@@ -477,7 +481,8 @@ static int prepare_tx(struct net_device *dev, struct archdr *pkt, int length,
 	arc_printk(D_DURING, dev, "prepare_tx: txbufs=%d/%d/%d\n",
 		   lp->next_tx, lp->cur_tx, bufnum);
 
-	length -= ARC_HDR_SIZE;	/* hard header is not included in packet length */
+	/* hard header is not included in packet length */
+	length -= ARC_HDR_SIZE;
 	pkt->soft.rfc1201.split_flag = 0;
 
 	/* need to do a split packet? */

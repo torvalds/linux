@@ -64,7 +64,8 @@ MODULE_LICENSE("GPL");
 
 static void com20020pci_remove(struct pci_dev *pdev);
 
-static int com20020pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+static int com20020pci_probe(struct pci_dev *pdev,
+			     const struct pci_device_id *id)
 {
 	struct com20020_pci_card_info *ci;
 	struct net_device *dev;

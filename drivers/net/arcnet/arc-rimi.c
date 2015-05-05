@@ -49,8 +49,8 @@ static void arcrimi_setmask(struct net_device *dev, int mask);
 static int arcrimi_reset(struct net_device *dev, int really_reset);
 static void arcrimi_copy_to_card(struct net_device *dev, int bufnum, int offset,
 				 void *buf, int count);
-static void arcrimi_copy_from_card(struct net_device *dev, int bufnum, int offset,
-				   void *buf, int count);
+static void arcrimi_copy_from_card(struct net_device *dev, int bufnum,
+				   int offset, void *buf, int count);
 
 /* Handy defines for ARCnet specific stuff */
 
@@ -215,7 +215,8 @@ static int __init arcrimi_found(struct net_device *dev)
 		goto err_free_irq;
 	}
 
-	lp->mem_start = ioremap(dev->mem_start, dev->mem_end - dev->mem_start + 1);
+	lp->mem_start = ioremap(dev->mem_start,
+				dev->mem_end - dev->mem_start + 1);
 	if (!lp->mem_start) {
 		arc_printk(D_NORMAL, dev, "Can't remap device memory!\n");
 		goto err_release_mem;
@@ -307,8 +308,8 @@ static void arcrimi_copy_to_card(struct net_device *dev, int bufnum, int offset,
 	TIME(dev, "memcpy_toio", count, memcpy_toio(memaddr, buf, count));
 }
 
-static void arcrimi_copy_from_card(struct net_device *dev, int bufnum, int offset,
-				   void *buf, int count)
+static void arcrimi_copy_from_card(struct net_device *dev, int bufnum,
+				   int offset, void *buf, int count)
 {
 	struct arcnet_local *lp = netdev_priv(dev);
 	void __iomem *memaddr = lp->mem_start + 0x800 + bufnum * 512 + offset;

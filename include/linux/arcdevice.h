@@ -203,8 +203,8 @@ struct ArcProto {
 			    unsigned short ethproto, uint8_t daddr);
 
 	/* these functions return '1' if the skb can now be freed */
-	int (*prepare_tx)(struct net_device *dev, struct archdr *pkt, int length,
-			  int bufnum);
+	int (*prepare_tx)(struct net_device *dev, struct archdr *pkt,
+			  int length, int bufnum);
 	int (*continue_tx)(struct net_device *dev, int bufnum);
 	int (*ack_tx)(struct net_device *dev, int acked);
 };
@@ -309,10 +309,10 @@ struct arcnet_local {
 		void (*open)(struct net_device *dev);
 		void (*close)(struct net_device *dev);
 
-		void (*copy_to_card)(struct net_device *dev, int bufnum, int offset,
-				     void *buf, int count);
-		void (*copy_from_card)(struct net_device *dev, int bufnum, int offset,
-				       void *buf, int count);
+		void (*copy_to_card)(struct net_device *dev, int bufnum,
+				     int offset, void *buf, int count);
+		void (*copy_from_card)(struct net_device *dev, int bufnum,
+				       int offset, void *buf, int count);
 	} hw;
 
 	void __iomem *mem_start;	/* pointer to ioremap'ed MMIO */

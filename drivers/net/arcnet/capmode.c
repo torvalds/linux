@@ -222,7 +222,8 @@ static int ack_tx(struct net_device *dev, int acked)
 
 free_outskb:
 	dev_kfree_skb_irq(lp->outgoing.skb);
-	lp->outgoing.proto = NULL; /* We are always finished when in this protocol */
+	lp->outgoing.proto = NULL;
+			/* We are always finished when in this protocol */
 
 	return 0;
 }

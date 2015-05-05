@@ -213,7 +213,8 @@ static int prepare_tx(struct net_device *dev, struct archdr *pkt, int length,
 	arc_printk(D_DURING, dev, "prepare_tx: txbufs=%d/%d/%d\n",
 		   lp->next_tx, lp->cur_tx, bufnum);
 
-	length -= ARC_HDR_SIZE;	/* hard header is not included in packet length */
+	/* hard header is not included in packet length */
+	length -= ARC_HDR_SIZE;
 
 	if (length > XMTU) {
 		/* should never happen! other people already check for this. */

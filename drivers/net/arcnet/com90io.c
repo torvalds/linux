@@ -49,8 +49,8 @@ static void com90io_setmask(struct net_device *dev, int mask);
 static int com90io_reset(struct net_device *dev, int really_reset);
 static void com90io_copy_to_card(struct net_device *dev, int bufnum, int offset,
 				 void *buf, int count);
-static void com90io_copy_from_card(struct net_device *dev, int bufnum, int offset,
-				   void *buf, int count);
+static void com90io_copy_from_card(struct net_device *dev, int bufnum,
+				   int offset, void *buf, int count);
 
 /* Handy defines for ARCnet specific stuff */
 
@@ -96,7 +96,8 @@ static u_char get_buffer_byte(struct net_device *dev, unsigned offset)
 }
 
 #ifdef ONE_AT_A_TIME_TX
-static void put_buffer_byte(struct net_device *dev, unsigned offset, u_char datum)
+static void put_buffer_byte(struct net_device *dev, unsigned offset,
+			    u_char datum)
 {
 	int ioaddr = dev->base_addr;
 
@@ -108,7 +109,8 @@ static void put_buffer_byte(struct net_device *dev, unsigned offset, u_char datu
 
 #endif
 
-static void get_whole_buffer(struct net_device *dev, unsigned offset, unsigned length, char *dest)
+static void get_whole_buffer(struct net_device *dev, unsigned offset,
+			     unsigned length, char *dest)
 {
 	int ioaddr = dev->base_addr;
 
@@ -123,7 +125,8 @@ static void get_whole_buffer(struct net_device *dev, unsigned offset, unsigned l
 #endif
 }
 
-static void put_whole_buffer(struct net_device *dev, unsigned offset, unsigned length, char *dest)
+static void put_whole_buffer(struct net_device *dev, unsigned offset,
+			     unsigned length, char *dest)
 {
 	int ioaddr = dev->base_addr;
 
@@ -237,12 +240,14 @@ static int __init com90io_found(struct net_device *dev)
 	int err;
 
 	/* Reserve the irq */
-	if (request_irq(dev->irq, arcnet_interrupt, 0, "arcnet (COM90xx-IO)", dev)) {
+	if (request_irq(dev->irq, arcnet_interrupt, 0,
+			"arcnet (COM90xx-IO)", dev)) {
 		arc_printk(D_NORMAL, dev, "Can't get IRQ %d!\n", dev->irq);
 		return -ENODEV;
 	}
 	/* Reserve the I/O region */
-	if (!request_region(dev->base_addr, ARCNET_TOTAL_SIZE, "arcnet (COM90xx-IO)")) {
+	if (!request_region(dev->base_addr, ARCNET_TOTAL_SIZE,
+			    "arcnet (COM90xx-IO)")) {
 		free_irq(dev->irq, dev);
 		return -EBUSY;
 	}
@@ -338,15 +343,15 @@ static void com90io_setmask(struct net_device *dev, int mask)
 	AINTMASK(mask);
 }
 
-static void com90io_copy_to_card(struct net_device *dev, int bufnum, int offset,
-				 void *buf, int count)
+static void com90io_copy_to_card(struct net_device *dev, int bufnum,
+				 int offset, void *buf, int count)
 {
 	TIME(dev, "put_whole_buffer", count,
 	     put_whole_buffer(dev, bufnum * 512 + offset, count, buf));
 }
 
-static void com90io_copy_from_card(struct net_device *dev, int bufnum, int offset,
-				   void *buf, int count)
+static void com90io_copy_from_card(struct net_device *dev, int bufnum,
+				   int offset, void *buf, int count)
 {
 	TIME(dev, "get_whole_buffer", count,
 	     get_whole_buffer(dev, bufnum * 512 + offset, count, buf));
@@ -418,7 +423,9 @@ static void __exit com90io_exit(void)
 
 	unregister_netdev(dev);
 
-	/* Set the thing back to MMAP mode, in case the old driver is loaded later */
+	/* In case the old driver is loaded later,
+	 * set the thing back to MMAP mode
+	 */
 	outb((inb(_CONFIG) & ~IOMAPflag), _CONFIG);
 
 	free_irq(dev->irq, dev);
