@@ -373,5 +373,10 @@ void arcnet_timeout(struct net_device *dev);
 #define arcnet_outsw(addr, offset, buffer, count)			\
 	outsw((addr) + BUS_ALIGN * (offset), buffer, count)
 
+#define arcnet_readb(addr, offset)					\
+	readb((addr) + (offset))
+#define arcnet_writeb(value, addr, offset)				\
+	writeb(value, (addr) + (offset))
+
 #endif				/* __KERNEL__ */
 #endif				/* _LINUX_ARCDEVICE_H */
