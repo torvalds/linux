@@ -458,6 +458,13 @@ config XGENE_DMA
 	select ASYNC_TX_ENABLE_CHANNEL_SWITCH
 	help
 	  Enable support for the APM X-Gene SoC DMA engine.
+config ZX_DMA
+	tristate "ZTE ZX296702 DMA support"
+	depends on ARCH_ZX
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Support the DMA engine for ZTE ZX296702 platform devices.
 
 config DMA_ENGINE
 	bool
