@@ -809,6 +809,7 @@ static irqreturn_t axienet_tx_irq(int irq, void *_ndev)
 
 	status = axienet_dma_in32(lp, XAXIDMA_TX_SR_OFFSET);
 	if (status & (XAXIDMA_IRQ_IOC_MASK | XAXIDMA_IRQ_DELAY_MASK)) {
+		axienet_dma_out32(lp, XAXIDMA_TX_SR_OFFSET, status);
 		axienet_start_xmit_done(lp->ndev);
 		goto out;
 	}
@@ -832,9 +833,9 @@ static irqreturn_t axienet_tx_irq(int irq, void *_ndev)
 		axienet_dma_out32(lp, XAXIDMA_RX_CR_OFFSET, cr);
 
 		tasklet_schedule(&lp->dma_err_tasklet);
+		axienet_dma_out32(lp, XAXIDMA_TX_SR_OFFSET, status);
 	}
 out:
-	axienet_dma_out32(lp, XAXIDMA_TX_SR_OFFSET, status);
 	return IRQ_HANDLED;
 }
 
@@ -857,6 +858,7 @@ static irqreturn_t axienet_rx_irq(int irq, void *_ndev)
 
 	status = axienet_dma_in32(lp, XAXIDMA_RX_SR_OFFSET);
 	if (status & (XAXIDMA_IRQ_IOC_MASK | XAXIDMA_IRQ_DELAY_MASK)) {
+		axienet_dma_out32(lp, XAXIDMA_RX_SR_OFFSET, status);
 		axienet_recv(lp->ndev);
 		goto out;
 	}
@@ -880,9 +882,9 @@ static irqreturn_t axienet_rx_irq(int irq, void *_ndev)
 		axienet_dma_out32(lp, XAXIDMA_RX_CR_OFFSET, cr);
 
 		tasklet_schedule(&lp->dma_err_tasklet);
+		axienet_dma_out32(lp, XAXIDMA_RX_SR_OFFSET, status);
 	}
 out:
-	axienet_dma_out32(lp, XAXIDMA_RX_SR_OFFSET, status);
 	return IRQ_HANDLED;
 }
 
