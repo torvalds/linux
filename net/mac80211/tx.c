@@ -2893,12 +2893,8 @@ void __ieee80211_subif_start_xmit(struct sk_buff *skb,
 		 * fix it up in software before we handle anything else.
 		 */
 		if (skb->ip_summed == CHECKSUM_PARTIAL) {
-			if (skb->encapsulation)
-				skb_set_inner_transport_header(skb,
-							       skb_checksum_start_offset(skb));
-			else
-				skb_set_transport_header(skb,
-							 skb_checksum_start_offset(skb));
+			skb_set_transport_header(skb,
+						 skb_checksum_start_offset(skb));
 			if (skb_checksum_help(skb))
 				goto out_free;
 		}
