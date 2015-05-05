@@ -18,8 +18,6 @@
 #ifndef __FILE_H__
 #define __FILE_H__
 
-#include "globals.h"
-
 int visorchipset_file_init(dev_t majorDev,
 			   struct visorchannel **pControlVm_channel);
 void visorchipset_file_cleanup(dev_t major_dev);

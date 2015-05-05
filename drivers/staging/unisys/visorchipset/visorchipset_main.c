@@ -15,7 +15,7 @@
  * details.
  */
 
-#include "globals.h"
+#include "version.h"
 #include "visorchipset.h"
 #include "procobjecttree.h"
 #include "visorchannel.h"

@@ -19,10 +19,12 @@
  * communicate with the visorchipset driver using a device/file interface.
  */
 
-#include "globals.h"
-#include "visorchannel.h"
 #include <linux/mm.h>
 #include <linux/fs.h>
+#include "version.h"
+#include "visorchipset.h"
+#include "visorchipset_umode.h"
+#include "visorchannel.h"
 #include "uisutils.h"
 #include "file.h"
 
