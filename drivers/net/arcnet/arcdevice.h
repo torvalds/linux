@@ -358,16 +358,6 @@ void arcnet_timeout(struct net_device *dev);
 #define arcnet_outsb(addr, offset, buffer, count)			\
 	outsb((addr) + BUS_ALIGN * (offset), buffer, count)
 
-#define arcnet_inw(addr, offset)					\
-	inw((addr) + BUS_ALIGN * (offset))
-#define arcnet_outw(value, addr, offset)				\
-	outw(value, (addr) + BUS_ALIGN * (offset))
-
-#define arcnet_insw(addr, offset, buffer, count)			\
-	insw((addr) + BUS_ALIGN * (offset), buffer, count)
-#define arcnet_outsw(addr, offset, buffer, count)			\
-	outsw((addr) + BUS_ALIGN * (offset), buffer, count)
-
 #define arcnet_readb(addr, offset)					\
 	readb((addr) + (offset))
 #define arcnet_writeb(value, addr, offset)				\
