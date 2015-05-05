@@ -460,6 +460,14 @@ static int amdgpu_uvd_cs_msg_decode(uint32_t *msg, unsigned buf_sizes[])
 		min_dpb_size += ALIGN(width_in_mb * height_in_mb * 32, 64);
 		break;
 
+	case 16: /* H265 */
+		image_size = (ALIGN(width, 16) * ALIGN(height, 16) * 3) / 2;
+		image_size = ALIGN(image_size, 256);
+
+		num_dpb_buffer = (le32_to_cpu(msg[59]) & 0xff) + 2;
+		min_dpb_size = image_size * num_dpb_buffer;
+		break;
+
 	default:
 		DRM_ERROR("UVD codec not handled %d!\n", stream_type);
 		return -EINVAL;
