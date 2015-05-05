@@ -37,7 +37,7 @@ int axienet_mdio_wait_until_ready(struct axienet_local *lp)
  * @phy_id:	Address of the PHY device
  * @reg:	PHY register to read
  *
- * returns:	The register contents on success, -ETIMEDOUT on a timeout
+ * Return:	The register contents on success, -ETIMEDOUT on a timeout
  *
  * Reads the contents of the requested register from the requested PHY
  * address by first writing the details into MCR register. After a while
@@ -80,7 +80,7 @@ static int axienet_mdio_read(struct mii_bus *bus, int phy_id, int reg)
  * @reg:	PHY register to write to
  * @val:	Value to be written into the register
  *
- * returns:	0 on success, -ETIMEDOUT on a timeout
+ * Return:	0 on success, -ETIMEDOUT on a timeout
  *
  * Writes the value to the requested register by first writing the value
  * into MWD register. The the MCR register is then appropriately setup
@@ -119,7 +119,7 @@ static int axienet_mdio_write(struct mii_bus *bus, int phy_id, int reg,
  * @lp:		Pointer to axienet local data structure.
  * @np:		Pointer to device node
  *
- * returns:	0 on success, -ETIMEDOUT on a timeout, -ENOMEM when
+ * Return:	0 on success, -ETIMEDOUT on a timeout, -ENOMEM when
  *		mdiobus_alloc (to allocate memory for mii bus structure) fails.
  *
  * Sets up the MDIO interface by initializing the MDIO clock and enabling the

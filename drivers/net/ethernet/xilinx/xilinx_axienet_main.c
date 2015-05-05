@@ -117,7 +117,7 @@ static struct axienet_option axienet_options[] = {
  * @lp:		Pointer to axienet local structure
  * @reg:	Address offset from the base address of the Axi DMA core
  *
- * returns: The contents of the Axi DMA register
+ * Return: The contents of the Axi DMA register
  *
  * This function returns the contents of the corresponding Axi DMA register.
  */
@@ -179,8 +179,7 @@ static void axienet_dma_bd_release(struct net_device *ndev)
  * axienet_dma_bd_init - Setup buffer descriptor rings for Axi DMA
  * @ndev:	Pointer to the net_device structure
  *
- * returns: 0, on success
- *	    -ENOMEM, on failure
+ * Return: 0, on success -ENOMEM, on failure
  *
  * This function is called to initialize the Rx and Tx DMA descriptor
  * rings. This initializes the descriptors with required default values
@@ -320,7 +319,7 @@ static void axienet_set_mac_address(struct net_device *ndev, void *address)
  * @ndev:	Pointer to the net_device structure
  * @p:		6 byte Address to be written as MAC address
  *
- * returns: 0 for all conditions. Presently, there is no failure case.
+ * Return: 0 for all conditions. Presently, there is no failure case.
  *
  * This function is called to initialize the MAC address of the Axi Ethernet
  * core. It calls the core specific axienet_set_mac_address. This is the
@@ -622,7 +621,7 @@ static void axienet_start_xmit_done(struct net_device *ndev)
  * @lp:		Pointer to the axienet_local structure
  * @num_frag:	The number of BDs to check for
  *
- * returns: 0, on success
+ * Return: 0, on success
  *	    NETDEV_TX_BUSY, if any of the descriptors are not free
  *
  * This function is invoked before BDs are allocated and transmission starts.
@@ -645,7 +644,7 @@ static inline int axienet_check_tx_bd_space(struct axienet_local *lp,
  * @skb:	sk_buff pointer that contains data to be Txed.
  * @ndev:	Pointer to net_device structure.
  *
- * returns: NETDEV_TX_OK, on success
+ * Return: NETDEV_TX_OK, on success
  *	    NETDEV_TX_BUSY, if any of the descriptors are not free
  *
  * This function is invoked from upper layers to initiate transmission. The
@@ -800,7 +799,7 @@ static void axienet_recv(struct net_device *ndev)
  * @irq:	irq number
  * @_ndev:	net_device pointer
  *
- * returns: IRQ_HANDLED for all cases.
+ * Return: IRQ_HANDLED for all cases.
  *
  * This is the Axi DMA Tx done Isr. It invokes "axienet_start_xmit_done"
  * to complete the BD processing.
@@ -849,7 +848,7 @@ out:
  * @irq:	irq number
  * @_ndev:	net_device pointer
  *
- * returns: IRQ_HANDLED for all cases.
+ * Return: IRQ_HANDLED for all cases.
  *
  * This is the Axi DMA Rx Isr. It invokes "axienet_recv" to complete the BD
  * processing.
@@ -899,7 +898,7 @@ static void axienet_dma_err_handler(unsigned long data);
  * axienet_open - Driver open routine.
  * @ndev:	Pointer to net_device structure
  *
- * returns: 0, on success.
+ * Return: 0, on success.
  *	    -ENODEV, if PHY cannot be connected to
  *	    non-zero error value on failure
  *
@@ -980,7 +979,7 @@ err_tx_irq:
  * axienet_stop - Driver stop routine.
  * @ndev:	Pointer to net_device structure
  *
- * returns: 0, on success.
+ * Return: 0, on success.
  *
  * This is the driver stop routine. It calls phy_disconnect to stop the PHY
  * device. It also removes the interrupt handlers and disables the interrupts.
@@ -1020,7 +1019,7 @@ static int axienet_stop(struct net_device *ndev)
  * @ndev:	Pointer to net_device structure
  * @new_mtu:	New mtu value to be applied
  *
- * returns: Always returns 0 (success).
+ * Return: Always returns 0 (success).
  *
  * This is the change mtu driver routine. It checks if the Axi Ethernet
  * hardware supports jumbo frames before changing the mtu. This can be
@@ -1087,6 +1086,8 @@ static const struct net_device_ops axienet_netdev_ops = {
  * not be found, the function returns -ENODEV. This function calls the
  * relevant PHY ethtool API to get the PHY settings.
  * Issue "ethtool ethX" under linux prompt to execute this function.
+ *
+ * Return: 0 on success, -ENODEV if PHY doesn't exist
  */
 static int axienet_ethtools_get_settings(struct net_device *ndev,
 					 struct ethtool_cmd *ecmd)
@@ -1108,6 +1109,8 @@ static int axienet_ethtools_get_settings(struct net_device *ndev,
  * relevant PHY ethtool API to set the PHY.
  * Issue e.g. "ethtool -s ethX speed 1000" under linux prompt to execute this
  * function.
+ *
+ * Return: 0 on success, -ENODEV if PHY doesn't exist
  */
 static int axienet_ethtools_set_settings(struct net_device *ndev,
 					 struct ethtool_cmd *ecmd)
@@ -1142,6 +1145,8 @@ static void axienet_ethtools_get_drvinfo(struct net_device *ndev,
  *
  * This implements ethtool command for getting the total register length
  * information.
+ *
+ * Return: the total regs length
  */
 static int axienet_ethtools_get_regs_len(struct net_device *ndev)
 {
@@ -1228,11 +1233,13 @@ axienet_ethtools_get_pauseparam(struct net_device *ndev,
  * axienet_ethtools_set_pauseparam - Set device pause parameter(flow control)
  *				     settings.
  * @ndev:	Pointer to net_device structure
- * @epauseparam:Pointer to ethtool_pauseparam structure
+ * @epauseparm:Pointer to ethtool_pauseparam structure
  *
  * This implements ethtool command for enabling flow control on Rx and Tx
  * paths. Issue "ethtool -A ethX tx on|off" under linux prompt to execute this
  * function.
+ *
+ * Return: 0 on success, -EFAULT if device is running
  */
 static int
 axienet_ethtools_set_pauseparam(struct net_device *ndev,
@@ -1269,6 +1276,8 @@ axienet_ethtools_set_pauseparam(struct net_device *ndev,
  * This implements ethtool command for getting the DMA interrupt coalescing
  * count on Tx and Rx paths. Issue "ethtool -c ethX" under linux prompt to
  * execute this function.
+ *
+ * Return: 0 always
  */
 static int axienet_ethtools_get_coalesce(struct net_device *ndev,
 					 struct ethtool_coalesce *ecoalesce)
@@ -1292,6 +1301,8 @@ static int axienet_ethtools_get_coalesce(struct net_device *ndev,
  * This implements ethtool command for setting the DMA interrupt coalescing
  * count on Tx and Rx paths. Issue "ethtool -C ethX rx-frames 5" under linux
  * prompt to execute this function.
+ *
+ * Return: 0, on success, Non-zero error value on failure.
  */
 static int axienet_ethtools_set_coalesce(struct net_device *ndev,
 					 struct ethtool_coalesce *ecoalesce)
@@ -1481,9 +1492,8 @@ static void axienet_dma_err_handler(unsigned long data)
 /**
  * axienet_probe - Axi Ethernet probe function.
  * @pdev:	Pointer to platform device structure.
- * @match:	Pointer to device id structure
  *
- * returns: 0, on success
+ * Return: 0, on success
  *	    Non-zero error value on failure.
  *
  * This is the probe routine for Axi Ethernet driver. This is called before

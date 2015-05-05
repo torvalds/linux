@@ -411,6 +411,10 @@ struct axidma_bd {
  *		  supported, the maximum frame size would be 9k. Else it is
  *		  1522 bytes (assuming support for basic VLAN)
  * @rxmem:	Stores rx memory size for jumbo frame handling.
+ * @csum_offload_on_tx_path:	Stores the checksum selection on TX side.
+ * @csum_offload_on_rx_path:	Stores the checksum selection on RX side.
+ * @coalesce_count_rx:	Store the irq coalesce on RX side.
+ * @coalesce_count_tx:	Store the irq coalesce on TX side.
  */
 struct axienet_local {
 	struct net_device *ndev;
@@ -474,7 +478,7 @@ struct axienet_option {
  * @lp:         Pointer to axienet local structure
  * @offset:     Address offset from the base address of Axi Ethernet core
  *
- * returns: The contents of the Axi Ethernet register
+ * Return: The contents of the Axi Ethernet register
  *
  * This function returns the contents of the corresponding register.
  */
