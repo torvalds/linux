@@ -377,6 +377,7 @@ static int tas571x_i2c_probe(struct i2c_client *client,
 {
 	struct tas571x_private *priv;
 	struct device *dev = &client->dev;
+	const struct of_device_id *of_id;
 	int i, ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -384,18 +385,12 @@ static int tas571x_i2c_probe(struct i2c_client *client,
 		return -ENOMEM;
 	i2c_set_clientdata(client, priv);
 
-	if (dev->of_node) {
-		const struct of_device_id *of_id;
-
-		of_id = of_match_device(tas571x_of_match, dev);
-		if (of_id)
-			priv->chip = of_id->data;
-	}
-
-	if (!priv->chip) {
+	of_id = of_match_device(tas571x_of_match, dev);
+	if (!of_id) {
 		dev_err(dev, "Unknown device type\n");
 		return -EINVAL;
 	}
+	priv->chip = of_id->data;
 
 	priv->mclk = devm_clk_get(dev, "mclk");
 	if (IS_ERR(priv->mclk) && PTR_ERR(priv->mclk) != -ENOENT) {
