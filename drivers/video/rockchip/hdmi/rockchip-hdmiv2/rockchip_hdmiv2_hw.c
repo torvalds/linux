@@ -1288,9 +1288,9 @@ static int hdmi_dev_config_video(struct hdmi *hdmi, struct hdmi_video *vpara)
 		}
 		hdmi_msk_reg(hdmi_dev, FC_DBGFORCE,
 			     m_FC_FORCEVIDEO, v_FC_FORCEVIDEO(1));
+		hdmi_writel(hdmi_dev, MC_CLKDIS, m_HDCPCLK_DISABLE);
 	}
 
-	hdmi_writel(hdmi_dev, MC_CLKDIS, m_HDCPCLK_DISABLE);
 	if (rockchip_hdmiv2_video_framecomposer(hdmi, vpara) < 0)
 		return -1;
 
@@ -1586,7 +1586,8 @@ static int hdmi_dev_insert(struct hdmi *hdmi)
 	struct hdmi_dev *hdmi_dev = hdmi->property->priv;
 
 	HDMIDBG("%s\n", __func__);
-	hdmi_writel(hdmi_dev, MC_CLKDIS, m_HDCPCLK_DISABLE);
+	if (!hdmi->uboot)
+		hdmi_writel(hdmi_dev, MC_CLKDIS, m_HDCPCLK_DISABLE);
 	return HDMI_ERROR_SUCESS;
 }
 

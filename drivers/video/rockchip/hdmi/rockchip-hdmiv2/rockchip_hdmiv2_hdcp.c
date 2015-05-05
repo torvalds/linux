@@ -142,8 +142,9 @@ static void rockchip_hdmiv2_hdcp_start(struct hdmi *hdmi)
 		     m_ENCRYPT_DISBALE | m_PH2UPSHFTENC,
 		     v_ENCRYPT_DISBALE(0) | v_PH2UPSHFTENC(1));
 	/* Reset HDCP Engine */
-	hdmi_msk_reg(hdmi_dev, A_HDCPCFG1,
-		     m_HDCP_SW_RST, v_HDCP_SW_RST(0));
+	if (hdmi_readl(hdmi_dev, MC_CLKDIS) & m_HDCPCLK_DISABLE)
+		hdmi_msk_reg(hdmi_dev, A_HDCPCFG1,
+			     m_HDCP_SW_RST, v_HDCP_SW_RST(0));
 
 	hdmi_writel(hdmi_dev, A_APIINTMSK, 0x00);
 	hdmi_msk_reg(hdmi_dev, A_HDCPCFG0, m_RX_DETECT, v_RX_DETECT(1));
@@ -239,6 +240,7 @@ static DEVICE_ATTR(trytimes, S_IRUGO|S_IWUSR,
 static int hdcp_init(struct hdmi *hdmi)
 {
 	int ret;
+	struct hdmi_dev *hdmi_dev = hdmi->property->priv;
 
 	mdev.minor = MISC_DYNAMIC_MINOR;
 	mdev.name = "hdcp";
@@ -277,7 +279,8 @@ static int hdcp_init(struct hdmi *hdmi)
 		pr_err("HDCP: request_firmware_nowait failed: %d\n", ret);
 		goto error4;
 	}
-
+	if ((hdmi_readl(hdmi_dev, MC_CLKDIS) & m_HDCPCLK_DISABLE) == 0)
+		hdcp->enable = 1;
 	hdmi->ops->hdcp_cb = rockchip_hdmiv2_hdcp_start;
 	return 0;
 
