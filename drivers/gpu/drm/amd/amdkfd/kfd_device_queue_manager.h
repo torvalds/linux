@@ -130,6 +130,9 @@ struct device_queue_manager_asic_ops {
 					   enum cache_policy alternate_policy,
 					   void __user *alternate_aperture_base,
 					   uint64_t alternate_aperture_size);
+	void	(*init_sdma_vm)(struct device_queue_manager *dqm,
+				struct queue *q,
+				struct qcm_process_device *qpd);
 };
 
 /**
