@@ -31,4 +31,14 @@ struct mpls_label {
 #define MPLS_LS_TTL_MASK        0x000000FF
 #define MPLS_LS_TTL_SHIFT       0
 
+/* Reserved labels */
+#define MPLS_LABEL_IPV4_EXPLICIT_NULL	0 /* RFC3032 */
+#define MPLS_LABEL_ROUTER_ALERT		1 /* RFC3032 */
+#define MPLS_LABEL_IPV6_EXPLICIT_NULL	2 /* RFC3032 */
+#define MPLS_LABEL_IMPLICIT_NULL	3 /* RFC3032 */
+#define MPLS_LABEL_ENTROPY_INDICATOR	7 /* RFC6790 */
+#define MPLS_LABEL_GAL			13 /* RFC5586 */
+#define MPLS_LABEL_OAM_ALERT		14 /* RFC3429 */
+#define MPLS_LABEL_EXTENSION		15 /* RFC7274 */
+
 #endif /* _UAPI_MPLS_H */
