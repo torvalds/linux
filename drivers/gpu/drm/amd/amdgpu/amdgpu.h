@@ -1040,7 +1040,7 @@ struct amdgpu_vm_manager {
 
 struct amdgpu_ctx_state {
 	uint64_t flags;
-	uint64_t hangs;
+	uint32_t hangs;
 };
 
 struct amdgpu_ctx {
@@ -1049,6 +1049,7 @@ struct amdgpu_ctx {
 	struct amdgpu_fpriv *fpriv;
 	struct amdgpu_ctx_state state;
 	uint32_t id;
+	unsigned reset_counter;
 };
 
 struct amdgpu_ctx_mgr {
@@ -1897,8 +1898,6 @@ int amdgpu_ctx_alloc(struct amdgpu_device *adev,struct amdgpu_fpriv *fpriv,
 							uint32_t *id,uint32_t flags);
 int amdgpu_ctx_free(struct amdgpu_device *adev, struct amdgpu_fpriv *fpriv,
 						  uint32_t id);
-int amdgpu_ctx_query(struct amdgpu_device *adev, struct amdgpu_fpriv *fpriv,
-							uint32_t id,struct amdgpu_ctx_state *state);
 
 void amdgpu_ctx_fini(struct amdgpu_fpriv *fpriv);
 struct amdgpu_ctx *amdgpu_ctx_get(struct amdgpu_fpriv *fpriv, uint32_t id);
@@ -2006,6 +2005,7 @@ struct amdgpu_device {
 	atomic64_t			vram_vis_usage;
 	atomic64_t			gtt_usage;
 	atomic64_t			num_bytes_moved;
+	atomic_t			gpu_reset_counter;
 
 	/* display */
 	struct amdgpu_mode_info		mode_info;

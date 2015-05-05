@@ -149,6 +149,12 @@ union drm_amdgpu_bo_list {
 
 #define AMDGPU_CTX_OP_STATE_RUNNING	1
 
+/* GPU reset status */
+#define AMDGPU_CTX_NO_RESET		0
+#define AMDGPU_CTX_GUILTY_RESET		1 /* this the context caused it */
+#define AMDGPU_CTX_INNOCENT_RESET	2 /* some other context caused it */
+#define AMDGPU_CTX_UNKNOWN_RESET	3 /* unknown cause */
+
 struct drm_amdgpu_ctx_in {
 	uint32_t	op;
 	uint32_t	flags;
@@ -164,7 +170,10 @@ union drm_amdgpu_ctx_out {
 
 		struct {
 			uint64_t	flags;
-			uint64_t	hangs;
+			/** Number of resets caused by this context so far. */
+			uint32_t	hangs;
+			/** Reset status since the last call of the ioctl. */
+			uint32_t	reset_status;
 		} state;
 };
 

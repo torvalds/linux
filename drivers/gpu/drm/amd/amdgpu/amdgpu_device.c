@@ -1781,6 +1781,7 @@ int amdgpu_gpu_reset(struct amdgpu_device *adev)
 	}
 
 	adev->needs_reset = false;
+	atomic_inc(&adev->gpu_reset_counter);
 
 	/* block TTM */
 	resched = ttm_bo_lock_delayed_workqueue(&adev->mman.bdev);

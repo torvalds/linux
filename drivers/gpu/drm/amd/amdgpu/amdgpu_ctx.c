@@ -81,21 +81,36 @@ int amdgpu_ctx_free(struct amdgpu_device *adev, struct amdgpu_fpriv *fpriv, uint
 	return -EINVAL;
 }
 
-int amdgpu_ctx_query(struct amdgpu_device *adev, struct amdgpu_fpriv *fpriv, uint32_t id, struct amdgpu_ctx_state *state)
+static int amdgpu_ctx_query(struct amdgpu_device *adev,
+			    struct amdgpu_fpriv *fpriv, uint32_t id,
+			    union drm_amdgpu_ctx_out *out)
 {
 	struct amdgpu_ctx *ctx;
 	struct amdgpu_ctx_mgr *mgr = &fpriv->ctx_mgr;
+	unsigned reset_counter;
 
 	mutex_lock(&mgr->lock);
 	ctx = idr_find(&mgr->ctx_handles, id);
-	if (ctx) {
-		/* state should alter with CS activity */
-		*state = ctx->state;
+	if (!ctx) {
 		mutex_unlock(&mgr->lock);
-		return 0;
+		return -EINVAL;
 	}
+
+	/* TODO: these two are always zero */
+	out->state.flags = ctx->state.flags;
+	out->state.hangs = ctx->state.hangs;
+
+	/* determine if a GPU reset has occured since the last call */
+	reset_counter = atomic_read(&adev->gpu_reset_counter);
+	/* TODO: this should ideally return NO, GUILTY, or INNOCENT. */
+	if (ctx->reset_counter == reset_counter)
+		out->state.reset_status = AMDGPU_CTX_NO_RESET;
+	else
+		out->state.reset_status = AMDGPU_CTX_UNKNOWN_RESET;
+	ctx->reset_counter = reset_counter;
+
 	mutex_unlock(&mgr->lock);
-	return -EINVAL;
+	return 0;
 }
 
 void amdgpu_ctx_fini(struct amdgpu_fpriv *fpriv)
@@ -115,12 +130,11 @@ void amdgpu_ctx_fini(struct amdgpu_fpriv *fpriv)
 }
 
 int amdgpu_ctx_ioctl(struct drm_device *dev, void *data,
-							struct drm_file *filp)
+		     struct drm_file *filp)
 {
 	int r;
 	uint32_t id;
 	uint32_t flags;
-	struct amdgpu_ctx_state state;
 
 	union drm_amdgpu_ctx *args = data;
 	struct amdgpu_device *adev = dev->dev_private;
@@ -139,11 +153,7 @@ int amdgpu_ctx_ioctl(struct drm_device *dev, void *data,
 			r = amdgpu_ctx_free(adev, fpriv, id);
 			break;
 		case AMDGPU_CTX_OP_QUERY_STATE:
-			r = amdgpu_ctx_query(adev, fpriv, id, &state);
-			if (r == 0) {
-				args->out.state.flags = state.flags;
-				args->out.state.hangs = state.hangs;
-			}
+			r = amdgpu_ctx_query(adev, fpriv, id, &args->out);
 			break;
 		default:
 			return -EINVAL;
