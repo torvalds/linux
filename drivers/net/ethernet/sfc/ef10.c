@@ -96,6 +96,24 @@ static unsigned int efx_ef10_mem_map_size(struct efx_nic *efx)
 	return resource_size(&efx->pci_dev->resource[EFX_MEM_BAR]);
 }
 
+static int efx_ef10_get_pf_index(struct efx_nic *efx)
+{
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_FUNCTION_INFO_OUT_LEN);
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	size_t outlen;
+	int rc;
+
+	rc = efx_mcdi_rpc(efx, MC_CMD_GET_FUNCTION_INFO, NULL, 0, outbuf,
+			  sizeof(outbuf), &outlen);
+	if (rc)
+		return rc;
+	if (outlen < sizeof(outbuf))
+		return -EIO;
+
+	nic_data->pf_index = MCDI_DWORD(outbuf, GET_FUNCTION_INFO_OUT_PF);
+	return 0;
+}
+
 static int efx_ef10_init_datapath_caps(struct efx_nic *efx)
 {
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_CAPABILITIES_OUT_LEN);
@@ -237,6 +255,10 @@ static int efx_ef10_probe(struct efx_nic *efx)
 
 	/* Enable event logging */
 	rc = efx_mcdi_log_ctrl(efx, true, false, 0);
+	if (rc)
+		goto fail3;
+
+	rc = efx_ef10_get_pf_index(efx);
 	if (rc)
 		goto fail3;
 

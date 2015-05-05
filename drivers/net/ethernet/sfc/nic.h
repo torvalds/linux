@@ -495,6 +495,7 @@ enum {
  * @tx_dpcpu_fw_id: Firmware ID of the TxDPCPU
  * @vport_id: The function's vport ID, only relevant for PFs
  * @must_probe_vswitching: Flag: vswitching has yet to be setup after MC reboot
+ * @pf_index: The number for this PF, or the parent PF if this is a VF
  */
 struct efx_ef10_nic_data {
 	struct efx_buffer mcdi_buf;
@@ -517,6 +518,7 @@ struct efx_ef10_nic_data {
 	unsigned int tx_dpcpu_fw_id;
 	unsigned int vport_id;
 	bool must_probe_vswitching;
+	unsigned int pf_index;
 };
 
 int efx_init_sriov(void);
