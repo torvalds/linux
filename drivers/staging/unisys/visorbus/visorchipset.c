@@ -376,21 +376,20 @@ static void controlvm_respond_physdev_changestate(
 static void parser_done(struct parser_context *ctx);
 
 static struct parser_context *
-parser_init_guts(u64 addr, u32 bytes, bool local,
-		 bool standard_payload_header, bool *retry)
+parser_init_guts(u64 addr, u32 bytes, bool local, bool *retry)
 {
 	int allocbytes = sizeof(struct parser_context) + bytes;
 	struct parser_context *rc = NULL;
 	struct parser_context *ctx = NULL;
-	struct spar_controlvm_parameters_header *phdr = NULL;
 
 	if (retry)
 		*retry = false;
-	if (!standard_payload_header)
-		/* alloc and 0 extra byte to ensure payload is
-		 * '\0'-terminated
-		 */
-		allocbytes++;
+
+	/*
+	 * alloc an 0 extra byte to ensure payload is
+	 * '\0'-terminated
+	 */
+	allocbytes++;
 	if ((controlvm_payload_bytes_buffered + bytes)
 	    > MAX_CONTROLVM_PAYLOAD_BYTES) {
 		if (retry)
@@ -437,26 +436,8 @@ parser_init_guts(u64 addr, u32 bytes, bool local,
 		memcpy_fromio(ctx->data, mapping, bytes);
 		release_mem_region(addr, bytes);
 	}
-	if (!standard_payload_header) {
-		ctx->byte_stream = true;
-		rc = ctx;
-		goto cleanup;
-	}
-	phdr = (struct spar_controlvm_parameters_header *)(ctx->data);
-	if (phdr->total_length != bytes) {
-		rc = NULL;
-		goto cleanup;
-	}
-	if (phdr->total_length < phdr->header_length) {
-		rc = NULL;
-		goto cleanup;
-	}
-	if (phdr->header_length <
-	    sizeof(struct spar_controlvm_parameters_header)) {
-		rc = NULL;
-		goto cleanup;
-	}
 
+	ctx->byte_stream = true;
 	rc = ctx;
 cleanup:
 	if (rc) {
@@ -478,7 +459,7 @@ cleanup:
 static struct parser_context *
 parser_init_byte_stream(u64 addr, u32 bytes, bool local, bool *retry)
 {
-	return parser_init_guts(addr, bytes, local, false, retry);
+	return parser_init_guts(addr, bytes, local, retry);
 }
 
 static uuid_le
