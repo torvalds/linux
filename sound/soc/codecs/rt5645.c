@@ -2968,7 +2968,7 @@ static int rt5645_probe(struct snd_soc_codec *codec)
 	snd_soc_update_bits(codec, RT5645_CHARGE_PUMP, 0x0300, 0x0200);
 
 	/* for JD function */
-	if (rt5645->pdata.en_jd_func) {
+	if (rt5645->pdata.jd_mode) {
 		snd_soc_dapm_force_enable_pin(&codec->dapm, "JD Power");
 		snd_soc_dapm_force_enable_pin(&codec->dapm, "LDO2");
 		snd_soc_dapm_sync(&codec->dapm);
@@ -3111,10 +3111,8 @@ MODULE_DEVICE_TABLE(acpi, rt5645_acpi_match);
 static struct rt5645_platform_data *rt5645_pdata;
 
 static struct rt5645_platform_data strago_platform_data = {
-	.dmic_en = true,
-	.dmic1_data_pin = -1,
+	.dmic1_data_pin = RT5645_DMIC1_DISABLE,
 	.dmic2_data_pin = RT5645_DMIC_DATA_IN2P,
-	.en_jd_func = true,
 	.jd_mode = 3,
 };
 
@@ -3214,83 +3212,79 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 		regmap_update_bits(rt5645->regmap, RT5645_IN2_CTRL,
 					RT5645_IN_DF2, RT5645_IN_DF2);
 
-	if (rt5645->pdata.dmic_en) {
+	if (rt5645->pdata.dmic1_data_pin || rt5645->pdata.dmic2_data_pin) {
 		regmap_update_bits(rt5645->regmap, RT5645_GPIO_CTRL1,
 			RT5645_GP2_PIN_MASK, RT5645_GP2_PIN_DMIC1_SCL);
+	}
+	switch (rt5645->pdata.dmic1_data_pin) {
+	case RT5645_DMIC_DATA_IN2N:
+		regmap_update_bits(rt5645->regmap, RT5645_DMIC_CTRL1,
+			RT5645_DMIC_1_DP_MASK, RT5645_DMIC_1_DP_IN2N);
+		break;
 
-		switch (rt5645->pdata.dmic1_data_pin) {
-		case RT5645_DMIC_DATA_IN2N:
-			regmap_update_bits(rt5645->regmap, RT5645_DMIC_CTRL1,
-				RT5645_DMIC_1_DP_MASK, RT5645_DMIC_1_DP_IN2N);
-			break;
+	case RT5645_DMIC_DATA_GPIO5:
+		regmap_update_bits(rt5645->regmap, RT5645_DMIC_CTRL1,
+			RT5645_DMIC_1_DP_MASK, RT5645_DMIC_1_DP_GPIO5);
+		regmap_update_bits(rt5645->regmap, RT5645_GPIO_CTRL1,
+			RT5645_GP5_PIN_MASK, RT5645_GP5_PIN_DMIC1_SDA);
+		break;
 
-		case RT5645_DMIC_DATA_GPIO5:
-			regmap_update_bits(rt5645->regmap, RT5645_DMIC_CTRL1,
-				RT5645_DMIC_1_DP_MASK, RT5645_DMIC_1_DP_GPIO5);
-			regmap_update_bits(rt5645->regmap, RT5645_GPIO_CTRL1,
-				RT5645_GP5_PIN_MASK, RT5645_GP5_PIN_DMIC1_SDA);
-			break;
+	case RT5645_DMIC_DATA_GPIO11:
+		regmap_update_bits(rt5645->regmap, RT5645_DMIC_CTRL1,
+			RT5645_DMIC_1_DP_MASK, RT5645_DMIC_1_DP_GPIO11);
+		regmap_update_bits(rt5645->regmap, RT5645_GPIO_CTRL1,
+			RT5645_GP11_PIN_MASK,
+			RT5645_GP11_PIN_DMIC1_SDA);
+		break;
 
-		case RT5645_DMIC_DATA_GPIO11:
-			regmap_update_bits(rt5645->regmap, RT5645_DMIC_CTRL1,
-				RT5645_DMIC_1_DP_MASK, RT5645_DMIC_1_DP_GPIO11);
-			regmap_update_bits(rt5645->regmap, RT5645_GPIO_CTRL1,
-				RT5645_GP11_PIN_MASK,
-				RT5645_GP11_PIN_DMIC1_SDA);
-			break;
-
-		default:
-			break;
-		}
-
-		switch (rt5645->pdata.dmic2_data_pin) {
-		case RT5645_DMIC_DATA_IN2P:
-			regmap_update_bits(rt5645->regmap, RT5645_DMIC_CTRL1,
-				RT5645_DMIC_2_DP_MASK, RT5645_DMIC_2_DP_IN2P);
-			break;
-
-		case RT5645_DMIC_DATA_GPIO6:
-			regmap_update_bits(rt5645->regmap, RT5645_DMIC_CTRL1,
-				RT5645_DMIC_2_DP_MASK, RT5645_DMIC_2_DP_GPIO6);
-			regmap_update_bits(rt5645->regmap, RT5645_GPIO_CTRL1,
-				RT5645_GP6_PIN_MASK, RT5645_GP6_PIN_DMIC2_SDA);
-			break;
-
-		case RT5645_DMIC_DATA_GPIO10:
-			regmap_update_bits(rt5645->regmap, RT5645_DMIC_CTRL1,
-				RT5645_DMIC_2_DP_MASK, RT5645_DMIC_2_DP_GPIO10);
-			regmap_update_bits(rt5645->regmap, RT5645_GPIO_CTRL1,
-				RT5645_GP10_PIN_MASK,
-				RT5645_GP10_PIN_DMIC2_SDA);
-			break;
-
-		case RT5645_DMIC_DATA_GPIO12:
-			regmap_update_bits(rt5645->regmap, RT5645_DMIC_CTRL1,
-				RT5645_DMIC_2_DP_MASK, RT5645_DMIC_2_DP_GPIO12);
-			regmap_update_bits(rt5645->regmap, RT5645_GPIO_CTRL1,
-				RT5645_GP12_PIN_MASK,
-				RT5645_GP12_PIN_DMIC2_SDA);
-			break;
-
-		default:
-			break;
-		}
-
+	default:
+		break;
 	}
 
-	if (rt5645->pdata.en_jd_func) {
-		regmap_update_bits(rt5645->regmap, RT5645_GEN_CTRL3,
-			RT5645_IRQ_CLK_GATE_CTRL, RT5645_IRQ_CLK_GATE_CTRL);
-		regmap_update_bits(rt5645->regmap, RT5645_IN1_CTRL1,
-			RT5645_CBJ_BST1_EN, RT5645_CBJ_BST1_EN);
-		regmap_update_bits(rt5645->regmap, RT5645_JD_CTRL3,
-			RT5645_JD_CBJ_EN | RT5645_JD_CBJ_POL,
-			RT5645_JD_CBJ_EN | RT5645_JD_CBJ_POL);
-		regmap_update_bits(rt5645->regmap, RT5645_MICBIAS,
-			RT5645_IRQ_CLK_INT, RT5645_IRQ_CLK_INT);
+	switch (rt5645->pdata.dmic2_data_pin) {
+	case RT5645_DMIC_DATA_IN2P:
+		regmap_update_bits(rt5645->regmap, RT5645_DMIC_CTRL1,
+			RT5645_DMIC_2_DP_MASK, RT5645_DMIC_2_DP_IN2P);
+		break;
+
+	case RT5645_DMIC_DATA_GPIO6:
+		regmap_update_bits(rt5645->regmap, RT5645_DMIC_CTRL1,
+			RT5645_DMIC_2_DP_MASK, RT5645_DMIC_2_DP_GPIO6);
+		regmap_update_bits(rt5645->regmap, RT5645_GPIO_CTRL1,
+			RT5645_GP6_PIN_MASK, RT5645_GP6_PIN_DMIC2_SDA);
+		break;
+
+	case RT5645_DMIC_DATA_GPIO10:
+		regmap_update_bits(rt5645->regmap, RT5645_DMIC_CTRL1,
+			RT5645_DMIC_2_DP_MASK, RT5645_DMIC_2_DP_GPIO10);
+		regmap_update_bits(rt5645->regmap, RT5645_GPIO_CTRL1,
+			RT5645_GP10_PIN_MASK,
+			RT5645_GP10_PIN_DMIC2_SDA);
+		break;
+
+	case RT5645_DMIC_DATA_GPIO12:
+		regmap_update_bits(rt5645->regmap, RT5645_DMIC_CTRL1,
+			RT5645_DMIC_2_DP_MASK, RT5645_DMIC_2_DP_GPIO12);
+		regmap_update_bits(rt5645->regmap, RT5645_GPIO_CTRL1,
+			RT5645_GP12_PIN_MASK,
+			RT5645_GP12_PIN_DMIC2_SDA);
+		break;
+
+	default:
+		break;
 	}
 
 	if (rt5645->pdata.jd_mode) {
+		regmap_update_bits(rt5645->regmap, RT5645_GEN_CTRL3,
+				   RT5645_IRQ_CLK_GATE_CTRL,
+				   RT5645_IRQ_CLK_GATE_CTRL);
+		regmap_update_bits(rt5645->regmap, RT5645_IN1_CTRL1,
+				   RT5645_CBJ_BST1_EN, RT5645_CBJ_BST1_EN);
+		regmap_update_bits(rt5645->regmap, RT5645_JD_CTRL3,
+				   RT5645_JD_CBJ_EN | RT5645_JD_CBJ_POL,
+				   RT5645_JD_CBJ_EN | RT5645_JD_CBJ_POL);
+		regmap_update_bits(rt5645->regmap, RT5645_MICBIAS,
+				   RT5645_IRQ_CLK_INT, RT5645_IRQ_CLK_INT);
 		regmap_update_bits(rt5645->regmap, RT5645_IRQ_CTRL2,
 				   RT5645_IRQ_JD_1_1_EN, RT5645_IRQ_JD_1_1_EN);
 		regmap_update_bits(rt5645->regmap, RT5645_GEN_CTRL3,
