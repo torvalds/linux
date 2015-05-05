@@ -23,6 +23,9 @@
  *
  * **********************
  */
+
+#define pr_fmt(fmt) "arcnet:" KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/gfp.h>
 #include <linux/init.h>
@@ -31,8 +34,6 @@
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/arcdevice.h>
-
-#define VERSION "arcnet: RFC1051 \"simple standard\" (`s') encapsulation support loaded.\n"
 
 static __be16 type_trans(struct sk_buff *skb, struct net_device *dev);
 static void rx(struct net_device *dev, int bufnum,
@@ -55,7 +56,7 @@ static struct ArcProto rfc1051_proto = {
 
 static int __init arcnet_rfc1051_init(void)
 {
-	printk(VERSION);
+	pr_info("%s\n", "RFC1051 \"simple standard\" (`s') encapsulation support loaded");
 
 	arc_proto_map[ARC_P_IP_RFC1051]
 	    = arc_proto_map[ARC_P_ARP_RFC1051]

@@ -25,6 +25,9 @@
  *
  * **********************
  */
+
+#define pr_fmt(fmt) "arcnet:" KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
@@ -41,8 +44,6 @@
 
 #include <linux/io.h>
 
-#define VERSION "arcnet: COM20020 ISA support (by David Woodhouse et al.)\n"
-
 /* We cannot (yet) probe for an IO mapped card, although we can check that
  * it's where we were told it was, and even do autoirq.
  */
@@ -54,7 +55,7 @@ static int __init com20020isa_probe(struct net_device *dev)
 	int err;
 
 	if (BUGLVL(D_NORMAL))
-		printk(VERSION);
+		pr_info("%s\n", "COM20020 ISA support (by David Woodhouse et al.)");
 
 	ioaddr = dev->base_addr;
 	if (!ioaddr) {
@@ -193,7 +194,7 @@ static int __init com20020isa_setup(char *s)
 
 	switch (ints[0]) {
 	default:		/* ERROR */
-		printk("com90xx: Too many arguments.\n");
+		pr_info("Too many arguments\n");
 	case 6:		/* Timeout */
 		timeout = ints[6];
 	case 5:		/* CKP value */

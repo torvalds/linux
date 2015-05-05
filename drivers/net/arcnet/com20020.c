@@ -25,6 +25,9 @@
  *
  * **********************
  */
+
+#define pr_fmt(fmt) "arcnet:" KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -38,8 +41,6 @@
 #include <linux/com20020.h>
 
 #include <linux/io.h>
-
-#define VERSION "arcnet: COM20020 chipset support (by David Woodhouse et al.)\n"
 
 static char *clockrates[] = {
 	"XXXXXXX", "XXXXXXXX", "XXXXXX",
@@ -368,7 +369,7 @@ MODULE_LICENSE("GPL");
 static int __init com20020_module_init(void)
 {
 	if (BUGLVL(D_NORMAL))
-		printk(VERSION);
+		pr_info("%s\n", "COM20020 chipset support (by David Woodhouse et al.)\n");
 	return 0;
 }
 

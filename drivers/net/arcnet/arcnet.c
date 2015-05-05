@@ -41,7 +41,7 @@
  *     <jojo@repas.de>
  */
 
-#define VERSION "arcnet: v3.94 BETA 2007/02/08 - by Avery Pennarun et al.\n"
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
 #include <linux/types.h>
@@ -114,18 +114,7 @@ static int __init arcnet_init(void)
 
 	arcnet_debug = debug;
 
-	printk("arcnet loaded.\n");
-
-#ifdef ALPHA_WARNING
-	if (BUGLVL(D_EXTRA)) {
-		printk("arcnet: ***\n"
-		"arcnet: * Read arcnet.txt for important release notes!\n"
-		       "arcnet: *\n"
-		       "arcnet: * This is an ALPHA version! (Last stable release: v3.02)  E-mail\n"
-		       "arcnet: * me if you have any questions, comments, or bug reports.\n"
-		       "arcnet: ***\n");
-	}
-#endif
+	pr_info("arcnet loaded\n");
 
 	/* initialize the protocol map */
 	arc_raw_proto = arc_proto_default = arc_bcast_proto = &arc_proto_null;
@@ -133,10 +122,12 @@ static int __init arcnet_init(void)
 		arc_proto_map[count] = arc_proto_default;
 
 	if (BUGLVL(D_DURING))
-		printk("arcnet: struct sizes: %Zd %Zd %Zd %Zd %Zd\n",
-		       sizeof(struct arc_hardware), sizeof(struct arc_rfc1201),
-		       sizeof(struct arc_rfc1051), sizeof(struct arc_eth_encap),
-		       sizeof(struct archdr));
+		pr_info("struct sizes: %Zd %Zd %Zd %Zd %Zd\n",
+			sizeof(struct arc_hardware),
+			sizeof(struct arc_rfc1201),
+			sizeof(struct arc_rfc1051),
+			sizeof(struct arc_eth_encap),
+			sizeof(struct archdr));
 
 	return 0;
 }

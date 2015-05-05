@@ -31,6 +31,9 @@
  *
  * **********************
  */
+
+#define pr_fmt(fmt) "arcnet:" KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/ptrace.h>
 #include <linux/slab.h>
@@ -46,8 +49,6 @@
 #include <pcmcia/ds.h>
 
 #include <linux/io.h>
-
-#define VERSION "arcnet: COM20020 PCMCIA support loaded.\n"
 
 static void regdump(struct net_device *dev)
 {

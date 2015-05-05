@@ -26,6 +26,9 @@
  *
  * **********************
  */
+
+#define pr_fmt(fmt) "arcnet:" KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
@@ -41,8 +44,6 @@
 #include <linux/list.h>
 
 #include <linux/io.h>
-
-#define VERSION "arcnet: COM20020 PCI support\n"
 
 /* Module parameters */
 
@@ -105,7 +106,7 @@ static int com20020pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 		r = devm_request_region(&pdev->dev, ioaddr, cm->size,
 					"com20020-pci");
 		if (!r) {
-			pr_err("IO region %xh-%xh already allocated.\n",
+			pr_err("IO region %xh-%xh already allocated\n",
 			       ioaddr, ioaddr + cm->size - 1);
 			ret = -EBUSY;
 			goto out_port;
@@ -403,7 +404,7 @@ static struct pci_driver com20020pci_driver = {
 static int __init com20020pci_init(void)
 {
 	if (BUGLVL(D_NORMAL))
-		printk(VERSION);
+		pr_info("%s\n", "COM20020 PCI support");
 	return pci_register_driver(&com20020pci_driver);
 }
 

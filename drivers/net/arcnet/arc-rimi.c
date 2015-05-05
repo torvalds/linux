@@ -24,6 +24,9 @@
  *
  * **********************
  */
+
+#define pr_fmt(fmt) "arcnet:" KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -35,8 +38,6 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/arcdevice.h>
-
-#define VERSION "arcnet: RIM I (entirely mem-mapped) support\n"
 
 /* Internal function declarations */
 
@@ -83,20 +84,20 @@ static void arcrimi_copy_from_card(struct net_device *dev, int bufnum, int offse
 static int __init arcrimi_probe(struct net_device *dev)
 {
 	if (BUGLVL(D_NORMAL)) {
-		printk(VERSION);
-		printk("E-mail me if you actually test the RIM I driver, please!\n");
-		printk("Given: node %02Xh, shmem %lXh, irq %d\n",
-		       dev->dev_addr[0], dev->mem_start, dev->irq);
+		pr_info("%s\n", "RIM I (entirely mem-mapped) support");
+		pr_info("E-mail me if you actually test the RIM I driver, please!\n");
+		pr_info("Given: node %02Xh, shmem %lXh, irq %d\n",
+			dev->dev_addr[0], dev->mem_start, dev->irq);
 	}
 
 	if (dev->mem_start <= 0 || dev->irq <= 0) {
 		if (BUGLVL(D_NORMAL))
-			printk("No autoprobe for RIM I; you must specify the shmem and irq!\n");
+			pr_err("No autoprobe for RIM I; you must specify the shmem and irq!\n");
 		return -ENODEV;
 	}
 	if (dev->dev_addr[0] == 0) {
 		if (BUGLVL(D_NORMAL))
-			printk("You need to specify your card's station ID!\n");
+			pr_err("You need to specify your card's station ID!\n");
 		return -ENODEV;
 	}
 	/* Grab the memory region at mem_start for MIRROR_SIZE bytes.
@@ -106,7 +107,7 @@ static int __init arcrimi_probe(struct net_device *dev)
 	 */
 	if (!request_mem_region(dev->mem_start, MIRROR_SIZE, "arcnet (90xx)")) {
 		if (BUGLVL(D_NORMAL))
-			printk("Card memory already allocated\n");
+			pr_notice("Card memory already allocated\n");
 		return -ENODEV;
 	}
 	return arcrimi_found(dev);
@@ -375,7 +376,7 @@ static int __init arcrimi_setup(char *s)
 		return 1;
 	switch (ints[0]) {
 	default:		/* ERROR */
-		printk("arcrimi: Too many arguments.\n");
+		pr_err("Too many arguments\n");
 	case 3:		/* Node ID */
 		node = ints[3];
 	case 2:		/* IRQ */

@@ -26,6 +26,8 @@
  * **********************
  */
 
+#define pr_fmt(fmt) "arcnet:" KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/gfp.h>
 #include <linux/init.h>
@@ -34,8 +36,6 @@
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/arcdevice.h>
-
-#define VERSION "arcnet: cap mode (`c') encapsulation support loaded.\n"
 
 /* packet receiver */
 static void rx(struct net_device *dev, int bufnum,
@@ -259,7 +259,7 @@ static void arcnet_cap_init(void)
 
 static int __init capmode_module_init(void)
 {
-	printk(VERSION);
+	pr_info("%s\n", "cap mode (`c') encapsulation support loaded");
 	arcnet_cap_init();
 	return 0;
 }

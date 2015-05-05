@@ -25,6 +25,9 @@
  *
  * **********************
  */
+
+#define pr_fmt(fmt) "arcnet:" KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -36,8 +39,6 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/arcdevice.h>
-
-#define VERSION "arcnet: COM90xx IO-mapped mode support (by David Woodhouse et el.)\n"
 
 /* Internal function declarations */
 
@@ -146,8 +147,8 @@ static int __init com90io_probe(struct net_device *dev)
 	unsigned long airqmask;
 
 	if (BUGLVL(D_NORMAL)) {
-		printk(VERSION);
-		printk("E-mail me if you actually test this driver, please!\n");
+		pr_info("%s\n", "COM90xx IO-mapped mode support (by David Woodhouse et el.)");
+		pr_info("E-mail me if you actually test this driver, please!\n");
 	}
 
 	if (!ioaddr) {
@@ -369,7 +370,7 @@ static int __init com90io_setup(char *s)
 		return 0;
 	switch (ints[0]) {
 	default:		/* ERROR */
-		printk("com90io: Too many arguments.\n");
+		pr_err("Too many arguments\n");
 	case 2:		/* IRQ */
 		irq = ints[2];
 	case 1:		/* IO address */

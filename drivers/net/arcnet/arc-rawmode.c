@@ -24,6 +24,8 @@
  * **********************
  */
 
+#define pr_fmt(fmt) "arcnet:" KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/gfp.h>
 #include <linux/init.h>
@@ -32,8 +34,6 @@
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/arcdevice.h>
-
-#define VERSION "arcnet: raw mode (`r') encapsulation support loaded.\n"
 
 static void rx(struct net_device *dev, int bufnum,
 	       struct archdr *pkthdr, int length);
@@ -56,7 +56,7 @@ static int __init arcnet_raw_init(void)
 {
 	int count;
 
-	printk(VERSION);
+	pr_info("%s\n", "raw mode (`r') encapsulation support loaded");
 
 	for (count = 0; count < 256; count++)
 		if (arc_proto_map[count] == arc_proto_default)

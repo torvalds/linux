@@ -24,6 +24,9 @@
  *
  * **********************
  */
+
+#define pr_fmt(fmt) "arcnet:" KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
@@ -34,8 +37,6 @@
 #include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/arcdevice.h>
-
-#define VERSION "arcnet: COM90xx chipset support\n"
 
 /* Define this to speed up the autoprobe by assuming if only one io port and
  * shmem are left in the list at Stage 5, they must correspond to each
@@ -134,7 +135,7 @@ static void __init com90xx_probe(void)
 	}
 
 	if (BUGLVL(D_NORMAL))
-		printk(VERSION);
+		pr_info("%s\n", "COM90xx chipset support");
 
 	/* set up the arrays where we'll store the possible probe addresses */
 	numports = numshmems = 0;
@@ -418,9 +419,9 @@ static void __init com90xx_probe(void)
 
 		if (openparen) {
 			if (BUGLVL(D_INIT))
-				printk("no matching shmem)\n");
+				pr_cont("no matching shmem)\n");
 			if (BUGLVL(D_INIT_REASONS)) {
-				printk("S5: ");
+				pr_cont("S5: ");
 				numprint = 0;
 			}
 		}
@@ -430,7 +431,7 @@ static void __init com90xx_probe(void)
 	}
 
 	if (BUGLVL(D_INIT_REASONS))
-		printk("\n");
+		pr_cont("\n");
 
 	/* Now put back TESTvalue on all leftover shmems. */
 	for (index = 0; index < numshmems; index++) {
@@ -685,13 +686,13 @@ static int __init com90xx_setup(char *s)
 
 	s = get_options(s, 8, ints);
 	if (!ints[0] && !*s) {
-		printk("com90xx: Disabled.\n");
+		pr_notice("Disabled\n");
 		return 1;
 	}
 
 	switch (ints[0]) {
 	default:		/* ERROR */
-		printk("com90xx: Too many arguments.\n");
+		pr_err("Too many arguments\n");
 	case 3:		/* Mem address */
 		shmem = ints[3];
 	case 2:		/* IRQ */
