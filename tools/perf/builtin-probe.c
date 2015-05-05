@@ -55,12 +55,12 @@ static struct {
 	bool show_ext_vars;
 	bool show_funcs;
 	bool mod_events;
+	bool del_events;
 	bool uprobes;
 	bool quiet;
 	bool target_used;
 	int nevents;
 	struct perf_probe_event events[MAX_PROBES];
-	struct strlist *dellist;
 	struct line_range line_range;
 	char *target;
 	int max_probe_points;
@@ -195,10 +195,8 @@ static int opt_del_probe_event(const struct option *opt __maybe_unused,
 			       const char *str, int unset __maybe_unused)
 {
 	if (str) {
-		params.mod_events = true;
-		if (!params.dellist)
-			params.dellist = strlist__new(true, NULL);
-		strlist__add(params.dellist, str);
+		params.del_events = true;
+		return params_add_filter(str);
 	}
 	return 0;
 }
@@ -313,8 +311,6 @@ static void cleanup_params(void)
 
 	for (i = 0; i < params.nevents; i++)
 		clear_perf_probe_event(params.events + i);
-	if (params.dellist)
-		strlist__delete(params.dellist);
 	line_range__clear(&params.line_range);
 	free(params.target);
 	if (params.filter)
@@ -454,7 +450,7 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (params.max_probe_points == 0)
 		params.max_probe_points = MAX_PROBES;
 
-	if ((!params.nevents && !params.dellist && !params.list_events &&
+	if ((!params.nevents && !params.del_events && !params.list_events &&
 	     !params.show_lines && !params.show_funcs))
 		usage_with_options(probe_usage, options);
 
@@ -514,8 +510,8 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 	}
 #endif
 
-	if (params.dellist) {
-		ret = del_perf_probe_events(params.dellist);
+	if (params.del_events) {
+		ret = del_perf_probe_events(params.filter);
 		if (ret < 0) {
 			pr_err_with_code("  Error: Failed to delete events.", ret);
 			return ret;

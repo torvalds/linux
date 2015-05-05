@@ -2734,40 +2734,39 @@ error:
 	return ret;
 }
 
-static int del_trace_probe_event(int fd, const char *buf,
-						  struct strlist *namelist)
+static int del_trace_probe_events(int fd, struct strfilter *filter,
+				  struct strlist *namelist)
 {
-	struct str_node *ent, *n;
+	struct str_node *ent;
+	const char *p;
 	int ret = -ENOENT;
 
-	if (strpbrk(buf, "*?")) { /* Glob-exp */
-		strlist__for_each_safe(ent, n, namelist)
-			if (strglobmatch(ent->s, buf)) {
-				ret = __del_trace_probe_event(fd, ent);
-				if (ret < 0)
-					break;
-				strlist__remove(namelist, ent);
-			}
-	} else {
-		ent = strlist__find(namelist, buf);
-		if (ent) {
+	if (!namelist)
+		return -ENOENT;
+
+	strlist__for_each(ent, namelist) {
+		p = strchr(ent->s, ':');
+		if ((p && strfilter__compare(filter, p + 1)) ||
+		    strfilter__compare(filter, ent->s)) {
 			ret = __del_trace_probe_event(fd, ent);
-			if (ret >= 0)
-				strlist__remove(namelist, ent);
+			if (ret < 0)
+				break;
 		}
 	}
 
 	return ret;
 }
 
-int del_perf_probe_events(struct strlist *dellist)
+int del_perf_probe_events(struct strfilter *filter)
 {
-	int ret = -1, ret2, ufd = -1, kfd = -1;
-	char buf[128];
-	const char *group, *event;
-	char *p, *str;
-	struct str_node *ent;
+	int ret, ret2, ufd = -1, kfd = -1;
 	struct strlist *namelist = NULL, *unamelist = NULL;
+	char *str = strfilter__string(filter);
+
+	if (!str)
+		return -EINVAL;
+
+	pr_debug("Delete filter: \'%s\'\n", str);
 
 	/* Get current event names */
 	kfd = open_kprobe_events(true);
@@ -2780,59 +2779,21 @@ int del_perf_probe_events(struct strlist *dellist)
 
 	if (kfd < 0 && ufd < 0) {
 		print_both_open_warning(kfd, ufd);
+		ret = kfd;
 		goto error;
 	}
 
-	if (namelist == NULL && unamelist == NULL) {
-		ret = -ENOENT;
+	ret = del_trace_probe_events(kfd, filter, namelist);
+	if (ret < 0 && ret != -ENOENT)
 		goto error;
-	}
 
-	strlist__for_each(ent, dellist) {
-		str = strdup(ent->s);
-		if (str == NULL) {
-			ret = -ENOMEM;
-			goto error;
-		}
-		pr_debug("Parsing: %s\n", str);
-		p = strchr(str, ':');
-		if (p) {
-			group = str;
-			*p = '\0';
-			event = p + 1;
-		} else {
-			group = "*";
-			event = str;
-		}
-
-		if (event && *event == '.')
-			event++;
-
-		ret = e_snprintf(buf, 128, "%s:%s", group, event);
-		if (ret < 0) {
-			pr_err("Failed to copy event.");
-			free(str);
-			goto error;
-		}
-
-		pr_debug("Group: %s, Event: %s\n", group, event);
-		free(str);
-
-		ret = ret2 = -ENOENT;
-		if (namelist)
-			ret = del_trace_probe_event(kfd, buf, namelist);
-
-		if ((ret >= 0 || ret == -ENOENT) && unamelist)
-			ret2 = del_trace_probe_event(ufd, buf, unamelist);
-
-		/* Since we can remove probes which already removed, don't check it */
-		if (ret == -ENOENT && ret2 == -ENOENT)
-			pr_debug("Event \"%s\" does not exist.\n", buf);
-		else if (ret < 0 || ret2 < 0) {
-			if (ret >= 0)
-				ret = ret2;
-			break;
-		}
+	ret2 = del_trace_probe_events(ufd, filter, unamelist);
+	if (ret2 < 0 && ret2 != -ENOENT)
+		ret = ret2;
+	else if (ret == -ENOENT && ret2 == -ENOENT) {
+		pr_debug("\"%s\" does not hit any event.\n", str);
+		/* Note that this is silently ignored */
+		ret = 0;
 	}
 
 error:
@@ -2845,6 +2806,7 @@ error:
 		strlist__delete(unamelist);
 		close(ufd);
 	}
+	free(str);
 
 	return ret;
 }

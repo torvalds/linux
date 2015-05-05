@@ -126,7 +126,7 @@ extern const char *kernel_get_module_path(const char *module);
 
 extern int add_perf_probe_events(struct perf_probe_event *pevs, int npevs,
 				 int max_probe_points, bool force_add);
-extern int del_perf_probe_events(struct strlist *dellist);
+extern int del_perf_probe_events(struct strfilter *filter);
 extern int show_perf_probe_events(struct strfilter *filter);
 extern int show_line_range(struct line_range *lr, const char *module,
 			   bool user);
