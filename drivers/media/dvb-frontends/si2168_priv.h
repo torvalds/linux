@@ -38,6 +38,7 @@ struct si2168_dev {
 	bool fw_loaded;
 	u8 ts_mode;
 	bool ts_clock_inv;
+	bool ts_clock_gapped;
 };
 
 /* firmware command struct */
