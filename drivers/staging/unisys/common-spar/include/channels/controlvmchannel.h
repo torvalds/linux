@@ -47,12 +47,7 @@ static const uuid_le spar_controlvm_channel_protocol_uuid =
 		ULTRA_CONTROLVM_CHANNEL_PROTOCOL_VERSIONID, \
 		ULTRA_CONTROLVM_CHANNEL_PROTOCOL_SIGNATURE)
 
-#define MY_DEVICE_INDEX 0
-#define MAX_MACDATA_LEN 8 /* number of bytes for MAC address in config packet */
 #define MAX_SERIAL_NUM	32
-
-#define DISK_ZERO_PUN_NUMBER	1  /* Target ID on the SCSI bus for LUN 0 */
-#define DISK_ZERO_LUN_NUMBER	3  /* Logical Unit Number */
 
 /* Defines for various channel queues... */
 #define CONTROLVM_QUEUE_REQUEST		0
