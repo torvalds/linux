@@ -37,7 +37,7 @@ config EXTCON_AXP288
 
 config EXTCON_GPIO
 	tristate "GPIO extcon support"
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
 	help
 	  Say Y here to enable GPIO based extcon support. Note that GPIO
 	  extcon supports single state per extcon instance.
@@ -112,7 +112,7 @@ config EXTCON_SM5502
 
 config EXTCON_USB_GPIO
 	tristate "USB GPIO extcon support"
-	depends on GPIOLIB
+	depends on GPIOLIB || COMPILE_TEST
 	help
 	  Say Y here to enable GPIO based USB cable detection extcon support.
 	  Used typically if GPIO is used for USB ID pin detection.
