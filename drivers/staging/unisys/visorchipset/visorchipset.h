@@ -91,18 +91,6 @@ struct visorchipset_device_info {
 	void *bus_driver_context;
 };
 
-static inline void delbusdevices(struct list_head *list, u32 bus_no)
-{
-	struct visorchipset_device_info *p, *tmp;
-
-	list_for_each_entry_safe(p, tmp, list, entry) {
-		if (p->bus_no == bus_no) {
-			list_del(&p->entry);
-			kfree(p);
-		}
-	}
-}
-
 /** Attributes for a particular Supervisor bus.
  *  (For a service partition acting as the server for buses/devices, there
  *  is a 1-to-1 relationship between busses and guest partitions.)

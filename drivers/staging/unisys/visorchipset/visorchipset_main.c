@@ -552,6 +552,18 @@ device_find(struct list_head *list, u32 bus_no, u32 dev_no)
 	return NULL;
 }
 
+static void busdevices_del(struct list_head *list, u32 bus_no)
+{
+	struct visorchipset_device_info *p, *tmp;
+
+	list_for_each_entry_safe(p, tmp, list, entry) {
+		if (p->bus_no == bus_no) {
+			list_del(&p->entry);
+			kfree(p);
+		}
+	}
+}
+
 static u8
 check_chipset_events(void)
 {
@@ -810,7 +822,7 @@ bus_responder(enum controlvm_id cmd_id, u32 bus_no, int response)
 		if ((cmd_id == CONTROLVM_BUS_CREATE) &&
 		    (response != (-CONTROLVM_RESP_ERROR_ALREADY_DONE)))
 			/* undo the row we just created... */
-			delbusdevices(&dev_info_list, bus_no);
+			busdevices_del(&dev_info_list, bus_no);
 	} else {
 		if (cmd_id == CONTROLVM_BUS_CREATE)
 			p->state.created = 1;
@@ -826,7 +838,7 @@ bus_responder(enum controlvm_id cmd_id, u32 bus_no, int response)
 	p->pending_msg_hdr.id = CONTROLVM_INVALID;
 	if (need_clear) {
 		bus_info_clear(p);
-		delbusdevices(&dev_info_list, bus_no);
+		busdevices_del(&dev_info_list, bus_no);
 	}
 }
 
