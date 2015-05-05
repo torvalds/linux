@@ -65,6 +65,9 @@ struct fxregs_state {
 
 } __attribute__((aligned(16)));
 
+/* Default value for fxregs_state.mxcsr: */
+#define MXCSR_DEFAULT		0x1f80
+
 /*
  * Software based FPU emulation state. This is arbitrary really,
  * it matches the x87 format to make it easier to understand:

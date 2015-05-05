@@ -18,32 +18,6 @@
 #include <asm/fpu/api.h>
 #include <asm/fpu/xstate.h>
 
-#define	MXCSR_DEFAULT		0x1f80
-
-extern unsigned int mxcsr_feature_mask;
-
-extern union fpregs_state init_fpstate;
-
-extern void fpu__init_cpu(void);
-extern void fpu__init_system_xstate(void);
-extern void fpu__init_cpu_xstate(void);
-extern void fpu__init_system(struct cpuinfo_x86 *c);
-
-extern void fpstate_init(union fpregs_state *state);
-#ifdef CONFIG_MATH_EMULATION
-extern void fpstate_init_soft(struct swregs_state *soft);
-#else
-static inline void fpstate_init_soft(struct swregs_state *soft) {}
-#endif
-static inline void fpstate_init_fxstate(struct fxregs_state *fx)
-{
-	fx->cwd = 0x37f;
-	fx->mxcsr = MXCSR_DEFAULT;
-}
-
-extern int  dump_fpu(struct pt_regs *, struct user_i387_struct *);
-extern int  fpu__exception_code(struct fpu *fpu, int trap_nr);
-
 /*
  * High level FPU state handling functions:
  */
@@ -55,7 +29,16 @@ extern int  fpu__restore_sig(void __user *buf, int ia32_frame);
 extern void fpu__drop(struct fpu *fpu);
 extern int  fpu__copy(struct fpu *dst_fpu, struct fpu *src_fpu);
 extern void fpu__clear(struct fpu *fpu);
+extern int  fpu__exception_code(struct fpu *fpu, int trap_nr);
+extern int  dump_fpu(struct pt_regs *ptregs, struct user_i387_struct *fpstate);
 
+/*
+ * Boot time FPU initialization functions:
+ */
+extern void fpu__init_cpu(void);
+extern void fpu__init_system_xstate(void);
+extern void fpu__init_cpu_xstate(void);
+extern void fpu__init_system(struct cpuinfo_x86 *c);
 extern void fpu__init_check_bugs(void);
 extern void fpu__resume_cpu(void);
 
@@ -68,27 +51,9 @@ extern void fpu__resume_cpu(void);
 # define WARN_ON_FPU(x) ({ 0; })
 #endif
 
-DECLARE_PER_CPU(struct fpu *, fpu_fpregs_owner_ctx);
-
 /*
- * Must be run with preemption disabled: this clears the fpu_fpregs_owner_ctx,
- * on this CPU.
- *
- * This will disable any lazy FPU state restore of the current FPU state,
- * but if the current thread owns the FPU, it will still be saved by.
+ * FPU related CPU feature flag helper routines:
  */
-static inline void __cpu_disable_lazy_restore(unsigned int cpu)
-{
-	per_cpu(fpu_fpregs_owner_ctx, cpu) = NULL;
-}
-
-static inline int fpu_want_lazy_restore(struct fpu *fpu, unsigned int cpu)
-{
-	return fpu == this_cpu_read_stable(fpu_fpregs_owner_ctx) && cpu == fpu->last_cpu;
-}
-
-#define X87_FSW_ES (1 << 7)	/* Exception Summary */
-
 static __always_inline __pure bool use_eager_fpu(void)
 {
 	return static_cpu_has_safe(X86_FEATURE_EAGER_FPU);
@@ -109,6 +74,23 @@ static __always_inline __pure bool use_fxsr(void)
 	return static_cpu_has_safe(X86_FEATURE_FXSR);
 }
 
+/*
+ * fpstate handling functions:
+ */
+
+extern union fpregs_state init_fpstate;
+
+extern void fpstate_init(union fpregs_state *state);
+#ifdef CONFIG_MATH_EMULATION
+extern void fpstate_init_soft(struct swregs_state *soft);
+#else
+static inline void fpstate_init_soft(struct swregs_state *soft) {}
+#endif
+static inline void fpstate_init_fxstate(struct fxregs_state *fx)
+{
+	fx->cwd = 0x37f;
+	fx->mxcsr = MXCSR_DEFAULT;
+}
 extern void fpstate_sanitize_xstate(struct fpu *fpu);
 
 #define user_insn(insn, output, input...)				\
@@ -285,6 +267,32 @@ static inline int copy_fpstate_to_fpregs(struct fpu *fpu)
 	return __copy_fpstate_to_fpregs(fpu);
 }
 
+extern int copy_fpstate_to_sigframe(void __user *buf, void __user *fx, int size);
+
+/*
+ * FPU context switch related helper methods:
+ */
+
+DECLARE_PER_CPU(struct fpu *, fpu_fpregs_owner_ctx);
+
+/*
+ * Must be run with preemption disabled: this clears the fpu_fpregs_owner_ctx,
+ * on this CPU.
+ *
+ * This will disable any lazy FPU state restore of the current FPU state,
+ * but if the current thread owns the FPU, it will still be saved by.
+ */
+static inline void __cpu_disable_lazy_restore(unsigned int cpu)
+{
+	per_cpu(fpu_fpregs_owner_ctx, cpu) = NULL;
+}
+
+static inline int fpu_want_lazy_restore(struct fpu *fpu, unsigned int cpu)
+{
+	return fpu == this_cpu_read_stable(fpu_fpregs_owner_ctx) && cpu == fpu->last_cpu;
+}
+
+
 /*
  * Wrap lazy FPU TS handling in a 'hw fpregs activation/deactivation'
  * idiom, which is then paired with the sw-flag (fpregs_active) later on:
@@ -355,31 +363,6 @@ static inline void fpregs_deactivate(struct fpu *fpu)
 }
 
 /*
- * Definitions for the eXtended Control Register instructions
- */
-
-#define XCR_XFEATURE_ENABLED_MASK	0x00000000
-
-static inline u64 xgetbv(u32 index)
-{
-	u32 eax, edx;
-
-	asm volatile(".byte 0x0f,0x01,0xd0" /* xgetbv */
-		     : "=a" (eax), "=d" (edx)
-		     : "c" (index));
-	return eax + ((u64)edx << 32);
-}
-
-static inline void xsetbv(u32 index, u64 value)
-{
-	u32 eax = value;
-	u32 edx = value >> 32;
-
-	asm volatile(".byte 0x0f,0x01,0xd1" /* xsetbv */
-		     : : "a" (eax), "d" (edx), "c" (index));
-}
-
-/*
  * FPU state switching for scheduling.
  *
  * This is a two-stage process:
@@ -438,6 +421,10 @@ switch_fpu_prepare(struct fpu *old_fpu, struct fpu *new_fpu, int cpu)
 }
 
 /*
+ * Misc helper functions:
+ */
+
+/*
  * By the time this gets called, we've already cleared CR0.TS and
  * given the process the FPU if we are going to preload the FPU
  * state - all we need to do is to conditionally restore the register
@@ -452,11 +439,6 @@ static inline void switch_fpu_finish(struct fpu *new_fpu, fpu_switch_t fpu_switc
 		}
 	}
 }
-
-/*
- * Signal frame handlers...
- */
-extern int copy_fpstate_to_sigframe(void __user *buf, void __user *fx, int size);
 
 /*
  * Needs to be preemption-safe.
@@ -474,6 +456,33 @@ static inline void user_fpu_begin(void)
 	if (!fpregs_active())
 		fpregs_activate(fpu);
 	preempt_enable();
+}
+
+/*
+ * MXCSR and XCR definitions:
+ */
+
+extern unsigned int mxcsr_feature_mask;
+
+#define XCR_XFEATURE_ENABLED_MASK	0x00000000
+
+static inline u64 xgetbv(u32 index)
+{
+	u32 eax, edx;
+
+	asm volatile(".byte 0x0f,0x01,0xd0" /* xgetbv */
+		     : "=a" (eax), "=d" (edx)
+		     : "c" (index));
+	return eax + ((u64)edx << 32);
+}
+
+static inline void xsetbv(u32 index, u64 value)
+{
+	u32 eax = value;
+	u32 edx = value >> 32;
+
+	asm volatile(".byte 0x0f,0x01,0xd1" /* xsetbv */
+		     : : "a" (eax), "d" (edx), "c" (index));
 }
 
 #endif /* _ASM_X86_FPU_INTERNAL_H */
