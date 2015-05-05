@@ -42,13 +42,12 @@
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
-#include <linux/arcdevice.h>
-#include <linux/com20020.h>
-
+#include <linux/io.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 
-#include <linux/io.h>
+#include "arcdevice.h"
+#include "com20020.h"
 
 static void regdump(struct net_device *dev)
 {

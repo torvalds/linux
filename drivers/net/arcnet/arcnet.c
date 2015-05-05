@@ -50,8 +50,9 @@
 #include <linux/if_arp.h>
 #include <net/arp.h>
 #include <linux/init.h>
-#include <linux/arcdevice.h>
 #include <linux/jiffies.h>
+
+#include "arcdevice.h"
 
 /* "do nothing" functions for protocol drivers */
 static void null_rx(struct net_device *dev, int bufnum,

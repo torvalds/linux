@@ -32,7 +32,8 @@
 #include <linux/if_arp.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
-#include <linux/arcdevice.h>
+
+#include "arcdevice.h"
 
 MODULE_LICENSE("GPL");
 

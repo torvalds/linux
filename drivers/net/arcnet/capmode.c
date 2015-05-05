@@ -35,7 +35,8 @@
 #include <net/arp.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
-#include <linux/arcdevice.h>
+
+#include "arcdevice.h"
 
 /* packet receiver */
 static void rx(struct net_device *dev, int bufnum,

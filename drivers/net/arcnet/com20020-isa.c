@@ -39,10 +39,10 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/bootmem.h>
-#include <linux/arcdevice.h>
-#include <linux/com20020.h>
-
 #include <linux/io.h>
+
+#include "arcdevice.h"
+#include "com20020.h"
 
 /* We cannot (yet) probe for an IO mapped card, although we can check that
  * it's where we were told it was, and even do autoirq.

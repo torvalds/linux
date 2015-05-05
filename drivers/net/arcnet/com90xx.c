@@ -36,7 +36,8 @@
 #include <linux/netdevice.h>
 #include <linux/slab.h>
 #include <linux/io.h>
-#include <linux/arcdevice.h>
+
+#include "arcdevice.h"
 
 /* Define this to speed up the autoprobe by assuming if only one io port and
  * shmem are left in the list at Stage 5, they must correspond to each

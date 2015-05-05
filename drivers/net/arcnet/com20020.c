@@ -37,10 +37,10 @@
 #include <linux/netdevice.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <linux/arcdevice.h>
-#include <linux/com20020.h>
-
 #include <linux/io.h>
+
+#include "arcdevice.h"
+#include "com20020.h"
 
 static char *clockrates[] = {
 	"XXXXXXX", "XXXXXXXX", "XXXXXX",

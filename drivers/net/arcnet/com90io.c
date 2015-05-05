@@ -38,7 +38,8 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/arcdevice.h>
+
+#include "arcdevice.h"
 
 /* Internal function declarations */
 
