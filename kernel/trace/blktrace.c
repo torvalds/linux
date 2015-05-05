@@ -1450,14 +1450,14 @@ static struct trace_event trace_blk_event = {
 
 static int __init init_blk_tracer(void)
 {
-	if (!register_ftrace_event(&trace_blk_event)) {
+	if (!register_trace_event(&trace_blk_event)) {
 		pr_warning("Warning: could not register block events\n");
 		return 1;
 	}
 
 	if (register_tracer(&blk_tracer) != 0) {
 		pr_warning("Warning: could not register the block tracer\n");
-		unregister_ftrace_event(&trace_blk_event);
+		unregister_trace_event(&trace_blk_event);
 		return 1;
 	}
 

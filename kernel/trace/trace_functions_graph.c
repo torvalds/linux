@@ -1454,12 +1454,12 @@ static __init int init_graph_trace(void)
 {
 	max_bytes_for_cpu = snprintf(NULL, 0, "%d", nr_cpu_ids - 1);
 
-	if (!register_ftrace_event(&graph_trace_entry_event)) {
+	if (!register_trace_event(&graph_trace_entry_event)) {
 		pr_warning("Warning: could not register graph trace events\n");
 		return 1;
 	}
 
-	if (!register_ftrace_event(&graph_trace_ret_event)) {
+	if (!register_trace_event(&graph_trace_ret_event)) {
 		pr_warning("Warning: could not register graph trace events\n");
 		return 1;
 	}

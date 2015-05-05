@@ -693,7 +693,7 @@ void trace_event_read_unlock(void)
 }
 
 /**
- * register_ftrace_event - register output for an event type
+ * register_trace_event - register output for an event type
  * @event: the event type to register
  *
  * Event types are stored in a hash and this hash is used to
@@ -707,7 +707,7 @@ void trace_event_read_unlock(void)
  *
  * Returns the event type number or zero on error.
  */
-int register_ftrace_event(struct trace_event *event)
+int register_trace_event(struct trace_event *event)
 {
 	unsigned key;
 	int ret = 0;
@@ -771,12 +771,12 @@ int register_ftrace_event(struct trace_event *event)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(register_ftrace_event);
+EXPORT_SYMBOL_GPL(register_trace_event);
 
 /*
  * Used by module code with the trace_event_sem held for write.
  */
-int __unregister_ftrace_event(struct trace_event *event)
+int __unregister_trace_event(struct trace_event *event)
 {
 	hlist_del(&event->node);
 	list_del(&event->list);
@@ -784,18 +784,18 @@ int __unregister_ftrace_event(struct trace_event *event)
 }
 
 /**
- * unregister_ftrace_event - remove a no longer used event
+ * unregister_trace_event - remove a no longer used event
  * @event: the event to remove
  */
-int unregister_ftrace_event(struct trace_event *event)
+int unregister_trace_event(struct trace_event *event)
 {
 	down_write(&trace_event_sem);
-	__unregister_ftrace_event(event);
+	__unregister_trace_event(event);
 	up_write(&trace_event_sem);
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(unregister_ftrace_event);
+EXPORT_SYMBOL_GPL(unregister_trace_event);
 
 /*
  * Standard events
@@ -1243,7 +1243,7 @@ __init static int init_events(void)
 	for (i = 0; events[i]; i++) {
 		event = events[i];
 
-		ret = register_ftrace_event(event);
+		ret = register_trace_event(event);
 		if (!ret) {
 			printk(KERN_WARNING "event %d failed to register\n",
 			       event->type);

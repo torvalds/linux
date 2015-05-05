@@ -191,7 +191,7 @@ __init static int init_branch_tracer(void)
 {
 	int ret;
 
-	ret = register_ftrace_event(&trace_branch_event);
+	ret = register_trace_event(&trace_branch_event);
 	if (!ret) {
 		printk(KERN_WARNING "Warning: could not register "
 				    "branch events\n");

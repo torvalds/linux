@@ -1290,7 +1290,7 @@ static int register_kprobe_event(struct trace_kprobe *tk)
 	}
 	if (set_print_fmt(&tk->tp, trace_kprobe_is_return(tk)) < 0)
 		return -ENOMEM;
-	ret = register_ftrace_event(&call->event);
+	ret = register_trace_event(&call->event);
 	if (!ret) {
 		kfree(call->print_fmt);
 		return -ENODEV;
@@ -1303,7 +1303,7 @@ static int register_kprobe_event(struct trace_kprobe *tk)
 		pr_info("Failed to register kprobe event: %s\n",
 			ftrace_event_name(call));
 		kfree(call->print_fmt);
-		unregister_ftrace_event(&call->event);
+		unregister_trace_event(&call->event);
 	}
 	return ret;
 }

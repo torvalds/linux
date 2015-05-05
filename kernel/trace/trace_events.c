@@ -182,7 +182,7 @@ int trace_event_raw_init(struct ftrace_event_call *call)
 {
 	int id;
 
-	id = register_ftrace_event(&call->event);
+	id = register_trace_event(&call->event);
 	if (!id)
 		return -ENODEV;
 
@@ -252,8 +252,8 @@ void ftrace_event_buffer_commit(struct ftrace_event_buffer *fbuffer)
 }
 EXPORT_SYMBOL_GPL(ftrace_event_buffer_commit);
 
-int ftrace_event_reg(struct ftrace_event_call *call,
-		     enum trace_reg type, void *data)
+int trace_event_reg(struct ftrace_event_call *call,
+		    enum trace_reg type, void *data)
 {
 	struct ftrace_event_file *file = data;
 
@@ -288,7 +288,7 @@ int ftrace_event_reg(struct ftrace_event_call *call,
 	}
 	return 0;
 }
-EXPORT_SYMBOL_GPL(ftrace_event_reg);
+EXPORT_SYMBOL_GPL(trace_event_reg);
 
 void trace_event_enable_cmd_record(bool enable)
 {
@@ -1673,7 +1673,7 @@ static void event_remove(struct ftrace_event_call *call)
 	} while_for_each_event_file();
 
 	if (call->event.funcs)
-		__unregister_ftrace_event(&call->event);
+		__unregister_trace_event(&call->event);
 	remove_event_from_tracers(call);
 	list_del(&call->list);
 }

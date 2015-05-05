@@ -132,8 +132,8 @@ struct trace_event {
 	struct trace_event_functions	*funcs;
 };
 
-extern int register_ftrace_event(struct trace_event *event);
-extern int unregister_ftrace_event(struct trace_event *event);
+extern int register_trace_event(struct trace_event *event);
+extern int unregister_trace_event(struct trace_event *event);
 
 /* Return values for print_line callback */
 enum print_line_t {
@@ -216,7 +216,7 @@ struct ftrace_event_class {
 	int			(*raw_init)(struct ftrace_event_call *);
 };
 
-extern int ftrace_event_reg(struct ftrace_event_call *event,
+extern int trace_event_reg(struct ftrace_event_call *event,
 			    enum trace_reg type, void *data);
 
 struct ftrace_event_buffer {

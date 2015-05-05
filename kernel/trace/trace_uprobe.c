@@ -1283,7 +1283,7 @@ static int register_uprobe_event(struct trace_uprobe *tu)
 	if (set_print_fmt(&tu->tp, is_ret_probe(tu)) < 0)
 		return -ENOMEM;
 
-	ret = register_ftrace_event(&call->event);
+	ret = register_trace_event(&call->event);
 	if (!ret) {
 		kfree(call->print_fmt);
 		return -ENODEV;
@@ -1297,7 +1297,7 @@ static int register_uprobe_event(struct trace_uprobe *tu)
 		pr_info("Failed to register uprobe event: %s\n",
 			ftrace_event_name(call));
 		kfree(call->print_fmt);
-		unregister_ftrace_event(&call->event);
+		unregister_trace_event(&call->event);
 	}
 
 	return ret;
