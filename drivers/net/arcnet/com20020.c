@@ -140,7 +140,8 @@ int com20020_check(struct net_device *dev)
 	outb(0 | RDDATAflag | AUTOINCflag, _ADDR_HI);
 	outb(0, _ADDR_LO);
 
-	if ((status = inb(_MEMDATA)) != TESTvalue) {
+	status = inb(_MEMDATA);
+	if (status != TESTvalue) {
 		arc_printk(D_NORMAL, dev, "Signature byte not found (%02Xh != D1h).\n",
 			   status);
 		return -ENODEV;

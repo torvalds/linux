@@ -196,7 +196,8 @@ static int __init com90io_probe(struct net_device *dev)
 	outb(AUTOINCflag, _ADDR_HI);
 	outb(0, _ADDR_LO);
 
-	if ((status = inb(_MEMDATA)) != 0xd1) {
+	status = inb(_MEMDATA);
+	if (status != 0xd1) {
 		arc_printk(D_INIT_REASONS, dev, "Signature byte not found (%Xh instead).\n",
 			   status);
 		goto err_out;

@@ -107,7 +107,9 @@ static int __init com20020isa_probe(struct net_device *dev)
 	}
 
 	lp->card_name = "ISA COM20020";
-	if ((err = com20020_found(dev, 0)) != 0)
+
+	err = com20020_found(dev, 0);
+	if (err != 0)
 		goto out;
 
 	return 0;
