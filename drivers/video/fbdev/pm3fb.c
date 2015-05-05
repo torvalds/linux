@@ -1479,9 +1479,9 @@ static void pm3fb_remove(struct pci_dev *dev)
 		fb_dealloc_cmap(&info->cmap);
 
 #ifdef CONFIG_MTRR
-	if (par->mtrr_handle >= 0)
-		mtrr_del(par->mtrr_handle, info->fix.smem_start,
-			 info->fix.smem_len);
+		if (par->mtrr_handle >= 0)
+			mtrr_del(par->mtrr_handle, info->fix.smem_start,
+				 info->fix.smem_len);
 #endif /* CONFIG_MTRR */
 		iounmap(info->screen_base);
 		release_mem_region(fix->smem_start, fix->smem_len);

@@ -55,6 +55,10 @@ extern int debuginfo__find_available_vars_at(struct debuginfo *dbg,
 					     struct variable_list **vls,
 					     int max_points, bool externs);
 
+/* Find a src file from a DWARF tag path */
+int get_real_path(const char *raw_path, const char *comp_dir,
+			 char **new_path);
+
 struct probe_finder {
 	struct perf_probe_event	*pev;		/* Target probe event */
 

@@ -89,4 +89,6 @@ config DEBUG_ALIGN_RODATA
 
 	  If in doubt, say N
 
+source "drivers/hwtracing/coresight/Kconfig"
+
 endmenu

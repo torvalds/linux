@@ -1065,7 +1065,7 @@ refill:
 
 	/*
 	 * this call can fail, but for now, just leave this
-	 * decriptor without skb
+	 * descriptor without skb
 	 */
 	gelic_descr_prepare_rx(card, descr);
 

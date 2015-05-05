@@ -194,6 +194,7 @@ struct dma_chan *of_dma_request_slave_channel(struct device_node *np,
 
 	return ERR_PTR(ret_no_channel);
 }
+EXPORT_SYMBOL_GPL(of_dma_request_slave_channel);
 
 /**
  * of_dma_simple_xlate - Simple DMA engine translation function

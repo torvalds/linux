@@ -663,14 +663,6 @@ struct bcma_drv_cc_b {
 #define bcma_cc_maskset32(cc, offset, mask, set) \
 	bcma_cc_write32(cc, offset, (bcma_cc_read32(cc, offset) & (mask)) | (set))
 
-extern void bcma_core_chipcommon_init(struct bcma_drv_cc *cc);
-extern void bcma_core_chipcommon_early_init(struct bcma_drv_cc *cc);
-
-extern void bcma_chipco_suspend(struct bcma_drv_cc *cc);
-extern void bcma_chipco_resume(struct bcma_drv_cc *cc);
-
-void bcma_chipco_bcm4331_ext_pa_lines_ctl(struct bcma_drv_cc *cc, bool enable);
-
 extern u32 bcma_chipco_watchdog_timer_set(struct bcma_drv_cc *cc, u32 ticks);
 
 extern u32 bcma_chipco_get_alp_clock(struct bcma_drv_cc *cc);
@@ -690,9 +682,6 @@ u32 bcma_chipco_gpio_pullup(struct bcma_drv_cc *cc, u32 mask, u32 value);
 u32 bcma_chipco_gpio_pulldown(struct bcma_drv_cc *cc, u32 mask, u32 value);
 
 /* PMU support */
-extern void bcma_pmu_init(struct bcma_drv_cc *cc);
-extern void bcma_pmu_early_init(struct bcma_drv_cc *cc);
-
 extern void bcma_chipco_pll_write(struct bcma_drv_cc *cc, u32 offset,
 				  u32 value);
 extern void bcma_chipco_pll_maskset(struct bcma_drv_cc *cc, u32 offset,

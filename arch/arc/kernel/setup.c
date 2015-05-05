@@ -120,7 +120,10 @@ static void read_arc_build_cfg_regs(void)
 	READ_BCR(ARC_REG_SMART_BCR, bcr);
 	cpu->extn.smart = bcr.ver ? 1 : 0;
 
-	cpu->extn.debug = cpu->extn.ap | cpu->extn.smart;
+	READ_BCR(ARC_REG_RTT_BCR, bcr);
+	cpu->extn.rtt = bcr.ver ? 1 : 0;
+
+	cpu->extn.debug = cpu->extn.ap | cpu->extn.smart | cpu->extn.rtt;
 }
 
 static const struct cpuinfo_data arc_cpu_tbl[] = {

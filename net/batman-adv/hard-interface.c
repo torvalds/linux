@@ -83,11 +83,12 @@ static bool batadv_is_on_batman_iface(const struct net_device *net_dev)
 		return true;
 
 	/* no more parents..stop recursion */
-	if (net_dev->iflink == 0 || net_dev->iflink == net_dev->ifindex)
+	if (dev_get_iflink(net_dev) == 0 ||
+	    dev_get_iflink(net_dev) == net_dev->ifindex)
 		return false;
 
 	/* recurse over the parent device */
-	parent_dev = __dev_get_by_index(&init_net, net_dev->iflink);
+	parent_dev = __dev_get_by_index(&init_net, dev_get_iflink(net_dev));
 	/* if we got a NULL parent_dev there is something broken.. */
 	if (WARN(!parent_dev, "Cannot find parent device"))
 		return false;

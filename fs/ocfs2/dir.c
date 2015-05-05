@@ -18,7 +18,7 @@
  *
  *   linux/fs/minix/dir.c
  *
- *   Copyright (C) 1991, 1992 Linux Torvalds
+ *   Copyright (C) 1991, 1992 Linus Torvalds
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public
@@ -2047,22 +2047,19 @@ int ocfs2_check_dir_for_entry(struct inode *dir,
 			      const char *name,
 			      int namelen)
 {
-	int ret;
+	int ret = 0;
 	struct ocfs2_dir_lookup_result lookup = { NULL, };
 
 	trace_ocfs2_check_dir_for_entry(
 		(unsigned long long)OCFS2_I(dir)->ip_blkno, namelen, name);
 
-	ret = -EEXIST;
-	if (ocfs2_find_entry(name, namelen, dir, &lookup) == 0)
-		goto bail;
+	if (ocfs2_find_entry(name, namelen, dir, &lookup) == 0) {
+		ret = -EEXIST;
+		mlog_errno(ret);
+	}
 
-	ret = 0;
-bail:
 	ocfs2_free_dir_lookup_result(&lookup);
 
-	if (ret)
-		mlog_errno(ret);
 	return ret;
 }
 

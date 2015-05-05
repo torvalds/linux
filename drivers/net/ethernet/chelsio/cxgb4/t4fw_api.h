@@ -36,7 +36,7 @@
 #define _T4FW_INTERFACE_H_
 
 enum fw_retval {
-	FW_SUCCESS		= 0,	/* completed sucessfully */
+	FW_SUCCESS		= 0,	/* completed successfully */
 	FW_EPERM		= 1,	/* operation not permitted */
 	FW_ENOENT		= 2,	/* no such file or directory */
 	FW_EIO			= 5,	/* input/output error; hw bad */

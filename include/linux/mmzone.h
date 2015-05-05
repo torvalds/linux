@@ -842,16 +842,16 @@ static inline int populated_zone(struct zone *zone)
 
 extern int movable_zone;
 
+#ifdef CONFIG_HIGHMEM
 static inline int zone_movable_is_highmem(void)
 {
-#if defined(CONFIG_HIGHMEM) && defined(CONFIG_HAVE_MEMBLOCK_NODE_MAP)
+#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
 	return movable_zone == ZONE_HIGHMEM;
-#elif defined(CONFIG_HIGHMEM)
-	return (ZONE_MOVABLE - 1) == ZONE_HIGHMEM;
 #else
-	return 0;
+	return (ZONE_MOVABLE - 1) == ZONE_HIGHMEM;
 #endif
 }
+#endif
 
 static inline int is_highmem_idx(enum zone_type idx)
 {

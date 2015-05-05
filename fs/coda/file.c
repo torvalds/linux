@@ -27,19 +27,14 @@
 #include "coda_int.h"
 
 static ssize_t
-coda_file_read(struct file *coda_file, char __user *buf, size_t count, loff_t *ppos)
+coda_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
-	struct coda_file_info *cfi;
-	struct file *host_file;
+	struct file *coda_file = iocb->ki_filp;
+	struct coda_file_info *cfi = CODA_FTOC(coda_file);
 
-	cfi = CODA_FTOC(coda_file);
 	BUG_ON(!cfi || cfi->cfi_magic != CODA_MAGIC);
-	host_file = cfi->cfi_container;
 
-	if (!host_file->f_op->read)
-		return -EINVAL;
-
-	return host_file->f_op->read(host_file, buf, count, ppos);
+	return vfs_iter_read(cfi->cfi_container, to, &iocb->ki_pos);
 }
 
 static ssize_t
@@ -64,32 +59,25 @@ coda_file_splice_read(struct file *coda_file, loff_t *ppos,
 }
 
 static ssize_t
-coda_file_write(struct file *coda_file, const char __user *buf, size_t count, loff_t *ppos)
+coda_file_write_iter(struct kiocb *iocb, struct iov_iter *to)
 {
-	struct inode *host_inode, *coda_inode = file_inode(coda_file);
-	struct coda_file_info *cfi;
+	struct file *coda_file = iocb->ki_filp;
+	struct inode *coda_inode = file_inode(coda_file);
+	struct coda_file_info *cfi = CODA_FTOC(coda_file);
 	struct file *host_file;
 	ssize_t ret;
 
-	cfi = CODA_FTOC(coda_file);
 	BUG_ON(!cfi || cfi->cfi_magic != CODA_MAGIC);
+
 	host_file = cfi->cfi_container;
-
-	if (!host_file->f_op->write)
-		return -EINVAL;
-
-	host_inode = file_inode(host_file);
 	file_start_write(host_file);
 	mutex_lock(&coda_inode->i_mutex);
-
-	ret = host_file->f_op->write(host_file, buf, count, ppos);
-
-	coda_inode->i_size = host_inode->i_size;
+	ret = vfs_iter_write(cfi->cfi_container, to, &iocb->ki_pos);
+	coda_inode->i_size = file_inode(host_file)->i_size;
 	coda_inode->i_blocks = (coda_inode->i_size + 511) >> 9;
 	coda_inode->i_mtime = coda_inode->i_ctime = CURRENT_TIME_SEC;
 	mutex_unlock(&coda_inode->i_mutex);
 	file_end_write(host_file);
-
 	return ret;
 }
 
@@ -231,8 +219,8 @@ int coda_fsync(struct file *coda_file, loff_t start, loff_t end, int datasync)
 
 const struct file_operations coda_file_operations = {
 	.llseek		= generic_file_llseek,
-	.read		= coda_file_read,
-	.write		= coda_file_write,
+	.read_iter	= coda_file_read_iter,
+	.write_iter	= coda_file_write_iter,
 	.mmap		= coda_file_mmap,
 	.open		= coda_open,
 	.release	= coda_release,

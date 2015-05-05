@@ -119,34 +119,35 @@ void __flush_anon_page(struct page *page, unsigned long vmaddr)
 
 EXPORT_SYMBOL(__flush_anon_page);
 
-static void mips_flush_dcache_from_pte(pte_t pteval, unsigned long address)
+void __flush_icache_page(struct vm_area_struct *vma, struct page *page)
 {
-	struct page *page;
-	unsigned long pfn = pte_pfn(pteval);
+	unsigned long addr;
 
-	if (unlikely(!pfn_valid(pfn)))
+	if (PageHighMem(page))
 		return;
 
+	addr = (unsigned long) page_address(page);
+	flush_data_cache_page(addr);
+}
+EXPORT_SYMBOL_GPL(__flush_icache_page);
+
+void __update_cache(struct vm_area_struct *vma, unsigned long address,
+	pte_t pte)
+{
+	struct page *page;
+	unsigned long pfn, addr;
+	int exec = (vma->vm_flags & VM_EXEC) && !cpu_has_ic_fills_f_dc;
+
+	pfn = pte_pfn(pte);
+	if (unlikely(!pfn_valid(pfn)))
+		return;
 	page = pfn_to_page(pfn);
 	if (page_mapping(page) && Page_dcache_dirty(page)) {
-		unsigned long page_addr = (unsigned long) page_address(page);
-
-		if (!cpu_has_ic_fills_f_dc ||
-		    pages_do_alias(page_addr, address & PAGE_MASK))
-			flush_data_cache_page(page_addr);
+		addr = (unsigned long) page_address(page);
+		if (exec || pages_do_alias(addr, address & PAGE_MASK))
+			flush_data_cache_page(addr);
 		ClearPageDcacheDirty(page);
 	}
-}
-
-void set_pte_at(struct mm_struct *mm, unsigned long addr,
-        pte_t *ptep, pte_t pteval)
-{
-        if (cpu_has_dc_aliases || !cpu_has_ic_fills_f_dc) {
-                if (pte_present(pteval))
-                        mips_flush_dcache_from_pte(pteval, addr);
-        }
-
-        set_pte(ptep, pteval);
 }
 
 unsigned long _page_cachable_default;

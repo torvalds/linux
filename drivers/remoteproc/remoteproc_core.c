@@ -94,19 +94,8 @@ static int rproc_enable_iommu(struct rproc *rproc)
 	struct device *dev = rproc->dev.parent;
 	int ret;
 
-	/*
-	 * We currently use iommu_present() to decide if an IOMMU
-	 * setup is needed.
-	 *
-	 * This works for simple cases, but will easily fail with
-	 * platforms that do have an IOMMU, but not for this specific
-	 * rproc.
-	 *
-	 * This will be easily solved by introducing hw capabilities
-	 * that will be set by the remoteproc driver.
-	 */
-	if (!iommu_present(dev->bus)) {
-		dev_dbg(dev, "iommu not found\n");
+	if (!rproc->has_iommu) {
+		dev_dbg(dev, "iommu not present\n");
 		return 0;
 	}
 

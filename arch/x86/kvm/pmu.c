@@ -38,7 +38,7 @@ static struct kvm_arch_event_perf_mapping {
 };
 
 /* mapping between fixed pmc index and arch_events array */
-int fixed_pmc_events[] = {1, 0, 7};
+static int fixed_pmc_events[] = {1, 0, 7};
 
 static bool pmc_is_gp(struct kvm_pmc *pmc)
 {

@@ -41,15 +41,11 @@
 
 /**
  * struct stw481x - state holder for the Stw481x drivers
- * @mutex: mutex to serialize I2C accesses
  * @i2c_client: corresponding I2C client
- * @regulator: regulator device for regulator children
  * @map: regmap handle to access device registers
  */
 struct stw481x {
-	struct mutex		lock;
 	struct i2c_client	*client;
-	struct regulator_dev	*vmmc_regulator;
 	struct regmap		*map;
 };
 

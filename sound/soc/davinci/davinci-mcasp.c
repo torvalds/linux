@@ -26,6 +26,8 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/of_device.h>
+#include <linux/platform_data/davinci_asp.h>
+#include <linux/math64.h>
 
 #include <sound/asoundef.h>
 #include <sound/core.h>
@@ -36,7 +38,6 @@
 #include <sound/dmaengine_pcm.h>
 #include <sound/omap-pcm.h>
 
-#include "davinci-pcm.h"
 #include "edma-pcm.h"
 #include "davinci-mcasp.h"
 
@@ -62,10 +63,15 @@ struct davinci_mcasp_context {
 	u32	config_regs[ARRAY_SIZE(context_regs)];
 	u32	afifo_regs[2]; /* for read/write fifo control registers */
 	u32	*xrsr_regs; /* for serializer configuration */
+	bool	pm_state;
+};
+
+struct davinci_mcasp_ruledata {
+	struct davinci_mcasp *mcasp;
+	int serializers;
 };
 
 struct davinci_mcasp {
-	struct davinci_pcm_dma_params dma_params[2];
 	struct snd_dmaengine_dai_dma_data dma_data[2];
 	void __iomem *base;
 	u32 fifo_base;
@@ -82,6 +88,7 @@ struct davinci_mcasp {
 	u16	bclk_lrclk_ratio;
 	int	streams;
 	u32	irq_request[2];
+	int	dma_request[2];
 
 	int	sysclk_freq;
 	bool	bclk_master;
@@ -98,6 +105,8 @@ struct davinci_mcasp {
 #ifdef CONFIG_PM_SLEEP
 	struct davinci_mcasp_context context;
 #endif
+
+	struct davinci_mcasp_ruledata ruledata[2];
 };
 
 static inline void mcasp_set_bits(struct davinci_mcasp *mcasp, u32 offset,
@@ -441,6 +450,18 @@ static int davinci_mcasp_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 		mcasp_set_bits(mcasp, DAVINCI_MCASP_PDIR_REG, AFSX | AFSR);
 		mcasp->bclk_master = 1;
 		break;
+	case SND_SOC_DAIFMT_CBS_CFM:
+		/* codec is clock slave and frame master */
+		mcasp_set_bits(mcasp, DAVINCI_MCASP_ACLKXCTL_REG, ACLKXE);
+		mcasp_clr_bits(mcasp, DAVINCI_MCASP_TXFMCTL_REG, AFSXE);
+
+		mcasp_set_bits(mcasp, DAVINCI_MCASP_ACLKRCTL_REG, ACLKRE);
+		mcasp_clr_bits(mcasp, DAVINCI_MCASP_RXFMCTL_REG, AFSRE);
+
+		mcasp_set_bits(mcasp, DAVINCI_MCASP_PDIR_REG, ACLKX | ACLKR);
+		mcasp_clr_bits(mcasp, DAVINCI_MCASP_PDIR_REG, AFSX | AFSR);
+		mcasp->bclk_master = 1;
+		break;
 	case SND_SOC_DAIFMT_CBM_CFS:
 		/* codec is clock master and frame slave */
 		mcasp_clr_bits(mcasp, DAVINCI_MCASP_ACLKXCTL_REG, ACLKXE);
@@ -507,7 +528,7 @@ static int davinci_mcasp_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 		mcasp_set_bits(mcasp, DAVINCI_MCASP_RXFMCTL_REG, FSRPOL);
 	}
 out:
-	pm_runtime_put_sync(mcasp->dev);
+	pm_runtime_put(mcasp->dev);
 	return ret;
 }
 
@@ -516,6 +537,7 @@ static int __davinci_mcasp_set_clkdiv(struct snd_soc_dai *dai, int div_id,
 {
 	struct davinci_mcasp *mcasp = snd_soc_dai_get_drvdata(dai);
 
+	pm_runtime_get_sync(mcasp->dev);
 	switch (div_id) {
 	case 0:		/* MCLK divider */
 		mcasp_mod_bits(mcasp, DAVINCI_MCASP_AHCLKXCTL_REG,
@@ -541,6 +563,7 @@ static int __davinci_mcasp_set_clkdiv(struct snd_soc_dai *dai, int div_id,
 		return -EINVAL;
 	}
 
+	pm_runtime_put(mcasp->dev);
 	return 0;
 }
 
@@ -555,6 +578,7 @@ static int davinci_mcasp_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 {
 	struct davinci_mcasp *mcasp = snd_soc_dai_get_drvdata(dai);
 
+	pm_runtime_get_sync(mcasp->dev);
 	if (dir == SND_SOC_CLOCK_OUT) {
 		mcasp_set_bits(mcasp, DAVINCI_MCASP_AHCLKXCTL_REG, AHCLKXE);
 		mcasp_set_bits(mcasp, DAVINCI_MCASP_AHCLKRCTL_REG, AHCLKRE);
@@ -567,6 +591,7 @@ static int davinci_mcasp_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 
 	mcasp->sysclk_freq = freq;
 
+	pm_runtime_put(mcasp->dev);
 	return 0;
 }
 
@@ -631,7 +656,6 @@ static int davinci_config_channel_size(struct davinci_mcasp *mcasp,
 static int mcasp_common_hw_param(struct davinci_mcasp *mcasp, int stream,
 				 int period_words, int channels)
 {
-	struct davinci_pcm_dma_params *dma_params = &mcasp->dma_params[stream];
 	struct snd_dmaengine_dai_dma_data *dma_data = &mcasp->dma_data[stream];
 	int i;
 	u8 tx_ser = 0;
@@ -699,10 +723,8 @@ static int mcasp_common_hw_param(struct davinci_mcasp *mcasp, int stream,
 			 * For example if three serializers are enabled the DMA
 			 * need to transfer three words per DMA request.
 			 */
-			dma_params->fifo_level = active_serializers;
 			dma_data->maxburst = active_serializers;
 		} else {
-			dma_params->fifo_level = 0;
 			dma_data->maxburst = 0;
 		}
 		return 0;
@@ -734,7 +756,6 @@ static int mcasp_common_hw_param(struct davinci_mcasp *mcasp, int stream,
 	/* Configure the burst size for platform drivers */
 	if (numevt == 1)
 		numevt = 0;
-	dma_params->fifo_level = numevt;
 	dma_data->maxburst = numevt;
 
 	return 0;
@@ -855,13 +876,35 @@ static int mcasp_dit_hw_param(struct davinci_mcasp *mcasp,
 	return 0;
 }
 
+static int davinci_mcasp_calc_clk_div(struct davinci_mcasp *mcasp,
+				      unsigned int bclk_freq,
+				      int *error_ppm)
+{
+	int div = mcasp->sysclk_freq / bclk_freq;
+	int rem = mcasp->sysclk_freq % bclk_freq;
+
+	if (rem != 0) {
+		if (div == 0 ||
+		    ((mcasp->sysclk_freq / div) - bclk_freq) >
+		    (bclk_freq - (mcasp->sysclk_freq / (div+1)))) {
+			div++;
+			rem = rem - bclk_freq;
+		}
+	}
+	if (error_ppm)
+		*error_ppm =
+			(div*1000000 + (int)div64_long(1000000LL*rem,
+						       (int)bclk_freq))
+			/div - 1000000;
+
+	return div;
+}
+
 static int davinci_mcasp_hw_params(struct snd_pcm_substream *substream,
 					struct snd_pcm_hw_params *params,
 					struct snd_soc_dai *cpu_dai)
 {
 	struct davinci_mcasp *mcasp = snd_soc_dai_get_drvdata(cpu_dai);
-	struct davinci_pcm_dma_params *dma_params =
-					&mcasp->dma_params[substream->stream];
 	int word_length;
 	int channels = params_channels(params);
 	int period_size = params_period_size(params);
@@ -872,16 +915,20 @@ static int davinci_mcasp_hw_params(struct snd_pcm_substream *substream,
 	 * the machine driver, we need to calculate the ratio.
 	 */
 	if (mcasp->bclk_master && mcasp->bclk_div == 0 && mcasp->sysclk_freq) {
-		unsigned int bclk_freq = snd_soc_params_to_bclk(params);
-		unsigned int div = mcasp->sysclk_freq / bclk_freq;
-		if (mcasp->sysclk_freq % bclk_freq != 0) {
-			if (((mcasp->sysclk_freq / div) - bclk_freq) >
-			    (bclk_freq - (mcasp->sysclk_freq / (div+1))))
-				div++;
-			dev_warn(mcasp->dev,
-				 "Inaccurate BCLK: %u Hz / %u != %u Hz\n",
-				 mcasp->sysclk_freq, div, bclk_freq);
-		}
+		int channels = params_channels(params);
+		int rate = params_rate(params);
+		int sbits = params_width(params);
+		int ppm, div;
+
+		if (channels > mcasp->tdm_slots)
+			channels = mcasp->tdm_slots;
+
+		div = davinci_mcasp_calc_clk_div(mcasp, rate*sbits*channels,
+						 &ppm);
+		if (ppm)
+			dev_info(mcasp->dev, "Sample-rate is off by %d PPM\n",
+				 ppm);
+
 		__davinci_mcasp_set_clkdiv(cpu_dai, 1, div, 0);
 	}
 
@@ -902,31 +949,26 @@ static int davinci_mcasp_hw_params(struct snd_pcm_substream *substream,
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_U8:
 	case SNDRV_PCM_FORMAT_S8:
-		dma_params->data_type = 1;
 		word_length = 8;
 		break;
 
 	case SNDRV_PCM_FORMAT_U16_LE:
 	case SNDRV_PCM_FORMAT_S16_LE:
-		dma_params->data_type = 2;
 		word_length = 16;
 		break;
 
 	case SNDRV_PCM_FORMAT_U24_3LE:
 	case SNDRV_PCM_FORMAT_S24_3LE:
-		dma_params->data_type = 3;
 		word_length = 24;
 		break;
 
 	case SNDRV_PCM_FORMAT_U24_LE:
 	case SNDRV_PCM_FORMAT_S24_LE:
-		dma_params->data_type = 4;
 		word_length = 24;
 		break;
 
 	case SNDRV_PCM_FORMAT_U32_LE:
 	case SNDRV_PCM_FORMAT_S32_LE:
-		dma_params->data_type = 4;
 		word_length = 32;
 		break;
 
@@ -934,11 +976,6 @@ static int davinci_mcasp_hw_params(struct snd_pcm_substream *substream,
 		printk(KERN_WARNING "davinci-mcasp: unsupported PCM format");
 		return -EINVAL;
 	}
-
-	if (mcasp->version == MCASP_VERSION_2 && !dma_params->fifo_level)
-		dma_params->acnt = 4;
-	else
-		dma_params->acnt = dma_params->data_type;
 
 	davinci_config_channel_size(mcasp, word_length);
 
@@ -973,10 +1010,126 @@ static int davinci_mcasp_trigger(struct snd_pcm_substream *substream,
 	return ret;
 }
 
+static const unsigned int davinci_mcasp_dai_rates[] = {
+	8000, 11025, 16000, 22050, 32000, 44100, 48000, 64000,
+	88200, 96000, 176400, 192000,
+};
+
+#define DAVINCI_MAX_RATE_ERROR_PPM 1000
+
+static int davinci_mcasp_hw_rule_rate(struct snd_pcm_hw_params *params,
+				      struct snd_pcm_hw_rule *rule)
+{
+	struct davinci_mcasp_ruledata *rd = rule->private;
+	struct snd_interval *ri =
+		hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE);
+	int sbits = params_width(params);
+	int channels = params_channels(params);
+	unsigned int list[ARRAY_SIZE(davinci_mcasp_dai_rates)];
+	int i, count = 0;
+
+	if (channels > rd->mcasp->tdm_slots)
+		channels = rd->mcasp->tdm_slots;
+
+	for (i = 0; i < ARRAY_SIZE(davinci_mcasp_dai_rates); i++) {
+		if (ri->min <= davinci_mcasp_dai_rates[i] &&
+		    ri->max >= davinci_mcasp_dai_rates[i]) {
+			uint bclk_freq = sbits*channels*
+				davinci_mcasp_dai_rates[i];
+			int ppm;
+
+			davinci_mcasp_calc_clk_div(rd->mcasp, bclk_freq, &ppm);
+			if (abs(ppm) < DAVINCI_MAX_RATE_ERROR_PPM)
+				list[count++] = davinci_mcasp_dai_rates[i];
+		}
+	}
+	dev_dbg(rd->mcasp->dev,
+		"%d frequencies (%d-%d) for %d sbits and %d channels\n",
+		count, ri->min, ri->max, sbits, channels);
+
+	return snd_interval_list(hw_param_interval(params, rule->var),
+				 count, list, 0);
+}
+
+static int davinci_mcasp_hw_rule_format(struct snd_pcm_hw_params *params,
+					struct snd_pcm_hw_rule *rule)
+{
+	struct davinci_mcasp_ruledata *rd = rule->private;
+	struct snd_mask *fmt = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
+	struct snd_mask nfmt;
+	int rate = params_rate(params);
+	int channels = params_channels(params);
+	int i, count = 0;
+
+	snd_mask_none(&nfmt);
+
+	if (channels > rd->mcasp->tdm_slots)
+		channels = rd->mcasp->tdm_slots;
+
+	for (i = 0; i < SNDRV_PCM_FORMAT_LAST; i++) {
+		if (snd_mask_test(fmt, i)) {
+			uint bclk_freq = snd_pcm_format_width(i)*channels*rate;
+			int ppm;
+
+			davinci_mcasp_calc_clk_div(rd->mcasp, bclk_freq, &ppm);
+			if (abs(ppm) < DAVINCI_MAX_RATE_ERROR_PPM) {
+				snd_mask_set(&nfmt, i);
+				count++;
+			}
+		}
+	}
+	dev_dbg(rd->mcasp->dev,
+		"%d possible sample format for %d Hz and %d channels\n",
+		count, rate, channels);
+
+	return snd_mask_refine(fmt, &nfmt);
+}
+
+static int davinci_mcasp_hw_rule_channels(struct snd_pcm_hw_params *params,
+					  struct snd_pcm_hw_rule *rule)
+{
+	struct davinci_mcasp_ruledata *rd = rule->private;
+	struct snd_interval *ci =
+		hw_param_interval(params, SNDRV_PCM_HW_PARAM_CHANNELS);
+	int sbits = params_width(params);
+	int rate = params_rate(params);
+	int max_chan_per_wire = rd->mcasp->tdm_slots < ci->max ?
+		rd->mcasp->tdm_slots : ci->max;
+	unsigned int list[ci->max - ci->min + 1];
+	int c1, c, count = 0;
+
+	for (c1 = ci->min; c1 <= max_chan_per_wire; c1++) {
+		uint bclk_freq = c1*sbits*rate;
+		int ppm;
+
+		davinci_mcasp_calc_clk_div(rd->mcasp, bclk_freq, &ppm);
+		if (abs(ppm) < DAVINCI_MAX_RATE_ERROR_PPM) {
+			/* If we can use all tdm_slots, we can put any
+			   amount of channels to remaining wires as
+			   long as they fit in. */
+			if (c1 == rd->mcasp->tdm_slots) {
+				for (c = c1; c <= rd->serializers*c1 &&
+					     c <= ci->max; c++)
+					list[count++] = c;
+			} else {
+				list[count++] = c1;
+			}
+		}
+	}
+	dev_dbg(rd->mcasp->dev,
+		"%d possible channel counts (%d-%d) for %d Hz and %d sbits\n",
+		count, ci->min, ci->max, rate, sbits);
+
+	return snd_interval_list(hw_param_interval(params, rule->var),
+				 count, list, 0);
+}
+
 static int davinci_mcasp_startup(struct snd_pcm_substream *substream,
 				 struct snd_soc_dai *cpu_dai)
 {
 	struct davinci_mcasp *mcasp = snd_soc_dai_get_drvdata(cpu_dai);
+	struct davinci_mcasp_ruledata *ruledata =
+					&mcasp->ruledata[substream->stream];
 	u32 max_channels = 0;
 	int i, dir;
 
@@ -998,6 +1151,7 @@ static int davinci_mcasp_startup(struct snd_pcm_substream *substream,
 		if (mcasp->serial_dir[i] == dir)
 			max_channels++;
 	}
+	ruledata->serializers = max_channels;
 	max_channels *= mcasp->tdm_slots;
 	/*
 	 * If the already active stream has less channels than the calculated
@@ -1012,6 +1166,42 @@ static int davinci_mcasp_startup(struct snd_pcm_substream *substream,
 	snd_pcm_hw_constraint_minmax(substream->runtime,
 				     SNDRV_PCM_HW_PARAM_CHANNELS,
 				     2, max_channels);
+
+	/*
+	 * If we rely on implicit BCLK divider setting we should
+	 * set constraints based on what we can provide.
+	 */
+	if (mcasp->bclk_master && mcasp->bclk_div == 0 && mcasp->sysclk_freq) {
+		int ret;
+
+		ruledata->mcasp = mcasp;
+
+		ret = snd_pcm_hw_rule_add(substream->runtime, 0,
+					  SNDRV_PCM_HW_PARAM_RATE,
+					  davinci_mcasp_hw_rule_rate,
+					  ruledata,
+					  SNDRV_PCM_HW_PARAM_FORMAT,
+					  SNDRV_PCM_HW_PARAM_CHANNELS, -1);
+		if (ret)
+			return ret;
+		ret = snd_pcm_hw_rule_add(substream->runtime, 0,
+					  SNDRV_PCM_HW_PARAM_FORMAT,
+					  davinci_mcasp_hw_rule_format,
+					  ruledata,
+					  SNDRV_PCM_HW_PARAM_RATE,
+					  SNDRV_PCM_HW_PARAM_CHANNELS, -1);
+		if (ret)
+			return ret;
+		ret = snd_pcm_hw_rule_add(substream->runtime, 0,
+					  SNDRV_PCM_HW_PARAM_CHANNELS,
+					  davinci_mcasp_hw_rule_channels,
+					  ruledata,
+					  SNDRV_PCM_HW_PARAM_RATE,
+					  SNDRV_PCM_HW_PARAM_FORMAT, -1);
+		if (ret)
+			return ret;
+	}
+
 	return 0;
 }
 
@@ -1043,17 +1233,8 @@ static int davinci_mcasp_dai_probe(struct snd_soc_dai *dai)
 {
 	struct davinci_mcasp *mcasp = snd_soc_dai_get_drvdata(dai);
 
-	if (mcasp->version >= MCASP_VERSION_3) {
-		/* Using dmaengine PCM */
-		dai->playback_dma_data =
-				&mcasp->dma_data[SNDRV_PCM_STREAM_PLAYBACK];
-		dai->capture_dma_data =
-				&mcasp->dma_data[SNDRV_PCM_STREAM_CAPTURE];
-	} else {
-		/* Using davinci-pcm */
-		dai->playback_dma_data = mcasp->dma_params;
-		dai->capture_dma_data = mcasp->dma_params;
-	}
+	dai->playback_dma_data = &mcasp->dma_data[SNDRV_PCM_STREAM_PLAYBACK];
+	dai->capture_dma_data = &mcasp->dma_data[SNDRV_PCM_STREAM_CAPTURE];
 
 	return 0;
 }
@@ -1065,6 +1246,10 @@ static int davinci_mcasp_suspend(struct snd_soc_dai *dai)
 	struct davinci_mcasp_context *context = &mcasp->context;
 	u32 reg;
 	int i;
+
+	context->pm_state = pm_runtime_enabled(mcasp->dev);
+	if (!context->pm_state)
+		pm_runtime_get_sync(mcasp->dev);
 
 	for (i = 0; i < ARRAY_SIZE(context_regs); i++)
 		context->config_regs[i] = mcasp_get_reg(mcasp, context_regs[i]);
@@ -1082,6 +1267,8 @@ static int davinci_mcasp_suspend(struct snd_soc_dai *dai)
 		context->xrsr_regs[i] = mcasp_get_reg(mcasp,
 						DAVINCI_MCASP_XRSRCTL_REG(i));
 
+	pm_runtime_put_sync(mcasp->dev);
+
 	return 0;
 }
 
@@ -1091,6 +1278,8 @@ static int davinci_mcasp_resume(struct snd_soc_dai *dai)
 	struct davinci_mcasp_context *context = &mcasp->context;
 	u32 reg;
 	int i;
+
+	pm_runtime_get_sync(mcasp->dev);
 
 	for (i = 0; i < ARRAY_SIZE(context_regs); i++)
 		mcasp_set_reg(mcasp, context_regs[i], context->config_regs[i]);
@@ -1107,6 +1296,9 @@ static int davinci_mcasp_resume(struct snd_soc_dai *dai)
 	for (i = 0; i < mcasp->num_serializer; i++)
 		mcasp_set_reg(mcasp, DAVINCI_MCASP_XRSRCTL_REG(i),
 			      context->xrsr_regs[i]);
+
+	if (!context->pm_state)
+		pm_runtime_put_sync(mcasp->dev);
 
 	return 0;
 }
@@ -1172,28 +1364,24 @@ static const struct snd_soc_component_driver davinci_mcasp_component = {
 static struct davinci_mcasp_pdata dm646x_mcasp_pdata = {
 	.tx_dma_offset = 0x400,
 	.rx_dma_offset = 0x400,
-	.asp_chan_q = EVENTQ_0,
 	.version = MCASP_VERSION_1,
 };
 
 static struct davinci_mcasp_pdata da830_mcasp_pdata = {
 	.tx_dma_offset = 0x2000,
 	.rx_dma_offset = 0x2000,
-	.asp_chan_q = EVENTQ_0,
 	.version = MCASP_VERSION_2,
 };
 
 static struct davinci_mcasp_pdata am33xx_mcasp_pdata = {
 	.tx_dma_offset = 0,
 	.rx_dma_offset = 0,
-	.asp_chan_q = EVENTQ_0,
 	.version = MCASP_VERSION_3,
 };
 
 static struct davinci_mcasp_pdata dra7_mcasp_pdata = {
 	.tx_dma_offset = 0x200,
 	.rx_dma_offset = 0x284,
-	.asp_chan_q = EVENTQ_0,
 	.version = MCASP_VERSION_4,
 };
 
@@ -1370,12 +1558,12 @@ nodata:
 
 static int davinci_mcasp_probe(struct platform_device *pdev)
 {
-	struct davinci_pcm_dma_params *dma_params;
 	struct snd_dmaengine_dai_dma_data *dma_data;
 	struct resource *mem, *ioarea, *res, *dat;
 	struct davinci_mcasp_pdata *pdata;
 	struct davinci_mcasp *mcasp;
 	char *irq_name;
+	int *dma;
 	int irq;
 	int ret;
 
@@ -1414,13 +1602,6 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	}
 
 	pm_runtime_enable(&pdev->dev);
-
-	ret = pm_runtime_get_sync(&pdev->dev);
-	if (IS_ERR_VALUE(ret)) {
-		dev_err(&pdev->dev, "pm_runtime_get_sync() failed\n");
-		pm_runtime_disable(&pdev->dev);
-		return ret;
-	}
 
 	mcasp->base = devm_ioremap(&pdev->dev, mem->start, resource_size(mem));
 	if (!mcasp->base) {
@@ -1509,59 +1690,45 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	if (dat)
 		mcasp->dat_port = true;
 
-	dma_params = &mcasp->dma_params[SNDRV_PCM_STREAM_PLAYBACK];
 	dma_data = &mcasp->dma_data[SNDRV_PCM_STREAM_PLAYBACK];
-	dma_params->asp_chan_q = pdata->asp_chan_q;
-	dma_params->ram_chan_q = pdata->ram_chan_q;
-	dma_params->sram_pool = pdata->sram_pool;
-	dma_params->sram_size = pdata->sram_size_playback;
 	if (dat)
-		dma_params->dma_addr = dat->start;
+		dma_data->addr = dat->start;
 	else
-		dma_params->dma_addr = mem->start + pdata->tx_dma_offset;
+		dma_data->addr = mem->start + pdata->tx_dma_offset;
 
-	/* Unconditional dmaengine stuff */
-	dma_data->addr = dma_params->dma_addr;
-
+	dma = &mcasp->dma_request[SNDRV_PCM_STREAM_PLAYBACK];
 	res = platform_get_resource(pdev, IORESOURCE_DMA, 0);
 	if (res)
-		dma_params->channel = res->start;
+		*dma = res->start;
 	else
-		dma_params->channel = pdata->tx_dma_channel;
+		*dma = pdata->tx_dma_channel;
 
 	/* dmaengine filter data for DT and non-DT boot */
 	if (pdev->dev.of_node)
 		dma_data->filter_data = "tx";
 	else
-		dma_data->filter_data = &dma_params->channel;
+		dma_data->filter_data = dma;
 
 	/* RX is not valid in DIT mode */
 	if (mcasp->op_mode != DAVINCI_MCASP_DIT_MODE) {
-		dma_params = &mcasp->dma_params[SNDRV_PCM_STREAM_CAPTURE];
 		dma_data = &mcasp->dma_data[SNDRV_PCM_STREAM_CAPTURE];
-		dma_params->asp_chan_q = pdata->asp_chan_q;
-		dma_params->ram_chan_q = pdata->ram_chan_q;
-		dma_params->sram_pool = pdata->sram_pool;
-		dma_params->sram_size = pdata->sram_size_capture;
 		if (dat)
-			dma_params->dma_addr = dat->start;
+			dma_data->addr = dat->start;
 		else
-			dma_params->dma_addr = mem->start + pdata->rx_dma_offset;
+			dma_data->addr = mem->start + pdata->rx_dma_offset;
 
-		/* Unconditional dmaengine stuff */
-		dma_data->addr = dma_params->dma_addr;
-
+		dma = &mcasp->dma_request[SNDRV_PCM_STREAM_CAPTURE];
 		res = platform_get_resource(pdev, IORESOURCE_DMA, 1);
 		if (res)
-			dma_params->channel = res->start;
+			*dma = res->start;
 		else
-			dma_params->channel = pdata->rx_dma_channel;
+			*dma = pdata->rx_dma_channel;
 
 		/* dmaengine filter data for DT and non-DT boot */
 		if (pdev->dev.of_node)
 			dma_data->filter_data = "rx";
 		else
-			dma_data->filter_data = &dma_params->channel;
+			dma_data->filter_data = dma;
 	}
 
 	if (mcasp->version < MCASP_VERSION_3) {
@@ -1584,17 +1751,11 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 		goto err;
 
 	switch (mcasp->version) {
-#if IS_BUILTIN(CONFIG_SND_DAVINCI_SOC) || \
-	(IS_MODULE(CONFIG_SND_DAVINCI_SOC_MCASP) && \
-	 IS_MODULE(CONFIG_SND_DAVINCI_SOC))
-	case MCASP_VERSION_1:
-	case MCASP_VERSION_2:
-		ret = davinci_soc_platform_register(&pdev->dev);
-		break;
-#endif
 #if IS_BUILTIN(CONFIG_SND_EDMA_SOC) || \
 	(IS_MODULE(CONFIG_SND_DAVINCI_SOC_MCASP) && \
 	 IS_MODULE(CONFIG_SND_EDMA_SOC))
+	case MCASP_VERSION_1:
+	case MCASP_VERSION_2:
 	case MCASP_VERSION_3:
 		ret = edma_pcm_platform_register(&pdev->dev);
 		break;
@@ -1621,14 +1782,12 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	return 0;
 
 err:
-	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	return ret;
 }
 
 static int davinci_mcasp_remove(struct platform_device *pdev)
 {
-	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
 	return 0;

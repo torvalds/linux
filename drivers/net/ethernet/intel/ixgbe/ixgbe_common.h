@@ -130,6 +130,8 @@ void ixgbe_set_rxpba_generic(struct ixgbe_hw *hw, int num_pb,
 
 s32 ixgbe_get_thermal_sensor_data_generic(struct ixgbe_hw *hw);
 s32 ixgbe_init_thermal_sensor_thresh_generic(struct ixgbe_hw *hw);
+void ixgbe_disable_rx_generic(struct ixgbe_hw *hw);
+void ixgbe_enable_rx_generic(struct ixgbe_hw *hw);
 
 #define IXGBE_FAILED_READ_REG 0xffffffffU
 #define IXGBE_FAILED_READ_CFG_DWORD 0xffffffffU

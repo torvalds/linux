@@ -108,7 +108,7 @@ static inline unsigned __read_seqcount_begin(const seqcount_t *s)
 	unsigned ret;
 
 repeat:
-	ret = ACCESS_ONCE(s->sequence);
+	ret = READ_ONCE(s->sequence);
 	if (unlikely(ret & 1)) {
 		cpu_relax();
 		goto repeat;
@@ -127,7 +127,7 @@ repeat:
  */
 static inline unsigned raw_read_seqcount(const seqcount_t *s)
 {
-	unsigned ret = ACCESS_ONCE(s->sequence);
+	unsigned ret = READ_ONCE(s->sequence);
 	smp_rmb();
 	return ret;
 }
@@ -179,7 +179,7 @@ static inline unsigned read_seqcount_begin(const seqcount_t *s)
  */
 static inline unsigned raw_seqcount_begin(const seqcount_t *s)
 {
-	unsigned ret = ACCESS_ONCE(s->sequence);
+	unsigned ret = READ_ONCE(s->sequence);
 	smp_rmb();
 	return ret & ~1;
 }

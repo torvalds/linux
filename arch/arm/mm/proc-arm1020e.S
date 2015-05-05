@@ -465,7 +465,7 @@ arm1020e_crval:
 
 	.align
 
-	.section ".proc.info.init", #alloc, #execinstr
+	.section ".proc.info.init", #alloc
 
 	.type	__arm1020e_proc_info,#object
 __arm1020e_proc_info:
@@ -479,7 +479,7 @@ __arm1020e_proc_info:
 		PMD_BIT4 | \
 		PMD_SECT_AP_WRITE | \
 		PMD_SECT_AP_READ
-	b	__arm1020e_setup
+	initfn	__arm1020e_setup, __arm1020e_proc_info
 	.long	cpu_arch_name
 	.long	cpu_elf_name
 	.long	HWCAP_SWP | HWCAP_HALF | HWCAP_THUMB | HWCAP_EDSP

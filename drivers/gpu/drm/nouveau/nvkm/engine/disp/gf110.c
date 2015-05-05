@@ -413,8 +413,8 @@ gf110_disp_base_mthd_base = {
 
 static const struct nv50_disp_mthd_list
 gf110_disp_base_mthd_image = {
-	.mthd = 0x0400,
-	.addr = 0x000400,
+	.mthd = 0x0020,
+	.addr = 0x000020,
 	.data = {
 		{ 0x0400, 0x661400 },
 		{ 0x0404, 0x661404 },

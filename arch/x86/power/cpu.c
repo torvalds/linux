@@ -134,7 +134,7 @@ static void do_fpu_end(void)
 static void fix_processor_context(void)
 {
 	int cpu = smp_processor_id();
-	struct tss_struct *t = &per_cpu(init_tss, cpu);
+	struct tss_struct *t = &per_cpu(cpu_tss, cpu);
 #ifdef CONFIG_X86_64
 	struct desc_struct *desc = get_cpu_gdt_table(cpu);
 	tss_desc tss;

@@ -713,18 +713,13 @@ void __init r8a7779_init_late(void)
 }
 
 #ifdef CONFIG_USE_OF
-static int r8a7779_set_wake(struct irq_data *data, unsigned int on)
-{
-	return 0; /* always allow wakeup */
-}
-
 void __init r8a7779_init_irq_dt(void)
 {
 #ifdef CONFIG_ARCH_SHMOBILE_LEGACY
 	void __iomem *gic_dist_base = ioremap_nocache(0xf0001000, 0x1000);
 	void __iomem *gic_cpu_base = ioremap_nocache(0xf0000100, 0x1000);
 #endif
-	gic_arch_extn.irq_set_wake = r8a7779_set_wake;
+	gic_set_irqchip_flags(IRQCHIP_SKIP_SET_WAKE);
 
 #ifdef CONFIG_ARCH_SHMOBILE_LEGACY
 	gic_init(0, 29, gic_dist_base, gic_cpu_base);

@@ -312,7 +312,6 @@ s32 ixgbe_start_hw_generic(struct ixgbe_hw *hw)
 s32 ixgbe_start_hw_gen2(struct ixgbe_hw *hw)
 {
 	u32 i;
-	u32 regval;
 
 	/* Clear the rate limiters */
 	for (i = 0; i < hw->mac.max_tx_queues; i++) {
@@ -321,20 +320,25 @@ s32 ixgbe_start_hw_gen2(struct ixgbe_hw *hw)
 	}
 	IXGBE_WRITE_FLUSH(hw);
 
+#ifndef CONFIG_SPARC
 	/* Disable relaxed ordering */
 	for (i = 0; i < hw->mac.max_tx_queues; i++) {
+		u32 regval;
+
 		regval = IXGBE_READ_REG(hw, IXGBE_DCA_TXCTRL_82599(i));
 		regval &= ~IXGBE_DCA_TXCTRL_DESC_WRO_EN;
 		IXGBE_WRITE_REG(hw, IXGBE_DCA_TXCTRL_82599(i), regval);
 	}
 
 	for (i = 0; i < hw->mac.max_rx_queues; i++) {
+		u32 regval;
+
 		regval = IXGBE_READ_REG(hw, IXGBE_DCA_RXCTRL(i));
 		regval &= ~(IXGBE_DCA_RXCTRL_DATA_WRO_EN |
 			    IXGBE_DCA_RXCTRL_HEAD_WRO_EN);
 		IXGBE_WRITE_REG(hw, IXGBE_DCA_RXCTRL(i), regval);
 	}
-
+#endif
 	return 0;
 }
 
@@ -703,7 +707,7 @@ s32 ixgbe_stop_adapter_generic(struct ixgbe_hw *hw)
 	hw->adapter_stopped = true;
 
 	/* Disable the receive unit */
-	IXGBE_WRITE_REG(hw, IXGBE_RXCTRL, 0);
+	hw->mac.ops.disable_rx(hw);
 
 	/* Clear interrupt mask to stop interrupts from being generated */
 	IXGBE_WRITE_REG(hw, IXGBE_EIMC, IXGBE_IRQ_CLEAR_MASK);
@@ -2639,7 +2643,10 @@ s32 ixgbe_enable_rx_buff_generic(struct ixgbe_hw *hw)
  **/
 s32 ixgbe_enable_rx_dma_generic(struct ixgbe_hw *hw, u32 regval)
 {
-	IXGBE_WRITE_REG(hw, IXGBE_RXCTRL, regval);
+	if (regval & IXGBE_RXCTRL_RXEN)
+		hw->mac.ops.enable_rx(hw);
+	else
+		hw->mac.ops.disable_rx(hw);
 
 	return 0;
 }
@@ -3850,3 +3857,44 @@ s32 ixgbe_init_thermal_sensor_thresh_generic(struct ixgbe_hw *hw)
 	return 0;
 }
 
+void ixgbe_disable_rx_generic(struct ixgbe_hw *hw)
+{
+	u32 rxctrl;
+
+	rxctrl = IXGBE_READ_REG(hw, IXGBE_RXCTRL);
+	if (rxctrl & IXGBE_RXCTRL_RXEN) {
+		if (hw->mac.type != ixgbe_mac_82598EB) {
+			u32 pfdtxgswc;
+
+			pfdtxgswc = IXGBE_READ_REG(hw, IXGBE_PFDTXGSWC);
+			if (pfdtxgswc & IXGBE_PFDTXGSWC_VT_LBEN) {
+				pfdtxgswc &= ~IXGBE_PFDTXGSWC_VT_LBEN;
+				IXGBE_WRITE_REG(hw, IXGBE_PFDTXGSWC, pfdtxgswc);
+				hw->mac.set_lben = true;
+			} else {
+				hw->mac.set_lben = false;
+			}
+		}
+		rxctrl &= ~IXGBE_RXCTRL_RXEN;
+		IXGBE_WRITE_REG(hw, IXGBE_RXCTRL, rxctrl);
+	}
+}
+
+void ixgbe_enable_rx_generic(struct ixgbe_hw *hw)
+{
+	u32 rxctrl;
+
+	rxctrl = IXGBE_READ_REG(hw, IXGBE_RXCTRL);
+	IXGBE_WRITE_REG(hw, IXGBE_RXCTRL, (rxctrl | IXGBE_RXCTRL_RXEN));
+
+	if (hw->mac.type != ixgbe_mac_82598EB) {
+		if (hw->mac.set_lben) {
+			u32 pfdtxgswc;
+
+			pfdtxgswc = IXGBE_READ_REG(hw, IXGBE_PFDTXGSWC);
+			pfdtxgswc |= IXGBE_PFDTXGSWC_VT_LBEN;
+			IXGBE_WRITE_REG(hw, IXGBE_PFDTXGSWC, pfdtxgswc);
+			hw->mac.set_lben = false;
+		}
+	}
+}

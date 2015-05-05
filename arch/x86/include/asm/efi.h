@@ -2,6 +2,8 @@
 #define _ASM_X86_EFI_H
 
 #include <asm/i387.h>
+#include <asm/pgtable.h>
+
 /*
  * We map the EFI regions needed for runtime services non-contiguously,
  * with preserved alignment on virtual addresses starting from -4G down
@@ -89,8 +91,8 @@ extern void __iomem *__init efi_ioremap(unsigned long addr, unsigned long size,
 extern struct efi_scratch efi_scratch;
 extern void __init efi_set_executable(efi_memory_desc_t *md, bool executable);
 extern int __init efi_memblock_x86_reserve_range(void);
-extern void __init efi_call_phys_prolog(void);
-extern void __init efi_call_phys_epilog(void);
+extern pgd_t * __init efi_call_phys_prolog(void);
+extern void __init efi_call_phys_epilog(pgd_t *save_pgd);
 extern void __init efi_unmap_memmap(void);
 extern void __init efi_memory_uc(u64 addr, unsigned long size);
 extern void __init efi_map_region(efi_memory_desc_t *md);

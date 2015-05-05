@@ -145,11 +145,11 @@ static inline u32 jhash2(const u32 *k, u32 length, u32 initval)
 }
 
 
-/* jhash_3words - hash exactly 3, 2 or 1 word(s) */
-static inline u32 jhash_3words(u32 a, u32 b, u32 c, u32 initval)
+/* __jhash_nwords - hash exactly 3, 2 or 1 word(s) */
+static inline u32 __jhash_nwords(u32 a, u32 b, u32 c, u32 initval)
 {
-	a += JHASH_INITVAL;
-	b += JHASH_INITVAL;
+	a += initval;
+	b += initval;
 	c += initval;
 
 	__jhash_final(a, b, c);
@@ -157,14 +157,19 @@ static inline u32 jhash_3words(u32 a, u32 b, u32 c, u32 initval)
 	return c;
 }
 
+static inline u32 jhash_3words(u32 a, u32 b, u32 c, u32 initval)
+{
+	return __jhash_nwords(a, b, c, initval + JHASH_INITVAL + (3 << 2));
+}
+
 static inline u32 jhash_2words(u32 a, u32 b, u32 initval)
 {
-	return jhash_3words(a, b, 0, initval);
+	return __jhash_nwords(a, b, 0, initval + JHASH_INITVAL + (2 << 2));
 }
 
 static inline u32 jhash_1word(u32 a, u32 initval)
 {
-	return jhash_3words(a, 0, 0, initval);
+	return __jhash_nwords(a, 0, 0, initval + JHASH_INITVAL + (1 << 2));
 }
 
 #endif /* _LINUX_JHASH_H */

@@ -948,8 +948,6 @@ static int s3c24xx_nand_probe(struct platform_device *pdev)
 
 	cpu_type = platform_get_device_id(pdev)->driver_data;
 
-	pr_debug("s3c2410_nand_probe(%p)\n", pdev);
-
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (info == NULL) {
 		err = -ENOMEM;
@@ -1045,7 +1043,6 @@ static int s3c24xx_nand_probe(struct platform_device *pdev)
 		s3c2410_nand_clk_set_state(info, CLOCK_SUSPEND);
 	}
 
-	pr_debug("initialised ok\n");
 	return 0;
 
  exit_error:

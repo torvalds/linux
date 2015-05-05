@@ -331,3 +331,31 @@ ENTRY(\name\()_tlb_fns)
 	.globl	\x
 	.equ	\x, \y
 .endm
+
+.macro	initfn, func, base
+	.long	\func - \base
+.endm
+
+	/*
+	 * Macro to calculate the log2 size for the protection region
+	 * registers. This calculates rd = log2(size) - 1.  tmp must
+	 * not be the same register as rd.
+	 */
+.macro	pr_sz, rd, size, tmp
+	mov	\tmp, \size, lsr #12
+	mov	\rd, #11
+1:	movs	\tmp, \tmp, lsr #1
+	addne	\rd, \rd, #1
+	bne	1b
+.endm
+
+	/*
+	 * Macro to generate a protection region register value
+	 * given a pre-masked address, size, and enable bit.
+	 * Corrupts size.
+	 */
+.macro	pr_val, dest, addr, size, enable
+	pr_sz	\dest, \size, \size		@ calculate log2(size) - 1
+	orr	\dest, \addr, \dest, lsl #1	@ mask in the region size
+	orr	\dest, \dest, \enable
+.endm

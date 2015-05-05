@@ -387,8 +387,20 @@ int snd_soc_codec_set_pll(struct snd_soc_codec *codec, int pll_id, int source,
 int snd_soc_register_card(struct snd_soc_card *card);
 int snd_soc_unregister_card(struct snd_soc_card *card);
 int devm_snd_soc_register_card(struct device *dev, struct snd_soc_card *card);
+#ifdef CONFIG_PM_SLEEP
 int snd_soc_suspend(struct device *dev);
 int snd_soc_resume(struct device *dev);
+#else
+static inline int snd_soc_suspend(struct device *dev)
+{
+	return 0;
+}
+
+static inline int snd_soc_resume(struct device *dev)
+{
+	return 0;
+}
+#endif
 int snd_soc_poweroff(struct device *dev);
 int snd_soc_register_platform(struct device *dev,
 		const struct snd_soc_platform_driver *platform_drv);
@@ -450,8 +462,10 @@ int soc_dai_hw_params(struct snd_pcm_substream *substream,
 		      struct snd_soc_dai *dai);
 
 /* Jack reporting */
-int snd_soc_jack_new(struct snd_soc_codec *codec, const char *id, int type,
-		     struct snd_soc_jack *jack);
+int snd_soc_card_jack_new(struct snd_soc_card *card, const char *id, int type,
+	struct snd_soc_jack *jack, struct snd_soc_jack_pin *pins,
+	unsigned int num_pins);
+
 void snd_soc_jack_report(struct snd_soc_jack *jack, int status, int mask);
 int snd_soc_jack_add_pins(struct snd_soc_jack *jack, int count,
 			  struct snd_soc_jack_pin *pins);
@@ -659,7 +673,7 @@ struct snd_soc_jack_gpio {
 struct snd_soc_jack {
 	struct mutex mutex;
 	struct snd_jack *jack;
-	struct snd_soc_codec *codec;
+	struct snd_soc_card *card;
 	struct list_head pins;
 	int status;
 	struct blocking_notifier_head notifier;
@@ -941,6 +955,7 @@ struct snd_soc_dai_link {
 	int be_id;	/* optional ID for machine driver BE identification */
 
 	const struct snd_soc_pcm_stream *params;
+	unsigned int num_params;
 
 	unsigned int dai_fmt;           /* format to set on init */
 
@@ -953,6 +968,9 @@ struct snd_soc_dai_link {
 	unsigned int symmetric_rates:1;
 	unsigned int symmetric_channels:1;
 	unsigned int symmetric_samplebits:1;
+
+	/* Mark this pcm with non atomic ops */
+	bool nonatomic;
 
 	/* Do not create a PCM for this DAI link (Backend link) */
 	unsigned int no_pcm:1;
@@ -1071,11 +1089,16 @@ struct snd_soc_card {
 
 	/*
 	 * Card-specific routes and widgets.
+	 * Note: of_dapm_xxx for Device Tree; Otherwise for driver build-in.
 	 */
 	const struct snd_soc_dapm_widget *dapm_widgets;
 	int num_dapm_widgets;
 	const struct snd_soc_dapm_route *dapm_routes;
 	int num_dapm_routes;
+	const struct snd_soc_dapm_widget *of_dapm_widgets;
+	int num_of_dapm_widgets;
+	const struct snd_soc_dapm_route *of_dapm_routes;
+	int num_of_dapm_routes;
 	bool fully_routed;
 
 	struct work_struct deferred_resume_work;
@@ -1256,6 +1279,19 @@ static inline struct snd_soc_dapm_context *snd_soc_component_get_dapm(
 	struct snd_soc_component *component)
 {
 	return component->dapm_ptr;
+}
+
+/**
+ * snd_soc_dapm_kcontrol_codec() - Returns the codec associated to a kcontrol
+ * @kcontrol: The kcontrol
+ *
+ * This function must only be used on DAPM contexts that are known to be part of
+ * a CODEC (e.g. in a CODEC driver). Otherwise the behavior is undefined.
+ */
+static inline struct snd_soc_codec *snd_soc_dapm_kcontrol_codec(
+	struct snd_kcontrol *kcontrol)
+{
+	return snd_soc_dapm_to_codec(snd_soc_dapm_kcontrol_dapm(kcontrol));
 }
 
 /* codec IO */
@@ -1469,7 +1505,7 @@ static inline struct snd_soc_codec *snd_soc_kcontrol_codec(
 }
 
 /**
- * snd_soc_kcontrol_platform() - Returns the platform that registerd the control
+ * snd_soc_kcontrol_platform() - Returns the platform that registered the control
  * @kcontrol: The control for which to get the platform
  *
  * Note: This function will only work correctly if the control has been

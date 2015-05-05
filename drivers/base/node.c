@@ -180,7 +180,7 @@ static ssize_t node_read_vmstat(struct device *dev,
 static DEVICE_ATTR(vmstat, S_IRUGO, node_read_vmstat, NULL);
 
 static ssize_t node_read_distance(struct device *dev,
-			struct device_attribute *attr, char * buf)
+			struct device_attribute *attr, char *buf)
 {
 	int nid = dev->id;
 	int len = 0;
@@ -199,6 +199,17 @@ static ssize_t node_read_distance(struct device *dev,
 	return len;
 }
 static DEVICE_ATTR(distance, S_IRUGO, node_read_distance, NULL);
+
+static struct attribute *node_dev_attrs[] = {
+	&dev_attr_cpumap.attr,
+	&dev_attr_cpulist.attr,
+	&dev_attr_meminfo.attr,
+	&dev_attr_numastat.attr,
+	&dev_attr_distance.attr,
+	&dev_attr_vmstat.attr,
+	NULL
+};
+ATTRIBUTE_GROUPS(node_dev);
 
 #ifdef CONFIG_HUGETLBFS
 /*
@@ -273,16 +284,10 @@ static int register_node(struct node *node, int num, struct node *parent)
 	node->dev.id = num;
 	node->dev.bus = &node_subsys;
 	node->dev.release = node_device_release;
+	node->dev.groups = node_dev_groups;
 	error = device_register(&node->dev);
 
 	if (!error){
-		device_create_file(&node->dev, &dev_attr_cpumap);
-		device_create_file(&node->dev, &dev_attr_cpulist);
-		device_create_file(&node->dev, &dev_attr_meminfo);
-		device_create_file(&node->dev, &dev_attr_numastat);
-		device_create_file(&node->dev, &dev_attr_distance);
-		device_create_file(&node->dev, &dev_attr_vmstat);
-
 		hugetlb_register_node(node);
 
 		compaction_register_node(node);
@@ -299,13 +304,6 @@ static int register_node(struct node *node, int num, struct node *parent)
  */
 void unregister_node(struct node *node)
 {
-	device_remove_file(&node->dev, &dev_attr_cpumap);
-	device_remove_file(&node->dev, &dev_attr_cpulist);
-	device_remove_file(&node->dev, &dev_attr_meminfo);
-	device_remove_file(&node->dev, &dev_attr_numastat);
-	device_remove_file(&node->dev, &dev_attr_distance);
-	device_remove_file(&node->dev, &dev_attr_vmstat);
-
 	hugetlb_unregister_node(node);		/* no-op, if memoryless node */
 
 	device_unregister(&node->dev);

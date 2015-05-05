@@ -115,6 +115,18 @@ config INPUT_PCSPKR
 	  To compile this driver as a module, choose M here: the
 	  module will be called pcspkr.
 
+config INPUT_PM8941_PWRKEY
+	tristate "Qualcomm PM8941 power key support"
+	depends on MFD_SPMI_PMIC
+	help
+	  Say Y here if you want support for the power key usually found
+	  on boards using a Qualcomm PM8941 compatible PMIC.
+
+	  If unsure, say Y.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pm8941-pwrkey.
+
 config INPUT_PM8XXX_VIBRATOR
 	tristate "Qualcomm PM8XXX vibrator support"
 	depends on MFD_PM8XXX
@@ -164,6 +176,18 @@ config INPUT_MAX77693_HAPTIC
 
 	  To compile this driver as module, choose M here: the
 	  module will be called max77693-haptic.
+
+config INPUT_MAX77843_HAPTIC
+    tristate "MAXIM MAX77843 haptic controller support"
+    depends on MFD_MAX77843 && REGULATOR
+    select INPUT_FF_MEMLESS
+    help
+      This option enables support for the haptic controller on
+      MAXIM MAX77843 chip. The driver supports ff-memless interface
+      from input framework.
+
+      To compile this driver as module, choose M here: the
+      module will be called max77843-haptic.
 
 config INPUT_MAX8925_ONKEY
 	tristate "MAX8925 ONKEY support"

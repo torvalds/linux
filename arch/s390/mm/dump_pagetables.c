@@ -18,9 +18,7 @@ enum address_markers_idx {
 	KERNEL_END_NR,
 	VMEMMAP_NR,
 	VMALLOC_NR,
-#ifdef CONFIG_64BIT
 	MODULES_NR,
-#endif
 };
 
 static struct addr_marker address_markers[] = {
@@ -29,9 +27,7 @@ static struct addr_marker address_markers[] = {
 	[KERNEL_END_NR]	  = {(unsigned long)&_end, "Kernel Image End"},
 	[VMEMMAP_NR]	  = {0, "vmemmap Area"},
 	[VMALLOC_NR]	  = {0, "vmalloc Area"},
-#ifdef CONFIG_64BIT
 	[MODULES_NR]	  = {0, "Modules Area"},
-#endif
 	{ -1, NULL }
 };
 
@@ -127,12 +123,6 @@ static void walk_pte_level(struct seq_file *m, struct pg_state *st,
 	}
 }
 
-#ifdef CONFIG_64BIT
-#define _PMD_PROT_MASK _SEGMENT_ENTRY_PROTECT
-#else
-#define _PMD_PROT_MASK 0
-#endif
-
 static void walk_pmd_level(struct seq_file *m, struct pg_state *st,
 			   pud_t *pud, unsigned long addr)
 {
@@ -145,7 +135,7 @@ static void walk_pmd_level(struct seq_file *m, struct pg_state *st,
 		pmd = pmd_offset(pud, addr);
 		if (!pmd_none(*pmd)) {
 			if (pmd_large(*pmd)) {
-				prot = pmd_val(*pmd) & _PMD_PROT_MASK;
+				prot = pmd_val(*pmd) & _SEGMENT_ENTRY_PROTECT;
 				note_page(m, st, prot, 3);
 			} else
 				walk_pte_level(m, st, pmd, addr);
@@ -154,12 +144,6 @@ static void walk_pmd_level(struct seq_file *m, struct pg_state *st,
 		addr += PMD_SIZE;
 	}
 }
-
-#ifdef CONFIG_64BIT
-#define _PUD_PROT_MASK _REGION3_ENTRY_RO
-#else
-#define _PUD_PROT_MASK 0
-#endif
 
 static void walk_pud_level(struct seq_file *m, struct pg_state *st,
 			   pgd_t *pgd, unsigned long addr)
@@ -173,7 +157,7 @@ static void walk_pud_level(struct seq_file *m, struct pg_state *st,
 		pud = pud_offset(pgd, addr);
 		if (!pud_none(*pud))
 			if (pud_large(*pud)) {
-				prot = pud_val(*pud) & _PUD_PROT_MASK;
+				prot = pud_val(*pud) & _REGION3_ENTRY_RO;
 				note_page(m, st, prot, 2);
 			} else
 				walk_pmd_level(m, st, pud, addr);
@@ -230,13 +214,9 @@ static int pt_dump_init(void)
 	 * kernel ASCE. We need this to keep the page table walker functions
 	 * from accessing non-existent entries.
 	 */
-#ifdef CONFIG_32BIT
-	max_addr = 1UL << 31;
-#else
 	max_addr = (S390_lowcore.kernel_asce & _REGION_ENTRY_TYPE_MASK) >> 2;
 	max_addr = 1UL << (max_addr * 11 + 31);
 	address_markers[MODULES_NR].start_address = MODULES_VADDR;
-#endif
 	address_markers[VMEMMAP_NR].start_address = (unsigned long) vmemmap;
 	address_markers[VMALLOC_NR].start_address = VMALLOC_START;
 	debugfs_create_file("kernel_page_tables", 0400, NULL, NULL, &ptdump_fops);

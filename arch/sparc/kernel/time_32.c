@@ -181,24 +181,20 @@ static struct clocksource timer_cs = {
 	.rating	= 100,
 	.read	= timer_cs_read,
 	.mask	= CLOCKSOURCE_MASK(64),
-	.shift	= 2,
 	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
 static __init int setup_timer_cs(void)
 {
 	timer_cs_enabled = 1;
-	timer_cs.mult = clocksource_hz2mult(sparc_config.clock_rate,
-	                                    timer_cs.shift);
-
-	return clocksource_register(&timer_cs);
+	return clocksource_register_hz(&timer_cs, sparc_config.clock_rate);
 }
 
 #ifdef CONFIG_SMP
 static void percpu_ce_setup(enum clock_event_mode mode,
 			struct clock_event_device *evt)
 {
-	int cpu = __first_cpu(evt->cpumask);
+	int cpu = cpumask_first(evt->cpumask);
 
 	switch (mode) {
 		case CLOCK_EVT_MODE_PERIODIC:
@@ -218,7 +214,7 @@ static void percpu_ce_setup(enum clock_event_mode mode,
 static int percpu_ce_set_next_event(unsigned long delta,
 				    struct clock_event_device *evt)
 {
-	int cpu = __first_cpu(evt->cpumask);
+	int cpu = cpumask_first(evt->cpumask);
 	unsigned int next = (unsigned int)delta;
 
 	sparc_config.load_profile_irq(cpu, next);

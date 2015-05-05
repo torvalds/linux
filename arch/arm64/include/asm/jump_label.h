@@ -18,10 +18,11 @@
  */
 #ifndef __ASM_JUMP_LABEL_H
 #define __ASM_JUMP_LABEL_H
+
+#ifndef __ASSEMBLY__
+
 #include <linux/types.h>
 #include <asm/insn.h>
-
-#ifdef __KERNEL__
 
 #define JUMP_LABEL_NOP_SIZE		AARCH64_INSN_SIZE
 
@@ -39,8 +40,6 @@ l_yes:
 	return true;
 }
 
-#endif /* __KERNEL__ */
-
 typedef u64 jump_label_t;
 
 struct jump_entry {
@@ -49,4 +48,5 @@ struct jump_entry {
 	jump_label_t key;
 };
 
+#endif  /* __ASSEMBLY__ */
 #endif	/* __ASM_JUMP_LABEL_H */

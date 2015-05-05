@@ -133,7 +133,6 @@ struct visorchipset_bus_info {
 	u8 *description;	/* UTF8 */
 	u64 reserved1;
 	u32 reserved2;
-	MYPROCOBJECT *proc_object;
 	struct {
 		u32 server:1;
 		/* Add new fields above. */

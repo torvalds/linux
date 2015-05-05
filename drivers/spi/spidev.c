@@ -223,7 +223,7 @@ static int spidev_message(struct spidev_data *spidev,
 	struct spi_transfer	*k_xfers;
 	struct spi_transfer	*k_tmp;
 	struct spi_ioc_transfer *u_tmp;
-	unsigned		n, total;
+	unsigned		n, total, tx_total, rx_total;
 	u8			*tx_buf, *rx_buf;
 	int			status = -EFAULT;
 
@@ -239,33 +239,52 @@ static int spidev_message(struct spidev_data *spidev,
 	tx_buf = spidev->tx_buffer;
 	rx_buf = spidev->rx_buffer;
 	total = 0;
+	tx_total = 0;
+	rx_total = 0;
 	for (n = n_xfers, k_tmp = k_xfers, u_tmp = u_xfers;
 			n;
 			n--, k_tmp++, u_tmp++) {
 		k_tmp->len = u_tmp->len;
 
 		total += k_tmp->len;
-		if (total > bufsiz) {
+		/* Since the function returns the total length of transfers
+		 * on success, restrict the total to positive int values to
+		 * avoid the return value looking like an error.  Also check
+		 * each transfer length to avoid arithmetic overflow.
+		 */
+		if (total > INT_MAX || k_tmp->len > INT_MAX) {
 			status = -EMSGSIZE;
 			goto done;
 		}
 
 		if (u_tmp->rx_buf) {
+			/* this transfer needs space in RX bounce buffer */
+			rx_total += k_tmp->len;
+			if (rx_total > bufsiz) {
+				status = -EMSGSIZE;
+				goto done;
+			}
 			k_tmp->rx_buf = rx_buf;
 			if (!access_ok(VERIFY_WRITE, (u8 __user *)
 						(uintptr_t) u_tmp->rx_buf,
 						u_tmp->len))
 				goto done;
+			rx_buf += k_tmp->len;
 		}
 		if (u_tmp->tx_buf) {
+			/* this transfer needs space in TX bounce buffer */
+			tx_total += k_tmp->len;
+			if (tx_total > bufsiz) {
+				status = -EMSGSIZE;
+				goto done;
+			}
 			k_tmp->tx_buf = tx_buf;
 			if (copy_from_user(tx_buf, (const u8 __user *)
 						(uintptr_t) u_tmp->tx_buf,
 					u_tmp->len))
 				goto done;
+			tx_buf += k_tmp->len;
 		}
-		tx_buf += k_tmp->len;
-		rx_buf += k_tmp->len;
 
 		k_tmp->cs_change = !!u_tmp->cs_change;
 		k_tmp->tx_nbits = u_tmp->tx_nbits;
@@ -303,8 +322,8 @@ static int spidev_message(struct spidev_data *spidev,
 				status = -EFAULT;
 				goto done;
 			}
+			rx_buf += u_tmp->len;
 		}
-		rx_buf += u_tmp->len;
 	}
 	status = total;
 
@@ -684,6 +703,14 @@ static const struct file_operations spidev_fops = {
 
 static struct class *spidev_class;
 
+#ifdef CONFIG_OF
+static const struct of_device_id spidev_dt_ids[] = {
+	{ .compatible = "rohm,dh2228fv" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, spidev_dt_ids);
+#endif
+
 /*-------------------------------------------------------------------------*/
 
 static int spidev_probe(struct spi_device *spi)
@@ -691,6 +718,17 @@ static int spidev_probe(struct spi_device *spi)
 	struct spidev_data	*spidev;
 	int			status;
 	unsigned long		minor;
+
+	/*
+	 * spidev should never be referenced in DT without a specific
+	 * compatbile string, it is a Linux implementation thing
+	 * rather than a description of the hardware.
+	 */
+	if (spi->dev.of_node && !of_match_device(spidev_dt_ids, &spi->dev)) {
+		dev_err(&spi->dev, "buggy DT: spidev listed directly in DT\n");
+		WARN_ON(spi->dev.of_node &&
+			!of_match_device(spidev_dt_ids, &spi->dev));
+	}
 
 	/* Allocate driver data */
 	spidev = kzalloc(sizeof(*spidev), GFP_KERNEL);
@@ -757,13 +795,6 @@ static int spidev_remove(struct spi_device *spi)
 
 	return 0;
 }
-
-static const struct of_device_id spidev_dt_ids[] = {
-	{ .compatible = "rohm,dh2228fv" },
-	{},
-};
-
-MODULE_DEVICE_TABLE(of, spidev_dt_ids);
 
 static struct spi_driver spidev_spi_driver = {
 	.driver = {

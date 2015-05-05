@@ -614,6 +614,7 @@ config ACPI_TOSHIBA
 	depends on INPUT
 	depends on RFKILL || RFKILL = n
 	depends on SERIO_I8042 || SERIO_I8042 = n
+	depends on ACPI_VIDEO || ACPI_VIDEO = n
 	select INPUT_POLLDEV
 	select INPUT_SPARSEKMAP
 	---help---

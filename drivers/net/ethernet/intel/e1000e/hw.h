@@ -87,6 +87,10 @@ struct e1000_hw;
 #define E1000_DEV_ID_PCH_I218_V2		0x15A1
 #define E1000_DEV_ID_PCH_I218_LM3		0x15A2	/* Wildcat Point PCH */
 #define E1000_DEV_ID_PCH_I218_V3		0x15A3	/* Wildcat Point PCH */
+#define E1000_DEV_ID_PCH_SPT_I219_LM		0x156F	/* SPT PCH */
+#define E1000_DEV_ID_PCH_SPT_I219_V		0x1570	/* SPT PCH */
+#define E1000_DEV_ID_PCH_SPT_I219_LM2		0x15B7	/* SPT-H PCH */
+#define E1000_DEV_ID_PCH_SPT_I219_V2		0x15B8	/* SPT-H PCH */
 
 #define E1000_REVISION_4	4
 
@@ -108,6 +112,7 @@ enum e1000_mac_type {
 	e1000_pchlan,
 	e1000_pch2lan,
 	e1000_pch_lpt,
+	e1000_pch_spt,
 };
 
 enum e1000_media_type {
@@ -153,6 +158,7 @@ enum e1000_bus_width {
 	e1000_bus_width_pcie_x1,
 	e1000_bus_width_pcie_x2,
 	e1000_bus_width_pcie_x4 = 4,
+	e1000_bus_width_pcie_x8 = 8,
 	e1000_bus_width_32,
 	e1000_bus_width_64,
 	e1000_bus_width_reserved

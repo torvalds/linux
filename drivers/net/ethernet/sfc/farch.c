@@ -645,7 +645,7 @@ static bool efx_check_tx_flush_complete(struct efx_nic *efx)
 }
 
 /* Flush all the transmit queues, and continue flushing receive queues until
- * they're all flushed. Wait for the DRAIN events to be recieved so that there
+ * they're all flushed. Wait for the DRAIN events to be received so that there
  * are no more RX and TX events left on any channel. */
 static int efx_farch_do_flush(struct efx_nic *efx)
 {
@@ -1108,7 +1108,7 @@ efx_farch_handle_tx_flush_done(struct efx_nic *efx, efx_qword_t *event)
 }
 
 /* If this flush done event corresponds to a &struct efx_rx_queue: If the flush
- * was succesful then send an %EFX_CHANNEL_MAGIC_RX_DRAIN, otherwise add
+ * was successful then send an %EFX_CHANNEL_MAGIC_RX_DRAIN, otherwise add
  * the RX queue back to the mask of RX queues in need of flushing.
  */
 static void

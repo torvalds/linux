@@ -32,7 +32,6 @@
 #include <asm/machdep.h>
 #include <asm/firmware.h>
 #include <asm/xics.h>
-#include <asm/rtas.h>
 #include <asm/opal.h>
 #include <asm/kexec.h>
 #include <asm/smp.h>
@@ -278,20 +277,6 @@ static void __init pnv_setup_machdep_opal(void)
 	ppc_md.handle_hmi_exception = opal_handle_hmi_exception;
 }
 
-#ifdef CONFIG_PPC_POWERNV_RTAS
-static void __init pnv_setup_machdep_rtas(void)
-{
-	if (rtas_token("get-time-of-day") != RTAS_UNKNOWN_SERVICE) {
-		ppc_md.get_boot_time = rtas_get_boot_time;
-		ppc_md.get_rtc_time = rtas_get_rtc_time;
-		ppc_md.set_rtc_time = rtas_set_rtc_time;
-	}
-	ppc_md.restart = rtas_restart;
-	pm_power_off = rtas_power_off;
-	ppc_md.halt = rtas_halt;
-}
-#endif /* CONFIG_PPC_POWERNV_RTAS */
-
 static u32 supported_cpuidle_states;
 
 int pnv_save_sprs_for_winkle(void)
@@ -409,37 +394,39 @@ static int __init pnv_init_idle_states(void)
 {
 	struct device_node *power_mgt;
 	int dt_idle_states;
-	const __be32 *idle_state_flags;
-	u32 len_flags, flags;
+	u32 *flags;
 	int i;
 
 	supported_cpuidle_states = 0;
 
 	if (cpuidle_disable != IDLE_NO_OVERRIDE)
-		return 0;
+		goto out;
 
 	if (!firmware_has_feature(FW_FEATURE_OPALv3))
-		return 0;
+		goto out;
 
 	power_mgt = of_find_node_by_path("/ibm,opal/power-mgt");
 	if (!power_mgt) {
 		pr_warn("opal: PowerMgmt Node not found\n");
-		return 0;
+		goto out;
+	}
+	dt_idle_states = of_property_count_u32_elems(power_mgt,
+			"ibm,cpu-idle-state-flags");
+	if (dt_idle_states < 0) {
+		pr_warn("cpuidle-powernv: no idle states found in the DT\n");
+		goto out;
 	}
 
-	idle_state_flags = of_get_property(power_mgt,
-			"ibm,cpu-idle-state-flags", &len_flags);
-	if (!idle_state_flags) {
-		pr_warn("DT-PowerMgmt: missing ibm,cpu-idle-state-flags\n");
-		return 0;
+	flags = kzalloc(sizeof(*flags) * dt_idle_states, GFP_KERNEL);
+	if (of_property_read_u32_array(power_mgt,
+			"ibm,cpu-idle-state-flags", flags, dt_idle_states)) {
+		pr_warn("cpuidle-powernv: missing ibm,cpu-idle-state-flags in DT\n");
+		goto out_free;
 	}
 
-	dt_idle_states = len_flags / sizeof(u32);
+	for (i = 0; i < dt_idle_states; i++)
+		supported_cpuidle_states |= flags[i];
 
-	for (i = 0; i < dt_idle_states; i++) {
-		flags = be32_to_cpu(idle_state_flags[i]);
-		supported_cpuidle_states |= flags;
-	}
 	if (!(supported_cpuidle_states & OPAL_PM_SLEEP_ENABLED_ER1)) {
 		patch_instruction(
 			(unsigned int *)pnv_fastsleep_workaround_at_entry,
@@ -449,6 +436,9 @@ static int __init pnv_init_idle_states(void)
 			PPC_INST_NOP);
 	}
 	pnv_alloc_idle_core_states();
+out_free:
+	kfree(flags);
+out:
 	return 0;
 }
 
@@ -465,10 +455,6 @@ static int __init pnv_probe(void)
 
 	if (firmware_has_feature(FW_FEATURE_OPAL))
 		pnv_setup_machdep_opal();
-#ifdef CONFIG_PPC_POWERNV_RTAS
-	else if (rtas.base)
-		pnv_setup_machdep_rtas();
-#endif /* CONFIG_PPC_POWERNV_RTAS */
 
 	pr_debug("PowerNV detected !\n");
 

@@ -31,12 +31,14 @@
  *  - the iForce driver    drivers/char/joystick/iforce.c
  *  - the skeleton-driver  drivers/usb/usb-skeleton.c
  *  - Xbox 360 information http://www.free60.org/wiki/Gamepad
+ *  - Xbox One information https://github.com/quantus/xbox-one-controller-protocol
  *
  * Thanks to:
  *  - ITO Takayuki for providing essential xpad information on his website
  *  - Vojtech Pavlik     - iforce driver / input subsystem
  *  - Greg Kroah-Hartman - usb-skeleton driver
  *  - XBOX Linux project - extra USB id's
+ *  - Pekka Pöyry (quantus) - Xbox One controller reverse engineering
  *
  * TODO:
  *  - fine tune axes (especially trigger axes)
@@ -828,6 +830,23 @@ static int xpad_play_effect(struct input_dev *dev, void *data, struct ff_effect 
 
 			return usb_submit_urb(xpad->irq_out, GFP_ATOMIC);
 
+		case XTYPE_XBOXONE:
+			xpad->odata[0] = 0x09; /* activate rumble */
+			xpad->odata[1] = 0x08;
+			xpad->odata[2] = 0x00;
+			xpad->odata[3] = 0x08; /* continuous effect */
+			xpad->odata[4] = 0x00; /* simple rumble mode */
+			xpad->odata[5] = 0x03; /* L and R actuator only */
+			xpad->odata[6] = 0x00; /* TODO: LT actuator */
+			xpad->odata[7] = 0x00; /* TODO: RT actuator */
+			xpad->odata[8] = strong / 256;	/* left actuator */
+			xpad->odata[9] = weak / 256;	/* right actuator */
+			xpad->odata[10] = 0x80;	/* length of pulse */
+			xpad->odata[11] = 0x00;	/* stop period of pulse */
+			xpad->irq_out->transfer_buffer_length = 12;
+
+			return usb_submit_urb(xpad->irq_out, GFP_ATOMIC);
+
 		default:
 			dev_dbg(&xpad->dev->dev,
 				"%s - rumble command sent to unsupported xpad type: %d\n",
@@ -841,7 +860,7 @@ static int xpad_play_effect(struct input_dev *dev, void *data, struct ff_effect 
 
 static int xpad_init_ff(struct usb_xpad *xpad)
 {
-	if (xpad->xtype == XTYPE_UNKNOWN || xpad->xtype == XTYPE_XBOXONE)
+	if (xpad->xtype == XTYPE_UNKNOWN)
 		return 0;
 
 	input_set_capability(xpad->dev, EV_FF, FF_RUMBLE);

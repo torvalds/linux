@@ -216,10 +216,16 @@ static void prb_fill_vlan_info(struct tpacket_kbdq_core *,
 static void packet_flush_mclist(struct sock *sk);
 
 struct packet_skb_cb {
-	unsigned int origlen;
 	union {
 		struct sockaddr_pkt pkt;
-		struct sockaddr_ll ll;
+		union {
+			/* Trick: alias skb original length with
+			 * ll.sll_family and ll.protocol in order
+			 * to save room.
+			 */
+			unsigned int origlen;
+			struct sockaddr_ll ll;
+		};
 	} sa;
 };
 
@@ -1608,8 +1614,8 @@ oom:
  *	protocol layers and you must therefore supply it with a complete frame
  */
 
-static int packet_sendmsg_spkt(struct kiocb *iocb, struct socket *sock,
-			       struct msghdr *msg, size_t len)
+static int packet_sendmsg_spkt(struct socket *sock, struct msghdr *msg,
+			       size_t len)
 {
 	struct sock *sk = sock->sk;
 	DECLARE_SOCKADDR(struct sockaddr_pkt *, saddr, msg->msg_name);
@@ -1818,13 +1824,10 @@ static int packet_rcv(struct sk_buff *skb, struct net_device *dev,
 		skb = nskb;
 	}
 
-	BUILD_BUG_ON(sizeof(*PACKET_SKB_CB(skb)) + MAX_ADDR_LEN - 8 >
-		     sizeof(skb->cb));
+	sock_skb_cb_check_size(sizeof(*PACKET_SKB_CB(skb)) + MAX_ADDR_LEN - 8);
 
 	sll = &PACKET_SKB_CB(skb)->sa.ll;
-	sll->sll_family = AF_PACKET;
 	sll->sll_hatype = dev->type;
-	sll->sll_protocol = skb->protocol;
 	sll->sll_pkttype = skb->pkt_type;
 	if (unlikely(po->origdev))
 		sll->sll_ifindex = orig_dev->ifindex;
@@ -1833,7 +1836,10 @@ static int packet_rcv(struct sk_buff *skb, struct net_device *dev,
 
 	sll->sll_halen = dev_parse_header(skb, sll->sll_addr);
 
-	PACKET_SKB_CB(skb)->origlen = skb->len;
+	/* sll->sll_family and sll->sll_protocol are set in packet_recvmsg().
+	 * Use their space for storing the original skb length.
+	 */
+	PACKET_SKB_CB(skb)->sa.origlen = skb->len;
 
 	if (pskb_trim(skb, snaplen))
 		goto drop_n_acct;
@@ -1847,7 +1853,7 @@ static int packet_rcv(struct sk_buff *skb, struct net_device *dev,
 
 	spin_lock(&sk->sk_receive_queue.lock);
 	po->stats.stats1.tp_packets++;
-	skb->dropcount = atomic_read(&sk->sk_drops);
+	sock_skb_set_dropcount(sk, skb);
 	__skb_queue_tail(&sk->sk_receive_queue, skb);
 	spin_unlock(&sk->sk_receive_queue.lock);
 	sk->sk_data_ready(sk);
@@ -1910,14 +1916,19 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 		}
 	}
 
-	if (skb->ip_summed == CHECKSUM_PARTIAL)
-		status |= TP_STATUS_CSUMNOTREADY;
-
 	snaplen = skb->len;
 
 	res = run_filter(skb, sk, snaplen);
 	if (!res)
 		goto drop_n_restore;
+
+	if (skb->ip_summed == CHECKSUM_PARTIAL)
+		status |= TP_STATUS_CSUMNOTREADY;
+	else if (skb->pkt_type != PACKET_OUTGOING &&
+		 (skb->ip_summed == CHECKSUM_COMPLETE ||
+		  skb_csum_unnecessary(skb)))
+		status |= TP_STATUS_CSUM_VALID;
+
 	if (snaplen > res)
 		snaplen = res;
 
@@ -2603,8 +2614,7 @@ out:
 	return err;
 }
 
-static int packet_sendmsg(struct kiocb *iocb, struct socket *sock,
-		struct msghdr *msg, size_t len)
+static int packet_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 {
 	struct sock *sk = sock->sk;
 	struct packet_sock *po = pkt_sk(sk);
@@ -2884,13 +2894,14 @@ out:
  *	If necessary we block.
  */
 
-static int packet_recvmsg(struct kiocb *iocb, struct socket *sock,
-			  struct msghdr *msg, size_t len, int flags)
+static int packet_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
+			  int flags)
 {
 	struct sock *sk = sock->sk;
 	struct sk_buff *skb;
 	int copied, err;
 	int vnet_hdr_len = 0;
+	unsigned int origlen = 0;
 
 	err = -EINVAL;
 	if (flags & ~(MSG_PEEK|MSG_DONTWAIT|MSG_TRUNC|MSG_CMSG_COMPAT|MSG_ERRQUEUE))
@@ -2990,6 +3001,15 @@ static int packet_recvmsg(struct kiocb *iocb, struct socket *sock,
 	if (err)
 		goto out_free;
 
+	if (sock->type != SOCK_PACKET) {
+		struct sockaddr_ll *sll = &PACKET_SKB_CB(skb)->sa.ll;
+
+		/* Original length was stored in sockaddr_ll fields */
+		origlen = PACKET_SKB_CB(skb)->sa.origlen;
+		sll->sll_family = AF_PACKET;
+		sll->sll_protocol = skb->protocol;
+	}
+
 	sock_recv_ts_and_drops(msg, sk, skb);
 
 	if (msg->msg_name) {
@@ -3001,6 +3021,7 @@ static int packet_recvmsg(struct kiocb *iocb, struct socket *sock,
 			msg->msg_namelen = sizeof(struct sockaddr_pkt);
 		} else {
 			struct sockaddr_ll *sll = &PACKET_SKB_CB(skb)->sa.ll;
+
 			msg->msg_namelen = sll->sll_halen +
 				offsetof(struct sockaddr_ll, sll_addr);
 		}
@@ -3014,7 +3035,12 @@ static int packet_recvmsg(struct kiocb *iocb, struct socket *sock,
 		aux.tp_status = TP_STATUS_USER;
 		if (skb->ip_summed == CHECKSUM_PARTIAL)
 			aux.tp_status |= TP_STATUS_CSUMNOTREADY;
-		aux.tp_len = PACKET_SKB_CB(skb)->origlen;
+		else if (skb->pkt_type != PACKET_OUTGOING &&
+			 (skb->ip_summed == CHECKSUM_COMPLETE ||
+			  skb_csum_unnecessary(skb)))
+			aux.tp_status |= TP_STATUS_CSUM_VALID;
+
+		aux.tp_len = origlen;
 		aux.tp_snaplen = skb->len;
 		aux.tp_mac = 0;
 		aux.tp_net = skb_network_offset(skb);

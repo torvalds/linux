@@ -26,8 +26,6 @@
 #include <sound/soc-dai.h>
 #include <sound/soc-dapm.h>
 
-#define DRV_NAME "max98357a"
-
 static int max98357a_daiops_trigger(struct snd_pcm_substream *substream,
 		int cmd, struct snd_soc_dai *dai)
 {
@@ -87,9 +85,9 @@ static struct snd_soc_dai_ops max98357a_dai_ops = {
 };
 
 static struct snd_soc_dai_driver max98357a_dai_driver = {
-	.name = DRV_NAME,
+	.name = "HiFi",
 	.playback = {
-		.stream_name	= DRV_NAME "-playback",
+		.stream_name	= "HiFi Playback",
 		.formats	= SNDRV_PCM_FMTBIT_S16 |
 					SNDRV_PCM_FMTBIT_S24 |
 					SNDRV_PCM_FMTBIT_S32,
@@ -127,7 +125,7 @@ static int max98357a_platform_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 static const struct of_device_id max98357a_device_id[] = {
-	{ .compatible = "maxim," DRV_NAME, },
+	{ .compatible = "maxim,max98357a" },
 	{}
 };
 MODULE_DEVICE_TABLE(of, max98357a_device_id);
@@ -135,7 +133,7 @@ MODULE_DEVICE_TABLE(of, max98357a_device_id);
 
 static struct platform_driver max98357a_platform_driver = {
 	.driver = {
-		.name = DRV_NAME,
+		.name = "max98357a",
 		.of_match_table = of_match_ptr(max98357a_device_id),
 	},
 	.probe	= max98357a_platform_probe,
@@ -145,4 +143,3 @@ module_platform_driver(max98357a_platform_driver);
 
 MODULE_DESCRIPTION("Maxim MAX98357A Codec Driver");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:" DRV_NAME);

@@ -28,6 +28,7 @@ i915-y += i915_cmd_parser.o \
 	  i915_gem_execbuffer.o \
 	  i915_gem_gtt.o \
 	  i915_gem.o \
+	  i915_gem_shrinker.o \
 	  i915_gem_stolen.o \
 	  i915_gem_tiling.o \
 	  i915_gem_userptr.o \
@@ -83,9 +84,11 @@ i915-y += dvo_ch7017.o \
 	  intel_sdvo.o \
 	  intel_tv.o
 
+# virtual gpu code
+i915-y += i915_vgpu.o
+
 # legacy horrors
-i915-y += i915_dma.o \
-	  i915_ums.o
+i915-y += i915_dma.o
 
 obj-$(CONFIG_DRM_I915)  += i915.o
 

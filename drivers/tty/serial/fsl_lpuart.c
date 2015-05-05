@@ -257,7 +257,7 @@ struct lpuart_port {
 	struct timer_list	lpuart_timer;
 };
 
-static struct of_device_id lpuart_dt_ids[] = {
+static const struct of_device_id lpuart_dt_ids[] = {
 	{
 		.compatible = "fsl,vf610-lpuart",
 	},

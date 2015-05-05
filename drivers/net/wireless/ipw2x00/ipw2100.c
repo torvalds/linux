@@ -2147,8 +2147,8 @@ static void isr_indicate_association_lost(struct ipw2100_priv *priv, u32 status)
 		return;
 	}
 
-	memset(priv->bssid, 0, ETH_ALEN);
-	memset(priv->ieee->bssid, 0, ETH_ALEN);
+	eth_zero_addr(priv->bssid);
+	eth_zero_addr(priv->ieee->bssid);
 
 	netif_carrier_off(priv->net_dev);
 	netif_stop_queue(priv->net_dev);
@@ -6956,7 +6956,7 @@ static int ipw2100_wx_get_wap(struct net_device *dev,
 		wrqu->ap_addr.sa_family = ARPHRD_ETHER;
 		memcpy(wrqu->ap_addr.sa_data, priv->bssid, ETH_ALEN);
 	} else
-		memset(wrqu->ap_addr.sa_data, 0, ETH_ALEN);
+		eth_zero_addr(wrqu->ap_addr.sa_data);
 
 	IPW_DEBUG_WX("Getting WAP BSSID: %pM\n", wrqu->ap_addr.sa_data);
 	return 0;
@@ -8300,7 +8300,7 @@ static void ipw2100_wx_event_work(struct work_struct *work)
 	    priv->status & STATUS_RF_KILL_MASK ||
 	    ipw2100_get_ordinal(priv, IPW_ORD_STAT_ASSN_AP_BSSID,
 				&priv->bssid, &len)) {
-		memset(wrqu.ap_addr.sa_data, 0, ETH_ALEN);
+		eth_zero_addr(wrqu.ap_addr.sa_data);
 	} else {
 		/* We now have the BSSID, so can finish setting to the full
 		 * associated state */

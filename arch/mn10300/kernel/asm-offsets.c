@@ -22,7 +22,6 @@ void foo(void)
 	BLANK();
 
 	OFFSET(TI_task,			thread_info, task);
-	OFFSET(TI_exec_domain,		thread_info, exec_domain);
 	OFFSET(TI_frame,		thread_info, frame);
 	OFFSET(TI_flags,		thread_info, flags);
 	OFFSET(TI_cpu,			thread_info, cpu);
@@ -85,7 +84,6 @@ void foo(void)
 	DEFINE(SIGCHLD_asm,		SIGCHLD);
 	BLANK();
 
-	OFFSET(EXEC_DOMAIN_handler,	exec_domain, handler);
 	OFFSET(RT_SIGFRAME_sigcontext,	rt_sigframe, uc.uc_mcontext);
 
 	DEFINE(PAGE_SIZE_asm,		PAGE_SIZE);

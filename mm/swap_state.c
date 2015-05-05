@@ -390,7 +390,7 @@ static unsigned long swapin_nr_pages(unsigned long offset)
 	unsigned int pages, max_pages, last_ra;
 	static atomic_t last_readahead_pages;
 
-	max_pages = 1 << ACCESS_ONCE(page_cluster);
+	max_pages = 1 << READ_ONCE(page_cluster);
 	if (max_pages <= 1)
 		return 1;
 

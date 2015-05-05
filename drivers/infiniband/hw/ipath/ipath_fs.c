@@ -82,14 +82,14 @@ static int create_file(const char *name, umode_t mode,
 {
 	int error;
 
-	mutex_lock(&parent->d_inode->i_mutex);
+	mutex_lock(&d_inode(parent)->i_mutex);
 	*dentry = lookup_one_len(name, parent, strlen(name));
 	if (!IS_ERR(*dentry))
-		error = ipathfs_mknod(parent->d_inode, *dentry,
+		error = ipathfs_mknod(d_inode(parent), *dentry,
 				      mode, fops, data);
 	else
 		error = PTR_ERR(*dentry);
-	mutex_unlock(&parent->d_inode->i_mutex);
+	mutex_unlock(&d_inode(parent)->i_mutex);
 
 	return error;
 }
@@ -277,11 +277,11 @@ static int remove_file(struct dentry *parent, char *name)
 	}
 
 	spin_lock(&tmp->d_lock);
-	if (!d_unhashed(tmp) && tmp->d_inode) {
+	if (!d_unhashed(tmp) && d_really_is_positive(tmp)) {
 		dget_dlock(tmp);
 		__d_drop(tmp);
 		spin_unlock(&tmp->d_lock);
-		simple_unlink(parent->d_inode, tmp);
+		simple_unlink(d_inode(parent), tmp);
 	} else
 		spin_unlock(&tmp->d_lock);
 
@@ -302,7 +302,7 @@ static int remove_device_files(struct super_block *sb,
 	int ret;
 
 	root = dget(sb->s_root);
-	mutex_lock(&root->d_inode->i_mutex);
+	mutex_lock(&d_inode(root)->i_mutex);
 	snprintf(unit, sizeof unit, "%02d", dd->ipath_unit);
 	dir = lookup_one_len(unit, root, strlen(unit));
 
@@ -315,10 +315,10 @@ static int remove_device_files(struct super_block *sb,
 	remove_file(dir, "flash");
 	remove_file(dir, "atomic_counters");
 	d_delete(dir);
-	ret = simple_rmdir(root->d_inode, dir);
+	ret = simple_rmdir(d_inode(root), dir);
 
 bail:
-	mutex_unlock(&root->d_inode->i_mutex);
+	mutex_unlock(&d_inode(root)->i_mutex);
 	dput(root);
 	return ret;
 }

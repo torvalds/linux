@@ -471,10 +471,13 @@ static int ehci_bus_resume (struct usb_hcd *hcd)
 		ehci_writel(ehci, temp, &ehci->regs->port_status [i]);
 	}
 
-	/* msleep for 20ms only if code is trying to resume port */
+	/*
+	 * msleep for USB_RESUME_TIMEOUT ms only if code is trying to resume
+	 * port
+	 */
 	if (resume_needed) {
 		spin_unlock_irq(&ehci->lock);
-		msleep(20);
+		msleep(USB_RESUME_TIMEOUT);
 		spin_lock_irq(&ehci->lock);
 		if (ehci->shutdown)
 			goto shutdown;
@@ -688,7 +691,7 @@ ehci_hub_descriptor (
 	int		ports = HCS_N_PORTS (ehci->hcs_params);
 	u16		temp;
 
-	desc->bDescriptorType = 0x29;
+	desc->bDescriptorType = USB_DT_HUB;
 	desc->bPwrOn2PwrGood = 10;	/* ehci 1.0, 2.3.9 says 20ms max */
 	desc->bHubContrCurrent = 0;
 
@@ -942,7 +945,7 @@ int ehci_hub_control(
 			temp &= ~PORT_WAKE_BITS;
 			ehci_writel(ehci, temp | PORT_RESUME, status_reg);
 			ehci->reset_done[wIndex] = jiffies
-					+ msecs_to_jiffies(20);
+					+ msecs_to_jiffies(USB_RESUME_TIMEOUT);
 			set_bit(wIndex, &ehci->resuming_ports);
 			usb_hcd_start_port_resume(&hcd->self, wIndex);
 			break;

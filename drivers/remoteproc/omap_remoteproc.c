@@ -202,6 +202,8 @@ static int omap_rproc_probe(struct platform_device *pdev)
 
 	oproc = rproc->priv;
 	oproc->rproc = rproc;
+	/* All existing OMAP IPU and DSP processors have an MMU */
+	rproc->has_iommu = true;
 
 	platform_set_drvdata(pdev, rproc);
 

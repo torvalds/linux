@@ -941,13 +941,13 @@ static inline void drv_set_rekey_data(struct ieee80211_local *local,
 	trace_drv_return_void(local);
 }
 
-static inline void drv_rssi_callback(struct ieee80211_local *local,
-				     struct ieee80211_sub_if_data *sdata,
-				     const enum ieee80211_rssi_event event)
+static inline void drv_event_callback(struct ieee80211_local *local,
+				      struct ieee80211_sub_if_data *sdata,
+				      const struct ieee80211_event *event)
 {
-	trace_drv_rssi_callback(local, sdata, event);
-	if (local->ops->rssi_callback)
-		local->ops->rssi_callback(&local->hw, &sdata->vif, event);
+	trace_drv_event_callback(local, sdata, event);
+	if (local->ops->event_callback)
+		local->ops->event_callback(&local->hw, &sdata->vif, event);
 	trace_drv_return_void(local);
 }
 
@@ -1365,6 +1365,18 @@ drv_tdls_recv_channel_switch(struct ieee80211_local *local,
 		local->ops->tdls_recv_channel_switch(&local->hw, &sdata->vif,
 						     params);
 	trace_drv_return_void(local);
+}
+
+static inline void drv_wake_tx_queue(struct ieee80211_local *local,
+				     struct txq_info *txq)
+{
+	struct ieee80211_sub_if_data *sdata = vif_to_sdata(txq->txq.vif);
+
+	if (!check_sdata_in_driver(sdata))
+		return;
+
+	trace_drv_wake_tx_queue(local, sdata, txq);
+	local->ops->wake_tx_queue(&local->hw, &txq->txq);
 }
 
 #endif /* __MAC80211_DRIVER_OPS */

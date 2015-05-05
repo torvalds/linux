@@ -97,6 +97,17 @@ config CHELSIO_T4_DCB
 
 	  If unsure, say N.
 
+config CHELSIO_T4_FCOE
+	bool "Fibre Channel over Ethernet (FCoE) Support for Chelsio T5 cards"
+	default n
+	depends on CHELSIO_T4 && CHELSIO_T4_DCB && FCOE
+	---help---
+	  Enable FCoE offload features.
+	  Say Y here if you want to enable Fibre Channel over Ethernet (FCoE) support
+	  in the driver.
+
+	  If unsure, say N.
+
 config CHELSIO_T4VF
 	tristate "Chelsio Communications T4/T5 Virtual Function Ethernet support"
 	depends on PCI

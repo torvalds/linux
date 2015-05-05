@@ -442,11 +442,11 @@ static struct platform_device vcc_sdhi2 = {
 };
 
 /* SDHI */
-static struct sh_mobile_sdhi_info sdhi0_info = {
-	.dma_slave_tx	= SHDMA_SLAVE_SDHI0_TX,
-	.dma_slave_rx	= SHDMA_SLAVE_SDHI0_RX,
-	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT,
-	.tmio_caps	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ |
+static struct tmio_mmc_data sdhi0_info = {
+	.chan_priv_tx	= (void *)SHDMA_SLAVE_SDHI0_TX,
+	.chan_priv_rx	= (void *)SHDMA_SLAVE_SDHI0_RX,
+	.flags		= TMIO_MMC_HAS_IDLE_WAIT,
+	.capabilities	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ |
 			  MMC_CAP_POWER_OFF_CARD,
 };
 
@@ -484,13 +484,13 @@ static struct platform_device sdhi0_device = {
 };
 
 /* Micro SD */
-static struct sh_mobile_sdhi_info sdhi2_info = {
-	.dma_slave_tx	= SHDMA_SLAVE_SDHI2_TX,
-	.dma_slave_rx	= SHDMA_SLAVE_SDHI2_RX,
-	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT |
+static struct tmio_mmc_data sdhi2_info = {
+	.chan_priv_tx	= (void *)SHDMA_SLAVE_SDHI2_TX,
+	.chan_priv_rx	= (void *)SHDMA_SLAVE_SDHI2_RX,
+	.flags		= TMIO_MMC_HAS_IDLE_WAIT |
 			  TMIO_MMC_USE_GPIO_CD |
 			  TMIO_MMC_WRPROTECT_DISABLE,
-	.tmio_caps	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_POWER_OFF_CARD,
+	.capabilities	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_POWER_OFF_CARD,
 	.cd_gpio	= 13,
 };
 

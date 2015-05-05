@@ -79,7 +79,7 @@ static inline bool is_shared_bank(int bank)
 	return (bank == 4);
 }
 
-static const char * const bank4_names(struct threshold_block *b)
+static const char *bank4_names(const struct threshold_block *b)
 {
 	switch (b->address) {
 	/* MSR4_MISC0 */
@@ -250,6 +250,7 @@ void mce_amd_feature_init(struct cpuinfo_x86 *c)
 			if (!b.interrupt_capable)
 				goto init;
 
+			b.interrupt_enable = 1;
 			new	= (high & MASK_LVTOFF_HI) >> 20;
 			offset  = setup_APIC_mce(offset, new);
 
@@ -322,6 +323,8 @@ static void amd_threshold_interrupt(void)
 log:
 	mce_setup(&m);
 	rdmsrl(MSR_IA32_MCx_STATUS(bank), m.status);
+	if (!(m.status & MCI_STATUS_VAL))
+		return;
 	m.misc = ((u64)high << 32) | low;
 	m.bank = bank;
 	mce_log(&m);
@@ -497,10 +500,12 @@ static int allocate_threshold_blocks(unsigned int cpu, unsigned int bank,
 	b->interrupt_capable	= lvt_interrupt_supported(bank, high);
 	b->threshold_limit	= THRESHOLD_MAX;
 
-	if (b->interrupt_capable)
+	if (b->interrupt_capable) {
 		threshold_ktype.default_attrs[2] = &interrupt_enable.attr;
-	else
+		b->interrupt_enable = 1;
+	} else {
 		threshold_ktype.default_attrs[2] = NULL;
+	}
 
 	INIT_LIST_HEAD(&b->miscj);
 

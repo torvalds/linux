@@ -6,33 +6,58 @@
 
 #include <linux/tracepoint.h>
 
-#define show_type(type)							       \
-	__print_symbolic(type,						       \
-		{ V4L2_BUF_TYPE_VIDEO_CAPTURE,	      "VIDEO_CAPTURE" },       \
-		{ V4L2_BUF_TYPE_VIDEO_OUTPUT,	      "VIDEO_OUTPUT" },	       \
-		{ V4L2_BUF_TYPE_VIDEO_OVERLAY,	      "VIDEO_OVERLAY" },       \
-		{ V4L2_BUF_TYPE_VBI_CAPTURE,	      "VBI_CAPTURE" },	       \
-		{ V4L2_BUF_TYPE_VBI_OUTPUT,	      "VBI_OUTPUT" },	       \
-		{ V4L2_BUF_TYPE_SLICED_VBI_CAPTURE,   "SLICED_VBI_CAPTURE" },  \
-		{ V4L2_BUF_TYPE_SLICED_VBI_OUTPUT,    "SLICED_VBI_OUTPUT" },   \
-		{ V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY, "VIDEO_OUTPUT_OVERLAY" },\
-		{ V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE, "VIDEO_CAPTURE_MPLANE" },\
-		{ V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE,  "VIDEO_OUTPUT_MPLANE" }, \
-		{ V4L2_BUF_TYPE_SDR_CAPTURE,          "SDR_CAPTURE" },         \
-		{ V4L2_BUF_TYPE_PRIVATE,	      "PRIVATE" })
+/* Enums require being exported to userspace, for user tool parsing */
+#undef EM
+#undef EMe
+#define EM(a, b)	TRACE_DEFINE_ENUM(a);
+#define EMe(a, b)	TRACE_DEFINE_ENUM(a);
+
+#define show_type(type)							\
+	__print_symbolic(type, SHOW_TYPE)
+
+#define SHOW_TYPE							\
+	EM( V4L2_BUF_TYPE_VIDEO_CAPTURE,	"VIDEO_CAPTURE" )	\
+	EM( V4L2_BUF_TYPE_VIDEO_OUTPUT,		"VIDEO_OUTPUT" )	\
+	EM( V4L2_BUF_TYPE_VIDEO_OVERLAY,	"VIDEO_OVERLAY" )	\
+	EM( V4L2_BUF_TYPE_VBI_CAPTURE,		"VBI_CAPTURE" )		\
+	EM( V4L2_BUF_TYPE_VBI_OUTPUT,		"VBI_OUTPUT" )		\
+	EM( V4L2_BUF_TYPE_SLICED_VBI_CAPTURE,   "SLICED_VBI_CAPTURE" )	\
+	EM( V4L2_BUF_TYPE_SLICED_VBI_OUTPUT,    "SLICED_VBI_OUTPUT" )	\
+	EM( V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY, "VIDEO_OUTPUT_OVERLAY" ) \
+	EM( V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE, "VIDEO_CAPTURE_MPLANE" ) \
+	EM( V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE,  "VIDEO_OUTPUT_MPLANE" )	\
+	EM( V4L2_BUF_TYPE_SDR_CAPTURE,          "SDR_CAPTURE" )		\
+	EMe(V4L2_BUF_TYPE_PRIVATE,		"PRIVATE" )
+
+SHOW_TYPE
 
 #define show_field(field)						\
-	__print_symbolic(field,						\
-		{ V4L2_FIELD_ANY,		"ANY" },		\
-		{ V4L2_FIELD_NONE,		"NONE" },		\
-		{ V4L2_FIELD_TOP,		"TOP" },		\
-		{ V4L2_FIELD_BOTTOM,		"BOTTOM" },		\
-		{ V4L2_FIELD_INTERLACED,	"INTERLACED" },		\
-		{ V4L2_FIELD_SEQ_TB,		"SEQ_TB" },		\
-		{ V4L2_FIELD_SEQ_BT,		"SEQ_BT" },		\
-		{ V4L2_FIELD_ALTERNATE,		"ALTERNATE" },		\
-		{ V4L2_FIELD_INTERLACED_TB,	"INTERLACED_TB" },      \
-		{ V4L2_FIELD_INTERLACED_BT,	"INTERLACED_BT" })
+	__print_symbolic(field, SHOW_FIELD)
+
+#define SHOW_FIELD							\
+	EM( V4L2_FIELD_ANY,		"ANY" )				\
+	EM( V4L2_FIELD_NONE,		"NONE" )			\
+	EM( V4L2_FIELD_TOP,		"TOP" )				\
+	EM( V4L2_FIELD_BOTTOM,		"BOTTOM" )			\
+	EM( V4L2_FIELD_INTERLACED,	"INTERLACED" )			\
+	EM( V4L2_FIELD_SEQ_TB,		"SEQ_TB" )			\
+	EM( V4L2_FIELD_SEQ_BT,		"SEQ_BT" )			\
+	EM( V4L2_FIELD_ALTERNATE,	"ALTERNATE" )			\
+	EM( V4L2_FIELD_INTERLACED_TB,	"INTERLACED_TB" )		\
+	EMe( V4L2_FIELD_INTERLACED_BT,	"INTERLACED_BT" )
+
+SHOW_FIELD
+
+/*
+ * Now redefine the EM() and EMe() macros to map the enums to the strings
+ * that will be printed in the output.
+ */
+#undef EM
+#undef EMe
+#define EM(a, b)	{a, b},
+#define EMe(a, b)	{a, b}
+
+/* V4L2_TC_TYPE_* are macros, not defines, they do not need processing */
 
 #define show_timecode_type(type)					\
 	__print_symbolic(type,						\

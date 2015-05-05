@@ -18,7 +18,6 @@
 #ifndef __CHARQUEUE_H__
 #define __CHARQUEUE_H__
 
-#include "uniklog.h"
 #include "timskmod.h"
 
 /* struct charqueue is an opaque structure to users.

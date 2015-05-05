@@ -285,6 +285,6 @@ static struct platform_driver i2c_pca_pf_driver = {
 
 module_platform_driver(i2c_pca_pf_driver);
 
-MODULE_AUTHOR("Wolfram Sang <w.sang@pengutronix.de>");
+MODULE_AUTHOR("Wolfram Sang <kernel@pengutronix.de>");
 MODULE_DESCRIPTION("I2C-PCA9564/PCA9665 platform driver");
 MODULE_LICENSE("GPL");

@@ -89,18 +89,16 @@ struct buffer_head *nilfs_grab_buffer(struct inode *inode,
 void nilfs_forget_buffer(struct buffer_head *bh)
 {
 	struct page *page = bh->b_page;
+	const unsigned long clear_bits =
+		(1 << BH_Uptodate | 1 << BH_Dirty | 1 << BH_Mapped |
+		 1 << BH_Async_Write | 1 << BH_NILFS_Volatile |
+		 1 << BH_NILFS_Checked | 1 << BH_NILFS_Redirected);
 
 	lock_buffer(bh);
-	clear_buffer_nilfs_volatile(bh);
-	clear_buffer_nilfs_checked(bh);
-	clear_buffer_nilfs_redirected(bh);
-	clear_buffer_async_write(bh);
-	clear_buffer_dirty(bh);
+	set_mask_bits(&bh->b_state, clear_bits, 0);
 	if (nilfs_page_buffers_clean(page))
 		__nilfs_clear_page_dirty(page);
 
-	clear_buffer_uptodate(bh);
-	clear_buffer_mapped(bh);
 	bh->b_blocknr = -1;
 	ClearPageUptodate(page);
 	ClearPageMappedToDisk(page);
@@ -421,6 +419,10 @@ void nilfs_clear_dirty_page(struct page *page, bool silent)
 
 	if (page_has_buffers(page)) {
 		struct buffer_head *bh, *head;
+		const unsigned long clear_bits =
+			(1 << BH_Uptodate | 1 << BH_Dirty | 1 << BH_Mapped |
+			 1 << BH_Async_Write | 1 << BH_NILFS_Volatile |
+			 1 << BH_NILFS_Checked | 1 << BH_NILFS_Redirected);
 
 		bh = head = page_buffers(page);
 		do {
@@ -430,13 +432,7 @@ void nilfs_clear_dirty_page(struct page *page, bool silent)
 					"discard block %llu, size %zu",
 					(u64)bh->b_blocknr, bh->b_size);
 			}
-			clear_buffer_async_write(bh);
-			clear_buffer_dirty(bh);
-			clear_buffer_nilfs_volatile(bh);
-			clear_buffer_nilfs_checked(bh);
-			clear_buffer_nilfs_redirected(bh);
-			clear_buffer_uptodate(bh);
-			clear_buffer_mapped(bh);
+			set_mask_bits(&bh->b_state, clear_bits, 0);
 			unlock_buffer(bh);
 		} while (bh = bh->b_this_page, bh != head);
 	}

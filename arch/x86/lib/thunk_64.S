@@ -17,9 +17,18 @@
 	CFI_STARTPROC
 
 	/* this one pushes 9 elems, the next one would be %rIP */
-	SAVE_ARGS
+	pushq_cfi_reg rdi
+	pushq_cfi_reg rsi
+	pushq_cfi_reg rdx
+	pushq_cfi_reg rcx
+	pushq_cfi_reg rax
+	pushq_cfi_reg r8
+	pushq_cfi_reg r9
+	pushq_cfi_reg r10
+	pushq_cfi_reg r11
 
 	.if \put_ret_addr_in_rdi
+	/* 9*8(%rsp) is return addr on stack */
 	movq_cfi_restore 9*8, rdi
 	.endif
 
@@ -45,11 +54,22 @@
 #endif
 #endif
 
-	/* SAVE_ARGS below is used only for the .cfi directives it contains. */
+#if defined(CONFIG_TRACE_IRQFLAGS) \
+ || defined(CONFIG_DEBUG_LOCK_ALLOC) \
+ || defined(CONFIG_PREEMPT)
 	CFI_STARTPROC
-	SAVE_ARGS
+	CFI_ADJUST_CFA_OFFSET 9*8
 restore:
-	RESTORE_ARGS
+	popq_cfi_reg r11
+	popq_cfi_reg r10
+	popq_cfi_reg r9
+	popq_cfi_reg r8
+	popq_cfi_reg rax
+	popq_cfi_reg rcx
+	popq_cfi_reg rdx
+	popq_cfi_reg rsi
+	popq_cfi_reg rdi
 	ret
 	CFI_ENDPROC
 	_ASM_NOKPROBE(restore)
+#endif

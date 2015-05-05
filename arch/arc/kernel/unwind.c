@@ -841,7 +841,7 @@ static int processCFI(const u8 *start, const u8 *end, unsigned long targetLoc,
 				break;
 			case DW_CFA_GNU_window_save:
 			default:
-				unw_debug("UNKNOW OPCODE 0x%x\n", opcode);
+				unw_debug("UNKNOWN OPCODE 0x%x\n", opcode);
 				result = 0;
 				break;
 			}

@@ -442,6 +442,16 @@ int mlx4_update_qp(struct mlx4_dev *dev, u32 qpn,
 			cmd->qp_context.param3 |= cpu_to_be32(MLX4_STRIP_VLAN);
 	}
 
+	if (attr & MLX4_UPDATE_QP_RATE_LIMIT) {
+		qp_mask |= 1ULL << MLX4_UPD_QP_MASK_RATE_LIMIT;
+		cmd->qp_context.rate_limit_params = cpu_to_be16((params->rate_unit << 14) | params->rate_val);
+	}
+
+	if (attr & MLX4_UPDATE_QP_QOS_VPORT) {
+		qp_mask |= 1ULL << MLX4_UPD_QP_MASK_QOS_VPP;
+		cmd->qp_context.qos_vport = params->qos_vport;
+	}
+
 	cmd->primary_addr_path_mask = cpu_to_be64(pri_addr_path_mask);
 	cmd->qp_mask = cpu_to_be64(qp_mask);
 

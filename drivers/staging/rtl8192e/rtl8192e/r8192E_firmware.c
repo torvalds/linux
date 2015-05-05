@@ -36,7 +36,6 @@ static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
 			     u32 buffer_len)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	bool		    rt_status = true;
 	u16		    frag_threshold;
 	u16		    frag_length, frag_offset = 0;
 	int		    i;
@@ -51,7 +50,7 @@ static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
 	frag_threshold = pfirmware->cmdpacket_frag_thresold;
 	do {
 		if ((buffer_len - frag_offset) > frag_threshold) {
-			frag_length = frag_threshold ;
+			frag_length = frag_threshold;
 			bLastIniPkt = 0;
 
 		} else {
@@ -84,8 +83,8 @@ static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
 		if (!priv->rtllib->check_nic_enough_desc(dev, tcb_desc->queue_index) ||
 		    (!skb_queue_empty(&priv->rtllib->skb_waitQ[tcb_desc->queue_index])) ||
 		    (priv->rtllib->queue_stop)) {
-			RT_TRACE(COMP_FIRMWARE, "===================> tx "
-				 "full!\n");
+			RT_TRACE(COMP_FIRMWARE,
+				 "===================> tx full!\n");
 			skb_queue_tail(&priv->rtllib->skb_waitQ
 					[tcb_desc->queue_index], skb);
 		} else {
@@ -99,7 +98,7 @@ static bool fw_download_code(struct net_device *dev, u8 *code_virtual_address,
 
 	write_nic_byte(dev, TPPoll, TPPoll_CQ);
 
-	return rt_status;
+	return true;
 }
 
 static bool CPUcheck_maincodeok_turnonCPU(struct net_device *dev)
@@ -108,7 +107,7 @@ static bool CPUcheck_maincodeok_turnonCPU(struct net_device *dev)
 	u32		CPU_status = 0;
 	unsigned long   timeout;
 
-	timeout = jiffies + MSECS(200);
+	timeout = jiffies + msecs_to_jiffies(200);
 	while (time_before(jiffies, timeout)) {
 		CPU_status = read_nic_dword(dev, CPU_GEN);
 		if (CPU_status & CPU_GEN_PUT_CODE_OK)
@@ -128,7 +127,7 @@ static bool CPUcheck_maincodeok_turnonCPU(struct net_device *dev)
 		       (u8)((CPU_status|CPU_GEN_PWR_STB_CPU)&0xff));
 	mdelay(1);
 
-	timeout = jiffies + MSECS(200);
+	timeout = jiffies + msecs_to_jiffies(200);
 	while (time_before(jiffies, timeout)) {
 		CPU_status = read_nic_dword(dev, CPU_GEN);
 		if (CPU_status&CPU_GEN_BOOT_RDY)
@@ -156,7 +155,7 @@ static bool CPUcheck_firmware_ready(struct net_device *dev)
 	u32	CPU_status = 0;
 	unsigned long timeout;
 
-	timeout = jiffies + MSECS(20);
+	timeout = jiffies + msecs_to_jiffies(20);
 	while (time_before(jiffies, timeout)) {
 		CPU_status = read_nic_dword(dev, CPU_GEN);
 		if (CPU_status&CPU_GEN_FIRM_RDY)
@@ -197,8 +196,8 @@ static bool firmware_check_ready(struct net_device *dev,
 		if (rt_status)
 			pfirmware->firmware_status = FW_STATUS_3_TURNON_CPU;
 		else
-			RT_TRACE(COMP_FIRMWARE, "CPUcheck_maincodeok_turnon"
-				 "CPU fail!\n");
+			RT_TRACE(COMP_FIRMWARE,
+				 "CPUcheck_maincodeok_turnonCPU fail!\n");
 
 		break;
 
@@ -210,8 +209,9 @@ static bool firmware_check_ready(struct net_device *dev,
 		if (rt_status)
 			pfirmware->firmware_status = FW_STATUS_5_READY;
 		else
-			RT_TRACE(COMP_FIRMWARE, "CPUcheck_firmware_ready fail"
-				 "(%d)!\n", rt_status);
+			RT_TRACE(COMP_FIRMWARE,
+				 "CPUcheck_firmware_ready fail(%d)!\n",
+				 rt_status);
 
 		break;
 	default:
@@ -246,8 +246,8 @@ bool init_firmware(struct net_device *dev)
 		rst_opt = OPT_FIRMWARE_RESET;
 		starting_state = FW_INIT_STEP2_DATA;
 	} else {
-		RT_TRACE(COMP_FIRMWARE, "PlatformInitFirmware: undefined"
-			 " firmware state\n");
+		RT_TRACE(COMP_FIRMWARE,
+			 "PlatformInitFirmware: undefined firmware state\n");
 	}
 
 	for (init_step = starting_state; init_step <= FW_INIT_STEP2_DATA;
@@ -266,14 +266,14 @@ bool init_firmware(struct net_device *dev)
 						      fw_name[init_step],
 						      &priv->pdev->dev);
 				if (rc < 0) {
-					RT_TRACE(COMP_FIRMWARE, "request firmware fail!\n");
+					RT_TRACE(COMP_FIRMWARE,
+						 "request firmware fail!\n");
 					goto download_firmware_fail;
 				}
 				if (fw_entry->size >
 				    sizeof(pfirmware->firmware_buf[init_step])) {
-					RT_TRACE(COMP_FIRMWARE, "img file size "
-						 "exceed the container struct "
-						 "buffer fail!\n");
+					RT_TRACE(COMP_FIRMWARE,
+						 "img file size exceed the container struct buffer fail!\n");
 					goto download_firmware_fail;
 				}
 
@@ -301,13 +301,11 @@ bool init_firmware(struct net_device *dev)
 		file_length = pfirmware->firmware_buf_size[init_step];
 
 		rt_status = fw_download_code(dev, mapped_file, file_length);
-		if (!rt_status) {
+		if (!rt_status)
 			goto download_firmware_fail;
-		}
 
-		if (!firmware_check_ready(dev, init_step)) {
+		if (!firmware_check_ready(dev, init_step))
 			goto download_firmware_fail;
-		}
 	}
 
 	RT_TRACE(COMP_FIRMWARE, "Firmware Download Success\n");

@@ -196,13 +196,14 @@ extern struct mlog_bits mlog_and_bits, mlog_not_bits;
 	}								\
 } while (0)
 
-#define mlog_errno(st) do {						\
+#define mlog_errno(st) ({						\
 	int _st = (st);							\
 	if (_st != -ERESTARTSYS && _st != -EINTR &&			\
 	    _st != AOP_TRUNCATED_PAGE && _st != -ENOSPC &&		\
 	    _st != -EDQUOT)						\
 		mlog(ML_ERROR, "status = %lld\n", (long long)_st);	\
-} while (0)
+	_st;								\
+})
 
 #define mlog_bug_on_msg(cond, fmt, args...) do {			\
 	if (cond) {							\

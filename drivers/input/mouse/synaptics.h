@@ -196,6 +196,7 @@ struct synaptics_data {
 	unsigned long				press_start;
 	bool					press;
 	bool					report_press;
+	bool					is_forcepad;
 };
 
 void synaptics_module_init(void);

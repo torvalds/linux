@@ -12,6 +12,7 @@
 
 #include <linux/device.h>
 #include <linux/err.h>
+#include <linux/fwnode.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -805,7 +806,15 @@ static void cleanup_device_parent(struct device *dev)
 
 static int device_add_class_symlinks(struct device *dev)
 {
+	struct device_node *of_node = dev_of_node(dev);
 	int error;
+
+	if (of_node) {
+		error = sysfs_create_link(&dev->kobj, &of_node->kobj,"of_node");
+		if (error)
+			dev_warn(dev, "Error %d creating of_node link\n",error);
+		/* An error here doesn't warrant bringing down the device */
+	}
 
 	if (!dev->class)
 		return 0;
@@ -814,7 +823,7 @@ static int device_add_class_symlinks(struct device *dev)
 				  &dev->class->p->subsys.kobj,
 				  "subsystem");
 	if (error)
-		goto out;
+		goto out_devnode;
 
 	if (dev->parent && device_is_not_partition(dev)) {
 		error = sysfs_create_link(&dev->kobj, &dev->parent->kobj,
@@ -842,12 +851,16 @@ out_device:
 
 out_subsys:
 	sysfs_remove_link(&dev->kobj, "subsystem");
-out:
+out_devnode:
+	sysfs_remove_link(&dev->kobj, "of_node");
 	return error;
 }
 
 static void device_remove_class_symlinks(struct device *dev)
 {
+	if (dev_of_node(dev))
+		sysfs_remove_link(&dev->kobj, "of_node");
+
 	if (!dev->class)
 		return;
 
@@ -1095,8 +1108,7 @@ done:
 	kobject_del(&dev->kobj);
  Error:
 	cleanup_device_parent(dev);
-	if (parent)
-		put_device(parent);
+	put_device(parent);
 name_error:
 	kfree(dev->p);
 	dev->p = NULL;
@@ -2133,3 +2145,53 @@ define_dev_printk_level(dev_notice, KERN_NOTICE);
 define_dev_printk_level(_dev_info, KERN_INFO);
 
 #endif
+
+static inline bool fwnode_is_primary(struct fwnode_handle *fwnode)
+{
+	return fwnode && !IS_ERR(fwnode->secondary);
+}
+
+/**
+ * set_primary_fwnode - Change the primary firmware node of a given device.
+ * @dev: Device to handle.
+ * @fwnode: New primary firmware node of the device.
+ *
+ * Set the device's firmware node pointer to @fwnode, but if a secondary
+ * firmware node of the device is present, preserve it.
+ */
+void set_primary_fwnode(struct device *dev, struct fwnode_handle *fwnode)
+{
+	if (fwnode) {
+		struct fwnode_handle *fn = dev->fwnode;
+
+		if (fwnode_is_primary(fn))
+			fn = fn->secondary;
+
+		fwnode->secondary = fn;
+		dev->fwnode = fwnode;
+	} else {
+		dev->fwnode = fwnode_is_primary(dev->fwnode) ?
+			dev->fwnode->secondary : NULL;
+	}
+}
+EXPORT_SYMBOL_GPL(set_primary_fwnode);
+
+/**
+ * set_secondary_fwnode - Change the secondary firmware node of a given device.
+ * @dev: Device to handle.
+ * @fwnode: New secondary firmware node of the device.
+ *
+ * If a primary firmware node of the device is present, set its secondary
+ * pointer to @fwnode.  Otherwise, set the device's firmware node pointer to
+ * @fwnode.
+ */
+void set_secondary_fwnode(struct device *dev, struct fwnode_handle *fwnode)
+{
+	if (fwnode)
+		fwnode->secondary = ERR_PTR(-ENODEV);
+
+	if (fwnode_is_primary(dev->fwnode))
+		dev->fwnode->secondary = fwnode;
+	else
+		dev->fwnode = fwnode;
+}

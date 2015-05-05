@@ -1058,6 +1058,7 @@ process_filter(struct event_format *event, struct filter_arg **parg,
 					*parg = current_op;
 				else
 					*parg = current_exp;
+				free(token);
 				return PEVENT_ERRNO__UNBALANCED_PAREN;
 			}
 			break;
@@ -1168,6 +1169,7 @@ process_filter(struct event_format *event, struct filter_arg **parg,
 
 	*parg = current_op;
 
+	free(token);
 	return 0;
 
  fail_alloc:

@@ -27,7 +27,7 @@
 #include <linux/kvm_host.h>
 #include <linux/spinlock.h>
 
-#include "iodev.h"
+#include <kvm/iodev.h>
 #include "ioapic.h"
 #include "lapic.h"
 

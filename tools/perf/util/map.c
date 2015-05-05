@@ -778,3 +778,23 @@ struct map *maps__next(struct map *map)
 		return rb_entry(next, struct map, rb_node);
 	return NULL;
 }
+
+struct kmap *map__kmap(struct map *map)
+{
+	if (!map->dso || !map->dso->kernel) {
+		pr_err("Internal error: map__kmap with a non-kernel map\n");
+		return NULL;
+	}
+	return (struct kmap *)(map + 1);
+}
+
+struct map_groups *map__kmaps(struct map *map)
+{
+	struct kmap *kmap = map__kmap(map);
+
+	if (!kmap || !kmap->kmaps) {
+		pr_err("Internal error: map__kmaps with a non-kernel map\n");
+		return NULL;
+	}
+	return kmap->kmaps;
+}

@@ -1946,10 +1946,18 @@ static inline int fast_to_acquire(struct gfs2_rgrpd *rgd)
  * @ip: the inode to reserve space for
  * @ap: the allocation parameters
  *
- * Returns: errno
+ * We try our best to find an rgrp that has at least ap->target blocks
+ * available. After a couple of passes (loops == 2), the prospects of finding
+ * such an rgrp diminish. At this stage, we return the first rgrp that has
+ * atleast ap->min_target blocks available. Either way, we set ap->allowed to
+ * the number of blocks available in the chosen rgrp.
+ *
+ * Returns: 0 on success,
+ *          -ENOMEM if a suitable rgrp can't be found
+ *          errno otherwise
  */
 
-int gfs2_inplace_reserve(struct gfs2_inode *ip, const struct gfs2_alloc_parms *ap)
+int gfs2_inplace_reserve(struct gfs2_inode *ip, struct gfs2_alloc_parms *ap)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_rgrpd *begin = NULL;
@@ -2012,7 +2020,7 @@ int gfs2_inplace_reserve(struct gfs2_inode *ip, const struct gfs2_alloc_parms *a
 		/* Skip unuseable resource groups */
 		if ((rs->rs_rbm.rgd->rd_flags & (GFS2_RGF_NOALLOC |
 						 GFS2_RDF_ERROR)) ||
-		    (ap->target > rs->rs_rbm.rgd->rd_extfail_pt))
+		    (loops == 0 && ap->target > rs->rs_rbm.rgd->rd_extfail_pt))
 			goto skip_rgrp;
 
 		if (sdp->sd_args.ar_rgrplvb)
@@ -2027,11 +2035,13 @@ int gfs2_inplace_reserve(struct gfs2_inode *ip, const struct gfs2_alloc_parms *a
 			goto check_rgrp;
 
 		/* If rgrp has enough free space, use it */
-		if (rs->rs_rbm.rgd->rd_free_clone >= ap->target) {
+		if (rs->rs_rbm.rgd->rd_free_clone >= ap->target ||
+		    (loops == 2 && ap->min_target &&
+		     rs->rs_rbm.rgd->rd_free_clone >= ap->min_target)) {
 			ip->i_rgd = rs->rs_rbm.rgd;
+			ap->allowed = ip->i_rgd->rd_free_clone;
 			return 0;
 		}
-
 check_rgrp:
 		/* Check for unlinked inodes which can be reclaimed */
 		if (rs->rs_rbm.rgd->rd_flags & GFS2_RDF_CHECK)

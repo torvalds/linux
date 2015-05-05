@@ -423,7 +423,7 @@ void rtl8821ae_get_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		*((u16 *)(val+4)) = rtl_read_word(rtlpriv, REG_BSSID+4);
 		break;
 	case HW_VAR_MEDIA_STATUS:
-		val[0] = rtl_read_byte(rtlpriv, REG_CR+2) & 0x3;
+		val[0] = rtl_read_byte(rtlpriv, MSR) & 0x3;
 		break;
 	case HW_VAR_SLOT_TIME:
 		*((u8 *)(val)) = mac->slot_time;
@@ -667,7 +667,7 @@ void rtl8821ae_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 				acm_ctrl &= (~ACMHW_VIQEN);
 				break;
 			case AC3_VO:
-				acm_ctrl &= (~ACMHW_BEQEN);
+				acm_ctrl &= (~ACMHW_VOQEN);
 				break;
 			default:
 				RT_TRACE(rtlpriv, COMP_ERR, DBG_LOUD,
@@ -1515,7 +1515,7 @@ static bool _rtl8821ae_dynamic_rqpn(struct ieee80211_hw *hw, u32 boundary,
 				      (u8 *)(&support_remote_wakeup));
 
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
-		 "boundary=0x%#X, NPQ_RQPNValue=0x%#X, RQPNValue=0x%#X\n",
+		 "boundary=%#X, NPQ_RQPNValue=%#X, RQPNValue=%#X\n",
 		  boundary, npq_rqpn_value, rqpn_val);
 
 	/* stop PCIe DMA
@@ -2178,7 +2178,7 @@ static int _rtl8821ae_set_media_status(struct ieee80211_hw *hw,
 		return 1;
 	}
 
-	rtl_write_byte(rtlpriv, (MSR), bt_msr);
+	rtl_write_byte(rtlpriv, MSR, bt_msr);
 	rtlpriv->cfg->ops->led_control(hw, ledaction);
 	if ((bt_msr & 0xfc) == MSR_AP)
 		rtl_write_byte(rtlpriv, REG_BCNTCFG + 1, 0x00);

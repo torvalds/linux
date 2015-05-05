@@ -279,7 +279,7 @@ struct region_info {
 
 struct bcm2048_device {
 	struct i2c_client *client;
-	struct video_device *videodev;
+	struct video_device videodev;
 	struct work_struct work;
 	struct completion compl;
 	struct mutex mutex;
@@ -1448,8 +1448,8 @@ static void bcm2048_parse_rds_pi(struct bcm2048_device *bdev)
 		/* Block A match, only data without crc errors taken */
 		if (bdev->rds_info.radio_text[i] == BCM2048_RDS_BLOCK_A) {
 
-			pi = ((bdev->rds_info.radio_text[i+1] << 8) +
-				bdev->rds_info.radio_text[i+2]);
+			pi = (bdev->rds_info.radio_text[i+1] << 8) +
+				bdev->rds_info.radio_text[i+2];
 
 			if (!bdev->rds_info.rds_pi) {
 				bdev->rds_info.rds_pi = pi;
@@ -1503,8 +1503,8 @@ static int bcm2048_parse_rt_match_b(struct bcm2048_device *bdev, int i)
 	if ((bdev->rds_info.radio_text[i] & BCM2048_RDS_BLOCK_MASK) ==
 		BCM2048_RDS_BLOCK_B) {
 
-		rt_id = (bdev->rds_info.radio_text[i+1] &
-			BCM2048_RDS_BLOCK_MASK);
+		rt_id = bdev->rds_info.radio_text[i+1] &
+			BCM2048_RDS_BLOCK_MASK;
 		rt_group_b = bdev->rds_info.radio_text[i+1] &
 			BCM2048_RDS_GROUP_AB_MASK;
 		rt_ab = bdev->rds_info.radio_text[i+2] &
@@ -1579,7 +1579,7 @@ static void bcm2048_parse_rt_match_d(struct bcm2048_device *bdev, int i,
 		bcm2048_parse_rds_rt_block(bdev, i, index+2, crc);
 }
 
-static int bcm2048_parse_rds_rt(struct bcm2048_device *bdev)
+static void bcm2048_parse_rds_rt(struct bcm2048_device *bdev)
 {
 	int i, index = 0, crc, match_b = 0, match_c = 0, match_d = 0;
 
@@ -1615,8 +1615,6 @@ static int bcm2048_parse_rds_rt(struct bcm2048_device *bdev)
 					match_b = 1;
 		}
 	}
-
-	return 0;
 }
 
 static void bcm2048_parse_rds_ps_block(struct bcm2048_device *bdev, int i,
@@ -1792,7 +1790,7 @@ static int bcm2048_get_rds_data(struct bcm2048_device *bdev, char *data)
 		goto unlock;
 	}
 
-	data_buffer = kzalloc(BCM2048_MAX_RDS_RADIO_TEXT*5, GFP_KERNEL);
+	data_buffer = kcalloc(BCM2048_MAX_RDS_RADIO_TEXT, 5, GFP_KERNEL);
 	if (!data_buffer) {
 		err = -ENOMEM;
 		goto unlock;
@@ -2245,8 +2243,7 @@ static ssize_t bcm2048_fops_read(struct file *file, char __user *buf,
 
 		tmpbuf[i] = bdev->rds_info.radio_text[bdev->rd_index+i+2];
 		tmpbuf[i+1] = bdev->rds_info.radio_text[bdev->rd_index+i+1];
-		tmpbuf[i+2] = ((bdev->rds_info.radio_text[bdev->rd_index+i]
-				& 0xf0) >> 4);
+		tmpbuf[i+2] = (bdev->rds_info.radio_text[bdev->rd_index + i] & 0xf0) >> 4;
 		if ((bdev->rds_info.radio_text[bdev->rd_index+i] &
 			BCM2048_RDS_CRC_MASK) == BCM2048_RDS_CRC_UNRECOVARABLE)
 			tmpbuf[i+2] |= 0x80;
@@ -2274,7 +2271,7 @@ done:
  */
 static const struct v4l2_file_operations bcm2048_fops = {
 	.owner		= THIS_MODULE,
-	.ioctl		= video_ioctl2,
+	.unlocked_ioctl	= video_ioctl2,
 	/* for RDS read support */
 	.open		= bcm2048_fops_open,
 	.release	= bcm2048_fops_release,
@@ -2585,7 +2582,7 @@ static struct v4l2_ioctl_ops bcm2048_ioctl_ops = {
 static struct video_device bcm2048_viddev_template = {
 	.fops			= &bcm2048_fops,
 	.name			= BCM2048_DRIVER_NAME,
-	.release		= video_device_release,
+	.release		= video_device_release_empty,
 	.ioctl_ops		= &bcm2048_ioctl_ops,
 };
 
@@ -2604,13 +2601,6 @@ static int bcm2048_i2c_driver_probe(struct i2c_client *client,
 		goto exit;
 	}
 
-	bdev->videodev = video_device_alloc();
-	if (!bdev->videodev) {
-		dev_dbg(&client->dev, "Failed to alloc video device.\n");
-		err = -ENOMEM;
-		goto free_bdev;
-	}
-
 	bdev->client = client;
 	i2c_set_clientdata(client, bdev);
 	mutex_init(&bdev->mutex);
@@ -2623,16 +2613,16 @@ static int bcm2048_i2c_driver_probe(struct i2c_client *client,
 			client->name, bdev);
 		if (err < 0) {
 			dev_err(&client->dev, "Could not request IRQ\n");
-			goto free_vdev;
+			goto free_bdev;
 		}
 		dev_dbg(&client->dev, "IRQ requested.\n");
 	} else {
 		dev_dbg(&client->dev, "IRQ not configured. Using timeouts.\n");
 	}
 
-	*bdev->videodev = bcm2048_viddev_template;
-	video_set_drvdata(bdev->videodev, bdev);
-	if (video_register_device(bdev->videodev, VFL_TYPE_RADIO, radio_nr)) {
+	bdev->videodev = bcm2048_viddev_template;
+	video_set_drvdata(&bdev->videodev, bdev);
+	if (video_register_device(&bdev->videodev, VFL_TYPE_RADIO, radio_nr)) {
 		dev_dbg(&client->dev, "Could not register video device.\n");
 		err = -EIO;
 		goto free_irq;
@@ -2655,18 +2645,13 @@ static int bcm2048_i2c_driver_probe(struct i2c_client *client,
 free_sysfs:
 	bcm2048_sysfs_unregister_properties(bdev, ARRAY_SIZE(attrs));
 free_registration:
-	video_unregister_device(bdev->videodev);
-	/* video_unregister_device frees bdev->videodev */
-	bdev->videodev = NULL;
+	video_unregister_device(&bdev->videodev);
 	skip_release = 1;
 free_irq:
 	if (client->irq)
 		free_irq(client->irq, bdev);
-free_vdev:
-	if (!skip_release)
-		video_device_release(bdev->videodev);
-	i2c_set_clientdata(client, NULL);
 free_bdev:
+	i2c_set_clientdata(client, NULL);
 	kfree(bdev);
 exit:
 	return err;
@@ -2675,16 +2660,13 @@ exit:
 static int __exit bcm2048_i2c_driver_remove(struct i2c_client *client)
 {
 	struct bcm2048_device *bdev = i2c_get_clientdata(client);
-	struct video_device *vd;
 
 	if (!client->adapter)
 		return -ENODEV;
 
 	if (bdev) {
-		vd = bdev->videodev;
-
 		bcm2048_sysfs_unregister_properties(bdev, ARRAY_SIZE(attrs));
-		video_unregister_device(vd);
+		video_unregister_device(&bdev->videodev);
 
 		if (bdev->power_state)
 			bcm2048_set_power_state(bdev, BCM2048_POWER_OFF);
@@ -2718,22 +2700,7 @@ static struct i2c_driver bcm2048_i2c_driver = {
 	.id_table	= bcm2048_id,
 };
 
-/*
- *	Module Interface
- */
-static int __init bcm2048_module_init(void)
-{
-	pr_info(BCM2048_DRIVER_DESC "\n");
-
-	return i2c_add_driver(&bcm2048_i2c_driver);
-}
-module_init(bcm2048_module_init);
-
-static void __exit bcm2048_module_exit(void)
-{
-	i2c_del_driver(&bcm2048_i2c_driver);
-}
-module_exit(bcm2048_module_exit);
+module_i2c_driver(bcm2048_i2c_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR(BCM2048_DRIVER_AUTHOR);

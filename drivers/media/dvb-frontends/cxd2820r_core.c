@@ -244,12 +244,6 @@ error:
 	return ret;
 }
 
-/* 64 bit div with round closest, like DIV_ROUND_CLOSEST but 64 bit */
-u32 cxd2820r_div_u64_round_closest(u64 dividend, u32 divisor)
-{
-	return div_u64(dividend + (divisor / 2), divisor);
-}
-
 static int cxd2820r_set_frontend(struct dvb_frontend *fe)
 {
 	struct cxd2820r_priv *priv = fe->demodulator_priv;

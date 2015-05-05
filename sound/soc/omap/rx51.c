@@ -311,9 +311,9 @@ static int rx51_aic34_init(struct snd_soc_pcm_runtime *rtd)
 	}
 
 	/* AV jack detection */
-	err = snd_soc_jack_new(codec, "AV Jack",
-			       SND_JACK_HEADSET | SND_JACK_VIDEOOUT,
-			       &rx51_av_jack);
+	err = snd_soc_card_jack_new(rtd->card, "AV Jack",
+				    SND_JACK_HEADSET | SND_JACK_VIDEOOUT,
+				    &rx51_av_jack, NULL, 0);
 	if (err) {
 		dev_err(card->dev, "Failed to add AV Jack\n");
 		return err;

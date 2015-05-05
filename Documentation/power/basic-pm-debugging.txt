@@ -75,12 +75,14 @@ you should do the following:
 # echo platform > /sys/power/disk
 # echo disk > /sys/power/state
 
-Then, the kernel will try to freeze processes, suspend devices, wait 5 seconds,
-resume devices and thaw processes.  If "platform" is written to
+Then, the kernel will try to freeze processes, suspend devices, wait a few
+seconds (5 by default, but configurable by the suspend.pm_test_delay module
+parameter), resume devices and thaw processes.  If "platform" is written to
 /sys/power/pm_test , then after suspending devices the kernel will additionally
 invoke the global control methods (eg. ACPI global control methods) used to
-prepare the platform firmware for hibernation.  Next, it will wait 5 seconds and
-invoke the platform (eg. ACPI) global methods used to cancel hibernation etc.
+prepare the platform firmware for hibernation.  Next, it will wait a
+configurable number of seconds and invoke the platform (eg. ACPI) global
+methods used to cancel hibernation etc.
 
 Writing "none" to /sys/power/pm_test causes the kernel to switch to the normal
 hibernation/suspend operations.  Also, when open for reading, /sys/power/pm_test

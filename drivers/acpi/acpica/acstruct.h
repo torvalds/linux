@@ -68,11 +68,6 @@
 #define ACPI_WALK_METHOD            0x01
 #define ACPI_WALK_METHOD_RESTART    0x02
 
-/* Flags for iASL compiler only */
-
-#define ACPI_WALK_CONST_REQUIRED    0x10
-#define ACPI_WALK_CONST_OPTIONAL    0x20
-
 struct acpi_walk_state {
 	struct acpi_walk_state *next;	/* Next walk_state in list */
 	u8 descriptor_type;	/* To differentiate various internal objs */

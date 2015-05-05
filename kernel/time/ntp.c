@@ -17,7 +17,6 @@
 #include <linux/module.h>
 #include <linux/rtc.h>
 
-#include "tick-internal.h"
 #include "ntp_internal.h"
 
 /*
@@ -459,6 +458,16 @@ out:
 	return leap;
 }
 
+#ifdef CONFIG_GENERIC_CMOS_UPDATE
+int __weak update_persistent_clock64(struct timespec64 now64)
+{
+	struct timespec now;
+
+	now = timespec64_to_timespec(now64);
+	return update_persistent_clock(now);
+}
+#endif
+
 #if defined(CONFIG_GENERIC_CMOS_UPDATE) || defined(CONFIG_RTC_SYSTOHC)
 static void sync_cmos_clock(struct work_struct *work);
 
@@ -494,8 +503,9 @@ static void sync_cmos_clock(struct work_struct *work)
 		if (persistent_clock_is_local)
 			adjust.tv_sec -= (sys_tz.tz_minuteswest * 60);
 #ifdef CONFIG_GENERIC_CMOS_UPDATE
-		fail = update_persistent_clock(timespec64_to_timespec(adjust));
+		fail = update_persistent_clock64(adjust);
 #endif
+
 #ifdef CONFIG_RTC_SYSTOHC
 		if (fail == -ENODEV)
 			fail = rtc_set_ntp_time(adjust);

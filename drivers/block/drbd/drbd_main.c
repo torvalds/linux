@@ -2107,13 +2107,12 @@ static int drbd_create_mempools(void)
 	if (drbd_md_io_page_pool == NULL)
 		goto Enomem;
 
-	drbd_request_mempool = mempool_create(number,
-		mempool_alloc_slab, mempool_free_slab, drbd_request_cache);
+	drbd_request_mempool = mempool_create_slab_pool(number,
+		drbd_request_cache);
 	if (drbd_request_mempool == NULL)
 		goto Enomem;
 
-	drbd_ee_mempool = mempool_create(number,
-		mempool_alloc_slab, mempool_free_slab, drbd_ee_cache);
+	drbd_ee_mempool = mempool_create_slab_pool(number, drbd_ee_cache);
 	if (drbd_ee_mempool == NULL)
 		goto Enomem;
 

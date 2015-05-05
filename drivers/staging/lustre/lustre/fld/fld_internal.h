@@ -142,7 +142,7 @@ extern struct lu_fld_hash fld_hash[];
 int fld_client_rpc(struct obd_export *exp,
 		   struct lu_seq_range *range, __u32 fld_op);
 
-#if defined (CONFIG_PROC_FS)
+#if defined(CONFIG_PROC_FS)
 extern struct lprocfs_vars fld_client_proc_list[];
 #endif
 

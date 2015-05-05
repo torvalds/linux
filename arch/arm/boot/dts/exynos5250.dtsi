@@ -143,7 +143,7 @@
 		compatible = "samsung,exynos4210-mct";
 		reg = <0x101C0000 0x800>;
 		interrupt-controller;
-		#interrups-cells = <2>;
+		#interrupt-cells = <2>;
 		interrupt-parent = <&mct_map>;
 		interrupts = <0 0>, <1 0>, <2 0>, <3 0>,
 			     <4 0>, <5 0>;
@@ -205,6 +205,9 @@
 		clock-names = "clkout16";
 		clocks = <&clock CLK_FIN_PLL>;
 		#clock-cells = <1>;
+		interrupt-controller;
+		#interrupt-cells = <3>;
+		interrupt-parent = <&gic>;
 	};
 
 	sysreg_system_controller: syscon@10050000 {
@@ -241,6 +244,7 @@
 	rtc: rtc@101E0000 {
 		clocks = <&clock CLK_RTC>;
 		clock-names = "rtc";
+		interrupt-parent = <&pmu_system_controller>;
 		status = "disabled";
 	};
 

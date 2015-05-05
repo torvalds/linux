@@ -183,7 +183,14 @@ struct chipcregs {
 	u8 uart1lsr;
 	u8 uart1msr;
 	u8 uart1scratch;
-	u32 PAD[126];
+	u32 PAD[62];
+
+	/* save/restore, corerev >= 48 */
+	u32 sr_capability;          /* 0x500 */
+	u32 sr_control0;            /* 0x504 */
+	u32 sr_control1;            /* 0x508 */
+	u32 gpio_control;           /* 0x50C */
+	u32 PAD[60];
 
 	/* PMU registers (corerev >= 20) */
 	u32 pmucontrol;	/* 0x600 */

@@ -43,7 +43,6 @@
 #include <linux/seq_file.h>
 #include <linux/mount.h>
 #include <linux/namei.h>
-#include <linux/nfs_idmap.h>
 #include <linux/vfs.h>
 #include <linux/inet.h>
 #include <linux/in6.h>
@@ -433,7 +432,7 @@ int nfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	struct nfs_server *server = NFS_SB(dentry->d_sb);
 	unsigned char blockbits;
 	unsigned long blockres;
-	struct nfs_fh *fh = NFS_FH(dentry->d_inode);
+	struct nfs_fh *fh = NFS_FH(d_inode(dentry));
 	struct nfs_fsstat res;
 	int error = -ENOMEM;
 
@@ -447,7 +446,7 @@ int nfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 
 		pd_dentry = dget_parent(dentry);
 		if (pd_dentry != NULL) {
-			nfs_zap_caches(pd_dentry->d_inode);
+			nfs_zap_caches(d_inode(pd_dentry));
 			dput(pd_dentry);
 		}
 	}
@@ -2193,7 +2192,7 @@ nfs_compare_remount_data(struct nfs_server *nfss,
 	    data->version != nfss->nfs_client->rpc_ops->version ||
 	    data->minorversion != nfss->nfs_client->cl_minorversion ||
 	    data->retrans != nfss->client->cl_timeout->to_retries ||
-	    data->selected_flavor != nfss->client->cl_auth->au_flavor ||
+	    !nfs_auth_info_match(&data->auth_info, nfss->client->cl_auth->au_flavor) ||
 	    data->acregmin != nfss->acregmin / HZ ||
 	    data->acregmax != nfss->acregmax / HZ ||
 	    data->acdirmin != nfss->acdirmin / HZ ||
@@ -2241,7 +2240,6 @@ nfs_remount(struct super_block *sb, int *flags, char *raw_data)
 	data->wsize = nfss->wsize;
 	data->retrans = nfss->client->cl_timeout->to_retries;
 	data->selected_flavor = nfss->client->cl_auth->au_flavor;
-	data->auth_info = nfss->auth_info;
 	data->acregmin = nfss->acregmin / HZ;
 	data->acregmax = nfss->acregmax / HZ;
 	data->acdirmin = nfss->acdirmin / HZ;
@@ -2526,7 +2524,7 @@ int nfs_clone_sb_security(struct super_block *s, struct dentry *mntroot,
 			  struct nfs_mount_info *mount_info)
 {
 	/* clone any lsm security options from the parent to the new sb */
-	if (mntroot->d_inode->i_op != NFS_SB(s)->nfs_client->rpc_ops->dir_inode_ops)
+	if (d_inode(mntroot)->i_op != NFS_SB(s)->nfs_client->rpc_ops->dir_inode_ops)
 		return -ESTALE;
 	return security_sb_clone_mnt_opts(mount_info->cloned->sb, s);
 }

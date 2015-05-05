@@ -2924,6 +2924,7 @@ struct si_dpm_quirk {
 static struct si_dpm_quirk si_dpm_quirk_list[] = {
 	/* PITCAIRN - https://bugs.freedesktop.org/show_bug.cgi?id=76490 */
 	{ PCI_VENDOR_ID_ATI, 0x6810, 0x1462, 0x3036, 0, 120000 },
+	{ PCI_VENDOR_ID_ATI, 0x6811, 0x174b, 0xe271, 0, 120000 },
 	{ 0, 0, 0, 0 },
 };
 
@@ -6991,5 +6992,41 @@ void si_dpm_debugfs_print_current_performance_level(struct radeon_device *rdev,
 		seq_printf(m, "uvd    vclk: %d dclk: %d\n", rps->vclk, rps->dclk);
 		seq_printf(m, "power level %d    sclk: %u mclk: %u vddc: %u vddci: %u pcie gen: %u\n",
 			   current_index, pl->sclk, pl->mclk, pl->vddc, pl->vddci, pl->pcie_gen + 1);
+	}
+}
+
+u32 si_dpm_get_current_sclk(struct radeon_device *rdev)
+{
+	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
+	struct radeon_ps *rps = &eg_pi->current_rps;
+	struct ni_ps *ps = ni_get_ps(rps);
+	struct rv7xx_pl *pl;
+	u32 current_index =
+		(RREG32(TARGET_AND_CURRENT_PROFILE_INDEX) & CURRENT_STATE_INDEX_MASK) >>
+		CURRENT_STATE_INDEX_SHIFT;
+
+	if (current_index >= ps->performance_level_count) {
+		return 0;
+	} else {
+		pl = &ps->performance_levels[current_index];
+		return pl->sclk;
+	}
+}
+
+u32 si_dpm_get_current_mclk(struct radeon_device *rdev)
+{
+	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
+	struct radeon_ps *rps = &eg_pi->current_rps;
+	struct ni_ps *ps = ni_get_ps(rps);
+	struct rv7xx_pl *pl;
+	u32 current_index =
+		(RREG32(TARGET_AND_CURRENT_PROFILE_INDEX) & CURRENT_STATE_INDEX_MASK) >>
+		CURRENT_STATE_INDEX_SHIFT;
+
+	if (current_index >= ps->performance_level_count) {
+		return 0;
+	} else {
+		pl = &ps->performance_levels[current_index];
+		return pl->mclk;
 	}
 }

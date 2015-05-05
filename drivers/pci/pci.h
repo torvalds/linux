@@ -243,10 +243,12 @@ struct pci_sriov {
 	u16 stride;		/* following VF stride */
 	u32 pgsz;		/* page size for BAR alignment */
 	u8 link;		/* Function Dependency Link */
+	u8 max_VF_buses;	/* max buses consumed by VFs */
 	u16 driver_max_VFs;	/* max num VFs driver supports */
 	struct pci_dev *dev;	/* lowest numbered PF */
 	struct pci_dev *self;	/* this PF */
 	struct mutex lock;	/* lock for VF bus */
+	resource_size_t barsz[PCI_SRIOV_NUM_BARS];	/* VF BAR size */
 };
 
 #ifdef CONFIG_PCI_ATS
@@ -320,5 +322,7 @@ static inline int pci_dev_specific_reset(struct pci_dev *dev, int probe)
 	return -ENOTTY;
 }
 #endif
+
+struct pci_host_bridge *pci_find_host_bridge(struct pci_bus *bus);
 
 #endif /* DRIVERS_PCI_H */

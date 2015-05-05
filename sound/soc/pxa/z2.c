@@ -143,13 +143,9 @@ static int z2_wm8750_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_disable_pin(dapm, "MONO1");
 
 	/* Jack detection API stuff */
-	ret = snd_soc_jack_new(codec, "Headset Jack", SND_JACK_HEADSET,
-				&hs_jack);
-	if (ret)
-		goto err;
-
-	ret = snd_soc_jack_add_pins(&hs_jack, ARRAY_SIZE(hs_jack_pins),
-				hs_jack_pins);
+	ret = snd_soc_card_jack_new(rtd->card, "Headset Jack", SND_JACK_HEADSET,
+				    &hs_jack, hs_jack_pins,
+				    ARRAY_SIZE(hs_jack_pins));
 	if (ret)
 		goto err;
 

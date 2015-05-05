@@ -106,4 +106,23 @@ config PCI_VERSATILE
 	bool "ARM Versatile PB PCI controller"
 	depends on ARCH_VERSATILE
 
+config PCIE_IPROC
+	tristate "Broadcom iProc PCIe controller"
+	depends on OF && ARM
+	default n
+	help
+	  This enables the iProc PCIe core controller support for Broadcom's
+	  iProc family of SoCs. An appropriate bus interface driver also needs
+	  to be enabled
+
+config PCIE_IPROC_PLATFORM
+	tristate "Broadcom iProc PCIe platform bus driver"
+	depends on ARCH_BCM_IPROC || (ARM && COMPILE_TEST)
+	depends on OF
+	select PCIE_IPROC
+	default ARCH_BCM_IPROC
+	help
+	  Say Y here if you want to use the Broadcom iProc PCIe controller
+	  through the generic platform bus interface
+
 endmenu

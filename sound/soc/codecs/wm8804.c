@@ -13,12 +13,11 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
+#include <linux/gpio/consumer.h>
 #include <linux/delay.h>
 #include <linux/pm.h>
-#include <linux/i2c.h>
+#include <linux/pm_runtime.h>
 #include <linux/of_device.h>
-#include <linux/spi/spi.h>
-#include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <sound/core.h>
@@ -27,6 +26,7 @@
 #include <sound/soc.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
+#include <sound/soc-dapm.h>
 
 #include "wm8804.h"
 
@@ -60,17 +60,22 @@ static const struct reg_default wm8804_reg_defaults[] = {
 };
 
 struct wm8804_priv {
+	struct device *dev;
 	struct regmap *regmap;
 	struct regulator_bulk_data supplies[WM8804_NUM_SUPPLIES];
 	struct notifier_block disable_nb[WM8804_NUM_SUPPLIES];
 	int mclk_div;
-};
 
-static int txsrc_get(struct snd_kcontrol *kcontrol,
-		     struct snd_ctl_elem_value *ucontrol);
+	struct gpio_desc *reset;
+
+	int aif_pwr;
+};
 
 static int txsrc_put(struct snd_kcontrol *kcontrol,
 		     struct snd_ctl_elem_value *ucontrol);
+
+static int wm8804_aif_event(struct snd_soc_dapm_widget *w,
+			    struct snd_kcontrol *kcontrol, int event);
 
 /*
  * We can't use the same notifier block for more than one supply and
@@ -93,26 +98,62 @@ WM8804_REGULATOR_EVENT(0)
 WM8804_REGULATOR_EVENT(1)
 
 static const char *txsrc_text[] = { "S/PDIF RX", "AIF" };
-static SOC_ENUM_SINGLE_EXT_DECL(txsrc, txsrc_text);
+static const SOC_ENUM_SINGLE_DECL(txsrc, WM8804_SPDTX4, 6, txsrc_text);
 
-static const struct snd_kcontrol_new wm8804_snd_controls[] = {
-	SOC_ENUM_EXT("Input Source", txsrc, txsrc_get, txsrc_put),
-	SOC_SINGLE("TX Playback Switch", WM8804_PWRDN, 2, 1, 1),
-	SOC_SINGLE("AIF Playback Switch", WM8804_PWRDN, 4, 1, 1)
+static const struct snd_kcontrol_new wm8804_tx_source_mux[] = {
+	SOC_DAPM_ENUM_EXT("Input Source", txsrc,
+			  snd_soc_dapm_get_enum_double, txsrc_put),
 };
 
-static int txsrc_get(struct snd_kcontrol *kcontrol,
-		     struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_codec *codec;
-	unsigned int src;
+static const struct snd_soc_dapm_widget wm8804_dapm_widgets[] = {
+SND_SOC_DAPM_OUTPUT("SPDIF Out"),
+SND_SOC_DAPM_INPUT("SPDIF In"),
 
-	codec = snd_soc_kcontrol_codec(kcontrol);
-	src = snd_soc_read(codec, WM8804_SPDTX4);
-	if (src & 0x40)
-		ucontrol->value.integer.value[0] = 1;
-	else
-		ucontrol->value.integer.value[0] = 0;
+SND_SOC_DAPM_PGA("SPDIFTX", WM8804_PWRDN, 2, 1, NULL, 0),
+SND_SOC_DAPM_PGA("SPDIFRX", WM8804_PWRDN, 1, 1, NULL, 0),
+
+SND_SOC_DAPM_MUX("Tx Source", SND_SOC_NOPM, 6, 0, wm8804_tx_source_mux),
+
+SND_SOC_DAPM_AIF_OUT_E("AIFTX", NULL, 0, SND_SOC_NOPM, 0, 0, wm8804_aif_event,
+		       SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
+SND_SOC_DAPM_AIF_IN_E("AIFRX", NULL, 0, SND_SOC_NOPM, 0, 0, wm8804_aif_event,
+		      SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
+};
+
+static const struct snd_soc_dapm_route wm8804_dapm_routes[] = {
+	{ "AIFRX", NULL, "Playback" },
+	{ "Tx Source", "AIF", "AIFRX" },
+
+	{ "SPDIFRX", NULL, "SPDIF In" },
+	{ "Tx Source", "S/PDIF RX", "SPDIFRX" },
+
+	{ "SPDIFTX", NULL, "Tx Source" },
+	{ "SPDIF Out", NULL, "SPDIFTX" },
+
+	{ "AIFTX", NULL, "SPDIFRX" },
+	{ "Capture", NULL, "AIFTX" },
+};
+
+static int wm8804_aif_event(struct snd_soc_dapm_widget *w,
+			    struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct wm8804_priv *wm8804 = snd_soc_codec_get_drvdata(codec);
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		/* power up the aif */
+		if (!wm8804->aif_pwr)
+			snd_soc_update_bits(codec, WM8804_PWRDN, 0x10, 0x0);
+		wm8804->aif_pwr++;
+		break;
+	case SND_SOC_DAPM_POST_PMD:
+		/* power down only both paths are disabled */
+		wm8804->aif_pwr--;
+		if (!wm8804->aif_pwr)
+			snd_soc_update_bits(codec, WM8804_PWRDN, 0x10, 0x10);
+		break;
+	}
 
 	return 0;
 }
@@ -120,48 +161,33 @@ static int txsrc_get(struct snd_kcontrol *kcontrol,
 static int txsrc_put(struct snd_kcontrol *kcontrol,
 		     struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec;
-	unsigned int src, txpwr;
+	struct snd_soc_codec *codec = snd_soc_dapm_kcontrol_codec(kcontrol);
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	unsigned int val = ucontrol->value.enumerated.item[0] << e->shift_l;
+	unsigned int mask = 1 << e->shift_l;
+	unsigned int txpwr;
 
-	codec = snd_soc_kcontrol_codec(kcontrol);
-
-	if (ucontrol->value.integer.value[0] != 0
-			&& ucontrol->value.integer.value[0] != 1)
+	if (val != 0 && val != mask)
 		return -EINVAL;
 
-	src = snd_soc_read(codec, WM8804_SPDTX4);
-	switch ((src & 0x40) >> 6) {
-	case 0:
-		if (!ucontrol->value.integer.value[0])
-			return 0;
-		break;
-	case 1:
-		if (ucontrol->value.integer.value[1])
-			return 0;
-		break;
+	snd_soc_dapm_mutex_lock(dapm);
+
+	if (snd_soc_test_bits(codec, e->reg, mask, val)) {
+		/* save the current power state of the transmitter */
+		txpwr = snd_soc_read(codec, WM8804_PWRDN) & 0x4;
+
+		/* power down the transmitter */
+		snd_soc_update_bits(codec, WM8804_PWRDN, 0x4, 0x4);
+
+		/* set the tx source */
+		snd_soc_update_bits(codec, e->reg, mask, val);
+
+		/* restore the transmitter's configuration */
+		snd_soc_update_bits(codec, WM8804_PWRDN, 0x4, txpwr);
 	}
 
-	/* save the current power state of the transmitter */
-	txpwr = snd_soc_read(codec, WM8804_PWRDN) & 0x4;
-	/* power down the transmitter */
-	snd_soc_update_bits(codec, WM8804_PWRDN, 0x4, 0x4);
-	/* set the tx source */
-	snd_soc_update_bits(codec, WM8804_SPDTX4, 0x40,
-			    ucontrol->value.integer.value[0] << 6);
-
-	if (ucontrol->value.integer.value[0]) {
-		/* power down the receiver */
-		snd_soc_update_bits(codec, WM8804_PWRDN, 0x2, 0x2);
-		/* power up the AIF */
-		snd_soc_update_bits(codec, WM8804_PWRDN, 0x10, 0);
-	} else {
-		/* don't power down the AIF -- may be used as an output */
-		/* power up the receiver */
-		snd_soc_update_bits(codec, WM8804_PWRDN, 0x2, 0);
-	}
-
-	/* restore the transmitter's configuration */
-	snd_soc_update_bits(codec, WM8804_PWRDN, 0x4, txpwr);
+	snd_soc_dapm_mutex_unlock(dapm);
 
 	return 0;
 }
@@ -185,9 +211,9 @@ static bool wm8804_volatile(struct device *dev, unsigned int reg)
 	}
 }
 
-static int wm8804_reset(struct snd_soc_codec *codec)
+static int wm8804_soft_reset(struct wm8804_priv *wm8804)
 {
-	return snd_soc_write(codec, WM8804_RST_DEVID1, 0x0);
+	return regmap_write(wm8804->regmap, WM8804_RST_DEVID1, 0x0);
 }
 
 static int wm8804_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
@@ -379,19 +405,19 @@ static int wm8804_set_pll(struct snd_soc_dai *dai, int pll_id,
 			  int source, unsigned int freq_in,
 			  unsigned int freq_out)
 {
-	struct snd_soc_codec *codec;
+	struct snd_soc_codec *codec = dai->codec;
+	struct wm8804_priv *wm8804 = snd_soc_codec_get_drvdata(codec);
+	bool change;
 
-	codec = dai->codec;
 	if (!freq_in || !freq_out) {
 		/* disable the PLL */
-		snd_soc_update_bits(codec, WM8804_PWRDN, 0x1, 0x1);
-		return 0;
+		regmap_update_bits_check(wm8804->regmap, WM8804_PWRDN,
+					 0x1, 0x1, &change);
+		if (change)
+			pm_runtime_put(wm8804->dev);
 	} else {
 		int ret;
 		struct pll_div pll_div;
-		struct wm8804_priv *wm8804;
-
-		wm8804 = snd_soc_codec_get_drvdata(codec);
 
 		ret = pll_factors(&pll_div, freq_out, freq_in,
 				  wm8804->mclk_div);
@@ -399,7 +425,10 @@ static int wm8804_set_pll(struct snd_soc_dai *dai, int pll_id,
 			return ret;
 
 		/* power down the PLL before reprogramming it */
-		snd_soc_update_bits(codec, WM8804_PWRDN, 0x1, 0x1);
+		regmap_update_bits_check(wm8804->regmap, WM8804_PWRDN,
+					 0x1, 0x1, &change);
+		if (!change)
+			pm_runtime_get_sync(wm8804->dev);
 
 		/* set PLLN and PRESCALE */
 		snd_soc_update_bits(codec, WM8804_PLL4, 0xf | 0x10,
@@ -477,141 +506,6 @@ static int wm8804_set_clkdiv(struct snd_soc_dai *dai,
 	return 0;
 }
 
-static int wm8804_set_bias_level(struct snd_soc_codec *codec,
-				 enum snd_soc_bias_level level)
-{
-	int ret;
-	struct wm8804_priv *wm8804;
-
-	wm8804 = snd_soc_codec_get_drvdata(codec);
-	switch (level) {
-	case SND_SOC_BIAS_ON:
-		break;
-	case SND_SOC_BIAS_PREPARE:
-		/* power up the OSC and the PLL */
-		snd_soc_update_bits(codec, WM8804_PWRDN, 0x9, 0);
-		break;
-	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
-			ret = regulator_bulk_enable(ARRAY_SIZE(wm8804->supplies),
-						    wm8804->supplies);
-			if (ret) {
-				dev_err(codec->dev,
-					"Failed to enable supplies: %d\n",
-					ret);
-				return ret;
-			}
-			regcache_sync(wm8804->regmap);
-		}
-		/* power down the OSC and the PLL */
-		snd_soc_update_bits(codec, WM8804_PWRDN, 0x9, 0x9);
-		break;
-	case SND_SOC_BIAS_OFF:
-		/* power down the OSC and the PLL */
-		snd_soc_update_bits(codec, WM8804_PWRDN, 0x9, 0x9);
-		regulator_bulk_disable(ARRAY_SIZE(wm8804->supplies),
-				       wm8804->supplies);
-		break;
-	}
-
-	codec->dapm.bias_level = level;
-	return 0;
-}
-
-static int wm8804_remove(struct snd_soc_codec *codec)
-{
-	struct wm8804_priv *wm8804;
-	int i;
-
-	wm8804 = snd_soc_codec_get_drvdata(codec);
-
-	for (i = 0; i < ARRAY_SIZE(wm8804->supplies); ++i)
-		regulator_unregister_notifier(wm8804->supplies[i].consumer,
-					      &wm8804->disable_nb[i]);
-	return 0;
-}
-
-static int wm8804_probe(struct snd_soc_codec *codec)
-{
-	struct wm8804_priv *wm8804;
-	int i, id1, id2, ret;
-
-	wm8804 = snd_soc_codec_get_drvdata(codec);
-
-	for (i = 0; i < ARRAY_SIZE(wm8804->supplies); i++)
-		wm8804->supplies[i].supply = wm8804_supply_names[i];
-
-	ret = devm_regulator_bulk_get(codec->dev, ARRAY_SIZE(wm8804->supplies),
-				 wm8804->supplies);
-	if (ret) {
-		dev_err(codec->dev, "Failed to request supplies: %d\n", ret);
-		return ret;
-	}
-
-	wm8804->disable_nb[0].notifier_call = wm8804_regulator_event_0;
-	wm8804->disable_nb[1].notifier_call = wm8804_regulator_event_1;
-
-	/* This should really be moved into the regulator core */
-	for (i = 0; i < ARRAY_SIZE(wm8804->supplies); i++) {
-		ret = regulator_register_notifier(wm8804->supplies[i].consumer,
-						  &wm8804->disable_nb[i]);
-		if (ret != 0) {
-			dev_err(codec->dev,
-				"Failed to register regulator notifier: %d\n",
-				ret);
-		}
-	}
-
-	ret = regulator_bulk_enable(ARRAY_SIZE(wm8804->supplies),
-				    wm8804->supplies);
-	if (ret) {
-		dev_err(codec->dev, "Failed to enable supplies: %d\n", ret);
-		return ret;
-	}
-
-	id1 = snd_soc_read(codec, WM8804_RST_DEVID1);
-	if (id1 < 0) {
-		dev_err(codec->dev, "Failed to read device ID: %d\n", id1);
-		ret = id1;
-		goto err_reg_enable;
-	}
-
-	id2 = snd_soc_read(codec, WM8804_DEVID2);
-	if (id2 < 0) {
-		dev_err(codec->dev, "Failed to read device ID: %d\n", id2);
-		ret = id2;
-		goto err_reg_enable;
-	}
-
-	id2 = (id2 << 8) | id1;
-
-	if (id2 != 0x8805) {
-		dev_err(codec->dev, "Invalid device ID: %#x\n", id2);
-		ret = -EINVAL;
-		goto err_reg_enable;
-	}
-
-	ret = snd_soc_read(codec, WM8804_DEVREV);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to read device revision: %d\n",
-			ret);
-		goto err_reg_enable;
-	}
-	dev_info(codec->dev, "revision %c\n", ret + 'A');
-
-	ret = wm8804_reset(codec);
-	if (ret < 0) {
-		dev_err(codec->dev, "Failed to issue reset: %d\n", ret);
-		goto err_reg_enable;
-	}
-
-	return 0;
-
-err_reg_enable:
-	regulator_bulk_disable(ARRAY_SIZE(wm8804->supplies), wm8804->supplies);
-	return ret;
-}
-
 static const struct snd_soc_dai_ops wm8804_dai_ops = {
 	.hw_params = wm8804_hw_params,
 	.set_fmt = wm8804_set_fmt,
@@ -649,22 +543,15 @@ static struct snd_soc_dai_driver wm8804_dai = {
 };
 
 static const struct snd_soc_codec_driver soc_codec_dev_wm8804 = {
-	.probe = wm8804_probe,
-	.remove = wm8804_remove,
-	.set_bias_level = wm8804_set_bias_level,
 	.idle_bias_off = true,
 
-	.controls = wm8804_snd_controls,
-	.num_controls = ARRAY_SIZE(wm8804_snd_controls),
+	.dapm_widgets = wm8804_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(wm8804_dapm_widgets),
+	.dapm_routes = wm8804_dapm_routes,
+	.num_dapm_routes = ARRAY_SIZE(wm8804_dapm_routes),
 };
 
-static const struct of_device_id wm8804_of_match[] = {
-	{ .compatible = "wlf,wm8804", },
-	{ }
-};
-MODULE_DEVICE_TABLE(of, wm8804_of_match);
-
-static const struct regmap_config wm8804_regmap_config = {
+const struct regmap_config wm8804_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 
@@ -675,128 +562,169 @@ static const struct regmap_config wm8804_regmap_config = {
 	.reg_defaults = wm8804_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm8804_reg_defaults),
 };
+EXPORT_SYMBOL_GPL(wm8804_regmap_config);
 
-#if defined(CONFIG_SPI_MASTER)
-static int wm8804_spi_probe(struct spi_device *spi)
+int wm8804_probe(struct device *dev, struct regmap *regmap)
 {
 	struct wm8804_priv *wm8804;
-	int ret;
+	unsigned int id1, id2;
+	int i, ret;
 
-	wm8804 = devm_kzalloc(&spi->dev, sizeof *wm8804, GFP_KERNEL);
+	wm8804 = devm_kzalloc(dev, sizeof(*wm8804), GFP_KERNEL);
 	if (!wm8804)
 		return -ENOMEM;
 
-	wm8804->regmap = devm_regmap_init_spi(spi, &wm8804_regmap_config);
-	if (IS_ERR(wm8804->regmap)) {
-		ret = PTR_ERR(wm8804->regmap);
+	dev_set_drvdata(dev, wm8804);
+
+	wm8804->dev = dev;
+	wm8804->regmap = regmap;
+
+	wm8804->reset = devm_gpiod_get_optional(dev, "wlf,reset",
+						GPIOD_OUT_LOW);
+	if (IS_ERR(wm8804->reset)) {
+		ret = PTR_ERR(wm8804->reset);
+		dev_err(dev, "Failed to get reset line: %d\n", ret);
 		return ret;
 	}
 
-	spi_set_drvdata(spi, wm8804);
+	for (i = 0; i < ARRAY_SIZE(wm8804->supplies); i++)
+		wm8804->supplies[i].supply = wm8804_supply_names[i];
 
-	ret = snd_soc_register_codec(&spi->dev,
-				     &soc_codec_dev_wm8804, &wm8804_dai, 1);
-
-	return ret;
-}
-
-static int wm8804_spi_remove(struct spi_device *spi)
-{
-	snd_soc_unregister_codec(&spi->dev);
-	return 0;
-}
-
-static struct spi_driver wm8804_spi_driver = {
-	.driver = {
-		.name = "wm8804",
-		.owner = THIS_MODULE,
-		.of_match_table = wm8804_of_match,
-	},
-	.probe = wm8804_spi_probe,
-	.remove = wm8804_spi_remove
-};
-#endif
-
-#if IS_ENABLED(CONFIG_I2C)
-static int wm8804_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
-{
-	struct wm8804_priv *wm8804;
-	int ret;
-
-	wm8804 = devm_kzalloc(&i2c->dev, sizeof *wm8804, GFP_KERNEL);
-	if (!wm8804)
-		return -ENOMEM;
-
-	wm8804->regmap = devm_regmap_init_i2c(i2c, &wm8804_regmap_config);
-	if (IS_ERR(wm8804->regmap)) {
-		ret = PTR_ERR(wm8804->regmap);
-		return ret;
-	}
-
-	i2c_set_clientdata(i2c, wm8804);
-
-	ret = snd_soc_register_codec(&i2c->dev,
-				     &soc_codec_dev_wm8804, &wm8804_dai, 1);
-	return ret;
-}
-
-static int wm8804_i2c_remove(struct i2c_client *i2c)
-{
-	snd_soc_unregister_codec(&i2c->dev);
-	return 0;
-}
-
-static const struct i2c_device_id wm8804_i2c_id[] = {
-	{ "wm8804", 0 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, wm8804_i2c_id);
-
-static struct i2c_driver wm8804_i2c_driver = {
-	.driver = {
-		.name = "wm8804",
-		.owner = THIS_MODULE,
-		.of_match_table = wm8804_of_match,
-	},
-	.probe = wm8804_i2c_probe,
-	.remove = wm8804_i2c_remove,
-	.id_table = wm8804_i2c_id
-};
-#endif
-
-static int __init wm8804_modinit(void)
-{
-	int ret = 0;
-
-#if IS_ENABLED(CONFIG_I2C)
-	ret = i2c_add_driver(&wm8804_i2c_driver);
+	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(wm8804->supplies),
+				      wm8804->supplies);
 	if (ret) {
-		printk(KERN_ERR "Failed to register wm8804 I2C driver: %d\n",
-		       ret);
+		dev_err(dev, "Failed to request supplies: %d\n", ret);
+		return ret;
 	}
-#endif
-#if defined(CONFIG_SPI_MASTER)
-	ret = spi_register_driver(&wm8804_spi_driver);
-	if (ret != 0) {
-		printk(KERN_ERR "Failed to register wm8804 SPI driver: %d\n",
-		       ret);
+
+	wm8804->disable_nb[0].notifier_call = wm8804_regulator_event_0;
+	wm8804->disable_nb[1].notifier_call = wm8804_regulator_event_1;
+
+	/* This should really be moved into the regulator core */
+	for (i = 0; i < ARRAY_SIZE(wm8804->supplies); i++) {
+		struct regulator *regulator = wm8804->supplies[i].consumer;
+
+		ret = devm_regulator_register_notifier(regulator,
+						       &wm8804->disable_nb[i]);
+		if (ret != 0) {
+			dev_err(dev,
+				"Failed to register regulator notifier: %d\n",
+				ret);
+			return ret;
+		}
 	}
-#endif
+
+	ret = regulator_bulk_enable(ARRAY_SIZE(wm8804->supplies),
+				    wm8804->supplies);
+	if (ret) {
+		dev_err(dev, "Failed to enable supplies: %d\n", ret);
+		return ret;
+	}
+
+	if (wm8804->reset)
+		gpiod_set_value_cansleep(wm8804->reset, 1);
+
+	ret = regmap_read(regmap, WM8804_RST_DEVID1, &id1);
+	if (ret < 0) {
+		dev_err(dev, "Failed to read device ID: %d\n", ret);
+		goto err_reg_enable;
+	}
+
+	ret = regmap_read(regmap, WM8804_DEVID2, &id2);
+	if (ret < 0) {
+		dev_err(dev, "Failed to read device ID: %d\n", ret);
+		goto err_reg_enable;
+	}
+
+	id2 = (id2 << 8) | id1;
+
+	if (id2 != 0x8805) {
+		dev_err(dev, "Invalid device ID: %#x\n", id2);
+		ret = -EINVAL;
+		goto err_reg_enable;
+	}
+
+	ret = regmap_read(regmap, WM8804_DEVREV, &id1);
+	if (ret < 0) {
+		dev_err(dev, "Failed to read device revision: %d\n",
+			ret);
+		goto err_reg_enable;
+	}
+	dev_info(dev, "revision %c\n", id1 + 'A');
+
+	if (!wm8804->reset) {
+		ret = wm8804_soft_reset(wm8804);
+		if (ret < 0) {
+			dev_err(dev, "Failed to issue reset: %d\n", ret);
+			goto err_reg_enable;
+		}
+	}
+
+	ret = snd_soc_register_codec(dev, &soc_codec_dev_wm8804,
+				     &wm8804_dai, 1);
+	if (ret < 0) {
+		dev_err(dev, "Failed to register CODEC: %d\n", ret);
+		goto err_reg_enable;
+	}
+
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+	pm_runtime_idle(dev);
+
+	return 0;
+
+err_reg_enable:
+	regulator_bulk_disable(ARRAY_SIZE(wm8804->supplies), wm8804->supplies);
 	return ret;
 }
-module_init(wm8804_modinit);
+EXPORT_SYMBOL_GPL(wm8804_probe);
 
-static void __exit wm8804_exit(void)
+void wm8804_remove(struct device *dev)
 {
-#if IS_ENABLED(CONFIG_I2C)
-	i2c_del_driver(&wm8804_i2c_driver);
-#endif
-#if defined(CONFIG_SPI_MASTER)
-	spi_unregister_driver(&wm8804_spi_driver);
-#endif
+	pm_runtime_disable(dev);
+	snd_soc_unregister_codec(dev);
 }
-module_exit(wm8804_exit);
+EXPORT_SYMBOL_GPL(wm8804_remove);
+
+#if IS_ENABLED(CONFIG_PM)
+static int wm8804_runtime_resume(struct device *dev)
+{
+	struct wm8804_priv *wm8804 = dev_get_drvdata(dev);
+	int ret;
+
+	ret = regulator_bulk_enable(ARRAY_SIZE(wm8804->supplies),
+				    wm8804->supplies);
+	if (ret) {
+		dev_err(wm8804->dev, "Failed to enable supplies: %d\n", ret);
+		return ret;
+	}
+
+	regcache_sync(wm8804->regmap);
+
+	/* Power up OSCCLK */
+	regmap_update_bits(wm8804->regmap, WM8804_PWRDN, 0x8, 0x0);
+
+	return 0;
+}
+
+static int wm8804_runtime_suspend(struct device *dev)
+{
+	struct wm8804_priv *wm8804 = dev_get_drvdata(dev);
+
+	/* Power down OSCCLK */
+	regmap_update_bits(wm8804->regmap, WM8804_PWRDN, 0x8, 0x8);
+
+	regulator_bulk_disable(ARRAY_SIZE(wm8804->supplies),
+			       wm8804->supplies);
+
+	return 0;
+}
+#endif
+
+const struct dev_pm_ops wm8804_pm = {
+	SET_RUNTIME_PM_OPS(wm8804_runtime_suspend, wm8804_runtime_resume, NULL)
+};
+EXPORT_SYMBOL_GPL(wm8804_pm);
 
 MODULE_DESCRIPTION("ASoC WM8804 driver");
 MODULE_AUTHOR("Dimitris Papastamos <dp@opensource.wolfsonmicro.com>");

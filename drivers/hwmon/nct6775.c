@@ -57,6 +57,7 @@
 #include <linux/err.h>
 #include <linux/mutex.h>
 #include <linux/acpi.h>
+#include <linux/dmi.h>
 #include <linux/io.h>
 #include "lm75.h"
 
@@ -880,12 +881,12 @@ struct nct6775_data {
 	u16 have_temp;
 	u16 have_temp_fixed;
 	u16 have_in;
-#ifdef CONFIG_PM
+
 	/* Remember extra register values over suspend/resume */
 	u8 vbat;
 	u8 fandiv1;
 	u8 fandiv2;
-#endif
+	u8 sio_reg_enable;
 };
 
 struct nct6775_sio_data {
@@ -3178,6 +3179,10 @@ nct6775_check_fan_inputs(struct nct6775_data *data)
 	int sioreg = data->sioreg;
 	int regval;
 
+	/* Store SIO_REG_ENABLE for use during resume */
+	superio_select(sioreg, NCT6775_LD_HWM);
+	data->sio_reg_enable = superio_inb(sioreg, SIO_REG_ENABLE);
+
 	/* fan4 and fan5 share some pins with the GPIO and serial flash */
 	if (data->kind == nct6775) {
 		regval = superio_inb(sioreg, 0x2c);
@@ -3195,21 +3200,38 @@ nct6775_check_fan_inputs(struct nct6775_data *data)
 		pwm6pin = false;
 	} else if (data->kind == nct6776) {
 		bool gpok = superio_inb(sioreg, 0x27) & 0x80;
+		const char *board_vendor, *board_name;
 
-		superio_select(sioreg, NCT6775_LD_HWM);
-		regval = superio_inb(sioreg, SIO_REG_ENABLE);
+		board_vendor = dmi_get_system_info(DMI_BOARD_VENDOR);
+		board_name = dmi_get_system_info(DMI_BOARD_NAME);
 
-		if (regval & 0x80)
+		if (board_name && board_vendor &&
+		    !strcmp(board_vendor, "ASRock")) {
+			/*
+			 * Auxiliary fan monitoring is not enabled on ASRock
+			 * Z77 Pro4-M if booted in UEFI Ultra-FastBoot mode.
+			 * Observed with BIOS version 2.00.
+			 */
+			if (!strcmp(board_name, "Z77 Pro4-M")) {
+				if ((data->sio_reg_enable & 0xe0) != 0xe0) {
+					data->sio_reg_enable |= 0xe0;
+					superio_outb(sioreg, SIO_REG_ENABLE,
+						     data->sio_reg_enable);
+				}
+			}
+		}
+
+		if (data->sio_reg_enable & 0x80)
 			fan3pin = gpok;
 		else
 			fan3pin = !(superio_inb(sioreg, 0x24) & 0x40);
 
-		if (regval & 0x40)
+		if (data->sio_reg_enable & 0x40)
 			fan4pin = gpok;
 		else
 			fan4pin = superio_inb(sioreg, 0x1C) & 0x01;
 
-		if (regval & 0x20)
+		if (data->sio_reg_enable & 0x20)
 			fan5pin = gpok;
 		else
 			fan5pin = superio_inb(sioreg, 0x1C) & 0x02;
@@ -3989,8 +4011,7 @@ static void nct6791_enable_io_mapping(int sioaddr)
 	}
 }
 
-#ifdef CONFIG_PM
-static int nct6775_suspend(struct device *dev)
+static int __maybe_unused nct6775_suspend(struct device *dev)
 {
 	struct nct6775_data *data = nct6775_update_device(dev);
 
@@ -4005,22 +4026,29 @@ static int nct6775_suspend(struct device *dev)
 	return 0;
 }
 
-static int nct6775_resume(struct device *dev)
+static int __maybe_unused nct6775_resume(struct device *dev)
 {
 	struct nct6775_data *data = dev_get_drvdata(dev);
+	int sioreg = data->sioreg;
 	int i, j, err = 0;
+	u8 reg;
 
 	mutex_lock(&data->update_lock);
 	data->bank = 0xff;		/* Force initial bank selection */
 
-	if (data->kind == nct6791 || data->kind == nct6792) {
-		err = superio_enter(data->sioreg);
-		if (err)
-			goto abort;
+	err = superio_enter(sioreg);
+	if (err)
+		goto abort;
 
-		nct6791_enable_io_mapping(data->sioreg);
-		superio_exit(data->sioreg);
-	}
+	superio_select(sioreg, NCT6775_LD_HWM);
+	reg = superio_inb(sioreg, SIO_REG_ENABLE);
+	if (reg != data->sio_reg_enable)
+		superio_outb(sioreg, SIO_REG_ENABLE, data->sio_reg_enable);
+
+	if (data->kind == nct6791 || data->kind == nct6792)
+		nct6791_enable_io_mapping(sioreg);
+
+	superio_exit(sioreg);
 
 	/* Restore limits */
 	for (i = 0; i < data->in_num; i++) {
@@ -4066,22 +4094,12 @@ abort:
 	return err;
 }
 
-static const struct dev_pm_ops nct6775_dev_pm_ops = {
-	.suspend = nct6775_suspend,
-	.resume = nct6775_resume,
-	.freeze = nct6775_suspend,
-	.restore = nct6775_resume,
-};
-
-#define NCT6775_DEV_PM_OPS	(&nct6775_dev_pm_ops)
-#else
-#define NCT6775_DEV_PM_OPS	NULL
-#endif /* CONFIG_PM */
+static SIMPLE_DEV_PM_OPS(nct6775_dev_pm_ops, nct6775_suspend, nct6775_resume);
 
 static struct platform_driver nct6775_driver = {
 	.driver = {
 		.name	= DRVNAME,
-		.pm	= NCT6775_DEV_PM_OPS,
+		.pm	= &nct6775_dev_pm_ops,
 	},
 	.probe		= nct6775_probe,
 };

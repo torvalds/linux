@@ -297,6 +297,25 @@ static int mlx4_dev_port(struct mlx4_dev *dev, int port,
 	return err;
 }
 
+static inline void mlx4_enable_ignore_fcs(struct mlx4_dev *dev)
+{
+	if (!(dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_IGNORE_FCS))
+		return;
+
+	if (mlx4_is_mfunc(dev)) {
+		mlx4_dbg(dev, "SRIOV mode - Disabling Ignore FCS");
+		dev->caps.flags2 &= ~MLX4_DEV_CAP_FLAG2_IGNORE_FCS;
+		return;
+	}
+
+	if (!(dev->caps.flags & MLX4_DEV_CAP_FLAG_FCS_KEEP)) {
+		mlx4_dbg(dev,
+			 "Keep FCS is not supported - Disabling Ignore FCS");
+		dev->caps.flags2 &= ~MLX4_DEV_CAP_FLAG2_IGNORE_FCS;
+		return;
+	}
+}
+
 #define MLX4_A0_STEERING_TABLE_SIZE	256
 static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 {
@@ -489,6 +508,8 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 		dev->caps.dmfs_high_rate_qpn_range = MLX4_A0_STEERING_TABLE_SIZE;
 	}
 
+	dev->caps.rl_caps = dev_cap->rl_caps;
+
 	dev->caps.reserved_qps_cnt[MLX4_QP_REGION_RSS_RAW_ETH] =
 		dev->caps.dmfs_high_rate_qpn_range;
 
@@ -526,9 +547,19 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 		dev->caps.alloc_res_qp_mask =
 			(dev->caps.bf_reg_size ? MLX4_RESERVE_ETH_BF_QP : 0) |
 			MLX4_RESERVE_A0_QP;
+
+		if (!(dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_ETS_CFG) &&
+		    dev->caps.flags & MLX4_DEV_CAP_FLAG_SET_ETH_SCHED) {
+			mlx4_warn(dev, "Old device ETS support detected\n");
+			mlx4_warn(dev, "Consider upgrading device FW.\n");
+			dev->caps.flags2 |= MLX4_DEV_CAP_FLAG2_ETS_CFG;
+		}
+
 	} else {
 		dev->caps.alloc_res_qp_mask = 0;
 	}
+
+	mlx4_enable_ignore_fcs(dev);
 
 	return 0;
 }
@@ -883,6 +914,8 @@ static int mlx4_slave_cap(struct mlx4_dev *dev)
 	mlx4_warn(dev, "Timestamping is not supported in slave mode\n");
 
 	slave_adjust_steering_mode(dev, &dev_cap, &hca_param);
+	mlx4_dbg(dev, "RSS support for IP fragments is %s\n",
+		 hca_param.rss_ip_frags ? "on" : "off");
 
 	if (func_cap.extra_flags & MLX4_QUERY_FUNC_FLAGS_BF_RES_QP &&
 	    dev->caps.bf_reg_size)
@@ -2226,6 +2259,37 @@ void mlx4_counter_free(struct mlx4_dev *dev, u32 idx)
 	__mlx4_counter_free(dev, idx);
 }
 EXPORT_SYMBOL_GPL(mlx4_counter_free);
+
+void mlx4_set_admin_guid(struct mlx4_dev *dev, __be64 guid, int entry, int port)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+
+	priv->mfunc.master.vf_admin[entry].vport[port].guid = guid;
+}
+EXPORT_SYMBOL_GPL(mlx4_set_admin_guid);
+
+__be64 mlx4_get_admin_guid(struct mlx4_dev *dev, int entry, int port)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+
+	return priv->mfunc.master.vf_admin[entry].vport[port].guid;
+}
+EXPORT_SYMBOL_GPL(mlx4_get_admin_guid);
+
+void mlx4_set_random_admin_guid(struct mlx4_dev *dev, int entry, int port)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	__be64 guid;
+
+	/* hw GUID */
+	if (entry == 0)
+		return;
+
+	get_random_bytes((char *)&guid, sizeof(guid));
+	guid &= ~(cpu_to_be64(1ULL << 56));
+	guid |= cpu_to_be64(1ULL << 57);
+	priv->mfunc.master.vf_admin[entry].vport[port].guid = guid;
+}
 
 static int mlx4_setup_hca(struct mlx4_dev *dev)
 {

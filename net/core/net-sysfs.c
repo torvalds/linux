@@ -23,6 +23,7 @@
 #include <linux/export.h>
 #include <linux/jiffies.h>
 #include <linux/pm_runtime.h>
+#include <linux/of.h>
 
 #include "net-sysfs.h"
 
@@ -108,10 +109,18 @@ NETDEVICE_SHOW_RO(dev_id, fmt_hex);
 NETDEVICE_SHOW_RO(dev_port, fmt_dec);
 NETDEVICE_SHOW_RO(addr_assign_type, fmt_dec);
 NETDEVICE_SHOW_RO(addr_len, fmt_dec);
-NETDEVICE_SHOW_RO(iflink, fmt_dec);
 NETDEVICE_SHOW_RO(ifindex, fmt_dec);
 NETDEVICE_SHOW_RO(type, fmt_dec);
 NETDEVICE_SHOW_RO(link_mode, fmt_dec);
+
+static ssize_t iflink_show(struct device *dev, struct device_attribute *attr,
+			   char *buf)
+{
+	struct net_device *ndev = to_net_dev(dev);
+
+	return sprintf(buf, fmt_dec, dev_get_iflink(ndev));
+}
+static DEVICE_ATTR_RO(iflink);
 
 static ssize_t format_name_assign_type(const struct net_device *dev, char *buf)
 {
@@ -417,6 +426,28 @@ static ssize_t phys_port_id_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(phys_port_id);
 
+static ssize_t phys_port_name_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct net_device *netdev = to_net_dev(dev);
+	ssize_t ret = -EINVAL;
+
+	if (!rtnl_trylock())
+		return restart_syscall();
+
+	if (dev_isalive(netdev)) {
+		char name[IFNAMSIZ];
+
+		ret = dev_get_phys_port_name(netdev, name, sizeof(name));
+		if (!ret)
+			ret = sprintf(buf, "%s\n", name);
+	}
+	rtnl_unlock();
+
+	return ret;
+}
+static DEVICE_ATTR_RO(phys_port_name);
+
 static ssize_t phys_switch_id_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
@@ -464,6 +495,7 @@ static struct attribute *net_class_attrs[] = {
 	&dev_attr_tx_queue_len.attr,
 	&dev_attr_gro_flush_timeout.attr,
 	&dev_attr_phys_port_id.attr,
+	&dev_attr_phys_port_name.attr,
 	&dev_attr_phys_switch_id.attr,
 	NULL,
 };
@@ -950,6 +982,60 @@ static ssize_t show_trans_timeout(struct netdev_queue *queue,
 	return sprintf(buf, "%lu", trans_timeout);
 }
 
+#ifdef CONFIG_XPS
+static inline unsigned int get_netdev_queue_index(struct netdev_queue *queue)
+{
+	struct net_device *dev = queue->dev;
+	int i;
+
+	for (i = 0; i < dev->num_tx_queues; i++)
+		if (queue == &dev->_tx[i])
+			break;
+
+	BUG_ON(i >= dev->num_tx_queues);
+
+	return i;
+}
+
+static ssize_t show_tx_maxrate(struct netdev_queue *queue,
+			       struct netdev_queue_attribute *attribute,
+			       char *buf)
+{
+	return sprintf(buf, "%lu\n", queue->tx_maxrate);
+}
+
+static ssize_t set_tx_maxrate(struct netdev_queue *queue,
+			      struct netdev_queue_attribute *attribute,
+			      const char *buf, size_t len)
+{
+	struct net_device *dev = queue->dev;
+	int err, index = get_netdev_queue_index(queue);
+	u32 rate = 0;
+
+	err = kstrtou32(buf, 10, &rate);
+	if (err < 0)
+		return err;
+
+	if (!rtnl_trylock())
+		return restart_syscall();
+
+	err = -EOPNOTSUPP;
+	if (dev->netdev_ops->ndo_set_tx_maxrate)
+		err = dev->netdev_ops->ndo_set_tx_maxrate(dev, index, rate);
+
+	rtnl_unlock();
+	if (!err) {
+		queue->tx_maxrate = rate;
+		return len;
+	}
+	return err;
+}
+
+static struct netdev_queue_attribute queue_tx_maxrate =
+	__ATTR(tx_maxrate, S_IRUGO | S_IWUSR,
+	       show_tx_maxrate, set_tx_maxrate);
+#endif
+
 static struct netdev_queue_attribute queue_trans_timeout =
 	__ATTR(tx_timeout, S_IRUGO, show_trans_timeout, NULL);
 
@@ -1064,18 +1150,6 @@ static struct attribute_group dql_group = {
 #endif /* CONFIG_BQL */
 
 #ifdef CONFIG_XPS
-static unsigned int get_netdev_queue_index(struct netdev_queue *queue)
-{
-	struct net_device *dev = queue->dev;
-	unsigned int i;
-
-	i = queue - dev->_tx;
-	BUG_ON(i >= dev->num_tx_queues);
-
-	return i;
-}
-
-
 static ssize_t show_xps_map(struct netdev_queue *queue,
 			    struct netdev_queue_attribute *attribute, char *buf)
 {
@@ -1152,6 +1226,7 @@ static struct attribute *netdev_queue_default_attrs[] = {
 	&queue_trans_timeout.attr,
 #ifdef CONFIG_XPS
 	&xps_cpus_attribute.attr,
+	&queue_tx_maxrate.attr,
 #endif
 	NULL
 };
@@ -1373,6 +1448,30 @@ static struct class net_class = {
 	.ns_type = &net_ns_type_operations,
 	.namespace = net_namespace,
 };
+
+#ifdef CONFIG_OF_NET
+static int of_dev_node_match(struct device *dev, const void *data)
+{
+	int ret = 0;
+
+	if (dev->parent)
+		ret = dev->parent->of_node == data;
+
+	return ret == 0 ? dev->of_node == data : ret;
+}
+
+struct net_device *of_find_net_device_by_node(struct device_node *np)
+{
+	struct device *dev;
+
+	dev = class_find_device(&net_class, NULL, np, of_dev_node_match);
+	if (!dev)
+		return NULL;
+
+	return to_net_dev(dev);
+}
+EXPORT_SYMBOL(of_find_net_device_by_node);
+#endif
 
 /* Delete sysfs entries but hold kobject reference until after all
  * netdev references are gone.

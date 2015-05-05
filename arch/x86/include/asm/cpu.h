@@ -34,8 +34,6 @@ extern int _debug_hotplug_cpu(int cpu, int action);
 #endif
 #endif
 
-DECLARE_PER_CPU(int, cpu_state);
-
 int mwait_usable(const struct cpuinfo_x86 *);
 
 #endif /* _ASM_X86_CPU_H */

@@ -774,10 +774,8 @@ int snd_timer_new(struct snd_card *card, char *id, struct snd_timer_id *tid,
 	if (rtimer)
 		*rtimer = NULL;
 	timer = kzalloc(sizeof(*timer), GFP_KERNEL);
-	if (timer == NULL) {
-		pr_err("ALSA: timer: cannot allocate\n");
+	if (!timer)
 		return -ENOMEM;
-	}
 	timer->tmr_class = tid->dev_class;
 	timer->card = card;
 	timer->tmr_device = tid->device;

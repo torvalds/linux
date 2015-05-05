@@ -35,6 +35,7 @@ static int __init file_caps_disable(char *str)
 }
 __setup("no_file_caps", file_caps_disable);
 
+#ifdef CONFIG_MULTIUSER
 /*
  * More recent versions of libcap are available from:
  *
@@ -386,6 +387,24 @@ bool ns_capable(struct user_namespace *ns, int cap)
 }
 EXPORT_SYMBOL(ns_capable);
 
+
+/**
+ * capable - Determine if the current task has a superior capability in effect
+ * @cap: The capability to be tested for
+ *
+ * Return true if the current task has the given superior capability currently
+ * available for use, false if not.
+ *
+ * This sets PF_SUPERPRIV on the task if the capability is available on the
+ * assumption that it's about to be used.
+ */
+bool capable(int cap)
+{
+	return ns_capable(&init_user_ns, cap);
+}
+EXPORT_SYMBOL(capable);
+#endif /* CONFIG_MULTIUSER */
+
 /**
  * file_ns_capable - Determine if the file's opener had a capability in effect
  * @file:  The file we want to check
@@ -410,22 +429,6 @@ bool file_ns_capable(const struct file *file, struct user_namespace *ns,
 	return false;
 }
 EXPORT_SYMBOL(file_ns_capable);
-
-/**
- * capable - Determine if the current task has a superior capability in effect
- * @cap: The capability to be tested for
- *
- * Return true if the current task has the given superior capability currently
- * available for use, false if not.
- *
- * This sets PF_SUPERPRIV on the task if the capability is available on the
- * assumption that it's about to be used.
- */
-bool capable(int cap)
-{
-	return ns_capable(&init_user_ns, cap);
-}
-EXPORT_SYMBOL(capable);
 
 /**
  * capable_wrt_inode_uidgid - Check nsown_capable and uid and gid mapped

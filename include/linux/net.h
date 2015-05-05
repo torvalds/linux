@@ -120,7 +120,6 @@ struct socket {
 
 struct vm_area_struct;
 struct page;
-struct kiocb;
 struct sockaddr;
 struct msghdr;
 struct module;
@@ -162,8 +161,8 @@ struct proto_ops {
 	int		(*compat_getsockopt)(struct socket *sock, int level,
 				      int optname, char __user *optval, int __user *optlen);
 #endif
-	int		(*sendmsg)   (struct kiocb *iocb, struct socket *sock,
-				      struct msghdr *m, size_t total_len);
+	int		(*sendmsg)   (struct socket *sock, struct msghdr *m,
+				      size_t total_len);
 	/* Notes for implementing recvmsg:
 	 * ===============================
 	 * msg->msg_namelen should get updated by the recvmsg handlers
@@ -172,9 +171,8 @@ struct proto_ops {
 	 * handlers can assume that msg.msg_name is either NULL or has
 	 * a minimum size of sizeof(struct sockaddr_storage).
 	 */
-	int		(*recvmsg)   (struct kiocb *iocb, struct socket *sock,
-				      struct msghdr *m, size_t total_len,
-				      int flags);
+	int		(*recvmsg)   (struct socket *sock, struct msghdr *m,
+				      size_t total_len, int flags);
 	int		(*mmap)	     (struct file *file, struct socket *sock,
 				      struct vm_area_struct * vma);
 	ssize_t		(*sendpage)  (struct socket *sock, struct page *page,
@@ -213,7 +211,7 @@ int sock_create(int family, int type, int proto, struct socket **res);
 int sock_create_kern(int family, int type, int proto, struct socket **res);
 int sock_create_lite(int family, int type, int proto, struct socket **res);
 void sock_release(struct socket *sock);
-int sock_sendmsg(struct socket *sock, struct msghdr *msg, size_t len);
+int sock_sendmsg(struct socket *sock, struct msghdr *msg);
 int sock_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
 		 int flags);
 struct file *sock_alloc_file(struct socket *sock, int flags, const char *dname);

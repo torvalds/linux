@@ -253,7 +253,7 @@ static void briq_restart(char *cmd)
  * But unfortunately, the firmware does not connect /chosen/{stdin,stdout}
  * the the built-in serial node. Instead, a /failsafe node is created.
  */
-static void chrp_init_early(void)
+static __init void chrp_init_early(void)
 {
 	struct device_node *node;
 	const char *property;

@@ -127,18 +127,8 @@ module_param_named(start, synth_bns.startup, short, S_IRUGO);
 MODULE_PARM_DESC(ser, "Set the serial port for the synthesizer (0-based).");
 MODULE_PARM_DESC(start, "Start the synthesizer once it is loaded.");
 
-static int __init bns_init(void)
-{
-	return synth_add(&synth_bns);
-}
+module_spk_synth(synth_bns);
 
-static void __exit bns_exit(void)
-{
-	synth_remove(&synth_bns);
-}
-
-module_init(bns_init);
-module_exit(bns_exit);
 MODULE_AUTHOR("Kirk Reiser <kirk@braille.uwo.ca>");
 MODULE_AUTHOR("David Borowski");
 MODULE_DESCRIPTION("Speakup support for Braille 'n Speak synthesizers");

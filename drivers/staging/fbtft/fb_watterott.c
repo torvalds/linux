@@ -65,7 +65,7 @@ static void write_reg8_bus8(struct fbtft_par *par, int len, ...)
 	ret = par->fbtftops.write(par, par->buf, len);
 	if (ret < 0) {
 		dev_err(par->info->device,
-			"%s: write() failed and returned %d\n", __func__, ret);
+			"write() failed and returned %d\n", ret);
 		return;
 	}
 }

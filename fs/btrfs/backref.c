@@ -1206,7 +1206,7 @@ int btrfs_check_shared(struct btrfs_trans_handle *trans,
 	struct ulist *roots = NULL;
 	struct ulist_iterator uiter;
 	struct ulist_node *node;
-	struct seq_list elem = {};
+	struct seq_list elem = SEQ_LIST_INIT(elem);
 	int ret = 0;
 
 	tmp = ulist_alloc(GFP_NOFS);
@@ -1610,7 +1610,7 @@ int iterate_extent_inodes(struct btrfs_fs_info *fs_info,
 	struct ulist *roots = NULL;
 	struct ulist_node *ref_node = NULL;
 	struct ulist_node *root_node = NULL;
-	struct seq_list tree_mod_seq_elem = {};
+	struct seq_list tree_mod_seq_elem = SEQ_LIST_INIT(tree_mod_seq_elem);
 	struct ulist_iterator ref_uiter;
 	struct ulist_iterator root_uiter;
 

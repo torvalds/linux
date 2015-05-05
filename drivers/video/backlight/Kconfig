@@ -408,6 +408,16 @@ config BACKLIGHT_PANDORA
 	  If you have a Pandora console, say Y to enable the
 	  backlight driver.
 
+config BACKLIGHT_SKY81452
+	tristate "Backlight driver for SKY81452"
+	depends on BACKLIGHT_CLASS_DEVICE && MFD_SKY81452
+	help
+	  If you have a Skyworks SKY81452, say Y to enable the
+	  backlight driver.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called sky81452-backlight
+
 config BACKLIGHT_TPS65217
 	tristate "TPS65217 Backlight"
 	depends on BACKLIGHT_CLASS_DEVICE && MFD_TPS65217

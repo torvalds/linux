@@ -141,6 +141,12 @@
 #define QCOM_RPM_SYS_FABRIC_MODE		131
 #define QCOM_RPM_USB_OTG_SWITCH			132
 #define QCOM_RPM_VDDMIN_GPIO			133
+#define QCOM_RPM_NSS_FABRIC_0_CLK		134
+#define QCOM_RPM_NSS_FABRIC_1_CLK		135
+#define QCOM_RPM_SMB208_S1a			136
+#define QCOM_RPM_SMB208_S1b			137
+#define QCOM_RPM_SMB208_S2a			138
+#define QCOM_RPM_SMB208_S2b			139
 
 /*
  * Constants used to select force mode for regulators.

@@ -557,6 +557,9 @@ struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len,
 
 	local = wiphy_priv(wiphy);
 
+	if (sta_info_init(local))
+		goto err_free;
+
 	local->hw.wiphy = wiphy;
 
 	local->hw.priv = (char *)local + ALIGN(sizeof(*local), NETDEV_ALIGN);
@@ -629,8 +632,6 @@ struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len,
 	spin_lock_init(&local->ack_status_lock);
 	idr_init(&local->ack_status_frames);
 
-	sta_info_init(local);
-
 	for (i = 0; i < IEEE80211_MAX_QUEUES; i++) {
 		skb_queue_head_init(&local->pending[i]);
 		atomic_set(&local->agg_queue_stop[i], 0);
@@ -650,6 +651,9 @@ struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len,
 	ieee80211_roc_setup(local);
 
 	return &local->hw;
+ err_free:
+	wiphy_free(wiphy);
+	return NULL;
 }
 EXPORT_SYMBOL(ieee80211_alloc_hw_nm);
 
@@ -1035,6 +1039,9 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 
 	local->dynamic_ps_forced_timeout = -1;
 
+	if (!local->hw.txq_ac_max_pending)
+		local->hw.txq_ac_max_pending = 64;
+
 	result = ieee80211_wep_init(local);
 	if (result < 0)
 		wiphy_debug(local->hw.wiphy, "Failed to initialize wep: %d\n",
@@ -1057,7 +1064,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	/* add one default STA interface if supported */
 	if (local->hw.wiphy->interface_modes & BIT(NL80211_IFTYPE_STATION) &&
 	    !(hw->flags & IEEE80211_HW_NO_AUTO_VIF)) {
-		result = ieee80211_if_add(local, "wlan%d", NULL,
+		result = ieee80211_if_add(local, "wlan%d", NET_NAME_ENUM, NULL,
 					  NL80211_IFTYPE_STATION, NULL);
 		if (result)
 			wiphy_warn(local->hw.wiphy,
@@ -1173,7 +1180,6 @@ void ieee80211_unregister_hw(struct ieee80211_hw *hw)
 
 	destroy_workqueue(local->workqueue);
 	wiphy_unregister(local->hw.wiphy);
-	sta_info_stop(local);
 	ieee80211_wep_free(local);
 	ieee80211_led_exit(local);
 	kfree(local->int_scan_req);
@@ -1200,8 +1206,6 @@ void ieee80211_free_hw(struct ieee80211_hw *hw)
 	idr_for_each(&local->ack_status_frames,
 		     ieee80211_free_ack_frame, NULL);
 	idr_destroy(&local->ack_status_frames);
-
-	kfree(rcu_access_pointer(local->tx_latency));
 
 	sta_info_stop(local);
 

@@ -46,7 +46,7 @@ int comedi_set_hw_dev(struct comedi_device *dev, struct device *hw_dev)
 {
 	if (hw_dev == dev->hw_dev)
 		return 0;
-	if (dev->hw_dev != NULL)
+	if (dev->hw_dev)
 		return -EEXIST;
 	dev->hw_dev = get_device(hw_dev);
 	return 0;
@@ -139,7 +139,9 @@ static void comedi_device_detach_cleanup(struct comedi_device *dev)
 		dev->n_subdevices = 0;
 	}
 	kfree(dev->private);
+	kfree(dev->pacer);
 	dev->private = NULL;
+	dev->pacer = NULL;
 	dev->driver = NULL;
 	dev->board_name = NULL;
 	dev->board_ptr = NULL;
@@ -800,7 +802,7 @@ int comedi_device_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		}
 		module_put(driv->module);
 	}
-	if (driv == NULL) {
+	if (!driv) {
 		/*  recognize has failed if we get here */
 		/*  report valid board names before returning error */
 		for (driv = comedi_drivers; driv; driv = driv->next) {
@@ -812,7 +814,7 @@ int comedi_device_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		ret = -EIO;
 		goto out;
 	}
-	if (driv->attach == NULL) {
+	if (!driv->attach) {
 		/* driver does not support manual configuration */
 		dev_warn(dev->class_dev,
 			 "driver '%s' does not support attach using comedi_config\n",
@@ -896,7 +898,7 @@ EXPORT_SYMBOL_GPL(comedi_auto_config);
 
 void comedi_auto_unconfig(struct device *hardware_device)
 {
-	if (hardware_device == NULL)
+	if (!hardware_device)
 		return;
 	comedi_release_hardware_device(hardware_device);
 }

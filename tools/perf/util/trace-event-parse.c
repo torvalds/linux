@@ -112,8 +112,8 @@ unsigned long long read_size(struct event_format *event, void *ptr, int size)
 	return pevent_read_number(event->pevent, ptr, size);
 }
 
-void event_format__print(struct event_format *event,
-			 int cpu, void *data, int size)
+void event_format__fprintf(struct event_format *event,
+			   int cpu, void *data, int size, FILE *fp)
 {
 	struct pevent_record record;
 	struct trace_seq s;
@@ -125,8 +125,14 @@ void event_format__print(struct event_format *event,
 
 	trace_seq_init(&s);
 	pevent_event_info(&s, event, &record);
-	trace_seq_do_printf(&s);
+	trace_seq_do_fprintf(&s, fp);
 	trace_seq_destroy(&s);
+}
+
+void event_format__print(struct event_format *event,
+			 int cpu, void *data, int size)
+{
+	return event_format__fprintf(event, cpu, data, size, stdout);
 }
 
 void parse_proc_kallsyms(struct pevent *pevent,

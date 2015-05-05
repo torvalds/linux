@@ -67,6 +67,34 @@ extern void finit_soft_fpu(struct i387_soft_struct *soft);
 static inline void finit_soft_fpu(struct i387_soft_struct *soft) {}
 #endif
 
+/*
+ * Must be run with preemption disabled: this clears the fpu_owner_task,
+ * on this CPU.
+ *
+ * This will disable any lazy FPU state restore of the current FPU state,
+ * but if the current thread owns the FPU, it will still be saved by.
+ */
+static inline void __cpu_disable_lazy_restore(unsigned int cpu)
+{
+	per_cpu(fpu_owner_task, cpu) = NULL;
+}
+
+/*
+ * Used to indicate that the FPU state in memory is newer than the FPU
+ * state in registers, and the FPU state should be reloaded next time the
+ * task is run. Only safe on the current task, or non-running tasks.
+ */
+static inline void task_disable_lazy_fpu_restore(struct task_struct *tsk)
+{
+	tsk->thread.fpu.last_cpu = ~0;
+}
+
+static inline int fpu_lazy_restore(struct task_struct *new, unsigned int cpu)
+{
+	return new == this_cpu_read_stable(fpu_owner_task) &&
+		cpu == new->thread.fpu.last_cpu;
+}
+
 static inline int is_ia32_compat_frame(void)
 {
 	return config_enabled(CONFIG_IA32_EMULATION) &&
@@ -107,7 +135,6 @@ static __always_inline __pure bool use_fxsr(void)
 
 static inline void fx_finit(struct i387_fxsave_struct *fx)
 {
-	memset(fx, 0, xstate_size);
 	fx->cwd = 0x37f;
 	fx->mxcsr = MXCSR_DEFAULT;
 }
@@ -351,17 +378,6 @@ static inline void __thread_fpu_begin(struct task_struct *tsk)
 	__thread_set_has_fpu(tsk);
 }
 
-static inline void __drop_fpu(struct task_struct *tsk)
-{
-	if (__thread_has_fpu(tsk)) {
-		/* Ignore delayed exceptions from user space */
-		asm volatile("1: fwait\n"
-			     "2:\n"
-			     _ASM_EXTABLE(1b, 2b));
-		__thread_fpu_end(tsk);
-	}
-}
-
 static inline void drop_fpu(struct task_struct *tsk)
 {
 	/*
@@ -369,21 +385,37 @@ static inline void drop_fpu(struct task_struct *tsk)
 	 */
 	preempt_disable();
 	tsk->thread.fpu_counter = 0;
-	__drop_fpu(tsk);
+
+	if (__thread_has_fpu(tsk)) {
+		/* Ignore delayed exceptions from user space */
+		asm volatile("1: fwait\n"
+			     "2:\n"
+			     _ASM_EXTABLE(1b, 2b));
+		__thread_fpu_end(tsk);
+	}
+
 	clear_stopped_child_used_math(tsk);
 	preempt_enable();
 }
 
-static inline void drop_init_fpu(struct task_struct *tsk)
+static inline void restore_init_xstate(void)
+{
+	if (use_xsave())
+		xrstor_state(init_xstate_buf, -1);
+	else
+		fxrstor_checking(&init_xstate_buf->i387);
+}
+
+/*
+ * Reset the FPU state in the eager case and drop it in the lazy case (later use
+ * will reinit it).
+ */
+static inline void fpu_reset_state(struct task_struct *tsk)
 {
 	if (!use_eager_fpu())
 		drop_fpu(tsk);
-	else {
-		if (use_xsave())
-			xrstor_state(init_xstate_buf, -1);
-		else
-			fxrstor_checking(&init_xstate_buf->i387);
-	}
+	else
+		restore_init_xstate();
 }
 
 /*
@@ -400,24 +432,6 @@ static inline void drop_init_fpu(struct task_struct *tsk)
  */
 typedef struct { int preload; } fpu_switch_t;
 
-/*
- * Must be run with preemption disabled: this clears the fpu_owner_task,
- * on this CPU.
- *
- * This will disable any lazy FPU state restore of the current FPU state,
- * but if the current thread owns the FPU, it will still be saved by.
- */
-static inline void __cpu_disable_lazy_restore(unsigned int cpu)
-{
-	per_cpu(fpu_owner_task, cpu) = NULL;
-}
-
-static inline int fpu_lazy_restore(struct task_struct *new, unsigned int cpu)
-{
-	return new == this_cpu_read_stable(fpu_owner_task) &&
-		cpu == new->thread.fpu.last_cpu;
-}
-
 static inline fpu_switch_t switch_fpu_prepare(struct task_struct *old, struct task_struct *new, int cpu)
 {
 	fpu_switch_t fpu;
@@ -426,13 +440,17 @@ static inline fpu_switch_t switch_fpu_prepare(struct task_struct *old, struct ta
 	 * If the task has used the math, pre-load the FPU on xsave processors
 	 * or if the past 5 consecutive context-switches used math.
 	 */
-	fpu.preload = tsk_used_math(new) && (use_eager_fpu() ||
-					     new->thread.fpu_counter > 5);
+	fpu.preload = tsk_used_math(new) &&
+		      (use_eager_fpu() || new->thread.fpu_counter > 5);
+
 	if (__thread_has_fpu(old)) {
 		if (!__save_init_fpu(old))
-			cpu = ~0;
-		old->thread.fpu.last_cpu = cpu;
-		old->thread.fpu.has_fpu = 0;	/* But leave fpu_owner_task! */
+			task_disable_lazy_fpu_restore(old);
+		else
+			old->thread.fpu.last_cpu = cpu;
+
+		/* But leave fpu_owner_task! */
+		old->thread.fpu.has_fpu = 0;
 
 		/* Don't change CR0.TS if we just switch! */
 		if (fpu.preload) {
@@ -443,10 +461,10 @@ static inline fpu_switch_t switch_fpu_prepare(struct task_struct *old, struct ta
 			stts();
 	} else {
 		old->thread.fpu_counter = 0;
-		old->thread.fpu.last_cpu = ~0;
+		task_disable_lazy_fpu_restore(old);
 		if (fpu.preload) {
 			new->thread.fpu_counter++;
-			if (!use_eager_fpu() && fpu_lazy_restore(new, cpu))
+			if (fpu_lazy_restore(new, cpu))
 				fpu.preload = 0;
 			else
 				prefetch(new->thread.fpu.state);
@@ -466,7 +484,7 @@ static inline void switch_fpu_finish(struct task_struct *new, fpu_switch_t fpu)
 {
 	if (fpu.preload) {
 		if (unlikely(restore_fpu_checking(new)))
-			drop_init_fpu(new);
+			fpu_reset_state(new);
 	}
 }
 
@@ -495,10 +513,12 @@ static inline int restore_xstate_sig(void __user *buf, int ia32_frame)
 }
 
 /*
- * Need to be preemption-safe.
+ * Needs to be preemption-safe.
  *
  * NOTE! user_fpu_begin() must be used only immediately before restoring
- * it. This function does not do any save/restore on their own.
+ * the save state. It does not do any saving/restoring on its own. In
+ * lazy FPU mode, it is just an optimization to avoid a #NM exception,
+ * the task can lose the FPU right after preempt_enable().
  */
 static inline void user_fpu_begin(void)
 {
@@ -517,24 +537,6 @@ static inline void __save_fpu(struct task_struct *tsk)
 			xsave_state(&tsk->thread.fpu.state->xsave, -1);
 	} else
 		fpu_fxsave(&tsk->thread.fpu);
-}
-
-/*
- * These disable preemption on their own and are safe
- */
-static inline void save_init_fpu(struct task_struct *tsk)
-{
-	WARN_ON_ONCE(!__thread_has_fpu(tsk));
-
-	if (use_eager_fpu()) {
-		__save_fpu(tsk);
-		return;
-	}
-
-	preempt_disable();
-	__save_init_fpu(tsk);
-	__thread_fpu_end(tsk);
-	preempt_enable();
 }
 
 /*

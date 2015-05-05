@@ -121,6 +121,7 @@ struct inv_mpu6050_state {
 	spinlock_t time_stamp_lock;
 	struct i2c_client *client;
 	struct i2c_adapter *mux_adapter;
+	struct i2c_client *mux_client;
 	unsigned int powerup_count;
 	struct inv_mpu6050_platform_data plat_data;
 	DECLARE_KFIFO(timestamps, long long, TIMESTAMP_FIFO_SIZE);
@@ -251,3 +252,5 @@ int inv_reset_fifo(struct iio_dev *indio_dev);
 int inv_mpu6050_switch_engine(struct inv_mpu6050_state *st, bool en, u32 mask);
 int inv_mpu6050_write_reg(struct inv_mpu6050_state *st, int reg, u8 val);
 int inv_mpu6050_set_power_itg(struct inv_mpu6050_state *st, bool power_on);
+int inv_mpu_acpi_create_mux_client(struct inv_mpu6050_state *st);
+void inv_mpu_acpi_delete_mux_client(struct inv_mpu6050_state *st);

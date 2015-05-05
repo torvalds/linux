@@ -57,7 +57,7 @@ int libcfs_ioctl_getdata(char *buf, char *end, void *arg)
 		return -EINVAL;
 	}
 
-	if (hdr->ioc_len + buf >= end) {
+	if (hdr->ioc_len >= end - buf) {
 		CERROR("PORTALS: user buffer exceeds kernel buffer\n");
 		return -EINVAL;
 	}

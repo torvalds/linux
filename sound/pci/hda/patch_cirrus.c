@@ -1221,20 +1221,8 @@ MODULE_ALIAS("snd-hda-codec-id:10134213");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Cirrus Logic HD-audio codec");
 
-static struct hda_codec_preset_list cirrus_list = {
+static struct hda_codec_driver cirrus_driver = {
 	.preset = snd_hda_preset_cirrus,
-	.owner = THIS_MODULE,
 };
 
-static int __init patch_cirrus_init(void)
-{
-	return snd_hda_add_codec_preset(&cirrus_list);
-}
-
-static void __exit patch_cirrus_exit(void)
-{
-	snd_hda_delete_codec_preset(&cirrus_list);
-}
-
-module_init(patch_cirrus_init)
-module_exit(patch_cirrus_exit)
+module_hda_codec_driver(cirrus_driver);

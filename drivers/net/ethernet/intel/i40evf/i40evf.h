@@ -225,7 +225,6 @@ struct i40evf_adapter {
 #define I40E_FLAG_RX_CSUM_ENABLED                I40EVF_FLAG_RX_CSUM_ENABLED
 	/* flags for admin queue service task */
 	u32 aq_required;
-	u32 aq_pending;
 #define I40EVF_FLAG_AQ_ENABLE_QUEUES		(u32)(1)
 #define I40EVF_FLAG_AQ_DISABLE_QUEUES		(u32)(1 << 1)
 #define I40EVF_FLAG_AQ_ADD_MAC_FILTER		(u32)(1 << 2)
@@ -272,6 +271,8 @@ void i40evf_update_stats(struct i40evf_adapter *adapter);
 void i40evf_reset_interrupt_capability(struct i40evf_adapter *adapter);
 int i40evf_init_interrupt_scheme(struct i40evf_adapter *adapter);
 void i40evf_irq_enable_queues(struct i40evf_adapter *adapter, u32 mask);
+void i40evf_free_all_tx_resources(struct i40evf_adapter *adapter);
+void i40evf_free_all_rx_resources(struct i40evf_adapter *adapter);
 
 void i40e_napi_add_all(struct i40evf_adapter *adapter);
 void i40e_napi_del_all(struct i40evf_adapter *adapter);

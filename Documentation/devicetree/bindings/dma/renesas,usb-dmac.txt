@@ -1,0 +1,37 @@
+* Renesas USB DMA Controller Device Tree bindings
+
+Required Properties:
+- compatible: must contain "renesas,usb-dmac"
+- reg: base address and length of the registers block for the DMAC
+- interrupts: interrupt specifiers for the DMAC, one for each entry in
+  interrupt-names.
+- interrupt-names: one entry per channel, named "ch%u", where %u is the
+  channel number ranging from zero to the number of channels minus one.
+- clocks: a list of phandle + clock-specifier pairs.
+- #dma-cells: must be <1>, the cell specifies the channel number of the DMAC
+  port connected to the DMA client.
+- dma-channels: number of DMA channels
+
+Example: R8A7790 (R-Car H2) USB-DMACs
+
+	usb_dmac0: dma-controller@e65a0000 {
+		compatible = "renesas,usb-dmac";
+		reg = <0 0xe65a0000 0 0x100>;
+		interrupts = <0 109 IRQ_TYPE_LEVEL_HIGH
+			      0 109 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "ch0", "ch1";
+		clocks = <&mstp3_clks R8A7790_CLK_USBDMAC0>;
+		#dma-cells = <1>;
+		dma-channels = <2>;
+	};
+
+	usb_dmac1: dma-controller@e65b0000 {
+		compatible = "renesas,usb-dmac";
+		reg = <0 0xe65b0000 0 0x100>;
+		interrupts = <0 110 IRQ_TYPE_LEVEL_HIGH
+			      0 110 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "ch0", "ch1";
+		clocks = <&mstp3_clks R8A7790_CLK_USBDMAC1>;
+		#dma-cells = <1>;
+		dma-channels = <2>;
+	};

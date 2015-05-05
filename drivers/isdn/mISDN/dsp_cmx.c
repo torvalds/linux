@@ -295,7 +295,7 @@ dsp_cmx_del_conf_member(struct dsp *dsp)
 		}
 	}
 	printk(KERN_WARNING
-	       "%s: dsp is not present in its own conf_meber list.\n",
+	       "%s: dsp is not present in its own conf_member list.\n",
 	       __func__);
 
 	return -EINVAL;

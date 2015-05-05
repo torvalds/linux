@@ -137,20 +137,8 @@ MODULE_ALIAS("snd-hda-codec-id:434d4980");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("C-Media HD-audio codec");
 
-static struct hda_codec_preset_list cmedia_list = {
+static struct hda_codec_driver cmedia_driver = {
 	.preset = snd_hda_preset_cmedia,
-	.owner = THIS_MODULE,
 };
 
-static int __init patch_cmedia_init(void)
-{
-	return snd_hda_add_codec_preset(&cmedia_list);
-}
-
-static void __exit patch_cmedia_exit(void)
-{
-	snd_hda_delete_codec_preset(&cmedia_list);
-}
-
-module_init(patch_cmedia_init)
-module_exit(patch_cmedia_exit)
+module_hda_codec_driver(cmedia_driver);

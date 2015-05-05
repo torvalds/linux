@@ -50,6 +50,8 @@ static inline void rockchip_suspend_init(void)
 
 #define RK3288_SGRF_SOC_CON0		(0x0000)
 #define RK3288_SGRF_FAST_BOOT_ADDR	(0x0120)
+#define SGRF_PCLK_WDT_GATE		BIT(6)
+#define SGRF_PCLK_WDT_GATE_WRITE	BIT(22)
 #define SGRF_FAST_BOOT_EN		BIT(8)
 #define SGRF_FAST_BOOT_EN_WRITE		BIT(24)
 
@@ -62,6 +64,10 @@ static inline void rockchip_suspend_init(void)
 
 /* PMU_WAKEUP_CFG1 bits */
 #define PMU_ARMINT_WAKEUP_EN		BIT(0)
+
+/* wait 30ms for OSC stable and 30ms for pmic stable */
+#define OSC_STABL_CNT_THRESH	(32 * 30)
+#define PMU_STABL_CNT_THRESH	(32 * 30)
 
 enum rk3288_pwr_mode_con {
 	PMU_PWR_MODE_EN = 0,

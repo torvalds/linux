@@ -82,7 +82,7 @@ xfs_find_handle(
 		error = user_lpath((const char __user *)hreq->path, &path);
 		if (error)
 			return error;
-		inode = path.dentry->d_inode;
+		inode = d_inode(path.dentry);
 	}
 	ip = XFS_I(inode);
 
@@ -210,7 +210,7 @@ xfs_open_by_handle(
 	dentry = xfs_handlereq_to_dentry(parfilp, hreq);
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
-	inode = dentry->d_inode;
+	inode = d_inode(dentry);
 
 	/* Restrict xfs_open_by_handle to directories & regular files. */
 	if (!(S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode))) {
@@ -303,7 +303,7 @@ xfs_readlink_by_handle(
 		goto out_dput;
 	}
 
-	error = xfs_readlink(XFS_I(dentry->d_inode), link);
+	error = xfs_readlink(XFS_I(d_inode(dentry)), link);
 	if (error)
 		goto out_kfree;
 	error = readlink_copy(hreq->ohandle, olen, link);
@@ -376,7 +376,7 @@ xfs_fssetdm_by_handle(
 		return PTR_ERR(dentry);
 	}
 
-	if (IS_IMMUTABLE(dentry->d_inode) || IS_APPEND(dentry->d_inode)) {
+	if (IS_IMMUTABLE(d_inode(dentry)) || IS_APPEND(d_inode(dentry))) {
 		error = -EPERM;
 		goto out;
 	}
@@ -386,7 +386,7 @@ xfs_fssetdm_by_handle(
 		goto out;
 	}
 
-	error = xfs_set_dmattrs(XFS_I(dentry->d_inode), fsd.fsd_dmevmask,
+	error = xfs_set_dmattrs(XFS_I(d_inode(dentry)), fsd.fsd_dmevmask,
 				 fsd.fsd_dmstate);
 
  out:
@@ -429,7 +429,7 @@ xfs_attrlist_by_handle(
 		goto out_dput;
 
 	cursor = (attrlist_cursor_kern_t *)&al_hreq.pos;
-	error = xfs_attr_list(XFS_I(dentry->d_inode), kbuf, al_hreq.buflen,
+	error = xfs_attr_list(XFS_I(d_inode(dentry)), kbuf, al_hreq.buflen,
 					al_hreq.flags, cursor);
 	if (error)
 		goto out_kfree;
@@ -559,7 +559,7 @@ xfs_attrmulti_by_handle(
 		switch (ops[i].am_opcode) {
 		case ATTR_OP_GET:
 			ops[i].am_error = xfs_attrmulti_attr_get(
-					dentry->d_inode, attr_name,
+					d_inode(dentry), attr_name,
 					ops[i].am_attrvalue, &ops[i].am_length,
 					ops[i].am_flags);
 			break;
@@ -568,7 +568,7 @@ xfs_attrmulti_by_handle(
 			if (ops[i].am_error)
 				break;
 			ops[i].am_error = xfs_attrmulti_attr_set(
-					dentry->d_inode, attr_name,
+					d_inode(dentry), attr_name,
 					ops[i].am_attrvalue, ops[i].am_length,
 					ops[i].am_flags);
 			mnt_drop_write_file(parfilp);
@@ -578,7 +578,7 @@ xfs_attrmulti_by_handle(
 			if (ops[i].am_error)
 				break;
 			ops[i].am_error = xfs_attrmulti_attr_remove(
-					dentry->d_inode, attr_name,
+					d_inode(dentry), attr_name,
 					ops[i].am_flags);
 			mnt_drop_write_file(parfilp);
 			break;
@@ -631,7 +631,7 @@ xfs_ioc_space(
 
 	if (filp->f_flags & O_DSYNC)
 		flags |= XFS_PREALLOC_SYNC;
-	if (ioflags & XFS_IO_INVIS)	
+	if (ioflags & XFS_IO_INVIS)
 		flags |= XFS_PREALLOC_INVISIBLE;
 
 	error = mnt_want_write_file(filp);
@@ -639,9 +639,12 @@ xfs_ioc_space(
 		return error;
 
 	xfs_ilock(ip, iolock);
-	error = xfs_break_layouts(inode, &iolock);
+	error = xfs_break_layouts(inode, &iolock, false);
 	if (error)
 		goto out_unlock;
+
+	xfs_ilock(ip, XFS_MMAPLOCK_EXCL);
+	iolock |= XFS_MMAPLOCK_EXCL;
 
 	switch (bf->l_whence) {
 	case 0: /*SEEK_SET*/

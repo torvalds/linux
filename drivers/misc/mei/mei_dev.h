@@ -194,23 +194,25 @@ struct mei_cl;
  * @list: link in callback queue
  * @cl: file client who is running this operation
  * @fop_type: file operation type
- * @request_buffer: buffer to store request data
- * @response_buffer: buffer to store response data
+ * @buf: buffer for data associated with the callback
  * @buf_idx: last read index
  * @read_time: last read operation time stamp (iamthif)
  * @file_object: pointer to file structure
+ * @status: io status of the cb
  * @internal: communication between driver and FW flag
+ * @completed: the transfer or reception has completed
  */
 struct mei_cl_cb {
 	struct list_head list;
 	struct mei_cl *cl;
 	enum mei_cb_file_ops fop_type;
-	struct mei_msg_data request_buffer;
-	struct mei_msg_data response_buffer;
+	struct mei_msg_data buf;
 	unsigned long buf_idx;
 	unsigned long read_time;
 	struct file *file_object;
+	int status;
 	u32 internal:1;
+	u32 completed:1;
 };
 
 /**
@@ -229,9 +231,9 @@ struct mei_cl_cb {
  * @me_client_id: me/fw id
  * @mei_flow_ctrl_creds: transmit flow credentials
  * @timer_count:  watchdog timer for operation completion
- * @reading_state: state of the rx
  * @writing_state: state of the tx
- * @read_cb: current pending reading callback
+ * @rd_pending: pending read credits
+ * @rd_completed: completed read
  *
  * @device: device on the mei client bus
  * @device_link:  link to bus clients
@@ -249,9 +251,9 @@ struct mei_cl {
 	u8 me_client_id;
 	u8 mei_flow_ctrl_creds;
 	u8 timer_count;
-	enum mei_file_transaction_states reading_state;
 	enum mei_file_transaction_states writing_state;
-	struct mei_cl_cb *read_cb;
+	struct list_head rd_pending;
+	struct list_head rd_completed;
 
 	/* MEI CL bus data */
 	struct mei_cl_device *device;
@@ -423,7 +425,6 @@ const char *mei_pg_state_str(enum mei_pg_state state);
  * @cdev        : character device
  * @minor       : minor number allocated for device
  *
- * @read_list   : read completion list
  * @write_list  : write pending list
  * @write_waiting_list : write completion list
  * @ctrl_wr_list : pending control write list
@@ -460,6 +461,7 @@ const char *mei_pg_state_str(enum mei_pg_state state);
  * @version     : HBM protocol version in use
  * @hbm_f_pg_supported : hbm feature pgi protocol
  *
+ * @me_clients_rwsem: rw lock over me_clients list
  * @me_clients  : list of FW clients
  * @me_clients_map : FW clients bit map
  * @host_clients_map : host clients id pool
@@ -480,12 +482,7 @@ const char *mei_pg_state_str(enum mei_pg_state state);
  * @iamthif_mtu : amthif client max message length
  * @iamthif_timer : time stamp of current amthif command completion
  * @iamthif_stall_timer : timer to detect amthif hang
- * @iamthif_msg_buf : amthif current message buffer
- * @iamthif_msg_buf_size : size of current amthif message request buffer
- * @iamthif_msg_buf_index : current index in amthif message request buffer
  * @iamthif_state : amthif processor state
- * @iamthif_flow_control_pending: amthif waits for flow control
- * @iamthif_ioctl : wait for completion if amthif control message
  * @iamthif_canceled : current amthif command is canceled
  *
  * @init_work   : work item for the device init
@@ -503,7 +500,6 @@ struct mei_device {
 	struct cdev cdev;
 	int minor;
 
-	struct mei_cl_cb read_list;
 	struct mei_cl_cb write_list;
 	struct mei_cl_cb write_waiting_list;
 	struct mei_cl_cb ctrl_wr_list;
@@ -556,6 +552,7 @@ struct mei_device {
 	struct hbm_version version;
 	unsigned int hbm_f_pg_supported:1;
 
+	struct rw_semaphore me_clients_rwsem;
 	struct list_head me_clients;
 	DECLARE_BITMAP(me_clients_map, MEI_CLIENTS_MAX);
 	DECLARE_BITMAP(host_clients_map, MEI_CLIENTS_MAX);
@@ -579,12 +576,7 @@ struct mei_device {
 	int iamthif_mtu;
 	unsigned long iamthif_timer;
 	u32 iamthif_stall_timer;
-	unsigned char *iamthif_msg_buf; /* Note: memory has to be allocated */
-	u32 iamthif_msg_buf_size;
-	u32 iamthif_msg_buf_index;
 	enum iamthif_states iamthif_state;
-	bool iamthif_flow_control_pending;
-	bool iamthif_ioctl;
 	bool iamthif_canceled;
 
 	struct work_struct init_work;
@@ -662,8 +654,6 @@ void mei_amthif_reset_params(struct mei_device *dev);
 
 int mei_amthif_host_init(struct mei_device *dev);
 
-int mei_amthif_write(struct mei_device *dev, struct mei_cl_cb *priv_cb);
-
 int mei_amthif_read(struct mei_device *dev, struct file *file,
 		char __user *ubuf, size_t length, loff_t *offset);
 
@@ -675,13 +665,13 @@ int mei_amthif_release(struct mei_device *dev, struct file *file);
 struct mei_cl_cb *mei_amthif_find_read_list_entry(struct mei_device *dev,
 						struct file *file);
 
-void mei_amthif_run_next_cmd(struct mei_device *dev);
-
+int mei_amthif_write(struct mei_cl *cl, struct mei_cl_cb *cb);
+int mei_amthif_run_next_cmd(struct mei_device *dev);
 int mei_amthif_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 			struct mei_cl_cb *cmpl_list);
 
 void mei_amthif_complete(struct mei_device *dev, struct mei_cl_cb *cb);
-int mei_amthif_irq_read_msg(struct mei_device *dev,
+int mei_amthif_irq_read_msg(struct mei_cl *cl,
 			    struct mei_msg_hdr *mei_hdr,
 			    struct mei_cl_cb *complete_list);
 int mei_amthif_irq_read(struct mei_device *dev, s32 *slots);

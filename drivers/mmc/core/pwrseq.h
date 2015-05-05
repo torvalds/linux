@@ -27,8 +27,10 @@ void mmc_pwrseq_post_power_on(struct mmc_host *host);
 void mmc_pwrseq_power_off(struct mmc_host *host);
 void mmc_pwrseq_free(struct mmc_host *host);
 
-int mmc_pwrseq_simple_alloc(struct mmc_host *host, struct device *dev);
-int mmc_pwrseq_emmc_alloc(struct mmc_host *host, struct device *dev);
+struct mmc_pwrseq *mmc_pwrseq_simple_alloc(struct mmc_host *host,
+					   struct device *dev);
+struct mmc_pwrseq *mmc_pwrseq_emmc_alloc(struct mmc_host *host,
+					 struct device *dev);
 
 #else
 

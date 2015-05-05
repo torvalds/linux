@@ -176,7 +176,7 @@ static struct platform_device_id mxs_auart_devtype[] = {
 };
 MODULE_DEVICE_TABLE(platform, mxs_auart_devtype);
 
-static struct of_device_id mxs_auart_dt_ids[] = {
+static const struct of_device_id mxs_auart_dt_ids[] = {
 	{
 		.compatible = "fsl,imx28-auart",
 		.data = &mxs_auart_devtype[IMX28_AUART]
@@ -1155,14 +1155,14 @@ static int serial_mxs_probe_dt(struct mxs_auart_port *s,
 	return 0;
 }
 
-static bool mxs_auart_init_gpios(struct mxs_auart_port *s, struct device *dev)
+static int mxs_auart_init_gpios(struct mxs_auart_port *s, struct device *dev)
 {
 	enum mctrl_gpio_idx i;
 	struct gpio_desc *gpiod;
 
 	s->gpios = mctrl_gpio_init(dev, 0);
-	if (IS_ERR_OR_NULL(s->gpios))
-		return false;
+	if (IS_ERR(s->gpios))
+		return PTR_ERR(s->gpios);
 
 	/* Block (enabled before) DMA option if RTS or CTS is GPIO line */
 	if (!RTS_AT_AUART() || !CTS_AT_AUART()) {
@@ -1180,7 +1180,7 @@ static bool mxs_auart_init_gpios(struct mxs_auart_port *s, struct device *dev)
 			s->gpio_irq[i] = -EINVAL;
 	}
 
-	return true;
+	return 0;
 }
 
 static void mxs_auart_free_gpio_irq(struct mxs_auart_port *s)
@@ -1276,9 +1276,11 @@ static int mxs_auart_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, s);
 
-	if (!mxs_auart_init_gpios(s, &pdev->dev))
-		dev_err(&pdev->dev,
-			"Failed to initialize GPIOs. The serial port may not work as expected\n");
+	ret = mxs_auart_init_gpios(s, &pdev->dev);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to initialize GPIOs.\n");
+		return ret;
+	}
 
 	/*
 	 * Get the GPIO lines IRQ

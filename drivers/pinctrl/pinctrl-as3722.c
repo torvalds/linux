@@ -625,7 +625,7 @@ static int as3722_pinctrl_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id as3722_pinctrl_of_match[] = {
+static const struct of_device_id as3722_pinctrl_of_match[] = {
 	{ .compatible = "ams,as3722-pinctrl", },
 	{ },
 };

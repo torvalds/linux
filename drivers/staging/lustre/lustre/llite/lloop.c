@@ -100,8 +100,7 @@
 #include <linux/highmem.h>
 #include <linux/gfp.h>
 #include <linux/pagevec.h>
-
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "../include/lustre_lib.h"
 #include "../include/lustre_lite.h"
@@ -349,7 +348,7 @@ static void loop_make_request(struct request_queue *q, struct bio *old_bio)
 	       old_bio->bi_iter.bi_size);
 
 	spin_lock_irq(&lo->lo_lock);
-	inactive = (lo->lo_state != LLOOP_BOUND);
+	inactive = lo->lo_state != LLOOP_BOUND;
 	spin_unlock_irq(&lo->lo_lock);
 	if (inactive)
 		goto err;

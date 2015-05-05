@@ -81,11 +81,6 @@ static inline gfn_t gfn_to_index(gfn_t gfn, gfn_t base_gfn, int level)
 		(base_gfn >> KVM_HPAGE_GFN_SHIFT(level));
 }
 
-#define SELECTOR_TI_MASK (1 << 2)
-#define SELECTOR_RPL_MASK 0x03
-
-#define IOPL_SHIFT 12
-
 #define KVM_PERMILLE_MMU_PAGES 20
 #define KVM_MIN_ALLOC_MMU_PAGES 64
 #define KVM_MMU_HASH_SHIFT 10
@@ -345,6 +340,7 @@ struct kvm_pmu {
 enum {
 	KVM_DEBUGREG_BP_ENABLED = 1,
 	KVM_DEBUGREG_WONT_EXIT = 2,
+	KVM_DEBUGREG_RELOAD = 4,
 };
 
 struct kvm_vcpu_arch {
@@ -431,6 +427,9 @@ struct kvm_vcpu_arch {
 
 	int cpuid_nent;
 	struct kvm_cpuid_entry2 cpuid_entries[KVM_MAX_CPUID_ENTRIES];
+
+	int maxphyaddr;
+
 	/* emulate context */
 
 	struct x86_emulate_ctxt emulate_ctxt;
@@ -550,11 +549,20 @@ struct kvm_arch_memory_slot {
 	struct kvm_lpage_info *lpage_info[KVM_NR_PAGE_SIZES - 1];
 };
 
+/*
+ * We use as the mode the number of bits allocated in the LDR for the
+ * logical processor ID.  It happens that these are all powers of two.
+ * This makes it is very easy to detect cases where the APICs are
+ * configured for multiple modes; in that case, we cannot use the map and
+ * hence cannot use kvm_irq_delivery_to_apic_fast either.
+ */
+#define KVM_APIC_MODE_XAPIC_CLUSTER          4
+#define KVM_APIC_MODE_XAPIC_FLAT             8
+#define KVM_APIC_MODE_X2APIC                16
+
 struct kvm_apic_map {
 	struct rcu_head rcu;
-	u8 ldr_bits;
-	/* fields bellow are used to decode ldr values in different modes */
-	u32 cid_shift, cid_mask, lid_mask, broadcast;
+	u8 mode;
 	struct kvm_lapic *phys_map[256];
 	/* first index is cluster id second is cpu id in a cluster */
 	struct kvm_lapic *logical_map[16][16];
@@ -859,6 +867,8 @@ void kvm_mmu_set_mask_ptes(u64 user_mask, u64 accessed_mask,
 void kvm_mmu_reset_context(struct kvm_vcpu *vcpu);
 void kvm_mmu_slot_remove_write_access(struct kvm *kvm,
 				      struct kvm_memory_slot *memslot);
+void kvm_mmu_zap_collapsible_sptes(struct kvm *kvm,
+					struct kvm_memory_slot *memslot);
 void kvm_mmu_slot_leaf_clear_dirty(struct kvm *kvm,
 				   struct kvm_memory_slot *memslot);
 void kvm_mmu_slot_largepage_remove_write_access(struct kvm *kvm,
@@ -933,6 +943,7 @@ struct x86_emulate_ctxt;
 int kvm_fast_pio_out(struct kvm_vcpu *vcpu, int size, unsigned short port);
 void kvm_emulate_cpuid(struct kvm_vcpu *vcpu);
 int kvm_emulate_halt(struct kvm_vcpu *vcpu);
+int kvm_vcpu_halt(struct kvm_vcpu *vcpu);
 int kvm_emulate_wbinvd(struct kvm_vcpu *vcpu);
 
 void kvm_get_segment(struct kvm_vcpu *vcpu, struct kvm_segment *var, int seg);
@@ -1128,7 +1139,6 @@ int kvm_unmap_hva_range(struct kvm *kvm, unsigned long start, unsigned long end)
 int kvm_age_hva(struct kvm *kvm, unsigned long start, unsigned long end);
 int kvm_test_age_hva(struct kvm *kvm, unsigned long hva);
 void kvm_set_spte_hva(struct kvm *kvm, unsigned long hva, pte_t pte);
-int cpuid_maxphyaddr(struct kvm_vcpu *vcpu);
 int kvm_cpu_has_injectable_intr(struct kvm_vcpu *v);
 int kvm_cpu_has_interrupt(struct kvm_vcpu *vcpu);
 int kvm_arch_interrupt_allowed(struct kvm_vcpu *vcpu);

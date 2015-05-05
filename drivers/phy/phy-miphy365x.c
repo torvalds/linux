@@ -25,7 +25,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 
-#include <dt-bindings/phy/phy-miphy365x.h>
+#include <dt-bindings/phy/phy.h>
 
 #define HFC_TIMEOUT		100
 
@@ -177,7 +177,7 @@ static u8 rx_tx_spd[] = {
 static int miphy365x_set_path(struct miphy365x_phy *miphy_phy,
 			      struct miphy365x_dev *miphy_dev)
 {
-	bool sata = (miphy_phy->type == MIPHY_TYPE_SATA);
+	bool sata = (miphy_phy->type == PHY_TYPE_SATA);
 
 	return regmap_update_bits(miphy_dev->regmap,
 				  miphy_phy->ctrlreg,
@@ -431,7 +431,7 @@ static int miphy365x_init(struct phy *phy)
 	}
 
 	/* Initialise Miphy for PCIe or SATA */
-	if (miphy_phy->type == MIPHY_TYPE_PCIE)
+	if (miphy_phy->type == PHY_TYPE_PCIE)
 		ret = miphy365x_init_pcie_port(miphy_phy, miphy_dev);
 	else
 		ret = miphy365x_init_sata_port(miphy_phy, miphy_dev);
@@ -455,8 +455,8 @@ int miphy365x_get_addr(struct device *dev, struct miphy365x_phy *miphy_phy,
 		return ret;
 	}
 
-	if (!((!strncmp(name, "sata", 4) && type == MIPHY_TYPE_SATA) ||
-	      (!strncmp(name, "pcie", 4) && type == MIPHY_TYPE_PCIE)))
+	if (!((!strncmp(name, "sata", 4) && type == PHY_TYPE_SATA) ||
+	      (!strncmp(name, "pcie", 4) && type == PHY_TYPE_PCIE)))
 		return 0;
 
 	miphy_phy->base = of_iomap(phynode, index);
@@ -499,8 +499,8 @@ static struct phy *miphy365x_xlate(struct device *dev,
 
 	miphy_phy->type = args->args[0];
 
-	if (!(miphy_phy->type == MIPHY_TYPE_SATA ||
-	      miphy_phy->type == MIPHY_TYPE_PCIE)) {
+	if (!(miphy_phy->type == PHY_TYPE_SATA ||
+	      miphy_phy->type == PHY_TYPE_PCIE)) {
 		dev_err(dev, "Unsupported device type: %d\n", miphy_phy->type);
 		return ERR_PTR(-EINVAL);
 	}

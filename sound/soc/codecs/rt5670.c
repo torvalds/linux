@@ -403,6 +403,189 @@ static bool rt5670_readable_register(struct device *dev, unsigned int reg)
 	}
 }
 
+/**
+ * rt5670_headset_detect - Detect headset.
+ * @codec: SoC audio codec device.
+ * @jack_insert: Jack insert or not.
+ *
+ * Detect whether is headset or not when jack inserted.
+ *
+ * Returns detect status.
+ */
+
+static int rt5670_headset_detect(struct snd_soc_codec *codec, int jack_insert)
+{
+	int val;
+	struct rt5670_priv *rt5670 = snd_soc_codec_get_drvdata(codec);
+
+	if (jack_insert) {
+		snd_soc_dapm_force_enable_pin(&codec->dapm,
+						       "Mic Det Power");
+		snd_soc_dapm_sync(&codec->dapm);
+		snd_soc_update_bits(codec, RT5670_GEN_CTRL3, 0x4, 0x0);
+		snd_soc_update_bits(codec, RT5670_CJ_CTRL2,
+			RT5670_CBJ_DET_MODE | RT5670_CBJ_MN_JD,
+			RT5670_CBJ_MN_JD);
+		snd_soc_write(codec, RT5670_GPIO_CTRL2, 0x0004);
+		snd_soc_update_bits(codec, RT5670_GPIO_CTRL1,
+			RT5670_GP1_PIN_MASK, RT5670_GP1_PIN_IRQ);
+		snd_soc_update_bits(codec, RT5670_CJ_CTRL1,
+			RT5670_CBJ_BST1_EN, RT5670_CBJ_BST1_EN);
+		snd_soc_write(codec, RT5670_JD_CTRL3, 0x00f0);
+		snd_soc_update_bits(codec, RT5670_CJ_CTRL2,
+			RT5670_CBJ_MN_JD, RT5670_CBJ_MN_JD);
+		snd_soc_update_bits(codec, RT5670_CJ_CTRL2,
+			RT5670_CBJ_MN_JD, 0);
+		msleep(300);
+		val = snd_soc_read(codec, RT5670_CJ_CTRL3) & 0x7;
+		if (val == 0x1 || val == 0x2) {
+			rt5670->jack_type = SND_JACK_HEADSET;
+			/* for push button */
+			snd_soc_update_bits(codec, RT5670_INT_IRQ_ST, 0x8, 0x8);
+			snd_soc_update_bits(codec, RT5670_IL_CMD, 0x40, 0x40);
+			snd_soc_read(codec, RT5670_IL_CMD);
+		} else {
+			snd_soc_update_bits(codec, RT5670_GEN_CTRL3, 0x4, 0x4);
+			rt5670->jack_type = SND_JACK_HEADPHONE;
+			snd_soc_dapm_disable_pin(&codec->dapm, "Mic Det Power");
+			snd_soc_dapm_sync(&codec->dapm);
+		}
+	} else {
+		snd_soc_update_bits(codec, RT5670_INT_IRQ_ST, 0x8, 0x0);
+		snd_soc_update_bits(codec, RT5670_GEN_CTRL3, 0x4, 0x4);
+		rt5670->jack_type = 0;
+		snd_soc_dapm_disable_pin(&codec->dapm, "Mic Det Power");
+		snd_soc_dapm_sync(&codec->dapm);
+	}
+
+	return rt5670->jack_type;
+}
+
+void rt5670_jack_suspend(struct snd_soc_codec *codec)
+{
+	struct rt5670_priv *rt5670 = snd_soc_codec_get_drvdata(codec);
+
+	rt5670->jack_type_saved = rt5670->jack_type;
+	rt5670_headset_detect(codec, 0);
+}
+EXPORT_SYMBOL_GPL(rt5670_jack_suspend);
+
+void rt5670_jack_resume(struct snd_soc_codec *codec)
+{
+	struct rt5670_priv *rt5670 = snd_soc_codec_get_drvdata(codec);
+
+	if (rt5670->jack_type_saved)
+		rt5670_headset_detect(codec, 1);
+}
+EXPORT_SYMBOL_GPL(rt5670_jack_resume);
+
+static int rt5670_button_detect(struct snd_soc_codec *codec)
+{
+	int btn_type, val;
+
+	val = snd_soc_read(codec, RT5670_IL_CMD);
+	btn_type = val & 0xff80;
+	snd_soc_write(codec, RT5670_IL_CMD, val);
+	if (btn_type != 0) {
+		msleep(20);
+		val = snd_soc_read(codec, RT5670_IL_CMD);
+		snd_soc_write(codec, RT5670_IL_CMD, val);
+	}
+
+	return btn_type;
+}
+
+static int rt5670_irq_detection(void *data)
+{
+	struct rt5670_priv *rt5670 = (struct rt5670_priv *)data;
+	struct snd_soc_jack_gpio *gpio = &rt5670->hp_gpio;
+	struct snd_soc_jack *jack = rt5670->jack;
+	int val, btn_type, report = jack->status;
+
+	if (rt5670->pdata.jd_mode == 1) /* 2 port */
+		val = snd_soc_read(rt5670->codec, RT5670_A_JD_CTRL1) & 0x0070;
+	else
+		val = snd_soc_read(rt5670->codec, RT5670_A_JD_CTRL1) & 0x0020;
+
+	switch (val) {
+	/* jack in */
+	case 0x30: /* 2 port */
+	case 0x0: /* 1 port or 2 port */
+		if (rt5670->jack_type == 0) {
+			report = rt5670_headset_detect(rt5670->codec, 1);
+			/* for push button and jack out */
+			gpio->debounce_time = 25;
+			break;
+		}
+		btn_type = 0;
+		if (snd_soc_read(rt5670->codec, RT5670_INT_IRQ_ST) & 0x4) {
+			/* button pressed */
+			report = SND_JACK_HEADSET;
+			btn_type = rt5670_button_detect(rt5670->codec);
+			switch (btn_type) {
+			case 0x2000: /* up */
+				report |= SND_JACK_BTN_1;
+				break;
+			case 0x0400: /* center */
+				report |= SND_JACK_BTN_0;
+				break;
+			case 0x0080: /* down */
+				report |= SND_JACK_BTN_2;
+				break;
+			default:
+				dev_err(rt5670->codec->dev,
+					"Unexpected button code 0x%04x\n",
+					btn_type);
+				break;
+			}
+		}
+		if (btn_type == 0)/* button release */
+			report =  rt5670->jack_type;
+
+		break;
+	/* jack out */
+	case 0x70: /* 2 port */
+	case 0x10: /* 2 port */
+	case 0x20: /* 1 port */
+		report = 0;
+		snd_soc_update_bits(rt5670->codec, RT5670_INT_IRQ_ST, 0x1, 0x0);
+		rt5670_headset_detect(rt5670->codec, 0);
+		gpio->debounce_time = 150; /* for jack in */
+		break;
+	default:
+		break;
+	}
+
+	return report;
+}
+
+int rt5670_set_jack_detect(struct snd_soc_codec *codec,
+	struct snd_soc_jack *jack)
+{
+	struct rt5670_priv *rt5670 = snd_soc_codec_get_drvdata(codec);
+	int ret;
+
+	rt5670->jack = jack;
+	rt5670->hp_gpio.gpiod_dev = codec->dev;
+	rt5670->hp_gpio.name = "headphone detect";
+	rt5670->hp_gpio.report = SND_JACK_HEADSET |
+		SND_JACK_BTN_0 | SND_JACK_BTN_1 | SND_JACK_BTN_2;
+	rt5670->hp_gpio.debounce_time = 150;
+	rt5670->hp_gpio.wake = true;
+	rt5670->hp_gpio.data = (struct rt5670_priv *)rt5670;
+	rt5670->hp_gpio.jack_status_check = rt5670_irq_detection;
+
+	ret = snd_soc_jack_add_gpios(rt5670->jack, 1,
+			&rt5670->hp_gpio);
+	if (ret) {
+		dev_err(codec->dev, "Adding jack GPIO failed\n");
+		return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rt5670_set_jack_detect);
+
 static const DECLARE_TLV_DB_SCALE(out_vol_tlv, -4650, 150, 0);
 static const DECLARE_TLV_DB_SCALE(dac_vol_tlv, -65625, 375, 0);
 static const DECLARE_TLV_DB_SCALE(in_vol_tlv, -3450, 150, 0);
@@ -517,11 +700,9 @@ static int is_sys_clk_from_pll(struct snd_soc_dapm_widget *source,
 			 struct snd_soc_dapm_widget *sink)
 {
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(source->dapm);
-	unsigned int val;
+	struct rt5670_priv *rt5670 = snd_soc_codec_get_drvdata(codec);
 
-	val = snd_soc_read(codec, RT5670_GLB_CLK);
-	val &= RT5670_SCLK_SRC_MASK;
-	if (val == RT5670_SCLK_SRC_PLL1)
+	if (rt5670->sysclk_src == RT5670_SCLK_S_PLL1)
 		return 1;
 	else
 		return 0;
@@ -2271,16 +2452,6 @@ static int rt5670_set_dai_sysclk(struct snd_soc_dai *dai,
 	struct rt5670_priv *rt5670 = snd_soc_codec_get_drvdata(codec);
 	unsigned int reg_val = 0;
 
-	if (freq == rt5670->sysclk && clk_id == rt5670->sysclk_src)
-		return 0;
-
-	if (rt5670->pdata.jd_mode) {
-		if (clk_id == RT5670_SCLK_S_PLL1)
-			snd_soc_dapm_force_enable_pin(&codec->dapm, "PLL1");
-		else
-			snd_soc_dapm_disable_pin(&codec->dapm, "PLL1");
-		snd_soc_dapm_sync(&codec->dapm);
-	}
 	switch (clk_id) {
 	case RT5670_SCLK_S_MCLK:
 		reg_val |= RT5670_SCLK_SRC_MCLK;
@@ -2298,7 +2469,8 @@ static int rt5670_set_dai_sysclk(struct snd_soc_dai *dai,
 	snd_soc_update_bits(codec, RT5670_GLB_CLK,
 		RT5670_SCLK_SRC_MASK, reg_val);
 	rt5670->sysclk = freq;
-	rt5670->sysclk_src = clk_id;
+	if (clk_id != RT5670_SCLK_S_RCCLK)
+		rt5670->sysclk_src = clk_id;
 
 	dev_dbg(dai->dev, "Sysclk is %dHz and clock id is %d\n", freq, clk_id);
 
@@ -2517,6 +2689,7 @@ static int rt5670_remove(struct snd_soc_codec *codec)
 	struct rt5670_priv *rt5670 = snd_soc_codec_get_drvdata(codec);
 
 	regmap_write(rt5670->regmap, RT5670_RESET, 0);
+	snd_soc_jack_free_gpios(rt5670->jack, 1, &rt5670->hp_gpio);
 	return 0;
 }
 
@@ -2676,6 +2849,7 @@ static int rt5670_i2c_probe(struct i2c_client *i2c,
 	if (dmi_check_system(dmi_platform_intel_braswell)) {
 		rt5670->pdata.dmic_en = true;
 		rt5670->pdata.dmic1_data_pin = RT5670_DMIC_DATA_IN2P;
+		rt5670->pdata.dev_gpio = true;
 		rt5670->pdata.jd_mode = 1;
 	}
 
@@ -2717,12 +2891,17 @@ static int rt5670_i2c_probe(struct i2c_client *i2c,
 		regmap_update_bits(rt5670->regmap, RT5670_IN2,
 					RT5670_IN_DF2, RT5670_IN_DF2);
 
-	if (i2c->irq) {
+	if (rt5670->pdata.dev_gpio) {
+		/* for push button */
+		regmap_write(rt5670->regmap, RT5670_IL_CMD, 0x0000);
+		regmap_write(rt5670->regmap, RT5670_IL_CMD2, 0x0010);
+		regmap_write(rt5670->regmap, RT5670_IL_CMD3, 0x0014);
+		/* for irq */
 		regmap_update_bits(rt5670->regmap, RT5670_GPIO_CTRL1,
 				   RT5670_GP1_PIN_MASK, RT5670_GP1_PIN_IRQ);
 		regmap_update_bits(rt5670->regmap, RT5670_GPIO_CTRL2,
 				   RT5670_GP1_PF_MASK, RT5670_GP1_PF_OUT);
-
+		regmap_update_bits(rt5670->regmap, RT5670_DIG_MISC, 0x8, 0x8);
 	}
 
 	if (rt5670->pdata.jd_mode) {

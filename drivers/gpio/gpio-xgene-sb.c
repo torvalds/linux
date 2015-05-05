@@ -93,7 +93,7 @@ static int xgene_gpio_sb_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	regs = devm_ioremap_resource(&pdev->dev, res);
-	if (!regs)
+	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 
 	ret = bgpio_init(&priv->bgc, &pdev->dev, 4,

@@ -131,16 +131,6 @@ int arch_elf_pt_proc(void *_ehdr, void *_phdr, struct file *elf,
 	return 0;
 }
 
-static inline unsigned get_fp_abi(int in_abi)
-{
-	/* If the ABI requirement is provided, simply return that */
-	if (in_abi != MIPS_ABI_FP_UNKNOWN)
-		return in_abi;
-
-	/* Unknown ABI */
-	return MIPS_ABI_FP_UNKNOWN;
-}
-
 int arch_check_elf(void *_ehdr, bool has_interpreter,
 		   struct arch_elf_state *state)
 {
@@ -151,10 +141,10 @@ int arch_check_elf(void *_ehdr, bool has_interpreter,
 	if (!config_enabled(CONFIG_MIPS_O32_FP64_SUPPORT))
 		return 0;
 
-	fp_abi = get_fp_abi(state->fp_abi);
+	fp_abi = state->fp_abi;
 
 	if (has_interpreter) {
-		interp_fp_abi = get_fp_abi(state->interp_fp_abi);
+		interp_fp_abi = state->interp_fp_abi;
 
 		abi0 = min(fp_abi, interp_fp_abi);
 		abi1 = max(fp_abi, interp_fp_abi);

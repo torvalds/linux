@@ -42,6 +42,8 @@
  * 1.2 formally includes both eDP and DPI definitions.
  */
 
+#define DP_AUX_MAX_PAYLOAD_BYTES	16
+
 #define DP_AUX_I2C_WRITE		0x0
 #define DP_AUX_I2C_READ			0x1
 #define DP_AUX_I2C_STATUS		0x2
@@ -92,6 +94,15 @@
 # define DP_MSA_TIMING_PAR_IGNORED	    (1 << 6) /* eDP */
 # define DP_OUI_SUPPORT			    (1 << 7)
 
+#define DP_RECEIVE_PORT_0_CAP_0		    0x008
+# define DP_LOCAL_EDID_PRESENT		    (1 << 1)
+# define DP_ASSOCIATED_TO_PRECEDING_PORT    (1 << 2)
+
+#define DP_RECEIVE_PORT_0_BUFFER_SIZE	    0x009
+
+#define DP_RECEIVE_PORT_1_CAP_0		    0x00a
+#define DP_RECEIVE_PORT_1_BUFFER_SIZE       0x00b
+
 #define DP_I2C_SPEED_CAP		    0x00c    /* DPI */
 # define DP_I2C_SPEED_1K		    0x01
 # define DP_I2C_SPEED_5K		    0x02
@@ -101,7 +112,18 @@
 # define DP_I2C_SPEED_1M		    0x20
 
 #define DP_EDP_CONFIGURATION_CAP            0x00d   /* XXX 1.2? */
+# define DP_ALTERNATE_SCRAMBLER_RESET_CAP   (1 << 0)
+# define DP_FRAMING_CHANGE_CAP		    (1 << 1)
+# define DP_DPCD_DISPLAY_CONTROL_CAPABLE     (1 << 3) /* edp v1.2 or higher */
+
 #define DP_TRAINING_AUX_RD_INTERVAL         0x00e   /* XXX 1.2? */
+
+#define DP_ADAPTER_CAP			    0x00f   /* 1.2 */
+# define DP_FORCE_LOAD_SENSE_CAP	    (1 << 0)
+# define DP_ALTERNATE_I2C_PATTERN_CAP	    (1 << 1)
+
+#define DP_SUPPORTED_LINK_RATES		    0x010 /* eDP 1.4 */
+# define DP_MAX_SUPPORTED_RATES		     8	    /* 16-bit little-endian */
 
 /* Multiple stream transport */
 #define DP_FAUX_CAP			    0x020   /* 1.2 */
@@ -110,10 +132,56 @@
 #define DP_MSTM_CAP			    0x021   /* 1.2 */
 # define DP_MST_CAP			    (1 << 0)
 
+#define DP_NUMBER_OF_AUDIO_ENDPOINTS	    0x022   /* 1.2 */
+
+/* AV_SYNC_DATA_BLOCK                                  1.2 */
+#define DP_AV_GRANULARITY		    0x023
+# define DP_AG_FACTOR_MASK		    (0xf << 0)
+# define DP_AG_FACTOR_3MS		    (0 << 0)
+# define DP_AG_FACTOR_2MS		    (1 << 0)
+# define DP_AG_FACTOR_1MS		    (2 << 0)
+# define DP_AG_FACTOR_500US		    (3 << 0)
+# define DP_AG_FACTOR_200US		    (4 << 0)
+# define DP_AG_FACTOR_100US		    (5 << 0)
+# define DP_AG_FACTOR_10US		    (6 << 0)
+# define DP_AG_FACTOR_1US		    (7 << 0)
+# define DP_VG_FACTOR_MASK		    (0xf << 4)
+# define DP_VG_FACTOR_3MS		    (0 << 4)
+# define DP_VG_FACTOR_2MS		    (1 << 4)
+# define DP_VG_FACTOR_1MS		    (2 << 4)
+# define DP_VG_FACTOR_500US		    (3 << 4)
+# define DP_VG_FACTOR_200US		    (4 << 4)
+# define DP_VG_FACTOR_100US		    (5 << 4)
+
+#define DP_AUD_DEC_LAT0			    0x024
+#define DP_AUD_DEC_LAT1			    0x025
+
+#define DP_AUD_PP_LAT0			    0x026
+#define DP_AUD_PP_LAT1			    0x027
+
+#define DP_VID_INTER_LAT		    0x028
+
+#define DP_VID_PROG_LAT			    0x029
+
+#define DP_REP_LAT			    0x02a
+
+#define DP_AUD_DEL_INS0			    0x02b
+#define DP_AUD_DEL_INS1			    0x02c
+#define DP_AUD_DEL_INS2			    0x02d
+/* End of AV_SYNC_DATA_BLOCK */
+
+#define DP_RECEIVER_ALPM_CAP		    0x02e   /* eDP 1.4 */
+# define DP_ALPM_CAP			    (1 << 0)
+
+#define DP_SINK_DEVICE_AUX_FRAME_SYNC_CAP   0x02f   /* eDP 1.4 */
+# define DP_AUX_FRAME_SYNC_CAP		    (1 << 0)
+
 #define DP_GUID				    0x030   /* 1.2 */
 
 #define DP_PSR_SUPPORT                      0x070   /* XXX 1.2? */
 # define DP_PSR_IS_SUPPORTED                1
+# define DP_PSR2_IS_SUPPORTED		    2	    /* eDP 1.4 */
+
 #define DP_PSR_CAPS                         0x071   /* XXX 1.2? */
 # define DP_PSR_NO_TRAIN_ON_EXIT            1
 # define DP_PSR_SETUP_TIME_330              (0 << 1)
@@ -153,6 +221,7 @@
 
 /* link configuration */
 #define	DP_LINK_BW_SET		            0x100
+# define DP_LINK_RATE_TABLE		    0x00    /* eDP 1.4 */
 # define DP_LINK_BW_1_62		    0x06
 # define DP_LINK_BW_2_7			    0x0a
 # define DP_LINK_BW_5_4			    0x14    /* 1.2 */
@@ -168,11 +237,12 @@
 # define DP_TRAINING_PATTERN_3		    3	    /* 1.2 */
 # define DP_TRAINING_PATTERN_MASK	    0x3
 
-# define DP_LINK_QUAL_PATTERN_DISABLE	    (0 << 2)
-# define DP_LINK_QUAL_PATTERN_D10_2	    (1 << 2)
-# define DP_LINK_QUAL_PATTERN_ERROR_RATE    (2 << 2)
-# define DP_LINK_QUAL_PATTERN_PRBS7	    (3 << 2)
-# define DP_LINK_QUAL_PATTERN_MASK	    (3 << 2)
+/* DPCD 1.1 only. For DPCD >= 1.2 see per-lane DP_LINK_QUAL_LANEn_SET */
+# define DP_LINK_QUAL_PATTERN_11_DISABLE    (0 << 2)
+# define DP_LINK_QUAL_PATTERN_11_D10_2	    (1 << 2)
+# define DP_LINK_QUAL_PATTERN_11_ERROR_RATE (2 << 2)
+# define DP_LINK_QUAL_PATTERN_11_PRBS7	    (3 << 2)
+# define DP_LINK_QUAL_PATTERN_11_MASK	    (3 << 2)
 
 # define DP_RECOVERED_CLOCK_OUT_EN	    (1 << 4)
 # define DP_LINK_SCRAMBLING_DISABLE	    (1 << 5)
@@ -215,17 +285,63 @@
 /* bitmask as for DP_I2C_SPEED_CAP */
 
 #define DP_EDP_CONFIGURATION_SET            0x10a   /* XXX 1.2? */
+# define DP_ALTERNATE_SCRAMBLER_RESET_ENABLE (1 << 0)
+# define DP_FRAMING_CHANGE_ENABLE	    (1 << 1)
+# define DP_PANEL_SELF_TEST_ENABLE	    (1 << 7)
+
+#define DP_LINK_QUAL_LANE0_SET		    0x10b   /* DPCD >= 1.2 */
+#define DP_LINK_QUAL_LANE1_SET		    0x10c
+#define DP_LINK_QUAL_LANE2_SET		    0x10d
+#define DP_LINK_QUAL_LANE3_SET		    0x10e
+# define DP_LINK_QUAL_PATTERN_DISABLE	    0
+# define DP_LINK_QUAL_PATTERN_D10_2	    1
+# define DP_LINK_QUAL_PATTERN_ERROR_RATE    2
+# define DP_LINK_QUAL_PATTERN_PRBS7	    3
+# define DP_LINK_QUAL_PATTERN_80BIT_CUSTOM  4
+# define DP_LINK_QUAL_PATTERN_HBR2_EYE      5
+# define DP_LINK_QUAL_PATTERN_MASK	    7
+
+#define DP_TRAINING_LANE0_1_SET2	    0x10f
+#define DP_TRAINING_LANE2_3_SET2	    0x110
+# define DP_LANE02_POST_CURSOR2_SET_MASK    (3 << 0)
+# define DP_LANE02_MAX_POST_CURSOR2_REACHED (1 << 2)
+# define DP_LANE13_POST_CURSOR2_SET_MASK    (3 << 4)
+# define DP_LANE13_MAX_POST_CURSOR2_REACHED (1 << 6)
 
 #define DP_MSTM_CTRL			    0x111   /* 1.2 */
 # define DP_MST_EN			    (1 << 0)
 # define DP_UP_REQ_EN			    (1 << 1)
 # define DP_UPSTREAM_IS_SRC		    (1 << 2)
 
+#define DP_AUDIO_DELAY0			    0x112   /* 1.2 */
+#define DP_AUDIO_DELAY1			    0x113
+#define DP_AUDIO_DELAY2			    0x114
+
+#define DP_LINK_RATE_SET		    0x115   /* eDP 1.4 */
+# define DP_LINK_RATE_SET_SHIFT		    0
+# define DP_LINK_RATE_SET_MASK		    (7 << 0)
+
+#define DP_RECEIVER_ALPM_CONFIG		    0x116   /* eDP 1.4 */
+# define DP_ALPM_ENABLE			    (1 << 0)
+# define DP_ALPM_LOCK_ERROR_IRQ_HPD_ENABLE  (1 << 1)
+
+#define DP_SINK_DEVICE_AUX_FRAME_SYNC_CONF  0x117   /* eDP 1.4 */
+# define DP_AUX_FRAME_SYNC_ENABLE	    (1 << 0)
+# define DP_IRQ_HPD_ENABLE		    (1 << 1)
+
+#define DP_UPSTREAM_DEVICE_DP_PWR_NEED	    0x118   /* 1.2 */
+# define DP_PWR_NOT_NEEDED		    (1 << 0)
+
+#define DP_AUX_FRAME_SYNC_VALUE		    0x15c   /* eDP 1.4 */
+# define DP_AUX_FRAME_SYNC_VALID	    (1 << 0)
+
 #define DP_PSR_EN_CFG			    0x170   /* XXX 1.2? */
 # define DP_PSR_ENABLE			    (1 << 0)
 # define DP_PSR_MAIN_LINK_ACTIVE	    (1 << 1)
 # define DP_PSR_CRC_VERIFICATION	    (1 << 2)
 # define DP_PSR_FRAME_CAPTURE		    (1 << 3)
+# define DP_PSR_SELECTIVE_UPDATE	    (1 << 4)
+# define DP_PSR_IRQ_HPD_WITH_CRC_ERRORS     (1 << 5)
 
 #define DP_ADAPTER_CTRL			    0x1a0
 # define DP_ADAPTER_CTRL_FORCE_LOAD_SENSE   (1 << 0)
@@ -332,6 +448,49 @@
 # define DP_SET_POWER_D3                    0x2
 # define DP_SET_POWER_MASK                  0x3
 
+#define DP_EDP_DPCD_REV			    0x700    /* eDP 1.2 */
+# define DP_EDP_11			    0x00
+# define DP_EDP_12			    0x01
+# define DP_EDP_13			    0x02
+# define DP_EDP_14			    0x03
+
+#define DP_EDP_GENERAL_CAP_1		    0x701
+
+#define DP_EDP_BACKLIGHT_ADJUSTMENT_CAP     0x702
+
+#define DP_EDP_GENERAL_CAP_2		    0x703
+
+#define DP_EDP_GENERAL_CAP_3		    0x704    /* eDP 1.4 */
+
+#define DP_EDP_DISPLAY_CONTROL_REGISTER     0x720
+
+#define DP_EDP_BACKLIGHT_MODE_SET_REGISTER  0x721
+
+#define DP_EDP_BACKLIGHT_BRIGHTNESS_MSB     0x722
+#define DP_EDP_BACKLIGHT_BRIGHTNESS_LSB     0x723
+
+#define DP_EDP_PWMGEN_BIT_COUNT             0x724
+#define DP_EDP_PWMGEN_BIT_COUNT_CAP_MIN     0x725
+#define DP_EDP_PWMGEN_BIT_COUNT_CAP_MAX     0x726
+
+#define DP_EDP_BACKLIGHT_CONTROL_STATUS     0x727
+
+#define DP_EDP_BACKLIGHT_FREQ_SET           0x728
+
+#define DP_EDP_BACKLIGHT_FREQ_CAP_MIN_MSB   0x72a
+#define DP_EDP_BACKLIGHT_FREQ_CAP_MIN_MID   0x72b
+#define DP_EDP_BACKLIGHT_FREQ_CAP_MIN_LSB   0x72c
+
+#define DP_EDP_BACKLIGHT_FREQ_CAP_MAX_MSB   0x72d
+#define DP_EDP_BACKLIGHT_FREQ_CAP_MAX_MID   0x72e
+#define DP_EDP_BACKLIGHT_FREQ_CAP_MAX_LSB   0x72f
+
+#define DP_EDP_DBC_MINIMUM_BRIGHTNESS_SET   0x732
+#define DP_EDP_DBC_MAXIMUM_BRIGHTNESS_SET   0x733
+
+#define DP_EDP_REGIONAL_BACKLIGHT_BASE      0x740    /* eDP 1.4 */
+#define DP_EDP_REGIONAL_BACKLIGHT_0	    0x741    /* eDP 1.4 */
+
 #define DP_SIDEBAND_MSG_DOWN_REQ_BASE	    0x1000   /* 1.2 MST */
 #define DP_SIDEBAND_MSG_UP_REP_BASE	    0x1200   /* 1.2 MST */
 #define DP_SIDEBAND_MSG_DOWN_REP_BASE	    0x1400   /* 1.2 MST */
@@ -350,6 +509,7 @@
 #define DP_PSR_ERROR_STATUS                 0x2006  /* XXX 1.2? */
 # define DP_PSR_LINK_CRC_ERROR              (1 << 0)
 # define DP_PSR_RFB_STORAGE_ERROR           (1 << 1)
+# define DP_PSR_VSC_SDP_UNCORRECTABLE_ERROR (1 << 2) /* eDP 1.4 */
 
 #define DP_PSR_ESI                          0x2007  /* XXX 1.2? */
 # define DP_PSR_CAPS_CHANGE                 (1 << 0)
@@ -362,6 +522,9 @@
 # define DP_PSR_SINK_ACTIVE_RESYNC          4
 # define DP_PSR_SINK_INTERNAL_ERROR         7
 # define DP_PSR_SINK_STATE_MASK             0x07
+
+#define DP_RECEIVER_ALPM_STATUS		    0x200b  /* eDP 1.4 */
+# define DP_ALPM_LOCK_TIMEOUT_ERROR	    (1 << 0)
 
 /* DP 1.2 Sideband message defines */
 /* peer device type - DP 1.2a Table 2-92 */
@@ -519,6 +682,9 @@ struct drm_dp_aux_msg {
  * transactions. The drm_dp_aux_register_i2c_bus() function registers an
  * I2C adapter that can be passed to drm_probe_ddc(). Upon removal, drivers
  * should call drm_dp_aux_unregister_i2c_bus() to remove the I2C adapter.
+ * The I2C adapter uses long transfers by default; if a partial response is
+ * received, the adapter will drop down to the size given by the partial
+ * response for this transaction only.
  *
  * Note that the aux helper code assumes that the .transfer() function
  * only modifies the reply field of the drm_dp_aux_msg structure.  The

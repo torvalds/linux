@@ -272,7 +272,7 @@ static int sh_tmu_clocksource_enable(struct clocksource *cs)
 
 	ret = sh_tmu_enable(ch);
 	if (!ret) {
-		__clocksource_updatefreq_hz(cs, ch->rate);
+		__clocksource_update_freq_hz(cs, ch->rate);
 		ch->cs_enabled = true;
 	}
 

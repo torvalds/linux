@@ -386,6 +386,11 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 
 	if (INTEL_INFO(dev)->gen >= 6) {
 		err_printf(m, "ERROR: 0x%08x\n", error->error);
+
+		if (INTEL_INFO(dev)->gen >= 8)
+			err_printf(m, "FAULT_TLB_DATA: 0x%08x 0x%08x\n",
+				   error->fault_data1, error->fault_data0);
+
 		err_printf(m, "DONE_REG: 0x%08x\n", error->done_reg);
 	}
 
@@ -555,7 +560,14 @@ static void i915_error_state_free(struct kref *error_ref)
 	}
 
 	i915_error_object_free(error->semaphore_obj);
+
+	for (i = 0; i < error->vm_count; i++)
+		kfree(error->active_bo[i]);
+
 	kfree(error->active_bo);
+	kfree(error->active_bo_count);
+	kfree(error->pinned_bo);
+	kfree(error->pinned_bo_count);
 	kfree(error->overlay);
 	kfree(error->display);
 	kfree(error);
@@ -994,12 +1006,11 @@ static void i915_gem_record_rings(struct drm_device *dev,
 					i915_error_ggtt_object_create(dev_priv,
 							     ring->scratch.obj);
 
-			if (request->file_priv) {
+			if (request->pid) {
 				struct task_struct *task;
 
 				rcu_read_lock();
-				task = pid_task(request->file_priv->file->pid,
-						PIDTYPE_PID);
+				task = pid_task(request->pid, PIDTYPE_PID);
 				if (task) {
 					strcpy(error->ring[i].comm, task->comm);
 					error->ring[i].pid = task->pid;
@@ -1164,6 +1175,11 @@ static void i915_capture_reg_state(struct drm_i915_private *dev_priv,
 
 	if (IS_GEN7(dev))
 		error->err_int = I915_READ(GEN7_ERR_INT);
+
+	if (INTEL_INFO(dev)->gen >= 8) {
+		error->fault_data0 = I915_READ(GEN8_FAULT_TLB_DATA0);
+		error->fault_data1 = I915_READ(GEN8_FAULT_TLB_DATA1);
+	}
 
 	if (IS_GEN6(dev)) {
 		error->forcewake = I915_READ(FORCEWAKE);

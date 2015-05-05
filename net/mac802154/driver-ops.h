@@ -1,4 +1,4 @@
-#ifndef __MAC802154_DRVIER_OPS
+#ifndef __MAC802154_DRIVER_OPS
 #define __MAC802154_DRIVER_OPS
 
 #include <linux/types.h>
@@ -220,4 +220,4 @@ drv_set_promiscuous_mode(struct ieee802154_local *local, bool on)
 	return local->ops->set_promiscuous_mode(&local->hw, on);
 }
 
-#endif /* __MAC802154_DRVIER_OPS */
+#endif /* __MAC802154_DRIVER_OPS */

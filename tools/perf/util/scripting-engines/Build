@@ -1,0 +1,6 @@
+libperf-$(CONFIG_LIBPERL)   += trace-event-perl.o
+libperf-$(CONFIG_LIBPYTHON) += trace-event-python.o
+
+CFLAGS_trace-event-perl.o += $(PERL_EMBED_CCOPTS) -Wno-redundant-decls -Wno-strict-prototypes -Wno-unused-parameter -Wno-shadow -Wno-undef -Wno-switch-default
+
+CFLAGS_trace-event-python.o += $(PYTHON_EMBED_CCOPTS) -Wno-redundant-decls -Wno-strict-prototypes -Wno-unused-parameter -Wno-shadow

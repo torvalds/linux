@@ -229,7 +229,6 @@ static int goldfish_tty_probe(struct platform_device *pdev)
 {
 	struct goldfish_tty *qtty;
 	int ret = -EINVAL;
-	int i;
 	struct resource *r;
 	struct device *ttydev;
 	void __iomem *base;
@@ -293,7 +292,6 @@ static int goldfish_tty_probe(struct platform_device *pdev)
 	mutex_unlock(&goldfish_tty_lock);
 	return 0;
 
-	tty_unregister_device(goldfish_tty_driver, i);
 err_tty_register_device_failed:
 	free_irq(irq, pdev);
 err_request_irq_failed:

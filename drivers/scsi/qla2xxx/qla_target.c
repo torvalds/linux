@@ -3065,7 +3065,7 @@ static void qlt_do_ctio_completion(struct scsi_qla_host *vha, uint32_t handle,
 {
 	struct qla_hw_data *ha = vha->hw;
 	struct se_cmd *se_cmd;
-	struct target_core_fabric_ops *tfo;
+	const struct target_core_fabric_ops *tfo;
 	struct qla_tgt_cmd *cmd;
 
 	if (handle & CTIO_INTERMEDIATE_HANDLE_MARK) {

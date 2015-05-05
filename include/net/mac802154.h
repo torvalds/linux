@@ -19,6 +19,7 @@
 #include <net/af_ieee802154.h>
 #include <linux/ieee802154.h>
 #include <linux/skbuff.h>
+#include <linux/unaligned/memmove.h>
 
 #include <net/cfg802154.h>
 
@@ -212,7 +213,7 @@ struct ieee802154_ops {
 	int		(*set_hw_addr_filt)(struct ieee802154_hw *hw,
 					    struct ieee802154_hw_addr_filt *filt,
 					    unsigned long changed);
-	int		(*set_txpower)(struct ieee802154_hw *hw, int db);
+	int		(*set_txpower)(struct ieee802154_hw *hw, s8 dbm);
 	int		(*set_lbt)(struct ieee802154_hw *hw, bool on);
 	int		(*set_cca_mode)(struct ieee802154_hw *hw,
 					const struct wpan_phy_cca *cca);
@@ -233,9 +234,7 @@ struct ieee802154_ops {
  */
 static inline void ieee802154_be64_to_le64(void *le64_dst, const void *be64_src)
 {
-	__le64 tmp = (__force __le64)swab64p(be64_src);
-
-	memcpy(le64_dst, &tmp, IEEE802154_EXTENDED_ADDR_LEN);
+	__put_unaligned_memmove64(swab64p(be64_src), le64_dst);
 }
 
 /**
@@ -245,12 +244,10 @@ static inline void ieee802154_be64_to_le64(void *le64_dst, const void *be64_src)
  */
 static inline void ieee802154_le64_to_be64(void *be64_dst, const void *le64_src)
 {
-	__be64 tmp = (__force __be64)swab64p(le64_src);
-
-	memcpy(be64_dst, &tmp, IEEE802154_EXTENDED_ADDR_LEN);
+	__put_unaligned_memmove64(swab64p(le64_src), be64_dst);
 }
 
-/* Basic interface to register ieee802154 hwice */
+/* Basic interface to register ieee802154 device */
 struct ieee802154_hw *
 ieee802154_alloc_hw(size_t priv_data_len, const struct ieee802154_ops *ops);
 void ieee802154_free_hw(struct ieee802154_hw *hw);

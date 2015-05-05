@@ -106,8 +106,29 @@ static int dwmac1000_dma_init(void __iomem *ioaddr, int pbl, int fb, int mb,
 	return 0;
 }
 
+static u32 dwmac1000_configure_fc(u32 csr6, int rxfifosz)
+{
+	csr6 &= ~DMA_CONTROL_RFA_MASK;
+	csr6 &= ~DMA_CONTROL_RFD_MASK;
+
+	/* Leave flow control disabled if receive fifo size is less than
+	 * 4K or 0. Otherwise, send XOFF when fifo is 1K less than full,
+	 * and send XON when 2K less than full.
+	 */
+	if (rxfifosz < 4096) {
+		csr6 &= ~DMA_CONTROL_EFC;
+		pr_debug("GMAC: disabling flow control, rxfifo too small(%d)\n",
+			 rxfifosz);
+	} else {
+		csr6 |= DMA_CONTROL_EFC;
+		csr6 |= RFA_FULL_MINUS_1K;
+		csr6 |= RFD_FULL_MINUS_2K;
+	}
+	return csr6;
+}
+
 static void dwmac1000_dma_operation_mode(void __iomem *ioaddr, int txmode,
-					 int rxmode)
+					 int rxmode, int rxfifosz)
 {
 	u32 csr6 = readl(ioaddr + DMA_CONTROL);
 
@@ -152,6 +173,9 @@ static void dwmac1000_dma_operation_mode(void __iomem *ioaddr, int txmode,
 		else
 			csr6 |= DMA_CONTROL_RTC_128;
 	}
+
+	/* Configure flow control based on rx fifo size */
+	csr6 = dwmac1000_configure_fc(csr6, rxfifosz);
 
 	writel(csr6, ioaddr + DMA_CONTROL);
 }

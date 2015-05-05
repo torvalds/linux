@@ -445,7 +445,7 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(unsigned int chnl)
 #define RX_LOW_WATERMARK 8
 
 /**
- * struct iwl_rb_status - reseve buffer status
+ * struct iwl_rb_status - reserve buffer status
  * 	host memory mapped FH registers
  * @closed_rb_num [0:11] - Indicates the index of the RB which was closed
  * @closed_fr_num [0:11] - Indicates the index of the RX Frame which was closed

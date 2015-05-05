@@ -8,7 +8,7 @@
 
 / {
 	compatible = "nvidia,tegra114";
-	interrupt-parent = <&gic>;
+	interrupt-parent = <&lic>;
 
 	host1x@50000000 {
 		compatible = "nvidia,tegra114-host1x", "simple-bus";
@@ -134,6 +134,19 @@
 		      <0x50046000 0x2000>;
 		interrupts = <GIC_PPI 9
 			(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
+		interrupt-parent = <&gic>;
+	};
+
+	lic: interrupt-controller@60004000 {
+		compatible = "nvidia,tegra114-ictlr", "nvidia,tegra30-ictlr";
+		reg = <0x60004000 0x100>,
+		      <0x60004100 0x50>,
+		      <0x60004200 0x50>,
+		      <0x60004300 0x50>,
+		      <0x60004400 0x50>;
+		interrupt-controller;
+		#interrupt-cells = <3>;
+		interrupt-parent = <&gic>;
 	};
 
 	timer@60005000 {
@@ -766,5 +779,6 @@
 				(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
 			<GIC_PPI 10
 				(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
+		interrupt-parent = <&gic>;
 	};
 };

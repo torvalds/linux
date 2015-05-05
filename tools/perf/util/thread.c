@@ -82,6 +82,20 @@ void thread__delete(struct thread *thread)
 	free(thread);
 }
 
+struct thread *thread__get(struct thread *thread)
+{
+	++thread->refcnt;
+	return thread;
+}
+
+void thread__put(struct thread *thread)
+{
+	if (thread && --thread->refcnt == 0) {
+		list_del_init(&thread->node);
+		thread__delete(thread);
+	}
+}
+
 struct comm *thread__comm(const struct thread *thread)
 {
 	if (list_empty(&thread->comm_list))
@@ -192,7 +206,6 @@ int thread__fork(struct thread *thread, struct thread *parent, u64 timestamp)
 		err = thread__set_comm(thread, comm, timestamp);
 		if (err)
 			return err;
-		thread->comm_set = true;
 	}
 
 	thread->ppid = parent->tid;

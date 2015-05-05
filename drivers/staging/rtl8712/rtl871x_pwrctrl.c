@@ -103,7 +103,7 @@ void r8712_cpwm_int_hdl(struct _adapter *padapter,
 
 	if (pwrpriv->cpwm_tog == ((preportpwrstate->state) & 0x80))
 		return;
-	_cancel_timer_ex(&padapter->pwrctrlpriv. rpwm_check_timer);
+	del_timer_sync(&padapter->pwrctrlpriv.rpwm_check_timer);
 	_enter_pwrlock(&pwrpriv->lock);
 	pwrpriv->cpwm = (preportpwrstate->state) & 0xf;
 	if (pwrpriv->cpwm >= PS_STATE_S2) {
@@ -165,9 +165,9 @@ static void rpwm_workitem_callback(struct work_struct *work)
 	}
 }
 
-static void rpwm_check_handler (void *FunctionContext)
+static void rpwm_check_handler (unsigned long data)
 {
-	struct _adapter *adapter = (struct _adapter *)FunctionContext;
+	struct _adapter *adapter = (struct _adapter *)data;
 
 	_rpwm_check_handler(adapter);
 }
@@ -186,8 +186,8 @@ void r8712_init_pwrctrl_priv(struct _adapter *padapter)
 	r8712_write8(padapter, 0x1025FE58, 0);
 	INIT_WORK(&pwrctrlpriv->SetPSModeWorkItem, SetPSModeWorkItemCallback);
 	INIT_WORK(&pwrctrlpriv->rpwm_workitem, rpwm_workitem_callback);
-	_init_timer(&(pwrctrlpriv->rpwm_check_timer),
-		    padapter->pnetdev, rpwm_check_handler, (u8 *)padapter);
+	setup_timer(&pwrctrlpriv->rpwm_check_timer, rpwm_check_handler,
+		    (unsigned long)padapter);
 }
 
 /*
