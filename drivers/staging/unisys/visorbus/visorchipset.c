@@ -2223,45 +2223,6 @@ visorchipset_set_device_context(u32 bus_no, u32 dev_no, void *context)
 }
 EXPORT_SYMBOL_GPL(visorchipset_set_device_context);
 
-/* Generic wrapper function for allocating memory from a kmem_cache pool.
- */
-void *
-visorchipset_cache_alloc(struct kmem_cache *pool, bool ok_to_block,
-			 char *fn, int ln)
-{
-	gfp_t gfp;
-	void *p;
-
-	if (ok_to_block)
-		gfp = GFP_KERNEL;
-	else
-		gfp = GFP_ATOMIC;
-	/* __GFP_NORETRY means "ok to fail", meaning
-	 * kmem_cache_alloc() can return NULL, implying the caller CAN
-	 * cope with failure.  If you do NOT specify __GFP_NORETRY,
-	 * Linux will go to extreme measures to get memory for you
-	 * (like, invoke oom killer), which will probably cripple the
-	 * system.
-	 */
-	gfp |= __GFP_NORETRY;
-	p = kmem_cache_alloc(pool, gfp);
-	if (!p)
-		return NULL;
-
-	return p;
-}
-
-/* Generic wrapper function for freeing memory from a kmem_cache pool.
- */
-void
-visorchipset_cache_free(struct kmem_cache *pool, void *p, char *fn, int ln)
-{
-	if (!p)
-		return;
-
-	kmem_cache_free(pool, p);
-}
-
 static ssize_t chipsetready_store(struct device *dev,
 				  struct device_attribute *attr,
 				  const char *buf, size_t count)
