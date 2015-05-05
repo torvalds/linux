@@ -37,9 +37,7 @@
 #include <asm/io.h>
 #include <linux/arcdevice.h>
 
-
 #define VERSION "arcnet: COM90xx IO-mapped mode support (by David Woodhouse et el.)\n"
-
 
 /* Internal function declarations */
 
@@ -52,7 +50,6 @@ static void com90io_copy_to_card(struct net_device *dev, int bufnum, int offset,
 				 void *buf, int count);
 static void com90io_copy_from_card(struct net_device *dev, int bufnum, int offset,
 				   void *buf, int count);
-
 
 /* Handy defines for ARCnet specific stuff */
 
@@ -77,7 +74,6 @@ static void com90io_copy_from_card(struct net_device *dev, int bufnum, int offse
 #define ACOMMAND(cmd)	outb((cmd), _COMMAND)
 #define AINTMASK(msk)	outb((msk), _INTMASK)
 #define SETCONF()	outb((lp->config), _CONFIG)
-
 
 /****************************************************************************
  *                                                                          *
@@ -110,7 +106,6 @@ static void put_buffer_byte(struct net_device *dev, unsigned offset, u_char datu
 }
 
 #endif
-
 
 static void get_whole_buffer(struct net_device *dev, unsigned offset, unsigned length, char *dest)
 {
@@ -227,7 +222,6 @@ err_out:
 	return -ENODEV;
 }
 
-
 /* Set up the struct net_device associated with this card.  Called after
  * probing succeeds.
  */
@@ -279,7 +273,6 @@ static int __init com90io_found(struct net_device *dev)
 	return 0;
 }
 
-
 /*
  * Do a hardware reset on the card, and set up necessary registers.
  *
@@ -319,7 +312,6 @@ static int com90io_reset(struct net_device *dev, int really_reset)
 	return 0;
 }
 
-
 static void com90io_command(struct net_device *dev, int cmd)
 {
 	short ioaddr = dev->base_addr;
@@ -327,14 +319,12 @@ static void com90io_command(struct net_device *dev, int cmd)
 	ACOMMAND(cmd);
 }
 
-
 static int com90io_status(struct net_device *dev)
 {
 	short ioaddr = dev->base_addr;
 
 	return ASTATUS();
 }
-
 
 static void com90io_setmask(struct net_device *dev, int mask)
 {
@@ -348,7 +338,6 @@ static void com90io_copy_to_card(struct net_device *dev, int bufnum, int offset,
 {
 	TIME("put_whole_buffer", count, put_whole_buffer(dev, bufnum * 512 + offset, count, buf));
 }
-
 
 static void com90io_copy_from_card(struct net_device *dev, int bufnum, int offset,
 				   void *buf, int count)
@@ -369,6 +358,7 @@ MODULE_LICENSE("GPL");
 static int __init com90io_setup(char *s)
 {
 	int ints[4];
+
 	s = get_options(s, 4, ints);
 	if (!ints[0])
 		return 0;

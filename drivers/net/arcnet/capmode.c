@@ -90,7 +90,6 @@ static void rx(struct net_device *dev, int bufnum,
 	netif_rx(skb);
 }
 
-
 /*
  * Create the ARCnet hard/soft headers for cap mode.
  * There aren't any soft headers in cap mode - not even the protocol id.
@@ -130,14 +129,12 @@ static int build_header(struct sk_buff *skb,
 	return hdr_size;	/* success */
 }
 
-
 static int prepare_tx(struct net_device *dev, struct archdr *pkt, int length,
 		      int bufnum)
 {
 	struct arcnet_local *lp = netdev_priv(dev);
 	struct arc_hardware *hard = &pkt->hard;
 	int ofs;
-
 
 	/* hard header is not included in packet length */
 	length -= ARC_HDR_SIZE;

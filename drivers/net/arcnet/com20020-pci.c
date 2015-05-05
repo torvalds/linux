@@ -42,7 +42,6 @@
 
 #include <asm/io.h>
 
-
 #define VERSION "arcnet: COM20020 PCI support\n"
 
 /* Module parameters */
@@ -85,7 +84,6 @@ static int com20020pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	priv->ci = ci;
 
 	INIT_LIST_HEAD(&priv->list_dev);
-
 
 	for (i = 0; i < ci->devcount; i++) {
 		struct com20020_pci_channel_map *cm = &ci->chan_map_tbl[i];

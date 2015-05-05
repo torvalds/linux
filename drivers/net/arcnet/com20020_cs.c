@@ -49,7 +49,6 @@
 
 #define VERSION "arcnet: COM20020 PCMCIA support loaded.\n"
 
-
 static void regdump(struct net_device *dev)
 {
 #ifdef DEBUG
@@ -82,8 +81,6 @@ static void regdump(struct net_device *dev)
 	pr_cont("\n");
 #endif
 }
-
-
 
 /*====================================================================*/
 
@@ -304,6 +301,7 @@ static int com20020_resume(struct pcmcia_device *link)
 	if (link->open) {
 		int ioaddr = dev->base_addr;
 		struct arcnet_local *lp = netdev_priv(dev);
+
 		ARCRESET;
 	}
 

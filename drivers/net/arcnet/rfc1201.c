@@ -34,7 +34,6 @@
 MODULE_LICENSE("GPL");
 #define VERSION "arcnet: RFC1201 \"standard\" (`a') encapsulation support loaded.\n"
 
-
 static __be16 type_trans(struct sk_buff *skb, struct net_device *dev);
 static void rx(struct net_device *dev, int bufnum,
 	       struct archdr *pkthdr, int length);
@@ -55,7 +54,6 @@ static struct ArcProto rfc1201_proto =
 	.continue_tx	= continue_tx,
 	.ack_tx         = NULL
 };
-
 
 static int __init arcnet_rfc1201_init(void)
 {
@@ -128,7 +126,6 @@ static __be16 type_trans(struct sk_buff *skb, struct net_device *dev)
 
 	return htons(ETH_P_IP);
 }
-
 
 /* packet receiver */
 static void rx(struct net_device *dev, int bufnum,
@@ -369,7 +366,6 @@ static void rx(struct net_device *dev, int bufnum,
 	}
 }
 
-
 /* Create the ARCnet hard/soft headers for RFC1201. */
 static int build_header(struct sk_buff *skb, struct net_device *dev,
 			unsigned short type, uint8_t daddr)
@@ -437,7 +433,6 @@ static int build_header(struct sk_buff *skb, struct net_device *dev,
 	return hdr_size;
 }
 
-
 static void load_pkt(struct net_device *dev, struct arc_hardware *hard,
 		     struct arc_rfc1201 *soft, int softlen, int bufnum)
 {
@@ -470,14 +465,12 @@ static void load_pkt(struct net_device *dev, struct arc_hardware *hard,
 	lp->lastload_dest = hard->dest;
 }
 
-
 static int prepare_tx(struct net_device *dev, struct archdr *pkt, int length,
 		      int bufnum)
 {
 	struct arcnet_local *lp = netdev_priv(dev);
 	const int maxsegsize = XMTU - RFC1201_HDR_SIZE;
 	struct Outgoing *out;
-
 
 	BUGMSG(D_DURING, "prepare_tx: txbufs=%d/%d/%d\n",
 	       lp->next_tx, lp->cur_tx, bufnum);
@@ -505,7 +498,6 @@ static int prepare_tx(struct net_device *dev, struct archdr *pkt, int length,
 
 	return 1;		/* done */
 }
-
 
 static int continue_tx(struct net_device *dev, int bufnum)
 {
