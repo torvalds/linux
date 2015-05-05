@@ -29,7 +29,7 @@
 /** The user-mode program can access the control channel buffer directly
  *  via this memory map.
  */
-#define VISORCHIPSET_MMAP_CONTROLCHANOFFSET    (0x00000000)
-#define VISORCHIPSET_MMAP_CONTROLCHANSIZE      (0x00400000)  /* 4MB */
+#define VISORCHIPSET_MMAP_CONTROLCHANOFFSET	0x00000000
+#define VISORCHIPSET_MMAP_CONTROLCHANSIZE	0x00400000	/* 4MB */
 
 #endif /* __VISORCHIPSET_UMODE_H */
