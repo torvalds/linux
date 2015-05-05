@@ -1000,6 +1000,7 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.ptp_write_host_time = siena_ptp_write_host_time,
 	.ptp_set_ts_config = siena_ptp_set_ts_config,
 #ifdef CONFIG_SFC_SRIOV
+	.sriov_configure = efx_siena_sriov_configure,
 	.sriov_init = efx_siena_sriov_init,
 	.sriov_fini = efx_siena_sriov_fini,
 	.sriov_mac_address_changed = efx_siena_sriov_mac_address_changed,

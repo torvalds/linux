@@ -3691,6 +3691,7 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.ptp_set_ts_sync_events = efx_ef10_ptp_set_ts_sync_events,
 	.ptp_set_ts_config = efx_ef10_ptp_set_ts_config,
 #ifdef CONFIG_SFC_SRIOV
+	.sriov_configure = efx_ef10_sriov_configure,
 	.sriov_init = efx_ef10_sriov_init,
 	.sriov_fini = efx_ef10_sriov_fini,
 	.sriov_mac_address_changed = efx_ef10_sriov_mac_address_changed,
