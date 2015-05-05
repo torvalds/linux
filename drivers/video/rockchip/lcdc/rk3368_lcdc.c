@@ -1068,25 +1068,25 @@ static int rk3368_lcdc_axi_gather_cfg(struct lcdc_device *lcdc_dev,
 				            struct rk_lcdc_win *win)
 {
 	u32 mask, val;
-	u16 yrgb_gather_num = 8;
-	u16 cbcr_gather_num = 2;
+	u16 yrgb_gather_num = 3;
+	u16 cbcr_gather_num = 1;
 
 	switch (win->area[0].format) {
 	case ARGB888:
 	case XBGR888:
 	case ABGR888:
-		yrgb_gather_num = 8;
+		yrgb_gather_num = 3;
 		break;
 	case RGB888:
 	case RGB565:
-		yrgb_gather_num = 4;
+		yrgb_gather_num = 2;
 		break;
 	case YUV444:
 	case YUV422:
 	case YUV420:
 	case YUV420_NV21:
-		yrgb_gather_num = 2;
-		cbcr_gather_num = 4;
+		yrgb_gather_num = 1;
+		cbcr_gather_num = 2;
 		break;
 	default:
 		dev_err(lcdc_dev->driver.dev, "%s:un supported format!\n",
@@ -1102,9 +1102,9 @@ static int rk3368_lcdc_axi_gather_cfg(struct lcdc_device *lcdc_dev,
 			v_WIN0_CBR_AXI_GATHER_NUM(cbcr_gather_num);
 		lcdc_msk_reg(lcdc_dev, WIN0_CTRL1 + (win->id * 0x40), mask, val);
 	} else if ((win->id == 2) || (win->id == 3)) {
-		mask = m_WIN0_YRGB_AXI_GATHER_EN | m_WIN0_YRGB_AXI_GATHER_NUM;
-		val = v_WIN0_YRGB_AXI_GATHER_EN(1) |
-			v_WIN0_YRGB_AXI_GATHER_NUM(yrgb_gather_num);
+		mask = m_WIN2_AXI_GATHER_EN | m_WIN2_AXI_GATHER_NUM;
+		val = v_WIN2_AXI_GATHER_EN(1) |
+			v_WIN2_AXI_GATHER_NUM(yrgb_gather_num);
 		lcdc_msk_reg(lcdc_dev, WIN2_CTRL1 + ((win->id - 2) * 0x50), mask, val);
 	} else if (win->id == 4) {
 		mask = m_HWC_AXI_GATHER_EN | m_HWC_AXI_GATHER_NUM;
