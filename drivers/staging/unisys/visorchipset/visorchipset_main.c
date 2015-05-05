@@ -2120,7 +2120,7 @@ static ssize_t devicedisabled_store(struct device *dev,
 				    struct device_attribute *attr,
 				    const char *buf, size_t count)
 {
-	uint id;
+	unsigned int id;
 
 	if (kstrtouint(buf, 10, &id) != 0)
 		return -EINVAL;
@@ -2137,7 +2137,7 @@ static ssize_t deviceenabled_store(struct device *dev,
 				   struct device_attribute *attr,
 				   const char *buf, size_t count)
 {
-	uint id;
+	unsigned int id;
 
 	if (kstrtouint(buf, 10, &id) != 0)
 		return -EINVAL;
