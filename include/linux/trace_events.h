@@ -219,7 +219,7 @@ struct trace_event_class {
 extern int trace_event_reg(struct trace_event_call *event,
 			    enum trace_reg type, void *data);
 
-struct ftrace_event_buffer {
+struct trace_event_buffer {
 	struct ring_buffer		*buffer;
 	struct ring_buffer_event	*event;
 	struct trace_event_file		*trace_file;
@@ -228,11 +228,11 @@ struct ftrace_event_buffer {
 	int				pc;
 };
 
-void *ftrace_event_buffer_reserve(struct ftrace_event_buffer *fbuffer,
+void *trace_event_buffer_reserve(struct trace_event_buffer *fbuffer,
 				  struct trace_event_file *trace_file,
 				  unsigned long len);
 
-void ftrace_event_buffer_commit(struct ftrace_event_buffer *fbuffer);
+void trace_event_buffer_commit(struct trace_event_buffer *fbuffer);
 
 enum {
 	TRACE_EVENT_FL_FILTERED_BIT,

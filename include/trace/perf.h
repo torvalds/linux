@@ -155,7 +155,7 @@ ftrace_raw_event_##call(void *__data, proto)				\
 {									\
 	struct trace_event_file *trace_file = __data;			\
 	struct ftrace_data_offsets_##call __maybe_unused __data_offsets;\
-	struct ftrace_event_buffer fbuffer;				\
+	struct trace_event_buffer fbuffer;				\
 	struct ftrace_raw_##call *entry;				\
 	int __data_size;						\
 									\
@@ -164,7 +164,7 @@ ftrace_raw_event_##call(void *__data, proto)				\
 									\
 	__data_size = ftrace_get_offsets_##call(&__data_offsets, args); \
 									\
-	entry = ftrace_event_buffer_reserve(&fbuffer, trace_file,	\
+	entry = trace_event_buffer_reserve(&fbuffer, trace_file,	\
 				 sizeof(*entry) + __data_size);		\
 									\
 	if (!entry)							\
@@ -174,7 +174,7 @@ ftrace_raw_event_##call(void *__data, proto)				\
 									\
 	{ assign; }							\
 									\
-	ftrace_event_buffer_commit(&fbuffer);				\
+	trace_event_buffer_commit(&fbuffer);				\
 }
 /*
  * The ftrace_test_probe is compiled out, it is only here as a build time check

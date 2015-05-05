@@ -190,9 +190,9 @@ int trace_event_raw_init(struct trace_event_call *call)
 }
 EXPORT_SYMBOL_GPL(trace_event_raw_init);
 
-void *ftrace_event_buffer_reserve(struct ftrace_event_buffer *fbuffer,
-				  struct trace_event_file *trace_file,
-				  unsigned long len)
+void *trace_event_buffer_reserve(struct trace_event_buffer *fbuffer,
+				 struct trace_event_file *trace_file,
+				 unsigned long len)
 {
 	struct trace_event_call *event_call = trace_file->event_call;
 
@@ -210,11 +210,11 @@ void *ftrace_event_buffer_reserve(struct ftrace_event_buffer *fbuffer,
 	fbuffer->entry = ring_buffer_event_data(fbuffer->event);
 	return fbuffer->entry;
 }
-EXPORT_SYMBOL_GPL(ftrace_event_buffer_reserve);
+EXPORT_SYMBOL_GPL(trace_event_buffer_reserve);
 
 static DEFINE_SPINLOCK(tracepoint_iter_lock);
 
-static void output_printk(struct ftrace_event_buffer *fbuffer)
+static void output_printk(struct trace_event_buffer *fbuffer)
 {
 	struct trace_event_call *event_call;
 	struct trace_event *event;
@@ -241,7 +241,7 @@ static void output_printk(struct ftrace_event_buffer *fbuffer)
 	spin_unlock_irqrestore(&tracepoint_iter_lock, flags);
 }
 
-void ftrace_event_buffer_commit(struct ftrace_event_buffer *fbuffer)
+void trace_event_buffer_commit(struct trace_event_buffer *fbuffer)
 {
 	if (tracepoint_printk)
 		output_printk(fbuffer);
@@ -250,7 +250,7 @@ void ftrace_event_buffer_commit(struct ftrace_event_buffer *fbuffer)
 				    fbuffer->event, fbuffer->entry,
 				    fbuffer->flags, fbuffer->pc);
 }
-EXPORT_SYMBOL_GPL(ftrace_event_buffer_commit);
+EXPORT_SYMBOL_GPL(trace_event_buffer_commit);
 
 int trace_event_reg(struct trace_event_call *call,
 		    enum trace_reg type, void *data)
