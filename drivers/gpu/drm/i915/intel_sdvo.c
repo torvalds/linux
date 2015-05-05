@@ -1437,6 +1437,7 @@ static void intel_disable_sdvo(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
 	struct intel_sdvo *intel_sdvo = to_sdvo(encoder);
+	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
 	u32 temp;
 
 	intel_sdvo_set_active_outputs(intel_sdvo, 0);
@@ -1445,32 +1446,22 @@ static void intel_disable_sdvo(struct intel_encoder *encoder)
 						   DRM_MODE_DPMS_OFF);
 
 	temp = I915_READ(intel_sdvo->sdvo_reg);
-	if ((temp & SDVO_ENABLE) != 0) {
-		/* HW workaround for IBX, we need to move the port to
-		 * transcoder A before disabling it. */
-		if (HAS_PCH_IBX(encoder->base.dev)) {
-			struct drm_crtc *crtc = encoder->base.crtc;
-			int pipe = crtc ? to_intel_crtc(crtc)->pipe : -1;
 
-			if (temp & SDVO_PIPE_B_SELECT) {
-				temp &= ~SDVO_PIPE_B_SELECT;
-				I915_WRITE(intel_sdvo->sdvo_reg, temp);
-				POSTING_READ(intel_sdvo->sdvo_reg);
+	temp &= ~SDVO_ENABLE;
+	intel_sdvo_write_sdvox(intel_sdvo, temp);
 
-				/* Again we need to write this twice. */
-				I915_WRITE(intel_sdvo->sdvo_reg, temp);
-				POSTING_READ(intel_sdvo->sdvo_reg);
+	/*
+	 * HW workaround for IBX, we need to move the port
+	 * to transcoder A after disabling it to allow the
+	 * matching DP port to be enabled on transcoder A.
+	 */
+	if (HAS_PCH_IBX(dev_priv) && crtc->pipe == PIPE_B) {
+		temp &= ~SDVO_PIPE_B_SELECT;
+		temp |= SDVO_ENABLE;
+		intel_sdvo_write_sdvox(intel_sdvo, temp);
 
-				/* Transcoder selection bits only update
-				 * effectively on vblank. */
-				if (crtc)
-					intel_wait_for_vblank(encoder->base.dev, pipe);
-				else
-					msleep(50);
-			}
-		}
-
-		intel_sdvo_write_sdvox(intel_sdvo, temp & ~SDVO_ENABLE);
+		temp &= ~SDVO_ENABLE;
+		intel_sdvo_write_sdvox(intel_sdvo, temp);
 	}
 }
 

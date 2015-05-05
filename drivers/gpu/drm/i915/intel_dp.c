@@ -3843,6 +3843,7 @@ static void
 intel_dp_link_down(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	struct intel_crtc *crtc = to_intel_crtc(intel_dig_port->base.base.crtc);
 	enum port port = intel_dig_port->port;
 	struct drm_device *dev = intel_dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -3859,34 +3860,38 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 	if ((IS_GEN7(dev) && port == PORT_A) ||
 	    (HAS_PCH_CPT(dev) && port != PORT_A)) {
 		DP &= ~DP_LINK_TRAIN_MASK_CPT;
-		I915_WRITE(intel_dp->output_reg, DP | DP_LINK_TRAIN_PAT_IDLE_CPT);
+		DP |= DP_LINK_TRAIN_PAT_IDLE_CPT;
 	} else {
 		if (IS_CHERRYVIEW(dev))
 			DP &= ~DP_LINK_TRAIN_MASK_CHV;
 		else
 			DP &= ~DP_LINK_TRAIN_MASK;
-		I915_WRITE(intel_dp->output_reg, DP | DP_LINK_TRAIN_PAT_IDLE);
+		DP |= DP_LINK_TRAIN_PAT_IDLE;
 	}
+	I915_WRITE(intel_dp->output_reg, DP);
 	POSTING_READ(intel_dp->output_reg);
 
-	if (HAS_PCH_IBX(dev) &&
-	    I915_READ(intel_dp->output_reg) & DP_PIPEB_SELECT) {
-		/* Hardware workaround: leaving our transcoder select
-		 * set to transcoder B while it's off will prevent the
-		 * corresponding HDMI output on transcoder A.
-		 *
-		 * Combine this with another hardware workaround:
-		 * transcoder select bit can only be cleared while the
-		 * port is enabled.
-		 */
-		DP &= ~DP_PIPEB_SELECT;
+	DP &= ~(DP_PORT_EN | DP_AUDIO_OUTPUT_ENABLE);
+	I915_WRITE(intel_dp->output_reg, DP);
+	POSTING_READ(intel_dp->output_reg);
+
+	/*
+	 * HW workaround for IBX, we need to move the port
+	 * to transcoder A after disabling it to allow the
+	 * matching HDMI port to be enabled on transcoder A.
+	 */
+	if (HAS_PCH_IBX(dev) && crtc->pipe == PIPE_B && port != PORT_A) {
+		/* always enable with pattern 1 (as per spec) */
+		DP &= ~(DP_PIPEB_SELECT | DP_LINK_TRAIN_MASK);
+		DP |= DP_PORT_EN | DP_LINK_TRAIN_PAT_1;
+		I915_WRITE(intel_dp->output_reg, DP);
+		POSTING_READ(intel_dp->output_reg);
+
+		DP &= ~DP_PORT_EN;
 		I915_WRITE(intel_dp->output_reg, DP);
 		POSTING_READ(intel_dp->output_reg);
 	}
 
-	DP &= ~DP_AUDIO_OUTPUT_ENABLE;
-	I915_WRITE(intel_dp->output_reg, DP & ~DP_PORT_EN);
-	POSTING_READ(intel_dp->output_reg);
 	msleep(intel_dp->panel_power_down_delay);
 }
 
