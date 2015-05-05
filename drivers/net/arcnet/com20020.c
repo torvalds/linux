@@ -42,10 +42,10 @@
 #include "arcdevice.h"
 #include "com20020.h"
 
-static char *clockrates[] = {
-	"XXXXXXX", "XXXXXXXX", "XXXXXX",
-	"2.5 Mb/s", "1.25Mb/s", "625 Kb/s", "312.5 Kb/s",
-	"156.25 Kb/s", "Reserved", "Reserved", "Reserved"
+static const char * const clockrates[] = {
+	"XXXXXXX", "XXXXXXXX", "XXXXXX", "2.5 Mb/s",
+	"1.25Mb/s", "625 Kb/s", "312.5 Kb/s", "156.25 Kb/s",
+	"Reserved", "Reserved", "Reserved"
 };
 
 static void com20020_command(struct net_device *dev, int command);
@@ -234,7 +234,12 @@ int com20020_found(struct net_device *dev, int shared)
 
 	arc_printk(D_NORMAL, dev, "Using CKP %d - data rate %s\n",
 		   lp->setup >> 1,
-		   clockrates[3 - ((lp->setup2 & 0xF0) >> 4) + ((lp->setup & 0x0F) >> 1)]);
+		   clockrates[3 -
+			      ((lp->setup2 & 0xF0) >> 4) +
+			      ((lp->setup & 0x0F) >> 1)]);
+			/* The clockrates array index looks very fragile.
+			 * It seems like it could have negative indexing.
+			 */
 
 	if (register_netdev(dev)) {
 		free_irq(dev->irq, dev);
