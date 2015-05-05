@@ -29,14 +29,10 @@ static int mapit(struct memregion *memregion);
 static void unmapit(struct memregion *memregion);
 
 struct memregion *
-visor_memregion_create(HOSTADDRESS physaddr, ulong nbytes)
+visor_memregion_create(struct memregion *memregion,
+		       HOSTADDRESS physaddr, ulong nbytes)
 {
 	struct memregion *rc = NULL;
-	struct memregion *memregion;
-
-	memregion = kzalloc(sizeof(*memregion), GFP_KERNEL | __GFP_NORETRY);
-	if (memregion == NULL)
-		return NULL;
 
 	memregion->physaddr = physaddr;
 	memregion->nbytes = nbytes;
@@ -148,6 +144,5 @@ visor_memregion_destroy(struct memregion *memregion)
 	if (!memregion)
 		return;
 	unmapit(memregion);
-	kfree(memregion);
 }
 EXPORT_SYMBOL_GPL(visor_memregion_destroy);
