@@ -1366,7 +1366,7 @@ config BOOKE_WDT_DEFAULT_TIMEOUT
 config MEN_A21_WDT
        tristate "MEN A21 VME CPU Carrier Board Watchdog Timer"
        select WATCHDOG_CORE
-       depends on GPIOLIB
+       depends on GPIOLIB || COMPILE_TEST
        help
         Watchdog driver for MEN A21 VMEbus CPU Carrier Boards.
 
