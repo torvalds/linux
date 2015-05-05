@@ -1176,6 +1176,7 @@ static int cx24120_set_vco(struct cx24120_state *state)
 int cx24120_init(struct dvb_frontend *fe)
 {
 	const struct firmware *fw;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct cx24120_state *state = fe->demodulator_priv;
 	struct cx24120_cmd cmd;
 	u8 ret, ret_EA, reg1;
@@ -1360,6 +1361,10 @@ int cx24120_init(struct dvb_frontend *fe)
 		vers[i] = cx24120_readreg(state, CX24120_REG_MAILBOX);
 	}
 	info("FW version %i.%i.%i.%i\n", vers[0], vers[1], vers[2], vers[3]);
+
+	/* init stats here in order signal app which stats are supported */
+	c->strength.len = 1;
+	c->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 
 	state->cold_init = 1;
 	return 0;
