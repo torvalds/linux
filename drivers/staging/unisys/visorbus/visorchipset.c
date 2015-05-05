@@ -376,7 +376,7 @@ static void controlvm_respond_physdev_changestate(
 static void parser_done(struct parser_context *ctx);
 
 static struct parser_context *
-parser_init_guts(u64 addr, u32 bytes, bool local, bool *retry)
+parser_init_byte_stream(u64 addr, u32 bytes, bool local, bool *retry)
 {
 	int allocbytes = sizeof(struct parser_context) + bytes;
 	struct parser_context *rc = NULL;
@@ -449,17 +449,6 @@ cleanup:
 		}
 	}
 	return rc;
-}
-
-/* Call this instead of parser_init() if the payload area consists of just
- * a sequence of bytes, rather than a struct spar_controlvm_parameters_header
- * structures.  Afterwards, you can call parser_simpleString_get() or
- * parser_byteStream_get() to obtain the data.
- */
-static struct parser_context *
-parser_init_byte_stream(u64 addr, u32 bytes, bool local, bool *retry)
-{
-	return parser_init_guts(addr, bytes, local, retry);
 }
 
 static uuid_le
