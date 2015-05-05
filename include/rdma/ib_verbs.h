@@ -1849,6 +1849,21 @@ static inline bool rdma_cap_ib_sa(struct ib_device *device, u8 port_num)
 	return rdma_protocol_ib(device, port_num);
 }
 
+/**
+ * rdma_cap_ib_mcast - Check if the port of device has the capability Infiniband
+ * Multicast.
+ *
+ * @device: Device to be checked
+ * @port_num: Port number of the device
+ *
+ * Return false when port of the device don't support Infiniband
+ * Multicast.
+ */
+static inline bool rdma_cap_ib_mcast(struct ib_device *device, u8 port_num)
+{
+	return rdma_cap_ib_sa(device, port_num);
+}
+
 int ib_query_gid(struct ib_device *device,
 		 u8 port_num, int index, union ib_gid *gid);
 

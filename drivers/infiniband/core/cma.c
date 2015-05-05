@@ -1014,7 +1014,7 @@ static void cma_leave_mc_groups(struct rdma_id_private *id_priv)
 		mc = container_of(id_priv->mc_list.next,
 				  struct cma_multicast, list);
 		list_del(&mc->list);
-		if (rdma_protocol_ib(id_priv->cma_dev->device,
+		if (rdma_cap_ib_mcast(id_priv->cma_dev->device,
 				      id_priv->id.port_num)) {
 			ib_sa_free_multicast(mc->multicast.ib);
 			kfree(mc);
@@ -3328,7 +3328,7 @@ int rdma_join_multicast(struct rdma_cm_id *id, struct sockaddr *addr,
 	if (rdma_protocol_iboe(id->device, id->port_num)) {
 		kref_init(&mc->mcref);
 		ret = cma_iboe_join_multicast(id_priv, mc);
-	} else if (rdma_protocol_ib(id->device, id->port_num))
+	} else if (rdma_cap_ib_mcast(id->device, id->port_num))
 		ret = cma_join_ib_multicast(id_priv, mc);
 	else
 		ret = -ENOSYS;
@@ -3362,7 +3362,7 @@ void rdma_leave_multicast(struct rdma_cm_id *id, struct sockaddr *addr)
 
 			BUG_ON(id_priv->cma_dev->device != id->device);
 
-			if (rdma_protocol_ib(id->device, id->port_num)) {
+			if (rdma_cap_ib_mcast(id->device, id->port_num)) {
 				ib_sa_free_multicast(mc->multicast.ib);
 				kfree(mc);
 			} else if (rdma_protocol_iboe(id->device, id->port_num))
