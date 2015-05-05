@@ -140,7 +140,6 @@ struct visorchipset_bus_info {
 	struct controlvm_message_header pending_msg_hdr;/* CONTROLVM MsgHdr */
 	/** For private use by the bus driver */
 	void *bus_driver_context;
-	u32 dev_no;
 };
 
 static inline struct visorchipset_bus_info *

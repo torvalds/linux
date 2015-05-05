@@ -1051,7 +1051,6 @@ bus_create(struct controlvm_message *inmsg)
 
 	INIT_LIST_HEAD(&bus_info->entry);
 	bus_info->bus_no = bus_no;
-	bus_info->dev_no = cmd->create_bus.dev_count;
 
 	POSTCODE_LINUX_3(BUS_CREATE_ENTRY_PC, bus_no, POSTCODE_SEVERITY_INFO);
 
