@@ -885,6 +885,16 @@ static int tegra_uart_hw_init(struct tegra_uart_port *tup)
 	tup->fcr_shadow |= TEGRA_UART_TX_TRIG_16B;
 	tegra_uart_write(tup, tup->fcr_shadow, UART_FCR);
 
+	/* Dummy read to ensure the write is posted */
+	tegra_uart_read(tup, UART_SCR);
+
+	/*
+	 * For all tegra devices (up to t210), there is a hardware issue that
+	 * requires software to wait for 3 UART clock periods after enabling
+	 * the TX fifo, otherwise data could be lost.
+	 */
+	tegra_uart_wait_cycle_time(tup, 3);
+
 	/*
 	 * Initialize the UART with default configuration
 	 * (115200, N, 8, 1) so that the receive DMA buffer may be
