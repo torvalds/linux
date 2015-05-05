@@ -3486,6 +3486,18 @@ enum skl_disp_power_wells {
 #define UTIL_PIN_CTL		0x48400
 #define   UTIL_PIN_ENABLE	(1 << 31)
 
+/* BXT backlight register definition. */
+#define BXT_BLC_PWM_CTL1			0xC8250
+#define   BXT_BLC_PWM_ENABLE			(1 << 31)
+#define   BXT_BLC_PWM_POLARITY			(1 << 29)
+#define BXT_BLC_PWM_FREQ1			0xC8254
+#define BXT_BLC_PWM_DUTY1			0xC8258
+
+#define BXT_BLC_PWM_CTL2			0xC8350
+#define BXT_BLC_PWM_FREQ2			0xC8354
+#define BXT_BLC_PWM_DUTY2			0xC8358
+
+
 #define PCH_GTC_CTL		0xe7000
 #define   PCH_GTC_ENABLE	(1 << 31)
 
