@@ -25,36 +25,6 @@
 
 #define MYDRVNAME "memregion"
 
-static int mapit(struct memregion *memregion);
-static void unmapit(struct memregion *memregion);
-
-static int
-mapit(struct memregion *memregion)
-{
-	ulong physaddr = (ulong)(memregion->physaddr);
-	ulong nbytes = memregion->nbytes;
-
-	if (!request_mem_region(physaddr, nbytes, MYDRVNAME))
-		return -EBUSY;
-
-	memregion->mapped = ioremap_cache(physaddr, nbytes);
-	if (!memregion->mapped)
-		return -EFAULT;
-
-	return 0;
-}
-
-static void
-unmapit(struct memregion *memregion)
-{
-	if (memregion->mapped) {
-		iounmap(memregion->mapped);
-		memregion->mapped = NULL;
-		release_mem_region((unsigned long)memregion->physaddr,
-				   memregion->nbytes);
-	}
-}
-
 int
 visor_memregion_read(struct memregion *memregion, ulong offset, void *dest,
 		     ulong nbytes)
