@@ -399,6 +399,7 @@ parser_init_guts(u64 addr, u32 bytes, bool local,
 	struct parser_context *ctx = NULL;
 	struct memregion *rgn = NULL;
 	struct spar_controlvm_parameters_header *phdr = NULL;
+	int cnt;
 
 	if (retry)
 		*retry = false;
@@ -442,7 +443,10 @@ parser_init_guts(u64 addr, u32 bytes, bool local,
 			rc = NULL;
 			goto cleanup;
 		}
-		if (visor_memregion_read(rgn, 0, ctx->data, bytes) < 0) {
+		cnt = visor_memregion_read(rgn, 0, ctx->data, bytes);
+		visor_memregion_destroy(rgn);
+
+		if (cnt < 0) {
 			rc = NULL;
 			goto cleanup;
 		}
@@ -469,10 +473,6 @@ parser_init_guts(u64 addr, u32 bytes, bool local,
 
 	rc = ctx;
 cleanup:
-	if (rgn) {
-		visor_memregion_destroy(rgn);
-		rgn = NULL;
-	}
 	if (rc) {
 		controlvm_payload_bytes_buffered += ctx->param_bytes;
 	} else {
