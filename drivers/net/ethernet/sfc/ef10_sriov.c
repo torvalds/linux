@@ -14,53 +14,43 @@
 #include "nic.h"
 #include "mcdi_pcol.h"
 
-static int efx_ef10_pci_sriov_enable(struct efx_nic *efx, int num_vfs)
+static int efx_ef10_evb_port_assign(struct efx_nic *efx, unsigned int port_id,
+				    unsigned int vf_fn)
 {
-	int rc = 0;
-	struct pci_dev *dev = efx->pci_dev;
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_EVB_PORT_ASSIGN_IN_LEN);
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 
-	efx->vf_count = num_vfs;
-	rc = pci_enable_sriov(dev, num_vfs);
-	if (rc) {
-		efx->vf_count = 0;
-		netif_err(efx, probe, efx->net_dev,
-			  "Failed to enable SRIOV VFs\n");
-	}
-	return rc;
+	MCDI_SET_DWORD(inbuf, EVB_PORT_ASSIGN_IN_PORT_ID, port_id);
+	MCDI_POPULATE_DWORD_2(inbuf, EVB_PORT_ASSIGN_IN_FUNCTION,
+			      EVB_PORT_ASSIGN_IN_PF, nic_data->pf_index,
+			      EVB_PORT_ASSIGN_IN_VF, vf_fn);
+
+	return efx_mcdi_rpc(efx, MC_CMD_EVB_PORT_ASSIGN, inbuf, sizeof(inbuf),
+			    NULL, 0, NULL);
 }
 
-static int efx_ef10_pci_sriov_disable(struct efx_nic *efx)
+static int efx_ef10_vport_add_mac(struct efx_nic *efx,
+				  unsigned int port_id, u8 *mac)
 {
-	struct pci_dev *dev = efx->pci_dev;
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_VPORT_ADD_MAC_ADDRESS_IN_LEN);
 
-	efx->vf_count = 0;
-	pci_disable_sriov(dev);
-	return 0;
+	MCDI_SET_DWORD(inbuf, VPORT_ADD_MAC_ADDRESS_IN_VPORT_ID, port_id);
+	ether_addr_copy(MCDI_PTR(inbuf, VPORT_ADD_MAC_ADDRESS_IN_MACADDR), mac);
+
+	return efx_mcdi_rpc(efx, MC_CMD_VPORT_ADD_MAC_ADDRESS, inbuf,
+			    sizeof(inbuf), NULL, 0, NULL);
 }
 
-int efx_ef10_sriov_configure(struct efx_nic *efx, int num_vfs)
+static int efx_ef10_vport_del_mac(struct efx_nic *efx,
+				  unsigned int port_id, u8 *mac)
 {
-	if (num_vfs == 0)
-		return efx_ef10_pci_sriov_disable(efx);
-	else
-		return efx_ef10_pci_sriov_enable(efx, num_vfs);
-}
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_VPORT_DEL_MAC_ADDRESS_IN_LEN);
 
-int efx_ef10_sriov_init(struct efx_nic *efx)
-{
-	return 0;
-}
+	MCDI_SET_DWORD(inbuf, VPORT_DEL_MAC_ADDRESS_IN_VPORT_ID, port_id);
+	ether_addr_copy(MCDI_PTR(inbuf, VPORT_DEL_MAC_ADDRESS_IN_MACADDR), mac);
 
-void efx_ef10_sriov_fini(struct efx_nic *efx)
-{
-	int rc;
-
-	rc = efx_ef10_pci_sriov_disable(efx);
-	if (rc)
-		netif_dbg(efx, drv, efx->net_dev,
-			  "Disabling SRIOV was not successful rc=%d\n", rc);
-	else
-		netif_dbg(efx, drv, efx->net_dev, "SRIOV disabled\n");
+	return efx_mcdi_rpc(efx, MC_CMD_VPORT_DEL_MAC_ADDRESS, inbuf,
+			    sizeof(inbuf), NULL, 0, NULL);
 }
 
 static int efx_ef10_vswitch_alloc(struct efx_nic *efx, unsigned int port_id,
@@ -127,12 +117,124 @@ static int efx_ef10_vport_free(struct efx_nic *efx, unsigned int port_id)
 			    NULL, 0, NULL);
 }
 
+static void efx_ef10_sriov_free_vf_vports(struct efx_nic *efx)
+{
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	int i;
+
+	if (!nic_data->vf)
+		return;
+
+	for (i = 0; i < efx->vf_count; i++) {
+		struct ef10_vf *vf = nic_data->vf + i;
+
+		if (vf->vport_assigned) {
+			efx_ef10_evb_port_assign(efx, EVB_PORT_ID_NULL, i);
+			vf->vport_assigned = 0;
+		}
+
+		if (!is_zero_ether_addr(vf->mac)) {
+			efx_ef10_vport_del_mac(efx, vf->vport_id, vf->mac);
+			eth_zero_addr(vf->mac);
+		}
+
+		if (vf->vport_id) {
+			efx_ef10_vport_free(efx, vf->vport_id);
+			vf->vport_id = 0;
+		}
+	}
+}
+
+static void efx_ef10_sriov_free_vf_vswitching(struct efx_nic *efx)
+{
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+
+	efx_ef10_sriov_free_vf_vports(efx);
+	kfree(nic_data->vf);
+	nic_data->vf = NULL;
+}
+
+static int efx_ef10_sriov_assign_vf_vport(struct efx_nic *efx,
+					  unsigned int vf_i)
+{
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	struct ef10_vf *vf = nic_data->vf + vf_i;
+	int rc;
+
+	if (WARN_ON_ONCE(!nic_data->vf))
+		return -EOPNOTSUPP;
+
+	rc = efx_ef10_vport_alloc(efx, EVB_PORT_ID_ASSIGNED,
+				  MC_CMD_VPORT_ALLOC_IN_VPORT_TYPE_NORMAL,
+				  &vf->vport_id);
+	if (rc)
+		return rc;
+
+	rc = efx_ef10_vport_add_mac(efx, vf->vport_id, vf->mac);
+	if (rc) {
+		eth_zero_addr(vf->mac);
+		return rc;
+	}
+
+	rc =  efx_ef10_evb_port_assign(efx, vf->vport_id, vf_i);
+	if (rc)
+		return rc;
+
+	vf->vport_assigned = 1;
+	return 0;
+}
+
+static int efx_ef10_sriov_alloc_vf_vswitching(struct efx_nic *efx)
+{
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	unsigned int i;
+	int rc;
+
+	nic_data->vf = kcalloc(efx->vf_count, sizeof(struct ef10_vf),
+			       GFP_KERNEL);
+	if (!nic_data->vf)
+		return -ENOMEM;
+
+	for (i = 0; i < efx->vf_count; i++) {
+		random_ether_addr(nic_data->vf[i].mac);
+
+		rc = efx_ef10_sriov_assign_vf_vport(efx, i);
+		if (rc)
+			goto fail;
+	}
+
+	return 0;
+fail:
+	efx_ef10_sriov_free_vf_vports(efx);
+	kfree(nic_data->vf);
+	nic_data->vf = NULL;
+	return rc;
+}
+
+static int efx_ef10_sriov_restore_vf_vswitching(struct efx_nic *efx)
+{
+	unsigned int i;
+	int rc;
+
+	for (i = 0; i < efx->vf_count; i++) {
+		rc = efx_ef10_sriov_assign_vf_vport(efx, i);
+		if (rc)
+			goto fail;
+	}
+
+	return 0;
+fail:
+	efx_ef10_sriov_free_vf_vswitching(efx);
+	return rc;
+}
+
 /* On top of the default firmware vswitch setup, create a VEB vswitch and
  * expansion vport for use by this function.
  */
 int efx_ef10_vswitching_probe(struct efx_nic *efx)
 {
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	struct net_device *net_dev = efx->net_dev;
 	int rc;
 
 	if (pci_sriov_get_totalvfs(efx->pci_dev) <= 0)
@@ -149,7 +251,16 @@ int efx_ef10_vswitching_probe(struct efx_nic *efx)
 	if (rc)
 		goto fail2;
 
+	rc = efx_ef10_vport_add_mac(efx, nic_data->vport_id, net_dev->dev_addr);
+	if (rc)
+		goto fail3;
+
+	ether_addr_copy(nic_data->vport_mac, net_dev->dev_addr);
+
 	return 0;
+fail3:
+	efx_ef10_vport_free(efx, nic_data->vport_id);
+	nic_data->vport_id = EVB_PORT_ID_ASSIGNED;
 fail2:
 	efx_ef10_vswitch_free(efx, EVB_PORT_ID_ASSIGNED);
 fail1:
@@ -165,9 +276,15 @@ int efx_ef10_vswitching_restore(struct efx_nic *efx)
 		return 0;
 
 	rc = efx_ef10_vswitching_probe(efx);
+	if (rc)
+		goto fail;
 
-	if (!rc)
-		nic_data->must_probe_vswitching = false;
+	rc = efx_ef10_sriov_restore_vf_vswitching(efx);
+	if (rc)
+		goto fail;
+
+	nic_data->must_probe_vswitching = false;
+fail:
 	return rc;
 }
 
@@ -175,11 +292,82 @@ void efx_ef10_vswitching_remove(struct efx_nic *efx)
 {
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 
+	efx_ef10_sriov_free_vf_vswitching(efx);
+
 	if (nic_data->vport_id == EVB_PORT_ID_ASSIGNED)
 		return; /* No vswitch was ever created */
 
+	if (!is_zero_ether_addr(nic_data->vport_mac)) {
+		efx_ef10_vport_del_mac(efx, nic_data->vport_id,
+				       efx->net_dev->dev_addr);
+		eth_zero_addr(nic_data->vport_mac);
+	}
 	efx_ef10_vport_free(efx, nic_data->vport_id);
 	nic_data->vport_id = EVB_PORT_ID_ASSIGNED;
 
 	efx_ef10_vswitch_free(efx, nic_data->vport_id);
+}
+
+static int efx_ef10_pci_sriov_enable(struct efx_nic *efx, int num_vfs)
+{
+	int rc = 0;
+	struct pci_dev *dev = efx->pci_dev;
+
+	efx->vf_count = num_vfs;
+
+	rc = efx_ef10_sriov_alloc_vf_vswitching(efx);
+	if (rc)
+		goto fail1;
+
+	rc = pci_enable_sriov(dev, num_vfs);
+	if (rc)
+		goto fail2;
+
+	return 0;
+fail2:
+	efx_ef10_sriov_free_vf_vswitching(efx);
+fail1:
+	efx->vf_count = 0;
+	netif_err(efx, probe, efx->net_dev,
+		  "Failed to enable SRIOV VFs\n");
+	return rc;
+}
+
+static int efx_ef10_pci_sriov_disable(struct efx_nic *efx)
+{
+	struct pci_dev *dev = efx->pci_dev;
+
+	pci_disable_sriov(dev);
+	efx_ef10_sriov_free_vf_vswitching(efx);
+	efx->vf_count = 0;
+	return 0;
+}
+
+int efx_ef10_sriov_configure(struct efx_nic *efx, int num_vfs)
+{
+	if (num_vfs == 0)
+		return efx_ef10_pci_sriov_disable(efx);
+	else
+		return efx_ef10_pci_sriov_enable(efx, num_vfs);
+}
+
+int efx_ef10_sriov_init(struct efx_nic *efx)
+{
+	return 0;
+}
+
+void efx_ef10_sriov_fini(struct efx_nic *efx)
+{
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	int rc;
+
+	if (!nic_data->vf)
+		return;
+
+	rc = efx_ef10_pci_sriov_disable(efx);
+	if (rc)
+		netif_dbg(efx, drv, efx->net_dev,
+			  "Disabling SRIOV was not successful rc=%d\n", rc);
+	else
+		netif_dbg(efx, drv, efx->net_dev, "SRIOV disabled\n");
 }

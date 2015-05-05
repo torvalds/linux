@@ -12,6 +12,18 @@
 
 #include "net_driver.h"
 
+/**
+ * struct ef10_vf - PF's store of VF data
+ * @vport_id: vport ID for the VF
+ * @vport_assigned: record whether the vport is currently assigned to the VF
+ * @mac: MAC address for the VF, zero when address is removed from the vport
+ */
+struct ef10_vf {
+	unsigned int vport_id;
+	unsigned int vport_assigned;
+	u8 mac[ETH_ALEN];
+};
+
 static inline bool efx_ef10_sriov_wanted(struct efx_nic *efx)
 {
 	return false;
