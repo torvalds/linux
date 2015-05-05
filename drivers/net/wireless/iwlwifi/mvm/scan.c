@@ -101,8 +101,6 @@ struct iwl_mvm_scan_params {
 	} schedule[2];
 };
 
-static int iwl_umac_scan_stop(struct iwl_mvm *mvm, int type);
-
 static u8 iwl_mvm_scan_rx_ant(struct iwl_mvm *mvm)
 {
 	if (mvm->scan_rx_ant != ANT_NONE)
@@ -885,67 +883,6 @@ static int iwl_mvm_scan_lmac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	return 0;
 }
 
-int iwl_mvm_reg_scan_stop(struct iwl_mvm *mvm)
-{
-	int ret;
-
-	if (!(mvm->scan_status & IWL_MVM_SCAN_REGULAR))
-		return 0;
-
-	if (iwl_mvm_is_radio_killed(mvm)) {
-		ret = 0;
-		goto out;
-	}
-
-	if (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN)
-		ret = iwl_umac_scan_stop(mvm, IWL_MVM_SCAN_REGULAR);
-	else
-		ret = iwl_mvm_lmac_scan_stop(mvm, IWL_MVM_SCAN_REGULAR);
-
-	if (!ret)
-		mvm->scan_status |= IWL_MVM_SCAN_STOPPING_REGULAR;
-out:
-	/* Clear the scan status so the next scan requests will
-	 * succeed and mark the scan as stopping, so that the Rx
-	 * handler doesn't do anything, as the scan was stopped from
-	 * above. Since the rx handler won't do anything now, we have
-	 * to release the scan reference here.
-	 */
-	iwl_mvm_unref(mvm, IWL_MVM_REF_SCAN);
-
-	mvm->scan_status &= ~IWL_MVM_SCAN_REGULAR;
-	ieee80211_scan_completed(mvm->hw, true);
-
-	return ret;
-}
-
-int iwl_mvm_sched_scan_stop(struct iwl_mvm *mvm, bool notify)
-{
-	int ret;
-
-	if (!(mvm->scan_status & IWL_MVM_SCAN_SCHED))
-		return 0;
-
-	if (iwl_mvm_is_radio_killed(mvm)) {
-		ret = 0;
-		goto out;
-	}
-
-	if (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN)
-		ret = iwl_umac_scan_stop(mvm, IWL_MVM_SCAN_SCHED);
-	else
-		ret = iwl_mvm_lmac_scan_stop(mvm, IWL_MVM_SCAN_SCHED);
-
-	if (!ret)
-		mvm->scan_status |= IWL_MVM_SCAN_STOPPING_SCHED;
-out:
-	mvm->scan_status &= ~IWL_MVM_SCAN_SCHED;
-	if (notify)
-		ieee80211_sched_scan_stopped(mvm->hw);
-
-	return ret;
-}
-
 /* UMAC scan API */
 
 struct iwl_umac_scan_done {
@@ -1587,7 +1524,7 @@ static int iwl_umac_scan_abort_one(struct iwl_mvm *mvm, u32 uid)
 	return iwl_mvm_send_cmd_pdu(mvm, SCAN_ABORT_UMAC, 0, sizeof(cmd), &cmd);
 }
 
-static int iwl_umac_scan_stop(struct iwl_mvm *mvm, int type)
+static int iwl_mvm_umac_scan_stop(struct iwl_mvm *mvm, int type)
 {
 	struct iwl_notification_wait wait_scan_done;
 	static const u8 scan_done_notif[] = { SCAN_COMPLETE_UMAC, };
@@ -1680,4 +1617,65 @@ void iwl_mvm_report_scan_aborted(struct iwl_mvm *mvm)
 		if ((mvm->scan_status & IWL_MVM_SCAN_SCHED) && !mvm->restart_fw)
 			ieee80211_sched_scan_stopped(mvm->hw);
 	}
+}
+
+int iwl_mvm_reg_scan_stop(struct iwl_mvm *mvm)
+{
+	int ret;
+
+	if (!(mvm->scan_status & IWL_MVM_SCAN_REGULAR))
+		return 0;
+
+	if (iwl_mvm_is_radio_killed(mvm)) {
+		ret = 0;
+		goto out;
+	}
+
+	if (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN)
+		ret = iwl_mvm_umac_scan_stop(mvm, IWL_MVM_SCAN_REGULAR);
+	else
+		ret = iwl_mvm_lmac_scan_stop(mvm, IWL_MVM_SCAN_REGULAR);
+
+	if (!ret)
+		mvm->scan_status |= IWL_MVM_SCAN_STOPPING_REGULAR;
+out:
+	/* Clear the scan status so the next scan requests will
+	 * succeed and mark the scan as stopping, so that the Rx
+	 * handler doesn't do anything, as the scan was stopped from
+	 * above. Since the rx handler won't do anything now, we have
+	 * to release the scan reference here.
+	 */
+	iwl_mvm_unref(mvm, IWL_MVM_REF_SCAN);
+
+	mvm->scan_status &= ~IWL_MVM_SCAN_REGULAR;
+	ieee80211_scan_completed(mvm->hw, true);
+
+	return ret;
+}
+
+int iwl_mvm_sched_scan_stop(struct iwl_mvm *mvm, bool notify)
+{
+	int ret;
+
+	if (!(mvm->scan_status & IWL_MVM_SCAN_SCHED))
+		return 0;
+
+	if (iwl_mvm_is_radio_killed(mvm)) {
+		ret = 0;
+		goto out;
+	}
+
+	if (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN)
+		ret = iwl_mvm_umac_scan_stop(mvm, IWL_MVM_SCAN_SCHED);
+	else
+		ret = iwl_mvm_lmac_scan_stop(mvm, IWL_MVM_SCAN_SCHED);
+
+	if (!ret)
+		mvm->scan_status |= IWL_MVM_SCAN_STOPPING_SCHED;
+out:
+	mvm->scan_status &= ~IWL_MVM_SCAN_SCHED;
+	if (notify)
+		ieee80211_sched_scan_stopped(mvm->hw);
+
+	return ret;
 }
