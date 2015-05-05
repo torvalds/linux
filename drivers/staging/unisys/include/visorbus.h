@@ -199,8 +199,6 @@ uuid_le visorchannel_get_uuid(struct visorchannel *channel);
 char *visorchannel_uuid_id(uuid_le *guid, char *s);
 void visorchannel_debug(struct visorchannel *channel, int num_queues,
 			struct seq_file *seq, u32 off);
-void visorchannel_dump_section(struct visorchannel *chan, char *s,
-			       int off, int len, struct seq_file *seq);
 void __iomem *visorchannel_get_header(struct visorchannel *channel);
 
 #endif
