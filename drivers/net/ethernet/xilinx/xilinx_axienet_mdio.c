@@ -161,19 +161,19 @@ int axienet_mdio_setup(struct axienet_local *lp, struct device_node *np)
 
 	np1 = of_find_node_by_name(NULL, "cpu");
 	if (!np1) {
-		printk(KERN_WARNING "%s(): Could not find CPU device node.",
-		       __func__);
-		printk(KERN_WARNING "Setting MDIO clock divisor to "
-		       "default %d\n", DEFAULT_CLOCK_DIVISOR);
+		netdev_warn(lp->ndev, "Could not find CPU device node.\n");
+		netdev_warn(lp->ndev,
+			    "Setting MDIO clock divisor to default %d\n",
+			    DEFAULT_CLOCK_DIVISOR);
 		clk_div = DEFAULT_CLOCK_DIVISOR;
 		goto issue;
 	}
 	property_p = (u32 *) of_get_property(np1, "clock-frequency", NULL);
 	if (!property_p) {
-		printk(KERN_WARNING "%s(): Could not find CPU property: "
-		       "clock-frequency.", __func__);
-		printk(KERN_WARNING "Setting MDIO clock divisor to "
-		       "default %d\n", DEFAULT_CLOCK_DIVISOR);
+		netdev_warn(lp->ndev, "clock-frequency property not found.\n");
+		netdev_warn(lp->ndev,
+			    "Setting MDIO clock divisor to default %d\n",
+			    DEFAULT_CLOCK_DIVISOR);
 		clk_div = DEFAULT_CLOCK_DIVISOR;
 		of_node_put(np1);
 		goto issue;
@@ -187,8 +187,9 @@ int axienet_mdio_setup(struct axienet_local *lp, struct device_node *np)
 	if (host_clock % (MAX_MDIO_FREQ * 2))
 		clk_div++;
 
-	printk(KERN_DEBUG "%s(): Setting MDIO clock divisor to %u based "
-	       "on %u Hz host clock.\n", __func__, clk_div, host_clock);
+	netdev_dbg(lp->ndev,
+		   "Setting MDIO clock divisor to %u/%u Hz host clock.\n",
+		   clk_div, host_clock);
 
 	of_node_put(np1);
 issue:
