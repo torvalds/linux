@@ -726,15 +726,15 @@ static void axienet_recv(struct net_device *ndev)
 	u32 csumstatus;
 	u32 size = 0;
 	u32 packets = 0;
-	dma_addr_t tail_p;
+	dma_addr_t tail_p = 0;
 	struct axienet_local *lp = netdev_priv(ndev);
 	struct sk_buff *skb, *new_skb;
 	struct axidma_bd *cur_p;
 
-	tail_p = lp->rx_bd_p + sizeof(*lp->rx_bd_v) * lp->rx_bd_ci;
 	cur_p = &lp->rx_bd_v[lp->rx_bd_ci];
 
 	while ((cur_p->status & XAXIDMA_BD_STS_COMPLETE_MASK)) {
+		tail_p = lp->rx_bd_p + sizeof(*lp->rx_bd_v) * lp->rx_bd_ci;
 		skb = (struct sk_buff *) (cur_p->sw_id_offset);
 		length = cur_p->app4 & 0x0000FFFF;
 
@@ -786,7 +786,8 @@ static void axienet_recv(struct net_device *ndev)
 	ndev->stats.rx_packets += packets;
 	ndev->stats.rx_bytes += size;
 
-	axienet_dma_out32(lp, XAXIDMA_RX_TDESC_OFFSET, tail_p);
+	if (tail_p)
+		axienet_dma_out32(lp, XAXIDMA_RX_TDESC_OFFSET, tail_p);
 }
 
 /**
