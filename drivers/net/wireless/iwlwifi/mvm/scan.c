@@ -476,8 +476,9 @@ static void iwl_scan_build_ssids(struct iwl_mvm_scan_params *params,
 	}
 }
 
-int iwl_mvm_config_sched_scan_profiles(struct iwl_mvm *mvm,
-				       struct cfg80211_sched_scan_request *req)
+static int
+iwl_mvm_config_sched_scan_profiles(struct iwl_mvm *mvm,
+				   struct cfg80211_sched_scan_request *req)
 {
 	struct iwl_scan_offload_profile *profile;
 	struct iwl_scan_offload_profile_cfg *profile_cfg;
