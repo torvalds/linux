@@ -422,28 +422,14 @@ static int cx24120_read_signal_strength(struct dvb_frontend *fe,
 					u16 *signal_strength)
 {
 	struct cx24120_state *state = fe->demodulator_priv;
-	struct cx24120_cmd cmd;
-	int ret, sigstr_h, sigstr_l;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 
-	cmd.id = CMD_READ_SNR;
-	cmd.len = 1;
-	cmd.arg[0] = 0x00;
+	if (c->strength.stat[0].scale != FE_SCALE_RELATIVE)
+		*signal_strength = 0;
+	else
+		*signal_strength = c->strength.stat[0].uvalue;
 
-	ret = cx24120_message_send(state, &cmd);
-	if (ret != 0) {
-		err("error reading signal strength\n");
-		return -EREMOTEIO;
-	}
-
-	/* raw */
-	sigstr_h = (cx24120_readreg(state, CX24120_REG_SIGSTR_H) >> 6) << 8;
-	sigstr_l = cx24120_readreg(state, CX24120_REG_SIGSTR_L);
-	dev_dbg(&state->i2c->dev, "%s: Signal strength from firmware= 0x%x\n",
-		__func__, (sigstr_h | sigstr_l));
-
-	/* cooked */
-	*signal_strength = ((sigstr_h | sigstr_l)  << 5) & 0x0000ffff;
-	dev_dbg(&state->i2c->dev, "%s: Signal strength= 0x%x\n",
+	dev_dbg(&state->i2c->dev, "%s: Signal strength from cache: 0x%x\n",
 		__func__, *signal_strength);
 
 	return 0;
@@ -621,16 +607,34 @@ static void cx24120_get_stats(struct cx24120_state *state)
 {
 	struct dvb_frontend *fe = &state->frontend;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
-	int ret;
+	struct cx24120_cmd cmd;
+	int ret, sigstr_h, sigstr_l;
 	u16 u16tmp;
 
 	dev_dbg(&state->i2c->dev, "%s()\n", __func__);
 
 	/* signal strength */
 	if (state->fe_status & FE_HAS_SIGNAL) {
-		ret = cx24120_read_signal_strength(fe, &u16tmp);
-		if (ret != 0)
+		cmd.id = CMD_READ_SNR;
+		cmd.len = 1;
+		cmd.arg[0] = 0x00;
+
+		ret = cx24120_message_send(state, &cmd);
+		if (ret != 0) {
+			err("error reading signal strength\n");
 			return;
+		}
+
+		/* raw */
+		sigstr_h = (cx24120_readreg(state, CX24120_REG_SIGSTR_H) >> 6) << 8;
+		sigstr_l = cx24120_readreg(state, CX24120_REG_SIGSTR_L);
+		dev_dbg(&state->i2c->dev, "%s: Signal strength from firmware= 0x%x\n",
+			__func__, (sigstr_h | sigstr_l));
+
+		/* cooked */
+		u16tmp = ((sigstr_h | sigstr_l)  << 5) & 0x0000ffff;
+		dev_dbg(&state->i2c->dev, "%s: Signal strength= 0x%x\n",
+			__func__, u16tmp);
 
 		c->strength.stat[0].scale = FE_SCALE_RELATIVE;
 		c->strength.stat[0].uvalue = u16tmp;
