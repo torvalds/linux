@@ -2938,7 +2938,7 @@ static int ib_mad_port_open(struct ib_device *device,
 	init_mad_qp(port_priv, &port_priv->qp_info[1]);
 
 	cq_size = mad_sendq_size + mad_recvq_size;
-	has_smi = rdma_protocol_ib(device, port_num);
+	has_smi = rdma_cap_ib_smi(device, port_num);
 	if (has_smi)
 		cq_size *= 2;
 
