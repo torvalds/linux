@@ -381,6 +381,7 @@ enum {
  * @efx: Pointer back to main interface structure
  * @wol_filter_id: Wake-on-LAN packet filter id
  * @stats: Hardware statistics
+ * @vf: Array of &struct siena_vf objects
  * @vf_buftbl_base: The zeroth buffer table index used to back VF queues.
  * @vfdi_status: Common VFDI status page to be dmad to VF address space.
  * @local_addr_list: List of local addresses. Protected by %local_lock.
@@ -394,6 +395,7 @@ struct siena_nic_data {
 	int wol_filter_id;
 	u64 stats[SIENA_STAT_COUNT];
 #ifdef CONFIG_SFC_SRIOV
+	struct siena_vf *vf;
 	struct efx_channel *vfdi_channel;
 	unsigned vf_buftbl_base;
 	struct efx_buffer vfdi_status;
