@@ -977,7 +977,7 @@ static int alloc_ofld_rxqs(struct adapter *adap, struct sge_ofld_rxq *q,
 		err = t4_sge_alloc_rxq(adap, &q->rspq, false,
 				       adap->port[i / per_chan],
 				       msi_idx, q->fl.size ? &q->fl : NULL,
-				       uldrx_handler);
+				       uldrx_handler, 0);
 		if (err)
 			return err;
 		memset(&q->stats, 0, sizeof(q->stats));
@@ -1007,7 +1007,7 @@ static int setup_sge_queues(struct adapter *adap)
 		msi_idx = 1;         /* vector 0 is for non-queue interrupts */
 	else {
 		err = t4_sge_alloc_rxq(adap, &s->intrq, false, adap->port[0], 0,
-				       NULL, NULL);
+				       NULL, NULL, -1);
 		if (err)
 			return err;
 		msi_idx = -((int)s->intrq.abs_id + 1);
@@ -1027,7 +1027,7 @@ static int setup_sge_queues(struct adapter *adap)
 	 *    new/deleted queues.
 	 */
 	err = t4_sge_alloc_rxq(adap, &s->fw_evtq, true, adap->port[0],
-			       msi_idx, NULL, fwevtq_handler);
+			       msi_idx, NULL, fwevtq_handler, -1);
 	if (err) {
 freeout:	t4_free_sge_resources(adap);
 		return err;
@@ -1044,7 +1044,9 @@ freeout:	t4_free_sge_resources(adap);
 				msi_idx++;
 			err = t4_sge_alloc_rxq(adap, &q->rspq, false, dev,
 					       msi_idx, &q->fl,
-					       t4_ethrx_handler);
+					       t4_ethrx_handler,
+					       t4_get_mps_bg_map(adap,
+								 pi->tx_chan));
 			if (err)
 				goto freeout;
 			q->rspq.idx = j;
@@ -2432,6 +2434,7 @@ static void uld_attach(struct adapter *adap, unsigned int uld)
 	lli.max_ordird_qp = adap->params.max_ordird_qp;
 	lli.max_ird_adapter = adap->params.max_ird_adapter;
 	lli.ulptx_memwrite_dsgl = adap->params.ulptx_memwrite_dsgl;
+	lli.nodeid = dev_to_node(adap->pdev_dev);
 
 	handle = ulds[uld].add(&lli);
 	if (IS_ERR(handle)) {

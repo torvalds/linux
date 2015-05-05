@@ -3401,7 +3401,7 @@ void t4_pmrx_get_stats(struct adapter *adap, u32 cnt[], u64 cycles[])
 }
 
 /**
- *	get_mps_bg_map - return the buffer groups associated with a port
+ *	t4_get_mps_bg_map - return the buffer groups associated with a port
  *	@adap: the adapter
  *	@idx: the port index
  *
@@ -3409,7 +3409,7 @@ void t4_pmrx_get_stats(struct adapter *adap, u32 cnt[], u64 cycles[])
  *	with the given port.  Bit i is set if buffer group i is used by the
  *	port.
  */
-static unsigned int get_mps_bg_map(struct adapter *adap, int idx)
+unsigned int t4_get_mps_bg_map(struct adapter *adap, int idx)
 {
 	u32 n = NUMPORTS_G(t4_read_reg(adap, MPS_CMN_CTL_A));
 
@@ -3460,7 +3460,7 @@ const char *t4_get_port_type_description(enum fw_port_type port_type)
  */
 void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
 {
-	u32 bgmap = get_mps_bg_map(adap, idx);
+	u32 bgmap = t4_get_mps_bg_map(adap, idx);
 
 #define GET_STAT(name) \
 	t4_read_reg64(adap, \
@@ -5716,4 +5716,131 @@ void t4_tp_read_la(struct adapter *adap, u64 *la_buf, unsigned int *wrptr)
 	if (cfg & DBGLAENABLE_F)                    /* restore running state */
 		t4_write_reg(adap, TP_DBG_LA_CONFIG_A,
 			     cfg | adap->params.tp.la_mask);
+}
+
+/* SGE Hung Ingress DMA Warning Threshold time and Warning Repeat Rate (in
+ * seconds).  If we find one of the SGE Ingress DMA State Machines in the same
+ * state for more than the Warning Threshold then we'll issue a warning about
+ * a potential hang.  We'll repeat the warning as the SGE Ingress DMA Channel
+ * appears to be hung every Warning Repeat second till the situation clears.
+ * If the situation clears, we'll note that as well.
+ */
+#define SGE_IDMA_WARN_THRESH 1
+#define SGE_IDMA_WARN_REPEAT 300
+
+/**
+ *	t4_idma_monitor_init - initialize SGE Ingress DMA Monitor
+ *	@adapter: the adapter
+ *	@idma: the adapter IDMA Monitor state
+ *
+ *	Initialize the state of an SGE Ingress DMA Monitor.
+ */
+void t4_idma_monitor_init(struct adapter *adapter,
+			  struct sge_idma_monitor_state *idma)
+{
+	/* Initialize the state variables for detecting an SGE Ingress DMA
+	 * hang.  The SGE has internal counters which count up on each clock
+	 * tick whenever the SGE finds its Ingress DMA State Engines in the
+	 * same state they were on the previous clock tick.  The clock used is
+	 * the Core Clock so we have a limit on the maximum "time" they can
+	 * record; typically a very small number of seconds.  For instance,
+	 * with a 600MHz Core Clock, we can only count up to a bit more than
+	 * 7s.  So we'll synthesize a larger counter in order to not run the
+	 * risk of having the "timers" overflow and give us the flexibility to
+	 * maintain a Hung SGE State Machine of our own which operates across
+	 * a longer time frame.
+	 */
+	idma->idma_1s_thresh = core_ticks_per_usec(adapter) * 1000000; /* 1s */
+	idma->idma_stalled[0] = 0;
+	idma->idma_stalled[1] = 0;
+}
+
+/**
+ *	t4_idma_monitor - monitor SGE Ingress DMA state
+ *	@adapter: the adapter
+ *	@idma: the adapter IDMA Monitor state
+ *	@hz: number of ticks/second
+ *	@ticks: number of ticks since the last IDMA Monitor call
+ */
+void t4_idma_monitor(struct adapter *adapter,
+		     struct sge_idma_monitor_state *idma,
+		     int hz, int ticks)
+{
+	int i, idma_same_state_cnt[2];
+
+	 /* Read the SGE Debug Ingress DMA Same State Count registers.  These
+	  * are counters inside the SGE which count up on each clock when the
+	  * SGE finds its Ingress DMA State Engines in the same states they
+	  * were in the previous clock.  The counters will peg out at
+	  * 0xffffffff without wrapping around so once they pass the 1s
+	  * threshold they'll stay above that till the IDMA state changes.
+	  */
+	t4_write_reg(adapter, SGE_DEBUG_INDEX_A, 13);
+	idma_same_state_cnt[0] = t4_read_reg(adapter, SGE_DEBUG_DATA_HIGH_A);
+	idma_same_state_cnt[1] = t4_read_reg(adapter, SGE_DEBUG_DATA_LOW_A);
+
+	for (i = 0; i < 2; i++) {
+		u32 debug0, debug11;
+
+		/* If the Ingress DMA Same State Counter ("timer") is less
+		 * than 1s, then we can reset our synthesized Stall Timer and
+		 * continue.  If we have previously emitted warnings about a
+		 * potential stalled Ingress Queue, issue a note indicating
+		 * that the Ingress Queue has resumed forward progress.
+		 */
+		if (idma_same_state_cnt[i] < idma->idma_1s_thresh) {
+			if (idma->idma_stalled[i] >= SGE_IDMA_WARN_THRESH * hz)
+				dev_warn(adapter->pdev_dev, "SGE idma%d, queue %u, "
+					 "resumed after %d seconds\n",
+					 i, idma->idma_qid[i],
+					 idma->idma_stalled[i] / hz);
+			idma->idma_stalled[i] = 0;
+			continue;
+		}
+
+		/* Synthesize an SGE Ingress DMA Same State Timer in the Hz
+		 * domain.  The first time we get here it'll be because we
+		 * passed the 1s Threshold; each additional time it'll be
+		 * because the RX Timer Callback is being fired on its regular
+		 * schedule.
+		 *
+		 * If the stall is below our Potential Hung Ingress Queue
+		 * Warning Threshold, continue.
+		 */
+		if (idma->idma_stalled[i] == 0) {
+			idma->idma_stalled[i] = hz;
+			idma->idma_warn[i] = 0;
+		} else {
+			idma->idma_stalled[i] += ticks;
+			idma->idma_warn[i] -= ticks;
+		}
+
+		if (idma->idma_stalled[i] < SGE_IDMA_WARN_THRESH * hz)
+			continue;
+
+		/* We'll issue a warning every SGE_IDMA_WARN_REPEAT seconds.
+		 */
+		if (idma->idma_warn[i] > 0)
+			continue;
+		idma->idma_warn[i] = SGE_IDMA_WARN_REPEAT * hz;
+
+		/* Read and save the SGE IDMA State and Queue ID information.
+		 * We do this every time in case it changes across time ...
+		 * can't be too careful ...
+		 */
+		t4_write_reg(adapter, SGE_DEBUG_INDEX_A, 0);
+		debug0 = t4_read_reg(adapter, SGE_DEBUG_DATA_LOW_A);
+		idma->idma_state[i] = (debug0 >> (i * 9)) & 0x3f;
+
+		t4_write_reg(adapter, SGE_DEBUG_INDEX_A, 11);
+		debug11 = t4_read_reg(adapter, SGE_DEBUG_DATA_LOW_A);
+		idma->idma_qid[i] = (debug11 >> (i * 16)) & 0xffff;
+
+		dev_warn(adapter->pdev_dev, "SGE idma%u, queue %u, potentially stuck in "
+			 "state %u for %d seconds (debug0=%#x, debug11=%#x)\n",
+			 i, idma->idma_qid[i], idma->idma_state[i],
+			 idma->idma_stalled[i] / hz,
+			 debug0, debug11);
+		t4_sge_decode_idma_state(adapter, idma->idma_state[i]);
+	}
 }

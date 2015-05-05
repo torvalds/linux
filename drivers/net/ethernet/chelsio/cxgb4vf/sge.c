@@ -1160,7 +1160,7 @@ int t4vf_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	u32 wr_mid;
 	u64 cntrl, *end;
-	int qidx, credits;
+	int qidx, credits, max_pkt_len;
 	unsigned int flits, ndesc;
 	struct adapter *adapter;
 	struct sge_eth_txq *txq;
@@ -1181,6 +1181,13 @@ int t4vf_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * smaller than that ...
 	 */
 	if (unlikely(skb->len < fw_hdr_copy_len))
+		goto out_free;
+
+	/* Discard the packet if the length is greater than mtu */
+	max_pkt_len = ETH_HLEN + dev->mtu;
+	if (skb_vlan_tag_present(skb))
+		max_pkt_len += VLAN_HLEN;
+	if (!skb_shinfo(skb)->gso_size && (unlikely(skb->len > max_pkt_len)))
 		goto out_free;
 
 	/*
@@ -2243,8 +2250,12 @@ int t4vf_sge_alloc_rxq(struct adapter *adapter, struct sge_rspq *rspq,
 		 * Allocate the ring for the hardware free list (with space
 		 * for its status page) along with the associated software
 		 * descriptor ring.  The free list size needs to be a multiple
-		 * of the Egress Queue Unit.
+		 * of the Egress Queue Unit and at least 2 Egress Units larger
+		 * than the SGE's Egress Congrestion Threshold
+		 * (fl_starve_thres - 1).
 		 */
+		if (fl->size < s->fl_starve_thres - 1 + 2 * FL_PER_EQ_UNIT)
+			fl->size = s->fl_starve_thres - 1 + 2 * FL_PER_EQ_UNIT;
 		fl->size = roundup(fl->size, FL_PER_EQ_UNIT);
 		fl->desc = alloc_ring(adapter->pdev_dev, fl->size,
 				      sizeof(__be64), sizeof(struct rx_sw_desc),

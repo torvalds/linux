@@ -100,16 +100,6 @@
  */
 #define TX_QCHECK_PERIOD (HZ / 2)
 
-/* SGE Hung Ingress DMA Threshold Warning time (in Hz) and Warning Repeat Rate
- * (in RX_QCHECK_PERIOD multiples).  If we find one of the SGE Ingress DMA
- * State Machines in the same state for this amount of time (in HZ) then we'll
- * issue a warning about a potential hang.  We'll repeat the warning as the
- * SGE Ingress DMA Channel appears to be hung every N RX_QCHECK_PERIODs till
- * the situation clears.  If the situation clears, we'll note that as well.
- */
-#define SGE_IDMA_WARN_THRESH (1 * HZ)
-#define SGE_IDMA_WARN_REPEAT (20 * RX_QCHECK_PERIOD)
-
 /*
  * Max number of Tx descriptors to be reclaimed by the Tx timer.
  */
@@ -1130,7 +1120,6 @@ cxgb_fcoe_offload(struct sk_buff *skb, struct adapter *adap,
  */
 netdev_tx_t t4_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	int len;
 	u32 wr_mid;
 	u64 cntrl, *end;
 	int qidx, credits;
@@ -1143,6 +1132,7 @@ netdev_tx_t t4_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 	const struct skb_shared_info *ssi;
 	dma_addr_t addr[MAX_SKB_FRAGS + 1];
 	bool immediate = false;
+	int len, max_pkt_len;
 #ifdef CONFIG_CHELSIO_T4_FCOE
 	int err;
 #endif /* CONFIG_CHELSIO_T4_FCOE */
@@ -1155,6 +1145,13 @@ netdev_tx_t t4_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 out_free:	dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
+
+	/* Discard the packet if the length is greater than mtu */
+	max_pkt_len = ETH_HLEN + dev->mtu;
+	if (skb_vlan_tag_present(skb))
+		max_pkt_len += VLAN_HLEN;
+	if (!skb_shinfo(skb)->gso_size && (unlikely(skb->len > max_pkt_len)))
+		goto out_free;
 
 	pi = netdev_priv(dev);
 	adap = pi->adapter;
@@ -2279,7 +2276,7 @@ irq_handler_t t4_intr_handler(struct adapter *adap)
 static void sge_rx_timer_cb(unsigned long data)
 {
 	unsigned long m;
-	unsigned int i, idma_same_state_cnt[2];
+	unsigned int i;
 	struct adapter *adap = (struct adapter *)data;
 	struct sge *s = &adap->sge;
 
@@ -2300,67 +2297,16 @@ static void sge_rx_timer_cb(unsigned long data)
 					set_bit(id, s->starving_fl);
 			}
 		}
+	/* The remainder of the SGE RX Timer Callback routine is dedicated to
+	 * global Master PF activities like checking for chip ingress stalls,
+	 * etc.
+	 */
+	if (!(adap->flags & MASTER_PF))
+		goto done;
 
-	t4_write_reg(adap, SGE_DEBUG_INDEX_A, 13);
-	idma_same_state_cnt[0] = t4_read_reg(adap, SGE_DEBUG_DATA_HIGH_A);
-	idma_same_state_cnt[1] = t4_read_reg(adap, SGE_DEBUG_DATA_LOW_A);
+	t4_idma_monitor(adap, &s->idma_monitor, HZ, RX_QCHECK_PERIOD);
 
-	for (i = 0; i < 2; i++) {
-		u32 debug0, debug11;
-
-		/* If the Ingress DMA Same State Counter ("timer") is less
-		 * than 1s, then we can reset our synthesized Stall Timer and
-		 * continue.  If we have previously emitted warnings about a
-		 * potential stalled Ingress Queue, issue a note indicating
-		 * that the Ingress Queue has resumed forward progress.
-		 */
-		if (idma_same_state_cnt[i] < s->idma_1s_thresh) {
-			if (s->idma_stalled[i] >= SGE_IDMA_WARN_THRESH)
-				CH_WARN(adap, "SGE idma%d, queue%u,resumed after %d sec\n",
-					i, s->idma_qid[i],
-					s->idma_stalled[i]/HZ);
-			s->idma_stalled[i] = 0;
-			continue;
-		}
-
-		/* Synthesize an SGE Ingress DMA Same State Timer in the Hz
-		 * domain.  The first time we get here it'll be because we
-		 * passed the 1s Threshold; each additional time it'll be
-		 * because the RX Timer Callback is being fired on its regular
-		 * schedule.
-		 *
-		 * If the stall is below our Potential Hung Ingress Queue
-		 * Warning Threshold, continue.
-		 */
-		if (s->idma_stalled[i] == 0)
-			s->idma_stalled[i] = HZ;
-		else
-			s->idma_stalled[i] += RX_QCHECK_PERIOD;
-
-		if (s->idma_stalled[i] < SGE_IDMA_WARN_THRESH)
-			continue;
-
-		/* We'll issue a warning every SGE_IDMA_WARN_REPEAT Hz */
-		if (((s->idma_stalled[i] - HZ) % SGE_IDMA_WARN_REPEAT) != 0)
-			continue;
-
-		/* Read and save the SGE IDMA State and Queue ID information.
-		 * We do this every time in case it changes across time ...
-		 */
-		t4_write_reg(adap, SGE_DEBUG_INDEX_A, 0);
-		debug0 = t4_read_reg(adap, SGE_DEBUG_DATA_LOW_A);
-		s->idma_state[i] = (debug0 >> (i * 9)) & 0x3f;
-
-		t4_write_reg(adap, SGE_DEBUG_INDEX_A, 11);
-		debug11 = t4_read_reg(adap, SGE_DEBUG_DATA_LOW_A);
-		s->idma_qid[i] = (debug11 >> (i * 16)) & 0xffff;
-
-		CH_WARN(adap, "SGE idma%u, queue%u, maybe stuck state%u %dsecs (debug0=%#x, debug11=%#x)\n",
-			i, s->idma_qid[i], s->idma_state[i],
-			s->idma_stalled[i]/HZ, debug0, debug11);
-		t4_sge_decode_idma_state(adap, s->idma_state[i]);
-	}
-
+done:
 	mod_timer(&s->rx_timer, jiffies + RX_QCHECK_PERIOD);
 }
 
@@ -2437,9 +2383,12 @@ static void __iomem *bar2_address(struct adapter *adapter,
 	return adapter->bar2 + bar2_qoffset;
 }
 
+/* @intr_idx: MSI/MSI-X vector if >=0, -(absolute qid + 1) if < 0
+ * @cong: < 0 -> no congestion feedback, >= 0 -> congestion channel map
+ */
 int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 		     struct net_device *dev, int intr_idx,
-		     struct sge_fl *fl, rspq_handler_t hnd)
+		     struct sge_fl *fl, rspq_handler_t hnd, int cong)
 {
 	int ret, flsz = 0;
 	struct fw_iq_cmd c;
@@ -2471,8 +2420,19 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 		FW_IQ_CMD_IQESIZE_V(ilog2(iq->iqe_len) - 4));
 	c.iqsize = htons(iq->size);
 	c.iqaddr = cpu_to_be64(iq->phys_addr);
+	if (cong >= 0)
+		c.iqns_to_fl0congen = htonl(FW_IQ_CMD_IQFLINTCONGEN_F);
 
 	if (fl) {
+		/* Allocate the ring for the hardware free list (with space
+		 * for its status page) along with the associated software
+		 * descriptor ring.  The free list size needs to be a multiple
+		 * of the Egress Queue Unit and at least 2 Egress Units larger
+		 * than the SGE's Egress Congrestion Threshold
+		 * (fl_starve_thres - 1).
+		 */
+		if (fl->size < s->fl_starve_thres - 1 + 2 * 8)
+			fl->size = s->fl_starve_thres - 1 + 2 * 8;
 		fl->size = roundup(fl->size, 8);
 		fl->desc = alloc_ring(adap->pdev_dev, fl->size, sizeof(__be64),
 				      sizeof(struct rx_sw_desc), &fl->addr,
@@ -2481,10 +2441,15 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 			goto fl_nomem;
 
 		flsz = fl->size / 8 + s->stat_len / sizeof(struct tx_desc);
-		c.iqns_to_fl0congen = htonl(FW_IQ_CMD_FL0PACKEN_F |
-					    FW_IQ_CMD_FL0FETCHRO_F |
-					    FW_IQ_CMD_FL0DATARO_F |
-					    FW_IQ_CMD_FL0PADEN_F);
+		c.iqns_to_fl0congen |= htonl(FW_IQ_CMD_FL0PACKEN_F |
+					     FW_IQ_CMD_FL0FETCHRO_F |
+					     FW_IQ_CMD_FL0DATARO_F |
+					     FW_IQ_CMD_FL0PADEN_F);
+		if (cong >= 0)
+			c.iqns_to_fl0congen |=
+				htonl(FW_IQ_CMD_FL0CNGCHMAP_V(cong) |
+				      FW_IQ_CMD_FL0CONGCIF_F |
+				      FW_IQ_CMD_FL0CONGEN_F);
 		c.fl0dcaen_to_fl0cidxfthresh = htons(FW_IQ_CMD_FL0FBMIN_V(2) |
 				FW_IQ_CMD_FL0FBMAX_V(3));
 		c.fl0size = htons(flsz);
@@ -2532,6 +2497,41 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 					     &fl->bar2_qid);
 		refill_fl(adap, fl, fl_cap(fl), GFP_KERNEL);
 	}
+
+	/* For T5 and later we attempt to set up the Congestion Manager values
+	 * of the new RX Ethernet Queue.  This should really be handled by
+	 * firmware because it's more complex than any host driver wants to
+	 * get involved with and it's different per chip and this is almost
+	 * certainly wrong.  Firmware would be wrong as well, but it would be
+	 * a lot easier to fix in one place ...  For now we do something very
+	 * simple (and hopefully less wrong).
+	 */
+	if (!is_t4(adap->params.chip) && cong >= 0) {
+		u32 param, val;
+		int i;
+
+		param = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DMAQ) |
+			 FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DMAQ_CONM_CTXT) |
+			 FW_PARAMS_PARAM_YZ_V(iq->cntxt_id));
+		if (cong == 0) {
+			val = CONMCTXT_CNGTPMODE_V(CONMCTXT_CNGTPMODE_QUEUE_X);
+		} else {
+			val =
+			    CONMCTXT_CNGTPMODE_V(CONMCTXT_CNGTPMODE_CHANNEL_X);
+			for (i = 0; i < 4; i++) {
+				if (cong & (1 << i))
+					val |=
+					     CONMCTXT_CNGCHMAP_V(1 << (i << 2));
+			}
+		}
+		ret = t4_set_params(adap, adap->mbox, adap->fn, 0, 1,
+				    &param, &val);
+		if (ret)
+			dev_warn(adap->pdev_dev, "Failed to set Congestion"
+				 " Manager Context for Ingress Queue %d: %d\n",
+				 iq->cntxt_id, -ret);
+	}
+
 	return 0;
 
 fl_nomem:
@@ -2637,7 +2637,7 @@ int t4_sge_alloc_ctrl_txq(struct adapter *adap, struct sge_ctrl_txq *txq,
 
 	txq->q.desc = alloc_ring(adap->pdev_dev, nentries,
 				 sizeof(struct tx_desc), 0, &txq->q.phys_addr,
-				 NULL, 0, NUMA_NO_NODE);
+				 NULL, 0, dev_to_node(adap->pdev_dev));
 	if (!txq->q.desc)
 		return -ENOMEM;
 
@@ -3067,11 +3067,11 @@ int t4_sge_init(struct adapter *adap)
 		egress_threshold = EGRTHRESHOLDPACKING_G(sge_conm_ctrl);
 	s->fl_starve_thres = 2*egress_threshold + 1;
 
+	t4_idma_monitor_init(adap, &s->idma_monitor);
+
 	setup_timer(&s->rx_timer, sge_rx_timer_cb, (unsigned long)adap);
 	setup_timer(&s->tx_timer, sge_tx_timer_cb, (unsigned long)adap);
-	s->idma_1s_thresh = core_ticks_per_usec(adap) * 1000000;  /* 1 s */
-	s->idma_stalled[0] = 0;
-	s->idma_stalled[1] = 0;
+
 	spin_lock_init(&s->intrq_lock);
 
 	return 0;

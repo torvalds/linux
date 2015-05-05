@@ -61,6 +61,15 @@
 #define SGE_TIMERREGS			6
 #define TIMERREG_COUNTER0_X		0
 
+/* Congestion Manager Definitions.
+ */
+#define CONMCTXT_CNGTPMODE_S		19
+#define CONMCTXT_CNGTPMODE_V(x)		((x) << CONMCTXT_CNGTPMODE_S)
+#define CONMCTXT_CNGCHMAP_S		0
+#define CONMCTXT_CNGCHMAP_V(x)		((x) << CONMCTXT_CNGCHMAP_S)
+#define CONMCTXT_CNGTPMODE_CHANNEL_X	2
+#define CONMCTXT_CNGTPMODE_QUEUE_X	1
+
 /* T5 and later support a new BAR2-based doorbell mechanism for Egress Queues.
  * The User Doorbells are each 128 bytes in length with a Simple Doorbell at
  * offsets 8x and a Write Combining single 64-byte Egress Queue Unit

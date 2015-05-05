@@ -328,6 +328,17 @@ struct adapter_params {
 	unsigned int max_ird_adapter;     /* Max read depth per adapter */
 };
 
+/* State needed to monitor the forward progress of SGE Ingress DMA activities
+ * and possible hangs.
+ */
+struct sge_idma_monitor_state {
+	unsigned int idma_1s_thresh;	/* 1s threshold in Core Clock ticks */
+	unsigned int idma_stalled[2];	/* synthesized stalled timers in HZ */
+	unsigned int idma_state[2];	/* IDMA Hang detect state */
+	unsigned int idma_qid[2];	/* IDMA Hung Ingress Queue ID */
+	unsigned int idma_warn[2];	/* time to warning in HZ */
+};
+
 #include "t4fw_api.h"
 
 #define FW_VERSION(chip) ( \
@@ -630,12 +641,7 @@ struct sge {
 	u32 fl_align;               /* response queue message alignment */
 	u32 fl_starve_thres;        /* Free List starvation threshold */
 
-	/* State variables for detecting an SGE Ingress DMA hang */
-	unsigned int idma_1s_thresh;/* SGE same State Counter 1s threshold */
-	unsigned int idma_stalled[2];/* SGE synthesized stalled timers in HZ */
-	unsigned int idma_state[2]; /* SGE IDMA Hang detect state */
-	unsigned int idma_qid[2];   /* SGE IDMA Hung Ingress Queue ID */
-
+	struct sge_idma_monitor_state idma_monitor;
 	unsigned int egr_start;
 	unsigned int egr_sz;
 	unsigned int ingr_start;
@@ -1055,7 +1061,7 @@ int t4_mgmt_tx(struct adapter *adap, struct sk_buff *skb);
 int t4_ofld_send(struct adapter *adap, struct sk_buff *skb);
 int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 		     struct net_device *dev, int intr_idx,
-		     struct sge_fl *fl, rspq_handler_t hnd);
+		     struct sge_fl *fl, rspq_handler_t hnd, int cong);
 int t4_sge_alloc_eth_txq(struct adapter *adap, struct sge_eth_txq *txq,
 			 struct net_device *dev, struct netdev_queue *netdevq,
 			 unsigned int iqid);
@@ -1215,6 +1221,7 @@ int t4_mc_read(struct adapter *adap, int idx, u32 addr, __be32 *data,
 	       u64 *parity);
 int t4_edc_read(struct adapter *adap, int idx, u32 addr, __be32 *data,
 		u64 *parity);
+unsigned int t4_get_mps_bg_map(struct adapter *adapter, int idx);
 void t4_pmtx_get_stats(struct adapter *adap, u32 cnt[], u64 cycles[]);
 void t4_pmrx_get_stats(struct adapter *adap, u32 cnt[], u64 cycles[]);
 int t4_read_cim_ibq(struct adapter *adap, unsigned int qid, u32 *data,
@@ -1310,4 +1317,9 @@ int t4_fwaddrspace_write(struct adapter *adap, unsigned int mbox,
 			 u32 addr, u32 val);
 void t4_sge_decode_idma_state(struct adapter *adapter, int state);
 void t4_free_mem(void *addr);
+void t4_idma_monitor_init(struct adapter *adapter,
+			  struct sge_idma_monitor_state *idma);
+void t4_idma_monitor(struct adapter *adapter,
+		     struct sge_idma_monitor_state *idma,
+		     int hz, int ticks);
 #endif /* __CXGB4_H__ */
