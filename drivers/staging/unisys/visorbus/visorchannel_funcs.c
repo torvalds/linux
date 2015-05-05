@@ -23,7 +23,7 @@
  */
 
 #include "globals.h"
-#include "visorchannel.h"
+#include "visorbus.h"
 #include <linux/uuid.h>
 
 #define MYDRVNAME "visorchannel"

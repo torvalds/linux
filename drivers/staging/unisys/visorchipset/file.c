@@ -24,7 +24,7 @@
 #include "version.h"
 #include "visorchipset.h"
 #include "visorchipset_umode.h"
-#include "visorchannel.h"
+#include "visorbus.h"
 #include "uisutils.h"
 #include "file.h"
 

@@ -21,7 +21,7 @@
 #include "timskmod.h"
 #include "visorbus.h"
 #include "visorchipset.h"
-#include "visorchannel.h"
+#include "visorbus.h"
 #include "version.h"
 #include "vbuschannel.h"
 

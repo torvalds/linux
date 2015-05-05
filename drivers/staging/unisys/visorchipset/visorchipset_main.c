@@ -18,7 +18,7 @@
 #include "version.h"
 #include "visorchipset.h"
 #include "procobjecttree.h"
-#include "visorchannel.h"
+#include "visorbus.h"
 #include "periodic_work.h"
 #include "file.h"
 #include "parser.h"
