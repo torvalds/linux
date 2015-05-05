@@ -369,7 +369,7 @@ tracing_sched_switch_trace(struct trace_array *tr,
 			   struct task_struct *next,
 			   unsigned long flags, int pc)
 {
-	struct ftrace_event_call *call = &event_context_switch;
+	struct trace_event_call *call = &event_context_switch;
 	struct ring_buffer *buffer = tr->trace_buffer.buffer;
 	struct ring_buffer_event *event;
 	struct ctx_switch_entry *entry;
@@ -397,7 +397,7 @@ tracing_sched_wakeup_trace(struct trace_array *tr,
 			   struct task_struct *curr,
 			   unsigned long flags, int pc)
 {
-	struct ftrace_event_call *call = &event_wakeup;
+	struct trace_event_call *call = &event_wakeup;
 	struct ring_buffer_event *event;
 	struct ctx_switch_entry *entry;
 	struct ring_buffer *buffer = tr->trace_buffer.buffer;

@@ -924,7 +924,7 @@ __kprobe_trace_func(struct trace_kprobe *tk, struct pt_regs *regs,
 	struct ring_buffer *buffer;
 	int size, dsize, pc;
 	unsigned long irq_flags;
-	struct ftrace_event_call *call = &tk->tp.call;
+	struct trace_event_call *call = &tk->tp.call;
 
 	WARN_ON(call != trace_file->event_call);
 
@@ -972,7 +972,7 @@ __kretprobe_trace_func(struct trace_kprobe *tk, struct kretprobe_instance *ri,
 	struct ring_buffer *buffer;
 	int size, pc, dsize;
 	unsigned long irq_flags;
-	struct ftrace_event_call *call = &tk->tp.call;
+	struct trace_event_call *call = &tk->tp.call;
 
 	WARN_ON(call != trace_file->event_call);
 
@@ -1081,7 +1081,7 @@ print_kretprobe_event(struct trace_iterator *iter, int flags,
 }
 
 
-static int kprobe_event_define_fields(struct ftrace_event_call *event_call)
+static int kprobe_event_define_fields(struct trace_event_call *event_call)
 {
 	int ret, i;
 	struct kprobe_trace_entry_head field;
@@ -1104,7 +1104,7 @@ static int kprobe_event_define_fields(struct ftrace_event_call *event_call)
 	return 0;
 }
 
-static int kretprobe_event_define_fields(struct ftrace_event_call *event_call)
+static int kretprobe_event_define_fields(struct trace_event_call *event_call)
 {
 	int ret, i;
 	struct kretprobe_trace_entry_head field;
@@ -1134,7 +1134,7 @@ static int kretprobe_event_define_fields(struct ftrace_event_call *event_call)
 static void
 kprobe_perf_func(struct trace_kprobe *tk, struct pt_regs *regs)
 {
-	struct ftrace_event_call *call = &tk->tp.call;
+	struct trace_event_call *call = &tk->tp.call;
 	struct bpf_prog *prog = call->prog;
 	struct kprobe_trace_entry_head *entry;
 	struct hlist_head *head;
@@ -1169,7 +1169,7 @@ static void
 kretprobe_perf_func(struct trace_kprobe *tk, struct kretprobe_instance *ri,
 		    struct pt_regs *regs)
 {
-	struct ftrace_event_call *call = &tk->tp.call;
+	struct trace_event_call *call = &tk->tp.call;
 	struct bpf_prog *prog = call->prog;
 	struct kretprobe_trace_entry_head *entry;
 	struct hlist_head *head;
@@ -1206,7 +1206,7 @@ NOKPROBE_SYMBOL(kretprobe_perf_func);
  * kprobe_trace_self_tests_init() does enable_trace_probe/disable_trace_probe
  * lockless, but we can't race with this __init function.
  */
-static int kprobe_register(struct ftrace_event_call *event,
+static int kprobe_register(struct trace_event_call *event,
 			   enum trace_reg type, void *data)
 {
 	struct trace_kprobe *tk = (struct trace_kprobe *)event->data;
@@ -1276,10 +1276,10 @@ static struct trace_event_functions kprobe_funcs = {
 
 static int register_kprobe_event(struct trace_kprobe *tk)
 {
-	struct ftrace_event_call *call = &tk->tp.call;
+	struct trace_event_call *call = &tk->tp.call;
 	int ret;
 
-	/* Initialize ftrace_event_call */
+	/* Initialize trace_event_call */
 	INIT_LIST_HEAD(&call->class->fields);
 	if (trace_kprobe_is_return(tk)) {
 		call->event.funcs = &kretprobe_funcs;

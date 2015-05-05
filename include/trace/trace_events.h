@@ -101,11 +101,11 @@ TRACE_MAKE_SYSTEM_STR();
 		char			__data[0];			\
 	};								\
 									\
-	static struct ftrace_event_class event_class_##name;
+	static struct trace_event_class event_class_##name;
 
 #undef DEFINE_EVENT
 #define DEFINE_EVENT(template, name, proto, args)	\
-	static struct ftrace_event_call	__used		\
+	static struct trace_event_call	__used		\
 	__attribute__((__aligned__(4))) event_##name
 
 #undef DEFINE_EVENT_FN
@@ -407,7 +407,7 @@ static struct trace_event_functions ftrace_event_type_funcs_##call = {	\
 #undef DECLARE_EVENT_CLASS
 #define DECLARE_EVENT_CLASS(call, proto, args, tstruct, func, print)	\
 static int notrace __init						\
-ftrace_define_fields_##call(struct ftrace_event_call *event_call)	\
+ftrace_define_fields_##call(struct trace_event_call *event_call)	\
 {									\
 	struct ftrace_raw_##call field;					\
 	int ret;							\

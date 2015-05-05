@@ -777,7 +777,7 @@ static void __uprobe_trace_func(struct trace_uprobe *tu,
 	struct ring_buffer *buffer;
 	void *data;
 	int size, esize;
-	struct ftrace_event_call *call = &tu->tp.call;
+	struct trace_event_call *call = &tu->tp.call;
 
 	WARN_ON(call != trace_file->event_call);
 
@@ -967,7 +967,7 @@ probe_event_disable(struct trace_uprobe *tu, struct trace_event_file *file)
 	uprobe_buffer_disable();
 }
 
-static int uprobe_event_define_fields(struct ftrace_event_call *event_call)
+static int uprobe_event_define_fields(struct trace_event_call *event_call)
 {
 	int ret, i, size;
 	struct uprobe_trace_entry_head field;
@@ -1093,7 +1093,7 @@ static void __uprobe_perf_func(struct trace_uprobe *tu,
 			       unsigned long func, struct pt_regs *regs,
 			       struct uprobe_cpu_buffer *ucb, int dsize)
 {
-	struct ftrace_event_call *call = &tu->tp.call;
+	struct trace_event_call *call = &tu->tp.call;
 	struct uprobe_trace_entry_head *entry;
 	struct hlist_head *head;
 	void *data;
@@ -1159,7 +1159,7 @@ static void uretprobe_perf_func(struct trace_uprobe *tu, unsigned long func,
 #endif	/* CONFIG_PERF_EVENTS */
 
 static int
-trace_uprobe_register(struct ftrace_event_call *event, enum trace_reg type,
+trace_uprobe_register(struct trace_event_call *event, enum trace_reg type,
 		      void *data)
 {
 	struct trace_uprobe *tu = event->data;
@@ -1272,10 +1272,10 @@ static struct trace_event_functions uprobe_funcs = {
 
 static int register_uprobe_event(struct trace_uprobe *tu)
 {
-	struct ftrace_event_call *call = &tu->tp.call;
+	struct trace_event_call *call = &tu->tp.call;
 	int ret;
 
-	/* Initialize ftrace_event_call */
+	/* Initialize trace_event_call */
 	INIT_LIST_HEAD(&call->class->fields);
 	call->event.funcs = &uprobe_funcs;
 	call->class->define_fields = uprobe_event_define_fields;

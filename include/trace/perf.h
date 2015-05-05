@@ -5,12 +5,12 @@
  *
  * For those macros defined with TRACE_EVENT:
  *
- * static struct ftrace_event_call event_<call>;
+ * static struct trace_event_call event_<call>;
  *
  * static void ftrace_raw_event_<call>(void *__data, proto)
  * {
  *	struct trace_event_file *trace_file = __data;
- *	struct ftrace_event_call *event_call = trace_file->event_call;
+ *	struct trace_event_call *event_call = trace_file->event_call;
  *	struct ftrace_data_offsets_<call> __maybe_unused __data_offsets;
  *	unsigned long eflags = trace_file->flags;
  *	enum event_trigger_type __tt = ETT_NONE;
@@ -63,7 +63,7 @@
  *
  * static char print_fmt_<call>[] = <TP_printk>;
  *
- * static struct ftrace_event_class __used event_class_<template> = {
+ * static struct trace_event_class __used event_class_<template> = {
  *	.system			= "<system>",
  *	.define_fields		= ftrace_define_fields_<call>,
  *	.fields			= LIST_HEAD_INIT(event_class_##call.fields),
@@ -72,7 +72,7 @@
  *	.reg			= trace_event_reg,
  * };
  *
- * static struct ftrace_event_call event_<call> = {
+ * static struct trace_event_call event_<call> = {
  *	.class			= event_class_<template>,
  *	{
  *		.tp			= &__tracepoint_<call>,
@@ -83,7 +83,7 @@
  * };
  * // its only safe to use pointers when doing linker tricks to
  * // create an array.
- * static struct ftrace_event_call __used
+ * static struct trace_event_call __used
  * __attribute__((section("_ftrace_events"))) *__event_<call> = &event_<call>;
  *
  */
@@ -213,7 +213,7 @@ static inline void ftrace_test_probe_##call(void)			\
 #define DECLARE_EVENT_CLASS(call, proto, args, tstruct, assign, print)	\
 _TRACE_PERF_PROTO(call, PARAMS(proto));					\
 static char print_fmt_##call[] = print;					\
-static struct ftrace_event_class __used __refdata event_class_##call = { \
+static struct trace_event_class __used __refdata event_class_##call = { \
 	.system			= TRACE_SYSTEM_STRING,			\
 	.define_fields		= ftrace_define_fields_##call,		\
 	.fields			= LIST_HEAD_INIT(event_class_##call.fields),\
@@ -226,7 +226,7 @@ static struct ftrace_event_class __used __refdata event_class_##call = { \
 #undef DEFINE_EVENT
 #define DEFINE_EVENT(template, call, proto, args)			\
 									\
-static struct ftrace_event_call __used event_##call = {			\
+static struct trace_event_call __used event_##call = {			\
 	.class			= &event_class_##template,		\
 	{								\
 		.tp			= &__tracepoint_##call,		\
@@ -235,7 +235,7 @@ static struct ftrace_event_call __used event_##call = {			\
 	.print_fmt		= print_fmt_##template,			\
 	.flags			= TRACE_EVENT_FL_TRACEPOINT,		\
 };									\
-static struct ftrace_event_call __used					\
+static struct trace_event_call __used					\
 __attribute__((section("_ftrace_events"))) *__event_##call = &event_##call
 
 #undef DEFINE_EVENT_PRINT
@@ -243,7 +243,7 @@ __attribute__((section("_ftrace_events"))) *__event_##call = &event_##call
 									\
 static char print_fmt_##call[] = print;					\
 									\
-static struct ftrace_event_call __used event_##call = {			\
+static struct trace_event_call __used event_##call = {			\
 	.class			= &event_class_##template,		\
 	{								\
 		.tp			= &__tracepoint_##call,		\
@@ -252,7 +252,7 @@ static struct ftrace_event_call __used event_##call = {			\
 	.print_fmt		= print_fmt_##call,			\
 	.flags			= TRACE_EVENT_FL_TRACEPOINT,		\
 };									\
-static struct ftrace_event_call __used					\
+static struct trace_event_call __used					\
 __attribute__((section("_ftrace_events"))) *__event_##call = &event_##call
 
 #include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
@@ -292,7 +292,7 @@ __attribute__((section("_ftrace_events"))) *__event_##call = &event_##call
 static notrace void							\
 perf_trace_##call(void *__data, proto)					\
 {									\
-	struct ftrace_event_call *event_call = __data;			\
+	struct trace_event_call *event_call = __data;			\
 	struct ftrace_data_offsets_##call __maybe_unused __data_offsets;\
 	struct ftrace_raw_##call *entry;				\
 	struct pt_regs *__regs;						\

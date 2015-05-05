@@ -200,23 +200,23 @@ enum trace_reg {
 #endif
 };
 
-struct ftrace_event_call;
+struct trace_event_call;
 
-struct ftrace_event_class {
+struct trace_event_class {
 	const char		*system;
 	void			*probe;
 #ifdef CONFIG_PERF_EVENTS
 	void			*perf_probe;
 #endif
-	int			(*reg)(struct ftrace_event_call *event,
+	int			(*reg)(struct trace_event_call *event,
 				       enum trace_reg type, void *data);
-	int			(*define_fields)(struct ftrace_event_call *);
-	struct list_head	*(*get_fields)(struct ftrace_event_call *);
+	int			(*define_fields)(struct trace_event_call *);
+	struct list_head	*(*get_fields)(struct trace_event_call *);
 	struct list_head	fields;
-	int			(*raw_init)(struct ftrace_event_call *);
+	int			(*raw_init)(struct trace_event_call *);
 };
 
-extern int trace_event_reg(struct ftrace_event_call *event,
+extern int trace_event_reg(struct trace_event_call *event,
 			    enum trace_reg type, void *data);
 
 struct ftrace_event_buffer {
@@ -269,9 +269,9 @@ enum {
 	TRACE_EVENT_FL_KPROBE		= (1 << TRACE_EVENT_FL_KPROBE_BIT),
 };
 
-struct ftrace_event_call {
+struct trace_event_call {
 	struct list_head	list;
-	struct ftrace_event_class *class;
+	struct trace_event_class *class;
 	union {
 		char			*name;
 		/* Set TRACE_EVENT_FL_TRACEPOINT flag when using "tp" */
@@ -298,13 +298,13 @@ struct ftrace_event_call {
 	struct hlist_head __percpu	*perf_events;
 	struct bpf_prog			*prog;
 
-	int	(*perf_perm)(struct ftrace_event_call *,
+	int	(*perf_perm)(struct trace_event_call *,
 			     struct perf_event *);
 #endif
 };
 
 static inline const char *
-ftrace_event_name(struct ftrace_event_call *call)
+ftrace_event_name(struct trace_event_call *call)
 {
 	if (call->flags & TRACE_EVENT_FL_TRACEPOINT)
 		return call->tp ? call->tp->name : NULL;
@@ -351,7 +351,7 @@ enum {
 
 struct trace_event_file {
 	struct list_head		list;
-	struct ftrace_event_call	*event_call;
+	struct trace_event_call		*event_call;
 	struct event_filter		*filter;
 	struct dentry			*dir;
 	struct trace_array		*tr;
@@ -388,7 +388,7 @@ struct trace_event_file {
 	early_initcall(trace_init_flags_##name);
 
 #define __TRACE_EVENT_PERF_PERM(name, expr...)				\
-	static int perf_perm_##name(struct ftrace_event_call *tp_event, \
+	static int perf_perm_##name(struct trace_event_call *tp_event, \
 				    struct perf_event *p_event)		\
 	{								\
 		return ({ expr; });					\
@@ -417,7 +417,7 @@ extern int filter_match_preds(struct event_filter *filter, void *rec);
 extern int filter_check_discard(struct trace_event_file *file, void *rec,
 				struct ring_buffer *buffer,
 				struct ring_buffer_event *event);
-extern int call_filter_check_discard(struct ftrace_event_call *call, void *rec,
+extern int call_filter_check_discard(struct trace_event_call *call, void *rec,
 				     struct ring_buffer *buffer,
 				     struct ring_buffer_event *event);
 extern enum event_trigger_type event_triggers_call(struct trace_event_file *file,
@@ -559,12 +559,12 @@ enum {
 	FILTER_TRACE_FN,
 };
 
-extern int trace_event_raw_init(struct ftrace_event_call *call);
-extern int trace_define_field(struct ftrace_event_call *call, const char *type,
+extern int trace_event_raw_init(struct trace_event_call *call);
+extern int trace_define_field(struct trace_event_call *call, const char *type,
 			      const char *name, int offset, int size,
 			      int is_signed, int filter_type);
-extern int trace_add_event_call(struct ftrace_event_call *call);
-extern int trace_remove_event_call(struct ftrace_event_call *call);
+extern int trace_add_event_call(struct trace_event_call *call);
+extern int trace_remove_event_call(struct trace_event_call *call);
 
 #define is_signed_type(type)	(((type)(-1)) < (type)1)
 
@@ -613,4 +613,4 @@ perf_trace_buf_submit(void *raw_data, int size, int rctx, u64 addr,
 }
 #endif
 
-#endif /* _LINUX_FTRACE_EVENT_H */
+#endif /* _LINUX_TRACE_EVENT_H */

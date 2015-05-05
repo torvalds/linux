@@ -272,8 +272,8 @@ struct probe_arg {
 
 struct trace_probe {
 	unsigned int			flags;	/* For TP_FLAG_* */
-	struct ftrace_event_class	class;
-	struct ftrace_event_call	call;
+	struct trace_event_class	class;
+	struct trace_event_call		call;
 	struct list_head 		files;
 	ssize_t				size;	/* trace entry size */
 	unsigned int			nr_args;

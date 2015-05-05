@@ -225,12 +225,12 @@ EXPORT_SYMBOL(trace_print_array_seq);
 int ftrace_raw_output_prep(struct trace_iterator *iter,
 			   struct trace_event *trace_event)
 {
-	struct ftrace_event_call *event;
+	struct trace_event_call *event;
 	struct trace_seq *s = &iter->seq;
 	struct trace_seq *p = &iter->tmp_seq;
 	struct trace_entry *entry;
 
-	event = container_of(trace_event, struct ftrace_event_call, event);
+	event = container_of(trace_event, struct trace_event_call, event);
 	entry = iter->ent;
 
 	if (entry->type != event->event.type) {
