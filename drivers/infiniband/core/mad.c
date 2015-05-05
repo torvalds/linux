@@ -3066,7 +3066,7 @@ static void ib_mad_init_device(struct ib_device *device)
 	}
 
 	for (i = start; i <= end; i++) {
-		if (!rdma_ib_or_iboe(device, i))
+		if (!rdma_cap_ib_mad(device, i))
 			continue;
 
 		if (ib_mad_port_open(device, i)) {
@@ -3087,7 +3087,7 @@ error_agent:
 
 error:
 	while (--i >= start) {
-		if (!rdma_ib_or_iboe(device, i))
+		if (!rdma_cap_ib_mad(device, i))
 			continue;
 
 		if (ib_agent_port_close(device, i))
@@ -3111,7 +3111,7 @@ static void ib_mad_remove_device(struct ib_device *device)
 	}
 
 	for (i = start; i <= end; i++) {
-		if (!rdma_ib_or_iboe(device, i))
+		if (!rdma_cap_ib_mad(device, i))
 			continue;
 
 		if (ib_agent_port_close(device, i))

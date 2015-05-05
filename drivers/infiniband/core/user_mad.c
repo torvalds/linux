@@ -1294,7 +1294,7 @@ static void ib_umad_add_one(struct ib_device *device)
 	umad_dev->end_port   = e;
 
 	for (i = s; i <= e; ++i) {
-		if (!rdma_ib_or_iboe(device, i))
+		if (!rdma_cap_ib_mad(device, i))
 			continue;
 
 		umad_dev->port[i - s].umad_dev = umad_dev;
@@ -1315,7 +1315,7 @@ static void ib_umad_add_one(struct ib_device *device)
 
 err:
 	while (--i >= s) {
-		if (!rdma_ib_or_iboe(device, i))
+		if (!rdma_cap_ib_mad(device, i))
 			continue;
 
 		ib_umad_kill_port(&umad_dev->port[i - s]);
@@ -1333,7 +1333,7 @@ static void ib_umad_remove_one(struct ib_device *device)
 		return;
 
 	for (i = 0; i <= umad_dev->end_port - umad_dev->start_port; ++i) {
-		if (rdma_ib_or_iboe(device, i))
+		if (rdma_cap_ib_mad(device, i))
 			ib_umad_kill_port(&umad_dev->port[i]);
 	}
 
