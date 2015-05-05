@@ -1242,6 +1242,7 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK) {
 		pipe_config->pixel_multiplier = 2;
+		clock_12bpc *= 2;
 	}
 
 	if (intel_hdmi->color_range)
