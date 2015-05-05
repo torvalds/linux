@@ -52,8 +52,7 @@ struct visorchannel {
  */
 static struct visorchannel *
 visorchannel_create_guts(HOSTADDRESS physaddr, ulong channel_bytes,
-			 struct visorchannel *parent, ulong off, uuid_le guid,
-			 BOOL needs_lock)
+			 ulong off, uuid_le guid, BOOL needs_lock)
 {
 	struct visorchannel *channel;
 	int err;
@@ -70,11 +69,8 @@ visorchannel_create_guts(HOSTADDRESS physaddr, ulong channel_bytes,
 	spin_lock_init(&channel->remove_lock);
 
 	/* prepare chan_hdr (abstraction to read/write channel memory) */
-	if (!parent)
-		memregion = visor_memregion_create(physaddr, size);
-	else
-		memregion = visor_memregion_create_overlapped(parent->memregion,
-							      off, size);
+	memregion = visor_memregion_create(physaddr, size);
+
 	if (!memregion)
 		goto cleanup;
 	channel->memregion = memregion;
@@ -106,7 +102,7 @@ cleanup:
 struct visorchannel *
 visorchannel_create(HOSTADDRESS physaddr, ulong channel_bytes, uuid_le guid)
 {
-	return visorchannel_create_guts(physaddr, channel_bytes, NULL, 0, guid,
+	return visorchannel_create_guts(physaddr, channel_bytes, 0, guid,
 					FALSE);
 }
 EXPORT_SYMBOL_GPL(visorchannel_create);
@@ -115,7 +111,7 @@ struct visorchannel *
 visorchannel_create_with_lock(HOSTADDRESS physaddr, ulong channel_bytes,
 			      uuid_le guid)
 {
-	return visorchannel_create_guts(physaddr, channel_bytes, NULL, 0, guid,
+	return visorchannel_create_guts(physaddr, channel_bytes, 0, guid,
 					TRUE);
 }
 EXPORT_SYMBOL_GPL(visorchannel_create_with_lock);
