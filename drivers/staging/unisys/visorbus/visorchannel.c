@@ -120,26 +120,6 @@ visorchannel_create_with_lock(HOSTADDRESS physaddr, ulong channel_bytes,
 }
 EXPORT_SYMBOL_GPL(visorchannel_create_with_lock);
 
-struct visorchannel *
-visorchannel_create_overlapped(ulong channel_bytes,
-			       struct visorchannel *parent, ulong off,
-			       uuid_le guid)
-{
-	return visorchannel_create_guts(0, channel_bytes, parent, off, guid,
-					FALSE);
-}
-EXPORT_SYMBOL_GPL(visorchannel_create_overlapped);
-
-struct visorchannel *
-visorchannel_create_overlapped_with_lock(ulong channel_bytes,
-					 struct visorchannel *parent, ulong off,
-					 uuid_le guid)
-{
-	return visorchannel_create_guts(0, channel_bytes, parent, off, guid,
-					TRUE);
-}
-EXPORT_SYMBOL_GPL(visorchannel_create_overlapped_with_lock);
-
 void
 visorchannel_destroy(struct visorchannel *channel)
 {

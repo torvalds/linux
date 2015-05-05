@@ -167,22 +167,15 @@ void visorbus_enable_channel_interrupts(struct visor_device *dev);
 void visorbus_disable_channel_interrupts(struct visor_device *dev);
 #endif
 
-/* Note that for visorchannel_create() and visorchannel_create_overlapped(),
+/* Note that for visorchannel_create()
  * <channel_bytes> and <guid> arguments may be 0 if we are a channel CLIENT.
  * In this case, the values can simply be read from the channel header.
  */
 struct visorchannel *visorchannel_create(HOSTADDRESS physaddr,
 					 ulong channel_bytes, uuid_le guid);
-struct visorchannel *visorchannel_create_overlapped(ulong channel_bytes,
-						    struct visorchannel *parent,
-						    ulong off, uuid_le guid);
 struct visorchannel *visorchannel_create_with_lock(HOSTADDRESS physaddr,
 						   ulong channel_bytes,
 						   uuid_le guid);
-struct visorchannel *visorchannel_create_overlapped_with_lock(
-				ulong channel_bytes,
-				struct visorchannel *parent,
-				ulong off, uuid_le guid);
 void visorchannel_destroy(struct visorchannel *channel);
 int visorchannel_read(struct visorchannel *channel, ulong offset,
 		      void *local, ulong nbytes);
