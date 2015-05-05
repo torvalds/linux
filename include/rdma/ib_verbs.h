@@ -1880,6 +1880,21 @@ static inline bool rdma_cap_af_ib(struct ib_device *device, u8 port_num)
 }
 
 /**
+ * rdma_cap_eth_ah - Check if the port of device has the capability
+ * Ethernet Address Handler.
+ *
+ * @device: Device to be checked
+ * @port_num: Port number of the device
+ *
+ * Return false when port of the device don't support
+ * Ethernet Address Handler.
+ */
+static inline bool rdma_cap_eth_ah(struct ib_device *device, u8 port_num)
+{
+	return rdma_protocol_iboe(device, port_num);
+}
+
+/**
  * rdma_cap_read_multi_sge - Check if the port of device has the capability
  * RDMA Read Multiple Scatter-Gather Entries.
  *
