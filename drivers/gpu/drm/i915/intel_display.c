@@ -4168,8 +4168,7 @@ static void ironlake_pch_enable(struct drm_crtc *crtc)
 		temp &= ~(TRANS_DP_PORT_SEL_MASK |
 			  TRANS_DP_SYNC_MASK |
 			  TRANS_DP_BPC_MASK);
-		temp |= (TRANS_DP_OUTPUT_ENABLE |
-			 TRANS_DP_ENH_FRAMING);
+		temp |= TRANS_DP_OUTPUT_ENABLE;
 		temp |= bpc << 9; /* same format but at 11:9 */
 
 		if (crtc->mode.flags & DRM_MODE_FLAG_PHSYNC)

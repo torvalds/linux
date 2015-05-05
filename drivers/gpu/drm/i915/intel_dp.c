@@ -1582,7 +1582,16 @@ static void intel_dp_prepare(struct intel_encoder *encoder)
 
 		intel_dp->DP |= crtc->pipe << 29;
 	} else if (HAS_PCH_CPT(dev) && port != PORT_A) {
+		u32 trans_dp;
+
 		intel_dp->DP |= DP_LINK_TRAIN_OFF_CPT;
+
+		trans_dp = I915_READ(TRANS_DP_CTL(crtc->pipe));
+		if (drm_dp_enhanced_frame_cap(intel_dp->dpcd))
+			trans_dp |= TRANS_DP_ENH_FRAMING;
+		else
+			trans_dp &= ~TRANS_DP_ENH_FRAMING;
+		I915_WRITE(TRANS_DP_CTL(crtc->pipe), trans_dp);
 	} else {
 		if (!HAS_PCH_SPLIT(dev) && !IS_VALLEYVIEW(dev))
 			intel_dp->DP |= intel_dp->color_range;
