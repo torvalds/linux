@@ -228,7 +228,7 @@ nfqnl_flush(struct nfqnl_instance *queue, nfqnl_cmpfn cmpfn, unsigned long data)
 }
 
 static int
-nfqnl_zcopy(struct sk_buff *to, const struct sk_buff *from, int len, int hlen)
+nfqnl_zcopy(struct sk_buff *to, struct sk_buff *from, int len, int hlen)
 {
 	int i, j = 0;
 	int plen = 0; /* length of skb->head fragment */

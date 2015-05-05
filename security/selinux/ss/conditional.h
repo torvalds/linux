@@ -73,8 +73,10 @@ int cond_read_list(struct policydb *p, void *fp);
 int cond_write_bool(void *key, void *datum, void *ptr);
 int cond_write_list(struct policydb *p, struct cond_node *list, void *fp);
 
-void cond_compute_av(struct avtab *ctab, struct avtab_key *key, struct av_decision *avd);
-
+void cond_compute_av(struct avtab *ctab, struct avtab_key *key,
+		struct av_decision *avd, struct operation *ops);
+void cond_compute_operation(struct avtab *ctab, struct avtab_key *key,
+		struct operation_decision *od);
 int evaluate_cond_node(struct policydb *p, struct cond_node *node);
 
 #endif /* _CONDITIONAL_H_ */

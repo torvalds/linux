@@ -1465,7 +1465,7 @@ static int tcm_qla2xxx_check_initiator_node_acl(
 	/*
 	 * Finally register the new FC Nexus with TCM
 	 */
-	__transport_register_session(se_nacl->se_tpg, se_nacl, se_sess, sess);
+	transport_register_session(se_nacl->se_tpg, se_nacl, se_sess, sess);
 
 	return 0;
 }
