@@ -15,6 +15,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x7e000000 0x20000000 0x02000000>;
+		dma-ranges = <0x40000000 0x00000000 0x20000000>;
 
 		timer@7e003000 {
 			compatible = "brcm,bcm2835-system-timer";
