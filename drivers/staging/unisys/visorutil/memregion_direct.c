@@ -156,7 +156,7 @@ visor_memregion_resize(struct memregion *memregion, ulong newsize)
 		unmapit(memregion);
 		memregion->nbytes = newsize;
 		if (!mapit(memregion))
-			return -1;
+			return -EIO;
 	}
 	return 0;
 }
@@ -197,7 +197,7 @@ EXPORT_SYMBOL_GPL(visor_memregion_write);
 void
 visor_memregion_destroy(struct memregion *memregion)
 {
-	if (memregion == NULL)
+	if (!memregion)
 		return;
 	if (!memregion->overlapped)
 		unmapit(memregion);

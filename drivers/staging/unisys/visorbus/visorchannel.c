@@ -55,60 +55,52 @@ visorchannel_create_guts(HOSTADDRESS physaddr, ulong channel_bytes,
 			 struct visorchannel *parent, ulong off, uuid_le guid,
 			 BOOL needs_lock)
 {
-	struct visorchannel *p = NULL;
-	void *rc = NULL;
+	struct visorchannel *channel;
+	int err;
+	size_t size = sizeof(struct channel_header);
+	struct memregion *memregion;
 
-	p = kmalloc(sizeof(*p), GFP_KERNEL|__GFP_NORETRY);
-	if (!p) {
-		rc = NULL;
+	channel = kmalloc(sizeof(*channel), GFP_KERNEL|__GFP_NORETRY);
+	if (!channel)
 		goto cleanup;
-	}
-	p->memregion = NULL;
-	p->needs_lock = needs_lock;
-	spin_lock_init(&p->insert_lock);
-	spin_lock_init(&p->remove_lock);
+
+	channel->memregion = NULL;
+	channel->needs_lock = needs_lock;
+	spin_lock_init(&channel->insert_lock);
+	spin_lock_init(&channel->remove_lock);
 
 	/* prepare chan_hdr (abstraction to read/write channel memory) */
 	if (!parent)
-		p->memregion =
-		    visor_memregion_create(physaddr,
-					   sizeof(struct channel_header));
+		memregion = visor_memregion_create(physaddr, size);
 	else
-		p->memregion =
-		    visor_memregion_create_overlapped(parent->memregion,
-				off, sizeof(struct channel_header));
-	if (!p->memregion) {
-		rc = NULL;
+		memregion = visor_memregion_create_overlapped(parent->memregion,
+							      off, size);
+	if (!memregion)
 		goto cleanup;
-	}
-	if (visor_memregion_read(p->memregion, 0, &p->chan_hdr,
-				 sizeof(struct channel_header)) < 0) {
-		rc = NULL;
+	channel->memregion = memregion;
+
+	err = visor_memregion_read(channel->memregion, 0, &channel->chan_hdr,
+				   sizeof(struct channel_header));
+	if (err)
 		goto cleanup;
-	}
+
+	/* we had better be a CLIENT of this channel */
 	if (channel_bytes == 0)
-		/* we had better be a CLIENT of this channel */
-		channel_bytes = (ulong)p->chan_hdr.size;
+		channel_bytes = (ulong)channel->chan_hdr.size;
 	if (uuid_le_cmp(guid, NULL_UUID_LE) == 0)
-		/* we had better be a CLIENT of this channel */
-		guid = p->chan_hdr.chtype;
-	if (visor_memregion_resize(p->memregion, channel_bytes) < 0) {
-		rc = NULL;
+		guid = channel->chan_hdr.chtype;
+
+	err = visor_memregion_resize(channel->memregion, channel_bytes);
+	if (err)
 		goto cleanup;
-	}
-	p->size = channel_bytes;
-	p->guid = guid;
 
-	rc = p;
+	channel->size = channel_bytes;
+	channel->guid = guid;
+	return channel;
+
 cleanup:
-
-	if (!rc) {
-		if (!p) {
-			visorchannel_destroy(p);
-			p = NULL;
-		}
-	}
-	return rc;
+	visorchannel_destroy(channel);
+	return NULL;
 }
 
 struct visorchannel *
@@ -153,10 +145,7 @@ visorchannel_destroy(struct visorchannel *channel)
 {
 	if (!channel)
 		return;
-	if (channel->memregion) {
-		visor_memregion_destroy(channel->memregion);
-		channel->memregion = NULL;
-	}
+	visor_memregion_destroy(channel->memregion);
 	kfree(channel);
 }
 EXPORT_SYMBOL_GPL(visorchannel_destroy);
