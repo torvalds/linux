@@ -89,8 +89,8 @@ static void xen_percpu_init(void)
 	pr_info("Xen: initializing cpu%d\n", cpu);
 	vcpup = per_cpu_ptr(xen_vcpu_info, cpu);
 
-	info.mfn = __pa(vcpup) >> PAGE_SHIFT;
-	info.offset = offset_in_page(vcpup);
+	info.mfn = virt_to_gfn(vcpup);
+	info.offset = xen_offset_in_page(vcpup);
 
 	err = HYPERVISOR_vcpu_op(VCPUOP_register_vcpu_info, cpu, &info);
 	BUG_ON(err);
@@ -213,7 +213,7 @@ static int __init xen_guest_init(void)
 	xatp.domid = DOMID_SELF;
 	xatp.idx = 0;
 	xatp.space = XENMAPSPACE_shared_info;
-	xatp.gpfn = __pa(shared_info_page) >> PAGE_SHIFT;
+	xatp.gpfn = virt_to_gfn(shared_info_page);
 	if (HYPERVISOR_memory_op(XENMEM_add_to_physmap, &xatp))
 		BUG();
 
