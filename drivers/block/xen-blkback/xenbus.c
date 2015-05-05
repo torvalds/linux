@@ -176,21 +176,24 @@ static int xen_blkif_map(struct xen_blkif *blkif, grant_ref_t *gref,
 	{
 		struct blkif_sring *sring;
 		sring = (struct blkif_sring *)blkif->blk_ring;
-		BACK_RING_INIT(&blkif->blk_rings.native, sring, PAGE_SIZE * nr_grefs);
+		BACK_RING_INIT(&blkif->blk_rings.native, sring,
+			       XEN_PAGE_SIZE * nr_grefs);
 		break;
 	}
 	case BLKIF_PROTOCOL_X86_32:
 	{
 		struct blkif_x86_32_sring *sring_x86_32;
 		sring_x86_32 = (struct blkif_x86_32_sring *)blkif->blk_ring;
-		BACK_RING_INIT(&blkif->blk_rings.x86_32, sring_x86_32, PAGE_SIZE * nr_grefs);
+		BACK_RING_INIT(&blkif->blk_rings.x86_32, sring_x86_32,
+			       XEN_PAGE_SIZE * nr_grefs);
 		break;
 	}
 	case BLKIF_PROTOCOL_X86_64:
 	{
 		struct blkif_x86_64_sring *sring_x86_64;
 		sring_x86_64 = (struct blkif_x86_64_sring *)blkif->blk_ring;
-		BACK_RING_INIT(&blkif->blk_rings.x86_64, sring_x86_64, PAGE_SIZE * nr_grefs);
+		BACK_RING_INIT(&blkif->blk_rings.x86_64, sring_x86_64,
+			       XEN_PAGE_SIZE * nr_grefs);
 		break;
 	}
 	default:
