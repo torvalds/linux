@@ -100,16 +100,6 @@
  */
 #define TX_QCHECK_PERIOD (HZ / 2)
 
-/* SGE Hung Ingress DMA Threshold Warning time (in Hz) and Warning Repeat Rate
- * (in RX_QCHECK_PERIOD multiples).  If we find one of the SGE Ingress DMA
- * State Machines in the same state for this amount of time (in HZ) then we'll
- * issue a warning about a potential hang.  We'll repeat the warning as the
- * SGE Ingress DMA Channel appears to be hung every N RX_QCHECK_PERIODs till
- * the situation clears.  If the situation clears, we'll note that as well.
- */
-#define SGE_IDMA_WARN_THRESH (1 * HZ)
-#define SGE_IDMA_WARN_REPEAT (20 * RX_QCHECK_PERIOD)
-
 /*
  * Max number of Tx descriptors to be reclaimed by the Tx timer.
  */
@@ -2279,7 +2269,7 @@ irq_handler_t t4_intr_handler(struct adapter *adap)
 static void sge_rx_timer_cb(unsigned long data)
 {
 	unsigned long m;
-	unsigned int i, idma_same_state_cnt[2];
+	unsigned int i;
 	struct adapter *adap = (struct adapter *)data;
 	struct sge *s = &adap->sge;
 
@@ -2300,67 +2290,16 @@ static void sge_rx_timer_cb(unsigned long data)
 					set_bit(id, s->starving_fl);
 			}
 		}
+	/* The remainder of the SGE RX Timer Callback routine is dedicated to
+	 * global Master PF activities like checking for chip ingress stalls,
+	 * etc.
+	 */
+	if (!(adap->flags & MASTER_PF))
+		goto done;
 
-	t4_write_reg(adap, SGE_DEBUG_INDEX_A, 13);
-	idma_same_state_cnt[0] = t4_read_reg(adap, SGE_DEBUG_DATA_HIGH_A);
-	idma_same_state_cnt[1] = t4_read_reg(adap, SGE_DEBUG_DATA_LOW_A);
+	t4_idma_monitor(adap, &s->idma_monitor, HZ, RX_QCHECK_PERIOD);
 
-	for (i = 0; i < 2; i++) {
-		u32 debug0, debug11;
-
-		/* If the Ingress DMA Same State Counter ("timer") is less
-		 * than 1s, then we can reset our synthesized Stall Timer and
-		 * continue.  If we have previously emitted warnings about a
-		 * potential stalled Ingress Queue, issue a note indicating
-		 * that the Ingress Queue has resumed forward progress.
-		 */
-		if (idma_same_state_cnt[i] < s->idma_1s_thresh) {
-			if (s->idma_stalled[i] >= SGE_IDMA_WARN_THRESH)
-				CH_WARN(adap, "SGE idma%d, queue%u,resumed after %d sec\n",
-					i, s->idma_qid[i],
-					s->idma_stalled[i]/HZ);
-			s->idma_stalled[i] = 0;
-			continue;
-		}
-
-		/* Synthesize an SGE Ingress DMA Same State Timer in the Hz
-		 * domain.  The first time we get here it'll be because we
-		 * passed the 1s Threshold; each additional time it'll be
-		 * because the RX Timer Callback is being fired on its regular
-		 * schedule.
-		 *
-		 * If the stall is below our Potential Hung Ingress Queue
-		 * Warning Threshold, continue.
-		 */
-		if (s->idma_stalled[i] == 0)
-			s->idma_stalled[i] = HZ;
-		else
-			s->idma_stalled[i] += RX_QCHECK_PERIOD;
-
-		if (s->idma_stalled[i] < SGE_IDMA_WARN_THRESH)
-			continue;
-
-		/* We'll issue a warning every SGE_IDMA_WARN_REPEAT Hz */
-		if (((s->idma_stalled[i] - HZ) % SGE_IDMA_WARN_REPEAT) != 0)
-			continue;
-
-		/* Read and save the SGE IDMA State and Queue ID information.
-		 * We do this every time in case it changes across time ...
-		 */
-		t4_write_reg(adap, SGE_DEBUG_INDEX_A, 0);
-		debug0 = t4_read_reg(adap, SGE_DEBUG_DATA_LOW_A);
-		s->idma_state[i] = (debug0 >> (i * 9)) & 0x3f;
-
-		t4_write_reg(adap, SGE_DEBUG_INDEX_A, 11);
-		debug11 = t4_read_reg(adap, SGE_DEBUG_DATA_LOW_A);
-		s->idma_qid[i] = (debug11 >> (i * 16)) & 0xffff;
-
-		CH_WARN(adap, "SGE idma%u, queue%u, maybe stuck state%u %dsecs (debug0=%#x, debug11=%#x)\n",
-			i, s->idma_qid[i], s->idma_state[i],
-			s->idma_stalled[i]/HZ, debug0, debug11);
-		t4_sge_decode_idma_state(adap, s->idma_state[i]);
-	}
-
+done:
 	mod_timer(&s->rx_timer, jiffies + RX_QCHECK_PERIOD);
 }
 
@@ -3121,11 +3060,11 @@ int t4_sge_init(struct adapter *adap)
 		egress_threshold = EGRTHRESHOLDPACKING_G(sge_conm_ctrl);
 	s->fl_starve_thres = 2*egress_threshold + 1;
 
+	t4_idma_monitor_init(adap, &s->idma_monitor);
+
 	setup_timer(&s->rx_timer, sge_rx_timer_cb, (unsigned long)adap);
 	setup_timer(&s->tx_timer, sge_tx_timer_cb, (unsigned long)adap);
-	s->idma_1s_thresh = core_ticks_per_usec(adap) * 1000000;  /* 1 s */
-	s->idma_stalled[0] = 0;
-	s->idma_stalled[1] = 0;
+
 	spin_lock_init(&s->intrq_lock);
 
 	return 0;
