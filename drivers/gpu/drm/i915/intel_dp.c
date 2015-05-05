@@ -2186,28 +2186,12 @@ static bool intel_dp_get_hw_state(struct intel_encoder *encoder,
 	if (IS_GEN7(dev) && port == PORT_A) {
 		*pipe = PORT_TO_PIPE_CPT(tmp);
 	} else if (HAS_PCH_CPT(dev) && port != PORT_A) {
-		u32 trans_sel;
-		u32 trans_dp;
-		int i;
+		enum pipe p;
 
-		switch (intel_dp->output_reg) {
-		case PCH_DP_B:
-			trans_sel = TRANS_DP_PORT_SEL_B;
-			break;
-		case PCH_DP_C:
-			trans_sel = TRANS_DP_PORT_SEL_C;
-			break;
-		case PCH_DP_D:
-			trans_sel = TRANS_DP_PORT_SEL_D;
-			break;
-		default:
-			return true;
-		}
-
-		for_each_pipe(dev_priv, i) {
-			trans_dp = I915_READ(TRANS_DP_CTL(i));
-			if ((trans_dp & TRANS_DP_PORT_SEL_MASK) == trans_sel) {
-				*pipe = i;
+		for_each_pipe(dev_priv, p) {
+			u32 trans_dp = I915_READ(TRANS_DP_CTL(p));
+			if (TRANS_DP_PIPE_TO_PORT(trans_dp) == port) {
+				*pipe = p;
 				return true;
 			}
 		}
