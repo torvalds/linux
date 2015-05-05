@@ -124,7 +124,11 @@ visorchannel_destroy(struct visorchannel *channel)
 {
 	if (!channel)
 		return;
-	visor_memregion_destroy(&channel->memregion);
+	if (channel->memregion.mapped) {
+		iounmap(channel->memregion.mapped);
+		release_mem_region(channel->memregion.physaddr,
+				   channel->memregion.nbytes);
+	}
 	kfree(channel);
 }
 EXPORT_SYMBOL_GPL(visorchannel_destroy);

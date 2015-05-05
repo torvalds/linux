@@ -115,12 +115,3 @@ visor_memregion_write(struct memregion *memregion, ulong offset, void *src,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(visor_memregion_write);
-
-void
-visor_memregion_destroy(struct memregion *memregion)
-{
-	if (!memregion)
-		return;
-	unmapit(memregion);
-}
-EXPORT_SYMBOL_GPL(visor_memregion_destroy);

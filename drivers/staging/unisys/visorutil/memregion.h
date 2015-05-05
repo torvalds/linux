@@ -34,7 +34,6 @@ int visor_memregion_read(struct memregion *memregion,
 			 ulong offset, void *dest, ulong nbytes);
 int visor_memregion_write(struct memregion *memregion,
 			  ulong offset, void *src, ulong nbytes);
-void visor_memregion_destroy(struct memregion *memregion);
 HOSTADDRESS visor_memregion_get_physaddr(struct memregion *memregion);
 ulong visor_memregion_get_nbytes(struct memregion *memregion);
 void memregion_dump(struct memregion *memregion, char *s,
