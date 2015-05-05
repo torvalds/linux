@@ -554,6 +554,10 @@ static void tegra_uart_copy_rx_to_tty(struct tegra_uart_port *tup,
 {
 	int copied;
 
+	/* If count is zero, then there is no data to be copied */
+	if (!count)
+		return;
+
 	tup->uport.icount.rx += count;
 	if (!tty) {
 		dev_err(tup->uport.dev, "No tty port\n");
@@ -588,8 +592,7 @@ static void tegra_uart_rx_dma_complete(void *args)
 		set_rts(tup, false);
 
 	/* If we are here, DMA is stopped */
-	if (count)
-		tegra_uart_copy_rx_to_tty(tup, port, count);
+	tegra_uart_copy_rx_to_tty(tup, port, count);
 
 	tegra_uart_handle_rx_pio(tup, port);
 	if (tty) {
@@ -626,8 +629,7 @@ static void tegra_uart_handle_rx_dma(struct tegra_uart_port *tup,
 	count = tup->rx_bytes_requested - state.residue;
 
 	/* If we are here, DMA is stopped */
-	if (count)
-		tegra_uart_copy_rx_to_tty(tup, port, count);
+	tegra_uart_copy_rx_to_tty(tup, port, count);
 
 	tegra_uart_handle_rx_pio(tup, port);
 	if (tty) {
