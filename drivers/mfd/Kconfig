@@ -52,7 +52,8 @@ config PMIC_ADP5520
 config MFD_AAT2870_CORE
 	bool "AnalogicTech AAT2870"
 	select MFD_CORE
-	depends on I2C=y && GPIOLIB
+	depends on I2C=y
+	depends on GPIOLIB || COMPILE_TEST
 	help
 	  If you say yes here you get support for the AAT2870.
 	  This driver provides common support for accessing the device,
@@ -1117,7 +1118,8 @@ config MFD_TPS6586X
 
 config MFD_TPS65910
 	bool "TI TPS65910 Power Management chip"
-	depends on I2C=y && GPIOLIB
+	depends on I2C=y
+	depends on GPIOLIB || COMPILE_TEST
 	select MFD_CORE
 	select REGMAP_I2C
 	select REGMAP_IRQ
