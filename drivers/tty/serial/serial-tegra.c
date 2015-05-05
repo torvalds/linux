@@ -410,7 +410,7 @@ static void tegra_uart_tx_dma_complete(void *args)
 	unsigned long flags;
 	unsigned int count;
 
-	dmaengine_tx_status(tup->tx_dma_chan, tup->rx_cookie, &state);
+	dmaengine_tx_status(tup->tx_dma_chan, tup->tx_cookie, &state);
 	count = tup->tx_bytes_requested - state.residue;
 	async_tx_ack(tup->tx_dma_desc);
 	spin_lock_irqsave(&tup->uport.lock, flags);
