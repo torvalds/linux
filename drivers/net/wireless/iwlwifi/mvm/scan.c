@@ -101,7 +101,7 @@ struct iwl_mvm_scan_params {
 	} schedule[2];
 };
 
-static int iwl_umac_scan_stop(struct iwl_mvm *mvm, int type, bool notify);
+static int iwl_umac_scan_stop(struct iwl_mvm *mvm, int type);
 
 static u8 iwl_mvm_scan_rx_ant(struct iwl_mvm *mvm)
 {
@@ -889,9 +889,6 @@ int iwl_mvm_reg_scan_stop(struct iwl_mvm *mvm)
 {
 	int ret;
 
-	if (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN)
-		return iwl_umac_scan_stop(mvm, IWL_MVM_SCAN_REGULAR, true);
-
 	if (!(mvm->scan_status & IWL_MVM_SCAN_REGULAR))
 		return 0;
 
@@ -900,7 +897,11 @@ int iwl_mvm_reg_scan_stop(struct iwl_mvm *mvm)
 		goto out;
 	}
 
-	ret = iwl_mvm_lmac_scan_stop(mvm, IWL_MVM_SCAN_REGULAR);
+	if (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN)
+		ret = iwl_umac_scan_stop(mvm, IWL_MVM_SCAN_REGULAR);
+	else
+		ret = iwl_mvm_lmac_scan_stop(mvm, IWL_MVM_SCAN_REGULAR);
+
 	if (!ret)
 		mvm->scan_status |= IWL_MVM_SCAN_STOPPING_REGULAR;
 out:
@@ -922,9 +923,6 @@ int iwl_mvm_sched_scan_stop(struct iwl_mvm *mvm, bool notify)
 {
 	int ret;
 
-	if (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN)
-		return iwl_umac_scan_stop(mvm, IWL_MVM_SCAN_SCHED, notify);
-
 	if (!(mvm->scan_status & IWL_MVM_SCAN_SCHED))
 		return 0;
 
@@ -933,7 +931,11 @@ int iwl_mvm_sched_scan_stop(struct iwl_mvm *mvm, bool notify)
 		goto out;
 	}
 
-	ret = iwl_mvm_lmac_scan_stop(mvm, IWL_MVM_SCAN_SCHED);
+	if (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN)
+		ret = iwl_umac_scan_stop(mvm, IWL_MVM_SCAN_SCHED);
+	else
+		ret = iwl_mvm_lmac_scan_stop(mvm, IWL_MVM_SCAN_SCHED);
+
 	if (!ret)
 		mvm->scan_status |= IWL_MVM_SCAN_STOPPING_SCHED;
 out:
@@ -1585,7 +1587,7 @@ static int iwl_umac_scan_abort_one(struct iwl_mvm *mvm, u32 uid)
 	return iwl_mvm_send_cmd_pdu(mvm, SCAN_ABORT_UMAC, 0, sizeof(cmd), &cmd);
 }
 
-static int iwl_umac_scan_stop(struct iwl_mvm *mvm, int type, bool notify)
+static int iwl_umac_scan_stop(struct iwl_mvm *mvm, int type)
 {
 	struct iwl_notification_wait wait_scan_done;
 	static const u8 scan_done_notif[] = { SCAN_COMPLETE_UMAC, };
@@ -1606,13 +1608,6 @@ static int iwl_umac_scan_stop(struct iwl_mvm *mvm, int type, bool notify)
 		if (mvm->scan_uid[i] & type) {
 			int err;
 
-			if (iwl_mvm_is_radio_killed(mvm) &&
-			    (type & IWL_MVM_SCAN_REGULAR)) {
-				ieee80211_scan_completed(mvm->hw, true);
-				iwl_mvm_unref(mvm, IWL_MVM_REF_SCAN);
-				break;
-			}
-
 			err = iwl_umac_scan_abort_one(mvm, mvm->scan_uid[i]);
 			if (!err)
 				ret = 0;
@@ -1626,17 +1621,6 @@ static int iwl_umac_scan_stop(struct iwl_mvm *mvm, int type, bool notify)
 	}
 
 	ret = iwl_wait_notification(&mvm->notif_wait, &wait_scan_done, 1 * HZ);
-	if (ret)
-		return ret;
-
-	if (notify) {
-		if (type & IWL_MVM_SCAN_SCHED)
-			ieee80211_sched_scan_stopped(mvm->hw);
-		if (type & IWL_MVM_SCAN_REGULAR) {
-			ieee80211_scan_completed(mvm->hw, true);
-			iwl_mvm_unref(mvm, IWL_MVM_REF_SCAN);
-		}
-	}
 
 	return ret;
 }
