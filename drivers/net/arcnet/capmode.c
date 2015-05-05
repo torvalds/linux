@@ -57,7 +57,6 @@ static void rx(struct net_device *dev, int bufnum,
 
 	skb = alloc_skb(length + ARC_HDR_SIZE + sizeof(int), GFP_ATOMIC);
 	if (skb == NULL) {
-		arc_printk(D_NORMAL, dev, "Memory squeeze, dropping packet\n");
 		dev->stats.rx_dropped++;
 		return;
 	}
@@ -197,10 +196,8 @@ static int ack_tx(struct net_device *dev, int acked)
 
 	/* Now alloc a skb to send back up through the layers: */
 	ackskb = alloc_skb(length + ARC_HDR_SIZE, GFP_ATOMIC);
-	if (ackskb == NULL) {
-		arc_printk(D_NORMAL, dev, "Memory squeeze, can't acknowledge\n");
+	if (ackskb == NULL)
 		goto free_outskb;
-	}
 
 	skb_put(ackskb, length + ARC_HDR_SIZE);
 	ackskb->dev = dev;
