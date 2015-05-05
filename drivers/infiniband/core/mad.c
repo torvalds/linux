@@ -2938,7 +2938,7 @@ static int ib_mad_port_open(struct ib_device *device,
 	init_mad_qp(port_priv, &port_priv->qp_info[1]);
 
 	cq_size = mad_sendq_size + mad_recvq_size;
-	has_smi = rdma_port_get_link_layer(device, port_num) == IB_LINK_LAYER_INFINIBAND;
+	has_smi = rdma_protocol_ib(device, port_num);
 	if (has_smi)
 		cq_size *= 2;
 
@@ -3057,9 +3057,6 @@ static void ib_mad_init_device(struct ib_device *device)
 {
 	int start, end, i;
 
-	if (rdma_node_get_transport(device->node_type) != RDMA_TRANSPORT_IB)
-		return;
-
 	if (device->node_type == RDMA_NODE_IB_SWITCH) {
 		start = 0;
 		end   = 0;
@@ -3069,6 +3066,9 @@ static void ib_mad_init_device(struct ib_device *device)
 	}
 
 	for (i = start; i <= end; i++) {
+		if (!rdma_ib_or_iboe(device, i))
+			continue;
+
 		if (ib_mad_port_open(device, i)) {
 			dev_err(&device->dev, "Couldn't open port %d\n", i);
 			goto error;
@@ -3086,40 +3086,39 @@ error_agent:
 		dev_err(&device->dev, "Couldn't close port %d\n", i);
 
 error:
-	i--;
+	while (--i >= start) {
+		if (!rdma_ib_or_iboe(device, i))
+			continue;
 
-	while (i >= start) {
 		if (ib_agent_port_close(device, i))
 			dev_err(&device->dev,
 				"Couldn't close port %d for agents\n", i);
 		if (ib_mad_port_close(device, i))
 			dev_err(&device->dev, "Couldn't close port %d\n", i);
-		i--;
 	}
 }
 
 static void ib_mad_remove_device(struct ib_device *device)
 {
-	int i, num_ports, cur_port;
-
-	if (rdma_node_get_transport(device->node_type) != RDMA_TRANSPORT_IB)
-		return;
+	int start, end, i;
 
 	if (device->node_type == RDMA_NODE_IB_SWITCH) {
-		num_ports = 1;
-		cur_port = 0;
+		start = 0;
+		end   = 0;
 	} else {
-		num_ports = device->phys_port_cnt;
-		cur_port = 1;
+		start = 1;
+		end   = device->phys_port_cnt;
 	}
-	for (i = 0; i < num_ports; i++, cur_port++) {
-		if (ib_agent_port_close(device, cur_port))
+
+	for (i = start; i <= end; i++) {
+		if (!rdma_ib_or_iboe(device, i))
+			continue;
+
+		if (ib_agent_port_close(device, i))
 			dev_err(&device->dev,
-				"Couldn't close port %d for agents\n",
-				cur_port);
-		if (ib_mad_port_close(device, cur_port))
-			dev_err(&device->dev, "Couldn't close port %d\n",
-				cur_port);
+				"Couldn't close port %d for agents\n", i);
+		if (ib_mad_port_close(device, i))
+			dev_err(&device->dev, "Couldn't close port %d\n", i);
 	}
 }
 
