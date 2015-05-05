@@ -143,6 +143,8 @@ struct cx24120_state {
 	/* current and next tuning parameters */
 	struct cx24120_tuning dcur;
 	struct cx24120_tuning dnxt;
+
+	fe_status_t fe_status;
 };
 
 /* Command message to firmware */
@@ -615,7 +617,7 @@ static int cx24120_send_diseqc_msg(struct dvb_frontend *fe,
 	return -ETIMEDOUT;
 }
 
-static void cx24120_get_stats(struct cx24120_state *state, fe_status_t status)
+static void cx24120_get_stats(struct cx24120_state *state)
 {
 	struct dvb_frontend *fe = &state->frontend;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
@@ -625,7 +627,7 @@ static void cx24120_get_stats(struct cx24120_state *state, fe_status_t status)
 	dev_dbg(&state->i2c->dev, "%s()\n", __func__);
 
 	/* signal strength */
-	if (status & FE_HAS_SIGNAL) {
+	if (state->fe_status & FE_HAS_SIGNAL) {
 		ret = cx24120_read_signal_strength(fe, &u16tmp);
 		if (ret != 0)
 			return;
@@ -669,7 +671,8 @@ static int cx24120_read_status(struct dvb_frontend *fe, fe_status_t *status)
 	 * Other cx241xx drivers have this slightly
 	 * different */
 
-	cx24120_get_stats(state, *status);
+	state->fe_status = *status;
+	cx24120_get_stats(state);
 
 	/* Set the clock once tuned in */
 	if (state->need_clock_set && *status & FE_HAS_LOCK) {
@@ -1405,13 +1408,11 @@ static int cx24120_get_frontend(struct dvb_frontend *fe)
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct cx24120_state *state = fe->demodulator_priv;
 	u8 freq1, freq2, freq3;
-	fe_status_t status;
 
 	dev_dbg(&state->i2c->dev, "%s()", __func__);
 
 	/* don't return empty data if we're not tuned in */
-	cx24120_read_status(fe, &status);
-	if ((status & FE_HAS_LOCK) == 0)
+	if ((state->fe_status & FE_HAS_LOCK) == 0)
 		return 0;
 
 	/* Get frequency */
