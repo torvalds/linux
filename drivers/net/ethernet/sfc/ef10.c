@@ -286,10 +286,22 @@ static int efx_ef10_probe(struct efx_nic *efx)
 		goto fail3;
 	efx->timer_quantum_ns = 1536000 / rc; /* 1536 cycles */
 
-	/* Check whether firmware supports bug 35388 workaround */
+	/* Check whether firmware supports bug 35388 workaround.
+	 * First try to enable it, then if we get EPERM, just
+	 * ask if it's already enabled
+	 */
 	rc = efx_mcdi_set_workaround(efx, MC_CMD_WORKAROUND_BUG35388, true);
 	if (rc == 0)
 		nic_data->workaround_35388 = true;
+	else if (rc == -EPERM) {
+		unsigned int enabled;
+
+		rc = efx_mcdi_get_workarounds(efx, NULL, &enabled);
+		if (rc)
+			goto fail3;
+		nic_data->workaround_35388 = enabled &
+			MC_CMD_GET_WORKAROUNDS_OUT_BUG35388;
+	}
 	else if (rc != -ENOSYS && rc != -ENOENT)
 		goto fail3;
 	netif_dbg(efx, probe, efx->net_dev,
@@ -297,7 +309,7 @@ static int efx_ef10_probe(struct efx_nic *efx)
 		  nic_data->workaround_35388 ? "en" : "dis");
 
 	rc = efx_mcdi_mon_probe(efx);
-	if (rc)
+	if (rc && rc != -EPERM)
 		goto fail3;
 
 	efx_ptp_probe(efx, NULL);

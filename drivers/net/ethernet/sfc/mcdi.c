@@ -1142,10 +1142,26 @@ static int efx_mcdi_drv_attach(struct efx_nic *efx, bool driver_operating,
 	MCDI_SET_DWORD(inbuf, DRV_ATTACH_IN_UPDATE, 1);
 	MCDI_SET_DWORD(inbuf, DRV_ATTACH_IN_FIRMWARE_ID, MC_CMD_FW_LOW_LATENCY);
 
-	rc = efx_mcdi_rpc(efx, MC_CMD_DRV_ATTACH, inbuf, sizeof(inbuf),
-			  outbuf, sizeof(outbuf), &outlen);
-	if (rc)
+	rc = efx_mcdi_rpc_quiet(efx, MC_CMD_DRV_ATTACH, inbuf, sizeof(inbuf),
+				outbuf, sizeof(outbuf), &outlen);
+	/* If we're not the primary PF, trying to ATTACH with a FIRMWARE_ID
+	 * specified will fail with EPERM, and we have to tell the MC we don't
+	 * care what firmware we get.
+	 */
+	if (rc == -EPERM) {
+		netif_dbg(efx, probe, efx->net_dev,
+			  "efx_mcdi_drv_attach with fw-variant setting failed EPERM, trying without it\n");
+		MCDI_SET_DWORD(inbuf, DRV_ATTACH_IN_FIRMWARE_ID,
+			       MC_CMD_FW_DONT_CARE);
+		rc = efx_mcdi_rpc_quiet(efx, MC_CMD_DRV_ATTACH, inbuf,
+					sizeof(inbuf), outbuf, sizeof(outbuf),
+					&outlen);
+	}
+	if (rc) {
+		efx_mcdi_display_error(efx, MC_CMD_DRV_ATTACH, sizeof(inbuf),
+				       outbuf, outlen, rc);
 		goto fail;
+	}
 	if (outlen < MC_CMD_DRV_ATTACH_OUT_LEN) {
 		rc = -EIO;
 		goto fail;
@@ -1377,6 +1393,9 @@ fail1:
 	return rc;
 }
 
+/* Returns 1 if an assertion was read, 0 if no assertion had fired,
+ * negative on error.
+ */
 static int efx_mcdi_read_assertion(struct efx_nic *efx)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_GET_ASSERTS_IN_LEN);
@@ -1398,6 +1417,8 @@ static int efx_mcdi_read_assertion(struct efx_nic *efx)
 		rc = efx_mcdi_rpc_quiet(efx, MC_CMD_GET_ASSERTS,
 					inbuf, MC_CMD_GET_ASSERTS_IN_LEN,
 					outbuf, sizeof(outbuf), &outlen);
+		if (rc == -EPERM)
+			return 0;
 	} while ((rc == -EINTR || rc == -EIO) && retry-- > 0);
 
 	if (rc) {
@@ -1435,24 +1456,31 @@ static int efx_mcdi_read_assertion(struct efx_nic *efx)
 			  MCDI_ARRAY_DWORD(outbuf, GET_ASSERTS_OUT_GP_REGS_OFFS,
 					   index));
 
-	return 0;
+	return 1;
 }
 
-static void efx_mcdi_exit_assertion(struct efx_nic *efx)
+static int efx_mcdi_exit_assertion(struct efx_nic *efx)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_REBOOT_IN_LEN);
+	int rc;
 
 	/* If the MC is running debug firmware, it might now be
 	 * waiting for a debugger to attach, but we just want it to
 	 * reboot.  We set a flag that makes the command a no-op if it
-	 * has already done so.  We don't know what return code to
-	 * expect (0 or -EIO), so ignore it.
+	 * has already done so.
+	 * The MCDI will thus return either 0 or -EIO.
 	 */
 	BUILD_BUG_ON(MC_CMD_REBOOT_OUT_LEN != 0);
 	MCDI_SET_DWORD(inbuf, REBOOT_IN_FLAGS,
 		       MC_CMD_REBOOT_FLAGS_AFTER_ASSERTION);
-	(void) efx_mcdi_rpc(efx, MC_CMD_REBOOT, inbuf, MC_CMD_REBOOT_IN_LEN,
-			    NULL, 0, NULL);
+	rc = efx_mcdi_rpc_quiet(efx, MC_CMD_REBOOT, inbuf, MC_CMD_REBOOT_IN_LEN,
+				NULL, 0, NULL);
+	if (rc == -EIO)
+		rc = 0;
+	if (rc)
+		efx_mcdi_display_error(efx, MC_CMD_REBOOT, MC_CMD_REBOOT_IN_LEN,
+				       NULL, 0, rc);
+	return rc;
 }
 
 int efx_mcdi_handle_assertion(struct efx_nic *efx)
@@ -1460,12 +1488,10 @@ int efx_mcdi_handle_assertion(struct efx_nic *efx)
 	int rc;
 
 	rc = efx_mcdi_read_assertion(efx);
-	if (rc)
+	if (rc <= 0)
 		return rc;
 
-	efx_mcdi_exit_assertion(efx);
-
-	return 0;
+	return efx_mcdi_exit_assertion(efx);
 }
 
 void efx_mcdi_set_id_led(struct efx_nic *efx, enum efx_led_mode mode)
@@ -1678,6 +1704,36 @@ int efx_mcdi_set_workaround(struct efx_nic *efx, u32 type, bool enabled)
 	MCDI_SET_DWORD(inbuf, WORKAROUND_IN_ENABLED, enabled);
 	return efx_mcdi_rpc(efx, MC_CMD_WORKAROUND, inbuf, sizeof(inbuf),
 			    NULL, 0, NULL);
+}
+
+int efx_mcdi_get_workarounds(struct efx_nic *efx, unsigned int *impl_out,
+			     unsigned int *enabled_out)
+{
+	MCDI_DECLARE_BUF_OUT_OR_ERR(outbuf, MC_CMD_GET_WORKAROUNDS_OUT_LEN);
+	size_t outlen;
+	int rc;
+
+	rc = efx_mcdi_rpc(efx, MC_CMD_GET_WORKAROUNDS, NULL, 0,
+			  outbuf, sizeof(outbuf), &outlen);
+	if (rc)
+		goto fail;
+
+	if (outlen < MC_CMD_GET_WORKAROUNDS_OUT_LEN) {
+		rc = -EIO;
+		goto fail;
+	}
+
+	if (impl_out)
+		*impl_out = MCDI_DWORD(outbuf, GET_WORKAROUNDS_OUT_IMPLEMENTED);
+
+	if (enabled_out)
+		*enabled_out = MCDI_DWORD(outbuf, GET_WORKAROUNDS_OUT_ENABLED);
+
+	return 0;
+
+fail:
+	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
+	return rc;
 }
 
 #ifdef CONFIG_SFC_MTD

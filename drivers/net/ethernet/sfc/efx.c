@@ -1046,7 +1046,7 @@ static int efx_init_port(struct efx_nic *efx)
 
 	/* Ensure the PHY advertises the correct flow control settings */
 	rc = efx->phy_op->reconfigure(efx);
-	if (rc)
+	if (rc && rc != -EPERM)
 		goto fail2;
 
 	mutex_unlock(&efx->mac_lock);
@@ -2429,7 +2429,8 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 		rc = efx->phy_op->init(efx);
 		if (rc)
 			goto fail;
-		if (efx->phy_op->reconfigure(efx))
+		rc = efx->phy_op->reconfigure(efx);
+		if (rc && rc != -EPERM)
 			netif_err(efx, drv, efx->net_dev,
 				  "could not restore PHY settings\n");
 	}
