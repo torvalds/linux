@@ -2003,11 +2003,15 @@ static void ironlake_enable_pch_transcoder(struct drm_i915_private *dev_priv,
 
 	if (HAS_PCH_IBX(dev_priv->dev)) {
 		/*
-		 * make the BPC in transcoder be consistent with
-		 * that in pipeconf reg.
+		 * Make the BPC in transcoder be consistent with
+		 * that in pipeconf reg. For HDMI we must use 8bpc
+		 * here for both 8bpc and 12bpc.
 		 */
 		val &= ~PIPECONF_BPC_MASK;
-		val |= pipeconf_val & PIPECONF_BPC_MASK;
+		if (intel_pipe_has_type(intel_crtc, INTEL_OUTPUT_HDMI))
+			val |= PIPECONF_8BPC;
+		else
+			val |= pipeconf_val & PIPECONF_BPC_MASK;
 	}
 
 	val &= ~TRANS_INTERLACE_MASK;
