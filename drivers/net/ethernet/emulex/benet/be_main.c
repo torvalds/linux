@@ -1269,7 +1269,8 @@ static int be_vid_config(struct be_adapter *adapter)
 	if (status) {
 		dev_err(dev, "Setting HW VLAN filtering failed\n");
 		/* Set to VLAN promisc mode as setting VLAN filter failed */
-		if (addl_status(status) ==
+		if (addl_status(status) == MCC_ADDL_STATUS_INSUFFICIENT_VLANS ||
+		    addl_status(status) ==
 				MCC_ADDL_STATUS_INSUFFICIENT_RESOURCES)
 			return be_set_vlan_promisc(adapter);
 	} else if (adapter->if_flags & BE_IF_FLAGS_VLAN_PROMISCUOUS) {
