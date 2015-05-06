@@ -508,10 +508,14 @@ static void hdmi_sort_modelist(struct hdmi_edid *edid, int feature)
 		}
 	}
 	fb_destroy_modelist(head);
-
-	edid->modelist = head_new;
-	edid->modelist.prev->next = &edid->modelist;
-	edid->modelist.next->prev = &edid->modelist;
+	if (head_new.next == &head_new) {
+		pr_info("There is no available video mode in EDID.\n");
+		INIT_LIST_HEAD(&edid->modelist);
+	} else {
+		edid->modelist = head_new;
+		edid->modelist.prev->next = &edid->modelist;
+		edid->modelist.next->prev = &edid->modelist;
+	}
 }
 
 /**
@@ -585,6 +589,16 @@ int hdmi_ouputmode_select(struct hdmi *hdmi, int edid_ok)
 			hdmi_add_videomode(mode, head);
 		}
 	} else {
+		/* There are some video mode is not defined in EDID extend
+		   block, so we need to check first block data.*/
+		if (specs && specs->modedb_len) {
+			for (i = 0; i < specs->modedb_len; i++) {
+				modedb = &specs->modedb[0];
+				pixclock = hdmi_videomode_to_vic(modedb);
+				if (pixclock)
+					hdmi_add_vic(pixclock, head);
+			}
+		}
 		hdmi_sort_modelist(&hdmi->edid, hdmi->property->feature);
 	}
 	hdmi_show_sink_info(hdmi);
