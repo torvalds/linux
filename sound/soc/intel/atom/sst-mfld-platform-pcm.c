@@ -434,10 +434,19 @@ static int sst_enable_ssp(struct snd_pcm_substream *substream,
 
 	if (!dai->active) {
 		ret = sst_handle_vb_timer(dai, true);
-		if (ret)
-			return ret;
-		ret = send_ssp_cmd(dai, dai->name, 1);
+		sst_fill_ssp_defaults(dai);
 	}
+	return ret;
+}
+
+static int sst_be_hw_params(struct snd_pcm_substream *substream,
+				struct snd_pcm_hw_params *params,
+				struct snd_soc_dai *dai)
+{
+	int ret = 0;
+
+	if (dai->active == 1)
+		ret = send_ssp_cmd(dai, dai->name, 1);
 	return ret;
 }
 
@@ -465,6 +474,7 @@ static struct snd_soc_dai_ops sst_compr_dai_ops = {
 
 static struct snd_soc_dai_ops sst_be_dai_ops = {
 	.startup = sst_enable_ssp,
+	.hw_params = sst_be_hw_params,
 	.shutdown = sst_disable_ssp,
 };
 
