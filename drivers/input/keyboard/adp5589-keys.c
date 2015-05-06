@@ -726,7 +726,7 @@ static int adp5589_setup(struct adp5589_kpad *kpad)
 
 		pull_mask |= val << (2 * (i & 0x3));
 
-		if (i == 3 || i == kpad->var->max_row_num) {
+		if (i % 4 == 3 || i == kpad->var->max_row_num) {
 			ret |= adp5589_write(client, reg(ADP5585_RPULL_CONFIG_A)
 					     + (i >> 2), pull_mask);
 			pull_mask = 0;
@@ -746,7 +746,7 @@ static int adp5589_setup(struct adp5589_kpad *kpad)
 
 		pull_mask |= val << (2 * (i & 0x3));
 
-		if (i == 3 || i == kpad->var->max_col_num) {
+		if (i % 4 == 3 || i == kpad->var->max_col_num) {
 			ret |= adp5589_write(client,
 					     reg(ADP5585_RPULL_CONFIG_C) +
 					     (i >> 2), pull_mask);
