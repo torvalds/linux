@@ -49,6 +49,13 @@ static const struct gmbus_pin gmbus_pins[] = {
 	[GMBUS_PIN_DPD] = { "dpd", GPIOF },
 };
 
+static const struct gmbus_pin gmbus_pins_bdw[] = {
+	[GMBUS_PIN_VGADDC] = { "vga", GPIOA },
+	[GMBUS_PIN_DPC] = { "dpc", GPIOD },
+	[GMBUS_PIN_DPB] = { "dpb", GPIOE },
+	[GMBUS_PIN_DPD] = { "dpd", GPIOF },
+};
+
 static const struct gmbus_pin gmbus_pins_bxt[] = {
 	[GMBUS_PIN_1_BXT] = { "dpb", PCH_GPIOB },
 	[GMBUS_PIN_2_BXT] = { "dpc", PCH_GPIOC },
@@ -61,6 +68,8 @@ static const struct gmbus_pin *get_gmbus_pin(struct drm_i915_private *dev_priv,
 {
 	if (IS_BROXTON(dev_priv))
 		return &gmbus_pins_bxt[pin];
+	else if (IS_BROADWELL(dev_priv))
+		return &gmbus_pins_bdw[pin];
 	else
 		return &gmbus_pins[pin];
 }
@@ -72,6 +81,8 @@ bool intel_gmbus_is_valid_pin(struct drm_i915_private *dev_priv,
 
 	if (IS_BROXTON(dev_priv))
 		size = ARRAY_SIZE(gmbus_pins_bxt);
+	else if (IS_BROADWELL(dev_priv))
+		size = ARRAY_SIZE(gmbus_pins_bdw);
 	else
 		size = ARRAY_SIZE(gmbus_pins);
 
