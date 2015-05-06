@@ -808,23 +808,21 @@ int kvm_s390_ext_call_pending(struct kvm_vcpu *vcpu)
 
 int kvm_s390_vcpu_has_irq(struct kvm_vcpu *vcpu, int exclude_stop)
 {
-	int rc;
+	if (deliverable_irqs(vcpu))
+		return 1;
 
-	rc = !!deliverable_irqs(vcpu);
-
-	if (!rc && kvm_cpu_has_pending_timer(vcpu))
-		rc = 1;
+	if (kvm_cpu_has_pending_timer(vcpu))
+		return 1;
 
 	/* external call pending and deliverable */
-	if (!rc && kvm_s390_ext_call_pending(vcpu) &&
+	if (kvm_s390_ext_call_pending(vcpu) &&
 	    !psw_extint_disabled(vcpu) &&
 	    (vcpu->arch.sie_block->gcr[0] & 0x2000ul))
-		rc = 1;
+		return 1;
 
-	if (!rc && !exclude_stop && kvm_s390_is_stop_irq_pending(vcpu))
-		rc = 1;
-
-	return rc;
+	if (!exclude_stop && kvm_s390_is_stop_irq_pending(vcpu))
+		return 1;
+	return 0;
 }
 
 int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu)
