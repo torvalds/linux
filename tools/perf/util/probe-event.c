@@ -1077,6 +1077,7 @@ static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 	struct perf_probe_point *pp = &pev->point;
 	char *ptr, *tmp;
 	char c, nc = 0;
+	bool file_spec = false;
 	/*
 	 * <Syntax>
 	 * perf probe [EVENT=]SRC[:LN|;PTN]
@@ -1105,6 +1106,23 @@ static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 		arg = tmp;
 	}
 
+	/*
+	 * Check arg is function or file name and copy it.
+	 *
+	 * We consider arg to be a file spec if and only if it satisfies
+	 * all of the below criteria::
+	 * - it does not include any of "+@%",
+	 * - it includes one of ":;", and
+	 * - it has a period '.' in the name.
+	 *
+	 * Otherwise, we consider arg to be a function specification.
+	 */
+	if (!strpbrk(arg, "+@%") && (ptr = strpbrk(arg, ";:")) != NULL) {
+		/* This is a file spec if it includes a '.' before ; or : */
+		if (memchr(arg, '.', ptr - arg))
+			file_spec = true;
+	}
+
 	ptr = strpbrk(arg, ";:+@%");
 	if (ptr) {
 		nc = *ptr;
@@ -1115,10 +1133,9 @@ static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 	if (tmp == NULL)
 		return -ENOMEM;
 
-	/* Check arg is function or file and copy it */
-	if (strchr(tmp, '.'))	/* File */
+	if (file_spec)
 		pp->file = tmp;
-	else			/* Function */
+	else
 		pp->function = tmp;
 
 	/* Parse other options */
@@ -2129,7 +2146,23 @@ static int show_perf_probe_event(struct perf_probe_event *pev,
 	return ret;
 }
 
-static int __show_perf_probe_events(int fd, bool is_kprobe)
+static bool filter_probe_trace_event(struct probe_trace_event *tev,
+				     struct strfilter *filter)
+{
+	char tmp[128];
+
+	/* At first, check the event name itself */
+	if (strfilter__compare(filter, tev->event))
+		return true;
+
+	/* Next, check the combination of name and group */
+	if (e_snprintf(tmp, 128, "%s:%s", tev->group, tev->event) < 0)
+		return false;
+	return strfilter__compare(filter, tmp);
+}
+
+static int __show_perf_probe_events(int fd, bool is_kprobe,
+				    struct strfilter *filter)
 {
 	int ret = 0;
 	struct probe_trace_event tev;
@@ -2147,12 +2180,15 @@ static int __show_perf_probe_events(int fd, bool is_kprobe)
 	strlist__for_each(ent, rawlist) {
 		ret = parse_probe_trace_command(ent->s, &tev);
 		if (ret >= 0) {
+			if (!filter_probe_trace_event(&tev, filter))
+				goto next;
 			ret = convert_to_perf_probe_event(&tev, &pev,
 								is_kprobe);
 			if (ret >= 0)
 				ret = show_perf_probe_event(&pev,
 							    tev.point.module);
 		}
+next:
 		clear_perf_probe_event(&pev);
 		clear_probe_trace_event(&tev);
 		if (ret < 0)
@@ -2164,7 +2200,7 @@ static int __show_perf_probe_events(int fd, bool is_kprobe)
 }
 
 /* List up current perf-probe events */
-int show_perf_probe_events(void)
+int show_perf_probe_events(struct strfilter *filter)
 {
 	int kp_fd, up_fd, ret;
 
@@ -2176,7 +2212,7 @@ int show_perf_probe_events(void)
 
 	kp_fd = open_kprobe_events(false);
 	if (kp_fd >= 0) {
-		ret = __show_perf_probe_events(kp_fd, true);
+		ret = __show_perf_probe_events(kp_fd, true, filter);
 		close(kp_fd);
 		if (ret < 0)
 			goto out;
@@ -2190,7 +2226,7 @@ int show_perf_probe_events(void)
 	}
 
 	if (up_fd >= 0) {
-		ret = __show_perf_probe_events(up_fd, false);
+		ret = __show_perf_probe_events(up_fd, false, filter);
 		close(up_fd);
 	}
 out:
@@ -2264,6 +2300,9 @@ static int get_new_event_name(char *buf, size_t len, const char *base,
 			      struct strlist *namelist, bool allow_suffix)
 {
 	int i, ret;
+
+	if (*base == '.')
+		base++;
 
 	/* Try no suffix */
 	ret = e_snprintf(buf, len, "%s", base);
@@ -2447,6 +2486,10 @@ static int find_probe_functions(struct map *map, char *name)
 #define strdup_or_goto(str, label)	\
 	({ char *__p = strdup(str); if (!__p) goto label; __p; })
 
+void __weak arch__fix_tev_from_maps(struct perf_probe_event *pev __maybe_unused,
+				struct probe_trace_event *tev __maybe_unused,
+				struct map *map __maybe_unused) { }
+
 /*
  * Find probe function addresses from map.
  * Return an error or the number of found probe_trace_event
@@ -2553,6 +2596,7 @@ static int find_probe_trace_events_from_map(struct perf_probe_event *pev,
 					strdup_or_goto(pev->args[i].type,
 							nomem_out);
 		}
+		arch__fix_tev_from_maps(pev, tev, map);
 	}
 
 out:
@@ -2567,6 +2611,8 @@ err_out:
 	goto out;
 }
 
+bool __weak arch__prefers_symtab(void) { return false; }
+
 static int convert_to_probe_trace_events(struct perf_probe_event *pev,
 					  struct probe_trace_event **tevs,
 					  int max_tevs, const char *target)
@@ -2580,6 +2626,12 @@ static int convert_to_probe_trace_events(struct perf_probe_event *pev,
 			pr_warning("Failed to make a group name.\n");
 			return ret;
 		}
+	}
+
+	if (arch__prefers_symtab() && !perf_probe_event_need_dwarf(pev)) {
+		ret = find_probe_trace_events_from_map(pev, tevs, max_tevs, target);
+		if (ret > 0)
+			return ret; /* Found in symbol table */
 	}
 
 	/* Convert perf_probe_event with debuginfo */
@@ -2682,40 +2734,39 @@ error:
 	return ret;
 }
 
-static int del_trace_probe_event(int fd, const char *buf,
-						  struct strlist *namelist)
+static int del_trace_probe_events(int fd, struct strfilter *filter,
+				  struct strlist *namelist)
 {
-	struct str_node *ent, *n;
-	int ret = -1;
+	struct str_node *ent;
+	const char *p;
+	int ret = -ENOENT;
 
-	if (strpbrk(buf, "*?")) { /* Glob-exp */
-		strlist__for_each_safe(ent, n, namelist)
-			if (strglobmatch(ent->s, buf)) {
-				ret = __del_trace_probe_event(fd, ent);
-				if (ret < 0)
-					break;
-				strlist__remove(namelist, ent);
-			}
-	} else {
-		ent = strlist__find(namelist, buf);
-		if (ent) {
+	if (!namelist)
+		return -ENOENT;
+
+	strlist__for_each(ent, namelist) {
+		p = strchr(ent->s, ':');
+		if ((p && strfilter__compare(filter, p + 1)) ||
+		    strfilter__compare(filter, ent->s)) {
 			ret = __del_trace_probe_event(fd, ent);
-			if (ret >= 0)
-				strlist__remove(namelist, ent);
+			if (ret < 0)
+				break;
 		}
 	}
 
 	return ret;
 }
 
-int del_perf_probe_events(struct strlist *dellist)
+int del_perf_probe_events(struct strfilter *filter)
 {
-	int ret = -1, ufd = -1, kfd = -1;
-	char buf[128];
-	const char *group, *event;
-	char *p, *str;
-	struct str_node *ent;
+	int ret, ret2, ufd = -1, kfd = -1;
 	struct strlist *namelist = NULL, *unamelist = NULL;
+	char *str = strfilter__string(filter);
+
+	if (!str)
+		return -EINVAL;
+
+	pr_debug("Delete filter: \'%s\'\n", str);
 
 	/* Get current event names */
 	kfd = open_kprobe_events(true);
@@ -2728,48 +2779,21 @@ int del_perf_probe_events(struct strlist *dellist)
 
 	if (kfd < 0 && ufd < 0) {
 		print_both_open_warning(kfd, ufd);
+		ret = kfd;
 		goto error;
 	}
 
-	if (namelist == NULL && unamelist == NULL)
+	ret = del_trace_probe_events(kfd, filter, namelist);
+	if (ret < 0 && ret != -ENOENT)
 		goto error;
 
-	strlist__for_each(ent, dellist) {
-		str = strdup(ent->s);
-		if (str == NULL) {
-			ret = -ENOMEM;
-			goto error;
-		}
-		pr_debug("Parsing: %s\n", str);
-		p = strchr(str, ':');
-		if (p) {
-			group = str;
-			*p = '\0';
-			event = p + 1;
-		} else {
-			group = "*";
-			event = str;
-		}
-
-		ret = e_snprintf(buf, 128, "%s:%s", group, event);
-		if (ret < 0) {
-			pr_err("Failed to copy event.");
-			free(str);
-			goto error;
-		}
-
-		pr_debug("Group: %s, Event: %s\n", group, event);
-
-		if (namelist)
-			ret = del_trace_probe_event(kfd, buf, namelist);
-
-		if (unamelist && ret != 0)
-			ret = del_trace_probe_event(ufd, buf, unamelist);
-
-		if (ret != 0)
-			pr_info("Info: Event \"%s\" does not exist.\n", buf);
-
-		free(str);
+	ret2 = del_trace_probe_events(ufd, filter, unamelist);
+	if (ret2 < 0 && ret2 != -ENOENT)
+		ret = ret2;
+	else if (ret == -ENOENT && ret2 == -ENOENT) {
+		pr_debug("\"%s\" does not hit any event.\n", str);
+		/* Note that this is silently ignored */
+		ret = 0;
 	}
 
 error:
@@ -2782,6 +2806,7 @@ error:
 		strlist__delete(unamelist);
 		close(ufd);
 	}
+	free(str);
 
 	return ret;
 }

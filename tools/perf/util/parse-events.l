@@ -3,6 +3,8 @@
 %option bison-bridge
 %option prefix="parse_events_"
 %option stack
+%option bison-locations
+%option yylineno
 
 %{
 #include <errno.h>
@@ -51,6 +53,18 @@ static int str(yyscan_t scanner, int token)
 	return token;
 }
 
+#define REWIND(__alloc)				\
+do {								\
+	YYSTYPE *__yylval = parse_events_get_lval(yyscanner);	\
+	char *text = parse_events_get_text(yyscanner);		\
+								\
+	if (__alloc)						\
+		__yylval->str = strdup(text);			\
+								\
+	yycolumn -= strlen(text);				\
+	yyless(0);						\
+} while (0)
+
 static int pmu_str_check(yyscan_t scanner)
 {
 	YYSTYPE *yylval = parse_events_get_lval(scanner);
@@ -84,6 +98,13 @@ static int term(yyscan_t scanner, int type)
 	yylval->num = type;
 	return PE_TERM;
 }
+
+#define YY_USER_ACTION					\
+do {							\
+	yylloc->last_column  = yylloc->first_column;	\
+	yylloc->first_column = yycolumn;		\
+	yycolumn += yyleng;				\
+} while (0);
 
 %}
 
@@ -119,6 +140,12 @@ modifier_bp	[rwx]{1,3}
 
 		if (start_token) {
 			parse_events_set_extra(NULL, yyscanner);
+			/*
+			 * The flex parser does not init locations variable
+			 * via the scan_string interface, so we need do the
+			 * init in here.
+			 */
+			yycolumn = 0;
 			return start_token;
 		}
          }
@@ -127,24 +154,30 @@ modifier_bp	[rwx]{1,3}
 <event>{
 
 {group}		{
-			BEGIN(INITIAL); yyless(0);
+			BEGIN(INITIAL);
+			REWIND(0);
 		}
 
 {event_pmu}	|
 {event}		{
-			str(yyscanner, PE_EVENT_NAME);
-			BEGIN(INITIAL); yyless(0);
+			BEGIN(INITIAL);
+			REWIND(1);
 			return PE_EVENT_NAME;
 		}
 
 .		|
 <<EOF>>		{
-			BEGIN(INITIAL); yyless(0);
+			BEGIN(INITIAL);
+			REWIND(0);
 		}
 
 }
 
 <config>{
+	/*
+	 * Please update formats_error_string any time
+	 * new static term is added.
+	 */
 config			{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_CONFIG); }
 config1			{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_CONFIG1); }
 config2			{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_CONFIG2); }

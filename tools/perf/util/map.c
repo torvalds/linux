@@ -292,6 +292,11 @@ int map__load(struct map *map, symbol_filter_t filter)
 	return 0;
 }
 
+int __weak arch__compare_symbol_names(const char *namea, const char *nameb)
+{
+	return strcmp(namea, nameb);
+}
+
 struct symbol *map__find_symbol(struct map *map, u64 addr,
 				symbol_filter_t filter)
 {

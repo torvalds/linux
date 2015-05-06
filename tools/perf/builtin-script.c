@@ -16,6 +16,7 @@
 #include "util/evsel.h"
 #include "util/sort.h"
 #include "util/data.h"
+#include "util/auxtrace.h"
 #include <linux/bitmap.h>
 
 static char const		*script_name;
@@ -26,6 +27,7 @@ static u64			nr_unordered;
 static bool			no_callchain;
 static bool			latency_format;
 static bool			system_wide;
+static bool			print_flags;
 static const char		*cpu_list;
 static DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
 
@@ -146,9 +148,10 @@ static const char *output_field2str(enum perf_output_field field)
 
 #define PRINT_FIELD(x)  (output[attr->type].fields & PERF_OUTPUT_##x)
 
-static int perf_evsel__check_stype(struct perf_evsel *evsel,
-				   u64 sample_type, const char *sample_msg,
-				   enum perf_output_field field)
+static int perf_evsel__do_check_stype(struct perf_evsel *evsel,
+				      u64 sample_type, const char *sample_msg,
+				      enum perf_output_field field,
+				      bool allow_user_set)
 {
 	struct perf_event_attr *attr = &evsel->attr;
 	int type = attr->type;
@@ -158,6 +161,8 @@ static int perf_evsel__check_stype(struct perf_evsel *evsel,
 		return 0;
 
 	if (output[type].user_set) {
+		if (allow_user_set)
+			return 0;
 		evname = perf_evsel__name(evsel);
 		pr_err("Samples for '%s' event do not have %s attribute set. "
 		       "Cannot print '%s' field.\n",
@@ -175,10 +180,22 @@ static int perf_evsel__check_stype(struct perf_evsel *evsel,
 	return 0;
 }
 
+static int perf_evsel__check_stype(struct perf_evsel *evsel,
+				   u64 sample_type, const char *sample_msg,
+				   enum perf_output_field field)
+{
+	return perf_evsel__do_check_stype(evsel, sample_type, sample_msg, field,
+					  false);
+}
+
 static int perf_evsel__check_attr(struct perf_evsel *evsel,
 				  struct perf_session *session)
 {
 	struct perf_event_attr *attr = &evsel->attr;
+	bool allow_user_set;
+
+	allow_user_set = perf_header__has_feat(&session->header,
+					       HEADER_AUXTRACE);
 
 	if (PRINT_FIELD(TRACE) &&
 		!perf_session__has_traces(session, "record -R"))
@@ -191,8 +208,8 @@ static int perf_evsel__check_attr(struct perf_evsel *evsel,
 	}
 
 	if (PRINT_FIELD(ADDR) &&
-		perf_evsel__check_stype(evsel, PERF_SAMPLE_ADDR, "ADDR",
-					PERF_OUTPUT_ADDR))
+		perf_evsel__do_check_stype(evsel, PERF_SAMPLE_ADDR, "ADDR",
+					   PERF_OUTPUT_ADDR, allow_user_set))
 		return -EINVAL;
 
 	if (PRINT_FIELD(SYM) && !PRINT_FIELD(IP) && !PRINT_FIELD(ADDR)) {
@@ -229,8 +246,8 @@ static int perf_evsel__check_attr(struct perf_evsel *evsel,
 		return -EINVAL;
 
 	if (PRINT_FIELD(CPU) &&
-		perf_evsel__check_stype(evsel, PERF_SAMPLE_CPU, "CPU",
-					PERF_OUTPUT_CPU))
+		perf_evsel__do_check_stype(evsel, PERF_SAMPLE_CPU, "CPU",
+					   PERF_OUTPUT_CPU, allow_user_set))
 		return -EINVAL;
 
 	if (PRINT_FIELD(PERIOD) &&
@@ -445,6 +462,25 @@ static void print_sample_bts(union perf_event *event,
 	printf("\n");
 }
 
+static void print_sample_flags(u32 flags)
+{
+	const char *chars = PERF_IP_FLAG_CHARS;
+	const int n = strlen(PERF_IP_FLAG_CHARS);
+	char str[33];
+	int i, pos = 0;
+
+	for (i = 0; i < n; i++, flags >>= 1) {
+		if (flags & 1)
+			str[pos++] = chars[i];
+	}
+	for (; i < 32; i++, flags >>= 1) {
+		if (flags & 1)
+			str[pos++] = '?';
+	}
+	str[pos] = 0;
+	printf("  %-4s ", str);
+}
+
 static void process_event(union perf_event *event, struct perf_sample *sample,
 			  struct perf_evsel *evsel, struct addr_location *al)
 {
@@ -463,6 +499,9 @@ static void process_event(union perf_event *event, struct perf_sample *sample,
 		const char *evname = perf_evsel__name(evsel);
 		printf("%s: ", evname ? evname : "[unknown]");
 	}
+
+	if (print_flags)
+		print_sample_flags(sample->flags);
 
 	if (is_bts_event(attr)) {
 		print_sample_bts(event, sample, evsel, thread, al);
@@ -999,11 +1038,14 @@ static int parse_output_fields(const struct option *opt __maybe_unused,
 		}
 	}
 
-	tok = strtok(tok, ",");
-	while (tok) {
+	for (tok = strtok(tok, ","); tok; tok = strtok(NULL, ",")) {
 		for (i = 0; i < imax; ++i) {
 			if (strcmp(tok, all_output_options[i].str) == 0)
 				break;
+		}
+		if (i == imax && strcmp(tok, "flags") == 0) {
+			print_flags = true;
+			continue;
 		}
 		if (i == imax) {
 			fprintf(stderr, "Invalid field requested.\n");
@@ -1032,8 +1074,6 @@ static int parse_output_fields(const struct option *opt __maybe_unused,
 			}
 			output[type].fields |= all_output_options[i].field;
 		}
-
-		tok = strtok(NULL, ",");
 	}
 
 	if (type >= 0) {
@@ -1497,6 +1537,7 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 	char *rec_script_path = NULL;
 	char *rep_script_path = NULL;
 	struct perf_session *session;
+	struct itrace_synth_opts itrace_synth_opts = { .set = false, };
 	char *script_path = NULL;
 	const char **__argv;
 	int i, j, err = 0;
@@ -1511,6 +1552,10 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 			.attr		 = process_attr,
 			.tracing_data	 = perf_event__process_tracing_data,
 			.build_id	 = perf_event__process_build_id,
+			.id_index	 = perf_event__process_id_index,
+			.auxtrace_info	 = perf_event__process_auxtrace_info,
+			.auxtrace	 = perf_event__process_auxtrace,
+			.auxtrace_error	 = perf_event__process_auxtrace_error,
 			.ordered_events	 = true,
 			.ordering_requires_timestamps = true,
 		},
@@ -1549,7 +1594,7 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 		     "comma separated output fields prepend with 'type:'. "
 		     "Valid types: hw,sw,trace,raw. "
 		     "Fields: comm,tid,pid,time,cpu,event,trace,ip,sym,dso,"
-		     "addr,symoff,period", parse_output_fields),
+		     "addr,symoff,period,flags", parse_output_fields),
 	OPT_BOOLEAN('a', "all-cpus", &system_wide,
 		    "system-wide collection from all CPUs"),
 	OPT_STRING('S', "symbols", &symbol_conf.sym_list_str, "symbol[,symbol...]",
@@ -1570,6 +1615,9 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_BOOLEAN('\0', "show-mmap-events", &script.show_mmap_events,
 		    "Show the mmap events"),
 	OPT_BOOLEAN('f', "force", &file.force, "don't complain, do it"),
+	OPT_CALLBACK_OPTARG(0, "itrace", &itrace_synth_opts, NULL, "opts",
+			    "Instruction Tracing options",
+			    itrace_parse_synth_opts),
 	OPT_END()
 	};
 	const char * const script_subcommands[] = { "record", "report", NULL };
@@ -1764,6 +1812,8 @@ int cmd_script(int argc, const char **argv, const char *prefix __maybe_unused)
 		goto out_delete;
 
 	script.session = session;
+
+	session->itrace_synth_opts = &itrace_synth_opts;
 
 	if (cpu_list) {
 		err = perf_session__cpu_bitmap(session, cpu_list, cpu_bitmap);

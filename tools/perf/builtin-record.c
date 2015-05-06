@@ -27,6 +27,7 @@
 #include "util/cpumap.h"
 #include "util/thread_map.h"
 #include "util/data.h"
+#include "util/auxtrace.h"
 
 #include <unistd.h>
 #include <sched.h>
@@ -38,6 +39,7 @@ struct record {
 	struct record_opts	opts;
 	u64			bytes_written;
 	struct perf_data_file	file;
+	struct auxtrace_record	*itr;
 	struct perf_evlist	*evlist;
 	struct perf_session	*session;
 	const char		*progname;
@@ -110,9 +112,12 @@ out:
 	return rc;
 }
 
-static volatile int done = 0;
+static volatile int done;
 static volatile int signr = -1;
-static volatile int child_finished = 0;
+static volatile int child_finished;
+static volatile int auxtrace_snapshot_enabled;
+static volatile int auxtrace_snapshot_err;
+static volatile int auxtrace_record__snapshot_started;
 
 static void sig_handler(int sig)
 {
@@ -132,6 +137,133 @@ static void record__sig_exit(void)
 	signal(signr, SIG_DFL);
 	raise(signr);
 }
+
+#ifdef HAVE_AUXTRACE_SUPPORT
+
+static int record__process_auxtrace(struct perf_tool *tool,
+				    union perf_event *event, void *data1,
+				    size_t len1, void *data2, size_t len2)
+{
+	struct record *rec = container_of(tool, struct record, tool);
+	struct perf_data_file *file = &rec->file;
+	size_t padding;
+	u8 pad[8] = {0};
+
+	if (!perf_data_file__is_pipe(file)) {
+		off_t file_offset;
+		int fd = perf_data_file__fd(file);
+		int err;
+
+		file_offset = lseek(fd, 0, SEEK_CUR);
+		if (file_offset == -1)
+			return -1;
+		err = auxtrace_index__auxtrace_event(&rec->session->auxtrace_index,
+						     event, file_offset);
+		if (err)
+			return err;
+	}
+
+	/* event.auxtrace.size includes padding, see __auxtrace_mmap__read() */
+	padding = (len1 + len2) & 7;
+	if (padding)
+		padding = 8 - padding;
+
+	record__write(rec, event, event->header.size);
+	record__write(rec, data1, len1);
+	if (len2)
+		record__write(rec, data2, len2);
+	record__write(rec, &pad, padding);
+
+	return 0;
+}
+
+static int record__auxtrace_mmap_read(struct record *rec,
+				      struct auxtrace_mmap *mm)
+{
+	int ret;
+
+	ret = auxtrace_mmap__read(mm, rec->itr, &rec->tool,
+				  record__process_auxtrace);
+	if (ret < 0)
+		return ret;
+
+	if (ret)
+		rec->samples++;
+
+	return 0;
+}
+
+static int record__auxtrace_mmap_read_snapshot(struct record *rec,
+					       struct auxtrace_mmap *mm)
+{
+	int ret;
+
+	ret = auxtrace_mmap__read_snapshot(mm, rec->itr, &rec->tool,
+					   record__process_auxtrace,
+					   rec->opts.auxtrace_snapshot_size);
+	if (ret < 0)
+		return ret;
+
+	if (ret)
+		rec->samples++;
+
+	return 0;
+}
+
+static int record__auxtrace_read_snapshot_all(struct record *rec)
+{
+	int i;
+	int rc = 0;
+
+	for (i = 0; i < rec->evlist->nr_mmaps; i++) {
+		struct auxtrace_mmap *mm =
+				&rec->evlist->mmap[i].auxtrace_mmap;
+
+		if (!mm->base)
+			continue;
+
+		if (record__auxtrace_mmap_read_snapshot(rec, mm) != 0) {
+			rc = -1;
+			goto out;
+		}
+	}
+out:
+	return rc;
+}
+
+static void record__read_auxtrace_snapshot(struct record *rec)
+{
+	pr_debug("Recording AUX area tracing snapshot\n");
+	if (record__auxtrace_read_snapshot_all(rec) < 0) {
+		auxtrace_snapshot_err = -1;
+	} else {
+		auxtrace_snapshot_err = auxtrace_record__snapshot_finish(rec->itr);
+		if (!auxtrace_snapshot_err)
+			auxtrace_snapshot_enabled = 1;
+	}
+}
+
+#else
+
+static inline
+int record__auxtrace_mmap_read(struct record *rec __maybe_unused,
+			       struct auxtrace_mmap *mm __maybe_unused)
+{
+	return 0;
+}
+
+static inline
+void record__read_auxtrace_snapshot(struct record *rec __maybe_unused)
+{
+}
+
+static inline
+int auxtrace_record__snapshot_start(struct auxtrace_record *itr __maybe_unused)
+{
+	return 0;
+}
+
+#endif
 
 static int record__open(struct record *rec)
 {
@@ -169,13 +301,16 @@ try_again:
 		goto out;
 	}
 
-	if (perf_evlist__mmap(evlist, opts->mmap_pages, false) < 0) {
+	if (perf_evlist__mmap_ex(evlist, opts->mmap_pages, false,
+				 opts->auxtrace_mmap_pages,
+				 opts->auxtrace_snapshot_mode) < 0) {
 		if (errno == EPERM) {
 			pr_err("Permission error mapping pages.\n"
 			       "Consider increasing "
 			       "/proc/sys/kernel/perf_event_mlock_kb,\n"
 			       "or try again with a smaller value of -m/--mmap_pages.\n"
-			       "(current value: %u)\n", opts->mmap_pages);
+			       "(current value: %u,%u)\n",
+			       opts->mmap_pages, opts->auxtrace_mmap_pages);
 			rc = -errno;
 		} else {
 			pr_err("failed to mmap with %d (%s)\n", errno,
@@ -270,11 +405,19 @@ static int record__mmap_read_all(struct record *rec)
 	int rc = 0;
 
 	for (i = 0; i < rec->evlist->nr_mmaps; i++) {
+		struct auxtrace_mmap *mm = &rec->evlist->mmap[i].auxtrace_mmap;
+
 		if (rec->evlist->mmap[i].base) {
 			if (record__mmap_read(rec, i) != 0) {
 				rc = -1;
 				goto out;
 			}
+		}
+
+		if (mm->base && !rec->opts.auxtrace_snapshot_mode &&
+		    record__auxtrace_mmap_read(rec, mm) != 0) {
+			rc = -1;
+			goto out;
 		}
 	}
 
@@ -305,6 +448,9 @@ static void record__init_features(struct record *rec)
 
 	if (!rec->opts.branch_stack)
 		perf_header__clear_feat(&session->header, HEADER_BRANCH_STACK);
+
+	if (!rec->opts.full_auxtrace)
+		perf_header__clear_feat(&session->header, HEADER_AUXTRACE);
 }
 
 static volatile int workload_exec_errno;
@@ -322,6 +468,8 @@ static void workload_exec_failed_signal(int signo __maybe_unused,
 	done = 1;
 	child_finished = 1;
 }
+
+static void snapshot_sig_handler(int sig);
 
 static int __cmd_record(struct record *rec, int argc, const char **argv)
 {
@@ -343,6 +491,10 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	signal(SIGCHLD, sig_handler);
 	signal(SIGINT, sig_handler);
 	signal(SIGTERM, sig_handler);
+	if (rec->opts.auxtrace_snapshot_mode)
+		signal(SIGUSR2, snapshot_sig_handler);
+	else
+		signal(SIGUSR2, SIG_IGN);
 
 	session = perf_session__new(file, false, tool);
 	if (session == NULL) {
@@ -421,6 +573,13 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 		}
 	}
 
+	if (rec->opts.full_auxtrace) {
+		err = perf_event__synthesize_auxtrace_info(rec->itr, tool,
+					session, process_synthesized_event);
+		if (err)
+			goto out_delete_session;
+	}
+
 	err = perf_event__synthesize_kernel_mmap(tool, process_synthesized_event,
 						 machine);
 	if (err < 0)
@@ -475,12 +634,25 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 		perf_evlist__enable(rec->evlist);
 	}
 
+	auxtrace_snapshot_enabled = 1;
 	for (;;) {
 		int hits = rec->samples;
 
 		if (record__mmap_read_all(rec) < 0) {
+			auxtrace_snapshot_enabled = 0;
 			err = -1;
 			goto out_child;
+		}
+
+		if (auxtrace_record__snapshot_started) {
+			auxtrace_record__snapshot_started = 0;
+			if (!auxtrace_snapshot_err)
+				record__read_auxtrace_snapshot(rec);
+			if (auxtrace_snapshot_err) {
+				pr_err("AUX area tracing snapshot failed\n");
+				err = -1;
+				goto out_child;
+			}
 		}
 
 		if (hits == rec->samples) {
@@ -505,10 +677,12 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 		 * disable events in this case.
 		 */
 		if (done && !disabled && !target__none(&opts->target)) {
+			auxtrace_snapshot_enabled = 0;
 			perf_evlist__disable(rec->evlist);
 			disabled = true;
 		}
 	}
+	auxtrace_snapshot_enabled = 0;
 
 	if (forks && workload_exec_errno) {
 		char msg[STRERR_BUFSIZE];
@@ -545,15 +719,23 @@ out_child:
 	if (!err && !file->is_pipe) {
 		rec->session->header.data_size += rec->bytes_written;
 
-		if (!rec->no_buildid)
+		if (!rec->no_buildid) {
 			process_buildids(rec);
+			/*
+			 * We take all buildids when the file contains
+			 * AUX area tracing data because we do not decode the
+			 * trace because it would take too long.
+			 */
+			if (rec->opts.full_auxtrace)
+				dsos__hit_all(rec->session);
+		}
 		perf_session__write_header(rec->session, rec->evlist, fd, true);
 	}
 
 	if (!err && !quiet) {
 		char samples[128];
 
-		if (rec->samples)
+		if (rec->samples && !rec->opts.full_auxtrace)
 			scnprintf(samples, sizeof(samples),
 				  " (%" PRIu64 " samples)", rec->samples);
 		else
@@ -795,6 +977,49 @@ static int parse_clockid(const struct option *opt, const char *str, int unset)
 	return -1;
 }
 
+static int record__parse_mmap_pages(const struct option *opt,
+				    const char *str,
+				    int unset __maybe_unused)
+{
+	struct record_opts *opts = opt->value;
+	char *s, *p;
+	unsigned int mmap_pages;
+	int ret;
+
+	if (!str)
+		return -EINVAL;
+
+	s = strdup(str);
+	if (!s)
+		return -ENOMEM;
+
+	p = strchr(s, ',');
+	if (p)
+		*p = '\0';
+
+	if (*s) {
+		ret = __perf_evlist__parse_mmap_pages(&mmap_pages, s);
+		if (ret)
+			goto out_free;
+		opts->mmap_pages = mmap_pages;
+	}
+
+	if (!p) {
+		ret = 0;
+		goto out_free;
+	}
+
+	ret = __perf_evlist__parse_mmap_pages(&mmap_pages, p + 1);
+	if (ret)
+		goto out_free;
+
+	opts->auxtrace_mmap_pages = mmap_pages;
+
+out_free:
+	free(s);
+	return ret;
+}
+
 static const char * const __record_usage[] = {
 	"perf record [<options>] [<command>]",
 	"perf record [<options>] -- <command> [<options>]",
@@ -875,9 +1100,9 @@ struct option __record_options[] = {
 			&record.opts.no_inherit_set,
 			"child tasks do not inherit counters"),
 	OPT_UINTEGER('F', "freq", &record.opts.user_freq, "profile at this frequency"),
-	OPT_CALLBACK('m', "mmap-pages", &record.opts.mmap_pages, "pages",
-		     "number of mmap data pages",
-		     perf_evlist__parse_mmap_pages),
+	OPT_CALLBACK('m', "mmap-pages", &record.opts, "pages[,pages]",
+		     "number of mmap data pages and AUX area tracing mmap pages",
+		     record__parse_mmap_pages),
 	OPT_BOOLEAN(0, "group", &record.opts.group,
 		    "put the counters into a counter group"),
 	OPT_CALLBACK_NOOPT('g', NULL, &record.opts,
@@ -929,6 +1154,8 @@ struct option __record_options[] = {
 	OPT_CALLBACK('k', "clockid", &record.opts,
 	"clockid", "clockid to use for events, see clock_gettime()",
 	parse_clockid),
+	OPT_STRING_OPTARG('S', "snapshot", &record.opts.auxtrace_snapshot_opts,
+			  "opts", "AUX area tracing Snapshot Mode", ""),
 	OPT_END()
 };
 
@@ -936,7 +1163,7 @@ struct option *record_options = __record_options;
 
 int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 {
-	int err = -ENOMEM;
+	int err;
 	struct record *rec = &record;
 	char errbuf[BUFSIZ];
 
@@ -956,6 +1183,19 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 			  " system-wide mode\n");
 		usage_with_options(record_usage, record_options);
 	}
+
+	if (!rec->itr) {
+		rec->itr = auxtrace_record__init(rec->evlist, &err);
+		if (err)
+			return err;
+	}
+
+	err = auxtrace_parse_snapshot_options(rec->itr, &rec->opts,
+					      rec->opts.auxtrace_snapshot_opts);
+	if (err)
+		return err;
+
+	err = -ENOMEM;
 
 	symbol__init(NULL);
 
@@ -1002,6 +1242,10 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (perf_evlist__create_maps(rec->evlist, &rec->opts.target) < 0)
 		usage_with_options(record_usage, record_options);
 
+	err = auxtrace_record__options(rec->itr, rec->evlist, &rec->opts);
+	if (err)
+		goto out_symbol_exit;
+
 	if (record_opts__config(&rec->opts)) {
 		err = -EINVAL;
 		goto out_symbol_exit;
@@ -1011,5 +1255,15 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 out_symbol_exit:
 	perf_evlist__delete(rec->evlist);
 	symbol__exit();
+	auxtrace_record__free(rec->itr);
 	return err;
+}
+
+static void snapshot_sig_handler(int sig __maybe_unused)
+{
+	if (!auxtrace_snapshot_enabled)
+		return;
+	auxtrace_snapshot_enabled = 0;
+	auxtrace_snapshot_err = auxtrace_record__snapshot_start(record.itr);
+	auxtrace_record__snapshot_started = 1;
 }

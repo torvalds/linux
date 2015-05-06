@@ -610,6 +610,11 @@ ifdef LIBBABELTRACE
   endif
 endif
 
+ifndef NO_AUXTRACE
+  $(call detected,CONFIG_AUXTRACE)
+  CFLAGS += -DHAVE_AUXTRACE_SUPPORT
+endif
+
 # Among the variables below, these:
 #   perfexecdir
 #   template_dir

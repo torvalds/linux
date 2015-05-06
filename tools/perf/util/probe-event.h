@@ -126,8 +126,8 @@ extern const char *kernel_get_module_path(const char *module);
 
 extern int add_perf_probe_events(struct perf_probe_event *pevs, int npevs,
 				 int max_probe_points, bool force_add);
-extern int del_perf_probe_events(struct strlist *dellist);
-extern int show_perf_probe_events(void);
+extern int del_perf_probe_events(struct strfilter *filter);
+extern int show_perf_probe_events(struct strfilter *filter);
 extern int show_line_range(struct line_range *lr, const char *module,
 			   bool user);
 extern int show_available_vars(struct perf_probe_event *pevs, int npevs,
@@ -135,6 +135,9 @@ extern int show_available_vars(struct perf_probe_event *pevs, int npevs,
 			       struct strfilter *filter, bool externs);
 extern int show_available_funcs(const char *module, struct strfilter *filter,
 				bool user);
+bool arch__prefers_symtab(void);
+void arch__fix_tev_from_maps(struct perf_probe_event *pev,
+			     struct probe_trace_event *tev, struct map *map);
 
 /* Maximum index number of event-name postfix */
 #define MAX_EVENT_INDEX	1024

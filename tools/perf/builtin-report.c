@@ -36,6 +36,8 @@
 #include "util/data.h"
 #include "arch/common.h"
 
+#include "util/auxtrace.h"
+
 #include <dlfcn.h>
 #include <linux/bitmap.h>
 
@@ -585,6 +587,7 @@ parse_percent_limit(const struct option *opt, const char *str,
 int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	struct perf_session *session;
+	struct itrace_synth_opts itrace_synth_opts = { .set = 0, };
 	struct stat st;
 	bool has_br_stack = false;
 	int branch_mode = -1;
@@ -607,6 +610,9 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 			.attr		 = perf_event__process_attr,
 			.tracing_data	 = perf_event__process_tracing_data,
 			.build_id	 = perf_event__process_build_id,
+			.id_index	 = perf_event__process_id_index,
+			.auxtrace_info	 = perf_event__process_auxtrace_info,
+			.auxtrace	 = perf_event__process_auxtrace,
 			.ordered_events	 = true,
 			.ordering_requires_timestamps = true,
 		},
@@ -717,6 +723,9 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 		     "Don't show entries under that percent", parse_percent_limit),
 	OPT_CALLBACK(0, "percentage", NULL, "relative|absolute",
 		     "how to display percentage of filtered entries", parse_filter_percentage),
+	OPT_CALLBACK_OPTARG(0, "itrace", &itrace_synth_opts, NULL, "opts",
+			    "Instruction Tracing options",
+			    itrace_parse_synth_opts),
 	OPT_END()
 	};
 	struct perf_data_file file = {
@@ -760,6 +769,8 @@ repeat:
 		ordered_events__set_alloc_size(&session->ordered_events,
 					       report.queue_size);
 	}
+
+	session->itrace_synth_opts = &itrace_synth_opts;
 
 	report.session = session;
 

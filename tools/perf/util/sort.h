@@ -58,15 +58,16 @@ struct he_stat {
 
 struct hist_entry_diff {
 	bool	computed;
+	union {
+		/* PERF_HPP__DELTA */
+		double	period_ratio_delta;
 
-	/* PERF_HPP__DELTA */
-	double	period_ratio_delta;
+		/* PERF_HPP__RATIO */
+		double	period_ratio;
 
-	/* PERF_HPP__RATIO */
-	double	period_ratio;
-
-	/* HISTC_WEIGHTED_DIFF */
-	s64	wdiff;
+		/* HISTC_WEIGHTED_DIFF */
+		s64	wdiff;
+	};
 };
 
 /**
@@ -92,21 +93,28 @@ struct hist_entry {
 	s32			cpu;
 	u8			cpumode;
 
-	struct hist_entry_diff	diff;
-
 	/* We are added by hists__add_dummy_entry. */
 	bool			dummy;
 
-	/* XXX These two should move to some tree widget lib */
-	u16			row_offset;
-	u16			nr_rows;
-
-	bool			init_have_children;
 	char			level;
 	u8			filtered;
+	union {
+		/*
+		 * Since perf diff only supports the stdio output, TUI
+		 * fields are only accessed from perf report (or perf
+		 * top).  So make it an union to reduce memory usage.
+		 */
+		struct hist_entry_diff	diff;
+		struct /* for TUI */ {
+			u16	row_offset;
+			u16	nr_rows;
+			bool	init_have_children;
+			bool	unfolded;
+			bool	has_children;
+		};
+	};
 	char			*srcline;
 	struct symbol		*parent;
-	unsigned long		position;
 	struct rb_root		sorted_chain;
 	struct branch_info	*branch_info;
 	struct hists		*hists;

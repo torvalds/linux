@@ -869,6 +869,20 @@ static int write_branch_stack(int fd __maybe_unused,
 	return 0;
 }
 
+static int write_auxtrace(int fd, struct perf_header *h,
+			  struct perf_evlist *evlist __maybe_unused)
+{
+	struct perf_session *session;
+	int err;
+
+	session = container_of(h, struct perf_session, header);
+
+	err = auxtrace_index__write(fd, &session->auxtrace_index);
+	if (err < 0)
+		pr_err("Failed to write auxtrace index\n");
+	return err;
+}
+
 static void print_hostname(struct perf_header *ph, int fd __maybe_unused,
 			   FILE *fp)
 {
@@ -1149,6 +1163,12 @@ static void print_branch_stack(struct perf_header *ph __maybe_unused,
 			       int fd __maybe_unused, FILE *fp)
 {
 	fprintf(fp, "# contains samples with branch stack\n");
+}
+
+static void print_auxtrace(struct perf_header *ph __maybe_unused,
+			   int fd __maybe_unused, FILE *fp)
+{
+	fprintf(fp, "# contains AUX area data (e.g. instruction trace)\n");
 }
 
 static void print_pmu_mappings(struct perf_header *ph, int fd __maybe_unused,
@@ -1821,6 +1841,22 @@ out_free:
 	return ret;
 }
 
+static int process_auxtrace(struct perf_file_section *section,
+			    struct perf_header *ph, int fd,
+			    void *data __maybe_unused)
+{
+	struct perf_session *session;
+	int err;
+
+	session = container_of(ph, struct perf_session, header);
+
+	err = auxtrace_index__process(fd, section->size, session,
+				      ph->needs_swap);
+	if (err < 0)
+		pr_err("Failed to process auxtrace index\n");
+	return err;
+}
+
 struct feature_ops {
 	int (*write)(int fd, struct perf_header *h, struct perf_evlist *evlist);
 	void (*print)(struct perf_header *h, int fd, FILE *fp);
@@ -1861,6 +1897,7 @@ static const struct feature_ops feat_ops[HEADER_LAST_FEATURE] = {
 	FEAT_OPA(HEADER_BRANCH_STACK,	branch_stack),
 	FEAT_OPP(HEADER_PMU_MAPPINGS,	pmu_mappings),
 	FEAT_OPP(HEADER_GROUP_DESC,	group_desc),
+	FEAT_OPP(HEADER_AUXTRACE,	auxtrace),
 };
 
 struct header_print_data {
