@@ -285,6 +285,8 @@ struct ieee80211_fast_tx {
  * @gtk: group keys negotiated with this station, if any
  * @gtk_idx: last installed group key index
  * @rate_ctrl: rate control algorithm reference
+ * @rate_ctrl_lock: spinlock used to protect rate control data
+ *	(data inside the algorithm, so serializes calls there)
  * @rate_ctrl_priv: rate control private per-STA pointer
  * @last_tx_rate: rate used for last transmit, to report to userspace as
  *	"the" transmit rate
