@@ -1423,7 +1423,7 @@ static int lookup_fast(struct nameidata *nd,
 		 * This sequence count validates that the inode matches
 		 * the dentry name information from lookup.
 		 */
-		*inode = dentry->d_inode;
+		*inode = d_backing_inode(dentry);
 		negative = d_is_negative(dentry);
 		if (read_seqcount_retry(&dentry->d_seq, seq))
 			return -ECHILD;
@@ -1483,7 +1483,7 @@ unlazy:
 	path->dentry = dentry;
 	err = follow_managed(path, nd);
 	if (likely(!err))
-		*inode = path->dentry->d_inode;
+		*inode = d_backing_inode(path->dentry);
 	return err;
 
 need_lookup:
@@ -1618,7 +1618,7 @@ static int walk_component(struct nameidata *nd, int flags)
 		if (err < 0)
 			return err;
 
-		inode = path.dentry->d_inode;
+		inode = d_backing_inode(path.dentry);
 		seq = 0;	/* we are already out of RCU mode */
 		err = -ENOENT;
 		if (d_is_negative(path.dentry))
@@ -2471,7 +2471,7 @@ EXPORT_SYMBOL(__check_sticky);
  */
 static int may_delete(struct inode *dir, struct dentry *victim, bool isdir)
 {
-	struct inode *inode = victim->d_inode;
+	struct inode *inode = d_backing_inode(victim);
 	int error;
 
 	if (d_is_negative(victim))
@@ -3054,7 +3054,7 @@ retry_lookup:
 		return error;
 
 	BUG_ON(nd->flags & LOOKUP_RCU);
-	inode = path.dentry->d_inode;
+	inode = d_backing_inode(path.dentry);
 	seq = 0;	/* out of RCU mode, so the value doesn't matter */
 	if (unlikely(d_is_negative(path.dentry))) {
 		path_to_nameidata(&path, nd);
