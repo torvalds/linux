@@ -264,6 +264,27 @@ init:
 	}
 }
 
+static void __log_error(unsigned int bank, bool threshold_err, u64 misc)
+{
+	struct mce m;
+	u64 status;
+
+	rdmsrl(MSR_IA32_MCx_STATUS(bank), status);
+	if (!(status & MCI_STATUS_VAL))
+		return;
+
+	mce_setup(&m);
+
+	m.status = status;
+	m.bank = bank;
+	if (threshold_err)
+		m.misc = misc;
+
+	mce_log(&m);
+
+	wrmsrl(MSR_IA32_MCx_STATUS(bank), 0);
+}
+
 /*
  * APIC Interrupt Handler
  */
@@ -273,12 +294,12 @@ init:
  * the interrupt goes off when error_count reaches threshold_limit.
  * the handler will simply log mcelog w/ software defined bank number.
  */
+
 static void amd_threshold_interrupt(void)
 {
 	u32 low = 0, high = 0, address = 0;
 	int cpu = smp_processor_id();
 	unsigned int bank, block;
-	struct mce m;
 
 	/* assume first bank caused it */
 	for (bank = 0; bank < mca_cfg.banks; ++bank) {
@@ -321,15 +342,7 @@ static void amd_threshold_interrupt(void)
 	return;
 
 log:
-	mce_setup(&m);
-	rdmsrl(MSR_IA32_MCx_STATUS(bank), m.status);
-	if (!(m.status & MCI_STATUS_VAL))
-		return;
-	m.misc = ((u64)high << 32) | low;
-	m.bank = bank;
-	mce_log(&m);
-
-	wrmsrl(MSR_IA32_MCx_STATUS(bank), 0);
+	__log_error(bank, true, ((u64)high << 32) | low);
 }
 
 /*
