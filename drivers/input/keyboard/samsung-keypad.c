@@ -585,7 +585,7 @@ static const struct of_device_id samsung_keypad_dt_match[] = {
 MODULE_DEVICE_TABLE(of, samsung_keypad_dt_match);
 #endif
 
-static struct platform_device_id samsung_keypad_driver_ids[] = {
+static const struct platform_device_id samsung_keypad_driver_ids[] = {
 	{
 		.name		= "samsung-keypad",
 		.driver_data	= KEYPAD_TYPE_SAMSUNG,
