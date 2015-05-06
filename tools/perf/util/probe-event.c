@@ -2384,7 +2384,8 @@ static int __add_probe_trace_events(struct perf_probe_event *pev,
 	namelist = get_probe_trace_event_names(fd, false);
 	if (!namelist) {
 		pr_debug("Failed to get current event list.\n");
-		return -EIO;
+		ret = -ENOMEM;
+		goto close_out;
 	}
 	/* Get kprobe blacklist if exists */
 	if (!pev->uprobes) {
@@ -2467,6 +2468,7 @@ static int __add_probe_trace_events(struct perf_probe_event *pev,
 
 	kprobe_blacklist__delete(&blacklist);
 	strlist__delete(namelist);
+close_out:
 	close(fd);
 	return ret;
 }
