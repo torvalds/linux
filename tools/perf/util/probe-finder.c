@@ -1087,6 +1087,7 @@ found:
 struct local_vars_finder {
 	struct probe_finder *pf;
 	struct perf_probe_arg *args;
+	bool vars;
 	int max_args;
 	int nargs;
 	int ret;
@@ -1101,7 +1102,7 @@ static int copy_variables_cb(Dwarf_Die *die_mem, void *data)
 
 	tag = dwarf_tag(die_mem);
 	if (tag == DW_TAG_formal_parameter ||
-	    tag == DW_TAG_variable) {
+	    (tag == DW_TAG_variable && vf->vars)) {
 		if (convert_variable_location(die_mem, vf->pf->addr,
 					      vf->pf->fb_ops, &pf->sp_die,
 					      NULL) == 0) {
@@ -1127,26 +1128,28 @@ static int expand_probe_args(Dwarf_Die *sc_die, struct probe_finder *pf,
 	Dwarf_Die die_mem;
 	int i;
 	int n = 0;
-	struct local_vars_finder vf = {.pf = pf, .args = args,
+	struct local_vars_finder vf = {.pf = pf, .args = args, .vars = false,
 				.max_args = MAX_PROBE_ARGS, .ret = 0};
 
 	for (i = 0; i < pf->pev->nargs; i++) {
 		/* var never be NULL */
-		if (strcmp(pf->pev->args[i].var, "$vars") == 0) {
-			pr_debug("Expanding $vars into:");
-			vf.nargs = n;
-			/* Special local variables */
-			die_find_child(sc_die, copy_variables_cb, (void *)&vf,
-				       &die_mem);
-			pr_debug(" (%d)\n", vf.nargs - n);
-			if (vf.ret < 0)
-				return vf.ret;
-			n = vf.nargs;
-		} else {
+		if (strcmp(pf->pev->args[i].var, PROBE_ARG_VARS) == 0)
+			vf.vars = true;
+		else if (strcmp(pf->pev->args[i].var, PROBE_ARG_PARAMS) != 0) {
 			/* Copy normal argument */
 			args[n] = pf->pev->args[i];
 			n++;
+			continue;
 		}
+		pr_debug("Expanding %s into:", pf->pev->args[i].var);
+		vf.nargs = n;
+		/* Special local variables */
+		die_find_child(sc_die, copy_variables_cb, (void *)&vf,
+			       &die_mem);
+		pr_debug(" (%d)\n", vf.nargs - n);
+		if (vf.ret < 0)
+			return vf.ret;
+		n = vf.nargs;
 	}
 	return n;
 }

@@ -10,6 +10,9 @@
 #define MAX_PROBES		 128
 #define MAX_PROBE_ARGS		 128
 
+#define PROBE_ARG_VARS		"$vars"
+#define PROBE_ARG_PARAMS	"$params"
+
 static inline int is_c_varname(const char *name)
 {
 	/* TODO */
