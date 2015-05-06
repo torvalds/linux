@@ -347,15 +347,14 @@ static inline void seccomp_sync_threads(void)
 static struct seccomp_filter *seccomp_prepare_filter(struct sock_fprog *fprog)
 {
 	struct seccomp_filter *filter;
-	unsigned long fp_size;
-	struct sock_filter *fp;
-	int new_len;
-	long ret;
+	struct bpf_prog *prog;
+	unsigned long fsize;
 
 	if (fprog->len == 0 || fprog->len > BPF_MAXINSNS)
 		return ERR_PTR(-EINVAL);
+
 	BUG_ON(INT_MAX / fprog->len < sizeof(struct sock_filter));
-	fp_size = fprog->len * sizeof(struct sock_filter);
+	fsize = bpf_classic_proglen(fprog);
 
 	/*
 	 * Installing a seccomp filter requires that the task has
@@ -368,60 +367,37 @@ static struct seccomp_filter *seccomp_prepare_filter(struct sock_fprog *fprog)
 				     CAP_SYS_ADMIN) != 0)
 		return ERR_PTR(-EACCES);
 
-	fp = kzalloc(fp_size, GFP_KERNEL|__GFP_NOWARN);
-	if (!fp)
+	prog = bpf_prog_alloc(bpf_prog_size(fprog->len), 0);
+	if (!prog)
 		return ERR_PTR(-ENOMEM);
 
 	/* Copy the instructions from fprog. */
-	ret = -EFAULT;
-	if (copy_from_user(fp, fprog->filter, fp_size))
-		goto free_prog;
+	if (copy_from_user(prog->insns, fprog->filter, fsize)) {
+		__bpf_prog_free(prog);
+		return ERR_PTR(-EFAULT);
+	}
 
-	/* Check and rewrite the fprog via the skb checker */
-	ret = bpf_check_classic(fp, fprog->len);
-	if (ret)
-		goto free_prog;
+	prog->len = fprog->len;
 
-	/* Check and rewrite the fprog for seccomp use */
-	ret = seccomp_check_filter(fp, fprog->len);
-	if (ret)
-		goto free_prog;
-
-	/* Convert 'sock_filter' insns to 'bpf_insn' insns */
-	ret = bpf_convert_filter(fp, fprog->len, NULL, &new_len);
-	if (ret)
-		goto free_prog;
+	/* bpf_prepare_filter() already takes care of freeing
+	 * memory in case something goes wrong.
+	 */
+	prog = bpf_prepare_filter(prog, seccomp_check_filter);
+	if (IS_ERR(prog))
+		return ERR_CAST(prog);
 
 	/* Allocate a new seccomp_filter */
-	ret = -ENOMEM;
 	filter = kzalloc(sizeof(struct seccomp_filter),
 			 GFP_KERNEL|__GFP_NOWARN);
-	if (!filter)
-		goto free_prog;
+	if (!filter) {
+		bpf_prog_destroy(prog);
+		return ERR_PTR(-ENOMEM);
+	}
 
-	filter->prog = bpf_prog_alloc(bpf_prog_size(new_len), __GFP_NOWARN);
-	if (!filter->prog)
-		goto free_filter;
-
-	ret = bpf_convert_filter(fp, fprog->len, filter->prog->insnsi, &new_len);
-	if (ret)
-		goto free_filter_prog;
-
-	kfree(fp);
+	filter->prog = prog;
 	atomic_set(&filter->usage, 1);
-	filter->prog->len = new_len;
-
-	bpf_prog_select_runtime(filter->prog);
 
 	return filter;
-
-free_filter_prog:
-	__bpf_prog_free(filter->prog);
-free_filter:
-	kfree(filter);
-free_prog:
-	kfree(fp);
-	return ERR_PTR(ret);
 }
 
 /**

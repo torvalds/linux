@@ -363,9 +363,6 @@ int sk_filter(struct sock *sk, struct sk_buff *skb);
 void bpf_prog_select_runtime(struct bpf_prog *fp);
 void bpf_prog_free(struct bpf_prog *fp);
 
-int bpf_convert_filter(struct sock_filter *prog, int len,
-		       struct bpf_insn *new_prog, int *new_len);
-
 struct bpf_prog *bpf_prog_alloc(unsigned int size, gfp_t gfp_extra_flags);
 struct bpf_prog *bpf_prog_realloc(struct bpf_prog *fp_old, unsigned int size,
 				  gfp_t gfp_extra_flags);
@@ -387,7 +384,6 @@ int sk_detach_filter(struct sock *sk);
 typedef int (*bpf_aux_classic_check_t)(struct sock_filter *filter,
 				       unsigned int flen);
 
-int bpf_check_classic(const struct sock_filter *filter, unsigned int flen);
 struct bpf_prog *bpf_prepare_filter(struct bpf_prog *fp,
 				    bpf_aux_classic_check_t trans);
 
