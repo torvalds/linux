@@ -584,7 +584,8 @@ wait_and_poll(struct megasas_instance *instance, struct megasas_cmd *cmd,
 	if (frame_hdr->cmd_status == 0xff)
 		return -ETIME;
 
-	return 0;
+	return (frame_hdr->cmd_status == MFI_STAT_OK) ?
+		0 : 1;
 }
 
 /**

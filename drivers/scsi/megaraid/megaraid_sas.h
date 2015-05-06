@@ -1894,7 +1894,7 @@ struct megasas_cmd {
 
 	u32 index;
 	u8 sync_cmd;
-	u8 cmd_status;
+	u8 cmd_status_drv;
 	u8 abort_aen;
 	u8 retry_for_fw_reset;
 
