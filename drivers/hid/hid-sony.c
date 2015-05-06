@@ -1993,15 +1993,15 @@ static int sony_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		return ret;
 	}
 
-	ret = sony_allocate_output_report(sc);
-	if (ret < 0) {
-		hid_err(hdev, "failed to allocate the output report buffer\n");
-		goto err_stop;
-	}
-
 	ret = sony_set_device_id(sc);
 	if (ret < 0) {
 		hid_err(hdev, "failed to allocate the device id\n");
+		goto err_stop;
+	}
+
+	ret = sony_allocate_output_report(sc);
+	if (ret < 0) {
+		hid_err(hdev, "failed to allocate the output report buffer\n");
 		goto err_stop;
 	}
 
