@@ -1224,6 +1224,7 @@ struct efx_mtd_partition {
  * @hwtstamp_filters: Mask of hardware timestamp filter types supported
  */
 struct efx_nic_type {
+	bool is_vf;
 	unsigned int mem_bar;
 	unsigned int (*mem_map_size)(struct efx_nic *efx);
 	int (*probe)(struct efx_nic *efx);

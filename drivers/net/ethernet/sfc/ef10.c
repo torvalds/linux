@@ -3810,6 +3810,7 @@ static int efx_ef10_ptp_set_ts_config(struct efx_nic *efx,
 }
 
 const struct efx_nic_type efx_hunt_a0_vf_nic_type = {
+	.is_vf = true,
 	.mem_bar = EFX_MEM_VF_BAR,
 	.mem_map_size = efx_ef10_mem_map_size,
 	.probe = efx_ef10_probe_vf,
@@ -3907,6 +3908,7 @@ const struct efx_nic_type efx_hunt_a0_vf_nic_type = {
 };
 
 const struct efx_nic_type efx_hunt_a0_nic_type = {
+	.is_vf = false,
 	.mem_bar = EFX_MEM_BAR,
 	.mem_map_size = efx_ef10_mem_map_size,
 	.probe = efx_ef10_probe_pf,
