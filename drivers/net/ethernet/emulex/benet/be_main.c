@@ -4773,14 +4773,11 @@ static int lancer_fw_download(struct be_adapter *adapter,
 	return 0;
 }
 
-#define BE2_UFI		2
-#define BE3_UFI		3
-#define BE3R_UFI	10
-#define SH_UFI		4
-#define SH_P2_UFI	11
-
-static int be_get_ufi_type(struct be_adapter *adapter,
-			   struct flash_file_hdr_g3 *fhdr)
+/* Check if the flash image file is compatible with the adapter that
+ * is being flashed.
+ */
+static bool be_check_ufi_compatibility(struct be_adapter *adapter,
+				       struct flash_file_hdr_g3 *fhdr)
 {
 	if (!fhdr) {
 		dev_err(&adapter->pdev->dev, "Invalid FW UFI file");
@@ -4792,43 +4789,22 @@ static int be_get_ufi_type(struct be_adapter *adapter,
 	 */
 	switch (fhdr->build[0]) {
 	case BLD_STR_UFI_TYPE_SH:
-		return (fhdr->asic_type_rev == ASIC_REV_P2) ? SH_P2_UFI :
-								SH_UFI;
+		if (!skyhawk_chip(adapter))
+			return false;
+		break;
 	case BLD_STR_UFI_TYPE_BE3:
-		return (fhdr->asic_type_rev == ASIC_REV_B0) ? BE3R_UFI :
-								BE3_UFI;
+		if (!BE3_chip(adapter))
+			return false;
+		break;
 	case BLD_STR_UFI_TYPE_BE2:
-		return BE2_UFI;
-	default:
-		return -1;
-	}
-}
-
-/* Check if the flash image file is compatible with the adapter that
- * is being flashed.
- * BE3 chips with asic-rev B0 must be flashed only with BE3R_UFI type.
- * Skyhawk chips with asic-rev P2 must be flashed only with SH_P2_UFI type.
- */
-static bool be_check_ufi_compatibility(struct be_adapter *adapter,
-				       struct flash_file_hdr_g3 *fhdr)
-{
-	int ufi_type = be_get_ufi_type(adapter, fhdr);
-
-	switch (ufi_type) {
-	case SH_P2_UFI:
-		return skyhawk_chip(adapter);
-	case SH_UFI:
-		return (skyhawk_chip(adapter) &&
-			adapter->asic_rev < ASIC_REV_P2);
-	case BE3R_UFI:
-		return BE3_chip(adapter);
-	case BE3_UFI:
-		return (BE3_chip(adapter) && adapter->asic_rev < ASIC_REV_B0);
-	case BE2_UFI:
-		return BE2_chip(adapter);
+		if (!BE2_chip(adapter))
+			return false;
+		break;
 	default:
 		return false;
 	}
+
+	return (fhdr->asic_type_rev >= adapter->asic_rev);
 }
 
 static int be_fw_download(struct be_adapter *adapter, const struct firmware* fw)
