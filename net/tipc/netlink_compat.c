@@ -1121,7 +1121,7 @@ static int tipc_nl_compat_recv(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	err = tipc_nl_compat_handle(&msg);
-	if (err == -EOPNOTSUPP)
+	if ((err == -EOPNOTSUPP) || (err == -EPERM))
 		msg.rep = tipc_get_err_tlv(TIPC_CFG_NOT_SUPPORTED);
 	else if (err == -EINVAL)
 		msg.rep = tipc_get_err_tlv(TIPC_CFG_TLV_ERROR);
