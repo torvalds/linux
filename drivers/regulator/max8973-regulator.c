@@ -100,7 +100,6 @@ struct max8973_chip {
 	int curr_vout_val[MAX8973_MAX_VOUT_REG];
 	int curr_vout_reg;
 	int curr_gpio_val;
-	bool valid_dvs_gpio;
 	struct regulator_ops ops;
 };
 
@@ -174,7 +173,7 @@ static int max8973_dcdc_set_voltage_sel(struct regulator_dev *rdev,
 	 * If gpios are available to select the VOUT register then least
 	 * recently used register for new configuration.
 	 */
-	if (max->valid_dvs_gpio)
+	if (gpio_is_valid(max->dvs_gpio))
 		found = find_voltage_set_register(max, vsel,
 					&vout_reg, &gpio_val);
 
@@ -191,7 +190,7 @@ static int max8973_dcdc_set_voltage_sel(struct regulator_dev *rdev,
 	}
 
 	/* Select proper VOUT register vio gpios */
-	if (max->valid_dvs_gpio) {
+	if (gpio_is_valid(max->dvs_gpio)) {
 		gpio_set_value_cansleep(max->dvs_gpio, gpio_val & 0x1);
 		max->curr_gpio_val = gpio_val;
 	}
@@ -438,7 +437,6 @@ static int max8973_probe(struct i2c_client *client,
 				max->dvs_gpio, ret);
 			return ret;
 		}
-		max->valid_dvs_gpio = true;
 
 		/*
 		 * Initialize the lru index with vout_reg id
@@ -448,8 +446,6 @@ static int max8973_probe(struct i2c_client *client,
 			max->lru_index[i] = i;
 		max->lru_index[0] = max->curr_vout_reg;
 		max->lru_index[max->curr_vout_reg] = 0;
-	} else {
-		max->valid_dvs_gpio = false;
 	}
 
 	if (pdata) {
