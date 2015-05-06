@@ -980,6 +980,18 @@ static int parse_line_num(char **ptr, int *val, const char *what)
 	return 0;
 }
 
+/* Check the name is good for event, group or function */
+static bool is_c_func_name(const char *name)
+{
+	if (!isalpha(*name) && *name != '_')
+		return false;
+	while (*++name != '\0') {
+		if (!isalpha(*name) && !isdigit(*name) && *name != '_')
+			return false;
+	}
+	return true;
+}
+
 /*
  * Stuff 'lr' according to the line range described by 'arg'.
  * The line range syntax is described by:
@@ -1048,27 +1060,20 @@ int parse_line_range_desc(const char *arg, struct line_range *lr)
 			goto err;
 		}
 		lr->function = name;
-	} else if (strchr(name, '.'))
+	} else if (strchr(name, '/') || strchr(name, '.'))
 		lr->file = name;
-	else
+	else if (is_c_func_name(name))/* We reuse it for checking funcname */
 		lr->function = name;
+	else {	/* Invalid name */
+		semantic_error("'%s' is not a valid function name.\n", name);
+		err = -EINVAL;
+		goto err;
+	}
 
 	return 0;
 err:
 	free(name);
 	return err;
-}
-
-/* Check the name is good for event/group */
-static bool check_event_name(const char *name)
-{
-	if (!isalpha(*name) && *name != '_')
-		return false;
-	while (*++name != '\0') {
-		if (!isalpha(*name) && !isdigit(*name) && *name != '_')
-			return false;
-	}
-	return true;
 }
 
 /* Parse probepoint definition. */
@@ -1094,7 +1099,7 @@ static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 			semantic_error("Group name is not supported yet.\n");
 			return -ENOTSUP;
 		}
-		if (!check_event_name(arg)) {
+		if (!is_c_func_name(arg)) {
 			semantic_error("%s is bad for event name -it must "
 				       "follow C symbol-naming rule.\n", arg);
 			return -EINVAL;
