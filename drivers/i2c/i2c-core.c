@@ -631,8 +631,13 @@ static int i2c_device_probe(struct device *dev)
 	if (!client)
 		return 0;
 
-	if (!client->irq && dev->of_node) {
-		int irq = of_irq_get(dev->of_node, 0);
+	if (!client->irq) {
+		int irq = -ENOENT;
+
+		if (dev->of_node)
+			irq = of_irq_get(dev->of_node, 0);
+		else if (ACPI_COMPANION(dev))
+			irq = acpi_dev_gpio_irq_get(ACPI_COMPANION(dev), 0);
 
 		if (irq == -EPROBE_DEFER)
 			return irq;
