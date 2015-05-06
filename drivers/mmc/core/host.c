@@ -484,6 +484,9 @@ int mmc_of_parse(struct mmc_host *host)
 	else if (ret != -ENOENT && ret != -ENOSYS)
 		return ret;
 
+	if (of_property_read_bool(np, "disable-wp"))
+		host->caps2 |= MMC_CAP2_NO_WRITE_PROTECT;
+
 	/* See the comment on CD inversion above */
 	if (ro_cap_invert ^ ro_gpio_invert)
 		host->caps2 |= MMC_CAP2_RO_ACTIVE_HIGH;
