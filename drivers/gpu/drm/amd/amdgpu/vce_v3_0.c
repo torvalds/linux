@@ -34,12 +34,16 @@
 #include "vce/vce_3_0_sh_mask.h"
 #include "oss/oss_2_0_d.h"
 #include "oss/oss_2_0_sh_mask.h"
+#include "gca/gfx_8_0_d.h"
+
+#define GRBM_GFX_INDEX__VCE_INSTANCE__SHIFT	0x04
+#define GRBM_GFX_INDEX__VCE_INSTANCE_MASK	0x10
 
 #define VCE_V3_0_FW_SIZE	(384 * 1024)
 #define VCE_V3_0_STACK_SIZE	(64 * 1024)
 #define VCE_V3_0_DATA_SIZE	((16 * 1024 * AMDGPU_MAX_VCE_HANDLES) + (52 * 1024))
 
-static void vce_v3_0_mc_resume(struct amdgpu_device *adev);
+static void vce_v3_0_mc_resume(struct amdgpu_device *adev, int idx);
 static void vce_v3_0_set_ring_funcs(struct amdgpu_device *adev);
 static void vce_v3_0_set_irq_funcs(struct amdgpu_device *adev);
 
@@ -104,12 +108,70 @@ static void vce_v3_0_ring_set_wptr(struct amdgpu_ring *ring)
 static int vce_v3_0_start(struct amdgpu_device *adev)
 {
 	struct amdgpu_ring *ring;
-	int i, j, r;
+	int idx, i, j, r;
 
-	vce_v3_0_mc_resume(adev);
+	mutex_lock(&adev->grbm_idx_mutex);
+	for (idx = 0; idx < 2; ++idx) {
+		if(idx == 0)
+			WREG32_P(mmGRBM_GFX_INDEX, 0,
+				~GRBM_GFX_INDEX__VCE_INSTANCE_MASK);
+		else
+			WREG32_P(mmGRBM_GFX_INDEX,
+				GRBM_GFX_INDEX__VCE_INSTANCE_MASK,
+				~GRBM_GFX_INDEX__VCE_INSTANCE_MASK);
 
-	/* set BUSY flag */
-	WREG32_P(mmVCE_STATUS, 1, ~1);
+		vce_v3_0_mc_resume(adev, idx);
+
+		/* set BUSY flag */
+		WREG32_P(mmVCE_STATUS, 1, ~1);
+
+		WREG32_P(mmVCE_VCPU_CNTL, VCE_VCPU_CNTL__CLK_EN_MASK,
+			~VCE_VCPU_CNTL__CLK_EN_MASK);
+
+		WREG32_P(mmVCE_SOFT_RESET,
+			 VCE_SOFT_RESET__ECPU_SOFT_RESET_MASK,
+			 ~VCE_SOFT_RESET__ECPU_SOFT_RESET_MASK);
+
+		mdelay(100);
+
+		WREG32_P(mmVCE_SOFT_RESET, 0,
+			~VCE_SOFT_RESET__ECPU_SOFT_RESET_MASK);
+
+		for (i = 0; i < 10; ++i) {
+			uint32_t status;
+			for (j = 0; j < 100; ++j) {
+				status = RREG32(mmVCE_STATUS);
+				if (status & 2)
+					break;
+				mdelay(10);
+			}
+			r = 0;
+			if (status & 2)
+				break;
+
+			DRM_ERROR("VCE not responding, trying to reset the ECPU!!!\n");
+			WREG32_P(mmVCE_SOFT_RESET,
+				VCE_SOFT_RESET__ECPU_SOFT_RESET_MASK,
+				~VCE_SOFT_RESET__ECPU_SOFT_RESET_MASK);
+			mdelay(10);
+			WREG32_P(mmVCE_SOFT_RESET, 0,
+				~VCE_SOFT_RESET__ECPU_SOFT_RESET_MASK);
+			mdelay(10);
+			r = -1;
+		}
+
+		/* clear BUSY flag */
+		WREG32_P(mmVCE_STATUS, 0, ~1);
+
+		if (r) {
+			DRM_ERROR("VCE not responding, giving up!!!\n");
+			mutex_unlock(&adev->grbm_idx_mutex);
+			return r;
+		}
+	}
+
+	WREG32_P(mmGRBM_GFX_INDEX, 0, ~GRBM_GFX_INDEX__VCE_INSTANCE_MASK);
+	mutex_unlock(&adev->grbm_idx_mutex);
 
 	ring = &adev->vce.ring[0];
 	WREG32(mmVCE_RB_RPTR, ring->wptr);
@@ -124,45 +186,6 @@ static int vce_v3_0_start(struct amdgpu_device *adev)
 	WREG32(mmVCE_RB_BASE_LO2, ring->gpu_addr);
 	WREG32(mmVCE_RB_BASE_HI2, upper_32_bits(ring->gpu_addr));
 	WREG32(mmVCE_RB_SIZE2, ring->ring_size / 4);
-
-	WREG32_P(mmVCE_VCPU_CNTL, VCE_VCPU_CNTL__CLK_EN_MASK, ~VCE_VCPU_CNTL__CLK_EN_MASK);
-
-	WREG32_P(mmVCE_SOFT_RESET,
-		 VCE_SOFT_RESET__ECPU_SOFT_RESET_MASK,
-		 ~VCE_SOFT_RESET__ECPU_SOFT_RESET_MASK);
-
-	mdelay(100);
-
-	WREG32_P(mmVCE_SOFT_RESET, 0, ~VCE_SOFT_RESET__ECPU_SOFT_RESET_MASK);
-
-	for (i = 0; i < 10; ++i) {
-		uint32_t status;
-		for (j = 0; j < 100; ++j) {
-			status = RREG32(mmVCE_STATUS);
-			if (status & 2)
-				break;
-			mdelay(10);
-		}
-		r = 0;
-		if (status & 2)
-			break;
-
-		DRM_ERROR("VCE not responding, trying to reset the ECPU!!!\n");
-		WREG32_P(mmVCE_SOFT_RESET, VCE_SOFT_RESET__ECPU_SOFT_RESET_MASK,
-				~VCE_SOFT_RESET__ECPU_SOFT_RESET_MASK);
-		mdelay(10);
-		WREG32_P(mmVCE_SOFT_RESET, 0, ~VCE_SOFT_RESET__ECPU_SOFT_RESET_MASK);
-		mdelay(10);
-		r = -1;
-	}
-
-	/* clear BUSY flag */
-	WREG32_P(mmVCE_STATUS, 0, ~1);
-
-	if (r) {
-		DRM_ERROR("VCE not responding, giving up!!!\n");
-		return r;
-	}
 
 	return 0;
 }
@@ -292,7 +315,7 @@ static int vce_v3_0_resume(struct amdgpu_device *adev)
 	return r;
 }
 
-static void vce_v3_0_mc_resume(struct amdgpu_device *adev)
+static void vce_v3_0_mc_resume(struct amdgpu_device *adev, int idx)
 {
 	uint32_t offset, size;
 
@@ -313,15 +336,25 @@ static void vce_v3_0_mc_resume(struct amdgpu_device *adev)
 	WREG32(mmVCE_VCPU_CACHE_OFFSET0, offset & 0x7fffffff);
 	WREG32(mmVCE_VCPU_CACHE_SIZE0, size);
 
-	offset += size;
-	size = VCE_V3_0_STACK_SIZE;
-	WREG32(mmVCE_VCPU_CACHE_OFFSET1, offset & 0x7fffffff);
-	WREG32(mmVCE_VCPU_CACHE_SIZE1, size);
-
-	offset += size;
-	size = VCE_V3_0_DATA_SIZE;
-	WREG32(mmVCE_VCPU_CACHE_OFFSET2, offset & 0x7fffffff);
-	WREG32(mmVCE_VCPU_CACHE_SIZE2, size);
+	if (idx == 0) {
+		offset += size;
+		size = VCE_V3_0_STACK_SIZE;
+		WREG32(mmVCE_VCPU_CACHE_OFFSET1, offset & 0x7fffffff);
+		WREG32(mmVCE_VCPU_CACHE_SIZE1, size);
+		offset += size;
+		size = VCE_V3_0_DATA_SIZE;
+		WREG32(mmVCE_VCPU_CACHE_OFFSET2, offset & 0x7fffffff);
+		WREG32(mmVCE_VCPU_CACHE_SIZE2, size);
+	} else {
+		offset += size + VCE_V3_0_STACK_SIZE + VCE_V3_0_DATA_SIZE;
+		size = VCE_V3_0_STACK_SIZE;
+		WREG32(mmVCE_VCPU_CACHE_OFFSET1, offset & 0xfffffff);
+		WREG32(mmVCE_VCPU_CACHE_SIZE1, size);
+		offset += size;
+		size = VCE_V3_0_DATA_SIZE;
+		WREG32(mmVCE_VCPU_CACHE_OFFSET2, offset & 0xfffffff);
+		WREG32(mmVCE_VCPU_CACHE_SIZE2, size);
+	}
 
 	WREG32_P(mmVCE_LMI_CTRL2, 0x0, ~0x100);
 
