@@ -250,7 +250,7 @@ static int alloc_pebs_buffer(int cpu)
 {
 	struct debug_store *ds = per_cpu(cpu_hw_events, cpu).ds;
 	int node = cpu_to_node(cpu);
-	int max, thresh = 1; /* always use a single PEBS record */
+	int max;
 	void *buffer, *ibuffer;
 
 	if (!x86_pmu.pebs)
@@ -279,9 +279,6 @@ static int alloc_pebs_buffer(int cpu)
 	ds->pebs_index = ds->pebs_buffer_base;
 	ds->pebs_absolute_maximum = ds->pebs_buffer_base +
 		max * x86_pmu.pebs_record_size;
-
-	ds->pebs_interrupt_threshold = ds->pebs_buffer_base +
-		thresh * x86_pmu.pebs_record_size;
 
 	return 0;
 }
@@ -684,14 +681,22 @@ struct event_constraint *intel_pebs_constraints(struct perf_event *event)
 	return &emptyconstraint;
 }
 
+static inline bool pebs_is_enabled(struct cpu_hw_events *cpuc)
+{
+	return (cpuc->pebs_enabled & ((1ULL << MAX_PEBS_EVENTS) - 1));
+}
+
 void intel_pmu_pebs_enable(struct perf_event *event)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	struct hw_perf_event *hwc = &event->hw;
 	struct debug_store *ds = cpuc->ds;
+	bool first_pebs;
+	u64 threshold;
 
 	hwc->config &= ~ARCH_PERFMON_EVENTSEL_INT;
 
+	first_pebs = !pebs_is_enabled(cpuc);
 	cpuc->pebs_enabled |= 1ULL << hwc->idx;
 
 	if (event->hw.flags & PERF_X86_EVENT_PEBS_LDLAT)
@@ -699,11 +704,25 @@ void intel_pmu_pebs_enable(struct perf_event *event)
 	else if (event->hw.flags & PERF_X86_EVENT_PEBS_ST)
 		cpuc->pebs_enabled |= 1ULL << 63;
 
+	/*
+	 * When the event is constrained enough we can use a larger
+	 * threshold and run the event with less frequent PMI.
+	 */
+	if (hwc->flags & PERF_X86_EVENT_FREERUNNING) {
+		threshold = ds->pebs_absolute_maximum -
+			x86_pmu.max_pebs_events * x86_pmu.pebs_record_size;
+	} else {
+		threshold = ds->pebs_buffer_base + x86_pmu.pebs_record_size;
+	}
+
 	/* Use auto-reload if possible to save a MSR write in the PMI */
 	if (hwc->flags & PERF_X86_EVENT_AUTO_RELOAD) {
 		ds->pebs_event_reset[hwc->idx] =
 			(u64)(-hwc->sample_period) & x86_pmu.cntval_mask;
 	}
+
+	if (first_pebs || ds->pebs_interrupt_threshold > threshold)
+		ds->pebs_interrupt_threshold = threshold;
 }
 
 void intel_pmu_pebs_disable(struct perf_event *event)

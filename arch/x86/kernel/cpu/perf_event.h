@@ -76,6 +76,7 @@ struct event_constraint {
 #define PERF_X86_EVENT_RDPMC_ALLOWED	0x0100 /* grant rdpmc permission */
 #define PERF_X86_EVENT_EXCL_ACCT	0x0200 /* accounted EXCL event */
 #define PERF_X86_EVENT_AUTO_RELOAD	0x0400 /* use PEBS auto-reload */
+#define PERF_X86_EVENT_FREERUNNING	0x0800 /* use freerunning PEBS */
 
 
 struct amd_nb {
@@ -87,6 +88,16 @@ struct amd_nb {
 
 /* The maximal number of PEBS events: */
 #define MAX_PEBS_EVENTS		8
+
+/*
+ * Flags PEBS can handle without an PMI.
+ *
+ */
+#define PEBS_FREERUNNING_FLAGS \
+	(PERF_SAMPLE_IP | PERF_SAMPLE_ADDR | \
+	PERF_SAMPLE_ID | PERF_SAMPLE_CPU | PERF_SAMPLE_STREAM_ID | \
+	PERF_SAMPLE_DATA_SRC | PERF_SAMPLE_IDENTIFIER | \
+	PERF_SAMPLE_TRANSACTION)
 
 /*
  * A debug store configuration.
