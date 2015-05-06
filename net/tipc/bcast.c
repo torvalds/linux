@@ -866,6 +866,27 @@ int tipc_bclink_set_queue_limits(struct net *net, u32 limit)
 	return 0;
 }
 
+int tipc_nl_bc_link_set(struct net *net, struct nlattr *attrs[])
+{
+	int err;
+	u32 win;
+	struct nlattr *props[TIPC_NLA_PROP_MAX + 1];
+
+	if (!attrs[TIPC_NLA_LINK_PROP])
+		return -EINVAL;
+
+	err = tipc_nl_parse_link_prop(attrs[TIPC_NLA_LINK_PROP], props);
+	if (err)
+		return err;
+
+	if (!props[TIPC_NLA_PROP_WIN])
+		return -EOPNOTSUPP;
+
+	win = nla_get_u32(props[TIPC_NLA_PROP_WIN]);
+
+	return tipc_bclink_set_queue_limits(net, win);
+}
+
 int tipc_bclink_init(struct net *net)
 {
 	struct tipc_net *tn = net_generic(net, tipc_net_id);

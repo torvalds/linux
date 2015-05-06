@@ -1893,6 +1893,9 @@ int tipc_nl_link_set(struct sk_buff *skb, struct genl_info *info)
 
 	name = nla_data(attrs[TIPC_NLA_LINK_NAME]);
 
+	if (strcmp(name, tipc_bclink_name) == 0)
+		return tipc_nl_bc_link_set(net, attrs);
+
 	node = tipc_link_find_owner(net, name, &bearer_id);
 	if (!node)
 		return -EINVAL;
@@ -2175,50 +2178,53 @@ out:
 int tipc_nl_link_get(struct sk_buff *skb, struct genl_info *info)
 {
 	struct net *net = genl_info_net(info);
-	struct sk_buff *ans_skb;
 	struct tipc_nl_msg msg;
-	struct tipc_link *link;
-	struct tipc_node *node;
 	char *name;
-	int bearer_id;
 	int err;
 
-	if (!info->attrs[TIPC_NLA_LINK_NAME])
-		return -EINVAL;
-
-	name = nla_data(info->attrs[TIPC_NLA_LINK_NAME]);
-	node = tipc_link_find_owner(net, name, &bearer_id);
-	if (!node)
-		return -EINVAL;
-
-	ans_skb = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
-	if (!ans_skb)
-		return -ENOMEM;
-
-	msg.skb = ans_skb;
 	msg.portid = info->snd_portid;
 	msg.seq = info->snd_seq;
 
-	tipc_node_lock(node);
-	link = node->links[bearer_id];
-	if (!link) {
-		err = -EINVAL;
-		goto err_out;
+	if (!info->attrs[TIPC_NLA_LINK_NAME])
+		return -EINVAL;
+	name = nla_data(info->attrs[TIPC_NLA_LINK_NAME]);
+
+	msg.skb = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	if (!msg.skb)
+		return -ENOMEM;
+
+	if (strcmp(name, tipc_bclink_name) == 0) {
+		err = tipc_nl_add_bc_link(net, &msg);
+		if (err) {
+			nlmsg_free(msg.skb);
+			return err;
+		}
+	} else {
+		int bearer_id;
+		struct tipc_node *node;
+		struct tipc_link *link;
+
+		node = tipc_link_find_owner(net, name, &bearer_id);
+		if (!node)
+			return -EINVAL;
+
+		tipc_node_lock(node);
+		link = node->links[bearer_id];
+		if (!link) {
+			tipc_node_unlock(node);
+			nlmsg_free(msg.skb);
+			return -EINVAL;
+		}
+
+		err = __tipc_nl_add_link(net, &msg, link, 0);
+		tipc_node_unlock(node);
+		if (err) {
+			nlmsg_free(msg.skb);
+			return err;
+		}
 	}
 
-	err = __tipc_nl_add_link(net, &msg, link, 0);
-	if (err)
-		goto err_out;
-
-	tipc_node_unlock(node);
-
-	return genlmsg_reply(ans_skb, info);
-
-err_out:
-	tipc_node_unlock(node);
-	nlmsg_free(ans_skb);
-
-	return err;
+	return genlmsg_reply(msg.skb, info);
 }
 
 int tipc_nl_link_reset_stats(struct sk_buff *skb, struct genl_info *info)
