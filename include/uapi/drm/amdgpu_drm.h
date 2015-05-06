@@ -73,15 +73,12 @@
 #define AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED	(1 << 0)
 /* Flag that CPU access will not work, this VRAM domain is invisible */
 #define AMDGPU_GEM_CREATE_NO_CPU_ACCESS		(1 << 1)
-/* Flag that un-cached attributes should be used for GTT */
-#define AMDGPU_GEM_CREATE_CPU_GTT_UC		(1 << 2)
 /* Flag that USWC attributes should be used for GTT */
-#define AMDGPU_GEM_CREATE_CPU_GTT_WC		(1 << 3)
+#define AMDGPU_GEM_CREATE_CPU_GTT_USWC		(1 << 2)
 
 /* Flag mask for GTT domain_flags */
 #define AMDGPU_GEM_CREATE_CPU_GTT_MASK \
-	(AMDGPU_GEM_CREATE_CPU_GTT_WC | \
-	 AMDGPU_GEM_CREATE_CPU_GTT_UC | \
+	(AMDGPU_GEM_CREATE_CPU_GTT_USWC | \
 	 AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED | \
 	 AMDGPU_GEM_CREATE_NO_CPU_ACCESS)
 

@@ -132,10 +132,7 @@ void amdgpu_ttm_placement_from_domain(struct amdgpu_bo *rbo, u32 domain)
 	}
 
 	if (domain & AMDGPU_GEM_DOMAIN_GTT) {
-		if (rbo->flags & AMDGPU_GEM_CREATE_CPU_GTT_UC) {
-			rbo->placements[c].fpfn = 0;
-			rbo->placements[c++].flags = TTM_PL_FLAG_UNCACHED | TTM_PL_FLAG_TT;
-		} else if (rbo->flags & AMDGPU_GEM_CREATE_CPU_GTT_WC) {
+		if (rbo->flags & AMDGPU_GEM_CREATE_CPU_GTT_USWC) {
 			rbo->placements[c].fpfn = 0;
 			rbo->placements[c++].flags = TTM_PL_FLAG_WC | TTM_PL_FLAG_TT |
 										 TTM_PL_FLAG_UNCACHED;
@@ -146,10 +143,7 @@ void amdgpu_ttm_placement_from_domain(struct amdgpu_bo *rbo, u32 domain)
 	}
 
 	if (domain & AMDGPU_GEM_DOMAIN_CPU) {
-		if (rbo->flags & AMDGPU_GEM_CREATE_CPU_GTT_UC) {
-			rbo->placements[c].fpfn = 0;
-			rbo->placements[c++].flags =  TTM_PL_FLAG_UNCACHED | TTM_PL_FLAG_SYSTEM;
-		} else if (rbo->flags & AMDGPU_GEM_CREATE_CPU_GTT_WC) {
+		if (rbo->flags & AMDGPU_GEM_CREATE_CPU_GTT_USWC) {
 			rbo->placements[c].fpfn = 0;
 			rbo->placements[c++].flags = TTM_PL_FLAG_WC | TTM_PL_FLAG_SYSTEM |
 										 TTM_PL_FLAG_UNCACHED;
