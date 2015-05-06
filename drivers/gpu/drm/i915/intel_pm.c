@@ -88,8 +88,7 @@ static void skl_init_clock_gating(struct drm_device *dev)
 
 		/* WaDisableChickenBitTSGBarrierAckForFFSliceCS:skl */
 		I915_WRITE(FF_SLICE_CS_CHICKEN2,
-			   I915_READ(FF_SLICE_CS_CHICKEN2) |
-			   GEN9_TSG_BARRIER_ACK_DISABLE);
+			   _MASKED_BIT_ENABLE(GEN9_TSG_BARRIER_ACK_DISABLE));
 	}
 
 	if (INTEL_REVID(dev) <= SKL_REVID_E0)

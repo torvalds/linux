@@ -5718,7 +5718,7 @@ enum skl_disp_power_wells {
 #define HSW_NDE_RSTWRN_OPT	0x46408
 #define  RESET_PCH_HANDSHAKE_ENABLE	(1<<4)
 
-#define FF_SLICE_CS_CHICKEN2			0x02e4
+#define FF_SLICE_CS_CHICKEN2			0x20e4
 #define  GEN9_TSG_BARRIER_ACK_DISABLE		(1<<8)
 
 /* GEN7 chicken */
