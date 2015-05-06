@@ -365,8 +365,6 @@ static void mixer_run(struct mixer_context *ctx)
 	struct mixer_resources *res = &ctx->mixer_res;
 
 	mixer_reg_writemask(res, MXR_STATUS, ~0, MXR_STATUS_REG_RUN);
-
-	mixer_regs_dump(ctx);
 }
 
 static void mixer_stop(struct mixer_context *ctx)
@@ -379,8 +377,6 @@ static void mixer_stop(struct mixer_context *ctx)
 	while (!(mixer_reg_read(res, MXR_STATUS) & MXR_STATUS_REG_IDLE) &&
 			--timeout)
 		usleep_range(10000, 12000);
-
-	mixer_regs_dump(ctx);
 }
 
 static void vp_video_buffer(struct mixer_context *ctx, int win)
@@ -480,6 +476,7 @@ static void vp_video_buffer(struct mixer_context *ctx, int win)
 	mixer_vsync_set_update(ctx, true);
 	spin_unlock_irqrestore(&res->reg_slock, flags);
 
+	mixer_regs_dump(ctx);
 	vp_regs_dump(ctx);
 }
 
@@ -620,6 +617,8 @@ static void mixer_graph_buffer(struct mixer_context *ctx, int win)
 
 	mixer_vsync_set_update(ctx, true);
 	spin_unlock_irqrestore(&res->reg_slock, flags);
+
+	mixer_regs_dump(ctx);
 }
 
 static void vp_win_reset(struct mixer_context *ctx)
@@ -1073,6 +1072,7 @@ static void mixer_poweroff(struct mixer_context *ctx)
 	mutex_unlock(&ctx->mixer_mutex);
 
 	mixer_stop(ctx);
+	mixer_regs_dump(ctx);
 	mixer_window_suspend(ctx);
 
 	ctx->int_en = mixer_reg_read(res, MXR_INT_EN);
