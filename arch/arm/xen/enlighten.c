@@ -51,7 +51,7 @@ EXPORT_SYMBOL_GPL(xen_have_vector_callback);
 int xen_platform_pci_unplug = XEN_UNPLUG_ALL;
 EXPORT_SYMBOL_GPL(xen_platform_pci_unplug);
 
-static __read_mostly int xen_events_irq = -1;
+static __read_mostly unsigned int xen_events_irq;
 
 int xen_remap_domain_mfn_array(struct vm_area_struct *vma,
 			       unsigned long addr,
@@ -179,11 +179,13 @@ static int __init xen_guest_init(void)
 		return 0;
 	grant_frames = res.start;
 	xen_events_irq = irq_of_parse_and_map(node, 0);
+	if (!xen_events_irq) {
+		pr_debug("Xen event channel interrupt not found\n");
+		return -ENODEV;
+	}
+
 	pr_info("Xen %s support found, events_irq=%d gnttab_frame=%pa\n",
 			version, xen_events_irq, &grant_frames);
-
-	if (xen_events_irq < 0)
-		return -ENODEV;
 
 	xen_domain_type = XEN_HVM_DOMAIN;
 
