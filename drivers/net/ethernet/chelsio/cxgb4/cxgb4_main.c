@@ -856,23 +856,39 @@ static void free_msix_queue_irqs(struct adapter *adap)
  *
  *	Sets up the portion of the HW RSS table for the port's VI to distribute
  *	packets to the Rx queues in @queues.
+ *	Should never be called before setting up sge eth rx queues
  */
 int cxgb4_write_rss(const struct port_info *pi, const u16 *queues)
 {
 	u16 *rss;
 	int i, err;
-	const struct sge_eth_rxq *q = &pi->adapter->sge.ethrxq[pi->first_qset];
+	struct adapter *adapter = pi->adapter;
+	const struct sge_eth_rxq *rxq;
 
+	rxq = &adapter->sge.ethrxq[pi->first_qset];
 	rss = kmalloc(pi->rss_size * sizeof(u16), GFP_KERNEL);
 	if (!rss)
 		return -ENOMEM;
 
 	/* map the queue indices to queue ids */
 	for (i = 0; i < pi->rss_size; i++, queues++)
-		rss[i] = q[*queues].rspq.abs_id;
+		rss[i] = rxq[*queues].rspq.abs_id;
 
-	err = t4_config_rss_range(pi->adapter, pi->adapter->fn, pi->viid, 0,
+	err = t4_config_rss_range(adapter, adapter->fn, pi->viid, 0,
 				  pi->rss_size, rss, pi->rss_size);
+	/* If Tunnel All Lookup isn't specified in the global RSS
+	 * Configuration, then we need to specify a default Ingress
+	 * Queue for any ingress packets which aren't hashed.  We'll
+	 * use our first ingress queue ...
+	 */
+	if (!err)
+		err = t4_config_vi_rss(adapter, adapter->mbox, pi->viid,
+				       FW_RSS_VI_CONFIG_CMD_IP6FOURTUPEN_F |
+				       FW_RSS_VI_CONFIG_CMD_IP6TWOTUPEN_F |
+				       FW_RSS_VI_CONFIG_CMD_IP4FOURTUPEN_F |
+				       FW_RSS_VI_CONFIG_CMD_IP4TWOTUPEN_F |
+				       FW_RSS_VI_CONFIG_CMD_UDPEN_F,
+				       rss[0]);
 	kfree(rss);
 	return err;
 }
@@ -885,10 +901,14 @@ int cxgb4_write_rss(const struct port_info *pi, const u16 *queues)
  */
 static int setup_rss(struct adapter *adap)
 {
-	int i, err;
+	int i, j, err;
 
 	for_each_port(adap, i) {
 		const struct port_info *pi = adap2pinfo(adap, i);
+
+		/* Fill default values with equal distribution */
+		for (j = 0; j < pi->rss_size; j++)
+			pi->rss[j] = j % pi->nqsets;
 
 		err = cxgb4_write_rss(pi, pi->rss);
 		if (err)
@@ -4343,7 +4363,12 @@ static int enable_msix(struct adapter *adap)
 
 static int init_rss(struct adapter *adap)
 {
-	unsigned int i, j;
+	unsigned int i;
+	int err;
+
+	err = t4_init_rss_mode(adap, adap->mbox);
+	if (err)
+		return err;
 
 	for_each_port(adap, i) {
 		struct port_info *pi = adap2pinfo(adap, i);
@@ -4351,8 +4376,6 @@ static int init_rss(struct adapter *adap)
 		pi->rss = kcalloc(pi->rss_size, sizeof(u16), GFP_KERNEL);
 		if (!pi->rss)
 			return -ENOMEM;
-		for (j = 0; j < pi->rss_size; j++)
-			pi->rss[j] = ethtool_rxfh_indir_default(j, pi->nqsets);
 	}
 	return 0;
 }

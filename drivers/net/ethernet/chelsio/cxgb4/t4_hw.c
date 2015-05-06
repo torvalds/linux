@@ -3014,6 +3014,31 @@ int t4_config_glbl_rss(struct adapter *adapter, int mbox, unsigned int mode,
 	return t4_wr_mbox(adapter, mbox, &c, sizeof(c), NULL);
 }
 
+/**
+ *	t4_config_vi_rss - configure per VI RSS settings
+ *	@adapter: the adapter
+ *	@mbox: mbox to use for the FW command
+ *	@viid: the VI id
+ *	@flags: RSS flags
+ *	@defq: id of the default RSS queue for the VI.
+ *
+ *	Configures VI-specific RSS properties.
+ */
+int t4_config_vi_rss(struct adapter *adapter, int mbox, unsigned int viid,
+		     unsigned int flags, unsigned int defq)
+{
+	struct fw_rss_vi_config_cmd c;
+
+	memset(&c, 0, sizeof(c));
+	c.op_to_viid = cpu_to_be32(FW_CMD_OP_V(FW_RSS_VI_CONFIG_CMD) |
+				   FW_CMD_REQUEST_F | FW_CMD_WRITE_F |
+				   FW_RSS_VI_CONFIG_CMD_VIID_V(viid));
+	c.retval_len16 = cpu_to_be32(FW_LEN16(c));
+	c.u.basicvirtual.defaultq_to_udpen = cpu_to_be32(flags |
+					FW_RSS_VI_CONFIG_CMD_DEFAULTQ_V(defq));
+	return t4_wr_mbox(adapter, mbox, &c, sizeof(c), NULL);
+}
+
 /* Read an RSS table row */
 static int rd_rss_row(struct adapter *adap, int row, u32 *val)
 {
@@ -5371,6 +5396,28 @@ int t4_filter_field_shift(const struct adapter *adap, int filter_sel)
 		}
 	}
 	return field_shift;
+}
+
+int t4_init_rss_mode(struct adapter *adap, int mbox)
+{
+	int i, ret;
+	struct fw_rss_vi_config_cmd rvc;
+
+	memset(&rvc, 0, sizeof(rvc));
+
+	for_each_port(adap, i) {
+		struct port_info *p = adap2pinfo(adap, i);
+
+		rvc.op_to_viid = htonl(FW_CMD_OP_V(FW_RSS_VI_CONFIG_CMD) |
+				       FW_CMD_REQUEST_F | FW_CMD_READ_F |
+				       FW_RSS_VI_CONFIG_CMD_VIID_V(p->viid));
+		rvc.retval_len16 = htonl(FW_LEN16(rvc));
+		ret = t4_wr_mbox(adap, mbox, &rvc, sizeof(rvc), &rvc);
+		if (ret)
+			return ret;
+		p->rss_mode = ntohl(rvc.u.basicvirtual.defaultq_to_udpen);
+	}
+	return 0;
 }
 
 int t4_port_init(struct adapter *adap, int mbox, int pf, int vf)
