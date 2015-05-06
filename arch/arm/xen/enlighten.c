@@ -24,6 +24,7 @@
 #include <linux/cpuidle.h>
 #include <linux/cpufreq.h>
 #include <linux/cpu.h>
+#include <linux/console.h>
 
 #include <linux/mm.h>
 
@@ -183,6 +184,9 @@ void __init xen_early_init(void)
 		xen_start_info->flags |= SIF_INITDOMAIN|SIF_PRIVILEGED;
 	else
 		xen_start_info->flags &= ~(SIF_INITDOMAIN|SIF_PRIVILEGED);
+
+	if (!console_set_on_cmdline && !xen_initial_domain())
+		add_preferred_console("hvc", 0, NULL);
 }
 
 static int __init xen_guest_init(void)
