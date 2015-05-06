@@ -52,7 +52,6 @@ static struct sclp_ipl_info sclp_ipl_info;
 
 struct sclp_info sclp;
 EXPORT_SYMBOL(sclp);
-u64 sclp_facilities;
 
 static int __init sclp_cmd_sync_early(sclp_cmdw_t cmd, void *sccb)
 {
@@ -105,7 +104,7 @@ static void __init sclp_facilities_detect(struct read_info_sccb *sccb)
 	if (sclp_read_info_early(sccb))
 		return;
 
-	sclp_facilities = sccb->facilities;
+	sclp.facilities = sccb->facilities;
 	sclp.has_sprp = !!(sccb->fac84 & 0x02);
 	sclp.has_cpu_type = !!(sccb->fac84 & 0x01);
 	if (sccb->fac85 & 0x02)

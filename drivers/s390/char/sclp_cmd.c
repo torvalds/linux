@@ -508,7 +508,7 @@ static int __init sclp_detect_standby_memory(void)
 
 	if (OLDMEM_BASE) /* No standby memory in kdump mode */
 		return 0;
-	if ((sclp_facilities & 0xe00000000000ULL) != 0xe00000000000ULL)
+	if ((sclp.facilities & 0xe00000000000ULL) != 0xe00000000000ULL)
 		return 0;
 	rc = -ENOMEM;
 	sccb = (void *) __get_free_page(GFP_KERNEL | GFP_DMA);
