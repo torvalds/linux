@@ -988,7 +988,8 @@ out_err:
 	return ERR_PTR(err);
 }
 
-static struct bpf_prog *bpf_prepare_filter(struct bpf_prog *fp)
+struct bpf_prog *bpf_prepare_filter(struct bpf_prog *fp,
+				    bpf_aux_classic_check_t trans)
 {
 	int err;
 
@@ -999,6 +1000,17 @@ static struct bpf_prog *bpf_prepare_filter(struct bpf_prog *fp)
 	if (err) {
 		__bpf_prog_release(fp);
 		return ERR_PTR(err);
+	}
+
+	/* There might be additional checks and transformations
+	 * needed on classic filters, f.e. in case of seccomp.
+	 */
+	if (trans) {
+		err = trans(fp->insns, fp->len);
+		if (err) {
+			__bpf_prog_release(fp);
+			return ERR_PTR(err);
+		}
 	}
 
 	/* Probe if we can JIT compile the filter and if so, do
@@ -1050,7 +1062,7 @@ int bpf_prog_create(struct bpf_prog **pfp, struct sock_fprog_kern *fprog)
 	/* bpf_prepare_filter() already takes care of freeing
 	 * memory in case something goes wrong.
 	 */
-	fp = bpf_prepare_filter(fp);
+	fp = bpf_prepare_filter(fp, NULL);
 	if (IS_ERR(fp))
 		return PTR_ERR(fp);
 
@@ -1135,7 +1147,7 @@ int sk_attach_filter(struct sock_fprog *fprog, struct sock *sk)
 	/* bpf_prepare_filter() already takes care of freeing
 	 * memory in case something goes wrong.
 	 */
-	prog = bpf_prepare_filter(prog);
+	prog = bpf_prepare_filter(prog, NULL);
 	if (IS_ERR(prog))
 		return PTR_ERR(prog);
 

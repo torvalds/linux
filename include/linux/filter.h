@@ -384,7 +384,13 @@ int sk_attach_filter(struct sock_fprog *fprog, struct sock *sk);
 int sk_attach_bpf(u32 ufd, struct sock *sk);
 int sk_detach_filter(struct sock *sk);
 
+typedef int (*bpf_aux_classic_check_t)(struct sock_filter *filter,
+				       unsigned int flen);
+
 int bpf_check_classic(const struct sock_filter *filter, unsigned int flen);
+struct bpf_prog *bpf_prepare_filter(struct bpf_prog *fp,
+				    bpf_aux_classic_check_t trans);
+
 int sk_get_filter(struct sock *sk, struct sock_filter __user *filter,
 		  unsigned int len);
 
