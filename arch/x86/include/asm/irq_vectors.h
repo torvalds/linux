@@ -113,6 +113,7 @@
 #define IRQ_WORK_VECTOR			0xf6
 
 #define UV_BAU_MESSAGE			0xf5
+#define DEFERRED_ERROR_VECTOR		0xf4
 
 /* Vector on which hypervisor callbacks will be delivered */
 #define HYPERVISOR_CALLBACK_VECTOR	0xf3

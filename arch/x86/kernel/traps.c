@@ -827,6 +827,11 @@ asmlinkage __visible void __attribute__((weak)) smp_threshold_interrupt(void)
 {
 }
 
+asmlinkage __visible void __attribute__((weak))
+smp_deferred_error_interrupt(void)
+{
+}
+
 /*
  * 'math_state_restore()' saves the current math information in the
  * old math state array, and gets the new ones from the current task
