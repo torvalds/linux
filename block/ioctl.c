@@ -174,13 +174,18 @@ EXPORT_SYMBOL(__blkdev_reread_part);
  * This is an exported API for the block driver, and will
  * try to acquire bd_mutex. If bd_mutex has been held already
  * in current context, please call __blkdev_reread_part().
+ *
+ * Make sure the held locks in current context aren't required
+ * in open()/close() handler and I/O path for avoiding ABBA deadlock:
+ * - bd_mutex is held before calling block driver's open/close
+ *   handler
+ * - reading partition table may submit I/O to the block device
  */
 int blkdev_reread_part(struct block_device *bdev)
 {
 	int res;
 
-	if (!mutex_trylock(&bdev->bd_mutex))
-		return -EBUSY;
+	mutex_lock(&bdev->bd_mutex);
 	res = __blkdev_reread_part(bdev);
 	mutex_unlock(&bdev->bd_mutex);
 
