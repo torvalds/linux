@@ -774,6 +774,19 @@ int sst_handle_vb_timer(struct snd_soc_dai *dai, bool enable)
 	return ret;
 }
 
+int sst_fill_ssp_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
+		unsigned int rx_mask, int slots, int slot_width)
+{
+	struct sst_data *ctx = snd_soc_dai_get_drvdata(dai);
+
+	ctx->ssp_cmd.nb_slots = slots;
+	ctx->ssp_cmd.active_tx_slot_map = tx_mask;
+	ctx->ssp_cmd.active_rx_slot_map = rx_mask;
+	ctx->ssp_cmd.nb_bits_per_slots = slot_width;
+
+	return 0;
+}
+
 static int sst_get_frame_sync_polarity(struct snd_soc_dai *dai,
 		unsigned int fmt)
 {

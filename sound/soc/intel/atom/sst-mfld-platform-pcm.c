@@ -464,6 +464,21 @@ static int sst_set_format(struct snd_soc_dai *dai, unsigned int fmt)
 	return ret;
 }
 
+static int sst_platform_set_ssp_slot(struct snd_soc_dai *dai,
+			unsigned int tx_mask, unsigned int rx_mask,
+			int slots, int slot_width) {
+	int ret = 0;
+
+	if (!dai->active)
+		return ret;
+
+	ret = sst_fill_ssp_slot(dai, tx_mask, rx_mask, slots, slot_width);
+	if (ret < 0)
+		dev_err(dai->dev, "sst_fill_ssp_slot failed..%d\n", ret);
+
+	return ret;
+}
+
 static void sst_disable_ssp(struct snd_pcm_substream *substream,
 			struct snd_soc_dai *dai)
 {
@@ -490,6 +505,7 @@ static struct snd_soc_dai_ops sst_be_dai_ops = {
 	.startup = sst_enable_ssp,
 	.hw_params = sst_be_hw_params,
 	.set_fmt = sst_set_format,
+	.set_tdm_slot = sst_platform_set_ssp_slot,
 	.shutdown = sst_disable_ssp,
 };
 
