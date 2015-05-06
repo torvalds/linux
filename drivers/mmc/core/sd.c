@@ -804,6 +804,28 @@ int mmc_sd_get_csd(struct mmc_host *host, struct mmc_card *card)
 	return 0;
 }
 
+static int mmc_sd_get_ro(struct mmc_host *host)
+{
+	int ro;
+
+	/*
+	 * Some systems don't feature a write-protect pin and don't need one.
+	 * E.g. because they only have micro-SD card slot. For those systems
+	 * assume that the SD card is always read-write.
+	 */
+	if (host->caps2 & MMC_CAP2_NO_WRITE_PROTECT)
+		return 0;
+
+	if (!host->ops->get_ro)
+		return -1;
+
+	mmc_host_clk_hold(host);
+	ro = host->ops->get_ro(host);
+	mmc_host_clk_release(host);
+
+	return ro;
+}
+
 int mmc_sd_setup_card(struct mmc_host *host, struct mmc_card *card,
 	bool reinit)
 {
@@ -855,13 +877,7 @@ int mmc_sd_setup_card(struct mmc_host *host, struct mmc_card *card,
 	 * Check if read-only switch is active.
 	 */
 	if (!reinit) {
-		int ro = -1;
-
-		if (host->ops->get_ro) {
-			mmc_host_clk_hold(card->host);
-			ro = host->ops->get_ro(host);
-			mmc_host_clk_release(card->host);
-		}
+		int ro = mmc_sd_get_ro(host);
 
 		if (ro < 0) {
 			pr_warn("%s: host does not support reading read-only switch, assuming write-enable\n",
