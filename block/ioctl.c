@@ -150,21 +150,43 @@ static int blkpg_ioctl(struct block_device *bdev, struct blkpg_ioctl_arg __user 
 	}
 }
 
-static int blkdev_reread_part(struct block_device *bdev)
+/*
+ * This is an exported API for the block driver, and will not
+ * acquire bd_mutex. This API should be used in case that
+ * caller has held bd_mutex already.
+ */
+int __blkdev_reread_part(struct block_device *bdev)
 {
 	struct gendisk *disk = bdev->bd_disk;
-	int res;
 
 	if (!disk_part_scan_enabled(disk) || bdev != bdev->bd_contains)
 		return -EINVAL;
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
+
+	lockdep_assert_held(&bdev->bd_mutex);
+
+	return rescan_partitions(disk, bdev);
+}
+EXPORT_SYMBOL(__blkdev_reread_part);
+
+/*
+ * This is an exported API for the block driver, and will
+ * try to acquire bd_mutex. If bd_mutex has been held already
+ * in current context, please call __blkdev_reread_part().
+ */
+int blkdev_reread_part(struct block_device *bdev)
+{
+	int res;
+
 	if (!mutex_trylock(&bdev->bd_mutex))
 		return -EBUSY;
-	res = rescan_partitions(disk, bdev);
+	res = __blkdev_reread_part(bdev);
 	mutex_unlock(&bdev->bd_mutex);
+
 	return res;
 }
+EXPORT_SYMBOL(blkdev_reread_part);
 
 static int blk_ioctl_discard(struct block_device *bdev, uint64_t start,
 			     uint64_t len, int secure)
