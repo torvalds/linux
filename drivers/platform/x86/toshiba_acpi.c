@@ -355,31 +355,6 @@ static u32 hci_read1(struct toshiba_acpi_dev *dev, u32 reg, u32 *out1)
 	return out[0];
 }
 
-static u32 hci_write2(struct toshiba_acpi_dev *dev, u32 reg, u32 in1, u32 in2)
-{
-	u32 in[TCI_WORDS] = { HCI_SET, reg, in1, in2, 0, 0 };
-	u32 out[TCI_WORDS];
-	acpi_status status = tci_raw(dev, in, out);
-
-	return ACPI_SUCCESS(status) ? out[0] : TOS_FAILURE;
-}
-
-static u32 hci_read2(struct toshiba_acpi_dev *dev,
-		     u32 reg, u32 *out1, u32 *out2)
-{
-	u32 in[TCI_WORDS] = { HCI_GET, reg, *out1, *out2, 0, 0 };
-	u32 out[TCI_WORDS];
-	acpi_status status = tci_raw(dev, in, out);
-
-	if (ACPI_FAILURE(status))
-		return TOS_FAILURE;
-
-	*out1 = out[2];
-	*out2 = out[3];
-
-	return out[0];
-}
-
 /*
  * Common sci tasks
  */
@@ -1190,20 +1165,20 @@ static int toshiba_usb_three_set(struct toshiba_acpi_dev *dev, u32 state)
 static int toshiba_hotkey_event_type_get(struct toshiba_acpi_dev *dev,
 					 u32 *type)
 {
-	u32 val1 = 0x03;
-	u32 val2 = 0;
-	u32 result;
+	u32 in[TCI_WORDS] = { HCI_GET, HCI_SYSTEM_INFO, 0x03, 0, 0, 0 };
+	u32 out[TCI_WORDS];
+	acpi_status status;
 
-	result = hci_read2(dev, HCI_SYSTEM_INFO, &val1, &val2);
-	if (result == TOS_FAILURE) {
+	status = tci_raw(dev, in, out);
+	if (ACPI_FAILURE(status)) {
 		pr_err("ACPI call to get System type failed\n");
 		return -EIO;
-	} else if (result == TOS_NOT_SUPPORTED) {
+	} else if (out[0] == TOS_NOT_SUPPORTED) {
 		pr_info("System type not supported\n");
 		return -ENODEV;
 	}
 
-	*type = val2;
+	*type = out[3];
 
 	return 0;
 }
