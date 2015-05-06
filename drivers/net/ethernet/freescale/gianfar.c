@@ -516,6 +516,15 @@ static struct net_device_stats *gfar_get_stats(struct net_device *dev)
 	return &dev->stats;
 }
 
+static int gfar_set_mac_addr(struct net_device *dev, void *p)
+{
+	eth_mac_addr(dev, p);
+
+	gfar_set_mac_for_addr(dev, 0, dev->dev_addr);
+
+	return 0;
+}
+
 static const struct net_device_ops gfar_netdev_ops = {
 	.ndo_open = gfar_enet_open,
 	.ndo_start_xmit = gfar_start_xmit,
@@ -526,7 +535,7 @@ static const struct net_device_ops gfar_netdev_ops = {
 	.ndo_tx_timeout = gfar_timeout,
 	.ndo_do_ioctl = gfar_ioctl,
 	.ndo_get_stats = gfar_get_stats,
-	.ndo_set_mac_address = eth_mac_addr,
+	.ndo_set_mac_address = gfar_set_mac_addr,
 	.ndo_validate_addr = eth_validate_addr,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = gfar_netpoll,
@@ -1410,6 +1419,8 @@ static int gfar_probe(struct platform_device *ofdev)
 				    NETIF_F_HW_VLAN_CTAG_RX;
 		dev->features |= NETIF_F_HW_VLAN_CTAG_RX;
 	}
+
+	dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
 
 	gfar_init_addr_hash_table(priv);
 
