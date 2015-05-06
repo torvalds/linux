@@ -59,9 +59,16 @@
 
 #define MAX_LEDS 4
 
+/*
+ * The Sixaxis reports both digital and analog values for each button on the
+ * controller except for Start, Select and the PS button.  The controller ends
+ * up reporting 27 axes which causes them to spill over into the multi-touch
+ * axis values.  Additionally, the controller only has 20 actual, physical axes
+ * so there are several unused axes in between the used ones.
+ */
 static __u8 sixaxis_rdesc[] = {
 	0x05, 0x01,         /*  Usage Page (Desktop),               */
-	0x09, 0x04,         /*  Usage (Joystik),                    */
+	0x09, 0x04,         /*  Usage (Joystick),                   */
 	0xA1, 0x01,         /*  Collection (Application),           */
 	0xA1, 0x02,         /*      Collection (Logical),           */
 	0x85, 0x01,         /*          Report ID (1),              */
