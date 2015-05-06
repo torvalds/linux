@@ -2671,6 +2671,7 @@ static int rk_fb_blank(int blank_mode, struct fb_info *info)
 	win_id = dev_drv->ops->fb_get_win_id(dev_drv, fix->id);
 	if (win_id < 0)
 		return -ENODEV;
+	mutex_lock(&dev_drv->switch_screen);
 #if defined(CONFIG_RK_HDMI)
 	if ((rk_fb->disp_mode == ONE_DUAL) &&
 	    (hdmi_get_hotplug() == HDMI_HPD_ACTIVED)) {
@@ -2680,6 +2681,7 @@ static int rk_fb_blank(int blank_mode, struct fb_info *info)
 	{
 		dev_drv->ops->blank(dev_drv, win_id, blank_mode);
 	}
+	mutex_unlock(&dev_drv->switch_screen);
 	return 0;
 }
 
@@ -3223,6 +3225,8 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 	mutex_lock(&dev_drv->switch_screen);
 	hdmi_switch_state = 0;
 	dev_drv->hdmi_switch = 1;
+	if (!dev_drv->uboot_logo)
+		mdelay(200);
 
 	envp[0] = "switch screen";
 	envp[1] = kmalloc(32, GFP_KERNEL);
