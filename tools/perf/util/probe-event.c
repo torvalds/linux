@@ -557,8 +557,9 @@ static int post_process_probe_trace_events(struct probe_trace_event *tevs,
 					   bool uprobe)
 {
 	struct ref_reloc_sym *reloc_sym;
+	u64 etext_addr;
 	char *tmp;
-	int i;
+	int i, skipped = 0;
 
 	if (uprobe)
 		return add_exec_to_probe_trace_events(tevs, ntevs, module);
@@ -572,19 +573,29 @@ static int post_process_probe_trace_events(struct probe_trace_event *tevs,
 		pr_warning("Relocated base symbol is not found!\n");
 		return -EINVAL;
 	}
+	/* Get the address of _etext for checking non-probable text symbol */
+	etext_addr = kernel_get_symbol_address_by_name("_etext", false);
 
 	for (i = 0; i < ntevs; i++) {
 		if (tevs[i].point.address && !tevs[i].point.retprobe) {
-			tmp = strdup(reloc_sym->name);
-			if (!tmp)
-				return -ENOMEM;
+			/* If we found a wrong one, mark it by NULL symbol */
+			if (etext_addr < tevs[i].point.address) {
+				pr_warning("%s+%lu is out of .text, skip it.\n",
+				   tevs[i].point.symbol, tevs[i].point.offset);
+				tmp = NULL;
+				skipped++;
+			} else {
+				tmp = strdup(reloc_sym->name);
+				if (!tmp)
+					return -ENOMEM;
+			}
 			free(tevs[i].point.symbol);
 			tevs[i].point.symbol = tmp;
 			tevs[i].point.offset = tevs[i].point.address -
 					       reloc_sym->unrelocated_addr;
 		}
 	}
-	return 0;
+	return skipped;
 }
 
 /* Try to find perf_probe_event with debuginfo */
@@ -630,11 +641,14 @@ static int try_to_find_probe_trace_events(struct perf_probe_event *pev,
 		pr_debug("Found %d probe_trace_events.\n", ntevs);
 		ret = post_process_probe_trace_events(*tevs, ntevs,
 							target, pev->uprobes);
-		if (ret < 0) {
+		if (ret < 0 || ret == ntevs) {
 			clear_probe_trace_events(*tevs, ntevs);
 			zfree(tevs);
 		}
-		return ret < 0 ? ret : ntevs;
+		if (ret != ntevs)
+			return ret < 0 ? ret : ntevs;
+		ntevs = 0;
+		/* Fall through */
 	}
 
 	if (ntevs == 0)	{	/* No error but failed to find probe point. */
@@ -2403,6 +2417,9 @@ static int __add_probe_trace_events(struct perf_probe_event *pev,
 	pr_info("Added new event%s\n", (ntevs > 1) ? "s:" : ":");
 	for (i = 0; i < ntevs; i++) {
 		tev = &tevs[i];
+		/* Skip if the symbol is out of .text (marked previously) */
+		if (!tev->point.symbol)
+			continue;
 		/* Ensure that the address is NOT blacklisted */
 		node = kprobe_blacklist__find_by_address(&blacklist,
 							 tev->point.address);
