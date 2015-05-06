@@ -366,7 +366,7 @@ static int sci_open(struct toshiba_acpi_dev *dev)
 	acpi_status status;
 
 	status = tci_raw(dev, in, out);
-	if  (ACPI_FAILURE(status) || out[0] == TOS_FAILURE) {
+	if  (ACPI_FAILURE(status)) {
 		pr_err("ACPI call to open SCI failed\n");
 		return 0;
 	}
@@ -404,7 +404,7 @@ static void sci_close(struct toshiba_acpi_dev *dev)
 	acpi_status status;
 
 	status = tci_raw(dev, in, out);
-	if (ACPI_FAILURE(status) || out[0] == TOS_FAILURE) {
+	if (ACPI_FAILURE(status)) {
 		pr_err("ACPI call to close SCI failed\n");
 		return;
 	}
@@ -452,7 +452,7 @@ static int toshiba_illumination_available(struct toshiba_acpi_dev *dev)
 
 	status = tci_raw(dev, in, out);
 	sci_close(dev);
-	if (ACPI_FAILURE(status) || out[0] == TOS_FAILURE) {
+	if (ACPI_FAILURE(status)) {
 		pr_err("ACPI call to query Illumination support failed\n");
 		return 0;
 	} else if (out[0] == TOS_NOT_SUPPORTED) {
@@ -674,7 +674,7 @@ static int toshiba_eco_mode_available(struct toshiba_acpi_dev *dev)
 	u32 out[TCI_WORDS];
 
 	status = tci_raw(dev, in, out);
-	if (ACPI_FAILURE(status) || out[0] == TOS_FAILURE) {
+	if (ACPI_FAILURE(status)) {
 		pr_err("ACPI call to get ECO led failed\n");
 	} else if (out[0] == TOS_NOT_INSTALLED) {
 		pr_info("ECO led not installed");
@@ -796,7 +796,7 @@ static void toshiba_usb_sleep_charge_available(struct toshiba_acpi_dev *dev)
 		return;
 
 	status = tci_raw(dev, in, out);
-	if (ACPI_FAILURE(status) || out[0] == TOS_FAILURE) {
+	if (ACPI_FAILURE(status)) {
 		pr_err("ACPI call to get USB Sleep and Charge mode failed\n");
 		sci_close(dev);
 		return;
@@ -810,7 +810,7 @@ static void toshiba_usb_sleep_charge_available(struct toshiba_acpi_dev *dev)
 
 	in[5] = SCI_USB_CHARGE_BAT_LVL;
 	status = tci_raw(dev, in, out);
-	if (ACPI_FAILURE(status) || out[0] == TOS_FAILURE) {
+	if (ACPI_FAILURE(status)) {
 		pr_err("ACPI call to get USB Sleep and Charge mode failed\n");
 		sci_close(dev);
 		return;
@@ -890,7 +890,7 @@ static int toshiba_sleep_functions_status_get(struct toshiba_acpi_dev *dev,
 	in[5] = SCI_USB_CHARGE_BAT_LVL;
 	status = tci_raw(dev, in, out);
 	sci_close(dev);
-	if (ACPI_FAILURE(status) || out[0] == TOS_FAILURE) {
+	if (ACPI_FAILURE(status)) {
 		pr_err("ACPI call to get USB S&C battery level failed\n");
 		return -EIO;
 	} else if (out[0] == TOS_NOT_SUPPORTED) {
@@ -919,7 +919,7 @@ static int toshiba_sleep_functions_status_set(struct toshiba_acpi_dev *dev,
 	in[5] = SCI_USB_CHARGE_BAT_LVL;
 	status = tci_raw(dev, in, out);
 	sci_close(dev);
-	if (ACPI_FAILURE(status) || out[0] == TOS_FAILURE) {
+	if (ACPI_FAILURE(status)) {
 		pr_err("ACPI call to set USB S&C battery level failed\n");
 		return -EIO;
 	} else if (out[0] == TOS_NOT_SUPPORTED) {
@@ -945,7 +945,7 @@ static int toshiba_usb_rapid_charge_get(struct toshiba_acpi_dev *dev,
 	in[5] = SCI_USB_CHARGE_RAPID_DSP;
 	status = tci_raw(dev, in, out);
 	sci_close(dev);
-	if (ACPI_FAILURE(status) || out[0] == TOS_FAILURE) {
+	if (ACPI_FAILURE(status)) {
 		pr_err("ACPI call to get USB Rapid Charge failed\n");
 		return -EIO;
 	} else if (out[0] == TOS_NOT_SUPPORTED ||
@@ -973,7 +973,7 @@ static int toshiba_usb_rapid_charge_set(struct toshiba_acpi_dev *dev,
 	in[5] = SCI_USB_CHARGE_RAPID_DSP;
 	status = tci_raw(dev, in, out);
 	sci_close(dev);
-	if (ACPI_FAILURE(status) || out[0] == TOS_FAILURE) {
+	if (ACPI_FAILURE(status)) {
 		pr_err("ACPI call to set USB Rapid Charge failed\n");
 		return -EIO;
 	} else if (out[0] == TOS_NOT_SUPPORTED) {
