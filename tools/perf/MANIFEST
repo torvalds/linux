@@ -1,5 +1,6 @@
 tools/perf
 tools/arch/powerpc/include/asm/barrier.h
+tools/arch/s390/include/asm/barrier.h
 tools/arch/x86/include/asm/barrier.h
 tools/scripts
 tools/build

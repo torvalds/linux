@@ -42,9 +42,6 @@
 #endif
 
 #ifdef __s390__
-#define mb()		asm volatile("bcr 15,0" ::: "memory")
-#define wmb()		asm volatile("bcr 15,0" ::: "memory")
-#define rmb()		asm volatile("bcr 15,0" ::: "memory")
 #define CPUINFO_PROC	{"vendor_id"}
 #endif
 
