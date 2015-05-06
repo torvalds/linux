@@ -1745,18 +1745,24 @@ struct be_cmd_req_set_mac_list {
 #define PORT_FWD_TYPE_VEPA		0x3
 #define PORT_FWD_TYPE_VEB		0x2
 
+#define ENABLE_MAC_SPOOFCHK		0x2
+#define DISABLE_MAC_SPOOFCHK		0x3
+
 struct amap_set_hsw_context {
 	u8 interface_id[16];
-	u8 rsvd0[14];
+	u8 rsvd0[8];
+	u8 mac_spoofchk[2];
+	u8 rsvd1[4];
 	u8 pvid_valid;
 	u8 pport;
-	u8 rsvd1[6];
+	u8 rsvd2[6];
 	u8 port_fwd_type[3];
-	u8 rsvd2[7];
+	u8 rsvd3[5];
+	u8 vlan_spoofchk[2];
 	u8 pvid[16];
-	u8 rsvd3[32];
 	u8 rsvd4[32];
 	u8 rsvd5[32];
+	u8 rsvd6[32];
 } __packed;
 
 struct be_cmd_req_set_hsw_config {
@@ -1774,11 +1780,13 @@ struct amap_get_hsw_req_context {
 struct amap_get_hsw_resp_context {
 	u8 rsvd0[6];
 	u8 port_fwd_type[3];
-	u8 rsvd1[7];
+	u8 rsvd1[5];
+	u8 spoofchk;
+	u8 rsvd2;
 	u8 pvid[16];
-	u8 rsvd2[32];
 	u8 rsvd3[32];
 	u8 rsvd4[32];
+	u8 rsvd5[32];
 } __packed;
 
 struct be_cmd_req_get_hsw_config {
@@ -2334,9 +2342,9 @@ int be_cmd_set_mac_list(struct be_adapter *adapter, u8 *mac_array, u8 mac_count,
 			u32 domain);
 int be_cmd_set_mac(struct be_adapter *adapter, u8 *mac, int if_id, u32 dom);
 int be_cmd_set_hsw_config(struct be_adapter *adapter, u16 pvid, u32 domain,
-			  u16 intf_id, u16 hsw_mode);
+			  u16 intf_id, u16 hsw_mode, u8 spoofchk);
 int be_cmd_get_hsw_config(struct be_adapter *adapter, u16 *pvid, u32 domain,
-			  u16 intf_id, u8 *mode);
+			  u16 intf_id, u8 *mode, bool *spoofchk);
 int be_cmd_get_acpi_wol_cap(struct be_adapter *adapter);
 int be_cmd_set_fw_log_level(struct be_adapter *adapter, u32 level);
 int be_cmd_get_fw_log_level(struct be_adapter *adapter);

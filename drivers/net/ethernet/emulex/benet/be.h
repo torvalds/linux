@@ -366,6 +366,7 @@ struct be_vf_cfg {
 	u32 tx_rate;
 	u32 plink_tracking;
 	u32 privileges;
+	bool spoofchk;
 };
 
 enum vf_state {
