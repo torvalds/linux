@@ -729,6 +729,18 @@ static int lpc18xx_pconf_get_pin(enum pin_config_param param, int *arg, u32 reg,
 	return 0;
 }
 
+static struct lpc18xx_pin_caps *lpc18xx_get_pin_caps(unsigned pin)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(lpc18xx_pins); i++) {
+		if (lpc18xx_pins[i].number == pin)
+			return lpc18xx_pins[i].drv_data;
+	}
+
+	return NULL;
+}
+
 static int lpc18xx_pconf_get(struct pinctrl_dev *pctldev, unsigned pin,
 			     unsigned long *config)
 {
@@ -737,14 +749,11 @@ static int lpc18xx_pconf_get(struct pinctrl_dev *pctldev, unsigned pin,
 	struct lpc18xx_pin_caps *pin_cap;
 	int ret, arg = 0;
 	u32 reg;
-	int i;
 
-	for (i = 0; i < ARRAY_SIZE(lpc18xx_pins); i++) {
-		if (lpc18xx_pins[i].number == pin)
-			pin = i;
-	}
+	pin_cap = lpc18xx_get_pin_caps(pin);
+	if (!pin_cap)
+		return -EINVAL;
 
-	pin_cap = lpc18xx_pins[pin].drv_data;
 	reg = readl(scu->base + pin_cap->offset);
 
 	if (pin_cap->type == TYPE_I2C0)
@@ -905,12 +914,10 @@ static int lpc18xx_pconf_set(struct pinctrl_dev *pctldev, unsigned pin,
 	int ret;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(lpc18xx_pins); i++) {
-		if (lpc18xx_pins[i].number == pin)
-			break;
-	}
+	pin_cap = lpc18xx_get_pin_caps(pin);
+	if (!pin_cap)
+		return -EINVAL;
 
-	pin_cap = lpc18xx_pins[i].drv_data;
 	reg = readl(scu->base + pin_cap->offset);
 
 	for (i = 0; i < num_configs; i++) {
