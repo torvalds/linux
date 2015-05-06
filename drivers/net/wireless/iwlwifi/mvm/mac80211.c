@@ -452,7 +452,8 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	hw->flags |= IEEE80211_SINGLE_HW_SCAN_ON_ALL_BANDS;
 	hw->wiphy->features |=
 		NL80211_FEATURE_SCHED_SCAN_RANDOM_MAC_ADDR |
-		NL80211_FEATURE_SCAN_RANDOM_MAC_ADDR;
+		NL80211_FEATURE_SCAN_RANDOM_MAC_ADDR |
+		NL80211_FEATURE_ND_RANDOM_MAC_ADDR;
 
 	hw->sta_data_size = sizeof(struct iwl_mvm_sta);
 	hw->vif_data_size = sizeof(struct iwl_mvm_vif);
