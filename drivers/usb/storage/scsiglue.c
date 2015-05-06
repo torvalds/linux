@@ -536,7 +536,7 @@ static struct device_attribute *sysfs_device_attr_list[] = {
  * this defines our host template, with which we'll allocate hosts
  */
 
-struct scsi_host_template usb_stor_host_template = {
+static const struct scsi_host_template usb_stor_host_template = {
 	/* basic userland interface stuff */
 	.name =				"usb-storage",
 	.proc_name =			"usb-storage",
@@ -587,6 +587,16 @@ struct scsi_host_template usb_stor_host_template = {
 	/* module management */
 	.module =			THIS_MODULE
 };
+
+void usb_stor_host_template_init(struct scsi_host_template *sht,
+				 const char *name, struct module *owner)
+{
+	*sht = usb_stor_host_template;
+	sht->name = name;
+	sht->proc_name = name;
+	sht->module = owner;
+}
+EXPORT_SYMBOL_GPL(usb_stor_host_template_init);
 
 /* To Report "Illegal Request: Invalid Field in CDB */
 unsigned char usb_stor_sense_invalidCDB[18] = {
