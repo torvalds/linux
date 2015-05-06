@@ -5482,6 +5482,8 @@ void broxton_init_cdclk(struct drm_device *dev)
 	broxton_set_cdclk(dev, 624000);
 
 	I915_WRITE(DBUF_CTL, I915_READ(DBUF_CTL) | DBUF_POWER_REQUEST);
+	POSTING_READ(DBUF_CTL);
+
 	udelay(10);
 
 	if (!(I915_READ(DBUF_CTL) & DBUF_POWER_STATE))
@@ -5493,6 +5495,8 @@ void broxton_uninit_cdclk(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	I915_WRITE(DBUF_CTL, I915_READ(DBUF_CTL) & ~DBUF_POWER_REQUEST);
+	POSTING_READ(DBUF_CTL);
+
 	udelay(10);
 
 	if (I915_READ(DBUF_CTL) & DBUF_POWER_STATE)
