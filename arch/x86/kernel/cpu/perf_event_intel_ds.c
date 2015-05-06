@@ -872,6 +872,9 @@ static void setup_pebs_sample_data(struct perf_event *event,
 	int fll, fst, dsrc;
 	int fl = event->hw.flags;
 
+	if (pebs == NULL)
+		return;
+
 	sample_type = event->attr.sample_type;
 	dsrc = sample_type & PERF_SAMPLE_DATA_SRC;
 
@@ -966,19 +969,68 @@ static void setup_pebs_sample_data(struct perf_event *event,
 		data->br_stack = &cpuc->lbr_stack;
 }
 
+static inline void *
+get_next_pebs_record_by_bit(void *base, void *top, int bit)
+{
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
+	void *at;
+	u64 pebs_status;
+
+	if (base == NULL)
+		return NULL;
+
+	for (at = base; at < top; at += x86_pmu.pebs_record_size) {
+		struct pebs_record_nhm *p = at;
+
+		if (test_bit(bit, (unsigned long *)&p->status)) {
+
+			if (p->status == (1 << bit))
+				return at;
+
+			/* clear non-PEBS bit and re-check */
+			pebs_status = p->status & cpuc->pebs_enabled;
+			pebs_status &= (1ULL << MAX_PEBS_EVENTS) - 1;
+			if (pebs_status == (1 << bit))
+				return at;
+		}
+	}
+	return NULL;
+}
+
 static void __intel_pmu_pebs_event(struct perf_event *event,
-				   struct pt_regs *iregs, void *__pebs)
+				   struct pt_regs *iregs,
+				   void *base, void *top,
+				   int bit, int count)
 {
 	struct perf_sample_data data;
 	struct pt_regs regs;
+	int i;
+	void *at = get_next_pebs_record_by_bit(base, top, bit);
 
-	if (!intel_pmu_save_and_restart(event))
+	if (!intel_pmu_save_and_restart(event) &&
+	    !(event->hw.flags & PERF_X86_EVENT_AUTO_RELOAD))
 		return;
 
-	setup_pebs_sample_data(event, iregs, __pebs, &data, &regs);
+	if (count > 1) {
+		for (i = 0; i < count - 1; i++) {
+			setup_pebs_sample_data(event, iregs, at, &data, &regs);
+			perf_event_output(event, &data, &regs);
+			at += x86_pmu.pebs_record_size;
+			at = get_next_pebs_record_by_bit(at, top, bit);
+		}
+	}
 
-	if (perf_event_overflow(event, &data, &regs))
+	setup_pebs_sample_data(event, iregs, at, &data, &regs);
+
+	/*
+	 * All but the last records are processed.
+	 * The last one is left to be able to call the overflow handler.
+	 */
+	if (perf_event_overflow(event, &data, &regs)) {
 		x86_pmu_stop(event, 0);
+		return;
+	}
+
 }
 
 static void intel_pmu_drain_pebs_core(struct pt_regs *iregs)
@@ -1008,72 +1060,78 @@ static void intel_pmu_drain_pebs_core(struct pt_regs *iregs)
 	if (!event->attr.precise_ip)
 		return;
 
-	n = top - at;
+	n = (top - at) / x86_pmu.pebs_record_size;
 	if (n <= 0)
 		return;
 
-	/*
-	 * Should not happen, we program the threshold at 1 and do not
-	 * set a reset value.
-	 */
-	WARN_ONCE(n > 1, "bad leftover pebs %d\n", n);
-	at += n - 1;
-
-	__intel_pmu_pebs_event(event, iregs, at);
+	__intel_pmu_pebs_event(event, iregs, at, top, 0, n);
 }
 
 static void intel_pmu_drain_pebs_nhm(struct pt_regs *iregs)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	struct debug_store *ds = cpuc->ds;
-	struct perf_event *event = NULL;
-	void *at, *top;
-	u64 status = 0;
+	struct perf_event *event;
+	void *base, *at, *top;
 	int bit;
+	short counts[MAX_PEBS_EVENTS] = {};
 
 	if (!x86_pmu.pebs_active)
 		return;
 
-	at  = (struct pebs_record_nhm *)(unsigned long)ds->pebs_buffer_base;
+	base = (struct pebs_record_nhm *)(unsigned long)ds->pebs_buffer_base;
 	top = (struct pebs_record_nhm *)(unsigned long)ds->pebs_index;
 
 	ds->pebs_index = ds->pebs_buffer_base;
 
-	if (unlikely(at > top))
+	if (unlikely(base >= top))
 		return;
 
-	/*
-	 * Should not happen, we program the threshold at 1 and do not
-	 * set a reset value.
-	 */
-	WARN_ONCE(top - at > x86_pmu.max_pebs_events * x86_pmu.pebs_record_size,
-		  "Unexpected number of pebs records %ld\n",
-		  (long)(top - at) / x86_pmu.pebs_record_size);
-
-	for (; at < top; at += x86_pmu.pebs_record_size) {
+	for (at = base; at < top; at += x86_pmu.pebs_record_size) {
 		struct pebs_record_nhm *p = at;
 
-		for_each_set_bit(bit, (unsigned long *)&p->status,
-				 x86_pmu.max_pebs_events) {
-			event = cpuc->events[bit];
-			if (!test_bit(bit, cpuc->active_mask))
-				continue;
-
-			WARN_ON_ONCE(!event);
-
-			if (!event->attr.precise_ip)
-				continue;
-
-			if (__test_and_set_bit(bit, (unsigned long *)&status))
-				continue;
-
-			break;
-		}
-
-		if (!event || bit >= x86_pmu.max_pebs_events)
+		bit = find_first_bit((unsigned long *)&p->status,
+					x86_pmu.max_pebs_events);
+		if (bit >= x86_pmu.max_pebs_events)
 			continue;
+		if (!test_bit(bit, cpuc->active_mask))
+			continue;
+		/*
+		 * The PEBS hardware does not deal well with the situation
+		 * when events happen near to each other and multiple bits
+		 * are set. But it should happen rarely.
+		 *
+		 * If these events include one PEBS and multiple non-PEBS
+		 * events, it doesn't impact PEBS record. The record will
+		 * be handled normally. (slow path)
+		 *
+		 * If these events include two or more PEBS events, the
+		 * records for the events can be collapsed into a single
+		 * one, and it's not possible to reconstruct all events
+		 * that caused the PEBS record. It's called collision.
+		 * If collision happened, the record will be dropped.
+		 *
+		 */
+		if (p->status != (1 << bit)) {
+			u64 pebs_status;
 
-		__intel_pmu_pebs_event(event, iregs, at);
+			/* slow path */
+			pebs_status = p->status & cpuc->pebs_enabled;
+			pebs_status &= (1ULL << MAX_PEBS_EVENTS) - 1;
+			if (pebs_status != (1 << bit))
+				continue;
+		}
+		counts[bit]++;
+	}
+
+	for (bit = 0; bit < x86_pmu.max_pebs_events; bit++) {
+		if (counts[bit] == 0)
+			continue;
+		event = cpuc->events[bit];
+		WARN_ON_ONCE(!event);
+		WARN_ON_ONCE(!event->attr.precise_ip);
+
+		__intel_pmu_pebs_event(event, iregs, base, top, bit, counts[bit]);
 	}
 }
 
