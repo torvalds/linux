@@ -1969,7 +1969,7 @@ static int open_probe_events(const char *trace_file, bool readwrite)
 	if (ret >= 0) {
 		pr_debug("Opening %s write=%d\n", buf, readwrite);
 		if (readwrite && !probe_event_dry_run)
-			ret = open(buf, O_RDWR, O_APPEND);
+			ret = open(buf, O_RDWR | O_APPEND, 0);
 		else
 			ret = open(buf, O_RDONLY, 0);
 
