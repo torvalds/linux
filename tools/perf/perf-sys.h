@@ -38,9 +38,6 @@
 
 #ifdef __powerpc__
 #include "../../arch/powerpc/include/uapi/asm/unistd.h"
-#define mb()		asm volatile ("sync" ::: "memory")
-#define wmb()		asm volatile ("sync" ::: "memory")
-#define rmb()		asm volatile ("sync" ::: "memory")
 #define CPUINFO_PROC	{"cpu"}
 #endif
 
