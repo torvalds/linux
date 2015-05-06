@@ -3411,11 +3411,11 @@ static struct samsung_gate_clock gscl_gate_clks[] __initdata = {
 
 	/* ENABLE_PCLK_GSCL_SECURE_SMMU_GSCL1 */
 	GATE(CLK_PCLK_SMMU_GSCL1, "pclk_smmu_gscl1", "mout_aclk_gscl_111_user",
-		ENABLE_PCLK_GSCL_SECURE_SMMU_GSCL0, 0, 0, 0),
+		ENABLE_PCLK_GSCL_SECURE_SMMU_GSCL1, 0, 0, 0),
 
 	/* ENABLE_PCLK_GSCL_SECURE_SMMU_GSCL2 */
 	GATE(CLK_PCLK_SMMU_GSCL2, "pclk_smmu_gscl2", "mout_aclk_gscl_111_user",
-		ENABLE_PCLK_GSCL_SECURE_SMMU_GSCL0, 0, 0, 0),
+		ENABLE_PCLK_GSCL_SECURE_SMMU_GSCL2, 0, 0, 0),
 };
 
 static struct samsung_cmu_info gscl_cmu_info __initdata = {
