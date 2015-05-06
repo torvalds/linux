@@ -34,7 +34,7 @@ ip_set_init_comment(struct ip_set_comment *comment,
 		return;
 	if (unlikely(len > IPSET_MAX_COMMENT_SIZE))
 		len = IPSET_MAX_COMMENT_SIZE;
-	c = kzalloc(sizeof(*c) + len + 1, GFP_ATOMIC);
+	c = kmalloc(sizeof(*c) + len + 1, GFP_ATOMIC);
 	if (unlikely(!c))
 		return;
 	strlcpy(c->str, ext->comment, len + 1);
