@@ -30,14 +30,6 @@ EXPORT_SYMBOL_GPL(context_tracking_enabled);
 DEFINE_PER_CPU(struct context_tracking, context_tracking);
 EXPORT_SYMBOL_GPL(context_tracking);
 
-void context_tracking_cpu_set(int cpu)
-{
-	if (!per_cpu(context_tracking.active, cpu)) {
-		per_cpu(context_tracking.active, cpu) = true;
-		static_key_slow_inc(&context_tracking_enabled);
-	}
-}
-
 static bool context_tracking_recursion_enter(void)
 {
 	int recursion;
@@ -193,24 +185,26 @@ void context_tracking_user_exit(void)
 }
 NOKPROBE_SYMBOL(context_tracking_user_exit);
 
-/**
- * __context_tracking_task_switch - context switch the syscall callbacks
- * @prev: the task that is being switched out
- * @next: the task that is being switched in
- *
- * The context tracking uses the syscall slow path to implement its user-kernel
- * boundaries probes on syscalls. This way it doesn't impact the syscall fast
- * path on CPUs that don't do context tracking.
- *
- * But we need to clear the flag on the previous task because it may later
- * migrate to some CPU that doesn't do the context tracking. As such the TIF
- * flag may not be desired there.
- */
-void __context_tracking_task_switch(struct task_struct *prev,
-				    struct task_struct *next)
+void __init context_tracking_cpu_set(int cpu)
 {
-	clear_tsk_thread_flag(prev, TIF_NOHZ);
-	set_tsk_thread_flag(next, TIF_NOHZ);
+	static __initdata bool initialized = false;
+
+	if (!per_cpu(context_tracking.active, cpu)) {
+		per_cpu(context_tracking.active, cpu) = true;
+		static_key_slow_inc(&context_tracking_enabled);
+	}
+
+	if (initialized)
+		return;
+
+	/*
+	 * Set TIF_NOHZ to init/0 and let it propagate to all tasks through fork
+	 * This assumes that init is the only task at this early boot stage.
+	 */
+	set_tsk_thread_flag(&init_task, TIF_NOHZ);
+	WARN_ON_ONCE(!tasklist_empty());
+
+	initialized = true;
 }
 
 #ifdef CONFIG_CONTEXT_TRACKING_FORCE
