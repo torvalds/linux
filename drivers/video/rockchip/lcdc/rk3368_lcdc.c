@@ -1515,6 +1515,10 @@ static int __maybe_unused rk3368_lcdc_mmu_en(struct rk_lcdc_driver *dev_drv)
 	struct lcdc_device *lcdc_dev =
 	    container_of(dev_drv, struct lcdc_device, driver);
 
+	if (unlikely(!lcdc_dev->clk_on)) {
+                pr_info("%s,clk_on = %d\n", __func__, lcdc_dev->clk_on);
+		return 0;
+	}
 #if defined(CONFIG_ROCKCHIP_IOMMU)
 	if (dev_drv->iommu_enabled) {
 		if (!lcdc_dev->iommu_status && dev_drv->mmu_dev) {
@@ -1864,6 +1868,12 @@ static int rk3368_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 	    container_of(dev_drv, struct lcdc_device, driver);
 	struct rk_screen *screen = dev_drv->cur_screen;
 	u32 mask, val;
+
+	if (unlikely(!lcdc_dev->clk_on)) {
+		pr_info("%s,clk_on = %d\n", __func__, lcdc_dev->clk_on);
+		return 0;
+	}
+
         if (!lcdc_dev->standby && initscreen && (dev_drv->first_frame != 1))
                 flush_kthread_worker(&dev_drv->update_regs_worker);
 
@@ -2322,6 +2332,10 @@ static int rk3368_lcdc_pan_display(struct rk_lcdc_driver *dev_drv, int win_id)
 	if (!screen) {
 		dev_err(dev_drv->dev, "screen is null!\n");
 		return -ENOENT;
+	}
+	if (unlikely(!lcdc_dev->clk_on)) {
+		pr_info("%s,clk_on = %d\n", __func__, lcdc_dev->clk_on);
+		return 0;
 	}
 	if (win_id == 0) {
 		win_0_1_display(lcdc_dev, win);
@@ -3106,6 +3120,10 @@ static int rk3368_lcdc_set_par(struct rk_lcdc_driver *dev_drv, int win_id)
 	struct rk_lcdc_win *win = NULL;
 	struct rk_screen *screen = dev_drv->cur_screen;
 
+	if (unlikely(!lcdc_dev->clk_on)) {
+		pr_info("%s,clk_on = %d\n", __func__, lcdc_dev->clk_on);
+		return 0;
+	}
 	win = dev_drv->win[win_id];
 	switch (win_id) {
 	case 0:
@@ -4452,6 +4470,10 @@ static int rk3368_lcdc_backlight_close(struct rk_lcdc_driver *dev_drv,
 	struct lcdc_device *lcdc_dev =
 	    container_of(dev_drv, struct lcdc_device, driver);
 
+	if (unlikely(!lcdc_dev->clk_on)) {
+                pr_info("%s,clk_on = %d\n", __func__, lcdc_dev->clk_on);
+		return 0;
+	}
 	rk3368_lcdc_get_backlight_device(dev_drv);
 
 	if (enable) {
@@ -4479,6 +4501,13 @@ static int rk3368_lcdc_backlight_close(struct rk_lcdc_driver *dev_drv,
 static int rk3368_lcdc_set_overscan(struct rk_lcdc_driver *dev_drv,
 				    struct overscan *overscan)
 {
+	struct lcdc_device *lcdc_dev =
+	    container_of(dev_drv, struct lcdc_device, driver);
+
+	if (unlikely(!lcdc_dev->clk_on)) {
+		pr_info("%s,clk_on = %d\n", __func__, lcdc_dev->clk_on);
+		return 0;
+	}
         rk3368_lcdc_post_cfg(dev_drv);
 
         return 0;
