@@ -325,9 +325,9 @@ static u8 *iwl_mvm_dump_channel_list(struct iwl_scan_results_notif *res,
 	return buf;
 }
 
-int iwl_mvm_rx_scan_offload_iter_complete_notif(struct iwl_mvm *mvm,
-						struct iwl_rx_cmd_buffer *rxb,
-						struct iwl_device_cmd *cmd)
+int iwl_mvm_rx_lmac_scan_iter_complete_notif(struct iwl_mvm *mvm,
+					     struct iwl_rx_cmd_buffer *rxb,
+					     struct iwl_device_cmd *cmd)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_lmac_scan_complete_notif *notif = (void *)pkt->data;
@@ -342,9 +342,9 @@ int iwl_mvm_rx_scan_offload_iter_complete_notif(struct iwl_mvm *mvm,
 	return 0;
 }
 
-int iwl_mvm_rx_scan_offload_results(struct iwl_mvm *mvm,
-				    struct iwl_rx_cmd_buffer *rxb,
-				    struct iwl_device_cmd *cmd)
+int iwl_mvm_rx_scan_match_found(struct iwl_mvm *mvm,
+				struct iwl_rx_cmd_buffer *rxb,
+				struct iwl_device_cmd *cmd)
 {
 	IWL_DEBUG_SCAN(mvm, "Scheduled scan results\n");
 	ieee80211_sched_scan_results(mvm->hw);
@@ -352,9 +352,9 @@ int iwl_mvm_rx_scan_offload_results(struct iwl_mvm *mvm,
 	return 0;
 }
 
-int iwl_mvm_rx_scan_offload_complete_notif(struct iwl_mvm *mvm,
-					   struct iwl_rx_cmd_buffer *rxb,
-					   struct iwl_device_cmd *cmd)
+int iwl_mvm_rx_lmac_scan_complete_notif(struct iwl_mvm *mvm,
+					struct iwl_rx_cmd_buffer *rxb,
+					struct iwl_device_cmd *cmd)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_periodic_scan_complete *scan_notif = (void *)pkt->data;
@@ -557,7 +557,7 @@ static bool iwl_mvm_scan_pass_all(struct iwl_mvm *mvm,
 	return true;
 }
 
-static int iwl_mvm_send_scan_offload_abort(struct iwl_mvm *mvm)
+static int iwl_mvm_send_lmac_scan_abort(struct iwl_mvm *mvm)
 {
 	int ret;
 	struct iwl_host_cmd cmd = {
@@ -598,7 +598,7 @@ static int iwl_mvm_lmac_scan_stop(struct iwl_mvm *mvm, int type)
 				   ARRAY_SIZE(scan_done_notif),
 				   NULL, NULL);
 
-	ret = iwl_mvm_send_scan_offload_abort(mvm);
+	ret = iwl_mvm_send_lmac_scan_abort(mvm);
 	if (ret) {
 		IWL_DEBUG_SCAN(mvm, "Send stop %sscan failed %d\n",
 			       sched ? "offloaded " : "", ret);

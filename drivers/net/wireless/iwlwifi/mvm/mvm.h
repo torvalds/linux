@@ -1127,21 +1127,21 @@ int iwl_mvm_max_scan_ie_len(struct iwl_mvm *mvm);
 void iwl_mvm_report_scan_aborted(struct iwl_mvm *mvm);
 
 /* Scheduled scan */
-int iwl_mvm_rx_scan_offload_complete_notif(struct iwl_mvm *mvm,
-					   struct iwl_rx_cmd_buffer *rxb,
-					   struct iwl_device_cmd *cmd);
-int iwl_mvm_rx_scan_offload_iter_complete_notif(struct iwl_mvm *mvm,
-						struct iwl_rx_cmd_buffer *rxb,
-						struct iwl_device_cmd *cmd);
+int iwl_mvm_rx_lmac_scan_complete_notif(struct iwl_mvm *mvm,
+					struct iwl_rx_cmd_buffer *rxb,
+					struct iwl_device_cmd *cmd);
+int iwl_mvm_rx_lmac_scan_iter_complete_notif(struct iwl_mvm *mvm,
+					     struct iwl_rx_cmd_buffer *rxb,
+					     struct iwl_device_cmd *cmd);
 int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
 			     struct ieee80211_vif *vif,
 			     struct cfg80211_sched_scan_request *req,
 			     struct ieee80211_scan_ies *ies,
 			     int type);
 int iwl_mvm_sched_scan_stop(struct iwl_mvm *mvm, bool notify);
-int iwl_mvm_rx_scan_offload_results(struct iwl_mvm *mvm,
-				    struct iwl_rx_cmd_buffer *rxb,
-				    struct iwl_device_cmd *cmd);
+int iwl_mvm_rx_scan_match_found(struct iwl_mvm *mvm,
+				struct iwl_rx_cmd_buffer *rxb,
+				struct iwl_device_cmd *cmd);
 
 /* UMAC scan */
 int iwl_mvm_config_scan(struct iwl_mvm *mvm);
