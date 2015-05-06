@@ -471,11 +471,6 @@ typedef u8 acpi_owner_id;
 
 #define ACPI_INTEGER_BIT_SIZE           64
 #define ACPI_MAX_DECIMAL_DIGITS         20	/* 2^64 = 18,446,744,073,709,551,616 */
-
-#if ACPI_MACHINE_WIDTH == 64
-#define ACPI_USE_NATIVE_DIVIDE	/* Use compiler native 64-bit divide */
-#endif
-
 #define ACPI_MAX64_DECIMAL_DIGITS       20
 #define ACPI_MAX32_DECIMAL_DIGITS       10
 #define ACPI_MAX16_DECIMAL_DIGITS        5
