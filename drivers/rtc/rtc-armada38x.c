@@ -40,6 +40,13 @@ struct armada38x_rtc {
 	void __iomem	    *regs;
 	void __iomem	    *regs_soc;
 	spinlock_t	    lock;
+	/*
+	 * While setting the time, the RTC TIME register should not be
+	 * accessed. Setting the RTC time involves sleeping during
+	 * 100ms, so a mutex instead of a spinlock is used to protect
+	 * it
+	 */
+	struct mutex	    mutex_time;
 	int		    irq;
 };
 
@@ -59,8 +66,7 @@ static int armada38x_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	struct armada38x_rtc *rtc = dev_get_drvdata(dev);
 	unsigned long time, time_check, flags;
 
-	spin_lock_irqsave(&rtc->lock, flags);
-
+	mutex_lock(&rtc->mutex_time);
 	time = readl(rtc->regs + RTC_TIME);
 	/*
 	 * WA for failing time set attempts. As stated in HW ERRATA if
@@ -71,7 +77,7 @@ static int armada38x_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	if ((time_check - time) > 1)
 		time_check = readl(rtc->regs + RTC_TIME);
 
-	spin_unlock_irqrestore(&rtc->lock, flags);
+	mutex_unlock(&rtc->mutex_time);
 
 	rtc_time_to_tm(time_check, tm);
 
@@ -94,19 +100,12 @@ static int armada38x_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	 * then wait for 100ms before writing to the time register to be
 	 * sure that the data will be taken into account.
 	 */
-	spin_lock_irqsave(&rtc->lock, flags);
-
+	mutex_lock(&rtc->mutex_time);
 	rtc_delayed_write(0, rtc, RTC_STATUS);
-
-	spin_unlock_irqrestore(&rtc->lock, flags);
-
 	msleep(100);
-
-	spin_lock_irqsave(&rtc->lock, flags);
-
 	rtc_delayed_write(time, rtc, RTC_TIME);
+	mutex_unlock(&rtc->mutex_time);
 
-	spin_unlock_irqrestore(&rtc->lock, flags);
 out:
 	return ret;
 }
@@ -230,6 +229,7 @@ static __init int armada38x_rtc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	spin_lock_init(&rtc->lock);
+	mutex_init(&rtc->mutex_time);
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "rtc");
 	rtc->regs = devm_ioremap_resource(&pdev->dev, res);
