@@ -180,7 +180,7 @@
 #define LOGIC2_STAT	(1 << 7)	/* ADP5589 only */
 #define LOGIC1_STAT	(1 << 6)
 #define LOCK_STAT	(1 << 5)	/* ADP5589 only */
-#define KEC		0xF
+#define KEC		0x1F
 
 /* PIN_CONFIG_D Register */
 #define C4_EXTEND_CFG	(1 << 6)	/* RESET2 */
