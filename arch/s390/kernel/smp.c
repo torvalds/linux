@@ -880,12 +880,12 @@ void __noreturn cpu_die(void)
 
 void __init smp_fill_possible_mask(void)
 {
-	unsigned int possible, sclp, cpu;
+	unsigned int possible, sclp_max, cpu;
 
-	sclp = min(smp_max_threads, sclp_get_mtid_max() + 1);
-	sclp = sclp_get_max_cpu()*sclp ?: nr_cpu_ids;
+	sclp_max = min(smp_max_threads, sclp_get_mtid_max() + 1);
+	sclp_max = sclp_get_max_cpu() * sclp_max ?: nr_cpu_ids;
 	possible = setup_possible_cpus ?: nr_cpu_ids;
-	possible = min(possible, sclp);
+	possible = min(possible, sclp_max);
 	for (cpu = 0; cpu < possible && cpu < nr_cpu_ids; cpu++)
 		set_cpu_possible(cpu, true);
 }
