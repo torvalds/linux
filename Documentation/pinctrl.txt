@@ -73,7 +73,6 @@ static struct pinctrl_desc foo_desc = {
 	.pins = foo_pins,
 	.npins = ARRAY_SIZE(foo_pins),
 	.owner = THIS_MODULE,
-	.strict = true,
 };
 
 int __init foo_probe(void)
@@ -715,6 +714,7 @@ static struct pinmux_ops foo_pmxops = {
 	.get_function_name = foo_get_fname,
 	.get_function_groups = foo_get_groups,
 	.set_mux = foo_set_mux,
+	.strict = true,
 };
 
 /* Pinmux operations are handled by some pin controller */
