@@ -333,7 +333,8 @@ static void mixer_cfg_rgb_fmt(struct mixer_context *ctx, unsigned int height)
 	mixer_reg_writemask(res, MXR_CFG, val, MXR_CFG_RGB_FMT_MASK);
 }
 
-static void mixer_cfg_layer(struct mixer_context *ctx, int win, bool enable)
+static void mixer_cfg_layer(struct mixer_context *ctx, unsigned int win,
+				bool enable)
 {
 	struct mixer_resources *res = &ctx->mixer_res;
 	u32 val = enable ? ~0 : 0;
@@ -379,7 +380,7 @@ static void mixer_stop(struct mixer_context *ctx)
 		usleep_range(10000, 12000);
 }
 
-static void vp_video_buffer(struct mixer_context *ctx, int win)
+static void vp_video_buffer(struct mixer_context *ctx, unsigned int win)
 {
 	struct mixer_resources *res = &ctx->mixer_res;
 	unsigned long flags;
@@ -511,7 +512,7 @@ fail:
 	return -ENOTSUPP;
 }
 
-static void mixer_graph_buffer(struct mixer_context *ctx, int win)
+static void mixer_graph_buffer(struct mixer_context *ctx, unsigned int win)
 {
 	struct mixer_resources *res = &ctx->mixer_res;
 	unsigned long flags;

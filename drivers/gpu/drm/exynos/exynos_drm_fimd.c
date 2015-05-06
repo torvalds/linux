@@ -215,7 +215,7 @@ static void fimd_wait_for_vblank(struct exynos_drm_crtc *crtc)
 		DRM_DEBUG_KMS("vblank wait timed out.\n");
 }
 
-static void fimd_enable_video_output(struct fimd_context *ctx, int win,
+static void fimd_enable_video_output(struct fimd_context *ctx, unsigned int win,
 					bool enable)
 {
 	u32 val = readl(ctx->regs + WINCON(win));
@@ -228,7 +228,8 @@ static void fimd_enable_video_output(struct fimd_context *ctx, int win,
 	writel(val, ctx->regs + WINCON(win));
 }
 
-static void fimd_enable_shadow_channel_path(struct fimd_context *ctx, int win,
+static void fimd_enable_shadow_channel_path(struct fimd_context *ctx,
+						unsigned int win,
 						bool enable)
 {
 	u32 val = readl(ctx->regs + SHADOWCON);
@@ -243,7 +244,7 @@ static void fimd_enable_shadow_channel_path(struct fimd_context *ctx, int win,
 
 static void fimd_clear_channel(struct fimd_context *ctx)
 {
-	int win, ch_enabled = 0;
+	unsigned int win, ch_enabled = 0;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
