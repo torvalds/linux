@@ -53,6 +53,8 @@ EXPORT_SYMBOL_GPL(xen_platform_pci_unplug);
 
 static __read_mostly unsigned int xen_events_irq;
 
+static __initdata struct device_node *xen_node;
+
 int xen_remap_domain_mfn_array(struct vm_area_struct *vma,
 			       unsigned long addr,
 			       xen_pfn_t *mfn, int nr,
@@ -150,42 +152,28 @@ static irqreturn_t xen_arm_callback(int irq, void *arg)
  * documentation of the Xen Device Tree format.
  */
 #define GRANT_TABLE_PHYSADDR 0
-static int __init xen_guest_init(void)
+void __init xen_early_init(void)
 {
-	struct xen_add_to_physmap xatp;
-	static struct shared_info *shared_info_page = 0;
-	struct device_node *node;
 	int len;
 	const char *s = NULL;
 	const char *version = NULL;
 	const char *xen_prefix = "xen,xen-";
-	struct resource res;
-	phys_addr_t grant_frames;
 
-	node = of_find_compatible_node(NULL, NULL, "xen,xen");
-	if (!node) {
+	xen_node = of_find_compatible_node(NULL, NULL, "xen,xen");
+	if (!xen_node) {
 		pr_debug("No Xen support\n");
-		return 0;
+		return;
 	}
-	s = of_get_property(node, "compatible", &len);
+	s = of_get_property(xen_node, "compatible", &len);
 	if (strlen(xen_prefix) + 3  < len &&
 			!strncmp(xen_prefix, s, strlen(xen_prefix)))
 		version = s + strlen(xen_prefix);
 	if (version == NULL) {
 		pr_debug("Xen version not found\n");
-		return 0;
-	}
-	if (of_address_to_resource(node, GRANT_TABLE_PHYSADDR, &res))
-		return 0;
-	grant_frames = res.start;
-	xen_events_irq = irq_of_parse_and_map(node, 0);
-	if (!xen_events_irq) {
-		pr_debug("Xen event channel interrupt not found\n");
-		return -ENODEV;
+		return;
 	}
 
-	pr_info("Xen %s support found, events_irq=%d gnttab_frame=%pa\n",
-			version, xen_events_irq, &grant_frames);
+	pr_info("Xen %s support found\n", version);
 
 	xen_domain_type = XEN_HVM_DOMAIN;
 
@@ -195,10 +183,32 @@ static int __init xen_guest_init(void)
 		xen_start_info->flags |= SIF_INITDOMAIN|SIF_PRIVILEGED;
 	else
 		xen_start_info->flags &= ~(SIF_INITDOMAIN|SIF_PRIVILEGED);
+}
 
-	if (!shared_info_page)
-		shared_info_page = (struct shared_info *)
-			get_zeroed_page(GFP_KERNEL);
+static int __init xen_guest_init(void)
+{
+	struct xen_add_to_physmap xatp;
+	struct shared_info *shared_info_page = NULL;
+	struct resource res;
+	phys_addr_t grant_frames;
+
+	if (!xen_domain())
+		return 0;
+
+	if (of_address_to_resource(xen_node, GRANT_TABLE_PHYSADDR, &res)) {
+		pr_err("Xen grant table base address not found\n");
+		return -ENODEV;
+	}
+	grant_frames = res.start;
+
+	xen_events_irq = irq_of_parse_and_map(xen_node, 0);
+	if (!xen_events_irq) {
+		pr_err("Xen event channel interrupt not found\n");
+		return -ENODEV;
+	}
+
+	shared_info_page = (struct shared_info *)get_zeroed_page(GFP_KERNEL);
+
 	if (!shared_info_page) {
 		pr_err("not enough memory\n");
 		return -ENOMEM;
