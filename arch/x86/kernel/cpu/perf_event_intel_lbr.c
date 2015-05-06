@@ -264,9 +264,6 @@ void intel_pmu_lbr_sched_task(struct perf_event_context *ctx, bool sched_in)
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	struct x86_perf_task_context *task_ctx;
 
-	if (!x86_pmu.lbr_nr)
-		return;
-
 	/*
 	 * If LBR callstack feature is enabled and the stack was saved when
 	 * the task was scheduled out, restore the stack. Otherwise flush

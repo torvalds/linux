@@ -92,9 +92,11 @@ struct amd_nb {
 /*
  * Flags PEBS can handle without an PMI.
  *
+ * TID can only be handled by flushing at context switch.
+ *
  */
 #define PEBS_FREERUNNING_FLAGS \
-	(PERF_SAMPLE_IP | PERF_SAMPLE_ADDR | \
+	(PERF_SAMPLE_IP | PERF_SAMPLE_TID | PERF_SAMPLE_ADDR | \
 	PERF_SAMPLE_ID | PERF_SAMPLE_CPU | PERF_SAMPLE_STREAM_ID | \
 	PERF_SAMPLE_DATA_SRC | PERF_SAMPLE_IDENTIFIER | \
 	PERF_SAMPLE_TRANSACTION)
@@ -876,6 +878,8 @@ void intel_pmu_pebs_disable(struct perf_event *event);
 void intel_pmu_pebs_enable_all(void);
 
 void intel_pmu_pebs_disable_all(void);
+
+void intel_pmu_pebs_sched_task(struct perf_event_context *ctx, bool sched_in);
 
 void intel_ds_init(void);
 

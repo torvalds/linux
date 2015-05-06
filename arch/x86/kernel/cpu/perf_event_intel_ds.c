@@ -546,6 +546,19 @@ int intel_pmu_drain_bts_buffer(void)
 	return 1;
 }
 
+static inline void intel_pmu_drain_pebs_buffer(void)
+{
+	struct pt_regs regs;
+
+	x86_pmu.drain_pebs(&regs);
+}
+
+void intel_pmu_pebs_sched_task(struct perf_event_context *ctx, bool sched_in)
+{
+	if (!sched_in)
+		intel_pmu_drain_pebs_buffer();
+}
+
 /*
  * PEBS
  */
@@ -711,8 +724,19 @@ void intel_pmu_pebs_enable(struct perf_event *event)
 	if (hwc->flags & PERF_X86_EVENT_FREERUNNING) {
 		threshold = ds->pebs_absolute_maximum -
 			x86_pmu.max_pebs_events * x86_pmu.pebs_record_size;
+
+		if (first_pebs)
+			perf_sched_cb_inc(event->ctx->pmu);
 	} else {
 		threshold = ds->pebs_buffer_base + x86_pmu.pebs_record_size;
+
+		/*
+		 * If not all events can use larger buffer,
+		 * roll back to threshold = 1
+		 */
+		if (!first_pebs &&
+		    (ds->pebs_interrupt_threshold > threshold))
+			perf_sched_cb_dec(event->ctx->pmu);
 	}
 
 	/* Use auto-reload if possible to save a MSR write in the PMI */
@@ -729,6 +753,7 @@ void intel_pmu_pebs_disable(struct perf_event *event)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	struct hw_perf_event *hwc = &event->hw;
+	struct debug_store *ds = cpuc->ds;
 
 	cpuc->pebs_enabled &= ~(1ULL << hwc->idx);
 
@@ -736,6 +761,13 @@ void intel_pmu_pebs_disable(struct perf_event *event)
 		cpuc->pebs_enabled &= ~(1ULL << (hwc->idx + 32));
 	else if (event->hw.flags & PERF_X86_EVENT_PEBS_ST)
 		cpuc->pebs_enabled &= ~(1ULL << 63);
+
+	if (ds->pebs_interrupt_threshold >
+	    ds->pebs_buffer_base + x86_pmu.pebs_record_size) {
+		intel_pmu_drain_pebs_buffer();
+		if (!pebs_is_enabled(cpuc))
+			perf_sched_cb_dec(event->ctx->pmu);
+	}
 
 	if (cpuc->enabled)
 		wrmsrl(MSR_IA32_PEBS_ENABLE, cpuc->pebs_enabled);
