@@ -782,7 +782,7 @@ static int gem_rx(struct macb *bp, int budget)
 		}
 		/* now everything is ready for receiving packet */
 		bp->rx_skbuff[entry] = NULL;
-		len = MACB_BFEXT(RX_FRMLEN, ctrl);
+		len = ctrl & bp->rx_frm_len_mask;
 
 		netdev_vdbg(bp->dev, "gem_rx %u (len %u)\n", entry, len);
 
@@ -828,7 +828,7 @@ static int macb_rx_frame(struct macb *bp, unsigned int first_frag,
 	struct macb_dma_desc *desc;
 
 	desc = macb_rx_desc(bp, last_frag);
-	len = MACB_BFEXT(RX_FRMLEN, desc->ctrl);
+	len = desc->ctrl & bp->rx_frm_len_mask;
 
 	netdev_vdbg(bp->dev, "macb_rx_frame frags %u - %u (len %u)\n",
 		macb_rx_ring_wrap(first_frag),
@@ -1633,7 +1633,10 @@ static void macb_init_hw(struct macb *bp)
 	config |= MACB_BF(RBOF, NET_IP_ALIGN);	/* Make eth data aligned */
 	config |= MACB_BIT(PAE);		/* PAuse Enable */
 	config |= MACB_BIT(DRFCS);		/* Discard Rx FCS */
-	config |= MACB_BIT(BIG);		/* Receive oversized frames */
+	if (bp->caps | MACB_CAPS_JUMBO)
+		config |= MACB_BIT(JFRAME);	/* Enable jumbo frames */
+	else
+		config |= MACB_BIT(BIG);	/* Receive oversized frames */
 	if (bp->dev->flags & IFF_PROMISC)
 		config |= MACB_BIT(CAF);	/* Copy All Frames */
 	else if (macb_is_gem(bp) && bp->dev->features & NETIF_F_RXCSUM)
@@ -1642,8 +1645,13 @@ static void macb_init_hw(struct macb *bp)
 		config |= MACB_BIT(NBC);	/* No BroadCast */
 	config |= macb_dbw(bp);
 	macb_writel(bp, NCFGR, config);
+	if ((bp->caps | MACB_CAPS_JUMBO) && bp->jumbo_max_len)
+		gem_writel(bp, JML, bp->jumbo_max_len);
 	bp->speed = SPEED_10;
 	bp->duplex = DUPLEX_HALF;
+	bp->rx_frm_len_mask = MACB_RX_FRMLEN_MASK;
+	if (bp->caps | MACB_CAPS_JUMBO)
+		bp->rx_frm_len_mask = MACB_RX_JFRMLEN_MASK;
 
 	macb_configure_dma(bp);
 
@@ -2685,10 +2693,12 @@ static const struct macb_config emac_config = {
 };
 
 static const struct macb_config zynqmp_config = {
-	.caps = MACB_CAPS_SG_DISABLED | MACB_CAPS_GIGABIT_MODE_AVAILABLE,
+	.caps = MACB_CAPS_SG_DISABLED | MACB_CAPS_GIGABIT_MODE_AVAILABLE |
+		MACB_CAPS_JUMBO,
 	.dma_burst_length = 16,
 	.clk_init = macb_clk_init,
 	.init = macb_init,
+	.jumbo_max_len = 10240,
 };
 
 static const struct of_device_id macb_dt_ids[] = {
@@ -2770,6 +2780,10 @@ static int macb_probe(struct platform_device *pdev)
 	bp->pclk = pclk;
 	bp->hclk = hclk;
 	bp->tx_clk = tx_clk;
+	if (macb_config->jumbo_max_len) {
+		bp->jumbo_max_len = macb_config->jumbo_max_len;
+	}
+
 	spin_lock_init(&bp->lock);
 
 	/* setup capabilities */
