@@ -93,6 +93,9 @@ unsigned int __atags_pointer __initdata;
 unsigned int system_rev;
 EXPORT_SYMBOL(system_rev);
 
+const char *system_serial;
+EXPORT_SYMBOL(system_serial);
+
 unsigned int system_serial_low;
 EXPORT_SYMBOL(system_serial_low);
 
@@ -839,8 +842,25 @@ arch_initcall(customize_machine);
 
 static int __init init_machine_late(void)
 {
+	struct device_node *root;
+	int ret;
+
 	if (machine_desc->init_late)
 		machine_desc->init_late();
+
+	root = of_find_node_by_path("/");
+	if (root) {
+		ret = of_property_read_string(root, "serial-number",
+					      &system_serial);
+		if (ret)
+			system_serial = NULL;
+	}
+
+	if (!system_serial)
+		system_serial = kasprintf(GFP_KERNEL, "%08x%08x",
+					  system_serial_high,
+					  system_serial_low);
+
 	return 0;
 }
 late_initcall(init_machine_late);
@@ -1109,8 +1129,7 @@ static int c_show(struct seq_file *m, void *v)
 
 	seq_printf(m, "Hardware\t: %s\n", machine_name);
 	seq_printf(m, "Revision\t: %04x\n", system_rev);
-	seq_printf(m, "Serial\t\t: %08x%08x\n",
-		   system_serial_high, system_serial_low);
+	seq_printf(m, "Serial\t\t: %s\n", system_serial);
 
 	return 0;
 }
