@@ -498,4 +498,8 @@ i915_ggtt_view_equal(const struct i915_ggtt_view *a,
 	return a->type == b->type;
 }
 
+size_t
+i915_ggtt_view_size(struct drm_i915_gem_object *obj,
+		    const struct i915_ggtt_view *view);
+
 #endif

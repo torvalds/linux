@@ -2838,3 +2838,23 @@ int i915_vma_bind(struct i915_vma *vma, enum i915_cache_level cache_level,
 
 	return 0;
 }
+
+/**
+ * i915_ggtt_view_size - Get the size of a GGTT view.
+ * @obj: Object the view is of.
+ * @view: The view in question.
+ *
+ * @return The size of the GGTT view in bytes.
+ */
+size_t
+i915_ggtt_view_size(struct drm_i915_gem_object *obj,
+		    const struct i915_ggtt_view *view)
+{
+	if (view->type == I915_GGTT_VIEW_NORMAL ||
+	    view->type == I915_GGTT_VIEW_ROTATED) {
+		return obj->base.size;
+	} else {
+		WARN_ONCE(1, "GGTT view %u not implemented!\n", view->type);
+		return obj->base.size;
+	}
+}

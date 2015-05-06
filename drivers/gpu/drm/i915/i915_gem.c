@@ -3498,7 +3498,8 @@ static bool i915_gem_valid_gtt_space(struct i915_vma *vma,
 }
 
 /**
- * Finds free space in the GTT aperture and binds the object there.
+ * Finds free space in the GTT aperture and binds the object or a view of it
+ * there.
  */
 static struct i915_vma *
 i915_gem_object_bind_to_vm(struct drm_i915_gem_object *obj,
@@ -3517,36 +3518,60 @@ i915_gem_object_bind_to_vm(struct drm_i915_gem_object *obj,
 	struct i915_vma *vma;
 	int ret;
 
-	if(WARN_ON(i915_is_ggtt(vm) != !!ggtt_view))
-		return ERR_PTR(-EINVAL);
+	if (i915_is_ggtt(vm)) {
+		u32 view_size;
 
-	fence_size = i915_gem_get_gtt_size(dev,
-					   obj->base.size,
-					   obj->tiling_mode);
-	fence_alignment = i915_gem_get_gtt_alignment(dev,
-						     obj->base.size,
-						     obj->tiling_mode, true);
-	unfenced_alignment =
-		i915_gem_get_gtt_alignment(dev,
-					   obj->base.size,
-					   obj->tiling_mode, false);
+		if (WARN_ON(!ggtt_view))
+			return ERR_PTR(-EINVAL);
+
+		view_size = i915_ggtt_view_size(obj, ggtt_view);
+
+		fence_size = i915_gem_get_gtt_size(dev,
+						   view_size,
+						   obj->tiling_mode);
+		fence_alignment = i915_gem_get_gtt_alignment(dev,
+							     view_size,
+							     obj->tiling_mode,
+							     true);
+		unfenced_alignment = i915_gem_get_gtt_alignment(dev,
+								view_size,
+								obj->tiling_mode,
+								false);
+		size = flags & PIN_MAPPABLE ? fence_size : view_size;
+	} else {
+		fence_size = i915_gem_get_gtt_size(dev,
+						   obj->base.size,
+						   obj->tiling_mode);
+		fence_alignment = i915_gem_get_gtt_alignment(dev,
+							     obj->base.size,
+							     obj->tiling_mode,
+							     true);
+		unfenced_alignment =
+			i915_gem_get_gtt_alignment(dev,
+						   obj->base.size,
+						   obj->tiling_mode,
+						   false);
+		size = flags & PIN_MAPPABLE ? fence_size : obj->base.size;
+	}
 
 	if (alignment == 0)
 		alignment = flags & PIN_MAPPABLE ? fence_alignment :
 						unfenced_alignment;
 	if (flags & PIN_MAPPABLE && alignment & (fence_alignment - 1)) {
-		DRM_DEBUG("Invalid object alignment requested %u\n", alignment);
+		DRM_DEBUG("Invalid object (view type=%u) alignment requested %u\n",
+			  ggtt_view ? ggtt_view->type : 0,
+			  alignment);
 		return ERR_PTR(-EINVAL);
 	}
 
-	size = flags & PIN_MAPPABLE ? fence_size : obj->base.size;
-
-	/* If the object is bigger than the entire aperture, reject it early
-	 * before evicting everything in a vain attempt to find space.
+	/* If binding the object/GGTT view requires more space than the entire
+	 * aperture has, reject it early before evicting everything in a vain
+	 * attempt to find space.
 	 */
-	if (obj->base.size > end) {
-		DRM_DEBUG("Attempting to bind an object larger than the aperture: object=%zd > %s aperture=%lu\n",
-			  obj->base.size,
+	if (size > end) {
+		DRM_DEBUG("Attempting to bind an object (view type=%u) larger than the aperture: size=%u > %s aperture=%lu\n",
+			  ggtt_view ? ggtt_view->type : 0,
+			  size,
 			  flags & PIN_MAPPABLE ? "mappable" : "total",
 			  end);
 		return ERR_PTR(-E2BIG);
@@ -4199,7 +4224,8 @@ i915_gem_object_do_pin(struct drm_i915_gem_object *obj,
 			return ret;
 	}
 
-	if ((bound ^ vma->bound) & GLOBAL_BIND) {
+	if (ggtt_view && ggtt_view->type == I915_GGTT_VIEW_NORMAL &&
+	    (bound ^ vma->bound) & GLOBAL_BIND) {
 		bool mappable, fenceable;
 		u32 fence_size, fence_alignment;
 
@@ -4218,9 +4244,9 @@ i915_gem_object_do_pin(struct drm_i915_gem_object *obj,
 			    dev_priv->gtt.mappable_end);
 
 		obj->map_and_fenceable = mappable && fenceable;
-	}
 
-	WARN_ON(flags & PIN_MAPPABLE && !obj->map_and_fenceable);
+		WARN_ON(flags & PIN_MAPPABLE && !obj->map_and_fenceable);
+	}
 
 	vma->pin_count++;
 	return 0;
