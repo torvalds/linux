@@ -1785,7 +1785,7 @@ static void iwl_mvm_query_netdetect_reasons(struct iwl_mvm *mvm,
 	for_each_set_bit(i, &matched_profiles, mvm->n_nd_match_sets) {
 		struct iwl_scan_offload_profile_match *fw_match;
 		struct cfg80211_wowlan_nd_match *match;
-		int n_channels = 0;
+		int idx, n_channels = 0;
 
 		fw_match = &query.matches[i];
 
@@ -1800,8 +1800,12 @@ static void iwl_mvm_query_netdetect_reasons(struct iwl_mvm *mvm,
 
 		net_detect->matches[net_detect->n_matches++] = match;
 
-		match->ssid.ssid_len = mvm->nd_match_sets[i].ssid.ssid_len;
-		memcpy(match->ssid.ssid, mvm->nd_match_sets[i].ssid.ssid,
+		/* We inverted the order of the SSIDs in the scan
+		 * request, so invert the index here.
+		 */
+		idx = mvm->n_nd_match_sets - i - 1;
+		match->ssid.ssid_len = mvm->nd_match_sets[idx].ssid.ssid_len;
+		memcpy(match->ssid.ssid, mvm->nd_match_sets[idx].ssid.ssid,
 		       match->ssid.ssid_len);
 
 		if (mvm->n_nd_channels < n_channels)
