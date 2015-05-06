@@ -450,6 +450,20 @@ static int sst_be_hw_params(struct snd_pcm_substream *substream,
 	return ret;
 }
 
+static int sst_set_format(struct snd_soc_dai *dai, unsigned int fmt)
+{
+	int ret = 0;
+
+	if (!dai->active)
+		return 0;
+
+	ret = sst_fill_ssp_config(dai, fmt);
+	if (ret < 0)
+		dev_err(dai->dev, "sst_set_format failed..\n");
+
+	return ret;
+}
+
 static void sst_disable_ssp(struct snd_pcm_substream *substream,
 			struct snd_soc_dai *dai)
 {
@@ -475,6 +489,7 @@ static struct snd_soc_dai_ops sst_compr_dai_ops = {
 static struct snd_soc_dai_ops sst_be_dai_ops = {
 	.startup = sst_enable_ssp,
 	.hw_params = sst_be_hw_params,
+	.set_fmt = sst_set_format,
 	.shutdown = sst_disable_ssp,
 };
 

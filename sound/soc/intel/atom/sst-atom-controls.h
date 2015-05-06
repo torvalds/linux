@@ -869,6 +869,7 @@ struct sst_enum {
 	SOC_DAPM_ENUM(SST_MUX_CTL_NAME(xpname, xinstance), \
 			  SST_SSP_MUX_ENUM(xreg, xshift, xtexts))
 
+int sst_fill_ssp_config(struct snd_soc_dai *dai, unsigned int fmt);
 void sst_fill_ssp_defaults(struct snd_soc_dai *dai);
 
 #endif
