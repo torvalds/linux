@@ -213,7 +213,7 @@ static void mce_threshold_block_init(struct threshold_block *b, int offset)
 	threshold_restart_bank(&tr);
 };
 
-static int setup_APIC_mce(int reserved, int new)
+static int setup_APIC_mce_threshold(int reserved, int new)
 {
 	if (reserved < 0 && !setup_APIC_eilvt(new, THRESHOLD_APIC_VECTOR,
 					      APIC_EILVT_MSG_FIX, 0))
@@ -302,7 +302,7 @@ void mce_amd_feature_init(struct cpuinfo_x86 *c)
 
 			b.interrupt_enable = 1;
 			new	= (high & MASK_LVTOFF_HI) >> 20;
-			offset  = setup_APIC_mce(offset, new);
+			offset  = setup_APIC_mce_threshold(offset, new);
 
 			if ((offset == new) &&
 			    (mce_threshold_vector != amd_threshold_interrupt))
