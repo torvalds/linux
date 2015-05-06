@@ -304,6 +304,13 @@
 		rockchip,broadcast = <1>;
 	};
 
+	timer@ff810020 {
+		compatible = "rockchip,timer";
+		reg = <0x0 0xff810020 0x0 0x20>;
+		interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
+		rockchip,percpu = <0>;
+	};
+
 	sram: sram@ff8c0000 {
 		compatible = "mmio-sram";
 		reg = <0x0 0xff8c0000 0x0 0xf000>; /* 60K (reserved 4K for mailbox)*/
@@ -641,7 +648,6 @@
 			<&clk_gates12 9>,/*hclk_rom*/
 
 			/*PD_ALIVE*/
-			<&clk_gates22 13>,/*pclk_timer1*/
 			<&clk_gates22 12>,/*pclk_timer0*/
 			<&clk_gates22 9>,/*pclk_alive_niu*/
 			<&clk_gates22 8>,/*pclk_grf*/
@@ -660,6 +666,9 @@
 			<&clk_gates19 0>,/*hclk_peri_axi_matrix*/
 			<&clk_gates20 7>,/*hclk_peri_ahb_arbi*/
 			<&clk_gates19 1>,/*pclk_peri_axi_matrix*/
+
+			<&clk_gates24 0>, /* g_clk_timer0 */
+			<&clk_gates24 1>, /* g_clk_timer1 */
 
 			<&fclk_mcu>,
 			<&stclk_mcu>,
