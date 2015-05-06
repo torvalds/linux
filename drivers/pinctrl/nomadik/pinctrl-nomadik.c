@@ -1803,6 +1803,7 @@ static const struct pinmux_ops nmk_pinmux_ops = {
 	.set_mux = nmk_pmx_set,
 	.gpio_request_enable = nmk_gpio_request_enable,
 	.gpio_disable_free = nmk_gpio_disable_free,
+	.strict = true,
 };
 
 static int nmk_pin_config_get(struct pinctrl_dev *pctldev, unsigned pin,
