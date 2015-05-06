@@ -49,7 +49,6 @@ struct read_info_sccb {
 
 static char sccb_early[PAGE_SIZE] __aligned(PAGE_SIZE) __initdata;
 static struct sclp_ipl_info sclp_ipl_info;
-static unsigned int sclp_mtid_max;
 
 struct sclp_info sclp;
 EXPORT_SYMBOL(sclp);
@@ -143,18 +142,7 @@ static void __init sclp_facilities_detect(struct read_info_sccb *sccb)
 
 	sclp.mtid = (sccb->fac42 & 0x80) ? (sccb->fac42 & 31) : 0;
 	sclp.mtid_cp = (sccb->fac42 & 0x80) ? (sccb->fac43 & 31) : 0;
-	sclp_mtid_max = max(sclp.mtid, sclp.mtid_cp);
 	sclp.mtid_prev = (sccb->fac42 & 0x80) ? (sccb->fac66 & 31) : 0;
-}
-
-unsigned int sclp_get_mtid(u8 cpu_type)
-{
-	return cpu_type ? sclp.mtid : sclp.mtid_cp;
-}
-
-unsigned int sclp_get_mtid_max(void)
-{
-	return sclp_mtid_max;
 }
 
 /*

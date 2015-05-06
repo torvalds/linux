@@ -740,7 +740,7 @@ static void __init smp_detect_cpus(void)
 #endif
 
 	/* Set multi-threading state for the current system */
-	mtid = sclp_get_mtid(boot_cpu_type);
+	mtid = boot_cpu_type ? sclp.mtid : sclp.mtid_cp;
 	mtid = (mtid < smp_max_threads) ? mtid : smp_max_threads - 1;
 	pcpu_set_smt(mtid);
 
@@ -882,7 +882,8 @@ void __init smp_fill_possible_mask(void)
 {
 	unsigned int possible, sclp_max, cpu;
 
-	sclp_max = min(smp_max_threads, sclp_get_mtid_max() + 1);
+	sclp_max = max(sclp.mtid, sclp.mtid_cp) + 1;
+	sclp_max = min(smp_max_threads, sclp_max);
 	sclp_max = sclp.max_cpu * sclp_max ?: nr_cpu_ids;
 	possible = setup_possible_cpus ?: nr_cpu_ids;
 	possible = min(possible, sclp_max);
