@@ -277,11 +277,14 @@ static void __log_error(unsigned int bank, bool threshold_err, u64 misc)
 
 	m.status = status;
 	m.bank = bank;
+
 	if (threshold_err)
 		m.misc = misc;
 
-	mce_log(&m);
+	if (m.status & MCI_STATUS_ADDRV)
+		rdmsrl(MSR_IA32_MCx_ADDR(bank), m.addr);
 
+	mce_log(&m);
 	wrmsrl(MSR_IA32_MCx_STATUS(bank), 0);
 }
 
