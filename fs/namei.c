@@ -495,10 +495,7 @@ EXPORT_SYMBOL(path_put);
 #define EMBEDDED_LEVELS 2
 struct nameidata {
 	struct path	path;
-	union {
-		struct qstr	last;
-		struct path	link;
-	};
+	struct qstr	last;
 	struct path	root;
 	struct inode	*inode; /* path.dentry.d_inode */
 	unsigned int	flags;
@@ -787,7 +784,7 @@ static inline int may_follow_link(struct nameidata *nd)
 		return 0;
 
 	/* Allowed if owner and follower match. */
-	inode = nd->link.dentry->d_inode;
+	inode = nd->stack[0].link.dentry->d_inode;
 	if (uid_eq(current_cred()->fsuid, inode->i_uid))
 		return 0;
 
@@ -800,8 +797,8 @@ static inline int may_follow_link(struct nameidata *nd)
 	if (uid_eq(parent->i_uid, inode->i_uid))
 		return 0;
 
-	audit_log_link_denied("follow_link", &nd->link);
-	path_put(&nd->link);
+	audit_log_link_denied("follow_link", &nd->stack[0].link);
+	path_put(&nd->stack[0].link);
 	path_put(&nd->path);
 	return -EACCES;
 }
@@ -879,14 +876,13 @@ static __always_inline
 const char *get_link(struct nameidata *nd)
 {
 	struct saved *last = nd->stack + nd->depth;
-	struct dentry *dentry = nd->link.dentry;
+	struct dentry *dentry = last->link.dentry;
 	struct inode *inode = dentry->d_inode;
 	int error;
 	const char *res;
 
 	BUG_ON(nd->flags & LOOKUP_RCU);
 
-	last->link = nd->link;
 	last->cookie = NULL;
 	nd->depth++;
 
@@ -1560,6 +1556,7 @@ static void terminate_walk(struct nameidata *nd)
 static int pick_link(struct nameidata *nd, struct path *link)
 {
 	int error;
+	struct saved *last;
 	if (unlikely(nd->total_link_count++ >= MAXSYMLINKS)) {
 		path_to_nameidata(link, nd);
 		return -ELOOP;
@@ -1578,7 +1575,8 @@ static int pick_link(struct nameidata *nd, struct path *link)
 		return error;
 	}
 
-	nd->link = *link;
+	last = nd->stack + nd->depth;
+	last->link = *link;
 	return 1;
 }
 
