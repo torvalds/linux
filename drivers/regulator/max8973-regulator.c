@@ -413,7 +413,7 @@ static int max8973_probe(struct i2c_client *client,
 	}
 
 	if (pdata) {
-		max->dvs_gpio = pdata->dvs_gpio;
+		max->dvs_gpio = (pdata->dvs_gpio) ? pdata->dvs_gpio : -EINVAL;
 		max->enable_external_control = pdata->enable_ext_control;
 		max->curr_gpio_val = pdata->dvs_def_state;
 		max->curr_vout_reg = MAX8973_VOUT + pdata->dvs_def_state;
