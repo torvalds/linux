@@ -227,7 +227,6 @@ extern int dw_mci_resume(struct dw_mci *host);
  * struct dw_mci_slot - MMC slot state
  * @mmc: The mmc_host representing this slot.
  * @host: The MMC controller this slot is using.
- * @quirks: Slot-level quirks (DW_MCI_SLOT_QUIRK_XXX)
  * @ctype: Card type for this slot.
  * @mrq: mmc_request currently being processed or waiting to be
  *	processed, or NULL when the slot is idle.
@@ -244,8 +243,6 @@ extern int dw_mci_resume(struct dw_mci *host);
 struct dw_mci_slot {
 	struct mmc_host		*mmc;
 	struct dw_mci		*host;
-
-	int			quirks;
 
 	u32			ctype;
 
