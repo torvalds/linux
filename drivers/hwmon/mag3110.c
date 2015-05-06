@@ -37,7 +37,6 @@
 #define MAG3110_ID		(0xC4)
 #define MAG3110_XYZ_DATA_LEN	(6)
 #define MAG3110_STATUS_ZYXDR	(0x08)
-#define MAG3110_IRQ_USED	(1)
 #define MAG3110_AC_MASK		(0x01)
 #define MAG3110_AC_OFFSET	(0)
 #define MAG3110_DR_MODE_MASK	(0x7 << 5)
@@ -86,6 +85,7 @@ struct mag3110_data {
 	u8 ctl_reg1;
 	int active;
 	int position;
+	int use_irq;
 };
 
 static short MAGHAL[8][3][3] = {
@@ -185,22 +185,20 @@ static int mag3110_read_data(short *x, short *y, short *z)
 {
 	struct mag3110_data *data;
 	u8 tmp_data[MAG3110_XYZ_DATA_LEN];
-#if !MAG3110_IRQ_USED
 	int retry = 3;
 	int result;
-#endif
+
 	if (!mag3110_pdata || mag3110_pdata->active == MAG_STANDBY)
 		return -EINVAL;
 
 	data = mag3110_pdata;
-#if MAG3110_IRQ_USED
-	if (!wait_event_interruptible_timeout
+	if (data->use_irq && !wait_event_interruptible_timeout
 	    (data->waitq, data->data_ready != 0,
 	     msecs_to_jiffies(INT_TIMEOUT))) {
 		dev_dbg(&data->client->dev, "interrupt not received\n");
 		return -ETIME;
 	}
-#else
+
 	do {
 		msleep(1);
 		result = i2c_smbus_read_byte_data(data->client,
@@ -210,7 +208,6 @@ static int mag3110_read_data(short *x, short *y, short *z)
 	/* Clear data_ready flag after data is read out */
 	if (retry == 0)
 		return -EINVAL;
-#endif
 
 	data->data_ready = 0;
 
@@ -251,7 +248,6 @@ static void mag3110_dev_poll(struct input_polled_dev *dev)
 	report_abs();
 }
 
-#if MAG3110_IRQ_USED
 static irqreturn_t mag3110_irq_handler(int irq, void *dev_id)
 {
 	int result;
@@ -277,7 +273,6 @@ static irqreturn_t mag3110_irq_handler(int irq, void *dev_id)
 
 	return IRQ_HANDLED;
 }
-#endif
 
 static ssize_t mag3110_enable_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
@@ -420,17 +415,16 @@ static int mag3110_probe(struct i2c_client *client,
 				   const struct i2c_device_id *id)
 {
 	struct i2c_adapter *adapter;
-	struct input_dev *idev;
+	struct input_dev *idev = NULL;
 	struct mag3110_data *data;
 	int ret = 0;
 	struct regulator *vdd, *vdd_io;
 	u32 pos = 0;
 	struct device_node *of_node = client->dev.of_node;
-#if MAG3110_IRQ_USED
-	struct irq_data *irq_data = irq_get_irq_data(client->irq);
 	u32 irq_flag;
+	struct irq_data *irq_data = NULL;
 	bool shared_irq = of_property_read_bool(of_node, "shared-interrupt");
-#endif
+
 	vdd = NULL;
 	vdd_io = NULL;
 
@@ -483,6 +477,11 @@ static int mag3110_probe(struct i2c_client *client,
 		goto error_rm_dev_sysfs;
 	}
 
+	if (client->irq > 0) {
+		data->use_irq = 1;
+		irq_data = irq_get_irq_data(client->irq);
+	}
+
 	/*input poll device register */
 	data->poll_dev = input_allocate_polled_device();
 	if (!data->poll_dev) {
@@ -514,19 +513,20 @@ static int mag3110_probe(struct i2c_client *client,
 		goto error_rm_poll_dev;
 	}
 
-#if MAG3110_IRQ_USED
-	irq_flag = irqd_get_trigger_type(irq_data);
-	irq_flag |= IRQF_ONESHOT;
-	if (shared_irq)
-		irq_flag |= IRQF_SHARED;
-	ret = request_threaded_irq(client->irq, NULL, mag3110_irq_handler,
-			  irq_flag, client->dev.driver->name, idev);
-	if (ret < 0) {
-		dev_err(&client->dev, "failed to register irq %d!\n",
-			client->irq);
-		goto error_rm_dev_sysfs;
+	if (data->use_irq) {
+		irq_flag = irqd_get_trigger_type(irq_data);
+		irq_flag |= IRQF_ONESHOT;
+		if (shared_irq)
+			irq_flag |= IRQF_SHARED;
+		ret = request_threaded_irq(client->irq, NULL, mag3110_irq_handler,
+			  		   irq_flag, client->dev.driver->name, idev);
+		if (ret < 0) {
+			dev_err(&client->dev, "failed to register irq %d!\n",
+				client->irq);
+			goto error_rm_dev_sysfs;
+		}
 	}
-#endif
+
 	/* Initialize mag3110 chip */
 	mag3110_init_client(client);
 	mag3110_pdata = data;
