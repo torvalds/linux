@@ -2260,8 +2260,12 @@ static int intel_pmu_hw_config(struct perf_event *event)
 	if (ret)
 		return ret;
 
-	if (event->attr.precise_ip && x86_pmu.pebs_aliases)
-		x86_pmu.pebs_aliases(event);
+	if (event->attr.precise_ip) {
+		if (!event->attr.freq)
+			event->hw.flags |= PERF_X86_EVENT_AUTO_RELOAD;
+		if (x86_pmu.pebs_aliases)
+			x86_pmu.pebs_aliases(event);
+	}
 
 	if (needs_branch_stack(event)) {
 		ret = intel_pmu_setup_lbr_filter(event);

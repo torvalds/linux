@@ -688,6 +688,7 @@ void intel_pmu_pebs_enable(struct perf_event *event)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	struct hw_perf_event *hwc = &event->hw;
+	struct debug_store *ds = cpuc->ds;
 
 	hwc->config &= ~ARCH_PERFMON_EVENTSEL_INT;
 
@@ -697,6 +698,12 @@ void intel_pmu_pebs_enable(struct perf_event *event)
 		cpuc->pebs_enabled |= 1ULL << (hwc->idx + 32);
 	else if (event->hw.flags & PERF_X86_EVENT_PEBS_ST)
 		cpuc->pebs_enabled |= 1ULL << 63;
+
+	/* Use auto-reload if possible to save a MSR write in the PMI */
+	if (hwc->flags & PERF_X86_EVENT_AUTO_RELOAD) {
+		ds->pebs_event_reset[hwc->idx] =
+			(u64)(-hwc->sample_period) & x86_pmu.cntval_mask;
+	}
 }
 
 void intel_pmu_pebs_disable(struct perf_event *event)

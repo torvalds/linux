@@ -75,6 +75,7 @@ struct event_constraint {
 #define PERF_X86_EVENT_DYNAMIC		0x0080 /* dynamic alloc'd constraint */
 #define PERF_X86_EVENT_RDPMC_ALLOWED	0x0100 /* grant rdpmc permission */
 #define PERF_X86_EVENT_EXCL_ACCT	0x0200 /* accounted EXCL event */
+#define PERF_X86_EVENT_AUTO_RELOAD	0x0400 /* use PEBS auto-reload */
 
 
 struct amd_nb {
