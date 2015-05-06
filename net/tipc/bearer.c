@@ -812,7 +812,7 @@ int tipc_nl_bearer_set(struct sk_buff *skb, struct genl_info *info)
 	char *name;
 	struct tipc_bearer *b;
 	struct nlattr *attrs[TIPC_NLA_BEARER_MAX + 1];
-	struct net *net = genl_info_net(info);
+	struct net *net = sock_net(skb->sk);
 
 	if (!info->attrs[TIPC_NLA_BEARER])
 		return -EINVAL;
