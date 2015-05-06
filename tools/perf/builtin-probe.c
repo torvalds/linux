@@ -523,5 +523,5 @@ int cmd_probe(int argc, const char **argv, const char *prefix)
 		cleanup_params();
 	}
 
-	return ret;
+	return ret < 0 ? ret : 0;
 }
