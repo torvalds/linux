@@ -213,7 +213,7 @@ unsigned long memory_block_size_bytes(void)
 	 * Make sure the memory block size is always greater
 	 * or equal than the memory increment size.
 	 */
-	return max_t(unsigned long, MIN_MEMORY_BLOCK_SIZE, sclp_get_rzm());
+	return max_t(unsigned long, MIN_MEMORY_BLOCK_SIZE, sclp.rzm);
 }
 
 #ifdef CONFIG_MEMORY_HOTREMOVE

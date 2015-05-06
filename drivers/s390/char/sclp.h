@@ -191,9 +191,6 @@ void sclp_sdias_exit(void);
 extern int sclp_console_pages;
 extern int sclp_console_drop;
 extern unsigned long sclp_console_full;
-extern u8 sclp_fac84;
-extern unsigned long long sclp_rzm;
-extern unsigned long long sclp_rnmax;
 
 /* useful inlines */
 

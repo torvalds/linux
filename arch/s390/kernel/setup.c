@@ -128,9 +128,9 @@ __setup("condev=", condev_setup);
 static void __init set_preferred_console(void)
 {
 	if (MACHINE_IS_KVM) {
-		if (sclp_has_vt220())
+		if (sclp.has_vt220)
 			add_preferred_console("ttyS", 1, NULL);
-		else if (sclp_has_linemode())
+		else if (sclp.has_linemode)
 			add_preferred_console("ttyS", 0, NULL);
 		else
 			add_preferred_console("hvc", 0, NULL);
@@ -510,8 +510,8 @@ static void reserve_memory_end(void)
 {
 #ifdef CONFIG_CRASH_DUMP
 	if (ipl_info.type == IPL_TYPE_FCP_DUMP &&
-	    !OLDMEM_BASE && sclp_get_hsa_size()) {
-		memory_end = sclp_get_hsa_size();
+	    !OLDMEM_BASE && sclp.hsa_size) {
+		memory_end = sclp.hsa_size;
 		memory_end &= PAGE_MASK;
 		memory_end_set = 1;
 	}
@@ -576,7 +576,7 @@ static void __init reserve_crashkernel(void)
 		crash_base = low;
 	} else {
 		/* Find suitable area in free memory */
-		low = max_t(unsigned long, crash_size, sclp_get_hsa_size());
+		low = max_t(unsigned long, crash_size, sclp.hsa_size);
 		high = crash_base ? crash_base + crash_size : ULONG_MAX;
 
 		if (crash_base && crash_base < low) {
