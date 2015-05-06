@@ -42,6 +42,14 @@ static const struct adreno_info gpulist[] = {
 		.gmem  = SZ_256K,
 		.init  = a3xx_gpu_init,
 	}, {
+		.rev   = ADRENO_REV(3, 0, 6, 0),
+		.revn  = 307,        /* because a305c is revn==306 */
+		.name  = "A306",
+		.pm4fw = "a300_pm4.fw",
+		.pfpfw = "a300_pfp.fw",
+		.gmem  = SZ_128K,
+		.init  = a3xx_gpu_init,
+	}, {
 		.rev   = ADRENO_REV(3, 2, ANY_ID, ANY_ID),
 		.revn  = 320,
 		.name  = "A320",
