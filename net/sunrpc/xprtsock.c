@@ -901,7 +901,6 @@ static int xs_local_copy_to_xdr(struct xdr_buf *xdr, struct sk_buff *skb)
 /**
  * xs_local_data_ready - "data ready" callback for AF_LOCAL sockets
  * @sk: socket with data to read
- * @len: how much data to read
  *
  * Currently this assumes we can read the whole reply in a single gulp.
  */
@@ -965,7 +964,6 @@ static void xs_local_data_ready(struct sock *sk)
 /**
  * xs_udp_data_ready - "data ready" callback for UDP sockets
  * @sk: socket with data to read
- * @len: how much data to read
  *
  */
 static void xs_udp_data_ready(struct sock *sk)
@@ -1389,7 +1387,6 @@ static int xs_tcp_data_recv(read_descriptor_t *rd_desc, struct sk_buff *skb, uns
 /**
  * xs_tcp_data_ready - "data ready" callback for TCP sockets
  * @sk: socket with data to read
- * @bytes: how much data to read
  *
  */
 static void xs_tcp_data_ready(struct sock *sk)
@@ -1886,9 +1883,7 @@ static int xs_local_finish_connecting(struct rpc_xprt *xprt,
 
 /**
  * xs_local_setup_socket - create AF_LOCAL socket, connect to a local endpoint
- * @xprt: RPC transport to connect
  * @transport: socket transport to connect
- * @create_sock: function to create a socket of the correct type
  */
 static int xs_local_setup_socket(struct sock_xprt *transport)
 {
@@ -2125,9 +2120,6 @@ out:
 
 /**
  * xs_tcp_setup_socket - create a TCP socket and connect to a remote endpoint
- * @xprt: RPC transport to connect
- * @transport: socket transport to connect
- * @create_sock: function to create a socket of the correct type
  *
  * Invoked by a work queue tasklet.
  */
