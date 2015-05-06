@@ -346,15 +346,13 @@ static inline void seccomp_sync_threads(void)
  */
 static struct seccomp_filter *seccomp_prepare_filter(struct sock_fprog *fprog)
 {
-	struct seccomp_filter *filter;
-	struct bpf_prog *prog;
-	unsigned long fsize;
+	struct seccomp_filter *sfilter;
+	int ret;
 
 	if (fprog->len == 0 || fprog->len > BPF_MAXINSNS)
 		return ERR_PTR(-EINVAL);
 
 	BUG_ON(INT_MAX / fprog->len < sizeof(struct sock_filter));
-	fsize = bpf_classic_proglen(fprog);
 
 	/*
 	 * Installing a seccomp filter requires that the task has
@@ -367,37 +365,21 @@ static struct seccomp_filter *seccomp_prepare_filter(struct sock_fprog *fprog)
 				     CAP_SYS_ADMIN) != 0)
 		return ERR_PTR(-EACCES);
 
-	prog = bpf_prog_alloc(bpf_prog_size(fprog->len), 0);
-	if (!prog)
-		return ERR_PTR(-ENOMEM);
-
-	/* Copy the instructions from fprog. */
-	if (copy_from_user(prog->insns, fprog->filter, fsize)) {
-		__bpf_prog_free(prog);
-		return ERR_PTR(-EFAULT);
-	}
-
-	prog->len = fprog->len;
-
-	/* bpf_prepare_filter() already takes care of freeing
-	 * memory in case something goes wrong.
-	 */
-	prog = bpf_prepare_filter(prog, seccomp_check_filter);
-	if (IS_ERR(prog))
-		return ERR_CAST(prog);
-
 	/* Allocate a new seccomp_filter */
-	filter = kzalloc(sizeof(struct seccomp_filter),
-			 GFP_KERNEL|__GFP_NOWARN);
-	if (!filter) {
-		bpf_prog_destroy(prog);
+	sfilter = kzalloc(sizeof(*sfilter), GFP_KERNEL | __GFP_NOWARN);
+	if (!sfilter)
 		return ERR_PTR(-ENOMEM);
+
+	ret = bpf_prog_create_from_user(&sfilter->prog, fprog,
+					seccomp_check_filter);
+	if (ret < 0) {
+		kfree(sfilter);
+		return ERR_PTR(ret);
 	}
 
-	filter->prog = prog;
-	atomic_set(&filter->usage, 1);
+	atomic_set(&sfilter->usage, 1);
 
-	return filter;
+	return sfilter;
 }
 
 /**
