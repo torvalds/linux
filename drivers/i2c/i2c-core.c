@@ -107,7 +107,7 @@ static int acpi_i2c_add_resource(struct acpi_resource *ares, void *data)
 			if (sb->access_mode == ACPI_I2C_10BIT_MODE)
 				info->flags |= I2C_CLIENT_TEN;
 		}
-	} else if (info->irq < 0) {
+	} else if (!info->irq) {
 		struct resource r;
 
 		if (acpi_dev_resource_interrupt(ares, 0, &r))
@@ -134,7 +134,6 @@ static acpi_status acpi_i2c_add_device(acpi_handle handle, u32 level,
 
 	memset(&info, 0, sizeof(info));
 	info.fwnode = acpi_fwnode_handle(adev);
-	info.irq = -1;
 
 	INIT_LIST_HEAD(&resource_list);
 	ret = acpi_dev_get_resources(adev, &resource_list,
