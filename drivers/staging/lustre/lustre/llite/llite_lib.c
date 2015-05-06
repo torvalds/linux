@@ -904,8 +904,6 @@ int ll_fill_super(struct super_block *sb, struct vfsmount *mnt)
 	char  *dt = NULL, *md = NULL;
 	char  *profilenm = get_profile_name(sb);
 	struct config_llog_instance *cfg;
-	/* %p for void* in printf needs 16+2 characters: 0xffffffffffffffff */
-	const int instlen = sizeof(cfg->cfg_instance) * 2 + 2;
 	int    err;
 
 	CDEBUG(D_VFSTRACE, "VFS Op: sb %p\n", sb);

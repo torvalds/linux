@@ -3239,8 +3239,6 @@ void ll_iocontrol_unregister(void *magic)
 	down_write(&llioc.ioc_sem);
 	list_for_each_entry(tmp, &llioc.ioc_head, iocd_list) {
 		if (tmp == magic) {
-			unsigned int size = tmp->iocd_size;
-
 			list_del(&tmp->iocd_list);
 			up_write(&llioc.ioc_sem);
 
