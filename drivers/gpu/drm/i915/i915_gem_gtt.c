@@ -2753,6 +2753,47 @@ err_st_alloc:
 	return ERR_PTR(ret);
 }
 
+static struct sg_table *
+intel_partial_pages(const struct i915_ggtt_view *view,
+		    struct drm_i915_gem_object *obj)
+{
+	struct sg_table *st;
+	struct scatterlist *sg;
+	struct sg_page_iter obj_sg_iter;
+	int ret = -ENOMEM;
+
+	st = kmalloc(sizeof(*st), GFP_KERNEL);
+	if (!st)
+		goto err_st_alloc;
+
+	ret = sg_alloc_table(st, view->params.partial.size, GFP_KERNEL);
+	if (ret)
+		goto err_sg_alloc;
+
+	sg = st->sgl;
+	st->nents = 0;
+	for_each_sg_page(obj->pages->sgl, &obj_sg_iter, obj->pages->nents,
+		view->params.partial.offset)
+	{
+		if (st->nents >= view->params.partial.size)
+			break;
+
+		sg_set_page(sg, NULL, PAGE_SIZE, 0);
+		sg_dma_address(sg) = sg_page_iter_dma_address(&obj_sg_iter);
+		sg_dma_len(sg) = PAGE_SIZE;
+
+		sg = sg_next(sg);
+		st->nents++;
+	}
+
+	return st;
+
+err_sg_alloc:
+	kfree(st);
+err_st_alloc:
+	return ERR_PTR(ret);
+}
+
 static int
 i915_get_ggtt_vma_pages(struct i915_vma *vma)
 {
@@ -2766,6 +2807,9 @@ i915_get_ggtt_vma_pages(struct i915_vma *vma)
 	else if (vma->ggtt_view.type == I915_GGTT_VIEW_ROTATED)
 		vma->ggtt_view.pages =
 			intel_rotate_fb_obj_pages(&vma->ggtt_view, vma->obj);
+	else if (vma->ggtt_view.type == I915_GGTT_VIEW_PARTIAL)
+		vma->ggtt_view.pages =
+			intel_partial_pages(&vma->ggtt_view, vma->obj);
 	else
 		WARN_ONCE(1, "GGTT view %u not implemented!\n",
 			  vma->ggtt_view.type);
@@ -2853,6 +2897,8 @@ i915_ggtt_view_size(struct drm_i915_gem_object *obj,
 	if (view->type == I915_GGTT_VIEW_NORMAL ||
 	    view->type == I915_GGTT_VIEW_ROTATED) {
 		return obj->base.size;
+	} else if (view->type == I915_GGTT_VIEW_PARTIAL) {
+		return view->params.partial.size << PAGE_SHIFT;
 	} else {
 		WARN_ONCE(1, "GGTT view %u not implemented!\n", view->type);
 		return obj->base.size;
