@@ -672,8 +672,13 @@ parse_edp(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
 	if (bdb->version >= 173) {
 		uint8_t vswing;
 
-		vswing = (edp->edp_vswing_preemph >> (panel_type * 4)) & 0xF;
-		dev_priv->vbt.edp_low_vswing = vswing == 0;
+		/* Don't read from VBT if module parameter has valid value*/
+		if (i915.edp_vswing) {
+			dev_priv->edp_low_vswing = i915.edp_vswing == 1;
+		} else {
+			vswing = (edp->edp_vswing_preemph >> (panel_type * 4)) & 0xF;
+			dev_priv->edp_low_vswing = vswing == 0;
+		}
 	}
 }
 

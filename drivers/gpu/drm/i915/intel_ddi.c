@@ -282,7 +282,7 @@ static void intel_prepare_ddi_buffers(struct drm_device *dev, enum port port,
 		ddi_translations_fdi = NULL;
 		ddi_translations_dp = skl_ddi_translations_dp;
 		n_dp_entries = ARRAY_SIZE(skl_ddi_translations_dp);
-		if (dev_priv->vbt.edp_low_vswing) {
+		if (dev_priv->edp_low_vswing) {
 			ddi_translations_edp = skl_ddi_translations_edp;
 			n_edp_entries = ARRAY_SIZE(skl_ddi_translations_edp);
 		} else {
