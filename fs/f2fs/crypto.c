@@ -131,7 +131,9 @@ struct f2fs_crypto_ctx *f2fs_get_crypto_ctx(struct inode *inode)
 	unsigned long flags;
 	struct f2fs_crypt_info *ci = F2FS_I(inode)->i_crypt_info;
 
-	BUG_ON(ci == NULL);
+	if (ci == NULL)
+		return ERR_PTR(-EACCES);
+
 	/*
 	 * We first try getting the ctx from a free list because in
 	 * the common case the ctx will have an allocated and
