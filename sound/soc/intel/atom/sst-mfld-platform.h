@@ -22,6 +22,7 @@
 #define __SST_PLATFORMDRV_H__
 
 #include "sst-mfld-dsp.h"
+#include "sst-atom-controls.h"
 
 extern struct sst_device *sst;
 
@@ -175,6 +176,7 @@ struct sst_data {
 	struct snd_sst_bytes_v2 *byte_stream;
 	struct mutex lock;
 	struct snd_soc_card *soc_card;
+	struct sst_cmd_sba_hw_set_ssp ssp_cmd;
 };
 int sst_register_dsp(struct sst_device *sst);
 int sst_unregister_dsp(struct sst_device *sst);
