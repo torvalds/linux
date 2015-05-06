@@ -562,6 +562,8 @@ struct sst_ssp_config {
 	u8 active_slot_map;
 	u8 start_delay;
 	u16 fs_width;
+	u8 frame_sync_polarity;
+	u8 data_polarity;
 };
 
 struct sst_ssp_cfg {

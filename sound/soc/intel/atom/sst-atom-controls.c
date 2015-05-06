@@ -789,6 +789,8 @@ static const struct sst_ssp_config sst_ssp_configs = {
 	.fs_frequency = SSP_FS_48_KHZ,
 	.active_slot_map = 0xF,
 	.start_delay = 0,
+	.frame_sync_polarity = SSP_FS_ACTIVE_HIGH,
+	.data_polarity = 1,
 };
 
 int send_ssp_cmd(struct snd_soc_dai *dai, const char *id, bool enable)
