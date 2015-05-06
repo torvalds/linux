@@ -3354,6 +3354,8 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 				}
 			}
 		}
+	} else {
+		dev_drv->ops->load_screen(dev_drv, 0);
 	}
 	kobject_uevent_env(&dev_drv->dev->kobj, KOBJ_CHANGE, envp);
         kfree(envp[1]);
