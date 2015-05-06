@@ -836,25 +836,24 @@ int ccc_prep_size(const struct lu_env *env, struct cl_object *obj,
 					*exceed = 1;
 			}
 			return result;
-		} else {
-			/*
-			 * region is within kms and, hence, within real file
-			 * size (A). We need to increase i_size to cover the
-			 * read region so that generic_file_read() will do its
-			 * job, but that doesn't mean the kms size is
-			 * _correct_, it is only the _minimum_ size. If
-			 * someone does a stat they will get the correct size
-			 * which will always be >= the kms value here.
-			 * b=11081
-			 */
-			if (cl_isize_read(inode) < kms) {
-				cl_isize_write_nolock(inode, kms);
-				CDEBUG(D_VFSTRACE,
-				       DFID" updating i_size %llu\n",
-				       PFID(lu_object_fid(&obj->co_lu)),
-				       (__u64)cl_isize_read(inode));
+		}
+		/*
+		 * region is within kms and, hence, within real file
+		 * size (A). We need to increase i_size to cover the
+		 * read region so that generic_file_read() will do its
+		 * job, but that doesn't mean the kms size is
+		 * _correct_, it is only the _minimum_ size. If
+		 * someone does a stat they will get the correct size
+		 * which will always be >= the kms value here.
+		 * b=11081
+		 */
+		if (cl_isize_read(inode) < kms) {
+			cl_isize_write_nolock(inode, kms);
+			CDEBUG(D_VFSTRACE,
+					DFID" updating i_size %llu\n",
+					PFID(lu_object_fid(&obj->co_lu)),
+					(__u64)cl_isize_read(inode));
 
-			}
 		}
 	}
 	ccc_object_size_unlock(obj);
