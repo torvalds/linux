@@ -8509,14 +8509,20 @@ L:	linux-fbdev@vger.kernel.org
 S:	Maintained
 F:	drivers/video/fbdev/s3c-fb.c
 
-SAMSUNG MULTIFUNCTION DEVICE DRIVERS
+SAMSUNG MULTIFUNCTION PMIC DEVICE DRIVERS
 M:	Sangbeom Kim <sbkim73@samsung.com>
+M:	Krzysztof Kozlowski <k.kozlowski@samsung.com>
 L:	linux-kernel@vger.kernel.org
+L:	linux-samsung-soc@vger.kernel.org
 S:	Supported
 F:	drivers/mfd/sec*.c
 F:	drivers/regulator/s2m*.c
 F:	drivers/regulator/s5m*.c
+F:	drivers/clk/clk-s2mps11.c
+F:	drivers/rtc/rtc-s5m.c
 F:	include/linux/mfd/samsung/
+F:	Documentation/devicetree/bindings/regulator/s5m8767-regulator.txt
+F:	Documentation/devicetree/bindings/mfd/s2mp*.txt
 
 SAMSUNG S5P/EXYNOS4 SOC SERIES CAMERA SUBSYSTEM DRIVERS
 M:	Kyungmin Park <kyungmin.park@samsung.com>
