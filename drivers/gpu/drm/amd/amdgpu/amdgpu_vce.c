@@ -68,9 +68,8 @@ static void amdgpu_vce_idle_work_handler(struct work_struct *work);
  *
  * First step to get VCE online, allocate memory and load the firmware
  */
-int amdgpu_vce_sw_init(struct amdgpu_device *adev)
+int amdgpu_vce_sw_init(struct amdgpu_device *adev, unsigned long size)
 {
-	unsigned long size;
 	const char *fw_name;
 	const struct common_firmware_header *hdr;
 	unsigned ucode_version, version_major, version_minor, binary_id;
@@ -136,8 +135,6 @@ int amdgpu_vce_sw_init(struct amdgpu_device *adev)
 
 	/* allocate firmware, stack and heap BO */
 
-	size = AMDGPU_GPU_PAGE_ALIGN(le32_to_cpu(hdr->ucode_size_bytes)) +
-	       AMDGPU_VCE_STACK_SIZE + AMDGPU_VCE_HEAP_SIZE;
 	r = amdgpu_bo_create(adev, size, PAGE_SIZE, true,
 			     AMDGPU_GEM_DOMAIN_VRAM, 0, NULL, &adev->vce.vcpu_bo);
 	if (r) {

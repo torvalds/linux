@@ -24,7 +24,7 @@
 #ifndef __AMDGPU_VCE_H__
 #define __AMDGPU_VCE_H__
 
-int amdgpu_vce_sw_init(struct amdgpu_device *adev);
+int amdgpu_vce_sw_init(struct amdgpu_device *adev, unsigned long size);
 int amdgpu_vce_sw_fini(struct amdgpu_device *adev);
 int amdgpu_vce_suspend(struct amdgpu_device *adev);
 int amdgpu_vce_resume(struct amdgpu_device *adev);

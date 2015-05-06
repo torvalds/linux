@@ -1664,8 +1664,6 @@ struct amdgpu_uvd {
  * VCE
  */
 #define AMDGPU_MAX_VCE_HANDLES	16
-#define AMDGPU_VCE_STACK_SIZE	(1024*1024)
-#define AMDGPU_VCE_HEAP_SIZE	(4*1024*1024)
 #define AMDGPU_VCE_FIRMWARE_OFFSET 256
 
 struct amdgpu_vce {

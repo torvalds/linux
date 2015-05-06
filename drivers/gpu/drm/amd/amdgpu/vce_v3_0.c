@@ -35,6 +35,10 @@
 #include "oss/oss_2_0_d.h"
 #include "oss/oss_2_0_sh_mask.h"
 
+#define VCE_V3_0_FW_SIZE	(384 * 1024)
+#define VCE_V3_0_STACK_SIZE	(64 * 1024)
+#define VCE_V3_0_DATA_SIZE	((16 * 1024 * AMDGPU_MAX_VCE_HANDLES) + (52 * 1024))
+
 static void vce_v3_0_mc_resume(struct amdgpu_device *adev);
 static void vce_v3_0_set_ring_funcs(struct amdgpu_device *adev);
 static void vce_v3_0_set_irq_funcs(struct amdgpu_device *adev);
@@ -181,7 +185,8 @@ static int vce_v3_0_sw_init(struct amdgpu_device *adev)
 	if (r)
 		return r;
 
-	r = amdgpu_vce_sw_init(adev);
+	r = amdgpu_vce_sw_init(adev, VCE_V3_0_FW_SIZE +
+		(VCE_V3_0_STACK_SIZE + VCE_V3_0_DATA_SIZE) * 2);
 	if (r)
 		return r;
 
@@ -304,17 +309,17 @@ static void vce_v3_0_mc_resume(struct amdgpu_device *adev)
 
 	WREG32(mmVCE_LMI_VCPU_CACHE_40BIT_BAR, (adev->vce.gpu_addr >> 8));
 	offset = AMDGPU_VCE_FIRMWARE_OFFSET;
-	size = AMDGPU_GPU_PAGE_ALIGN(adev->vce.fw->size);
+	size = VCE_V3_0_FW_SIZE;
 	WREG32(mmVCE_VCPU_CACHE_OFFSET0, offset & 0x7fffffff);
 	WREG32(mmVCE_VCPU_CACHE_SIZE0, size);
 
 	offset += size;
-	size = AMDGPU_VCE_STACK_SIZE;
+	size = VCE_V3_0_STACK_SIZE;
 	WREG32(mmVCE_VCPU_CACHE_OFFSET1, offset & 0x7fffffff);
 	WREG32(mmVCE_VCPU_CACHE_SIZE1, size);
 
 	offset += size;
-	size = AMDGPU_VCE_HEAP_SIZE;
+	size = VCE_V3_0_DATA_SIZE;
 	WREG32(mmVCE_VCPU_CACHE_OFFSET2, offset & 0x7fffffff);
 	WREG32(mmVCE_VCPU_CACHE_SIZE2, size);
 
