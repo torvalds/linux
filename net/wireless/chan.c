@@ -698,19 +698,20 @@ bool cfg80211_chandef_usable(struct wiphy *wiphy,
 EXPORT_SYMBOL(cfg80211_chandef_usable);
 
 /*
- * For GO only, check if the channel can be used under permissive conditions
- * mandated by the some regulatory bodies, i.e., the channel is marked with
- * IEEE80211_CHAN_GO_CONCURRENT and there is an additional station interface
+ * Check if the channel can be used under permissive conditions mandated by
+ * some regulatory bodies, i.e., the channel is marked with
+ * IEEE80211_CHAN_IR_CONCURRENT and there is an additional station interface
  * associated to an AP on the same channel or on the same UNII band
  * (assuming that the AP is an authorized master).
- * In addition allow the GO to operate on a channel on which indoor operation is
+ * In addition allow operation on a channel on which indoor operation is
  * allowed, iff we are currently operating in an indoor environment.
  */
-static bool cfg80211_go_permissive_chan(struct cfg80211_registered_device *rdev,
+static bool cfg80211_ir_permissive_chan(struct wiphy *wiphy,
+					enum nl80211_iftype iftype,
 					struct ieee80211_channel *chan)
 {
 	struct wireless_dev *wdev;
-	struct wiphy *wiphy = wiphy_idx_to_wiphy(rdev->wiphy_idx);
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 
 	ASSERT_RTNL();
 
@@ -718,16 +719,22 @@ static bool cfg80211_go_permissive_chan(struct cfg80211_registered_device *rdev,
 	    !(wiphy->regulatory_flags & REGULATORY_ENABLE_RELAX_NO_IR))
 		return false;
 
+	/* only valid for GO and TDLS off-channel (station/p2p-CL) */
+	if (iftype != NL80211_IFTYPE_P2P_GO &&
+	    iftype != NL80211_IFTYPE_STATION &&
+	    iftype != NL80211_IFTYPE_P2P_CLIENT)
+		return false;
+
 	if (regulatory_indoor_allowed() &&
 	    (chan->flags & IEEE80211_CHAN_INDOOR_ONLY))
 		return true;
 
-	if (!(chan->flags & IEEE80211_CHAN_GO_CONCURRENT))
+	if (!(chan->flags & IEEE80211_CHAN_IR_CONCURRENT))
 		return false;
 
 	/*
 	 * Generally, it is possible to rely on another device/driver to allow
-	 * the GO concurrent relaxation, however, since the device can further
+	 * the IR concurrent relaxation, however, since the device can further
 	 * enforce the relaxation (by doing a similar verifications as this),
 	 * and thus fail the GO instantiation, consider only the interfaces of
 	 * the current registered device.
@@ -748,7 +755,8 @@ static bool cfg80211_go_permissive_chan(struct cfg80211_registered_device *rdev,
 		 * GO_CONCURRENT is disconnected now. But then we must make sure
 		 * we're not outdoor on an indoor-only channel.
 		 */
-		if (wdev->iftype == NL80211_IFTYPE_P2P_GO &&
+		if (iftype == NL80211_IFTYPE_P2P_GO &&
+		    wdev->iftype == NL80211_IFTYPE_P2P_GO &&
 		    wdev->beacon_interval &&
 		    !(chan->flags & IEEE80211_CHAN_INDOOR_ONLY))
 			other_chan = wdev->chandef.chan;
@@ -793,7 +801,6 @@ bool cfg80211_reg_can_beacon(struct wiphy *wiphy,
 			     struct cfg80211_chan_def *chandef,
 			     enum nl80211_iftype iftype)
 {
-	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 	bool res;
 	u32 prohibited_flags = IEEE80211_CHAN_DISABLED |
 			       IEEE80211_CHAN_RADAR;
@@ -801,13 +808,12 @@ bool cfg80211_reg_can_beacon(struct wiphy *wiphy,
 	trace_cfg80211_reg_can_beacon(wiphy, chandef, iftype);
 
 	/*
-	 * Under certain conditions suggested by the some regulatory bodies
-	 * a GO can operate on channels marked with IEEE80211_NO_IR
-	 * so set this flag only if such relaxations are not enabled and
-	 * the conditions are not met.
+	 * Under certain conditions suggested by some regulatory bodies a
+	 * GO/STA can IR on channels marked with IEEE80211_NO_IR. Set this flag
+	 * only if such relaxations are not enabled and the conditions are not
+	 * met.
 	 */
-	if (iftype != NL80211_IFTYPE_P2P_GO ||
-	    !cfg80211_go_permissive_chan(rdev, chandef->chan))
+	if (!cfg80211_ir_permissive_chan(wiphy, iftype, chandef->chan))
 		prohibited_flags |= IEEE80211_CHAN_NO_IR;
 
 	if (cfg80211_chandef_dfs_required(wiphy, chandef, iftype) > 0 &&

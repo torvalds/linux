@@ -639,8 +639,8 @@ static int nl80211_msg_put_channel(struct sk_buff *msg,
 		if ((chan->flags & IEEE80211_CHAN_INDOOR_ONLY) &&
 		    nla_put_flag(msg, NL80211_FREQUENCY_ATTR_INDOOR_ONLY))
 			goto nla_put_failure;
-		if ((chan->flags & IEEE80211_CHAN_GO_CONCURRENT) &&
-		    nla_put_flag(msg, NL80211_FREQUENCY_ATTR_GO_CONCURRENT))
+		if ((chan->flags & IEEE80211_CHAN_IR_CONCURRENT) &&
+		    nla_put_flag(msg, NL80211_FREQUENCY_ATTR_IR_CONCURRENT))
 			goto nla_put_failure;
 		if ((chan->flags & IEEE80211_CHAN_NO_20MHZ) &&
 		    nla_put_flag(msg, NL80211_FREQUENCY_ATTR_NO_20MHZ))
