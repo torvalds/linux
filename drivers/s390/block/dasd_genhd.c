@@ -116,14 +116,11 @@ int dasd_scan_partitions(struct dasd_block *block)
 			      rc);
 		return -ENODEV;
 	}
-	/*
-	 * See fs/partition/check.c:register_disk,rescan_partitions
-	 * Can't call rescan_partitions directly. Use ioctl.
-	 */
-	rc = ioctl_by_bdev(bdev, BLKRRPART, 0);
+
+	rc = blkdev_reread_part(bdev);
 	while (rc == -EBUSY && retry > 0) {
 		schedule();
-		rc = ioctl_by_bdev(bdev, BLKRRPART, 0);
+		rc = blkdev_reread_part(bdev);
 		retry--;
 		DBF_DEV_EVENT(DBF_ERR, block->base,
 			      "scan partitions error, retry %d rc %d",
