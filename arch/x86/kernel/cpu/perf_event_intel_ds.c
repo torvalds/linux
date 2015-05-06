@@ -853,8 +853,10 @@ static inline u64 intel_hsw_transaction(struct pebs_record_hsw *pebs)
 	return txn;
 }
 
-static void __intel_pmu_pebs_event(struct perf_event *event,
-				   struct pt_regs *iregs, void *__pebs)
+static void setup_pebs_sample_data(struct perf_event *event,
+				   struct pt_regs *iregs, void *__pebs,
+				   struct perf_sample_data *data,
+				   struct pt_regs *regs)
 {
 #define PERF_X86_EVENT_PEBS_HSW_PREC \
 		(PERF_X86_EVENT_PEBS_ST_HSW | \
@@ -866,14 +868,9 @@ static void __intel_pmu_pebs_event(struct perf_event *event,
 	 */
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	struct pebs_record_hsw *pebs = __pebs;
-	struct perf_sample_data data;
-	struct pt_regs regs;
 	u64 sample_type;
 	int fll, fst, dsrc;
 	int fl = event->hw.flags;
-
-	if (!intel_pmu_save_and_restart(event))
-		return;
 
 	sample_type = event->attr.sample_type;
 	dsrc = sample_type & PERF_SAMPLE_DATA_SRC;
@@ -881,15 +878,15 @@ static void __intel_pmu_pebs_event(struct perf_event *event,
 	fll = fl & PERF_X86_EVENT_PEBS_LDLAT;
 	fst = fl & (PERF_X86_EVENT_PEBS_ST | PERF_X86_EVENT_PEBS_HSW_PREC);
 
-	perf_sample_data_init(&data, 0, event->hw.last_period);
+	perf_sample_data_init(data, 0, event->hw.last_period);
 
-	data.period = event->hw.last_period;
+	data->period = event->hw.last_period;
 
 	/*
 	 * Use latency for weight (only avail with PEBS-LL)
 	 */
 	if (fll && (sample_type & PERF_SAMPLE_WEIGHT))
-		data.weight = pebs->lat;
+		data->weight = pebs->lat;
 
 	/*
 	 * data.data_src encodes the data source
@@ -902,7 +899,7 @@ static void __intel_pmu_pebs_event(struct perf_event *event,
 			val = precise_datala_hsw(event, pebs->dse);
 		else if (fst)
 			val = precise_store_data(pebs->dse);
-		data.data_src.val = val;
+		data->data_src.val = val;
 	}
 
 	/*
@@ -915,58 +912,70 @@ static void __intel_pmu_pebs_event(struct perf_event *event,
 	 * PERF_SAMPLE_IP and PERF_SAMPLE_CALLCHAIN to function properly.
 	 * A possible PERF_SAMPLE_REGS will have to transfer all regs.
 	 */
-	regs = *iregs;
-	regs.flags = pebs->flags;
-	set_linear_ip(&regs, pebs->ip);
-	regs.bp = pebs->bp;
-	regs.sp = pebs->sp;
+	*regs = *iregs;
+	regs->flags = pebs->flags;
+	set_linear_ip(regs, pebs->ip);
+	regs->bp = pebs->bp;
+	regs->sp = pebs->sp;
 
 	if (sample_type & PERF_SAMPLE_REGS_INTR) {
-		regs.ax = pebs->ax;
-		regs.bx = pebs->bx;
-		regs.cx = pebs->cx;
-		regs.dx = pebs->dx;
-		regs.si = pebs->si;
-		regs.di = pebs->di;
-		regs.bp = pebs->bp;
-		regs.sp = pebs->sp;
+		regs->ax = pebs->ax;
+		regs->bx = pebs->bx;
+		regs->cx = pebs->cx;
+		regs->dx = pebs->dx;
+		regs->si = pebs->si;
+		regs->di = pebs->di;
+		regs->bp = pebs->bp;
+		regs->sp = pebs->sp;
 
-		regs.flags = pebs->flags;
+		regs->flags = pebs->flags;
 #ifndef CONFIG_X86_32
-		regs.r8 = pebs->r8;
-		regs.r9 = pebs->r9;
-		regs.r10 = pebs->r10;
-		regs.r11 = pebs->r11;
-		regs.r12 = pebs->r12;
-		regs.r13 = pebs->r13;
-		regs.r14 = pebs->r14;
-		regs.r15 = pebs->r15;
+		regs->r8 = pebs->r8;
+		regs->r9 = pebs->r9;
+		regs->r10 = pebs->r10;
+		regs->r11 = pebs->r11;
+		regs->r12 = pebs->r12;
+		regs->r13 = pebs->r13;
+		regs->r14 = pebs->r14;
+		regs->r15 = pebs->r15;
 #endif
 	}
 
 	if (event->attr.precise_ip > 1 && x86_pmu.intel_cap.pebs_format >= 2) {
-		regs.ip = pebs->real_ip;
-		regs.flags |= PERF_EFLAGS_EXACT;
-	} else if (event->attr.precise_ip > 1 && intel_pmu_pebs_fixup_ip(&regs))
-		regs.flags |= PERF_EFLAGS_EXACT;
+		regs->ip = pebs->real_ip;
+		regs->flags |= PERF_EFLAGS_EXACT;
+	} else if (event->attr.precise_ip > 1 && intel_pmu_pebs_fixup_ip(regs))
+		regs->flags |= PERF_EFLAGS_EXACT;
 	else
-		regs.flags &= ~PERF_EFLAGS_EXACT;
+		regs->flags &= ~PERF_EFLAGS_EXACT;
 
 	if ((sample_type & PERF_SAMPLE_ADDR) &&
 	    x86_pmu.intel_cap.pebs_format >= 1)
-		data.addr = pebs->dla;
+		data->addr = pebs->dla;
 
 	if (x86_pmu.intel_cap.pebs_format >= 2) {
 		/* Only set the TSX weight when no memory weight. */
 		if ((sample_type & PERF_SAMPLE_WEIGHT) && !fll)
-			data.weight = intel_hsw_weight(pebs);
+			data->weight = intel_hsw_weight(pebs);
 
 		if (sample_type & PERF_SAMPLE_TRANSACTION)
-			data.txn = intel_hsw_transaction(pebs);
+			data->txn = intel_hsw_transaction(pebs);
 	}
 
 	if (has_branch_stack(event))
-		data.br_stack = &cpuc->lbr_stack;
+		data->br_stack = &cpuc->lbr_stack;
+}
+
+static void __intel_pmu_pebs_event(struct perf_event *event,
+				   struct pt_regs *iregs, void *__pebs)
+{
+	struct perf_sample_data data;
+	struct pt_regs regs;
+
+	if (!intel_pmu_save_and_restart(event))
+		return;
+
+	setup_pebs_sample_data(event, iregs, __pebs, &data, &regs);
 
 	if (perf_event_overflow(event, &data, &regs))
 		x86_pmu_stop(event, 0);
