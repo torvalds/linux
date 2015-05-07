@@ -260,16 +260,6 @@ static struct dentry *f2fs_lookup(struct inode *dir, struct dentry *dentry,
 	if (IS_ERR(inode))
 		return ERR_CAST(inode);
 
-	if (f2fs_encrypted_inode(dir) && f2fs_may_encrypt(inode) &&
-		!f2fs_is_child_context_consistent_with_parent(dir, inode)) {
-		iput(inode);
-		f2fs_msg(inode->i_sb, KERN_WARNING,
-				"Inconsistent encryption contexts: %lu/%lu\n",
-				(unsigned long)dir->i_ino,
-				(unsigned long)inode->i_ino);
-		return ERR_PTR(-EPERM);
-	}
-
 	if (f2fs_has_inline_dots(inode)) {
 		err = __recover_dot_dentries(inode, dir->i_ino);
 		if (err)
