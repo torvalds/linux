@@ -204,28 +204,32 @@ void radeon_uvd_fini(struct radeon_device *rdev)
 
 int radeon_uvd_suspend(struct radeon_device *rdev)
 {
-	unsigned size;
-	void *ptr;
-	int i;
+	int i, r;
 
 	if (rdev->uvd.vcpu_bo == NULL)
 		return 0;
 
-	for (i = 0; i < RADEON_MAX_UVD_HANDLES; ++i)
-		if (atomic_read(&rdev->uvd.handles[i]))
-			break;
+	for (i = 0; i < RADEON_MAX_UVD_HANDLES; ++i) {
+		uint32_t handle = atomic_read(&rdev->uvd.handles[i]);
+		if (handle != 0) {
+			struct radeon_fence *fence;
 
-	if (i == RADEON_MAX_UVD_HANDLES)
-		return 0;
+			radeon_uvd_note_usage(rdev);
 
-	size = radeon_bo_size(rdev->uvd.vcpu_bo);
-	size -= rdev->uvd_fw->size;
+			r = radeon_uvd_get_destroy_msg(rdev,
+				R600_RING_TYPE_UVD_INDEX, handle, &fence);
+			if (r) {
+				DRM_ERROR("Error destroying UVD (%d)!\n", r);
+				continue;
+			}
 
-	ptr = rdev->uvd.cpu_addr;
-	ptr += rdev->uvd_fw->size;
+			radeon_fence_wait(fence, false);
+			radeon_fence_unref(&fence);
 
-	rdev->uvd.saved_bo = kmalloc(size, GFP_KERNEL);
-	memcpy(rdev->uvd.saved_bo, ptr, size);
+			rdev->uvd.filp[i] = NULL;
+			atomic_set(&rdev->uvd.handles[i], 0);
+		}
+	}
 
 	return 0;
 }
@@ -246,12 +250,7 @@ int radeon_uvd_resume(struct radeon_device *rdev)
 	ptr = rdev->uvd.cpu_addr;
 	ptr += rdev->uvd_fw->size;
 
-	if (rdev->uvd.saved_bo != NULL) {
-		memcpy(ptr, rdev->uvd.saved_bo, size);
-		kfree(rdev->uvd.saved_bo);
-		rdev->uvd.saved_bo = NULL;
-	} else
-		memset(ptr, 0, size);
+	memset(ptr, 0, size);
 
 	return 0;
 }
