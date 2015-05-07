@@ -57,15 +57,6 @@
 #endif
 
 #ifdef __sparc__
-#ifdef __LP64__
-#define mb()		asm volatile("ba,pt %%xcc, 1f\n"	\
-				     "membar #StoreLoad\n"	\
-				     "1:\n":::"memory")
-#else
-#define mb()		asm volatile("":::"memory")
-#endif
-#define wmb()		asm volatile("":::"memory")
-#define rmb()		asm volatile("":::"memory")
 #define CPUINFO_PROC	{"cpu"}
 #endif
 

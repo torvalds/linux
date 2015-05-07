@@ -6,4 +6,6 @@
 #include "../../arch/s390/include/asm/barrier.h"
 #elif defined(__sh__)
 #include "../../arch/sh/include/asm/barrier.h"
+#elif defined(__sparc__)
+#include "../../arch/sparc/include/asm/barrier.h"
 #endif
