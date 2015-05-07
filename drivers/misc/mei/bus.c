@@ -114,6 +114,31 @@ static int mei_cl_device_remove(struct device *dev)
 	return driver->remove(device);
 }
 
+static ssize_t name_show(struct device *dev, struct device_attribute *a,
+			     char *buf)
+{
+	struct mei_cl_device *device = to_mei_cl_device(dev);
+	size_t len;
+
+	len = snprintf(buf, PAGE_SIZE, "%s", device->name);
+
+	return (len >= PAGE_SIZE) ? (PAGE_SIZE - 1) : len;
+}
+static DEVICE_ATTR_RO(name);
+
+static ssize_t uuid_show(struct device *dev, struct device_attribute *a,
+			     char *buf)
+{
+	struct mei_cl_device *device = to_mei_cl_device(dev);
+	const uuid_le *uuid = mei_me_cl_uuid(device->me_cl);
+	size_t len;
+
+	len = snprintf(buf, PAGE_SIZE, "%pUl", uuid);
+
+	return (len >= PAGE_SIZE) ? (PAGE_SIZE - 1) : len;
+}
+static DEVICE_ATTR_RO(uuid);
+
 static ssize_t modalias_show(struct device *dev, struct device_attribute *a,
 			     char *buf)
 {
@@ -129,6 +154,8 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *a,
 static DEVICE_ATTR_RO(modalias);
 
 static struct attribute *mei_cl_dev_attrs[] = {
+	&dev_attr_name.attr,
+	&dev_attr_uuid.attr,
 	&dev_attr_modalias.attr,
 	NULL,
 };
@@ -138,6 +165,12 @@ static int mei_cl_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct mei_cl_device *device = to_mei_cl_device(dev);
 	const uuid_le *uuid = mei_me_cl_uuid(device->me_cl);
+
+	if (add_uevent_var(env, "MEI_CL_UUID=%pUl", uuid))
+		return -ENOMEM;
+
+	if (add_uevent_var(env, "MEI_CL_NAME=%s", device->name))
+		return -ENOMEM;
 
 	if (add_uevent_var(env, "MODALIAS=mei:%s:" MEI_CL_UUID_FMT ":",
 		device->name, MEI_CL_UUID_ARGS(uuid->b)))
