@@ -1545,7 +1545,8 @@ static void terminate_walk(struct nameidata *nd)
 		put_link(nd);
 }
 
-static int pick_link(struct nameidata *nd, struct path *link, unsigned seq)
+static int pick_link(struct nameidata *nd, struct path *link,
+		     struct inode *inode, unsigned seq)
 {
 	int error;
 	struct saved *last;
@@ -1570,7 +1571,7 @@ static int pick_link(struct nameidata *nd, struct path *link, unsigned seq)
 	last = nd->stack + nd->depth++;
 	last->link = *link;
 	last->cookie = NULL;
-	last->inode = d_backing_inode(link->dentry);
+	last->inode = inode;
 	return 1;
 }
 
@@ -1581,13 +1582,14 @@ static int pick_link(struct nameidata *nd, struct path *link, unsigned seq)
  * for the common case.
  */
 static inline int should_follow_link(struct nameidata *nd, struct path *link,
-				     int follow, unsigned seq)
+				     int follow,
+				     struct inode *inode, unsigned seq)
 {
 	if (likely(!d_is_symlink(link->dentry)))
 		return 0;
 	if (!follow)
 		return 0;
-	return pick_link(nd, link, seq);
+	return pick_link(nd, link, inode, seq);
 }
 
 enum {WALK_GET = 1, WALK_PUT = 2};
@@ -1627,7 +1629,7 @@ static int walk_component(struct nameidata *nd, int flags)
 
 	if (flags & WALK_PUT)
 		put_link(nd);
-	err = should_follow_link(nd, &path, flags & WALK_GET, seq);
+	err = should_follow_link(nd, &path, flags & WALK_GET, inode, seq);
 	if (unlikely(err))
 		return err;
 	path_to_nameidata(&path, nd);
@@ -2349,7 +2351,8 @@ done:
 		put_link(nd);
 	path->dentry = dentry;
 	path->mnt = nd->path.mnt;
-	error = should_follow_link(nd, path, nd->flags & LOOKUP_FOLLOW, 0);
+	error = should_follow_link(nd, path, nd->flags & LOOKUP_FOLLOW,
+				   d_backing_inode(dentry), 0);
 	if (unlikely(error))
 		return error;
 	mntget(path->mnt);
@@ -3063,7 +3066,8 @@ retry_lookup:
 finish_lookup:
 	if (nd->depth)
 		put_link(nd);
-	error = should_follow_link(nd, &path, nd->flags & LOOKUP_FOLLOW, seq);
+	error = should_follow_link(nd, &path, nd->flags & LOOKUP_FOLLOW,
+				   inode, seq);
 	if (unlikely(error))
 		return error;
 
