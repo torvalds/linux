@@ -330,6 +330,11 @@ static int kvm_s390_set_mem_control(struct kvm *kvm, struct kvm_device_attr *att
 	unsigned int idx;
 	switch (attr->attr) {
 	case KVM_S390_VM_MEM_ENABLE_CMMA:
+		/* enable CMMA only for z10 and later (EDAT_1) */
+		ret = -EINVAL;
+		if (!MACHINE_IS_LPAR || !MACHINE_HAS_EDAT1)
+			break;
+
 		ret = -EBUSY;
 		mutex_lock(&kvm->lock);
 		if (atomic_read(&kvm->online_vcpus) == 0) {
@@ -1133,7 +1138,7 @@ void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 	if (kvm_is_ucontrol(vcpu->kvm))
 		gmap_free(vcpu->arch.gmap);
 
-	if (kvm_s390_cmma_enabled(vcpu->kvm))
+	if (vcpu->kvm->arch.use_cmma)
 		kvm_s390_vcpu_unsetup_cmma(vcpu);
 	free_page((unsigned long)(vcpu->arch.sie_block));
 
@@ -1344,7 +1349,7 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 	}
 	vcpu->arch.sie_block->ictl |= ICTL_ISKE | ICTL_SSKE | ICTL_RRBE;
 
-	if (kvm_s390_cmma_enabled(vcpu->kvm)) {
+	if (vcpu->kvm->arch.use_cmma) {
 		rc = kvm_s390_vcpu_setup_cmma(vcpu);
 		if (rc)
 			return rc;
@@ -1723,18 +1728,6 @@ int kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
 	}
 
 	return rc;
-}
-
-bool kvm_s390_cmma_enabled(struct kvm *kvm)
-{
-	if (!MACHINE_IS_LPAR)
-		return false;
-	/* only enable for z10 and later */
-	if (!MACHINE_HAS_EDAT1)
-		return false;
-	if (!kvm->arch.use_cmma)
-		return false;
-	return true;
 }
 
 static bool ibs_enabled(struct kvm_vcpu *vcpu)
