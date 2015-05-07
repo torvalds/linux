@@ -1178,10 +1178,10 @@ static void skl_wrpll_params_populate(struct skl_wrpll_params *params,
 	 * Intermediate values are in Hz.
 	 * Divide by MHz to match bsepc
 	 */
-	params->dco_integer = div_u64(dco_freq, (24 * MHz(1)));
+	params->dco_integer = div_u64(dco_freq, 24 * MHz(1));
 	params->dco_fraction =
-		div_u64(((div_u64(dco_freq, 24) -
-			  params->dco_integer * MHz(1)) * 0x8000), MHz(1));
+		div_u64((div_u64(dco_freq, 24) -
+			 params->dco_integer * MHz(1)) * 0x8000, MHz(1));
 }
 
 static bool
