@@ -808,7 +808,9 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 		break;
 
 	case APIC_DM_SMI:
-		apic_debug("Ignoring guest SMI\n");
+		result = 1;
+		kvm_make_request(KVM_REQ_SMI, vcpu);
+		kvm_vcpu_kick(vcpu);
 		break;
 
 	case APIC_DM_NMI:

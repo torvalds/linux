@@ -368,6 +368,7 @@ struct kvm_vcpu_arch {
 	int32_t apic_arb_prio;
 	int mp_state;
 	u64 ia32_misc_enable_msr;
+	u64 smbase;
 	bool tpr_access_reporting;
 	u64 ia32_xss;
 

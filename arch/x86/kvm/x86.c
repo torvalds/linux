@@ -954,6 +954,7 @@ static u32 emulated_msrs[] = {
 	MSR_IA32_MISC_ENABLE,
 	MSR_IA32_MCG_STATUS,
 	MSR_IA32_MCG_CTL,
+	MSR_IA32_SMBASE,
 };
 
 static unsigned num_emulated_msrs;
@@ -2282,6 +2283,11 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	case MSR_IA32_MISC_ENABLE:
 		vcpu->arch.ia32_misc_enable_msr = data;
 		break;
+	case MSR_IA32_SMBASE:
+		if (!msr_info->host_initiated)
+			return 1;
+		vcpu->arch.smbase = data;
+		break;
 	case MSR_KVM_WALL_CLOCK_NEW:
 	case MSR_KVM_WALL_CLOCK:
 		vcpu->kvm->arch.wall_clock = data;
@@ -2678,6 +2684,11 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		break;
 	case MSR_IA32_MISC_ENABLE:
 		msr_info->data = vcpu->arch.ia32_misc_enable_msr;
+		break;
+	case MSR_IA32_SMBASE:
+		if (!msr_info->host_initiated)
+			return 1;
+		msr_info->data = vcpu->arch.smbase;
 		break;
 	case MSR_IA32_PERF_STATUS:
 		/* TSC increment by tick */
@@ -3103,6 +3114,8 @@ static int kvm_vcpu_ioctl_nmi(struct kvm_vcpu *vcpu)
 
 static int kvm_vcpu_ioctl_smi(struct kvm_vcpu *vcpu)
 {
+	kvm_make_request(KVM_REQ_SMI, vcpu);
+
 	return 0;
 }
 
@@ -5129,6 +5142,20 @@ static int emulator_set_msr(struct x86_emulate_ctxt *ctxt,
 	return kvm_set_msr(emul_to_vcpu(ctxt), &msr);
 }
 
+static u64 emulator_get_smbase(struct x86_emulate_ctxt *ctxt)
+{
+	struct kvm_vcpu *vcpu = emul_to_vcpu(ctxt);
+
+	return vcpu->arch.smbase;
+}
+
+static void emulator_set_smbase(struct x86_emulate_ctxt *ctxt, u64 smbase)
+{
+	struct kvm_vcpu *vcpu = emul_to_vcpu(ctxt);
+
+	vcpu->arch.smbase = smbase;
+}
+
 static int emulator_check_pmc(struct x86_emulate_ctxt *ctxt,
 			      u32 pmc)
 {
@@ -5214,6 +5241,8 @@ static const struct x86_emulate_ops emulate_ops = {
 	.cpl                 = emulator_get_cpl,
 	.get_dr              = emulator_get_dr,
 	.set_dr              = emulator_set_dr,
+	.get_smbase          = emulator_get_smbase,
+	.set_smbase          = emulator_set_smbase,
 	.set_msr             = emulator_set_msr,
 	.get_msr             = emulator_get_msr,
 	.check_pmc	     = emulator_check_pmc,
@@ -5276,6 +5305,8 @@ static void init_emulate_ctxt(struct kvm_vcpu *vcpu)
 		     cs_db				? X86EMUL_MODE_PROT32 :
 							  X86EMUL_MODE_PROT16;
 	BUILD_BUG_ON(HF_GUEST_MASK != X86EMUL_GUEST_MASK);
+	BUILD_BUG_ON(HF_SMM_MASK != X86EMUL_SMM_MASK);
+	BUILD_BUG_ON(HF_SMM_INSIDE_NMI_MASK != X86EMUL_SMM_INSIDE_NMI_MASK);
 	ctxt->emul_flags = vcpu->arch.hflags;
 
 	init_decode_cache(ctxt);
@@ -5445,9 +5476,24 @@ static bool retry_instruction(struct x86_emulate_ctxt *ctxt,
 static int complete_emulated_mmio(struct kvm_vcpu *vcpu);
 static int complete_emulated_pio(struct kvm_vcpu *vcpu);
 
-void kvm_set_hflags(struct kvm_vcpu *vcpu, unsigned emul_flags)
+static void kvm_smm_changed(struct kvm_vcpu *vcpu)
 {
+	if (!(vcpu->arch.hflags & HF_SMM_MASK)) {
+		if (unlikely(vcpu->arch.smi_pending)) {
+			kvm_make_request(KVM_REQ_SMI, vcpu);
+			vcpu->arch.smi_pending = 0;
+		}
+	}
+}
+
+static void kvm_set_hflags(struct kvm_vcpu *vcpu, unsigned emul_flags)
+{
+	unsigned changed = vcpu->arch.hflags ^ emul_flags;
+
 	vcpu->arch.hflags = emul_flags;
+
+	if (changed & HF_SMM_MASK)
+		kvm_smm_changed(vcpu);
 }
 
 static int kvm_vcpu_check_hw_bp(unsigned long addr, u32 type, u32 dr7,
@@ -6341,6 +6387,16 @@ static void process_nmi(struct kvm_vcpu *vcpu)
 	kvm_make_request(KVM_REQ_EVENT, vcpu);
 }
 
+static void process_smi(struct kvm_vcpu *vcpu)
+{
+	if (is_smm(vcpu)) {
+		vcpu->arch.smi_pending = true;
+		return;
+	}
+
+	printk_once(KERN_DEBUG "Ignoring guest SMI\n");
+}
+
 static void vcpu_scan_ioapic(struct kvm_vcpu *vcpu)
 {
 	u64 eoi_exit_bitmap[4];
@@ -6449,6 +6505,8 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 		}
 		if (kvm_check_request(KVM_REQ_STEAL_UPDATE, vcpu))
 			record_steal_time(vcpu);
+		if (kvm_check_request(KVM_REQ_SMI, vcpu))
+			process_smi(vcpu);
 		if (kvm_check_request(KVM_REQ_NMI, vcpu))
 			process_nmi(vcpu);
 		if (kvm_check_request(KVM_REQ_PMU, vcpu))
@@ -7363,8 +7421,10 @@ void kvm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 	kvm_async_pf_hash_reset(vcpu);
 	vcpu->arch.apf.halted = false;
 
-	if (!init_event)
+	if (!init_event) {
 		kvm_pmu_reset(vcpu);
+		vcpu->arch.smbase = 0x30000;
+	}
 
 	memset(vcpu->arch.regs, 0, sizeof(vcpu->arch.regs));
 	vcpu->arch.regs_avail = ~0;

@@ -3394,6 +3394,7 @@ static int (*const svm_exit_handlers[])(struct vcpu_svm *svm) = {
 	[SVM_EXIT_MWAIT]			= mwait_interception,
 	[SVM_EXIT_XSETBV]			= xsetbv_interception,
 	[SVM_EXIT_NPF]				= pf_interception,
+	[SVM_EXIT_RSM]                          = emulate_on_interception,
 };
 
 static void dump_vmcb(struct kvm_vcpu *vcpu)

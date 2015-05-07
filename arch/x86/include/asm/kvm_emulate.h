@@ -193,6 +193,8 @@ struct x86_emulate_ops {
 	int (*cpl)(struct x86_emulate_ctxt *ctxt);
 	int (*get_dr)(struct x86_emulate_ctxt *ctxt, int dr, ulong *dest);
 	int (*set_dr)(struct x86_emulate_ctxt *ctxt, int dr, ulong value);
+	u64 (*get_smbase)(struct x86_emulate_ctxt *ctxt);
+	void (*set_smbase)(struct x86_emulate_ctxt *ctxt, u64 smbase);
 	int (*set_msr)(struct x86_emulate_ctxt *ctxt, u32 msr_index, u64 data);
 	int (*get_msr)(struct x86_emulate_ctxt *ctxt, u32 msr_index, u64 *pdata);
 	int (*check_pmc)(struct x86_emulate_ctxt *ctxt, u32 pmc);
@@ -264,6 +266,8 @@ enum x86emul_mode {
 
 /* These match some of the HF_* flags defined in kvm_host.h  */
 #define X86EMUL_GUEST_MASK           (1 << 5) /* VCPU is in guest-mode */
+#define X86EMUL_SMM_MASK             (1 << 6)
+#define X86EMUL_SMM_INSIDE_NMI_MASK  (1 << 7)
 
 struct x86_emulate_ctxt {
 	const struct x86_emulate_ops *ops;

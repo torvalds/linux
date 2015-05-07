@@ -2259,6 +2259,14 @@ static int em_lseg(struct x86_emulate_ctxt *ctxt)
 	return rc;
 }
 
+static int em_rsm(struct x86_emulate_ctxt *ctxt)
+{
+	if ((ctxt->emul_flags & X86EMUL_SMM_MASK) == 0)
+		return emulate_ud(ctxt);
+
+	return X86EMUL_UNHANDLEABLE;
+}
+
 static void
 setup_syscalls_segments(struct x86_emulate_ctxt *ctxt,
 			struct desc_struct *cs, struct desc_struct *ss)
@@ -4197,7 +4205,7 @@ static const struct opcode twobyte_table[256] = {
 	F(DstMem | SrcReg | Src2CL | ModRM, em_shld), N, N,
 	/* 0xA8 - 0xAF */
 	I(Stack | Src2GS, em_push_sreg), I(Stack | Src2GS, em_pop_sreg),
-	DI(ImplicitOps, rsm),
+	II(No64 | EmulateOnUD | ImplicitOps, em_rsm, rsm),
 	F(DstMem | SrcReg | ModRM | BitOp | Lock | PageTable, em_bts),
 	F(DstMem | SrcReg | Src2ImmByte | ModRM, em_shrd),
 	F(DstMem | SrcReg | Src2CL | ModRM, em_shrd),
