@@ -1356,15 +1356,24 @@ int iwl_mvm_rx_umac_scan_complete_notif(struct iwl_mvm *mvm,
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_umac_scan_complete *notif = (void *)pkt->data;
 	u32 uid = __le32_to_cpu(notif->uid);
-	bool sched = (mvm->scan_uid_status[uid] == IWL_MVM_SCAN_SCHED);
+	bool aborted = (notif->status == IWL_SCAN_OFFLOAD_ABORTED);
 
-	/* the status may be already zero in case of scan abort from above */
-	if (mvm->scan_uid_status[uid] == 0)
+	if (WARN_ON(!(mvm->scan_uid_status[uid] & mvm->scan_status)))
 		return 0;
 
+	/* if the scan is already stopping, we don't need to notify mac80211 */
+	if (mvm->scan_uid_status[uid] == IWL_MVM_SCAN_REGULAR) {
+		ieee80211_scan_completed(mvm->hw, aborted);
+		iwl_mvm_unref(mvm, IWL_MVM_REF_SCAN);
+	} else if (mvm->scan_uid_status[uid] == IWL_MVM_SCAN_SCHED) {
+		ieee80211_sched_scan_stopped(mvm->hw);
+	}
+
+	mvm->scan_status &= ~mvm->scan_uid_status[uid];
+
 	IWL_DEBUG_SCAN(mvm,
-		       "Scan completed, uid %u type %s, status %s, EBS status %s\n",
-		       uid, sched ? "sched" : "regular",
+		       "Scan completed, uid %u type %u, status %s, EBS status %s\n",
+		       uid, mvm->scan_uid_status[uid],
 		       notif->status == IWL_SCAN_OFFLOAD_COMPLETED ?
 				"completed" : "aborted",
 		       notif->ebs_status == IWL_SCAN_EBS_SUCCESS ?
@@ -1374,17 +1383,6 @@ int iwl_mvm_rx_umac_scan_complete_notif(struct iwl_mvm *mvm,
 		mvm->last_ebs_successful = false;
 
 	mvm->scan_uid_status[uid] = 0;
-
-	if (!sched) {
-		ieee80211_scan_completed(mvm->hw,
-					 notif->status ==
-						IWL_SCAN_OFFLOAD_ABORTED);
-		iwl_mvm_unref(mvm, IWL_MVM_REF_SCAN);
-	} else if (iwl_mvm_scan_uid_by_status(mvm, IWL_MVM_SCAN_SCHED) < 0) {
-		ieee80211_sched_scan_stopped(mvm->hw);
-	} else {
-		IWL_DEBUG_SCAN(mvm, "Another sched scan is running\n");
-	}
 
 	return 0;
 }
@@ -1430,7 +1428,7 @@ static int iwl_mvm_umac_scan_abort(struct iwl_mvm *mvm, int type)
 
 	ret = iwl_mvm_send_cmd_pdu(mvm, SCAN_ABORT_UMAC, 0, sizeof(cmd), &cmd);
 	if (!ret)
-		mvm->scan_uid_status[uid] = 0;
+		mvm->scan_uid_status[uid] = type << IWL_MVM_SCAN_STOPPING_SHIFT;
 
 	return ret;
 }
