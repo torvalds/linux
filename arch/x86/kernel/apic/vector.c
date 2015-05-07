@@ -210,6 +210,18 @@ static int assign_irq_vector(int irq, struct apic_chip_data *data,
 	return err;
 }
 
+static int assign_irq_vector_policy(int irq, int node,
+				    struct apic_chip_data *data,
+				    struct irq_alloc_info *info)
+{
+	if (info && info->mask)
+		return assign_irq_vector(irq, data, info->mask);
+	if (node != NUMA_NO_NODE &&
+	    assign_irq_vector(irq, data, cpumask_of_node(node)) == 0)
+		return 0;
+	return assign_irq_vector(irq, data, apic->target_cpus());
+}
+
 static void clear_irq_vector(int irq, struct apic_chip_data *data)
 {
 	int cpu, vector;
@@ -258,12 +270,6 @@ void copy_irq_alloc_info(struct irq_alloc_info *dst, struct irq_alloc_info *src)
 		memset(dst, 0, sizeof(*dst));
 }
 
-static inline const struct cpumask *
-irq_alloc_info_get_mask(struct irq_alloc_info *info)
-{
-	return (!info || !info->mask) ? apic->target_cpus() : info->mask;
-}
-
 static void x86_vector_free_irqs(struct irq_domain *domain,
 				 unsigned int virq, unsigned int nr_irqs)
 {
@@ -289,7 +295,6 @@ static int x86_vector_alloc_irqs(struct irq_domain *domain, unsigned int virq,
 {
 	struct irq_alloc_info *info = arg;
 	struct apic_chip_data *data;
-	const struct cpumask *mask;
 	struct irq_data *irq_data;
 	int i, err;
 
@@ -300,7 +305,6 @@ static int x86_vector_alloc_irqs(struct irq_domain *domain, unsigned int virq,
 	if ((info->flags & X86_IRQ_ALLOC_CONTIGUOUS_VECTORS) && nr_irqs > 1)
 		return -ENOSYS;
 
-	mask = irq_alloc_info_get_mask(info);
 	for (i = 0; i < nr_irqs; i++) {
 		irq_data = irq_domain_get_irq_data(domain, virq + i);
 		BUG_ON(!irq_data);
@@ -318,7 +322,8 @@ static int x86_vector_alloc_irqs(struct irq_domain *domain, unsigned int virq,
 		irq_data->chip = &lapic_controller;
 		irq_data->chip_data = data;
 		irq_data->hwirq = virq + i;
-		err = assign_irq_vector(virq, data, mask);
+		err = assign_irq_vector_policy(virq, irq_data->node, data,
+					       info);
 		if (err)
 			goto error;
 	}
