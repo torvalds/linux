@@ -100,6 +100,7 @@ static void cc10001_adc_start(struct cc10001_adc_device *adc_dev,
 	val = (channel & CC10001_ADC_CH_MASK) | CC10001_ADC_MODE_SINGLE_CONV;
 	cc10001_adc_write_reg(adc_dev, CC10001_ADC_CONFIG, val);
 
+	udelay(1);
 	val = cc10001_adc_read_reg(adc_dev, CC10001_ADC_CONFIG);
 	val = val | CC10001_ADC_START_CONV;
 	cc10001_adc_write_reg(adc_dev, CC10001_ADC_CONFIG, val);
