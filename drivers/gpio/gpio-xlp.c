@@ -366,6 +366,8 @@ static int xlp_gpio_probe(struct platform_device *pdev)
 
 	gc = &priv->chip;
 
+	gc->owner = THIS_MODULE;
+	gc->label = dev_name(&pdev->dev);
 	gc->base = 0;
 	gc->dev = &pdev->dev;
 	gc->ngpio = ngpio;
