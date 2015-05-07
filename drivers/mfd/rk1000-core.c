@@ -37,6 +37,7 @@ struct rk1000 {
 };
 
 static struct rk1000 *rk1000;
+int cvbsmode = -1;
 
 void rk1000_reset_ctrl(int enable)
 {
@@ -105,6 +106,46 @@ int rk1000_i2c_recv(const u8 addr, const u8 reg, const char *buf)
 	return (ret == 2) ? 0 : -1;
 }
 
+static ssize_t rk1000_show(struct kobject *kobj, struct kobj_attribute *attr,char *buf)
+{
+       int ret=-1;
+      int i=0;
+       unsigned char tv_encoder_regs[] = {0x00, 0x00, 0x00, 0x03, 0x00, 0x00};
+       unsigned char tv_encoder_control_regs[] = {0x43, 0x01};
+       
+       
+       for (i = 0; i < sizeof(tv_encoder_regs); i++) {
+               ret = rk1000_i2c_recv(I2C_ADDR_TVE, i, buf);
+               printk("---%x--\n",buf[0]);
+               if (ret < 0) {
+                       pr_err("rk1000_tv_write_block err!\n");
+                       return ret;
+               }
+       }
+
+       for (i = 0; i < sizeof(tv_encoder_control_regs); i++) {
+               ret = rk1000_i2c_recv(I2C_ADDR_CTRL,i + 3,buf);
+               printk("cntrl---%x--\n",buf[0]);
+               if (ret < 0) {
+                       pr_err("rk1000_control_write_block err!\n");
+                       return ret;
+               }
+       }
+  return 0;
+}
+
+static DEVICE_ATTR(rkcontrl, 0666, rk1000_show, NULL);
+
+
+static int __init bootloader_cvbs_setup(char *str){	
+	static int ret;	
+	if (str) {		
+		printk("cvbs init tve.format is %s\n", str);		
+		ret = sscanf(str, "%d", &cvbsmode);	
+	}	
+	return 0;
+}
+early_param("tve.format", bootloader_cvbs_setup);
 
 #ifdef CONFIG_PM
 static int rk1000_control_suspend(struct device *dev)
@@ -153,55 +194,62 @@ static int rk1000_probe(struct i2c_client *client,
 	enum of_gpio_flags flags;
 	int ret;
 
+	
 	DBG("[%s] start\n", __func__);
 	rk1000 = kmalloc(sizeof(*rk1000), GFP_KERNEL);
 	if (!rk1000) {
 		dev_err(&client->dev, ">> rk1000 core inf kmalloc fail!");
 		return -ENOMEM;
 	}
+	
 	memset(rk1000, 0, sizeof(struct rk1000));
 	rk1000->client = client;
 	rk1000->dev = &client->dev;
 	rk1000_np = rk1000->dev->of_node;
-	/********Get reset pin***********/
-	rk1000->io_reset.gpio = of_get_named_gpio_flags(rk1000_np,
-							"gpio-reset",
-							0, &flags);
-	if (!gpio_is_valid(rk1000->io_reset.gpio)) {
-		DBG("invalid rk1000->io_reset.gpio: %d\n",
-		    rk1000->io_reset.gpio);
-		ret = -1;
-		goto err;
-	}
-	ret = gpio_request(rk1000->io_reset.gpio, "rk1000-reset-io");
-	if (ret != 0) {
-		DBG("gpio_request rk1000->io_reset.gpio invalid: %d\n",
-		    rk1000->io_reset.gpio);
-		goto err;
-	}
-	rk1000->io_reset.active = !(flags & OF_GPIO_ACTIVE_LOW);
-	gpio_direction_output(rk1000->io_reset.gpio,
-			      !(rk1000->io_reset.active));
-	msleep(20);
-	/********Get power pin***********/
-	rk1000->io_power.gpio = of_get_named_gpio_flags(rk1000_np,
-							"gpio-power",
-							0, &flags);
-	if (gpio_is_valid(rk1000->io_power.gpio)) {
-		ret = gpio_request(rk1000->io_power.gpio, "rk1000-power-io");
-		if (ret != 0) {
-			DBG("gpio_request rk1000->io_power.gpio invalid: %d\n",
-			    rk1000->io_power.gpio);
+	
+	if(cvbsmode<0){
+		/********Get reset pin***********/
+		rk1000->io_reset.gpio = of_get_named_gpio_flags(rk1000_np,
+								"gpio-reset",
+								0, &flags);
+		if (!gpio_is_valid(rk1000->io_reset.gpio)) {
+			DBG("invalid rk1000->io_reset.gpio: %d\n",
+			    rk1000->io_reset.gpio);
+			ret = -1;
 			goto err;
 		}
-		rk1000->io_power.active = !(flags & OF_GPIO_ACTIVE_LOW);
-		gpio_direction_output(rk1000->io_power.gpio,
-				      rk1000->io_power.active);
+		ret = gpio_request(rk1000->io_reset.gpio, "rk1000-reset-io");
+		if (ret != 0) {
+			DBG("gpio_request rk1000->io_reset.gpio invalid: %d\n",
+			    rk1000->io_reset.gpio);
+			goto err;
+		}
+		rk1000->io_reset.active = !(flags & OF_GPIO_ACTIVE_LOW);
+
+
+		gpio_direction_output(rk1000->io_reset.gpio,
+				      !(rk1000->io_reset.active));
+		msleep(20);
+		/********Get power pin***********/
+		rk1000->io_power.gpio = of_get_named_gpio_flags(rk1000_np,
+								"gpio-power",
+								0, &flags);
+		if (gpio_is_valid(rk1000->io_power.gpio)) {
+			ret = gpio_request(rk1000->io_power.gpio, "rk1000-power-io");
+			if (ret != 0) {
+				DBG("gpio_request rk1000->io_power.gpio invalid: %d\n",
+				    rk1000->io_power.gpio);
+				goto err;
+			}
+			rk1000->io_power.active = !(flags & OF_GPIO_ACTIVE_LOW);
+			gpio_direction_output(rk1000->io_power.gpio,
+					      rk1000->io_power.active);
+		}
+		/********rk1000 reset***********/
+		gpio_set_value(rk1000->io_reset.gpio, rk1000->io_reset.active);
+		msleep(100);
+		gpio_set_value(rk1000->io_reset.gpio, !(rk1000->io_reset.active));
 	}
-	/********rk1000 reset***********/
-	gpio_set_value(rk1000->io_reset.gpio, rk1000->io_reset.active);
-	msleep(100);
-	gpio_set_value(rk1000->io_reset.gpio, !(rk1000->io_reset.active));
 	rk1000_i2c_send(I2C_ADDR_CTRL, CTRL_ADC, 0x88);
 	#ifdef CONFIG_SND_SOC_RK1000
 	rk1000_i2c_send(I2C_ADDR_CTRL, CTRL_CODEC, 0x00);
@@ -209,7 +257,11 @@ static int rk1000_probe(struct i2c_client *client,
 	rk1000_i2c_send(I2C_ADDR_CTRL, CTRL_CODEC, 0x0d);
 	#endif
 	rk1000_i2c_send(I2C_ADDR_CTRL, CTRL_I2C, 0x22);
-	rk1000_i2c_send(I2C_ADDR_CTRL, CTRL_TVE, 0x00);
+
+	if(cvbsmode<0){
+		rk1000_i2c_send(I2C_ADDR_CTRL, CTRL_TVE, 0x00);
+	}
+	 device_create_file(&client->dev, &dev_attr_rkcontrl);
 	DBG("rk1000 probe ok\n");
 	return 0;
 err:
