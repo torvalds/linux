@@ -88,6 +88,8 @@ void mmc_remove_card_debugfs(struct mmc_card *card);
 void mmc_init_context_info(struct mmc_host *host);
 
 int mmc_execute_tuning(struct mmc_card *card);
+int mmc_hs200_to_hs400(struct mmc_card *card);
+int mmc_hs400_to_hs200(struct mmc_card *card);
 
 #endif
 
