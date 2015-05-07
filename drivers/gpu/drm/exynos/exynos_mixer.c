@@ -1129,7 +1129,7 @@ int mixer_check_mode(struct drm_display_mode *mode)
 	return -EINVAL;
 }
 
-static struct exynos_drm_crtc_ops mixer_crtc_ops = {
+static const struct exynos_drm_crtc_ops mixer_crtc_ops = {
 	.dpms			= mixer_dpms,
 	.enable_vblank		= mixer_enable_vblank,
 	.disable_vblank		= mixer_disable_vblank,

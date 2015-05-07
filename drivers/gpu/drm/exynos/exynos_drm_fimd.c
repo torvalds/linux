@@ -962,7 +962,7 @@ static void fimd_dp_clock_enable(struct exynos_drm_crtc *crtc, bool enable)
 	writel(DP_MIE_CLK_DP_ENABLE, ctx->regs + DP_MIE_CLKCON);
 }
 
-static struct exynos_drm_crtc_ops fimd_crtc_ops = {
+static const struct exynos_drm_crtc_ops fimd_crtc_ops = {
 	.dpms = fimd_dpms,
 	.mode_fixup = fimd_mode_fixup,
 	.commit = fimd_commit,

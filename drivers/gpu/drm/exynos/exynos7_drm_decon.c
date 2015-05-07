@@ -710,7 +710,7 @@ static void decon_dpms(struct exynos_drm_crtc *crtc, int mode)
 	}
 }
 
-static struct exynos_drm_crtc_ops decon_crtc_ops = {
+static const struct exynos_drm_crtc_ops decon_crtc_ops = {
 	.dpms = decon_dpms,
 	.mode_fixup = decon_mode_fixup,
 	.commit = decon_commit,
