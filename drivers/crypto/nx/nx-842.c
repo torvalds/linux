@@ -164,7 +164,9 @@ static __init int nx842_init(void)
 {
 	pr_info("loading\n");
 
-	if (of_find_compatible_node(NULL, NULL, NX842_PSERIES_COMPAT_NAME))
+	if (of_find_compatible_node(NULL, NULL, NX842_POWERNV_COMPAT_NAME))
+		request_module_nowait(NX842_POWERNV_MODULE_NAME);
+	else if (of_find_compatible_node(NULL, NULL, NX842_PSERIES_COMPAT_NAME))
 		request_module_nowait(NX842_PSERIES_MODULE_NAME);
 	else
 		pr_err("no nx842 driver found.\n");

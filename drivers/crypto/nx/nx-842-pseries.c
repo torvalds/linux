@@ -160,15 +160,6 @@ static inline unsigned long nx842_get_scatterlist_size(
 	return sl->entry_nr * sizeof(struct nx842_slentry);
 }
 
-static inline unsigned long nx842_get_pa(void *addr)
-{
-	if (is_vmalloc_addr(addr))
-		return page_to_phys(vmalloc_to_page(addr))
-		       + offset_in_page(addr);
-	else
-		return __pa(addr);
-}
-
 static int nx842_build_scatterlist(unsigned long buf, int len,
 			struct nx842_scatterlist *sl)
 {

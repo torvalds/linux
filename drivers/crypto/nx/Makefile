@@ -12,5 +12,7 @@ nx-crypto-objs := nx.o \
 
 obj-$(CONFIG_CRYPTO_DEV_NX_COMPRESS) += nx-compress.o
 obj-$(CONFIG_CRYPTO_DEV_NX_COMPRESS_PSERIES) += nx-compress-pseries.o
+obj-$(CONFIG_CRYPTO_DEV_NX_COMPRESS_POWERNV) += nx-compress-powernv.o
 nx-compress-objs := nx-842.o
 nx-compress-pseries-objs := nx-842-pseries.o
+nx-compress-powernv-objs := nx-842-powernv.o
