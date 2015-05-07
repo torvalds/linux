@@ -343,41 +343,6 @@ int mei_cl_bus_init(void);
 void mei_cl_bus_exit(void);
 struct mei_cl *mei_cl_bus_find_cl_by_uuid(struct mei_device *dev, uuid_le uuid);
 
-
-/**
- * struct mei_cl_device - MEI device handle
- * An mei_cl_device pointer is returned from mei_add_device()
- * and links MEI bus clients to their actual ME host client pointer.
- * Drivers for MEI devices will get an mei_cl_device pointer
- * when being probed and shall use it for doing ME bus I/O.
- *
- * @dev: linux driver model device pointer
- * @me_cl: me client
- * @cl: mei client
- * @name: device name
- * @event_work: async work to execute event callback
- * @event_cb: Drivers register this callback to get asynchronous ME
- *	events (e.g. Rx buffer pending) notifications.
- * @event_context: event callback run context
- * @events: Events bitmask sent to the driver.
- * @priv_data: client private data
- */
-struct mei_cl_device {
-	struct device dev;
-
-	struct mei_me_client *me_cl;
-	struct mei_cl *cl;
-	char name[MEI_CL_NAME_SIZE];
-
-	struct work_struct event_work;
-	mei_cl_event_cb_t event_cb;
-	void *event_context;
-	unsigned long events;
-
-	void *priv_data;
-};
-
-
 /**
  * enum mei_pg_event - power gating transition events
  *
