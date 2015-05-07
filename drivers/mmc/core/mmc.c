@@ -21,6 +21,7 @@
 #include <linux/mmc/mmc.h>
 
 #include "core.h"
+#include "host.h"
 #include "bus.h"
 #include "mmc_ops.h"
 #include "sd_ops.h"
@@ -1511,9 +1512,12 @@ static int mmc_sleep(struct mmc_host *host)
 	unsigned int timeout_ms = DIV_ROUND_UP(card->ext_csd.sa_timeout, 10000);
 	int err;
 
+	/* Re-tuning can't be done once the card is deselected */
+	mmc_retune_hold(host);
+
 	err = mmc_deselect_cards(host);
 	if (err)
-		return err;
+		goto out_release;
 
 	cmd.opcode = MMC_SLEEP_AWAKE;
 	cmd.arg = card->rca << 16;
@@ -1534,7 +1538,7 @@ static int mmc_sleep(struct mmc_host *host)
 
 	err = mmc_wait_for_cmd(host, &cmd, 0);
 	if (err)
-		return err;
+		goto out_release;
 
 	/*
 	 * If the host does not wait while the card signals busy, then we will
@@ -1545,6 +1549,8 @@ static int mmc_sleep(struct mmc_host *host)
 	if (!cmd.busy_timeout || !(host->caps & MMC_CAP_WAIT_WHILE_BUSY))
 		mmc_delay(timeout_ms);
 
+out_release:
+	mmc_retune_release(host);
 	return err;
 }
 
