@@ -126,7 +126,7 @@ static const char *kernfs_iop_follow_link(struct dentry *dentry, void **cookie)
 	return *cookie = (char *)page;
 }
 
-static void kernfs_iop_put_link(struct dentry *dentry, void *cookie)
+static void kernfs_iop_put_link(struct inode *unused, void *cookie)
 {
 	free_page((unsigned long)cookie);
 }

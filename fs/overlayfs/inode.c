@@ -174,7 +174,7 @@ static const char *ovl_follow_link(struct dentry *dentry, void **cookie)
 	return ret;
 }
 
-static void ovl_put_link(struct dentry *dentry, void *c)
+static void ovl_put_link(struct inode *unused, void *c)
 {
 	struct inode *realinode;
 	struct ovl_link_data *data = c;
@@ -183,7 +183,7 @@ static void ovl_put_link(struct dentry *dentry, void *c)
 		return;
 
 	realinode = data->realdentry->d_inode;
-	realinode->i_op->put_link(data->realdentry, data->cookie);
+	realinode->i_op->put_link(realinode, data->cookie);
 	kfree(data);
 }
 

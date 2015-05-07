@@ -402,7 +402,7 @@ static const char *proc_follow_link(struct dentry *dentry, void **cookie)
 	return pde->data;
 }
 
-static void proc_put_link(struct dentry *dentry, void *p)
+static void proc_put_link(struct inode *unused, void *p)
 {
 	unuse_pde(p);
 }

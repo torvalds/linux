@@ -915,7 +915,7 @@ static const char *hostfs_follow_link(struct dentry *dentry, void **cookie)
 	return *cookie = link;
 }
 
-static void hostfs_put_link(struct dentry *dentry, void *cookie)
+static void hostfs_put_link(struct inode *unused, void *cookie)
 {
 	__putname(cookie);
 }

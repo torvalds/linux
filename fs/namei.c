@@ -749,7 +749,7 @@ static inline void put_link(struct nameidata *nd)
 	struct saved *last = nd->stack + --nd->depth;
 	struct inode *inode = last->inode;
 	if (last->cookie && inode->i_op->put_link)
-		inode->i_op->put_link(last->link.dentry, last->cookie);
+		inode->i_op->put_link(inode, last->cookie);
 	path_put(&last->link);
 }
 
@@ -4444,17 +4444,18 @@ EXPORT_SYMBOL(readlink_copy);
 int generic_readlink(struct dentry *dentry, char __user *buffer, int buflen)
 {
 	void *cookie;
-	const char *link = dentry->d_inode->i_link;
+	struct inode *inode = d_inode(dentry);
+	const char *link = inode->i_link;
 	int res;
 
 	if (!link) {
-		link = dentry->d_inode->i_op->follow_link(dentry, &cookie);
+		link = inode->i_op->follow_link(dentry, &cookie);
 		if (IS_ERR(link))
 			return PTR_ERR(link);
 	}
 	res = readlink_copy(buffer, buflen, link);
-	if (dentry->d_inode->i_op->put_link)
-		dentry->d_inode->i_op->put_link(dentry, cookie);
+	if (inode->i_op->put_link)
+		inode->i_op->put_link(inode, cookie);
 	return res;
 }
 EXPORT_SYMBOL(generic_readlink);
@@ -4496,7 +4497,7 @@ const char *page_follow_link_light(struct dentry *dentry, void **cookie)
 }
 EXPORT_SYMBOL(page_follow_link_light);
 
-void page_put_link(struct dentry *dentry, void *cookie)
+void page_put_link(struct inode *unused, void *cookie)
 {
 	struct page *page = cookie;
 	kunmap(page);

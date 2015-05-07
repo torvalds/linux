@@ -2486,7 +2486,7 @@ static const char *shmem_follow_link(struct dentry *dentry, void **cookie)
 	return kmap(page);
 }
 
-static void shmem_put_link(struct dentry *dentry, void *cookie)
+static void shmem_put_link(struct inode *unused, void *cookie)
 {
 	struct page *page = cookie;
 	kunmap(page);

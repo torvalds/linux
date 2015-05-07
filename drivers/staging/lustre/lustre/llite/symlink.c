@@ -141,7 +141,7 @@ static const char *ll_follow_link(struct dentry *dentry, void **cookie)
 	return symname;
 }
 
-static void ll_put_link(struct dentry *dentry, void *cookie)
+static void ll_put_link(struct inode *unused, void *cookie)
 {
 	ptlrpc_req_finished(cookie);
 }

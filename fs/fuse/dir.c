@@ -1395,7 +1395,7 @@ static const char *fuse_follow_link(struct dentry *dentry, void **cookie)
 	return link;
 }
 
-static void fuse_put_link(struct dentry *dentry, void *cookie)
+static void fuse_put_link(struct inode *unused, void *cookie)
 {
 	free_page((unsigned long) cookie);
 }

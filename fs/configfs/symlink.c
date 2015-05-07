@@ -296,7 +296,7 @@ static const char *configfs_follow_link(struct dentry *dentry, void **cookie)
 	return ERR_PTR(error);
 }
 
-static void configfs_put_link(struct dentry *dentry, void *cookie)
+static void configfs_put_link(struct inode *unused, void *cookie)
 {
 	free_page((unsigned long)cookie);
 }

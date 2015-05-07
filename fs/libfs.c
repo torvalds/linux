@@ -1024,7 +1024,7 @@ int noop_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 }
 EXPORT_SYMBOL(noop_fsync);
 
-void kfree_put_link(struct dentry *dentry, void *cookie)
+void kfree_put_link(struct inode *unused, void *cookie)
 {
 	kfree(cookie);
 }
