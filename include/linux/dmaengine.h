@@ -122,10 +122,18 @@ enum dma_transfer_direction {
  *	 chunk and before first src/dst address for next chunk.
  *	 Ignored for dst(assumed 0), if dst_inc is true and dst_sgl is false.
  *	 Ignored for src(assumed 0), if src_inc is true and src_sgl is false.
+ * @dst_icg: Number of bytes to jump after last dst address of this
+ *	 chunk and before the first dst address for next chunk.
+ *	 Ignored if dst_inc is true and dst_sgl is false.
+ * @src_icg: Number of bytes to jump after last src address of this
+ *	 chunk and before the first src address for next chunk.
+ *	 Ignored if src_inc is true and src_sgl is false.
  */
 struct data_chunk {
 	size_t size;
 	size_t icg;
+	size_t dst_icg;
+	size_t src_icg;
 };
 
 /**
