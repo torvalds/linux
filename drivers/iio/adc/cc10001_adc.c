@@ -35,8 +35,9 @@
 #define CC10001_ADC_EOC_SET		BIT(0)
 
 #define CC10001_ADC_CHSEL_SAMPLED	0x0c
-#define CC10001_ADC_POWER_UP		0x10
-#define CC10001_ADC_POWER_UP_SET	BIT(0)
+#define CC10001_ADC_POWER_DOWN		0x10
+#define CC10001_ADC_POWER_DOWN_SET	BIT(0)
+
 #define CC10001_ADC_DEBUG		0x14
 #define CC10001_ADC_DATA_COUNT		0x20
 
@@ -76,6 +77,18 @@ static inline u32 cc10001_adc_read_reg(struct cc10001_adc_device *adc_dev,
 				       u32 reg)
 {
 	return readl(adc_dev->reg_base + reg);
+}
+
+static void cc10001_adc_power_up(struct cc10001_adc_device *adc_dev)
+{
+	cc10001_adc_write_reg(adc_dev, CC10001_ADC_POWER_DOWN, 0);
+	ndelay(adc_dev->start_delay_ns);
+}
+
+static void cc10001_adc_power_down(struct cc10001_adc_device *adc_dev)
+{
+	cc10001_adc_write_reg(adc_dev, CC10001_ADC_POWER_DOWN,
+			      CC10001_ADC_POWER_DOWN_SET);
 }
 
 static void cc10001_adc_start(struct cc10001_adc_device *adc_dev,
@@ -139,11 +152,7 @@ static irqreturn_t cc10001_adc_trigger_h(int irq, void *p)
 
 	mutex_lock(&adc_dev->lock);
 
-	cc10001_adc_write_reg(adc_dev, CC10001_ADC_POWER_UP,
-			      CC10001_ADC_POWER_UP_SET);
-
-	/* Wait for 8 (6+2) clock cycles before activating START */
-	ndelay(adc_dev->start_delay_ns);
+	cc10001_adc_power_up(adc_dev);
 
 	/* Calculate delay step for eoc and sampled data */
 	delay_ns = adc_dev->eoc_delay_ns / CC10001_MAX_POLL_COUNT;
@@ -167,7 +176,7 @@ static irqreturn_t cc10001_adc_trigger_h(int irq, void *p)
 	}
 
 done:
-	cc10001_adc_write_reg(adc_dev, CC10001_ADC_POWER_UP, 0);
+	cc10001_adc_power_down(adc_dev);
 
 	mutex_unlock(&adc_dev->lock);
 
@@ -186,11 +195,7 @@ static u16 cc10001_adc_read_raw_voltage(struct iio_dev *indio_dev,
 	unsigned int delay_ns;
 	u16 val;
 
-	cc10001_adc_write_reg(adc_dev, CC10001_ADC_POWER_UP,
-			      CC10001_ADC_POWER_UP_SET);
-
-	/* Wait for 8 (6+2) clock cycles before activating START */
-	ndelay(adc_dev->start_delay_ns);
+	cc10001_adc_power_up(adc_dev);
 
 	/* Calculate delay step for eoc and sampled data */
 	delay_ns = adc_dev->eoc_delay_ns / CC10001_MAX_POLL_COUNT;
@@ -199,7 +204,7 @@ static u16 cc10001_adc_read_raw_voltage(struct iio_dev *indio_dev,
 
 	val = cc10001_adc_poll_done(indio_dev, chan->channel, delay_ns);
 
-	cc10001_adc_write_reg(adc_dev, CC10001_ADC_POWER_UP, 0);
+	cc10001_adc_power_down(adc_dev);
 
 	return val;
 }
