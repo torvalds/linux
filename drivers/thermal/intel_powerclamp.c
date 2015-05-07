@@ -206,51 +206,57 @@ static void find_target_mwait(void)
 
 }
 
+struct pkg_cstate_info {
+	bool skip;
+	int msr_index;
+	int cstate_id;
+};
+
+#define PKG_CSTATE_INIT(id) {				\
+		.msr_index = MSR_PKG_C##id##_RESIDENCY, \
+		.cstate_id = id				\
+			}
+
+static struct pkg_cstate_info pkg_cstates[] = {
+	PKG_CSTATE_INIT(2),
+	PKG_CSTATE_INIT(3),
+	PKG_CSTATE_INIT(6),
+	PKG_CSTATE_INIT(7),
+	PKG_CSTATE_INIT(8),
+	PKG_CSTATE_INIT(9),
+	PKG_CSTATE_INIT(10),
+	{NULL},
+};
+
 static bool has_pkg_state_counter(void)
 {
-	u64 tmp;
-	return !rdmsrl_safe(MSR_PKG_C2_RESIDENCY, &tmp) ||
-	       !rdmsrl_safe(MSR_PKG_C3_RESIDENCY, &tmp) ||
-	       !rdmsrl_safe(MSR_PKG_C6_RESIDENCY, &tmp) ||
-	       !rdmsrl_safe(MSR_PKG_C7_RESIDENCY, &tmp);
+	u64 val;
+	struct pkg_cstate_info *info = pkg_cstates;
+
+	/* check if any one of the counter msrs exists */
+	while (info->msr_index) {
+		if (!rdmsrl_safe(info->msr_index, &val))
+			return true;
+		info++;
+	}
+
+	return false;
 }
 
 static u64 pkg_state_counter(void)
 {
 	u64 val;
 	u64 count = 0;
+	struct pkg_cstate_info *info = pkg_cstates;
 
-	static bool skip_c2;
-	static bool skip_c3;
-	static bool skip_c6;
-	static bool skip_c7;
-
-	if (!skip_c2) {
-		if (!rdmsrl_safe(MSR_PKG_C2_RESIDENCY, &val))
-			count += val;
-		else
-			skip_c2 = true;
-	}
-
-	if (!skip_c3) {
-		if (!rdmsrl_safe(MSR_PKG_C3_RESIDENCY, &val))
-			count += val;
-		else
-			skip_c3 = true;
-	}
-
-	if (!skip_c6) {
-		if (!rdmsrl_safe(MSR_PKG_C6_RESIDENCY, &val))
-			count += val;
-		else
-			skip_c6 = true;
-	}
-
-	if (!skip_c7) {
-		if (!rdmsrl_safe(MSR_PKG_C7_RESIDENCY, &val))
-			count += val;
-		else
-			skip_c7 = true;
+	while (info->msr_index) {
+		if (!info->skip) {
+			if (!rdmsrl_safe(info->msr_index, &val))
+				count += val;
+			else
+				info->skip = true;
+		}
+		info++;
 	}
 
 	return count;
