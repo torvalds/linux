@@ -12340,6 +12340,7 @@ static int __intel_set_mode(struct drm_crtc *modeset_crtc,
 			continue;
 
 		if (!crtc_state->enable) {
+			crtc_state->active = false;
 			intel_crtc_disable(crtc);
 		} else if (crtc->state->enable) {
 			intel_crtc_disable_planes(crtc);
