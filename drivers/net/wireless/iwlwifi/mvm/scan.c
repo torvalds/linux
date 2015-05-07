@@ -557,7 +557,7 @@ static bool iwl_mvm_scan_pass_all(struct iwl_mvm *mvm,
 	return true;
 }
 
-static int iwl_mvm_send_lmac_scan_abort(struct iwl_mvm *mvm)
+static int iwl_mvm_lmac_scan_abort(struct iwl_mvm *mvm)
 {
 	int ret;
 	struct iwl_host_cmd cmd = {
@@ -581,36 +581,6 @@ static int iwl_mvm_send_lmac_scan_abort(struct iwl_mvm *mvm)
 		ret = -ENOENT;
 	}
 
-	return ret;
-}
-
-static int iwl_mvm_lmac_scan_stop(struct iwl_mvm *mvm, int type)
-{
-	int ret;
-	struct iwl_notification_wait wait_scan_done;
-	static const u8 scan_done_notif[] = { SCAN_OFFLOAD_COMPLETE, };
-	bool sched = type & IWL_MVM_SCAN_SCHED;
-
-	lockdep_assert_held(&mvm->mutex);
-
-	iwl_init_notification_wait(&mvm->notif_wait, &wait_scan_done,
-				   scan_done_notif,
-				   ARRAY_SIZE(scan_done_notif),
-				   NULL, NULL);
-
-	ret = iwl_mvm_send_lmac_scan_abort(mvm);
-	if (ret) {
-		IWL_DEBUG_SCAN(mvm, "Send stop %sscan failed %d\n",
-			       sched ? "offloaded " : "", ret);
-		iwl_remove_notification(&mvm->notif_wait, &wait_scan_done);
-		goto out;
-	}
-
-	IWL_DEBUG_SCAN(mvm, "Successfully sent stop %sscan\n",
-		       sched ? "scheduled " : "");
-
-	ret = iwl_wait_notification(&mvm->notif_wait, &wait_scan_done, 1 * HZ);
-out:
 	return ret;
 }
 
@@ -1465,11 +1435,14 @@ static int iwl_mvm_umac_scan_abort(struct iwl_mvm *mvm, int type)
 	return ret;
 }
 
-static int iwl_mvm_umac_scan_stop(struct iwl_mvm *mvm, int type)
+static int iwl_mvm_scan_stop_wait(struct iwl_mvm *mvm, int type)
 {
 	struct iwl_notification_wait wait_scan_done;
-	static const u8 scan_done_notif[] = { SCAN_COMPLETE_UMAC, };
+	static const u8 scan_done_notif[] = { SCAN_COMPLETE_UMAC,
+					      SCAN_OFFLOAD_COMPLETE, };
 	int ret;
+
+	lockdep_assert_held(&mvm->mutex);
 
 	iwl_init_notification_wait(&mvm->notif_wait, &wait_scan_done,
 				   scan_done_notif,
@@ -1478,7 +1451,11 @@ static int iwl_mvm_umac_scan_stop(struct iwl_mvm *mvm, int type)
 
 	IWL_DEBUG_SCAN(mvm, "Preparing to stop scan, type %x\n", type);
 
-	ret = iwl_mvm_umac_scan_abort(mvm, type);
+	if (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN)
+		ret = iwl_mvm_umac_scan_abort(mvm, type);
+	else
+		ret = iwl_mvm_lmac_scan_abort(mvm);
+
 	if (ret) {
 		IWL_DEBUG_SCAN(mvm, "couldn't stop scan type %d\n", type);
 		iwl_remove_notification(&mvm->notif_wait, &wait_scan_done);
@@ -1559,11 +1536,7 @@ int iwl_mvm_reg_scan_stop(struct iwl_mvm *mvm)
 		goto out;
 	}
 
-	if (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN)
-		ret = iwl_mvm_umac_scan_stop(mvm, IWL_MVM_SCAN_REGULAR);
-	else
-		ret = iwl_mvm_lmac_scan_stop(mvm, IWL_MVM_SCAN_REGULAR);
-
+	ret = iwl_mvm_scan_stop_wait(mvm, IWL_MVM_SCAN_REGULAR);
 	if (!ret)
 		mvm->scan_status |= IWL_MVM_SCAN_STOPPING_REGULAR;
 out:
@@ -1593,11 +1566,7 @@ int iwl_mvm_sched_scan_stop(struct iwl_mvm *mvm, bool notify)
 		goto out;
 	}
 
-	if (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN)
-		ret = iwl_mvm_umac_scan_stop(mvm, IWL_MVM_SCAN_SCHED);
-	else
-		ret = iwl_mvm_lmac_scan_stop(mvm, IWL_MVM_SCAN_SCHED);
-
+	ret = iwl_mvm_scan_stop_wait(mvm, IWL_MVM_SCAN_SCHED);
 	if (!ret)
 		mvm->scan_status |= IWL_MVM_SCAN_STOPPING_SCHED;
 out:
