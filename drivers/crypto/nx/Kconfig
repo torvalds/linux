@@ -50,4 +50,14 @@ config CRYPTO_DEV_NX_COMPRESS_POWERNV
 	  algorithm.  This supports NX hardware on the PowerNV platform.
 	  If you choose 'M' here, this module will be called nx_compress_powernv.
 
+config CRYPTO_DEV_NX_COMPRESS_CRYPTO
+	tristate "Compression acceleration cryptographic interface"
+	select CRYPTO_ALGAPI
+	select 842_DECOMPRESS
+	default y
+	help
+	  Support for PowerPC Nest (NX) accelerators using the cryptographic
+	  API.  If you choose 'M' here, this module will be called
+	  nx_compress_crypto.
+
 endif
