@@ -330,11 +330,13 @@ config CRYPTO_DEV_S5P
 	  algorithms execution.
 
 config CRYPTO_DEV_NX
-	bool "Support for IBM Power7+ in-Nest cryptographic acceleration"
-	depends on PPC64 && IBMVIO && !CPU_LITTLE_ENDIAN
-	default n
+	bool "Support for IBM PowerPC Nest (NX) cryptographic acceleration"
+	depends on PPC64
 	help
-	  Support for Power7+ in-Nest cryptographic acceleration.
+	  This enables support for the NX hardware cryptographic accelerator
+	  coprocessor that is in IBM PowerPC P7+ or later processors.  This
+	  does not actually enable any drivers, it only allows you to select
+	  which acceleration type (encryption and/or compression) to enable.
 
 if CRYPTO_DEV_NX
 	source "drivers/crypto/nx/Kconfig"
