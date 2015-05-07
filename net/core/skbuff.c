@@ -348,7 +348,13 @@ struct sk_buff *build_skb(void *data, unsigned int frag_size)
 EXPORT_SYMBOL(build_skb);
 
 struct netdev_alloc_cache {
-	struct page_frag	frag;
+	void * va;
+#if (PAGE_SIZE < NETDEV_FRAG_PAGE_MAX_SIZE)
+	__u16 offset;
+	__u16 size;
+#else
+	__u32 offset;
+#endif
 	/* we maintain a pagecount bias, so that we dont dirty cache line
 	 * containing page->_count every time we allocate a fragment.
 	 */
@@ -361,21 +367,20 @@ static DEFINE_PER_CPU(struct netdev_alloc_cache, napi_alloc_cache);
 static struct page *__page_frag_refill(struct netdev_alloc_cache *nc,
 				       gfp_t gfp_mask)
 {
-	const unsigned int order = NETDEV_FRAG_PAGE_MAX_ORDER;
 	struct page *page = NULL;
 	gfp_t gfp = gfp_mask;
 
-	if (order) {
-		gfp_mask |= __GFP_COMP | __GFP_NOWARN | __GFP_NORETRY |
-			    __GFP_NOMEMALLOC;
-		page = alloc_pages_node(NUMA_NO_NODE, gfp_mask, order);
-		nc->frag.size = PAGE_SIZE << (page ? order : 0);
-	}
-
+#if (PAGE_SIZE < NETDEV_FRAG_PAGE_MAX_SIZE)
+	gfp_mask |= __GFP_COMP | __GFP_NOWARN | __GFP_NORETRY |
+		    __GFP_NOMEMALLOC;
+	page = alloc_pages_node(NUMA_NO_NODE, gfp_mask,
+				NETDEV_FRAG_PAGE_MAX_ORDER);
+	nc->size = page ? NETDEV_FRAG_PAGE_MAX_SIZE : PAGE_SIZE;
+#endif
 	if (unlikely(!page))
 		page = alloc_pages_node(NUMA_NO_NODE, gfp, 0);
 
-	nc->frag.page = page;
+	nc->va = page ? page_address(page) : NULL;
 
 	return page;
 }
@@ -383,19 +388,20 @@ static struct page *__page_frag_refill(struct netdev_alloc_cache *nc,
 static void *__alloc_page_frag(struct netdev_alloc_cache *nc,
 			       unsigned int fragsz, gfp_t gfp_mask)
 {
-	struct page *page = nc->frag.page;
-	unsigned int size;
+	unsigned int size = PAGE_SIZE;
+	struct page *page;
 	int offset;
 
-	if (unlikely(!page)) {
+	if (unlikely(!nc->va)) {
 refill:
 		page = __page_frag_refill(nc, gfp_mask);
 		if (!page)
 			return NULL;
 
-		/* if size can vary use frag.size else just use PAGE_SIZE */
-		size = NETDEV_FRAG_PAGE_MAX_ORDER ? nc->frag.size : PAGE_SIZE;
-
+#if (PAGE_SIZE < NETDEV_FRAG_PAGE_MAX_SIZE)
+		/* if size can vary use size else just use PAGE_SIZE */
+		size = nc->size;
+#endif
 		/* Even if we own the page, we do not use atomic_set().
 		 * This would break get_page_unless_zero() users.
 		 */
@@ -404,17 +410,20 @@ refill:
 		/* reset page count bias and offset to start of new frag */
 		nc->pfmemalloc = page->pfmemalloc;
 		nc->pagecnt_bias = size;
-		nc->frag.offset = size;
+		nc->offset = size;
 	}
 
-	offset = nc->frag.offset - fragsz;
+	offset = nc->offset - fragsz;
 	if (unlikely(offset < 0)) {
+		page = virt_to_page(nc->va);
+
 		if (!atomic_sub_and_test(nc->pagecnt_bias, &page->_count))
 			goto refill;
 
-		/* if size can vary use frag.size else just use PAGE_SIZE */
-		size = NETDEV_FRAG_PAGE_MAX_ORDER ? nc->frag.size : PAGE_SIZE;
-
+#if (PAGE_SIZE < NETDEV_FRAG_PAGE_MAX_SIZE)
+		/* if size can vary use size else just use PAGE_SIZE */
+		size = nc->size;
+#endif
 		/* OK, page count is 0, we can safely set it */
 		atomic_set(&page->_count, size);
 
@@ -424,9 +433,9 @@ refill:
 	}
 
 	nc->pagecnt_bias--;
-	nc->frag.offset = offset;
+	nc->offset = offset;
 
-	return page_address(page) + offset;
+	return nc->va + offset;
 }
 
 static void *__netdev_alloc_frag(unsigned int fragsz, gfp_t gfp_mask)
