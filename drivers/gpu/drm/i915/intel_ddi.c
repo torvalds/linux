@@ -625,11 +625,11 @@ intel_ddi_get_crtc_new_encoder(struct intel_crtc_state *crtc_state)
 	(void) (&__a == &__b);			\
 	__a > __b ? (__a - __b) : (__b - __a); })
 
-struct wrpll_rnp {
+struct hsw_wrpll_rnp {
 	unsigned p, n2, r2;
 };
 
-static unsigned wrpll_get_budget_for_freq(int clock)
+static unsigned hsw_wrpll_get_budget_for_freq(int clock)
 {
 	unsigned budget;
 
@@ -703,9 +703,9 @@ static unsigned wrpll_get_budget_for_freq(int clock)
 	return budget;
 }
 
-static void wrpll_update_rnp(uint64_t freq2k, unsigned budget,
-			     unsigned r2, unsigned n2, unsigned p,
-			     struct wrpll_rnp *best)
+static void hsw_wrpll_update_rnp(uint64_t freq2k, unsigned budget,
+				 unsigned r2, unsigned n2, unsigned p,
+				 struct hsw_wrpll_rnp *best)
 {
 	uint64_t a, b, c, d, diff, diff_best;
 
@@ -762,8 +762,7 @@ static void wrpll_update_rnp(uint64_t freq2k, unsigned budget,
 	/* Otherwise a < c && b >= d, do nothing */
 }
 
-static int intel_ddi_calc_wrpll_link(struct drm_i915_private *dev_priv,
-				     int reg)
+static int hsw_ddi_calc_wrpll_link(struct drm_i915_private *dev_priv, int reg)
 {
 	int refclk = LC_FREQ;
 	int n, p, r;
@@ -929,10 +928,10 @@ static void hsw_ddi_clock_get(struct intel_encoder *encoder,
 		link_clock = 270000;
 		break;
 	case PORT_CLK_SEL_WRPLL1:
-		link_clock = intel_ddi_calc_wrpll_link(dev_priv, WRPLL_CTL1);
+		link_clock = hsw_ddi_calc_wrpll_link(dev_priv, WRPLL_CTL1);
 		break;
 	case PORT_CLK_SEL_WRPLL2:
-		link_clock = intel_ddi_calc_wrpll_link(dev_priv, WRPLL_CTL2);
+		link_clock = hsw_ddi_calc_wrpll_link(dev_priv, WRPLL_CTL2);
 		break;
 	case PORT_CLK_SEL_SPLL:
 		pll = I915_READ(SPLL_CTL) & SPLL_PLL_FREQ_MASK;
@@ -1011,12 +1010,12 @@ hsw_ddi_calculate_wrpll(int clock /* in Hz */,
 {
 	uint64_t freq2k;
 	unsigned p, n2, r2;
-	struct wrpll_rnp best = { 0, 0, 0 };
+	struct hsw_wrpll_rnp best = { 0, 0, 0 };
 	unsigned budget;
 
 	freq2k = clock / 100;
 
-	budget = wrpll_get_budget_for_freq(clock);
+	budget = hsw_wrpll_get_budget_for_freq(clock);
 
 	/* Special case handling for 540 pixel clock: bypass WR PLL entirely
 	 * and directly pass the LC PLL to it. */
@@ -1060,8 +1059,8 @@ hsw_ddi_calculate_wrpll(int clock /* in Hz */,
 		     n2++) {
 
 			for (p = P_MIN; p <= P_MAX; p += P_INC)
-				wrpll_update_rnp(freq2k, budget,
-						 r2, n2, p, &best);
+				hsw_wrpll_update_rnp(freq2k, budget,
+						     r2, n2, p, &best);
 		}
 	}
 
