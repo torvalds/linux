@@ -40,6 +40,13 @@ MODULE_DESCRIPTION("842 H/W Compression driver for IBM Power processors");
 /* IO buffer must be 128 byte aligned */
 #define IO_BUFFER_ALIGN 128
 
+static struct nx842_constraints nx842_pseries_constraints = {
+	.alignment =	IO_BUFFER_ALIGN,
+	.multiple =	DDE_BUFFER_LAST_MULT,
+	.minimum =	IO_BUFFER_ALIGN,
+	.maximum =	PAGE_SIZE, /* dynamic, max_sync_size */
+};
+
 struct nx842_header {
 	int blocks_nr; /* number of compressed blocks */
 	int offset; /* offset of the first block (from beginning of header) */
@@ -842,6 +849,8 @@ static int nx842_OF_upd_maxsyncop(struct nx842_devdata *devdata,
 		goto out;
 	}
 
+	nx842_pseries_constraints.maximum = devdata->max_sync_size;
+
 	devdata->max_sync_sg = (unsigned int)min(maxsynccop->comp_sg_limit,
 						maxsynccop->decomp_sg_limit);
 	if (devdata->max_sync_sg < 1) {
@@ -1115,6 +1124,7 @@ static struct attribute_group nx842_attribute_group = {
 
 static struct nx842_driver nx842_pseries_driver = {
 	.owner =	THIS_MODULE,
+	.constraints =	&nx842_pseries_constraints,
 	.compress =	nx842_pseries_compress,
 	.decompress =	nx842_pseries_decompress,
 };

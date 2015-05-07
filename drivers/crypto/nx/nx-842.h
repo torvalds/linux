@@ -12,6 +12,8 @@
 struct nx842_driver {
 	struct module *owner;
 
+	struct nx842_constraints *constraints;
+
 	int (*compress)(const unsigned char *in, unsigned int in_len,
 			unsigned char *out, unsigned int *out_len,
 			void *wrkmem);
