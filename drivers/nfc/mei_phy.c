@@ -24,22 +24,22 @@
 
 #include "mei_phy.h"
 
-struct mei_nfc_cmd {
-	u8 command;
+struct mei_nfc_hdr {
+	u8 cmd;
 	u8 status;
 	u16 req_id;
 	u32 reserved;
 	u16 data_size;
+} __packed;
+
+struct mei_nfc_cmd {
+	struct mei_nfc_hdr hdr;
 	u8 sub_command;
 	u8 data[];
 } __packed;
 
 struct mei_nfc_reply {
-	u8 command;
-	u8 status;
-	u16 req_id;
-	u32 reserved;
-	u16 data_size;
+	struct mei_nfc_hdr hdr;
 	u8 sub_command;
 	u8 reply_status;
 	u8 data[];
@@ -69,13 +69,6 @@ struct mei_nfc_connect_resp {
 	u16 me_build;
 } __packed;
 
-struct mei_nfc_hci_hdr {
-	u8 cmd;
-	u8 status;
-	u16 req_id;
-	u32 reserved;
-	u16 data_size;
-} __packed;
 
 #define MEI_NFC_CMD_MAINTENANCE 0x00
 #define MEI_NFC_CMD_HCI_SEND 0x01
@@ -83,9 +76,6 @@ struct mei_nfc_hci_hdr {
 
 #define MEI_NFC_SUBCMD_CONNECT    0x00
 #define MEI_NFC_SUBCMD_IF_VERSION 0x01
-
-#define MEI_NFC_HEADER_SIZE 10
-
 
 #define MEI_NFC_MAX_READ (MEI_NFC_HEADER_SIZE + MEI_NFC_MAX_HCI_PAYLOAD)
 
@@ -103,6 +93,13 @@ do {								\
 			16, 1, (skb)->data, (skb)->len, false);	\
 } while (0)
 
+#define MEI_DUMP_NFC_HDR(info, _hdr)                                \
+do {                                                                \
+	pr_debug("%s:\n", info);                                    \
+	pr_debug("cmd=%02d status=%d req_id=%d rsvd=%d size=%d\n",  \
+		 (_hdr)->cmd, (_hdr)->status, (_hdr)->req_id,       \
+		 (_hdr)->reserved, (_hdr)->data_size);              \
+} while (0)
 
 static int mei_nfc_if_version(struct nfc_mei_phy *phy)
 {
@@ -116,10 +113,11 @@ static int mei_nfc_if_version(struct nfc_mei_phy *phy)
 	pr_info("%s\n", __func__);
 
 	memset(&cmd, 0, sizeof(struct mei_nfc_cmd));
-	cmd.command = MEI_NFC_CMD_MAINTENANCE;
-	cmd.data_size = 1;
+	cmd.hdr.cmd = MEI_NFC_CMD_MAINTENANCE;
+	cmd.hdr.data_size = 1;
 	cmd.sub_command = MEI_NFC_SUBCMD_IF_VERSION;
 
+	MEI_DUMP_NFC_HDR("version", &cmd.hdr);
 	r = mei_cl_send(phy->device, (u8 *)&cmd, sizeof(struct mei_nfc_cmd));
 	if (r < 0) {
 		pr_err("Could not send IF version cmd\n");
@@ -181,12 +179,13 @@ static int mei_nfc_connect(struct nfc_mei_phy *phy)
 
 	connect_resp = (struct mei_nfc_connect_resp *)reply->data;
 
-	cmd->command = MEI_NFC_CMD_MAINTENANCE;
-	cmd->data_size = 3;
+	cmd->hdr.cmd = MEI_NFC_CMD_MAINTENANCE;
+	cmd->hdr.data_size = 3;
 	cmd->sub_command = MEI_NFC_SUBCMD_CONNECT;
 	connect->fw_ivn = phy->fw_ivn;
 	connect->vendor_id = phy->vendor_id;
 
+	MEI_DUMP_NFC_HDR("connect request", &cmd->hdr);
 	r = mei_cl_send(phy->device, (u8 *)cmd, connect_length);
 	if (r < 0) {
 		pr_err("Could not send connect cmd %d\n", r);
@@ -199,6 +198,8 @@ static int mei_nfc_connect(struct nfc_mei_phy *phy)
 		pr_err("Could not read connect response %d\n", r);
 		goto err;
 	}
+
+	MEI_DUMP_NFC_HDR("connect reply", &reply->hdr);
 
 	pr_info("IVN 0x%x Vendor ID 0x%x\n",
 		 connect_resp->fw_ivn, connect_resp->vendor_id);
@@ -218,7 +219,7 @@ err:
 
 static int mei_nfc_send(struct nfc_mei_phy *phy, u8 *buf, size_t length)
 {
-	struct mei_nfc_hci_hdr *hdr;
+	struct mei_nfc_hdr *hdr;
 	u8 *mei_buf;
 	int err;
 
@@ -227,12 +228,14 @@ static int mei_nfc_send(struct nfc_mei_phy *phy, u8 *buf, size_t length)
 	if (!mei_buf)
 		goto out;
 
-	hdr = (struct mei_nfc_hci_hdr *) mei_buf;
+	hdr = (struct mei_nfc_hdr *)mei_buf;
 	hdr->cmd = MEI_NFC_CMD_HCI_SEND;
 	hdr->status = 0;
 	hdr->req_id = phy->req_id;
 	hdr->reserved = 0;
 	hdr->data_size = length;
+
+	MEI_DUMP_NFC_HDR("send", hdr);
 
 	memcpy(mei_buf + MEI_NFC_HEADER_SIZE, buf, length);
 	err = mei_cl_send(phy->device, mei_buf, length + MEI_NFC_HEADER_SIZE);
@@ -272,17 +275,18 @@ static int nfc_mei_phy_write(void *phy_id, struct sk_buff *skb)
 
 static int mei_nfc_recv(struct nfc_mei_phy *phy, u8 *buf, size_t length)
 {
-	struct mei_nfc_hci_hdr *hci_hdr;
+	struct mei_nfc_hdr *hdr;
 	int received_length;
 
 	received_length = mei_cl_recv(phy->device, buf, length);
 	if (received_length < 0)
 		return received_length;
 
-	hci_hdr = (struct mei_nfc_hci_hdr *) buf;
+	hdr = (struct mei_nfc_hdr *) buf;
 
-	if (hci_hdr->cmd == MEI_NFC_CMD_HCI_SEND) {
-		phy->recv_req_id = hci_hdr->req_id;
+	MEI_DUMP_NFC_HDR("receive", hdr);
+	if (hdr->cmd == MEI_NFC_CMD_HCI_SEND) {
+		phy->recv_req_id = hdr->req_id;
 		wake_up(&phy->send_wq);
 
 		return 0;
