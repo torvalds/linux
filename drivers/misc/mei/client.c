@@ -755,9 +755,6 @@ void mei_cl_set_disconnected(struct mei_cl *cl)
 	if (!WARN_ON(cl->me_cl->connect_count == 0))
 		cl->me_cl->connect_count--;
 
-	if (cl->me_cl->connect_count == 0)
-		cl->me_cl->mei_flow_ctrl_creds = 0;
-
 	mei_me_cl_put(cl->me_cl);
 	cl->me_cl = NULL;
 }
@@ -1272,6 +1269,7 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 	u32 msg_slots;
 	int slots;
 	int rets;
+	bool first_chunk;
 
 	if (WARN_ON(!cl || !cl->dev))
 		return -ENODEV;
@@ -1280,7 +1278,9 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 
 	buf = &cb->buf;
 
-	rets = mei_cl_flow_ctrl_creds(cl);
+	first_chunk = cb->buf_idx == 0;
+
+	rets = first_chunk ? mei_cl_flow_ctrl_creds(cl) : 1;
 	if (rets < 0)
 		return rets;
 
@@ -1327,11 +1327,13 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 	cb->buf_idx += mei_hdr.length;
 	cb->completed = mei_hdr.msg_complete == 1;
 
-	if (mei_hdr.msg_complete) {
+	if (first_chunk) {
 		if (mei_cl_flow_ctrl_reduce(cl))
 			return -EIO;
-		list_move_tail(&cb->list, &dev->write_waiting_list.list);
 	}
+
+	if (mei_hdr.msg_complete)
+		list_move_tail(&cb->list, &dev->write_waiting_list.list);
 
 	return 0;
 }
@@ -1411,21 +1413,19 @@ int mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb, bool blocking)
 	if (rets)
 		goto err;
 
+	rets = mei_cl_flow_ctrl_reduce(cl);
+	if (rets)
+		goto err;
+
 	cl->writing_state = MEI_WRITING;
 	cb->buf_idx = mei_hdr.length;
 	cb->completed = mei_hdr.msg_complete == 1;
 
 out:
-	if (mei_hdr.msg_complete) {
-		rets = mei_cl_flow_ctrl_reduce(cl);
-		if (rets < 0)
-			goto err;
-
+	if (mei_hdr.msg_complete)
 		list_add_tail(&cb->list, &dev->write_waiting_list.list);
-	} else {
+	else
 		list_add_tail(&cb->list, &dev->write_list.list);
-	}
-
 
 	if (blocking && cl->writing_state != MEI_WRITE_COMPLETE) {
 
