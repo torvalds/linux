@@ -1371,7 +1371,8 @@ static int trim_caps_cb(struct inode *inode, struct ceph_cap *cap, void *arg)
 	     inode, cap, ceph_cap_string(mine), ceph_cap_string(oissued),
 	     ceph_cap_string(used), ceph_cap_string(wanted));
 	if (cap == ci->i_auth_cap) {
-		if (ci->i_dirty_caps | ci->i_flushing_caps)
+		if (ci->i_dirty_caps || ci->i_flushing_caps ||
+		    !list_empty(&ci->i_cap_snaps))
 			goto out;
 		if ((used | wanted) & CEPH_CAP_ANY_WR)
 			goto out;
