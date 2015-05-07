@@ -380,6 +380,8 @@ int drm_release(struct inode *inode, struct file *filp)
 
 	mutex_lock(&dev->struct_mutex);
 	list_del(&file_priv->lhead);
+	if (file_priv->magic)
+		idr_remove(&file_priv->master->magic_map, file_priv->magic);
 	mutex_unlock(&dev->struct_mutex);
 
 	if (dev->driver->preclose)
@@ -393,11 +395,6 @@ int drm_release(struct inode *inode, struct file *filp)
 		  task_pid_nr(current),
 		  (long)old_encode_dev(file_priv->minor->kdev->devt),
 		  dev->open_count);
-
-	/* Release any auth tokens that might point to this file_priv,
-	   (do that under the drm_global_mutex) */
-	if (file_priv->magic)
-		(void) drm_remove_magic(file_priv->master, file_priv->magic);
 
 	/* if the master has gone away we can't do anything with the lock */
 	if (file_priv->minor->master)
