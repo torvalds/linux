@@ -15,6 +15,12 @@
 #define __GREYBUS_KERNEL_VER_H
 
 #include <linux/kernel.h>
+#include <linux/version.h>
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 1, 0)
+/* Commit: 297d716 power_supply: Change ownership from driver to core */
+#define DRIVER_OWNS_PSY_STRUCT
+#endif
 
 #ifndef __ATTR_WO
 #define __ATTR_WO(_name) {						\
@@ -57,7 +63,6 @@
  * 3.17, which they explicitly changed in the 3.17 kernel.  Consistency is
  * overrated.
  */
-#include <linux/version.h>
 #include <linux/gpio.h>
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0)

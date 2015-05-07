@@ -7,7 +7,6 @@
  * Released under the GPLv2 only.
  */
 
-#include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -20,7 +19,7 @@ struct gb_battery {
 	 * and new apis in the same driver for now, until this is merged
 	 * upstream, when all of these version checks can be removed.
 	 */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 1, 0)
+#ifdef DRIVER_OWNS_PSY_STRUCT
 	struct power_supply bat;
 #define to_gb_battery(x) container_of(x, struct gb_battery, bat)
 #else
@@ -295,7 +294,7 @@ static enum power_supply_property battery_props[] = {
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 };
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 1, 0)
+#ifdef DRIVER_OWNS_PSY_STRUCT
 static int init_and_register(struct gb_connection *connection,
 			     struct gb_battery *gb)
 {
@@ -362,7 +361,7 @@ static void gb_battery_connection_exit(struct gb_connection *connection)
 {
 	struct gb_battery *gb = connection->private;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 1, 0)
+#ifdef DRIVER_OWNS_PSY_STRUCT
 	power_supply_unregister(&gb->bat);
 #else
 	power_supply_unregister(gb->bat);
