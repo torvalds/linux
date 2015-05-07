@@ -406,6 +406,21 @@ static inline int desc_to_gpio(const struct gpio_desc *desc)
 	return -EINVAL;
 }
 
+/* Child properties interface */
+struct fwnode_handle;
+
+static inline struct gpio_desc *fwnode_get_named_gpiod(
+	struct fwnode_handle *fwnode, const char *propname)
+{
+	return ERR_PTR(-ENOSYS);
+}
+
+static inline struct gpio_desc *devm_get_gpiod_from_child(
+	struct device *dev, const char *con_id, struct fwnode_handle *child)
+{
+	return ERR_PTR(-ENOSYS);
+}
+
 #endif /* CONFIG_GPIOLIB */
 
 /*
