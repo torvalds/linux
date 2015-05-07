@@ -215,7 +215,7 @@ static long clk_pllv3_av_round_rate(struct clk_hw *hw, unsigned long rate,
 	unsigned long max_rate = parent_rate * 54;
 	u32 div;
 	u32 mfn, mfd = 1000000;
-	s64 temp64;
+	u64 temp64;
 
 	if (rate > max_rate)
 		rate = max_rate;
@@ -239,7 +239,7 @@ static int clk_pllv3_av_set_rate(struct clk_hw *hw, unsigned long rate,
 	unsigned long max_rate = parent_rate * 54;
 	u32 val, div;
 	u32 mfn, mfd = 1000000;
-	s64 temp64;
+	u64 temp64;
 
 	if (rate < min_rate || rate > max_rate)
 		return -EINVAL;
