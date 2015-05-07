@@ -262,6 +262,7 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6dl-gw52xx.dtb \
 	imx6dl-gw53xx.dtb \
 	imx6dl-gw54xx.dtb \
+	imx6dl-gw551x.dtb \
 	imx6dl-gw552x.dtb \
 	imx6dl-hummingboard.dtb \
 	imx6dl-nitrogen6x.dtb \
@@ -288,6 +289,7 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6q-gw53xx.dtb \
 	imx6q-gw5400-a.dtb \
 	imx6q-gw54xx.dtb \
+	imx6q-gw551x.dtb \
 	imx6q-gw552x.dtb \
 	imx6q-hummingboard.dtb \
 	imx6q-nitrogen6x.dtb \
