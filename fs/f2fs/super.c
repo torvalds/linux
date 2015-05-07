@@ -661,6 +661,22 @@ static const struct file_operations f2fs_seq_segment_info_fops = {
 	.release = single_release,
 };
 
+static void default_options(struct f2fs_sb_info *sbi)
+{
+	/* init some FS parameters */
+	sbi->active_logs = NR_CURSEG_TYPE;
+
+	set_opt(sbi, BG_GC);
+	set_opt(sbi, INLINE_DATA);
+
+#ifdef CONFIG_F2FS_FS_XATTR
+	set_opt(sbi, XATTR_USER);
+#endif
+#ifdef CONFIG_F2FS_FS_POSIX_ACL
+	set_opt(sbi, POSIX_ACL);
+#endif
+}
+
 static int f2fs_remount(struct super_block *sb, int *flags, char *data)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(sb);
@@ -679,7 +695,7 @@ static int f2fs_remount(struct super_block *sb, int *flags, char *data)
 	active_logs = sbi->active_logs;
 
 	sbi->mount_opt.opt = 0;
-	sbi->active_logs = NR_CURSEG_TYPE;
+	default_options(sbi);
 
 	/* parse mount options */
 	err = parse_options(sb, data);
@@ -1021,18 +1037,7 @@ try_onemore:
 		goto free_sbi;
 
 	sb->s_fs_info = sbi;
-	/* init some FS parameters */
-	sbi->active_logs = NR_CURSEG_TYPE;
-
-	set_opt(sbi, BG_GC);
-	set_opt(sbi, INLINE_DATA);
-
-#ifdef CONFIG_F2FS_FS_XATTR
-	set_opt(sbi, XATTR_USER);
-#endif
-#ifdef CONFIG_F2FS_FS_POSIX_ACL
-	set_opt(sbi, POSIX_ACL);
-#endif
+	default_options(sbi);
 	/* parse mount options */
 	options = kstrdup((const char *)data, GFP_KERNEL);
 	if (data && !options) {
