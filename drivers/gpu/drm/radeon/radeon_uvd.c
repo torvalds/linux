@@ -436,50 +436,64 @@ static int radeon_uvd_cs_msg(struct radeon_cs_parser *p, struct radeon_bo *bo,
 		return -EINVAL;
 	}
 
-	if (msg_type == 1) {
+	switch (msg_type) {
+	case 0:
+		/* it's a create msg, calc image size (width * height) */
+		img_size = msg[7] * msg[8];
+		radeon_bo_kunmap(bo);
+
+		/* try to alloc a new handle */
+		for (i = 0; i < RADEON_MAX_UVD_HANDLES; ++i) {
+			if (atomic_read(&p->rdev->uvd.handles[i]) == handle) {
+				DRM_ERROR("Handle 0x%x already in use!\n", handle);
+				return -EINVAL;
+			}
+
+			if (!atomic_cmpxchg(&p->rdev->uvd.handles[i], 0, handle)) {
+				p->rdev->uvd.filp[i] = p->filp;
+				p->rdev->uvd.img_size[i] = img_size;
+				return 0;
+			}
+		}
+
+		DRM_ERROR("No more free UVD handles!\n");
+		return -EINVAL;
+
+	case 1:
 		/* it's a decode msg, calc buffer sizes */
 		r = radeon_uvd_cs_msg_decode(msg, buf_sizes);
-		/* calc image size (width * height) */
-		img_size = msg[6] * msg[7];
 		radeon_bo_kunmap(bo);
 		if (r)
 			return r;
 
-	} else if (msg_type == 2) {
+		/* validate the handle */
+		for (i = 0; i < RADEON_MAX_UVD_HANDLES; ++i) {
+			if (atomic_read(&p->rdev->uvd.handles[i]) == handle) {
+				if (p->rdev->uvd.filp[i] != p->filp) {
+					DRM_ERROR("UVD handle collision detected!\n");
+					return -EINVAL;
+				}
+				return 0;
+			}
+		}
+
+		DRM_ERROR("Invalid UVD handle 0x%x!\n", handle);
+		return -ENOENT;
+
+	case 2:
 		/* it's a destroy msg, free the handle */
 		for (i = 0; i < RADEON_MAX_UVD_HANDLES; ++i)
 			atomic_cmpxchg(&p->rdev->uvd.handles[i], handle, 0);
 		radeon_bo_kunmap(bo);
 		return 0;
-	} else {
-		/* it's a create msg, calc image size (width * height) */
-		img_size = msg[7] * msg[8];
-		radeon_bo_kunmap(bo);
 
-		if (msg_type != 0) {
-			DRM_ERROR("Illegal UVD message type (%d)!\n", msg_type);
-			return -EINVAL;
-		}
+	default:
 
-		/* it's a create msg, no special handling needed */
+		DRM_ERROR("Illegal UVD message type (%d)!\n", msg_type);
+		return -EINVAL;
 	}
 
-	/* create or decode, validate the handle */
-	for (i = 0; i < RADEON_MAX_UVD_HANDLES; ++i) {
-		if (atomic_read(&p->rdev->uvd.handles[i]) == handle)
-			return 0;
-	}
-
-	/* handle not found try to alloc a new one */
-	for (i = 0; i < RADEON_MAX_UVD_HANDLES; ++i) {
-		if (!atomic_cmpxchg(&p->rdev->uvd.handles[i], 0, handle)) {
-			p->rdev->uvd.filp[i] = p->filp;
-			p->rdev->uvd.img_size[i] = img_size;
-			return 0;
-		}
-	}
-
-	DRM_ERROR("No more free UVD handles!\n");
+	BUG();
 	return -EINVAL;
 }
 
