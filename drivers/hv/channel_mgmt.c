@@ -387,6 +387,8 @@ static void init_vp_index(struct vmbus_channel *channel, const uuid_le *type_gui
 	int i;
 	bool perf_chn = false;
 	u32 max_cpus = num_online_cpus();
+	struct vmbus_channel *primary = channel->primary_channel, *prev;
+	unsigned long flags;
 
 	for (i = IDE; i < MAX_PERF_CHN; i++) {
 		if (!memcmp(type_guid->b, hp_devs[i].guid,
@@ -407,7 +409,32 @@ static void init_vp_index(struct vmbus_channel *channel, const uuid_le *type_gui
 		channel->target_vp = 0;
 		return;
 	}
-	cur_cpu = (++next_vp % max_cpus);
+
+	/*
+	 * Primary channels are distributed evenly across all vcpus we have.
+	 * When the host asks us to create subchannels it usually makes us
+	 * num_cpus-1 offers and we are supposed to distribute the work evenly
+	 * among the channel itself and all its subchannels. Make sure they are
+	 * all assigned to different vcpus.
+	 */
+	if (!primary)
+		cur_cpu = (++next_vp % max_cpus);
+	else {
+		/*
+		 * Let's assign the first subchannel of a channel to the
+		 * primary->target_cpu+1 and all the subsequent channels to
+		 * the prev->target_cpu+1.
+		 */
+		spin_lock_irqsave(&primary->lock, flags);
+		if (primary->num_sc == 1)
+			cur_cpu = (primary->target_cpu + 1) % max_cpus;
+		else {
+			prev = list_prev_entry(channel, sc_list);
+			cur_cpu = (prev->target_cpu + 1) % max_cpus;
+		}
+		spin_unlock_irqrestore(&primary->lock, flags);
+	}
+
 	channel->target_cpu = cur_cpu;
 	channel->target_vp = hv_context.vp_index[cur_cpu];
 }
