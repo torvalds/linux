@@ -11,4 +11,4 @@ nx-crypto-objs := nx.o \
 		  nx-sha512.o
 
 obj-$(CONFIG_CRYPTO_DEV_NX_COMPRESS) += nx-compress.o
-nx-compress-objs := nx-842.o
+nx-compress-objs := nx-842-pseries.o
