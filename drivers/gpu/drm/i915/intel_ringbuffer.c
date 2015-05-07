@@ -944,8 +944,9 @@ static int gen9_init_workarounds(struct intel_engine_cs *ring)
 				  DISABLE_PIXEL_MASK_CAMMING);
 	}
 
-	if (INTEL_REVID(dev) >= SKL_REVID_C0) {
-		/* WaEnableYV12BugFixInHalfSliceChicken7:skl */
+	if ((IS_SKYLAKE(dev) && INTEL_REVID(dev) >= SKL_REVID_C0) ||
+	    IS_BROXTON(dev)) {
+		/* WaEnableYV12BugFixInHalfSliceChicken7:skl,bxt */
 		WA_SET_BIT_MASKED(GEN9_HALF_SLICE_CHICKEN7,
 				  GEN9_ENABLE_YV12_BUGFIX);
 	}
