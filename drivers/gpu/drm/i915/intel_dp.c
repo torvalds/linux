@@ -90,8 +90,8 @@ static const struct dp_link_dpll chv_dpll[] = {
 	{ DP_LINK_BW_5_4,	/* m2_int = 27, m2_fraction = 0 */
 		{ .p1 = 2, .p2 = 1, .n = 1, .m1 = 2, .m2 = 0x6c00000 } }
 };
-/* Skylake supports following rates */
-static const int gen9_rates[] = { 162000, 216000, 270000,
+
+static const int skl_rates[] = { 162000, 216000, 270000,
 				  324000, 432000, 540000 };
 static const int chv_rates[] = { 162000, 202500, 210000, 216000,
 				 243000, 270000, 324000, 405000,
@@ -1167,9 +1167,9 @@ intel_dp_sink_rates(struct intel_dp *intel_dp, const int **sink_rates)
 static int
 intel_dp_source_rates(struct drm_device *dev, const int **source_rates)
 {
-	if (INTEL_INFO(dev)->gen >= 9) {
-		*source_rates = gen9_rates;
-		return ARRAY_SIZE(gen9_rates);
+	if (IS_SKYLAKE(dev)) {
+		*source_rates = skl_rates;
+		return ARRAY_SIZE(skl_rates);
 	} else if (IS_CHERRYVIEW(dev)) {
 		*source_rates = chv_rates;
 		return ARRAY_SIZE(chv_rates);
