@@ -471,6 +471,20 @@ static struct at_xdmac_desc *at_xdmac_get_desc(struct at_xdmac_chan *atchan)
 	return desc;
 }
 
+static void at_xdmac_queue_desc(struct dma_chan *chan,
+				struct at_xdmac_desc *prev,
+				struct at_xdmac_desc *desc)
+{
+	if (!prev || !desc)
+		return;
+
+	prev->lld.mbr_nda = desc->tx_dma_desc.phys;
+	prev->lld.mbr_ubc |= AT_XDMAC_MBR_UBC_NDE;
+
+	dev_dbg(chan2dev(chan),	"%s: chain lld: prev=0x%p, mbr_nda=%pad\n",
+		__func__, prev, &prev->lld.mbr_nda);
+}
+
 static struct dma_chan *at_xdmac_xlate(struct of_phandle_args *dma_spec,
 				       struct of_dma *of_dma)
 {
@@ -627,19 +641,14 @@ at_xdmac_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		desc->lld.mbr_ubc = AT_XDMAC_MBR_UBC_NDV2			/* next descriptor view */
 			| AT_XDMAC_MBR_UBC_NDEN					/* next descriptor dst parameter update */
 			| AT_XDMAC_MBR_UBC_NSEN					/* next descriptor src parameter update */
-			| (i == sg_len - 1 ? 0 : AT_XDMAC_MBR_UBC_NDE)		/* descriptor fetch */
 			| (len >> fixed_dwidth);				/* microblock length */
 		dev_dbg(chan2dev(chan),
 			 "%s: lld: mbr_sa=%pad, mbr_da=%pad, mbr_ubc=0x%08x\n",
 			 __func__, &desc->lld.mbr_sa, &desc->lld.mbr_da, desc->lld.mbr_ubc);
 
 		/* Chain lld. */
-		if (prev) {
-			prev->lld.mbr_nda = desc->tx_dma_desc.phys;
-			dev_dbg(chan2dev(chan),
-				 "%s: chain lld: prev=0x%p, mbr_nda=%pad\n",
-				 __func__, prev, &prev->lld.mbr_nda);
-		}
+		if (prev)
+			at_xdmac_queue_desc(chan, prev, desc);
 
 		prev = desc;
 		if (!first)
@@ -714,7 +723,6 @@ at_xdmac_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr,
 		desc->lld.mbr_ubc = AT_XDMAC_MBR_UBC_NDV1
 			| AT_XDMAC_MBR_UBC_NDEN
 			| AT_XDMAC_MBR_UBC_NSEN
-			| AT_XDMAC_MBR_UBC_NDE
 			| period_len >> at_xdmac_get_dwidth(desc->lld.mbr_cfg);
 
 		dev_dbg(chan2dev(chan),
@@ -722,12 +730,8 @@ at_xdmac_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr,
 			 __func__, &desc->lld.mbr_sa, &desc->lld.mbr_da, desc->lld.mbr_ubc);
 
 		/* Chain lld. */
-		if (prev) {
-			prev->lld.mbr_nda = desc->tx_dma_desc.phys;
-			dev_dbg(chan2dev(chan),
-				 "%s: chain lld: prev=0x%p, mbr_nda=%pad\n",
-				 __func__, prev, &prev->lld.mbr_nda);
-		}
+		if (prev)
+			at_xdmac_queue_desc(chan, prev, desc);
 
 		prev = desc;
 		if (!first)
@@ -850,7 +854,6 @@ at_xdmac_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 		desc->lld.mbr_ubc = AT_XDMAC_MBR_UBC_NDV2
 			| AT_XDMAC_MBR_UBC_NDEN
 			| AT_XDMAC_MBR_UBC_NSEN
-			| (remaining_size ? AT_XDMAC_MBR_UBC_NDE : 0)
 			| ublen;
 		desc->lld.mbr_cfg = chan_cc;
 
@@ -859,12 +862,8 @@ at_xdmac_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 			 __func__, &desc->lld.mbr_sa, &desc->lld.mbr_da, desc->lld.mbr_ubc, desc->lld.mbr_cfg);
 
 		/* Chain lld. */
-		if (prev) {
-			prev->lld.mbr_nda = desc->tx_dma_desc.phys;
-			dev_dbg(chan2dev(chan),
-				 "%s: chain lld: prev=0x%p, mbr_nda=0x%08x\n",
-				 __func__, prev, prev->lld.mbr_nda);
-		}
+		if (prev)
+			at_xdmac_queue_desc(chan, prev, desc);
 
 		prev = desc;
 		if (!first)
