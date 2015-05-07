@@ -1642,6 +1642,11 @@
 
 #define PMUGRF_SOC_CON0_VOP		(0x0100)
 
+
+#define OUT_CCIR656_MODE_0              5
+#define OUT_CCIR656_MODE_1              6
+#define OUT_CCIR656_MODE_2              7
+
 enum lb_mode {
 	LB_YUV_3840X5 = 0x0,
 	LB_YUV_2560X8 = 0x1,

@@ -1949,6 +1949,16 @@ static int rk3368_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 			val = v_DITHER_DOWN_EN(0);
 			lcdc_msk_reg(lcdc_dev, DSP_CTRL1, mask, val);
 			break;
+		case OUT_CCIR656:
+			if (screen->color_mode == COLOR_RGB)
+				dev_drv->overlay_mode = VOP_RGB_DOMAIN;
+			else
+				dev_drv->overlay_mode = VOP_YUV_DOMAIN;
+			face = OUT_CCIR656_MODE_0;
+			mask = m_DITHER_DOWN_EN;
+			val = v_DITHER_DOWN_EN(0);
+			lcdc_msk_reg(lcdc_dev, DSP_CTRL1, mask, val);
+			break;
 		default:
 			dev_err(lcdc_dev->dev, "un supported interface!\n");
 			break;
