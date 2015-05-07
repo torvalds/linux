@@ -485,6 +485,19 @@ static void at_xdmac_queue_desc(struct dma_chan *chan,
 		__func__, prev, &prev->lld.mbr_nda);
 }
 
+static inline void at_xdmac_increment_block_count(struct dma_chan *chan,
+						  struct at_xdmac_desc *desc)
+{
+	if (!desc)
+		return;
+
+	desc->lld.mbr_bc++;
+
+	dev_dbg(chan2dev(chan),
+		"%s: incrementing the block count of the desc 0x%p\n",
+		__func__, desc);
+}
+
 static struct dma_chan *at_xdmac_xlate(struct of_phandle_args *dma_spec,
 				       struct of_dma *of_dma)
 {
@@ -780,6 +793,224 @@ static inline u32 at_xdmac_align_width(struct dma_chan *chan, dma_addr_t addr)
 	}
 
 	return width;
+}
+
+static struct at_xdmac_desc *
+at_xdmac_interleaved_queue_desc(struct dma_chan *chan,
+				struct at_xdmac_chan *atchan,
+				struct at_xdmac_desc *prev,
+				dma_addr_t src, dma_addr_t dst,
+				struct dma_interleaved_template *xt,
+				struct data_chunk *chunk)
+{
+	struct at_xdmac_desc	*desc;
+	u32			dwidth;
+	unsigned long		flags;
+	size_t			ublen;
+	/*
+	 * WARNING: The channel configuration is set here since there is no
+	 * dmaengine_slave_config call in this case. Moreover we don't know the
+	 * direction, it involves we can't dynamically set the source and dest
+	 * interface so we have to use the same one. Only interface 0 allows EBI
+	 * access. Hopefully we can access DDR through both ports (at least on
+	 * SAMA5D4x), so we can use the same interface for source and dest,
+	 * that solves the fact we don't know the direction.
+	 */
+	u32			chan_cc = AT_XDMAC_CC_DIF(0)
+					| AT_XDMAC_CC_SIF(0)
+					| AT_XDMAC_CC_MBSIZE_SIXTEEN
+					| AT_XDMAC_CC_TYPE_MEM_TRAN;
+
+	dwidth = at_xdmac_align_width(chan, src | dst | chunk->size);
+	if (chunk->size >= (AT_XDMAC_MBR_UBC_UBLEN_MAX << dwidth)) {
+		dev_dbg(chan2dev(chan),
+			"%s: chunk too big (%d, max size %lu)...\n",
+			__func__, chunk->size,
+			AT_XDMAC_MBR_UBC_UBLEN_MAX << dwidth);
+		return NULL;
+	}
+
+	if (prev)
+		dev_dbg(chan2dev(chan),
+			"Adding items at the end of desc 0x%p\n", prev);
+
+	if (xt->src_inc) {
+		if (xt->src_sgl)
+			chan_cc |=  AT_XDMAC_CC_SAM_UBS_DS_AM;
+		else
+			chan_cc |=  AT_XDMAC_CC_SAM_INCREMENTED_AM;
+	}
+
+	if (xt->dst_inc) {
+		if (xt->dst_sgl)
+			chan_cc |=  AT_XDMAC_CC_DAM_UBS_DS_AM;
+		else
+			chan_cc |=  AT_XDMAC_CC_DAM_INCREMENTED_AM;
+	}
+
+	spin_lock_irqsave(&atchan->lock, flags);
+	desc = at_xdmac_get_desc(atchan);
+	spin_unlock_irqrestore(&atchan->lock, flags);
+	if (!desc) {
+		dev_err(chan2dev(chan), "can't get descriptor\n");
+		return NULL;
+	}
+
+	chan_cc |= AT_XDMAC_CC_DWIDTH(dwidth);
+
+	ublen = chunk->size >> dwidth;
+
+	desc->lld.mbr_sa = src;
+	desc->lld.mbr_da = dst;
+
+	if (xt->src_inc && xt->src_sgl) {
+		if (chunk->src_icg)
+			desc->lld.mbr_sus = chunk->src_icg;
+		else
+			desc->lld.mbr_sus = chunk->icg;
+	}
+
+	if (xt->dst_inc && xt->dst_sgl) {
+		if (chunk->dst_icg)
+			desc->lld.mbr_dus = chunk->dst_icg;
+		else
+			desc->lld.mbr_dus = chunk->icg;
+	}
+
+	desc->lld.mbr_ubc = AT_XDMAC_MBR_UBC_NDV3
+		| AT_XDMAC_MBR_UBC_NDEN
+		| AT_XDMAC_MBR_UBC_NSEN
+		| ublen;
+	desc->lld.mbr_cfg = chan_cc;
+
+	dev_dbg(chan2dev(chan),
+		"%s: lld: mbr_sa=0x%08x, mbr_da=0x%08x, mbr_ubc=0x%08x, mbr_cfg=0x%08x\n",
+		__func__, desc->lld.mbr_sa, desc->lld.mbr_da,
+		desc->lld.mbr_ubc, desc->lld.mbr_cfg);
+
+	/* Chain lld. */
+	if (prev)
+		at_xdmac_queue_desc(chan, prev, desc);
+
+	return desc;
+}
+
+static size_t at_xdmac_get_icg(bool inc, bool sgl, size_t icg, size_t dir_icg)
+{
+	if (inc) {
+		if (dir_icg)
+			return dir_icg;
+		else if (sgl)
+			return icg;
+	}
+
+	return 0;
+}
+
+static size_t at_xdmac_get_dst_icg(struct dma_interleaved_template *xt,
+				   struct data_chunk *chunk)
+{
+	return at_xdmac_get_icg(xt->dst_inc, xt->dst_sgl,
+				chunk->icg, chunk->dst_icg);
+}
+
+static size_t at_xdmac_get_src_icg(struct dma_interleaved_template *xt,
+				   struct data_chunk *chunk)
+{
+	return at_xdmac_get_icg(xt->src_inc, xt->src_sgl,
+				chunk->icg, chunk->src_icg);
+}
+
+static struct dma_async_tx_descriptor *
+at_xdmac_prep_interleaved(struct dma_chan *chan,
+			  struct dma_interleaved_template *xt,
+			  unsigned long flags)
+{
+	struct at_xdmac_chan	*atchan = to_at_xdmac_chan(chan);
+	struct at_xdmac_desc	*prev = NULL, *first = NULL;
+	struct data_chunk	*chunk, *prev_chunk = NULL;
+	dma_addr_t		dst_addr, src_addr;
+	size_t			dst_skip, src_skip, len = 0;
+	size_t			prev_dst_icg = 0, prev_src_icg = 0;
+	int			i;
+
+	if (!xt || (xt->numf != 1) || (xt->dir != DMA_MEM_TO_MEM))
+		return NULL;
+
+	dev_dbg(chan2dev(chan), "%s: src=0x%08x, dest=0x%08x, numf=%d, frame_size=%d, flags=0x%lx\n",
+		__func__, xt->src_start, xt->dst_start,	xt->numf,
+		xt->frame_size, flags);
+
+	src_addr = xt->src_start;
+	dst_addr = xt->dst_start;
+
+	for (i = 0; i < xt->frame_size; i++) {
+		struct at_xdmac_desc *desc;
+		size_t src_icg, dst_icg;
+
+		chunk = xt->sgl + i;
+
+		dst_icg = at_xdmac_get_dst_icg(xt, chunk);
+		src_icg = at_xdmac_get_src_icg(xt, chunk);
+
+		src_skip = chunk->size + src_icg;
+		dst_skip = chunk->size + dst_icg;
+
+		dev_dbg(chan2dev(chan),
+			"%s: chunk size=%d, src icg=%d, dst icg=%d\n",
+			__func__, chunk->size, src_icg, dst_icg);
+
+		/*
+		 * Handle the case where we just have the same
+		 * transfer to setup, we can just increase the
+		 * block number and reuse the same descriptor.
+		 */
+		if (prev_chunk && prev &&
+		    (prev_chunk->size == chunk->size) &&
+		    (prev_src_icg == src_icg) &&
+		    (prev_dst_icg == dst_icg)) {
+			dev_dbg(chan2dev(chan),
+				"%s: same configuration that the previous chunk, merging the descriptors...\n",
+				__func__);
+			at_xdmac_increment_block_count(chan, prev);
+			continue;
+		}
+
+		desc = at_xdmac_interleaved_queue_desc(chan, atchan,
+						       prev,
+						       src_addr, dst_addr,
+						       xt, chunk);
+		if (!desc) {
+			list_splice_init(&first->descs_list,
+					 &atchan->free_descs_list);
+			return NULL;
+		}
+
+		if (!first)
+			first = desc;
+
+		dev_dbg(chan2dev(chan), "%s: add desc 0x%p to descs_list 0x%p\n",
+			__func__, desc, first);
+		list_add_tail(&desc->desc_node, &first->descs_list);
+
+		if (xt->src_sgl)
+			src_addr += src_skip;
+
+		if (xt->dst_sgl)
+			dst_addr += dst_skip;
+
+		len += chunk->size;
+		prev_chunk = chunk;
+		prev_dst_icg = dst_icg;
+		prev_src_icg = src_icg;
+		prev = desc;
+	}
+
+	first->tx_dma_desc.cookie = -EBUSY;
+	first->tx_dma_desc.flags = flags;
+	first->xfer_size = len;
+
+	return &first->tx_dma_desc;
 }
 
 static struct dma_async_tx_descriptor *
@@ -1404,6 +1635,7 @@ static int at_xdmac_probe(struct platform_device *pdev)
 	}
 
 	dma_cap_set(DMA_CYCLIC, atxdmac->dma.cap_mask);
+	dma_cap_set(DMA_INTERLEAVE, atxdmac->dma.cap_mask);
 	dma_cap_set(DMA_MEMCPY, atxdmac->dma.cap_mask);
 	dma_cap_set(DMA_SLAVE, atxdmac->dma.cap_mask);
 	/*
@@ -1417,6 +1649,7 @@ static int at_xdmac_probe(struct platform_device *pdev)
 	atxdmac->dma.device_tx_status			= at_xdmac_tx_status;
 	atxdmac->dma.device_issue_pending		= at_xdmac_issue_pending;
 	atxdmac->dma.device_prep_dma_cyclic		= at_xdmac_prep_dma_cyclic;
+	atxdmac->dma.device_prep_interleaved_dma	= at_xdmac_prep_interleaved;
 	atxdmac->dma.device_prep_dma_memcpy		= at_xdmac_prep_dma_memcpy;
 	atxdmac->dma.device_prep_slave_sg		= at_xdmac_prep_slave_sg;
 	atxdmac->dma.device_config			= at_xdmac_device_config;
