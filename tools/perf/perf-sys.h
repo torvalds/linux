@@ -70,20 +70,10 @@
 #endif
 
 #ifdef __arm__
-/*
- * Use the __kuser_memory_barrier helper in the CPU helper page. See
- * arch/arm/kernel/entry-armv.S in the kernel source for details.
- */
-#define mb()		((void(*)(void))0xffff0fa0)()
-#define wmb()		((void(*)(void))0xffff0fa0)()
-#define rmb()		((void(*)(void))0xffff0fa0)()
 #define CPUINFO_PROC	{"model name", "Processor"}
 #endif
 
 #ifdef __aarch64__
-#define mb()		asm volatile("dmb ish" ::: "memory")
-#define wmb()		asm volatile("dmb ishst" ::: "memory")
-#define rmb()		asm volatile("dmb ishld" ::: "memory")
 #define cpu_relax()	asm volatile("yield" ::: "memory")
 #endif
 

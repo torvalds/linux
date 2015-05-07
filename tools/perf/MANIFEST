@@ -1,5 +1,6 @@
 tools/perf
 tools/arch/alpha/include/asm/barrier.h
+tools/arch/arm/include/asm/barrier.h
 tools/arch/ia64/include/asm/barrier.h
 tools/arch/powerpc/include/asm/barrier.h
 tools/arch/s390/include/asm/barrier.h
