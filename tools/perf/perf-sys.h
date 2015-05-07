@@ -61,9 +61,6 @@
 #endif
 
 #ifdef __alpha__
-#define mb()		asm volatile("mb" ::: "memory")
-#define wmb()		asm volatile("wmb" ::: "memory")
-#define rmb()		asm volatile("mb" ::: "memory")
 #define CPUINFO_PROC	{"cpu model"}
 #endif
 

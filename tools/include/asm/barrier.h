@@ -8,4 +8,6 @@
 #include "../../arch/sh/include/asm/barrier.h"
 #elif defined(__sparc__)
 #include "../../arch/sparc/include/asm/barrier.h"
+#elif defined(__alpha__)
+#include "../../arch/alpha/include/asm/barrier.h"
 #endif
