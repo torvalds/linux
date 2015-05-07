@@ -57,7 +57,7 @@ __visible DEFINE_PER_CPU_SHARED_ALIGNED(struct tss_struct, cpu_tss) = {
 	.io_bitmap		= { [0 ... IO_BITMAP_LONGS] = ~0 },
 #endif
 };
-EXPORT_PER_CPU_SYMBOL_GPL(cpu_tss);
+EXPORT_PER_CPU_SYMBOL(cpu_tss);
 
 #ifdef CONFIG_X86_64
 static DEFINE_PER_CPU(unsigned char, is_idle);
@@ -156,11 +156,13 @@ void flush_thread(void)
 		/* FPU state will be reallocated lazily at the first use. */
 		drop_fpu(tsk);
 		free_thread_xstate(tsk);
-	} else if (!used_math()) {
-		/* kthread execs. TODO: cleanup this horror. */
-		if (WARN_ON(init_fpu(tsk)))
-			force_sig(SIGKILL, tsk);
-		user_fpu_begin();
+	} else {
+		if (!tsk_used_math(tsk)) {
+			/* kthread execs. TODO: cleanup this horror. */
+			if (WARN_ON(init_fpu(tsk)))
+				force_sig(SIGKILL, tsk);
+			user_fpu_begin();
+		}
 		restore_init_xstate();
 	}
 }
