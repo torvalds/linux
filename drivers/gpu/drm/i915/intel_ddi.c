@@ -1184,6 +1184,10 @@ found:
 		}
 
 		if (min_dco_index > 2 && dco_count == 2) {
+                        /* oh well, we tried... */
+                        if (retry_with_odd)
+                                break;
+
 			retry_with_odd = true;
 			dco_count = 0;
 		}
