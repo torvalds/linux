@@ -230,7 +230,7 @@ static int cc10001_adc_read_raw(struct iio_dev *indio_dev,
 
 	case IIO_CHAN_INFO_SCALE:
 		ret = regulator_get_voltage(adc_dev->reg);
-		if (ret)
+		if (ret < 0)
 			return ret;
 
 		*val = ret / 1000;
