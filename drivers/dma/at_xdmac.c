@@ -749,6 +749,35 @@ at_xdmac_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr,
 	return &first->tx_dma_desc;
 }
 
+static inline u32 at_xdmac_align_width(struct dma_chan *chan, dma_addr_t addr)
+{
+	u32 width;
+
+	/*
+	 * Check address alignment to select the greater data width we
+	 * can use.
+	 *
+	 * Some XDMAC implementations don't provide dword transfer, in
+	 * this case selecting dword has the same behavior as
+	 * selecting word transfers.
+	 */
+	if (!(addr & 7)) {
+		width = AT_XDMAC_CC_DWIDTH_DWORD;
+		dev_dbg(chan2dev(chan), "%s: dwidth: double word\n", __func__);
+	} else if (!(addr & 3)) {
+		width = AT_XDMAC_CC_DWIDTH_WORD;
+		dev_dbg(chan2dev(chan), "%s: dwidth: word\n", __func__);
+	} else if (!(addr & 1)) {
+		width = AT_XDMAC_CC_DWIDTH_HALFWORD;
+		dev_dbg(chan2dev(chan), "%s: dwidth: half word\n", __func__);
+	} else {
+		width = AT_XDMAC_CC_DWIDTH_BYTE;
+		dev_dbg(chan2dev(chan), "%s: dwidth: byte\n", __func__);
+	}
+
+	return width;
+}
+
 static struct dma_async_tx_descriptor *
 at_xdmac_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 			 size_t len, unsigned long flags)
@@ -779,24 +808,7 @@ at_xdmac_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 	if (unlikely(!len))
 		return NULL;
 
-	/*
-	 * Check address alignment to select the greater data width we can use.
-	 * Some XDMAC implementations don't provide dword transfer, in this
-	 * case selecting dword has the same behavior as selecting word transfers.
-	 */
-	if (!((src_addr | dst_addr) & 7)) {
-		dwidth = AT_XDMAC_CC_DWIDTH_DWORD;
-		dev_dbg(chan2dev(chan), "%s: dwidth: double word\n", __func__);
-	} else if (!((src_addr | dst_addr)  & 3)) {
-		dwidth = AT_XDMAC_CC_DWIDTH_WORD;
-		dev_dbg(chan2dev(chan), "%s: dwidth: word\n", __func__);
-	} else if (!((src_addr | dst_addr) & 1)) {
-		dwidth = AT_XDMAC_CC_DWIDTH_HALFWORD;
-		dev_dbg(chan2dev(chan), "%s: dwidth: half word\n", __func__);
-	} else {
-		dwidth = AT_XDMAC_CC_DWIDTH_BYTE;
-		dev_dbg(chan2dev(chan), "%s: dwidth: byte\n", __func__);
-	}
+	dwidth = at_xdmac_align_width(chan, src_addr | dst_addr);
 
 	/* Prepare descriptors. */
 	while (remaining_size) {
@@ -826,19 +838,8 @@ at_xdmac_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 		dev_dbg(chan2dev(chan), "%s: xfer_size=%zu\n", __func__, xfer_size);
 
 		/* Check remaining length and change data width if needed. */
-		if (!((src_addr | dst_addr | xfer_size) & 7)) {
-			dwidth = AT_XDMAC_CC_DWIDTH_DWORD;
-			dev_dbg(chan2dev(chan), "%s: dwidth: double word\n", __func__);
-		} else if (!((src_addr | dst_addr | xfer_size)  & 3)) {
-			dwidth = AT_XDMAC_CC_DWIDTH_WORD;
-			dev_dbg(chan2dev(chan), "%s: dwidth: word\n", __func__);
-		} else if (!((src_addr | dst_addr | xfer_size) & 1)) {
-			dwidth = AT_XDMAC_CC_DWIDTH_HALFWORD;
-			dev_dbg(chan2dev(chan), "%s: dwidth: half word\n", __func__);
-		} else if ((src_addr | dst_addr | xfer_size) & 1) {
-			dwidth = AT_XDMAC_CC_DWIDTH_BYTE;
-			dev_dbg(chan2dev(chan), "%s: dwidth: byte\n", __func__);
-		}
+		dwidth = at_xdmac_align_width(chan,
+					      src_addr | dst_addr | xfer_size);
 		chan_cc |= AT_XDMAC_CC_DWIDTH(dwidth);
 
 		ublen = xfer_size >> dwidth;
