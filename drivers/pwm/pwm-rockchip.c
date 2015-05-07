@@ -82,10 +82,10 @@ module_param_named(dbg_level, pwm_dbg_level, int, 0644);
 #define PWMCR_MAX_PRESCALE	0x07
 
 #define PWMDCR_MIN_DUTY		0x0000
-#define PWMDCR_MAX_DUTY		0xFFFF
+#define PWMDCR_MAX_DUTY		0xFFFFFFFF
 
 #define PWMPCR_MIN_PERIOD		0x0001
-#define PWMPCR_MAX_PERIOD		0xFFFF
+#define PWMPCR_MAX_PERIOD		0xFFFFFFFF
 
 /********************************************
  * struct rk_pwm_chip - struct representing pwm chip
