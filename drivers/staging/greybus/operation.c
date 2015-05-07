@@ -396,7 +396,7 @@ bool gb_operation_response_alloc(struct gb_operation *operation,
 	struct gb_message *response;
 	u8 type;
 
-	type = operation->type | GB_OPERATION_TYPE_RESPONSE;
+	type = operation->type | GB_MESSAGE_TYPE_RESPONSE;
 	response = gb_operation_message_alloc(hd, type, response_size,
 						GFP_KERNEL);
 	if (!response)
@@ -508,8 +508,8 @@ struct gb_operation *gb_operation_create(struct gb_connection *connection,
 {
 	if (WARN_ON_ONCE(type == GB_OPERATION_TYPE_INVALID))
 		return NULL;
-	if (WARN_ON_ONCE(type & GB_OPERATION_TYPE_RESPONSE))
-		type &= ~GB_OPERATION_TYPE_RESPONSE;
+	if (WARN_ON_ONCE(type & GB_MESSAGE_TYPE_RESPONSE))
+		type &= ~GB_MESSAGE_TYPE_RESPONSE;
 
 	return gb_operation_create_common(connection, type,
 					request_size, response_size);
@@ -855,7 +855,7 @@ void gb_connection_recv(struct gb_connection *connection,
 	}
 
 	operation_id = le16_to_cpu(header.operation_id);
-	if (header.type & GB_OPERATION_TYPE_RESPONSE)
+	if (header.type & GB_MESSAGE_TYPE_RESPONSE)
 		gb_connection_recv_response(connection, operation_id,
 						header.result, data, msg_size);
 	else

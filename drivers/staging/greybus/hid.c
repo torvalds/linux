@@ -20,7 +20,7 @@
 #define GB_HID_VERSION_MAJOR		0x00
 #define GB_HID_VERSION_MINOR		0x01
 
-/* Greybus HID request types */
+/* Greybus HID operation types */
 #define GB_HID_TYPE_INVALID		0x00
 #define GB_HID_TYPE_PROTOCOL_VERSION	0x01
 #define GB_HID_TYPE_GET_DESC		0x02
@@ -30,7 +30,6 @@
 #define GB_HID_TYPE_GET_REPORT		0x06
 #define GB_HID_TYPE_SET_REPORT		0x07
 #define GB_HID_TYPE_IRQ_EVENT		0x08
-#define GB_HID_TYPE_RESPONSE		0x80	/* OR'd with rest */
 
 /* Report type */
 #define GB_HID_INPUT_REPORT		0

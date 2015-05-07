@@ -24,7 +24,7 @@ struct gb_operation;
  * The top bit of the type in an operation message header indicates
  * whether the message is a request (bit clear) or response (bit set)
  */
-#define GB_OPERATION_TYPE_RESPONSE	((u8)0x80)
+#define GB_MESSAGE_TYPE_RESPONSE	((u8)0x80)
 
 enum gb_operation_result {
 	GB_OP_SUCCESS		= 0x00,

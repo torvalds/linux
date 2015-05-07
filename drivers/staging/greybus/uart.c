@@ -37,7 +37,7 @@
 #define GB_UART_VERSION_MAJOR		0x00
 #define GB_UART_VERSION_MINOR		0x01
 
-/* Greybus UART request types */
+/* Greybus UART operation types */
 #define GB_UART_TYPE_INVALID			0x00
 #define GB_UART_TYPE_PROTOCOL_VERSION		0x01
 #define GB_UART_TYPE_SEND_DATA			0x02
@@ -46,7 +46,6 @@
 #define GB_UART_TYPE_SET_CONTROL_LINE_STATE	0x05
 #define GB_UART_TYPE_SET_BREAK			0x06
 #define GB_UART_TYPE_SERIAL_STATE		0x07	/* Unsolicited data */
-#define GB_UART_TYPE_RESPONSE			0x80	/* OR'd with rest */
 
 struct gb_uart_send_data_request {
 	__le16	size;

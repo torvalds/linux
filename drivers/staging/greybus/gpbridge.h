@@ -65,7 +65,6 @@
 #define GB_I2C_TYPE_TIMEOUT		0x03
 #define GB_I2C_TYPE_RETRIES		0x04
 #define GB_I2C_TYPE_TRANSFER		0x05
-#define GB_I2C_TYPE_RESPONSE		0x80	/* OR'd with rest */
 
 #define GB_I2C_RETRIES_DEFAULT		3
 #define GB_I2C_TIMEOUT_DEFAULT		1000	/* milliseconds */
@@ -133,7 +132,6 @@ struct gb_i2c_transfer_response {
 #define GB_GPIO_TYPE_IRQ_MASK		0x0d
 #define GB_GPIO_TYPE_IRQ_UNMASK		0x0e
 #define GB_GPIO_TYPE_IRQ_EVENT		0x0f
-#define GB_GPIO_TYPE_RESPONSE		0x80	/* OR'd with rest */
 
 #define GB_GPIO_DEBOUNCE_USEC_DEFAULT	0	/* microseconds */
 
@@ -223,7 +221,7 @@ struct gb_gpio_irq_event_request {
 #define GB_PWM_VERSION_MAJOR		0x00
 #define GB_PWM_VERSION_MINOR		0x01
 
-/* Greybus PWM request types */
+/* Greybus PWM operation types */
 #define GB_PWM_TYPE_INVALID		0x00
 #define GB_PWM_TYPE_PROTOCOL_VERSION	0x01
 #define GB_PWM_TYPE_PWM_COUNT		0x02
@@ -233,7 +231,6 @@ struct gb_gpio_irq_event_request {
 #define GB_PWM_TYPE_POLARITY		0x06
 #define GB_PWM_TYPE_ENABLE		0x07
 #define GB_PWM_TYPE_DISABLE		0x08
-#define GB_PWM_TYPE_RESPONSE		0x80	/* OR'd with rest */
 
 /* pwm count request has no payload */
 struct gb_pwm_count_response {

@@ -27,12 +27,11 @@ struct gb_vibrator_device {
 #define	GB_VIBRATOR_VERSION_MAJOR		0x00
 #define	GB_VIBRATOR_VERSION_MINOR		0x01
 
-/* Greybus Vibrator request types */
+/* Greybus Vibrator operation types */
 #define	GB_VIBRATOR_TYPE_INVALID		0x00
 #define	GB_VIBRATOR_TYPE_PROTOCOL_VERSION	0x01
 #define	GB_VIBRATOR_TYPE_ON			0x02
 #define	GB_VIBRATOR_TYPE_OFF			0x03
-#define	GB_VIBRATOR_TYPE_RESPONSE		0x80	/* OR'd with rest */
 
 struct gb_vibrator_on_request {
 	__le16	timeout_ms;

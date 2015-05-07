@@ -66,7 +66,7 @@ struct gb_spi {
 #define GB_SPI_FLAG_NO_RX		BIT(1)		/* can't do buffer read */
 #define GB_SPI_FLAG_NO_TX		BIT(2)		/* can't do buffer write */
 
-/* Greybus spi request types */
+/* Greybus spi operation types */
 #define GB_SPI_TYPE_INVALID		0x00
 #define GB_SPI_TYPE_PROTOCOL_VERSION	0x01
 #define GB_SPI_TYPE_MODE		0x02
@@ -74,7 +74,6 @@ struct gb_spi {
 #define GB_SPI_TYPE_BITS_PER_WORD_MASK	0x04
 #define GB_SPI_TYPE_NUM_CHIPSELECT	0x05
 #define GB_SPI_TYPE_TRANSFER		0x06
-#define GB_SPI_TYPE_RESPONSE		0x80	/* OR'd with rest */
 
 /* mode request has no payload */
 struct gb_spi_mode_response {
