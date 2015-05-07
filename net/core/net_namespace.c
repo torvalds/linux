@@ -192,10 +192,12 @@ static int __peernet2id(struct net *net, struct net *peer, bool alloc)
 	if (id > 0)
 		return id;
 
-	if (alloc)
-		return alloc_netid(net, peer, -1);
+	if (alloc) {
+		id = alloc_netid(net, peer, -1);
+		return id >= 0 ? id : NETNSA_NSID_NOT_ASSIGNED;
+	}
 
-	return -ENOENT;
+	return NETNSA_NSID_NOT_ASSIGNED;
 }
 
 /* This function returns the id of a peer netns. If no id is assigned, one will
@@ -204,10 +206,8 @@ static int __peernet2id(struct net *net, struct net *peer, bool alloc)
 int peernet2id(struct net *net, struct net *peer)
 {
 	bool alloc = atomic_read(&peer->count) == 0 ? false : true;
-	int id;
 
-	id = __peernet2id(net, peer, alloc);
-	return id >= 0 ? id : NETNSA_NSID_NOT_ASSIGNED;
+	return __peernet2id(net, peer, alloc);
 }
 EXPORT_SYMBOL(peernet2id);
 
@@ -554,13 +554,10 @@ static int rtnl_net_fill(struct sk_buff *skb, u32 portid, u32 seq, int flags,
 	rth = nlmsg_data(nlh);
 	rth->rtgen_family = AF_UNSPEC;
 
-	if (nsid >= 0) {
+	if (nsid >= 0)
 		id = nsid;
-	} else {
+	else
 		id = __peernet2id(net, peer, false);
-		if  (id < 0)
-			id = NETNSA_NSID_NOT_ASSIGNED;
-	}
 	if (nla_put_s32(skb, NETNSA_NSID, id))
 		goto nla_put_failure;
 
