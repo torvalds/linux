@@ -178,19 +178,18 @@ int vmbus_open(struct vmbus_channel *newchannel, u32 send_ringbuffer_size,
 		goto error1;
 	}
 
-
-	if (open_info->response.open_result.status)
-		err = open_info->response.open_result.status;
-
 	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
 	list_del(&open_info->msglistentry);
 	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
 
-	if (err == 0)
-		newchannel->state = CHANNEL_OPENED_STATE;
+	if (open_info->response.open_result.status) {
+		err = -EAGAIN;
+		goto error_gpadl;
+	}
 
+	newchannel->state = CHANNEL_OPENED_STATE;
 	kfree(open_info);
-	return err;
+	return 0;
 
 error1:
 	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
