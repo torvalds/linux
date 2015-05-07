@@ -50,9 +50,6 @@
 #endif
 
 #ifdef __hppa__
-#define mb()		asm volatile("" ::: "memory")
-#define wmb()		asm volatile("" ::: "memory")
-#define rmb()		asm volatile("" ::: "memory")
 #define CPUINFO_PROC	{"cpu"}
 #endif
 
@@ -82,16 +79,10 @@
 #endif
 
 #ifdef __arc__
-#define mb()		asm volatile("" ::: "memory")
-#define wmb()		asm volatile("" ::: "memory")
-#define rmb()		asm volatile("" ::: "memory")
 #define CPUINFO_PROC	{"Processor"}
 #endif
 
 #ifdef __metag__
-#define mb()		asm volatile("" ::: "memory")
-#define wmb()		asm volatile("" ::: "memory")
-#define rmb()		asm volatile("" ::: "memory")
 #define CPUINFO_PROC	{"CPU"}
 #endif
 

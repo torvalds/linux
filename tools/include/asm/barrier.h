@@ -22,4 +22,6 @@
 #include "../../arch/ia64/include/asm/barrier.h"
 #elif defined(__xtensa__)
 #include "../../arch/xtensa/include/asm/barrier.h"
+#else
+#include <asm-generic/barrier.h>
 #endif
