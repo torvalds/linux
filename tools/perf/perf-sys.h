@@ -46,15 +46,6 @@
 #endif
 
 #ifdef __sh__
-#if defined(__SH4A__) || defined(__SH5__)
-# define mb()		asm volatile("synco" ::: "memory")
-# define wmb()		asm volatile("synco" ::: "memory")
-# define rmb()		asm volatile("synco" ::: "memory")
-#else
-# define mb()		asm volatile("" ::: "memory")
-# define wmb()		asm volatile("" ::: "memory")
-# define rmb()		asm volatile("" ::: "memory")
-#endif
 #define CPUINFO_PROC	{"cpu type"}
 #endif
 
