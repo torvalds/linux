@@ -179,6 +179,10 @@
 			gpio0_c3: gpio0-c3{
 				rockchip,pins = <0 GPIO_C3 RK_FUNC_GPIO &pcfg_pull_down>;
 			};
+
+                        gpio0_c1: gpio0-c1 {
+                                rockchip,pins = <0 GPIO_C1 RK_FUNC_GPIO &pcfg_pull_up>;
+                        };
 			//to add
 		};
 
@@ -336,9 +340,17 @@
 			max_charge_currentmA = <1800>;
 			max_charge_voltagemV = <4200>;
 			max_bat_voltagemV = <4200>;
-			sleep_enter_current = <150>;
-			sleep_exit_current = <180>;
-			support_uboot_chrg = <0>;
+                        sleep_enter_current = <600>;
+                        sleep_exit_current = <600>;
+                        support_uboot_chrg = <0>;
+                        support_usb_adp = <1>;
+                        support_dc_adp = <1>;
+                        dc_det_gpio = <&gpio0 GPIO_C1 GPIO_ACTIVE_LOW>;
+                        dc_det_pullup_inside = <1>;
+                        test_power {
+                                test_charge_currentmA = <1800>;
+                                test_charge_ilimitmA  = <2000>;
+                        };
 		};
 	};
 };
@@ -564,7 +576,8 @@
 &rk818 {
 	gpios =<&gpio0 GPIO_A1 GPIO_ACTIVE_HIGH>,<&gpio0 GPIO_A0 GPIO_ACTIVE_LOW>;
 	rk818,system-power-controller;
-	
+        pinctrl-names = "default";
+        pinctrl-0 = <&gpio0_c1>;
 	regulators {
 
 		rk818_dcdc1_reg: regulator@0{
