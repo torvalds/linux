@@ -1459,12 +1459,18 @@ err:
  */
 void mei_cl_complete(struct mei_cl *cl, struct mei_cl_cb *cb)
 {
+	struct mei_device *dev = cl->dev;
+
 	switch (cb->fop_type) {
 	case MEI_FOP_WRITE:
 		mei_io_cb_free(cb);
 		cl->writing_state = MEI_WRITE_COMPLETE;
-		if (waitqueue_active(&cl->tx_wait))
+		if (waitqueue_active(&cl->tx_wait)) {
 			wake_up_interruptible(&cl->tx_wait);
+		} else {
+			pm_runtime_mark_last_busy(dev->dev);
+			pm_request_autosuspend(dev->dev);
+		}
 		break;
 
 	case MEI_FOP_READ:
