@@ -1115,7 +1115,7 @@ struct skl_wrpll_params {
 	uint32_t        central_freq;
 };
 
-static void
+static bool
 skl_ddi_calculate_wrpll(int clock /* in Hz */,
 			struct skl_wrpll_params *wrpll_params)
 {
@@ -1196,6 +1196,7 @@ found:
 	if (min_dco_index > 2) {
 		WARN(1, "No valid parameters found for pixel clock: %dHz\n",
 		     clock);
+		return false;
 	} else {
 		wrpll_params->central_freq = dco_central_freq[min_dco_index];
 
@@ -1262,6 +1263,8 @@ found:
 				  wrpll_params->dco_integer * MHz(1)) * 0x8000), MHz(1));
 
 	}
+
+	return true;
 }
 
 
@@ -1286,7 +1289,8 @@ skl_ddi_pll_select(struct intel_crtc *intel_crtc,
 
 		ctrl1 |= DPLL_CTRL1_HDMI_MODE(0);
 
-		skl_ddi_calculate_wrpll(clock * 1000, &wrpll_params);
+		if (!skl_ddi_calculate_wrpll(clock * 1000, &wrpll_params))
+			return false;
 
 		cfgcr1 = DPLL_CFGCR1_FREQ_ENABLE |
 			 DPLL_CFGCR1_DCO_FRACTION(wrpll_params.dco_fraction) |
