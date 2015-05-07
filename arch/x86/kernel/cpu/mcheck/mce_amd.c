@@ -1,21 +1,13 @@
 /*
- *  (c) 2005-2012 Advanced Micro Devices, Inc.
+ *  (c) 2005-2015 Advanced Micro Devices, Inc.
  *  Your use of this code is subject to the terms and conditions of the
  *  GNU general public license version 2. See "COPYING" or
  *  http://www.gnu.org/licenses/gpl.html
  *
  *  Written by Jacob Shin - AMD, Inc.
- *
  *  Maintained by: Borislav Petkov <bp@alien8.de>
  *
- *  April 2006
- *     - added support for AMD Family 0x10 processors
- *  May 2012
- *     - major scrubbing
- *  May 2015
- *     - add support for deferred error interrupts (Aravind Gopalakrishnan)
- *
- *  All MC4_MISCi registers are shared between multi-cores
+ *  All MC4_MISCi registers are shared between cores on a node.
  */
 #include <linux/interrupt.h>
 #include <linux/notifier.h>
