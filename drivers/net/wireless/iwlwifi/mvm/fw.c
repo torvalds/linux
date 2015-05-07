@@ -662,9 +662,9 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 		 * device that are triggered by the INIT firwmare (MFUART).
 		 */
 		_iwl_trans_stop_device(mvm->trans, false);
-		_iwl_trans_start_hw(mvm->trans, false);
+		ret = _iwl_trans_start_hw(mvm->trans, false);
 		if (ret)
-			return ret;
+			goto error;
 	}
 
 	if (iwlmvm_mod_params.init_dbg)
