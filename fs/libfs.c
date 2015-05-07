@@ -1030,6 +1030,12 @@ void kfree_put_link(struct inode *unused, void *cookie)
 }
 EXPORT_SYMBOL(kfree_put_link);
 
+void free_page_put_link(struct inode *unused, void *cookie)
+{
+	free_page((unsigned long) cookie);
+}
+EXPORT_SYMBOL(free_page_put_link);
+
 /*
  * nop .set_page_dirty method so that people can use .page_mkwrite on
  * anon inodes.

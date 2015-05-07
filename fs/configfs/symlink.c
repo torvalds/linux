@@ -296,15 +296,10 @@ static const char *configfs_follow_link(struct dentry *dentry, void **cookie)
 	return ERR_PTR(error);
 }
 
-static void configfs_put_link(struct inode *unused, void *cookie)
-{
-	free_page((unsigned long)cookie);
-}
-
 const struct inode_operations configfs_symlink_inode_operations = {
 	.follow_link = configfs_follow_link,
 	.readlink = generic_readlink,
-	.put_link = configfs_put_link,
+	.put_link = free_page_put_link,
 	.setattr = configfs_setattr,
 };
 

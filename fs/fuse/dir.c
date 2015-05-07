@@ -1395,11 +1395,6 @@ static const char *fuse_follow_link(struct dentry *dentry, void **cookie)
 	return link;
 }
 
-static void fuse_put_link(struct inode *unused, void *cookie)
-{
-	free_page((unsigned long) cookie);
-}
-
 static int fuse_dir_open(struct inode *inode, struct file *file)
 {
 	return fuse_open_common(inode, file, true);
@@ -1915,7 +1910,7 @@ static const struct inode_operations fuse_common_inode_operations = {
 static const struct inode_operations fuse_symlink_inode_operations = {
 	.setattr	= fuse_setattr,
 	.follow_link	= fuse_follow_link,
-	.put_link	= fuse_put_link,
+	.put_link	= free_page_put_link,
 	.readlink	= generic_readlink,
 	.getattr	= fuse_getattr,
 	.setxattr	= fuse_setxattr,
