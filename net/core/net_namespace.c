@@ -147,8 +147,7 @@ static void ops_free_list(const struct pernet_operations *ops,
 	}
 }
 
-static void rtnl_net_notifyid(struct net *net, struct net *peer, int cmd,
-			      int id);
+static void rtnl_net_notifyid(struct net *net, int cmd, int id);
 static int alloc_netid(struct net *net, struct net *peer, int reqid)
 {
 	int min = 0, max = 0, id;
@@ -162,7 +161,7 @@ static int alloc_netid(struct net *net, struct net *peer, int reqid)
 
 	id = idr_alloc(&net->netns_ids, peer, min, max, GFP_KERNEL);
 	if (id >= 0)
-		rtnl_net_notifyid(net, peer, RTM_NEWNSID, id);
+		rtnl_net_notifyid(net, RTM_NEWNSID, id);
 
 	return id;
 }
@@ -365,7 +364,7 @@ static void cleanup_net(struct work_struct *work)
 			int id = __peernet2id(tmp, net, false);
 
 			if (id >= 0) {
-				rtnl_net_notifyid(tmp, net, RTM_DELNSID, id);
+				rtnl_net_notifyid(tmp, RTM_DELNSID, id);
 				idr_remove(&tmp->netns_ids, id);
 			}
 		}
@@ -538,14 +537,10 @@ static int rtnl_net_get_size(void)
 }
 
 static int rtnl_net_fill(struct sk_buff *skb, u32 portid, u32 seq, int flags,
-			 int cmd, struct net *net, struct net *peer,
-			 int nsid)
+			 int cmd, struct net *net, int nsid)
 {
 	struct nlmsghdr *nlh;
 	struct rtgenmsg *rth;
-	int id;
-
-	ASSERT_RTNL();
 
 	nlh = nlmsg_put(skb, portid, seq, cmd, sizeof(*rth), flags);
 	if (!nlh)
@@ -554,11 +549,7 @@ static int rtnl_net_fill(struct sk_buff *skb, u32 portid, u32 seq, int flags,
 	rth = nlmsg_data(nlh);
 	rth->rtgen_family = AF_UNSPEC;
 
-	if (nsid >= 0)
-		id = nsid;
-	else
-		id = __peernet2id(net, peer, false);
-	if (nla_put_s32(skb, NETNSA_NSID, id))
+	if (nla_put_s32(skb, NETNSA_NSID, nsid))
 		goto nla_put_failure;
 
 	nlmsg_end(skb, nlh);
@@ -575,7 +566,7 @@ static int rtnl_net_getid(struct sk_buff *skb, struct nlmsghdr *nlh)
 	struct nlattr *tb[NETNSA_MAX + 1];
 	struct sk_buff *msg;
 	struct net *peer;
-	int err;
+	int err, id;
 
 	err = nlmsg_parse(nlh, sizeof(struct rtgenmsg), tb, NETNSA_MAX,
 			  rtnl_net_policy);
@@ -597,8 +588,9 @@ static int rtnl_net_getid(struct sk_buff *skb, struct nlmsghdr *nlh)
 		goto out;
 	}
 
+	id = __peernet2id(net, peer, false);
 	err = rtnl_net_fill(msg, NETLINK_CB(skb).portid, nlh->nlmsg_seq, 0,
-			    RTM_GETNSID, net, peer, -1);
+			    RTM_GETNSID, net, id);
 	if (err < 0)
 		goto err_out;
 
@@ -630,7 +622,7 @@ static int rtnl_net_dumpid_one(int id, void *peer, void *data)
 
 	ret = rtnl_net_fill(net_cb->skb, NETLINK_CB(net_cb->cb->skb).portid,
 			    net_cb->cb->nlh->nlmsg_seq, NLM_F_MULTI,
-			    RTM_NEWNSID, net_cb->net, peer, id);
+			    RTM_NEWNSID, net_cb->net, id);
 	if (ret < 0)
 		return ret;
 
@@ -658,8 +650,7 @@ static int rtnl_net_dumpid(struct sk_buff *skb, struct netlink_callback *cb)
 	return skb->len;
 }
 
-static void rtnl_net_notifyid(struct net *net, struct net *peer, int cmd,
-			      int id)
+static void rtnl_net_notifyid(struct net *net, int cmd, int id)
 {
 	struct sk_buff *msg;
 	int err = -ENOMEM;
@@ -668,7 +659,7 @@ static void rtnl_net_notifyid(struct net *net, struct net *peer, int cmd,
 	if (!msg)
 		goto out;
 
-	err = rtnl_net_fill(msg, 0, 0, 0, cmd, net, peer, id);
+	err = rtnl_net_fill(msg, 0, 0, 0, cmd, net, id);
 	if (err < 0)
 		goto err_out;
 
