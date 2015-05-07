@@ -1267,6 +1267,9 @@ static ssize_t pktgen_if_write(struct file *file,
 		else if (strcmp(f, "NO_TIMESTAMP") == 0)
 			pkt_dev->flags |= F_NO_TIMESTAMP;
 
+		else if (strcmp(f, "!NO_TIMESTAMP") == 0)
+			pkt_dev->flags &= ~F_NO_TIMESTAMP;
+
 		else {
 			sprintf(pg_result,
 				"Flag -:%s:- unknown\nAvailable flags, (prepend ! to un-set flag):\n%s",

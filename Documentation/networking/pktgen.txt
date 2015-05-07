@@ -145,6 +145,7 @@ Examples:
                               UDPCSUM,
                               IPSEC # IPsec encapsulation (needs CONFIG_XFRM)
                               NODE_ALLOC # node specific memory allocation
+                              NO_TIMESTAMP # disable timestamping
 
  pgset spi SPI_VALUE     Set specific SA used to transform packet.
 
@@ -287,6 +288,7 @@ flag
   UDPCSUM
   IPSEC
   NODE_ALLOC
+  NO_TIMESTAMP
 
 dst_min
 dst_max
