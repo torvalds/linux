@@ -927,9 +927,10 @@ static int gen9_init_workarounds(struct intel_engine_cs *ring)
 	WA_SET_BIT_MASKED(HALF_SLICE_CHICKEN3,
 			  GEN9_DISABLE_OCL_OOB_SUPPRESS_LOGIC);
 
-	if (INTEL_REVID(dev) == SKL_REVID_A0 ||
-	    INTEL_REVID(dev) == SKL_REVID_B0) {
-		/* WaDisableDgMirrorFixInHalfSliceChicken5:skl */
+	if ((IS_SKYLAKE(dev) && (INTEL_REVID(dev) == SKL_REVID_A0 ||
+	    INTEL_REVID(dev) == SKL_REVID_B0)) ||
+	    (IS_BROXTON(dev) && INTEL_REVID(dev) < BXT_REVID_B0)) {
+		/* WaDisableDgMirrorFixInHalfSliceChicken5:skl,bxt */
 		WA_CLR_BIT_MASKED(GEN9_HALF_SLICE_CHICKEN5,
 				  GEN9_DG_MIRROR_FIX_ENABLE);
 	}
