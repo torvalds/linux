@@ -340,6 +340,7 @@ void mmc_retune_release(struct mmc_host *host)
 
 int mmc_retune(struct mmc_host *host)
 {
+	bool return_to_hs400 = false;
 	int err;
 
 	if (host->retune_now)
@@ -354,8 +355,24 @@ int mmc_retune(struct mmc_host *host)
 
 	host->doing_retune = 1;
 
-	err = mmc_execute_tuning(host->card);
+	if (host->ios.timing == MMC_TIMING_MMC_HS400) {
+		err = mmc_hs400_to_hs200(host->card);
+		if (err)
+			goto out;
 
+		return_to_hs400 = true;
+
+		if (host->ops->prepare_hs400_tuning)
+			host->ops->prepare_hs400_tuning(host, &host->ios);
+	}
+
+	err = mmc_execute_tuning(host->card);
+	if (err)
+		goto out;
+
+	if (return_to_hs400)
+		err = mmc_hs200_to_hs400(host->card);
+out:
 	host->doing_retune = 0;
 
 	return err;
