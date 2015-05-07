@@ -821,7 +821,9 @@ static long kvm_s390_set_skeys(struct kvm *kvm, struct kvm_s390_skeys *args)
 	}
 
 	/* Enable storage key handling for the guest */
-	s390_enable_skey();
+	r = s390_enable_skey();
+	if (r)
+		goto out;
 
 	for (i = 0; i < args->count; i++) {
 		hva = gfn_to_hva(kvm, args->start_gfn + i);
