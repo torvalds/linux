@@ -1139,11 +1139,11 @@ static int iwl_mvm_check_running_scans(struct iwl_mvm *mvm, int type)
 	case IWL_MVM_SCAN_REGULAR:
 		if (mvm->scan_status & IWL_MVM_SCAN_REGULAR_MASK)
 			return -EBUSY;
-		return iwl_mvm_sched_scan_stop(mvm, true);
+		return iwl_mvm_scan_stop(mvm, IWL_MVM_SCAN_SCHED, true);
 	case IWL_MVM_SCAN_SCHED:
 		if (mvm->scan_status & IWL_MVM_SCAN_SCHED_MASK)
 			return -EBUSY;
-		return iwl_mvm_reg_scan_stop(mvm);
+		iwl_mvm_scan_stop(mvm, IWL_MVM_SCAN_REGULAR, true);
 	case IWL_MVM_SCAN_NETDETECT:
 		/* No need to stop anything for net-detect since the
 		 * firmware is restarted anyway.  This way, any sched
@@ -1524,11 +1524,11 @@ void iwl_mvm_report_scan_aborted(struct iwl_mvm *mvm)
 	}
 }
 
-int iwl_mvm_reg_scan_stop(struct iwl_mvm *mvm)
+int iwl_mvm_scan_stop(struct iwl_mvm *mvm, int type, bool notify)
 {
 	int ret;
 
-	if (!(mvm->scan_status & IWL_MVM_SCAN_REGULAR))
+	if (!(mvm->scan_status & type))
 		return 0;
 
 	if (iwl_mvm_is_radio_killed(mvm)) {
@@ -1536,43 +1536,27 @@ int iwl_mvm_reg_scan_stop(struct iwl_mvm *mvm)
 		goto out;
 	}
 
-	ret = iwl_mvm_scan_stop_wait(mvm, IWL_MVM_SCAN_REGULAR);
+	ret = iwl_mvm_scan_stop_wait(mvm, type);
 	if (!ret)
-		mvm->scan_status |= IWL_MVM_SCAN_STOPPING_REGULAR;
+		mvm->scan_status |= type << IWL_MVM_SCAN_STOPPING_SHIFT;
 out:
 	/* Clear the scan status so the next scan requests will
 	 * succeed and mark the scan as stopping, so that the Rx
 	 * handler doesn't do anything, as the scan was stopped from
-	 * above. Since the rx handler won't do anything now, we have
-	 * to release the scan reference here.
+	 * above.
 	 */
-	iwl_mvm_unref(mvm, IWL_MVM_REF_SCAN);
+	mvm->scan_status &= ~type;
 
-	mvm->scan_status &= ~IWL_MVM_SCAN_REGULAR;
-	ieee80211_scan_completed(mvm->hw, true);
-
-	return ret;
-}
-
-int iwl_mvm_sched_scan_stop(struct iwl_mvm *mvm, bool notify)
-{
-	int ret;
-
-	if (!(mvm->scan_status & IWL_MVM_SCAN_SCHED))
-		return 0;
-
-	if (iwl_mvm_is_radio_killed(mvm)) {
-		ret = 0;
-		goto out;
-	}
-
-	ret = iwl_mvm_scan_stop_wait(mvm, IWL_MVM_SCAN_SCHED);
-	if (!ret)
-		mvm->scan_status |= IWL_MVM_SCAN_STOPPING_SCHED;
-out:
-	mvm->scan_status &= ~IWL_MVM_SCAN_SCHED;
-	if (notify)
+	if (type == IWL_MVM_SCAN_REGULAR) {
+		/* Since the rx handler won't do anything now, we have
+		 * to release the scan reference here.
+		 */
+		iwl_mvm_unref(mvm, IWL_MVM_REF_SCAN);
+		if (notify)
+			ieee80211_scan_completed(mvm->hw, true);
+	} else if (notify) {
 		ieee80211_sched_scan_stopped(mvm->hw);
+	}
 
 	return ret;
 }

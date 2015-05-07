@@ -761,7 +761,7 @@ void iwl_mvm_set_last_nonqos_seq(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 static int iwl_mvm_switch_to_d3(struct iwl_mvm *mvm)
 {
-	iwl_mvm_reg_scan_stop(mvm);
+	iwl_mvm_scan_stop(mvm, IWL_MVM_SCAN_REGULAR, true);
 
 	iwl_trans_stop_device(mvm->trans);
 

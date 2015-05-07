@@ -447,6 +447,8 @@ iwl_mvm_vif_from_mac80211(struct ieee80211_vif *vif)
 
 extern const u8 tid_to_mac80211_ac[];
 
+#define IWL_MVM_SCAN_STOPPING_SHIFT	8
+
 enum iwl_scan_status {
 	IWL_MVM_SCAN_REGULAR		= BIT(0),
 	IWL_MVM_SCAN_SCHED		= BIT(1),
@@ -463,8 +465,8 @@ enum iwl_scan_status {
 	IWL_MVM_SCAN_NETDETECT_MASK	= IWL_MVM_SCAN_NETDETECT |
 					  IWL_MVM_SCAN_STOPPING_NETDETECT,
 
-	IWL_MVM_SCAN_STOPPING_MASK	= 0xff00,
-	IWL_MVM_SCAN_MASK		= 0x00ff,
+	IWL_MVM_SCAN_STOPPING_MASK	= 0xff << IWL_MVM_SCAN_STOPPING_SHIFT,
+	IWL_MVM_SCAN_MASK		= 0xff,
 };
 
 /**
@@ -1121,7 +1123,7 @@ int iwl_mvm_reg_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			   struct cfg80211_scan_request *req,
 			   struct ieee80211_scan_ies *ies);
 int iwl_mvm_scan_size(struct iwl_mvm *mvm);
-int iwl_mvm_reg_scan_stop(struct iwl_mvm *mvm);
+int iwl_mvm_scan_stop(struct iwl_mvm *mvm, int type, bool notify);
 int iwl_mvm_max_scan_ie_len(struct iwl_mvm *mvm);
 void iwl_mvm_report_scan_aborted(struct iwl_mvm *mvm);
 
@@ -1137,7 +1139,6 @@ int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
 			     struct cfg80211_sched_scan_request *req,
 			     struct ieee80211_scan_ies *ies,
 			     int type);
-int iwl_mvm_sched_scan_stop(struct iwl_mvm *mvm, bool notify);
 int iwl_mvm_rx_scan_match_found(struct iwl_mvm *mvm,
 				struct iwl_rx_cmd_buffer *rxb,
 				struct iwl_device_cmd *cmd);
