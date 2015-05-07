@@ -650,7 +650,7 @@ static inline void
 debug_activate(struct timer_list *timer, unsigned long expires)
 {
 	debug_timer_activate(timer);
-	trace_timer_start(timer, expires);
+	trace_timer_start(timer, expires, tbase_get_deferrable(timer->base));
 }
 
 static inline void debug_deactivate(struct timer_list *timer)
