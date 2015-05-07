@@ -299,8 +299,6 @@ static enum power_supply_property battery_props[] = {
 static int init_and_register(struct gb_connection *connection,
 			     struct gb_battery *gb)
 {
-	int retval;
-
 	// FIXME - get a better (i.e. unique) name
 	// FIXME - anything else needs to be set?
 	gb->bat.name		= "gb_battery";
@@ -309,18 +307,13 @@ static int init_and_register(struct gb_connection *connection,
 	gb->bat.num_properties	= ARRAY_SIZE(battery_props);
 	gb->bat.get_property	= get_property;
 
-	retval = power_supply_register(&connection->bundle->intf->dev,
-				       &gb->bat);
-	if (retval)
-		kfree(gb);
-	return retval;
+	return power_supply_register(&connection->bundle->intf->dev, &gb->bat);
 }
 #else
 static int init_and_register(struct gb_connection *connection,
 			     struct gb_battery *gb)
 {
 	struct power_supply_config cfg = {};
-	int retval = 0;
 
 	cfg.drv_data = gb;
 
@@ -334,11 +327,10 @@ static int init_and_register(struct gb_connection *connection,
 
 	gb->bat = power_supply_register(&connection->bundle->intf->dev,
 					&gb->desc, &cfg);
-	if (IS_ERR(gb->bat)) {
-		retval = PTR_ERR(gb->bat);
-		kfree(gb);
-	}
-	return retval;
+	if (IS_ERR(gb->bat))
+		return PTR_ERR(gb->bat);
+
+	return 0;
 }
 #endif
 
@@ -356,12 +348,14 @@ static int gb_battery_connection_init(struct gb_connection *connection)
 
 	/* Check the version */
 	retval = get_version(gb);
-	if (retval) {
+	if (retval)
+		goto out;
+	retval = init_and_register(connection, gb);
+out:
+	if (retval)
 		kfree(gb);
-		return retval;
-	}
 
-	return init_and_register(connection, gb);
+	return retval;
 }
 
 static void gb_battery_connection_exit(struct gb_connection *connection)
