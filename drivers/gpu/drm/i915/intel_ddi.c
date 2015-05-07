@@ -1121,8 +1121,6 @@ static void skl_wrpll_params_populate(struct skl_wrpll_params *params,
 {
 	uint64_t dco_freq;
 
-	params->central_freq = central_freq;
-
 	switch (central_freq) {
 	case 9600000000ULL:
 		params->central_freq = 0;
