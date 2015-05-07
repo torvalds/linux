@@ -7019,7 +7019,30 @@ static void dgap_cleanup_board(struct board_t *brd)
 
 static void dgap_remove_one(struct pci_dev *dev)
 {
-	/* Do Nothing */
+	unsigned int i;
+	ulong lock_flags;
+	struct pci_driver *drv = to_pci_driver(dev->dev.driver);
+
+	spin_lock_irqsave(&dgap_poll_lock, lock_flags);
+	dgap_poll_stop = 1;
+	spin_unlock_irqrestore(&dgap_poll_lock, lock_flags);
+
+	/* Turn off poller right away. */
+	del_timer_sync(&dgap_poll_timer);
+
+	dgap_remove_driver_sysfiles(drv);
+
+	device_destroy(dgap_class, MKDEV(DIGI_DGAP_MAJOR, 0));
+	class_destroy(dgap_class);
+	unregister_chrdev(DIGI_DGAP_MAJOR, "dgap");
+
+	for (i = 0; i < dgap_numboards; ++i) {
+		dgap_remove_ports_sysfiles(dgap_board[i]);
+		dgap_cleanup_tty(dgap_board[i]);
+		dgap_cleanup_board(dgap_board[i]);
+	}
+
+	dgap_cleanup_nodes();
 }
 
 static struct pci_driver dgap_driver = {
@@ -7149,30 +7172,6 @@ err_stop:
  */
 static void dgap_cleanup_module(void)
 {
-	unsigned int i;
-	ulong lock_flags;
-
-	spin_lock_irqsave(&dgap_poll_lock, lock_flags);
-	dgap_poll_stop = 1;
-	spin_unlock_irqrestore(&dgap_poll_lock, lock_flags);
-
-	/* Turn off poller right away. */
-	del_timer_sync(&dgap_poll_timer);
-
-	dgap_remove_driver_sysfiles(&dgap_driver);
-
-	device_destroy(dgap_class, MKDEV(DIGI_DGAP_MAJOR, 0));
-	class_destroy(dgap_class);
-	unregister_chrdev(DIGI_DGAP_MAJOR, "dgap");
-
-	for (i = 0; i < dgap_numboards; ++i) {
-		dgap_remove_ports_sysfiles(dgap_board[i]);
-		dgap_cleanup_tty(dgap_board[i]);
-		dgap_cleanup_board(dgap_board[i]);
-	}
-
-	dgap_cleanup_nodes();
-
 	if (dgap_numboards)
 		pci_unregister_driver(&dgap_driver);
 }
