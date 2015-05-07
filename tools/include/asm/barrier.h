@@ -10,4 +10,6 @@
 #include "../../arch/sparc/include/asm/barrier.h"
 #elif defined(__alpha__)
 #include "../../arch/alpha/include/asm/barrier.h"
+#elif defined(__ia64__)
+#include "../../arch/ia64/include/asm/barrier.h"
 #endif

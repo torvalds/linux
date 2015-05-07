@@ -65,9 +65,6 @@
 #endif
 
 #ifdef __ia64__
-#define mb()		asm volatile ("mf" ::: "memory")
-#define wmb()		asm volatile ("mf" ::: "memory")
-#define rmb()		asm volatile ("mf" ::: "memory")
 #define cpu_relax()	asm volatile ("hint @pause" ::: "memory")
 #define CPUINFO_PROC	{"model name"}
 #endif
