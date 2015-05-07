@@ -16,7 +16,7 @@ The available clocks are defined in dt-bindings/clock/mt*-clk.h.
 
 Example:
 
-topckgen: topckgen@10000000 {
+topckgen: power-controller@10000000 {
 	compatible = "mediatek,mt8173-topckgen";
 	reg = <0 0x10000000 0 0x1000>;
 	#clock-cells = <1>;

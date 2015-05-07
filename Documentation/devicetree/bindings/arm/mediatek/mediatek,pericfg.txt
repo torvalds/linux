@@ -22,7 +22,7 @@ dt-bindings/reset-controller/mt*-resets.h
 
 Example:
 
-pericfg: pericfg@10003000 {
+pericfg: power-controller@10003000 {
 	compatible = "mediatek,mt8173-pericfg", "syscon";
 	reg = <0 0x10003000 0 0x1000>;
 	#clock-cells = <1>;

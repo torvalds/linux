@@ -22,7 +22,7 @@ dt-bindings/reset-controller/mt*-resets.h
 
 Example:
 
-infracfg: infracfg@10001000 {
+infracfg: power-controller@10001000 {
 	compatible = "mediatek,mt8173-infracfg", "syscon";
 	reg = <0 0x10001000 0 0x1000>;
 	#clock-cells = <1>;

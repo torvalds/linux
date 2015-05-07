@@ -16,7 +16,7 @@ The available clocks are defined in dt-bindings/clock/mt*-clk.h.
 
 Example:
 
-apmixedsys: apmixedsys@10209000 {
+apmixedsys: clock-controller@10209000 {
 	compatible = "mediatek,mt8173-apmixedsys";
 	reg = <0 0x10209000 0 0x1000>;
 	#clock-cells = <1>;
