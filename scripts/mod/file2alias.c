@@ -131,6 +131,15 @@ static inline void add_wildcard(char *str)
 		strcat(str + len, "*");
 }
 
+static inline void add_uuid(char *str, __u8 uuid[16])
+{
+	int len = strlen(str);
+	int i;
+
+	for (i = 0; i < 16; i++)
+		sprintf(str + len + (i << 1), "%02x", uuid[i]);
+}
+
 /**
  * Check that sizeof(device_id type) are consistent with size of section
  * in .o file. If in-consistent then userspace and kernel does not agree
@@ -1160,13 +1169,18 @@ static int do_cpu_entry(const char *filename, void *symval, char *alias)
 }
 ADD_TO_DEVTABLE("cpu", cpu_feature, do_cpu_entry);
 
-/* Looks like: mei:S */
+/* Looks like: mei:S:uuid */
 static int do_mei_entry(const char *filename, void *symval,
 			char *alias)
 {
 	DEF_FIELD_ADDR(symval, mei_cl_device_id, name);
+	DEF_FIELD_ADDR(symval, mei_cl_device_id, uuid);
 
-	sprintf(alias, MEI_CL_MODULE_PREFIX "%s", *name);
+	sprintf(alias, MEI_CL_MODULE_PREFIX);
+	sprintf(alias + strlen(alias), "%s:",  (*name)[0]  ? *name : "*");
+	add_uuid(alias, *uuid);
+
+	strcat(alias, ":*");
 
 	return 1;
 }

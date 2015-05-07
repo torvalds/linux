@@ -30,23 +30,40 @@
 #define to_mei_cl_driver(d) container_of(d, struct mei_cl_driver, driver)
 #define to_mei_cl_device(d) container_of(d, struct mei_cl_device, dev)
 
+static inline uuid_le uuid_le_cast(const __u8 uuid[16])
+{
+	return *(uuid_le *)uuid;
+}
+
 static int mei_cl_device_match(struct device *dev, struct device_driver *drv)
 {
 	struct mei_cl_device *device = to_mei_cl_device(dev);
 	struct mei_cl_driver *driver = to_mei_cl_driver(drv);
 	const struct mei_cl_device_id *id;
+	const uuid_le *uuid;
+	const char *name;
 
 	if (!device)
 		return 0;
+
+	uuid = mei_me_cl_uuid(device->me_cl);
+	name = device->name;
 
 	if (!driver || !driver->id_table)
 		return 0;
 
 	id = driver->id_table;
 
-	while (id->name[0]) {
-		if (!strncmp(dev_name(dev), id->name, sizeof(id->name)))
-			return 1;
+	while (uuid_le_cmp(NULL_UUID_LE, uuid_le_cast(id->uuid))) {
+
+		if (!uuid_le_cmp(*uuid, uuid_le_cast(id->uuid))) {
+			if (id->name[0]) {
+				if (!strncmp(name, id->name, sizeof(id->name)))
+					return 1;
+			} else {
+				return 1;
+			}
+		}
 
 		id++;
 	}
@@ -69,7 +86,7 @@ static int mei_cl_device_probe(struct device *dev)
 
 	dev_dbg(dev, "Device probe\n");
 
-	strlcpy(id.name, dev_name(dev), sizeof(id.name));
+	strlcpy(id.name, device->name, sizeof(id.name));
 
 	return driver->probe(device, &id);
 }
@@ -100,9 +117,12 @@ static int mei_cl_device_remove(struct device *dev)
 static ssize_t modalias_show(struct device *dev, struct device_attribute *a,
 			     char *buf)
 {
-	int len;
+	struct mei_cl_device *device = to_mei_cl_device(dev);
+	const uuid_le *uuid = mei_me_cl_uuid(device->me_cl);
+	size_t len;
 
-	len = snprintf(buf, PAGE_SIZE, "mei:%s\n", dev_name(dev));
+	len = snprintf(buf, PAGE_SIZE, "mei:%s:" MEI_CL_UUID_FMT ":",
+		device->name, MEI_CL_UUID_ARGS(uuid->b));
 
 	return (len >= PAGE_SIZE) ? (PAGE_SIZE - 1) : len;
 }
@@ -116,7 +136,11 @@ ATTRIBUTE_GROUPS(mei_cl_dev);
 
 static int mei_cl_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
-	if (add_uevent_var(env, "MODALIAS=mei:%s", dev_name(dev)))
+	struct mei_cl_device *device = to_mei_cl_device(dev);
+	const uuid_le *uuid = mei_me_cl_uuid(device->me_cl);
+
+	if (add_uevent_var(env, "MODALIAS=mei:%s:" MEI_CL_UUID_FMT ":",
+		device->name, MEI_CL_UUID_ARGS(uuid->b)))
 		return -ENOMEM;
 
 	return 0;
@@ -185,7 +209,9 @@ struct mei_cl_device *mei_cl_add_device(struct mei_device *dev,
 	device->dev.bus = &mei_cl_bus_type;
 	device->dev.type = &mei_cl_device_type;
 
-	dev_set_name(&device->dev, "%s", name);
+	strlcpy(device->name, name, sizeof(device->name));
+
+	dev_set_name(&device->dev, "mei:%s:%pUl", name, mei_me_cl_uuid(me_cl));
 
 	status = device_register(&device->dev);
 	if (status) {

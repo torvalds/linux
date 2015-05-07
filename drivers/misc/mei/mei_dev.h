@@ -376,6 +376,7 @@ struct mei_cl *mei_cl_bus_find_cl_by_uuid(struct mei_device *dev, uuid_le uuid);
  * @dev: linux driver model device pointer
  * @me_cl: me client
  * @cl: mei client
+ * @name: device name
  * @ops: ME transport ops
  * @event_work: async work to execute event callback
  * @event_cb: Drivers register this callback to get asynchronous ME
@@ -389,6 +390,7 @@ struct mei_cl_device {
 
 	struct mei_me_client *me_cl;
 	struct mei_cl *cl;
+	char name[MEI_CL_NAME_SIZE];
 
 	const struct mei_cl_ops *ops;
 
