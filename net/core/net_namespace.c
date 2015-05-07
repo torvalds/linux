@@ -147,10 +147,9 @@ static void ops_free_list(const struct pernet_operations *ops,
 	}
 }
 
-static void rtnl_net_notifyid(struct net *net, int cmd, int id);
 static int alloc_netid(struct net *net, struct net *peer, int reqid)
 {
-	int min = 0, max = 0, id;
+	int min = 0, max = 0;
 
 	ASSERT_RTNL();
 
@@ -159,11 +158,7 @@ static int alloc_netid(struct net *net, struct net *peer, int reqid)
 		max = reqid + 1;
 	}
 
-	id = idr_alloc(&net->netns_ids, peer, min, max, GFP_KERNEL);
-	if (id >= 0)
-		rtnl_net_notifyid(net, RTM_NEWNSID, id);
-
-	return id;
+	return idr_alloc(&net->netns_ids, peer, min, max, GFP_KERNEL);
 }
 
 /* This function is used by idr_for_each(). If net is equal to peer, the
@@ -179,11 +174,14 @@ static int net_eq_idr(int id, void *net, void *peer)
 	return 0;
 }
 
-static int __peernet2id(struct net *net, struct net *peer, bool alloc)
+static int __peernet2id_alloc(struct net *net, struct net *peer, bool *alloc)
 {
 	int id = idr_for_each(&net->netns_ids, net_eq_idr, peer);
+	bool alloc_it = *alloc;
 
 	ASSERT_RTNL();
+
+	*alloc = false;
 
 	/* Magic value for id 0. */
 	if (id == NET_ID_ZERO)
@@ -191,22 +189,35 @@ static int __peernet2id(struct net *net, struct net *peer, bool alloc)
 	if (id > 0)
 		return id;
 
-	if (alloc) {
+	if (alloc_it) {
 		id = alloc_netid(net, peer, -1);
+		*alloc = true;
 		return id >= 0 ? id : NETNSA_NSID_NOT_ASSIGNED;
 	}
 
 	return NETNSA_NSID_NOT_ASSIGNED;
 }
 
+static int __peernet2id(struct net *net, struct net *peer)
+{
+	bool no = false;
+
+	return __peernet2id_alloc(net, peer, &no);
+}
+
+static void rtnl_net_notifyid(struct net *net, int cmd, int id);
 /* This function returns the id of a peer netns. If no id is assigned, one will
  * be allocated and returned.
  */
 int peernet2id_alloc(struct net *net, struct net *peer)
 {
 	bool alloc = atomic_read(&peer->count) == 0 ? false : true;
+	int id;
 
-	return __peernet2id(net, peer, alloc);
+	id = __peernet2id_alloc(net, peer, &alloc);
+	if (alloc && id >= 0)
+		rtnl_net_notifyid(net, RTM_NEWNSID, id);
+	return id;
 }
 EXPORT_SYMBOL(peernet2id_alloc);
 
@@ -361,7 +372,7 @@ static void cleanup_net(struct work_struct *work)
 		list_del_rcu(&net->list);
 		list_add_tail(&net->exit_list, &net_exit_list);
 		for_each_net(tmp) {
-			int id = __peernet2id(tmp, net, false);
+			int id = __peernet2id(tmp, net);
 
 			if (id >= 0) {
 				rtnl_net_notifyid(tmp, RTM_DELNSID, id);
@@ -516,14 +527,16 @@ static int rtnl_net_newid(struct sk_buff *skb, struct nlmsghdr *nlh)
 	if (IS_ERR(peer))
 		return PTR_ERR(peer);
 
-	if (__peernet2id(net, peer, false) >= 0) {
+	if (__peernet2id(net, peer) >= 0) {
 		err = -EEXIST;
 		goto out;
 	}
 
 	err = alloc_netid(net, peer, nsid);
-	if (err > 0)
+	if (err >= 0) {
+		rtnl_net_notifyid(net, RTM_NEWNSID, err);
 		err = 0;
+	}
 out:
 	put_net(peer);
 	return err;
@@ -588,7 +601,7 @@ static int rtnl_net_getid(struct sk_buff *skb, struct nlmsghdr *nlh)
 		goto out;
 	}
 
-	id = __peernet2id(net, peer, false);
+	id = __peernet2id(net, peer);
 	err = rtnl_net_fill(msg, NETLINK_CB(skb).portid, nlh->nlmsg_seq, 0,
 			    RTM_GETNSID, net, id);
 	if (err < 0)
