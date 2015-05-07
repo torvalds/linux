@@ -1097,8 +1097,10 @@ static struct clk_core *__clk_set_parent_before(struct clk_core *core,
 	 */
 	if (core->prepare_count) {
 		clk_core_prepare(parent);
+		flags = clk_enable_lock();
 		clk_core_enable(parent);
 		clk_core_enable(core);
+		clk_enable_unlock(flags);
 	}
 
 	/* update the clk tree topology */
@@ -1113,13 +1115,17 @@ static void __clk_set_parent_after(struct clk_core *core,
 				   struct clk_core *parent,
 				   struct clk_core *old_parent)
 {
+	unsigned long flags;
+
 	/*
 	 * Finish the migration of prepare state and undo the changes done
 	 * for preventing a race with clk_enable().
 	 */
 	if (core->prepare_count) {
+		flags = clk_enable_lock();
 		clk_core_disable(core);
 		clk_core_disable(old_parent);
+		clk_enable_unlock(flags);
 		clk_core_unprepare(old_parent);
 	}
 }
@@ -1147,8 +1153,10 @@ static int __clk_set_parent(struct clk_core *core, struct clk_core *parent,
 		clk_enable_unlock(flags);
 
 		if (core->prepare_count) {
+			flags = clk_enable_lock();
 			clk_core_disable(core);
 			clk_core_disable(parent);
+			clk_enable_unlock(flags);
 			clk_core_unprepare(parent);
 		}
 		return ret;
