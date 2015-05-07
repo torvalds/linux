@@ -469,7 +469,7 @@ static int rk31xx_lvds_probe(struct platform_device *pdev)
 
 	if (support_uboot_display()) {
 		rk31xx_lvds_clk_enable(lvds);
-		lvds->sys_state = true;
+		/*lvds->sys_state = true;*/
 	}
 
 	rk31xx_lvds = lvds;
