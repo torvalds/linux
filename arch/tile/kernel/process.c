@@ -133,7 +133,6 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 		       (CALLEE_SAVED_REGS_COUNT - 2) * sizeof(unsigned long));
 		callee_regs[0] = sp;   /* r30 = function */
 		callee_regs[1] = arg;  /* r31 = arg */
-		childregs->ex1 = PL_ICS_EX1(KERNEL_PL, 0);
 		p->thread.pc = (unsigned long) ret_from_kernel_thread;
 		return 0;
 	}
