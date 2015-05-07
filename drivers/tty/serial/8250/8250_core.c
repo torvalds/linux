@@ -3840,7 +3840,6 @@ int serial8250_register_8250_port(struct uart_8250_port *up)
 		uart->port.mapbase      = up->port.mapbase;
 		uart->port.mapsize      = up->port.mapsize;
 		uart->port.private_data = up->port.private_data;
-		uart->port.fifosize	= up->port.fifosize;
 		uart->tx_loadsz		= up->tx_loadsz;
 		uart->capabilities	= up->capabilities;
 		uart->port.throttle	= up->port.throttle;
