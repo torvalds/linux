@@ -137,6 +137,7 @@ struct c4iw_stats {
 	u64  tcam_full;
 	u64  act_ofld_conn_fails;
 	u64  pas_ofld_conn_fails;
+	u64  neg_adv;
 };
 
 struct c4iw_hw_queue {
@@ -814,6 +815,11 @@ struct c4iw_listen_ep {
 	int backlog;
 };
 
+struct c4iw_ep_stats {
+	unsigned connect_neg_adv;
+	unsigned abort_neg_adv;
+};
+
 struct c4iw_ep {
 	struct c4iw_ep_common com;
 	struct c4iw_ep *parent_ep;
@@ -846,6 +852,7 @@ struct c4iw_ep {
 	unsigned int retry_count;
 	int snd_win;
 	int rcv_win;
+	struct c4iw_ep_stats stats;
 };
 
 static inline void print_addr(struct c4iw_ep_common *epc, const char *func,

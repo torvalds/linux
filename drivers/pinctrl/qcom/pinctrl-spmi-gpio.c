@@ -260,6 +260,7 @@ static int pmic_gpio_set_mux(struct pinctrl_dev *pctldev, unsigned function,
 			val = 1;
 	}
 
+	val = val << PMIC_GPIO_REG_MODE_DIR_SHIFT;
 	val |= pad->function << PMIC_GPIO_REG_MODE_FUNCTION_SHIFT;
 	val |= pad->out_value & PMIC_GPIO_REG_MODE_VALUE_SHIFT;
 

@@ -386,8 +386,8 @@ static int ipoib_cm_nonsrq_init_rx(struct net_device *dev, struct ib_cm_id *cm_i
 					   rx->rx_ring[i].mapping,
 					   GFP_KERNEL)) {
 			ipoib_warn(priv, "failed to allocate receive buffer %d\n", i);
-				ret = -ENOMEM;
-				goto err_count;
+			ret = -ENOMEM;
+			goto err_count;
 		}
 		ret = ipoib_cm_post_receive_nonsrq(dev, rx, &t->wr, t->sge, i);
 		if (ret) {
