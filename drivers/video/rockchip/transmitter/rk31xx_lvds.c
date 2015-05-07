@@ -324,7 +324,7 @@ static int rk31xx_lvds_en(void)
 	struct rk_lvds_device *lvds = rk31xx_lvds;
 	struct rk_screen *screen;
 
-        if (unlikely(!lvds) || lvds->sys_state)
+        if (unlikely(!lvds))//|| lvds->sys_state)
                 return 0;
 
         screen = &lvds->screen;
