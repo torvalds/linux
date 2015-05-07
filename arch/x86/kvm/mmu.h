@@ -166,6 +166,8 @@ static inline bool permission_fault(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 	int index = (pfec >> 1) +
 		    (smap >> (X86_EFLAGS_AC_BIT - PFERR_RSVD_BIT + 1));
 
+	WARN_ON(pfec & PFERR_RSVD_MASK);
+
 	return (mmu->permissions[index] >> pte_access) & 1;
 }
 
