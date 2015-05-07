@@ -59,8 +59,8 @@ enum {
 	NTB_LINK_UP,
 };
 
-int ntb_register_client(struct ntb_client *drvr);
-void ntb_unregister_client(struct ntb_client *drvr);
+int ntb_transport_register_client(struct ntb_client *drvr);
+void ntb_transport_unregister_client(struct ntb_client *drvr);
 int ntb_register_client_dev(char *device_name);
 void ntb_unregister_client_dev(char *device_name);
 

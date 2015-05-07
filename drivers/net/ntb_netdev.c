@@ -49,7 +49,7 @@
 #include <linux/ethtool.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/ntb.h>
+#include <linux/ntb_transport.h>
 
 #define NTB_NETDEV_VER	"0.7"
 
@@ -410,13 +410,13 @@ static int __init ntb_netdev_init_module(void)
 	rc = ntb_register_client_dev(KBUILD_MODNAME);
 	if (rc)
 		return rc;
-	return ntb_register_client(&ntb_netdev_client);
+	return ntb_transport_register_client(&ntb_netdev_client);
 }
 module_init(ntb_netdev_init_module);
 
 static void __exit ntb_netdev_exit_module(void)
 {
-	ntb_unregister_client(&ntb_netdev_client);
+	ntb_transport_unregister_client(&ntb_netdev_client);
 	ntb_unregister_client_dev(KBUILD_MODNAME);
 }
 module_exit(ntb_netdev_exit_module);

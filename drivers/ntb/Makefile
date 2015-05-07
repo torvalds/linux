@@ -1,3 +1,3 @@
-obj-$(CONFIG_NTB) += ntb.o
+obj-$(CONFIG_NTB) += ntb_hw_intel.o
 
-ntb-objs := ntb_hw.o ntb_transport.o
+ntb_hw_intel-objs := hw/intel/ntb_hw_intel.o ntb_transport.o

@@ -53,8 +53,7 @@
 #include <linux/pci.h>
 #include <linux/random.h>
 #include <linux/slab.h>
-#include "ntb_hw.h"
-#include "ntb_regs.h"
+#include "ntb_hw_intel.h"
 
 #define NTB_NAME	"Intel(R) PCI-E Non-Transparent Bridge Driver"
 #define NTB_VER		"1.0"

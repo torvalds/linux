@@ -56,7 +56,7 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/types.h>
-#include "ntb_hw.h"
+#include "hw/intel/ntb_hw_intel.h"
 
 #define NTB_TRANSPORT_VERSION	3
 
@@ -360,14 +360,14 @@ err:
 EXPORT_SYMBOL_GPL(ntb_register_client_dev);
 
 /**
- * ntb_register_client - Register NTB client driver
+ * ntb_transport_register_client - Register NTB client driver
  * @drv: NTB client driver to be registered
  *
  * Register an NTB client driver with the NTB transport layer
  *
  * RETURNS: An appropriate -ERRNO error value on error, or zero for success.
  */
-int ntb_register_client(struct ntb_client *drv)
+int ntb_transport_register_client(struct ntb_client *drv)
 {
 	drv->driver.bus = &ntb_bus_type;
 
@@ -376,21 +376,21 @@ int ntb_register_client(struct ntb_client *drv)
 
 	return driver_register(&drv->driver);
 }
-EXPORT_SYMBOL_GPL(ntb_register_client);
+EXPORT_SYMBOL_GPL(ntb_transport_register_client);
 
 /**
- * ntb_unregister_client - Unregister NTB client driver
+ * ntb_transport_unregister_client - Unregister NTB client driver
  * @drv: NTB client driver to be unregistered
  *
  * Unregister an NTB client driver with the NTB transport layer
  *
  * RETURNS: An appropriate -ERRNO error value on error, or zero for success.
  */
-void ntb_unregister_client(struct ntb_client *drv)
+void ntb_transport_unregister_client(struct ntb_client *drv)
 {
 	driver_unregister(&drv->driver);
 }
-EXPORT_SYMBOL_GPL(ntb_unregister_client);
+EXPORT_SYMBOL_GPL(ntb_transport_unregister_client);
 
 static ssize_t debugfs_read(struct file *filp, char __user *ubuf, size_t count,
 			    loff_t *offp)
