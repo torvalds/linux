@@ -1042,12 +1042,7 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 	if (ctx->display)
 		exynos_drm_create_enc_conn(drm_dev, ctx->display);
 
-	ret = fimd_iommu_attach_devices(ctx, drm_dev);
-	if (ret)
-		return ret;
-
-	return 0;
-
+	return fimd_iommu_attach_devices(ctx, drm_dev);
 }
 
 static void fimd_unbind(struct device *dev, struct device *master,
