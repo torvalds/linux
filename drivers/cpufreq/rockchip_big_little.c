@@ -44,10 +44,10 @@
 #include <linux/module.h>
 #include "../../../drivers/clk/rockchip/clk-pd.h"
 
-#define RK3368_GRF_CPU_CON(n) (0x500 + 4*n)
-
 #define VERSION "1.0"
-#define RK_MAX_CLUSTERS 2
+#define MAX_CLUSTERS 2
+#define B_CLUSTER	0
+#define L_CLUSTER	1
 
 #ifdef DEBUG
 #define FREQ_DBG(fmt, args...) pr_debug(fmt, ## args)
@@ -58,19 +58,7 @@
 #endif
 #define FREQ_ERR(fmt, args...) pr_err(fmt, ## args)
 
-/* Frequency table index must be sequential starting at 0 */
-static struct cpufreq_frequency_table default_freq_table[] = {
-	{.frequency = 312 * 1000,       .index = 875 * 1000},
-	{.frequency = 504 * 1000,       .index = 925 * 1000},
-	{.frequency = 816 * 1000,       .index = 975 * 1000},
-	{.frequency = 1008 * 1000,      .index = 1075 * 1000},
-	{.frequency = 1200 * 1000,      .index = 1150 * 1000},
-	{.frequency = 1416 * 1000,      .index = 1250 * 1000},
-	{.frequency = 1608 * 1000,      .index = 1350 * 1000},
-	{.frequency = CPUFREQ_TABLE_END},
-};
-
-static struct cpufreq_frequency_table *freq_table[RK_MAX_CLUSTERS + 1];
+static struct cpufreq_frequency_table *freq_table[MAX_CLUSTERS + 1];
 /*********************************************************/
 /* additional symantics for "relation" in cpufreq with pm */
 #define DISABLE_FURTHER_CPUFREQ         0x10
@@ -78,19 +66,18 @@ static struct cpufreq_frequency_table *freq_table[RK_MAX_CLUSTERS + 1];
 #define MASK_FURTHER_CPUFREQ            0x30
 /* With 0x00(NOCHANGE), it depends on the previous "further" status */
 #define CPUFREQ_PRIVATE                 0x100
-static unsigned int no_cpufreq_access[RK_MAX_CLUSTERS] = { 0 };
-static unsigned int suspend_freq[RK_MAX_CLUSTERS] = { 816 * 1000, 816 * 1000 };
+static unsigned int no_cpufreq_access[MAX_CLUSTERS] = { 0 };
+static unsigned int suspend_freq[MAX_CLUSTERS] = { 816 * 1000, 816 * 1000 };
 static unsigned int suspend_volt = 1100000;
-static unsigned int low_battery_freq[RK_MAX_CLUSTERS] = { 600 * 1000,
+static unsigned int low_battery_freq[MAX_CLUSTERS] = { 600 * 1000,
 	600 * 1000 };
 static unsigned int low_battery_capacity = 5;
 static bool is_booting = true;
 static DEFINE_MUTEX(cpufreq_mutex);
-static struct dvfs_node *clk_cpu_dvfs_node[RK_MAX_CLUSTERS];
+static struct dvfs_node *clk_cpu_dvfs_node[MAX_CLUSTERS];
 static struct dvfs_node *clk_gpu_dvfs_node;
 static struct dvfs_node *clk_ddr_dvfs_node;
-static unsigned int big_little = 1;
-static struct cpumask *cluster_policy_mask[RK_MAX_CLUSTERS];
+static struct cpumask *cluster_policy_mask[MAX_CLUSTERS];
 
 /*******************************************************/
 static inline int cpu_to_cluster(int cpu)
@@ -179,7 +166,7 @@ static int clk_node_get_cluster_id(struct clk *clk)
 {
 	int i;
 
-	for (i = 0; i < RK_MAX_CLUSTERS; i++) {
+	for (i = 0; i < MAX_CLUSTERS; i++) {
 		if (clk_cpu_dvfs_node[i]->clk == clk)
 			return i;
 	}
@@ -220,6 +207,9 @@ static int rockchip_bl_cpufreq_scale_rate_for_dvfs(struct clk *clk,
 
 static int cluster_cpus_freq_dvfs_init(u32 cluster_id, char *dvfs_name)
 {
+	int v = INT_MAX;
+	int i;
+
 	clk_cpu_dvfs_node[cluster_id] = clk_get_dvfs_node(dvfs_name);
 
 	if (!clk_cpu_dvfs_node[cluster_id]) {
@@ -232,20 +222,18 @@ static int cluster_cpus_freq_dvfs_init(u32 cluster_id, char *dvfs_name)
 		rockchip_bl_cpufreq_scale_rate_for_dvfs);
 	freq_table[cluster_id] =
 		dvfs_get_freq_volt_table(clk_cpu_dvfs_node[cluster_id]);
-	if (freq_table[cluster_id] == NULL) {
-		freq_table[cluster_id] = default_freq_table;
-	} else {
-		int v = INT_MAX;
-		int i;
+	if (!freq_table[cluster_id]) {
+		FREQ_ERR("No freq table for cluster %d\n", cluster_id);
+		return -EINVAL;
+	}
 
-		for (i = 0; freq_table[cluster_id][i].frequency !=
-		     CPUFREQ_TABLE_END; i++) {
+	for (i = 0; freq_table[cluster_id][i].frequency != CPUFREQ_TABLE_END;
+	     i++) {
 			if (freq_table[cluster_id][i].index >= suspend_volt &&
 			    v > freq_table[cluster_id][i].index) {
 				suspend_freq[cluster_id] =
 					freq_table[cluster_id][i].frequency;
 				v = freq_table[cluster_id][i].index;
-			}
 		}
 	}
 	low_battery_freq[cluster_id] =
@@ -264,8 +252,8 @@ static int rockchip_bl_cpufreq_init_cpu0(struct cpufreq_policy *policy)
 	if (clk_ddr_dvfs_node)
 		clk_enable_dvfs(clk_ddr_dvfs_node);
 
-	cluster_cpus_freq_dvfs_init(0, "clk_core_b");
-	cluster_cpus_freq_dvfs_init(1, "clk_core_l");
+	cluster_cpus_freq_dvfs_init(B_CLUSTER, "clk_core_b");
+	cluster_cpus_freq_dvfs_init(L_CLUSTER, "clk_core_l");
 
 	cpufreq_register_notifier(&notifier_policy_block,
 				  CPUFREQ_POLICY_NOTIFIER);
@@ -292,7 +280,7 @@ static int rockchip_bl_cpufreq_init(struct cpufreq_policy *policy)
 	/* sys nod */
 	cpufreq_frequency_table_get_attr(freq_table[cur_cluster], policy->cpu);
 
-	if (cur_cluster < RK_MAX_CLUSTERS)
+	if (cur_cluster < MAX_CLUSTERS)
 		cpumask_copy(policy->cpus, topology_core_cpumask(policy->cpu));
 
 	policy->cur = clk_get_rate(clk_cpu_dvfs_node[cur_cluster]->clk) / 1000;
@@ -422,7 +410,7 @@ static int rockchip_bl_cpufreq_pm_notifier_event(struct notifier_block *this,
 	struct cpufreq_policy *policy;
 	u32 cpu;
 
-	for (i = 0; i < RK_MAX_CLUSTERS; i++) {
+	for (i = 0; i < MAX_CLUSTERS; i++) {
 		cpu = cpumask_first_and(cluster_policy_mask[i],
 					cpu_online_mask);
 		policy = cpufreq_cpu_get(cpu);
@@ -477,7 +465,7 @@ static int rockchip_bl_cpufreq_reboot_limit_freq(void)
 
 	dvfs_disable_temp_limit();
 
-	for (i = 0; i < RK_MAX_CLUSTERS; i++) {
+	for (i = 0; i < MAX_CLUSTERS; i++) {
 		dvfs_clk_enable_limit(clk_cpu_dvfs_node[i],
 				      1000 * suspend_freq[i],
 				      1000 * suspend_freq[i]);
@@ -530,46 +518,16 @@ static const struct of_device_id rockchip_bl_cpufreq_match[] = {
 };
 MODULE_DEVICE_TABLE(of, rockchip_bl_cpufreq_match);
 
-static int rockchip_bl_cpufreq_probe(struct platform_device *pdev)
+static int __init rockchip_bl_cpufreq_probe(struct platform_device *pdev)
 {
-	struct device_node *np;
-	struct regmap *grf_regmap;
-	unsigned int big_bits, litt_bits;
 	int ret;
-
-	np = pdev->dev.of_node;
-	if (!np)
-		return -ENODEV;
-
-	grf_regmap = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
-	if (IS_ERR(grf_regmap)) {
-		FREQ_ERR("Cpufreq couldn't find grf regmap\n");
-		return PTR_ERR(grf_regmap);
-	}
-	ret = regmap_read(grf_regmap, RK3368_GRF_CPU_CON(3), &big_bits);
-	if (ret != 0) {
-		FREQ_ERR("Cpufreq couldn't read to GRF\n");
-		return -1;
-	}
-	ret = regmap_read(grf_regmap, RK3368_GRF_CPU_CON(1), &litt_bits);
-	if (ret != 0) {
-		FREQ_ERR("Cpufreq couldn't read to GRF\n");
-		return -1;
-	}
-
-	big_bits = (big_bits >> 8) & 0x03;
-	litt_bits = (litt_bits >> 8) & 0x03;
-
-	if (big_bits == 0x01 && litt_bits == 0x00)
-		big_little = 1;
-	else if (big_bits == 0x0 && litt_bits == 0x01)
-		big_little = 0;
-	pr_info("boot from %d\n", big_little);
 
 	register_reboot_notifier(&rockchip_bl_cpufreq_reboot_notifier);
 	register_pm_notifier(&rockchip_bl_cpufreq_pm_notifier);
 
-	return cpufreq_register_driver(&rockchip_bl_cpufreq_driver);
+	ret = cpufreq_register_driver(&rockchip_bl_cpufreq_driver);
+
+	return ret;
 }
 
 static int rockchip_bl_cpufreq_remove(struct platform_device *pdev)
@@ -584,11 +542,11 @@ static struct platform_driver rockchip_bl_cpufreq_platdrv = {
 		.owner	= THIS_MODULE,
 		.of_match_table = rockchip_bl_cpufreq_match,
 	},
-	.probe		= rockchip_bl_cpufreq_probe,
 	.remove		= rockchip_bl_cpufreq_remove,
 };
 
-module_platform_driver(rockchip_bl_cpufreq_platdrv);
+module_platform_driver_probe(rockchip_bl_cpufreq_platdrv,
+			     rockchip_bl_cpufreq_probe);
 
 MODULE_AUTHOR("Xiao Feng <xf@rock-chips.com>");
 MODULE_LICENSE("GPL");
