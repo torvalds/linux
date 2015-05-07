@@ -220,8 +220,7 @@ struct mei_cl *mei_cl_bus_find_cl_by_uuid(struct mei_device *dev,
 struct mei_cl_device *mei_cl_add_device(struct mei_device *dev,
 					struct mei_me_client *me_cl,
 					struct mei_cl *cl,
-					char *name,
-					struct mei_cl_ops *ops)
+					char *name)
 {
 	struct mei_cl_device *device;
 	int status;
@@ -235,9 +234,8 @@ struct mei_cl_device *mei_cl_add_device(struct mei_device *dev,
 		kfree(device);
 		return NULL;
 	}
-	device->cl = cl;
-	device->ops = ops;
 
+	device->cl = cl;
 	device->dev.parent = dev->dev;
 	device->dev.bus = &mei_cl_bus_type;
 	device->dev.type = &mei_cl_device_type;
@@ -294,7 +292,7 @@ void mei_cl_driver_unregister(struct mei_cl_driver *driver)
 }
 EXPORT_SYMBOL_GPL(mei_cl_driver_unregister);
 
-static ssize_t ___mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length,
+ssize_t __mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length,
 			bool blocking)
 {
 	struct mei_device *dev;
@@ -408,16 +406,6 @@ out:
 	return rets;
 }
 
-inline ssize_t __mei_cl_async_send(struct mei_cl *cl, u8 *buf, size_t length)
-{
-	return ___mei_cl_send(cl, buf, length, 0);
-}
-
-inline ssize_t __mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length)
-{
-	return ___mei_cl_send(cl, buf, length, 1);
-}
-
 ssize_t mei_cl_send(struct mei_cl_device *device, u8 *buf, size_t length)
 {
 	struct mei_cl *cl = device->cl;
@@ -425,22 +413,16 @@ ssize_t mei_cl_send(struct mei_cl_device *device, u8 *buf, size_t length)
 	if (cl == NULL)
 		return -ENODEV;
 
-	if (device->ops && device->ops->send)
-		return device->ops->send(device, buf, length);
-
-	return __mei_cl_send(cl, buf, length);
+	return __mei_cl_send(cl, buf, length, 1);
 }
 EXPORT_SYMBOL_GPL(mei_cl_send);
 
 ssize_t mei_cl_recv(struct mei_cl_device *device, u8 *buf, size_t length)
 {
-	struct mei_cl *cl =  device->cl;
+	struct mei_cl *cl = device->cl;
 
 	if (cl == NULL)
 		return -ENODEV;
-
-	if (device->ops && device->ops->recv)
-		return device->ops->recv(device, buf, length);
 
 	return __mei_cl_recv(cl, buf, length);
 }
@@ -522,10 +504,7 @@ int mei_cl_enable_device(struct mei_cl_device *device)
 	if (device->event_cb)
 		mei_cl_read_start(device->cl, 0, NULL);
 
-	if (!device->ops || !device->ops->enable)
-		return 0;
-
-	return device->ops->enable(device);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(mei_cl_enable_device);
 
@@ -539,9 +518,6 @@ int mei_cl_disable_device(struct mei_cl_device *device)
 		return -ENODEV;
 
 	dev = cl->dev;
-
-	if (device->ops && device->ops->disable)
-		device->ops->disable(device);
 
 	device->event_cb = NULL;
 

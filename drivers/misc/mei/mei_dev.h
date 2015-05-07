@@ -352,12 +352,11 @@ struct mei_cl_ops {
 struct mei_cl_device *mei_cl_add_device(struct mei_device *dev,
 					struct mei_me_client *me_cl,
 					struct mei_cl *cl,
-					char *name,
-					struct mei_cl_ops *ops);
+					char *name);
 void mei_cl_remove_device(struct mei_cl_device *device);
 
-ssize_t __mei_cl_async_send(struct mei_cl *cl, u8 *buf, size_t length);
-ssize_t __mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length);
+ssize_t __mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length,
+			bool blocking);
 ssize_t __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length);
 void mei_cl_bus_rx_event(struct mei_cl *cl);
 void mei_cl_bus_remove_devices(struct mei_device *dev);

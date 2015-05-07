@@ -95,28 +95,21 @@ struct mei_nfc_hci_hdr {
  * @cl: NFC host client
  * @cl_info: NFC info host client
  * @init_work: perform connection to the info client
- * @send_wq: send completion wait queue
  * @fw_ivn: NFC Interface Version Number
  * @vendor_id: NFC manufacturer ID
  * @radio_type: NFC radio type
  * @bus_name: bus name
  *
- * @req_id:  message counter
- * @recv_req_id: reception message counter
  */
 struct mei_nfc_dev {
 	struct mei_me_client *me_cl;
 	struct mei_cl *cl;
 	struct mei_cl *cl_info;
 	struct work_struct init_work;
-	wait_queue_head_t send_wq;
 	u8 fw_ivn;
 	u8 vendor_id;
 	u8 radio_type;
 	char *bus_name;
-
-	u16 req_id;
-	u16 recv_req_id;
 };
 
 /* UUIDs for NFC F/W clients */
@@ -202,73 +195,6 @@ static int mei_nfc_build_bus_name(struct mei_nfc_dev *ndev)
 	return 0;
 }
 
-static int mei_nfc_connect(struct mei_nfc_dev *ndev)
-{
-	struct mei_device *dev;
-	struct mei_cl *cl;
-	struct mei_nfc_cmd *cmd, *reply;
-	struct mei_nfc_connect *connect;
-	struct mei_nfc_connect_resp *connect_resp;
-	size_t connect_length, connect_resp_length;
-	int bytes_recv, ret;
-
-	cl = ndev->cl;
-	dev = cl->dev;
-
-	connect_length = sizeof(struct mei_nfc_cmd) +
-			sizeof(struct mei_nfc_connect);
-
-	connect_resp_length = sizeof(struct mei_nfc_cmd) +
-			sizeof(struct mei_nfc_connect_resp);
-
-	cmd = kzalloc(connect_length, GFP_KERNEL);
-	if (!cmd)
-		return -ENOMEM;
-	connect = (struct mei_nfc_connect *)cmd->data;
-
-	reply = kzalloc(connect_resp_length, GFP_KERNEL);
-	if (!reply) {
-		kfree(cmd);
-		return -ENOMEM;
-	}
-
-	connect_resp = (struct mei_nfc_connect_resp *)reply->data;
-
-	cmd->command = MEI_NFC_CMD_MAINTENANCE;
-	cmd->data_size = 3;
-	cmd->sub_command = MEI_NFC_SUBCMD_CONNECT;
-	connect->fw_ivn = ndev->fw_ivn;
-	connect->vendor_id = ndev->vendor_id;
-
-	ret = __mei_cl_send(cl, (u8 *)cmd, connect_length);
-	if (ret < 0) {
-		dev_err(dev->dev, "Could not send connect cmd\n");
-		goto err;
-	}
-
-	bytes_recv = __mei_cl_recv(cl, (u8 *)reply, connect_resp_length);
-	if (bytes_recv < 0) {
-		dev_err(dev->dev, "Could not read connect response\n");
-		ret = bytes_recv;
-		goto err;
-	}
-
-	dev_info(dev->dev, "IVN 0x%x Vendor ID 0x%x\n",
-		 connect_resp->fw_ivn, connect_resp->vendor_id);
-
-	dev_info(dev->dev, "ME FW %d.%d.%d.%d\n",
-		connect_resp->me_major, connect_resp->me_minor,
-		connect_resp->me_hotfix, connect_resp->me_build);
-
-	ret = 0;
-
-err:
-	kfree(reply);
-	kfree(cmd);
-
-	return ret;
-}
-
 static int mei_nfc_if_version(struct mei_nfc_dev *ndev)
 {
 	struct mei_device *dev;
@@ -288,7 +214,7 @@ static int mei_nfc_if_version(struct mei_nfc_dev *ndev)
 	cmd.data_size = 1;
 	cmd.sub_command = MEI_NFC_SUBCMD_IF_VERSION;
 
-	ret = __mei_cl_send(cl, (u8 *)&cmd, sizeof(struct mei_nfc_cmd));
+	ret = __mei_cl_send(cl, (u8 *)&cmd, sizeof(struct mei_nfc_cmd), 1);
 	if (ret < 0) {
 		dev_err(dev->dev, "Could not send IF version cmd\n");
 		return ret;
@@ -319,100 +245,6 @@ err:
 	kfree(reply);
 	return ret;
 }
-
-static int mei_nfc_enable(struct mei_cl_device *cldev)
-{
-	struct mei_device *dev;
-	struct mei_nfc_dev *ndev;
-	int ret;
-
-	ndev = (struct mei_nfc_dev *)cldev->priv_data;
-	dev = ndev->cl->dev;
-
-	ret = mei_nfc_connect(ndev);
-	if (ret < 0) {
-		dev_err(dev->dev, "Could not connect to NFC");
-		return ret;
-	}
-
-	return 0;
-}
-
-static int mei_nfc_disable(struct mei_cl_device *cldev)
-{
-	return 0;
-}
-
-static int mei_nfc_send(struct mei_cl_device *cldev, u8 *buf, size_t length)
-{
-	struct mei_device *dev;
-	struct mei_nfc_dev *ndev;
-	struct mei_nfc_hci_hdr *hdr;
-	u8 *mei_buf;
-	int err;
-
-	ndev = (struct mei_nfc_dev *) cldev->priv_data;
-	dev = ndev->cl->dev;
-
-	err = -ENOMEM;
-	mei_buf = kzalloc(length + MEI_NFC_HEADER_SIZE, GFP_KERNEL);
-	if (!mei_buf)
-		goto out;
-
-	hdr = (struct mei_nfc_hci_hdr *) mei_buf;
-	hdr->cmd = MEI_NFC_CMD_HCI_SEND;
-	hdr->status = 0;
-	hdr->req_id = ndev->req_id;
-	hdr->reserved = 0;
-	hdr->data_size = length;
-
-	memcpy(mei_buf + MEI_NFC_HEADER_SIZE, buf, length);
-	err = __mei_cl_send(ndev->cl, mei_buf, length + MEI_NFC_HEADER_SIZE);
-	if (err < 0)
-		goto out;
-
-	if (!wait_event_interruptible_timeout(ndev->send_wq,
-				ndev->recv_req_id == ndev->req_id, HZ)) {
-		dev_err(dev->dev, "NFC MEI command timeout\n");
-		err = -ETIME;
-	} else {
-		ndev->req_id++;
-	}
-out:
-	kfree(mei_buf);
-	return err;
-}
-
-static int mei_nfc_recv(struct mei_cl_device *cldev, u8 *buf, size_t length)
-{
-	struct mei_nfc_dev *ndev;
-	struct mei_nfc_hci_hdr *hci_hdr;
-	int received_length;
-
-	ndev = (struct mei_nfc_dev *)cldev->priv_data;
-
-	received_length = __mei_cl_recv(ndev->cl, buf, length);
-	if (received_length < 0)
-		return received_length;
-
-	hci_hdr = (struct mei_nfc_hci_hdr *) buf;
-
-	if (hci_hdr->cmd == MEI_NFC_CMD_HCI_SEND) {
-		ndev->recv_req_id = hci_hdr->req_id;
-		wake_up(&ndev->send_wq);
-
-		return 0;
-	}
-
-	return received_length;
-}
-
-static struct mei_cl_ops nfc_ops = {
-	.enable = mei_nfc_enable,
-	.disable = mei_nfc_disable,
-	.send = mei_nfc_send,
-	.recv = mei_nfc_recv,
-};
 
 static void mei_nfc_init(struct work_struct *work)
 {
@@ -473,7 +305,7 @@ static void mei_nfc_init(struct work_struct *work)
 	}
 
 	cldev = mei_cl_add_device(dev, ndev->me_cl, ndev->cl,
-				  ndev->bus_name, &nfc_ops);
+				  ndev->bus_name);
 	if (!cldev) {
 		dev_err(dev->dev, "Could not add the NFC device to the MEI bus\n");
 
@@ -539,10 +371,7 @@ int mei_nfc_host_init(struct mei_device *dev, struct mei_me_client *me_cl)
 
 	ndev->cl = cl;
 
-	ndev->req_id = 1;
-
 	INIT_WORK(&ndev->init_work, mei_nfc_init);
-	init_waitqueue_head(&ndev->send_wq);
 	schedule_work(&ndev->init_work);
 
 	return 0;
