@@ -299,7 +299,7 @@ NCR_700_detect(struct scsi_host_template *tpnt,
 	memory = dma_alloc_noncoherent(hostdata->dev, TOTAL_MEM_SIZE,
 				       &pScript, GFP_KERNEL);
 	if(memory == NULL) {
-		printk(KERN_ERR "53c700: Failed to allocate memory for driver, detatching\n");
+		printk(KERN_ERR "53c700: Failed to allocate memory for driver, detaching\n");
 		return NULL;
 	}
 
