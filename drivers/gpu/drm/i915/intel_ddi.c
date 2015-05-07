@@ -1115,6 +1115,75 @@ struct skl_wrpll_params {
 	uint32_t        central_freq;
 };
 
+static void skl_wrpll_params_populate(struct skl_wrpll_params *params,
+				      uint64_t afe_clock,
+				      uint64_t central_freq,
+				      uint32_t p0, uint32_t p1, uint32_t p2)
+{
+	uint64_t dco_freq;
+
+	params->central_freq = central_freq;
+
+	switch (central_freq) {
+	case 9600000000ULL:
+		params->central_freq = 0;
+		break;
+	case 9000000000ULL:
+		params->central_freq = 1;
+		break;
+	case 8400000000ULL:
+		params->central_freq = 3;
+	}
+
+	switch (p0) {
+	case 1:
+		params->pdiv = 0;
+		break;
+	case 2:
+		params->pdiv = 1;
+		break;
+	case 3:
+		params->pdiv = 2;
+		break;
+	case 7:
+		params->pdiv = 4;
+		break;
+	default:
+		WARN(1, "Incorrect PDiv\n");
+	}
+
+	switch (p2) {
+	case 5:
+		params->kdiv = 0;
+		break;
+	case 2:
+		params->kdiv = 1;
+		break;
+	case 3:
+		params->kdiv = 2;
+		break;
+	case 1:
+		params->kdiv = 3;
+		break;
+	default:
+		WARN(1, "Incorrect KDiv\n");
+	}
+
+	params->qdiv_ratio = p1;
+	params->qdiv_mode = (params->qdiv_ratio == 1) ? 0 : 1;
+
+	dco_freq = p0 * p1 * p2 * afe_clock;
+
+	/*
+	 * Intermediate values are in Hz.
+	 * Divide by MHz to match bsepc
+	 */
+	params->dco_integer = div_u64(dco_freq, (24 * MHz(1)));
+	params->dco_fraction =
+		div_u64(((div_u64(dco_freq, 24) -
+			  params->dco_integer * MHz(1)) * 0x8000), MHz(1));
+}
+
 static bool
 skl_ddi_calculate_wrpll(int clock /* in Hz */,
 			struct skl_wrpll_params *wrpll_params)
@@ -1134,7 +1203,6 @@ skl_ddi_calculate_wrpll(int clock /* in Hz */,
 	uint32_t dco_central_freq_deviation[3];
 	uint32_t i, P1, k, dco_count;
 	bool retry_with_odd = false;
-	uint64_t dco_freq;
 
 	/* Determine P0, P1 or P2 */
 	for (dco_count = 0; dco_count < 3; dco_count++) {
@@ -1197,69 +1265,12 @@ found:
 		 "No valid parameters found for pixel clock: %dHz\n", clock))
 		return false;
 
-	wrpll_params->central_freq = dco_central_freq[min_dco_index];
-
-	switch (dco_central_freq[min_dco_index]) {
-	case 9600000000ULL:
-		wrpll_params->central_freq = 0;
-		break;
-	case 9000000000ULL:
-		wrpll_params->central_freq = 1;
-		break;
-	case 8400000000ULL:
-		wrpll_params->central_freq = 3;
-	}
-
-	switch (candidate_p0[min_dco_index]) {
-	case 1:
-		wrpll_params->pdiv = 0;
-		break;
-	case 2:
-		wrpll_params->pdiv = 1;
-		break;
-	case 3:
-		wrpll_params->pdiv = 2;
-		break;
-	case 7:
-		wrpll_params->pdiv = 4;
-		break;
-	default:
-		WARN(1, "Incorrect PDiv\n");
-	}
-
-	switch (candidate_p2[min_dco_index]) {
-	case 5:
-		wrpll_params->kdiv = 0;
-		break;
-	case 2:
-		wrpll_params->kdiv = 1;
-		break;
-	case 3:
-		wrpll_params->kdiv = 2;
-		break;
-	case 1:
-		wrpll_params->kdiv = 3;
-		break;
-	default:
-		WARN(1, "Incorrect KDiv\n");
-	}
-
-	wrpll_params->qdiv_ratio = candidate_p1[min_dco_index];
-	wrpll_params->qdiv_mode =
-		(wrpll_params->qdiv_ratio == 1) ? 0 : 1;
-
-	dco_freq = candidate_p0[min_dco_index] *
-		candidate_p1[min_dco_index] *
-		candidate_p2[min_dco_index] * afe_clock;
-
-	/*
-	 * Intermediate values are in Hz.
-	 * Divide by MHz to match bsepc
-	 */
-	wrpll_params->dco_integer = div_u64(dco_freq, (24 * MHz(1)));
-	wrpll_params->dco_fraction =
-		div_u64(((div_u64(dco_freq, 24) -
-			  wrpll_params->dco_integer * MHz(1)) * 0x8000), MHz(1));
+	skl_wrpll_params_populate(wrpll_params,
+				  afe_clock,
+				  dco_central_freq[min_dco_index],
+				  candidate_p0[min_dco_index],
+				  candidate_p1[min_dco_index],
+				  candidate_p2[min_dco_index]);
 
 	return true;
 }
