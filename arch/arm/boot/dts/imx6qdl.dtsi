@@ -371,6 +371,7 @@
 				clocks = <&clks IMX6QDL_CLK_VPU_AXI>,
 					 <&clks IMX6QDL_CLK_MMDC_CH0_AXI>;
 				clock-names = "per", "ahb";
+				power-domains = <&gpc 1>;
 				resets = <&src 1>;
 				iram = <&ocram>;
 			};
