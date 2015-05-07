@@ -202,13 +202,13 @@ static int __peernet2id(struct net *net, struct net *peer, bool alloc)
 /* This function returns the id of a peer netns. If no id is assigned, one will
  * be allocated and returned.
  */
-int peernet2id(struct net *net, struct net *peer)
+int peernet2id_alloc(struct net *net, struct net *peer)
 {
 	bool alloc = atomic_read(&peer->count) == 0 ? false : true;
 
 	return __peernet2id(net, peer, alloc);
 }
-EXPORT_SYMBOL(peernet2id);
+EXPORT_SYMBOL(peernet2id_alloc);
 
 struct net *get_net_ns_by_id(struct net *net, int id)
 {
