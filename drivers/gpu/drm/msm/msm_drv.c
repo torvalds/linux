@@ -285,16 +285,16 @@ static int msm_load(struct drm_device *dev, unsigned long flags)
 
 	drm_mode_config_init(dev);
 
-	ret = msm_init_vram(dev);
-	if (ret)
-		goto fail;
-
 	platform_set_drvdata(pdev, dev);
 
 	/* Bind all our sub-components: */
 	ret = component_bind_all(dev->dev, dev);
 	if (ret)
 		return ret;
+
+	ret = msm_init_vram(dev);
+	if (ret)
+		goto fail;
 
 	switch (get_mdp_ver(pdev)) {
 	case 4:
