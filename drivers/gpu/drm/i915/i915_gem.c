@@ -3842,17 +3842,10 @@ int i915_gem_get_caching_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_i915_gem_caching *args = data;
 	struct drm_i915_gem_object *obj;
-	int ret;
-
-	ret = i915_mutex_lock_interruptible(dev);
-	if (ret)
-		return ret;
 
 	obj = to_intel_bo(drm_gem_object_lookup(dev, file, args->handle));
-	if (&obj->base == NULL) {
-		ret = -ENOENT;
-		goto unlock;
-	}
+	if (&obj->base == NULL)
+		return -ENOENT;
 
 	switch (obj->cache_level) {
 	case I915_CACHE_LLC:
@@ -3869,10 +3862,8 @@ int i915_gem_get_caching_ioctl(struct drm_device *dev, void *data,
 		break;
 	}
 
-	drm_gem_object_unreference(&obj->base);
-unlock:
-	mutex_unlock(&dev->struct_mutex);
-	return ret;
+	drm_gem_object_unreference_unlocked(&obj->base);
+	return 0;
 }
 
 int i915_gem_set_caching_ioctl(struct drm_device *dev, void *data,
