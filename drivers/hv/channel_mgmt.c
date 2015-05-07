@@ -205,6 +205,7 @@ void hv_process_channel_removal(struct vmbus_channel *channel, u32 relid)
 		primary_channel = channel->primary_channel;
 		spin_lock_irqsave(&primary_channel->lock, flags);
 		list_del(&channel->sc_list);
+		primary_channel->num_sc--;
 		spin_unlock_irqrestore(&primary_channel->lock, flags);
 	}
 	free_channel(channel);
@@ -265,8 +266,8 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 			newchannel->primary_channel = channel;
 			spin_lock_irqsave(&channel->lock, flags);
 			list_add_tail(&newchannel->sc_list, &channel->sc_list);
-			spin_unlock_irqrestore(&channel->lock, flags);
 			channel->num_sc++;
+			spin_unlock_irqrestore(&channel->lock, flags);
 		} else
 			goto err_free_chan;
 	}
