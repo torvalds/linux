@@ -353,6 +353,7 @@ struct netdev_alloc_cache {
 	 * containing page->_count every time we allocate a fragment.
 	 */
 	unsigned int		pagecnt_bias;
+	bool pfmemalloc;
 };
 static DEFINE_PER_CPU(struct netdev_alloc_cache, netdev_alloc_cache);
 static DEFINE_PER_CPU(struct netdev_alloc_cache, napi_alloc_cache);
@@ -379,10 +380,9 @@ static struct page *__page_frag_refill(struct netdev_alloc_cache *nc,
 	return page;
 }
 
-static void *__alloc_page_frag(struct netdev_alloc_cache __percpu *cache,
+static void *__alloc_page_frag(struct netdev_alloc_cache *nc,
 			       unsigned int fragsz, gfp_t gfp_mask)
 {
-	struct netdev_alloc_cache *nc = this_cpu_ptr(cache);
 	struct page *page = nc->frag.page;
 	unsigned int size;
 	int offset;
@@ -402,6 +402,7 @@ refill:
 		atomic_add(size - 1, &page->_count);
 
 		/* reset page count bias and offset to start of new frag */
+		nc->pfmemalloc = page->pfmemalloc;
 		nc->pagecnt_bias = size;
 		nc->frag.offset = size;
 	}
@@ -430,11 +431,13 @@ refill:
 
 static void *__netdev_alloc_frag(unsigned int fragsz, gfp_t gfp_mask)
 {
+	struct netdev_alloc_cache *nc;
 	unsigned long flags;
 	void *data;
 
 	local_irq_save(flags);
-	data = __alloc_page_frag(&netdev_alloc_cache, fragsz, gfp_mask);
+	nc = this_cpu_ptr(&netdev_alloc_cache);
+	data = __alloc_page_frag(nc, fragsz, gfp_mask);
 	local_irq_restore(flags);
 	return data;
 }
@@ -454,7 +457,9 @@ EXPORT_SYMBOL(netdev_alloc_frag);
 
 static void *__napi_alloc_frag(unsigned int fragsz, gfp_t gfp_mask)
 {
-	return __alloc_page_frag(&napi_alloc_cache, fragsz, gfp_mask);
+	struct netdev_alloc_cache *nc = this_cpu_ptr(&napi_alloc_cache);
+
+	return __alloc_page_frag(nc, fragsz, gfp_mask);
 }
 
 void *napi_alloc_frag(unsigned int fragsz)
@@ -462,51 +467,6 @@ void *napi_alloc_frag(unsigned int fragsz)
 	return __napi_alloc_frag(fragsz, GFP_ATOMIC | __GFP_COLD);
 }
 EXPORT_SYMBOL(napi_alloc_frag);
-
-/**
- *	__alloc_rx_skb - allocate an skbuff for rx
- *	@length: length to allocate
- *	@gfp_mask: get_free_pages mask, passed to alloc_skb
- *	@flags:	If SKB_ALLOC_RX is set, __GFP_MEMALLOC will be used for
- *		allocations in case we have to fallback to __alloc_skb()
- *		If SKB_ALLOC_NAPI is set, page fragment will be allocated
- *		from napi_cache instead of netdev_cache.
- *
- *	Allocate a new &sk_buff and assign it a usage count of one. The
- *	buffer has unspecified headroom built in. Users should allocate
- *	the headroom they think they need without accounting for the
- *	built in space. The built in space is used for optimisations.
- *
- *	%NULL is returned if there is no free memory.
- */
-static struct sk_buff *__alloc_rx_skb(unsigned int length, gfp_t gfp_mask,
-				      int flags)
-{
-	struct sk_buff *skb = NULL;
-	unsigned int fragsz = SKB_DATA_ALIGN(length) +
-			      SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
-
-	if (fragsz <= PAGE_SIZE && !(gfp_mask & (__GFP_WAIT | GFP_DMA))) {
-		void *data;
-
-		if (sk_memalloc_socks())
-			gfp_mask |= __GFP_MEMALLOC;
-
-		data = (flags & SKB_ALLOC_NAPI) ?
-			__napi_alloc_frag(fragsz, gfp_mask) :
-			__netdev_alloc_frag(fragsz, gfp_mask);
-
-		if (likely(data)) {
-			skb = build_skb(data, fragsz);
-			if (unlikely(!skb))
-				put_page(virt_to_head_page(data));
-		}
-	} else {
-		skb = __alloc_skb(length, gfp_mask,
-				  SKB_ALLOC_RX, NUMA_NO_NODE);
-	}
-	return skb;
-}
 
 /**
  *	__netdev_alloc_skb - allocate an skbuff for rx on a specific device
@@ -521,18 +481,51 @@ static struct sk_buff *__alloc_rx_skb(unsigned int length, gfp_t gfp_mask,
  *
  *	%NULL is returned if there is no free memory.
  */
-struct sk_buff *__netdev_alloc_skb(struct net_device *dev,
-				   unsigned int length, gfp_t gfp_mask)
+struct sk_buff *__netdev_alloc_skb(struct net_device *dev, unsigned int len,
+				   gfp_t gfp_mask)
 {
+	struct netdev_alloc_cache *nc;
+	unsigned long flags;
 	struct sk_buff *skb;
+	bool pfmemalloc;
+	void *data;
 
-	length += NET_SKB_PAD;
-	skb = __alloc_rx_skb(length, gfp_mask, 0);
+	len += NET_SKB_PAD;
 
-	if (likely(skb)) {
-		skb_reserve(skb, NET_SKB_PAD);
-		skb->dev = dev;
+	if ((len > SKB_WITH_OVERHEAD(PAGE_SIZE)) ||
+	    (gfp_mask & (__GFP_WAIT | GFP_DMA)))
+		return __alloc_skb(len, gfp_mask, SKB_ALLOC_RX, NUMA_NO_NODE);
+
+	len += SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
+	len = SKB_DATA_ALIGN(len);
+
+	if (sk_memalloc_socks())
+		gfp_mask |= __GFP_MEMALLOC;
+
+	local_irq_save(flags);
+
+	nc = this_cpu_ptr(&netdev_alloc_cache);
+	data = __alloc_page_frag(nc, len, gfp_mask);
+	pfmemalloc = nc->pfmemalloc;
+
+	local_irq_restore(flags);
+
+	if (unlikely(!data))
+		return NULL;
+
+	skb = __build_skb(data, len);
+	if (unlikely(!skb)) {
+		put_page(virt_to_head_page(data));
+		return NULL;
 	}
+
+	/* use OR instead of assignment to avoid clearing of bits in mask */
+	if (pfmemalloc)
+		skb->pfmemalloc = 1;
+	skb->head_frag = 1;
+
+	skb_reserve(skb, NET_SKB_PAD);
+	skb->dev = dev;
 
 	return skb;
 }
@@ -551,18 +544,42 @@ EXPORT_SYMBOL(__netdev_alloc_skb);
  *
  *	%NULL is returned if there is no free memory.
  */
-struct sk_buff *__napi_alloc_skb(struct napi_struct *napi,
-				 unsigned int length, gfp_t gfp_mask)
+struct sk_buff *__napi_alloc_skb(struct napi_struct *napi, unsigned int len,
+				 gfp_t gfp_mask)
 {
+	struct netdev_alloc_cache *nc = this_cpu_ptr(&napi_alloc_cache);
 	struct sk_buff *skb;
+	void *data;
 
-	length += NET_SKB_PAD + NET_IP_ALIGN;
-	skb = __alloc_rx_skb(length, gfp_mask, SKB_ALLOC_NAPI);
+	len += NET_SKB_PAD + NET_IP_ALIGN;
 
-	if (likely(skb)) {
-		skb_reserve(skb, NET_SKB_PAD + NET_IP_ALIGN);
-		skb->dev = napi->dev;
+	if ((len > SKB_WITH_OVERHEAD(PAGE_SIZE)) ||
+	    (gfp_mask & (__GFP_WAIT | GFP_DMA)))
+		return __alloc_skb(len, gfp_mask, SKB_ALLOC_RX, NUMA_NO_NODE);
+
+	len += SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
+	len = SKB_DATA_ALIGN(len);
+
+	if (sk_memalloc_socks())
+		gfp_mask |= __GFP_MEMALLOC;
+
+	data = __alloc_page_frag(nc, len, gfp_mask);
+	if (unlikely(!data))
+		return NULL;
+
+	skb = __build_skb(data, len);
+	if (unlikely(!skb)) {
+		put_page(virt_to_head_page(data));
+		return NULL;
 	}
+
+	/* use OR instead of assignment to avoid clearing of bits in mask */
+	if (nc->pfmemalloc)
+		skb->pfmemalloc = 1;
+	skb->head_frag = 1;
+
+	skb_reserve(skb, NET_SKB_PAD + NET_IP_ALIGN);
+	skb->dev = napi->dev;
 
 	return skb;
 }
