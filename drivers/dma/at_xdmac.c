@@ -236,6 +236,10 @@ struct at_xdmac_lld {
 	dma_addr_t	mbr_sa;		/* Source Address Member */
 	dma_addr_t	mbr_da;		/* Destination Address Member */
 	u32		mbr_cfg;	/* Configuration Register */
+	u32		mbr_bc;		/* Block Control Register */
+	u32		mbr_ds;		/* Data Stride Register */
+	u32		mbr_sus;	/* Source Microblock Stride Register */
+	u32		mbr_dus;	/* Destination Microblock Stride Register */
 };
 
 
@@ -359,6 +363,8 @@ static void at_xdmac_start_xfer(struct at_xdmac_chan *atchan,
 	if (at_xdmac_chan_is_cyclic(atchan)) {
 		reg = AT_XDMAC_CNDC_NDVIEW_NDV1;
 		at_xdmac_chan_write(atchan, AT_XDMAC_CC, first->lld.mbr_cfg);
+	} else if (first->lld.mbr_ubc & AT_XDMAC_MBR_UBC_NDV3) {
+		reg = AT_XDMAC_CNDC_NDVIEW_NDV3;
 	} else {
 		/*
 		 * No need to write AT_XDMAC_CC reg, it will be done when the
