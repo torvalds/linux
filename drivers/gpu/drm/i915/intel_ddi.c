@@ -1239,7 +1239,7 @@ found:
 		if (found) {
 			dco_central_freq_deviation[dco_count] =
 				div64_u64(10000 *
-					  abs_diff((candidate_p * afe_clock),
+					  abs_diff(candidate_p * afe_clock,
 						   dco_central_freq[dco_count]),
 					  dco_central_freq[dco_count]);
 
