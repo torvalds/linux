@@ -1194,7 +1194,8 @@ found:
 	}
 
 	if (min_dco_index > 2) {
-		WARN(1, "No valid values found for the given pixel clock\n");
+		WARN(1, "No valid parameters found for pixel clock: %dHz\n",
+		     clock);
 	} else {
 		wrpll_params->central_freq = dco_central_freq[min_dco_index];
 
