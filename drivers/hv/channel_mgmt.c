@@ -233,7 +233,6 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 {
 	struct vmbus_channel *channel;
 	bool fnew = true;
-	bool enq = false;
 	unsigned long flags;
 
 	/* Make sure this is a new offer */
@@ -249,25 +248,12 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 		}
 	}
 
-	if (fnew) {
+	if (fnew)
 		list_add_tail(&newchannel->listentry,
 			      &vmbus_connection.chn_list);
-		enq = true;
-	}
 
 	spin_unlock_irqrestore(&vmbus_connection.channel_lock, flags);
 
-	if (enq) {
-		if (newchannel->target_cpu != get_cpu()) {
-			put_cpu();
-			smp_call_function_single(newchannel->target_cpu,
-						 percpu_channel_enq,
-						 newchannel, true);
-		} else {
-			percpu_channel_enq(newchannel);
-			put_cpu();
-		}
-	}
 	if (!fnew) {
 		/*
 		 * Check to see if this is a sub-channel.
@@ -280,26 +266,19 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 			spin_lock_irqsave(&channel->lock, flags);
 			list_add_tail(&newchannel->sc_list, &channel->sc_list);
 			spin_unlock_irqrestore(&channel->lock, flags);
-
-			if (newchannel->target_cpu != get_cpu()) {
-				put_cpu();
-				smp_call_function_single(newchannel->target_cpu,
-							 percpu_channel_enq,
-							 newchannel, true);
-			} else {
-				percpu_channel_enq(newchannel);
-				put_cpu();
-			}
-
-			newchannel->state = CHANNEL_OPEN_STATE;
 			channel->num_sc++;
-			if (channel->sc_creation_callback != NULL)
-				channel->sc_creation_callback(newchannel);
+		} else
+			goto err_free_chan;
+	}
 
-			return;
-		}
-
-		goto err_free_chan;
+	if (newchannel->target_cpu != get_cpu()) {
+		put_cpu();
+		smp_call_function_single(newchannel->target_cpu,
+					 percpu_channel_enq,
+					 newchannel, true);
+	} else {
+		percpu_channel_enq(newchannel);
+		put_cpu();
 	}
 
 	/*
@@ -308,6 +287,12 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 	 * can cleanup properly
 	 */
 	newchannel->state = CHANNEL_OPEN_STATE;
+
+	if (!fnew) {
+		if (channel->sc_creation_callback != NULL)
+			channel->sc_creation_callback(newchannel);
+		return;
+	}
 
 	/*
 	 * Start the process of binding this offer to the driver
