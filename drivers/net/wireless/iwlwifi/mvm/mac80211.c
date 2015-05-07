@@ -1434,10 +1434,10 @@ void __iwl_mvm_mac_stop(struct iwl_mvm *mvm)
 		int i;
 
 		for (i = 0; i < mvm->max_scans; i++) {
-			if (WARN_ONCE(mvm->scan_uid[i],
-				      "UMAC scan UID %d was not cleaned\n",
-				      mvm->scan_uid[i]))
-				mvm->scan_uid[i] = 0;
+			if (WARN_ONCE(mvm->scan_uid_status[i],
+				      "UMAC scan UID %d status was not cleaned\n",
+				      i))
+				mvm->scan_uid_status[i] = 0;
 		}
 	}
 

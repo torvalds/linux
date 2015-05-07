@@ -628,8 +628,7 @@ struct iwl_mvm {
 	unsigned int max_scans;
 
 	/* UMAC scan tracking */
-	u32 scan_uid[IWL_MVM_MAX_UMAC_SCANS];
-	u8 scan_seq_num, sched_scan_seq_num;
+	u32 scan_uid_status[IWL_MVM_MAX_UMAC_SCANS];
 
 	/* rx chain antennas set through debugfs for the scan command */
 	u8 scan_rx_ant;
