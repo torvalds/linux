@@ -6987,6 +6987,36 @@ cleanup_brd:
 	return rc;
 }
 
+/*
+ * dgap_cleanup_board()
+ *
+ * Free all the memory associated with a board
+ */
+static void dgap_cleanup_board(struct board_t *brd)
+{
+	unsigned int i;
+
+	if (!brd || brd->magic != DGAP_BOARD_MAGIC)
+		return;
+
+	dgap_free_irq(brd);
+
+	tasklet_kill(&brd->helper_tasklet);
+
+	dgap_unmap(brd);
+
+	/* Free all allocated channels structs */
+	for (i = 0; i < MAXPORTS ; i++)
+		kfree(brd->channels[i]);
+
+	kfree(brd->flipbuf);
+	kfree(brd->flipflagbuf);
+
+	dgap_board[brd->boardnum] = NULL;
+
+	kfree(brd);
+}
+
 static void dgap_remove_one(struct pci_dev *dev)
 {
 	/* Do Nothing */
@@ -7070,37 +7100,6 @@ static void dgap_stop(void)
 	class_destroy(dgap_class);
 	unregister_chrdev(DIGI_DGAP_MAJOR, "dgap");
 }
-
-/*
- * dgap_cleanup_board()
- *
- * Free all the memory associated with a board
- */
-static void dgap_cleanup_board(struct board_t *brd)
-{
-	unsigned int i;
-
-	if (!brd || brd->magic != DGAP_BOARD_MAGIC)
-		return;
-
-	dgap_free_irq(brd);
-
-	tasklet_kill(&brd->helper_tasklet);
-
-	dgap_unmap(brd);
-
-	/* Free all allocated channels structs */
-	for (i = 0; i < MAXPORTS ; i++)
-		kfree(brd->channels[i]);
-
-	kfree(brd->flipbuf);
-	kfree(brd->flipflagbuf);
-
-	dgap_board[brd->boardnum] = NULL;
-
-	kfree(brd);
-}
-
 
 /************************************************************************
  *
