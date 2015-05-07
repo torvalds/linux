@@ -2128,9 +2128,6 @@ static inline void __skb_queue_purge(struct sk_buff_head *list)
 		kfree_skb(skb);
 }
 
-#define NETDEV_FRAG_PAGE_MAX_SIZE	__ALIGN_MASK(32768, ~PAGE_MASK)
-#define NETDEV_FRAG_PAGE_MAX_ORDER	get_order(NETDEV_FRAG_PAGE_MAX_SIZE)
-
 void *netdev_alloc_frag(unsigned int fragsz);
 
 struct sk_buff *__netdev_alloc_skb(struct net_device *dev, unsigned int length,

@@ -347,100 +347,12 @@ struct sk_buff *build_skb(void *data, unsigned int frag_size)
 }
 EXPORT_SYMBOL(build_skb);
 
-struct netdev_alloc_cache {
-	void * va;
-#if (PAGE_SIZE < NETDEV_FRAG_PAGE_MAX_SIZE)
-	__u16 offset;
-	__u16 size;
-#else
-	__u32 offset;
-#endif
-	/* we maintain a pagecount bias, so that we dont dirty cache line
-	 * containing page->_count every time we allocate a fragment.
-	 */
-	unsigned int		pagecnt_bias;
-	bool pfmemalloc;
-};
-static DEFINE_PER_CPU(struct netdev_alloc_cache, netdev_alloc_cache);
-static DEFINE_PER_CPU(struct netdev_alloc_cache, napi_alloc_cache);
-
-static struct page *__page_frag_refill(struct netdev_alloc_cache *nc,
-				       gfp_t gfp_mask)
-{
-	struct page *page = NULL;
-	gfp_t gfp = gfp_mask;
-
-#if (PAGE_SIZE < NETDEV_FRAG_PAGE_MAX_SIZE)
-	gfp_mask |= __GFP_COMP | __GFP_NOWARN | __GFP_NORETRY |
-		    __GFP_NOMEMALLOC;
-	page = alloc_pages_node(NUMA_NO_NODE, gfp_mask,
-				NETDEV_FRAG_PAGE_MAX_ORDER);
-	nc->size = page ? NETDEV_FRAG_PAGE_MAX_SIZE : PAGE_SIZE;
-#endif
-	if (unlikely(!page))
-		page = alloc_pages_node(NUMA_NO_NODE, gfp, 0);
-
-	nc->va = page ? page_address(page) : NULL;
-
-	return page;
-}
-
-static void *__alloc_page_frag(struct netdev_alloc_cache *nc,
-			       unsigned int fragsz, gfp_t gfp_mask)
-{
-	unsigned int size = PAGE_SIZE;
-	struct page *page;
-	int offset;
-
-	if (unlikely(!nc->va)) {
-refill:
-		page = __page_frag_refill(nc, gfp_mask);
-		if (!page)
-			return NULL;
-
-#if (PAGE_SIZE < NETDEV_FRAG_PAGE_MAX_SIZE)
-		/* if size can vary use size else just use PAGE_SIZE */
-		size = nc->size;
-#endif
-		/* Even if we own the page, we do not use atomic_set().
-		 * This would break get_page_unless_zero() users.
-		 */
-		atomic_add(size - 1, &page->_count);
-
-		/* reset page count bias and offset to start of new frag */
-		nc->pfmemalloc = page->pfmemalloc;
-		nc->pagecnt_bias = size;
-		nc->offset = size;
-	}
-
-	offset = nc->offset - fragsz;
-	if (unlikely(offset < 0)) {
-		page = virt_to_page(nc->va);
-
-		if (!atomic_sub_and_test(nc->pagecnt_bias, &page->_count))
-			goto refill;
-
-#if (PAGE_SIZE < NETDEV_FRAG_PAGE_MAX_SIZE)
-		/* if size can vary use size else just use PAGE_SIZE */
-		size = nc->size;
-#endif
-		/* OK, page count is 0, we can safely set it */
-		atomic_set(&page->_count, size);
-
-		/* reset page count bias and offset to start of new frag */
-		nc->pagecnt_bias = size;
-		offset = size - fragsz;
-	}
-
-	nc->pagecnt_bias--;
-	nc->offset = offset;
-
-	return nc->va + offset;
-}
+static DEFINE_PER_CPU(struct page_frag_cache, netdev_alloc_cache);
+static DEFINE_PER_CPU(struct page_frag_cache, napi_alloc_cache);
 
 static void *__netdev_alloc_frag(unsigned int fragsz, gfp_t gfp_mask)
 {
-	struct netdev_alloc_cache *nc;
+	struct page_frag_cache *nc;
 	unsigned long flags;
 	void *data;
 
@@ -466,7 +378,7 @@ EXPORT_SYMBOL(netdev_alloc_frag);
 
 static void *__napi_alloc_frag(unsigned int fragsz, gfp_t gfp_mask)
 {
-	struct netdev_alloc_cache *nc = this_cpu_ptr(&napi_alloc_cache);
+	struct page_frag_cache *nc = this_cpu_ptr(&napi_alloc_cache);
 
 	return __alloc_page_frag(nc, fragsz, gfp_mask);
 }
@@ -493,7 +405,7 @@ EXPORT_SYMBOL(napi_alloc_frag);
 struct sk_buff *__netdev_alloc_skb(struct net_device *dev, unsigned int len,
 				   gfp_t gfp_mask)
 {
-	struct netdev_alloc_cache *nc;
+	struct page_frag_cache *nc;
 	unsigned long flags;
 	struct sk_buff *skb;
 	bool pfmemalloc;
@@ -556,7 +468,7 @@ EXPORT_SYMBOL(__netdev_alloc_skb);
 struct sk_buff *__napi_alloc_skb(struct napi_struct *napi, unsigned int len,
 				 gfp_t gfp_mask)
 {
-	struct netdev_alloc_cache *nc = this_cpu_ptr(&napi_alloc_cache);
+	struct page_frag_cache *nc = this_cpu_ptr(&napi_alloc_cache);
 	struct sk_buff *skb;
 	void *data;
 
