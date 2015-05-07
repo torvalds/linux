@@ -230,9 +230,6 @@ struct adv7842_platform_data {
 #define V4L2_CID_ADV_RX_FREE_RUN_COLOR_MANUAL	(V4L2_CID_DV_CLASS_BASE + 0x1001)
 #define V4L2_CID_ADV_RX_FREE_RUN_COLOR		(V4L2_CID_DV_CLASS_BASE + 0x1002)
 
-/* notify events */
-#define ADV7842_FMT_CHANGE	1
-
 /* custom ioctl, used to test the external RAM that's used by the
  * deinterlacer. */
 #define ADV7842_CMD_RAM_TEST _IO('V', BASE_VIDIOC_PRIVATE)

@@ -242,6 +242,11 @@ static const struct adv7842_video_standards adv7842_prim_mode_hdmi_gr[] = {
 	{ },
 };
 
+static const struct v4l2_event adv7842_ev_fmt = {
+	.type = V4L2_EVENT_SOURCE_CHANGE,
+	.u.src_change.changes = V4L2_EVENT_SRC_CH_RESOLUTION,
+};
+
 /* ----------------------------------------------------------------------- */
 
 static inline struct adv7842_state *to_state(struct v4l2_subdev *sd)
@@ -1975,7 +1980,8 @@ static int adv7842_s_routing(struct v4l2_subdev *sd,
 	select_input(sd, state->vid_std_select);
 	enable_input(sd);
 
-	v4l2_subdev_notify(sd, ADV7842_FMT_CHANGE, NULL);
+	v4l2_subdev_notify(sd, V4L2_DEVICE_NOTIFY_EVENT,
+			   (void *)&adv7842_ev_fmt);
 
 	return 0;
 }
@@ -2208,7 +2214,8 @@ static int adv7842_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 			 "%s: fmt_change_cp = 0x%x, fmt_change_digital = 0x%x, fmt_change_sdp = 0x%x\n",
 			 __func__, fmt_change_cp, fmt_change_digital,
 			 fmt_change_sdp);
-		v4l2_subdev_notify(sd, ADV7842_FMT_CHANGE, NULL);
+		v4l2_subdev_notify(sd, V4L2_DEVICE_NOTIFY_EVENT,
+				   (void *)&adv7842_ev_fmt);
 		if (handled)
 			*handled = true;
 	}
