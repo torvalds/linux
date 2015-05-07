@@ -11,6 +11,7 @@ tools/lib/symbol/kallsyms.h
 tools/lib/util/find_next_bit.c
 tools/include/asm/barrier.h
 tools/include/asm/bug.h
+tools/include/asm-generic/barrier.h
 tools/include/asm-generic/bitops/arch_hweight.h
 tools/include/asm-generic/bitops/atomic.h
 tools/include/asm-generic/bitops/const_hweight.h
