@@ -2585,9 +2585,9 @@ static void nvme_freeze_queues(struct nvme_dev *dev)
 	list_for_each_entry(ns, &dev->namespaces, list) {
 		blk_mq_freeze_queue_start(ns->queue);
 
-		spin_lock(ns->queue->queue_lock);
+		spin_lock_irq(ns->queue->queue_lock);
 		queue_flag_set(QUEUE_FLAG_STOPPED, ns->queue);
-		spin_unlock(ns->queue->queue_lock);
+		spin_unlock_irq(ns->queue->queue_lock);
 
 		blk_mq_cancel_requeue_work(ns->queue);
 		blk_mq_stop_hw_queues(ns->queue);
