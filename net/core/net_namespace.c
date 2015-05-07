@@ -229,7 +229,7 @@ int peernet2id_alloc(struct net *net, struct net *peer)
 EXPORT_SYMBOL(peernet2id_alloc);
 
 /* This function returns, if assigned, the id of a peer netns. */
-static int peernet2id(struct net *net, struct net *peer)
+int peernet2id(struct net *net, struct net *peer)
 {
 	unsigned long flags;
 	int id;
@@ -238,6 +238,14 @@ static int peernet2id(struct net *net, struct net *peer)
 	id = __peernet2id(net, peer);
 	spin_unlock_irqrestore(&nsid_lock, flags);
 	return id;
+}
+
+/* This function returns true is the peer netns has an id assigned into the
+ * current netns.
+ */
+bool peernet_has_id(struct net *net, struct net *peer)
+{
+	return peernet2id(net, peer) >= 0;
 }
 
 struct net *get_net_ns_by_id(struct net *net, int id)
