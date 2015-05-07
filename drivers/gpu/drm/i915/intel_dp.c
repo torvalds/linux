@@ -3812,7 +3812,8 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 			if (val == 0)
 				break;
 
-			intel_dp->sink_rates[i] = val * 200;
+			/* Value read is in kHz while drm clock is saved in deca-kHz */
+			intel_dp->sink_rates[i] = (val * 200) / 10;
 		}
 		intel_dp->num_sink_rates = i;
 	}
