@@ -507,6 +507,7 @@ struct nameidata {
 		struct path link;
 		void *cookie;
 		const char *name;
+		struct inode *inode;
 	} *stack, internal[EMBEDDED_LEVELS];
 };
 
@@ -746,7 +747,7 @@ void nd_jump_link(struct path *path)
 static inline void put_link(struct nameidata *nd)
 {
 	struct saved *last = nd->stack + --nd->depth;
-	struct inode *inode = last->link.dentry->d_inode;
+	struct inode *inode = last->inode;
 	if (last->cookie && inode->i_op->put_link)
 		inode->i_op->put_link(last->link.dentry, last->cookie);
 	path_put(&last->link);
@@ -779,7 +780,7 @@ static inline int may_follow_link(struct nameidata *nd)
 		return 0;
 
 	/* Allowed if owner and follower match. */
-	inode = nd->stack[0].link.dentry->d_inode;
+	inode = nd->stack[0].inode;
 	if (uid_eq(current_cred()->fsuid, inode->i_uid))
 		return 0;
 
@@ -870,7 +871,7 @@ const char *get_link(struct nameidata *nd)
 {
 	struct saved *last = nd->stack + nd->depth - 1;
 	struct dentry *dentry = last->link.dentry;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = last->inode;
 	int error;
 	const char *res;
 
@@ -1569,6 +1570,7 @@ static int pick_link(struct nameidata *nd, struct path *link, unsigned seq)
 	last = nd->stack + nd->depth++;
 	last->link = *link;
 	last->cookie = NULL;
+	last->inode = d_backing_inode(link->dentry);
 	return 1;
 }
 
