@@ -1747,10 +1747,10 @@ static int is_rmpp_data_mad(struct ib_mad_agent_private *mad_agent_priv,
 		(rmpp_mad->rmpp_hdr.rmpp_type == IB_MGMT_RMPP_TYPE_DATA);
 }
 
-static inline int rcv_has_same_class(struct ib_mad_send_wr_private *wr,
-				     struct ib_mad_recv_wc *rwc)
+static inline int rcv_has_same_class(const struct ib_mad_send_wr_private *wr,
+				     const struct ib_mad_recv_wc *rwc)
 {
-	return ((struct ib_mad *)(wr->send_buf.mad))->mad_hdr.mgmt_class ==
+	return ((struct ib_mad_hdr *)(wr->send_buf.mad))->mgmt_class ==
 		rwc->recv_buf.mad->mad_hdr.mgmt_class;
 }
 
