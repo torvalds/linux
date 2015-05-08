@@ -3302,6 +3302,7 @@ static int fetch_block(struct stripe_head *sh, struct stripe_head_state *s,
 		 */
 		BUG_ON(test_bit(R5_Wantcompute, &dev->flags));
 		BUG_ON(test_bit(R5_Wantread, &dev->flags));
+		BUG_ON(sh->batch_head);
 		if ((s->uptodate == disks - 1) &&
 		    (s->failed && (disk_idx == s->failed_num[0] ||
 				   disk_idx == s->failed_num[1]))) {
@@ -3370,7 +3371,6 @@ static void handle_stripe_fill(struct stripe_head *sh,
 {
 	int i;
 
-	BUG_ON(sh->batch_head);
 	/* look for blocks to read/compute, skip this if a compute
 	 * is already in flight, or if the stripe contents are in the
 	 * midst of changing due to a write
