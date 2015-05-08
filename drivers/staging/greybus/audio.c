@@ -106,7 +106,9 @@ struct asoc_simple_card_info *setup_card_info(int device_count)
 	obj->card_info.codec		= obj->codec_name;
 	obj->card_info.platform		= obj->platform_name;
 	obj->card_info.cpu_dai.name	= obj->dai_name;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 1, 0)
 	obj->card_info.cpu_dai.fmt	= GB_FMTS;
+#endif
 #if USE_RT5645
 	obj->card_info.daifmt		= GB_FMTS;
 	sprintf(obj->codec_name, "rt5645.%s", "6-001b"); /* XXX do i2c bus addr dynamically */
