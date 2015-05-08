@@ -1669,8 +1669,10 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	}
 
 	/* Use a partial view if the object is bigger than the aperture. */
-	if (obj->base.size >= dev_priv->gtt.mappable_end) {
+	if (obj->base.size >= dev_priv->gtt.mappable_end &&
+	    obj->tiling_mode == I915_TILING_NONE) {
 		static const unsigned int chunk_size = 256; // 1 MiB
+
 		memset(&view, 0, sizeof(view));
 		view.type = I915_GGTT_VIEW_PARTIAL;
 		view.params.partial.offset = rounddown(page_offset, chunk_size);
