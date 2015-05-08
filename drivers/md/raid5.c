@@ -2068,6 +2068,35 @@ static struct flex_array *scribble_alloc(int num, int cnt, gfp_t flags)
 	return ret;
 }
 
+static int resize_chunks(struct r5conf *conf, int new_disks, int new_sectors)
+{
+	unsigned long cpu;
+	int err = 0;
+
+	mddev_suspend(conf->mddev);
+	get_online_cpus();
+	for_each_present_cpu(cpu) {
+		struct raid5_percpu *percpu;
+		struct flex_array *scribble;
+
+		percpu = per_cpu_ptr(conf->percpu, cpu);
+		scribble = scribble_alloc(new_disks,
+					  new_sectors / STRIPE_SECTORS,
+					  GFP_NOIO);
+
+		if (scribble) {
+			flex_array_free(percpu->scribble);
+			percpu->scribble = scribble;
+		} else {
+			err = -ENOMEM;
+			break;
+		}
+	}
+	put_online_cpus();
+	mddev_resume(conf->mddev);
+	return err;
+}
+
 static int resize_stripes(struct r5conf *conf, int newsize)
 {
 	/* Make all the stripes able to hold 'newsize' devices.
@@ -2096,7 +2125,6 @@ static int resize_stripes(struct r5conf *conf, int newsize)
 	struct stripe_head *osh, *nsh;
 	LIST_HEAD(newstripes);
 	struct disk_info *ndisks;
-	unsigned long cpu;
 	int err;
 	struct kmem_cache *sc;
 	int i;
@@ -2177,25 +2205,6 @@ static int resize_stripes(struct r5conf *conf, int newsize)
 		conf->disks = ndisks;
 	} else
 		err = -ENOMEM;
-
-	get_online_cpus();
-	for_each_present_cpu(cpu) {
-		struct raid5_percpu *percpu;
-		struct flex_array *scribble;
-
-		percpu = per_cpu_ptr(conf->percpu, cpu);
-		scribble = scribble_alloc(newsize, conf->chunk_sectors /
-			STRIPE_SECTORS, GFP_NOIO);
-
-		if (scribble) {
-			flex_array_free(percpu->scribble);
-			percpu->scribble = scribble;
-		} else {
-			err = -ENOMEM;
-			break;
-		}
-	}
-	put_online_cpus();
 
 	/* Step 4, return new stripes to service */
 	while(!list_empty(&newstripes)) {
@@ -6228,8 +6237,11 @@ static int alloc_scratch_buffer(struct r5conf *conf, struct raid5_percpu *percpu
 		percpu->spare_page = alloc_page(GFP_KERNEL);
 	if (!percpu->scribble)
 		percpu->scribble = scribble_alloc(max(conf->raid_disks,
-			conf->previous_raid_disks), conf->chunk_sectors /
-			STRIPE_SECTORS, GFP_KERNEL);
+						      conf->previous_raid_disks),
+						  max(conf->chunk_sectors,
+						      conf->prev_chunk_sectors)
+						   / STRIPE_SECTORS,
+						  GFP_KERNEL);
 
 	if (!percpu->scribble || (conf->level == 6 && !percpu->spare_page)) {
 		free_scratch_buffer(conf, percpu);
@@ -7205,6 +7217,15 @@ static int check_reshape(struct mddev *mddev)
 	if (!check_stripe_cache(mddev))
 		return -ENOSPC;
 
+	if (mddev->new_chunk_sectors > mddev->chunk_sectors ||
+	    mddev->delta_disks > 0)
+		if (resize_chunks(conf,
+				  conf->previous_raid_disks
+				  + max(0, mddev->delta_disks),
+				  max(mddev->new_chunk_sectors,
+				      mddev->chunk_sectors)
+			    ) < 0)
+			return -ENOMEM;
 	return resize_stripes(conf, (conf->previous_raid_disks
 				     + mddev->delta_disks));
 }
