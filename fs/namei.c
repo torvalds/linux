@@ -2034,7 +2034,7 @@ static int path_lookupat(int dfd, const struct filename *name,
 	 * be able to complete).
 	 */
 	err = path_init(dfd, name, flags, nd);
-	if (!err && !(flags & LOOKUP_PARENT)) {
+	if (!err) {
 		while ((err = lookup_last(nd)) > 0) {
 			err = trailing_symlink(nd);
 			if (err)
@@ -2074,6 +2074,35 @@ static int filename_lookup(int dfd, struct filename *name,
 	return retval;
 }
 
+/* Returns 0 and nd will be valid on success; Retuns error, otherwise. */
+static int path_parentat(int dfd, const struct filename *name,
+				unsigned int flags, struct nameidata *nd)
+{
+	int err = path_init(dfd, name, flags | LOOKUP_PARENT, nd);
+	if (!err)
+		err = complete_walk(nd);
+	path_cleanup(nd);
+	return err;
+}
+
+static int filename_parentat(int dfd, struct filename *name,
+				unsigned int flags, struct nameidata *nd)
+{
+	int retval;
+	struct nameidata *saved_nd = set_nameidata(nd);
+
+	retval = path_parentat(dfd, name, flags | LOOKUP_RCU, nd);
+	if (unlikely(retval == -ECHILD))
+		retval = path_parentat(dfd, name, flags, nd);
+	if (unlikely(retval == -ESTALE))
+		retval = path_parentat(dfd, name, flags | LOOKUP_REVAL, nd);
+
+	if (likely(!retval))
+		audit_inode(name, nd->path.dentry, LOOKUP_PARENT);
+	restore_nameidata(saved_nd);
+	return retval;
+}
+
 /* does lookup, returns the object with parent locked */
 struct dentry *kern_path_locked(const char *name, struct path *path)
 {
@@ -2085,7 +2114,7 @@ struct dentry *kern_path_locked(const char *name, struct path *path)
 	if (IS_ERR(filename))
 		return ERR_CAST(filename);
 
-	err = filename_lookup(AT_FDCWD, filename, LOOKUP_PARENT, &nd);
+	err = filename_parentat(AT_FDCWD, filename, 0, &nd);
 	if (err) {
 		d = ERR_PTR(err);
 		goto out;
@@ -2255,7 +2284,7 @@ user_path_parent(int dfd, const char __user *path,
 	if (IS_ERR(s))
 		return s;
 
-	error = filename_lookup(dfd, s, flags | LOOKUP_PARENT, &nd);
+	error = filename_parentat(dfd, s, flags, &nd);
 	if (error) {
 		putname(s);
 		return ERR_PTR(error);
@@ -3344,7 +3373,7 @@ static struct dentry *filename_create(int dfd, struct filename *name,
 	 */
 	lookup_flags &= LOOKUP_REVAL;
 
-	error = filename_lookup(dfd, name, LOOKUP_PARENT|lookup_flags, &nd);
+	error = filename_parentat(dfd, name, lookup_flags, &nd);
 	if (error)
 		return ERR_PTR(error);
 
