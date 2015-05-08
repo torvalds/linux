@@ -232,16 +232,21 @@ void cxl_context_detach_all(struct cxl_afu *afu)
 	mutex_unlock(&afu->contexts_lock);
 }
 
-void cxl_context_free(struct cxl_context *ctx)
+static void reclaim_ctx(struct rcu_head *rcu)
 {
-	mutex_lock(&ctx->afu->contexts_lock);
-	idr_remove(&ctx->afu->contexts_idr, ctx->pe);
-	mutex_unlock(&ctx->afu->contexts_lock);
-	synchronize_rcu();
+	struct cxl_context *ctx = container_of(rcu, struct cxl_context, rcu);
 
 	free_page((u64)ctx->sstp);
 	ctx->sstp = NULL;
 
 	put_pid(ctx->pid);
 	kfree(ctx);
+}
+
+void cxl_context_free(struct cxl_context *ctx)
+{
+	mutex_lock(&ctx->afu->contexts_lock);
+	idr_remove(&ctx->afu->contexts_idr, ctx->pe);
+	mutex_unlock(&ctx->afu->contexts_lock);
+	call_rcu(&ctx->rcu, reclaim_ctx);
 }

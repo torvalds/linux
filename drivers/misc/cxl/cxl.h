@@ -457,6 +457,8 @@ struct cxl_context {
 	bool pending_irq;
 	bool pending_fault;
 	bool pending_afu_err;
+
+	struct rcu_head rcu;
 };
 
 struct cxl {
