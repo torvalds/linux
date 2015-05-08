@@ -606,10 +606,9 @@ struct task_cputime_atomic {
 
 /**
  * struct thread_group_cputimer - thread group interval timer counts
- * @cputime:		thread group interval timers.
+ * @cputime_atomic:	atomic thread group interval timers.
  * @running:		non-zero when there are timers running and
  * 			@cputime receives updates.
- * @lock:		lock for fields in this struct.
  *
  * This structure contains the version of task_cputime, above, that is
  * used for thread group CPU timer calculations.
