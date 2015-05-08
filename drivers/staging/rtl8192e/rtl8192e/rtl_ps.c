@@ -28,6 +28,7 @@
 #include "r8192E_phyreg.h"
 #include "r8190P_rtl8256.h" /* RTL8225 Radio frontend */
 #include "r8192E_cmdpkt.h"
+#include <linux/jiffies.h>
 
 static void rtl8192_hw_sleep_down(struct net_device *dev)
 {
@@ -93,6 +94,7 @@ void rtl8192_hw_to_sleep(struct net_device *dev, u64 time)
 
 	u32 tmp;
 	unsigned long flags;
+	unsigned long timeout;
 
 	spin_lock_irqsave(&priv->ps_lock, flags);
 
@@ -104,8 +106,8 @@ void rtl8192_hw_to_sleep(struct net_device *dev, u64 time)
 			    time - jiffies, msecs_to_jiffies(MIN_SLEEP_TIME));
 		return;
 	}
-
-	if ((time - jiffies) > msecs_to_jiffies(MAX_SLEEP_TIME)) {
+	timeout = jiffies + msecs_to_jiffies(MAX_SLEEP_TIME);
+	if (time_after((unsigned long)time, timeout)) {
 		netdev_info(dev, "========>too long to sleep:%lld > %ld\n",
 			    time - jiffies, msecs_to_jiffies(MAX_SLEEP_TIME));
 		spin_unlock_irqrestore(&priv->ps_lock, flags);
