@@ -8,6 +8,7 @@
 #include <linux/types.h>
 #include <linux/scatterlist.h>
 #include <linux/kernel.h>
+#include <scsi/scsi_common.h>
 #include <scsi/scsi_proto.h>
 
 struct scsi_cmnd;
@@ -47,22 +48,6 @@ enum scsi_timeouts {
  */
 #define SCAN_WILD_CARD	~0
 
-static inline unsigned
-scsi_varlen_cdb_length(const void *hdr)
-{
-	return ((struct scsi_varlen_cdb_hdr *)hdr)->additional_cdb_length + 8;
-}
-
-extern const unsigned char scsi_command_size_tbl[8];
-#define COMMAND_SIZE(opcode) scsi_command_size_tbl[((opcode) >> 5) & 7]
-
-static inline unsigned
-scsi_command_size(const unsigned char *cmnd)
-{
-	return (cmnd[0] == VARIABLE_LENGTH_CMD) ?
-		scsi_varlen_cdb_length(cmnd) : COMMAND_SIZE(cmnd[0]);
-}
-
 #ifdef CONFIG_ACPI
 struct acpi_bus_type;
 
@@ -96,8 +81,6 @@ static inline int scsi_status_is_good(int status)
 		(status == SAM_STAT_COMMAND_TERMINATED));
 }
 
-/* Returns a human-readable name for the device */
-extern const char * scsi_device_type(unsigned type);
 
 /*
  * standard mode-select header prepended to all mode-select commands

@@ -1270,68 +1270,6 @@ static void scsi_sequential_lun_scan(struct scsi_target *starget,
 }
 
 /**
- * scsilun_to_int - convert a scsi_lun to an int
- * @scsilun:	struct scsi_lun to be converted.
- *
- * Description:
- *     Convert @scsilun from a struct scsi_lun to a four byte host byte-ordered
- *     integer, and return the result. The caller must check for
- *     truncation before using this function.
- *
- * Notes:
- *     For a description of the LUN format, post SCSI-3 see the SCSI
- *     Architecture Model, for SCSI-3 see the SCSI Controller Commands.
- *
- *     Given a struct scsi_lun of: d2 04 0b 03 00 00 00 00, this function
- *     returns the integer: 0x0b03d204
- *
- *     This encoding will return a standard integer LUN for LUNs smaller
- *     than 256, which typically use a single level LUN structure with
- *     addressing method 0.
- **/
-u64 scsilun_to_int(struct scsi_lun *scsilun)
-{
-	int i;
-	u64 lun;
-
-	lun = 0;
-	for (i = 0; i < sizeof(lun); i += 2)
-		lun = lun | (((u64)scsilun->scsi_lun[i] << ((i + 1) * 8)) |
-			     ((u64)scsilun->scsi_lun[i + 1] << (i * 8)));
-	return lun;
-}
-EXPORT_SYMBOL(scsilun_to_int);
-
-/**
- * int_to_scsilun - reverts an int into a scsi_lun
- * @lun:        integer to be reverted
- * @scsilun:	struct scsi_lun to be set.
- *
- * Description:
- *     Reverts the functionality of the scsilun_to_int, which packed
- *     an 8-byte lun value into an int. This routine unpacks the int
- *     back into the lun value.
- *
- * Notes:
- *     Given an integer : 0x0b03d204,  this function returns a
- *     struct scsi_lun of: d2 04 0b 03 00 00 00 00
- *
- **/
-void int_to_scsilun(u64 lun, struct scsi_lun *scsilun)
-{
-	int i;
-
-	memset(scsilun->scsi_lun, 0, sizeof(scsilun->scsi_lun));
-
-	for (i = 0; i < sizeof(lun); i += 2) {
-		scsilun->scsi_lun[i] = (lun >> 8) & 0xFF;
-		scsilun->scsi_lun[i+1] = lun & 0xFF;
-		lun = lun >> 16;
-	}
-}
-EXPORT_SYMBOL(int_to_scsilun);
-
-/**
  * scsi_report_lun_scan - Scan using SCSI REPORT LUN results
  * @starget: which target
  * @bflags: Zero or a mix of BLIST_NOLUN, BLIST_REPORTLUN2, or BLIST_NOREPORTLUN
