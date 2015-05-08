@@ -36,6 +36,7 @@
 #include "gmc/gmc_8_1_sh_mask.h"
 
 #include "gca/gfx_8_0_d.h"
+#include "gca/gfx_8_0_enum.h"
 #include "gca/gfx_8_0_sh_mask.h"
 
 #include "bif/bif_5_0_d.h"
@@ -963,6 +964,8 @@ static void sdma_v3_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 					 unsigned vm_id, uint64_t pd_addr)
 {
 	u32 srbm_gfx_cntl = 0;
+	u32 sh_mem_cfg = REG_SET_FIELD(0, SH_MEM_CONFIG, ALIGNMENT_MODE, 
+				       SH_MEM_ALIGNMENT_MODE_UNALIGNED);
 
 	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_SRBM_WRITE) |
 			  SDMA_PKT_SRBM_WRITE_HEADER_BYTE_EN(0xf));
@@ -988,7 +991,7 @@ static void sdma_v3_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_SRBM_WRITE) |
 			  SDMA_PKT_SRBM_WRITE_HEADER_BYTE_EN(0xf));
 	amdgpu_ring_write(ring, mmSH_MEM_CONFIG);
-	amdgpu_ring_write(ring, 0);
+	amdgpu_ring_write(ring, sh_mem_cfg);
 
 	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_SRBM_WRITE) |
 			  SDMA_PKT_SRBM_WRITE_HEADER_BYTE_EN(0xf));

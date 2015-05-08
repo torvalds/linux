@@ -2022,6 +2022,7 @@ static void gfx_v7_0_gpu_init(struct amdgpu_device *adev)
 	u32 gb_addr_config;
 	u32 mc_shared_chmap, mc_arb_ramcfg;
 	u32 dimm00_addr_map, dimm01_addr_map, dimm10_addr_map, dimm11_addr_map;
+	u32 sh_mem_cfg;
 	u32 tmp;
 	int i;
 
@@ -2214,11 +2215,14 @@ static void gfx_v7_0_gpu_init(struct amdgpu_device *adev)
 
 	/* XXX SH_MEM regs */
 	/* where to put LDS, scratch, GPUVM in FSA64 space */
+	sh_mem_cfg = REG_SET_FIELD(0, SH_MEM_CONFIG, ALIGNMENT_MODE, 
+				   SH_MEM_ALIGNMENT_MODE_UNALIGNED);
+
 	mutex_lock(&adev->srbm_mutex);
 	for (i = 0; i < 16; i++) {
 		cik_srbm_select(adev, 0, 0, 0, i);
 		/* CP and shaders */
-		WREG32(mmSH_MEM_CONFIG, 0);
+		WREG32(mmSH_MEM_CONFIG, sh_mem_cfg);
 		WREG32(mmSH_MEM_APE1_BASE, 1);
 		WREG32(mmSH_MEM_APE1_LIMIT, 0);
 		WREG32(mmSH_MEM_BASES, 0);

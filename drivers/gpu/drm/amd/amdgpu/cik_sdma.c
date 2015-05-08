@@ -33,6 +33,8 @@
 #include "bif/bif_4_1_sh_mask.h"
 
 #include "gca/gfx_7_2_d.h"
+#include "gca/gfx_7_2_enum.h"
+#include "gca/gfx_7_2_sh_mask.h"
 
 #include "gmc/gmc_7_1_d.h"
 #include "gmc/gmc_7_1_sh_mask.h"
@@ -837,6 +839,8 @@ static void cik_sdma_ring_emit_vm_flush(struct amdgpu_ring *ring,
 {
 	u32 extra_bits = (SDMA_POLL_REG_MEM_EXTRA_OP(0) |
 			  SDMA_POLL_REG_MEM_EXTRA_FUNC(0)); /* always */
+	u32 sh_mem_cfg = REG_SET_FIELD(0, SH_MEM_CONFIG, ALIGNMENT_MODE, 
+				       SH_MEM_ALIGNMENT_MODE_UNALIGNED);
 
 	amdgpu_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_SRBM_WRITE, 0, 0xf000));
 	if (vm_id < 8) {
@@ -857,7 +861,7 @@ static void cik_sdma_ring_emit_vm_flush(struct amdgpu_ring *ring,
 
 	amdgpu_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_SRBM_WRITE, 0, 0xf000));
 	amdgpu_ring_write(ring, mmSH_MEM_CONFIG);
-	amdgpu_ring_write(ring, 0);
+	amdgpu_ring_write(ring, sh_mem_cfg);
 
 	amdgpu_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_SRBM_WRITE, 0, 0xf000));
 	amdgpu_ring_write(ring, mmSH_MEM_APE1_BASE);
