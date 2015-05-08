@@ -3069,8 +3069,10 @@ int snd_soc_dapm_get_enum_double(struct snd_kcontrol *kcontrol,
 	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
 	if (e->reg != SND_SOC_NOPM && dapm_kcontrol_is_powered(kcontrol)) {
 		int ret = soc_dapm_read(dapm, e->reg, &reg_val);
-		if (ret)
+		if (ret) {
+			mutex_unlock(&card->dapm_mutex);
 			return ret;
+		}
 	} else {
 		reg_val = dapm_kcontrol_get_value(kcontrol);
 	}
