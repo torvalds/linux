@@ -179,70 +179,67 @@
         <colspec colname="c2"/>
 	<tbody valign="top">
 	  <row>
-	    <entry><constant>MEDIA_ENT_T_DEVNODE</constant></entry>
-	    <entry>Unknown device node</entry>
+	    <entry><constant>MEDIA_ENT_T_UNKNOWN</constant> and <constant>MEDIA_ENT_T_V4L2_SUBDEV_UNKNOWN</constant></entry>
+	    <entry>Unknown entity. That generally indicates that
+	    a driver didn't initialize properly the entity, with is a Kernel bug</entry>
 	  </row>
 	  <row>
 	    <entry><constant>MEDIA_ENT_T_V4L2_VIDEO</constant></entry>
-	    <entry>V4L video, radio or vbi device node</entry>
+	    <entry>V4L video streaming input or output entity</entry>
 	  </row>
 	  <row>
-	    <entry><constant>MEDIA_ENT_T_DEVNODE_FB</constant></entry>
-	    <entry>Frame buffer device node</entry>
+	    <entry><constant>MEDIA_ENT_T_V4L2_VBI</constant></entry>
+	    <entry>V4L VBI streaming input or output entity</entry>
 	  </row>
 	  <row>
-	    <entry><constant>MEDIA_ENT_T_DEVNODE_ALSA</constant></entry>
-	    <entry>ALSA card</entry>
+	    <entry><constant>MEDIA_ENT_T_V4L2_SWRADIO</constant></entry>
+	    <entry>V4L Software Digital Radio (SDR) streaming input or output entity</entry>
 	  </row>
 	  <row>
 	    <entry><constant>MEDIA_ENT_T_DVB_DEMOD</constant></entry>
-	    <entry>DVB frontend devnode</entry>
+	    <entry>DVB demodulator entity</entry>
 	  </row>
 	  <row>
 	    <entry><constant>MEDIA_ENT_T_DVB_DEMUX</constant></entry>
-	    <entry>DVB demux devnode</entry>
+	    <entry>DVB demux entity. Can be implemented in hardware or in Kernelspace</entry>
 	  </row>
 	  <row>
 	    <entry><constant>MEDIA_ENT_T_DVB_TSOUT</constant></entry>
-	    <entry>DVB DVR devnode</entry>
+	    <entry>DVB Transport Stream output entity</entry>
 	  </row>
 	  <row>
 	    <entry><constant>MEDIA_ENT_T_DVB_CA</constant></entry>
-	    <entry>DVB CAM devnode</entry>
+	    <entry>DVB Conditional Access module (CAM) entity</entry>
 	  </row>
 	  <row>
 	    <entry><constant>MEDIA_ENT_T_DVB_DEMOD_NET_DECAP</constant></entry>
-	    <entry>DVB network devnode</entry>
-	  </row>
-	  <row>
-	    <entry><constant>MEDIA_ENT_T_V4L2_SUBDEV</constant></entry>
-	    <entry>Unknown V4L sub-device</entry>
+	    <entry>DVB network ULE/MLE de-encapsulation entity. Can be implemented in hardware or in Kernelspace</entry>
 	  </row>
 	  <row>
 	    <entry><constant>MEDIA_ENT_T_V4L2_SUBDEV_SENSOR</constant></entry>
-	    <entry>Video sensor</entry>
+	    <entry>Camera image sensor entity</entry>
 	  </row>
 	  <row>
 	    <entry><constant>MEDIA_ENT_T_V4L2_SUBDEV_FLASH</constant></entry>
-	    <entry>Flash controller</entry>
+	    <entry>Flash controller entity</entry>
 	  </row>
 	  <row>
 	    <entry><constant>MEDIA_ENT_T_V4L2_SUBDEV_LENS</constant></entry>
-	    <entry>Lens controller</entry>
+	    <entry>Lens controller entity</entry>
 	  </row>
 	  <row>
 	    <entry><constant>MEDIA_ENT_T_V4L2_SUBDEV_DECODER</constant></entry>
-	    <entry>Video decoder, the basic function of the video decoder is to
-	    accept analogue video from a wide variety of sources such as
+	    <entry>Analog video decoder, the basic function of the video decoder
+	    is to accept analogue video from a wide variety of sources such as
 	    broadcast, DVD players, cameras and video cassette recorders, in
-	    either NTSC, PAL or HD format and still occasionally SECAM, separate
-	    it into its component parts, luminance and chrominance, and output
-	    it in some digital video standard, with appropriate embedded timing
+	    either NTSC, PAL, SECAM or HD format, separating the stream
+	    into its component parts, luminance and chrominance, and output
+	    it in some digital video standard, with appropriate timing
 	    signals.</entry>
 	  </row>
 	  <row>
 	    <entry><constant>MEDIA_ENT_T_V4L2_SUBDEV_TUNER</constant></entry>
-	    <entry>TV and/or radio tuner</entry>
+	    <entry>Digital TV, analog TV, radio and/or software radio tuner</entry>
 	  </row>
 	</tbody>
       </tgroup>
