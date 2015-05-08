@@ -1970,24 +1970,24 @@ static void path_cleanup(struct nameidata *nd)
 	}
 }
 
-static int trailing_symlink(struct nameidata *nd)
+static const char *trailing_symlink(struct nameidata *nd)
 {
 	const char *s;
 	int error = may_follow_link(nd);
 	if (unlikely(error)) {
 		terminate_walk(nd);
-		return error;
+		return ERR_PTR(error);
 	}
 	nd->flags |= LOOKUP_PARENT;
 	nd->stack[0].name = NULL;
 	s = get_link(nd);
 	if (unlikely(IS_ERR(s))) {
 		terminate_walk(nd);
-		return PTR_ERR(s);
+		return s;
 	}
 	if (unlikely(!s))
-		return 0;
-	return link_path_walk(s, nd);
+		s = "";
+	return s;
 }
 
 static inline int lookup_last(struct nameidata *nd)
@@ -2017,12 +2017,12 @@ static int path_lookupat(int dfd, const struct filename *name,
 
 	if (IS_ERR(s))
 		return PTR_ERR(s);
-	err = link_path_walk(s, nd);
-	if (!err) {
-		while ((err = lookup_last(nd)) > 0) {
-			err = trailing_symlink(nd);
-			if (err)
-				break;
+	while (!(err = link_path_walk(s, nd))
+		&& ((err = lookup_last(nd)) > 0)) {
+		s = trailing_symlink(nd);
+		if (IS_ERR(s)) {
+			err = PTR_ERR(s);
+			break;
 		}
 	}
 
@@ -2401,16 +2401,14 @@ path_mountpoint(int dfd, const struct filename *name, struct path *path,
 	int err;
 	if (IS_ERR(s))
 		return PTR_ERR(s);
-	err = link_path_walk(s, nd);
-	if (unlikely(err))
-		goto out;
-
-	while ((err = mountpoint_last(nd, path)) > 0) {
-		err = trailing_symlink(nd);
-		if (err)
+	while (!(err = link_path_walk(s, nd)) &&
+		(err = mountpoint_last(nd, path)) > 0) {
+		s = trailing_symlink(nd);
+		if (IS_ERR(s)) {
+			err = PTR_ERR(s);
 			break;
+		}
 	}
-out:
 	path_cleanup(nd);
 	return err;
 }
@@ -3282,17 +3280,15 @@ static struct file *path_openat(int dfd, struct filename *pathname,
 		put_filp(file);
 		return ERR_CAST(s);
 	}
-	error = link_path_walk(s, nd);
-	if (unlikely(error))
-		goto out;
-
-	while ((error = do_last(nd, file, op, &opened, pathname)) > 0) {
+	while (!(error = link_path_walk(s, nd)) &&
+		(error = do_last(nd, file, op, &opened, pathname)) > 0) {
 		nd->flags &= ~(LOOKUP_OPEN|LOOKUP_CREATE|LOOKUP_EXCL);
-		error = trailing_symlink(nd);
-		if (unlikely(error))
+		s = trailing_symlink(nd);
+		if (IS_ERR(s)) {
+			error = PTR_ERR(s);
 			break;
+		}
 	}
-out:
 	path_cleanup(nd);
 out2:
 	if (!(opened & FILE_OPENED)) {
