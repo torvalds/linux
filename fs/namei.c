@@ -794,6 +794,9 @@ static inline int may_follow_link(struct nameidata *nd)
 	if (uid_eq(parent->i_uid, inode->i_uid))
 		return 0;
 
+	if (nd->flags & LOOKUP_RCU)
+		return -ECHILD;
+
 	audit_log_link_denied("follow_link", &nd->stack[0].link);
 	return -EACCES;
 }
