@@ -1102,7 +1102,7 @@ static void kvaser_usb_rx_can_err(const struct kvaser_usb_net_priv *priv,
 
 	if (msg->u.rx_can_header.flag & (MSG_FLAG_ERROR_FRAME |
 					 MSG_FLAG_NERR)) {
-		netdev_err(priv->netdev, "Unknow error (flags: 0x%02x)\n",
+		netdev_err(priv->netdev, "Unknown error (flags: 0x%02x)\n",
 			   msg->u.rx_can_header.flag);
 
 		stats->rx_errors++;
