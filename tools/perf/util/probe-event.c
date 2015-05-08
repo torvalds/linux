@@ -344,15 +344,14 @@ out:
 
 static int get_alternative_probe_event(struct debuginfo *dinfo,
 				       struct perf_probe_event *pev,
-				       struct perf_probe_point *tmp,
-				       const char *target)
+				       struct perf_probe_point *tmp)
 {
 	int ret;
 
 	memcpy(tmp, &pev->point, sizeof(*tmp));
 	memset(&pev->point, 0, sizeof(pev->point));
 	ret = find_alternative_probe_point(dinfo, tmp, &pev->point,
-					   target, pev->uprobes);
+					   pev->target, pev->uprobes);
 	if (ret < 0)
 		memcpy(&pev->point, tmp, sizeof(*tmp));
 
@@ -601,15 +600,14 @@ static int post_process_probe_trace_events(struct probe_trace_event *tevs,
 /* Try to find perf_probe_event with debuginfo */
 static int try_to_find_probe_trace_events(struct perf_probe_event *pev,
 					  struct probe_trace_event **tevs,
-					  int max_tevs, const char *target)
+					  int max_tevs)
 {
 	bool need_dwarf = perf_probe_event_need_dwarf(pev);
 	struct perf_probe_point tmp;
 	struct debuginfo *dinfo;
 	int ntevs, ret = 0;
 
-	dinfo = open_debuginfo(target, !need_dwarf);
-
+	dinfo = open_debuginfo(pev->target, !need_dwarf);
 	if (!dinfo) {
 		if (need_dwarf)
 			return -ENOENT;
@@ -622,7 +620,7 @@ static int try_to_find_probe_trace_events(struct perf_probe_event *pev,
 	ntevs = debuginfo__find_trace_events(dinfo, pev, tevs, max_tevs);
 
 	if (ntevs == 0)	{  /* Not found, retry with an alternative */
-		ret = get_alternative_probe_event(dinfo, pev, &tmp, target);
+		ret = get_alternative_probe_event(dinfo, pev, &tmp);
 		if (!ret) {
 			ntevs = debuginfo__find_trace_events(dinfo, pev,
 							     tevs, max_tevs);
@@ -640,7 +638,7 @@ static int try_to_find_probe_trace_events(struct perf_probe_event *pev,
 	if (ntevs > 0) {	/* Succeeded to find trace events */
 		pr_debug("Found %d probe_trace_events.\n", ntevs);
 		ret = post_process_probe_trace_events(*tevs, ntevs,
-							target, pev->uprobes);
+						pev->target, pev->uprobes);
 		if (ret < 0 || ret == ntevs) {
 			clear_probe_trace_events(*tevs, ntevs);
 			zfree(tevs);
@@ -824,7 +822,7 @@ int show_line_range(struct line_range *lr, const char *module, bool user)
 static int show_available_vars_at(struct debuginfo *dinfo,
 				  struct perf_probe_event *pev,
 				  int max_vls, struct strfilter *_filter,
-				  bool externs, const char *target)
+				  bool externs)
 {
 	char *buf;
 	int ret, i, nvars;
@@ -841,7 +839,7 @@ static int show_available_vars_at(struct debuginfo *dinfo,
 	ret = debuginfo__find_available_vars_at(dinfo, pev, &vls,
 						max_vls, externs);
 	if (!ret) {  /* Not found, retry with an alternative */
-		ret = get_alternative_probe_event(dinfo, pev, &tmp, target);
+		ret = get_alternative_probe_event(dinfo, pev, &tmp);
 		if (!ret) {
 			ret = debuginfo__find_available_vars_at(dinfo, pev,
 						&vls, max_vls, externs);
@@ -891,8 +889,7 @@ end:
 
 /* Show available variables on given probe point */
 int show_available_vars(struct perf_probe_event *pevs, int npevs,
-			int max_vls, const char *module,
-			struct strfilter *_filter, bool externs)
+			int max_vls, struct strfilter *_filter, bool externs)
 {
 	int i, ret = 0;
 	struct debuginfo *dinfo;
@@ -901,7 +898,7 @@ int show_available_vars(struct perf_probe_event *pevs, int npevs,
 	if (ret < 0)
 		return ret;
 
-	dinfo = open_debuginfo(module, false);
+	dinfo = open_debuginfo(pevs->target, false);
 	if (!dinfo) {
 		ret = -ENOENT;
 		goto out;
@@ -911,7 +908,7 @@ int show_available_vars(struct perf_probe_event *pevs, int npevs,
 
 	for (i = 0; i < npevs && ret >= 0; i++)
 		ret = show_available_vars_at(dinfo, &pevs[i], max_vls, _filter,
-					     externs, module);
+					     externs);
 
 	debuginfo__delete(dinfo);
 out:
@@ -931,8 +928,7 @@ find_perf_probe_point_from_dwarf(struct probe_trace_point *tp __maybe_unused,
 
 static int try_to_find_probe_trace_events(struct perf_probe_event *pev,
 				struct probe_trace_event **tevs __maybe_unused,
-				int max_tevs __maybe_unused,
-				const char *target __maybe_unused)
+				int max_tevs __maybe_unused)
 {
 	if (perf_probe_event_need_dwarf(pev)) {
 		pr_warning("Debuginfo-analysis is not supported.\n");
@@ -952,7 +948,6 @@ int show_line_range(struct line_range *lr __maybe_unused,
 
 int show_available_vars(struct perf_probe_event *pevs __maybe_unused,
 			int npevs __maybe_unused, int max_vls __maybe_unused,
-			const char *module __maybe_unused,
 			struct strfilter *filter __maybe_unused,
 			bool externs __maybe_unused)
 {
@@ -2520,7 +2515,7 @@ void __weak arch__fix_tev_from_maps(struct perf_probe_event *pev __maybe_unused,
  */
 static int find_probe_trace_events_from_map(struct perf_probe_event *pev,
 					    struct probe_trace_event **tevs,
-					    int max_tevs, const char *target)
+					    int max_tevs)
 {
 	struct map *map = NULL;
 	struct ref_reloc_sym *reloc_sym = NULL;
@@ -2531,7 +2526,7 @@ static int find_probe_trace_events_from_map(struct perf_probe_event *pev,
 	int num_matched_functions;
 	int ret, i;
 
-	map = get_target_map(target, pev->uprobes);
+	map = get_target_map(pev->target, pev->uprobes);
 	if (!map) {
 		ret = -EINVAL;
 		goto out;
@@ -2544,12 +2539,12 @@ static int find_probe_trace_events_from_map(struct perf_probe_event *pev,
 	num_matched_functions = find_probe_functions(map, pp->function);
 	if (num_matched_functions == 0) {
 		pr_err("Failed to find symbol %s in %s\n", pp->function,
-			target ? : "kernel");
+			pev->target ? : "kernel");
 		ret = -ENOENT;
 		goto out;
 	} else if (num_matched_functions > max_tevs) {
 		pr_err("Too many functions matched in %s\n",
-			target ? : "kernel");
+			pev->target ? : "kernel");
 		ret = -E2BIG;
 		goto out;
 	}
@@ -2597,8 +2592,9 @@ static int find_probe_trace_events_from_map(struct perf_probe_event *pev,
 			tp->offset = pp->offset;
 		}
 		tp->retprobe = pp->retprobe;
-		if (target)
-			tev->point.module = strdup_or_goto(target, nomem_out);
+		if (pev->target)
+			tev->point.module = strdup_or_goto(pev->target,
+							   nomem_out);
 		tev->uprobes = pev->uprobes;
 		tev->nargs = pev->nargs;
 		if (tev->nargs) {
@@ -2639,13 +2635,13 @@ bool __weak arch__prefers_symtab(void) { return false; }
 
 static int convert_to_probe_trace_events(struct perf_probe_event *pev,
 					  struct probe_trace_event **tevs,
-					  int max_tevs, const char *target)
+					  int max_tevs)
 {
 	int ret;
 
 	if (pev->uprobes && !pev->group) {
 		/* Replace group name if not given */
-		ret = convert_exec_to_group(target, &pev->group);
+		ret = convert_exec_to_group(pev->target, &pev->group);
 		if (ret != 0) {
 			pr_warning("Failed to make a group name.\n");
 			return ret;
@@ -2653,17 +2649,17 @@ static int convert_to_probe_trace_events(struct perf_probe_event *pev,
 	}
 
 	if (arch__prefers_symtab() && !perf_probe_event_need_dwarf(pev)) {
-		ret = find_probe_trace_events_from_map(pev, tevs, max_tevs, target);
+		ret = find_probe_trace_events_from_map(pev, tevs, max_tevs);
 		if (ret > 0)
 			return ret; /* Found in symbol table */
 	}
 
 	/* Convert perf_probe_event with debuginfo */
-	ret = try_to_find_probe_trace_events(pev, tevs, max_tevs, target);
+	ret = try_to_find_probe_trace_events(pev, tevs, max_tevs);
 	if (ret != 0)
 		return ret;	/* Found in debuginfo or got an error */
 
-	return find_probe_trace_events_from_map(pev, tevs, max_tevs, target);
+	return find_probe_trace_events_from_map(pev, tevs, max_tevs);
 }
 
 struct __event_package {
@@ -2696,8 +2692,7 @@ int add_perf_probe_events(struct perf_probe_event *pevs, int npevs,
 		/* Convert with or without debuginfo */
 		ret  = convert_to_probe_trace_events(pkgs[i].pev,
 						     &pkgs[i].tevs,
-						     max_tevs,
-						     pkgs[i].pev->target);
+						     max_tevs);
 		if (ret < 0)
 			goto end;
 		pkgs[i].ntevs = ret;

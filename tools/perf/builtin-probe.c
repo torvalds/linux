@@ -478,7 +478,6 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 
 		ret = show_available_vars(params.events, params.nevents,
 					  params.max_probe_points,
-					  params.target,
 					  params.filter,
 					  params.show_ext_vars);
 		if (ret < 0)

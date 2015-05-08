@@ -131,8 +131,8 @@ extern int show_perf_probe_events(struct strfilter *filter);
 extern int show_line_range(struct line_range *lr, const char *module,
 			   bool user);
 extern int show_available_vars(struct perf_probe_event *pevs, int npevs,
-			       int max_probe_points, const char *module,
-			       struct strfilter *filter, bool externs);
+			       int max_probe_points, struct strfilter *filter,
+			       bool externs);
 extern int show_available_funcs(const char *module, struct strfilter *filter,
 				bool user);
 bool arch__prefers_symtab(void);
