@@ -1734,7 +1734,7 @@ out:
 	return valid;
 }
 
-static int is_data_mad(struct ib_mad_agent_private *mad_agent_priv,
+static int is_rmpp_data_mad(struct ib_mad_agent_private *mad_agent_priv,
 		       struct ib_mad_hdr *mad_hdr)
 {
 	struct ib_rmpp_mad *rmpp_mad;
@@ -1836,7 +1836,7 @@ ib_find_send_mad(struct ib_mad_agent_private *mad_agent_priv,
 	 * been notified that the send has completed
 	 */
 	list_for_each_entry(wr, &mad_agent_priv->send_list, agent_list) {
-		if (is_data_mad(mad_agent_priv, wr->send_buf.mad) &&
+		if (is_rmpp_data_mad(mad_agent_priv, wr->send_buf.mad) &&
 		    wr->tid == mad->mad_hdr.tid &&
 		    wr->timeout &&
 		    rcv_has_same_class(wr, wc) &&
@@ -2411,7 +2411,8 @@ find_send_wr(struct ib_mad_agent_private *mad_agent_priv,
 
 	list_for_each_entry(mad_send_wr, &mad_agent_priv->send_list,
 			    agent_list) {
-		if (is_data_mad(mad_agent_priv, mad_send_wr->send_buf.mad) &&
+		if (is_rmpp_data_mad(mad_agent_priv,
+				     mad_send_wr->send_buf.mad) &&
 		    &mad_send_wr->send_buf == send_buf)
 			return mad_send_wr;
 	}
