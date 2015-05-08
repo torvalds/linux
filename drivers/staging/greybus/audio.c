@@ -307,7 +307,7 @@ static int gb_i2s_mgmt_report_event_recv(u8 type, struct gb_operation *op)
 	}
 
 	if (op->request->payload_size < sizeof(*req)) {
-		dev_err(&connection->dev, "Short request received: %d, %d\n",
+		dev_err(&connection->dev, "Short request received: %zu, %zu\n",
 			op->request->payload_size, sizeof(*req));
 		return -EINVAL;
 	}
