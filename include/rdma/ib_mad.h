@@ -675,6 +675,6 @@ void ib_free_send_mad(struct ib_mad_send_buf *send_buf);
  * @agent: the agent in question
  * @return: true if agent is performing rmpp, false otherwise.
  */
-int ib_mad_kernel_rmpp_agent(struct ib_mad_agent *agent);
+int ib_mad_kernel_rmpp_agent(const struct ib_mad_agent *agent);
 
 #endif /* IB_MAD_H */

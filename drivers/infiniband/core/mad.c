@@ -910,7 +910,7 @@ static int alloc_send_rmpp_list(struct ib_mad_send_wr_private *send_wr,
 	return 0;
 }
 
-int ib_mad_kernel_rmpp_agent(struct ib_mad_agent *agent)
+int ib_mad_kernel_rmpp_agent(const struct ib_mad_agent *agent)
 {
 	return agent->rmpp_version && !(agent->flags & IB_MAD_USER_RMPP);
 }
@@ -1734,8 +1734,8 @@ out:
 	return valid;
 }
 
-static int is_rmpp_data_mad(struct ib_mad_agent_private *mad_agent_priv,
-		       struct ib_mad_hdr *mad_hdr)
+static int is_rmpp_data_mad(const struct ib_mad_agent_private *mad_agent_priv,
+			    const struct ib_mad_hdr *mad_hdr)
 {
 	struct ib_rmpp_mad *rmpp_mad;
 
@@ -1754,9 +1754,9 @@ static inline int rcv_has_same_class(const struct ib_mad_send_wr_private *wr,
 		rwc->recv_buf.mad->mad_hdr.mgmt_class;
 }
 
-static inline int rcv_has_same_gid(struct ib_mad_agent_private *mad_agent_priv,
-				   struct ib_mad_send_wr_private *wr,
-				   struct ib_mad_recv_wc *rwc )
+static inline int rcv_has_same_gid(const struct ib_mad_agent_private *mad_agent_priv,
+				   const struct ib_mad_send_wr_private *wr,
+				   const struct ib_mad_recv_wc *rwc )
 {
 	struct ib_ah_attr attr;
 	u8 send_resp, rcv_resp;
@@ -1811,8 +1811,8 @@ static inline int is_direct(u8 class)
 }
 
 struct ib_mad_send_wr_private*
-ib_find_send_mad(struct ib_mad_agent_private *mad_agent_priv,
-		 struct ib_mad_recv_wc *wc)
+ib_find_send_mad(const struct ib_mad_agent_private *mad_agent_priv,
+		 const struct ib_mad_recv_wc *wc)
 {
 	struct ib_mad_send_wr_private *wr;
 	struct ib_mad *mad;
