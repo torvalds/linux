@@ -589,7 +589,11 @@ static int post_process_probe_trace_events(struct probe_trace_event *tevs,
 				if (!tmp)
 					return -ENOMEM;
 			}
-			free(tevs[i].point.symbol);
+			/* If we have no realname, use symbol for it */
+			if (!tevs[i].point.realname)
+				tevs[i].point.realname = tevs[i].point.symbol;
+			else
+				free(tevs[i].point.symbol);
 			tevs[i].point.symbol = tmp;
 			tevs[i].point.offset = tevs[i].point.address -
 					       reloc_sym->unrelocated_addr;
@@ -1900,6 +1904,7 @@ static void clear_probe_trace_event(struct probe_trace_event *tev)
 	free(tev->event);
 	free(tev->group);
 	free(tev->point.symbol);
+	free(tev->point.realname);
 	free(tev->point.module);
 	for (i = 0; i < tev->nargs; i++) {
 		free(tev->args[i].name);
@@ -2377,6 +2382,7 @@ static int __add_probe_trace_events(struct perf_probe_event *pev,
 	struct strlist *namelist;
 	LIST_HEAD(blacklist);
 	struct kprobe_blacklist_node *node;
+	bool safename;
 
 	if (pev->uprobes)
 		fd = open_uprobe_events(true);
@@ -2402,6 +2408,7 @@ static int __add_probe_trace_events(struct perf_probe_event *pev,
 			pr_debug("No kprobe blacklist support, ignored\n");
 	}
 
+	safename = (pev->point.function && !strisglob(pev->point.function));
 	ret = 0;
 	pr_info("Added new event%s\n", (ntevs > 1) ? "s:" : ":");
 	for (i = 0; i < ntevs; i++) {
@@ -2420,10 +2427,10 @@ static int __add_probe_trace_events(struct perf_probe_event *pev,
 		if (pev->event)
 			event = pev->event;
 		else
-			if (pev->point.function)
+			if (safename)
 				event = pev->point.function;
 			else
-				event = tev->point.symbol;
+				event = tev->point.realname;
 		if (pev->group)
 			group = pev->group;
 		else
@@ -2488,9 +2495,11 @@ static int find_probe_functions(struct map *map, char *name)
 {
 	int found = 0;
 	struct symbol *sym;
+	struct rb_node *tmp;
 
-	map__for_each_symbol_by_name(map, name, sym) {
-		found++;
+	map__for_each_symbol(map, sym, tmp) {
+		if (strglobmatch(sym->name, name))
+			found++;
 	}
 
 	return found;

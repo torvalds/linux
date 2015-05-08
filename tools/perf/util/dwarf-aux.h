@@ -47,6 +47,9 @@ extern bool die_is_func_instance(Dwarf_Die *dw_die);
 /* Compare diename and tname */
 extern bool die_compare_name(Dwarf_Die *dw_die, const char *tname);
 
+/* Matching diename with glob pattern */
+extern bool die_match_name(Dwarf_Die *dw_die, const char *glob);
+
 /* Get callsite line number of inline-function instance */
 extern int die_get_call_lineno(Dwarf_Die *in_die);
 

@@ -717,7 +717,7 @@ static int find_best_scope_cb(Dwarf_Die *fn_die, void *data)
 	}
 	/* If the function name is given, that's what user expects */
 	if (fsp->function) {
-		if (die_compare_name(fn_die, fsp->function)) {
+		if (die_match_name(fn_die, fsp->function)) {
 			memcpy(fsp->die_mem, fn_die, sizeof(Dwarf_Die));
 			fsp->found = true;
 			return 1;
@@ -920,13 +920,14 @@ static int probe_point_search_cb(Dwarf_Die *sp_die, void *data)
 
 	/* Check tag and diename */
 	if (!die_is_func_def(sp_die) ||
-	    !die_compare_name(sp_die, pp->function))
+	    !die_match_name(sp_die, pp->function))
 		return DWARF_CB_OK;
 
 	/* Check declared file */
 	if (pp->file && strtailcmp(pp->file, dwarf_decl_file(sp_die)))
 		return DWARF_CB_OK;
 
+	pr_debug("Matched function: %s\n", dwarf_diename(sp_die));
 	pf->fname = dwarf_decl_file(sp_die);
 	if (pp->line) { /* Function relative line */
 		dwarf_decl_line(sp_die, &pf->lno);
@@ -943,10 +944,20 @@ static int probe_point_search_cb(Dwarf_Die *sp_die, void *data)
 			/* TODO: Check the address in this function */
 			param->retval = call_probe_finder(sp_die, pf);
 		}
-	} else if (!probe_conf.no_inlines)
+	} else if (!probe_conf.no_inlines) {
 		/* Inlined function: search instances */
 		param->retval = die_walk_instances(sp_die,
 					probe_point_inline_cb, (void *)pf);
+		/* This could be a non-existed inline definition */
+		if (param->retval == -ENOENT && strisglob(pp->function))
+			param->retval = 0;
+	}
+
+	/* We need to find other candidates */
+	if (strisglob(pp->function) && param->retval >= 0) {
+		param->retval = 0;	/* We have to clear the result */
+		return DWARF_CB_OK;
+	}
 
 	return DWARF_CB_ABORT; /* Exit; no same symbol in this CU. */
 }
@@ -975,7 +986,7 @@ static int pubname_search_cb(Dwarf *dbg, Dwarf_Global *gl, void *data)
 		if (dwarf_tag(param->sp_die) != DW_TAG_subprogram)
 			return DWARF_CB_OK;
 
-		if (die_compare_name(param->sp_die, param->function)) {
+		if (die_match_name(param->sp_die, param->function)) {
 			if (!dwarf_offdie(dbg, gl->cu_offset, param->cu_die))
 				return DWARF_CB_OK;
 
@@ -1028,7 +1039,7 @@ static int debuginfo__find_probes(struct debuginfo *dbg,
 		return -ENOMEM;
 
 	/* Fastpath: lookup by function name from .debug_pubnames section */
-	if (pp->function) {
+	if (pp->function && !strisglob(pp->function)) {
 		struct pubname_callback_param pubname_param = {
 			.function = pp->function,
 			.file	  = pp->file,
@@ -1176,6 +1187,10 @@ static int add_probe_trace_event(Dwarf_Die *sc_die, struct probe_finder *pf)
 				     pf->pev->point.retprobe, &tev->point);
 	if (ret < 0)
 		return ret;
+
+	tev->point.realname = strdup(dwarf_diename(sc_die));
+	if (!tev->point.realname)
+		return -ENOMEM;
 
 	pr_debug("Probe point found: %s+%lu\n", tev->point.symbol,
 		 tev->point.offset);
@@ -1535,7 +1550,7 @@ static int line_range_search_cb(Dwarf_Die *sp_die, void *data)
 		return DWARF_CB_OK;
 
 	if (die_is_func_def(sp_die) &&
-	    die_compare_name(sp_die, lr->function)) {
+	    die_match_name(sp_die, lr->function)) {
 		lf->fname = dwarf_decl_file(sp_die);
 		dwarf_decl_line(sp_die, &lr->offset);
 		pr_debug("fname: %s, lineno:%d\n", lf->fname, lr->offset);
