@@ -94,7 +94,8 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 static void update_sit_info(struct f2fs_sb_info *sbi)
 {
 	struct f2fs_stat_info *si = F2FS_STAT(sbi);
-	unsigned int blks_per_sec, hblks_per_sec, total_vblocks, bimodal, dist;
+	unsigned long long blks_per_sec, hblks_per_sec, total_vblocks;
+	unsigned long long bimodal, dist;
 	unsigned int segno, vblocks;
 	int ndirty = 0;
 
