@@ -4120,7 +4120,7 @@ static uint8_t intel_dp_autotest_edid(struct intel_dp *intel_dp)
 	struct drm_connector *connector = &intel_connector->base;
 
 	if (intel_connector->detect_edid == NULL ||
-	    connector->edid_corrupt == 1 ||
+	    connector->edid_corrupt ||
 	    intel_dp->aux.i2c_defer_count > 6) {
 		/* Check EDID read for NACKs, DEFERs and corruption
 		 * (DP CTS 1.2 Core r1.1)

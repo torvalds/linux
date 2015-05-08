@@ -1064,7 +1064,7 @@ bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid,
 		int score = drm_edid_header_is_valid(raw_edid);
 		if (score == 8) {
 			if (edid_corrupt)
-				*edid_corrupt = 0;
+				*edid_corrupt = false;
 		} else if (score >= edid_fixup) {
 			/* Displayport Link CTS Core 1.2 rev1.1 test 4.2.2.6
 			 * The corrupt flag needs to be set here otherwise, the
@@ -1072,12 +1072,12 @@ bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid,
 			 * checksum is correct and the test fails
 			 */
 			if (edid_corrupt)
-				*edid_corrupt = 1;
+				*edid_corrupt = true;
 			DRM_DEBUG("Fixing EDID header, your hardware may be failing\n");
 			memcpy(raw_edid, edid_header, sizeof(edid_header));
 		} else {
 			if (edid_corrupt)
-				*edid_corrupt = 1;
+				*edid_corrupt = true;
 			goto bad;
 		}
 	}
@@ -1089,7 +1089,7 @@ bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid,
 		}
 
 		if (edid_corrupt)
-			*edid_corrupt = 1;
+			*edid_corrupt = true;
 
 		/* allow CEA to slide through, switches mangle this */
 		if (raw_edid[0] != 0x02)
