@@ -215,6 +215,7 @@ static ssize_t dw_wdt_write(struct file *filp, const char __user *buf,
 	}
 
 	dw_wdt_set_next_heartbeat();
+	dw_wdt_keepalive();
 	mod_timer(&dw_wdt.timer, jiffies + WDT_TIMEOUT);
 
 	return len;
