@@ -808,8 +808,7 @@ static int fimc_pipeline_validate(struct fimc_lite *fimc)
 		}
 		/* Retrieve format at the source pad */
 		pad = media_entity_remote_pad(pad);
-		if (pad == NULL ||
-		    media_entity_type(pad->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
+		if (!pad || !is_media_entity_v4l2_subdev(pad->entity))
 			break;
 
 		sd = media_entity_to_v4l2_subdev(pad->entity);
@@ -982,7 +981,6 @@ static int fimc_lite_link_setup(struct media_entity *entity,
 {
 	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(entity);
 	struct fimc_lite *fimc = v4l2_get_subdevdata(sd);
-	unsigned int remote_ent_type = media_entity_type(remote->entity);
 	int ret = 0;
 
 	if (WARN_ON(fimc == NULL))
@@ -994,7 +992,7 @@ static int fimc_lite_link_setup(struct media_entity *entity,
 
 	switch (local->index) {
 	case FLITE_SD_PAD_SINK:
-		if (remote_ent_type != MEDIA_ENT_T_V4L2_SUBDEV) {
+		if (!is_media_entity_v4l2_subdev(remote->entity)) {
 			ret = -EINVAL;
 			break;
 		}
@@ -1012,7 +1010,7 @@ static int fimc_lite_link_setup(struct media_entity *entity,
 	case FLITE_SD_PAD_SOURCE_DMA:
 		if (!(flags & MEDIA_LNK_FL_ENABLED))
 			atomic_set(&fimc->out_path, FIMC_IO_NONE);
-		else if (remote_ent_type == MEDIA_ENT_T_DEVNODE)
+		else if (is_media_entity_v4l2_io(remote->entity))
 			atomic_set(&fimc->out_path, FIMC_IO_DMA);
 		else
 			ret = -EINVAL;
@@ -1021,7 +1019,7 @@ static int fimc_lite_link_setup(struct media_entity *entity,
 	case FLITE_SD_PAD_SOURCE_ISP:
 		if (!(flags & MEDIA_LNK_FL_ENABLED))
 			atomic_set(&fimc->out_path, FIMC_IO_NONE);
-		else if (remote_ent_type == MEDIA_ENT_T_V4L2_SUBDEV)
+		else if (is_media_entity_v4l2_subdev(remote->entity))
 			atomic_set(&fimc->out_path, FIMC_IO_ISP);
 		else
 			ret = -EINVAL;

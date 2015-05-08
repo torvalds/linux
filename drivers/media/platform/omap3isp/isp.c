@@ -691,7 +691,7 @@ static int isp_pipeline_pm_use_count(struct media_entity *entity)
 	media_entity_graph_walk_start(&graph, entity);
 
 	while ((entity = media_entity_graph_walk_next(&graph))) {
-		if (media_entity_type(entity) == MEDIA_ENT_T_DEVNODE)
+		if (is_media_entity_v4l2_io(entity))
 			use += entity->use_count;
 	}
 
@@ -714,7 +714,7 @@ static int isp_pipeline_pm_power_one(struct media_entity *entity, int change)
 	struct v4l2_subdev *subdev;
 	int ret;
 
-	subdev = media_entity_type(entity) == MEDIA_ENT_T_V4L2_SUBDEV
+	subdev = is_media_entity_v4l2_subdev(entity)
 	       ? media_entity_to_v4l2_subdev(entity) : NULL;
 
 	if (entity->use_count == 0 && change > 0 && subdev != NULL) {
@@ -754,7 +754,7 @@ static int isp_pipeline_pm_power(struct media_entity *entity, int change)
 	media_entity_graph_walk_start(&graph, entity);
 
 	while (!ret && (entity = media_entity_graph_walk_next(&graph)))
-		if (media_entity_type(entity) != MEDIA_ENT_T_DEVNODE)
+		if (is_media_entity_v4l2_subdev(entity))
 			ret = isp_pipeline_pm_power_one(entity, change);
 
 	if (!ret)
@@ -764,7 +764,7 @@ static int isp_pipeline_pm_power(struct media_entity *entity, int change)
 
 	while ((first = media_entity_graph_walk_next(&graph))
 	       && first != entity)
-		if (media_entity_type(first) != MEDIA_ENT_T_DEVNODE)
+		if (is_media_entity_v4l2_subdev(first))
 			isp_pipeline_pm_power_one(first, -change);
 
 	return ret;
@@ -897,8 +897,7 @@ static int isp_pipeline_enable(struct isp_pipeline *pipe,
 			break;
 
 		pad = media_entity_remote_pad(pad);
-		if (pad == NULL ||
-		    media_entity_type(pad->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
+		if (!pad || !is_media_entity_v4l2_subdev(pad->entity))
 			break;
 
 		entity = pad->entity;
@@ -988,8 +987,7 @@ static int isp_pipeline_disable(struct isp_pipeline *pipe)
 			break;
 
 		pad = media_entity_remote_pad(pad);
-		if (pad == NULL ||
-		    media_entity_type(pad->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
+		if (!pad || !is_media_entity_v4l2_subdev(pad->entity))
 			break;
 
 		entity = pad->entity;

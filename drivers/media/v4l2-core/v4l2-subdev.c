@@ -526,7 +526,7 @@ static int
 v4l2_subdev_link_validate_get_format(struct media_pad *pad,
 				     struct v4l2_subdev_format *fmt)
 {
-	if (media_entity_type(pad->entity) == MEDIA_ENT_T_V4L2_SUBDEV) {
+	if (is_media_entity_v4l2_subdev(pad->entity)) {
 		struct v4l2_subdev *sd =
 			media_entity_to_v4l2_subdev(pad->entity);
 

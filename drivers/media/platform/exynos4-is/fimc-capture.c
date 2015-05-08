@@ -1136,8 +1136,7 @@ static int fimc_pipeline_validate(struct fimc_dev *fimc)
 			}
 		}
 
-		if (src_pad == NULL ||
-		    media_entity_type(src_pad->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
+		if (!src_pad || !is_media_entity_v4l2_subdev(src_pad->entity))
 			break;
 
 		/* Don't call FIMC subdev operation to avoid nested locking */
@@ -1392,7 +1391,7 @@ static int fimc_link_setup(struct media_entity *entity,
 	struct fimc_vid_cap *vc = &fimc->vid_cap;
 	struct v4l2_subdev *sensor;
 
-	if (media_entity_type(remote->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
+	if (!is_media_entity_v4l2_subdev(remote->entity))
 		return -EINVAL;
 
 	if (WARN_ON(fimc == NULL))

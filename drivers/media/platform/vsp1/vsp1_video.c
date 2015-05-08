@@ -160,8 +160,7 @@ vsp1_video_remote_subdev(struct media_pad *local, u32 *pad)
 	struct media_pad *remote;
 
 	remote = media_entity_remote_pad(local);
-	if (remote == NULL ||
-	    media_entity_type(remote->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
+	if (!remote || !is_media_entity_v4l2_subdev(remote->entity))
 		return NULL;
 
 	if (pad)
@@ -297,7 +296,7 @@ static int vsp1_pipeline_validate_branch(struct vsp1_pipeline *pipe,
 			return -EPIPE;
 
 		/* We've reached a video node, that shouldn't have happened. */
-		if (media_entity_type(pad->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
+		if (!is_media_entity_v4l2_subdev(pad->entity))
 			return -EPIPE;
 
 		entity = to_vsp1_entity(media_entity_to_v4l2_subdev(pad->entity));
@@ -394,7 +393,7 @@ static int vsp1_pipeline_validate(struct vsp1_pipeline *pipe,
 		struct vsp1_rwpf *rwpf;
 		struct vsp1_entity *e;
 
-		if (media_entity_type(entity) != MEDIA_ENT_T_V4L2_SUBDEV) {
+		if (is_media_entity_v4l2_io(entity)) {
 			pipe->num_video++;
 			continue;
 		}
@@ -663,7 +662,7 @@ void vsp1_pipeline_propagate_alpha(struct vsp1_pipeline *pipe,
 	pad = media_entity_remote_pad(&input->pads[RWPF_PAD_SOURCE]);
 
 	while (pad) {
-		if (media_entity_type(pad->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
+		if (!is_media_entity_v4l2_subdev(pad->entity))
 			break;
 
 		entity = to_vsp1_entity(media_entity_to_v4l2_subdev(pad->entity));
