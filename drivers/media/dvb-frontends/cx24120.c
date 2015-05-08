@@ -1191,39 +1191,39 @@ int cx24120_init(struct dvb_frontend *fe)
 		return 0;
 
 	/* ???? */
-	ret = cx24120_writereg(state, 0xea, 0x00);
-	ret = cx24120_test_rom(state);
+	cx24120_writereg(state, 0xea, 0x00);
+	cx24120_test_rom(state);
 	ret = cx24120_readreg(state, 0xfb) & 0xfe;
-	ret = cx24120_writereg(state, 0xfb, ret);
+	cx24120_writereg(state, 0xfb, ret);
 	ret = cx24120_readreg(state, 0xfc) & 0xfe;
-	ret = cx24120_writereg(state, 0xfc, ret);
-	ret = cx24120_writereg(state, 0xc3, 0x04);
-	ret = cx24120_writereg(state, 0xc4, 0x04);
-	ret = cx24120_writereg(state, 0xce, 0x00);
-	ret = cx24120_writereg(state, 0xcf, 0x00);
+	cx24120_writereg(state, 0xfc, ret);
+	cx24120_writereg(state, 0xc3, 0x04);
+	cx24120_writereg(state, 0xc4, 0x04);
+	cx24120_writereg(state, 0xce, 0x00);
+	cx24120_writereg(state, 0xcf, 0x00);
 	ret_EA = cx24120_readreg(state, 0xea) & 0xfe;
-	ret = cx24120_writereg(state, 0xea, ret_EA);
-	ret = cx24120_writereg(state, 0xeb, 0x0c);
-	ret = cx24120_writereg(state, 0xec, 0x06);
-	ret = cx24120_writereg(state, 0xed, 0x05);
-	ret = cx24120_writereg(state, 0xee, 0x03);
-	ret = cx24120_writereg(state, 0xef, 0x05);
-	ret = cx24120_writereg(state, 0xf3, 0x03);
-	ret = cx24120_writereg(state, 0xf4, 0x44);
+	cx24120_writereg(state, 0xea, ret_EA);
+	cx24120_writereg(state, 0xeb, 0x0c);
+	cx24120_writereg(state, 0xec, 0x06);
+	cx24120_writereg(state, 0xed, 0x05);
+	cx24120_writereg(state, 0xee, 0x03);
+	cx24120_writereg(state, 0xef, 0x05);
+	cx24120_writereg(state, 0xf3, 0x03);
+	cx24120_writereg(state, 0xf4, 0x44);
 
 	for (reg1 = 0xf0; reg1 < 0xf3; reg1++) {
 		cx24120_writereg(state, reg1, 0x04);
 		cx24120_writereg(state, reg1 - 10, 0x02);
 	}
 
-	ret = cx24120_writereg(state, 0xea, (ret_EA | 0x01));
+	cx24120_writereg(state, 0xea, (ret_EA | 0x01));
 	for (reg1 = 0xc5; reg1 < 0xcb; reg1 += 2) {
-		ret = cx24120_writereg(state, reg1, 0x00);
-		ret = cx24120_writereg(state, reg1 + 1, 0x00);
+		cx24120_writereg(state, reg1, 0x00);
+		cx24120_writereg(state, reg1 + 1, 0x00);
 	}
 
-	ret = cx24120_writereg(state, 0xe4, 0x03);
-	ret = cx24120_writereg(state, 0xeb, 0x0a);
+	cx24120_writereg(state, 0xe4, 0x03);
+	cx24120_writereg(state, 0xeb, 0x0a);
 
 	dev_dbg(&state->i2c->dev, "requesting firmware (%s) to download...\n",
 		CX24120_FIRMWARE);
@@ -1243,23 +1243,23 @@ int cx24120_init(struct dvb_frontend *fe)
 		fw->data[fw->size - 2],		/* fw before last byte */
 		fw->data[fw->size - 1]);	/* fw last byte */
 
-	ret = cx24120_test_rom(state);
+	cx24120_test_rom(state);
 	ret = cx24120_readreg(state, 0xfb) & 0xfe;
-	ret = cx24120_writereg(state, 0xfb, ret);
-	ret = cx24120_writereg(state, 0xe0, 0x76);
-	ret = cx24120_writereg(state, 0xf7, 0x81);
-	ret = cx24120_writereg(state, 0xf8, 0x00);
-	ret = cx24120_writereg(state, 0xf9, 0x00);
-	ret = cx24120_writeregs(state, 0xfa, fw->data, (fw->size - 1), 0x00);
-	ret = cx24120_writereg(state, 0xf7, 0xc0);
-	ret = cx24120_writereg(state, 0xe0, 0x00);
+	cx24120_writereg(state, 0xfb, ret);
+	cx24120_writereg(state, 0xe0, 0x76);
+	cx24120_writereg(state, 0xf7, 0x81);
+	cx24120_writereg(state, 0xf8, 0x00);
+	cx24120_writereg(state, 0xf9, 0x00);
+	cx24120_writeregs(state, 0xfa, fw->data, (fw->size - 1), 0x00);
+	cx24120_writereg(state, 0xf7, 0xc0);
+	cx24120_writereg(state, 0xe0, 0x00);
 	ret = (fw->size - 2) & 0x00ff;
-	ret = cx24120_writereg(state, 0xf8, ret);
+	cx24120_writereg(state, 0xf8, ret);
 	ret = ((fw->size - 2) >> 8) & 0x00ff;
-	ret = cx24120_writereg(state, 0xf9, ret);
-	ret = cx24120_writereg(state, 0xf7, 0x00);
-	ret = cx24120_writereg(state, 0xdc, 0x00);
-	ret = cx24120_writereg(state, 0xdc, 0x07);
+	cx24120_writereg(state, 0xf9, ret);
+	cx24120_writereg(state, 0xf7, 0x00);
+	cx24120_writereg(state, 0xdc, 0x00);
+	cx24120_writereg(state, 0xdc, 0x07);
 	msleep(500);
 
 	/* Check final byte matches final byte of firmware */
@@ -1271,7 +1271,7 @@ int cx24120_init(struct dvb_frontend *fe)
 		err("Firmware upload failed. Last byte returned=0x%x\n", ret);
 		reset_result = -EREMOTEIO;
 	}
-	ret = cx24120_writereg(state, 0xdc, 0x00);
+	cx24120_writereg(state, 0xdc, 0x00);
 	release_firmware(fw);
 	if (reset_result != 0)
 		return reset_result;
@@ -1326,7 +1326,7 @@ int cx24120_init(struct dvb_frontend *fe)
 	dev_dbg(&state->i2c->dev, "Tuner initialised correctly.\n");
 
 	/* Initialise mpeg outputs */
-	ret = cx24120_writereg(state, 0xeb, 0x0a);
+	cx24120_writereg(state, 0xeb, 0x0a);
 	if (cx24120_msg_mpeg_output_global_config(state, 0) ||
 	    cx24120_msg_mpeg_output_config(state, 0) ||
 	    cx24120_msg_mpeg_output_config(state, 1) ||
