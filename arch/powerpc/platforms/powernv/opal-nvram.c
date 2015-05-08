@@ -16,6 +16,7 @@
 #include <linux/of.h>
 
 #include <asm/opal.h>
+#include <asm/nvram.h>
 #include <asm/machdep.h>
 
 static unsigned int nvram_size;
@@ -61,6 +62,15 @@ static ssize_t opal_nvram_write(char *buf, size_t count, loff_t *index)
 	*index += count;
 	return count;
 }
+
+static int __init opal_nvram_init_log_partitions(void)
+{
+	/* Scan nvram for partitions */
+	nvram_scan_partitions();
+	nvram_init_oops_partition(0);
+	return 0;
+}
+machine_arch_initcall(powernv, opal_nvram_init_log_partitions);
 
 void __init opal_nvram_init(void)
 {

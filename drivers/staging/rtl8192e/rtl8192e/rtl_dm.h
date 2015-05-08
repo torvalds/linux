@@ -255,14 +255,6 @@ extern	u8			test_flag;
 /*------------------------Export global variable----------------------------*/
 
 
-/*------------------------Export Marco Definition---------------------------*/
-#define DM_APInitGainChangeNotify(Event)		\
-	{						\
-		dm_digtable.CurAPConnectState = Event;	\
-	}
-/*------------------------Export Marco Definition---------------------------*/
-
-
 /*--------------------------Exported Function prototype---------------------*/
 /*--------------------------Exported Function prototype---------------------*/
 extern  void    init_hal_dm(struct net_device *dev);

@@ -160,8 +160,6 @@ static inline int __atomic_add_unless(atomic_t *v, int a, int u)
 
 #define ATOMIC64_INIT(i)  { (i) }
 
-#ifdef CONFIG_64BIT
-
 #define __ATOMIC64_NO_BARRIER	"\n"
 
 #ifdef CONFIG_HAVE_MARCH_Z196_FEATURES
@@ -273,99 +271,6 @@ static inline long long atomic64_cmpxchg(atomic64_t *v,
 }
 
 #undef __ATOMIC64_LOOP
-
-#else /* CONFIG_64BIT */
-
-typedef struct {
-	long long counter;
-} atomic64_t;
-
-static inline long long atomic64_read(const atomic64_t *v)
-{
-	register_pair rp;
-
-	asm volatile(
-		"	lm	%0,%N0,%1"
-		: "=&d" (rp) : "Q" (v->counter)	);
-	return rp.pair;
-}
-
-static inline void atomic64_set(atomic64_t *v, long long i)
-{
-	register_pair rp = {.pair = i};
-
-	asm volatile(
-		"	stm	%1,%N1,%0"
-		: "=Q" (v->counter) : "d" (rp) );
-}
-
-static inline long long atomic64_xchg(atomic64_t *v, long long new)
-{
-	register_pair rp_new = {.pair = new};
-	register_pair rp_old;
-
-	asm volatile(
-		"	lm	%0,%N0,%1\n"
-		"0:	cds	%0,%2,%1\n"
-		"	jl	0b\n"
-		: "=&d" (rp_old), "+Q" (v->counter)
-		: "d" (rp_new)
-		: "cc");
-	return rp_old.pair;
-}
-
-static inline long long atomic64_cmpxchg(atomic64_t *v,
-					 long long old, long long new)
-{
-	register_pair rp_old = {.pair = old};
-	register_pair rp_new = {.pair = new};
-
-	asm volatile(
-		"	cds	%0,%2,%1"
-		: "+&d" (rp_old), "+Q" (v->counter)
-		: "d" (rp_new)
-		: "cc");
-	return rp_old.pair;
-}
-
-
-static inline long long atomic64_add_return(long long i, atomic64_t *v)
-{
-	long long old, new;
-
-	do {
-		old = atomic64_read(v);
-		new = old + i;
-	} while (atomic64_cmpxchg(v, old, new) != old);
-	return new;
-}
-
-static inline void atomic64_set_mask(unsigned long long mask, atomic64_t *v)
-{
-	long long old, new;
-
-	do {
-		old = atomic64_read(v);
-		new = old | mask;
-	} while (atomic64_cmpxchg(v, old, new) != old);
-}
-
-static inline void atomic64_clear_mask(unsigned long long mask, atomic64_t *v)
-{
-	long long old, new;
-
-	do {
-		old = atomic64_read(v);
-		new = old & mask;
-	} while (atomic64_cmpxchg(v, old, new) != old);
-}
-
-static inline void atomic64_add(long long i, atomic64_t *v)
-{
-	atomic64_add_return(i, v);
-}
-
-#endif /* CONFIG_64BIT */
 
 static inline int atomic64_add_unless(atomic64_t *v, long long i, long long u)
 {

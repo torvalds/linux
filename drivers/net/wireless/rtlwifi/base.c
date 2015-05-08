@@ -1315,7 +1315,8 @@ static void setup_arp_tx(struct rtl_priv *rtlpriv, struct rtl_ps_ctl *ppsc)
 }
 
 /*should call before software enc*/
-u8 rtl_is_special_data(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx)
+u8 rtl_is_special_data(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx,
+		       bool is_enc)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
@@ -1344,7 +1345,9 @@ u8 rtl_is_special_data(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx)
 		break;
 	}
 
-	offset = mac_hdr_len + SNAP_SIZE + encrypt_header_len;
+	offset = mac_hdr_len + SNAP_SIZE;
+	if (is_enc)
+		offset += encrypt_header_len;
 	ether_type = be16_to_cpup((__be16 *)(skb->data + offset));
 
 	if (ETH_P_IP == ether_type) {

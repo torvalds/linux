@@ -821,6 +821,82 @@ void kvmppc_core_destroy_vm(struct kvm *kvm)
 #endif
 }
 
+int kvmppc_h_logical_ci_load(struct kvm_vcpu *vcpu)
+{
+	unsigned long size = kvmppc_get_gpr(vcpu, 4);
+	unsigned long addr = kvmppc_get_gpr(vcpu, 5);
+	u64 buf;
+	int ret;
+
+	if (!is_power_of_2(size) || (size > sizeof(buf)))
+		return H_TOO_HARD;
+
+	ret = kvm_io_bus_read(vcpu, KVM_MMIO_BUS, addr, size, &buf);
+	if (ret != 0)
+		return H_TOO_HARD;
+
+	switch (size) {
+	case 1:
+		kvmppc_set_gpr(vcpu, 4, *(u8 *)&buf);
+		break;
+
+	case 2:
+		kvmppc_set_gpr(vcpu, 4, be16_to_cpu(*(__be16 *)&buf));
+		break;
+
+	case 4:
+		kvmppc_set_gpr(vcpu, 4, be32_to_cpu(*(__be32 *)&buf));
+		break;
+
+	case 8:
+		kvmppc_set_gpr(vcpu, 4, be64_to_cpu(*(__be64 *)&buf));
+		break;
+
+	default:
+		BUG();
+	}
+
+	return H_SUCCESS;
+}
+EXPORT_SYMBOL_GPL(kvmppc_h_logical_ci_load);
+
+int kvmppc_h_logical_ci_store(struct kvm_vcpu *vcpu)
+{
+	unsigned long size = kvmppc_get_gpr(vcpu, 4);
+	unsigned long addr = kvmppc_get_gpr(vcpu, 5);
+	unsigned long val = kvmppc_get_gpr(vcpu, 6);
+	u64 buf;
+	int ret;
+
+	switch (size) {
+	case 1:
+		*(u8 *)&buf = val;
+		break;
+
+	case 2:
+		*(__be16 *)&buf = cpu_to_be16(val);
+		break;
+
+	case 4:
+		*(__be32 *)&buf = cpu_to_be32(val);
+		break;
+
+	case 8:
+		*(__be64 *)&buf = cpu_to_be64(val);
+		break;
+
+	default:
+		return H_TOO_HARD;
+	}
+
+	ret = kvm_io_bus_write(vcpu, KVM_MMIO_BUS, addr, size, &buf);
+	if (ret != 0)
+		return H_TOO_HARD;
+
+	return H_SUCCESS;
+}
+EXPORT_SYMBOL_GPL(kvmppc_h_logical_ci_store);
+
 int kvmppc_core_check_processor_compat(void)
 {
 	/*

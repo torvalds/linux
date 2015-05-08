@@ -100,7 +100,7 @@ Description:    read only
 		Hexadecimal value of the device ID found in this AFU
 		configuration record.
 
-What:           /sys/class/cxl/<afu>/cr<config num>/vendor
+What:           /sys/class/cxl/<afu>/cr<config num>/class
 Date:           February 2015
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only

@@ -366,6 +366,7 @@ struct ufs_init_prefetch {
  * @saved_err: sticky error mask
  * @saved_uic_err: sticky UIC error mask
  * @dev_cmd: ufs device management command information
+ * @last_dme_cmd_tstamp: time stamp of the last completed DME command
  * @auto_bkops_enabled: to track whether bkops is enabled in device
  * @vreg_info: UFS device voltage regulator information
  * @clk_list_head: UFS host controller clocks list node head
@@ -416,6 +417,13 @@ struct ufs_hba {
 	unsigned int irq;
 	bool is_irq_enabled;
 
+	/*
+	 * delay before each dme command is required as the unipro
+	 * layer has shown instabilities
+	 */
+	#define UFSHCD_QUIRK_DELAY_BEFORE_DME_CMDS		UFS_BIT(0)
+
+	unsigned int quirks;	/* Deviations from standard UFSHCI spec. */
 
 	wait_queue_head_t tm_wq;
 	wait_queue_head_t tm_tag_wq;
@@ -446,6 +454,7 @@ struct ufs_hba {
 
 	/* Device management request data */
 	struct ufs_dev_cmd dev_cmd;
+	ktime_t last_dme_cmd_tstamp;
 
 	/* Keeps information of the UFS device connected to this host */
 	struct ufs_dev_info dev_info;

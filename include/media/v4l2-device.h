@@ -58,8 +58,6 @@ struct v4l2_device {
 	struct v4l2_ctrl_handler *ctrl_handler;
 	/* Device's priority state */
 	struct v4l2_prio_state prio;
-	/* BKL replacement mutex. Temporary solution only. */
-	struct mutex ioctl_lock;
 	/* Keep track of the references to this struct. */
 	struct kref ref;
 	/* Release function that is called when the ref count goes to 0. */

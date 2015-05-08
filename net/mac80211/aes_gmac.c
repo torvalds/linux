@@ -70,9 +70,9 @@ struct crypto_aead *ieee80211_aes_gmac_key_setup(const u8 key[],
 
 	err = crypto_aead_setkey(tfm, key, key_len);
 	if (!err)
-		return tfm;
-	if (!err)
 		err = crypto_aead_setauthsize(tfm, GMAC_MIC_LEN);
+	if (!err)
+		return tfm;
 
 	crypto_free_aead(tfm);
 	return ERR_PTR(err);

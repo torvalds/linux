@@ -414,7 +414,7 @@ enum cb_status {
 
 /**
  * cb_command - Command Block flags
- * @cb_tx_nc:  0: controler does CRC (normal),  1: CRC from skb memory
+ * @cb_tx_nc:  0: controller does CRC (normal),  1: CRC from skb memory
  */
 enum cb_command {
 	cb_nop    = 0x0000,
@@ -899,7 +899,7 @@ static int e100_exec_cb(struct nic *nic, struct sk_buff *skb,
 	/* Order is important otherwise we'll be in a race with h/w:
 	 * set S-bit in current first, then clear S-bit in previous. */
 	cb->command |= cpu_to_le16(cb_s);
-	wmb();
+	dma_wmb();
 	cb->prev->command &= cpu_to_le16(~cb_s);
 
 	while (nic->cb_to_send != nic->cb_to_use) {
@@ -1843,7 +1843,7 @@ static int e100_tx_clean(struct nic *nic)
 	for (cb = nic->cb_to_clean;
 	    cb->status & cpu_to_le16(cb_complete);
 	    cb = nic->cb_to_clean = cb->next) {
-		rmb(); /* read skb after status */
+		dma_rmb(); /* read skb after status */
 		netif_printk(nic, tx_done, KERN_DEBUG, nic->netdev,
 			     "cb[%d]->status = 0x%04X\n",
 			     (int)(((void*)cb - (void*)nic->cbs)/sizeof(struct cb)),
@@ -1993,7 +1993,7 @@ static int e100_rx_indicate(struct nic *nic, struct rx *rx,
 
 	netif_printk(nic, rx_status, KERN_DEBUG, nic->netdev,
 		     "status=0x%04X\n", rfd_status);
-	rmb(); /* read size after status bit */
+	dma_rmb(); /* read size after status bit */
 
 	/* If data isn't ready, nothing to indicate */
 	if (unlikely(!(rfd_status & cb_complete))) {

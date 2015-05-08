@@ -156,6 +156,7 @@ ENTRY(cpu_do_resume)
 	msr	cpacr_el1, x6
 	msr	ttbr0_el1, x1
 	msr	ttbr1_el1, x7
+	tcr_set_idmap_t0sz x8, x7
 	msr	tcr_el1, x8
 	msr	vbar_el1, x9
 	msr	mdscr_el1, x10
@@ -233,6 +234,8 @@ ENTRY(__cpu_setup)
 	 */
 	ldr	x10, =TCR_TxSZ(VA_BITS) | TCR_CACHE_FLAGS | TCR_SMP_FLAGS | \
 			TCR_TG_FLAGS | TCR_ASID16 | TCR_TBI0
+	tcr_set_idmap_t0sz	x10, x9
+
 	/*
 	 * Read the PARange bits from ID_AA64MMFR0_EL1 and set the IPS bits in
 	 * TCR_EL1.

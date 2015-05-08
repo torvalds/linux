@@ -1,7 +1,7 @@
 /*
  * net/tipc/msg.h: Include file for TIPC message header routines
  *
- * Copyright (c) 2000-2007, 2014, Ericsson AB
+ * Copyright (c) 2000-2007, 2014-2015 Ericsson AB
  * Copyright (c) 2005-2008, 2010-2011, Wind River Systems
  * All rights reserved.
  *
@@ -54,6 +54,8 @@ struct plist;
  * - TIPC_HIGH_IMPORTANCE
  * - TIPC_CRITICAL_IMPORTANCE
  */
+#define TIPC_SYSTEM_IMPORTANCE	4
+
 
 /*
  * Payload message types
@@ -62,6 +64,19 @@ struct plist;
 #define TIPC_MCAST_MSG		1
 #define TIPC_NAMED_MSG		2
 #define TIPC_DIRECT_MSG		3
+
+/*
+ * Internal message users
+ */
+#define  BCAST_PROTOCOL       5
+#define  MSG_BUNDLER          6
+#define  LINK_PROTOCOL        7
+#define  CONN_MANAGER         8
+#define  TUNNEL_PROTOCOL      10
+#define  NAME_DISTRIBUTOR     11
+#define  MSG_FRAGMENTER       12
+#define  LINK_CONFIG          13
+#define  SOCK_WAKEUP          14       /* pseudo user */
 
 /*
  * Message header sizes
@@ -76,7 +91,7 @@ struct plist;
 
 #define MAX_MSG_SIZE (MAX_H_SIZE + TIPC_MAX_USER_MSG_SIZE)
 
-#define TIPC_MEDIA_ADDR_OFFSET	5
+#define TIPC_MEDIA_INFO_OFFSET	5
 
 /**
  * TIPC message buffer code
@@ -87,12 +102,12 @@ struct plist;
  * Note: Headroom should be a multiple of 4 to ensure the TIPC header fields
  *       are word aligned for quicker access
  */
-#define BUF_HEADROOM LL_MAX_HEADER
+#define BUF_HEADROOM (LL_MAX_HEADER + 48)
 
 struct tipc_skb_cb {
 	void *handle;
 	struct sk_buff *tail;
-	bool deferred;
+	bool validated;
 	bool wakeup_pending;
 	bool bundling;
 	u16 chain_sz;
@@ -170,16 +185,6 @@ static inline void msg_set_user(struct tipc_msg *m, u32 n)
 	msg_set_bits(m, 0, 25, 0xf, n);
 }
 
-static inline u32 msg_importance(struct tipc_msg *m)
-{
-	return msg_bits(m, 0, 25, 0xf);
-}
-
-static inline void msg_set_importance(struct tipc_msg *m, u32 i)
-{
-	msg_set_user(m, i);
-}
-
 static inline u32 msg_hdr_sz(struct tipc_msg *m)
 {
 	return msg_bits(m, 0, 21, 0xf) << 2;
@@ -235,6 +240,15 @@ static inline void msg_set_size(struct tipc_msg *m, u32 sz)
 	m->hdr[0] = htonl((msg_word(m, 0) & ~0x1ffff) | sz);
 }
 
+static inline unchar *msg_data(struct tipc_msg *m)
+{
+	return ((unchar *)m) + msg_hdr_sz(m);
+}
+
+static inline struct tipc_msg *msg_get_wrapped(struct tipc_msg *m)
+{
+	return (struct tipc_msg *)msg_data(m);
+}
 
 /*
  * Word 1
@@ -336,6 +350,25 @@ static inline void msg_set_seqno(struct tipc_msg *m, u32 n)
 /*
  * Words 3-10
  */
+static inline u32 msg_importance(struct tipc_msg *m)
+{
+	if (unlikely(msg_user(m) == MSG_FRAGMENTER))
+		return msg_bits(m, 5, 13, 0x7);
+	if (likely(msg_isdata(m) && !msg_errcode(m)))
+		return msg_user(m);
+	return TIPC_SYSTEM_IMPORTANCE;
+}
+
+static inline void msg_set_importance(struct tipc_msg *m, u32 i)
+{
+	if (unlikely(msg_user(m) == MSG_FRAGMENTER))
+		msg_set_bits(m, 5, 13, 0x7, i);
+	else if (likely(i < TIPC_SYSTEM_IMPORTANCE))
+		msg_set_user(m, i);
+	else
+		pr_warn("Trying to set illegal importance in message\n");
+}
+
 static inline u32 msg_prevnode(struct tipc_msg *m)
 {
 	return msg_word(m, 3);
@@ -348,6 +381,8 @@ static inline void msg_set_prevnode(struct tipc_msg *m, u32 a)
 
 static inline u32 msg_origport(struct tipc_msg *m)
 {
+	if (msg_user(m) == MSG_FRAGMENTER)
+		m = msg_get_wrapped(m);
 	return msg_word(m, 4);
 }
 
@@ -443,33 +478,9 @@ static inline void msg_set_nameupper(struct tipc_msg *m, u32 n)
 	msg_set_word(m, 10, n);
 }
 
-static inline unchar *msg_data(struct tipc_msg *m)
-{
-	return ((unchar *)m) + msg_hdr_sz(m);
-}
-
-static inline struct tipc_msg *msg_get_wrapped(struct tipc_msg *m)
-{
-	return (struct tipc_msg *)msg_data(m);
-}
-
 /*
  * Constants and routines used to read and write TIPC internal message headers
  */
-
-/*
- * Internal message users
- */
-#define  BCAST_PROTOCOL       5
-#define  MSG_BUNDLER          6
-#define  LINK_PROTOCOL        7
-#define  CONN_MANAGER         8
-#define  ROUTE_DISTRIBUTOR    9		/* obsoleted */
-#define  CHANGEOVER_PROTOCOL  10
-#define  NAME_DISTRIBUTOR     11
-#define  MSG_FRAGMENTER       12
-#define  LINK_CONFIG          13
-#define  SOCK_WAKEUP          14       /* pseudo user */
 
 /*
  *  Connection management protocol message types
@@ -501,15 +512,14 @@ static inline struct tipc_msg *msg_get_wrapped(struct tipc_msg *m)
 /*
  * Changeover tunnel message types
  */
-#define DUPLICATE_MSG		0
-#define ORIGINAL_MSG		1
+#define SYNCH_MSG		0
+#define FAILOVER_MSG		1
 
 /*
  * Config protocol message types
  */
 #define DSC_REQ_MSG		0
 #define DSC_RESP_MSG		1
-
 
 /*
  * Word 1
@@ -534,6 +544,24 @@ static inline void msg_set_node_sig(struct tipc_msg *m, u32 n)
 	msg_set_bits(m, 1, 0, 0xffff, n);
 }
 
+static inline u32 msg_node_capabilities(struct tipc_msg *m)
+{
+	return msg_bits(m, 1, 15, 0x1fff);
+}
+
+static inline void msg_set_node_capabilities(struct tipc_msg *m, u32 n)
+{
+	msg_set_bits(m, 1, 15, 0x1fff, n);
+}
+
+static inline bool msg_dup(struct tipc_msg *m)
+{
+	if (likely(msg_user(m) != TUNNEL_PROTOCOL))
+		return false;
+	if (msg_type(m) != SYNCH_MSG)
+		return false;
+	return true;
+}
 
 /*
  * Word 2
@@ -688,7 +716,7 @@ static inline void msg_set_redundant_link(struct tipc_msg *m, u32 r)
 
 static inline char *msg_media_addr(struct tipc_msg *m)
 {
-	return (char *)&m->hdr[TIPC_MEDIA_ADDR_OFFSET];
+	return (char *)&m->hdr[TIPC_MEDIA_INFO_OFFSET];
 }
 
 /*
@@ -734,21 +762,8 @@ static inline void msg_set_link_tolerance(struct tipc_msg *m, u32 n)
 	msg_set_bits(m, 9, 0, 0xffff, n);
 }
 
-static inline u32 tipc_msg_tot_importance(struct tipc_msg *m)
-{
-	if ((msg_user(m) == MSG_FRAGMENTER) && (msg_type(m) == FIRST_FRAGMENT))
-		return msg_importance(msg_get_wrapped(m));
-	return msg_importance(m);
-}
-
-static inline u32 msg_tot_origport(struct tipc_msg *m)
-{
-	if ((msg_user(m) == MSG_FRAGMENTER) && (msg_type(m) == FIRST_FRAGMENT))
-		return msg_origport(msg_get_wrapped(m));
-	return msg_origport(m);
-}
-
 struct sk_buff *tipc_buf_acquire(u32 size);
+bool tipc_msg_validate(struct sk_buff *skb);
 bool tipc_msg_reverse(u32 own_addr, struct sk_buff *buf, u32 *dnode,
 		      int err);
 void tipc_msg_init(u32 own_addr, struct tipc_msg *m, u32 user, u32 type,
@@ -757,9 +772,9 @@ struct sk_buff *tipc_msg_create(uint user, uint type, uint hdr_sz,
 				uint data_sz, u32 dnode, u32 onode,
 				u32 dport, u32 oport, int errcode);
 int tipc_buf_append(struct sk_buff **headbuf, struct sk_buff **buf);
-bool tipc_msg_bundle(struct sk_buff_head *list, struct sk_buff *skb, u32 mtu);
-bool tipc_msg_make_bundle(struct sk_buff_head *list,
-			  struct sk_buff *skb, u32 mtu, u32 dnode);
+bool tipc_msg_bundle(struct sk_buff *bskb, struct sk_buff *skb, u32 mtu);
+
+bool tipc_msg_make_bundle(struct sk_buff **skb, u32 mtu, u32 dnode);
 bool tipc_msg_extract(struct sk_buff *skb, struct sk_buff **iskb, int *pos);
 int tipc_msg_build(struct tipc_msg *mhdr, struct msghdr *m,
 		   int offset, int dsz, int mtu, struct sk_buff_head *list);

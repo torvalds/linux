@@ -260,6 +260,7 @@ static int pmic_gpio_set_mux(struct pinctrl_dev *pctldev, unsigned function,
 			val = 1;
 	}
 
+	val = val << PMIC_GPIO_REG_MODE_DIR_SHIFT;
 	val |= pad->function << PMIC_GPIO_REG_MODE_FUNCTION_SHIFT;
 	val |= pad->out_value & PMIC_GPIO_REG_MODE_VALUE_SHIFT;
 
@@ -810,6 +811,7 @@ static int pmic_gpio_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id pmic_gpio_of_match[] = {
+	{ .compatible = "qcom,pm8916-gpio" },	/* 4 GPIO's */
 	{ .compatible = "qcom,pm8941-gpio" },	/* 36 GPIO's */
 	{ .compatible = "qcom,pma8084-gpio" },	/* 22 GPIO's */
 	{ },

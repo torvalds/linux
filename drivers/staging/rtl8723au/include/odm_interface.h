@@ -54,17 +54,6 @@ typedef void (*RT_WORKITEM_CALL_BACK)(struct work_struct *pContext);
 /*  =========== EXtern Function Prototype */
 /*  */
 
-
-u8 ODM_Read1Byte(struct dm_odm_t *pDM_Odm, u32 RegAddr);
-u16 ODM_Read2Byte(struct dm_odm_t *pDM_Odm, u32 RegAddr);
-u32 ODM_Read4Byte(struct dm_odm_t *pDM_Odm, u32 RegAddr);
-void ODM_Write1Byte(struct dm_odm_t *pDM_Odm, u32 RegAddr, u8 Data);
-void ODM_Write2Byte(struct dm_odm_t *pDM_Odm, u32 RegAddr, u16 Data);
-void ODM_Write4Byte(struct dm_odm_t *pDM_Odm, u32 RegAddr, u32 Data);
-void ODM_SetMACReg(struct dm_odm_t *pDM_Odm, u32 RegAddr, u32 BitMask, u32 Data);
-u32 ODM_GetMACReg(struct dm_odm_t *pDM_Odm, u32 RegAddr, u32 BitMask);
-void ODM_SetBBReg(struct dm_odm_t *pDM_Odm, u32 RegAddr, u32 BitMask, u32 Data);
-u32 ODM_GetBBReg(struct dm_odm_t *pDM_Odm, u32 RegAddr, u32 BitMask);
 void ODM_SetRFReg(struct dm_odm_t *pDM_Odm, enum RF_RADIO_PATH eRFPath,
 		  u32 RegAddr, u32 BitMask, u32 Data);
 u32 ODM_GetRFReg(struct dm_odm_t *pDM_Odm, enum RF_RADIO_PATH eRFPath,

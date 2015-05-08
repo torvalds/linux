@@ -76,25 +76,6 @@ static inline int _enter_critical_mutex(struct mutex *pmutex,
 	return ret;
 }
 
-static inline void _init_timer(struct timer_list *ptimer,
-			       struct  net_device *nic_hdl,
-			       void *pfunc, void *cntx)
-{
-	ptimer->function = pfunc;
-	ptimer->data = (unsigned long)cntx;
-	init_timer(ptimer);
-}
-
-static inline void _set_timer(struct timer_list *ptimer, u32 delay_time)
-{
-	mod_timer(ptimer , (jiffies+msecs_to_jiffies(delay_time)));
-}
-
-#define RTW_TIMER_HDL_ARGS void *FunctionContext
-#define RTW_TIMER_HDL_NAME(name) rtw_##name##_timer_hdl
-#define RTW_DECLARE_TIMER_HDL(name) \
-	void RTW_TIMER_HDL_NAME(name)(RTW_TIMER_HDL_ARGS)
-
 static inline int rtw_netif_queue_stopped(struct net_device *pnetdev)
 {
 	return  netif_tx_queue_stopped(netdev_get_tx_queue(pnetdev, 0)) &&

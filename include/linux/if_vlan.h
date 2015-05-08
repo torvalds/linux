@@ -561,4 +561,71 @@ static inline void vlan_set_encap_proto(struct sk_buff *skb,
 		skb->protocol = htons(ETH_P_802_2);
 }
 
+/**
+ * skb_vlan_tagged - check if skb is vlan tagged.
+ * @skb: skbuff to query
+ *
+ * Returns true if the skb is tagged, regardless of whether it is hardware
+ * accelerated or not.
+ */
+static inline bool skb_vlan_tagged(const struct sk_buff *skb)
+{
+	if (!skb_vlan_tag_present(skb) &&
+	    likely(skb->protocol != htons(ETH_P_8021Q) &&
+		   skb->protocol != htons(ETH_P_8021AD)))
+		return false;
+
+	return true;
+}
+
+/**
+ * skb_vlan_tagged_multi - check if skb is vlan tagged with multiple headers.
+ * @skb: skbuff to query
+ *
+ * Returns true if the skb is tagged with multiple vlan headers, regardless
+ * of whether it is hardware accelerated or not.
+ */
+static inline bool skb_vlan_tagged_multi(const struct sk_buff *skb)
+{
+	__be16 protocol = skb->protocol;
+
+	if (!skb_vlan_tag_present(skb)) {
+		struct vlan_ethhdr *veh;
+
+		if (likely(protocol != htons(ETH_P_8021Q) &&
+			   protocol != htons(ETH_P_8021AD)))
+			return false;
+
+		veh = (struct vlan_ethhdr *)skb->data;
+		protocol = veh->h_vlan_encapsulated_proto;
+	}
+
+	if (protocol != htons(ETH_P_8021Q) && protocol != htons(ETH_P_8021AD))
+		return false;
+
+	return true;
+}
+
+/**
+ * vlan_features_check - drop unsafe features for skb with multiple tags.
+ * @skb: skbuff to query
+ * @features: features to be checked
+ *
+ * Returns features without unsafe ones if the skb has multiple tags.
+ */
+static inline netdev_features_t vlan_features_check(const struct sk_buff *skb,
+						    netdev_features_t features)
+{
+	if (skb_vlan_tagged_multi(skb))
+		features = netdev_intersect_features(features,
+						     NETIF_F_SG |
+						     NETIF_F_HIGHDMA |
+						     NETIF_F_FRAGLIST |
+						     NETIF_F_GEN_CSUM |
+						     NETIF_F_HW_VLAN_CTAG_TX |
+						     NETIF_F_HW_VLAN_STAG_TX);
+
+	return features;
+}
+
 #endif /* !(_LINUX_IF_VLAN_H_) */

@@ -37,4 +37,5 @@ gk208_pmu_oclass = &(struct nvkm_pmu_impl) {
 	.code.size = sizeof(gk208_pmu_code),
 	.data.data = gk208_pmu_data,
 	.data.size = sizeof(gk208_pmu_data),
+	.pgob = gk110_pmu_pgob,
 }.base;

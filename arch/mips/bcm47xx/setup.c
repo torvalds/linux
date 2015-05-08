@@ -42,7 +42,6 @@
 #include <asm/reboot.h>
 #include <asm/time.h>
 #include <bcm47xx.h>
-#include <bcm47xx_nvram.h>
 #include <bcm47xx_board.h>
 
 union bcm47xx_bus bcm47xx_bus;
@@ -53,7 +52,7 @@ EXPORT_SYMBOL(bcm47xx_bus_type);
 
 static void bcm47xx_machine_restart(char *command)
 {
-	printk(KERN_ALERT "Please stand by while rebooting the system...\n");
+	pr_alert("Please stand by while rebooting the system...\n");
 	local_irq_disable();
 	/* Set the watchdog timer to reset immediately */
 	switch (bcm47xx_bus_type) {
@@ -108,7 +107,7 @@ static int bcm47xx_get_invariants(struct ssb_bus *bus,
 	char buf[20];
 
 	/* Fill boardinfo structure */
-	memset(&(iv->boardinfo), 0 , sizeof(struct ssb_boardinfo));
+	memset(&iv->boardinfo, 0 , sizeof(struct ssb_boardinfo));
 
 	bcm47xx_fill_ssb_boardinfo(&iv->boardinfo, NULL);
 
@@ -127,7 +126,7 @@ static void __init bcm47xx_register_ssb(void)
 	char buf[100];
 	struct ssb_mipscore *mcore;
 
-	err = ssb_bus_ssbbus_register(&(bcm47xx_bus.ssb), SSB_ENUM_BASE,
+	err = ssb_bus_ssbbus_register(&bcm47xx_bus.ssb, SSB_ENUM_BASE,
 				      bcm47xx_get_invariants);
 	if (err)
 		panic("Failed to initialize SSB bus (err %d)", err);
@@ -137,7 +136,7 @@ static void __init bcm47xx_register_ssb(void)
 		if (strstr(buf, "console=ttyS1")) {
 			struct ssb_serial_port port;
 
-			printk(KERN_DEBUG "Swapping serial ports!\n");
+			pr_debug("Swapping serial ports!\n");
 			/* swap serial ports */
 			memcpy(&port, &mcore->serial_ports[0], sizeof(port));
 			memcpy(&mcore->serial_ports[0], &mcore->serial_ports[1],
@@ -169,7 +168,7 @@ void __init plat_mem_setup(void)
 	struct cpuinfo_mips *c = &current_cpu_data;
 
 	if ((c->cputype == CPU_74K) || (c->cputype == CPU_1074K)) {
-		printk(KERN_INFO "bcm47xx: using bcma bus\n");
+		pr_info("Using bcma bus\n");
 #ifdef CONFIG_BCM47XX_BCMA
 		bcm47xx_bus_type = BCM47XX_BUS_TYPE_BCMA;
 		bcm47xx_sprom_register_fallbacks();
@@ -180,7 +179,7 @@ void __init plat_mem_setup(void)
 #endif
 #endif
 	} else {
-		printk(KERN_INFO "bcm47xx: using ssb bus\n");
+		pr_info("Using ssb bus\n");
 #ifdef CONFIG_BCM47XX_SSB
 		bcm47xx_bus_type = BCM47XX_BUS_TYPE_SSB;
 		bcm47xx_sprom_register_fallbacks();

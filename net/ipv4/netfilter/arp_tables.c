@@ -248,8 +248,7 @@ struct arpt_entry *arpt_next_entry(const struct arpt_entry *entry)
 
 unsigned int arpt_do_table(struct sk_buff *skb,
 			   unsigned int hook,
-			   const struct net_device *in,
-			   const struct net_device *out,
+			   const struct nf_hook_state *state,
 			   struct xt_table *table)
 {
 	static const char nulldevname[IFNAMSIZ] __attribute__((aligned(sizeof(long))));
@@ -265,8 +264,8 @@ unsigned int arpt_do_table(struct sk_buff *skb,
 	if (!pskb_may_pull(skb, arp_hdr_len(skb->dev)))
 		return NF_DROP;
 
-	indev = in ? in->name : nulldevname;
-	outdev = out ? out->name : nulldevname;
+	indev = state->in ? state->in->name : nulldevname;
+	outdev = state->out ? state->out->name : nulldevname;
 
 	local_bh_disable();
 	addend = xt_write_recseq_begin();
@@ -281,8 +280,8 @@ unsigned int arpt_do_table(struct sk_buff *skb,
 	e = get_entry(table_base, private->hook_entry[hook]);
 	back = get_entry(table_base, private->underflow[hook]);
 
-	acpar.in      = in;
-	acpar.out     = out;
+	acpar.in      = state->in;
+	acpar.out     = state->out;
 	acpar.hooknum = hook;
 	acpar.family  = NFPROTO_ARP;
 	acpar.hotdrop = false;

@@ -112,8 +112,8 @@ mISDN_sock_cmsg(struct sock *sk, struct msghdr *msg, struct sk_buff *skb)
 }
 
 static int
-mISDN_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
-		   struct msghdr *msg, size_t len, int flags)
+mISDN_sock_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
+		   int flags)
 {
 	struct sk_buff		*skb;
 	struct sock		*sk = sock->sk;
@@ -173,8 +173,7 @@ mISDN_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 }
 
 static int
-mISDN_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
-		   struct msghdr *msg, size_t len)
+mISDN_sock_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 {
 	struct sock		*sk = sock->sk;
 	struct sk_buff		*skb;

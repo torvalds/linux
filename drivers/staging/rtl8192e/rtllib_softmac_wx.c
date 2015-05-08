@@ -120,7 +120,7 @@ int rtllib_wx_get_wap(struct rtllib_device *ieee,
 		ieee->state != RTLLIB_LINKED_SCANNING &&
 		ieee->wap_set == 0)
 
-		memset(wrqu->ap_addr.sa_data, 0, ETH_ALEN);
+		eth_zero_addr(wrqu->ap_addr.sa_data);
 	else
 		memcpy(wrqu->ap_addr.sa_data,
 		       ieee->current_network.bssid, ETH_ALEN);
@@ -527,8 +527,8 @@ int rtllib_wx_set_rawtx(struct rtllib_device *ieee,
 	else
 		ieee->raw_tx = 0;
 
-	printk(KERN_INFO"raw TX is %s\n",
-	      ieee->raw_tx ? "enabled" : "disabled");
+	netdev_info(ieee->dev, "raw TX is %s\n",
+		    ieee->raw_tx ? "enabled" : "disabled");
 
 	if (ieee->iw_mode == IW_MODE_MONITOR) {
 		if (prev == 0 && ieee->raw_tx) {
@@ -575,8 +575,9 @@ int rtllib_wx_set_power(struct rtllib_device *ieee,
 	if ((!ieee->sta_wake_up) ||
 	    (!ieee->enter_sleep_state) ||
 	    (!ieee->ps_is_queue_empty)) {
-		RTLLIB_DEBUG(RTLLIB_DL_ERR, "%s(): PS mode is tried to be use "
-			     "but driver missed a callback\n\n", __func__);
+		RTLLIB_DEBUG(RTLLIB_DL_ERR,
+			     "%s(): PS mode is tried to be use but driver missed a callback\n\n",
+			     __func__);
 		return -1;
 	}
 

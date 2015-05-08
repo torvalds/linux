@@ -103,7 +103,7 @@ static int ehea_probe_adapter(struct platform_device *dev);
 
 static int ehea_remove(struct platform_device *dev);
 
-static struct of_device_id ehea_module_device_table[] = {
+static const struct of_device_id ehea_module_device_table[] = {
 	{
 		.name = "lhea",
 		.compatible = "IBM,lhea",
@@ -116,7 +116,7 @@ static struct of_device_id ehea_module_device_table[] = {
 };
 MODULE_DEVICE_TABLE(of, ehea_module_device_table);
 
-static struct of_device_id ehea_device_table[] = {
+static const struct of_device_id ehea_device_table[] = {
 	{
 		.name = "lhea",
 		.compatible = "IBM,lhea",
@@ -3347,7 +3347,7 @@ static int ehea_register_memory_hooks(void)
 {
 	int ret = 0;
 
-	if (atomic_inc_and_test(&ehea_memory_hooks_registered))
+	if (atomic_inc_return(&ehea_memory_hooks_registered) > 1)
 		return 0;
 
 	ret = ehea_create_busmap();
@@ -3381,12 +3381,14 @@ out3:
 out2:
 	unregister_reboot_notifier(&ehea_reboot_nb);
 out:
+	atomic_dec(&ehea_memory_hooks_registered);
 	return ret;
 }
 
 static void ehea_unregister_memory_hooks(void)
 {
-	if (atomic_read(&ehea_memory_hooks_registered))
+	/* Only remove the hooks if we've registered them */
+	if (atomic_read(&ehea_memory_hooks_registered) == 0)
 		return;
 
 	unregister_reboot_notifier(&ehea_reboot_nb);

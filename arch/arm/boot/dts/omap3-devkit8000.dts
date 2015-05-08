@@ -48,7 +48,6 @@
 		ti,model = "devkit8000";
 
 		ti,mcbsp = <&mcbsp2>;
-		ti,codec = <&twl_audio>;
 		ti,audio-routing =
 			"Ext Spk", "PREDRIVEL",
 			"Ext Spk", "PREDRIVER",

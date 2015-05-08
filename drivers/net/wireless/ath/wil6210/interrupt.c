@@ -166,9 +166,16 @@ void wil_unmask_irq(struct wil6210_priv *wil)
 /* target write operation */
 #define W(a, v) do { iowrite32(v, wil->csr + HOSTADDR(a)); wmb(); } while (0)
 
-static
-void wil_configure_interrupt_moderation_new(struct wil6210_priv *wil)
+void wil_configure_interrupt_moderation(struct wil6210_priv *wil)
 {
+	wil_dbg_irq(wil, "%s()\n", __func__);
+
+	/* disable interrupt moderation for monitor
+	 * to get better timestamp precision
+	 */
+	if (wil->wdev->iftype == NL80211_IFTYPE_MONITOR)
+		return;
+
 	/* Disable and clear tx counter before (re)configuration */
 	W(RGF_DMA_ITR_TX_CNT_CTL, BIT_DMA_ITR_TX_CNT_CTL_CLR);
 	W(RGF_DMA_ITR_TX_CNT_TRSH, wil->tx_max_burst_duration);
@@ -206,41 +213,7 @@ void wil_configure_interrupt_moderation_new(struct wil6210_priv *wil)
 				      BIT_DMA_ITR_RX_IDL_CNT_CTL_EXT_TIC_SEL);
 }
 
-static
-void wil_configure_interrupt_moderation_lgc(struct wil6210_priv *wil)
-{
-	/* disable, use usec resolution */
-	W(RGF_DMA_ITR_CNT_CRL, BIT_DMA_ITR_CNT_CRL_CLR);
-
-	wil_info(wil, "set ITR_TRSH = %d usec\n", wil->rx_max_burst_duration);
-	W(RGF_DMA_ITR_CNT_TRSH, wil->rx_max_burst_duration);
-	/* start it */
-	W(RGF_DMA_ITR_CNT_CRL,
-	  BIT_DMA_ITR_CNT_CRL_EN | BIT_DMA_ITR_CNT_CRL_EXT_TICK);
-}
-
 #undef W
-
-void wil_configure_interrupt_moderation(struct wil6210_priv *wil)
-{
-	wil_dbg_irq(wil, "%s()\n", __func__);
-
-	/* disable interrupt moderation for monitor
-	 * to get better timestamp precision
-	 */
-	if (wil->wdev->iftype == NL80211_IFTYPE_MONITOR)
-		return;
-
-	if (test_bit(hw_capability_advanced_itr_moderation,
-		     wil->hw_capabilities))
-		wil_configure_interrupt_moderation_new(wil);
-	else {
-		/* Advanced interrupt moderation is not available before
-		 * Sparrow v2. Will use legacy interrupt moderation
-		 */
-		wil_configure_interrupt_moderation_lgc(wil);
-	}
-}
 
 static irqreturn_t wil6210_irq_rx(int irq, void *cookie)
 {
@@ -253,7 +226,7 @@ static irqreturn_t wil6210_irq_rx(int irq, void *cookie)
 	trace_wil6210_irq_rx(isr);
 	wil_dbg_irq(wil, "ISR RX 0x%08x\n", isr);
 
-	if (!isr) {
+	if (unlikely(!isr)) {
 		wil_err(wil, "spurious IRQ: RX\n");
 		return IRQ_NONE;
 	}
@@ -266,17 +239,18 @@ static irqreturn_t wil6210_irq_rx(int irq, void *cookie)
 	 * action is always the same - should empty the accumulated
 	 * packets from the RX ring.
 	 */
-	if (isr & (BIT_DMA_EP_RX_ICR_RX_DONE | BIT_DMA_EP_RX_ICR_RX_HTRSH)) {
+	if (likely(isr & (BIT_DMA_EP_RX_ICR_RX_DONE |
+			  BIT_DMA_EP_RX_ICR_RX_HTRSH))) {
 		wil_dbg_irq(wil, "RX done\n");
 
-		if (isr & BIT_DMA_EP_RX_ICR_RX_HTRSH)
+		if (unlikely(isr & BIT_DMA_EP_RX_ICR_RX_HTRSH))
 			wil_err_ratelimited(wil,
 					    "Received \"Rx buffer is in risk of overflow\" interrupt\n");
 
 		isr &= ~(BIT_DMA_EP_RX_ICR_RX_DONE |
 			 BIT_DMA_EP_RX_ICR_RX_HTRSH);
-		if (test_bit(wil_status_reset_done, wil->status)) {
-			if (test_bit(wil_status_napi_en, wil->status)) {
+		if (likely(test_bit(wil_status_reset_done, wil->status))) {
+			if (likely(test_bit(wil_status_napi_en, wil->status))) {
 				wil_dbg_txrx(wil, "NAPI(Rx) schedule\n");
 				need_unmask = false;
 				napi_schedule(&wil->napi_rx);
@@ -289,7 +263,7 @@ static irqreturn_t wil6210_irq_rx(int irq, void *cookie)
 		}
 	}
 
-	if (isr)
+	if (unlikely(isr))
 		wil_err(wil, "un-handled RX ISR bits 0x%08x\n", isr);
 
 	/* Rx IRQ will be enabled when NAPI processing finished */
@@ -313,19 +287,19 @@ static irqreturn_t wil6210_irq_tx(int irq, void *cookie)
 	trace_wil6210_irq_tx(isr);
 	wil_dbg_irq(wil, "ISR TX 0x%08x\n", isr);
 
-	if (!isr) {
+	if (unlikely(!isr)) {
 		wil_err(wil, "spurious IRQ: TX\n");
 		return IRQ_NONE;
 	}
 
 	wil6210_mask_irq_tx(wil);
 
-	if (isr & BIT_DMA_EP_TX_ICR_TX_DONE) {
+	if (likely(isr & BIT_DMA_EP_TX_ICR_TX_DONE)) {
 		wil_dbg_irq(wil, "TX done\n");
 		isr &= ~BIT_DMA_EP_TX_ICR_TX_DONE;
 		/* clear also all VRING interrupts */
 		isr &= ~(BIT(25) - 1UL);
-		if (test_bit(wil_status_reset_done, wil->status)) {
+		if (likely(test_bit(wil_status_reset_done, wil->status))) {
 			wil_dbg_txrx(wil, "NAPI(Tx) schedule\n");
 			need_unmask = false;
 			napi_schedule(&wil->napi_tx);
@@ -334,7 +308,7 @@ static irqreturn_t wil6210_irq_tx(int irq, void *cookie)
 		}
 	}
 
-	if (isr)
+	if (unlikely(isr))
 		wil_err(wil, "un-handled TX ISR bits 0x%08x\n", isr);
 
 	/* Tx IRQ will be enabled when NAPI processing finished */
@@ -523,11 +497,11 @@ static irqreturn_t wil6210_hardirq(int irq, void *cookie)
 	/**
 	 * pseudo_cause is Clear-On-Read, no need to ACK
 	 */
-	if ((pseudo_cause == 0) || ((pseudo_cause & 0xff) == 0xff))
+	if (unlikely((pseudo_cause == 0) || ((pseudo_cause & 0xff) == 0xff)))
 		return IRQ_NONE;
 
 	/* FIXME: IRQ mask debug */
-	if (wil6210_debug_irq_mask(wil, pseudo_cause))
+	if (unlikely(wil6210_debug_irq_mask(wil, pseudo_cause)))
 		return IRQ_NONE;
 
 	trace_wil6210_irq_pseudo(pseudo_cause);

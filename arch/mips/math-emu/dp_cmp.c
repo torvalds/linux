@@ -35,16 +35,11 @@ int ieee754dp_cmp(union ieee754dp x, union ieee754dp y, int cmp, int sig)
 	FLUSHYDP;
 	ieee754_clearcx();	/* Even clear inexact flag here */
 
-	if (ieee754dp_isnan(x) || ieee754dp_isnan(y)) {
-		if (sig || xc == IEEE754_CLASS_SNAN || yc == IEEE754_CLASS_SNAN)
+	if (ieee754_class_nan(xc) || ieee754_class_nan(yc)) {
+		if (sig ||
+		    xc == IEEE754_CLASS_SNAN || yc == IEEE754_CLASS_SNAN)
 			ieee754_setcx(IEEE754_INVALID_OPERATION);
-		if (cmp & IEEE754_CUN)
-			return 1;
-		if (cmp & (IEEE754_CLT | IEEE754_CGT)) {
-			if (sig && ieee754_setandtestcx(IEEE754_INVALID_OPERATION))
-				return 0;
-		}
-		return 0;
+		return (cmp & IEEE754_CUN) != 0;
 	} else {
 		vx = x.bits;
 		vy = y.bits;

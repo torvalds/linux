@@ -124,10 +124,12 @@ void gf100_gr_dtor(struct nvkm_object *);
 int  gf100_gr_init(struct nvkm_object *);
 void gf100_gr_zbc_init(struct gf100_gr_priv *);
 
-int  gk104_gr_fini(struct nvkm_object *, bool);
+int  gk104_gr_ctor(struct nvkm_object *, struct nvkm_object *,
+		     struct nvkm_oclass *, void *data, u32 size,
+		     struct nvkm_object **);
 int  gk104_gr_init(struct nvkm_object *);
 
-int  gk110_gr_fini(struct nvkm_object *, bool);
+int  gm204_gr_init(struct nvkm_object *);
 
 extern struct nvkm_ofuncs gf100_fermi_ofuncs;
 
@@ -136,6 +138,7 @@ extern struct nvkm_omthds gf100_gr_9097_omthds[];
 extern struct nvkm_omthds gf100_gr_90c0_omthds[];
 extern struct nvkm_oclass gf110_gr_sclass[];
 extern struct nvkm_oclass gk110_gr_sclass[];
+extern struct nvkm_oclass gm204_gr_sclass[];
 
 struct gf100_gr_init {
 	u32 addr;
@@ -247,4 +250,17 @@ extern const struct gf100_gr_init gk110_gr_init_tex_0[];
 extern const struct gf100_gr_init gk110_gr_init_sm_0[];
 
 extern const struct gf100_gr_init gk208_gr_init_gpc_unk_0[];
+
+extern const struct gf100_gr_init gm107_gr_init_scc_0[];
+extern const struct gf100_gr_init gm107_gr_init_prop_0[];
+extern const struct gf100_gr_init gm107_gr_init_setup_1[];
+extern const struct gf100_gr_init gm107_gr_init_zcull_0[];
+extern const struct gf100_gr_init gm107_gr_init_gpc_unk_1[];
+extern const struct gf100_gr_init gm107_gr_init_tex_0[];
+extern const struct gf100_gr_init gm107_gr_init_l1c_0[];
+extern const struct gf100_gr_init gm107_gr_init_wwdx_0[];
+extern const struct gf100_gr_init gm107_gr_init_cbm_0[];
+void gm107_gr_init_bios(struct gf100_gr_priv *);
+
+extern const struct gf100_gr_pack gm204_gr_pack_mmio[];
 #endif

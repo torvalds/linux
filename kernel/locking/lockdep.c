@@ -551,7 +551,21 @@ static void print_lockdep_cache(struct lockdep_map *lock)
 
 static void print_lock(struct held_lock *hlock)
 {
-	print_lock_name(hlock_class(hlock));
+	/*
+	 * We can be called locklessly through debug_show_all_locks() so be
+	 * extra careful, the hlock might have been released and cleared.
+	 */
+	unsigned int class_idx = hlock->class_idx;
+
+	/* Don't re-read hlock->class_idx, can't use READ_ONCE() on bitfields: */
+	barrier();
+
+	if (!class_idx || (class_idx - 1) >= MAX_LOCKDEP_KEYS) {
+		printk("<RELEASED>\n");
+		return;
+	}
+
+	print_lock_name(lock_classes + class_idx - 1);
 	printk(", at: ");
 	print_ip_sym(hlock->acquire_ip);
 }

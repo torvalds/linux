@@ -1072,7 +1072,7 @@ static void __handle_set_rx_mode(struct usbnet *dev)
  * especially now that control transfers can be queued.
  */
 static void
-kevent (struct work_struct *work)
+usbnet_deferred_kevent (struct work_struct *work)
 {
 	struct usbnet		*dev =
 		container_of(work, struct usbnet, kevent);
@@ -1626,7 +1626,7 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 	skb_queue_head_init(&dev->rxq_pause);
 	dev->bh.func = usbnet_bh;
 	dev->bh.data = (unsigned long) dev;
-	INIT_WORK (&dev->kevent, kevent);
+	INIT_WORK (&dev->kevent, usbnet_deferred_kevent);
 	init_usb_anchor(&dev->deferred);
 	dev->delay.function = usbnet_bh;
 	dev->delay.data = (unsigned long) dev;

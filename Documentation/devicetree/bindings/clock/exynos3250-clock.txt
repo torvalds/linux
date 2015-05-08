@@ -9,6 +9,8 @@ Required Properties:
   - "samsung,exynos3250-cmu" - controller compatible with Exynos3250 SoC.
   - "samsung,exynos3250-cmu-dmc" - controller compatible with
     Exynos3250 SoC for Dynamic Memory Controller domain.
+  - "samsung,exynos3250-cmu-isp" - ISP block clock controller compatible
+     with Exynos3250 SOC
 
 - reg: physical base address of the controller and length of memory mapped
   region.
@@ -33,6 +35,12 @@ Example 1: Examples of clock controller nodes are listed below.
 	cmu_dmc: clock-controller@105C0000 {
 		compatible = "samsung,exynos3250-cmu-dmc";
 		reg = <0x105C0000 0x2000>;
+		#clock-cells = <1>;
+	};
+
+	cmu_isp: clock-controller@10048000 {
+		compatible = "samsung,exynos3250-cmu-isp";
+		reg = <0x10048000 0x1000>;
 		#clock-cells = <1>;
 	};
 

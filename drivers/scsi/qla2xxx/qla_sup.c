@@ -1718,13 +1718,16 @@ qla83xx_beacon_blink(struct scsi_qla_host *vha)
 	uint16_t orig_led_cfg[6];
 	uint32_t led_10_value, led_43_value;
 
-	if (!IS_QLA83XX(ha) && !IS_QLA81XX(ha))
+	if (!IS_QLA83XX(ha) && !IS_QLA81XX(ha) && !IS_QLA27XX(ha))
 		return;
 
 	if (!ha->beacon_blink_led)
 		return;
 
-	if (IS_QLA2031(ha)) {
+	if (IS_QLA27XX(ha)) {
+		qla2x00_write_ram_word(vha, 0x1003, 0x40000230);
+		qla2x00_write_ram_word(vha, 0x1004, 0x40000230);
+	} else if (IS_QLA2031(ha)) {
 		led_select_value = qla83xx_select_led_port(ha);
 
 		qla83xx_wr_reg(vha, led_select_value, 0x40000230);
@@ -1811,7 +1814,7 @@ qla24xx_beacon_on(struct scsi_qla_host *vha)
 			return QLA_FUNCTION_FAILED;
 		}
 
-		if (IS_QLA2031(ha))
+		if (IS_QLA2031(ha) || IS_QLA27XX(ha))
 			goto skip_gpio;
 
 		spin_lock_irqsave(&ha->hardware_lock, flags);
@@ -1848,7 +1851,7 @@ qla24xx_beacon_off(struct scsi_qla_host *vha)
 
 	ha->beacon_blink_led = 0;
 
-	if (IS_QLA2031(ha))
+	if (IS_QLA2031(ha) || IS_QLA27XX(ha))
 		goto set_fw_options;
 
 	if (IS_QLA8031(ha) || IS_QLA81XX(ha))

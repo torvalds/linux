@@ -594,7 +594,7 @@ int bnx2x_vfpf_setup_q(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 	bnx2x_vfpf_prep(bp, &req->first_tlv, CHANNEL_TLV_SETUP_Q, sizeof(*req));
 
 	/* select tpa mode to request */
-	if (!fp->disable_tpa) {
+	if (fp->mode != TPA_MODE_DISABLED) {
 		flags |= VFPF_QUEUE_FLG_TPA;
 		flags |= VFPF_QUEUE_FLG_TPA_IPV6;
 		if (fp->mode == TPA_MODE_GRO)
@@ -800,7 +800,7 @@ int bnx2x_vfpf_config_rss(struct bnx2x *bp,
 	req->rss_key_size = T_ETH_RSS_KEY;
 	req->rss_result_mask = params->rss_result_mask;
 
-	/* flags handled individually for backward/forward compatability */
+	/* flags handled individually for backward/forward compatibility */
 	if (params->rss_flags & (1 << BNX2X_RSS_MODE_DISABLED))
 		req->rss_flags |= VFPF_RSS_MODE_DISABLED;
 	if (params->rss_flags & (1 << BNX2X_RSS_MODE_REGULAR))
@@ -1869,7 +1869,7 @@ static void bnx2x_vf_mbx_update_rss(struct bnx2x *bp, struct bnx2x_virtf *vf,
 	rss.rss_obj = &vf->rss_conf_obj;
 	rss.rss_result_mask = rss_tlv->rss_result_mask;
 
-	/* flags handled individually for backward/forward compatability */
+	/* flags handled individually for backward/forward compatibility */
 	rss.rss_flags = 0;
 	rss.ramrod_flags = 0;
 

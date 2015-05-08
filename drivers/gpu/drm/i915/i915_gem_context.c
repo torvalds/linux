@@ -296,11 +296,15 @@ void i915_gem_context_reset(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int i;
 
-	/* In execlists mode we will unreference the context when the execlist
-	 * queue is cleared and the requests destroyed.
-	 */
-	if (i915.enable_execlists)
+	if (i915.enable_execlists) {
+		struct intel_context *ctx;
+
+		list_for_each_entry(ctx, &dev_priv->context_list, link) {
+			intel_lr_context_reset(dev, ctx);
+		}
+
 		return;
+	}
 
 	for (i = 0; i < I915_NUM_RINGS; i++) {
 		struct intel_engine_cs *ring = &dev_priv->ring[i];
@@ -565,6 +569,66 @@ mi_set_context(struct intel_engine_cs *ring,
 	return ret;
 }
 
+static inline bool should_skip_switch(struct intel_engine_cs *ring,
+				      struct intel_context *from,
+				      struct intel_context *to)
+{
+	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+
+	if (to->remap_slice)
+		return false;
+
+	if (to->ppgtt) {
+		if (from == to && !test_bit(ring->id,
+				&to->ppgtt->pd_dirty_rings))
+			return true;
+	} else if (dev_priv->mm.aliasing_ppgtt) {
+		if (from == to && !test_bit(ring->id,
+				&dev_priv->mm.aliasing_ppgtt->pd_dirty_rings))
+			return true;
+	}
+
+	return false;
+}
+
+static bool
+needs_pd_load_pre(struct intel_engine_cs *ring, struct intel_context *to)
+{
+	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+
+	if (!to->ppgtt)
+		return false;
+
+	if (INTEL_INFO(ring->dev)->gen < 8)
+		return true;
+
+	if (ring != &dev_priv->ring[RCS])
+		return true;
+
+	return false;
+}
+
+static bool
+needs_pd_load_post(struct intel_engine_cs *ring, struct intel_context *to,
+		u32 hw_flags)
+{
+	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+
+	if (!to->ppgtt)
+		return false;
+
+	if (!IS_GEN8(ring->dev))
+		return false;
+
+	if (ring != &dev_priv->ring[RCS])
+		return false;
+
+	if (hw_flags & MI_RESTORE_INHIBIT)
+		return true;
+
+	return false;
+}
+
 static int do_switch(struct intel_engine_cs *ring,
 		     struct intel_context *to)
 {
@@ -580,7 +644,7 @@ static int do_switch(struct intel_engine_cs *ring,
 		BUG_ON(!i915_gem_obj_is_pinned(from->legacy_hw_ctx.rcs_state));
 	}
 
-	if (from == to && !to->remap_slice)
+	if (should_skip_switch(ring, from, to))
 		return 0;
 
 	/* Trying to pin first makes error handling easier. */
@@ -598,11 +662,18 @@ static int do_switch(struct intel_engine_cs *ring,
 	 */
 	from = ring->last_context;
 
-	if (to->ppgtt) {
+	if (needs_pd_load_pre(ring, to)) {
+		/* Older GENs and non render rings still want the load first,
+		 * "PP_DCLV followed by PP_DIR_BASE register through Load
+		 * Register Immediate commands in Ring Buffer before submitting
+		 * a context."*/
 		trace_switch_mm(ring, to);
 		ret = to->ppgtt->switch_mm(to->ppgtt, ring);
 		if (ret)
 			goto unpin_out;
+
+		/* Doing a PD load always reloads the page dirs */
+		clear_bit(ring->id, &to->ppgtt->pd_dirty_rings);
 	}
 
 	if (ring != &dev_priv->ring[RCS]) {
@@ -633,12 +704,40 @@ static int do_switch(struct intel_engine_cs *ring,
 			goto unpin_out;
 	}
 
-	if (!to->legacy_hw_ctx.initialized || i915_gem_context_is_default(to))
+	if (!to->legacy_hw_ctx.initialized) {
 		hw_flags |= MI_RESTORE_INHIBIT;
+		/* NB: If we inhibit the restore, the context is not allowed to
+		 * die because future work may end up depending on valid address
+		 * space. This means we must enforce that a page table load
+		 * occur when this occurs. */
+	} else if (to->ppgtt &&
+			test_and_clear_bit(ring->id, &to->ppgtt->pd_dirty_rings))
+		hw_flags |= MI_FORCE_RESTORE;
+
+	/* We should never emit switch_mm more than once */
+	WARN_ON(needs_pd_load_pre(ring, to) &&
+			needs_pd_load_post(ring, to, hw_flags));
 
 	ret = mi_set_context(ring, to, hw_flags);
 	if (ret)
 		goto unpin_out;
+
+	/* GEN8 does *not* require an explicit reload if the PDPs have been
+	 * setup, and we do not wish to move them.
+	 */
+	if (needs_pd_load_post(ring, to, hw_flags)) {
+		trace_switch_mm(ring, to);
+		ret = to->ppgtt->switch_mm(to->ppgtt, ring);
+		/* The hardware context switch is emitted, but we haven't
+		 * actually changed the state - so it's probably safe to bail
+		 * here. Still, let the user know something dangerous has
+		 * happened.
+		 */
+		if (ret) {
+			DRM_ERROR("Failed to change address space on context switch\n");
+			goto unpin_out;
+		}
+	}
 
 	for (i = 0; i < MAX_L3_SLICES; i++) {
 		if (!(to->remap_slice & (1<<i)))
@@ -677,7 +776,7 @@ static int do_switch(struct intel_engine_cs *ring,
 		i915_gem_context_unreference(from);
 	}
 
-	uninitialized = !to->legacy_hw_ctx.initialized && from == NULL;
+	uninitialized = !to->legacy_hw_ctx.initialized;
 	to->legacy_hw_ctx.initialized = true;
 
 done:

@@ -27,7 +27,6 @@
 struct uisthread_info {
 	struct task_struct *task;
 	int id;
-	int should_stop;
 	struct completion has_stopped;
 };
 

@@ -193,6 +193,7 @@ struct usbhs_priv;
 #define TYPE_BULK	(1 << 14)
 #define TYPE_INT	(2 << 14)
 #define TYPE_ISO	(3 << 14)
+#define BFRE		(1 << 10)	/* BRDY Interrupt Operation Spec. */
 #define DBLB		(1 << 9)	/* Double Buffer Mode */
 #define SHTNAK		(1 << 7)	/* Pipe Disable in Transfer End */
 #define DIR_OUT		(1 << 4)	/* Transfer Direction */
@@ -216,6 +217,7 @@ struct usbhs_priv;
 #define	ACLRM		(1 << 9)	/* Buffer Auto-Clear Mode */
 #define SQCLR		(1 << 8)	/* Toggle Bit Clear */
 #define SQSET		(1 << 7)	/* Toggle Bit Set */
+#define SQMON		(1 << 6)	/* Toggle Bit Check */
 #define PBUSY		(1 << 5)	/* Pipe Busy */
 #define PID_MASK	(0x3)		/* Response PID */
 #define  PID_NAK	0
@@ -322,6 +324,11 @@ int usbhs_frame_get_num(struct usbhs_priv *priv);
  */
 int usbhs_set_device_config(struct usbhs_priv *priv, int devnum, u16 upphub,
 			   u16 hubport, u16 speed);
+
+/*
+ * interrupt functions
+ */
+void usbhs_xxxsts_clear(struct usbhs_priv *priv, u16 sts_reg, u16 bit);
 
 /*
  * data

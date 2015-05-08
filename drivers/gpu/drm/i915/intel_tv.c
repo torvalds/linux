@@ -1332,7 +1332,7 @@ intel_tv_detect(struct drm_connector *connector, bool force)
 
 		if (intel_get_load_detect_pipe(connector, &mode, &tmp, &ctx)) {
 			type = intel_tv_detect_type(intel_tv, connector);
-			intel_release_load_detect_pipe(connector, &tmp);
+			intel_release_load_detect_pipe(connector, &tmp, &ctx);
 			status = type < 0 ?
 				connector_status_disconnected :
 				connector_status_connected;
@@ -1516,6 +1516,7 @@ static const struct drm_connector_funcs intel_tv_connector_funcs = {
 	.atomic_get_property = intel_connector_atomic_get_property,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
 };
 
 static const struct drm_connector_helper_funcs intel_tv_connector_helper_funcs = {
@@ -1620,7 +1621,7 @@ intel_tv_init(struct drm_device *dev)
 		return;
 	}
 
-	intel_connector = kzalloc(sizeof(*intel_connector), GFP_KERNEL);
+	intel_connector = intel_connector_alloc();
 	if (!intel_connector) {
 		kfree(intel_tv);
 		return;

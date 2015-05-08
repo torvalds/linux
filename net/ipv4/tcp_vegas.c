@@ -286,7 +286,7 @@ static void tcp_vegas_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 }
 
 /* Extract info for Tcp socket info provided via netlink. */
-void tcp_vegas_get_info(struct sock *sk, u32 ext, struct sk_buff *skb)
+int tcp_vegas_get_info(struct sock *sk, u32 ext, struct sk_buff *skb)
 {
 	const struct vegas *ca = inet_csk_ca(sk);
 	if (ext & (1 << (INET_DIAG_VEGASINFO - 1))) {
@@ -297,8 +297,9 @@ void tcp_vegas_get_info(struct sock *sk, u32 ext, struct sk_buff *skb)
 			.tcpv_minrtt = ca->minRTT,
 		};
 
-		nla_put(skb, INET_DIAG_VEGASINFO, sizeof(info), &info);
+		return nla_put(skb, INET_DIAG_VEGASINFO, sizeof(info), &info);
 	}
+	return 0;
 }
 EXPORT_SYMBOL_GPL(tcp_vegas_get_info);
 

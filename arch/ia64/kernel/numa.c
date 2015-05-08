@@ -39,7 +39,7 @@ void map_cpu_to_node(int cpu, int nid)
 	}
 	/* sanity check first */
 	oldnid = cpu_to_node_map[cpu];
-	if (cpu_isset(cpu, node_to_cpu_mask[oldnid])) {
+	if (cpumask_test_cpu(cpu, &node_to_cpu_mask[oldnid])) {
 		return; /* nothing to do */
 	}
 	/* we don't have cpu-driven node hot add yet...
@@ -47,16 +47,16 @@ void map_cpu_to_node(int cpu, int nid)
 	if (!node_online(nid))
 		nid = first_online_node;
 	cpu_to_node_map[cpu] = nid;
-	cpu_set(cpu, node_to_cpu_mask[nid]);
+	cpumask_set_cpu(cpu, &node_to_cpu_mask[nid]);
 	return;
 }
 
 void unmap_cpu_from_node(int cpu, int nid)
 {
-	WARN_ON(!cpu_isset(cpu, node_to_cpu_mask[nid]));
+	WARN_ON(!cpumask_test_cpu(cpu, &node_to_cpu_mask[nid]));
 	WARN_ON(cpu_to_node_map[cpu] != nid);
 	cpu_to_node_map[cpu] = 0;
-	cpu_clear(cpu, node_to_cpu_mask[nid]);
+	cpumask_clear_cpu(cpu, &node_to_cpu_mask[nid]);
 }
 
 
@@ -71,7 +71,7 @@ void __init build_cpu_to_node_map(void)
 	int cpu, i, node;
 
 	for(node=0; node < MAX_NUMNODES; node++)
-		cpus_clear(node_to_cpu_mask[node]);
+		cpumask_clear(&node_to_cpu_mask[node]);
 
 	for_each_possible_early_cpu(cpu) {
 		node = -1;

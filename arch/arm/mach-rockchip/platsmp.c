@@ -55,7 +55,7 @@ static int pmu_power_domain_is_on(int pd)
 	return !(val & BIT(pd));
 }
 
-struct reset_control *rockchip_get_core_reset(int cpu)
+static struct reset_control *rockchip_get_core_reset(int cpu)
 {
 	struct device *dev = get_cpu_device(cpu);
 	struct device_node *np;
@@ -201,7 +201,7 @@ static int __init rockchip_smp_prepare_sram(struct device_node *node)
 	return 0;
 }
 
-static struct regmap_config rockchip_pmu_regmap_config = {
+static const struct regmap_config rockchip_pmu_regmap_config = {
 	.reg_bits = 32,
 	.val_bits = 32,
 	.reg_stride = 4,

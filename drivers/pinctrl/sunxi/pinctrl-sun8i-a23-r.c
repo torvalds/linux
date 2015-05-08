@@ -119,7 +119,7 @@ static int sun8i_a23_r_pinctrl_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static struct of_device_id sun8i_a23_r_pinctrl_match[] = {
+static const struct of_device_id sun8i_a23_r_pinctrl_match[] = {
 	{ .compatible = "allwinner,sun8i-a23-r-pinctrl", },
 	{}
 };

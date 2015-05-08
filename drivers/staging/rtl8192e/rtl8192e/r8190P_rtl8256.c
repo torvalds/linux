@@ -47,8 +47,8 @@ void PHY_SetRF8256Bandwidth(struct net_device *dev,
 						0x0e, bMask12Bits, 0x021);
 
 			} else {
-				RT_TRACE(COMP_ERR, "PHY_SetRF8256Bandwidth(): "
-					 "unknown hardware version\n");
+				RT_TRACE(COMP_ERR,
+					 "PHY_SetRF8256Bandwidth(): unknown hardware version\n");
 			}
 
 			break;
@@ -66,15 +66,16 @@ void PHY_SetRF8256Bandwidth(struct net_device *dev,
 						 0x0e, bMask12Bits, 0x0e1);
 
 			} else {
-				RT_TRACE(COMP_ERR, "PHY_SetRF8256Bandwidth(): "
-					 "unknown hardware version\n");
+				RT_TRACE(COMP_ERR,
+					 "PHY_SetRF8256Bandwidth(): unknown hardware version\n");
 			}
 
 
 			break;
 		default:
-			RT_TRACE(COMP_ERR, "PHY_SetRF8256Bandwidth(): unknown "
-				 "Bandwidth: %#X\n", Bandwidth);
+			RT_TRACE(COMP_ERR,
+				 "PHY_SetRF8256Bandwidth(): unknown Bandwidth: %#X\n",
+				 Bandwidth);
 			break;
 
 		}
@@ -138,8 +139,9 @@ bool phy_RF8256_Config_ParaFile(struct net_device *dev)
 		rtStatus = rtl8192_phy_checkBBAndRF(dev, HW90_BLOCK_RF,
 						(enum rf90_radio_path)eRFPath);
 		if (!rtStatus) {
-			RT_TRACE(COMP_ERR, "PHY_RF8256_Config():Check "
-				 "Radio[%d] Fail!!\n", eRFPath);
+			RT_TRACE(COMP_ERR,
+				 "PHY_RF8256_Config():Check Radio[%d] Fail!!\n",
+				 eRFPath);
 			goto phy_RF8256_Config_ParaFile_Fail;
 		}
 
@@ -155,9 +157,10 @@ bool phy_RF8256_Config_ParaFile(struct net_device *dev)
 						 (enum rf90_radio_path)eRFPath,
 						 RegOffSetToBeCheck,
 						 bMask12Bits);
-				RT_TRACE(COMP_RF, "RF %d %d register final "
-					 "value: %x\n", eRFPath,
-					 RegOffSetToBeCheck, RF3_Final_Value);
+				RT_TRACE(COMP_RF,
+					 "RF %d %d register final value: %x\n",
+					 eRFPath, RegOffSetToBeCheck,
+					 RF3_Final_Value);
 				RetryTimes--;
 			}
 			break;
@@ -170,9 +173,10 @@ bool phy_RF8256_Config_ParaFile(struct net_device *dev)
 						 (enum rf90_radio_path)eRFPath,
 						 RegOffSetToBeCheck,
 						 bMask12Bits);
-				RT_TRACE(COMP_RF, "RF %d %d register final "
-					 "value: %x\n", eRFPath,
-					  RegOffSetToBeCheck, RF3_Final_Value);
+				RT_TRACE(COMP_RF,
+					 "RF %d %d register final value: %x\n",
+					 eRFPath, RegOffSetToBeCheck,
+					 RF3_Final_Value);
 				RetryTimes--;
 			}
 			break;
@@ -185,9 +189,10 @@ bool phy_RF8256_Config_ParaFile(struct net_device *dev)
 						(enum rf90_radio_path)eRFPath,
 						RegOffSetToBeCheck,
 						bMask12Bits);
-				RT_TRACE(COMP_RF, "RF %d %d register final "
-					 "value: %x\n", eRFPath,
-					 RegOffSetToBeCheck, RF3_Final_Value);
+				RT_TRACE(COMP_RF,
+					 "RF %d %d register final value: %x\n",
+					 eRFPath, RegOffSetToBeCheck,
+					 RF3_Final_Value);
 				RetryTimes--;
 			}
 			break;
@@ -199,9 +204,10 @@ bool phy_RF8256_Config_ParaFile(struct net_device *dev)
 				RF3_Final_Value = rtl8192_phy_QueryRFReg(dev,
 					       (enum rf90_radio_path)eRFPath,
 					       RegOffSetToBeCheck, bMask12Bits);
-				RT_TRACE(COMP_RF, "RF %d %d register final "
-					 "value: %x\n", eRFPath,
-					  RegOffSetToBeCheck, RF3_Final_Value);
+				RT_TRACE(COMP_RF,
+					 "RF %d %d register final value: %x\n",
+					 eRFPath, RegOffSetToBeCheck,
+					 RF3_Final_Value);
 				RetryTimes--;
 			}
 			break;
@@ -221,8 +227,9 @@ bool phy_RF8256_Config_ParaFile(struct net_device *dev)
 		}
 
 		if (ret) {
-			RT_TRACE(COMP_ERR, "phy_RF8256_Config_ParaFile():"
-				 "Radio[%d] Fail!!", eRFPath);
+			RT_TRACE(COMP_ERR,
+				 "phy_RF8256_Config_ParaFile():Radio[%d] Fail!!",
+				 eRFPath);
 			goto phy_RF8256_Config_ParaFile_Fail;
 		}
 

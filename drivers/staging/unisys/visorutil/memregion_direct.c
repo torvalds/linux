@@ -20,7 +20,6 @@
  *  channel memory (in main memory of the host system) from code running in
  *  a virtual partition.
  */
-#include "uniklog.h"
 #include "timskmod.h"
 #include "memregion.h"
 
@@ -41,12 +40,12 @@ struct memregion *
 visor_memregion_create(HOSTADDRESS physaddr, ulong nbytes)
 {
 	struct memregion *rc = NULL;
-	struct memregion *memregion = kzalloc(sizeof(*memregion),
-					      GFP_KERNEL | __GFP_NORETRY);
-	if (memregion == NULL) {
-		ERRDRV("visor_memregion_create allocation failed");
+	struct memregion *memregion;
+
+	memregion = kzalloc(sizeof(*memregion), GFP_KERNEL | __GFP_NORETRY);
+	if (memregion == NULL)
 		return NULL;
-	}
+
 	memregion->physaddr = physaddr;
 	memregion->nbytes = nbytes;
 	memregion->overlapped = FALSE;
@@ -70,25 +69,19 @@ visor_memregion_create_overlapped(struct memregion *parent, ulong offset,
 {
 	struct memregion *memregion = NULL;
 
-	if (parent == NULL) {
-		ERRDRV("%s parent is NULL", __func__);
+	if (parent == NULL)
 		return NULL;
-	}
-	if (parent->mapped == NULL) {
-		ERRDRV("%s parent is not mapped!", __func__);
+
+	if (parent->mapped == NULL)
 		return NULL;
-	}
+
 	if ((offset >= parent->nbytes) ||
-	    ((offset + nbytes) >= parent->nbytes)) {
-		ERRDRV("%s range (%lu,%lu) out of parent range",
-		       __func__, offset, nbytes);
+	    ((offset + nbytes) >= parent->nbytes))
 		return NULL;
-	}
+
 	memregion = kzalloc(sizeof(*memregion), GFP_KERNEL|__GFP_NORETRY);
-	if (memregion == NULL) {
-		ERRDRV("%s allocation failed", __func__);
+	if (memregion == NULL)
 		return NULL;
-	}
 
 	memregion->physaddr = parent->physaddr + offset;
 	memregion->nbytes = nbytes;
@@ -106,17 +99,11 @@ mapit(struct memregion *memregion)
 	ulong nbytes = memregion->nbytes;
 
 	memregion->requested = FALSE;
-	if (!request_mem_region(physaddr, nbytes, MYDRVNAME))
-		ERRDRV("cannot reserve channel memory @0x%lx for 0x%lx-- no big deal",
-		       physaddr, nbytes);
-	else
+	if (request_mem_region(physaddr, nbytes, MYDRVNAME))
 		memregion->requested = TRUE;
 	memregion->mapped = ioremap_cache(physaddr, nbytes);
-	if (memregion->mapped == NULL) {
-		ERRDRV("cannot ioremap_cache channel memory @0x%lx for 0x%lx",
-		       physaddr, nbytes);
+	if (!memregion->mapped)
 		return FALSE;
-	}
 	return TRUE;
 }
 
@@ -180,10 +167,9 @@ memregion_readwrite(BOOL is_write,
 		    struct memregion *memregion, ulong offset,
 		    void *local, ulong nbytes)
 {
-	if (offset + nbytes > memregion->nbytes) {
-		ERRDRV("memregion_readwrite offset out of range!!");
+	if (offset + nbytes > memregion->nbytes)
 		return -EIO;
-	}
+
 	if (is_write)
 		memcpy_toio(memregion->mapped + offset, local, nbytes);
 	else

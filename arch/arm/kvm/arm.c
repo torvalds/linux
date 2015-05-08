@@ -671,8 +671,7 @@ int kvm_vm_ioctl_irq_line(struct kvm *kvm, struct kvm_irq_level *irq_level,
 		if (!irqchip_in_kernel(kvm))
 			return -ENXIO;
 
-		if (irq_num < VGIC_NR_PRIVATE_IRQS ||
-		    irq_num > KVM_ARM_IRQ_GIC_MAX)
+		if (irq_num < VGIC_NR_PRIVATE_IRQS)
 			return -EINVAL;
 
 		return kvm_vgic_inject_irq(kvm, 0, irq_num, level);

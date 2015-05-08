@@ -322,6 +322,7 @@ void __transport_register_session(
 	struct se_session *se_sess,
 	void *fabric_sess_ptr)
 {
+	const struct target_core_fabric_ops *tfo = se_tpg->se_tpg_tfo;
 	unsigned char buf[PR_REG_ISID_LEN];
 
 	se_sess->se_tpg = se_tpg;
@@ -333,6 +334,21 @@ void __transport_register_session(
 	 * eg: *NOT* discovery sessions.
 	 */
 	if (se_nacl) {
+		/*
+		 *
+		 * Determine if fabric allows for T10-PI feature bits exposed to
+		 * initiators for device backends with !dev->dev_attrib.pi_prot_type.
+		 *
+		 * If so, then always save prot_type on a per se_node_acl node
+		 * basis and re-instate the previous sess_prot_type to avoid
+		 * disabling PI from below any previously initiator side
+		 * registered LUNs.
+		 */
+		if (se_nacl->saved_prot_type)
+			se_sess->sess_prot_type = se_nacl->saved_prot_type;
+		else if (tfo->tpg_check_prot_fabric_only)
+			se_sess->sess_prot_type = se_nacl->saved_prot_type =
+					tfo->tpg_check_prot_fabric_only(se_tpg);
 		/*
 		 * If the fabric module supports an ISID based TransportID,
 		 * save this value in binary from the fabric I_T Nexus now.
@@ -404,6 +420,30 @@ void target_put_session(struct se_session *se_sess)
 }
 EXPORT_SYMBOL(target_put_session);
 
+ssize_t target_show_dynamic_sessions(struct se_portal_group *se_tpg, char *page)
+{
+	struct se_session *se_sess;
+	ssize_t len = 0;
+
+	spin_lock_bh(&se_tpg->session_lock);
+	list_for_each_entry(se_sess, &se_tpg->tpg_sess_list, sess_list) {
+		if (!se_sess->se_node_acl)
+			continue;
+		if (!se_sess->se_node_acl->dynamic_node_acl)
+			continue;
+		if (strlen(se_sess->se_node_acl->initiatorname) + 1 + len > PAGE_SIZE)
+			break;
+
+		len += snprintf(page + len, PAGE_SIZE - len, "%s\n",
+				se_sess->se_node_acl->initiatorname);
+		len += 1; /* Include NULL terminator */
+	}
+	spin_unlock_bh(&se_tpg->session_lock);
+
+	return len;
+}
+EXPORT_SYMBOL(target_show_dynamic_sessions);
+
 static void target_complete_nacl(struct kref *kref)
 {
 	struct se_node_acl *nacl = container_of(kref,
@@ -462,7 +502,7 @@ EXPORT_SYMBOL(transport_free_session);
 void transport_deregister_session(struct se_session *se_sess)
 {
 	struct se_portal_group *se_tpg = se_sess->se_tpg;
-	struct target_core_fabric_ops *se_tfo;
+	const struct target_core_fabric_ops *se_tfo;
 	struct se_node_acl *se_nacl;
 	unsigned long flags;
 	bool comp_nacl = true;
@@ -1118,7 +1158,7 @@ target_cmd_size_check(struct se_cmd *cmd, unsigned int size)
  */
 void transport_init_se_cmd(
 	struct se_cmd *cmd,
-	struct target_core_fabric_ops *tfo,
+	const struct target_core_fabric_ops *tfo,
 	struct se_session *se_sess,
 	u32 data_length,
 	int data_direction,
@@ -1570,6 +1610,8 @@ EXPORT_SYMBOL(target_submit_tmr);
  * has completed.
  */
 bool target_stop_cmd(struct se_cmd *cmd, unsigned long *flags)
+	__releases(&cmd->t_state_lock)
+	__acquires(&cmd->t_state_lock)
 {
 	bool was_active = false;
 
@@ -1615,11 +1657,11 @@ void transport_generic_request_failure(struct se_cmd *cmd,
 	transport_complete_task_attr(cmd);
 	/*
 	 * Handle special case for COMPARE_AND_WRITE failure, where the
-	 * callback is expected to drop the per device ->caw_mutex.
+	 * callback is expected to drop the per device ->caw_sem.
 	 */
 	if ((cmd->se_cmd_flags & SCF_COMPARE_AND_WRITE) &&
 	     cmd->transport_complete_callback)
-		cmd->transport_complete_callback(cmd);
+		cmd->transport_complete_callback(cmd, false);
 
 	switch (sense_reason) {
 	case TCM_NON_EXISTENT_LUN:
@@ -1706,6 +1748,41 @@ void __target_execute_cmd(struct se_cmd *cmd)
 	}
 }
 
+static int target_write_prot_action(struct se_cmd *cmd)
+{
+	u32 sectors;
+	/*
+	 * Perform WRITE_INSERT of PI using software emulation when backend
+	 * device has PI enabled, if the transport has not already generated
+	 * PI using hardware WRITE_INSERT offload.
+	 */
+	switch (cmd->prot_op) {
+	case TARGET_PROT_DOUT_INSERT:
+		if (!(cmd->se_sess->sup_prot_ops & TARGET_PROT_DOUT_INSERT))
+			sbc_dif_generate(cmd);
+		break;
+	case TARGET_PROT_DOUT_STRIP:
+		if (cmd->se_sess->sup_prot_ops & TARGET_PROT_DOUT_STRIP)
+			break;
+
+		sectors = cmd->data_length >> ilog2(cmd->se_dev->dev_attrib.block_size);
+		cmd->pi_err = sbc_dif_verify_write(cmd, cmd->t_task_lba,
+						   sectors, 0, NULL, 0);
+		if (unlikely(cmd->pi_err)) {
+			spin_lock_irq(&cmd->t_state_lock);
+			cmd->transport_state &= ~CMD_T_BUSY|CMD_T_SENT;
+			spin_unlock_irq(&cmd->t_state_lock);
+			transport_generic_request_failure(cmd, cmd->pi_err);
+			return -1;
+		}
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 static bool target_handle_task_attr(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
@@ -1785,15 +1862,9 @@ void target_execute_cmd(struct se_cmd *cmd)
 	cmd->t_state = TRANSPORT_PROCESSING;
 	cmd->transport_state |= CMD_T_ACTIVE|CMD_T_BUSY|CMD_T_SENT;
 	spin_unlock_irq(&cmd->t_state_lock);
-	/*
-	 * Perform WRITE_INSERT of PI using software emulation when backend
-	 * device has PI enabled, if the transport has not already generated
-	 * PI using hardware WRITE_INSERT offload.
-	 */
-	if (cmd->prot_op == TARGET_PROT_DOUT_INSERT) {
-		if (!(cmd->se_sess->sup_prot_ops & TARGET_PROT_DOUT_INSERT))
-			sbc_dif_generate(cmd);
-	}
+
+	if (target_write_prot_action(cmd))
+		return;
 
 	if (target_handle_task_attr(cmd)) {
 		spin_lock_irq(&cmd->t_state_lock);
@@ -1919,16 +1990,28 @@ static void transport_handle_queue_full(
 	schedule_work(&cmd->se_dev->qf_work_queue);
 }
 
-static bool target_check_read_strip(struct se_cmd *cmd)
+static bool target_read_prot_action(struct se_cmd *cmd)
 {
 	sense_reason_t rc;
 
-	if (!(cmd->se_sess->sup_prot_ops & TARGET_PROT_DIN_STRIP)) {
-		rc = sbc_dif_read_strip(cmd);
-		if (rc) {
-			cmd->pi_err = rc;
-			return true;
+	switch (cmd->prot_op) {
+	case TARGET_PROT_DIN_STRIP:
+		if (!(cmd->se_sess->sup_prot_ops & TARGET_PROT_DIN_STRIP)) {
+			rc = sbc_dif_read_strip(cmd);
+			if (rc) {
+				cmd->pi_err = rc;
+				return true;
+			}
 		}
+		break;
+	case TARGET_PROT_DIN_INSERT:
+		if (cmd->se_sess->sup_prot_ops & TARGET_PROT_DIN_INSERT)
+			break;
+
+		sbc_dif_generate(cmd);
+		break;
+	default:
+		break;
 	}
 
 	return false;
@@ -1975,8 +2058,12 @@ static void target_complete_ok_work(struct work_struct *work)
 	if (cmd->transport_complete_callback) {
 		sense_reason_t rc;
 
-		rc = cmd->transport_complete_callback(cmd);
+		rc = cmd->transport_complete_callback(cmd, true);
 		if (!rc && !(cmd->se_cmd_flags & SCF_COMPARE_AND_WRITE_POST)) {
+			if ((cmd->se_cmd_flags & SCF_COMPARE_AND_WRITE) &&
+			    !cmd->data_length)
+				goto queue_rsp;
+
 			return;
 		} else if (rc) {
 			ret = transport_send_check_condition_and_sense(cmd,
@@ -1990,6 +2077,7 @@ static void target_complete_ok_work(struct work_struct *work)
 		}
 	}
 
+queue_rsp:
 	switch (cmd->data_direction) {
 	case DMA_FROM_DEVICE:
 		spin_lock(&cmd->se_lun->lun_sep_lock);
@@ -2003,8 +2091,7 @@ static void target_complete_ok_work(struct work_struct *work)
 		 * backend had PI enabled, if the transport will not be
 		 * performing hardware READ_STRIP offload.
 		 */
-		if (cmd->prot_op == TARGET_PROT_DIN_STRIP &&
-		    target_check_read_strip(cmd)) {
+		if (target_read_prot_action(cmd)) {
 			ret = transport_send_check_condition_and_sense(cmd,
 						cmd->pi_err, 0);
 			if (ret == -EAGAIN || ret == -ENOMEM)
@@ -2094,6 +2181,16 @@ static inline void transport_reset_sgl_orig(struct se_cmd *cmd)
 static inline void transport_free_pages(struct se_cmd *cmd)
 {
 	if (cmd->se_cmd_flags & SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC) {
+		/*
+		 * Release special case READ buffer payload required for
+		 * SG_TO_MEM_NOALLOC to function with COMPARE_AND_WRITE
+		 */
+		if (cmd->se_cmd_flags & SCF_COMPARE_AND_WRITE) {
+			transport_free_sgl(cmd->t_bidi_data_sg,
+					   cmd->t_bidi_data_nents);
+			cmd->t_bidi_data_sg = NULL;
+			cmd->t_bidi_data_nents = 0;
+		}
 		transport_reset_sgl_orig(cmd);
 		return;
 	}
@@ -2246,6 +2343,7 @@ sense_reason_t
 transport_generic_new_cmd(struct se_cmd *cmd)
 {
 	int ret = 0;
+	bool zero_flag = !(cmd->se_cmd_flags & SCF_SCSI_DATA_CDB);
 
 	/*
 	 * Determine is the TCM fabric module has already allocated physical
@@ -2254,7 +2352,6 @@ transport_generic_new_cmd(struct se_cmd *cmd)
 	 */
 	if (!(cmd->se_cmd_flags & SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC) &&
 	    cmd->data_length) {
-		bool zero_flag = !(cmd->se_cmd_flags & SCF_SCSI_DATA_CDB);
 
 		if ((cmd->se_cmd_flags & SCF_BIDI) ||
 		    (cmd->se_cmd_flags & SCF_COMPARE_AND_WRITE)) {
@@ -2283,6 +2380,20 @@ transport_generic_new_cmd(struct se_cmd *cmd)
 
 		ret = target_alloc_sgl(&cmd->t_data_sg, &cmd->t_data_nents,
 				       cmd->data_length, zero_flag);
+		if (ret < 0)
+			return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+	} else if ((cmd->se_cmd_flags & SCF_COMPARE_AND_WRITE) &&
+		    cmd->data_length) {
+		/*
+		 * Special case for COMPARE_AND_WRITE with fabrics
+		 * using SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC.
+		 */
+		u32 caw_length = cmd->t_task_nolb *
+				 cmd->se_dev->dev_attrib.block_size;
+
+		ret = target_alloc_sgl(&cmd->t_bidi_data_sg,
+				       &cmd->t_bidi_data_nents,
+				       caw_length, zero_flag);
 		if (ret < 0)
 			return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 	}
@@ -2376,10 +2487,8 @@ int target_get_sess_cmd(struct se_session *se_sess, struct se_cmd *se_cmd,
 	 * fabric acknowledgement that requires two target_put_sess_cmd()
 	 * invocations before se_cmd descriptor release.
 	 */
-	if (ack_kref) {
+	if (ack_kref)
 		kref_get(&se_cmd->cmd_kref);
-		se_cmd->se_cmd_flags |= SCF_ACK_KREF;
-	}
 
 	spin_lock_irqsave(&se_sess->sess_cmd_lock, flags);
 	if (se_sess->sess_tearing_down) {
@@ -2398,6 +2507,7 @@ out:
 EXPORT_SYMBOL(target_get_sess_cmd);
 
 static void target_release_cmd_kref(struct kref *kref)
+		__releases(&se_cmd->se_sess->sess_cmd_lock)
 {
 	struct se_cmd *se_cmd = container_of(kref, struct se_cmd, cmd_kref);
 	struct se_session *se_sess = se_cmd->se_sess;

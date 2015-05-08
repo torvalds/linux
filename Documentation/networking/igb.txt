@@ -42,10 +42,10 @@ Additional Configurations
   Jumbo Frames
   ------------
   Jumbo Frames support is enabled by changing the MTU to a value larger than
-  the default of 1500.  Use the ifconfig command to increase the MTU size.
+  the default of 1500.  Use the ip command to increase the MTU size.
   For example:
 
-       ifconfig eth<x> mtu 9000 up
+       ip link set dev eth<x> mtu 9000
 
   This setting is not saved across reboots.
 

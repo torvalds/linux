@@ -265,23 +265,13 @@ int __kprobes aarch64_insn_patch_text(void *addrs[], u32 insns[], int cnt)
 	return aarch64_insn_patch_text_sync(addrs, insns, cnt);
 }
 
-u32 __kprobes aarch64_insn_encode_immediate(enum aarch64_insn_imm_type type,
-				  u32 insn, u64 imm)
+static int __kprobes aarch64_get_imm_shift_mask(enum aarch64_insn_imm_type type,
+						u32 *maskp, int *shiftp)
 {
-	u32 immlo, immhi, lomask, himask, mask;
+	u32 mask;
 	int shift;
 
 	switch (type) {
-	case AARCH64_INSN_IMM_ADR:
-		lomask = 0x3;
-		himask = 0x7ffff;
-		immlo = imm & lomask;
-		imm >>= 2;
-		immhi = imm & himask;
-		imm = (immlo << 24) | (immhi);
-		mask = (lomask << 24) | (himask);
-		shift = 5;
-		break;
 	case AARCH64_INSN_IMM_26:
 		mask = BIT(26) - 1;
 		shift = 0;
@@ -320,9 +310,68 @@ u32 __kprobes aarch64_insn_encode_immediate(enum aarch64_insn_imm_type type,
 		shift = 16;
 		break;
 	default:
-		pr_err("aarch64_insn_encode_immediate: unknown immediate encoding %d\n",
-			type);
-		return 0;
+		return -EINVAL;
+	}
+
+	*maskp = mask;
+	*shiftp = shift;
+
+	return 0;
+}
+
+#define ADR_IMM_HILOSPLIT	2
+#define ADR_IMM_SIZE		SZ_2M
+#define ADR_IMM_LOMASK		((1 << ADR_IMM_HILOSPLIT) - 1)
+#define ADR_IMM_HIMASK		((ADR_IMM_SIZE >> ADR_IMM_HILOSPLIT) - 1)
+#define ADR_IMM_LOSHIFT		29
+#define ADR_IMM_HISHIFT		5
+
+u64 aarch64_insn_decode_immediate(enum aarch64_insn_imm_type type, u32 insn)
+{
+	u32 immlo, immhi, mask;
+	int shift;
+
+	switch (type) {
+	case AARCH64_INSN_IMM_ADR:
+		shift = 0;
+		immlo = (insn >> ADR_IMM_LOSHIFT) & ADR_IMM_LOMASK;
+		immhi = (insn >> ADR_IMM_HISHIFT) & ADR_IMM_HIMASK;
+		insn = (immhi << ADR_IMM_HILOSPLIT) | immlo;
+		mask = ADR_IMM_SIZE - 1;
+		break;
+	default:
+		if (aarch64_get_imm_shift_mask(type, &mask, &shift) < 0) {
+			pr_err("aarch64_insn_decode_immediate: unknown immediate encoding %d\n",
+			       type);
+			return 0;
+		}
+	}
+
+	return (insn >> shift) & mask;
+}
+
+u32 __kprobes aarch64_insn_encode_immediate(enum aarch64_insn_imm_type type,
+				  u32 insn, u64 imm)
+{
+	u32 immlo, immhi, mask;
+	int shift;
+
+	switch (type) {
+	case AARCH64_INSN_IMM_ADR:
+		shift = 0;
+		immlo = (imm & ADR_IMM_LOMASK) << ADR_IMM_LOSHIFT;
+		imm >>= ADR_IMM_HILOSPLIT;
+		immhi = (imm & ADR_IMM_HIMASK) << ADR_IMM_HISHIFT;
+		imm = immlo | immhi;
+		mask = ((ADR_IMM_LOMASK << ADR_IMM_LOSHIFT) |
+			(ADR_IMM_HIMASK << ADR_IMM_HISHIFT));
+		break;
+	default:
+		if (aarch64_get_imm_shift_mask(type, &mask, &shift) < 0) {
+			pr_err("aarch64_insn_encode_immediate: unknown immediate encoding %d\n",
+			       type);
+			return 0;
+		}
 	}
 
 	/* Update the immediate field. */

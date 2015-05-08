@@ -183,6 +183,8 @@ int rsnd_adg_set_convert_clk_gen2(struct rsnd_mod *mod,
 
 	rsnd_mod_bset(mod, DIV_EN, en, en);
 
+	dev_dbg(dev, "convert rate %d <-> %d\n", src_rate, dst_rate);
+
 	return 0;
 }
 
@@ -431,8 +433,6 @@ int rsnd_adg_probe(struct platform_device *pdev,
 	rsnd_adg_ssi_clk_init(priv, adg);
 
 	priv->adg = adg;
-
-	dev_dbg(dev, "adg probed\n");
 
 	return 0;
 }

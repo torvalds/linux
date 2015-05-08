@@ -295,12 +295,10 @@ uisqueue_put_cmdrsp_with_lock_client(struct uisqueue_info *queueinfo,
 	while (!do_locked_client_insert(queueinfo, whichqueue, cmdrsp,
 					(spinlock_t *)insertlock,
 					channel_id)) {
-		if (oktowait != OK_TO_WAIT) {
-			LOGERR("****FAILED visor_signal_insert failed; cannot wait; insert aborted\n");
+		if (oktowait != OK_TO_WAIT)
 			return 0;	/* failed to queue */
-		}
+
 		/* try again */
-		LOGERR("****FAILED visor_signal_insert failed; waiting to try again\n");
 		set_current_state(TASK_INTERRUPTIBLE);
 		schedule_timeout(msecs_to_jiffies(10));
 	}

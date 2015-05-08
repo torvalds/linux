@@ -386,11 +386,6 @@ static int sdhci_esdhc_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int sdhci_esdhc_remove(struct platform_device *pdev)
-{
-	return sdhci_pltfm_unregister(pdev);
-}
-
 static const struct of_device_id sdhci_esdhc_of_match[] = {
 	{ .compatible = "fsl,mpc8379-esdhc" },
 	{ .compatible = "fsl,mpc8536-esdhc" },
@@ -406,7 +401,7 @@ static struct platform_driver sdhci_esdhc_driver = {
 		.pm = ESDHC_PMOPS,
 	},
 	.probe = sdhci_esdhc_probe,
-	.remove = sdhci_esdhc_remove,
+	.remove = sdhci_pltfm_unregister,
 };
 
 module_platform_driver(sdhci_esdhc_driver);

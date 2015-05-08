@@ -716,7 +716,7 @@ static void perf_event__process_sample(struct perf_tool *tool,
 
 	if (!machine) {
 		pr_err("%u unprocessable samples recorded.\r",
-		       top->session->stats.nr_unprocessable_samples++);
+		       top->session->evlist->stats.nr_unprocessable_samples++);
 		return;
 	}
 
@@ -733,7 +733,7 @@ static void perf_event__process_sample(struct perf_tool *tool,
 "Kernel address maps (/proc/{kallsyms,modules}) are restricted.\n\n"
 "Check /proc/sys/kernel/kptr_restrict.\n\n"
 "Kernel%s samples will not be resolved.\n",
-			  !RB_EMPTY_ROOT(&al.map->dso->symbols[MAP__FUNCTION]) ?
+			  al.map && !RB_EMPTY_ROOT(&al.map->dso->symbols[MAP__FUNCTION]) ?
 			  " modules" : "");
 		if (use_browser <= 0)
 			sleep(5);
@@ -757,8 +757,10 @@ static void perf_event__process_sample(struct perf_tool *tool,
 		    al.map == machine->vmlinux_maps[MAP__FUNCTION] &&
 		    RB_EMPTY_ROOT(&al.map->dso->symbols[MAP__FUNCTION])) {
 			if (symbol_conf.vmlinux_name) {
-				ui__warning("The %s file can't be used.\n%s",
-					    symbol_conf.vmlinux_name, msg);
+				char serr[256];
+				dso__strerror_load(al.map->dso, serr, sizeof(serr));
+				ui__warning("The %s file can't be used: %s\n%s",
+					    symbol_conf.vmlinux_name, serr, msg);
 			} else {
 				ui__warning("A vmlinux file was not found.\n%s",
 					    msg);
@@ -856,7 +858,7 @@ static void perf_top__mmap_read_idx(struct perf_top *top, int idx)
 			hists__inc_nr_events(evsel__hists(evsel), event->header.type);
 			machine__process_event(machine, event, &sample);
 		} else
-			++session->stats.nr_unknown_events;
+			++session->evlist->stats.nr_unknown_events;
 next_event:
 		perf_evlist__mmap_consume(top->evlist, idx);
 	}

@@ -2613,7 +2613,7 @@ int osc_queue_sync_pages(const struct lu_env *env, struct osc_object *obj,
 	}
 	osc_object_unlock(obj);
 
-	osc_io_unplug(env, cli, obj, PDL_POLICY_ROUND);
+	osc_io_unplug_async(env, cli, obj);
 	return 0;
 }
 

@@ -944,8 +944,8 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname,
 	return err;
 }
 
-static int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
-			      struct msghdr *msg, size_t len)
+static int l2cap_sock_sendmsg(struct socket *sock, struct msghdr *msg,
+			      size_t len)
 {
 	struct sock *sk = sock->sk;
 	struct l2cap_chan *chan = l2cap_pi(sk)->chan;
@@ -976,8 +976,8 @@ static int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 	return err;
 }
 
-static int l2cap_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
-			      struct msghdr *msg, size_t len, int flags)
+static int l2cap_sock_recvmsg(struct socket *sock, struct msghdr *msg,
+			      size_t len, int flags)
 {
 	struct sock *sk = sock->sk;
 	struct l2cap_pinfo *pi = l2cap_pi(sk);
@@ -1004,9 +1004,9 @@ static int l2cap_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 	release_sock(sk);
 
 	if (sock->type == SOCK_STREAM)
-		err = bt_sock_stream_recvmsg(iocb, sock, msg, len, flags);
+		err = bt_sock_stream_recvmsg(sock, msg, len, flags);
 	else
-		err = bt_sock_recvmsg(iocb, sock, msg, len, flags);
+		err = bt_sock_recvmsg(sock, msg, len, flags);
 
 	if (pi->chan->mode != L2CAP_MODE_ERTM)
 		return err;
@@ -1330,7 +1330,7 @@ static struct sk_buff *l2cap_sock_alloc_skb_cb(struct l2cap_chan *chan,
 
 	skb->priority = sk->sk_priority;
 
-	bt_cb(skb)->chan = chan;
+	bt_cb(skb)->l2cap.chan = chan;
 
 	return skb;
 }
@@ -1444,8 +1444,8 @@ static void l2cap_skb_msg_name(struct sk_buff *skb, void *msg_name,
 
 	memset(la, 0, sizeof(struct sockaddr_l2));
 	la->l2_family = AF_BLUETOOTH;
-	la->l2_psm = bt_cb(skb)->psm;
-	bacpy(&la->l2_bdaddr, &bt_cb(skb)->bdaddr);
+	la->l2_psm = bt_cb(skb)->l2cap.psm;
+	bacpy(&la->l2_bdaddr, &bt_cb(skb)->l2cap.bdaddr);
 
 	*msg_namelen = sizeof(struct sockaddr_l2);
 }

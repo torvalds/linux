@@ -57,7 +57,6 @@
 #include <linux/page_counter.h>
 #include <linux/memcontrol.h>
 #include <linux/static_key.h>
-#include <linux/aio.h>
 #include <linux/sched.h>
 
 #include <linux/filter.h>
@@ -67,6 +66,7 @@
 #include <linux/atomic.h>
 #include <net/dst.h>
 #include <net/checksum.h>
+#include <net/tcp_states.h>
 #include <linux/net_tstamp.h>
 
 struct cgroup;
@@ -190,14 +190,14 @@ struct sock_common {
 		struct hlist_nulls_node skc_portaddr_node;
 	};
 	struct proto		*skc_prot;
-#ifdef CONFIG_NET_NS
-	struct net	 	*skc_net;
-#endif
+	possible_net_t		skc_net;
 
 #if IS_ENABLED(CONFIG_IPV6)
 	struct in6_addr		skc_v6_daddr;
 	struct in6_addr		skc_v6_rcv_saddr;
 #endif
+
+	atomic64_t		skc_cookie;
 
 	/*
 	 * fields between dontcopy_begin/dontcopy_end
@@ -329,6 +329,7 @@ struct sock {
 #define sk_net			__sk_common.skc_net
 #define sk_v6_daddr		__sk_common.skc_v6_daddr
 #define sk_v6_rcv_saddr	__sk_common.skc_v6_rcv_saddr
+#define sk_cookie		__sk_common.skc_cookie
 
 	socket_lock_t		sk_lock;
 	struct sk_buff_head	sk_receive_queue;
@@ -403,8 +404,8 @@ struct sock {
 	rwlock_t		sk_callback_lock;
 	int			sk_err,
 				sk_err_soft;
-	unsigned short		sk_ack_backlog;
-	unsigned short		sk_max_ack_backlog;
+	u32			sk_ack_backlog;
+	u32			sk_max_ack_backlog;
 	__u32			sk_priority;
 #if IS_ENABLED(CONFIG_CGROUP_NET_PRIO)
 	__u32			sk_cgrp_prioidx;
@@ -958,10 +959,9 @@ struct proto {
 	int			(*compat_ioctl)(struct sock *sk,
 					unsigned int cmd, unsigned long arg);
 #endif
-	int			(*sendmsg)(struct kiocb *iocb, struct sock *sk,
-					   struct msghdr *msg, size_t len);
-	int			(*recvmsg)(struct kiocb *iocb, struct sock *sk,
-					   struct msghdr *msg,
+	int			(*sendmsg)(struct sock *sk, struct msghdr *msg,
+					   size_t len);
+	int			(*recvmsg)(struct sock *sk, struct msghdr *msg,
 					   size_t len, int noblock, int flags,
 					   int *addr_len);
 	int			(*sendpage)(struct sock *sk, struct page *page,
@@ -1562,9 +1562,8 @@ int sock_no_listen(struct socket *, int);
 int sock_no_shutdown(struct socket *, int);
 int sock_no_getsockopt(struct socket *, int , int, char __user *, int __user *);
 int sock_no_setsockopt(struct socket *, int, int, char __user *, unsigned int);
-int sock_no_sendmsg(struct kiocb *, struct socket *, struct msghdr *, size_t);
-int sock_no_recvmsg(struct kiocb *, struct socket *, struct msghdr *, size_t,
-		    int);
+int sock_no_sendmsg(struct socket *, struct msghdr *, size_t);
+int sock_no_recvmsg(struct socket *, struct msghdr *, size_t, int);
 int sock_no_mmap(struct file *file, struct socket *sock,
 		 struct vm_area_struct *vma);
 ssize_t sock_no_sendpage(struct socket *sock, struct page *page, int offset,
@@ -1576,8 +1575,8 @@ ssize_t sock_no_sendpage(struct socket *sock, struct page *page, int offset,
  */
 int sock_common_getsockopt(struct socket *sock, int level, int optname,
 				  char __user *optval, int __user *optlen);
-int sock_common_recvmsg(struct kiocb *iocb, struct socket *sock,
-			       struct msghdr *msg, size_t size, int flags);
+int sock_common_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
+			int flags);
 int sock_common_setsockopt(struct socket *sock, int level, int optname,
 				  char __user *optval, unsigned int optlen);
 int compat_sock_common_getsockopt(struct socket *sock, int level,
@@ -1626,7 +1625,7 @@ static inline void sock_put(struct sock *sk)
 		sk_free(sk);
 }
 /* Generic version of sock_put(), dealing with all sockets
- * (TCP_TIMEWAIT, ESTABLISHED...)
+ * (TCP_TIMEWAIT, TCP_NEW_SYN_RECV, ESTABLISHED...)
  */
 void sock_gen_put(struct sock *sk);
 
@@ -2080,6 +2079,29 @@ static inline int sock_intr_errno(long timeo)
 	return timeo == MAX_SCHEDULE_TIMEOUT ? -ERESTARTSYS : -EINTR;
 }
 
+struct sock_skb_cb {
+	u32 dropcount;
+};
+
+/* Store sock_skb_cb at the end of skb->cb[] so protocol families
+ * using skb->cb[] would keep using it directly and utilize its
+ * alignement guarantee.
+ */
+#define SOCK_SKB_CB_OFFSET ((FIELD_SIZEOF(struct sk_buff, cb) - \
+			    sizeof(struct sock_skb_cb)))
+
+#define SOCK_SKB_CB(__skb) ((struct sock_skb_cb *)((__skb)->cb + \
+			    SOCK_SKB_CB_OFFSET))
+
+#define sock_skb_cb_check_size(size) \
+	BUILD_BUG_ON((size) > SOCK_SKB_CB_OFFSET)
+
+static inline void
+sock_skb_set_dropcount(const struct sock *sk, struct sk_buff *skb)
+{
+	SOCK_SKB_CB(skb)->dropcount = atomic_read(&sk->sk_drops);
+}
+
 void __sock_recv_timestamp(struct msghdr *msg, struct sock *sk,
 			   struct sk_buff *skb);
 void __sock_recv_wifi_status(struct msghdr *msg, struct sock *sk,
@@ -2182,7 +2204,7 @@ static inline void sk_change_net(struct sock *sk, struct net *net)
 
 	if (!net_eq(current_net, net)) {
 		put_net(current_net);
-		sock_net_set(sk, hold_net(net));
+		sock_net_set(sk, net);
 	}
 }
 
@@ -2196,6 +2218,14 @@ static inline struct sock *skb_steal_sock(struct sk_buff *skb)
 		return sk;
 	}
 	return NULL;
+}
+
+/* This helper checks if a socket is a full socket,
+ * ie _not_ a timewait or request socket.
+ */
+static inline bool sk_fullsock(const struct sock *sk)
+{
+	return (1 << sk->sk_state) & ~(TCPF_TIME_WAIT | TCPF_NEW_SYN_RECV);
 }
 
 void sock_enable_timestamp(struct sock *sk, int flag);

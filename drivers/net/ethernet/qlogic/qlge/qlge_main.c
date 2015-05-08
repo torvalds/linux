@@ -460,7 +460,7 @@ static int ql_set_mac_addr(struct ql_adapter *qdev, int set)
 		netif_printk(qdev, ifup, KERN_DEBUG, qdev->ndev,
 			     "Set Mac addr %pM\n", addr);
 	} else {
-		memset(zero_mac_addr, 0, ETH_ALEN);
+		eth_zero_addr(zero_mac_addr);
 		addr = &zero_mac_addr[0];
 		netif_printk(qdev, ifup, KERN_DEBUG, qdev->ndev,
 			     "Clearing MAC address\n");

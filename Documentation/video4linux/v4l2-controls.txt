@@ -344,7 +344,9 @@ implement g_volatile_ctrl like this:
 	}
 
 Note that you use the 'new value' union as well in g_volatile_ctrl. In general
-controls that need to implement g_volatile_ctrl are read-only controls.
+controls that need to implement g_volatile_ctrl are read-only controls. If they
+are not, a V4L2_EVENT_CTRL_CH_VALUE will not be generated when the control
+changes.
 
 To mark a control as volatile you have to set V4L2_CTRL_FLAG_VOLATILE:
 

@@ -588,7 +588,7 @@ static int mpc512x_psc_spi_of_remove(struct platform_device *op)
 	return mpc512x_psc_spi_do_remove(&op->dev);
 }
 
-static struct of_device_id mpc512x_psc_spi_of_match[] = {
+static const struct of_device_id mpc512x_psc_spi_of_match[] = {
 	{ .compatible = "fsl,mpc5121-psc-spi", },
 	{},
 };

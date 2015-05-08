@@ -173,6 +173,12 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 	pltfm_host->priv = sdhci_arasan;
 	pltfm_host->clk = clk_xin;
 
+	ret = mmc_of_parse(host->mmc);
+	if (ret) {
+		dev_err(&pdev->dev, "parsing dt failed (%u)\n", ret);
+		goto clk_disable_all;
+	}
+
 	ret = sdhci_add_host(host);
 	if (ret)
 		goto err_pltfm_free;
@@ -195,7 +201,6 @@ static int sdhci_arasan_remove(struct platform_device *pdev)
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct sdhci_arasan_data *sdhci_arasan = pltfm_host->priv;
 
-	clk_disable_unprepare(pltfm_host->clk);
 	clk_disable_unprepare(sdhci_arasan->clk_ahb);
 
 	return sdhci_pltfm_unregister(pdev);

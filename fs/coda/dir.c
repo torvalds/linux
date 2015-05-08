@@ -201,7 +201,7 @@ err_out:
 static int coda_link(struct dentry *source_de, struct inode *dir_inode, 
 	  struct dentry *de)
 {
-	struct inode *inode = source_de->d_inode;
+	struct inode *inode = d_inode(source_de);
         const char * name = de->d_name.name;
 	int len = de->d_name.len;
 	int error;
@@ -266,7 +266,7 @@ static int coda_unlink(struct inode *dir, struct dentry *de)
 		return error;
 
 	coda_dir_update_mtime(dir);
-	drop_nlink(de->d_inode);
+	drop_nlink(d_inode(de));
 	return 0;
 }
 
@@ -279,8 +279,8 @@ static int coda_rmdir(struct inode *dir, struct dentry *de)
 	error = venus_rmdir(dir->i_sb, coda_i2f(dir), name, len);
 	if (!error) {
 		/* VFS may delete the child */
-		if (de->d_inode)
-			clear_nlink(de->d_inode);
+		if (d_really_is_positive(de))
+			clear_nlink(d_inode(de));
 
 		/* fix the link count of the parent */
 		coda_dir_drop_nlink(dir);
@@ -303,14 +303,14 @@ static int coda_rename(struct inode *old_dir, struct dentry *old_dentry,
 			     coda_i2f(new_dir), old_length, new_length,
 			     (const char *) old_name, (const char *)new_name);
 	if (!error) {
-		if (new_dentry->d_inode) {
+		if (d_really_is_positive(new_dentry)) {
 			if (d_is_dir(new_dentry)) {
 				coda_dir_drop_nlink(old_dir);
 				coda_dir_inc_nlink(new_dir);
 			}
 			coda_dir_update_mtime(old_dir);
 			coda_dir_update_mtime(new_dir);
-			coda_flag_inode(new_dentry->d_inode, C_VATTR);
+			coda_flag_inode(d_inode(new_dentry), C_VATTR);
 		} else {
 			coda_flag_inode(old_dir, C_VATTR);
 			coda_flag_inode(new_dir, C_VATTR);
@@ -449,13 +449,13 @@ static int coda_dentry_revalidate(struct dentry *de, unsigned int flags)
 	if (flags & LOOKUP_RCU)
 		return -ECHILD;
 
-	inode = de->d_inode;
+	inode = d_inode(de);
 	if (!inode || is_root_inode(inode))
 		goto out;
 	if (is_bad_inode(inode))
 		goto bad;
 
-	cii = ITOC(de->d_inode);
+	cii = ITOC(d_inode(de));
 	if (!(cii->c_flags & (C_PURGE | C_FLUSH)))
 		goto out;
 
@@ -487,11 +487,11 @@ static int coda_dentry_delete(const struct dentry * dentry)
 {
 	int flags;
 
-	if (!dentry->d_inode) 
+	if (d_really_is_negative(dentry)) 
 		return 0;
 
-	flags = (ITOC(dentry->d_inode)->c_flags) & C_PURGE;
-	if (is_bad_inode(dentry->d_inode) || flags) {
+	flags = (ITOC(d_inode(dentry))->c_flags) & C_PURGE;
+	if (is_bad_inode(d_inode(dentry)) || flags) {
 		return 1;
 	}
 	return 0;

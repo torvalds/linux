@@ -1,0 +1,71 @@
+OMAP 3 ISP Device Tree bindings
+===============================
+
+The DT definitions can be found in include/dt-bindings/media/omap3-isp.h.
+
+Required properties
+===================
+
+compatible	: must contain "ti,omap3-isp"
+
+reg		: the two registers sets (physical address and length) for the
+		  ISP. The first set contains the core ISP registers up to
+		  the end of the SBL block. The second set contains the
+		  CSI PHYs and receivers registers.
+interrupts	: the ISP interrupt specifier
+iommus		: phandle and IOMMU specifier for the IOMMU that serves the ISP
+syscon		: the phandle and register offset to the Complex I/O or CSI-PHY
+		  register
+ti,phy-type	: 0 -- OMAP3ISP_PHY_TYPE_COMPLEX_IO (e.g. 3430)
+		  1 -- OMAP3ISP_PHY_TYPE_CSIPHY (e.g. 3630)
+#clock-cells	: Must be 1 --- the ISP provides two external clocks,
+		  cam_xclka and cam_xclkb, at indices 0 and 1,
+		  respectively. Please find more information on common
+		  clock bindings in ../clock/clock-bindings.txt.
+
+Port nodes (optional)
+---------------------
+
+More documentation on these bindings is available in
+video-interfaces.txt in the same directory.
+
+reg		: The interface:
+		  0 - parallel (CCDC)
+		  1 - CSIPHY1 -- CSI2C / CCP2B on 3630;
+		      CSI1 -- CSIb on 3430
+		  2 - CSIPHY2 -- CSI2A / CCP2B on 3630;
+		      CSI2 -- CSIa on 3430
+
+Optional properties
+===================
+
+vdd-csiphy1-supply : voltage supply of the CSI-2 PHY 1
+vdd-csiphy2-supply : voltage supply of the CSI-2 PHY 2
+
+Endpoint nodes
+--------------
+
+lane-polarities	: lane polarity (required on CSI-2)
+		  0 -- not inverted; 1 -- inverted
+data-lanes	: an array of data lanes from 1 to 3. The length can
+		  be either 1 or 2. (required on CSI-2)
+clock-lanes	: the clock lane (from 1 to 3). (required on CSI-2)
+
+
+Example
+=======
+
+		isp@480bc000 {
+			compatible = "ti,omap3-isp";
+			reg = <0x480bc000 0x12fc
+			       0x480bd800 0x0600>;
+			interrupts = <24>;
+			iommus = <&mmu_isp>;
+			syscon = <&scm_conf 0x2f0>;
+			ti,phy-type = <OMAP3ISP_PHY_TYPE_CSIPHY>;
+			#clock-cells = <1>;
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+		};

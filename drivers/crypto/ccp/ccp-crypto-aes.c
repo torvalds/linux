@@ -22,7 +22,6 @@
 
 #include "ccp-crypto.h"
 
-
 static int ccp_aes_complete(struct crypto_async_request *async_req, int ret)
 {
 	struct ablkcipher_request *req = ablkcipher_request_cast(async_req);
@@ -345,7 +344,7 @@ static int ccp_register_aes_alg(struct list_head *head,
 	ret = crypto_register_alg(alg);
 	if (ret) {
 		pr_err("%s ablkcipher algorithm registration error (%d)\n",
-			alg->cra_name, ret);
+		       alg->cra_name, ret);
 		kfree(ccp_alg);
 		return ret;
 	}

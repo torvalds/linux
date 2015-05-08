@@ -15,7 +15,6 @@
 /* Generic ones first.  */
 #define cpu_has_tlb			1
 #define cpu_has_tx39_cache		0
-#define cpu_has_fpu			1
 #define cpu_has_divec			0
 #define cpu_has_prefetch		0
 #define cpu_has_mcheck			0

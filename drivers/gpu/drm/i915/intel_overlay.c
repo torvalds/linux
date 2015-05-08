@@ -720,7 +720,8 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 	if (ret != 0)
 		return ret;
 
-	ret = i915_gem_object_pin_to_display_plane(new_bo, 0, NULL);
+	ret = i915_gem_object_pin_to_display_plane(new_bo, 0, NULL,
+						   &i915_ggtt_view_normal);
 	if (ret != 0)
 		return ret;
 
@@ -1065,7 +1066,6 @@ int intel_overlay_put_image(struct drm_device *dev, void *data,
 	struct put_image_params *params;
 	int ret;
 
-	/* No need to check for DRIVER_MODESET - we don't set it up then. */
 	overlay = dev_priv->overlay;
 	if (!overlay) {
 		DRM_DEBUG("userspace bug: no overlay\n");
@@ -1261,7 +1261,6 @@ int intel_overlay_attrs(struct drm_device *dev, void *data,
 	struct overlay_registers __iomem *regs;
 	int ret;
 
-	/* No need to check for DRIVER_MODESET - we don't set it up then. */
 	overlay = dev_priv->overlay;
 	if (!overlay) {
 		DRM_DEBUG("userspace bug: no overlay\n");

@@ -23,9 +23,7 @@
 
 static unsigned int smack_ipv6_output(const struct nf_hook_ops *ops,
 					struct sk_buff *skb,
-					const struct net_device *in,
-					const struct net_device *out,
-					int (*okfn)(struct sk_buff *))
+					const struct nf_hook_state *state)
 {
 	struct socket_smack *ssp;
 	struct smack_known *skp;
@@ -42,9 +40,7 @@ static unsigned int smack_ipv6_output(const struct nf_hook_ops *ops,
 
 static unsigned int smack_ipv4_output(const struct nf_hook_ops *ops,
 					struct sk_buff *skb,
-					const struct net_device *in,
-					const struct net_device *out,
-					int (*okfn)(struct sk_buff *))
+					const struct nf_hook_state *state)
 {
 	struct socket_smack *ssp;
 	struct smack_known *skp;

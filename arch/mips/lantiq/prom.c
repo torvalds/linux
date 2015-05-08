@@ -41,7 +41,7 @@ int ltq_soc_type(void)
 	return soc_info.type;
 }
 
-void prom_free_prom_memory(void)
+void __init prom_free_prom_memory(void)
 {
 }
 

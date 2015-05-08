@@ -363,7 +363,7 @@ void flush_tlb_mm(struct mm_struct *mm)
 		smp_call_function(flush_tlb_mm_ipi, (void *)mm, 1);
 	} else {
 		int i;
-		for (i = 0; i < num_online_cpus(); i++)
+		for_each_online_cpu(i)
 			if (smp_processor_id() != i)
 				cpu_context(i, mm) = 0;
 	}
@@ -400,7 +400,7 @@ void flush_tlb_range(struct vm_area_struct *vma,
 		smp_call_function(flush_tlb_range_ipi, (void *)&fd, 1);
 	} else {
 		int i;
-		for (i = 0; i < num_online_cpus(); i++)
+		for_each_online_cpu(i)
 			if (smp_processor_id() != i)
 				cpu_context(i, mm) = 0;
 	}
@@ -443,7 +443,7 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 		smp_call_function(flush_tlb_page_ipi, (void *)&fd, 1);
 	} else {
 		int i;
-		for (i = 0; i < num_online_cpus(); i++)
+		for_each_online_cpu(i)
 			if (smp_processor_id() != i)
 				cpu_context(i, vma->vm_mm) = 0;
 	}

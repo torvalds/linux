@@ -524,7 +524,7 @@ smb2_print_stats(struct seq_file *m, struct cifs_tcon *tcon)
 static void
 smb2_set_fid(struct cifsFileInfo *cfile, struct cifs_fid *fid, __u32 oplock)
 {
-	struct cifsInodeInfo *cinode = CIFS_I(cfile->dentry->d_inode);
+	struct cifsInodeInfo *cinode = CIFS_I(d_inode(cfile->dentry));
 	struct TCP_Server_Info *server = tlink_tcon(cfile->tlink)->ses->server;
 
 	cfile->fid.persistent_fid = fid->persistent_fid;
@@ -793,7 +793,7 @@ smb2_set_file_size(const unsigned int xid, struct cifs_tcon *tcon,
 	 * If extending file more than one page make sparse. Many Linux fs
 	 * make files sparse by default when extending via ftruncate
 	 */
-	inode = cfile->dentry->d_inode;
+	inode = d_inode(cfile->dentry);
 
 	if (!set_alloc && (size > inode->i_size + 8192)) {
 		__u8 set_sparse = 1;
@@ -1032,7 +1032,7 @@ static long smb3_zero_range(struct file *file, struct cifs_tcon *tcon,
 
 	xid = get_xid();
 
-	inode = cfile->dentry->d_inode;
+	inode = d_inode(cfile->dentry);
 	cifsi = CIFS_I(inode);
 
 	/* if file not oplocked can't be sure whether asking to extend size */
@@ -1083,7 +1083,7 @@ static long smb3_punch_hole(struct file *file, struct cifs_tcon *tcon,
 
 	xid = get_xid();
 
-	inode = cfile->dentry->d_inode;
+	inode = d_inode(cfile->dentry);
 	cifsi = CIFS_I(inode);
 
 	/* Need to make file sparse, if not already, before freeing range. */
@@ -1115,7 +1115,7 @@ static long smb3_simple_falloc(struct file *file, struct cifs_tcon *tcon,
 
 	xid = get_xid();
 
-	inode = cfile->dentry->d_inode;
+	inode = d_inode(cfile->dentry);
 	cifsi = CIFS_I(inode);
 
 	/* if file not oplocked can't be sure whether asking to extend size */

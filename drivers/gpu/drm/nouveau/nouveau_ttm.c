@@ -82,6 +82,9 @@ nouveau_vram_manager_new(struct ttm_mem_type_manager *man,
 	u32 size_nc = 0;
 	int ret;
 
+	if (drm->device.info.ram_size == 0)
+		return -ENOMEM;
+
 	if (nvbo->tile_flags & NOUVEAU_GEM_TILE_NONCONTIG)
 		size_nc = 1 << nvbo->page_shift;
 

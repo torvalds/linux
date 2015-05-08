@@ -174,7 +174,6 @@ extern unsigned long long os_makedev(unsigned major, unsigned minor);
 
 /* start_up.c */
 extern void os_early_checks(void);
-extern void can_do_skas(void);
 extern void os_check_bugs(void);
 extern void check_host_supports_tls(int *supports_tls, int *tls_min);
 
@@ -187,7 +186,6 @@ extern int os_process_parent(int pid);
 extern void os_stop_process(int pid);
 extern void os_kill_process(int pid, int reap_child);
 extern void os_kill_ptraced_process(int pid, int reap_child);
-extern long os_ptrace_ldt(long pid, long addr, long data);
 
 extern int os_getpid(void);
 extern int os_getpgrp(void);

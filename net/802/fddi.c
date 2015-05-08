@@ -87,31 +87,6 @@ static int fddi_header(struct sk_buff *skb, struct net_device *dev,
 	return -hl;
 }
 
-
-/*
- * Rebuild the FDDI MAC header. This is called after an ARP
- * (or in future other address resolution) has completed on
- * this sk_buff.  We now let ARP fill in the other fields.
- */
-
-static int fddi_rebuild_header(struct sk_buff	*skb)
-{
-	struct fddihdr *fddi = (struct fddihdr *)skb->data;
-
-#ifdef CONFIG_INET
-	if (fddi->hdr.llc_snap.ethertype == htons(ETH_P_IP))
-		/* Try to get ARP to resolve the header and fill destination address */
-		return arp_find(fddi->daddr, skb);
-	else
-#endif
-	{
-		printk("%s: Don't know how to resolve type %04X addresses.\n",
-		       skb->dev->name, ntohs(fddi->hdr.llc_snap.ethertype));
-		return 0;
-	}
-}
-
-
 /*
  * Determine the packet's protocol ID and fill in skb fields.
  * This routine is called before an incoming packet is passed
@@ -177,7 +152,6 @@ EXPORT_SYMBOL(fddi_change_mtu);
 
 static const struct header_ops fddi_header_ops = {
 	.create		= fddi_header,
-	.rebuild	= fddi_rebuild_header,
 };
 
 

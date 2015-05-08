@@ -62,7 +62,7 @@ enum sh_vou_status {
 
 struct sh_vou_device {
 	struct v4l2_device v4l2_dev;
-	struct video_device *vdev;
+	struct video_device vdev;
 	atomic_t use_count;
 	struct sh_vou_pdata *pdata;
 	spinlock_t lock;
@@ -890,7 +890,7 @@ static int sh_vou_s_std(struct file *file, void *priv, v4l2_std_id std_id)
 
 	dev_dbg(vou_dev->v4l2_dev.dev, "%s(): 0x%llx\n", __func__, std_id);
 
-	if (std_id & ~vou_dev->vdev->tvnorms)
+	if (std_id & ~vou_dev->vdev.tvnorms)
 		return -EINVAL;
 
 	ret = v4l2_device_call_until_err(&vou_dev->v4l2_dev, 0, video,
@@ -1168,10 +1168,10 @@ static int sh_vou_open(struct file *file)
 
 	dev_dbg(vou_dev->v4l2_dev.dev, "%s()\n", __func__);
 
-	file->private_data = vou_file;
-
-	if (mutex_lock_interruptible(&vou_dev->fop_lock))
+	if (mutex_lock_interruptible(&vou_dev->fop_lock)) {
+		kfree(vou_file);
 		return -ERESTARTSYS;
+	}
 	if (atomic_inc_return(&vou_dev->use_count) == 1) {
 		int ret;
 		/* First open */
@@ -1183,6 +1183,7 @@ static int sh_vou_open(struct file *file)
 			pm_runtime_put(vou_dev->v4l2_dev.dev);
 			vou_dev->status = SH_VOU_IDLE;
 			mutex_unlock(&vou_dev->fop_lock);
+			kfree(vou_file);
 			return ret;
 		}
 	}
@@ -1192,8 +1193,10 @@ static int sh_vou_open(struct file *file)
 				       V4L2_BUF_TYPE_VIDEO_OUTPUT,
 				       V4L2_FIELD_NONE,
 				       sizeof(struct videobuf_buffer),
-				       vou_dev->vdev, &vou_dev->fop_lock);
+				       &vou_dev->vdev, &vou_dev->fop_lock);
 	mutex_unlock(&vou_dev->fop_lock);
+
+	file->private_data = vou_file;
 
 	return 0;
 }
@@ -1358,21 +1361,14 @@ static int sh_vou_probe(struct platform_device *pdev)
 		goto ev4l2devreg;
 	}
 
-	/* Allocate memory for video device */
-	vdev = video_device_alloc();
-	if (vdev == NULL) {
-		ret = -ENOMEM;
-		goto evdevalloc;
-	}
-
+	vdev = &vou_dev->vdev;
 	*vdev = sh_vou_video_template;
 	if (vou_pdata->bus_fmt == SH_VOU_BUS_8BIT)
 		vdev->tvnorms |= V4L2_STD_PAL;
 	vdev->v4l2_dev = &vou_dev->v4l2_dev;
-	vdev->release = video_device_release;
+	vdev->release = video_device_release_empty;
 	vdev->lock = &vou_dev->fop_lock;
 
-	vou_dev->vdev = vdev;
 	video_set_drvdata(vdev, vou_dev);
 
 	pm_runtime_enable(&pdev->dev);
@@ -1406,9 +1402,7 @@ ei2cnd:
 ereset:
 	i2c_put_adapter(i2c_adap);
 ei2cgadap:
-	video_device_release(vdev);
 	pm_runtime_disable(&pdev->dev);
-evdevalloc:
 	v4l2_device_unregister(&vou_dev->v4l2_dev);
 ev4l2devreg:
 	free_irq(irq, vou_dev);
@@ -1435,7 +1429,7 @@ static int sh_vou_remove(struct platform_device *pdev)
 	if (irq > 0)
 		free_irq(irq, vou_dev);
 	pm_runtime_disable(&pdev->dev);
-	video_unregister_device(vou_dev->vdev);
+	video_unregister_device(&vou_dev->vdev);
 	i2c_put_adapter(client->adapter);
 	v4l2_device_unregister(&vou_dev->v4l2_dev);
 	iounmap(vou_dev->base);

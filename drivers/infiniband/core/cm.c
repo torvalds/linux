@@ -437,39 +437,38 @@ static struct cm_id_private * cm_acquire_id(__be32 local_id, __be32 remote_id)
 	return cm_id_priv;
 }
 
-static void cm_mask_copy(u8 *dst, u8 *src, u8 *mask)
+static void cm_mask_copy(u32 *dst, const u32 *src, const u32 *mask)
 {
 	int i;
 
-	for (i = 0; i < IB_CM_COMPARE_SIZE / sizeof(unsigned long); i++)
-		((unsigned long *) dst)[i] = ((unsigned long *) src)[i] &
-					     ((unsigned long *) mask)[i];
+	for (i = 0; i < IB_CM_COMPARE_SIZE; i++)
+		dst[i] = src[i] & mask[i];
 }
 
 static int cm_compare_data(struct ib_cm_compare_data *src_data,
 			   struct ib_cm_compare_data *dst_data)
 {
-	u8 src[IB_CM_COMPARE_SIZE];
-	u8 dst[IB_CM_COMPARE_SIZE];
+	u32 src[IB_CM_COMPARE_SIZE];
+	u32 dst[IB_CM_COMPARE_SIZE];
 
 	if (!src_data || !dst_data)
 		return 0;
 
 	cm_mask_copy(src, src_data->data, dst_data->mask);
 	cm_mask_copy(dst, dst_data->data, src_data->mask);
-	return memcmp(src, dst, IB_CM_COMPARE_SIZE);
+	return memcmp(src, dst, sizeof(src));
 }
 
-static int cm_compare_private_data(u8 *private_data,
+static int cm_compare_private_data(u32 *private_data,
 				   struct ib_cm_compare_data *dst_data)
 {
-	u8 src[IB_CM_COMPARE_SIZE];
+	u32 src[IB_CM_COMPARE_SIZE];
 
 	if (!dst_data)
 		return 0;
 
 	cm_mask_copy(src, private_data, dst_data->mask);
-	return memcmp(src, dst_data->data, IB_CM_COMPARE_SIZE);
+	return memcmp(src, dst_data->data, sizeof(src));
 }
 
 /*
@@ -538,7 +537,7 @@ static struct cm_id_private * cm_insert_listen(struct cm_id_private *cm_id_priv)
 
 static struct cm_id_private * cm_find_listen(struct ib_device *device,
 					     __be64 service_id,
-					     u8 *private_data)
+					     u32 *private_data)
 {
 	struct rb_node *node = cm.listen_service_table.rb_node;
 	struct cm_id_private *cm_id_priv;
@@ -953,7 +952,7 @@ int ib_cm_listen(struct ib_cm_id *cm_id, __be64 service_id, __be64 service_mask,
 		cm_mask_copy(cm_id_priv->compare_data->data,
 			     compare_data->data, compare_data->mask);
 		memcpy(cm_id_priv->compare_data->mask, compare_data->mask,
-		       IB_CM_COMPARE_SIZE);
+		       sizeof(compare_data->mask));
 	}
 
 	cm_id->state = IB_CM_LISTEN;

@@ -85,8 +85,6 @@
 
 #include "../comedi_usb.h"
 
-#include "comedi_fc.h"
-
 /* constants for firmware upload and download */
 #define USBDUX_FIRMWARE		"usbdux_firmware.bin"
 #define USBDUX_FIRMWARE_MAX_LEN	0x2000
@@ -524,19 +522,19 @@ static int usbdux_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_INT);
-	err |= cfc_check_trigger_src(&cmd->scan_begin_src, TRIG_TIMER);
-	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_NOW);
-	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_INT);
+	err |= comedi_check_trigger_src(&cmd->scan_begin_src, TRIG_TIMER);
+	err |= comedi_check_trigger_src(&cmd->convert_src, TRIG_NOW);
+	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
 	/* Step 2a : make sure trigger sources are unique */
 
-	err |= cfc_check_trigger_is_unique(cmd->start_src);
-	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+	err |= comedi_check_trigger_is_unique(cmd->start_src);
+	err |= comedi_check_trigger_is_unique(cmd->stop_src);
 
 	/* Step 2b : and mutually compatible */
 
@@ -545,10 +543,10 @@ static int usbdux_ai_cmdtest(struct comedi_device *dev,
 
 	/* Step 3: check if arguments are trivially valid */
 
-	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
 
 	if (cmd->scan_begin_src == TRIG_FOLLOW)	/* internal trigger */
-		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
+		err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		if (this_usbduxsub->high_speed) {
@@ -563,8 +561,9 @@ static int usbdux_ai_cmdtest(struct comedi_device *dev,
 			while (i < (cmd->chanlist_len))
 				i = i * 2;
 
-			err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
-							 1000000 / 8 * i);
+			err |= comedi_check_trigger_arg_min(&cmd->
+							    scan_begin_arg,
+							    1000000 / 8 * i);
 			/* now calc the real sampling rate with all the
 			 * rounding errors */
 			tmp_timer =
@@ -573,24 +572,26 @@ static int usbdux_ai_cmdtest(struct comedi_device *dev,
 		} else {
 			/* full speed */
 			/* 1kHz scans every USB frame */
-			err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
-							 1000000);
+			err |= comedi_check_trigger_arg_min(&cmd->
+							    scan_begin_arg,
+							    1000000);
 			/*
 			 * calc the real sampling rate with the rounding errors
 			 */
 			tmp_timer = ((unsigned int)(cmd->scan_begin_arg /
 						   1000000)) * 1000000;
 		}
-		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg,
-						tmp_timer);
+		err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg,
+						   tmp_timer);
 	}
 
-	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
+					   cmd->chanlist_len);
 
 	if (cmd->stop_src == TRIG_COUNT)
-		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
 	else	/* TRIG_NONE */
-		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
+		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
@@ -633,8 +634,8 @@ static int receive_dux_commands(struct comedi_device *dev, unsigned int command)
 
 	for (i = 0; i < RETRIES; i++) {
 		ret = usb_bulk_msg(usb, usb_rcvbulkpipe(usb, 8),
-				      devpriv->insn_buf, SIZEINSNBUF,
-				      &nrec, BULK_TIMEOUT);
+				   devpriv->insn_buf, SIZEINSNBUF,
+				   &nrec, BULK_TIMEOUT);
 		if (ret < 0)
 			return ret;
 		if (le16_to_cpu(devpriv->insn_buf[0]) == command)
@@ -895,7 +896,7 @@ static int usbdux_ao_cmdtest(struct comedi_device *dev,
 
 	/* Step 1 : check if triggers are trivially valid */
 
-	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_INT);
+	err |= comedi_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_INT);
 
 	if (0) {		/* (this_usbduxsub->high_speed) */
 		/* the sampling rate is set by the coversion rate */
@@ -904,7 +905,7 @@ static int usbdux_ao_cmdtest(struct comedi_device *dev,
 		/* start a new scan (output at once) with a timer */
 		flags = TRIG_TIMER;
 	}
-	err |= cfc_check_trigger_src(&cmd->scan_begin_src, flags);
+	err |= comedi_check_trigger_src(&cmd->scan_begin_src, flags);
 
 	if (0) {		/* (this_usbduxsub->high_speed) */
 		/*
@@ -919,18 +920,18 @@ static int usbdux_ao_cmdtest(struct comedi_device *dev,
 		 */
 		flags = TRIG_NOW;
 	}
-	err |= cfc_check_trigger_src(&cmd->convert_src, flags);
+	err |= comedi_check_trigger_src(&cmd->convert_src, flags);
 
-	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
-	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+	err |= comedi_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= comedi_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
 	/* Step 2a : make sure trigger sources are unique */
 
-	err |= cfc_check_trigger_is_unique(cmd->start_src);
-	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+	err |= comedi_check_trigger_is_unique(cmd->start_src);
+	err |= comedi_check_trigger_is_unique(cmd->stop_src);
 
 	/* Step 2b : and mutually compatible */
 
@@ -939,25 +940,27 @@ static int usbdux_ao_cmdtest(struct comedi_device *dev,
 
 	/* Step 3: check if arguments are trivially valid */
 
-	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+	err |= comedi_check_trigger_arg_is(&cmd->start_arg, 0);
 
 	if (cmd->scan_begin_src == TRIG_FOLLOW)	/* internal trigger */
-		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
+		err |= comedi_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 
-	if (cmd->scan_begin_src == TRIG_TIMER)
-		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
-						 1000000);
+	if (cmd->scan_begin_src == TRIG_TIMER) {
+		err |= comedi_check_trigger_arg_min(&cmd->scan_begin_arg,
+						    1000000);
+	}
 
 	/* not used now, is for later use */
 	if (cmd->convert_src == TRIG_TIMER)
-		err |= cfc_check_trigger_arg_min(&cmd->convert_arg, 125000);
+		err |= comedi_check_trigger_arg_min(&cmd->convert_arg, 125000);
 
-	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+	err |= comedi_check_trigger_arg_is(&cmd->scan_end_arg,
+					   cmd->chanlist_len);
 
 	if (cmd->stop_src == TRIG_COUNT)
-		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+		err |= comedi_check_trigger_arg_min(&cmd->stop_arg, 1);
 	else	/* TRIG_NONE */
-		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
+		err |= comedi_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
@@ -1041,7 +1044,6 @@ static int usbdux_dio_insn_bits(struct comedi_device *dev,
 				struct comedi_insn *insn,
 				unsigned int *data)
 {
-
 	struct usbdux_private *devpriv = dev->private;
 	int ret;
 

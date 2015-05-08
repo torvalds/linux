@@ -411,8 +411,10 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen)
 	 *
 	 * Wait for the stop thread to go away.
 	 */
-	while (!idle_cpu(cpu))
+	while (!per_cpu(cpu_dead_idle, cpu))
 		cpu_relax();
+	smp_mb(); /* Read from cpu_dead_idle before __cpu_die(). */
+	per_cpu(cpu_dead_idle, cpu) = false;
 
 	hotplug_cpu__broadcast_tick_pull(cpu);
 	/* This actually kills the CPU. */
@@ -450,6 +452,37 @@ out:
 }
 EXPORT_SYMBOL(cpu_down);
 #endif /*CONFIG_HOTPLUG_CPU*/
+
+/*
+ * Unpark per-CPU smpboot kthreads at CPU-online time.
+ */
+static int smpboot_thread_call(struct notifier_block *nfb,
+			       unsigned long action, void *hcpu)
+{
+	int cpu = (long)hcpu;
+
+	switch (action & ~CPU_TASKS_FROZEN) {
+
+	case CPU_ONLINE:
+		smpboot_unpark_threads(cpu);
+		break;
+
+	default:
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block smpboot_thread_notifier = {
+	.notifier_call = smpboot_thread_call,
+	.priority = CPU_PRI_SMPBOOT,
+};
+
+void __cpuinit smpboot_thread_init(void)
+{
+	register_cpu_notifier(&smpboot_thread_notifier);
+}
 
 /* Requires cpu_add_remove_lock to be held */
 static int _cpu_up(unsigned int cpu, int tasks_frozen)
@@ -489,9 +522,6 @@ static int _cpu_up(unsigned int cpu, int tasks_frozen)
 	if (ret != 0)
 		goto out_notify;
 	BUG_ON(!cpu_online(cpu));
-
-	/* Wake the per cpu threads */
-	smpboot_unpark_threads(cpu);
 
 	/* Now call notifier in preparation. */
 	cpu_notify(CPU_ONLINE | mod, hcpu);

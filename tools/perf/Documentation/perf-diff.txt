@@ -20,11 +20,19 @@ If no parameters are passed it will assume perf.data.old and perf.data.
 The differential profile is displayed only for events matching both
 specified perf.data files.
 
+If no parameters are passed the samples will be sorted by dso and symbol.
+As the perf.data files could come from different binaries, the symbols addresses
+could vary. So perf diff is based on the comparison of the files and
+symbols name.
+
 OPTIONS
 -------
 -D::
 --dump-raw-trace::
         Dump raw trace in ASCII.
+
+--kallsyms=<file>::
+        kallsyms pathname
 
 -m::
 --modules::

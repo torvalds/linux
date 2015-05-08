@@ -21,6 +21,10 @@
 #ifdef CONFIG_OF
 static const struct of_device_id st_accel_of_match[] = {
 	{
+		.compatible = "st,lis3lv02dl-accel",
+		.data = LIS3LV02DL_ACCEL_DEV_NAME,
+	},
+	{
 		.compatible = "st,lsm303dlh-accel",
 		.data = LSM303DLH_ACCEL_DEV_NAME,
 	},

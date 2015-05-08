@@ -212,4 +212,7 @@ static inline void setup_sysctl_set(struct ctl_table_set *p,
 
 #endif /* CONFIG_SYSCTL */
 
+int sysctl_max_threads(struct ctl_table *table, int write,
+		       void __user *buffer, size_t *lenp, loff_t *ppos);
+
 #endif /* _LINUX_SYSCTL_H */

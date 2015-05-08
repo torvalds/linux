@@ -32,8 +32,8 @@
 
 static struct nvkm_oclass
 gf108_gr_sclass[] = {
-	{ 0x902d, &nvkm_object_ofuncs },
-	{ 0x9039, &nvkm_object_ofuncs },
+	{ FERMI_TWOD_A, &nvkm_object_ofuncs },
+	{ FERMI_MEMORY_TO_MEMORY_FORMAT_A, &nvkm_object_ofuncs },
 	{ FERMI_A, &gf100_fermi_ofuncs, gf100_gr_9097_omthds },
 	{ FERMI_B, &gf100_fermi_ofuncs, gf100_gr_9097_omthds },
 	{ FERMI_COMPUTE_A, &nvkm_object_ofuncs, gf100_gr_90c0_omthds },

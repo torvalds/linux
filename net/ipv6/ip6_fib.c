@@ -1206,7 +1206,7 @@ static struct fib6_node *fib6_repair_tree(struct net *net,
 
 		WARN_ON(fn->fn_flags & RTN_RTINFO);
 		WARN_ON(fn->fn_flags & RTN_TL_ROOT);
-		WARN_ON(fn->leaf != NULL);
+		WARN_ON(fn->leaf);
 
 		children = 0;
 		child = NULL;
@@ -1361,7 +1361,7 @@ int fib6_del(struct rt6_info *rt, struct nl_info *info)
 
 #if RT6_DEBUG >= 2
 	if (rt->dst.obsolete > 0) {
-		WARN_ON(fn != NULL);
+		WARN_ON(fn);
 		return -ENOENT;
 	}
 #endif

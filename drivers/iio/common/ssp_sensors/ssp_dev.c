@@ -437,7 +437,7 @@ int ssp_queue_ssp_refresh_task(struct ssp_data *data, unsigned int delay)
 }
 
 #ifdef CONFIG_OF
-static struct of_device_id ssp_of_match[] = {
+static const struct of_device_id ssp_of_match[] = {
 	{
 		.compatible	= "samsung,sensorhub-rinato",
 		.data		= &ssp_rinato_info,

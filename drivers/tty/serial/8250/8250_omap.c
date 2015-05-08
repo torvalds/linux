@@ -11,7 +11,6 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/serial_8250.h>
-#include <linux/serial_core.h>
 #include <linux/serial_reg.h>
 #include <linux/tty_flip.h>
 #include <linux/platform_device.h>

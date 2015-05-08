@@ -150,7 +150,7 @@ struct iwl_mvm_vif;
  * DOC: station table - AP Station in STA mode
  *
  * %iwl_mvm_vif includes the index of the AP station in the fw's STA table:
- * %ap_sta_id. To get the point to the coresponsding %ieee80211_sta,
+ * %ap_sta_id. To get the point to the corresponding %ieee80211_sta,
  * &fw_id_to_mac_id can be used. Due to the way the fw works, we must not remove
  * the AP station from the fw before setting the MAC context as unassociated.
  * Hence, %fw_id_to_mac_id[%ap_sta_id] will be NULLed when the AP station is
@@ -209,14 +209,14 @@ struct iwl_mvm_vif;
  * When a trigger frame is received, mac80211 tells the driver to send frames
  * from the AMPDU queues or sends frames to non-aggregation queues itself,
  * depending on which ACs are delivery-enabled and what TID has frames to
- * transmit. Note that mac80211 has all the knowledege since all the non-agg
+ * transmit. Note that mac80211 has all the knowledge since all the non-agg
  * frames are buffered / filtered, and the driver tells mac80211 about agg
  * frames). The driver needs to tell the fw to let frames out even if the
  * station is asleep. This is done by %iwl_mvm_sta_modify_sleep_tx_count.
  *
  * When we receive a frame from that station with PM bit unset, the driver
  * needs to let the fw know that this station isn't asleep any more. This is
- * done by %iwl_mvm_sta_modify_ps_wake in response to mac80211 signalling the
+ * done by %iwl_mvm_sta_modify_ps_wake in response to mac80211 signaling the
  * station's wakeup.
  *
  * For a GO, the Service Period might be cut short due to an absence period

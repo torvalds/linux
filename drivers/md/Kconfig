@@ -175,6 +175,22 @@ config MD_FAULTY
 
 	  In unsure, say N.
 
+
+config MD_CLUSTER
+	tristate "Cluster Support for MD (EXPERIMENTAL)"
+	depends on BLK_DEV_MD
+	depends on DLM
+	default n
+	---help---
+	Clustering support for MD devices. This enables locking and
+	synchronization across multiple systems on the cluster, so all
+	nodes in the cluster can access the MD devices simultaneously.
+
+	This brings the redundancy (and uptime) of RAID levels across the
+	nodes of the cluster.
+
+	If unsure, say N.
+
 source "drivers/md/bcache/Kconfig"
 
 config BLK_DEV_DM_BUILTIN
@@ -195,6 +211,17 @@ config BLK_DEV_DM
 	  called dm-mod.
 
 	  If unsure, say N.
+
+config DM_MQ_DEFAULT
+	bool "request-based DM: use blk-mq I/O path by default"
+	depends on BLK_DEV_DM
+	---help---
+	  This option enables the blk-mq based I/O path for request-based
+	  DM devices by default.  With the option the dm_mod.use_blk_mq
+	  module/boot option defaults to Y, without it to N, but it can
+	  still be overriden either way.
+
+	  If unsure say N.
 
 config DM_DEBUG
 	bool "Device mapper debugging support"
@@ -429,6 +456,22 @@ config DM_SWITCH
 
 	  To compile this code as a module, choose M here: the module will
 	  be called dm-switch.
+
+	  If unsure, say N.
+
+config DM_LOG_WRITES
+	tristate "Log writes target support"
+	depends on BLK_DEV_DM
+	---help---
+	  This device-mapper target takes two devices, one device to use
+	  normally, one to log all write operations done to the first device.
+	  This is for use by file system developers wishing to verify that
+	  their fs is writing a consitent file system at all times by allowing
+	  them to replay the log in a variety of ways and to check the
+	  contents.
+
+	  To compile this code as a module, choose M here: the module will
+	  be called dm-log-writes.
 
 	  If unsure, say N.
 

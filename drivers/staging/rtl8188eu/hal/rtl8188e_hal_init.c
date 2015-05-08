@@ -596,7 +596,8 @@ void Hal_EfuseParseBoardType88E(struct adapter *pAdapter, u8 *hwinfo, bool AutoL
 	struct hal_data_8188e *pHalData = GET_HAL_DATA(pAdapter);
 
 	if (!AutoLoadFail)
-		pHalData->BoardType = ((hwinfo[EEPROM_RF_BOARD_OPTION_88E]&0xE0)>>5);
+		pHalData->BoardType = (hwinfo[EEPROM_RF_BOARD_OPTION_88E]
+					& 0xE0) >> 5;
 	else
 		pHalData->BoardType = 0;
 	DBG_88E("Board Type: 0x%2x\n", pHalData->BoardType);

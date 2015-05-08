@@ -1429,10 +1429,8 @@ static int snd_rawmidi_alloc_substreams(struct snd_rawmidi *rmidi,
 
 	for (idx = 0; idx < count; idx++) {
 		substream = kzalloc(sizeof(*substream), GFP_KERNEL);
-		if (substream == NULL) {
-			rmidi_err(rmidi, "rawmidi: cannot allocate substream\n");
+		if (!substream)
 			return -ENOMEM;
-		}
 		substream->stream = direction;
 		substream->number = idx;
 		substream->rmidi = rmidi;
@@ -1479,10 +1477,8 @@ int snd_rawmidi_new(struct snd_card *card, char *id, int device,
 	if (rrawmidi)
 		*rrawmidi = NULL;
 	rmidi = kzalloc(sizeof(*rmidi), GFP_KERNEL);
-	if (rmidi == NULL) {
-		dev_err(card->dev, "rawmidi: cannot allocate\n");
+	if (!rmidi)
 		return -ENOMEM;
-	}
 	rmidi->card = card;
 	rmidi->device = device;
 	mutex_init(&rmidi->open_mutex);

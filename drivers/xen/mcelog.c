@@ -393,14 +393,25 @@ static int bind_virq_for_mce(void)
 
 static int __init xen_late_init_mcelog(void)
 {
-	/* Only DOM0 is responsible for MCE logging */
-	if (xen_initial_domain()) {
-		/* register character device /dev/mcelog for xen mcelog */
-		if (misc_register(&xen_mce_chrdev_device))
-			return -ENODEV;
-		return bind_virq_for_mce();
-	}
+	int ret;
 
-	return -ENODEV;
+	/* Only DOM0 is responsible for MCE logging */
+	if (!xen_initial_domain())
+		return -ENODEV;
+
+	/* register character device /dev/mcelog for xen mcelog */
+	ret = misc_register(&xen_mce_chrdev_device);
+	if (ret)
+		return ret;
+
+	ret = bind_virq_for_mce();
+	if (ret)
+		goto deregister;
+
+	return 0;
+
+deregister:
+	misc_deregister(&xen_mce_chrdev_device);
+	return ret;
 }
 device_initcall(xen_late_init_mcelog);

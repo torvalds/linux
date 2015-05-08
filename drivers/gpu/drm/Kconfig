@@ -165,6 +165,15 @@ config DRM_SAVAGE
 	  Choose this option if you have a Savage3D/4/SuperSavage/Pro/Twister
 	  chipset. If M is selected the module will be called savage.
 
+config DRM_VGEM
+	tristate "Virtual GEM provider"
+	depends on DRM
+	help
+	  Choose this option to get a virtual graphics memory manager,
+	  as used by Mesa's software renderer for enhanced performance.
+	  If M is selected the module will be called vgem.
+
+
 source "drivers/gpu/drm/exynos/Kconfig"
 
 source "drivers/gpu/drm/rockchip/Kconfig"

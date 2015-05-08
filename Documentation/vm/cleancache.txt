@@ -28,9 +28,7 @@ IMPLEMENTATION OVERVIEW
 A cleancache "backend" that provides transcendent memory registers itself
 to the kernel's cleancache "frontend" by calling cleancache_register_ops,
 passing a pointer to a cleancache_ops structure with funcs set appropriately.
-Note that cleancache_register_ops returns the previous settings so that
-chaining can be performed if desired. The functions provided must conform to
-certain semantics as follows:
+The functions provided must conform to certain semantics as follows:
 
 Most important, cleancache is "ephemeral".  Pages which are copied into
 cleancache have an indefinite lifetime which is completely unknowable

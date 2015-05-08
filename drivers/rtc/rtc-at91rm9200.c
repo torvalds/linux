@@ -37,9 +37,9 @@
 #include "rtc-at91rm9200.h"
 
 #define at91_rtc_read(field) \
-	__raw_readl(at91_rtc_regs + field)
+	readl_relaxed(at91_rtc_regs + field)
 #define at91_rtc_write(field, val) \
-	__raw_writel((val), at91_rtc_regs + field)
+	writel_relaxed((val), at91_rtc_regs + field)
 
 #define AT91_RTC_EPOCH		1900UL	/* just like arch/arm/common/rtctime.c */
 

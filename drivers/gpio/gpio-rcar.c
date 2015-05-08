@@ -14,6 +14,7 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/gpio.h>
 #include <linux/init.h>
@@ -37,20 +38,22 @@ struct gpio_rcar_priv {
 	struct platform_device *pdev;
 	struct gpio_chip gpio_chip;
 	struct irq_chip irq_chip;
+	unsigned int irq_parent;
+	struct clk *clk;
 };
 
-#define IOINTSEL 0x00
-#define INOUTSEL 0x04
-#define OUTDT 0x08
-#define INDT 0x0c
-#define INTDT 0x10
-#define INTCLR 0x14
-#define INTMSK 0x18
-#define MSKCLR 0x1c
-#define POSNEG 0x20
-#define EDGLEVEL 0x24
-#define FILONOFF 0x28
-#define BOTHEDGE 0x4c
+#define IOINTSEL 0x00	/* General IO/Interrupt Switching Register */
+#define INOUTSEL 0x04	/* General Input/Output Switching Register */
+#define OUTDT 0x08	/* General Output Register */
+#define INDT 0x0c	/* General Input Register */
+#define INTDT 0x10	/* Interrupt Display Register */
+#define INTCLR 0x14	/* Interrupt Clear Register */
+#define INTMSK 0x18	/* Interrupt Mask Register */
+#define MSKCLR 0x1c	/* Interrupt Mask Clear Register */
+#define POSNEG 0x20	/* Positive/Negative Logic Select Register */
+#define EDGLEVEL 0x24	/* Edge/level Select Register */
+#define FILONOFF 0x28	/* Chattering Prevention On/Off Register */
+#define BOTHEDGE 0x4c	/* One Edge/Both Edge Select Register */
 
 #define RCAR_MAX_GPIO_PER_BANK		32
 
@@ -166,6 +169,25 @@ static int gpio_rcar_irq_set_type(struct irq_data *d, unsigned int type)
 	default:
 		return -EINVAL;
 	}
+	return 0;
+}
+
+static int gpio_rcar_irq_set_wake(struct irq_data *d, unsigned int on)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct gpio_rcar_priv *p = container_of(gc, struct gpio_rcar_priv,
+						gpio_chip);
+
+	irq_set_irq_wake(p->irq_parent, on);
+
+	if (!p->clk)
+		return 0;
+
+	if (on)
+		clk_enable(p->clk);
+	else
+		clk_disable(p->clk);
+
 	return 0;
 }
 
@@ -367,6 +389,12 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, p);
 
+	p->clk = devm_clk_get(dev, NULL);
+	if (IS_ERR(p->clk)) {
+		dev_warn(dev, "unable to get clock\n");
+		p->clk = NULL;
+	}
+
 	pm_runtime_enable(dev);
 	pm_runtime_get_sync(dev);
 
@@ -404,8 +432,8 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 	irq_chip->irq_mask = gpio_rcar_irq_disable;
 	irq_chip->irq_unmask = gpio_rcar_irq_enable;
 	irq_chip->irq_set_type = gpio_rcar_irq_set_type;
-	irq_chip->flags	= IRQCHIP_SKIP_SET_WAKE | IRQCHIP_SET_TYPE_MASKED
-			 | IRQCHIP_MASK_ON_SUSPEND;
+	irq_chip->irq_set_wake = gpio_rcar_irq_set_wake;
+	irq_chip->flags	= IRQCHIP_SET_TYPE_MASKED | IRQCHIP_MASK_ON_SUSPEND;
 
 	ret = gpiochip_add(gpio_chip);
 	if (ret) {
@@ -413,13 +441,14 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 		goto err0;
 	}
 
-	ret = gpiochip_irqchip_add(&p->gpio_chip, irq_chip, p->config.irq_base,
+	ret = gpiochip_irqchip_add(gpio_chip, irq_chip, p->config.irq_base,
 				   handle_level_irq, IRQ_TYPE_NONE);
 	if (ret) {
 		dev_err(dev, "cannot add irqchip\n");
 		goto err1;
 	}
 
+	p->irq_parent = irq->start;
 	if (devm_request_irq(dev, irq->start, gpio_rcar_irq_handler,
 			     IRQF_SHARED, name, p)) {
 		dev_err(dev, "failed to request IRQ\n");
@@ -431,7 +460,7 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 
 	/* warn in case of mismatch if irq base is specified */
 	if (p->config.irq_base) {
-		ret = irq_find_mapping(p->gpio_chip.irqdomain, 0);
+		ret = irq_find_mapping(gpio_chip->irqdomain, 0);
 		if (p->config.irq_base != ret)
 			dev_warn(dev, "irq base mismatch (%u/%u)\n",
 				 p->config.irq_base, ret);
@@ -447,7 +476,7 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 	return 0;
 
 err1:
-	gpiochip_remove(&p->gpio_chip);
+	gpiochip_remove(gpio_chip);
 err0:
 	pm_runtime_put(dev);
 	pm_runtime_disable(dev);

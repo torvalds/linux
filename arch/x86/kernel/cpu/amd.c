@@ -720,6 +720,9 @@ static void init_amd(struct cpuinfo_x86 *c)
 	if (!cpu_has(c, X86_FEATURE_3DNOWPREFETCH))
 		if (cpu_has(c, X86_FEATURE_3DNOW) || cpu_has(c, X86_FEATURE_LM))
 			set_cpu_cap(c, X86_FEATURE_3DNOWPREFETCH);
+
+	/* AMD CPUs don't reset SS attributes on SYSRET */
+	set_cpu_bug(c, X86_BUG_SYSRET_SS_ATTRS);
 }
 
 #ifdef CONFIG_X86_32

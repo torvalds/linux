@@ -51,7 +51,6 @@
 #include <linux/tty.h>
 #include <net/icmp.h>
 #include <net/ip.h>		/* for local_port_range[] */
-#include <net/sock.h>
 #include <net/tcp.h>		/* struct or_callable used in sock_rcv_skb */
 #include <net/inet_connection_sock.h>
 #include <net/net_namespace.h>
@@ -415,7 +414,7 @@ static int sb_finish_set_opts(struct super_block *sb)
 {
 	struct superblock_security_struct *sbsec = sb->s_security;
 	struct dentry *root = sb->s_root;
-	struct inode *root_inode = root->d_inode;
+	struct inode *root_inode = d_backing_inode(root);
 	int rc = 0;
 
 	if (sbsec->behavior == SECURITY_FS_USE_XATTR) {
@@ -553,7 +552,7 @@ static int selinux_get_mnt_opts(const struct super_block *sb,
 		opts->mnt_opts_flags[i++] = DEFCONTEXT_MNT;
 	}
 	if (sbsec->flags & ROOTCONTEXT_MNT) {
-		struct inode *root = sbsec->sb->s_root->d_inode;
+		struct inode *root = d_backing_inode(sbsec->sb->s_root);
 		struct inode_security_struct *isec = root->i_security;
 
 		rc = security_sid_to_context(isec->sid, &context, &len);
@@ -609,7 +608,7 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 	int rc = 0, i;
 	struct superblock_security_struct *sbsec = sb->s_security;
 	const char *name = sb->s_type->name;
-	struct inode *inode = sbsec->sb->s_root->d_inode;
+	struct inode *inode = d_backing_inode(sbsec->sb->s_root);
 	struct inode_security_struct *root_isec = inode->i_security;
 	u32 fscontext_sid = 0, context_sid = 0, rootcontext_sid = 0;
 	u32 defcontext_sid = 0;
@@ -836,8 +835,8 @@ static int selinux_cmp_sb_context(const struct super_block *oldsb,
 	if ((oldflags & DEFCONTEXT_MNT) && old->def_sid != new->def_sid)
 		goto mismatch;
 	if (oldflags & ROOTCONTEXT_MNT) {
-		struct inode_security_struct *oldroot = oldsb->s_root->d_inode->i_security;
-		struct inode_security_struct *newroot = newsb->s_root->d_inode->i_security;
+		struct inode_security_struct *oldroot = d_backing_inode(oldsb->s_root)->i_security;
+		struct inode_security_struct *newroot = d_backing_inode(newsb->s_root)->i_security;
 		if (oldroot->sid != newroot->sid)
 			goto mismatch;
 	}
@@ -887,16 +886,16 @@ static int selinux_sb_clone_mnt_opts(const struct super_block *oldsb,
 		if (!set_fscontext)
 			newsbsec->sid = sid;
 		if (!set_rootcontext) {
-			struct inode *newinode = newsb->s_root->d_inode;
+			struct inode *newinode = d_backing_inode(newsb->s_root);
 			struct inode_security_struct *newisec = newinode->i_security;
 			newisec->sid = sid;
 		}
 		newsbsec->mntpoint_sid = sid;
 	}
 	if (set_rootcontext) {
-		const struct inode *oldinode = oldsb->s_root->d_inode;
+		const struct inode *oldinode = d_backing_inode(oldsb->s_root);
 		const struct inode_security_struct *oldisec = oldinode->i_security;
-		struct inode *newinode = newsb->s_root->d_inode;
+		struct inode *newinode = d_backing_inode(newsb->s_root);
 		struct inode_security_struct *newisec = newinode->i_security;
 
 		newisec->sid = oldisec->sid;
@@ -1611,7 +1610,7 @@ static inline int dentry_has_perm(const struct cred *cred,
 				  struct dentry *dentry,
 				  u32 av)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_backing_inode(dentry);
 	struct common_audit_data ad;
 
 	ad.type = LSM_AUDIT_DATA_DENTRY;
@@ -1623,10 +1622,10 @@ static inline int dentry_has_perm(const struct cred *cred,
    the path to help the auditing code to more easily generate the
    pathname if needed. */
 static inline int path_has_perm(const struct cred *cred,
-				struct path *path,
+				const struct path *path,
 				u32 av)
 {
-	struct inode *inode = path->dentry->d_inode;
+	struct inode *inode = d_backing_inode(path->dentry);
 	struct common_audit_data ad;
 
 	ad.type = LSM_AUDIT_DATA_PATH;
@@ -1754,7 +1753,7 @@ static int may_link(struct inode *dir,
 	int rc;
 
 	dsec = dir->i_security;
-	isec = dentry->d_inode->i_security;
+	isec = d_backing_inode(dentry)->i_security;
 
 	ad.type = LSM_AUDIT_DATA_DENTRY;
 	ad.u.dentry = dentry;
@@ -1798,7 +1797,7 @@ static inline int may_rename(struct inode *old_dir,
 	int rc;
 
 	old_dsec = old_dir->i_security;
-	old_isec = old_dentry->d_inode->i_security;
+	old_isec = d_backing_inode(old_dentry)->i_security;
 	old_is_dir = d_is_dir(old_dentry);
 	new_dsec = new_dir->i_security;
 
@@ -1828,7 +1827,7 @@ static inline int may_rename(struct inode *old_dir,
 	if (rc)
 		return rc;
 	if (d_is_positive(new_dentry)) {
-		new_isec = new_dentry->d_inode->i_security;
+		new_isec = d_backing_inode(new_dentry)->i_security;
 		new_is_dir = d_is_dir(new_dentry);
 		rc = avc_has_perm(sid, new_isec->sid,
 				  new_isec->sclass,
@@ -1964,7 +1963,7 @@ static int selinux_binder_transfer_file(struct task_struct *from,
 {
 	u32 sid = task_sid(to);
 	struct file_security_struct *fsec = file->f_security;
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = d_backing_inode(file->f_path.dentry);
 	struct inode_security_struct *isec = inode->i_security;
 	struct common_audit_data ad;
 	int rc;
@@ -2628,7 +2627,7 @@ static int selinux_sb_remount(struct super_block *sb, void *data)
 			break;
 		case ROOTCONTEXT_MNT: {
 			struct inode_security_struct *root_isec;
-			root_isec = sb->s_root->d_inode->i_security;
+			root_isec = d_backing_inode(sb->s_root)->i_security;
 
 			if (bad_option(sbsec, ROOTCONTEXT_MNT, root_isec->sid, sid))
 				goto out_bad_option;
@@ -2728,7 +2727,7 @@ static int selinux_dentry_init_security(struct dentry *dentry, int mode,
 	struct task_security_struct *tsec;
 	struct inode_security_struct *dsec;
 	struct superblock_security_struct *sbsec;
-	struct inode *dir = dentry->d_parent->d_inode;
+	struct inode *dir = d_backing_inode(dentry->d_parent);
 	u32 newsid;
 	int rc;
 
@@ -2954,15 +2953,9 @@ static int selinux_inode_setattr(struct dentry *dentry, struct iattr *iattr)
 	return dentry_has_perm(cred, dentry, av);
 }
 
-static int selinux_inode_getattr(struct vfsmount *mnt, struct dentry *dentry)
+static int selinux_inode_getattr(const struct path *path)
 {
-	const struct cred *cred = current_cred();
-	struct path path;
-
-	path.dentry = dentry;
-	path.mnt = mnt;
-
-	return path_has_perm(cred, &path, FILE__GETATTR);
+	return path_has_perm(current_cred(), path, FILE__GETATTR);
 }
 
 static int selinux_inode_setotherxattr(struct dentry *dentry, const char *name)
@@ -2989,7 +2982,7 @@ static int selinux_inode_setotherxattr(struct dentry *dentry, const char *name)
 static int selinux_inode_setxattr(struct dentry *dentry, const char *name,
 				  const void *value, size_t size, int flags)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_backing_inode(dentry);
 	struct inode_security_struct *isec = inode->i_security;
 	struct superblock_security_struct *sbsec;
 	struct common_audit_data ad;
@@ -3066,7 +3059,7 @@ static void selinux_inode_post_setxattr(struct dentry *dentry, const char *name,
 					const void *value, size_t size,
 					int flags)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_backing_inode(dentry);
 	struct inode_security_struct *isec = inode->i_security;
 	u32 newsid;
 	int rc;
@@ -4652,11 +4645,6 @@ static void selinux_inet_conn_established(struct sock *sk, struct sk_buff *skb)
 	selinux_skb_peerlbl_sid(skb, family, &sksec->peer_sid);
 }
 
-static void selinux_skb_owned_by(struct sk_buff *skb, struct sock *sk)
-{
-	skb_set_owner_w(skb, sk);
-}
-
 static int selinux_secmark_relabel_packet(u32 sid)
 {
 	const struct task_security_struct *__tsec;
@@ -4858,21 +4846,17 @@ static unsigned int selinux_ip_forward(struct sk_buff *skb,
 
 static unsigned int selinux_ipv4_forward(const struct nf_hook_ops *ops,
 					 struct sk_buff *skb,
-					 const struct net_device *in,
-					 const struct net_device *out,
-					 int (*okfn)(struct sk_buff *))
+					 const struct nf_hook_state *state)
 {
-	return selinux_ip_forward(skb, in, PF_INET);
+	return selinux_ip_forward(skb, state->in, PF_INET);
 }
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 static unsigned int selinux_ipv6_forward(const struct nf_hook_ops *ops,
 					 struct sk_buff *skb,
-					 const struct net_device *in,
-					 const struct net_device *out,
-					 int (*okfn)(struct sk_buff *))
+					 const struct nf_hook_state *state)
 {
-	return selinux_ip_forward(skb, in, PF_INET6);
+	return selinux_ip_forward(skb, state->in, PF_INET6);
 }
 #endif	/* IPV6 */
 
@@ -4920,9 +4904,7 @@ static unsigned int selinux_ip_output(struct sk_buff *skb,
 
 static unsigned int selinux_ipv4_output(const struct nf_hook_ops *ops,
 					struct sk_buff *skb,
-					const struct net_device *in,
-					const struct net_device *out,
-					int (*okfn)(struct sk_buff *))
+					const struct nf_hook_state *state)
 {
 	return selinux_ip_output(skb, PF_INET);
 }
@@ -5097,21 +5079,17 @@ static unsigned int selinux_ip_postroute(struct sk_buff *skb,
 
 static unsigned int selinux_ipv4_postroute(const struct nf_hook_ops *ops,
 					   struct sk_buff *skb,
-					   const struct net_device *in,
-					   const struct net_device *out,
-					   int (*okfn)(struct sk_buff *))
+					   const struct nf_hook_state *state)
 {
-	return selinux_ip_postroute(skb, out, PF_INET);
+	return selinux_ip_postroute(skb, state->out, PF_INET);
 }
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 static unsigned int selinux_ipv6_postroute(const struct nf_hook_ops *ops,
 					   struct sk_buff *skb,
-					   const struct net_device *in,
-					   const struct net_device *out,
-					   int (*okfn)(struct sk_buff *))
+					   const struct nf_hook_state *state)
 {
-	return selinux_ip_postroute(skb, out, PF_INET6);
+	return selinux_ip_postroute(skb, state->out, PF_INET6);
 }
 #endif	/* IPV6 */
 
@@ -6041,7 +6019,6 @@ static struct security_operations selinux_ops = {
 	.tun_dev_attach_queue =		selinux_tun_dev_attach_queue,
 	.tun_dev_attach =		selinux_tun_dev_attach,
 	.tun_dev_open =			selinux_tun_dev_open,
-	.skb_owned_by =			selinux_skb_owned_by,
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 	.xfrm_policy_alloc_security =	selinux_xfrm_policy_alloc,

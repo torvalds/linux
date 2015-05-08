@@ -985,17 +985,14 @@ int cx88_set_tvnorm(struct cx88_core *core, v4l2_std_id norm)
 
 /* ------------------------------------------------------------------ */
 
-struct video_device *cx88_vdev_init(struct cx88_core *core,
-				    struct pci_dev *pci,
-				    const struct video_device *template_,
-				    const char *type)
+void cx88_vdev_init(struct cx88_core *core,
+		    struct pci_dev *pci,
+		    struct video_device *vfd,
+		    const struct video_device *template_,
+		    const char *type)
 {
-	struct video_device *vfd;
-
-	vfd = video_device_alloc();
-	if (NULL == vfd)
-		return NULL;
 	*vfd = *template_;
+
 	/*
 	 * The dev pointer of v4l2_device is NULL, instead we set the
 	 * video_device dev_parent pointer to the correct PCI bus device.
@@ -1004,11 +1001,10 @@ struct video_device *cx88_vdev_init(struct cx88_core *core,
 	 */
 	vfd->v4l2_dev = &core->v4l2_dev;
 	vfd->dev_parent = &pci->dev;
-	vfd->release = video_device_release;
+	vfd->release = video_device_release_empty;
 	vfd->lock = &core->lock;
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s (%s)",
 		 core->name, type, core->board.name);
-	return vfd;
 }
 
 struct cx88_core* cx88_core_get(struct pci_dev *pci)

@@ -262,6 +262,8 @@ int da9052_irq_init(struct da9052 *da9052)
 		goto regmap_err;
 	}
 
+	enable_irq_wake(da9052->chip_irq);
+
 	ret = da9052_request_irq(da9052, DA9052_IRQ_ADC_EOM, "adc-irq",
 			    da9052_auxadc_irq, da9052);
 

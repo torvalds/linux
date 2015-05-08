@@ -295,6 +295,15 @@ system_call_fastpath:
 	 * rflags from r11 (but RF and VM bits are forced to 0),
 	 * cs and ss are loaded from MSRs.
 	 * Restoration of rflags re-enables interrupts.
+	 *
+	 * NB: On AMD CPUs with the X86_BUG_SYSRET_SS_ATTRS bug, the ss
+	 * descriptor is not reinitialized.  This means that we should
+	 * avoid SYSRET with SS == NULL, which could happen if we schedule,
+	 * exit the kernel, and re-enter using an interrupt vector.  (All
+	 * interrupt entries on x86_64 set SS to NULL.)  We prevent that
+	 * from happening by reloading SS in __switch_to.  (Actually
+	 * detecting the failure in 64-bit userspace is tricky but can be
+	 * done.)
 	 */
 	USERGS_SYSRET64
 

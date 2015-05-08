@@ -42,7 +42,7 @@
 	"	cmp		%0, #0\n"			\
 	"	movne		%0, %4\n"			\
 	"2:\n"							\
-	"	.section	 .fixup,\"ax\"\n"		\
+	"	.section	 .text.fixup,\"ax\"\n"		\
 	"	.align		2\n"				\
 	"3:	mov		%0, %5\n"			\
 	"	b		2b\n"				\

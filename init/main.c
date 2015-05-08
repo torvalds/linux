@@ -80,6 +80,7 @@
 #include <linux/list.h>
 #include <linux/integrity.h>
 #include <linux/proc_ns.h>
+#include <linux/io.h>
 
 #include <asm/io.h>
 #include <asm/bugs.h>
@@ -90,7 +91,7 @@
 static int kernel_init(void *);
 
 extern void init_IRQ(void);
-extern void fork_init(unsigned long);
+extern void fork_init(void);
 extern void radix_tree_init(void);
 #ifndef CONFIG_DEBUG_RODATA
 static inline void mark_rodata_ro(void) { }
@@ -143,7 +144,7 @@ EXPORT_SYMBOL_GPL(static_key_initialized);
  * rely on the BIOS and skip the reset operation.
  *
  * This is useful if kernel is booting in an unreliable environment.
- * For ex. kdump situaiton where previous kernel has crashed, BIOS has been
+ * For ex. kdump situation where previous kernel has crashed, BIOS has been
  * skipped and devices will be in unknown state.
  */
 unsigned int reset_devices;
@@ -384,6 +385,7 @@ static noinline void __init_refok rest_init(void)
 	int pid;
 
 	rcu_scheduler_starting();
+	smpboot_thread_init();
 	/*
 	 * We need to spawn init first so that it obtains pid 1, however
 	 * the init task will end up wanting to create kthreads, which, if
@@ -484,6 +486,7 @@ static void __init mm_init(void)
 	percpu_init_late();
 	pgtable_init();
 	vmalloc_init();
+	ioremap_huge_init();
 }
 
 asmlinkage __visible void __init start_kernel(void)
@@ -642,7 +645,7 @@ asmlinkage __visible void __init start_kernel(void)
 #endif
 	thread_info_cache_init();
 	cred_init();
-	fork_init(totalram_pages);
+	fork_init();
 	proc_caches_init();
 	buffer_init();
 	key_init();
@@ -654,8 +657,8 @@ asmlinkage __visible void __init start_kernel(void)
 	page_writeback_init();
 	proc_root_init();
 	nsfs_init();
-	cgroup_init();
 	cpuset_init();
+	cgroup_init();
 	taskstats_init_early();
 	delayacct_init();
 

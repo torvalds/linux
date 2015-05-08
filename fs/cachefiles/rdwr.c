@@ -74,12 +74,12 @@ static int cachefiles_read_waiter(wait_queue_t *wait, unsigned mode,
 static int cachefiles_read_reissue(struct cachefiles_object *object,
 				   struct cachefiles_one_read *monitor)
 {
-	struct address_space *bmapping = object->backer->d_inode->i_mapping;
+	struct address_space *bmapping = d_backing_inode(object->backer)->i_mapping;
 	struct page *backpage = monitor->back_page, *backpage2;
 	int ret;
 
 	_enter("{ino=%lx},{%lx,%lx}",
-	       object->backer->d_inode->i_ino,
+	       d_backing_inode(object->backer)->i_ino,
 	       backpage->index, backpage->flags);
 
 	/* skip if the page was truncated away completely */
@@ -157,7 +157,7 @@ static void cachefiles_read_copier(struct fscache_operation *_op)
 	object = container_of(op->op.object,
 			      struct cachefiles_object, fscache);
 
-	_enter("{ino=%lu}", object->backer->d_inode->i_ino);
+	_enter("{ino=%lu}", d_backing_inode(object->backer)->i_ino);
 
 	max = 8;
 	spin_lock_irq(&object->work_lock);
@@ -247,7 +247,7 @@ static int cachefiles_read_backing_file_one(struct cachefiles_object *object,
 	init_waitqueue_func_entry(&monitor->monitor, cachefiles_read_waiter);
 
 	/* attempt to get hold of the backing page */
-	bmapping = object->backer->d_inode->i_mapping;
+	bmapping = d_backing_inode(object->backer)->i_mapping;
 	newpage = NULL;
 
 	for (;;) {
@@ -408,7 +408,7 @@ int cachefiles_read_or_alloc_page(struct fscache_retrieval *op,
 	if (!object->backer)
 		goto enobufs;
 
-	inode = object->backer->d_inode;
+	inode = d_backing_inode(object->backer);
 	ASSERT(S_ISREG(inode->i_mode));
 	ASSERT(inode->i_mapping->a_ops->bmap);
 	ASSERT(inode->i_mapping->a_ops->readpages);
@@ -468,7 +468,7 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
 					struct list_head *list)
 {
 	struct cachefiles_one_read *monitor = NULL;
-	struct address_space *bmapping = object->backer->d_inode->i_mapping;
+	struct address_space *bmapping = d_backing_inode(object->backer)->i_mapping;
 	struct page *newpage = NULL, *netpage, *_n, *backpage = NULL;
 	int ret = 0;
 
@@ -705,7 +705,7 @@ int cachefiles_read_or_alloc_pages(struct fscache_retrieval *op,
 	if (cachefiles_has_space(cache, 0, *nr_pages) < 0)
 		space = 0;
 
-	inode = object->backer->d_inode;
+	inode = d_backing_inode(object->backer);
 	ASSERT(S_ISREG(inode->i_mode));
 	ASSERT(inode->i_mapping->a_ops->bmap);
 	ASSERT(inode->i_mapping->a_ops->readpages);

@@ -184,7 +184,7 @@ static int hash_set_dma_transfer(struct hash_ctx *ctx, struct scatterlist *sg,
 			direction, DMA_CTRL_ACK | DMA_PREP_INTERRUPT);
 	if (!desc) {
 		dev_err(ctx->device->dev,
-			"%s: device_prep_slave_sg() failed!\n", __func__);
+			"%s: dmaengine_prep_slave_sg() failed!\n", __func__);
 		return -EFAULT;
 	}
 

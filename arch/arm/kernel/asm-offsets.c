@@ -25,6 +25,7 @@
 #include <asm/memory.h>
 #include <asm/procinfo.h>
 #include <asm/suspend.h>
+#include <asm/vdso_datapage.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <linux/kbuild.h>
 
@@ -66,7 +67,6 @@ int main(void)
   DEFINE(TI_PREEMPT,		offsetof(struct thread_info, preempt_count));
   DEFINE(TI_ADDR_LIMIT,		offsetof(struct thread_info, addr_limit));
   DEFINE(TI_TASK,		offsetof(struct thread_info, task));
-  DEFINE(TI_EXEC_DOMAIN,	offsetof(struct thread_info, exec_domain));
   DEFINE(TI_CPU,		offsetof(struct thread_info, cpu));
   DEFINE(TI_CPU_DOMAIN,		offsetof(struct thread_info, cpu_domain));
   DEFINE(TI_CPU_SAVE,		offsetof(struct thread_info, cpu_context));
@@ -205,6 +205,10 @@ int main(void)
   DEFINE(KVM_TIMER_ENABLED,	offsetof(struct kvm, arch.timer.enabled));
   DEFINE(KVM_VGIC_VCTRL,	offsetof(struct kvm, arch.vgic.vctrl_base));
   DEFINE(KVM_VTTBR,		offsetof(struct kvm, arch.vttbr));
+#endif
+  BLANK();
+#ifdef CONFIG_VDSO
+  DEFINE(VDSO_DATA_SIZE,	sizeof(union vdso_data_store));
 #endif
   return 0; 
 }

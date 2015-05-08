@@ -82,12 +82,15 @@
 
 		gsbi12: gsbi@19c00000 {
 			compatible = "qcom,gsbi-v1.0.0";
+			cell-index = <12>;
 			reg = <0x19c00000 0x100>;
 			clocks = <&gcc GSBI12_H_CLK>;
 			clock-names = "iface";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
+
+			syscon-tcsr = <&tcsr>;
 
 			serial@19c40000 {
 				compatible = "qcom,msm-uartdm-v1.3", "qcom,msm-uartdm";
@@ -195,6 +198,11 @@
 				no-1-8-v;
 				vmmc-supply = <&vsdcc_fixed>;
 			};
+		};
+
+		tcsr: syscon@1a400000 {
+			compatible = "qcom,tcsr-msm8660", "syscon";
+			reg = <0x1a400000 0x100>;
 		};
 	};
 

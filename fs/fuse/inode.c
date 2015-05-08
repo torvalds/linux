@@ -421,7 +421,7 @@ static int fuse_statfs(struct dentry *dentry, struct kstatfs *buf)
 	memset(&outarg, 0, sizeof(outarg));
 	args.in.numargs = 0;
 	args.in.h.opcode = FUSE_STATFS;
-	args.in.h.nodeid = get_node_id(dentry->d_inode);
+	args.in.h.nodeid = get_node_id(d_inode(dentry));
 	args.out.numargs = 1;
 	args.out.args[0].size = sizeof(outarg);
 	args.out.args[0].value = &outarg;
@@ -740,7 +740,7 @@ static struct dentry *fuse_fh_to_parent(struct super_block *sb,
 
 static struct dentry *fuse_get_parent(struct dentry *child)
 {
-	struct inode *child_inode = child->d_inode;
+	struct inode *child_inode = d_inode(child);
 	struct fuse_conn *fc = get_fuse_conn(child_inode);
 	struct inode *inode;
 	struct dentry *parent;

@@ -18,9 +18,8 @@ config HAVE_ARCH_BITREVERSE
 	default n
 	depends on BITREVERSE
 	help
-	  This option provides an config for the architecture which have instruction
-	  can do bitreverse operation, we use the hardware instruction if the architecture
-	  have this capability.
+	  This option enables the use of hardware bit-reversal instructions on
+	  architectures which support such operations.
 
 config RATIONAL
 	bool
@@ -396,10 +395,6 @@ config CPUMASK_OFFSTACK
 	  Use dynamic allocation for cpumask_var_t, instead of putting
 	  them on the stack.  This is a bit more expensive, but avoids
 	  stack overflow.
-
-config DISABLE_OBSOLETE_CPUMASK_FUNCTIONS
-       bool "Disable obsolete cpumask functions" if DEBUG_PER_CPU_MAPS
-       depends on BROKEN
 
 config CPU_RMAP
 	bool

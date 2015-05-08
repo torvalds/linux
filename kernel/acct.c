@@ -213,7 +213,7 @@ static int acct_on(struct filename *pathname)
 		return -EACCES;
 	}
 
-	if (!file->f_op->write) {
+	if (!(file->f_mode & FMODE_CAN_WRITE)) {
 		kfree(acct);
 		filp_close(file, NULL);
 		return -EIO;

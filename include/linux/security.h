@@ -1556,7 +1556,7 @@ struct security_operations {
 	int (*inode_follow_link) (struct dentry *dentry, struct nameidata *nd);
 	int (*inode_permission) (struct inode *inode, int mask);
 	int (*inode_setattr)	(struct dentry *dentry, struct iattr *attr);
-	int (*inode_getattr) (struct vfsmount *mnt, struct dentry *dentry);
+	int (*inode_getattr) (const struct path *path);
 	int (*inode_setxattr) (struct dentry *dentry, const char *name,
 			       const void *value, size_t size, int flags);
 	void (*inode_post_setxattr) (struct dentry *dentry, const char *name,
@@ -1716,7 +1716,6 @@ struct security_operations {
 	int (*tun_dev_attach_queue) (void *security);
 	int (*tun_dev_attach) (struct sock *sk, void *security);
 	int (*tun_dev_open) (void *security);
-	void (*skb_owned_by) (struct sk_buff *skb, struct sock *sk);
 #endif	/* CONFIG_SECURITY_NETWORK */
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
@@ -1843,7 +1842,7 @@ int security_inode_readlink(struct dentry *dentry);
 int security_inode_follow_link(struct dentry *dentry, struct nameidata *nd);
 int security_inode_permission(struct inode *inode, int mask);
 int security_inode_setattr(struct dentry *dentry, struct iattr *attr);
-int security_inode_getattr(struct vfsmount *mnt, struct dentry *dentry);
+int security_inode_getattr(const struct path *path);
 int security_inode_setxattr(struct dentry *dentry, const char *name,
 			    const void *value, size_t size, int flags);
 void security_inode_post_setxattr(struct dentry *dentry, const char *name,
@@ -2259,8 +2258,7 @@ static inline int security_inode_setattr(struct dentry *dentry,
 	return 0;
 }
 
-static inline int security_inode_getattr(struct vfsmount *mnt,
-					  struct dentry *dentry)
+static inline int security_inode_getattr(const struct path *path)
 {
 	return 0;
 }
@@ -2735,8 +2733,6 @@ int security_tun_dev_attach_queue(void *security);
 int security_tun_dev_attach(struct sock *sk, void *security);
 int security_tun_dev_open(void *security);
 
-void security_skb_owned_by(struct sk_buff *skb, struct sock *sk);
-
 #else	/* CONFIG_SECURITY_NETWORK */
 static inline int security_unix_stream_connect(struct sock *sock,
 					       struct sock *other,
@@ -2928,11 +2924,6 @@ static inline int security_tun_dev_open(void *security)
 {
 	return 0;
 }
-
-static inline void security_skb_owned_by(struct sk_buff *skb, struct sock *sk)
-{
-}
-
 #endif	/* CONFIG_SECURITY_NETWORK */
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM

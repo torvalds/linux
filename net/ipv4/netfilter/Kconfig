@@ -36,6 +36,37 @@ config NF_CONNTRACK_PROC_COMPAT
 
 	  If unsure, say Y.
 
+if NF_TABLES
+
+config NF_TABLES_IPV4
+	tristate "IPv4 nf_tables support"
+	help
+	  This option enables the IPv4 support for nf_tables.
+
+if NF_TABLES_IPV4
+
+config NFT_CHAIN_ROUTE_IPV4
+	tristate "IPv4 nf_tables route chain support"
+	help
+	  This option enables the "route" chain for IPv4 in nf_tables. This
+	  chain type is used to force packet re-routing after mangling header
+	  fields such as the source, destination, type of service and
+	  the packet mark.
+
+config NFT_REJECT_IPV4
+	select NF_REJECT_IPV4
+	default NFT_REJECT
+	tristate
+
+endif # NF_TABLES_IPV4
+
+config NF_TABLES_ARP
+	tristate "ARP nf_tables support"
+	help
+	  This option enables the ARP support for nf_tables.
+
+endif # NF_TABLES
+
 config NF_LOG_ARP
 	tristate "ARP packet logging"
 	default m if NETFILTER_ADVANCED=n
@@ -46,36 +77,9 @@ config NF_LOG_IPV4
 	default m if NETFILTER_ADVANCED=n
 	select NF_LOG_COMMON
 
-config NF_TABLES_IPV4
-	depends on NF_TABLES
-	tristate "IPv4 nf_tables support"
-	help
-	  This option enables the IPv4 support for nf_tables.
-
-config NFT_CHAIN_ROUTE_IPV4
-	depends on NF_TABLES_IPV4
-	tristate "IPv4 nf_tables route chain support"
-	help
-	  This option enables the "route" chain for IPv4 in nf_tables. This
-	  chain type is used to force packet re-routing after mangling header
-	  fields such as the source, destination, type of service and
-	  the packet mark.
-
 config NF_REJECT_IPV4
 	tristate "IPv4 packet rejection"
 	default m if NETFILTER_ADVANCED=n
-
-config NFT_REJECT_IPV4
-	depends on NF_TABLES_IPV4
-	select NF_REJECT_IPV4
-	default NFT_REJECT
-	tristate
-
-config NF_TABLES_ARP
-	depends on NF_TABLES
-	tristate "ARP nf_tables support"
-	help
-	  This option enables the ARP support for nf_tables.
 
 config NF_NAT_IPV4
 	tristate "IPv4 NAT"

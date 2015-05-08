@@ -17,6 +17,7 @@
 #define EXEC_PATH_ENVIRONMENT "PERF_EXEC_PATH"
 #define DEFAULT_PERF_DIR_ENVIRONMENT ".perf"
 #define PERF_DEBUGFS_ENVIRONMENT "PERF_DEBUGFS_DIR"
+#define PERF_TRACEFS_ENVIRONMENT "PERF_TRACEFS_DIR"
 
 typedef int (*config_fn_t)(const char *, const char *, void *);
 extern int perf_default_config(const char *, const char *, void *);

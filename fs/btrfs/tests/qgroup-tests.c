@@ -232,7 +232,7 @@ static int test_no_shared_qgroup(struct btrfs_root *root)
 	init_dummy_trans(&trans);
 
 	test_msg("Qgroup basic add\n");
-	ret = btrfs_create_qgroup(NULL, fs_info, 5, NULL);
+	ret = btrfs_create_qgroup(NULL, fs_info, 5);
 	if (ret) {
 		test_msg("Couldn't create a qgroup %d\n", ret);
 		return ret;
@@ -301,7 +301,7 @@ static int test_multiple_refs(struct btrfs_root *root)
 	test_msg("Qgroup multiple refs test\n");
 
 	/* We have 5 created already from the previous test */
-	ret = btrfs_create_qgroup(NULL, fs_info, 256, NULL);
+	ret = btrfs_create_qgroup(NULL, fs_info, 256);
 	if (ret) {
 		test_msg("Couldn't create a qgroup %d\n", ret);
 		return ret;

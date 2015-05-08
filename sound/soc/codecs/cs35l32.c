@@ -437,20 +437,13 @@ static int cs35l32_i2c_probe(struct i2c_client *i2c_client,
 	}
 
 	/* Reset the Device */
-	cs35l32->reset_gpio = devm_gpiod_get(&i2c_client->dev,
-		"reset-gpios");
-	if (IS_ERR(cs35l32->reset_gpio)) {
-		ret = PTR_ERR(cs35l32->reset_gpio);
-		if (ret != -ENOENT && ret != -ENOSYS)
-			return ret;
+	cs35l32->reset_gpio = devm_gpiod_get_optional(&i2c_client->dev,
+		"reset", GPIOD_OUT_LOW);
+	if (IS_ERR(cs35l32->reset_gpio))
+		return PTR_ERR(cs35l32->reset_gpio);
 
-		cs35l32->reset_gpio = NULL;
-	} else {
-		ret = gpiod_direction_output(cs35l32->reset_gpio, 0);
-		if (ret)
-			return ret;
+	if (cs35l32->reset_gpio)
 		gpiod_set_value_cansleep(cs35l32->reset_gpio, 1);
-	}
 
 	/* initialize codec */
 	ret = regmap_read(cs35l32->regmap, CS35L32_DEVID_AB, &reg);

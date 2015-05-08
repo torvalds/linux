@@ -153,8 +153,8 @@ s32 hid_sensor_read_poll_value(struct hid_sensor_common *st)
 	int ret;
 
 	ret = sensor_hub_get_feature(st->hsdev,
-		st->poll.report_id,
-		st->poll.index, &value);
+				     st->poll.report_id,
+				     st->poll.index, sizeof(value), &value);
 
 	if (ret < 0 || value < 0) {
 		return -EINVAL;
@@ -174,8 +174,8 @@ int hid_sensor_read_samp_freq_value(struct hid_sensor_common *st,
 	int ret;
 
 	ret = sensor_hub_get_feature(st->hsdev,
-		st->poll.report_id,
-		st->poll.index, &value);
+				     st->poll.report_id,
+				     st->poll.index, sizeof(value), &value);
 	if (ret < 0 || value < 0) {
 		*val1 = *val2 = 0;
 		return -EINVAL;
@@ -212,9 +212,8 @@ int hid_sensor_write_samp_freq_value(struct hid_sensor_common *st,
 		else
 			value = 0;
 	}
-	ret = sensor_hub_set_feature(st->hsdev,
-		st->poll.report_id,
-		st->poll.index, value);
+	ret = sensor_hub_set_feature(st->hsdev, st->poll.report_id,
+				     st->poll.index, sizeof(value), &value);
 	if (ret < 0 || value < 0)
 		ret = -EINVAL;
 
@@ -229,8 +228,9 @@ int hid_sensor_read_raw_hyst_value(struct hid_sensor_common *st,
 	int ret;
 
 	ret = sensor_hub_get_feature(st->hsdev,
-		st->sensitivity.report_id,
-		st->sensitivity.index, &value);
+				     st->sensitivity.report_id,
+				     st->sensitivity.index, sizeof(value),
+				     &value);
 	if (ret < 0 || value < 0) {
 		*val1 = *val2 = 0;
 		return -EINVAL;
@@ -253,9 +253,9 @@ int hid_sensor_write_raw_hyst_value(struct hid_sensor_common *st,
 	value = convert_to_vtf_format(st->sensitivity.size,
 				st->sensitivity.unit_expo,
 				val1, val2);
-	ret = sensor_hub_set_feature(st->hsdev,
-		st->sensitivity.report_id,
-		st->sensitivity.index, value);
+	ret = sensor_hub_set_feature(st->hsdev, st->sensitivity.report_id,
+				     st->sensitivity.index, sizeof(value),
+				     &value);
 	if (ret < 0 || value < 0)
 		ret = -EINVAL;
 

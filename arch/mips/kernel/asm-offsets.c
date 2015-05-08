@@ -92,7 +92,6 @@ void output_thread_info_defines(void)
 {
 	COMMENT("MIPS thread_info offsets.");
 	OFFSET(TI_TASK, thread_info, task);
-	OFFSET(TI_EXEC_DOMAIN, thread_info, exec_domain);
 	OFFSET(TI_FLAGS, thread_info, flags);
 	OFFSET(TI_TP_VALUE, thread_info, tp_value);
 	OFFSET(TI_CPU, thread_info, cpu);

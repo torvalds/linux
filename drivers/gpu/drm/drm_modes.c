@@ -278,7 +278,7 @@ struct drm_display_mode *drm_cvt_mode(struct drm_device *dev, int hdisplay,
 		hblank = drm_mode->hdisplay * hblank_percentage /
 			 (100 * HV_FACTOR - hblank_percentage);
 		hblank -= hblank % (2 * CVT_H_GRANULARITY);
-		/* 14. find the total pixes per line */
+		/* 14. find the total pixels per line */
 		drm_mode->htotal = drm_mode->hdisplay + hblank;
 		drm_mode->hsync_end = drm_mode->hdisplay + hblank / 2;
 		drm_mode->hsync_start = drm_mode->hsync_end -
@@ -903,6 +903,12 @@ EXPORT_SYMBOL(drm_mode_duplicate);
  */
 bool drm_mode_equal(const struct drm_display_mode *mode1, const struct drm_display_mode *mode2)
 {
+	if (!mode1 && !mode2)
+		return true;
+
+	if (!mode1 || !mode2)
+		return false;
+
 	/* do clock check convert to PICOS so fb modes get matched
 	 * the same */
 	if (mode1->clock && mode2->clock) {
@@ -1148,7 +1154,7 @@ EXPORT_SYMBOL(drm_mode_sort);
 /**
  * drm_mode_connector_list_update - update the mode list for the connector
  * @connector: the connector to update
- * @merge_type_bits: whether to merge or overright type bits.
+ * @merge_type_bits: whether to merge or overwrite type bits
  *
  * This moves the modes from the @connector probed_modes list
  * to the actual mode list. It compares the probed mode against the current
@@ -1209,7 +1215,7 @@ EXPORT_SYMBOL(drm_mode_connector_list_update);
  *	<xres>x<yres>[M][R][-<bpp>][@<refresh>][i][m][eDd]
  *
  * The intermediate drm_cmdline_mode structure is required to store additional
- * options from the command line modline like the force-enabel/disable flag.
+ * options from the command line modline like the force-enable/disable flag.
  *
  * Returns:
  * True if a valid modeline has been parsed, false otherwise.

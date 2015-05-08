@@ -45,9 +45,6 @@
 #define BTEMP_BATCTRL_CURR_SRC_60UA	60
 #define BTEMP_BATCTRL_CURR_SRC_120UA	120
 
-#define to_ab8500_btemp_device_info(x) container_of((x), \
-	struct ab8500_btemp, btemp_psy);
-
 /**
  * struct ab8500_btemp_interrupts - ab8500 interrupts
  * @name:	name of the interrupt
@@ -102,7 +99,7 @@ struct ab8500_btemp {
 	struct ab8500_gpadc *gpadc;
 	struct ab8500_fg *fg;
 	struct abx500_bm_data *bm;
-	struct power_supply btemp_psy;
+	struct power_supply *btemp_psy;
 	struct ab8500_btemp_events events;
 	struct ab8500_btemp_ranges btemp_ranges;
 	struct workqueue_struct *btemp_wq;
@@ -654,14 +651,14 @@ static void ab8500_btemp_periodic_work(struct work_struct *work)
 		if ((di->bat_temp != di->prev_bat_temp) || !di->initialized) {
 			di->initialized = true;
 			di->bat_temp = bat_temp;
-			power_supply_changed(&di->btemp_psy);
+			power_supply_changed(di->btemp_psy);
 		}
 	} else if (bat_temp < di->prev_bat_temp) {
 		di->bat_temp--;
-		power_supply_changed(&di->btemp_psy);
+		power_supply_changed(di->btemp_psy);
 	} else if (bat_temp > di->prev_bat_temp) {
 		di->bat_temp++;
-		power_supply_changed(&di->btemp_psy);
+		power_supply_changed(di->btemp_psy);
 	}
 	di->prev_bat_temp = bat_temp;
 
@@ -689,7 +686,7 @@ static irqreturn_t ab8500_btemp_batctrlindb_handler(int irq, void *_di)
 	dev_err(di->dev, "Battery removal detected!\n");
 
 	di->events.batt_rem = true;
-	power_supply_changed(&di->btemp_psy);
+	power_supply_changed(di->btemp_psy);
 
 	return IRQ_HANDLED;
 }
@@ -715,7 +712,7 @@ static irqreturn_t ab8500_btemp_templow_handler(int irq, void *_di)
 		di->events.btemp_high = false;
 		di->events.btemp_medhigh = false;
 		di->events.btemp_lowmed = false;
-		power_supply_changed(&di->btemp_psy);
+		power_supply_changed(di->btemp_psy);
 	}
 
 	return IRQ_HANDLED;
@@ -738,7 +735,7 @@ static irqreturn_t ab8500_btemp_temphigh_handler(int irq, void *_di)
 	di->events.btemp_medhigh = false;
 	di->events.btemp_lowmed = false;
 	di->events.btemp_low = false;
-	power_supply_changed(&di->btemp_psy);
+	power_supply_changed(di->btemp_psy);
 
 	return IRQ_HANDLED;
 }
@@ -760,7 +757,7 @@ static irqreturn_t ab8500_btemp_lowmed_handler(int irq, void *_di)
 	di->events.btemp_medhigh = false;
 	di->events.btemp_high = false;
 	di->events.btemp_low = false;
-	power_supply_changed(&di->btemp_psy);
+	power_supply_changed(di->btemp_psy);
 
 	return IRQ_HANDLED;
 }
@@ -782,7 +779,7 @@ static irqreturn_t ab8500_btemp_medhigh_handler(int irq, void *_di)
 	di->events.btemp_lowmed = false;
 	di->events.btemp_high = false;
 	di->events.btemp_low = false;
-	power_supply_changed(&di->btemp_psy);
+	power_supply_changed(di->btemp_psy);
 
 	return IRQ_HANDLED;
 }
@@ -884,9 +881,7 @@ static int ab8500_btemp_get_property(struct power_supply *psy,
 	enum power_supply_property psp,
 	union power_supply_propval *val)
 {
-	struct ab8500_btemp *di;
-
-	di = to_ab8500_btemp_device_info(psy);
+	struct ab8500_btemp *di = power_supply_get_drvdata(psy);
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_PRESENT:
@@ -919,14 +914,14 @@ static int ab8500_btemp_get_ext_psy_data(struct device *dev, void *data)
 
 	psy = (struct power_supply *)data;
 	ext = dev_get_drvdata(dev);
-	di = to_ab8500_btemp_device_info(psy);
+	di = power_supply_get_drvdata(psy);
 
 	/*
 	 * For all psy where the name of your driver
 	 * appears in any supplied_to
 	 */
 	for (i = 0; i < ext->num_supplicants; i++) {
-		if (!strcmp(ext->supplied_to[i], psy->name))
+		if (!strcmp(ext->supplied_to[i], psy->desc->name))
 			psy_found = true;
 	}
 
@@ -934,16 +929,16 @@ static int ab8500_btemp_get_ext_psy_data(struct device *dev, void *data)
 		return 0;
 
 	/* Go through all properties for the psy */
-	for (j = 0; j < ext->num_properties; j++) {
+	for (j = 0; j < ext->desc->num_properties; j++) {
 		enum power_supply_property prop;
-		prop = ext->properties[j];
+		prop = ext->desc->properties[j];
 
-		if (ext->get_property(ext, prop, &ret))
+		if (power_supply_get_property(ext, prop, &ret))
 			continue;
 
 		switch (prop) {
 		case POWER_SUPPLY_PROP_PRESENT:
-			switch (ext->type) {
+			switch (ext->desc->type) {
 			case POWER_SUPPLY_TYPE_MAINS:
 				/* AC disconnected */
 				if (!ret.intval && di->events.ac_conn) {
@@ -990,10 +985,10 @@ static int ab8500_btemp_get_ext_psy_data(struct device *dev, void *data)
  */
 static void ab8500_btemp_external_power_changed(struct power_supply *psy)
 {
-	struct ab8500_btemp *di = to_ab8500_btemp_device_info(psy);
+	struct ab8500_btemp *di = power_supply_get_drvdata(psy);
 
 	class_for_each_device(power_supply_class, NULL,
-		&di->btemp_psy, ab8500_btemp_get_ext_psy_data);
+		di->btemp_psy, ab8500_btemp_get_ext_psy_data);
 }
 
 /* ab8500 btemp driver interrupts and their respective isr */
@@ -1044,7 +1039,7 @@ static int ab8500_btemp_remove(struct platform_device *pdev)
 	destroy_workqueue(di->btemp_wq);
 
 	flush_scheduled_work();
-	power_supply_unregister(&di->btemp_psy);
+	power_supply_unregister(di->btemp_psy);
 
 	return 0;
 }
@@ -1054,10 +1049,20 @@ static char *supply_interface[] = {
 	"ab8500_fg",
 };
 
+static const struct power_supply_desc ab8500_btemp_desc = {
+	.name			= "ab8500_btemp",
+	.type			= POWER_SUPPLY_TYPE_BATTERY,
+	.properties		= ab8500_btemp_props,
+	.num_properties		= ARRAY_SIZE(ab8500_btemp_props),
+	.get_property		= ab8500_btemp_get_property,
+	.external_power_changed	= ab8500_btemp_external_power_changed,
+};
+
 static int ab8500_btemp_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct abx500_bm_data *plat = pdev->dev.platform_data;
+	struct power_supply_config psy_cfg = {};
 	struct ab8500_btemp *di;
 	int irq, i, ret = 0;
 	u8 val;
@@ -1089,17 +1094,9 @@ static int ab8500_btemp_probe(struct platform_device *pdev)
 
 	di->initialized = false;
 
-	/* BTEMP supply */
-	di->btemp_psy.name = "ab8500_btemp";
-	di->btemp_psy.type = POWER_SUPPLY_TYPE_BATTERY;
-	di->btemp_psy.properties = ab8500_btemp_props;
-	di->btemp_psy.num_properties = ARRAY_SIZE(ab8500_btemp_props);
-	di->btemp_psy.get_property = ab8500_btemp_get_property;
-	di->btemp_psy.supplied_to = supply_interface;
-	di->btemp_psy.num_supplicants = ARRAY_SIZE(supply_interface);
-	di->btemp_psy.external_power_changed =
-		ab8500_btemp_external_power_changed;
-
+	psy_cfg.supplied_to = supply_interface;
+	psy_cfg.num_supplicants = ARRAY_SIZE(supply_interface);
+	psy_cfg.drv_data = di;
 
 	/* Create a work queue for the btemp */
 	di->btemp_wq =
@@ -1140,9 +1137,11 @@ static int ab8500_btemp_probe(struct platform_device *pdev)
 	}
 
 	/* Register BTEMP power supply class */
-	ret = power_supply_register(di->dev, &di->btemp_psy);
-	if (ret) {
+	di->btemp_psy = power_supply_register(di->dev, &ab8500_btemp_desc,
+					      &psy_cfg);
+	if (IS_ERR(di->btemp_psy)) {
 		dev_err(di->dev, "failed to register BTEMP psy\n");
+		ret = PTR_ERR(di->btemp_psy);
 		goto free_btemp_wq;
 	}
 
@@ -1171,7 +1170,7 @@ static int ab8500_btemp_probe(struct platform_device *pdev)
 	return ret;
 
 free_irq:
-	power_supply_unregister(&di->btemp_psy);
+	power_supply_unregister(di->btemp_psy);
 
 	/* We also have to free all successfully registered irqs */
 	for (i = i - 1; i >= 0; i--) {

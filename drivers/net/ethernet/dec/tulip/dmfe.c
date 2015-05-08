@@ -653,7 +653,7 @@ static void dmfe_init_dm910x(struct DEVICE *dev)
 	if ( !(db->media_mode & DMFE_AUTO) )
 		db->op_mode = db->media_mode; 	/* Force Mode */
 
-	/* Initialize Transmit/Receive decriptor and CR3/4 */
+	/* Initialize Transmit/Receive descriptor and CR3/4 */
 	dmfe_descriptor_init(dev);
 
 	/* Init CR6 to program DM910x operation */

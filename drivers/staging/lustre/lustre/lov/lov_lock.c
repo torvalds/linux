@@ -308,7 +308,8 @@ static int lov_lock_sub_init(const struct lu_env *env,
 		 * XXX for wide striping smarter algorithm is desirable,
 		 * breaking out of the loop, early.
 		 */
-		if (lov_stripe_intersects(loo->lo_lsm, i,
+		if (likely(r0->lo_sub[i] != NULL) &&
+		    lov_stripe_intersects(loo->lo_lsm, i,
 					  file_start, file_end, &start, &end))
 			nr++;
 	}
@@ -326,7 +327,8 @@ static int lov_lock_sub_init(const struct lu_env *env,
 	 * top-lock.
 	 */
 	for (i = 0, nr = 0; i < r0->lo_nr; ++i) {
-		if (lov_stripe_intersects(loo->lo_lsm, i,
+		if (likely(r0->lo_sub[i] != NULL) &&
+		    lov_stripe_intersects(loo->lo_lsm, i,
 					  file_start, file_end, &start, &end)) {
 			struct cl_lock_descr *descr;
 
@@ -914,10 +916,22 @@ static int lov_lock_stripe_is_matching(const struct lu_env *env,
 	 */
 	start = cl_offset(&lov->lo_cl, descr->cld_start);
 	end   = cl_offset(&lov->lo_cl, descr->cld_end + 1) - 1;
-	result = end - start <= lsm->lsm_stripe_size &&
-		 stripe == lov_stripe_number(lsm, start) &&
-		 stripe == lov_stripe_number(lsm, end);
-	if (result) {
+	result = 0;
+	/* glimpse should work on the object with LOV EA hole. */
+	if (end - start <= lsm->lsm_stripe_size) {
+		int idx;
+
+		idx = lov_stripe_number(lsm, start);
+		if (idx == stripe ||
+		    unlikely(lov_r0(lov)->lo_sub[idx] == NULL)) {
+			idx = lov_stripe_number(lsm, end);
+			if (idx == stripe ||
+			    unlikely(lov_r0(lov)->lo_sub[idx] == NULL))
+				result = 1;
+		}
+	}
+
+	if (result != 0) {
 		struct cl_lock_descr *subd = &lov_env_info(env)->lti_ldescr;
 		u64 sub_start;
 		u64 sub_end;
