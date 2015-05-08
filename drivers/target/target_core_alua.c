@@ -28,8 +28,7 @@
 #include <linux/configfs.h>
 #include <linux/export.h>
 #include <linux/file.h>
-#include <scsi/scsi.h>
-#include <scsi/scsi_cmnd.h>
+#include <scsi/scsi_proto.h>
 #include <asm/unaligned.h>
 
 #include <target/target_core_base.h>

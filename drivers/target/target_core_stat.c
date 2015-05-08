@@ -33,9 +33,6 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/configfs.h>
-#include <scsi/scsi.h>
-#include <scsi/scsi_device.h>
-#include <scsi/scsi_host.h>
 
 #include <target/target_core_base.h>
 #include <target/target_core_backend.h>
