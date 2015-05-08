@@ -1067,9 +1067,6 @@ intel_rotation_90_or_270(unsigned int rotation)
 	return rotation & (BIT(DRM_ROTATE_90) | BIT(DRM_ROTATE_270));
 }
 
-unsigned int
-intel_tile_height(struct drm_device *dev, uint32_t bits_per_pixel,
-		  uint64_t fb_modifier);
 void intel_create_rotation_property(struct drm_device *dev,
 					struct intel_plane *plane);
 
