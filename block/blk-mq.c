@@ -1284,6 +1284,8 @@ static void blk_mq_make_request(struct request_queue *q, struct bio *bio)
 				blk_mq_end_request(rq, rq->errors);
 				goto done;
 			}
+			blk_mq_insert_request(rq, false, true, true);
+			return;
 		}
 	}
 
