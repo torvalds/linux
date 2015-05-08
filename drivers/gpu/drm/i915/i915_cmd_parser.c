@@ -869,6 +869,9 @@ static u32 *copy_batch(struct drm_i915_gem_object *dest_obj,
 	    batch_len + batch_start_offset > src_obj->base.size)
 		return ERR_PTR(-E2BIG);
 
+	if (WARN_ON(dest_obj->pages_pin_count == 0))
+		return ERR_PTR(-ENODEV);
+
 	ret = i915_gem_obj_prepare_shmem_read(src_obj, &needs_clflush);
 	if (ret) {
 		DRM_DEBUG_DRIVER("CMD: failed to prepare shadow batch\n");
@@ -882,13 +885,6 @@ static u32 *copy_batch(struct drm_i915_gem_object *dest_obj,
 		goto unpin_src;
 	}
 
-	ret = i915_gem_object_get_pages(dest_obj);
-	if (ret) {
-		DRM_DEBUG_DRIVER("CMD: Failed to get pages for shadow batch\n");
-		goto unmap_src;
-	}
-	i915_gem_object_pin_pages(dest_obj);
-
 	ret = i915_gem_object_set_to_cpu_domain(dest_obj, true);
 	if (ret) {
 		DRM_DEBUG_DRIVER("CMD: Failed to set shadow batch to CPU\n");
@@ -898,7 +894,6 @@ static u32 *copy_batch(struct drm_i915_gem_object *dest_obj,
 	dst = vmap_batch(dest_obj, 0, batch_len);
 	if (!dst) {
 		DRM_DEBUG_DRIVER("CMD: Failed to vmap shadow batch\n");
-		i915_gem_object_unpin_pages(dest_obj);
 		ret = -ENOMEM;
 		goto unmap_src;
 	}
@@ -1129,7 +1124,6 @@ int i915_parse_cmds(struct intel_engine_cs *ring,
 	}
 
 	vunmap(batch_base);
-	i915_gem_object_unpin_pages(shadow_batch_obj);
 
 	return ret;
 }

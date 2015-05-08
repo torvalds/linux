@@ -67,7 +67,7 @@ static void skl_init_clock_gating(struct drm_device *dev)
 
 	gen9_init_clock_gating(dev);
 
-	if (INTEL_REVID(dev) == SKL_REVID_A0) {
+	if (INTEL_REVID(dev) <= SKL_REVID_B0) {
 		/*
 		 * WaDisableSDEUnitClockGating:skl
 		 * WaSetGAPSunitClckGateDisable:skl
@@ -75,6 +75,10 @@ static void skl_init_clock_gating(struct drm_device *dev)
 		I915_WRITE(GEN8_UCGCTL6, I915_READ(GEN8_UCGCTL6) |
 			   GEN8_GAPSUNIT_CLOCK_GATE_DISABLE |
 			   GEN8_SDEUNIT_CLOCK_GATE_DISABLE);
+
+		/* WaDisableVFUnitClockGating:skl */
+		I915_WRITE(GEN6_UCGCTL2, I915_READ(GEN6_UCGCTL2) |
+			   GEN6_VFUNIT_CLOCK_GATE_DISABLE);
 	}
 
 	if (INTEL_REVID(dev) <= SKL_REVID_D0) {
@@ -92,6 +96,26 @@ static void skl_init_clock_gating(struct drm_device *dev)
 		/* WaDisableLSQCROPERFforOCL:skl */
 		I915_WRITE(GEN8_L3SQCREG4, I915_READ(GEN8_L3SQCREG4) |
 			   GEN8_LQSC_RO_PERF_DIS);
+}
+
+static void bxt_init_clock_gating(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	gen9_init_clock_gating(dev);
+
+	/*
+	 * FIXME:
+	 * GEN8_SDEUNIT_CLOCK_GATE_DISABLE applies on A0 only.
+	 * GEN8_HDCUNIT_CLOCK_GATE_DISABLE_HDCREQ applies on 3x6 GT SKUs only.
+	 */
+	 /* WaDisableSDEUnitClockGating:bxt */
+	I915_WRITE(GEN8_UCGCTL6, I915_READ(GEN8_UCGCTL6) |
+		   GEN8_SDEUNIT_CLOCK_GATE_DISABLE |
+		   GEN8_HDCUNIT_CLOCK_GATE_DISABLE_HDCREQ);
+
+	/* FIXME: apply on A0 only */
+	I915_WRITE(TILECTL, I915_READ(TILECTL) | TILECTL_TLBPF);
 }
 
 static void i915_pineview_get_mem_freq(struct drm_device *dev)
@@ -1792,7 +1816,7 @@ hsw_compute_linetime_wm(struct drm_device *dev, struct drm_crtc *crtc)
 	linetime = DIV_ROUND_CLOSEST(mode->crtc_htotal * 1000 * 8,
 				     mode->crtc_clock);
 	ips_linetime = DIV_ROUND_CLOSEST(mode->crtc_htotal * 1000 * 8,
-					 intel_ddi_get_cdclk_freq(dev_priv));
+					 dev_priv->display.get_display_clock_speed(dev_priv->dev));
 
 	return PIPE_WM_LINETIME_IPS_LINETIME(ips_linetime) |
 	       PIPE_WM_LINETIME_TIME(linetime);
@@ -2538,6 +2562,7 @@ static bool ilk_disable_lp_wm(struct drm_device *dev)
  */
 
 #define SKL_DDB_SIZE		896	/* in blocks */
+#define BXT_DDB_SIZE		512
 
 static void
 skl_ddb_get_pipe_allocation_limits(struct drm_device *dev,
@@ -2556,7 +2581,10 @@ skl_ddb_get_pipe_allocation_limits(struct drm_device *dev,
 		return;
 	}
 
-	ddb_size = SKL_DDB_SIZE;
+	if (IS_BROXTON(dev))
+		ddb_size = BXT_DDB_SIZE;
+	else
+		ddb_size = SKL_DDB_SIZE;
 
 	ddb_size -= 4; /* 4 blocks for bypass path allocation */
 
@@ -3178,7 +3206,7 @@ static void skl_flush_wm_values(struct drm_i915_private *dev_priv,
 {
 	struct drm_device *dev = dev_priv->dev;
 	struct skl_ddb_allocation *cur_ddb, *new_ddb;
-	bool reallocated[I915_MAX_PIPES] = {false, false, false};
+	bool reallocated[I915_MAX_PIPES] = {};
 	struct intel_crtc *crtc;
 	enum pipe pipe;
 
@@ -3930,6 +3958,8 @@ static void gen6_set_rps_thresholds(struct drm_i915_private *dev_priv, u8 val)
 		    GEN6_RP_DOWN_IDLE_AVG);
 
 	dev_priv->rps.power = new_power;
+	dev_priv->rps.up_threshold = threshold_up;
+	dev_priv->rps.down_threshold = threshold_down;
 	dev_priv->rps.last_adj = 0;
 }
 
@@ -4001,8 +4031,11 @@ static void valleyview_set_rps(struct drm_device *dev, u8 val)
 		      "Odd GPU freq value\n"))
 		val &= ~1;
 
-	if (val != dev_priv->rps.cur_freq)
+	if (val != dev_priv->rps.cur_freq) {
 		vlv_punit_write(dev_priv, PUNIT_REG_GPU_FREQ_REQ, val);
+		if (!IS_CHERRYVIEW(dev_priv))
+			gen6_set_rps_thresholds(dev_priv, val);
+	}
 
 	I915_WRITE(GEN6_PMINTRMSK, gen6_rps_pm_mask(dev_priv, val));
 
@@ -4051,6 +4084,7 @@ static void vlv_set_rps_idle(struct drm_i915_private *dev_priv)
 				& GENFREQSTATUS) == 0, 100))
 		DRM_ERROR("timed out waiting for Punit\n");
 
+	gen6_set_rps_thresholds(dev_priv, val);
 	vlv_force_gfx_clock(dev_priv, false);
 
 	I915_WRITE(GEN6_PMINTRMSK, gen6_rps_pm_mask(dev_priv, val));
@@ -4081,10 +4115,14 @@ void gen6_rps_idle(struct drm_i915_private *dev_priv)
 		dev_priv->rps.last_adj = 0;
 		I915_WRITE(GEN6_PMINTRMSK, 0xffffffff);
 	}
+
+	while (!list_empty(&dev_priv->rps.clients))
+		list_del_init(dev_priv->rps.clients.next);
 	mutex_unlock(&dev_priv->rps.hw_lock);
 }
 
-void gen6_rps_boost(struct drm_i915_private *dev_priv)
+void gen6_rps_boost(struct drm_i915_private *dev_priv,
+		    struct drm_i915_file_private *file_priv)
 {
 	u32 val;
 
@@ -4092,9 +4130,16 @@ void gen6_rps_boost(struct drm_i915_private *dev_priv)
 	val = dev_priv->rps.max_freq_softlimit;
 	if (dev_priv->rps.enabled &&
 	    dev_priv->mm.busy &&
-	    dev_priv->rps.cur_freq < val) {
+	    dev_priv->rps.cur_freq < val &&
+	    (file_priv == NULL || list_empty(&file_priv->rps_boost))) {
 		intel_set_rps(dev_priv->dev, val);
 		dev_priv->rps.last_adj = 0;
+
+		if (file_priv != NULL) {
+			list_add(&file_priv->rps_boost, &dev_priv->rps.clients);
+			file_priv->rps_boosts++;
+		} else
+			dev_priv->rps.boosts++;
 	}
 	mutex_unlock(&dev_priv->rps.hw_lock);
 }
@@ -4325,8 +4370,13 @@ static void gen9_enable_rc6(struct drm_device *dev)
 				   GEN6_RC_CTL_EI_MODE(1) |
 				   rc6_mask);
 
-	/* 3b: Enable Coarse Power Gating only when RC6 is enabled */
-	I915_WRITE(GEN9_PG_ENABLE, (rc6_mask & GEN6_RC_CTL_RC6_ENABLE) ? 3 : 0);
+	/*
+	 * 3b: Enable Coarse Power Gating only when RC6 is enabled.
+	 * WaDisableRenderPowerGating:skl,bxt - Render PG need to be disabled with RC6.
+	 */
+	I915_WRITE(GEN9_PG_ENABLE, (rc6_mask & GEN6_RC_CTL_RC6_ENABLE) ?
+			GEN9_MEDIA_PG_ENABLE : 0);
+
 
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 
@@ -4996,8 +5046,8 @@ static void cherryview_enable_rps(struct drm_device *dev)
 		I915_WRITE(RING_MAX_IDLE(ring->mmio_base), 10);
 	I915_WRITE(GEN6_RC_SLEEP, 0);
 
-	/* TO threshold set to 1750 us ( 0x557 * 1.28 us) */
-	I915_WRITE(GEN6_RC6_THRESHOLD, 0x557);
+	/* TO threshold set to 500 us ( 0x186 * 1.28 us) */
+	I915_WRITE(GEN6_RC6_THRESHOLD, 0x186);
 
 	/* allows RC6 residency counter to work */
 	I915_WRITE(VLV_COUNTER_CONTROL,
@@ -6544,7 +6594,12 @@ void intel_init_pm(struct drm_device *dev)
 	if (INTEL_INFO(dev)->gen >= 9) {
 		skl_setup_wm_latency(dev);
 
-		dev_priv->display.init_clock_gating = skl_init_clock_gating;
+		if (IS_BROXTON(dev))
+			dev_priv->display.init_clock_gating =
+				bxt_init_clock_gating;
+		else if (IS_SKYLAKE(dev))
+			dev_priv->display.init_clock_gating =
+				skl_init_clock_gating;
 		dev_priv->display.update_wm = skl_update_wm;
 		dev_priv->display.update_sprite_wm = skl_update_sprite_wm;
 	} else if (HAS_PCH_SPLIT(dev)) {
@@ -6762,6 +6817,41 @@ int intel_freq_opcode(struct drm_i915_private *dev_priv, int val)
 		return val / GT_FREQUENCY_MULTIPLIER;
 }
 
+struct request_boost {
+	struct work_struct work;
+	struct drm_i915_gem_request *rq;
+};
+
+static void __intel_rps_boost_work(struct work_struct *work)
+{
+	struct request_boost *boost = container_of(work, struct request_boost, work);
+
+	if (!i915_gem_request_completed(boost->rq, true))
+		gen6_rps_boost(to_i915(boost->rq->ring->dev), NULL);
+
+	i915_gem_request_unreference__unlocked(boost->rq);
+	kfree(boost);
+}
+
+void intel_queue_rps_boost_for_request(struct drm_device *dev,
+				       struct drm_i915_gem_request *rq)
+{
+	struct request_boost *boost;
+
+	if (rq == NULL || INTEL_INFO(dev)->gen < 6)
+		return;
+
+	boost = kmalloc(sizeof(*boost), GFP_ATOMIC);
+	if (boost == NULL)
+		return;
+
+	i915_gem_request_reference(rq);
+	boost->rq = rq;
+
+	INIT_WORK(&boost->work, __intel_rps_boost_work);
+	queue_work(to_i915(dev)->wq, &boost->work);
+}
+
 void intel_pm_setup(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -6770,6 +6860,7 @@ void intel_pm_setup(struct drm_device *dev)
 
 	INIT_DELAYED_WORK(&dev_priv->rps.delayed_resume_work,
 			  intel_gen6_powersave_work);
+	INIT_LIST_HEAD(&dev_priv->rps.clients);
 
 	dev_priv->pm.suspended = false;
 }

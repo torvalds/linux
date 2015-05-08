@@ -1289,6 +1289,29 @@ unsigned int drm_plane_index(struct drm_plane *plane)
 EXPORT_SYMBOL(drm_plane_index);
 
 /**
+ * drm_plane_from_index - find the registered plane at an index
+ * @dev: DRM device
+ * @idx: index of registered plane to find for
+ *
+ * Given a plane index, return the registered plane from DRM device's
+ * list of planes with matching index.
+ */
+struct drm_plane *
+drm_plane_from_index(struct drm_device *dev, int idx)
+{
+	struct drm_plane *plane;
+	unsigned int i = 0;
+
+	list_for_each_entry(plane, &dev->mode_config.plane_list, head) {
+		if (i == idx)
+			return plane;
+		i++;
+	}
+	return NULL;
+}
+EXPORT_SYMBOL(drm_plane_from_index);
+
+/**
  * drm_plane_force_disable - Forcibly disable a plane
  * @plane: plane to disable
  *

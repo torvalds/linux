@@ -157,7 +157,9 @@ i915_gem_alloc_context_obj(struct drm_device *dev, size_t size)
 	struct drm_i915_gem_object *obj;
 	int ret;
 
-	obj = i915_gem_alloc_object(dev, size);
+	obj = i915_gem_object_create_stolen(dev, size);
+	if (obj == NULL)
+		obj = i915_gem_alloc_object(dev, size);
 	if (obj == NULL)
 		return ERR_PTR(-ENOMEM);
 
@@ -573,20 +575,12 @@ static inline bool should_skip_switch(struct intel_engine_cs *ring,
 				      struct intel_context *from,
 				      struct intel_context *to)
 {
-	struct drm_i915_private *dev_priv = ring->dev->dev_private;
-
 	if (to->remap_slice)
 		return false;
 
-	if (to->ppgtt) {
-		if (from == to && !test_bit(ring->id,
-				&to->ppgtt->pd_dirty_rings))
-			return true;
-	} else if (dev_priv->mm.aliasing_ppgtt) {
-		if (from == to && !test_bit(ring->id,
-				&dev_priv->mm.aliasing_ppgtt->pd_dirty_rings))
-			return true;
-	}
+	if (to->ppgtt && from == to &&
+	    !(intel_ring_flag(ring) & to->ppgtt->pd_dirty_rings))
+		return true;
 
 	return false;
 }
@@ -636,7 +630,6 @@ static int do_switch(struct intel_engine_cs *ring,
 	struct intel_context *from = ring->last_context;
 	u32 hw_flags = 0;
 	bool uninitialized = false;
-	struct i915_vma *vma;
 	int ret, i;
 
 	if (from != NULL && ring == &dev_priv->ring[RCS]) {
@@ -673,7 +666,7 @@ static int do_switch(struct intel_engine_cs *ring,
 			goto unpin_out;
 
 		/* Doing a PD load always reloads the page dirs */
-		clear_bit(ring->id, &to->ppgtt->pd_dirty_rings);
+		to->ppgtt->pd_dirty_rings &= ~intel_ring_flag(ring);
 	}
 
 	if (ring != &dev_priv->ring[RCS]) {
@@ -694,16 +687,6 @@ static int do_switch(struct intel_engine_cs *ring,
 	if (ret)
 		goto unpin_out;
 
-	vma = i915_gem_obj_to_ggtt(to->legacy_hw_ctx.rcs_state);
-	if (!(vma->bound & GLOBAL_BIND)) {
-		ret = i915_vma_bind(vma,
-				    to->legacy_hw_ctx.rcs_state->cache_level,
-				    GLOBAL_BIND);
-		/* This shouldn't ever fail. */
-		if (WARN_ONCE(ret, "GGTT context bind failed!"))
-			goto unpin_out;
-	}
-
 	if (!to->legacy_hw_ctx.initialized) {
 		hw_flags |= MI_RESTORE_INHIBIT;
 		/* NB: If we inhibit the restore, the context is not allowed to
@@ -711,12 +694,14 @@ static int do_switch(struct intel_engine_cs *ring,
 		 * space. This means we must enforce that a page table load
 		 * occur when this occurs. */
 	} else if (to->ppgtt &&
-			test_and_clear_bit(ring->id, &to->ppgtt->pd_dirty_rings))
+		   (intel_ring_flag(ring) & to->ppgtt->pd_dirty_rings)) {
 		hw_flags |= MI_FORCE_RESTORE;
+		to->ppgtt->pd_dirty_rings &= ~intel_ring_flag(ring);
+	}
 
 	/* We should never emit switch_mm more than once */
 	WARN_ON(needs_pd_load_pre(ring, to) &&
-			needs_pd_load_post(ring, to, hw_flags));
+		needs_pd_load_post(ring, to, hw_flags));
 
 	ret = mi_set_context(ring, to, hw_flags);
 	if (ret)

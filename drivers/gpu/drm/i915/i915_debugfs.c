@@ -96,7 +96,7 @@ static int i915_capabilities(struct seq_file *m, void *data)
 
 static const char *get_pin_flag(struct drm_i915_gem_object *obj)
 {
-	if (i915_gem_obj_is_pinned(obj))
+	if (obj->pin_display)
 		return "p";
 	else
 		return " ";
@@ -123,8 +123,9 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 	struct i915_vma *vma;
 	int pin_count = 0;
 
-	seq_printf(m, "%pK: %s%s%s %8zdKiB %02x %02x %x %x %x%s%s%s",
+	seq_printf(m, "%pK: %s%s%s%s %8zdKiB %02x %02x %x %x %x%s%s%s",
 		   &obj->base,
+		   obj->active ? "*" : " ",
 		   get_pin_flag(obj),
 		   get_tiling_flag(obj),
 		   get_global_flag(obj),
@@ -159,9 +160,9 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 	}
 	if (obj->stolen)
 		seq_printf(m, " (stolen: %08llx)", obj->stolen->start);
-	if (obj->pin_mappable || obj->fault_mappable) {
+	if (obj->pin_display || obj->fault_mappable) {
 		char s[3], *t = s;
-		if (obj->pin_mappable)
+		if (obj->pin_display)
 			*t++ = 'p';
 		if (obj->fault_mappable)
 			*t++ = 'f';
@@ -361,31 +362,39 @@ static int per_file_stats(int id, void *ptr, void *data)
 	return 0;
 }
 
-#define print_file_stats(m, name, stats) \
-	seq_printf(m, "%s: %u objects, %zu bytes (%zu active, %zu inactive, %zu global, %zu shared, %zu unbound)\n", \
-		   name, \
-		   stats.count, \
-		   stats.total, \
-		   stats.active, \
-		   stats.inactive, \
-		   stats.global, \
-		   stats.shared, \
-		   stats.unbound)
+#define print_file_stats(m, name, stats) do { \
+	if (stats.count) \
+		seq_printf(m, "%s: %u objects, %zu bytes (%zu active, %zu inactive, %zu global, %zu shared, %zu unbound)\n", \
+			   name, \
+			   stats.count, \
+			   stats.total, \
+			   stats.active, \
+			   stats.inactive, \
+			   stats.global, \
+			   stats.shared, \
+			   stats.unbound); \
+} while (0)
 
 static void print_batch_pool_stats(struct seq_file *m,
 				   struct drm_i915_private *dev_priv)
 {
 	struct drm_i915_gem_object *obj;
 	struct file_stats stats;
+	struct intel_engine_cs *ring;
+	int i, j;
 
 	memset(&stats, 0, sizeof(stats));
 
-	list_for_each_entry(obj,
-			    &dev_priv->mm.batch_pool.cache_list,
-			    batch_pool_list)
-		per_file_stats(0, obj, &stats);
+	for_each_ring(ring, dev_priv, i) {
+		for (j = 0; j < ARRAY_SIZE(ring->batch_pool.cache_list); j++) {
+			list_for_each_entry(obj,
+					    &ring->batch_pool.cache_list[j],
+					    batch_pool_link)
+				per_file_stats(0, obj, &stats);
+		}
+	}
 
-	print_file_stats(m, "batch pool", stats);
+	print_file_stats(m, "[k]batch pool", stats);
 }
 
 #define count_vmas(list, member) do { \
@@ -449,7 +458,7 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 			size += i915_gem_obj_ggtt_size(obj);
 			++count;
 		}
-		if (obj->pin_mappable) {
+		if (obj->pin_display) {
 			mappable_size += i915_gem_obj_ggtt_size(obj);
 			++mappable_count;
 		}
@@ -471,8 +480,6 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 
 	seq_putc(m, '\n');
 	print_batch_pool_stats(m, dev_priv);
-
-	seq_putc(m, '\n');
 	list_for_each_entry_reverse(file, &dev->filelist, lhead) {
 		struct file_stats stats;
 		struct task_struct *task;
@@ -613,24 +620,39 @@ static int i915_gem_batch_pool_info(struct seq_file *m, void *data)
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj;
-	int count = 0;
-	int ret;
+	struct intel_engine_cs *ring;
+	int total = 0;
+	int ret, i, j;
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 
-	seq_puts(m, "cache:\n");
-	list_for_each_entry(obj,
-			    &dev_priv->mm.batch_pool.cache_list,
-			    batch_pool_list) {
-		seq_puts(m, "   ");
-		describe_obj(m, obj);
-		seq_putc(m, '\n');
-		count++;
+	for_each_ring(ring, dev_priv, i) {
+		for (j = 0; j < ARRAY_SIZE(ring->batch_pool.cache_list); j++) {
+			int count;
+
+			count = 0;
+			list_for_each_entry(obj,
+					    &ring->batch_pool.cache_list[j],
+					    batch_pool_link)
+				count++;
+			seq_printf(m, "%s cache[%d]: %d objects\n",
+				   ring->name, j, count);
+
+			list_for_each_entry(obj,
+					    &ring->batch_pool.cache_list[j],
+					    batch_pool_link) {
+				seq_puts(m, "   ");
+				describe_obj(m, obj);
+				seq_putc(m, '\n');
+			}
+
+			total += count;
+		}
 	}
 
-	seq_printf(m, "total: %d\n", count);
+	seq_printf(m, "total: %d\n", total);
 
 	mutex_unlock(&dev->struct_mutex);
 
@@ -643,31 +665,44 @@ static int i915_gem_request_info(struct seq_file *m, void *data)
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *ring;
-	struct drm_i915_gem_request *gem_request;
-	int ret, count, i;
+	struct drm_i915_gem_request *rq;
+	int ret, any, i;
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
 
-	count = 0;
+	any = 0;
 	for_each_ring(ring, dev_priv, i) {
-		if (list_empty(&ring->request_list))
+		int count;
+
+		count = 0;
+		list_for_each_entry(rq, &ring->request_list, list)
+			count++;
+		if (count == 0)
 			continue;
 
-		seq_printf(m, "%s requests:\n", ring->name);
-		list_for_each_entry(gem_request,
-				    &ring->request_list,
-				    list) {
-			seq_printf(m, "    %x @ %d\n",
-				   gem_request->seqno,
-				   (int) (jiffies - gem_request->emitted_jiffies));
+		seq_printf(m, "%s requests: %d\n", ring->name, count);
+		list_for_each_entry(rq, &ring->request_list, list) {
+			struct task_struct *task;
+
+			rcu_read_lock();
+			task = NULL;
+			if (rq->pid)
+				task = pid_task(rq->pid, PIDTYPE_PID);
+			seq_printf(m, "    %x @ %d: %s [%d]\n",
+				   rq->seqno,
+				   (int) (jiffies - rq->emitted_jiffies),
+				   task ? task->comm : "<unknown>",
+				   task ? task->pid : -1);
+			rcu_read_unlock();
 		}
-		count++;
+
+		any++;
 	}
 	mutex_unlock(&dev->struct_mutex);
 
-	if (count == 0)
+	if (any == 0)
 		seq_puts(m, "No requests\n");
 
 	return 0;
@@ -2153,8 +2188,6 @@ static void gen8_ppgtt_info(struct seq_file *m, struct drm_device *dev)
 	if (!ppgtt)
 		return;
 
-	seq_printf(m, "Page directories: %d\n", ppgtt->num_pd_pages);
-	seq_printf(m, "Page tables: %d\n", ppgtt->num_pd_entries);
 	for_each_ring(ring, dev_priv, unused) {
 		seq_printf(m, "%s\n", ring->name);
 		for (i = 0; i < 4; i++) {
@@ -2226,6 +2259,44 @@ static int i915_ppgtt_info(struct seq_file *m, void *data)
 	return 0;
 }
 
+static int i915_rps_boost_info(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_file *file;
+	int ret;
+
+	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	if (ret)
+		return ret;
+
+	ret = mutex_lock_interruptible(&dev_priv->rps.hw_lock);
+	if (ret)
+		goto unlock;
+
+	list_for_each_entry_reverse(file, &dev->filelist, lhead) {
+		struct drm_i915_file_private *file_priv = file->driver_priv;
+		struct task_struct *task;
+
+		rcu_read_lock();
+		task = pid_task(file->pid, PIDTYPE_PID);
+		seq_printf(m, "%s [%d]: %d boosts%s\n",
+			   task ? task->comm : "<unknown>",
+			   task ? task->pid : -1,
+			   file_priv->rps_boosts,
+			   list_empty(&file_priv->rps_boost) ? "" : ", active");
+		rcu_read_unlock();
+	}
+	seq_printf(m, "Kernel boosts: %d\n", dev_priv->rps.boosts);
+
+	mutex_unlock(&dev_priv->rps.hw_lock);
+unlock:
+	mutex_unlock(&dev->struct_mutex);
+
+	return ret;
+}
+
 static int i915_llc(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = m->private;
@@ -2286,9 +2357,6 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 				seq_printf(m, " pipe %c", pipe_name(pipe));
 		}
 	seq_puts(m, "\n");
-
-	seq_printf(m, "Link standby: %s\n",
-		   yesno((bool)dev_priv->psr.link_standby));
 
 	/* CHV PSR has no kind of performance counter */
 	if (HAS_DDI(dev)) {
@@ -4470,12 +4538,116 @@ DEFINE_SIMPLE_ATTRIBUTE(i915_cache_sharing_fops,
 			i915_cache_sharing_get, i915_cache_sharing_set,
 			"%llu\n");
 
+struct sseu_dev_status {
+	unsigned int slice_total;
+	unsigned int subslice_total;
+	unsigned int subslice_per_slice;
+	unsigned int eu_total;
+	unsigned int eu_per_subslice;
+};
+
+static void cherryview_sseu_device_status(struct drm_device *dev,
+					  struct sseu_dev_status *stat)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	const int ss_max = 2;
+	int ss;
+	u32 sig1[ss_max], sig2[ss_max];
+
+	sig1[0] = I915_READ(CHV_POWER_SS0_SIG1);
+	sig1[1] = I915_READ(CHV_POWER_SS1_SIG1);
+	sig2[0] = I915_READ(CHV_POWER_SS0_SIG2);
+	sig2[1] = I915_READ(CHV_POWER_SS1_SIG2);
+
+	for (ss = 0; ss < ss_max; ss++) {
+		unsigned int eu_cnt;
+
+		if (sig1[ss] & CHV_SS_PG_ENABLE)
+			/* skip disabled subslice */
+			continue;
+
+		stat->slice_total = 1;
+		stat->subslice_per_slice++;
+		eu_cnt = ((sig1[ss] & CHV_EU08_PG_ENABLE) ? 0 : 2) +
+			 ((sig1[ss] & CHV_EU19_PG_ENABLE) ? 0 : 2) +
+			 ((sig1[ss] & CHV_EU210_PG_ENABLE) ? 0 : 2) +
+			 ((sig2[ss] & CHV_EU311_PG_ENABLE) ? 0 : 2);
+		stat->eu_total += eu_cnt;
+		stat->eu_per_subslice = max(stat->eu_per_subslice, eu_cnt);
+	}
+	stat->subslice_total = stat->subslice_per_slice;
+}
+
+static void gen9_sseu_device_status(struct drm_device *dev,
+				    struct sseu_dev_status *stat)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int s_max = 3, ss_max = 4;
+	int s, ss;
+	u32 s_reg[s_max], eu_reg[2*s_max], eu_mask[2];
+
+	/* BXT has a single slice and at most 3 subslices. */
+	if (IS_BROXTON(dev)) {
+		s_max = 1;
+		ss_max = 3;
+	}
+
+	for (s = 0; s < s_max; s++) {
+		s_reg[s] = I915_READ(GEN9_SLICE_PGCTL_ACK(s));
+		eu_reg[2*s] = I915_READ(GEN9_SS01_EU_PGCTL_ACK(s));
+		eu_reg[2*s + 1] = I915_READ(GEN9_SS23_EU_PGCTL_ACK(s));
+	}
+
+	eu_mask[0] = GEN9_PGCTL_SSA_EU08_ACK |
+		     GEN9_PGCTL_SSA_EU19_ACK |
+		     GEN9_PGCTL_SSA_EU210_ACK |
+		     GEN9_PGCTL_SSA_EU311_ACK;
+	eu_mask[1] = GEN9_PGCTL_SSB_EU08_ACK |
+		     GEN9_PGCTL_SSB_EU19_ACK |
+		     GEN9_PGCTL_SSB_EU210_ACK |
+		     GEN9_PGCTL_SSB_EU311_ACK;
+
+	for (s = 0; s < s_max; s++) {
+		unsigned int ss_cnt = 0;
+
+		if ((s_reg[s] & GEN9_PGCTL_SLICE_ACK) == 0)
+			/* skip disabled slice */
+			continue;
+
+		stat->slice_total++;
+
+		if (IS_SKYLAKE(dev))
+			ss_cnt = INTEL_INFO(dev)->subslice_per_slice;
+
+		for (ss = 0; ss < ss_max; ss++) {
+			unsigned int eu_cnt;
+
+			if (IS_BROXTON(dev) &&
+			    !(s_reg[s] & (GEN9_PGCTL_SS_ACK(ss))))
+				/* skip disabled subslice */
+				continue;
+
+			if (IS_BROXTON(dev))
+				ss_cnt++;
+
+			eu_cnt = 2 * hweight32(eu_reg[2*s + ss/2] &
+					       eu_mask[ss%2]);
+			stat->eu_total += eu_cnt;
+			stat->eu_per_subslice = max(stat->eu_per_subslice,
+						    eu_cnt);
+		}
+
+		stat->subslice_total += ss_cnt;
+		stat->subslice_per_slice = max(stat->subslice_per_slice,
+					       ss_cnt);
+	}
+}
+
 static int i915_sseu_status(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	unsigned int s_tot = 0, ss_tot = 0, ss_per = 0, eu_tot = 0, eu_per = 0;
+	struct sseu_dev_status stat;
 
 	if ((INTEL_INFO(dev)->gen < 8) || IS_BROADWELL(dev))
 		return -ENODEV;
@@ -4499,79 +4671,22 @@ static int i915_sseu_status(struct seq_file *m, void *unused)
 		   yesno(INTEL_INFO(dev)->has_eu_pg));
 
 	seq_puts(m, "SSEU Device Status\n");
+	memset(&stat, 0, sizeof(stat));
 	if (IS_CHERRYVIEW(dev)) {
-		const int ss_max = 2;
-		int ss;
-		u32 sig1[ss_max], sig2[ss_max];
-
-		sig1[0] = I915_READ(CHV_POWER_SS0_SIG1);
-		sig1[1] = I915_READ(CHV_POWER_SS1_SIG1);
-		sig2[0] = I915_READ(CHV_POWER_SS0_SIG2);
-		sig2[1] = I915_READ(CHV_POWER_SS1_SIG2);
-
-		for (ss = 0; ss < ss_max; ss++) {
-			unsigned int eu_cnt;
-
-			if (sig1[ss] & CHV_SS_PG_ENABLE)
-				/* skip disabled subslice */
-				continue;
-
-			s_tot = 1;
-			ss_per++;
-			eu_cnt = ((sig1[ss] & CHV_EU08_PG_ENABLE) ? 0 : 2) +
-				 ((sig1[ss] & CHV_EU19_PG_ENABLE) ? 0 : 2) +
-				 ((sig1[ss] & CHV_EU210_PG_ENABLE) ? 0 : 2) +
-				 ((sig2[ss] & CHV_EU311_PG_ENABLE) ? 0 : 2);
-			eu_tot += eu_cnt;
-			eu_per = max(eu_per, eu_cnt);
-		}
-		ss_tot = ss_per;
-	} else if (IS_SKYLAKE(dev)) {
-		const int s_max = 3, ss_max = 4;
-		int s, ss;
-		u32 s_reg[s_max], eu_reg[2*s_max], eu_mask[2];
-
-		s_reg[0] = I915_READ(GEN9_SLICE0_PGCTL_ACK);
-		s_reg[1] = I915_READ(GEN9_SLICE1_PGCTL_ACK);
-		s_reg[2] = I915_READ(GEN9_SLICE2_PGCTL_ACK);
-		eu_reg[0] = I915_READ(GEN9_SLICE0_SS01_EU_PGCTL_ACK);
-		eu_reg[1] = I915_READ(GEN9_SLICE0_SS23_EU_PGCTL_ACK);
-		eu_reg[2] = I915_READ(GEN9_SLICE1_SS01_EU_PGCTL_ACK);
-		eu_reg[3] = I915_READ(GEN9_SLICE1_SS23_EU_PGCTL_ACK);
-		eu_reg[4] = I915_READ(GEN9_SLICE2_SS01_EU_PGCTL_ACK);
-		eu_reg[5] = I915_READ(GEN9_SLICE2_SS23_EU_PGCTL_ACK);
-		eu_mask[0] = GEN9_PGCTL_SSA_EU08_ACK |
-			     GEN9_PGCTL_SSA_EU19_ACK |
-			     GEN9_PGCTL_SSA_EU210_ACK |
-			     GEN9_PGCTL_SSA_EU311_ACK;
-		eu_mask[1] = GEN9_PGCTL_SSB_EU08_ACK |
-			     GEN9_PGCTL_SSB_EU19_ACK |
-			     GEN9_PGCTL_SSB_EU210_ACK |
-			     GEN9_PGCTL_SSB_EU311_ACK;
-
-		for (s = 0; s < s_max; s++) {
-			if ((s_reg[s] & GEN9_PGCTL_SLICE_ACK) == 0)
-				/* skip disabled slice */
-				continue;
-
-			s_tot++;
-			ss_per = INTEL_INFO(dev)->subslice_per_slice;
-			ss_tot += ss_per;
-			for (ss = 0; ss < ss_max; ss++) {
-				unsigned int eu_cnt;
-
-				eu_cnt = 2 * hweight32(eu_reg[2*s + ss/2] &
-						       eu_mask[ss%2]);
-				eu_tot += eu_cnt;
-				eu_per = max(eu_per, eu_cnt);
-			}
-		}
+		cherryview_sseu_device_status(dev, &stat);
+	} else if (INTEL_INFO(dev)->gen >= 9) {
+		gen9_sseu_device_status(dev, &stat);
 	}
-	seq_printf(m, "  Enabled Slice Total: %u\n", s_tot);
-	seq_printf(m, "  Enabled Subslice Total: %u\n", ss_tot);
-	seq_printf(m, "  Enabled Subslice Per Slice: %u\n", ss_per);
-	seq_printf(m, "  Enabled EU Total: %u\n", eu_tot);
-	seq_printf(m, "  Enabled EU Per Subslice: %u\n", eu_per);
+	seq_printf(m, "  Enabled Slice Total: %u\n",
+		   stat.slice_total);
+	seq_printf(m, "  Enabled Subslice Total: %u\n",
+		   stat.subslice_total);
+	seq_printf(m, "  Enabled Subslice Per Slice: %u\n",
+		   stat.subslice_per_slice);
+	seq_printf(m, "  Enabled EU Total: %u\n",
+		   stat.eu_total);
+	seq_printf(m, "  Enabled EU Per Subslice: %u\n",
+		   stat.eu_per_subslice);
 
 	return 0;
 }
@@ -4691,6 +4806,7 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_ddb_info", i915_ddb_info, 0},
 	{"i915_sseu_status", i915_sseu_status, 0},
 	{"i915_drrs_status", i915_drrs_status, 0},
+	{"i915_rps_boost_info", i915_rps_boost_info, 0},
 };
 #define I915_DEBUGFS_ENTRIES ARRAY_SIZE(i915_debugfs_list)
 
@@ -4779,4 +4895,100 @@ void i915_debugfs_cleanup(struct drm_minor *minor)
 
 		drm_debugfs_remove_files(info_list, 1, minor);
 	}
+}
+
+struct dpcd_block {
+	/* DPCD dump start address. */
+	unsigned int offset;
+	/* DPCD dump end address, inclusive. If unset, .size will be used. */
+	unsigned int end;
+	/* DPCD dump size. Used if .end is unset. If unset, defaults to 1. */
+	size_t size;
+	/* Only valid for eDP. */
+	bool edp;
+};
+
+static const struct dpcd_block i915_dpcd_debug[] = {
+	{ .offset = DP_DPCD_REV, .size = DP_RECEIVER_CAP_SIZE },
+	{ .offset = DP_PSR_SUPPORT, .end = DP_PSR_CAPS },
+	{ .offset = DP_DOWNSTREAM_PORT_0, .size = 16 },
+	{ .offset = DP_LINK_BW_SET, .end = DP_EDP_CONFIGURATION_SET },
+	{ .offset = DP_SINK_COUNT, .end = DP_ADJUST_REQUEST_LANE2_3 },
+	{ .offset = DP_SET_POWER },
+	{ .offset = DP_EDP_DPCD_REV },
+	{ .offset = DP_EDP_GENERAL_CAP_1, .end = DP_EDP_GENERAL_CAP_3 },
+	{ .offset = DP_EDP_DISPLAY_CONTROL_REGISTER, .end = DP_EDP_BACKLIGHT_FREQ_CAP_MAX_LSB },
+	{ .offset = DP_EDP_DBC_MINIMUM_BRIGHTNESS_SET, .end = DP_EDP_DBC_MAXIMUM_BRIGHTNESS_SET },
+};
+
+static int i915_dpcd_show(struct seq_file *m, void *data)
+{
+	struct drm_connector *connector = m->private;
+	struct intel_dp *intel_dp =
+		enc_to_intel_dp(&intel_attached_encoder(connector)->base);
+	uint8_t buf[16];
+	ssize_t err;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(i915_dpcd_debug); i++) {
+		const struct dpcd_block *b = &i915_dpcd_debug[i];
+		size_t size = b->end ? b->end - b->offset + 1 : (b->size ?: 1);
+
+		if (b->edp &&
+		    connector->connector_type != DRM_MODE_CONNECTOR_eDP)
+			continue;
+
+		/* low tech for now */
+		if (WARN_ON(size > sizeof(buf)))
+			continue;
+
+		err = drm_dp_dpcd_read(&intel_dp->aux, b->offset, buf, size);
+		if (err <= 0) {
+			DRM_ERROR("dpcd read (%zu bytes at %u) failed (%zd)\n",
+				  size, b->offset, err);
+			continue;
+		}
+
+		seq_printf(m, "%04x: %*ph\n", b->offset, (int) size, buf);
+	}
+
+	return 0;
+}
+
+static int i915_dpcd_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, i915_dpcd_show, inode->i_private);
+}
+
+static const struct file_operations i915_dpcd_fops = {
+	.owner = THIS_MODULE,
+	.open = i915_dpcd_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+/**
+ * i915_debugfs_connector_add - add i915 specific connector debugfs files
+ * @connector: pointer to a registered drm_connector
+ *
+ * Cleanup will be done by drm_connector_unregister() through a call to
+ * drm_debugfs_connector_remove().
+ *
+ * Returns 0 on success, negative error codes on error.
+ */
+int i915_debugfs_connector_add(struct drm_connector *connector)
+{
+	struct dentry *root = connector->debugfs_entry;
+
+	/* The connector must have been registered beforehands. */
+	if (!root)
+		return -ENODEV;
+
+	if (connector->connector_type == DRM_MODE_CONNECTOR_DisplayPort ||
+	    connector->connector_type == DRM_MODE_CONNECTOR_eDP)
+		debugfs_create_file("i915_dpcd", S_IRUGO, root, connector,
+				    &i915_dpcd_fops);
+
+	return 0;
 }

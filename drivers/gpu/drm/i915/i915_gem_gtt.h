@@ -158,7 +158,6 @@ struct i915_vma {
 	/** Flags and address space this VMA is bound to */
 #define GLOBAL_BIND	(1<<0)
 #define LOCAL_BIND	(1<<1)
-#define PTE_READ_ONLY	(1<<2)
 	unsigned int bound : 4;
 
 	/**
@@ -196,36 +195,30 @@ struct i915_vma {
 	 * bits with absolutely no headroom. So use 4 bits. */
 	unsigned int pin_count:4;
 #define DRM_I915_GEM_OBJECT_MAX_PIN_COUNT 0xf
-
-	/** Unmap an object from an address space. This usually consists of
-	 * setting the valid PTE entries to a reserved scratch page. */
-	void (*unbind_vma)(struct i915_vma *vma);
-	/* Map an object into an address space with the given cache flags. */
-	void (*bind_vma)(struct i915_vma *vma,
-			 enum i915_cache_level cache_level,
-			 u32 flags);
 };
 
-struct i915_page_table_entry {
+struct i915_page_table {
 	struct page *page;
 	dma_addr_t daddr;
 
 	unsigned long *used_ptes;
 };
 
-struct i915_page_directory_entry {
+struct i915_page_directory {
 	struct page *page; /* NULL for GEN6-GEN7 */
 	union {
 		uint32_t pd_offset;
 		dma_addr_t daddr;
 	};
 
-	struct i915_page_table_entry *page_table[I915_PDES]; /* PDEs */
+	unsigned long *used_pdes;
+	struct i915_page_table *page_table[I915_PDES]; /* PDEs */
 };
 
-struct i915_page_directory_pointer_entry {
+struct i915_page_directory_pointer {
 	/* struct page *page; */
-	struct i915_page_directory_entry *page_directory[GEN8_LEGACY_PDPES];
+	DECLARE_BITMAP(used_pdpes, GEN8_LEGACY_PDPES);
+	struct i915_page_directory *page_directory[GEN8_LEGACY_PDPES];
 };
 
 struct i915_address_space {
@@ -267,6 +260,8 @@ struct i915_address_space {
 	gen6_pte_t (*pte_encode)(dma_addr_t addr,
 				 enum i915_cache_level level,
 				 bool valid, u32 flags); /* Create a valid PTE */
+	/* flags for pte_encode */
+#define PTE_READ_ONLY	(1<<0)
 	int (*allocate_va_range)(struct i915_address_space *vm,
 				 uint64_t start,
 				 uint64_t length);
@@ -279,6 +274,13 @@ struct i915_address_space {
 			       uint64_t start,
 			       enum i915_cache_level cache_level, u32 flags);
 	void (*cleanup)(struct i915_address_space *vm);
+	/** Unmap an object from an address space. This usually consists of
+	 * setting the valid PTE entries to a reserved scratch page. */
+	void (*unbind_vma)(struct i915_vma *vma);
+	/* Map an object into an address space with the given cache flags. */
+	int (*bind_vma)(struct i915_vma *vma,
+			enum i915_cache_level cache_level,
+			u32 flags);
 };
 
 /* The Graphics Translation Table is the way in which GEN hardware translates a
@@ -314,14 +316,13 @@ struct i915_hw_ppgtt {
 	struct kref ref;
 	struct drm_mm_node node;
 	unsigned long pd_dirty_rings;
-	unsigned num_pd_entries;
-	unsigned num_pd_pages; /* gen8+ */
 	union {
-		struct i915_page_directory_pointer_entry pdp;
-		struct i915_page_directory_entry pd;
+		struct i915_page_directory_pointer pdp;
+		struct i915_page_directory pd;
 	};
 
-	struct i915_page_table_entry *scratch_pt;
+	struct i915_page_table *scratch_pt;
+	struct i915_page_directory *scratch_pd;
 
 	struct drm_i915_file_private *file_priv;
 
@@ -348,6 +349,11 @@ struct i915_hw_ppgtt {
 	     temp = ALIGN(start+1, 1 << GEN6_PDE_SHIFT) - start, \
 	     temp = min_t(unsigned, temp, length), \
 	     start += temp, length -= temp)
+
+#define gen6_for_all_pdes(pt, ppgtt, iter)  \
+	for (iter = 0;		\
+	     pt = ppgtt->pd.page_table[iter], iter < I915_PDES;	\
+	     iter++)
 
 static inline uint32_t i915_pte_index(uint64_t address, uint32_t pde_shift)
 {
@@ -395,6 +401,63 @@ static inline size_t gen6_pte_count(uint32_t addr, uint32_t length)
 static inline uint32_t gen6_pde_index(uint32_t addr)
 {
 	return i915_pde_index(addr, GEN6_PDE_SHIFT);
+}
+
+/* Equivalent to the gen6 version, For each pde iterates over every pde
+ * between from start until start + length. On gen8+ it simply iterates
+ * over every page directory entry in a page directory.
+ */
+#define gen8_for_each_pde(pt, pd, start, length, temp, iter)		\
+	for (iter = gen8_pde_index(start); \
+	     pt = (pd)->page_table[iter], length > 0 && iter < I915_PDES;	\
+	     iter++,				\
+	     temp = ALIGN(start+1, 1 << GEN8_PDE_SHIFT) - start,	\
+	     temp = min(temp, length),					\
+	     start += temp, length -= temp)
+
+#define gen8_for_each_pdpe(pd, pdp, start, length, temp, iter)		\
+	for (iter = gen8_pdpe_index(start);	\
+	     pd = (pdp)->page_directory[iter], length > 0 && iter < GEN8_LEGACY_PDPES;	\
+	     iter++,				\
+	     temp = ALIGN(start+1, 1 << GEN8_PDPE_SHIFT) - start,	\
+	     temp = min(temp, length),					\
+	     start += temp, length -= temp)
+
+/* Clamp length to the next page_directory boundary */
+static inline uint64_t gen8_clamp_pd(uint64_t start, uint64_t length)
+{
+	uint64_t next_pd = ALIGN(start + 1, 1 << GEN8_PDPE_SHIFT);
+
+	if (next_pd > (start + length))
+		return length;
+
+	return next_pd - start;
+}
+
+static inline uint32_t gen8_pte_index(uint64_t address)
+{
+	return i915_pte_index(address, GEN8_PDE_SHIFT);
+}
+
+static inline uint32_t gen8_pde_index(uint64_t address)
+{
+	return i915_pde_index(address, GEN8_PDE_SHIFT);
+}
+
+static inline uint32_t gen8_pdpe_index(uint64_t address)
+{
+	return (address >> GEN8_PDPE_SHIFT) & GEN8_PDPE_MASK;
+}
+
+static inline uint32_t gen8_pml4e_index(uint64_t address)
+{
+	WARN_ON(1); /* For 64B */
+	return 0;
+}
+
+static inline size_t gen8_pte_count(uint64_t address, uint64_t length)
+{
+	return i915_pte_count(address, length, GEN8_PDE_SHIFT);
 }
 
 int i915_gem_gtt_init(struct drm_device *dev);

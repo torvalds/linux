@@ -381,6 +381,18 @@ static const struct intel_device_info intel_skylake_gt3_info = {
 	IVB_CURSOR_OFFSETS,
 };
 
+static const struct intel_device_info intel_broxton_info = {
+	.is_preliminary = 1,
+	.gen = 9,
+	.need_gfx_hws = 1, .has_hotplug = 1,
+	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING,
+	.num_pipes = 3,
+	.has_ddi = 1,
+	.has_fbc = 1,
+	GEN_DEFAULT_PIPEOFFSETS,
+	IVB_CURSOR_OFFSETS,
+};
+
 /*
  * Make sure any device matches here are from most specific to most
  * general.  For example, since the Quanta match is based on the subsystem
@@ -420,7 +432,8 @@ static const struct intel_device_info intel_skylake_gt3_info = {
 	INTEL_CHV_IDS(&intel_cherryview_info),	\
 	INTEL_SKL_GT1_IDS(&intel_skylake_info),	\
 	INTEL_SKL_GT2_IDS(&intel_skylake_info),	\
-	INTEL_SKL_GT3_IDS(&intel_skylake_gt3_info)	\
+	INTEL_SKL_GT3_IDS(&intel_skylake_gt3_info),	\
+	INTEL_BXT_IDS(&intel_broxton_info)
 
 static const struct pci_device_id pciidlist[] = {		/* aka */
 	INTEL_PCI_IDS,
@@ -996,6 +1009,38 @@ static int hsw_suspend_complete(struct drm_i915_private *dev_priv)
 	return 0;
 }
 
+static int bxt_suspend_complete(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+
+	/* TODO: when DC5 support is added disable DC5 here. */
+
+	broxton_ddi_phy_uninit(dev);
+	broxton_uninit_cdclk(dev);
+	bxt_enable_dc9(dev_priv);
+
+	return 0;
+}
+
+static int bxt_resume_prepare(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+
+	/* TODO: when CSR FW support is added make sure the FW is loaded */
+
+	bxt_disable_dc9(dev_priv);
+
+	/*
+	 * TODO: when DC5 support is added enable DC5 here if the CSR FW
+	 * is available.
+	 */
+	broxton_init_cdclk(dev);
+	broxton_ddi_phy_init(dev);
+	intel_prepare_ddi(dev);
+
+	return 0;
+}
+
 /*
  * Save all Gunit registers that may be lost after a D3 and a subsequent
  * S0i[R123] transition. The list of registers needing a save/restore is
@@ -1195,7 +1240,21 @@ int vlv_force_gfx_clock(struct drm_i915_private *dev_priv, bool force_on)
 	u32 val;
 	int err;
 
+	val = I915_READ(VLV_GTLC_SURVIVABILITY_REG);
+
 #define COND (I915_READ(VLV_GTLC_SURVIVABILITY_REG) & VLV_GFX_CLK_STATUS_BIT)
+	/* Wait for a previous force-off to settle */
+	if (force_on && !IS_CHERRYVIEW(dev_priv->dev)) {
+		/* WARN_ON only for the Valleyview */
+		WARN_ON(!!(val & VLV_GFX_CLK_FORCE_ON_BIT) == force_on);
+
+		err = wait_for(!COND, 20);
+		if (err) {
+			DRM_ERROR("timeout waiting for GFX clock force-off (%08x)\n",
+				  I915_READ(VLV_GTLC_SURVIVABILITY_REG));
+			return err;
+		}
+	}
 
 	val = I915_READ(VLV_GTLC_SURVIVABILITY_REG);
 	val &= ~VLV_GFX_CLK_FORCE_ON_BIT;
@@ -1454,6 +1513,9 @@ static int intel_runtime_resume(struct device *device)
 
 	if (IS_GEN6(dev_priv))
 		intel_init_pch_refclk(dev);
+
+	if (IS_BROXTON(dev))
+		ret = bxt_resume_prepare(dev_priv);
 	else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		hsw_disable_pc8(dev_priv);
 	else if (IS_VALLEYVIEW(dev_priv))
@@ -1486,7 +1548,9 @@ static int intel_suspend_complete(struct drm_i915_private *dev_priv)
 	struct drm_device *dev = dev_priv->dev;
 	int ret;
 
-	if (IS_HASWELL(dev) || IS_BROADWELL(dev))
+	if (IS_BROXTON(dev))
+		ret = bxt_suspend_complete(dev_priv);
+	else if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		ret = hsw_suspend_complete(dev_priv);
 	else if (IS_VALLEYVIEW(dev))
 		ret = vlv_suspend_complete(dev_priv);

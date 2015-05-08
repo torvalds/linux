@@ -319,6 +319,104 @@ static void hsw_set_power_well(struct drm_i915_private *dev_priv,
 	SKL_DISPLAY_MISC_IO_POWER_DOMAINS)) |		\
 	BIT(POWER_DOMAIN_INIT))
 
+#define BXT_DISPLAY_POWERWELL_2_POWER_DOMAINS (		\
+	BIT(POWER_DOMAIN_TRANSCODER_A) |		\
+	BIT(POWER_DOMAIN_PIPE_B) |			\
+	BIT(POWER_DOMAIN_TRANSCODER_B) |		\
+	BIT(POWER_DOMAIN_PIPE_C) |			\
+	BIT(POWER_DOMAIN_TRANSCODER_C) |		\
+	BIT(POWER_DOMAIN_PIPE_B_PANEL_FITTER) |		\
+	BIT(POWER_DOMAIN_PIPE_C_PANEL_FITTER) |		\
+	BIT(POWER_DOMAIN_PORT_DDI_B_2_LANES) |		\
+	BIT(POWER_DOMAIN_PORT_DDI_B_4_LANES) |		\
+	BIT(POWER_DOMAIN_PORT_DDI_C_2_LANES) |		\
+	BIT(POWER_DOMAIN_PORT_DDI_C_4_LANES) |		\
+	BIT(POWER_DOMAIN_AUX_B) |			\
+	BIT(POWER_DOMAIN_AUX_C) |			\
+	BIT(POWER_DOMAIN_AUDIO) |			\
+	BIT(POWER_DOMAIN_VGA) |				\
+	BIT(POWER_DOMAIN_INIT))
+#define BXT_DISPLAY_POWERWELL_1_POWER_DOMAINS (		\
+	BXT_DISPLAY_POWERWELL_2_POWER_DOMAINS |		\
+	BIT(POWER_DOMAIN_PIPE_A) |			\
+	BIT(POWER_DOMAIN_TRANSCODER_EDP) |		\
+	BIT(POWER_DOMAIN_PIPE_A_PANEL_FITTER) |		\
+	BIT(POWER_DOMAIN_PORT_DDI_A_2_LANES) |		\
+	BIT(POWER_DOMAIN_PORT_DDI_A_4_LANES) |		\
+	BIT(POWER_DOMAIN_AUX_A) |			\
+	BIT(POWER_DOMAIN_PLLS) |			\
+	BIT(POWER_DOMAIN_INIT))
+#define BXT_DISPLAY_ALWAYS_ON_POWER_DOMAINS (		\
+	(POWER_DOMAIN_MASK & ~(BXT_DISPLAY_POWERWELL_1_POWER_DOMAINS |	\
+	BXT_DISPLAY_POWERWELL_2_POWER_DOMAINS)) |	\
+	BIT(POWER_DOMAIN_INIT))
+
+static void assert_can_enable_dc9(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+
+	WARN(!IS_BROXTON(dev), "Platform doesn't support DC9.\n");
+	WARN((I915_READ(DC_STATE_EN) & DC_STATE_EN_DC9),
+		"DC9 already programmed to be enabled.\n");
+	WARN(I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC5,
+		"DC5 still not disabled to enable DC9.\n");
+	WARN(I915_READ(HSW_PWR_WELL_DRIVER), "Power well on.\n");
+	WARN(intel_irqs_enabled(dev_priv), "Interrupts not disabled yet.\n");
+
+	 /*
+	  * TODO: check for the following to verify the conditions to enter DC9
+	  * state are satisfied:
+	  * 1] Check relevant display engine registers to verify if mode set
+	  * disable sequence was followed.
+	  * 2] Check if display uninitialize sequence is initialized.
+	  */
+}
+
+static void assert_can_disable_dc9(struct drm_i915_private *dev_priv)
+{
+	WARN(intel_irqs_enabled(dev_priv), "Interrupts not disabled yet.\n");
+	WARN(!(I915_READ(DC_STATE_EN) & DC_STATE_EN_DC9),
+		"DC9 already programmed to be disabled.\n");
+	WARN(I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC5,
+		"DC5 still not disabled.\n");
+
+	 /*
+	  * TODO: check for the following to verify DC9 state was indeed
+	  * entered before programming to disable it:
+	  * 1] Check relevant display engine registers to verify if mode
+	  *  set disable sequence was followed.
+	  * 2] Check if display uninitialize sequence is initialized.
+	  */
+}
+
+void bxt_enable_dc9(struct drm_i915_private *dev_priv)
+{
+	uint32_t val;
+
+	assert_can_enable_dc9(dev_priv);
+
+	DRM_DEBUG_KMS("Enabling DC9\n");
+
+	val = I915_READ(DC_STATE_EN);
+	val |= DC_STATE_EN_DC9;
+	I915_WRITE(DC_STATE_EN, val);
+	POSTING_READ(DC_STATE_EN);
+}
+
+void bxt_disable_dc9(struct drm_i915_private *dev_priv)
+{
+	uint32_t val;
+
+	assert_can_disable_dc9(dev_priv);
+
+	DRM_DEBUG_KMS("Disabling DC9\n");
+
+	val = I915_READ(DC_STATE_EN);
+	val &= ~DC_STATE_EN_DC9;
+	I915_WRITE(DC_STATE_EN, val);
+	POSTING_READ(DC_STATE_EN);
+}
+
 static void skl_set_power_well(struct drm_i915_private *dev_priv,
 			struct i915_power_well *power_well, bool enable)
 {
@@ -1313,6 +1411,27 @@ static struct i915_power_well skl_power_wells[] = {
 	},
 };
 
+static struct i915_power_well bxt_power_wells[] = {
+	{
+		.name = "always-on",
+		.always_on = 1,
+		.domains = BXT_DISPLAY_ALWAYS_ON_POWER_DOMAINS,
+		.ops = &i9xx_always_on_power_well_ops,
+	},
+	{
+		.name = "power well 1",
+		.domains = BXT_DISPLAY_POWERWELL_1_POWER_DOMAINS,
+		.ops = &skl_power_well_ops,
+		.data = SKL_DISP_PW_1,
+	},
+	{
+		.name = "power well 2",
+		.domains = BXT_DISPLAY_POWERWELL_2_POWER_DOMAINS,
+		.ops = &skl_power_well_ops,
+		.data = SKL_DISP_PW_2,
+	}
+};
+
 #define set_power_wells(power_domains, __power_wells) ({		\
 	(power_domains)->power_wells = (__power_wells);			\
 	(power_domains)->power_well_count = ARRAY_SIZE(__power_wells);	\
@@ -1341,6 +1460,8 @@ int intel_power_domains_init(struct drm_i915_private *dev_priv)
 		set_power_wells(power_domains, bdw_power_wells);
 	} else if (IS_SKYLAKE(dev_priv->dev)) {
 		set_power_wells(power_domains, skl_power_wells);
+	} else if (IS_BROXTON(dev_priv->dev)) {
+		set_power_wells(power_domains, bxt_power_wells);
 	} else if (IS_CHERRYVIEW(dev_priv->dev)) {
 		set_power_wells(power_domains, chv_power_wells);
 	} else if (IS_VALLEYVIEW(dev_priv->dev)) {
