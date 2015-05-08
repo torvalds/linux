@@ -100,9 +100,6 @@
 #endif
 
 #ifdef __tile__
-#define mb()		asm volatile ("mf" ::: "memory")
-#define wmb()		asm volatile ("mf" ::: "memory")
-#define rmb()		asm volatile ("mf" ::: "memory")
 #define cpu_relax()	asm volatile ("mfspr zero, PASS" ::: "memory")
 #define CPUINFO_PROC    {"model name"}
 #endif
