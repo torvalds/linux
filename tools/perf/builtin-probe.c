@@ -50,8 +50,6 @@
 static struct {
 	int command;	/* Command short_name */
 	bool list_events;
-	bool force_add;
-	bool show_ext_vars;
 	bool uprobes;
 	bool quiet;
 	bool target_used;
@@ -59,7 +57,6 @@ static struct {
 	struct perf_probe_event events[MAX_PROBES];
 	struct line_range line_range;
 	char *target;
-	int max_probe_points;
 	struct strfilter *filter;
 } params;
 
@@ -364,7 +361,7 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 		"\t\tARG:\tProbe argument (kprobe-tracer argument format.)\n",
 #endif
 		opt_add_probe_event),
-	OPT_BOOLEAN('f', "force", &params.force_add, "forcibly add events"
+	OPT_BOOLEAN('f', "force", &probe_conf.force_add, "forcibly add events"
 		    " with existing name"),
 #ifdef HAVE_DWARF_SUPPORT
 	OPT_CALLBACK('L', "line", NULL,
@@ -373,7 +370,7 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_CALLBACK('V', "vars", NULL,
 		     "FUNC[@SRC][+OFF|%return|:RL|;PT]|SRC:AL|SRC;PT",
 		     "Show accessible variables on PROBEDEF", opt_show_vars),
-	OPT_BOOLEAN('\0', "externs", &params.show_ext_vars,
+	OPT_BOOLEAN('\0', "externs", &probe_conf.show_ext_vars,
 		    "Show external variables too (with --vars only)"),
 	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
 		   "file", "vmlinux pathname"),
@@ -384,7 +381,7 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 		opt_set_target),
 #endif
 	OPT__DRY_RUN(&probe_event_dry_run),
-	OPT_INTEGER('\0', "max-probes", &params.max_probe_points,
+	OPT_INTEGER('\0', "max-probes", &probe_conf.max_probes,
 		 "Set how many probe points can be found for a probe."),
 	OPT_CALLBACK_DEFAULT('F', "funcs", NULL, "[FILTER]",
 			     "Show potential probe-able functions.",
@@ -440,8 +437,8 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 		verbose = -1;
 	}
 
-	if (params.max_probe_points == 0)
-		params.max_probe_points = MAX_PROBES;
+	if (probe_conf.max_probes == 0)
+		probe_conf.max_probes = MAX_PROBES;
 
 	/*
 	 * Only consider the user's kernel image path if given.
@@ -477,9 +474,7 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 						       NULL);
 
 		ret = show_available_vars(params.events, params.nevents,
-					  params.max_probe_points,
-					  params.filter,
-					  params.show_ext_vars);
+					  params.filter);
 		if (ret < 0)
 			pr_err_with_code("  Error: Failed to show vars.", ret);
 		return ret;
@@ -498,9 +493,7 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 			usage_with_options(probe_usage, options);
 		}
 
-		ret = add_perf_probe_events(params.events, params.nevents,
-					    params.max_probe_points,
-					    params.force_add);
+		ret = add_perf_probe_events(params.events, params.nevents);
 		if (ret < 0) {
 			pr_err_with_code("  Error: Failed to add events.", ret);
 			return ret;

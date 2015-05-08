@@ -1214,15 +1214,15 @@ end:
 /* Find probe_trace_events specified by perf_probe_event from debuginfo */
 int debuginfo__find_trace_events(struct debuginfo *dbg,
 				 struct perf_probe_event *pev,
-				 struct probe_trace_event **tevs, int max_tevs)
+				 struct probe_trace_event **tevs)
 {
 	struct trace_event_finder tf = {
 			.pf = {.pev = pev, .callback = add_probe_trace_event},
-			.mod = dbg->mod, .max_tevs = max_tevs};
+			.max_tevs = probe_conf.max_probes, .mod = dbg->mod};
 	int ret;
 
 	/* Allocate result tevs array */
-	*tevs = zalloc(sizeof(struct probe_trace_event) * max_tevs);
+	*tevs = zalloc(sizeof(struct probe_trace_event) * tf.max_tevs);
 	if (*tevs == NULL)
 		return -ENOMEM;
 
@@ -1303,9 +1303,9 @@ static int add_available_vars(Dwarf_Die *sc_die, struct probe_finder *pf)
 	die_find_child(sc_die, collect_variables_cb, (void *)af, &die_mem);
 
 	/* Find external variables */
-	if (!af->externs)
+	if (!probe_conf.show_ext_vars)
 		goto out;
-	/* Don't need to search child DIE for externs. */
+	/* Don't need to search child DIE for external vars. */
 	af->child = false;
 	die_find_child(&pf->cu_die, collect_variables_cb, (void *)af, &die_mem);
 
@@ -1325,17 +1325,16 @@ out:
  */
 int debuginfo__find_available_vars_at(struct debuginfo *dbg,
 				      struct perf_probe_event *pev,
-				      struct variable_list **vls,
-				      int max_vls, bool externs)
+				      struct variable_list **vls)
 {
 	struct available_var_finder af = {
 			.pf = {.pev = pev, .callback = add_available_vars},
 			.mod = dbg->mod,
-			.max_vls = max_vls, .externs = externs};
+			.max_vls = probe_conf.max_probes};
 	int ret;
 
 	/* Allocate result vls array */
-	*vls = zalloc(sizeof(struct variable_list) * max_vls);
+	*vls = zalloc(sizeof(struct variable_list) * af.max_vls);
 	if (*vls == NULL)
 		return -ENOMEM;
 

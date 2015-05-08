@@ -6,6 +6,13 @@
 #include "strlist.h"
 #include "strfilter.h"
 
+/* Probe related configurations */
+struct probe_conf {
+	bool	show_ext_vars;
+	bool	force_add;
+	int	max_probes;
+};
+extern struct probe_conf probe_conf;
 extern bool probe_event_dry_run;
 
 /* kprobe-tracer and uprobe-tracer tracing point */
@@ -124,15 +131,13 @@ extern int line_range__init(struct line_range *lr);
 /* Internal use: Return kernel/module path */
 extern const char *kernel_get_module_path(const char *module);
 
-extern int add_perf_probe_events(struct perf_probe_event *pevs, int npevs,
-				 int max_probe_points, bool force_add);
+extern int add_perf_probe_events(struct perf_probe_event *pevs, int npevs);
 extern int del_perf_probe_events(struct strfilter *filter);
 extern int show_perf_probe_events(struct strfilter *filter);
 extern int show_line_range(struct line_range *lr, const char *module,
 			   bool user);
 extern int show_available_vars(struct perf_probe_event *pevs, int npevs,
-			       int max_probe_points, struct strfilter *filter,
-			       bool externs);
+			       struct strfilter *filter);
 extern int show_available_funcs(const char *module, struct strfilter *filter,
 				bool user);
 bool arch__prefers_symtab(void);
