@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2011-2014. All rights reserved.
+ * Copyright (C) ARM Limited 2011-2015. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -80,13 +80,7 @@ GATOR_DEFINE_PROBE(cpu_idle, TP_PROTO(unsigned int state, unsigned int cpu))
 		return;
 
 	if (implements_wfi()) {
-		if (state == PWR_EVENT_EXIT) {
-			/* transition from wfi to non-wfi */
-			marshal_idle(cpu, MESSAGE_IDLE_EXIT);
-		} else {
-			/* transition from non-wfi to wfi */
-			marshal_idle(cpu, MESSAGE_IDLE_ENTER);
-		}
+		marshal_idle(cpu, state);
 	}
 
 	per_cpu(idle_prev_state, cpu) = state;

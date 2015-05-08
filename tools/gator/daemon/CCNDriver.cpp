@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2014. All rights reserved.
+ * Copyright (C) ARM Limited 2014-2015. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -28,7 +28,6 @@ static const char TAG_OPTION_SET[] = "option_set";
 
 static const char ATTR_AVERAGE_SELECTION[] = "average_selection";
 static const char ATTR_COUNTER[] = "counter";
-static const char ATTR_COUNTER_SET[] = "counter_set";
 static const char ATTR_COUNT[] = "count";
 static const char ATTR_DESCRIPTION[] = "description";
 static const char ATTR_DISPLAY[] = "display";
@@ -110,7 +109,7 @@ void CCNDriver::readEvents(mxml_node_t *const) {
 
 	int type;
 	if (DriverSource::readIntDriver("/sys/bus/event_source/devices/ccn/type", &type) != 0) {
-		logg->logError(__FILE__, __LINE__, "Unable to read CCN-5xx type");
+		logg->logError("Unable to read CCN-5xx type");
 		handleException();
 	}
 

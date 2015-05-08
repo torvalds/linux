@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2010-2014. All rights reserved.
+ * Copyright (C) ARM Limited 2010-2015. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -21,25 +21,26 @@
 #define GATOR_IKS_SUPPORT       defined(CONFIG_BL_SWITCHER)
 
 /* cpu ids */
-#define ARM1136     0xb36
-#define ARM1156     0xb56
-#define ARM1176     0xb76
-#define ARM11MPCORE 0xb02
-#define CORTEX_A5   0xc05
-#define CORTEX_A7   0xc07
-#define CORTEX_A8   0xc08
-#define CORTEX_A9   0xc09
-#define CORTEX_A15  0xc0f
-#define CORTEX_A17  0xc0e
-#define SCORPION    0x00f
-#define SCORPIONMP  0x02d
-#define KRAITSIM    0x049
-#define KRAIT       0x04d
-#define KRAIT_S4_PRO 0x06f
-#define CORTEX_A53  0xd03
-#define CORTEX_A57  0xd07
-#define AARCH64     0xd0f
-#define OTHER       0xfff
+#define ARM1136      0x41b36
+#define ARM1156      0x41b56
+#define ARM1176      0x41b76
+#define ARM11MPCORE  0x41b02
+#define CORTEX_A5    0x41c05
+#define CORTEX_A7    0x41c07
+#define CORTEX_A8    0x41c08
+#define CORTEX_A9    0x41c09
+#define CORTEX_A15   0x41c0f
+#define CORTEX_A12   0x41c0d
+#define CORTEX_A17   0x41c0e
+#define SCORPION     0x5100f
+#define SCORPIONMP   0x5102d
+#define KRAITSIM     0x51049
+#define KRAIT        0x5104d
+#define KRAIT_S4_PRO 0x5106f
+#define CORTEX_A53   0x41d03
+#define CORTEX_A57   0x41d07
+#define CORTEX_A72   0x41d08
+#define OTHER        0xfffff
 
 /* gpu enums */
 #define MALI_4xx     1
