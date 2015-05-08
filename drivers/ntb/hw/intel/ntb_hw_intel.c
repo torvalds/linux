@@ -1718,28 +1718,67 @@ static int snb_init_dev(struct intel_ntb_dev *ndev)
 	u8 ppd;
 	int rc, mem;
 
+	pdev = ndev_pdev(ndev);
+
+	switch (pdev->device) {
 	/* There is a Xeon hardware errata related to writes to SDOORBELL or
 	 * B2BDOORBELL in conjunction with inbound access to NTB MMIO Space,
 	 * which may hang the system.  To workaround this use the second memory
 	 * window to access the interrupt and scratch pad registers on the
 	 * remote system.
 	 */
-	ndev->hwerr_flags |= NTB_HWERR_SDOORBELL_LOCKUP;
+	case PCI_DEVICE_ID_INTEL_NTB_SS_JSF:
+	case PCI_DEVICE_ID_INTEL_NTB_PS_JSF:
+	case PCI_DEVICE_ID_INTEL_NTB_B2B_JSF:
+	case PCI_DEVICE_ID_INTEL_NTB_SS_SNB:
+	case PCI_DEVICE_ID_INTEL_NTB_PS_SNB:
+	case PCI_DEVICE_ID_INTEL_NTB_B2B_SNB:
+	case PCI_DEVICE_ID_INTEL_NTB_SS_IVT:
+	case PCI_DEVICE_ID_INTEL_NTB_PS_IVT:
+	case PCI_DEVICE_ID_INTEL_NTB_B2B_IVT:
+	case PCI_DEVICE_ID_INTEL_NTB_SS_HSX:
+	case PCI_DEVICE_ID_INTEL_NTB_PS_HSX:
+	case PCI_DEVICE_ID_INTEL_NTB_B2B_HSX:
+		ndev->hwerr_flags |= NTB_HWERR_SDOORBELL_LOCKUP;
+		break;
+	}
 
+	switch (pdev->device) {
 	/* There is a hardware errata related to accessing any register in
 	 * SB01BASE in the presence of bidirectional traffic crossing the NTB.
 	 */
-	ndev->hwerr_flags |= NTB_HWERR_SB01BASE_LOCKUP;
+	case PCI_DEVICE_ID_INTEL_NTB_SS_IVT:
+	case PCI_DEVICE_ID_INTEL_NTB_PS_IVT:
+	case PCI_DEVICE_ID_INTEL_NTB_B2B_IVT:
+	case PCI_DEVICE_ID_INTEL_NTB_SS_HSX:
+	case PCI_DEVICE_ID_INTEL_NTB_PS_HSX:
+	case PCI_DEVICE_ID_INTEL_NTB_B2B_HSX:
+		ndev->hwerr_flags |= NTB_HWERR_SB01BASE_LOCKUP;
+		break;
+	}
 
+	switch (pdev->device) {
 	/* HW Errata on bit 14 of b2bdoorbell register.  Writes will not be
 	 * mirrored to the remote system.  Shrink the number of bits by one,
 	 * since bit 14 is the last bit.
 	 */
-	ndev->hwerr_flags |= NTB_HWERR_B2BDOORBELL_BIT14;
+	case PCI_DEVICE_ID_INTEL_NTB_SS_JSF:
+	case PCI_DEVICE_ID_INTEL_NTB_PS_JSF:
+	case PCI_DEVICE_ID_INTEL_NTB_B2B_JSF:
+	case PCI_DEVICE_ID_INTEL_NTB_SS_SNB:
+	case PCI_DEVICE_ID_INTEL_NTB_PS_SNB:
+	case PCI_DEVICE_ID_INTEL_NTB_B2B_SNB:
+	case PCI_DEVICE_ID_INTEL_NTB_SS_IVT:
+	case PCI_DEVICE_ID_INTEL_NTB_PS_IVT:
+	case PCI_DEVICE_ID_INTEL_NTB_B2B_IVT:
+	case PCI_DEVICE_ID_INTEL_NTB_SS_HSX:
+	case PCI_DEVICE_ID_INTEL_NTB_PS_HSX:
+	case PCI_DEVICE_ID_INTEL_NTB_B2B_HSX:
+		ndev->hwerr_flags |= NTB_HWERR_B2BDOORBELL_BIT14;
+		break;
+	}
 
 	ndev->reg = &snb_reg;
-
-	pdev = ndev_pdev(ndev);
 
 	rc = pci_read_config_byte(pdev, SNB_PPD_OFFSET, &ppd);
 	if (rc)
