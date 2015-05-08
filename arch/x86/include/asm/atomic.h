@@ -22,7 +22,7 @@
  *
  * Atomically reads the value of @v.
  */
-static inline int atomic_read(const atomic_t *v)
+static __always_inline int atomic_read(const atomic_t *v)
 {
 	return ACCESS_ONCE((v)->counter);
 }
@@ -34,7 +34,7 @@ static inline int atomic_read(const atomic_t *v)
  *
  * Atomically sets the value of @v to @i.
  */
-static inline void atomic_set(atomic_t *v, int i)
+static __always_inline void atomic_set(atomic_t *v, int i)
 {
 	v->counter = i;
 }
@@ -126,7 +126,7 @@ static __always_inline int atomic_dec_and_test(atomic_t *v)
  * and returns true if the result is zero, or false for all
  * other cases.
  */
-static inline int atomic_inc_and_test(atomic_t *v)
+static __always_inline int atomic_inc_and_test(atomic_t *v)
 {
 	GEN_UNARY_RMWcc(LOCK_PREFIX "incl", v->counter, "%0", "e");
 }
@@ -140,7 +140,7 @@ static inline int atomic_inc_and_test(atomic_t *v)
  * if the result is negative, or false when
  * result is greater than or equal to zero.
  */
-static inline int atomic_add_negative(int i, atomic_t *v)
+static __always_inline int atomic_add_negative(int i, atomic_t *v)
 {
 	GEN_BINARY_RMWcc(LOCK_PREFIX "addl", v->counter, "er", i, "%0", "s");
 }
@@ -164,7 +164,7 @@ static __always_inline int atomic_add_return(int i, atomic_t *v)
  *
  * Atomically subtracts @i from @v and returns @v - @i
  */
-static inline int atomic_sub_return(int i, atomic_t *v)
+static __always_inline int atomic_sub_return(int i, atomic_t *v)
 {
 	return atomic_add_return(-i, v);
 }
@@ -172,7 +172,7 @@ static inline int atomic_sub_return(int i, atomic_t *v)
 #define atomic_inc_return(v)  (atomic_add_return(1, v))
 #define atomic_dec_return(v)  (atomic_sub_return(1, v))
 
-static inline int atomic_cmpxchg(atomic_t *v, int old, int new)
+static __always_inline int atomic_cmpxchg(atomic_t *v, int old, int new)
 {
 	return cmpxchg(&v->counter, old, new);
 }
@@ -213,7 +213,7 @@ static __always_inline int __atomic_add_unless(atomic_t *v, int a, int u)
  * Atomically adds 1 to @v
  * Returns the new value of @u
  */
-static inline short int atomic_inc_short(short int *v)
+static __always_inline short int atomic_inc_short(short int *v)
 {
 	asm(LOCK_PREFIX "addw $1, %0" : "+m" (*v));
 	return *v;
