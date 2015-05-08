@@ -263,7 +263,7 @@ struct ib_mad_send_buf {
  * ib_response_mad - Returns if the specified MAD has been generated in
  *   response to a sent request or trap.
  */
-int ib_response_mad(struct ib_mad *mad);
+int ib_response_mad(const struct ib_mad_hdr *hdr);
 
 /**
  * ib_get_rmpp_resptime - Returns the RMPP response time.

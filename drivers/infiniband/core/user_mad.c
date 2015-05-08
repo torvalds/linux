@@ -426,11 +426,11 @@ static int is_duplicate(struct ib_umad_file *file,
 		 * the same TID, reject the second as a duplicate.  This is more
 		 * restrictive than required by the spec.
 		 */
-		if (!ib_response_mad((struct ib_mad *) hdr)) {
-			if (!ib_response_mad((struct ib_mad *) sent_hdr))
+		if (!ib_response_mad(hdr)) {
+			if (!ib_response_mad(sent_hdr))
 				return 1;
 			continue;
-		} else if (!ib_response_mad((struct ib_mad *) sent_hdr))
+		} else if (!ib_response_mad(sent_hdr))
 			continue;
 
 		if (same_destination(&packet->mad.hdr, &sent_packet->mad.hdr))
