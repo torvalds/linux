@@ -93,7 +93,7 @@ static int __pm_clk_add(struct device *dev, const char *con_id,
 			return -ENOMEM;
 		}
 	} else {
-		if (IS_ERR(ce->clk) || !__clk_get(clk)) {
+		if (IS_ERR(clk) || !__clk_get(clk)) {
 			kfree(ce);
 			return -ENOENT;
 		}
