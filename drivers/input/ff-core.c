@@ -70,7 +70,7 @@ static int compat_effect(struct ff_device *ff, struct ff_effect *effect)
 			return -EINVAL;
 
 		/*
-		 * calculate manginude of sine wave as average of rumble's
+		 * calculate magnitude of sine wave as average of rumble's
 		 * 2/3 of strong magnitude and 1/3 of weak magnitude
 		 */
 		magnitude = effect->u.rumble.strong_magnitude / 3 +
