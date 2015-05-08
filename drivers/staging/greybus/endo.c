@@ -350,45 +350,43 @@ u8 endo_get_module_id(struct gb_endo *endo, u8 interface_id)
 }
 
 /*
- * Endo "types" have different module locations, these are tables based on those
- * types that list the module ids for the different locations.
+ * Creates all possible modules for the Endo.
  *
- * List must end with 0x00 in order to properly terminate the list.
+ * We try to create modules for all possible interface IDs. If a module is
+ * already created, we skip creating it again with the help of prev_module_id.
  */
-static u8 endo_4755[] = {
-	0x01,
-	0x03,
-	0x05,
-	0x06,
-	0x07,
-	0x08,
-	0x0a,
-	0x0c,
-	0x0d,
-	0x0e,
-	0x00,
-};
-
-
 static int create_modules(struct gb_endo *endo)
 {
 	struct gb_module *module;
-	u8 *endo_modules;
-	int i;
+	int prev_module_id = 0;
+	int interface_id;
+	int module_id;
+	int interfaces;
 
-	/* Depending on the endo id, create a bunch of different modules */
-	switch (endo->id) {
-	case 0x4755:
-		endo_modules = &endo_4755[0];
-		break;
-	default:
-		dev_err(&endo->dev, "Unknown endo id 0x%04x, aborting!",
-			endo->id);
-		return -EINVAL;
-	}
+	/*
+	 * Total number of interfaces:
+	 * - Front: 4
+	 * - Back:
+	 *   - Left: max_ribs + 1
+	 *   - Right: max_ribs + 1
+	 */
+	interfaces = 4 + (endo->layout.max_ribs + 1) * 2;
 
-	for (i = 0; endo_modules[i] != 0x00; ++i) {
-		module = gb_module_create(&endo->dev, endo_modules[i]);
+	/* Find module corresponding to each interface */
+	for (interface_id = 1; interface_id <= interfaces; interface_id++) {
+		module_id = endo_get_module_id(endo, interface_id);
+
+		if (WARN_ON(!module_id))
+			continue;
+
+		/* Skip already created modules */
+		if (module_id == prev_module_id)
+			continue;
+
+		prev_module_id = module_id;
+
+		/* New module, create it */
+		module = gb_module_create(&endo->dev, module_id);
 		if (!module)
 			return -EINVAL;
 	}
@@ -396,14 +394,10 @@ static int create_modules(struct gb_endo *endo)
 	return 0;
 }
 
-struct gb_endo *gb_endo_create(struct greybus_host_device *hd)
+static int gb_endo_register(struct greybus_host_device *hd,
+			    struct gb_endo *endo)
 {
-	struct gb_endo *endo;
 	int retval;
-
-	endo = kzalloc(sizeof(*endo), GFP_KERNEL);
-	if (!endo)
-		return NULL;
 
 	endo->dev.parent = hd->parent;
 	endo->dev.bus = &greybus_bus_type;
@@ -412,12 +406,11 @@ struct gb_endo *gb_endo_create(struct greybus_host_device *hd)
 	endo->dev.dma_mask = hd->parent->dma_mask;
 	device_initialize(&endo->dev);
 
-	// FIXME - determine endo "id" from the SVC
-	// Also get the version and serial number from the SVC, right now we are
+	// FIXME
+	// Get the version and serial number from the SVC, right now we are
 	// using "fake" numbers.
 	strcpy(&endo->svc.serial_number[0], "042");
 	strcpy(&endo->svc.version[0], "0.0");
-	endo->id = 0x4755;
 
 	dev_set_name(&endo->dev, "endo-0x%04x", endo->id);
 	retval = device_add(&endo->dev);
@@ -425,10 +418,32 @@ struct gb_endo *gb_endo_create(struct greybus_host_device *hd)
 		dev_err(hd->parent, "failed to add endo device of id 0x%04x\n",
 			endo->id);
 		put_device(&endo->dev);
-		kfree(endo);
-		return NULL;
 	}
 
+	return retval;
+}
+
+struct gb_endo *gb_endo_create(struct greybus_host_device *hd)
+{
+	struct gb_endo *endo;
+	int retval;
+	u16 endo_id = 0x4755; // FIXME - get endo "ID" from the SVC
+
+	endo = kzalloc(sizeof(*endo), GFP_KERNEL);
+	if (!endo)
+		return NULL;
+
+	/* First check if the value supplied is a valid endo id */
+	if (gb_validate_endo_id(hd, &endo->layout, endo_id))
+		goto free_endo;
+
+	endo->id = endo_id;
+
+	/* Register Endo device */
+	if (gb_endo_register(hd, endo))
+		goto free_endo;
+
+	/* Create modules/interfaces */
 	retval = create_modules(endo);
 	if (retval) {
 		gb_endo_remove(endo);
@@ -436,6 +451,10 @@ struct gb_endo *gb_endo_create(struct greybus_host_device *hd)
 	}
 
 	return endo;
+
+free_endo:
+	kfree(endo);
+	return NULL;
 }
 
 void gb_endo_remove(struct gb_endo *endo)

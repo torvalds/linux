@@ -83,17 +83,6 @@ struct device_type greybus_module_type = {
 	.release =	greybus_module_release,
 };
 
-u8 get_module_id(u8 interface_id)
-{
-	/*
-	 * FIXME:
-	 *
-	 * We should be able to find it from Endo ID passed during greybus
-	 * control operation, while setting up AP.
-	 */
-	return interface_id;
-}
-
 struct module_find {
 	struct gb_endo *endo;
 	u8 module_id;
@@ -124,6 +113,9 @@ struct gb_module *gb_module_find(struct greybus_host_device *hd, u8 module_id)
 	struct device *dev;
 	struct gb_module *module = NULL;
 	struct module_find find;
+
+	if (!module_id)
+		return NULL;
 
 	find.module_id = module_id;
 	find.endo = hd->endo;

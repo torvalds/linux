@@ -92,7 +92,7 @@ static struct gb_interface *gb_interface_create(struct greybus_host_device *hd,
 		return NULL;
 	}
 
-	module = gb_module_find(hd, get_module_id(interface_id));
+	module = gb_module_find(hd, endo_get_module_id(hd->endo, interface_id));
 	if (!module)
 		return NULL;
 
