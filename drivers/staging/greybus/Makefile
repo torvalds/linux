@@ -41,6 +41,7 @@ obj-m += gb-es2.o
 
 KERNELVER		?= $(shell uname -r)
 KERNELDIR 		?= /lib/modules/$(KERNELVER)/build
+INSTALL_MOD_PATH	?= /..
 PWD			:= $(shell pwd)
 
 # add -Wall to try to catch everything we can.
@@ -63,6 +64,6 @@ coccicheck:
 	$(MAKE) -C $(KERNELDIR) M=$(PWD) coccicheck
 
 install: module
-	mkdir -p /lib/modules/$(KERNELVER)/kernel/drivers/greybus/
-	cp -f *.ko /lib/modules/$(KERNELVER)/kernel/drivers/greybus/
-	depmod -a $(KERNELVER)
+	mkdir -p $(INSTALL_MOD_PATH)/lib/modules/$(KERNELVER)/kernel/drivers/greybus/
+	cp -f *.ko $(INSTALL_MOD_PATH)/lib/modules/$(KERNELVER)/kernel/drivers/greybus/
+	depmod -b $(INSTALL_MOD_PATH) -a $(KERNELVER)
