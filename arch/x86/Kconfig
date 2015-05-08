@@ -851,7 +851,8 @@ config NR_CPUS
 	default "1" if !SMP
 	default "8192" if MAXSMP
 	default "32" if SMP && X86_BIGSMP
-	default "8" if SMP
+	default "8" if SMP && X86_32
+	default "64" if SMP
 	---help---
 	  This allows you to specify the maximum number of CPUs which this
 	  kernel will support.  If CPUMASK_OFFSTACK is enabled, the maximum
