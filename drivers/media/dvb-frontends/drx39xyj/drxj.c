@@ -9541,7 +9541,7 @@ ctrl_get_qam_sig_quality(struct drx_demod_instance *demod)
 	/* ----------------------------------------- */
 	/* Pre Viterbi Symbol Error Rate Calculation */
 	/* ----------------------------------------- */
-	/* pre viterbi SER is good if it is bellow 0.025 */
+	/* pre viterbi SER is good if it is below 0.025 */
 
 	/* get the register value */
 	/*   no of quadrature symbol errors */
