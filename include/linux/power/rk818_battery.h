@@ -621,6 +621,38 @@ struct battery_platform_data {
 	struct cell_config *cell_cfg;
 };
 
+enum fg_mode_t {
+	FG_NORMAL_MODE = 0,/*work normally*/
+	TEST_POWER_MODE,   /*work without battery*/
+};
 
+enum hw_support_adp_t {
+	HW_ADP_TYPE_USB = 0,/*'HW' means:hardware*/
+	HW_ADP_TYPE_DC,
+	HW_ADP_TYPE_DUAL
+};
+
+
+/* don't change the following ID, they depend on usb check
+ * interface: dwc_otg_check_dpdm()
+ */
+enum charger_type_t {
+	NO_CHARGER = 0,
+	USB_CHARGER,
+	AC_CHARGER,
+	DC_CHARGER,
+	DUAL_CHARGER
+};
+
+enum charger_state_t {
+	OFFLINE = 0,
+	ONLINE
+};
+
+int dwc_vbus_status(void);
+int get_gadget_connect_flag(void);
+int dwc_otg_check_dpdm(void);
+void kernel_power_off(void);
+void rk_send_wakeup_key(void);
 
 #endif
