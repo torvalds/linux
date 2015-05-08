@@ -750,7 +750,8 @@ static inline void put_link(struct nameidata *nd)
 	struct inode *inode = last->inode;
 	if (last->cookie && inode->i_op->put_link)
 		inode->i_op->put_link(inode, last->cookie);
-	path_put(&last->link);
+	if (!(nd->flags & LOOKUP_RCU))
+		path_put(&last->link);
 }
 
 int sysctl_protected_symlinks __read_mostly = 0;
