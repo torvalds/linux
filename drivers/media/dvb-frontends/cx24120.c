@@ -179,8 +179,7 @@ static int cx24120_readreg(struct cx24120_state *state, u8 reg)
 		return ret;
 	}
 
-	dev_dbg(&state->i2c->dev, "%s: reg=0x%02x; data=0x%02x\n",
-		__func__, reg, buf);
+	dev_dbg(&state->i2c->dev, "reg=0x%02x; data=0x%02x\n", reg, buf);
 
 	return buf;
 }
@@ -204,8 +203,7 @@ static int cx24120_writereg(struct cx24120_state *state, u8 reg, u8 data)
 		return ret;
 	}
 
-	dev_dbg(&state->i2c->dev, "%s: reg=0x%02x; data=0x%02x\n",
-		__func__, reg, data);
+	dev_dbg(&state->i2c->dev, "reg=0x%02x; data=0x%02x\n", reg, data);
 
 	return 0;
 }
@@ -246,9 +244,8 @@ static int cx24120_writeregs(struct cx24120_state *state,
 			goto out;
 		}
 
-		dev_dbg(&state->i2c->dev,
-			"%s: reg=0x%02x; data=%*ph\n",
-			__func__, reg, msg.len - 1, msg.buf + 1);
+		dev_dbg(&state->i2c->dev, "reg=0x%02x; data=%*ph\n",
+			reg, msg.len - 1, msg.buf + 1);
 	}
 
 	ret = 0;
@@ -338,7 +335,7 @@ static int cx24120_read_ber(struct dvb_frontend *fe, u32 *ber)
 		(cx24120_readreg(state, CX24120_REG_BER_HL) << 16)	|
 		(cx24120_readreg(state, CX24120_REG_BER_LH) <<  8)	|
 		 cx24120_readreg(state, CX24120_REG_BER_LL);
-	dev_dbg(&state->i2c->dev, "%s: read BER index = %d\n", __func__, *ber);
+	dev_dbg(&state->i2c->dev, "read BER index = %d\n", *ber);
 
 	return 0;
 }
@@ -389,8 +386,7 @@ static int cx24120_message_send(struct cx24120_state *state,
 			return -EREMOTEIO;
 		}
 	}
-	dev_dbg(&state->i2c->dev, "%s: Successfully send message 0x%02x\n",
-		__func__, cmd->id);
+	dev_dbg(&state->i2c->dev, "sent message 0x%02x\n", cmd->id);
 
 	return 0;
 }
@@ -423,16 +419,12 @@ static int cx24120_message_sendrcv(struct cx24120_state *state,
 static int cx24120_read_signal_strength(struct dvb_frontend *fe,
 					u16 *signal_strength)
 {
-	struct cx24120_state *state = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 
 	if (c->strength.stat[0].scale != FE_SCALE_RELATIVE)
 		*signal_strength = 0;
 	else
 		*signal_strength = c->strength.stat[0].uvalue;
-
-	dev_dbg(&state->i2c->dev, "%s: Signal strength from cache: 0x%x\n",
-		__func__, *signal_strength);
 
 	return 0;
 }
@@ -452,15 +444,14 @@ static int cx24120_msg_mpeg_output_global_config(struct cx24120_state *state,
 
 	ret = cx24120_message_send(state, &cmd);
 	if (ret != 0) {
-		dev_dbg(&state->i2c->dev,
-			"%s: Failed to set MPEG output to %s\n",
-			__func__, enable ? "enabled" : "disabled");
+		dev_dbg(&state->i2c->dev, "failed to %s MPEG output\n",
+			enable ? "enable" : "disable");
 		return ret;
 	}
 
 	state->mpeg_enabled = enable;
-	dev_dbg(&state->i2c->dev, "%s: MPEG output %s\n",
-		__func__, enable ? "enabled" : "disabled");
+	dev_dbg(&state->i2c->dev, "MPEG output %s\n",
+		enable ? "enabled" : "disabled");
 
 	return 0;
 }
@@ -490,6 +481,8 @@ static int cx24120_diseqc_send_burst(struct dvb_frontend *fe,
 	struct cx24120_state *state = fe->demodulator_priv;
 	struct cx24120_cmd cmd;
 
+	dev_dbg(&state->i2c->dev, "\n");
+
 	/*
 	 * Yes, cmd.len is set to zero. The old driver
 	 * didn't specify any len, but also had a
@@ -502,8 +495,6 @@ static int cx24120_diseqc_send_burst(struct dvb_frontend *fe,
 	cmd.arg[0] = 0x00;
 	cmd.arg[1] = (burst == SEC_MINI_B) ? 0x01 : 0x00;
 
-	dev_dbg(&state->i2c->dev, "%s: burst sent.\n", __func__);
-
 	return cx24120_message_send(state, &cmd);
 }
 
@@ -512,7 +503,7 @@ static int cx24120_set_tone(struct dvb_frontend *fe, fe_sec_tone_mode_t tone)
 	struct cx24120_state *state = fe->demodulator_priv;
 	struct cx24120_cmd cmd;
 
-	dev_dbg(&state->i2c->dev, "%s(%d)\n", __func__, tone);
+	dev_dbg(&state->i2c->dev, "(%d)\n", tone);
 
 	if ((tone != SEC_TONE_ON) && (tone != SEC_TONE_OFF)) {
 		err("Invalid tone=%d\n", tone);
@@ -535,7 +526,7 @@ static int cx24120_set_voltage(struct dvb_frontend *fe,
 	struct cx24120_state *state = fe->demodulator_priv;
 	struct cx24120_cmd cmd;
 
-	dev_dbg(&state->i2c->dev, "%s(%d)\n", __func__, voltage);
+	dev_dbg(&state->i2c->dev, "(%d)\n", voltage);
 
 	cmd.id = CMD_SETVOLTAGE;
 	cmd.len = 2;
@@ -552,7 +543,7 @@ static int cx24120_send_diseqc_msg(struct dvb_frontend *fe,
 	struct cx24120_cmd cmd;
 	int back_count;
 
-	dev_dbg(&state->i2c->dev, "%s()\n", __func__);
+	dev_dbg(&state->i2c->dev, "\n");
 
 	cmd.id = CMD_DISEQC_MSG1;
 	cmd.len = 11;
@@ -592,9 +583,7 @@ static int cx24120_send_diseqc_msg(struct dvb_frontend *fe,
 	back_count = 500;
 	do {
 		if (!(cx24120_readreg(state, 0x93) & 0x01)) {
-			dev_dbg(&state->i2c->dev,
-				"%s: diseqc sequence sent success\n",
-				__func__);
+			dev_dbg(&state->i2c->dev, "diseqc sequence sent\n");
 			return 0;
 		}
 		msleep(20);
@@ -613,7 +602,7 @@ static void cx24120_get_stats(struct cx24120_state *state)
 	int ret, cnr;
 	u16 sig;
 
-	dev_dbg(&state->i2c->dev, "%s()\n", __func__);
+	dev_dbg(&state->i2c->dev, "\n");
 
 	/* signal strength */
 	if (state->fe_status & FE_HAS_SIGNAL) {
@@ -632,8 +621,7 @@ static void cx24120_get_stats(struct cx24120_state *state)
 		sig = sig << 8;
 		sig |= cx24120_readreg(state, CX24120_REG_SIGSTR_L);
 		dev_dbg(&state->i2c->dev,
-			"%s: Signal strength from firmware= 0x%x\n",
-			__func__, sig);
+			"signal strength from firmware = 0x%x\n", sig);
 
 		/* cooked */
 		sig = -100 * sig + 94324;
@@ -648,8 +636,7 @@ static void cx24120_get_stats(struct cx24120_state *state)
 	if (state->fe_status & FE_HAS_VITERBI) {
 		cnr = cx24120_readreg(state, CX24120_REG_QUALITY_H) << 8;
 		cnr |= cx24120_readreg(state, CX24120_REG_QUALITY_L);
-		dev_dbg(&state->i2c->dev, "%s: read SNR index = %d\n",
-			__func__, cnr);
+		dev_dbg(&state->i2c->dev, "read SNR index = %d\n", cnr);
 
 		/* guessed - seems about right */
 		cnr = cnr * 100;
@@ -673,8 +660,7 @@ static int cx24120_read_status(struct dvb_frontend *fe, fe_status_t *status)
 
 	lock = cx24120_readreg(state, CX24120_REG_STATUS);
 
-	dev_dbg(&state->i2c->dev, "%s() status = 0x%02x\n",
-		__func__, lock);
+	dev_dbg(&state->i2c->dev, "status = 0x%02x\n", lock);
 
 	*status = 0;
 
@@ -759,12 +745,10 @@ static int cx24120_get_fec(struct dvb_frontend *fe)
 	int ret;
 	int fec;
 
-	dev_dbg(&state->i2c->dev, "%s()\n", __func__);
-
 	ret = cx24120_readreg(state, CX24120_REG_FECMODE);
 	fec = ret & 0x3f; /* Lower 6 bits */
 
-	dev_dbg(&state->i2c->dev, "%s: Get FEC: %d\n", __func__, fec);
+	dev_dbg(&state->i2c->dev, "raw fec = %d\n", fec);
 
 	for (idx = 0; idx < ARRAY_SIZE(modfec_lookup_table); idx++) {
 		if (modfec_lookup_table[idx].delsys != state->dcur.delsys)
@@ -776,8 +760,7 @@ static int cx24120_get_fec(struct dvb_frontend *fe)
 	}
 
 	if (idx >= ARRAY_SIZE(modfec_lookup_table)) {
-		dev_dbg(&state->i2c->dev, "%s: Couldn't find fec!\n",
-			__func__);
+		dev_dbg(&state->i2c->dev, "couldn't find fec!\n");
 		return -EINVAL;
 	}
 
@@ -786,9 +769,7 @@ static int cx24120_get_fec(struct dvb_frontend *fe)
 	c->fec_inner = modfec_lookup_table[idx].fec;
 	c->pilot = (ret & 0x80) ? PILOT_ON : PILOT_OFF;
 
-	dev_dbg(&state->i2c->dev,
-		"%s: mod(%d), fec(%d), pilot(%d)\n",
-		__func__,
+	dev_dbg(&state->i2c->dev, "mod(%d), fec(%d), pilot(%d)\n",
 		c->modulation, c->fec_inner, c->pilot);
 
 	return 0;
@@ -889,9 +870,7 @@ static void cx24120_set_clock_ratios(struct dvb_frontend *fe)
 		return;
 	/* in cmd[0]-[5] - result */
 
-	dev_dbg(&state->i2c->dev,
-		"%s: m=%d, n=%d; idx: %d m=%d, n=%d, rate=%d\n",
-		__func__,
+	dev_dbg(&state->i2c->dev, "m=%d, n=%d; idx: %d m=%d, n=%d, rate=%d\n",
 		cmd.arg[2] | (cmd.arg[1] << 8) | (cmd.arg[0] << 16),
 		cmd.arg[5] | (cmd.arg[4] << 8) | (cmd.arg[3] << 16),
 		idx,
@@ -920,7 +899,7 @@ static void cx24120_set_clock_ratios(struct dvb_frontend *fe)
 static int cx24120_set_inversion(struct cx24120_state *state,
 				 fe_spectral_inversion_t inversion)
 {
-	dev_dbg(&state->i2c->dev, "%s(%d)\n", __func__, inversion);
+	dev_dbg(&state->i2c->dev, "(%d)\n", inversion);
 
 	switch (inversion) {
 	case INVERSION_OFF:
@@ -975,7 +954,7 @@ static int cx24120_set_fec(struct cx24120_state *state, fe_modulation_t mod,
 {
 	int idx;
 
-	dev_dbg(&state->i2c->dev, "%s(0x%02x,0x%02x)\n", __func__, mod, fec);
+	dev_dbg(&state->i2c->dev, "(0x%02x,0x%02x)\n", mod, fec);
 
 	state->dnxt.fec = fec;
 
@@ -1010,7 +989,7 @@ static int cx24120_set_fec(struct cx24120_state *state, fe_modulation_t mod,
 /* Set pilot */
 static int cx24120_set_pilot(struct cx24120_state *state, fe_pilot_t pilot)
 {
-	dev_dbg(&state->i2c->dev, "%s(%d)\n", __func__, pilot);
+	dev_dbg(&state->i2c->dev, "(%d)\n", pilot);
 
 	/* Pilot only valid in DVBS2 */
 	if (state->dnxt.delsys != SYS_DVBS2) {
@@ -1036,8 +1015,7 @@ static int cx24120_set_pilot(struct cx24120_state *state, fe_pilot_t pilot)
 /* Set symbol rate */
 static int cx24120_set_symbolrate(struct cx24120_state *state, u32 rate)
 {
-	dev_dbg(&state->i2c->dev, "%s(%d)\n",
-		__func__, rate);
+	dev_dbg(&state->i2c->dev, "(%d)\n", rate);
 
 	state->dnxt.symbol_rate = rate;
 
@@ -1070,17 +1048,15 @@ static int cx24120_set_frontend(struct dvb_frontend *fe)
 
 	switch (c->delivery_system) {
 	case SYS_DVBS2:
-		dev_dbg(&state->i2c->dev, "%s() DVB-S2\n",
-			__func__);
+		dev_dbg(&state->i2c->dev, "DVB-S2\n");
 		break;
 	case SYS_DVBS:
-		dev_dbg(&state->i2c->dev, "%s() DVB-S\n",
-			__func__);
+		dev_dbg(&state->i2c->dev, "DVB-S\n");
 		break;
 	default:
 		dev_dbg(&state->i2c->dev,
-			"%s() Delivery system(%d) not supported\n",
-			__func__, c->delivery_system);
+			"delivery system(%d) not supported\n",
+			c->delivery_system);
 		ret = -EINVAL;
 		break;
 	}
@@ -1110,23 +1086,23 @@ static int cx24120_set_frontend(struct dvb_frontend *fe)
 	cx24120_clone_params(fe);
 
 	dev_dbg(&state->i2c->dev,
-		"%s: delsys      = %d\n", __func__, state->dcur.delsys);
+		"delsys      = %d\n", state->dcur.delsys);
 	dev_dbg(&state->i2c->dev,
-		"%s: modulation  = %d\n", __func__, state->dcur.modulation);
+		"modulation  = %d\n", state->dcur.modulation);
 	dev_dbg(&state->i2c->dev,
-		"%s: frequency   = %d\n", __func__, state->dcur.frequency);
+		"frequency   = %d\n", state->dcur.frequency);
 	dev_dbg(&state->i2c->dev,
-		"%s: pilot       = %d (val = 0x%02x)\n", __func__,
+		"pilot       = %d (val = 0x%02x)\n",
 		state->dcur.pilot, state->dcur.pilot_val);
 	dev_dbg(&state->i2c->dev,
-		"%s: symbol_rate = %d (clkdiv/ratediv = 0x%02x/0x%02x)\n",
-		 __func__, state->dcur.symbol_rate,
+		"symbol_rate = %d (clkdiv/ratediv = 0x%02x/0x%02x)\n",
+		 state->dcur.symbol_rate,
 		 state->dcur.clkdiv, state->dcur.ratediv);
 	dev_dbg(&state->i2c->dev,
-		"%s: FEC         = %d (mask/val = 0x%02x/0x%02x)\n", __func__,
+		"FEC         = %d (mask/val = 0x%02x/0x%02x)\n",
 		state->dcur.fec, state->dcur.fec_mask, state->dcur.fec_val);
 	dev_dbg(&state->i2c->dev,
-		"%s: Inversion   = %d (val = 0x%02x)\n", __func__,
+		"Inversion   = %d (val = 0x%02x)\n",
 		state->dcur.inversion, state->dcur.inversion_val);
 
 	/* Flag that clock needs to be set after tune */
@@ -1178,9 +1154,8 @@ static int cx24120_set_vco(struct cx24120_state *state)
 	vco = nxtal_khz * 10;
 	inv_vco = DIV_ROUND_CLOSEST_ULL(0x400000000ULL, vco);
 
-	dev_dbg(&state->i2c->dev,
-		"%s: xtal=%d, vco=%d, inv_vco=%lld\n",
-		__func__, xtal_khz, vco, inv_vco);
+	dev_dbg(&state->i2c->dev, "xtal=%d, vco=%d, inv_vco=%lld\n",
+		xtal_khz, vco, inv_vco);
 
 	cmd.id = CMD_VCO_SET;
 	cmd.len = 12;
@@ -1250,9 +1225,8 @@ int cx24120_init(struct dvb_frontend *fe)
 	ret = cx24120_writereg(state, 0xe4, 0x03);
 	ret = cx24120_writereg(state, 0xeb, 0x0a);
 
-	dev_dbg(&state->i2c->dev,
-		"%s: Requesting firmware (%s) to download...\n",
-		__func__, CX24120_FIRMWARE);
+	dev_dbg(&state->i2c->dev, "requesting firmware (%s) to download...\n",
+		CX24120_FIRMWARE);
 
 	ret = state->config->request_firmware(fe, &fw, CX24120_FIRMWARE);
 	if (ret) {
@@ -1262,8 +1236,7 @@ int cx24120_init(struct dvb_frontend *fe)
 	}
 
 	dev_dbg(&state->i2c->dev,
-		"%s: Firmware found, size %d bytes (%02x %02x .. %02x %02x)\n",
-		__func__,
+		"Firmware found, size %d bytes (%02x %02x .. %02x %02x)\n",
 		(int)fw->size,			/* firmware_size in bytes */
 		fw->data[0],			/* fw 1st byte */
 		fw->data[1],			/* fw 2d byte */
@@ -1292,9 +1265,7 @@ int cx24120_init(struct dvb_frontend *fe)
 	/* Check final byte matches final byte of firmware */
 	ret = cx24120_readreg(state, 0xe1);
 	if (ret == fw->data[fw->size - 1]) {
-		dev_dbg(&state->i2c->dev,
-			"%s: Firmware uploaded successfully\n",
-			__func__);
+		dev_dbg(&state->i2c->dev, "Firmware uploaded successfully\n");
 		reset_result = 0;
 	} else {
 		err("Firmware upload failed. Last byte returned=0x%x\n", ret);
@@ -1347,14 +1318,12 @@ int cx24120_init(struct dvb_frontend *fe)
 
 	ret = cx24120_readreg(state, 0xba);
 	if (ret > 3) {
-		dev_dbg(&state->i2c->dev, "%s: Reset-readreg 0xba: %x\n",
-			__func__, ret);
+		dev_dbg(&state->i2c->dev, "Reset-readreg 0xba: %x\n", ret);
 		err("Error initialising tuner!\n");
 		return -EREMOTEIO;
 	}
 
-	dev_dbg(&state->i2c->dev, "%s: Tuner initialised correctly.\n",
-		__func__);
+	dev_dbg(&state->i2c->dev, "Tuner initialised correctly.\n");
 
 	/* Initialise mpeg outputs */
 	ret = cx24120_writereg(state, 0xeb, 0x0a);
@@ -1406,7 +1375,7 @@ static int cx24120_tune(struct dvb_frontend *fe, bool re_tune,
 	struct cx24120_state *state = fe->demodulator_priv;
 	int ret;
 
-	dev_dbg(&state->i2c->dev, "%s(%d)\n", __func__, re_tune);
+	dev_dbg(&state->i2c->dev, "(%d)\n", re_tune);
 
 	/* TODO: Do we need to set delay? */
 
@@ -1435,7 +1404,7 @@ static int cx24120_get_frontend(struct dvb_frontend *fe)
 	struct cx24120_state *state = fe->demodulator_priv;
 	u8 freq1, freq2, freq3;
 
-	dev_dbg(&state->i2c->dev, "%s()", __func__);
+	dev_dbg(&state->i2c->dev, "\n");
 
 	/* don't return empty data if we're not tuned in */
 	if ((state->fe_status & FE_HAS_LOCK) == 0)
@@ -1446,8 +1415,7 @@ static int cx24120_get_frontend(struct dvb_frontend *fe)
 	freq2 = cx24120_readreg(state, CX24120_REG_FREQ2);
 	freq3 = cx24120_readreg(state, CX24120_REG_FREQ3);
 	c->frequency = (freq3 << 16) | (freq2 << 8) | freq1;
-	dev_dbg(&state->i2c->dev, "%s frequency = %d\n", __func__,
-		c->frequency);
+	dev_dbg(&state->i2c->dev, "frequency = %d\n", c->frequency);
 
 	/* Get modulation, fec, pilot */
 	cx24120_get_fec(fe);
@@ -1459,7 +1427,7 @@ static void cx24120_release(struct dvb_frontend *fe)
 {
 	struct cx24120_state *state = fe->demodulator_priv;
 
-	dev_dbg(&state->i2c->dev, "%s: Clear state structure\n", __func__);
+	dev_dbg(&state->i2c->dev, "Clear state structure\n");
 	kfree(state);
 }
 
@@ -1470,7 +1438,7 @@ static int cx24120_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 	*ucblocks = (cx24120_readreg(state, CX24120_REG_UCB_H) << 8) |
 		     cx24120_readreg(state, CX24120_REG_UCB_L);
 
-	dev_dbg(&state->i2c->dev, "%s: Blocks = %d\n", __func__, *ucblocks);
+	dev_dbg(&state->i2c->dev, "ucblocks = %d\n", *ucblocks);
 	return 0;
 }
 
