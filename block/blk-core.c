@@ -1522,7 +1522,8 @@ bool bio_attempt_front_merge(struct request_queue *q, struct request *req,
  * Caller must ensure !blk_queue_nomerges(q) beforehand.
  */
 bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
-			    unsigned int *request_count)
+			    unsigned int *request_count,
+			    struct request **same_queue_rq)
 {
 	struct blk_plug *plug;
 	struct request *rq;
@@ -1542,8 +1543,16 @@ bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
 	list_for_each_entry_reverse(rq, plug_list, queuelist) {
 		int el_ret;
 
-		if (rq->q == q)
+		if (rq->q == q) {
 			(*request_count)++;
+			/*
+			 * Only blk-mq multiple hardware queues case checks the
+			 * rq in the same queue, there should be only one such
+			 * rq in a queue
+			 **/
+			if (same_queue_rq)
+				*same_queue_rq = rq;
+		}
 
 		if (rq->q != q || !blk_rq_merge_ok(rq, bio))
 			continue;
@@ -1608,7 +1617,7 @@ void blk_queue_bio(struct request_queue *q, struct bio *bio)
 	 * any locks.
 	 */
 	if (!blk_queue_nomerges(q) &&
-	    blk_attempt_plug_merge(q, bio, &request_count))
+	    blk_attempt_plug_merge(q, bio, &request_count, NULL))
 		return;
 
 	spin_lock_irq(q->queue_lock);

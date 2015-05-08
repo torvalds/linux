@@ -1269,6 +1269,7 @@ static void blk_mq_make_request(struct request_queue *q, struct bio *bio)
 	struct request *rq;
 	unsigned int request_count = 0;
 	struct blk_plug *plug;
+	struct request *same_queue_rq = NULL;
 
 	blk_queue_bounce(q, &bio);
 
@@ -1278,7 +1279,7 @@ static void blk_mq_make_request(struct request_queue *q, struct bio *bio)
 	}
 
 	if (!is_flush_fua && !blk_queue_nomerges(q) &&
-	    blk_attempt_plug_merge(q, bio, &request_count))
+	    blk_attempt_plug_merge(q, bio, &request_count, &same_queue_rq))
 		return;
 
 	rq = blk_mq_map_request(q, bio, &data);
@@ -1309,9 +1310,12 @@ static void blk_mq_make_request(struct request_queue *q, struct bio *bio)
 		 * issued. So the plug list will have one request at most
 		 */
 		if (plug) {
-			if (!list_empty(&plug->mq_list)) {
-				old_rq = list_first_entry(&plug->mq_list,
-					struct request, queuelist);
+			/*
+			 * The plug list might get flushed before this. If that
+			 * happens, same_queue_rq is invalid and plug list is empty
+			 **/
+			if (same_queue_rq && !list_empty(&plug->mq_list)) {
+				old_rq = same_queue_rq;
 				list_del_init(&old_rq->queuelist);
 			}
 			list_add_tail(&rq->queuelist, &plug->mq_list);
@@ -1360,7 +1364,7 @@ static void blk_sq_make_request(struct request_queue *q, struct bio *bio)
 	}
 
 	if (!is_flush_fua && !blk_queue_nomerges(q) &&
-	    blk_attempt_plug_merge(q, bio, &request_count))
+	    blk_attempt_plug_merge(q, bio, &request_count, NULL))
 		return;
 
 	rq = blk_mq_map_request(q, bio, &data);
