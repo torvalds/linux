@@ -441,8 +441,8 @@ static int miphy365x_init(struct phy *phy)
 	return ret;
 }
 
-int miphy365x_get_addr(struct device *dev, struct miphy365x_phy *miphy_phy,
-		       int index)
+static int miphy365x_get_addr(struct device *dev,
+		struct miphy365x_phy *miphy_phy, int index)
 {
 	struct device_node *phynode = miphy_phy->phy->dev.of_node;
 	const char *name;
