@@ -1971,16 +1971,29 @@ static void raid_run_ops(struct stripe_head *sh, unsigned long ops_request)
 	put_cpu();
 }
 
+static struct stripe_head *alloc_stripe(struct kmem_cache *sc, gfp_t gfp)
+{
+	struct stripe_head *sh;
+
+	sh = kmem_cache_zalloc(sc, gfp);
+	if (sh) {
+		spin_lock_init(&sh->stripe_lock);
+		spin_lock_init(&sh->batch_lock);
+		INIT_LIST_HEAD(&sh->batch_list);
+		INIT_LIST_HEAD(&sh->lru);
+		atomic_set(&sh->count, 1);
+	}
+	return sh;
+}
 static int grow_one_stripe(struct r5conf *conf, gfp_t gfp)
 {
 	struct stripe_head *sh;
-	sh = kmem_cache_zalloc(conf->slab_cache, gfp);
+
+	sh = alloc_stripe(conf->slab_cache, gfp);
 	if (!sh)
 		return 0;
 
 	sh->raid_conf = conf;
-
-	spin_lock_init(&sh->stripe_lock);
 
 	if (grow_buffers(sh, gfp)) {
 		shrink_buffers(sh);
@@ -1990,13 +2003,8 @@ static int grow_one_stripe(struct r5conf *conf, gfp_t gfp)
 	sh->hash_lock_index =
 		conf->max_nr_stripes % NR_STRIPE_HASH_LOCKS;
 	/* we just created an active stripe so... */
-	atomic_set(&sh->count, 1);
 	atomic_inc(&conf->active_stripes);
-	INIT_LIST_HEAD(&sh->lru);
 
-	spin_lock_init(&sh->batch_lock);
-	INIT_LIST_HEAD(&sh->batch_list);
-	sh->batch_head = NULL;
 	release_stripe(sh);
 	conf->max_nr_stripes++;
 	return 1;
@@ -2109,13 +2117,11 @@ static int resize_stripes(struct r5conf *conf, int newsize)
 		return -ENOMEM;
 
 	for (i = conf->max_nr_stripes; i; i--) {
-		nsh = kmem_cache_zalloc(sc, GFP_KERNEL);
+		nsh = alloc_stripe(sc, GFP_KERNEL);
 		if (!nsh)
 			break;
 
 		nsh->raid_conf = conf;
-		spin_lock_init(&nsh->stripe_lock);
-
 		list_add(&nsh->lru, &newstripes);
 	}
 	if (i) {
@@ -2142,13 +2148,11 @@ static int resize_stripes(struct r5conf *conf, int newsize)
 				    lock_device_hash_lock(conf, hash));
 		osh = get_free_stripe(conf, hash);
 		unlock_device_hash_lock(conf, hash);
-		atomic_set(&nsh->count, 1);
+
 		for(i=0; i<conf->pool_size; i++) {
 			nsh->dev[i].page = osh->dev[i].page;
 			nsh->dev[i].orig_page = osh->dev[i].page;
 		}
-		for( ; i<newsize; i++)
-			nsh->dev[i].page = NULL;
 		nsh->hash_lock_index = hash;
 		kmem_cache_free(conf->slab_cache, osh);
 		cnt++;
