@@ -945,6 +945,7 @@ struct amdgpu_ring {
 	unsigned		next_rptr_offs;
 	unsigned		fence_offs;
 	struct drm_file		*current_filp;
+	unsigned		current_ctx;
 	bool			need_ctx_switch;
 	enum amdgpu_ring_type	type;
 	char			name[16];

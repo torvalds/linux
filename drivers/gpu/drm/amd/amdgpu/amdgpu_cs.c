@@ -642,8 +642,10 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 			ib->is_const_ib = true;
 		if (chunk_ib->flags & AMDGPU_IB_FLAG_GDS)
 			ib->gds_needed = true;
-		if (ib->ring->current_filp != parser->filp) {
+		if ((ib->ring->current_filp != parser->filp) ||
+		    (ib->ring->current_ctx != parser->ctx_id)) {
 			ib->ring->need_ctx_switch = true;
+			ib->ring->current_ctx = parser->ctx_id;
 			ib->ring->current_filp = parser->filp;
 		}
 
