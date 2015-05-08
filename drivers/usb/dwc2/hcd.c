@@ -749,7 +749,7 @@ static int dwc2_hc_setup_align_buf(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh,
 			chan->ep_is_in ? DMA_FROM_DEVICE : DMA_TO_DEVICE);
 	if (dma_mapping_error(hsotg->dev, qh->dw_align_buf_dma)) {
 		dev_err(hsotg->dev, "can't map align_buf\n");
-		chan->align_buf = (dma_addr_t)NULL;
+		chan->align_buf = 0;
 		return -EINVAL;
 	}
 
