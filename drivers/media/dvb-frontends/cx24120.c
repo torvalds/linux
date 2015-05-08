@@ -1181,7 +1181,7 @@ int cx24120_init(struct dvb_frontend *fe)
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct cx24120_state *state = fe->demodulator_priv;
 	struct cx24120_cmd cmd;
-	u8 ret, ret_EA, reg1;
+	u8 ret, reg, reg1;
 	int reset_result;
 
 	int i;
@@ -1193,16 +1193,16 @@ int cx24120_init(struct dvb_frontend *fe)
 	/* ???? */
 	cx24120_writereg(state, 0xea, 0x00);
 	cx24120_test_rom(state);
-	ret = cx24120_readreg(state, 0xfb) & 0xfe;
-	cx24120_writereg(state, 0xfb, ret);
-	ret = cx24120_readreg(state, 0xfc) & 0xfe;
-	cx24120_writereg(state, 0xfc, ret);
+	reg = cx24120_readreg(state, 0xfb) & 0xfe;
+	cx24120_writereg(state, 0xfb, reg);
+	reg = cx24120_readreg(state, 0xfc) & 0xfe;
+	cx24120_writereg(state, 0xfc, reg);
 	cx24120_writereg(state, 0xc3, 0x04);
 	cx24120_writereg(state, 0xc4, 0x04);
 	cx24120_writereg(state, 0xce, 0x00);
 	cx24120_writereg(state, 0xcf, 0x00);
-	ret_EA = cx24120_readreg(state, 0xea) & 0xfe;
-	cx24120_writereg(state, 0xea, ret_EA);
+	reg = cx24120_readreg(state, 0xea) & 0xfe;
+	cx24120_writereg(state, 0xea, reg);
 	cx24120_writereg(state, 0xeb, 0x0c);
 	cx24120_writereg(state, 0xec, 0x06);
 	cx24120_writereg(state, 0xed, 0x05);
@@ -1216,7 +1216,7 @@ int cx24120_init(struct dvb_frontend *fe)
 		cx24120_writereg(state, reg1 - 10, 0x02);
 	}
 
-	cx24120_writereg(state, 0xea, (ret_EA | 0x01));
+	cx24120_writereg(state, 0xea, (reg | 0x01));
 	for (reg1 = 0xc5; reg1 < 0xcb; reg1 += 2) {
 		cx24120_writereg(state, reg1, 0x00);
 		cx24120_writereg(state, reg1 + 1, 0x00);
@@ -1244,8 +1244,8 @@ int cx24120_init(struct dvb_frontend *fe)
 		fw->data[fw->size - 1]);	/* fw last byte */
 
 	cx24120_test_rom(state);
-	ret = cx24120_readreg(state, 0xfb) & 0xfe;
-	cx24120_writereg(state, 0xfb, ret);
+	reg = cx24120_readreg(state, 0xfb) & 0xfe;
+	cx24120_writereg(state, 0xfb, reg);
 	cx24120_writereg(state, 0xe0, 0x76);
 	cx24120_writereg(state, 0xf7, 0x81);
 	cx24120_writereg(state, 0xf8, 0x00);
@@ -1253,18 +1253,18 @@ int cx24120_init(struct dvb_frontend *fe)
 	cx24120_writeregs(state, 0xfa, fw->data, (fw->size - 1), 0x00);
 	cx24120_writereg(state, 0xf7, 0xc0);
 	cx24120_writereg(state, 0xe0, 0x00);
-	ret = (fw->size - 2) & 0x00ff;
-	cx24120_writereg(state, 0xf8, ret);
-	ret = ((fw->size - 2) >> 8) & 0x00ff;
-	cx24120_writereg(state, 0xf9, ret);
+	reg = (fw->size - 2) & 0x00ff;
+	cx24120_writereg(state, 0xf8, reg);
+	reg = ((fw->size - 2) >> 8) & 0x00ff;
+	cx24120_writereg(state, 0xf9, reg);
 	cx24120_writereg(state, 0xf7, 0x00);
 	cx24120_writereg(state, 0xdc, 0x00);
 	cx24120_writereg(state, 0xdc, 0x07);
 	msleep(500);
 
 	/* Check final byte matches final byte of firmware */
-	ret = cx24120_readreg(state, 0xe1);
-	if (ret == fw->data[fw->size - 1]) {
+	reg = cx24120_readreg(state, 0xe1);
+	if (reg == fw->data[fw->size - 1]) {
 		dev_dbg(&state->i2c->dev, "Firmware uploaded successfully\n");
 		reset_result = 0;
 	} else {
@@ -1316,8 +1316,8 @@ int cx24120_init(struct dvb_frontend *fe)
 		return -EREMOTEIO;
 	}
 
-	ret = cx24120_readreg(state, 0xba);
-	if (ret > 3) {
+	reg = cx24120_readreg(state, 0xba);
+	if (reg > 3) {
 		dev_dbg(&state->i2c->dev, "Reset-readreg 0xba: %x\n", ret);
 		err("Error initialising tuner!\n");
 		return -EREMOTEIO;
