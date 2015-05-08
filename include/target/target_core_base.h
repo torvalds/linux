@@ -17,16 +17,8 @@
 /* Don't raise above 511 or REPORT_LUNS needs to handle >1 page */
 #define TRANSPORT_MAX_LUNS_PER_TPG		256
 /*
- * By default we use 32-byte CDBs in TCM Core and subsystem plugin code.
- *
- * Note that both include/scsi/scsi_cmnd.h:MAX_COMMAND_SIZE and
- * include/linux/blkdev.h:BLOCK_MAX_CDB as of v2.6.36-rc4 still use
- * 16-byte CDBs by default and require an extra allocation for
- * 32-byte CDBs to because of legacy issues.
- *
- * Within TCM Core there are no such legacy limitiations, so we go ahead
- * use 32-byte CDBs by default and use include/scsi/scsi.h:scsi_command_size()
- * within all TCM Core and subsystem plugin code.
+ * Maximum size of a CDB that can be stored in se_cmd without allocating
+ * memory dynamically for the CDB.
  */
 #define TCM_MAX_COMMAND_SIZE			32
 /*
