@@ -101,7 +101,6 @@ static LIST_HEAD(cpufreq_governor_list);
  */
 static struct cpufreq_driver *cpufreq_driver;
 static DEFINE_PER_CPU(struct cpufreq_policy *, cpufreq_cpu_data);
-static DEFINE_PER_CPU(struct cpufreq_policy *, cpufreq_cpu_data_fallback);
 static DEFINE_RWLOCK(cpufreq_driver_lock);
 DEFINE_MUTEX(cpufreq_governor_lock);
 
@@ -1081,13 +1080,14 @@ static struct cpufreq_policy *cpufreq_policy_restore(unsigned int cpu)
 	unsigned long flags;
 
 	read_lock_irqsave(&cpufreq_driver_lock, flags);
-
-	policy = per_cpu(cpufreq_cpu_data_fallback, cpu);
-
+	policy = per_cpu(cpufreq_cpu_data, cpu);
 	read_unlock_irqrestore(&cpufreq_driver_lock, flags);
 
-	if (policy)
+	if (likely(policy)) {
+		/* Policy should be inactive here */
+		WARN_ON(!policy_is_inactive(policy));
 		policy->governor = NULL;
+	}
 
 	return policy;
 }
@@ -1383,11 +1383,8 @@ err_init_policy_kobj:
 	if (cpufreq_driver->exit)
 		cpufreq_driver->exit(policy);
 err_set_policy_cpu:
-	if (recover_policy) {
-		/* Do not leave stale fallback data behind. */
-		per_cpu(cpufreq_cpu_data_fallback, cpu) = NULL;
+	if (recover_policy)
 		cpufreq_policy_put_kobj(policy);
-	}
 	cpufreq_policy_free(policy);
 
 nomem_out:
@@ -1401,21 +1398,11 @@ static int __cpufreq_remove_dev_prepare(struct device *dev,
 {
 	unsigned int cpu = dev->id, cpus;
 	int ret;
-	unsigned long flags;
 	struct cpufreq_policy *policy;
 
 	pr_debug("%s: unregistering CPU %u\n", __func__, cpu);
 
-	write_lock_irqsave(&cpufreq_driver_lock, flags);
-
 	policy = cpufreq_cpu_get_raw(cpu);
-
-	/* Save the policy somewhere when doing a light-weight tear-down */
-	if (cpufreq_suspended)
-		per_cpu(cpufreq_cpu_data_fallback, cpu) = policy;
-
-	write_unlock_irqrestore(&cpufreq_driver_lock, flags);
-
 	if (!policy) {
 		pr_debug("%s: No cpu_data found\n", __func__);
 		return -EINVAL;
