@@ -236,6 +236,7 @@ static void __show_regs(const struct pt_regs *regs)
 {
 	const int field = 2 * sizeof(unsigned long);
 	unsigned int cause = regs->cp0_cause;
+	unsigned int exccode;
 	int i;
 
 	show_regs_print_info(KERN_DEFAULT);
@@ -317,10 +318,10 @@ static void __show_regs(const struct pt_regs *regs)
 	}
 	printk("\n");
 
-	printk("Cause : %08x\n", cause);
+	exccode = (cause & CAUSEF_EXCCODE) >> CAUSEB_EXCCODE;
+	printk("Cause : %08x (ExcCode %02x)\n", cause, exccode);
 
-	cause = (cause & CAUSEF_EXCCODE) >> CAUSEB_EXCCODE;
-	if (1 <= cause && cause <= 5)
+	if (1 <= exccode && exccode <= 5)
 		printk("BadVA : %0*lx\n", field, regs->cp0_badvaddr);
 
 	printk("PrId  : %08x (%s)\n", read_c0_prid(),
