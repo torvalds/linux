@@ -151,3 +151,33 @@ int amdgpu_ctx_ioctl(struct drm_device *dev, void *data,
 
 	return r;
 }
+
+struct amdgpu_ctx *amdgpu_ctx_get(struct amdgpu_fpriv *fpriv, uint32_t id)
+{
+	struct amdgpu_ctx *ctx;
+	struct amdgpu_ctx_mgr *mgr = &fpriv->ctx_mgr;
+
+	mutex_lock(&mgr->lock);
+	ctx = idr_find(&mgr->ctx_handles, id);
+	if (ctx)
+		kref_get(&ctx->refcount);
+	mutex_unlock(&mgr->lock);
+	return ctx;
+}
+
+int amdgpu_ctx_put(struct amdgpu_ctx *ctx)
+{
+	struct amdgpu_fpriv *fpriv;
+	struct amdgpu_ctx_mgr *mgr;
+
+	if (ctx == NULL)
+		return -EINVAL;
+
+	fpriv = ctx->fpriv;
+	mgr = &fpriv->ctx_mgr;
+	mutex_lock(&mgr->lock);
+	kref_put(&ctx->refcount, amdgpu_ctx_do_release);
+	mutex_unlock(&mgr->lock);
+
+	return 0;
+}

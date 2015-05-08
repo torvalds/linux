@@ -260,7 +260,7 @@ struct drm_amdgpu_wait_cs_in {
 	uint32_t ip_type;
 	uint32_t ip_instance;
 	uint32_t ring;
-	uint32_t _pad;
+	uint32_t ctx_id;
 };
 
 struct drm_amdgpu_wait_cs_out {

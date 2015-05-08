@@ -768,7 +768,12 @@ int amdgpu_cs_wait_ioctl(struct drm_device *dev, void *data,
 	uint64_t seq[AMDGPU_MAX_RINGS] = {0};
 	struct amdgpu_ring *ring = NULL;
 	unsigned long timeout = amdgpu_gem_timeout(wait->in.timeout);
+	struct amdgpu_ctx *ctx;
 	long r;
+
+	ctx = amdgpu_ctx_get(filp->driver_priv, wait->in.ctx_id);
+	if (ctx == NULL)
+		return -EINVAL;
 
 	r = amdgpu_cs_get_ring(adev, wait->in.ip_type, wait->in.ip_instance,
 			       wait->in.ring, &ring);
@@ -778,6 +783,7 @@ int amdgpu_cs_wait_ioctl(struct drm_device *dev, void *data,
 	seq[ring->idx] = wait->in.handle;
 
 	r = amdgpu_fence_wait_seq_timeout(adev, seq, true, timeout);
+	amdgpu_ctx_put(ctx);
 	if (r < 0)
 		return r;
 

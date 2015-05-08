@@ -1902,6 +1902,8 @@ int amdgpu_ctx_query(struct amdgpu_device *adev, struct amdgpu_fpriv *fpriv,
 							uint32_t id,struct amdgpu_ctx_state *state);
 
 void amdgpu_ctx_fini(struct amdgpu_fpriv *fpriv);
+struct amdgpu_ctx *amdgpu_ctx_get(struct amdgpu_fpriv *fpriv, uint32_t id);
+int amdgpu_ctx_put(struct amdgpu_ctx *ctx);
 
 extern int amdgpu_ctx_ioctl(struct drm_device *dev, void *data,
 						 struct drm_file *filp);
