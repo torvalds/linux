@@ -784,6 +784,6 @@ config INPUT_DRV2667_HAPTICS
 	  Say Y to enable support for the TI DRV2667 haptics driver.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called drv260x-haptics.
+	  module will be called drv2667-haptics.
 
 endif
