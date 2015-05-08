@@ -35,6 +35,7 @@
 #include <linux/gcd.h>
 
 #include <linux/spi/spi.h>
+#include <linux/gpio.h>
 
 #include <linux/platform_data/spi-omap2-mcspi.h>
 
@@ -1011,6 +1012,12 @@ static int omap2_mcspi_setup(struct spi_device *spi)
 			return ret;
 	}
 
+	if (gpio_is_valid(spi->cs_gpio)) {
+		if (gpio_request(spi->cs_gpio, dev_name(&spi->dev)) == 0)
+			gpio_direction_output(spi->cs_gpio,
+			!(spi->mode & SPI_CS_HIGH));
+	}
+
 	ret = pm_runtime_get_sync(mcspi->dev);
 	if (ret < 0)
 		return ret;
@@ -1050,6 +1057,9 @@ static void omap2_mcspi_cleanup(struct spi_device *spi)
 			mcspi_dma->dma_tx = NULL;
 		}
 	}
+
+	if (gpio_is_valid(spi->cs_gpio))
+		gpio_free(spi->cs_gpio);
 }
 
 static int omap2_mcspi_work_one(struct omap2_mcspi *mcspi,
