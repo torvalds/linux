@@ -1919,7 +1919,6 @@ i915_gem_mmap_gtt(struct drm_file *file,
 		  uint32_t handle,
 		  uint64_t *offset)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj;
 	int ret;
 
