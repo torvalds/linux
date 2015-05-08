@@ -286,6 +286,30 @@
 	rtc@101E0000 {
 		status = "okay";
 	};
+
+	leds {
+		compatible = "gpio-leds";
+		heartbeat {
+			label = "blue:heartbeart";
+			gpios = <&gpb2 2 0>;
+			default-state = "off";
+			linux,default-trigger = "heartbeat";
+		};
+
+		eMMC {
+			label = "green:eMMC";
+			gpios = <&gpb2 1 0>;
+			default-state = "off";
+			linux,default-trigger = "mmc0";
+		};
+
+		microSD {
+			label = "red:microSD";
+			gpios = <&gpx2 3 0>;
+			default-state = "off";
+			linux,default-trigger = "mmc1";
+		};
+	};
 };
 
 &hdmi {
