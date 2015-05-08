@@ -435,6 +435,12 @@ int __must_check media_device_register_entity(struct media_device *mdev,
 {
 	int i;
 
+	if (entity->type == MEDIA_ENT_T_V4L2_SUBDEV_UNKNOWN ||
+	    entity->type == MEDIA_ENT_T_UNKNOWN)
+		dev_warn(mdev->dev,
+			 "Entity type for entity %s was not initialized!\n",
+			 entity->name);
+
 	/* Warn if we apparently re-register an entity */
 	WARN_ON(entity->graph_obj.mdev != NULL);
 	entity->graph_obj.mdev = mdev;
