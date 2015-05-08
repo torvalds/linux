@@ -248,7 +248,6 @@ EXPORT_SYMBOL(cl_page_gang_lookup);
 static void cl_page_free(const struct lu_env *env, struct cl_page *page)
 {
 	struct cl_object *obj  = page->cp_obj;
-	int pagesize = cl_object_header(obj)->coh_page_bufsize;
 
 	PASSERT(env, page, list_empty(&page->cp_batch));
 	PASSERT(env, page, page->cp_owner == NULL);
