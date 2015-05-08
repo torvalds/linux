@@ -1821,11 +1821,11 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 		} while (unlikely(*name == '/'));
 		if (unlikely(!*name)) {
 OK:
-			/* called from path_init(), done */
+			/* pathname body, done */
 			if (!nd->depth)
 				return 0;
 			name = nd->stack[nd->depth - 1].name;
-			/* called from trailing_symlink(), done */
+			/* trailing symlink, done */
 			if (!name)
 				return 0;
 			/* last component of nested symlink */
@@ -1862,8 +1862,8 @@ OK:
 	return err;
 }
 
-static int path_init(int dfd, const struct filename *name, unsigned int flags,
-		     struct nameidata *nd)
+static const char *path_init(int dfd, const struct filename *name,
+			     unsigned int flags, struct nameidata *nd)
 {
 	int retval = 0;
 	const char *s = name->name;
@@ -1871,15 +1871,16 @@ static int path_init(int dfd, const struct filename *name, unsigned int flags,
 	nd->last_type = LAST_ROOT; /* if there are only slashes... */
 	nd->flags = flags | LOOKUP_JUMPED | LOOKUP_PARENT;
 	nd->depth = 0;
+	nd->total_link_count = 0;
 	if (flags & LOOKUP_ROOT) {
 		struct dentry *root = nd->root.dentry;
 		struct inode *inode = root->d_inode;
 		if (*s) {
 			if (!d_can_lookup(root))
-				return -ENOTDIR;
+				return ERR_PTR(-ENOTDIR);
 			retval = inode_permission(inode, MAY_EXEC);
 			if (retval)
-				return retval;
+				return ERR_PTR(retval);
 		}
 		nd->path = nd->root;
 		nd->inode = inode;
@@ -1890,7 +1891,7 @@ static int path_init(int dfd, const struct filename *name, unsigned int flags,
 		} else {
 			path_get(&nd->path);
 		}
-		goto done;
+		return s;
 	}
 
 	nd->root.mnt = NULL;
@@ -1926,14 +1927,14 @@ static int path_init(int dfd, const struct filename *name, unsigned int flags,
 		struct dentry *dentry;
 
 		if (!f.file)
-			return -EBADF;
+			return ERR_PTR(-EBADF);
 
 		dentry = f.file->f_path.dentry;
 
 		if (*s) {
 			if (!d_can_lookup(dentry)) {
 				fdput(f);
-				return -ENOTDIR;
+				return ERR_PTR(-ENOTDIR);
 			}
 		}
 
@@ -1947,21 +1948,18 @@ static int path_init(int dfd, const struct filename *name, unsigned int flags,
 			nd->inode = nd->path.dentry->d_inode;
 		}
 		fdput(f);
-		goto done;
+		return s;
 	}
 
 	nd->inode = nd->path.dentry->d_inode;
 	if (!(flags & LOOKUP_RCU))
-		goto done;
+		return s;
 	if (likely(!read_seqcount_retry(&nd->path.dentry->d_seq, nd->seq)))
-		goto done;
+		return s;
 	if (!(nd->flags & LOOKUP_ROOT))
 		nd->root.mnt = NULL;
 	rcu_read_unlock();
-	return -ECHILD;
-done:
-	nd->total_link_count = 0;
-	return link_path_walk(s, nd);
+	return ERR_PTR(-ECHILD);
 }
 
 static void path_cleanup(struct nameidata *nd)
@@ -2014,23 +2012,12 @@ static inline int lookup_last(struct nameidata *nd)
 static int path_lookupat(int dfd, const struct filename *name,
 				unsigned int flags, struct nameidata *nd)
 {
+	const char *s = path_init(dfd, name, flags, nd);
 	int err;
 
-	/*
-	 * Path walking is largely split up into 2 different synchronisation
-	 * schemes, rcu-walk and ref-walk (explained in
-	 * Documentation/filesystems/path-lookup.txt). These share much of the
-	 * path walk code, but some things particularly setup, cleanup, and
-	 * following mounts are sufficiently divergent that functions are
-	 * duplicated. Typically there is a function foo(), and its RCU
-	 * analogue, foo_rcu().
-	 *
-	 * -ECHILD is the error number of choice (just to avoid clashes) that
-	 * is returned if some aspect of an rcu-walk fails. Such an error must
-	 * be handled by restarting a traditional ref-walk (which will always
-	 * be able to complete).
-	 */
-	err = path_init(dfd, name, flags, nd);
+	if (IS_ERR(s))
+		return PTR_ERR(s);
+	err = link_path_walk(s, nd);
 	if (!err) {
 		while ((err = lookup_last(nd)) > 0) {
 			err = trailing_symlink(nd);
@@ -2075,7 +2062,11 @@ static int filename_lookup(int dfd, struct filename *name,
 static int path_parentat(int dfd, const struct filename *name,
 				unsigned int flags, struct nameidata *nd)
 {
-	int err = path_init(dfd, name, flags | LOOKUP_PARENT, nd);
+	const char *s = path_init(dfd, name, flags, nd);
+	int err;
+	if (IS_ERR(s))
+		return PTR_ERR(s);
+	err = link_path_walk(s, nd);
 	if (!err)
 		err = complete_walk(nd);
 	path_cleanup(nd);
@@ -2406,7 +2397,11 @@ static int
 path_mountpoint(int dfd, const struct filename *name, struct path *path,
 		struct nameidata *nd, unsigned int flags)
 {
-	int err = path_init(dfd, name, flags, nd);
+	const char *s = path_init(dfd, name, flags, nd);
+	int err;
+	if (IS_ERR(s))
+		return PTR_ERR(s);
+	err = link_path_walk(s, nd);
 	if (unlikely(err))
 		goto out;
 
@@ -3266,6 +3261,7 @@ out:
 static struct file *path_openat(int dfd, struct filename *pathname,
 		struct nameidata *nd, const struct open_flags *op, int flags)
 {
+	const char *s;
 	struct file *file;
 	int opened = 0;
 	int error;
@@ -3281,7 +3277,12 @@ static struct file *path_openat(int dfd, struct filename *pathname,
 		goto out2;
 	}
 
-	error = path_init(dfd, pathname, flags, nd);
+	s = path_init(dfd, pathname, flags, nd);
+	if (IS_ERR(s)) {
+		put_filp(file);
+		return ERR_CAST(s);
+	}
+	error = link_path_walk(s, nd);
 	if (unlikely(error))
 		goto out;
 
