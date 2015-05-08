@@ -42,6 +42,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_qspi1_1>;
 	status = "okay";
+	fsl,qspi-has-second-chip = <1>;
 	ddrsmp=<0>;
 
 	flash0: n25q256a@0 {
@@ -58,5 +59,21 @@
 		compatible = "micron,n25q256a";
 		spi-max-frequency = <29000000>;
 		reg = <1>;
+	};
+
+	flash2: n25q256a@2 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "micron,n25q256a";
+		spi-max-frequency = <29000000>;
+		reg = <2>;
+	};
+
+	flash3: n25q256a@3 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "micron,n25q256a";
+		spi-max-frequency = <29000000>;
+		reg = <3>;
 	};
 };
