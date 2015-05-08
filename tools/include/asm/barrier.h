@@ -16,4 +16,6 @@
 #include "../../arch/alpha/include/asm/barrier.h"
 #elif defined(__ia64__)
 #include "../../arch/ia64/include/asm/barrier.h"
+#elif defined(__xtensa__)
+#include "../../arch/xtensa/include/asm/barrier.h"
 #endif
