@@ -1708,20 +1708,20 @@ out:
 	return mad_agent;
 }
 
-static int validate_mad(struct ib_mad *mad, u32 qp_num)
+static int validate_mad(const struct ib_mad_hdr *mad_hdr, u32 qp_num)
 {
 	int valid = 0;
 
 	/* Make sure MAD base version is understood */
-	if (mad->mad_hdr.base_version != IB_MGMT_BASE_VERSION) {
+	if (mad_hdr->base_version != IB_MGMT_BASE_VERSION) {
 		pr_err("MAD received with unsupported base version %d\n",
-			mad->mad_hdr.base_version);
+			mad_hdr->base_version);
 		goto out;
 	}
 
 	/* Filter SMI packets sent to other than QP0 */
-	if ((mad->mad_hdr.mgmt_class == IB_MGMT_CLASS_SUBN_LID_ROUTED) ||
-	    (mad->mad_hdr.mgmt_class == IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE)) {
+	if ((mad_hdr->mgmt_class == IB_MGMT_CLASS_SUBN_LID_ROUTED) ||
+	    (mad_hdr->mgmt_class == IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE)) {
 		if (qp_num == 0)
 			valid = 1;
 	} else {
@@ -1979,7 +1979,7 @@ static void ib_mad_recv_done_handler(struct ib_mad_port_private *port_priv,
 		snoop_recv(qp_info, &recv->header.recv_wc, IB_MAD_SNOOP_RECVS);
 
 	/* Validate MAD */
-	if (!validate_mad(&recv->mad.mad, qp_info->qp->qp_num))
+	if (!validate_mad(&recv->mad.mad.mad_hdr, qp_info->qp->qp_num))
 		goto out;
 
 	response = kmem_cache_alloc(ib_mad_cache, GFP_KERNEL);
