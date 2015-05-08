@@ -320,11 +320,12 @@ static int cx24120_test_rom(struct cx24120_state *state)
 
 static int cx24120_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
-	struct cx24120_state *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 
-	*snr =  (cx24120_readreg(state, CX24120_REG_QUALITY_H) << 8) |
-		(cx24120_readreg(state, CX24120_REG_QUALITY_L));
-	dev_dbg(&state->i2c->dev, "%s: read SNR index = %d\n", __func__, *snr);
+	if (c->cnr.stat[0].scale != FE_SCALE_DECIBEL)
+		*snr = 0;
+	else
+		*snr = div_s64(c->cnr.stat[0].svalue, 100);
 
 	return 0;
 }
@@ -609,7 +610,7 @@ static void cx24120_get_stats(struct cx24120_state *state)
 	struct dvb_frontend *fe = &state->frontend;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct cx24120_cmd cmd;
-	int ret;
+	int ret, cnr;
 	u16 sig;
 
 	dev_dbg(&state->i2c->dev, "%s()\n", __func__);
@@ -643,7 +644,21 @@ static void cx24120_get_stats(struct cx24120_state *state)
 		c->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 	}
 
-	/* FIXME: add CNR */
+	/* CNR */
+	if (state->fe_status & FE_HAS_VITERBI) {
+		cnr = cx24120_readreg(state, CX24120_REG_QUALITY_H) << 8;
+		cnr |= cx24120_readreg(state, CX24120_REG_QUALITY_L);
+		dev_dbg(&state->i2c->dev, "%s: read SNR index = %d\n",
+			__func__, cnr);
+
+		/* guessed - seems about right */
+		cnr = cnr * 100;
+
+		c->cnr.stat[0].scale = FE_SCALE_DECIBEL;
+		c->cnr.stat[0].svalue = cnr;
+	} else {
+		c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	}
 
 	/* FIXME: add UCB/BER */
 }
@@ -1377,6 +1392,8 @@ int cx24120_init(struct dvb_frontend *fe)
 	/* init stats here in order signal app which stats are supported */
 	c->strength.len = 1;
 	c->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->cnr.len = 1;
+	c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 
 	state->cold_init = 1;
 	return 0;
