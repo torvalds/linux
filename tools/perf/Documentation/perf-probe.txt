@@ -83,6 +83,10 @@ OPTIONS
 	(Only for --vars) Show external defined variables in addition to local
 	variables.
 
+--no-inlines::
+	(Only for --add) Search only for non-inlined functions. The functions
+	which do not have instances are ignored.
+
 -F::
 --funcs[=FILTER]::
 	Show available functions in given module or kernel. With -x/--exec,

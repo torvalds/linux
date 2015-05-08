@@ -10,6 +10,7 @@
 struct probe_conf {
 	bool	show_ext_vars;
 	bool	force_add;
+	bool	no_inlines;
 	int	max_probes;
 };
 extern struct probe_conf probe_conf;

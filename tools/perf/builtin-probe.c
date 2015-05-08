@@ -379,6 +379,8 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_CALLBACK('m', "module", NULL, "modname|path",
 		"target module name (for online) or path (for offline)",
 		opt_set_target),
+	OPT_BOOLEAN('\0', "no-inlines", &probe_conf.no_inlines,
+		"Don't search inlined functions"),
 #endif
 	OPT__DRY_RUN(&probe_event_dry_run),
 	OPT_INTEGER('\0', "max-probes", &probe_conf.max_probes,
