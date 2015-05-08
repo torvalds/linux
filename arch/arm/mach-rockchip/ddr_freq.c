@@ -652,6 +652,9 @@ static long ddr_freq_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 static const struct file_operations ddr_freq_fops = {
 	.owner	= THIS_MODULE,
 	.unlocked_ioctl = ddr_freq_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= ddr_freq_ioctl,
+#endif
 };
 
 static struct miscdevice ddr_freq_dev = {
