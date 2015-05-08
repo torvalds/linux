@@ -1224,6 +1224,38 @@ static struct request *blk_mq_map_request(struct request_queue *q,
 	return rq;
 }
 
+static int blk_mq_direct_issue_request(struct request *rq)
+{
+	int ret;
+	struct request_queue *q = rq->q;
+	struct blk_mq_hw_ctx *hctx = q->mq_ops->map_queue(q,
+			rq->mq_ctx->cpu);
+	struct blk_mq_queue_data bd = {
+		.rq = rq,
+		.list = NULL,
+		.last = 1
+	};
+
+	/*
+	 * For OK queue, we are done. For error, kill it. Any other
+	 * error (busy), just add it to our list as we previously
+	 * would have done
+	 */
+	ret = q->mq_ops->queue_rq(hctx, &bd);
+	if (ret == BLK_MQ_RQ_QUEUE_OK)
+		return 0;
+	else {
+		__blk_mq_requeue_request(rq);
+
+		if (ret == BLK_MQ_RQ_QUEUE_ERROR) {
+			rq->errors = -EIO;
+			blk_mq_end_request(rq, rq->errors);
+			return 0;
+		}
+		return -1;
+	}
+}
+
 /*
  * Multiple hardware queue variant. This will not use per-process plugs,
  * but will attempt to bypass the hctx queueing if we can go straight to
@@ -1235,6 +1267,8 @@ static void blk_mq_make_request(struct request_queue *q, struct bio *bio)
 	const int is_flush_fua = bio->bi_rw & (REQ_FLUSH | REQ_FUA);
 	struct blk_map_ctx data;
 	struct request *rq;
+	unsigned int request_count = 0;
+	struct blk_plug *plug;
 
 	blk_queue_bounce(q, &bio);
 
@@ -1242,6 +1276,10 @@ static void blk_mq_make_request(struct request_queue *q, struct bio *bio)
 		bio_endio(bio, -EIO);
 		return;
 	}
+
+	if (!is_flush_fua && !blk_queue_nomerges(q) &&
+	    blk_attempt_plug_merge(q, bio, &request_count))
+		return;
 
 	rq = blk_mq_map_request(q, bio, &data);
 	if (unlikely(!rq))
@@ -1253,40 +1291,39 @@ static void blk_mq_make_request(struct request_queue *q, struct bio *bio)
 		goto run_queue;
 	}
 
+	plug = current->plug;
 	/*
 	 * If the driver supports defer issued based on 'last', then
 	 * queue it up like normal since we can potentially save some
 	 * CPU this way.
 	 */
-	if (is_sync && !(data.hctx->flags & BLK_MQ_F_DEFER_ISSUE)) {
-		struct blk_mq_queue_data bd = {
-			.rq = rq,
-			.list = NULL,
-			.last = 1
-		};
-		int ret;
+	if (((plug && !blk_queue_nomerges(q)) || is_sync) &&
+	    !(data.hctx->flags & BLK_MQ_F_DEFER_ISSUE)) {
+		struct request *old_rq = NULL;
 
 		blk_mq_bio_to_request(rq, bio);
 
 		/*
-		 * For OK queue, we are done. For error, kill it. Any other
-		 * error (busy), just add it to our list as we previously
-		 * would have done
+		 * we do limited pluging. If bio can be merged, do merge.
+		 * Otherwise the existing request in the plug list will be
+		 * issued. So the plug list will have one request at most
 		 */
-		ret = q->mq_ops->queue_rq(data.hctx, &bd);
-		if (ret == BLK_MQ_RQ_QUEUE_OK)
-			goto done;
-		else {
-			__blk_mq_requeue_request(rq);
-
-			if (ret == BLK_MQ_RQ_QUEUE_ERROR) {
-				rq->errors = -EIO;
-				blk_mq_end_request(rq, rq->errors);
-				goto done;
+		if (plug) {
+			if (!list_empty(&plug->mq_list)) {
+				old_rq = list_first_entry(&plug->mq_list,
+					struct request, queuelist);
+				list_del_init(&old_rq->queuelist);
 			}
-			blk_mq_insert_request(rq, false, true, true);
+			list_add_tail(&rq->queuelist, &plug->mq_list);
+		} else /* is_sync */
+			old_rq = rq;
+		blk_mq_put_ctx(data.ctx);
+		if (!old_rq)
 			return;
-		}
+		if (!blk_mq_direct_issue_request(old_rq))
+			return;
+		blk_mq_insert_request(old_rq, false, true, true);
+		return;
 	}
 
 	if (!blk_mq_merge_queue_io(data.hctx, data.ctx, rq, bio)) {
@@ -1299,7 +1336,6 @@ static void blk_mq_make_request(struct request_queue *q, struct bio *bio)
 run_queue:
 		blk_mq_run_hw_queue(data.hctx, !is_sync || is_flush_fua);
 	}
-done:
 	blk_mq_put_ctx(data.ctx);
 }
 
