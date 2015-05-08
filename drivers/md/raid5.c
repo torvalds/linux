@@ -3282,7 +3282,9 @@ static int need_this_block(struct stripe_head *sh, struct stripe_head_state *s,
 		/* reconstruct-write isn't being forced */
 		return 0;
 	for (i = 0; i < s->failed; i++) {
-		if (!test_bit(R5_UPTODATE, &fdev[i]->flags) &&
+		if (s->failed_num[i] != sh->pd_idx &&
+		    s->failed_num[i] != sh->qd_idx &&
+		    !test_bit(R5_UPTODATE, &fdev[i]->flags) &&
 		    !test_bit(R5_OVERWRITE, &fdev[i]->flags))
 			return 1;
 	}
