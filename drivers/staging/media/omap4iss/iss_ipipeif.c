@@ -662,9 +662,14 @@ static int ipipeif_link_setup(struct media_entity *entity,
 	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(entity);
 	struct iss_ipipeif_device *ipipeif = v4l2_get_subdevdata(sd);
 	struct iss_device *iss = to_iss_device(ipipeif);
+	int index = local->index;
 
-	switch (local->index | media_entity_type(remote->entity)) {
-	case IPIPEIF_PAD_SINK | MEDIA_ENT_T_V4L2_SUBDEV:
+	/* FIXME: this is actually a hack! */
+	if (is_media_entity_v4l2_subdev(remote->entity))
+		index |= 2 << 16;
+
+	switch (index) {
+	case IPIPEIF_PAD_SINK | 2 << 16:
 		/* Read from the sensor CSI2a or CSI2b. */
 		if (!(flags & MEDIA_LNK_FL_ENABLED)) {
 			ipipeif->input = IPIPEIF_INPUT_NONE;
@@ -681,7 +686,7 @@ static int ipipeif_link_setup(struct media_entity *entity,
 
 		break;
 
-	case IPIPEIF_PAD_SOURCE_ISIF_SF | MEDIA_ENT_T_DEVNODE:
+	case IPIPEIF_PAD_SOURCE_ISIF_SF:
 		/* Write to memory */
 		if (flags & MEDIA_LNK_FL_ENABLED) {
 			if (ipipeif->output & ~IPIPEIF_OUTPUT_MEMORY)
@@ -692,7 +697,7 @@ static int ipipeif_link_setup(struct media_entity *entity,
 		}
 		break;
 
-	case IPIPEIF_PAD_SOURCE_VP | MEDIA_ENT_T_V4L2_SUBDEV:
+	case IPIPEIF_PAD_SOURCE_VP | 2 << 16:
 		/* Send to IPIPE/RESIZER */
 		if (flags & MEDIA_LNK_FL_ENABLED) {
 			if (ipipeif->output & ~IPIPEIF_OUTPUT_VP)

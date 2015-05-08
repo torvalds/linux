@@ -1707,9 +1707,14 @@ isif_link_setup(struct media_entity *entity, const struct media_pad *local,
 {
 	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(entity);
 	struct vpfe_isif_device *isif = v4l2_get_subdevdata(sd);
+	int index = local->index;
 
-	switch (local->index | media_entity_type(remote->entity)) {
-	case ISIF_PAD_SINK | MEDIA_ENT_T_V4L2_SUBDEV:
+	/* FIXME: this is actually a hack! */
+	if (is_media_entity_v4l2_subdev(remote->entity))
+		index |= 2 << 16;
+
+	switch (index) {
+	case ISIF_PAD_SINK | 2 << 16:
 		/* read from decoder/sensor */
 		if (!(flags & MEDIA_LNK_FL_ENABLED)) {
 			isif->input = ISIF_INPUT_NONE;
@@ -1720,7 +1725,7 @@ isif_link_setup(struct media_entity *entity, const struct media_pad *local,
 		isif->input = ISIF_INPUT_PARALLEL;
 		break;
 
-	case ISIF_PAD_SOURCE | MEDIA_ENT_T_DEVNODE:
+	case ISIF_PAD_SOURCE:
 		/* write to memory */
 		if (flags & MEDIA_LNK_FL_ENABLED)
 			isif->output = ISIF_OUTPUT_MEMORY;
@@ -1728,7 +1733,7 @@ isif_link_setup(struct media_entity *entity, const struct media_pad *local,
 			isif->output = ISIF_OUTPUT_NONE;
 		break;
 
-	case ISIF_PAD_SOURCE | MEDIA_ENT_T_V4L2_SUBDEV:
+	case ISIF_PAD_SOURCE | 2 << 16:
 		if (flags & MEDIA_LNK_FL_ENABLED)
 			isif->output = ISIF_OUTPUT_IPIPEIF;
 		else

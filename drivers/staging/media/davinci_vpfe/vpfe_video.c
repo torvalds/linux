@@ -148,7 +148,7 @@ static void vpfe_prepare_pipeline(struct vpfe_video_device *video)
 	while ((entity = media_entity_graph_walk_next(&graph))) {
 		if (entity == &video->video_dev.entity)
 			continue;
-		if ((!is_media_entity_v4l2_io(remote->entity))
+		if (!is_media_entity_v4l2_io(entity))
 			continue;
 		far_end = to_vpfe_video(media_entity_to_video_device(entity));
 		if (far_end->type == V4L2_BUF_TYPE_VIDEO_OUTPUT)
@@ -293,7 +293,7 @@ static int vpfe_pipeline_enable(struct vpfe_pipeline *pipe)
 	media_entity_graph_walk_start(&graph, entity);
 	while ((entity = media_entity_graph_walk_next(&graph))) {
 
-		if !is_media_entity_v4l2_subdev(entity))
+		if (!is_media_entity_v4l2_subdev(entity))
 			continue;
 		subdev = media_entity_to_v4l2_subdev(entity);
 		ret = v4l2_subdev_call(subdev, video, s_stream, 1);

@@ -1648,10 +1648,15 @@ static int resizer_link_setup(struct media_entity *entity,
 	struct vpfe_device *vpfe_dev = to_vpfe_device(resizer);
 	u16 ipipeif_source = vpfe_dev->vpfe_ipipeif.output;
 	u16 ipipe_source = vpfe_dev->vpfe_ipipe.output;
+	int index = local->index;
+
+	/* FIXME: this is actually a hack! */
+	if (is_media_entity_v4l2_subdev(remote->entity))
+		index |= 2 << 16;
 
 	if (&resizer->crop_resizer.subdev == sd) {
-		switch (local->index | media_entity_type(remote->entity)) {
-		case RESIZER_CROP_PAD_SINK | MEDIA_ENT_T_V4L2_SUBDEV:
+		switch (index) {
+		case RESIZER_CROP_PAD_SINK | 2 << 16:
 			if (!(flags & MEDIA_LNK_FL_ENABLED)) {
 				resizer->crop_resizer.input =
 					RESIZER_CROP_INPUT_NONE;
@@ -1671,7 +1676,7 @@ static int resizer_link_setup(struct media_entity *entity,
 				return -EINVAL;
 			break;
 
-		case RESIZER_CROP_PAD_SOURCE | MEDIA_ENT_T_V4L2_SUBDEV:
+		case RESIZER_CROP_PAD_SOURCE | 2 << 16:
 			if (!(flags & MEDIA_LNK_FL_ENABLED)) {
 				resizer->crop_resizer.output =
 				RESIZER_CROP_OUTPUT_NONE;
@@ -1683,7 +1688,7 @@ static int resizer_link_setup(struct media_entity *entity,
 			resizer->crop_resizer.output = RESIZER_A;
 			break;
 
-		case RESIZER_CROP_PAD_SOURCE2 | MEDIA_ENT_T_V4L2_SUBDEV:
+		case RESIZER_CROP_PAD_SOURCE2 | 2 << 16:
 			if (!(flags & MEDIA_LNK_FL_ENABLED)) {
 				resizer->crop_resizer.output2 =
 					RESIZER_CROP_OUTPUT_NONE;
@@ -1699,8 +1704,8 @@ static int resizer_link_setup(struct media_entity *entity,
 			return -EINVAL;
 		}
 	} else if (&resizer->resizer_a.subdev == sd) {
-		switch (local->index | media_entity_type(remote->entity)) {
-		case RESIZER_PAD_SINK | MEDIA_ENT_T_V4L2_SUBDEV:
+		switch (index) {
+		case RESIZER_PAD_SINK | 2 << 16:
 			if (!(flags & MEDIA_LNK_FL_ENABLED)) {
 				resizer->resizer_a.input = RESIZER_INPUT_NONE;
 				break;
@@ -1710,7 +1715,7 @@ static int resizer_link_setup(struct media_entity *entity,
 			resizer->resizer_a.input = RESIZER_INPUT_CROP_RESIZER;
 			break;
 
-		case RESIZER_PAD_SOURCE | MEDIA_ENT_T_DEVNODE:
+		case RESIZER_PAD_SOURCE:
 			if (!(flags & MEDIA_LNK_FL_ENABLED)) {
 				resizer->resizer_a.output = RESIZER_OUTPUT_NONE;
 				break;
@@ -1724,8 +1729,8 @@ static int resizer_link_setup(struct media_entity *entity,
 			return -EINVAL;
 		}
 	} else if (&resizer->resizer_b.subdev == sd) {
-		switch (local->index | media_entity_type(remote->entity)) {
-		case RESIZER_PAD_SINK | MEDIA_ENT_T_V4L2_SUBDEV:
+		switch (index) {
+		case RESIZER_PAD_SINK | 2 << 16:
 			if (!(flags & MEDIA_LNK_FL_ENABLED)) {
 				resizer->resizer_b.input = RESIZER_INPUT_NONE;
 				break;
@@ -1735,7 +1740,7 @@ static int resizer_link_setup(struct media_entity *entity,
 			resizer->resizer_b.input = RESIZER_INPUT_CROP_RESIZER;
 			break;
 
-		case RESIZER_PAD_SOURCE | MEDIA_ENT_T_DEVNODE:
+		case RESIZER_PAD_SOURCE:
 			if (!(flags & MEDIA_LNK_FL_ENABLED)) {
 				resizer->resizer_b.output = RESIZER_OUTPUT_NONE;
 				break;
