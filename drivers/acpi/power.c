@@ -710,8 +710,6 @@ int acpi_power_transition(struct acpi_device *device, int state)
 	    || (device->power.state > ACPI_STATE_D3_COLD))
 		return -ENODEV;
 
-	/* TBD: Resources must be ordered. */
-
 	/*
 	 * First we reference all power resources required in the target list
 	 * (e.g. so the device doesn't lose power while transitioning).  Then,
