@@ -41,7 +41,7 @@
 
 /*
  * Fixup a directed route SMP for sending
- * Return 0 if the SMP should be discarded
+ * Return IB_SMI_DISCARD if the SMP should be discarded
  */
 enum smi_action smi_handle_dr_smp_send(struct ib_smp *smp,
 				       u8 node_type, int port_num)
@@ -126,7 +126,7 @@ enum smi_action smi_handle_dr_smp_send(struct ib_smp *smp,
 
 /*
  * Adjust information for a received SMP
- * Return 0 if the SMP should be dropped
+ * Return IB_SMI_DISCARD if the SMP should be dropped
  */
 enum smi_action smi_handle_dr_smp_recv(struct ib_smp *smp, u8 node_type,
 				       int port_num, int phys_port_cnt)
