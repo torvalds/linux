@@ -546,33 +546,43 @@ void exit_thread(void)
 #endif
 }
 
-void show_regs(struct pt_regs *regs)
+void tile_show_regs(struct pt_regs *regs)
 {
-	struct task_struct *tsk = validate_current();
 	int i;
-
-	if (tsk != &corrupt_current)
-		show_regs_print_info(KERN_ERR);
 #ifdef __tilegx__
 	for (i = 0; i < 17; i++)
-		pr_err(" r%-2d: " REGFMT " r%-2d: " REGFMT " r%-2d: " REGFMT "\n",
+		pr_err(" r%-2d: "REGFMT" r%-2d: "REGFMT" r%-2d: "REGFMT"\n",
 		       i, regs->regs[i], i+18, regs->regs[i+18],
 		       i+36, regs->regs[i+36]);
-	pr_err(" r17: " REGFMT " r35: " REGFMT " tp : " REGFMT "\n",
+	pr_err(" r17: "REGFMT" r35: "REGFMT" tp : "REGFMT"\n",
 	       regs->regs[17], regs->regs[35], regs->tp);
-	pr_err(" sp : " REGFMT " lr : " REGFMT "\n", regs->sp, regs->lr);
+	pr_err(" sp : "REGFMT" lr : "REGFMT"\n", regs->sp, regs->lr);
 #else
 	for (i = 0; i < 13; i++)
-		pr_err(" r%-2d: " REGFMT " r%-2d: " REGFMT " r%-2d: " REGFMT " r%-2d: " REGFMT "\n",
+		pr_err(" r%-2d: "REGFMT" r%-2d: "REGFMT
+		       " r%-2d: "REGFMT" r%-2d: "REGFMT"\n",
 		       i, regs->regs[i], i+14, regs->regs[i+14],
 		       i+27, regs->regs[i+27], i+40, regs->regs[i+40]);
-	pr_err(" r13: " REGFMT " tp : " REGFMT " sp : " REGFMT " lr : " REGFMT "\n",
+	pr_err(" r13: "REGFMT" tp : "REGFMT" sp : "REGFMT" lr : "REGFMT"\n",
 	       regs->regs[13], regs->tp, regs->sp, regs->lr);
 #endif
-	pr_err(" pc : " REGFMT " ex1: %ld     faultnum: %ld\n",
-	       regs->pc, regs->ex1, regs->faultnum);
+	pr_err(" pc : "REGFMT" ex1: %ld     faultnum: %ld flags:%s%s%s%s\n",
+	       regs->pc, regs->ex1, regs->faultnum,
+	       is_compat_task() ? " compat" : "",
+	       (regs->flags & PT_FLAGS_DISABLE_IRQ) ? " noirq" : "",
+	       !(regs->flags & PT_FLAGS_CALLER_SAVES) ? " nocallersave" : "",
+	       (regs->flags & PT_FLAGS_RESTORE_REGS) ? " restoreregs" : "");
+}
 
-	dump_stack_regs(regs);
+void show_regs(struct pt_regs *regs)
+{
+	struct KBacktraceIterator kbt;
+
+	show_regs_print_info(KERN_DEFAULT);
+	tile_show_regs(regs);
+
+	KBacktraceIterator_init(&kbt, NULL, regs);
+	tile_show_stack(&kbt);
 }
 
 /* To ensure stack dump on tiles occurs one by one. */
