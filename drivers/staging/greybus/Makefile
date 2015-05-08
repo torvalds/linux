@@ -10,7 +10,7 @@ greybus-y :=	core.o		\
 		protocol.o	\
 		operation.o
 
-gb-phy-y :=	gpb.o		\
+gb-phy-y :=	gpb.o	\
 		sdio.o	\
 		uart.o	\
 		pwm.o	\
@@ -18,7 +18,11 @@ gb-phy-y :=	gpb.o		\
 		hid.o	\
 		i2c.o	\
 		spi.o	\
-		usb.o
+		usb.o	\
+		audio.o		\
+		audio-pcm.o	\
+		audio-dai.o	\
+		audio-gb-cmds.o
 
 # Prefix all modules with gb-
 gb-vibrator-y := vibrator.o

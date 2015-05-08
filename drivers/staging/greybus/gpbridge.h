@@ -341,6 +341,7 @@ struct gb_i2s_mgmt_configuration {
 	__u8	pad;
 	__le32	spatial_locations;
 	__le32	ll_protocol;
+	__u8	ll_mclk_role;
 	__u8	ll_bclk_role;
 	__u8	ll_wclk_role;
 	__u8	ll_wclk_polarity;
@@ -348,7 +349,6 @@ struct gb_i2s_mgmt_configuration {
 	__u8	ll_wclk_tx_edge;
 	__u8	ll_wclk_rx_edge;
 	__u8	ll_data_offset;
-	__u8	ll_pad;
 };
 
 /* get supported configurations request has no payload */
