@@ -185,16 +185,6 @@ struct media_intf_devnode {
 	u32				minor;
 };
 
-static inline u32 media_entity_type(struct media_entity *entity)
-{
-	return entity->type & MEDIA_ENT_TYPE_MASK;
-}
-
-static inline u32 media_entity_subtype(struct media_entity *entity)
-{
-	return entity->type & MEDIA_ENT_SUBTYPE_MASK;
-}
-
 static inline u32 media_entity_id(struct media_entity *entity)
 {
 	return entity->graph_obj.id;

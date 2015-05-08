@@ -42,8 +42,6 @@ struct media_device_info {
 
 #define MEDIA_ENT_ID_FLAG_NEXT		(1 << 31)
 
-/* Used values for media_entity_desc::type */
-
 /*
  * Initial value to be used when a new entity is created
  * Drivers should change it to something useful
