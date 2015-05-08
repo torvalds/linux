@@ -1078,9 +1078,6 @@ again:
 			pr_debug("skip op %ld on disc %d for sector %llu\n",
 				bi->bi_rw, i, (unsigned long long)sh->sector);
 			clear_bit(R5_LOCKED, &sh->dev[i].flags);
-			if (sh->batch_head)
-				set_bit(STRIPE_BATCH_ERR,
-					&sh->batch_head->state);
 			set_bit(STRIPE_HANDLE, &sh->state);
 		}
 
@@ -2448,7 +2445,7 @@ static void raid5_end_write_request(struct bio *bi, int error)
 	}
 	rdev_dec_pending(rdev, conf->mddev);
 
-	if (sh->batch_head && !uptodate)
+	if (sh->batch_head && !uptodate && !replacement)
 		set_bit(STRIPE_BATCH_ERR, &sh->batch_head->state);
 
 	if (!test_and_clear_bit(R5_DOUBLE_LOCKED, &sh->dev[i].flags))
@@ -4214,15 +4211,9 @@ static void check_break_stripe_batch_list(struct stripe_head *sh)
 		return;
 
 	head_sh = sh;
-	do {
-		sh = list_first_entry(&sh->batch_list,
-				      struct stripe_head, batch_list);
-		BUG_ON(sh == head_sh);
-	} while (!test_bit(STRIPE_DEGRADED, &sh->state));
 
-	while (sh != head_sh) {
-		next = list_first_entry(&sh->batch_list,
-					struct stripe_head, batch_list);
+	list_for_each_entry_safe(sh, next, &head_sh->batch_list, batch_list) {
+
 		list_del_init(&sh->batch_list);
 
 		set_mask_bits(&sh->state, ~STRIPE_EXPAND_SYNC_FLAG,
@@ -4242,8 +4233,6 @@ static void check_break_stripe_batch_list(struct stripe_head *sh)
 
 		set_bit(STRIPE_HANDLE, &sh->state);
 		release_stripe(sh);
-
-		sh = next;
 	}
 }
 
