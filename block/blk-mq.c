@@ -1309,15 +1309,10 @@ static void blk_sq_make_request(struct request_queue *q, struct bio *bio)
 {
 	const int is_sync = rw_is_sync(bio->bi_rw);
 	const int is_flush_fua = bio->bi_rw & (REQ_FLUSH | REQ_FUA);
-	unsigned int use_plug, request_count = 0;
+	struct blk_plug *plug;
+	unsigned int request_count = 0;
 	struct blk_map_ctx data;
 	struct request *rq;
-
-	/*
-	 * If we have multiple hardware queues, just go directly to
-	 * one of those for sync IO.
-	 */
-	use_plug = !is_flush_fua && !is_sync;
 
 	blk_queue_bounce(q, &bio);
 
@@ -1326,7 +1321,7 @@ static void blk_sq_make_request(struct request_queue *q, struct bio *bio)
 		return;
 	}
 
-	if (use_plug && !blk_queue_nomerges(q) &&
+	if (!is_flush_fua && !blk_queue_nomerges(q) &&
 	    blk_attempt_plug_merge(q, bio, &request_count))
 		return;
 
@@ -1345,21 +1340,18 @@ static void blk_sq_make_request(struct request_queue *q, struct bio *bio)
 	 * utilize that to temporarily store requests until the task is
 	 * either done or scheduled away.
 	 */
-	if (use_plug) {
-		struct blk_plug *plug = current->plug;
-
-		if (plug) {
-			blk_mq_bio_to_request(rq, bio);
-			if (list_empty(&plug->mq_list))
-				trace_block_plug(q);
-			else if (request_count >= BLK_MAX_REQUEST_COUNT) {
-				blk_flush_plug_list(plug, false);
-				trace_block_plug(q);
-			}
-			list_add_tail(&rq->queuelist, &plug->mq_list);
-			blk_mq_put_ctx(data.ctx);
-			return;
+	plug = current->plug;
+	if (plug) {
+		blk_mq_bio_to_request(rq, bio);
+		if (list_empty(&plug->mq_list))
+			trace_block_plug(q);
+		else if (request_count >= BLK_MAX_REQUEST_COUNT) {
+			blk_flush_plug_list(plug, false);
+			trace_block_plug(q);
 		}
+		list_add_tail(&rq->queuelist, &plug->mq_list);
+		blk_mq_put_ctx(data.ctx);
+		return;
 	}
 
 	if (!blk_mq_merge_queue_io(data.hctx, data.ctx, rq, bio)) {
