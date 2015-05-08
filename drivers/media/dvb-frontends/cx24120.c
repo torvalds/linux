@@ -1181,10 +1181,8 @@ int cx24120_init(struct dvb_frontend *fe)
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct cx24120_state *state = fe->demodulator_priv;
 	struct cx24120_cmd cmd;
-	u8 ret, reg, reg1;
-	int reset_result;
-
-	int i;
+	u8 reg;
+	int ret, i;
 	unsigned char vers[4];
 
 	if (state->cold_init)
@@ -1211,15 +1209,15 @@ int cx24120_init(struct dvb_frontend *fe)
 	cx24120_writereg(state, 0xf3, 0x03);
 	cx24120_writereg(state, 0xf4, 0x44);
 
-	for (reg1 = 0xf0; reg1 < 0xf3; reg1++) {
-		cx24120_writereg(state, reg1, 0x04);
-		cx24120_writereg(state, reg1 - 10, 0x02);
+	for (i = 0; i < 3; i++) {
+		cx24120_writereg(state, 0xf0 + i, 0x04);
+		cx24120_writereg(state, 0xe6 + i, 0x02);
 	}
 
 	cx24120_writereg(state, 0xea, (reg | 0x01));
-	for (reg1 = 0xc5; reg1 < 0xcb; reg1 += 2) {
-		cx24120_writereg(state, reg1, 0x00);
-		cx24120_writereg(state, reg1 + 1, 0x00);
+	for (i = 0; i < 6; i += 2) {
+		cx24120_writereg(state, 0xc5 + i, 0x00);
+		cx24120_writereg(state, 0xc6 + i, 0x00);
 	}
 
 	cx24120_writereg(state, 0xe4, 0x03);
@@ -1266,15 +1264,15 @@ int cx24120_init(struct dvb_frontend *fe)
 	reg = cx24120_readreg(state, 0xe1);
 	if (reg == fw->data[fw->size - 1]) {
 		dev_dbg(&state->i2c->dev, "Firmware uploaded successfully\n");
-		reset_result = 0;
+		ret = 0;
 	} else {
 		err("Firmware upload failed. Last byte returned=0x%x\n", ret);
-		reset_result = -EREMOTEIO;
+		ret = -EREMOTEIO;
 	}
 	cx24120_writereg(state, 0xdc, 0x00);
 	release_firmware(fw);
-	if (reset_result != 0)
-		return reset_result;
+	if (ret != 0)
+		return ret;
 
 	/* Start tuner */
 	cmd.id = CMD_START_TUNER;
