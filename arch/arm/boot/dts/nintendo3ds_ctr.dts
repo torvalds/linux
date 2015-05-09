@@ -5,7 +5,23 @@
 	interrupt-parent = <&gic>;
 	#address-cells = <1>;
 	#size-cells = <1>;
-	chosen { };
+
+	chosen {
+		bootargs = "earlyprintk";
+
+		/*#address-cells = <1>;
+		#size-cells = <1>;
+
+		framebuffer0: framebuffer@18000000 {
+			compatible = "simple-framebuffer";
+			reg = <0x18000000 (400*240*4 + 320*240*2)>;
+			width = <400>;
+			height = <240>;
+			stride = <(400*4)>;
+			format = "a8b8g8r8";
+		};*/
+	};
+
 	aliases { };
 
 	memory {

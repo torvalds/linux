@@ -1199,6 +1199,7 @@ choice
 
 	config DEBUG_LL_NINTENDO3DS
 		bool "Kernel low-level debugging via 3DS ARM9"
+		depends on DEBUG_LL
 		depends on ARCH_NINTENDO3DS
 		help
 		  Say Y here if you want the debug print routines to direct
@@ -1564,7 +1565,7 @@ config DEBUG_UNCOMPRESS
 	  When this option is set, the selected DEBUG_LL output method
 	  will be re-used for normal decompressor output on multiplatform
 	  kernels.
-	  
+
 
 config UNCOMPRESS_INCLUDE
 	string

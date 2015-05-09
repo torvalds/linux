@@ -19,6 +19,7 @@
 #include <mach/hardware.h>
 #include <mach/platform.h>
 
+/*
 static struct map_desc nintendo3ds_ctr_io_desc[] __initdata = {
 	{
 		.virtual	= IO_ADDRESS(NINTENDO3DS_CTR_PRIV_MEM_BASE),
@@ -26,7 +27,7 @@ static struct map_desc nintendo3ds_ctr_io_desc[] __initdata = {
 		.length		= NINTENDO3DS_CTR_PRIV_MEM_SIZE,
 		.type		= MT_DEVICE,
 	}
-};
+};*/
 
 
 /*
@@ -60,7 +61,7 @@ static void __init nintendo3ds_ctr_init_irq(void)
 static void __init nintendo3ds_ctr_map_io(void)
 {
 	printk("nintendo3ds_ctr_map_io\n");
-	iotable_init(nintendo3ds_ctr_io_desc, ARRAY_SIZE(nintendo3ds_ctr_io_desc));
+	//iotable_init(nintendo3ds_ctr_io_desc, ARRAY_SIZE(nintendo3ds_ctr_io_desc));
 }
 
 static void __init nintendo3ds_ctr_init_early(void)
