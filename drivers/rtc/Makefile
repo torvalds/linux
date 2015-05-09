@@ -14,14 +14,14 @@ ifdef CONFIG_RTC_DRV_EFI
 rtc-core-y			+= rtc-efi-platform.o
 endif
 
-rtc-core-$(CONFIG_RTC_INTF_DEV)	+= rtc-dev.o
-rtc-core-$(CONFIG_RTC_INTF_PROC) += rtc-proc.o
-rtc-core-$(CONFIG_RTC_INTF_SYSFS) += rtc-sysfs.o
+rtc-core-$(CONFIG_RTC_INTF_DEV)		+= rtc-dev.o
+rtc-core-$(CONFIG_RTC_INTF_PROC)	+= rtc-proc.o
+rtc-core-$(CONFIG_RTC_INTF_SYSFS)	+= rtc-sysfs.o
 
 # Keep the list ordered.
 
 obj-$(CONFIG_RTC_DRV_88PM80X)	+= rtc-88pm80x.o
-obj-$(CONFIG_RTC_DRV_88PM860X)  += rtc-88pm860x.o
+obj-$(CONFIG_RTC_DRV_88PM860X)	+= rtc-88pm860x.o
 obj-$(CONFIG_RTC_DRV_AB3100)	+= rtc-ab3100.o
 obj-$(CONFIG_RTC_DRV_AB8500)	+= rtc-ab8500.o
 obj-$(CONFIG_RTC_DRV_ABB5ZES3)	+= rtc-ab-b5ze-s3.o
@@ -57,7 +57,7 @@ obj-$(CONFIG_RTC_DRV_DS1553)	+= rtc-ds1553.o
 obj-$(CONFIG_RTC_DRV_DS1672)	+= rtc-ds1672.o
 obj-$(CONFIG_RTC_DRV_DS1685_FAMILY)	+= rtc-ds1685.o
 obj-$(CONFIG_RTC_DRV_DS1742)	+= rtc-ds1742.o
-obj-$(CONFIG_RTC_DRV_DS2404)    += rtc-ds2404.o
+obj-$(CONFIG_RTC_DRV_DS2404)	+= rtc-ds2404.o
 obj-$(CONFIG_RTC_DRV_DS3232)	+= rtc-ds3232.o
 obj-$(CONFIG_RTC_DRV_DS3234)	+= rtc-ds3234.o
 obj-$(CONFIG_RTC_DRV_EFI)	+= rtc-efi.o
@@ -85,7 +85,7 @@ obj-$(CONFIG_RTC_DRV_M48T86)	+= rtc-m48t86.o
 obj-$(CONFIG_RTC_DRV_MAX6900)	+= rtc-max6900.o
 obj-$(CONFIG_RTC_DRV_MAX6902)	+= rtc-max6902.o
 obj-$(CONFIG_RTC_DRV_MAX77686)	+= rtc-max77686.o
-obj-$(CONFIG_RTC_DRV_MAX77802)  += rtc-max77802.o
+obj-$(CONFIG_RTC_DRV_MAX77802)	+= rtc-max77802.o
 obj-$(CONFIG_RTC_DRV_MAX8907)	+= rtc-max8907.o
 obj-$(CONFIG_RTC_DRV_MAX8925)	+= rtc-max8925.o
 obj-$(CONFIG_RTC_DRV_MAX8997)	+= rtc-max8997.o
