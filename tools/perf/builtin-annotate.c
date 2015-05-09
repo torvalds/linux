@@ -84,6 +84,7 @@ static int process_sample_event(struct perf_tool *tool,
 {
 	struct perf_annotate *ann = container_of(tool, struct perf_annotate, tool);
 	struct addr_location al;
+	int ret = 0;
 
 	if (perf_event__preprocess_sample(event, machine, &al, sample) < 0) {
 		pr_warning("problem processing %d event, skipping it.\n",
@@ -92,15 +93,16 @@ static int process_sample_event(struct perf_tool *tool,
 	}
 
 	if (ann->cpu_list && !test_bit(sample->cpu, ann->cpu_bitmap))
-		return 0;
+		goto out_put;
 
 	if (!al.filtered && perf_evsel__add_sample(evsel, sample, &al, ann)) {
 		pr_warning("problem incrementing symbol count, "
 			   "skipping event\n");
-		return -1;
+		ret = -1;
 	}
-
-	return 0;
+out_put:
+	addr_location__put(&al);
+	return ret;
 }
 
 static int hist_entry__tty_annotate(struct hist_entry *he,

@@ -607,13 +607,14 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 	}
 
 	if (al.filtered)
-		return 0;
+		goto out_put;
 
 	if (cpu_list && !test_bit(sample->cpu, cpu_bitmap))
-		return 0;
+		goto out_put;
 
 	scripting_ops->process_event(event, sample, evsel, &al);
-
+out_put:
+	addr_location__put(&al);
 	return 0;
 }
 
@@ -681,8 +682,8 @@ static int process_comm_event(struct perf_tool *tool,
 	print_sample_start(sample, thread, evsel);
 	perf_event__fprintf(event, stdout);
 	ret = 0;
-
 out:
+	thread__put(thread);
 	return ret;
 }
 
@@ -713,6 +714,7 @@ static int process_fork_event(struct perf_tool *tool,
 	}
 	print_sample_start(sample, thread, evsel);
 	perf_event__fprintf(event, stdout);
+	thread__put(thread);
 
 	return 0;
 }
@@ -721,6 +723,7 @@ static int process_exit_event(struct perf_tool *tool,
 			      struct perf_sample *sample,
 			      struct machine *machine)
 {
+	int err = 0;
 	struct thread *thread;
 	struct perf_script *script = container_of(tool, struct perf_script, tool);
 	struct perf_session *session = script->session;
@@ -742,9 +745,10 @@ static int process_exit_event(struct perf_tool *tool,
 	perf_event__fprintf(event, stdout);
 
 	if (perf_event__process_exit(tool, event, sample, machine) < 0)
-		return -1;
+		err = -1;
 
-	return 0;
+	thread__put(thread);
+	return err;
 }
 
 static int process_mmap_event(struct perf_tool *tool,
@@ -774,7 +778,7 @@ static int process_mmap_event(struct perf_tool *tool,
 	}
 	print_sample_start(sample, thread, evsel);
 	perf_event__fprintf(event, stdout);
-
+	thread__put(thread);
 	return 0;
 }
 
@@ -805,7 +809,7 @@ static int process_mmap2_event(struct perf_tool *tool,
 	}
 	print_sample_start(sample, thread, evsel);
 	perf_event__fprintf(event, stdout);
-
+	thread__put(thread);
 	return 0;
 }
 

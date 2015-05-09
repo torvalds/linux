@@ -139,8 +139,24 @@ int cu_walk_functions_at(Dwarf_Die *cu_die, Dwarf_Addr addr,
 bool die_compare_name(Dwarf_Die *dw_die, const char *tname)
 {
 	const char *name;
+
 	name = dwarf_diename(dw_die);
 	return name ? (strcmp(tname, name) == 0) : false;
+}
+
+/**
+ * die_match_name - Match diename and glob
+ * @dw_die: a DIE
+ * @glob: a string of target glob pattern
+ *
+ * Glob matching the name of @dw_die and @glob. Return false if matching fail.
+ */
+bool die_match_name(Dwarf_Die *dw_die, const char *glob)
+{
+	const char *name;
+
+	name = dwarf_diename(dw_die);
+	return name ? strglobmatch(name, glob) : false;
 }
 
 /**

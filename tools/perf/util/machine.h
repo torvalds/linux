@@ -30,6 +30,7 @@ struct machine {
 	bool		  comm_exec;
 	char		  *root_dir;
 	struct rb_root	  threads;
+	pthread_rwlock_t  threads_lock;
 	struct list_head  dead_threads;
 	struct thread	  *last_match;
 	struct vdso_info  *vdso_info;
@@ -151,8 +152,8 @@ static inline bool machine__is_host(struct machine *machine)
 	return machine ? machine->pid == HOST_KERNEL_ID : false;
 }
 
-struct thread *machine__findnew_thread(struct machine *machine, pid_t pid,
-				       pid_t tid);
+struct thread *__machine__findnew_thread(struct machine *machine, pid_t pid, pid_t tid);
+struct thread *machine__findnew_thread(struct machine *machine, pid_t pid, pid_t tid);
 
 size_t machine__fprintf(struct machine *machine, FILE *fp);
 

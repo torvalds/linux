@@ -523,7 +523,7 @@ static const char *cat_backtrace(union perf_event *event,
 				 * Discard all.
 				 */
 				zfree(&p);
-				goto exit;
+				goto exit_put;
 			}
 			continue;
 		}
@@ -538,7 +538,8 @@ static const char *cat_backtrace(union perf_event *event,
 		else
 			fprintf(f, "..... %016" PRIx64 "\n", ip);
 	}
-
+exit_put:
+	addr_location__put(&al);
 exit:
 	fclose(f);
 

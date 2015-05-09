@@ -14,6 +14,8 @@
 #include "unwind.h"
 #include "linux/hash.h"
 
+static void __machine__remove_thread(struct machine *machine, struct thread *th, bool lock);
+
 static void dsos__init(struct dsos *dsos)
 {
 	INIT_LIST_HEAD(&dsos->head);
@@ -28,6 +30,7 @@ int machine__init(struct machine *machine, const char *root_dir, pid_t pid)
 	dsos__init(&machine->kernel_dsos);
 
 	machine->threads = RB_ROOT;
+	pthread_rwlock_init(&machine->threads_lock, NULL);
 	INIT_LIST_HEAD(&machine->dead_threads);
 	machine->last_match = NULL;
 
@@ -54,6 +57,7 @@ int machine__init(struct machine *machine, const char *root_dir, pid_t pid)
 
 		snprintf(comm, sizeof(comm), "[guest/%d]", pid);
 		thread__set_comm(thread, comm, 0);
+		thread__put(thread);
 	}
 
 	machine->current_tid = NULL;
@@ -91,14 +95,17 @@ static void dsos__delete(struct dsos *dsos)
 
 void machine__delete_threads(struct machine *machine)
 {
-	struct rb_node *nd = rb_first(&machine->threads);
+	struct rb_node *nd;
 
+	pthread_rwlock_wrlock(&machine->threads_lock);
+	nd = rb_first(&machine->threads);
 	while (nd) {
 		struct thread *t = rb_entry(nd, struct thread, rb_node);
 
 		nd = rb_next(nd);
-		machine__remove_thread(machine, t);
+		__machine__remove_thread(machine, t, false);
 	}
+	pthread_rwlock_unlock(&machine->threads_lock);
 }
 
 void machine__exit(struct machine *machine)
@@ -109,6 +116,7 @@ void machine__exit(struct machine *machine)
 	vdso__exit(machine);
 	zfree(&machine->root_dir);
 	zfree(&machine->current_tid);
+	pthread_rwlock_destroy(&machine->threads_lock);
 }
 
 void machine__delete(struct machine *machine)
@@ -303,7 +311,7 @@ static void machine__update_thread_pid(struct machine *machine,
 	if (th->pid_ == th->tid)
 		return;
 
-	leader = machine__findnew_thread(machine, th->pid_, th->pid_);
+	leader = __machine__findnew_thread(machine, th->pid_, th->pid_);
 	if (!leader)
 		goto out_err;
 
@@ -336,9 +344,9 @@ out_err:
 	pr_err("Failed to join map groups for %d:%d\n", th->pid_, th->tid);
 }
 
-static struct thread *__machine__findnew_thread(struct machine *machine,
-						pid_t pid, pid_t tid,
-						bool create)
+static struct thread *____machine__findnew_thread(struct machine *machine,
+						  pid_t pid, pid_t tid,
+						  bool create)
 {
 	struct rb_node **p = &machine->threads.rb_node;
 	struct rb_node *parent = NULL;
@@ -393,6 +401,7 @@ static struct thread *__machine__findnew_thread(struct machine *machine,
 		 */
 		if (thread__init_map_groups(th, machine)) {
 			rb_erase(&th->rb_node, &machine->threads);
+			RB_CLEAR_NODE(&th->rb_node);
 			thread__delete(th);
 			return NULL;
 		}
@@ -406,16 +415,30 @@ static struct thread *__machine__findnew_thread(struct machine *machine,
 	return th;
 }
 
+struct thread *__machine__findnew_thread(struct machine *machine, pid_t pid, pid_t tid)
+{
+	return ____machine__findnew_thread(machine, pid, tid, true);
+}
+
 struct thread *machine__findnew_thread(struct machine *machine, pid_t pid,
 				       pid_t tid)
 {
-	return __machine__findnew_thread(machine, pid, tid, true);
+	struct thread *th;
+
+	pthread_rwlock_wrlock(&machine->threads_lock);
+	th = thread__get(__machine__findnew_thread(machine, pid, tid));
+	pthread_rwlock_unlock(&machine->threads_lock);
+	return th;
 }
 
 struct thread *machine__find_thread(struct machine *machine, pid_t pid,
 				    pid_t tid)
 {
-	return __machine__findnew_thread(machine, pid, tid, false);
+	struct thread *th;
+	pthread_rwlock_rdlock(&machine->threads_lock);
+	th =  thread__get(____machine__findnew_thread(machine, pid, tid, false));
+	pthread_rwlock_unlock(&machine->threads_lock);
+	return th;
 }
 
 struct comm *machine__thread_exec_comm(struct machine *machine,
@@ -434,6 +457,7 @@ int machine__process_comm_event(struct machine *machine, union perf_event *event
 							event->comm.pid,
 							event->comm.tid);
 	bool exec = event->header.misc & PERF_RECORD_MISC_COMM_EXEC;
+	int err = 0;
 
 	if (exec)
 		machine->comm_exec = true;
@@ -444,10 +468,12 @@ int machine__process_comm_event(struct machine *machine, union perf_event *event
 	if (thread == NULL ||
 	    __thread__set_comm(thread, event->comm.comm, sample->time, exec)) {
 		dump_printf("problem processing PERF_RECORD_COMM, skipping event.\n");
-		return -1;
+		err = -1;
 	}
 
-	return 0;
+	thread__put(thread);
+
+	return err;
 }
 
 int machine__process_lost_event(struct machine *machine __maybe_unused,
@@ -591,11 +617,15 @@ size_t machine__fprintf(struct machine *machine, FILE *fp)
 	size_t ret = 0;
 	struct rb_node *nd;
 
+	pthread_rwlock_rdlock(&machine->threads_lock);
+
 	for (nd = rb_first(&machine->threads); nd; nd = rb_next(nd)) {
 		struct thread *pos = rb_entry(nd, struct thread, rb_node);
 
 		ret += thread__fprintf(pos, fp);
 	}
+
+	pthread_rwlock_unlock(&machine->threads_lock);
 
 	return ret;
 }
@@ -1213,11 +1243,14 @@ int machine__process_mmap2_event(struct machine *machine,
 			event->mmap2.filename, type, thread);
 
 	if (map == NULL)
-		goto out_problem;
+		goto out_problem_map;
 
 	thread__insert_map(thread, map);
+	thread__put(thread);
 	return 0;
 
+out_problem_map:
+	thread__put(thread);
 out_problem:
 	dump_printf("problem processing PERF_RECORD_MMAP2, skipping event.\n");
 	return 0;
@@ -1260,29 +1293,43 @@ int machine__process_mmap_event(struct machine *machine, union perf_event *event
 			type, thread);
 
 	if (map == NULL)
-		goto out_problem;
+		goto out_problem_map;
 
 	thread__insert_map(thread, map);
+	thread__put(thread);
 	return 0;
 
+out_problem_map:
+	thread__put(thread);
 out_problem:
 	dump_printf("problem processing PERF_RECORD_MMAP, skipping event.\n");
 	return 0;
 }
 
-void machine__remove_thread(struct machine *machine, struct thread *th)
+static void __machine__remove_thread(struct machine *machine, struct thread *th, bool lock)
 {
 	if (machine->last_match == th)
 		thread__zput(machine->last_match);
 
+	BUG_ON(th->refcnt.counter == 0);
+	if (lock)
+		pthread_rwlock_wrlock(&machine->threads_lock);
 	rb_erase(&th->rb_node, &machine->threads);
+	RB_CLEAR_NODE(&th->rb_node);
 	/*
 	 * Move it first to the dead_threads list, then drop the reference,
 	 * if this is the last reference, then the thread__delete destructor
 	 * will be called and we will remove it from the dead_threads list.
 	 */
 	list_add_tail(&th->node, &machine->dead_threads);
+	if (lock)
+		pthread_rwlock_unlock(&machine->threads_lock);
 	thread__put(th);
+}
+
+void machine__remove_thread(struct machine *machine, struct thread *th)
+{
+	return __machine__remove_thread(machine, th, true);
 }
 
 int machine__process_fork_event(struct machine *machine, union perf_event *event,
@@ -1294,10 +1341,13 @@ int machine__process_fork_event(struct machine *machine, union perf_event *event
 	struct thread *parent = machine__findnew_thread(machine,
 							event->fork.ppid,
 							event->fork.ptid);
+	int err = 0;
 
 	/* if a thread currently exists for the thread id remove it */
-	if (thread != NULL)
+	if (thread != NULL) {
 		machine__remove_thread(machine, thread);
+		thread__put(thread);
+	}
 
 	thread = machine__findnew_thread(machine, event->fork.pid,
 					 event->fork.tid);
@@ -1307,10 +1357,12 @@ int machine__process_fork_event(struct machine *machine, union perf_event *event
 	if (thread == NULL || parent == NULL ||
 	    thread__fork(thread, parent, sample->time) < 0) {
 		dump_printf("problem processing PERF_RECORD_FORK, skipping event.\n");
-		return -1;
+		err = -1;
 	}
+	thread__put(thread);
+	thread__put(parent);
 
-	return 0;
+	return err;
 }
 
 int machine__process_exit_event(struct machine *machine, union perf_event *event,
@@ -1323,8 +1375,10 @@ int machine__process_exit_event(struct machine *machine, union perf_event *event
 	if (dump_trace)
 		perf_event__fprintf_task(event, stdout);
 
-	if (thread != NULL)
+	if (thread != NULL) {
 		thread__exited(thread);
+		thread__put(thread);
+	}
 
 	return 0;
 }
@@ -1841,6 +1895,7 @@ int machine__set_current_tid(struct machine *machine, int cpu, pid_t pid,
 		return -ENOMEM;
 
 	thread->cpu = cpu;
+	thread__put(thread);
 
 	return 0;
 }

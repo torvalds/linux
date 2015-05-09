@@ -96,6 +96,7 @@ struct machine *setup_fake_machine(struct machines *machines)
 			goto out;
 
 		thread__set_comm(thread, fake_threads[i].comm, 0);
+		thread__put(thread);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(fake_mmap_info); i++) {

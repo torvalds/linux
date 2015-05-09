@@ -43,6 +43,7 @@ int build_id__mark_dso_hit(struct perf_tool *tool __maybe_unused,
 	if (al.map != NULL)
 		al.map->dso->hit = 1;
 
+	thread__put(thread);
 	return 0;
 }
 
@@ -59,8 +60,10 @@ static int perf_event__exit_del_thread(struct perf_tool *tool __maybe_unused,
 	dump_printf("(%d:%d):(%d:%d)\n", event->fork.pid, event->fork.tid,
 		    event->fork.ppid, event->fork.ptid);
 
-	if (thread)
+	if (thread) {
 		machine__remove_thread(machine, thread);
+		thread__put(thread);
+	}
 
 	return 0;
 }

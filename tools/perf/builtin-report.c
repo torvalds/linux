@@ -142,7 +142,7 @@ static int process_sample_event(struct perf_tool *tool,
 		.hide_unresolved = rep->hide_unresolved,
 		.add_entry_cb = hist_iter__report_callback,
 	};
-	int ret;
+	int ret = 0;
 
 	if (perf_event__preprocess_sample(event, machine, &al, sample) < 0) {
 		pr_debug("problem processing %d event, skipping it.\n",
@@ -151,10 +151,10 @@ static int process_sample_event(struct perf_tool *tool,
 	}
 
 	if (rep->hide_unresolved && al.sym == NULL)
-		return 0;
+		goto out_put;
 
 	if (rep->cpu_list && !test_bit(sample->cpu, rep->cpu_bitmap))
-		return 0;
+		goto out_put;
 
 	if (sort__mode == SORT_MODE__BRANCH)
 		iter.ops = &hist_iter_branch;
@@ -172,7 +172,8 @@ static int process_sample_event(struct perf_tool *tool,
 				   rep);
 	if (ret < 0)
 		pr_debug("problem adding hist entry, skipping event\n");
-
+out_put:
+	addr_location__put(&al);
 	return ret;
 }
 

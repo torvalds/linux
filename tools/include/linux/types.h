@@ -60,6 +60,10 @@ typedef __u32 __bitwise __be32;
 typedef __u64 __bitwise __le64;
 typedef __u64 __bitwise __be64;
 
+typedef struct {
+	int counter;
+} atomic_t;
+
 struct list_head {
 	struct list_head *next, *prev;
 };

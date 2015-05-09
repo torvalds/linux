@@ -426,6 +426,8 @@ int perf_event__preprocess_sample(const union perf_event *event,
 				  struct addr_location *al,
 				  struct perf_sample *sample);
 
+void addr_location__put(struct addr_location *al);
+
 struct thread;
 
 bool is_bts_event(struct perf_event_attr *attr);
