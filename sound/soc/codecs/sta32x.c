@@ -1096,16 +1096,10 @@ static int sta32x_i2c_probe(struct i2c_client *i2c,
 #endif
 
 	/* GPIOs */
-	sta32x->gpiod_nreset = devm_gpiod_get(dev, "reset");
-	if (IS_ERR(sta32x->gpiod_nreset)) {
-		ret = PTR_ERR(sta32x->gpiod_nreset);
-		if (ret != -ENOENT && ret != -ENOSYS)
-			return ret;
-
-		sta32x->gpiod_nreset = NULL;
-	} else {
-		gpiod_direction_output(sta32x->gpiod_nreset, 0);
-	}
+	sta32x->gpiod_nreset = devm_gpiod_get_optional(dev, "reset",
+						       GPIOD_OUT_LOW);
+	if (IS_ERR(sta32x->gpiod_nreset))
+		return PTR_ERR(sta32x->gpiod_nreset);
 
 	/* regulators */
 	for (i = 0; i < ARRAY_SIZE(sta32x->supplies); i++)
