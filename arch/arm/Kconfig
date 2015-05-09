@@ -758,6 +758,24 @@ config ARCH_OMAP1
 	help
 	  Support for older TI OMAP1 (omap7xx, omap15xx or omap16xx)
 
+config ARCH_STM32
+	bool "STMicrolectronics STM32"
+	depends on !MMU
+	select ARCH_HAS_RESET_CONTROLLER
+	select ARM_NVIC
+	select ARMV7M_SYSTICK
+	select AUTO_ZRELADDR
+	select CLKSRC_OF
+	select COMMON_CLK
+	select CPU_V7M
+	select GENERIC_CLOCKEVENTS
+	select NO_IOPORT_MAP
+	select RESET_CONTROLLER
+	select SPARSE_IRQ
+	select USE_OF
+	help
+	  Support for STMicroelectronics STM32 processors.
+
 endchoice
 
 menu "Multiple platform selection"
