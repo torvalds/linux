@@ -4097,51 +4097,32 @@ static void valleyview_set_rps(struct drm_device *dev, u8 val)
 	trace_intel_gpu_freq_change(intel_gpu_freq(dev_priv, val));
 }
 
-/* vlv_set_rps_idle: Set the frequency to Rpn if Gfx clocks are down
+/* vlv_set_rps_idle: Set the frequency to idle, if Gfx clocks are down
  *
  * * If Gfx is Idle, then
- * 1. Mask Turbo interrupts
- * 2. Bring up Gfx clock
- * 3. Change the freq to Rpn and wait till P-Unit updates freq
- * 4. Clear the Force GFX CLK ON bit so that Gfx can down
- * 5. Unmask Turbo interrupts
+ * 1. Forcewake Media well.
+ * 2. Request idle freq.
+ * 3. Release Forcewake of Media well.
 */
 static void vlv_set_rps_idle(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
 	u32 val = dev_priv->rps.idle_freq;
 
-	/* CHV and latest VLV don't need to force the gfx clock */
-	if (IS_CHERRYVIEW(dev) || dev->pdev->revision >= 0xd) {
+	/* CHV don't need to force the gfx clock */
+	if (IS_CHERRYVIEW(dev)) {
 		valleyview_set_rps(dev_priv->dev, val);
 		return;
 	}
 
-	/*
-	 * When we are idle.  Drop to min voltage state.
-	 */
-
 	if (dev_priv->rps.cur_freq <= val)
 		return;
 
-	/* Mask turbo interrupt so that they will not come in between */
-	I915_WRITE(GEN6_PMINTRMSK,
-		   gen6_sanitize_rps_pm_mask(dev_priv, ~0));
-
-	vlv_force_gfx_clock(dev_priv, true);
-
-	dev_priv->rps.cur_freq = val;
-
-	vlv_punit_write(dev_priv, PUNIT_REG_GPU_FREQ_REQ, val);
-
-	if (wait_for(((vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS))
-				& GENFREQSTATUS) == 0, 100))
-		DRM_ERROR("timed out waiting for Punit\n");
-
-	gen6_set_rps_thresholds(dev_priv, val);
-	vlv_force_gfx_clock(dev_priv, false);
-
-	I915_WRITE(GEN6_PMINTRMSK, gen6_rps_pm_mask(dev_priv, val));
+	/* Wake up the media well, as that takes a lot less
+	 * power than the Render well. */
+	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_MEDIA);
+	valleyview_set_rps(dev_priv->dev, val);
+	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_MEDIA);
 }
 
 void gen6_rps_busy(struct drm_i915_private *dev_priv)
