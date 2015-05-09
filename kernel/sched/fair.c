@@ -5308,6 +5308,86 @@ done:
 	return target;
 }
 
+static int energy_aware_wake_cpu(struct task_struct *p, int target)
+{
+	struct sched_domain *sd;
+	struct sched_group *sg, *sg_target;
+	int target_max_cap = INT_MAX;
+	int target_cpu = task_cpu(p);
+	int i;
+
+	sd = rcu_dereference(per_cpu(sd_ea, task_cpu(p)));
+
+	if (!sd)
+		return target;
+
+	sg = sd->groups;
+	sg_target = sg;
+
+	/*
+	 * Find group with sufficient capacity. We only get here if no cpu is
+	 * overutilized. We may end up overutilizing a cpu by adding the task,
+	 * but that should not be any worse than select_idle_sibling().
+	 * load_balance() should sort it out later as we get above the tipping
+	 * point.
+	 */
+	do {
+		/* Assuming all cpus are the same in group */
+		int max_cap_cpu = group_first_cpu(sg);
+
+		/*
+		 * Assume smaller max capacity means more energy-efficient.
+		 * Ideally we should query the energy model for the right
+		 * answer but it easily ends up in an exhaustive search.
+		 */
+		if (capacity_of(max_cap_cpu) < target_max_cap &&
+		    task_fits_max(p, max_cap_cpu)) {
+			sg_target = sg;
+			target_max_cap = capacity_of(max_cap_cpu);
+		}
+	} while (sg = sg->next, sg != sd->groups);
+
+	/* Find cpu with sufficient capacity */
+	for_each_cpu_and(i, tsk_cpus_allowed(p), sched_group_cpus(sg_target)) {
+		/*
+		 * p's blocked utilization is still accounted for on prev_cpu
+		 * so prev_cpu will receive a negative bias due to the double
+		 * accounting. However, the blocked utilization may be zero.
+		 */
+		int new_util = cpu_util(i) + task_util(p);
+
+		if (new_util > capacity_orig_of(i))
+			continue;
+
+		if (new_util < capacity_curr_of(i)) {
+			target_cpu = i;
+			if (cpu_rq(i)->nr_running)
+				break;
+		}
+
+		/* cpu has capacity at higher OPP, keep it as fallback */
+		if (target_cpu == task_cpu(p))
+			target_cpu = i;
+	}
+
+	if (target_cpu != task_cpu(p)) {
+		struct energy_env eenv = {
+			.util_delta	= task_util(p),
+			.src_cpu	= task_cpu(p),
+			.dst_cpu	= target_cpu,
+		};
+
+		/* Not enough spare capacity on previous cpu */
+		if (cpu_overutilized(task_cpu(p)))
+			return target_cpu;
+
+		if (energy_diff(&eenv) >= 0)
+			return task_cpu(p);
+	}
+
+	return target_cpu;
+}
+
 /*
  * select_task_rq_fair: Select target runqueue for the waking task in domains
  * that have the 'sd_flag' flag set. In practice, this is SD_BALANCE_WAKE,
@@ -5330,8 +5410,9 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int sd_flag, int wake_f
 	int sync = wake_flags & WF_SYNC;
 
 	if (sd_flag & SD_BALANCE_WAKE)
-		want_affine = !wake_wide(p) && task_fits_max(p, cpu) &&
-			      cpumask_test_cpu(cpu, tsk_cpus_allowed(p));
+		want_affine = (!wake_wide(p) && task_fits_max(p, cpu) &&
+			      cpumask_test_cpu(cpu, tsk_cpus_allowed(p))) ||
+			      energy_aware();
 
 	rcu_read_lock();
 	for_each_domain(cpu, tmp) {
@@ -5361,7 +5442,9 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int sd_flag, int wake_f
 	}
 
 	if (!sd) {
-		if (sd_flag & SD_BALANCE_WAKE) /* XXX always ? */
+		if (energy_aware() && !cpu_rq(cpu)->rd->overutilized)
+			new_cpu = energy_aware_wake_cpu(p, prev_cpu);
+		else if (sd_flag & SD_BALANCE_WAKE) /* XXX always ? */
 			new_cpu = select_idle_sibling(p, new_cpu);
 
 	} else while (sd) {
