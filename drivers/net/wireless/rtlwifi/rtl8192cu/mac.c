@@ -613,7 +613,7 @@ void rtl92c_init_ampdu_aggregation(struct ieee80211_hw *hw)
 	rtl_write_word(rtlpriv, 0x4CA, 0x0708);
 }
 
-void rtl92c_init_beacon_max_error(struct ieee80211_hw *hw, bool infra_mode)
+void rtl92c_init_beacon_max_error(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 

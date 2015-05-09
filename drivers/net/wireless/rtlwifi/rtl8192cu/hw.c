@@ -889,7 +889,7 @@ static int _rtl92cu_init_mac(struct ieee80211_hw *hw)
 	rtl92c_set_min_space(hw, IS_92C_SERIAL(rtlhal->version));
 	rtl92c_init_beacon_parameters(hw, rtlhal->version);
 	rtl92c_init_ampdu_aggregation(hw);
-	rtl92c_init_beacon_max_error(hw, true);
+	rtl92c_init_beacon_max_error(hw);
 	return err;
 }
 
