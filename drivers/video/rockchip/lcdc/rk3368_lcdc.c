@@ -1242,6 +1242,15 @@ static int rk3368_win_0_1_reg_update(struct rk_lcdc_driver *dev_drv, int win_id)
 			lcdc_msk_reg(lcdc_dev, WIN0_SRC_ALPHA_CTRL + off,
 				     mask, val);
 		}
+
+		if (dev_drv->cur_screen->mode.vmode == FB_VMODE_INTERLACED) {
+			mask = m_WIN0_YRGB_DEFLICK | m_WIN0_CBR_DEFLICK;
+			if (win->area[0].yact == 2 * win->area[0].ysize)
+				val =v_WIN0_YRGB_DEFLICK(0) | v_WIN0_CBR_DEFLICK(0);
+			else
+				val =v_WIN0_YRGB_DEFLICK(1) | v_WIN0_CBR_DEFLICK(1);
+			lcdc_msk_reg(lcdc_dev, WIN0_CTRL0, mask, val);
+		}
 	} else {
 		mask = m_WIN0_EN;
 		val = v_WIN0_EN(win->state);
@@ -1631,16 +1640,16 @@ static int rk3368_config_timing(struct rk_lcdc_driver *dev_drv)
 		    m_WIN0_INTERLACE_READ | m_WIN0_YRGB_DEFLICK |
 		    m_WIN0_CBR_DEFLICK;
 		val =
-		    v_WIN0_INTERLACE_READ(1) | v_WIN0_YRGB_DEFLICK(1) |
-		    v_WIN0_CBR_DEFLICK(1);
+		    v_WIN0_INTERLACE_READ(1) | v_WIN0_YRGB_DEFLICK(0) |
+		    v_WIN0_CBR_DEFLICK(0);
 		lcdc_msk_reg(lcdc_dev, WIN0_CTRL0, mask, val);
 
 		mask =
 		    m_WIN1_INTERLACE_READ | m_WIN1_YRGB_DEFLICK |
 		    m_WIN1_CBR_DEFLICK;
 		val =
-		    v_WIN1_INTERLACE_READ(1) | v_WIN1_YRGB_DEFLICK(1) |
-		    v_WIN1_CBR_DEFLICK(1);
+		    v_WIN1_INTERLACE_READ(1) | v_WIN1_YRGB_DEFLICK(0) |
+		    v_WIN1_CBR_DEFLICK(0);
 		lcdc_msk_reg(lcdc_dev, WIN1_CTRL0, mask, val);
 
 		mask = m_WIN2_INTERLACE_READ;
@@ -2378,7 +2387,7 @@ static int rk3368_lcdc_pan_display(struct rk_lcdc_driver *dev_drv, int win_id)
 	return 0;
 }
 
-static int rk3368_lcdc_cal_scl_fac(struct rk_lcdc_win *win)
+static int rk3368_lcdc_cal_scl_fac(struct rk_lcdc_win *win, struct rk_screen *screen)
 {
 	u16 srcW;
 	u16 srcH;
@@ -2582,10 +2591,14 @@ static int rk3368_lcdc_cal_scl_fac(struct rk_lcdc_win *win)
 			__func__, win->win_lb_mode);
 		break;
 	}
-	if (win->mirror_en == 1) {	/*interlace mode must bill */
+	if (win->mirror_en == 1) {
 		win->yrgb_vsd_mode = SCALE_DOWN_BIL;
 	}
-
+	if (screen->mode.vmode == FB_VMODE_INTERLACED) {
+		/*interlace mode must bill */
+		win->yrgb_vsd_mode = SCALE_DOWN_BIL;
+		win->cbr_vsd_mode = SCALE_DOWN_BIL;
+	}
 	if ((win->yrgb_ver_scl_mode == SCALE_DOWN) &&
 	    (win->area[0].fbdc_en == 1)) {
 		/*in this pattern,use bil mode,not support souble scd,
@@ -2867,7 +2880,7 @@ static int win_0_1_set_par(struct lcdc_device *lcdc_dev,
 
 	spin_lock(&lcdc_dev->reg_lock);
 	if (likely(lcdc_dev->clk_on)) {
-		rk3368_lcdc_cal_scl_fac(win);	/*fac,lb,gt2,gt4 */
+		rk3368_lcdc_cal_scl_fac(win, screen);	/*fac,lb,gt2,gt4 */
 		switch (win->area[0].format) {
 		case FBDC_RGB_565:
 			fmt_cfg = 2;
@@ -3042,8 +3055,9 @@ static int win_2_3_set_par(struct lcdc_device *lcdc_dev,
 			win->area[i].dsp_sty =
 					dsp_y_pos(win->mirror_en, screen,
 						  &win->area[i]);
-			if ((win->area[i].xact != win->area[i].xsize) ||
-			    (win->area[i].yact != win->area[i].ysize)) {
+			if (((win->area[i].xact != win->area[i].xsize) ||
+			    (win->area[i].yact != win->area[i].ysize)) &&
+			    (screen->mode.vmode == FB_VMODE_NONINTERLACED)) {
                                 pr_err("win[%d]->area[%d],not support scale\n",
                                         win->id, i);
                                 pr_err("xact=%d,yact=%d,xsize=%d,ysize=%d\n",
