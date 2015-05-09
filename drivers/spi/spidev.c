@@ -616,7 +616,6 @@ err_find_dev:
 static int spidev_release(struct inode *inode, struct file *filp)
 {
 	struct spidev_data	*spidev;
-	int			status = 0;
 
 	mutex_lock(&device_list_lock);
 	spidev = filp->private_data;
@@ -645,7 +644,7 @@ static int spidev_release(struct inode *inode, struct file *filp)
 	}
 	mutex_unlock(&device_list_lock);
 
-	return status;
+	return 0;
 }
 
 static const struct file_operations spidev_fops = {
