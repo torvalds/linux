@@ -160,7 +160,7 @@ static int usbmisc_imx27_init(struct imx_usbmisc_data *data)
 		break;
 	default:
 		return -EINVAL;
-	};
+	}
 
 	spin_lock_irqsave(&usbmisc->lock, flags);
 	if (data->disable_oc)
