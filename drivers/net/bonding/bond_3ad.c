@@ -1908,7 +1908,8 @@ void bond_3ad_initialize(struct bonding *bond, u16 tick_resolution)
 
 		BOND_AD_INFO(bond).aggregator_identifier = 0;
 
-		BOND_AD_INFO(bond).system.sys_priority = 0xFFFF;
+		BOND_AD_INFO(bond).system.sys_priority =
+			bond->params.ad_actor_sys_prio;
 		BOND_AD_INFO(bond).system.sys_mac_addr = *((struct mac_addr *)bond->dev->dev_addr);
 
 		/* initialize how many times this module is called in one
@@ -1959,6 +1960,8 @@ void bond_3ad_bind_slave(struct slave *slave)
 			port->sm_vars &= ~AD_PORT_LACP_ENABLED;
 		/* actor system is the bond's system */
 		port->actor_system = BOND_AD_INFO(bond).system.sys_mac_addr;
+		port->actor_system_priority =
+		    BOND_AD_INFO(bond).system.sys_priority;
 		/* tx timer(to verify that no more than MAX_TX_IN_SECOND
 		 * lacpdu's are sent in one second)
 		 */

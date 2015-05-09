@@ -178,6 +178,15 @@ active_slave
 	active slave, or the empty string if there is no active slave or
 	the current mode does not use an active slave.
 
+ad_actor_sys_prio
+
+	In an AD system, this specifies the system priority. The allowed range
+	is 1 - 65535. If the value is not specified, it takes 65535 as the
+	default value.
+
+	This parameter has effect only in 802.3ad mode and is available through
+	SysFs interface.
+
 ad_select
 
 	Specifies the 802.3ad aggregation selection logic to use.  The

@@ -692,6 +692,20 @@ static ssize_t bonding_show_packets_per_slave(struct device *d,
 static DEVICE_ATTR(packets_per_slave, S_IRUGO | S_IWUSR,
 		   bonding_show_packets_per_slave, bonding_sysfs_store_option);
 
+static ssize_t bonding_show_ad_actor_sys_prio(struct device *d,
+					      struct device_attribute *attr,
+					      char *buf)
+{
+	struct bonding *bond = to_bond(d);
+
+	if (BOND_MODE(bond) == BOND_MODE_8023AD)
+		return sprintf(buf, "%hu\n", bond->params.ad_actor_sys_prio);
+
+	return 0;
+}
+static DEVICE_ATTR(ad_actor_sys_prio, S_IRUGO | S_IWUSR,
+		   bonding_show_ad_actor_sys_prio, bonding_sysfs_store_option);
+
 static struct attribute *per_bond_attrs[] = {
 	&dev_attr_slaves.attr,
 	&dev_attr_mode.attr,
@@ -725,6 +739,7 @@ static struct attribute *per_bond_attrs[] = {
 	&dev_attr_lp_interval.attr,
 	&dev_attr_packets_per_slave.attr,
 	&dev_attr_tlb_dynamic_lb.attr,
+	&dev_attr_ad_actor_sys_prio.attr,
 	NULL,
 };
 

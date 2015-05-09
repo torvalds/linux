@@ -70,6 +70,8 @@ static int bond_option_slaves_set(struct bonding *bond,
 				  const struct bond_opt_value *newval);
 static int bond_option_tlb_dynamic_lb_set(struct bonding *bond,
 				  const struct bond_opt_value *newval);
+static int bond_option_ad_actor_sys_prio_set(struct bonding *bond,
+					     const struct bond_opt_value *newval);
 
 
 static const struct bond_opt_value bond_mode_tbl[] = {
@@ -184,6 +186,12 @@ static const struct bond_opt_value bond_tlb_dynamic_lb_tbl[] = {
 	{ "off", 0,  0},
 	{ "on",  1,  BOND_VALFLAG_DEFAULT},
 	{ NULL,  -1, 0}
+};
+
+static const struct bond_opt_value bond_ad_actor_sys_prio_tbl[] = {
+	{ "minval",  1,     BOND_VALFLAG_MIN},
+	{ "maxval",  65535, BOND_VALFLAG_MAX | BOND_VALFLAG_DEFAULT},
+	{ NULL,      -1,    0},
 };
 
 static const struct bond_option bond_opts[BOND_OPT_LAST] = {
@@ -379,7 +387,15 @@ static const struct bond_option bond_opts[BOND_OPT_LAST] = {
 		.values = bond_tlb_dynamic_lb_tbl,
 		.flags = BOND_OPTFLAG_IFDOWN,
 		.set = bond_option_tlb_dynamic_lb_set,
-	}
+	},
+	[BOND_OPT_AD_ACTOR_SYS_PRIO] = {
+		.id = BOND_OPT_AD_ACTOR_SYS_PRIO,
+		.name = "ad_actor_sys_prio",
+		.unsuppmodes = BOND_MODE_ALL_EX(BIT(BOND_MODE_8023AD)),
+		.flags = BOND_OPTFLAG_IFDOWN,
+		.values = bond_ad_actor_sys_prio_tbl,
+		.set = bond_option_ad_actor_sys_prio_set,
+	},
 };
 
 /* Searches for an option by name */
@@ -1347,5 +1363,15 @@ static int bond_option_tlb_dynamic_lb_set(struct bonding *bond,
 		    newval->string, newval->value);
 	bond->params.tlb_dynamic_lb = newval->value;
 
+	return 0;
+}
+
+static int bond_option_ad_actor_sys_prio_set(struct bonding *bond,
+					     const struct bond_opt_value *newval)
+{
+	netdev_info(bond->dev, "Setting ad_actor_sys_prio to (%llu)\n",
+		    newval->value);
+
+	bond->params.ad_actor_sys_prio = newval->value;
 	return 0;
 }
