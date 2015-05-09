@@ -290,8 +290,7 @@ static struct toklist dgap_tlist[] = {
 
 /*
  * dgap_sindex: much like index(), but it looks for a match of any character in
- * the group, and returns that position.  If the first character is a ^, then
- * this will match the first occurrence not in that group.
+ * the group, and returns that position.
  */
 static char *dgap_sindex(char *string, char *group)
 {
@@ -300,22 +299,10 @@ static char *dgap_sindex(char *string, char *group)
 	if (!string || !group)
 		return NULL;
 
-	if (*group == '^') {
-		group++;
-		for (; *string; string++) {
-			for (ptr = group; *ptr; ptr++) {
-				if (*ptr == *string)
-					break;
-			}
-			if (*ptr == '\0')
+	for (; *string; string++) {
+		for (ptr = group; *ptr; ptr++) {
+			if (*ptr == *string)
 				return string;
-		}
-	} else {
-		for (; *string; string++) {
-			for (ptr = group; *ptr; ptr++) {
-				if (*ptr == *string)
-					return string;
-			}
 		}
 	}
 
