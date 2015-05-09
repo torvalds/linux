@@ -16,7 +16,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_88PM860X if MFD_88PM860X
 	select SND_SOC_L3
 	select SND_SOC_AB8500_CODEC if ABX500_CORE
-	select SND_SOC_AC97_CODEC if SND_SOC_AC97_BUS
+	select SND_SOC_AC97_CODEC
 	select SND_SOC_AD1836 if SPI_MASTER
 	select SND_SOC_AD193X_SPI if SPI_MASTER
 	select SND_SOC_AD193X_I2C if I2C
@@ -211,8 +211,9 @@ config SND_SOC_AB8500_CODEC
 	tristate
 
 config SND_SOC_AC97_CODEC
-	tristate
+	tristate "Build generic ASoC AC97 CODEC driver"
 	select SND_AC97_CODEC
+	select SND_SOC_AC97_BUS
 
 config SND_SOC_AD1836
 	tristate
