@@ -1772,7 +1772,7 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 
 		err = may_lookup(nd);
  		if (err)
-			break;
+			return err;
 
 		hash_len = hash_name(name);
 
@@ -1794,7 +1794,7 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 				struct qstr this = { { .hash_len = hash_len }, .name = name };
 				err = parent->d_op->d_hash(parent, &this);
 				if (err < 0)
-					break;
+					return err;
 				hash_len = this.hash_len;
 				name = this.name;
 			}
@@ -1829,15 +1829,13 @@ OK:
 			err = walk_component(nd, WALK_GET);
 		}
 		if (err < 0)
-			break;
+			return err;
 
 		if (err) {
 			const char *s = get_link(nd);
 
-			if (unlikely(IS_ERR(s))) {
-				err = PTR_ERR(s);
-				break;
-			}
+			if (unlikely(IS_ERR(s)))
+				return PTR_ERR(s);
 			err = 0;
 			if (unlikely(!s)) {
 				/* jumped */
@@ -1848,12 +1846,9 @@ OK:
 				continue;
 			}
 		}
-		if (!d_can_lookup(nd->path.dentry)) {
-			err = -ENOTDIR;
-			break;
-		}
+		if (unlikely(!d_can_lookup(nd->path.dentry)))
+			return -ENOTDIR;
 	}
-	return err;
 }
 
 static const char *path_init(int dfd, const struct filename *name,
