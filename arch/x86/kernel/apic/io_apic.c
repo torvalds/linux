@@ -258,11 +258,11 @@ int __init arch_early_ioapic_init(void)
 
 	/*
 	 * For legacy IRQ's, start with assigning irq0 to irq15 to
-	 * IRQ0_VECTOR to IRQ15_VECTOR for all cpu's.
+	 * ISA_IRQ_VECTOR(irq) for all cpu's.
 	 */
 	for (i = 0; i < nr_legacy_irqs(); i++) {
 		cfg = alloc_irq_and_cfg_at(i, node);
-		cfg->vector = IRQ0_VECTOR + i;
+		cfg->vector = ISA_IRQ_VECTOR(i);
 		cpumask_setall(cfg->domain);
 	}
 
