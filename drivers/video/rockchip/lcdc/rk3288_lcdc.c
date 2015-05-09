@@ -447,9 +447,9 @@ static int rk3288_lcdc_post_cfg(struct rk_lcdc_driver *dev_drv)
 	screen->post_dsp_stx = x_res * (100 - dev_drv->overscan.left) / 200;
 	screen->post_dsp_sty = y_res * (100 - dev_drv->overscan.top) / 200;
 	screen->post_xsize = x_res *
-	    (dev_drv->overscan.left + dev_drv->overscan.right) / 200;
+		(dev_drv->overscan.left + dev_drv->overscan.right) / 200;
 	screen->post_ysize = y_res *
-	    (dev_drv->overscan.top + dev_drv->overscan.bottom) / 200;
+		(dev_drv->overscan.top + dev_drv->overscan.bottom) / 200;
 	h_total = screen->mode.hsync_len+screen->mode.left_margin +
 		  x_res + screen->mode.right_margin;
 	v_total = screen->mode.vsync_len+screen->mode.upper_margin +
@@ -3682,17 +3682,15 @@ static int rk3288_lcdc_set_overscan(struct rk_lcdc_driver *dev_drv,
 				    struct overscan *overscan)
 {
 	struct lcdc_device *lcdc_dev =
-	    container_of(dev_drv, struct lcdc_device, driver);
+		container_of(dev_drv, struct lcdc_device, driver);
 
 	if (unlikely(!lcdc_dev->clk_on)) {
 		pr_info("%s,clk_on = %d\n", __func__, lcdc_dev->clk_on);
 		return 0;
 	}
-	printk("%s,overscan=%d:%d,%d,%d\n", __func__,overscan->top,overscan->bottom,
-				overscan->left,overscan->right);
-        rk3288_lcdc_post_cfg(dev_drv);
+	rk3288_lcdc_post_cfg(dev_drv);
 
-        return 0;
+	return 0;
 }
 
 static struct rk_lcdc_win lcdc_win[] = {
