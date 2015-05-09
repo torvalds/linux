@@ -815,8 +815,8 @@ repeat:
 		goto error;
 	}
 
-	/* Force tty output for header output. */
-	if (report.header || report.header_only)
+	/* Force tty output for header output and per-thread stat. */
+	if (report.header || report.header_only || report.show_threads)
 		use_browser = 0;
 
 	if (strcmp(input_name, "-") != 0)
