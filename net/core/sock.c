@@ -1396,9 +1396,10 @@ EXPORT_SYMBOL_GPL(sock_update_netprioidx);
  *	@family: protocol family
  *	@priority: for allocation (%GFP_KERNEL, %GFP_ATOMIC, etc)
  *	@prot: struct proto associated with this new sock instance
+ *	@kern: is this to be a kernel socket?
  */
 struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
-		      struct proto *prot)
+		      struct proto *prot, int kern)
 {
 	struct sock *sk;
 
