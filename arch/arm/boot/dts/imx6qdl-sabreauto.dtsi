@@ -185,7 +185,6 @@
 &i2c3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c3>;
-	pinctrl-assert-gpios = <&gpio5 4 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 
 	max7310_a: gpio@30 {
