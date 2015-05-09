@@ -499,7 +499,7 @@ struct nameidata {
 	struct path	root;
 	struct inode	*inode; /* path.dentry.d_inode */
 	unsigned int	flags;
-	unsigned	seq, m_seq;
+	unsigned	seq, m_seq, root_seq;
 	int		last_type;
 	unsigned	depth;
 	int		total_link_count;
@@ -788,14 +788,14 @@ static __always_inline void set_root(struct nameidata *nd)
 static __always_inline unsigned set_root_rcu(struct nameidata *nd)
 {
 	struct fs_struct *fs = current->fs;
-	unsigned seq, res;
+	unsigned seq;
 
 	do {
 		seq = read_seqcount_begin(&fs->seq);
 		nd->root = fs->root;
-		res = __read_seqcount_begin(&nd->root.dentry->d_seq);
+		nd->root_seq = __read_seqcount_begin(&nd->root.dentry->d_seq);
 	} while (read_seqcount_retry(&fs->seq, seq));
-	return res;
+	return nd->root_seq;
 }
 
 static void path_put_conditional(struct path *path, struct nameidata *nd)
@@ -995,15 +995,23 @@ const char *get_link(struct nameidata *nd)
 	}
 	if (*res == '/') {
 		if (nd->flags & LOOKUP_RCU) {
-			if (unlikely(unlazy_walk(nd, NULL, 0)))
+			struct dentry *d;
+			if (!nd->root.mnt)
+				set_root_rcu(nd);
+			nd->path = nd->root;
+			d = nd->path.dentry;
+			nd->inode = d->d_inode;
+			nd->seq = nd->root_seq;
+			if (unlikely(read_seqcount_retry(&d->d_seq, nd->seq)))
 				return ERR_PTR(-ECHILD);
+		} else {
+			if (!nd->root.mnt)
+				set_root(nd);
+			path_put(&nd->path);
+			nd->path = nd->root;
+			path_get(&nd->root);
+			nd->inode = nd->path.dentry->d_inode;
 		}
-		if (!nd->root.mnt)
-			set_root(nd);
-		path_put(&nd->path);
-		nd->path = nd->root;
-		path_get(&nd->root);
-		nd->inode = nd->path.dentry->d_inode;
 		nd->flags |= LOOKUP_JUMPED;
 		while (unlikely(*++res == '/'))
 			;
@@ -1979,6 +1987,7 @@ static const char *path_init(int dfd, const struct filename *name,
 		if (flags & LOOKUP_RCU) {
 			rcu_read_lock();
 			nd->seq = __read_seqcount_begin(&nd->path.dentry->d_seq);
+			nd->root_seq = nd->seq;
 			nd->m_seq = read_seqbegin(&mount_lock);
 		} else {
 			path_get(&nd->path);
