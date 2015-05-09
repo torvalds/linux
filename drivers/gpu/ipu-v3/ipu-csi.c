@@ -538,7 +538,7 @@ void ipu_csi_set_test_generator(struct ipu_csi *csi, bool active,
 
 	temp = ipu_csi_read(csi, CSI_TST_CTRL);
 
-	if (active == false) {
+	if (!active) {
 		temp &= ~CSI_TEST_GEN_MODE_EN;
 		ipu_csi_write(csi, temp, CSI_TST_CTRL);
 	} else {
