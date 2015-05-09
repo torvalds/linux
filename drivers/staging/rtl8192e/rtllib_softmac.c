@@ -1814,7 +1814,7 @@ static inline u16 auth_parse(struct sk_buff *skb, u8 **challenge, int *chlen)
 				return -ENOMEM;
 		}
 	}
-	return cpu_to_le16(a->status);
+	return le16_to_cpu(a->status);
 }
 
 static int auth_rq_parse(struct sk_buff *skb, u8 *dest)
