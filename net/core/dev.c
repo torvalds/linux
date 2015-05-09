@@ -3525,31 +3525,37 @@ static inline struct sk_buff *handle_ing(struct sk_buff *skb,
 					 struct packet_type **pt_prev,
 					 int *ret, struct net_device *orig_dev)
 {
-	struct netdev_queue *rxq = rcu_dereference(skb->dev->ingress_queue);
-	struct Qdisc *q;
+	struct tcf_proto *cl = rcu_dereference_bh(skb->dev->ingress_cl_list);
+	struct tcf_result cl_res;
 
 	/* If there's at least one ingress present somewhere (so
 	 * we get here via enabled static key), remaining devices
 	 * that are not configured with an ingress qdisc will bail
-	 * out w/o the rcu_dereference().
+	 * out here.
 	 */
-	if (!rxq || (q = rcu_dereference(rxq->qdisc)) == &noop_qdisc)
+	if (!cl)
 		return skb;
-
 	if (*pt_prev) {
 		*ret = deliver_skb(skb, *pt_prev, orig_dev);
 		*pt_prev = NULL;
 	}
 
+	qdisc_bstats_update_cpu(cl->q, skb);
 	skb->tc_verd = SET_TC_AT(skb->tc_verd, AT_INGRESS);
 
-	if (likely(!test_bit(__QDISC_STATE_DEACTIVATED, &q->state))) {
-		switch (qdisc_enqueue_root(skb, q)) {
-		case TC_ACT_SHOT:
-		case TC_ACT_STOLEN:
-			kfree_skb(skb);
-			return NULL;
-		}
+	switch (tc_classify(skb, cl, &cl_res)) {
+	case TC_ACT_OK:
+	case TC_ACT_RECLASSIFY:
+		skb->tc_index = TC_H_MIN(cl_res.classid);
+		break;
+	case TC_ACT_SHOT:
+		qdisc_qstats_drop_cpu(cl->q);
+	case TC_ACT_STOLEN:
+	case TC_ACT_QUEUED:
+		kfree_skb(skb);
+		return NULL;
+	default:
+		break;
 	}
 
 	return skb;

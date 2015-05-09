@@ -1655,7 +1655,11 @@ struct net_device {
 	rx_handler_func_t __rcu	*rx_handler;
 	void __rcu		*rx_handler_data;
 
+#if CONFIG_NET_CLS_ACT
+	struct tcf_proto __rcu  *ingress_cl_list;
+#endif
 	struct netdev_queue __rcu *ingress_queue;
+
 	unsigned char		broadcast[MAX_ADDR_LEN];
 #ifdef CONFIG_RFS_ACCEL
 	struct cpu_rmap		*rx_cpu_rmap;
