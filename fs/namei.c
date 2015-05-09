@@ -536,10 +536,19 @@ static void restore_nameidata(struct nameidata *old)
 
 static int __nd_alloc_stack(struct nameidata *nd)
 {
-	struct saved *p = kmalloc(MAXSYMLINKS * sizeof(struct saved),
+	struct saved *p;
+
+	if (nd->flags & LOOKUP_RCU) {
+		p= kmalloc(MAXSYMLINKS * sizeof(struct saved),
+				  GFP_ATOMIC);
+		if (unlikely(!p))
+			return -ECHILD;
+	} else {
+		p= kmalloc(MAXSYMLINKS * sizeof(struct saved),
 				  GFP_KERNEL);
-	if (unlikely(!p))
-		return -ENOMEM;
+		if (unlikely(!p))
+			return -ENOMEM;
+	}
 	memcpy(p, nd->internal, sizeof(nd->internal));
 	nd->stack = p;
 	return 0;
@@ -957,8 +966,10 @@ const char *get_link(struct nameidata *nd)
 	int error;
 	const char *res;
 
-	BUG_ON(nd->flags & LOOKUP_RCU);
-
+	if (nd->flags & LOOKUP_RCU) {
+		if (unlikely(unlazy_walk(nd, NULL, 0)))
+			return ERR_PTR(-ECHILD);
+	}
 	cond_resched();
 
 	touch_atime(&last->link);
@@ -1623,17 +1634,21 @@ static int pick_link(struct nameidata *nd, struct path *link,
 		path_to_nameidata(link, nd);
 		return -ELOOP;
 	}
-	if (nd->flags & LOOKUP_RCU) {
-		if (unlikely(unlazy_link(nd, link, seq)))
-			return -ECHILD;
-	} else {
+	if (!(nd->flags & LOOKUP_RCU)) {
 		if (link->mnt == nd->path.mnt)
 			mntget(link->mnt);
 	}
 	error = nd_alloc_stack(nd);
 	if (unlikely(error)) {
-		path_put(link);
-		return error;
+		if (error == -ECHILD) {
+			if (unlikely(unlazy_link(nd, link, seq)))
+				return -ECHILD;
+			error = nd_alloc_stack(nd);
+		}
+		if (error) {
+			path_put(link);
+			return error;
+		}
 	}
 
 	last = nd->stack + nd->depth++;
