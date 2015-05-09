@@ -330,7 +330,9 @@ struct extent_tree {
  */
 #define F2FS_MAP_NEW		(1 << BH_New)
 #define F2FS_MAP_MAPPED		(1 << BH_Mapped)
-#define F2FS_MAP_FLAGS		(F2FS_MAP_NEW | F2FS_MAP_MAPPED)
+#define F2FS_MAP_UNWRITTEN	(1 << BH_Unwritten)
+#define F2FS_MAP_FLAGS		(F2FS_MAP_NEW | F2FS_MAP_MAPPED |\
+				F2FS_MAP_UNWRITTEN)
 
 struct f2fs_map_blocks {
 	block_t m_pblk;
