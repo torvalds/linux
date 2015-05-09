@@ -34,7 +34,8 @@ OPTIONS
 
 -T::
 --threads::
-	Show per-thread event counters
+	Show per-thread event counters.  The input data file should be recorded
+	with -s option.
 -c::
 --comms=::
 	Only consider symbols in these comms. CSV that understands

@@ -147,7 +147,8 @@ OPTIONS
 
 -s::
 --stat::
-	Per thread counts.
+	Record per-thread event counts.  Use it with 'perf report -T' to see
+	the values.
 
 -d::
 --data::
