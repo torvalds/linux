@@ -395,16 +395,30 @@ static const struct iio_info tiadc_info = {
 	.driver_module = THIS_MODULE,
 };
 
+static int tiadc_parse_dt(struct platform_device *pdev,
+			  struct tiadc_device *adc_dev)
+{
+	struct device_node *node = pdev->dev.of_node;
+	struct property *prop;
+	const __be32 *cur;
+	int channels = 0;
+	u32 val;
+
+	of_property_for_each_u32(node, "ti,adc-channels", prop, cur, val) {
+		adc_dev->channel_line[channels] = val;
+		channels++;
+	}
+
+	adc_dev->channels = channels;
+	return 0;
+}
+
 static int tiadc_probe(struct platform_device *pdev)
 {
 	struct iio_dev		*indio_dev;
 	struct tiadc_device	*adc_dev;
 	struct device_node	*node = pdev->dev.of_node;
-	struct property		*prop;
-	const __be32		*cur;
 	int			err;
-	u32			val;
-	int			channels = 0;
 
 	if (!node) {
 		dev_err(&pdev->dev, "Could not find valid DT data.\n");
@@ -420,12 +434,7 @@ static int tiadc_probe(struct platform_device *pdev)
 	adc_dev = iio_priv(indio_dev);
 
 	adc_dev->mfd_tscadc = ti_tscadc_dev_get(pdev);
-
-	of_property_for_each_u32(node, "ti,adc-channels", prop, cur, val) {
-		adc_dev->channel_line[channels] = val;
-		channels++;
-	}
-	adc_dev->channels = channels;
+	tiadc_parse_dt(pdev, adc_dev);
 
 	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->name = dev_name(&pdev->dev);
