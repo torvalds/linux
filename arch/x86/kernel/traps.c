@@ -997,8 +997,8 @@ void __init trap_init(void)
 #endif
 
 #ifdef CONFIG_X86_32
-	set_system_trap_gate(SYSCALL_VECTOR, &system_call);
-	set_bit(SYSCALL_VECTOR, used_vectors);
+	set_system_trap_gate(IA32_SYSCALL_VECTOR, &system_call);
+	set_bit(IA32_SYSCALL_VECTOR, used_vectors);
 #endif
 
 	/*

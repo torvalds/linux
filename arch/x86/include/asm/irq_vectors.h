@@ -47,9 +47,6 @@
 #define IRQ_MOVE_CLEANUP_VECTOR		FIRST_EXTERNAL_VECTOR
 
 #define IA32_SYSCALL_VECTOR		0x80
-#ifdef CONFIG_X86_32
-# define SYSCALL_VECTOR			0x80
-#endif
 
 /*
  * Vectors 0x30-0x3f are used for ISA interrupts.
