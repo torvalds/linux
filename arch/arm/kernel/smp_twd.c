@@ -194,6 +194,9 @@ static void twd_calibrate_rate(void)
 	unsigned long count;
 	u64 waitjiffies;
 
+	//3ds
+	return;
+
 	/*
 	 * If this is the first time round, we need to work out how fast
 	 * the timer ticks

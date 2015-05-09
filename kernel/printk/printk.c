@@ -1850,7 +1850,6 @@ DEFINE_PER_CPU(printk_func_t, printk_func) = vprintk_default;
  *
  * See the vsnprintf() documentation for format string extensions over C99.
  */
-
 asmlinkage __visible int printk(const char *fmt, ...)
 {
 	printk_func_t vprintk_func;

@@ -7,9 +7,9 @@
 	#size-cells = <1>;
 
 	chosen {
-		bootargs = "earlyprintk";
+		bootargs = "earlyprintk keep_bootcon rootfstype=ramfs init=/init";
 
-		/*#address-cells = <1>;
+		#address-cells = <1>;
 		#size-cells = <1>;
 
 		framebuffer0: framebuffer@18000000 {
@@ -18,8 +18,8 @@
 			width = <400>;
 			height = <240>;
 			stride = <(400*4)>;
-			format = "a8b8g8r8";
-		};*/
+			format = "r8g8b8";
+		};
 	};
 
 	aliases { };
