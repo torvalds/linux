@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 - 2014 Emulex
+ * Copyright (C) 2005 - 2015 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -211,7 +211,8 @@ static void be_txq_notify(struct be_adapter *adapter, struct be_tx_obj *txo,
 }
 
 static void be_eq_notify(struct be_adapter *adapter, u16 qid,
-			 bool arm, bool clear_int, u16 num_popped)
+			 bool arm, bool clear_int, u16 num_popped,
+			 u32 eq_delay_mult_enc)
 {
 	u32 val = 0;
 
@@ -227,6 +228,7 @@ static void be_eq_notify(struct be_adapter *adapter, u16 qid,
 		val |= 1 << DB_EQ_CLR_SHIFT;
 	val |= 1 << DB_EQ_EVNT_SHIFT;
 	val |= num_popped << DB_EQ_NUM_POPPED_SHIFT;
+	val |= eq_delay_mult_enc << DB_EQ_R2I_DLY_SHIFT;
 	iowrite32(val, adapter->db + DB_EQ_OFFSET);
 }
 
@@ -1267,7 +1269,8 @@ static int be_vid_config(struct be_adapter *adapter)
 	if (status) {
 		dev_err(dev, "Setting HW VLAN filtering failed\n");
 		/* Set to VLAN promisc mode as setting VLAN filter failed */
-		if (addl_status(status) ==
+		if (addl_status(status) == MCC_ADDL_STATUS_INSUFFICIENT_VLANS ||
+		    addl_status(status) ==
 				MCC_ADDL_STATUS_INSUFFICIENT_RESOURCES)
 			return be_set_vlan_promisc(adapter);
 	} else if (adapter->if_flags & BE_IF_FLAGS_VLAN_PROMISCUOUS) {
@@ -1468,6 +1471,7 @@ static int be_get_vf_config(struct net_device *netdev, int vf,
 	vi->qos = vf_cfg->vlan_tag >> VLAN_PRIO_SHIFT;
 	memcpy(&vi->mac, vf_cfg->mac_addr, ETH_ALEN);
 	vi->linkstate = adapter->vf_cfg[vf].plink_tracking;
+	vi->spoofchk = adapter->vf_cfg[vf].spoofchk;
 
 	return 0;
 }
@@ -1480,7 +1484,7 @@ static int be_set_vf_tvt(struct be_adapter *adapter, int vf, u16 vlan)
 	int status;
 
 	/* Enable Transparent VLAN Tagging */
-	status = be_cmd_set_hsw_config(adapter, vlan, vf + 1, vf_if_id, 0);
+	status = be_cmd_set_hsw_config(adapter, vlan, vf + 1, vf_if_id, 0, 0);
 	if (status)
 		return status;
 
@@ -1509,7 +1513,7 @@ static int be_clear_vf_tvt(struct be_adapter *adapter, int vf)
 
 	/* Reset Transparent VLAN Tagging. */
 	status = be_cmd_set_hsw_config(adapter, BE_RESET_VLAN_TAG_ID, vf + 1,
-				       vf_cfg->if_handle, 0);
+				       vf_cfg->if_handle, 0, 0);
 	if (status)
 		return status;
 
@@ -1644,6 +1648,39 @@ static int be_set_vf_link_state(struct net_device *netdev, int vf,
 	return 0;
 }
 
+static int be_set_vf_spoofchk(struct net_device *netdev, int vf, bool enable)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+	struct be_vf_cfg *vf_cfg = &adapter->vf_cfg[vf];
+	u8 spoofchk;
+	int status;
+
+	if (!sriov_enabled(adapter))
+		return -EPERM;
+
+	if (vf >= adapter->num_vfs)
+		return -EINVAL;
+
+	if (BEx_chip(adapter))
+		return -EOPNOTSUPP;
+
+	if (enable == vf_cfg->spoofchk)
+		return 0;
+
+	spoofchk = enable ? ENABLE_MAC_SPOOFCHK : DISABLE_MAC_SPOOFCHK;
+
+	status = be_cmd_set_hsw_config(adapter, 0, vf + 1, vf_cfg->if_handle,
+				       0, spoofchk);
+	if (status) {
+		dev_err(&adapter->pdev->dev,
+			"Spoofchk change on VF %d failed: %#x\n", vf, status);
+		return be_cmd_status(status);
+	}
+
+	vf_cfg->spoofchk = enable;
+	return 0;
+}
+
 static void be_aic_update(struct be_aic_obj *aic, u64 rx_pkts, u64 tx_pkts,
 			  ulong now)
 {
@@ -1652,61 +1689,110 @@ static void be_aic_update(struct be_aic_obj *aic, u64 rx_pkts, u64 tx_pkts,
 	aic->jiffies = now;
 }
 
-static void be_eqd_update(struct be_adapter *adapter)
+static int be_get_new_eqd(struct be_eq_obj *eqo)
 {
-	struct be_set_eqd set_eqd[MAX_EVT_QS];
-	int eqd, i, num = 0, start;
+	struct be_adapter *adapter = eqo->adapter;
+	int eqd, start;
 	struct be_aic_obj *aic;
-	struct be_eq_obj *eqo;
 	struct be_rx_obj *rxo;
 	struct be_tx_obj *txo;
-	u64 rx_pkts, tx_pkts;
+	u64 rx_pkts = 0, tx_pkts = 0;
 	ulong now;
 	u32 pps, delta;
+	int i;
+
+	aic = &adapter->aic_obj[eqo->idx];
+	if (!aic->enable) {
+		if (aic->jiffies)
+			aic->jiffies = 0;
+		eqd = aic->et_eqd;
+		return eqd;
+	}
+
+	for_all_rx_queues_on_eq(adapter, eqo, rxo, i) {
+		do {
+			start = u64_stats_fetch_begin_irq(&rxo->stats.sync);
+			rx_pkts += rxo->stats.rx_pkts;
+		} while (u64_stats_fetch_retry_irq(&rxo->stats.sync, start));
+	}
+
+	for_all_tx_queues_on_eq(adapter, eqo, txo, i) {
+		do {
+			start = u64_stats_fetch_begin_irq(&txo->stats.sync);
+			tx_pkts += txo->stats.tx_reqs;
+		} while (u64_stats_fetch_retry_irq(&txo->stats.sync, start));
+	}
+
+	/* Skip, if wrapped around or first calculation */
+	now = jiffies;
+	if (!aic->jiffies || time_before(now, aic->jiffies) ||
+	    rx_pkts < aic->rx_pkts_prev ||
+	    tx_pkts < aic->tx_reqs_prev) {
+		be_aic_update(aic, rx_pkts, tx_pkts, now);
+		return aic->prev_eqd;
+	}
+
+	delta = jiffies_to_msecs(now - aic->jiffies);
+	if (delta == 0)
+		return aic->prev_eqd;
+
+	pps = (((u32)(rx_pkts - aic->rx_pkts_prev) * 1000) / delta) +
+		(((u32)(tx_pkts - aic->tx_reqs_prev) * 1000) / delta);
+	eqd = (pps / 15000) << 2;
+
+	if (eqd < 8)
+		eqd = 0;
+	eqd = min_t(u32, eqd, aic->max_eqd);
+	eqd = max_t(u32, eqd, aic->min_eqd);
+
+	be_aic_update(aic, rx_pkts, tx_pkts, now);
+
+	return eqd;
+}
+
+/* For Skyhawk-R only */
+static u32 be_get_eq_delay_mult_enc(struct be_eq_obj *eqo)
+{
+	struct be_adapter *adapter = eqo->adapter;
+	struct be_aic_obj *aic = &adapter->aic_obj[eqo->idx];
+	ulong now = jiffies;
+	int eqd;
+	u32 mult_enc;
+
+	if (!aic->enable)
+		return 0;
+
+	if (time_before_eq(now, aic->jiffies) ||
+	    jiffies_to_msecs(now - aic->jiffies) < 1)
+		eqd = aic->prev_eqd;
+	else
+		eqd = be_get_new_eqd(eqo);
+
+	if (eqd > 100)
+		mult_enc = R2I_DLY_ENC_1;
+	else if (eqd > 60)
+		mult_enc = R2I_DLY_ENC_2;
+	else if (eqd > 20)
+		mult_enc = R2I_DLY_ENC_3;
+	else
+		mult_enc = R2I_DLY_ENC_0;
+
+	aic->prev_eqd = eqd;
+
+	return mult_enc;
+}
+
+void be_eqd_update(struct be_adapter *adapter, bool force_update)
+{
+	struct be_set_eqd set_eqd[MAX_EVT_QS];
+	struct be_aic_obj *aic;
+	struct be_eq_obj *eqo;
+	int i, num = 0, eqd;
 
 	for_all_evt_queues(adapter, eqo, i) {
 		aic = &adapter->aic_obj[eqo->idx];
-		if (!aic->enable) {
-			if (aic->jiffies)
-				aic->jiffies = 0;
-			eqd = aic->et_eqd;
-			goto modify_eqd;
-		}
-
-		rxo = &adapter->rx_obj[eqo->idx];
-		do {
-			start = u64_stats_fetch_begin_irq(&rxo->stats.sync);
-			rx_pkts = rxo->stats.rx_pkts;
-		} while (u64_stats_fetch_retry_irq(&rxo->stats.sync, start));
-
-		txo = &adapter->tx_obj[eqo->idx];
-		do {
-			start = u64_stats_fetch_begin_irq(&txo->stats.sync);
-			tx_pkts = txo->stats.tx_reqs;
-		} while (u64_stats_fetch_retry_irq(&txo->stats.sync, start));
-
-		/* Skip, if wrapped around or first calculation */
-		now = jiffies;
-		if (!aic->jiffies || time_before(now, aic->jiffies) ||
-		    rx_pkts < aic->rx_pkts_prev ||
-		    tx_pkts < aic->tx_reqs_prev) {
-			be_aic_update(aic, rx_pkts, tx_pkts, now);
-			continue;
-		}
-
-		delta = jiffies_to_msecs(now - aic->jiffies);
-		pps = (((u32)(rx_pkts - aic->rx_pkts_prev) * 1000) / delta) +
-			(((u32)(tx_pkts - aic->tx_reqs_prev) * 1000) / delta);
-		eqd = (pps / 15000) << 2;
-
-		if (eqd < 8)
-			eqd = 0;
-		eqd = min_t(u32, eqd, aic->max_eqd);
-		eqd = max_t(u32, eqd, aic->min_eqd);
-
-		be_aic_update(aic, rx_pkts, tx_pkts, now);
-modify_eqd:
-		if (eqd != aic->prev_eqd) {
+		eqd = be_get_new_eqd(eqo);
+		if (force_update || eqd != aic->prev_eqd) {
 			set_eqd[num].delay_multiplier = (eqd * 65)/100;
 			set_eqd[num].eq_id = eqo->q.id;
 			aic->prev_eqd = eqd;
@@ -2214,7 +2300,7 @@ static void be_eq_clean(struct be_eq_obj *eqo)
 {
 	int num = events_get(eqo);
 
-	be_eq_notify(eqo->adapter, eqo->q.id, false, true, num);
+	be_eq_notify(eqo->adapter, eqo->q.id, false, true, num, 0);
 }
 
 static void be_rx_cq_clean(struct be_rx_obj *rxo)
@@ -2575,7 +2661,7 @@ static irqreturn_t be_intx(int irq, void *dev)
 		if (num_evts)
 			eqo->spurious_intr = 0;
 	}
-	be_eq_notify(adapter, eqo->q.id, false, true, num_evts);
+	be_eq_notify(adapter, eqo->q.id, false, true, num_evts, 0);
 
 	/* Return IRQ_HANDLED only for the the first spurious intr
 	 * after a valid intr to stop the kernel from branding
@@ -2591,7 +2677,7 @@ static irqreturn_t be_msix(int irq, void *dev)
 {
 	struct be_eq_obj *eqo = dev;
 
-	be_eq_notify(eqo->adapter, eqo->q.id, false, true, 0);
+	be_eq_notify(eqo->adapter, eqo->q.id, false, true, 0, 0);
 	napi_schedule(&eqo->napi);
 	return IRQ_HANDLED;
 }
@@ -2840,6 +2926,7 @@ int be_poll(struct napi_struct *napi, int budget)
 	int max_work = 0, work, i, num_evts;
 	struct be_rx_obj *rxo;
 	struct be_tx_obj *txo;
+	u32 mult_enc = 0;
 
 	num_evts = events_get(eqo);
 
@@ -2865,10 +2952,18 @@ int be_poll(struct napi_struct *napi, int budget)
 
 	if (max_work < budget) {
 		napi_complete(napi);
-		be_eq_notify(adapter, eqo->q.id, true, false, num_evts);
+
+		/* Skyhawk EQ_DB has a provision to set the rearm to interrupt
+		 * delay via a delay multiplier encoding value
+		 */
+		if (skyhawk_chip(adapter))
+			mult_enc = be_get_eq_delay_mult_enc(eqo);
+
+		be_eq_notify(adapter, eqo->q.id, true, false, num_evts,
+			     mult_enc);
 	} else {
 		/* As we'll continue in polling mode, count and clear events */
-		be_eq_notify(adapter, eqo->q.id, false, false, num_evts);
+		be_eq_notify(adapter, eqo->q.id, false, false, num_evts, 0);
 	}
 	return max_work;
 }
@@ -3017,7 +3112,7 @@ fail:
 	dev_warn(dev, "MSIx enable failed\n");
 
 	/* INTx is not supported in VFs, so fail probe if enable_msix fails */
-	if (!be_physfn(adapter))
+	if (be_virtfn(adapter))
 		return num_vec;
 	return 0;
 }
@@ -3064,7 +3159,7 @@ static int be_irq_register(struct be_adapter *adapter)
 		if (status == 0)
 			goto done;
 		/* INTx is not supported for VF */
-		if (!be_physfn(adapter))
+		if (be_virtfn(adapter))
 			return status;
 	}
 
@@ -3231,9 +3326,12 @@ static int be_rx_qs_create(struct be_adapter *adapter)
 
 	memcpy(rss->rss_hkey, rss_key, RSS_HASH_KEY_LEN);
 
-	/* First time posting */
+	/* Post 1 less than RXQ-len to avoid head being equal to tail,
+	 * which is a queue empty condition
+	 */
 	for_all_rx_queues(adapter, rxo, i)
-		be_post_rx_frags(rxo, GFP_KERNEL, MAX_RX_POST);
+		be_post_rx_frags(rxo, GFP_KERNEL, RX_Q_LEN - 1);
+
 	return 0;
 }
 
@@ -3265,7 +3363,7 @@ static int be_open(struct net_device *netdev)
 	for_all_evt_queues(adapter, eqo, i) {
 		napi_enable(&eqo->napi);
 		be_enable_busy_poll(eqo);
-		be_eq_notify(adapter, eqo->q.id, true, true, 0);
+		be_eq_notify(adapter, eqo->q.id, true, true, 0, 0);
 	}
 	adapter->flags |= BE_FLAGS_NAPI_ENABLED;
 
@@ -3565,7 +3663,7 @@ static int be_vfs_if_create(struct be_adapter *adapter)
 
 	/* If a FW profile exists, then cap_flags are updated */
 	cap_flags = BE_IF_FLAGS_UNTAGGED | BE_IF_FLAGS_BROADCAST |
-		    BE_IF_FLAGS_MULTICAST;
+		    BE_IF_FLAGS_MULTICAST | BE_IF_FLAGS_PASS_L3L4_ERRORS;
 
 	for_all_vfs(adapter, vf_cfg, vf) {
 		if (!BE3_chip(adapter)) {
@@ -3612,6 +3710,7 @@ static int be_vf_setup(struct be_adapter *adapter)
 	struct device *dev = &adapter->pdev->dev;
 	struct be_vf_cfg *vf_cfg;
 	int status, old_vfs, vf;
+	bool spoofchk;
 
 	old_vfs = pci_num_vf(adapter->pdev);
 
@@ -3658,6 +3757,12 @@ static int be_vf_setup(struct be_adapter *adapter)
 		/* Allow full available bandwidth */
 		if (!old_vfs)
 			be_cmd_config_qos(adapter, 0, 0, vf + 1);
+
+		status = be_cmd_get_hsw_config(adapter, NULL, vf + 1,
+					       vf_cfg->if_handle, NULL,
+					       &spoofchk);
+		if (!status)
+			vf_cfg->spoofchk = spoofchk;
 
 		if (!old_vfs) {
 			be_cmd_enable_vf(adapter, vf + 1);
@@ -3735,8 +3840,9 @@ static void BEx_get_resources(struct be_adapter *adapter,
 	 *    *only* if it is RSS-capable.
 	 */
 	if (BE2_chip(adapter) || use_sriov ||  (adapter->port_num > 1) ||
-	    !be_physfn(adapter) || (be_is_mc(adapter) &&
-	    !(adapter->function_caps & BE_FUNCTION_CAPS_RSS))) {
+	    be_virtfn(adapter) ||
+	    (be_is_mc(adapter) &&
+	     !(adapter->function_caps & BE_FUNCTION_CAPS_RSS))) {
 		res->max_tx_qs = 1;
 	} else if (adapter->function_caps & BE_FUNCTION_CAPS_SUPER_NIC) {
 		struct be_resources super_nic_res = {0};
@@ -4184,7 +4290,7 @@ static void be_netpoll(struct net_device *netdev)
 	int i;
 
 	for_all_evt_queues(adapter, eqo, i) {
-		be_eq_notify(eqo->adapter, eqo->q.id, false, true, 0);
+		be_eq_notify(eqo->adapter, eqo->q.id, false, true, 0, 0);
 		napi_schedule(&eqo->napi);
 	}
 }
@@ -4668,14 +4774,11 @@ static int lancer_fw_download(struct be_adapter *adapter,
 	return 0;
 }
 
-#define BE2_UFI		2
-#define BE3_UFI		3
-#define BE3R_UFI	10
-#define SH_UFI		4
-#define SH_P2_UFI	11
-
-static int be_get_ufi_type(struct be_adapter *adapter,
-			   struct flash_file_hdr_g3 *fhdr)
+/* Check if the flash image file is compatible with the adapter that
+ * is being flashed.
+ */
+static bool be_check_ufi_compatibility(struct be_adapter *adapter,
+				       struct flash_file_hdr_g3 *fhdr)
 {
 	if (!fhdr) {
 		dev_err(&adapter->pdev->dev, "Invalid FW UFI file");
@@ -4687,43 +4790,22 @@ static int be_get_ufi_type(struct be_adapter *adapter,
 	 */
 	switch (fhdr->build[0]) {
 	case BLD_STR_UFI_TYPE_SH:
-		return (fhdr->asic_type_rev == ASIC_REV_P2) ? SH_P2_UFI :
-								SH_UFI;
+		if (!skyhawk_chip(adapter))
+			return false;
+		break;
 	case BLD_STR_UFI_TYPE_BE3:
-		return (fhdr->asic_type_rev == ASIC_REV_B0) ? BE3R_UFI :
-								BE3_UFI;
+		if (!BE3_chip(adapter))
+			return false;
+		break;
 	case BLD_STR_UFI_TYPE_BE2:
-		return BE2_UFI;
-	default:
-		return -1;
-	}
-}
-
-/* Check if the flash image file is compatible with the adapter that
- * is being flashed.
- * BE3 chips with asic-rev B0 must be flashed only with BE3R_UFI type.
- * Skyhawk chips with asic-rev P2 must be flashed only with SH_P2_UFI type.
- */
-static bool be_check_ufi_compatibility(struct be_adapter *adapter,
-				       struct flash_file_hdr_g3 *fhdr)
-{
-	int ufi_type = be_get_ufi_type(adapter, fhdr);
-
-	switch (ufi_type) {
-	case SH_P2_UFI:
-		return skyhawk_chip(adapter);
-	case SH_UFI:
-		return (skyhawk_chip(adapter) &&
-			adapter->asic_rev < ASIC_REV_P2);
-	case BE3R_UFI:
-		return BE3_chip(adapter);
-	case BE3_UFI:
-		return (BE3_chip(adapter) && adapter->asic_rev < ASIC_REV_B0);
-	case BE2_UFI:
-		return BE2_chip(adapter);
+		if (!BE2_chip(adapter))
+			return false;
+		break;
 	default:
 		return false;
 	}
+
+	return (fhdr->asic_type_rev >= adapter->asic_rev);
 }
 
 static int be_fw_download(struct be_adapter *adapter, const struct firmware* fw)
@@ -4831,7 +4913,7 @@ static int be_ndo_bridge_setlink(struct net_device *dev, struct nlmsghdr *nlh,
 					       adapter->if_handle,
 					       mode == BRIDGE_MODE_VEPA ?
 					       PORT_FWD_TYPE_VEPA :
-					       PORT_FWD_TYPE_VEB);
+					       PORT_FWD_TYPE_VEB, 0);
 		if (status)
 			goto err;
 
@@ -4863,7 +4945,8 @@ static int be_ndo_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 		hsw_mode = PORT_FWD_TYPE_VEB;
 	} else {
 		status = be_cmd_get_hsw_config(adapter, NULL, 0,
-					       adapter->if_handle, &hsw_mode);
+					       adapter->if_handle, &hsw_mode,
+					       NULL);
 		if (status)
 			return 0;
 	}
@@ -5016,6 +5099,7 @@ static const struct net_device_ops be_netdev_ops = {
 	.ndo_set_vf_rate	= be_set_vf_tx_rate,
 	.ndo_get_vf_config	= be_get_vf_config,
 	.ndo_set_vf_link_state  = be_set_vf_link_state,
+	.ndo_set_vf_spoofchk    = be_set_vf_spoofchk,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= be_netpoll,
 #endif
@@ -5184,7 +5268,9 @@ static void be_worker(struct work_struct *work)
 			be_post_rx_frags(rxo, GFP_KERNEL, MAX_RX_POST);
 	}
 
-	be_eqd_update(adapter);
+	/* EQ-delay update for Skyhawk is done while notifying EQ */
+	if (!skyhawk_chip(adapter))
+		be_eqd_update(adapter, false);
 
 	if (adapter->flags & BE_FLAGS_EVT_INCOMPATIBLE_SFP)
 		be_log_sfp_info(adapter);
@@ -5204,7 +5290,7 @@ static void be_unmap_pci_bars(struct be_adapter *adapter)
 
 static int db_bar(struct be_adapter *adapter)
 {
-	if (lancer_chip(adapter) || !be_physfn(adapter))
+	if (lancer_chip(adapter) || be_virtfn(adapter))
 		return 0;
 	else
 		return 4;

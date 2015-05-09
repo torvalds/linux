@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 - 2014 Emulex
+ * Copyright (C) 2005 - 2015 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -140,6 +140,7 @@ static bool be_skip_err_log(u8 opcode, u16 base_status, u16 addl_status)
 	if (base_status == MCC_STATUS_NOT_SUPPORTED ||
 	    base_status == MCC_STATUS_ILLEGAL_REQUEST ||
 	    addl_status == MCC_ADDL_STATUS_TOO_MANY_INTERFACES ||
+	    addl_status == MCC_ADDL_STATUS_INSUFFICIENT_VLANS ||
 	    (opcode == OPCODE_COMMON_WRITE_FLASHROM &&
 	    (base_status == MCC_STATUS_ILLEGAL_FIELD ||
 	     addl_status == MCC_ADDL_STATUS_FLASH_IMAGE_CRC_MISMATCH)))
@@ -1457,7 +1458,7 @@ int be_cmd_if_create(struct be_adapter *adapter, u32 cap_flags, u32 en_flags,
 		*if_handle = le32_to_cpu(resp->interface_id);
 
 		/* Hack to retrieve VF's pmac-id on BE3 */
-		if (BE3_chip(adapter) && !be_physfn(adapter))
+		if (BE3_chip(adapter) && be_virtfn(adapter))
 			adapter->pmac_id[0] = le32_to_cpu(resp->pmac_id);
 	}
 	return status;
@@ -3153,7 +3154,7 @@ int be_cmd_set_mac(struct be_adapter *adapter, u8 *mac, int if_id, u32 dom)
 }
 
 int be_cmd_set_hsw_config(struct be_adapter *adapter, u16 pvid,
-			  u32 domain, u16 intf_id, u16 hsw_mode)
+			  u32 domain, u16 intf_id, u16 hsw_mode, u8 spoofchk)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_set_hsw_config *req;
@@ -3189,6 +3190,14 @@ int be_cmd_set_hsw_config(struct be_adapter *adapter, u16 pvid,
 			      ctxt, hsw_mode);
 	}
 
+	/* Enable/disable both mac and vlan spoof checking */
+	if (!BEx_chip(adapter) && spoofchk) {
+		AMAP_SET_BITS(struct amap_set_hsw_context, mac_spoofchk,
+			      ctxt, spoofchk);
+		AMAP_SET_BITS(struct amap_set_hsw_context, vlan_spoofchk,
+			      ctxt, spoofchk);
+	}
+
 	be_dws_cpu_to_le(req->context, sizeof(req->context));
 	status = be_mcc_notify_wait(adapter);
 
@@ -3199,7 +3208,7 @@ err:
 
 /* Get Hyper switch config */
 int be_cmd_get_hsw_config(struct be_adapter *adapter, u16 *pvid,
-			  u32 domain, u16 intf_id, u8 *mode)
+			  u32 domain, u16 intf_id, u8 *mode, bool *spoofchk)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_get_hsw_config *req;
@@ -3247,6 +3256,10 @@ int be_cmd_get_hsw_config(struct be_adapter *adapter, u16 *pvid,
 		if (mode)
 			*mode = AMAP_GET_BITS(struct amap_get_hsw_resp_context,
 					      port_fwd_type, &resp->context);
+		if (spoofchk)
+			*spoofchk =
+				AMAP_GET_BITS(struct amap_get_hsw_resp_context,
+					      spoofchk, &resp->context);
 	}
 
 err:
@@ -3258,7 +3271,7 @@ static bool be_is_wol_excluded(struct be_adapter *adapter)
 {
 	struct pci_dev *pdev = adapter->pdev;
 
-	if (!be_physfn(adapter))
+	if (be_virtfn(adapter))
 		return true;
 
 	switch (pdev->subsystem_device) {

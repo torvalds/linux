@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 - 2014 Emulex
+ * Copyright (C) 2005 - 2015 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -35,7 +35,7 @@
 #include "be_hw.h"
 #include "be_roce.h"
 
-#define DRV_VER			"10.6.0.1"
+#define DRV_VER			"10.6.0.2"
 #define DRV_NAME		"be2net"
 #define BE_NAME			"Emulex BladeEngine2"
 #define BE3_NAME		"Emulex BladeEngine3"
@@ -366,6 +366,7 @@ struct be_vf_cfg {
 	u32 tx_rate;
 	u32 plink_tracking;
 	u32 privileges;
+	bool spoofchk;
 };
 
 enum vf_state {
@@ -804,6 +805,7 @@ bool be_pause_supported(struct be_adapter *adapter);
 u32 be_get_fw_log_level(struct be_adapter *adapter);
 int be_update_queues(struct be_adapter *adapter);
 int be_poll(struct napi_struct *napi, int budget);
+void be_eqd_update(struct be_adapter *adapter, bool force_update);
 
 /*
  * internal function to initialize-cleanup roce device.
