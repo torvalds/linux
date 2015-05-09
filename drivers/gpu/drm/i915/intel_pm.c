@@ -1946,7 +1946,7 @@ static void intel_fixup_cur_wm_latency(struct drm_device *dev, uint16_t wm[5])
 int ilk_wm_max_level(const struct drm_device *dev)
 {
 	/* how many WM levels are we expecting */
-	if (IS_GEN9(dev))
+	if (INTEL_INFO(dev)->gen >= 9)
 		return 7;
 	else if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		return 4;
