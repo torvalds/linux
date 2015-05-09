@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Freescale Semiconductor, Inc.
+ * Copyright 2012-2015 Freescale Semiconductor, Inc.
  *
  * The code contained herein is licensed under the GNU General Public
  * License. You may obtain a copy of the GNU General Public License
@@ -160,7 +160,7 @@ static int usbmisc_imx27_init(struct imx_usbmisc_data *data)
 		break;
 	default:
 		return -EINVAL;
-	};
+	}
 
 	spin_lock_irqsave(&usbmisc->lock, flags);
 	if (data->disable_oc)
