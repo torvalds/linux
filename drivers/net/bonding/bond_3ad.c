@@ -75,10 +75,10 @@
 /* Port Key definitions
  * key is determined according to the link speed, duplex and
  * user key (which is yet not supported)
- * --------------------------------------------------------------
- * Port key :	| User key	| Speed		| Duplex	|
- * --------------------------------------------------------------
- * 16		  6		  1		  0
+ *           --------------------------------------------------------------
+ * Port key  | User key (10 bits)           | Speed (5 bits)      | Duplex|
+ *           --------------------------------------------------------------
+ *           |15                           6|5                   1|0
  */
 #define  AD_DUPLEX_KEY_MASKS    0x1
 #define  AD_SPEED_KEY_MASKS     0x3E
@@ -1951,10 +1951,10 @@ void bond_3ad_bind_slave(struct slave *slave)
 
 		port->slave = slave;
 		port->actor_port_number = SLAVE_AD_INFO(slave)->id;
-		/* key is determined according to the link speed, duplex and user key(which
-		 * is yet not supported)
+		/* key is determined according to the link speed, duplex and
+		 * user key
 		 */
-		port->actor_admin_port_key = 0;
+		port->actor_admin_port_key = bond->params.ad_user_port_key << 6;
 		port->actor_admin_port_key |= __get_duplex(port);
 		port->actor_admin_port_key |= (__get_link_speed(port) << 1);
 		port->actor_oper_port_key = port->actor_admin_port_key;
