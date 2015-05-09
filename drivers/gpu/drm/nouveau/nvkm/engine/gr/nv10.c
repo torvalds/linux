@@ -845,7 +845,7 @@ nv10_gr_ctx_regs_find_offset(struct nv10_gr_priv *priv, int reg)
 		if (nv10_gr_ctx_regs[i] == reg)
 			return i;
 	}
-	nv_error(priv, "unknow offset nv10_ctx_regs %d\n", reg);
+	nv_error(priv, "unknown offset nv10_ctx_regs %d\n", reg);
 	return -1;
 }
 
@@ -857,7 +857,7 @@ nv17_gr_ctx_regs_find_offset(struct nv10_gr_priv *priv, int reg)
 		if (nv17_gr_ctx_regs[i] == reg)
 			return i;
 	}
-	nv_error(priv, "unknow offset nv17_ctx_regs %d\n", reg);
+	nv_error(priv, "unknown offset nv17_ctx_regs %d\n", reg);
 	return -1;
 }
 
