@@ -903,7 +903,8 @@ sdhci_esdhc_imx_probe_dt(struct platform_device *pdev,
 
 	mmc_of_parse_voltage(np, &host->ocr_mask);
 
-	return 0;
+	/* call to generic mmc_of_parse to support additional capabilities */
+	return mmc_of_parse(host->mmc);
 }
 #else
 static inline int
@@ -1047,11 +1048,6 @@ static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 	} else {
 		host->quirks2 |= SDHCI_QUIRK2_NO_1_8_V;
 	}
-
-	/* call to generic mmc_of_parse to support additional capabilities */
-	err = mmc_of_parse(host->mmc);
-	if (err)
-		goto disable_clk;
 
 	err = sdhci_add_host(host);
 	if (err)
