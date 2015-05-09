@@ -4106,14 +4106,7 @@ static void valleyview_set_rps(struct drm_device *dev, u8 val)
 */
 static void vlv_set_rps_idle(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = dev_priv->dev;
 	u32 val = dev_priv->rps.idle_freq;
-
-	/* CHV don't need to force the gfx clock */
-	if (IS_CHERRYVIEW(dev)) {
-		valleyview_set_rps(dev_priv->dev, val);
-		return;
-	}
 
 	if (dev_priv->rps.cur_freq <= val)
 		return;
