@@ -3115,7 +3115,7 @@ static void skylake_update_primary_plane(struct drm_crtc *crtc,
 
 	if (intel_rotation_90_or_270(rotation)) {
 		/* stride = Surface height in tiles */
-		tile_height = intel_tile_height(dev, fb->bits_per_pixel,
+		tile_height = intel_tile_height(dev, fb->pixel_format,
 						fb->modifier[0]);
 		stride = DIV_ROUND_UP(fb->height, tile_height);
 		x_offset = stride * tile_height - y - src_h;
