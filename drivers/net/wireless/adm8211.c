@@ -1353,12 +1353,7 @@ static void adm8211_configure_filter(struct ieee80211_hw *dev,
 
 	new_flags = 0;
 
-	if (*total_flags & FIF_PROMISC_IN_BSS) {
-		new_flags |= FIF_PROMISC_IN_BSS;
-		priv->nar |= ADM8211_NAR_PR;
-		priv->nar &= ~ADM8211_NAR_MM;
-		mc_filter[1] = mc_filter[0] = ~0;
-	} else if (*total_flags & FIF_ALLMULTI || multicast == ~(0ULL)) {
+	if (*total_flags & FIF_ALLMULTI || multicast == ~(0ULL)) {
 		new_flags |= FIF_ALLMULTI;
 		priv->nar &= ~ADM8211_NAR_PR;
 		priv->nar |= ADM8211_NAR_MM;

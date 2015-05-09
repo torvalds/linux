@@ -763,8 +763,7 @@ static u64 wl1251_op_prepare_multicast(struct ieee80211_hw *hw,
 	return (u64)(unsigned long)fp;
 }
 
-#define WL1251_SUPPORTED_FILTERS (FIF_PROMISC_IN_BSS | \
-				  FIF_ALLMULTI | \
+#define WL1251_SUPPORTED_FILTERS (FIF_ALLMULTI | \
 				  FIF_FCSFAIL | \
 				  FIF_BCN_PRBRESP_PROMISC | \
 				  FIF_CONTROL | \
@@ -795,10 +794,6 @@ static void wl1251_op_configure_filter(struct ieee80211_hw *hw,
 	wl->rx_config = WL1251_DEFAULT_RX_CONFIG;
 	wl->rx_filter = WL1251_DEFAULT_RX_FILTER;
 
-	if (*total & FIF_PROMISC_IN_BSS) {
-		wl->rx_config |= CFG_BSSID_FILTER_EN;
-		wl->rx_config |= CFG_RX_ALL_GOOD;
-	}
 	if (*total & FIF_ALLMULTI)
 		/*
 		 * CFG_MC_FILTER_EN in rx_config needs to be 0 to receive
@@ -825,7 +820,7 @@ static void wl1251_op_configure_filter(struct ieee80211_hw *hw,
 	if (ret < 0)
 		goto out;
 
-	if (*total & FIF_ALLMULTI || *total & FIF_PROMISC_IN_BSS)
+	if (*total & FIF_ALLMULTI)
 		ret = wl1251_acx_group_address_tbl(wl, false, NULL, 0);
 	else if (fp)
 		ret = wl1251_acx_group_address_tbl(wl, fp->enabled,

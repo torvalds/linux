@@ -1280,7 +1280,6 @@ struct ath5k_hw {
 
 	DECLARE_BITMAP(status, 4);
 #define ATH_STAT_INVALID	0		/* disable hardware accesses */
-#define ATH_STAT_PROMISC	1
 #define ATH_STAT_LEDSOFT	2		/* enable LED gpio status */
 #define ATH_STAT_STARTED	3		/* opened & irqs enabled */
 #define ATH_STAT_RESET		4		/* hw reset */

@@ -369,7 +369,7 @@ ath5k_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 		       unsigned int *new_flags, u64 multicast)
 {
 #define SUPPORTED_FIF_FLAGS \
-	(FIF_PROMISC_IN_BSS |  FIF_ALLMULTI | FIF_FCSFAIL | \
+	(FIF_ALLMULTI | FIF_FCSFAIL | \
 	FIF_PLCPFAIL | FIF_CONTROL | FIF_OTHER_BSS | \
 	FIF_BCN_PRBRESP_PROMISC)
 
@@ -393,16 +393,6 @@ ath5k_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 		(AR5K_RX_FILTER_UCAST | AR5K_RX_FILTER_BCAST |
 		AR5K_RX_FILTER_MCAST);
 
-	if (changed_flags & (FIF_PROMISC_IN_BSS | FIF_OTHER_BSS)) {
-		if (*new_flags & FIF_PROMISC_IN_BSS)
-			__set_bit(ATH_STAT_PROMISC, ah->status);
-		else
-			__clear_bit(ATH_STAT_PROMISC, ah->status);
-	}
-
-	if (test_bit(ATH_STAT_PROMISC, ah->status))
-		rfilt |= AR5K_RX_FILTER_PROM;
-
 	/* Note, AR5K_RX_FILTER_MCAST is already enabled */
 	if (*new_flags & FIF_ALLMULTI) {
 		mfilt[0] =  ~0;
@@ -418,8 +408,7 @@ ath5k_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 	if ((*new_flags & FIF_BCN_PRBRESP_PROMISC) || (ah->nvifs > 1))
 		rfilt |= AR5K_RX_FILTER_BEACON;
 
-	/* FIF_CONTROL doc says that if FIF_PROMISC_IN_BSS is not
-	 * set we should only pass on control frames for this
+	/* FIF_CONTROL doc says we should only pass on control frames for this
 	 * station. This needs testing. I believe right now this
 	 * enables *all* control frames, which is OK.. but
 	 * but we should see if we can improve on granularity */
@@ -809,7 +798,6 @@ const struct ieee80211_ops ath5k_hw_ops = {
 	.sw_scan_start		= ath5k_sw_scan_start,
 	.sw_scan_complete	= ath5k_sw_scan_complete,
 	.get_stats		= ath5k_get_stats,
-	/* .get_tkip_seq	= not implemented */
 	/* .set_frag_threshold	= not implemented */
 	/* .set_rts_threshold	= not implemented */
 	/* .sta_add		= not implemented */

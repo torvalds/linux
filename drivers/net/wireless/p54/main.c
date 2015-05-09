@@ -395,13 +395,11 @@ static void p54_configure_filter(struct ieee80211_hw *dev,
 {
 	struct p54_common *priv = dev->priv;
 
-	*total_flags &= FIF_PROMISC_IN_BSS |
-			FIF_ALLMULTI |
-			FIF_OTHER_BSS;
+	*total_flags &= FIF_ALLMULTI | FIF_OTHER_BSS;
 
 	priv->filter_flags = *total_flags;
 
-	if (changed_flags & (FIF_PROMISC_IN_BSS | FIF_OTHER_BSS))
+	if (changed_flags & FIF_OTHER_BSS)
 		p54_setup_mac(priv);
 
 	if (changed_flags & FIF_ALLMULTI || multicast)
