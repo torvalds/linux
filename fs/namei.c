@@ -3233,7 +3233,7 @@ static struct file *path_openat(int dfd, struct filename *pathname,
 
 	if (unlikely(file->f_flags & __O_TMPFILE)) {
 		error = do_tmpfile(dfd, pathname, nd, flags, op, file, &opened);
-		goto out;
+		goto out2;
 	}
 
 	error = path_init(dfd, pathname, flags, nd);
@@ -3263,6 +3263,7 @@ static struct file *path_openat(int dfd, struct filename *pathname,
 	}
 out:
 	path_cleanup(nd);
+out2:
 	if (!(opened & FILE_OPENED)) {
 		BUG_ON(!error);
 		put_filp(file);
