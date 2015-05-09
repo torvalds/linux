@@ -444,6 +444,12 @@ static int rk3288_lcdc_post_cfg(struct rk_lcdc_driver *dev_drv)
 	u16 post_dsp_vact_st_f1,post_dsp_vact_end_f1;
 	u16 post_h_fac,post_v_fac;
 
+	screen->post_dsp_stx = x_res * (100 - dev_drv->overscan.left) / 200;
+	screen->post_dsp_sty = y_res * (100 - dev_drv->overscan.top) / 200;
+	screen->post_xsize = x_res *
+	    (dev_drv->overscan.left + dev_drv->overscan.right) / 200;
+	screen->post_ysize = y_res *
+	    (dev_drv->overscan.top + dev_drv->overscan.bottom) / 200;
 	h_total = screen->mode.hsync_len+screen->mode.left_margin +
 		  x_res + screen->mode.right_margin;
 	v_total = screen->mode.vsync_len+screen->mode.upper_margin +
@@ -1026,6 +1032,11 @@ static int rk3288_lcdc_mmu_en(struct rk_lcdc_driver *dev_drv)
 	u32 mask,val;
 	struct lcdc_device *lcdc_dev =
 	    container_of(dev_drv, struct lcdc_device, driver);
+
+	if (unlikely(!lcdc_dev->clk_on)) {
+		pr_info("%s,clk_on = %d\n", __func__, lcdc_dev->clk_on);
+		return 0;
+	}
 	spin_lock(&lcdc_dev->reg_lock);
 	if (likely(lcdc_dev->clk_on)) {
 		mask = m_MMU_EN;
@@ -1127,6 +1138,10 @@ static int rk3288_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 	u16 y_res = screen->mode.yres;
 	u32 mask, val;
 	u16 h_total,v_total;
+	if (unlikely(!lcdc_dev->clk_on)) {
+		pr_info("%s,clk_on = %d\n", __func__, lcdc_dev->clk_on);
+		return 0;
+	}
 	
 	h_total = hsync_len + left_margin  + x_res + right_margin;
 	v_total = vsync_len + upper_margin + y_res + lower_margin;
@@ -3663,6 +3678,23 @@ static int rk3288_lcdc_set_bcsh(struct rk_lcdc_driver *dev_drv,
 	return 0;
 }
 
+static int rk3288_lcdc_set_overscan(struct rk_lcdc_driver *dev_drv,
+				    struct overscan *overscan)
+{
+	struct lcdc_device *lcdc_dev =
+	    container_of(dev_drv, struct lcdc_device, driver);
+
+	if (unlikely(!lcdc_dev->clk_on)) {
+		pr_info("%s,clk_on = %d\n", __func__, lcdc_dev->clk_on);
+		return 0;
+	}
+	printk("%s,overscan=%d:%d,%d,%d\n", __func__,overscan->top,overscan->bottom,
+				overscan->left,overscan->right);
+        rk3288_lcdc_post_cfg(dev_drv);
+
+        return 0;
+}
+
 static struct rk_lcdc_win lcdc_win[] = {
 	[0] = {
 	       .name = "win0",
@@ -3722,6 +3754,8 @@ static struct rk_lcdc_drv_ops lcdc_drv_ops = {
 	.dump_reg 		= rk3288_lcdc_reg_dump,
 	.cfg_done		= rk3288_lcdc_config_done,
 	.set_irq_to_cpu  	= rk3288_lcdc_set_irq_to_cpu,
+	.set_overscan   	= rk3288_lcdc_set_overscan,
+
 };
 
 #ifdef LCDC_IRQ_DEBUG
