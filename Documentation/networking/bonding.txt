@@ -187,6 +187,18 @@ ad_actor_sys_prio
 	This parameter has effect only in 802.3ad mode and is available through
 	SysFs interface.
 
+ad_actor_system
+
+	In an AD system, this specifies the mac-address for the actor in
+	protocol packet exchanges (LACPDUs). The value cannot be NULL or
+	multicast. It is preferred to have the local-admin bit set for this
+	mac but driver does not enforce it. If the value is not given then
+	system defaults to using the masters' mac address as actors' system
+	address.
+
+	This parameter has effect only in 802.3ad mode and is available through
+	SysFs interface.
+
 ad_select
 
 	Specifies the 802.3ad aggregation selection logic to use.  The

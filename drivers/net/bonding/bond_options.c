@@ -72,6 +72,8 @@ static int bond_option_tlb_dynamic_lb_set(struct bonding *bond,
 				  const struct bond_opt_value *newval);
 static int bond_option_ad_actor_sys_prio_set(struct bonding *bond,
 					     const struct bond_opt_value *newval);
+static int bond_option_ad_actor_system_set(struct bonding *bond,
+					   const struct bond_opt_value *newval);
 
 
 static const struct bond_opt_value bond_mode_tbl[] = {
@@ -395,6 +397,13 @@ static const struct bond_option bond_opts[BOND_OPT_LAST] = {
 		.flags = BOND_OPTFLAG_IFDOWN,
 		.values = bond_ad_actor_sys_prio_tbl,
 		.set = bond_option_ad_actor_sys_prio_set,
+	},
+	[BOND_OPT_AD_ACTOR_SYSTEM] = {
+		.id = BOND_OPT_AD_ACTOR_SYSTEM,
+		.name = "ad_actor_system",
+		.unsuppmodes = BOND_MODE_ALL_EX(BIT(BOND_MODE_8023AD)),
+		.flags = BOND_OPTFLAG_RAWVAL | BOND_OPTFLAG_IFDOWN,
+		.set = bond_option_ad_actor_system_set,
 	},
 };
 
@@ -1373,5 +1382,23 @@ static int bond_option_ad_actor_sys_prio_set(struct bonding *bond,
 		    newval->value);
 
 	bond->params.ad_actor_sys_prio = newval->value;
+	return 0;
+}
+
+static int bond_option_ad_actor_system_set(struct bonding *bond,
+					   const struct bond_opt_value *newval)
+{
+	u8 macaddr[ETH_ALEN];
+	int i;
+
+	i = sscanf(newval->string, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
+		   &macaddr[0], &macaddr[1], &macaddr[2],
+		   &macaddr[3], &macaddr[4], &macaddr[5]);
+	if (i != ETH_ALEN || !is_valid_ether_addr(macaddr)) {
+		netdev_err(bond->dev, "Invalid MAC address.\n");
+		return -EINVAL;
+	}
+
+	ether_addr_copy(bond->params.ad_actor_system, macaddr);
 	return 0;
 }
