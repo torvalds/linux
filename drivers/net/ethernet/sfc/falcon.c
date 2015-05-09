@@ -477,16 +477,29 @@ static irqreturn_t falcon_legacy_interrupt_a1(int irq, void *dev_id)
  *
  **************************************************************************
  */
+static int dummy_rx_push_rss_config(struct efx_nic *efx, bool user,
+				    const u32 *rx_indir_table)
+{
+	(void) efx;
+	(void) user;
+	(void) rx_indir_table;
+	return -ENOSYS;
+}
 
-static void falcon_b0_rx_push_rss_config(struct efx_nic *efx)
+static int falcon_b0_rx_push_rss_config(struct efx_nic *efx, bool user,
+					const u32 *rx_indir_table)
 {
 	efx_oword_t temp;
 
+	(void) user;
 	/* Set hash key for IPv4 */
 	memcpy(&temp, efx->rx_hash_key, sizeof(temp));
 	efx_writeo(efx, &temp, FR_BZ_RX_RSS_TKEY);
 
+	memcpy(efx->rx_indir_table, rx_indir_table,
+	       sizeof(efx->rx_indir_table));
 	efx_farch_rx_push_indir_table(efx);
+	return 0;
 }
 
 /**************************************************************************
@@ -2507,7 +2520,7 @@ static int falcon_init_nic(struct efx_nic *efx)
 	falcon_init_rx_cfg(efx);
 
 	if (efx_nic_rev(efx) >= EFX_REV_FALCON_B0) {
-		falcon_b0_rx_push_rss_config(efx);
+		falcon_b0_rx_push_rss_config(efx, false, efx->rx_indir_table);
 
 		/* Set destination of both TX and RX Flush events */
 		EFX_POPULATE_OWORD_1(temp, FRF_BZ_FLS_EVQ_ID, 0);
@@ -2687,6 +2700,8 @@ static int falcon_set_wol(struct efx_nic *efx, u32 type)
  */
 
 const struct efx_nic_type falcon_a1_nic_type = {
+	.is_vf = false,
+	.mem_bar = EFX_MEM_BAR,
 	.mem_map_size = falcon_a1_mem_map_size,
 	.probe = falcon_probe_nic,
 	.remove = falcon_remove_nic,
@@ -2729,7 +2744,7 @@ const struct efx_nic_type falcon_a1_nic_type = {
 	.tx_init = efx_farch_tx_init,
 	.tx_remove = efx_farch_tx_remove,
 	.tx_write = efx_farch_tx_write,
-	.rx_push_rss_config = efx_port_dummy_op_void,
+	.rx_push_rss_config = dummy_rx_push_rss_config,
 	.rx_probe = efx_farch_rx_probe,
 	.rx_init = efx_farch_rx_init,
 	.rx_remove = efx_farch_rx_remove,
@@ -2766,11 +2781,6 @@ const struct efx_nic_type falcon_a1_nic_type = {
 	.mtd_write = falcon_mtd_write,
 	.mtd_sync = falcon_mtd_sync,
 #endif
-	.sriov_init = efx_falcon_sriov_init,
-	.sriov_fini = efx_falcon_sriov_fini,
-	.sriov_mac_address_changed = efx_falcon_sriov_mac_address_changed,
-	.sriov_wanted = efx_falcon_sriov_wanted,
-	.sriov_reset = efx_falcon_sriov_reset,
 
 	.revision = EFX_REV_FALCON_A1,
 	.txd_ptr_tbl_base = FR_AA_TX_DESC_PTR_TBL_KER,
@@ -2788,6 +2798,8 @@ const struct efx_nic_type falcon_a1_nic_type = {
 };
 
 const struct efx_nic_type falcon_b0_nic_type = {
+	.is_vf = false,
+	.mem_bar = EFX_MEM_BAR,
 	.mem_map_size = falcon_b0_mem_map_size,
 	.probe = falcon_probe_nic,
 	.remove = falcon_remove_nic,
@@ -2867,11 +2879,6 @@ const struct efx_nic_type falcon_b0_nic_type = {
 	.mtd_write = falcon_mtd_write,
 	.mtd_sync = falcon_mtd_sync,
 #endif
-	.sriov_init = efx_falcon_sriov_init,
-	.sriov_fini = efx_falcon_sriov_fini,
-	.sriov_mac_address_changed = efx_falcon_sriov_mac_address_changed,
-	.sriov_wanted = efx_falcon_sriov_wanted,
-	.sriov_reset = efx_falcon_sriov_reset,
 
 	.revision = EFX_REV_FALCON_B0,
 	.txd_ptr_tbl_base = FR_BZ_TX_DESC_PTR_TBL,

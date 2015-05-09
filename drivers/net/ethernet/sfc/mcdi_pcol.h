@@ -1875,6 +1875,8 @@
 #define          MC_CMD_FW_FULL_FEATURED 0x0
 /* enum: Prefer to use firmware with fewer features but lower latency */
 #define          MC_CMD_FW_LOW_LATENCY 0x1
+/* enum: Only this option is allowed for non-admin functions */
+#define          MC_CMD_FW_DONT_CARE  0xffffffff
 
 /* MC_CMD_DRV_ATTACH_OUT msgresponse */
 #define    MC_CMD_DRV_ATTACH_OUT_LEN 4
@@ -4084,6 +4086,27 @@
 #define          LICENSED_APP_ID_SOLARCAPTURE_PRO  0x4
 #define       LICENSED_APP_ID_ID_LBN 0
 #define       LICENSED_APP_ID_ID_WIDTH 32
+
+
+/***********************************/
+/* MC_CMD_GET_WORKAROUNDS
+ * Read the list of all implemented and all currently enabled workarounds. The
+ * enums here must correspond with those in MC_CMD_WORKAROUND.
+ */
+#define MC_CMD_GET_WORKAROUNDS 0x59
+
+/* MC_CMD_GET_WORKAROUNDS_OUT msgresponse */
+#define    MC_CMD_GET_WORKAROUNDS_OUT_LEN 8
+/* Each workaround is represented by a single bit according to the enums below.
+ */
+#define       MC_CMD_GET_WORKAROUNDS_OUT_IMPLEMENTED_OFST 0
+#define       MC_CMD_GET_WORKAROUNDS_OUT_ENABLED_OFST 4
+/* enum: Bug 17230 work around. */
+#define          MC_CMD_GET_WORKAROUNDS_OUT_BUG17230 0x2
+/* enum: Bug 35388 work around (unsafe EVQ writes). */
+#define          MC_CMD_GET_WORKAROUNDS_OUT_BUG35388 0x4
+/* enum: Bug35017 workaround (A64 tables must be identity map) */
+#define          MC_CMD_GET_WORKAROUNDS_OUT_BUG35017 0x8
 
 
 /***********************************/

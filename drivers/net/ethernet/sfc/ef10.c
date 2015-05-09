@@ -15,6 +15,7 @@
 #include "nic.h"
 #include "workarounds.h"
 #include "selftest.h"
+#include "ef10_sriov.h"
 #include <linux/in.h>
 #include <linux/jhash.h>
 #include <linux/wait.h>
@@ -30,6 +31,9 @@ enum {
 
 /* The reserved RSS context value */
 #define EFX_EF10_RSS_CONTEXT_INVALID	0xffffffff
+/* The maximum size of a shared RSS context */
+/* TODO: this should really be from the mcdi protocol export */
+#define EFX_EF10_MAX_SHARED_RSS_CONTEXT_SIZE 64UL
 
 /* The filter table(s) are managed by firmware and we have write-only
  * access.  When removing filters we must identify them to the
@@ -77,7 +81,6 @@ struct efx_ef10_filter_table {
 /* An arbitrary search limit for the software hash table */
 #define EFX_EF10_FILTER_SEARCH_LIMIT 200
 
-static void efx_ef10_rx_push_rss_config(struct efx_nic *efx);
 static void efx_ef10_rx_free_indir_table(struct efx_nic *efx);
 static void efx_ef10_filter_table_remove(struct efx_nic *efx);
 
@@ -92,7 +95,28 @@ static int efx_ef10_get_warm_boot_count(struct efx_nic *efx)
 
 static unsigned int efx_ef10_mem_map_size(struct efx_nic *efx)
 {
-	return resource_size(&efx->pci_dev->resource[EFX_MEM_BAR]);
+	int bar;
+
+	bar = efx->type->mem_bar;
+	return resource_size(&efx->pci_dev->resource[bar]);
+}
+
+static int efx_ef10_get_pf_index(struct efx_nic *efx)
+{
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_FUNCTION_INFO_OUT_LEN);
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	size_t outlen;
+	int rc;
+
+	rc = efx_mcdi_rpc(efx, MC_CMD_GET_FUNCTION_INFO, NULL, 0, outbuf,
+			  sizeof(outbuf), &outlen);
+	if (rc)
+		return rc;
+	if (outlen < sizeof(outbuf))
+		return -EIO;
+
+	nic_data->pf_index = MCDI_DWORD(outbuf, GET_FUNCTION_INFO_OUT_PF);
+	return 0;
 }
 
 static int efx_ef10_init_datapath_caps(struct efx_nic *efx)
@@ -116,6 +140,13 @@ static int efx_ef10_init_datapath_caps(struct efx_nic *efx)
 
 	nic_data->datapath_caps =
 		MCDI_DWORD(outbuf, GET_CAPABILITIES_OUT_FLAGS1);
+
+	/* record the DPCPU firmware IDs to determine VEB vswitching support.
+	 */
+	nic_data->rx_dpcpu_fw_id =
+		MCDI_WORD(outbuf, GET_CAPABILITIES_OUT_RX_DPCPU_FW_ID);
+	nic_data->tx_dpcpu_fw_id =
+		MCDI_WORD(outbuf, GET_CAPABILITIES_OUT_TX_DPCPU_FW_ID);
 
 	if (!(nic_data->datapath_caps &
 	      (1 << MC_CMD_GET_CAPABILITIES_OUT_TX_TSO_LBN))) {
@@ -178,7 +209,7 @@ static int efx_ef10_probe(struct efx_nic *efx)
 	efx->max_channels =
 		min_t(unsigned int,
 		      EFX_MAX_CHANNELS,
-		      resource_size(&efx->pci_dev->resource[EFX_MEM_BAR]) /
+		      efx_ef10_mem_map_size(efx) /
 		      (EFX_VI_PAGE_SIZE * EFX_TXQ_TYPES));
 	if (WARN_ON(efx->max_channels == 0))
 		return -EIO;
@@ -209,6 +240,8 @@ static int efx_ef10_probe(struct efx_nic *efx)
 
 	nic_data->rx_rss_context = EFX_EF10_RSS_CONTEXT_INVALID;
 
+	nic_data->vport_id = EVB_PORT_ID_ASSIGNED;
+
 	/* In case we're recovering from a crash (kexec), we want to
 	 * cancel any outstanding request by the previous user of this
 	 * function.  We send a special message using the least
@@ -227,6 +260,10 @@ static int efx_ef10_probe(struct efx_nic *efx)
 
 	/* Enable event logging */
 	rc = efx_mcdi_log_ctrl(efx, true, false, 0);
+	if (rc)
+		goto fail3;
+
+	rc = efx_ef10_get_pf_index(efx);
 	if (rc)
 		goto fail3;
 
@@ -251,10 +288,22 @@ static int efx_ef10_probe(struct efx_nic *efx)
 		goto fail3;
 	efx->timer_quantum_ns = 1536000 / rc; /* 1536 cycles */
 
-	/* Check whether firmware supports bug 35388 workaround */
+	/* Check whether firmware supports bug 35388 workaround.
+	 * First try to enable it, then if we get EPERM, just
+	 * ask if it's already enabled
+	 */
 	rc = efx_mcdi_set_workaround(efx, MC_CMD_WORKAROUND_BUG35388, true);
 	if (rc == 0)
 		nic_data->workaround_35388 = true;
+	else if (rc == -EPERM) {
+		unsigned int enabled;
+
+		rc = efx_mcdi_get_workarounds(efx, NULL, &enabled);
+		if (rc)
+			goto fail3;
+		nic_data->workaround_35388 = enabled &
+			MC_CMD_GET_WORKAROUNDS_OUT_BUG35388;
+	}
 	else if (rc != -ENOSYS && rc != -ENOENT)
 		goto fail3;
 	netif_dbg(efx, probe, efx->net_dev,
@@ -262,7 +311,7 @@ static int efx_ef10_probe(struct efx_nic *efx)
 		  nic_data->workaround_35388 ? "en" : "dis");
 
 	rc = efx_mcdi_mon_probe(efx);
-	if (rc)
+	if (rc && rc != -EPERM)
 		goto fail3;
 
 	efx_ptp_probe(efx, NULL);
@@ -278,6 +327,23 @@ fail1:
 	efx->nic_data = NULL;
 	return rc;
 }
+
+static int efx_ef10_probe_pf(struct efx_nic *efx)
+{
+	return efx_ef10_probe(efx);
+}
+
+#ifdef CONFIG_SFC_SRIOV
+static int efx_ef10_probe_vf(struct efx_nic *efx)
+{
+	return efx_ef10_probe(efx);
+}
+#else
+static int efx_ef10_probe_vf(struct efx_nic *efx __attribute__ ((unused)))
+{
+	return 0;
+}
+#endif
 
 static int efx_ef10_free_vis(struct efx_nic *efx)
 {
@@ -687,7 +753,9 @@ static int efx_ef10_init_nic(struct efx_nic *efx)
 		nic_data->must_restore_piobufs = false;
 	}
 
-	efx_ef10_rx_push_rss_config(efx);
+	/* don't fail init if RSS setup doesn't work */
+	efx->type->rx_push_rss_config(efx, false, efx->rx_indir_table);
+
 	return 0;
 }
 
@@ -1044,6 +1112,14 @@ static void efx_ef10_push_irq_moderation(struct efx_channel *channel)
 	}
 }
 
+static void efx_ef10_get_wol_vf(struct efx_nic *efx,
+				struct ethtool_wolinfo *wol) {}
+
+static int efx_ef10_set_wol_vf(struct efx_nic *efx, u32 type)
+{
+	return -EOPNOTSUPP;
+}
+
 static void efx_ef10_get_wol(struct efx_nic *efx, struct ethtool_wolinfo *wol)
 {
 	wol->supported = 0;
@@ -1122,6 +1198,10 @@ static int efx_ef10_mcdi_poll_reboot(struct efx_nic *efx)
 
 	/* All our allocations have been reset */
 	efx_ef10_reset_mc_allocations(efx);
+
+	/* Driver-created vswitches and vports must be re-created */
+	nic_data->must_probe_vswitching = true;
+	nic_data->vport_id = EVB_PORT_ID_ASSIGNED;
 
 	/* The datapath firmware might have been changed */
 	nic_data->must_check_datapath_caps = true;
@@ -1237,6 +1317,7 @@ static void efx_ef10_tx_init(struct efx_tx_queue *tx_queue)
 	size_t entries = tx_queue->txd.buf.len / EFX_BUF_SIZE;
 	struct efx_channel *channel = tx_queue->channel;
 	struct efx_nic *efx = tx_queue->efx;
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	size_t inlen, outlen;
 	dma_addr_t dma_addr;
 	efx_qword_t *txd;
@@ -1251,7 +1332,7 @@ static void efx_ef10_tx_init(struct efx_tx_queue *tx_queue)
 			      INIT_TXQ_IN_FLAG_IP_CSUM_DIS, !csum_offload,
 			      INIT_TXQ_IN_FLAG_TCP_CSUM_DIS, !csum_offload);
 	MCDI_SET_DWORD(inbuf, INIT_TXQ_IN_OWNER_ID, 0);
-	MCDI_SET_DWORD(inbuf, INIT_TXQ_IN_PORT_ID, EVB_PORT_ID_ASSIGNED);
+	MCDI_SET_DWORD(inbuf, INIT_TXQ_IN_PORT_ID, nic_data->vport_id);
 
 	dma_addr = tx_queue->txd.buf.dma_addr;
 
@@ -1378,19 +1459,33 @@ static void efx_ef10_tx_write(struct efx_tx_queue *tx_queue)
 	}
 }
 
-static int efx_ef10_alloc_rss_context(struct efx_nic *efx, u32 *context)
+static int efx_ef10_alloc_rss_context(struct efx_nic *efx, u32 *context,
+				      bool exclusive, unsigned *context_size)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_RSS_CONTEXT_ALLOC_IN_LEN);
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_RSS_CONTEXT_ALLOC_OUT_LEN);
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	size_t outlen;
 	int rc;
+	u32 alloc_type = exclusive ?
+				MC_CMD_RSS_CONTEXT_ALLOC_IN_TYPE_EXCLUSIVE :
+				MC_CMD_RSS_CONTEXT_ALLOC_IN_TYPE_SHARED;
+	unsigned rss_spread = exclusive ?
+				efx->rss_spread :
+				min(rounddown_pow_of_two(efx->rss_spread),
+				    EFX_EF10_MAX_SHARED_RSS_CONTEXT_SIZE);
+
+	if (!exclusive && rss_spread == 1) {
+		*context = EFX_EF10_RSS_CONTEXT_INVALID;
+		if (context_size)
+			*context_size = 1;
+		return 0;
+	}
 
 	MCDI_SET_DWORD(inbuf, RSS_CONTEXT_ALLOC_IN_UPSTREAM_PORT_ID,
-		       EVB_PORT_ID_ASSIGNED);
-	MCDI_SET_DWORD(inbuf, RSS_CONTEXT_ALLOC_IN_TYPE,
-		       MC_CMD_RSS_CONTEXT_ALLOC_IN_TYPE_EXCLUSIVE);
-	MCDI_SET_DWORD(inbuf, RSS_CONTEXT_ALLOC_IN_NUM_QUEUES,
-		       EFX_MAX_CHANNELS);
+		       nic_data->vport_id);
+	MCDI_SET_DWORD(inbuf, RSS_CONTEXT_ALLOC_IN_TYPE, alloc_type);
+	MCDI_SET_DWORD(inbuf, RSS_CONTEXT_ALLOC_IN_NUM_QUEUES, rss_spread);
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_RSS_CONTEXT_ALLOC, inbuf, sizeof(inbuf),
 		outbuf, sizeof(outbuf), &outlen);
@@ -1401,6 +1496,9 @@ static int efx_ef10_alloc_rss_context(struct efx_nic *efx, u32 *context)
 		return -EIO;
 
 	*context = MCDI_DWORD(outbuf, RSS_CONTEXT_ALLOC_OUT_RSS_CONTEXT_ID);
+
+	if (context_size)
+		*context_size = rss_spread;
 
 	return 0;
 }
@@ -1418,7 +1516,8 @@ static void efx_ef10_free_rss_context(struct efx_nic *efx, u32 context)
 	WARN_ON(rc != 0);
 }
 
-static int efx_ef10_populate_rss_table(struct efx_nic *efx, u32 context)
+static int efx_ef10_populate_rss_table(struct efx_nic *efx, u32 context,
+				       const u32 *rx_indir_table)
 {
 	MCDI_DECLARE_BUF(tablebuf, MC_CMD_RSS_CONTEXT_SET_TABLE_IN_LEN);
 	MCDI_DECLARE_BUF(keybuf, MC_CMD_RSS_CONTEXT_SET_KEY_IN_LEN);
@@ -1432,7 +1531,7 @@ static int efx_ef10_populate_rss_table(struct efx_nic *efx, u32 context)
 	for (i = 0; i < ARRAY_SIZE(efx->rx_indir_table); ++i)
 		MCDI_PTR(tablebuf,
 			 RSS_CONTEXT_SET_TABLE_IN_INDIRECTION_TABLE)[i] =
-				(u8) efx->rx_indir_table[i];
+				(u8) rx_indir_table[i];
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_RSS_CONTEXT_SET_TABLE, tablebuf,
 			  sizeof(tablebuf), NULL, 0, NULL);
@@ -1460,27 +1559,119 @@ static void efx_ef10_rx_free_indir_table(struct efx_nic *efx)
 	nic_data->rx_rss_context = EFX_EF10_RSS_CONTEXT_INVALID;
 }
 
-static void efx_ef10_rx_push_rss_config(struct efx_nic *efx)
+static int efx_ef10_rx_push_shared_rss_config(struct efx_nic *efx,
+					      unsigned *context_size)
+{
+	u32 new_rx_rss_context;
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	int rc = efx_ef10_alloc_rss_context(efx, &new_rx_rss_context,
+					    false, context_size);
+
+	if (rc != 0)
+		return rc;
+
+	nic_data->rx_rss_context = new_rx_rss_context;
+	nic_data->rx_rss_context_exclusive = false;
+	efx_set_default_rx_indir_table(efx);
+	return 0;
+}
+
+static int efx_ef10_rx_push_exclusive_rss_config(struct efx_nic *efx,
+						 const u32 *rx_indir_table)
 {
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	int rc;
+	u32 new_rx_rss_context;
 
-	netif_dbg(efx, drv, efx->net_dev, "pushing RSS config\n");
-
-	if (nic_data->rx_rss_context == EFX_EF10_RSS_CONTEXT_INVALID) {
-		rc = efx_ef10_alloc_rss_context(efx, &nic_data->rx_rss_context);
-		if (rc != 0)
-			goto fail;
+	if (nic_data->rx_rss_context == EFX_EF10_RSS_CONTEXT_INVALID ||
+	    !nic_data->rx_rss_context_exclusive) {
+		rc = efx_ef10_alloc_rss_context(efx, &new_rx_rss_context,
+						true, NULL);
+		if (rc == -EOPNOTSUPP)
+			return rc;
+		else if (rc != 0)
+			goto fail1;
+	} else {
+		new_rx_rss_context = nic_data->rx_rss_context;
 	}
 
-	rc = efx_ef10_populate_rss_table(efx, nic_data->rx_rss_context);
+	rc = efx_ef10_populate_rss_table(efx, new_rx_rss_context,
+					 rx_indir_table);
 	if (rc != 0)
-		goto fail;
+		goto fail2;
 
-	return;
+	if (nic_data->rx_rss_context != new_rx_rss_context)
+		efx_ef10_rx_free_indir_table(efx);
+	nic_data->rx_rss_context = new_rx_rss_context;
+	nic_data->rx_rss_context_exclusive = true;
+	if (rx_indir_table != efx->rx_indir_table)
+		memcpy(efx->rx_indir_table, rx_indir_table,
+		       sizeof(efx->rx_indir_table));
+	return 0;
 
-fail:
+fail2:
+	if (new_rx_rss_context != nic_data->rx_rss_context)
+		efx_ef10_free_rss_context(efx, new_rx_rss_context);
+fail1:
 	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
+	return rc;
+}
+
+static int efx_ef10_pf_rx_push_rss_config(struct efx_nic *efx, bool user,
+					  const u32 *rx_indir_table)
+{
+	int rc;
+
+	if (efx->rss_spread == 1)
+		return 0;
+
+	rc = efx_ef10_rx_push_exclusive_rss_config(efx, rx_indir_table);
+
+	if (rc == -ENOBUFS && !user) {
+		unsigned context_size;
+		bool mismatch = false;
+		size_t i;
+
+		for (i = 0; i < ARRAY_SIZE(efx->rx_indir_table) && !mismatch;
+		     i++)
+			mismatch = rx_indir_table[i] !=
+				ethtool_rxfh_indir_default(i, efx->rss_spread);
+
+		rc = efx_ef10_rx_push_shared_rss_config(efx, &context_size);
+		if (rc == 0) {
+			if (context_size != efx->rss_spread)
+				netif_warn(efx, probe, efx->net_dev,
+					   "Could not allocate an exclusive RSS"
+					   " context; allocated a shared one of"
+					   " different size."
+					   " Wanted %u, got %u.\n",
+					   efx->rss_spread, context_size);
+			else if (mismatch)
+				netif_warn(efx, probe, efx->net_dev,
+					   "Could not allocate an exclusive RSS"
+					   " context; allocated a shared one but"
+					   " could not apply custom"
+					   " indirection.\n");
+			else
+				netif_info(efx, probe, efx->net_dev,
+					   "Could not allocate an exclusive RSS"
+					   " context; allocated a shared one.\n");
+		}
+	}
+	return rc;
+}
+
+static int efx_ef10_vf_rx_push_rss_config(struct efx_nic *efx, bool user,
+					  const u32 *rx_indir_table
+					  __attribute__ ((unused)))
+{
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+
+	if (user)
+		return -EOPNOTSUPP;
+	if (nic_data->rx_rss_context != EFX_EF10_RSS_CONTEXT_INVALID)
+		return 0;
+	return efx_ef10_rx_push_shared_rss_config(efx, NULL);
 }
 
 static int efx_ef10_rx_probe(struct efx_rx_queue *rx_queue)
@@ -1500,6 +1691,7 @@ static void efx_ef10_rx_init(struct efx_rx_queue *rx_queue)
 	struct efx_channel *channel = efx_rx_queue_channel(rx_queue);
 	size_t entries = rx_queue->rxd.buf.len / EFX_BUF_SIZE;
 	struct efx_nic *efx = rx_queue->efx;
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	size_t inlen, outlen;
 	dma_addr_t dma_addr;
 	int rc;
@@ -1517,7 +1709,7 @@ static void efx_ef10_rx_init(struct efx_rx_queue *rx_queue)
 			      INIT_RXQ_IN_FLAG_PREFIX, 1,
 			      INIT_RXQ_IN_FLAG_TIMESTAMP, 1);
 	MCDI_SET_DWORD(inbuf, INIT_RXQ_IN_OWNER_ID, 0);
-	MCDI_SET_DWORD(inbuf, INIT_RXQ_IN_PORT_ID, EVB_PORT_ID_ASSIGNED);
+	MCDI_SET_DWORD(inbuf, INIT_RXQ_IN_PORT_ID, nic_data->vport_id);
 
 	dma_addr = rx_queue->rxd.buf.dma_addr;
 
@@ -2286,11 +2478,12 @@ static void efx_ef10_filter_push_prep(struct efx_nic *efx,
 			       match_fields);
 	}
 
-	MCDI_SET_DWORD(inbuf, FILTER_OP_IN_PORT_ID, EVB_PORT_ID_ASSIGNED);
+	MCDI_SET_DWORD(inbuf, FILTER_OP_IN_PORT_ID, nic_data->vport_id);
 	MCDI_SET_DWORD(inbuf, FILTER_OP_IN_RX_DEST,
 		       spec->dmaq_id == EFX_FILTER_RX_DMAQ_ID_DROP ?
 		       MC_CMD_FILTER_OP_IN_RX_DEST_DROP :
 		       MC_CMD_FILTER_OP_IN_RX_DEST_HOST);
+	MCDI_SET_DWORD(inbuf, FILTER_OP_IN_TX_DOMAIN, 0);
 	MCDI_SET_DWORD(inbuf, FILTER_OP_IN_TX_DEST,
 		       MC_CMD_FILTER_OP_IN_TX_DEST_DEFAULT);
 	MCDI_SET_DWORD(inbuf, FILTER_OP_IN_RX_QUEUE,
@@ -3494,6 +3687,9 @@ static void efx_ef10_ptp_write_host_time(struct efx_nic *efx, u32 host_time)
 	_efx_writed(efx, cpu_to_le32(host_time), ER_DZ_MC_DB_LWRD);
 }
 
+static void efx_ef10_ptp_write_host_time_vf(struct efx_nic *efx,
+					    u32 host_time) {}
+
 static int efx_ef10_rx_enable_timestamping(struct efx_channel *channel,
 					   bool temp)
 {
@@ -3571,6 +3767,12 @@ static int efx_ef10_ptp_set_ts_sync_events(struct efx_nic *efx, bool en,
 	return 0;
 }
 
+static int efx_ef10_ptp_set_ts_config_vf(struct efx_nic *efx,
+					 struct hwtstamp_config *init)
+{
+	return -EOPNOTSUPP;
+}
+
 static int efx_ef10_ptp_set_ts_config(struct efx_nic *efx,
 				      struct hwtstamp_config *init)
 {
@@ -3607,9 +3809,109 @@ static int efx_ef10_ptp_set_ts_config(struct efx_nic *efx,
 	}
 }
 
-const struct efx_nic_type efx_hunt_a0_nic_type = {
+const struct efx_nic_type efx_hunt_a0_vf_nic_type = {
+	.is_vf = true,
+	.mem_bar = EFX_MEM_VF_BAR,
 	.mem_map_size = efx_ef10_mem_map_size,
-	.probe = efx_ef10_probe,
+	.probe = efx_ef10_probe_vf,
+	.remove = efx_ef10_remove,
+	.dimension_resources = efx_ef10_dimension_resources,
+	.init = efx_ef10_init_nic,
+	.fini = efx_port_dummy_op_void,
+	.map_reset_reason = efx_mcdi_map_reset_reason,
+	.map_reset_flags = efx_ef10_map_reset_flags,
+	.reset = efx_ef10_reset,
+	.probe_port = efx_mcdi_port_probe,
+	.remove_port = efx_mcdi_port_remove,
+	.fini_dmaq = efx_ef10_fini_dmaq,
+	.prepare_flr = efx_ef10_prepare_flr,
+	.finish_flr = efx_port_dummy_op_void,
+	.describe_stats = efx_ef10_describe_stats,
+	.update_stats = efx_ef10_update_stats,
+	.start_stats = efx_port_dummy_op_void,
+	.pull_stats = efx_port_dummy_op_void,
+	.stop_stats = efx_port_dummy_op_void,
+	.set_id_led = efx_mcdi_set_id_led,
+	.push_irq_moderation = efx_ef10_push_irq_moderation,
+	.reconfigure_mac = efx_ef10_mac_reconfigure,
+	.check_mac_fault = efx_mcdi_mac_check_fault,
+	.reconfigure_port = efx_mcdi_port_reconfigure,
+	.get_wol = efx_ef10_get_wol_vf,
+	.set_wol = efx_ef10_set_wol_vf,
+	.resume_wol = efx_port_dummy_op_void,
+	.mcdi_request = efx_ef10_mcdi_request,
+	.mcdi_poll_response = efx_ef10_mcdi_poll_response,
+	.mcdi_read_response = efx_ef10_mcdi_read_response,
+	.mcdi_poll_reboot = efx_ef10_mcdi_poll_reboot,
+	.irq_enable_master = efx_port_dummy_op_void,
+	.irq_test_generate = efx_ef10_irq_test_generate,
+	.irq_disable_non_ev = efx_port_dummy_op_void,
+	.irq_handle_msi = efx_ef10_msi_interrupt,
+	.irq_handle_legacy = efx_ef10_legacy_interrupt,
+	.tx_probe = efx_ef10_tx_probe,
+	.tx_init = efx_ef10_tx_init,
+	.tx_remove = efx_ef10_tx_remove,
+	.tx_write = efx_ef10_tx_write,
+	.rx_push_rss_config = efx_ef10_vf_rx_push_rss_config,
+	.rx_probe = efx_ef10_rx_probe,
+	.rx_init = efx_ef10_rx_init,
+	.rx_remove = efx_ef10_rx_remove,
+	.rx_write = efx_ef10_rx_write,
+	.rx_defer_refill = efx_ef10_rx_defer_refill,
+	.ev_probe = efx_ef10_ev_probe,
+	.ev_init = efx_ef10_ev_init,
+	.ev_fini = efx_ef10_ev_fini,
+	.ev_remove = efx_ef10_ev_remove,
+	.ev_process = efx_ef10_ev_process,
+	.ev_read_ack = efx_ef10_ev_read_ack,
+	.ev_test_generate = efx_ef10_ev_test_generate,
+	.filter_table_probe = efx_ef10_filter_table_probe,
+	.filter_table_restore = efx_ef10_filter_table_restore,
+	.filter_table_remove = efx_ef10_filter_table_remove,
+	.filter_update_rx_scatter = efx_ef10_filter_update_rx_scatter,
+	.filter_insert = efx_ef10_filter_insert,
+	.filter_remove_safe = efx_ef10_filter_remove_safe,
+	.filter_get_safe = efx_ef10_filter_get_safe,
+	.filter_clear_rx = efx_ef10_filter_clear_rx,
+	.filter_count_rx_used = efx_ef10_filter_count_rx_used,
+	.filter_get_rx_id_limit = efx_ef10_filter_get_rx_id_limit,
+	.filter_get_rx_ids = efx_ef10_filter_get_rx_ids,
+#ifdef CONFIG_RFS_ACCEL
+	.filter_rfs_insert = efx_ef10_filter_rfs_insert,
+	.filter_rfs_expire_one = efx_ef10_filter_rfs_expire_one,
+#endif
+#ifdef CONFIG_SFC_MTD
+	.mtd_probe = efx_port_dummy_op_int,
+#endif
+	.ptp_write_host_time = efx_ef10_ptp_write_host_time_vf,
+	.ptp_set_ts_config = efx_ef10_ptp_set_ts_config_vf,
+#ifdef CONFIG_SFC_SRIOV
+	.vswitching_probe = efx_ef10_vswitching_probe_vf,
+	.vswitching_restore = efx_ef10_vswitching_restore_vf,
+	.vswitching_remove = efx_ef10_vswitching_remove_vf,
+#endif
+	.revision = EFX_REV_HUNT_A0,
+	.max_dma_mask = DMA_BIT_MASK(ESF_DZ_TX_KER_BUF_ADDR_WIDTH),
+	.rx_prefix_size = ES_DZ_RX_PREFIX_SIZE,
+	.rx_hash_offset = ES_DZ_RX_PREFIX_HASH_OFST,
+	.rx_ts_offset = ES_DZ_RX_PREFIX_TSTAMP_OFST,
+	.can_rx_scatter = true,
+	.always_rx_scatter = true,
+	.max_interrupt_mode = EFX_INT_MODE_MSIX,
+	.timer_period_max = 1 << ERF_DD_EVQ_IND_TIMER_VAL_WIDTH,
+	.offload_features = (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
+			     NETIF_F_RXHASH | NETIF_F_NTUPLE),
+	.mcdi_max_ver = 2,
+	.max_rx_ip_filters = HUNT_FILTER_TBL_ROWS,
+	.hwtstamp_filters = 1 << HWTSTAMP_FILTER_NONE |
+			    1 << HWTSTAMP_FILTER_ALL,
+};
+
+const struct efx_nic_type efx_hunt_a0_nic_type = {
+	.is_vf = false,
+	.mem_bar = EFX_MEM_BAR,
+	.mem_map_size = efx_ef10_mem_map_size,
+	.probe = efx_ef10_probe_pf,
 	.remove = efx_ef10_remove,
 	.dimension_resources = efx_ef10_dimension_resources,
 	.init = efx_ef10_init_nic,
@@ -3650,7 +3952,7 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.tx_init = efx_ef10_tx_init,
 	.tx_remove = efx_ef10_tx_remove,
 	.tx_write = efx_ef10_tx_write,
-	.rx_push_rss_config = efx_ef10_rx_push_rss_config,
+	.rx_push_rss_config = efx_ef10_pf_rx_push_rss_config,
 	.rx_probe = efx_ef10_rx_probe,
 	.rx_init = efx_ef10_rx_init,
 	.rx_remove = efx_ef10_rx_remove,
@@ -3689,11 +3991,22 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.ptp_write_host_time = efx_ef10_ptp_write_host_time,
 	.ptp_set_ts_sync_events = efx_ef10_ptp_set_ts_sync_events,
 	.ptp_set_ts_config = efx_ef10_ptp_set_ts_config,
+#ifdef CONFIG_SFC_SRIOV
+	.sriov_configure = efx_ef10_sriov_configure,
 	.sriov_init = efx_ef10_sriov_init,
 	.sriov_fini = efx_ef10_sriov_fini,
 	.sriov_mac_address_changed = efx_ef10_sriov_mac_address_changed,
 	.sriov_wanted = efx_ef10_sriov_wanted,
 	.sriov_reset = efx_ef10_sriov_reset,
+	.sriov_flr = efx_ef10_sriov_flr,
+	.sriov_set_vf_mac = efx_ef10_sriov_set_vf_mac,
+	.sriov_set_vf_vlan = efx_ef10_sriov_set_vf_vlan,
+	.sriov_set_vf_spoofchk = efx_ef10_sriov_set_vf_spoofchk,
+	.sriov_get_vf_config = efx_ef10_sriov_get_vf_config,
+	.vswitching_probe = efx_ef10_vswitching_probe_pf,
+	.vswitching_restore = efx_ef10_vswitching_restore_pf,
+	.vswitching_remove = efx_ef10_vswitching_remove_pf,
+#endif
 
 	.revision = EFX_REV_HUNT_A0,
 	.max_dma_mask = DMA_BIT_MASK(ESF_DZ_TX_KER_BUF_ADDR_WIDTH),

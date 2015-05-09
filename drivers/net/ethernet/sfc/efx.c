@@ -26,6 +26,7 @@
 #include "efx.h"
 #include "nic.h"
 #include "selftest.h"
+#include "sriov.h"
 
 #include "mcdi.h"
 #include "workarounds.h"
@@ -1045,7 +1046,7 @@ static int efx_init_port(struct efx_nic *efx)
 
 	/* Ensure the PHY advertises the correct flow control settings */
 	rc = efx->phy_op->reconfigure(efx);
-	if (rc)
+	if (rc && rc != -EPERM)
 		goto fail2;
 
 	mutex_unlock(&efx->mac_lock);
@@ -1200,9 +1201,11 @@ static int efx_init_io(struct efx_nic *efx)
 	struct pci_dev *pci_dev = efx->pci_dev;
 	dma_addr_t dma_mask = efx->type->max_dma_mask;
 	unsigned int mem_map_size = efx->type->mem_map_size(efx);
-	int rc;
+	int rc, bar;
 
 	netif_dbg(efx, probe, efx->net_dev, "initialising I/O\n");
+
+	bar = efx->type->mem_bar;
 
 	rc = pci_enable_device(pci_dev);
 	if (rc) {
@@ -1234,8 +1237,8 @@ static int efx_init_io(struct efx_nic *efx)
 	netif_dbg(efx, probe, efx->net_dev,
 		  "using DMA mask %llx\n", (unsigned long long) dma_mask);
 
-	efx->membase_phys = pci_resource_start(efx->pci_dev, EFX_MEM_BAR);
-	rc = pci_request_region(pci_dev, EFX_MEM_BAR, "sfc");
+	efx->membase_phys = pci_resource_start(efx->pci_dev, bar);
+	rc = pci_request_region(pci_dev, bar, "sfc");
 	if (rc) {
 		netif_err(efx, probe, efx->net_dev,
 			  "request for memory BAR failed\n");
@@ -1258,7 +1261,7 @@ static int efx_init_io(struct efx_nic *efx)
 	return 0;
 
  fail4:
-	pci_release_region(efx->pci_dev, EFX_MEM_BAR);
+	pci_release_region(efx->pci_dev, bar);
  fail3:
 	efx->membase_phys = 0;
  fail2:
@@ -1269,6 +1272,8 @@ static int efx_init_io(struct efx_nic *efx)
 
 static void efx_fini_io(struct efx_nic *efx)
 {
+	int bar;
+
 	netif_dbg(efx, drv, efx->net_dev, "shutting down I/O\n");
 
 	if (efx->membase) {
@@ -1277,11 +1282,21 @@ static void efx_fini_io(struct efx_nic *efx)
 	}
 
 	if (efx->membase_phys) {
-		pci_release_region(efx->pci_dev, EFX_MEM_BAR);
+		bar = efx->type->mem_bar;
+		pci_release_region(efx->pci_dev, bar);
 		efx->membase_phys = 0;
 	}
 
 	pci_disable_device(efx->pci_dev);
+}
+
+void efx_set_default_rx_indir_table(struct efx_nic *efx)
+{
+	size_t i;
+
+	for (i = 0; i < ARRAY_SIZE(efx->rx_indir_table); i++)
+		efx->rx_indir_table[i] =
+			ethtool_rxfh_indir_default(i, efx->rss_spread);
 }
 
 static unsigned int efx_wanted_parallelism(struct efx_nic *efx)
@@ -1314,15 +1329,19 @@ static unsigned int efx_wanted_parallelism(struct efx_nic *efx)
 	/* If RSS is requested for the PF *and* VFs then we can't write RSS
 	 * table entries that are inaccessible to VFs
 	 */
-	if (efx->type->sriov_wanted(efx) && efx_vf_size(efx) > 1 &&
-	    count > efx_vf_size(efx)) {
-		netif_warn(efx, probe, efx->net_dev,
-			   "Reducing number of RSS channels from %u to %u for "
-			   "VF support. Increase vf-msix-limit to use more "
-			   "channels on the PF.\n",
-			   count, efx_vf_size(efx));
-		count = efx_vf_size(efx);
+#ifdef CONFIG_SFC_SRIOV
+	if (efx->type->sriov_wanted) {
+		if (efx->type->sriov_wanted(efx) && efx_vf_size(efx) > 1 &&
+		    count > efx_vf_size(efx)) {
+			netif_warn(efx, probe, efx->net_dev,
+				   "Reducing number of RSS channels from %u to %u for "
+				   "VF support. Increase vf-msix-limit to use more "
+				   "channels on the PF.\n",
+				   count, efx_vf_size(efx));
+			count = efx_vf_size(efx);
+		}
 	}
+#endif
 
 	return count;
 }
@@ -1426,10 +1445,15 @@ static int efx_probe_interrupts(struct efx_nic *efx)
 	}
 
 	/* RSS might be usable on VFs even if it is disabled on the PF */
-
-	efx->rss_spread = ((efx->n_rx_channels > 1 ||
-			    !efx->type->sriov_wanted(efx)) ?
-			   efx->n_rx_channels : efx_vf_size(efx));
+#ifdef CONFIG_SFC_SRIOV
+	if (efx->type->sriov_wanted) {
+		efx->rss_spread = ((efx->n_rx_channels > 1 ||
+				    !efx->type->sriov_wanted(efx)) ?
+				   efx->n_rx_channels : efx_vf_size(efx));
+		return 0;
+	}
+#endif
+	efx->rss_spread = efx->n_rx_channels;
 
 	return 0;
 }
@@ -1593,7 +1617,6 @@ static void efx_set_channels(struct efx_nic *efx)
 
 static int efx_probe_nic(struct efx_nic *efx)
 {
-	size_t i;
 	int rc;
 
 	netif_dbg(efx, probe, efx->net_dev, "creating NIC\n");
@@ -1616,10 +1639,9 @@ static int efx_probe_nic(struct efx_nic *efx)
 		goto fail2;
 
 	if (efx->n_channels > 1)
-		netdev_rss_key_fill(&efx->rx_hash_key, sizeof(efx->rx_hash_key));
-	for (i = 0; i < ARRAY_SIZE(efx->rx_indir_table); i++)
-		efx->rx_indir_table[i] =
-			ethtool_rxfh_indir_default(i, efx->rss_spread);
+		netdev_rss_key_fill(&efx->rx_hash_key,
+				    sizeof(efx->rx_hash_key));
+	efx_set_default_rx_indir_table(efx);
 
 	netif_set_real_num_tx_queues(efx->net_dev, efx->n_tx_channels);
 	netif_set_real_num_rx_queues(efx->net_dev, efx->n_rx_channels);
@@ -1712,21 +1734,33 @@ static int efx_probe_all(struct efx_nic *efx)
 	}
 	efx->rxq_entries = efx->txq_entries = EFX_DEFAULT_DMAQ_SIZE;
 
+#ifdef CONFIG_SFC_SRIOV
+	rc = efx->type->vswitching_probe(efx);
+	if (rc) /* not fatal; the PF will still work fine */
+		netif_warn(efx, probe, efx->net_dev,
+			   "failed to setup vswitching rc=%d;"
+			   " VFs may not function\n", rc);
+#endif
+
 	rc = efx_probe_filters(efx);
 	if (rc) {
 		netif_err(efx, probe, efx->net_dev,
 			  "failed to create filter tables\n");
-		goto fail3;
+		goto fail4;
 	}
 
 	rc = efx_probe_channels(efx);
 	if (rc)
-		goto fail4;
+		goto fail5;
 
 	return 0;
 
- fail4:
+ fail5:
 	efx_remove_filters(efx);
+ fail4:
+#ifdef CONFIG_SFC_SRIOV
+	efx->type->vswitching_remove(efx);
+#endif
  fail3:
 	efx_remove_port(efx);
  fail2:
@@ -1816,6 +1850,9 @@ static void efx_remove_all(struct efx_nic *efx)
 {
 	efx_remove_channels(efx);
 	efx_remove_filters(efx);
+#ifdef CONFIG_SFC_SRIOV
+	efx->type->vswitching_remove(efx);
+#endif
 	efx_remove_port(efx);
 	efx_remove_nic(efx);
 }
@@ -2168,7 +2205,8 @@ static int efx_set_mac_address(struct net_device *net_dev, void *data)
 	}
 
 	ether_addr_copy(net_dev->dev_addr, new_addr);
-	efx->type->sriov_mac_address_changed(efx);
+	if (efx->type->sriov_mac_address_changed)
+		efx->type->sriov_mac_address_changed(efx);
 
 	/* Reconfigure the MAC */
 	mutex_lock(&efx->mac_lock);
@@ -2199,7 +2237,7 @@ static int efx_set_features(struct net_device *net_dev, netdev_features_t data)
 	return 0;
 }
 
-static const struct net_device_ops efx_farch_netdev_ops = {
+static const struct net_device_ops efx_netdev_ops = {
 	.ndo_open		= efx_net_open,
 	.ndo_stop		= efx_net_stop,
 	.ndo_get_stats64	= efx_net_stats,
@@ -2212,38 +2250,15 @@ static const struct net_device_ops efx_farch_netdev_ops = {
 	.ndo_set_rx_mode	= efx_set_rx_mode,
 	.ndo_set_features	= efx_set_features,
 #ifdef CONFIG_SFC_SRIOV
-	.ndo_set_vf_mac		= efx_siena_sriov_set_vf_mac,
-	.ndo_set_vf_vlan	= efx_siena_sriov_set_vf_vlan,
-	.ndo_set_vf_spoofchk	= efx_siena_sriov_set_vf_spoofchk,
-	.ndo_get_vf_config	= efx_siena_sriov_get_vf_config,
+	.ndo_set_vf_mac		= efx_sriov_set_vf_mac,
+	.ndo_set_vf_vlan	= efx_sriov_set_vf_vlan,
+	.ndo_set_vf_spoofchk	= efx_sriov_set_vf_spoofchk,
+	.ndo_get_vf_config	= efx_sriov_get_vf_config,
 #endif
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = efx_netpoll,
 #endif
 	.ndo_setup_tc		= efx_setup_tc,
-#ifdef CONFIG_NET_RX_BUSY_POLL
-	.ndo_busy_poll		= efx_busy_poll,
-#endif
-#ifdef CONFIG_RFS_ACCEL
-	.ndo_rx_flow_steer	= efx_filter_rfs,
-#endif
-};
-
-static const struct net_device_ops efx_ef10_netdev_ops = {
-	.ndo_open		= efx_net_open,
-	.ndo_stop		= efx_net_stop,
-	.ndo_get_stats64	= efx_net_stats,
-	.ndo_tx_timeout		= efx_watchdog,
-	.ndo_start_xmit		= efx_hard_start_xmit,
-	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_do_ioctl		= efx_ioctl,
-	.ndo_change_mtu		= efx_change_mtu,
-	.ndo_set_mac_address	= efx_set_mac_address,
-	.ndo_set_rx_mode	= efx_set_rx_mode,
-	.ndo_set_features	= efx_set_features,
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	.ndo_poll_controller	= efx_netpoll,
-#endif
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	.ndo_busy_poll		= efx_busy_poll,
 #endif
@@ -2264,8 +2279,7 @@ static int efx_netdev_event(struct notifier_block *this,
 {
 	struct net_device *net_dev = netdev_notifier_info_to_dev(ptr);
 
-	if ((net_dev->netdev_ops == &efx_farch_netdev_ops ||
-	     net_dev->netdev_ops == &efx_ef10_netdev_ops) &&
+	if ((net_dev->netdev_ops == &efx_netdev_ops) &&
 	    event == NETDEV_CHANGENAME)
 		efx_update_name(netdev_priv(net_dev));
 
@@ -2292,12 +2306,9 @@ static int efx_register_netdev(struct efx_nic *efx)
 
 	net_dev->watchdog_timeo = 5 * HZ;
 	net_dev->irq = efx->pci_dev->irq;
-	if (efx_nic_rev(efx) >= EFX_REV_HUNT_A0) {
-		net_dev->netdev_ops = &efx_ef10_netdev_ops;
+	net_dev->netdev_ops = &efx_netdev_ops;
+	if (efx_nic_rev(efx) >= EFX_REV_HUNT_A0)
 		net_dev->priv_flags |= IFF_UNICAST_FLT;
-	} else {
-		net_dev->netdev_ops = &efx_farch_netdev_ops;
-	}
 	net_dev->ethtool_ops = &efx_ethtool_ops;
 	net_dev->gso_max_segs = EFX_TSO_MAX_SEGS;
 
@@ -2426,7 +2437,8 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 		rc = efx->phy_op->init(efx);
 		if (rc)
 			goto fail;
-		if (efx->phy_op->reconfigure(efx))
+		rc = efx->phy_op->reconfigure(efx);
+		if (rc && rc != -EPERM)
 			netif_err(efx, drv, efx->net_dev,
 				  "could not restore PHY settings\n");
 	}
@@ -2434,8 +2446,18 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 	rc = efx_enable_interrupts(efx);
 	if (rc)
 		goto fail;
+
+#ifdef CONFIG_SFC_SRIOV
+	rc = efx->type->vswitching_restore(efx);
+	if (rc) /* not fatal; the PF will still work fine */
+		netif_warn(efx, probe, efx->net_dev,
+			   "failed to restore vswitching rc=%d;"
+			   " VFs may not function\n", rc);
+#endif
+
 	efx_restore_filters(efx);
-	efx->type->sriov_reset(efx);
+	if (efx->type->sriov_reset)
+		efx->type->sriov_reset(efx);
 
 	mutex_unlock(&efx->mac_lock);
 
@@ -2655,6 +2677,8 @@ static const struct pci_device_id efx_pci_table[] = {
 	 .driver_data = (unsigned long) &siena_a0_nic_type},
 	{PCI_DEVICE(PCI_VENDOR_ID_SOLARFLARE, 0x0903),  /* SFC9120 PF */
 	 .driver_data = (unsigned long) &efx_hunt_a0_nic_type},
+	{PCI_DEVICE(PCI_VENDOR_ID_SOLARFLARE, 0x1903),  /* SFC9120 VF */
+	 .driver_data = (unsigned long) &efx_hunt_a0_vf_nic_type},
 	{PCI_DEVICE(PCI_VENDOR_ID_SOLARFLARE, 0x0923),  /* SFC9140 PF */
 	 .driver_data = (unsigned long) &efx_hunt_a0_nic_type},
 	{0}			/* end of list */
@@ -2826,7 +2850,9 @@ static void efx_pci_remove(struct pci_dev *pci_dev)
 	efx_disable_interrupts(efx);
 	rtnl_unlock();
 
-	efx->type->sriov_fini(efx);
+	if (efx->type->sriov_fini)
+		efx->type->sriov_fini(efx);
+
 	efx_unregister_netdev(efx);
 
 	efx_mtd_remove(efx);
@@ -3008,7 +3034,8 @@ static int efx_pci_probe(struct pci_dev *pci_dev,
 	netif_info(efx, probe, efx->net_dev,
 		   "Solarflare NIC detected\n");
 
-	efx_probe_vpd_strings(efx);
+	if (!efx->type->is_vf)
+		efx_probe_vpd_strings(efx);
 
 	/* Set up basic I/O (BAR mappings etc) */
 	rc = efx_init_io(efx);
@@ -3023,10 +3050,12 @@ static int efx_pci_probe(struct pci_dev *pci_dev,
 	if (rc)
 		goto fail4;
 
-	rc = efx->type->sriov_init(efx);
-	if (rc)
-		netif_err(efx, probe, efx->net_dev,
-			  "SR-IOV can't be enabled rc %d\n", rc);
+	if (efx->type->sriov_init) {
+		rc = efx->type->sriov_init(efx);
+		if (rc)
+			netif_err(efx, probe, efx->net_dev,
+				  "SR-IOV can't be enabled rc %d\n", rc);
+	}
 
 	netif_dbg(efx, probe, efx->net_dev, "initialisation successful\n");
 
@@ -3057,6 +3086,26 @@ static int efx_pci_probe(struct pci_dev *pci_dev,
 	free_netdev(net_dev);
 	return rc;
 }
+
+/* efx_pci_sriov_configure returns the actual number of Virtual Functions
+ * enabled on success
+ */
+#ifdef CONFIG_SFC_SRIOV
+static int efx_pci_sriov_configure(struct pci_dev *dev, int num_vfs)
+{
+	int rc;
+	struct efx_nic *efx = pci_get_drvdata(dev);
+
+	if (efx->type->sriov_configure) {
+		rc = efx->type->sriov_configure(efx, num_vfs);
+		if (rc)
+			return rc;
+		else
+			return num_vfs;
+	} else
+		return -EOPNOTSUPP;
+}
+#endif
 
 static int efx_pm_freeze(struct device *dev)
 {
@@ -3280,6 +3329,9 @@ static struct pci_driver efx_pci_driver = {
 	.remove		= efx_pci_remove,
 	.driver.pm	= &efx_pm_ops,
 	.err_handler	= &efx_err_handlers,
+#ifdef CONFIG_SFC_SRIOV
+	.sriov_configure = efx_pci_sriov_configure,
+#endif
 };
 
 /**************************************************************************
@@ -3302,9 +3354,11 @@ static int __init efx_init_module(void)
 	if (rc)
 		goto err_notifier;
 
+#ifdef CONFIG_SFC_SRIOV
 	rc = efx_init_sriov();
 	if (rc)
 		goto err_sriov;
+#endif
 
 	reset_workqueue = create_singlethread_workqueue("sfc_reset");
 	if (!reset_workqueue) {
@@ -3321,8 +3375,10 @@ static int __init efx_init_module(void)
  err_pci:
 	destroy_workqueue(reset_workqueue);
  err_reset:
+#ifdef CONFIG_SFC_SRIOV
 	efx_fini_sriov();
  err_sriov:
+#endif
 	unregister_netdevice_notifier(&efx_netdev_notifier);
  err_notifier:
 	return rc;
@@ -3334,7 +3390,9 @@ static void __exit efx_exit_module(void)
 
 	pci_unregister_driver(&efx_pci_driver);
 	destroy_workqueue(reset_workqueue);
+#ifdef CONFIG_SFC_SRIOV
 	efx_fini_sriov();
+#endif
 	unregister_netdevice_notifier(&efx_netdev_notifier);
 
 }
