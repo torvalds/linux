@@ -554,6 +554,68 @@ static inline int nd_alloc_stack(struct nameidata *nd)
 	return __nd_alloc_stack(nd);
 }
 
+static void drop_links(struct nameidata *nd)
+{
+	int i = nd->depth;
+	while (i--) {
+		struct saved *last = nd->stack + i;
+		struct inode *inode = last->inode;
+		if (last->cookie && inode->i_op->put_link) {
+			inode->i_op->put_link(inode, last->cookie);
+			last->cookie = NULL;
+		}
+	}
+}
+
+static void terminate_walk(struct nameidata *nd)
+{
+	drop_links(nd);
+	if (!(nd->flags & LOOKUP_RCU)) {
+		int i;
+		path_put(&nd->path);
+		for (i = 0; i < nd->depth; i++)
+			path_put(&nd->stack[i].link);
+	} else {
+		nd->flags &= ~LOOKUP_RCU;
+		if (!(nd->flags & LOOKUP_ROOT))
+			nd->root.mnt = NULL;
+		rcu_read_unlock();
+	}
+	nd->depth = 0;
+}
+
+/* path_put is needed afterwards regardless of success or failure */
+static bool legitimize_path(struct nameidata *nd,
+			    struct path *path, unsigned seq)
+{
+	int res = __legitimize_mnt(path->mnt, nd->m_seq);
+	if (unlikely(res)) {
+		if (res > 0)
+			path->mnt = NULL;
+		path->dentry = NULL;
+		return false;
+	}
+	if (unlikely(!lockref_get_not_dead(&path->dentry->d_lockref))) {
+		path->dentry = NULL;
+		return false;
+	}
+	return !read_seqcount_retry(&path->dentry->d_seq, seq);
+}
+
+static bool legitimize_links(struct nameidata *nd)
+{
+	int i;
+	for (i = 0; i < nd->depth; i++) {
+		struct saved *last = nd->stack + i;
+		if (unlikely(!legitimize_path(nd, &last->link, last->seq))) {
+			drop_links(nd);
+			nd->depth = i + 1;
+			return false;
+		}
+	}
+	return true;
+}
+
 /*
  * Path walking has 2 modes, rcu-walk and ref-walk (see
  * Documentation/filesystems/path-lookup.txt).  In situations when we can't
@@ -575,6 +637,8 @@ static inline int nd_alloc_stack(struct nameidata *nd)
  * unlazy_walk attempts to legitimize the current nd->path, nd->root and dentry
  * for ref-walk mode.  @dentry must be a path found by a do_lookup call on
  * @nd or NULL.  Must be called from rcu-walk context.
+ * Nothing should touch nameidata between unlazy_walk() failure and
+ * terminate_walk().
  */
 static int unlazy_walk(struct nameidata *nd, struct dentry *dentry, unsigned seq)
 {
@@ -583,22 +647,13 @@ static int unlazy_walk(struct nameidata *nd, struct dentry *dentry, unsigned seq
 
 	BUG_ON(!(nd->flags & LOOKUP_RCU));
 
-	/*
-	 * After legitimizing the bastards, terminate_walk()
-	 * will do the right thing for non-RCU mode, and all our
-	 * subsequent exit cases should rcu_read_unlock()
-	 * before returning.  Do vfsmount first; if dentry
-	 * can't be legitimized, just set nd->path.dentry to NULL
-	 * and rely on dput(NULL) being a no-op.
-	 */
-	if (!legitimize_mnt(nd->path.mnt, nd->m_seq))
-		return -ECHILD;
 	nd->flags &= ~LOOKUP_RCU;
-
-	if (!lockref_get_not_dead(&parent->d_lockref)) {
-		nd->path.dentry = NULL;	
-		goto out;
-	}
+	if (unlikely(!legitimize_links(nd)))
+		goto out2;
+	if (unlikely(!legitimize_mnt(nd->path.mnt, nd->m_seq)))
+		goto out2;
+	if (unlikely(!lockref_get_not_dead(&parent->d_lockref)))
+		goto out1;
 
 	/*
 	 * For a negative lookup, the lookup sequence point is the parents
@@ -628,8 +683,10 @@ static int unlazy_walk(struct nameidata *nd, struct dentry *dentry, unsigned seq
 	 */
 	if (nd->root.mnt && !(nd->flags & LOOKUP_ROOT)) {
 		spin_lock(&fs->lock);
-		if (nd->root.mnt != fs->root.mnt || nd->root.dentry != fs->root.dentry)
-			goto unlock_and_drop_dentry;
+		if (unlikely(!path_equal(&nd->root, &fs->root))) {
+			spin_unlock(&fs->lock);
+			goto drop_dentry;
+		}
 		path_get(&nd->root);
 		spin_unlock(&fs->lock);
 	}
@@ -637,17 +694,37 @@ static int unlazy_walk(struct nameidata *nd, struct dentry *dentry, unsigned seq
 	rcu_read_unlock();
 	return 0;
 
-unlock_and_drop_dentry:
-	spin_unlock(&fs->lock);
 drop_dentry:
 	rcu_read_unlock();
 	dput(dentry);
 	goto drop_root_mnt;
+out2:
+	nd->path.mnt = NULL;
+out1:
+	nd->path.dentry = NULL;
 out:
 	rcu_read_unlock();
 drop_root_mnt:
 	if (!(nd->flags & LOOKUP_ROOT))
 		nd->root.mnt = NULL;
+	return -ECHILD;
+}
+
+static int unlazy_link(struct nameidata *nd, struct path *link, unsigned seq)
+{
+	if (unlikely(!legitimize_path(nd, link, seq))) {
+		drop_links(nd);
+		nd->depth = 0;
+		nd->flags &= ~LOOKUP_RCU;
+		nd->path.mnt = NULL;
+		nd->path.dentry = NULL;
+		if (!(nd->flags & LOOKUP_ROOT))
+			nd->root.mnt = NULL;
+		rcu_read_unlock();
+	} else if (likely(unlazy_walk(nd, NULL, 0)) == 0) {
+		return 0;
+	}
+	path_put(link);
 	return -ECHILD;
 }
 
@@ -1537,20 +1614,6 @@ static inline int handle_dots(struct nameidata *nd, int type)
 	return 0;
 }
 
-static void terminate_walk(struct nameidata *nd)
-{
-	if (!(nd->flags & LOOKUP_RCU)) {
-		path_put(&nd->path);
-	} else {
-		nd->flags &= ~LOOKUP_RCU;
-		if (!(nd->flags & LOOKUP_ROOT))
-			nd->root.mnt = NULL;
-		rcu_read_unlock();
-	}
-	while (unlikely(nd->depth))
-		put_link(nd);
-}
-
 static int pick_link(struct nameidata *nd, struct path *link,
 		     struct inode *inode, unsigned seq)
 {
@@ -1561,13 +1624,12 @@ static int pick_link(struct nameidata *nd, struct path *link,
 		return -ELOOP;
 	}
 	if (nd->flags & LOOKUP_RCU) {
-		if (unlikely(nd->path.mnt != link->mnt ||
-			     unlazy_walk(nd, link->dentry, seq))) {
+		if (unlikely(unlazy_link(nd, link, seq)))
 			return -ECHILD;
-		}
+	} else {
+		if (link->mnt == nd->path.mnt)
+			mntget(link->mnt);
 	}
-	if (link->mnt == nd->path.mnt)
-		mntget(link->mnt);
 	error = nd_alloc_stack(nd);
 	if (unlikely(error)) {
 		path_put(link);
