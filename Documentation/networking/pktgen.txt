@@ -145,6 +145,7 @@ Examples:
                               UDPCSUM,
                               IPSEC # IPsec encapsulation (needs CONFIG_XFRM)
                               NODE_ALLOC # node specific memory allocation
+                              NO_TIMESTAMP # disable timestamping
 
  pgset spi SPI_VALUE     Set specific SA used to transform packet.
 
@@ -191,6 +192,10 @@ Examples:
 
  pgset "rate 300M"        set rate to 300 Mb/s
  pgset "ratep 1000000"    set rate to 1Mpps
+
+ pgset "xmit_mode netif_receive"  RX inject into stack netif_receive_skb()
+				  Works with "burst" but not with "clone_skb".
+				  Default xmit_mode is "start_xmit".
 
 Sample scripts
 ==============
@@ -287,6 +292,7 @@ flag
   UDPCSUM
   IPSEC
   NODE_ALLOC
+  NO_TIMESTAMP
 
 dst_min
 dst_max
@@ -307,6 +313,9 @@ flowlen
 
 rate
 ratep
+
+xmit_mode <start_xmit|netif_receive>
+
 
 References:
 ftp://robur.slu.se/pub/Linux/net-development/pktgen-testing/
