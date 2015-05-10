@@ -41,7 +41,6 @@
 
 #include <target/target_core_base.h>
 #include <target/target_core_backend.h>
-#include <target/target_core_backend_configfs.h>
 
 #include "target_core_iblock.h"
 
@@ -858,41 +857,6 @@ static bool iblock_get_write_cache(struct se_device *dev)
 	return q->flush_flags & REQ_FLUSH;
 }
 
-DEF_TB_DEFAULT_ATTRIBS(iblock);
-
-static struct configfs_attribute *iblock_backend_dev_attrs[] = {
-	&iblock_dev_attrib_emulate_model_alias.attr,
-	&iblock_dev_attrib_emulate_dpo.attr,
-	&iblock_dev_attrib_emulate_fua_write.attr,
-	&iblock_dev_attrib_emulate_fua_read.attr,
-	&iblock_dev_attrib_emulate_write_cache.attr,
-	&iblock_dev_attrib_emulate_ua_intlck_ctrl.attr,
-	&iblock_dev_attrib_emulate_tas.attr,
-	&iblock_dev_attrib_emulate_tpu.attr,
-	&iblock_dev_attrib_emulate_tpws.attr,
-	&iblock_dev_attrib_emulate_caw.attr,
-	&iblock_dev_attrib_emulate_3pc.attr,
-	&iblock_dev_attrib_pi_prot_type.attr,
-	&iblock_dev_attrib_hw_pi_prot_type.attr,
-	&iblock_dev_attrib_pi_prot_format.attr,
-	&iblock_dev_attrib_enforce_pr_isids.attr,
-	&iblock_dev_attrib_is_nonrot.attr,
-	&iblock_dev_attrib_emulate_rest_reord.attr,
-	&iblock_dev_attrib_force_pr_aptpl.attr,
-	&iblock_dev_attrib_hw_block_size.attr,
-	&iblock_dev_attrib_block_size.attr,
-	&iblock_dev_attrib_hw_max_sectors.attr,
-	&iblock_dev_attrib_optimal_sectors.attr,
-	&iblock_dev_attrib_hw_queue_depth.attr,
-	&iblock_dev_attrib_queue_depth.attr,
-	&iblock_dev_attrib_max_unmap_lba_count.attr,
-	&iblock_dev_attrib_max_unmap_block_desc_count.attr,
-	&iblock_dev_attrib_unmap_granularity.attr,
-	&iblock_dev_attrib_unmap_granularity_alignment.attr,
-	&iblock_dev_attrib_max_write_same_len.attr,
-	NULL,
-};
-
 static const struct target_backend_ops iblock_ops = {
 	.name			= "iblock",
 	.inquiry_prod		= "IBLOCK",
@@ -913,7 +877,7 @@ static const struct target_backend_ops iblock_ops = {
 	.get_io_min		= iblock_get_io_min,
 	.get_io_opt		= iblock_get_io_opt,
 	.get_write_cache	= iblock_get_write_cache,
-	.tb_dev_attrib_attrs	= iblock_backend_dev_attrs,
+	.tb_dev_attrib_attrs	= sbc_attrib_attrs,
 };
 
 static int __init iblock_module_init(void)

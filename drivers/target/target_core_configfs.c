@@ -471,9 +471,178 @@ EXPORT_SYMBOL(target_unregister_template);
 //############################################################################*/
 
 /* Start functions for struct config_item_type tb_dev_attrib_cit */
+#define DEF_TB_DEV_ATTRIB_SHOW(_backend, _name)				\
+static ssize_t _backend##_dev_show_attr_##_name(			\
+	struct se_dev_attrib *da,					\
+	char *page)							\
+{									\
+	return snprintf(page, PAGE_SIZE, "%u\n",			\
+			(u32)da->da_dev->dev_attrib._name);		\
+}
+
+#define DEF_TB_DEV_ATTRIB_STORE(_backend, _name)			\
+static ssize_t _backend##_dev_store_attr_##_name(			\
+	struct se_dev_attrib *da,					\
+	const char *page,						\
+	size_t count)							\
+{									\
+	unsigned long val;						\
+	int ret;							\
+									\
+	ret = kstrtoul(page, 0, &val);					\
+	if (ret < 0) {							\
+		pr_err("kstrtoul() failed with ret: %d\n", ret);	\
+		return -EINVAL;						\
+	}								\
+	ret = se_dev_set_##_name(da->da_dev, (u32)val);			\
+									\
+	return (!ret) ? count : -EINVAL;				\
+}
+
+#define DEF_TB_DEV_ATTRIB(_backend, _name)				\
+DEF_TB_DEV_ATTRIB_SHOW(_backend, _name);				\
+DEF_TB_DEV_ATTRIB_STORE(_backend, _name);
+
+#define DEF_TB_DEV_ATTRIB_RO(_backend, name)				\
+DEF_TB_DEV_ATTRIB_SHOW(_backend, name);
+
+CONFIGFS_EATTR_STRUCT(target_backend_dev_attrib, se_dev_attrib);
+#define TB_DEV_ATTR(_backend, _name, _mode)				\
+static struct target_backend_dev_attrib_attribute _backend##_dev_attrib_##_name = \
+		__CONFIGFS_EATTR(_name, _mode,				\
+		_backend##_dev_show_attr_##_name,			\
+		_backend##_dev_store_attr_##_name);
+
+#define TB_DEV_ATTR_RO(_backend, _name)						\
+static struct target_backend_dev_attrib_attribute _backend##_dev_attrib_##_name = \
+	__CONFIGFS_EATTR_RO(_name,					\
+	_backend##_dev_show_attr_##_name);
+
+DEF_TB_DEV_ATTRIB(target_core, emulate_model_alias);
+DEF_TB_DEV_ATTRIB(target_core, emulate_dpo);
+DEF_TB_DEV_ATTRIB(target_core, emulate_fua_write);
+DEF_TB_DEV_ATTRIB(target_core, emulate_fua_read);
+DEF_TB_DEV_ATTRIB(target_core, emulate_write_cache);
+DEF_TB_DEV_ATTRIB(target_core, emulate_ua_intlck_ctrl);
+DEF_TB_DEV_ATTRIB(target_core, emulate_tas);
+DEF_TB_DEV_ATTRIB(target_core, emulate_tpu);
+DEF_TB_DEV_ATTRIB(target_core, emulate_tpws);
+DEF_TB_DEV_ATTRIB(target_core, emulate_caw);
+DEF_TB_DEV_ATTRIB(target_core, emulate_3pc);
+DEF_TB_DEV_ATTRIB(target_core, pi_prot_type);
+DEF_TB_DEV_ATTRIB_RO(target_core, hw_pi_prot_type);
+DEF_TB_DEV_ATTRIB(target_core, pi_prot_format);
+DEF_TB_DEV_ATTRIB(target_core, enforce_pr_isids);
+DEF_TB_DEV_ATTRIB(target_core, is_nonrot);
+DEF_TB_DEV_ATTRIB(target_core, emulate_rest_reord);
+DEF_TB_DEV_ATTRIB(target_core, force_pr_aptpl);
+DEF_TB_DEV_ATTRIB_RO(target_core, hw_block_size);
+DEF_TB_DEV_ATTRIB(target_core, block_size);
+DEF_TB_DEV_ATTRIB_RO(target_core, hw_max_sectors);
+DEF_TB_DEV_ATTRIB(target_core, optimal_sectors);
+DEF_TB_DEV_ATTRIB_RO(target_core, hw_queue_depth);
+DEF_TB_DEV_ATTRIB(target_core, queue_depth);
+DEF_TB_DEV_ATTRIB(target_core, max_unmap_lba_count);
+DEF_TB_DEV_ATTRIB(target_core, max_unmap_block_desc_count);
+DEF_TB_DEV_ATTRIB(target_core, unmap_granularity);
+DEF_TB_DEV_ATTRIB(target_core, unmap_granularity_alignment);
+DEF_TB_DEV_ATTRIB(target_core, max_write_same_len);
+
+TB_DEV_ATTR(target_core, emulate_model_alias, S_IRUGO | S_IWUSR);
+TB_DEV_ATTR(target_core, emulate_dpo, S_IRUGO | S_IWUSR);
+TB_DEV_ATTR(target_core, emulate_fua_write, S_IRUGO | S_IWUSR);
+TB_DEV_ATTR(target_core, emulate_fua_read, S_IRUGO | S_IWUSR);
+TB_DEV_ATTR(target_core, emulate_write_cache, S_IRUGO | S_IWUSR);
+TB_DEV_ATTR(target_core, emulate_ua_intlck_ctrl, S_IRUGO | S_IWUSR);
+TB_DEV_ATTR(target_core, emulate_tas, S_IRUGO | S_IWUSR);
+TB_DEV_ATTR(target_core, emulate_tpu, S_IRUGO | S_IWUSR);
+TB_DEV_ATTR(target_core, emulate_tpws, S_IRUGO | S_IWUSR);
+TB_DEV_ATTR(target_core, emulate_caw, S_IRUGO | S_IWUSR);
+TB_DEV_ATTR(target_core, emulate_3pc, S_IRUGO | S_IWUSR);
+TB_DEV_ATTR(target_core, pi_prot_type, S_IRUGO | S_IWUSR);
+TB_DEV_ATTR_RO(target_core, hw_pi_prot_type);
+TB_DEV_ATTR(target_core, pi_prot_format, S_IRUGO | S_IWUSR);
+TB_DEV_ATTR(target_core, enforce_pr_isids, S_IRUGO | S_IWUSR);
+TB_DEV_ATTR(target_core, is_nonrot, S_IRUGO | S_IWUSR);
+TB_DEV_ATTR(target_core, emulate_rest_reord, S_IRUGO | S_IWUSR);
+TB_DEV_ATTR(target_core, force_pr_aptpl, S_IRUGO | S_IWUSR)
+TB_DEV_ATTR_RO(target_core, hw_block_size);
+TB_DEV_ATTR(target_core, block_size, S_IRUGO | S_IWUSR)
+TB_DEV_ATTR_RO(target_core, hw_max_sectors);
+TB_DEV_ATTR(target_core, optimal_sectors, S_IRUGO | S_IWUSR);
+TB_DEV_ATTR_RO(target_core, hw_queue_depth);
+TB_DEV_ATTR(target_core, queue_depth, S_IRUGO | S_IWUSR);
+TB_DEV_ATTR(target_core, max_unmap_lba_count, S_IRUGO | S_IWUSR);
+TB_DEV_ATTR(target_core, max_unmap_block_desc_count, S_IRUGO | S_IWUSR);
+TB_DEV_ATTR(target_core, unmap_granularity, S_IRUGO | S_IWUSR);
+TB_DEV_ATTR(target_core, unmap_granularity_alignment, S_IRUGO | S_IWUSR);
+TB_DEV_ATTR(target_core, max_write_same_len, S_IRUGO | S_IWUSR);
 
 CONFIGFS_EATTR_STRUCT(target_core_dev_attrib, se_dev_attrib);
 CONFIGFS_EATTR_OPS(target_core_dev_attrib, se_dev_attrib, da_group);
+
+/*
+ * dev_attrib attributes for devices using the target core SBC/SPC
+ * interpreter.  Any backend using spc_parse_cdb should be using
+ * these.
+ */
+struct configfs_attribute *sbc_attrib_attrs[] = {
+	&target_core_dev_attrib_emulate_model_alias.attr,
+	&target_core_dev_attrib_emulate_dpo.attr,
+	&target_core_dev_attrib_emulate_fua_write.attr,
+	&target_core_dev_attrib_emulate_fua_read.attr,
+	&target_core_dev_attrib_emulate_write_cache.attr,
+	&target_core_dev_attrib_emulate_ua_intlck_ctrl.attr,
+	&target_core_dev_attrib_emulate_tas.attr,
+	&target_core_dev_attrib_emulate_tpu.attr,
+	&target_core_dev_attrib_emulate_tpws.attr,
+	&target_core_dev_attrib_emulate_caw.attr,
+	&target_core_dev_attrib_emulate_3pc.attr,
+	&target_core_dev_attrib_pi_prot_type.attr,
+	&target_core_dev_attrib_hw_pi_prot_type.attr,
+	&target_core_dev_attrib_pi_prot_format.attr,
+	&target_core_dev_attrib_enforce_pr_isids.attr,
+	&target_core_dev_attrib_is_nonrot.attr,
+	&target_core_dev_attrib_emulate_rest_reord.attr,
+	&target_core_dev_attrib_force_pr_aptpl.attr,
+	&target_core_dev_attrib_hw_block_size.attr,
+	&target_core_dev_attrib_block_size.attr,
+	&target_core_dev_attrib_hw_max_sectors.attr,
+	&target_core_dev_attrib_optimal_sectors.attr,
+	&target_core_dev_attrib_hw_queue_depth.attr,
+	&target_core_dev_attrib_queue_depth.attr,
+	&target_core_dev_attrib_max_unmap_lba_count.attr,
+	&target_core_dev_attrib_max_unmap_block_desc_count.attr,
+	&target_core_dev_attrib_unmap_granularity.attr,
+	&target_core_dev_attrib_unmap_granularity_alignment.attr,
+	&target_core_dev_attrib_max_write_same_len.attr,
+	NULL,
+};
+EXPORT_SYMBOL(sbc_attrib_attrs);
+
+DEF_TB_DEV_ATTRIB_RO(target_pt, hw_pi_prot_type);
+DEF_TB_DEV_ATTRIB_RO(target_pt, hw_block_size);
+DEF_TB_DEV_ATTRIB_RO(target_pt, hw_max_sectors);
+DEF_TB_DEV_ATTRIB_RO(target_pt, hw_queue_depth);
+
+TB_DEV_ATTR_RO(target_pt, hw_pi_prot_type);
+TB_DEV_ATTR_RO(target_pt, hw_block_size);
+TB_DEV_ATTR_RO(target_pt, hw_max_sectors);
+TB_DEV_ATTR_RO(target_pt, hw_queue_depth);
+
+/*
+ * Minimal dev_attrib attributes for devices passing through CDBs.
+ * In this case we only provide a few read-only attributes for
+ * backwards compatibility.
+ */
+struct configfs_attribute *passthrough_attrib_attrs[] = {
+	&target_pt_dev_attrib_hw_pi_prot_type.attr,
+	&target_pt_dev_attrib_hw_block_size.attr,
+	&target_pt_dev_attrib_hw_max_sectors.attr,
+	&target_pt_dev_attrib_hw_queue_depth.attr,
+	NULL,
+};
+EXPORT_SYMBOL(passthrough_attrib_attrs);
 
 static struct configfs_item_operations target_core_dev_attrib_ops = {
 	.show_attribute		= target_core_dev_attrib_attr_show,

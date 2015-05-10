@@ -44,7 +44,6 @@
 
 #include <target/target_core_base.h>
 #include <target/target_core_backend.h>
-#include <target/target_core_backend_configfs.h>
 
 #include "target_core_alua.h"
 #include "target_core_internal.h"
@@ -1119,26 +1118,6 @@ static void pscsi_req_done(struct request *req, int uptodate)
 	kfree(pt);
 }
 
-DEF_TB_DEV_ATTRIB_RO(pscsi, hw_pi_prot_type);
-TB_DEV_ATTR_RO(pscsi, hw_pi_prot_type);
-
-DEF_TB_DEV_ATTRIB_RO(pscsi, hw_block_size);
-TB_DEV_ATTR_RO(pscsi, hw_block_size);
-
-DEF_TB_DEV_ATTRIB_RO(pscsi, hw_max_sectors);
-TB_DEV_ATTR_RO(pscsi, hw_max_sectors);
-
-DEF_TB_DEV_ATTRIB_RO(pscsi, hw_queue_depth);
-TB_DEV_ATTR_RO(pscsi, hw_queue_depth);
-
-static struct configfs_attribute *pscsi_backend_dev_attrs[] = {
-	&pscsi_dev_attrib_hw_pi_prot_type.attr,
-	&pscsi_dev_attrib_hw_block_size.attr,
-	&pscsi_dev_attrib_hw_max_sectors.attr,
-	&pscsi_dev_attrib_hw_queue_depth.attr,
-	NULL,
-};
-
 static const struct target_backend_ops pscsi_ops = {
 	.name			= "pscsi",
 	.owner			= THIS_MODULE,
@@ -1155,7 +1134,7 @@ static const struct target_backend_ops pscsi_ops = {
 	.show_configfs_dev_params = pscsi_show_configfs_dev_params,
 	.get_device_type	= pscsi_get_device_type,
 	.get_blocks		= pscsi_get_blocks,
-	.tb_dev_attrib_attrs	= pscsi_backend_dev_attrs,
+	.tb_dev_attrib_attrs	= passthrough_attrib_attrs,
 };
 
 static int __init pscsi_module_init(void)

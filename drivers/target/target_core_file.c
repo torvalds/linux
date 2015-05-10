@@ -37,7 +37,6 @@
 
 #include <target/target_core_base.h>
 #include <target/target_core_backend.h>
-#include <target/target_core_backend_configfs.h>
 
 #include "target_core_file.h"
 
@@ -842,41 +841,6 @@ fd_parse_cdb(struct se_cmd *cmd)
 	return sbc_parse_cdb(cmd, &fd_sbc_ops);
 }
 
-DEF_TB_DEFAULT_ATTRIBS(fileio);
-
-static struct configfs_attribute *fileio_backend_dev_attrs[] = {
-	&fileio_dev_attrib_emulate_model_alias.attr,
-	&fileio_dev_attrib_emulate_dpo.attr,
-	&fileio_dev_attrib_emulate_fua_write.attr,
-	&fileio_dev_attrib_emulate_fua_read.attr,
-	&fileio_dev_attrib_emulate_write_cache.attr,
-	&fileio_dev_attrib_emulate_ua_intlck_ctrl.attr,
-	&fileio_dev_attrib_emulate_tas.attr,
-	&fileio_dev_attrib_emulate_tpu.attr,
-	&fileio_dev_attrib_emulate_tpws.attr,
-	&fileio_dev_attrib_emulate_caw.attr,
-	&fileio_dev_attrib_emulate_3pc.attr,
-	&fileio_dev_attrib_pi_prot_type.attr,
-	&fileio_dev_attrib_hw_pi_prot_type.attr,
-	&fileio_dev_attrib_pi_prot_format.attr,
-	&fileio_dev_attrib_enforce_pr_isids.attr,
-	&fileio_dev_attrib_is_nonrot.attr,
-	&fileio_dev_attrib_emulate_rest_reord.attr,
-	&fileio_dev_attrib_force_pr_aptpl.attr,
-	&fileio_dev_attrib_hw_block_size.attr,
-	&fileio_dev_attrib_block_size.attr,
-	&fileio_dev_attrib_hw_max_sectors.attr,
-	&fileio_dev_attrib_optimal_sectors.attr,
-	&fileio_dev_attrib_hw_queue_depth.attr,
-	&fileio_dev_attrib_queue_depth.attr,
-	&fileio_dev_attrib_max_unmap_lba_count.attr,
-	&fileio_dev_attrib_max_unmap_block_desc_count.attr,
-	&fileio_dev_attrib_unmap_granularity.attr,
-	&fileio_dev_attrib_unmap_granularity_alignment.attr,
-	&fileio_dev_attrib_max_write_same_len.attr,
-	NULL,
-};
-
 static const struct target_backend_ops fileio_ops = {
 	.name			= "fileio",
 	.inquiry_prod		= "FILEIO",
@@ -895,7 +859,7 @@ static const struct target_backend_ops fileio_ops = {
 	.init_prot		= fd_init_prot,
 	.format_prot		= fd_format_prot,
 	.free_prot		= fd_free_prot,
-	.tb_dev_attrib_attrs	= fileio_backend_dev_attrs,
+	.tb_dev_attrib_attrs	= sbc_attrib_attrs,
 };
 
 static int __init fileio_module_init(void)

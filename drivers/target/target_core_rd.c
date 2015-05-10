@@ -34,7 +34,6 @@
 
 #include <target/target_core_base.h>
 #include <target/target_core_backend.h>
-#include <target/target_core_backend_configfs.h>
 
 #include "target_core_rd.h"
 
@@ -696,41 +695,6 @@ rd_parse_cdb(struct se_cmd *cmd)
 	return sbc_parse_cdb(cmd, &rd_sbc_ops);
 }
 
-DEF_TB_DEFAULT_ATTRIBS(rd_mcp);
-
-static struct configfs_attribute *rd_mcp_backend_dev_attrs[] = {
-	&rd_mcp_dev_attrib_emulate_model_alias.attr,
-	&rd_mcp_dev_attrib_emulate_dpo.attr,
-	&rd_mcp_dev_attrib_emulate_fua_write.attr,
-	&rd_mcp_dev_attrib_emulate_fua_read.attr,
-	&rd_mcp_dev_attrib_emulate_write_cache.attr,
-	&rd_mcp_dev_attrib_emulate_ua_intlck_ctrl.attr,
-	&rd_mcp_dev_attrib_emulate_tas.attr,
-	&rd_mcp_dev_attrib_emulate_tpu.attr,
-	&rd_mcp_dev_attrib_emulate_tpws.attr,
-	&rd_mcp_dev_attrib_emulate_caw.attr,
-	&rd_mcp_dev_attrib_emulate_3pc.attr,
-	&rd_mcp_dev_attrib_pi_prot_type.attr,
-	&rd_mcp_dev_attrib_hw_pi_prot_type.attr,
-	&rd_mcp_dev_attrib_pi_prot_format.attr,
-	&rd_mcp_dev_attrib_enforce_pr_isids.attr,
-	&rd_mcp_dev_attrib_is_nonrot.attr,
-	&rd_mcp_dev_attrib_emulate_rest_reord.attr,
-	&rd_mcp_dev_attrib_force_pr_aptpl.attr,
-	&rd_mcp_dev_attrib_hw_block_size.attr,
-	&rd_mcp_dev_attrib_block_size.attr,
-	&rd_mcp_dev_attrib_hw_max_sectors.attr,
-	&rd_mcp_dev_attrib_optimal_sectors.attr,
-	&rd_mcp_dev_attrib_hw_queue_depth.attr,
-	&rd_mcp_dev_attrib_queue_depth.attr,
-	&rd_mcp_dev_attrib_max_unmap_lba_count.attr,
-	&rd_mcp_dev_attrib_max_unmap_block_desc_count.attr,
-	&rd_mcp_dev_attrib_unmap_granularity.attr,
-	&rd_mcp_dev_attrib_unmap_granularity_alignment.attr,
-	&rd_mcp_dev_attrib_max_write_same_len.attr,
-	NULL,
-};
-
 static const struct target_backend_ops rd_mcp_ops = {
 	.name			= "rd_mcp",
 	.inquiry_prod		= "RAMDISK-MCP",
@@ -747,7 +711,7 @@ static const struct target_backend_ops rd_mcp_ops = {
 	.get_blocks		= rd_get_blocks,
 	.init_prot		= rd_init_prot,
 	.free_prot		= rd_free_prot,
-	.tb_dev_attrib_attrs	= rd_mcp_backend_dev_attrs,
+	.tb_dev_attrib_attrs	= sbc_attrib_attrs,
 };
 
 int __init rd_module_init(void)

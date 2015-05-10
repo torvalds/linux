@@ -29,7 +29,6 @@
 #include <target/target_core_base.h>
 #include <target/target_core_fabric.h>
 #include <target/target_core_backend.h>
-#include <target/target_core_backend_configfs.h>
 
 #include <linux/target_core_user.h>
 
@@ -1095,26 +1094,6 @@ tcmu_parse_cdb(struct se_cmd *cmd)
 	return passthrough_parse_cdb(cmd, tcmu_pass_op);
 }
 
-DEF_TB_DEV_ATTRIB_RO(tcmu, hw_pi_prot_type);
-TB_DEV_ATTR_RO(tcmu, hw_pi_prot_type);
-
-DEF_TB_DEV_ATTRIB_RO(tcmu, hw_block_size);
-TB_DEV_ATTR_RO(tcmu, hw_block_size);
-
-DEF_TB_DEV_ATTRIB_RO(tcmu, hw_max_sectors);
-TB_DEV_ATTR_RO(tcmu, hw_max_sectors);
-
-DEF_TB_DEV_ATTRIB_RO(tcmu, hw_queue_depth);
-TB_DEV_ATTR_RO(tcmu, hw_queue_depth);
-
-static struct configfs_attribute *tcmu_backend_dev_attrs[] = {
-	&tcmu_dev_attrib_hw_pi_prot_type.attr,
-	&tcmu_dev_attrib_hw_block_size.attr,
-	&tcmu_dev_attrib_hw_max_sectors.attr,
-	&tcmu_dev_attrib_hw_queue_depth.attr,
-	NULL,
-};
-
 static const struct target_backend_ops tcmu_ops = {
 	.name			= "user",
 	.inquiry_prod		= "USER",
@@ -1131,7 +1110,7 @@ static const struct target_backend_ops tcmu_ops = {
 	.show_configfs_dev_params = tcmu_show_configfs_dev_params,
 	.get_device_type	= sbc_get_device_type,
 	.get_blocks		= tcmu_get_blocks,
-	.tb_dev_attrib_attrs	= tcmu_backend_dev_attrs,
+	.tb_dev_attrib_attrs	= passthrough_attrib_attrs,
 };
 
 static int __init tcmu_module_init(void)
