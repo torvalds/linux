@@ -268,7 +268,8 @@ enum {
        TCA_GRED_STAB,
        TCA_GRED_DPS,
        TCA_GRED_MAX_P,
-	   __TCA_GRED_MAX,
+       TCA_GRED_LIMIT,
+       __TCA_GRED_MAX,
 };
 
 #define TCA_GRED_MAX (__TCA_GRED_MAX - 1)
