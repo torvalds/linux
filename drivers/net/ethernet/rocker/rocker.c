@@ -4221,14 +4221,21 @@ static const struct net_device_ops rocker_port_netdev_ops = {
  * swdev interface
  ********************/
 
-static int rocker_port_switchdev_parent_id_get(struct net_device *dev,
-					       struct netdev_phys_item_id *psid)
+static int rocker_port_attr_get(struct net_device *dev,
+				struct switchdev_attr *attr)
 {
 	struct rocker_port *rocker_port = netdev_priv(dev);
 	struct rocker *rocker = rocker_port->rocker;
 
-	psid->id_len = sizeof(rocker->hw.id);
-	memcpy(&psid->id, &rocker->hw.id, psid->id_len);
+	switch (attr->id) {
+	case SWITCHDEV_ATTR_PORT_PARENT_ID:
+		attr->ppid.id_len = sizeof(rocker->hw.id);
+		memcpy(&attr->ppid.id, &rocker->hw.id, attr->ppid.id_len);
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
 	return 0;
 }
 
@@ -4266,7 +4273,7 @@ static int rocker_port_switchdev_fib_ipv4_del(struct net_device *dev,
 }
 
 static const struct switchdev_ops rocker_port_switchdev_ops = {
-	.switchdev_parent_id_get	= rocker_port_switchdev_parent_id_get,
+	.switchdev_port_attr_get	= rocker_port_attr_get,
 	.switchdev_port_stp_update	= rocker_port_switchdev_port_stp_update,
 	.switchdev_fib_ipv4_add		= rocker_port_switchdev_fib_ipv4_add,
 	.switchdev_fib_ipv4_del		= rocker_port_switchdev_fib_ipv4_del,

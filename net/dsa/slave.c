@@ -382,14 +382,20 @@ static int dsa_slave_bridge_port_leave(struct net_device *dev)
 	return ret;
 }
 
-static int dsa_slave_parent_id_get(struct net_device *dev,
-				   struct netdev_phys_item_id *psid)
+static int dsa_slave_port_attr_get(struct net_device *dev,
+				   struct switchdev_attr *attr)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	struct dsa_switch *ds = p->parent;
 
-	psid->id_len = sizeof(ds->index);
-	memcpy(&psid->id, &ds->index, psid->id_len);
+	switch (attr->id) {
+	case SWITCHDEV_ATTR_PORT_PARENT_ID:
+		attr->ppid.id_len = sizeof(ds->index);
+		memcpy(&attr->ppid.id, &ds->index, attr->ppid.id_len);
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
 
 	return 0;
 }
@@ -676,7 +682,7 @@ static const struct net_device_ops dsa_slave_netdev_ops = {
 };
 
 static const struct switchdev_ops dsa_slave_switchdev_ops = {
-	.switchdev_parent_id_get	= dsa_slave_parent_id_get,
+	.switchdev_port_attr_get	= dsa_slave_port_attr_get,
 	.switchdev_port_stp_update	= dsa_slave_stp_update,
 };
 

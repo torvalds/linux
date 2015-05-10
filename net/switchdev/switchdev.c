@@ -19,24 +19,6 @@
 #include <net/switchdev.h>
 
 /**
- *	switchdev_parent_id_get - Get ID of a switch
- *	@dev: port device
- *	@psid: switch ID
- *
- *	Get ID of a switch this port is part of.
- */
-int switchdev_parent_id_get(struct net_device *dev,
-			    struct netdev_phys_item_id *psid)
-{
-	const struct switchdev_ops *ops = dev->switchdev_ops;
-
-	if (!ops || !ops->switchdev_parent_id_get)
-		return -EOPNOTSUPP;
-	return ops->switchdev_parent_id_get(dev, psid);
-}
-EXPORT_SYMBOL_GPL(switchdev_parent_id_get);
-
-/**
  *	switchdev_port_attr_get - Get port attribute
  *
  *	@dev: port device
@@ -414,11 +396,10 @@ static struct net_device *switchdev_get_lowest_dev(struct net_device *dev)
 	struct list_head *iter;
 
 	/* Recusively search down until we find a sw port dev.
-	 * (A sw port dev supports switchdev_parent_id_get).
+	 * (A sw port dev supports switchdev_port_attr_get).
 	 */
 
-	if (dev->features & NETIF_F_HW_SWITCH_OFFLOAD &&
-	    ops && ops->switchdev_parent_id_get)
+	if (ops && ops->switchdev_port_attr_get)
 		return dev;
 
 	netdev_for_each_lower_dev(dev, lower_dev, iter) {
@@ -432,8 +413,10 @@ static struct net_device *switchdev_get_lowest_dev(struct net_device *dev)
 
 static struct net_device *switchdev_get_dev_by_nhs(struct fib_info *fi)
 {
-	struct netdev_phys_item_id psid;
-	struct netdev_phys_item_id prev_psid;
+	struct switchdev_attr attr = {
+		.id = SWITCHDEV_ATTR_PORT_PARENT_ID,
+	};
+	struct switchdev_attr prev_attr;
 	struct net_device *dev = NULL;
 	int nhsel;
 
@@ -449,17 +432,18 @@ static struct net_device *switchdev_get_dev_by_nhs(struct fib_info *fi)
 		if (!dev)
 			return NULL;
 
-		if (switchdev_parent_id_get(dev, &psid))
+		if (switchdev_port_attr_get(dev, &attr))
 			return NULL;
 
 		if (nhsel > 0) {
-			if (prev_psid.id_len != psid.id_len)
+			if (prev_attr.ppid.id_len != attr.ppid.id_len)
 				return NULL;
-			if (memcmp(prev_psid.id, psid.id, psid.id_len))
+			if (memcmp(prev_attr.ppid.id, attr.ppid.id,
+				   attr.ppid.id_len))
 				return NULL;
 		}
 
-		prev_psid = psid;
+		prev_attr = attr;
 	}
 
 	return dev;

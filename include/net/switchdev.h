@@ -25,22 +25,22 @@ enum switchdev_trans {
 
 enum switchdev_attr_id {
 	SWITCHDEV_ATTR_UNDEFINED,
+	SWITCHDEV_ATTR_PORT_PARENT_ID,
 };
 
 struct switchdev_attr {
 	enum switchdev_attr_id id;
 	enum switchdev_trans trans;
 	u32 flags;
+	union {
+		struct netdev_phys_item_id ppid;	/* PORT_PARENT_ID */
+	};
 };
 
 struct fib_info;
 
 /**
  * struct switchdev_ops - switchdev operations
- *
- * @switchdev_parent_id_get: Called to get an ID of the switch chip this port
- *   is part of.  If driver implements this, it indicates that it
- *   represents a port of a switch chip.
  *
  * @switchdev_port_attr_get: Get a port attribute (see switchdev_attr).
  *
@@ -54,8 +54,6 @@ struct fib_info;
  * @switchdev_fib_ipv4_del: Called to delete IPv4 route from switch device.
  */
 struct switchdev_ops {
-	int	(*switchdev_parent_id_get)(struct net_device *dev,
-					   struct netdev_phys_item_id *psid);
 	int	(*switchdev_port_attr_get)(struct net_device *dev,
 					   struct switchdev_attr *attr);
 	int	(*switchdev_port_attr_set)(struct net_device *dev,
@@ -93,8 +91,6 @@ switchdev_notifier_info_to_dev(const struct switchdev_notifier_info *info)
 
 #ifdef CONFIG_NET_SWITCHDEV
 
-int switchdev_parent_id_get(struct net_device *dev,
-			    struct netdev_phys_item_id *psid);
 int switchdev_port_attr_get(struct net_device *dev,
 			    struct switchdev_attr *attr);
 int switchdev_port_attr_set(struct net_device *dev,
@@ -119,12 +115,6 @@ int switchdev_fib_ipv4_del(u32 dst, int dst_len, struct fib_info *fi,
 void switchdev_fib_ipv4_abort(struct fib_info *fi);
 
 #else
-
-static inline int switchdev_parent_id_get(struct net_device *dev,
-					  struct netdev_phys_item_id *psid)
-{
-	return -EOPNOTSUPP;
-}
 
 static inline int switchdev_port_attr_get(struct net_device *dev,
 					  struct switchdev_attr *attr)
