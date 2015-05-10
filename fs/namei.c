@@ -918,9 +918,24 @@ const char *get_link(struct nameidata *nd)
 	res = inode->i_link;
 	if (!res) {
 		res = inode->i_op->follow_link(dentry, &last->cookie);
-		if (IS_ERR_OR_NULL(res))
+		if (IS_ERR_OR_NULL(res)) {
 			last->cookie = NULL;
+			return res;
+		}
 	}
+	if (*res == '/') {
+		if (!nd->root.mnt)
+			set_root(nd);
+		path_put(&nd->path);
+		nd->path = nd->root;
+		path_get(&nd->root);
+		nd->inode = nd->path.dentry->d_inode;
+		nd->flags |= LOOKUP_JUMPED;
+		while (unlikely(*++res == '/'))
+			;
+	}
+	if (!*res)
+		res = NULL;
 	return res;
 }
 
@@ -1854,24 +1869,9 @@ OK:
 				/* jumped */
 				put_link(nd);
 			} else {
-				if (*s == '/') {
-					if (!nd->root.mnt)
-						set_root(nd);
-					path_put(&nd->path);
-					nd->path = nd->root;
-					path_get(&nd->root);
-					nd->flags |= LOOKUP_JUMPED;
-					while (unlikely(*++s == '/'))
-						;
-				}
-				nd->inode = nd->path.dentry->d_inode;
-				if (unlikely(!*s)) {
-					put_link(nd);
-				} else {
-					nd->stack[nd->depth - 1].name = name;
-					name = s;
-					continue;
-				}
+				nd->stack[nd->depth - 1].name = name;
+				name = s;
+				continue;
 			}
 		}
 		if (!d_can_lookup(nd->path.dentry)) {
@@ -2002,6 +2002,7 @@ static int trailing_symlink(struct nameidata *nd)
 	if (unlikely(error))
 		return error;
 	nd->flags |= LOOKUP_PARENT;
+	nd->stack[0].name = NULL;
 	s = get_link(nd);
 	if (unlikely(IS_ERR(s))) {
 		terminate_walk(nd);
@@ -2009,16 +2010,6 @@ static int trailing_symlink(struct nameidata *nd)
 	}
 	if (unlikely(!s))
 		return 0;
-	if (*s == '/') {
-		if (!nd->root.mnt)
-			set_root(nd);
-		path_put(&nd->path);
-		nd->path = nd->root;
-		path_get(&nd->root);
-		nd->flags |= LOOKUP_JUMPED;
-	}
-	nd->inode = nd->path.dentry->d_inode;
-	nd->stack[0].name = NULL;
 	return link_path_walk(s, nd);
 }
 
