@@ -7,36 +7,33 @@
 	#size-cells = <1>;
 
 	chosen {
-		bootargs = "earlyprintk keep_bootcon rootfstype=ramfs init=/init";
+		bootargs = "earlyprintk keep_bootcon fbcon=rotate:1 rootfstype=ramfs init=/init";
 
 		#address-cells = <1>;
 		#size-cells = <1>;
+		ranges;
 
 		framebuffer0: framebuffer@18000000 {
 			compatible = "simple-framebuffer";
-			reg = <0x18000000 (400*240*4 + 320*240*2)>;
-			width = <400>;
-			height = <240>;
-			stride = <(400*4)>;
+			reg = <0x18000000 (400*240*3)>;
+			width = <240>;
+			height = <400>;
+			stride = <(240*3)>;
 			format = "r8g8b8";
 		};
 	};
 
-	aliases { };
+	aliases {
+		i2c1 = &i2c1;
+		i2c2 = &i2c2;
+		i2c3 = &i2c3;
+	};
 
 	memory {
 		device_type = "memory";
 
-		      /* MPCore private memory region */
-		reg = <0x17E00000 0x00002000>,
-		      /* VRAM */
-		      <0x18000000 0x00600000>,
-		      /* DSP memory */
-		      <0x1FF00000 0x00080000>,
-		      /* AXI WRAM */
-		      <0x1FF80000 0x00080000>,
-		      /* 128 MiB FCRAM memory @ 0x20000000 */
-		      <0x20000000 0x08000000>;
+		/* 128 MiB FCRAM memory @ 0x20000000 */
+		reg = <0x20000000 0x08000000>;
 	};
 
 	cpus {
@@ -53,6 +50,27 @@
 			compatible = "arm,arm11mpcore";
 			reg = <1>;
 		};
+	};
+
+	i2c1: i2c@10161000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "arm,nintendo3ds-i2c";
+		reg = <0x10161000 0x04>;
+	};
+
+	i2c2: i2c@10144000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "arm,nintendo3ds-i2c";
+		reg = <0x10144000 0x04>;
+	};
+
+	i2c3: i2c@10148000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "arm,nintendo3ds-i2c";
+		reg = <0x10148000 0x04>;
 	};
 
 	twd-timer@17E00600 {
@@ -72,7 +90,7 @@
 		#interrupt-cells = <3>;
 		#address-cells = <1>;
 		interrupt-controller;
-		arm,routable-irqs = <64>;
+		arm,routable-irqs = <128>;
 		reg = <0x17E01000 0x1000>, //GIC distributor register
 		      <0x17E00100 0x100>;  //GIC cpu interface register
 	};

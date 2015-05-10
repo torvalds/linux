@@ -642,6 +642,17 @@ config I2C_MXS
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-mxs.
 
+config I2C_NINTENDO3DS
+	tristate "Nintendo 3DS I2C bus support"
+	depends on ARCH_NINTENDO3DS
+	select I2C_ALGOBIT
+	help
+	  Say yes if you want to support the I2C serial bus on the Nintendo 3DS
+	  range of platforms.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-nintendo3ds.
+
 config I2C_NOMADIK
 	tristate "ST-Ericsson Nomadik/Ux500 I2C Controller"
 	depends on ARM_AMBA

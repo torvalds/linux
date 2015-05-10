@@ -277,7 +277,7 @@ void calibrate_delay(void)
 	static bool printed;
 	int this_cpu = smp_processor_id();
 
-	/*if (per_cpu(cpu_loops_per_jiffy, this_cpu)) {
+	if (per_cpu(cpu_loops_per_jiffy, this_cpu)) {
 		lpj = per_cpu(cpu_loops_per_jiffy, this_cpu);
 		if (!printed)
 			pr_info("Calibrating delay loop (skipped) "
@@ -307,7 +307,7 @@ void calibrate_delay(void)
 		pr_cont("%lu.%02lu BogoMIPS (lpj=%lu)\n",
 			lpj/(500000/HZ),
 			(lpj/(5000/HZ)) % 100, lpj);
-	*/
+
 	loops_per_jiffy = lpj;
 	printed = true;
 
