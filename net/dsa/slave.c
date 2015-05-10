@@ -675,9 +675,9 @@ static const struct net_device_ops dsa_slave_netdev_ops = {
 	.ndo_get_iflink		= dsa_slave_get_iflink,
 };
 
-static const struct swdev_ops dsa_slave_swdev_ops = {
-	.swdev_parent_id_get = dsa_slave_parent_id_get,
-	.swdev_port_stp_update = dsa_slave_stp_update,
+static const struct switchdev_ops dsa_slave_switchdev_ops = {
+	.switchdev_parent_id_get	= dsa_slave_parent_id_get,
+	.switchdev_port_stp_update	= dsa_slave_stp_update,
 };
 
 static void dsa_slave_adjust_link(struct net_device *dev)
@@ -866,7 +866,7 @@ int dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 	eth_hw_addr_inherit(slave_dev, master);
 	slave_dev->tx_queue_len = 0;
 	slave_dev->netdev_ops = &dsa_slave_netdev_ops;
-	slave_dev->swdev_ops = &dsa_slave_swdev_ops;
+	slave_dev->switchdev_ops = &dsa_slave_switchdev_ops;
 
 	netdev_for_each_tx_queue(slave_dev, dsa_slave_set_lockdep_class_one,
 				 NULL);

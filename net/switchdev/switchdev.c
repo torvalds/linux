@@ -28,11 +28,11 @@
 int switchdev_parent_id_get(struct net_device *dev,
 			    struct netdev_phys_item_id *psid)
 {
-	const struct swdev_ops *ops = dev->swdev_ops;
+	const struct switchdev_ops *ops = dev->switchdev_ops;
 
-	if (!ops || !ops->swdev_parent_id_get)
+	if (!ops || !ops->switchdev_parent_id_get)
 		return -EOPNOTSUPP;
-	return ops->swdev_parent_id_get(dev, psid);
+	return ops->switchdev_parent_id_get(dev, psid);
 }
 EXPORT_SYMBOL_GPL(switchdev_parent_id_get);
 
@@ -46,13 +46,13 @@ EXPORT_SYMBOL_GPL(switchdev_parent_id_get);
  */
 int switchdev_port_stp_update(struct net_device *dev, u8 state)
 {
-	const struct swdev_ops *ops = dev->swdev_ops;
+	const struct switchdev_ops *ops = dev->switchdev_ops;
 	struct net_device *lower_dev;
 	struct list_head *iter;
 	int err = -EOPNOTSUPP;
 
-	if (ops && ops->swdev_port_stp_update)
-		return ops->swdev_port_stp_update(dev, state);
+	if (ops && ops->switchdev_port_stp_update)
+		return ops->switchdev_port_stp_update(dev, state);
 
 	netdev_for_each_lower_dev(dev, lower_dev, iter) {
 		err = switchdev_port_stp_update(lower_dev, state);
@@ -239,17 +239,17 @@ EXPORT_SYMBOL_GPL(ndo_dflt_switchdev_port_bridge_dellink);
 
 static struct net_device *switchdev_get_lowest_dev(struct net_device *dev)
 {
-	const struct swdev_ops *ops = dev->swdev_ops;
+	const struct switchdev_ops *ops = dev->switchdev_ops;
 	struct net_device *lower_dev;
 	struct net_device *port_dev;
 	struct list_head *iter;
 
 	/* Recusively search down until we find a sw port dev.
-	 * (A sw port dev supports swdev_parent_id_get).
+	 * (A sw port dev supports switchdev_parent_id_get).
 	 */
 
 	if (dev->features & NETIF_F_HW_SWITCH_OFFLOAD &&
-	    ops && ops->swdev_parent_id_get)
+	    ops && ops->switchdev_parent_id_get)
 		return dev;
 
 	netdev_for_each_lower_dev(dev, lower_dev, iter) {
@@ -313,7 +313,7 @@ int switchdev_fib_ipv4_add(u32 dst, int dst_len, struct fib_info *fi,
 			   u8 tos, u8 type, u32 nlflags, u32 tb_id)
 {
 	struct net_device *dev;
-	const struct swdev_ops *ops;
+	const struct switchdev_ops *ops;
 	int err = 0;
 
 	/* Don't offload route if using custom ip rules or if
@@ -331,12 +331,12 @@ int switchdev_fib_ipv4_add(u32 dst, int dst_len, struct fib_info *fi,
 	dev = switchdev_get_dev_by_nhs(fi);
 	if (!dev)
 		return 0;
-	ops = dev->swdev_ops;
+	ops = dev->switchdev_ops;
 
-	if (ops->swdev_fib_ipv4_add) {
-		err = ops->swdev_fib_ipv4_add(dev, htonl(dst), dst_len,
-					      fi, tos, type, nlflags,
-					      tb_id);
+	if (ops->switchdev_fib_ipv4_add) {
+		err = ops->switchdev_fib_ipv4_add(dev, htonl(dst), dst_len,
+						  fi, tos, type, nlflags,
+						  tb_id);
 		if (!err)
 			fi->fib_flags |= RTNH_F_EXTERNAL;
 	}
@@ -361,7 +361,7 @@ int switchdev_fib_ipv4_del(u32 dst, int dst_len, struct fib_info *fi,
 			   u8 tos, u8 type, u32 tb_id)
 {
 	struct net_device *dev;
-	const struct swdev_ops *ops;
+	const struct switchdev_ops *ops;
 	int err = 0;
 
 	if (!(fi->fib_flags & RTNH_F_EXTERNAL))
@@ -370,11 +370,11 @@ int switchdev_fib_ipv4_del(u32 dst, int dst_len, struct fib_info *fi,
 	dev = switchdev_get_dev_by_nhs(fi);
 	if (!dev)
 		return 0;
-	ops = dev->swdev_ops;
+	ops = dev->switchdev_ops;
 
-	if (ops->swdev_fib_ipv4_del) {
-		err = ops->swdev_fib_ipv4_del(dev, htonl(dst), dst_len,
-					      fi, tos, type, tb_id);
+	if (ops->switchdev_fib_ipv4_del) {
+		err = ops->switchdev_fib_ipv4_del(dev, htonl(dst), dst_len,
+						  fi, tos, type, tb_id);
 		if (!err)
 			fi->fib_flags &= ~RTNH_F_EXTERNAL;
 	}

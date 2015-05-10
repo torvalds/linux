@@ -1567,7 +1567,7 @@ struct net_device {
 	const struct net_device_ops *netdev_ops;
 	const struct ethtool_ops *ethtool_ops;
 #ifdef CONFIG_NET_SWITCHDEV
-	const struct swdev_ops *swdev_ops;
+	const struct switchdev_ops *switchdev_ops;
 #endif
 
 	const struct header_ops *header_ops;
