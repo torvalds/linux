@@ -482,6 +482,14 @@ int machine__process_lost_event(struct machine *machine __maybe_unused,
 	return 0;
 }
 
+int machine__process_lost_samples_event(struct machine *machine __maybe_unused,
+					union perf_event *event, struct perf_sample *sample)
+{
+	dump_printf(": id:%" PRIu64 ": lost samples :%" PRIu64 "\n",
+		    sample->id, event->lost_samples.lost);
+	return 0;
+}
+
 static struct dso*
 machine__module_dso(struct machine *machine, struct kmod_path *m,
 		    const char *filename)
@@ -1419,6 +1427,8 @@ int machine__process_event(struct machine *machine, union perf_event *event,
 		ret = machine__process_aux_event(machine, event); break;
 	case PERF_RECORD_ITRACE_START:
 		ret = machine__process_itrace_start_event(machine, event);
+	case PERF_RECORD_LOST_SAMPLES:
+		ret = machine__process_lost_samples_event(machine, event, sample); break;
 		break;
 	default:
 		ret = -1;

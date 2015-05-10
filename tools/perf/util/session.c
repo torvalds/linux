@@ -325,6 +325,8 @@ void perf_tool__fill_defaults(struct perf_tool *tool)
 		tool->exit = process_event_stub;
 	if (tool->lost == NULL)
 		tool->lost = perf_event__process_lost;
+	if (tool->lost_samples == NULL)
+		tool->lost_samples = perf_event__process_lost_samples;
 	if (tool->aux == NULL)
 		tool->aux = perf_event__process_aux;
 	if (tool->itrace_start == NULL)
@@ -606,6 +608,7 @@ static perf_event__swap_op perf_event__swap_ops[] = {
 	[PERF_RECORD_SAMPLE]		  = perf_event__all64_swap,
 	[PERF_RECORD_AUX]		  = perf_event__aux_swap,
 	[PERF_RECORD_ITRACE_START]	  = perf_event__itrace_start_swap,
+	[PERF_RECORD_LOST_SAMPLES]	  = perf_event__all64_swap,
 	[PERF_RECORD_HEADER_ATTR]	  = perf_event__hdr_attr_swap,
 	[PERF_RECORD_HEADER_EVENT_TYPE]	  = perf_event__event_type_swap,
 	[PERF_RECORD_HEADER_TRACING_DATA] = perf_event__tracing_data_swap,
@@ -1049,6 +1052,10 @@ static int machines__deliver_event(struct machines *machines,
 		if (tool->lost == perf_event__process_lost)
 			evlist->stats.total_lost += event->lost.lost;
 		return tool->lost(tool, event, sample, machine);
+	case PERF_RECORD_LOST_SAMPLES:
+		if (tool->lost_samples == perf_event__process_lost_samples)
+			evlist->stats.total_lost_samples += event->lost_samples.lost;
+		return tool->lost_samples(tool, event, sample, machine);
 	case PERF_RECORD_READ:
 		return tool->read(tool, event, sample, evsel, machine);
 	case PERF_RECORD_THROTTLE:
@@ -1284,6 +1291,18 @@ static void perf_session__warn_about_errors(const struct perf_session *session)
 			    "Check IO/CPU overload!\n\n",
 			    stats->nr_events[0],
 			    stats->nr_events[PERF_RECORD_LOST]);
+	}
+
+	if (session->tool->lost_samples == perf_event__process_lost_samples) {
+		double drop_rate;
+
+		drop_rate = (double)stats->total_lost_samples /
+			    (double) (stats->nr_events[PERF_RECORD_SAMPLE] + stats->total_lost_samples);
+		if (drop_rate > 0.05) {
+			ui__warning("Processed %lu samples and lost %3.2f%% samples!\n\n",
+				    stats->nr_events[PERF_RECORD_SAMPLE] + stats->total_lost_samples,
+				    drop_rate * 100.0);
+		}
 	}
 
 	if (stats->nr_unknown_events != 0) {

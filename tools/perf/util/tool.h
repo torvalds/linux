@@ -43,6 +43,7 @@ struct perf_tool {
 			fork,
 			exit,
 			lost,
+			lost_samples,
 			aux,
 			itrace_start,
 			throttle,
