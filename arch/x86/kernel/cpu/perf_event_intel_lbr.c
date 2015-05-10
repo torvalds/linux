@@ -141,6 +141,13 @@ static void __intel_pmu_lbr_enable(bool pmi)
 	u64 debugctl, lbr_select = 0, orig_debugctl;
 
 	/*
+	 * No need to unfreeze manually, as v4 can do that as part
+	 * of the GLOBAL_STATUS ack.
+	 */
+	if (pmi && x86_pmu.version >= 4)
+		return;
+
+	/*
 	 * No need to reprogram LBR_SELECT in a PMI, as it
 	 * did not change.
 	 */
