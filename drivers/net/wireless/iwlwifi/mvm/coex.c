@@ -770,49 +770,10 @@ int iwl_mvm_rx_bt_coex_notif(struct iwl_mvm *mvm,
 	return 0;
 }
 
-static void iwl_mvm_bt_rssi_iterator(void *_data, u8 *mac,
-				   struct ieee80211_vif *vif)
-{
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	struct iwl_bt_iterator_data *data = _data;
-	struct iwl_mvm *mvm = data->mvm;
-
-	struct ieee80211_sta *sta;
-	struct iwl_mvm_sta *mvmsta;
-
-	struct ieee80211_chanctx_conf *chanctx_conf;
-
-	rcu_read_lock();
-	chanctx_conf = rcu_dereference(vif->chanctx_conf);
-	/* If channel context is invalid or not on 2.4GHz - don't count it */
-	if (!chanctx_conf ||
-	    chanctx_conf->def.chan->band != IEEE80211_BAND_2GHZ) {
-		rcu_read_unlock();
-		return;
-	}
-	rcu_read_unlock();
-
-	if (vif->type != NL80211_IFTYPE_STATION ||
-	    mvmvif->ap_sta_id == IWL_MVM_STATION_COUNT)
-		return;
-
-	sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[mvmvif->ap_sta_id],
-					lockdep_is_held(&mvm->mutex));
-
-	/* This can happen if the station has been removed right now */
-	if (IS_ERR_OR_NULL(sta))
-		return;
-
-	mvmsta = iwl_mvm_sta_from_mac80211(sta);
-}
-
 void iwl_mvm_bt_rssi_event(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			   enum ieee80211_rssi_event_data rssi_event)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	struct iwl_bt_iterator_data data = {
-		.mvm = mvm,
-	};
 	int ret;
 
 	if (!(mvm->fw->ucode_capa.api[0] & IWL_UCODE_TLV_API_BT_COEX_SPLIT)) {
@@ -853,10 +814,6 @@ void iwl_mvm_bt_rssi_event(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	if (ret)
 		IWL_ERR(mvm, "couldn't send BT_CONFIG HCMD upon RSSI event\n");
-
-	ieee80211_iterate_active_interfaces_atomic(
-		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
-		iwl_mvm_bt_rssi_iterator, &data);
 }
 
 #define LINK_QUAL_AGG_TIME_LIMIT_DEF	(4000)
