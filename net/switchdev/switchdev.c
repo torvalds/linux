@@ -536,36 +536,6 @@ int switchdev_port_bridge_dellink(struct net_device *dev,
 }
 EXPORT_SYMBOL_GPL(switchdev_port_bridge_dellink);
 
-/**
- *	ndo_dflt_switchdev_port_bridge_dellink - default ndo bridge dellink
- *						 op for master devices
- *
- *	@dev: port device
- *	@nlh: netlink msg with bridge port attributes
- *	@flags: bridge dellink flags
- *
- *	Notify master device slaves of bridge port attribute deletes
- */
-int ndo_dflt_switchdev_port_bridge_dellink(struct net_device *dev,
-					   struct nlmsghdr *nlh, u16 flags)
-{
-	struct net_device *lower_dev;
-	struct list_head *iter;
-	int ret = 0, err = 0;
-
-	if (!(dev->features & NETIF_F_HW_SWITCH_OFFLOAD))
-		return ret;
-
-	netdev_for_each_lower_dev(dev, lower_dev, iter) {
-		err = switchdev_port_bridge_dellink(lower_dev, nlh, flags);
-		if (err && err != -EOPNOTSUPP)
-			ret = err;
-	}
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(ndo_dflt_switchdev_port_bridge_dellink);
-
 static struct net_device *switchdev_get_lowest_dev(struct net_device *dev)
 {
 	const struct switchdev_ops *ops = dev->switchdev_ops;
