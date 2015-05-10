@@ -904,27 +904,23 @@ const char *get_link(struct nameidata *nd)
 
 	last->link = nd->link;
 	last->cookie = NULL;
+	nd->depth++;
 
 	cond_resched();
 
 	touch_atime(&last->link);
 
 	error = security_inode_follow_link(dentry);
-	res = ERR_PTR(error);
 	if (error)
-		goto out;
+		return ERR_PTR(error);
 
 	nd->last_type = LAST_BIND;
 	res = inode->i_link;
 	if (!res) {
 		res = inode->i_op->follow_link(dentry, &last->cookie);
-		if (IS_ERR(res)) {
-out:
-			path_put(&last->link);
-			return res;
-		}
+		if (IS_ERR_OR_NULL(res))
+			last->cookie = NULL;
 	}
-	nd->depth++;
 	return res;
 }
 
