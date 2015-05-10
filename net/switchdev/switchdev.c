@@ -641,8 +641,19 @@ static struct net_device *switchdev_get_dev_by_nhs(struct fib_info *fi)
 int switchdev_fib_ipv4_add(u32 dst, int dst_len, struct fib_info *fi,
 			   u8 tos, u8 type, u32 nlflags, u32 tb_id)
 {
+	struct switchdev_obj fib_obj = {
+		.id = SWITCHDEV_OBJ_IPV4_FIB,
+		.ipv4_fib = {
+			.dst = htonl(dst),
+			.dst_len = dst_len,
+			.fi = fi,
+			.tos = tos,
+			.type = type,
+			.nlflags = nlflags,
+			.tb_id = tb_id,
+		},
+	};
 	struct net_device *dev;
-	const struct switchdev_ops *ops;
 	int err = 0;
 
 	/* Don't offload route if using custom ip rules or if
@@ -660,15 +671,10 @@ int switchdev_fib_ipv4_add(u32 dst, int dst_len, struct fib_info *fi,
 	dev = switchdev_get_dev_by_nhs(fi);
 	if (!dev)
 		return 0;
-	ops = dev->switchdev_ops;
 
-	if (ops->switchdev_fib_ipv4_add) {
-		err = ops->switchdev_fib_ipv4_add(dev, htonl(dst), dst_len,
-						  fi, tos, type, nlflags,
-						  tb_id);
-		if (!err)
-			fi->fib_flags |= RTNH_F_EXTERNAL;
-	}
+	err = switchdev_port_obj_add(dev, &fib_obj);
+	if (!err)
+		fi->fib_flags |= RTNH_F_EXTERNAL;
 
 	return err;
 }
@@ -689,8 +695,19 @@ EXPORT_SYMBOL_GPL(switchdev_fib_ipv4_add);
 int switchdev_fib_ipv4_del(u32 dst, int dst_len, struct fib_info *fi,
 			   u8 tos, u8 type, u32 tb_id)
 {
+	struct switchdev_obj fib_obj = {
+		.id = SWITCHDEV_OBJ_IPV4_FIB,
+		.ipv4_fib = {
+			.dst = htonl(dst),
+			.dst_len = dst_len,
+			.fi = fi,
+			.tos = tos,
+			.type = type,
+			.nlflags = 0,
+			.tb_id = tb_id,
+		},
+	};
 	struct net_device *dev;
-	const struct switchdev_ops *ops;
 	int err = 0;
 
 	if (!(fi->fib_flags & RTNH_F_EXTERNAL))
@@ -699,14 +716,10 @@ int switchdev_fib_ipv4_del(u32 dst, int dst_len, struct fib_info *fi,
 	dev = switchdev_get_dev_by_nhs(fi);
 	if (!dev)
 		return 0;
-	ops = dev->switchdev_ops;
 
-	if (ops->switchdev_fib_ipv4_del) {
-		err = ops->switchdev_fib_ipv4_del(dev, htonl(dst), dst_len,
-						  fi, tos, type, tb_id);
-		if (!err)
-			fi->fib_flags &= ~RTNH_F_EXTERNAL;
-	}
+	err = switchdev_port_obj_del(dev, &fib_obj);
+	if (!err)
+		fi->fib_flags &= ~RTNH_F_EXTERNAL;
 
 	return err;
 }

@@ -46,6 +46,7 @@ struct fib_info;
 enum switchdev_obj_id {
 	SWITCHDEV_OBJ_UNDEFINED,
 	SWITCHDEV_OBJ_PORT_VLAN,
+	SWITCHDEV_OBJ_IPV4_FIB,
 };
 
 struct switchdev_obj {
@@ -57,6 +58,15 @@ struct switchdev_obj {
 			u16 vid_start;
 			u16 vid_end;
 		} vlan;
+		struct switchdev_obj_ipv4_fib {		/* IPV4_FIB */
+			u32 dst;
+			int dst_len;
+			struct fib_info *fi;
+			u8 tos;
+			u8 type;
+			u32 nlflags;
+			u32 tb_id;
+		} ipv4_fib;
 	};
 };
 
@@ -70,10 +80,6 @@ struct switchdev_obj {
  * @switchdev_port_obj_add: Add an object to port (see switchdev_obj).
  *
  * @switchdev_port_obj_del: Delete an object from port (see switchdev_obj).
- *
- * @switchdev_fib_ipv4_add: Called to add/modify IPv4 route to switch device.
- *
- * @switchdev_fib_ipv4_del: Called to delete IPv4 route from switch device.
  */
 struct switchdev_ops {
 	int	(*switchdev_port_attr_get)(struct net_device *dev,
@@ -84,13 +90,6 @@ struct switchdev_ops {
 					  struct switchdev_obj *obj);
 	int	(*switchdev_port_obj_del)(struct net_device *dev,
 					  struct switchdev_obj *obj);
-	int	(*switchdev_fib_ipv4_add)(struct net_device *dev, __be32 dst,
-					  int dst_len, struct fib_info *fi,
-					  u8 tos, u8 type, u32 nlflags,
-					  u32 tb_id);
-	int	(*switchdev_fib_ipv4_del)(struct net_device *dev, __be32 dst,
-					  int dst_len, struct fib_info *fi,
-					  u8 tos, u8 type, u32 tb_id);
 };
 
 enum switchdev_notifier_type {

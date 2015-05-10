@@ -4449,6 +4449,7 @@ static int rocker_port_obj_add(struct net_device *dev,
 			       struct switchdev_obj *obj)
 {
 	struct rocker_port *rocker_port = netdev_priv(dev);
+	struct switchdev_obj_ipv4_fib *fib4;
 	int err = 0;
 
 	switch (obj->trans) {
@@ -4466,6 +4467,12 @@ static int rocker_port_obj_add(struct net_device *dev,
 	case SWITCHDEV_OBJ_PORT_VLAN:
 		err = rocker_port_vlans_add(rocker_port, obj->trans,
 					    &obj->vlan);
+		break;
+	case SWITCHDEV_OBJ_IPV4_FIB:
+		fib4 = &obj->ipv4_fib;
+		err = rocker_port_fib_ipv4(rocker_port, obj->trans,
+					   fib4->dst, fib4->dst_len,
+					   fib4->fi, fib4->tb_id, 0);
 		break;
 	default:
 		err = -EOPNOTSUPP;
@@ -4508,11 +4515,18 @@ static int rocker_port_obj_del(struct net_device *dev,
 			       struct switchdev_obj *obj)
 {
 	struct rocker_port *rocker_port = netdev_priv(dev);
+	struct switchdev_obj_ipv4_fib *fib4;
 	int err = 0;
 
 	switch (obj->id) {
 	case SWITCHDEV_OBJ_PORT_VLAN:
 		err = rocker_port_vlans_del(rocker_port, &obj->vlan);
+		break;
+	case SWITCHDEV_OBJ_IPV4_FIB:
+		fib4 = &obj->ipv4_fib;
+		err = rocker_port_fib_ipv4(rocker_port, SWITCHDEV_TRANS_NONE,
+					   fib4->dst, fib4->dst_len, fib4->fi,
+					   fib4->tb_id, ROCKER_OP_FLAG_REMOVE);
 		break;
 	default:
 		err = -EOPNOTSUPP;
@@ -4522,38 +4536,11 @@ static int rocker_port_obj_del(struct net_device *dev,
 	return err;
 }
 
-static int rocker_port_switchdev_fib_ipv4_add(struct net_device *dev,
-					      __be32 dst, int dst_len,
-					      struct fib_info *fi,
-					      u8 tos, u8 type,
-					      u32 nlflags, u32 tb_id)
-{
-	struct rocker_port *rocker_port = netdev_priv(dev);
-	int flags = 0;
-
-	return rocker_port_fib_ipv4(rocker_port, SWITCHDEV_TRANS_NONE,
-				    dst, dst_len, fi, tb_id, flags);
-}
-
-static int rocker_port_switchdev_fib_ipv4_del(struct net_device *dev,
-					      __be32 dst, int dst_len,
-					      struct fib_info *fi,
-					      u8 tos, u8 type, u32 tb_id)
-{
-	struct rocker_port *rocker_port = netdev_priv(dev);
-	int flags = ROCKER_OP_FLAG_REMOVE;
-
-	return rocker_port_fib_ipv4(rocker_port, SWITCHDEV_TRANS_NONE,
-				    dst, dst_len, fi, tb_id, flags);
-}
-
 static const struct switchdev_ops rocker_port_switchdev_ops = {
 	.switchdev_port_attr_get	= rocker_port_attr_get,
 	.switchdev_port_attr_set	= rocker_port_attr_set,
 	.switchdev_port_obj_add		= rocker_port_obj_add,
 	.switchdev_port_obj_del		= rocker_port_obj_del,
-	.switchdev_fib_ipv4_add		= rocker_port_switchdev_fib_ipv4_add,
-	.switchdev_fib_ipv4_del		= rocker_port_switchdev_fib_ipv4_del,
 };
 
 /********************
