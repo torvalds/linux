@@ -165,7 +165,7 @@ struct intel_excl_cntrs {
 	unsigned	core_id;	/* per-core: core id */
 };
 
-#define MAX_LBR_ENTRIES		16
+#define MAX_LBR_ENTRIES		32
 
 enum {
 	X86_PERF_KFREE_SHARED = 0,
@@ -861,6 +861,8 @@ extern struct event_constraint intel_ivb_pebs_event_constraints[];
 
 extern struct event_constraint intel_hsw_pebs_event_constraints[];
 
+extern struct event_constraint intel_skl_pebs_event_constraints[];
+
 struct event_constraint *intel_pebs_constraints(struct perf_event *event);
 
 void intel_pmu_pebs_enable(struct perf_event *event);
@@ -898,6 +900,8 @@ void intel_pmu_lbr_init_atom(void);
 void intel_pmu_lbr_init_snb(void);
 
 void intel_pmu_lbr_init_hsw(void);
+
+void intel_pmu_lbr_init_skl(void);
 
 int intel_pmu_setup_lbr_filter(struct perf_event *event);
 

@@ -973,6 +973,26 @@ void intel_pmu_lbr_init_hsw(void)
 	pr_cont("16-deep LBR, ");
 }
 
+/* skylake */
+__init void intel_pmu_lbr_init_skl(void)
+{
+	x86_pmu.lbr_nr	 = 32;
+	x86_pmu.lbr_tos	 = MSR_LBR_TOS;
+	x86_pmu.lbr_from = MSR_LBR_NHM_FROM;
+	x86_pmu.lbr_to   = MSR_LBR_NHM_TO;
+
+	x86_pmu.lbr_sel_mask = LBR_SEL_MASK;
+	x86_pmu.lbr_sel_map  = hsw_lbr_sel_map;
+
+	/*
+	 * SW branch filter usage:
+	 * - support syscall, sysret capture.
+	 *   That requires LBR_FAR but that means far
+	 *   jmp need to be filtered out
+	 */
+	pr_cont("32-deep LBR, ");
+}
+
 /* atom */
 void __init intel_pmu_lbr_init_atom(void)
 {
