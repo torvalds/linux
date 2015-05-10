@@ -3415,12 +3415,14 @@ static int rocker_port_vlan(struct rocker_port *rocker_port,
 
 	internal_vlan_id = rocker_port_vid_to_vlan(rocker_port, vid, &untagged);
 
-	if (adding && test_and_set_bit(ntohs(internal_vlan_id),
-				       rocker_port->vlan_bitmap))
+	if (adding && test_bit(ntohs(internal_vlan_id),
+			       rocker_port->vlan_bitmap))
 			return 0; /* already added */
-	else if (!adding && !test_and_clear_bit(ntohs(internal_vlan_id),
-						rocker_port->vlan_bitmap))
+	else if (!adding && !test_bit(ntohs(internal_vlan_id),
+				      rocker_port->vlan_bitmap))
 			return 0; /* already removed */
+
+	change_bit(ntohs(internal_vlan_id), rocker_port->vlan_bitmap);
 
 	if (adding) {
 		err = rocker_port_ctrl_vlan_add(rocker_port, trans, flags,
@@ -3428,7 +3430,7 @@ static int rocker_port_vlan(struct rocker_port *rocker_port,
 		if (err) {
 			netdev_err(rocker_port->dev,
 				   "Error (%d) port ctrl vlan add\n", err);
-			return err;
+			goto err_out;
 		}
 	}
 
@@ -3437,7 +3439,7 @@ static int rocker_port_vlan(struct rocker_port *rocker_port,
 	if (err) {
 		netdev_err(rocker_port->dev,
 			   "Error (%d) port VLAN l2 groups\n", err);
-		return err;
+		goto err_out;
 	}
 
 	err = rocker_port_vlan_flood_group(rocker_port, trans, flags,
@@ -3445,7 +3447,7 @@ static int rocker_port_vlan(struct rocker_port *rocker_port,
 	if (err) {
 		netdev_err(rocker_port->dev,
 			   "Error (%d) port VLAN l2 flood group\n", err);
-		return err;
+		goto err_out;
 	}
 
 	err = rocker_flow_tbl_vlan(rocker_port, trans, flags,
@@ -3454,6 +3456,10 @@ static int rocker_port_vlan(struct rocker_port *rocker_port,
 	if (err)
 		netdev_err(rocker_port->dev,
 			   "Error (%d) port VLAN table\n", err);
+
+err_out:
+	if (trans == SWITCHDEV_TRANS_PREPARE)
+		change_bit(ntohs(internal_vlan_id), rocker_port->vlan_bitmap);
 
 	return err;
 }
@@ -4435,6 +4441,114 @@ static int rocker_port_attr_set(struct net_device *dev,
 	return err;
 }
 
+static int rocker_port_vlan_add(struct rocker_port *rocker_port,
+				enum switchdev_trans trans, u16 vid, u16 flags)
+{
+	int err;
+
+	/* XXX deal with flags for PVID and untagged */
+
+	err = rocker_port_vlan(rocker_port, trans, 0, vid);
+	if (err)
+		return err;
+
+	return rocker_port_router_mac(rocker_port, trans, 0, htons(vid));
+}
+
+static int rocker_port_vlans_add(struct rocker_port *rocker_port,
+				 enum switchdev_trans trans,
+				 struct switchdev_obj_vlan *vlan)
+{
+	u16 vid;
+	int err;
+
+	for (vid = vlan->vid_start; vid <= vlan->vid_end; vid++) {
+		err = rocker_port_vlan_add(rocker_port, trans,
+					   vid, vlan->flags);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static int rocker_port_obj_add(struct net_device *dev,
+			       struct switchdev_obj *obj)
+{
+	struct rocker_port *rocker_port = netdev_priv(dev);
+	int err = 0;
+
+	switch (obj->trans) {
+	case SWITCHDEV_TRANS_PREPARE:
+		BUG_ON(!list_empty(&rocker_port->trans_mem));
+		break;
+	case SWITCHDEV_TRANS_ABORT:
+		rocker_port_trans_abort(rocker_port);
+		return 0;
+	default:
+		break;
+	}
+
+	switch (obj->id) {
+	case SWITCHDEV_OBJ_PORT_VLAN:
+		err = rocker_port_vlans_add(rocker_port, obj->trans,
+					    &obj->vlan);
+		break;
+	default:
+		err = -EOPNOTSUPP;
+		break;
+	}
+
+	return err;
+}
+
+static int rocker_port_vlan_del(struct rocker_port *rocker_port,
+				u16 vid, u16 flags)
+{
+	int err;
+
+	err = rocker_port_router_mac(rocker_port, SWITCHDEV_TRANS_NONE,
+				     ROCKER_OP_FLAG_REMOVE, htons(vid));
+	if (err)
+		return err;
+
+	return rocker_port_vlan(rocker_port, SWITCHDEV_TRANS_NONE,
+				ROCKER_OP_FLAG_REMOVE, vid);
+}
+
+static int rocker_port_vlans_del(struct rocker_port *rocker_port,
+				 struct switchdev_obj_vlan *vlan)
+{
+	u16 vid;
+	int err;
+
+	for (vid = vlan->vid_start; vid <= vlan->vid_end; vid++) {
+		err = rocker_port_vlan_del(rocker_port, vid, vlan->flags);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static int rocker_port_obj_del(struct net_device *dev,
+			       struct switchdev_obj *obj)
+{
+	struct rocker_port *rocker_port = netdev_priv(dev);
+	int err = 0;
+
+	switch (obj->id) {
+	case SWITCHDEV_OBJ_PORT_VLAN:
+		err = rocker_port_vlans_del(rocker_port, &obj->vlan);
+		break;
+	default:
+		err = -EOPNOTSUPP;
+		break;
+	}
+
+	return err;
+}
+
 static int rocker_port_switchdev_fib_ipv4_add(struct net_device *dev,
 					      __be32 dst, int dst_len,
 					      struct fib_info *fi,
@@ -4463,6 +4577,8 @@ static int rocker_port_switchdev_fib_ipv4_del(struct net_device *dev,
 static const struct switchdev_ops rocker_port_switchdev_ops = {
 	.switchdev_port_attr_get	= rocker_port_attr_get,
 	.switchdev_port_attr_set	= rocker_port_attr_set,
+	.switchdev_port_obj_add		= rocker_port_obj_add,
+	.switchdev_port_obj_del		= rocker_port_obj_del,
 	.switchdev_fib_ipv4_add		= rocker_port_switchdev_fib_ipv4_add,
 	.switchdev_fib_ipv4_del		= rocker_port_switchdev_fib_ipv4_del,
 };
