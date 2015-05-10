@@ -14,6 +14,25 @@
 #include <linux/netdevice.h>
 #include <linux/notifier.h>
 
+#define SWITCHDEV_F_NO_RECURSE		BIT(0)
+
+enum switchdev_trans {
+	SWITCHDEV_TRANS_NONE,
+	SWITCHDEV_TRANS_PREPARE,
+	SWITCHDEV_TRANS_ABORT,
+	SWITCHDEV_TRANS_COMMIT,
+};
+
+enum switchdev_attr_id {
+	SWITCHDEV_ATTR_UNDEFINED,
+};
+
+struct switchdev_attr {
+	enum switchdev_attr_id id;
+	enum switchdev_trans trans;
+	u32 flags;
+};
+
 struct fib_info;
 
 /**
@@ -22,6 +41,10 @@ struct fib_info;
  * @switchdev_parent_id_get: Called to get an ID of the switch chip this port
  *   is part of.  If driver implements this, it indicates that it
  *   represents a port of a switch chip.
+ *
+ * @switchdev_port_attr_get: Get a port attribute (see switchdev_attr).
+ *
+ * @switchdev_port_attr_set: Set a port attribute (see switchdev_attr).
  *
  * @switchdev_port_stp_update: Called to notify switch device port of bridge
  *   port STP state change.
@@ -33,6 +56,10 @@ struct fib_info;
 struct switchdev_ops {
 	int	(*switchdev_parent_id_get)(struct net_device *dev,
 					   struct netdev_phys_item_id *psid);
+	int	(*switchdev_port_attr_get)(struct net_device *dev,
+					   struct switchdev_attr *attr);
+	int	(*switchdev_port_attr_set)(struct net_device *dev,
+					   struct switchdev_attr *attr);
 	int	(*switchdev_port_stp_update)(struct net_device *dev, u8 state);
 	int	(*switchdev_fib_ipv4_add)(struct net_device *dev, __be32 dst,
 					  int dst_len, struct fib_info *fi,
@@ -68,6 +95,10 @@ switchdev_notifier_info_to_dev(const struct switchdev_notifier_info *info)
 
 int switchdev_parent_id_get(struct net_device *dev,
 			    struct netdev_phys_item_id *psid);
+int switchdev_port_attr_get(struct net_device *dev,
+			    struct switchdev_attr *attr);
+int switchdev_port_attr_set(struct net_device *dev,
+			    struct switchdev_attr *attr);
 int switchdev_port_stp_update(struct net_device *dev, u8 state);
 int register_switchdev_notifier(struct notifier_block *nb);
 int unregister_switchdev_notifier(struct notifier_block *nb);
@@ -91,6 +122,18 @@ void switchdev_fib_ipv4_abort(struct fib_info *fi);
 
 static inline int switchdev_parent_id_get(struct net_device *dev,
 					  struct netdev_phys_item_id *psid)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int switchdev_port_attr_get(struct net_device *dev,
+					  struct switchdev_attr *attr)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int switchdev_port_attr_set(struct net_device *dev,
+					  struct switchdev_attr *attr)
 {
 	return -EOPNOTSUPP;
 }

@@ -37,6 +37,175 @@ int switchdev_parent_id_get(struct net_device *dev,
 EXPORT_SYMBOL_GPL(switchdev_parent_id_get);
 
 /**
+ *	switchdev_port_attr_get - Get port attribute
+ *
+ *	@dev: port device
+ *	@attr: attribute to get
+ */
+int switchdev_port_attr_get(struct net_device *dev, struct switchdev_attr *attr)
+{
+	const struct switchdev_ops *ops = dev->switchdev_ops;
+	struct net_device *lower_dev;
+	struct list_head *iter;
+	struct switchdev_attr first = {
+		.id = SWITCHDEV_ATTR_UNDEFINED
+	};
+	int err = -EOPNOTSUPP;
+
+	if (ops && ops->switchdev_port_attr_get)
+		return ops->switchdev_port_attr_get(dev, attr);
+
+	if (attr->flags & SWITCHDEV_F_NO_RECURSE)
+		return err;
+
+	/* Switch device port(s) may be stacked under
+	 * bond/team/vlan dev, so recurse down to get attr on
+	 * each port.  Return -ENODATA if attr values don't
+	 * compare across ports.
+	 */
+
+	netdev_for_each_lower_dev(dev, lower_dev, iter) {
+		err = switchdev_port_attr_get(lower_dev, attr);
+		if (err)
+			break;
+		if (first.id == SWITCHDEV_ATTR_UNDEFINED)
+			first = *attr;
+		else if (memcmp(&first, attr, sizeof(*attr)))
+			return -ENODATA;
+	}
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(switchdev_port_attr_get);
+
+static int __switchdev_port_attr_set(struct net_device *dev,
+				     struct switchdev_attr *attr)
+{
+	const struct switchdev_ops *ops = dev->switchdev_ops;
+	struct net_device *lower_dev;
+	struct list_head *iter;
+	int err = -EOPNOTSUPP;
+
+	if (ops && ops->switchdev_port_attr_set)
+		return ops->switchdev_port_attr_set(dev, attr);
+
+	if (attr->flags & SWITCHDEV_F_NO_RECURSE)
+		return err;
+
+	/* Switch device port(s) may be stacked under
+	 * bond/team/vlan dev, so recurse down to set attr on
+	 * each port.
+	 */
+
+	netdev_for_each_lower_dev(dev, lower_dev, iter) {
+		err = __switchdev_port_attr_set(lower_dev, attr);
+		if (err)
+			break;
+	}
+
+	return err;
+}
+
+struct switchdev_attr_set_work {
+	struct work_struct work;
+	struct net_device *dev;
+	struct switchdev_attr attr;
+};
+
+static void switchdev_port_attr_set_work(struct work_struct *work)
+{
+	struct switchdev_attr_set_work *asw =
+		container_of(work, struct switchdev_attr_set_work, work);
+	int err;
+
+	rtnl_lock();
+	err = switchdev_port_attr_set(asw->dev, &asw->attr);
+	BUG_ON(err);
+	rtnl_unlock();
+
+	dev_put(asw->dev);
+	kfree(work);
+}
+
+static int switchdev_port_attr_set_defer(struct net_device *dev,
+					 struct switchdev_attr *attr)
+{
+	struct switchdev_attr_set_work *asw;
+
+	asw = kmalloc(sizeof(*asw), GFP_ATOMIC);
+	if (!asw)
+		return -ENOMEM;
+
+	INIT_WORK(&asw->work, switchdev_port_attr_set_work);
+
+	dev_hold(dev);
+	asw->dev = dev;
+	memcpy(&asw->attr, attr, sizeof(asw->attr));
+
+	schedule_work(&asw->work);
+
+	return 0;
+}
+
+/**
+ *	switchdev_port_attr_set - Set port attribute
+ *
+ *	@dev: port device
+ *	@attr: attribute to set
+ *
+ *	Use a 2-phase prepare-commit transaction model to ensure
+ *	system is not left in a partially updated state due to
+ *	failure from driver/device.
+ */
+int switchdev_port_attr_set(struct net_device *dev, struct switchdev_attr *attr)
+{
+	int err;
+
+	if (!rtnl_is_locked()) {
+		/* Running prepare-commit transaction across stacked
+		 * devices requires nothing moves, so if rtnl_lock is
+		 * not held, schedule a worker thread to hold rtnl_lock
+		 * while setting attr.
+		 */
+
+		return switchdev_port_attr_set_defer(dev, attr);
+	}
+
+	/* Phase I: prepare for attr set. Driver/device should fail
+	 * here if there are going to be issues in the commit phase,
+	 * such as lack of resources or support.  The driver/device
+	 * should reserve resources needed for the commit phase here,
+	 * but should not commit the attr.
+	 */
+
+	attr->trans = SWITCHDEV_TRANS_PREPARE;
+	err = __switchdev_port_attr_set(dev, attr);
+	if (err) {
+		/* Prepare phase failed: abort the transaction.  Any
+		 * resources reserved in the prepare phase are
+		 * released.
+		 */
+
+		attr->trans = SWITCHDEV_TRANS_ABORT;
+		__switchdev_port_attr_set(dev, attr);
+
+		return err;
+	}
+
+	/* Phase II: commit attr set.  This cannot fail as a fault
+	 * of driver/device.  If it does, it's a bug in the driver/device
+	 * because the driver said everythings was OK in phase I.
+	 */
+
+	attr->trans = SWITCHDEV_TRANS_COMMIT;
+	err = __switchdev_port_attr_set(dev, attr);
+	BUG_ON(err);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(switchdev_port_attr_set);
+
+/**
  *	switchdev_port_stp_update - Notify switch device port of STP
  *					state change
  *	@dev: port device
