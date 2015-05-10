@@ -797,7 +797,7 @@ struct se_device {
 #define SE_UDEV_PATH_LEN 512		/* must be less than PAGE_SIZE */
 	unsigned char		udev_path[SE_UDEV_PATH_LEN];
 	/* Pointer to template of function pointers for transport */
-	struct se_subsystem_api *transport;
+	const struct target_backend_ops *transport;
 	/* Linked list for struct se_hba struct se_device list */
 	struct list_head	dev_list;
 	struct se_lun		xcopy_lun;
@@ -819,7 +819,7 @@ struct se_hba {
 	spinlock_t		device_lock;
 	struct config_group	hba_group;
 	struct mutex		hba_access_mutex;
-	struct se_subsystem_api *transport;
+	struct target_backend	*backend;
 };
 
 struct scsi_port_stats {

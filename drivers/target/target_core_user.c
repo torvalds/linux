@@ -1115,7 +1115,7 @@ static struct configfs_attribute *tcmu_backend_dev_attrs[] = {
 	NULL,
 };
 
-static struct se_subsystem_api tcmu_template = {
+static const struct target_backend_ops tcmu_ops = {
 	.name			= "user",
 	.inquiry_prod		= "USER",
 	.inquiry_rev		= TCMU_VERSION,
@@ -1131,11 +1131,11 @@ static struct se_subsystem_api tcmu_template = {
 	.show_configfs_dev_params = tcmu_show_configfs_dev_params,
 	.get_device_type	= sbc_get_device_type,
 	.get_blocks		= tcmu_get_blocks,
+	.tb_dev_attrib_attrs	= tcmu_backend_dev_attrs,
 };
 
 static int __init tcmu_module_init(void)
 {
-	struct target_backend_cits *tbc = &tcmu_template.tb_cits;
 	int ret;
 
 	BUILD_BUG_ON((sizeof(struct tcmu_cmd_entry) % TCMU_OP_ALIGN_SIZE) != 0);
@@ -1158,10 +1158,7 @@ static int __init tcmu_module_init(void)
 		goto out_unreg_device;
 	}
 
-	target_core_setup_sub_cits(&tcmu_template);
-	tbc->tb_dev_attrib_cit.ct_attrs = tcmu_backend_dev_attrs;
-
-	ret = transport_subsystem_register(&tcmu_template);
+	ret = transport_backend_register(&tcmu_ops);
 	if (ret)
 		goto out_unreg_genl;
 
@@ -1179,7 +1176,7 @@ out_free_cache:
 
 static void __exit tcmu_module_exit(void)
 {
-	transport_subsystem_release(&tcmu_template);
+	target_backend_unregister(&tcmu_ops);
 	genl_unregister_family(&tcmu_genl_family);
 	root_device_unregister(tcmu_root_device);
 	kmem_cache_destroy(tcmu_cmd_cache);

@@ -51,15 +51,26 @@
 #include "target_core_xcopy.h"
 
 #define TB_CIT_SETUP(_name, _item_ops, _group_ops, _attrs)		\
-static void target_core_setup_##_name##_cit(struct se_subsystem_api *sa) \
+static void target_core_setup_##_name##_cit(struct target_backend *tb)	\
 {									\
-	struct target_backend_cits *tbc = &sa->tb_cits;			\
-	struct config_item_type *cit = &tbc->tb_##_name##_cit;		\
+	struct config_item_type *cit = &tb->tb_##_name##_cit;		\
 									\
 	cit->ct_item_ops = _item_ops;					\
 	cit->ct_group_ops = _group_ops;					\
 	cit->ct_attrs = _attrs;						\
-	cit->ct_owner = sa->owner;					\
+	cit->ct_owner = tb->ops->owner;					\
+	pr_debug("Setup generic %s\n", __stringify(_name));		\
+}
+
+#define TB_CIT_SETUP_DRV(_name, _item_ops, _group_ops)			\
+static void target_core_setup_##_name##_cit(struct target_backend *tb)	\
+{									\
+	struct config_item_type *cit = &tb->tb_##_name##_cit;		\
+									\
+	cit->ct_item_ops = _item_ops;					\
+	cit->ct_group_ops = _group_ops;					\
+	cit->ct_attrs = tb->ops->tb_##_name##_attrs;			\
+	cit->ct_owner = tb->ops->owner;					\
 	pr_debug("Setup generic %s\n", __stringify(_name));		\
 }
 
@@ -469,7 +480,7 @@ static struct configfs_item_operations target_core_dev_attrib_ops = {
 	.store_attribute	= target_core_dev_attrib_attr_store,
 };
 
-TB_CIT_SETUP(dev_attrib, &target_core_dev_attrib_ops, NULL, NULL);
+TB_CIT_SETUP_DRV(dev_attrib, &target_core_dev_attrib_ops, NULL);
 
 /* End functions for struct config_item_type tb_dev_attrib_cit */
 
@@ -1174,13 +1185,13 @@ TB_CIT_SETUP(dev_pr, &target_core_dev_pr_ops, NULL, target_core_dev_pr_attrs);
 static ssize_t target_core_show_dev_info(void *p, char *page)
 {
 	struct se_device *dev = p;
-	struct se_subsystem_api *t = dev->transport;
 	int bl = 0;
 	ssize_t read_bytes = 0;
 
 	transport_dump_dev_state(dev, page, &bl);
 	read_bytes += bl;
-	read_bytes += t->show_configfs_dev_params(dev, page+read_bytes);
+	read_bytes += dev->transport->show_configfs_dev_params(dev,
+			page+read_bytes);
 	return read_bytes;
 }
 
@@ -1198,9 +1209,8 @@ static ssize_t target_core_store_dev_control(
 	size_t count)
 {
 	struct se_device *dev = p;
-	struct se_subsystem_api *t = dev->transport;
 
-	return t->set_configfs_dev_params(dev, page, count);
+	return dev->transport->set_configfs_dev_params(dev, page, count);
 }
 
 static struct target_core_configfs_attribute target_core_attr_dev_control = {
@@ -2477,9 +2487,9 @@ static struct config_group *target_core_make_subdev(
 	const char *name)
 {
 	struct t10_alua_tg_pt_gp *tg_pt_gp;
-	struct se_subsystem_api *t;
 	struct config_item *hba_ci = &group->cg_item;
 	struct se_hba *hba = item_to_hba(hba_ci);
+	struct target_backend *tb = hba->backend;
 	struct se_device *dev;
 	struct config_group *dev_cg = NULL, *tg_pt_gp_cg = NULL;
 	struct config_group *dev_stat_grp = NULL;
@@ -2488,10 +2498,6 @@ static struct config_group *target_core_make_subdev(
 	ret = mutex_lock_interruptible(&hba->hba_access_mutex);
 	if (ret)
 		return ERR_PTR(ret);
-	/*
-	 * Locate the struct se_subsystem_api from parent's struct se_hba.
-	 */
-	t = hba->transport;
 
 	dev = target_alloc_device(hba, name);
 	if (!dev)
@@ -2504,17 +2510,17 @@ static struct config_group *target_core_make_subdev(
 	if (!dev_cg->default_groups)
 		goto out_free_device;
 
-	config_group_init_type_name(dev_cg, name, &t->tb_cits.tb_dev_cit);
+	config_group_init_type_name(dev_cg, name, &tb->tb_dev_cit);
 	config_group_init_type_name(&dev->dev_attrib.da_group, "attrib",
-			&t->tb_cits.tb_dev_attrib_cit);
+			&tb->tb_dev_attrib_cit);
 	config_group_init_type_name(&dev->dev_pr_group, "pr",
-			&t->tb_cits.tb_dev_pr_cit);
+			&tb->tb_dev_pr_cit);
 	config_group_init_type_name(&dev->t10_wwn.t10_wwn_group, "wwn",
-			&t->tb_cits.tb_dev_wwn_cit);
+			&tb->tb_dev_wwn_cit);
 	config_group_init_type_name(&dev->t10_alua.alua_tg_pt_gps_group,
-			"alua", &t->tb_cits.tb_dev_alua_tg_pt_gps_cit);
+			"alua", &tb->tb_dev_alua_tg_pt_gps_cit);
 	config_group_init_type_name(&dev->dev_stat_grps.stat_group,
-			"statistics", &t->tb_cits.tb_dev_stat_cit);
+			"statistics", &tb->tb_dev_stat_cit);
 
 	dev_cg->default_groups[0] = &dev->dev_attrib.da_group;
 	dev_cg->default_groups[1] = &dev->dev_pr_group;
@@ -2644,7 +2650,7 @@ static ssize_t target_core_hba_show_attr_hba_info(
 	char *page)
 {
 	return sprintf(page, "HBA Index: %d plugin: %s version: %s\n",
-			hba->hba_id, hba->transport->name,
+			hba->hba_id, hba->backend->ops->name,
 			TARGET_CORE_CONFIGFS_VERSION);
 }
 
@@ -2664,11 +2670,10 @@ static ssize_t target_core_hba_show_attr_hba_mode(struct se_hba *hba,
 static ssize_t target_core_hba_store_attr_hba_mode(struct se_hba *hba,
 				const char *page, size_t count)
 {
-	struct se_subsystem_api *transport = hba->transport;
 	unsigned long mode_flag;
 	int ret;
 
-	if (transport->pmode_enable_hba == NULL)
+	if (hba->backend->ops->pmode_enable_hba == NULL)
 		return -EINVAL;
 
 	ret = kstrtoul(page, 0, &mode_flag);
@@ -2682,7 +2687,7 @@ static ssize_t target_core_hba_store_attr_hba_mode(struct se_hba *hba,
 		return -EINVAL;
 	}
 
-	ret = transport->pmode_enable_hba(hba, mode_flag);
+	ret = hba->backend->ops->pmode_enable_hba(hba, mode_flag);
 	if (ret < 0)
 		return -EINVAL;
 	if (ret > 0)
@@ -2808,16 +2813,15 @@ static struct config_item_type target_core_cit = {
 
 /* Stop functions for struct config_item_type target_core_hba_cit */
 
-void target_core_setup_sub_cits(struct se_subsystem_api *sa)
+void target_setup_backend_cits(struct target_backend *tb)
 {
-	target_core_setup_dev_cit(sa);
-	target_core_setup_dev_attrib_cit(sa);
-	target_core_setup_dev_pr_cit(sa);
-	target_core_setup_dev_wwn_cit(sa);
-	target_core_setup_dev_alua_tg_pt_gps_cit(sa);
-	target_core_setup_dev_stat_cit(sa);
+	target_core_setup_dev_cit(tb);
+	target_core_setup_dev_attrib_cit(tb);
+	target_core_setup_dev_pr_cit(tb);
+	target_core_setup_dev_wwn_cit(tb);
+	target_core_setup_dev_alua_tg_pt_gps_cit(tb);
+	target_core_setup_dev_stat_cit(tb);
 }
-EXPORT_SYMBOL(target_core_setup_sub_cits);
 
 static int __init target_core_init_configfs(void)
 {

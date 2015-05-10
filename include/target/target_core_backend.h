@@ -3,18 +3,7 @@
 
 #define TRANSPORT_FLAG_PASSTHROUGH		1
 
-struct target_backend_cits {
-	struct config_item_type tb_dev_cit;
-	struct config_item_type tb_dev_attrib_cit;
-	struct config_item_type tb_dev_pr_cit;
-	struct config_item_type tb_dev_wwn_cit;
-	struct config_item_type tb_dev_alua_tg_pt_gps_cit;
-	struct config_item_type tb_dev_stat_cit;
-};
-
-struct se_subsystem_api {
-	struct list_head sub_api_list;
-
+struct target_backend_ops {
 	char name[16];
 	char inquiry_prod[16];
 	char inquiry_rev[4];
@@ -52,7 +41,7 @@ struct se_subsystem_api {
 	int (*format_prot)(struct se_device *);
 	void (*free_prot)(struct se_device *);
 
-	struct target_backend_cits tb_cits;
+	struct configfs_attribute **tb_dev_attrib_attrs;
 };
 
 struct sbc_ops {
@@ -64,8 +53,8 @@ struct sbc_ops {
 	sense_reason_t (*execute_unmap)(struct se_cmd *cmd);
 };
 
-int	transport_subsystem_register(struct se_subsystem_api *);
-void	transport_subsystem_release(struct se_subsystem_api *);
+int	transport_backend_register(const struct target_backend_ops *);
+void	target_backend_unregister(const struct target_backend_ops *);
 
 void	target_complete_cmd(struct se_cmd *, u8);
 void	target_complete_cmd_with_length(struct se_cmd *, u8, int);
@@ -102,9 +91,6 @@ sense_reason_t	transport_generic_map_mem_to_cmd(struct se_cmd *,
 		struct scatterlist *, u32, struct scatterlist *, u32);
 
 bool	target_lun_is_rdonly(struct se_cmd *);
-
-/* From target_core_configfs.c to setup default backend config_item_types */
-void	target_core_setup_sub_cits(struct se_subsystem_api *);
 
 /* attribute helpers from target_core_device.c for backend drivers */
 bool	se_dev_check_wce(struct se_device *);

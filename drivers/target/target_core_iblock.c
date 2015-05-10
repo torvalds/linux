@@ -54,12 +54,6 @@ static inline struct iblock_dev *IBLOCK_DEV(struct se_device *dev)
 }
 
 
-static struct se_subsystem_api iblock_template;
-
-/*	iblock_attach_hba(): (Part of se_subsystem_api_t template)
- *
- *
- */
 static int iblock_attach_hba(struct se_hba *hba, u32 host_id)
 {
 	pr_debug("CORE_HBA[%d] - TCM iBlock HBA Driver %s on"
@@ -899,7 +893,7 @@ static struct configfs_attribute *iblock_backend_dev_attrs[] = {
 	NULL,
 };
 
-static struct se_subsystem_api iblock_template = {
+static const struct target_backend_ops iblock_ops = {
 	.name			= "iblock",
 	.inquiry_prod		= "IBLOCK",
 	.inquiry_rev		= IBLOCK_VERSION,
@@ -919,21 +913,17 @@ static struct se_subsystem_api iblock_template = {
 	.get_io_min		= iblock_get_io_min,
 	.get_io_opt		= iblock_get_io_opt,
 	.get_write_cache	= iblock_get_write_cache,
+	.tb_dev_attrib_attrs	= iblock_backend_dev_attrs,
 };
 
 static int __init iblock_module_init(void)
 {
-	struct target_backend_cits *tbc = &iblock_template.tb_cits;
-
-	target_core_setup_sub_cits(&iblock_template);
-	tbc->tb_dev_attrib_cit.ct_attrs = iblock_backend_dev_attrs;
-
-	return transport_subsystem_register(&iblock_template);
+	return transport_backend_register(&iblock_ops);
 }
 
 static void __exit iblock_module_exit(void)
 {
-	transport_subsystem_release(&iblock_template);
+	target_backend_unregister(&iblock_ops);
 }
 
 MODULE_DESCRIPTION("TCM IBLOCK subsystem plugin");

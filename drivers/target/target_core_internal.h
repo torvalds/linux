@@ -1,6 +1,19 @@
 #ifndef TARGET_CORE_INTERNAL_H
 #define TARGET_CORE_INTERNAL_H
 
+struct target_backend {
+	struct list_head list;
+
+	const struct target_backend_ops *ops;
+
+	struct config_item_type tb_dev_cit;
+	struct config_item_type tb_dev_attrib_cit;
+	struct config_item_type tb_dev_pr_cit;
+	struct config_item_type tb_dev_wwn_cit;
+	struct config_item_type tb_dev_alua_tg_pt_gps_cit;
+	struct config_item_type tb_dev_stat_cit;
+};
+
 /* target_core_alua.c */
 extern struct t10_alua_lu_gp *default_lu_gp;
 
@@ -39,6 +52,9 @@ void	core_dev_release_virtual_lun0(void);
 struct se_device *target_alloc_device(struct se_hba *hba, const char *name);
 int	target_configure_device(struct se_device *dev);
 void	target_free_device(struct se_device *);
+
+/* target_core_configfs.c */
+void	target_setup_backend_cits(struct target_backend *);
 
 /* target_core_fabric_lib.c */
 int	target_get_pr_transport_id_len(struct se_node_acl *nacl,

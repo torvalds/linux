@@ -57,8 +57,6 @@ static inline struct pscsi_dev_virt *PSCSI_DEV(struct se_device *dev)
 	return container_of(dev, struct pscsi_dev_virt, dev);
 }
 
-static struct se_subsystem_api pscsi_template;
-
 static sense_reason_t pscsi_execute_cmd(struct se_cmd *cmd);
 static void pscsi_req_done(struct request *, int);
 
@@ -1141,7 +1139,7 @@ static struct configfs_attribute *pscsi_backend_dev_attrs[] = {
 	NULL,
 };
 
-static struct se_subsystem_api pscsi_template = {
+static const struct target_backend_ops pscsi_ops = {
 	.name			= "pscsi",
 	.owner			= THIS_MODULE,
 	.transport_flags	= TRANSPORT_FLAG_PASSTHROUGH,
@@ -1157,21 +1155,17 @@ static struct se_subsystem_api pscsi_template = {
 	.show_configfs_dev_params = pscsi_show_configfs_dev_params,
 	.get_device_type	= pscsi_get_device_type,
 	.get_blocks		= pscsi_get_blocks,
+	.tb_dev_attrib_attrs	= pscsi_backend_dev_attrs,
 };
 
 static int __init pscsi_module_init(void)
 {
-	struct target_backend_cits *tbc = &pscsi_template.tb_cits;
-
-	target_core_setup_sub_cits(&pscsi_template);
-	tbc->tb_dev_attrib_cit.ct_attrs = pscsi_backend_dev_attrs;
-
-	return transport_subsystem_register(&pscsi_template);
+	return transport_backend_register(&pscsi_ops);
 }
 
 static void __exit pscsi_module_exit(void)
 {
-	transport_subsystem_release(&pscsi_template);
+	target_backend_unregister(&pscsi_ops);
 }
 
 MODULE_DESCRIPTION("TCM PSCSI subsystem plugin");

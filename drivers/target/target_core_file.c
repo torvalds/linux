@@ -46,10 +46,6 @@ static inline struct fd_dev *FD_DEV(struct se_device *dev)
 	return container_of(dev, struct fd_dev, dev);
 }
 
-/*	fd_attach_hba(): (Part of se_subsystem_api_t template)
- *
- *
- */
 static int fd_attach_hba(struct se_hba *hba, u32 host_id)
 {
 	struct fd_host *fd_host;
@@ -881,7 +877,7 @@ static struct configfs_attribute *fileio_backend_dev_attrs[] = {
 	NULL,
 };
 
-static struct se_subsystem_api fileio_template = {
+static const struct target_backend_ops fileio_ops = {
 	.name			= "fileio",
 	.inquiry_prod		= "FILEIO",
 	.inquiry_rev		= FD_VERSION,
@@ -899,21 +895,17 @@ static struct se_subsystem_api fileio_template = {
 	.init_prot		= fd_init_prot,
 	.format_prot		= fd_format_prot,
 	.free_prot		= fd_free_prot,
+	.tb_dev_attrib_attrs	= fileio_backend_dev_attrs,
 };
 
 static int __init fileio_module_init(void)
 {
-	struct target_backend_cits *tbc = &fileio_template.tb_cits;
-
-	target_core_setup_sub_cits(&fileio_template);
-	tbc->tb_dev_attrib_cit.ct_attrs = fileio_backend_dev_attrs;
-
-	return transport_subsystem_register(&fileio_template);
+	return transport_backend_register(&fileio_ops);
 }
 
 static void __exit fileio_module_exit(void)
 {
-	transport_subsystem_release(&fileio_template);
+	target_backend_unregister(&fileio_ops);
 }
 
 MODULE_DESCRIPTION("TCM FILEIO subsystem plugin");

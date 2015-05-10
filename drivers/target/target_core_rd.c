@@ -43,10 +43,6 @@ static inline struct rd_dev *RD_DEV(struct se_device *dev)
 	return container_of(dev, struct rd_dev, dev);
 }
 
-/*	rd_attach_hba(): (Part of se_subsystem_api_t template)
- *
- *
- */
 static int rd_attach_hba(struct se_hba *hba, u32 host_id)
 {
 	struct rd_host *rd_host;
@@ -735,7 +731,7 @@ static struct configfs_attribute *rd_mcp_backend_dev_attrs[] = {
 	NULL,
 };
 
-static struct se_subsystem_api rd_mcp_template = {
+static const struct target_backend_ops rd_mcp_ops = {
 	.name			= "rd_mcp",
 	.inquiry_prod		= "RAMDISK-MCP",
 	.inquiry_rev		= RD_MCP_VERSION,
@@ -751,25 +747,15 @@ static struct se_subsystem_api rd_mcp_template = {
 	.get_blocks		= rd_get_blocks,
 	.init_prot		= rd_init_prot,
 	.free_prot		= rd_free_prot,
+	.tb_dev_attrib_attrs	= rd_mcp_backend_dev_attrs,
 };
 
 int __init rd_module_init(void)
 {
-	struct target_backend_cits *tbc = &rd_mcp_template.tb_cits;
-	int ret;
-
-	target_core_setup_sub_cits(&rd_mcp_template);
-	tbc->tb_dev_attrib_cit.ct_attrs = rd_mcp_backend_dev_attrs;
-
-	ret = transport_subsystem_register(&rd_mcp_template);
-	if (ret < 0) {
-		return ret;
-	}
-
-	return 0;
+	return transport_backend_register(&rd_mcp_ops);
 }
 
 void rd_module_exit(void)
 {
-	transport_subsystem_release(&rd_mcp_template);
+	target_backend_unregister(&rd_mcp_ops);
 }

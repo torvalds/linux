@@ -1367,13 +1367,13 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 	struct se_device *dev;
 	struct se_lun *xcopy_lun;
 
-	dev = hba->transport->alloc_device(hba, name);
+	dev = hba->backend->ops->alloc_device(hba, name);
 	if (!dev)
 		return NULL;
 
 	dev->dev_link_magic = SE_DEV_LINK_MAGIC;
 	dev->se_hba = hba;
-	dev->transport = hba->transport;
+	dev->transport = hba->backend->ops;
 	dev->prot_length = sizeof(struct se_dif_v1_tuple);
 
 	INIT_LIST_HEAD(&dev->dev_list);
@@ -1571,7 +1571,7 @@ int core_dev_setup_virtual_lun0(void)
 		goto out_free_hba;
 	}
 
-	hba->transport->set_configfs_dev_params(dev, buf, sizeof(buf));
+	hba->backend->ops->set_configfs_dev_params(dev, buf, sizeof(buf));
 
 	ret = target_configure_device(dev);
 	if (ret)
