@@ -512,27 +512,27 @@ int switchdev_port_bridge_setlink(struct net_device *dev,
 EXPORT_SYMBOL_GPL(switchdev_port_bridge_setlink);
 
 /**
- *	switchdev_port_bridge_dellink - Notify switch device port of bridge
- *	port attribute delete
+ *	switchdev_port_bridge_dellink - Set bridge port attributes
  *
  *	@dev: port device
- *	@nlh: netlink msg with bridge port attributes
- *	@flags: bridge setlink flags
+ *	@nlh: netlink header
+ *	@flags: netlink flags
  *
- *	Notify switch device port of bridge port attribute delete
+ *	Called for SELF on rtnl_bridge_dellink to set bridge port
+ *	attributes.
  */
 int switchdev_port_bridge_dellink(struct net_device *dev,
 				  struct nlmsghdr *nlh, u16 flags)
 {
-	const struct net_device_ops *ops = dev->netdev_ops;
+	struct nlattr *afspec;
 
-	if (!(dev->features & NETIF_F_HW_SWITCH_OFFLOAD))
-		return 0;
+	afspec = nlmsg_find_attr(nlh, sizeof(struct ifinfomsg),
+				 IFLA_AF_SPEC);
+	if (afspec)
+		return switchdev_port_br_afspec(dev, afspec,
+						switchdev_port_obj_del);
 
-	if (!ops->ndo_bridge_dellink)
-		return -EOPNOTSUPP;
-
-	return ops->ndo_bridge_dellink(dev, nlh, flags);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(switchdev_port_bridge_dellink);
 
