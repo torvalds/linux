@@ -1126,6 +1126,7 @@ static void intel_pmu_drain_pebs_nhm(struct pt_regs *iregs)
 	void *base, *at, *top;
 	int bit;
 	short counts[MAX_PEBS_EVENTS] = {};
+	short error[MAX_PEBS_EVENTS] = {};
 
 	if (!x86_pmu.pebs_active)
 		return;
@@ -1169,20 +1170,33 @@ static void intel_pmu_drain_pebs_nhm(struct pt_regs *iregs)
 			/* slow path */
 			pebs_status = p->status & cpuc->pebs_enabled;
 			pebs_status &= (1ULL << MAX_PEBS_EVENTS) - 1;
-			if (pebs_status != (1 << bit))
+			if (pebs_status != (1 << bit)) {
+				u8 i;
+
+				for_each_set_bit(i, (unsigned long *)&pebs_status,
+						 MAX_PEBS_EVENTS)
+					error[i]++;
 				continue;
+			}
 		}
 		counts[bit]++;
 	}
 
 	for (bit = 0; bit < x86_pmu.max_pebs_events; bit++) {
-		if (counts[bit] == 0)
+		if ((counts[bit] == 0) && (error[bit] == 0))
 			continue;
 		event = cpuc->events[bit];
 		WARN_ON_ONCE(!event);
 		WARN_ON_ONCE(!event->attr.precise_ip);
 
-		__intel_pmu_pebs_event(event, iregs, base, top, bit, counts[bit]);
+		/* log dropped samples number */
+		if (error[bit])
+			perf_log_lost_samples(event, error[bit]);
+
+		if (counts[bit]) {
+			__intel_pmu_pebs_event(event, iregs, base,
+					       top, bit, counts[bit]);
+		}
 	}
 }
 

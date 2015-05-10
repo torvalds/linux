@@ -802,6 +802,18 @@ enum perf_event_type {
 	 */
 	PERF_RECORD_ITRACE_START		= 12,
 
+	/*
+	 * Records the dropped/lost sample number.
+	 *
+	 * struct {
+	 *	struct perf_event_header	header;
+	 *
+	 *	u64				lost;
+	 *	struct sample_id		sample_id;
+	 * };
+	 */
+	PERF_RECORD_LOST_SAMPLES		= 13,
+
 	PERF_RECORD_MAX,			/* non-ABI */
 };
 
