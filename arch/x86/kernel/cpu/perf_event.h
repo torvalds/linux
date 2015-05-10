@@ -625,6 +625,7 @@ struct x86_pmu {
 struct x86_perf_task_context {
 	u64 lbr_from[MAX_LBR_ENTRIES];
 	u64 lbr_to[MAX_LBR_ENTRIES];
+	u64 lbr_info[MAX_LBR_ENTRIES];
 	int lbr_callstack_users;
 	int lbr_stack_state;
 };
