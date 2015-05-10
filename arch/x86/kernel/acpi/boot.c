@@ -608,7 +608,7 @@ static int acpi_register_gsi_pic(struct device *dev, u32 gsi,
 	 * Make sure all (legacy) PCI IRQs are set as level-triggered.
 	 */
 	if (trigger == ACPI_LEVEL_SENSITIVE)
-		eisa_set_level_irq(gsi);
+		elcr_set_level_irq(gsi);
 #endif
 
 	return gsi;

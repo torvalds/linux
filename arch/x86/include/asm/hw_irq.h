@@ -157,8 +157,7 @@ static inline void unlock_vector_lock(void) {}
 extern atomic_t irq_err_count;
 extern atomic_t irq_mis_count;
 
-/* EISA */
-extern void eisa_set_level_irq(unsigned int irq);
+extern void elcr_set_level_irq(unsigned int irq);
 
 /* SMP */
 extern __visible void smp_apic_timer_interrupt(struct pt_regs *);
