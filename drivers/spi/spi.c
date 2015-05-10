@@ -988,9 +988,6 @@ void spi_finalize_current_message(struct spi_master *master)
 
 	spin_lock_irqsave(&master->queue_lock, flags);
 	mesg = master->cur_msg;
-	master->cur_msg = NULL;
-
-	queue_kthread_work(&master->kworker, &master->pump_messages);
 	spin_unlock_irqrestore(&master->queue_lock, flags);
 
 	spi_unmap_msg(master, mesg);
@@ -1003,9 +1000,13 @@ void spi_finalize_current_message(struct spi_master *master)
 		}
 	}
 
-	trace_spi_message_done(mesg);
-
+	spin_lock_irqsave(&master->queue_lock, flags);
+	master->cur_msg = NULL;
 	master->cur_msg_prepared = false;
+	queue_kthread_work(&master->kworker, &master->pump_messages);
+	spin_unlock_irqrestore(&master->queue_lock, flags);
+
+	trace_spi_message_done(mesg);
 
 	mesg->state = NULL;
 	if (mesg->complete)
