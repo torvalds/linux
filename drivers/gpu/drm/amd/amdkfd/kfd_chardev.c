@@ -289,8 +289,10 @@ static int kfd_ioctl_create_queue(struct file *filep, struct kfd_process *p,
 
 	args->queue_id = queue_id;
 
+
 	/* Return gpu_id as doorbell offset for mmap usage */
-	args->doorbell_offset = args->gpu_id << PAGE_SHIFT;
+	args->doorbell_offset = (KFD_MMAP_DOORBELL_MASK | args->gpu_id);
+	args->doorbell_offset <<= PAGE_SHIFT;
 
 	mutex_unlock(&p->mutex);
 
@@ -684,5 +686,15 @@ static int kfd_mmap(struct file *filp, struct vm_area_struct *vma)
 	if (IS_ERR(process))
 		return PTR_ERR(process);
 
-	return kfd_doorbell_mmap(process, vma);
+	if ((vma->vm_pgoff & KFD_MMAP_DOORBELL_MASK) ==
+			KFD_MMAP_DOORBELL_MASK) {
+		vma->vm_pgoff = vma->vm_pgoff ^ KFD_MMAP_DOORBELL_MASK;
+		return kfd_doorbell_mmap(process, vma);
+	} else if ((vma->vm_pgoff & KFD_MMAP_EVENTS_MASK) ==
+			KFD_MMAP_EVENTS_MASK) {
+		vma->vm_pgoff = vma->vm_pgoff ^ KFD_MMAP_EVENTS_MASK;
+		return kfd_event_mmap(process, vma);
+	}
+
+	return -EFAULT;
 }

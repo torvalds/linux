@@ -35,6 +35,9 @@
 
 #define KFD_SYSFS_FILE_MODE 0444
 
+#define KFD_MMAP_DOORBELL_MASK 0x8000000000000
+#define KFD_MMAP_EVENTS_MASK 0x4000000000000
+
 /*
  * When working with cp scheduler we should assign the HIQ manually or via
  * the radeon driver to a fixed hqd slot, here are the fixed HIQ hqd slot
@@ -108,8 +111,16 @@ enum asic_family_type {
 	CHIP_CARRIZO
 };
 
+struct kfd_event_interrupt_class {
+	bool (*interrupt_isr)(struct kfd_dev *dev,
+				const uint32_t *ih_ring_entry);
+	void (*interrupt_wq)(struct kfd_dev *dev,
+				const uint32_t *ih_ring_entry);
+};
+
 struct kfd_device_info {
 	unsigned int asic_family;
+	const struct kfd_event_interrupt_class *event_interrupt_class;
 	unsigned int max_pasid_bits;
 	size_t ih_ring_entry_size;
 	uint8_t num_of_watch_points;
@@ -490,6 +501,15 @@ struct kfd_process {
 
 	/*Is the user space process 32 bit?*/
 	bool is_32bit_user_mode;
+
+	/* Event-related data */
+	struct mutex event_mutex;
+	/* All events in process hashed by ID, linked on kfd_event.events. */
+	DECLARE_HASHTABLE(events, 4);
+	struct list_head signal_event_pages;	/* struct slot_page_header.
+								event_pages */
+	u32 next_nonsignal_event_id;
+	size_t signal_event_count;
 };
 
 /**
@@ -514,6 +534,7 @@ void kfd_process_create_wq(void);
 void kfd_process_destroy_wq(void);
 struct kfd_process *kfd_create_process(const struct task_struct *);
 struct kfd_process *kfd_get_process(const struct task_struct *);
+struct kfd_process *kfd_lookup_process_by_pasid(unsigned int pasid);
 
 struct kfd_process_device *kfd_bind_process_to_device(struct kfd_dev *dev,
 							struct kfd_process *p);
@@ -658,5 +679,31 @@ void pm_release_ib(struct packet_manager *pm);
 uint64_t kfd_get_number_elems(struct kfd_dev *kfd);
 phys_addr_t kfd_get_process_doorbells(struct kfd_dev *dev,
 					struct kfd_process *process);
+
+/* Events */
+extern const struct kfd_event_interrupt_class event_interrupt_class_cik;
+
+enum kfd_event_wait_result {
+	KFD_WAIT_COMPLETE,
+	KFD_WAIT_TIMEOUT,
+	KFD_WAIT_ERROR
+};
+
+void kfd_event_init_process(struct kfd_process *p);
+void kfd_event_free_process(struct kfd_process *p);
+int kfd_event_mmap(struct kfd_process *process, struct vm_area_struct *vma);
+int kfd_wait_on_events(struct kfd_process *p,
+		       uint32_t num_events, const uint32_t __user *event_ids,
+		       bool all, uint32_t user_timeout_ms,
+		       enum kfd_event_wait_result *wait_result);
+void kfd_signal_event_interrupt(unsigned int pasid, uint32_t partial_id,
+				uint32_t valid_id_bits);
+int kfd_set_event(struct kfd_process *p, uint32_t event_id);
+int kfd_reset_event(struct kfd_process *p, uint32_t event_id);
+int kfd_event_create(struct file *devkfd, struct kfd_process *p,
+		     uint32_t event_type, bool auto_reset, uint32_t node_id,
+		     uint32_t *event_id, uint32_t *event_trigger_data,
+		     uint64_t *event_page_offset, uint32_t *event_slot_index);
+int kfd_event_destroy(struct kfd_process *p, uint32_t event_id);
 
 #endif
