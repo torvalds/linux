@@ -40,6 +40,7 @@
 #define MSYNC_PEER		0x00		/* ICAN only */
 #define MSYNC_LOCL		0x01		/* host only */
 #define TARGET_RUNNING		0x02
+#define FIRMWARE_STAMP		0x60		/* big endian firmware stamp */
 
 #define MSYNC_RB0		0x01
 #define MSYNC_RB1		0x02
@@ -83,6 +84,7 @@
 #define MSG_COFFREQ		0x42
 #define MSG_CONREQ		0x43
 #define MSG_CCONFREQ		0x47
+#define MSG_LMTS		0xb4
 
 /*
  * Janz ICAN3 CAN Inquiry Message Types
@@ -165,6 +167,12 @@
 /* SJA1000 Clock Input */
 #define ICAN3_CAN_CLOCK		8000000
 
+/* Janz ICAN3 firmware types */
+enum ican3_fwtype {
+	ICAN3_FWTYPE_ICANOS,
+	ICAN3_FWTYPE_CAL_CANOPEN,
+};
+
 /* Driver Name */
 #define DRV_NAME "janz-ican3"
 
@@ -214,6 +222,10 @@ struct ican3_dev {
 	/* CAN bus error status registers */
 	struct completion buserror_comp;
 	struct can_berr_counter bec;
+
+	/* firmware type */
+	enum ican3_fwtype fwtype;
+	char fwinfo[32];
 
 	/* old and new style host interface */
 	unsigned int iftype;
@@ -750,13 +762,61 @@ static int ican3_set_id_filter(struct ican3_dev *mod, bool accept)
  */
 static int ican3_set_bus_state(struct ican3_dev *mod, bool on)
 {
+	struct can_bittiming *bt = &mod->can.bittiming;
 	struct ican3_msg msg;
+	u8 btr0, btr1;
+	int res;
 
-	memset(&msg, 0, sizeof(msg));
-	msg.spec = on ? MSG_CONREQ : MSG_COFFREQ;
-	msg.len = cpu_to_le16(0);
+	/* This algorithm was stolen from drivers/net/can/sja1000/sja1000.c      */
+	/* The bittiming register command for the ICAN3 just sets the bit timing */
+	/* registers on the SJA1000 chip directly                                */
+	btr0 = ((bt->brp - 1) & 0x3f) | (((bt->sjw - 1) & 0x3) << 6);
+	btr1 = ((bt->prop_seg + bt->phase_seg1 - 1) & 0xf) |
+		(((bt->phase_seg2 - 1) & 0x7) << 4);
+	if (mod->can.ctrlmode & CAN_CTRLMODE_3_SAMPLES)
+		btr1 |= 0x80;
 
-	return ican3_send_msg(mod, &msg);
+	if (mod->fwtype == ICAN3_FWTYPE_ICANOS) {
+		if (on) {
+			/* set bittiming */
+			memset(&msg, 0, sizeof(msg));
+			msg.spec = MSG_CBTRREQ;
+			msg.len = cpu_to_le16(4);
+			msg.data[0] = 0x00;
+			msg.data[1] = 0x00;
+			msg.data[2] = btr0;
+			msg.data[3] = btr1;
+
+			res = ican3_send_msg(mod, &msg);
+			if (res)
+				return res;
+		}
+
+		/* can-on/off request */
+		memset(&msg, 0, sizeof(msg));
+		msg.spec = on ? MSG_CONREQ : MSG_COFFREQ;
+		msg.len = cpu_to_le16(0);
+
+		return ican3_send_msg(mod, &msg);
+
+	} else if (mod->fwtype == ICAN3_FWTYPE_CAL_CANOPEN) {
+		memset(&msg, 0, sizeof(msg));
+		msg.spec = MSG_LMTS;
+		if (on) {
+			msg.len = cpu_to_le16(4);
+			msg.data[0] = 0;
+			msg.data[1] = 0;
+			msg.data[2] = btr0;
+			msg.data[3] = btr1;
+		} else {
+			msg.len = cpu_to_le16(2);
+			msg.data[0] = 1;
+			msg.data[1] = 0;
+		}
+
+		return ican3_send_msg(mod, &msg);
+	}
+	return -ENOTSUPP;
 }
 
 static int ican3_set_termination(struct ican3_dev *mod, bool on)
@@ -1402,7 +1462,7 @@ static int ican3_reset_module(struct ican3_dev *mod)
 			return 0;
 
 		msleep(10);
-	} while (time_before(jiffies, start + HZ / 4));
+	} while (time_before(jiffies, start + HZ / 2));
 
 	netdev_err(mod->ndev, "failed to reset CAN module\n");
 	return -ETIMEDOUT;
@@ -1426,6 +1486,17 @@ static int ican3_startup_module(struct ican3_dev *mod)
 		netdev_err(mod->ndev, "unable to reset module\n");
 		return ret;
 	}
+
+	/* detect firmware */
+	memcpy_fromio(mod->fwinfo, mod->dpm + FIRMWARE_STAMP, sizeof(mod->fwinfo) - 1);
+	if (strncmp(mod->fwinfo, "JANZ-ICAN3", 10)) {
+		netdev_err(mod->ndev, "ICAN3 not detected (found %s)\n", mod->fwinfo);
+		return -ENODEV;
+	}
+	if (strstr(mod->fwinfo, "CAL/CANopen"))
+		mod->fwtype = ICAN3_FWTYPE_CAL_CANOPEN;
+	else
+		mod->fwtype = ICAN3_FWTYPE_ICANOS;
 
 	/* re-enable interrupts so we can send messages */
 	iowrite8(1 << mod->num, &mod->ctrl->int_enable);
@@ -1615,36 +1686,6 @@ static const struct can_bittiming_const ican3_bittiming_const = {
 	.brp_inc = 1,
 };
 
-/*
- * This routine was stolen from drivers/net/can/sja1000/sja1000.c
- *
- * The bittiming register command for the ICAN3 just sets the bit timing
- * registers on the SJA1000 chip directly
- */
-static int ican3_set_bittiming(struct net_device *ndev)
-{
-	struct ican3_dev *mod = netdev_priv(ndev);
-	struct can_bittiming *bt = &mod->can.bittiming;
-	struct ican3_msg msg;
-	u8 btr0, btr1;
-
-	btr0 = ((bt->brp - 1) & 0x3f) | (((bt->sjw - 1) & 0x3) << 6);
-	btr1 = ((bt->prop_seg + bt->phase_seg1 - 1) & 0xf) |
-		(((bt->phase_seg2 - 1) & 0x7) << 4);
-	if (mod->can.ctrlmode & CAN_CTRLMODE_3_SAMPLES)
-		btr1 |= 0x80;
-
-	memset(&msg, 0, sizeof(msg));
-	msg.spec = MSG_CBTRREQ;
-	msg.len = cpu_to_le16(4);
-	msg.data[0] = 0x00;
-	msg.data[1] = 0x00;
-	msg.data[2] = btr0;
-	msg.data[3] = btr1;
-
-	return ican3_send_msg(mod, &msg);
-}
-
 static int ican3_set_mode(struct net_device *ndev, enum can_mode mode)
 {
 	struct ican3_dev *mod = netdev_priv(ndev);
@@ -1730,11 +1771,22 @@ static ssize_t ican3_sysfs_set_term(struct device *dev,
 	return count;
 }
 
+static ssize_t ican3_sysfs_show_fwinfo(struct device *dev,
+				       struct device_attribute *attr,
+				       char *buf)
+{
+	struct ican3_dev *mod = netdev_priv(to_net_dev(dev));
+
+	return scnprintf(buf, PAGE_SIZE, "%s\n", mod->fwinfo);
+}
+
 static DEVICE_ATTR(termination, S_IWUSR | S_IRUGO, ican3_sysfs_show_term,
 						   ican3_sysfs_set_term);
+static DEVICE_ATTR(fwinfo, S_IRUSR | S_IRUGO, ican3_sysfs_show_fwinfo, NULL);
 
 static struct attribute *ican3_sysfs_attrs[] = {
 	&dev_attr_termination.attr,
+	&dev_attr_fwinfo.attr,
 	NULL,
 };
 
@@ -1794,7 +1846,6 @@ static int ican3_probe(struct platform_device *pdev)
 
 	mod->can.clock.freq = ICAN3_CAN_CLOCK;
 	mod->can.bittiming_const = &ican3_bittiming_const;
-	mod->can.do_set_bittiming = ican3_set_bittiming;
 	mod->can.do_set_mode = ican3_set_mode;
 	mod->can.do_get_berr_counter = ican3_get_berr_counter;
 	mod->can.ctrlmode_supported = CAN_CTRLMODE_3_SAMPLES
@@ -1866,7 +1917,7 @@ static int ican3_probe(struct platform_device *pdev)
 		goto out_free_irq;
 	}
 
-	dev_info(dev, "module %d: registered CAN device\n", pdata->modno);
+	netdev_info(mod->ndev, "module %d: registered CAN device\n", pdata->modno);
 	return 0;
 
 out_free_irq:
