@@ -471,82 +471,507 @@ EXPORT_SYMBOL(target_unregister_template);
 //############################################################################*/
 
 /* Start functions for struct config_item_type tb_dev_attrib_cit */
-#define DEF_TB_DEV_ATTRIB_SHOW(_backend, _name)				\
-static ssize_t _backend##_dev_show_attr_##_name(			\
-	struct se_dev_attrib *da,					\
-	char *page)							\
+#define DEF_TB_DEV_ATTRIB_SHOW(_name)					\
+static ssize_t show_##_name(struct se_dev_attrib *da, char *page)	\
 {									\
-	return snprintf(page, PAGE_SIZE, "%u\n",			\
-			(u32)da->da_dev->dev_attrib._name);		\
+	return snprintf(page, PAGE_SIZE, "%u\n", da->_name);		\
 }
 
-#define DEF_TB_DEV_ATTRIB_STORE(_backend, _name)			\
-static ssize_t _backend##_dev_store_attr_##_name(			\
-	struct se_dev_attrib *da,					\
-	const char *page,						\
-	size_t count)							\
+DEF_TB_DEV_ATTRIB_SHOW(emulate_model_alias);
+DEF_TB_DEV_ATTRIB_SHOW(emulate_dpo);
+DEF_TB_DEV_ATTRIB_SHOW(emulate_fua_write);
+DEF_TB_DEV_ATTRIB_SHOW(emulate_fua_read);
+DEF_TB_DEV_ATTRIB_SHOW(emulate_write_cache);
+DEF_TB_DEV_ATTRIB_SHOW(emulate_ua_intlck_ctrl);
+DEF_TB_DEV_ATTRIB_SHOW(emulate_tas);
+DEF_TB_DEV_ATTRIB_SHOW(emulate_tpu);
+DEF_TB_DEV_ATTRIB_SHOW(emulate_tpws);
+DEF_TB_DEV_ATTRIB_SHOW(emulate_caw);
+DEF_TB_DEV_ATTRIB_SHOW(emulate_3pc);
+DEF_TB_DEV_ATTRIB_SHOW(pi_prot_type);
+DEF_TB_DEV_ATTRIB_SHOW(hw_pi_prot_type);
+DEF_TB_DEV_ATTRIB_SHOW(pi_prot_format);
+DEF_TB_DEV_ATTRIB_SHOW(enforce_pr_isids);
+DEF_TB_DEV_ATTRIB_SHOW(is_nonrot);
+DEF_TB_DEV_ATTRIB_SHOW(emulate_rest_reord);
+DEF_TB_DEV_ATTRIB_SHOW(force_pr_aptpl);
+DEF_TB_DEV_ATTRIB_SHOW(hw_block_size);
+DEF_TB_DEV_ATTRIB_SHOW(block_size);
+DEF_TB_DEV_ATTRIB_SHOW(hw_max_sectors);
+DEF_TB_DEV_ATTRIB_SHOW(optimal_sectors);
+DEF_TB_DEV_ATTRIB_SHOW(hw_queue_depth);
+DEF_TB_DEV_ATTRIB_SHOW(queue_depth);
+DEF_TB_DEV_ATTRIB_SHOW(max_unmap_lba_count);
+DEF_TB_DEV_ATTRIB_SHOW(max_unmap_block_desc_count);
+DEF_TB_DEV_ATTRIB_SHOW(unmap_granularity);
+DEF_TB_DEV_ATTRIB_SHOW(unmap_granularity_alignment);
+DEF_TB_DEV_ATTRIB_SHOW(max_write_same_len);
+
+#define DEF_TB_DEV_ATTRIB_STORE_U32(_name)				\
+static ssize_t store_##_name(struct se_dev_attrib *da, const char *page,\
+		size_t count)						\
 {									\
-	unsigned long val;						\
+	u32 val;							\
 	int ret;							\
 									\
-	ret = kstrtoul(page, 0, &val);					\
-	if (ret < 0) {							\
-		pr_err("kstrtoul() failed with ret: %d\n", ret);	\
-		return -EINVAL;						\
-	}								\
-	ret = se_dev_set_##_name(da->da_dev, (u32)val);			\
-									\
-	return (!ret) ? count : -EINVAL;				\
+	ret = kstrtou32(page, 0, &val);					\
+	if (ret < 0)							\
+		return ret;						\
+	da->_name = val;						\
+	return count;							\
 }
 
-#define DEF_TB_DEV_ATTRIB(_backend, _name)				\
-DEF_TB_DEV_ATTRIB_SHOW(_backend, _name);				\
-DEF_TB_DEV_ATTRIB_STORE(_backend, _name);
+DEF_TB_DEV_ATTRIB_STORE_U32(max_unmap_lba_count);
+DEF_TB_DEV_ATTRIB_STORE_U32(max_unmap_block_desc_count);
+DEF_TB_DEV_ATTRIB_STORE_U32(unmap_granularity);
+DEF_TB_DEV_ATTRIB_STORE_U32(unmap_granularity_alignment);
+DEF_TB_DEV_ATTRIB_STORE_U32(max_write_same_len);
 
-#define DEF_TB_DEV_ATTRIB_RO(_backend, name)				\
-DEF_TB_DEV_ATTRIB_SHOW(_backend, name);
+#define DEF_TB_DEV_ATTRIB_STORE_BOOL(_name)				\
+static ssize_t store_##_name(struct se_dev_attrib *da, const char *page,\
+		size_t count)						\
+{									\
+	bool flag;							\
+	int ret;							\
+									\
+	ret = strtobool(page, &flag);					\
+	if (ret < 0)							\
+		return ret;						\
+	da->_name = flag;						\
+	return count;							\
+}
+
+DEF_TB_DEV_ATTRIB_STORE_BOOL(emulate_fua_write);
+DEF_TB_DEV_ATTRIB_STORE_BOOL(emulate_caw);
+DEF_TB_DEV_ATTRIB_STORE_BOOL(emulate_3pc);
+DEF_TB_DEV_ATTRIB_STORE_BOOL(enforce_pr_isids);
+DEF_TB_DEV_ATTRIB_STORE_BOOL(is_nonrot);
+
+#define DEF_TB_DEV_ATTRIB_STORE_STUB(_name)				\
+static ssize_t store_##_name(struct se_dev_attrib *da, const char *page,\
+		size_t count)						\
+{									\
+	printk_once(KERN_WARNING					\
+		"ignoring deprecated ##_name## attribute\n");	\
+	return count;							\
+}
+
+DEF_TB_DEV_ATTRIB_STORE_STUB(emulate_dpo);
+DEF_TB_DEV_ATTRIB_STORE_STUB(emulate_fua_read);
+
+static void dev_set_t10_wwn_model_alias(struct se_device *dev)
+{
+	const char *configname;
+
+	configname = config_item_name(&dev->dev_group.cg_item);
+	if (strlen(configname) >= 16) {
+		pr_warn("dev[%p]: Backstore name '%s' is too long for "
+			"INQUIRY_MODEL, truncating to 16 bytes\n", dev,
+			configname);
+	}
+	snprintf(&dev->t10_wwn.model[0], 16, "%s", configname);
+}
+
+static ssize_t store_emulate_model_alias(struct se_dev_attrib *da,
+		const char *page, size_t count)
+{
+	struct se_device *dev = da->da_dev;
+	bool flag;
+	int ret;
+
+	if (dev->export_count) {
+		pr_err("dev[%p]: Unable to change model alias"
+			" while export_count is %d\n",
+			dev, dev->export_count);
+		return -EINVAL;
+	}
+
+	ret = strtobool(page, &flag);
+	if (ret < 0)
+		return ret;
+
+	if (flag) {
+		dev_set_t10_wwn_model_alias(dev);
+	} else {
+		strncpy(&dev->t10_wwn.model[0],
+			dev->transport->inquiry_prod, 16);
+	}
+	da->emulate_model_alias = flag;
+	return count;
+}
+
+static ssize_t store_emulate_write_cache(struct se_dev_attrib *da,
+		const char *page, size_t count)
+{
+	bool flag;
+	int ret;
+
+	ret = strtobool(page, &flag);
+	if (ret < 0)
+		return ret;
+
+	if (flag && da->da_dev->transport->get_write_cache) {
+		pr_err("emulate_write_cache not supported for this device\n");
+		return -EINVAL;
+	}
+
+	da->emulate_write_cache = flag;
+	pr_debug("dev[%p]: SE Device WRITE_CACHE_EMULATION flag: %d\n",
+			da->da_dev, flag);
+	return count;
+}
+
+static ssize_t store_emulate_ua_intlck_ctrl(struct se_dev_attrib *da,
+		const char *page, size_t count)
+{
+	u32 val;
+	int ret;
+
+	ret = kstrtou32(page, 0, &val);
+	if (ret < 0)
+		return ret;
+
+	if (val != 0 && val != 1 && val != 2) {
+		pr_err("Illegal value %d\n", val);
+		return -EINVAL;
+	}
+
+	if (da->da_dev->export_count) {
+		pr_err("dev[%p]: Unable to change SE Device"
+			" UA_INTRLCK_CTRL while export_count is %d\n",
+			da->da_dev, da->da_dev->export_count);
+		return -EINVAL;
+	}
+	da->emulate_ua_intlck_ctrl = val;
+	pr_debug("dev[%p]: SE Device UA_INTRLCK_CTRL flag: %d\n",
+		da->da_dev, val);
+	return count;
+}
+
+static ssize_t store_emulate_tas(struct se_dev_attrib *da,
+		const char *page, size_t count)
+{
+	bool flag;
+	int ret;
+
+	ret = strtobool(page, &flag);
+	if (ret < 0)
+		return ret;
+
+	if (da->da_dev->export_count) {
+		pr_err("dev[%p]: Unable to change SE Device TAS while"
+			" export_count is %d\n",
+			da->da_dev, da->da_dev->export_count);
+		return -EINVAL;
+	}
+	da->emulate_tas = flag;
+	pr_debug("dev[%p]: SE Device TASK_ABORTED status bit: %s\n",
+		da->da_dev, flag ? "Enabled" : "Disabled");
+
+	return count;
+}
+
+static ssize_t store_emulate_tpu(struct se_dev_attrib *da,
+		const char *page, size_t count)
+{
+	bool flag;
+	int ret;
+
+	ret = strtobool(page, &flag);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * We expect this value to be non-zero when generic Block Layer
+	 * Discard supported is detected iblock_create_virtdevice().
+	 */
+	if (flag && !da->max_unmap_block_desc_count) {
+		pr_err("Generic Block Discard not supported\n");
+		return -ENOSYS;
+	}
+
+	da->emulate_tpu = flag;
+	pr_debug("dev[%p]: SE Device Thin Provisioning UNMAP bit: %d\n",
+		da->da_dev, flag);
+	return count;
+}
+
+static ssize_t store_emulate_tpws(struct se_dev_attrib *da,
+		const char *page, size_t count)
+{
+	bool flag;
+	int ret;
+
+	ret = strtobool(page, &flag);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * We expect this value to be non-zero when generic Block Layer
+	 * Discard supported is detected iblock_create_virtdevice().
+	 */
+	if (flag && !da->max_unmap_block_desc_count) {
+		pr_err("Generic Block Discard not supported\n");
+		return -ENOSYS;
+	}
+
+	da->emulate_tpws = flag;
+	pr_debug("dev[%p]: SE Device Thin Provisioning WRITE_SAME: %d\n",
+				da->da_dev, flag);
+	return count;
+}
+
+static ssize_t store_pi_prot_type(struct se_dev_attrib *da,
+		const char *page, size_t count)
+{
+	int old_prot = da->pi_prot_type, ret;
+	struct se_device *dev = da->da_dev;
+	u32 flag;
+
+	ret = kstrtou32(page, 0, &flag);
+	if (ret < 0)
+		return ret;
+
+	if (flag != 0 && flag != 1 && flag != 2 && flag != 3) {
+		pr_err("Illegal value %d for pi_prot_type\n", flag);
+		return -EINVAL;
+	}
+	if (flag == 2) {
+		pr_err("DIF TYPE2 protection currently not supported\n");
+		return -ENOSYS;
+	}
+	if (da->hw_pi_prot_type) {
+		pr_warn("DIF protection enabled on underlying hardware,"
+			" ignoring\n");
+		return count;
+	}
+	if (!dev->transport->init_prot || !dev->transport->free_prot) {
+		/* 0 is only allowed value for non-supporting backends */
+		if (flag == 0)
+			return 0;
+
+		pr_err("DIF protection not supported by backend: %s\n",
+		       dev->transport->name);
+		return -ENOSYS;
+	}
+	if (!(dev->dev_flags & DF_CONFIGURED)) {
+		pr_err("DIF protection requires device to be configured\n");
+		return -ENODEV;
+	}
+	if (dev->export_count) {
+		pr_err("dev[%p]: Unable to change SE Device PROT type while"
+		       " export_count is %d\n", dev, dev->export_count);
+		return -EINVAL;
+	}
+
+	da->pi_prot_type = flag;
+
+	if (flag && !old_prot) {
+		ret = dev->transport->init_prot(dev);
+		if (ret) {
+			da->pi_prot_type = old_prot;
+			return ret;
+		}
+
+	} else if (!flag && old_prot) {
+		dev->transport->free_prot(dev);
+	}
+
+	pr_debug("dev[%p]: SE Device Protection Type: %d\n", dev, flag);
+	return count;
+}
+
+static ssize_t store_pi_prot_format(struct se_dev_attrib *da,
+		const char *page, size_t count)
+{
+	struct se_device *dev = da->da_dev;
+	bool flag;
+	int ret;
+
+	ret = strtobool(page, &flag);
+	if (ret < 0)
+		return ret;
+
+	if (!flag)
+		return count;
+
+	if (!dev->transport->format_prot) {
+		pr_err("DIF protection format not supported by backend %s\n",
+		       dev->transport->name);
+		return -ENOSYS;
+	}
+	if (!(dev->dev_flags & DF_CONFIGURED)) {
+		pr_err("DIF protection format requires device to be configured\n");
+		return -ENODEV;
+	}
+	if (dev->export_count) {
+		pr_err("dev[%p]: Unable to format SE Device PROT type while"
+		       " export_count is %d\n", dev, dev->export_count);
+		return -EINVAL;
+	}
+
+	ret = dev->transport->format_prot(dev);
+	if (ret)
+		return ret;
+
+	pr_debug("dev[%p]: SE Device Protection Format complete\n", dev);
+	return count;
+}
+
+static ssize_t store_force_pr_aptpl(struct se_dev_attrib *da,
+		const char *page, size_t count)
+{
+	bool flag;
+	int ret;
+
+	ret = strtobool(page, &flag);
+	if (ret < 0)
+		return ret;
+	if (da->da_dev->export_count) {
+		pr_err("dev[%p]: Unable to set force_pr_aptpl while"
+		       " export_count is %d\n",
+		       da->da_dev, da->da_dev->export_count);
+		return -EINVAL;
+	}
+
+	da->force_pr_aptpl = flag;
+	pr_debug("dev[%p]: SE Device force_pr_aptpl: %d\n", da->da_dev, flag);
+	return count;
+}
+
+static ssize_t store_emulate_rest_reord(struct se_dev_attrib *da,
+		const char *page, size_t count)
+{
+	bool flag;
+	int ret;
+
+	ret = strtobool(page, &flag);
+	if (ret < 0)
+		return ret;
+
+	if (flag != 0) {
+		printk(KERN_ERR "dev[%p]: SE Device emulation of restricted"
+			" reordering not implemented\n", da->da_dev);
+		return -ENOSYS;
+	}
+	da->emulate_rest_reord = flag;
+	pr_debug("dev[%p]: SE Device emulate_rest_reord: %d\n",
+		da->da_dev, flag);
+	return count;
+}
+
+/*
+ * Note, this can only be called on unexported SE Device Object.
+ */
+static ssize_t store_queue_depth(struct se_dev_attrib *da,
+		const char *page, size_t count)
+{
+	struct se_device *dev = da->da_dev;
+	u32 val;
+	int ret;
+
+	ret = kstrtou32(page, 0, &val);
+	if (ret < 0)
+		return ret;
+
+	if (dev->export_count) {
+		pr_err("dev[%p]: Unable to change SE Device TCQ while"
+			" export_count is %d\n",
+			dev, dev->export_count);
+		return -EINVAL;
+	}
+	if (!val) {
+		pr_err("dev[%p]: Illegal ZERO value for queue_depth\n", dev);
+		return -EINVAL;
+	}
+
+	if (val > dev->dev_attrib.queue_depth) {
+		if (val > dev->dev_attrib.hw_queue_depth) {
+			pr_err("dev[%p]: Passed queue_depth:"
+				" %u exceeds TCM/SE_Device MAX"
+				" TCQ: %u\n", dev, val,
+				dev->dev_attrib.hw_queue_depth);
+			return -EINVAL;
+		}
+	}
+	da->queue_depth = dev->queue_depth = val;
+	pr_debug("dev[%p]: SE Device TCQ Depth changed to: %u\n", dev, val);
+	return count;
+}
+
+static ssize_t store_optimal_sectors(struct se_dev_attrib *da,
+		const char *page, size_t count)
+{
+	u32 val;
+	int ret;
+
+	ret = kstrtou32(page, 0, &val);
+	if (ret < 0)
+		return ret;
+
+	if (da->da_dev->export_count) {
+		pr_err("dev[%p]: Unable to change SE Device"
+			" optimal_sectors while export_count is %d\n",
+			da->da_dev, da->da_dev->export_count);
+		return -EINVAL;
+	}
+	if (val > da->hw_max_sectors) {
+		pr_err("dev[%p]: Passed optimal_sectors %u cannot be"
+			" greater than hw_max_sectors: %u\n",
+			da->da_dev, val, da->hw_max_sectors);
+		return -EINVAL;
+	}
+
+	da->optimal_sectors = val;
+	pr_debug("dev[%p]: SE Device optimal_sectors changed to %u\n",
+			da->da_dev, val);
+	return count;
+}
+
+static ssize_t store_block_size(struct se_dev_attrib *da,
+		const char *page, size_t count)
+{
+	u32 val;
+	int ret;
+
+	ret = kstrtou32(page, 0, &val);
+	if (ret < 0)
+		return ret;
+
+	if (da->da_dev->export_count) {
+		pr_err("dev[%p]: Unable to change SE Device block_size"
+			" while export_count is %d\n",
+			da->da_dev, da->da_dev->export_count);
+		return -EINVAL;
+	}
+
+	if (val != 512 && val != 1024 && val != 2048 && val != 4096) {
+		pr_err("dev[%p]: Illegal value for block_device: %u"
+			" for SE device, must be 512, 1024, 2048 or 4096\n",
+			da->da_dev, val);
+		return -EINVAL;
+	}
+
+	da->block_size = val;
+	if (da->max_bytes_per_io)
+		da->hw_max_sectors = da->max_bytes_per_io / val;
+
+	pr_debug("dev[%p]: SE Device block_size changed to %u\n",
+			da->da_dev, val);
+	return count;
+}
 
 CONFIGFS_EATTR_STRUCT(target_backend_dev_attrib, se_dev_attrib);
 #define TB_DEV_ATTR(_backend, _name, _mode)				\
 static struct target_backend_dev_attrib_attribute _backend##_dev_attrib_##_name = \
-		__CONFIGFS_EATTR(_name, _mode,				\
-		_backend##_dev_show_attr_##_name,			\
-		_backend##_dev_store_attr_##_name);
+	__CONFIGFS_EATTR(_name, _mode,					\
+	show_##_name,							\
+	store_##_name);
 
-#define TB_DEV_ATTR_RO(_backend, _name)						\
+#define TB_DEV_ATTR_RO(_backend, _name)					\
 static struct target_backend_dev_attrib_attribute _backend##_dev_attrib_##_name = \
 	__CONFIGFS_EATTR_RO(_name,					\
-	_backend##_dev_show_attr_##_name);
-
-DEF_TB_DEV_ATTRIB(target_core, emulate_model_alias);
-DEF_TB_DEV_ATTRIB(target_core, emulate_dpo);
-DEF_TB_DEV_ATTRIB(target_core, emulate_fua_write);
-DEF_TB_DEV_ATTRIB(target_core, emulate_fua_read);
-DEF_TB_DEV_ATTRIB(target_core, emulate_write_cache);
-DEF_TB_DEV_ATTRIB(target_core, emulate_ua_intlck_ctrl);
-DEF_TB_DEV_ATTRIB(target_core, emulate_tas);
-DEF_TB_DEV_ATTRIB(target_core, emulate_tpu);
-DEF_TB_DEV_ATTRIB(target_core, emulate_tpws);
-DEF_TB_DEV_ATTRIB(target_core, emulate_caw);
-DEF_TB_DEV_ATTRIB(target_core, emulate_3pc);
-DEF_TB_DEV_ATTRIB(target_core, pi_prot_type);
-DEF_TB_DEV_ATTRIB_RO(target_core, hw_pi_prot_type);
-DEF_TB_DEV_ATTRIB(target_core, pi_prot_format);
-DEF_TB_DEV_ATTRIB(target_core, enforce_pr_isids);
-DEF_TB_DEV_ATTRIB(target_core, is_nonrot);
-DEF_TB_DEV_ATTRIB(target_core, emulate_rest_reord);
-DEF_TB_DEV_ATTRIB(target_core, force_pr_aptpl);
-DEF_TB_DEV_ATTRIB_RO(target_core, hw_block_size);
-DEF_TB_DEV_ATTRIB(target_core, block_size);
-DEF_TB_DEV_ATTRIB_RO(target_core, hw_max_sectors);
-DEF_TB_DEV_ATTRIB(target_core, optimal_sectors);
-DEF_TB_DEV_ATTRIB_RO(target_core, hw_queue_depth);
-DEF_TB_DEV_ATTRIB(target_core, queue_depth);
-DEF_TB_DEV_ATTRIB(target_core, max_unmap_lba_count);
-DEF_TB_DEV_ATTRIB(target_core, max_unmap_block_desc_count);
-DEF_TB_DEV_ATTRIB(target_core, unmap_granularity);
-DEF_TB_DEV_ATTRIB(target_core, unmap_granularity_alignment);
-DEF_TB_DEV_ATTRIB(target_core, max_write_same_len);
+	show_##_name);
 
 TB_DEV_ATTR(target_core, emulate_model_alias, S_IRUGO | S_IWUSR);
 TB_DEV_ATTR(target_core, emulate_dpo, S_IRUGO | S_IWUSR);
@@ -619,11 +1044,6 @@ struct configfs_attribute *sbc_attrib_attrs[] = {
 	NULL,
 };
 EXPORT_SYMBOL(sbc_attrib_attrs);
-
-DEF_TB_DEV_ATTRIB_RO(target_pt, hw_pi_prot_type);
-DEF_TB_DEV_ATTRIB_RO(target_pt, hw_block_size);
-DEF_TB_DEV_ATTRIB_RO(target_pt, hw_max_sectors);
-DEF_TB_DEV_ATTRIB_RO(target_pt, hw_queue_depth);
 
 TB_DEV_ATTR_RO(target_pt, hw_pi_prot_type);
 TB_DEV_ATTR_RO(target_pt, hw_block_size);

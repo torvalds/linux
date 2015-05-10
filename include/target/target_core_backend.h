@@ -94,35 +94,6 @@ sense_reason_t	transport_generic_map_mem_to_cmd(struct se_cmd *,
 		struct scatterlist *, u32, struct scatterlist *, u32);
 
 bool	target_lun_is_rdonly(struct se_cmd *);
-
-/* attribute helpers from target_core_device.c for backend drivers */
-bool	se_dev_check_wce(struct se_device *);
-int	se_dev_set_max_unmap_lba_count(struct se_device *, u32);
-int	se_dev_set_max_unmap_block_desc_count(struct se_device *, u32);
-int	se_dev_set_unmap_granularity(struct se_device *, u32);
-int	se_dev_set_unmap_granularity_alignment(struct se_device *, u32);
-int	se_dev_set_max_write_same_len(struct se_device *, u32);
-int	se_dev_set_emulate_model_alias(struct se_device *, int);
-int	se_dev_set_emulate_dpo(struct se_device *, int);
-int	se_dev_set_emulate_fua_write(struct se_device *, int);
-int	se_dev_set_emulate_fua_read(struct se_device *, int);
-int	se_dev_set_emulate_write_cache(struct se_device *, int);
-int	se_dev_set_emulate_ua_intlck_ctrl(struct se_device *, int);
-int	se_dev_set_emulate_tas(struct se_device *, int);
-int	se_dev_set_emulate_tpu(struct se_device *, int);
-int	se_dev_set_emulate_tpws(struct se_device *, int);
-int	se_dev_set_emulate_caw(struct se_device *, int);
-int	se_dev_set_emulate_3pc(struct se_device *, int);
-int	se_dev_set_pi_prot_type(struct se_device *, int);
-int	se_dev_set_pi_prot_format(struct se_device *, int);
-int	se_dev_set_enforce_pr_isids(struct se_device *, int);
-int	se_dev_set_force_pr_aptpl(struct se_device *, int);
-int	se_dev_set_is_nonrot(struct se_device *, int);
-int	se_dev_set_emulate_rest_reord(struct se_device *dev, int);
-int	se_dev_set_queue_depth(struct se_device *, u32);
-int	se_dev_set_max_sectors(struct se_device *, u32);
-int	se_dev_set_optimal_sectors(struct se_device *, u32);
-int	se_dev_set_block_size(struct se_device *, u32);
 sense_reason_t passthrough_parse_cdb(struct se_cmd *cmd,
 	sense_reason_t (*exec_cmd)(struct se_cmd *cmd));
 
