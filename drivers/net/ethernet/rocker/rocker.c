@@ -181,7 +181,7 @@ struct rocker_desc_info {
 	size_t data_size;
 	size_t tlv_size;
 	struct rocker_desc *desc;
-	DEFINE_DMA_UNMAP_ADDR(mapaddr);
+	dma_addr_t mapaddr;
 };
 
 struct rocker_dma_ring_info {
@@ -237,21 +237,21 @@ struct rocker {
 	struct {
 		u64 id;
 	} hw;
-	spinlock_t cmd_ring_lock;
+	spinlock_t cmd_ring_lock;		/* for cmd ring accesses */
 	struct rocker_dma_ring_info cmd_ring;
 	struct rocker_dma_ring_info event_ring;
 	DECLARE_HASHTABLE(flow_tbl, 16);
-	spinlock_t flow_tbl_lock;
+	spinlock_t flow_tbl_lock;		/* for flow tbl accesses */
 	u64 flow_tbl_next_cookie;
 	DECLARE_HASHTABLE(group_tbl, 16);
-	spinlock_t group_tbl_lock;
+	spinlock_t group_tbl_lock;		/* for group tbl accesses */
 	DECLARE_HASHTABLE(fdb_tbl, 16);
-	spinlock_t fdb_tbl_lock;
+	spinlock_t fdb_tbl_lock;		/* for fdb tbl accesses */
 	unsigned long internal_vlan_bitmap[ROCKER_INTERNAL_VLAN_BITMAP_LEN];
 	DECLARE_HASHTABLE(internal_vlan_tbl, 8);
-	spinlock_t internal_vlan_tbl_lock;
+	spinlock_t internal_vlan_tbl_lock;	/* for vlan tbl accesses */
 	DECLARE_HASHTABLE(neigh_tbl, 16);
-	spinlock_t neigh_tbl_lock;
+	spinlock_t neigh_tbl_lock;		/* for neigh tbl accesses */
 	u32 neigh_tbl_next_index;
 };
 
@@ -4688,8 +4688,6 @@ static void rocker_port_get_stats(struct net_device *dev,
 		for (i = 0; i < ARRAY_SIZE(rocker_port_stats); ++i)
 			data[i] = 0;
 	}
-
-	return;
 }
 
 static int rocker_port_get_sset_count(struct net_device *netdev, int sset)
@@ -4743,8 +4741,9 @@ static int rocker_port_poll_tx(struct napi_struct *napi, int budget)
 		if (err == 0) {
 			rocker_port->dev->stats.tx_packets++;
 			rocker_port->dev->stats.tx_bytes += skb->len;
-		} else
+		} else {
 			rocker_port->dev->stats.tx_errors++;
+		}
 
 		dev_kfree_skb_any(skb);
 		credits++;
