@@ -41,12 +41,25 @@ struct switchdev_attr {
 
 struct fib_info;
 
+enum switchdev_obj_id {
+	SWITCHDEV_OBJ_UNDEFINED,
+};
+
+struct switchdev_obj {
+	enum switchdev_obj_id id;
+	enum switchdev_trans trans;
+};
+
 /**
  * struct switchdev_ops - switchdev operations
  *
  * @switchdev_port_attr_get: Get a port attribute (see switchdev_attr).
  *
  * @switchdev_port_attr_set: Set a port attribute (see switchdev_attr).
+ *
+ * @switchdev_port_obj_add: Add an object to port (see switchdev_obj).
+ *
+ * @switchdev_port_obj_del: Delete an object from port (see switchdev_obj).
  *
  * @switchdev_fib_ipv4_add: Called to add/modify IPv4 route to switch device.
  *
@@ -57,6 +70,10 @@ struct switchdev_ops {
 					   struct switchdev_attr *attr);
 	int	(*switchdev_port_attr_set)(struct net_device *dev,
 					   struct switchdev_attr *attr);
+	int	(*switchdev_port_obj_add)(struct net_device *dev,
+					  struct switchdev_obj *obj);
+	int	(*switchdev_port_obj_del)(struct net_device *dev,
+					  struct switchdev_obj *obj);
 	int	(*switchdev_fib_ipv4_add)(struct net_device *dev, __be32 dst,
 					  int dst_len, struct fib_info *fi,
 					  u8 tos, u8 type, u32 nlflags,
@@ -93,6 +110,8 @@ int switchdev_port_attr_get(struct net_device *dev,
 			    struct switchdev_attr *attr);
 int switchdev_port_attr_set(struct net_device *dev,
 			    struct switchdev_attr *attr);
+int switchdev_port_obj_add(struct net_device *dev, struct switchdev_obj *obj);
+int switchdev_port_obj_del(struct net_device *dev, struct switchdev_obj *obj);
 int register_switchdev_notifier(struct notifier_block *nb);
 int unregister_switchdev_notifier(struct notifier_block *nb);
 int call_switchdev_notifiers(unsigned long val, struct net_device *dev,
@@ -121,6 +140,18 @@ static inline int switchdev_port_attr_get(struct net_device *dev,
 
 static inline int switchdev_port_attr_set(struct net_device *dev,
 					  struct switchdev_attr *attr)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int switchdev_port_obj_add(struct net_device *dev,
+					 struct switchdev_obj *obj)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int switchdev_port_obj_del(struct net_device *dev,
+					 struct switchdev_obj *obj)
 {
 	return -EOPNOTSUPP;
 }
