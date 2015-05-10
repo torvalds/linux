@@ -4039,8 +4039,8 @@ static const struct net_device_ops bond_netdev_ops = {
 	.ndo_add_slave		= bond_enslave,
 	.ndo_del_slave		= bond_release,
 	.ndo_fix_features	= bond_fix_features,
-	.ndo_bridge_setlink	= ndo_dflt_netdev_switch_port_bridge_setlink,
-	.ndo_bridge_dellink	= ndo_dflt_netdev_switch_port_bridge_dellink,
+	.ndo_bridge_setlink	= ndo_dflt_switchdev_port_bridge_setlink,
+	.ndo_bridge_dellink	= ndo_dflt_switchdev_port_bridge_dellink,
 	.ndo_features_check	= passthru_features_check,
 };
 

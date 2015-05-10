@@ -42,7 +42,7 @@ void br_set_state(struct net_bridge_port *p, unsigned int state)
 	int err;
 
 	p->state = state;
-	err = netdev_switch_port_stp_update(p->dev, state);
+	err = switchdev_port_stp_update(p->dev, state);
 	if (err && err != -EOPNOTSUPP)
 		br_warn(p->br, "error setting offload STP state on port %u(%s)\n",
 				(unsigned int) p->port_no, p->dev->name);

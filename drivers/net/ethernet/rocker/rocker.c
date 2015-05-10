@@ -3377,17 +3377,17 @@ static void rocker_port_fdb_learn_work(struct work_struct *work)
 		container_of(work, struct rocker_fdb_learn_work, work);
 	bool removing = (lw->flags & ROCKER_OP_FLAG_REMOVE);
 	bool learned = (lw->flags & ROCKER_OP_FLAG_LEARNED);
-	struct netdev_switch_notifier_fdb_info info;
+	struct switchdev_notifier_fdb_info info;
 
 	info.addr = lw->addr;
 	info.vid = lw->vid;
 
 	if (learned && removing)
-		call_netdev_switch_notifiers(NETDEV_SWITCH_FDB_DEL,
-					     lw->dev, &info.info);
+		call_switchdev_notifiers(SWITCHDEV_FDB_DEL,
+					 lw->dev, &info.info);
 	else if (learned && !removing)
-		call_netdev_switch_notifiers(NETDEV_SWITCH_FDB_ADD,
-					     lw->dev, &info.info);
+		call_switchdev_notifiers(SWITCHDEV_FDB_ADD,
+					 lw->dev, &info.info);
 
 	kfree(work);
 }

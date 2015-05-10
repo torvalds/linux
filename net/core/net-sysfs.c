@@ -460,7 +460,7 @@ static ssize_t phys_switch_id_show(struct device *dev,
 	if (dev_isalive(netdev)) {
 		struct netdev_phys_item_id ppid;
 
-		ret = netdev_switch_parent_id_get(netdev, &ppid);
+		ret = switchdev_parent_id_get(netdev, &ppid);
 		if (!ret)
 			ret = sprintf(buf, "%*phN\n", ppid.id_len, ppid.id);
 	}

@@ -1006,7 +1006,7 @@ static int rtnl_phys_switch_id_fill(struct sk_buff *skb, struct net_device *dev)
 	int err;
 	struct netdev_phys_item_id psid;
 
-	err = netdev_switch_parent_id_get(dev, &psid);
+	err = switchdev_parent_id_get(dev, &psid);
 	if (err) {
 		if (err == -EOPNOTSUPP)
 			return 0;

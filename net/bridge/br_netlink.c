@@ -631,8 +631,7 @@ int br_setlink(struct net_device *dev, struct nlmsghdr *nlh, u16 flags)
 	if (p && !(flags & BRIDGE_FLAGS_SELF)) {
 		/* set bridge attributes in hardware if supported
 		 */
-		ret_offload = netdev_switch_port_bridge_setlink(dev, nlh,
-								flags);
+		ret_offload = switchdev_port_bridge_setlink(dev, nlh, flags);
 		if (ret_offload && ret_offload != -EOPNOTSUPP)
 			br_warn(p->br, "error setting attrs on port %u(%s)\n",
 				(unsigned int)p->port_no, p->dev->name);
@@ -671,8 +670,7 @@ int br_dellink(struct net_device *dev, struct nlmsghdr *nlh, u16 flags)
 	if (p && !(flags & BRIDGE_FLAGS_SELF)) {
 		/* del bridge attributes in hardware
 		 */
-		ret_offload = netdev_switch_port_bridge_dellink(dev, nlh,
-								flags);
+		ret_offload = switchdev_port_bridge_dellink(dev, nlh, flags);
 		if (ret_offload && ret_offload != -EOPNOTSUPP)
 			br_warn(p->br, "error deleting attrs on port %u (%s)\n",
 				(unsigned int)p->port_no, p->dev->name);
