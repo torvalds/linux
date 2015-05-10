@@ -345,6 +345,24 @@ static int dsa_slave_stp_update(struct net_device *dev, u8 state)
 	return ret;
 }
 
+static int dsa_slave_port_attr_set(struct net_device *dev,
+				   struct switchdev_attr *attr)
+{
+	int ret = 0;
+
+	switch (attr->id) {
+	case SWITCHDEV_ATTR_PORT_STP_STATE:
+		if (attr->trans == SWITCHDEV_TRANS_COMMIT)
+			ret = dsa_slave_stp_update(dev, attr->stp_state);
+		break;
+	default:
+		ret = -EOPNOTSUPP;
+		break;
+	}
+
+	return ret;
+}
+
 static int dsa_slave_bridge_port_join(struct net_device *dev,
 				      struct net_device *br)
 {
@@ -683,7 +701,7 @@ static const struct net_device_ops dsa_slave_netdev_ops = {
 
 static const struct switchdev_ops dsa_slave_switchdev_ops = {
 	.switchdev_port_attr_get	= dsa_slave_port_attr_get,
-	.switchdev_port_stp_update	= dsa_slave_stp_update,
+	.switchdev_port_attr_set	= dsa_slave_port_attr_set,
 };
 
 static void dsa_slave_adjust_link(struct net_device *dev)

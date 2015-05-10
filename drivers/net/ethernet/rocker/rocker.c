@@ -4395,14 +4395,6 @@ static int rocker_port_attr_get(struct net_device *dev,
 	return 0;
 }
 
-static int rocker_port_switchdev_port_stp_update(struct net_device *dev,
-						 u8 state)
-{
-	struct rocker_port *rocker_port = netdev_priv(dev);
-
-	return rocker_port_stp_update(rocker_port, SWITCHDEV_TRANS_NONE, state);
-}
-
 static void rocker_port_trans_abort(struct rocker_port *rocker_port)
 {
 	struct list_head *mem, *tmp;
@@ -4431,6 +4423,10 @@ static int rocker_port_attr_set(struct net_device *dev,
 	}
 
 	switch (attr->id) {
+	case SWITCHDEV_ATTR_PORT_STP_STATE:
+		err = rocker_port_stp_update(rocker_port, attr->trans,
+					     attr->stp_state);
+		break;
 	default:
 		err = -EOPNOTSUPP;
 		break;
@@ -4466,7 +4462,7 @@ static int rocker_port_switchdev_fib_ipv4_del(struct net_device *dev,
 
 static const struct switchdev_ops rocker_port_switchdev_ops = {
 	.switchdev_port_attr_get	= rocker_port_attr_get,
-	.switchdev_port_stp_update	= rocker_port_switchdev_port_stp_update,
+	.switchdev_port_attr_set	= rocker_port_attr_set,
 	.switchdev_fib_ipv4_add		= rocker_port_switchdev_fib_ipv4_add,
 	.switchdev_fib_ipv4_del		= rocker_port_switchdev_fib_ipv4_del,
 };

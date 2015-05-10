@@ -26,6 +26,7 @@ enum switchdev_trans {
 enum switchdev_attr_id {
 	SWITCHDEV_ATTR_UNDEFINED,
 	SWITCHDEV_ATTR_PORT_PARENT_ID,
+	SWITCHDEV_ATTR_PORT_STP_STATE,
 };
 
 struct switchdev_attr {
@@ -34,6 +35,7 @@ struct switchdev_attr {
 	u32 flags;
 	union {
 		struct netdev_phys_item_id ppid;	/* PORT_PARENT_ID */
+		u8 stp_state;				/* PORT_STP_STATE */
 	};
 };
 
@@ -46,9 +48,6 @@ struct fib_info;
  *
  * @switchdev_port_attr_set: Set a port attribute (see switchdev_attr).
  *
- * @switchdev_port_stp_update: Called to notify switch device port of bridge
- *   port STP state change.
- *
  * @switchdev_fib_ipv4_add: Called to add/modify IPv4 route to switch device.
  *
  * @switchdev_fib_ipv4_del: Called to delete IPv4 route from switch device.
@@ -58,7 +57,6 @@ struct switchdev_ops {
 					   struct switchdev_attr *attr);
 	int	(*switchdev_port_attr_set)(struct net_device *dev,
 					   struct switchdev_attr *attr);
-	int	(*switchdev_port_stp_update)(struct net_device *dev, u8 state);
 	int	(*switchdev_fib_ipv4_add)(struct net_device *dev, __be32 dst,
 					  int dst_len, struct fib_info *fi,
 					  u8 tos, u8 type, u32 nlflags,
@@ -95,7 +93,6 @@ int switchdev_port_attr_get(struct net_device *dev,
 			    struct switchdev_attr *attr);
 int switchdev_port_attr_set(struct net_device *dev,
 			    struct switchdev_attr *attr);
-int switchdev_port_stp_update(struct net_device *dev, u8 state);
 int register_switchdev_notifier(struct notifier_block *nb);
 int unregister_switchdev_notifier(struct notifier_block *nb);
 int call_switchdev_notifiers(unsigned long val, struct net_device *dev,
@@ -124,12 +121,6 @@ static inline int switchdev_port_attr_get(struct net_device *dev,
 
 static inline int switchdev_port_attr_set(struct net_device *dev,
 					  struct switchdev_attr *attr)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline int switchdev_port_stp_update(struct net_device *dev,
-					    u8 state)
 {
 	return -EOPNOTSUPP;
 }
