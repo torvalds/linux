@@ -224,6 +224,19 @@ union hsw_tsx_tuning {
 
 #define PEBS_HSW_TSX_FLAGS	0xff00000000ULL
 
+/* Same as HSW, plus TSC */
+
+struct pebs_record_skl {
+	u64 flags, ip;
+	u64 ax, bx, cx, dx;
+	u64 si, di, bp, sp;
+	u64 r8,  r9,  r10, r11;
+	u64 r12, r13, r14, r15;
+	u64 status, dla, dse, lat;
+	u64 real_ip, tsx_tuning;
+	u64 tsc;
+};
+
 void init_debug_store_on_cpu(int cpu)
 {
 	struct debug_store *ds = per_cpu(cpu_hw_events, cpu).ds;
@@ -885,7 +898,7 @@ static int intel_pmu_pebs_fixup_ip(struct pt_regs *regs)
 	return 0;
 }
 
-static inline u64 intel_hsw_weight(struct pebs_record_hsw *pebs)
+static inline u64 intel_hsw_weight(struct pebs_record_skl *pebs)
 {
 	if (pebs->tsx_tuning) {
 		union hsw_tsx_tuning tsx = { .value = pebs->tsx_tuning };
@@ -894,7 +907,7 @@ static inline u64 intel_hsw_weight(struct pebs_record_hsw *pebs)
 	return 0;
 }
 
-static inline u64 intel_hsw_transaction(struct pebs_record_hsw *pebs)
+static inline u64 intel_hsw_transaction(struct pebs_record_skl *pebs)
 {
 	u64 txn = (pebs->tsx_tuning & PEBS_HSW_TSX_FLAGS) >> 32;
 
@@ -918,7 +931,7 @@ static void setup_pebs_sample_data(struct perf_event *event,
 	 * unconditionally access the 'extra' entries.
 	 */
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
-	struct pebs_record_hsw *pebs = __pebs;
+	struct pebs_record_skl *pebs = __pebs;
 	u64 sample_type;
 	int fll, fst, dsrc;
 	int fl = event->hw.flags;
@@ -1015,6 +1028,16 @@ static void setup_pebs_sample_data(struct perf_event *event,
 		if (sample_type & PERF_SAMPLE_TRANSACTION)
 			data->txn = intel_hsw_transaction(pebs);
 	}
+
+	/*
+	 * v3 supplies an accurate time stamp, so we use that
+	 * for the time stamp.
+	 *
+	 * We can only do this for the default trace clock.
+	 */
+	if (x86_pmu.intel_cap.pebs_format >= 3 &&
+		event->attr.use_clockid == 0)
+		data->time = native_sched_clock_from_tsc(pebs->tsc);
 
 	if (has_branch_stack(event))
 		data->br_stack = &cpuc->lbr_stack;
@@ -1242,6 +1265,13 @@ void __init intel_ds_init(void)
 		case 2:
 			pr_cont("PEBS fmt2%c, ", pebs_type);
 			x86_pmu.pebs_record_size = sizeof(struct pebs_record_hsw);
+			x86_pmu.drain_pebs = intel_pmu_drain_pebs_nhm;
+			break;
+
+		case 3:
+			pr_cont("PEBS fmt3%c, ", pebs_type);
+			x86_pmu.pebs_record_size =
+						sizeof(struct pebs_record_skl);
 			x86_pmu.drain_pebs = intel_pmu_drain_pebs_nhm;
 			break;
 
