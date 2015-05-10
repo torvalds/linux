@@ -132,8 +132,6 @@ int switchdev_port_bridge_dellink(struct net_device *dev,
 				  struct nlmsghdr *nlh, u16 flags);
 int ndo_dflt_switchdev_port_bridge_dellink(struct net_device *dev,
 					   struct nlmsghdr *nlh, u16 flags);
-int ndo_dflt_switchdev_port_bridge_setlink(struct net_device *dev,
-					   struct nlmsghdr *nlh, u16 flags);
 int switchdev_fib_ipv4_add(u32 dst, int dst_len, struct fib_info *fi,
 			   u8 tos, u8 type, u32 nlflags, u32 tb_id);
 int switchdev_fib_ipv4_del(u32 dst, int dst_len, struct fib_info *fi,
@@ -198,13 +196,6 @@ static inline int switchdev_port_bridge_dellink(struct net_device *dev,
 }
 
 static inline int ndo_dflt_switchdev_port_bridge_dellink(struct net_device *dev,
-							 struct nlmsghdr *nlh,
-							 u16 flags)
-{
-	return 0;
-}
-
-static inline int ndo_dflt_switchdev_port_bridge_setlink(struct net_device *dev,
 							 struct nlmsghdr *nlh,
 							 u16 flags)
 {
