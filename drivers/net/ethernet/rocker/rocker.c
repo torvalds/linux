@@ -4394,6 +4394,9 @@ static int rocker_port_attr_get(struct net_device *dev,
 		attr->ppid.id_len = sizeof(rocker->hw.id);
 		memcpy(&attr->ppid.id, &rocker->hw.id, attr->ppid.id_len);
 		break;
+	case SWITCHDEV_ATTR_PORT_BRIDGE_FLAGS:
+		attr->brport_flags = rocker_port->brport_flags;
+		break;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -4409,6 +4412,24 @@ static void rocker_port_trans_abort(struct rocker_port *rocker_port)
 		list_del(mem);
 		kfree(mem);
 	}
+}
+
+static int rocker_port_brport_flags_set(struct rocker_port *rocker_port,
+					enum switchdev_trans trans,
+					unsigned long brport_flags)
+{
+	unsigned long orig_flags;
+	int err = 0;
+
+	orig_flags = rocker_port->brport_flags;
+	rocker_port->brport_flags = brport_flags;
+	if ((orig_flags ^ rocker_port->brport_flags) & BR_LEARNING)
+		err = rocker_port_set_learning(rocker_port, trans);
+
+	if (trans == SWITCHDEV_TRANS_PREPARE)
+		rocker_port->brport_flags = orig_flags;
+
+	return err;
 }
 
 static int rocker_port_attr_set(struct net_device *dev,
@@ -4432,6 +4453,10 @@ static int rocker_port_attr_set(struct net_device *dev,
 	case SWITCHDEV_ATTR_PORT_STP_STATE:
 		err = rocker_port_stp_update(rocker_port, attr->trans,
 					     attr->stp_state);
+		break;
+	case SWITCHDEV_ATTR_PORT_BRIDGE_FLAGS:
+		err = rocker_port_brport_flags_set(rocker_port, attr->trans,
+						   attr->brport_flags);
 		break;
 	default:
 		err = -EOPNOTSUPP;

@@ -27,6 +27,7 @@ enum switchdev_attr_id {
 	SWITCHDEV_ATTR_UNDEFINED,
 	SWITCHDEV_ATTR_PORT_PARENT_ID,
 	SWITCHDEV_ATTR_PORT_STP_STATE,
+	SWITCHDEV_ATTR_PORT_BRIDGE_FLAGS,
 };
 
 struct switchdev_attr {
@@ -36,6 +37,7 @@ struct switchdev_attr {
 	union {
 		struct netdev_phys_item_id ppid;	/* PORT_PARENT_ID */
 		u8 stp_state;				/* PORT_STP_STATE */
+		unsigned long brport_flags;		/* PORT_BRIDGE_FLAGS */
 	};
 };
 
