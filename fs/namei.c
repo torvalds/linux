@@ -1865,11 +1865,13 @@ OK:
 						;
 				}
 				nd->inode = nd->path.dentry->d_inode;
-				nd->stack[nd->depth - 1].name = name;
-				if (!*s)
-					goto OK;
-				name = s;
-				continue;
+				if (unlikely(!*s)) {
+					put_link(nd);
+				} else {
+					nd->stack[nd->depth - 1].name = name;
+					name = s;
+					continue;
+				}
 			}
 		}
 		if (!d_can_lookup(nd->path.dentry)) {
