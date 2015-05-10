@@ -798,8 +798,7 @@ static inline int may_follow_link(struct nameidata *nd)
 		return 0;
 
 	audit_log_link_denied("follow_link", &nd->stack[0].link);
-	path_put(&nd->stack[0].link);
-	path_put(&nd->path);
+	terminate_walk(nd);
 	return -EACCES;
 }
 
@@ -875,16 +874,13 @@ static int may_linkat(struct path *link)
 static __always_inline
 const char *get_link(struct nameidata *nd)
 {
-	struct saved *last = nd->stack + nd->depth;
+	struct saved *last = nd->stack + nd->depth - 1;
 	struct dentry *dentry = last->link.dentry;
 	struct inode *inode = dentry->d_inode;
 	int error;
 	const char *res;
 
 	BUG_ON(nd->flags & LOOKUP_RCU);
-
-	last->cookie = NULL;
-	nd->depth++;
 
 	cond_resched();
 
@@ -1575,8 +1571,9 @@ static int pick_link(struct nameidata *nd, struct path *link)
 		return error;
 	}
 
-	last = nd->stack + nd->depth;
+	last = nd->stack + nd->depth++;
 	last->link = *link;
+	last->cookie = NULL;
 	return 1;
 }
 
