@@ -1189,6 +1189,16 @@ static ssize_t pktgen_if_write(struct file *file,
 				return -ENOTSUPP;
 
 			pkt_dev->xmit_mode = M_NETIF_RECEIVE;
+
+			/* make sure new packet is allocated every time
+			 * pktgen_xmit() is called
+			 */
+			pkt_dev->last_ok = 1;
+
+			/* override clone_skb if user passed default value
+			 * at module loading time
+			 */
+			pkt_dev->clone_skb = 0;
 		} else {
 			sprintf(pg_result,
 				"xmit_mode -:%s:- unknown\nAvailable modes: %s",
@@ -3415,7 +3425,6 @@ static void pktgen_xmit(struct pktgen_dev *pkt_dev)
 				/* get out of the loop and wait
 				 * until skb is consumed
 				 */
-				pkt_dev->last_ok = 1;
 				break;
 			}
 			/* skb was 'freed' by stack, so clean few
