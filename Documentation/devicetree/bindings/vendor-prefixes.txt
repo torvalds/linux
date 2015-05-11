@@ -95,6 +95,7 @@ haoyu	Haoyu Microelectronic Co. Ltd.
 himax	Himax Technologies, Inc.
 hisilicon	Hisilicon Limited.
 hit	Hitachi Ltd.
+hitex	Hitex Development Tools
 honeywell	Honeywell
 hp	Hewlett Packard
 i2se	I2SE GmbH
