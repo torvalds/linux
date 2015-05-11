@@ -813,6 +813,22 @@ err:
 	return err;
 }
 
+static int mmc_sdio_reinit_card(struct mmc_host *host, bool powered_resume)
+{
+	int ret;
+
+	sdio_reset(host);
+	mmc_go_idle(host);
+	mmc_send_if_cond(host, host->card->ocr);
+
+	ret = mmc_send_io_op_cond(host, 0, NULL);
+	if (ret)
+		return ret;
+
+	return mmc_sdio_init_card(host, host->card->ocr, host->card,
+				  powered_resume);
+}
+
 /*
  * Host is being removed. Free up the current card.
  */
@@ -960,14 +976,7 @@ static int mmc_sdio_resume(struct mmc_host *host)
 
 	/* No need to reinitialize powered-resumed nonremovable cards */
 	if (mmc_card_is_removable(host) || !mmc_card_keep_power(host)) {
-		sdio_reset(host);
-		mmc_go_idle(host);
-		mmc_send_if_cond(host, host->card->ocr);
-		err = mmc_send_io_op_cond(host, 0, NULL);
-		if (!err)
-			err = mmc_sdio_init_card(host, host->card->ocr,
-						 host->card,
-						 mmc_card_keep_power(host));
+		err = mmc_sdio_reinit_card(host, mmc_card_keep_power(host));
 	} else if (mmc_card_keep_power(host) && mmc_card_wake_sdio_irq(host)) {
 		/* We may have switched to 1-bit mode during suspend */
 		err = sdio_enable_4bit_bus(host->card);
@@ -990,8 +999,6 @@ static int mmc_sdio_power_restore(struct mmc_host *host)
 {
 	int ret;
 
-	mmc_claim_host(host);
-
 	/*
 	 * Reset the card by performing the same steps that are taken by
 	 * mmc_rescan_try_freq() and mmc_attach_sdio() during a "normal" probe.
@@ -1009,20 +1016,12 @@ static int mmc_sdio_power_restore(struct mmc_host *host)
 	 *
 	 */
 
-	sdio_reset(host);
-	mmc_go_idle(host);
-	mmc_send_if_cond(host, host->card->ocr);
+	mmc_claim_host(host);
 
-	ret = mmc_send_io_op_cond(host, 0, NULL);
-	if (ret)
-		goto out;
-
-	ret = mmc_sdio_init_card(host, host->card->ocr, host->card,
-				mmc_card_keep_power(host));
+	ret = mmc_sdio_reinit_card(host, mmc_card_keep_power(host));
 	if (!ret && host->sdio_irqs)
 		mmc_signal_sdio_irq(host);
 
-out:
 	mmc_release_host(host);
 
 	return ret;
