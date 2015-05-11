@@ -342,6 +342,11 @@ struct mwifiex_ds_read_eeprom {
 	u8 value[MAX_EEPROM_DATA];
 };
 
+struct mwifiex_ds_mem_rw {
+	u32 addr;
+	u32 value;
+};
+
 #define IEEE_MAX_IE_SIZE		256
 
 #define MWIFIEX_IE_HDR_SIZE	(sizeof(struct mwifiex_ie) - IEEE_MAX_IE_SIZE)

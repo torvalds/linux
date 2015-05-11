@@ -741,6 +741,19 @@ mwifiex_ret_p2p_mode_cfg(struct mwifiex_private *priv,
 	return 0;
 }
 
+/* This function handles the command response of mem_access command
+ */
+static int
+mwifiex_ret_mem_access(struct mwifiex_private *priv,
+		       struct host_cmd_ds_command *resp, void *pioctl_buf)
+{
+	struct host_cmd_ds_mem_access *mem = (void *)&resp->params.mem;
+
+	priv->mem_rw.addr = le32_to_cpu(mem->addr);
+	priv->mem_rw.value = le32_to_cpu(mem->value);
+
+	return 0;
+}
 /*
  * This function handles the command response of register access.
  *
@@ -1102,6 +1115,9 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 		break;
 	case HostCmd_CMD_802_11_IBSS_COALESCING_STATUS:
 		ret = mwifiex_ret_ibss_coalescing_status(priv, resp);
+		break;
+	case HostCmd_CMD_MEM_ACCESS:
+		ret = mwifiex_ret_mem_access(priv, resp, data_buf);
 		break;
 	case HostCmd_CMD_MAC_REG_ACCESS:
 	case HostCmd_CMD_BBP_REG_ACCESS:

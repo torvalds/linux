@@ -323,6 +323,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define HostCmd_CMD_802_11_SUBSCRIBE_EVENT            0x0075
 #define HostCmd_CMD_802_11_TX_RATE_QUERY              0x007f
 #define HostCmd_CMD_802_11_IBSS_COALESCING_STATUS     0x0083
+#define HostCmd_CMD_MEM_ACCESS                        0x0086
 #define HostCmd_CMD_CFG_DATA                          0x008f
 #define HostCmd_CMD_VERSION_EXT                       0x0097
 #define HostCmd_CMD_MEF_CFG                           0x009a
@@ -1576,6 +1577,13 @@ struct mwifiex_ie_types_extcap {
 	u8 ext_capab[0];
 } __packed;
 
+struct host_cmd_ds_mem_access {
+	__le16 action;
+	__le16 reserved;
+	__le32 addr;
+	__le32 value;
+};
+
 struct mwifiex_ie_types_qos_info {
 	struct mwifiex_ie_types_header header;
 	u8 qos_info;
@@ -1958,6 +1966,7 @@ struct host_cmd_ds_command {
 		struct host_cmd_ds_p2p_mode_cfg mode_cfg;
 		struct host_cmd_ds_802_11_ibss_status ibss_coalescing;
 		struct host_cmd_ds_mef_cfg mef_cfg;
+		struct host_cmd_ds_mem_access mem;
 		struct host_cmd_ds_mac_reg_access mac_reg;
 		struct host_cmd_ds_bbp_reg_access bbp_reg;
 		struct host_cmd_ds_rf_reg_access rf_reg;

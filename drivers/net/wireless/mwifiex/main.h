@@ -611,6 +611,7 @@ struct mwifiex_private {
 	struct delayed_work dfs_chan_sw_work;
 	struct cfg80211_beacon_data beacon_after;
 	struct mwifiex_11h_intf_state state_11h;
+	struct mwifiex_ds_mem_rw mem_rw;
 };
 
 

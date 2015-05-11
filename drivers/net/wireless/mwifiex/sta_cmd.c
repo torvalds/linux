@@ -1071,6 +1071,26 @@ static int mwifiex_cmd_ibss_coalescing_status(struct host_cmd_ds_command *cmd,
 	return 0;
 }
 
+/* This function prepares command buffer to get/set memory location value.
+ */
+static int
+mwifiex_cmd_mem_access(struct host_cmd_ds_command *cmd, u16 cmd_action,
+		       void *pdata_buf)
+{
+	struct mwifiex_ds_mem_rw *mem_rw = (void *)pdata_buf;
+	struct host_cmd_ds_mem_access *mem_access = (void *)&cmd->params.mem;
+
+	cmd->command = cpu_to_le16(HostCmd_CMD_MEM_ACCESS);
+	cmd->size = cpu_to_le16(sizeof(struct host_cmd_ds_mem_access) +
+				S_DS_GEN);
+
+	mem_access->action = cpu_to_le16(cmd_action);
+	mem_access->addr = cpu_to_le32(mem_rw->addr);
+	mem_access->value = cpu_to_le32(mem_rw->value);
+
+	return 0;
+}
+
 /*
  * This function prepares command to set/get register value.
  *
@@ -1884,6 +1904,9 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 		break;
 	case HostCmd_CMD_802_11_SCAN_EXT:
 		ret = mwifiex_cmd_802_11_scan_ext(priv, cmd_ptr, data_buf);
+		break;
+	case HostCmd_CMD_MEM_ACCESS:
+		ret = mwifiex_cmd_mem_access(cmd_ptr, cmd_action, data_buf);
 		break;
 	case HostCmd_CMD_MAC_REG_ACCESS:
 	case HostCmd_CMD_BBP_REG_ACCESS:
