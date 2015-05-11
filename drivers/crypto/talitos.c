@@ -63,7 +63,7 @@ static void to_talitos_ptr(struct talitos_ptr *ptr, dma_addr_t dma_addr,
 		ptr->eptr = upper_32_bits(dma_addr);
 }
 
-static void to_talitos_ptr_len(struct talitos_ptr *ptr, unsigned short len,
+static void to_talitos_ptr_len(struct talitos_ptr *ptr, unsigned int len,
 			       bool is_sec1)
 {
 	if (is_sec1) {
@@ -94,7 +94,7 @@ static void to_talitos_ptr_extent_clear(struct talitos_ptr *ptr, bool is_sec1)
  */
 static void map_single_talitos_ptr(struct device *dev,
 				   struct talitos_ptr *ptr,
-				   unsigned short len, void *data,
+				   unsigned int len, void *data,
 				   enum dma_data_direction dir)
 {
 	dma_addr_t dma_addr = dma_map_single(dev, data, len, dir);
@@ -543,7 +543,7 @@ static void talitos_error(struct device *dev, u32 isr, u32 isr_lo)
 	struct talitos_private *priv = dev_get_drvdata(dev);
 	unsigned int timeout = TALITOS_TIMEOUT;
 	int ch, error, reset_dev = 0;
-	u32 v, v_lo;
+	u32 v_lo;
 	bool is_sec1 = has_ftr_sec1(priv);
 	int reset_ch = is_sec1 ? 1 : 0; /* only SEC2 supports continuation */
 
@@ -560,7 +560,6 @@ static void talitos_error(struct device *dev, u32 isr, u32 isr_lo)
 
 		error = -EINVAL;
 
-		v = in_be32(priv->chan[ch].reg + TALITOS_CCPSR);
 		v_lo = in_be32(priv->chan[ch].reg + TALITOS_CCPSR_LO);
 
 		if (v_lo & TALITOS_CCPSR_LO_DOF) {
@@ -815,7 +814,7 @@ struct talitos_ahash_req_ctx {
 	unsigned int first;
 	unsigned int last;
 	unsigned int to_hash_later;
-	u64 nbuf;
+	unsigned int nbuf;
 	struct scatterlist bufsl[2];
 	struct scatterlist *psrc;
 };
@@ -1639,8 +1638,7 @@ void map_sg_out_talitos_ptr(struct device *dev, struct scatterlist *dst,
 					    (edesc->src_nents + 1) *
 					     sizeof(struct talitos_ptr), 0);
 			ptr->j_extent |= DESC_PTR_LNKTBL_JUMP;
-			sg_count = sg_to_link_tbl(dst, sg_count, len,
-						  link_tbl_ptr);
+			sg_to_link_tbl(dst, sg_count, len, link_tbl_ptr);
 			dma_sync_single_for_device(dev, edesc->dma_link_tbl,
 						   edesc->dma_len,
 						   DMA_BIDIRECTIONAL);
