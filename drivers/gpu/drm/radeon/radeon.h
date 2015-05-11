@@ -2578,6 +2578,13 @@ static inline struct radeon_fence *to_radeon_fence(struct fence *f)
 		tmp_ |= ((val) & ~(mask));			\
 		WREG32_PLL(reg, tmp_);				\
 	} while (0)
+#define WREG32_SMC_P(reg, val, mask)				\
+	do {							\
+		uint32_t tmp_ = RREG32_SMC(reg);		\
+		tmp_ &= (mask);					\
+		tmp_ |= ((val) & ~(mask));			\
+		WREG32_SMC(reg, tmp_);				\
+	} while (0)
 #define DREG32_SYS(sqf, rdev, reg) seq_printf((sqf), #reg " : 0x%08X\n", r100_mm_rreg((rdev), (reg), false))
 #define RREG32_IO(reg) r100_io_rreg(rdev, (reg))
 #define WREG32_IO(reg, v) r100_io_wreg(rdev, (reg), (v))

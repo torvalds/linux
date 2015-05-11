@@ -1973,6 +1973,7 @@ static struct radeon_asic si_asic = {
 		.set_pcie_lanes = &r600_set_pcie_lanes,
 		.set_clock_gating = NULL,
 		.set_uvd_clocks = &si_set_uvd_clocks,
+		.set_vce_clocks = &si_set_vce_clocks,
 		.get_temperature = &si_get_temp,
 	},
 	.dpm = {
