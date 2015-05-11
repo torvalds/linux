@@ -271,9 +271,14 @@ static int rockchip_hdmiv2_fb_event_notify(struct notifier_block *self,
 					hdmi_dev->hdcp2_en(0);
 				rockchip_hdmiv2_clk_disable(hdmi_dev);
 				#ifdef CONFIG_PINCTRL
-				gpio_state =
-				pinctrl_lookup_state(pins->p,
-						     "gpio");
+				if (hdmi_dev->soctype == HDMI_SOC_RK3288)
+					gpio_state =
+					pinctrl_lookup_state(pins->p,
+							     "sleep");
+				else
+					gpio_state =
+					pinctrl_lookup_state(pins->p,
+							     "gpio");
 				pinctrl_select_state(pins->p,
 						     gpio_state);
 				#endif
