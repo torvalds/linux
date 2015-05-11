@@ -694,6 +694,7 @@ int trinity_dpm_force_performance_level(struct radeon_device *rdev,
 void trinity_dpm_enable_bapm(struct radeon_device *rdev, bool enable);
 u32 trinity_dpm_get_current_sclk(struct radeon_device *rdev);
 u32 trinity_dpm_get_current_mclk(struct radeon_device *rdev);
+int tn_set_vce_clocks(struct radeon_device *rdev, u32 evclk, u32 ecclk);
 
 /* DCE6 - SI */
 void dce6_bandwidth_update(struct radeon_device *rdev);

@@ -1838,6 +1838,7 @@ static struct radeon_asic trinity_asic = {
 		.set_pcie_lanes = NULL,
 		.set_clock_gating = NULL,
 		.set_uvd_clocks = &sumo_set_uvd_clocks,
+		.set_vce_clocks = &tn_set_vce_clocks,
 		.get_temperature = &tn_get_temp,
 	},
 	.dpm = {
