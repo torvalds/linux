@@ -478,6 +478,37 @@ static int arizona_runtime_resume(struct device *dev)
 			goto err;
 		}
 		break;
+	case WM5110:
+	case WM8280:
+		ret = arizona_wait_for_boot(arizona);
+		if (ret)
+			goto err;
+
+		if (arizona->external_dcvdd) {
+			ret = regmap_update_bits(arizona->regmap,
+						 ARIZONA_ISOLATION_CONTROL,
+						 ARIZONA_ISOLATE_DCVDD1, 0);
+			if (ret) {
+				dev_err(arizona->dev,
+					"Failed to connect DCVDD: %d\n", ret);
+				goto err;
+			}
+		} else {
+			/*
+			 * As this is only called for the internal regulator
+			 * (where we know voltage ranges available) it is ok
+			 * to request an exact range.
+			 */
+			ret = regulator_set_voltage(arizona->dcvdd,
+						    1200000, 1200000);
+			if (ret < 0) {
+				dev_err(arizona->dev,
+					"Failed to set resume voltage: %d\n",
+					ret);
+				goto err;
+			}
+		}
+		break;
 	default:
 		ret = arizona_wait_for_boot(arizona);
 		if (ret != 0) {
@@ -527,6 +558,27 @@ static int arizona_runtime_suspend(struct device *dev)
 			dev_err(arizona->dev, "Failed to isolate DCVDD: %d\n",
 				ret);
 			return ret;
+		}
+	} else {
+		switch (arizona->type) {
+		case WM5110:
+		case WM8280:
+			/*
+			 * As this is only called for the internal regulator
+			 * (where we know voltage ranges available) it is ok
+			 * to request an exact range.
+			 */
+			ret = regulator_set_voltage(arizona->dcvdd,
+						    1175000, 1175000);
+			if (ret < 0) {
+				dev_err(arizona->dev,
+					"Failed to set suspend voltage: %d\n",
+					ret);
+				return ret;
+			}
+			break;
+		default:
+			break;
 		}
 	}
 
