@@ -2006,8 +2006,9 @@ EXPORT_SYMBOL_GPL(serial8250_do_set_mctrl);
 static void serial8250_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
 	if (port->set_mctrl)
-		return port->set_mctrl(port, mctrl);
-	return serial8250_do_set_mctrl(port, mctrl);
+		port->set_mctrl(port, mctrl);
+	else
+		serial8250_do_set_mctrl(port, mctrl);
 }
 
 static void serial8250_break_ctl(struct uart_port *port, int break_state)
