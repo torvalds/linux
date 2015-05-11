@@ -412,19 +412,13 @@ struct mtip_port {
 	 * by the DMA when the driver issues internal commands.
 	 */
 	dma_addr_t sector_buffer_dma;
-	/*
-	 * Bit significant, used to determine if a command slot has
-	 * been allocated. i.e. the slot is in use.  Bits are cleared
-	 * when the command slot and all associated data structures
-	 * are no longer needed.
-	 */
+
 	u16 *log_buf;
 	dma_addr_t log_buf_dma;
 
 	u8 *smart_buf;
 	dma_addr_t smart_buf_dma;
 
-	unsigned long allocated[SLOTBITS_IN_LONGS];
 	/*
 	 * used to queue commands when an internal command is in progress
 	 * or error handling is active

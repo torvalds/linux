@@ -623,8 +623,7 @@ static void mtip_handle_tfe(struct driver_data *dd)
 
 	set_bit(MTIP_PF_EH_ACTIVE_BIT, &port->flags);
 
-	if (test_bit(MTIP_PF_IC_ACTIVE_BIT, &port->flags) &&
-			test_bit(MTIP_TAG_INTERNAL, port->allocated)) {
+	if (test_bit(MTIP_PF_IC_ACTIVE_BIT, &port->flags)) {
 		cmd = mtip_cmd_from_tag(dd, MTIP_TAG_INTERNAL);
 		dbg_printk(MTIP_DRV_NAME " TFE for the internal command\n");
 
@@ -2624,18 +2623,6 @@ static ssize_t mtip_hw_read_registers(struct file *f, char __user *ubuf,
 	size += sprintf(&buf[size], "H/ HOST IRQ STAT : [ 0x%08X ]\n",
 				readl(dd->mmio + HOST_IRQ_STAT));
 	size += sprintf(&buf[size], "\n");
-
-	size += sprintf(&buf[size], "L/ Allocated     : [ 0x");
-
-	for (n = dd->slot_groups-1; n >= 0; n--) {
-		if (sizeof(long) > sizeof(u32))
-			group_allocated =
-				dd->port->allocated[n/2] >> (32*(n&1));
-		else
-			group_allocated = dd->port->allocated[n];
-		size += sprintf(&buf[size], "%08X ", group_allocated);
-	}
-	size += sprintf(&buf[size], "]\n");
 
 	size += sprintf(&buf[size], "L/ Commands in Q : [ 0x");
 
