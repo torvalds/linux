@@ -138,9 +138,9 @@ void amdgpu_ib_free(struct amdgpu_device *adev, struct amdgpu_ib *ib)
 int amdgpu_ib_schedule(struct amdgpu_device *adev, unsigned num_ibs,
 		       struct amdgpu_ib *ibs, void *owner)
 {
-	struct amdgpu_ring *ring;
-	struct amdgpu_vm *vm = ibs->vm;
 	struct amdgpu_ib *ib = &ibs[0];
+	struct amdgpu_ring *ring;
+	struct amdgpu_vm *vm;
 	unsigned i;
 	int r = 0;
 
@@ -148,6 +148,8 @@ int amdgpu_ib_schedule(struct amdgpu_device *adev, unsigned num_ibs,
 		return -EINVAL;
 
 	ring = ibs->ring;
+	vm = ibs->vm;
+
 	if (!ring->ready) {
 		dev_err(adev->dev, "couldn't schedule ib\n");
 		return -EINVAL;
