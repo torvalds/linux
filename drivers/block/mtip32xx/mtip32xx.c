@@ -895,6 +895,10 @@ static inline irqreturn_t mtip_handle_irq(struct driver_data *data)
 
 		/* Acknowledge the interrupt status on the port.*/
 		port_stat = readl(port->mmio + PORT_IRQ_STAT);
+		if (unlikely(port_stat == 0xFFFFFFFF)) {
+			mtip_check_surprise_removal(dd->pdev);
+			return IRQ_HANDLED;
+		}
 		writel(port_stat, port->mmio + PORT_IRQ_STAT);
 
 		/* Demux port status */
@@ -2765,49 +2769,6 @@ static void mtip_hw_debugfs_exit(struct driver_data *dd)
 		debugfs_remove_recursive(dd->dfs_node);
 }
 
-static int mtip_free_orphan(struct driver_data *dd)
-{
-	struct kobject *kobj;
-
-	if (dd->bdev) {
-		if (dd->bdev->bd_holders >= 1)
-			return -2;
-
-		bdput(dd->bdev);
-		dd->bdev = NULL;
-	}
-
-	mtip_hw_debugfs_exit(dd);
-
-	spin_lock(&rssd_index_lock);
-	ida_remove(&rssd_index_ida, dd->index);
-	spin_unlock(&rssd_index_lock);
-
-	if (!test_bit(MTIP_DDF_INIT_DONE_BIT, &dd->dd_flag) &&
-			test_bit(MTIP_DDF_REBUILD_FAILED_BIT, &dd->dd_flag)) {
-		put_disk(dd->disk);
-	} else {
-		if (dd->disk) {
-			kobj = kobject_get(&disk_to_dev(dd->disk)->kobj);
-			if (kobj) {
-				mtip_hw_sysfs_exit(dd, kobj);
-				kobject_put(kobj);
-			}
-			del_gendisk(dd->disk);
-			put_disk(dd->disk);
-			dd->disk = NULL;
-		}
-		if (dd->queue) {
-			dd->queue->queuedata = NULL;
-			blk_cleanup_queue(dd->queue);
-			blk_mq_free_tag_set(&dd->tags);
-			dd->queue = NULL;
-		}
-	}
-	kfree(dd);
-	return 0;
-}
-
 /*
  * Perform any init/resume time hardware setup
  *
@@ -2955,7 +2916,6 @@ static int mtip_service_thread(void *data)
 	unsigned long slot, slot_start, slot_wrap;
 	unsigned int num_cmd_slots = dd->slot_groups * 32;
 	struct mtip_port *port = dd->port;
-	int ret;
 
 	while (1) {
 		if (kthread_should_stop() ||
@@ -3037,18 +2997,6 @@ restart_eh:
 	while (1) {
 		if (test_bit(MTIP_DDF_REMOVE_DONE_BIT, &dd->dd_flag))
 			break;
-		msleep_interruptible(1000);
-		if (kthread_should_stop())
-			goto st_out;
-	}
-
-	while (1) {
-		ret = mtip_free_orphan(dd);
-		if (!ret) {
-			/* NOTE: All data structures are invalid, do not
-			 * access any here */
-			return 0;
-		}
 		msleep_interruptible(1000);
 		if (kthread_should_stop())
 			goto st_out;
@@ -3380,6 +3328,7 @@ static int mtip_hw_exit(struct driver_data *dd)
 	/* Release the IRQ. */
 	irq_set_affinity_hint(dd->pdev->irq, NULL);
 	devm_free_irq(&dd->pdev->dev, dd->pdev->irq, dd);
+	msleep(1000);
 
 	/* Free dma regions */
 	mtip_dma_free(dd);
@@ -4075,52 +4024,51 @@ static int mtip_block_remove(struct driver_data *dd)
 {
 	struct kobject *kobj;
 
-	if (!dd->sr) {
-		mtip_hw_debugfs_exit(dd);
+	mtip_hw_debugfs_exit(dd);
 
-		if (dd->mtip_svc_handler) {
-			set_bit(MTIP_PF_SVC_THD_STOP_BIT, &dd->port->flags);
-			wake_up_interruptible(&dd->port->svc_wait);
-			kthread_stop(dd->mtip_svc_handler);
+	if (dd->mtip_svc_handler) {
+		set_bit(MTIP_PF_SVC_THD_STOP_BIT, &dd->port->flags);
+		wake_up_interruptible(&dd->port->svc_wait);
+		kthread_stop(dd->mtip_svc_handler);
+	}
+
+	/* Clean up the sysfs attributes, if created */
+	if (test_bit(MTIP_DDF_INIT_DONE_BIT, &dd->dd_flag)) {
+		kobj = kobject_get(&disk_to_dev(dd->disk)->kobj);
+		if (kobj) {
+			mtip_hw_sysfs_exit(dd, kobj);
+			kobject_put(kobj);
 		}
+	}
 
-		/* Clean up the sysfs attributes, if created */
-		if (test_bit(MTIP_DDF_INIT_DONE_BIT, &dd->dd_flag)) {
-			kobj = kobject_get(&disk_to_dev(dd->disk)->kobj);
-			if (kobj) {
-				mtip_hw_sysfs_exit(dd, kobj);
-				kobject_put(kobj);
-			}
-		}
-
+	if (!dd->sr)
 		mtip_standby_drive(dd);
-
-		/*
-		 * Delete our gendisk structure. This also removes the device
-		 * from /dev
-		 */
-		if (dd->bdev) {
-			bdput(dd->bdev);
-			dd->bdev = NULL;
-		}
-		if (dd->disk) {
-			del_gendisk(dd->disk);
-			if (dd->disk->queue) {
-				blk_cleanup_queue(dd->queue);
-				blk_mq_free_tag_set(&dd->tags);
-				dd->queue = NULL;
-			}
-			put_disk(dd->disk);
-		}
-		dd->disk  = NULL;
-
-		spin_lock(&rssd_index_lock);
-		ida_remove(&rssd_index_ida, dd->index);
-		spin_unlock(&rssd_index_lock);
-	} else {
+	else
 		dev_info(&dd->pdev->dev, "device %s surprise removal\n",
 						dd->disk->disk_name);
+
+	/*
+	 * Delete our gendisk structure. This also removes the device
+	 * from /dev
+	 */
+	if (dd->bdev) {
+		bdput(dd->bdev);
+		dd->bdev = NULL;
 	}
+	if (dd->disk) {
+		del_gendisk(dd->disk);
+		if (dd->disk->queue) {
+			blk_cleanup_queue(dd->queue);
+			blk_mq_free_tag_set(&dd->tags);
+			dd->queue = NULL;
+		}
+		put_disk(dd->disk);
+	}
+	dd->disk  = NULL;
+
+	spin_lock(&rssd_index_lock);
+	ida_remove(&rssd_index_ida, dd->index);
+	spin_unlock(&rssd_index_lock);
 
 	/* De-initialize the protocol layer. */
 	mtip_hw_exit(dd);
@@ -4516,6 +4464,7 @@ static void mtip_pci_remove(struct pci_dev *pdev)
 			"Completion workers still active!\n");
 	}
 
+	blk_mq_stop_hw_queues(dd->queue);
 	/* Clean up the block layer. */
 	mtip_block_remove(dd);
 
@@ -4533,10 +4482,8 @@ static void mtip_pci_remove(struct pci_dev *pdev)
 	list_del_init(&dd->remove_list);
 	spin_unlock_irqrestore(&dev_lock, flags);
 
-	if (!dd->sr)
-		kfree(dd);
-	else
-		set_bit(MTIP_DDF_REMOVE_DONE_BIT, &dd->dd_flag);
+	kfree(dd);
+	set_bit(MTIP_DDF_REMOVE_DONE_BIT, &dd->dd_flag);
 
 	pcim_iounmap_regions(pdev, 1 << MTIP_ABAR);
 	pci_set_drvdata(pdev, NULL);
