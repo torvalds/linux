@@ -792,7 +792,8 @@ mwifiex_hscfg_write(struct file *file, const char __user *ubuf,
 	memset(&hscfg, 0, sizeof(struct mwifiex_ds_hs_cfg));
 
 	if (arg_num > 3) {
-		dev_err(priv->adapter->dev, "Too many arguments\n");
+		mwifiex_dbg(priv->adapter, ERROR,
+			    "Too many arguments\n");
 		ret = -EINVAL;
 		goto done;
 	}

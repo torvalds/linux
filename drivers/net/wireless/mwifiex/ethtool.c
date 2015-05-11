@@ -108,7 +108,8 @@ mwifiex_get_dump_data(struct net_device *dev, struct ethtool_dump *dump,
 	}
 
 	if (adapter->curr_mem_idx == MWIFIEX_FW_DUMP_IDX) {
-		dev_err(adapter->dev, "firmware dump in progress!!\n");
+		mwifiex_dbg(adapter, ERROR,
+			    "firmware dump in progress!!\n");
 		return -EBUSY;
 	}
 
@@ -140,7 +141,8 @@ static int mwifiex_set_dump(struct net_device *dev, struct ethtool_dump *val)
 	}
 
 	if (adapter->curr_mem_idx == MWIFIEX_FW_DUMP_IDX) {
-		dev_err(adapter->dev, "firmware dump in progress!!\n");
+		mwifiex_dbg(adapter, ERROR,
+			    "firmware dump in progress!!\n");
 		return -EBUSY;
 	}
 
