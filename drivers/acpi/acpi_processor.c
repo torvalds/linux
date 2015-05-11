@@ -216,7 +216,7 @@ static int acpi_processor_get_info(struct acpi_device *device)
 	struct acpi_buffer buffer = { sizeof(union acpi_object), &object };
 	struct acpi_processor *pr = acpi_driver_data(device);
 	phys_cpuid_t phys_id;
-	int cpu_index, device_declaration = 0;
+	int device_declaration = 0;
 	acpi_status status = AE_OK;
 	static int cpu0_initialized;
 	unsigned long long value;
@@ -268,18 +268,16 @@ static int acpi_processor_get_info(struct acpi_device *device)
 		acpi_handle_debug(pr->handle, "failed to get CPU physical ID.\n");
 	pr->phys_id = phys_id;
 
-	cpu_index = acpi_map_cpuid(pr->phys_id, pr->acpi_id);
+	pr->id = acpi_map_cpuid(pr->phys_id, pr->acpi_id);
 	if (!cpu0_initialized && !acpi_has_cpu_in_madt()) {
 		cpu0_initialized = 1;
 		/*
 		 * Handle UP system running SMP kernel, with no CPU
 		 * entry in MADT
 		 */
-		if (invalid_logical_cpuid(cpu_index)
-		    && (num_online_cpus() == 1))
-			cpu_index = 0;
+		if (invalid_logical_cpuid(pr->id) && (num_online_cpus() == 1))
+			pr->id = 0;
 	}
-	pr->id = cpu_index;
 
 	/*
 	 *  Extra Processor objects may be enumerated on MP systems with
