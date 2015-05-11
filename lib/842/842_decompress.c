@@ -185,7 +185,7 @@ static int __do_index(struct sw842_param *p, u8 size, u8 bits, u64 fsize)
 		/* this is where the current fifo is */
 		u64 section = round_down(total, fsize);
 		/* the current pos in the fifo */
-		u64 pos = total % fsize;
+		u64 pos = total - section;
 
 		/* if the offset is past/at the pos, we need to
 		 * go back to the last fifo section
