@@ -713,7 +713,7 @@ static int parse_gfp_flags(struct perf_evsel *evsel, struct perf_sample *sample,
 		.size = sample->raw_size,
 	};
 	struct trace_seq seq;
-	char *str, *pos;
+	char *str, *pos = NULL;
 
 	if (nr_gfps) {
 		struct gfp_flag key = {
