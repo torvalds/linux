@@ -394,6 +394,12 @@ static void execlists_context_unqueue(struct intel_engine_cs *ring)
 
 	assert_spin_locked(&ring->execlist_lock);
 
+	/*
+	 * If irqs are not active generate a warning as batches that finish
+	 * without the irqs may get lost and a GPU Hang may occur.
+	 */
+	WARN_ON(!intel_irqs_enabled(ring->dev->dev_private));
+
 	if (list_empty(&ring->execlist_queue))
 		return;
 
