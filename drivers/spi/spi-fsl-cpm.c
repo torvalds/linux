@@ -310,10 +310,15 @@ int fsl_spi_cpm_init(struct mpc8xxx_spi *mspi)
 
 	if (mspi->flags & SPI_CPM1) {
 		struct resource *res;
+		void *pram;
 
 		res = platform_get_resource(to_platform_device(dev),
 					    IORESOURCE_MEM, 1);
-		mspi->pram = devm_ioremap_resource(dev, res);
+		pram = devm_ioremap_resource(dev, res);
+		if (IS_ERR(pram))
+			mspi->pram = NULL;
+		else
+			mspi->pram = pram;
 	} else {
 		unsigned long pram_ofs = fsl_spi_cpm_get_pram(mspi);
 
