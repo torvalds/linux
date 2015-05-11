@@ -163,7 +163,8 @@ static const struct iwl_tt_params iwl8000_tt_params = {
 	.smem_len = IWL8260_SMEM_LEN,					\
 	.default_nvm_file_B_step = DEFAULT_NVM_FILE_FAMILY_8000B,	\
 	.default_nvm_file_C_step = DEFAULT_NVM_FILE_FAMILY_8000C,	\
-	.thermal_params = &iwl8000_tt_params
+	.thermal_params = &iwl8000_tt_params,				\
+	.apmg_not_supported = true
 
 const struct iwl_cfg iwl8260_2n_cfg = {
 	.name = "Intel(R) Dual Band Wireless N 8260",
