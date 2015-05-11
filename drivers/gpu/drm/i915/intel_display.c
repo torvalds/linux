@@ -9356,6 +9356,12 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 	}
 
 	pfit_domain = POWER_DOMAIN_PIPE_PANEL_FITTER(crtc->pipe);
+
+	if (INTEL_INFO(dev)->gen >= 9) {
+		pipe_config->scaler_state.scaler_id = -1;
+		pipe_config->scaler_state.scaler_users &= ~(1 << SKL_CRTC_INDEX);
+	}
+
 	if (intel_display_power_is_enabled(dev_priv, pfit_domain)) {
 		if (INTEL_INFO(dev)->gen == 9)
 			skylake_get_pfit_config(crtc, pipe_config);
@@ -9363,10 +9369,6 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 			ironlake_get_pfit_config(crtc, pipe_config);
 		else
 			MISSING_CASE(INTEL_INFO(dev)->gen);
-
-	} else {
-		pipe_config->scaler_state.scaler_id = -1;
-		pipe_config->scaler_state.scaler_users &= ~(1 << SKL_CRTC_INDEX);
 	}
 
 	if (IS_HASWELL(dev))
@@ -13266,8 +13268,8 @@ static struct drm_plane *intel_primary_plane_create(struct drm_device *dev,
 	primary->max_downscale = 1;
 	if (INTEL_INFO(dev)->gen >= 9) {
 		primary->can_scale = true;
+		state->scaler_id = -1;
 	}
-	state->scaler_id = -1;
 	primary->pipe = pipe;
 	primary->plane = pipe;
 	primary->check_plane = intel_check_primary_plane;
@@ -13449,7 +13451,6 @@ static struct drm_plane *intel_cursor_plane_create(struct drm_device *dev,
 	cursor->max_downscale = 1;
 	cursor->pipe = pipe;
 	cursor->plane = pipe;
-	state->scaler_id = -1;
 	cursor->check_plane = intel_check_cursor_plane;
 	cursor->commit_plane = intel_commit_cursor_plane;
 	cursor->disable_plane = intel_disable_cursor_plane;
@@ -13471,6 +13472,9 @@ static struct drm_plane *intel_cursor_plane_create(struct drm_device *dev,
 				dev->mode_config.rotation_property,
 				state->base.rotation);
 	}
+
+	if (INTEL_INFO(dev)->gen >=9)
+		state->scaler_id = -1;
 
 	drm_plane_helper_add(&cursor->base, &intel_plane_helper_funcs);
 
