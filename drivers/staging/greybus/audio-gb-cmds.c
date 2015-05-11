@@ -40,7 +40,7 @@ int gb_i2s_mgmt_activate_cport(struct gb_connection *connection,
 	struct gb_i2s_mgmt_activate_cport_request request;
 
 	memset(&request, 0, sizeof(request));
-	request.cport = cport;
+	request.cport = cpu_to_le16(cport);
 
 	return gb_operation_sync(connection, GB_I2S_MGMT_TYPE_ACTIVATE_CPORT,
 				 &request, sizeof(request), NULL, 0);
@@ -52,7 +52,7 @@ int gb_i2s_mgmt_deactivate_cport(struct gb_connection *connection,
 	struct gb_i2s_mgmt_deactivate_cport_request request;
 
 	memset(&request, 0, sizeof(request));
-	request.cport = cport;
+	request.cport = cpu_to_le16(cport);
 
 	return gb_operation_sync(connection, GB_I2S_MGMT_TYPE_DEACTIVATE_CPORT,
 				 &request, sizeof(request), NULL, 0);
@@ -82,7 +82,7 @@ int gb_i2s_mgmt_set_samples_per_message(
 	struct gb_i2s_mgmt_set_samples_per_message_request request;
 
 	memset(&request, 0, sizeof(request));
-	request.samples_per_message = samples_per_message;
+	request.samples_per_message = cpu_to_le16(samples_per_message);
 
 	return gb_operation_sync(connection,
 				 GB_I2S_MGMT_TYPE_SET_SAMPLES_PER_MESSAGE,
@@ -121,14 +121,14 @@ int gb_i2s_mgmt_setup(struct gb_connection *connection)
 
 	/* Pick 48KHz 16-bits/channel */
 	for (i = 0, cfg = get_cfg->config; i < CONFIG_COUNT_MAX; i++, cfg++) {
-		if ((cfg->sample_frequency == GB_SAMPLE_RATE) &&
+		if ((le32_to_cpu(cfg->sample_frequency) == GB_SAMPLE_RATE) &&
 		    (cfg->num_channels == 2) &&
 		    (cfg->bytes_per_channel == 2) &&
 		    (cfg->byte_order & GB_I2S_MGMT_BYTE_ORDER_LE) &&
-		    (cfg->spatial_locations ==
+		    (le32_to_cpu(cfg->spatial_locations) ==
 			(GB_I2S_MGMT_SPATIAL_LOCATION_FL |
 			 GB_I2S_MGMT_SPATIAL_LOCATION_FR)) &&
-		    (cfg->ll_protocol & GB_I2S_MGMT_PROTOCOL_I2S) &&
+		    (le32_to_cpu(cfg->ll_protocol) & GB_I2S_MGMT_PROTOCOL_I2S) &&
 		    (cfg->ll_mclk_role & GB_I2S_MGMT_ROLE_MASTER) &&
 		    (cfg->ll_bclk_role & GB_I2S_MGMT_ROLE_MASTER) &&
 		    (cfg->ll_wclk_role & GB_I2S_MGMT_ROLE_MASTER) &&
@@ -148,7 +148,7 @@ int gb_i2s_mgmt_setup(struct gb_connection *connection)
 
 	memcpy(&set_cfg, cfg, sizeof(set_cfg));
 	set_cfg.config.byte_order = GB_I2S_MGMT_BYTE_ORDER_LE;
-	set_cfg.config.ll_protocol = GB_I2S_MGMT_PROTOCOL_I2S;
+	set_cfg.config.ll_protocol = cpu_to_le32(GB_I2S_MGMT_PROTOCOL_I2S);
 	set_cfg.config.ll_mclk_role = GB_I2S_MGMT_ROLE_MASTER;
 	set_cfg.config.ll_bclk_role = GB_I2S_MGMT_ROLE_MASTER;
 	set_cfg.config.ll_wclk_role = GB_I2S_MGMT_ROLE_MASTER;
@@ -191,7 +191,7 @@ int gb_i2s_send_data(struct gb_connection *connection,
 	int ret;
 
 	gb_req = req_buf;
-	gb_req->sample_number = sample_num;
+	gb_req->sample_number = cpu_to_le32(sample_num);
 
 	memcpy((void *)&gb_req->data[0], source_addr, len);
 
@@ -199,7 +199,7 @@ int gb_i2s_send_data(struct gb_connection *connection,
 		for (; len < MAX_SEND_DATA_LEN; len++)
 			gb_req->data[len] = gb_req->data[len - SAMPLE_SIZE];
 
-	gb_req->size = len;
+	gb_req->size = cpu_to_le32(len);
 
 	ret = gb_operation_sync(connection, GB_I2S_DATA_TYPE_SEND_DATA,
 				(void *) gb_req, SEND_DATA_BUF_LEN, NULL, 0);
