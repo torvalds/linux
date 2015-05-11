@@ -9868,7 +9868,7 @@ retry:
 		goto fail;
 	}
 
-	crtc_state->base.enable = true;
+	crtc_state->base.active = crtc_state->base.enable = true;
 
 	if (!mode)
 		mode = &load_detect_mode;
@@ -9965,7 +9965,7 @@ void intel_release_load_detect_pipe(struct drm_connector *connector,
 		connector_state->best_encoder = NULL;
 		connector_state->crtc = NULL;
 
-		crtc_state->base.enable = false;
+		crtc_state->base.enable = crtc_state->base.active = false;
 
 		ret = intel_modeset_setup_plane_state(state, crtc, NULL, NULL,
 						      0, 0);
@@ -12342,7 +12342,6 @@ static int __intel_set_mode(struct drm_crtc *modeset_crtc,
 			continue;
 
 		if (!crtc_state->enable) {
-			crtc_state->active = false;
 			intel_crtc_disable(crtc);
 		} else if (crtc->state->enable) {
 			intel_crtc_disable_planes(crtc);
@@ -12492,7 +12491,8 @@ void intel_crtc_restore_mode(struct drm_crtc *crtc)
 			continue;
 		}
 
-		crtc_state->base.enable = intel_crtc->new_enabled;
+		crtc_state->base.active = crtc_state->base.enable =
+			intel_crtc->new_enabled;
 
 		if (&intel_crtc->base == crtc)
 			drm_mode_copy(&crtc_state->base.mode, &crtc->mode);
@@ -12617,11 +12617,16 @@ intel_modeset_stage_output_state(struct drm_device *dev,
 	}
 
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+		bool has_connectors;
+
 		ret = drm_atomic_add_affected_connectors(state, crtc);
 		if (ret)
 			return ret;
 
-		crtc_state->enable = drm_atomic_connectors_for_crtc(state, crtc);
+		has_connectors = !!drm_atomic_connectors_for_crtc(state, crtc);
+		if (has_connectors != crtc_state->enable)
+			crtc_state->enable =
+			crtc_state->active = has_connectors;
 	}
 
 	ret = intel_modeset_setup_plane_state(state, set->crtc, set->mode,
@@ -14595,6 +14600,7 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 
 		WARN_ON(crtc->active);
 		crtc->base.state->enable = false;
+		crtc->base.state->active = false;
 		crtc->base.enabled = false;
 	}
 
@@ -14623,6 +14629,7 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 			      crtc->active ? "enabled" : "disabled");
 
 		crtc->base.state->enable = crtc->active;
+		crtc->base.state->active = crtc->active;
 		crtc->base.enabled = crtc->active;
 
 		/* Because we only establish the connector -> encoder ->
@@ -14761,6 +14768,7 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 								 crtc->config);
 
 		crtc->base.state->enable = crtc->active;
+		crtc->base.state->active = crtc->active;
 		crtc->base.enabled = crtc->active;
 
 		plane_state = to_intel_plane_state(primary->state);
