@@ -99,6 +99,61 @@ void vce_v1_0_set_wptr(struct radeon_device *rdev,
 		WREG32(VCE_RB_WPTR2, ring->wptr);
 }
 
+void vce_v1_0_enable_mgcg(struct radeon_device *rdev, bool enable)
+{
+	u32 tmp;
+
+	if (enable && (rdev->cg_flags & RADEON_CG_SUPPORT_VCE_MGCG)) {
+		tmp = RREG32(VCE_CLOCK_GATING_A);
+		tmp |= CGC_DYN_CLOCK_MODE;
+		WREG32(VCE_CLOCK_GATING_A, tmp);
+
+		tmp = RREG32(VCE_UENC_CLOCK_GATING);
+		tmp &= ~0x1ff000;
+		tmp |= 0xff800000;
+		WREG32(VCE_UENC_CLOCK_GATING, tmp);
+
+		tmp = RREG32(VCE_UENC_REG_CLOCK_GATING);
+		tmp &= ~0x3ff;
+		WREG32(VCE_UENC_REG_CLOCK_GATING, tmp);
+	} else {
+		tmp = RREG32(VCE_CLOCK_GATING_A);
+		tmp &= ~CGC_DYN_CLOCK_MODE;
+		WREG32(VCE_CLOCK_GATING_A, tmp);
+
+		tmp = RREG32(VCE_UENC_CLOCK_GATING);
+		tmp |= 0x1ff000;
+		tmp &= ~0xff800000;
+		WREG32(VCE_UENC_CLOCK_GATING, tmp);
+
+		tmp = RREG32(VCE_UENC_REG_CLOCK_GATING);
+		tmp |= 0x3ff;
+		WREG32(VCE_UENC_REG_CLOCK_GATING, tmp);
+	}
+}
+
+static void vce_v1_0_init_cg(struct radeon_device *rdev)
+{
+	u32 tmp;
+
+	tmp = RREG32(VCE_CLOCK_GATING_A);
+	tmp |= CGC_DYN_CLOCK_MODE;
+	WREG32(VCE_CLOCK_GATING_A, tmp);
+
+	tmp = RREG32(VCE_CLOCK_GATING_B);
+	tmp |= 0x1e;
+	tmp &= ~0xe100e1;
+	WREG32(VCE_CLOCK_GATING_B, tmp);
+
+	tmp = RREG32(VCE_UENC_CLOCK_GATING);
+	tmp &= ~0xff9ff000;
+	WREG32(VCE_UENC_CLOCK_GATING, tmp);
+
+	tmp = RREG32(VCE_UENC_REG_CLOCK_GATING);
+	tmp &= ~0x3ff;
+	WREG32(VCE_UENC_REG_CLOCK_GATING, tmp);
+}
+
 int vce_v1_0_load_fw(struct radeon_device *rdev, uint32_t *data)
 {
 	struct vce_v1_0_fw_signature *sign = (void*)rdev->vce_fw->data;
@@ -218,6 +273,8 @@ int vce_v1_0_resume(struct radeon_device *rdev)
 
 	if (i == 10)
 		return -ETIMEDOUT;
+
+	vce_v1_0_init_cg(rdev);
 
 	return 0;
 }

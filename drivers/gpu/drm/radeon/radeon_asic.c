@@ -2455,6 +2455,8 @@ int radeon_asic_init(struct radeon_device *rdev)
 		/* set num crtcs */
 		rdev->num_crtc = 4;
 		rdev->has_uvd = true;
+		rdev->cg_flags =
+			RADEON_CG_SUPPORT_VCE_MGCG;
 		break;
 	case CHIP_TAHITI:
 	case CHIP_PITCAIRN:

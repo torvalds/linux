@@ -1894,6 +1894,7 @@
 #define VCE_RB_RPTR					0x2018c
 #define VCE_RB_WPTR					0x20190
 #define VCE_CLOCK_GATING_A				0x202f8
+#	define CGC_DYN_CLOCK_MODE			(1 << 16)
 #define VCE_CLOCK_GATING_B				0x202fc
 #define VCE_UENC_CLOCK_GATING				0x205bc
 #define VCE_UENC_REG_CLOCK_GATING			0x205c0
