@@ -214,8 +214,6 @@ static void sdma_v2_4_ring_set_wptr(struct amdgpu_ring *ring)
 	WREG32(mmSDMA0_GFX_RB_WPTR + sdma_offsets[me], ring->wptr << 2);
 }
 
-static void sdma_v2_4_hdp_flush_ring_emit(struct amdgpu_ring *);
-
 /**
  * sdma_v2_4_ring_emit_ib - Schedule an IB on the DMA engine
  *
@@ -230,9 +228,6 @@ static void sdma_v2_4_ring_emit_ib(struct amdgpu_ring *ring,
 	u32 vmid = (ib->vm ? ib->vm->ids[ring->idx].id : 0) & 0xf;
 	u32 next_rptr = ring->wptr + 5;
 
-	if (ib->flush_hdp_writefifo)
-		next_rptr += 6;
-
 	while ((next_rptr & 7) != 2)
 		next_rptr++;
 
@@ -244,11 +239,6 @@ static void sdma_v2_4_ring_emit_ib(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, upper_32_bits(ring->next_rptr_gpu_addr));
 	amdgpu_ring_write(ring, SDMA_PKT_WRITE_UNTILED_DW_3_COUNT(1));
 	amdgpu_ring_write(ring, next_rptr);
-
-	if (ib->flush_hdp_writefifo) {
-		/* flush HDP */
-		sdma_v2_4_hdp_flush_ring_emit(ring);
-	}
 
 	/* IB packet must end on a 8 DW boundary */
 	while ((ring->wptr & 7) != 2)
@@ -271,7 +261,7 @@ static void sdma_v2_4_ring_emit_ib(struct amdgpu_ring *ring,
  *
  * Emit an hdp flush packet on the requested DMA ring.
  */
-static void sdma_v2_4_hdp_flush_ring_emit(struct amdgpu_ring *ring)
+static void sdma_v2_4_ring_emit_hdp_flush(struct amdgpu_ring *ring)
 {
 	u32 ref_and_mask = 0;
 
@@ -1340,6 +1330,7 @@ static const struct amdgpu_ring_funcs sdma_v2_4_ring_funcs = {
 	.emit_fence = sdma_v2_4_ring_emit_fence,
 	.emit_semaphore = sdma_v2_4_ring_emit_semaphore,
 	.emit_vm_flush = sdma_v2_4_ring_emit_vm_flush,
+	.emit_hdp_flush = sdma_v2_4_ring_emit_hdp_flush,
 	.test_ring = sdma_v2_4_ring_test_ring,
 	.test_ib = sdma_v2_4_ring_test_ib,
 	.is_lockup = sdma_v2_4_ring_is_lockup,

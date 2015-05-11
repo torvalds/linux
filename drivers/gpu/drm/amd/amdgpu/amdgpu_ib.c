@@ -143,7 +143,6 @@ int amdgpu_ib_schedule(struct amdgpu_device *adev, unsigned num_ibs,
 	struct amdgpu_ib *ib = &ibs[0];
 	unsigned i;
 	int r = 0;
-	bool flush_hdp = true;
 
 	if (num_ibs == 0)
 		return -EINVAL;
@@ -185,6 +184,9 @@ int amdgpu_ib_schedule(struct amdgpu_device *adev, unsigned num_ibs,
 					    ib->gws_base, ib->gws_size,
 					    ib->oa_base, ib->oa_size);
 
+	if (ring->funcs->emit_hdp_flush)
+		amdgpu_ring_emit_hdp_flush(ring);
+
 	for (i = 0; i < num_ibs; ++i) {
 		ib = &ibs[i];
 
@@ -192,8 +194,6 @@ int amdgpu_ib_schedule(struct amdgpu_device *adev, unsigned num_ibs,
 			amdgpu_ring_unlock_undo(ring);
 			return -EINVAL;
 		}
-		ib->flush_hdp_writefifo = flush_hdp;
-		flush_hdp = false;
 		amdgpu_ring_emit_ib(ring, ib);
 	}
 

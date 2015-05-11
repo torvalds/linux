@@ -3610,7 +3610,7 @@ static void gfx_v8_0_ring_set_wptr_gfx(struct amdgpu_ring *ring)
 	}
 }
 
-static void gfx_v8_0_hdp_flush_cp_ring_emit(struct amdgpu_ring *ring)
+static void gfx_v8_0_ring_emit_hdp_flush(struct amdgpu_ring *ring)
 {
 	u32 ref_and_mask, reg_mem_engine;
 
@@ -3657,9 +3657,6 @@ static void gfx_v8_0_ring_emit_ib(struct amdgpu_ring *ring,
 	if (ring->type == AMDGPU_RING_TYPE_COMPUTE)
 		control |= INDIRECT_BUFFER_VALID;
 
-	if (ib->flush_hdp_writefifo)
-		next_rptr += 7;
-
 	if (ring->need_ctx_switch && ring->type == AMDGPU_RING_TYPE_GFX)
 		next_rptr += 2;
 
@@ -3669,9 +3666,6 @@ static void gfx_v8_0_ring_emit_ib(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, ring->next_rptr_gpu_addr & 0xfffffffc);
 	amdgpu_ring_write(ring, upper_32_bits(ring->next_rptr_gpu_addr) & 0xffffffff);
 	amdgpu_ring_write(ring, next_rptr);
-
-	if (ib->flush_hdp_writefifo)
-		gfx_v8_0_hdp_flush_cp_ring_emit(ring);
 
 	/* insert SWITCH_BUFFER packet before first IB in the ring frame */
 	if (ring->need_ctx_switch && ring->type == AMDGPU_RING_TYPE_GFX) {
@@ -4149,6 +4143,7 @@ static const struct amdgpu_ring_funcs gfx_v8_0_ring_funcs_gfx = {
 	.emit_semaphore = gfx_v8_0_ring_emit_semaphore,
 	.emit_vm_flush = gfx_v8_0_ring_emit_vm_flush,
 	.emit_gds_switch = gfx_v8_0_ring_emit_gds_switch,
+	.emit_hdp_flush = gfx_v8_0_ring_emit_hdp_flush,
 	.test_ring = gfx_v8_0_ring_test_ring,
 	.test_ib = gfx_v8_0_ring_test_ib,
 	.is_lockup = gfx_v8_0_ring_is_lockup,

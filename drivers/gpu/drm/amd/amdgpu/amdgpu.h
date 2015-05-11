@@ -382,6 +382,7 @@ struct amdgpu_ring_funcs {
 			       bool emit_wait);
 	void (*emit_vm_flush)(struct amdgpu_ring *ring, unsigned vm_id,
 			      uint64_t pd_addr);
+	void (*emit_hdp_flush)(struct amdgpu_ring *ring);
 	void (*emit_gds_switch)(struct amdgpu_ring *ring, uint32_t vmid,
 				uint32_t gds_base, uint32_t gds_size,
 				uint32_t gws_base, uint32_t gws_size,
@@ -892,7 +893,6 @@ struct amdgpu_ib {
 	struct amdgpu_fence		*fence;
 	struct amdgpu_user_fence        *user;
 	struct amdgpu_vm		*vm;
-	bool				flush_hdp_writefifo;
 	struct amdgpu_sync		sync;
 	uint32_t			gds_base, gds_size;
 	uint32_t			gws_base, gws_size;
@@ -2203,6 +2203,7 @@ static inline void amdgpu_ring_write(struct amdgpu_ring *ring, uint32_t v)
 #define amdgpu_ring_emit_fence(r, addr, seq, write64bit) (r)->funcs->emit_fence((r), (addr), (seq), (write64bit))
 #define amdgpu_ring_emit_semaphore(r, semaphore, emit_wait) (r)->funcs->emit_semaphore((r), (semaphore), (emit_wait))
 #define amdgpu_ring_emit_gds_switch(r, v, db, ds, wb, ws, ab, as) (r)->funcs->emit_gds_switch((r), (v), (db), (ds), (wb), (ws), (ab), (as))
+#define amdgpu_ring_emit_hdp_flush(r) (r)->funcs->emit_hdp_flush((r))
 #define amdgpu_ih_get_wptr(adev) (adev)->irq.ih_funcs->get_wptr((adev))
 #define amdgpu_ih_decode_iv(adev, iv) (adev)->irq.ih_funcs->decode_iv((adev), (iv))
 #define amdgpu_ih_set_rptr(adev) (adev)->irq.ih_funcs->set_rptr((adev))
