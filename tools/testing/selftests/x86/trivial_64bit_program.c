@@ -4,7 +4,7 @@
  * GPL v2
  */
 
-#ifndef __i386__
+#ifndef __x86_64__
 # error wrong architecture
 #endif
 
