@@ -214,7 +214,7 @@ static int __do_index(struct sw842_param *p, u8 size, u8 bits, u64 fsize)
 	return 0;
 }
 
-int do_index(struct sw842_param *p, u8 n)
+static int do_index(struct sw842_param *p, u8 n)
 {
 	switch (n) {
 	case 2:
@@ -228,7 +228,7 @@ int do_index(struct sw842_param *p, u8 n)
 	}
 }
 
-int do_op(struct sw842_param *p, u8 o)
+static int do_op(struct sw842_param *p, u8 o)
 {
 	int i, ret = 0;
 
