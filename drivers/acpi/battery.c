@@ -70,6 +70,7 @@ MODULE_AUTHOR("Alexey Starikovskiy <astarikovskiy@suse.de>");
 MODULE_DESCRIPTION("ACPI Battery Driver");
 MODULE_LICENSE("GPL");
 
+static async_cookie_t async_cookie;
 static int battery_bix_broken_package;
 static int battery_notification_delay_ms;
 static unsigned int cache_time = 1000;
@@ -1313,12 +1314,13 @@ static int __init acpi_battery_init(void)
 	if (acpi_disabled)
 		return -ENODEV;
 
-	async_schedule(acpi_battery_init_async, NULL);
+	async_cookie = async_schedule(acpi_battery_init_async, NULL);
 	return 0;
 }
 
 static void __exit acpi_battery_exit(void)
 {
+	async_synchronize_cookie(async_cookie);
 	acpi_bus_unregister_driver(&acpi_battery_driver);
 #ifdef CONFIG_ACPI_PROCFS_POWER
 	acpi_unlock_battery_dir(acpi_battery_dir);
