@@ -394,7 +394,7 @@ errout:
  * Dump information about all ports, in response to GETLINK
  */
 int br_getlink(struct sk_buff *skb, u32 pid, u32 seq,
-	       struct net_device *dev, u32 filter_mask)
+	       struct net_device *dev, u32 filter_mask, int nlflags)
 {
 	struct net_bridge_port *port = br_port_get_rtnl(dev);
 
@@ -402,7 +402,7 @@ int br_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 	    !(filter_mask & RTEXT_FILTER_BRVLAN_COMPRESSED))
 		return 0;
 
-	return br_fill_ifinfo(skb, port, pid, seq, RTM_NEWLINK, NLM_F_MULTI,
+	return br_fill_ifinfo(skb, port, pid, seq, RTM_NEWLINK, nlflags,
 			      filter_mask, dev);
 }
 

@@ -3259,7 +3259,8 @@ static int create_input_ctls(struct hda_codec *codec)
 		val = PIN_IN;
 		if (cfg->inputs[i].type == AUTO_PIN_MIC)
 			val |= snd_hda_get_default_vref(codec, pin);
-		if (pin != spec->hp_mic_pin)
+		if (pin != spec->hp_mic_pin &&
+		    !snd_hda_codec_get_pin_target(codec, pin))
 			set_pin_target(codec, pin, val, false);
 
 		if (mixer) {
