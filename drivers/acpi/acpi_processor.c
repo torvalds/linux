@@ -215,7 +215,6 @@ static int acpi_processor_get_info(struct acpi_device *device)
 	union acpi_object object = { 0 };
 	struct acpi_buffer buffer = { sizeof(union acpi_object), &object };
 	struct acpi_processor *pr = acpi_driver_data(device);
-	phys_cpuid_t phys_id;
 	int device_declaration = 0;
 	acpi_status status = AE_OK;
 	static int cpu0_initialized;
@@ -263,10 +262,10 @@ static int acpi_processor_get_info(struct acpi_device *device)
 		pr->acpi_id = value;
 	}
 
-	phys_id = acpi_get_phys_id(pr->handle, device_declaration, pr->acpi_id);
-	if (phys_id == PHYS_CPUID_INVALID)
+	pr->phys_id = acpi_get_phys_id(pr->handle, device_declaration,
+					pr->acpi_id);
+	if (pr->phys_id == PHYS_CPUID_INVALID)
 		acpi_handle_debug(pr->handle, "failed to get CPU physical ID.\n");
-	pr->phys_id = phys_id;
 
 	pr->id = acpi_map_cpuid(pr->phys_id, pr->acpi_id);
 	if (!cpu0_initialized && !acpi_has_cpu_in_madt()) {
