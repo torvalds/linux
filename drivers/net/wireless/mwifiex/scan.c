@@ -2125,6 +2125,9 @@ int mwifiex_handle_event_ext_scan_report(struct mwifiex_private *priv,
 	dev_dbg(adapter->dev,
 		"EXT_SCAN: size %d, returned %d APs...",
 		scan_resp_size, num_of_set);
+	mwifiex_dbg_dump(adapter, CMD_D, "EXT_SCAN buffer:", buf,
+			 scan_resp_size +
+			 sizeof(struct mwifiex_event_scan_result));
 
 	tlv = (struct mwifiex_ie_types_data *)scan_resp;
 

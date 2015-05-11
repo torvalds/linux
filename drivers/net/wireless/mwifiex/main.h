@@ -186,6 +186,15 @@ do {								\
 			dev_info((adapter)->dev, fmt, ## args);	\
 } while (0)
 
+#define DEBUG_DUMP_DATA_MAX_LEN		128
+#define mwifiex_dbg_dump(adapter, dbg_mask, str, buf, len)	\
+do {								\
+	if ((adapter)->debug_mask & MWIFIEX_DBG_##dbg_mask)	\
+		print_hex_dump(KERN_DEBUG, str,			\
+			       DUMP_PREFIX_OFFSET, 16, 1,	\
+			       buf, len, false);		\
+} while (0)
+
 struct mwifiex_dbg {
 	u32 num_cmd_host_to_card_failure;
 	u32 num_cmd_sleep_cfm_host_to_card_failure;

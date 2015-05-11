@@ -201,6 +201,7 @@ static int mwifiex_dnld_cmd_to_fw(struct mwifiex_private *priv,
 		"cmd: DNLD_CMD: %#x, act %#x, len %d, seqno %#x\n", cmd_code,
 		le16_to_cpu(*(__le16 *) ((u8 *) host_cmd + S_DS_GEN)), cmd_size,
 		le16_to_cpu(host_cmd->seq_num));
+	mwifiex_dbg_dump(adapter, CMD_D, "cmd buffer:", host_cmd, cmd_size);
 
 	if (adapter->iface_type == MWIFIEX_USB) {
 		tmp = cpu_to_le32(MWIFIEX_USB_TYPE_CMD);
@@ -286,6 +287,8 @@ static int mwifiex_dnld_sleep_confirm_cmd(struct mwifiex_adapter *adapter)
 		le16_to_cpu(sleep_cfm_buf->action),
 		le16_to_cpu(sleep_cfm_buf->size),
 		le16_to_cpu(sleep_cfm_buf->seq_num));
+	mwifiex_dbg_dump(adapter, CMD_D, "SLEEP_CFM buffer: ", sleep_cfm_buf,
+			 le16_to_cpu(sleep_cfm_buf->size));
 
 	if (adapter->iface_type == MWIFIEX_USB) {
 		sleep_cfm_tmp =
@@ -362,8 +365,9 @@ int mwifiex_alloc_cmd_buffer(struct mwifiex_adapter *adapter)
 	for (i = 0; i < MWIFIEX_NUM_OF_CMD_BUFFER; i++) {
 		cmd_array[i].skb = dev_alloc_skb(MWIFIEX_SIZE_OF_CMD_BUFFER);
 		if (!cmd_array[i].skb) {
-			dev_err(adapter->dev, "ALLOC_CMD_BUF: out of memory\n");
-			return -1;
+			dev_err(adapter->dev,
+				"unable to allocate command buffer\n");
+			return -ENOMEM;
 		}
 	}
 
@@ -460,6 +464,7 @@ int mwifiex_process_event(struct mwifiex_adapter *adapter)
 	}
 
 	dev_dbg(adapter->dev, "EVENT: cause: %#x\n", eventcause);
+	mwifiex_dbg_dump(adapter, EVT_D, "Event Buf:", skb->data, skb->len);
 
 	if (priv->bss_role == MWIFIEX_BSS_ROLE_UAP)
 		ret = mwifiex_process_uap_event(priv);
@@ -826,6 +831,8 @@ int mwifiex_process_cmdresp(struct mwifiex_adapter *adapter)
 		"cmd: CMD_RESP: 0x%x, result %d, len %d, seqno 0x%x\n",
 		orig_cmdresp_no, cmdresp_result,
 		le16_to_cpu(resp->size), le16_to_cpu(resp->seq_num));
+	mwifiex_dbg_dump(adapter, CMD_D, "CMD_RESP buffer:", resp,
+			 le16_to_cpu(resp->size));
 
 	if (!(orig_cmdresp_no & HostCmd_RET_BIT)) {
 		dev_err(adapter->dev, "CMD_RESP: invalid cmd resp\n");

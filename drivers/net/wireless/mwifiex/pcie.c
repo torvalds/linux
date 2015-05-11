@@ -1721,7 +1721,7 @@ static int mwifiex_pcie_process_event_ready(struct mwifiex_adapter *adapter)
 		   len is 2 bytes followed by type which is 2 bytes */
 		memcpy(&data_len, skb_cmd->data, sizeof(__le16));
 		evt_len = le16_to_cpu(data_len);
-
+		skb_trim(skb_cmd, evt_len);
 		skb_pull(skb_cmd, INTF_HEADER_LEN);
 		dev_dbg(adapter->dev, "info: Event length: %d\n", evt_len);
 
