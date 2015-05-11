@@ -61,6 +61,8 @@
 		serial2 = &usart2;
 		serial3 = &usart0;
 		serial4 = &usart1;
+		serial5 = &uart0;
+		serial6 = &uart1;
 		gpio0 = &pioA;
 		gpio1 = &pioB;
 		gpio2 = &pioC;
@@ -849,6 +851,24 @@
 				clock-names = "mci_clk";
 			};
 
+			uart0: serial@f8004000 {
+				compatible = "atmel,at91sam9260-usart";
+				reg = <0xf8004000 0x100>;
+				interrupts = <27 IRQ_TYPE_LEVEL_HIGH 5>;
+				dmas = <&dma1
+					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1)
+					| AT91_XDMAC_DT_PERID(22))>,
+				       <&dma1
+					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1)
+					| AT91_XDMAC_DT_PERID(23))>;
+				dma-names = "tx", "rx";
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_uart0>;
+				clocks = <&uart0_clk>;
+				clock-names = "usart";
+				status = "disabled";
+			};
+
 			ssc0: ssc@f8008000 {
 				compatible = "atmel,at91sam9g45-ssc";
 				reg = <0xf8008000 0x4000>;
@@ -1030,6 +1050,24 @@
 				#size-cells = <0>;
 				clocks = <&mci1_clk>;
 				clock-names = "mci_clk";
+			};
+
+			uart1: serial@fc004000 {
+				compatible = "atmel,at91sam9260-usart";
+				reg = <0xfc004000 0x100>;
+				interrupts = <28 IRQ_TYPE_LEVEL_HIGH 5>;
+				dmas = <&dma1
+					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1)
+					| AT91_XDMAC_DT_PERID(24))>,
+				       <&dma1
+					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1)
+					| AT91_XDMAC_DT_PERID(25))>;
+				dma-names = "tx", "rx";
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_uart1>;
+				clocks = <&uart1_clk>;
+				clock-names = "usart";
+				status = "disabled";
 			};
 
 			usart2: serial@fc008000 {
@@ -1658,6 +1696,24 @@
 							<AT91_PIOC 24 AT91_PERIPH_B AT91_PINCTRL_NONE	/* RK1 */
 							 AT91_PIOC 22 AT91_PERIPH_B AT91_PINCTRL_NONE	/* RF1 */
 							 AT91_PIOC 23 AT91_PERIPH_B AT91_PINCTRL_NONE>;	/* RD1 */
+					};
+				};
+
+				uart0 {
+					pinctrl_uart0: uart0-0 {
+						atmel,pins =
+							<AT91_PIOE 29 AT91_PERIPH_B AT91_PINCTRL_NONE		/* RXD */
+							 AT91_PIOE 30 AT91_PERIPH_B AT91_PINCTRL_PULL_UP	/* TXD */
+							>;
+					};
+				};
+
+				uart1 {
+					pinctrl_uart1: uart1-0 {
+						atmel,pins =
+							<AT91_PIOC 25 AT91_PERIPH_C AT91_PINCTRL_NONE		/* RXD */
+							 AT91_PIOC 26 AT91_PERIPH_C AT91_PINCTRL_PULL_UP	/* TXD */
+							>;
 					};
 				};
 
