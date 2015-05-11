@@ -586,6 +586,26 @@ config ARCH_W90X900
 	  <http://www.nuvoton.com/hq/enu/ProductAndSales/ProductLines/
 		ConsumerElectronicsIC/ARMMicrocontroller/ARMMicrocontroller>
 
+config ARCH_LPC18XX
+	bool "NXP LPC18xx/LPC43xx"
+	depends on !MMU
+	select ARCH_HAS_RESET_CONTROLLER
+	select ARCH_REQUIRE_GPIOLIB
+	select ARM_AMBA
+	select ARM_NVIC
+	select AUTO_ZRELADDR
+	select CLKSRC_LPC32XX
+	select COMMON_CLK
+	select CPU_V7M
+	select GENERIC_CLOCKEVENTS
+	select NO_IOPORT_MAP
+	select PINCTRL
+	select SPARSE_IRQ
+	select USE_OF
+	help
+	  Support for NXP's LPC18xx Cortex-M3 and LPC43xx Cortex-M4
+	  high performance microcontrollers.
+
 config ARCH_LPC32XX
 	bool "NXP LPC32XX"
 	select ARCH_REQUIRE_GPIOLIB
