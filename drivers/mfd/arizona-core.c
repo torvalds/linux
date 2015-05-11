@@ -728,9 +728,9 @@ int arizona_dev_init(struct arizona *arizona)
 
 	if (arizona->pdata.reset) {
 		/* Start out with /RESET low to put the chip into reset */
-		ret = gpio_request_one(arizona->pdata.reset,
-				       GPIOF_DIR_OUT | GPIOF_INIT_LOW,
-				       "arizona /RESET");
+		ret = devm_gpio_request_one(arizona->dev, arizona->pdata.reset,
+					    GPIOF_DIR_OUT | GPIOF_INIT_LOW,
+					    "arizona /RESET");
 		if (ret != 0) {
 			dev_err(dev, "Failed to request /RESET: %d\n", ret);
 			goto err_dcvdd;
@@ -1046,10 +1046,8 @@ int arizona_dev_init(struct arizona *arizona)
 err_irq:
 	arizona_irq_exit(arizona);
 err_reset:
-	if (arizona->pdata.reset) {
+	if (arizona->pdata.reset)
 		gpio_set_value_cansleep(arizona->pdata.reset, 0);
-		gpio_free(arizona->pdata.reset);
-	}
 	regulator_disable(arizona->dcvdd);
 err_enable:
 	regulator_bulk_disable(arizona->num_core_supplies,
