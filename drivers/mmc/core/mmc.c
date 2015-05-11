@@ -267,8 +267,10 @@ static void mmc_manage_enhanced_area(struct mmc_card *card, u8 *ext_csd)
 			 * calculate the enhanced data area offset, in bytes
 			 */
 			card->ext_csd.enhanced_area_offset =
-				(ext_csd[139] << 24) + (ext_csd[138] << 16) +
-				(ext_csd[137] << 8) + ext_csd[136];
+				(((unsigned long long)ext_csd[139]) << 24) +
+				(((unsigned long long)ext_csd[138]) << 16) +
+				(((unsigned long long)ext_csd[137]) << 8) +
+				(((unsigned long long)ext_csd[136]));
 			if (mmc_card_blockaddr(card))
 				card->ext_csd.enhanced_area_offset <<= 9;
 			/*
