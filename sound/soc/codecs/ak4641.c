@@ -412,7 +412,7 @@ static int ak4641_set_bias_level(struct snd_soc_codec *codec,
 		snd_soc_update_bits(codec, AK4641_DAC, 0x20, 0x20);
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			if (pdata && gpio_is_valid(pdata->gpio_power))
 				gpio_set_value(pdata->gpio_power, 1);
 			mdelay(1);
