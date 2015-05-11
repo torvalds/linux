@@ -128,7 +128,7 @@ static bool klp_is_patch_registered(struct klp_patch *patch)
 
 static bool klp_initialized(void)
 {
-	return klp_root_kobj;
+	return !!klp_root_kobj;
 }
 
 struct klp_find_arg {
