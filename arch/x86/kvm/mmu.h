@@ -71,8 +71,6 @@ enum {
 int handle_mmio_page_fault_common(struct kvm_vcpu *vcpu, u64 addr, bool direct);
 void kvm_init_shadow_mmu(struct kvm_vcpu *vcpu);
 void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly);
-void update_permission_bitmask(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
-		bool ept);
 
 static inline unsigned int kvm_mmu_available_pages(struct kvm *kvm)
 {
