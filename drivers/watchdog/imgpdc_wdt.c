@@ -9,6 +9,35 @@
  *
  * Based on drivers/watchdog/sunxi_wdt.c Copyright (c) 2013 Carlo Caione
  *                                                     2012 Henrik Nordstrom
+ *
+ * Notes
+ * -----
+ * The timeout value is rounded to the next power of two clock cycles.
+ * This is configured using the PDC_WDT_CONFIG register, according to this
+ * formula:
+ *
+ *     timeout = 2^(delay + 1) clock cycles
+ *
+ * Where 'delay' is the value written in PDC_WDT_CONFIG register.
+ *
+ * Therefore, the hardware only allows to program watchdog timeouts, expressed
+ * as a power of two number of watchdog clock cycles. The current implementation
+ * guarantees that the actual watchdog timeout will be _at least_ the value
+ * programmed in the imgpdg_wdt driver.
+ *
+ * The following table shows how the user-configured timeout relates
+ * to the actual hardware timeout (watchdog clock @ 40000 Hz):
+ *
+ * input timeout | WD_DELAY | actual timeout
+ * -----------------------------------
+ *      10       |   18     |  13 seconds
+ *      20       |   19     |  26 seconds
+ *      30       |   20     |  52 seconds
+ *      60       |   21     |  104 seconds
+ *
+ * Albeit coarse, this granularity would suffice most watchdog uses.
+ * If the platform allows it, the user should be able to change the watchdog
+ * clock rate and achieve a finer timeout granularity.
  */
 
 #include <linux/clk.h>
