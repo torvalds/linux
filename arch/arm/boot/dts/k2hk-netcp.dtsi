@@ -129,7 +129,7 @@ netcp: netcp@2000000 {
 	#size-cells = <1>;
 
 	/* NetCP address range */
-	ranges  = <0 0x2000000 0xfffff>;
+	ranges  = <0 0x2000000 0x100000>;
 
 	clocks = <&papllclk>, <&clkcpgmac>, <&chipclk12>;
 	dma-coherent;
