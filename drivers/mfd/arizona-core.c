@@ -264,19 +264,25 @@ static void arizona_disable_reset(struct arizona *arizona)
 	}
 }
 
-static int wm5102_apply_hardware_patch(struct arizona *arizona)
+struct arizona_sysclk_state {
+	unsigned int fll;
+	unsigned int sysclk;
+};
+
+static int arizona_enable_freerun_sysclk(struct arizona *arizona,
+					 struct arizona_sysclk_state *state)
 {
-	unsigned int fll, sysclk;
 	int ret, err;
 
 	/* Cache existing FLL and SYSCLK settings */
-	ret = regmap_read(arizona->regmap, ARIZONA_FLL1_CONTROL_1, &fll);
+	ret = regmap_read(arizona->regmap, ARIZONA_FLL1_CONTROL_1, &state->fll);
 	if (ret) {
 		dev_err(arizona->dev, "Failed to cache FLL settings: %d\n",
 			ret);
 		return ret;
 	}
-	ret = regmap_read(arizona->regmap, ARIZONA_SYSTEM_CLOCK_1, &sysclk);
+	ret = regmap_read(arizona->regmap, ARIZONA_SYSTEM_CLOCK_1,
+			  &state->sysclk);
 	if (ret) {
 		dev_err(arizona->dev, "Failed to cache SYSCLK settings: %d\n",
 			ret);
@@ -306,14 +312,58 @@ static int wm5102_apply_hardware_patch(struct arizona *arizona)
 		goto err_fll;
 	}
 
+	return 0;
+
+err_fll:
+	err = regmap_write(arizona->regmap, ARIZONA_FLL1_CONTROL_1, state->fll);
+	if (err)
+		dev_err(arizona->dev,
+			"Failed to re-apply old FLL settings: %d\n", err);
+
+	return ret;
+}
+
+static int arizona_disable_freerun_sysclk(struct arizona *arizona,
+					  struct arizona_sysclk_state *state)
+{
+	int ret;
+
+	ret = regmap_write(arizona->regmap, ARIZONA_SYSTEM_CLOCK_1,
+			   state->sysclk);
+	if (ret) {
+		dev_err(arizona->dev,
+			"Failed to re-apply old SYSCLK settings: %d\n", ret);
+		return ret;
+	}
+
+	ret = regmap_write(arizona->regmap, ARIZONA_FLL1_CONTROL_1, state->fll);
+	if (ret) {
+		dev_err(arizona->dev,
+			"Failed to re-apply old FLL settings: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int wm5102_apply_hardware_patch(struct arizona *arizona)
+{
+	struct arizona_sysclk_state state;
+	int err, ret;
+
+	ret = arizona_enable_freerun_sysclk(arizona, &state);
+	if (ret)
+		return ret;
+
 	/* Start the write sequencer and wait for it to finish */
 	ret = regmap_write(arizona->regmap, ARIZONA_WRITE_SEQUENCER_CTRL_0,
 			   ARIZONA_WSEQ_ENA | ARIZONA_WSEQ_START | 160);
 	if (ret) {
 		dev_err(arizona->dev, "Failed to start write sequencer: %d\n",
 			ret);
-		goto err_sysclk;
+		goto err;
 	}
+
 	ret = arizona_poll_reg(arizona, 5, ARIZONA_WRITE_SEQUENCER_CTRL_1,
 			       ARIZONA_WSEQ_BUSY, 0);
 	if (ret) {
@@ -322,21 +372,8 @@ static int wm5102_apply_hardware_patch(struct arizona *arizona)
 		ret = -ETIMEDOUT;
 	}
 
-err_sysclk:
-	err = regmap_write(arizona->regmap, ARIZONA_SYSTEM_CLOCK_1, sysclk);
-	if (err) {
-		dev_err(arizona->dev,
-			"Failed to re-apply old SYSCLK settings: %d\n",
-			err);
-	}
-
-err_fll:
-	err = regmap_write(arizona->regmap, ARIZONA_FLL1_CONTROL_1, fll);
-	if (err) {
-		dev_err(arizona->dev,
-			"Failed to re-apply old FLL settings: %d\n",
-			err);
-	}
+err:
+	err = arizona_disable_freerun_sysclk(arizona, &state);
 
 	return ret ?: err;
 }
