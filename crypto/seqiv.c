@@ -251,7 +251,8 @@ static int seqiv_aead_init(struct crypto_tfm *tfm)
 
 	spin_lock_init(&ctx->lock);
 
-	tfm->crt_aead.reqsize = sizeof(struct aead_request);
+	crypto_aead_set_reqsize(__crypto_aead_cast(tfm),
+				sizeof(struct aead_request));
 
 	return aead_geniv_init(tfm);
 }
