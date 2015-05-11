@@ -128,7 +128,7 @@ module_param_named(bapm, amdgpu_bapm, int, 0444);
 MODULE_PARM_DESC(deep_color, "Deep Color support (1 = enable, 0 = disable (default))");
 module_param_named(deep_color, amdgpu_deep_color, int, 0444);
 
-MODULE_PARM_DESC(vm_size, "VM address space size in gigabytes (default 4GB)");
+MODULE_PARM_DESC(vm_size, "VM address space size in gigabytes (default 8GB)");
 module_param_named(vm_size, amdgpu_vm_size, int, 0444);
 
 MODULE_PARM_DESC(vm_block_size, "VM page table size in bits (default depending on vm_size)");

@@ -968,13 +968,13 @@ static void amdgpu_check_arguments(struct amdgpu_device *adev)
 	if (!amdgpu_check_pot_argument(amdgpu_vm_size)) {
 		dev_warn(adev->dev, "VM size (%d) must be a power of 2\n",
 			 amdgpu_vm_size);
-		amdgpu_vm_size = 4;
+		amdgpu_vm_size = 8;
 	}
 
 	if (amdgpu_vm_size < 1) {
 		dev_warn(adev->dev, "VM size (%d) too small, min is 1GB\n",
 			 amdgpu_vm_size);
-		amdgpu_vm_size = 4;
+		amdgpu_vm_size = 8;
 	}
 
 	/*
@@ -983,7 +983,7 @@ static void amdgpu_check_arguments(struct amdgpu_device *adev)
 	if (amdgpu_vm_size > 1024) {
 		dev_warn(adev->dev, "VM size (%d) too large, max is 1TB\n",
 			 amdgpu_vm_size);
-		amdgpu_vm_size = 4;
+		amdgpu_vm_size = 8;
 	}
 
 	/* defines number of bits in page table versus page directory,
