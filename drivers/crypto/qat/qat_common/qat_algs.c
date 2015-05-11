@@ -47,7 +47,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/crypto.h>
-#include <crypto/aead.h>
+#include <crypto/internal/aead.h>
 #include <crypto/aes.h>
 #include <crypto/sha.h>
 #include <crypto/hash.h>
