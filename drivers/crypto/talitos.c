@@ -1335,8 +1335,8 @@ static struct talitos_edesc *talitos_edesc_alloc(struct device *dev,
 	alloc_len = sizeof(struct talitos_edesc);
 	if (assoc_nents || src_nents || dst_nents) {
 		if (is_sec1)
-			dma_len = src_nents ? cryptlen : 0 +
-				  dst_nents ? cryptlen : 0;
+			dma_len = (src_nents ? cryptlen : 0) +
+				  (dst_nents ? cryptlen : 0);
 		else
 			dma_len = (src_nents + dst_nents + 2 + assoc_nents) *
 				  sizeof(struct talitos_ptr) + authsize;
