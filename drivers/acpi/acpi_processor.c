@@ -275,7 +275,8 @@ static int acpi_processor_get_info(struct acpi_device *device)
 		 * Handle UP system running SMP kernel, with no CPU
 		 * entry in MADT
 		 */
-		if ((cpu_index == -1) && (num_online_cpus() == 1))
+		if (invalid_logical_cpuid(cpu_index)
+		    && (num_online_cpus() == 1))
 			cpu_index = 0;
 	}
 	pr->id = cpu_index;
@@ -285,7 +286,7 @@ static int acpi_processor_get_info(struct acpi_device *device)
 	 *  less than the max # of CPUs. They should be ignored _iff
 	 *  they are physically not present.
 	 */
-	if (pr->id == -1) {
+	if (invalid_logical_cpuid(pr->id)) {
 		int ret = acpi_processor_hotadd_init(pr);
 		if (ret)
 			return ret;
