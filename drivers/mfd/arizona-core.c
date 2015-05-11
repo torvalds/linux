@@ -259,6 +259,16 @@ static inline void arizona_enable_reset(struct arizona *arizona)
 static void arizona_disable_reset(struct arizona *arizona)
 {
 	if (arizona->pdata.reset) {
+		switch (arizona->type) {
+		case WM5110:
+		case WM8280:
+			/* Meet requirements for minimum reset duration */
+			msleep(5);
+			break;
+		default:
+			break;
+		}
+
 		gpio_set_value_cansleep(arizona->pdata.reset, 1);
 		msleep(1);
 	}
