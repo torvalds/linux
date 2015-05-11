@@ -807,8 +807,9 @@ static int rfc4106_init(struct crypto_tfm *tfm)
 	child_ctx = aesni_rfc4106_gcm_ctx_get(cryptd_child);
 	memcpy(child_ctx, ctx, sizeof(*ctx));
 	ctx->cryptd_tfm = cryptd_tfm;
-	tfm->crt_aead.reqsize = sizeof(struct aead_request)
-		+ crypto_aead_reqsize(&cryptd_tfm->base);
+	crypto_aead_set_reqsize(__crypto_aead_cast(tfm),
+		sizeof(struct aead_request) +
+		crypto_aead_reqsize(&cryptd_tfm->base));
 	return 0;
 }
 
