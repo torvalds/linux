@@ -138,7 +138,11 @@ int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data)
 	if (!cs->in.num_chunks)
 		goto out;
 
-	p->ctx_id = cs->in.ctx_id;
+	p->ctx = amdgpu_ctx_get(fpriv, cs->in.ctx_id);
+	if (!p->ctx) {
+		r = -EINVAL;
+		goto out;
+	}
 	p->bo_list = amdgpu_bo_list_get(fpriv, cs->in.bo_list_handle);
 
 	/* get chunks */
@@ -445,6 +449,8 @@ static void amdgpu_cs_parser_fini(struct amdgpu_cs_parser *parser, int error, bo
 					   &parser->validated);
 	}
 
+	if (parser->ctx)
+		amdgpu_ctx_put(parser->ctx);
 	if (parser->bo_list)
 		amdgpu_bo_list_put(parser->bo_list);
 	drm_free_large(parser->vm_bos);
@@ -639,13 +645,7 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 		ib->length_dw = chunk_ib->ib_bytes / 4;
 
 		ib->flags = chunk_ib->flags;
-
-		if ((ib->ring->current_filp != parser->filp) ||
-		    (ib->ring->current_ctx != parser->ctx_id)) {
-			ib->ring->need_ctx_switch = true;
-			ib->ring->current_ctx = parser->ctx_id;
-			ib->ring->current_filp = parser->filp;
-		}
+		ib->ctx = parser->ctx;
 
 		ib_bo = &parser->ib_bos[j];
 		ib_bo->robj = aobj;

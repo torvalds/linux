@@ -2516,19 +2516,20 @@ static bool gfx_v7_0_ring_emit_semaphore(struct amdgpu_ring *ring,
 static void gfx_v7_0_ring_emit_ib(struct amdgpu_ring *ring,
 				  struct amdgpu_ib *ib)
 {
+	bool need_ctx_switch = ring->current_ctx != ib->ctx;
 	u32 header, control = 0;
 	u32 next_rptr = ring->wptr + 5;
 
 	/* drop the CE preamble IB for the same context */
 	if ((ring->type == AMDGPU_RING_TYPE_GFX) &&
 	    (ib->flags & AMDGPU_IB_FLAG_PREAMBLE) &&
-	    !ring->need_ctx_switch)
+	    !need_ctx_switch)
 		return;
 
 	if (ring->type == AMDGPU_RING_TYPE_COMPUTE)
 		control |= INDIRECT_BUFFER_VALID;
 
-	if (ring->need_ctx_switch && ring->type == AMDGPU_RING_TYPE_GFX)
+	if (need_ctx_switch && ring->type == AMDGPU_RING_TYPE_GFX)
 		next_rptr += 2;
 
 	next_rptr += 4;
@@ -2539,10 +2540,9 @@ static void gfx_v7_0_ring_emit_ib(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, next_rptr);
 
 	/* insert SWITCH_BUFFER packet before first IB in the ring frame */
-	if (ring->need_ctx_switch && ring->type == AMDGPU_RING_TYPE_GFX) {
+	if (need_ctx_switch && ring->type == AMDGPU_RING_TYPE_GFX) {
 		amdgpu_ring_write(ring, PACKET3(PACKET3_SWITCH_BUFFER, 0));
 		amdgpu_ring_write(ring, 0);
-		ring->need_ctx_switch = false;
 	}
 
 	if (ib->flags & AMDGPU_IB_FLAG_CE)

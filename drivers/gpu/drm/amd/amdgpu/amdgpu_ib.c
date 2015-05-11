@@ -140,6 +140,7 @@ int amdgpu_ib_schedule(struct amdgpu_device *adev, unsigned num_ibs,
 {
 	struct amdgpu_ib *ib = &ibs[0];
 	struct amdgpu_ring *ring;
+	struct amdgpu_ctx *ctx, *old_ctx;
 	struct amdgpu_vm *vm;
 	unsigned i;
 	int r = 0;
@@ -148,6 +149,7 @@ int amdgpu_ib_schedule(struct amdgpu_device *adev, unsigned num_ibs,
 		return -EINVAL;
 
 	ring = ibs->ring;
+	ctx = ibs->ctx;
 	vm = ibs->vm;
 
 	if (!ring->ready) {
@@ -189,19 +191,23 @@ int amdgpu_ib_schedule(struct amdgpu_device *adev, unsigned num_ibs,
 	if (ring->funcs->emit_hdp_flush)
 		amdgpu_ring_emit_hdp_flush(ring);
 
+	old_ctx = ring->current_ctx;
 	for (i = 0; i < num_ibs; ++i) {
 		ib = &ibs[i];
 
-		if (ib->ring != ring) {
+		if (ib->ring != ring || ib->ctx != ctx || ib->vm != vm) {
+			ring->current_ctx = old_ctx;
 			amdgpu_ring_unlock_undo(ring);
 			return -EINVAL;
 		}
 		amdgpu_ring_emit_ib(ring, ib);
+		ring->current_ctx = ctx;
 	}
 
 	r = amdgpu_fence_emit(ring, owner, &ib->fence);
 	if (r) {
 		dev_err(adev->dev, "failed to emit fence (%d)\n", r);
+		ring->current_ctx = old_ctx;
 		amdgpu_ring_unlock_undo(ring);
 		return r;
 	}

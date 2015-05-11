@@ -893,6 +893,7 @@ struct amdgpu_ib {
 	struct amdgpu_fence		*fence;
 	struct amdgpu_user_fence        *user;
 	struct amdgpu_vm		*vm;
+	struct amdgpu_ctx		*ctx;
 	struct amdgpu_sync		sync;
 	uint32_t			gds_base, gds_size;
 	uint32_t			gws_base, gws_size;
@@ -943,9 +944,7 @@ struct amdgpu_ring {
 	unsigned		wptr_offs;
 	unsigned		next_rptr_offs;
 	unsigned		fence_offs;
-	struct drm_file		*current_filp;
-	unsigned		current_ctx;
-	bool			need_ctx_switch;
+	struct amdgpu_ctx	*current_ctx;
 	enum amdgpu_ring_type	type;
 	char			name[16];
 };
@@ -1236,7 +1235,7 @@ struct amdgpu_cs_chunk {
 struct amdgpu_cs_parser {
 	struct amdgpu_device	*adev;
 	struct drm_file		*filp;
-	uint32_t ctx_id;
+	struct amdgpu_ctx	*ctx;
 	struct amdgpu_bo_list *bo_list;
 	/* chunks */
 	unsigned		nchunks;
