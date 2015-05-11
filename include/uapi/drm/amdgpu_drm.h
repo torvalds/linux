@@ -369,6 +369,9 @@ union drm_amdgpu_cs {
 /* GDS is used by this IB */
 #define AMDGPU_IB_FLAG_GDS	(1<<1)
 
+/* CE Preamble */
+#define AMDGPU_IB_FLAG_PREAMBLE (1<<2)
+
 struct drm_amdgpu_cs_chunk_ib {
 	/**
 	 * Handle of GEM object to be used as IB or 0 if it is already in

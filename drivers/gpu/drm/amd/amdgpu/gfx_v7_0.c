@@ -2518,6 +2518,13 @@ static void gfx_v7_0_ring_emit_ib(struct amdgpu_ring *ring,
 {
 	u32 header, control = 0;
 	u32 next_rptr = ring->wptr + 5;
+
+	/* drop the CE preamble IB for the same context */
+	if ((ring->type == AMDGPU_RING_TYPE_GFX) &&
+	    (ib->flags & AMDGPU_IB_FLAG_PREAMBLE) &&
+	    !ring->need_ctx_switch)
+		return;
+
 	if (ring->type == AMDGPU_RING_TYPE_COMPUTE)
 		control |= INDIRECT_BUFFER_VALID;
 
