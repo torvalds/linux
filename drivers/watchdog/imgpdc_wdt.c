@@ -152,6 +152,7 @@ static int pdc_wdt_restart(struct notifier_block *this, unsigned long mode,
 
 static int pdc_wdt_probe(struct platform_device *pdev)
 {
+	u64 div;
 	int ret, val;
 	unsigned long clk_rate;
 	struct resource *res;
@@ -211,7 +212,10 @@ static int pdc_wdt_probe(struct platform_device *pdev)
 
 	pdc_wdt->wdt_dev.info = &pdc_wdt_info;
 	pdc_wdt->wdt_dev.ops = &pdc_wdt_ops;
-	pdc_wdt->wdt_dev.max_timeout = 1 << PDC_WDT_CONFIG_DELAY_MASK;
+
+	div = 1ULL << (PDC_WDT_CONFIG_DELAY_MASK + 1);
+	do_div(div, clk_rate);
+	pdc_wdt->wdt_dev.max_timeout = div;
 	pdc_wdt->wdt_dev.timeout = PDC_WDT_DEF_TIMEOUT;
 	pdc_wdt->wdt_dev.parent = &pdev->dev;
 	watchdog_set_drvdata(&pdc_wdt->wdt_dev, pdc_wdt);
