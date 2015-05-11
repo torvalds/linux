@@ -44,13 +44,13 @@ bits 9,10,11: redirect counter -  redirect TTL. Loop avoidance
 #define TC_OK2MUNGE        _TC_MAKEMASK1(1)
 #define SET_TC_OK2MUNGE(v)   ( TC_OK2MUNGE | (v & ~TC_OK2MUNGE))
 #define CLR_TC_OK2MUNGE(v)   ( v & ~TC_OK2MUNGE)
-#endif
 
 #define S_TC_VERD          _TC_MAKE32(2)
 #define M_TC_VERD          _TC_MAKEMASK(4,S_TC_VERD)
 #define G_TC_VERD(x)       _TC_GETVALUE(x,S_TC_VERD,M_TC_VERD)
 #define V_TC_VERD(x)       _TC_MAKEVALUE(x,S_TC_VERD)
 #define SET_TC_VERD(v,n)   ((V_TC_VERD(n)) | (v & ~M_TC_VERD))
+#endif
 
 #define S_TC_FROM          _TC_MAKE32(6)
 #define M_TC_FROM          _TC_MAKEMASK(2,S_TC_FROM)

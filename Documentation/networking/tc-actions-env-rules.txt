@@ -8,10 +8,6 @@ For example if your action queues a packet to be processed later,
 or intentionally branches by redirecting a packet, then you need to
 clone the packet.
 
-There are certain fields in the skb tc_verd that need to be reset so we
-avoid loops, etc.  A few are generic enough that skb_act_clone()
-resets them for you, so invoke skb_act_clone() rather than skb_clone().
-
 2) If you munge any packet thou shalt call pskb_expand_head in the case
 someone else is referencing the skb. After that you "own" the skb.
 
