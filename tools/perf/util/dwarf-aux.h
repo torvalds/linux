@@ -121,4 +121,6 @@ extern int die_get_typename(Dwarf_Die *vr_die, struct strbuf *buf);
 
 /* Get the name and type of given variable DIE, stored as "type\tname" */
 extern int die_get_varname(Dwarf_Die *vr_die, struct strbuf *buf);
+extern int die_get_var_range(Dwarf_Die *sp_die, Dwarf_Die *vr_die,
+			struct strbuf *buf);
 #endif

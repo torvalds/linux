@@ -177,7 +177,7 @@ static int convert_variable_location(Dwarf_Die *vr_die, Dwarf_Addr addr,
 	Dwarf_Word offs = 0;
 	bool ref = false;
 	const char *regs;
-	int ret;
+	int ret, ret2 = 0;
 
 	if (dwarf_attr(vr_die, DW_AT_external, &attr) != NULL)
 		goto static_var;
@@ -187,9 +187,19 @@ static int convert_variable_location(Dwarf_Die *vr_die, Dwarf_Addr addr,
 		return -EINVAL;	/* Broken DIE ? */
 	if (dwarf_getlocation_addr(&attr, addr, &op, &nops, 1) <= 0) {
 		ret = dwarf_entrypc(sp_die, &tmp);
-		if (ret || addr != tmp ||
-		    dwarf_tag(vr_die) != DW_TAG_formal_parameter ||
-		    dwarf_highpc(sp_die, &tmp))
+		if (ret)
+			return -ENOENT;
+
+		if (probe_conf.show_location_range &&
+			(dwarf_tag(vr_die) == DW_TAG_variable)) {
+			ret2 = -ERANGE;
+		} else if (addr != tmp ||
+			dwarf_tag(vr_die) != DW_TAG_formal_parameter) {
+			return -ENOENT;
+		}
+
+		ret = dwarf_highpc(sp_die, &tmp);
+		if (ret)
 			return -ENOENT;
 		/*
 		 * This is fuzzed by fentry mcount. We try to find the
@@ -210,7 +220,7 @@ found:
 	if (op->atom == DW_OP_addr) {
 static_var:
 		if (!tvar)
-			return 0;
+			return ret2;
 		/* Static variables on memory (not stack), make @varname */
 		ret = strlen(dwarf_diename(vr_die));
 		tvar->value = zalloc(ret + 2);
@@ -220,7 +230,7 @@ static_var:
 		tvar->ref = alloc_trace_arg_ref((long)offs);
 		if (tvar->ref == NULL)
 			return -ENOMEM;
-		return 0;
+		return ret2;
 	}
 
 	/* If this is based on frame buffer, set the offset */
@@ -250,14 +260,14 @@ static_var:
 	}
 
 	if (!tvar)
-		return 0;
+		return ret2;
 
 	regs = get_arch_regstr(regn);
 	if (!regs) {
 		/* This should be a bug in DWARF or this tool */
 		pr_warning("Mapping for the register number %u "
 			   "missing on this architecture.\n", regn);
-		return -ERANGE;
+		return -ENOTSUP;
 	}
 
 	tvar->value = strdup(regs);
@@ -269,7 +279,7 @@ static_var:
 		if (tvar->ref == NULL)
 			return -ENOMEM;
 	}
-	return 0;
+	return ret2;
 }
 
 #define BYTES_TO_BITS(nb)	((nb) * BITS_PER_LONG / sizeof(long))
@@ -1270,13 +1280,34 @@ static int collect_variables_cb(Dwarf_Die *die_mem, void *data)
 		ret = convert_variable_location(die_mem, af->pf.addr,
 						af->pf.fb_ops, &af->pf.sp_die,
 						NULL);
-		if (ret == 0) {
+		if (ret == 0 || ret == -ERANGE) {
+			int ret2;
+			bool externs = !af->child;
 			struct strbuf buf;
 
 			strbuf_init(&buf, 64);
-			ret = die_get_varname(die_mem, &buf);
-			pr_debug2("Add new var: %s\n", buf.buf);
-			if (ret == 0) {
+
+			if (probe_conf.show_location_range) {
+				if (!externs) {
+					if (ret)
+						strbuf_addf(&buf, "[INV]\t");
+					else
+						strbuf_addf(&buf, "[VAL]\t");
+				} else
+					strbuf_addf(&buf, "[EXT]\t");
+			}
+
+			ret2 = die_get_varname(die_mem, &buf);
+
+			if (!ret2 && probe_conf.show_location_range &&
+				!externs) {
+				strbuf_addf(&buf, "\t");
+				ret2 = die_get_var_range(&af->pf.sp_die,
+							die_mem, &buf);
+			}
+
+			pr_debug("Add new var: %s\n", buf.buf);
+			if (ret2 == 0) {
 				strlist__add(vl->vars,
 					strbuf_detach(&buf, NULL));
 			}

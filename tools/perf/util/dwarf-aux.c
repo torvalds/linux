@@ -913,3 +913,124 @@ int die_get_varname(Dwarf_Die *vr_die, struct strbuf *buf)
 	return 0;
 }
 
+/**
+ * die_get_var_innermost_scope - Get innermost scope range of given variable DIE
+ * @sp_die: a subprogram DIE
+ * @vr_die: a variable DIE
+ * @buf: a strbuf for variable byte offset range
+ *
+ * Get the innermost scope range of @vr_die and stores it in @buf as
+ * "@<function_name+[NN-NN,NN-NN]>".
+ */
+static int die_get_var_innermost_scope(Dwarf_Die *sp_die, Dwarf_Die *vr_die,
+				struct strbuf *buf)
+{
+	Dwarf_Die *scopes;
+	int count;
+	size_t offset = 0;
+	Dwarf_Addr base;
+	Dwarf_Addr start, end;
+	Dwarf_Addr entry;
+	int ret;
+	bool first = true;
+	const char *name;
+
+	ret = dwarf_entrypc(sp_die, &entry);
+	if (ret)
+		return ret;
+
+	name = dwarf_diename(sp_die);
+	if (!name)
+		return -ENOENT;
+
+	count = dwarf_getscopes_die(vr_die, &scopes);
+
+	/* (*SCOPES)[1] is the DIE for the scope containing that scope */
+	if (count <= 1) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	while ((offset = dwarf_ranges(&scopes[1], offset, &base,
+				&start, &end)) > 0) {
+		start -= entry;
+		end -= entry;
+
+		if (first) {
+			strbuf_addf(buf, "@<%s+[%lu-%lu",
+				name, start, end);
+			first = false;
+		} else {
+			strbuf_addf(buf, ",%lu-%lu",
+				start, end);
+		}
+	}
+
+	if (!first)
+		strbuf_addf(buf, "]>");
+
+out:
+	free(scopes);
+	return ret;
+}
+
+/**
+ * die_get_var_range - Get byte offset range of given variable DIE
+ * @sp_die: a subprogram DIE
+ * @vr_die: a variable DIE
+ * @buf: a strbuf for type and variable name and byte offset range
+ *
+ * Get the byte offset range of @vr_die and stores it in @buf as
+ * "@<function_name+[NN-NN,NN-NN]>".
+ */
+int die_get_var_range(Dwarf_Die *sp_die, Dwarf_Die *vr_die, struct strbuf *buf)
+{
+	int ret = 0;
+	Dwarf_Addr base;
+	Dwarf_Addr start, end;
+	Dwarf_Addr entry;
+	Dwarf_Op *op;
+	size_t nops;
+	size_t offset = 0;
+	Dwarf_Attribute attr;
+	bool first = true;
+	const char *name;
+
+	ret = dwarf_entrypc(sp_die, &entry);
+	if (ret)
+		return ret;
+
+	name = dwarf_diename(sp_die);
+	if (!name)
+		return -ENOENT;
+
+	if (dwarf_attr(vr_die, DW_AT_location, &attr) == NULL)
+		return -EINVAL;
+
+	while ((offset = dwarf_getlocations(
+				&attr, offset, &base,
+				&start, &end, &op, &nops)) > 0) {
+		if (start == 0) {
+			/* Single Location Descriptions */
+			ret = die_get_var_innermost_scope(sp_die, vr_die, buf);
+			return ret;
+		}
+
+		/* Location Lists */
+		start -= entry;
+		end -= entry;
+		if (first) {
+			strbuf_addf(buf, "@<%s+[%lu-%lu",
+				name, start, end);
+			first = false;
+		} else {
+			strbuf_addf(buf, ",%lu-%lu",
+				start, end);
+		}
+	}
+
+	if (!first)
+		strbuf_addf(buf, "]>");
+
+	return ret;
+}
