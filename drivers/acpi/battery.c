@@ -1292,9 +1292,6 @@ static struct acpi_driver acpi_battery_driver = {
 
 static void __init acpi_battery_init_async(void *unused, async_cookie_t cookie)
 {
-	if (acpi_disabled)
-		return;
-
 	dmi_check_system(bat_dmi_table);
 	
 #ifdef CONFIG_ACPI_PROCFS_POWER
@@ -1313,6 +1310,9 @@ static void __init acpi_battery_init_async(void *unused, async_cookie_t cookie)
 
 static int __init acpi_battery_init(void)
 {
+	if (acpi_disabled)
+		return -ENODEV;
+
 	async_schedule(acpi_battery_init_async, NULL);
 	return 0;
 }
