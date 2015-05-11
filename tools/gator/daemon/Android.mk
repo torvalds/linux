@@ -1,4 +1,8 @@
 LOCAL_PATH := $(call my-dir)
+
+# Don't use this file if GATOR_DAEMON_PATH is set and we're not under that path
+ifneq ($(and $(GATOR_DAEMON_PATH),$(filter $(patsubst %/,%,$(GATOR_DAEMON_PATH))/%,$(LOCAL_PATH)/)),)
+
 include $(CLEAR_VARS)
 
 XML_H := $(shell cd $(LOCAL_PATH) && make events_xml.h defaults_xml.h SrcMd5.cpp)
@@ -74,3 +78,5 @@ LOCAL_MODULE := gatord
 LOCAL_MODULE_TAGS := optional
 
 include $(BUILD_EXECUTABLE)
+
+endif
