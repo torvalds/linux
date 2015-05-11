@@ -1100,7 +1100,7 @@ static int irda_create(struct net *net, struct socket *sock, int protocol,
 	}
 
 	/* Allocate networking socket */
-	sk = sk_alloc(net, PF_IRDA, GFP_KERNEL, &irda_proto);
+	sk = sk_alloc(net, PF_IRDA, GFP_KERNEL, &irda_proto, kern);
 	if (sk == NULL)
 		return -ENOMEM;
 

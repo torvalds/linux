@@ -30,7 +30,7 @@ struct nfc_protocol {
 	struct proto *proto;
 	struct module *owner;
 	int (*create)(struct net *net, struct socket *sock,
-		      const struct nfc_protocol *nfc_proto);
+		      const struct nfc_protocol *nfc_proto, int kern);
 };
 
 struct nfc_rawsock {

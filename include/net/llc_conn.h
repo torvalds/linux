@@ -96,7 +96,7 @@ static __inline__ char llc_backlog_type(struct sk_buff *skb)
 }
 
 struct sock *llc_sk_alloc(struct net *net, int family, gfp_t priority,
-			  struct proto *prot);
+			  struct proto *prot, int kern);
 void llc_sk_free(struct sock *sk);
 
 void llc_sk_reset(struct sock *sk);
