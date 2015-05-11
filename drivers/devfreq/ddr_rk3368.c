@@ -257,6 +257,12 @@ static void ddr_init(u32 dram_speed_bin, u32 freq)
 		printk(KERN_DEBUG pr_fmt("%s out\n"), __func__);
 }
 
+static int ddr_init_resume(struct platform_device *pdev)
+{
+	ddr_init(DDR3_DEFAULT, 0);
+	return 0;
+}
+
 static int __init rockchip_ddr_probe(struct platform_device *pdev)
 {
 	struct device_node *np;
@@ -311,6 +317,9 @@ static const struct of_device_id rockchip_ddr_of_match[] __refdata = {
 };
 
 static struct platform_driver rockchip_ddr_driver = {
+#ifdef CONFIG_PM
+	.resume = ddr_init_resume,
+#endif /* CONFIG_PM */
 	.driver = {
 		   .name = "rockchip_ddr",
 		   .of_match_table = rockchip_ddr_of_match,

@@ -400,6 +400,43 @@ static int scpi_get_version(u32 old, u32 *ver)
 	return ret;
 }
 
+int scpi_sys_set_mcu_state_suspend(void)
+{
+	struct scpi_data_buf sdata;
+	struct rockchip_mbox_msg mdata;
+	struct __packed1 {
+		u32 status;
+	} tx_buf;
+	struct __packed2 {
+		u32 status;
+	} rx_buf;
+
+	tx_buf.status = 0;
+	SCPI_SETUP_DBUF(sdata, mdata, SCPI_CL_SYS,
+			SCPI_SYS_SET_MCU_STATE_SUSPEND, tx_buf, rx_buf);
+	return scpi_execute_cmd(&sdata);
+}
+EXPORT_SYMBOL_GPL(scpi_sys_set_mcu_state_suspend);
+
+int scpi_sys_set_mcu_state_resume(void)
+{
+	struct scpi_data_buf sdata;
+	struct rockchip_mbox_msg mdata;
+	struct __packed1 {
+		u32 status;
+	} tx_buf;
+	struct __packed2 {
+		u32 status;
+	} rx_buf;
+
+	tx_buf.status = 0;
+
+	SCPI_SETUP_DBUF(sdata, mdata, SCPI_CL_SYS,
+			SCPI_SYS_SET_MCU_STATE_RESUME, tx_buf, rx_buf);
+	return scpi_execute_cmd(&sdata);
+}
+EXPORT_SYMBOL_GPL(scpi_sys_set_mcu_state_resume);
+
 int scpi_ddr_init(u32 dram_speed_bin, u32 freq, u32 lcdc_type)
 {
 	struct scpi_data_buf sdata;

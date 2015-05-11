@@ -57,6 +57,8 @@ enum scpi_ddr_cmd {
 enum scpi_sys_cmd {
 	SCPI_SYS_GET_VERSION,
 	SCPI_SYS_REFRESH_MCU_FREQ,
+	SCPI_SYS_SET_MCU_STATE_SUSPEND,
+	SCPI_SYS_SET_MCU_STATE_RESUME,
 };
 
 enum scpi_std_cmd {

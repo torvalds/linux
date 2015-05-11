@@ -23,6 +23,7 @@
 #include <linux/clk.h>
 
 #include <linux/rockchip-mailbox.h>
+#include <linux/scpi_protocol.h>
 
 #define MAILBOX_A2B_INTEN		0x00
 #define MAILBOX_A2B_STATUS		0x04
@@ -160,6 +161,30 @@ static struct of_device_id rockchip_mbox_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, rockchp_mbox_of_match);
 
+#ifdef CONFIG_PM
+static int rockchip_mbox_suspend(struct platform_device *pdev,
+				 pm_message_t state)
+{
+	struct rockchip_mbox *mb = platform_get_drvdata(pdev);
+
+	if (scpi_sys_set_mcu_state_suspend())
+		dev_err(mb->mbox.dev, "scpi_sys_set_mcu_state_suspend timeout.\n");
+	return 0;
+}
+
+static int rockchip_mbox_resume(struct platform_device *pdev)
+{
+	struct rockchip_mbox *mb = platform_get_drvdata(pdev);
+
+	writel_relaxed((1 << mb->mbox.num_chans) - 1,
+		       mb->mbox_base + MAILBOX_B2A_INTEN);
+
+	if (scpi_sys_set_mcu_state_resume())
+		dev_err(mb->mbox.dev, "scpi_sys_set_mcu_state_resume timeout.\n");
+	return 0;
+}
+#endif /* CONFIG_PM */
+
 static int rockchip_mbox_probe(struct platform_device *pdev)
 {
 	struct rockchip_mbox *mb;
@@ -266,6 +291,10 @@ static int rockchip_mbox_remove(struct platform_device *pdev)
 static struct platform_driver rockchip_mbox_driver = {
 	.probe	= rockchip_mbox_probe,
 	.remove	= rockchip_mbox_remove,
+#ifdef CONFIG_PM
+	.suspend = rockchip_mbox_suspend,
+	.resume	= rockchip_mbox_resume,
+#endif /* CONFIG_PM */
 	.driver = {
 		.name = "rockchip-mailbox",
 		.of_match_table = of_match_ptr(rockchip_mbox_of_match),
