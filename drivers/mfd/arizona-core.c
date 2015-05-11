@@ -378,6 +378,35 @@ err:
 	return ret ?: err;
 }
 
+/*
+ * Register patch to some of the CODECs internal write sequences
+ * to ensure a clean exit from the low power sleep state.
+ */
+static const struct reg_default wm5110_sleep_patch[] = {
+	{ 0x337A, 0xC100 },
+	{ 0x337B, 0x0041 },
+	{ 0x3300, 0xA210 },
+	{ 0x3301, 0x050C },
+};
+
+static int wm5110_apply_sleep_patch(struct arizona *arizona)
+{
+	struct arizona_sysclk_state state;
+	int err, ret;
+
+	ret = arizona_enable_freerun_sysclk(arizona, &state);
+	if (ret)
+		return ret;
+
+	ret = regmap_multi_reg_write_bypassed(arizona->regmap,
+					      wm5110_sleep_patch,
+					      ARRAY_SIZE(wm5110_sleep_patch));
+
+	err = arizona_disable_freerun_sysclk(arizona, &state);
+
+	return ret ?: err;
+}
+
 static int wm5102_clear_write_sequencer(struct arizona *arizona)
 {
 	int ret;
@@ -962,6 +991,16 @@ int arizona_dev_init(struct arizona *arizona)
 			if (ret) {
 				dev_err(arizona->dev,
 					"Failed to apply hardware patch: %d\n",
+					ret);
+				goto err_reset;
+			}
+			break;
+		case WM5110:
+		case WM8280:
+			ret = wm5110_apply_sleep_patch(arizona);
+			if (ret) {
+				dev_err(arizona->dev,
+					"Failed to apply sleep patch: %d\n",
 					ret);
 				goto err_reset;
 			}
