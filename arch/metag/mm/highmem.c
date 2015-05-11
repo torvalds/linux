@@ -43,7 +43,7 @@ void *kmap_atomic(struct page *page)
 	unsigned long vaddr;
 	int type;
 
-	/* even !CONFIG_PREEMPT needs this, for in_atomic in do_page_fault */
+	preempt_disable();
 	pagefault_disable();
 	if (!PageHighMem(page))
 		return page_address(page);
@@ -82,6 +82,7 @@ void __kunmap_atomic(void *kvaddr)
 	}
 
 	pagefault_enable();
+	preempt_enable();
 }
 EXPORT_SYMBOL(__kunmap_atomic);
 
@@ -95,6 +96,7 @@ void *kmap_atomic_pfn(unsigned long pfn)
 	unsigned long vaddr;
 	int type;
 
+	preempt_disable();
 	pagefault_disable();
 
 	type = kmap_atomic_idx_push();
