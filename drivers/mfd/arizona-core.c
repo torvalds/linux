@@ -344,6 +344,33 @@ err_fll:
 		return err;
 }
 
+static int wm5102_clear_write_sequencer(struct arizona *arizona)
+{
+	int ret;
+
+	ret = regmap_write(arizona->regmap, ARIZONA_WRITE_SEQUENCER_CTRL_3,
+			   0x0);
+	if (ret) {
+		dev_err(arizona->dev,
+			"Failed to clear write sequencer state: %d\n", ret);
+		return ret;
+	}
+
+	arizona_enable_reset(arizona);
+	regulator_disable(arizona->dcvdd);
+
+	msleep(20);
+
+	ret = regulator_enable(arizona->dcvdd);
+	if (ret) {
+		dev_err(arizona->dev, "Failed to re-enable DCVDD: %d\n", ret);
+		return ret;
+	}
+	arizona_disable_reset(arizona);
+
+	return 0;
+}
+
 #ifdef CONFIG_PM
 static int arizona_runtime_resume(struct device *dev)
 {
@@ -802,21 +829,24 @@ int arizona_dev_init(struct arizona *arizona)
 	case WM5102:
 		ret = regmap_read(arizona->regmap,
 				  ARIZONA_WRITE_SEQUENCER_CTRL_3, &val);
-		if (ret != 0)
+		if (ret) {
 			dev_err(dev,
 				"Failed to check write sequencer state: %d\n",
 				ret);
-		else if (val & 0x01)
-			break;
-		/* Fall through */
-	default:
-		ret = arizona_wait_for_boot(arizona);
-		if (ret != 0) {
-			dev_err(arizona->dev,
-				"Device failed initial boot: %d\n", ret);
-			goto err_reset;
+		} else if (val & 0x01) {
+			ret = wm5102_clear_write_sequencer(arizona);
+			if (ret)
+				return ret;
 		}
 		break;
+	default:
+		break;
+	}
+
+	ret = arizona_wait_for_boot(arizona);
+	if (ret) {
+		dev_err(arizona->dev, "Device failed initial boot: %d\n", ret);
+		goto err_reset;
 	}
 
 	/* Read the device ID information & do device specific stuff */
