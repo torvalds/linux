@@ -362,6 +362,35 @@ struct mbox_chan *mbox_request_channel(struct mbox_client *cl, int index)
 }
 EXPORT_SYMBOL_GPL(mbox_request_channel);
 
+struct mbox_chan *mbox_request_channel_byname(struct mbox_client *cl,
+					      const char *name)
+{
+	struct device_node *np = cl->dev->of_node;
+	struct property *prop;
+	const char *mbox_name;
+	int index = 0;
+
+	if (!np) {
+		dev_err(cl->dev, "%s() currently only supports DT\n", __func__);
+		return ERR_PTR(-ENOSYS);
+	}
+
+	if (!of_get_property(np, "mbox-names", NULL)) {
+		dev_err(cl->dev,
+			"%s() requires an \"mbox-names\" property\n", __func__);
+		return ERR_PTR(-ENOSYS);
+	}
+
+	of_property_for_each_string(np, "mbox-names", prop, mbox_name) {
+		if (!strncmp(name, mbox_name, strlen(name)))
+			break;
+		index++;
+	}
+
+	return mbox_request_channel(cl, index);
+}
+EXPORT_SYMBOL_GPL(mbox_request_channel_byname);
+
 /**
  * mbox_free_channel - The client relinquishes control of a mailbox
  *			channel by this call.
