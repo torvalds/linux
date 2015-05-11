@@ -255,8 +255,8 @@ int batadv_send_skb_unicast(struct batadv_priv *bat_priv,
 			    struct batadv_orig_node *orig_node,
 			    unsigned short vid)
 {
-	struct ethhdr *ethhdr;
 	struct batadv_unicast_packet *unicast_packet;
+	struct ethhdr *ethhdr;
 	int ret = NET_XMIT_DROP;
 
 	if (!orig_node)
