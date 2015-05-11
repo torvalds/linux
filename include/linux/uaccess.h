@@ -2,20 +2,36 @@
 #define __LINUX_UACCESS_H__
 
 #include <linux/preempt.h>
+#include <linux/sched.h>
 #include <asm/uaccess.h>
 
+static __always_inline void pagefault_disabled_inc(void)
+{
+	current->pagefault_disabled++;
+}
+
+static __always_inline void pagefault_disabled_dec(void)
+{
+	current->pagefault_disabled--;
+	WARN_ON(current->pagefault_disabled < 0);
+}
+
 /*
- * These routines enable/disable the pagefault handler in that
- * it will not take any locks and go straight to the fixup table.
+ * These routines enable/disable the pagefault handler. If disabled, it will
+ * not take any locks and go straight to the fixup table.
  *
- * They have great resemblance to the preempt_disable/enable calls
- * and in fact they are identical; this is because currently there is
- * no other way to make the pagefault handlers do this. So we do
- * disable preemption but we don't necessarily care about that.
+ * We increase the preempt and the pagefault count, to be able to distinguish
+ * whether we run in simple atomic context or in a real pagefault_disable()
+ * context.
+ *
+ * For now, after pagefault_disabled() has been called, we run in atomic
+ * context. User access methods will not sleep.
+ *
  */
 static inline void pagefault_disable(void)
 {
 	preempt_count_inc();
+	pagefault_disabled_inc();
 	/*
 	 * make sure to have issued the store before a pagefault
 	 * can hit.
@@ -25,17 +41,23 @@ static inline void pagefault_disable(void)
 
 static inline void pagefault_enable(void)
 {
-#ifndef CONFIG_PREEMPT
 	/*
 	 * make sure to issue those last loads/stores before enabling
 	 * the pagefault handler again.
 	 */
 	barrier();
+	pagefault_disabled_dec();
+#ifndef CONFIG_PREEMPT
 	preempt_count_dec();
 #else
 	preempt_enable();
 #endif
 }
+
+/*
+ * Is the pagefault handler disabled? If so, user access methods will not sleep.
+ */
+#define pagefault_disabled() (current->pagefault_disabled != 0)
 
 #ifndef ARCH_HAS_NOCACHE_UACCESS
 
