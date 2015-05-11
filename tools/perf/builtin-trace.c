@@ -2721,11 +2721,10 @@ int cmd_trace(int argc, const char **argv, const char *prefix __maybe_unused)
 	signal(SIGFPE, sighandler_dump_stack);
 
 	trace.evlist = perf_evlist__new();
-	if (trace.evlist == NULL)
-		return -ENOMEM;
 
 	if (trace.evlist == NULL) {
 		pr_err("Not enough memory to run!\n");
+		err = -ENOMEM;
 		goto out;
 	}
 
