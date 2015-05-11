@@ -1094,8 +1094,9 @@ static int qat_alg_aead_init(struct crypto_tfm *tfm,
 		return -EFAULT;
 	spin_lock_init(&ctx->lock);
 	ctx->qat_hash_alg = hash;
-	tfm->crt_aead.reqsize = sizeof(struct aead_request) +
-				sizeof(struct qat_crypto_request);
+	crypto_aead_set_reqsize(__crypto_aead_cast(tfm),
+		sizeof(struct aead_request) +
+		sizeof(struct qat_crypto_request));
 	ctx->tfm = tfm;
 	return 0;
 }
