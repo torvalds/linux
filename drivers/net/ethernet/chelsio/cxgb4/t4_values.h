@@ -61,6 +61,20 @@
 #define SGE_TIMERREGS			6
 #define TIMERREG_COUNTER0_X		0
 
+#define FETCHBURSTMIN_64B_X		2
+
+#define FETCHBURSTMAX_512B_X		3
+
+#define HOSTFCMODE_STATUS_PAGE_X	2
+
+#define CIDXFLUSHTHRESH_32_X		5
+
+#define UPDATEDELIVERY_INTERRUPT_X	1
+
+#define RSPD_TYPE_FLBUF_X		0
+#define RSPD_TYPE_CPL_X			1
+#define RSPD_TYPE_INTR_X		2
+
 /* Congestion Manager Definitions.
  */
 #define CONMCTXT_CNGTPMODE_S		19

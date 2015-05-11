@@ -578,7 +578,7 @@ static int get_coalesce(struct net_device *dev, struct ethtool_coalesce *c)
 	const struct sge_rspq *rq = &adap->sge.ethrxq[pi->first_qset].rspq;
 
 	c->rx_coalesce_usecs = qtimer_val(adap, rq);
-	c->rx_max_coalesced_frames = (rq->intr_params & QINTR_CNT_EN) ?
+	c->rx_max_coalesced_frames = (rq->intr_params & QINTR_CNT_EN_F) ?
 		adap->sge.counter_val[rq->pktcnt_idx] : 0;
 	c->use_adaptive_rx_coalesce = get_adaptive_rx_setting(dev);
 	return 0;
