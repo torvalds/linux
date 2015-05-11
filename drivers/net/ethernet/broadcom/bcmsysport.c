@@ -467,6 +467,11 @@ static int bcm_sysport_get_coalesce(struct net_device *dev,
 	ec->tx_coalesce_usecs = (reg >> RING_TIMEOUT_SHIFT) * 8192 / 1000;
 	ec->tx_max_coalesced_frames = reg & RING_INTR_THRESH_MASK;
 
+	reg = rdma_readl(priv, RDMA_MBDONE_INTR);
+
+	ec->rx_coalesce_usecs = (reg >> RDMA_TIMEOUT_SHIFT) * 8192 / 1000;
+	ec->rx_max_coalesced_frames = reg & RDMA_INTR_THRESH_MASK;
+
 	return 0;
 }
 
@@ -477,16 +482,18 @@ static int bcm_sysport_set_coalesce(struct net_device *dev,
 	unsigned int i;
 	u32 reg;
 
-	/* Base system clock is 125Mhz, TDMA timeout is this reference clock
-	 * divided by 1024, which yield roughly 8.192 us, our maximum value
-	 * has to fit in the RING_TIMEOUT_MASK (16 bits).
+	/* Base system clock is 125Mhz, DMA timeout is this reference clock
+	 * divided by 1024, which yield roughly 8.192 us, our maximum value has
+	 * to fit in the RING_TIMEOUT_MASK (16 bits).
 	 */
 	if (ec->tx_max_coalesced_frames > RING_INTR_THRESH_MASK ||
-	    ec->tx_coalesce_usecs > (RING_TIMEOUT_MASK * 8) + 1)
+	    ec->tx_coalesce_usecs > (RING_TIMEOUT_MASK * 8) + 1 ||
+	    ec->rx_max_coalesced_frames > RDMA_INTR_THRESH_MASK ||
+	    ec->rx_coalesce_usecs > (RDMA_TIMEOUT_MASK * 8) + 1)
 		return -EINVAL;
 
-	if (ec->tx_coalesce_usecs == 0 &&
-	    ec->tx_max_coalesced_frames == 0)
+	if ((ec->tx_coalesce_usecs == 0 && ec->tx_max_coalesced_frames == 0) ||
+	    (ec->rx_coalesce_usecs == 0 && ec->rx_max_coalesced_frames == 0))
 		return -EINVAL;
 
 	for (i = 0; i < dev->num_tx_queues; i++) {
@@ -498,6 +505,14 @@ static int bcm_sysport_set_coalesce(struct net_device *dev,
 			 RING_TIMEOUT_SHIFT;
 		tdma_writel(priv, reg, TDMA_DESC_RING_INTR_CONTROL(i));
 	}
+
+	reg = rdma_readl(priv, RDMA_MBDONE_INTR);
+	reg &= ~(RDMA_INTR_THRESH_MASK |
+		 RDMA_TIMEOUT_MASK << RDMA_TIMEOUT_SHIFT);
+	reg |= ec->rx_max_coalesced_frames;
+	reg |= DIV_ROUND_UP(ec->rx_coalesce_usecs * 1000, 8192) <<
+			    RDMA_TIMEOUT_SHIFT;
+	rdma_writel(priv, reg, RDMA_MBDONE_INTR);
 
 	return 0;
 }
