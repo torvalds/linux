@@ -6301,6 +6301,17 @@ static int netif_alloc_netdev_queues(struct net_device *dev)
 	return 0;
 }
 
+void netif_tx_stop_all_queues(struct net_device *dev)
+{
+	unsigned int i;
+
+	for (i = 0; i < dev->num_tx_queues; i++) {
+		struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
+		netif_tx_stop_queue(txq);
+	}
+}
+EXPORT_SYMBOL(netif_tx_stop_all_queues);
+
 /**
  *	register_netdevice	- register a network device
  *	@dev: device to register
