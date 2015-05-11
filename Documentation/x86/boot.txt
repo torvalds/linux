@@ -406,7 +406,7 @@ Protocol:	2.00+
 	- If 0, the protected-mode code is loaded at 0x10000.
 	- If 1, the protected-mode code is loaded at 0x100000.
 
-  Bit 1 (kernel internal): ALSR_FLAG
+  Bit 1 (kernel internal): KASLR_FLAG
 	- Used internally by the compressed kernel to communicate
 	  KASLR status to kernel proper.
 	  If 1, KASLR enabled.
