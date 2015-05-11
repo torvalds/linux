@@ -607,9 +607,6 @@ static unsigned long si5351_msynth_recalc_rate(struct clk_hw *hw,
 	if (!hwdata->params.valid)
 		si5351_read_parameters(hwdata->drvdata, reg, &hwdata->params);
 
-	if (hwdata->params.p3 == 0)
-		return parent_rate;
-
 	/*
 	 * multisync0-5: fOUT = (128 * P3 * fIN) / (P1*P3 + P2 + 512*P3)
 	 * multisync6-7: fOUT = fIN / P1
@@ -617,6 +614,8 @@ static unsigned long si5351_msynth_recalc_rate(struct clk_hw *hw,
 	rate = parent_rate;
 	if (hwdata->num > 5) {
 		m = hwdata->params.p1;
+	} else if (hwdata->params.p3 == 0) {
+		return parent_rate;
 	} else if ((si5351_reg_read(hwdata->drvdata, reg + 2) &
 		    SI5351_OUTPUT_CLK_DIVBY4) == SI5351_OUTPUT_CLK_DIVBY4) {
 		m = 4;
