@@ -351,6 +351,6 @@ int hpet_assign_irq(struct irq_domain *domain, struct hpet_dev *dev,
 	info.hpet_id = hpet_dev_id(domain);
 	info.hpet_index = dev_num;
 
-	return irq_domain_alloc_irqs(domain, 1, NUMA_NO_NODE, NULL);
+	return irq_domain_alloc_irqs(domain, 1, NUMA_NO_NODE, &info);
 }
 #endif
