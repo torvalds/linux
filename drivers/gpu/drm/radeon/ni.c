@@ -2041,6 +2041,25 @@ static int cayman_startup(struct radeon_device *rdev)
 	if (r)
 		rdev->ring[R600_RING_TYPE_UVD_INDEX].ring_size = 0;
 
+	if (rdev->family == CHIP_ARUBA) {
+		r = radeon_vce_resume(rdev);
+		if (!r)
+			r = vce_v1_0_resume(rdev);
+
+		if (!r)
+			r = radeon_fence_driver_start_ring(rdev,
+							   TN_RING_TYPE_VCE1_INDEX);
+		if (!r)
+			r = radeon_fence_driver_start_ring(rdev,
+							   TN_RING_TYPE_VCE2_INDEX);
+
+		if (r) {
+			dev_err(rdev->dev, "VCE init error (%d).\n", r);
+			rdev->ring[TN_RING_TYPE_VCE1_INDEX].ring_size = 0;
+			rdev->ring[TN_RING_TYPE_VCE2_INDEX].ring_size = 0;
+		}
+	}
+
 	r = radeon_fence_driver_start_ring(rdev, CAYMAN_RING_TYPE_CP1_INDEX);
 	if (r) {
 		dev_err(rdev->dev, "failed initializing CP fences (%d).\n", r);
@@ -2117,6 +2136,19 @@ static int cayman_startup(struct radeon_device *rdev)
 		if (r)
 			DRM_ERROR("radeon: failed initializing UVD (%d).\n", r);
 	}
+
+	ring = &rdev->ring[TN_RING_TYPE_VCE1_INDEX];
+	if (ring->ring_size)
+		r = radeon_ring_init(rdev, ring, ring->ring_size, 0, 0x0);
+
+	ring = &rdev->ring[TN_RING_TYPE_VCE2_INDEX];
+	if (ring->ring_size)
+		r = radeon_ring_init(rdev, ring, ring->ring_size, 0, 0x0);
+
+	if (!r)
+		r = vce_v1_0_init(rdev);
+	else if (r != -ENOENT)
+		DRM_ERROR("radeon: failed initializing VCE (%d).\n", r);
 
 	r = radeon_ib_pool_init(rdev);
 	if (r) {
@@ -2273,6 +2305,19 @@ int cayman_init(struct radeon_device *rdev)
 		r600_ring_init(rdev, ring, 4096);
 	}
 
+	if (rdev->family == CHIP_ARUBA) {
+		r = radeon_vce_init(rdev);
+		if (!r) {
+			ring = &rdev->ring[TN_RING_TYPE_VCE1_INDEX];
+			ring->ring_obj = NULL;
+			r600_ring_init(rdev, ring, 4096);
+
+			ring = &rdev->ring[TN_RING_TYPE_VCE2_INDEX];
+			ring->ring_obj = NULL;
+			r600_ring_init(rdev, ring, 4096);
+		}
+	}
+
 	rdev->ih.ring_obj = NULL;
 	r600_ih_ring_init(rdev, 64 * 1024);
 
@@ -2326,6 +2371,7 @@ void cayman_fini(struct radeon_device *rdev)
 	radeon_irq_kms_fini(rdev);
 	uvd_v1_0_fini(rdev);
 	radeon_uvd_fini(rdev);
+	radeon_vce_fini(rdev);
 	cayman_pcie_gart_fini(rdev);
 	r600_vram_scratch_fini(rdev);
 	radeon_gem_fini(rdev);

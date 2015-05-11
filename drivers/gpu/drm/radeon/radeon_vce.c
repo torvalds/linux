@@ -38,8 +38,10 @@
 #define VCE_IDLE_TIMEOUT_MS	1000
 
 /* Firmware Names */
+#define FIRMWARE_TAHITI	"radeon/TAHITI_vce.bin"
 #define FIRMWARE_BONAIRE	"radeon/BONAIRE_vce.bin"
 
+MODULE_FIRMWARE(FIRMWARE_TAHITI);
 MODULE_FIRMWARE(FIRMWARE_BONAIRE);
 
 static void radeon_vce_idle_work_handler(struct work_struct *work);
@@ -63,6 +65,14 @@ int radeon_vce_init(struct radeon_device *rdev)
 	INIT_DELAYED_WORK(&rdev->vce.idle_work, radeon_vce_idle_work_handler);
 
 	switch (rdev->family) {
+	case CHIP_TAHITI:
+	case CHIP_PITCAIRN:
+	case CHIP_VERDE:
+	case CHIP_OLAND:
+	case CHIP_ARUBA:
+		fw_name = FIRMWARE_TAHITI;
+		break;
+
 	case CHIP_BONAIRE:
 	case CHIP_KAVERI:
 	case CHIP_KABINI:
@@ -125,7 +135,10 @@ int radeon_vce_init(struct radeon_device *rdev)
 
 	/* allocate firmware, stack and heap BO */
 
-	size = vce_v2_0_bo_size(rdev);
+	if (rdev->family < CHIP_BONAIRE)
+		size = vce_v1_0_bo_size(rdev);
+	else
+		size = vce_v2_0_bo_size(rdev);
 	r = radeon_bo_create(rdev, size, PAGE_SIZE, true,
 			     RADEON_GEM_DOMAIN_VRAM, 0, NULL, NULL,
 			     &rdev->vce.vcpu_bo);
@@ -226,13 +239,17 @@ int radeon_vce_resume(struct radeon_device *rdev)
 		return r;
 	}
 
-	memcpy(cpu_addr, rdev->vce_fw->data, rdev->vce_fw->size);
+	memset(cpu_addr, 0, radeon_bo_size(rdev->vce.vcpu_bo));
+	if (rdev->family < CHIP_BONAIRE)
+		r = vce_v1_0_load_fw(rdev, cpu_addr);
+	else
+		memcpy(cpu_addr, rdev->vce_fw->data, rdev->vce_fw->size);
 
 	radeon_bo_kunmap(rdev->vce.vcpu_bo);
 
 	radeon_bo_unreserve(rdev->vce.vcpu_bo);
 
-	return 0;
+	return r;
 }
 
 /**

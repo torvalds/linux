@@ -6907,6 +6907,22 @@ static int si_startup(struct radeon_device *rdev)
 			rdev->ring[R600_RING_TYPE_UVD_INDEX].ring_size = 0;
 	}
 
+	r = radeon_vce_resume(rdev);
+	if (!r) {
+		r = vce_v1_0_resume(rdev);
+		if (!r)
+			r = radeon_fence_driver_start_ring(rdev,
+							   TN_RING_TYPE_VCE1_INDEX);
+		if (!r)
+			r = radeon_fence_driver_start_ring(rdev,
+							   TN_RING_TYPE_VCE2_INDEX);
+	}
+	if (r) {
+		dev_err(rdev->dev, "VCE init error (%d).\n", r);
+		rdev->ring[TN_RING_TYPE_VCE1_INDEX].ring_size = 0;
+		rdev->ring[TN_RING_TYPE_VCE2_INDEX].ring_size = 0;
+	}
+
 	/* Enable IRQ */
 	if (!rdev->irq.installed) {
 		r = radeon_irq_kms_init(rdev);
@@ -6975,6 +6991,23 @@ static int si_startup(struct radeon_device *rdev)
 		}
 	}
 
+	r = -ENOENT;
+
+	ring = &rdev->ring[TN_RING_TYPE_VCE1_INDEX];
+	if (ring->ring_size)
+		r = radeon_ring_init(rdev, ring, ring->ring_size, 0,
+				     VCE_CMD_NO_OP);
+
+	ring = &rdev->ring[TN_RING_TYPE_VCE2_INDEX];
+	if (ring->ring_size)
+		r = radeon_ring_init(rdev, ring, ring->ring_size, 0,
+				     VCE_CMD_NO_OP);
+
+	if (!r)
+		r = vce_v1_0_init(rdev);
+	else if (r != -ENOENT)
+		DRM_ERROR("radeon: failed initializing VCE (%d).\n", r);
+
 	r = radeon_ib_pool_init(rdev);
 	if (r) {
 		dev_err(rdev->dev, "IB initialization failed (%d).\n", r);
@@ -7033,6 +7066,7 @@ int si_suspend(struct radeon_device *rdev)
 	if (rdev->has_uvd) {
 		uvd_v1_0_fini(rdev);
 		radeon_uvd_suspend(rdev);
+		radeon_vce_suspend(rdev);
 	}
 	si_fini_pg(rdev);
 	si_fini_cg(rdev);
@@ -7140,6 +7174,17 @@ int si_init(struct radeon_device *rdev)
 		}
 	}
 
+	r = radeon_vce_init(rdev);
+	if (!r) {
+		ring = &rdev->ring[TN_RING_TYPE_VCE1_INDEX];
+		ring->ring_obj = NULL;
+		r600_ring_init(rdev, ring, 4096);
+
+		ring = &rdev->ring[TN_RING_TYPE_VCE2_INDEX];
+		ring->ring_obj = NULL;
+		r600_ring_init(rdev, ring, 4096);
+	}
+
 	rdev->ih.ring_obj = NULL;
 	r600_ih_ring_init(rdev, 64 * 1024);
 
@@ -7191,6 +7236,7 @@ void si_fini(struct radeon_device *rdev)
 	if (rdev->has_uvd) {
 		uvd_v1_0_fini(rdev);
 		radeon_uvd_fini(rdev);
+		radeon_vce_fini(rdev);
 	}
 	si_pcie_gart_fini(rdev);
 	r600_vram_scratch_fini(rdev);

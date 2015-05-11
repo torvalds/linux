@@ -972,6 +972,9 @@ uint32_t vce_v1_0_get_wptr(struct radeon_device *rdev,
 			   struct radeon_ring *ring);
 void vce_v1_0_set_wptr(struct radeon_device *rdev,
 		       struct radeon_ring *ring);
+int vce_v1_0_load_fw(struct radeon_device *rdev, uint32_t *data);
+unsigned vce_v1_0_bo_size(struct radeon_device *rdev);
+int vce_v1_0_resume(struct radeon_device *rdev);
 int vce_v1_0_init(struct radeon_device *rdev);
 int vce_v1_0_start(struct radeon_device *rdev);
 

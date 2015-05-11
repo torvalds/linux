@@ -1719,6 +1719,7 @@ struct radeon_vce {
 	struct drm_file		*filp[RADEON_MAX_VCE_HANDLES];
 	unsigned		img_size[RADEON_MAX_VCE_HANDLES];
 	struct delayed_work	idle_work;
+	uint32_t		keyselect;
 };
 
 int radeon_vce_init(struct radeon_device *rdev);

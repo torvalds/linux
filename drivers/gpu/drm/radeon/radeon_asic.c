@@ -1761,6 +1761,19 @@ static struct radeon_asic cayman_asic = {
 	},
 };
 
+static struct radeon_asic_ring trinity_vce_ring = {
+	.ib_execute = &radeon_vce_ib_execute,
+	.emit_fence = &radeon_vce_fence_emit,
+	.emit_semaphore = &radeon_vce_semaphore_emit,
+	.cs_parse = &radeon_vce_cs_parse,
+	.ring_test = &radeon_vce_ring_test,
+	.ib_test = &radeon_vce_ib_test,
+	.is_lockup = &radeon_ring_test_lockup,
+	.get_rptr = &vce_v1_0_get_rptr,
+	.get_wptr = &vce_v1_0_get_wptr,
+	.set_wptr = &vce_v1_0_set_wptr,
+};
+
 static struct radeon_asic trinity_asic = {
 	.init = &cayman_init,
 	.fini = &cayman_fini,
@@ -1794,6 +1807,8 @@ static struct radeon_asic trinity_asic = {
 		[R600_RING_TYPE_DMA_INDEX] = &cayman_dma_ring,
 		[CAYMAN_RING_TYPE_DMA1_INDEX] = &cayman_dma_ring,
 		[R600_RING_TYPE_UVD_INDEX] = &cayman_uvd_ring,
+		[TN_RING_TYPE_VCE1_INDEX] = &trinity_vce_ring,
+		[TN_RING_TYPE_VCE2_INDEX] = &trinity_vce_ring,
 	},
 	.irq = {
 		.set = &evergreen_irq_set,
@@ -1930,6 +1945,8 @@ static struct radeon_asic si_asic = {
 		[R600_RING_TYPE_DMA_INDEX] = &si_dma_ring,
 		[CAYMAN_RING_TYPE_DMA1_INDEX] = &si_dma_ring,
 		[R600_RING_TYPE_UVD_INDEX] = &cayman_uvd_ring,
+		[TN_RING_TYPE_VCE1_INDEX] = &trinity_vce_ring,
+		[TN_RING_TYPE_VCE2_INDEX] = &trinity_vce_ring,
 	},
 	.irq = {
 		.set = &si_irq_set,

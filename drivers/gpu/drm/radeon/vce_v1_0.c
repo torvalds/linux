@@ -31,6 +31,23 @@
 #include "radeon_asic.h"
 #include "sid.h"
 
+#define VCE_V1_0_FW_SIZE	(256 * 1024)
+#define VCE_V1_0_STACK_SIZE	(64 * 1024)
+#define VCE_V1_0_DATA_SIZE	(7808 * (RADEON_MAX_VCE_HANDLES + 1))
+
+struct vce_v1_0_fw_signature
+{
+	int32_t off;
+	uint32_t len;
+	int32_t num;
+	struct {
+		uint32_t chip_id;
+		uint32_t keyselect;
+		uint32_t nonce[4];
+		uint32_t sigval[4];
+	} val[8];
+};
+
 /**
  * vce_v1_0_get_rptr - get read pointer
  *
@@ -80,6 +97,129 @@ void vce_v1_0_set_wptr(struct radeon_device *rdev,
 		WREG32(VCE_RB_WPTR, ring->wptr);
 	else
 		WREG32(VCE_RB_WPTR2, ring->wptr);
+}
+
+int vce_v1_0_load_fw(struct radeon_device *rdev, uint32_t *data)
+{
+	struct vce_v1_0_fw_signature *sign = (void*)rdev->vce_fw->data;
+	uint32_t chip_id;
+	int i;
+
+	switch (rdev->family) {
+	case CHIP_TAHITI:
+		chip_id = 0x01000014;
+		break;
+	case CHIP_VERDE:
+		chip_id = 0x01000015;
+		break;
+	case CHIP_PITCAIRN:
+	case CHIP_OLAND:
+		chip_id = 0x01000016;
+		break;
+	case CHIP_ARUBA:
+		chip_id = 0x01000017;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	for (i = 0; i < sign->num; ++i) {
+		if (sign->val[i].chip_id == chip_id)
+			break;
+	}
+
+	if (i == sign->num)
+		return -EINVAL;
+
+	data += (256 - 64) / 4;
+	data[0] = sign->val[i].nonce[0];
+	data[1] = sign->val[i].nonce[1];
+	data[2] = sign->val[i].nonce[2];
+	data[3] = sign->val[i].nonce[3];
+	data[4] = sign->len + 64;
+
+	memset(&data[5], 0, 44);
+	memcpy(&data[16], &sign[1], rdev->vce_fw->size - sizeof(*sign));
+
+	data += data[4] / 4;
+	data[0] = sign->val[i].sigval[0];
+	data[1] = sign->val[i].sigval[1];
+	data[2] = sign->val[i].sigval[2];
+	data[3] = sign->val[i].sigval[3];
+
+	rdev->vce.keyselect = sign->val[i].keyselect;
+
+	return 0;
+}
+
+unsigned vce_v1_0_bo_size(struct radeon_device *rdev)
+{
+	WARN_ON(VCE_V1_0_FW_SIZE < rdev->vce_fw->size);
+	return VCE_V1_0_FW_SIZE + VCE_V1_0_STACK_SIZE + VCE_V1_0_DATA_SIZE;
+}
+
+int vce_v1_0_resume(struct radeon_device *rdev)
+{
+	uint64_t addr = rdev->vce.gpu_addr;
+	uint32_t size;
+	int i;
+
+	WREG32_P(VCE_CLOCK_GATING_A, 0, ~(1 << 16));
+	WREG32_P(VCE_UENC_CLOCK_GATING, 0x1FF000, ~0xFF9FF000);
+	WREG32_P(VCE_UENC_REG_CLOCK_GATING, 0x3F, ~0x3F);
+	WREG32(VCE_CLOCK_GATING_B, 0);
+
+	WREG32_P(VCE_LMI_FW_PERIODIC_CTRL, 0x4, ~0x4);
+
+	WREG32(VCE_LMI_CTRL, 0x00398000);
+	WREG32_P(VCE_LMI_CACHE_CTRL, 0x0, ~0x1);
+	WREG32(VCE_LMI_SWAP_CNTL, 0);
+	WREG32(VCE_LMI_SWAP_CNTL1, 0);
+	WREG32(VCE_LMI_VM_CTRL, 0);
+
+	WREG32(VCE_VCPU_SCRATCH7, RADEON_MAX_VCE_HANDLES);
+
+	addr += 256;
+	size = VCE_V1_0_FW_SIZE;
+	WREG32(VCE_VCPU_CACHE_OFFSET0, addr & 0x7fffffff);
+	WREG32(VCE_VCPU_CACHE_SIZE0, size);
+
+	addr += size;
+	size = VCE_V1_0_STACK_SIZE;
+	WREG32(VCE_VCPU_CACHE_OFFSET1, addr & 0x7fffffff);
+	WREG32(VCE_VCPU_CACHE_SIZE1, size);
+
+	addr += size;
+	size = VCE_V1_0_DATA_SIZE;
+	WREG32(VCE_VCPU_CACHE_OFFSET2, addr & 0x7fffffff);
+	WREG32(VCE_VCPU_CACHE_SIZE2, size);
+
+	WREG32_P(VCE_LMI_CTRL2, 0x0, ~0x100);
+
+	WREG32(VCE_LMI_FW_START_KEYSEL, rdev->vce.keyselect);
+
+	for (i = 0; i < 10; ++i) {
+		mdelay(10);
+		if (RREG32(VCE_FW_REG_STATUS) & VCE_FW_REG_STATUS_DONE)
+			break;
+	}
+
+	if (i == 10)
+		return -ETIMEDOUT;
+
+	if (!(RREG32(VCE_FW_REG_STATUS) & VCE_FW_REG_STATUS_PASS))
+		return -EINVAL;
+
+	for (i = 0; i < 10; ++i) {
+		mdelay(10);
+		if (!(RREG32(VCE_FW_REG_STATUS) & VCE_FW_REG_STATUS_BUSY))
+			break;
+	}
+
+	if (i == 10)
+		return -ETIMEDOUT;
+
+	return 0;
 }
 
 /**
