@@ -23,7 +23,39 @@ struct crypto_aead_spawn {
 	struct crypto_spawn base;
 };
 
+extern const struct crypto_type crypto_aead_type;
 extern const struct crypto_type crypto_nivaead_type;
+
+static inline struct aead_alg *crypto_aead_alg(struct crypto_aead *tfm)
+{
+	return &crypto_aead_tfm(tfm)->__crt_alg->cra_aead;
+}
+
+static inline void *crypto_aead_ctx(struct crypto_aead *tfm)
+{
+	return crypto_tfm_ctx(&tfm->base);
+}
+
+static inline struct crypto_instance *crypto_aead_alg_instance(
+	struct crypto_aead *aead)
+{
+	return crypto_tfm_alg_instance(&aead->base);
+}
+
+static inline void *aead_request_ctx(struct aead_request *req)
+{
+	return req->__ctx;
+}
+
+static inline void aead_request_complete(struct aead_request *req, int err)
+{
+	req->base.complete(&req->base, err);
+}
+
+static inline u32 aead_request_flags(struct aead_request *req)
+{
+	return req->base.flags;
+}
 
 static inline void crypto_set_aead_spawn(
 	struct crypto_aead_spawn *spawn, struct crypto_instance *inst)
@@ -50,9 +82,7 @@ static inline struct crypto_alg *crypto_aead_spawn_alg(
 static inline struct crypto_aead *crypto_spawn_aead(
 	struct crypto_aead_spawn *spawn)
 {
-	return __crypto_aead_cast(
-		crypto_spawn_tfm(&spawn->base, CRYPTO_ALG_TYPE_AEAD,
-				 CRYPTO_ALG_TYPE_MASK));
+	return crypto_spawn_tfm2(&spawn->base);
 }
 
 struct crypto_instance *aead_geniv_alloc(struct crypto_template *tmpl,
@@ -64,7 +94,7 @@ void aead_geniv_exit(struct crypto_tfm *tfm);
 
 static inline struct crypto_aead *aead_geniv_base(struct crypto_aead *geniv)
 {
-	return crypto_aead_crt(geniv)->base;
+	return geniv->child;
 }
 
 static inline void *aead_givcrypt_reqctx(struct aead_givcrypt_request *req)
