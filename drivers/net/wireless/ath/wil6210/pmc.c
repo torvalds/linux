@@ -92,9 +92,9 @@ void wil_pmc_alloc(struct wil6210_priv *wil,
 			GFP_KERNEL);
 
 	wil_dbg_misc(wil,
-		     "%s: allocated pring %p. %zd x %d = total %zd bytes\n",
+		     "%s: allocated pring %p => %pad. %zd x %d = total %zd bytes\n",
 		     __func__,
-		     (void *)pmc->pring_pa,
+		     pmc->pring_va, &pmc->pring_pa,
 		     sizeof(struct vring_tx_desc),
 		     num_descriptors,
 		     sizeof(struct vring_tx_desc) * num_descriptors);
