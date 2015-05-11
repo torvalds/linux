@@ -1605,6 +1605,7 @@ call_allocate(struct rpc_task *task)
 					req->rq_callsize + req->rq_rcvsize);
 	if (req->rq_buffer != NULL)
 		return;
+	xprt_inject_disconnect(xprt);
 
 	dprintk("RPC: %5u rpc_buffer allocation failed\n", task->tk_pid);
 
