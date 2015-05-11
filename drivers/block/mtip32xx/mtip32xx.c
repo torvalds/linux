@@ -2891,7 +2891,6 @@ static int mtip_ftl_rebuild_poll(struct driver_data *dd)
 			mtip_block_initialize(dd);
 			return 0;
 		}
-		ssleep(10);
 	} while (time_before(jiffies, timeout));
 
 	/* Check for timeout */
