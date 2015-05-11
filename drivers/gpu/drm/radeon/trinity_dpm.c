@@ -336,6 +336,7 @@ static const u32 trinity_override_mgpg_sequences[] =
 	0x00000204, 0x00000000,
 };
 
+extern void vce_v1_0_enable_mgcg(struct radeon_device *rdev, bool enable);
 static void trinity_program_clk_gating_hw_sequence(struct radeon_device *rdev,
 						   const u32 *seq, u32 count);
 static void trinity_override_dynamic_mg_powergating(struct radeon_device *rdev);
@@ -990,8 +991,14 @@ static void trinity_set_vce_clock(struct radeon_device *rdev,
 				  struct radeon_ps *old_rps)
 {
 	if ((old_rps->evclk != new_rps->evclk) ||
-	    (old_rps->ecclk != new_rps->ecclk))
+	    (old_rps->ecclk != new_rps->ecclk)) {
+		/* turn the clocks on when encoding, off otherwise */
+		if (new_rps->evclk || new_rps->ecclk)
+			vce_v1_0_enable_mgcg(rdev, false);
+		else
+			vce_v1_0_enable_mgcg(rdev, true);
 		radeon_set_vce_clocks(rdev, new_rps->evclk, new_rps->ecclk);
+	}
 }
 
 static void trinity_program_ttt(struct radeon_device *rdev)

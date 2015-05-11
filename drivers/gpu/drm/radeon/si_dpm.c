@@ -1740,6 +1740,7 @@ struct ni_power_info *ni_get_pi(struct radeon_device *rdev);
 struct ni_ps *ni_get_ps(struct radeon_ps *rps);
 
 extern int si_mc_load_microcode(struct radeon_device *rdev);
+extern void vce_v1_0_enable_mgcg(struct radeon_device *rdev, bool enable);
 
 static int si_populate_voltage_value(struct radeon_device *rdev,
 				     const struct atom_voltage_table *table,
@@ -5932,8 +5933,14 @@ static void si_set_vce_clock(struct radeon_device *rdev,
 			     struct radeon_ps *old_rps)
 {
 	if ((old_rps->evclk != new_rps->evclk) ||
-	    (old_rps->ecclk != new_rps->ecclk))
+	    (old_rps->ecclk != new_rps->ecclk)) {
+		/* turn the clocks on when encoding, off otherwise */
+		if (new_rps->evclk || new_rps->ecclk)
+			vce_v1_0_enable_mgcg(rdev, false);
+		else
+			vce_v1_0_enable_mgcg(rdev, true);
 		radeon_set_vce_clocks(rdev, new_rps->evclk, new_rps->ecclk);
+	}
 }
 
 void si_dpm_setup_asic(struct radeon_device *rdev)
