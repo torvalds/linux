@@ -1,0 +1,8 @@
+TODO:
+- remove the defined feature as kernel versions
+- remove OS wrapper functions
+- remove custom debug and tracing functions
+- rework comments and function headers(also coding style)
+- remove build warnings
+- support soft-ap and p2p mode
+- support resume/suspend function
