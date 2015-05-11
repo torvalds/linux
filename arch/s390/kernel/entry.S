@@ -1005,7 +1005,7 @@ ENTRY(sie64a)
 .Lsie_gmap:
 	lg	%r14,__SF_EMPTY(%r15)		# get control block pointer
 	oi	__SIE_PROG0C+3(%r14),1		# we are going into SIE now
-	tm	__SIE_PROG20+3(%r14),1		# last exit...
+	tm	__SIE_PROG20+3(%r14),3		# last exit...
 	jnz	.Lsie_done
 	LPP	__SF_EMPTY(%r15)		# set guest id
 	sie	0(%r14)
