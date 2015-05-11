@@ -1386,7 +1386,7 @@ static int i915_port_to_hotplug_shift(enum port port)
 	}
 }
 
-static inline enum port get_port_from_pin(enum hpd_pin pin)
+static enum port get_port_from_pin(enum hpd_pin pin)
 {
 	switch (pin) {
 	case HPD_PORT_B:
@@ -1400,10 +1400,10 @@ static inline enum port get_port_from_pin(enum hpd_pin pin)
 	}
 }
 
-static inline void intel_hpd_irq_handler(struct drm_device *dev,
-					 u32 hotplug_trigger,
-					 u32 dig_hotplug_reg,
-					 const u32 hpd[HPD_NUM_PINS])
+static void intel_hpd_irq_handler(struct drm_device *dev,
+				  u32 hotplug_trigger,
+				  u32 dig_hotplug_reg,
+				  const u32 hpd[HPD_NUM_PINS])
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int i;
