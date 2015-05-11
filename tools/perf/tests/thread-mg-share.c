@@ -58,6 +58,18 @@ int test__thread_mg_share(void)
 	other_leader = machine__find_thread(machine, 4, 4);
 	TEST_ASSERT_VAL("failed to find other leader", other_leader);
 
+	/*
+	 * Ok, now that all the rbtree related operations were done,
+	 * lets remove all of them from there so that we can do the
+	 * refcounting tests.
+	 */
+	machine__remove_thread(machine, leader);
+	machine__remove_thread(machine, t1);
+	machine__remove_thread(machine, t2);
+	machine__remove_thread(machine, t3);
+	machine__remove_thread(machine, other);
+	machine__remove_thread(machine, other_leader);
+
 	other_mg = other->mg;
 	TEST_ASSERT_EQUAL("wrong refcnt", other_mg->refcnt, 2);
 
@@ -80,11 +92,6 @@ int test__thread_mg_share(void)
 	TEST_ASSERT_EQUAL("wrong refcnt", other_mg->refcnt, 1);
 
 	thread__put(other);
-
-	/*
-	 * Cannot call machine__delete_threads(machine) now,
-	 * because we've already released all the threads.
-	 */
 
 	machines__exit(&machines);
 	return 0;
