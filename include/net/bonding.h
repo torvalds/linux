@@ -136,6 +136,9 @@ struct bond_params {
 	int packets_per_slave;
 	int tlb_dynamic_lb;
 	struct reciprocal_value reciprocal_packets_per_slave;
+	u16 ad_actor_sys_prio;
+	u16 ad_user_port_key;
+	u8 ad_actor_system[ETH_ALEN];
 };
 
 struct bond_parm_tbl {

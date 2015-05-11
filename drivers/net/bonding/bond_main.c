@@ -4140,6 +4140,8 @@ static int bond_check_params(struct bond_params *params)
 	struct bond_opt_value newval;
 	const struct bond_opt_value *valptr;
 	int arp_all_targets_value;
+	u16 ad_actor_sys_prio = 0;
+	u16 ad_user_port_key = 0;
 
 	/* Convert string parameters. */
 	if (mode) {
@@ -4434,6 +4436,24 @@ static int bond_check_params(struct bond_params *params)
 		fail_over_mac_value = BOND_FOM_NONE;
 	}
 
+	bond_opt_initstr(&newval, "default");
+	valptr = bond_opt_parse(
+			bond_opt_get(BOND_OPT_AD_ACTOR_SYS_PRIO),
+				     &newval);
+	if (!valptr) {
+		pr_err("Error: No ad_actor_sys_prio default value");
+		return -EINVAL;
+	}
+	ad_actor_sys_prio = valptr->value;
+
+	valptr = bond_opt_parse(bond_opt_get(BOND_OPT_AD_USER_PORT_KEY),
+				&newval);
+	if (!valptr) {
+		pr_err("Error: No ad_user_port_key default value");
+		return -EINVAL;
+	}
+	ad_user_port_key = valptr->value;
+
 	if (lp_interval == 0) {
 		pr_warn("Warning: ip_interval must be between 1 and %d, so it was reset to %d\n",
 			INT_MAX, BOND_ALB_DEFAULT_LP_INTERVAL);
@@ -4462,6 +4482,9 @@ static int bond_check_params(struct bond_params *params)
 	params->lp_interval = lp_interval;
 	params->packets_per_slave = packets_per_slave;
 	params->tlb_dynamic_lb = 1; /* Default value */
+	params->ad_actor_sys_prio = ad_actor_sys_prio;
+	eth_zero_addr(params->ad_actor_system);
+	params->ad_user_port_key = ad_user_port_key;
 	if (packets_per_slave > 0) {
 		params->reciprocal_packets_per_slave =
 			reciprocal_value(packets_per_slave);
