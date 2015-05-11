@@ -117,8 +117,19 @@ struct mca_config {
 };
 
 struct mce_vendor_flags {
-	__u64		overflow_recov	: 1, /* cpuid_ebx(80000007) */
-			__reserved_0	: 63;
+			/*
+			 * overflow recovery cpuid bit indicates that overflow
+			 * conditions are not fatal
+			 */
+	__u64		overflow_recov	: 1,
+
+			/*
+			 * SUCCOR stands for S/W UnCorrectable error COntainment
+			 * and Recovery. It indicates support for data poisoning
+			 * in HW and deferred error interrupts.
+			 */
+			succor		: 1,
+			__reserved_0	: 62;
 };
 extern struct mce_vendor_flags mce_flags;
 
@@ -222,6 +233,9 @@ void do_machine_check(struct pt_regs *, long);
 
 extern void (*mce_threshold_vector)(void);
 extern void (*threshold_cpu_callback)(unsigned long action, unsigned int cpu);
+
+/* Deferred error interrupt handler */
+extern void (*deferred_error_int_vector)(void);
 
 /*
  * Thermal handler

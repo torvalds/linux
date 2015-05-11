@@ -1637,10 +1637,16 @@ static void __mcheck_cpu_init_vendor(struct cpuinfo_x86 *c)
 		mce_intel_feature_init(c);
 		mce_adjust_timer = cmci_intel_adjust_timer;
 		break;
-	case X86_VENDOR_AMD:
+
+	case X86_VENDOR_AMD: {
+		u32 ebx = cpuid_ebx(0x80000007);
+
 		mce_amd_feature_init(c);
-		mce_flags.overflow_recov = cpuid_ebx(0x80000007) & 0x1;
+		mce_flags.overflow_recov = !!(ebx & BIT(0));
+		mce_flags.succor	 = !!(ebx & BIT(1));
 		break;
+		}
+
 	default:
 		break;
 	}

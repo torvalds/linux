@@ -813,18 +813,6 @@ dotraplinkage void
 do_spurious_interrupt_bug(struct pt_regs *regs, long error_code)
 {
 	conditional_sti(regs);
-#if 0
-	/* No need to warn about this any longer. */
-	pr_info("Ignoring P6 Local APIC Spurious Interrupt Bug...\n");
-#endif
-}
-
-asmlinkage __visible void __attribute__((weak)) smp_thermal_interrupt(void)
-{
-}
-
-asmlinkage __visible void __attribute__((weak)) smp_threshold_interrupt(void)
-{
 }
 
 /*
