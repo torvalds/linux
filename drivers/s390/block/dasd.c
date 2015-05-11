@@ -38,6 +38,8 @@
  */
 #define DASD_CHANQ_MAX_SIZE 4
 
+#define DASD_DIAG_MOD		"dasd_diag_mod"
+
 /*
  * SECTION: exported variables of dasd.c
  */
@@ -3300,6 +3302,21 @@ int dasd_generic_set_online(struct ccw_device *cdev,
 	discipline = base_discipline;
 	if (device->features & DASD_FEATURE_USEDIAG) {
 	  	if (!dasd_diag_discipline_pointer) {
+			/* Try to load the required module. */
+			rc = request_module(DASD_DIAG_MOD);
+			if (rc) {
+				pr_warn("%s Setting the DASD online failed "
+					"because the required module %s "
+					"could not be loaded (rc=%d)\n",
+					dev_name(&cdev->dev), DASD_DIAG_MOD,
+					rc);
+				dasd_delete_device(device);
+				return -ENODEV;
+			}
+		}
+		/* Module init could have failed, so check again here after
+		 * request_module(). */
+		if (!dasd_diag_discipline_pointer) {
 			pr_warn("%s Setting the DASD online failed because of missing DIAG discipline\n",
 				dev_name(&cdev->dev));
 			dasd_delete_device(device);
