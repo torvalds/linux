@@ -456,6 +456,52 @@ static int bcm_sysport_set_wol(struct net_device *dev,
 	return 0;
 }
 
+static int bcm_sysport_get_coalesce(struct net_device *dev,
+				    struct ethtool_coalesce *ec)
+{
+	struct bcm_sysport_priv *priv = netdev_priv(dev);
+	u32 reg;
+
+	reg = tdma_readl(priv, TDMA_DESC_RING_INTR_CONTROL(0));
+
+	ec->tx_coalesce_usecs = (reg >> RING_TIMEOUT_SHIFT) * 8192 / 1000;
+	ec->tx_max_coalesced_frames = reg & RING_INTR_THRESH_MASK;
+
+	return 0;
+}
+
+static int bcm_sysport_set_coalesce(struct net_device *dev,
+				    struct ethtool_coalesce *ec)
+{
+	struct bcm_sysport_priv *priv = netdev_priv(dev);
+	unsigned int i;
+	u32 reg;
+
+	/* Base system clock is 125Mhz, TDMA timeout is this reference clock
+	 * divided by 1024, which yield roughly 8.192 us, our maximum value
+	 * has to fit in the RING_TIMEOUT_MASK (16 bits).
+	 */
+	if (ec->tx_max_coalesced_frames > RING_INTR_THRESH_MASK ||
+	    ec->tx_coalesce_usecs > (RING_TIMEOUT_MASK * 8) + 1)
+		return -EINVAL;
+
+	if (ec->tx_coalesce_usecs == 0 &&
+	    ec->tx_max_coalesced_frames == 0)
+		return -EINVAL;
+
+	for (i = 0; i < dev->num_tx_queues; i++) {
+		reg = tdma_readl(priv, TDMA_DESC_RING_INTR_CONTROL(i));
+		reg &= ~(RING_INTR_THRESH_MASK |
+			 RING_TIMEOUT_MASK << RING_TIMEOUT_SHIFT);
+		reg |= ec->tx_max_coalesced_frames;
+		reg |= DIV_ROUND_UP(ec->tx_coalesce_usecs * 1000, 8192) <<
+			 RING_TIMEOUT_SHIFT;
+		tdma_writel(priv, reg, TDMA_DESC_RING_INTR_CONTROL(i));
+	}
+
+	return 0;
+}
+
 static void bcm_sysport_free_cb(struct bcm_sysport_cb *cb)
 {
 	dev_kfree_skb_any(cb->skb);
@@ -1641,6 +1687,8 @@ static struct ethtool_ops bcm_sysport_ethtool_ops = {
 	.get_sset_count		= bcm_sysport_get_sset_count,
 	.get_wol		= bcm_sysport_get_wol,
 	.set_wol		= bcm_sysport_set_wol,
+	.get_coalesce		= bcm_sysport_get_coalesce,
+	.set_coalesce		= bcm_sysport_set_coalesce,
 };
 
 static const struct net_device_ops bcm_sysport_netdev_ops = {
