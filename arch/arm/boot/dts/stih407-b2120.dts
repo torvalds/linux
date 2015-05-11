@@ -7,8 +7,8 @@
  * published by the Free Software Foundation.
  */
 /dts-v1/;
-#include "stihxxx-b2120.dtsi"
 #include "stih407.dtsi"
+#include "stihxxx-b2120.dtsi"
 / {
 	model = "STiH407 B2120";
 	compatible = "st,stih407-b2120", "st,stih407";
