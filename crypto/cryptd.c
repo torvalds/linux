@@ -729,7 +729,8 @@ static int cryptd_aead_init_tfm(struct crypto_tfm *tfm)
 
 	crypto_aead_set_flags(cipher, CRYPTO_TFM_REQ_MAY_SLEEP);
 	ctx->child = cipher;
-	tfm->crt_aead.reqsize = sizeof(struct cryptd_aead_request_ctx);
+	crypto_aead_set_reqsize(__crypto_aead_cast(tfm),
+				sizeof(struct cryptd_aead_request_ctx));
 	return 0;
 }
 
