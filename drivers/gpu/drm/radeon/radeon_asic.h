@@ -974,6 +974,7 @@ int vce_v1_0_init(struct radeon_device *rdev);
 int vce_v1_0_start(struct radeon_device *rdev);
 
 /* vce v2.0 */
+unsigned vce_v2_0_bo_size(struct radeon_device *rdev);
 int vce_v2_0_resume(struct radeon_device *rdev);
 
 #endif

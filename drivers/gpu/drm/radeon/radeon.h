@@ -1709,8 +1709,6 @@ int radeon_uvd_send_upll_ctlreq(struct radeon_device *rdev,
  * VCE
  */
 #define RADEON_MAX_VCE_HANDLES	16
-#define RADEON_VCE_STACK_SIZE	(1024*1024)
-#define RADEON_VCE_HEAP_SIZE	(4*1024*1024)
 
 struct radeon_vce {
 	struct radeon_bo	*vcpu_bo;

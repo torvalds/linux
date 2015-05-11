@@ -123,8 +123,7 @@ int radeon_vce_init(struct radeon_device *rdev)
 
 	/* allocate firmware, stack and heap BO */
 
-	size = RADEON_GPU_PAGE_ALIGN(rdev->vce_fw->size) +
-	       RADEON_VCE_STACK_SIZE + RADEON_VCE_HEAP_SIZE;
+	size = vce_v2_0_bo_size(rdev);
 	r = radeon_bo_create(rdev, size, PAGE_SIZE, true,
 			     RADEON_GEM_DOMAIN_VRAM, 0, NULL, NULL,
 			     &rdev->vce.vcpu_bo);
