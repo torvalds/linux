@@ -866,7 +866,8 @@ static int scsiback_add_translation_entry(struct vscsibk_info *info,
 	struct list_head *head = &(info->v2p_entry_lists);
 	unsigned long flags;
 	char *lunp;
-	unsigned int lun;
+	unsigned int unpacked_lun;
+	struct se_lun *se_lun;
 	struct scsiback_tpg *tpg_entry, *tpg = NULL;
 	char *error = "doesn't exist";
 
@@ -877,7 +878,7 @@ static int scsiback_add_translation_entry(struct vscsibk_info *info,
 	}
 	*lunp = 0;
 	lunp++;
-	if (kstrtouint(lunp, 10, &lun) || lun >= TRANSPORT_MAX_LUNS_PER_TPG) {
+	if (kstrtouint(lunp, 10, &unpacked_lun) || unpacked_lun >= TRANSPORT_MAX_LUNS_PER_TPG) {
 		pr_err("lun number not valid: %s\n", lunp);
 		return -EINVAL;
 	}
@@ -886,15 +887,17 @@ static int scsiback_add_translation_entry(struct vscsibk_info *info,
 	list_for_each_entry(tpg_entry, &scsiback_list, tv_tpg_list) {
 		if (!strcmp(phy, tpg_entry->tport->tport_name) ||
 		    !strcmp(phy, tpg_entry->param_alias)) {
-			spin_lock(&tpg_entry->se_tpg.tpg_lun_lock);
-			if (tpg_entry->se_tpg.tpg_lun_list[lun]->lun_status ==
-			    TRANSPORT_LUN_STATUS_ACTIVE) {
-				if (!tpg_entry->tpg_nexus)
-					error = "nexus undefined";
-				else
-					tpg = tpg_entry;
+			mutex_lock(&tpg_entry->se_tpg.tpg_lun_mutex);
+			hlist_for_each_entry(se_lun, &tpg_entry->se_tpg.tpg_lun_hlist, link) {
+				if (se_lun->unpacked_lun == unpacked_lun) {
+					if (!tpg_entry->tpg_nexus)
+						error = "nexus undefined";
+					else
+						tpg = tpg_entry;
+					break;
+				}
 			}
-			spin_unlock(&tpg_entry->se_tpg.tpg_lun_lock);
+			mutex_unlock(&tpg_entry->se_tpg.tpg_lun_mutex);
 			break;
 		}
 	}
@@ -906,7 +909,7 @@ static int scsiback_add_translation_entry(struct vscsibk_info *info,
 	mutex_unlock(&scsiback_mutex);
 
 	if (!tpg) {
-		pr_err("%s:%d %s\n", phy, lun, error);
+		pr_err("%s:%d %s\n", phy, unpacked_lun, error);
 		return -ENODEV;
 	}
 
@@ -934,7 +937,7 @@ static int scsiback_add_translation_entry(struct vscsibk_info *info,
 	kref_init(&new->kref);
 	new->v = *v;
 	new->tpg = tpg;
-	new->lun = lun;
+	new->lun = unpacked_lun;
 	list_add_tail(&new->l, head);
 
 out:

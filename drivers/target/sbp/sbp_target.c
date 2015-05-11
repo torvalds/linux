@@ -108,13 +108,13 @@ static struct sbp_session *sbp_session_find_by_guid(
 }
 
 static struct sbp_login_descriptor *sbp_login_find_by_lun(
-		struct sbp_session *session, struct se_lun *lun)
+		struct sbp_session *session, u32 unpacked_lun)
 {
 	struct sbp_login_descriptor *login, *found = NULL;
 
 	spin_lock_bh(&session->lock);
 	list_for_each_entry(login, &session->login_list, link) {
-		if (login->lun == lun)
+		if (login->login_lun == unpacked_lun)
 			found = login;
 	}
 	spin_unlock_bh(&session->lock);
@@ -124,7 +124,7 @@ static struct sbp_login_descriptor *sbp_login_find_by_lun(
 
 static int sbp_login_count_all_by_lun(
 		struct sbp_tpg *tpg,
-		struct se_lun *lun,
+		u32 unpacked_lun,
 		int exclusive)
 {
 	struct se_session *se_sess;
@@ -138,7 +138,7 @@ static int sbp_login_count_all_by_lun(
 
 		spin_lock_bh(&sess->lock);
 		list_for_each_entry(login, &sess->login_list, link) {
-			if (login->lun != lun)
+			if (login->login_lun != unpacked_lun)
 				continue;
 
 			if (!exclusive || login->exclusive)
@@ -174,23 +174,23 @@ static struct sbp_login_descriptor *sbp_login_find_by_id(
 	return found;
 }
 
-static struct se_lun *sbp_get_lun_from_tpg(struct sbp_tpg *tpg, int lun)
+static u32 sbp_get_lun_from_tpg(struct sbp_tpg *tpg, u32 login_lun, int *err)
 {
 	struct se_portal_group *se_tpg = &tpg->se_tpg;
 	struct se_lun *se_lun;
 
-	if (lun >= TRANSPORT_MAX_LUNS_PER_TPG)
-		return ERR_PTR(-EINVAL);
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(se_lun, &se_tpg->tpg_lun_hlist, link) {
+		if (se_lun->unpacked_lun == login_lun) {
+			rcu_read_unlock();
+			*err = 0;
+			return login_lun;
+		}
+	}
+	rcu_read_unlock();
 
-	spin_lock(&se_tpg->tpg_lun_lock);
-	se_lun = se_tpg->tpg_lun_list[lun];
-
-	if (se_lun->lun_status != TRANSPORT_LUN_STATUS_ACTIVE)
-		se_lun = ERR_PTR(-ENODEV);
-
-	spin_unlock(&se_tpg->tpg_lun_lock);
-
-	return se_lun;
+	*err = -ENODEV;
+	return login_lun;
 }
 
 static struct sbp_session *sbp_session_create(
@@ -294,17 +294,16 @@ static void sbp_management_request_login(
 {
 	struct sbp_tport *tport = agent->tport;
 	struct sbp_tpg *tpg = tport->tpg;
-	struct se_lun *se_lun;
-	int ret;
-	u64 guid;
 	struct sbp_session *sess;
 	struct sbp_login_descriptor *login;
 	struct sbp_login_response_block *response;
-	int login_response_len;
+	u64 guid;
+	u32 unpacked_lun;
+	int login_response_len, ret;
 
-	se_lun = sbp_get_lun_from_tpg(tpg,
-			LOGIN_ORB_LUN(be32_to_cpu(req->orb.misc)));
-	if (IS_ERR(se_lun)) {
+	unpacked_lun = sbp_get_lun_from_tpg(tpg,
+			LOGIN_ORB_LUN(be32_to_cpu(req->orb.misc)), &ret);
+	if (ret) {
 		pr_notice("login to unknown LUN: %d\n",
 			LOGIN_ORB_LUN(be32_to_cpu(req->orb.misc)));
 
@@ -325,11 +324,11 @@ static void sbp_management_request_login(
 	}
 
 	pr_notice("mgt_agent LOGIN to LUN %d from %016llx\n",
-		se_lun->unpacked_lun, guid);
+		unpacked_lun, guid);
 
 	sess = sbp_session_find_by_guid(tpg, guid);
 	if (sess) {
-		login = sbp_login_find_by_lun(sess, se_lun);
+		login = sbp_login_find_by_lun(sess, unpacked_lun);
 		if (login) {
 			pr_notice("initiator already logged-in\n");
 
@@ -357,7 +356,7 @@ static void sbp_management_request_login(
 	 * reject with access_denied if any logins present
 	 */
 	if (LOGIN_ORB_EXCLUSIVE(be32_to_cpu(req->orb.misc)) &&
-			sbp_login_count_all_by_lun(tpg, se_lun, 0)) {
+			sbp_login_count_all_by_lun(tpg, unpacked_lun, 0)) {
 		pr_warn("refusing exclusive login with other active logins\n");
 
 		req->status.status = cpu_to_be32(
@@ -370,7 +369,7 @@ static void sbp_management_request_login(
 	 * check exclusive bit in any existing login descriptor
 	 * reject with access_denied if any exclusive logins present
 	 */
-	if (sbp_login_count_all_by_lun(tpg, se_lun, 1)) {
+	if (sbp_login_count_all_by_lun(tpg, unpacked_lun, 1)) {
 		pr_warn("refusing login while another exclusive login present\n");
 
 		req->status.status = cpu_to_be32(
@@ -383,7 +382,7 @@ static void sbp_management_request_login(
 	 * check we haven't exceeded the number of allowed logins
 	 * reject with resources_unavailable if we have
 	 */
-	if (sbp_login_count_all_by_lun(tpg, se_lun, 0) >=
+	if (sbp_login_count_all_by_lun(tpg, unpacked_lun, 0) >=
 			tport->max_logins_per_lun) {
 		pr_warn("max number of logins reached\n");
 
@@ -439,7 +438,7 @@ static void sbp_management_request_login(
 	}
 
 	login->sess = sess;
-	login->lun = se_lun;
+	login->login_lun = unpacked_lun;
 	login->status_fifo_addr = sbp2_pointer_to_addr(&req->orb.status_fifo);
 	login->exclusive = LOGIN_ORB_EXCLUSIVE(be32_to_cpu(req->orb.misc));
 	login->login_id = atomic_inc_return(&login_id);
@@ -601,7 +600,7 @@ static void sbp_management_request_logout(
 	}
 
 	pr_info("mgt_agent LOGOUT from LUN %d session %d\n",
-		login->lun->unpacked_lun, login->login_id);
+		login->login_lun, login->login_id);
 
 	if (req->node_addr != login->sess->node_id) {
 		pr_warn("logout from different node ID\n");
@@ -1227,7 +1226,7 @@ static void sbp_handle_command(struct sbp_target_request *req)
 		goto err;
 	}
 
-	unpacked_lun = req->login->lun->unpacked_lun;
+	unpacked_lun = req->login->login_lun;
 	sbp_calc_data_length_direction(req, &data_length, &data_dir);
 
 	pr_debug("sbp_handle_command ORB:0x%llx unpacked_lun:%d data_len:%d data_dir:%d\n",
@@ -1826,25 +1825,21 @@ static int sbp_check_stop_free(struct se_cmd *se_cmd)
 
 static int sbp_count_se_tpg_luns(struct se_portal_group *tpg)
 {
-	int i, count = 0;
+	struct se_lun *lun;
+	int count = 0;
 
-	spin_lock(&tpg->tpg_lun_lock);
-	for (i = 0; i < TRANSPORT_MAX_LUNS_PER_TPG; i++) {
-		struct se_lun *se_lun = tpg->tpg_lun_list[i];
-
-		if (se_lun->lun_status == TRANSPORT_LUN_STATUS_FREE)
-			continue;
-
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(lun, &tpg->tpg_lun_hlist, link)
 		count++;
-	}
-	spin_unlock(&tpg->tpg_lun_lock);
+	rcu_read_unlock();
 
 	return count;
 }
 
 static int sbp_update_unit_directory(struct sbp_tport *tport)
 {
-	int num_luns, num_entries, idx = 0, mgt_agt_addr, ret, i;
+	struct se_lun *lun;
+	int num_luns, num_entries, idx = 0, mgt_agt_addr, ret;
 	u32 *data;
 
 	if (tport->unit_directory.data) {
@@ -1906,28 +1901,20 @@ static int sbp_update_unit_directory(struct sbp_tport *tport)
 	/* unit unique ID (leaf is just after LUNs) */
 	data[idx++] = 0x8d000000 | (num_luns + 1);
 
-	spin_lock(&tport->tpg->se_tpg.tpg_lun_lock);
-	for (i = 0; i < TRANSPORT_MAX_LUNS_PER_TPG; i++) {
-		struct se_lun *se_lun = tport->tpg->se_tpg.tpg_lun_list[i];
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(lun, &tport->tpg->se_tpg.tpg_lun_hlist, link) {
 		struct se_device *dev;
 		int type;
 
-		if (se_lun->lun_status == TRANSPORT_LUN_STATUS_FREE)
-			continue;
-
-		spin_unlock(&tport->tpg->se_tpg.tpg_lun_lock);
-
-		dev = se_lun->lun_se_dev;
+		dev = lun->lun_se_dev;
 		type = dev->transport->get_device_type(dev);
 
 		/* logical_unit_number */
 		data[idx++] = 0x14000000 |
 			((type << 16) & 0x1f0000) |
-			(se_lun->unpacked_lun & 0xffff);
-
-		spin_lock(&tport->tpg->se_tpg.tpg_lun_lock);
+			(lun->unpacked_lun & 0xffff);
 	}
-	spin_unlock(&tport->tpg->se_tpg.tpg_lun_lock);
+	rcu_read_unlock();
 
 	/* unit unique ID leaf */
 	data[idx++] = 2 << 16;

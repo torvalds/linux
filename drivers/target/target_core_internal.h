@@ -23,13 +23,13 @@ int	core_dev_export(struct se_device *, struct se_portal_group *,
 		struct se_lun *);
 void	core_dev_unexport(struct se_device *, struct se_portal_group *,
 		struct se_lun *);
-struct se_lun *core_dev_add_lun(struct se_portal_group *, struct se_device *, u32);
+int	core_dev_add_lun(struct se_portal_group *, struct se_device *,
+		struct se_lun *lun);
 void	core_dev_del_lun(struct se_portal_group *, struct se_lun *);
-struct se_lun *core_get_lun_from_tpg(struct se_portal_group *, u32);
 struct se_lun_acl *core_dev_init_initiator_node_lun_acl(struct se_portal_group *,
 		struct se_node_acl *, u32, int *);
 int	core_dev_add_initiator_node_lun_acl(struct se_portal_group *,
-		struct se_lun_acl *, u32, u32);
+		struct se_lun_acl *, struct se_lun *lun, u32);
 int	core_dev_del_initiator_node_lun_acl(struct se_portal_group *,
 		struct se_lun *, struct se_lun_acl *);
 void	core_dev_free_initiator_node_lun_acl(struct se_portal_group *,

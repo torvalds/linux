@@ -125,7 +125,7 @@ struct sbp_login_descriptor {
 	struct sbp_session *sess;
 	struct list_head link;
 
-	struct se_lun *lun;
+	u32 login_lun;
 
 	u64 status_fifo_addr;
 	int exclusive;

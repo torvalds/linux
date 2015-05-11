@@ -81,7 +81,7 @@ static int target_fabric_mappedlun_link(
 			struct se_lun_acl, se_lun_group);
 	struct se_portal_group *se_tpg;
 	struct config_item *nacl_ci, *tpg_ci, *tpg_ci_s, *wwn_ci, *wwn_ci_s;
-	int ret = 0, lun_access;
+	int lun_access;
 
 	if (lun->lun_link_magic != SE_LUN_LINK_MAGIC) {
 		pr_err("Bad lun->lun_link_magic, not a valid lun_ci pointer:"
@@ -137,12 +137,9 @@ static int target_fabric_mappedlun_link(
 	 * Determine the actual mapped LUN value user wants..
 	 *
 	 * This value is what the SCSI Initiator actually sees the
-	 * iscsi/$IQN/$TPGT/lun/lun_* as on their SCSI Initiator Ports.
+	 * $FABRIC/$WWPN/$TPGT/lun/lun_* as on their SCSI Initiator Ports.
 	 */
-	ret = core_dev_add_initiator_node_lun_acl(se_tpg, lacl,
-			lun->unpacked_lun, lun_access);
-
-	return (ret < 0) ? -EINVAL : 0;
+	return core_dev_add_initiator_node_lun_acl(se_tpg, lacl, lun, lun_access);
 }
 
 static int target_fabric_mappedlun_unlink(
@@ -761,7 +758,6 @@ static int target_fabric_port_link(
 	struct config_item *tpg_ci;
 	struct se_lun *lun = container_of(to_config_group(lun_ci),
 				struct se_lun, lun_group);
-	struct se_lun *lun_p;
 	struct se_portal_group *se_tpg;
 	struct se_device *dev =
 		container_of(to_config_group(se_dev_ci), struct se_device, dev_group);
@@ -789,10 +785,9 @@ static int target_fabric_port_link(
 		return -EEXIST;
 	}
 
-	lun_p = core_dev_add_lun(se_tpg, dev, lun->unpacked_lun);
-	if (IS_ERR(lun_p)) {
-		pr_err("core_dev_add_lun() failed\n");
-		ret = PTR_ERR(lun_p);
+	ret = core_dev_add_lun(se_tpg, dev, lun);
+	if (ret) {
+		pr_err("core_dev_add_lun() failed: %d\n", ret);
 		goto out;
 	}
 
@@ -832,9 +827,18 @@ static int target_fabric_port_unlink(
 	return 0;
 }
 
+static void target_fabric_port_release(struct config_item *item)
+{
+	struct se_lun *lun = container_of(to_config_group(item),
+					  struct se_lun, lun_group);
+
+	kfree_rcu(lun, rcu_head);
+}
+
 static struct configfs_item_operations target_fabric_port_item_ops = {
 	.show_attribute		= target_fabric_port_attr_show,
 	.store_attribute	= target_fabric_port_attr_store,
+	.release		= target_fabric_port_release,
 	.allow_link		= target_fabric_port_link,
 	.drop_link		= target_fabric_port_unlink,
 };
@@ -893,15 +897,16 @@ static struct config_group *target_fabric_make_lun(
 	if (unpacked_lun > UINT_MAX)
 		return ERR_PTR(-EINVAL);
 
-	lun = core_get_lun_from_tpg(se_tpg, unpacked_lun);
-	if (!lun)
-		return ERR_PTR(-EINVAL);
+	lun = core_tpg_alloc_lun(se_tpg, unpacked_lun);
+	if (IS_ERR(lun))
+		return ERR_CAST(lun);
 
 	lun_cg = &lun->lun_group;
 	lun_cg->default_groups = kmalloc(sizeof(struct config_group *) * 2,
 				GFP_KERNEL);
 	if (!lun_cg->default_groups) {
 		pr_err("Unable to allocate lun_cg->default_groups\n");
+		kfree(lun);
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -918,6 +923,7 @@ static struct config_group *target_fabric_make_lun(
 	if (!port_stat_grp->default_groups) {
 		pr_err("Unable to allocate port_stat_grp->default_groups\n");
 		kfree(lun_cg->default_groups);
+		kfree(lun);
 		return ERR_PTR(-ENOMEM);
 	}
 	target_stat_setup_port_default_groups(lun);

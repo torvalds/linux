@@ -278,8 +278,6 @@ int iscsit_tpg_del_portal_group(
 		return -EPERM;
 	}
 
-	core_tpg_clear_object_luns(&tpg->tpg_se_tpg);
-
 	if (tpg->param_list) {
 		iscsi_release_param_list(tpg->param_list);
 		tpg->param_list = NULL;

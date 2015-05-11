@@ -725,6 +725,8 @@ struct se_lun {
 	struct se_port_stat_grps port_stat_grps;
 	struct completion	lun_ref_comp;
 	struct percpu_ref	lun_ref;
+	struct hlist_node	link;
+	struct rcu_head		rcu_head;
 };
 
 struct se_dev_stat_grps {
@@ -877,11 +879,11 @@ struct se_portal_group {
 	spinlock_t		acl_node_lock;
 	/* Spinlock for adding/removing sessions */
 	spinlock_t		session_lock;
-	spinlock_t		tpg_lun_lock;
+	struct mutex		tpg_lun_mutex;
 	struct list_head	se_tpg_node;
 	/* linked list for initiator ACL list */
 	struct list_head	acl_node_list;
-	struct se_lun		**tpg_lun_list;
+	struct hlist_head	tpg_lun_hlist;
 	struct se_lun		tpg_virt_lun0;
 	/* List of TCM sessions associated wth this TPG */
 	struct list_head	tpg_sess_list;

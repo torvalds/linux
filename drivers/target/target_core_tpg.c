@@ -91,18 +91,14 @@ void core_tpg_add_node_to_devs(
 	struct se_node_acl *acl,
 	struct se_portal_group *tpg)
 {
-	int i = 0;
 	u32 lun_access = 0;
 	struct se_lun *lun;
 	struct se_device *dev;
 
-	spin_lock(&tpg->tpg_lun_lock);
-	for (i = 0; i < TRANSPORT_MAX_LUNS_PER_TPG; i++) {
-		lun = tpg->tpg_lun_list[i];
+	mutex_lock(&tpg->tpg_lun_mutex);
+	hlist_for_each_entry_rcu(lun, &tpg->tpg_lun_hlist, link) {
 		if (lun->lun_status != TRANSPORT_LUN_STATUS_ACTIVE)
 			continue;
-
-		spin_unlock(&tpg->tpg_lun_lock);
 
 		dev = lun->lun_se_dev;
 		/*
@@ -130,7 +126,7 @@ void core_tpg_add_node_to_devs(
 			"READ-WRITE" : "READ-ONLY");
 
 		core_enable_device_list_for_node(lun, NULL, lun->unpacked_lun,
-				lun_access, acl, tpg);
+						 lun_access, acl, tpg);
 		/*
 		 * Check to see if there are any existing persistent reservation
 		 * APTPL pre-registrations that need to be enabled for this dynamic
@@ -138,9 +134,8 @@ void core_tpg_add_node_to_devs(
 		 */
 		core_scsi3_check_aptpl_registration(dev, tpg, lun, acl,
 						    lun->unpacked_lun);
-		spin_lock(&tpg->tpg_lun_lock);
 	}
-	spin_unlock(&tpg->tpg_lun_lock);
+	mutex_unlock(&tpg->tpg_lun_mutex);
 }
 
 /*      core_set_queue_depth_for_node():
@@ -159,34 +154,6 @@ static int core_set_queue_depth_for_node(
 	}
 
 	return 0;
-}
-
-void array_free(void *array, int n)
-{
-	void **a = array;
-	int i;
-
-	for (i = 0; i < n; i++)
-		kfree(a[i]);
-	kfree(a);
-}
-
-static void *array_zalloc(int n, size_t size, gfp_t flags)
-{
-	void **a;
-	int i;
-
-	a = kzalloc(n * sizeof(void*), flags);
-	if (!a)
-		return NULL;
-	for (i = 0; i < n; i++) {
-		a[i] = kzalloc(size, flags);
-		if (!a[i]) {
-			array_free(a, n);
-			return NULL;
-		}
-	}
-	return a;
 }
 
 static struct se_node_acl *target_alloc_node_acl(struct se_portal_group *tpg,
@@ -283,27 +250,6 @@ void core_tpg_wait_for_nacl_pr_ref(struct se_node_acl *nacl)
 	while (atomic_read(&nacl->acl_pr_ref_count) != 0)
 		cpu_relax();
 }
-
-void core_tpg_clear_object_luns(struct se_portal_group *tpg)
-{
-	int i;
-	struct se_lun *lun;
-
-	spin_lock(&tpg->tpg_lun_lock);
-	for (i = 0; i < TRANSPORT_MAX_LUNS_PER_TPG; i++) {
-		lun = tpg->tpg_lun_list[i];
-
-		if ((lun->lun_status != TRANSPORT_LUN_STATUS_ACTIVE) ||
-		    (lun->lun_se_dev == NULL))
-			continue;
-
-		spin_unlock(&tpg->tpg_lun_lock);
-		core_dev_del_lun(tpg, lun);
-		spin_lock(&tpg->tpg_lun_lock);
-	}
-	spin_unlock(&tpg->tpg_lun_lock);
-}
-EXPORT_SYMBOL(core_tpg_clear_object_luns);
 
 struct se_node_acl *core_tpg_add_initiator_node_acl(
 	struct se_portal_group *tpg,
@@ -567,30 +513,7 @@ int core_tpg_register(
 	struct se_portal_group *se_tpg,
 	int proto_id)
 {
-	struct se_lun *lun;
-	u32 i;
-
-	se_tpg->tpg_lun_list = array_zalloc(TRANSPORT_MAX_LUNS_PER_TPG,
-			sizeof(struct se_lun), GFP_KERNEL);
-	if (!se_tpg->tpg_lun_list) {
-		pr_err("Unable to allocate struct se_portal_group->"
-				"tpg_lun_list\n");
-		return -ENOMEM;
-	}
-
-	for (i = 0; i < TRANSPORT_MAX_LUNS_PER_TPG; i++) {
-		lun = se_tpg->tpg_lun_list[i];
-		lun->unpacked_lun = i;
-		lun->lun_link_magic = SE_LUN_LINK_MAGIC;
-		lun->lun_status = TRANSPORT_LUN_STATUS_FREE;
-		atomic_set(&lun->lun_acl_count, 0);
-		init_completion(&lun->lun_shutdown_comp);
-		INIT_LIST_HEAD(&lun->lun_acl_list);
-		spin_lock_init(&lun->lun_acl_lock);
-		spin_lock_init(&lun->lun_sep_lock);
-		init_completion(&lun->lun_ref_comp);
-	}
-
+	INIT_HLIST_HEAD(&se_tpg->tpg_lun_hlist);
 	se_tpg->proto_id = proto_id;
 	se_tpg->se_tpg_tfo = tfo;
 	se_tpg->se_tpg_wwn = se_wwn;
@@ -600,14 +523,11 @@ int core_tpg_register(
 	INIT_LIST_HEAD(&se_tpg->tpg_sess_list);
 	spin_lock_init(&se_tpg->acl_node_lock);
 	spin_lock_init(&se_tpg->session_lock);
-	spin_lock_init(&se_tpg->tpg_lun_lock);
+	mutex_init(&se_tpg->tpg_lun_mutex);
 
 	if (se_tpg->proto_id >= 0) {
-		if (core_tpg_setup_virtual_lun0(se_tpg) < 0) {
-			array_free(se_tpg->tpg_lun_list,
-				   TRANSPORT_MAX_LUNS_PER_TPG);
+		if (core_tpg_setup_virtual_lun0(se_tpg) < 0)
 			return -ENOMEM;
-		}
 	}
 
 	spin_lock_bh(&tpg_lock);
@@ -662,7 +582,6 @@ int core_tpg_deregister(struct se_portal_group *se_tpg)
 	if (se_tpg->proto_id >= 0)
 		core_tpg_remove_lun(se_tpg, &se_tpg->tpg_virt_lun0);
 
-	array_free(se_tpg->tpg_lun_list, TRANSPORT_MAX_LUNS_PER_TPG);
 	return 0;
 }
 EXPORT_SYMBOL(core_tpg_deregister);
@@ -682,17 +601,20 @@ struct se_lun *core_tpg_alloc_lun(
 		return ERR_PTR(-EOVERFLOW);
 	}
 
-	spin_lock(&tpg->tpg_lun_lock);
-	lun = tpg->tpg_lun_list[unpacked_lun];
-	if (lun->lun_status == TRANSPORT_LUN_STATUS_ACTIVE) {
-		pr_err("TPG Logical Unit Number: %u is already active"
-			" on %s Target Portal Group: %u, ignoring request.\n",
-			unpacked_lun, tpg->se_tpg_tfo->get_fabric_name(),
-			tpg->se_tpg_tfo->tpg_get_tag(tpg));
-		spin_unlock(&tpg->tpg_lun_lock);
-		return ERR_PTR(-EINVAL);
+	lun = kzalloc(sizeof(*lun), GFP_KERNEL);
+	if (!lun) {
+		pr_err("Unable to allocate se_lun memory\n");
+		return ERR_PTR(-ENOMEM);
 	}
-	spin_unlock(&tpg->tpg_lun_lock);
+	lun->unpacked_lun = unpacked_lun;
+	lun->lun_link_magic = SE_LUN_LINK_MAGIC;
+	lun->lun_status = TRANSPORT_LUN_STATUS_FREE;
+	atomic_set(&lun->lun_acl_count, 0);
+	init_completion(&lun->lun_shutdown_comp);
+	INIT_LIST_HEAD(&lun->lun_acl_list);
+	spin_lock_init(&lun->lun_acl_lock);
+	spin_lock_init(&lun->lun_sep_lock);
+	init_completion(&lun->lun_ref_comp);
 
 	return lun;
 }
@@ -716,10 +638,12 @@ int core_tpg_add_lun(
 		return ret;
 	}
 
-	spin_lock(&tpg->tpg_lun_lock);
+	mutex_lock(&tpg->tpg_lun_mutex);
 	lun->lun_access = lun_access;
 	lun->lun_status = TRANSPORT_LUN_STATUS_ACTIVE;
-	spin_unlock(&tpg->tpg_lun_lock);
+	if (!(dev->se_hba->hba_flags & HBA_FLAGS_INTERNAL_USE))
+		hlist_add_head_rcu(&lun->link, &tpg->tpg_lun_hlist);
+	mutex_unlock(&tpg->tpg_lun_mutex);
 
 	return 0;
 }
@@ -728,14 +652,18 @@ void core_tpg_remove_lun(
 	struct se_portal_group *tpg,
 	struct se_lun *lun)
 {
+	struct se_device *dev = lun->lun_se_dev;
+
 	core_clear_lun_from_tpg(lun, tpg);
 	transport_clear_lun_ref(lun);
 
 	core_dev_unexport(lun->lun_se_dev, tpg, lun);
 
-	spin_lock(&tpg->tpg_lun_lock);
+	mutex_lock(&tpg->tpg_lun_mutex);
 	lun->lun_status = TRANSPORT_LUN_STATUS_FREE;
-	spin_unlock(&tpg->tpg_lun_lock);
+	if (!(dev->se_hba->hba_flags & HBA_FLAGS_INTERNAL_USE))
+		hlist_del_rcu(&lun->link);
+	mutex_unlock(&tpg->tpg_lun_mutex);
 
 	percpu_ref_exit(&lun->lun_ref);
 }
