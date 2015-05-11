@@ -2544,7 +2544,7 @@ static void gfx_v7_0_ring_emit_ib(struct amdgpu_ring *ring,
 		ring->need_ctx_switch = false;
 	}
 
-	if (ib->is_const_ib)
+	if (ib->flags & AMDGPU_IB_FLAG_CE)
 		header = PACKET3(PACKET3_INDIRECT_BUFFER_CONST, 2);
 	else
 		header = PACKET3(PACKET3_INDIRECT_BUFFER, 2);

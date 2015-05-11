@@ -88,13 +88,13 @@ int amdgpu_ib_get(struct amdgpu_ring *ring, struct amdgpu_vm *vm,
 	ib->fence = NULL;
 	ib->user = NULL;
 	ib->vm = vm;
-	ib->is_const_ib = false;
 	ib->gds_base = 0;
 	ib->gds_size = 0;
 	ib->gws_base = 0;
 	ib->gws_size = 0;
 	ib->oa_base = 0;
 	ib->oa_size = 0;
+	ib->flags = 0;
 
 	return 0;
 }
@@ -179,7 +179,7 @@ int amdgpu_ib_schedule(struct amdgpu_device *adev, unsigned num_ibs,
 		amdgpu_vm_flush(ring, vm, ib->sync.last_vm_update);
 	}
 
-	if (ring->funcs->emit_gds_switch && ib->vm && ib->gds_needed)
+	if (ring->funcs->emit_gds_switch && ib->vm && (ib->flags & AMDGPU_IB_FLAG_GDS))
 		amdgpu_ring_emit_gds_switch(ring, ib->vm->ids[ring->idx].id,
 					    ib->gds_base, ib->gds_size,
 					    ib->gws_base, ib->gws_size,

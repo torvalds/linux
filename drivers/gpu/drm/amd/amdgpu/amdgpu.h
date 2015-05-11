@@ -892,13 +892,12 @@ struct amdgpu_ib {
 	struct amdgpu_fence		*fence;
 	struct amdgpu_user_fence        *user;
 	struct amdgpu_vm		*vm;
-	bool				is_const_ib;
 	bool				flush_hdp_writefifo;
 	struct amdgpu_sync		sync;
-	bool				gds_needed;
 	uint32_t			gds_base, gds_size;
 	uint32_t			gws_base, gws_size;
 	uint32_t			oa_base, oa_size;
+	uint32_t			flags;
 };
 
 enum amdgpu_ring_type {
