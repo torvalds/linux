@@ -1,4 +1,4 @@
-.PHONY: all all_32 all_64 check_build32 clean run_tests
+.PHONY: all all_32 all_64 check_build32 clean
 
 TARGETS_C_BOTHBITS := sigreturn single_step_syscall
 
@@ -15,7 +15,7 @@ ifeq ($(CROSS_COMPILE),)
 # Always build 32-bit tests
 all: all_32
 # Install 32-bit tests
-TEST_PROGS += $(BINARIES_32) run_x86_tests.sh
+TEST_PROGS += $(BINARIES_32)
 # If we're on a 64-bit host, build 64-bit tests as well
 ifeq ($(UNAME_M),x86_64)
 all: all_64
@@ -32,9 +32,6 @@ include ../lib.mk
 
 clean:
 	$(RM) $(BINARIES_32) $(BINARIES_64)
-
-run_tests:
-	./run_x86_tests.sh
 
 $(TARGETS_C_BOTHBITS:%=%_32): %_32: %.c
 	$(CC) -m32 -o $@ $(CFLAGS) $(EXTRA_CFLAGS) $^ -lrt -ldl
