@@ -204,7 +204,7 @@ int msm_atomic_commit(struct drm_device *dev,
 {
 	int nplanes = dev->mode_config.num_total_plane;
 	int ncrtcs = dev->mode_config.num_crtc;
-	struct timespec timeout;
+	ktime_t timeout;
 	struct msm_commit *c;
 	int i, ret;
 
@@ -281,7 +281,7 @@ int msm_atomic_commit(struct drm_device *dev,
 		return 0;
 	}
 
-	jiffies_to_timespec(jiffies + msecs_to_jiffies(1000), &timeout);
+	timeout = ktime_add_ms(ktime_get(), 1000);
 
 	ret = msm_wait_fence_interruptable(dev, c->fence, &timeout);
 	if (ret) {

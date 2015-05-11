@@ -165,7 +165,7 @@ int msm_atomic_commit(struct drm_device *dev,
 int msm_register_mmu(struct drm_device *dev, struct msm_mmu *mmu);
 
 int msm_wait_fence_interruptable(struct drm_device *dev, uint32_t fence,
-		struct timespec *timeout);
+		ktime_t *timeout);
 int msm_queue_fence_cb(struct drm_device *dev,
 		struct msm_fence_cb *cb, uint32_t fence);
 void msm_update_fence(struct drm_device *dev, uint32_t fence);
@@ -205,7 +205,7 @@ void msm_gem_move_to_active(struct drm_gem_object *obj,
 		struct msm_gpu *gpu, bool write, uint32_t fence);
 void msm_gem_move_to_inactive(struct drm_gem_object *obj);
 int msm_gem_cpu_prep(struct drm_gem_object *obj, uint32_t op,
-		struct timespec *timeout);
+		ktime_t *timeout);
 int msm_gem_cpu_fini(struct drm_gem_object *obj);
 void msm_gem_free_object(struct drm_gem_object *obj);
 int msm_gem_new_handle(struct drm_device *dev, struct drm_file *file,
