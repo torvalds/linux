@@ -10,7 +10,7 @@
 
 #include <asm/types.h>
 #include <asm/page.h>
-#include <asm/uaccess.h>
+#include <asm/segment.h>
 
 struct thread_info {
 	struct task_struct	*task;		/* main task structure */
