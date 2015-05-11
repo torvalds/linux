@@ -179,7 +179,7 @@ int amdgpu_ib_schedule(struct amdgpu_device *adev, unsigned num_ibs,
 		amdgpu_vm_flush(ring, vm, ib->sync.last_vm_update);
 	}
 
-	if (ring->funcs->emit_gds_switch && ib->vm && (ib->flags & AMDGPU_IB_FLAG_GDS))
+	if (vm && ring->funcs->emit_gds_switch)
 		amdgpu_ring_emit_gds_switch(ring, ib->vm->ids[ring->idx].id,
 					    ib->gds_base, ib->gds_size,
 					    ib->gws_base, ib->gws_size,
