@@ -59,7 +59,7 @@ static const struct snd_soc_dai_ops gb_dai_ops = {
 	.set_fmt	= gb_dai_set_fmt,
 };
 
-struct snd_soc_dai_driver gb_cpu_dai = {
+static struct snd_soc_dai_driver gb_cpu_dai = {
 	.name			= "gb-cpu-dai",
 	.playback = {
 		.rates		= GB_RATES,

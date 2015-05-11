@@ -93,7 +93,7 @@ struct gb_card_info_object {
 };
 
 
-struct asoc_simple_card_info *setup_card_info(int device_count)
+static struct asoc_simple_card_info *setup_card_info(int device_count)
 {
 	struct gb_card_info_object *obj;
 
@@ -125,7 +125,7 @@ struct asoc_simple_card_info *setup_card_info(int device_count)
 	return &obj->card_info;
 }
 
-void free_card_info(struct asoc_simple_card_info *ci)
+static void free_card_info(struct asoc_simple_card_info *ci)
 {
 	struct gb_card_info_object *obj;
 

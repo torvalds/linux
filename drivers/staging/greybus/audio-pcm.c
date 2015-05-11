@@ -235,7 +235,7 @@ static int gb_pcm_new(struct snd_soc_pcm_runtime *rtd)
 			PREALLOC_BUFFER, PREALLOC_BUFFER_MAX);
 }
 
-struct snd_soc_platform_driver gb_soc_platform = {
+static struct snd_soc_platform_driver gb_soc_platform = {
 	.ops		= &gb_pcm_ops,
 	.pcm_new	= gb_pcm_new,
 	.pcm_free	= gb_pcm_free,
