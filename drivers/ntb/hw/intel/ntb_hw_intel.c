@@ -72,6 +72,25 @@ MODULE_AUTHOR("Intel Corporation");
 #define bar0_off(base, bar) ((base) + ((bar) << 2))
 #define bar2_off(base, bar) bar0_off(base, (bar) - 2)
 
+static const struct intel_ntb_reg bwd_reg;
+static const struct intel_ntb_alt_reg bwd_pri_reg;
+static const struct intel_ntb_alt_reg bwd_sec_reg;
+static const struct intel_ntb_alt_reg bwd_b2b_reg;
+static const struct intel_ntb_xlat_reg bwd_pri_xlat;
+static const struct intel_ntb_xlat_reg bwd_sec_xlat;
+static const struct intel_ntb_reg snb_reg;
+static const struct intel_ntb_alt_reg snb_pri_reg;
+static const struct intel_ntb_alt_reg snb_sec_reg;
+static const struct intel_ntb_alt_reg snb_b2b_reg;
+static const struct intel_ntb_xlat_reg snb_pri_xlat;
+static const struct intel_ntb_xlat_reg snb_sec_xlat;
+static struct intel_b2b_addr snb_b2b_usd_addr;
+static struct intel_b2b_addr snb_b2b_dsd_addr;
+static const struct ntb_dev_ops intel_ntb_ops;
+
+static const struct file_operations intel_ntb_debugfs_info;
+static struct dentry *debugfs_dir;
+
 static int b2b_mw_idx = -1;
 module_param(b2b_mw_idx, int, 0644);
 MODULE_PARM_DESC(b2b_mw_idx, "Use this mw idx to access the peer ntb.  A "
@@ -86,25 +105,45 @@ MODULE_PARM_DESC(b2b_mw_share, "If the b2b mw is large enough, configure the "
 		 "the mw, so the second half can still be used as a mw.  Both "
 		 "sides MUST set the same value here!");
 
-static const struct intel_ntb_reg bwd_reg;
-static const struct intel_ntb_alt_reg bwd_pri_reg;
-static const struct intel_ntb_alt_reg bwd_sec_reg;
-static const struct intel_ntb_alt_reg bwd_b2b_reg;
-static const struct intel_ntb_xlat_reg bwd_pri_xlat;
-static const struct intel_ntb_xlat_reg bwd_sec_xlat;
-static const struct intel_ntb_reg snb_reg;
-static const struct intel_ntb_alt_reg snb_pri_reg;
-static const struct intel_ntb_alt_reg snb_sec_reg;
-static const struct intel_ntb_alt_reg snb_b2b_reg;
-static const struct intel_ntb_xlat_reg snb_pri_xlat;
-static const struct intel_ntb_xlat_reg snb_sec_xlat;
-static const struct intel_b2b_addr snb_b2b_usd_addr;
-static const struct intel_b2b_addr snb_b2b_dsd_addr;
+module_param_named(snb_b2b_usd_bar2_addr64,
+		   snb_b2b_usd_addr.bar2_addr64, ullong, 0644);
+MODULE_PARM_DESC(snb_b2b_usd_bar2_addr64,
+		 "SNB B2B USD BAR 2 64-bit address");
 
-static const struct ntb_dev_ops intel_ntb_ops;
+module_param_named(snb_b2b_usd_bar4_addr64,
+		   snb_b2b_usd_addr.bar4_addr64, ullong, 0644);
+MODULE_PARM_DESC(snb_b2b_usd_bar2_addr64,
+		 "SNB B2B USD BAR 4 64-bit address");
 
-static const struct file_operations intel_ntb_debugfs_info;
-static struct dentry *debugfs_dir;
+module_param_named(snb_b2b_usd_bar4_addr32,
+		   snb_b2b_usd_addr.bar4_addr32, ullong, 0644);
+MODULE_PARM_DESC(snb_b2b_usd_bar2_addr64,
+		 "SNB B2B USD split-BAR 4 32-bit address");
+
+module_param_named(snb_b2b_usd_bar5_addr32,
+		   snb_b2b_usd_addr.bar5_addr32, ullong, 0644);
+MODULE_PARM_DESC(snb_b2b_usd_bar2_addr64,
+		 "SNB B2B USD split-BAR 5 32-bit address");
+
+module_param_named(snb_b2b_dsd_bar2_addr64,
+		   snb_b2b_dsd_addr.bar2_addr64, ullong, 0644);
+MODULE_PARM_DESC(snb_b2b_dsd_bar2_addr64,
+		 "SNB B2B DSD BAR 2 64-bit address");
+
+module_param_named(snb_b2b_dsd_bar4_addr64,
+		   snb_b2b_dsd_addr.bar4_addr64, ullong, 0644);
+MODULE_PARM_DESC(snb_b2b_dsd_bar2_addr64,
+		 "SNB B2B DSD BAR 4 64-bit address");
+
+module_param_named(snb_b2b_dsd_bar4_addr32,
+		   snb_b2b_dsd_addr.bar4_addr32, ullong, 0644);
+MODULE_PARM_DESC(snb_b2b_dsd_bar2_addr64,
+		 "SNB B2B DSD split-BAR 4 32-bit address");
+
+module_param_named(snb_b2b_dsd_bar5_addr32,
+		   snb_b2b_dsd_addr.bar5_addr32, ullong, 0644);
+MODULE_PARM_DESC(snb_b2b_dsd_bar2_addr64,
+		 "SNB B2B DSD split-BAR 5 32-bit address");
 
 #ifndef ioread64
 #ifdef readq
@@ -2073,14 +2112,14 @@ static const struct intel_ntb_xlat_reg snb_sec_xlat = {
 	.bar2_xlat		= SNB_SBAR23XLAT_OFFSET,
 };
 
-static const struct intel_b2b_addr snb_b2b_usd_addr = {
+static struct intel_b2b_addr snb_b2b_usd_addr = {
 	.bar2_addr64		= SNB_B2B_BAR2_USD_ADDR64,
 	.bar4_addr64		= SNB_B2B_BAR4_USD_ADDR64,
 	.bar4_addr32		= SNB_B2B_BAR4_USD_ADDR32,
 	.bar5_addr32		= SNB_B2B_BAR5_USD_ADDR32,
 };
 
-static const struct intel_b2b_addr snb_b2b_dsd_addr = {
+static struct intel_b2b_addr snb_b2b_dsd_addr = {
 	.bar2_addr64		= SNB_B2B_BAR2_DSD_ADDR64,
 	.bar4_addr64		= SNB_B2B_BAR4_DSD_ADDR64,
 	.bar4_addr32		= SNB_B2B_BAR4_DSD_ADDR32,
