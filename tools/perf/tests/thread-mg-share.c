@@ -43,7 +43,7 @@ int test__thread_mg_share(void)
 			leader && t1 && t2 && t3 && other);
 
 	mg = leader->mg;
-	TEST_ASSERT_VAL("wrong refcnt", mg->refcnt == 4);
+	TEST_ASSERT_EQUAL("wrong refcnt", mg->refcnt, 4);
 
 	/* test the map groups pointer is shared */
 	TEST_ASSERT_VAL("map groups don't match", mg == t1->mg);
@@ -59,25 +59,25 @@ int test__thread_mg_share(void)
 	TEST_ASSERT_VAL("failed to find other leader", other_leader);
 
 	other_mg = other->mg;
-	TEST_ASSERT_VAL("wrong refcnt", other_mg->refcnt == 2);
+	TEST_ASSERT_EQUAL("wrong refcnt", other_mg->refcnt, 2);
 
 	TEST_ASSERT_VAL("map groups don't match", other_mg == other_leader->mg);
 
 	/* release thread group */
 	thread__put(leader);
-	TEST_ASSERT_VAL("wrong refcnt", mg->refcnt == 3);
+	TEST_ASSERT_EQUAL("wrong refcnt", mg->refcnt, 3);
 
 	thread__put(t1);
-	TEST_ASSERT_VAL("wrong refcnt", mg->refcnt == 2);
+	TEST_ASSERT_EQUAL("wrong refcnt", mg->refcnt, 2);
 
 	thread__put(t2);
-	TEST_ASSERT_VAL("wrong refcnt", mg->refcnt == 1);
+	TEST_ASSERT_EQUAL("wrong refcnt", mg->refcnt, 1);
 
 	thread__put(t3);
 
 	/* release other group  */
 	thread__put(other_leader);
-	TEST_ASSERT_VAL("wrong refcnt", other_mg->refcnt == 1);
+	TEST_ASSERT_EQUAL("wrong refcnt", other_mg->refcnt, 1);
 
 	thread__put(other);
 

@@ -9,6 +9,15 @@ do {									 \
 	}								 \
 } while (0)
 
+#define TEST_ASSERT_EQUAL(text, val, expected)				 \
+do {									 \
+	if (val != expected) {						 \
+		pr_debug("FAILED %s:%d %s (%d != %d)\n",		 \
+			 __FILE__, __LINE__, text, val, expected);	 \
+		return -1;						 \
+	}								 \
+} while (0)
+
 enum {
 	TEST_OK   =  0,
 	TEST_FAIL = -1,
