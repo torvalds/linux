@@ -3428,7 +3428,7 @@ static struct pool_workqueue *alloc_unbound_pwq(struct workqueue_struct *wq,
 }
 
 /**
- * wq_calc_node_mask - calculate a wq_attrs' cpumask for the specified node
+ * wq_calc_node_cpumask - calculate a wq_attrs' cpumask for the specified node
  * @attrs: the wq_attrs of the default pwq of the target workqueue
  * @node: the target NUMA node
  * @cpu_going_down: if >= 0, the CPU to consider as offline
