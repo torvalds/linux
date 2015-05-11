@@ -269,8 +269,11 @@ static int mtip_hba_reset(struct driver_data *dd)
 	/* Flush */
 	readl(dd->mmio + HOST_CTL);
 
-	/* Spin for up to 2 seconds, waiting for reset acknowledgement */
-	timeout = jiffies + msecs_to_jiffies(2000);
+	/*
+	 * Spin for up to 10 seconds waiting for reset acknowledgement. Spec
+	 * is 1 sec but in LUN failure conditions, up to 10 secs are required
+	 */
+	timeout = jiffies + msecs_to_jiffies(10000);
 	do {
 		mdelay(10);
 		if (test_bit(MTIP_DDF_REMOVE_PENDING_BIT, &dd->dd_flag))
