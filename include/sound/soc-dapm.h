@@ -593,6 +593,10 @@ struct snd_soc_dapm_update {
 	int val;
 };
 
+struct snd_soc_dapm_wcache {
+	struct snd_soc_dapm_widget *widget;
+};
+
 /* DAPM context */
 struct snd_soc_dapm_context {
 	enum snd_soc_bias_level bias_level;
@@ -613,6 +617,9 @@ struct snd_soc_dapm_context {
 	int (*stream_event)(struct snd_soc_dapm_context *dapm, int event);
 	int (*set_bias_level)(struct snd_soc_dapm_context *dapm,
 			      enum snd_soc_bias_level level);
+
+	struct snd_soc_dapm_wcache path_sink_cache;
+	struct snd_soc_dapm_wcache path_source_cache;
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_dapm;
