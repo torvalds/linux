@@ -274,7 +274,10 @@ static void lynxfb_ops_imageblit(struct fb_info *info,
 		}
 		goto _do_work;
 	}
+	/* TODO: Implement hardware acceleration for image->depth > 1 */
+	cfb_imageblit(info, image);
 	return;
+
 _do_work:
 	/*
 	 * If not use spin_lock, system will die if user load driver
