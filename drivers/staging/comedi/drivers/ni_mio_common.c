@@ -2268,8 +2268,7 @@ static int ni_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	case TRIG_INT:
 	case TRIG_NOW:
 		ai_trig |= NISTC_AI_TRIG_START1_EDGE |
-			   NISTC_AI_TRIG_START1_SEL(0),
-			   NISTC_AI_TRIG_SEL_REG;
+			   NISTC_AI_TRIG_START1_SEL(0);
 		break;
 	case TRIG_EXT:
 		ai_trig |= NISTC_AI_TRIG_START1_SEL(CR_CHAN(cmd->start_arg) +
