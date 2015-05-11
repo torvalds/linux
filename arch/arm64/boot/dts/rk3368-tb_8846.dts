@@ -7,6 +7,7 @@
 //#include "../../../arm/boot/dts/lcd-b101ew05.dtsi"
 #include "../../../arm/boot/dts/lcd-F402.dtsi"
 #include "rk3368-cif-sensor.dtsi"
+#include <dt-bindings/suspend/rockchip-rk3368.h>
 
 / {
 	chosen {
@@ -1058,6 +1059,19 @@ rk818,support_dc_chg = <1>;/*1:dc chg; 0:usb chg*/
 &rk3368_cif_sensor{
 	status = "okay";
 };
+
+&rockchip_suspend {
+		rockchip,ctrbits = <
+			(0
+			| RKPM_SLP_ARMOFF
+			| RKPM_SLP_PMU_PLLS_PWRDN
+			| RKPM_SLP_PMU_PMUALIVE_32K
+			| RKPM_SLP_SFT_PLLS_DEEP
+			| RKPM_SLP_PMU_DIS_OSC
+			| RKPM_SLP_SFT_PD_NBSCUS
+			)
+			>;
+	};
 
 /*
 &dwc_control_usb {

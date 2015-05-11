@@ -1245,7 +1245,7 @@
 		interrupt-names = "vepu_mmu", "vdpu_mmu";
 	};
 
-	rockchip_suspend {
+	rockchip_suspend: rockchip_suspend {
 		rockchip,ctrbits = <
 			(0
 			| RKPM_SLP_ARMOFF
