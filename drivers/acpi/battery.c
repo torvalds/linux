@@ -1292,20 +1292,20 @@ static struct acpi_driver acpi_battery_driver = {
 
 static void __init acpi_battery_init_async(void *unused, async_cookie_t cookie)
 {
+	int result;
+
 	dmi_check_system(bat_dmi_table);
-	
+
 #ifdef CONFIG_ACPI_PROCFS_POWER
 	acpi_battery_dir = acpi_lock_battery_dir();
 	if (!acpi_battery_dir)
 		return;
 #endif
-	if (acpi_bus_register_driver(&acpi_battery_driver) < 0) {
+	result = acpi_bus_register_driver(&acpi_battery_driver);
 #ifdef CONFIG_ACPI_PROCFS_POWER
+	if (result < 0)
 		acpi_unlock_battery_dir(acpi_battery_dir);
 #endif
-		return;
-	}
-	return;
 }
 
 static int __init acpi_battery_init(void)
