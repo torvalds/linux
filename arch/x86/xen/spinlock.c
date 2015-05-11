@@ -21,7 +21,7 @@ static DEFINE_PER_CPU(int, lock_kicker_irq) = -1;
 static DEFINE_PER_CPU(char *, irq_name);
 static bool xen_pvspin = true;
 
-#ifdef CONFIG_QUEUED_SPINLOCK
+#ifdef CONFIG_QUEUED_SPINLOCKS
 
 #include <asm/qspinlock.h>
 
@@ -65,7 +65,7 @@ static void xen_qlock_wait(u8 *byte, u8 val)
 	xen_poll_irq(irq);
 }
 
-#else /* CONFIG_QUEUED_SPINLOCK */
+#else /* CONFIG_QUEUED_SPINLOCKS */
 
 enum xen_contention_stat {
 	TAKEN_SLOW,
@@ -264,7 +264,7 @@ static void xen_unlock_kick(struct arch_spinlock *lock, __ticket_t next)
 		}
 	}
 }
-#endif /* CONFIG_QUEUED_SPINLOCK */
+#endif /* CONFIG_QUEUED_SPINLOCKS */
 
 static irqreturn_t dummy_handler(int irq, void *dev_id)
 {
@@ -328,7 +328,7 @@ void __init xen_init_spinlocks(void)
 		return;
 	}
 	printk(KERN_DEBUG "xen: PV spinlocks enabled\n");
-#ifdef CONFIG_QUEUED_SPINLOCK
+#ifdef CONFIG_QUEUED_SPINLOCKS
 	__pv_init_lock_hash();
 	pv_lock_ops.queued_spin_lock_slowpath = __pv_queued_spin_lock_slowpath;
 	pv_lock_ops.queued_spin_unlock = PV_CALLEE_SAVE(__pv_queued_spin_unlock);
@@ -366,7 +366,7 @@ static __init int xen_parse_nopvspin(char *arg)
 }
 early_param("xen_nopvspin", xen_parse_nopvspin);
 
-#if defined(CONFIG_XEN_DEBUG_FS) && !defined(CONFIG_QUEUED_SPINLOCK)
+#if defined(CONFIG_XEN_DEBUG_FS) && !defined(CONFIG_QUEUED_SPINLOCKS)
 
 static struct dentry *d_spin_debug;
 

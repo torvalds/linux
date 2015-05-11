@@ -8,7 +8,7 @@
 
 #include <asm/paravirt.h>
 
-#ifdef CONFIG_QUEUED_SPINLOCK
+#ifdef CONFIG_QUEUED_SPINLOCKS
 __visible void __native_queued_spin_unlock(struct qspinlock *lock)
 {
 	native_queued_spin_unlock(lock);
@@ -25,15 +25,15 @@ bool pv_is_native_spin_unlock(void)
 
 struct pv_lock_ops pv_lock_ops = {
 #ifdef CONFIG_SMP
-#ifdef CONFIG_QUEUED_SPINLOCK
+#ifdef CONFIG_QUEUED_SPINLOCKS
 	.queued_spin_lock_slowpath = native_queued_spin_lock_slowpath,
 	.queued_spin_unlock = PV_CALLEE_SAVE(__native_queued_spin_unlock),
 	.wait = paravirt_nop,
 	.kick = paravirt_nop,
-#else /* !CONFIG_QUEUED_SPINLOCK */
+#else /* !CONFIG_QUEUED_SPINLOCKS */
 	.lock_spinning = __PV_IS_CALLEE_SAVE(paravirt_nop),
 	.unlock_kick = paravirt_nop,
-#endif /* !CONFIG_QUEUED_SPINLOCK */
+#endif /* !CONFIG_QUEUED_SPINLOCKS */
 #endif /* SMP */
 };
 EXPORT_SYMBOL(pv_lock_ops);

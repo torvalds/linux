@@ -585,7 +585,7 @@ static void kvm_kick_cpu(int cpu)
 }
 
 
-#ifdef CONFIG_QUEUED_SPINLOCK
+#ifdef CONFIG_QUEUED_SPINLOCKS
 
 #include <asm/qspinlock.h>
 
@@ -615,7 +615,7 @@ out:
 	local_irq_restore(flags);
 }
 
-#else /* !CONFIG_QUEUED_SPINLOCK */
+#else /* !CONFIG_QUEUED_SPINLOCKS */
 
 enum kvm_contention_stat {
 	TAKEN_SLOW,
@@ -850,7 +850,7 @@ static void kvm_unlock_kick(struct arch_spinlock *lock, __ticket_t ticket)
 	}
 }
 
-#endif /* !CONFIG_QUEUED_SPINLOCK */
+#endif /* !CONFIG_QUEUED_SPINLOCKS */
 
 /*
  * Setup pv_lock_ops to exploit KVM_FEATURE_PV_UNHALT if present.
@@ -863,13 +863,13 @@ void __init kvm_spinlock_init(void)
 	if (!kvm_para_has_feature(KVM_FEATURE_PV_UNHALT))
 		return;
 
-#ifdef CONFIG_QUEUED_SPINLOCK
+#ifdef CONFIG_QUEUED_SPINLOCKS
 	__pv_init_lock_hash();
 	pv_lock_ops.queued_spin_lock_slowpath = __pv_queued_spin_lock_slowpath;
 	pv_lock_ops.queued_spin_unlock = PV_CALLEE_SAVE(__pv_queued_spin_unlock);
 	pv_lock_ops.wait = kvm_wait;
 	pv_lock_ops.kick = kvm_kick_cpu;
-#else /* !CONFIG_QUEUED_SPINLOCK */
+#else /* !CONFIG_QUEUED_SPINLOCKS */
 	pv_lock_ops.lock_spinning = PV_CALLEE_SAVE(kvm_lock_spinning);
 	pv_lock_ops.unlock_kick = kvm_unlock_kick;
 #endif

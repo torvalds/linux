@@ -42,7 +42,7 @@
 extern struct static_key paravirt_ticketlocks_enabled;
 static __always_inline bool static_key_false(struct static_key *key);
 
-#ifdef CONFIG_QUEUED_SPINLOCK
+#ifdef CONFIG_QUEUED_SPINLOCKS
 #include <asm/qspinlock.h>
 #else
 
@@ -200,7 +200,7 @@ static inline void arch_spin_unlock_wait(arch_spinlock_t *lock)
 		cpu_relax();
 	}
 }
-#endif /* CONFIG_QUEUED_SPINLOCK */
+#endif /* CONFIG_QUEUED_SPINLOCKS */
 
 /*
  * Read-write spinlocks, allowing multiple readers
