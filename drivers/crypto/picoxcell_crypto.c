@@ -790,7 +790,8 @@ static int spacc_aead_cra_init(struct crypto_tfm *tfm)
 
 	get_random_bytes(ctx->salt, sizeof(ctx->salt));
 
-	tfm->crt_aead.reqsize = sizeof(struct spacc_req);
+	crypto_aead_set_reqsize(__crypto_aead_cast(tfm),
+				sizeof(struct spacc_req));
 
 	return 0;
 }
