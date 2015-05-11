@@ -23,9 +23,12 @@ static gpa_t kvm_trap_emul_gva_to_gpa_cb(gva_t gva)
 {
 	gpa_t gpa;
 	gva_t kseg = KSEGX(gva);
+	gva_t gkseg = KVM_GUEST_KSEGX(gva);
 
 	if ((kseg == CKSEG0) || (kseg == CKSEG1))
 		gpa = CPHYSADDR(gva);
+	else if (gkseg == KVM_GUEST_KSEG0)
+		gpa = KVM_GUEST_CPHYSADDR(gva);
 	else {
 		kvm_err("%s: cannot find GPA for GVA: %#lx\n", __func__, gva);
 		kvm_mips_dump_host_tlbs();
@@ -240,11 +243,8 @@ static int kvm_trap_emul_handle_tlb_miss(struct kvm_vcpu *vcpu, bool store)
 		 * All KSEG0 faults are handled by KVM, as the guest kernel does
 		 * not expect to ever get them
 		 */
-		if (kvm_mips_handle_kseg0_tlb_fault
-		    (vcpu->arch.host_cp0_badvaddr, vcpu, store) < 0) {
-			run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
-			ret = RESUME_HOST;
-		}
+		if (kvm_mips_handle_kseg0_tlb_fault(badvaddr, vcpu, store) < 0)
+			ret = kvm_mips_bad_access(cause, opc, run, vcpu, store);
 	} else if (KVM_GUEST_KERNEL_MODE(vcpu)
 		   && (KSEGX(badvaddr) == CKSEG0 || KSEGX(badvaddr) == CKSEG1)) {
 		/*
