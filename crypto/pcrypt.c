@@ -292,9 +292,10 @@ static int pcrypt_aead_init_tfm(struct crypto_tfm *tfm)
 		return PTR_ERR(cipher);
 
 	ctx->child = cipher;
-	tfm->crt_aead.reqsize = sizeof(struct pcrypt_request)
-		+ sizeof(struct aead_givcrypt_request)
-		+ crypto_aead_reqsize(cipher);
+	crypto_aead_set_reqsize(__crypto_aead_cast(tfm),
+		sizeof(struct pcrypt_request) +
+		sizeof(struct aead_givcrypt_request) +
+		crypto_aead_reqsize(cipher));
 
 	return 0;
 }
