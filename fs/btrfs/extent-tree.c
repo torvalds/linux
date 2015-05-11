@@ -3693,7 +3693,8 @@ static int update_space_info(struct btrfs_fs_info *info, u64 flags,
 		found->disk_total += total_bytes * factor;
 		found->bytes_used += bytes_used;
 		found->disk_used += bytes_used * factor;
-		found->full = 0;
+		if (total_bytes > 0)
+			found->full = 0;
 		spin_unlock(&found->lock);
 		*space_info = found;
 		return 0;
@@ -3721,7 +3722,10 @@ static int update_space_info(struct btrfs_fs_info *info, u64 flags,
 	found->bytes_reserved = 0;
 	found->bytes_readonly = 0;
 	found->bytes_may_use = 0;
-	found->full = 0;
+	if (total_bytes > 0)
+		found->full = 0;
+	else
+		found->full = 1;
 	found->force_alloc = CHUNK_ALLOC_NO_FORCE;
 	found->chunk_alloc = 0;
 	found->flush = 0;
@@ -9562,6 +9566,19 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 
 	free_excluded_extents(root, cache);
 
+	/*
+	 * Call to ensure the corresponding space_info object is created and
+	 * assigned to our block group, but don't update its counters just yet.
+	 * We want our bg to be added to the rbtree with its ->space_info set.
+	 */
+	ret = update_space_info(root->fs_info, cache->flags, 0, 0,
+				&cache->space_info);
+	if (ret) {
+		btrfs_remove_free_space_cache(cache);
+		btrfs_put_block_group(cache);
+		return ret;
+	}
+
 	ret = btrfs_add_block_group_cache(root->fs_info, cache);
 	if (ret) {
 		btrfs_remove_free_space_cache(cache);
@@ -9569,6 +9586,10 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 		return ret;
 	}
 
+	/*
+	 * Now that our block group has its ->space_info set and is inserted in
+	 * the rbtree, update the space info's counters.
+	 */
 	ret = update_space_info(root->fs_info, cache->flags, size, bytes_used,
 				&cache->space_info);
 	if (ret) {
