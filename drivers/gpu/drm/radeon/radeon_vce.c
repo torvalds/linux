@@ -118,7 +118,9 @@ int radeon_vce_init(struct radeon_device *rdev)
 	rdev->vce.fw_version = (start << 24) | (mid << 16) | (end << 8);
 
 	/* we can only work with this fw version for now */
-	if (rdev->vce.fw_version != ((40 << 24) | (2 << 16) | (2 << 8)))
+	if ((rdev->vce.fw_version != ((40 << 24) | (2 << 16) | (2 << 8))) &&
+	    (rdev->vce.fw_version != ((50 << 24) | (0 << 16) | (1 << 8))) &&
+	    (rdev->vce.fw_version != ((50 << 24) | (1 << 16) | (2 << 8))))
 		return -EINVAL;
 
 	/* allocate firmware, stack and heap BO */
