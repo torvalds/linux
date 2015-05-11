@@ -113,7 +113,7 @@ netcp: netcp@24000000 {
 	#size-cells = <1>;
 
 	/* NetCP address range */
-	ranges = <0 0x24000000 0xffffff>;
+	ranges = <0 0x24000000 0x1000000>;
 
 	clocks = <&papllclk>, <&clkcpgmac>, <&chipclk12>;
 	dma-coherent;
@@ -130,7 +130,7 @@ netcp: netcp@24000000 {
 		gbe@200000 { /* ETHSS */
 			label = "netcp-gbe";
 			compatible = "ti,netcp-gbe-9";
-			reg = <0x200000 0x900>, <0x220000 0x1ffff>;
+			reg = <0x200000 0x900>, <0x220000 0x20000>;
 			/* enable-ale; */
 			tx-queue = <896>;
 			tx-channel = "nettx";
