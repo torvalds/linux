@@ -1255,14 +1255,11 @@ int debuginfo__find_trace_events(struct debuginfo *dbg,
 	return (ret < 0) ? ret : tf.ntevs;
 }
 
-#define MAX_VAR_LEN 64
-
 /* Collect available variables in this scope */
 static int collect_variables_cb(Dwarf_Die *die_mem, void *data)
 {
 	struct available_var_finder *af = data;
 	struct variable_list *vl;
-	char buf[MAX_VAR_LEN];
 	int tag, ret;
 
 	vl = &af->vls[af->nvls - 1];
@@ -1274,10 +1271,16 @@ static int collect_variables_cb(Dwarf_Die *die_mem, void *data)
 						af->pf.fb_ops, &af->pf.sp_die,
 						NULL);
 		if (ret == 0) {
-			ret = die_get_varname(die_mem, buf, MAX_VAR_LEN);
-			pr_debug2("Add new var: %s\n", buf);
-			if (ret > 0)
-				strlist__add(vl->vars, buf);
+			struct strbuf buf;
+
+			strbuf_init(&buf, 64);
+			ret = die_get_varname(die_mem, &buf);
+			pr_debug2("Add new var: %s\n", buf.buf);
+			if (ret == 0) {
+				strlist__add(vl->vars,
+					strbuf_detach(&buf, NULL));
+			}
+			strbuf_release(&buf);
 		}
 	}
 

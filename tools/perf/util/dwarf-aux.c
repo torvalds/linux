@@ -848,19 +848,17 @@ Dwarf_Die *die_find_member(Dwarf_Die *st_die, const char *name,
 /**
  * die_get_typename - Get the name of given variable DIE
  * @vr_die: a variable DIE
- * @buf: a buffer for result type name
- * @len: a max-length of @buf
+ * @buf: a strbuf for result type name
  *
- * Get the name of @vr_die and stores it to @buf. Return the actual length
- * of type name if succeeded. Return -E2BIG if @len is not enough long, and
- * Return -ENOENT if failed to find type name.
+ * Get the name of @vr_die and stores it to @buf. Return 0 if succeeded.
+ * and Return -ENOENT if failed to find type name.
  * Note that the result will stores typedef name if possible, and stores
  * "*(function_type)" if the type is a function pointer.
  */
-int die_get_typename(Dwarf_Die *vr_die, char *buf, int len)
+int die_get_typename(Dwarf_Die *vr_die, struct strbuf *buf)
 {
 	Dwarf_Die type;
-	int tag, ret, ret2;
+	int tag, ret;
 	const char *tmp = "";
 
 	if (__die_get_real_type(vr_die, &type) == NULL)
@@ -871,8 +869,8 @@ int die_get_typename(Dwarf_Die *vr_die, char *buf, int len)
 		tmp = "*";
 	else if (tag == DW_TAG_subroutine_type) {
 		/* Function pointer */
-		ret = snprintf(buf, len, "(function_type)");
-		return (ret >= len) ? -E2BIG : ret;
+		strbuf_addf(buf, "(function_type)");
+		return 0;
 	} else {
 		if (!dwarf_diename(&type))
 			return -ENOENT;
@@ -883,39 +881,35 @@ int die_get_typename(Dwarf_Die *vr_die, char *buf, int len)
 		else if (tag == DW_TAG_enumeration_type)
 			tmp = "enum ";
 		/* Write a base name */
-		ret = snprintf(buf, len, "%s%s", tmp, dwarf_diename(&type));
-		return (ret >= len) ? -E2BIG : ret;
+		strbuf_addf(buf, "%s%s", tmp, dwarf_diename(&type));
+		return 0;
 	}
-	ret = die_get_typename(&type, buf, len);
-	if (ret > 0) {
-		ret2 = snprintf(buf + ret, len - ret, "%s", tmp);
-		ret = (ret2 >= len - ret) ? -E2BIG : ret2 + ret;
-	}
+	ret = die_get_typename(&type, buf);
+	if (ret == 0)
+		strbuf_addf(buf, "%s", tmp);
+
 	return ret;
 }
 
 /**
  * die_get_varname - Get the name and type of given variable DIE
  * @vr_die: a variable DIE
- * @buf: a buffer for type and variable name
- * @len: the max-length of @buf
+ * @buf: a strbuf for type and variable name
  *
  * Get the name and type of @vr_die and stores it in @buf as "type\tname".
  */
-int die_get_varname(Dwarf_Die *vr_die, char *buf, int len)
+int die_get_varname(Dwarf_Die *vr_die, struct strbuf *buf)
 {
-	int ret, ret2;
+	int ret;
 
-	ret = die_get_typename(vr_die, buf, len);
+	ret = die_get_typename(vr_die, buf);
 	if (ret < 0) {
 		pr_debug("Failed to get type, make it unknown.\n");
-		ret = snprintf(buf, len, "(unknown_type)");
+		strbuf_addf(buf, "(unknown_type)");
 	}
-	if (ret > 0) {
-		ret2 = snprintf(buf + ret, len - ret, "\t%s",
-				dwarf_diename(vr_die));
-		ret = (ret2 >= len - ret) ? -E2BIG : ret2 + ret;
-	}
-	return ret;
+
+	strbuf_addf(buf, "\t%s", dwarf_diename(vr_die));
+
+	return 0;
 }
 
