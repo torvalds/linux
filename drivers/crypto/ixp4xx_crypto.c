@@ -575,7 +575,8 @@ static int init_tfm_ablk(struct crypto_tfm *tfm)
 
 static int init_tfm_aead(struct crypto_tfm *tfm)
 {
-	tfm->crt_aead.reqsize = sizeof(struct aead_ctx);
+	crypto_aead_set_reqsize(__crypto_aead_cast(tfm),
+				sizeof(struct aead_ctx));
 	return init_tfm(tfm);
 }
 
