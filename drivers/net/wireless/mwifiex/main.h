@@ -147,6 +147,45 @@ enum {
 /* Address alignment */
 #define MWIFIEX_ALIGN_ADDR(p, a) (((long)(p) + (a) - 1) & ~((a) - 1))
 
+/**
+ *enum mwifiex_debug_level  -  marvell wifi debug level
+ */
+enum MWIFIEX_DEBUG_LEVEL {
+	MWIFIEX_DBG_MSG		= 0x00000001,
+	MWIFIEX_DBG_FATAL	= 0x00000002,
+	MWIFIEX_DBG_ERROR	= 0x00000004,
+	MWIFIEX_DBG_DATA	= 0x00000008,
+	MWIFIEX_DBG_CMD		= 0x00000010,
+	MWIFIEX_DBG_EVENT	= 0x00000020,
+	MWIFIEX_DBG_INTR	= 0x00000040,
+	MWIFIEX_DBG_IOCTL	= 0x00000080,
+
+	MWIFIEX_DBG_MPA_D	= 0x00008000,
+	MWIFIEX_DBG_DAT_D	= 0x00010000,
+	MWIFIEX_DBG_CMD_D	= 0x00020000,
+	MWIFIEX_DBG_EVT_D	= 0x00040000,
+	MWIFIEX_DBG_FW_D	= 0x00080000,
+	MWIFIEX_DBG_IF_D	= 0x00100000,
+
+	MWIFIEX_DBG_ENTRY	= 0x10000000,
+	MWIFIEX_DBG_WARN	= 0x20000000,
+	MWIFIEX_DBG_INFO	= 0x40000000,
+	MWIFIEX_DBG_DUMP	= 0x80000000,
+
+	MWIFIEX_DBG_ANY		= 0xffffffff
+};
+
+#define MWIFIEX_DEFAULT_DEBUG_MASK	(MWIFIEX_DBG_MSG | \
+					MWIFIEX_DBG_FATAL | \
+					MWIFIEX_DBG_ERROR)
+
+#define mwifiex_dbg(adapter, dbg_mask, fmt, args...)		\
+do {								\
+	if ((adapter)->debug_mask & MWIFIEX_DBG_##dbg_mask)	\
+		if ((adapter)->dev)				\
+			dev_info((adapter)->dev, fmt, ## args);	\
+} while (0)
+
 struct mwifiex_dbg {
 	u32 num_cmd_host_to_card_failure;
 	u32 num_cmd_sleep_cfm_host_to_card_failure;
@@ -751,6 +790,7 @@ struct mwifiex_if_ops {
 
 struct mwifiex_adapter {
 	u8 iface_type;
+	unsigned int debug_mask;
 	struct mwifiex_iface_comb iface_limit;
 	struct mwifiex_iface_comb curr_iface_comb;
 	struct mwifiex_private *priv[MWIFIEX_MAX_BSS_NUM];

@@ -189,6 +189,7 @@ struct tdls_peer_info {
 };
 
 struct mwifiex_debug_info {
+	unsigned int debug_mask;
 	u32 int_counter;
 	u32 packets_out[MAX_NUM_TID];
 	u32 tx_buf_size;

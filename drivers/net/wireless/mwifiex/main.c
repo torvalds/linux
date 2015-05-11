@@ -24,6 +24,10 @@
 
 #define VERSION	"1.0"
 
+static unsigned int debug_mask = MWIFIEX_DEFAULT_DEBUG_MASK;
+module_param(debug_mask, uint, 0);
+MODULE_PARM_DESC(debug_mask, "bitmap for debug flags");
+
 const char driver_version[] = "mwifiex " VERSION " (%s) ";
 static char *cal_data_cfg;
 module_param(cal_data_cfg, charp, 0);
@@ -63,6 +67,7 @@ static int mwifiex_register(void *card, struct mwifiex_if_ops *if_ops,
 
 	/* Save interface specific operations in adapter */
 	memmove(&adapter->if_ops, if_ops, sizeof(struct mwifiex_if_ops));
+	adapter->debug_mask = debug_mask;
 
 	/* card specific initialization has been deferred until now .. */
 	if (adapter->if_ops.init_if)

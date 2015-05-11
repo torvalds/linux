@@ -26,6 +26,8 @@
 #include "11n.h"
 
 static struct mwifiex_debug_data items[] = {
+	{"debug_mask", item_size(debug_mask),
+	 item_addr(debug_mask), 1},
 	{"int_counter", item_size(int_counter),
 	 item_addr(int_counter), 1},
 	{"wmm_ac_vo", item_size(packets_out[WMM_AC_VO]),
@@ -178,6 +180,7 @@ int mwifiex_get_debug_info(struct mwifiex_private *priv,
 	struct mwifiex_adapter *adapter = priv->adapter;
 
 	if (info) {
+		info->debug_mask = adapter->debug_mask;
 		memcpy(info->packets_out,
 		       priv->wmm.packets_out,
 		       sizeof(priv->wmm.packets_out));
