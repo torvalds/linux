@@ -994,7 +994,6 @@ static bool mtip_pause_ncq(struct mtip_port *port,
 		return false;
 
 	if (fis->command == ATA_CMD_SEC_ERASE_PREP) {
-		set_bit(MTIP_PF_SE_ACTIVE_BIT, &port->flags);
 		port->ic_pause_timer = jiffies;
 		return true;
 	} else if ((fis->command == ATA_CMD_DOWNLOAD_MICRO) &&
@@ -1009,6 +1008,7 @@ static bool mtip_pause_ncq(struct mtip_port *port,
 		clear_bit(MTIP_DDF_SEC_LOCK_BIT, &port->dd->dd_flag);
 		/* Com reset after secure erase or lowlevel format */
 		mtip_restart_port(port);
+		clear_bit(MTIP_PF_SE_ACTIVE_BIT, &port->flags);
 		return false;
 	}
 
@@ -1108,9 +1108,10 @@ static int mtip_exec_internal_command(struct mtip_port *port,
 	int_cmd = mtip_get_int_command(dd);
 
 	set_bit(MTIP_PF_IC_ACTIVE_BIT, &port->flags);
-	port->ic_pause_timer = 0;
 
-	clear_bit(MTIP_PF_SE_ACTIVE_BIT, &port->flags);
+	if (fis->command == ATA_CMD_SEC_ERASE_PREP)
+		set_bit(MTIP_PF_SE_ACTIVE_BIT, &port->flags);
+
 	clear_bit(MTIP_PF_DM_ACTIVE_BIT, &port->flags);
 
 	if (atomic == GFP_KERNEL) {
@@ -1247,11 +1248,11 @@ static int mtip_exec_internal_command(struct mtip_port *port,
 exec_ic_exit:
 	/* Clear the allocated and active bits for the internal command. */
 	mtip_put_int_command(dd, int_cmd);
+	clear_bit(MTIP_PF_IC_ACTIVE_BIT, &port->flags);
 	if (rv >= 0 && mtip_pause_ncq(port, fis)) {
 		/* NCQ paused */
 		return rv;
 	}
-	clear_bit(MTIP_PF_IC_ACTIVE_BIT, &port->flags);
 	wake_up_interruptible(&port->svc_wait);
 
 	return rv;
@@ -3684,6 +3685,26 @@ static const struct block_device_operations mtip_block_ops = {
 	.owner		= THIS_MODULE
 };
 
+static inline bool is_se_active(struct driver_data *dd)
+{
+	if (unlikely(test_bit(MTIP_PF_SE_ACTIVE_BIT, &dd->port->flags))) {
+		if (dd->port->ic_pause_timer) {
+			unsigned long to = dd->port->ic_pause_timer +
+							msecs_to_jiffies(1000);
+			if (time_after(jiffies, to)) {
+				clear_bit(MTIP_PF_SE_ACTIVE_BIT,
+							&dd->port->flags);
+				clear_bit(MTIP_DDF_SEC_LOCK_BIT, &dd->dd_flag);
+				dd->port->ic_pause_timer = 0;
+				wake_up_interruptible(&dd->port->svc_wait);
+				return false;
+			}
+		}
+		return true;
+	}
+	return false;
+}
+
 /*
  * Block layer make request function.
  *
@@ -3700,6 +3721,9 @@ static int mtip_submit_request(struct blk_mq_hw_ctx *hctx, struct request *rq)
 	struct driver_data *dd = hctx->queue->queuedata;
 	struct mtip_cmd *cmd = blk_mq_rq_to_pdu(rq);
 	unsigned int nents;
+
+	if (is_se_active(dd))
+		return -ENODATA;
 
 	if (unlikely(dd->dd_flag & MTIP_DDF_STOP_IO)) {
 		if (unlikely(test_bit(MTIP_DDF_REMOVE_PENDING_BIT,
