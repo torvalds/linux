@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2010-2014. All rights reserved.
+ * Copyright (C) ARM Limited 2010-2015. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -8,7 +8,7 @@
  */
 
 /* This version must match the gator daemon version */
-#define PROTOCOL_VERSION 20
+#define PROTOCOL_VERSION 21
 static unsigned long gator_protocol_version = PROTOCOL_VERSION;
 
 #include <linux/slab.h>
@@ -28,6 +28,7 @@ static unsigned long gator_protocol_version = PROTOCOL_VERSION;
 #include <linux/uaccess.h>
 
 #include "gator.h"
+#include "gator_src_md5.h"
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 32)
 #error kernels prior to 2.6.32 are not supported
@@ -92,21 +93,17 @@ static unsigned long gator_protocol_version = PROTOCOL_VERSION;
 /* Name Frame Messages */
 #define MESSAGE_COOKIE      1
 #define MESSAGE_THREAD_NAME 2
-#define MESSAGE_LINK        4
 
 /* Scheduler Trace Frame Messages */
 #define MESSAGE_SCHED_SWITCH 1
 #define MESSAGE_SCHED_EXIT   2
-
-/* Idle Frame Messages */
-#define MESSAGE_IDLE_ENTER 1
-#define MESSAGE_IDLE_EXIT  2
 
 /* Summary Frame Messages */
 #define MESSAGE_SUMMARY   1
 #define MESSAGE_CORE_NAME 3
 
 /* Activity Frame Messages */
+#define MESSAGE_LINK   1
 #define MESSAGE_SWITCH 2
 #define MESSAGE_EXIT   3
 
@@ -267,6 +264,9 @@ GATOR_EVENTS_LIST
  * Misc
  ******************************************************************************/
 
+MODULE_PARM_DESC(gator_src_md5, "Gator driver source code md5sum");
+module_param_named(src_md5, gator_src_md5, charp, 0444);
+
 static const struct gator_cpu gator_cpus[] = {
 	{
 		.cpuid = ARM1136,
@@ -332,6 +332,13 @@ static const struct gator_cpu gator_cpus[] = {
 		.pmnc_counters = 6,
 	},
 	{
+		.cpuid = CORTEX_A12,
+		.core_name = "Cortex-A17",
+		.pmnc_name = "ARMv7_Cortex_A17",
+		.dt_name = "arm,cortex-a17",
+		.pmnc_counters = 6,
+	},
+	{
 		.cpuid = CORTEX_A17,
 		.core_name = "Cortex-A17",
 		.pmnc_name = "ARMv7_Cortex_A17",
@@ -383,9 +390,10 @@ static const struct gator_cpu gator_cpus[] = {
 		.pmnc_counters = 6,
 	},
 	{
-		.cpuid = AARCH64,
-		.core_name = "AArch64",
-		.pmnc_name = "ARM_AArch64",
+		.cpuid = CORTEX_A72,
+		.core_name = "Cortex-A72",
+		.pmnc_name = "ARM_Cortex-A72",
+		.dt_name = "arm,cortex-a72",
 		.pmnc_counters = 6,
 	},
 	{
@@ -443,7 +451,7 @@ u32 gator_cpuid(void)
 #else
 	asm volatile("mrs %0, midr_el1" : "=r" (val));
 #endif
-	return (val >> 4) & 0xfff;
+	return ((val & 0xff000000) >> 12) | ((val & 0xfff0) >> 4);
 #else
 	return OTHER;
 #endif
@@ -597,7 +605,7 @@ static void gator_send_core_name(const int cpu, const u32 cpuid)
 			if (cpuid == -1)
 				snprintf(core_name_buf, sizeof(core_name_buf), "Unknown");
 			else
-				snprintf(core_name_buf, sizeof(core_name_buf), "Unknown (0x%.3x)", cpuid);
+				snprintf(core_name_buf, sizeof(core_name_buf), "Unknown (0x%.5x)", cpuid);
 			core_name = core_name_buf;
 		}
 
@@ -729,11 +737,11 @@ static void gator_emit_perf_time(u64 time)
 {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0)
 	if (time >= gator_sync_time) {
-		int cpu = get_physical_cpu();
-
 		marshal_event_single64(0, -1, local_clock());
 		gator_sync_time += NSEC_PER_SEC;
-		gator_commit_buffer(cpu, COUNTER_BUF, time);
+		if (gator_live_rate <= 0) {
+			gator_commit_buffer(get_physical_cpu(), COUNTER_BUF, time);
+		}
 	}
 #endif
 }
@@ -867,7 +875,9 @@ static void gator_summary(void)
 
 	marshal_summary(timestamp, uptime, gator_monotonic_started, uname_buf);
 	gator_sync_time = 0;
-	gator_emit_perf_time(gator_monotonic_started);	
+	gator_emit_perf_time(gator_monotonic_started);
+	/* Always flush COUNTER_BUF so that the initial perf_time is received before it's used */
+	gator_commit_buffer(get_physical_cpu(), COUNTER_BUF, 0);
 	preempt_enable();
 }
 

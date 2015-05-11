@@ -1,0 +1,75 @@
+  <counter_set name="CCI_500_cnt" count="8"/>
+  <category name="CCI-500" counter_set="CCI_500_cnt" per_cpu="no">
+    <option_set name="Slave">
+      <option event_delta="0x00" name="S0" description="Slave interface 0"/>
+      <option event_delta="0x20" name="S1" description="Slave interface 1"/>
+      <option event_delta="0x40" name="S2" description="Slave interface 2"/>
+      <option event_delta="0x60" name="S3" description="Slave interface 3"/>
+      <option event_delta="0x80" name="S4" description="Slave interface 4"/>
+      <option event_delta="0xa0" name="S5" description="Slave interface 5"/>
+      <option event_delta="0xc0" name="S6" description="Slave interface 6"/>
+    </option_set>
+    <event event="0x00" option_set="Slave" title="CCI-500" name="Read ARVALID" description="Read request handshake: any ARVALID, ARREADY HIGH"/>
+    <event event="0x01" option_set="Slave" title="CCI-500" name="Read device" description="Read request: device"/>
+    <event event="0x02" option_set="Slave" title="CCI-500" name="Read non-shareable" description="Read request handshake: normal, non-shareable"/>
+    <event event="0x03" option_set="Slave" title="CCI-500" name="Read non-allocating" description="Read request handshake: normal, shareable, non-allocating, for example ReadOnce"/>
+    <event event="0x04" option_set="Slave" title="CCI-500" name="Read other" description="Read request handshake: normal, shareable allocating, for example ReadClean, ReadShared, ReadNotSharedDirty, ReadUnique"/>
+    <event event="0x05" option_set="Slave" title="CCI-500" name="Read invalidation" description="Read request handshake: invalidation, for example MakeUnique, CleanUnique"/>
+    <event event="0x06" option_set="Slave" title="CCI-500" name="Read maintenance" description="Read request handshake: cache maintenance operation, for example CleanInvalid, MakeInvalid, CleanShared"/>
+    <event event="0x07" option_set="Slave" title="CCI-500" name="Read DVM" description="Read request handshake: DVM message, any"/>
+    <event event="0x08" option_set="Slave" title="CCI-500" name="Read RVALID" description="Read data handshake: any RVALID, RREADY HIGH"/>
+    <event event="0x09" option_set="Slave" title="CCI-500" name="Read RLAST" description="Read data handshake with RLAST set, for a snoop hit"/>
+    <event event="0x0a" option_set="Slave" title="CCI-500" name="Write AWVALID" description="Write request: any AWVALID, AWREADY HIGH"/>
+    <event event="0x0b" option_set="Slave" title="CCI-500" name="Write device" description="Write request: device"/>
+    <event event="0x0c" option_set="Slave" title="CCI-500" name="Write non-shareable" description="Write request: non-shareable"/>
+    <event event="0x0d" option_set="Slave" title="CCI-500" name="Write shareable a" description="Write request handshake: shareable, for example WriteBack, WriteClean"/>
+    <event event="0x0e" option_set="Slave" title="CCI-500" name="Write shareable b" description="Write request handshake: shareable, for example WriteLineUnique"/>
+    <event event="0x0f" option_set="Slave" title="CCI-500" name="Write shareable c" description="Write request handshake: shareable, for example WriteUnique"/>
+    <event event="0x10" option_set="Slave" title="CCI-500" name="Write evict" description="Write request handshake, for example Evict"/>
+    <!--event event="0x11" option_set="Slave" title="CCI-500" name="Write evict ?" description="Write request handshake, for example WriteEvict. WriteEvict is not supported in the CCI-500, so does not fire."/-->
+    <event event="0x12" option_set="Slave" title="CCI-500" name="Write WVALID" description="Write data beat: any WVALID, WREADY HIGH"/>
+    <event event="0x13" option_set="Slave" title="CCI-500" name="Snoop ACVLID" description="Snoop request: any ACVALID, ACREADY HIGH"/>
+    <event event="0x14" option_set="Slave" title="CCI-500" name="Snoop read" description="Snoop request: read, for example ReadOnce, ReadClean, ReadNotSharedDirty, ReadShared, ReadUnique"/>
+    <event event="0x15" option_set="Slave" title="CCI-500" name="Snoop invalidate" description="Snoop request: clean or invalidate, for example MakeInvalid, CleanInvalid, CleanShared"/>
+    <event event="0x16" option_set="Slave" title="CCI-500" name="Snoop CRRESP" description="Snoop request: Data Transfer bit CRRESP[0] LOW"/>
+    <event event="0x17" option_set="Slave" title="CCI-500" name="Read request stall" description="Read request stall: ARVALID HIGH ARREADY LOW"/>
+    <event event="0x18" option_set="Slave" title="CCI-500" name="Read data stall" description="Read data stall: RVALID HIGH RREADY LOW"/>
+    <event event="0x19" option_set="Slave" title="CCI-500" name="Write request stall" description="Write request stall: AWVALID HIGH AWREADY LOW"/>
+    <event event="0x1a" option_set="Slave" title="CCI-500" name="Write data stall" description="Write data stall: WVALID HIGH WREADY LOW"/>
+    <event event="0x1b" option_set="Slave" title="CCI-500" name="Write response stall" description="Write response stall: BVALID HIGH BREADY LOW"/>
+    <event event="0x1c" option_set="Slave" title="CCI-500" name="Snoop request stall" description="Snoop request stall: ACVALID HIGH ACREADY LOW"/>
+    <event event="0x1d" option_set="Slave" title="CCI-500" name="Snoop data stall" description="Snoop data stall: CDVALID HIGH CDREADY LOW"/>
+    <event event="0x1e" option_set="Slave" title="CCI-500" name="Request stall" description="Request stall cycle because of OT transaction limit"/>
+    <event event="0x1f" option_set="Slave" title="CCI-500" name="Read stall" description="Read stall because of arbitration"/>
+    <option_set name="Master">
+      <option event_delta="0x100" name="M0" description="Master interface 0"/>
+      <option event_delta="0x120" name="M1" description="Master interface 1"/>
+      <option event_delta="0x140" name="M2" description="Master interface 2"/>
+      <option event_delta="0x160" name="M3" description="Master interface 3"/>
+      <option event_delta="0x180" name="M4" description="Master interface 4"/>
+      <option event_delta="0x1a0" name="M5" description="Master interface 5"/>
+    </option_set>
+    <event event="0x00" option_set="Master" title="CCI-500" name="Read data beat" description="Read data beat: any"/>
+    <event event="0x01" option_set="Master" title="CCI-500" name="Write data beat" description="Write data beat: any"/>
+    <event event="0x02" option_set="Master" title="CCI-500" name="Read request stall" description="Read request stall: ARVALID HIGH ARREADY LOW"/>
+    <event event="0x03" option_set="Master" title="CCI-500" name="Read data stall" description="Read data stall: RVALID HIGH RREADY LOW"/>
+    <event event="0x04" option_set="Master" title="CCI-500" name="Write request stall" description="Write request stall: AWVALID HIGH AWREADY LOW"/>
+    <event event="0x05" option_set="Master" title="CCI-500" name="Write data stall" description="Write data stall: WVALID HIGH WREADY LOW"/>
+    <event event="0x06" option_set="Master" title="CCI-500" name="Write response stall" description="Write response stall: BVALID HIGH BREADY LOW"/>
+    <event event="0x1e0" title="CCI-500" name="Snoop response 0/1" description="Access to snoop filter bank 0 or 1, any response"/>
+    <event event="0x1e1" title="CCI-500" name="Snoop response 2/3" description="Access to snoop filter bank 2 or 3, any response"/>
+    <event event="0x1e2" title="CCI-500" name="Snoop response 3/4" description="Access to snoop filter bank 4 or 5, any response"/>
+    <event event="0x1e3" title="CCI-500" name="Snoop response 6/7" description="Access to snoop filter bank 6 or 7, any response"/>
+    <event event="0x1e4" title="CCI-500" name="Snoop miss 0/1" description="Access to snoop filter bank 0 or 1, miss response"/>
+    <event event="0x1e5" title="CCI-500" name="Snoop miss 2/3" description="Access to snoop filter bank 2 or 3, miss response"/>
+    <event event="0x1e6" title="CCI-500" name="Snoop miss 4/5" description="Access to snoop filter bank 4 or 5, miss response"/>
+    <event event="0x1e7" title="CCI-500" name="Snoop miss 6/7" description="Access to snoop filter bank 6 or 7, miss response"/>
+    <event event="0x1e8" title="CCI-500" name="Snoop invalidation" description="Back invalidation from snoop filter"/>
+    <event event="0x1e9" title="CCI-500" name="Snoop small" description="Requests that allocate into a snoop filter bank might be stalled because all ways are used. The snoop filter RAM might be too small."/>
+    <event event="0x1ea" title="CCI-500" name="TT stall" description="Stall because TT full, increase TT_DEPTH parameter to avoid performance degradation"/>
+    <event event="0x1eb" title="CCI-500" name="Write request" description="CCI-generated write request"/>
+    <event event="0x1ec" title="CCI-500" name="Snoop handshake" description="CD handshake in snoop network, use this to measure snoop data bandwidth. Each event corresponds to 16 bytes of snoop data."/>
+    <event event="0x1ed" title="CCI-500" name="Address hazard" description="Request stall because of address hazard"/>
+    <event event="0x1ee" title="CCI-500" name="TT full" description="Snoop request stall because of snoop TT being full"/>
+    <event event="0x1ef" title="CCI-500" name="Snoop override" description="Snoop request type override for TZMP1 protection"/>
+  </category>

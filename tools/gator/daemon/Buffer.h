@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2013-2014. All rights reserved.
+ * Copyright (C) ARM Limited 2013-2015. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -36,7 +36,7 @@ public:
 
 	int bytesAvailable() const;
 	int contiguousSpaceAvailable() const;
-	void commit(const uint64_t time);
+	void commit(const uint64_t time, const bool force = false);
 	void check(const uint64_t time);
 
 	// Summary messages
@@ -50,15 +50,18 @@ public:
 	void event64(int key, int64_t value);
 
 	// Perf Attrs messages
-	void pea(const uint64_t currTime, const struct perf_event_attr *const pea, int key);
-	void keys(const uint64_t currTime, const int count, const __u64 *const ids, const int *const keys);
-	void keysOld(const uint64_t currTime, const int keyCount, const int *const keys, const int bytes, const char *const buf);
-	void format(const uint64_t currTime, const int length, const char *const format);
-	void maps(const uint64_t currTime, const int pid, const int tid, const char *const maps);
-	void comm(const uint64_t currTime, const int pid, const int tid, const char *const image, const char *const comm);
-	void onlineCPU(const uint64_t currTime, const uint64_t time, const int cpu);
-	void offlineCPU(const uint64_t currTime, const uint64_t time, const int cpu);
-	void kallsyms(const uint64_t currTime, const char *const kallsyms);
+	void marshalPea(const uint64_t currTime, const struct perf_event_attr *const pea, int key);
+	void marshalKeys(const uint64_t currTime, const int count, const __u64 *const ids, const int *const keys);
+	void marshalKeysOld(const uint64_t currTime, const int keyCount, const int *const keys, const int bytes, const char *const buf);
+	void marshalFormat(const uint64_t currTime, const int length, const char *const format);
+	void marshalMaps(const uint64_t currTime, const int pid, const int tid, const char *const maps);
+	void marshalComm(const uint64_t currTime, const int pid, const int tid, const char *const image, const char *const comm);
+	void onlineCPU(const uint64_t currTime, const int cpu);
+	void offlineCPU(const uint64_t currTime, const int cpu);
+	void marshalKallsyms(const uint64_t currTime, const char *const kallsyms);
+	void perfCounterHeader(const uint64_t time);
+	void perfCounter(const int core, const int key, const int64_t value);
+	void perfCounterFooter(const uint64_t currTime);
 
 	void setDone();
 	bool isDone() const;
