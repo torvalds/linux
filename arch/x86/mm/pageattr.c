@@ -129,16 +129,15 @@ within(unsigned long addr, unsigned long start, unsigned long end)
  */
 void clflush_cache_range(void *vaddr, unsigned int size)
 {
-	void *vend = vaddr + size - 1;
+	unsigned long clflush_mask = boot_cpu_data.x86_clflush_size - 1;
+	void *vend = vaddr + size;
+	void *p;
 
 	mb();
 
-	for (; vaddr < vend; vaddr += boot_cpu_data.x86_clflush_size)
-		clflushopt(vaddr);
-	/*
-	 * Flush any possible final partial cacheline:
-	 */
-	clflushopt(vend);
+	for (p = (void *)((unsigned long)vaddr & ~clflush_mask);
+	     p < vend; p += boot_cpu_data.x86_clflush_size)
+		clflushopt(p);
 
 	mb();
 }
