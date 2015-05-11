@@ -2049,6 +2049,10 @@ D: pirq addr, CS5535 alsa audio driver
 S: Gurgaon, India
 S: Kuala Lumpur, Malaysia
 
+N: Mohit Kumar
+D: ST Microelectronics SPEAr13xx PCI host bridge driver
+D: Synopsys Designware PCI host bridge driver
+
 N: Gabor Kuti
 M: seasons@falcon.sch.bme.hu
 M: seasons@makosteszta.sote.hu

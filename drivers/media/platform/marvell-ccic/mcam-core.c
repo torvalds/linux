@@ -116,8 +116,8 @@ static struct mcam_format_struct {
 		.planar		= false,
 	},
 	{
-		.desc		= "UYVY 4:2:2",
-		.pixelformat	= V4L2_PIX_FMT_UYVY,
+		.desc		= "YVYU 4:2:2",
+		.pixelformat	= V4L2_PIX_FMT_YVYU,
 		.mbus_code	= MEDIA_BUS_FMT_YUYV8_2X8,
 		.bpp		= 2,
 		.planar		= false,
@@ -748,7 +748,7 @@ static void mcam_ctlr_image(struct mcam_camera *cam)
 
 	switch (fmt->pixelformat) {
 	case V4L2_PIX_FMT_YUYV:
-	case V4L2_PIX_FMT_UYVY:
+	case V4L2_PIX_FMT_YVYU:
 		widthy = fmt->width * 2;
 		widthuv = 0;
 		break;
@@ -784,15 +784,15 @@ static void mcam_ctlr_image(struct mcam_camera *cam)
 	case V4L2_PIX_FMT_YUV420:
 	case V4L2_PIX_FMT_YVU420:
 		mcam_reg_write_mask(cam, REG_CTRL0,
-			C0_DF_YUV | C0_YUV_420PL | C0_YUVE_YVYU, C0_DF_MASK);
+			C0_DF_YUV | C0_YUV_420PL | C0_YUVE_VYUY, C0_DF_MASK);
 		break;
 	case V4L2_PIX_FMT_YUYV:
 		mcam_reg_write_mask(cam, REG_CTRL0,
-			C0_DF_YUV | C0_YUV_PACKED | C0_YUVE_UYVY, C0_DF_MASK);
+			C0_DF_YUV | C0_YUV_PACKED | C0_YUVE_NOSWAP, C0_DF_MASK);
 		break;
-	case V4L2_PIX_FMT_UYVY:
+	case V4L2_PIX_FMT_YVYU:
 		mcam_reg_write_mask(cam, REG_CTRL0,
-			C0_DF_YUV | C0_YUV_PACKED | C0_YUVE_YUYV, C0_DF_MASK);
+			C0_DF_YUV | C0_YUV_PACKED | C0_YUVE_SWAP24, C0_DF_MASK);
 		break;
 	case V4L2_PIX_FMT_JPEG:
 		mcam_reg_write_mask(cam, REG_CTRL0,
@@ -1568,24 +1568,64 @@ static int mcam_vidioc_enum_framesizes(struct file *filp, void *priv,
 		struct v4l2_frmsizeenum *sizes)
 {
 	struct mcam_camera *cam = priv;
+	struct mcam_format_struct *f;
+	struct v4l2_subdev_frame_size_enum fse = {
+		.index = sizes->index,
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
 	int ret;
 
+	f = mcam_find_format(sizes->pixel_format);
+	if (f->pixelformat != sizes->pixel_format)
+		return -EINVAL;
+	fse.code = f->mbus_code;
 	mutex_lock(&cam->s_mutex);
-	ret = sensor_call(cam, video, enum_framesizes, sizes);
+	ret = sensor_call(cam, pad, enum_frame_size, NULL, &fse);
 	mutex_unlock(&cam->s_mutex);
-	return ret;
+	if (ret)
+		return ret;
+	if (fse.min_width == fse.max_width &&
+	    fse.min_height == fse.max_height) {
+		sizes->type = V4L2_FRMSIZE_TYPE_DISCRETE;
+		sizes->discrete.width = fse.min_width;
+		sizes->discrete.height = fse.min_height;
+		return 0;
+	}
+	sizes->type = V4L2_FRMSIZE_TYPE_CONTINUOUS;
+	sizes->stepwise.min_width = fse.min_width;
+	sizes->stepwise.max_width = fse.max_width;
+	sizes->stepwise.min_height = fse.min_height;
+	sizes->stepwise.max_height = fse.max_height;
+	sizes->stepwise.step_width = 1;
+	sizes->stepwise.step_height = 1;
+	return 0;
 }
 
 static int mcam_vidioc_enum_frameintervals(struct file *filp, void *priv,
 		struct v4l2_frmivalenum *interval)
 {
 	struct mcam_camera *cam = priv;
+	struct mcam_format_struct *f;
+	struct v4l2_subdev_frame_interval_enum fie = {
+		.index = interval->index,
+		.width = interval->width,
+		.height = interval->height,
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
 	int ret;
 
+	f = mcam_find_format(interval->pixel_format);
+	if (f->pixelformat != interval->pixel_format)
+		return -EINVAL;
+	fie.code = f->mbus_code;
 	mutex_lock(&cam->s_mutex);
-	ret = sensor_call(cam, video, enum_frameintervals, interval);
+	ret = sensor_call(cam, pad, enum_frame_interval, NULL, &fie);
 	mutex_unlock(&cam->s_mutex);
-	return ret;
+	if (ret)
+		return ret;
+	interval->type = V4L2_FRMIVAL_TYPE_DISCRETE;
+	interval->discrete = fie.interval;
+	return 0;
 }
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG

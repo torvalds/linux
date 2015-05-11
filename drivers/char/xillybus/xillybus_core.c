@@ -1237,6 +1237,8 @@ static ssize_t xillybus_write(struct file *filp, const char __user *userbuf,
 					unsigned char *tail;
 					int i;
 
+					howmany = 0;
+
 					end_offset_plus1 = bufpos >>
 						channel->log2_element_size;
 

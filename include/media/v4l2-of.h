@@ -29,12 +29,15 @@ struct device_node;
  * @data_lanes: an array of physical data lane indexes
  * @clock_lane: physical lane index of the clock lane
  * @num_data_lanes: number of data lanes
+ * @lane_polarities: polarity of the lanes. The order is the same of
+ *		   the physical lanes.
  */
 struct v4l2_of_bus_mipi_csi2 {
 	unsigned int flags;
 	unsigned char data_lanes[4];
 	unsigned char clock_lane;
 	unsigned short num_data_lanes;
+	bool lane_polarities[5];
 };
 
 /**
@@ -66,15 +69,42 @@ struct v4l2_of_endpoint {
 	struct list_head head;
 };
 
+/**
+ * struct v4l2_of_link - a link between two endpoints
+ * @local_node: pointer to device_node of this endpoint
+ * @local_port: identifier of the port this endpoint belongs to
+ * @remote_node: pointer to device_node of the remote endpoint
+ * @remote_port: identifier of the port the remote endpoint belongs to
+ */
+struct v4l2_of_link {
+	struct device_node *local_node;
+	unsigned int local_port;
+	struct device_node *remote_node;
+	unsigned int remote_port;
+};
+
 #ifdef CONFIG_OF
 int v4l2_of_parse_endpoint(const struct device_node *node,
 			   struct v4l2_of_endpoint *endpoint);
+int v4l2_of_parse_link(const struct device_node *node,
+		       struct v4l2_of_link *link);
+void v4l2_of_put_link(struct v4l2_of_link *link);
 #else /* CONFIG_OF */
 
 static inline int v4l2_of_parse_endpoint(const struct device_node *node,
 					struct v4l2_of_endpoint *link)
 {
 	return -ENOSYS;
+}
+
+static inline int v4l2_of_parse_link(const struct device_node *node,
+				     struct v4l2_of_link *link)
+{
+	return -ENOSYS;
+}
+
+static inline void v4l2_of_put_link(struct v4l2_of_link *link)
+{
 }
 
 #endif /* CONFIG_OF */

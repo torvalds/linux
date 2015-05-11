@@ -1737,7 +1737,7 @@ static struct dentry *sel_make_dir(struct dentry *dir, const char *name,
 	inc_nlink(inode);
 	d_add(dentry, inode);
 	/* bump link count on parent directory, too */
-	inc_nlink(dir->d_inode);
+	inc_nlink(d_inode(dir));
 
 	return dentry;
 }

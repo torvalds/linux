@@ -366,16 +366,13 @@ static void init_legacy_irqs(void)
 
 	/*
 	 * For legacy IRQ's, start with assigning irq0 to irq15 to
-	 * IRQ0_VECTOR to IRQ15_VECTOR for all cpu's.
+	 * ISA_IRQ_VECTOR(i) for all cpu's.
 	 */
 	for (i = 0; i < nr_legacy_irqs(); i++) {
 		data = legacy_irq_data[i] = alloc_apic_chip_data(node);
 		BUG_ON(!data);
-		/*
-		 * For legacy IRQ's, start with assigning irq0 to irq15 to
-		 * IRQ0_VECTOR to IRQ15_VECTOR for all cpu's.
-		 */
-		data->cfg.vector = IRQ0_VECTOR + i;
+
+		data->cfg.vector = ISA_IRQ_VECTOR(i);
 		cpumask_setall(data->domain);
 		irq_set_chip_data(i, data);
 	}
@@ -452,7 +449,7 @@ void setup_vector_irq(int cpu)
 	 * legacy vector to irq mapping:
 	 */
 	for (irq = 0; irq < nr_legacy_irqs(); irq++)
-		per_cpu(vector_irq, cpu)[IRQ0_VECTOR + irq] = irq;
+		per_cpu(vector_irq, cpu)[ISA_IRQ_VECTOR(irq)] = irq;
 
 	__setup_vector_irq(cpu);
 }

@@ -253,7 +253,7 @@ static int mknod_ptmx(struct super_block *sb)
 	if (!uid_valid(root_uid) || !gid_valid(root_gid))
 		return -EINVAL;
 
-	mutex_lock(&root->d_inode->i_mutex);
+	mutex_lock(&d_inode(root)->i_mutex);
 
 	/* If we have already created ptmx node, return */
 	if (fsi->ptmx_dentry) {
@@ -290,7 +290,7 @@ static int mknod_ptmx(struct super_block *sb)
 	fsi->ptmx_dentry = dentry;
 	rc = 0;
 out:
-	mutex_unlock(&root->d_inode->i_mutex);
+	mutex_unlock(&d_inode(root)->i_mutex);
 	return rc;
 }
 
@@ -298,7 +298,7 @@ static void update_ptmx_mode(struct pts_fs_info *fsi)
 {
 	struct inode *inode;
 	if (fsi->ptmx_dentry) {
-		inode = fsi->ptmx_dentry->d_inode;
+		inode = d_inode(fsi->ptmx_dentry);
 		inode->i_mode = S_IFCHR|fsi->mount_opts.ptmxmode;
 	}
 }
@@ -602,18 +602,18 @@ struct inode *devpts_pty_new(struct inode *ptmx_inode, dev_t device, int index,
 
 	sprintf(s, "%d", index);
 
-	mutex_lock(&root->d_inode->i_mutex);
+	mutex_lock(&d_inode(root)->i_mutex);
 
 	dentry = d_alloc_name(root, s);
 	if (dentry) {
 		d_add(dentry, inode);
-		fsnotify_create(root->d_inode, dentry);
+		fsnotify_create(d_inode(root), dentry);
 	} else {
 		iput(inode);
 		inode = ERR_PTR(-ENOMEM);
 	}
 
-	mutex_unlock(&root->d_inode->i_mutex);
+	mutex_unlock(&d_inode(root)->i_mutex);
 
 	return inode;
 }
@@ -658,7 +658,7 @@ void devpts_pty_kill(struct inode *inode)
 
 	BUG_ON(inode->i_rdev == MKDEV(TTYAUX_MAJOR, PTMX_MINOR));
 
-	mutex_lock(&root->d_inode->i_mutex);
+	mutex_lock(&d_inode(root)->i_mutex);
 
 	dentry = d_find_alias(inode);
 
@@ -667,7 +667,7 @@ void devpts_pty_kill(struct inode *inode)
 	dput(dentry);	/* d_alloc_name() in devpts_pty_new() */
 	dput(dentry);		/* d_find_alias above */
 
-	mutex_unlock(&root->d_inode->i_mutex);
+	mutex_unlock(&d_inode(root)->i_mutex);
 }
 
 static int __init init_devpts_fs(void)

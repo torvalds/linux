@@ -56,7 +56,7 @@ config VIDEO_VIU
 
 config VIDEO_TIMBERDALE
 	tristate "Support for timberdale Video In/LogiWIN"
-	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
+	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API && HAS_DMA
 	depends on (MFD_TIMBERDALE && TIMB_DMA) || COMPILE_TEST
 	select VIDEO_ADV7180
 	select VIDEOBUF_DMA_CONTIG
@@ -90,6 +90,7 @@ config VIDEO_OMAP3
 	select ARM_DMA_USE_IOMMU
 	select OMAP_IOMMU
 	select VIDEOBUF2_DMA_CONTIG
+	select MFD_SYSCON
 	---help---
 	  Driver for an OMAP 3 camera controller.
 
@@ -117,6 +118,7 @@ source "drivers/media/platform/soc_camera/Kconfig"
 source "drivers/media/platform/exynos4-is/Kconfig"
 source "drivers/media/platform/s5p-tv/Kconfig"
 source "drivers/media/platform/am437x/Kconfig"
+source "drivers/media/platform/xilinx/Kconfig"
 
 endif # V4L_PLATFORM_DRIVERS
 

@@ -91,7 +91,7 @@ static int tid_fd_revalidate(struct dentry *dentry, unsigned int flags)
 	if (flags & LOOKUP_RCU)
 		return -ECHILD;
 
-	inode = dentry->d_inode;
+	inode = d_inode(dentry);
 	task = get_proc_task(inode);
 	fd = proc_fd(inode);
 
@@ -151,14 +151,14 @@ static int proc_fd_link(struct dentry *dentry, struct path *path)
 	struct task_struct *task;
 	int ret = -ENOENT;
 
-	task = get_proc_task(dentry->d_inode);
+	task = get_proc_task(d_inode(dentry));
 	if (task) {
 		files = get_files_struct(task);
 		put_task_struct(task);
 	}
 
 	if (files) {
-		int fd = proc_fd(dentry->d_inode);
+		int fd = proc_fd(d_inode(dentry));
 		struct file *fd_file;
 
 		spin_lock(&files->file_lock);

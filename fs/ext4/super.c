@@ -1556,7 +1556,7 @@ static int handle_mount_opt(struct super_block *sb, char *opt, int token,
 			return -1;
 		}
 
-		journal_inode = path.dentry->d_inode;
+		journal_inode = d_inode(path.dentry);
 		if (!S_ISBLK(journal_inode->i_mode)) {
 			ext4_msg(sb, KERN_ERR, "error: journal path %s "
 				"is not a block device", journal_path);
@@ -5217,7 +5217,7 @@ static int ext4_write_info(struct super_block *sb, int type)
 	handle_t *handle;
 
 	/* Data block + inode block */
-	handle = ext4_journal_start(sb->s_root->d_inode, EXT4_HT_QUOTA, 2);
+	handle = ext4_journal_start(d_inode(sb->s_root), EXT4_HT_QUOTA, 2);
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 	ret = dquot_commit_info(sb, type);
@@ -5265,7 +5265,7 @@ static int ext4_quota_on(struct super_block *sb, int type, int format_id,
 	 * all updates to the file when we bypass pagecache...
 	 */
 	if (EXT4_SB(sb)->s_journal &&
-	    ext4_should_journal_data(path->dentry->d_inode)) {
+	    ext4_should_journal_data(d_inode(path->dentry))) {
 		/*
 		 * We don't need to lock updates but journal_flush() could
 		 * otherwise be livelocked...

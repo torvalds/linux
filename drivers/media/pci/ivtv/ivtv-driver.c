@@ -1284,7 +1284,7 @@ static int ivtv_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 	return 0;
 
 free_streams:
-	ivtv_streams_cleanup(itv, 1);
+	ivtv_streams_cleanup(itv);
 free_irq:
 	free_irq(itv->pdev->irq, (void *)itv);
 free_i2c:
@@ -1444,7 +1444,7 @@ static void ivtv_remove(struct pci_dev *pdev)
 	flush_kthread_worker(&itv->irq_worker);
 	kthread_stop(itv->irq_worker_task);
 
-	ivtv_streams_cleanup(itv, 1);
+	ivtv_streams_cleanup(itv);
 	ivtv_udma_free(itv);
 
 	v4l2_ctrl_handler_free(&itv->cxhdl.hdl);

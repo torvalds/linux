@@ -40,25 +40,25 @@ extern void xfs_verifier_error(struct xfs_buf *bp);
 /*
  * Macros to set EFSCORRUPTED & return/branch.
  */
-#define	XFS_WANT_CORRUPTED_GOTO(x,l)	\
+#define	XFS_WANT_CORRUPTED_GOTO(mp, x, l)	\
 	{ \
 		int fs_is_ok = (x); \
 		ASSERT(fs_is_ok); \
 		if (unlikely(!fs_is_ok)) { \
 			XFS_ERROR_REPORT("XFS_WANT_CORRUPTED_GOTO", \
-					 XFS_ERRLEVEL_LOW, NULL); \
+					 XFS_ERRLEVEL_LOW, mp); \
 			error = -EFSCORRUPTED; \
 			goto l; \
 		} \
 	}
 
-#define	XFS_WANT_CORRUPTED_RETURN(x)	\
+#define	XFS_WANT_CORRUPTED_RETURN(mp, x)	\
 	{ \
 		int fs_is_ok = (x); \
 		ASSERT(fs_is_ok); \
 		if (unlikely(!fs_is_ok)) { \
 			XFS_ERROR_REPORT("XFS_WANT_CORRUPTED_RETURN", \
-					 XFS_ERRLEVEL_LOW, NULL); \
+					 XFS_ERRLEVEL_LOW, mp); \
 			return -EFSCORRUPTED; \
 		} \
 	}

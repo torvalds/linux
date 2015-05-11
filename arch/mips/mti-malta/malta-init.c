@@ -14,7 +14,7 @@
 #include <linux/init.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
-#include <linux/serial_8250.h>
+#include <linux/serial_core.h>
 
 #include <asm/cacheflush.h>
 #include <asm/smp-ops.h>
@@ -75,7 +75,7 @@ static void __init console_config(void)
 	if ((strstr(fw_getcmdline(), "earlycon=")) == NULL) {
 		sprintf(console_string, "uart8250,io,0x3f8,%d%c%c", baud,
 			parity, bits);
-		setup_early_serial8250_console(console_string);
+		setup_earlycon(console_string);
 	}
 
 	if ((strstr(fw_getcmdline(), "console=")) == NULL) {

@@ -115,6 +115,7 @@ struct uvc_video
 	unsigned int width;
 	unsigned int height;
 	unsigned int imagesize;
+	struct mutex mutex;	/* protects frame parameters */
 
 	/* Requests */
 	unsigned int req_size;
@@ -143,7 +144,7 @@ enum uvc_state
 
 struct uvc_device
 {
-	struct video_device *vdev;
+	struct video_device vdev;
 	struct v4l2_device v4l2_dev;
 	enum uvc_state state;
 	struct usb_function func;

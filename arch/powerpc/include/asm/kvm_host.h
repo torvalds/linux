@@ -227,10 +227,8 @@ struct kvm_arch {
 	unsigned long host_sdr1;
 	int tlbie_lock;
 	unsigned long lpcr;
-	unsigned long rmor;
-	struct kvm_rma_info *rma;
 	unsigned long vrma_slb_v;
-	int rma_setup_done;
+	int hpte_setup_done;
 	u32 hpt_order;
 	atomic_t vcpus_running;
 	u32 online_vcores;
@@ -239,6 +237,8 @@ struct kvm_arch {
 	atomic_t hpte_mod_interest;
 	cpumask_t need_tlb_flush;
 	int hpt_cma_alloc;
+	struct dentry *debugfs_dir;
+	struct dentry *htab_dentry;
 #endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */
 #ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
 	struct mutex hpt_mutex;
@@ -263,18 +263,15 @@ struct kvm_arch {
 
 /*
  * Struct for a virtual core.
- * Note: entry_exit_count combines an entry count in the bottom 8 bits
- * and an exit count in the next 8 bits.  This is so that we can
- * atomically increment the entry count iff the exit count is 0
- * without taking the lock.
+ * Note: entry_exit_map combines a bitmap of threads that have entered
+ * in the bottom 8 bits and a bitmap of threads that have exited in the
+ * next 8 bits.  This is so that we can atomically set the entry bit
+ * iff the exit map is 0 without taking a lock.
  */
 struct kvmppc_vcore {
 	int n_runnable;
-	int n_busy;
 	int num_threads;
-	int entry_exit_count;
-	int n_woken;
-	int nap_count;
+	int entry_exit_map;
 	int napping_threads;
 	int first_vcpuid;
 	u16 pcpu;
@@ -299,13 +296,14 @@ struct kvmppc_vcore {
 	ulong conferring_threads;
 };
 
-#define VCORE_ENTRY_COUNT(vc)	((vc)->entry_exit_count & 0xff)
-#define VCORE_EXIT_COUNT(vc)	((vc)->entry_exit_count >> 8)
+#define VCORE_ENTRY_MAP(vc)	((vc)->entry_exit_map & 0xff)
+#define VCORE_EXIT_MAP(vc)	((vc)->entry_exit_map >> 8)
+#define VCORE_IS_EXITING(vc)	(VCORE_EXIT_MAP(vc) != 0)
 
 /* Values for vcore_state */
 #define VCORE_INACTIVE	0
 #define VCORE_SLEEPING	1
-#define VCORE_STARTING	2
+#define VCORE_PREEMPT	2
 #define VCORE_RUNNING	3
 #define VCORE_EXITING	4
 
@@ -366,6 +364,14 @@ struct kvmppc_slb {
 	bool tb		: 1;	/* 1TB segment */
 	bool class	: 1;
 	u8 base_page_size;	/* MMU_PAGE_xxx */
+};
+
+/* Struct used to accumulate timing information in HV real mode code */
+struct kvmhv_tb_accumulator {
+	u64	seqcount;	/* used to synchronize access, also count * 2 */
+	u64	tb_total;	/* total time in timebase ticks */
+	u64	tb_min;		/* min time */
+	u64	tb_max;		/* max time */
 };
 
 # ifdef CONFIG_PPC_FSL_BOOK3E
@@ -656,6 +662,19 @@ struct kvm_vcpu_arch {
 
 	u32 emul_inst;
 #endif
+
+#ifdef CONFIG_KVM_BOOK3S_HV_EXIT_TIMING
+	struct kvmhv_tb_accumulator *cur_activity;	/* What we're timing */
+	u64	cur_tb_start;			/* when it started */
+	struct kvmhv_tb_accumulator rm_entry;	/* real-mode entry code */
+	struct kvmhv_tb_accumulator rm_intr;	/* real-mode intr handling */
+	struct kvmhv_tb_accumulator rm_exit;	/* real-mode exit code */
+	struct kvmhv_tb_accumulator guest_time;	/* guest execution */
+	struct kvmhv_tb_accumulator cede_time;	/* time napping inside guest */
+
+	struct dentry *debugfs_dir;
+	struct dentry *debugfs_timings;
+#endif /* CONFIG_KVM_BOOK3S_HV_EXIT_TIMING */
 };
 
 #define VCPU_FPR(vcpu, i)	(vcpu)->arch.fp.fpr[i][TS_FPROFFSET]

@@ -255,11 +255,13 @@ struct nfs4_layoutget {
 struct nfs4_getdeviceinfo_args {
 	struct nfs4_sequence_args seq_args;
 	struct pnfs_device *pdev;
+	__u32 notify_types;
 };
 
 struct nfs4_getdeviceinfo_res {
 	struct nfs4_sequence_res seq_res;
 	struct pnfs_device *pdev;
+	__u32 notification;
 };
 
 struct nfs4_layoutcommit_args {
@@ -1271,11 +1273,15 @@ struct nfs42_falloc_args {
 	nfs4_stateid			 falloc_stateid;
 	u64				 falloc_offset;
 	u64				 falloc_length;
+	const u32			*falloc_bitmask;
 };
 
 struct nfs42_falloc_res {
 	struct nfs4_sequence_res	seq_res;
 	unsigned int			status;
+
+	struct nfs_fattr		*falloc_fattr;
+	const struct nfs_server		*falloc_server;
 };
 
 struct nfs42_seek_args {

@@ -827,7 +827,7 @@ config KUSER_HELPERS
 
 config VDSO
 	bool "Enable VDSO for acceleration of some system calls"
-	depends on AEABI && MMU
+	depends on AEABI && MMU && CPU_V7
 	default y if ARM_ARCH_TIMER
 	select GENERIC_TIME_VSYSCALL
 	help

@@ -87,11 +87,10 @@
 
 struct lguest_data lguest_data = {
 	.hcall_status = { [0 ... LHCALL_RING_SIZE-1] = 0xFF },
-	.noirq_start = (u32)lguest_noirq_start,
-	.noirq_end = (u32)lguest_noirq_end,
+	.noirq_iret = (u32)lguest_noirq_iret,
 	.kernel_address = PAGE_OFFSET,
 	.blocked_interrupts = { 1 }, /* Block timer interrupts */
-	.syscall_vec = SYSCALL_VECTOR,
+	.syscall_vec = IA32_SYSCALL_VECTOR,
 };
 
 /*G:037
@@ -262,7 +261,7 @@ PV_CALLEE_SAVE_REGS_THUNK(lguest_save_fl);
 PV_CALLEE_SAVE_REGS_THUNK(lguest_irq_disable);
 /*:*/
 
-/* These are in i386_head.S */
+/* These are in head_32.S */
 extern void lg_irq_enable(void);
 extern void lg_restore_fl(unsigned long flags);
 
@@ -867,7 +866,7 @@ static void __init lguest_init_IRQ(void)
 	for (i = FIRST_EXTERNAL_VECTOR; i < FIRST_SYSTEM_VECTOR; i++) {
 		/* Some systems map "vectors" to interrupts weirdly.  Not us! */
 		__this_cpu_write(vector_irq[i], i - FIRST_EXTERNAL_VECTOR);
-		if (i != SYSCALL_VECTOR)
+		if (i != IA32_SYSCALL_VECTOR)
 			set_intr_gate(i, irq_entries_start +
 					8 * (i - FIRST_EXTERNAL_VECTOR));
 	}
@@ -1368,7 +1367,7 @@ static void lguest_restart(char *reason)
  * fit comfortably.
  *
  * First we need assembly templates of each of the patchable Guest operations,
- * and these are in i386_head.S.
+ * and these are in head_32.S.
  */
 
 /*G:060 We construct a table from the assembler templates: */

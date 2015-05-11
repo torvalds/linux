@@ -40,17 +40,6 @@ void __init cris_mmu_init(void)
 	 */
 	per_cpu(current_pgd, smp_processor_id()) = init_mm.pgd;
 
-#ifdef CONFIG_SMP
-	{
-		pgd_t **pgd;
-		pgd = (pgd_t**)&per_cpu(current_pgd, smp_processor_id());
-		SUPP_BANK_SEL(1);
-		SUPP_REG_WR(RW_MM_TLB_PGD, pgd);
-		SUPP_BANK_SEL(2);
-		SUPP_REG_WR(RW_MM_TLB_PGD, pgd);
-	}
-#endif
-
 	/* Initialise the TLB. Function found in tlb.c. */
 	tlb_init();
 

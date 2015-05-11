@@ -95,9 +95,11 @@ config PINCTRL_FALCON
 
 config PINCTRL_MESON
 	bool
+	depends on OF
 	select PINMUX
 	select PINCONF
 	select GENERIC_PINCONF
+	select GPIOLIB
 	select OF_GPIO
 	select REGMAP_MMIO
 
@@ -229,7 +231,8 @@ config PINCTRL_XWAY
 
 config PINCTRL_TB10X
 	bool
-	depends on ARC_PLAT_TB10X
+	depends on OF && ARC_PLAT_TB10X
+	select GPIOLIB
 
 endmenu
 

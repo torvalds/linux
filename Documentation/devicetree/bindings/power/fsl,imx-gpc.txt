@@ -1,0 +1,59 @@
+Freescale i.MX General Power Controller
+=======================================
+
+The i.MX6Q General Power Control (GPC) block contains DVFS load tracking
+counters and Power Gating Control (PGC) for the CPU and PU (GPU/VPU) power
+domains.
+
+Required properties:
+- compatible: Should be "fsl,imx6q-gpc" or "fsl,imx6sl-gpc"
+- reg: should be register base and length as documented in the
+  datasheet
+- interrupts: Should contain GPC interrupt request 1
+- pu-supply: Link to the LDO regulator powering the PU power domain
+- clocks: Clock phandles to devices in the PU power domain that need
+	  to be enabled during domain power-up for reset propagation.
+- #power-domain-cells: Should be 1, see below:
+
+The gpc node is a power-controller as documented by the generic power domain
+bindings in Documentation/devicetree/bindings/power/power_domain.txt.
+
+Example:
+
+	gpc: gpc@020dc000 {
+		compatible = "fsl,imx6q-gpc";
+		reg = <0x020dc000 0x4000>;
+		interrupts = <0 89 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 90 IRQ_TYPE_LEVEL_HIGH>;
+		pu-supply = <&reg_pu>;
+		clocks = <&clks IMX6QDL_CLK_GPU3D_CORE>,
+			 <&clks IMX6QDL_CLK_GPU3D_SHADER>,
+			 <&clks IMX6QDL_CLK_GPU2D_CORE>,
+			 <&clks IMX6QDL_CLK_GPU2D_AXI>,
+			 <&clks IMX6QDL_CLK_OPENVG_AXI>,
+			 <&clks IMX6QDL_CLK_VPU_AXI>;
+		#power-domain-cells = <1>;
+	};
+
+
+Specifying power domain for IP modules
+======================================
+
+IP cores belonging to a power domain should contain a 'power-domains' property
+that is a phandle pointing to the gpc device node and a DOMAIN_INDEX specifying
+the power domain the device belongs to.
+
+Example of a device that is part of the PU power domain:
+
+	vpu: vpu@02040000 {
+		reg = <0x02040000 0x3c000>;
+		/* ... */
+		power-domains = <&gpc 1>;
+		/* ... */
+	};
+
+The following DOMAIN_INDEX values are valid for i.MX6Q:
+ARM_DOMAIN     0
+PU_DOMAIN      1
+The following additional DOMAIN_INDEX value is valid for i.MX6SL:
+DISPLAY_DOMAIN 2

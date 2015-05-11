@@ -273,7 +273,7 @@ cifs_new_fileinfo(struct cifs_fid *fid, struct file *file,
 		  struct tcon_link *tlink, __u32 oplock)
 {
 	struct dentry *dentry = file->f_path.dentry;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct cifsInodeInfo *cinode = CIFS_I(inode);
 	struct cifsFileInfo *cfile;
 	struct cifs_fid_locks *fdlocks;
@@ -357,7 +357,7 @@ cifsFileInfo_get(struct cifsFileInfo *cifs_file)
  */
 void cifsFileInfo_put(struct cifsFileInfo *cifs_file)
 {
-	struct inode *inode = cifs_file->dentry->d_inode;
+	struct inode *inode = d_inode(cifs_file->dentry);
 	struct cifs_tcon *tcon = tlink_tcon(cifs_file->tlink);
 	struct TCP_Server_Info *server = tcon->ses->server;
 	struct cifsInodeInfo *cifsi = CIFS_I(inode);
@@ -386,7 +386,7 @@ void cifsFileInfo_put(struct cifsFileInfo *cifs_file)
 
 	if (list_empty(&cifsi->openFileList)) {
 		cifs_dbg(FYI, "closing last open instance for inode %p\n",
-			 cifs_file->dentry->d_inode);
+			 d_inode(cifs_file->dentry));
 		/*
 		 * In strict cache mode we need invalidate mapping on the last
 		 * close  because it may cause a error when we open this file
@@ -572,7 +572,7 @@ static int
 cifs_relock_file(struct cifsFileInfo *cfile)
 {
 	struct cifs_sb_info *cifs_sb = CIFS_SB(cfile->dentry->d_sb);
-	struct cifsInodeInfo *cinode = CIFS_I(cfile->dentry->d_inode);
+	struct cifsInodeInfo *cinode = CIFS_I(d_inode(cfile->dentry));
 	struct cifs_tcon *tcon = tlink_tcon(cfile->tlink);
 	int rc = 0;
 
@@ -620,7 +620,7 @@ cifs_reopen_file(struct cifsFileInfo *cfile, bool can_flush)
 		return rc;
 	}
 
-	inode = cfile->dentry->d_inode;
+	inode = d_inode(cfile->dentry);
 	cifs_sb = CIFS_SB(inode->i_sb);
 	tcon = tlink_tcon(cfile->tlink);
 	server = tcon->ses->server;
@@ -874,7 +874,7 @@ cifs_find_lock_conflict(struct cifsFileInfo *cfile, __u64 offset, __u64 length,
 {
 	bool rc = false;
 	struct cifs_fid_locks *cur;
-	struct cifsInodeInfo *cinode = CIFS_I(cfile->dentry->d_inode);
+	struct cifsInodeInfo *cinode = CIFS_I(d_inode(cfile->dentry));
 
 	list_for_each_entry(cur, &cinode->llist, llist) {
 		rc = cifs_find_fid_lock_conflict(cur, offset, length, type,
@@ -899,7 +899,7 @@ cifs_lock_test(struct cifsFileInfo *cfile, __u64 offset, __u64 length,
 {
 	int rc = 0;
 	struct cifsLockInfo *conf_lock;
-	struct cifsInodeInfo *cinode = CIFS_I(cfile->dentry->d_inode);
+	struct cifsInodeInfo *cinode = CIFS_I(d_inode(cfile->dentry));
 	struct TCP_Server_Info *server = tlink_tcon(cfile->tlink)->ses->server;
 	bool exist;
 
@@ -927,7 +927,7 @@ cifs_lock_test(struct cifsFileInfo *cfile, __u64 offset, __u64 length,
 static void
 cifs_lock_add(struct cifsFileInfo *cfile, struct cifsLockInfo *lock)
 {
-	struct cifsInodeInfo *cinode = CIFS_I(cfile->dentry->d_inode);
+	struct cifsInodeInfo *cinode = CIFS_I(d_inode(cfile->dentry));
 	down_write(&cinode->lock_sem);
 	list_add_tail(&lock->llist, &cfile->llist->locks);
 	up_write(&cinode->lock_sem);
@@ -944,7 +944,7 @@ cifs_lock_add_if(struct cifsFileInfo *cfile, struct cifsLockInfo *lock,
 		 bool wait)
 {
 	struct cifsLockInfo *conf_lock;
-	struct cifsInodeInfo *cinode = CIFS_I(cfile->dentry->d_inode);
+	struct cifsInodeInfo *cinode = CIFS_I(d_inode(cfile->dentry));
 	bool exist;
 	int rc = 0;
 
@@ -1125,7 +1125,7 @@ struct lock_to_push {
 static int
 cifs_push_posix_locks(struct cifsFileInfo *cfile)
 {
-	struct inode *inode = cfile->dentry->d_inode;
+	struct inode *inode = d_inode(cfile->dentry);
 	struct cifs_tcon *tcon = tlink_tcon(cfile->tlink);
 	struct file_lock *flock;
 	struct file_lock_context *flctx = inode->i_flctx;
@@ -1214,7 +1214,7 @@ static int
 cifs_push_locks(struct cifsFileInfo *cfile)
 {
 	struct cifs_sb_info *cifs_sb = CIFS_SB(cfile->dentry->d_sb);
-	struct cifsInodeInfo *cinode = CIFS_I(cfile->dentry->d_inode);
+	struct cifsInodeInfo *cinode = CIFS_I(d_inode(cfile->dentry));
 	struct cifs_tcon *tcon = tlink_tcon(cfile->tlink);
 	int rc = 0;
 
@@ -1382,7 +1382,7 @@ cifs_unlock_range(struct cifsFileInfo *cfile, struct file_lock *flock,
 	unsigned int max_num, num, max_buf;
 	LOCKING_ANDX_RANGE *buf, *cur;
 	struct cifs_tcon *tcon = tlink_tcon(cfile->tlink);
-	struct cifsInodeInfo *cinode = CIFS_I(cfile->dentry->d_inode);
+	struct cifsInodeInfo *cinode = CIFS_I(d_inode(cfile->dentry));
 	struct cifsLockInfo *li, *tmp;
 	__u64 length = 1 + flock->fl_end - flock->fl_start;
 	struct list_head tmp_llist;
@@ -1488,7 +1488,7 @@ cifs_setlk(struct file *file, struct file_lock *flock, __u32 type,
 	struct cifsFileInfo *cfile = (struct cifsFileInfo *)file->private_data;
 	struct cifs_tcon *tcon = tlink_tcon(cfile->tlink);
 	struct TCP_Server_Info *server = tcon->ses->server;
-	struct inode *inode = cfile->dentry->d_inode;
+	struct inode *inode = d_inode(cfile->dentry);
 
 	if (posix_lck) {
 		int posix_lock_type;
@@ -1643,7 +1643,7 @@ cifs_write(struct cifsFileInfo *open_file, __u32 pid, const char *write_data,
 	struct TCP_Server_Info *server;
 	unsigned int xid;
 	struct dentry *dentry = open_file->dentry;
-	struct cifsInodeInfo *cifsi = CIFS_I(dentry->d_inode);
+	struct cifsInodeInfo *cifsi = CIFS_I(d_inode(dentry));
 	struct cifs_io_parms io_parms;
 
 	cifs_sb = CIFS_SB(dentry->d_sb);
@@ -1676,7 +1676,7 @@ cifs_write(struct cifsFileInfo *open_file, __u32 pid, const char *write_data,
 					break;
 			}
 
-			len = min(server->ops->wp_retry_size(dentry->d_inode),
+			len = min(server->ops->wp_retry_size(d_inode(dentry)),
 				  (unsigned int)write_size - total_written);
 			/* iov[0] is reserved for smb header */
 			iov[1].iov_base = (char *)write_data + total_written;
@@ -1696,9 +1696,9 @@ cifs_write(struct cifsFileInfo *open_file, __u32 pid, const char *write_data,
 				return rc;
 			}
 		} else {
-			spin_lock(&dentry->d_inode->i_lock);
+			spin_lock(&d_inode(dentry)->i_lock);
 			cifs_update_eof(cifsi, *offset, bytes_written);
-			spin_unlock(&dentry->d_inode->i_lock);
+			spin_unlock(&d_inode(dentry)->i_lock);
 			*offset += bytes_written;
 		}
 	}
@@ -1706,12 +1706,12 @@ cifs_write(struct cifsFileInfo *open_file, __u32 pid, const char *write_data,
 	cifs_stats_bytes_written(tcon, total_written);
 
 	if (total_written > 0) {
-		spin_lock(&dentry->d_inode->i_lock);
-		if (*offset > dentry->d_inode->i_size)
-			i_size_write(dentry->d_inode, *offset);
-		spin_unlock(&dentry->d_inode->i_lock);
+		spin_lock(&d_inode(dentry)->i_lock);
+		if (*offset > d_inode(dentry)->i_size)
+			i_size_write(d_inode(dentry), *offset);
+		spin_unlock(&d_inode(dentry)->i_lock);
 	}
-	mark_inode_dirty_sync(dentry->d_inode);
+	mark_inode_dirty_sync(d_inode(dentry));
 	free_xid(xid);
 	return total_written;
 }
@@ -2406,7 +2406,7 @@ cifs_uncached_writev_complete(struct work_struct *work)
 {
 	struct cifs_writedata *wdata = container_of(work,
 					struct cifs_writedata, work);
-	struct inode *inode = wdata->cfile->dentry->d_inode;
+	struct inode *inode = d_inode(wdata->cfile->dentry);
 	struct cifsInodeInfo *cifsi = CIFS_I(inode);
 
 	spin_lock(&inode->i_lock);
@@ -3794,7 +3794,7 @@ void cifs_oplock_break(struct work_struct *work)
 {
 	struct cifsFileInfo *cfile = container_of(work, struct cifsFileInfo,
 						  oplock_break);
-	struct inode *inode = cfile->dentry->d_inode;
+	struct inode *inode = d_inode(cfile->dentry);
 	struct cifsInodeInfo *cinode = CIFS_I(inode);
 	struct cifs_tcon *tcon = tlink_tcon(cfile->tlink);
 	struct TCP_Server_Info *server = tcon->ses->server;

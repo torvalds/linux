@@ -237,7 +237,7 @@ static void dump_common_audit_data(struct audit_buffer *ab,
 
 		audit_log_d_path(ab, " path=", &a->u.path);
 
-		inode = a->u.path.dentry->d_inode;
+		inode = d_backing_inode(a->u.path.dentry);
 		if (inode) {
 			audit_log_format(ab, " dev=");
 			audit_log_untrustedstring(ab, inode->i_sb->s_id);
@@ -251,7 +251,7 @@ static void dump_common_audit_data(struct audit_buffer *ab,
 		audit_log_format(ab, " name=");
 		audit_log_untrustedstring(ab, a->u.dentry->d_name.name);
 
-		inode = a->u.dentry->d_inode;
+		inode = d_backing_inode(a->u.dentry);
 		if (inode) {
 			audit_log_format(ab, " dev=");
 			audit_log_untrustedstring(ab, inode->i_sb->s_id);

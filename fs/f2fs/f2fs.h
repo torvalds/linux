@@ -625,6 +625,7 @@ struct f2fs_sb_info {
 	struct mutex cp_mutex;			/* checkpoint procedure lock */
 	struct rw_semaphore cp_rwsem;		/* blocking FS operations */
 	struct rw_semaphore node_write;		/* locking node writes */
+	struct mutex writepages;		/* mutex for writepages() */
 	wait_queue_head_t cp_wait;
 
 	struct inode_management im[MAX_INO_ENTRY];      /* manage inode cache */
@@ -1482,7 +1483,7 @@ bool f2fs_empty_dir(struct inode *);
 
 static inline int f2fs_add_link(struct dentry *dentry, struct inode *inode)
 {
-	return __f2fs_add_link(dentry->d_parent->d_inode, &dentry->d_name,
+	return __f2fs_add_link(d_inode(dentry->d_parent), &dentry->d_name,
 				inode, inode->i_ino, inode->i_mode);
 }
 

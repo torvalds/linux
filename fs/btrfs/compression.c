@@ -622,7 +622,7 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	cb->orig_bio = bio;
 
 	nr_pages = DIV_ROUND_UP(compressed_len, PAGE_CACHE_SIZE);
-	cb->compressed_pages = kzalloc(sizeof(struct page *) * nr_pages,
+	cb->compressed_pages = kcalloc(nr_pages, sizeof(struct page *),
 				       GFP_NOFS);
 	if (!cb->compressed_pages)
 		goto fail1;
@@ -750,7 +750,7 @@ static int comp_num_workspace[BTRFS_COMPRESS_TYPES];
 static atomic_t comp_alloc_workspace[BTRFS_COMPRESS_TYPES];
 static wait_queue_head_t comp_workspace_wait[BTRFS_COMPRESS_TYPES];
 
-static struct btrfs_compress_op *btrfs_compress_op[] = {
+static const struct btrfs_compress_op * const btrfs_compress_op[] = {
 	&btrfs_zlib_compress,
 	&btrfs_lzo_compress,
 };

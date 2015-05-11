@@ -7,7 +7,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-&scrm_clocks {
+&scm_clocks {
 	emac_ick: emac_ick {
 		#clock-cells = <0>;
 		compatible = "ti,am35xx-gate-clock";

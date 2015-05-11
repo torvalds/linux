@@ -15,9 +15,9 @@
 #define	DMA_ERROR_CODE (~(dma_addr_t)0x0)
 #endif
 
-unsigned long iommu_large_alloc = 15;
+static unsigned long iommu_large_alloc = 15;
 
-static	DEFINE_PER_CPU(unsigned int, iommu_pool_hash);
+static	DEFINE_PER_CPU(unsigned int, iommu_hash_common);
 
 static inline bool need_flush(struct iommu_map_table *iommu)
 {
@@ -44,7 +44,7 @@ static void setup_iommu_pool_hash(void)
 		return;
 	do_once = true;
 	for_each_possible_cpu(i)
-		per_cpu(iommu_pool_hash, i) = hash_32(i, IOMMU_POOL_HASHBITS);
+		per_cpu(iommu_hash_common, i) = hash_32(i, IOMMU_POOL_HASHBITS);
 }
 
 /*
@@ -53,12 +53,12 @@ static void setup_iommu_pool_hash(void)
  * the top 1/4 of the table will be set aside for pool allocations
  * of more than iommu_large_alloc pages.
  */
-extern void iommu_tbl_pool_init(struct iommu_map_table *iommu,
-				unsigned long num_entries,
-				u32 table_shift,
-				void (*lazy_flush)(struct iommu_map_table *),
-				bool large_pool, u32 npools,
-				bool skip_span_boundary_check)
+void iommu_tbl_pool_init(struct iommu_map_table *iommu,
+			 unsigned long num_entries,
+			 u32 table_shift,
+			 void (*lazy_flush)(struct iommu_map_table *),
+			 bool large_pool, u32 npools,
+			 bool skip_span_boundary_check)
 {
 	unsigned int start, i;
 	struct iommu_pool *p = &(iommu->large_pool);
@@ -106,7 +106,7 @@ unsigned long iommu_tbl_range_alloc(struct device *dev,
 				unsigned long mask,
 				unsigned int align_order)
 {
-	unsigned int pool_hash = __this_cpu_read(iommu_pool_hash);
+	unsigned int pool_hash = __this_cpu_read(iommu_hash_common);
 	unsigned long n, end, start, limit, boundary_size;
 	struct iommu_pool *pool;
 	int pass = 0;

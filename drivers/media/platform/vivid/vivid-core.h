@@ -79,12 +79,14 @@ extern unsigned vivid_debug;
 struct vivid_fmt {
 	const char *name;
 	u32	fourcc;          /* v4l2 format id */
-	u8	depth;
 	bool	is_yuv;
 	bool	can_do_overlay;
+	u8	vdownsampling[TPG_MAX_PLANES];
 	u32	alpha_mask;
 	u8	planes;
-	u32	data_offset[2];
+	u8	buffers;
+	u32	data_offset[TPG_MAX_PLANES];
+	u32	bit_depth[TPG_MAX_PLANES];
 };
 
 extern struct vivid_fmt vivid_formats[];
@@ -332,7 +334,7 @@ struct vivid_dev {
 	u32				ycbcr_enc_out;
 	u32				quantization_out;
 	u32				service_set_out;
-	u32				bytesperline_out[2];
+	unsigned			bytesperline_out[TPG_MAX_PLANES];
 	unsigned			tv_field_out;
 	unsigned			tv_audio_output;
 	bool				vbi_out_have_wss;

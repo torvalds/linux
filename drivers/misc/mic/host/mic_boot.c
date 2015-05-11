@@ -309,7 +309,7 @@ void mic_complete_resume(struct mic_device *mdev)
  */
 void mic_prepare_suspend(struct mic_device *mdev)
 {
-	int rc;
+	unsigned long timeout;
 
 #define MIC_SUSPEND_TIMEOUT (60 * HZ)
 
@@ -331,10 +331,10 @@ void mic_prepare_suspend(struct mic_device *mdev)
 		 */
 		mic_set_state(mdev, MIC_SUSPENDING);
 		mutex_unlock(&mdev->mic_mutex);
-		rc = wait_for_completion_timeout(&mdev->reset_wait,
-						MIC_SUSPEND_TIMEOUT);
+		timeout = wait_for_completion_timeout(&mdev->reset_wait,
+						      MIC_SUSPEND_TIMEOUT);
 		/* Force reset the card if the shutdown completion timed out */
-		if (!rc) {
+		if (!timeout) {
 			mutex_lock(&mdev->mic_mutex);
 			mic_set_state(mdev, MIC_SUSPENDED);
 			mutex_unlock(&mdev->mic_mutex);
@@ -348,10 +348,10 @@ void mic_prepare_suspend(struct mic_device *mdev)
 		 */
 		mic_set_state(mdev, MIC_SUSPENDED);
 		mutex_unlock(&mdev->mic_mutex);
-		rc = wait_for_completion_timeout(&mdev->reset_wait,
-						MIC_SUSPEND_TIMEOUT);
+		timeout = wait_for_completion_timeout(&mdev->reset_wait,
+						      MIC_SUSPEND_TIMEOUT);
 		/* Force reset the card if the shutdown completion timed out */
-		if (!rc)
+		if (!timeout)
 			mic_stop(mdev, true);
 		break;
 	default:

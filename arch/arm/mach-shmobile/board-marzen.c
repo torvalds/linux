@@ -122,11 +122,11 @@ static struct resource sdhi0_resources[] = {
 	},
 };
 
-static struct sh_mobile_sdhi_info sdhi0_platform_data = {
-	.dma_slave_tx = HPBDMA_SLAVE_SDHI0_TX,
-	.dma_slave_rx = HPBDMA_SLAVE_SDHI0_RX,
-	.tmio_flags = TMIO_MMC_WRPROTECT_DISABLE | TMIO_MMC_HAS_IDLE_WAIT,
-	.tmio_caps = MMC_CAP_SD_HIGHSPEED,
+static struct tmio_mmc_data sdhi0_platform_data = {
+	.chan_priv_tx = (void *)HPBDMA_SLAVE_SDHI0_TX,
+	.chan_priv_rx = (void *)HPBDMA_SLAVE_SDHI0_RX,
+	.flags        = TMIO_MMC_WRPROTECT_DISABLE | TMIO_MMC_HAS_IDLE_WAIT,
+	.capabilities = MMC_CAP_SD_HIGHSPEED,
 };
 
 static struct platform_device sdhi0_device = {

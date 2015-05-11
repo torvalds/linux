@@ -235,12 +235,12 @@ static inline u32 autofs4_get_dev(struct autofs_sb_info *sbi)
 
 static inline u64 autofs4_get_ino(struct autofs_sb_info *sbi)
 {
-	return sbi->sb->s_root->d_inode->i_ino;
+	return d_inode(sbi->sb->s_root)->i_ino;
 }
 
 static inline int simple_positive(struct dentry *dentry)
 {
-	return dentry->d_inode && !d_unhashed(dentry);
+	return d_really_is_positive(dentry) && !d_unhashed(dentry);
 }
 
 static inline void __autofs4_add_expiring(struct dentry *dentry)

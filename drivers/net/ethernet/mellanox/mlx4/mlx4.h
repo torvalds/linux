@@ -499,6 +499,7 @@ struct mlx4_vport_state {
 	bool spoofchk;
 	u32 link_state;
 	u8 qos_vport;
+	__be64 guid;
 };
 
 struct mlx4_vf_admin_state {

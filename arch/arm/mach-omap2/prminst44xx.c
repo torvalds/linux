@@ -47,20 +47,12 @@ void omap_prm_base_init(void)
 
 s32 omap4_prmst_get_prm_dev_inst(void)
 {
-	if (prm_dev_inst != PRM_INSTANCE_UNKNOWN)
-		return prm_dev_inst;
-
-	/* This cannot be done way early at boot.. as things are not setup */
-	if (cpu_is_omap44xx())
-		prm_dev_inst = OMAP4430_PRM_DEVICE_INST;
-	else if (soc_is_omap54xx())
-		prm_dev_inst = OMAP54XX_PRM_DEVICE_INST;
-	else if (soc_is_dra7xx())
-		prm_dev_inst = DRA7XX_PRM_DEVICE_INST;
-	else if (soc_is_am43xx())
-		prm_dev_inst = AM43XX_PRM_DEVICE_INST;
-
 	return prm_dev_inst;
+}
+
+void omap4_prminst_set_prm_dev_inst(s32 dev_inst)
+{
+	prm_dev_inst = dev_inst;
 }
 
 /* Read a register in a PRM instance */

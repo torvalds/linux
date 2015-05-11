@@ -1181,10 +1181,11 @@ static const struct pv_cpu_ops xen_cpu_ops __initconst = {
 	.read_tscp = native_read_tscp,
 
 	.iret = xen_iret,
-	.irq_enable_sysexit = xen_sysexit,
 #ifdef CONFIG_X86_64
 	.usergs_sysret32 = xen_sysret32,
 	.usergs_sysret64 = xen_sysret64,
+#else
+	.irq_enable_sysexit = xen_sysexit,
 #endif
 
 	.load_tr_desc = paravirt_nop,
@@ -1760,6 +1761,9 @@ static struct notifier_block xen_hvm_cpu_notifier = {
 
 static void __init xen_hvm_guest_init(void)
 {
+	if (xen_pv_domain())
+		return;
+
 	init_hvm_pv_info();
 
 	xen_hvm_init_shared_info();
@@ -1775,6 +1779,7 @@ static void __init xen_hvm_guest_init(void)
 	xen_hvm_init_time_ops();
 	xen_hvm_init_mmu_ops();
 }
+#endif
 
 static bool xen_nopv = false;
 static __init int xen_parse_nopv(char *arg)
@@ -1784,12 +1789,9 @@ static __init int xen_parse_nopv(char *arg)
 }
 early_param("xen_nopv", xen_parse_nopv);
 
-static uint32_t __init xen_hvm_platform(void)
+static uint32_t __init xen_platform(void)
 {
 	if (xen_nopv)
-		return 0;
-
-	if (xen_pv_domain())
 		return 0;
 
 	return xen_cpuid_base();
@@ -1809,11 +1811,19 @@ bool xen_hvm_need_lapic(void)
 }
 EXPORT_SYMBOL_GPL(xen_hvm_need_lapic);
 
-const struct hypervisor_x86 x86_hyper_xen_hvm __refconst = {
-	.name			= "Xen HVM",
-	.detect			= xen_hvm_platform,
+static void xen_set_cpu_features(struct cpuinfo_x86 *c)
+{
+	if (xen_pv_domain())
+		clear_cpu_bug(c, X86_BUG_SYSRET_SS_ATTRS);
+}
+
+const struct hypervisor_x86 x86_hyper_xen = {
+	.name			= "Xen",
+	.detect			= xen_platform,
+#ifdef CONFIG_XEN_PVHVM
 	.init_platform		= xen_hvm_guest_init,
-	.x2apic_available	= xen_x2apic_para_available,
-};
-EXPORT_SYMBOL(x86_hyper_xen_hvm);
 #endif
+	.x2apic_available	= xen_x2apic_para_available,
+	.set_cpu_features       = xen_set_cpu_features,
+};
+EXPORT_SYMBOL(x86_hyper_xen);

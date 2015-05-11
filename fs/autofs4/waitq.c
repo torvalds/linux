@@ -322,7 +322,7 @@ static int validate_request(struct autofs_wait_queue **wait,
 		 * continue on and create a new request.
 		 */
 		if (!IS_ROOT(dentry)) {
-			if (dentry->d_inode && d_unhashed(dentry)) {
+			if (d_really_is_positive(dentry) && d_unhashed(dentry)) {
 				struct dentry *parent = dentry->d_parent;
 				new = d_lookup(parent, &dentry->d_name);
 				if (new)
@@ -364,7 +364,7 @@ int autofs4_wait(struct autofs_sb_info *sbi, struct dentry *dentry,
 	if (pid == 0 || tgid == 0)
 		return -ENOENT;
 
-	if (!dentry->d_inode) {
+	if (d_really_is_negative(dentry)) {
 		/*
 		 * A wait for a negative dentry is invalid for certain
 		 * cases. A direct or offset mount "always" has its mount

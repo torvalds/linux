@@ -20,7 +20,7 @@ comment "Non-8250 serial port support"
 
 config SERIAL_AMBA_PL010
 	tristate "ARM AMBA PL010 serial port support"
-	depends on ARM_AMBA && (BROKEN || !ARCH_VERSATILE)
+	depends on ARM_AMBA
 	select SERIAL_CORE
 	help
 	  This selects the ARM(R) AMBA(R) PrimeCell PL010 UART.  If you have
@@ -483,16 +483,6 @@ config SERIAL_SA1100_CONSOLE
 	  your boot loader (lilo or loadlin) about how to pass options to the
 	  kernel at boot time.)
 
-config SERIAL_MFD_HSU
-	tristate "Medfield High Speed UART support"
-	depends on PCI
-	select SERIAL_CORE
-
-config SERIAL_MFD_HSU_CONSOLE
-	bool "Medfile HSU serial console support"
-	depends on SERIAL_MFD_HSU=y
-	select SERIAL_CORE_CONSOLE
-
 config SERIAL_BFIN
 	tristate "Blackfin serial port support"
 	depends on BLACKFIN
@@ -835,7 +825,7 @@ config SERIAL_MCF_CONSOLE
 
 config SERIAL_PMACZILOG
 	tristate "Mac or PowerMac z85c30 ESCC support"
-	depends on (M68K && MAC) || (PPC_OF && PPC_PMAC)
+	depends on (M68K && MAC) || PPC_PMAC
 	select SERIAL_CORE
 	help
 	  This driver supports the Zilog z85C30 serial ports found on
@@ -878,7 +868,7 @@ config SERIAL_PMACZILOG_CONSOLE
 
 config SERIAL_CPM
 	tristate "CPM SCC/SMC serial port support"
-	depends on CPM2 || 8xx
+	depends on CPM2 || CPM1
 	select SERIAL_CORE
 	help
 	  This driver supports the SCC and SMC serial ports on Motorola 
@@ -1054,7 +1044,7 @@ config SERIAL_SGI_IOC3
 
 config SERIAL_MSM
 	bool "MSM on-chip serial port support"
-	depends on ARCH_MSM || ARCH_QCOM
+	depends on ARCH_QCOM
 	select SERIAL_CORE
 
 config SERIAL_MSM_CONSOLE
@@ -1062,18 +1052,6 @@ config SERIAL_MSM_CONSOLE
 	depends on SERIAL_MSM=y
 	select SERIAL_CORE_CONSOLE
 	select SERIAL_EARLYCON
-
-config SERIAL_MSM_HS
-	tristate "MSM UART High Speed: Serial Driver"
-	depends on ARCH_MSM7X00A || ARCH_MSM7X30 || ARCH_QSD8X50
-	select SERIAL_CORE
-	help
-	  If you have a machine based on MSM family of SoCs, you
-	  can enable its onboard high speed serial port by enabling
-	  this option.
-
-	  Choose M here to compile it as a module. The module will be
-	  called msm_serial_hs.
 
 config SERIAL_VT8500
 	bool "VIA VT8500 on-chip serial port support"
@@ -1153,7 +1131,7 @@ config SERIAL_OMAP_CONSOLE
 
 config SERIAL_OF_PLATFORM_NWPSERIAL
 	tristate "NWP serial port driver"
-	depends on PPC_OF && PPC_DCR
+	depends on PPC_DCR
 	select SERIAL_OF_PLATFORM
 	select SERIAL_CORE_CONSOLE
 	select SERIAL_CORE

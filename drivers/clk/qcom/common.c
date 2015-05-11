@@ -43,6 +43,18 @@ struct freq_tbl *qcom_find_freq(const struct freq_tbl *f, unsigned long rate)
 }
 EXPORT_SYMBOL_GPL(qcom_find_freq);
 
+int qcom_find_src_index(struct clk_hw *hw, const struct parent_map *map, u8 src)
+{
+	int i, num_parents = __clk_get_num_parents(hw->clk);
+
+	for (i = 0; i < num_parents; i++)
+		if (src == map[i].src)
+			return i;
+
+	return -ENOENT;
+}
+EXPORT_SYMBOL_GPL(qcom_find_src_index);
+
 struct regmap *
 qcom_cc_map(struct platform_device *pdev, const struct qcom_cc_desc *desc)
 {

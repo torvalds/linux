@@ -108,7 +108,7 @@ static int __init s3c2442_core_init(void)
 core_initcall(s3c2442_core_init);
 
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static struct sleep_save s3c244x_sleep[] = {
 	SAVE_ITEM(S3C2440_DSC0),
 	SAVE_ITEM(S3C2440_DSC1),
@@ -127,12 +127,9 @@ static void s3c244x_resume(void)
 {
 	s3c_pm_do_restore(s3c244x_sleep, ARRAY_SIZE(s3c244x_sleep));
 }
-#else
-#define s3c244x_suspend NULL
-#define s3c244x_resume  NULL
-#endif
 
 struct syscore_ops s3c244x_pm_syscore_ops = {
 	.suspend	= s3c244x_suspend,
 	.resume		= s3c244x_resume,
 };
+#endif

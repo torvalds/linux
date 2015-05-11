@@ -170,15 +170,6 @@ void msm_serial_set_mnd_regs_from_uartclk(struct uart_port *port)
 		msm_serial_set_mnd_regs_tcxoby4(port);
 }
 
-/*
- * TROUT has a specific defect that makes it report it's uartclk
- * as 19.2Mhz (TCXO) when it's actually 4.8Mhz (TCXO/4). This special
- * cases TROUT to use the right clock.
- */
-#ifdef CONFIG_MACH_TROUT
-#define msm_serial_set_mnd_regs msm_serial_set_mnd_regs_tcxoby4
-#else
 #define msm_serial_set_mnd_regs msm_serial_set_mnd_regs_from_uartclk
-#endif
 
 #endif	/* __DRIVERS_SERIAL_MSM_SERIAL_H */

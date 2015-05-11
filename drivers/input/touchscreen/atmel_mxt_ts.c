@@ -14,6 +14,8 @@
  *
  */
 
+#include <linux/acpi.h>
+#include <linux/dmi.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/completion.h>
@@ -2371,7 +2373,7 @@ static void mxt_input_close(struct input_dev *dev)
 }
 
 #ifdef CONFIG_OF
-static struct mxt_platform_data *mxt_parse_dt(struct i2c_client *client)
+static const struct mxt_platform_data *mxt_parse_dt(struct i2c_client *client)
 {
 	struct mxt_platform_data *pdata;
 	u32 *keymap;
@@ -2379,7 +2381,7 @@ static struct mxt_platform_data *mxt_parse_dt(struct i2c_client *client)
 	int proplen, i, ret;
 
 	if (!client->dev.of_node)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-ENOENT);
 
 	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
@@ -2410,12 +2412,122 @@ static struct mxt_platform_data *mxt_parse_dt(struct i2c_client *client)
 	return pdata;
 }
 #else
-static struct mxt_platform_data *mxt_parse_dt(struct i2c_client *client)
+static const struct mxt_platform_data *mxt_parse_dt(struct i2c_client *client)
 {
-	dev_dbg(&client->dev, "No platform data specified\n");
-	return ERR_PTR(-EINVAL);
+	return ERR_PTR(-ENOENT);
 }
 #endif
+
+#ifdef CONFIG_ACPI
+
+struct mxt_acpi_platform_data {
+	const char *hid;
+	struct mxt_platform_data pdata;
+};
+
+static unsigned int samus_touchpad_buttons[] = {
+	KEY_RESERVED,
+	KEY_RESERVED,
+	KEY_RESERVED,
+	BTN_LEFT
+};
+
+static struct mxt_acpi_platform_data samus_platform_data[] = {
+	{
+		/* Touchpad */
+		.hid	= "ATML0000",
+		.pdata	= {
+			.t19_num_keys	= ARRAY_SIZE(samus_touchpad_buttons),
+			.t19_keymap	= samus_touchpad_buttons,
+		},
+	},
+	{
+		/* Touchscreen */
+		.hid	= "ATML0001",
+	},
+	{ }
+};
+
+static const struct dmi_system_id mxt_dmi_table[] = {
+	{
+		/* 2015 Google Pixel */
+		.ident = "Chromebook Pixel 2",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "GOOGLE"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Samus"),
+		},
+		.driver_data = samus_platform_data,
+	},
+	{ }
+};
+
+static const struct mxt_platform_data *mxt_parse_acpi(struct i2c_client *client)
+{
+	struct acpi_device *adev;
+	const struct dmi_system_id *system_id;
+	const struct mxt_acpi_platform_data *acpi_pdata;
+
+	/*
+	 * Ignore ACPI devices representing bootloader mode.
+	 *
+	 * This is a bit of a hack: Google Chromebook BIOS creates ACPI
+	 * devices for both application and bootloader modes, but we are
+	 * interested in application mode only (if device is in bootloader
+	 * mode we'll end up switching into application anyway). So far
+	 * application mode addresses were all above 0x40, so we'll use it
+	 * as a threshold.
+	 */
+	if (client->addr < 0x40)
+		return ERR_PTR(-ENXIO);
+
+	adev = ACPI_COMPANION(&client->dev);
+	if (!adev)
+		return ERR_PTR(-ENOENT);
+
+	system_id = dmi_first_match(mxt_dmi_table);
+	if (!system_id)
+		return ERR_PTR(-ENOENT);
+
+	acpi_pdata = system_id->driver_data;
+	if (!acpi_pdata)
+		return ERR_PTR(-ENOENT);
+
+	while (acpi_pdata->hid) {
+		if (!strcmp(acpi_device_hid(adev), acpi_pdata->hid))
+			return &acpi_pdata->pdata;
+
+		acpi_pdata++;
+	}
+
+	return ERR_PTR(-ENOENT);
+}
+#else
+static const struct mxt_platform_data *mxt_parse_acpi(struct i2c_client *client)
+{
+	return ERR_PTR(-ENOENT);
+}
+#endif
+
+static const struct mxt_platform_data *
+mxt_get_platform_data(struct i2c_client *client)
+{
+	const struct mxt_platform_data *pdata;
+
+	pdata = dev_get_platdata(&client->dev);
+	if (pdata)
+		return pdata;
+
+	pdata = mxt_parse_dt(client);
+	if (!IS_ERR(pdata) || PTR_ERR(pdata) != -ENOENT)
+		return pdata;
+
+	pdata = mxt_parse_acpi(client);
+	if (!IS_ERR(pdata) || PTR_ERR(pdata) != -ENOENT)
+		return pdata;
+
+	dev_err(&client->dev, "No platform data specified\n");
+	return ERR_PTR(-EINVAL);
+}
 
 static int mxt_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
@@ -2423,12 +2535,9 @@ static int mxt_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	const struct mxt_platform_data *pdata;
 	int error;
 
-	pdata = dev_get_platdata(&client->dev);
-	if (!pdata) {
-		pdata = mxt_parse_dt(client);
-		if (IS_ERR(pdata))
-			return PTR_ERR(pdata);
-	}
+	pdata = mxt_get_platform_data(client);
+	if (IS_ERR(pdata))
+		return PTR_ERR(pdata);
 
 	data = kzalloc(sizeof(struct mxt_data), GFP_KERNEL);
 	if (!data) {
@@ -2536,6 +2645,15 @@ static const struct of_device_id mxt_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, mxt_of_match);
 
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id mxt_acpi_id[] = {
+	{ "ATML0000", 0 },	/* Touchpad */
+	{ "ATML0001", 0 },	/* Touchscreen */
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, mxt_acpi_id);
+#endif
+
 static const struct i2c_device_id mxt_id[] = {
 	{ "qt602240_ts", 0 },
 	{ "atmel_mxt_ts", 0 },
@@ -2550,6 +2668,7 @@ static struct i2c_driver mxt_driver = {
 		.name	= "atmel_mxt_ts",
 		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(mxt_of_match),
+		.acpi_match_table = ACPI_PTR(mxt_acpi_id),
 		.pm	= &mxt_pm_ops,
 	},
 	.probe		= mxt_probe,

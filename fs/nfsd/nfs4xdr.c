@@ -424,7 +424,7 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval,
 		len += 4;
 		dummy32 = be32_to_cpup(p++);
 		READ_BUF(dummy32);
-		if (dummy32 > NFSD4_MAX_SEC_LABEL_LEN)
+		if (dummy32 > NFS4_MAXLABELLEN)
 			return nfserr_badlabel;
 		len += (XDR_QUADLEN(dummy32) << 2);
 		READMEM(buf, dummy32);
@@ -2020,7 +2020,7 @@ static __be32 nfsd4_encode_path(struct xdr_stream *xdr,
 	 * dentries/path components in an array.
 	 */
 	for (;;) {
-		if (cur.dentry == root->dentry && cur.mnt == root->mnt)
+		if (path_equal(&cur, root))
 			break;
 		if (cur.dentry == cur.mnt->mnt_root) {
 			if (follow_up(&cur))
@@ -2292,7 +2292,7 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 #ifdef CONFIG_NFSD_V4_SECURITY_LABEL
 	if ((bmval[2] & FATTR4_WORD2_SECURITY_LABEL) ||
 			bmval[0] & FATTR4_WORD0_SUPPORTED_ATTRS) {
-		err = security_inode_getsecctx(dentry->d_inode,
+		err = security_inode_getsecctx(d_inode(dentry),
 						&context, &contextlen);
 		contextsupport = (err == 0);
 		if (bmval2 & FATTR4_WORD2_SECURITY_LABEL) {
@@ -2384,7 +2384,7 @@ nfsd4_encode_fattr(struct xdr_stream *xdr, struct svc_fh *fhp,
 		p = xdr_reserve_space(xdr, 8);
 		if (!p)
 			goto out_resource;
-		p = encode_change(p, &stat, dentry->d_inode);
+		p = encode_change(p, &stat, d_inode(dentry));
 	}
 	if (bmval0 & FATTR4_WORD0_SIZE) {
 		p = xdr_reserve_space(xdr, 8);
@@ -2807,7 +2807,7 @@ nfsd4_encode_dirent_fattr(struct xdr_stream *xdr, struct nfsd4_readdir *cd,
 	dentry = lookup_one_len(name, cd->rd_fhp->fh_dentry, namlen);
 	if (IS_ERR(dentry))
 		return nfserrno(PTR_ERR(dentry));
-	if (!dentry->d_inode) {
+	if (d_really_is_negative(dentry)) {
 		/*
 		 * nfsd_buffered_readdir drops the i_mutex between
 		 * readdir and calling this callback, leaving a window
@@ -3324,7 +3324,7 @@ static __be32 nfsd4_encode_splice_read(
 	}
 
 	eof = (read->rd_offset + maxcount >=
-	       read->rd_fhp->fh_dentry->d_inode->i_size);
+	       d_inode(read->rd_fhp->fh_dentry)->i_size);
 
 	*(p++) = htonl(eof);
 	*(p++) = htonl(maxcount);
@@ -3401,7 +3401,7 @@ static __be32 nfsd4_encode_readv(struct nfsd4_compoundres *resp,
 	xdr_truncate_encode(xdr, starting_len + 8 + ((maxcount+3)&~3));
 
 	eof = (read->rd_offset + maxcount >=
-	       read->rd_fhp->fh_dentry->d_inode->i_size);
+	       d_inode(read->rd_fhp->fh_dentry)->i_size);
 
 	tmp = htonl(eof);
 	write_bytes_to_xdr_buf(xdr->buf, starting_len    , &tmp, 4);
@@ -3422,6 +3422,7 @@ nfsd4_encode_read(struct nfsd4_compoundres *resp, __be32 nfserr,
 	unsigned long maxcount;
 	struct xdr_stream *xdr = &resp->xdr;
 	struct file *file = read->rd_filp;
+	struct svc_fh *fhp = read->rd_fhp;
 	int starting_len = xdr->buf->len;
 	struct raparms *ra;
 	__be32 *p;
@@ -3445,12 +3446,15 @@ nfsd4_encode_read(struct nfsd4_compoundres *resp, __be32 nfserr,
 	maxcount = min_t(unsigned long, maxcount, (xdr->buf->buflen - xdr->buf->len));
 	maxcount = min_t(unsigned long, maxcount, read->rd_length);
 
-	if (!read->rd_filp) {
+	if (read->rd_filp)
+		err = nfsd_permission(resp->rqstp, fhp->fh_export,
+				fhp->fh_dentry,
+				NFSD_MAY_READ|NFSD_MAY_OWNER_OVERRIDE);
+	else
 		err = nfsd_get_tmp_read_open(resp->rqstp, read->rd_fhp,
 						&file, &ra);
-		if (err)
-			goto err_truncate;
-	}
+	if (err)
+		goto err_truncate;
 
 	if (file->f_op->splice_read && test_bit(RQ_SPLICE_OK, &resp->rqstp->rq_flags))
 		err = nfsd4_encode_splice_read(resp, read, file, maxcount);

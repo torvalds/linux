@@ -240,9 +240,9 @@ where padding bytes after the last line of an image cross a system
 page boundary. Capture devices may write padding bytes, the value is
 undefined. Output devices ignore the contents of padding
 bytes.</para><para>When the image format is planar the
-<structfield>bytesperline</structfield> value applies to the largest
+<structfield>bytesperline</structfield> value applies to the first
 plane and is divided by the same factor as the
-<structfield>width</structfield> field for any smaller planes. For
+<structfield>width</structfield> field for the other planes. For
 example the Cb and Cr planes of a YUV 4:2:0 image have half as many
 padding bytes following each line as the Y plane. To avoid ambiguities
 drivers must return a <structfield>bytesperline</structfield> value

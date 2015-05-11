@@ -5,12 +5,6 @@
 #define TARGET_CORE_NAME_MAX_LEN	64
 #define TARGET_FABRIC_NAME_SIZE		32
 
-extern struct target_fabric_configfs *target_fabric_configfs_init(
-				struct module *, const char *);
-extern void target_fabric_configfs_free(struct target_fabric_configfs *);
-extern int target_fabric_configfs_register(struct target_fabric_configfs *);
-extern void target_fabric_configfs_deregister(struct target_fabric_configfs *);
-
 struct target_fabric_configfs_template {
 	struct config_item_type tfc_discovery_cit;
 	struct config_item_type	tfc_wwn_cit;

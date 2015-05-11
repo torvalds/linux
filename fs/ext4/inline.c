@@ -1000,7 +1000,7 @@ static int ext4_add_dirent_to_inline(handle_t *handle,
 				     struct ext4_iloc *iloc,
 				     void *inline_start, int inline_size)
 {
-	struct inode	*dir = dentry->d_parent->d_inode;
+	struct inode	*dir = d_inode(dentry->d_parent);
 	const char	*name = dentry->d_name.name;
 	int		namelen = dentry->d_name.len;
 	int		err;
@@ -1254,7 +1254,7 @@ int ext4_try_add_inline_entry(handle_t *handle, struct dentry *dentry,
 	int ret, inline_size;
 	void *inline_start;
 	struct ext4_iloc iloc;
-	struct inode *dir = dentry->d_parent->d_inode;
+	struct inode *dir = d_inode(dentry->d_parent);
 
 	ret = ext4_get_inode_loc(dir, &iloc);
 	if (ret)
