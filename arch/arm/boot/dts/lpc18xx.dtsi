@@ -1,0 +1,114 @@
+/*
+ * Common base for NXP LPC18xx and LPC43xx devices.
+ *
+ * Copyright 2015 Joachim Eastwood <manabian@gmail.com>
+ *
+ * This code is released using a dual license strategy: BSD/GPL
+ * You can choose the licence that better fits your requirements.
+ *
+ * Released under the terms of 3-clause BSD License
+ * Released under the terms of GNU General Public License Version 2.0
+ *
+ */
+
+#include "armv7-m.dtsi"
+
+/ {
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			compatible = "arm,cortex-m3";
+			device_type = "cpu";
+			reg = <0x0>;
+		};
+	};
+
+	clocks {
+		xtal: xtal {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <12000000>;
+		};
+
+		/* Temporary hardcode PLL1 until clk drivers are merged */
+		pll1: pll1 {
+			compatible = "fixed-factor-clock";
+			clocks = <&xtal>;
+			#clock-cells = <0>;
+			clock-div = <1>;
+			clock-mult = <12>;
+		};
+	};
+
+	soc {
+		uart0: serial@40081000 {
+			compatible = "ns16550a";
+			reg = <0x40081000 0x1000>;
+			reg-shift = <2>;
+			interrupts = <24>;
+			clocks = <&pll1>;
+			status = "disabled";
+		};
+
+		uart1: serial@40082000 {
+			compatible = "ns16550a";
+			reg = <0x40082000 0x1000>;
+			reg-shift = <2>;
+			interrupts = <25>;
+			clocks = <&pll1>;
+			status = "disabled";
+		};
+
+		timer0: timer@40084000 {
+			compatible = "nxp,lpc3220-timer";
+			reg = <0x40084000 0x1000>;
+			interrupts = <12>;
+			clocks = <&pll1>;
+			clock-names = "timerclk";
+		};
+
+		timer1: timer@40085000 {
+			compatible = "nxp,lpc3220-timer";
+			reg = <0x40085000 0x1000>;
+			interrupts = <13>;
+			clocks = <&pll1>;
+			clock-names = "timerclk";
+		};
+
+		uart2: serial@400c1000 {
+			compatible = "ns16550a";
+			reg = <0x400c1000 0x1000>;
+			reg-shift = <2>;
+			interrupts = <26>;
+			clocks = <&pll1>;
+			status = "disabled";
+		};
+
+		uart3: serial@400c2000 {
+			compatible = "ns16550a";
+			reg = <0x400c2000 0x1000>;
+			reg-shift = <2>;
+			interrupts = <27>;
+			clocks = <&pll1>;
+			status = "disabled";
+		};
+
+		timer2: timer@400c3000 {
+			compatible = "nxp,lpc3220-timer";
+			reg = <0x400c3000 0x1000>;
+			interrupts = <14>;
+			clocks = <&pll1>;
+			clock-names = "timerclk";
+		};
+
+		timer3: timer@400c4000 {
+			compatible = "nxp,lpc3220-timer";
+			reg = <0x400c4000 0x1000>;
+			interrupts = <15>;
+			clocks = <&pll1>;
+			clock-names = "timerclk";
+		};
+	};
+};
