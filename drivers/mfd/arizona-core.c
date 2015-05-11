@@ -250,6 +250,20 @@ static int arizona_wait_for_boot(struct arizona *arizona)
 	return ret;
 }
 
+static inline void arizona_enable_reset(struct arizona *arizona)
+{
+	if (arizona->pdata.reset)
+		gpio_set_value_cansleep(arizona->pdata.reset, 0);
+}
+
+static void arizona_disable_reset(struct arizona *arizona)
+{
+	if (arizona->pdata.reset) {
+		gpio_set_value_cansleep(arizona->pdata.reset, 1);
+		msleep(1);
+	}
+}
+
 static int arizona_apply_hardware_patch(struct arizona* arizona)
 {
 	unsigned int fll, sysclk;
@@ -751,10 +765,7 @@ int arizona_dev_init(struct arizona *arizona)
 		goto err_enable;
 	}
 
-	if (arizona->pdata.reset) {
-		gpio_set_value_cansleep(arizona->pdata.reset, 1);
-		msleep(1);
-	}
+	arizona_disable_reset(arizona);
 
 	regcache_cache_only(arizona->regmap, false);
 
@@ -1046,8 +1057,7 @@ int arizona_dev_init(struct arizona *arizona)
 err_irq:
 	arizona_irq_exit(arizona);
 err_reset:
-	if (arizona->pdata.reset)
-		gpio_set_value_cansleep(arizona->pdata.reset, 0);
+	arizona_enable_reset(arizona);
 	regulator_disable(arizona->dcvdd);
 err_enable:
 	regulator_bulk_disable(arizona->num_core_supplies,
@@ -1072,8 +1082,7 @@ int arizona_dev_exit(struct arizona *arizona)
 	arizona_free_irq(arizona, ARIZONA_IRQ_OVERCLOCKED, arizona);
 	arizona_free_irq(arizona, ARIZONA_IRQ_CLKGEN_ERR, arizona);
 	arizona_irq_exit(arizona);
-	if (arizona->pdata.reset)
-		gpio_set_value_cansleep(arizona->pdata.reset, 0);
+	arizona_enable_reset(arizona);
 
 	regulator_bulk_disable(arizona->num_core_supplies,
 			       arizona->core_supplies);
