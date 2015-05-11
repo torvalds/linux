@@ -1,74 +1,16 @@
 /*
- *	Intel CPU Microcode Update Driver for Linux
+ * CPU Microcode Update Driver for Linux
  *
- *	Copyright (C) 2000-2006 Tigran Aivazian <tigran@aivazian.fsnet.co.uk>
- *		      2006	Shaohua Li <shaohua.li@intel.com>
+ * Copyright (C) 2000-2006 Tigran Aivazian <tigran@aivazian.fsnet.co.uk>
+ *	      2006	Shaohua Li <shaohua.li@intel.com>
+ *	      2013-2015	Borislav Petkov <bp@alien8.de>
  *
- *	This driver allows to upgrade microcode on Intel processors
- *	belonging to IA-32 family - PentiumPro, Pentium II,
- *	Pentium III, Xeon, Pentium 4, etc.
+ * This driver allows to upgrade microcode on x86 processors.
  *
- *	Reference: Section 8.11 of Volume 3a, IA-32 Intel? Architecture
- *	Software Developer's Manual
- *	Order Number 253668 or free download from:
- *
- *	http://developer.intel.com/Assets/PDF/manual/253668.pdf	
- *
- *	For more information, go to http://www.urbanmyth.org/microcode
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
- *
- *	1.0	16 Feb 2000, Tigran Aivazian <tigran@sco.com>
- *		Initial release.
- *	1.01	18 Feb 2000, Tigran Aivazian <tigran@sco.com>
- *		Added read() support + cleanups.
- *	1.02	21 Feb 2000, Tigran Aivazian <tigran@sco.com>
- *		Added 'device trimming' support. open(O_WRONLY) zeroes
- *		and frees the saved copy of applied microcode.
- *	1.03	29 Feb 2000, Tigran Aivazian <tigran@sco.com>
- *		Made to use devfs (/dev/cpu/microcode) + cleanups.
- *	1.04	06 Jun 2000, Simon Trimmer <simon@veritas.com>
- *		Added misc device support (now uses both devfs and misc).
- *		Added MICROCODE_IOCFREE ioctl to clear memory.
- *	1.05	09 Jun 2000, Simon Trimmer <simon@veritas.com>
- *		Messages for error cases (non Intel & no suitable microcode).
- *	1.06	03 Aug 2000, Tigran Aivazian <tigran@veritas.com>
- *		Removed ->release(). Removed exclusive open and status bitmap.
- *		Added microcode_rwsem to serialize read()/write()/ioctl().
- *		Removed global kernel lock usage.
- *	1.07	07 Sep 2000, Tigran Aivazian <tigran@veritas.com>
- *		Write 0 to 0x8B msr and then cpuid before reading revision,
- *		so that it works even if there were no update done by the
- *		BIOS. Otherwise, reading from 0x8B gives junk (which happened
- *		to be 0 on my machine which is why it worked even when I
- *		disabled update by the BIOS)
- *		Thanks to Eric W. Biederman <ebiederman@lnxi.com> for the fix.
- *	1.08	11 Dec 2000, Richard Schaal <richard.schaal@intel.com> and
- *			     Tigran Aivazian <tigran@veritas.com>
- *		Intel Pentium 4 processor support and bugfixes.
- *	1.09	30 Oct 2001, Tigran Aivazian <tigran@veritas.com>
- *		Bugfix for HT (Hyper-Threading) enabled processors
- *		whereby processor resources are shared by all logical processors
- *		in a single CPU package.
- *	1.10	28 Feb 2002 Asit K Mallick <asit.k.mallick@intel.com> and
- *		Tigran Aivazian <tigran@veritas.com>,
- *		Serialize updates as required on HT processors due to
- *		speculative nature of implementation.
- *	1.11	22 Mar 2002 Tigran Aivazian <tigran@veritas.com>
- *		Fix the panic when writing zero-length microcode chunk.
- *	1.12	29 Sep 2003 Nitin Kamble <nitin.a.kamble@intel.com>,
- *		Jun Nakajima <jun.nakajima@intel.com>
- *		Support for the microcode updates in the new format.
- *	1.13	10 Oct 2003 Tigran Aivazian <tigran@veritas.com>
- *		Removed ->read() method and obsoleted MICROCODE_IOCFREE ioctl
- *		because we no longer hold a copy of applied microcode
- *		in kernel memory.
- *	1.14	25 Jun 2004 Tigran Aivazian <tigran@veritas.com>
- *		Fix sigmatch() macro to handle old CPUs with pf == 0.
- *		Thanks to Stuart Swales for pointing out this bug.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version
+ * 2 of the License, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
