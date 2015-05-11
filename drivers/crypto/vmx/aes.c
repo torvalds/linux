@@ -78,12 +78,14 @@ static int p8_aes_setkey(struct crypto_tfm *tfm, const u8 *key,
     int ret;
     struct p8_aes_ctx *ctx = crypto_tfm_ctx(tfm);
 
+    preempt_disable();
     pagefault_disable();
     enable_kernel_altivec();
     ret = aes_p8_set_encrypt_key(key, keylen * 8, &ctx->enc_key);
     ret += aes_p8_set_decrypt_key(key, keylen * 8, &ctx->dec_key);
     pagefault_enable();
-    
+    preempt_enable();
+
     ret += crypto_cipher_setkey(ctx->fallback, key, keylen);
     return ret;
 }
@@ -95,10 +97,12 @@ static void p8_aes_encrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
     if (in_interrupt()) {
         crypto_cipher_encrypt_one(ctx->fallback, dst, src);
     } else {
+	preempt_disable();
         pagefault_disable();
         enable_kernel_altivec();
         aes_p8_encrypt(src, dst, &ctx->enc_key);
         pagefault_enable();
+	preempt_enable();
     }
 }
 
@@ -109,10 +113,12 @@ static void p8_aes_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
     if (in_interrupt()) {
         crypto_cipher_decrypt_one(ctx->fallback, dst, src);
     } else {
+	preempt_disable();
         pagefault_disable();
         enable_kernel_altivec();
         aes_p8_decrypt(src, dst, &ctx->dec_key);
         pagefault_enable();
+	preempt_enable();
     }
 }
 

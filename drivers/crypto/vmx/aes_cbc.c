@@ -79,11 +79,13 @@ static int p8_aes_cbc_setkey(struct crypto_tfm *tfm, const u8 *key,
     int ret;
     struct p8_aes_cbc_ctx *ctx = crypto_tfm_ctx(tfm);
 
+    preempt_disable();
     pagefault_disable();
     enable_kernel_altivec();
     ret = aes_p8_set_encrypt_key(key, keylen * 8, &ctx->enc_key);
     ret += aes_p8_set_decrypt_key(key, keylen * 8, &ctx->dec_key);
     pagefault_enable();
+    preempt_enable();
 
     ret += crypto_blkcipher_setkey(ctx->fallback, key, keylen);
     return ret;
@@ -106,6 +108,7 @@ static int p8_aes_cbc_encrypt(struct blkcipher_desc *desc,
     if (in_interrupt()) {
         ret = crypto_blkcipher_encrypt(&fallback_desc, dst, src, nbytes);
     } else {
+	preempt_disable();
         pagefault_disable();
         enable_kernel_altivec();
 
@@ -119,6 +122,7 @@ static int p8_aes_cbc_encrypt(struct blkcipher_desc *desc,
 	}
 
         pagefault_enable();
+	preempt_enable();
     }
 
     return ret;
@@ -141,6 +145,7 @@ static int p8_aes_cbc_decrypt(struct blkcipher_desc *desc,
     if (in_interrupt()) {
         ret = crypto_blkcipher_decrypt(&fallback_desc, dst, src, nbytes);
     } else {
+	preempt_disable();
         pagefault_disable();
         enable_kernel_altivec();
 
@@ -154,6 +159,7 @@ static int p8_aes_cbc_decrypt(struct blkcipher_desc *desc,
 		}
 
         pagefault_enable();
+	preempt_enable();
     }
 
     return ret;
