@@ -5,7 +5,7 @@
 #include <linux/in.h>
 #include <linux/types.h>
 #include <linux/skbuff.h>
-#include <net/flow_keys.h>
+#include <net/flow_dissector.h>
 #include "enic_res.h"
 #include "enic_clsf.h"
 

@@ -19,7 +19,7 @@
 #include <net/if_inet6.h>
 #include <net/ndisc.h>
 #include <net/flow.h>
-#include <net/flow_keys.h>
+#include <net/flow_dissector.h>
 #include <net/snmp.h>
 
 #define SIN6_LEN_RFC2133	24

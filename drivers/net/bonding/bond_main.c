@@ -76,7 +76,7 @@
 #include <net/netns/generic.h>
 #include <net/pkt_sched.h>
 #include <linux/rculist.h>
-#include <net/flow_keys.h>
+#include <net/flow_dissector.h>
 #include <net/switchdev.h>
 #include <net/bonding.h>
 #include <net/bond_3ad.h>

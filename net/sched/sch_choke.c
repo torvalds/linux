@@ -18,7 +18,7 @@
 #include <net/pkt_sched.h>
 #include <net/inet_ecn.h>
 #include <net/red.h>
-#include <net/flow_keys.h>
+#include <net/flow_dissector.h>
 
 /*
    CHOKe stateless AQM for fair bandwidth allocation

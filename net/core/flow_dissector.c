@@ -12,7 +12,7 @@
 #include <linux/if_tunnel.h>
 #include <linux/if_pppox.h>
 #include <linux/ppp_defs.h>
-#include <net/flow_keys.h>
+#include <net/flow_dissector.h>
 #include <scsi/fc/fc_fcoe.h>
 
 /* copy saddr & daddr, possibly using 64bit load/store

@@ -34,7 +34,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/netdev_features.h>
 #include <linux/sched.h>
-#include <net/flow_keys.h>
+#include <net/flow_dissector.h>
 
 /* A. Checksumming of received packets by device.
  *
