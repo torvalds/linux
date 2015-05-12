@@ -8799,10 +8799,11 @@ W:	http://www.emulex.com
 S:	Supported
 F:	drivers/scsi/be2iscsi/
 
-SERVER ENGINES 10Gbps NIC - BladeEngine 2 DRIVER
-M:	Sathya Perla <sathya.perla@emulex.com>
-M:	Subbu Seetharaman <subbu.seetharaman@emulex.com>
-M:	Ajit Khaparde <ajit.khaparde@emulex.com>
+Emulex 10Gbps NIC BE2, BE3-R, Lancer, Skyhawk-R DRIVER
+M:	Sathya Perla <sathya.perla@avagotech.com>
+M:	Ajit Khaparde <ajit.khaparde@avagotech.com>
+M:	Padmanabh Ratnakar <padmanabh.ratnakar@avagotech.com>
+M:	Sriharsha Basavapatna <sriharsha.basavapatna@avagotech.com>
 L:	netdev@vger.kernel.org
 W:	http://www.emulex.com
 S:	Supported
