@@ -655,6 +655,12 @@ static int wm8960_hw_params(struct snd_pcm_substream *substream,
 	case 24:
 		iface |= 0x0008;
 		break;
+	case 32:
+		/* right justify mode does not support 32 word length */
+		if ((iface & 0x3) != 0) {
+			iface |= 0x000c;
+			break;
+		}
 	default:
 		dev_err(codec->dev, "unsupported width %d\n",
 			params_width(params));
@@ -1054,7 +1060,7 @@ static int wm8960_set_dai_sysclk(struct snd_soc_dai *dai, int clk_id,
 
 #define WM8960_FORMATS \
 	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
-	SNDRV_PCM_FMTBIT_S24_LE)
+	SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
 static const struct snd_soc_dai_ops wm8960_dai_ops = {
 	.hw_params = wm8960_hw_params,
