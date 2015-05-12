@@ -170,7 +170,7 @@ void __inet_twsk_hashdance(struct inet_timewait_sock *tw, struct sock *sk,
 }
 EXPORT_SYMBOL_GPL(__inet_twsk_hashdance);
 
-void tw_timer_handler(unsigned long data)
+static void tw_timer_handler(unsigned long data)
 {
 	struct inet_timewait_sock *tw = (struct inet_timewait_sock *)data;
 
