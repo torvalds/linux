@@ -16,11 +16,6 @@
  *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *     GNU General Public License for more details.
  *
- *     You should have received a copy of the GNU General Public
- *     License along with this library; if not, write to the Free
- *     Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
- *     MA 02110-1301 USA
- *
  * Or, alternatively,
  *
  *  b) Permission is hereby granted, free of charge, to any person
@@ -53,10 +48,14 @@
 / {
 	model = "CSQ CS908 top set box";
 	compatible = "csq,cs908", "allwinner,sun6i-a31s";
-};
 
-&usbphy {
-	status = "okay";
+	aliases {
+		serial0 = &uart0;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
 };
 
 &ehci0 {
@@ -64,25 +63,6 @@
 };
 
 &ehci1 {
-	status = "okay";
-};
-
-&ohci1 {
-	status = "okay";
-};
-
-&pio {
-	usb1_vbus_pin_csq908: usb1_vbus_pin@0 {
-		allwinner,pins = "PC27";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-	};
-};
-
-&uart0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
 	status = "okay";
 };
 
@@ -100,5 +80,19 @@
 &ir {
 	pinctrl-names = "default";
 	pinctrl-0 = <&ir_pins_a>;
+	status = "okay";
+};
+
+&ohci1 {
+	status = "okay";
+};
+
+&uart0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_pins_a>;
+	status = "okay";
+};
+
+&usbphy {
 	status = "okay";
 };

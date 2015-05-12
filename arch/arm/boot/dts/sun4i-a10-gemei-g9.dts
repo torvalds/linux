@@ -1,7 +1,7 @@
 /*
- * Copyright 2013 Maxime Ripard
+ * Copyright 2015 Priit Laes
  *
- * Maxime Ripard <maxime.ripard@free-electrons.com>
+ * Priit Laes <plaes@plaes.org>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -43,47 +43,33 @@
  */
 
 /dts-v1/;
-#include "sun7i-a20.dtsi"
+#include "sun4i-a10.dtsi"
 #include "sunxi-common-regulators.dtsi"
-
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
-#include <dt-bindings/interrupt-controller/irq.h>
-#include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
-	model = "Olimex A20-Olinuxino Micro";
-	compatible = "olimex,a20-olinuxino-micro", "allwinner,sun7i-a20";
+	model = "Gemei G9 Tablet";
+	compatible = "gemei,g9", "allwinner,sun4i-a10";
 
 	aliases {
 		serial0 = &uart0;
-		serial1 = &uart6;
-		serial2 = &uart7;
-		spi0 = &spi1;
-		spi1 = &spi2;
 	};
 
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
-
-	leds {
-		compatible = "gpio-leds";
-		pinctrl-names = "default";
-		pinctrl-0 = <&led_pins_olinuxino>;
-
-		green {
-			label = "a20-olinuxino-micro:green:usr";
-			gpios = <&pio 7 2 GPIO_ACTIVE_HIGH>;
-			default-state = "on";
-		};
-	};
 };
 
-&ahci {
-	target-supply = <&reg_ahci_5v>;
-	status = "okay";
-};
+/*
+ * TODO:
+ *   2x cameras via CSI
+ *   bma250 IRQs
+ *   AXP battery management
+ *   NAND
+ *   OTG
+ *   Touchscreen - gt801_2plus1 @ i2c adapter 2 @ 0x48
+ */
 
 &ehci0 {
 	status = "okay";
@@ -91,18 +77,6 @@
 
 &ehci1 {
 	status = "okay";
-};
-
-&gmac {
-	pinctrl-names = "default";
-	pinctrl-0 = <&gmac_pins_mii_a>;
-	phy = <&phy1>;
-	phy-mode = "mii";
-	status = "okay";
-
-	phy1: ethernet-phy@1 {
-		reg = <1>;
-	};
 };
 
 &i2c0 {
@@ -113,8 +87,7 @@
 	axp209: pmic@34 {
 		compatible = "x-powers,axp209";
 		reg = <0x34>;
-		interrupt-parent = <&nmi_intc>;
-		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <0>;
 
 		interrupt-controller;
 		#interrupt-cells = <1>;
@@ -125,65 +98,44 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c1_pins_a>;
 	status = "okay";
-};
 
-&i2c2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c2_pins_a>;
-	status = "okay";
+	/* Accelerometer */
+	bma250@18 {
+		compatible = "bosch,bma250";
+		reg = <0x18>;
+
+		/*
+		 * TODO: interrupt pins:
+		 * int1 - PH00
+		 * int2 - PI10
+		 */
+	};
 };
 
 &lradc {
 	vref-supply = <&reg_vcc3v0>;
+
 	status = "okay";
 
-	button@191 {
-		label = "Volume Up";
-		linux,code = <KEY_VOLUMEUP>;
-		channel = <0>;
-		voltage = <191274>;
-	};
-
-	button@392 {
+	button@158 {
 		label = "Volume Down";
 		linux,code = <KEY_VOLUMEDOWN>;
 		channel = <0>;
-		voltage = <392644>;
+		voltage = <158730>;
 	};
 
-	button@601 {
-		label = "Menu";
-		linux,code = <KEY_MENU>;
+	button@349 {
+		label = "Volume Up";
+		linux,code = <KEY_VOLUMEUP>;
 		channel = <0>;
-		voltage = <601151>;
+		voltage = <349206>;
 	};
 
-	button@795 {
-		label = "Search";
-		linux,code = <KEY_SEARCH>;
-		channel = <0>;
-		voltage = <795090>;
-	};
-
-	button@987 {
-		label = "Home";
-		linux,code = <KEY_HOMEPAGE>;
-		channel = <0>;
-		voltage = <987387>;
-	};
-
-	button@1184 {
+	button@1142 {
 		label = "Esc";
 		linux,code = <KEY_ESC>;
 		channel = <0>;
-		voltage = <1184678>;
-	};
-
-	button@1398 {
-		label = "Enter";
-		linux,code = <KEY_ENTER>;
-		channel = <0>;
-		voltage = <1398804>;
+		voltage = <1142856>;
 	};
 };
 
@@ -192,46 +144,8 @@
 	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_reference_design>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
-	cd-gpios = <&pio 7 1 GPIO_ACTIVE_HIGH>; /* PH1 */
+	cd-gpios = <&pio 7 1 GPIO_ACTIVE_HIGH>; /* PH01 */
 	cd-inverted;
-	status = "okay";
-};
-
-&mmc3 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc3_pins_a>, <&mmc3_cd_pin_olinuxinom>;
-	vmmc-supply = <&reg_vcc3v3>;
-	bus-width = <4>;
-	cd-gpios = <&pio 7 11 GPIO_ACTIVE_HIGH>; /* PH11 */
-	cd-inverted;
-	status = "okay";
-};
-
-&ohci0 {
-	status = "okay";
-};
-
-&ohci1 {
-	status = "okay";
-};
-
-&pio {
-	mmc3_cd_pin_olinuxinom: mmc3_cd_pin@0 {
-		allwinner,pins = "PH11";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
-	};
-
-	led_pins_olinuxino: led_pins@0 {
-		allwinner,pins = "PH2";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_20_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-	};
-};
-
-&reg_ahci_5v {
 	status = "okay";
 };
 
@@ -243,35 +157,10 @@
 	status = "okay";
 };
 
-&spi1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&spi1_pins_a>,
-		    <&spi1_cs0_pins_a>;
-	status = "okay";
-};
 
-&spi2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&spi2_pins_a>,
-		    <&spi2_cs0_pins_a>;
-	status = "okay";
-};
-
-&uart0 {
+&uart0  {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart0_pins_a>;
-	status = "okay";
-};
-
-&uart6 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&uart6_pins_a>;
-	status = "okay";
-};
-
-&uart7 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&uart7_pins_a>;
 	status = "okay";
 };
 

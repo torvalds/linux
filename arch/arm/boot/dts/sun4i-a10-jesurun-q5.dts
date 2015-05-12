@@ -1,7 +1,7 @@
 /*
- * Copyright 2013 Maxime Ripard
+ * Copyright 2015 Gábor Nyers
  *
- * Maxime Ripard <maxime.ripard@free-electrons.com>
+ * Gábor Nyers <gabor.nyers@gmail.com>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -43,24 +43,18 @@
  */
 
 /dts-v1/;
-#include "sun7i-a20.dtsi"
+#include "sun4i-a10.dtsi"
 #include "sunxi-common-regulators.dtsi"
 
 #include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/input/input.h>
-#include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
-	model = "Olimex A20-Olinuxino Micro";
-	compatible = "olimex,a20-olinuxino-micro", "allwinner,sun7i-a20";
+	model = "Jesurun Q5";
+	compatible = "jesurun,q5", "allwinner,sun4i-a10";
 
 	aliases {
 		serial0 = &uart0;
-		serial1 = &uart6;
-		serial2 = &uart7;
-		spi0 = &spi1;
-		spi1 = &spi2;
 	};
 
 	chosen {
@@ -70,18 +64,28 @@
 	leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
-		pinctrl-0 = <&led_pins_olinuxino>;
+		pinctrl-0 = <&led_pins_q5>;
 
 		green {
-			label = "a20-olinuxino-micro:green:usr";
-			gpios = <&pio 7 2 GPIO_ACTIVE_HIGH>;
-			default-state = "on";
+			label = "q5:green:usr";
+			gpios = <&pio 7 20 GPIO_ACTIVE_HIGH>;  /* PH20 */
 		};
+
+	};
+
+	reg_emac_3v3: emac-3v3 {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&emac_power_pin_q5>;
+		regulator-name = "emac-3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		gpio = <&pio 7 19 GPIO_ACTIVE_HIGH>;   /* PH19 */
 	};
 };
 
 &ahci {
-	target-supply = <&reg_ahci_5v>;
 	status = "okay";
 };
 
@@ -93,16 +97,11 @@
 	status = "okay";
 };
 
-&gmac {
+&emac {
 	pinctrl-names = "default";
-	pinctrl-0 = <&gmac_pins_mii_a>;
+	pinctrl-0 = <&emac_pins_a>;
 	phy = <&phy1>;
-	phy-mode = "mii";
 	status = "okay";
-
-	phy1: ethernet-phy@1 {
-		reg = <1>;
-	};
 };
 
 &i2c0 {
@@ -113,77 +112,25 @@
 	axp209: pmic@34 {
 		compatible = "x-powers,axp209";
 		reg = <0x34>;
-		interrupt-parent = <&nmi_intc>;
-		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <0>;
 
 		interrupt-controller;
 		#interrupt-cells = <1>;
 	};
 };
 
-&i2c1 {
+&ir0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&i2c1_pins_a>;
+	pinctrl-0 = <&ir0_rx_pins_a>;
 	status = "okay";
 };
 
-&i2c2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c2_pins_a>;
-	status = "okay";
-};
-
-&lradc {
-	vref-supply = <&reg_vcc3v0>;
+&mdio {
+	phy-supply = <&reg_emac_3v3>;
 	status = "okay";
 
-	button@191 {
-		label = "Volume Up";
-		linux,code = <KEY_VOLUMEUP>;
-		channel = <0>;
-		voltage = <191274>;
-	};
-
-	button@392 {
-		label = "Volume Down";
-		linux,code = <KEY_VOLUMEDOWN>;
-		channel = <0>;
-		voltage = <392644>;
-	};
-
-	button@601 {
-		label = "Menu";
-		linux,code = <KEY_MENU>;
-		channel = <0>;
-		voltage = <601151>;
-	};
-
-	button@795 {
-		label = "Search";
-		linux,code = <KEY_SEARCH>;
-		channel = <0>;
-		voltage = <795090>;
-	};
-
-	button@987 {
-		label = "Home";
-		linux,code = <KEY_HOMEPAGE>;
-		channel = <0>;
-		voltage = <987387>;
-	};
-
-	button@1184 {
-		label = "Esc";
-		linux,code = <KEY_ESC>;
-		channel = <0>;
-		voltage = <1184678>;
-	};
-
-	button@1398 {
-		label = "Enter";
-		linux,code = <KEY_ENTER>;
-		channel = <0>;
-		voltage = <1398804>;
+	phy1: ethernet-phy@1 {
+		reg = <1>;
 	};
 };
 
@@ -197,16 +144,6 @@
 	status = "okay";
 };
 
-&mmc3 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc3_pins_a>, <&mmc3_cd_pin_olinuxinom>;
-	vmmc-supply = <&reg_vcc3v3>;
-	bus-width = <4>;
-	cd-gpios = <&pio 7 11 GPIO_ACTIVE_HIGH>; /* PH11 */
-	cd-inverted;
-	status = "okay";
-};
-
 &ohci0 {
 	status = "okay";
 };
@@ -216,23 +153,19 @@
 };
 
 &pio {
-	mmc3_cd_pin_olinuxinom: mmc3_cd_pin@0 {
-		allwinner,pins = "PH11";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
-	};
-
-	led_pins_olinuxino: led_pins@0 {
-		allwinner,pins = "PH2";
+	emac_power_pin_q5: emac_power_pin@0 {
+		allwinner,pins = "PH19";
 		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_20_MA>;
+		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
 		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
-};
 
-&reg_ahci_5v {
-	status = "okay";
+	led_pins_q5: led_pins@0 {
+		allwinner,pins = "PH20";
+		allwinner,function = "gpio_out";
+		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+	};
 };
 
 &reg_usb1_vbus {
@@ -243,35 +176,9 @@
 	status = "okay";
 };
 
-&spi1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&spi1_pins_a>,
-		    <&spi1_cs0_pins_a>;
-	status = "okay";
-};
-
-&spi2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&spi2_pins_a>,
-		    <&spi2_cs0_pins_a>;
-	status = "okay";
-};
-
 &uart0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart0_pins_a>;
-	status = "okay";
-};
-
-&uart6 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&uart6_pins_a>;
-	status = "okay";
-};
-
-&uart7 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&uart7_pins_a>;
 	status = "okay";
 };
 
