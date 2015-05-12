@@ -407,17 +407,23 @@ static struct attribute *connector_opt_dev_attrs[] = {
 	NULL
 };
 
-static umode_t connector_opt_dev_is_visible(struct kobject *kobj,
-					    struct attribute *attr, int idx)
+/* Connector type related helpers */
+static int kobj_connector_type(struct kobject *kobj)
 {
 	struct device *dev = kobj_to_dev(kobj);
 	struct drm_connector *connector = to_drm_connector(dev);
 
+	return connector->connector_type;
+}
+
+static umode_t connector_opt_dev_is_visible(struct kobject *kobj,
+					    struct attribute *attr, int idx)
+{
 	/*
 	 * In the long run it maybe a good idea to make one set of
 	 * optionals per connector type.
 	 */
-	switch (connector->connector_type) {
+	switch (kobj_connector_type(kobj)) {
 	case DRM_MODE_CONNECTOR_DVII:
 	case DRM_MODE_CONNECTOR_Composite:
 	case DRM_MODE_CONNECTOR_SVIDEO:
