@@ -42,6 +42,8 @@
 #include "bif/bif_5_1_d.h"
 #include "gfx_v8_0.h"
 
+static void cz_dpm_powergate_uvd(struct amdgpu_device *adev, bool gate);
+
 static struct cz_ps *cz_get_ps(struct amdgpu_ps *rps)
 {
 	struct cz_ps *ps = rps->ps_priv;
@@ -474,6 +476,7 @@ static int cz_dpm_init(struct amdgpu_device *adev)
 		return ret;
 
 	pi->dpm_enabled = true;
+	pi->uvd_dynamic_pg = false;
 
 	return 0;
 }
@@ -542,6 +545,15 @@ static void cz_dpm_set_funcs(struct amdgpu_device *adev);
 static int cz_dpm_early_init(struct amdgpu_device *adev)
 {
 	cz_dpm_set_funcs(adev);
+
+	return 0;
+}
+
+
+static int cz_dpm_late_init(struct amdgpu_device *adev)
+{
+	/* powerdown unused blocks for now */
+	cz_dpm_powergate_uvd(adev, true);
 
 	return 0;
 }
@@ -1260,6 +1272,9 @@ static int cz_dpm_disable(struct amdgpu_device *adev)
 		return -EINVAL;
 	}
 
+	/* powerup blocks */
+	cz_dpm_powergate_uvd(adev, false);
+
 	cz_clear_voting_clients(adev);
 	cz_stop_dpm(adev);
 	cz_update_current_ps(adev, adev->pm.dpm.boot_ps);
@@ -1677,9 +1692,80 @@ static uint32_t cz_dpm_get_mclk(struct amdgpu_device *adev, bool low)
 	return pi->sys_info.bootup_uma_clk;
 }
 
+static int cz_enable_uvd_dpm(struct amdgpu_device *adev, bool enable)
+{
+	struct cz_power_info *pi = cz_get_pi(adev);
+	int ret = 0;
+
+	if (enable && pi->caps_uvd_dpm ) {
+		pi->dpm_flags |= DPMFlags_UVD_Enabled;
+		DRM_DEBUG("UVD DPM Enabled.\n");
+
+		ret = cz_send_msg_to_smc_with_parameter(adev,
+			PPSMC_MSG_EnableAllSmuFeatures, UVD_DPM_MASK);
+	} else {
+		pi->dpm_flags &= ~DPMFlags_UVD_Enabled;
+		DRM_DEBUG("UVD DPM Stopped\n");
+
+		ret = cz_send_msg_to_smc_with_parameter(adev,
+			PPSMC_MSG_DisableAllSmuFeatures, UVD_DPM_MASK);
+	}
+
+	return ret;
+}
+
+static int cz_update_uvd_dpm(struct amdgpu_device *adev, bool gate)
+{
+	return cz_enable_uvd_dpm(adev, !gate);
+}
+
+
+static void cz_dpm_powergate_uvd(struct amdgpu_device *adev, bool gate)
+{
+	struct cz_power_info *pi = cz_get_pi(adev);
+	int ret;
+
+	if (pi->uvd_power_gated == gate)
+		return;
+
+	pi->uvd_power_gated = gate;
+
+	if (gate) {
+		if (pi->caps_uvd_pg) {
+			/* disable clockgating so we can properly shut down the block */
+			ret = amdgpu_set_clockgating_state(adev, AMDGPU_IP_BLOCK_TYPE_UVD,
+							    AMDGPU_CG_STATE_UNGATE);
+			/* shutdown the UVD block */
+			ret = amdgpu_set_powergating_state(adev, AMDGPU_IP_BLOCK_TYPE_UVD,
+							    AMDGPU_PG_STATE_GATE);
+			/* XXX: check for errors */
+		}
+		cz_update_uvd_dpm(adev, gate);
+		if (pi->caps_uvd_pg)
+			/* power off the UVD block */
+			cz_send_msg_to_smc(adev, PPSMC_MSG_UVDPowerOFF);
+	} else {
+		if (pi->caps_uvd_pg) {
+			/* power on the UVD block */
+			if (pi->uvd_dynamic_pg)
+				cz_send_msg_to_smc_with_parameter(adev, PPSMC_MSG_UVDPowerON, 1);
+			else
+				cz_send_msg_to_smc_with_parameter(adev, PPSMC_MSG_UVDPowerON, 0);
+			/* re-init the UVD block */
+			ret = amdgpu_set_powergating_state(adev, AMDGPU_IP_BLOCK_TYPE_UVD,
+							    AMDGPU_PG_STATE_UNGATE);
+			/* enable clockgating. hw will dynamically gate/ungate clocks on the fly */
+			ret = amdgpu_set_clockgating_state(adev, AMDGPU_IP_BLOCK_TYPE_UVD,
+							    AMDGPU_CG_STATE_GATE);
+			/* XXX: check for errors */
+		}
+		cz_update_uvd_dpm(adev, gate);
+	}
+}
+
 const struct amdgpu_ip_funcs cz_dpm_ip_funcs = {
 	.early_init = cz_dpm_early_init,
-	.late_init = NULL,
+	.late_init = cz_dpm_late_init,
 	.sw_init = cz_dpm_sw_init,
 	.sw_fini = cz_dpm_sw_fini,
 	.hw_init = cz_dpm_hw_init,
@@ -1707,7 +1793,7 @@ static const struct amdgpu_dpm_funcs cz_dpm_funcs = {
 				cz_dpm_debugfs_print_current_performance_level,
 	.force_performance_level = cz_dpm_force_dpm_level,
 	.vblank_too_short = NULL,
-	.powergate_uvd = NULL,
+	.powergate_uvd = cz_dpm_powergate_uvd,
 };
 
 static void cz_dpm_set_funcs(struct amdgpu_device *adev)

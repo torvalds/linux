@@ -221,6 +221,8 @@ struct cz_power_info {
 	bool uvd_power_down;
 	bool vce_power_down;
 	bool acp_power_down;
+
+	bool uvd_dynamic_pg;
 };
 
 /* cz_smc.c */
