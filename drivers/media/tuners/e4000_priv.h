@@ -34,6 +34,8 @@ struct e4000_dev {
 	struct dvb_frontend *fe;
 	struct v4l2_subdev sd;
 	bool active;
+	unsigned int f_frequency;
+	unsigned int f_bandwidth;
 
 	/* Controls */
 	struct v4l2_ctrl_handler hdl;
