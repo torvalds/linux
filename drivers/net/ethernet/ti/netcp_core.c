@@ -537,7 +537,7 @@ int netcp_unregister_rxhook(struct netcp_intf *netcp_priv, int order,
 static void netcp_frag_free(bool is_frag, void *ptr)
 {
 	if (is_frag)
-		put_page(virt_to_head_page(ptr));
+		skb_free_frag(ptr);
 	else
 		kfree(ptr);
 }

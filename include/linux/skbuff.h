@@ -2128,10 +2128,6 @@ static inline void __skb_queue_purge(struct sk_buff_head *list)
 		kfree_skb(skb);
 }
 
-#define NETDEV_FRAG_PAGE_MAX_ORDER get_order(32768)
-#define NETDEV_FRAG_PAGE_MAX_SIZE  (PAGE_SIZE << NETDEV_FRAG_PAGE_MAX_ORDER)
-#define NETDEV_PAGECNT_MAX_BIAS	   NETDEV_FRAG_PAGE_MAX_SIZE
-
 void *netdev_alloc_frag(unsigned int fragsz);
 
 struct sk_buff *__netdev_alloc_skb(struct net_device *dev, unsigned int length,
@@ -2184,6 +2180,11 @@ static inline struct sk_buff *netdev_alloc_skb_ip_align(struct net_device *dev,
 		unsigned int length)
 {
 	return __netdev_alloc_skb_ip_align(dev, length, GFP_ATOMIC);
+}
+
+static inline void skb_free_frag(void *addr)
+{
+	__free_page_frag(addr);
 }
 
 void *napi_alloc_frag(unsigned int fragsz);
