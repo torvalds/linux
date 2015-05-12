@@ -1329,52 +1329,79 @@ static void hp_amp_power(struct snd_soc_codec *codec, int on)
 
 	if (on) {
 		if (hp_amp_power_count <= 0) {
-			/* depop parameters */
-			snd_soc_update_bits(codec, RT5645_DEPOP_M2,
-				RT5645_DEPOP_MASK, RT5645_DEPOP_MAN);
-			snd_soc_write(codec, RT5645_DEPOP_M1, 0x000d);
-			regmap_write(rt5645->regmap, RT5645_PR_BASE +
-				RT5645_HP_DCC_INT1, 0x9f01);
-			mdelay(150);
-			/* headphone amp power on */
-			snd_soc_update_bits(codec, RT5645_PWR_ANLG1,
-				RT5645_PWR_FV1 | RT5645_PWR_FV2 , 0);
-			snd_soc_update_bits(codec, RT5645_PWR_VOL,
-				RT5645_PWR_HV_L | RT5645_PWR_HV_R,
-				RT5645_PWR_HV_L | RT5645_PWR_HV_R);
-			snd_soc_update_bits(codec, RT5645_PWR_ANLG1,
-				RT5645_PWR_HP_L | RT5645_PWR_HP_R |
-				RT5645_PWR_HA,
-				RT5645_PWR_HP_L | RT5645_PWR_HP_R |
-				RT5645_PWR_HA);
-			mdelay(5);
-			snd_soc_update_bits(codec, RT5645_PWR_ANLG1,
-				RT5645_PWR_FV1 | RT5645_PWR_FV2,
-				RT5645_PWR_FV1 | RT5645_PWR_FV2);
+			if (rt5645->codec_type == CODEC_TYPE_RT5650) {
+				snd_soc_write(codec, RT5645_CHARGE_PUMP,
+					0x0e06);
+				snd_soc_write(codec, RT5645_DEPOP_M1, 0x001d);
+				regmap_write(rt5645->regmap, RT5645_PR_BASE +
+					0x3e, 0x7400);
+				snd_soc_write(codec, RT5645_DEPOP_M3, 0x0737);
+				regmap_write(rt5645->regmap, RT5645_PR_BASE +
+					RT5645_MAMP_INT_REG2, 0xfc00);
+				snd_soc_write(codec, RT5645_DEPOP_M2, 0x1140);
+			} else {
+				/* depop parameters */
+				snd_soc_update_bits(codec, RT5645_DEPOP_M2,
+					RT5645_DEPOP_MASK, RT5645_DEPOP_MAN);
+				snd_soc_write(codec, RT5645_DEPOP_M1, 0x000d);
+				regmap_write(rt5645->regmap, RT5645_PR_BASE +
+					RT5645_HP_DCC_INT1, 0x9f01);
+				mdelay(150);
+				/* headphone amp power on */
+				snd_soc_update_bits(codec, RT5645_PWR_ANLG1,
+					RT5645_PWR_FV1 | RT5645_PWR_FV2, 0);
+				snd_soc_update_bits(codec, RT5645_PWR_VOL,
+					RT5645_PWR_HV_L | RT5645_PWR_HV_R,
+					RT5645_PWR_HV_L | RT5645_PWR_HV_R);
+				snd_soc_update_bits(codec, RT5645_PWR_ANLG1,
+					RT5645_PWR_HP_L | RT5645_PWR_HP_R |
+					RT5645_PWR_HA,
+					RT5645_PWR_HP_L | RT5645_PWR_HP_R |
+					RT5645_PWR_HA);
+				mdelay(5);
+				snd_soc_update_bits(codec, RT5645_PWR_ANLG1,
+					RT5645_PWR_FV1 | RT5645_PWR_FV2,
+					RT5645_PWR_FV1 | RT5645_PWR_FV2);
 
-			snd_soc_update_bits(codec, RT5645_DEPOP_M1,
-				RT5645_HP_CO_MASK | RT5645_HP_SG_MASK,
-				RT5645_HP_CO_EN | RT5645_HP_SG_EN);
-			regmap_write(rt5645->regmap, RT5645_PR_BASE +
-				0x14, 0x1aaa);
-			regmap_write(rt5645->regmap, RT5645_PR_BASE +
-				0x24, 0x0430);
+				snd_soc_update_bits(codec, RT5645_DEPOP_M1,
+					RT5645_HP_CO_MASK | RT5645_HP_SG_MASK,
+					RT5645_HP_CO_EN | RT5645_HP_SG_EN);
+				regmap_write(rt5645->regmap, RT5645_PR_BASE +
+					0x14, 0x1aaa);
+				regmap_write(rt5645->regmap, RT5645_PR_BASE +
+					0x24, 0x0430);
+			}
 		}
 		hp_amp_power_count++;
 	} else {
 		hp_amp_power_count--;
 		if (hp_amp_power_count <= 0) {
-			snd_soc_update_bits(codec, RT5645_DEPOP_M1,
-				RT5645_HP_SG_MASK | RT5645_HP_L_SMT_MASK |
-				RT5645_HP_R_SMT_MASK, RT5645_HP_SG_DIS |
-				RT5645_HP_L_SMT_DIS | RT5645_HP_R_SMT_DIS);
-			/* headphone amp power down */
-			snd_soc_write(codec, RT5645_DEPOP_M1, 0x0000);
-			snd_soc_update_bits(codec, RT5645_PWR_ANLG1,
-				RT5645_PWR_HP_L | RT5645_PWR_HP_R |
-				RT5645_PWR_HA, 0);
-			snd_soc_update_bits(codec, RT5645_DEPOP_M2,
-				RT5645_DEPOP_MASK, 0);
+			if (rt5645->codec_type == CODEC_TYPE_RT5650) {
+				regmap_write(rt5645->regmap, RT5645_PR_BASE +
+					0x3e, 0x7400);
+				snd_soc_write(codec, RT5645_DEPOP_M3, 0x0737);
+				regmap_write(rt5645->regmap, RT5645_PR_BASE +
+					RT5645_MAMP_INT_REG2, 0xfc00);
+				snd_soc_write(codec, RT5645_DEPOP_M2, 0x1140);
+				msleep(100);
+				snd_soc_write(codec, RT5645_DEPOP_M1, 0x0001);
+
+			} else {
+				snd_soc_update_bits(codec, RT5645_DEPOP_M1,
+					RT5645_HP_SG_MASK |
+					RT5645_HP_L_SMT_MASK |
+					RT5645_HP_R_SMT_MASK,
+					RT5645_HP_SG_DIS |
+					RT5645_HP_L_SMT_DIS |
+					RT5645_HP_R_SMT_DIS);
+				/* headphone amp power down */
+				snd_soc_write(codec, RT5645_DEPOP_M1, 0x0000);
+				snd_soc_update_bits(codec, RT5645_PWR_ANLG1,
+					RT5645_PWR_HP_L | RT5645_PWR_HP_R |
+					RT5645_PWR_HA, 0);
+				snd_soc_update_bits(codec, RT5645_DEPOP_M2,
+					RT5645_DEPOP_MASK, 0);
+			}
 		}
 	}
 }
@@ -1389,56 +1416,52 @@ static int rt5645_hp_event(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_POST_PMU:
 		hp_amp_power(codec, 1);
 		/* headphone unmute sequence */
-		if (rt5645->codec_type == CODEC_TYPE_RT5650) {
-			snd_soc_write(codec, RT5645_DEPOP_M3, 0x0737);
-		} else {
+		if (rt5645->codec_type == CODEC_TYPE_RT5645) {
 			snd_soc_update_bits(codec, RT5645_DEPOP_M3,
 				RT5645_CP_FQ1_MASK | RT5645_CP_FQ2_MASK |
 				RT5645_CP_FQ3_MASK,
 				(RT5645_CP_FQ_192_KHZ << RT5645_CP_FQ1_SFT) |
 				(RT5645_CP_FQ_12_KHZ << RT5645_CP_FQ2_SFT) |
 				(RT5645_CP_FQ_192_KHZ << RT5645_CP_FQ3_SFT));
+			regmap_write(rt5645->regmap, RT5645_PR_BASE +
+				RT5645_MAMP_INT_REG2, 0xfc00);
+			snd_soc_update_bits(codec, RT5645_DEPOP_M1,
+				RT5645_SMT_TRIG_MASK, RT5645_SMT_TRIG_EN);
+			snd_soc_update_bits(codec, RT5645_DEPOP_M1,
+				RT5645_RSTN_MASK, RT5645_RSTN_EN);
+			snd_soc_update_bits(codec, RT5645_DEPOP_M1,
+				RT5645_RSTN_MASK | RT5645_HP_L_SMT_MASK |
+				RT5645_HP_R_SMT_MASK, RT5645_RSTN_DIS |
+				RT5645_HP_L_SMT_EN | RT5645_HP_R_SMT_EN);
+			msleep(40);
+			snd_soc_update_bits(codec, RT5645_DEPOP_M1,
+				RT5645_HP_SG_MASK | RT5645_HP_L_SMT_MASK |
+				RT5645_HP_R_SMT_MASK, RT5645_HP_SG_DIS |
+				RT5645_HP_L_SMT_DIS | RT5645_HP_R_SMT_DIS);
 		}
-		regmap_write(rt5645->regmap,
-			RT5645_PR_BASE + RT5645_MAMP_INT_REG2, 0xfc00);
-		snd_soc_update_bits(codec, RT5645_DEPOP_M1,
-			RT5645_SMT_TRIG_MASK, RT5645_SMT_TRIG_EN);
-		snd_soc_update_bits(codec, RT5645_DEPOP_M1,
-			RT5645_RSTN_MASK, RT5645_RSTN_EN);
-		snd_soc_update_bits(codec, RT5645_DEPOP_M1,
-			RT5645_RSTN_MASK | RT5645_HP_L_SMT_MASK |
-			RT5645_HP_R_SMT_MASK, RT5645_RSTN_DIS |
-			RT5645_HP_L_SMT_EN | RT5645_HP_R_SMT_EN);
-		msleep(40);
-		snd_soc_update_bits(codec, RT5645_DEPOP_M1,
-			RT5645_HP_SG_MASK | RT5645_HP_L_SMT_MASK |
-			RT5645_HP_R_SMT_MASK, RT5645_HP_SG_DIS |
-			RT5645_HP_L_SMT_DIS | RT5645_HP_R_SMT_DIS);
 		break;
 
 	case SND_SOC_DAPM_PRE_PMD:
 		/* headphone mute sequence */
-		if (rt5645->codec_type == CODEC_TYPE_RT5650) {
-			snd_soc_write(codec, RT5645_DEPOP_M3, 0x0737);
-		} else {
+		if (rt5645->codec_type == CODEC_TYPE_RT5645) {
 			snd_soc_update_bits(codec, RT5645_DEPOP_M3,
 				RT5645_CP_FQ1_MASK | RT5645_CP_FQ2_MASK |
 				RT5645_CP_FQ3_MASK,
 				(RT5645_CP_FQ_96_KHZ << RT5645_CP_FQ1_SFT) |
 				(RT5645_CP_FQ_12_KHZ << RT5645_CP_FQ2_SFT) |
 				(RT5645_CP_FQ_96_KHZ << RT5645_CP_FQ3_SFT));
+			regmap_write(rt5645->regmap, RT5645_PR_BASE +
+				RT5645_MAMP_INT_REG2, 0xfc00);
+			snd_soc_update_bits(codec, RT5645_DEPOP_M1,
+				RT5645_HP_SG_MASK, RT5645_HP_SG_EN);
+			snd_soc_update_bits(codec, RT5645_DEPOP_M1,
+				RT5645_RSTP_MASK, RT5645_RSTP_EN);
+			snd_soc_update_bits(codec, RT5645_DEPOP_M1,
+				RT5645_RSTP_MASK | RT5645_HP_L_SMT_MASK |
+				RT5645_HP_R_SMT_MASK, RT5645_RSTP_DIS |
+				RT5645_HP_L_SMT_EN | RT5645_HP_R_SMT_EN);
+			msleep(30);
 		}
-		regmap_write(rt5645->regmap,
-			RT5645_PR_BASE + RT5645_MAMP_INT_REG2, 0xfc00);
-		snd_soc_update_bits(codec, RT5645_DEPOP_M1,
-			RT5645_HP_SG_MASK, RT5645_HP_SG_EN);
-		snd_soc_update_bits(codec, RT5645_DEPOP_M1,
-			RT5645_RSTP_MASK, RT5645_RSTP_EN);
-		snd_soc_update_bits(codec, RT5645_DEPOP_M1,
-			RT5645_RSTP_MASK | RT5645_HP_L_SMT_MASK |
-			RT5645_HP_R_SMT_MASK, RT5645_RSTP_DIS |
-			RT5645_HP_L_SMT_EN | RT5645_HP_R_SMT_EN);
-		msleep(30);
 		hp_amp_power(codec, 0);
 		break;
 
@@ -2662,6 +2685,77 @@ static int rt5645_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
+static int rt5650_calibration(struct rt5645_priv *rt5645)
+{
+	int val, i;
+	int ret = -1;
+
+	regcache_cache_bypass(rt5645->regmap, true);
+	regmap_write(rt5645->regmap, RT5645_RESET, 0);
+	regmap_write(rt5645->regmap, RT5645_GEN_CTRL3, 0x0800);
+	regmap_write(rt5645->regmap, RT5645_PR_BASE + RT5645_CHOP_DAC_ADC,
+		0x3600);
+	regmap_write(rt5645->regmap, RT5645_PR_BASE + 0x25, 0x7000);
+	regmap_write(rt5645->regmap, RT5645_I2S1_SDP, 0x8008);
+	/* headset type */
+	regmap_write(rt5645->regmap, RT5645_GEN_CTRL1, 0x2061);
+	regmap_write(rt5645->regmap, RT5645_CHARGE_PUMP, 0x0006);
+	regmap_write(rt5645->regmap, RT5645_PWR_ANLG1, 0x2012);
+	regmap_write(rt5645->regmap, RT5645_PWR_MIXER, 0x0002);
+	regmap_write(rt5645->regmap, RT5645_PWR_VOL, 0x0020);
+	regmap_write(rt5645->regmap, RT5645_JD_CTRL3, 0x00f0);
+	regmap_write(rt5645->regmap, RT5645_IN1_CTRL1, 0x0006);
+	regmap_write(rt5645->regmap, RT5645_IN1_CTRL2, 0x1827);
+	regmap_write(rt5645->regmap, RT5645_IN1_CTRL2, 0x0827);
+	msleep(400);
+	/* Inline command */
+	regmap_write(rt5645->regmap, RT5645_DEPOP_M1, 0x0001);
+	regmap_write(rt5645->regmap, RT5650_4BTN_IL_CMD2, 0xc000);
+	regmap_write(rt5645->regmap, RT5650_4BTN_IL_CMD1, 0x0008);
+	/* Calbration */
+	regmap_write(rt5645->regmap, RT5645_GLB_CLK, 0x8000);
+	regmap_write(rt5645->regmap, RT5645_DEPOP_M1, 0x0000);
+	regmap_write(rt5645->regmap, RT5650_4BTN_IL_CMD2, 0xc000);
+	regmap_write(rt5645->regmap, RT5650_4BTN_IL_CMD1, 0x0008);
+	regmap_write(rt5645->regmap, RT5645_PWR_DIG2, 0x8800);
+	regmap_write(rt5645->regmap, RT5645_PWR_ANLG1, 0xe8fa);
+	regmap_write(rt5645->regmap, RT5645_PWR_ANLG2, 0x8c04);
+	regmap_write(rt5645->regmap, RT5645_DEPOP_M2, 0x3100);
+	regmap_write(rt5645->regmap, RT5645_CHARGE_PUMP, 0x0e06);
+	regmap_write(rt5645->regmap, RT5645_BASS_BACK, 0x8a13);
+	regmap_write(rt5645->regmap, RT5645_GEN_CTRL3, 0x0820);
+	regmap_write(rt5645->regmap, RT5645_DEPOP_M1, 0x000d);
+	/* Power on and Calbration */
+	regmap_write(rt5645->regmap, RT5645_PR_BASE + RT5645_HP_DCC_INT1,
+		0x9f01);
+	msleep(200);
+	for (i = 0; i < 5; i++) {
+		regmap_read(rt5645->regmap, RT5645_PR_BASE + 0x7a, &val);
+		if (val != 0 && val != 0x3f3f) {
+			ret = 0;
+			break;
+		}
+		msleep(50);
+	}
+	pr_debug("%s: PR-7A = 0x%x\n", __func__, val);
+
+	/* mute */
+	regmap_write(rt5645->regmap, RT5645_PR_BASE + 0x3e, 0x7400);
+	regmap_write(rt5645->regmap, RT5645_DEPOP_M3, 0x0737);
+	regmap_write(rt5645->regmap, RT5645_PR_BASE + RT5645_MAMP_INT_REG2,
+		0xfc00);
+	regmap_write(rt5645->regmap, RT5645_DEPOP_M2, 0x1140);
+	regmap_write(rt5645->regmap, RT5645_DEPOP_M1, 0x0000);
+	regmap_write(rt5645->regmap, RT5645_GEN_CTRL2, 0x4020);
+	regmap_write(rt5645->regmap, RT5645_PWR_ANLG2, 0x0006);
+	regmap_write(rt5645->regmap, RT5645_PWR_DIG2, 0x0000);
+	msleep(350);
+
+	regcache_cache_bypass(rt5645->regmap, false);
+
+	return ret;
+}
+
 static void rt5645_enable_push_button_irq(struct snd_soc_codec *codec,
 	bool enable)
 {
@@ -2965,8 +3059,6 @@ static int rt5645_probe(struct snd_soc_codec *codec)
 
 	rt5645_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
-	snd_soc_update_bits(codec, RT5645_CHARGE_PUMP, 0x0300, 0x0200);
-
 	/* for JD function */
 	if (rt5645->pdata.jd_mode) {
 		snd_soc_dapm_force_enable_pin(&codec->dapm, "JD Power");
@@ -3193,6 +3285,13 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 		return -ENODEV;
 	}
 
+	if (rt5645->codec_type == CODEC_TYPE_RT5650) {
+		ret = rt5650_calibration(rt5645);
+
+		if (ret < 0)
+			pr_err("calibration failed!\n");
+	}
+
 	regmap_write(rt5645->regmap, RT5645_RESET, 0);
 
 	ret = regmap_register_patch(rt5645->regmap, init_list,
@@ -3280,9 +3379,6 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 				   RT5645_IRQ_CLK_GATE_CTRL);
 		regmap_update_bits(rt5645->regmap, RT5645_IN1_CTRL1,
 				   RT5645_CBJ_BST1_EN, RT5645_CBJ_BST1_EN);
-		regmap_update_bits(rt5645->regmap, RT5645_JD_CTRL3,
-				   RT5645_JD_CBJ_EN | RT5645_JD_CBJ_POL,
-				   RT5645_JD_CBJ_EN | RT5645_JD_CBJ_POL);
 		regmap_update_bits(rt5645->regmap, RT5645_MICBIAS,
 				   RT5645_IRQ_CLK_INT, RT5645_IRQ_CLK_INT);
 		regmap_update_bits(rt5645->regmap, RT5645_IRQ_CTRL2,
