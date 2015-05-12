@@ -1417,6 +1417,7 @@ int kvm_arch_vcpu_runnable(struct kvm_vcpu *vcpu)
 void kvm_s390_vcpu_block(struct kvm_vcpu *vcpu)
 {
 	atomic_set_mask(PROG_BLOCK_SIE, &vcpu->arch.sie_block->prog20);
+	exit_sie(vcpu);
 }
 
 void kvm_s390_vcpu_unblock(struct kvm_vcpu *vcpu)
@@ -1427,6 +1428,7 @@ void kvm_s390_vcpu_unblock(struct kvm_vcpu *vcpu)
 static void kvm_s390_vcpu_request(struct kvm_vcpu *vcpu)
 {
 	atomic_set_mask(PROG_REQUEST, &vcpu->arch.sie_block->prog20);
+	exit_sie(vcpu);
 }
 
 static void kvm_s390_vcpu_request_handled(struct kvm_vcpu *vcpu)
@@ -1450,7 +1452,6 @@ void kvm_s390_sync_request(int req, struct kvm_vcpu *vcpu)
 {
 	kvm_make_request(req, vcpu);
 	kvm_s390_vcpu_request(vcpu);
-	exit_sie(vcpu);
 }
 
 static void kvm_gmap_notifier(struct gmap *gmap, unsigned long address)
