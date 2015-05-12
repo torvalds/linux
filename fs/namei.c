@@ -2166,13 +2166,16 @@ static int path_parentat(int dfd, const struct filename *name,
 	return err;
 }
 
-static int filename_parentat(int dfd, struct filename *name,
+static struct filename *filename_parentat(int dfd, struct filename *name,
 				unsigned int flags, struct path *parent,
 				struct qstr *last, int *type)
 {
 	int retval;
-	struct nameidata nd, *saved_nd = set_nameidata(&nd);
+	struct nameidata nd, *saved_nd;
 
+	if (IS_ERR(name))
+		return name;
+	saved_nd = set_nameidata(&nd);
 	retval = path_parentat(dfd, name, flags | LOOKUP_RCU, &nd, parent);
 	if (unlikely(retval == -ECHILD))
 		retval = path_parentat(dfd, name, flags, &nd, parent);
@@ -2183,32 +2186,30 @@ static int filename_parentat(int dfd, struct filename *name,
 		*last = nd.last;
 		*type = nd.last_type;
 		audit_inode(name, parent->dentry, LOOKUP_PARENT);
+	} else {
+		putname(name);
+		name = ERR_PTR(retval);
 	}
 	restore_nameidata(saved_nd);
-	return retval;
+	return name;
 }
 
 /* does lookup, returns the object with parent locked */
 struct dentry *kern_path_locked(const char *name, struct path *path)
 {
-	struct filename *filename = getname_kernel(name);
+	struct filename *filename;
+	struct dentry *d;
 	struct qstr last;
 	int type;
-	struct dentry *d;
-	int err;
 
+	filename = filename_parentat(AT_FDCWD, getname_kernel(name), 0, path,
+				    &last, &type);
 	if (IS_ERR(filename))
 		return ERR_CAST(filename);
-
-	err = filename_parentat(AT_FDCWD, filename, 0, path, &last, &type);
-	if (err) {
-		d = ERR_PTR(err);
-		goto out;
-	}
-	if (type != LAST_NORM) {
+	if (unlikely(type != LAST_NORM)) {
 		path_put(path);
-		d = ERR_PTR(-EINVAL);
-		goto out;
+		putname(filename);
+		return ERR_PTR(-EINVAL);
 	}
 	mutex_lock_nested(&path->dentry->d_inode->i_mutex, I_MUTEX_PARENT);
 	d = __lookup_hash(&last, path->dentry, 0);
@@ -2216,7 +2217,6 @@ struct dentry *kern_path_locked(const char *name, struct path *path)
 		mutex_unlock(&path->dentry->d_inode->i_mutex);
 		path_put(path);
 	}
-out:
 	putname(filename);
 	return d;
 }
@@ -2325,21 +2325,9 @@ user_path_parent(int dfd, const char __user *path,
 		 int *type,
 		 unsigned int flags)
 {
-	struct filename *s = getname(path);
-	int error;
-
 	/* only LOOKUP_REVAL is allowed in extra flags */
-	flags &= LOOKUP_REVAL;
-
-	if (IS_ERR(s))
-		return s;
-
-	error = filename_parentat(dfd, s, flags, parent, last, type);
-	if (error) {
-		putname(s);
-		s = ERR_PTR(error);
-	}
-	return s;
+	return filename_parentat(dfd, getname(path), flags & LOOKUP_REVAL,
+				 parent, last, type);
 }
 
 /**
@@ -3403,25 +3391,21 @@ static struct dentry *filename_create(int dfd, struct filename *name,
 	int error;
 	bool is_dir = (lookup_flags & LOOKUP_DIRECTORY);
 
-	if (IS_ERR(name))
-		return ERR_CAST(name);
 	/*
 	 * Note that only LOOKUP_REVAL and LOOKUP_DIRECTORY matter here. Any
 	 * other flags passed in are ignored!
 	 */
 	lookup_flags &= LOOKUP_REVAL;
 
-	error = filename_parentat(dfd, name, lookup_flags, path, &last, &type);
-	if (error) {
-		putname(name);
-		return ERR_PTR(error);
-	}
+	name = filename_parentat(dfd, name, lookup_flags, path, &last, &type);
+	if (IS_ERR(name))
+		return ERR_CAST(name);
 
 	/*
 	 * Yucky last component or no last component at all?
 	 * (foo/., foo/.., /////)
 	 */
-	if (type != LAST_NORM)
+	if (unlikely(type != LAST_NORM))
 		goto out;
 
 	/* don't fail immediately if it's r/o, at least try to report other errors */
