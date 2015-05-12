@@ -175,16 +175,29 @@ ipv6:
 		ip_proto = iph->nexthdr;
 		nhoff += sizeof(struct ipv6hdr);
 
-		if (!skb_flow_dissector_uses_key(flow_dissector,
-						 FLOW_DISSECTOR_KEY_IPV6_HASH_ADDRS))
-			break;
-		key_addrs = skb_flow_dissector_target(flow_dissector,
-						      FLOW_DISSECTOR_KEY_IPV6_HASH_ADDRS,
-						      target_container);
+		if (skb_flow_dissector_uses_key(flow_dissector,
+						FLOW_DISSECTOR_KEY_IPV6_HASH_ADDRS)) {
+			key_addrs = skb_flow_dissector_target(flow_dissector,
+							      FLOW_DISSECTOR_KEY_IPV6_HASH_ADDRS,
+							      target_container);
 
-		key_addrs->src = (__force __be32)ipv6_addr_hash(&iph->saddr);
-		key_addrs->dst = (__force __be32)ipv6_addr_hash(&iph->daddr);
+			key_addrs->src = (__force __be32)ipv6_addr_hash(&iph->saddr);
+			key_addrs->dst = (__force __be32)ipv6_addr_hash(&iph->daddr);
+			goto flow_label;
+		}
+		if (skb_flow_dissector_uses_key(flow_dissector,
+						FLOW_DISSECTOR_KEY_IPV6_ADDRS)) {
+			struct flow_dissector_key_ipv6_addrs *key_ipv6_addrs;
 
+			key_ipv6_addrs = skb_flow_dissector_target(flow_dissector,
+								   FLOW_DISSECTOR_KEY_IPV6_ADDRS,
+								   target_container);
+
+			memcpy(key_ipv6_addrs, &iph->saddr, sizeof(*key_ipv6_addrs));
+			goto flow_label;
+		}
+		break;
+flow_label:
 		flow_label = ip6_flowlabel(iph);
 		if (flow_label) {
 			/* Awesome, IPv6 packet has a flow label so we can
