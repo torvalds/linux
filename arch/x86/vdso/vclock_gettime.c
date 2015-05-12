@@ -82,15 +82,18 @@ static notrace cycle_t vread_pvclock(int *mode)
 	cycle_t ret;
 	u64 last;
 	u32 version;
-	u32 migrate_count;
 	u8 flags;
 	unsigned cpu, cpu1;
 
 
 	/*
-	 * When looping to get a consistent (time-info, tsc) pair, we
-	 * also need to deal with the possibility we can switch vcpus,
-	 * so make sure we always re-fetch time-info for the current vcpu.
+	 * Note: hypervisor must guarantee that:
+	 * 1. cpu ID number maps 1:1 to per-CPU pvclock time info.
+	 * 2. that per-CPU pvclock time info is updated if the
+	 *    underlying CPU changes.
+	 * 3. that version is increased whenever underlying CPU
+	 *    changes.
+	 *
 	 */
 	do {
 		cpu = __getcpu() & VGETCPU_CPU_MASK;
@@ -99,27 +102,20 @@ static notrace cycle_t vread_pvclock(int *mode)
 		 * __getcpu() calls (Gleb).
 		 */
 
-		/* Make sure migrate_count will change if we leave the VCPU. */
-		do {
-			pvti = get_pvti(cpu);
-			migrate_count = pvti->migrate_count;
-
-			cpu1 = cpu;
-			cpu = __getcpu() & VGETCPU_CPU_MASK;
-		} while (unlikely(cpu != cpu1));
+		pvti = get_pvti(cpu);
 
 		version = __pvclock_read_cycles(&pvti->pvti, &ret, &flags);
 
 		/*
 		 * Test we're still on the cpu as well as the version.
-		 * - We must read TSC of pvti's VCPU.
-		 * - KVM doesn't follow the versioning protocol, so data could
-		 *   change before version if we left the VCPU.
+		 * We could have been migrated just after the first
+		 * vgetcpu but before fetching the version, so we
+		 * wouldn't notice a version change.
 		 */
-		smp_rmb();
-	} while (unlikely((pvti->pvti.version & 1) ||
-			  pvti->pvti.version != version ||
-			  pvti->migrate_count != migrate_count));
+		cpu1 = __getcpu() & VGETCPU_CPU_MASK;
+	} while (unlikely(cpu != cpu1 ||
+			  (pvti->pvti.version & 1) ||
+			  pvti->pvti.version != version));
 
 	if (unlikely(!(flags & PVCLOCK_TSC_STABLE_BIT)))
 		*mode = VCLOCK_NONE;

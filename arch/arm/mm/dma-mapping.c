@@ -1878,13 +1878,17 @@ struct dma_map_ops iommu_coherent_ops = {
  * arm_iommu_attach_device function.
  */
 struct dma_iommu_mapping *
-arm_iommu_create_mapping(struct bus_type *bus, dma_addr_t base, size_t size)
+arm_iommu_create_mapping(struct bus_type *bus, dma_addr_t base, u64 size)
 {
 	unsigned int bits = size >> PAGE_SHIFT;
 	unsigned int bitmap_size = BITS_TO_LONGS(bits) * sizeof(long);
 	struct dma_iommu_mapping *mapping;
 	int extensions = 1;
 	int err = -ENOMEM;
+
+	/* currently only 32-bit DMA address space is supported */
+	if (size > DMA_BIT_MASK(32) + 1)
+		return ERR_PTR(-ERANGE);
 
 	if (!bitmap_size)
 		return ERR_PTR(-EINVAL);
@@ -2055,13 +2059,6 @@ static bool arm_setup_iommu_dma_ops(struct device *dev, u64 dma_base, u64 size,
 	struct dma_iommu_mapping *mapping;
 
 	if (!iommu)
-		return false;
-
-	/*
-	 * currently arm_iommu_create_mapping() takes a max of size_t
-	 * for size param. So check this limit for now.
-	 */
-	if (size > SIZE_MAX)
 		return false;
 
 	mapping = arm_iommu_create_mapping(dev->bus, dma_base, size);

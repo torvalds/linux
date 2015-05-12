@@ -1260,7 +1260,7 @@ static int bgmac_poll(struct napi_struct *napi, int weight)
 
 	/* Poll again if more events arrived in the meantime */
 	if (bgmac_read(bgmac, BGMAC_INT_STATUS) & (BGMAC_IS_TX0 | BGMAC_IS_RX))
-		return handled;
+		return weight;
 
 	if (handled < weight) {
 		napi_complete(napi);

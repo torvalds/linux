@@ -453,7 +453,8 @@ static struct sock *dccp_v4_hnd_req(struct sock *sk, struct sk_buff *skb)
 						       iph->saddr, iph->daddr);
 	if (req) {
 		nsk = dccp_check_req(sk, skb, req);
-		reqsk_put(req);
+		if (!nsk)
+			reqsk_put(req);
 		return nsk;
 	}
 	nsk = inet_lookup_established(sock_net(sk), &dccp_hashinfo,
