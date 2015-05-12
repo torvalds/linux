@@ -337,8 +337,11 @@ void make_flow_keys_digest(struct flow_keys_digest *digest,
 }
 EXPORT_SYMBOL(make_flow_keys_digest);
 
-/*
- * __skb_get_hash: calculate a flow hash based on src/dst addresses
+/**
+ * __skb_get_hash: calculate a flow hash
+ * @skb: sk_buff to calculate flow hash from
+ *
+ * This function calculates a flow hash based on src/dst addresses
  * and src/dst port numbers.  Sets hash in skb to non-zero hash value
  * on success, zero indicates no valid hash.  Also, sets l4_hash in skb
  * if hash is a canonical 4-tuple hash over transport ports.
@@ -353,12 +356,9 @@ void __skb_get_hash(struct sk_buff *skb)
 	hash = ___skb_get_hash(skb, &keys, hashrnd);
 	if (!hash)
 		return;
-
 	if (keys.ports)
 		skb->l4_hash = 1;
-
 	skb->sw_hash = 1;
-
 	skb->hash = hash;
 }
 EXPORT_SYMBOL(__skb_get_hash);
