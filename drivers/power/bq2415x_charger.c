@@ -35,6 +35,7 @@
 #include <linux/idr.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
+#include <linux/acpi.h>
 
 #include <linux/power/bq2415x_charger.h>
 
@@ -1530,13 +1531,14 @@ static int bq2415x_probe(struct i2c_client *client,
 {
 	int ret;
 	int num;
-	char *name;
+	char *name = NULL;
 	struct bq2415x_device *bq;
 	struct device_node *np = client->dev.of_node;
 	struct bq2415x_platform_data *pdata = client->dev.platform_data;
+	const struct acpi_device_id *acpi_id = NULL;
 
-	if (!np && !pdata) {
-		dev_err(&client->dev, "platform data missing\n");
+	if (!np && !pdata && !ACPI_HANDLE(&client->dev)) {
+		dev_err(&client->dev, "Neither devicetree, nor platform data, nor ACPI support\n");
 		return -ENODEV;
 	}
 
@@ -1547,7 +1549,14 @@ static int bq2415x_probe(struct i2c_client *client,
 	if (num < 0)
 		return num;
 
-	name = kasprintf(GFP_KERNEL, "%s-%d", id->name, num);
+	if (id) {
+		name = kasprintf(GFP_KERNEL, "%s-%d", id->name, num);
+	} else if (ACPI_HANDLE(&client->dev)) {
+		acpi_id =
+			acpi_match_device(client->dev.driver->acpi_match_table,
+					  &client->dev);
+		name = kasprintf(GFP_KERNEL, "%s-%d", acpi_id->id, num);
+	}
 	if (!name) {
 		dev_err(&client->dev, "failed to allocate device name\n");
 		ret = -ENOMEM;
@@ -1573,7 +1582,7 @@ static int bq2415x_probe(struct i2c_client *client,
 			ret = -EPROBE_DEFER;
 			goto error_2;
 		}
-	} else if (pdata->notify_device) {
+	} else if (pdata && pdata->notify_device) {
 		bq->notify_psy = power_supply_get_by_name(pdata->notify_device);
 	} else {
 		bq->notify_psy = NULL;
@@ -1583,36 +1592,45 @@ static int bq2415x_probe(struct i2c_client *client,
 
 	bq->id = num;
 	bq->dev = &client->dev;
-	bq->chip = id->driver_data;
+	if (id)
+		bq->chip = id->driver_data;
+	else if (ACPI_HANDLE(bq->dev))
+		bq->chip = acpi_id->driver_data;
 	bq->name = name;
 	bq->mode = BQ2415X_MODE_OFF;
 	bq->reported_mode = BQ2415X_MODE_OFF;
 	bq->autotimer = 0;
 	bq->automode = 0;
 
-	if (np) {
-		ret = of_property_read_u32(np, "ti,current-limit",
-					   &bq->init_data.current_limit);
+	if (np || ACPI_HANDLE(bq->dev)) {
+		ret = device_property_read_u32(bq->dev,
+					       "ti,current-limit",
+					       &bq->init_data.current_limit);
 		if (ret)
 			goto error_3;
-		ret = of_property_read_u32(np, "ti,weak-battery-voltage",
-					   &bq->init_data.weak_battery_voltage);
+		ret = device_property_read_u32(bq->dev,
+					"ti,weak-battery-voltage",
+					&bq->init_data.weak_battery_voltage);
 		if (ret)
 			goto error_3;
-		ret = of_property_read_u32(np, "ti,battery-regulation-voltage",
+		ret = device_property_read_u32(bq->dev,
+				"ti,battery-regulation-voltage",
 				&bq->init_data.battery_regulation_voltage);
 		if (ret)
 			goto error_3;
-		ret = of_property_read_u32(np, "ti,charge-current",
-					   &bq->init_data.charge_current);
+		ret = device_property_read_u32(bq->dev,
+					       "ti,charge-current",
+					       &bq->init_data.charge_current);
 		if (ret)
 			goto error_3;
-		ret = of_property_read_u32(np, "ti,termination-current",
-					   &bq->init_data.termination_current);
+		ret = device_property_read_u32(bq->dev,
+				"ti,termination-current",
+				&bq->init_data.termination_current);
 		if (ret)
 			goto error_3;
-		ret = of_property_read_u32(np, "ti,resistor-sense",
-					   &bq->init_data.resistor_sense);
+		ret = device_property_read_u32(bq->dev,
+					       "ti,resistor-sense",
+					       &bq->init_data.resistor_sense);
 		if (ret)
 			goto error_3;
 	} else {
@@ -1728,9 +1746,28 @@ static const struct i2c_device_id bq2415x_i2c_id_table[] = {
 };
 MODULE_DEVICE_TABLE(i2c, bq2415x_i2c_id_table);
 
+static const struct acpi_device_id bq2415x_i2c_acpi_match[] = {
+	{ "BQ2415X", BQUNKNOWN },
+	{ "BQ241500", BQ24150 },
+	{ "BQA24150", BQ24150A },
+	{ "BQ241510", BQ24151 },
+	{ "BQA24151", BQ24151A },
+	{ "BQ241520", BQ24152 },
+	{ "BQ241530", BQ24153 },
+	{ "BQA24153", BQ24153A },
+	{ "BQ241550", BQ24155 },
+	{ "BQ241560", BQ24156 },
+	{ "BQA24156", BQ24156A },
+	{ "BQS24157", BQ24157S },
+	{ "BQ241580", BQ24158 },
+	{},
+};
+MODULE_DEVICE_TABLE(acpi, bq2415x_i2c_acpi_match);
+
 static struct i2c_driver bq2415x_driver = {
 	.driver = {
 		.name = "bq2415x-charger",
+		.acpi_match_table = ACPI_PTR(bq2415x_i2c_acpi_match),
 	},
 	.probe = bq2415x_probe,
 	.remove = bq2415x_remove,
