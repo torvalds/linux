@@ -2301,8 +2301,8 @@ static int max98095_probe(struct snd_soc_codec *codec)
 		/* register an audio interrupt */
 		ret = request_threaded_irq(client->irq, NULL,
 			max98095_report_jack,
-			IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
-			"max98095", codec);
+			IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING |
+			IRQF_ONESHOT, "max98095", codec);
 		if (ret) {
 			dev_err(codec->dev, "Failed to request IRQ: %d\n", ret);
 			goto err_access;
