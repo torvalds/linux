@@ -431,6 +431,17 @@ enum iwl_scan_priority {
 	IWL_SCAN_PRIORITY_HIGH,
 };
 
+enum iwl_scan_priority_ext {
+	IWL_SCAN_PRIORITY_EXT_0_LOWEST,
+	IWL_SCAN_PRIORITY_EXT_1,
+	IWL_SCAN_PRIORITY_EXT_2,
+	IWL_SCAN_PRIORITY_EXT_3,
+	IWL_SCAN_PRIORITY_EXT_4,
+	IWL_SCAN_PRIORITY_EXT_5,
+	IWL_SCAN_PRIORITY_EXT_6,
+	IWL_SCAN_PRIORITY_EXT_7_HIGHEST,
+};
+
 /**
  * iwl_scan_req_lmac - SCAN_REQUEST_CMD_API_S_VER_1
  * @reserved1: for alignment and future use
