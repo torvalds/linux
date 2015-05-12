@@ -1318,18 +1318,22 @@ static unsigned int fanout_demux_rnd(struct packet_fanout *f,
 
 static unsigned int fanout_demux_rollover(struct packet_fanout *f,
 					  struct sk_buff *skb,
-					  unsigned int idx, unsigned int skip,
+					  unsigned int idx, bool try_self,
 					  unsigned int num)
 {
 	unsigned int i, j;
 
+	if (try_self && packet_rcv_has_room(pkt_sk(f->arr[idx]), skb))
+		return idx;
+
 	i = j = min_t(int, f->next[idx], num - 1);
 	do {
-		if (i != skip && packet_rcv_has_room(pkt_sk(f->arr[i]), skb)) {
+		if (i != idx && packet_rcv_has_room(pkt_sk(f->arr[i]), skb)) {
 			if (i != j)
 				f->next[idx] = i;
 			return i;
 		}
+
 		if (++i == num)
 			i = 0;
 	} while (i != j);
@@ -1386,17 +1390,14 @@ static int packet_rcv_fanout(struct sk_buff *skb, struct net_device *dev,
 		idx = fanout_demux_qm(f, skb, num);
 		break;
 	case PACKET_FANOUT_ROLLOVER:
-		idx = fanout_demux_rollover(f, skb, 0, (unsigned int) -1, num);
+		idx = fanout_demux_rollover(f, skb, 0, false, num);
 		break;
 	}
 
-	po = pkt_sk(f->arr[idx]);
-	if (fanout_has_flag(f, PACKET_FANOUT_FLAG_ROLLOVER) &&
-	    unlikely(!packet_rcv_has_room(po, skb))) {
-		idx = fanout_demux_rollover(f, skb, idx, idx, num);
-		po = pkt_sk(f->arr[idx]);
-	}
+	if (fanout_has_flag(f, PACKET_FANOUT_FLAG_ROLLOVER))
+		idx = fanout_demux_rollover(f, skb, idx, true, num);
 
+	po = pkt_sk(f->arr[idx]);
 	return po->prot_hook.func(skb, dev, &po->prot_hook, orig_dev);
 }
 
