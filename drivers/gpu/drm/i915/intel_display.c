@@ -2956,6 +2956,9 @@ u32 skl_plane_ctl_format(uint32_t pixel_format)
 	u32 format = 0;
 
 	switch (pixel_format) {
+	case DRM_FORMAT_C8:
+		format = PLANE_CTL_FORMAT_INDEXED;
+		break;
 	case DRM_FORMAT_RGB565:
 		format = PLANE_CTL_FORMAT_RGB_565;
 		break;
