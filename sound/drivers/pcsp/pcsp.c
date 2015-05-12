@@ -48,7 +48,7 @@ static int snd_pcsp_create(struct snd_card *card)
 	if (!nopcm) {
 		if (resolution > PCSP_MAX_PERIOD_NS) {
 			printk(KERN_ERR "PCSP: Timer resolution is not sufficient "
-				"(%linS)\n", resolution);
+				"(%unS)\n", resolution);
 			printk(KERN_ERR "PCSP: Make sure you have HPET and ACPI "
 				"enabled.\n");
 			printk(KERN_ERR "PCSP: Turned into nopcm mode.\n");
@@ -61,7 +61,7 @@ static int snd_pcsp_create(struct snd_card *card)
 	else
 		min_div = MAX_DIV;
 #if PCSP_DEBUG
-	printk(KERN_DEBUG "PCSP: lpj=%li, min_div=%i, res=%li\n",
+	printk(KERN_DEBUG "PCSP: lpj=%li, min_div=%i, res=%u\n",
 	       loops_per_jiffy, min_div, resolution);
 #endif
 
