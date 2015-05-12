@@ -65,6 +65,12 @@
 		ranges;
 		compatible = "simple-bus";
 
+		restart {
+			compatible = "st,stih407-restart";
+			st,syscfg = <&syscfg_sbc_reg>;
+			status = "okay";
+		};
+
 		powerdown: powerdown-controller {
 			compatible = "st,stih407-powerdown";
 			#reset-cells = <1>;
