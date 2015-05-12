@@ -2954,6 +2954,7 @@ void skl_detach_scalers(struct intel_crtc *intel_crtc)
 u32 skl_plane_ctl_format(uint32_t pixel_format)
 {
 	u32 plane_ctl_format = 0;
+
 	switch (pixel_format) {
 	case DRM_FORMAT_RGB565:
 		plane_ctl_format = PLANE_CTL_FORMAT_RGB_565;
@@ -3004,6 +3005,7 @@ u32 skl_plane_ctl_format(uint32_t pixel_format)
 u32 skl_plane_ctl_tiling(uint64_t fb_modifier)
 {
 	u32 plane_ctl_tiling = 0;
+
 	switch (fb_modifier) {
 	case DRM_FORMAT_MOD_NONE:
 		break;
@@ -3025,6 +3027,7 @@ u32 skl_plane_ctl_tiling(uint64_t fb_modifier)
 u32 skl_plane_ctl_rotation(unsigned int rotation)
 {
 	u32 plane_ctl_rotation = 0;
+
 	switch (rotation) {
 	case BIT(DRM_ROTATE_0):
 		break;
