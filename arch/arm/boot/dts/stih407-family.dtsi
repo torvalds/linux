@@ -10,6 +10,7 @@
 #include <dt-bindings/mfd/st-lpc.h>
 #include <dt-bindings/phy/phy.h>
 #include <dt-bindings/reset-controller/stih407-resets.h>
+#include <dt-bindings/interrupt-controller/irq-st.h>
 / {
 	#address-cells = <1>;
 	#size-cells = <1>;
@@ -125,6 +126,15 @@
 		syscfg_lpm: lpm-syscfg@94b5100 {
 			compatible = "st,stih407-lpm-syscfg", "syscon";
 			reg = <0x94b5100 0x1000>;
+		};
+
+		irq-syscfg {
+			compatible    = "st,stih407-irq-syscfg";
+			st,syscfg     = <&syscfg_core>;
+			st,irq-device = <ST_IRQ_SYSCFG_PMU_0>,
+					<ST_IRQ_SYSCFG_PMU_1>;
+			st,fiq-device = <ST_IRQ_SYSCFG_DISABLED>,
+					<ST_IRQ_SYSCFG_DISABLED>;
 		};
 
 		serial@9830000 {
