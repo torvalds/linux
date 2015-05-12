@@ -401,7 +401,7 @@ static bool bcm2835_spi_can_dma(struct spi_master *master,
 	return true;
 }
 
-void bcm2835_dma_release(struct spi_master *master)
+static void bcm2835_dma_release(struct spi_master *master)
 {
 	if (master->dma_tx) {
 		dmaengine_terminate_all(master->dma_tx);
@@ -415,7 +415,7 @@ void bcm2835_dma_release(struct spi_master *master)
 	}
 }
 
-void bcm2835_dma_init(struct spi_master *master, struct device *dev)
+static void bcm2835_dma_init(struct spi_master *master, struct device *dev)
 {
 	struct dma_slave_config slave_config;
 	const __be32 *addr;
