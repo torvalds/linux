@@ -532,6 +532,15 @@ config LEDS_MENF21BMC
 	  This driver can also be built as a module. If so the module
 	  will be called leds-menf21bmc.
 
+config LEDS_KTD2692
+	tristate "LED support for KTD2692 flash LED controller"
+	depends on LEDS_CLASS_FLASH && GPIOLIB && OF
+	help
+	  This option enables support for KTD2692 LED flash connected
+	  through ExpressWire interface.
+
+	  Say Y to enable this driver.
+
 comment "LED driver for blink(1) USB RGB LED is under Special HID drivers (HID_THINGM)"
 
 config LEDS_BLINKM
