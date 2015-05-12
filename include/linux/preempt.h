@@ -116,7 +116,7 @@
 
 /*
  * Check whether we were atomic before we did preempt_disable():
- * (used by the scheduler, *after* releasing the kernel lock)
+ * (used by the scheduler)
  */
 #define in_atomic_preempt_off() \
 		((preempt_count() & ~PREEMPT_ACTIVE) != PREEMPT_DISABLE_OFFSET)
