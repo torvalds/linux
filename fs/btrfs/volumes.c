@@ -693,13 +693,13 @@ static void free_device(struct rcu_head *head)
 
 static int __btrfs_close_devices(struct btrfs_fs_devices *fs_devices)
 {
-	struct btrfs_device *device;
+	struct btrfs_device *device, *tmp;
 
 	if (--fs_devices->opened > 0)
 		return 0;
 
 	mutex_lock(&fs_devices->device_list_mutex);
-	list_for_each_entry(device, &fs_devices->devices, dev_list) {
+	list_for_each_entry_safe(device, tmp, &fs_devices->devices, dev_list) {
 		struct btrfs_device *new_device;
 		struct rcu_string *name;
 
