@@ -310,7 +310,6 @@ static int rk1000_tve_probe(struct i2c_client *client,
 	pr_err("video src is lcdc%d, prop is %d\n", rk1000_tve.video_source,
 	       rk1000_tve.property);
 #endif
-	printk("-------|%d|-------\n",cvbsformat);
 	if (cvbsformat >= 0)		
 		rk1000_tve.mode = cvbsformat + 1;	
 	else		

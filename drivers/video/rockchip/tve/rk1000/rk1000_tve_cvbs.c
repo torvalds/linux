@@ -19,7 +19,11 @@ int rk1000_tv_ntsc_init(void)
 	unsigned char tv_encoder_control_regs[] = {0x43, 0x01};
 	int i;
 	int ret;
-	printk("---------%s----%d-----\n",__FUNCTION__,__LINE__);
+
+	if(cvbsformat>=0){
+		return;
+	}
+	
 	for (i = 0; i < sizeof(tv_encoder_regs); i++) {
 		ret = rk1000_tv_write_block(i, tv_encoder_regs + i, 1);
 		if (ret < 0) {
@@ -47,7 +51,11 @@ int rk1000_tv_pal_init(void)
 	unsigned char tv_encoder_control_regs[] = {0x41, 0x01};
 	int i;
 	int ret;
-		
+
+	if(cvbsformat>=0){
+		return;
+	}
+	
 	for (i = 0; i < sizeof(tv_encoder_regs); i++) {
 		ret = rk1000_tv_write_block(i, tv_encoder_regs+i, 1);
 		if (ret < 0) {
