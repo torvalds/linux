@@ -98,7 +98,7 @@ found:
 		pr_err("The nvram size accoridng to the header seems to be bigger than the partition on flash\n");
 	if (header->len > NVRAM_SPACE)
 		pr_err("nvram on flash (%i bytes) is bigger than the reserved space in memory, will just copy the first %i bytes\n",
-		       header->len, NVRAM_SPACE);
+		       header->len, NVRAM_SPACE - 1);
 
 	src = (u32 *)header;
 	dst = (u32 *)nvram_buf;
@@ -106,6 +106,7 @@ found:
 		*dst++ = __raw_readl(src++);
 	for (; i < header->len && i < NVRAM_SPACE && i < size; i += 4)
 		*dst++ = readl(src++);
+	nvram_buf[NVRAM_SPACE - 1] = '\0';
 
 	return 0;
 }
@@ -150,10 +151,10 @@ static int nvram_init(void)
 		u8 *dst = (uint8_t *)nvram_buf;
 		size_t len = header.len;
 
-		if (header.len > NVRAM_SPACE) {
+		if (len >= NVRAM_SPACE) {
+			len = NVRAM_SPACE - 1;
 			pr_err("nvram on flash (%i bytes) is bigger than the reserved space in memory, will just copy the first %i bytes\n",
-				header.len, NVRAM_SPACE);
-			len = NVRAM_SPACE;
+				header.len, len);
 		}
 
 		err = mtd_read(mtd, 0, len, &bytes_read, dst);
