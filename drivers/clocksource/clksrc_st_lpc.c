@@ -16,6 +16,7 @@
 #include <linux/clocksource.h>
 #include <linux/init.h>
 #include <linux/of_address.h>
+#include <linux/sched_clock.h>
 #include <linux/slab.h>
 
 #include <dt-bindings/mfd/st-lpc.h>
@@ -38,6 +39,11 @@ static void __init st_clksrc_reset(void)
 	writel_relaxed(1, ddata.base + LPC_LPT_START_OFF);
 }
 
+static u64 notrace st_clksrc_sched_clock_read(void)
+{
+	return (u64)readl_relaxed(ddata.base + LPC_LPT_LSB_OFF);
+}
+
 static int __init st_clksrc_init(void)
 {
 	unsigned long rate;
@@ -46,6 +52,8 @@ static int __init st_clksrc_init(void)
 	st_clksrc_reset();
 
 	rate = clk_get_rate(ddata.clk);
+
+	sched_clock_register(st_clksrc_sched_clock_read, 32, rate);
 
 	ret = clocksource_mmio_init(ddata.base + LPC_LPT_LSB_OFF,
 				    "clksrc-st-lpc", rate, 300, 32,
