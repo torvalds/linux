@@ -2250,8 +2250,28 @@ static void panel_detach(struct parport *port)
 		       __func__, port->number, parport);
 		return;
 	}
+	if (scan_timer.function != NULL)
+		del_timer_sync(&scan_timer);
 
-	unregister_reboot_notifier(&panel_notifier);
+	if (pprt != NULL) {
+		if (keypad.enabled) {
+			misc_deregister(&keypad_dev);
+			keypad_initialized = 0;
+		}
+
+		if (lcd.enabled) {
+			panel_lcd_print("\x0cLCD driver " PANEL_VERSION
+					"\nunloaded.\x1b[Lc\x1b[Lb\x1b[L-");
+			misc_deregister(&lcd_dev);
+			lcd.initialized = false;
+		}
+
+		/* TODO: free all input signals */
+		parport_release(pprt);
+		parport_unregister_device(pprt);
+		pprt = NULL;
+		unregister_reboot_notifier(&panel_notifier);
+	}
 }
 
 static struct parport_driver panel_driver = {
@@ -2384,28 +2404,6 @@ static int __init panel_init_module(void)
 
 static void __exit panel_cleanup_module(void)
 {
-
-	if (scan_timer.function != NULL)
-		del_timer_sync(&scan_timer);
-
-	if (pprt != NULL) {
-		if (keypad.enabled) {
-			misc_deregister(&keypad_dev);
-			keypad_initialized = 0;
-		}
-
-		if (lcd.enabled) {
-			panel_lcd_print("\x0cLCD driver " PANEL_VERSION
-					"\nunloaded.\x1b[Lc\x1b[Lb\x1b[L-");
-			misc_deregister(&lcd_dev);
-			lcd.initialized = false;
-		}
-
-		/* TODO: free all input signals */
-		parport_release(pprt);
-		parport_unregister_device(pprt);
-		pprt = NULL;
-	}
 	parport_unregister_driver(&panel_driver);
 }
 
