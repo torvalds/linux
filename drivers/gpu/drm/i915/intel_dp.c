@@ -4142,7 +4142,7 @@ static uint8_t intel_dp_autotest_edid(struct intel_dp *intel_dp)
 		if (!drm_dp_dpcd_write(&intel_dp->aux,
 					DP_TEST_EDID_CHECKSUM,
 					&intel_connector->detect_edid->checksum,
-					1));
+					1))
 			DRM_DEBUG_KMS("Failed to write EDID checksum\n");
 
 		test_result = DP_TEST_ACK | DP_TEST_EDID_CHECKSUM_WRITE;
