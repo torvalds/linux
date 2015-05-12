@@ -322,7 +322,11 @@ static int fw_get_filesystem_firmware(struct device *device,
 {
 	int i;
 	int rc = -ENOENT;
-	char *path = __getname();
+	char *path;
+
+	path = __getname();
+	if (!path)
+		return -ENOMEM;
 
 	for (i = 0; i < ARRAY_SIZE(fw_path); i++) {
 		struct file *file;
