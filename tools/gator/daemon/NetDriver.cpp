@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2013-2014. All rights reserved.
+ * Copyright (C) ARM Limited 2013-2015. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -108,7 +108,7 @@ bool NetDriver::doRead() {
 
 void NetDriver::start() {
 	if (!doRead()) {
-		logg->logError(__FILE__, __LINE__, "Unable to read network stats");
+		logg->logError("Unable to read network stats");
 		handleException();
 	}
 	// Initialize previous values
@@ -122,7 +122,7 @@ void NetDriver::start() {
 
 void NetDriver::read(Buffer *const buffer) {
 	if (!doRead()) {
-		logg->logError(__FILE__, __LINE__, "Unable to read network stats");
+		logg->logError("Unable to read network stats");
 		handleException();
 	}
 	super::read(buffer);

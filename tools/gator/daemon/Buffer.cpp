@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2013-2014. All rights reserved.
+ * Copyright (C) ARM Limited 2013-2015. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -13,17 +13,19 @@
 #include "SessionData.h"
 
 #define mask (mSize - 1)
+#define FRAME_HEADER_SIZE 3
 
 enum {
-	CODE_PEA         = 1,
-	CODE_KEYS        = 2,
-	CODE_FORMAT      = 3,
-	CODE_MAPS        = 4,
-	CODE_COMM        = 5,
-	CODE_KEYS_OLD    = 6,
-	CODE_ONLINE_CPU  = 7,
-	CODE_OFFLINE_CPU = 8,
-	CODE_KALLSYMS    = 9,
+	CODE_PEA         =  1,
+	CODE_KEYS        =  2,
+	CODE_FORMAT      =  3,
+	CODE_MAPS        =  4,
+	CODE_COMM        =  5,
+	CODE_KEYS_OLD    =  6,
+	CODE_ONLINE_CPU  =  7,
+	CODE_OFFLINE_CPU =  8,
+	CODE_KALLSYMS    =  9,
+	CODE_COUNTERS    = 10,
 };
 
 // Summary Frame Messages
@@ -47,7 +49,7 @@ enum {
 
 Buffer::Buffer(const int32_t core, const int32_t buftype, const int size, sem_t *const readerSem) : mBuf(new char[size]), mReaderSem(readerSem), mCommitTime(gSessionData->mLiveRate), mSize(size), mReadPos(0), mWritePos(0), mCommitPos(0), mAvailable(true), mIsDone(false), mCore(core), mBufType(buftype) {
 	if ((mSize & mask) != 0) {
-		logg->logError(__FILE__, __LINE__, "Buffer size is not a power of 2");
+		logg->logError("Buffer size is not a power of 2");
 		handleException();
 	}
 	sem_init(&mWriterSem, 0, 0);
@@ -141,7 +143,7 @@ int Buffer::contiguousSpaceAvailable() const {
 	}
 }
 
-void Buffer::commit(const uint64_t time) {
+void Buffer::commit(const uint64_t time, const bool force) {
 	// post-populate the length, which does not include the response type length nor the length itself, i.e. only the length of the payload
 	const int typeLength = gSessionData->mLocalCapture ? 0 : 1;
 	int length = mWritePos - mCommitPos;
@@ -149,6 +151,10 @@ void Buffer::commit(const uint64_t time) {
 		length += mSize;
 	}
 	length = length - typeLength - sizeof(int32_t);
+	if (!force && !mIsDone && length <= FRAME_HEADER_SIZE) {
+		// Nothing to write, only the frame header is present
+		return;
+	}
 	for (size_t byte = 0; byte < sizeof(int32_t); byte++) {
 		mBuf[(mCommitPos + typeLength + byte) & mask] = (length >> byte * 8) & 0xFF;
 	}
@@ -317,7 +323,7 @@ void Buffer::event64(const int key, const int64_t value) {
 	}
 }
 
-void Buffer::pea(const uint64_t currTime, const struct perf_event_attr *const pea, int key) {
+void Buffer::marshalPea(const uint64_t currTime, const struct perf_event_attr *const pea, int key) {
 	while (!checkSpace(2 * MAXSIZE_PACK32 + pea->size)) {
 		sem_wait(&mWriterSem);
 	}
@@ -327,7 +333,7 @@ void Buffer::pea(const uint64_t currTime, const struct perf_event_attr *const pe
 	check(currTime);
 }
 
-void Buffer::keys(const uint64_t currTime, const int count, const __u64 *const ids, const int *const keys) {
+void Buffer::marshalKeys(const uint64_t currTime, const int count, const __u64 *const ids, const int *const keys) {
 	while (!checkSpace(2 * MAXSIZE_PACK32 + count * (MAXSIZE_PACK32 + MAXSIZE_PACK64))) {
 		sem_wait(&mWriterSem);
 	}
@@ -340,7 +346,7 @@ void Buffer::keys(const uint64_t currTime, const int count, const __u64 *const i
 	check(currTime);
 }
 
-void Buffer::keysOld(const uint64_t currTime, const int keyCount, const int *const keys, const int bytes, const char *const buf) {
+void Buffer::marshalKeysOld(const uint64_t currTime, const int keyCount, const int *const keys, const int bytes, const char *const buf) {
 	while (!checkSpace((2 + keyCount) * MAXSIZE_PACK32 + bytes)) {
 		sem_wait(&mWriterSem);
 	}
@@ -353,7 +359,7 @@ void Buffer::keysOld(const uint64_t currTime, const int keyCount, const int *con
 	check(currTime);
 }
 
-void Buffer::format(const uint64_t currTime, const int length, const char *const format) {
+void Buffer::marshalFormat(const uint64_t currTime, const int length, const char *const format) {
 	while (!checkSpace(MAXSIZE_PACK32 + length + 1)) {
 		sem_wait(&mWriterSem);
 	}
@@ -362,7 +368,7 @@ void Buffer::format(const uint64_t currTime, const int length, const char *const
 	check(currTime);
 }
 
-void Buffer::maps(const uint64_t currTime, const int pid, const int tid, const char *const maps) {
+void Buffer::marshalMaps(const uint64_t currTime, const int pid, const int tid, const char *const maps) {
 	const int mapsLen = strlen(maps) + 1;
 	while (!checkSpace(3 * MAXSIZE_PACK32 + mapsLen)) {
 		sem_wait(&mWriterSem);
@@ -374,7 +380,7 @@ void Buffer::maps(const uint64_t currTime, const int pid, const int tid, const c
 	check(currTime);
 }
 
-void Buffer::comm(const uint64_t currTime, const int pid, const int tid, const char *const image, const char *const comm) {
+void Buffer::marshalComm(const uint64_t currTime, const int pid, const int tid, const char *const image, const char *const comm) {
 	const int imageLen = strlen(image) + 1;
 	const int commLen = strlen(comm) + 1;
 	while (!checkSpace(3 * MAXSIZE_PACK32 + imageLen + commLen)) {
@@ -388,33 +394,58 @@ void Buffer::comm(const uint64_t currTime, const int pid, const int tid, const c
 	check(currTime);
 }
 
-void Buffer::onlineCPU(const uint64_t currTime, const uint64_t time, const int cpu) {
+void Buffer::onlineCPU(const uint64_t currTime, const int cpu) {
 	while (!checkSpace(MAXSIZE_PACK32 + MAXSIZE_PACK64)) {
 		sem_wait(&mWriterSem);
 	}
 	packInt(CODE_ONLINE_CPU);
-	packInt64(time);
+	packInt64(currTime);
 	packInt(cpu);
 	check(currTime);
 }
 
-void Buffer::offlineCPU(const uint64_t currTime, const uint64_t time, const int cpu) {
+void Buffer::offlineCPU(const uint64_t currTime, const int cpu) {
 	while (!checkSpace(MAXSIZE_PACK32 + MAXSIZE_PACK64)) {
 		sem_wait(&mWriterSem);
 	}
 	packInt(CODE_OFFLINE_CPU);
-	packInt64(time);
+	packInt64(currTime);
 	packInt(cpu);
 	check(currTime);
 }
 
-void Buffer::kallsyms(const uint64_t currTime, const char *const kallsyms) {
+void Buffer::marshalKallsyms(const uint64_t currTime, const char *const kallsyms) {
 	const int kallsymsLen = strlen(kallsyms) + 1;
 	while (!checkSpace(3 * MAXSIZE_PACK32 + kallsymsLen)) {
 		sem_wait(&mWriterSem);
 	}
 	packInt(CODE_KALLSYMS);
 	writeBytes(kallsyms, kallsymsLen);
+	check(currTime);
+}
+
+void Buffer::perfCounterHeader(const uint64_t time) {
+	while (!checkSpace(MAXSIZE_PACK32 + MAXSIZE_PACK64)) {
+		sem_wait(&mWriterSem);
+	}
+	packInt(CODE_COUNTERS);
+	packInt64(time);
+}
+
+void Buffer::perfCounter(const int core, const int key, const int64_t value) {
+	while (!checkSpace(2*MAXSIZE_PACK32 + MAXSIZE_PACK64)) {
+		sem_wait(&mWriterSem);
+	}
+	packInt(core);
+	packInt(key);
+	packInt64(value);
+}
+
+void Buffer::perfCounterFooter(const uint64_t currTime) {
+	while (!checkSpace(MAXSIZE_PACK32)) {
+		sem_wait(&mWriterSem);
+	}
+	packInt(-1);
 	check(currTime);
 }
 

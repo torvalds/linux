@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2010-2014. All rights reserved.
+ * Copyright (C) ARM Limited 2010-2015. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -34,7 +34,6 @@ mxml_node_t* CapturedXML::getTree(bool includeTime) {
 	mxmlElementSetAttr(captured, "version", "1");
 	if (gSessionData->perf.isSetup()) {
 		mxmlElementSetAttr(captured, "type", "Perf");
-		mxmlElementSetAttr(captured, "perf_beta", "yes");
 	}
 	mxmlElementSetAttrf(captured, "protocol", "%d", PROTOCOL_VERSION);
 	if (includeTime) { // Send the following only after the capture is complete
@@ -98,7 +97,7 @@ void CapturedXML::write(char* path) {
 
 	char* xml = getXML(true);
 	if (util->writeToDisk(file, xml) < 0) {
-		logg->logError(__FILE__, __LINE__, "Error writing %s\nPlease verify the path.", file);
+		logg->logError("Error writing %s\nPlease verify the path.", file);
 		handleException();
 	}
 
