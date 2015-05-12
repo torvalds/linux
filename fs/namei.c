@@ -651,7 +651,6 @@ static bool legitimize_links(struct nameidata *nd)
  */
 static int unlazy_walk(struct nameidata *nd, struct dentry *dentry, unsigned seq)
 {
-	struct fs_struct *fs = current->fs;
 	struct dentry *parent = nd->path.dentry;
 
 	BUG_ON(!(nd->flags & LOOKUP_RCU));
@@ -691,13 +690,11 @@ static int unlazy_walk(struct nameidata *nd, struct dentry *dentry, unsigned seq
 	 * still valid and get it if required.
 	 */
 	if (nd->root.mnt && !(nd->flags & LOOKUP_ROOT)) {
-		spin_lock(&fs->lock);
-		if (unlikely(!path_equal(&nd->root, &fs->root))) {
-			spin_unlock(&fs->lock);
-			goto drop_dentry;
+		if (unlikely(!legitimize_path(nd, &nd->root, nd->root_seq))) {
+			rcu_read_unlock();
+			dput(dentry);
+			return -ECHILD;
 		}
-		path_get(&nd->root);
-		spin_unlock(&fs->lock);
 	}
 
 	rcu_read_unlock();
