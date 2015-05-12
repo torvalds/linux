@@ -1034,6 +1034,9 @@ get_next_pebs_record_by_bit(void *base, void *top, int bit)
 		struct pebs_record_nhm *p = at;
 
 		if (test_bit(bit, (unsigned long *)&p->status)) {
+			/* PEBS v3 has accurate status bits */
+			if (x86_pmu.intel_cap.pebs_format >= 3)
+				return at;
 
 			if (p->status == (1 << bit))
 				return at;
@@ -1055,20 +1058,18 @@ static void __intel_pmu_pebs_event(struct perf_event *event,
 {
 	struct perf_sample_data data;
 	struct pt_regs regs;
-	int i;
 	void *at = get_next_pebs_record_by_bit(base, top, bit);
 
 	if (!intel_pmu_save_and_restart(event) &&
 	    !(event->hw.flags & PERF_X86_EVENT_AUTO_RELOAD))
 		return;
 
-	if (count > 1) {
-		for (i = 0; i < count - 1; i++) {
-			setup_pebs_sample_data(event, iregs, at, &data, &regs);
-			perf_event_output(event, &data, &regs);
-			at += x86_pmu.pebs_record_size;
-			at = get_next_pebs_record_by_bit(at, top, bit);
-		}
+	while (count > 1) {
+		setup_pebs_sample_data(event, iregs, at, &data, &regs);
+		perf_event_output(event, &data, &regs);
+		at += x86_pmu.pebs_record_size;
+		at = get_next_pebs_record_by_bit(at, top, bit);
+		count--;
 	}
 
 	setup_pebs_sample_data(event, iregs, at, &data, &regs);
@@ -1124,9 +1125,9 @@ static void intel_pmu_drain_pebs_nhm(struct pt_regs *iregs)
 	struct debug_store *ds = cpuc->ds;
 	struct perf_event *event;
 	void *base, *at, *top;
-	int bit;
 	short counts[MAX_PEBS_EVENTS] = {};
 	short error[MAX_PEBS_EVENTS] = {};
+	int bit, i;
 
 	if (!x86_pmu.pebs_active)
 		return;
@@ -1141,6 +1142,15 @@ static void intel_pmu_drain_pebs_nhm(struct pt_regs *iregs)
 
 	for (at = base; at < top; at += x86_pmu.pebs_record_size) {
 		struct pebs_record_nhm *p = at;
+
+		/* PEBS v3 has accurate status bits */
+		if (x86_pmu.intel_cap.pebs_format >= 3) {
+			for_each_set_bit(bit, (unsigned long *)&p->status,
+					 MAX_PEBS_EVENTS)
+				counts[bit]++;
+
+			continue;
+		}
 
 		bit = find_first_bit((unsigned long *)&p->status,
 					x86_pmu.max_pebs_events);
@@ -1171,8 +1181,6 @@ static void intel_pmu_drain_pebs_nhm(struct pt_regs *iregs)
 			pebs_status = p->status & cpuc->pebs_enabled;
 			pebs_status &= (1ULL << MAX_PEBS_EVENTS) - 1;
 			if (pebs_status != (1 << bit)) {
-				u8 i;
-
 				for_each_set_bit(i, (unsigned long *)&pebs_status,
 						 MAX_PEBS_EVENTS)
 					error[i]++;
