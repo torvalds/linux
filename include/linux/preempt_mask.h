@@ -72,9 +72,9 @@
 #define in_nmi()	(preempt_count() & NMI_MASK)
 
 #if defined(CONFIG_PREEMPT_COUNT)
-# define PREEMPT_CHECK_OFFSET 1
+# define PREEMPT_DISABLE_OFFSET 1
 #else
-# define PREEMPT_CHECK_OFFSET 0
+# define PREEMPT_DISABLE_OFFSET 0
 #endif
 
 /*
@@ -90,7 +90,7 @@
  *
  * Work as expected.
  */
-#define SOFTIRQ_LOCK_OFFSET (SOFTIRQ_DISABLE_OFFSET + PREEMPT_CHECK_OFFSET)
+#define SOFTIRQ_LOCK_OFFSET (SOFTIRQ_DISABLE_OFFSET + PREEMPT_DISABLE_OFFSET)
 
 /*
  * Are we running in atomic context?  WARNING: this macro cannot
@@ -106,7 +106,7 @@
  * (used by the scheduler, *after* releasing the kernel lock)
  */
 #define in_atomic_preempt_off() \
-		((preempt_count() & ~PREEMPT_ACTIVE) != PREEMPT_CHECK_OFFSET)
+		((preempt_count() & ~PREEMPT_ACTIVE) != PREEMPT_DISABLE_OFFSET)
 
 #ifdef CONFIG_PREEMPT_COUNT
 # define preemptible()	(preempt_count() == 0 && !irqs_disabled())
