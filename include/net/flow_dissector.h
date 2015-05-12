@@ -59,42 +59,47 @@ struct flow_dissector {
 	unsigned short int offset[FLOW_DISSECTOR_KEY_MAX];
 };
 
-/* struct flow_keys:
- *	@src: source ip address in case of IPv4
- *	      For IPv6 it contains 32bit hash of src address
- *	@dst: destination ip address in case of IPv4
- *	      For IPv6 it contains 32bit hash of dst address
- *	@ports: port numbers of Transport header
- *		port16[0]: src port number
- *		port16[1]: dst port number
- *	@thoff: Transport header offset
- *	@n_proto: Network header protocol (eg. IPv4/IPv6)
- *	@ip_proto: Transport header protocol (eg. TCP/UDP)
- * All the members, except thoff, are in network byte order.
- */
-struct flow_keys {
-	/* (src,dst) must be grouped, in the same way than in IP header */
-	__be32 src;
-	__be32 dst;
-	union {
-		__be32 ports;
-		__be16 port16[2];
-	};
-	u16	thoff;
-	__be16	n_proto;
-	u8	ip_proto;
-};
-
 void skb_flow_dissector_init(struct flow_dissector *flow_dissector,
 			     const struct flow_dissector_key *key,
 			     unsigned int key_count);
-bool __skb_flow_dissect(const struct sk_buff *skb, struct flow_keys *flow,
+
+bool __skb_flow_dissect(const struct sk_buff *skb,
+			struct flow_dissector *flow_dissector,
+			void *target_container,
 			void *data, __be16 proto, int nhoff, int hlen);
 
 static inline bool skb_flow_dissect(const struct sk_buff *skb,
-				    struct flow_keys *flow)
+				    struct flow_dissector *flow_dissector,
+				    void *target_container)
 {
-	return __skb_flow_dissect(skb, flow, NULL, 0, 0, 0);
+	return __skb_flow_dissect(skb, flow_dissector, target_container,
+				  NULL, 0, 0, 0);
+}
+
+struct flow_keys {
+	struct flow_dissector_key_addrs addrs;
+	struct flow_dissector_key_ports ports;
+	struct flow_dissector_key_basic basic;
+};
+
+extern struct flow_dissector flow_keys_dissector;
+extern struct flow_dissector flow_keys_buf_dissector;
+
+static inline bool skb_flow_dissect_flow_keys(const struct sk_buff *skb,
+					      struct flow_keys *flow)
+{
+	memset(flow, 0, sizeof(*flow));
+	return __skb_flow_dissect(skb, &flow_keys_dissector, flow,
+				  NULL, 0, 0, 0);
+}
+
+static inline bool skb_flow_dissect_flow_keys_buf(struct flow_keys *flow,
+						  void *data, __be16 proto,
+						  int nhoff, int hlen)
+{
+	memset(flow, 0, sizeof(*flow));
+	return __skb_flow_dissect(NULL, &flow_keys_buf_dissector, flow,
+				  data, proto, nhoff, hlen);
 }
 
 __be32 __skb_flow_get_ports(const struct sk_buff *skb, int thoff, u8 ip_proto,

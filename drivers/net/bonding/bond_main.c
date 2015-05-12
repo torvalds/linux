@@ -3051,16 +3051,16 @@ static bool bond_flow_dissect(struct bonding *bond, struct sk_buff *skb,
 	int noff, proto = -1;
 
 	if (bond->params.xmit_policy > BOND_XMIT_POLICY_LAYER23)
-		return skb_flow_dissect(skb, fk);
+		return skb_flow_dissect_flow_keys(skb, fk);
 
-	fk->ports = 0;
+	fk->ports.ports = 0;
 	noff = skb_network_offset(skb);
 	if (skb->protocol == htons(ETH_P_IP)) {
 		if (unlikely(!pskb_may_pull(skb, noff + sizeof(*iph))))
 			return false;
 		iph = ip_hdr(skb);
-		fk->src = iph->saddr;
-		fk->dst = iph->daddr;
+		fk->addrs.src = iph->saddr;
+		fk->addrs.dst = iph->daddr;
 		noff += iph->ihl << 2;
 		if (!ip_is_fragment(iph))
 			proto = iph->protocol;
@@ -3068,15 +3068,15 @@ static bool bond_flow_dissect(struct bonding *bond, struct sk_buff *skb,
 		if (unlikely(!pskb_may_pull(skb, noff + sizeof(*iph6))))
 			return false;
 		iph6 = ipv6_hdr(skb);
-		fk->src = (__force __be32)ipv6_addr_hash(&iph6->saddr);
-		fk->dst = (__force __be32)ipv6_addr_hash(&iph6->daddr);
+		fk->addrs.src = (__force __be32)ipv6_addr_hash(&iph6->saddr);
+		fk->addrs.dst = (__force __be32)ipv6_addr_hash(&iph6->daddr);
 		noff += sizeof(*iph6);
 		proto = iph6->nexthdr;
 	} else {
 		return false;
 	}
 	if (bond->params.xmit_policy == BOND_XMIT_POLICY_LAYER34 && proto >= 0)
-		fk->ports = skb_flow_get_ports(skb, noff, proto);
+		fk->ports.ports = skb_flow_get_ports(skb, noff, proto);
 
 	return true;
 }
@@ -3102,8 +3102,8 @@ u32 bond_xmit_hash(struct bonding *bond, struct sk_buff *skb)
 	    bond->params.xmit_policy == BOND_XMIT_POLICY_ENCAP23)
 		hash = bond_eth_hash(skb);
 	else
-		hash = (__force u32)flow.ports;
-	hash ^= (__force u32)flow.dst ^ (__force u32)flow.src;
+		hash = (__force u32)flow.ports.ports;
+	hash ^= (__force u32)flow.addrs.dst ^ (__force u32)flow.addrs.src;
 	hash ^= (hash >> 16);
 	hash ^= (hash >> 8);
 

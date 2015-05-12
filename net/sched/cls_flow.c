@@ -68,35 +68,35 @@ static inline u32 addr_fold(void *addr)
 
 static u32 flow_get_src(const struct sk_buff *skb, const struct flow_keys *flow)
 {
-	if (flow->src)
-		return ntohl(flow->src);
+	if (flow->addrs.src)
+		return ntohl(flow->addrs.src);
 	return addr_fold(skb->sk);
 }
 
 static u32 flow_get_dst(const struct sk_buff *skb, const struct flow_keys *flow)
 {
-	if (flow->dst)
-		return ntohl(flow->dst);
+	if (flow->addrs.dst)
+		return ntohl(flow->addrs.dst);
 	return addr_fold(skb_dst(skb)) ^ (__force u16) tc_skb_protocol(skb);
 }
 
 static u32 flow_get_proto(const struct sk_buff *skb, const struct flow_keys *flow)
 {
-	return flow->ip_proto;
+	return flow->basic.ip_proto;
 }
 
 static u32 flow_get_proto_src(const struct sk_buff *skb, const struct flow_keys *flow)
 {
-	if (flow->ports)
-		return ntohs(flow->port16[0]);
+	if (flow->ports.ports)
+		return ntohs(flow->ports.port16[0]);
 
 	return addr_fold(skb->sk);
 }
 
 static u32 flow_get_proto_dst(const struct sk_buff *skb, const struct flow_keys *flow)
 {
-	if (flow->ports)
-		return ntohs(flow->port16[1]);
+	if (flow->ports.ports)
+		return ntohs(flow->ports.port16[1]);
 
 	return addr_fold(skb_dst(skb)) ^ (__force u16) tc_skb_protocol(skb);
 }
@@ -295,7 +295,7 @@ static int flow_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 
 		keymask = f->keymask;
 		if (keymask & FLOW_KEYS_NEEDED)
-			skb_flow_dissect(skb, &flow_keys);
+			skb_flow_dissect_flow_keys(skb, &flow_keys);
 
 		for (n = 0; n < f->nkeys; n++) {
 			key = ffs(keymask) - 1;

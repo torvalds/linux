@@ -131,9 +131,9 @@ u32 eth_get_headlen(void *data, unsigned int len)
 		return len;
 
 	/* parse any remaining L2/L3 headers, check for L4 */
-	if (!__skb_flow_dissect(NULL, &keys, data,
-				eth->h_proto, sizeof(*eth), len))
-		return max_t(u32, keys.thoff, sizeof(*eth));
+	if (!skb_flow_dissect_flow_keys_buf(&keys, data, eth->h_proto,
+					    sizeof(*eth), len))
+		return max_t(u32, keys.basic.thoff, sizeof(*eth));
 
 	/* parse for any L4 headers */
 	return min_t(u32, __skb_get_poff(NULL, data, &keys, len), len);

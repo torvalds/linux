@@ -1935,8 +1935,8 @@ static inline void skb_probe_transport_header(struct sk_buff *skb,
 
 	if (skb_transport_header_was_set(skb))
 		return;
-	else if (skb_flow_dissect(skb, &keys))
-		skb_set_transport_header(skb, keys.thoff);
+	else if (skb_flow_dissect_flow_keys(skb, &keys))
+		skb_set_transport_header(skb, keys.basic.thoff);
 	else
 		skb_set_transport_header(skb, offset_hint);
 }
