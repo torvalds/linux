@@ -121,6 +121,7 @@ struct gpio_chip {
 	unsigned int		irq_base;
 	irq_flow_handler_t	irq_handler;
 	unsigned int		irq_default_type;
+	int			irq_parent;
 #endif
 
 #if defined(CONFIG_OF_GPIO)
