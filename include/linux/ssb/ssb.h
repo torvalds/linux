@@ -29,10 +29,13 @@ struct ssb_sprom {
 	u8 il0mac[6] __aligned(sizeof(u16));	/* MAC address for 802.11b/g */
 	u8 et0mac[6] __aligned(sizeof(u16));	/* MAC address for Ethernet */
 	u8 et1mac[6] __aligned(sizeof(u16));	/* MAC address for 802.11a */
+	u8 et2mac[6] __aligned(sizeof(u16));	/* MAC address for extra Ethernet */
 	u8 et0phyaddr;		/* MII address for enet0 */
 	u8 et1phyaddr;		/* MII address for enet1 */
+	u8 et2phyaddr;		/* MII address for enet2 */
 	u8 et0mdcport;		/* MDIO for enet0 */
 	u8 et1mdcport;		/* MDIO for enet1 */
+	u8 et2mdcport;		/* MDIO for enet2 */
 	u16 dev_id;		/* Device ID overriding e.g. PCI ID */
 	u16 board_rev;		/* Board revision number from SPROM. */
 	u16 board_num;		/* Board number from SPROM. */

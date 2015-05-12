@@ -531,6 +531,8 @@ static int mac_addr_used = 2;
 static void bcm47xx_fill_sprom_ethernet(struct ssb_sprom *sprom,
 					const char *prefix, bool fallback)
 {
+	bool fb = fallback;
+
 	nvram_read_macaddr(prefix, "et0macaddr", sprom->et0mac, fallback);
 	nvram_read_u8(prefix, NULL, "et0mdcport", &sprom->et0mdcport, 0,
 		      fallback);
@@ -542,6 +544,10 @@ static void bcm47xx_fill_sprom_ethernet(struct ssb_sprom *sprom,
 		      fallback);
 	nvram_read_u8(prefix, NULL, "et1phyaddr", &sprom->et1phyaddr, 0,
 		      fallback);
+
+	nvram_read_macaddr(prefix, "et2macaddr", sprom->et2mac, fb);
+	nvram_read_u8(prefix, NULL, "et2mdcport", &sprom->et2mdcport, 0, fb);
+	nvram_read_u8(prefix, NULL, "et2phyaddr", &sprom->et2phyaddr, 0, fb);
 
 	nvram_read_macaddr(prefix, "macaddr", sprom->il0mac, fallback);
 	nvram_read_macaddr(prefix, "il0macaddr", sprom->il0mac, fallback);
