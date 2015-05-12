@@ -3424,10 +3424,6 @@ struct sk_buff *skb_checksum_trimmed(struct sk_buff *skb,
 				     unsigned int transport_len,
 				     __sum16(*skb_chkf)(struct sk_buff *skb));
 
-u32 skb_get_poff(const struct sk_buff *skb);
-u32 __skb_get_poff(const struct sk_buff *skb, void *data,
-		   const struct flow_keys *keys, int hlen);
-
 /**
  * skb_head_is_locked - Determine if the skb->head is locked down
  * @skb: skb to check
