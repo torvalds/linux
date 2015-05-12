@@ -362,7 +362,7 @@ static int gb_loopback_connection_init(struct gb_connection *connection)
 	gb_loopback_reset_stats(gb);
 	gb->task = kthread_run(gb_loopback_fn, gb, "gb_loopback");
 	if (IS_ERR(gb->task)) {
-		retval = IS_ERR(gb->task);
+		retval = PTR_ERR(gb->task);
 		goto error;
 	}
 
