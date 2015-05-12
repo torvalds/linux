@@ -56,11 +56,6 @@ static u32 OasisRcvUCodeLen = 512;
 static u32 GBRcvUCodeLen = 512;
 #define SECTION_SIZE 65536
 
-struct slic_spinlock {
-	spinlock_t	lock;
-	unsigned long	flags;
-};
-
 #define SLIC_RSPQ_PAGES_GB        10
 #define SLIC_RSPQ_BUFSINPAGE      (PAGE_SIZE / SLIC_RSPBUF_SIZE)
 
@@ -165,7 +160,7 @@ struct slic_cmdqueue {
 	struct slic_hostcmd *head;
 	struct slic_hostcmd *tail;
 	int count;
-	struct slic_spinlock lock;
+	spinlock_t lock;
 };
 
 #define SLIC_MAX_CARDS              32
@@ -346,7 +341,7 @@ struct physcard {
 };
 
 struct base_driver {
-	struct slic_spinlock driver_lock;
+	spinlock_t       driver_lock;
 	u32              num_slic_cards;
 	u32              num_slic_ports;
 	u32              num_slic_ports_active;
@@ -401,8 +396,8 @@ struct adapter {
 	uint                card_size;
 	uint                chipid;
 	struct net_device  *netdev;
-	struct slic_spinlock     adapter_lock;
-	struct slic_spinlock     reset_lock;
+	spinlock_t          adapter_lock;
+	spinlock_t          reset_lock;
 	struct pci_dev     *pcidev;
 	uint                busnumber;
 	uint                slotnumber;
@@ -441,8 +436,8 @@ struct adapter {
 	u32             pingtimerset;
 	struct timer_list   loadtimer;
 	u32             loadtimerset;
-	struct slic_spinlock     upr_lock;
-	struct slic_spinlock     bit64reglock;
+	spinlock_t               upr_lock;
+	spinlock_t               bit64reglock;
 	struct slic_rspqueue     rspqueue;
 	struct slic_rcvqueue     rcvqueue;
 	struct slic_cmdqueue     cmdq_free;
@@ -457,7 +452,7 @@ struct adapter {
 	/* Free object handles*/
 	struct slic_handle *pfree_slic_handles;
 	/* Object handle list lock*/
-	struct slic_spinlock     handle_lock;
+	spinlock_t          handle_lock;
 	ushort              slic_handle_ix;
 
 	u32             xmitq_full;
