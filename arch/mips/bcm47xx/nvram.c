@@ -171,7 +171,7 @@ static int nvram_init(void)
 int bcm47xx_nvram_getenv(const char *name, char *val, size_t val_len)
 {
 	char *var, *value, *end, *eq;
-	int data_left, err;
+	int err;
 
 	if (!name)
 		return -EINVAL;
@@ -184,19 +184,16 @@ int bcm47xx_nvram_getenv(const char *name, char *val, size_t val_len)
 
 	/* Look for name=value and return value */
 	var = &nvram_buf[sizeof(struct nvram_header)];
-	end = nvram_buf + sizeof(nvram_buf) - 2;
-	end[0] = '\0';
-	end[1] = '\0';
-	for (; *var; var = value + strlen(value) + 1) {
-		data_left = end - var;
-
-		eq = strnchr(var, data_left, '=');
+	end = nvram_buf + sizeof(nvram_buf);
+	while (var < end && *var) {
+		eq = strchr(var, '=');
 		if (!eq)
 			break;
 		value = eq + 1;
 		if (eq - var == strlen(name) &&
 		    strncmp(var, name, eq - var) == 0)
 			return snprintf(val, val_len, "%s", value);
+		var = value + strlen(value) + 1;
 	}
 	return -ENOENT;
 }
