@@ -389,11 +389,8 @@ size_t efx_ptp_update_stats(struct efx_nic *efx, u64 *stats)
 	MCDI_SET_DWORD(inbuf, PTP_IN_PERIPH_ID, 0);
 	rc = efx_mcdi_rpc(efx, MC_CMD_PTP, inbuf, sizeof(inbuf),
 			  outbuf, sizeof(outbuf), NULL);
-	if (rc) {
-		netif_err(efx, hw, efx->net_dev,
-			  "MC_CMD_PTP_OP_STATUS failed (%d)\n", rc);
+	if (rc)
 		memset(outbuf, 0, sizeof(outbuf));
-	}
 	efx_nic_update_stats(efx_ptp_stat_desc, PTP_STAT_COUNT,
 			     efx_ptp_stat_mask,
 			     stats, _MCDI_PTR(outbuf, 0), false);
@@ -490,14 +487,20 @@ static int efx_ptp_get_attributes(struct efx_nic *efx)
 	 */
 	MCDI_SET_DWORD(inbuf, PTP_IN_OP, MC_CMD_PTP_OP_GET_ATTRIBUTES);
 	MCDI_SET_DWORD(inbuf, PTP_IN_PERIPH_ID, 0);
-	rc = efx_mcdi_rpc(efx, MC_CMD_PTP, inbuf, sizeof(inbuf),
-			  outbuf, sizeof(outbuf), &out_len);
-	if (rc == 0)
+	rc = efx_mcdi_rpc_quiet(efx, MC_CMD_PTP, inbuf, sizeof(inbuf),
+				outbuf, sizeof(outbuf), &out_len);
+	if (rc == 0) {
 		fmt = MCDI_DWORD(outbuf, PTP_OUT_GET_ATTRIBUTES_TIME_FORMAT);
-	else if (rc == -EINVAL)
+	} else if (rc == -EINVAL) {
 		fmt = MC_CMD_PTP_OUT_GET_ATTRIBUTES_SECONDS_NANOSECONDS;
-	else
+	} else if (rc == -EPERM) {
+		netif_info(efx, probe, efx->net_dev, "no PTP support\n");
 		return rc;
+	} else {
+		efx_mcdi_display_error(efx, MC_CMD_PTP, sizeof(inbuf),
+				       outbuf, sizeof(outbuf), rc);
+		return rc;
+	}
 
 	if (fmt == MC_CMD_PTP_OUT_GET_ATTRIBUTES_SECONDS_27FRACTION) {
 		ptp->ns_to_nic_time = efx_ptp_ns_to_s27;
@@ -541,8 +544,8 @@ static int efx_ptp_get_timestamp_corrections(struct efx_nic *efx)
 		       MC_CMD_PTP_OP_GET_TIMESTAMP_CORRECTIONS);
 	MCDI_SET_DWORD(inbuf, PTP_IN_PERIPH_ID, 0);
 
-	rc = efx_mcdi_rpc(efx, MC_CMD_PTP, inbuf, sizeof(inbuf),
-			  outbuf, sizeof(outbuf), NULL);
+	rc = efx_mcdi_rpc_quiet(efx, MC_CMD_PTP, inbuf, sizeof(inbuf),
+				outbuf, sizeof(outbuf), NULL);
 	if (rc == 0) {
 		efx->ptp_data->ts_corrections.tx = MCDI_DWORD(outbuf,
 			PTP_OUT_GET_TIMESTAMP_CORRECTIONS_TRANSMIT);
@@ -558,6 +561,8 @@ static int efx_ptp_get_timestamp_corrections(struct efx_nic *efx)
 		efx->ptp_data->ts_corrections.pps_out = 0;
 		efx->ptp_data->ts_corrections.pps_in = 0;
 	} else {
+		efx_mcdi_display_error(efx, MC_CMD_PTP, sizeof(inbuf), outbuf,
+				       sizeof(outbuf), rc);
 		return rc;
 	}
 
