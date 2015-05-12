@@ -2827,20 +2827,6 @@ static int rt5645_jack_detect(struct snd_soc_codec *codec, int jack_insert)
 		val = snd_soc_read(codec, RT5645_IN1_CTRL3) & 0x7;
 		dev_dbg(codec->dev, "val = %d\n", val);
 
-		if (codec->component.card->instantiated) {
-			if (rt5645->pdata.jd_mode == 0)
-				snd_soc_dapm_disable_pin(&codec->dapm, "LDO2");
-			snd_soc_dapm_disable_pin(&codec->dapm,
-				"Mic Det Power");
-			snd_soc_dapm_sync(&codec->dapm);
-		} else {
-			if (rt5645->pdata.jd_mode == 0)
-				snd_soc_update_bits(codec, RT5645_PWR_MIXER,
-					RT5645_PWR_LDO2, 0);
-			snd_soc_update_bits(codec, RT5645_PWR_VOL,
-				RT5645_PWR_MIC_DET, 0);
-		}
-
 		if (val == 1 || val == 2) {
 			rt5645->jack_type = SND_JACK_HEADSET;
 			if (rt5645->en_button_func) {
@@ -2848,6 +2834,13 @@ static int rt5645_jack_detect(struct snd_soc_codec *codec, int jack_insert)
 				rt5645_enable_push_button_irq(codec, true);
 			}
 		} else {
+			if (codec->component.card->instantiated) {
+				snd_soc_dapm_disable_pin(&codec->dapm,
+					"Mic Det Power");
+				snd_soc_dapm_sync(&codec->dapm);
+			} else
+				regmap_update_bits(rt5645->regmap,
+					RT5645_PWR_VOL, RT5645_PWR_MIC_DET, 0);
 			rt5645->jack_type = SND_JACK_HEADPHONE;
 		}
 
@@ -2855,6 +2848,23 @@ static int rt5645_jack_detect(struct snd_soc_codec *codec, int jack_insert)
 		rt5645->jack_type = 0;
 		if (rt5645->en_button_func)
 			rt5645_enable_push_button_irq(codec, false);
+		else {
+			if (codec->component.card->instantiated) {
+				if (rt5645->pdata.jd_mode == 0)
+					snd_soc_dapm_disable_pin(&codec->dapm,
+						"LDO2");
+				snd_soc_dapm_disable_pin(&codec->dapm,
+					"Mic Det Power");
+				snd_soc_dapm_sync(&codec->dapm);
+			} else {
+				if (rt5645->pdata.jd_mode == 0)
+					regmap_update_bits(rt5645->regmap,
+						RT5645_PWR_MIXER,
+						RT5645_PWR_LDO2, 0);
+				regmap_update_bits(rt5645->regmap,
+					RT5645_PWR_VOL, RT5645_PWR_MIC_DET, 0);
+			}
+		}
 	}
 
 	return rt5645->jack_type;
