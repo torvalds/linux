@@ -757,7 +757,7 @@ static int gen8_ppgtt_alloc_page_directories(struct i915_hw_ppgtt *ppgtt,
 	WARN_ON(!bitmap_empty(new_pds, GEN8_LEGACY_PDPES));
 
 	/* FIXME: upper bound must not overflow 32 bits  */
-	WARN_ON((start + length) >= (1ULL << 32));
+	WARN_ON((start + length) > (1ULL << 32));
 
 	gen8_for_each_pdpe(pd, pdp, start, length, temp, pdpe) {
 		if (pd)
