@@ -2086,8 +2086,8 @@ static inline int lookup_last(struct nameidata *nd)
 }
 
 /* Returns 0 and nd will be valid on success; Retuns error, otherwise. */
-static int path_lookupat(int dfd, const struct filename *name,
-				unsigned int flags, struct nameidata *nd)
+static int path_lookupat(int dfd, const struct filename *name, unsigned flags,
+			 struct nameidata *nd, struct path *path)
 {
 	const char *s = path_init(dfd, name, flags, nd);
 	int err;
@@ -2108,27 +2108,31 @@ static int path_lookupat(int dfd, const struct filename *name,
 	if (!err && nd->flags & LOOKUP_DIRECTORY)
 		if (!d_can_lookup(nd->path.dentry))
 			err = -ENOTDIR;
-	if (err)
-		terminate_walk(nd);
-
+	if (!err) {
+		*path = nd->path;
+		nd->path.mnt = NULL;
+		nd->path.dentry = NULL;
+	}
+	terminate_walk(nd);
 	path_cleanup(nd);
 	return err;
 }
 
-static int filename_lookup(int dfd, struct filename *name,
-				unsigned int flags, struct nameidata *nd)
+static int filename_lookup(int dfd, struct filename *name, unsigned flags,
+			   struct nameidata *nd, struct path *path)
 {
 	int retval;
 	struct nameidata *saved_nd = set_nameidata(nd);
 
-	retval = path_lookupat(dfd, name, flags | LOOKUP_RCU, nd);
+	retval = path_lookupat(dfd, name, flags | LOOKUP_RCU, nd, path);
 	if (unlikely(retval == -ECHILD))
-		retval = path_lookupat(dfd, name, flags, nd);
+		retval = path_lookupat(dfd, name, flags, nd, path);
 	if (unlikely(retval == -ESTALE))
-		retval = path_lookupat(dfd, name, flags | LOOKUP_REVAL, nd);
+		retval = path_lookupat(dfd, name, flags | LOOKUP_REVAL,
+				       nd, path); 
 
 	if (likely(!retval))
-		audit_inode(name, nd->path.dentry, flags & LOOKUP_PARENT);
+		audit_inode(name, path->dentry, flags & LOOKUP_PARENT);
 	restore_nameidata(saved_nd);
 	return retval;
 }
@@ -2209,10 +2213,8 @@ int kern_path(const char *name, unsigned int flags, struct path *path)
 	int res = PTR_ERR(filename);
 
 	if (!IS_ERR(filename)) {
-		res = filename_lookup(AT_FDCWD, filename, flags, &nd);
+		res = filename_lookup(AT_FDCWD, filename, flags, &nd, path);
 		putname(filename);
-		if (!res)
-			*path = nd.path;
 	}
 	return res;
 }
@@ -2241,9 +2243,7 @@ int vfs_path_lookup(struct dentry *dentry, struct vfsmount *mnt,
 		nd.root.dentry = dentry;
 		nd.root.mnt = mnt;
 		err = filename_lookup(AT_FDCWD, filename,
-				      flags | LOOKUP_ROOT, &nd);
-		if (!err)
-			*path = nd.path;
+				      flags | LOOKUP_ROOT, &nd, path);
 		putname(filename);
 	}
 	return err;
@@ -2311,10 +2311,8 @@ int user_path_at_empty(int dfd, const char __user *name, unsigned flags,
 
 		BUG_ON(flags & LOOKUP_PARENT);
 
-		err = filename_lookup(dfd, tmp, flags, &nd);
+		err = filename_lookup(dfd, tmp, flags, &nd, path);
 		putname(tmp);
-		if (!err)
-			*path = nd.path;
 	}
 	return err;
 }
@@ -3261,44 +3259,42 @@ static int do_tmpfile(int dfd, struct filename *pathname,
 		struct file *file, int *opened)
 {
 	static const struct qstr name = QSTR_INIT("/", 1);
-	struct dentry *dentry, *child;
+	struct dentry *child;
 	struct inode *dir;
+	struct path path;
 	int error = path_lookupat(dfd, pathname,
-				  flags | LOOKUP_DIRECTORY, nd);
+				  flags | LOOKUP_DIRECTORY, nd, &path);
 	if (unlikely(error))
 		return error;
-	error = mnt_want_write(nd->path.mnt);
+	error = mnt_want_write(path.mnt);
 	if (unlikely(error))
 		goto out;
+	dir = path.dentry->d_inode;
 	/* we want directory to be writable */
-	error = inode_permission(nd->inode, MAY_WRITE | MAY_EXEC);
+	error = inode_permission(dir, MAY_WRITE | MAY_EXEC);
 	if (error)
 		goto out2;
-	dentry = nd->path.dentry;
-	dir = dentry->d_inode;
 	if (!dir->i_op->tmpfile) {
 		error = -EOPNOTSUPP;
 		goto out2;
 	}
-	child = d_alloc(dentry, &name);
+	child = d_alloc(path.dentry, &name);
 	if (unlikely(!child)) {
 		error = -ENOMEM;
 		goto out2;
 	}
-	nd->flags &= ~LOOKUP_DIRECTORY;
-	nd->flags |= op->intent;
-	dput(nd->path.dentry);
-	nd->path.dentry = child;
-	error = dir->i_op->tmpfile(dir, nd->path.dentry, op->mode);
+	dput(path.dentry);
+	path.dentry = child;
+	error = dir->i_op->tmpfile(dir, child, op->mode);
 	if (error)
 		goto out2;
-	audit_inode(pathname, nd->path.dentry, 0);
+	audit_inode(pathname, child, 0);
 	/* Don't check for other permissions, the inode was just created */
-	error = may_open(&nd->path, MAY_OPEN, op->open_flag);
+	error = may_open(&path, MAY_OPEN, op->open_flag);
 	if (error)
 		goto out2;
-	file->f_path.mnt = nd->path.mnt;
-	error = finish_open(file, nd->path.dentry, NULL, opened);
+	file->f_path.mnt = path.mnt;
+	error = finish_open(file, child, NULL, opened);
 	if (error)
 		goto out2;
 	error = open_check_o_direct(file);
@@ -3311,9 +3307,9 @@ static int do_tmpfile(int dfd, struct filename *pathname,
 		spin_unlock(&inode->i_lock);
 	}
 out2:
-	mnt_drop_write(nd->path.mnt);
+	mnt_drop_write(path.mnt);
 out:
-	path_put(&nd->path);
+	path_put(&path);
 	return error;
 }
 
