@@ -88,11 +88,14 @@ struct ssb_sprom {
 	u32 ofdm5glpo;		/* 5.2GHz OFDM power offset */
 	u32 ofdm5gpo;		/* 5.3GHz OFDM power offset */
 	u32 ofdm5ghpo;		/* 5.8GHz OFDM power offset */
+	u32 boardflags;
+	u32 boardflags2;
+	u32 boardflags3;
+	/* TODO: Switch all drivers to new u32 fields and drop below ones */
 	u16 boardflags_lo;	/* Board flags (bits 0-15) */
 	u16 boardflags_hi;	/* Board flags (bits 16-31) */
 	u16 boardflags2_lo;	/* Board flags (bits 32-47) */
 	u16 boardflags2_hi;	/* Board flags (bits 48-63) */
-	/* TODO store board flags in a single u64 */
 
 	struct ssb_sprom_core_pwr_info core_pwr_info[4];
 

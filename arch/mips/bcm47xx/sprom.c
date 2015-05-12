@@ -201,6 +201,9 @@ static void bcm47xx_sprom_fill_auto(struct ssb_sprom *sprom,
 	bool fb = fallback;
 
 	ENTRY(0xfffffffe, u16, pre, "boardrev", board_rev, 0, true);
+	ENTRY(0xfffffffe, u32, pre, "boardflags", boardflags, 0, fb);
+	ENTRY(0xfffffff0, u32, pre, "boardflags2", boardflags2, 0, fb);
+	ENTRY(0xfffff800, u32, pre, "boardflags3", boardflags3, 0, fb);
 	ENTRY(0x00000002, u16, pre, "boardflags", boardflags_lo, 0, fb);
 	ENTRY(0xfffffffc, u16, pre, "boardtype", board_type, 0, true);
 	ENTRY(0xfffffffe, u16, pre, "boardnum", board_num, 0, fb);
