@@ -417,8 +417,12 @@ u32 __skb_get_poff(const struct sk_buff *skb, void *data,
 	return poff;
 }
 
-/* skb_get_poff() returns the offset to the payload as far as it could
- * be dissected. The main user is currently BPF, so that we can dynamically
+/**
+ * skb_get_poff - get the offset to the payload
+ * @skb: sk_buff to get the payload offset from
+ *
+ * The function will get the offset to the payload as far as it could
+ * be dissected.  The main user is currently BPF, so that we can dynamically
  * truncate packets without needing to push actual payload to the user
  * space and can analyze headers only, instead.
  */
