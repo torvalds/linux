@@ -34,6 +34,7 @@ struct iproc_pcie {
 	struct pci_bus *root_bus;
 	struct phy *phy;
 	int irqs[IPROC_PCIE_MAX_NUM_IRQS];
+	int (*map_irq)(const struct pci_dev *, u8, u8);
 };
 
 int iproc_pcie_setup(struct iproc_pcie *pcie);
