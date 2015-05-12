@@ -694,6 +694,52 @@
 					};
 				};
 
+				pwm0 {
+					pinctrl_pwm0_pwm0_0: pwm0_pwm0-0 {
+						atmel,pins =
+							<AT91_PIOB 11 AT91_PERIPH_B AT91_PINCTRL_NONE>;
+					};
+					pinctrl_pwm0_pwm0_1: pwm0_pwm0-1 {
+						atmel,pins =
+							<AT91_PIOC 10 AT91_PERIPH_C AT91_PINCTRL_NONE>;
+					};
+					pinctrl_pwm0_pwm0_2: pwm0_pwm0-2 {
+						atmel,pins =
+							<AT91_PIOC 18 AT91_PERIPH_C AT91_PINCTRL_NONE>;
+					};
+
+					pinctrl_pwm0_pwm1_0: pwm0_pwm1-0 {
+						atmel,pins =
+							<AT91_PIOB 12 AT91_PERIPH_B AT91_PINCTRL_NONE>;
+					};
+					pinctrl_pwm0_pwm1_1: pwm0_pwm1-1 {
+						atmel,pins =
+							<AT91_PIOC 11 AT91_PERIPH_C AT91_PINCTRL_NONE>;
+					};
+					pinctrl_pwm0_pwm1_2: pwm0_pwm1-2 {
+						atmel,pins =
+							<AT91_PIOC 19 AT91_PERIPH_C AT91_PINCTRL_NONE>;
+					};
+
+					pinctrl_pwm0_pwm2_0: pwm0_pwm2-0 {
+						atmel,pins =
+							<AT91_PIOB 13 AT91_PERIPH_B AT91_PINCTRL_NONE>;
+					};
+					pinctrl_pwm0_pwm2_1: pwm0_pwm2-1 {
+						atmel,pins =
+							<AT91_PIOC 20 AT91_PERIPH_C AT91_PINCTRL_NONE>;
+					};
+
+					pinctrl_pwm0_pwm3_0: pwm0_pwm3-0 {
+						atmel,pins =
+							<AT91_PIOB 14 AT91_PERIPH_B AT91_PINCTRL_NONE>;
+					};
+					pinctrl_pwm0_pwm3_1: pwm0_pwm3-1 {
+						atmel,pins =
+							<AT91_PIOC 21 AT91_PERIPH_C AT91_PINCTRL_NONE>;
+					};
+				};
+
 				tcb0 {
 					pinctrl_tcb0_tclk0: tcb0_tclk0-0 {
 						atmel,pins = <AT91_PIOA 24 AT91_PERIPH_A AT91_PINCTRL_NONE>;
