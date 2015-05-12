@@ -2999,6 +2999,7 @@ u32 skl_plane_ctl_format(uint32_t pixel_format)
 	default:
 		BUG();
 	}
+
 	return plane_ctl_format;
 }
 
@@ -3021,6 +3022,7 @@ u32 skl_plane_ctl_tiling(uint64_t fb_modifier)
 	default:
 		MISSING_CASE(fb_modifier);
 	}
+
 	return plane_ctl_tiling;
 }
 
