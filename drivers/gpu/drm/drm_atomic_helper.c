@@ -619,8 +619,22 @@ disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 	}
 }
 
-static void
-set_routing_links(struct drm_device *dev, struct drm_atomic_state *old_state)
+/**
+ * drm_atomic_helper_update_legacy_modeset_state - update legacy modeset state
+ * @dev: DRM device
+ * @old_state: atomic state object with old state structures
+ *
+ * This function updates all the various legacy modeset state pointers in
+ * connectors, encoders and crtcs. It also updates the timestamping constants
+ * used for precise vblank timestamps by calling
+ * drm_calc_timestamping_constants().
+ *
+ * Drivers can use this for building their own atomic commit if they don't have
+ * a pure helper-based modeset implementation.
+ */
+void
+drm_atomic_helper_update_legacy_modeset_state(struct drm_device *dev,
+					      struct drm_atomic_state *old_state)
 {
 	struct drm_connector *connector;
 	struct drm_connector_state *old_conn_state;
@@ -663,6 +677,7 @@ set_routing_links(struct drm_device *dev, struct drm_atomic_state *old_state)
 							&crtc->state->adjusted_mode);
 	}
 }
+EXPORT_SYMBOL(drm_atomic_helper_update_legacy_modeset_state);
 
 static void
 crtc_set_mode(struct drm_device *dev, struct drm_atomic_state *old_state)
@@ -741,7 +756,9 @@ void drm_atomic_helper_commit_modeset_disables(struct drm_device *dev,
 					       struct drm_atomic_state *old_state)
 {
 	disable_outputs(dev, old_state);
-	set_routing_links(dev, old_state);
+
+	drm_atomic_helper_update_legacy_modeset_state(dev, old_state);
+
 	crtc_set_mode(dev, old_state);
 }
 EXPORT_SYMBOL(drm_atomic_helper_commit_modeset_disables);
