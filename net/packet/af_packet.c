@@ -1234,27 +1234,68 @@ static void packet_free_pending(struct packet_sock *po)
 	free_percpu(po->tx_ring.pending_refcnt);
 }
 
-static bool packet_rcv_has_room(struct packet_sock *po, struct sk_buff *skb)
+#define ROOM_POW_OFF	2
+#define ROOM_NONE	0x0
+#define ROOM_LOW	0x1
+#define ROOM_NORMAL	0x2
+
+static bool __tpacket_has_room(struct packet_sock *po, int pow_off)
+{
+	int idx, len;
+
+	len = po->rx_ring.frame_max + 1;
+	idx = po->rx_ring.head;
+	if (pow_off)
+		idx += len >> pow_off;
+	if (idx >= len)
+		idx -= len;
+	return packet_lookup_frame(po, &po->rx_ring, idx, TP_STATUS_KERNEL);
+}
+
+static bool __tpacket_v3_has_room(struct packet_sock *po, int pow_off)
+{
+	int idx, len;
+
+	len = po->rx_ring.prb_bdqc.knum_blocks;
+	idx = po->rx_ring.prb_bdqc.kactive_blk_num;
+	if (pow_off)
+		idx += len >> pow_off;
+	if (idx >= len)
+		idx -= len;
+	return prb_lookup_block(po, &po->rx_ring, idx, TP_STATUS_KERNEL);
+}
+
+static int packet_rcv_has_room(struct packet_sock *po, struct sk_buff *skb)
 {
 	struct sock *sk = &po->sk;
-	bool has_room;
+	int ret = ROOM_NONE;
 
-	if (po->prot_hook.func != tpacket_rcv)
-		return (atomic_read(&sk->sk_rmem_alloc) + skb->truesize)
-			<= sk->sk_rcvbuf;
+	if (po->prot_hook.func != tpacket_rcv) {
+		int avail = sk->sk_rcvbuf - atomic_read(&sk->sk_rmem_alloc)
+					  - skb->truesize;
+		if (avail > (sk->sk_rcvbuf >> ROOM_POW_OFF))
+			return ROOM_NORMAL;
+		else if (avail > 0)
+			return ROOM_LOW;
+		else
+			return ROOM_NONE;
+	}
 
 	spin_lock(&sk->sk_receive_queue.lock);
-	if (po->tp_version == TPACKET_V3)
-		has_room = prb_lookup_block(po, &po->rx_ring,
-					    po->rx_ring.prb_bdqc.kactive_blk_num,
-					    TP_STATUS_KERNEL);
-	else
-		has_room = packet_lookup_frame(po, &po->rx_ring,
-					       po->rx_ring.head,
-					       TP_STATUS_KERNEL);
+	if (po->tp_version == TPACKET_V3) {
+		if (__tpacket_v3_has_room(po, ROOM_POW_OFF))
+			ret = ROOM_NORMAL;
+		else if (__tpacket_v3_has_room(po, 0))
+			ret = ROOM_LOW;
+	} else {
+		if (__tpacket_has_room(po, ROOM_POW_OFF))
+			ret = ROOM_NORMAL;
+		else if (__tpacket_has_room(po, 0))
+			ret = ROOM_LOW;
+	}
 	spin_unlock(&sk->sk_receive_queue.lock);
 
-	return has_room;
+	return ret;
 }
 
 static void packet_sock_destruct(struct sock *sk)
@@ -1325,12 +1366,13 @@ static unsigned int fanout_demux_rollover(struct packet_fanout *f,
 	unsigned int i, j;
 
 	po = pkt_sk(f->arr[idx]);
-	if (try_self && packet_rcv_has_room(po, skb))
+	if (try_self && packet_rcv_has_room(po, skb) != ROOM_NONE)
 		return idx;
 
 	i = j = min_t(int, po->rollover->sock, num - 1);
 	do {
-		if (i != idx && packet_rcv_has_room(pkt_sk(f->arr[i]), skb)) {
+		if (i != idx &&
+		    packet_rcv_has_room(pkt_sk(f->arr[i]), skb) == ROOM_NORMAL) {
 			if (i != j)
 				po->rollover->sock = i;
 			return i;
