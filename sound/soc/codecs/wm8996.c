@@ -2646,10 +2646,12 @@ static int wm8996_probe(struct snd_soc_codec *codec)
 		if (irq_flags & (IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING))
 			ret = request_threaded_irq(i2c->irq, NULL,
 						   wm8996_edge_irq,
-						   irq_flags, "wm8996", codec);
+						   irq_flags | IRQF_ONESHOT,
+						   "wm8996", codec);
 		else
 			ret = request_threaded_irq(i2c->irq, NULL, wm8996_irq,
-						   irq_flags, "wm8996", codec);
+						   irq_flags | IRQF_ONESHOT,
+						   "wm8996", codec);
 
 		if (ret == 0) {
 			/* Unmask the interrupt */
