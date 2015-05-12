@@ -53,14 +53,14 @@
 	DRM_FORMAT_ARGB8888
 
 /* Primary plane formats for gen <= 3 */
-static const uint32_t intel_primary_formats_gen2[] = {
+static const uint32_t i8xx_primary_formats[] = {
 	COMMON_PRIMARY_FORMATS,
 	DRM_FORMAT_XRGB1555,
 	DRM_FORMAT_ARGB1555,
 };
 
 /* Primary plane formats for gen >= 4 */
-static const uint32_t intel_primary_formats_gen4[] = {
+static const uint32_t i965_primary_formats[] = {
 	COMMON_PRIMARY_FORMATS, \
 	DRM_FORMAT_XBGR8888,
 	DRM_FORMAT_ABGR8888,
@@ -13288,11 +13288,11 @@ static struct drm_plane *intel_primary_plane_create(struct drm_device *dev,
 		primary->plane = !pipe;
 
 	if (INTEL_INFO(dev)->gen <= 3) {
-		intel_primary_formats = intel_primary_formats_gen2;
-		num_formats = ARRAY_SIZE(intel_primary_formats_gen2);
+		intel_primary_formats = i8xx_primary_formats;
+		num_formats = ARRAY_SIZE(i8xx_primary_formats);
 	} else {
-		intel_primary_formats = intel_primary_formats_gen4;
-		num_formats = ARRAY_SIZE(intel_primary_formats_gen4);
+		intel_primary_formats = i965_primary_formats;
+		num_formats = ARRAY_SIZE(i965_primary_formats);
 	}
 
 	drm_universal_plane_init(dev, &primary->base, 0,
