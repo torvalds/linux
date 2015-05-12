@@ -352,10 +352,10 @@ static int enic_grxclsrule(struct enic *enic, struct ethtool_rxnfc *cmd)
 	fsp->h_u.tcp_ip4_spec.ip4dst = n->keys.addrs.dst;
 	fsp->m_u.tcp_ip4_spec.ip4dst = (__u32)~0;
 
-	fsp->h_u.tcp_ip4_spec.psrc = n->keys.ports.port16[0];
+	fsp->h_u.tcp_ip4_spec.psrc = n->keys.ports.src;
 	fsp->m_u.tcp_ip4_spec.psrc = (__u16)~0;
 
-	fsp->h_u.tcp_ip4_spec.pdst = n->keys.ports.port16[1];
+	fsp->h_u.tcp_ip4_spec.pdst = n->keys.ports.dst;
 	fsp->m_u.tcp_ip4_spec.pdst = (__u16)~0;
 
 	fsp->ring_cookie = n->rq_id;

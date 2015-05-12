@@ -88,7 +88,7 @@ static u32 flow_get_proto(const struct sk_buff *skb, const struct flow_keys *flo
 static u32 flow_get_proto_src(const struct sk_buff *skb, const struct flow_keys *flow)
 {
 	if (flow->ports.ports)
-		return ntohs(flow->ports.port16[0]);
+		return ntohs(flow->ports.src);
 
 	return addr_fold(skb->sk);
 }
@@ -96,7 +96,7 @@ static u32 flow_get_proto_src(const struct sk_buff *skb, const struct flow_keys 
 static u32 flow_get_proto_dst(const struct sk_buff *skb, const struct flow_keys *flow)
 {
 	if (flow->ports.ports)
-		return ntohs(flow->ports.port16[1]);
+		return ntohs(flow->ports.dst);
 
 	return addr_fold(skb_dst(skb)) ^ (__force u16) tc_skb_protocol(skb);
 }

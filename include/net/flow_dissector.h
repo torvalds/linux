@@ -34,13 +34,16 @@ struct flow_dissector_key_addrs {
 /**
  * flow_dissector_key_tp_ports:
  *	@ports: port numbers of Transport header
- *		port16[0]: src port number
- *		port16[1]: dst port number
+ *		src: source port number
+ *		dst: destination port number
  */
 struct flow_dissector_key_ports {
 	union {
 		__be32 ports;
-		__be16 port16[2];
+		struct {
+			__be16 src;
+			__be16 dst;
+		};
 	};
 };
 

@@ -35,8 +35,8 @@ int enic_addfltr_5t(struct enic *enic, struct flow_keys *keys, u16 rq)
 	data.type = FILTER_IPV4_5TUPLE;
 	data.u.ipv4.src_addr = ntohl(keys->addrs.src);
 	data.u.ipv4.dst_addr = ntohl(keys->addrs.dst);
-	data.u.ipv4.src_port = ntohs(keys->ports.port16[0]);
-	data.u.ipv4.dst_port = ntohs(keys->ports.port16[1]);
+	data.u.ipv4.src_port = ntohs(keys->ports.src);
+	data.u.ipv4.dst_port = ntohs(keys->ports.dst);
 	data.u.ipv4.flags = FILTER_FIELDS_IPV4_5TUPLE;
 
 	spin_lock_bh(&enic->devcmd_lock);

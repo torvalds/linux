@@ -385,9 +385,9 @@ static inline u32 __flow_hash_from_keys(struct flow_keys *keys, u32 keyval)
 	/* get a consistent hash (same value on both flow directions) */
 	if (((__force u32)keys->addrs.dst < (__force u32)keys->addrs.src) ||
 	    (((__force u32)keys->addrs.dst == (__force u32)keys->addrs.src) &&
-	     ((__force u16)keys->ports.port16[1] < (__force u16)keys->ports.port16[0]))) {
+	     ((__force u16)keys->ports.dst < (__force u16)keys->ports.src))) {
 		swap(keys->addrs.dst, keys->addrs.src);
-		swap(keys->ports.port16[0], keys->ports.port16[1]);
+		swap(keys->ports.src, keys->ports.dst);
 	}
 
 	hash = __flow_hash_3words((__force u32)keys->addrs.dst,

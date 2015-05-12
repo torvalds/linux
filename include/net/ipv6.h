@@ -700,8 +700,8 @@ static inline void ip6_set_txhash(struct sock *sk)
 
 	keys.addrs.src = (__force __be32)ipv6_addr_hash(&np->saddr);
 	keys.addrs.dst = (__force __be32)ipv6_addr_hash(&sk->sk_v6_daddr);
-	keys.ports.port16[0] = inet->inet_sport;
-	keys.ports.port16[1] = inet->inet_dport;
+	keys.ports.src = inet->inet_sport;
+	keys.ports.dst = inet->inet_dport;
 
 	sk->sk_txhash = flow_hash_from_keys(&keys);
 }
