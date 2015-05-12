@@ -401,7 +401,7 @@ static struct attribute *connector_dev_attrs[] = {
 static DEVICE_ATTR_RO(subconnector);
 static DEVICE_ATTR_RO(select_subconnector);
 
-static struct attribute *connector_opt_dev_attrs[] = {
+static struct attribute *connector_tv_dev_attrs[] = {
 	&dev_attr_subconnector.attr,
 	&dev_attr_select_subconnector.attr,
 	NULL
@@ -416,15 +416,17 @@ static int kobj_connector_type(struct kobject *kobj)
 	return connector->connector_type;
 }
 
-static umode_t connector_opt_dev_is_visible(struct kobject *kobj,
-					    struct attribute *attr, int idx)
+static umode_t connector_is_dvii(struct kobject *kobj,
+				 struct attribute *attr, int idx)
 {
-	/*
-	 * In the long run it maybe a good idea to make one set of
-	 * optionals per connector type.
-	 */
+	return kobj_connector_type(kobj) == DRM_MODE_CONNECTOR_DVII ?
+		attr->mode : 0;
+}
+
+static umode_t connector_is_tv(struct kobject *kobj,
+			       struct attribute *attr, int idx)
+{
 	switch (kobj_connector_type(kobj)) {
-	case DRM_MODE_CONNECTOR_DVII:
 	case DRM_MODE_CONNECTOR_Composite:
 	case DRM_MODE_CONNECTOR_SVIDEO:
 	case DRM_MODE_CONNECTOR_Component:
@@ -452,14 +454,20 @@ static const struct attribute_group connector_dev_group = {
 	.bin_attrs = connector_bin_attrs,
 };
 
-static const struct attribute_group connector_opt_dev_group = {
-	.attrs = connector_opt_dev_attrs,
-	.is_visible = connector_opt_dev_is_visible,
+static const struct attribute_group connector_tv_dev_group = {
+	.attrs = connector_tv_dev_attrs,
+	.is_visible = connector_is_tv,
+};
+
+static const struct attribute_group connector_dvii_dev_group = {
+	.attrs = connector_tv_dev_attrs, /* same as tv */
+	.is_visible = connector_is_dvii,
 };
 
 static const struct attribute_group *connector_dev_groups[] = {
 	&connector_dev_group,
-	&connector_opt_dev_group,
+	&connector_tv_dev_group,
+	&connector_dvii_dev_group,
 	NULL
 };
 
