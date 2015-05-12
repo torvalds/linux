@@ -4,10 +4,10 @@
  */
 #ifndef RK818_BATTERY
 #define  RK818_BATTERY
-#include <linux/time.h>
 
 #define VB_MOD_REG					0x21
 #define THERMAL_REG					0x22
+#define NT_STS_MSK_REG2				0x4f
 #define DCDC_ILMAX_REG				0x90
 #define CHRG_COMP_REG1				0x99
 #define CHRG_COMP_REG2				0x9A
@@ -106,6 +106,8 @@
 #define PCB_IOFFSET_REG				0xED
 #define MISC_MARK_REG				0xEE
 
+#define PLUG_IN_INT				(0)
+#define PLUG_OUT_INT				(1)
 
 /* gasgauge module enable bit 0: disable  1:enabsle
 TS_CTRL_REG  0xAC*/
@@ -253,8 +255,9 @@ bit  0: disable 1: enable
 
 
 /* CHRG_CTRL_REG3*/
-#define CHRG_TERM_ANA_SIGNAL (0 << 5)
-#define CHRG_TERM_DIG_SIGNAL (1 << 5)
+#define CHRG_TERM_ANA_SIGNAL 		(0 << 5)
+#define CHRG_TERM_DIG_SIGNAL 		(1 << 5)
+#define CHRG_TIMER_CCCV_EN  		(1 << 2)
 
 /*CHRG_CTRL_REG2*/
 #define CHG_CCCV_4HOUR			(0x00)
@@ -272,7 +275,10 @@ bit  0: disable 1: enable
 #define SAMP_TIME_32MIN				(0X02<<4)
 #define SAMP_TIME_48MIN				(0X03<<4)
 
-#define DRIVER_VERSION				"3.0.0"
+#define ADC_CURRENT_MODE			(1 << 1)
+#define ADC_VOLTAGE_MODE			(0 << 1)
+
+#define DRIVER_VERSION				"4.0.0"
 #define ROLEX_SPEED					(100 * 1000)
 
 #define CHARGING					0x01
@@ -611,7 +617,8 @@ struct battery_platform_data {
 
 	unsigned int max_bat_voltagemV;
 	unsigned int low_bat_voltagemV;
-
+	unsigned int chrg_diff_vol;
+	unsigned int power_off_thresd;
 	unsigned int sense_resistor_mohm;
 
 	/* twl6032 */
@@ -621,12 +628,12 @@ struct battery_platform_data {
 	struct cell_config *cell_cfg;
 };
 
-enum fg_mode_t {
+enum fg_mode {
 	FG_NORMAL_MODE = 0,/*work normally*/
 	TEST_POWER_MODE,   /*work without battery*/
 };
 
-enum hw_support_adp_t {
+enum hw_support_adp {
 	HW_ADP_TYPE_USB = 0,/*'HW' means:hardware*/
 	HW_ADP_TYPE_DC,
 	HW_ADP_TYPE_DUAL
@@ -636,7 +643,7 @@ enum hw_support_adp_t {
 /* don't change the following ID, they depend on usb check
  * interface: dwc_otg_check_dpdm()
  */
-enum charger_type_t {
+enum charger_type {
 	NO_CHARGER = 0,
 	USB_CHARGER,
 	AC_CHARGER,
@@ -644,15 +651,32 @@ enum charger_type_t {
 	DUAL_CHARGER
 };
 
-enum charger_state_t {
+enum charger_state {
 	OFFLINE = 0,
 	ONLINE
 };
 
+void kernel_power_off(void);
+#if defined(CONFIG_ARCH_ROCKCHIP)
 int dwc_vbus_status(void);
 int get_gadget_connect_flag(void);
 int dwc_otg_check_dpdm(void);
-void kernel_power_off(void);
 void rk_send_wakeup_key(void);
+#else
+
+static inline int get_gadget_connect_flag(void)
+{
+	return 0;
+}
+
+static inline int dwc_otg_check_dpdm(void)
+{
+	return 0;
+}
+
+static inline void rk_send_wakeup_key(void)
+{
+}
+#endif
 
 #endif

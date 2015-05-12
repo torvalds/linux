@@ -16,7 +16,7 @@
 #include <linux/regulator/machine.h>
 #include <linux/wakelock.h>
 #include <linux/power_supply.h>
-#include <linux/power/rk818_battery.h>
+//#include <linux/power/rk818_battery.h>
 
 //#define RK818_START 30
 
