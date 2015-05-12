@@ -82,14 +82,14 @@ void f2fs_release_crypto_ctx(struct f2fs_crypto_ctx *ctx)
 {
 	unsigned long flags;
 
-	if (ctx->bounce_page) {
+	if (ctx->flags & F2FS_WRITE_PATH_FL && ctx->w.bounce_page) {
 		if (ctx->flags & F2FS_BOUNCE_PAGE_REQUIRES_FREE_ENCRYPT_FL)
-			__free_page(ctx->bounce_page);
+			__free_page(ctx->w.bounce_page);
 		else
-			mempool_free(ctx->bounce_page, f2fs_bounce_page_pool);
-		ctx->bounce_page = NULL;
+			mempool_free(ctx->w.bounce_page, f2fs_bounce_page_pool);
+		ctx->w.bounce_page = NULL;
 	}
-	ctx->control_page = NULL;
+	ctx->w.control_page = NULL;
 	if (ctx->flags & F2FS_CTX_REQUIRES_FREE_ENCRYPT_FL) {
 		if (ctx->tfm)
 			crypto_free_tfm(ctx->tfm);
@@ -146,6 +146,7 @@ struct f2fs_crypto_ctx *f2fs_get_crypto_ctx(struct inode *inode)
 	} else {
 		ctx->flags &= ~F2FS_CTX_REQUIRES_FREE_ENCRYPT_FL;
 	}
+	ctx->flags &= ~F2FS_WRITE_PATH_FL;
 
 	/*
 	 * Allocate a new Crypto API context if we don't already have
@@ -181,12 +182,6 @@ struct f2fs_crypto_ctx *f2fs_get_crypto_ctx(struct inode *inode)
 	}
 	BUG_ON(ci->ci_size != f2fs_encryption_key_size(ci->ci_data_mode));
 
-	/*
-	 * There shouldn't be a bounce page attached to the crypto
-	 * context at this point.
-	 */
-	BUG_ON(ctx->bounce_page);
-
 out:
 	if (res) {
 		if (!IS_ERR_OR_NULL(ctx))
@@ -203,8 +198,8 @@ out:
 static void completion_pages(struct work_struct *work)
 {
 	struct f2fs_crypto_ctx *ctx =
-		container_of(work, struct f2fs_crypto_ctx, work);
-	struct bio *bio	= ctx->bio;
+		container_of(work, struct f2fs_crypto_ctx, r.work);
+	struct bio *bio = ctx->r.bio;
 	struct bio_vec *bv;
 	int i;
 
@@ -225,9 +220,9 @@ static void completion_pages(struct work_struct *work)
 
 void f2fs_end_io_crypto_work(struct f2fs_crypto_ctx *ctx, struct bio *bio)
 {
-	INIT_WORK(&ctx->work, completion_pages);
-	ctx->bio = bio;
-	queue_work(f2fs_read_workqueue, &ctx->work);
+	INIT_WORK(&ctx->r.work, completion_pages);
+	ctx->r.bio = bio;
+	queue_work(f2fs_read_workqueue, &ctx->r.work);
 }
 
 /**
@@ -238,12 +233,12 @@ void f2fs_exit_crypto(void)
 	struct f2fs_crypto_ctx *pos, *n;
 
 	list_for_each_entry_safe(pos, n, &f2fs_free_crypto_ctxs, free_list) {
-		if (pos->bounce_page) {
+		if (pos->w.bounce_page) {
 			if (pos->flags &
 				F2FS_BOUNCE_PAGE_REQUIRES_FREE_ENCRYPT_FL)
-				__free_page(pos->bounce_page);
+				__free_page(pos->w.bounce_page);
 			else
-				mempool_free(pos->bounce_page,
+				mempool_free(pos->w.bounce_page,
 						f2fs_bounce_page_pool);
 		}
 		if (pos->tfm)
@@ -335,7 +330,7 @@ void f2fs_restore_and_release_control_page(struct page **page)
 	ctx = (struct f2fs_crypto_ctx *)page_private(bounce_page);
 
 	/* restore control page */
-	*page = ctx->control_page;
+	*page = ctx->w.control_page;
 
 	f2fs_restore_control_page(bounce_page);
 }
@@ -492,8 +487,9 @@ struct page *f2fs_encrypt(struct inode *inode,
 	} else {
 		ctx->flags |= F2FS_BOUNCE_PAGE_REQUIRES_FREE_ENCRYPT_FL;
 	}
-	ctx->bounce_page = ciphertext_page;
-	ctx->control_page = plaintext_page;
+	ctx->flags |= F2FS_WRITE_PATH_FL;
+	ctx->w.bounce_page = ciphertext_page;
+	ctx->w.control_page = plaintext_page;
 	err = f2fs_page_crypto(ctx, inode, F2FS_ENCRYPT, plaintext_page->index,
 					plaintext_page, ciphertext_page);
 	if (err) {

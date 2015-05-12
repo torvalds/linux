@@ -1382,7 +1382,7 @@ static inline bool is_merged_page(struct f2fs_sb_info *sbi,
 			/* encrypted page */
 			ctx = (struct f2fs_crypto_ctx *)page_private(
 								bvec->bv_page);
-			target = ctx->control_page;
+			target = ctx->w.control_page;
 		}
 
 		if (page == target) {

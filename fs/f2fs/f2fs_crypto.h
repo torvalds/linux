@@ -87,16 +87,23 @@ struct f2fs_crypt_info {
 
 #define F2FS_CTX_REQUIRES_FREE_ENCRYPT_FL             0x00000001
 #define F2FS_BOUNCE_PAGE_REQUIRES_FREE_ENCRYPT_FL     0x00000002
+#define F2FS_WRITE_PATH_FL			      0x00000004
 
 struct f2fs_crypto_ctx {
 	struct crypto_tfm *tfm;         /* Crypto API context */
-	struct page *bounce_page;       /* Ciphertext page on write path */
-	struct page *control_page;      /* Original page on write path */
-	struct bio *bio;                /* The bio for this context */
-	struct work_struct work;        /* Work queue for read complete path */
-	struct list_head free_list;     /* Free list */
-	int flags;                      /* Flags */
-	int mode;                       /* Encryption mode for tfm */
+	union {
+		struct {
+			struct page *bounce_page;       /* Ciphertext page */
+			struct page *control_page;      /* Original page  */
+		} w;
+		struct {
+			struct bio *bio;
+			struct work_struct work;
+		} r;
+		struct list_head free_list;     /* Free list */
+	};
+	char flags;                      /* Flags */
+	char mode;                       /* Encryption mode for tfm */
 };
 
 struct f2fs_completion_result {
