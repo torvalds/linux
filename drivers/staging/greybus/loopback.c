@@ -148,7 +148,7 @@ gb_loopback_ro_attr(error, d);
 gb_loopback_attr(type, d);
 /* Size of transfer message payload: 0-4096 bytes */
 gb_loopback_attr(size, u);
-/* Time to wait between two messages: 0-1024 ms */
+/* Time to wait between two messages: 0-1000 ms */
 gb_loopback_attr(ms_wait, d);
 
 #define dev_stats_attrs(name)						\
