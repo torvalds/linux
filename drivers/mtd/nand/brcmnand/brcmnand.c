@@ -119,6 +119,9 @@ struct brcmnand_controller {
 	unsigned int		dma_irq;
 	int			nand_version;
 
+	/* Some SoCs provide custom interrupt status register(s) */
+	struct brcmnand_soc	*soc;
+
 	int			cmd_pending;
 	bool			dma_pending;
 	struct completion	done;
@@ -965,6 +968,17 @@ static irqreturn_t brcmnand_ctlrdy_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+/* Handle SoC-specific interrupt hardware */
+static irqreturn_t brcmnand_irq(int irq, void *data)
+{
+	struct brcmnand_controller *ctrl = data;
+
+	if (ctrl->soc->ctlrdy_ack(ctrl->soc))
+		return brcmnand_ctlrdy_irq(irq, data);
+
+	return IRQ_NONE;
+}
+
 static irqreturn_t brcmnand_dma_irq(int irq, void *data)
 {
 	struct brcmnand_controller *ctrl = data;
@@ -1153,12 +1167,18 @@ static void brcmnand_cmdfunc(struct mtd_info *mtd, unsigned command,
 	if (native_cmd == CMD_PARAMETER_READ ||
 			native_cmd == CMD_PARAMETER_CHANGE_COL) {
 		int i;
+
+		brcmnand_soc_data_bus_prepare(ctrl->soc);
+
 		/*
 		 * Must cache the FLASH_CACHE now, since changes in
 		 * SECTOR_SIZE_1K may invalidate it
 		 */
 		for (i = 0; i < FC_WORDS; i++)
 			ctrl->flash_cache[i] = brcmnand_read_fc(ctrl, i);
+
+		brcmnand_soc_data_bus_unprepare(ctrl->soc);
+
 		/* Cleanup from HW quirk: restore SECTOR_SIZE_1K */
 		if (host->hwcfg.sector_size_1k)
 			brcmnand_set_sector_size_1k(host,
@@ -1371,9 +1391,14 @@ static int brcmnand_read_by_pio(struct mtd_info *mtd, struct nand_chip *chip,
 		brcmnand_send_cmd(host, CMD_PAGE_READ);
 		brcmnand_waitfunc(mtd, chip);
 
-		if (likely(buf))
+		if (likely(buf)) {
+			brcmnand_soc_data_bus_prepare(ctrl->soc);
+
 			for (j = 0; j < FC_WORDS; j++, buf++)
 				*buf = brcmnand_read_fc(ctrl, j);
+
+			brcmnand_soc_data_bus_unprepare(ctrl->soc);
+		}
 
 		if (oob)
 			oob += read_oob_from_regs(ctrl, i, oob,
@@ -1546,12 +1571,17 @@ static int brcmnand_write(struct mtd_info *mtd, struct nand_chip *chip,
 				   lower_32_bits(addr));
 		(void)brcmnand_read_reg(ctrl, BRCMNAND_CMD_ADDRESS);
 
-		if (buf)
+		if (buf) {
+			brcmnand_soc_data_bus_prepare(ctrl->soc);
+
 			for (j = 0; j < FC_WORDS; j++, buf++)
 				brcmnand_write_fc(ctrl, j, *buf);
-		else if (oob)
+
+			brcmnand_soc_data_bus_unprepare(ctrl->soc);
+		} else if (oob) {
 			for (j = 0; j < FC_WORDS; j++)
 				brcmnand_write_fc(ctrl, j, 0xffffffff);
+		}
 
 		if (oob) {
 			oob += write_oob_to_regs(ctrl, i, oob,
@@ -1995,6 +2025,11 @@ static int brcmnand_resume(struct device *dev)
 	brcmnand_write_reg(ctrl, BRCMNAND_CS_XOR, ctrl->nand_cs_nand_xor);
 	brcmnand_write_reg(ctrl, BRCMNAND_CORR_THRESHOLD,
 			ctrl->corr_stat_threshold);
+	if (ctrl->soc) {
+		/* Clear/re-enable interrupt */
+		ctrl->soc->ctlrdy_ack(ctrl->soc);
+		ctrl->soc->ctlrdy_set_enabled(ctrl->soc, true);
+	}
 
 	list_for_each_entry(host, &ctrl->host_list, node) {
 		struct mtd_info *mtd = &host->mtd;
@@ -2139,8 +2174,24 @@ int brcmnand_probe(struct platform_device *pdev, struct brcmnand_soc *soc)
 		return -ENODEV;
 	}
 
-	ret = devm_request_irq(dev, ctrl->irq, brcmnand_ctlrdy_irq, 0,
-			DRV_NAME, ctrl);
+	/*
+	 * Some SoCs integrate this controller (e.g., its interrupt bits) in
+	 * interesting ways
+	 */
+	if (soc) {
+		ctrl->soc = soc;
+
+		ret = devm_request_irq(dev, ctrl->irq, brcmnand_irq, 0,
+				       DRV_NAME, ctrl);
+
+		/* Enable interrupt */
+		ctrl->soc->ctlrdy_ack(ctrl->soc);
+		ctrl->soc->ctlrdy_set_enabled(ctrl->soc, true);
+	} else {
+		/* Use standard interrupt infrastructure */
+		ret = devm_request_irq(dev, ctrl->irq, brcmnand_ctlrdy_irq, 0,
+				       DRV_NAME, ctrl);
+	}
 	if (ret < 0) {
 		dev_err(dev, "can't allocate IRQ %d: error %d\n",
 			ctrl->irq, ret);
