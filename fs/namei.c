@@ -2122,7 +2122,10 @@ static int filename_lookup(int dfd, struct filename *name, unsigned flags,
 			   struct path *path, struct path *root)
 {
 	int retval;
-	struct nameidata nd, *saved_nd = set_nameidata(&nd);
+	struct nameidata nd, *saved_nd;
+	if (IS_ERR(name))
+		return PTR_ERR(name);
+	saved_nd = set_nameidata(&nd);
 	if (unlikely(root)) {
 		nd.root = *root;
 		flags |= LOOKUP_ROOT;
@@ -2212,10 +2215,8 @@ out:
 
 int kern_path(const char *name, unsigned int flags, struct path *path)
 {
-	struct filename *filename = getname_kernel(name);
-	if (IS_ERR(filename))
-		return PTR_ERR(filename);
-	return filename_lookup(AT_FDCWD, filename, flags, path, NULL);
+	return filename_lookup(AT_FDCWD, getname_kernel(name),
+			       flags, path, NULL);
 }
 EXPORT_SYMBOL(kern_path);
 
@@ -2232,15 +2233,9 @@ int vfs_path_lookup(struct dentry *dentry, struct vfsmount *mnt,
 		    struct path *path)
 {
 	struct path root = {.mnt = mnt, .dentry = dentry};
-	struct filename *filename = getname_kernel(name);
-
-	BUG_ON(flags & LOOKUP_PARENT);
-
-	if (IS_ERR(filename))
-		return PTR_ERR(filename);
-
 	/* the first argument of filename_lookup() is ignored with root */
-	return filename_lookup(AT_FDCWD, filename, flags , path, &root);
+	return filename_lookup(AT_FDCWD, getname_kernel(name),
+			       flags , path, &root);
 }
 EXPORT_SYMBOL(vfs_path_lookup);
 
@@ -2298,13 +2293,8 @@ EXPORT_SYMBOL(lookup_one_len);
 int user_path_at_empty(int dfd, const char __user *name, unsigned flags,
 		 struct path *path, int *empty)
 {
-	struct filename *tmp = getname_flags(name, flags, empty);
-	if (IS_ERR(tmp))
-		return PTR_ERR(tmp);
-
-	BUG_ON(flags & LOOKUP_PARENT);
-
-	return filename_lookup(dfd, tmp, flags, path, NULL);
+	return filename_lookup(dfd, getname_flags(name, flags, empty),
+			       flags, path, NULL);
 }
 
 int user_path_at(int dfd, const char __user *name, unsigned flags,
