@@ -205,7 +205,7 @@ get_lvds_fp_timing(const struct bdb_header *bdb,
 /* Try to find integrated panel data */
 static void
 parse_lfp_panel_data(struct drm_i915_private *dev_priv,
-			    struct bdb_header *bdb)
+		     const struct bdb_header *bdb)
 {
 	const struct bdb_lvds_options *lvds_options;
 	const struct bdb_lvds_lfp_data *lvds_lfp_data;
@@ -311,7 +311,8 @@ parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 }
 
 static void
-parse_lfp_backlight(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
+parse_lfp_backlight(struct drm_i915_private *dev_priv,
+		    const struct bdb_header *bdb)
 {
 	const struct bdb_lfp_backlight_data *backlight_data;
 	const struct bdb_lfp_backlight_data_entry *entry;
@@ -349,7 +350,7 @@ parse_lfp_backlight(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
 /* Try to find sdvo panel data */
 static void
 parse_sdvo_panel_data(struct drm_i915_private *dev_priv,
-		      struct bdb_header *bdb)
+		      const struct bdb_header *bdb)
 {
 	const struct lvds_dvo_timing *dvo_timing;
 	struct drm_display_mode *panel_fixed_mode;
@@ -403,7 +404,7 @@ static int intel_bios_ssc_frequency(struct drm_device *dev,
 
 static void
 parse_general_features(struct drm_i915_private *dev_priv,
-		       struct bdb_header *bdb)
+		       const struct bdb_header *bdb)
 {
 	struct drm_device *dev = dev_priv->dev;
 	const struct bdb_general_features *general;
@@ -429,7 +430,7 @@ parse_general_features(struct drm_i915_private *dev_priv,
 
 static void
 parse_general_definitions(struct drm_i915_private *dev_priv,
-			  struct bdb_header *bdb)
+			  const struct bdb_header *bdb)
 {
 	const struct bdb_general_definitions *general;
 
@@ -456,7 +457,7 @@ child_device_ptr(const struct bdb_general_definitions *p_defs, int i)
 
 static void
 parse_sdvo_device_mapping(struct drm_i915_private *dev_priv,
-			  struct bdb_header *bdb)
+			  const struct bdb_header *bdb)
 {
 	struct sdvo_device_mapping *p_mapping;
 	const struct bdb_general_definitions *p_defs;
@@ -546,7 +547,7 @@ parse_sdvo_device_mapping(struct drm_i915_private *dev_priv,
 
 static void
 parse_driver_features(struct drm_i915_private *dev_priv,
-		       struct bdb_header *bdb)
+		      const struct bdb_header *bdb)
 {
 	const struct bdb_driver_features *driver;
 
@@ -572,7 +573,7 @@ parse_driver_features(struct drm_i915_private *dev_priv,
 }
 
 static void
-parse_edp(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
+parse_edp(struct drm_i915_private *dev_priv, const struct bdb_header *bdb)
 {
 	const struct bdb_edp *edp;
 	const struct edp_power_seq *edp_pps;
@@ -684,7 +685,7 @@ parse_edp(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
 }
 
 static void
-parse_psr(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
+parse_psr(struct drm_i915_private *dev_priv, const struct bdb_header *bdb)
 {
 	const struct bdb_psr *psr;
 	const struct psr_table *psr_table;
@@ -795,7 +796,7 @@ static u8 *goto_next_sequence(u8 *data, int *size)
 }
 
 static void
-parse_mipi(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
+parse_mipi(struct drm_i915_private *dev_priv, const struct bdb_header *bdb)
 {
 	const struct bdb_mipi_config *start;
 	const struct bdb_mipi_sequence *sequence;
@@ -946,7 +947,7 @@ err:
 }
 
 static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
-			   struct bdb_header *bdb)
+			   const struct bdb_header *bdb)
 {
 	union child_device_config *it, *child = NULL;
 	struct ddi_vbt_port_info *info = &dev_priv->vbt.ddi_port_info[port];
@@ -1048,7 +1049,7 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 }
 
 static void parse_ddi_ports(struct drm_i915_private *dev_priv,
-			    struct bdb_header *bdb)
+			    const struct bdb_header *bdb)
 {
 	struct drm_device *dev = dev_priv->dev;
 	enum port port;
@@ -1068,7 +1069,7 @@ static void parse_ddi_ports(struct drm_i915_private *dev_priv,
 
 static void
 parse_device_mapping(struct drm_i915_private *dev_priv,
-		       struct bdb_header *bdb)
+		     const struct bdb_header *bdb)
 {
 	const struct bdb_general_definitions *p_defs;
 	const union child_device_config *p_child;
@@ -1198,19 +1199,20 @@ static const struct dmi_system_id intel_no_opregion_vbt[] = {
 	{ }
 };
 
-static struct bdb_header *validate_vbt(char *base, size_t size,
-				       struct vbt_header *vbt,
-				       const char *source)
+static const struct bdb_header *validate_vbt(const void *base, size_t size,
+					     const void *_vbt,
+					     const char *source)
 {
+	const struct vbt_header *vbt = _vbt;
 	size_t offset;
-	struct bdb_header *bdb;
+	const struct bdb_header *bdb;
 
 	if (vbt == NULL) {
 		DRM_DEBUG_DRIVER("VBT signature missing\n");
 		return NULL;
 	}
 
-	offset = (char *)vbt - base;
+	offset = _vbt - base;
 	if (offset + sizeof(struct vbt_header) > size) {
 		DRM_DEBUG_DRIVER("VBT header incomplete\n");
 		return NULL;
@@ -1227,7 +1229,7 @@ static struct bdb_header *validate_vbt(char *base, size_t size,
 		return NULL;
 	}
 
-	bdb = (struct bdb_header *)(base + offset);
+	bdb = base + offset;
 	if (offset + bdb->bdb_size > size) {
 		DRM_DEBUG_DRIVER("BDB incomplete\n");
 		return NULL;
@@ -1252,7 +1254,7 @@ intel_parse_bios(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct pci_dev *pdev = dev->pdev;
-	struct bdb_header *bdb = NULL;
+	const struct bdb_header *bdb = NULL;
 	u8 __iomem *bios = NULL;
 
 	if (HAS_PCH_NOP(dev))
@@ -1262,9 +1264,8 @@ intel_parse_bios(struct drm_device *dev)
 
 	/* XXX Should this validation be moved to intel_opregion.c? */
 	if (!dmi_check_system(intel_no_opregion_vbt) && dev_priv->opregion.vbt)
-		bdb = validate_vbt((char *)dev_priv->opregion.header, OPREGION_SIZE,
-				   (struct vbt_header *)dev_priv->opregion.vbt,
-				   "OpRegion");
+		bdb = validate_vbt(dev_priv->opregion.header, OPREGION_SIZE,
+				   dev_priv->opregion.vbt, "OpRegion");
 
 	if (bdb == NULL) {
 		size_t i, size;
@@ -1277,7 +1278,7 @@ intel_parse_bios(struct drm_device *dev)
 		for (i = 0; i + 4 < size; i++) {
 			if (memcmp(bios + i, "$VBT", 4) == 0) {
 				bdb = validate_vbt(bios, size,
-						   (struct vbt_header *)(bios + i),
+						   bios + i,
 						   "PCI ROM");
 				break;
 			}
