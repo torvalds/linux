@@ -584,6 +584,10 @@ static void terminate_walk(struct nameidata *nd)
 		path_put(&nd->path);
 		for (i = 0; i < nd->depth; i++)
 			path_put(&nd->stack[i].link);
+		if (nd->root.mnt && !(nd->flags & LOOKUP_ROOT)) {
+			path_put(&nd->root);
+			nd->root.mnt = NULL;
+		}
 	} else {
 		nd->flags &= ~LOOKUP_RCU;
 		if (!(nd->flags & LOOKUP_ROOT))
@@ -2051,14 +2055,6 @@ static const char *path_init(int dfd, const struct filename *name,
 	return ERR_PTR(-ECHILD);
 }
 
-static void path_cleanup(struct nameidata *nd)
-{
-	if (nd->root.mnt && !(nd->flags & LOOKUP_ROOT)) {
-		path_put(&nd->root);
-		nd->root.mnt = NULL;
-	}
-}
-
 static const char *trailing_symlink(struct nameidata *nd)
 {
 	const char *s;
@@ -2114,7 +2110,6 @@ static int path_lookupat(int dfd, const struct filename *name, unsigned flags,
 		nd->path.dentry = NULL;
 	}
 	terminate_walk(nd);
-	path_cleanup(nd);
 	return err;
 }
 
@@ -2162,7 +2157,6 @@ static int path_parentat(int dfd, const struct filename *name,
 		nd->path.dentry = NULL;
 	}
 	terminate_walk(nd);
-	path_cleanup(nd);
 	return err;
 }
 
@@ -2446,7 +2440,6 @@ path_mountpoint(int dfd, const struct filename *name, struct path *path,
 		}
 	}
 	terminate_walk(nd);
-	path_cleanup(nd);
 	return err;
 }
 
@@ -3318,7 +3311,6 @@ static struct file *path_openat(int dfd, struct filename *pathname,
 		}
 	}
 	terminate_walk(nd);
-	path_cleanup(nd);
 out2:
 	if (!(opened & FILE_OPENED)) {
 		BUG_ON(!error);
