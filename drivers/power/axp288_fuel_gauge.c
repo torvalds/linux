@@ -1149,6 +1149,7 @@ static struct platform_driver axp288_fuel_gauge_driver = {
 
 module_platform_driver(axp288_fuel_gauge_driver);
 
+MODULE_AUTHOR("Ramakrishna Pallala <ramakrishna.pallala@intel.com>");
 MODULE_AUTHOR("Todd Brandt <todd.e.brandt@linux.intel.com>");
 MODULE_DESCRIPTION("Xpower AXP288 Fuel Gauge Driver");
 MODULE_LICENSE("GPL");
