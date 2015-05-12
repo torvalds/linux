@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2013-2014. All rights reserved.
+ * Copyright (C) ARM Limited 2013-2015. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -83,13 +83,13 @@ void KMod::setupCounter(Counter &counter) {
 	if (access(text, F_OK) == 0) {
 		int count = counter.getCount();
 		if (DriverSource::writeReadDriver(text, &count) && counter.getCount() > 0) {
-			logg->logError(__FILE__, __LINE__, "Cannot enable EBS for %s:%i with a count of %d\n", counter.getType(), counter.getEvent(), counter.getCount());
+			logg->logError("Cannot enable EBS for %s:%i with a count of %d\n", counter.getType(), counter.getEvent(), counter.getCount());
 			handleException();
 		}
 		counter.setCount(count);
 	} else if (counter.getCount() > 0) {
 		ConfigurationXML::remove();
-		logg->logError(__FILE__, __LINE__, "Event Based Sampling is only supported with kernel versions 3.0.0 and higher with CONFIG_PERF_EVENTS=y, and CONFIG_HW_PERF_EVENTS=y. The invalid configuration.xml has been removed.\n");
+		logg->logError("Event Based Sampling is only supported with kernel versions 3.0.0 and higher with CONFIG_PERF_EVENTS=y, and CONFIG_HW_PERF_EVENTS=y. The invalid configuration.xml has been removed.\n");
 		handleException();
 	}
 }
