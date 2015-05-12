@@ -30,6 +30,12 @@
 		ranges;
 		compatible	= "simple-bus";
 
+		restart {
+			compatible = "st,stih416-restart";
+			st,syscfg = <&syscfg_sbc>;
+			status = "okay";
+		};
+
 		powerdown: powerdown-controller {
 			#reset-cells = <1>;
 			compatible = "st,stih416-powerdown";
