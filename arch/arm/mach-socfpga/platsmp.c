@@ -54,32 +54,20 @@ static int socfpga_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	return 0;
 }
 
-/*
- * Initialise the CPU possible map early - this describes the CPUs
- * which may be present or become present in the system.
- */
-static void __init socfpga_smp_init_cpus(void)
-{
-	unsigned int i, ncores;
-
-	ncores = scu_get_core_count(socfpga_scu_base_addr);
-
-	for (i = 0; i < ncores; i++)
-		set_cpu_possible(i, true);
-
-	/* sanity check */
-	if (ncores > num_possible_cpus()) {
-		pr_warn("socfpga: no. of cores (%d) greater than configured"
-			"maximum of %d - clipping\n", ncores, num_possible_cpus());
-		ncores = num_possible_cpus();
-	}
-
-	for (i = 0; i < ncores; i++)
-		set_cpu_possible(i, true);
-}
-
 static void __init socfpga_smp_prepare_cpus(unsigned int max_cpus)
 {
+	struct device_node *np;
+	void __iomem *socfpga_scu_base_addr;
+
+	np = of_find_compatible_node(NULL, NULL, "arm,cortex-a9-scu");
+	if (!np) {
+		pr_err("%s: missing scu\n", __func__);
+		return;
+	}
+
+	socfpga_scu_base_addr = of_iomap(np, 0);
+	if (!socfpga_scu_base_addr)
+		return;
 	scu_enable(socfpga_scu_base_addr);
 }
 
@@ -96,7 +84,6 @@ static void socfpga_cpu_die(unsigned int cpu)
 }
 
 struct smp_operations socfpga_smp_ops __initdata = {
-	.smp_init_cpus		= socfpga_smp_init_cpus,
 	.smp_prepare_cpus	= socfpga_smp_prepare_cpus,
 	.smp_boot_secondary	= socfpga_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU
