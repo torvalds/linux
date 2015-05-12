@@ -1083,7 +1083,6 @@ static struct cpufreq_policy *cpufreq_policy_restore(unsigned int cpu)
 	if (likely(policy)) {
 		/* Policy should be inactive here */
 		WARN_ON(!policy_is_inactive(policy));
-		policy->governor = NULL;
 	}
 
 	return policy;
@@ -2145,8 +2144,10 @@ void cpufreq_unregister_governor(struct cpufreq_governor *governor)
 	/* clear last_governor for all inactive policies */
 	read_lock_irqsave(&cpufreq_driver_lock, flags);
 	for_each_inactive_policy(policy) {
-		if (!strcmp(policy->last_governor, governor->name))
+		if (!strcmp(policy->last_governor, governor->name)) {
+			policy->governor = NULL;
 			strcpy(policy->last_governor, "\0");
+		}
 	}
 	read_unlock_irqrestore(&cpufreq_driver_lock, flags);
 
