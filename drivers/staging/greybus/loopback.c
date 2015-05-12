@@ -55,6 +55,7 @@ struct gb_loopback {
 #define	GB_LOOPBACK_TYPE_PING				0x02
 #define	GB_LOOPBACK_TYPE_TRANSFER			0x03
 
+#define GB_LOOPBACK_MS_WAIT_MAX				1000
 #define GB_LOOPBACK_SIZE_MAX				SZ_4K
 
 /* Define get_version() routine */
@@ -121,8 +122,8 @@ static DEVICE_ATTR_RW(field)
 static void gb_loopback_reset_stats(struct gb_loopback *gb);
 static void gb_loopback_check_attr(struct gb_loopback *gb)
 {
-	if (gb->ms_wait > 1000)
-		gb->ms_wait = 1000;
+	if (gb->ms_wait > GB_LOOPBACK_MS_WAIT_MAX)
+		gb->ms_wait = GB_LOOPBACK_MS_WAIT_MAX;
 	if (gb->type > 2)
 		gb->type = 0;
 	if (gb->size > GB_LOOPBACK_SIZE_MAX)
