@@ -1004,20 +1004,18 @@ static int rk_iommu_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_OF
 static const struct of_device_id rk_iommu_dt_ids[] = {
 	{ .compatible = "rockchip,iommu" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, rk_iommu_dt_ids);
-#endif
 
 static struct platform_driver rk_iommu_driver = {
 	.probe = rk_iommu_probe,
 	.remove = rk_iommu_remove,
 	.driver = {
 		   .name = "rk_iommu",
-		   .of_match_table = of_match_ptr(rk_iommu_dt_ids),
+		   .of_match_table = rk_iommu_dt_ids,
 	},
 };
 
