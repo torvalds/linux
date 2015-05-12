@@ -176,6 +176,17 @@ int adreno_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 	OUT_PKT3(ring, CP_INTERRUPT, 1);
 	OUT_RING(ring, 0x80000000);
 
+	/* Workaround for missing irq issue on 8x16/a306.  Unsure if the
+	 * root cause is a platform issue or some a306 quirk, but this
+	 * keeps things humming along:
+	 */
+	if (adreno_is_a306(adreno_gpu)) {
+		OUT_PKT3(ring, CP_WAIT_FOR_IDLE, 1);
+		OUT_RING(ring, 0x00000000);
+		OUT_PKT3(ring, CP_INTERRUPT, 1);
+		OUT_RING(ring, 0x80000000);
+	}
+
 #if 0
 	if (adreno_is_a3xx(adreno_gpu)) {
 		/* Dummy set-constant to trigger context rollover */
