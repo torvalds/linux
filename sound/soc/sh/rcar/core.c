@@ -731,15 +731,10 @@ static int rsnd_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_dai *dai = rsnd_substream_to_dai(substream);
 	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
-	struct rsnd_priv *priv = rsnd_dai_to_priv(dai);
 	struct rsnd_dai_stream *io = rsnd_rdai_to_io(rdai, substream);
-	unsigned long flags;
 	int ret;
 
-	rsnd_lock(priv, flags);
 	ret = rsnd_dai_call(hw_params, io, substream, hw_params);
-	rsnd_unlock(priv, flags);
-
 	if (ret)
 		return ret;
 
@@ -926,16 +921,14 @@ int rsnd_kctrl_new_e(struct rsnd_mod *mod,
 static int rsnd_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_dai *dai = rtd->cpu_dai;
-	struct rsnd_priv *priv = rsnd_dai_to_priv(dai);
 	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
-	unsigned long flags;
-	int ret = 0;
+	int ret;
 
-	rsnd_lock(priv, flags);
-	ret |= rsnd_dai_call(pcm_new, &rdai->playback, rtd);
-	ret |= rsnd_dai_call(pcm_new, &rdai->capture, rtd);
-	rsnd_unlock(priv, flags);
+	ret = rsnd_dai_call(pcm_new, &rdai->playback, rtd);
+	if (ret)
+		return ret;
 
+	ret = rsnd_dai_call(pcm_new, &rdai->capture, rtd);
 	if (ret)
 		return ret;
 
@@ -958,10 +951,7 @@ static const struct snd_soc_component_driver rsnd_soc_component = {
 static int rsnd_rdai_continuance_probe(struct rsnd_priv *priv,
 				       struct rsnd_dai_stream *io)
 {
-	unsigned long flags;
 	int ret;
-
-	rsnd_lock(priv, flags);
 
 	ret = rsnd_dai_call(probe, io, priv);
 	if (ret == -EAGAIN) {
@@ -995,7 +985,6 @@ static int rsnd_rdai_continuance_probe(struct rsnd_priv *priv,
 		 */
 		ret = rsnd_dai_call(probe, io, priv);
 	}
-	rsnd_unlock(priv, flags);
 
 	return ret;
 }
@@ -1011,7 +1000,6 @@ static int rsnd_probe(struct platform_device *pdev)
 	struct rsnd_dai *rdai;
 	const struct of_device_id *of_id = of_match_device(rsnd_of_match, dev);
 	const struct rsnd_of_data *of_data;
-	unsigned long flags;
 	int (*probe_func[])(struct platform_device *pdev,
 			    const struct rsnd_of_data *of_data,
 			    struct rsnd_priv *priv) = {
@@ -1098,12 +1086,10 @@ static int rsnd_probe(struct platform_device *pdev)
 exit_snd_soc:
 	snd_soc_unregister_platform(dev);
 exit_snd_probe:
-	rsnd_lock(priv, flags);
 	for_each_rsnd_dai(rdai, priv, i) {
 		rsnd_dai_call(remove, &rdai->playback, priv);
 		rsnd_dai_call(remove, &rdai->capture, priv);
 	}
-	rsnd_unlock(priv, flags);
 
 	return ret;
 }
@@ -1112,7 +1098,6 @@ static int rsnd_remove(struct platform_device *pdev)
 {
 	struct rsnd_priv *priv = dev_get_drvdata(&pdev->dev);
 	struct rsnd_dai *rdai;
-	unsigned long flags;
 	void (*remove_func[])(struct platform_device *pdev,
 			      struct rsnd_priv *priv) = {
 		rsnd_ssi_remove,
@@ -1123,12 +1108,10 @@ static int rsnd_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(&pdev->dev);
 
-	rsnd_lock(priv, flags);
 	for_each_rsnd_dai(rdai, priv, i) {
 		ret |= rsnd_dai_call(remove, &rdai->playback, priv);
 		ret |= rsnd_dai_call(remove, &rdai->capture, priv);
 	}
-	rsnd_unlock(priv, flags);
 
 	for (i = 0; i < ARRAY_SIZE(remove_func); i++)
 		remove_func[i](pdev, priv);
