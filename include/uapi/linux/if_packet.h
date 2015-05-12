@@ -54,6 +54,7 @@ struct sockaddr_ll {
 #define PACKET_FANOUT			18
 #define PACKET_TX_HAS_OFF		19
 #define PACKET_QDISC_BYPASS		20
+#define PACKET_ROLLOVER_STATS		21
 
 #define PACKET_FANOUT_HASH		0
 #define PACKET_FANOUT_LB		1
@@ -73,6 +74,12 @@ struct tpacket_stats_v3 {
 	unsigned int	tp_packets;
 	unsigned int	tp_drops;
 	unsigned int	tp_freeze_q_cnt;
+};
+
+struct tpacket_rollover_stats {
+	__aligned_u64	tp_all;
+	__aligned_u64	tp_huge;
+	__aligned_u64	tp_failed;
 };
 
 union tpacket_stats_u {
