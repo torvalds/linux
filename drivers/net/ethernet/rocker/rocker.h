@@ -65,9 +65,9 @@ enum {
 #define ROCKER_TEST_DMA_CTRL		0x0034
 
 /* Rocker test register ctrl */
-#define ROCKER_TEST_DMA_CTRL_CLEAR	(1 << 0)
-#define ROCKER_TEST_DMA_CTRL_FILL	(1 << 1)
-#define ROCKER_TEST_DMA_CTRL_INVERT	(1 << 2)
+#define ROCKER_TEST_DMA_CTRL_CLEAR	BIT(0)
+#define ROCKER_TEST_DMA_CTRL_FILL	BIT(1)
+#define ROCKER_TEST_DMA_CTRL_INVERT	BIT(2)
 
 /* Rocker DMA ring register offsets */
 #define ROCKER_DMA_DESC_ADDR(x)		(0x1000 + (x) * 32)  /* 8-byte */
@@ -79,7 +79,7 @@ enum {
 #define ROCKER_DMA_DESC_RES1(x)		(0x101c + (x) * 32)
 
 /* Rocker dma ctrl register bits */
-#define ROCKER_DMA_DESC_CTRL_RESET	(1 << 0)
+#define ROCKER_DMA_DESC_CTRL_RESET	BIT(0)
 
 /* Rocker DMA ring types */
 enum rocker_dma_type {
@@ -111,7 +111,7 @@ struct rocker_desc {
 	u16 comp_err;
 };
 
-#define ROCKER_DMA_DESC_COMP_ERR_GEN	(1 << 15)
+#define ROCKER_DMA_DESC_COMP_ERR_GEN	BIT(15)
 
 /* Rocker DMA TLV struct */
 struct rocker_tlv {
@@ -237,14 +237,14 @@ enum {
 	ROCKER_TLV_RX_MAX = __ROCKER_TLV_RX_MAX - 1,
 };
 
-#define ROCKER_RX_FLAGS_IPV4			(1 << 0)
-#define ROCKER_RX_FLAGS_IPV6			(1 << 1)
-#define ROCKER_RX_FLAGS_CSUM_CALC		(1 << 2)
-#define ROCKER_RX_FLAGS_IPV4_CSUM_GOOD		(1 << 3)
-#define ROCKER_RX_FLAGS_IP_FRAG			(1 << 4)
-#define ROCKER_RX_FLAGS_TCP			(1 << 5)
-#define ROCKER_RX_FLAGS_UDP			(1 << 6)
-#define ROCKER_RX_FLAGS_TCP_UDP_CSUM_GOOD	(1 << 7)
+#define ROCKER_RX_FLAGS_IPV4			BIT(0)
+#define ROCKER_RX_FLAGS_IPV6			BIT(1)
+#define ROCKER_RX_FLAGS_CSUM_CALC		BIT(2)
+#define ROCKER_RX_FLAGS_IPV4_CSUM_GOOD		BIT(3)
+#define ROCKER_RX_FLAGS_IP_FRAG			BIT(4)
+#define ROCKER_RX_FLAGS_TCP			BIT(5)
+#define ROCKER_RX_FLAGS_UDP			BIT(6)
+#define ROCKER_RX_FLAGS_TCP_UDP_CSUM_GOOD	BIT(7)
 
 enum {
 	ROCKER_TLV_TX_UNSPEC,
@@ -460,6 +460,6 @@ enum rocker_of_dpa_overlay_type {
 #define ROCKER_SWITCH_ID		0x0320 /* 8-byte */
 
 /* Rocker control bits */
-#define ROCKER_CONTROL_RESET		(1 << 0)
+#define ROCKER_CONTROL_RESET		BIT(0)
 
 #endif
