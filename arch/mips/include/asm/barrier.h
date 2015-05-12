@@ -113,7 +113,7 @@
 #endif
 
 #define set_mb(var, value) \
-	do { var = value; smp_mb(); } while (0)
+	do { WRITE_ONCE(var, value); smp_mb(); } while (0)
 
 #define smp_llsc_mb()	__asm__ __volatile__(__WEAK_LLSC_MB : : :"memory")
 

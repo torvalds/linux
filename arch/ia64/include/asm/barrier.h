@@ -82,7 +82,7 @@ do {									\
  * acquire vs release semantics but we can't discuss this stuff with
  * Linus just yet.  Grrr...
  */
-#define set_mb(var, value)	do { (var) = (value); mb(); } while (0)
+#define set_mb(var, value)	do { WRITE_ONCE(var, value); mb(); } while (0)
 
 /*
  * The group barrier in front of the rsm & ssm are necessary to ensure

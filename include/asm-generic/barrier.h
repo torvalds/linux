@@ -67,7 +67,7 @@
 #endif
 
 #ifndef set_mb
-#define set_mb(var, value)  do { (var) = (value); mb(); } while (0)
+#define set_mb(var, value)  do { WRITE_ONCE(var, value); mb(); } while (0)
 #endif
 
 #ifndef smp_mb__before_atomic
