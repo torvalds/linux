@@ -777,12 +777,12 @@ static int complete_walk(struct nameidata *nd)
 	return status;
 }
 
-static __always_inline void set_root(struct nameidata *nd)
+static void set_root(struct nameidata *nd)
 {
 	get_fs_root(current->fs, &nd->root);
 }
 
-static __always_inline unsigned set_root_rcu(struct nameidata *nd)
+static unsigned set_root_rcu(struct nameidata *nd)
 {
 	struct fs_struct *fs = current->fs;
 	unsigned seq;
