@@ -2997,7 +2997,7 @@ u32 skl_plane_ctl_format(uint32_t pixel_format)
 		format = PLANE_CTL_FORMAT_YUV422 | PLANE_CTL_YUV422_VYUY;
 		break;
 	default:
-		BUG();
+		MISSING_CASE(pixel_format);
 	}
 
 	return format;
