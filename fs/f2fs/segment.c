@@ -486,7 +486,20 @@ static int f2fs_issue_discard(struct f2fs_sb_info *sbi,
 
 void discard_next_dnode(struct f2fs_sb_info *sbi, block_t blkaddr)
 {
-	if (f2fs_issue_discard(sbi, blkaddr, 1)) {
+	int err = -ENOTSUPP;
+
+	if (test_opt(sbi, DISCARD)) {
+		struct seg_entry *se = get_seg_entry(sbi,
+				GET_SEGNO(sbi, blkaddr));
+		unsigned int offset = GET_BLKOFF_FROM_SEG0(sbi, blkaddr);
+
+		if (f2fs_test_bit(offset, se->discard_map))
+			return;
+
+		err = f2fs_issue_discard(sbi, blkaddr, 1);
+	}
+
+	if (err) {
 		struct page *page = grab_meta_page(sbi, blkaddr);
 		/* zero-filled page */
 		set_page_dirty(page);
