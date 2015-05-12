@@ -2802,10 +2802,6 @@ static int rt5645_jack_detect(struct snd_soc_codec *codec, int jack_insert)
 	if (jack_insert) {
 		if (codec->component.card->instantiated) {
 			snd_soc_dapm_force_enable_pin(&codec->dapm,
-				"micbias1");
-			snd_soc_dapm_force_enable_pin(&codec->dapm,
-				"micbias2");
-			snd_soc_dapm_force_enable_pin(&codec->dapm,
 				"LDO2");
 			snd_soc_dapm_force_enable_pin(&codec->dapm,
 				"Mic Det Power");
@@ -2813,9 +2809,6 @@ static int rt5645_jack_detect(struct snd_soc_codec *codec, int jack_insert)
 		} else {
 			/* Power up necessary bits for JD if dapm is
 			   not ready yet */
-			snd_soc_update_bits(codec, RT5645_PWR_ANLG2,
-				RT5645_PWR_MB1 | RT5645_PWR_MB2,
-				RT5645_PWR_MB1 | RT5645_PWR_MB2);
 			snd_soc_update_bits(codec, RT5645_PWR_MIXER,
 				RT5645_PWR_LDO2, RT5645_PWR_LDO2);
 			snd_soc_update_bits(codec, RT5645_PWR_VOL,
@@ -2835,16 +2828,12 @@ static int rt5645_jack_detect(struct snd_soc_codec *codec, int jack_insert)
 		dev_dbg(codec->dev, "val = %d\n", val);
 
 		if (codec->component.card->instantiated) {
-			snd_soc_dapm_disable_pin(&codec->dapm, "micbias1");
-			snd_soc_dapm_disable_pin(&codec->dapm, "micbias2");
 			if (rt5645->pdata.jd_mode == 0)
 				snd_soc_dapm_disable_pin(&codec->dapm, "LDO2");
 			snd_soc_dapm_disable_pin(&codec->dapm,
 				"Mic Det Power");
 			snd_soc_dapm_sync(&codec->dapm);
 		} else {
-			snd_soc_update_bits(codec, RT5645_PWR_ANLG2,
-				RT5645_PWR_MB1 | RT5645_PWR_MB2, 0);
 			if (rt5645->pdata.jd_mode == 0)
 				snd_soc_update_bits(codec, RT5645_PWR_MIXER,
 					RT5645_PWR_LDO2, 0);
