@@ -50,6 +50,33 @@ TRACE_EVENT(hda_unsol_event,
 	),
 	TP_printk("%s", __get_str(msg))
 );
+
+DECLARE_EVENT_CLASS(hdac_stream,
+	TP_PROTO(struct hdac_bus *bus, struct hdac_stream *azx_dev),
+
+	TP_ARGS(bus, azx_dev),
+
+	TP_STRUCT__entry(
+		__field(unsigned char, stream_tag)
+	),
+
+	TP_fast_assign(
+		__entry->stream_tag = (azx_dev)->stream_tag;
+	),
+
+	TP_printk("stream_tag: %d", __entry->stream_tag)
+);
+
+DEFINE_EVENT(hdac_stream, snd_hdac_stream_start,
+	TP_PROTO(struct hdac_bus *bus, struct hdac_stream *azx_dev),
+	TP_ARGS(bus, azx_dev)
+);
+
+DEFINE_EVENT(hdac_stream, snd_hdac_stream_stop,
+	TP_PROTO(struct hdac_bus *bus, struct hdac_stream *azx_dev),
+	TP_ARGS(bus, azx_dev)
+);
+
 #endif /* __HDAC_TRACE_H */
 
 /* This part must be outside protection */
