@@ -1321,16 +1321,18 @@ static unsigned int fanout_demux_rollover(struct packet_fanout *f,
 					  unsigned int idx, bool try_self,
 					  unsigned int num)
 {
+	struct packet_sock *po;
 	unsigned int i, j;
 
-	if (try_self && packet_rcv_has_room(pkt_sk(f->arr[idx]), skb))
+	po = pkt_sk(f->arr[idx]);
+	if (try_self && packet_rcv_has_room(po, skb))
 		return idx;
 
-	i = j = min_t(int, f->next[idx], num - 1);
+	i = j = min_t(int, po->rollover->sock, num - 1);
 	do {
 		if (i != idx && packet_rcv_has_room(pkt_sk(f->arr[i]), skb)) {
 			if (i != j)
-				f->next[idx] = i;
+				po->rollover->sock = i;
 			return i;
 		}
 
@@ -1468,6 +1470,12 @@ static int fanout_add(struct sock *sk, u16 id, u16 type_flags)
 	if (po->fanout)
 		return -EALREADY;
 
+	if (type_flags & PACKET_FANOUT_FLAG_ROLLOVER) {
+		po->rollover = kzalloc(sizeof(*po->rollover), GFP_KERNEL);
+		if (!po->rollover)
+			return -ENOMEM;
+	}
+
 	mutex_lock(&fanout_mutex);
 	match = NULL;
 	list_for_each_entry(f, &fanout_list, list) {
@@ -1516,6 +1524,10 @@ static int fanout_add(struct sock *sk, u16 id, u16 type_flags)
 	}
 out:
 	mutex_unlock(&fanout_mutex);
+	if (err) {
+		kfree(po->rollover);
+		po->rollover = NULL;
+	}
 	return err;
 }
 
@@ -1537,6 +1549,8 @@ static void fanout_release(struct sock *sk)
 		kfree(f);
 	}
 	mutex_unlock(&fanout_mutex);
+
+	kfree(po->rollover);
 }
 
 static const struct proto_ops packet_ops;
@@ -2866,6 +2880,7 @@ static int packet_create(struct net *net, struct socket *sock, int protocol,
 
 	spin_lock_init(&po->bind_lock);
 	mutex_init(&po->pg_vec_lock);
+	po->rollover = NULL;
 	po->prot_hook.func = packet_rcv;
 
 	if (sock->type == SOCK_PACKET)
