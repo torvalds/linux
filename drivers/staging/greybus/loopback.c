@@ -242,6 +242,48 @@ static int gb_loopback_ping(struct gb_loopback *gb, struct timeval *tping)
 	return retval;
 }
 
+static int gb_loopback_request_recv(u8 type, struct gb_operation *operation)
+{
+	struct gb_connection *connection = operation->connection;
+	struct gb_loopback_transfer_request *request;
+	struct gb_loopback_transfer_response *response;
+	u32 len;
+
+	/* By convention, the AP initiates the version operation */
+	switch (type) {
+	case GB_LOOPBACK_TYPE_PROTOCOL_VERSION:
+		dev_err(&connection->dev,
+			"module-initiated version operation\n");
+		return -EINVAL;
+	case GB_LOOPBACK_TYPE_PING:
+		return 0;
+	case GB_LOOPBACK_TYPE_TRANSFER:
+		if (operation->request->payload_size < sizeof(*request)) {
+			dev_err(&connection->dev,
+				"transfer request too small (%zu < %zu)\n",
+				operation->request->payload_size,
+				sizeof(*request));
+			return -EINVAL;	/* -EMSGSIZE */
+		}
+		request = operation->request->payload;
+		len = le32_to_cpu(request->len);
+		if (len) {
+			if (!gb_operation_response_alloc(operation, len)) {
+				dev_err(&connection->dev,
+					"error allocating response\n");
+				return -ENOMEM;
+			}
+			response = operation->response->payload;
+			memcpy(response->data, request->data, len);
+		}
+		return 0;
+	default:
+		dev_err(&connection->dev,
+			"unsupported request: %hhu\n", type);
+		return -EINVAL;
+	}
+}
+
 static void gb_loopback_reset_stats(struct gb_loopback *gb)
 {
 	struct gb_loopback_stats reset = {
@@ -397,7 +439,7 @@ static struct gb_protocol loopback_protocol = {
 	.minor			= GB_LOOPBACK_VERSION_MINOR,
 	.connection_init	= gb_loopback_connection_init,
 	.connection_exit	= gb_loopback_connection_exit,
-	.request_recv		= NULL,	/* no incoming requests */
+	.request_recv		= gb_loopback_request_recv,
 };
 
 gb_protocol_driver(&loopback_protocol);
