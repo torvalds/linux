@@ -1711,13 +1711,12 @@ int lprocfs_exp_setup(struct obd_export *exp, lnet_nid_t *nid, int *newnid)
 		goto destroy_new;
 	}
 	/* not found - create */
-	buffer = kzalloc(LNET_NIDSTR_SIZE, GFP_NOFS);
+	buffer = kmemdup(libcfs_nid2str(*nid), LNET_NIDSTR_SIZE, GFP_NOFS);
 	if (buffer == NULL) {
 		rc = -ENOMEM;
 		goto destroy_new;
 	}
 
-	memcpy(buffer, libcfs_nid2str(*nid), LNET_NIDSTR_SIZE);
 	new_stat->nid_proc = lprocfs_register(buffer,
 					      obd->obd_proc_exports_entry,
 					      NULL, NULL);
