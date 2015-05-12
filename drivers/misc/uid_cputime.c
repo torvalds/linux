@@ -226,7 +226,7 @@ static int __init proc_uid_cputime_init(void)
 	proc_create_data("remove_uid_range", S_IWUGO, parent, &uid_remove_fops,
 					NULL);
 
-	proc_create_data("show_uid_stat", S_IWUGO, parent, &uid_stat_fops,
+	proc_create_data("show_uid_stat", S_IRUGO, parent, &uid_stat_fops,
 					NULL);
 
 	profile_event_register(PROFILE_TASK_EXIT, &process_notifier_block);
