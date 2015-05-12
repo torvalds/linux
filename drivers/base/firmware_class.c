@@ -320,7 +320,7 @@ fail:
 static int fw_get_filesystem_firmware(struct device *device,
 				       struct firmware_buf *buf)
 {
-	int i;
+	int i, len;
 	int rc = -ENOENT;
 	char *path;
 
@@ -335,7 +335,12 @@ static int fw_get_filesystem_firmware(struct device *device,
 		if (!fw_path[i][0])
 			continue;
 
-		snprintf(path, PATH_MAX, "%s/%s", fw_path[i], buf->fw_id);
+		len = snprintf(path, PATH_MAX, "%s/%s",
+			       fw_path[i], buf->fw_id);
+		if (len >= PATH_MAX) {
+			rc = -ENAMETOOLONG;
+			break;
+		}
 
 		file = filp_open(path, O_RDONLY, 0);
 		if (IS_ERR(file))
