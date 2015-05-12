@@ -752,9 +752,8 @@ static struct ti_st_plat_data *get_platform_data(struct device *dev)
 	int len;
 
 	dt_pdata = kzalloc(sizeof(*dt_pdata), GFP_KERNEL);
-
 	if (!dt_pdata)
-		pr_err("Can't allocate device_tree platform data\n");
+		return NULL;
 
 	dt_property = of_get_property(np, "dev_name", &len);
 	if (dt_property)
