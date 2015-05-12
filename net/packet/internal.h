@@ -89,6 +89,8 @@ struct packet_fanout {
 
 struct packet_rollover {
 	int			sock;
+#define ROLLOVER_HLEN	(L1_CACHE_BYTES / sizeof(u32))
+	u32			history[ROLLOVER_HLEN] ____cacheline_aligned;
 } ____cacheline_aligned_in_smp;
 
 struct packet_sock {
