@@ -42,17 +42,12 @@
 #include <mach/regs-rtc.h>
 #endif
 
+#include "rtc-sa1100.h"
+
 #define RTC_DEF_DIVIDER		(32768 - 1)
 #define RTC_DEF_TRIM		0
 #define RTC_FREQ		1024
 
-struct sa1100_rtc {
-	spinlock_t		lock;
-	int			irq_1hz;
-	int			irq_alarm;
-	struct rtc_device	*rtc;
-	struct clk		*clk;
-};
 
 static irqreturn_t sa1100_rtc_interrupt(int irq, void *dev_id)
 {
@@ -223,29 +218,18 @@ static const struct rtc_class_ops sa1100_rtc_ops = {
 	.alarm_irq_enable = sa1100_rtc_alarm_irq_enable,
 };
 
-static int sa1100_rtc_probe(struct platform_device *pdev)
+int sa1100_rtc_init(struct platform_device *pdev, struct sa1100_rtc *info)
 {
 	struct rtc_device *rtc;
-	struct sa1100_rtc *info;
-	int irq_1hz, irq_alarm, ret = 0;
+	int ret;
 
-	irq_1hz = platform_get_irq_byname(pdev, "rtc 1Hz");
-	irq_alarm = platform_get_irq_byname(pdev, "rtc alarm");
-	if (irq_1hz < 0 || irq_alarm < 0)
-		return -ENODEV;
+	spin_lock_init(&info->lock);
 
-	info = devm_kzalloc(&pdev->dev, sizeof(struct sa1100_rtc), GFP_KERNEL);
-	if (!info)
-		return -ENOMEM;
 	info->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(info->clk)) {
 		dev_err(&pdev->dev, "failed to find rtc clock source\n");
 		return PTR_ERR(info->clk);
 	}
-	info->irq_1hz = irq_1hz;
-	info->irq_alarm = irq_alarm;
-	spin_lock_init(&info->lock);
-	platform_set_drvdata(pdev, info);
 
 	ret = clk_prepare_enable(info->clk);
 	if (ret)
@@ -265,14 +249,11 @@ static int sa1100_rtc_probe(struct platform_device *pdev)
 		RCNR = 0;
 	}
 
-	device_init_wakeup(&pdev->dev, 1);
-
 	rtc = devm_rtc_device_register(&pdev->dev, pdev->name, &sa1100_rtc_ops,
 					THIS_MODULE);
-
 	if (IS_ERR(rtc)) {
-		ret = PTR_ERR(rtc);
-		goto err_dev;
+		clk_disable_unprepare(info->clk);
+		return PTR_ERR(rtc);
 	}
 	info->rtc = rtc;
 
@@ -301,9 +282,29 @@ static int sa1100_rtc_probe(struct platform_device *pdev)
 	RTSR = RTSR_AL | RTSR_HZ;
 
 	return 0;
-err_dev:
-	clk_disable_unprepare(info->clk);
-	return ret;
+}
+EXPORT_SYMBOL_GPL(sa1100_rtc_init);
+
+static int sa1100_rtc_probe(struct platform_device *pdev)
+{
+	struct sa1100_rtc *info;
+	int irq_1hz, irq_alarm;
+
+	irq_1hz = platform_get_irq_byname(pdev, "rtc 1Hz");
+	irq_alarm = platform_get_irq_byname(pdev, "rtc alarm");
+	if (irq_1hz < 0 || irq_alarm < 0)
+		return -ENODEV;
+
+	info = devm_kzalloc(&pdev->dev, sizeof(struct sa1100_rtc), GFP_KERNEL);
+	if (!info)
+		return -ENOMEM;
+	info->irq_1hz = irq_1hz;
+	info->irq_alarm = irq_alarm;
+
+	platform_set_drvdata(pdev, info);
+	device_init_wakeup(&pdev->dev, 1);
+
+	return sa1100_rtc_init(pdev, info);
 }
 
 static int sa1100_rtc_remove(struct platform_device *pdev)
