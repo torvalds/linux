@@ -1213,16 +1213,13 @@ static int cpufreq_add_dev(struct device *dev, struct subsys_interface *sif)
 		return 0;
 
 	/* Check if this CPU already has a policy to manage it */
-	read_lock_irqsave(&cpufreq_driver_lock, flags);
-	for_each_active_policy(policy) {
-		if (cpumask_test_cpu(cpu, policy->related_cpus)) {
-			read_unlock_irqrestore(&cpufreq_driver_lock, flags);
-			ret = cpufreq_add_policy_cpu(policy, cpu, dev);
-			up_read(&cpufreq_rwsem);
-			return ret;
-		}
+	policy = per_cpu(cpufreq_cpu_data, cpu);
+	if (policy && !policy_is_inactive(policy)) {
+		WARN_ON(!cpumask_test_cpu(cpu, policy->related_cpus));
+		ret = cpufreq_add_policy_cpu(policy, cpu, dev);
+		up_read(&cpufreq_rwsem);
+		return ret;
 	}
-	read_unlock_irqrestore(&cpufreq_driver_lock, flags);
 
 	/*
 	 * Restore the saved policy when doing light-weight init and fall back
