@@ -14,6 +14,7 @@
 #include <linux/if_pppox.h>
 #include <linux/ppp_defs.h>
 #include <linux/stddef.h>
+#include <linux/if_ether.h>
 #include <net/flow_dissector.h>
 #include <scsi/fc/fc_fcoe.h>
 
@@ -137,6 +138,17 @@ bool __skb_flow_dissect(const struct sk_buff *skb,
 	key_basic = skb_flow_dissector_target(flow_dissector,
 					      FLOW_DISSECTOR_KEY_BASIC,
 					      target_container);
+
+	if (skb_flow_dissector_uses_key(flow_dissector,
+					FLOW_DISSECTOR_KEY_ETH_ADDRS)) {
+		struct ethhdr *eth = eth_hdr(skb);
+		struct flow_dissector_key_eth_addrs *key_eth_addrs;
+
+		key_eth_addrs = skb_flow_dissector_target(flow_dissector,
+							  FLOW_DISSECTOR_KEY_ETH_ADDRS,
+							  target_container);
+		memcpy(key_eth_addrs, &eth->h_dest, sizeof(*key_eth_addrs));
+	}
 
 again:
 	switch (proto) {

@@ -4,6 +4,7 @@
 #include <linux/types.h>
 #include <linux/skbuff.h>
 #include <linux/in6.h>
+#include <uapi/linux/if_ether.h>
 
 /**
  * struct flow_dissector_key_basic:
@@ -54,12 +55,24 @@ struct flow_dissector_key_ipv6_addrs {
 	struct in6_addr dst;
 };
 
+/**
+ * struct flow_dissector_key_eth_addrs:
+ * @src: source Ethernet address
+ * @dst: destination Ethernet address
+ */
+struct flow_dissector_key_eth_addrs {
+	/* (dst,src) must be grouped, in the same way than in ETH header */
+	unsigned char dst[ETH_ALEN];
+	unsigned char src[ETH_ALEN];
+};
+
 enum flow_dissector_key_id {
 	FLOW_DISSECTOR_KEY_BASIC, /* struct flow_dissector_key_basic */
 	FLOW_DISSECTOR_KEY_IPV4_ADDRS, /* struct flow_dissector_key_addrs */
 	FLOW_DISSECTOR_KEY_IPV6_HASH_ADDRS, /* struct flow_dissector_key_addrs */
 	FLOW_DISSECTOR_KEY_PORTS, /* struct flow_dissector_key_ports */
 	FLOW_DISSECTOR_KEY_IPV6_ADDRS, /* struct flow_dissector_key_ipv6_addrs */
+	FLOW_DISSECTOR_KEY_ETH_ADDRS, /* struct flow_dissector_key_eth_addrs */
 
 	FLOW_DISSECTOR_KEY_MAX,
 };
