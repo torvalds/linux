@@ -2800,37 +2800,42 @@ static int rt5645_jack_detect(struct snd_soc_codec *codec, int jack_insert)
 	unsigned int val;
 
 	if (jack_insert) {
+		regmap_write(rt5645->regmap, RT5645_CHARGE_PUMP, 0x0006);
+
 		if (codec->component.card->instantiated) {
-			snd_soc_dapm_force_enable_pin(&codec->dapm,
-				"LDO2");
+			/* for jack type detect */
+			snd_soc_dapm_force_enable_pin(&codec->dapm, "LDO2");
 			snd_soc_dapm_force_enable_pin(&codec->dapm,
 				"Mic Det Power");
 			snd_soc_dapm_sync(&codec->dapm);
 		} else {
 			/* Power up necessary bits for JD if dapm is
 			   not ready yet */
-			snd_soc_update_bits(codec, RT5645_PWR_MIXER,
+			regmap_update_bits(rt5645->regmap, RT5645_PWR_ANLG1,
+				RT5645_PWR_MB | RT5645_PWR_VREF2,
+				RT5645_PWR_MB | RT5645_PWR_VREF2);
+			regmap_update_bits(rt5645->regmap, RT5645_PWR_MIXER,
 				RT5645_PWR_LDO2, RT5645_PWR_LDO2);
-			snd_soc_update_bits(codec, RT5645_PWR_VOL,
+			regmap_update_bits(rt5645->regmap, RT5645_PWR_VOL,
 				RT5645_PWR_MIC_DET, RT5645_PWR_MIC_DET);
 		}
 
-		snd_soc_write(codec, RT5645_IN1_CTRL1, 0x0006);
-		snd_soc_write(codec, RT5645_JD_CTRL3, 0x00b0);
+		regmap_write(rt5645->regmap, RT5645_JD_CTRL3, 0x00f0);
+		regmap_write(rt5645->regmap, RT5645_IN1_CTRL1, 0x0006);
+		regmap_update_bits(rt5645->regmap,
+				   RT5645_IN1_CTRL2, 0x1000, 0x1000);
+		msleep(100);
+		regmap_update_bits(rt5645->regmap,
+				   RT5645_IN1_CTRL2, 0x1000, 0x0000);
 
-		snd_soc_update_bits(codec, RT5645_IN1_CTRL2,
-			RT5645_CBJ_MN_JD, 0);
-		snd_soc_update_bits(codec, RT5645_IN1_CTRL2,
-			RT5645_CBJ_MN_JD, RT5645_CBJ_MN_JD);
-
-		msleep(400);
-		val = snd_soc_read(codec, RT5645_IN1_CTRL3) & 0x7;
+		msleep(450);
+		regmap_read(rt5645->regmap, RT5645_IN1_CTRL3, &val);
+		val &= 0x7;
 		dev_dbg(codec->dev, "val = %d\n", val);
 
 		if (val == 1 || val == 2) {
 			rt5645->jack_type = SND_JACK_HEADSET;
 			if (rt5645->en_button_func) {
-				msleep(100);
 				rt5645_enable_push_button_irq(codec, true);
 			}
 		} else {
