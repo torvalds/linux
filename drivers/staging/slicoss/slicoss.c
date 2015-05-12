@@ -147,10 +147,7 @@ static inline void slic_reg64_write(struct adapter *adapter, void __iomem *reg,
 	unsigned long flags;
 
 	spin_lock_irqsave(&adapter->bit64reglock, flags);
-	if (paddrh != adapter->curaddrupper) {
-		adapter->curaddrupper = paddrh;
-		writel(paddrh, regh);
-	}
+	writel(paddrh, regh);
 	writel(value, reg);
 	if (flush)
 		mb();

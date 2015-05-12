@@ -414,7 +414,6 @@ struct adapter {
 	u32             intrregistered;
 	uint                isp_initialized;
 	uint                gennumber;
-	u32             curaddrupper;
 	struct slic_shmem      *pshmem;
 	dma_addr_t          phys_shmem;
 	u32             isrcopy;
