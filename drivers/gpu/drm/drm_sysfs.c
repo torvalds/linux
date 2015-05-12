@@ -302,33 +302,28 @@ static ssize_t modes_show(struct device *device,
 	return written;
 }
 
-static ssize_t subconnector_show(struct device *device,
-			   struct device_attribute *attr,
-			   char *buf)
+static ssize_t tv_subconnector_show(struct device *device,
+				    struct device_attribute *attr,
+				    char *buf)
 {
 	struct drm_connector *connector = to_drm_connector(device);
 	struct drm_device *dev = connector->dev;
-	struct drm_property *prop = NULL;
+	struct drm_property *prop;
 	uint64_t subconnector;
-	int is_tv = 0;
 	int ret;
 
 	switch (connector->connector_type) {
-		case DRM_MODE_CONNECTOR_DVII:
-			prop = dev->mode_config.dvi_i_subconnector_property;
-			break;
-		case DRM_MODE_CONNECTOR_Composite:
-		case DRM_MODE_CONNECTOR_SVIDEO:
-		case DRM_MODE_CONNECTOR_Component:
-		case DRM_MODE_CONNECTOR_TV:
-			prop = dev->mode_config.tv_subconnector_property;
-			is_tv = 1;
-			break;
-		default:
-			DRM_ERROR("Wrong connector type for this property\n");
-			return 0;
+	case DRM_MODE_CONNECTOR_Composite:
+	case DRM_MODE_CONNECTOR_SVIDEO:
+	case DRM_MODE_CONNECTOR_Component:
+	case DRM_MODE_CONNECTOR_TV:
+		break;
+	default:
+		DRM_ERROR("Wrong connector type for this property\n");
+		return 0;
 	}
 
+	prop = dev->mode_config.tv_subconnector_property;
 	if (!prop) {
 		DRM_ERROR("Unable to find subconnector property\n");
 		return 0;
@@ -338,38 +333,32 @@ static ssize_t subconnector_show(struct device *device,
 	if (ret)
 		return 0;
 
-	return snprintf(buf, PAGE_SIZE, "%s", is_tv ?
-			drm_get_tv_subconnector_name((int)subconnector) :
-			drm_get_dvi_i_subconnector_name((int)subconnector));
+	return snprintf(buf, PAGE_SIZE, "%s",
+			drm_get_tv_subconnector_name((int)subconnector));
 }
 
-static ssize_t select_subconnector_show(struct device *device,
-			   struct device_attribute *attr,
-			   char *buf)
+static ssize_t tv_select_subconnector_show(struct device *device,
+					   struct device_attribute *attr,
+					   char *buf)
 {
 	struct drm_connector *connector = to_drm_connector(device);
 	struct drm_device *dev = connector->dev;
-	struct drm_property *prop = NULL;
+	struct drm_property *prop;
 	uint64_t subconnector;
-	int is_tv = 0;
 	int ret;
 
 	switch (connector->connector_type) {
-		case DRM_MODE_CONNECTOR_DVII:
-			prop = dev->mode_config.dvi_i_select_subconnector_property;
-			break;
-		case DRM_MODE_CONNECTOR_Composite:
-		case DRM_MODE_CONNECTOR_SVIDEO:
-		case DRM_MODE_CONNECTOR_Component:
-		case DRM_MODE_CONNECTOR_TV:
-			prop = dev->mode_config.tv_select_subconnector_property;
-			is_tv = 1;
-			break;
-		default:
-			DRM_ERROR("Wrong connector type for this property\n");
-			return 0;
+	case DRM_MODE_CONNECTOR_Composite:
+	case DRM_MODE_CONNECTOR_SVIDEO:
+	case DRM_MODE_CONNECTOR_Component:
+	case DRM_MODE_CONNECTOR_TV:
+		break;
+	default:
+		DRM_ERROR("Wrong connector type for this property\n");
+		return 0;
 	}
 
+	prop = dev->mode_config.tv_select_subconnector_property;
 	if (!prop) {
 		DRM_ERROR("Unable to find select subconnector property\n");
 		return 0;
@@ -379,8 +368,65 @@ static ssize_t select_subconnector_show(struct device *device,
 	if (ret)
 		return 0;
 
-	return snprintf(buf, PAGE_SIZE, "%s", is_tv ?
-			drm_get_tv_select_name((int)subconnector) :
+	return snprintf(buf, PAGE_SIZE, "%s",
+			drm_get_tv_select_name((int)subconnector));
+}
+
+static ssize_t dvii_subconnector_show(struct device *device,
+				      struct device_attribute *attr,
+				      char *buf)
+{
+	struct drm_connector *connector = to_drm_connector(device);
+	struct drm_device *dev = connector->dev;
+	struct drm_property *prop;
+	uint64_t subconnector;
+	int ret;
+
+	if (connector->connector_type != DRM_MODE_CONNECTOR_DVII) {
+		DRM_ERROR("Wrong connector type for this property\n");
+		return 0;
+	}
+
+	prop = dev->mode_config.dvi_i_subconnector_property;
+	if (!prop) {
+		DRM_ERROR("Unable to find subconnector property\n");
+		return 0;
+	}
+
+	ret = drm_object_property_get_value(&connector->base, prop, &subconnector);
+	if (ret)
+		return 0;
+
+	return snprintf(buf, PAGE_SIZE, "%s",
+			drm_get_dvi_i_subconnector_name((int)subconnector));
+}
+
+static ssize_t dvii_select_subconnector_show(struct device *device,
+					     struct device_attribute *attr,
+					     char *buf)
+{
+	struct drm_connector *connector = to_drm_connector(device);
+	struct drm_device *dev = connector->dev;
+	struct drm_property *prop;
+	uint64_t subconnector;
+	int ret;
+
+	if (connector->connector_type != DRM_MODE_CONNECTOR_DVII) {
+		DRM_ERROR("Wrong connector type for this property\n");
+		return 0;
+	}
+
+	prop = dev->mode_config.dvi_i_select_subconnector_property;
+	if (!prop) {
+		DRM_ERROR("Unable to find select subconnector property\n");
+		return 0;
+	}
+
+	ret = drm_object_property_get_value(&connector->base, prop, &subconnector);
+	if (ret)
+		return 0;
+
+	return snprintf(buf, PAGE_SIZE, "%s",
 			drm_get_dvi_i_select_name((int)subconnector));
 }
 
@@ -397,13 +443,21 @@ static struct attribute *connector_dev_attrs[] = {
 	NULL
 };
 
-/* These attributes are for both DVI-I connectors and all types of tv-out. */
-static DEVICE_ATTR_RO(subconnector);
-static DEVICE_ATTR_RO(select_subconnector);
+static DEVICE_ATTR_RO(tv_subconnector);
+static DEVICE_ATTR_RO(tv_select_subconnector);
 
 static struct attribute *connector_tv_dev_attrs[] = {
-	&dev_attr_subconnector.attr,
-	&dev_attr_select_subconnector.attr,
+	&dev_attr_tv_subconnector.attr,
+	&dev_attr_tv_select_subconnector.attr,
+	NULL
+};
+
+static DEVICE_ATTR_RO(dvii_subconnector);
+static DEVICE_ATTR_RO(dvii_select_subconnector);
+
+static struct attribute *connector_dvii_dev_attrs[] = {
+	&dev_attr_dvii_subconnector.attr,
+	&dev_attr_dvii_select_subconnector.attr,
 	NULL
 };
 
@@ -460,7 +514,7 @@ static const struct attribute_group connector_tv_dev_group = {
 };
 
 static const struct attribute_group connector_dvii_dev_group = {
-	.attrs = connector_tv_dev_attrs, /* same as tv */
+	.attrs = connector_dvii_dev_attrs,
 	.is_visible = connector_is_dvii,
 };
 
