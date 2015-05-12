@@ -2953,17 +2953,17 @@ void skl_detach_scalers(struct intel_crtc *intel_crtc)
 
 u32 skl_plane_ctl_format(uint32_t pixel_format)
 {
-	u32 plane_ctl_format = 0;
+	u32 format = 0;
 
 	switch (pixel_format) {
 	case DRM_FORMAT_RGB565:
-		plane_ctl_format = PLANE_CTL_FORMAT_RGB_565;
+		format = PLANE_CTL_FORMAT_RGB_565;
 		break;
 	case DRM_FORMAT_XBGR8888:
-		plane_ctl_format = PLANE_CTL_FORMAT_XRGB_8888 | PLANE_CTL_ORDER_RGBX;
+		format = PLANE_CTL_FORMAT_XRGB_8888 | PLANE_CTL_ORDER_RGBX;
 		break;
 	case DRM_FORMAT_XRGB8888:
-		plane_ctl_format = PLANE_CTL_FORMAT_XRGB_8888;
+		format = PLANE_CTL_FORMAT_XRGB_8888;
 		break;
 	/*
 	 * XXX: For ARBG/ABGR formats we default to expecting scanout buffers
@@ -2971,36 +2971,36 @@ u32 skl_plane_ctl_format(uint32_t pixel_format)
 	 * DRM_FORMAT) for user-space to configure that.
 	 */
 	case DRM_FORMAT_ABGR8888:
-		plane_ctl_format = PLANE_CTL_FORMAT_XRGB_8888 | PLANE_CTL_ORDER_RGBX |
+		format = PLANE_CTL_FORMAT_XRGB_8888 | PLANE_CTL_ORDER_RGBX |
 			PLANE_CTL_ALPHA_SW_PREMULTIPLY;
 		break;
 	case DRM_FORMAT_ARGB8888:
-		plane_ctl_format = PLANE_CTL_FORMAT_XRGB_8888 |
+		format = PLANE_CTL_FORMAT_XRGB_8888 |
 			PLANE_CTL_ALPHA_SW_PREMULTIPLY;
 		break;
 	case DRM_FORMAT_XRGB2101010:
-		plane_ctl_format = PLANE_CTL_FORMAT_XRGB_2101010;
+		format = PLANE_CTL_FORMAT_XRGB_2101010;
 		break;
 	case DRM_FORMAT_XBGR2101010:
-		plane_ctl_format = PLANE_CTL_ORDER_RGBX | PLANE_CTL_FORMAT_XRGB_2101010;
+		format = PLANE_CTL_ORDER_RGBX | PLANE_CTL_FORMAT_XRGB_2101010;
 		break;
 	case DRM_FORMAT_YUYV:
-		plane_ctl_format = PLANE_CTL_FORMAT_YUV422 | PLANE_CTL_YUV422_YUYV;
+		format = PLANE_CTL_FORMAT_YUV422 | PLANE_CTL_YUV422_YUYV;
 		break;
 	case DRM_FORMAT_YVYU:
-		plane_ctl_format = PLANE_CTL_FORMAT_YUV422 | PLANE_CTL_YUV422_YVYU;
+		format = PLANE_CTL_FORMAT_YUV422 | PLANE_CTL_YUV422_YVYU;
 		break;
 	case DRM_FORMAT_UYVY:
-		plane_ctl_format = PLANE_CTL_FORMAT_YUV422 | PLANE_CTL_YUV422_UYVY;
+		format = PLANE_CTL_FORMAT_YUV422 | PLANE_CTL_YUV422_UYVY;
 		break;
 	case DRM_FORMAT_VYUY:
-		plane_ctl_format = PLANE_CTL_FORMAT_YUV422 | PLANE_CTL_YUV422_VYUY;
+		format = PLANE_CTL_FORMAT_YUV422 | PLANE_CTL_YUV422_VYUY;
 		break;
 	default:
 		BUG();
 	}
 
-	return plane_ctl_format;
+	return format;
 }
 
 u32 skl_plane_ctl_tiling(uint64_t fb_modifier)
