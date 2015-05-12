@@ -150,17 +150,17 @@ struct firmware_buf {
 	int page_array_size;
 	struct list_head pending_list;
 #endif
-	char fw_id[];
+	const char *fw_id;
 };
 
 struct fw_cache_entry {
 	struct list_head list;
-	char name[];
+	const char *name;
 };
 
 struct fw_name_devm {
 	unsigned long magic;
-	char name[];
+	const char *name;
 };
 
 #define to_fwbuf(d) container_of(d, struct firmware_buf, ref)
@@ -181,13 +181,17 @@ static struct firmware_buf *__allocate_fw_buf(const char *fw_name,
 {
 	struct firmware_buf *buf;
 
-	buf = kzalloc(sizeof(*buf) + strlen(fw_name) + 1, GFP_ATOMIC);
-
+	buf = kzalloc(sizeof(*buf), GFP_ATOMIC);
 	if (!buf)
-		return buf;
+		return NULL;
+
+	buf->fw_id = kstrdup_const(fw_name, GFP_ATOMIC);
+	if (!buf->fw_id) {
+		kfree(buf);
+		return NULL;
+	}
 
 	kref_init(&buf->ref);
-	strcpy(buf->fw_id, fw_name);
 	buf->fwc = fwc;
 	init_completion(&buf->completion);
 #ifdef CONFIG_FW_LOADER_USER_HELPER
@@ -257,6 +261,7 @@ static void __fw_free_buf(struct kref *ref)
 	} else
 #endif
 		vfree(buf->data);
+	kfree_const(buf->fw_id);
 	kfree(buf);
 }
 
@@ -401,6 +406,7 @@ static void fw_name_devm_release(struct device *dev, void *res)
 	if (fwn->magic == (unsigned long)&fw_cache)
 		pr_debug("%s: fw_name-%s devm-%p released\n",
 				__func__, fwn->name, res);
+	kfree_const(fwn->name);
 }
 
 static int fw_devm_match(struct device *dev, void *res,
@@ -431,13 +437,17 @@ static int fw_add_devm_name(struct device *dev, const char *name)
 	if (fwn)
 		return 1;
 
-	fwn = devres_alloc(fw_name_devm_release, sizeof(struct fw_name_devm) +
-			   strlen(name) + 1, GFP_KERNEL);
+	fwn = devres_alloc(fw_name_devm_release, sizeof(struct fw_name_devm),
+			   GFP_KERNEL);
 	if (!fwn)
 		return -ENOMEM;
+	fwn->name = kstrdup_const(name, GFP_KERNEL);
+	if (!fwn->name) {
+		kfree(fwn);
+		return -ENOMEM;
+	}
 
 	fwn->magic = (unsigned long)&fw_cache;
-	strcpy(fwn->name, name);
 	devres_add(dev, fwn);
 
 	return 0;
@@ -1397,11 +1407,16 @@ static struct fw_cache_entry *alloc_fw_cache_entry(const char *name)
 {
 	struct fw_cache_entry *fce;
 
-	fce = kzalloc(sizeof(*fce) + strlen(name) + 1, GFP_ATOMIC);
+	fce = kzalloc(sizeof(*fce), GFP_ATOMIC);
 	if (!fce)
 		goto exit;
 
-	strcpy(fce->name, name);
+	fce->name = kstrdup_const(name, GFP_ATOMIC);
+	if (!fce->name) {
+		kfree(fce);
+		fce = NULL;
+		goto exit;
+	}
 exit:
 	return fce;
 }
@@ -1441,6 +1456,7 @@ found:
 
 static void free_fw_cache_entry(struct fw_cache_entry *fce)
 {
+	kfree_const(fce->name);
 	kfree(fce);
 }
 
