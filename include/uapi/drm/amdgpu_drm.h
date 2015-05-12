@@ -560,6 +560,8 @@ struct drm_amdgpu_info_device {
 	uint64_t ids_flags;
 	/** Starting virtual address for UMDs. */
 	uint64_t virtual_address_offset;
+	/** The maximum virtual address */
+	uint64_t virtual_address_max;
 	/** Required alignment of virtual addresses. */
 	uint32_t virtual_address_alignment;
 	/** Page table entry - fragment size */
