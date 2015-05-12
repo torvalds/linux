@@ -640,19 +640,6 @@ void bcm47xx_fill_ssb_boardinfo(struct ssb_boardinfo *boardinfo,
 }
 #endif
 
-#ifdef CONFIG_BCM47XX_BCMA
-void bcm47xx_fill_bcma_boardinfo(struct bcma_boardinfo *boardinfo,
-				 const char *prefix)
-{
-	nvram_read_u16(prefix, NULL, "boardvendor", &boardinfo->vendor, 0,
-		       true);
-	if (!boardinfo->vendor)
-		boardinfo->vendor = SSB_BOARDVENDOR_BCM;
-
-	nvram_read_u16(prefix, NULL, "boardtype", &boardinfo->type, 0, true);
-}
-#endif
-
 #if defined(CONFIG_BCM47XX_SSB)
 static int bcm47xx_get_sprom_ssb(struct ssb_bus *bus, struct ssb_sprom *out)
 {
@@ -707,33 +694,46 @@ static void bcm47xx_sprom_apply_prefix_alias(char *prefix, size_t prefix_size)
 
 static int bcm47xx_get_sprom_bcma(struct bcma_bus *bus, struct ssb_sprom *out)
 {
-	char prefix[10];
+	struct bcma_boardinfo *binfo = &bus->boardinfo;
 	struct bcma_device *core;
+	char buf[10];
+	char *prefix;
+	bool fallback = false;
 
 	switch (bus->hosttype) {
 	case BCMA_HOSTTYPE_PCI:
 		memset(out, 0, sizeof(struct ssb_sprom));
-		snprintf(prefix, sizeof(prefix), "pci/%u/%u/",
+		snprintf(buf, sizeof(buf), "pci/%u/%u/",
 			 bus->host_pci->bus->number + 1,
 			 PCI_SLOT(bus->host_pci->devfn));
-		bcm47xx_sprom_apply_prefix_alias(prefix, sizeof(prefix));
-		bcm47xx_fill_sprom(out, prefix, false);
-		return 0;
+		bcm47xx_sprom_apply_prefix_alias(buf, sizeof(buf));
+		prefix = buf;
+		break;
 	case BCMA_HOSTTYPE_SOC:
 		memset(out, 0, sizeof(struct ssb_sprom));
 		core = bcma_find_core(bus, BCMA_CORE_80211);
 		if (core) {
-			snprintf(prefix, sizeof(prefix), "sb/%u/",
+			snprintf(buf, sizeof(buf), "sb/%u/",
 				 core->core_index);
-			bcm47xx_fill_sprom(out, prefix, true);
+			prefix = buf;
+			fallback = true;
 		} else {
-			bcm47xx_fill_sprom(out, NULL, false);
+			prefix = NULL;
 		}
-		return 0;
+		break;
 	default:
 		pr_warn("Unable to fill SPROM for given bustype.\n");
 		return -EINVAL;
 	}
+
+	nvram_read_u16(prefix, NULL, "boardvendor", &binfo->vendor, 0, true);
+	if (!binfo->vendor)
+		binfo->vendor = SSB_BOARDVENDOR_BCM;
+	nvram_read_u16(prefix, NULL, "boardtype", &binfo->type, 0, true);
+
+	bcm47xx_fill_sprom(out, prefix, fallback);
+
+	return 0;
 }
 #endif
 
