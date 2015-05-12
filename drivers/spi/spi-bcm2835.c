@@ -20,6 +20,7 @@
  * GNU General Public License for more details.
  */
 
+#include <asm/page.h>
 #include <linux/clk.h>
 #include <linux/completion.h>
 #include <linux/delay.h>
@@ -378,18 +379,19 @@ static bool bcm2835_spi_can_dma(struct spi_master *master,
 	}
 
 	/* if we run rx/tx_buf with word aligned addresses then we are OK */
-	if (((u32)tfr->tx_buf % 4 == 0) && ((u32)tfr->tx_buf % 4 == 0))
+	if ((((size_t)tfr->rx_buf & 3) == 0) &&
+	    (((size_t)tfr->tx_buf & 3) == 0))
 		return true;
 
 	/* otherwise we only allow transfers within the same page
 	 * to avoid wasting time on dma_mapping when it is not practical
 	 */
-	if (((u32)tfr->tx_buf % SZ_4K) + tfr->len > SZ_4K) {
+	if (((size_t)tfr->tx_buf & PAGE_MASK) + tfr->len > PAGE_SIZE) {
 		dev_warn_once(&spi->dev,
 			      "Unaligned spi tx-transfer bridging page\n");
 		return false;
 	}
-	if (((u32)tfr->rx_buf % SZ_4K) + tfr->len > SZ_4K) {
+	if (((size_t)tfr->rx_buf & PAGE_MASK) + tfr->len > PAGE_SIZE) {
 		dev_warn_once(&spi->dev,
 			      "Unaligned spi tx-transfer bridging page\n");
 		return false;
