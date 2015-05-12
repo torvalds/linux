@@ -409,6 +409,36 @@ enum {
 
 #define TCA_BPF_MAX (__TCA_BPF_MAX - 1)
 
+/* Flower classifier */
+
+enum {
+	TCA_FLOWER_UNSPEC,
+	TCA_FLOWER_CLASSID,
+	TCA_FLOWER_INDEV,
+	TCA_FLOWER_ACT,
+	TCA_FLOWER_KEY_ETH_DST,		/* ETH_ALEN */
+	TCA_FLOWER_KEY_ETH_DST_MASK,	/* ETH_ALEN */
+	TCA_FLOWER_KEY_ETH_SRC,		/* ETH_ALEN */
+	TCA_FLOWER_KEY_ETH_SRC_MASK,	/* ETH_ALEN */
+	TCA_FLOWER_KEY_ETH_TYPE,	/* be16 */
+	TCA_FLOWER_KEY_IP_PROTO,	/* u8 */
+	TCA_FLOWER_KEY_IPV4_SRC,	/* be32 */
+	TCA_FLOWER_KEY_IPV4_SRC_MASK,	/* be32 */
+	TCA_FLOWER_KEY_IPV4_DST,	/* be32 */
+	TCA_FLOWER_KEY_IPV4_DST_MASK,	/* be32 */
+	TCA_FLOWER_KEY_IPV6_SRC,	/* struct in6_addr */
+	TCA_FLOWER_KEY_IPV6_SRC_MASK,	/* struct in6_addr */
+	TCA_FLOWER_KEY_IPV6_DST,	/* struct in6_addr */
+	TCA_FLOWER_KEY_IPV6_DST_MASK,	/* struct in6_addr */
+	TCA_FLOWER_KEY_TCP_SRC,		/* be16 */
+	TCA_FLOWER_KEY_TCP_DST,		/* be16 */
+	TCA_FLOWER_KEY_UDP_SRC,		/* be16 */
+	TCA_FLOWER_KEY_UDP_DST,		/* be16 */
+	__TCA_FLOWER_MAX,
+};
+
+#define TCA_FLOWER_MAX (__TCA_FLOWER_MAX - 1)
+
 /* Extended Matches */
 
 struct tcf_ematch_tree_hdr {
