@@ -2134,6 +2134,7 @@ static int filename_lookup(int dfd, struct filename *name, unsigned flags,
 	if (likely(!retval))
 		audit_inode(name, path->dentry, flags & LOOKUP_PARENT);
 	restore_nameidata(saved_nd);
+	putname(name);
 	return retval;
 }
 
@@ -2210,13 +2211,9 @@ int kern_path(const char *name, unsigned int flags, struct path *path)
 {
 	struct nameidata nd;
 	struct filename *filename = getname_kernel(name);
-	int res = PTR_ERR(filename);
-
-	if (!IS_ERR(filename)) {
-		res = filename_lookup(AT_FDCWD, filename, flags, &nd, path);
-		putname(filename);
-	}
-	return res;
+	if (IS_ERR(filename))
+		return PTR_ERR(filename);
+	return filename_lookup(AT_FDCWD, filename, flags, &nd, path);
 }
 EXPORT_SYMBOL(kern_path);
 
@@ -2232,21 +2229,19 @@ int vfs_path_lookup(struct dentry *dentry, struct vfsmount *mnt,
 		    const char *name, unsigned int flags,
 		    struct path *path)
 {
+	struct nameidata nd;
 	struct filename *filename = getname_kernel(name);
-	int err = PTR_ERR(filename);
 
 	BUG_ON(flags & LOOKUP_PARENT);
 
+	if (IS_ERR(filename))
+		return PTR_ERR(filename);
+
+	nd.root.dentry = dentry;
+	nd.root.mnt = mnt;
 	/* the first argument of filename_lookup() is ignored with LOOKUP_ROOT */
-	if (!IS_ERR(filename)) {
-		struct nameidata nd;
-		nd.root.dentry = dentry;
-		nd.root.mnt = mnt;
-		err = filename_lookup(AT_FDCWD, filename,
+	return filename_lookup(AT_FDCWD, filename,
 				      flags | LOOKUP_ROOT, &nd, path);
-		putname(filename);
-	}
-	return err;
 }
 EXPORT_SYMBOL(vfs_path_lookup);
 
@@ -2306,15 +2301,12 @@ int user_path_at_empty(int dfd, const char __user *name, unsigned flags,
 {
 	struct nameidata nd;
 	struct filename *tmp = getname_flags(name, flags, empty);
-	int err = PTR_ERR(tmp);
-	if (!IS_ERR(tmp)) {
+	if (IS_ERR(tmp))
+		return PTR_ERR(tmp);
 
-		BUG_ON(flags & LOOKUP_PARENT);
+	BUG_ON(flags & LOOKUP_PARENT);
 
-		err = filename_lookup(dfd, tmp, flags, &nd, path);
-		putname(tmp);
-	}
-	return err;
+	return filename_lookup(dfd, tmp, flags, &nd, path);
 }
 
 int user_path_at(int dfd, const char __user *name, unsigned flags,
