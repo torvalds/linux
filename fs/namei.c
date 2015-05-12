@@ -498,6 +498,8 @@ struct nameidata {
 	struct qstr	last;
 	struct path	root;
 	struct inode	*inode; /* path.dentry.d_inode */
+	struct filename	*name;
+	int		dfd;
 	unsigned int	flags;
 	unsigned	seq, m_seq, root_seq;
 	int		last_type;
@@ -512,10 +514,13 @@ struct nameidata {
 	} *stack, internal[EMBEDDED_LEVELS];
 };
 
-static struct nameidata *set_nameidata(struct nameidata *p)
+static struct nameidata *set_nameidata(struct nameidata *p, int dfd,
+					struct filename *name)
 {
 	struct nameidata *old = current->nameidata;
 	p->stack = p->internal;
+	p->dfd = dfd;
+	p->name = name;
 	p->total_link_count = old ? old->total_link_count : 0;
 	current->nameidata = p;
 	return old;
@@ -1954,11 +1959,10 @@ OK:
 	}
 }
 
-static const char *path_init(int dfd, const struct filename *name,
-			     unsigned int flags, struct nameidata *nd)
+static const char *path_init(struct nameidata *nd, unsigned flags)
 {
 	int retval = 0;
-	const char *s = name->name;
+	const char *s = nd->name->name;
 
 	nd->last_type = LAST_ROOT; /* if there are only slashes... */
 	nd->flags = flags | LOOKUP_JUMPED | LOOKUP_PARENT;
@@ -1999,7 +2003,7 @@ static const char *path_init(int dfd, const struct filename *name,
 			path_get(&nd->root);
 		}
 		nd->path = nd->root;
-	} else if (dfd == AT_FDCWD) {
+	} else if (nd->dfd == AT_FDCWD) {
 		if (flags & LOOKUP_RCU) {
 			struct fs_struct *fs = current->fs;
 			unsigned seq;
@@ -2016,7 +2020,7 @@ static const char *path_init(int dfd, const struct filename *name,
 		}
 	} else {
 		/* Caller must check execute permissions on the starting path component */
-		struct fd f = fdget_raw(dfd);
+		struct fd f = fdget_raw(nd->dfd);
 		struct dentry *dentry;
 
 		if (!f.file)
@@ -2082,10 +2086,9 @@ static inline int lookup_last(struct nameidata *nd)
 }
 
 /* Returns 0 and nd will be valid on success; Retuns error, otherwise. */
-static int path_lookupat(int dfd, const struct filename *name, unsigned flags,
-			 struct nameidata *nd, struct path *path)
+static int path_lookupat(struct nameidata *nd, unsigned flags, struct path *path)
 {
-	const char *s = path_init(dfd, name, flags, nd);
+	const char *s = path_init(nd, flags);
 	int err;
 
 	if (IS_ERR(s))
@@ -2120,17 +2123,16 @@ static int filename_lookup(int dfd, struct filename *name, unsigned flags,
 	struct nameidata nd, *saved_nd;
 	if (IS_ERR(name))
 		return PTR_ERR(name);
-	saved_nd = set_nameidata(&nd);
+	saved_nd = set_nameidata(&nd, dfd, name);
 	if (unlikely(root)) {
 		nd.root = *root;
 		flags |= LOOKUP_ROOT;
 	}
-	retval = path_lookupat(dfd, name, flags | LOOKUP_RCU, &nd, path);
+	retval = path_lookupat(&nd, flags | LOOKUP_RCU, path);
 	if (unlikely(retval == -ECHILD))
-		retval = path_lookupat(dfd, name, flags, &nd, path);
+		retval = path_lookupat(&nd, flags, path);
 	if (unlikely(retval == -ESTALE))
-		retval = path_lookupat(dfd, name, flags | LOOKUP_REVAL,
-				       &nd, path);
+		retval = path_lookupat(&nd, flags | LOOKUP_REVAL, path);
 
 	if (likely(!retval))
 		audit_inode(name, path->dentry, flags & LOOKUP_PARENT);
@@ -2140,11 +2142,10 @@ static int filename_lookup(int dfd, struct filename *name, unsigned flags,
 }
 
 /* Returns 0 and nd will be valid on success; Retuns error, otherwise. */
-static int path_parentat(int dfd, const struct filename *name,
-				unsigned int flags, struct nameidata *nd,
+static int path_parentat(struct nameidata *nd, unsigned flags,
 				struct path *parent)
 {
-	const char *s = path_init(dfd, name, flags, nd);
+	const char *s = path_init(nd, flags);
 	int err;
 	if (IS_ERR(s))
 		return PTR_ERR(s);
@@ -2169,13 +2170,12 @@ static struct filename *filename_parentat(int dfd, struct filename *name,
 
 	if (IS_ERR(name))
 		return name;
-	saved_nd = set_nameidata(&nd);
-	retval = path_parentat(dfd, name, flags | LOOKUP_RCU, &nd, parent);
+	saved_nd = set_nameidata(&nd, dfd, name);
+	retval = path_parentat(&nd, flags | LOOKUP_RCU, parent);
 	if (unlikely(retval == -ECHILD))
-		retval = path_parentat(dfd, name, flags, &nd, parent);
+		retval = path_parentat(&nd, flags, parent);
 	if (unlikely(retval == -ESTALE))
-		retval = path_parentat(dfd, name, flags | LOOKUP_REVAL,
-					&nd, parent);
+		retval = path_parentat(&nd, flags | LOOKUP_REVAL, parent);
 	if (likely(!retval)) {
 		*last = nd.last;
 		*type = nd.last_type;
@@ -2415,19 +2415,17 @@ done:
 
 /**
  * path_mountpoint - look up a path to be umounted
- * @dfd:	directory file descriptor to start walk from
- * @name:	full pathname to walk
- * @path:	pointer to container for result
+ * @nameidata:	lookup context
  * @flags:	lookup flags
+ * @path:	pointer to container for result
  *
  * Look up the given name, but don't attempt to revalidate the last component.
  * Returns 0 and "path" will be valid on success; Returns error otherwise.
  */
 static int
-path_mountpoint(int dfd, const struct filename *name, struct path *path,
-		struct nameidata *nd, unsigned int flags)
+path_mountpoint(struct nameidata *nd, unsigned flags, struct path *path)
 {
-	const char *s = path_init(dfd, name, flags, nd);
+	const char *s = path_init(nd, flags);
 	int err;
 	if (IS_ERR(s))
 		return PTR_ERR(s);
@@ -2451,12 +2449,12 @@ filename_mountpoint(int dfd, struct filename *name, struct path *path,
 	int error;
 	if (IS_ERR(name))
 		return PTR_ERR(name);
-	saved = set_nameidata(&nd);
-	error = path_mountpoint(dfd, name, path, &nd, flags | LOOKUP_RCU);
+	saved = set_nameidata(&nd, dfd, name);
+	error = path_mountpoint(&nd, flags | LOOKUP_RCU, path);
 	if (unlikely(error == -ECHILD))
-		error = path_mountpoint(dfd, name, path, &nd, flags);
+		error = path_mountpoint(&nd, flags, path);
 	if (unlikely(error == -ESTALE))
-		error = path_mountpoint(dfd, name, path, &nd, flags | LOOKUP_REVAL);
+		error = path_mountpoint(&nd, flags | LOOKUP_REVAL, path);
 	if (likely(!error))
 		audit_inode(name, path->dentry, 0);
 	restore_nameidata(saved);
@@ -3217,8 +3215,7 @@ stale_open:
 	goto retry_lookup;
 }
 
-static int do_tmpfile(int dfd, struct filename *pathname,
-		struct nameidata *nd, int flags,
+static int do_tmpfile(struct nameidata *nd, unsigned flags,
 		const struct open_flags *op,
 		struct file *file, int *opened)
 {
@@ -3226,8 +3223,7 @@ static int do_tmpfile(int dfd, struct filename *pathname,
 	struct dentry *child;
 	struct inode *dir;
 	struct path path;
-	int error = path_lookupat(dfd, pathname,
-				  flags | LOOKUP_DIRECTORY, nd, &path);
+	int error = path_lookupat(nd, flags | LOOKUP_DIRECTORY, &path);
 	if (unlikely(error))
 		return error;
 	error = mnt_want_write(path.mnt);
@@ -3252,7 +3248,7 @@ static int do_tmpfile(int dfd, struct filename *pathname,
 	error = dir->i_op->tmpfile(dir, child, op->mode);
 	if (error)
 		goto out2;
-	audit_inode(pathname, child, 0);
+	audit_inode(nd->name, child, 0);
 	/* Don't check for other permissions, the inode was just created */
 	error = may_open(&path, MAY_OPEN, op->open_flag);
 	if (error)
@@ -3277,8 +3273,8 @@ out:
 	return error;
 }
 
-static struct file *path_openat(int dfd, struct filename *pathname,
-		struct nameidata *nd, const struct open_flags *op, int flags)
+static struct file *path_openat(struct nameidata *nd,
+			const struct open_flags *op, unsigned flags)
 {
 	const char *s;
 	struct file *file;
@@ -3292,17 +3288,17 @@ static struct file *path_openat(int dfd, struct filename *pathname,
 	file->f_flags = op->open_flag;
 
 	if (unlikely(file->f_flags & __O_TMPFILE)) {
-		error = do_tmpfile(dfd, pathname, nd, flags, op, file, &opened);
+		error = do_tmpfile(nd, flags, op, file, &opened);
 		goto out2;
 	}
 
-	s = path_init(dfd, pathname, flags, nd);
+	s = path_init(nd, flags);
 	if (IS_ERR(s)) {
 		put_filp(file);
 		return ERR_CAST(s);
 	}
 	while (!(error = link_path_walk(s, nd)) &&
-		(error = do_last(nd, file, op, &opened, pathname)) > 0) {
+		(error = do_last(nd, file, op, &opened, nd->name)) > 0) {
 		nd->flags &= ~(LOOKUP_OPEN|LOOKUP_CREATE|LOOKUP_EXCL);
 		s = trailing_symlink(nd);
 		if (IS_ERR(s)) {
@@ -3331,15 +3327,15 @@ out2:
 struct file *do_filp_open(int dfd, struct filename *pathname,
 		const struct open_flags *op)
 {
-	struct nameidata nd, *saved_nd = set_nameidata(&nd);
+	struct nameidata nd, *saved_nd = set_nameidata(&nd, dfd, pathname);
 	int flags = op->lookup_flags;
 	struct file *filp;
 
-	filp = path_openat(dfd, pathname, &nd, op, flags | LOOKUP_RCU);
+	filp = path_openat(&nd, op, flags | LOOKUP_RCU);
 	if (unlikely(filp == ERR_PTR(-ECHILD)))
-		filp = path_openat(dfd, pathname, &nd, op, flags);
+		filp = path_openat(&nd, op, flags);
 	if (unlikely(filp == ERR_PTR(-ESTALE)))
-		filp = path_openat(dfd, pathname, &nd, op, flags | LOOKUP_REVAL);
+		filp = path_openat(&nd, op, flags | LOOKUP_REVAL);
 	restore_nameidata(saved_nd);
 	return filp;
 }
@@ -3362,12 +3358,12 @@ struct file *do_file_open_root(struct dentry *dentry, struct vfsmount *mnt,
 	if (unlikely(IS_ERR(filename)))
 		return ERR_CAST(filename);
 
-	saved_nd = set_nameidata(&nd);
-	file = path_openat(-1, filename, &nd, op, flags | LOOKUP_RCU);
+	saved_nd = set_nameidata(&nd, -1, filename);
+	file = path_openat(&nd, op, flags | LOOKUP_RCU);
 	if (unlikely(file == ERR_PTR(-ECHILD)))
-		file = path_openat(-1, filename, &nd, op, flags);
+		file = path_openat(&nd, op, flags);
 	if (unlikely(file == ERR_PTR(-ESTALE)))
-		file = path_openat(-1, filename, &nd, op, flags | LOOKUP_REVAL);
+		file = path_openat(&nd, op, flags | LOOKUP_REVAL);
 	restore_nameidata(saved_nd);
 	putname(filename);
 	return file;
