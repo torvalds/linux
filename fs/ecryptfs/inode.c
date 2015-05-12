@@ -170,7 +170,6 @@ out_unlock:
  * @directory_inode: inode of the new file's dentry's parent in ecryptfs
  * @ecryptfs_dentry: New file's dentry in ecryptfs
  * @mode: The mode of the new file
- * @nd: nameidata of ecryptfs' parent's dentry & vfsmount
  *
  * Creates the underlying file and the eCryptfs inode which will link to
  * it. It will also update the eCryptfs directory inode to mimic the
@@ -384,7 +383,7 @@ static int ecryptfs_lookup_interpose(struct dentry *dentry,
  * ecryptfs_lookup
  * @ecryptfs_dir_inode: The eCryptfs directory inode
  * @ecryptfs_dentry: The eCryptfs dentry that we are looking up
- * @ecryptfs_nd: nameidata; may be NULL
+ * @flags: lookup flags
  *
  * Find a file on disk. If the file does not exist, then we'll add it to the
  * dentry cache and continue on to read it from the disk.

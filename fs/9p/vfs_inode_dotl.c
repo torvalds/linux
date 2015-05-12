@@ -905,8 +905,7 @@ error:
 /**
  * v9fs_vfs_follow_link_dotl - follow a symlink path
  * @dentry: dentry for symlink
- * @nd: nameidata
- *
+ * @cookie: place to pass the data to put_link()
  */
 
 static const char *

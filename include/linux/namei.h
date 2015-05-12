@@ -7,7 +7,6 @@
 #include <linux/path.h>
 
 struct vfsmount;
-struct nameidata;
 
 enum { MAX_NESTED_LINKS = 8 };
 

@@ -1226,8 +1226,7 @@ ino_t v9fs_qid2ino(struct p9_qid *qid)
 /**
  * v9fs_vfs_follow_link - follow a symlink path
  * @dentry: dentry for symlink
- * @nd: nameidata
- *
+ * @cookie: place to pass the data to put_link()
  */
 
 static const char *v9fs_vfs_follow_link(struct dentry *dentry, void **cookie)

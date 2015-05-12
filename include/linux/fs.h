@@ -38,7 +38,6 @@ struct backing_dev_info;
 struct export_operations;
 struct hd_geometry;
 struct iovec;
-struct nameidata;
 struct kiocb;
 struct kobject;
 struct pipe_inode_info;

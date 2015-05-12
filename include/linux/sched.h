@@ -132,6 +132,7 @@ struct fs_struct;
 struct perf_event_context;
 struct blk_plug;
 struct filename;
+struct nameidata;
 
 #define VMACACHE_BITS 2
 #define VMACACHE_SIZE (1U << VMACACHE_BITS)
