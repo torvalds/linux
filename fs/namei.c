@@ -1018,21 +1018,6 @@ const char *get_link(struct nameidata *nd)
 	return res;
 }
 
-static int follow_up_rcu(struct path *path)
-{
-	struct mount *mnt = real_mount(path->mnt);
-	struct mount *parent;
-	struct dentry *mountpoint;
-
-	parent = mnt->mnt_parent;
-	if (&parent->mnt == path->mnt)
-		return 0;
-	mountpoint = mnt->mnt_mountpoint;
-	path->dentry = mountpoint;
-	path->mnt = &parent->mnt;
-	return 1;
-}
-
 /*
  * follow_up - Find the mountpoint of path's vfsmount
  *
@@ -1289,10 +1274,8 @@ static int follow_dotdot_rcu(struct nameidata *nd)
 		set_root_rcu(nd);
 
 	while (1) {
-		if (nd->path.dentry == nd->root.dentry &&
-		    nd->path.mnt == nd->root.mnt) {
+		if (path_equal(&nd->path, &nd->root))
 			break;
-		}
 		if (nd->path.dentry != nd->path.mnt->mnt_root) {
 			struct dentry *old = nd->path.dentry;
 			struct dentry *parent = old->d_parent;
@@ -1300,34 +1283,42 @@ static int follow_dotdot_rcu(struct nameidata *nd)
 
 			inode = parent->d_inode;
 			seq = read_seqcount_begin(&parent->d_seq);
-			if (read_seqcount_retry(&old->d_seq, nd->seq))
-				goto failed;
+			if (unlikely(read_seqcount_retry(&old->d_seq, nd->seq)))
+				return -ECHILD;
 			nd->path.dentry = parent;
 			nd->seq = seq;
 			break;
+		} else {
+			struct mount *mnt = real_mount(nd->path.mnt);
+			struct mount *mparent = mnt->mnt_parent;
+			struct dentry *mountpoint = mnt->mnt_mountpoint;
+			struct inode *inode2 = mountpoint->d_inode;
+			unsigned seq = read_seqcount_begin(&mountpoint->d_seq);
+			if (unlikely(read_seqretry(&mount_lock, nd->m_seq)))
+				return -ECHILD;
+			if (&mparent->mnt == nd->path.mnt)
+				break;
+			/* we know that mountpoint was pinned */
+			nd->path.dentry = mountpoint;
+			nd->path.mnt = &mparent->mnt;
+			inode = inode2;
+			nd->seq = seq;
 		}
-		if (!follow_up_rcu(&nd->path))
-			break;
-		inode = nd->path.dentry->d_inode;
-		nd->seq = read_seqcount_begin(&nd->path.dentry->d_seq);
 	}
-	while (d_mountpoint(nd->path.dentry)) {
+	while (unlikely(d_mountpoint(nd->path.dentry))) {
 		struct mount *mounted;
 		mounted = __lookup_mnt(nd->path.mnt, nd->path.dentry);
+		if (unlikely(read_seqretry(&mount_lock, nd->m_seq)))
+			return -ECHILD;
 		if (!mounted)
 			break;
 		nd->path.mnt = &mounted->mnt;
 		nd->path.dentry = mounted->mnt.mnt_root;
 		inode = nd->path.dentry->d_inode;
 		nd->seq = read_seqcount_begin(&nd->path.dentry->d_seq);
-		if (read_seqretry(&mount_lock, nd->m_seq))
-			goto failed;
 	}
 	nd->inode = inode;
 	return 0;
-
-failed:
-	return -ECHILD;
 }
 
 /*
