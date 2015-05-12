@@ -47,9 +47,6 @@ static inline __be32 skb_flow_get_ports(const struct sk_buff *skb,
 
 u32 flow_hash_from_keys(struct flow_keys *keys);
 
-unsigned int flow_get_hlen(const unsigned char *data, unsigned int max_len,
-			   __be16 protocol);
-
 /* struct flow_keys_digest:
  *
  * This structure is used to hold a digest of the full flow keys. This is a
