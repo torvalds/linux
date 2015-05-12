@@ -1644,7 +1644,7 @@ static void macb_init_hw(struct macb *bp)
 	config |= MACB_BF(RBOF, NET_IP_ALIGN);	/* Make eth data aligned */
 	config |= MACB_BIT(PAE);		/* PAuse Enable */
 	config |= MACB_BIT(DRFCS);		/* Discard Rx FCS */
-	if (bp->caps | MACB_CAPS_JUMBO)
+	if (bp->caps & MACB_CAPS_JUMBO)
 		config |= MACB_BIT(JFRAME);	/* Enable jumbo frames */
 	else
 		config |= MACB_BIT(BIG);	/* Receive oversized frames */
@@ -1656,12 +1656,12 @@ static void macb_init_hw(struct macb *bp)
 		config |= MACB_BIT(NBC);	/* No BroadCast */
 	config |= macb_dbw(bp);
 	macb_writel(bp, NCFGR, config);
-	if ((bp->caps | MACB_CAPS_JUMBO) && bp->jumbo_max_len)
+	if ((bp->caps & MACB_CAPS_JUMBO) && bp->jumbo_max_len)
 		gem_writel(bp, JML, bp->jumbo_max_len);
 	bp->speed = SPEED_10;
 	bp->duplex = DUPLEX_HALF;
 	bp->rx_frm_len_mask = MACB_RX_FRMLEN_MASK;
-	if (bp->caps | MACB_CAPS_JUMBO)
+	if (bp->caps & MACB_CAPS_JUMBO)
 		bp->rx_frm_len_mask = MACB_RX_JFRMLEN_MASK;
 
 	macb_configure_dma(bp);
@@ -1875,7 +1875,7 @@ static int macb_change_mtu(struct net_device *dev, int new_mtu)
 		return -EBUSY;
 
 	max_mtu = ETH_DATA_LEN;
-	if (bp->caps | MACB_CAPS_JUMBO)
+	if (bp->caps & MACB_CAPS_JUMBO)
 		max_mtu = gem_readl(bp, JML) - ETH_HLEN - ETH_FCS_LEN;
 
 	if ((new_mtu > max_mtu) || (new_mtu < GEM_MTU_MIN_SIZE))
