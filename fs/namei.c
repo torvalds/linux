@@ -2992,7 +2992,7 @@ out_dput:
  */
 static int do_last(struct nameidata *nd,
 		   struct file *file, const struct open_flags *op,
-		   int *opened, struct filename *name)
+		   int *opened)
 {
 	struct dentry *dir = nd->path.dentry;
 	int open_flag = op->open_flag;
@@ -3039,7 +3039,7 @@ static int do_last(struct nameidata *nd,
 		if (error)
 			return error;
 
-		audit_inode(name, dir, LOOKUP_PARENT);
+		audit_inode(nd->name, dir, LOOKUP_PARENT);
 		/* trailing slashes? */
 		if (unlikely(nd->last.name[nd->last.len]))
 			return -EISDIR;
@@ -3068,7 +3068,7 @@ retry_lookup:
 		    !S_ISREG(file_inode(file)->i_mode))
 			will_truncate = false;
 
-		audit_inode(name, file->f_path.dentry, 0);
+		audit_inode(nd->name, file->f_path.dentry, 0);
 		goto opened;
 	}
 
@@ -3085,7 +3085,7 @@ retry_lookup:
 	 * create/update audit record if it already exists.
 	 */
 	if (d_is_positive(path.dentry))
-		audit_inode(name, path.dentry, 0);
+		audit_inode(nd->name, path.dentry, 0);
 
 	/*
 	 * If atomic_open() acquired write access it is dropped now due to
@@ -3143,7 +3143,7 @@ finish_open:
 		path_put(&save_parent);
 		return error;
 	}
-	audit_inode(name, nd->path.dentry, 0);
+	audit_inode(nd->name, nd->path.dentry, 0);
 	error = -EISDIR;
 	if ((open_flag & O_CREAT) && d_is_dir(nd->path.dentry))
 		goto out;
@@ -3298,7 +3298,7 @@ static struct file *path_openat(struct nameidata *nd,
 		return ERR_CAST(s);
 	}
 	while (!(error = link_path_walk(s, nd)) &&
-		(error = do_last(nd, file, op, &opened, nd->name)) > 0) {
+		(error = do_last(nd, file, op, &opened)) > 0) {
 		nd->flags &= ~(LOOKUP_OPEN|LOOKUP_CREATE|LOOKUP_EXCL);
 		s = trailing_symlink(nd);
 		if (IS_ERR(s)) {
