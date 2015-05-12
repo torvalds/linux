@@ -6181,6 +6181,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 	{ },
 };
 
+#ifdef CONFIG_PINCTRL_PFC_R8A7791
 const struct sh_pfc_soc_info r8a7791_pinmux_info = {
 	.name = "r8a77910_pfc",
 	.unlock_reg = 0xe6060000, /* PMMR */
@@ -6199,3 +6200,25 @@ const struct sh_pfc_soc_info r8a7791_pinmux_info = {
 	.gpio_data = pinmux_data,
 	.gpio_data_size = ARRAY_SIZE(pinmux_data),
 };
+#endif
+
+#ifdef CONFIG_PINCTRL_PFC_R8A7793
+const struct sh_pfc_soc_info r8a7793_pinmux_info = {
+	.name = "r8a77930_pfc",
+	.unlock_reg = 0xe6060000, /* PMMR */
+
+	.function = { PINMUX_FUNCTION_BEGIN, PINMUX_FUNCTION_END },
+
+	.pins = pinmux_pins,
+	.nr_pins = ARRAY_SIZE(pinmux_pins),
+	.groups = pinmux_groups,
+	.nr_groups = ARRAY_SIZE(pinmux_groups),
+	.functions = pinmux_functions,
+	.nr_functions = ARRAY_SIZE(pinmux_functions),
+
+	.cfg_regs = pinmux_config_regs,
+
+	.gpio_data = pinmux_data,
+	.gpio_data_size = ARRAY_SIZE(pinmux_data),
+};
+#endif
