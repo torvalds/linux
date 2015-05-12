@@ -32,7 +32,7 @@
 #include "hda_controller.h"
 
 #define CREATE_TRACE_POINTS
-#include "hda_intel_trace.h"
+#include "hda_controller_trace.h"
 
 /* DSP lock helpers */
 #define dsp_lock(dev)		snd_hdac_dsp_lock(azx_stream(dev))
@@ -95,6 +95,7 @@ static int azx_pcm_close(struct snd_pcm_substream *substream)
 	struct azx *chip = apcm->chip;
 	struct azx_dev *azx_dev = get_azx_dev(substream);
 
+	trace_azx_pcm_close(chip, azx_dev);
 	mutex_lock(&chip->open_mutex);
 	azx_release_device(azx_dev);
 	if (hinfo->ops.close)
@@ -113,6 +114,7 @@ static int azx_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct azx_dev *azx_dev = get_azx_dev(substream);
 	int ret;
 
+	trace_azx_pcm_hw_params(chip, azx_dev);
 	dsp_lock(azx_dev);
 	if (dsp_is_locked(azx_dev)) {
 		ret = -EBUSY;
@@ -163,6 +165,7 @@ static int azx_pcm_prepare(struct snd_pcm_substream *substream)
 		snd_hda_spdif_out_of_nid(apcm->codec, hinfo->nid);
 	unsigned short ctls = spdif ? spdif->ctls : 0;
 
+	trace_azx_pcm_prepare(chip, azx_dev);
 	dsp_lock(azx_dev);
 	if (dsp_is_locked(azx_dev)) {
 		err = -EBUSY;
@@ -403,6 +406,7 @@ static int azx_pcm_open(struct snd_pcm_substream *substream)
 	snd_hda_codec_pcm_get(apcm->info);
 	mutex_lock(&chip->open_mutex);
 	azx_dev = azx_assign_device(chip, substream);
+	trace_azx_pcm_open(chip, azx_dev);
 	if (azx_dev == NULL) {
 		err = -EBUSY;
 		goto unlock;
