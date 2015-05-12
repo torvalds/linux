@@ -101,6 +101,9 @@ int amdgpu_sync_resv(struct amdgpu_device *adev,
 	unsigned i;
 	int r = 0;
 
+	if (resv == NULL)
+		return -EINVAL;
+
 	/* always sync to the exclusive fence */
 	f = reservation_object_get_excl(resv);
 	fence = f ? to_amdgpu_fence(f) : NULL;
@@ -116,12 +119,12 @@ int amdgpu_sync_resv(struct amdgpu_device *adev,
 	for (i = 0; i < flist->shared_count; ++i) {
 		f = rcu_dereference_protected(flist->shared[i],
 					      reservation_object_held(resv));
-		fence = to_amdgpu_fence(f);
+		fence = f ? to_amdgpu_fence(f) : NULL;
 		if (fence && fence->ring->adev == adev) {
 			if (fence->owner != owner ||
 			    fence->owner == AMDGPU_FENCE_OWNER_UNDEFINED)
 				amdgpu_sync_fence(sync, fence);
-		} else {
+		} else if (f) {
 			r = fence_wait(f, true);
 			if (r)
 				break;
