@@ -162,53 +162,34 @@ static u32 dsi_clk_from_pclk(u32 pclk, int pixel_format, int lane_count)
 
 #endif
 
-static int dsi_calc_mnp(u32 dsi_clk, struct dsi_mnp *dsi_mnp)
+static int dsi_calc_mnp(int target_dsi_clk, struct dsi_mnp *dsi_mnp)
 {
-	u32 m, n, p;
-	u32 ref_clk;
-	u32 error;
-	u32 tmp_error;
-	int target_dsi_clk;
-	int calc_dsi_clk;
-	u32 calc_m;
-	u32 calc_p;
+	unsigned int calc_m = 0, calc_p = 0;
+	unsigned int m, n, p;
+	int ref_clk = 25000;
+	int delta = target_dsi_clk;
 	u32 m_seed;
 
-	/* dsi_clk is expected in KHZ */
-	if (dsi_clk < 300000 || dsi_clk > 1150000) {
+	/* target_dsi_clk is expected in kHz */
+	if (target_dsi_clk < 300000 || target_dsi_clk > 1150000) {
 		DRM_ERROR("DSI CLK Out of Range\n");
 		return -ECHRNG;
 	}
 
-	ref_clk = 25000;
-	target_dsi_clk = dsi_clk;
-	error = 0xFFFFFFFF;
-	tmp_error = 0xFFFFFFFF;
-	calc_m = 0;
-	calc_p = 0;
-
-	for (m = 62; m <= 92; m++) {
-		for (p = 2; p <= 6; p++) {
-			/* Find the optimal m and p divisors
-			   with minimal error +/- the required clock */
-			calc_dsi_clk = (m * ref_clk) / p;
-			if (calc_dsi_clk == target_dsi_clk) {
-				calc_m = m;
-				calc_p = p;
-				error = 0;
-				break;
-			} else
-				tmp_error = abs(target_dsi_clk - calc_dsi_clk);
-
-			if (tmp_error < error) {
-				error = tmp_error;
+	for (m = 62; m <= 92 && delta; m++) {
+		for (p = 2; p <= 6 && delta; p++) {
+			/*
+			 * Find the optimal m and p divisors with minimal delta
+			 * +/- the required clock
+			 */
+			int calc_dsi_clk = (m * ref_clk) / p;
+			int d = abs(target_dsi_clk - calc_dsi_clk);
+			if (d < delta) {
+				delta = d;
 				calc_m = m;
 				calc_p = p;
 			}
 		}
-
-		if (error == 0)
-			break;
 	}
 
 	m_seed = lfsr_converts[calc_m - 62];
