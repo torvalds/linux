@@ -9558,6 +9558,13 @@ F:	arch/arc/
 F:	Documentation/devicetree/bindings/arc/
 F:	drivers/tty/serial/arc_uart.c
 
+SYSTEM CONFIGURATION (SYSCON)
+M:	Lee Jones <lee.jones@linaro.org>
+M:	Arnd Bergmann <arnd@arndb.de>
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lee/mfd.git
+S:	Supported
+F:	drivers/mfd/syscon.c
+
 SYSV FILESYSTEM
 M:	Christoph Hellwig <hch@infradead.org>
 S:	Maintained
