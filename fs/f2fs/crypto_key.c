@@ -148,14 +148,14 @@ int _f2fs_get_encryption_info(struct inode *inode)
 	memcpy(crypt_info->ci_master_key, ctx.master_key_descriptor,
 				sizeof(crypt_info->ci_master_key));
 	if (S_ISREG(inode->i_mode))
-		crypt_info->ci_mode = ctx.contents_encryption_mode;
+		crypt_info->ci_size =
+			f2fs_encryption_key_size(crypt_info->ci_data_mode);
 	else if (S_ISDIR(inode->i_mode) || S_ISLNK(inode->i_mode))
-		crypt_info->ci_mode = ctx.filenames_encryption_mode;
-	else {
-		printk(KERN_ERR "f2fs crypto: Unsupported inode type.\n");
+		crypt_info->ci_size =
+			f2fs_encryption_key_size(crypt_info->ci_filename_mode);
+	else
 		BUG();
-	}
-	crypt_info->ci_size = f2fs_encryption_key_size(crypt_info->ci_mode);
+
 	BUG_ON(!crypt_info->ci_size);
 
 	memcpy(full_key_descriptor, F2FS_KEY_DESC_PREFIX,

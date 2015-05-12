@@ -75,7 +75,6 @@ struct f2fs_encryption_key {
 } __attribute__((__packed__));
 
 struct f2fs_crypt_info {
-	unsigned char	ci_mode;
 	unsigned char	ci_size;
 	char		ci_data_mode;
 	char		ci_filename_mode;

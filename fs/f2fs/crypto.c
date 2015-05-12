@@ -151,14 +151,13 @@ struct f2fs_crypto_ctx *f2fs_get_crypto_ctx(struct inode *inode)
 	 * Allocate a new Crypto API context if we don't already have
 	 * one or if it isn't the right mode.
 	 */
-	BUG_ON(ci->ci_mode == F2FS_ENCRYPTION_MODE_INVALID);
-	if (ctx->tfm && (ctx->mode != ci->ci_mode)) {
+	if (ctx->tfm && (ctx->mode != ci->ci_data_mode)) {
 		crypto_free_tfm(ctx->tfm);
 		ctx->tfm = NULL;
 		ctx->mode = F2FS_ENCRYPTION_MODE_INVALID;
 	}
 	if (!ctx->tfm) {
-		switch (ci->ci_mode) {
+		switch (ci->ci_data_mode) {
 		case F2FS_ENCRYPTION_MODE_AES_256_XTS:
 			ctx->tfm = crypto_ablkcipher_tfm(
 				crypto_alloc_ablkcipher("xts(aes)", 0, 0));
@@ -178,9 +177,9 @@ struct f2fs_crypto_ctx *f2fs_get_crypto_ctx(struct inode *inode)
 			ctx->tfm = NULL;
 			goto out;
 		}
-		ctx->mode = ci->ci_mode;
+		ctx->mode = ci->ci_data_mode;
 	}
-	BUG_ON(ci->ci_size != f2fs_encryption_key_size(ci->ci_mode));
+	BUG_ON(ci->ci_size != f2fs_encryption_key_size(ci->ci_data_mode));
 
 	/*
 	 * There shouldn't be a bounce page attached to the crypto
@@ -388,7 +387,7 @@ static int f2fs_page_crypto(struct f2fs_crypto_ctx *ctx,
 	int res = 0;
 
 	BUG_ON(!ctx->tfm);
-	BUG_ON(ctx->mode != fi->i_crypt_info->ci_mode);
+	BUG_ON(ctx->mode != fi->i_crypt_info->ci_data_mode);
 
 	if (ctx->mode != F2FS_ENCRYPTION_MODE_AES_256_XTS) {
 		printk_ratelimited(KERN_ERR

@@ -269,9 +269,9 @@ int f2fs_setup_fname_crypto(struct inode *inode)
 	if (!ci || ci->ci_ctfm)
 		return 0;
 
-	if (ci->ci_mode != F2FS_ENCRYPTION_MODE_AES_256_CTS) {
+	if (ci->ci_filename_mode != F2FS_ENCRYPTION_MODE_AES_256_CTS) {
 		printk_once(KERN_WARNING "f2fs: unsupported key mode %d\n",
-				ci->ci_mode);
+				ci->ci_filename_mode);
 		return -ENOKEY;
 	}
 
