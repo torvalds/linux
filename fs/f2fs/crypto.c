@@ -66,6 +66,9 @@ static DEFINE_SPINLOCK(f2fs_crypto_ctx_lock);
 struct workqueue_struct *f2fs_read_workqueue;
 static DEFINE_MUTEX(crypto_init);
 
+static struct kmem_cache *f2fs_crypto_ctx_cachep;
+struct kmem_cache *f2fs_crypt_info_cachep;
+
 /**
  * f2fs_release_crypto_ctx() - Releases an encryption context
  * @ctx: The encryption context to release.
@@ -90,29 +93,12 @@ void f2fs_release_crypto_ctx(struct f2fs_crypto_ctx *ctx)
 	if (ctx->flags & F2FS_CTX_REQUIRES_FREE_ENCRYPT_FL) {
 		if (ctx->tfm)
 			crypto_free_tfm(ctx->tfm);
-		kfree(ctx);
+		kmem_cache_free(f2fs_crypto_ctx_cachep, ctx);
 	} else {
 		spin_lock_irqsave(&f2fs_crypto_ctx_lock, flags);
 		list_add(&ctx->free_list, &f2fs_free_crypto_ctxs);
 		spin_unlock_irqrestore(&f2fs_crypto_ctx_lock, flags);
 	}
-}
-
-/**
- * f2fs_alloc_and_init_crypto_ctx() - Allocates and inits an encryption context
- * @mask: The allocation mask.
- *
- * Return: An allocated and initialized encryption context on success. An error
- * value or NULL otherwise.
- */
-static struct f2fs_crypto_ctx *f2fs_alloc_and_init_crypto_ctx(gfp_t mask)
-{
-	struct f2fs_crypto_ctx *ctx = kzalloc(sizeof(struct f2fs_crypto_ctx),
-						mask);
-
-	if (!ctx)
-		return ERR_PTR(-ENOMEM);
-	return ctx;
 }
 
 /**
@@ -151,9 +137,9 @@ struct f2fs_crypto_ctx *f2fs_get_crypto_ctx(struct inode *inode)
 		list_del(&ctx->free_list);
 	spin_unlock_irqrestore(&f2fs_crypto_ctx_lock, flags);
 	if (!ctx) {
-		ctx = f2fs_alloc_and_init_crypto_ctx(GFP_NOFS);
-		if (IS_ERR(ctx)) {
-			res = PTR_ERR(ctx);
+		ctx = kmem_cache_zalloc(f2fs_crypto_ctx_cachep, GFP_NOFS);
+		if (!ctx) {
+			res = -ENOMEM;
 			goto out;
 		}
 		ctx->flags |= F2FS_CTX_REQUIRES_FREE_ENCRYPT_FL;
@@ -263,7 +249,7 @@ void f2fs_exit_crypto(void)
 		}
 		if (pos->tfm)
 			crypto_free_tfm(pos->tfm);
-		kfree(pos);
+		kmem_cache_free(f2fs_crypto_ctx_cachep, pos);
 	}
 	INIT_LIST_HEAD(&f2fs_free_crypto_ctxs);
 	if (f2fs_bounce_page_pool)
@@ -272,6 +258,12 @@ void f2fs_exit_crypto(void)
 	if (f2fs_read_workqueue)
 		destroy_workqueue(f2fs_read_workqueue);
 	f2fs_read_workqueue = NULL;
+	if (f2fs_crypto_ctx_cachep)
+		kmem_cache_destroy(f2fs_crypto_ctx_cachep);
+	f2fs_crypto_ctx_cachep = NULL;
+	if (f2fs_crypt_info_cachep)
+		kmem_cache_destroy(f2fs_crypt_info_cachep);
+	f2fs_crypt_info_cachep = NULL;
 }
 
 /**
@@ -284,24 +276,32 @@ void f2fs_exit_crypto(void)
  */
 int f2fs_init_crypto(void)
 {
-	int i, res;
+	int i, res = -ENOMEM;
 
 	mutex_lock(&crypto_init);
 	if (f2fs_read_workqueue)
 		goto already_initialized;
 
 	f2fs_read_workqueue = alloc_workqueue("f2fs_crypto", WQ_HIGHPRI, 0);
-	if (!f2fs_read_workqueue) {
-		res = -ENOMEM;
+	if (!f2fs_read_workqueue)
 		goto fail;
-	}
+
+	f2fs_crypto_ctx_cachep = KMEM_CACHE(f2fs_crypto_ctx,
+					    SLAB_RECLAIM_ACCOUNT);
+	if (!f2fs_crypto_ctx_cachep)
+		goto fail;
+
+	f2fs_crypt_info_cachep = KMEM_CACHE(f2fs_crypt_info,
+					    SLAB_RECLAIM_ACCOUNT);
+	if (!f2fs_crypt_info_cachep)
+		goto fail;
 
 	for (i = 0; i < num_prealloc_crypto_ctxs; i++) {
 		struct f2fs_crypto_ctx *ctx;
 
-		ctx = f2fs_alloc_and_init_crypto_ctx(GFP_KERNEL);
-		if (IS_ERR(ctx)) {
-			res = PTR_ERR(ctx);
+		ctx = kmem_cache_zalloc(f2fs_crypto_ctx_cachep, GFP_KERNEL);
+		if (!ctx) {
+			res = -ENOMEM;
 			goto fail;
 		}
 		list_add(&ctx->free_list, &f2fs_free_crypto_ctxs);

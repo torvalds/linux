@@ -99,7 +99,7 @@ void f2fs_free_encryption_info(struct inode *inode)
 		key_put(ci->ci_keyring_key);
 	crypto_free_ablkcipher(ci->ci_ctfm);
 	memzero_explicit(&ci->ci_raw, sizeof(ci->ci_raw));
-	kfree(ci);
+	kmem_cache_free(f2fs_crypt_info_cachep, ci);
 	fi->i_crypt_info = NULL;
 }
 
@@ -137,7 +137,7 @@ int _f2fs_get_encryption_info(struct inode *inode)
 		return -EINVAL;
 	res = 0;
 
-	crypt_info = kmalloc(sizeof(struct f2fs_crypt_info), GFP_NOFS);
+	crypt_info = kmem_cache_alloc(f2fs_crypt_info_cachep, GFP_NOFS);
 	if (!crypt_info)
 		return -ENOMEM;
 
@@ -187,7 +187,7 @@ out:
 	if (res < 0) {
 		if (res == -ENOKEY)
 			res = 0;
-		kfree(crypt_info);
+		kmem_cache_free(f2fs_crypt_info_cachep, crypt_info);
 	} else {
 		fi->i_crypt_info = crypt_info;
 		crypt_info->ci_keyring_key = keyring_key;
