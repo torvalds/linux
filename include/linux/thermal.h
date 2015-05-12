@@ -302,6 +302,17 @@ struct thermal_zone_params {
 
 	/* threshold below which the error is no longer accumulated */
 	s32 integral_cutoff;
+
+	/*
+	 * @slope:	slope of a linear temperature adjustment curve.
+	 * 		Used by thermal zone drivers.
+	 */
+	int slope;
+	/*
+	 * @offset:	offset of a linear temperature adjustment curve.
+	 * 		Used by thermal zone drivers (default 0).
+	 */
+	int offset;
 };
 
 struct thermal_genl_event {

@@ -944,6 +944,8 @@ create_s32_tzp_attr(k_pu);
 create_s32_tzp_attr(k_i);
 create_s32_tzp_attr(k_d);
 create_s32_tzp_attr(integral_cutoff);
+create_s32_tzp_attr(slope);
+create_s32_tzp_attr(offset);
 #undef create_s32_tzp_attr
 
 static struct device_attribute *dev_tzp_attrs[] = {
@@ -953,6 +955,8 @@ static struct device_attribute *dev_tzp_attrs[] = {
 	&dev_attr_k_i,
 	&dev_attr_k_d,
 	&dev_attr_integral_cutoff,
+	&dev_attr_slope,
+	&dev_attr_offset,
 };
 
 static int create_tzp_attrs(struct device *dev)

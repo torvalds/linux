@@ -190,6 +190,8 @@ Thermal zone device sys I/F, created once it's registered:
     |---k_i:                    PID's integral term in the power allocator gov
     |---k_d:                    PID's derivative term in the power allocator
     |---integral_cutoff:        Offset above which errors are accumulated
+    |---slope:                  Slope constant applied as linear extrapolation
+    |---offset:                 Offset constant applied as linear extrapolation
 
 Thermal cooling device sys I/F, created once it's registered:
 /sys/class/thermal/cooling_device[0-*]:
@@ -357,6 +359,20 @@ integral_cutoff
 	accumulates error when temperature is above the desired
 	temperature trip point. For more information see
 	Documentation/thermal/power_allocator.txt
+	RW, Optional
+
+slope
+	The slope constant used in a linear extrapolation model
+	to determine a hotspot temperature based off the sensor's
+	raw readings. It is up to the device driver to determine
+	the usage of these values.
+	RW, Optional
+
+offset
+	The offset constant used in a linear extrapolation model
+	to determine a hotspot temperature based off the sensor's
+	raw readings. It is up to the device driver to determine
+	the usage of these values.
 	RW, Optional
 
 *****************************
