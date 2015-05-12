@@ -432,7 +432,7 @@ static int pcf8563_probe(struct i2c_client *client,
 	}
 
 	err = pcf8563_get_alarm_mode(client, NULL, &alm_pending);
-	if (err < 0) {
+	if (err) {
 		dev_err(&client->dev, "%s: read error\n", __func__);
 		return err;
 	}
