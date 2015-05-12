@@ -1052,7 +1052,7 @@ int intel_plane_restore(struct drm_plane *plane)
 				       plane->state->src_w, plane->state->src_h);
 }
 
-static uint32_t ilk_plane_formats[] = {
+static const uint32_t ilk_plane_formats[] = {
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_YUYV,
 	DRM_FORMAT_YVYU,
@@ -1060,7 +1060,7 @@ static uint32_t ilk_plane_formats[] = {
 	DRM_FORMAT_VYUY,
 };
 
-static uint32_t snb_plane_formats[] = {
+static const uint32_t snb_plane_formats[] = {
 	DRM_FORMAT_XBGR8888,
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_YUYV,
@@ -1069,7 +1069,7 @@ static uint32_t snb_plane_formats[] = {
 	DRM_FORMAT_VYUY,
 };
 
-static uint32_t vlv_plane_formats[] = {
+static const uint32_t vlv_plane_formats[] = {
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_ABGR8888,
 	DRM_FORMAT_ARGB8888,
