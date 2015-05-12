@@ -75,7 +75,6 @@ obj-$(CONFIG_PATA_PDC_OLD)	+= pata_pdc202xx_old.o
 obj-$(CONFIG_PATA_RADISYS)	+= pata_radisys.o
 obj-$(CONFIG_PATA_RDC)		+= pata_rdc.o
 obj-$(CONFIG_PATA_SC1200)	+= pata_sc1200.o
-obj-$(CONFIG_PATA_SCC)		+= pata_scc.o
 obj-$(CONFIG_PATA_SCH)		+= pata_sch.o
 obj-$(CONFIG_PATA_SERVERWORKS)	+= pata_serverworks.o
 obj-$(CONFIG_PATA_SIL680)	+= pata_sil680.o
