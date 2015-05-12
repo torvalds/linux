@@ -3299,9 +3299,6 @@ static inline bool skb_rx_queue_recorded(const struct sk_buff *skb)
 	return skb->queue_mapping != 0;
 }
 
-u16 __skb_tx_hash(const struct net_device *dev, struct sk_buff *skb,
-		  unsigned int num_tx_queues);
-
 static inline struct sec_path *skb_sec_path(struct sk_buff *skb)
 {
 #ifdef CONFIG_XFRM
