@@ -123,7 +123,7 @@ static void gb_loopback_check_attr(struct gb_loopback *gb)
 {
 	if (gb->ms_wait > 1000)
 		gb->ms_wait = 1000;
-	if (gb->type > 3)
+	if (gb->type > 2)
 		gb->type = 0;
 	if (gb->size > GB_LOOPBACK_SIZE_MAX)
 		gb->size = GB_LOOPBACK_SIZE_MAX;
