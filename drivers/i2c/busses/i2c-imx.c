@@ -1024,8 +1024,8 @@ static int i2c_imx_probe(struct platform_device *pdev)
 		return ret;
 	}
 	/* Request IRQ */
-	ret = devm_request_irq(&pdev->dev, irq, i2c_imx_isr, 0,
-				pdev->name, i2c_imx);
+	ret = devm_request_irq(&pdev->dev, irq, i2c_imx_isr,
+			       IRQF_NO_SUSPEND, pdev->name, i2c_imx);
 	if (ret) {
 		dev_err(&pdev->dev, "can't claim irq %d\n", irq);
 		goto clk_disable;
