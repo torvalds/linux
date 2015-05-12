@@ -336,6 +336,8 @@ static void bdisp_device_run(void *priv)
 		goto out;
 	}
 
+	bdisp_dbg_perf_begin(bdisp);
+
 	err = bdisp_hw_reset(bdisp);
 	if (err) {
 		dev_err(bdisp->dev, "could not get HW ready\n");
@@ -1075,6 +1077,8 @@ static irqreturn_t bdisp_irq_thread(int irq, void *priv)
 
 	spin_lock(&bdisp->slock);
 
+	bdisp_dbg_perf_end(bdisp);
+
 	cancel_delayed_work(&bdisp->timeout_work);
 
 	if (!test_and_clear_bit(ST_M2M_RUNNING, &bdisp->state))
@@ -1247,6 +1251,8 @@ static int bdisp_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(&pdev->dev);
 
+	bdisp_debugfs_remove(bdisp);
+
 	v4l2_device_unregister(&bdisp->v4l2_dev);
 
 	if (!IS_ERR(bdisp->clock))
@@ -1328,12 +1334,19 @@ static int bdisp_probe(struct platform_device *pdev)
 		goto err_clk;
 	}
 
+	/* Debug */
+	ret = bdisp_debugfs_create(bdisp);
+	if (ret) {
+		dev_err(dev, "failed to create debugfs\n");
+		goto err_v4l2;
+	}
+
 	/* Power management */
 	pm_runtime_enable(dev);
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
 		dev_err(dev, "failed to set PM\n");
-		goto err_v4l2;
+		goto err_dbg;
 	}
 
 	/* Continuous memory allocator */
@@ -1370,6 +1383,8 @@ err_vb2_dma:
 	vb2_dma_contig_cleanup_ctx(bdisp->alloc_ctx);
 err_pm:
 	pm_runtime_put(dev);
+err_dbg:
+	bdisp_debugfs_remove(bdisp);
 err_v4l2:
 	v4l2_device_unregister(&bdisp->v4l2_dev);
 err_clk:

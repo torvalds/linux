@@ -741,6 +741,43 @@ static int bdisp_hw_build_all_nodes(struct bdisp_ctx *ctx)
 }
 
 /**
+ * bdisp_hw_save_request
+ * @ctx:        device context
+ *
+ * Save a copy of the request and of the built nodes
+ *
+ * RETURNS:
+ * None
+ */
+static void bdisp_hw_save_request(struct bdisp_ctx *ctx)
+{
+	struct bdisp_node **copy_node = ctx->bdisp_dev->dbg.copy_node;
+	struct bdisp_request *request = &ctx->bdisp_dev->dbg.copy_request;
+	struct bdisp_node **node = ctx->node;
+	int i;
+
+	/* Request copy */
+	request->src = ctx->src;
+	request->dst = ctx->dst;
+	request->hflip = ctx->hflip;
+	request->vflip = ctx->vflip;
+	request->nb_req++;
+
+	/* Nodes copy */
+	for (i = 0; i < MAX_NB_NODE; i++) {
+		/* Allocate memory if not done yet */
+		if (!copy_node[i]) {
+			copy_node[i] = devm_kzalloc(ctx->bdisp_dev->dev,
+						    sizeof(*copy_node),
+						    GFP_KERNEL);
+			if (!copy_node[i])
+				return;
+		}
+		copy_node[i] = node[i];
+	}
+}
+
+/**
  * bdisp_hw_update
  * @ctx:        device context
  *
@@ -764,6 +801,9 @@ int bdisp_hw_update(struct bdisp_ctx *ctx)
 		dev_err(dev, "cannot build nodes (%d)\n", ret);
 		return ret;
 	}
+
+	/* Save a copy of the request */
+	bdisp_hw_save_request(ctx);
 
 	/* Configure interrupt to 'Last Node Reached for AQ1' */
 	writel(BLT_AQ1_CTL_CFG, bdisp->regs + BLT_AQ1_CTL);

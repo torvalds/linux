@@ -141,6 +141,29 @@ struct bdisp_m2m_device {
 };
 
 /**
+ * struct bdisp_dbg - debug info
+ *
+ * @debugfs_entry: debugfs
+ * @copy_node:     array of last used nodes
+ * @copy_request:  last bdisp request
+ * @hw_start:      start time of last HW request
+ * @last_duration: last HW processing duration in microsecs
+ * @min_duration:  min HW processing duration in microsecs
+ * @max_duration:  max HW processing duration in microsecs
+ * @tot_duration:  total HW processing duration in microsecs
+ */
+struct bdisp_dbg {
+	struct dentry           *debugfs_entry;
+	struct bdisp_node       *copy_node[MAX_NB_NODE];
+	struct bdisp_request    copy_request;
+	ktime_t                 hw_start;
+	s64                     last_duration;
+	s64                     min_duration;
+	s64                     max_duration;
+	s64                     tot_duration;
+};
+
+/**
  * struct bdisp_dev - abstraction for bdisp entity
  *
  * @v4l2_dev:   v4l2 device
@@ -158,6 +181,7 @@ struct bdisp_m2m_device {
  * @irq_queue:  interrupt handler waitqueue
  * @work_queue: workqueue to handle timeouts
  * @timeout_work: IRQ timeout structure
+ * @dbg:        debug info
  */
 struct bdisp_dev {
 	struct v4l2_device      v4l2_dev;
@@ -175,6 +199,7 @@ struct bdisp_dev {
 	wait_queue_head_t       irq_queue;
 	struct workqueue_struct *work_queue;
 	struct delayed_work     timeout_work;
+	struct bdisp_dbg        dbg;
 };
 
 void bdisp_hw_free_nodes(struct bdisp_ctx *ctx);
@@ -184,3 +209,8 @@ int bdisp_hw_alloc_filters(struct device *dev);
 int bdisp_hw_reset(struct bdisp_dev *bdisp);
 int bdisp_hw_get_and_clear_irq(struct bdisp_dev *bdisp);
 int bdisp_hw_update(struct bdisp_ctx *ctx);
+
+void bdisp_debugfs_remove(struct bdisp_dev *bdisp);
+int bdisp_debugfs_create(struct bdisp_dev *bdisp);
+void bdisp_dbg_perf_begin(struct bdisp_dev *bdisp);
+void bdisp_dbg_perf_end(struct bdisp_dev *bdisp);
