@@ -112,7 +112,7 @@
  * used in the general case to determine whether sleeping is possible.
  * Do not use in_atomic() in driver code.
  */
-#define in_atomic()	((preempt_count() & ~PREEMPT_ACTIVE) != 0)
+#define in_atomic()	(preempt_count() != 0)
 
 /*
  * Check whether we were atomic before we did preempt_disable():
