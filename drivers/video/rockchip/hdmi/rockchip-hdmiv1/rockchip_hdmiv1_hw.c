@@ -866,8 +866,11 @@ static int rockchip_hdmiv1_enable(struct hdmi *hdmi_drv)
 {
 	struct hdmi_dev *hdmi_dev = hdmi_drv->property->priv;
 
-	if (!hdmi_dev->enable)
+	if (!hdmi_dev->enable) {
 		hdmi_dev->enable = 1;
+		hdmi_msk_reg(hdmi_dev, HDMI_STATUS,
+			     m_MASK_INT_HOTPLUG, v_MASK_INT_HOTPLUG(1));
+	}
 	hdmi_submit_work(hdmi_drv, HDMI_HPD_CHANGE, 10, NULL);
 	return 0;
 }
@@ -876,9 +879,11 @@ static int rockchip_hdmiv1_disable(struct hdmi *hdmi_drv)
 {
 	struct hdmi_dev *hdmi_dev = hdmi_drv->property->priv;
 
-	if (hdmi_dev->enable)
+	if (hdmi_dev->enable) {
 		hdmi_dev->enable = 0;
-
+		hdmi_msk_reg(hdmi_dev, HDMI_STATUS,
+			     m_MASK_INT_HOTPLUG, v_MASK_INT_HOTPLUG(0));
+	}
 	return 0;
 }
 
@@ -948,6 +953,8 @@ int rockchip_hdmiv1_initial(struct hdmi *hdmi_drv)
 	if (!hdmi_drv->uboot) {
 		rockchip_hdmiv1_reset_pclk();
 		rockchip_hdmiv1_reset(hdmi_drv);
+		hdmi_msk_reg(hdmi_dev, HDMI_STATUS,
+			     m_MASK_INT_HOTPLUG, v_MASK_INT_HOTPLUG(0));
 	} else if (hdmi_drv->ops->getstatus(hdmi_drv) == HDMI_HPD_REMOVED) {
 		rockchip_hdmiv1_removed(hdmi_drv);
 		hdmi_drv->lcdc->uboot_logo = 0;
