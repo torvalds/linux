@@ -558,11 +558,14 @@ static int philips_tda827x_tuner_init(struct dvb_frontend *fe)
 	struct tda1004x_state *state = fe->demodulator_priv;
 
 	switch (state->config->antenna_switch) {
-	case 0: break;
-	case 1:	pr_debug("setting GPIO21 to 0 (TV antenna?)\n");
+	case 0:
+		break;
+	case 1:
+		pr_debug("setting GPIO21 to 0 (TV antenna?)\n");
 		saa7134_set_gpio(dev, 21, 0);
 		break;
-	case 2: pr_debug("setting GPIO21 to 1 (Radio antenna?)\n");
+	case 2:
+		pr_debug("setting GPIO21 to 1 (Radio antenna?)\n");
 		saa7134_set_gpio(dev, 21, 1);
 		break;
 	}
@@ -575,11 +578,14 @@ static int philips_tda827x_tuner_sleep(struct dvb_frontend *fe)
 	struct tda1004x_state *state = fe->demodulator_priv;
 
 	switch (state->config->antenna_switch) {
-	case 0: break;
-	case 1: pr_debug("setting GPIO21 to 1 (Radio antenna?)\n");
+	case 0:
+		break;
+	case 1:
+		pr_debug("setting GPIO21 to 1 (Radio antenna?)\n");
 		saa7134_set_gpio(dev, 21, 1);
 		break;
-	case 2:	pr_debug("setting GPIO21 to 0 (TV antenna?)\n");
+	case 2:
+		pr_debug("setting GPIO21 to 0 (TV antenna?)\n");
 		saa7134_set_gpio(dev, 21, 0);
 		break;
 	}
@@ -1029,7 +1035,8 @@ static int md8800_set_voltage2(struct dvb_frontend *fe, fe_sec_voltage_t voltage
 
 static int md8800_set_high_voltage2(struct dvb_frontend *fe, long arg)
 {
-	pr_warn("%s: sorry can't set high LNB supply voltage from here\n", __func__);
+	pr_warn("%s: sorry can't set high LNB supply voltage from here\n",
+		__func__);
 	return -EIO;
 }
 
@@ -1388,13 +1395,15 @@ static int dvb_init(struct saa7134_dev *dev)
 			if (fe0->dvb.frontend) {
 				if (dvb_attach(tda826x_attach, fe0->dvb.frontend, 0x63,
 									&dev->i2c_adap, 0) == NULL) {
-					pr_warn("%s: Lifeview Trio, No tda826x found!\n", __func__);
+					pr_warn("%s: Lifeview Trio, No tda826x found!\n",
+						__func__);
 					goto detach_frontend;
 				}
 				if (dvb_attach(isl6421_attach, fe0->dvb.frontend,
 					       &dev->i2c_adap,
 					       0x08, 0, 0, false) == NULL) {
-					pr_warn("%s: Lifeview Trio, No ISL6421 found!\n", __func__);
+					pr_warn("%s: Lifeview Trio, No ISL6421 found!\n",
+						__func__);
 					goto detach_frontend;
 				}
 			}

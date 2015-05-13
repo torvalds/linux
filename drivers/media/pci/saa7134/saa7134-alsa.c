@@ -161,7 +161,8 @@ static void saa7134_irq_alsa_done(struct saa7134_dev *dev,
 	}
 
 	if (dev->dmasound.read_count >= dev->dmasound.blksize * (dev->dmasound.blocks-2)) {
-		pr_debug("irq: overrun [full=%d/%d] - Blocks in %d\n",dev->dmasound.read_count,
+		pr_debug("irq: overrun [full=%d/%d] - Blocks in %d\n",
+			dev->dmasound.read_count,
 			dev->dmasound.bufsize, dev->dmasound.blocks);
 		spin_unlock(&dev->slock);
 		snd_pcm_stop_xrun(dev->dmasound.substream);
@@ -173,7 +174,8 @@ static void saa7134_irq_alsa_done(struct saa7134_dev *dev,
 	saa_writel(reg,next_blk * dev->dmasound.blksize);
 	pr_debug("irq: ok, %s, next_blk=%d, addr=%x, blocks=%u, size=%u, read=%u\n",
 		(status & 0x10000000) ? "even" : "odd ", next_blk,
-		next_blk * dev->dmasound.blksize, dev->dmasound.blocks, dev->dmasound.blksize, dev->dmasound.read_count);
+		 next_blk * dev->dmasound.blksize, dev->dmasound.blocks,
+		 dev->dmasound.blksize, dev->dmasound.read_count);
 
 	/* update status & wake waiting readers */
 	dev->dmasound.dma_blk = (dev->dmasound.dma_blk + 1) % dev->dmasound.blocks;
@@ -1186,7 +1188,8 @@ static int alsa_card_saa7134_create(struct saa7134_dev *dev, int devnum)
 	sprintf(card->longname, "%s at 0x%lx irq %d",
 		chip->dev->name, chip->iobase, chip->irq);
 
-	pr_info("%s/alsa: %s registered as card %d\n",dev->name,card->longname,index[devnum]);
+	pr_info("%s/alsa: %s registered as card %d\n",
+		dev->name, card->longname, index[devnum]);
 
 	if ((err = snd_card_register(card)) == 0) {
 		snd_saa7134_cards[devnum] = card;

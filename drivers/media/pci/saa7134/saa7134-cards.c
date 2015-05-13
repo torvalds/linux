@@ -7516,7 +7516,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 		pr_warn("%s: seems there are two different versions of the MD5044\n"
 			"%s: (with the same ID) out there.  If sound doesn't work for\n"
 			"%s: you try the audio_clock_override=0x200000 insmod option.\n",
-			dev->name,dev->name,dev->name);
+			dev->name, dev->name, dev->name);
 		break;
 	case SAA7134_BOARD_CINERGY400_CARDBUS:
 		/* power-up tuner chip */
@@ -7644,7 +7644,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 		pr_warn("%s: %s: dual saa713x broadcast decoders\n"
 			"%s: Sorry, none of the inputs to this chip are supported yet.\n"
 			"%s: Dual decoder functionality is disabled for now, use the other chip.\n",
-			dev->name,card(dev).name,dev->name,dev->name);
+			dev->name, card(dev).name, dev->name, dev->name);
 		break;
 	case SAA7134_BOARD_AVERMEDIA_M102:
 		/* enable tuner */
@@ -7826,7 +7826,8 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 				dev->tuner_type = TUNER_PHILIPS_FM1216ME_MK3;
 				break;
 			default:
-				pr_err("%s Can't determine tuner type %x from EEPROM\n", dev->name, tuner_t);
+				pr_err("%s Can't determine tuner type %x from EEPROM\n",
+				       dev->name, tuner_t);
 			}
 		} else if ((data[1] != 0) && (data[1] != 0xff)) {
 			/* new config structure */
@@ -7847,7 +7848,8 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 				       dev->name);
 				break;
 			default:
-				pr_err("%s Can't determine tuner type %x from EEPROM\n", dev->name, tuner_t);
+				pr_err("%s Can't determine tuner type %x from EEPROM\n",
+				       dev->name, tuner_t);
 			}
 		} else {
 			pr_err("%s unexpected config structure\n", dev->name);

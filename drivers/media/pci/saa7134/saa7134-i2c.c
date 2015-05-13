@@ -267,7 +267,7 @@ static int saa7134_i2c_xfer(struct i2c_adapter *i2c_adap,
 				 * needed to talk to the mt352 demux
 				 * thanks to pinnacle for the hint */
 				int quirk = 0xfe;
-				i2c_cont(1, " [%02x quirk]",quirk);
+				i2c_cont(1, " [%02x quirk]", quirk);
 				i2c_send_byte(dev,START,quirk);
 				i2c_recv_byte(dev);
 			}
@@ -374,8 +374,9 @@ saa7134_i2c_eeprom(struct saa7134_dev *dev, unsigned char *eedata, int len)
 		return -1;
 	}
 
-	for (i = 0; i < len; i+= 16) {
+	for (i = 0; i < len; i += 16) {
 		int size = (len - i) > 16 ? 16 : len - i;
+
 		pr_info("i2c eeprom %02x: %*ph\n", i, size, &eedata[i]);
 	}
 

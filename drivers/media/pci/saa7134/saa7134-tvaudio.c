@@ -347,9 +347,9 @@ static int tvaudio_checkcarrier(struct saa7134_dev *dev, struct mainscan *scan)
 				return -1;
 			value = saa_readl(SAA7134_LEVEL_READOUT1 >> 2);
 			if (0 == i)
-				pr_cont("  #  %6d  # ",value >> 16);
+				pr_cont("  #  %6d  # ", value >> 16);
 			else
-				pr_cont(" %6d",value >> 16);
+				pr_cont(" %6d", value >> 16);
 		}
 		pr_cont("\n");
 	}
@@ -404,7 +404,8 @@ static int tvaudio_getstereo(struct saa7134_dev *dev, struct saa7134_tvaudio *au
 		audio_dbg(1, "getstereo: nicam=0x%x\n", nicam);
 		if (nicam & 0x1) {
 			nicam_status = saa_readb(SAA7134_NICAM_STATUS);
-			audio_dbg(1, "getstereo: nicam_status=0x%x\n", nicam_status);
+			audio_dbg(1, "getstereo: nicam_status=0x%x\n",
+				  nicam_status);
 
 			switch (nicam_status & 0x03) {
 			    case 0x01:

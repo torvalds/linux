@@ -387,7 +387,7 @@ static struct saa7134_format* format_by_fourcc(unsigned int fourcc)
 
 static void set_tvnorm(struct saa7134_dev *dev, struct saa7134_tvnorm *norm)
 {
-	video_dbg("set tv norm = %s\n",norm->name);
+	video_dbg("set tv norm = %s\n", norm->name);
 	dev->tvnorm = norm;
 
 	/* setup cropping */
@@ -533,14 +533,14 @@ static void set_v_scale(struct saa7134_dev *dev, int task, int yscale)
 	mirror = (dev->ctl_mirror) ? 0x02 : 0x00;
 	if (yscale < 2048) {
 		/* LPI */
-		video_dbg("yscale LPI yscale=%d\n",yscale);
+		video_dbg("yscale LPI yscale=%d\n", yscale);
 		saa_writeb(SAA7134_V_FILTER(task), 0x00 | mirror);
 		saa_writeb(SAA7134_LUMA_CONTRAST(task), 0x40);
 		saa_writeb(SAA7134_CHROMA_SATURATION(task), 0x40);
 	} else {
 		/* ACM */
 		val = 0x40 * 1024 / yscale;
-		video_dbg("yscale ACM yscale=%d val=0x%x\n",yscale,val);
+		video_dbg("yscale ACM yscale=%d val=0x%x\n", yscale, val);
 		saa_writeb(SAA7134_V_FILTER(task), 0x01 | mirror);
 		saa_writeb(SAA7134_LUMA_CONTRAST(task), val);
 		saa_writeb(SAA7134_CHROMA_SATURATION(task), val);
@@ -575,7 +575,8 @@ static void set_size(struct saa7134_dev *dev, int task,
 		prescale = 1;
 	xscale = 1024 * dev->crop_current.width / prescale / width;
 	yscale = 512 * div * dev->crop_current.height / height;
-	video_dbg("prescale=%d xscale=%d yscale=%d\n",prescale,xscale,yscale);
+	video_dbg("prescale=%d xscale=%d yscale=%d\n",
+		  prescale, xscale, yscale);
 	set_h_prescale(dev,task,prescale);
 	saa_writeb(SAA7134_H_SCALE_INC1(task),      xscale &  0xff);
 	saa_writeb(SAA7134_H_SCALE_INC2(task),      xscale >> 8);
@@ -794,7 +795,7 @@ static int buffer_activate(struct saa7134_dev *dev,
 	unsigned long base,control,bpl;
 	unsigned long bpl_uv,lines_uv,base2,base3,tmp; /* planar */
 
-	video_dbg("buffer_activate buf=%p\n",buf);
+	video_dbg("buffer_activate buf=%p\n", buf);
 	buf->top_seen = 0;
 
 	set_size(dev, TASK_A, dev->width, dev->height,

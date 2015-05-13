@@ -134,7 +134,8 @@ void saa7134_set_gpio(struct saa7134_dev *dev, int bit_no, int value)
 	index = 1 << bit_no;
 	switch (value) {
 	case 0: /* static value */
-	case 1:	core_dbg("setting GPIO%d to static %d\n", bit_no, value);
+	case 1:
+		core_dbg("setting GPIO%d to static %d\n", bit_no, value);
 		/* turn sync mode off if necessary */
 		if (index & 0x00c00000)
 			saa_andorb(SAA7134_VIDEO_PORT_CTRL6, 0x0f, 0x00);
@@ -503,11 +504,11 @@ static void print_irqstatus(struct saa7134_dev *dev, int loop,
 	unsigned int i;
 
 	irq_dbg(1, "[%d,%ld]: r=0x%lx s=0x%02lx",
-	       loop, jiffies, report,status);
+		loop, jiffies, report, status);
 	for (i = 0; i < IRQBITS; i++) {
 		if (!(report & (1 << i)))
 			continue;
-		pr_cont(" %s",irqbits[i]);
+		pr_cont(" %s", irqbits[i]);
 	}
 	if (report & SAA7134_IRQ_REPORT_DONE_RA0) {
 		pr_cont(" | RA0=%s,%s,%s,%ld",
@@ -543,7 +544,7 @@ static irqreturn_t saa7134_irq(int irq, void *dev_id)
 		}
 
 		if (0 == report) {
-			irq_dbg(2,"no (more) work\n");
+			irq_dbg(2, "no (more) work\n");
 			goto out;
 		}
 
@@ -909,7 +910,7 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 		if (pci_pci_problems & PCIPCI_VIAETBF)
 			pr_info("%s: quirk: PCIPCI_VIAETBF\n", dev->name);
 		if (pci_pci_problems & PCIPCI_VSFX)
-			pr_info("%s: quirk: PCIPCI_VSFX\n",dev->name);
+			pr_info("%s: quirk: PCIPCI_VSFX\n", dev->name);
 #ifdef PCIPCI_ALIMAGIK
 		if (pci_pci_problems & PCIPCI_ALIMAGIK) {
 			pr_info("%s: quirk: PCIPCI_ALIMAGIK -- latency fixup\n",
@@ -1209,7 +1210,7 @@ static int saa7134_buffer_requeue(struct saa7134_dev *dev,
 	if (!buf)
 		return 0;
 
-	core_dbg("buffer_requeue : resending active buffers \n");
+	core_dbg("buffer_requeue : resending active buffer\n");
 
 	if (!list_empty(&q->queue))
 		next = list_entry(q->queue.next, struct saa7134_buf,

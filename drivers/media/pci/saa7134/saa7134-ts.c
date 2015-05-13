@@ -46,7 +46,7 @@ static int buffer_activate(struct saa7134_dev *dev,
 			   struct saa7134_buf *next)
 {
 
-	ts_dbg("buffer_activate [%p]",buf);
+	ts_dbg("buffer_activate [%p]", buf);
 	buf->top_seen = 0;
 
 	if (!dev->ts_started)
@@ -55,12 +55,12 @@ static int buffer_activate(struct saa7134_dev *dev,
 	if (NULL == next)
 		next = buf;
 	if (V4L2_FIELD_TOP == dev->ts_field) {
-		ts_dbg("- [top]     buf=%p next=%p\n",buf,next);
+		ts_dbg("- [top]     buf=%p next=%p\n", buf, next);
 		saa_writel(SAA7134_RS_BA1(5),saa7134_buffer_base(buf));
 		saa_writel(SAA7134_RS_BA2(5),saa7134_buffer_base(next));
 		dev->ts_field = V4L2_FIELD_BOTTOM;
 	} else {
-		ts_dbg("- [bottom]  buf=%p next=%p\n",buf,next);
+		ts_dbg("- [bottom]  buf=%p next=%p\n", buf, next);
 		saa_writel(SAA7134_RS_BA1(5),saa7134_buffer_base(next));
 		saa_writel(SAA7134_RS_BA2(5),saa7134_buffer_base(buf));
 		dev->ts_field = V4L2_FIELD_TOP;

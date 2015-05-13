@@ -256,7 +256,7 @@ static int empress_init(struct saa7134_dev *dev)
 	struct vb2_queue *q;
 	int err;
 
-	pr_debug("%s: %s\n",dev->name,__func__);
+	pr_debug("%s: %s\n", dev->name, __func__);
 	dev->empress_dev = video_device_alloc();
 	if (NULL == dev->empress_dev)
 		return -ENOMEM;
@@ -318,7 +318,7 @@ static int empress_init(struct saa7134_dev *dev)
 
 static int empress_fini(struct saa7134_dev *dev)
 {
-	pr_debug("%s: %s\n",dev->name,__func__);
+	pr_debug("%s: %s\n", dev->name, __func__);
 
 	if (NULL == dev->empress_dev)
 		return 0;
