@@ -49,6 +49,7 @@
 #define MAIL0_STA	(ARM_0_MAIL0 + 0x18)
 #define MAIL0_CNF	(ARM_0_MAIL0 + 0x1C)
 #define MAIL1_WRT	(ARM_0_MAIL1 + 0x00)
+#define MAIL1_STA	(ARM_0_MAIL1 + 0x18)
 
 /* Status register: FIFO state. */
 #define ARM_MS_FULL		BIT(31)
@@ -117,7 +118,7 @@ static bool bcm2835_last_tx_done(struct mbox_chan *link)
 	bool ret;
 
 	spin_lock(&mbox->lock);
-	ret = !(readl(mbox->regs + MAIL0_STA) & ARM_MS_FULL);
+	ret = !(readl(mbox->regs + MAIL1_STA) & ARM_MS_FULL);
 	spin_unlock(&mbox->lock);
 	return ret;
 }
