@@ -143,4 +143,8 @@ struct tcp_dctcp_info {
 	__u32	dctcp_ab_tot;
 };
 
+union tcp_cc_info {
+	struct tcpvegas_info	vegas;
+	struct tcp_dctcp_info	dctcp;
+};
 #endif /* _UAPI_INET_DIAG_H_ */
