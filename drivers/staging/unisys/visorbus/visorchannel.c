@@ -62,6 +62,9 @@ visorchannel_create_guts(u64 physaddr, unsigned long channel_bytes,
 	int err;
 	size_t size = sizeof(struct channel_header);
 
+	if (physaddr == 0)
+		return NULL;
+
 	channel = kzalloc(sizeof(*channel), gfp);
 	if (!channel)
 		goto cleanup;
