@@ -876,6 +876,7 @@ static int dwc3_probe(struct platform_device *pdev)
 		| (dwc->is_utmi_l1_suspend << 4);
 
 	platform_set_drvdata(pdev, dwc);
+	dwc3_cache_hwparams(dwc);
 
 	ret = dwc3_core_get_phy(dwc);
 	if (ret)
@@ -892,8 +893,6 @@ static int dwc3_probe(struct platform_device *pdev)
 	pm_runtime_enable(dev);
 	pm_runtime_get_sync(dev);
 	pm_runtime_forbid(dev);
-
-	dwc3_cache_hwparams(dwc);
 
 	ret = dwc3_alloc_event_buffers(dwc, DWC3_EVENT_BUFFERS_SIZE);
 	if (ret) {
