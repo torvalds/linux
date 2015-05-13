@@ -25,6 +25,22 @@
 #include "i915_drv.h"
 #include "i915_reg.h"
 
+/**
+ * DOC: csr support for dmc
+ *
+ * Display Context Save and Restore (CSR) firmware support added from gen9
+ * onwards to drive newly added DMC (Display microcontroller) in display
+ * engine to save and restore the state of display engine when it enter into
+ * low-power state and comes back to normal.
+ *
+ * Firmware loading status will be one of the below states: FW_UNINITIALIZED,
+ * FW_LOADED, FW_FAILED.
+ *
+ * Once the firmware is written into the registers status will be moved from
+ * FW_UNINITIALIZED to FW_LOADED and for any erroneous condition status will
+ * be moved to FW_FAILED.
+ */
+
 #define I915_CSR_SKL "i915/skl_dmc_ver4.bin"
 
 MODULE_FIRMWARE(I915_CSR_SKL);
@@ -183,6 +199,14 @@ static char intel_get_substepping(struct drm_device *dev)
 		return -ENODATA;
 }
 
+/**
+ * intel_csr_load_status_get() - to get firmware loading status.
+ * @dev_priv: i915 device.
+ *
+ * This function helps to get the firmware loading status.
+ *
+ * Return: Firmware loading status.
+ */
 enum csr_state intel_csr_load_status_get(struct drm_i915_private *dev_priv)
 {
 	enum csr_state state;
@@ -194,6 +218,13 @@ enum csr_state intel_csr_load_status_get(struct drm_i915_private *dev_priv)
 	return state;
 }
 
+/**
+ * intel_csr_load_status_set() - help to set firmware loading status.
+ * @dev_priv: i915 device.
+ * @state: enumeration of firmware loading status.
+ *
+ * Set the firmware loading status.
+ */
 void intel_csr_load_status_set(struct drm_i915_private *dev_priv,
 			enum csr_state state)
 {
@@ -202,6 +233,14 @@ void intel_csr_load_status_set(struct drm_i915_private *dev_priv,
 	mutex_unlock(&dev_priv->csr_lock);
 }
 
+/**
+ * intel_csr_load_program() - write the firmware from memory to register.
+ * @dev: drm device.
+ *
+ * CSR firmware is read from a .bin file and kept in internal memory one time.
+ * Everytime display comes back from low power state this function is called to
+ * copy the firmware from internal memory to registers.
+ */
 void intel_csr_load_program(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -359,6 +398,13 @@ out:
 	release_firmware(fw);
 }
 
+/**
+ * intel_csr_ucode_init() - initialize the firmware loading.
+ * @dev: drm device.
+ *
+ * This function is called at the time of loading the display driver to read
+ * firmware from a .bin file and copied into a internal memory.
+ */
 void intel_csr_ucode_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -393,6 +439,13 @@ void intel_csr_ucode_init(struct drm_device *dev)
 	}
 }
 
+/**
+ * intel_csr_ucode_fini() - unload the CSR firmware.
+ * @dev: drm device.
+ *
+ * Firmmware unloading includes freeing the internal momory and reset the
+ * firmware loading status.
+ */
 void intel_csr_ucode_fini(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
