@@ -1340,18 +1340,17 @@ struct bxt_clk_div {
 	uint32_t m2_frac;
 	bool m2_frac_en;
 	uint32_t n;
-	uint32_t lanestagger;
 };
 
 /* pre-calculated values for DP linkrates */
 static struct bxt_clk_div bxt_dp_clk_val[7] = {
-	/* 162 */ {4, 2, 32, 1677722, 1, 1, 0xd},
-	/* 270 */ {4, 1, 27,       0, 0, 1, 0xd},
-	/* 540 */ {2, 1, 27,       0, 0, 1, 0x18},
-	/* 216 */ {3, 2, 32, 1677722, 1, 1, 0xd},
-	/* 243 */ {4, 1, 24, 1258291, 1, 1, 0xd},
-	/* 324 */ {4, 1, 32, 1677722, 1, 1, 0x18},
-	/* 432 */ {3, 1, 32, 1677722, 1, 1, 0x18}
+	/* 162 */ {4, 2, 32, 1677722, 1, 1},
+	/* 270 */ {4, 1, 27,       0, 0, 1},
+	/* 540 */ {2, 1, 27,       0, 0, 1},
+	/* 216 */ {3, 2, 32, 1677722, 1, 1},
+	/* 243 */ {4, 1, 24, 1258291, 1, 1},
+	/* 324 */ {4, 1, 32, 1677722, 1, 1},
+	/* 432 */ {3, 1, 32, 1677722, 1, 1}
 };
 
 static bool
@@ -1364,7 +1363,7 @@ bxt_ddi_pll_select(struct intel_crtc *intel_crtc,
 	struct bxt_clk_div clk_div = {0};
 	int vco = 0;
 	uint32_t prop_coef, int_coef, gain_ctl, targ_cnt;
-	uint32_t dcoampovr_en_h, dco_amp;
+	uint32_t dcoampovr_en_h, dco_amp, lanestagger;
 
 	if (intel_encoder->type == INTEL_OUTPUT_HDMI) {
 		intel_clock_t best_clock;
@@ -1389,16 +1388,6 @@ bxt_ddi_pll_select(struct intel_crtc *intel_crtc,
 		clk_div.m2_frac_en = clk_div.m2_frac != 0;
 
 		vco = best_clock.vco;
-		if (clock > 270000)
-			clk_div.lanestagger = 0x18;
-		else if (clock > 135000)
-			clk_div.lanestagger = 0x0d;
-		else if (clock > 67000)
-			clk_div.lanestagger = 0x07;
-		else if (clock > 33000)
-			clk_div.lanestagger = 0x04;
-		else
-			clk_div.lanestagger = 0x02;
 	} else if (intel_encoder->type == INTEL_OUTPUT_DISPLAYPORT ||
 			intel_encoder->type == INTEL_OUTPUT_EDP) {
 		struct drm_encoder *encoder = &intel_encoder->base;
@@ -1449,6 +1438,17 @@ bxt_ddi_pll_select(struct intel_crtc *intel_crtc,
 	memset(&crtc_state->dpll_hw_state, 0,
 	       sizeof(crtc_state->dpll_hw_state));
 
+	if (clock > 270000)
+		lanestagger = 0x18;
+	else if (clock > 135000)
+		lanestagger = 0x0d;
+	else if (clock > 67000)
+		lanestagger = 0x07;
+	else if (clock > 33000)
+		lanestagger = 0x04;
+	else
+		lanestagger = 0x02;
+
 	crtc_state->dpll_hw_state.ebb0 =
 		PORT_PLL_P1(clk_div.p1) | PORT_PLL_P2(clk_div.p2);
 	crtc_state->dpll_hw_state.pll0 = clk_div.m2_int;
@@ -1472,7 +1472,7 @@ bxt_ddi_pll_select(struct intel_crtc *intel_crtc,
 	crtc_state->dpll_hw_state.pll10 |= PORT_PLL_DCO_AMP(dco_amp);
 
 	crtc_state->dpll_hw_state.pcsdw12 =
-		LANESTAGGER_STRAP_OVRD | clk_div.lanestagger;
+		LANESTAGGER_STRAP_OVRD | lanestagger;
 
 	pll = intel_get_shared_dpll(intel_crtc, crtc_state);
 	if (pll == NULL) {
