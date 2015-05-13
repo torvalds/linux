@@ -24,6 +24,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <linux/futex.h>
+#include "kselftest.h"
 
 /*
  * Define PASS, ERROR, and FAIL strings with and without color escape
@@ -111,12 +112,14 @@ void print_result(int ret)
 
 	switch (ret) {
 	case RET_PASS:
+		ksft_inc_pass_cnt();
 		result = PASS;
 		break;
 	case RET_ERROR:
 		result = ERROR;
 		break;
 	case RET_FAIL:
+		ksft_inc_fail_cnt();
 		result = FAIL;
 		break;
 	}
