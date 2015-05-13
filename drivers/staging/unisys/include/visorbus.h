@@ -210,6 +210,8 @@ ulong visorchannel_get_nbytes(struct visorchannel *channel);
 char *visorchannel_id(struct visorchannel *channel, char *s);
 char *visorchannel_zoneid(struct visorchannel *channel, char *s);
 u64 visorchannel_get_clientpartition(struct visorchannel *channel);
+int visorchannel_set_clientpartition(struct visorchannel *channel,
+				     u64 partition_handle);
 uuid_le visorchannel_get_uuid(struct visorchannel *channel);
 char *visorchannel_uuid_id(uuid_le *guid, char *s);
 void visorchannel_debug(struct visorchannel *channel, int num_queues,

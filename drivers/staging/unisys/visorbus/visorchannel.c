@@ -190,6 +190,15 @@ visorchannel_get_clientpartition(struct visorchannel *channel)
 }
 EXPORT_SYMBOL_GPL(visorchannel_get_clientpartition);
 
+int
+visorchannel_set_clientpartition(struct visorchannel *channel,
+				 u64 partition_handle)
+{
+	channel->chan_hdr.partition_handle = partition_handle;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(visorchannel_set_clientpartition);
+
 uuid_le
 visorchannel_get_uuid(struct visorchannel *channel)
 {
