@@ -48,7 +48,6 @@
 #define ADF_ACCEL_DEVICES_H_
 #include <linux/module.h>
 #include <linux/list.h>
-#include <linux/proc_fs.h>
 #include <linux/io.h>
 #include "adf_cfg_common.h"
 
