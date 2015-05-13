@@ -663,7 +663,7 @@ static int __iio_update_buffers(struct iio_dev *indio_dev,
 	if (indio_dev->setup_ops->preenable) {
 		ret = indio_dev->setup_ops->preenable(indio_dev);
 		if (ret) {
-			printk(KERN_ERR
+			dev_dbg(&indio_dev->dev,
 			       "Buffer not started: buffer preenable failed (%d)\n", ret);
 			goto error_remove_inserted;
 		}
@@ -677,7 +677,7 @@ static int __iio_update_buffers(struct iio_dev *indio_dev,
 		if (buffer->access->request_update) {
 			ret = buffer->access->request_update(buffer);
 			if (ret) {
-				printk(KERN_INFO
+				dev_dbg(&indio_dev->dev,
 				       "Buffer not started: buffer parameter update failed (%d)\n", ret);
 				goto error_run_postdisable;
 			}
@@ -688,7 +688,9 @@ static int __iio_update_buffers(struct iio_dev *indio_dev,
 			->update_scan_mode(indio_dev,
 					   indio_dev->active_scan_mask);
 		if (ret < 0) {
-			printk(KERN_INFO "Buffer not started: update scan mode failed (%d)\n", ret);
+			dev_dbg(&indio_dev->dev,
+				"Buffer not started: update scan mode failed (%d)\n",
+				ret);
 			goto error_run_postdisable;
 		}
 	}
@@ -702,7 +704,7 @@ static int __iio_update_buffers(struct iio_dev *indio_dev,
 	} else { /* Should never be reached */
 		/* Can only occur on first buffer */
 		if (indio_dev->modes & INDIO_BUFFER_TRIGGERED)
-			pr_info("Buffer not started: no trigger\n");
+			dev_dbg(&indio_dev->dev, "Buffer not started: no trigger\n");
 		ret = -EINVAL;
 		goto error_run_postdisable;
 	}
@@ -710,7 +712,7 @@ static int __iio_update_buffers(struct iio_dev *indio_dev,
 	if (indio_dev->setup_ops->postenable) {
 		ret = indio_dev->setup_ops->postenable(indio_dev);
 		if (ret) {
-			printk(KERN_INFO
+			dev_dbg(&indio_dev->dev,
 			       "Buffer not started: postenable failed (%d)\n", ret);
 			indio_dev->currentmode = INDIO_DIRECT_MODE;
 			if (indio_dev->setup_ops->postdisable)
