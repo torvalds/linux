@@ -1349,24 +1349,28 @@ static bool rmap_write_protect(struct kvm *kvm, u64 gfn)
 	return write_protected;
 }
 
+static bool kvm_zap_rmapp(struct kvm *kvm, unsigned long *rmapp)
+{
+	u64 *sptep;
+	struct rmap_iterator iter;
+	bool flush = false;
+
+	while ((sptep = rmap_get_first(*rmapp, &iter))) {
+		BUG_ON(!(*sptep & PT_PRESENT_MASK));
+		rmap_printk("%s: spte %p %llx.\n", __func__, sptep, *sptep);
+
+		drop_spte(kvm, sptep);
+		flush = true;
+	}
+
+	return flush;
+}
+
 static int kvm_unmap_rmapp(struct kvm *kvm, unsigned long *rmapp,
 			   struct kvm_memory_slot *slot, gfn_t gfn, int level,
 			   unsigned long data)
 {
-	u64 *sptep;
-	struct rmap_iterator iter;
-	int need_tlb_flush = 0;
-
-	while ((sptep = rmap_get_first(*rmapp, &iter))) {
-		BUG_ON(!(*sptep & PT_PRESENT_MASK));
-		rmap_printk("kvm_rmap_unmap_hva: spte %p %llx gfn %llx (%d)\n",
-			     sptep, *sptep, gfn, level);
-
-		drop_spte(kvm, sptep);
-		need_tlb_flush = 1;
-	}
-
-	return need_tlb_flush;
+	return kvm_zap_rmapp(kvm, rmapp);
 }
 
 static int kvm_set_pte_rmapp(struct kvm *kvm, unsigned long *rmapp,
