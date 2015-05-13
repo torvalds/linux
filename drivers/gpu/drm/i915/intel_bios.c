@@ -1235,6 +1235,22 @@ static const struct bdb_header *validate_vbt(const void *base, size_t size,
 	return bdb;
 }
 
+static const struct bdb_header *find_vbt(void *bios, size_t size)
+{
+	const struct bdb_header *bdb = NULL;
+	size_t i;
+
+	/* Scour memory looking for the VBT signature. */
+	for (i = 0; i + 4 < size; i++) {
+		if (memcmp(bios + i, "$VBT", 4) == 0) {
+			bdb = validate_vbt(bios, size, bios + i, "PCI ROM");
+			break;
+		}
+	}
+
+	return bdb;
+}
+
 /**
  * intel_parse_bios - find VBT and initialize settings from the BIOS
  * @dev: DRM device
@@ -1263,22 +1279,13 @@ intel_parse_bios(struct drm_device *dev)
 				   dev_priv->opregion.vbt, "OpRegion");
 
 	if (bdb == NULL) {
-		size_t i, size;
+		size_t size;
 
 		bios = pci_map_rom(pdev, &size);
 		if (!bios)
 			return -1;
 
-		/* Scour memory looking for the VBT signature */
-		for (i = 0; i + 4 < size; i++) {
-			if (memcmp(bios + i, "$VBT", 4) == 0) {
-				bdb = validate_vbt(bios, size,
-						   bios + i,
-						   "PCI ROM");
-				break;
-			}
-		}
-
+		bdb = find_vbt(bios, size);
 		if (!bdb) {
 			pci_unmap_rom(pdev, bios);
 			return -1;
