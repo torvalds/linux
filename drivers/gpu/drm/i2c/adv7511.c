@@ -438,7 +438,7 @@ static int adv7511_irq_process(struct adv7511 *adv7511)
 	regmap_write(adv7511->regmap, ADV7511_REG_INT(0), irq0);
 	regmap_write(adv7511->regmap, ADV7511_REG_INT(1), irq1);
 
-	if (irq0 & ADV7511_INT0_HDP)
+	if (irq0 & ADV7511_INT0_HDP && adv7511->encoder)
 		drm_helper_hpd_irq_event(adv7511->encoder->dev);
 
 	if (irq0 & ADV7511_INT0_EDID_READY || irq1 & ADV7511_INT1_DDC_ERROR) {
