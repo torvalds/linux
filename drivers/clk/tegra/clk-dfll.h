@@ -35,7 +35,7 @@
  * @set_clock_trimmers_low: fn ptr to tune clock trimmers for low voltage
  */
 struct tegra_dfll_soc_data {
-	struct device *opp_dev;
+	struct device *dev;
 	unsigned int min_millivolts;
 	u32 tune0_low;
 	u32 tune0_high;

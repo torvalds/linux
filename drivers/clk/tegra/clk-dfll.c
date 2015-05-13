@@ -682,7 +682,7 @@ static int find_lut_index_for_rate(struct tegra_dfll *td, unsigned long rate)
 	struct dev_pm_opp *opp;
 	int i, uv;
 
-	opp = dev_pm_opp_find_freq_ceil(td->soc->opp_dev, &rate);
+	opp = dev_pm_opp_find_freq_ceil(td->soc->dev, &rate);
 	if (IS_ERR(opp))
 		return PTR_ERR(opp);
 	uv = dev_pm_opp_get_voltage(opp);
@@ -1436,7 +1436,7 @@ static int dfll_build_i2c_lut(struct tegra_dfll *td)
 	rcu_read_lock();
 
 	rate = ULONG_MAX;
-	opp = dev_pm_opp_find_freq_floor(td->soc->opp_dev, &rate);
+	opp = dev_pm_opp_find_freq_floor(td->soc->dev, &rate);
 	if (IS_ERR(opp)) {
 		dev_err(td->dev, "couldn't get vmax opp, empty opp table?\n");
 		goto out;
@@ -1449,7 +1449,7 @@ static int dfll_build_i2c_lut(struct tegra_dfll *td)
 		goto out;
 
 	for (j = 1, rate = 0; ; rate++) {
-		opp = dev_pm_opp_find_freq_ceil(td->soc->opp_dev, &rate);
+		opp = dev_pm_opp_find_freq_ceil(td->soc->dev, &rate);
 		if (IS_ERR(opp))
 			break;
 		v_opp = dev_pm_opp_get_voltage(opp);
