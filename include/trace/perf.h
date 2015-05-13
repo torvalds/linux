@@ -7,7 +7,7 @@
  *
  * static struct trace_event_call event_<call>;
  *
- * static void ftrace_raw_event_<call>(void *__data, proto)
+ * static void trace_event_raw_event_<call>(void *__data, proto)
  * {
  *	struct trace_event_file *trace_file = __data;
  *	struct trace_event_call *event_call = trace_file->event_call;
@@ -15,7 +15,7 @@
  *	unsigned long eflags = trace_file->flags;
  *	enum event_trigger_type __tt = ETT_NONE;
  *	struct ring_buffer_event *event;
- *	struct ftrace_raw_<call> *entry; <-- defined in stage 1
+ *	struct trace_event_raw_<call> *entry; <-- defined in stage 1
  *	struct ring_buffer *buffer;
  *	unsigned long irq_flags;
  *	int __data_size;
@@ -68,7 +68,7 @@
  *	.define_fields		= ftrace_define_fields_<call>,
  *	.fields			= LIST_HEAD_INIT(event_class_##call.fields),
  *	.raw_init		= trace_event_raw_init,
- *	.probe			= ftrace_raw_event_##call,
+ *	.probe			= trace_event_raw_event_##call,
  *	.reg			= trace_event_reg,
  * };
  *
@@ -151,12 +151,12 @@
 #define DECLARE_EVENT_CLASS(call, proto, args, tstruct, assign, print)	\
 									\
 static notrace void							\
-ftrace_raw_event_##call(void *__data, proto)				\
+trace_event_raw_event_##call(void *__data, proto)			\
 {									\
 	struct trace_event_file *trace_file = __data;			\
 	struct ftrace_data_offsets_##call __maybe_unused __data_offsets;\
 	struct trace_event_buffer fbuffer;				\
-	struct ftrace_raw_##call *entry;				\
+	struct trace_event_raw_##call *entry;				\
 	int __data_size;						\
 									\
 	if (trace_trigger_soft_disabled(trace_file))			\
@@ -186,7 +186,7 @@ ftrace_raw_event_##call(void *__data, proto)				\
 #define DEFINE_EVENT(template, call, proto, args)			\
 static inline void ftrace_test_probe_##call(void)			\
 {									\
-	check_trace_callback_type_##call(ftrace_raw_event_##template);	\
+	check_trace_callback_type_##call(trace_event_raw_event_##template); \
 }
 
 #undef DEFINE_EVENT_PRINT
@@ -218,7 +218,7 @@ static struct trace_event_class __used __refdata event_class_##call = { \
 	.define_fields		= ftrace_define_fields_##call,		\
 	.fields			= LIST_HEAD_INIT(event_class_##call.fields),\
 	.raw_init		= trace_event_raw_init,			\
-	.probe			= ftrace_raw_event_##call,		\
+	.probe			= trace_event_raw_event_##call,		\
 	.reg			= trace_event_reg,			\
 	_TRACE_PERF_INIT(call)						\
 };
@@ -294,7 +294,7 @@ perf_trace_##call(void *__data, proto)					\
 {									\
 	struct trace_event_call *event_call = __data;			\
 	struct ftrace_data_offsets_##call __maybe_unused __data_offsets;\
-	struct ftrace_raw_##call *entry;				\
+	struct trace_event_raw_##call *entry;				\
 	struct pt_regs *__regs;						\
 	u64 __addr = 0, __count = 1;					\
 	struct task_struct *__task = NULL;				\

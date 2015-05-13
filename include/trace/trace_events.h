@@ -3,7 +3,7 @@
  *
  * Override the macros in <trace/trace_events.h> to include the following:
  *
- * struct ftrace_raw_<call> {
+ * struct trace_event_raw_<call> {
  *	struct trace_entry		ent;
  *	<type>				<item>;
  *	<type2>				<item2>[<len>];
@@ -95,7 +95,7 @@ TRACE_MAKE_SYSTEM_STR();
 
 #undef DECLARE_EVENT_CLASS
 #define DECLARE_EVENT_CLASS(name, proto, args, tstruct, assign, print)	\
-	struct ftrace_raw_##name {					\
+	struct trace_event_raw_##name {					\
 		struct trace_entry	ent;				\
 		tstruct							\
 		char			__data[0];			\
@@ -206,7 +206,7 @@ TRACE_MAKE_SYSTEM_STR();
  * trace_raw_output_<call>(struct trace_iterator *iter, int flags)
  * {
  *	struct trace_seq *s = &iter->seq;
- *	struct ftrace_raw_<call> *field; <-- defined in stage 1
+ *	struct trace_event_raw_<call> *field; <-- defined in stage 1
  *	struct trace_entry *entry;
  *	struct trace_seq *p = &iter->tmp_seq;
  *	int ret;
@@ -309,7 +309,7 @@ trace_raw_output_##call(struct trace_iterator *iter, int flags,		\
 {									\
 	struct trace_seq *s = &iter->seq;				\
 	struct trace_seq __maybe_unused *p = &iter->tmp_seq;		\
-	struct ftrace_raw_##call *field;				\
+	struct trace_event_raw_##call *field;				\
 	int ret;							\
 									\
 	field = (typeof(field))iter->ent;				\
@@ -332,7 +332,7 @@ static notrace enum print_line_t					\
 trace_raw_output_##call(struct trace_iterator *iter, int flags,		\
 			 struct trace_event *event)			\
 {									\
-	struct ftrace_raw_##template *field;				\
+	struct trace_event_raw_##template *field;			\
 	struct trace_entry *entry;					\
 	struct trace_seq *p = &iter->tmp_seq;				\
 									\
@@ -409,7 +409,7 @@ static struct trace_event_functions ftrace_event_type_funcs_##call = {	\
 static int notrace __init						\
 ftrace_define_fields_##call(struct trace_event_call *event_call)	\
 {									\
-	struct ftrace_raw_##call field;					\
+	struct trace_event_raw_##call field;				\
 	int ret;							\
 									\
 	tstruct;							\
@@ -490,7 +490,7 @@ static inline notrace int ftrace_get_offsets_##call(			\
 {									\
 	int __data_size = 0;						\
 	int __maybe_unused __item_length;				\
-	struct ftrace_raw_##call __maybe_unused *entry;			\
+	struct trace_event_raw_##call __maybe_unused *entry;		\
 									\
 	tstruct;							\
 									\

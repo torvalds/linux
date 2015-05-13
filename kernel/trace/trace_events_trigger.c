@@ -968,7 +968,7 @@ static __init int register_trigger_snapshot_cmd(void) { return 0; }
  * Skip 3:
  *   stacktrace_trigger()
  *   event_triggers_post_call()
- *   ftrace_raw_event_xxx()
+ *   trace_event_raw_event_xxx()
  */
 #define STACK_SKIP 3
 
