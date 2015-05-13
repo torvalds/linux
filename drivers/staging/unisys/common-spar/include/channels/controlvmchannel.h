@@ -18,7 +18,6 @@
 
 #include <linux/uuid.h>
 #include "channel.h"
-#include "controlframework.h"
 
 /* {2B3C2D10-7EF5-4ad8-B966-3448B7386B3D} */
 #define SPAR_CONTROLVM_CHANNEL_PROTOCOL_UUID	\
@@ -55,6 +54,37 @@
 
 /* Max num of messages stored during IOVM creation to be reused after crash */
 #define CONTROLVM_CRASHMSG_MAX		2
+
+struct spar_segment_state  {
+	u16 enabled:1;		/* Bit 0: May enter other states */
+	u16 active:1;		/* Bit 1: Assigned to active partition */
+	u16 alive:1;		/* Bit 2: Configure message sent to
+				 * service/server */
+	u16 revoked:1;		/* Bit 3: similar to partition state
+				 * ShuttingDown */
+	u16 allocated:1;	/* Bit 4: memory (device/port number)
+				 * has been selected by Command */
+	u16 known:1;		/* Bit 5: has been introduced to the
+				 * service/guest partition */
+	u16 ready:1;		/* Bit 6: service/Guest partition has
+				 * responded to introduction */
+	u16 operating:1;	/* Bit 7: resource is configured and
+				 * operating */
+	/* Note: don't use high bit unless we need to switch to ushort
+	 * which is non-compliant */
+};
+
+static const struct spar_segment_state segment_state_running = {
+	1, 1, 1, 0, 1, 1, 1, 1
+};
+
+static const struct spar_segment_state segment_state_paused = {
+	1, 1, 1, 0, 1, 1, 1, 0
+};
+
+static const struct spar_segment_state segment_state_standby = {
+	1, 1, 0, 0, 1, 1, 1, 0
+};
 
 /* Ids for commands that may appear in either queue of a ControlVm channel.
  *
