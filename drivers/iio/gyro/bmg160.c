@@ -108,7 +108,6 @@ struct bmg160_data {
 	int slope_thres;
 	bool dready_trigger_on;
 	bool motion_trigger_on;
-	int64_t timestamp;
 };
 
 enum bmg160_axis {
@@ -835,7 +834,7 @@ static irqreturn_t bmg160_trigger_handler(int irq, void *p)
 	mutex_unlock(&data->mutex);
 
 	iio_push_to_buffers_with_timestamp(indio_dev, data->buffer,
-					   data->timestamp);
+					   pf->timestamp);
 err:
 	iio_trigger_notify_done(indio_dev->trig);
 
@@ -938,21 +937,21 @@ static irqreturn_t bmg160_event_handler(int irq, void *private)
 							IIO_MOD_X,
 							IIO_EV_TYPE_ROC,
 							dir),
-							data->timestamp);
+							iio_get_time_ns());
 	if (ret & BMG160_ANY_MOTION_BIT_Y)
 		iio_push_event(indio_dev, IIO_MOD_EVENT_CODE(IIO_ANGL_VEL,
 							0,
 							IIO_MOD_Y,
 							IIO_EV_TYPE_ROC,
 							dir),
-							data->timestamp);
+							iio_get_time_ns());
 	if (ret & BMG160_ANY_MOTION_BIT_Z)
 		iio_push_event(indio_dev, IIO_MOD_EVENT_CODE(IIO_ANGL_VEL,
 							0,
 							IIO_MOD_Z,
 							IIO_EV_TYPE_ROC,
 							dir),
-							data->timestamp);
+							iio_get_time_ns());
 
 ack_intr_status:
 	if (!data->dready_trigger_on) {
@@ -972,8 +971,6 @@ static irqreturn_t bmg160_data_rdy_trig_poll(int irq, void *private)
 {
 	struct iio_dev *indio_dev = private;
 	struct bmg160_data *data = iio_priv(indio_dev);
-
-	data->timestamp = iio_get_time_ns();
 
 	if (data->dready_trigger_on)
 		iio_trigger_poll(data->dready_trig);
@@ -1105,7 +1102,7 @@ static int bmg160_probe(struct i2c_client *client,
 		}
 
 		ret = iio_triggered_buffer_setup(indio_dev,
-						 NULL,
+						 iio_pollfunc_store_time,
 						 bmg160_trigger_handler,
 						 NULL);
 		if (ret < 0) {
