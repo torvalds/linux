@@ -204,7 +204,8 @@ static void ddrfreq_mode(bool auto_self_refresh, unsigned long target_rate, char
 
 unsigned long req_freq_by_vop(unsigned long bandwidth)
 {
-	if (time_after(jiffies, vop_bandwidth_update_jiffies+down_rate_delay_ms))
+	if (time_after(jiffies, vop_bandwidth_update_jiffies +
+		msecs_to_jiffies(down_rate_delay_ms)))
 		return 0;
 
 	if (bandwidth >= 5000){
@@ -278,6 +279,8 @@ static void ddr_auto_freq(void)
 
 	vop_req_freq = req_freq_by_vop(vop_bandwidth);
 	new_freq = max(vop_req_freq, new_freq);
+	if (new_freq == 0)
+		return;
 
 	new_freq = auto_freq_round(new_freq);
 
