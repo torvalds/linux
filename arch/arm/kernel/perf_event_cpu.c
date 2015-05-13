@@ -301,9 +301,10 @@ static int probe_current_pmu(struct arm_pmu *pmu)
 	return ret;
 }
 
-static int of_pmu_irq_cfg(struct platform_device *pdev)
+static int of_pmu_irq_cfg(struct arm_pmu *pmu)
 {
 	int i;
+	struct platform_device *pdev = pmu->plat_device;
 	int *irqs = kcalloc(pdev->num_resources, sizeof(*irqs), GFP_KERNEL);
 
 	if (!irqs)
@@ -336,7 +337,7 @@ static int of_pmu_irq_cfg(struct platform_device *pdev)
 	}
 
 	if (i == pdev->num_resources)
-		cpu_pmu->irq_affinity = irqs;
+		pmu->irq_affinity = irqs;
 	else
 		kfree(irqs);
 
@@ -368,7 +369,7 @@ static int cpu_pmu_device_probe(struct platform_device *pdev)
 	if (node && (of_id = of_match_node(cpu_pmu_of_device_ids, pdev->dev.of_node))) {
 		init_fn = of_id->data;
 
-		ret = of_pmu_irq_cfg(pdev);
+		ret = of_pmu_irq_cfg(pmu);
 		if (!ret)
 			ret = init_fn(pmu);
 	} else {
