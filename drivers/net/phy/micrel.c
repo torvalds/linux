@@ -548,7 +548,8 @@ static int kszphy_probe(struct phy_device *phydev)
 	}
 
 	clk = devm_clk_get(&phydev->dev, "rmii-ref");
-	if (!IS_ERR(clk)) {
+	/* NOTE: clk may be NULL if building without CONFIG_HAVE_CLK */
+	if (!IS_ERR_OR_NULL(clk)) {
 		unsigned long rate = clk_get_rate(clk);
 		bool rmii_ref_clk_sel_25_mhz;
 

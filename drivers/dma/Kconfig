@@ -437,6 +437,7 @@ config IMG_MDC_DMA
 
 config XGENE_DMA
 	tristate "APM X-Gene DMA support"
+	depends on ARCH_XGENE || COMPILE_TEST
 	select DMA_ENGINE
 	select DMA_ENGINE_RAID
 	select ASYNC_TX_ENABLE_CHANNEL_SWITCH

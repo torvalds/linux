@@ -641,7 +641,7 @@ static int rtnl_net_getid(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 	id = peernet2id(net, peer);
 	err = rtnl_net_fill(msg, NETLINK_CB(skb).portid, nlh->nlmsg_seq, 0,
-			    RTM_GETNSID, net, id);
+			    RTM_NEWNSID, net, id);
 	if (err < 0)
 		goto err_out;
 

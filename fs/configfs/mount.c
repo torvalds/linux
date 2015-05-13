@@ -173,5 +173,5 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION("0.0.2");
 MODULE_DESCRIPTION("Simple RAM filesystem for user driven kernel subsystem configuration.");
 
-module_init(configfs_init);
+core_initcall(configfs_init);
 module_exit(configfs_exit);

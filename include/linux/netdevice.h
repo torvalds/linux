@@ -25,7 +25,6 @@
 #ifndef _LINUX_NETDEVICE_H
 #define _LINUX_NETDEVICE_H
 
-#include <linux/pm_qos.h>
 #include <linux/timer.h>
 #include <linux/bug.h>
 #include <linux/delay.h>
@@ -1498,8 +1497,6 @@ enum netdev_priv_flags {
  *			for hardware timestamping
  *
  *	@qdisc_tx_busylock:	XXX: need comments on this one
- *
- *	@pm_qos_req:	Power Management QoS object
  *
  *	FIXME: cleanup struct net_device such that network protocol info
  *	moves out.
