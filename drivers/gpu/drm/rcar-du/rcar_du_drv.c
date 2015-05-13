@@ -190,7 +190,7 @@ static int rcar_du_load(struct drm_device *dev, unsigned long flags)
 	/* DRM/KMS objects */
 	ret = rcar_du_modeset_init(rcdu);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to initialize DRM/KMS\n");
+		dev_err(&pdev->dev, "failed to initialize DRM/KMS (%d)\n", ret);
 		goto done;
 	}
 
