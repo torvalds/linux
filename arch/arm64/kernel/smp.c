@@ -319,6 +319,23 @@ void __init smp_prepare_boot_cpu(void)
 }
 
 /*
+ * Initialize cpu operations for a logical cpu and
+ * set it in the possible mask on success
+ */
+static int __init smp_cpu_setup(int cpu)
+{
+	if (cpu_read_ops(cpu))
+		return -ENODEV;
+
+	if (cpu_ops[cpu]->cpu_init(cpu))
+		return -ENODEV;
+
+	set_cpu_possible(cpu, true);
+
+	return 0;
+}
+
+/*
  * Enumerate the possible CPU set from the device tree and build the
  * cpu logical map array containing MPIDR values related to logical
  * cpus. Assumes that cpu_logical_map(0) has already been initialized.
@@ -395,12 +412,6 @@ void __init of_smp_init_cpus(void)
 		if (cpu >= NR_CPUS)
 			goto next;
 
-		if (cpu_read_ops(dn, cpu) != 0)
-			goto next;
-
-		if (cpu_ops[cpu]->cpu_init(dn, cpu))
-			goto next;
-
 		pr_debug("cpu logical map 0x%llx\n", hwid);
 		cpu_logical_map(cpu) = hwid;
 next:
@@ -418,12 +429,18 @@ next:
 	}
 
 	/*
-	 * All the cpus that made it to the cpu_logical_map have been
-	 * validated so set them as possible cpus.
+	 * We need to set the cpu_logical_map entries before enabling
+	 * the cpus so that cpu processor description entries (DT cpu nodes
+	 * and ACPI MADT entries) can be retrieved by matching the cpu hwid
+	 * with entries in cpu_logical_map while initializing the cpus.
+	 * If the cpu set-up fails, invalidate the cpu_logical_map entry.
 	 */
-	for (i = 0; i < NR_CPUS; i++)
-		if (cpu_logical_map(i) != INVALID_HWID)
-			set_cpu_possible(i, true);
+	for (i = 1; i < NR_CPUS; i++) {
+		if (cpu_logical_map(i) != INVALID_HWID) {
+			if (smp_cpu_setup(i))
+				cpu_logical_map(i) = INVALID_HWID;
+		}
+	}
 }
 
 void __init smp_prepare_cpus(unsigned int max_cpus)

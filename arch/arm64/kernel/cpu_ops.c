@@ -52,9 +52,18 @@ const struct cpu_operations * __init cpu_get_ops(const char *name)
 /*
  * Read a cpu's enable method from the device tree and record it in cpu_ops.
  */
-int __init cpu_read_ops(struct device_node *dn, int cpu)
+int __init cpu_read_ops(int cpu)
 {
-	const char *enable_method = of_get_property(dn, "enable-method", NULL);
+	const char *enable_method;
+	struct device_node *dn = of_get_cpu_node(cpu, NULL);
+
+	if (!dn) {
+		if (!cpu)
+			pr_err("Failed to find device node for boot cpu\n");
+		return -ENODEV;
+	}
+
+	enable_method = of_get_property(dn, "enable-method", NULL);
 	if (!enable_method) {
 		/*
 		 * The boot CPU may not have an enable method (e.g. when
@@ -74,14 +83,4 @@ int __init cpu_read_ops(struct device_node *dn, int cpu)
 	}
 
 	return 0;
-}
-
-void __init cpu_read_bootcpu_ops(void)
-{
-	struct device_node *dn = of_get_cpu_node(0, NULL);
-	if (!dn) {
-		pr_err("Failed to find device node for boot cpu\n");
-		return;
-	}
-	cpu_read_ops(dn, 0);
 }

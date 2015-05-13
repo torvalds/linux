@@ -154,7 +154,7 @@ acpi_map_gic_cpu_interface(struct acpi_madt_generic_interrupt *processor)
 		if (!cpu_ops[enabled_cpus])
 			return;
 
-		if (cpu_ops[enabled_cpus]->cpu_init(NULL, enabled_cpus))
+		if (cpu_ops[enabled_cpus]->cpu_init(enabled_cpus))
 			return;
 
 		/* map the logical cpu id to cpu MPIDR */
