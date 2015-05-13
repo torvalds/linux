@@ -38,7 +38,7 @@ struct switchdev_attr {
 		struct netdev_phys_item_id ppid;	/* PORT_PARENT_ID */
 		u8 stp_state;				/* PORT_STP_STATE */
 		unsigned long brport_flags;		/* PORT_BRIDGE_FLAGS */
-	};
+	} u;
 };
 
 struct fib_info;
@@ -67,7 +67,7 @@ struct switchdev_obj {
 			u32 nlflags;
 			u32 tb_id;
 		} ipv4_fib;
-	};
+	} u;
 };
 
 /**

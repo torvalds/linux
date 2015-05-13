@@ -353,7 +353,7 @@ static int dsa_slave_port_attr_set(struct net_device *dev,
 	switch (attr->id) {
 	case SWITCHDEV_ATTR_PORT_STP_STATE:
 		if (attr->trans == SWITCHDEV_TRANS_COMMIT)
-			ret = dsa_slave_stp_update(dev, attr->stp_state);
+			ret = dsa_slave_stp_update(dev, attr->u.stp_state);
 		break;
 	default:
 		ret = -EOPNOTSUPP;
@@ -408,8 +408,8 @@ static int dsa_slave_port_attr_get(struct net_device *dev,
 
 	switch (attr->id) {
 	case SWITCHDEV_ATTR_PORT_PARENT_ID:
-		attr->ppid.id_len = sizeof(ds->index);
-		memcpy(&attr->ppid.id, &ds->index, attr->ppid.id_len);
+		attr->u.ppid.id_len = sizeof(ds->index);
+		memcpy(&attr->u.ppid.id, &ds->index, attr->u.ppid.id_len);
 		break;
 	default:
 		return -EOPNOTSUPP;

@@ -4339,11 +4339,11 @@ static int rocker_port_attr_get(struct net_device *dev,
 
 	switch (attr->id) {
 	case SWITCHDEV_ATTR_PORT_PARENT_ID:
-		attr->ppid.id_len = sizeof(rocker->hw.id);
-		memcpy(&attr->ppid.id, &rocker->hw.id, attr->ppid.id_len);
+		attr->u.ppid.id_len = sizeof(rocker->hw.id);
+		memcpy(&attr->u.ppid.id, &rocker->hw.id, attr->u.ppid.id_len);
 		break;
 	case SWITCHDEV_ATTR_PORT_BRIDGE_FLAGS:
-		attr->brport_flags = rocker_port->brport_flags;
+		attr->u.brport_flags = rocker_port->brport_flags;
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -4400,11 +4400,11 @@ static int rocker_port_attr_set(struct net_device *dev,
 	switch (attr->id) {
 	case SWITCHDEV_ATTR_PORT_STP_STATE:
 		err = rocker_port_stp_update(rocker_port, attr->trans,
-					     attr->stp_state);
+					     attr->u.stp_state);
 		break;
 	case SWITCHDEV_ATTR_PORT_BRIDGE_FLAGS:
 		err = rocker_port_brport_flags_set(rocker_port, attr->trans,
-						   attr->brport_flags);
+						   attr->u.brport_flags);
 		break;
 	default:
 		err = -EOPNOTSUPP;
@@ -4466,10 +4466,10 @@ static int rocker_port_obj_add(struct net_device *dev,
 	switch (obj->id) {
 	case SWITCHDEV_OBJ_PORT_VLAN:
 		err = rocker_port_vlans_add(rocker_port, obj->trans,
-					    &obj->vlan);
+					    &obj->u.vlan);
 		break;
 	case SWITCHDEV_OBJ_IPV4_FIB:
-		fib4 = &obj->ipv4_fib;
+		fib4 = &obj->u.ipv4_fib;
 		err = rocker_port_fib_ipv4(rocker_port, obj->trans,
 					   htonl(fib4->dst), fib4->dst_len,
 					   fib4->fi, fib4->tb_id, 0);
@@ -4520,10 +4520,10 @@ static int rocker_port_obj_del(struct net_device *dev,
 
 	switch (obj->id) {
 	case SWITCHDEV_OBJ_PORT_VLAN:
-		err = rocker_port_vlans_del(rocker_port, &obj->vlan);
+		err = rocker_port_vlans_del(rocker_port, &obj->u.vlan);
 		break;
 	case SWITCHDEV_OBJ_IPV4_FIB:
-		fib4 = &obj->ipv4_fib;
+		fib4 = &obj->u.ipv4_fib;
 		err = rocker_port_fib_ipv4(rocker_port, SWITCHDEV_TRANS_NONE,
 					   htonl(fib4->dst), fib4->dst_len,
 					   fib4->fi, fib4->tb_id,

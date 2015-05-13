@@ -383,7 +383,7 @@ int switchdev_port_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 		return err;
 
 	return ndo_dflt_bridge_getlink(skb, pid, seq, dev, mode,
-				       attr.brport_flags, mask, nlflags);
+				       attr.u.brport_flags, mask, nlflags);
 }
 EXPORT_SYMBOL_GPL(switchdev_port_bridge_getlink);
 
@@ -402,9 +402,9 @@ static int switchdev_port_br_setflag(struct net_device *dev,
 		return err;
 
 	if (flag)
-		attr.brport_flags |= brport_flag;
+		attr.u.brport_flags |= brport_flag;
 	else
-		attr.brport_flags &= ~brport_flag;
+		attr.u.brport_flags &= ~brport_flag;
 
 	return switchdev_port_attr_set(dev, &attr);
 }
@@ -466,6 +466,7 @@ static int switchdev_port_br_afspec(struct net_device *dev,
 	struct switchdev_obj obj = {
 		.id = SWITCHDEV_OBJ_PORT_VLAN,
 	};
+	struct switchdev_obj_vlan *vlan = &obj.u.vlan;
 	int rem;
 	int err;
 
@@ -475,30 +476,30 @@ static int switchdev_port_br_afspec(struct net_device *dev,
 		if (nla_len(attr) != sizeof(struct bridge_vlan_info))
 			return -EINVAL;
 		vinfo = nla_data(attr);
-		obj.vlan.flags = vinfo->flags;
+		vlan->flags = vinfo->flags;
 		if (vinfo->flags & BRIDGE_VLAN_INFO_RANGE_BEGIN) {
-			if (obj.vlan.vid_start)
+			if (vlan->vid_start)
 				return -EINVAL;
-			obj.vlan.vid_start = vinfo->vid;
+			vlan->vid_start = vinfo->vid;
 		} else if (vinfo->flags & BRIDGE_VLAN_INFO_RANGE_END) {
-			if (!obj.vlan.vid_start)
+			if (!vlan->vid_start)
 				return -EINVAL;
-			obj.vlan.vid_end = vinfo->vid;
-			if (obj.vlan.vid_end <= obj.vlan.vid_start)
+			vlan->vid_end = vinfo->vid;
+			if (vlan->vid_end <= vlan->vid_start)
 				return -EINVAL;
 			err = f(dev, &obj);
 			if (err)
 				return err;
-			memset(&obj.vlan, 0, sizeof(obj.vlan));
+			memset(vlan, 0, sizeof(*vlan));
 		} else {
-			if (obj.vlan.vid_start)
+			if (vlan->vid_start)
 				return -EINVAL;
-			obj.vlan.vid_start = vinfo->vid;
-			obj.vlan.vid_end = vinfo->vid;
+			vlan->vid_start = vinfo->vid;
+			vlan->vid_end = vinfo->vid;
 			err = f(dev, &obj);
 			if (err)
 				return err;
-			memset(&obj.vlan, 0, sizeof(obj.vlan));
+			memset(vlan, 0, sizeof(*vlan));
 		}
 	}
 
@@ -613,10 +614,10 @@ static struct net_device *switchdev_get_dev_by_nhs(struct fib_info *fi)
 			return NULL;
 
 		if (nhsel > 0) {
-			if (prev_attr.ppid.id_len != attr.ppid.id_len)
+			if (prev_attr.u.ppid.id_len != attr.u.ppid.id_len)
 				return NULL;
-			if (memcmp(prev_attr.ppid.id, attr.ppid.id,
-				   attr.ppid.id_len))
+			if (memcmp(prev_attr.u.ppid.id, attr.u.ppid.id,
+				   attr.u.ppid.id_len))
 				return NULL;
 		}
 
@@ -644,7 +645,7 @@ int switchdev_fib_ipv4_add(u32 dst, int dst_len, struct fib_info *fi,
 {
 	struct switchdev_obj fib_obj = {
 		.id = SWITCHDEV_OBJ_IPV4_FIB,
-		.ipv4_fib = {
+		.u.ipv4_fib = {
 			.dst = dst,
 			.dst_len = dst_len,
 			.fi = fi,
@@ -698,7 +699,7 @@ int switchdev_fib_ipv4_del(u32 dst, int dst_len, struct fib_info *fi,
 {
 	struct switchdev_obj fib_obj = {
 		.id = SWITCHDEV_OBJ_IPV4_FIB,
-		.ipv4_fib = {
+		.u.ipv4_fib = {
 			.dst = dst,
 			.dst_len = dst_len,
 			.fi = fi,

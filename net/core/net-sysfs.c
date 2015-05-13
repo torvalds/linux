@@ -465,8 +465,8 @@ static ssize_t phys_switch_id_show(struct device *dev,
 
 		ret = switchdev_port_attr_get(netdev, &attr);
 		if (!ret)
-			ret = sprintf(buf, "%*phN\n", attr.ppid.id_len,
-				      attr.ppid.id);
+			ret = sprintf(buf, "%*phN\n", attr.u.ppid.id_len,
+				      attr.u.ppid.id);
 	}
 	rtnl_unlock();
 

@@ -41,7 +41,7 @@ void br_set_state(struct net_bridge_port *p, unsigned int state)
 {
 	struct switchdev_attr attr = {
 		.id = SWITCHDEV_ATTR_PORT_STP_STATE,
-		.stp_state = state,
+		.u.stp_state = state,
 	};
 	int err;
 
