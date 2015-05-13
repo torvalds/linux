@@ -152,6 +152,7 @@
 		compatible = "active-semi,act8846";
 		reg = <0x5a>;
 		status = "okay";
+		system-power-controller;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&act8846_dvs0_ctl>;
