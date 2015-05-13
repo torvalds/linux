@@ -649,6 +649,9 @@ enum _vop_overlay_mode {
 
 
 #define CalScale(x, y)	             ((((u32)(x - 1)) * 0x1000) / (y - 1))
+#define INT_STA_MSK	(m_HS_INT_STA | m_FS_INT_STA |		\
+			 m_LF_INT_STA | m_BUS_ERR_INT_STA)
+#define INT_CLR_SHIFT	8
 
 struct rk_lcdc_drvdata {
      u8 soc_type;

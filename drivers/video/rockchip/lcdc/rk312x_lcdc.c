@@ -74,11 +74,16 @@ static irqreturn_t rk312x_lcdc_isr(int irq, void *dev_id)
 	struct lcdc_device *lcdc_dev = (struct lcdc_device *)dev_id;
 	ktime_t timestamp = ktime_get();
 	u32 int_reg = lcdc_readl(lcdc_dev, INT_STATUS);
+	u32 irq_active = 0;
+
+	irq_active = int_reg & INT_STA_MSK;
+	if (irq_active)
+		lcdc_writel(lcdc_dev, INT_STATUS,
+			    int_reg | (irq_active << INT_CLR_SHIFT));
 
 	if (int_reg & m_FS_INT_STA) {
 		timestamp = ktime_get();
-		lcdc_msk_reg(lcdc_dev, INT_STATUS, m_FS_INT_CLEAR,
-			     v_FS_INT_CLEAR(1));
+
 		/*if (lcdc_dev->driver.wait_fs) {*/
 		if (0) {
 			spin_lock(&(lcdc_dev->driver.cpl_lock));
@@ -87,13 +92,18 @@ static irqreturn_t rk312x_lcdc_isr(int irq, void *dev_id)
 		}
 		lcdc_dev->driver.vsync_info.timestamp = timestamp;
 		wake_up_interruptible_all(&lcdc_dev->driver.vsync_info.wait);
+	}
 
-	} else if (int_reg & m_LF_INT_STA) {
+	if (int_reg & m_LF_INT_STA) {
 		lcdc_dev->driver.frame_time.last_framedone_t =
 				lcdc_dev->driver.frame_time.framedone_t;
 		lcdc_dev->driver.frame_time.framedone_t = cpu_clock(0);
-		lcdc_msk_reg(lcdc_dev, INT_STATUS, m_LF_INT_CLEAR,
-			     v_LF_INT_CLEAR(1));
+	}
+
+	if (int_reg & m_HS_INT_STA) {
+		spin_lock(&lcdc_dev->driver.cpl_lock);
+		complete(&lcdc_dev->driver.frame_done);
+		spin_unlock(&lcdc_dev->driver.cpl_lock);
 	}
 
 #ifdef LCDC_IRQ_EMPTY_DEBUG
@@ -161,9 +171,11 @@ static int rk312x_lcdc_enable_irq(struct rk_lcdc_driver *dev_drv)
 	if (likely(lcdc_dev->clk_on)) {
 			mask = m_FS_INT_CLEAR | m_FS_INT_EN |
 			m_LF_INT_CLEAR | m_LF_INT_EN |
+			m_HS_INT_CLEAR | m_HS_INT_EN |
 			m_BUS_ERR_INT_CLEAR | m_BUS_ERR_INT_EN;
 		val = v_FS_INT_CLEAR(1) | v_FS_INT_EN(1) |
 			v_LF_INT_CLEAR(1) | v_LF_INT_EN(1) |
+			v_HS_INT_CLEAR(1) | v_HS_INT_EN(1) |
 			v_BUS_ERR_INT_CLEAR(1) | v_BUS_ERR_INT_EN(0);
 		#if 0
 			mask |= m_LF_INT_NUM;
@@ -193,9 +205,11 @@ static int rk312x_lcdc_disable_irq(struct lcdc_device *lcdc_dev)
 	if (likely(lcdc_dev->clk_on)) {
 		mask = m_FS_INT_CLEAR | m_FS_INT_EN |
 			m_LF_INT_CLEAR | m_LF_INT_EN |
+			m_HS_INT_CLEAR | m_HS_INT_EN |
 			m_BUS_ERR_INT_CLEAR | m_BUS_ERR_INT_EN;
 		val = v_FS_INT_CLEAR(0) | v_FS_INT_EN(0) |
 			v_LF_INT_CLEAR(0) | v_LF_INT_EN(0) |
+			v_HS_INT_CLEAR(0) | v_HS_INT_EN(0) |
 			v_BUS_ERR_INT_CLEAR(0) | v_BUS_ERR_INT_EN(0);
 #ifdef LCDC_IRQ_EMPTY_DEBUG
 		mask |= m_WIN0_EMPTY_INT_EN | m_WIN1_EMPTY_INT_EN;
@@ -716,6 +730,44 @@ static int rk312x_lcdc_set_dclk(struct rk_lcdc_driver *dev_drv,
 	return 0;
 }
 
+static int rk312x_lcdc_standby(struct rk_lcdc_driver *dev_drv, bool enable)
+{
+	struct lcdc_device *vop_dev =
+		container_of(dev_drv, struct lcdc_device, driver);
+	int timeout;
+	unsigned long flags;
+
+	if (unlikely(!vop_dev->clk_on))
+		return 0;
+
+	if (dev_drv->standby && !enable) {
+		dev_drv->standby = 0;
+		lcdc_msk_reg(vop_dev, SYS_CTRL, m_LCDC_STANDBY,
+			     v_LCDC_STANDBY(0));
+		return 0;
+	} else if (!dev_drv->standby && enable) {
+		spin_lock_irqsave(&dev_drv->cpl_lock, flags);
+		init_completion(&dev_drv->frame_done);
+		spin_unlock_irqrestore(&dev_drv->cpl_lock, flags);
+
+		lcdc_msk_reg(vop_dev, SYS_CTRL, m_LCDC_STANDBY,
+			     v_LCDC_STANDBY(1));
+		/* wait for standby hold valid */
+		timeout = wait_for_completion_timeout(&dev_drv->frame_done,
+						      msecs_to_jiffies(25));
+
+		if (!timeout && (!dev_drv->frame_done.done)) {
+			dev_info(dev_drv->dev,
+				 "wait for standy hold valid start time out!\n");
+			return -ETIMEDOUT;
+		}
+
+		dev_drv->standby = 1;
+	}
+
+	return 0;
+}
+
 /********do basic init*********/
 static int rk312x_lcdc_pre_init(struct rk_lcdc_driver *dev_drv)
 {
@@ -1137,10 +1189,6 @@ static int rk312x_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 
 	spin_lock(&lcdc_dev->reg_lock);
 	if (likely(lcdc_dev->clk_on)) {
-		lcdc_msk_reg(lcdc_dev, SYS_CTRL,
-			     m_LCDC_STANDBY, v_LCDC_STANDBY(1));
-		lcdc_cfg_done(lcdc_dev);
-		mdelay(50);
 		/* Select output color domain */
 		/*dev_drv->output_color = screen->color_mode;
 		if (lcdc_dev->soc_type == VOP_RK312X) {
@@ -1412,9 +1460,10 @@ static int rk312x_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 		}
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
+
 	rk312x_lcdc_set_dclk(dev_drv, 1);
-	lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_LCDC_STANDBY, v_LCDC_STANDBY(0));
 	lcdc_cfg_done(lcdc_dev);
+
 	if (dev_drv->trsm_ops && dev_drv->trsm_ops->enable)
 		dev_drv->trsm_ops->enable();
 	if (screen->init)
@@ -1459,7 +1508,9 @@ static int rk312x_lcdc_open(struct rk_lcdc_driver *dev_drv, int win_id,
 			rk312x_lcdc_set_dclk(dev_drv, 0);
 			rk312x_lcdc_enable_irq(dev_drv);
 		} else {
+			rk312x_lcdc_standby(dev_drv, true);
 			rk312x_load_screen(dev_drv, 1);
+			rk312x_lcdc_standby(dev_drv, false);
 		}
 
 		/* set screen lut */
@@ -2466,6 +2517,8 @@ static int rk312x_lcdc_dsp_black(struct rk_lcdc_driver *dev_drv, int enable)
 		}
 		spin_unlock(&lcdc_dev->reg_lock);
 
+		rk312x_lcdc_standby(dev_drv, true);
+
 		if (dev_drv->trsm_ops && dev_drv->trsm_ops->disable)
 			dev_drv->trsm_ops->disable();
 	} else {
@@ -2476,8 +2529,12 @@ static int rk312x_lcdc_dsp_black(struct rk_lcdc_driver *dev_drv, int enable)
 			lcdc_cfg_done(lcdc_dev);
 		}
 		spin_unlock(&lcdc_dev->reg_lock);
+
 		if (dev_drv->trsm_ops && dev_drv->trsm_ops->enable)
 			dev_drv->trsm_ops->enable();
+
+		rk312x_lcdc_standby(dev_drv, false);
+
 		msleep(100);
 		/* open the backlight */
 		if (lcdc_dev->backlight) {
@@ -2696,6 +2753,7 @@ static void rk312x_lcdc_shutdown(struct platform_device *pdev)
 	flush_kthread_worker(&dev_drv->update_regs_worker);
 	kthread_stop(dev_drv->update_regs_thread);
 
+	rk312x_lcdc_standby(dev_drv, true);
 	rk312x_lcdc_deinit(lcdc_dev);
 	rk312x_lcdc_clk_disable(lcdc_dev);
 	rk_disp_pwr_disable(&lcdc_dev->driver);
