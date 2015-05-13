@@ -121,3 +121,37 @@ int sysfs_move_dir_ns(struct kobject *kobj, struct kobject *new_parent_kobj,
 
 	return kernfs_rename_ns(kn, new_parent, kn->name, new_ns);
 }
+
+/**
+ * sysfs_create_mount_point - create an always empty directory
+ * @parent_kobj:  kobject that will contain this always empty directory
+ * @name: The name of the always empty directory to add
+ */
+int sysfs_create_mount_point(struct kobject *parent_kobj, const char *name)
+{
+	struct kernfs_node *kn, *parent = parent_kobj->sd;
+
+	kn = kernfs_create_empty_dir(parent, name);
+	if (IS_ERR(kn)) {
+		if (PTR_ERR(kn) == -EEXIST)
+			sysfs_warn_dup(parent, name);
+		return PTR_ERR(kn);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(sysfs_create_mount_point);
+
+/**
+ *	sysfs_remove_mount_point - remove an always empty directory.
+ *	@parent_kobj: kobject that will contain this always empty directory
+ *	@name: The name of the always empty directory to remove
+ *
+ */
+void sysfs_remove_mount_point(struct kobject *parent_kobj, const char *name)
+{
+	struct kernfs_node *parent = parent_kobj->sd;
+
+	kernfs_remove_by_name_ns(parent, name, NULL);
+}
+EXPORT_SYMBOL_GPL(sysfs_remove_mount_point);
