@@ -933,62 +933,6 @@ enum crash_obj_type {
 	CRASH_BUS,
 };
 
-void
-visorchipset_save_message(struct controlvm_message *msg,
-			  enum crash_obj_type type)
-{
-	u32 crash_msg_offset;
-	u16 crash_msg_count;
-
-	/* get saved message count */
-	if (visorchannel_read(controlvm_channel,
-			      offsetof(struct spar_controlvm_channel_protocol,
-				       saved_crash_message_count),
-			      &crash_msg_count, sizeof(u16)) < 0) {
-		POSTCODE_LINUX_2(CRASH_DEV_CTRL_RD_FAILURE_PC,
-				 POSTCODE_SEVERITY_ERR);
-		return;
-	}
-
-	if (crash_msg_count != CONTROLVM_CRASHMSG_MAX) {
-		POSTCODE_LINUX_3(CRASH_DEV_COUNT_FAILURE_PC,
-				 crash_msg_count,
-				 POSTCODE_SEVERITY_ERR);
-		return;
-	}
-
-	/* get saved crash message offset */
-	if (visorchannel_read(controlvm_channel,
-			      offsetof(struct spar_controlvm_channel_protocol,
-				       saved_crash_message_offset),
-			      &crash_msg_offset, sizeof(u32)) < 0) {
-		POSTCODE_LINUX_2(CRASH_DEV_CTRL_RD_FAILURE_PC,
-				 POSTCODE_SEVERITY_ERR);
-		return;
-	}
-
-	if (type == CRASH_BUS) {
-		if (visorchannel_write(controlvm_channel,
-				       crash_msg_offset,
-				       msg,
-				       sizeof(struct controlvm_message)) < 0) {
-			POSTCODE_LINUX_2(SAVE_MSG_BUS_FAILURE_PC,
-					 POSTCODE_SEVERITY_ERR);
-			return;
-		}
-	} else { /* CRASH_DEV */
-		if (visorchannel_write(controlvm_channel,
-				       crash_msg_offset +
-				       sizeof(struct controlvm_message), msg,
-				       sizeof(struct controlvm_message)) < 0) {
-			POSTCODE_LINUX_2(SAVE_MSG_DEV_FAILURE_PC,
-					 POSTCODE_SEVERITY_ERR);
-			return;
-		}
-	}
-}
-EXPORT_SYMBOL_GPL(visorchipset_save_message);
-
 static void
 bus_responder(enum controlvm_id cmd_id, u32 bus_no, int response)
 {
