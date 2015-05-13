@@ -667,6 +667,11 @@
 			status = "disabled";
 		};
 
+		scu: snoop-control-unit@fffec000 {
+			compatible = "arm,cortex-a9-scu";
+			reg = <0xfffec000 0x100>;
+		};
+
 		spi1: spi@fff01000 {
 			compatible = "snps,dw-apb-ssi";
 			#address-cells = <1>;
