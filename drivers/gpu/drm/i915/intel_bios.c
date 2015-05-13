@@ -1199,15 +1199,22 @@ static const struct dmi_system_id intel_no_opregion_vbt[] = {
 	{ }
 };
 
-static const struct bdb_header *validate_vbt(const void *base, size_t size,
-					     const void *_vbt,
+static const struct bdb_header *validate_vbt(const void __iomem *_base,
+					     size_t size,
+					     const void __iomem *_vbt,
 					     const char *source)
 {
-	const struct vbt_header *vbt = _vbt;
-	size_t offset;
+	/*
+	 * This is the one place where we explicitly discard the address space
+	 * (__iomem) of the BIOS/VBT. (And this will cause a sparse complaint.)
+	 * From now on everything is based on 'base', and treated as regular
+	 * memory.
+	 */
+	const void *base = (const void *) _base;
+	size_t offset = _vbt - _base;
+	const struct vbt_header *vbt = base + offset;
 	const struct bdb_header *bdb;
 
-	offset = _vbt - base;
 	if (offset + sizeof(struct vbt_header) > size) {
 		DRM_DEBUG_DRIVER("VBT header incomplete\n");
 		return NULL;
@@ -1235,14 +1242,14 @@ static const struct bdb_header *validate_vbt(const void *base, size_t size,
 	return bdb;
 }
 
-static const struct bdb_header *find_vbt(void *bios, size_t size)
+static const struct bdb_header *find_vbt(void __iomem *bios, size_t size)
 {
 	const struct bdb_header *bdb = NULL;
 	size_t i;
 
 	/* Scour memory looking for the VBT signature. */
 	for (i = 0; i + 4 < size; i++) {
-		if (memcmp(bios + i, "$VBT", 4) == 0) {
+		if (ioread32(bios + i) == *((const u32 *) "$VBT")) {
 			bdb = validate_vbt(bios, size, bios + i, "PCI ROM");
 			break;
 		}
