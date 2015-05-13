@@ -27,42 +27,9 @@
 
 #include "core.h"
 
-void __iomem *socfpga_scu_base_addr = ((void __iomem *)(SOCFPGA_SCU_VIRT_BASE));
 void __iomem *sys_manager_base_addr;
 void __iomem *rst_manager_base_addr;
 unsigned long socfpga_cpu1start_addr;
-
-static struct map_desc scu_io_desc __initdata = {
-	.virtual	= SOCFPGA_SCU_VIRT_BASE,
-	.pfn		= 0, /* run-time */
-	.length		= SZ_8K,
-	.type		= MT_DEVICE,
-};
-
-static struct map_desc uart_io_desc __initdata = {
-	.virtual	= 0xfec02000,
-	.pfn		= __phys_to_pfn(0xffc02000),
-	.length		= SZ_8K,
-	.type		= MT_DEVICE,
-};
-
-static void __init socfpga_scu_map_io(void)
-{
-	unsigned long base;
-
-	/* Get SCU base */
-	asm("mrc p15, 4, %0, c15, c0, 0" : "=r" (base));
-
-	scu_io_desc.pfn = __phys_to_pfn(base);
-	iotable_init(&scu_io_desc, 1);
-}
-
-static void __init socfpga_map_io(void)
-{
-	socfpga_scu_map_io();
-	iotable_init(&uart_io_desc, 1);
-	early_printk("Early printk initialized\n");
-}
 
 void __init socfpga_sysmgr_init(void)
 {
@@ -112,7 +79,6 @@ DT_MACHINE_START(SOCFPGA, "Altera SOCFPGA")
 	.l2c_aux_val	= 0,
 	.l2c_aux_mask	= ~0,
 	.smp		= smp_ops(socfpga_smp_ops),
-	.map_io		= socfpga_map_io,
 	.init_irq	= socfpga_init_irq,
 	.restart	= socfpga_cyclone5_restart,
 	.dt_compat	= altera_dt_match,
