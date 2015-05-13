@@ -31,7 +31,6 @@
 #include <linux/slab.h>
 #include <linux/topology.h>
 #include <linux/types.h>
-#include <asm/bL_switcher.h>
 
 #include "arm_big_little.h"
 
@@ -41,12 +40,16 @@
 #define MAX_CLUSTERS	2
 
 #ifdef CONFIG_BL_SWITCHER
+#include <asm/bL_switcher.h>
 static bool bL_switching_enabled;
 #define is_bL_switching_enabled()	bL_switching_enabled
 #define set_switching_enabled(x)	(bL_switching_enabled = (x))
 #else
 #define is_bL_switching_enabled()	false
 #define set_switching_enabled(x)	do { } while (0)
+#define bL_switch_request(...)		do { } while (0)
+#define bL_switcher_put_enabled()	do { } while (0)
+#define bL_switcher_get_enabled()	do { } while (0)
 #endif
 
 #define ACTUAL_FREQ(cluster, freq)  ((cluster == A7_CLUSTER) ? freq << 1 : freq)
@@ -513,6 +516,7 @@ static struct cpufreq_driver bL_cpufreq_driver = {
 	.attr			= cpufreq_generic_attr,
 };
 
+#ifdef CONFIG_BL_SWITCHER
 static int bL_cpufreq_switcher_notifier(struct notifier_block *nfb,
 					unsigned long action, void *_arg)
 {
@@ -545,6 +549,20 @@ static struct notifier_block bL_switcher_notifier = {
 	.notifier_call = bL_cpufreq_switcher_notifier,
 };
 
+static int __bLs_register_notifier(void)
+{
+	return bL_switcher_register_notifier(&bL_switcher_notifier);
+}
+
+static int __bLs_unregister_notifier(void)
+{
+	return bL_switcher_unregister_notifier(&bL_switcher_notifier);
+}
+#else
+static int __bLs_register_notifier(void) { return 0; }
+static int __bLs_unregister_notifier(void) { return 0; }
+#endif
+
 int bL_cpufreq_register(struct cpufreq_arm_bL_ops *ops)
 {
 	int ret, i;
@@ -562,8 +580,7 @@ int bL_cpufreq_register(struct cpufreq_arm_bL_ops *ops)
 
 	arm_bL_ops = ops;
 
-	ret = bL_switcher_get_enabled();
-	set_switching_enabled(ret);
+	set_switching_enabled(bL_switcher_get_enabled());
 
 	for (i = 0; i < MAX_CLUSTERS; i++)
 		mutex_init(&cluster_lock[i]);
@@ -574,7 +591,7 @@ int bL_cpufreq_register(struct cpufreq_arm_bL_ops *ops)
 				__func__, ops->name, ret);
 		arm_bL_ops = NULL;
 	} else {
-		ret = bL_switcher_register_notifier(&bL_switcher_notifier);
+		ret = __bLs_register_notifier();
 		if (ret) {
 			cpufreq_unregister_driver(&bL_cpufreq_driver);
 			arm_bL_ops = NULL;
@@ -598,7 +615,7 @@ void bL_cpufreq_unregister(struct cpufreq_arm_bL_ops *ops)
 	}
 
 	bL_switcher_get_enabled();
-	bL_switcher_unregister_notifier(&bL_switcher_notifier);
+	__bLs_unregister_notifier();
 	cpufreq_unregister_driver(&bL_cpufreq_driver);
 	bL_switcher_put_enabled();
 	pr_info("%s: Un-registered platform driver: %s\n", __func__,
