@@ -3429,6 +3429,12 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 		    (rk_fb->disp_policy != DISPLAY_POLICY_BOX) &&
 		    (rk_fb->disp_policy != DISPLAY_POLICY_BOX_TEMP))
 			dev_drv->ops->backlight_close(dev_drv, 1);
+		if (!dev_drv->uboot_logo || load_screen ||
+				((rk_fb->disp_policy != DISPLAY_POLICY_BOX) &&
+				 (rk_fb->disp_policy != DISPLAY_POLICY_BOX_TEMP))) {
+			if (dev_drv->ops->dsp_black)
+				dev_drv->ops->dsp_black(dev_drv, 0);
+		}
 		if ((dev_drv->ops->set_screen_scaler) &&
 		    (rk_fb->disp_mode == ONE_DUAL))
 			dev_drv->ops->set_screen_scaler(dev_drv,
@@ -3506,7 +3512,9 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 		dev_drv->cur_screen->x_mirror = dev_drv->rotate_mode & X_MIRROR;
 		dev_drv->cur_screen->y_mirror = dev_drv->rotate_mode & Y_MIRROR;
 	}
-	if (!dev_drv->uboot_logo || load_screen) {
+	if (!dev_drv->uboot_logo || load_screen ||
+	    ((rk_fb->disp_policy != DISPLAY_POLICY_BOX) &&
+	     (rk_fb->disp_policy != DISPLAY_POLICY_BOX_TEMP))) {
 		for (i = 0; i < dev_drv->lcdc_win_num; i++) {
 			info = rk_fb->fb[dev_drv->fb_index_base + i];
 			fb_par = (struct rk_fb_par *)info->par;
@@ -3546,6 +3554,7 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
         kfree(envp[1]);
 
 	hdmi_switch_state = 1;
+	load_screen = true;
 	dev_drv->hdmi_switch = 0;
 	if ((rk_fb->disp_mode == ONE_DUAL) || (rk_fb->disp_mode == NO_DUAL)) {
 		if ((dev_drv->ops->set_screen_scaler) &&
