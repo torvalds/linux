@@ -1630,7 +1630,7 @@ int call_netdevice_notifiers(unsigned long val, struct net_device *dev)
 }
 EXPORT_SYMBOL(call_netdevice_notifiers);
 
-#ifdef CONFIG_NET_CLS_ACT
+#ifdef CONFIG_NET_INGRESS
 static struct static_key ingress_needed __read_mostly;
 
 void net_inc_ingress_queue(void)
@@ -3798,13 +3798,14 @@ another_round:
 	}
 
 skip_taps:
-#ifdef CONFIG_NET_CLS_ACT
+#ifdef CONFIG_NET_INGRESS
 	if (static_key_false(&ingress_needed)) {
 		skb = handle_ing(skb, &pt_prev, &ret, orig_dev);
 		if (!skb)
 			goto unlock;
 	}
-
+#endif
+#ifdef CONFIG_NET_CLS_ACT
 	skb->tc_verd = 0;
 ncls:
 #endif
