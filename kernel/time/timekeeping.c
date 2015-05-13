@@ -118,18 +118,6 @@ static inline void tk_update_sleep_time(struct timekeeper *tk, ktime_t delta)
 
 #ifdef CONFIG_DEBUG_TIMEKEEPING
 #define WARNING_FREQ (HZ*300) /* 5 minute rate-limiting */
-/*
- * These simple flag variables are managed
- * without locks, which is racy, but ok since
- * we don't really care about being super
- * precise about how many events were seen,
- * just that a problem was observed.
- */
-static int timekeeping_underflow_seen;
-static int timekeeping_overflow_seen;
-
-/* last_warning is only modified under the timekeeping lock */
-static long timekeeping_last_warning;
 
 static void timekeeping_check_update(struct timekeeper *tk, cycle_t offset)
 {
@@ -149,29 +137,30 @@ static void timekeeping_check_update(struct timekeeper *tk, cycle_t offset)
 		}
 	}
 
-	if (timekeeping_underflow_seen) {
-		if (jiffies - timekeeping_last_warning > WARNING_FREQ) {
+	if (tk->underflow_seen) {
+		if (jiffies - tk->last_warning > WARNING_FREQ) {
 			printk_deferred("WARNING: Underflow in clocksource '%s' observed, time update ignored.\n", name);
 			printk_deferred("         Please report this, consider using a different clocksource, if possible.\n");
 			printk_deferred("         Your kernel is probably still fine.\n");
-			timekeeping_last_warning = jiffies;
+			tk->last_warning = jiffies;
 		}
-		timekeeping_underflow_seen = 0;
+		tk->underflow_seen = 0;
 	}
 
-	if (timekeeping_overflow_seen) {
-		if (jiffies - timekeeping_last_warning > WARNING_FREQ) {
+	if (tk->overflow_seen) {
+		if (jiffies - tk->last_warning > WARNING_FREQ) {
 			printk_deferred("WARNING: Overflow in clocksource '%s' observed, time update capped.\n", name);
 			printk_deferred("         Please report this, consider using a different clocksource, if possible.\n");
 			printk_deferred("         Your kernel is probably still fine.\n");
-			timekeeping_last_warning = jiffies;
+			tk->last_warning = jiffies;
 		}
-		timekeeping_overflow_seen = 0;
+		tk->overflow_seen = 0;
 	}
 }
 
 static inline cycle_t timekeeping_get_delta(struct tk_read_base *tkr)
 {
+	struct timekeeper *tk = &tk_core.timekeeper;
 	cycle_t now, last, mask, max, delta;
 	unsigned int seq;
 
@@ -197,13 +186,13 @@ static inline cycle_t timekeeping_get_delta(struct tk_read_base *tkr)
 	 * mask-relative negative values.
 	 */
 	if (unlikely((~delta & mask) < (mask >> 3))) {
-		timekeeping_underflow_seen = 1;
+		tk->underflow_seen = 1;
 		delta = 0;
 	}
 
 	/* Cap delta value to the max_cycles values to avoid mult overflows */
 	if (unlikely(delta > max)) {
-		timekeeping_overflow_seen = 1;
+		tk->overflow_seen = 1;
 		delta = tkr->clock->max_cycles;
 	}
 
