@@ -44,6 +44,22 @@ KERNELDIR 		?= /lib/modules/$(KERNELVER)/build
 INSTALL_MOD_PATH	?= /..
 PWD			:= $(shell pwd)
 
+# kernel config option that shall be enable
+CONFIG_OPTIONS_ENABLE := SYSFS SPI USB SND_SOC
+
+# kernel config option that shall be disable
+CONFIG_OPTIONS_DISABLE :=
+
+# this only run in kbuild part of the makefile
+ifneq ($(KERNELRELEASE),)
+$(foreach opt,$(CONFIG_OPTIONS_ENABLE),$(if $(CONFIG_$(opt)),, \
+     $(error CONFIG_$(opt) is disabled in the kernel configuration and must be enable \
+     to continue compilation)))
+$(foreach opt,$(CONFIG_OPTIONS_DISABLE),$(if $(filter m y, $(CONFIG_$(opt))), \
+     $(error CONFIG_$(opt) is enabled in the kernel configuration and must be disable \
+     to continue compilation),))
+endif
+
 # add -Wall to try to catch everything we can.
 ccFlags-y := -Wall
 
