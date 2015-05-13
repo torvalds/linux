@@ -48,38 +48,6 @@ struct visorbus_devdata {
 	struct spar_vbus_headerinfo vbus_hdr_info;
 };
 
-/* These forward declarations are required since our drivers are out-of-tree.
- * The structures referenced are kernel-private and are not in the headers, but
- * it is impossible to make a functioning bus driver without them.
- */
-struct subsys_private {
-	struct kset subsys;
-	struct kset *devices_kset;
-
-	struct kset *drivers_kset;
-	struct klist klist_devices;
-	struct klist klist_drivers;
-	struct blocking_notifier_head bus_notifier;
-	unsigned int drivers_autoprobe:1;
-	struct bus_type *bus;
-
-	struct list_head class_interfaces;
-	struct kset glue_dirs;
-	struct mutex class_mutex; /* ignore */
-	struct class *class;
-};
-
-struct bus_type_private {
-	struct kset subsys;
-	struct kset *drivers_kset;
-	struct kset *devices_kset;
-	struct klist klist_devices;
-	struct klist klist_drivers;
-	struct blocking_notifier_head bus_notifier;
-	unsigned int drivers_autoprobe:1;
-	struct bus_type *bus;
-};
-
 #define CURRENT_FILE_PC VISOR_BUS_PC_visorbus_main_c
 #define POLLJIFFIES_TESTWORK         100
 #define POLLJIFFIES_NORMALCHANNEL     10
