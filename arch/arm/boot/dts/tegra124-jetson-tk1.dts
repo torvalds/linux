@@ -1647,6 +1647,10 @@
 		target-12v-supply = <&vdd_12v0_sata>;
 	};
 
+	hda@0,70030000 {
+		status = "okay";
+	};
+
 	padctl@0,7009f000 {
 		pinctrl-0 = <&padctl_default>;
 		pinctrl-names = "default";
