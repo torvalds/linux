@@ -477,6 +477,16 @@ config NET_CLS_BPF
 	  To compile this code as a module, choose M here: the module will
 	  be called cls_bpf.
 
+config NET_CLS_FLOWER
+	tristate "Flower classifier"
+	select NET_CLS
+	---help---
+	  If you say Y here, you will be able to classify packets based on
+	  a configurable combination of packet keys and masks.
+
+	  To compile this code as a module, choose M here: the module will
+	  be called cls_flower.
+
 config NET_EMATCH
 	bool "Extended Matches"
 	select NET_CLS

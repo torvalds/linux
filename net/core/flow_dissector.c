@@ -1,3 +1,4 @@
+#include <linux/kernel.h>
 #include <linux/skbuff.h>
 #include <linux/export.h>
 #include <linux/ip.h>
@@ -12,19 +13,57 @@
 #include <linux/if_tunnel.h>
 #include <linux/if_pppox.h>
 #include <linux/ppp_defs.h>
-#include <net/flow_keys.h>
+#include <linux/stddef.h>
+#include <linux/if_ether.h>
+#include <net/flow_dissector.h>
 #include <scsi/fc/fc_fcoe.h>
 
-/* copy saddr & daddr, possibly using 64bit load/store
- * Equivalent to :	flow->src = iph->saddr;
- *			flow->dst = iph->daddr;
- */
-static void iph_to_flow_copy_addrs(struct flow_keys *flow, const struct iphdr *iph)
+static bool skb_flow_dissector_uses_key(struct flow_dissector *flow_dissector,
+					enum flow_dissector_key_id key_id)
 {
-	BUILD_BUG_ON(offsetof(typeof(*flow), dst) !=
-		     offsetof(typeof(*flow), src) + sizeof(flow->src));
-	memcpy(&flow->src, &iph->saddr, sizeof(flow->src) + sizeof(flow->dst));
+	return flow_dissector->used_keys & (1 << key_id);
 }
+
+static void skb_flow_dissector_set_key(struct flow_dissector *flow_dissector,
+				       enum flow_dissector_key_id key_id)
+{
+	flow_dissector->used_keys |= (1 << key_id);
+}
+
+static void *skb_flow_dissector_target(struct flow_dissector *flow_dissector,
+				       enum flow_dissector_key_id key_id,
+				       void *target_container)
+{
+	return ((char *) target_container) + flow_dissector->offset[key_id];
+}
+
+void skb_flow_dissector_init(struct flow_dissector *flow_dissector,
+			     const struct flow_dissector_key *key,
+			     unsigned int key_count)
+{
+	unsigned int i;
+
+	memset(flow_dissector, 0, sizeof(*flow_dissector));
+
+	for (i = 0; i < key_count; i++, key++) {
+		/* User should make sure that every key target offset is withing
+		 * boundaries of unsigned short.
+		 */
+		BUG_ON(key->offset > USHRT_MAX);
+		BUG_ON(skb_flow_dissector_uses_key(flow_dissector,
+						   key->key_id));
+
+		skb_flow_dissector_set_key(flow_dissector, key->key_id);
+		flow_dissector->offset[key->key_id] = key->offset;
+	}
+
+	/* Ensure that the dissector always includes basic key. That way
+	 * we are able to avoid handling lack of it in fast path.
+	 */
+	BUG_ON(!skb_flow_dissector_uses_key(flow_dissector,
+					    FLOW_DISSECTOR_KEY_BASIC));
+}
+EXPORT_SYMBOL(skb_flow_dissector_init);
 
 /**
  * __skb_flow_get_ports - extract the upper layer ports and return them
@@ -63,17 +102,27 @@ EXPORT_SYMBOL(__skb_flow_get_ports);
 /**
  * __skb_flow_dissect - extract the flow_keys struct and return it
  * @skb: sk_buff to extract the flow from, can be NULL if the rest are specified
+ * @flow_dissector: list of keys to dissect
+ * @target_container: target structure to put dissected values into
  * @data: raw buffer pointer to the packet, if NULL use skb->data
  * @proto: protocol for which to get the flow, if @data is NULL use skb->protocol
  * @nhoff: network header offset, if @data is NULL use skb_network_offset(skb)
  * @hlen: packet header length, if @data is NULL use skb_headlen(skb)
  *
- * The function will try to retrieve the struct flow_keys from either the skbuff
- * or a raw buffer specified by the rest parameters
+ * The function will try to retrieve individual keys into target specified
+ * by flow_dissector from either the skbuff or a raw buffer specified by the
+ * rest parameters.
+ *
+ * Caller must take care of zeroing target container memory.
  */
-bool __skb_flow_dissect(const struct sk_buff *skb, struct flow_keys *flow,
+bool __skb_flow_dissect(const struct sk_buff *skb,
+			struct flow_dissector *flow_dissector,
+			void *target_container,
 			void *data, __be16 proto, int nhoff, int hlen)
 {
+	struct flow_dissector_key_basic *key_basic;
+	struct flow_dissector_key_addrs *key_addrs;
+	struct flow_dissector_key_ports *key_ports;
 	u8 ip_proto;
 
 	if (!data) {
@@ -83,7 +132,23 @@ bool __skb_flow_dissect(const struct sk_buff *skb, struct flow_keys *flow,
 		hlen = skb_headlen(skb);
 	}
 
-	memset(flow, 0, sizeof(*flow));
+	/* It is ensured by skb_flow_dissector_init() that basic key will
+	 * be always present.
+	 */
+	key_basic = skb_flow_dissector_target(flow_dissector,
+					      FLOW_DISSECTOR_KEY_BASIC,
+					      target_container);
+
+	if (skb_flow_dissector_uses_key(flow_dissector,
+					FLOW_DISSECTOR_KEY_ETH_ADDRS)) {
+		struct ethhdr *eth = eth_hdr(skb);
+		struct flow_dissector_key_eth_addrs *key_eth_addrs;
+
+		key_eth_addrs = skb_flow_dissector_target(flow_dissector,
+							  FLOW_DISSECTOR_KEY_ETH_ADDRS,
+							  target_container);
+		memcpy(key_eth_addrs, &eth->h_dest, sizeof(*key_eth_addrs));
+	}
 
 again:
 	switch (proto) {
@@ -100,14 +165,13 @@ ip:
 		if (ip_is_fragment(iph))
 			ip_proto = 0;
 
-		/* skip the address processing if skb is NULL.  The assumption
-		 * here is that if there is no skb we are not looking for flow
-		 * info but lengths and protocols.
-		 */
-		if (!skb)
+		if (!skb_flow_dissector_uses_key(flow_dissector,
+						 FLOW_DISSECTOR_KEY_IPV4_ADDRS))
 			break;
-
-		iph_to_flow_copy_addrs(flow, iph);
+		key_addrs = skb_flow_dissector_target(flow_dissector,
+						      FLOW_DISSECTOR_KEY_IPV4_ADDRS,
+						      target_container);
+		memcpy(key_addrs, &iph->saddr, sizeof(*key_addrs));
 		break;
 	}
 	case htons(ETH_P_IPV6): {
@@ -123,23 +187,47 @@ ipv6:
 		ip_proto = iph->nexthdr;
 		nhoff += sizeof(struct ipv6hdr);
 
-		/* see comment above in IPv4 section */
-		if (!skb)
-			break;
+		if (skb_flow_dissector_uses_key(flow_dissector,
+						FLOW_DISSECTOR_KEY_IPV6_HASH_ADDRS)) {
+			key_addrs = skb_flow_dissector_target(flow_dissector,
+							      FLOW_DISSECTOR_KEY_IPV6_HASH_ADDRS,
+							      target_container);
 
-		flow->src = (__force __be32)ipv6_addr_hash(&iph->saddr);
-		flow->dst = (__force __be32)ipv6_addr_hash(&iph->daddr);
+			key_addrs->src = (__force __be32)ipv6_addr_hash(&iph->saddr);
+			key_addrs->dst = (__force __be32)ipv6_addr_hash(&iph->daddr);
+			goto flow_label;
+		}
+		if (skb_flow_dissector_uses_key(flow_dissector,
+						FLOW_DISSECTOR_KEY_IPV6_ADDRS)) {
+			struct flow_dissector_key_ipv6_addrs *key_ipv6_addrs;
 
+			key_ipv6_addrs = skb_flow_dissector_target(flow_dissector,
+								   FLOW_DISSECTOR_KEY_IPV6_ADDRS,
+								   target_container);
+
+			memcpy(key_ipv6_addrs, &iph->saddr, sizeof(*key_ipv6_addrs));
+			goto flow_label;
+		}
+		break;
+flow_label:
 		flow_label = ip6_flowlabel(iph);
 		if (flow_label) {
 			/* Awesome, IPv6 packet has a flow label so we can
 			 * use that to represent the ports without any
 			 * further dissection.
 			 */
-			flow->n_proto = proto;
-			flow->ip_proto = ip_proto;
-			flow->ports = flow_label;
-			flow->thoff = (u16)nhoff;
+
+			key_basic->n_proto = proto;
+			key_basic->ip_proto = ip_proto;
+			key_basic->thoff = (u16)nhoff;
+
+			if (!skb_flow_dissector_uses_key(flow_dissector,
+							 FLOW_DISSECTOR_KEY_PORTS))
+				break;
+			key_ports = skb_flow_dissector_target(flow_dissector,
+							      FLOW_DISSECTOR_KEY_PORTS,
+							      target_container);
+			key_ports->ports = flow_label;
 
 			return true;
 		}
@@ -186,14 +274,22 @@ ipv6:
 		hdr = __skb_header_pointer(skb, nhoff, sizeof(_hdr), data, hlen, &_hdr);
 		if (!hdr)
 			return false;
-		flow->src = hdr->srcnode;
-		flow->dst = 0;
-		flow->n_proto = proto;
-		flow->thoff = (u16)nhoff;
+		key_basic->n_proto = proto;
+		key_basic->thoff = (u16)nhoff;
+
+		if (skb_flow_dissector_uses_key(flow_dissector,
+						FLOW_DISSECTOR_KEY_IPV6_HASH_ADDRS)) {
+			return true;
+			key_addrs = skb_flow_dissector_target(flow_dissector,
+							      FLOW_DISSECTOR_KEY_IPV6_HASH_ADDRS,
+							      target_container);
+			key_addrs->src = hdr->srcnode;
+			key_addrs->dst = 0;
+		}
 		return true;
 	}
 	case htons(ETH_P_FCOE):
-		flow->thoff = (u16)(nhoff + FCOE_HEADER_LEN);
+		key_basic->thoff = (u16)(nhoff + FCOE_HEADER_LEN);
 		/* fall through */
 	default:
 		return false;
@@ -248,14 +344,24 @@ ipv6:
 		break;
 	}
 
-	flow->n_proto = proto;
-	flow->ip_proto = ip_proto;
-	flow->thoff = (u16) nhoff;
+	/* It is ensured by skb_flow_dissector_init() that basic key will
+	 * be always present.
+	 */
+	key_basic = skb_flow_dissector_target(flow_dissector,
+					      FLOW_DISSECTOR_KEY_BASIC,
+					      target_container);
+	key_basic->n_proto = proto;
+	key_basic->ip_proto = ip_proto;
+	key_basic->thoff = (u16) nhoff;
 
-	/* unless skb is set we don't need to record port info */
-	if (skb)
-		flow->ports = __skb_flow_get_ports(skb, nhoff, ip_proto,
-						   data, hlen);
+	if (skb_flow_dissector_uses_key(flow_dissector,
+					FLOW_DISSECTOR_KEY_PORTS)) {
+		key_ports = skb_flow_dissector_target(flow_dissector,
+						      FLOW_DISSECTOR_KEY_PORTS,
+						      target_container);
+		key_ports->ports = __skb_flow_get_ports(skb, nhoff, ip_proto,
+							data, hlen);
+	}
 
 	return true;
 }
@@ -277,16 +383,16 @@ static inline u32 __flow_hash_from_keys(struct flow_keys *keys, u32 keyval)
 	u32 hash;
 
 	/* get a consistent hash (same value on both flow directions) */
-	if (((__force u32)keys->dst < (__force u32)keys->src) ||
-	    (((__force u32)keys->dst == (__force u32)keys->src) &&
-	     ((__force u16)keys->port16[1] < (__force u16)keys->port16[0]))) {
-		swap(keys->dst, keys->src);
-		swap(keys->port16[0], keys->port16[1]);
+	if (((__force u32)keys->addrs.dst < (__force u32)keys->addrs.src) ||
+	    (((__force u32)keys->addrs.dst == (__force u32)keys->addrs.src) &&
+	     ((__force u16)keys->ports.dst < (__force u16)keys->ports.src))) {
+		swap(keys->addrs.dst, keys->addrs.src);
+		swap(keys->ports.src, keys->ports.dst);
 	}
 
-	hash = __flow_hash_3words((__force u32)keys->dst,
-				  (__force u32)keys->src,
-				  (__force u32)keys->ports,
+	hash = __flow_hash_3words((__force u32)keys->addrs.dst,
+				  (__force u32)keys->addrs.src,
+				  (__force u32)keys->ports.ports,
 				  keyval);
 	if (!hash)
 		hash = 1;
@@ -304,7 +410,7 @@ EXPORT_SYMBOL(flow_hash_from_keys);
 static inline u32 ___skb_get_hash(const struct sk_buff *skb,
 				  struct flow_keys *keys, u32 keyval)
 {
-	if (!skb_flow_dissect(skb, keys))
+	if (!skb_flow_dissect_flow_keys(skb, keys))
 		return 0;
 
 	return __flow_hash_from_keys(keys, keyval);
@@ -329,16 +435,19 @@ void make_flow_keys_digest(struct flow_keys_digest *digest,
 
 	memset(digest, 0, sizeof(*digest));
 
-	data->n_proto = flow->n_proto;
-	data->ip_proto = flow->ip_proto;
-	data->ports = flow->ports;
-	data->src = flow->src;
-	data->dst = flow->dst;
+	data->n_proto = flow->basic.n_proto;
+	data->ip_proto = flow->basic.ip_proto;
+	data->ports = flow->ports.ports;
+	data->src = flow->addrs.src;
+	data->dst = flow->addrs.dst;
 }
 EXPORT_SYMBOL(make_flow_keys_digest);
 
-/*
- * __skb_get_hash: calculate a flow hash based on src/dst addresses
+/**
+ * __skb_get_hash: calculate a flow hash
+ * @skb: sk_buff to calculate flow hash from
+ *
+ * This function calculates a flow hash based on src/dst addresses
  * and src/dst port numbers.  Sets hash in skb to non-zero hash value
  * on success, zero indicates no valid hash.  Also, sets l4_hash in skb
  * if hash is a canonical 4-tuple hash over transport ports.
@@ -353,12 +462,9 @@ void __skb_get_hash(struct sk_buff *skb)
 	hash = ___skb_get_hash(skb, &keys, hashrnd);
 	if (!hash)
 		return;
-
-	if (keys.ports)
+	if (keys.ports.ports)
 		skb->l4_hash = 1;
-
 	skb->sw_hash = 1;
-
 	skb->hash = hash;
 }
 EXPORT_SYMBOL(__skb_get_hash);
@@ -371,40 +477,12 @@ __u32 skb_get_hash_perturb(const struct sk_buff *skb, u32 perturb)
 }
 EXPORT_SYMBOL(skb_get_hash_perturb);
 
-/*
- * Returns a Tx hash based on the given packet descriptor a Tx queues' number
- * to be used as a distribution range.
- */
-u16 __skb_tx_hash(const struct net_device *dev, struct sk_buff *skb,
-		  unsigned int num_tx_queues)
-{
-	u32 hash;
-	u16 qoffset = 0;
-	u16 qcount = num_tx_queues;
-
-	if (skb_rx_queue_recorded(skb)) {
-		hash = skb_get_rx_queue(skb);
-		while (unlikely(hash >= num_tx_queues))
-			hash -= num_tx_queues;
-		return hash;
-	}
-
-	if (dev->num_tc) {
-		u8 tc = netdev_get_prio_tc_map(dev, skb->priority);
-		qoffset = dev->tc_to_txq[tc].offset;
-		qcount = dev->tc_to_txq[tc].count;
-	}
-
-	return (u16) reciprocal_scale(skb_get_hash(skb), qcount) + qoffset;
-}
-EXPORT_SYMBOL(__skb_tx_hash);
-
 u32 __skb_get_poff(const struct sk_buff *skb, void *data,
 		   const struct flow_keys *keys, int hlen)
 {
-	u32 poff = keys->thoff;
+	u32 poff = keys->basic.thoff;
 
-	switch (keys->ip_proto) {
+	switch (keys->basic.ip_proto) {
 	case IPPROTO_TCP: {
 		/* access doff as u8 to avoid unaligned access */
 		const u8 *doff;
@@ -445,8 +523,12 @@ u32 __skb_get_poff(const struct sk_buff *skb, void *data,
 	return poff;
 }
 
-/* skb_get_poff() returns the offset to the payload as far as it could
- * be dissected. The main user is currently BPF, so that we can dynamically
+/**
+ * skb_get_poff - get the offset to the payload
+ * @skb: sk_buff to get the payload offset from
+ *
+ * The function will get the offset to the payload as far as it could
+ * be dissected.  The main user is currently BPF, so that we can dynamically
  * truncate packets without needing to push actual payload to the user
  * space and can analyze headers only, instead.
  */
@@ -454,86 +536,52 @@ u32 skb_get_poff(const struct sk_buff *skb)
 {
 	struct flow_keys keys;
 
-	if (!skb_flow_dissect(skb, &keys))
+	if (!skb_flow_dissect_flow_keys(skb, &keys))
 		return 0;
 
 	return __skb_get_poff(skb, skb->data, &keys, skb_headlen(skb));
 }
 
-static inline int get_xps_queue(struct net_device *dev, struct sk_buff *skb)
+static const struct flow_dissector_key flow_keys_dissector_keys[] = {
+	{
+		.key_id = FLOW_DISSECTOR_KEY_BASIC,
+		.offset = offsetof(struct flow_keys, basic),
+	},
+	{
+		.key_id = FLOW_DISSECTOR_KEY_IPV4_ADDRS,
+		.offset = offsetof(struct flow_keys, addrs),
+	},
+	{
+		.key_id = FLOW_DISSECTOR_KEY_IPV6_HASH_ADDRS,
+		.offset = offsetof(struct flow_keys, addrs),
+	},
+	{
+		.key_id = FLOW_DISSECTOR_KEY_PORTS,
+		.offset = offsetof(struct flow_keys, ports),
+	},
+};
+
+static const struct flow_dissector_key flow_keys_buf_dissector_keys[] = {
+	{
+		.key_id = FLOW_DISSECTOR_KEY_BASIC,
+		.offset = offsetof(struct flow_keys, basic),
+	},
+};
+
+struct flow_dissector flow_keys_dissector __read_mostly;
+EXPORT_SYMBOL(flow_keys_dissector);
+
+struct flow_dissector flow_keys_buf_dissector __read_mostly;
+
+static int __init init_default_flow_dissectors(void)
 {
-#ifdef CONFIG_XPS
-	struct xps_dev_maps *dev_maps;
-	struct xps_map *map;
-	int queue_index = -1;
-
-	rcu_read_lock();
-	dev_maps = rcu_dereference(dev->xps_maps);
-	if (dev_maps) {
-		map = rcu_dereference(
-		    dev_maps->cpu_map[skb->sender_cpu - 1]);
-		if (map) {
-			if (map->len == 1)
-				queue_index = map->queues[0];
-			else
-				queue_index = map->queues[reciprocal_scale(skb_get_hash(skb),
-									   map->len)];
-			if (unlikely(queue_index >= dev->real_num_tx_queues))
-				queue_index = -1;
-		}
-	}
-	rcu_read_unlock();
-
-	return queue_index;
-#else
-	return -1;
-#endif
+	skb_flow_dissector_init(&flow_keys_dissector,
+				flow_keys_dissector_keys,
+				ARRAY_SIZE(flow_keys_dissector_keys));
+	skb_flow_dissector_init(&flow_keys_buf_dissector,
+				flow_keys_buf_dissector_keys,
+				ARRAY_SIZE(flow_keys_buf_dissector_keys));
+	return 0;
 }
 
-static u16 __netdev_pick_tx(struct net_device *dev, struct sk_buff *skb)
-{
-	struct sock *sk = skb->sk;
-	int queue_index = sk_tx_queue_get(sk);
-
-	if (queue_index < 0 || skb->ooo_okay ||
-	    queue_index >= dev->real_num_tx_queues) {
-		int new_index = get_xps_queue(dev, skb);
-		if (new_index < 0)
-			new_index = skb_tx_hash(dev, skb);
-
-		if (queue_index != new_index && sk &&
-		    rcu_access_pointer(sk->sk_dst_cache))
-			sk_tx_queue_set(sk, new_index);
-
-		queue_index = new_index;
-	}
-
-	return queue_index;
-}
-
-struct netdev_queue *netdev_pick_tx(struct net_device *dev,
-				    struct sk_buff *skb,
-				    void *accel_priv)
-{
-	int queue_index = 0;
-
-#ifdef CONFIG_XPS
-	if (skb->sender_cpu == 0)
-		skb->sender_cpu = raw_smp_processor_id() + 1;
-#endif
-
-	if (dev->real_num_tx_queues != 1) {
-		const struct net_device_ops *ops = dev->netdev_ops;
-		if (ops->ndo_select_queue)
-			queue_index = ops->ndo_select_queue(dev, skb, accel_priv,
-							    __netdev_pick_tx);
-		else
-			queue_index = __netdev_pick_tx(dev, skb);
-
-		if (!accel_priv)
-			queue_index = netdev_cap_txqueue(dev, queue_index);
-	}
-
-	skb_set_queue_mapping(skb, queue_index);
-	return netdev_get_tx_queue(dev, queue_index);
-}
+late_initcall_sync(init_default_flow_dissectors);

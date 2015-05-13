@@ -2832,6 +2832,9 @@ static inline int netif_set_xps_queue(struct net_device *dev,
 }
 #endif
 
+u16 __skb_tx_hash(const struct net_device *dev, struct sk_buff *skb,
+		  unsigned int num_tx_queues);
+
 /*
  * Returns a Tx hash for the given packet when dev->real_num_tx_queues is used
  * as a distribution range limit for the returned value.
