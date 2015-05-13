@@ -384,6 +384,7 @@ enum vf_state {
 #define BE_FLAGS_SETUP_DONE			BIT(9)
 #define BE_FLAGS_EVT_INCOMPATIBLE_SFP		BIT(10)
 #define BE_FLAGS_ERR_DETECTION_SCHEDULED	BIT(11)
+#define BE_FLAGS_OS2BMC				BIT(12)
 
 #define BE_UC_PMAC_COUNT			30
 #define BE_VF_UC_PMAC_COUNT			2
@@ -428,6 +429,8 @@ struct be_resources {
 	u32 vf_if_cap_flags;	/* VF if capability flags */
 };
 
+#define be_is_os2bmc_enabled(adapter) (adapter->flags & BE_FLAGS_OS2BMC)
+
 struct rss_info {
 	u64 rss_flags;
 	u8 rsstable[RSS_INDIR_TABLE_LEN];
@@ -461,7 +464,8 @@ enum {
 	BE_WRB_F_LSO_BIT,		/* LSO */
 	BE_WRB_F_LSO6_BIT,		/* LSO6 */
 	BE_WRB_F_VLAN_BIT,		/* VLAN */
-	BE_WRB_F_VLAN_SKIP_HW_BIT	/* Skip VLAN tag (workaround) */
+	BE_WRB_F_VLAN_SKIP_HW_BIT,	/* Skip VLAN tag (workaround) */
+	BE_WRB_F_OS2BMC_BIT		/* Send packet to the management ring */
 };
 
 /* The structure below provides a HW-agnostic abstraction of WRB params
@@ -584,6 +588,8 @@ struct be_adapter {
 	struct be_hwmon hwmon_info;
 	u8 pf_number;
 	struct rss_info rss_info;
+	/* Filters for packets that need to be sent to BMC */
+	u32 bmc_filt_mask;
 };
 
 #define be_physfn(adapter)		(!adapter->virtfn)

@@ -820,6 +820,8 @@ static void wrb_fill_hdr(struct be_adapter *adapter,
 
 	SET_TX_WRB_HDR_BITS(num_wrb, hdr, skb_wrb_cnt(skb));
 	SET_TX_WRB_HDR_BITS(len, hdr, skb->len);
+	SET_TX_WRB_HDR_BITS(mgmt, hdr,
+			    BE_WRB_F_GET(wrb_params->features, OS2BMC));
 }
 
 static void unmap_tx_frag(struct device *dev, struct be_eth_wrb *wrb,
@@ -1156,6 +1158,130 @@ static void be_xmit_flush(struct be_adapter *adapter, struct be_tx_obj *txo)
 	txo->pend_wrb_cnt = 0;
 }
 
+/* OS2BMC related */
+
+#define DHCP_CLIENT_PORT	68
+#define DHCP_SERVER_PORT	67
+#define NET_BIOS_PORT1		137
+#define NET_BIOS_PORT2		138
+#define DHCPV6_RAS_PORT		547
+
+#define is_mc_allowed_on_bmc(adapter, eh)	\
+	(!is_multicast_filt_enabled(adapter) &&	\
+	 is_multicast_ether_addr(eh->h_dest) &&	\
+	 !is_broadcast_ether_addr(eh->h_dest))
+
+#define is_bc_allowed_on_bmc(adapter, eh)	\
+	(!is_broadcast_filt_enabled(adapter) &&	\
+	 is_broadcast_ether_addr(eh->h_dest))
+
+#define is_arp_allowed_on_bmc(adapter, skb)	\
+	(is_arp(skb) && is_arp_filt_enabled(adapter))
+
+#define is_broadcast_packet(eh, adapter)	\
+		(is_multicast_ether_addr(eh->h_dest) && \
+		!compare_ether_addr(eh->h_dest, adapter->netdev->broadcast))
+
+#define is_arp(skb)	(skb->protocol == htons(ETH_P_ARP))
+
+#define is_arp_filt_enabled(adapter)	\
+		(adapter->bmc_filt_mask & (BMC_FILT_BROADCAST_ARP))
+
+#define is_dhcp_client_filt_enabled(adapter)	\
+		(adapter->bmc_filt_mask & BMC_FILT_BROADCAST_DHCP_CLIENT)
+
+#define is_dhcp_srvr_filt_enabled(adapter)	\
+		(adapter->bmc_filt_mask & BMC_FILT_BROADCAST_DHCP_SERVER)
+
+#define is_nbios_filt_enabled(adapter)	\
+		(adapter->bmc_filt_mask & BMC_FILT_BROADCAST_NET_BIOS)
+
+#define is_ipv6_na_filt_enabled(adapter)	\
+		(adapter->bmc_filt_mask &	\
+			BMC_FILT_MULTICAST_IPV6_NEIGH_ADVER)
+
+#define is_ipv6_ra_filt_enabled(adapter)	\
+		(adapter->bmc_filt_mask & BMC_FILT_MULTICAST_IPV6_RA)
+
+#define is_ipv6_ras_filt_enabled(adapter)	\
+		(adapter->bmc_filt_mask & BMC_FILT_MULTICAST_IPV6_RAS)
+
+#define is_broadcast_filt_enabled(adapter)	\
+		(adapter->bmc_filt_mask & BMC_FILT_BROADCAST)
+
+#define is_multicast_filt_enabled(adapter)	\
+		(adapter->bmc_filt_mask & BMC_FILT_MULTICAST)
+
+static bool be_send_pkt_to_bmc(struct be_adapter *adapter,
+			       struct sk_buff **skb)
+{
+	struct ethhdr *eh = (struct ethhdr *)(*skb)->data;
+	bool os2bmc = false;
+
+	if (!be_is_os2bmc_enabled(adapter))
+		goto done;
+
+	if (!is_multicast_ether_addr(eh->h_dest))
+		goto done;
+
+	if (is_mc_allowed_on_bmc(adapter, eh) ||
+	    is_bc_allowed_on_bmc(adapter, eh) ||
+	    is_arp_allowed_on_bmc(adapter, (*skb))) {
+		os2bmc = true;
+		goto done;
+	}
+
+	if ((*skb)->protocol == htons(ETH_P_IPV6)) {
+		struct ipv6hdr *hdr = ipv6_hdr((*skb));
+		u8 nexthdr = hdr->nexthdr;
+
+		if (nexthdr == IPPROTO_ICMPV6) {
+			struct icmp6hdr *icmp6 = icmp6_hdr((*skb));
+
+			switch (icmp6->icmp6_type) {
+			case NDISC_ROUTER_ADVERTISEMENT:
+				os2bmc = is_ipv6_ra_filt_enabled(adapter);
+				goto done;
+			case NDISC_NEIGHBOUR_ADVERTISEMENT:
+				os2bmc = is_ipv6_na_filt_enabled(adapter);
+				goto done;
+			default:
+				break;
+			}
+		}
+	}
+
+	if (is_udp_pkt((*skb))) {
+		struct udphdr *udp = udp_hdr((*skb));
+
+		switch (udp->dest) {
+		case DHCP_CLIENT_PORT:
+			os2bmc = is_dhcp_client_filt_enabled(adapter);
+			goto done;
+		case DHCP_SERVER_PORT:
+			os2bmc = is_dhcp_srvr_filt_enabled(adapter);
+			goto done;
+		case NET_BIOS_PORT1:
+		case NET_BIOS_PORT2:
+			os2bmc = is_nbios_filt_enabled(adapter);
+			goto done;
+		case DHCPV6_RAS_PORT:
+			os2bmc = is_ipv6_ras_filt_enabled(adapter);
+			goto done;
+		default:
+			break;
+		}
+	}
+done:
+	/* For packets over a vlan, which are destined
+	 * to BMC, asic expects the vlan to be inline in the packet.
+	 */
+	if (os2bmc)
+		*skb = be_insert_vlan_in_pkt(adapter, *skb, NULL);
+
+	return os2bmc;
+}
+
 static netdev_tx_t be_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
@@ -1175,6 +1301,18 @@ static netdev_tx_t be_xmit(struct sk_buff *skb, struct net_device *netdev)
 	if (unlikely(!wrb_cnt)) {
 		dev_kfree_skb_any(skb);
 		goto drop;
+	}
+
+	/* if os2bmc is enabled and if the pkt is destined to bmc,
+	 * enqueue the pkt a 2nd time with mgmt bit set.
+	 */
+	if (be_send_pkt_to_bmc(adapter, &skb)) {
+		BE_WRB_F_SET(wrb_params.features, OS2BMC, 1);
+		wrb_cnt = be_xmit_enqueue(adapter, txo, skb, &wrb_params);
+		if (unlikely(!wrb_cnt))
+			goto drop;
+		else
+			skb_get(skb);
 	}
 
 	if (be_is_txq_full(txo)) {

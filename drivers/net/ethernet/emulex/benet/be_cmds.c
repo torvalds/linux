@@ -333,6 +333,21 @@ static void be_async_grp5_pvid_state_process(struct be_adapter *adapter,
 	}
 }
 
+#define MGMT_ENABLE_MASK	0x4
+static void be_async_grp5_fw_control_process(struct be_adapter *adapter,
+					     struct be_mcc_compl *compl)
+{
+	struct be_async_fw_control *evt = (struct be_async_fw_control *)compl;
+	u32 evt_dw1 = le32_to_cpu(evt->event_data_word1);
+
+	if (evt_dw1 & MGMT_ENABLE_MASK) {
+		adapter->flags |= BE_FLAGS_OS2BMC;
+		adapter->bmc_filt_mask = le32_to_cpu(evt->event_data_word2);
+	} else {
+		adapter->flags &= ~BE_FLAGS_OS2BMC;
+	}
+}
+
 static void be_async_grp5_evt_process(struct be_adapter *adapter,
 				      struct be_mcc_compl *compl)
 {
@@ -348,6 +363,10 @@ static void be_async_grp5_evt_process(struct be_adapter *adapter,
 		break;
 	case ASYNC_EVENT_PVID_STATE:
 		be_async_grp5_pvid_state_process(adapter, compl);
+		break;
+	/* Async event to disable/enable os2bmc and/or mac-learning */
+	case ASYNC_EVENT_FW_CONTROL:
+		be_async_grp5_fw_control_process(adapter, compl);
 		break;
 	default:
 		break;
