@@ -31,7 +31,7 @@
  *	local_save_flags(irq_flags);
  *	pc = preempt_count();
  *
- *	__data_size = ftrace_get_offsets_<call>(&__data_offsets, args);
+ *	__data_size = trace_event_get_offsets_<call>(&__data_offsets, args);
  *
  *	event = trace_event_buffer_lock_reserve(&buffer, trace_file,
  *				  event_<call>->event.type,
@@ -162,7 +162,7 @@ trace_event_raw_event_##call(void *__data, proto)			\
 	if (trace_trigger_soft_disabled(trace_file))			\
 		return;							\
 									\
-	__data_size = ftrace_get_offsets_##call(&__data_offsets, args); \
+	__data_size = trace_event_get_offsets_##call(&__data_offsets, args); \
 									\
 	entry = trace_event_buffer_reserve(&fbuffer, trace_file,	\
 				 sizeof(*entry) + __data_size);		\
@@ -303,7 +303,7 @@ perf_trace_##call(void *__data, proto)					\
 	int __data_size;						\
 	int rctx;							\
 									\
-	__data_size = ftrace_get_offsets_##call(&__data_offsets, args); \
+	__data_size = trace_event_get_offsets_##call(&__data_offsets, args); \
 									\
 	head = this_cpu_ptr(event_call->perf_events);			\
 	if (__builtin_constant_p(!__task) && !__task &&			\

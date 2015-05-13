@@ -485,7 +485,7 @@ trace_event_define_fields_##call(struct trace_event_call *event_call)	\
 
 #undef DECLARE_EVENT_CLASS
 #define DECLARE_EVENT_CLASS(call, proto, args, tstruct, assign, print)	\
-static inline notrace int ftrace_get_offsets_##call(			\
+static inline notrace int trace_event_get_offsets_##call(		\
 	struct trace_event_data_offsets_##call *__data_offsets, proto)	\
 {									\
 	int __data_size = 0;						\
