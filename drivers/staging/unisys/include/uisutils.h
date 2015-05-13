@@ -32,7 +32,6 @@
 #include "channel.h"
 #include "uisthread.h"
 #include "uisqueue.h"
-#include "diagnostics/appos_subsystems.h"
 #include "vbusdeviceinfo.h"
 #include <linux/atomic.h>
 
