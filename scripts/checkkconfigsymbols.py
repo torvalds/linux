@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 
 """Find Kconfig symbols that are referenced but not defined."""
 
