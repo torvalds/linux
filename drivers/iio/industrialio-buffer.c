@@ -575,6 +575,25 @@ static void iio_buffer_update_bytes_per_datum(struct iio_dev *indio_dev,
 	buffer->access->set_bytes_per_datum(buffer, bytes);
 }
 
+static int iio_buffer_request_update(struct iio_dev *indio_dev,
+	struct iio_buffer *buffer)
+{
+	int ret;
+
+	iio_buffer_update_bytes_per_datum(indio_dev, buffer);
+	if (buffer->access->request_update) {
+		ret = buffer->access->request_update(buffer);
+		if (ret) {
+			dev_dbg(&indio_dev->dev,
+			       "Buffer not started: buffer parameter update failed (%d)\n",
+				ret);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 static void iio_free_scan_mask(struct iio_dev *indio_dev,
 	const unsigned long *mask)
 {
@@ -592,6 +611,12 @@ static int __iio_update_buffers(struct iio_dev *indio_dev,
 	struct iio_buffer *buffer;
 	unsigned long *compound_mask;
 	const unsigned long *old_mask;
+
+	if (insert_buffer) {
+		ret = iio_buffer_request_update(indio_dev, insert_buffer);
+		if (ret)
+			return ret;
+	}
 
 	/* Wind down existing buffers - iff there are any */
 	if (!list_empty(&indio_dev->buffer_list)) {
@@ -678,17 +703,6 @@ static int __iio_update_buffers(struct iio_dev *indio_dev,
 		iio_compute_scan_bytes(indio_dev,
 				       indio_dev->active_scan_mask,
 				       indio_dev->scan_timestamp);
-	list_for_each_entry(buffer, &indio_dev->buffer_list, buffer_list) {
-		iio_buffer_update_bytes_per_datum(indio_dev, buffer);
-		if (buffer->access->request_update) {
-			ret = buffer->access->request_update(buffer);
-			if (ret) {
-				dev_dbg(&indio_dev->dev,
-				       "Buffer not started: buffer parameter update failed (%d)\n", ret);
-				goto error_run_postdisable;
-			}
-		}
-	}
 	if (indio_dev->info->update_scan_mode) {
 		ret = indio_dev->info
 			->update_scan_mode(indio_dev,
