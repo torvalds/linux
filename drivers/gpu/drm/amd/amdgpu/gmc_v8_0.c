@@ -589,7 +589,7 @@ static int gmc_v8_0_gart_enable(struct amdgpu_device *adev)
 	WREG32(mmVM_L2_CNTL4, tmp);
 	/* setup context0 */
 	WREG32(mmVM_CONTEXT0_PAGE_TABLE_START_ADDR, adev->mc.gtt_start >> 12);
-	WREG32(mmVM_CONTEXT0_PAGE_TABLE_END_ADDR, adev->mc.gtt_end >> 12);
+	WREG32(mmVM_CONTEXT0_PAGE_TABLE_END_ADDR, (adev->mc.gtt_end >> 12) - 1);
 	WREG32(mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR, adev->gart.table_addr >> 12);
 	WREG32(mmVM_CONTEXT0_PROTECTION_FAULT_DEFAULT_ADDR,
 			(u32)(adev->dummy_page.addr >> 12));
@@ -610,7 +610,7 @@ static int gmc_v8_0_gart_enable(struct amdgpu_device *adev)
 	 */
 	/* set vm size, must be a multiple of 4 */
 	WREG32(mmVM_CONTEXT1_PAGE_TABLE_START_ADDR, 0);
-	WREG32(mmVM_CONTEXT1_PAGE_TABLE_END_ADDR, adev->vm_manager.max_pfn);
+	WREG32(mmVM_CONTEXT1_PAGE_TABLE_END_ADDR, adev->vm_manager.max_pfn - 1);
 	for (i = 1; i < 16; i++) {
 		if (i < 8)
 			WREG32(mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR + i,
