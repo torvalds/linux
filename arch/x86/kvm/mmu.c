@@ -1412,6 +1412,74 @@ restart:
 	return 0;
 }
 
+struct slot_rmap_walk_iterator {
+	/* input fields. */
+	struct kvm_memory_slot *slot;
+	gfn_t start_gfn;
+	gfn_t end_gfn;
+	int start_level;
+	int end_level;
+
+	/* output fields. */
+	gfn_t gfn;
+	unsigned long *rmap;
+	int level;
+
+	/* private field. */
+	unsigned long *end_rmap;
+};
+
+static void
+rmap_walk_init_level(struct slot_rmap_walk_iterator *iterator, int level)
+{
+	iterator->level = level;
+	iterator->gfn = iterator->start_gfn;
+	iterator->rmap = __gfn_to_rmap(iterator->gfn, level, iterator->slot);
+	iterator->end_rmap = __gfn_to_rmap(iterator->end_gfn, level,
+					   iterator->slot);
+}
+
+static void
+slot_rmap_walk_init(struct slot_rmap_walk_iterator *iterator,
+		    struct kvm_memory_slot *slot, int start_level,
+		    int end_level, gfn_t start_gfn, gfn_t end_gfn)
+{
+	iterator->slot = slot;
+	iterator->start_level = start_level;
+	iterator->end_level = end_level;
+	iterator->start_gfn = start_gfn;
+	iterator->end_gfn = end_gfn;
+
+	rmap_walk_init_level(iterator, iterator->start_level);
+}
+
+static bool slot_rmap_walk_okay(struct slot_rmap_walk_iterator *iterator)
+{
+	return !!iterator->rmap;
+}
+
+static void slot_rmap_walk_next(struct slot_rmap_walk_iterator *iterator)
+{
+	if (++iterator->rmap <= iterator->end_rmap) {
+		iterator->gfn += (1UL << KVM_HPAGE_GFN_SHIFT(iterator->level));
+		return;
+	}
+
+	if (++iterator->level > iterator->end_level) {
+		iterator->rmap = NULL;
+		return;
+	}
+
+	rmap_walk_init_level(iterator, iterator->level);
+}
+
+#define for_each_slot_rmap_range(_slot_, _start_level_, _end_level_,	\
+	   _start_gfn, _end_gfn, _iter_)				\
+	for (slot_rmap_walk_init(_iter_, _slot_, _start_level_,		\
+				 _end_level_, _start_gfn, _end_gfn);	\
+	     slot_rmap_walk_okay(_iter_);				\
+	     slot_rmap_walk_next(_iter_))
+
 static int kvm_handle_hva_range(struct kvm *kvm,
 				unsigned long start,
 				unsigned long end,
@@ -1423,10 +1491,10 @@ static int kvm_handle_hva_range(struct kvm *kvm,
 					       int level,
 					       unsigned long data))
 {
-	int j;
-	int ret = 0;
 	struct kvm_memslots *slots;
 	struct kvm_memory_slot *memslot;
+	struct slot_rmap_walk_iterator iterator;
+	int ret = 0;
 
 	slots = kvm_memslots(kvm);
 
@@ -1446,26 +1514,11 @@ static int kvm_handle_hva_range(struct kvm *kvm,
 		gfn_start = hva_to_gfn_memslot(hva_start, memslot);
 		gfn_end = hva_to_gfn_memslot(hva_end + PAGE_SIZE - 1, memslot);
 
-		for (j = PT_PAGE_TABLE_LEVEL;
-		     j <= PT_MAX_HUGEPAGE_LEVEL; ++j) {
-			unsigned long idx, idx_end;
-			unsigned long *rmapp;
-			gfn_t gfn = gfn_start;
-
-			/*
-			 * {idx(page_j) | page_j intersects with
-			 *  [hva_start, hva_end)} = {idx, idx+1, ..., idx_end}.
-			 */
-			idx = gfn_to_index(gfn_start, memslot->base_gfn, j);
-			idx_end = gfn_to_index(gfn_end - 1, memslot->base_gfn, j);
-
-			rmapp = __gfn_to_rmap(gfn_start, j, memslot);
-
-			for (; idx <= idx_end;
-			       ++idx, gfn += (1UL << KVM_HPAGE_GFN_SHIFT(j)))
-				ret |= handler(kvm, rmapp++, memslot,
-					       gfn, j, data);
-		}
+		for_each_slot_rmap_range(memslot, PT_PAGE_TABLE_LEVEL,
+				PT_MAX_HUGEPAGE_LEVEL, gfn_start, gfn_end - 1,
+				&iterator)
+			ret |= handler(kvm, iterator.rmap, memslot,
+				       iterator.gfn, iterator.level, data);
 	}
 
 	return ret;
