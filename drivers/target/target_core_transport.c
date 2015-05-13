@@ -1770,7 +1770,7 @@ static int target_write_prot_action(struct se_cmd *cmd)
 						   sectors, 0, NULL, 0);
 		if (unlikely(cmd->pi_err)) {
 			spin_lock_irq(&cmd->t_state_lock);
-			cmd->transport_state &= ~CMD_T_BUSY|CMD_T_SENT;
+			cmd->transport_state &= ~(CMD_T_BUSY|CMD_T_SENT);
 			spin_unlock_irq(&cmd->t_state_lock);
 			transport_generic_request_failure(cmd, cmd->pi_err);
 			return -1;
@@ -1868,7 +1868,7 @@ void target_execute_cmd(struct se_cmd *cmd)
 
 	if (target_handle_task_attr(cmd)) {
 		spin_lock_irq(&cmd->t_state_lock);
-		cmd->transport_state &= ~CMD_T_BUSY|CMD_T_SENT;
+		cmd->transport_state &= ~(CMD_T_BUSY | CMD_T_SENT);
 		spin_unlock_irq(&cmd->t_state_lock);
 		return;
 	}
