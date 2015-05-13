@@ -359,12 +359,13 @@ static void ssb_pcicore_init_hostmode(struct ssb_pcicore *pc)
 
 	/*
 	 * Accessing PCI config without a proper delay after devices reset (not
-	 * GPIO reset) was causing reboots on WRT300N v1.0.
+	 * GPIO reset) was causing reboots on WRT300N v1.0 (BCM4704).
 	 * Tested delay 850 us lowered reboot chance to 50-80%, 1000 us fixed it
 	 * completely. Flushing all writes was also tested but with no luck.
+	 * The same problem was reported for WRT350N v1 (BCM4705), so we just
+	 * sleep here unconditionally.
 	 */
-	if (pc->dev->bus->chip_id == 0x4704)
-		usleep_range(1000, 2000);
+	usleep_range(1000, 2000);
 
 	/* Enable PCI bridge BAR0 prefetch and burst */
 	val = PCI_COMMAND_MASTER | PCI_COMMAND_MEMORY;
