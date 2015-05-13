@@ -256,7 +256,7 @@
 		};
 	};
 
-	watchdog@10060000 {
+	watchdog: watchdog@10060000 {
 		compatible = "samsung,s3c2410-wdt";
 		reg = <0x10060000 0x100>;
 		interrupts = <0 43 0>;
@@ -275,7 +275,7 @@
 		status = "disabled";
 	};
 
-	keypad@100A0000 {
+	keypad: keypad@100A0000 {
 		compatible = "samsung,s5pv210-keypad";
 		reg = <0x100A0000 0x100>;
 		interrupts = <0 109 0>;
@@ -284,7 +284,7 @@
 		status = "disabled";
 	};
 
-	sdhci@12510000 {
+	sdhci_0: sdhci@12510000 {
 		compatible = "samsung,exynos4210-sdhci";
 		reg = <0x12510000 0x100>;
 		interrupts = <0 73 0>;
@@ -293,7 +293,7 @@
 		status = "disabled";
 	};
 
-	sdhci@12520000 {
+	sdhci_1: sdhci@12520000 {
 		compatible = "samsung,exynos4210-sdhci";
 		reg = <0x12520000 0x100>;
 		interrupts = <0 74 0>;
@@ -302,7 +302,7 @@
 		status = "disabled";
 	};
 
-	sdhci@12530000 {
+	sdhci_2: sdhci@12530000 {
 		compatible = "samsung,exynos4210-sdhci";
 		reg = <0x12530000 0x100>;
 		interrupts = <0 75 0>;
@@ -311,7 +311,7 @@
 		status = "disabled";
 	};
 
-	sdhci@12540000 {
+	sdhci_3: sdhci@12540000 {
 		compatible = "samsung,exynos4210-sdhci";
 		reg = <0x12540000 0x100>;
 		interrupts = <0 76 0>;
@@ -330,7 +330,7 @@
 		status = "disabled";
 	};
 
-	hsotg@12480000 {
+	hsotg: hsotg@12480000 {
 		compatible = "samsung,s3c6400-hsotg";
 		reg = <0x12480000 0x20000>;
 		interrupts = <0 71 0>;
@@ -341,7 +341,7 @@
 		status = "disabled";
 	};
 
-	ehci@12580000 {
+	ehci: ehci@12580000 {
 		compatible = "samsung,exynos4210-ehci";
 		reg = <0x12580000 0x100>;
 		interrupts = <0 70 0>;
@@ -367,7 +367,7 @@
 		};
 	};
 
-	ohci@12590000 {
+	ohci: ohci@12590000 {
 		compatible = "samsung,exynos4210-ohci";
 		reg = <0x12590000 0x100>;
 		interrupts = <0 70 0>;
@@ -620,7 +620,7 @@
 		status = "disabled";
 	};
 
-	pwm@139D0000 {
+	pwm: pwm@139D0000 {
 		compatible = "samsung,exynos4210-pwm";
 		reg = <0x139D0000 0x1000>;
 		interrupts = <0 37 0>, <0 38 0>, <0 39 0>, <0 40 0>, <0 41 0>;
@@ -688,7 +688,7 @@
 		#include "exynos4412-tmu-sensor-conf.dtsi"
 	};
 
-	jpeg-codec@11840000 {
+	jpeg_codec: jpeg-codec@11840000 {
 		compatible = "samsung,exynos4210-jpeg";
 		reg = <0x11840000 0x1000>;
 		interrupts = <0 88 0>;

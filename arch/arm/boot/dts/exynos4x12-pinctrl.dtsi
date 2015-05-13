@@ -29,7 +29,7 @@
 	}
 
 / {
-	pinctrl@11400000 {
+	pinctrl_0: pinctrl@11400000 {
 		gpa0: gpa0 {
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -441,7 +441,7 @@
 		};
 	};
 
-	pinctrl@11000000 {
+	pinctrl_1: pinctrl@11000000 {
 		gpk0: gpk0 {
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -887,7 +887,7 @@
 		};
 	};
 
-	pinctrl@03860000 {
+	pinctrl_2: pinctrl@03860000 {
 		gpz: gpz {
 			gpio-controller;
 			#gpio-cells = <2>;
@@ -913,7 +913,7 @@
 		};
 	};
 
-	pinctrl@106E0000 {
+	pinctrl_3: pinctrl@106E0000 {
 		gpv0: gpv0 {
 			gpio-controller;
 			#gpio-cells = <2>;

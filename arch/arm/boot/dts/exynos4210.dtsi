@@ -62,7 +62,7 @@
 		#clock-cells = <1>;
 	};
 
-	sysram@02020000 {
+	sysram: sysram@02020000 {
 		compatible = "mmio-sram";
 		reg = <0x02020000 0x20000>;
 		#address-cells = <1>;
@@ -107,7 +107,7 @@
 			     <0 12 0>, <0 13 0>, <0 14 0>, <0 15 0>;
 	};
 
-	mct@10050000 {
+	mct: mct@10050000 {
 		compatible = "samsung,exynos4210-mct";
 		reg = <0x10050000 0x800>;
 		interrupt-parent = <&mct_map>;
@@ -189,7 +189,7 @@
 		};
 	};
 
-	g2d@12800000 {
+	g2d: g2d@12800000 {
 		compatible = "samsung,s5pv210-g2d";
 		reg = <0x12800000 0x1000>;
 		interrupts = <0 89 0>;
