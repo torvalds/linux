@@ -1006,6 +1006,7 @@ static long macvtap_ioctl(struct file *file, unsigned int cmd,
 	unsigned int __user *up = argp;
 	unsigned short u;
 	int __user *sp = argp;
+	struct sockaddr sa;
 	int s;
 	int ret;
 
@@ -1119,13 +1120,15 @@ static long macvtap_ioctl(struct file *file, unsigned int cmd,
 		return ret;
 
 	case SIOCSIFHWADDR:
+		if (copy_from_user(&sa, &ifr->ifr_hwaddr, sizeof(sa)))
+			return -EFAULT;
 		rtnl_lock();
 		vlan = macvtap_get_vlan(q);
 		if (!vlan) {
 			rtnl_unlock();
 			return -ENOLINK;
 		}
-		ret = dev_set_mac_address(vlan->dev, &ifr->ifr_hwaddr);
+		ret = dev_set_mac_address(vlan->dev, &sa);
 		macvtap_put_vlan(vlan);
 		rtnl_unlock();
 		return ret;
