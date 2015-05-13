@@ -106,10 +106,10 @@ struct visorchipset_bus_info {
 struct visorchipset_busdev_notifiers {
 	void (*bus_create)(struct visorchipset_bus_info *bus_info);
 	void (*bus_destroy)(struct visorchipset_bus_info *bus_info);
-	void (*device_create)(u32 bus_no, u32 dev_no);
-	void (*device_destroy)(u32 bus_no, u32 dev_no);
-	void (*device_pause)(u32 bus_no, u32 dev_no);
-	void (*device_resume)(u32 bus_no, u32 dev_no);
+	void (*device_create)(struct visorchipset_device_info *bus_info);
+	void (*device_destroy)(struct visorchipset_device_info *bus_info);
+	void (*device_pause)(struct visorchipset_device_info *bus_info);
+	void (*device_resume)(struct visorchipset_device_info *bus_info);
 };
 
 /*  These functions live inside visorchipset, and will be called to indicate
@@ -121,10 +121,11 @@ struct visorchipset_busdev_notifiers {
 struct visorchipset_busdev_responders {
 	void (*bus_create)(struct visorchipset_bus_info *p, int response);
 	void (*bus_destroy)(struct visorchipset_bus_info *p, int response);
-	void (*device_create)(u32 bus_no, u32 dev_no, int response);
-	void (*device_destroy)(u32 bus_no, u32 dev_no, int response);
-	void (*device_pause)(u32 bus_no, u32 dev_no, int response);
-	void (*device_resume)(u32 bus_no, u32 dev_no, int response);
+	void (*device_create)(struct visorchipset_device_info *p, int response);
+	void (*device_destroy)(struct visorchipset_device_info *p,
+			       int response);
+	void (*device_pause)(struct visorchipset_device_info *p, int response);
+	void (*device_resume)(struct visorchipset_device_info *p, int response);
 };
 
 /** Register functions (in the bus driver) to get called by visorchipset

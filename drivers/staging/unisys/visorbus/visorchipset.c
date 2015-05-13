@@ -230,12 +230,16 @@ static struct visorchipset_busdev_notifiers busdev_notifiers;
 
 static void bus_create_response(struct visorchipset_bus_info *p, int response);
 static void bus_destroy_response(struct visorchipset_bus_info *p, int response);
-static void device_create_response(u32 bus_no, u32 dev_no, int response);
-static void device_destroy_response(u32 bus_no, u32 dev_no, int response);
-static void device_resume_response(u32 bus_no, u32 dev_no, int response);
+static void device_create_response(struct visorchipset_device_info *p,
+				   int response);
+static void device_destroy_response(struct visorchipset_device_info *p,
+				    int response);
+static void device_resume_response(struct visorchipset_device_info *p,
+				   int response);
 
-static void visorchipset_device_pause_response(u32 bus_no, u32 dev_no,
-					       int response);
+static void
+visorchipset_device_pause_response(struct visorchipset_device_info *p,
+				   int response);
 
 static struct visorchipset_busdev_responders busdev_responders = {
 	.bus_create = bus_create_response,
@@ -993,13 +997,13 @@ bus_responder(enum controlvm_id cmd_id, struct visorchipset_bus_info *p,
 
 static void
 device_changestate_responder(enum controlvm_id cmd_id,
-			     u32 bus_no, u32 dev_no, int response,
+			     struct visorchipset_device_info *p, int response,
 			     struct spar_segment_state response_state)
 {
-	struct visorchipset_device_info *p;
 	struct controlvm_message outmsg;
+	u32 bus_no = p->bus_no;
+	u32 dev_no = p->dev_no;
 
-	p = device_find(&dev_info_list, bus_no, dev_no);
 	if (!p)
 		return;
 	if (p->pending_msg_hdr.id == CONTROLVM_INVALID)
@@ -1021,12 +1025,11 @@ device_changestate_responder(enum controlvm_id cmd_id,
 }
 
 static void
-device_responder(enum controlvm_id cmd_id, u32 bus_no, u32 dev_no, int response)
+device_responder(enum controlvm_id cmd_id, struct visorchipset_device_info *p,
+		 int response)
 {
-	struct visorchipset_device_info *p;
 	bool need_clear = false;
 
-	p = device_find(&dev_info_list, bus_no, dev_no);
 	if (!p)
 		return;
 	if (response >= 0) {
@@ -1094,15 +1097,16 @@ bus_epilog(struct visorchipset_bus_info *bus_info,
 }
 
 static void
-device_epilog(u32 bus_no, u32 dev_no, struct spar_segment_state state, u32 cmd,
+device_epilog(struct visorchipset_device_info *dev_info,
+	      struct spar_segment_state state, u32 cmd,
 	      struct controlvm_message_header *msg_hdr, int response,
 	      bool need_response, bool for_visorbus)
 {
 	struct visorchipset_busdev_notifiers *notifiers;
 	bool notified = false;
+	u32 bus_no = dev_info->bus_no;
+	u32 dev_no = dev_info->dev_no;
 
-	struct visorchipset_device_info *dev_info =
-		device_find(&dev_info_list, bus_no, dev_no);
 	char *envp[] = {
 		"SPARSP_DIAGPOOL_PAUSED_STATE = 1",
 		NULL
@@ -1125,7 +1129,7 @@ device_epilog(u32 bus_no, u32 dev_no, struct spar_segment_state state, u32 cmd,
 		switch (cmd) {
 		case CONTROLVM_DEVICE_CREATE:
 			if (notifiers->device_create) {
-				(*notifiers->device_create) (bus_no, dev_no);
+				(*notifiers->device_create) (dev_info);
 				notified = true;
 			}
 			break;
@@ -1135,8 +1139,7 @@ device_epilog(u32 bus_no, u32 dev_no, struct spar_segment_state state, u32 cmd,
 			    state.operating ==
 				segment_state_running.operating) {
 				if (notifiers->device_resume) {
-					(*notifiers->device_resume) (bus_no,
-								     dev_no);
+					(*notifiers->device_resume) (dev_info);
 					notified = true;
 				}
 			}
@@ -1148,8 +1151,7 @@ device_epilog(u32 bus_no, u32 dev_no, struct spar_segment_state state, u32 cmd,
 				 * where server is lost
 				 */
 				if (notifiers->device_pause) {
-					(*notifiers->device_pause) (bus_no,
-								    dev_no);
+					(*notifiers->device_pause) (dev_info);
 					notified = true;
 				}
 			} else if (state.alive == segment_state_paused.alive &&
@@ -1171,7 +1173,7 @@ device_epilog(u32 bus_no, u32 dev_no, struct spar_segment_state state, u32 cmd,
 			break;
 		case CONTROLVM_DEVICE_DESTROY:
 			if (notifiers->device_destroy) {
-				(*notifiers->device_destroy) (bus_no, dev_no);
+				(*notifiers->device_destroy) (dev_info);
 				notified = true;
 			}
 			break;
@@ -1184,7 +1186,7 @@ device_epilog(u32 bus_no, u32 dev_no, struct spar_segment_state state, u32 cmd,
 		 */
 		;
 	else
-		device_responder(cmd, bus_no, dev_no, response);
+		device_responder(cmd, dev_info, response);
 	up(&notifier_lock);
 }
 
@@ -1359,7 +1361,7 @@ cleanup:
 		g_diagpool_bus_no = bus_no;
 		g_diagpool_dev_no = dev_no;
 	}
-	device_epilog(bus_no, dev_no, segment_state_running,
+	device_epilog(dev_info, segment_state_running,
 		      CONTROLVM_DEVICE_CREATE, &inmsg->hdr, rc,
 		      inmsg->hdr.flags.response_expected == 1, 1);
 }
@@ -1385,7 +1387,7 @@ my_device_changestate(struct controlvm_message *inmsg)
 		rc = -CONTROLVM_RESP_ERROR_DEVICE_INVALID;
 	}
 	if ((rc >= CONTROLVM_RESP_SUCCESS) && dev_info)
-		device_epilog(bus_no, dev_no, state,
+		device_epilog(dev_info, state,
 			      CONTROLVM_DEVICE_CHANGESTATE, &inmsg->hdr, rc,
 			      inmsg->hdr.flags.response_expected == 1, 1);
 }
@@ -1406,7 +1408,7 @@ my_device_destroy(struct controlvm_message *inmsg)
 		rc = -CONTROLVM_RESP_ERROR_ALREADY_DONE;
 
 	if ((rc >= CONTROLVM_RESP_SUCCESS) && dev_info)
-		device_epilog(bus_no, dev_no, segment_state_running,
+		device_epilog(dev_info, segment_state_running,
 			      CONTROLVM_DEVICE_DESTROY, &inmsg->hdr, rc,
 			      inmsg->hdr.flags.response_expected == 1, 1);
 }
@@ -2121,30 +2123,31 @@ bus_destroy_response(struct visorchipset_bus_info *bus_info, int response)
 }
 
 static void
-device_create_response(u32 bus_no, u32 dev_no, int response)
+device_create_response(struct visorchipset_device_info *dev_info, int response)
 {
-	device_responder(CONTROLVM_DEVICE_CREATE, bus_no, dev_no, response);
+	device_responder(CONTROLVM_DEVICE_CREATE, dev_info, response);
 }
 
 static void
-device_destroy_response(u32 bus_no, u32 dev_no, int response)
+device_destroy_response(struct visorchipset_device_info *dev_info, int response)
 {
-	device_responder(CONTROLVM_DEVICE_DESTROY, bus_no, dev_no, response);
+	device_responder(CONTROLVM_DEVICE_DESTROY, dev_info, response);
 }
 
 static void
-visorchipset_device_pause_response(u32 bus_no, u32 dev_no, int response)
+visorchipset_device_pause_response(struct visorchipset_device_info *dev_info,
+				   int response)
 {
 	device_changestate_responder(CONTROLVM_DEVICE_CHANGESTATE,
-				     bus_no, dev_no, response,
+				     dev_info, response,
 				     segment_state_standby);
 }
 
 static void
-device_resume_response(u32 bus_no, u32 dev_no, int response)
+device_resume_response(struct visorchipset_device_info *dev_info, int response)
 {
 	device_changestate_responder(CONTROLVM_DEVICE_CHANGESTATE,
-				     bus_no, dev_no, response,
+				     dev_info, response,
 				     segment_state_running);
 }
 
@@ -2184,12 +2187,9 @@ visorchipset_get_device_info(u32 bus_no, u32 dev_no,
 EXPORT_SYMBOL_GPL(visorchipset_get_device_info);
 
 bool
-visorchipset_set_device_context(u32 bus_no, u32 dev_no, void *context)
+visorchipset_set_device_context(struct visorchipset_device_info *p,
+				void *context)
 {
-	struct visorchipset_device_info *p;
-
-	p = device_find(&dev_info_list, bus_no, dev_no);
-
 	if (!p)
 		return false;
 	p->bus_driver_context = context;
