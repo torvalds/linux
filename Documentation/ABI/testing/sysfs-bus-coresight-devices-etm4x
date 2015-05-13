@@ -204,3 +204,29 @@ KernelVersion:	4.01
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description: 	(RW) Moves the sequencer to state 0 when a programmed event
 		occurs.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/cntr_idx
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description: 	(RW) Select which counter unit to work with.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/cntrldvr
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description: 	(RW) This sets or returns the reload count value of the
+		specific counter.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/cntr_val
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description: 	(RW) This sets or returns the current count value of the
+                specific counter.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/cntr_ctrl
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description: 	(RW) Controls the operation of the selected counter.
