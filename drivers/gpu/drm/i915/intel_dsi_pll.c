@@ -165,7 +165,7 @@ static u32 dsi_clk_from_pclk(u32 pclk, int pixel_format, int lane_count)
 static int dsi_calc_mnp(int target_dsi_clk, struct dsi_mnp *dsi_mnp)
 {
 	unsigned int calc_m = 0, calc_p = 0;
-	unsigned int m, n, p;
+	unsigned int m, n = 1, p;
 	int ref_clk = 25000;
 	int delta = target_dsi_clk;
 	u32 m_seed;
@@ -182,7 +182,7 @@ static int dsi_calc_mnp(int target_dsi_clk, struct dsi_mnp *dsi_mnp)
 			 * Find the optimal m and p divisors with minimal delta
 			 * +/- the required clock
 			 */
-			int calc_dsi_clk = (m * ref_clk) / p;
+			int calc_dsi_clk = (m * ref_clk) / (p * n);
 			int d = abs(target_dsi_clk - calc_dsi_clk);
 			if (d < delta) {
 				delta = d;
@@ -192,10 +192,11 @@ static int dsi_calc_mnp(int target_dsi_clk, struct dsi_mnp *dsi_mnp)
 		}
 	}
 
+	/* register has log2(N1), this works fine for powers of two */
+	n = ffs(n) - 1;
 	m_seed = lfsr_converts[calc_m - 62];
-	n = 1;
 	dsi_mnp->dsi_pll_ctrl = 1 << (DSI_PLL_P1_POST_DIV_SHIFT + calc_p - 2);
-	dsi_mnp->dsi_pll_div = (n - 1) << DSI_PLL_N1_DIV_SHIFT |
+	dsi_mnp->dsi_pll_div = n << DSI_PLL_N1_DIV_SHIFT |
 		m_seed << DSI_PLL_M1_DIV_SHIFT;
 
 	return 0;
@@ -312,7 +313,7 @@ u32 vlv_get_dsi_pclk(struct intel_encoder *encoder, int pipe_bpp)
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 	u32 dsi_clock, pclk;
 	u32 pll_ctl, pll_div;
-	u32 m = 0, p = 0;
+	u32 m = 0, p = 0, n;
 	int refclk = 25000;
 	int i;
 
@@ -326,6 +327,10 @@ u32 vlv_get_dsi_pclk(struct intel_encoder *encoder, int pipe_bpp)
 	/* mask out other bits and extract the P1 divisor */
 	pll_ctl &= DSI_PLL_P1_POST_DIV_MASK;
 	pll_ctl = pll_ctl >> (DSI_PLL_P1_POST_DIV_SHIFT - 2);
+
+	/* N1 divisor */
+	n = (pll_div & DSI_PLL_N1_DIV_MASK) >> DSI_PLL_N1_DIV_SHIFT;
+	n = 1 << n; /* register has log2(N1) */
 
 	/* mask out the other bits and extract the M1 divisor */
 	pll_div &= DSI_PLL_M1_DIV_MASK;
@@ -354,7 +359,7 @@ u32 vlv_get_dsi_pclk(struct intel_encoder *encoder, int pipe_bpp)
 
 	m = i + 62;
 
-	dsi_clock = (m * refclk) / p;
+	dsi_clock = (m * refclk) / (p * n);
 
 	/* pixel_format and pipe_bpp should agree */
 	assert_bpp_mismatch(intel_dsi->pixel_format, pipe_bpp);
