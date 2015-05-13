@@ -1852,6 +1852,63 @@ bool kvm_mtrr_valid(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 }
 EXPORT_SYMBOL_GPL(kvm_mtrr_valid);
 
+static void update_mtrr(struct kvm_vcpu *vcpu, u32 msr)
+{
+	struct mtrr_state_type *mtrr_state = &vcpu->arch.mtrr_state;
+	unsigned char mtrr_enabled = mtrr_state->enabled;
+	gfn_t start, end, mask;
+	int index;
+	bool is_fixed = true;
+
+	if (msr == MSR_IA32_CR_PAT || !tdp_enabled ||
+	      !kvm_arch_has_noncoherent_dma(vcpu->kvm))
+		return;
+
+	if (!(mtrr_enabled & 0x2) && msr != MSR_MTRRdefType)
+		return;
+
+	switch (msr) {
+	case MSR_MTRRfix64K_00000:
+		start = 0x0;
+		end = 0x80000;
+		break;
+	case MSR_MTRRfix16K_80000:
+		start = 0x80000;
+		end = 0xa0000;
+		break;
+	case MSR_MTRRfix16K_A0000:
+		start = 0xa0000;
+		end = 0xc0000;
+		break;
+	case MSR_MTRRfix4K_C0000 ... MSR_MTRRfix4K_F8000:
+		index = msr - MSR_MTRRfix4K_C0000;
+		start = 0xc0000 + index * (32 << 10);
+		end = start + (32 << 10);
+		break;
+	case MSR_MTRRdefType:
+		is_fixed = false;
+		start = 0x0;
+		end = ~0ULL;
+		break;
+	default:
+		/* variable range MTRRs. */
+		is_fixed = false;
+		index = (msr - 0x200) / 2;
+		start = (((u64)mtrr_state->var_ranges[index].base_hi) << 32) +
+		       (mtrr_state->var_ranges[index].base_lo & PAGE_MASK);
+		mask = (((u64)mtrr_state->var_ranges[index].mask_hi) << 32) +
+		       (mtrr_state->var_ranges[index].mask_lo & PAGE_MASK);
+		mask |= ~0ULL << cpuid_maxphyaddr(vcpu);
+
+		end = ((start & mask) | ~mask) + 1;
+	}
+
+	if (is_fixed && !(mtrr_enabled & 0x1))
+		return;
+
+	kvm_zap_gfn_range(vcpu->kvm, gpa_to_gfn(start), gpa_to_gfn(end));
+}
+
 static int set_msr_mtrr(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 {
 	u64 *p = (u64 *)&vcpu->arch.mtrr_state.fixed_ranges;
@@ -1885,7 +1942,7 @@ static int set_msr_mtrr(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 		*pt = data;
 	}
 
-	kvm_mmu_reset_context(vcpu);
+	update_mtrr(vcpu, msr);
 	return 0;
 }
 

@@ -4525,6 +4525,30 @@ slot_handle_leaf(struct kvm *kvm, struct kvm_memory_slot *memslot,
 				 PT_PAGE_TABLE_LEVEL, lock_flush_tlb);
 }
 
+void kvm_zap_gfn_range(struct kvm *kvm, gfn_t gfn_start, gfn_t gfn_end)
+{
+	struct kvm_memslots *slots;
+	struct kvm_memory_slot *memslot;
+
+	slots = kvm_memslots(kvm);
+
+	spin_lock(&kvm->mmu_lock);
+	kvm_for_each_memslot(memslot, slots) {
+		gfn_t start, end;
+
+		start = max(gfn_start, memslot->base_gfn);
+		end = min(gfn_end, memslot->base_gfn + memslot->npages);
+		if (start >= end)
+			continue;
+
+		slot_handle_level_range(kvm, memslot, kvm_zap_rmapp,
+				PT_PAGE_TABLE_LEVEL, PT_MAX_HUGEPAGE_LEVEL,
+				start, end - 1, true);
+	}
+
+	spin_unlock(&kvm->mmu_lock);
+}
+
 static bool slot_rmap_write_protect(struct kvm *kvm, unsigned long *rmapp)
 {
 	return __rmap_write_protect(kvm, rmapp, false);
