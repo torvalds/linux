@@ -128,7 +128,6 @@ struct visor_device {
 	struct periodic_work *periodic_work;
 	bool being_removed;
 	bool responded_to_device_create;
-	struct kobject kobjchannel;	/* visorbus<x>/dev<y>/channel/ */
 	struct kobject kobjdevmajorminor; /* visorbus<x>/dev<y>/devmajorminor/*/
 	struct {
 		int major, minor;

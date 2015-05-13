@@ -396,214 +396,134 @@ unregister_devmajorminor_attributes(struct visor_device *dev)
 	dev->kobjdevmajorminor.parent = NULL;
 }
 
-/* Implement publishing of channel attributes under:
- *
- *     /sys/bus/visorbus<x>/dev<y>/channel
- *
- */
-
-#define to_channel_attr(_attr) \
-	container_of(_attr, struct channel_attribute, attr)
-#define to_visor_device_from_kobjchannel(obj) \
-	container_of(obj, struct visor_device, kobjchannel)
-
-struct channel_attribute {
-	struct attribute attr;
-	 ssize_t (*show)(struct visor_device*, char *buf);
-	 ssize_t (*store)(struct visor_device*, const char *buf, size_t count);
-};
-
 /* begin implementation of specific channel attributes to appear under
 * /sys/bus/visorbus<x>/dev<y>/channel
 */
-static ssize_t devicechannel_attr_physaddr(struct visor_device *dev, char *buf)
+static ssize_t physaddr_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
 {
-	if (!dev->visorchannel)
+	struct visor_device *vdev = to_visor_device(dev);
+
+	if (!vdev->visorchannel)
 		return 0;
 	return snprintf(buf, PAGE_SIZE, "0x%Lx\n",
-			visorchannel_get_physaddr(dev->visorchannel));
+			visorchannel_get_physaddr(vdev->visorchannel));
 }
 
-static ssize_t devicechannel_attr_nbytes(struct visor_device *dev, char *buf)
+static ssize_t nbytes_show(struct device *dev, struct device_attribute *attr,
+			   char *buf)
 {
-	if (!dev->visorchannel)
+	struct visor_device *vdev = to_visor_device(dev);
+
+	if (!vdev->visorchannel)
 		return 0;
 	return snprintf(buf, PAGE_SIZE, "0x%lx\n",
-			visorchannel_get_nbytes(dev->visorchannel));
+			visorchannel_get_nbytes(vdev->visorchannel));
 }
 
-static ssize_t devicechannel_attr_clientpartition(struct visor_device *dev,
-						  char *buf) {
-	if (!dev->visorchannel)
+static ssize_t clientpartition_show(struct device *dev,
+				    struct device_attribute *attr, char *buf)
+{
+	struct visor_device *vdev = to_visor_device(dev);
+
+	if (!vdev->visorchannel)
 		return 0;
 	return snprintf(buf, PAGE_SIZE, "0x%Lx\n",
-			visorchannel_get_clientpartition(dev->visorchannel));
+			visorchannel_get_clientpartition(vdev->visorchannel));
 }
 
-static ssize_t devicechannel_attr_typeguid(struct visor_device *dev, char *buf)
+static ssize_t typeguid_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
 {
+	struct visor_device *vdev = to_visor_device(dev);
 	char s[99];
 
-	if (!dev->visorchannel)
+	if (!vdev->visorchannel)
 		return 0;
 	return snprintf(buf, PAGE_SIZE, "%s\n",
-			visorchannel_id(dev->visorchannel, s));
+			visorchannel_id(vdev->visorchannel, s));
 }
 
-static ssize_t devicechannel_attr_zoneguid(struct visor_device *dev, char *buf)
+static ssize_t zoneguid_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
 {
+	struct visor_device *vdev = to_visor_device(dev);
 	char s[99];
 
-	if (!dev->visorchannel)
+	if (!vdev->visorchannel)
 		return 0;
 	return snprintf(buf, PAGE_SIZE, "%s\n",
-			visorchannel_zoneid(dev->visorchannel, s));
+			visorchannel_zoneid(vdev->visorchannel, s));
 }
 
-static ssize_t devicechannel_attr_typename(struct visor_device *dev, char *buf)
+static ssize_t typename_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
 {
+	struct visor_device *vdev = to_visor_device(dev);
 	int i = 0;
-	struct bus_type *xbus = dev->device.bus;
-	struct device_driver *xdrv = dev->device.driver;
+	struct bus_type *xbus = dev->bus;
+	struct device_driver *xdrv = dev->driver;
 	struct visor_driver *drv = NULL;
 
-	if (!dev->visorchannel || !xbus || !xdrv)
+	if (!vdev->visorchannel || !xbus || !xdrv)
 		return 0;
-	i = xbus->match(&dev->device, xdrv);
+	i = xbus->match(dev, xdrv);
 	if (!i)
 		return 0;
 	drv = to_visor_driver(xdrv);
 	return snprintf(buf, PAGE_SIZE, "%s\n", drv->channel_types[i - 1].name);
 }
 
-static ssize_t devicechannel_attr_dump(struct visor_device *dev, char *buf)
+static ssize_t dump_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
 {
-	int count = 0;
 /* TODO: replace this with debugfs code
+	struct visor_device *vdev = to_visor_device(dev);
+	int count = 0;
 	struct seq_file *m = NULL;
-	if (dev->visorchannel == NULL)
+	if (vdev->visorchannel == NULL)
 		return 0;
 	m = visor_seq_file_new_buffer(buf, PAGE_SIZE - 1);
 	if (m == NULL)
 		return 0;
-	visorchannel_debug(dev->visorchannel, 1, m, 0);
+	visorchannel_debug(vdev->visorchannel, 1, m, 0);
 	count = m->count;
 	visor_seq_file_done_buffer(m);
 	m = NULL;
 */
-	return count;
+	return 0;
 }
 
-static struct channel_attribute all_channel_attrs[] = {
-	__ATTR(physaddr, S_IRUGO,
-	       devicechannel_attr_physaddr, NULL),
-	__ATTR(nbytes, S_IRUGO,
-	       devicechannel_attr_nbytes, NULL),
-	__ATTR(clientpartition, S_IRUGO,
-	       devicechannel_attr_clientpartition, NULL),
-	__ATTR(typeguid, S_IRUGO,
-	       devicechannel_attr_typeguid, NULL),
-	__ATTR(zoneguid, S_IRUGO,
-	       devicechannel_attr_zoneguid, NULL),
-	__ATTR(typename, S_IRUGO,
-	       devicechannel_attr_typename, NULL),
-	__ATTR(dump, S_IRUGO,
-	       devicechannel_attr_dump, NULL),
+static DEVICE_ATTR_RO(physaddr);
+static DEVICE_ATTR_RO(nbytes);
+static DEVICE_ATTR_RO(clientpartition);
+static DEVICE_ATTR_RO(typeguid);
+static DEVICE_ATTR_RO(zoneguid);
+static DEVICE_ATTR_RO(typename);
+static DEVICE_ATTR_RO(dump);
+
+static struct attribute *channel_attrs[] = {
+		&dev_attr_physaddr.attr,
+		&dev_attr_nbytes.attr,
+		&dev_attr_clientpartition.attr,
+		&dev_attr_typeguid.attr,
+		&dev_attr_zoneguid.attr,
+		&dev_attr_typename.attr,
+		&dev_attr_dump.attr,
+};
+
+static struct attribute_group channel_attr_grp = {
+		.name = "channel",
+		.attrs = channel_attrs,
+};
+
+static const struct attribute_group *visorbus_dev_groups[] = {
+		&channel_attr_grp,
+		NULL
 };
 
 /* end implementation of specific channel attributes */
 
-static ssize_t channel_attr_show(struct kobject *kobj, struct attribute *attr,
-				 char *buf)
-{
-	struct channel_attribute *channel_attr = to_channel_attr(attr);
-	struct visor_device *dev = to_visor_device_from_kobjchannel(kobj);
-	ssize_t ret = 0;
-
-	if (channel_attr->show)
-		ret = channel_attr->show(dev, buf);
-	return ret;
-}
-
-static ssize_t channel_attr_store(struct kobject *kobj, struct attribute *attr,
-				  const char *buf, size_t count)
-{
-	struct channel_attribute *channel_attr = to_channel_attr(attr);
-	struct visor_device *dev = to_visor_device_from_kobjchannel(kobj);
-	ssize_t ret = 0;
-
-	if (channel_attr->store)
-		ret = channel_attr->store(dev, buf, count);
-	return ret;
-}
-
-static int channel_create_file(struct visor_device *dev,
-			       struct channel_attribute *attr)
-{
-	return sysfs_create_file(&dev->kobjchannel, &attr->attr);
-}
-
-static void channel_remove_file(struct visor_device *dev,
-				struct channel_attribute *attr)
-{
-	sysfs_remove_file(&dev->kobjchannel, &attr->attr);
-}
-
-static const struct sysfs_ops channel_sysfs_ops = {
-	.show = channel_attr_show,
-	.store = channel_attr_store,
-};
-
-static struct kobj_type channel_kobj_type = {
-	.sysfs_ops = &channel_sysfs_ops
-};
-
-int register_channel_attributes(struct visor_device *dev)
-{
-	int rc = 0, i = 0, x = 0;
-
-	if (dev->kobjchannel.parent)
-		goto away;	/* already registered */
-	x = kobject_init_and_add(&dev->kobjchannel, &channel_kobj_type,
-				 &dev->device.kobj, "channel");
-	if (x < 0) {
-		rc = x;
-		goto away;
-	}
-
-	kobject_uevent(&dev->kobjchannel, KOBJ_ADD);
-
-	for (i = 0;
-	     i < sizeof(all_channel_attrs) / sizeof(struct channel_attribute);
-	     i++)
-		x = channel_create_file(dev, &all_channel_attrs[i]);
-	if (x < 0) {
-		while (--i >= 0)
-			channel_remove_file(dev, &all_channel_attrs[i]);
-		kobject_del(&dev->kobjchannel);
-		kobject_put(&dev->kobjchannel);
-		rc = x;
-		goto away;
-	}
-away:
-	return rc;
-}
-
-void unregister_channel_attributes(struct visor_device *dev)
-{
-	int i = 0;
-
-	if (!dev->kobjchannel.parent)
-		return;		/* already unregistered */
-	for (i = 0;
-	     i < sizeof(all_channel_attrs) / sizeof(struct channel_attribute);
-	     i++)
-		channel_remove_file(dev, &all_channel_attrs[i]);
-
-	kobject_del(&dev->kobjchannel);
-	kobject_put(&dev->kobjchannel);
-	dev->kobjchannel.parent = NULL;
-}
 #define to_visorbus_devdata(obj) \
 	container_of(obj, struct visorbus_devdata, dev)
 
@@ -1144,6 +1064,7 @@ create_visor_device(struct visorbus_devdata *devdata,
 	dev->device.parent = &devdata->dev;
 	sema_init(&dev->visordriver_callback_lock, 1);	/* unlocked */
 	dev->device.bus = &visorbus_type;
+	dev->device.groups = visorbus_dev_groups;
 	device_initialize(&dev->device);
 	dev->device.release = visorbus_release_device;
 	/* keep a reference just for us (now 2) */
@@ -1191,13 +1112,6 @@ create_visor_device(struct visorbus_devdata *devdata,
 	}
 
 	/* note: device_register is simply device_initialize + device_add */
-	rc = register_channel_attributes(dev);
-	if (rc < 0) {
-		POSTCODE_LINUX_3(DEVICE_REGISTER_FAILURE_PC, chipset_dev_no,
-				 DIAG_SEVERITY_ERR);
-		goto away;
-	}
-
 	registered1 = true;
 
 	rc = register_devmajorminor_attributes(dev);
@@ -1214,8 +1128,6 @@ away:
 	if (rc < 0) {
 		if (registered2)
 			unregister_devmajorminor_attributes(dev);
-		if (registered1)
-			unregister_channel_attributes(dev);
 		if (gotten)
 			put_device(&dev->device);
 		if (visorchannel)
@@ -1233,7 +1145,6 @@ remove_visor_device(struct visor_device *dev)
 {
 	list_del(&dev->list_all);
 	unregister_devmajorminor_attributes(dev);
-	unregister_channel_attributes(dev);
 	put_device(&dev->device);
 	device_unregister(&dev->device);
 }
