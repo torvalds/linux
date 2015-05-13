@@ -57,8 +57,10 @@ static int handle_set_clock(struct kvm_vcpu *vcpu)
 	val = (val - hostclk) & ~0x3fUL;
 
 	mutex_lock(&vcpu->kvm->lock);
+	preempt_disable();
 	kvm_for_each_vcpu(i, cpup, vcpu->kvm)
 		cpup->arch.sie_block->epoch = val;
+	preempt_enable();
 	mutex_unlock(&vcpu->kvm->lock);
 
 	kvm_s390_set_psw_cc(vcpu, 0);

@@ -58,6 +58,9 @@ EXPORT_SYMBOL_GPL(sched_clock_base_cc);
 
 static DEFINE_PER_CPU(struct clock_event_device, comparators);
 
+ATOMIC_NOTIFIER_HEAD(s390_epoch_delta_notifier);
+EXPORT_SYMBOL(s390_epoch_delta_notifier);
+
 /*
  * Scheduler clock - returns current time in nanosec units.
  */
@@ -752,7 +755,7 @@ static void clock_sync_cpu(struct clock_sync_data *sync)
 static int etr_sync_clock(void *data)
 {
 	static int first;
-	unsigned long long clock, old_clock, delay, delta;
+	unsigned long long clock, old_clock, clock_delta, delay, delta;
 	struct clock_sync_data *etr_sync;
 	struct etr_aib *sync_port, *aib;
 	int port;
@@ -789,6 +792,9 @@ static int etr_sync_clock(void *data)
 		delay = (unsigned long long)
 			(aib->edf2.etv - sync_port->edf2.etv) << 32;
 		delta = adjust_time(old_clock, clock, delay);
+		clock_delta = clock - old_clock;
+		atomic_notifier_call_chain(&s390_epoch_delta_notifier, 0,
+					   &clock_delta);
 		etr_sync->fixup_cc = delta;
 		fixup_clock_comparator(delta);
 		/* Verify that the clock is properly set. */
@@ -1526,7 +1532,7 @@ void stp_island_check(void)
 static int stp_sync_clock(void *data)
 {
 	static int first;
-	unsigned long long old_clock, delta;
+	unsigned long long old_clock, delta, new_clock, clock_delta;
 	struct clock_sync_data *stp_sync;
 	int rc;
 
@@ -1551,7 +1557,11 @@ static int stp_sync_clock(void *data)
 		old_clock = get_tod_clock();
 		rc = chsc_sstpc(stp_page, STP_OP_SYNC, 0);
 		if (rc == 0) {
-			delta = adjust_time(old_clock, get_tod_clock(), 0);
+			new_clock = get_tod_clock();
+			delta = adjust_time(old_clock, new_clock, 0);
+			clock_delta = new_clock - old_clock;
+			atomic_notifier_call_chain(&s390_epoch_delta_notifier,
+						   0, &clock_delta);
 			fixup_clock_comparator(delta);
 			rc = chsc_sstpi(stp_page, &stp_info,
 					sizeof(struct stp_sstpi));
