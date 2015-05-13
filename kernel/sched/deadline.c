@@ -1685,7 +1685,7 @@ static void rq_offline_dl(struct rq *rq)
 	cpudl_clear_freecpu(&rq->rd->cpudl, rq->cpu);
 }
 
-void init_sched_dl_class(void)
+void __init init_sched_dl_class(void)
 {
 	unsigned int i;
 
