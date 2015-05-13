@@ -541,78 +541,54 @@ static const struct attribute_group *visorbus_dev_groups[] = {
 static ssize_t partition_handle_show(struct device *dev,
 				     struct device_attribute *attr,
 				     char *buf) {
-	struct visorbus_devdata *businst = to_visorbus_devdata(dev);
-	struct visorchipset_bus_info bus_info;
-	int len = 0;
+	struct visor_device *vdev = to_visor_device(dev);
+	u64 handle = visorchannel_get_clientpartition(vdev->visorchannel);
 
-	if (businst && visorchipset_get_bus_info(businst->devno, &bus_info))
-		len = snprintf(buf, PAGE_SIZE,
-			       "0x%Lx\n",
-			       (unsigned long long)bus_info.partition_handle);
-	return len;
+	return snprintf(buf, PAGE_SIZE, "0x%Lx\n", handle);
 }
 
 static ssize_t partition_guid_show(struct device *dev,
 				   struct device_attribute *attr,
 				   char *buf) {
-	struct visorbus_devdata *businst = to_visorbus_devdata(dev);
-	struct visorchipset_bus_info bus_info;
-	int len = 0;
+	struct visor_device *vdev = to_visor_device(dev);
 
-	if (businst && visorchipset_get_bus_info(businst->devno, &bus_info))
-		len = snprintf(buf, PAGE_SIZE, "{%pUb}\n",
-			       &bus_info.partition_uuid);
-	return len;
+	return snprintf(buf, PAGE_SIZE, "{%pUb}\n", &vdev->partition_uuid);
 }
 
 static ssize_t partition_name_show(struct device *dev,
 				   struct device_attribute *attr,
 				   char *buf) {
-	struct visorbus_devdata *businst = to_visorbus_devdata(dev);
-	struct visorchipset_bus_info bus_info;
-	int len = 0;
+	struct visor_device *vdev = to_visor_device(dev);
 
-	if (businst &&
-	    visorchipset_get_bus_info(businst->devno, &bus_info) &&
-	    bus_info.name)
-		len = snprintf(buf, PAGE_SIZE, "%s\n", bus_info.name);
-	return len;
+	return snprintf(buf, PAGE_SIZE, "%s\n", vdev->name);
 }
 
 static ssize_t channel_addr_show(struct device *dev,
 				 struct device_attribute *attr,
 				 char *buf) {
-	struct visorbus_devdata *businst = to_visorbus_devdata(dev);
-	struct visorchipset_bus_info bus_info;
-	int len = 0;
+	struct visor_device *vdev = to_visor_device(dev);
+	u64 addr = visorchannel_get_physaddr(vdev->visorchannel);
 
-	if (businst && visorchipset_get_bus_info(businst->devno, &bus_info))
-		len = snprintf(buf, PAGE_SIZE, "0x%Lx\n", (unsigned long long)
-			       bus_info.chan_info.channel_addr);
-	return len;
+	return snprintf(buf, PAGE_SIZE, "0x%Lx\n", addr);
 }
 
 static ssize_t channel_bytes_show(struct device *dev,
 				  struct device_attribute *attr,
 				  char *buf) {
-	struct visorbus_devdata *businst = to_visorbus_devdata(dev);
-	struct visorchipset_bus_info bus_info;
-	int len = 0;
+	struct visor_device *vdev = to_visor_device(dev);
+	u64 nbytes = visorchannel_get_nbytes(vdev->visorchannel);
 
-	if (businst && visorchipset_get_bus_info(businst->devno, &bus_info))
-		len = snprintf(buf, PAGE_SIZE, "0x%Lx\n", (unsigned long long)
-			       bus_info.chan_info.n_channel_bytes);
-	return len;
+	return snprintf(buf, PAGE_SIZE, "0x%Lx\n", nbytes);
 }
 
 static ssize_t channel_id_show(struct device *dev,
 			       struct device_attribute *attr,
 			       char *buf) {
-	struct visorbus_devdata *businst = to_visorbus_devdata(dev);
+	struct visor_device *vdev = to_visor_device(dev);
 	int len = 0;
 
-	if (businst && businst->chan) {
-		visorchannel_id(businst->chan, buf);
+	if (vdev->visorchannel) {
+		visorchannel_id(vdev->visorchannel, buf);
 		len = strlen(buf);
 		buf[len++] = '\n';
 	}
@@ -622,8 +598,9 @@ static ssize_t channel_id_show(struct device *dev,
 static ssize_t client_bus_info_show(struct device *dev,
 				    struct device_attribute *attr,
 				    char *buf) {
-	struct visorbus_devdata *businst = to_visorbus_devdata(dev);
-	struct visorchipset_bus_info bus_info;
+	struct visor_device *vdev = to_visor_device(dev);
+	struct visorchannel *channel = vdev->visorchannel;
+
 	int i, x, remain = PAGE_SIZE;
 	unsigned long off;
 	char *p = buf;
@@ -631,16 +608,15 @@ static ssize_t client_bus_info_show(struct device *dev,
 	struct ultra_vbus_deviceinfo dev_info;
 
 	partition_name = "";
-	if (businst && businst->chan) {
-		if (visorchipset_get_bus_info(businst->devno, &bus_info) &&
-		    bus_info.name)
-			partition_name = bus_info.name;
+	if (channel) {
+		if (vdev->name)
+			partition_name = vdev->name;
 		x = snprintf(p, remain,
-			     "Client device / client driver info for %s partition (vbus #%d):\n",
-			     partition_name, businst->devno);
+			     "Client device / client driver info for %s partition (vbus #%ld):\n",
+			     partition_name, vdev->chipset_dev_no);
 		p += x;
 		remain -= x;
-		x = visorchannel_read(businst->chan,
+		x = visorchannel_read(channel,
 				      offsetof(struct
 					       spar_vbus_channel_protocol,
 					       chp_info),
@@ -651,7 +627,7 @@ static ssize_t client_bus_info_show(struct device *dev,
 			p += x;
 			remain -= x;
 		}
-		x = visorchannel_read(businst->chan,
+		x = visorchannel_read(channel,
 				      offsetof(struct
 					       spar_vbus_channel_protocol,
 					       bus_info),
@@ -665,8 +641,8 @@ static ssize_t client_bus_info_show(struct device *dev,
 		off = offsetof(struct spar_vbus_channel_protocol, dev_info);
 		i = 0;
 		while (off + sizeof(dev_info) <=
-		       visorchannel_get_nbytes(businst->chan)) {
-			x = visorchannel_read(businst->chan,
+		       visorchannel_get_nbytes(channel)) {
+			x = visorchannel_read(channel,
 					      off, &dev_info, sizeof(dev_info));
 			if (x >= 0) {
 				x = vbuschannel_devinfo_to_string
