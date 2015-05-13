@@ -134,26 +134,33 @@ extern struct list_head nf_hooks[NFPROTO_NUMPROTO][NF_MAX_HOOKS];
 #ifdef HAVE_JUMP_LABEL
 extern struct static_key nf_hooks_needed[NFPROTO_NUMPROTO][NF_MAX_HOOKS];
 
-static inline bool nf_hooks_active(u_int8_t pf, unsigned int hook)
+static inline bool nf_hook_list_active(struct list_head *nf_hook_list,
+				       u_int8_t pf, unsigned int hook)
 {
 	if (__builtin_constant_p(pf) &&
 	    __builtin_constant_p(hook))
 		return static_key_false(&nf_hooks_needed[pf][hook]);
 
-	return !list_empty(&nf_hooks[pf][hook]);
+	return !list_empty(nf_hook_list);
 }
 #else
-static inline bool nf_hooks_active(u_int8_t pf, unsigned int hook)
+static inline bool nf_hook_list_active(struct list_head *nf_hook_list,
+				       u_int8_t pf, unsigned int hook)
 {
-	return !list_empty(&nf_hooks[pf][hook]);
+	return !list_empty(nf_hook_list);
 }
 #endif
+
+static inline bool nf_hooks_active(u_int8_t pf, unsigned int hook)
+{
+	return nf_hook_list_active(&nf_hooks[pf][hook], pf, hook);
+}
 
 int nf_hook_slow(struct sk_buff *skb, struct nf_hook_state *state);
 
 /**
  *	nf_hook_thresh - call a netfilter hook
- *	
+ *
  *	Returns 1 if the hook has allowed the packet to pass.  The function
  *	okfn must be invoked by the caller in this case.  Any other return
  *	value indicates the packet has been consumed by the hook.
