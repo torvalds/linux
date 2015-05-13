@@ -675,7 +675,7 @@ static int trace_search_list(struct list_head **list)
 	}
 
 	/* Did we used up all 65 thousand events??? */
-	if ((last + 1) > FTRACE_MAX_EVENT)
+	if ((last + 1) > TRACE_EVENT_TYPE_MAX)
 		return 0;
 
 	*list = &e->list;
@@ -725,7 +725,7 @@ int register_trace_event(struct trace_event *event)
 	if (!event->type) {
 		struct list_head *list = NULL;
 
-		if (next_event_type > FTRACE_MAX_EVENT) {
+		if (next_event_type > TRACE_EVENT_TYPE_MAX) {
 
 			event->type = trace_search_list(&list);
 			if (!event->type)

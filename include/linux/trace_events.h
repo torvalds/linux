@@ -68,7 +68,7 @@ struct trace_entry {
 	int			pid;
 };
 
-#define FTRACE_MAX_EVENT						\
+#define TRACE_EVENT_TYPE_MAX						\
 	((1 << (sizeof(((struct trace_entry *)0)->type) * 8)) - 1)
 
 /*
