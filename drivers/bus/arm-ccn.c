@@ -921,9 +921,8 @@ static void arm_ccn_pmu_event_start(struct perf_event *event, int flags)
 	 * attribute).
 	 */
 	if (!ccn->irq)
-		__hrtimer_start_range_ns(&ccn->dt.hrtimer,
-				arm_ccn_pmu_timer_period(), 0,
-				HRTIMER_MODE_REL_PINNED, 0);
+		hrtimer_start(&ccn->dt.hrtimer, arm_ccn_pmu_timer_period(),
+				HRTIMER_MODE_REL_PINNED);
 
 	/* Set the DT bus input, engaging the counter */
 	arm_ccn_pmu_xp_dt_config(event, 1);
