@@ -1660,6 +1660,7 @@ static int ntb_atom_detect(struct ntb_device *ndev)
 	u32 ppd;
 
 	ndev->hw_type = BWD_HW;
+	ndev->limits.max_mw = BWD_MAX_MW;
 
 	rc = pci_read_config_dword(ndev->pdev, NTB_PPD_OFFSET, &ppd);
 	if (rc)
