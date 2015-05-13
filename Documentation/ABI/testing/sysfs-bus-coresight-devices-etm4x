@@ -179,3 +179,28 @@ Date:		April 2015
 KernelVersion:	4.01
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description: 	(RW) Used to setup address range comparator values.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/seq_idx
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description: 	(RW) Select which sequensor.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/seq_state
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description: 	(RW) Use this to set, or read, the sequencer state.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/seq_event
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description: 	(RW) Moves the sequencer state to a specific state.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/seq_reset_event
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description: 	(RW) Moves the sequencer to state 0 when a programmed event
+		occurs.
