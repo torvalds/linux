@@ -281,3 +281,80 @@ KernelVersion:	4.01
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description:	(RW) Mask for all 8 virtual machine ID comparator value
 		registers (if implemented).
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/mgmt/trcoslsr
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(R) Print the content of the OS Lock Status Register (0x304).
+		The value it taken directly  from the HW.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/mgmt/trcpdcr
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(R) Print the content of the Power Down Control Register
+		(0x310).  The value is taken directly from the HW.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/mgmt/trcpdsr
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(R) Print the content of the Power Down Status Register
+		(0x314).  The value is taken directly from the HW.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/mgmt/trclsr
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(R) Print the content of the SW Lock Status Register
+		(0xFB4).  The value is taken directly from the HW.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/mgmt/trcauthstatus
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(R) Print the content of the Authentication Status Register
+		(0xFB8).  The value is taken directly from the HW.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/mgmt/trcdevid
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(R) Print the content of the Device ID Register
+		(0xFC8).  The value is taken directly from the HW.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/mgmt/trcdevtype
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(R) Print the content of the Device Type Register
+		(0xFCC).  The value is taken directly from the HW.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/mgmt/trcpidr0
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(R) Print the content of the Peripheral ID0 Register
+		(0xFE0).  The value is taken directly from the HW.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/mgmt/trcpidr1
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(R) Print the content of the Peripheral ID1 Register
+		(0xFE4).  The value is taken directly from the HW.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/mgmt/trcpidr2
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(R) Print the content of the Peripheral ID2 Register
+		(0xFE8).  The value is taken directly from the HW.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/mgmt/trcpidr3
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(R) Print the content of the Peripheral ID3 Register
+		(0xFEC).  The value is taken directly from the HW.
