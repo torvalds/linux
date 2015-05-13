@@ -13,3 +13,65 @@ Date:		April 2015
 KernelVersion:	4.01
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description:	(R) The CPU this tracing entity is associated with.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/nr_pe_cmp
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(R) Indicates the number of PE comparator inputs that are
+		available for tracing.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/nr_addr_cmp
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(R) Indicates the number of address comparator pairs that are
+		available for tracing.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/nr_cntr
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(R) Indicates the number of counters that are available for
+		tracing.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/nr_ext_inp
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(R) Indicates how many external inputs are implemented.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/numcidc
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(R) Indicates the number of Context ID comparators that are
+		available for tracing.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/numvmidc
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(R) Indicates the number of VMID comparators that are available
+		for tracing.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/nrseqstate
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(R) Indicates the number of sequencer states that are
+		implemented.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/nr_resource
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(R) Indicates the number of resource selection pairs that are
+		available for tracing.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/nr_ss_cmp
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(R) Indicates the number of single-shot comparator controls that
+		are available for tracing.
