@@ -93,4 +93,8 @@ static inline bool acpi_psci_use_hvc(void) { return false; }
 static inline void acpi_init_cpus(void) { }
 #endif /* CONFIG_ACPI */
 
+static inline const char *acpi_get_enable_method(int cpu)
+{
+	return acpi_psci_present() ? "psci" : NULL;
+}
 #endif /*_ASM_ACPI_H*/

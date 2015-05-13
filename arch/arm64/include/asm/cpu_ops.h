@@ -65,7 +65,6 @@ struct cpu_operations {
 
 extern const struct cpu_operations *cpu_ops[NR_CPUS];
 int __init cpu_read_ops(int cpu);
-const struct cpu_operations *cpu_get_ops(const char *name);
 
 static inline void __init cpu_read_bootcpu_ops(void)
 {
