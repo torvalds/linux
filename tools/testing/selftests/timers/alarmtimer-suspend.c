@@ -172,7 +172,7 @@ int main(void)
 		while (alarmcount < 10) {
 			int ret;
 
-			sleep(1);
+			sleep(3);
 			ret = system("echo mem > /sys/power/state");
 			if (ret)
 				break;
