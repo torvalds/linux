@@ -40,9 +40,18 @@
 
 struct visor_driver;
 struct visor_device;
+extern struct bus_type visorbus_type;
 
 typedef void (*visorbus_state_complete_func) (struct visor_device *dev,
 					      int status);
+struct visorchipset_state {
+	u32 created:1;
+	u32 attached:1;
+	u32 configured:1;
+	u32 running:1;
+	/* Add new fields above. */
+	/* Remaining bits in this 32-bit word are unused. */
+};
 
 /** This struct describes a specific Supervisor channel, by providing its
  *  GUID, name, and sizes.
@@ -141,6 +150,16 @@ struct visor_device {
 	bool resuming;
 	unsigned long chipset_bus_no;
 	unsigned long chipset_dev_no;
+	struct visorchipset_state state;
+	uuid_le type;
+	uuid_le inst;
+	u8 *name;
+	u8 *description;
+	struct controlvm_message_header *pending_msg_hdr;
+	void *vbus_hdr_info;
+	u32 switch_no;
+	u32 internal_port_no;
+	uuid_le partition_uuid;
 };
 
 #define to_visor_device(x) container_of(x, struct visor_device, device)

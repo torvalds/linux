@@ -23,6 +23,7 @@
 #include "version.h"
 #include "visorbus.h"
 #include <linux/uuid.h>
+#include "controlvmchannel.h"
 
 #define MYDRVNAME "visorchannel"
 
@@ -44,6 +45,9 @@ struct visorchannel {
 		struct signal_queue_header event_queue;
 		struct signal_queue_header ack_queue;
 	} safe_uis_queue;
+	struct irq_info intr;
+	uuid_le type;
+	uuid_le inst;
 };
 
 /* Creates the struct visorchannel abstraction for a data area in memory,

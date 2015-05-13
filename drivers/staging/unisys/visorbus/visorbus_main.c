@@ -88,7 +88,7 @@ const struct attribute_group *visorbus_bus_groups[] = {
 /** This describes the TYPE of bus.
  *  (Don't confuse this with an INSTANCE of the bus.)
  */
-static struct bus_type visorbus_type = {
+struct bus_type visorbus_type = {
 	.name = "visorbus",
 	.match = visorbus_match,
 	.uevent = visorbus_uevent,

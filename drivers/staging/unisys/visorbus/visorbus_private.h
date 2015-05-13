@@ -27,15 +27,6 @@
 
 struct visorchannel;
 
-struct visorchipset_state {
-	u32 created:1;
-	u32 attached:1;
-	u32 configured:1;
-	u32 running:1;
-	/* Add new fields above. */
-	/* Remaining bits in this 32-bit word are unused. */
-};
-
 enum visorchipset_addresstype {
 	/** address is guest physical, but outside of the physical memory
 	 *  region that is controlled by the running OS (this is the normal
