@@ -242,3 +242,22 @@ Date:		April 2015
 KernelVersion:	4.01
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description: 	(RW) Controls the selection of the resources in the trace unit.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/ctxid_idx
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(RW) Select which context ID comparator to work with.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/ctxid_val
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(RW) Get/Set the context ID comparator value to trigger on.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/ctxid_masks
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(RW) Mask for all 8 context ID comparator value
+		registers (if implemented).
