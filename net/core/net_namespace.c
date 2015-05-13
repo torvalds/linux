@@ -565,6 +565,7 @@ static int rtnl_net_newid(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 	spin_lock_irqsave(&nsid_lock, flags);
 	if (__peernet2id(net, peer) >= 0) {
+		spin_unlock_irqrestore(&nsid_lock, flags);
 		err = -EEXIST;
 		goto out;
 	}
