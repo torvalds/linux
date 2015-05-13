@@ -426,7 +426,7 @@ extern void event_triggers_post_call(struct trace_event_file *file,
 				     enum event_trigger_type tt);
 
 /**
- * ftrace_trigger_soft_disabled - do triggers and test if soft disabled
+ * trace_trigger_soft_disabled - do triggers and test if soft disabled
  * @file: The file pointer of the event to test
  *
  * If any triggers without filters are attached to this event, they
@@ -435,7 +435,7 @@ extern void event_triggers_post_call(struct trace_event_file *file,
  * otherwise false.
  */
 static inline bool
-ftrace_trigger_soft_disabled(struct trace_event_file *file)
+trace_trigger_soft_disabled(struct trace_event_file *file)
 {
 	unsigned long eflags = file->flags;
 

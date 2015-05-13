@@ -928,7 +928,7 @@ __kprobe_trace_func(struct trace_kprobe *tk, struct pt_regs *regs,
 
 	WARN_ON(call != trace_file->event_call);
 
-	if (ftrace_trigger_soft_disabled(trace_file))
+	if (trace_trigger_soft_disabled(trace_file))
 		return;
 
 	local_save_flags(irq_flags);
@@ -976,7 +976,7 @@ __kretprobe_trace_func(struct trace_kprobe *tk, struct kretprobe_instance *ri,
 
 	WARN_ON(call != trace_file->event_call);
 
-	if (ftrace_trigger_soft_disabled(trace_file))
+	if (trace_trigger_soft_disabled(trace_file))
 		return;
 
 	local_save_flags(irq_flags);

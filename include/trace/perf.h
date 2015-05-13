@@ -159,7 +159,7 @@ ftrace_raw_event_##call(void *__data, proto)				\
 	struct ftrace_raw_##call *entry;				\
 	int __data_size;						\
 									\
-	if (ftrace_trigger_soft_disabled(trace_file))			\
+	if (trace_trigger_soft_disabled(trace_file))			\
 		return;							\
 									\
 	__data_size = ftrace_get_offsets_##call(&__data_offsets, args); \
