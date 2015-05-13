@@ -189,6 +189,7 @@ struct mxc_nand_host {
 	int			clk_act;
 	int			irq;
 	int			eccsize;
+	int			used_oobsize;
 	int			active_cs;
 
 	struct completion	op_completion;
@@ -827,7 +828,7 @@ static void copy_spare(struct mtd_info *mtd, bool bfrom)
 	u16 sparebuf_size = host->devtype_data->spare_len;
 
 	/* size of oob chunk for all but possibly the last one */
-	oob_chunk_size = (mtd->oobsize / num_chunks) & ~1;
+	oob_chunk_size = (host->used_oobsize / num_chunks) & ~1;
 
 	if (bfrom) {
 		for (i = 0; i < num_chunks - 1; i++)
@@ -838,7 +839,7 @@ static void copy_spare(struct mtd_info *mtd, bool bfrom)
 		/* the last chunk */
 		memcpy32_fromio(d + i * oob_chunk_size,
 				s + i * sparebuf_size,
-				mtd->oobsize - i * oob_chunk_size);
+				host->used_oobsize - i * oob_chunk_size);
 	} else {
 		for (i = 0; i < num_chunks - 1; i++)
 			memcpy32_toio(&s[i * sparebuf_size],
@@ -848,7 +849,7 @@ static void copy_spare(struct mtd_info *mtd, bool bfrom)
 		/* the last chunk */
 		memcpy32_toio(&s[oob_chunk_size * sparebuf_size],
 			      &d[i * oob_chunk_size],
-			      mtd->oobsize - i * oob_chunk_size);
+			      host->used_oobsize - i * oob_chunk_size);
 	}
 }
 
@@ -1605,6 +1606,15 @@ static int mxcnd_probe(struct platform_device *pdev)
 		this->ecc.layout = host->devtype_data->ecclayout_2k;
 	else if (mtd->writesize == 4096)
 		this->ecc.layout = host->devtype_data->ecclayout_4k;
+
+	/*
+	 * Experimentation shows that i.MX NFC can only handle up to 218 oob
+	 * bytes. Limit used_oobsize to 218 so as to not confuse copy_spare()
+	 * into copying invalid data to/from the spare IO buffer, as this
+	 * might cause ECC data corruption when doing sub-page write to a
+	 * partially written page.
+	 */
+	host->used_oobsize = min(mtd->oobsize, 218U);
 
 	if (this->ecc.mode == NAND_ECC_HW) {
 		if (is_imx21_nfc(host) || is_imx27_nfc(host))
