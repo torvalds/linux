@@ -154,7 +154,15 @@ int arizona_request_irq(struct arizona *arizona, int irq, char *name,
 void arizona_free_irq(struct arizona *arizona, int irq, void *data);
 int arizona_set_irq_wake(struct arizona *arizona, int irq, int on);
 
+#ifdef CONFIG_MFD_WM5102
 int wm5102_patch(struct arizona *arizona);
+#else
+static inline int wm5102_patch(struct arizona *arizona)
+{
+	return 0;
+}
+#endif
+
 int wm5110_patch(struct arizona *arizona);
 int wm8997_patch(struct arizona *arizona);
 
