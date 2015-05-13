@@ -184,7 +184,7 @@ phys_cpuid_t acpi_get_phys_id(acpi_handle handle, int type, u32 acpi_id)
 	phys_cpuid_t phys_id;
 
 	phys_id = map_mat_entry(handle, type, acpi_id);
-	if (phys_id == PHYS_CPUID_INVALID)
+	if (invalid_phys_cpuid(phys_id))
 		phys_id = map_madt_entry(type, acpi_id);
 
 	return phys_id;
@@ -196,7 +196,7 @@ int acpi_map_cpuid(phys_cpuid_t phys_id, u32 acpi_id)
 	int i;
 #endif
 
-	if (phys_id == PHYS_CPUID_INVALID) {
+	if (invalid_phys_cpuid(phys_id)) {
 		/*
 		 * On UP processor, there is no _MAT or MADT table.
 		 * So above phys_id is always set to PHYS_CPUID_INVALID.

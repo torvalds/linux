@@ -163,6 +163,11 @@ static inline bool invalid_logical_cpuid(u32 cpuid)
 	return (int)cpuid < 0;
 }
 
+static inline bool invalid_phys_cpuid(phys_cpuid_t phys_id)
+{
+	return phys_id == PHYS_CPUID_INVALID;
+}
+
 #ifdef CONFIG_ACPI_HOTPLUG_CPU
 /* Arch dependent functions for cpu hotplug support */
 int acpi_map_cpu(acpi_handle handle, phys_cpuid_t physid, int *pcpu);
