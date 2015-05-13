@@ -47,6 +47,12 @@
 	leds {
 		compatible = "gpio-leds";
 
+		usb {
+			label = "bcm53xx:blue:usb";
+			gpios = <&hc595 0 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "default-off";
+		};
+
 		power0 {
 			label = "bcm53xx:red:power";
 			gpios = <&hc595 1 GPIO_ACTIVE_HIGH>;
