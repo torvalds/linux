@@ -1474,15 +1474,14 @@ initialize_controlvm_payload(void)
 /*  Send ACTION=online for DEVPATH=/sys/devices/platform/visorchipset.
  *  Returns CONTROLVM_RESP_xxx code.
  */
-int
+static int
 visorchipset_chipset_ready(void)
 {
 	kobject_uevent(&visorchipset_platform_device.dev.kobj, KOBJ_ONLINE);
 	return CONTROLVM_RESP_SUCCESS;
 }
-EXPORT_SYMBOL_GPL(visorchipset_chipset_ready);
 
-int
+static int
 visorchipset_chipset_selftest(void)
 {
 	char env_selftest[20];
@@ -1493,18 +1492,16 @@ visorchipset_chipset_selftest(void)
 			   envp);
 	return CONTROLVM_RESP_SUCCESS;
 }
-EXPORT_SYMBOL_GPL(visorchipset_chipset_selftest);
 
 /*  Send ACTION=offline for DEVPATH=/sys/devices/platform/visorchipset.
  *  Returns CONTROLVM_RESP_xxx code.
  */
-int
+static int
 visorchipset_chipset_notready(void)
 {
 	kobject_uevent(&visorchipset_platform_device.dev.kobj, KOBJ_OFFLINE);
 	return CONTROLVM_RESP_SUCCESS;
 }
-EXPORT_SYMBOL_GPL(visorchipset_chipset_notready);
 
 static void
 chipset_ready(struct controlvm_message_header *msg_hdr)
@@ -2099,14 +2096,13 @@ device_destroy_response(u32 bus_no, u32 dev_no, int response)
 	device_responder(CONTROLVM_DEVICE_DESTROY, bus_no, dev_no, response);
 }
 
-void
+static void
 visorchipset_device_pause_response(u32 bus_no, u32 dev_no, int response)
 {
 	device_changestate_responder(CONTROLVM_DEVICE_CHANGESTATE,
 				     bus_no, dev_no, response,
 				     segment_state_standby);
 }
-EXPORT_SYMBOL_GPL(visorchipset_device_pause_response);
 
 static void
 device_resume_response(u32 bus_no, u32 dev_no, int response)
@@ -2327,28 +2323,26 @@ visorchipset_init(struct acpi_device *acpi_device)
 {
 	int rc = 0;
 	u64 addr;
+	int tmp_sz = sizeof(struct spar_controlvm_channel_protocol);
+	uuid_le uuid = SPAR_CONTROLVM_CHANNEL_PROTOCOL_UUID;
+
+	addr = controlvm_get_channel_address();
+	if (!addr)
+		return -ENODEV;
 
 	memset(&busdev_notifiers, 0, sizeof(busdev_notifiers));
 	memset(&controlvm_payload_info, 0, sizeof(controlvm_payload_info));
 	memset(&livedump_info, 0, sizeof(livedump_info));
 	atomic_set(&livedump_info.buffers_in_use, 0);
 
-	addr = controlvm_get_channel_address();
-	if (addr) {
-		int tmp_sz = sizeof(struct spar_controlvm_channel_protocol);
-		uuid_le uuid = SPAR_CONTROLVM_CHANNEL_PROTOCOL_UUID;
-		controlvm_channel =
-			visorchannel_create_with_lock(addr, tmp_sz,
-						      GFP_KERNEL, uuid);
-		if (SPAR_CONTROLVM_CHANNEL_OK_CLIENT(
-				visorchannel_get_header(controlvm_channel))) {
-			initialize_controlvm_payload();
-		} else {
-			visorchannel_destroy(controlvm_channel);
-			controlvm_channel = NULL;
-			return -ENODEV;
-		}
+	controlvm_channel = visorchannel_create_with_lock(addr, tmp_sz,
+							  GFP_KERNEL, uuid);
+	if (SPAR_CONTROLVM_CHANNEL_OK_CLIENT(
+		    visorchannel_get_header(controlvm_channel))) {
+		initialize_controlvm_payload();
 	} else {
+		visorchannel_destroy(controlvm_channel);
+		controlvm_channel = NULL;
 		return -ENODEV;
 	}
 
