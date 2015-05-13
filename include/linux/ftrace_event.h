@@ -219,10 +219,6 @@ struct ftrace_event_class {
 extern int ftrace_event_reg(struct ftrace_event_call *event,
 			    enum trace_reg type, void *data);
 
-int ftrace_event_define_field(struct ftrace_event_call *call,
-			      char *type, int len, char *item, int offset,
-			      int field_size, int sign, int filter);
-
 struct ftrace_event_buffer {
 	struct ring_buffer		*buffer;
 	struct ring_buffer_event	*event;
@@ -237,10 +233,6 @@ void *ftrace_event_buffer_reserve(struct ftrace_event_buffer *fbuffer,
 				  unsigned long len);
 
 void ftrace_event_buffer_commit(struct ftrace_event_buffer *fbuffer);
-
-int ftrace_event_define_field(struct ftrace_event_call *call,
-			      char *type, int len, char *item, int offset,
-			      int field_size, int sign, int filter);
 
 enum {
 	TRACE_EVENT_FL_FILTERED_BIT,
