@@ -64,10 +64,27 @@ static DEFINE_MUTEX(nf_hook_mutex);
 
 int nf_register_hook(struct nf_hook_ops *reg)
 {
+	struct list_head *nf_hook_list;
 	struct nf_hook_ops *elem;
 
 	mutex_lock(&nf_hook_mutex);
-	list_for_each_entry(elem, &nf_hooks[reg->pf][reg->hooknum], list) {
+	switch (reg->pf) {
+	case NFPROTO_NETDEV:
+#ifdef CONFIG_NETFILTER_INGRESS
+		if (reg->hooknum == NF_NETDEV_INGRESS) {
+			BUG_ON(reg->dev == NULL);
+			nf_hook_list = &reg->dev->nf_hooks_ingress;
+			net_inc_ingress_queue();
+			break;
+		}
+#endif
+		/* Fall through. */
+	default:
+		nf_hook_list = &nf_hooks[reg->pf][reg->hooknum];
+		break;
+	}
+
+	list_for_each_entry(elem, nf_hook_list, list) {
 		if (reg->priority < elem->priority)
 			break;
 	}
@@ -85,6 +102,18 @@ void nf_unregister_hook(struct nf_hook_ops *reg)
 	mutex_lock(&nf_hook_mutex);
 	list_del_rcu(&reg->list);
 	mutex_unlock(&nf_hook_mutex);
+	switch (reg->pf) {
+	case NFPROTO_NETDEV:
+#ifdef CONFIG_NETFILTER_INGRESS
+		if (reg->hooknum == NF_NETDEV_INGRESS) {
+			net_dec_ingress_queue();
+			break;
+		}
+		break;
+#endif
+	default:
+		break;
+	}
 #ifdef HAVE_JUMP_LABEL
 	static_key_slow_dec(&nf_hooks_needed[reg->pf][reg->hooknum]);
 #endif
