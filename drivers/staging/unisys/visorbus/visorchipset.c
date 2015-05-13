@@ -711,6 +711,45 @@ dev_info_clear(void *v)
 	memset(p, 0, sizeof(struct visorchipset_device_info));
 }
 
+struct visor_busdev {
+	u32 bus_no;
+	u32 dev_no;
+};
+
+static int match_visorbus_dev_by_id(struct device *dev, void *data)
+{
+	struct visor_device *vdev = to_visor_device(dev);
+	struct visor_busdev *id = (struct visor_busdev *)data;
+	u32 bus_no = id->bus_no;
+	u32 dev_no = id->dev_no;
+
+	if (((bus_no == -1) || (vdev->chipset_bus_no == bus_no)) &&
+	    ((dev_no == -1) || (vdev->chipset_dev_no == dev_no)))
+		return 1;
+
+	return 0;
+}
+struct visor_device *visorbus_get_device_by_id(u32 bus_no, u32 dev_no,
+					       struct visor_device *from)
+{
+	struct device *dev;
+	struct device *dev_start = NULL;
+	struct visor_device *vdev = NULL;
+	struct visor_busdev id = {
+			.bus_no = bus_no,
+			.dev_no = dev_no
+		};
+
+	if (from)
+		dev_start = &from->device;
+	dev = bus_find_device(&visorbus_type, dev_start, (void *)&id,
+			      match_visorbus_dev_by_id);
+	if (dev)
+		vdev = to_visor_device(dev);
+	return vdev;
+}
+EXPORT_SYMBOL(visorbus_get_device_by_id);
+
 static struct visorchipset_bus_info *
 bus_find(struct list_head *list, u32 bus_no)
 {
