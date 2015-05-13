@@ -522,6 +522,7 @@ struct be_adapter {
 	u16 work_counter;
 
 	struct delayed_work be_err_detection_work;
+	u8 err_flags;
 	u32 flags;
 	u32 cmd_privileges;
 	/* Ethtool knobs and info */
@@ -781,26 +782,36 @@ static inline bool is_ipv4_pkt(struct sk_buff *skb)
 	return skb->protocol == htons(ETH_P_IP) && ip_hdr(skb)->version == 4;
 }
 
+#define BE_ERROR_EEH		1
+#define BE_ERROR_UE		BIT(1)
+#define BE_ERROR_FW		BIT(2)
+#define BE_ERROR_HW		(BE_ERROR_EEH | BE_ERROR_UE)
+#define BE_ERROR_ANY		(BE_ERROR_EEH | BE_ERROR_UE | BE_ERROR_FW)
+#define BE_CLEAR_ALL		0xFF
+
+static inline u8 be_check_error(struct be_adapter *adapter, u32 err_type)
+{
+	return (adapter->err_flags & err_type);
+}
+
+static inline void be_set_error(struct be_adapter *adapter, int err_type)
+{
+	struct net_device *netdev = adapter->netdev;
+
+	adapter->err_flags |= err_type;
+	netif_carrier_off(netdev);
+
+	dev_info(&adapter->pdev->dev, "%s: Link down\n", netdev->name);
+}
+
+static inline void  be_clear_error(struct be_adapter *adapter, int err_type)
+{
+	adapter->err_flags &= ~err_type;
+}
+
 static inline bool be_multi_rxq(const struct be_adapter *adapter)
 {
 	return adapter->num_rx_qs > 1;
-}
-
-static inline bool be_error(struct be_adapter *adapter)
-{
-	return adapter->eeh_error || adapter->hw_error || adapter->fw_timeout;
-}
-
-static inline bool be_hw_error(struct be_adapter *adapter)
-{
-	return adapter->eeh_error || adapter->hw_error;
-}
-
-static inline void  be_clear_all_error(struct be_adapter *adapter)
-{
-	adapter->eeh_error = false;
-	adapter->hw_error = false;
-	adapter->fw_timeout = false;
 }
 
 void be_cq_notify(struct be_adapter *adapter, u16 qid, bool arm,

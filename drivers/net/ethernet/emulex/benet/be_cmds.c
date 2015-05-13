@@ -93,7 +93,7 @@ static void be_mcc_notify(struct be_adapter *adapter)
 	struct be_queue_info *mccq = &adapter->mcc_obj.q;
 	u32 val = 0;
 
-	if (be_error(adapter))
+	if (be_check_error(adapter, BE_ERROR_ANY))
 		return;
 
 	val |= mccq->id & DB_MCCQ_RING_ID_MASK;
@@ -489,7 +489,7 @@ static int be_mcc_wait_compl(struct be_adapter *adapter)
 	struct be_mcc_obj *mcc_obj = &adapter->mcc_obj;
 
 	for (i = 0; i < mcc_timeout; i++) {
-		if (be_error(adapter))
+		if (be_check_error(adapter, BE_ERROR_ANY))
 			return -EIO;
 
 		local_bh_disable();
@@ -502,7 +502,7 @@ static int be_mcc_wait_compl(struct be_adapter *adapter)
 	}
 	if (i == mcc_timeout) {
 		dev_err(&adapter->pdev->dev, "FW not responding\n");
-		adapter->fw_timeout = true;
+		be_set_error(adapter, BE_ERROR_FW);
 		return -EIO;
 	}
 	return status;
@@ -541,7 +541,7 @@ static int be_mbox_db_ready_wait(struct be_adapter *adapter, void __iomem *db)
 	u32 ready;
 
 	do {
-		if (be_error(adapter))
+		if (be_check_error(adapter, BE_ERROR_ANY))
 			return -EIO;
 
 		ready = ioread32(db);
@@ -554,7 +554,7 @@ static int be_mbox_db_ready_wait(struct be_adapter *adapter, void __iomem *db)
 
 		if (msecs > 4000) {
 			dev_err(&adapter->pdev->dev, "FW not responding\n");
-			adapter->fw_timeout = true;
+			be_set_error(adapter, BE_ERROR_FW);
 			be_detect_error(adapter);
 			return -1;
 		}

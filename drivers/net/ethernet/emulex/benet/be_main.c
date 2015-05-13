@@ -179,7 +179,7 @@ static void be_intr_set(struct be_adapter *adapter, bool enable)
 	if (lancer_chip(adapter))
 		return;
 
-	if (adapter->eeh_error)
+	if (be_check_error(adapter, BE_ERROR_EEH))
 		return;
 
 	status = be_cmd_intr_set(adapter, enable);
@@ -190,6 +190,9 @@ static void be_intr_set(struct be_adapter *adapter, bool enable)
 static void be_rxq_notify(struct be_adapter *adapter, u16 qid, u16 posted)
 {
 	u32 val = 0;
+
+	if (be_check_error(adapter, BE_ERROR_HW))
+		return;
 
 	val |= qid & DB_RQ_RING_ID_MASK;
 	val |= posted << DB_RQ_NUM_POSTED_SHIFT;
@@ -202,6 +205,9 @@ static void be_txq_notify(struct be_adapter *adapter, struct be_tx_obj *txo,
 			  u16 posted)
 {
 	u32 val = 0;
+
+	if (be_check_error(adapter, BE_ERROR_HW))
+		return;
 
 	val |= txo->q.id & DB_TXULP_RING_ID_MASK;
 	val |= (posted & DB_TXULP_NUM_POSTED_MASK) << DB_TXULP_NUM_POSTED_SHIFT;
@@ -219,7 +225,7 @@ static void be_eq_notify(struct be_adapter *adapter, u16 qid,
 	val |= qid & DB_EQ_RING_ID_MASK;
 	val |= ((qid & DB_EQ_RING_ID_EXT_MASK) << DB_EQ_RING_ID_EXT_MASK_SHIFT);
 
-	if (adapter->eeh_error)
+	if (be_check_error(adapter, BE_ERROR_HW))
 		return;
 
 	if (arm)
@@ -240,7 +246,7 @@ void be_cq_notify(struct be_adapter *adapter, u16 qid, bool arm, u16 num_popped)
 	val |= ((qid & DB_CQ_RING_ID_EXT_MASK) <<
 			DB_CQ_RING_ID_EXT_MASK_SHIFT);
 
-	if (adapter->eeh_error)
+	if (be_check_error(adapter, BE_ERROR_HW))
 		return;
 
 	if (arm)
@@ -2324,7 +2330,9 @@ static void be_rx_cq_clean(struct be_rx_obj *rxo)
 			if (lancer_chip(adapter))
 				break;
 
-			if (flush_wait++ > 10 || be_hw_error(adapter)) {
+			if (flush_wait++ > 50 ||
+			    be_check_error(adapter,
+					   BE_ERROR_HW)) {
 				dev_warn(&adapter->pdev->dev,
 					 "did not receive flush compl\n");
 				break;
@@ -2385,7 +2393,8 @@ static void be_tx_compl_clean(struct be_adapter *adapter)
 				pending_txqs--;
 		}
 
-		if (pending_txqs == 0 || ++timeo > 10 || be_hw_error(adapter))
+		if (pending_txqs == 0 || ++timeo > 10 ||
+		    be_check_error(adapter, BE_ERROR_HW))
 			break;
 
 		mdelay(1);
@@ -2995,22 +3004,19 @@ void be_detect_error(struct be_adapter *adapter)
 	u32 ue_lo = 0, ue_hi = 0, ue_lo_mask = 0, ue_hi_mask = 0;
 	u32 sliport_status = 0, sliport_err1 = 0, sliport_err2 = 0;
 	u32 i;
-	bool error_detected = false;
 	struct device *dev = &adapter->pdev->dev;
-	struct net_device *netdev = adapter->netdev;
 
-	if (be_hw_error(adapter))
+	if (be_check_error(adapter, BE_ERROR_HW))
 		return;
 
 	if (lancer_chip(adapter)) {
 		sliport_status = ioread32(adapter->db + SLIPORT_STATUS_OFFSET);
 		if (sliport_status & SLIPORT_STATUS_ERR_MASK) {
+			be_set_error(adapter, BE_ERROR_UE);
 			sliport_err1 = ioread32(adapter->db +
 						SLIPORT_ERROR1_OFFSET);
 			sliport_err2 = ioread32(adapter->db +
 						SLIPORT_ERROR2_OFFSET);
-			adapter->hw_error = true;
-			error_detected = true;
 			/* Do not log error messages if its a FW reset */
 			if (sliport_err1 == SLIPORT_ERROR_FW_RESET1 &&
 			    sliport_err2 == SLIPORT_ERROR_FW_RESET2) {
@@ -3042,12 +3048,12 @@ void be_detect_error(struct be_adapter *adapter)
 		 */
 
 		if (ue_lo || ue_hi) {
-			error_detected = true;
 			dev_err(dev,
 				"Unrecoverable Error detected in the adapter");
 			dev_err(dev, "Please reboot server to recover");
 			if (skyhawk_chip(adapter))
-				adapter->hw_error = true;
+				be_set_error(adapter, BE_ERROR_UE);
+
 			for (i = 0; ue_lo; ue_lo >>= 1, i++) {
 				if (ue_lo & 1)
 					dev_err(dev, "UE: %s bit set\n",
@@ -3060,8 +3066,6 @@ void be_detect_error(struct be_adapter *adapter)
 			}
 		}
 	}
-	if (error_detected)
-		netif_carrier_off(netdev);
 }
 
 static void be_msix_disable(struct be_adapter *adapter)
@@ -4183,7 +4187,7 @@ static int be_func_init(struct be_adapter *adapter)
 		msleep(100);
 
 		/* We can clear all errors when function reset succeeds */
-		be_clear_all_error(adapter);
+		be_clear_error(adapter, BE_CLEAR_ALL);
 	}
 
 	/* Tell FW we're ready to fire cmds */
@@ -5204,7 +5208,7 @@ static void be_err_detection_task(struct work_struct *work)
 
 	be_detect_error(adapter);
 
-	if (adapter->hw_error) {
+	if (be_check_error(adapter, BE_ERROR_HW)) {
 		be_cleanup(adapter);
 
 		/* As of now error recovery support is in Lancer only */
@@ -5715,8 +5719,8 @@ static pci_ers_result_t be_eeh_err_detected(struct pci_dev *pdev,
 
 	dev_err(&adapter->pdev->dev, "EEH error detected\n");
 
-	if (!adapter->eeh_error) {
-		adapter->eeh_error = true;
+	if (!be_check_error(adapter, BE_ERROR_EEH)) {
+		be_set_error(adapter, BE_ERROR_EEH);
 
 		be_cancel_err_detection(adapter);
 
@@ -5763,7 +5767,7 @@ static pci_ers_result_t be_eeh_reset(struct pci_dev *pdev)
 		return PCI_ERS_RESULT_DISCONNECT;
 
 	pci_cleanup_aer_uncorrect_error_status(pdev);
-	be_clear_all_error(adapter);
+	be_clear_error(adapter, BE_CLEAR_ALL);
 	return PCI_ERS_RESULT_RECOVERED;
 }
 
