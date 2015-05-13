@@ -11299,9 +11299,10 @@ static void intel_dump_pipe_config(struct intel_crtc *crtc,
 	DRM_DEBUG_KMS("port clock: %d\n", pipe_config->port_clock);
 	DRM_DEBUG_KMS("pipe src size: %dx%d\n",
 		      pipe_config->pipe_src_w, pipe_config->pipe_src_h);
-	DRM_DEBUG_KMS("num_scalers: %d\n", crtc->num_scalers);
-	DRM_DEBUG_KMS("scaler_users: 0x%x\n", pipe_config->scaler_state.scaler_users);
-	DRM_DEBUG_KMS("scaler id: %d\n", pipe_config->scaler_state.scaler_id);
+	DRM_DEBUG_KMS("num_scalers: %d, scaler_users: 0x%x, scaler_id: %d\n",
+		      crtc->num_scalers,
+		      pipe_config->scaler_state.scaler_users,
+		      pipe_config->scaler_state.scaler_id);
 	DRM_DEBUG_KMS("gmch pfit: control: 0x%08x, ratios: 0x%08x, lvds border: 0x%08x\n",
 		      pipe_config->gmch_pfit.control,
 		      pipe_config->gmch_pfit.pgm_ratios,
