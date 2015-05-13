@@ -250,11 +250,11 @@ enum {
  *  FILTERED	  - The event has a filter attached
  *  CAP_ANY	  - Any user can enable for perf
  *  NO_SET_FILTER - Set when filter has error and is to be ignored
- *  IGNORE_ENABLE - For ftrace internal events, do not enable with debugfs file
+ *  IGNORE_ENABLE - For trace internal events, do not enable with debugfs file
  *  WAS_ENABLED   - Set and stays set when an event was ever enabled
  *                    (used for module unloading, if a module event is enabled,
  *                     it is best to clear the buffers that used it).
- *  USE_CALL_FILTER - For ftrace internal events, don't use file filter
+ *  USE_CALL_FILTER - For trace internal events, don't use file filter
  *  TRACEPOINT    - Event is a tracepoint
  *  KPROBE        - Event is a kprobe
  */
@@ -286,7 +286,7 @@ struct trace_event_call {
 	 *   bit 0:		filter_active
 	 *   bit 1:		allow trace by non root (cap any)
 	 *   bit 2:		failed to apply filter
-	 *   bit 3:		ftrace internal event (do not enable)
+	 *   bit 3:		trace internal event (do not enable)
 	 *   bit 4:		Event was enabled by module
 	 *   bit 5:		use call filter rather than file filter
 	 *   bit 6:		Event is a tracepoint
@@ -316,18 +316,18 @@ struct trace_array;
 struct trace_subsystem_dir;
 
 enum {
-	FTRACE_EVENT_FL_ENABLED_BIT,
-	FTRACE_EVENT_FL_RECORDED_CMD_BIT,
-	FTRACE_EVENT_FL_FILTERED_BIT,
-	FTRACE_EVENT_FL_NO_SET_FILTER_BIT,
-	FTRACE_EVENT_FL_SOFT_MODE_BIT,
-	FTRACE_EVENT_FL_SOFT_DISABLED_BIT,
-	FTRACE_EVENT_FL_TRIGGER_MODE_BIT,
-	FTRACE_EVENT_FL_TRIGGER_COND_BIT,
+	EVENT_FILE_FL_ENABLED_BIT,
+	EVENT_FILE_FL_RECORDED_CMD_BIT,
+	EVENT_FILE_FL_FILTERED_BIT,
+	EVENT_FILE_FL_NO_SET_FILTER_BIT,
+	EVENT_FILE_FL_SOFT_MODE_BIT,
+	EVENT_FILE_FL_SOFT_DISABLED_BIT,
+	EVENT_FILE_FL_TRIGGER_MODE_BIT,
+	EVENT_FILE_FL_TRIGGER_COND_BIT,
 };
 
 /*
- * Ftrace event file flags:
+ * Event file flags:
  *  ENABLED	  - The event is enabled
  *  RECORDED_CMD  - The comms should be recorded at sched_switch
  *  FILTERED	  - The event has a filter attached
@@ -339,14 +339,14 @@ enum {
  *  TRIGGER_COND  - When set, one or more triggers has an associated filter
  */
 enum {
-	FTRACE_EVENT_FL_ENABLED		= (1 << FTRACE_EVENT_FL_ENABLED_BIT),
-	FTRACE_EVENT_FL_RECORDED_CMD	= (1 << FTRACE_EVENT_FL_RECORDED_CMD_BIT),
-	FTRACE_EVENT_FL_FILTERED	= (1 << FTRACE_EVENT_FL_FILTERED_BIT),
-	FTRACE_EVENT_FL_NO_SET_FILTER	= (1 << FTRACE_EVENT_FL_NO_SET_FILTER_BIT),
-	FTRACE_EVENT_FL_SOFT_MODE	= (1 << FTRACE_EVENT_FL_SOFT_MODE_BIT),
-	FTRACE_EVENT_FL_SOFT_DISABLED	= (1 << FTRACE_EVENT_FL_SOFT_DISABLED_BIT),
-	FTRACE_EVENT_FL_TRIGGER_MODE	= (1 << FTRACE_EVENT_FL_TRIGGER_MODE_BIT),
-	FTRACE_EVENT_FL_TRIGGER_COND	= (1 << FTRACE_EVENT_FL_TRIGGER_COND_BIT),
+	EVENT_FILE_FL_ENABLED		= (1 << EVENT_FILE_FL_ENABLED_BIT),
+	EVENT_FILE_FL_RECORDED_CMD	= (1 << EVENT_FILE_FL_RECORDED_CMD_BIT),
+	EVENT_FILE_FL_FILTERED		= (1 << EVENT_FILE_FL_FILTERED_BIT),
+	EVENT_FILE_FL_NO_SET_FILTER	= (1 << EVENT_FILE_FL_NO_SET_FILTER_BIT),
+	EVENT_FILE_FL_SOFT_MODE		= (1 << EVENT_FILE_FL_SOFT_MODE_BIT),
+	EVENT_FILE_FL_SOFT_DISABLED	= (1 << EVENT_FILE_FL_SOFT_DISABLED_BIT),
+	EVENT_FILE_FL_TRIGGER_MODE	= (1 << EVENT_FILE_FL_TRIGGER_MODE_BIT),
+	EVENT_FILE_FL_TRIGGER_COND	= (1 << EVENT_FILE_FL_TRIGGER_COND_BIT),
 };
 
 struct trace_event_file {
@@ -439,10 +439,10 @@ ftrace_trigger_soft_disabled(struct trace_event_file *file)
 {
 	unsigned long eflags = file->flags;
 
-	if (!(eflags & FTRACE_EVENT_FL_TRIGGER_COND)) {
-		if (eflags & FTRACE_EVENT_FL_TRIGGER_MODE)
+	if (!(eflags & EVENT_FILE_FL_TRIGGER_COND)) {
+		if (eflags & EVENT_FILE_FL_TRIGGER_MODE)
 			event_triggers_call(file, NULL);
-		if (eflags & FTRACE_EVENT_FL_SOFT_DISABLED)
+		if (eflags & EVENT_FILE_FL_SOFT_DISABLED)
 			return true;
 	}
 	return false;
@@ -470,10 +470,10 @@ __event_trigger_test_discard(struct trace_event_file *file,
 {
 	unsigned long eflags = file->flags;
 
-	if (eflags & FTRACE_EVENT_FL_TRIGGER_COND)
+	if (eflags & EVENT_FILE_FL_TRIGGER_COND)
 		*tt = event_triggers_call(file, entry);
 
-	if (test_bit(FTRACE_EVENT_FL_SOFT_DISABLED_BIT, &file->flags))
+	if (test_bit(EVENT_FILE_FL_SOFT_DISABLED_BIT, &file->flags))
 		ring_buffer_discard_commit(buffer, event);
 	else if (!filter_check_discard(file, entry, buffer, event))
 		return false;

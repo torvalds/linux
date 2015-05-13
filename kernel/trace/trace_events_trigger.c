@@ -438,12 +438,12 @@ static int trace_event_trigger_enable_disable(struct trace_event_file *file,
 	if (trigger_enable) {
 		if (atomic_inc_return(&file->tm_ref) > 1)
 			return ret;
-		set_bit(FTRACE_EVENT_FL_TRIGGER_MODE_BIT, &file->flags);
+		set_bit(EVENT_FILE_FL_TRIGGER_MODE_BIT, &file->flags);
 		ret = trace_event_enable_disable(file, 1, 1);
 	} else {
 		if (atomic_dec_return(&file->tm_ref) > 0)
 			return ret;
-		clear_bit(FTRACE_EVENT_FL_TRIGGER_MODE_BIT, &file->flags);
+		clear_bit(EVENT_FILE_FL_TRIGGER_MODE_BIT, &file->flags);
 		ret = trace_event_enable_disable(file, 0, 1);
 	}
 
@@ -501,9 +501,9 @@ static void update_cond_flag(struct trace_event_file *file)
 	}
 
 	if (set_cond)
-		set_bit(FTRACE_EVENT_FL_TRIGGER_COND_BIT, &file->flags);
+		set_bit(EVENT_FILE_FL_TRIGGER_COND_BIT, &file->flags);
 	else
-		clear_bit(FTRACE_EVENT_FL_TRIGGER_COND_BIT, &file->flags);
+		clear_bit(EVENT_FILE_FL_TRIGGER_COND_BIT, &file->flags);
 }
 
 /**
@@ -1063,9 +1063,9 @@ event_enable_trigger(struct event_trigger_data *data)
 	struct enable_trigger_data *enable_data = data->private_data;
 
 	if (enable_data->enable)
-		clear_bit(FTRACE_EVENT_FL_SOFT_DISABLED_BIT, &enable_data->file->flags);
+		clear_bit(EVENT_FILE_FL_SOFT_DISABLED_BIT, &enable_data->file->flags);
 	else
-		set_bit(FTRACE_EVENT_FL_SOFT_DISABLED_BIT, &enable_data->file->flags);
+		set_bit(EVENT_FILE_FL_SOFT_DISABLED_BIT, &enable_data->file->flags);
 }
 
 static void
@@ -1077,7 +1077,7 @@ event_enable_count_trigger(struct event_trigger_data *data)
 		return;
 
 	/* Skip if the event is in a state we want to switch to */
-	if (enable_data->enable == !(enable_data->file->flags & FTRACE_EVENT_FL_SOFT_DISABLED))
+	if (enable_data->enable == !(enable_data->file->flags & EVENT_FILE_FL_SOFT_DISABLED))
 		return;
 
 	if (data->count != -1)

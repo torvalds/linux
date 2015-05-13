@@ -298,15 +298,15 @@ void trace_event_enable_cmd_record(bool enable)
 	mutex_lock(&event_mutex);
 	do_for_each_event_file(tr, file) {
 
-		if (!(file->flags & FTRACE_EVENT_FL_ENABLED))
+		if (!(file->flags & EVENT_FILE_FL_ENABLED))
 			continue;
 
 		if (enable) {
 			tracing_start_cmdline_record();
-			set_bit(FTRACE_EVENT_FL_RECORDED_CMD_BIT, &file->flags);
+			set_bit(EVENT_FILE_FL_RECORDED_CMD_BIT, &file->flags);
 		} else {
 			tracing_stop_cmdline_record();
-			clear_bit(FTRACE_EVENT_FL_RECORDED_CMD_BIT, &file->flags);
+			clear_bit(EVENT_FILE_FL_RECORDED_CMD_BIT, &file->flags);
 		}
 	} while_for_each_event_file();
 	mutex_unlock(&event_mutex);
@@ -337,24 +337,24 @@ static int __ftrace_event_enable_disable(struct trace_event_file *file,
 		if (soft_disable) {
 			if (atomic_dec_return(&file->sm_ref) > 0)
 				break;
-			disable = file->flags & FTRACE_EVENT_FL_SOFT_DISABLED;
-			clear_bit(FTRACE_EVENT_FL_SOFT_MODE_BIT, &file->flags);
+			disable = file->flags & EVENT_FILE_FL_SOFT_DISABLED;
+			clear_bit(EVENT_FILE_FL_SOFT_MODE_BIT, &file->flags);
 		} else
-			disable = !(file->flags & FTRACE_EVENT_FL_SOFT_MODE);
+			disable = !(file->flags & EVENT_FILE_FL_SOFT_MODE);
 
-		if (disable && (file->flags & FTRACE_EVENT_FL_ENABLED)) {
-			clear_bit(FTRACE_EVENT_FL_ENABLED_BIT, &file->flags);
-			if (file->flags & FTRACE_EVENT_FL_RECORDED_CMD) {
+		if (disable && (file->flags & EVENT_FILE_FL_ENABLED)) {
+			clear_bit(EVENT_FILE_FL_ENABLED_BIT, &file->flags);
+			if (file->flags & EVENT_FILE_FL_RECORDED_CMD) {
 				tracing_stop_cmdline_record();
-				clear_bit(FTRACE_EVENT_FL_RECORDED_CMD_BIT, &file->flags);
+				clear_bit(EVENT_FILE_FL_RECORDED_CMD_BIT, &file->flags);
 			}
 			call->class->reg(call, TRACE_REG_UNREGISTER, file);
 		}
 		/* If in SOFT_MODE, just set the SOFT_DISABLE_BIT, else clear it */
-		if (file->flags & FTRACE_EVENT_FL_SOFT_MODE)
-			set_bit(FTRACE_EVENT_FL_SOFT_DISABLED_BIT, &file->flags);
+		if (file->flags & EVENT_FILE_FL_SOFT_MODE)
+			set_bit(EVENT_FILE_FL_SOFT_DISABLED_BIT, &file->flags);
 		else
-			clear_bit(FTRACE_EVENT_FL_SOFT_DISABLED_BIT, &file->flags);
+			clear_bit(EVENT_FILE_FL_SOFT_DISABLED_BIT, &file->flags);
 		break;
 	case 1:
 		/*
@@ -366,22 +366,22 @@ static int __ftrace_event_enable_disable(struct trace_event_file *file,
 		 * it still seems to be disabled.
 		 */
 		if (!soft_disable)
-			clear_bit(FTRACE_EVENT_FL_SOFT_DISABLED_BIT, &file->flags);
+			clear_bit(EVENT_FILE_FL_SOFT_DISABLED_BIT, &file->flags);
 		else {
 			if (atomic_inc_return(&file->sm_ref) > 1)
 				break;
-			set_bit(FTRACE_EVENT_FL_SOFT_MODE_BIT, &file->flags);
+			set_bit(EVENT_FILE_FL_SOFT_MODE_BIT, &file->flags);
 		}
 
-		if (!(file->flags & FTRACE_EVENT_FL_ENABLED)) {
+		if (!(file->flags & EVENT_FILE_FL_ENABLED)) {
 
 			/* Keep the event disabled, when going to SOFT_MODE. */
 			if (soft_disable)
-				set_bit(FTRACE_EVENT_FL_SOFT_DISABLED_BIT, &file->flags);
+				set_bit(EVENT_FILE_FL_SOFT_DISABLED_BIT, &file->flags);
 
 			if (trace_flags & TRACE_ITER_RECORD_CMD) {
 				tracing_start_cmdline_record();
-				set_bit(FTRACE_EVENT_FL_RECORDED_CMD_BIT, &file->flags);
+				set_bit(EVENT_FILE_FL_RECORDED_CMD_BIT, &file->flags);
 			}
 			ret = call->class->reg(call, TRACE_REG_REGISTER, file);
 			if (ret) {
@@ -390,7 +390,7 @@ static int __ftrace_event_enable_disable(struct trace_event_file *file,
 					"%s\n", trace_event_name(call));
 				break;
 			}
-			set_bit(FTRACE_EVENT_FL_ENABLED_BIT, &file->flags);
+			set_bit(EVENT_FILE_FL_ENABLED_BIT, &file->flags);
 
 			/* WAS_ENABLED gets set but never cleared. */
 			call->flags |= TRACE_EVENT_FL_WAS_ENABLED;
@@ -716,7 +716,7 @@ s_next(struct seq_file *m, void *v, loff_t *pos)
 	(*pos)++;
 
 	list_for_each_entry_continue(file, &tr->events, list) {
-		if (file->flags & FTRACE_EVENT_FL_ENABLED)
+		if (file->flags & EVENT_FILE_FL_ENABLED)
 			return file;
 	}
 
@@ -774,12 +774,12 @@ event_enable_read(struct file *filp, char __user *ubuf, size_t cnt,
 	if (!file)
 		return -ENODEV;
 
-	if (flags & FTRACE_EVENT_FL_ENABLED &&
-	    !(flags & FTRACE_EVENT_FL_SOFT_DISABLED))
+	if (flags & EVENT_FILE_FL_ENABLED &&
+	    !(flags & EVENT_FILE_FL_SOFT_DISABLED))
 		strcpy(buf, "1");
 
-	if (flags & FTRACE_EVENT_FL_SOFT_DISABLED ||
-	    flags & FTRACE_EVENT_FL_SOFT_MODE)
+	if (flags & EVENT_FILE_FL_SOFT_DISABLED ||
+	    flags & EVENT_FILE_FL_SOFT_MODE)
 		strcat(buf, "*");
 
 	strcat(buf, "\n");
@@ -851,7 +851,7 @@ system_enable_read(struct file *filp, char __user *ubuf, size_t cnt,
 		 * or if all events or cleared, or if we have
 		 * a mixture.
 		 */
-		set |= (1 << !!(file->flags & FTRACE_EVENT_FL_ENABLED));
+		set |= (1 << !!(file->flags & EVENT_FILE_FL_ENABLED));
 
 		/*
 		 * If we have a mixture, no need to look further.
@@ -1932,10 +1932,10 @@ static int probe_remove_event_call(struct trace_event_call *call)
 			continue;
 		/*
 		 * We can't rely on ftrace_event_enable_disable(enable => 0)
-		 * we are going to do, FTRACE_EVENT_FL_SOFT_MODE can suppress
+		 * we are going to do, EVENT_FILE_FL_SOFT_MODE can suppress
 		 * TRACE_REG_UNREGISTER.
 		 */
-		if (file->flags & FTRACE_EVENT_FL_ENABLED)
+		if (file->flags & EVENT_FILE_FL_ENABLED)
 			return -EBUSY;
 		/*
 		 * The do_for_each_event_file_safe() is
@@ -2114,9 +2114,9 @@ event_enable_probe(unsigned long ip, unsigned long parent_ip, void **_data)
 		return;
 
 	if (data->enable)
-		clear_bit(FTRACE_EVENT_FL_SOFT_DISABLED_BIT, &data->file->flags);
+		clear_bit(EVENT_FILE_FL_SOFT_DISABLED_BIT, &data->file->flags);
 	else
-		set_bit(FTRACE_EVENT_FL_SOFT_DISABLED_BIT, &data->file->flags);
+		set_bit(EVENT_FILE_FL_SOFT_DISABLED_BIT, &data->file->flags);
 }
 
 static void
@@ -2132,7 +2132,7 @@ event_enable_count_probe(unsigned long ip, unsigned long parent_ip, void **_data
 		return;
 
 	/* Skip if the event is in a state we want to switch to */
-	if (data->enable == !(data->file->flags & FTRACE_EVENT_FL_SOFT_DISABLED))
+	if (data->enable == !(data->file->flags & EVENT_FILE_FL_SOFT_DISABLED))
 		return;
 
 	if (data->count != -1)
@@ -2793,7 +2793,7 @@ static __init void event_trace_self_tests(void)
 		 * If an event is already enabled, someone is using
 		 * it and the self test should not be on.
 		 */
-		if (file->flags & FTRACE_EVENT_FL_ENABLED) {
+		if (file->flags & EVENT_FILE_FL_ENABLED) {
 			pr_warn("Enabled event during self test!\n");
 			WARN_ON_ONCE(1);
 			continue;

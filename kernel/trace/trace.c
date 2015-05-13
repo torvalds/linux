@@ -301,7 +301,7 @@ int filter_check_discard(struct trace_event_file *file, void *rec,
 			 struct ring_buffer *buffer,
 			 struct ring_buffer_event *event)
 {
-	if (unlikely(file->flags & FTRACE_EVENT_FL_FILTERED) &&
+	if (unlikely(file->flags & EVENT_FILE_FL_FILTERED) &&
 	    !filter_match_preds(file->filter, rec)) {
 		ring_buffer_discard_commit(buffer, event);
 		return 1;
@@ -1709,7 +1709,7 @@ trace_event_buffer_lock_reserve(struct ring_buffer **current_rb,
 	 * to store the trace event for the tigger to use. It's recusive
 	 * safe and will not be recorded anywhere.
 	 */
-	if (!entry && trace_file->flags & FTRACE_EVENT_FL_TRIGGER_COND) {
+	if (!entry && trace_file->flags & EVENT_FILE_FL_TRIGGER_COND) {
 		*current_rb = temp_buffer;
 		entry = trace_buffer_lock_reserve(*current_rb,
 						  type, len, flags, pc);

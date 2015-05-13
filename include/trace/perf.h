@@ -21,10 +21,10 @@
  *	int __data_size;
  *	int pc;
  *
- *	if (!(eflags & FTRACE_EVENT_FL_TRIGGER_COND)) {
- *		if (eflags & FTRACE_EVENT_FL_TRIGGER_MODE)
+ *	if (!(eflags & EVENT_FILE_FL_TRIGGER_COND)) {
+ *		if (eflags & EVENT_FILE_FL_TRIGGER_MODE)
  *			event_triggers_call(trace_file, NULL);
- *		if (eflags & FTRACE_EVENT_FL_SOFT_DISABLED)
+ *		if (eflags & EVENT_FILE_FL_SOFT_DISABLED)
  *			return;
  *	}
  *
@@ -44,10 +44,10 @@
  *	{ <assign>; }  <-- Here we assign the entries by the __field and
  *			   __array macros.
  *
- *	if (eflags & FTRACE_EVENT_FL_TRIGGER_COND)
+ *	if (eflags & EVENT_FILE_FL_TRIGGER_COND)
  *		__tt = event_triggers_call(trace_file, entry);
  *
- *	if (test_bit(FTRACE_EVENT_FL_SOFT_DISABLED_BIT,
+ *	if (test_bit(EVENT_FILE_FL_SOFT_DISABLED_BIT,
  *		     &trace_file->flags))
  *		ring_buffer_discard_commit(buffer, event);
  *	else if (!filter_check_discard(trace_file, entry, buffer, event))
