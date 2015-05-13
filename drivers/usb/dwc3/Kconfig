@@ -11,6 +11,13 @@ config USB_DWC3
 
 if USB_DWC3
 
+config USB_DWC3_ULPI
+	bool "Register ULPI PHY Interface"
+	depends on USB_ULPI_BUS=y || USB_ULPI_BUS=USB_DWC3
+	help
+	  Select this if you have ULPI type PHY attached to your DWC3
+	  controller.
+
 choice
 	bool "DWC3 Mode Selection"
 	default USB_DWC3_DUAL_ROLE if (USB && USB_GADGET)
