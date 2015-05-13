@@ -1207,11 +1207,6 @@ static const struct bdb_header *validate_vbt(const void *base, size_t size,
 	size_t offset;
 	const struct bdb_header *bdb;
 
-	if (vbt == NULL) {
-		DRM_DEBUG_DRIVER("VBT signature missing\n");
-		return NULL;
-	}
-
 	offset = _vbt - base;
 	if (offset + sizeof(struct vbt_header) > size) {
 		DRM_DEBUG_DRIVER("VBT header incomplete\n");
