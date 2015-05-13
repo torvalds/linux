@@ -49,6 +49,36 @@ There are two ways to run LED patterns.
 2) Firmware interface - LP55xx common interface
   For the details, please refer to 'firmware' section in leds-lp55xx.txt
 
+LP5523 has three master faders. If a channel is mapped to one of
+the master faders, its output is dimmed based on the value of the master
+fader.
+
+For example,
+
+  echo "123000123" > master_fader_leds
+
+creates the following channel-fader mappings:
+
+  channel 0,6 to master_fader1
+  channel 1,7 to master_fader2
+  channel 2,8 to master_fader3
+
+Then, to have 25% of the original output on channel 0,6:
+
+  echo 64 > master_fader1
+
+To have 0% of the original output (i.e. no output) channel 1,7:
+
+  echo 0 > master_fader2
+
+To have 100% of the original output (i.e. no dimming) on channel 2,8:
+
+  echo 255 > master_fader3
+
+To clear all master fader controls:
+
+  echo "000000000" > master_fader_leds
+
 Selftest uses always the current from the platform data.
 
 Each channel contains led current settings.
