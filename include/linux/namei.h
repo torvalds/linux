@@ -1,12 +1,10 @@
 #ifndef _LINUX_NAMEI_H
 #define _LINUX_NAMEI_H
 
-#include <linux/dcache.h>
-#include <linux/errno.h>
-#include <linux/linkage.h>
+#include <linux/kernel.h>
 #include <linux/path.h>
-
-struct vfsmount;
+#include <linux/fcntl.h>
+#include <linux/errno.h>
 
 enum { MAX_NESTED_LINKS = 8 };
 
@@ -46,13 +44,29 @@ enum {LAST_NORM, LAST_ROOT, LAST_DOT, LAST_DOTDOT, LAST_BIND};
 #define LOOKUP_ROOT		0x2000
 #define LOOKUP_EMPTY		0x4000
 
-extern int user_path_at(int, const char __user *, unsigned, struct path *);
 extern int user_path_at_empty(int, const char __user *, unsigned, struct path *, int *empty);
 
-#define user_path(name, path) user_path_at(AT_FDCWD, name, LOOKUP_FOLLOW, path)
-#define user_lpath(name, path) user_path_at(AT_FDCWD, name, 0, path)
-#define user_path_dir(name, path) \
-	user_path_at(AT_FDCWD, name, LOOKUP_FOLLOW | LOOKUP_DIRECTORY, path)
+static inline int user_path_at(int dfd, const char __user *name, unsigned flags,
+		 struct path *path)
+{
+	return user_path_at_empty(dfd, name, flags, path, NULL);
+}
+
+static inline int user_path(const char __user *name, struct path *path)
+{
+	return user_path_at_empty(AT_FDCWD, name, LOOKUP_FOLLOW, path, NULL);
+}
+
+static inline int user_lpath(const char __user *name, struct path *path)
+{
+	return user_path_at_empty(AT_FDCWD, name, 0, path, NULL);
+}
+
+static inline int user_path_dir(const char __user *name, struct path *path)
+{
+	return user_path_at_empty(AT_FDCWD, name,
+				  LOOKUP_FOLLOW | LOOKUP_DIRECTORY, path, NULL);
+}
 
 extern int kern_path(const char *, unsigned, struct path *);
 

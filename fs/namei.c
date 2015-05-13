@@ -2299,13 +2299,7 @@ int user_path_at_empty(int dfd, const char __user *name, unsigned flags,
 	return filename_lookup(dfd, getname_flags(name, flags, empty),
 			       flags, path, NULL);
 }
-
-int user_path_at(int dfd, const char __user *name, unsigned flags,
-		 struct path *path)
-{
-	return user_path_at_empty(dfd, name, flags, path, NULL);
-}
-EXPORT_SYMBOL(user_path_at);
+EXPORT_SYMBOL(user_path_at_empty);
 
 /*
  * NB: most callers don't do anything directly with the reference to the
