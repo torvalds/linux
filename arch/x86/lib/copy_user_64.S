@@ -16,30 +16,6 @@
 #include <asm/asm.h>
 #include <asm/smap.h>
 
-	.macro ALIGN_DESTINATION
-	/* check for bad alignment of destination */
-	movl %edi,%ecx
-	andl $7,%ecx
-	jz 102f				/* already aligned */
-	subl $8,%ecx
-	negl %ecx
-	subl %ecx,%edx
-100:	movb (%rsi),%al
-101:	movb %al,(%rdi)
-	incq %rsi
-	incq %rdi
-	decl %ecx
-	jnz 100b
-102:
-	.section .fixup,"ax"
-103:	addl %ecx,%edx			/* ecx is zerorest also */
-	jmp copy_user_handle_tail
-	.previous
-
-	_ASM_EXTABLE(100b,103b)
-	_ASM_EXTABLE(101b,103b)
-	.endm
-
 /* Standard copy_to_user with segment limit checking */
 ENTRY(_copy_to_user)
 	CFI_STARTPROC
