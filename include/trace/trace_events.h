@@ -322,7 +322,7 @@ trace_raw_output_##call(struct trace_iterator *iter, int flags,		\
 									\
 	return trace_handle_return(s);					\
 }									\
-static struct trace_event_functions ftrace_event_type_funcs_##call = {	\
+static struct trace_event_functions trace_event_type_funcs_##call = {	\
 	.trace			= trace_raw_output_##call,		\
 };
 
@@ -348,7 +348,7 @@ trace_raw_output_##call(struct trace_iterator *iter, int flags,		\
 	trace_seq_init(p);						\
 	return trace_output_call(iter, #call, print);			\
 }									\
-static struct trace_event_functions ftrace_event_type_funcs_##call = {	\
+static struct trace_event_functions trace_event_type_funcs_##call = {	\
 	.trace			= trace_raw_output_##call,		\
 };
 

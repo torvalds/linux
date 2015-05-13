@@ -231,7 +231,7 @@ static struct trace_event_call __used event_##call = {			\
 	{								\
 		.tp			= &__tracepoint_##call,		\
 	},								\
-	.event.funcs		= &ftrace_event_type_funcs_##template,	\
+	.event.funcs		= &trace_event_type_funcs_##template,	\
 	.print_fmt		= print_fmt_##template,			\
 	.flags			= TRACE_EVENT_FL_TRACEPOINT,		\
 };									\
@@ -248,7 +248,7 @@ static struct trace_event_call __used event_##call = {			\
 	{								\
 		.tp			= &__tracepoint_##call,		\
 	},								\
-	.event.funcs		= &ftrace_event_type_funcs_##call,	\
+	.event.funcs		= &trace_event_type_funcs_##call,	\
 	.print_fmt		= print_fmt_##call,			\
 	.flags			= TRACE_EVENT_FL_TRACEPOINT,		\
 };									\
