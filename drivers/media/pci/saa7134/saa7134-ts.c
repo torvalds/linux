@@ -35,8 +35,10 @@ static unsigned int ts_debug;
 module_param(ts_debug, int, 0644);
 MODULE_PARM_DESC(ts_debug,"enable debug messages [ts]");
 
-#define ts_dbg(fmt, arg...)	if (ts_debug) \
-	printk(KERN_DEBUG pr_fmt("ts: " fmt), ## arg)
+#define ts_dbg(fmt, arg...) do { \
+	if (ts_debug) \
+		printk(KERN_DEBUG pr_fmt("ts: " fmt), ## arg); \
+	} while (0)
 
 /* ------------------------------------------------------------------ */
 static int buffer_activate(struct saa7134_dev *dev,

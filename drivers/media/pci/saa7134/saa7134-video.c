@@ -52,8 +52,10 @@ module_param_string(secam, secam, sizeof(secam), 0644);
 MODULE_PARM_DESC(secam, "force SECAM variant, either DK,L or Lc");
 
 
-#define video_dbg(fmt, arg...)	if (video_debug & 0x04) \
-	printk(KERN_DEBUG pr_fmt("video: " fmt), ## arg)
+#define video_dbg(fmt, arg...) do { \
+	if (video_debug & 0x04) \
+		printk(KERN_DEBUG pr_fmt("video: " fmt), ## arg); \
+	} while (0)
 
 /* ------------------------------------------------------------------ */
 /* Defines for Video Output Port Register at address 0x191            */

@@ -41,11 +41,15 @@ static unsigned int i2c_scan;
 module_param(i2c_scan, int, 0444);
 MODULE_PARM_DESC(i2c_scan,"scan i2c bus at insmod time");
 
-#define i2c_dbg(level, fmt, arg...)    if (i2c_debug == level) \
-	printk(KERN_DEBUG pr_fmt("i2c: " fmt), ## arg)
+#define i2c_dbg(level, fmt, arg...) do { \
+	if (i2c_debug == level) \
+		printk(KERN_DEBUG pr_fmt("i2c: " fmt), ## arg); \
+	} while (0)
 
-#define i2c_cont(level, fmt, arg...)    if (i2c_debug == level) \
-	pr_cont(fmt, ## arg)
+#define i2c_cont(level, fmt, arg...) do { \
+	if (i2c_debug == level) \
+		pr_cont(fmt, ## arg); \
+	} while (0)
 
 #define I2C_WAIT_DELAY  32
 #define I2C_WAIT_RETRY  16

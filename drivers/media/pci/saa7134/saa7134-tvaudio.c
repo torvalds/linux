@@ -49,8 +49,10 @@ static int audio_clock_tweak;
 module_param(audio_clock_tweak, int, 0644);
 MODULE_PARM_DESC(audio_clock_tweak, "Audio clock tick fine tuning for cards with audio crystal that's slightly off (range [-1024 .. 1024])");
 
-#define audio_dbg(level, fmt, arg...)    if (audio_debug >= level) \
-       printk(KERN_DEBUG pr_fmt("audio: " fmt), ## arg)
+#define audio_dbg(level, fmt, arg...) do { \
+	if (audio_debug >= level) \
+		printk(KERN_DEBUG pr_fmt("audio: " fmt), ## arg); \
+	} while (0)
 
 /* msecs */
 #define SCAN_INITIAL_DELAY     1000

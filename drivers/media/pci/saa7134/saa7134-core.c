@@ -102,11 +102,15 @@ static unsigned int saa7134_devcount;
 int (*saa7134_dmasound_init)(struct saa7134_dev *dev);
 int (*saa7134_dmasound_exit)(struct saa7134_dev *dev);
 
-#define core_dbg(fmt, arg...)    if (core_debug) \
-	printk(KERN_DEBUG pr_fmt("core: " fmt), ## arg)
+#define core_dbg(fmt, arg...) do { \
+	if (core_debug) \
+		printk(KERN_DEBUG pr_fmt("core: " fmt), ## arg); \
+	} while (0)
 
-#define irq_dbg(level, fmt, arg...)    if (irq_debug > level) \
-	printk(KERN_DEBUG pr_fmt("irq: " fmt), ## arg)
+#define irq_dbg(level, fmt, arg...)  do {\
+	if (irq_debug > level) \
+		printk(KERN_DEBUG pr_fmt("irq: " fmt), ## arg); \
+	} while (0)
 
 void saa7134_track_gpio(struct saa7134_dev *dev, char *msg)
 {

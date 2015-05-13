@@ -38,8 +38,10 @@ static unsigned int vbibufs = 4;
 module_param(vbibufs, int, 0444);
 MODULE_PARM_DESC(vbibufs,"number of vbi buffers, range 2-32");
 
-#define vbi_dbg(fmt, arg...)	if (vbi_debug) \
-	printk(KERN_DEBUG pr_fmt("vbi: " fmt), ## arg)
+#define vbi_dbg(fmt, arg...) do { \
+	if (vbi_debug) \
+		printk(KERN_DEBUG pr_fmt("vbi: " fmt), ## arg); \
+	} while (0)
 
 /* ------------------------------------------------------------------ */
 

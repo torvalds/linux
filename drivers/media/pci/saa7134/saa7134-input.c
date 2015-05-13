@@ -41,10 +41,14 @@ static int pinnacle_remote;
 module_param(pinnacle_remote, int, 0644);    /* Choose Pinnacle PCTV remote */
 MODULE_PARM_DESC(pinnacle_remote, "Specify Pinnacle PCTV remote: 0=coloured, 1=grey (defaults to 0)");
 
-#define input_dbg(fmt, arg...)	if (ir_debug) \
-	printk(KERN_DEBUG pr_fmt("input: " fmt), ## arg)
-#define ir_dbg(ir, fmt, arg...)    if (ir_debug) \
-	printk(KERN_DEBUG pr_fmt("ir %s: " fmt), ir->name, ## arg)
+#define input_dbg(fmt, arg...) do { \
+	if (ir_debug) \
+		printk(KERN_DEBUG pr_fmt("input: " fmt), ## arg); \
+	} while (0)
+#define ir_dbg(ir, fmt, arg...) do { \
+	if (ir_debug) \
+		printk(KERN_DEBUG pr_fmt("ir %s: " fmt), ir->name, ## arg); \
+	} while (0)
 
 /* Helper function for raw decoding at GPIO16 or GPIO18 */
 static int saa7134_raw_decode_irq(struct saa7134_dev *dev);
