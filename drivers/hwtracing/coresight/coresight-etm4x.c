@@ -812,6 +812,126 @@ static ssize_t event_instren_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(event_instren);
 
+static ssize_t event_ts_show(struct device *dev,
+			     struct device_attribute *attr,
+			     char *buf)
+{
+	unsigned long val;
+	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	val = drvdata->ts_ctrl;
+	return scnprintf(buf, PAGE_SIZE, "%#lx\n", val);
+}
+
+static ssize_t event_ts_store(struct device *dev,
+			      struct device_attribute *attr,
+			      const char *buf, size_t size)
+{
+	unsigned long val;
+	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	if (kstrtoul(buf, 16, &val))
+		return -EINVAL;
+	if (!drvdata->ts_size)
+		return -EINVAL;
+
+	drvdata->ts_ctrl = val & ETMv4_EVENT_MASK;
+	return size;
+}
+static DEVICE_ATTR_RW(event_ts);
+
+static ssize_t syncfreq_show(struct device *dev,
+			     struct device_attribute *attr,
+			     char *buf)
+{
+	unsigned long val;
+	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	val = drvdata->syncfreq;
+	return scnprintf(buf, PAGE_SIZE, "%#lx\n", val);
+}
+
+static ssize_t syncfreq_store(struct device *dev,
+			      struct device_attribute *attr,
+			      const char *buf, size_t size)
+{
+	unsigned long val;
+	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	if (kstrtoul(buf, 16, &val))
+		return -EINVAL;
+	if (drvdata->syncpr == true)
+		return -EINVAL;
+
+	drvdata->syncfreq = val & ETMv4_SYNC_MASK;
+	return size;
+}
+static DEVICE_ATTR_RW(syncfreq);
+
+static ssize_t cyc_threshold_show(struct device *dev,
+				  struct device_attribute *attr,
+				  char *buf)
+{
+	unsigned long val;
+	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	val = drvdata->ccctlr;
+	return scnprintf(buf, PAGE_SIZE, "%#lx\n", val);
+}
+
+static ssize_t cyc_threshold_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t size)
+{
+	unsigned long val;
+	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	if (kstrtoul(buf, 16, &val))
+		return -EINVAL;
+	if (val < drvdata->ccitmin)
+		return -EINVAL;
+
+	drvdata->ccctlr = val & ETM_CYC_THRESHOLD_MASK;
+	return size;
+}
+static DEVICE_ATTR_RW(cyc_threshold);
+
+static ssize_t bb_ctrl_show(struct device *dev,
+			    struct device_attribute *attr,
+			    char *buf)
+{
+	unsigned long val;
+	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	val = drvdata->bb_ctrl;
+	return scnprintf(buf, PAGE_SIZE, "%#lx\n", val);
+}
+
+static ssize_t bb_ctrl_store(struct device *dev,
+			     struct device_attribute *attr,
+			     const char *buf, size_t size)
+{
+	unsigned long val;
+	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	if (kstrtoul(buf, 16, &val))
+		return -EINVAL;
+	if (drvdata->trcbb == false)
+		return -EINVAL;
+	if (!drvdata->nr_addr_cmp)
+		return -EINVAL;
+	/*
+	 * Bit[7:0] selects which address range comparator is used for
+	 * branch broadcast control.
+	 */
+	if (BMVAL(val, 0, 7) > drvdata->nr_addr_cmp)
+		return -EINVAL;
+
+	drvdata->bb_ctrl = val;
+	return size;
+}
+static DEVICE_ATTR_RW(bb_ctrl);
+
 static ssize_t cpu_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
@@ -839,6 +959,10 @@ static struct attribute *coresight_etmv4_attrs[] = {
 	&dev_attr_pe.attr,
 	&dev_attr_event.attr,
 	&dev_attr_event_instren.attr,
+	&dev_attr_event_ts.attr,
+	&dev_attr_syncfreq.attr,
+	&dev_attr_cyc_threshold.attr,
+	&dev_attr_bb_ctrl.attr,
 	&dev_attr_cpu.attr,
 	NULL,
 };

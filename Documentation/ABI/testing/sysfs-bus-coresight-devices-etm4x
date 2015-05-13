@@ -108,3 +108,29 @@ Date:		April 2015
 KernelVersion:	4.01
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description: 	(RW) Controls the behavior of the events in bank 0 to 3.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/event_ts
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description: 	(RW) Controls the insertion of global timestamps in the trace
+		streams.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/syncfreq
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description: 	(RW) Controls how often trace synchronization requests occur.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/cyc_threshold
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description: 	(RW) Sets the threshold value for cycle counting.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/bb_ctrl
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description: 	(RW) Controls which regions in the memory map are enabled to
+		use branch broadcasting.
