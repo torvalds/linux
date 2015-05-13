@@ -261,3 +261,23 @@ KernelVersion:	4.01
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description:	(RW) Mask for all 8 context ID comparator value
 		registers (if implemented).
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/vmid_idx
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(RW) Select which virtual machine ID comparator to work with.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/vmid_val
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(RW) Get/Set the virtual machine ID comparator value to
+		trigger on.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/vmid_masks
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(RW) Mask for all 8 virtual machine ID comparator value
+		registers (if implemented).
