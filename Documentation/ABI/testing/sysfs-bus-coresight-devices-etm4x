@@ -230,3 +230,15 @@ Date:		April 2015
 KernelVersion:	4.01
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description: 	(RW) Controls the operation of the selected counter.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/res_idx
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description: 	(RW) Select which resource selection unit to work with.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/res_ctrl
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description: 	(RW) Controls the selection of the resources in the trace unit.

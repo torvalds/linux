@@ -1707,6 +1707,79 @@ static ssize_t cntr_ctrl_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(cntr_ctrl);
 
+static ssize_t res_idx_show(struct device *dev,
+			    struct device_attribute *attr,
+			    char *buf)
+{
+	unsigned long val;
+	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	val = drvdata->res_idx;
+	return scnprintf(buf, PAGE_SIZE, "%#lx\n", val);
+}
+
+static ssize_t res_idx_store(struct device *dev,
+			     struct device_attribute *attr,
+			     const char *buf, size_t size)
+{
+	unsigned long val;
+	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	if (kstrtoul(buf, 16, &val))
+		return -EINVAL;
+	/* Resource selector pair 0 is always implemented and reserved */
+	if ((val == 0) || (val >= drvdata->nr_resource))
+		return -EINVAL;
+
+	/*
+	 * Use spinlock to ensure index doesn't change while it gets
+	 * dereferenced multiple times within a spinlock block elsewhere.
+	 */
+	spin_lock(&drvdata->spinlock);
+	drvdata->res_idx = val;
+	spin_unlock(&drvdata->spinlock);
+	return size;
+}
+static DEVICE_ATTR_RW(res_idx);
+
+static ssize_t res_ctrl_show(struct device *dev,
+			     struct device_attribute *attr,
+			     char *buf)
+{
+	u8 idx;
+	unsigned long val;
+	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	spin_lock(&drvdata->spinlock);
+	idx = drvdata->res_idx;
+	val = drvdata->res_ctrl[idx];
+	spin_unlock(&drvdata->spinlock);
+	return scnprintf(buf, PAGE_SIZE, "%#lx\n", val);
+}
+
+static ssize_t res_ctrl_store(struct device *dev,
+			      struct device_attribute *attr,
+			      const char *buf, size_t size)
+{
+	u8 idx;
+	unsigned long val;
+	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	if (kstrtoul(buf, 16, &val))
+		return -EINVAL;
+
+	spin_lock(&drvdata->spinlock);
+	idx = drvdata->res_idx;
+	/* For odd idx pair inversal bit is RES0 */
+	if (idx % 2 != 0)
+		/* PAIRINV, bit[21] */
+		val &= ~BIT(21);
+	drvdata->res_ctrl[idx] = val;
+	spin_unlock(&drvdata->spinlock);
+	return size;
+}
+static DEVICE_ATTR_RW(res_ctrl);
+
 static ssize_t cpu_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
@@ -1757,6 +1830,8 @@ static struct attribute *coresight_etmv4_attrs[] = {
 	&dev_attr_cntrldvr.attr,
 	&dev_attr_cntr_val.attr,
 	&dev_attr_cntr_ctrl.attr,
+	&dev_attr_res_idx.attr,
+	&dev_attr_res_ctrl.attr,
 	&dev_attr_cpu.attr,
 	NULL,
 };
