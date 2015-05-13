@@ -498,10 +498,8 @@ struct nameidata {
 	struct qstr	last;
 	struct path	root;
 	struct inode	*inode; /* path.dentry.d_inode */
-	struct filename	*name;
-	int		dfd;
 	unsigned int	flags;
-	unsigned	seq, m_seq, root_seq;
+	unsigned	seq, m_seq;
 	int		last_type;
 	unsigned	depth;
 	int		total_link_count;
@@ -512,23 +510,26 @@ struct nameidata {
 		struct inode *inode;
 		unsigned seq;
 	} *stack, internal[EMBEDDED_LEVELS];
+	struct filename	*name;
+	struct nameidata *saved;
+	unsigned	root_seq;
+	int		dfd;
 };
 
-static struct nameidata *set_nameidata(struct nameidata *p, int dfd,
-					struct filename *name)
+static void set_nameidata(struct nameidata *p, int dfd, struct filename *name)
 {
 	struct nameidata *old = current->nameidata;
 	p->stack = p->internal;
 	p->dfd = dfd;
 	p->name = name;
 	p->total_link_count = old ? old->total_link_count : 0;
+	p->saved = old;
 	current->nameidata = p;
-	return old;
 }
 
-static void restore_nameidata(struct nameidata *old)
+static void restore_nameidata(void)
 {
-	struct nameidata *now = current->nameidata;
+	struct nameidata *now = current->nameidata, *old = now->saved;
 
 	current->nameidata = old;
 	if (old)
@@ -2120,14 +2121,14 @@ static int filename_lookup(int dfd, struct filename *name, unsigned flags,
 			   struct path *path, struct path *root)
 {
 	int retval;
-	struct nameidata nd, *saved_nd;
+	struct nameidata nd;
 	if (IS_ERR(name))
 		return PTR_ERR(name);
-	saved_nd = set_nameidata(&nd, dfd, name);
 	if (unlikely(root)) {
 		nd.root = *root;
 		flags |= LOOKUP_ROOT;
 	}
+	set_nameidata(&nd, dfd, name);
 	retval = path_lookupat(&nd, flags | LOOKUP_RCU, path);
 	if (unlikely(retval == -ECHILD))
 		retval = path_lookupat(&nd, flags, path);
@@ -2136,7 +2137,7 @@ static int filename_lookup(int dfd, struct filename *name, unsigned flags,
 
 	if (likely(!retval))
 		audit_inode(name, path->dentry, flags & LOOKUP_PARENT);
-	restore_nameidata(saved_nd);
+	restore_nameidata();
 	putname(name);
 	return retval;
 }
@@ -2166,11 +2167,11 @@ static struct filename *filename_parentat(int dfd, struct filename *name,
 				struct qstr *last, int *type)
 {
 	int retval;
-	struct nameidata nd, *saved_nd;
+	struct nameidata nd;
 
 	if (IS_ERR(name))
 		return name;
-	saved_nd = set_nameidata(&nd, dfd, name);
+	set_nameidata(&nd, dfd, name);
 	retval = path_parentat(&nd, flags | LOOKUP_RCU, parent);
 	if (unlikely(retval == -ECHILD))
 		retval = path_parentat(&nd, flags, parent);
@@ -2184,7 +2185,7 @@ static struct filename *filename_parentat(int dfd, struct filename *name,
 		putname(name);
 		name = ERR_PTR(retval);
 	}
-	restore_nameidata(saved_nd);
+	restore_nameidata();
 	return name;
 }
 
@@ -2445,11 +2446,11 @@ static int
 filename_mountpoint(int dfd, struct filename *name, struct path *path,
 			unsigned int flags)
 {
-	struct nameidata nd, *saved;
+	struct nameidata nd;
 	int error;
 	if (IS_ERR(name))
 		return PTR_ERR(name);
-	saved = set_nameidata(&nd, dfd, name);
+	set_nameidata(&nd, dfd, name);
 	error = path_mountpoint(&nd, flags | LOOKUP_RCU, path);
 	if (unlikely(error == -ECHILD))
 		error = path_mountpoint(&nd, flags, path);
@@ -2457,7 +2458,7 @@ filename_mountpoint(int dfd, struct filename *name, struct path *path,
 		error = path_mountpoint(&nd, flags | LOOKUP_REVAL, path);
 	if (likely(!error))
 		audit_inode(name, path->dentry, 0);
-	restore_nameidata(saved);
+	restore_nameidata();
 	putname(name);
 	return error;
 }
@@ -3327,23 +3328,24 @@ out2:
 struct file *do_filp_open(int dfd, struct filename *pathname,
 		const struct open_flags *op)
 {
-	struct nameidata nd, *saved_nd = set_nameidata(&nd, dfd, pathname);
+	struct nameidata nd;
 	int flags = op->lookup_flags;
 	struct file *filp;
 
+	set_nameidata(&nd, dfd, pathname);
 	filp = path_openat(&nd, op, flags | LOOKUP_RCU);
 	if (unlikely(filp == ERR_PTR(-ECHILD)))
 		filp = path_openat(&nd, op, flags);
 	if (unlikely(filp == ERR_PTR(-ESTALE)))
 		filp = path_openat(&nd, op, flags | LOOKUP_REVAL);
-	restore_nameidata(saved_nd);
+	restore_nameidata();
 	return filp;
 }
 
 struct file *do_file_open_root(struct dentry *dentry, struct vfsmount *mnt,
 		const char *name, const struct open_flags *op)
 {
-	struct nameidata nd, *saved_nd;
+	struct nameidata nd;
 	struct file *file;
 	struct filename *filename;
 	int flags = op->lookup_flags | LOOKUP_ROOT;
@@ -3358,13 +3360,13 @@ struct file *do_file_open_root(struct dentry *dentry, struct vfsmount *mnt,
 	if (unlikely(IS_ERR(filename)))
 		return ERR_CAST(filename);
 
-	saved_nd = set_nameidata(&nd, -1, filename);
+	set_nameidata(&nd, -1, filename);
 	file = path_openat(&nd, op, flags | LOOKUP_RCU);
 	if (unlikely(file == ERR_PTR(-ECHILD)))
 		file = path_openat(&nd, op, flags);
 	if (unlikely(file == ERR_PTR(-ESTALE)))
 		file = path_openat(&nd, op, flags | LOOKUP_REVAL);
-	restore_nameidata(saved_nd);
+	restore_nameidata();
 	putname(filename);
 	return file;
 }
