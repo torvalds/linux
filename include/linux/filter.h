@@ -277,6 +277,14 @@ struct bpf_prog_aux;
 		.off   = 0,					\
 		.imm   = 0 })
 
+/* Internal classic blocks for direct assignment */
+
+#define __BPF_STMT(CODE, K)					\
+	((struct sock_filter) BPF_STMT(CODE, K))
+
+#define __BPF_JUMP(CODE, K, JT, JF)				\
+	((struct sock_filter) BPF_JUMP(CODE, K, JT, JF))
+
 #define bytes_to_bpf_size(bytes)				\
 ({								\
 	int bpf_size = -EINVAL;					\
