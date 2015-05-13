@@ -1316,10 +1316,10 @@ static void gpio_chip_set_multiple(struct gpio_chip *chip,
 	}
 }
 
-static void gpiod_set_array_priv(bool raw, bool can_sleep,
-				 unsigned int array_size,
-				 struct gpio_desc **desc_array,
-				 int *value_array)
+static void gpiod_set_array_value_priv(bool raw, bool can_sleep,
+				       unsigned int array_size,
+				       struct gpio_desc **desc_array,
+				       int *value_array)
 {
 	int i = 0;
 
@@ -1412,7 +1412,7 @@ void gpiod_set_value(struct gpio_desc *desc, int value)
 EXPORT_SYMBOL_GPL(gpiod_set_value);
 
 /**
- * gpiod_set_raw_array() - assign values to an array of GPIOs
+ * gpiod_set_raw_array_value() - assign values to an array of GPIOs
  * @array_size: number of elements in the descriptor / value arrays
  * @desc_array: array of GPIO descriptors whose values will be assigned
  * @value_array: array of values to assign
@@ -1423,17 +1423,18 @@ EXPORT_SYMBOL_GPL(gpiod_set_value);
  * This function should be called from contexts where we cannot sleep, and will
  * complain if the GPIO chip functions potentially sleep.
  */
-void gpiod_set_raw_array(unsigned int array_size,
+void gpiod_set_raw_array_value(unsigned int array_size,
 			 struct gpio_desc **desc_array, int *value_array)
 {
 	if (!desc_array)
 		return;
-	gpiod_set_array_priv(true, false, array_size, desc_array, value_array);
+	gpiod_set_array_value_priv(true, false, array_size, desc_array,
+				   value_array);
 }
-EXPORT_SYMBOL_GPL(gpiod_set_raw_array);
+EXPORT_SYMBOL_GPL(gpiod_set_raw_array_value);
 
 /**
- * gpiod_set_array() - assign values to an array of GPIOs
+ * gpiod_set_array_value() - assign values to an array of GPIOs
  * @array_size: number of elements in the descriptor / value arrays
  * @desc_array: array of GPIO descriptors whose values will be assigned
  * @value_array: array of values to assign
@@ -1444,14 +1445,15 @@ EXPORT_SYMBOL_GPL(gpiod_set_raw_array);
  * This function should be called from contexts where we cannot sleep, and will
  * complain if the GPIO chip functions potentially sleep.
  */
-void gpiod_set_array(unsigned int array_size,
-		     struct gpio_desc **desc_array, int *value_array)
+void gpiod_set_array_value(unsigned int array_size,
+			   struct gpio_desc **desc_array, int *value_array)
 {
 	if (!desc_array)
 		return;
-	gpiod_set_array_priv(false, false, array_size, desc_array, value_array);
+	gpiod_set_array_value_priv(false, false, array_size, desc_array,
+				   value_array);
 }
-EXPORT_SYMBOL_GPL(gpiod_set_array);
+EXPORT_SYMBOL_GPL(gpiod_set_array_value);
 
 /**
  * gpiod_cansleep() - report whether gpio value access may sleep
@@ -1613,7 +1615,7 @@ void gpiod_set_value_cansleep(struct gpio_desc *desc, int value)
 EXPORT_SYMBOL_GPL(gpiod_set_value_cansleep);
 
 /**
- * gpiod_set_raw_array_cansleep() - assign values to an array of GPIOs
+ * gpiod_set_raw_array_value_cansleep() - assign values to an array of GPIOs
  * @array_size: number of elements in the descriptor / value arrays
  * @desc_array: array of GPIO descriptors whose values will be assigned
  * @value_array: array of values to assign
@@ -1623,19 +1625,20 @@ EXPORT_SYMBOL_GPL(gpiod_set_value_cansleep);
  *
  * This function is to be called from contexts that can sleep.
  */
-void gpiod_set_raw_array_cansleep(unsigned int array_size,
-				  struct gpio_desc **desc_array,
-				  int *value_array)
+void gpiod_set_raw_array_value_cansleep(unsigned int array_size,
+					struct gpio_desc **desc_array,
+					int *value_array)
 {
 	might_sleep_if(extra_checks);
 	if (!desc_array)
 		return;
-	gpiod_set_array_priv(true, true, array_size, desc_array, value_array);
+	gpiod_set_array_value_priv(true, true, array_size, desc_array,
+				   value_array);
 }
-EXPORT_SYMBOL_GPL(gpiod_set_raw_array_cansleep);
+EXPORT_SYMBOL_GPL(gpiod_set_raw_array_value_cansleep);
 
 /**
- * gpiod_set_array_cansleep() - assign values to an array of GPIOs
+ * gpiod_set_array_value_cansleep() - assign values to an array of GPIOs
  * @array_size: number of elements in the descriptor / value arrays
  * @desc_array: array of GPIO descriptors whose values will be assigned
  * @value_array: array of values to assign
@@ -1645,16 +1648,17 @@ EXPORT_SYMBOL_GPL(gpiod_set_raw_array_cansleep);
  *
  * This function is to be called from contexts that can sleep.
  */
-void gpiod_set_array_cansleep(unsigned int array_size,
-			      struct gpio_desc **desc_array,
-			      int *value_array)
+void gpiod_set_array_value_cansleep(unsigned int array_size,
+				    struct gpio_desc **desc_array,
+				    int *value_array)
 {
 	might_sleep_if(extra_checks);
 	if (!desc_array)
 		return;
-	gpiod_set_array_priv(false, true, array_size, desc_array, value_array);
+	gpiod_set_array_value_priv(false, true, array_size, desc_array,
+				   value_array);
 }
-EXPORT_SYMBOL_GPL(gpiod_set_array_cansleep);
+EXPORT_SYMBOL_GPL(gpiod_set_array_value_cansleep);
 
 /**
  * gpiod_add_lookup_table() - register GPIO device consumers
