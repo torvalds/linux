@@ -1012,7 +1012,9 @@ select_task_rq_dl(struct task_struct *p, int cpu, int sd_flag, int flags)
 	    (p->nr_cpus_allowed > 1)) {
 		int target = find_later_rq(p);
 
-		if (target != -1)
+		if (target != -1 &&
+				dl_time_before(p->dl.deadline,
+					cpu_rq(target)->dl.earliest_dl.curr))
 			cpu = target;
 	}
 	rcu_read_unlock();
@@ -1358,6 +1360,17 @@ static struct rq *find_lock_later_rq(struct task_struct *task, struct rq *rq)
 			break;
 
 		later_rq = cpu_rq(cpu);
+
+		if (!dl_time_before(task->dl.deadline,
+					later_rq->dl.earliest_dl.curr)) {
+			/*
+			 * Target rq has tasks of equal or earlier deadline,
+			 * retrying does not release any lock and is unlikely
+			 * to yield a different result.
+			 */
+			later_rq = NULL;
+			break;
+		}
 
 		/* Retry if something changed. */
 		if (double_lock_balance(rq, later_rq)) {
