@@ -215,19 +215,17 @@ void securityfs_remove(struct dentry *dentry)
 }
 EXPORT_SYMBOL_GPL(securityfs_remove);
 
-static struct kobject *security_kobj;
-
 static int __init securityfs_init(void)
 {
 	int retval;
 
-	security_kobj = kobject_create_and_add("security", kernel_kobj);
-	if (!security_kobj)
-		return -EINVAL;
+	retval = sysfs_create_mount_point(kernel_kobj, "security");
+	if (retval)
+		return retval;
 
 	retval = register_filesystem(&fs_type);
 	if (retval)
-		kobject_put(security_kobj);
+		sysfs_remove_mount_point(kernel_kobj, "security");
 	return retval;
 }
 

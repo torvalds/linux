@@ -631,14 +631,12 @@ bool tracefs_initialized(void)
 	return tracefs_registered;
 }
 
-static struct kobject *trace_kobj;
-
 static int __init tracefs_init(void)
 {
 	int retval;
 
-	trace_kobj = kobject_create_and_add("tracing", kernel_kobj);
-	if (!trace_kobj)
+	retval = sysfs_create_mount_point(kernel_kobj, "tracing");
+	if (retval)
 		return -EINVAL;
 
 	retval = register_filesystem(&trace_fs_type);
