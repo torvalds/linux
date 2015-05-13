@@ -938,6 +938,7 @@ config NUMA_BALANCING_DEFAULT_ENABLED
 menuconfig CGROUPS
 	bool "Control Group support"
 	select KERNFS
+	select PERCPU_RWSEM
 	help
 	  This option adds support for grouping sets of processes together, for
 	  use with process control subsystems such as Cpusets, CFS, memory
