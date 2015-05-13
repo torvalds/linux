@@ -25,10 +25,13 @@
 #include <linux/slab.h>
 #include <linux/pci.h>
 #include <drm/drmP.h>
+#include <linux/firmware.h>
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
 #include "cgs_linux.h"
 #include "atom.h"
+#include "amdgpu_ucode.h"
+
 
 struct amdgpu_cgs_device {
 	struct cgs_device base;
@@ -611,6 +614,122 @@ static int amdgpu_cgs_irq_put(void *cgs_device, unsigned src_id, unsigned type)
 	return amdgpu_irq_put(adev, adev->irq.sources[src_id], type);
 }
 
+static uint32_t fw_type_convert(void *cgs_device, uint32_t fw_type)
+{
+	CGS_FUNC_ADEV;
+	enum AMDGPU_UCODE_ID result = AMDGPU_UCODE_ID_MAXIMUM;
+
+	switch (fw_type) {
+	case CGS_UCODE_ID_SDMA0:
+		result = AMDGPU_UCODE_ID_SDMA0;
+		break;
+	case CGS_UCODE_ID_SDMA1:
+		result = AMDGPU_UCODE_ID_SDMA1;
+		break;
+	case CGS_UCODE_ID_CP_CE:
+		result = AMDGPU_UCODE_ID_CP_CE;
+		break;
+	case CGS_UCODE_ID_CP_PFP:
+		result = AMDGPU_UCODE_ID_CP_PFP;
+		break;
+	case CGS_UCODE_ID_CP_ME:
+		result = AMDGPU_UCODE_ID_CP_ME;
+		break;
+	case CGS_UCODE_ID_CP_MEC:
+	case CGS_UCODE_ID_CP_MEC_JT1:
+		result = AMDGPU_UCODE_ID_CP_MEC1;
+		break;
+	case CGS_UCODE_ID_CP_MEC_JT2:
+		if (adev->asic_type == CHIP_TONGA)
+			result = AMDGPU_UCODE_ID_CP_MEC2;
+		else if (adev->asic_type == CHIP_CARRIZO)
+			result = AMDGPU_UCODE_ID_CP_MEC1;
+		break;
+	case CGS_UCODE_ID_RLC_G:
+		result = AMDGPU_UCODE_ID_RLC_G;
+		break;
+	default:
+		DRM_ERROR("Firmware type not supported\n");
+	}
+	return result;
+}
+
+static int amdgpu_cgs_get_firmware_info(void *cgs_device,
+					enum cgs_ucode_id type,
+					struct cgs_firmware_info *info)
+{
+	CGS_FUNC_ADEV;
+
+	if (CGS_UCODE_ID_SMU != type) {
+		uint64_t gpu_addr;
+		uint32_t data_size;
+		const struct gfx_firmware_header_v1_0 *header;
+		enum AMDGPU_UCODE_ID id;
+		struct amdgpu_firmware_info *ucode;
+
+		id = fw_type_convert(cgs_device, type);
+		ucode = &adev->firmware.ucode[id];
+		if (ucode->fw == NULL)
+			return -EINVAL;
+
+		gpu_addr  = ucode->mc_addr;
+		header = (const struct gfx_firmware_header_v1_0 *)ucode->fw->data;
+		data_size = le32_to_cpu(header->header.ucode_size_bytes);
+
+		if ((type == CGS_UCODE_ID_CP_MEC_JT1) ||
+		    (type == CGS_UCODE_ID_CP_MEC_JT2)) {
+			gpu_addr += le32_to_cpu(header->jt_offset) << 2;
+			data_size = le32_to_cpu(header->jt_size) << 2;
+		}
+		info->mc_addr = gpu_addr;
+		info->image_size = data_size;
+		info->version = (uint16_t)le32_to_cpu(header->header.ucode_version);
+		info->feature_version = (uint16_t)le32_to_cpu(header->ucode_feature_version);
+	} else {
+		char fw_name[30] = {0};
+		int err = 0;
+		uint32_t ucode_size;
+		uint32_t ucode_start_address;
+		const uint8_t *src;
+		const struct smc_firmware_header_v1_0 *hdr;
+
+		switch (adev->asic_type) {
+		case CHIP_TONGA:
+			strcpy(fw_name, "amdgpu/tonga_smc.bin");
+			break;
+		default:
+			DRM_ERROR("SMC firmware not supported\n");
+			return -EINVAL;
+		}
+
+		err = request_firmware(&adev->pm.fw, fw_name, adev->dev);
+		if (err) {
+			DRM_ERROR("Failed to request firmware\n");
+			return err;
+		}
+
+		err = amdgpu_ucode_validate(adev->pm.fw);
+		if (err) {
+			DRM_ERROR("Failed to load firmware \"%s\"", fw_name);
+			release_firmware(adev->pm.fw);
+			adev->pm.fw = NULL;
+			return err;
+		}
+
+		hdr = (const struct smc_firmware_header_v1_0 *)	adev->pm.fw->data;
+		adev->pm.fw_version = le32_to_cpu(hdr->header.ucode_version);
+		ucode_size = le32_to_cpu(hdr->header.ucode_size_bytes);
+		ucode_start_address = le32_to_cpu(hdr->ucode_start_addr);
+		src = (const uint8_t *)(adev->pm.fw->data +
+		       le32_to_cpu(hdr->header.ucode_array_offset_bytes));
+
+		info->version = adev->pm.fw_version;
+		info->image_size = ucode_size;
+		info->kptr = (void *)src;
+	}
+	return 0;
+}
+
 static const struct cgs_ops amdgpu_cgs_ops = {
 	amdgpu_cgs_gpu_mem_info,
 	amdgpu_cgs_gmap_kmem,
@@ -640,7 +759,8 @@ static const struct cgs_ops amdgpu_cgs_ops = {
 	amdgpu_cgs_pm_request_clock,
 	amdgpu_cgs_pm_request_engine,
 	amdgpu_cgs_pm_query_clock_limits,
-	amdgpu_cgs_set_camera_voltages
+	amdgpu_cgs_set_camera_voltages,
+	amdgpu_cgs_get_firmware_info
 };
 
 static const struct cgs_os_ops amdgpu_cgs_os_ops = {

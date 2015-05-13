@@ -24,6 +24,7 @@
 #ifndef _CGS_COMMON_H
 #define _CGS_COMMON_H
 
+
 /**
  * enum cgs_gpu_mem_type - GPU memory types
  */
@@ -85,6 +86,24 @@ enum cgs_voltage_planes {
 	/* ... */
 };
 
+/*
+ * enum cgs_ucode_id - Firmware types for different IPs
+ */
+enum cgs_ucode_id {
+	CGS_UCODE_ID_SMU = 0,
+	CGS_UCODE_ID_SDMA0,
+	CGS_UCODE_ID_SDMA1,
+	CGS_UCODE_ID_CP_CE,
+	CGS_UCODE_ID_CP_PFP,
+	CGS_UCODE_ID_CP_ME,
+	CGS_UCODE_ID_CP_MEC,
+	CGS_UCODE_ID_CP_MEC_JT1,
+	CGS_UCODE_ID_CP_MEC_JT2,
+	CGS_UCODE_ID_GMCON_RENG,
+	CGS_UCODE_ID_RLC_G,
+	CGS_UCODE_ID_MAXIMUM,
+};
+
 /**
  * struct cgs_clock_limits - Clock limits
  *
@@ -94,6 +113,17 @@ struct cgs_clock_limits {
 	unsigned min;		/**< Minimum supported frequency */
 	unsigned max;		/**< Maxumim supported frequency */
 	unsigned sustainable;	/**< Thermally sustainable frequency */
+};
+
+/**
+ * struct cgs_firmware_info - Firmware information
+ */
+struct cgs_firmware_info {
+	uint16_t		version;
+	uint16_t		feature_version;
+	uint32_t		image_size;
+	uint64_t		mc_addr;
+	void			*kptr;
 };
 
 typedef unsigned long cgs_handle_t;
@@ -442,6 +472,18 @@ typedef int (*cgs_pm_query_clock_limits_t)(void *cgs_device,
  */
 typedef int (*cgs_set_camera_voltages_t)(void *cgs_device, uint32_t mask,
 					 const uint32_t *voltages);
+/**
+ * cgs_get_firmware_info - Get the firmware information from core driver
+ * @cgs_device: opaque device handle
+ * @type: the firmware type
+ * @info: returend firmware information
+ *
+ * Return: 0 on success, -errno otherwise
+ */
+typedef int (*cgs_get_firmware_info)(void *cgs_device,
+				     enum cgs_ucode_id type,
+				     struct cgs_firmware_info *info);
+
 
 struct cgs_ops {
 	/* memory management calls (similar to KFD interface) */
@@ -478,6 +520,8 @@ struct cgs_ops {
 	cgs_pm_request_engine_t pm_request_engine;
 	cgs_pm_query_clock_limits_t pm_query_clock_limits;
 	cgs_set_camera_voltages_t set_camera_voltages;
+	/* Firmware Info */
+	cgs_get_firmware_info get_firmware_info;
 	/* ACPI (TODO) */
 };
 
@@ -559,5 +603,7 @@ struct cgs_device
 	CGS_CALL(pm_query_clock_limits,dev,clock,limits)
 #define cgs_set_camera_voltages(dev,mask,voltages)	\
 	CGS_CALL(set_camera_voltages,dev,mask,voltages)
+#define cgs_get_firmware_info(dev, type, info)	\
+	CGS_CALL(get_firmware_info, dev, type, info)
 
 #endif /* _CGS_COMMON_H */
