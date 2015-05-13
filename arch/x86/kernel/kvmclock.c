@@ -24,7 +24,6 @@
 #include <linux/percpu.h>
 #include <linux/hardirq.h>
 #include <linux/memblock.h>
-#include <linux/sched.h>
 
 #include <asm/x86_init.h>
 #include <asm/reboot.h>
@@ -266,8 +265,6 @@ void __init kvmclock_init(void)
 
 	if (kvm_para_has_feature(KVM_FEATURE_CLOCKSOURCE_STABLE_BIT))
 		pvclock_set_flags(PVCLOCK_TSC_STABLE_BIT);
-
-	set_sched_clock_stable();
 }
 
 int __init kvm_setup_vsyscall_timeinfo(void)
