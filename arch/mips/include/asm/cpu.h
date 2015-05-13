@@ -379,14 +379,14 @@ enum cpu_type_enum {
 #define MIPS_CPU_MICROMIPS	0x01000000ull /* CPU has microMIPS capability */
 #define MIPS_CPU_TLBINV		0x02000000ull /* CPU supports TLBINV/F */
 #define MIPS_CPU_SEGMENTS	0x04000000ull /* CPU supports Segmentation Control registers */
-#define MIPS_CPU_EVA		0x80000000ull /* CPU supports Enhanced Virtual Addressing */
-#define MIPS_CPU_HTW		0x100000000ull /* CPU support Hardware Page Table Walker */
-#define MIPS_CPU_RIXIEX		0x200000000ull /* CPU has unique exception codes for {Read, Execute}-Inhibit exceptions */
-#define MIPS_CPU_MAAR		0x400000000ull /* MAAR(I) registers are present */
-#define MIPS_CPU_FRE		0x800000000ull /* FRE & UFE bits implemented */
-#define MIPS_CPU_RW_LLB		0x1000000000ull /* LLADDR/LLB writes are allowed */
-#define MIPS_CPU_XPA		0x2000000000ull /* CPU supports Extended Physical Addressing */
-#define MIPS_CPU_CDMM		0x4000000000ull	/* CPU has Common Device Memory Map */
+#define MIPS_CPU_EVA		0x08000000ull /* CPU supports Enhanced Virtual Addressing */
+#define MIPS_CPU_HTW		0x10000000ull /* CPU support Hardware Page Table Walker */
+#define MIPS_CPU_RIXIEX		0x20000000ull /* CPU has unique exception codes for {Read, Execute}-Inhibit exceptions */
+#define MIPS_CPU_MAAR		0x40000000ull /* MAAR(I) registers are present */
+#define MIPS_CPU_FRE		0x80000000ull /* FRE & UFE bits implemented */
+#define MIPS_CPU_RW_LLB		0x100000000ull /* LLADDR/LLB writes are allowed */
+#define MIPS_CPU_XPA		0x200000000ull /* CPU supports Extended Physical Addressing */
+#define MIPS_CPU_CDMM		0x400000000ull	/* CPU has Common Device Memory Map */
 #define MIPS_CPU_BP_GHIST	0x8000000000ull /* R12K+ Branch Prediction Global History */
 #define MIPS_CPU_SP		0x10000000000ull /* Small (1KB) page support */
 #define MIPS_CPU_FTLB		0x20000000000ull /* CPU has Fixed-page-size TLB */
