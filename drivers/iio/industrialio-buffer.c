@@ -575,6 +575,14 @@ static void iio_buffer_update_bytes_per_datum(struct iio_dev *indio_dev,
 	buffer->access->set_bytes_per_datum(buffer, bytes);
 }
 
+static void iio_free_scan_mask(struct iio_dev *indio_dev,
+	const unsigned long *mask)
+{
+	/* If the mask is dynamically allocated free it, otherwise do nothing */
+	if (!indio_dev->available_scan_masks)
+		kfree(mask);
+}
+
 static int __iio_update_buffers(struct iio_dev *indio_dev,
 		       struct iio_buffer *insert_buffer,
 		       struct iio_buffer *remove_buffer)
@@ -612,8 +620,7 @@ static int __iio_update_buffers(struct iio_dev *indio_dev,
 	/* If no buffers in list, we are done */
 	if (list_empty(&indio_dev->buffer_list)) {
 		indio_dev->currentmode = INDIO_DIRECT_MODE;
-		if (indio_dev->available_scan_masks == NULL)
-			kfree(old_mask);
+		iio_free_scan_mask(indio_dev, old_mask);
 		return 0;
 	}
 
@@ -621,8 +628,7 @@ static int __iio_update_buffers(struct iio_dev *indio_dev,
 	compound_mask = kcalloc(BITS_TO_LONGS(indio_dev->masklength),
 				sizeof(long), GFP_KERNEL);
 	if (compound_mask == NULL) {
-		if (indio_dev->available_scan_masks == NULL)
-			kfree(old_mask);
+		iio_free_scan_mask(indio_dev, old_mask);
 		return -ENOMEM;
 	}
 	indio_dev->scan_timestamp = 0;
@@ -637,6 +643,7 @@ static int __iio_update_buffers(struct iio_dev *indio_dev,
 			iio_scan_mask_match(indio_dev->available_scan_masks,
 					    indio_dev->masklength,
 					    compound_mask);
+		kfree(compound_mask);
 		if (indio_dev->active_scan_mask == NULL) {
 			/*
 			 * Roll back.
@@ -648,7 +655,6 @@ static int __iio_update_buffers(struct iio_dev *indio_dev,
 				success = -EINVAL;
 			}
 			else {
-				kfree(compound_mask);
 				ret = -EINVAL;
 				return ret;
 			}
@@ -721,10 +727,7 @@ static int __iio_update_buffers(struct iio_dev *indio_dev,
 		}
 	}
 
-	if (indio_dev->available_scan_masks)
-		kfree(compound_mask);
-	else
-		kfree(old_mask);
+	iio_free_scan_mask(indio_dev, old_mask);
 
 	return success;
 
@@ -736,8 +739,8 @@ error_run_postdisable:
 error_remove_inserted:
 	if (insert_buffer)
 		iio_buffer_deactivate(insert_buffer);
+	iio_free_scan_mask(indio_dev, indio_dev->active_scan_mask);
 	indio_dev->active_scan_mask = old_mask;
-	kfree(compound_mask);
 	return ret;
 }
 
