@@ -1957,8 +1957,7 @@ static void transport_complete_qf(struct se_cmd *cmd)
 	case DMA_TO_DEVICE:
 		if (cmd->se_cmd_flags & SCF_BIDI) {
 			ret = cmd->se_tfo->queue_data_in(cmd);
-			if (ret < 0)
-				break;
+			break;
 		}
 		/* Fall through for DMA_TO_DEVICE */
 	case DMA_NONE:
