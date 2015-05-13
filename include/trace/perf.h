@@ -65,7 +65,7 @@
  *
  * static struct trace_event_class __used event_class_<template> = {
  *	.system			= "<system>",
- *	.define_fields		= ftrace_define_fields_<call>,
+ *	.define_fields		= trace_event_define_fields_<call>,
  *	.fields			= LIST_HEAD_INIT(event_class_##call.fields),
  *	.raw_init		= trace_event_raw_init,
  *	.probe			= trace_event_raw_event_##call,
@@ -215,7 +215,7 @@ _TRACE_PERF_PROTO(call, PARAMS(proto));					\
 static char print_fmt_##call[] = print;					\
 static struct trace_event_class __used __refdata event_class_##call = { \
 	.system			= TRACE_SYSTEM_STRING,			\
-	.define_fields		= ftrace_define_fields_##call,		\
+	.define_fields		= trace_event_define_fields_##call,	\
 	.fields			= LIST_HEAD_INIT(event_class_##call.fields),\
 	.raw_init		= trace_event_raw_init,			\
 	.probe			= trace_event_raw_event_##call,		\

@@ -407,7 +407,7 @@ static struct trace_event_functions trace_event_type_funcs_##call = {	\
 #undef DECLARE_EVENT_CLASS
 #define DECLARE_EVENT_CLASS(call, proto, args, tstruct, func, print)	\
 static int notrace __init						\
-ftrace_define_fields_##call(struct trace_event_call *event_call)	\
+trace_event_define_fields_##call(struct trace_event_call *event_call)	\
 {									\
 	struct trace_event_raw_##call field;				\
 	int ret;							\
