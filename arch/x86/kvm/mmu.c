@@ -4523,34 +4523,19 @@ slot_handle_leaf(struct kvm *kvm, struct kvm_memory_slot *memslot,
 				 PT_PAGE_TABLE_LEVEL, lock_flush_tlb);
 }
 
+static bool slot_rmap_write_protect(struct kvm *kvm, unsigned long *rmapp)
+{
+	return __rmap_write_protect(kvm, rmapp, false);
+}
+
 void kvm_mmu_slot_remove_write_access(struct kvm *kvm,
 				      struct kvm_memory_slot *memslot)
 {
-	gfn_t last_gfn;
-	int i;
-	bool flush = false;
-
-	last_gfn = memslot->base_gfn + memslot->npages - 1;
+	bool flush;
 
 	spin_lock(&kvm->mmu_lock);
-
-	for (i = PT_PAGE_TABLE_LEVEL; i <= PT_MAX_HUGEPAGE_LEVEL; ++i) {
-		unsigned long *rmapp;
-		unsigned long last_index, index;
-
-		rmapp = memslot->arch.rmap[i - PT_PAGE_TABLE_LEVEL];
-		last_index = gfn_to_index(last_gfn, memslot->base_gfn, i);
-
-		for (index = 0; index <= last_index; ++index, ++rmapp) {
-			if (*rmapp)
-				flush |= __rmap_write_protect(kvm, rmapp,
-						false);
-
-			if (need_resched() || spin_needbreak(&kvm->mmu_lock))
-				cond_resched_lock(&kvm->mmu_lock);
-		}
-	}
-
+	flush = slot_handle_all_level(kvm, memslot, slot_rmap_write_protect,
+				      false);
 	spin_unlock(&kvm->mmu_lock);
 
 	/*
@@ -4611,59 +4596,18 @@ restart:
 void kvm_mmu_zap_collapsible_sptes(struct kvm *kvm,
 			struct kvm_memory_slot *memslot)
 {
-	bool flush = false;
-	unsigned long *rmapp;
-	unsigned long last_index, index;
-
 	spin_lock(&kvm->mmu_lock);
-
-	rmapp = memslot->arch.rmap[0];
-	last_index = gfn_to_index(memslot->base_gfn + memslot->npages - 1,
-				memslot->base_gfn, PT_PAGE_TABLE_LEVEL);
-
-	for (index = 0; index <= last_index; ++index, ++rmapp) {
-		if (*rmapp)
-			flush |= kvm_mmu_zap_collapsible_spte(kvm, rmapp);
-
-		if (need_resched() || spin_needbreak(&kvm->mmu_lock)) {
-			if (flush) {
-				kvm_flush_remote_tlbs(kvm);
-				flush = false;
-			}
-			cond_resched_lock(&kvm->mmu_lock);
-		}
-	}
-
-	if (flush)
-		kvm_flush_remote_tlbs(kvm);
-
+	slot_handle_leaf(kvm, memslot, kvm_mmu_zap_collapsible_spte, true);
 	spin_unlock(&kvm->mmu_lock);
 }
 
 void kvm_mmu_slot_leaf_clear_dirty(struct kvm *kvm,
 				   struct kvm_memory_slot *memslot)
 {
-	gfn_t last_gfn;
-	unsigned long *rmapp;
-	unsigned long last_index, index;
-	bool flush = false;
-
-	last_gfn = memslot->base_gfn + memslot->npages - 1;
+	bool flush;
 
 	spin_lock(&kvm->mmu_lock);
-
-	rmapp = memslot->arch.rmap[PT_PAGE_TABLE_LEVEL - 1];
-	last_index = gfn_to_index(last_gfn, memslot->base_gfn,
-			PT_PAGE_TABLE_LEVEL);
-
-	for (index = 0; index <= last_index; ++index, ++rmapp) {
-		if (*rmapp)
-			flush |= __rmap_clear_dirty(kvm, rmapp);
-
-		if (need_resched() || spin_needbreak(&kvm->mmu_lock))
-			cond_resched_lock(&kvm->mmu_lock);
-	}
-
+	flush = slot_handle_leaf(kvm, memslot, __rmap_clear_dirty, false);
 	spin_unlock(&kvm->mmu_lock);
 
 	lockdep_assert_held(&kvm->slots_lock);
@@ -4682,31 +4626,11 @@ EXPORT_SYMBOL_GPL(kvm_mmu_slot_leaf_clear_dirty);
 void kvm_mmu_slot_largepage_remove_write_access(struct kvm *kvm,
 					struct kvm_memory_slot *memslot)
 {
-	gfn_t last_gfn;
-	int i;
-	bool flush = false;
-
-	last_gfn = memslot->base_gfn + memslot->npages - 1;
+	bool flush;
 
 	spin_lock(&kvm->mmu_lock);
-
-	/* skip rmap for 4K page */
-	for (i = PT_PAGE_TABLE_LEVEL + 1; i <= PT_MAX_HUGEPAGE_LEVEL; ++i) {
-		unsigned long *rmapp;
-		unsigned long last_index, index;
-
-		rmapp = memslot->arch.rmap[i - PT_PAGE_TABLE_LEVEL];
-		last_index = gfn_to_index(last_gfn, memslot->base_gfn, i);
-
-		for (index = 0; index <= last_index; ++index, ++rmapp) {
-			if (*rmapp)
-				flush |= __rmap_write_protect(kvm, rmapp,
-						false);
-
-			if (need_resched() || spin_needbreak(&kvm->mmu_lock))
-				cond_resched_lock(&kvm->mmu_lock);
-		}
-	}
+	flush = slot_handle_large_level(kvm, memslot, slot_rmap_write_protect,
+					false);
 	spin_unlock(&kvm->mmu_lock);
 
 	/* see kvm_mmu_slot_remove_write_access */
@@ -4720,30 +4644,10 @@ EXPORT_SYMBOL_GPL(kvm_mmu_slot_largepage_remove_write_access);
 void kvm_mmu_slot_set_dirty(struct kvm *kvm,
 			    struct kvm_memory_slot *memslot)
 {
-	gfn_t last_gfn;
-	int i;
-	bool flush = false;
-
-	last_gfn = memslot->base_gfn + memslot->npages - 1;
+	bool flush;
 
 	spin_lock(&kvm->mmu_lock);
-
-	for (i = PT_PAGE_TABLE_LEVEL; i <= PT_MAX_HUGEPAGE_LEVEL; ++i) {
-		unsigned long *rmapp;
-		unsigned long last_index, index;
-
-		rmapp = memslot->arch.rmap[i - PT_PAGE_TABLE_LEVEL];
-		last_index = gfn_to_index(last_gfn, memslot->base_gfn, i);
-
-		for (index = 0; index <= last_index; ++index, ++rmapp) {
-			if (*rmapp)
-				flush |= __rmap_set_dirty(kvm, rmapp);
-
-			if (need_resched() || spin_needbreak(&kvm->mmu_lock))
-				cond_resched_lock(&kvm->mmu_lock);
-		}
-	}
-
+	flush = slot_handle_all_level(kvm, memslot, __rmap_set_dirty, false);
 	spin_unlock(&kvm->mmu_lock);
 
 	lockdep_assert_held(&kvm->slots_lock);
