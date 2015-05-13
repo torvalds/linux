@@ -14,6 +14,7 @@
 #include <linux/mutex.h>
 #include <linux/rcupdate.h>
 #include <linux/percpu-refcount.h>
+#include <linux/percpu-rwsem.h>
 #include <linux/workqueue.h>
 
 #ifdef CONFIG_CGROUPS
@@ -460,5 +461,14 @@ struct cgroup_subsys {
 	unsigned int depends_on;
 };
 
+void cgroup_threadgroup_change_begin(struct task_struct *tsk);
+void cgroup_threadgroup_change_end(struct task_struct *tsk);
+
+#else	/* CONFIG_CGROUPS */
+
+static inline void cgroup_threadgroup_change_begin(struct task_struct *tsk) {}
+static inline void cgroup_threadgroup_change_end(struct task_struct *tsk) {}
+
 #endif	/* CONFIG_CGROUPS */
+
 #endif	/* _LINUX_CGROUP_DEFS_H */
