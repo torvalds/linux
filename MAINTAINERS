@@ -4377,11 +4377,10 @@ F:	fs/gfs2/
 F:	include/uapi/linux/gfs2_ondisk.h
 
 GIGASET ISDN DRIVERS
-M:	Hansjoerg Lipp <hjlipp@web.de>
-M:	Tilman Schmidt <tilman@imap.cc>
+M:	Paul Bolle <pebolle@tiscali.nl>
 L:	gigaset307x-common@lists.sourceforge.net
 W:	http://gigaset307x.sourceforge.net/
-S:	Maintained
+S:	Odd Fixes
 F:	Documentation/isdn/README.gigaset
 F:	drivers/isdn/gigaset/
 F:	include/uapi/linux/gigaset_dev.h
@@ -5054,7 +5053,7 @@ M:	Hal Rosenstock <hal.rosenstock@gmail.com>
 L:	linux-rdma@vger.kernel.org
 W:	http://www.openfabrics.org/
 Q:	http://patchwork.kernel.org/project/linux-rdma/list/
-T:	git git://github.com/dledford/linux.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/dledford/rdma.git
 S:	Supported
 F:	Documentation/infiniband/
 F:	drivers/infiniband/
@@ -6959,6 +6958,17 @@ T:	git git://git.rocketboards.org/linux-socfpga-next.git
 S:	Maintained
 F:	arch/nios2/
 
+NOKIA N900 POWER SUPPLY DRIVERS
+M:	Pali Rohár <pali.rohar@gmail.com>
+S:	Maintained
+F:	include/linux/power/bq2415x_charger.h
+F:	include/linux/power/bq27x00_battery.h
+F:	include/linux/power/isp1704_charger.h
+F:	drivers/power/bq2415x_charger.c
+F:	drivers/power/bq27x00_battery.c
+F:	drivers/power/isp1704_charger.c
+F:	drivers/power/rx51_battery.c
+
 NTB DRIVER
 M:	Jon Mason <jdmason@kudzu.us>
 M:	Dave Jiang <dave.jiang@intel.com>
@@ -8816,10 +8826,11 @@ W:	http://www.emulex.com
 S:	Supported
 F:	drivers/scsi/be2iscsi/
 
-SERVER ENGINES 10Gbps NIC - BladeEngine 2 DRIVER
-M:	Sathya Perla <sathya.perla@emulex.com>
-M:	Subbu Seetharaman <subbu.seetharaman@emulex.com>
-M:	Ajit Khaparde <ajit.khaparde@emulex.com>
+Emulex 10Gbps NIC BE2, BE3-R, Lancer, Skyhawk-R DRIVER
+M:	Sathya Perla <sathya.perla@avagotech.com>
+M:	Ajit Khaparde <ajit.khaparde@avagotech.com>
+M:	Padmanabh Ratnakar <padmanabh.ratnakar@avagotech.com>
+M:	Sriharsha Basavapatna <sriharsha.basavapatna@avagotech.com>
 L:	netdev@vger.kernel.org
 W:	http://www.emulex.com
 S:	Supported
