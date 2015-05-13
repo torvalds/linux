@@ -524,6 +524,18 @@ static void armpmu_disable(struct pmu *pmu)
 	armpmu->stop(armpmu);
 }
 
+/*
+ * In heterogeneous systems, events are specific to a particular
+ * microarchitecture, and aren't suitable for another. Thus, only match CPUs of
+ * the same microarchitecture.
+ */
+static int armpmu_filter_match(struct perf_event *event)
+{
+	struct arm_pmu *armpmu = to_arm_pmu(event->pmu);
+	unsigned int cpu = smp_processor_id();
+	return cpumask_test_cpu(cpu, &armpmu->supported_cpus);
+}
+
 #ifdef CONFIG_PM
 static int armpmu_runtime_resume(struct device *dev)
 {
@@ -564,6 +576,7 @@ static void armpmu_init(struct arm_pmu *armpmu)
 		.start		= armpmu_start,
 		.stop		= armpmu_stop,
 		.read		= armpmu_read,
+		.filter_match	= armpmu_filter_match,
 	};
 }
 
