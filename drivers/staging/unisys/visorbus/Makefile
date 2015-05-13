@@ -10,7 +10,5 @@ visorbus-y += visorchipset.o
 visorbus-y += periodic_work.o
 
 ccflags-y += -Idrivers/staging/unisys/include
-ccflags-y += -Idrivers/staging/unisys/common-spar/include
-ccflags-y += -Idrivers/staging/unisys/common-spar/include/channels
 ccflags-y += -Idrivers/staging/unisys/visorutil
 ccflags-y += -Idrivers/staging/unisys/visorbus
