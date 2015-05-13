@@ -4,6 +4,7 @@ TARGETS += efivarfs
 TARGETS += exec
 TARGETS += firmware
 TARGETS += ftrace
+TARGETS += futex
 TARGETS += kcmp
 TARGETS += memfd
 TARGETS += memory-hotplug
