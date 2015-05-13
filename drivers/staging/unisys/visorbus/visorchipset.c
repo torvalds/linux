@@ -26,14 +26,15 @@
 #include <linux/uuid.h>
 #include <linux/crash_dump.h>
 
+#include "channel_guid.h"
 #include "controlvmchannel.h"
 #include "controlvmcompletionstatus.h"
 #include "guestlinuxdebug.h"
 #include "periodic_work.h"
-#include "uisutils.h"
 #include "version.h"
 #include "visorbus.h"
 #include "visorbus_private.h"
+#include "vmcallinterface.h"
 
 #define CURRENT_FILE_PC VISOR_CHIPSET_PC_visorchipset_main_c
 
@@ -1856,6 +1857,22 @@ handle_command(struct controlvm_message inmsg, u64 channel_addr)
 	return true;
 }
 
+static inline unsigned int
+issue_vmcall_io_controlvm_addr(u64 *control_addr, u32 *control_bytes)
+{
+	struct vmcall_io_controlvm_addr_params params;
+	int result = VMCALL_SUCCESS;
+	u64 physaddr;
+
+	physaddr = virt_to_phys(&params);
+	ISSUE_IO_VMCALL(VMCALL_IO_CONTROLVM_ADDR, physaddr, result);
+	if (VMCALL_SUCCESSFUL(result)) {
+		*control_addr = params.address;
+		*control_bytes = params.channel_bytes;
+	}
+	return result;
+}
+
 static u64 controlvm_get_channel_address(void)
 {
 	u64 addr = 0;
@@ -2237,6 +2254,24 @@ visorchipset_mmap(struct file *file, struct vm_area_struct *vma)
 		return -ENXIO;
 	}
 	return 0;
+}
+
+static inline s64 issue_vmcall_query_guest_virtual_time_offset(void)
+{
+	u64 result = VMCALL_SUCCESS;
+	u64 physaddr = 0;
+
+	ISSUE_IO_VMCALL(VMCALL_QUERY_GUEST_VIRTUAL_TIME_OFFSET, physaddr,
+			result);
+	return result;
+}
+
+static inline int issue_vmcall_update_physical_time(u64 adjustment)
+{
+	int result = VMCALL_SUCCESS;
+
+	ISSUE_IO_VMCALL(VMCALL_UPDATE_PHYSICAL_TIME, adjustment, result);
+	return result;
 }
 
 static long visorchipset_ioctl(struct file *file, unsigned int cmd,
