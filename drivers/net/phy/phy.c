@@ -465,7 +465,7 @@ int phy_start_aneg(struct phy_device *phydev)
 	if (err < 0)
 		goto out_unlock;
 
-	if (phydev->state != PHY_HALTED) {
+	if (phydev->state != PHY_HALTED && phydev->state != PHY_RESUMING) {
 		if (AUTONEG_ENABLE == phydev->autoneg) {
 			phydev->state = PHY_AN;
 			phydev->link_timeout = PHY_AN_TIMEOUT;
