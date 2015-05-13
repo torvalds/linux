@@ -152,7 +152,11 @@ int main(void)
 			alarm_clock_id++) {
 
 		alarmcount = 0;
-		timer_create(alarm_clock_id, &se, &tm1);
+		if (timer_create(alarm_clock_id, &se, &tm1) == -1) {
+			printf("timer_create failled, %s unspported?\n",
+					clockstring(alarm_clock_id));
+			break;
+		}
 
 		clock_gettime(alarm_clock_id, &start_time);
 		printf("Start time (%s): %ld:%ld\n", clockstring(alarm_clock_id),
