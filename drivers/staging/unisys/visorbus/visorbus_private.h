@@ -104,8 +104,8 @@ struct visorchipset_bus_info {
  *  visorchipset.)
  */
 struct visorchipset_busdev_notifiers {
-	void (*bus_create)(u32 bus_no);
-	void (*bus_destroy)(u32 bus_no);
+	void (*bus_create)(struct visorchipset_bus_info *bus_info);
+	void (*bus_destroy)(struct visorchipset_bus_info *bus_info);
 	void (*device_create)(u32 bus_no, u32 dev_no);
 	void (*device_destroy)(u32 bus_no, u32 dev_no);
 	void (*device_pause)(u32 bus_no, u32 dev_no);
@@ -119,8 +119,8 @@ struct visorchipset_busdev_notifiers {
  *      -1 = it failed
  */
 struct visorchipset_busdev_responders {
-	void (*bus_create)(u32 bus_no, int response);
-	void (*bus_destroy)(u32 bus_no, int response);
+	void (*bus_create)(struct visorchipset_bus_info *p, int response);
+	void (*bus_destroy)(struct visorchipset_bus_info *p, int response);
 	void (*device_create)(u32 bus_no, u32 dev_no, int response);
 	void (*device_destroy)(u32 bus_no, u32 dev_no, int response);
 	void (*device_pause)(u32 bus_no, u32 dev_no, int response);
@@ -142,7 +142,8 @@ bool visorchipset_get_bus_info(u32 bus_no,
 			       struct visorchipset_bus_info *bus_info);
 bool visorchipset_get_device_info(u32 bus_no, u32 dev_no,
 				  struct visorchipset_device_info *dev_info);
-bool visorchipset_set_bus_context(u32 bus_no, void *context);
+bool visorchipset_set_bus_context(struct visorchipset_bus_info *bus_info,
+				  void *context);
 
 /* visorbus init and exit functions */
 int visorbus_init(void);

@@ -228,8 +228,8 @@ static void parahotplug_process_list(void);
  */
 static struct visorchipset_busdev_notifiers busdev_notifiers;
 
-static void bus_create_response(u32 bus_no, int response);
-static void bus_destroy_response(u32 bus_no, int response);
+static void bus_create_response(struct visorchipset_bus_info *p, int response);
+static void bus_destroy_response(struct visorchipset_bus_info *p, int response);
 static void device_create_response(u32 bus_no, u32 dev_no, int response);
 static void device_destroy_response(u32 bus_no, u32 dev_no, int response);
 static void device_resume_response(u32 bus_no, u32 dev_no, int response);
@@ -958,12 +958,12 @@ enum crash_obj_type {
 };
 
 static void
-bus_responder(enum controlvm_id cmd_id, u32 bus_no, int response)
+bus_responder(enum controlvm_id cmd_id, struct visorchipset_bus_info *p,
+	      int response)
 {
-	struct visorchipset_bus_info *p;
 	bool need_clear = false;
+	u32 bus_no = p->bus_no;
 
-	p = bus_find(&bus_info_list, bus_no);
 	if (!p)
 		return;
 
@@ -1049,14 +1049,11 @@ device_responder(enum controlvm_id cmd_id, u32 bus_no, u32 dev_no, int response)
 }
 
 static void
-bus_epilog(u32 bus_no,
+bus_epilog(struct visorchipset_bus_info *bus_info,
 	   u32 cmd, struct controlvm_message_header *msg_hdr,
 	   int response, bool need_response)
 {
-	struct visorchipset_bus_info *bus_info;
 	bool notified = false;
-
-	bus_info = bus_find(&bus_info_list, bus_no);
 
 	if (!bus_info)
 		return;
@@ -1073,13 +1070,13 @@ bus_epilog(u32 bus_no,
 		switch (cmd) {
 		case CONTROLVM_BUS_CREATE:
 			if (busdev_notifiers.bus_create) {
-				(*busdev_notifiers.bus_create) (bus_no);
+				(*busdev_notifiers.bus_create) (bus_info);
 				notified = true;
 			}
 			break;
 		case CONTROLVM_BUS_DESTROY:
 			if (busdev_notifiers.bus_destroy) {
-				(*busdev_notifiers.bus_destroy) (bus_no);
+				(*busdev_notifiers.bus_destroy) (bus_info);
 				notified = true;
 			}
 			break;
@@ -1092,7 +1089,7 @@ bus_epilog(u32 bus_no,
 		 */
 		;
 	else
-		bus_responder(cmd, bus_no, response);
+		bus_responder(cmd, bus_info, response);
 	up(&notifier_lock);
 }
 
@@ -1236,7 +1233,7 @@ bus_create(struct controlvm_message *inmsg)
 	POSTCODE_LINUX_3(BUS_CREATE_EXIT_PC, bus_no, POSTCODE_SEVERITY_INFO);
 
 cleanup:
-	bus_epilog(bus_no, CONTROLVM_BUS_CREATE, &inmsg->hdr,
+	bus_epilog(bus_info, CONTROLVM_BUS_CREATE, &inmsg->hdr,
 		   rc, inmsg->hdr.flags.response_expected == 1);
 }
 
@@ -1254,7 +1251,7 @@ bus_destroy(struct controlvm_message *inmsg)
 	else if (bus_info->state.created == 0)
 		rc = -CONTROLVM_RESP_ERROR_ALREADY_DONE;
 
-	bus_epilog(bus_no, CONTROLVM_BUS_DESTROY, &inmsg->hdr,
+	bus_epilog(bus_info, CONTROLVM_BUS_DESTROY, &inmsg->hdr,
 		   rc, inmsg->hdr.flags.response_expected == 1);
 }
 
@@ -1295,7 +1292,7 @@ bus_configure(struct controlvm_message *inmsg,
 		POSTCODE_LINUX_3(BUS_CONFIGURE_EXIT_PC, bus_no,
 				 POSTCODE_SEVERITY_INFO);
 	}
-	bus_epilog(bus_no, CONTROLVM_BUS_CONFIGURE, &inmsg->hdr,
+	bus_epilog(bus_info, CONTROLVM_BUS_CONFIGURE, &inmsg->hdr,
 		   rc, inmsg->hdr.flags.response_expected == 1);
 }
 
@@ -2112,15 +2109,15 @@ cleanup:
 }
 
 static void
-bus_create_response(u32 bus_no, int response)
+bus_create_response(struct visorchipset_bus_info *bus_info, int response)
 {
-	bus_responder(CONTROLVM_BUS_CREATE, bus_no, response);
+	bus_responder(CONTROLVM_BUS_CREATE, bus_info, response);
 }
 
 static void
-bus_destroy_response(u32 bus_no, int response)
+bus_destroy_response(struct visorchipset_bus_info *bus_info, int response)
 {
-	bus_responder(CONTROLVM_BUS_DESTROY, bus_no, response);
+	bus_responder(CONTROLVM_BUS_DESTROY, bus_info, response);
 }
 
 static void
@@ -2164,10 +2161,8 @@ visorchipset_get_bus_info(u32 bus_no, struct visorchipset_bus_info *bus_info)
 EXPORT_SYMBOL_GPL(visorchipset_get_bus_info);
 
 bool
-visorchipset_set_bus_context(u32 bus_no, void *context)
+visorchipset_set_bus_context(struct visorchipset_bus_info *p, void *context)
 {
-	struct visorchipset_bus_info *p = bus_find(&bus_info_list, bus_no);
-
 	if (!p)
 		return false;
 	p->bus_driver_context = context;
