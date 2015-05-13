@@ -281,10 +281,42 @@ static void memcpy32_fromio(void *trg, const void __iomem  *src, size_t size)
 		*t++ = __raw_readl(s++);
 }
 
+static void memcpy16_fromio(void *trg, const void __iomem  *src, size_t size)
+{
+	int i;
+	u16 *t = trg;
+	const __iomem u16 *s = src;
+
+	/* We assume that src (IO) is always 32bit aligned */
+	if (PTR_ALIGN(trg, 4) == trg && IS_ALIGNED(size, 4)) {
+		memcpy32_fromio(trg, src, size);
+		return;
+	}
+
+	for (i = 0; i < (size >> 1); i++)
+		*t++ = __raw_readw(s++);
+}
+
 static inline void memcpy32_toio(void __iomem *trg, const void *src, int size)
 {
 	/* __iowrite32_copy use 32bit size values so divide by 4 */
 	__iowrite32_copy(trg, src, size / 4);
+}
+
+static void memcpy16_toio(void __iomem *trg, const void *src, int size)
+{
+	int i;
+	__iomem u16 *t = trg;
+	const u16 *s = src;
+
+	/* We assume that trg (IO) is always 32bit aligned */
+	if (PTR_ALIGN(src, 4) == src && IS_ALIGNED(size, 4)) {
+		memcpy32_toio(trg, src, size);
+		return;
+	}
+
+	for (i = 0; i < (size >> 1); i++)
+		__raw_writew(*s++, t++);
 }
 
 static int check_int_v3(struct mxc_nand_host *host)
@@ -832,22 +864,22 @@ static void copy_spare(struct mtd_info *mtd, bool bfrom)
 
 	if (bfrom) {
 		for (i = 0; i < num_chunks - 1; i++)
-			memcpy32_fromio(d + i * oob_chunk_size,
+			memcpy16_fromio(d + i * oob_chunk_size,
 					s + i * sparebuf_size,
 					oob_chunk_size);
 
 		/* the last chunk */
-		memcpy32_fromio(d + i * oob_chunk_size,
+		memcpy16_fromio(d + i * oob_chunk_size,
 				s + i * sparebuf_size,
 				host->used_oobsize - i * oob_chunk_size);
 	} else {
 		for (i = 0; i < num_chunks - 1; i++)
-			memcpy32_toio(&s[i * sparebuf_size],
+			memcpy16_toio(&s[i * sparebuf_size],
 				      &d[i * oob_chunk_size],
 				      oob_chunk_size);
 
 		/* the last chunk */
-		memcpy32_toio(&s[oob_chunk_size * sparebuf_size],
+		memcpy16_toio(&s[oob_chunk_size * sparebuf_size],
 			      &d[i * oob_chunk_size],
 			      host->used_oobsize - i * oob_chunk_size);
 	}
