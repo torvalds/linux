@@ -75,3 +75,36 @@ KernelVersion:	4.01
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description:	(R) Indicates the number of single-shot comparator controls that
 		are available for tracing.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/reset
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description: 	(W) Cancels all configuration on a trace unit and set it back
+		to its boot configuration.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/mode
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description: 	(RW) Controls various modes supported by this ETM, for example
+		P0 instruction tracing, branch broadcast, cycle counting and
+		context ID tracing.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/pe
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description: 	(RW) Controls which PE to trace.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/event
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description: 	(RW) Controls the tracing of arbitrary events from bank 0 to 3.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/event_instren
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description: 	(RW) Controls the behavior of the events in bank 0 to 3.
