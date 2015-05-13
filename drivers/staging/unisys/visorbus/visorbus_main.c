@@ -1491,6 +1491,7 @@ create_bus_instance(int id)
 		goto away;
 	}
 	dev_set_name(&devdata->dev, "visorbus%d", id);
+	devdata->dev.bus = &visorbus_type;
 	devdata->dev.groups = visorbus_groups;
 	devdata->dev.release = visorbus_release_busdevice;
 	if (device_register(&devdata->dev) < 0) {
