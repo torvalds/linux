@@ -449,14 +449,14 @@ static void __get_system(struct event_subsystem *system)
 	system_refcount_inc(system);
 }
 
-static void __get_system_dir(struct ftrace_subsystem_dir *dir)
+static void __get_system_dir(struct trace_subsystem_dir *dir)
 {
 	WARN_ON_ONCE(dir->ref_count == 0);
 	dir->ref_count++;
 	__get_system(dir->subsystem);
 }
 
-static void __put_system_dir(struct ftrace_subsystem_dir *dir)
+static void __put_system_dir(struct trace_subsystem_dir *dir)
 {
 	WARN_ON_ONCE(dir->ref_count == 0);
 	/* If the subsystem is about to be freed, the dir must be too */
@@ -467,14 +467,14 @@ static void __put_system_dir(struct ftrace_subsystem_dir *dir)
 		kfree(dir);
 }
 
-static void put_system(struct ftrace_subsystem_dir *dir)
+static void put_system(struct trace_subsystem_dir *dir)
 {
 	mutex_lock(&event_mutex);
 	__put_system_dir(dir);
 	mutex_unlock(&event_mutex);
 }
 
-static void remove_subsystem(struct ftrace_subsystem_dir *dir)
+static void remove_subsystem(struct trace_subsystem_dir *dir)
 {
 	if (!dir)
 		return;
@@ -828,7 +828,7 @@ system_enable_read(struct file *filp, char __user *ubuf, size_t cnt,
 		   loff_t *ppos)
 {
 	const char set_to_char[4] = { '?', '0', '1', 'X' };
-	struct ftrace_subsystem_dir *dir = filp->private_data;
+	struct trace_subsystem_dir *dir = filp->private_data;
 	struct event_subsystem *system = dir->subsystem;
 	struct trace_event_call *call;
 	struct trace_event_file *file;
@@ -873,7 +873,7 @@ static ssize_t
 system_enable_write(struct file *filp, const char __user *ubuf, size_t cnt,
 		    loff_t *ppos)
 {
-	struct ftrace_subsystem_dir *dir = filp->private_data;
+	struct trace_subsystem_dir *dir = filp->private_data;
 	struct event_subsystem *system = dir->subsystem;
 	const char *name = NULL;
 	unsigned long val;
@@ -1132,7 +1132,7 @@ static LIST_HEAD(event_subsystems);
 static int subsystem_open(struct inode *inode, struct file *filp)
 {
 	struct event_subsystem *system = NULL;
-	struct ftrace_subsystem_dir *dir = NULL; /* Initialize for gcc */
+	struct trace_subsystem_dir *dir = NULL; /* Initialize for gcc */
 	struct trace_array *tr;
 	int ret;
 
@@ -1181,7 +1181,7 @@ static int subsystem_open(struct inode *inode, struct file *filp)
 
 static int system_tr_open(struct inode *inode, struct file *filp)
 {
-	struct ftrace_subsystem_dir *dir;
+	struct trace_subsystem_dir *dir;
 	struct trace_array *tr = inode->i_private;
 	int ret;
 
@@ -1214,7 +1214,7 @@ static int system_tr_open(struct inode *inode, struct file *filp)
 
 static int subsystem_release(struct inode *inode, struct file *file)
 {
-	struct ftrace_subsystem_dir *dir = file->private_data;
+	struct trace_subsystem_dir *dir = file->private_data;
 
 	trace_array_put(dir->tr);
 
@@ -1235,7 +1235,7 @@ static ssize_t
 subsystem_filter_read(struct file *filp, char __user *ubuf, size_t cnt,
 		      loff_t *ppos)
 {
-	struct ftrace_subsystem_dir *dir = filp->private_data;
+	struct trace_subsystem_dir *dir = filp->private_data;
 	struct event_subsystem *system = dir->subsystem;
 	struct trace_seq *s;
 	int r;
@@ -1262,7 +1262,7 @@ static ssize_t
 subsystem_filter_write(struct file *filp, const char __user *ubuf, size_t cnt,
 		       loff_t *ppos)
 {
-	struct ftrace_subsystem_dir *dir = filp->private_data;
+	struct trace_subsystem_dir *dir = filp->private_data;
 	char *buf;
 	int err;
 
@@ -1499,7 +1499,7 @@ static struct dentry *
 event_subsystem_dir(struct trace_array *tr, const char *name,
 		    struct trace_event_file *file, struct dentry *parent)
 {
-	struct ftrace_subsystem_dir *dir;
+	struct trace_subsystem_dir *dir;
 	struct event_subsystem *system;
 	struct dentry *entry;
 
@@ -2754,7 +2754,7 @@ static __init void event_test_stuff(void)
  */
 static __init void event_trace_self_tests(void)
 {
-	struct ftrace_subsystem_dir *dir;
+	struct trace_subsystem_dir *dir;
 	struct trace_event_file *file;
 	struct trace_event_call *call;
 	struct event_subsystem *system;

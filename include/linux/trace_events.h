@@ -313,7 +313,7 @@ trace_event_name(struct trace_event_call *call)
 }
 
 struct trace_array;
-struct ftrace_subsystem_dir;
+struct trace_subsystem_dir;
 
 enum {
 	FTRACE_EVENT_FL_ENABLED_BIT,
@@ -355,7 +355,7 @@ struct trace_event_file {
 	struct event_filter		*filter;
 	struct dentry			*dir;
 	struct trace_array		*tr;
-	struct ftrace_subsystem_dir	*system;
+	struct trace_subsystem_dir	*system;
 	struct list_head		triggers;
 
 	/*

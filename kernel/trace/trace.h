@@ -992,7 +992,7 @@ struct event_subsystem {
 	int			ref_count;
 };
 
-struct ftrace_subsystem_dir {
+struct trace_subsystem_dir {
 	struct list_head		list;
 	struct event_subsystem		*subsystem;
 	struct trace_array		*tr;
@@ -1056,7 +1056,7 @@ extern void print_event_filter(struct trace_event_file *file,
 			       struct trace_seq *s);
 extern int apply_event_filter(struct trace_event_file *file,
 			      char *filter_string);
-extern int apply_subsystem_event_filter(struct ftrace_subsystem_dir *dir,
+extern int apply_subsystem_event_filter(struct trace_subsystem_dir *dir,
 					char *filter_string);
 extern void print_subsystem_event_filter(struct event_subsystem *system,
 					 struct trace_seq *s);

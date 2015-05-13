@@ -848,7 +848,7 @@ static inline void __remove_filter(struct trace_event_file *file)
 		remove_filter_string(file->filter);
 }
 
-static void filter_free_subsystem_preds(struct ftrace_subsystem_dir *dir,
+static void filter_free_subsystem_preds(struct trace_subsystem_dir *dir,
 					struct trace_array *tr)
 {
 	struct trace_event_file *file;
@@ -873,7 +873,7 @@ static inline void __free_subsystem_filter(struct trace_event_file *file)
 	}
 }
 
-static void filter_free_subsystem_filters(struct ftrace_subsystem_dir *dir,
+static void filter_free_subsystem_filters(struct trace_subsystem_dir *dir,
 					  struct trace_array *tr)
 {
 	struct trace_event_file *file;
@@ -1735,7 +1735,7 @@ struct filter_list {
 	struct event_filter	*filter;
 };
 
-static int replace_system_preds(struct ftrace_subsystem_dir *dir,
+static int replace_system_preds(struct trace_subsystem_dir *dir,
 				struct trace_array *tr,
 				struct filter_parse_state *ps,
 				char *filter_string)
@@ -1935,7 +1935,7 @@ int create_event_filter(struct trace_event_call *call,
  * Identical to create_filter() except that it creates a subsystem filter
  * and always remembers @filter_str.
  */
-static int create_system_filter(struct ftrace_subsystem_dir *dir,
+static int create_system_filter(struct trace_subsystem_dir *dir,
 				struct trace_array *tr,
 				char *filter_str, struct event_filter **filterp)
 {
@@ -2012,7 +2012,7 @@ int apply_event_filter(struct trace_event_file *file, char *filter_string)
 	return err;
 }
 
-int apply_subsystem_event_filter(struct ftrace_subsystem_dir *dir,
+int apply_subsystem_event_filter(struct trace_subsystem_dir *dir,
 				 char *filter_string)
 {
 	struct event_subsystem *system = dir->subsystem;
