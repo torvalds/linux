@@ -1142,6 +1142,11 @@ static u64 *rmap_get_next(struct rmap_iterator *iter)
 	return NULL;
 }
 
+#define for_each_rmap_spte(_rmap_, _iter_, _spte_)			    \
+	   for (_spte_ = rmap_get_first(*_rmap_, _iter_);		    \
+		_spte_ && ({BUG_ON(!is_shadow_present_pte(*_spte_)); 1;});  \
+			_spte_ = rmap_get_next(_iter_))
+
 static void drop_spte(struct kvm *kvm, u64 *sptep)
 {
 	if (mmu_spte_clear_track_bits(sptep))
@@ -1205,12 +1210,8 @@ static bool __rmap_write_protect(struct kvm *kvm, unsigned long *rmapp,
 	struct rmap_iterator iter;
 	bool flush = false;
 
-	for (sptep = rmap_get_first(*rmapp, &iter); sptep;) {
-		BUG_ON(!(*sptep & PT_PRESENT_MASK));
-
+	for_each_rmap_spte(rmapp, &iter, sptep)
 		flush |= spte_write_protect(kvm, sptep, pt_protect);
-		sptep = rmap_get_next(&iter);
-	}
 
 	return flush;
 }
@@ -1232,12 +1233,8 @@ static bool __rmap_clear_dirty(struct kvm *kvm, unsigned long *rmapp)
 	struct rmap_iterator iter;
 	bool flush = false;
 
-	for (sptep = rmap_get_first(*rmapp, &iter); sptep;) {
-		BUG_ON(!(*sptep & PT_PRESENT_MASK));
-
+	for_each_rmap_spte(rmapp, &iter, sptep)
 		flush |= spte_clear_dirty(kvm, sptep);
-		sptep = rmap_get_next(&iter);
-	}
 
 	return flush;
 }
@@ -1259,12 +1256,8 @@ static bool __rmap_set_dirty(struct kvm *kvm, unsigned long *rmapp)
 	struct rmap_iterator iter;
 	bool flush = false;
 
-	for (sptep = rmap_get_first(*rmapp, &iter); sptep;) {
-		BUG_ON(!(*sptep & PT_PRESENT_MASK));
-
+	for_each_rmap_spte(rmapp, &iter, sptep)
 		flush |= spte_set_dirty(kvm, sptep);
-		sptep = rmap_get_next(&iter);
-	}
 
 	return flush;
 }
@@ -1394,8 +1387,8 @@ static int kvm_set_pte_rmapp(struct kvm *kvm, unsigned long *rmapp,
 	WARN_ON(pte_huge(*ptep));
 	new_pfn = pte_pfn(*ptep);
 
-	for (sptep = rmap_get_first(*rmapp, &iter); sptep;) {
-		BUG_ON(!is_shadow_present_pte(*sptep));
+restart:
+	for_each_rmap_spte(rmapp, &iter, sptep) {
 		rmap_printk("kvm_set_pte_rmapp: spte %p %llx gfn %llx (%d)\n",
 			     sptep, *sptep, gfn, level);
 
@@ -1403,7 +1396,7 @@ static int kvm_set_pte_rmapp(struct kvm *kvm, unsigned long *rmapp,
 
 		if (pte_write(*ptep)) {
 			drop_spte(kvm, sptep);
-			sptep = rmap_get_first(*rmapp, &iter);
+			goto restart;
 		} else {
 			new_spte = *sptep & ~PT64_BASE_ADDR_MASK;
 			new_spte |= (u64)new_pfn << PAGE_SHIFT;
@@ -1414,7 +1407,6 @@ static int kvm_set_pte_rmapp(struct kvm *kvm, unsigned long *rmapp,
 
 			mmu_spte_clear_track_bits(sptep);
 			mmu_spte_set(sptep, new_spte);
-			sptep = rmap_get_next(&iter);
 		}
 	}
 
@@ -1518,16 +1510,13 @@ static int kvm_age_rmapp(struct kvm *kvm, unsigned long *rmapp,
 
 	BUG_ON(!shadow_accessed_mask);
 
-	for (sptep = rmap_get_first(*rmapp, &iter); sptep;
-	     sptep = rmap_get_next(&iter)) {
-		BUG_ON(!is_shadow_present_pte(*sptep));
-
+	for_each_rmap_spte(rmapp, &iter, sptep)
 		if (*sptep & shadow_accessed_mask) {
 			young = 1;
 			clear_bit((ffs(shadow_accessed_mask) - 1),
 				 (unsigned long *)sptep);
 		}
-	}
+
 	trace_kvm_age_page(gfn, level, slot, young);
 	return young;
 }
@@ -1548,15 +1537,11 @@ static int kvm_test_age_rmapp(struct kvm *kvm, unsigned long *rmapp,
 	if (!shadow_accessed_mask)
 		goto out;
 
-	for (sptep = rmap_get_first(*rmapp, &iter); sptep;
-	     sptep = rmap_get_next(&iter)) {
-		BUG_ON(!is_shadow_present_pte(*sptep));
-
+	for_each_rmap_spte(rmapp, &iter, sptep)
 		if (*sptep & shadow_accessed_mask) {
 			young = 1;
 			break;
 		}
-	}
 out:
 	return young;
 }
@@ -4482,9 +4467,8 @@ static bool kvm_mmu_zap_collapsible_spte(struct kvm *kvm,
 	pfn_t pfn;
 	struct kvm_mmu_page *sp;
 
-	for (sptep = rmap_get_first(*rmapp, &iter); sptep;) {
-		BUG_ON(!(*sptep & PT_PRESENT_MASK));
-
+restart:
+	for_each_rmap_spte(rmapp, &iter, sptep) {
 		sp = page_header(__pa(sptep));
 		pfn = spte_to_pfn(*sptep);
 
@@ -4499,10 +4483,9 @@ static bool kvm_mmu_zap_collapsible_spte(struct kvm *kvm,
 			!kvm_is_reserved_pfn(pfn) &&
 			PageTransCompound(pfn_to_page(pfn))) {
 			drop_spte(kvm, sptep);
-			sptep = rmap_get_first(*rmapp, &iter);
 			need_tlb_flush = 1;
-		} else
-			sptep = rmap_get_next(&iter);
+			goto restart;
+		}
 	}
 
 	return need_tlb_flush;

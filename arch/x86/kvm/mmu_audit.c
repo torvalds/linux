@@ -197,13 +197,11 @@ static void audit_write_protection(struct kvm *kvm, struct kvm_mmu_page *sp)
 
 	rmapp = gfn_to_rmap(kvm, sp->gfn, PT_PAGE_TABLE_LEVEL);
 
-	for (sptep = rmap_get_first(*rmapp, &iter); sptep;
-	     sptep = rmap_get_next(&iter)) {
+	for_each_rmap_spte(rmapp, &iter, sptep)
 		if (is_writable_pte(*sptep))
 			audit_printk(kvm, "shadow page has writable "
 				     "mappings: gfn %llx role %x\n",
 				     sp->gfn, sp->role.word);
-	}
 }
 
 static void audit_sp(struct kvm *kvm, struct kvm_mmu_page *sp)
