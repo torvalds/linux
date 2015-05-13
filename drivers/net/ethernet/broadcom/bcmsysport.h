@@ -292,7 +292,7 @@ struct bcm_rsb {
 #define RDMA_END_ADDR_LO		0x102c
 
 #define RDMA_MBDONE_INTR		0x1030
-#define  RDMA_INTR_THRESH_MASK		0xff
+#define  RDMA_INTR_THRESH_MASK		0x1ff
 #define  RDMA_TIMEOUT_SHIFT		16
 #define  RDMA_TIMEOUT_MASK		0xffff
 
