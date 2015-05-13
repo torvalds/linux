@@ -741,6 +741,7 @@ static int rpm_resume(struct device *dev, int rpmflags)
 	} else {
  no_callback:
 		__update_runtime_status(dev, RPM_ACTIVE);
+		pm_runtime_mark_last_busy(dev);
 		if (parent)
 			atomic_inc(&parent->power.child_count);
 	}
