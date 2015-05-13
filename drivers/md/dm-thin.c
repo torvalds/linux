@@ -705,6 +705,8 @@ static void overwrite_endio(struct bio *bio, int err)
 	struct dm_thin_endio_hook *h = dm_per_bio_data(bio, sizeof(struct dm_thin_endio_hook));
 	struct dm_thin_new_mapping *m = h->overwrite_mapping;
 
+	bio->bi_end_io = m->saved_bi_end_io;
+
 	m->err = err;
 	complete_mapping_preparation(m);
 }
@@ -793,9 +795,6 @@ static void inc_remap_and_issue_cell(struct thin_c *tc,
 
 static void process_prepared_mapping_fail(struct dm_thin_new_mapping *m)
 {
-	if (m->bio)
-		m->bio->bi_end_io = m->saved_bi_end_io;
-
 	cell_error(m->tc->pool, m->cell);
 	list_del(&m->list);
 	mempool_free(m, m->tc->pool->mapping_pool);
@@ -805,12 +804,8 @@ static void process_prepared_mapping(struct dm_thin_new_mapping *m)
 {
 	struct thin_c *tc = m->tc;
 	struct pool *pool = tc->pool;
-	struct bio *bio;
+	struct bio *bio = m->bio;
 	int r;
-
-	bio = m->bio;
-	if (bio)
-		bio->bi_end_io = m->saved_bi_end_io;
 
 	if (m->err) {
 		cell_error(pool, m->cell);
