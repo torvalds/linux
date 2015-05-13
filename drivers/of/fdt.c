@@ -168,7 +168,7 @@ static void *unflatten_dt_alloc(void **mem, unsigned long size,
  * @dad: Parent struct device_node
  * @fpsize: Size of the node path up at the current depth.
  */
-static void * unflatten_dt_node(void *blob,
+static void * unflatten_dt_node(const void *blob,
 				void *mem,
 				int *poffset,
 				struct device_node *dad,
@@ -378,7 +378,7 @@ static void * unflatten_dt_node(void *blob,
  * @dt_alloc: An allocator that provides a virtual address to memory
  * for the resulting tree
  */
-static void __unflatten_device_tree(void *blob,
+static void __unflatten_device_tree(const void *blob,
 			     struct device_node **mynodes,
 			     void * (*dt_alloc)(u64 size, u64 align))
 {
@@ -441,7 +441,7 @@ static void *kernel_tree_alloc(u64 size, u64 align)
  * pointers of the nodes so the normal device-tree walking functions
  * can be used.
  */
-void of_fdt_unflatten_tree(unsigned long *blob,
+void of_fdt_unflatten_tree(const unsigned long *blob,
 			struct device_node **mynodes)
 {
 	__unflatten_device_tree(blob, mynodes, &kernel_tree_alloc);
