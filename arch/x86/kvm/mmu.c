@@ -2431,19 +2431,20 @@ EXPORT_SYMBOL_GPL(kvm_mmu_unprotect_page);
 static int get_mtrr_type(struct mtrr_state_type *mtrr_state,
 			 u64 start, u64 end)
 {
-	int i;
 	u64 base, mask;
 	u8 prev_match, curr_match;
-	int num_var_ranges = KVM_NR_VAR_MTRR;
+	int i, num_var_ranges = KVM_NR_VAR_MTRR;
 
-	if (!mtrr_state->enabled)
-		return 0xFF;
+	/* MTRR is completely disabled, use UC for all of physical memory. */
+	if (!(mtrr_state->enabled & 0x2))
+		return MTRR_TYPE_UNCACHABLE;
 
 	/* Make end inclusive end, instead of exclusive */
 	end--;
 
 	/* Look in fixed ranges. Just return the type as per start */
-	if (mtrr_state->have_fixed && (start < 0x100000)) {
+	if (mtrr_state->have_fixed && (mtrr_state->enabled & 0x1) &&
+	      (start < 0x100000)) {
 		int idx;
 
 		if (start < 0x80000) {
@@ -2466,9 +2467,6 @@ static int get_mtrr_type(struct mtrr_state_type *mtrr_state,
 	 * Look of multiple ranges matching this address and pick type
 	 * as per MTRR precedence
 	 */
-	if (!(mtrr_state->enabled & 2))
-		return mtrr_state->def_type;
-
 	prev_match = 0xFF;
 	for (i = 0; i < num_var_ranges; ++i) {
 		unsigned short start_state, end_state;
