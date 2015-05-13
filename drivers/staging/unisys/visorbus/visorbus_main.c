@@ -41,7 +41,7 @@ int visorbus_debugref;
 struct visorbus_devdata {
 	int devno;		/* this is the chipset busNo */
 	struct list_head list_all;
-	struct device *dev;
+	struct device dev;
 	struct kobject kobj;
 	struct visorchannel *chan;	/* channel area for bus itself */
 	bool vbus_valid;
@@ -1329,7 +1329,7 @@ create_visor_device(struct visorbus_devdata *devdata,
 	dev->channel_bytes = chan_info.n_channel_bytes;
 	dev->chipset_bus_no = chipset_bus_no;
 	dev->chipset_dev_no = chipset_dev_no;
-	dev->device.parent = devdata->dev;
+	dev->device.parent = &devdata->dev;
 	sema_init(&dev->visordriver_callback_lock, 1);	/* unlocked */
 	dev->device.bus = &visorbus_type;
 	device_initialize(&dev->device);
@@ -1636,34 +1636,24 @@ create_bus_instance(int id)
 {
 	struct visorbus_devdata *rc = NULL;
 	struct visorbus_devdata *devdata = NULL;
-	struct device *dev;
 	struct visorchipset_bus_info bus_info;
 
 	POSTCODE_LINUX_2(BUS_CREATE_ENTRY_PC, POSTCODE_SEVERITY_INFO);
-	dev = kmalloc(sizeof(*dev), GFP_KERNEL);
-	if (!dev) {
-		POSTCODE_LINUX_2(MALLOC_FAILURE_PC, POSTCODE_SEVERITY_ERR);
-		rc = NULL;
-		goto away;
-	}
-	memset(dev, 0, sizeof(struct device));
-	dev_set_name(dev, "visorbus%d", id);
-	dev->release = visorbus_release_busdevice;
-	if (device_register(dev) < 0) {
-		POSTCODE_LINUX_3(DEVICE_CREATE_FAILURE_PC, id,
-				 POSTCODE_SEVERITY_ERR);
-		rc = NULL;
-		goto away;
-	}
-	devdata = kmalloc(sizeof(*devdata), GFP_KERNEL);
+	devdata = kzalloc(sizeof(*devdata), GFP_KERNEL);
 	if (!devdata) {
 		POSTCODE_LINUX_2(MALLOC_FAILURE_PC, POSTCODE_SEVERITY_ERR);
 		rc = NULL;
 		goto away;
 	}
-	memset(devdata, 0, sizeof(struct visorbus_devdata));
+	dev_set_name(&devdata->dev, "visorbus%d", id);
+	devdata->dev.release = visorbus_release_busdevice;
+	if (device_register(&devdata->dev) < 0) {
+		POSTCODE_LINUX_3(DEVICE_CREATE_FAILURE_PC, id,
+				 POSTCODE_SEVERITY_ERR);
+		rc = NULL;
+		goto away;
+	}
 	devdata->devno = id;
-	devdata->dev = dev;
 	if ((visorchipset_get_bus_info(id, &bus_info)) &&
 	    (bus_info.chan_info.channel_addr > 0) &&
 	    (bus_info.chan_info.n_channel_bytes > 0)) {
@@ -1707,7 +1697,7 @@ create_bus_instance(int id)
 	list_add_tail(&devdata->list_all, &list_all_bus_instances);
 	if (id == 0)
 			devdata = devdata;	/* for testing ONLY */
-	dev_set_drvdata(dev, devdata);
+	dev_set_drvdata(&devdata->dev, devdata);
 	rc = devdata;
 away:
 	return rc;
@@ -1732,7 +1722,7 @@ remove_bus_instance(struct visorbus_devdata *devdata)
 		devdata->chan = NULL;
 	}
 	list_del(&devdata->list_all);
-	device_unregister(devdata->dev);
+	device_unregister(&devdata->dev);
 }
 
 /** Create and register the one-and-only one instance of
