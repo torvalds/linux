@@ -45,7 +45,6 @@ struct visorchannel {
 		struct signal_queue_header event_queue;
 		struct signal_queue_header ack_queue;
 	} safe_uis_queue;
-	struct irq_info intr;
 	uuid_le type;
 	uuid_le inst;
 };

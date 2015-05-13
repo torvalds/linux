@@ -1352,7 +1352,6 @@ my_device_create(struct controlvm_message *inmsg)
 	dev_info->chan_info.n_channel_bytes = cmd->create_device.channel_bytes;
 	dev_info->chan_info.channel_type_uuid =
 			cmd->create_device.data_type_uuid;
-	dev_info->chan_info.intr = cmd->create_device.intr;
 	list_add(&dev_info->entry, &dev_info_list);
 	POSTCODE_LINUX_4(DEVICE_CREATE_EXIT_PC, dev_no, bus_no,
 			 POSTCODE_SEVERITY_INFO);
