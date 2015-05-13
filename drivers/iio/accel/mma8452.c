@@ -32,6 +32,7 @@
 #define MMA8452_OFF_Z 0x31
 #define MMA8452_CTRL_REG1 0x2a
 #define MMA8452_CTRL_REG2 0x2b
+#define MMA8452_CTRL_REG2_RST		BIT(6)
 
 #define MMA8452_STATUS_DRDY (BIT(2) | BIT(1) | BIT(0))
 
@@ -335,6 +336,30 @@ static const struct iio_info mma8452_info = {
 
 static const unsigned long mma8452_scan_masks[] = {0x7, 0};
 
+static int mma8452_reset(struct i2c_client *client)
+{
+	int i;
+	int ret;
+
+	ret = i2c_smbus_write_byte_data(client,	MMA8452_CTRL_REG2,
+					MMA8452_CTRL_REG2_RST);
+	if (ret < 0)
+		return ret;
+
+	for (i = 0; i < 10; i++) {
+		usleep_range(100, 200);
+		ret = i2c_smbus_read_byte_data(client, MMA8452_CTRL_REG2);
+		if (ret == -EIO)
+			continue; /* I2C comm reset */
+		if (ret < 0)
+			return ret;
+		if (!(ret & MMA8452_CTRL_REG2_RST))
+			return 0;
+	}
+
+	return -ETIMEDOUT;
+}
+
 static int mma8452_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
@@ -365,16 +390,20 @@ static int mma8452_probe(struct i2c_client *client,
 	indio_dev->num_channels = ARRAY_SIZE(mma8452_channels);
 	indio_dev->available_scan_masks = mma8452_scan_masks;
 
-	data->ctrl_reg1 = MMA8452_CTRL_ACTIVE |
-		(MMA8452_CTRL_DR_DEFAULT << MMA8452_CTRL_DR_SHIFT);
-	ret = i2c_smbus_write_byte_data(client, MMA8452_CTRL_REG1,
-		data->ctrl_reg1);
+	ret = mma8452_reset(client);
 	if (ret < 0)
 		return ret;
 
 	data->data_cfg = MMA8452_DATA_CFG_FS_2G;
 	ret = i2c_smbus_write_byte_data(client, MMA8452_DATA_CFG,
 		data->data_cfg);
+	if (ret < 0)
+		return ret;
+
+	data->ctrl_reg1 = MMA8452_CTRL_ACTIVE |
+		(MMA8452_CTRL_DR_DEFAULT << MMA8452_CTRL_DR_SHIFT);
+	ret = i2c_smbus_write_byte_data(client, MMA8452_CTRL_REG1,
+					data->ctrl_reg1);
 	if (ret < 0)
 		return ret;
 
