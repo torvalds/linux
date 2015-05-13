@@ -1192,6 +1192,19 @@ static int do_rio_entry(const char *filename,
 }
 ADD_TO_DEVTABLE("rapidio", rio_device_id, do_rio_entry);
 
+/* Looks like: ulpi:vNpN */
+static int do_ulpi_entry(const char *filename, void *symval,
+			 char *alias)
+{
+	DEF_FIELD(symval, ulpi_device_id, vendor);
+	DEF_FIELD(symval, ulpi_device_id, product);
+
+	sprintf(alias, "ulpi:v%04xp%04x", vendor, product);
+
+	return 1;
+}
+ADD_TO_DEVTABLE("ulpi", ulpi_device_id, do_ulpi_entry);
+
 /* Does namelen bytes of name exactly match the symbol? */
 static bool sym_is(const char *name, unsigned namelen, const char *symbol)
 {

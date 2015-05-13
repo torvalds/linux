@@ -10453,6 +10453,13 @@ S:	Maintained
 F:	Documentation/video4linux/zr364xx.txt
 F:	drivers/media/usb/zr364xx/
 
+ULPI BUS
+M:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
+L:	linux-usb@vger.kernel.org
+S:	Maintained
+F:	drivers/usb/common/ulpi.c
+F:	include/linux/ulpi/
+
 USER-MODE LINUX (UML)
 M:	Jeff Dike <jdike@addtoit.com>
 M:	Richard Weinberger <richard@nod.at>
