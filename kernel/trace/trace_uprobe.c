@@ -293,7 +293,7 @@ static struct trace_uprobe *find_probe_event(const char *event, const char *grou
 	struct trace_uprobe *tu;
 
 	list_for_each_entry(tu, &uprobe_list, list)
-		if (strcmp(ftrace_event_name(&tu->tp.call), event) == 0 &&
+		if (strcmp(trace_event_name(&tu->tp.call), event) == 0 &&
 		    strcmp(tu->tp.call.class->system, group) == 0)
 			return tu;
 
@@ -323,7 +323,7 @@ static int register_trace_uprobe(struct trace_uprobe *tu)
 	mutex_lock(&uprobe_lock);
 
 	/* register as an event */
-	old_tu = find_probe_event(ftrace_event_name(&tu->tp.call),
+	old_tu = find_probe_event(trace_event_name(&tu->tp.call),
 			tu->tp.call.class->system);
 	if (old_tu) {
 		/* delete old event */
@@ -600,7 +600,7 @@ static int probes_seq_show(struct seq_file *m, void *v)
 	int i;
 
 	seq_printf(m, "%c:%s/%s", c, tu->tp.call.class->system,
-			ftrace_event_name(&tu->tp.call));
+			trace_event_name(&tu->tp.call));
 	seq_printf(m, " %s:0x%p", tu->filename, (void *)tu->offset);
 
 	for (i = 0; i < tu->tp.nr_args; i++)
@@ -651,7 +651,7 @@ static int probes_profile_seq_show(struct seq_file *m, void *v)
 	struct trace_uprobe *tu = v;
 
 	seq_printf(m, "  %s %-44s %15lu\n", tu->filename,
-			ftrace_event_name(&tu->tp.call), tu->nhit);
+			trace_event_name(&tu->tp.call), tu->nhit);
 	return 0;
 }
 
@@ -853,12 +853,12 @@ print_uprobe_event(struct trace_iterator *iter, int flags, struct trace_event *e
 
 	if (is_ret_probe(tu)) {
 		trace_seq_printf(s, "%s: (0x%lx <- 0x%lx)",
-				 ftrace_event_name(&tu->tp.call),
+				 trace_event_name(&tu->tp.call),
 				 entry->vaddr[1], entry->vaddr[0]);
 		data = DATAOF_TRACE_ENTRY(entry, true);
 	} else {
 		trace_seq_printf(s, "%s: (0x%lx)",
-				 ftrace_event_name(&tu->tp.call),
+				 trace_event_name(&tu->tp.call),
 				 entry->vaddr[0]);
 		data = DATAOF_TRACE_ENTRY(entry, false);
 	}
@@ -1295,7 +1295,7 @@ static int register_uprobe_event(struct trace_uprobe *tu)
 
 	if (ret) {
 		pr_info("Failed to register uprobe event: %s\n",
-			ftrace_event_name(call));
+			trace_event_name(call));
 		kfree(call->print_fmt);
 		unregister_trace_event(&call->event);
 	}

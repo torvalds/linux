@@ -239,7 +239,7 @@ int trace_raw_output_prep(struct trace_iterator *iter,
 	}
 
 	trace_seq_init(p);
-	trace_seq_printf(s, "%s: ", ftrace_event_name(event));
+	trace_seq_printf(s, "%s: ", trace_event_name(event));
 
 	return trace_handle_return(s);
 }

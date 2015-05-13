@@ -387,7 +387,7 @@ static int __ftrace_event_enable_disable(struct trace_event_file *file,
 			if (ret) {
 				tracing_stop_cmdline_record();
 				pr_info("event trace: Could not enable event "
-					"%s\n", ftrace_event_name(call));
+					"%s\n", trace_event_name(call));
 				break;
 			}
 			set_bit(FTRACE_EVENT_FL_ENABLED_BIT, &file->flags);
@@ -523,7 +523,7 @@ __ftrace_set_clr_event_nolock(struct trace_array *tr, const char *match,
 	list_for_each_entry(file, &tr->events, list) {
 
 		call = file->event_call;
-		name = ftrace_event_name(call);
+		name = trace_event_name(call);
 
 		if (!name || !call->class || !call->class->reg)
 			continue;
@@ -747,7 +747,7 @@ static int t_show(struct seq_file *m, void *v)
 
 	if (strcmp(call->class->system, TRACE_SYSTEM) != 0)
 		seq_printf(m, "%s:", call->class->system);
-	seq_printf(m, "%s\n", ftrace_event_name(call));
+	seq_printf(m, "%s\n", trace_event_name(call));
 
 	return 0;
 }
@@ -840,7 +840,7 @@ system_enable_read(struct file *filp, char __user *ubuf, size_t cnt,
 	mutex_lock(&event_mutex);
 	list_for_each_entry(file, &tr->events, list) {
 		call = file->event_call;
-		if (!ftrace_event_name(call) || !call->class || !call->class->reg)
+		if (!trace_event_name(call) || !call->class || !call->class->reg)
 			continue;
 
 		if (system && strcmp(call->class->system, system->name) != 0)
@@ -955,7 +955,7 @@ static int f_show(struct seq_file *m, void *v)
 
 	switch ((unsigned long)v) {
 	case FORMAT_HEADER:
-		seq_printf(m, "name: %s\n", ftrace_event_name(call));
+		seq_printf(m, "name: %s\n", trace_event_name(call));
 		seq_printf(m, "ID: %d\n", call->event.type);
 		seq_puts(m, "format:\n");
 		return 0;
@@ -1591,7 +1591,7 @@ event_create_dir(struct dentry *parent, struct trace_event_file *file)
 	} else
 		d_events = parent;
 
-	name = ftrace_event_name(call);
+	name = trace_event_name(call);
 	file->dir = tracefs_create_dir(name, d_events);
 	if (!file->dir) {
 		pr_warn("Could not create tracefs '%s' directory\n", name);
@@ -1683,7 +1683,7 @@ static int event_init(struct trace_event_call *call)
 	int ret = 0;
 	const char *name;
 
-	name = ftrace_event_name(call);
+	name = trace_event_name(call);
 	if (WARN_ON(!name))
 		return -EINVAL;
 
@@ -2062,7 +2062,7 @@ __trace_add_event_dirs(struct trace_array *tr)
 		ret = __trace_add_new_event(call, tr);
 		if (ret < 0)
 			pr_warn("Could not create directory for event %s\n",
-				ftrace_event_name(call));
+				trace_event_name(call));
 	}
 }
 
@@ -2076,7 +2076,7 @@ find_event_file(struct trace_array *tr, const char *system,  const char *event)
 	list_for_each_entry(file, &tr->events, list) {
 
 		call = file->event_call;
-		name = ftrace_event_name(call);
+		name = trace_event_name(call);
 
 		if (!name || !call->class || !call->class->reg)
 			continue;
@@ -2152,7 +2152,7 @@ event_enable_print(struct seq_file *m, unsigned long ip,
 	seq_printf(m, "%s:%s:%s",
 		   data->enable ? ENABLE_EVENT_STR : DISABLE_EVENT_STR,
 		   data->file->event_call->class->system,
-		   ftrace_event_name(data->file->event_call));
+		   trace_event_name(data->file->event_call));
 
 	if (data->count == -1)
 		seq_puts(m, ":unlimited\n");
@@ -2375,7 +2375,7 @@ __trace_early_add_event_dirs(struct trace_array *tr)
 		ret = event_create_dir(tr->event_dir, file);
 		if (ret < 0)
 			pr_warn("Could not create directory for event %s\n",
-				ftrace_event_name(file->event_call));
+				trace_event_name(file->event_call));
 	}
 }
 
@@ -2399,7 +2399,7 @@ __trace_early_add_events(struct trace_array *tr)
 		ret = __trace_early_add_new_event(call, tr);
 		if (ret < 0)
 			pr_warn("Could not create early event %s\n",
-				ftrace_event_name(call));
+				trace_event_name(call));
 	}
 }
 
@@ -2787,7 +2787,7 @@ static __init void event_trace_self_tests(void)
 			continue;
 #endif
 
-		pr_info("Testing event %s: ", ftrace_event_name(call));
+		pr_info("Testing event %s: ", trace_event_name(call));
 
 		/*
 		 * If an event is already enabled, someone is using

@@ -304,7 +304,7 @@ struct trace_event_call {
 };
 
 static inline const char *
-ftrace_event_name(struct trace_event_call *call)
+trace_event_name(struct trace_event_call *call)
 {
 	if (call->flags & TRACE_EVENT_FL_TRACEPOINT)
 		return call->tp ? call->tp->name : NULL;
