@@ -31,6 +31,8 @@
 #include <linux/slab.h>
 #include <linux/u64_stats_sync.h>
 #include <linux/cpumask.h>
+#include <linux/hwmon.h>
+#include <linux/hwmon-sysfs.h>
 
 #include "be_hw.h"
 #include "be_roce.h"
@@ -314,7 +316,6 @@ struct be_rx_obj {
 } ____cacheline_aligned_in_smp;
 
 struct be_drv_stats {
-	u32 be_on_die_temperature;
 	u32 eth_red_drops;
 	u32 dma_map_errors;
 	u32 rx_drops_no_pbuf;
@@ -432,6 +433,12 @@ struct rss_info {
 	u8 rsstable[RSS_INDIR_TABLE_LEN];
 	u8 rss_queue[RSS_INDIR_TABLE_LEN];
 	u8 rss_hkey[RSS_HASH_KEY_LEN];
+};
+
+#define BE_INVALID_DIE_TEMP	0xFF
+struct be_hwmon {
+	struct device *hwmon_dev;
+	u8 be_on_die_temp;  /* Unit: millidegree Celsius */
 };
 
 /* Macros to read/write the 'features' word of be_wrb_params structure.
@@ -573,6 +580,7 @@ struct be_adapter {
 	u16 qnq_vid;
 	u32 msg_enable;
 	int be_get_temp_freq;
+	struct be_hwmon hwmon_info;
 	u8 pf_number;
 	struct rss_info rss_info;
 };

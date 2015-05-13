@@ -5470,6 +5470,30 @@ static void be_remove(struct pci_dev *pdev)
 	free_netdev(adapter->netdev);
 }
 
+ssize_t be_hwmon_show_temp(struct device *dev,
+			   struct device_attribute *dev_attr,
+			   char *buf)
+{
+	struct be_adapter *adapter = dev_get_drvdata(dev);
+
+	/* Unit: millidegree Celsius */
+	if (adapter->hwmon_info.be_on_die_temp == BE_INVALID_DIE_TEMP)
+		return -EIO;
+	else
+		return sprintf(buf, "%u\n",
+			       adapter->hwmon_info.be_on_die_temp * 1000);
+}
+
+static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO,
+			  be_hwmon_show_temp, NULL, 1);
+
+static struct attribute *be_hwmon_attrs[] = {
+	&sensor_dev_attr_temp1_input.dev_attr.attr,
+	NULL
+};
+
+ATTRIBUTE_GROUPS(be_hwmon);
+
 static char *mc_name(struct be_adapter *adapter)
 {
 	char *str = "";	/* default */
@@ -5588,6 +5612,16 @@ static int be_probe(struct pci_dev *pdev, const struct pci_device_id *pdev_id)
 	be_roce_dev_add(adapter);
 
 	be_schedule_err_detection(adapter);
+
+	/* On Die temperature not supported for VF. */
+	if (be_physfn(adapter)) {
+		adapter->hwmon_info.hwmon_dev =
+			devm_hwmon_device_register_with_groups(&pdev->dev,
+							       DRV_NAME,
+							       adapter,
+							       be_hwmon_groups);
+		adapter->hwmon_info.be_on_die_temp = BE_INVALID_DIE_TEMP;
+	}
 
 	dev_info(&pdev->dev, "%s: %s %s port %c\n", nic_name(pdev),
 		 func_name(adapter), mc_name(adapter), adapter->port_name);
