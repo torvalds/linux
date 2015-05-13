@@ -430,7 +430,7 @@ static int __init geneve_init_module(void)
 	if (rc)
 		return rc;
 
-	pr_info("Geneve driver\n");
+	pr_info("Geneve core logic\n");
 
 	return 0;
 }
@@ -444,4 +444,4 @@ module_exit(geneve_cleanup_module);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jesse Gross <jesse@nicira.com>");
-MODULE_DESCRIPTION("Driver for GENEVE encapsulated traffic");
+MODULE_DESCRIPTION("Driver library for GENEVE encapsulated traffic");
