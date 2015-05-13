@@ -188,7 +188,8 @@ int switchdev_port_attr_set(struct net_device *dev, struct switchdev_attr *attr)
 }
 EXPORT_SYMBOL_GPL(switchdev_port_attr_set);
 
-int __switchdev_port_obj_add(struct net_device *dev, struct switchdev_obj *obj)
+static int __switchdev_port_obj_add(struct net_device *dev,
+				    struct switchdev_obj *obj)
 {
 	const struct switchdev_ops *ops = dev->switchdev_ops;
 	struct net_device *lower_dev;
