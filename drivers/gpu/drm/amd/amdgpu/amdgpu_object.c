@@ -263,6 +263,9 @@ int amdgpu_bo_kmap(struct amdgpu_bo *bo, void **ptr)
 	bool is_iomem;
 	int r;
 
+	if (bo->flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS)
+		return -EPERM;
+
 	if (bo->kptr) {
 		if (ptr) {
 			*ptr = bo->kptr;

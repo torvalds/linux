@@ -316,7 +316,8 @@ int amdgpu_mode_dumb_mmap(struct drm_file *filp,
 		return -ENOENT;
 	}
 	robj = gem_to_amdgpu_bo(gobj);
-	if (amdgpu_ttm_tt_has_userptr(robj->tbo.ttm)) {
+	if (amdgpu_ttm_tt_has_userptr(robj->tbo.ttm) ||
+	    (robj->flags & AMDGPU_GEM_CREATE_NO_CPU_ACCESS)) {
 		drm_gem_object_unreference_unlocked(gobj);
 		return -EPERM;
 	}
