@@ -60,11 +60,6 @@ struct geneve_net {
 
 static int geneve_net_id;
 
-static inline struct genevehdr *geneve_hdr(const struct sk_buff *skb)
-{
-	return (struct genevehdr *)(udp_hdr(skb) + 1);
-}
-
 static struct geneve_sock *geneve_find_sock(struct net *net,
 					    sa_family_t family, __be16 port)
 {
