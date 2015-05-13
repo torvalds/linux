@@ -4763,6 +4763,8 @@ static int rt5677_remove(struct snd_soc_codec *codec)
 	regmap_write(rt5677->regmap, RT5677_RESET, 0x10ec);
 	if (gpio_is_valid(rt5677->pow_ldo2))
 		gpio_set_value_cansleep(rt5677->pow_ldo2, 0);
+	if (gpio_is_valid(rt5677->reset_pin))
+		gpio_set_value_cansleep(rt5677->reset_pin, 0);
 
 	return 0;
 }
@@ -4778,6 +4780,8 @@ static int rt5677_suspend(struct snd_soc_codec *codec)
 
 		if (gpio_is_valid(rt5677->pow_ldo2))
 			gpio_set_value_cansleep(rt5677->pow_ldo2, 0);
+		if (gpio_is_valid(rt5677->reset_pin))
+			gpio_set_value_cansleep(rt5677->reset_pin, 0);
 	}
 
 	return 0;
@@ -4788,10 +4792,13 @@ static int rt5677_resume(struct snd_soc_codec *codec)
 	struct rt5677_priv *rt5677 = snd_soc_codec_get_drvdata(codec);
 
 	if (!rt5677->dsp_vad_en) {
-		if (gpio_is_valid(rt5677->pow_ldo2)) {
+		if (gpio_is_valid(rt5677->pow_ldo2))
 			gpio_set_value_cansleep(rt5677->pow_ldo2, 1);
+		if (gpio_is_valid(rt5677->reset_pin))
+			gpio_set_value_cansleep(rt5677->reset_pin, 1);
+		if (gpio_is_valid(rt5677->pow_ldo2) ||
+		    gpio_is_valid(rt5677->reset_pin))
 			msleep(10);
-		}
 
 		regcache_cache_only(rt5677->regmap, false);
 		regcache_sync(rt5677->regmap);
@@ -5029,6 +5036,8 @@ static int rt5677_parse_dt(struct rt5677_priv *rt5677, struct device_node *np)
 
 	rt5677->pow_ldo2 = of_get_named_gpio(np,
 					"realtek,pow-ldo2-gpio", 0);
+	rt5677->reset_pin = of_get_named_gpio(np,
+					"realtek,reset-gpio", 0);
 
 	/*
 	 * POW_LDO2 is optional (it may be statically tied on the board).
@@ -5039,6 +5048,9 @@ static int rt5677_parse_dt(struct rt5677_priv *rt5677, struct device_node *np)
 	if (!gpio_is_valid(rt5677->pow_ldo2) &&
 			(rt5677->pow_ldo2 != -ENOENT))
 		return rt5677->pow_ldo2;
+	if (!gpio_is_valid(rt5677->reset_pin) &&
+			(rt5677->reset_pin != -ENOENT))
+		return rt5677->reset_pin;
 
 	of_property_read_u8_array(np, "realtek,gpio-config",
 		rt5677->pdata.gpio_config, RT5677_GPIO_NUM);
@@ -5140,6 +5152,7 @@ static int rt5677_i2c_probe(struct i2c_client *i2c,
 		}
 	} else {
 		rt5677->pow_ldo2 = -EINVAL;
+		rt5677->reset_pin = -EINVAL;
 	}
 
 	if (gpio_is_valid(rt5677->pow_ldo2)) {
@@ -5151,6 +5164,21 @@ static int rt5677_i2c_probe(struct i2c_client *i2c,
 				rt5677->pow_ldo2, ret);
 			return ret;
 		}
+	}
+
+	if (gpio_is_valid(rt5677->reset_pin)) {
+		ret = devm_gpio_request_one(&i2c->dev, rt5677->reset_pin,
+					    GPIOF_OUT_INIT_HIGH,
+					    "RT5677 RESET");
+		if (ret < 0) {
+			dev_err(&i2c->dev, "Failed to request RESET %d: %d\n",
+				rt5677->reset_pin, ret);
+			return ret;
+		}
+	}
+
+	if (gpio_is_valid(rt5677->pow_ldo2) ||
+	    gpio_is_valid(rt5677->reset_pin)) {
 		/* Wait a while until I2C bus becomes available. The datasheet
 		 * does not specify the exact we should wait but startup
 		 * sequence mentiones at least a few milliseconds.
