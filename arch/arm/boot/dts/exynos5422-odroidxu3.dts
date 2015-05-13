@@ -285,25 +285,35 @@
 		};
 	};
 
-	leds {
-		compatible = "gpio-leds";
-		heartbeat {
-			label = "blue:heartbeart";
-			gpios = <&gpb2 2 0>;
-			default-state = "off";
-			linux,default-trigger = "heartbeat";
-		};
+	pwmleds {
+		compatible = "pwm-leds";
 
-		eMMC {
-			label = "green:eMMC";
-			gpios = <&gpb2 1 0>;
-			default-state = "off";
+		greenled {
+			label = "green:mmc0";
+			pwms = <&pwm 1 2000000 0>;
+			pwm-names = "pwm1";
+			/*
+			 * Green LED is much brighter than the others
+			 * so limit its max brightness
+			 */
+			max_brightness = <127>;
 			linux,default-trigger = "mmc0";
 		};
 
-		microSD {
+		blueled {
+			label = "blue:heartbeat";
+			pwms = <&pwm 2 2000000 0>;
+			pwm-names = "pwm2";
+			max_brightness = <255>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	gpioleds {
+		compatible = "gpio-leds";
+		redled {
 			label = "red:microSD";
-			gpios = <&gpx2 3 0>;
+			gpios = <&gpx2 3 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 			linux,default-trigger = "mmc1";
 		};
@@ -470,6 +480,18 @@
 		reg = <0x45>;
 		shunt-resistor = <10000>;
 	};
+};
+
+&pwm {
+	/*
+	 * PWM 0 -- fan
+	 * PWM 1 -- Green LED
+	 * PWM 2 -- Blue LED
+	 * PWM 3 -- on MIPI connector for backlight
+	 */
+	pinctrl-0 = <&pwm0_out &pwm1_out &pwm2_out &pwm3_out>;
+	pinctrl-names = "default";
+	status = "okay";
 };
 
 &rtc {
