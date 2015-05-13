@@ -645,7 +645,7 @@ int switchdev_fib_ipv4_add(u32 dst, int dst_len, struct fib_info *fi,
 	struct switchdev_obj fib_obj = {
 		.id = SWITCHDEV_OBJ_IPV4_FIB,
 		.ipv4_fib = {
-			.dst = htonl(dst),
+			.dst = dst,
 			.dst_len = dst_len,
 			.fi = fi,
 			.tos = tos,
@@ -699,7 +699,7 @@ int switchdev_fib_ipv4_del(u32 dst, int dst_len, struct fib_info *fi,
 	struct switchdev_obj fib_obj = {
 		.id = SWITCHDEV_OBJ_IPV4_FIB,
 		.ipv4_fib = {
-			.dst = htonl(dst),
+			.dst = dst,
 			.dst_len = dst_len,
 			.fi = fi,
 			.tos = tos,

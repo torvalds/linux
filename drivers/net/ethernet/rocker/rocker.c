@@ -4471,7 +4471,7 @@ static int rocker_port_obj_add(struct net_device *dev,
 	case SWITCHDEV_OBJ_IPV4_FIB:
 		fib4 = &obj->ipv4_fib;
 		err = rocker_port_fib_ipv4(rocker_port, obj->trans,
-					   fib4->dst, fib4->dst_len,
+					   htonl(fib4->dst), fib4->dst_len,
 					   fib4->fi, fib4->tb_id, 0);
 		break;
 	default:
@@ -4525,8 +4525,9 @@ static int rocker_port_obj_del(struct net_device *dev,
 	case SWITCHDEV_OBJ_IPV4_FIB:
 		fib4 = &obj->ipv4_fib;
 		err = rocker_port_fib_ipv4(rocker_port, SWITCHDEV_TRANS_NONE,
-					   fib4->dst, fib4->dst_len, fib4->fi,
-					   fib4->tb_id, ROCKER_OP_FLAG_REMOVE);
+					   htonl(fib4->dst), fib4->dst_len,
+					   fib4->fi, fib4->tb_id,
+					   ROCKER_OP_FLAG_REMOVE);
 		break;
 	default:
 		err = -EOPNOTSUPP;
