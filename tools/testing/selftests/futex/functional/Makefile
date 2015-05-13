@@ -12,13 +12,14 @@ TARGETS := \
 	futex_wait_uninitialized_heap \
 	futex_wait_private_mapped_file
 
+TEST_PROGS := $(TARGETS) run.sh
+
 .PHONY: all clean
 all: $(TARGETS)
 
 $(TARGETS): $(HEADERS)
 
-run_tests: all
-	./run.sh
+include ../../lib.mk
 
 clean:
 	rm -f $(TARGETS)
