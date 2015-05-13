@@ -29,7 +29,7 @@ Example:
 
 	fuse@7000f800 {
 		compatible = "nvidia,tegra20-efuse";
-		reg = <0x7000F800 0x400>,
+		reg = <0x7000f800 0x400>,
 		      <0x70000000 0x400>;
 		clocks = <&tegra_car TEGRA20_CLK_FUSE>;
 		clock-names = "fuse";
