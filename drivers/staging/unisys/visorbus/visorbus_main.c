@@ -606,113 +606,8 @@ void unregister_channel_attributes(struct visor_device *dev)
 	kobject_put(&dev->kobjchannel);
 	dev->kobjchannel.parent = NULL;
 }
-/*   This is actually something they forgot to put in the kernel.
- *   struct bus_type in the kernel SHOULD have a "busses" member, which
- *   should be treated similarly to the "devices" and "drivers" members.
- *   There SHOULD be:
- *   - a "businst_attribute" analogous to the existing "bus_attribute"
- *   - a "businst_create_file" and "businst_remove_file" analogous to the
- *     existing "bus_create_file" and "bus_remove_file".
- *   That's what I created businst.c and businst.h to do.
- *
- *   We want to add the "busses" sub-tree in sysfs, where we will house the
- *   names and properties of each bus instance:
- *
- *       /sys/bus/<bustypename>/
- *           version
- *           devices
- *               <devname1> --> /sys/devices/<businstancename><devname1>
- *               <devname2> --> /sys/devices/<businstancename><devname2>
- *           drivers
- *               <driverinstancename1>
- *                   <driverinstance1property1>
- *                   <driverinstance1property2>
- *                   ...
- *               <driverinstancename2>
- *                   <driverinstance2property1>
- *                   <driverinstance2property2>
- *                   ...
- *   >>      busses
- *   >>          <businstancename1>
- *   >>              <businstance1property1>
- *   >>              <businstance1property2>
- *   >>              ...
- *   >>          <businstancename2>
- *   >>              <businstance2property1>
- *   >>              <businstance2property2>
- *   >>              ...
- *
- *   I considered adding bus instance properties under
- *   /sys/devices/<businstancename>.  But I thought there may be existing
- *   notions that ONLY device sub-trees should live under
- *   /sys/devices/<businstancename>.  So I stayed out of there.
- *
- */
-
-struct businst_attribute {
-	struct attribute attr;
-	 ssize_t (*show)(struct visorbus_devdata*, char *buf);
-	 ssize_t (*store)(struct visorbus_devdata*, const char *buf,
-			  size_t count);
-};
-
-#define to_businst_attr(_attr) \
-	container_of(_attr, struct businst_attribute, attr)
 #define to_visorbus_devdata(obj) \
-	container_of(obj, struct visorbus_devdata, kobj)
-
-static ssize_t
-businst_attr_show(struct kobject *kobj, struct attribute *attr,
-		  char *buf)
-{
-	struct businst_attribute *businst_attr = to_businst_attr(attr);
-	struct visorbus_devdata *bus = to_visorbus_devdata(kobj);
-	ssize_t ret = 0;
-
-	if (businst_attr->show)
-		ret = businst_attr->show(bus, buf);
-	return ret;
-}
-
-static ssize_t
-businst_attr_store(struct kobject *kobj, struct attribute *attr,
-		   const char *buf, size_t count)
-{
-	struct businst_attribute *businst_attr = to_businst_attr(attr);
-	struct visorbus_devdata *bus = to_visorbus_devdata(kobj);
-	ssize_t ret = 0;
-
-	if (businst_attr->store)
-		ret = businst_attr->store(bus, buf, count);
-	return ret;
-}
-
-static int
-businst_create_file(struct visorbus_devdata *bus,
-		    struct businst_attribute *attr)
-{
-	return sysfs_create_file(&bus->kobj, &attr->attr);
-}
-
-static void
-businst_remove_file(struct visorbus_devdata *bus,
-		    struct businst_attribute *attr)
-{
-	sysfs_remove_file(&bus->kobj, &attr->attr);
-}
-
-static const struct sysfs_ops businst_sysfs_ops = {
-	.show = businst_attr_show,
-	.store = businst_attr_store,
-};
-
-static struct kobj_type businst_kobj_type = {
-	.sysfs_ops = &businst_sysfs_ops
-};
-
-static struct kset businstances = { /* should actually be a member of
-				     * bus_type */
-};
+	container_of(obj, struct visorbus_devdata, dev)
 
 /*  BUS type attributes
  *
@@ -736,23 +631,6 @@ register_bustype_attributes(void)
 	int rc = 0;
 
 	rc = bus_create_file(&visorbus_type, &bustype_attr_version);
-	if (rc < 0)
-			goto away;
-
-	/* Here we make up for the fact that bus_type does not yet have a
-	 * member to keep track of multiple bus instances for a given bus
-	 * type.  This is useful for stashing properties for each bus
-	 * instance.
-	 */
-	kobject_set_name(&businstances.kobj, "busses");
-	businstances.kobj.ktype = &businst_kobj_type;
-	businstances.kobj.parent = &visorbus_type.p->subsys.kobj;
-	rc = kset_register(&businstances);
-	if (rc < 0)
-			goto away;
-
-	rc = 0;
-away:
 	return rc;
 }
 
@@ -760,7 +638,6 @@ static void
 unregister_bustype_attributes(void)
 {
 	bus_remove_file(&visorbus_type, &bustype_attr_version);
-	kset_unregister(&businstances);
 }
 
 /*  BUS instance attributes
@@ -774,8 +651,10 @@ unregister_bustype_attributes(void)
  *
  */
 
-static ssize_t businst_attr_partition_handle(struct visorbus_devdata *businst,
-					     char *buf) {
+static ssize_t partition_handle_show(struct device *dev,
+				     struct device_attribute *attr,
+				     char *buf) {
+	struct visorbus_devdata *businst = to_visorbus_devdata(dev);
 	struct visorchipset_bus_info bus_info;
 	int len = 0;
 
@@ -786,8 +665,10 @@ static ssize_t businst_attr_partition_handle(struct visorbus_devdata *businst,
 	return len;
 }
 
-static ssize_t businst_attr_partition_guid(struct visorbus_devdata *businst,
-					   char *buf) {
+static ssize_t partition_guid_show(struct device *dev,
+				   struct device_attribute *attr,
+				   char *buf) {
+	struct visorbus_devdata *businst = to_visorbus_devdata(dev);
 	struct visorchipset_bus_info bus_info;
 	int len = 0;
 
@@ -797,8 +678,10 @@ static ssize_t businst_attr_partition_guid(struct visorbus_devdata *businst,
 	return len;
 }
 
-static ssize_t businst_attr_partition_name(struct visorbus_devdata *businst,
-					   char *buf) {
+static ssize_t partition_name_show(struct device *dev,
+				   struct device_attribute *attr,
+				   char *buf) {
+	struct visorbus_devdata *businst = to_visorbus_devdata(dev);
 	struct visorchipset_bus_info bus_info;
 	int len = 0;
 
@@ -809,8 +692,10 @@ static ssize_t businst_attr_partition_name(struct visorbus_devdata *businst,
 	return len;
 }
 
-static ssize_t businst_attr_channel_addr(struct visorbus_devdata *businst,
-					 char *buf) {
+static ssize_t channel_addr_show(struct device *dev,
+				 struct device_attribute *attr,
+				 char *buf) {
+	struct visorbus_devdata *businst = to_visorbus_devdata(dev);
 	struct visorchipset_bus_info bus_info;
 	int len = 0;
 
@@ -820,8 +705,10 @@ static ssize_t businst_attr_channel_addr(struct visorbus_devdata *businst,
 	return len;
 }
 
-static ssize_t businst_attr_nchannel_bytes(struct visorbus_devdata *businst,
-					   char *buf) {
+static ssize_t channel_bytes_show(struct device *dev,
+				  struct device_attribute *attr,
+				  char *buf) {
+	struct visorbus_devdata *businst = to_visorbus_devdata(dev);
 	struct visorchipset_bus_info bus_info;
 	int len = 0;
 
@@ -831,8 +718,10 @@ static ssize_t businst_attr_nchannel_bytes(struct visorbus_devdata *businst,
 	return len;
 }
 
-static ssize_t businst_attr_channel_id(struct visorbus_devdata *businst,
-				       char *buf) {
+static ssize_t channel_id_show(struct device *dev,
+			       struct device_attribute *attr,
+			       char *buf) {
+	struct visorbus_devdata *businst = to_visorbus_devdata(dev);
 	int len = 0;
 
 	if (businst && businst->chan) {
@@ -843,8 +732,10 @@ static ssize_t businst_attr_channel_id(struct visorbus_devdata *businst,
 	return len;
 }
 
-static ssize_t businst_attr_client_bus_info(struct visorbus_devdata *businst,
-					    char *buf) {
+static ssize_t client_bus_info_show(struct device *dev,
+				    struct device_attribute *attr,
+				    char *buf) {
+	struct visorbus_devdata *businst = to_visorbus_devdata(dev);
 	struct visorchipset_bus_info bus_info;
 	int i, x, remain = PAGE_SIZE;
 	unsigned long off;
@@ -903,79 +794,33 @@ static ssize_t businst_attr_client_bus_info(struct visorbus_devdata *businst,
 	return PAGE_SIZE - remain;
 }
 
-static struct businst_attribute ba_partition_handle =
-	__ATTR(partition_handle, S_IRUGO, businst_attr_partition_handle, NULL);
-static struct businst_attribute ba_partition_guid =
-	__ATTR(partition_guid, S_IRUGO, businst_attr_partition_guid, NULL);
-static struct businst_attribute ba_partition_name =
-	__ATTR(partition_name, S_IRUGO, businst_attr_partition_name, NULL);
-static struct businst_attribute ba_channel_addr =
-	__ATTR(channel_addr, S_IRUGO, businst_attr_channel_addr, NULL);
-static struct businst_attribute ba_nchannel_bytes =
-	__ATTR(nchannel_bytes, S_IRUGO, businst_attr_nchannel_bytes, NULL);
-static struct businst_attribute ba_channel_id =
-	__ATTR(channel_id, S_IRUGO, businst_attr_channel_id, NULL);
-static struct businst_attribute ba_client_bus_info =
-	__ATTR(client_bus_info, S_IRUGO, businst_attr_client_bus_info, NULL);
+static DEVICE_ATTR_RO(partition_handle);
+static DEVICE_ATTR_RO(partition_guid);
+static DEVICE_ATTR_RO(partition_name);
+static DEVICE_ATTR_RO(channel_addr);
+static DEVICE_ATTR_RO(channel_bytes);
+static DEVICE_ATTR_RO(channel_id);
+static DEVICE_ATTR_RO(client_bus_info);
 
-static int
-register_businst_attributes(struct visorbus_devdata *businst)
-{
-	int rc = 0;
+static struct attribute *dev_attrs[] = {
+		&dev_attr_partition_handle.attr,
+		&dev_attr_partition_guid.attr,
+		&dev_attr_partition_name.attr,
+		&dev_attr_channel_addr.attr,
+		&dev_attr_channel_bytes.attr,
+		&dev_attr_channel_id.attr,
+		&dev_attr_client_bus_info.attr,
+		NULL
+};
 
-	businst->kobj.kset = &businstances;	/* identify parent sysfs dir */
-	rc = kobject_init_and_add(&businst->kobj, &businst_kobj_type,
-				  NULL, "visorbus%d", businst->devno);
-	if (rc < 0)
-			goto away;
+static struct attribute_group dev_attr_grp = {
+		.attrs = dev_attrs,
+};
 
-	rc = businst_create_file(businst, &ba_partition_handle);
-	if (rc < 0)
-			goto away;
-
-	rc = businst_create_file(businst, &ba_partition_guid);
-	if (rc < 0)
-			goto away;
-
-	rc = businst_create_file(businst, &ba_partition_name);
-	if (rc < 0)
-			goto away;
-
-	rc = businst_create_file(businst, &ba_channel_addr);
-	if (rc < 0)
-			goto away;
-
-	rc = businst_create_file(businst, &ba_nchannel_bytes);
-	if (rc < 0)
-			goto away;
-
-	rc = businst_create_file(businst, &ba_channel_id);
-	if (rc < 0)
-			goto away;
-
-	rc = businst_create_file(businst, &ba_client_bus_info);
-	if (rc < 0)
-			goto away;
-
-	kobject_uevent(&businst->kobj, KOBJ_ADD);
-
-	rc = 0;
-away:
-	return rc;
-}
-
-static void
-unregister_businst_attributes(struct visorbus_devdata *businst)
-{
-	businst_remove_file(businst, &ba_partition_handle);
-	businst_remove_file(businst, &ba_partition_guid);
-	businst_remove_file(businst, &ba_partition_name);
-	businst_remove_file(businst, &ba_channel_addr);
-	businst_remove_file(businst, &ba_nchannel_bytes);
-	businst_remove_file(businst, &ba_channel_id);
-	businst_remove_file(businst, &ba_client_bus_info);
-	kobject_put(&businst->kobj);
-}
+static const struct attribute_group *visorbus_groups[] = {
+		&dev_attr_grp,
+		NULL
+};
 
 /*  DRIVER attributes
  *
@@ -1646,6 +1491,7 @@ create_bus_instance(int id)
 		goto away;
 	}
 	dev_set_name(&devdata->dev, "visorbus%d", id);
+	devdata->dev.groups = visorbus_groups;
 	devdata->dev.release = visorbus_release_busdevice;
 	if (device_register(&devdata->dev) < 0) {
 		POSTCODE_LINUX_3(DEVICE_CREATE_FAILURE_PC, id,
@@ -1692,7 +1538,6 @@ create_bus_instance(int id)
 			}
 		}
 	}
-	register_businst_attributes(devdata);
 	bus_count++;
 	list_add_tail(&devdata->list_all, &list_all_bus_instances);
 	if (id == 0)
@@ -1715,7 +1560,6 @@ remove_bus_instance(struct visorbus_devdata *devdata)
 	 * successfully been able to trace thru the code to see where/how
 	 * release() gets called.  But I know it does.
 	 */
-	unregister_businst_attributes(devdata);
 	bus_count--;
 	if (devdata->chan) {
 		visorchannel_destroy(devdata->chan);
