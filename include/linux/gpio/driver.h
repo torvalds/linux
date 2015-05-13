@@ -42,8 +42,12 @@ struct seq_file;
  * @dbg_show: optional routine to show contents in debugfs; default code
  *	will be used when this is omitted, but custom code can show extra
  *	state (such as pullup/pulldown configuration).
- * @base: identifies the first GPIO number handled by this chip; or, if
- *	negative during registration, requests dynamic ID allocation.
+ * @base: identifies the first GPIO number handled by this chip;
+ *	or, if negative during registration, requests dynamic ID allocation.
+ *	DEPRECATION: providing anything non-negative and nailing the base
+ *	base offset of GPIO chips is deprecated. Please pass -1 as base to
+ *	let gpiolib select the chip base in all possible cases. We want to
+ *	get rid of the static GPIO number space in the long run.
  * @ngpio: the number of GPIOs handled by this controller; the last GPIO
  *	handled is (base + ngpio - 1).
  * @desc: array of ngpio descriptors. Private.
