@@ -3099,7 +3099,6 @@ void rt_mutex_setprio(struct task_struct *p, int prio)
 		if (!dl_prio(p->normal_prio) ||
 		    (pi_task && dl_entity_preempt(&pi_task->dl, &p->dl))) {
 			p->dl.dl_boosted = 1;
-			p->dl.dl_throttled = 0;
 			enqueue_flag = ENQUEUE_REPLENISH;
 		} else
 			p->dl.dl_boosted = 0;
