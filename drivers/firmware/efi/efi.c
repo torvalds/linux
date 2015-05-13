@@ -65,7 +65,6 @@ static int __init parse_efi_cmdline(char *str)
 early_param("efi", parse_efi_cmdline);
 
 static struct kobject *efi_kobj;
-static struct kobject *efivars_kobj;
 
 /*
  * Let's not leave out systab information that snuck into
@@ -212,10 +211,9 @@ static int __init efisubsys_init(void)
 		goto err_remove_group;
 
 	/* and the standard mountpoint for efivarfs */
-	efivars_kobj = kobject_create_and_add("efivars", efi_kobj);
-	if (!efivars_kobj) {
+	error = sysfs_create_mount_point(efi_kobj, "efivars");
+	if (error) {
 		pr_err("efivars: Subsystem registration failed.\n");
-		error = -ENOMEM;
 		goto err_remove_group;
 	}
 

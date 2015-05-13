@@ -2241,16 +2241,16 @@ static const struct file_operations smk_revoke_subj_ops = {
 	.llseek		= generic_file_llseek,
 };
 
-static struct kset *smackfs_kset;
 /**
  * smk_init_sysfs - initialize /sys/fs/smackfs
  *
  */
 static int smk_init_sysfs(void)
 {
-	smackfs_kset = kset_create_and_add("smackfs", NULL, fs_kobj);
-	if (!smackfs_kset)
-		return -ENOMEM;
+	int err;
+	err = sysfs_create_mount_point(fs_kobj, "smackfs");
+	if (err)
+		return err;
 	return 0;
 }
 
