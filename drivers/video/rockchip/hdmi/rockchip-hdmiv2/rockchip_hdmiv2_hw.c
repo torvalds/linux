@@ -1550,6 +1550,9 @@ static int hdmi_dev_config_audio(struct hdmi *hdmi, struct hdmi_audio *audio)
 		     m_AUDIO_SAMPLE_RATE, v_AUDIO_SAMPLE_RATE(rate));
 	hdmi_writel(hdmi_dev, FC_AUDSCHNLS8, ((~rate) << 4) | 0x2);
 
+	hdmi_msk_reg(hdmi_dev, AUD_CONF0,
+		     m_SW_AUD_FIFO_RST, v_SW_AUD_FIFO_RST(1));
+
 	hdmi_dev_config_aai(hdmi_dev, audio);
 
 	return 0;
