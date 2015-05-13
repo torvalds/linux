@@ -1257,7 +1257,7 @@ static int seq_show(struct seq_file *s, void *v)
 		   inst->copy_mode, inst->copy_range,
 		   inst->queue_dropped, inst->queue_user_dropped,
 		   inst->id_sequence, 1);
-	return seq_has_overflowed(s);
+	return 0;
 }
 
 static const struct seq_operations nfqnl_seq_ops = {
