@@ -207,6 +207,8 @@ int skb_ether_to_p80211(wlandevice_t *wlandev, u32 ethconv,
 		/* XXXX need to pick keynum other than default? */
 
 		p80211_wep->data = kmalloc(skb->len, GFP_ATOMIC);
+		if (!p80211_wep->data)
+			return -ENOMEM;
 		foo = wep_encrypt(wlandev, skb->data, p80211_wep->data,
 				  skb->len,
 				  (wlandev->hostwep & HOSTWEP_DEFAULTKEY_MASK),
