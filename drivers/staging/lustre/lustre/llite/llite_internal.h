@@ -57,12 +57,6 @@
 #define VM_FAULT_RETRY 0
 #endif
 
-/* Kernel 3.1 kills LOOKUP_CONTINUE, LOOKUP_PARENT is equivalent to it.
- * seem kernel commit 49084c3bb2055c401f3493c13edae14d49128ca0 */
-#ifndef LOOKUP_CONTINUE
-#define LOOKUP_CONTINUE LOOKUP_PARENT
-#endif
-
 /** Only used on client-side for indicating the tail of dir hash/offset. */
 #define LL_DIR_END_OFF	  0x7fffffffffffffffULL
 #define LL_DIR_END_OFF_32BIT    0x7fffffffUL
