@@ -193,13 +193,13 @@ static bool amdgpu_fence_activity(struct amdgpu_ring *ring)
 	 * xchg of the current process.
 	 *
 	 * More over for this to go in infinite loop there need to be
-	 * continuously new fence signaled ie radeon_fence_read needs
+	 * continuously new fence signaled ie amdgpu_fence_read needs
 	 * to return a different value each time for both the currently
 	 * polling process and the other process that xchg the last_seq
 	 * btw atomic read and xchg of the current process. And the
 	 * value the other process set as last seq must be higher than
 	 * the seq value we just read. Which means that current process
-	 * need to be interrupted after radeon_fence_read and before
+	 * need to be interrupted after amdgpu_fence_read and before
 	 * atomic xchg.
 	 *
 	 * To be even more safe we count the number of time we loop and

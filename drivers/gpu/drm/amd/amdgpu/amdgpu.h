@@ -2164,7 +2164,7 @@ static inline struct amdgpu_fence *to_amdgpu_fence(struct fence *f)
 static inline void amdgpu_ring_write(struct amdgpu_ring *ring, uint32_t v)
 {
 	if (ring->count_dw <= 0)
-		DRM_ERROR("radeon: writing more dwords to the ring than expected!\n");
+		DRM_ERROR("amdgpu: writing more dwords to the ring than expected!\n");
 	ring->ring[ring->wptr++] = v;
 	ring->wptr &= ring->ptr_mask;
 	ring->count_dw--;
