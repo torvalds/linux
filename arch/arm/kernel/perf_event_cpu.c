@@ -179,9 +179,13 @@ static int cpu_pmu_request_irq(struct arm_pmu *cpu_pmu, irq_handler_t handler)
 static int cpu_pmu_notify(struct notifier_block *b, unsigned long action,
 			  void *hcpu)
 {
+	int cpu = (unsigned long)hcpu;
 	struct arm_pmu *pmu = container_of(b, struct arm_pmu, hotplug_nb);
 
 	if ((action & ~CPU_TASKS_FROZEN) != CPU_STARTING)
+		return NOTIFY_DONE;
+
+	if (!cpumask_test_cpu(cpu, &pmu->supported_cpus))
 		return NOTIFY_DONE;
 
 	if (pmu->reset)
@@ -219,7 +223,8 @@ static int cpu_pmu_init(struct arm_pmu *cpu_pmu)
 
 	/* Ensure the PMU has sane values out of reset. */
 	if (cpu_pmu->reset)
-		on_each_cpu(cpu_pmu->reset, cpu_pmu, 1);
+		on_each_cpu_mask(&cpu_pmu->supported_cpus, cpu_pmu->reset,
+			 cpu_pmu, 1);
 
 	/* If no interrupts available, set the corresponding capability flag */
 	if (!platform_get_irq(cpu_pmu->plat_device, 0))
@@ -334,12 +339,15 @@ static int of_pmu_irq_cfg(struct arm_pmu *pmu)
 		}
 
 		irqs[i] = cpu;
+		cpumask_set_cpu(cpu, &pmu->supported_cpus);
 	}
 
-	if (i == pdev->num_resources)
+	if (i == pdev->num_resources) {
 		pmu->irq_affinity = irqs;
-	else
+	} else {
 		kfree(irqs);
+		cpumask_setall(&pmu->supported_cpus);
+	}
 
 	return 0;
 }
@@ -374,6 +382,7 @@ static int cpu_pmu_device_probe(struct platform_device *pdev)
 			ret = init_fn(pmu);
 	} else {
 		ret = probe_current_pmu(pmu);
+		cpumask_setall(&pmu->supported_cpus);
 	}
 
 	if (ret) {

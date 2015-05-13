@@ -92,6 +92,7 @@ struct pmu_hw_events {
 struct arm_pmu {
 	struct pmu	pmu;
 	cpumask_t	active_irqs;
+	cpumask_t	supported_cpus;
 	int		*irq_affinity;
 	char		*name;
 	irqreturn_t	(*handle_irq)(int irq_num, void *dev);

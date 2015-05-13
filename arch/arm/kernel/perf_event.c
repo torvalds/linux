@@ -11,6 +11,7 @@
  */
 #define pr_fmt(fmt) "hw perfevents: " fmt
 
+#include <linux/cpumask.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -228,6 +229,10 @@ armpmu_add(struct perf_event *event, int flags)
 	struct hw_perf_event *hwc = &event->hw;
 	int idx;
 	int err = 0;
+
+	/* An event following a process won't be stopped earlier */
+	if (!cpumask_test_cpu(smp_processor_id(), &armpmu->supported_cpus))
+		return -ENOENT;
 
 	perf_pmu_disable(event->pmu);
 
@@ -454,6 +459,17 @@ static int armpmu_event_init(struct perf_event *event)
 	int err = 0;
 	atomic_t *active_events = &armpmu->active_events;
 
+	/*
+	 * Reject CPU-affine events for CPUs that are of a different class to
+	 * that which this PMU handles. Process-following events (where
+	 * event->cpu == -1) can be migrated between CPUs, and thus we have to
+	 * reject them later (in armpmu_add) if they're scheduled on a
+	 * different class of CPU.
+	 */
+	if (event->cpu != -1 &&
+		!cpumask_test_cpu(event->cpu, &armpmu->supported_cpus))
+		return -ENOENT;
+
 	/* does not support taken branch sampling */
 	if (has_branch_stack(event))
 		return -EOPNOTSUPP;
@@ -489,6 +505,10 @@ static void armpmu_enable(struct pmu *pmu)
 	struct pmu_hw_events *hw_events = this_cpu_ptr(armpmu->hw_events);
 	int enabled = bitmap_weight(hw_events->used_mask, armpmu->num_events);
 
+	/* For task-bound events we may be called on other CPUs */
+	if (!cpumask_test_cpu(smp_processor_id(), &armpmu->supported_cpus))
+		return;
+
 	if (enabled)
 		armpmu->start(armpmu);
 }
@@ -496,6 +516,11 @@ static void armpmu_enable(struct pmu *pmu)
 static void armpmu_disable(struct pmu *pmu)
 {
 	struct arm_pmu *armpmu = to_arm_pmu(pmu);
+
+	/* For task-bound events we may be called on other CPUs */
+	if (!cpumask_test_cpu(smp_processor_id(), &armpmu->supported_cpus))
+		return;
+
 	armpmu->stop(armpmu);
 }
 
