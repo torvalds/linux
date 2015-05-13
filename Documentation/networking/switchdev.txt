@@ -99,7 +99,7 @@ kernel pick the default netdev name, and let udev set the final name based on a
 port attribute.
 
 Using port PHYS name (ndo_get_phys_port_name) for the key is particularly
-useful for dynically-named ports where the device names it's ports based on
+useful for dynamically-named ports where the device names its ports based on
 external configuration.  For example, if a physical 40G port is split logically
 into 4 10G ports, resulting in 4 port netdevs, the device can give a unique
 name for each port using port PHYS name.  The udev rule would be:
@@ -131,7 +131,7 @@ NETIF_F_NETNS_LOCAL
 If the switchdev driver (and device) only supports offloading of the default
 network namespace (netns), the driver should set this feature flag to prevent
 the port netdev from being moved out of the default netns.  A netns-aware
-driver/device would not set this flag and be resposible for partitioning
+driver/device would not set this flag and be responsible for partitioning
 hardware to preserve netns containment.  This means hardware cannot forward
 traffic from a port in one namespace to another port in another namespace.
 
@@ -176,6 +176,9 @@ to support static FDB entries installed to the device.  Static bridge FDB
 entries are installed, for example, using iproute2 bridge cmd:
 
 	bridge fdb add ADDR dev DEV [vlan VID] [self]
+
+XXX: what should be done if offloading this rule to hardware fails (for
+example, due to full capacity in hardware tables) ?
 
 Note: by default, the bridge does not filter on VLAN and only bridges untagged
 traffic.  To enable VLAN support, turn on VLAN filtering:
