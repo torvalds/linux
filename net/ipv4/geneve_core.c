@@ -60,11 +60,6 @@ struct geneve_net {
 
 static int geneve_net_id;
 
-static inline struct genevehdr *geneve_hdr(const struct sk_buff *skb)
-{
-	return (struct genevehdr *)(udp_hdr(skb) + 1);
-}
-
 static struct geneve_sock *geneve_find_sock(struct net *net,
 					    sa_family_t family, __be16 port)
 {
@@ -435,7 +430,7 @@ static int __init geneve_init_module(void)
 	if (rc)
 		return rc;
 
-	pr_info("Geneve driver\n");
+	pr_info("Geneve core logic\n");
 
 	return 0;
 }
@@ -449,5 +444,4 @@ module_exit(geneve_cleanup_module);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jesse Gross <jesse@nicira.com>");
-MODULE_DESCRIPTION("Driver for GENEVE encapsulated traffic");
-MODULE_ALIAS_RTNL_LINK("geneve");
+MODULE_DESCRIPTION("Driver library for GENEVE encapsulated traffic");

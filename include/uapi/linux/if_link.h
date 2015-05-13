@@ -390,6 +390,15 @@ struct ifla_vxlan_port_range {
 	__be16	high;
 };
 
+/* GENEVE section */
+enum {
+	IFLA_GENEVE_UNSPEC,
+	IFLA_GENEVE_ID,
+	IFLA_GENEVE_REMOTE,
+	__IFLA_GENEVE_MAX
+};
+#define IFLA_GENEVE_MAX	(__IFLA_GENEVE_MAX - 1)
+
 /* Bonding section */
 
 enum {
