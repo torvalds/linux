@@ -138,7 +138,7 @@ TRACE_MAKE_SYSTEM_STR();
  *
  * Include the following:
  *
- * struct ftrace_data_offsets_<call> {
+ * struct trace_event_data_offsets_<call> {
  *	u32				<item1>;
  *	u32				<item2>;
  *	[...]
@@ -178,7 +178,7 @@ TRACE_MAKE_SYSTEM_STR();
 
 #undef DECLARE_EVENT_CLASS
 #define DECLARE_EVENT_CLASS(call, proto, args, tstruct, assign, print)	\
-	struct ftrace_data_offsets_##call {				\
+	struct trace_event_data_offsets_##call {			\
 		tstruct;						\
 	};
 
@@ -486,7 +486,7 @@ ftrace_define_fields_##call(struct trace_event_call *event_call)	\
 #undef DECLARE_EVENT_CLASS
 #define DECLARE_EVENT_CLASS(call, proto, args, tstruct, assign, print)	\
 static inline notrace int ftrace_get_offsets_##call(			\
-	struct ftrace_data_offsets_##call *__data_offsets, proto)       \
+	struct trace_event_data_offsets_##call *__data_offsets, proto)	\
 {									\
 	int __data_size = 0;						\
 	int __maybe_unused __item_length;				\

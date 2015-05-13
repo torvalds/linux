@@ -11,7 +11,7 @@
  * {
  *	struct trace_event_file *trace_file = __data;
  *	struct trace_event_call *event_call = trace_file->event_call;
- *	struct ftrace_data_offsets_<call> __maybe_unused __data_offsets;
+ *	struct trace_event_data_offsets_<call> __maybe_unused __data_offsets;
  *	unsigned long eflags = trace_file->flags;
  *	enum event_trigger_type __tt = ETT_NONE;
  *	struct ring_buffer_event *event;
@@ -154,7 +154,7 @@ static notrace void							\
 trace_event_raw_event_##call(void *__data, proto)			\
 {									\
 	struct trace_event_file *trace_file = __data;			\
-	struct ftrace_data_offsets_##call __maybe_unused __data_offsets;\
+	struct trace_event_data_offsets_##call __maybe_unused __data_offsets;\
 	struct trace_event_buffer fbuffer;				\
 	struct trace_event_raw_##call *entry;				\
 	int __data_size;						\
@@ -293,7 +293,7 @@ static notrace void							\
 perf_trace_##call(void *__data, proto)					\
 {									\
 	struct trace_event_call *event_call = __data;			\
-	struct ftrace_data_offsets_##call __maybe_unused __data_offsets;\
+	struct trace_event_data_offsets_##call __maybe_unused __data_offsets;\
 	struct trace_event_raw_##call *entry;				\
 	struct pt_regs *__regs;						\
 	u64 __addr = 0, __count = 1;					\
