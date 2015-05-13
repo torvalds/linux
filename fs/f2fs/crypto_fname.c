@@ -425,7 +425,7 @@ int f2fs_fname_setup_filename(struct inode *dir, const struct qstr *iname,
 	if (!f2fs_encrypted_inode(dir) || is_dot_dotdot(iname)) {
 		fname->disk_name.name = (unsigned char *)iname->name;
 		fname->disk_name.len = iname->len;
-		goto out;
+		return 0;
 	}
 	ret = f2fs_setup_fname_crypto(dir);
 	if (ret)
@@ -435,14 +435,13 @@ int f2fs_fname_setup_filename(struct inode *dir, const struct qstr *iname,
 		ret = f2fs_fname_crypto_alloc_buffer(dir, iname->len,
 						     &fname->crypto_buf);
 		if (ret < 0)
-			goto out;
+			return ret;
 		ret = f2fs_fname_encrypt(dir, iname, &fname->crypto_buf);
 		if (ret < 0)
 			goto out;
 		fname->disk_name.name = fname->crypto_buf.name;
 		fname->disk_name.len = fname->crypto_buf.len;
-		ret = 0;
-		goto out;
+		return 0;
 	}
 	if (!lookup) {
 		ret = -EACCES;
@@ -476,8 +475,9 @@ int f2fs_fname_setup_filename(struct inode *dir, const struct qstr *iname,
 		fname->disk_name.name = fname->crypto_buf.name;
 		fname->disk_name.len = fname->crypto_buf.len;
 	}
-	ret = 0;
+	return 0;
 out:
+	f2fs_fname_crypto_free_buffer(&fname->crypto_buf);
 	return ret;
 }
 
