@@ -58,6 +58,9 @@ static const struct of_device_id tegra_mc_of_match[] = {
 #ifdef CONFIG_ARCH_TEGRA_124_SOC
 	{ .compatible = "nvidia,tegra124-mc", .data = &tegra124_mc_soc },
 #endif
+#ifdef CONFIG_ARCH_TEGRA_132_SOC
+	{ .compatible = "nvidia,tegra132-mc", .data = &tegra132_mc_soc },
+#endif
 	{ }
 };
 MODULE_DEVICE_TABLE(of, tegra_mc_of_match);
@@ -273,8 +276,8 @@ static int tegra_mc_probe(struct platform_device *pdev)
 
 	value = MC_INT_DECERR_MTS | MC_INT_SECERR_SEC | MC_INT_DECERR_VPR |
 		MC_INT_INVALID_APB_ASID_UPDATE | MC_INT_INVALID_SMMU_PAGE |
-		MC_INT_ARBITRATION_EMEM | MC_INT_SECURITY_VIOLATION |
-		MC_INT_DECERR_EMEM;
+		MC_INT_SECURITY_VIOLATION | MC_INT_DECERR_EMEM;
+
 	mc_writel(mc, value, MC_INTMASK);
 
 	return 0;

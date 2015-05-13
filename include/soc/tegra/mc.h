@@ -40,6 +40,7 @@ struct tegra_mc_client {
 };
 
 struct tegra_smmu_swgroup {
+	const char *name;
 	unsigned int swgroup;
 	unsigned int reg;
 };
@@ -71,12 +72,17 @@ struct tegra_smmu;
 struct tegra_smmu *tegra_smmu_probe(struct device *dev,
 				    const struct tegra_smmu_soc *soc,
 				    struct tegra_mc *mc);
+void tegra_smmu_remove(struct tegra_smmu *smmu);
 #else
 static inline struct tegra_smmu *
 tegra_smmu_probe(struct device *dev, const struct tegra_smmu_soc *soc,
 		 struct tegra_mc *mc)
 {
 	return NULL;
+}
+
+static inline void tegra_smmu_remove(struct tegra_smmu *smmu)
+{
 }
 #endif
 
