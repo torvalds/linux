@@ -114,41 +114,6 @@ ULTRA_CHANNELCLI_STRING(u32 v)
 	  (((o) == CHANNELCLI_BUSY) && ((n) == CHANNELCLI_OWNED)) || (0)) \
 	 ? (1) : (0))
 
-#define SPAR_CHANNEL_CLIENT_CHK_TRANSITION(old, new, id, log,	\
-					    file, line)			\
-	do {								\
-		if (!ULTRA_VALID_CHANNELCLI_TRANSITION(old, new))	\
-			pr_info("%s Channel StateTransition INVALID! (%s) %s(%d)-->%s(%d) @%s:%d\n", \
-				id, "CliState<x>",		\
-				ULTRA_CHANNELCLI_STRING(old),	\
-				old,				\
-				ULTRA_CHANNELCLI_STRING(new),	\
-				new,				\
-				pathname_last_n_nodes((u8 *)file, 4), \
-				line);				\
-	} while (0)
-
-#define SPAR_CHANNEL_CLIENT_TRANSITION(ch, id, newstate, log)		\
-	do {								\
-		SPAR_CHANNEL_CLIENT_CHK_TRANSITION(			\
-			readl(&(((struct channel_header __iomem *)\
-				 (ch))->cli_state_os)),		\
-			newstate, id, log, __FILE__, __LINE__);		\
-			pr_info("%s Channel StateTransition (%s) %s(%d)-->%s(%d) @%s:%d\n", \
-				id, "CliStateOS",			\
-				ULTRA_CHANNELCLI_STRING( \
-				      readl(&((struct channel_header __iomem *)\
-					      (ch))->cli_state_os)),	\
-				readl(&((struct channel_header __iomem *)\
-				      (ch))->cli_state_os),		\
-				ULTRA_CHANNELCLI_STRING(newstate),	\
-				newstate,				\
-				pathname_last_n_nodes(__FILE__, 4), __LINE__); \
-		writel(newstate, &((struct channel_header __iomem *)\
-				   (ch))->cli_state_os);		\
-		mb(); /* required for channel synch */			\
-	} while (0)
-
 /* Values for ULTRA_CHANNEL_PROTOCOL.CliErrorBoot: */
 /* throttling invalid boot channel statetransition error due to client
  * disabled */
