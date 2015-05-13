@@ -22,7 +22,6 @@
 * ISSUE_IO_VMCALL_POSTCODE_SEVERITY */
 
 /******* INFO ON ISSUE_POSTCODE_LINUX() BELOW *******/
-#include "vmcallinterface.h"
 enum driver_pc {		/* POSTCODE driver identifier tuples */
 	/* visorchipset driver files */
 	VISOR_CHIPSET_PC = 0xA0,

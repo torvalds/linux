@@ -23,7 +23,7 @@
 #include "periodic_work.h"
 #include "vbuschannel.h"
 #include "guestlinuxdebug.h"
-#include "vbusdeviceinfo.h"
+#include "vmcallinterface.h"
 
 #define MYDRVNAME "visorbus"
 
