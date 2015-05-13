@@ -1204,6 +1204,12 @@ enum skl_disp_power_wells {
 #define   PORT_PLL_GAIN_CTL(x)		((x)  << 16)
 /* PORT_PLL_8_A */
 #define   PORT_PLL_TARGET_CNT_MASK	0x3FF
+/* PORT_PLL_9_A */
+#define  PORT_PLL_LOCK_THRESHOLD_MASK	0xe
+/* PORT_PLL_10_A */
+#define  PORT_PLL_DCO_AMP_OVR_EN_H	(1<<27)
+#define  PORT_PLL_DCO_AMP_MASK		0x3c00
+#define  PORT_PLL_DCO_AMP(x)		(x<<10)
 #define _PORT_PLL_BASE(port)		_PORT3(port, _PORT_PLL_0_A,	\
 						_PORT_PLL_0_B,		\
 						_PORT_PLL_0_C)

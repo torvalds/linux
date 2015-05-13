@@ -1340,22 +1340,18 @@ struct bxt_clk_div {
 	uint32_t m2_frac;
 	bool m2_frac_en;
 	uint32_t n;
-	uint32_t prop_coef;
-	uint32_t int_coef;
-	uint32_t gain_ctl;
-	uint32_t targ_cnt;
 	uint32_t lanestagger;
 };
 
 /* pre-calculated values for DP linkrates */
 static struct bxt_clk_div bxt_dp_clk_val[7] = {
-	/* 162 */ {4, 2, 32, 1677722, 1, 1, 5, 11, 2, 9, 0xd},
-	/* 270 */ {4, 1, 27,       0, 0, 1, 3,  8, 1, 9, 0xd},
-	/* 540 */ {2, 1, 27,       0, 0, 1, 3,  8, 1, 9, 0x18},
-	/* 216 */ {3, 2, 32, 1677722, 1, 1, 5, 11, 2, 9, 0xd},
-	/* 243 */ {4, 1, 24, 1258291, 1, 1, 5, 11, 2, 9, 0xd},
-	/* 324 */ {4, 1, 32, 1677722, 1, 1, 5, 11, 2, 9, 0xd},
-	/* 432 */ {3, 1, 32, 1677722, 1, 1, 5, 11, 2, 9, 0x18}
+	/* 162 */ {4, 2, 32, 1677722, 1, 1, 0xd},
+	/* 270 */ {4, 1, 27,       0, 0, 1, 0xd},
+	/* 540 */ {2, 1, 27,       0, 0, 1, 0x18},
+	/* 216 */ {3, 2, 32, 1677722, 1, 1, 0xd},
+	/* 243 */ {4, 1, 24, 1258291, 1, 1, 0xd},
+	/* 324 */ {4, 1, 32, 1677722, 1, 1, 0x18},
+	/* 432 */ {3, 1, 32, 1677722, 1, 1, 0x18}
 };
 
 static bool
@@ -1366,6 +1362,9 @@ bxt_ddi_pll_select(struct intel_crtc *intel_crtc,
 {
 	struct intel_shared_dpll *pll;
 	struct bxt_clk_div clk_div = {0};
+	int vco = 0;
+	uint32_t prop_coef, int_coef, gain_ctl, targ_cnt;
+	uint32_t dcoampovr_en_h, dco_amp;
 
 	if (intel_encoder->type == INTEL_OUTPUT_HDMI) {
 		intel_clock_t best_clock;
@@ -1389,11 +1388,7 @@ bxt_ddi_pll_select(struct intel_crtc *intel_crtc,
 		clk_div.m2_frac = best_clock.m2 & ((1 << 22) - 1);
 		clk_div.m2_frac_en = clk_div.m2_frac != 0;
 
-		/* FIXME: set coef, gain, targcnt based on freq band */
-		clk_div.prop_coef = 5;
-		clk_div.int_coef = 11;
-		clk_div.gain_ctl = 2;
-		clk_div.targ_cnt = 9;
+		vco = best_clock.vco;
 		if (clock > 270000)
 			clk_div.lanestagger = 0x18;
 		else if (clock > 135000)
@@ -1423,6 +1418,32 @@ bxt_ddi_pll_select(struct intel_crtc *intel_crtc,
 			clk_div = bxt_dp_clk_val[0];
 			DRM_ERROR("Unknown link rate\n");
 		}
+		vco = clock * 10 / 2 * clk_div.p1 * clk_div.p2;
+	}
+
+	dco_amp = 15;
+	dcoampovr_en_h = 0;
+	if (vco >= 6200000 && vco <= 6480000) {
+		prop_coef = 4;
+		int_coef = 9;
+		gain_ctl = 3;
+		targ_cnt = 8;
+	} else if ((vco > 5400000 && vco < 6200000) ||
+			(vco >= 4800000 && vco < 5400000)) {
+		prop_coef = 5;
+		int_coef = 11;
+		gain_ctl = 3;
+		targ_cnt = 9;
+		if (vco >= 4800000 && vco < 5400000)
+			dcoampovr_en_h = 1;
+	} else if (vco == 5400000) {
+		prop_coef = 3;
+		int_coef = 8;
+		gain_ctl = 1;
+		targ_cnt = 9;
+	} else {
+		DRM_ERROR("Invalid VCO\n");
+		return false;
 	}
 
 	memset(&crtc_state->dpll_hw_state, 0,
@@ -1439,11 +1460,16 @@ bxt_ddi_pll_select(struct intel_crtc *intel_crtc,
 			PORT_PLL_M2_FRAC_ENABLE;
 
 	crtc_state->dpll_hw_state.pll6 =
-		clk_div.prop_coef | PORT_PLL_INT_COEFF(clk_div.int_coef);
+		prop_coef | PORT_PLL_INT_COEFF(int_coef);
 	crtc_state->dpll_hw_state.pll6 |=
-		PORT_PLL_GAIN_CTL(clk_div.gain_ctl);
+		PORT_PLL_GAIN_CTL(gain_ctl);
 
-	crtc_state->dpll_hw_state.pll8 = clk_div.targ_cnt;
+	crtc_state->dpll_hw_state.pll8 = targ_cnt;
+
+	if (dcoampovr_en_h)
+		crtc_state->dpll_hw_state.pll10 = PORT_PLL_DCO_AMP_OVR_EN_H;
+
+	crtc_state->dpll_hw_state.pll10 |= PORT_PLL_DCO_AMP(dco_amp);
 
 	crtc_state->dpll_hw_state.pcsdw12 =
 		LANESTAGGER_STRAP_OVRD | clk_div.lanestagger;
@@ -2376,10 +2402,16 @@ static void bxt_ddi_pll_enable(struct drm_i915_private *dev_priv,
 	temp |= pll->config.hw_state.pll8;
 	I915_WRITE(BXT_PORT_PLL(port, 8), temp);
 
-	/*
-	 * FIXME: program PORT_PLL_9/i_lockthresh according to the latest
-	 * specification update.
-	 */
+	temp = I915_READ(BXT_PORT_PLL(port, 9));
+	temp &= ~PORT_PLL_LOCK_THRESHOLD_MASK;
+	temp |= (5 << 1);
+	I915_WRITE(BXT_PORT_PLL(port, 9), temp);
+
+	temp = I915_READ(BXT_PORT_PLL(port, 10));
+	temp &= ~PORT_PLL_DCO_AMP_OVR_EN_H;
+	temp &= ~PORT_PLL_DCO_AMP_MASK;
+	temp |= pll->config.hw_state.pll10;
+	I915_WRITE(BXT_PORT_PLL(port, 10), temp);
 
 	/* Recalibrate with new settings */
 	temp = I915_READ(BXT_PORT_PLL_EBB_4(port));
@@ -2443,6 +2475,7 @@ static bool bxt_ddi_pll_get_hw_state(struct drm_i915_private *dev_priv,
 	hw_state->pll3 = I915_READ(BXT_PORT_PLL(port, 3));
 	hw_state->pll6 = I915_READ(BXT_PORT_PLL(port, 6));
 	hw_state->pll8 = I915_READ(BXT_PORT_PLL(port, 8));
+	hw_state->pll10 = I915_READ(BXT_PORT_PLL(port, 10));
 	/*
 	 * While we write to the group register to program all lanes at once we
 	 * can read only lane registers. We configure all lanes the same way, so
