@@ -2351,7 +2351,7 @@ static const struct file_operations visorchipset_fops = {
 	.mmap = visorchipset_mmap,
 };
 
-int
+static int
 visorchipset_file_init(dev_t major_dev, struct visorchannel **controlvm_channel)
 {
 	int rc = 0;
@@ -2460,7 +2460,7 @@ cleanup:
 	return rc;
 }
 
-void
+static void
 visorchipset_file_cleanup(dev_t major_dev)
 {
 	if (file_cdev.ops)
