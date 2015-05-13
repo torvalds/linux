@@ -135,22 +135,6 @@ struct visor_controlvm_payload_info {
 
 static struct visor_controlvm_payload_info controlvm_payload_info;
 
-/* Manages the info for a CONTROLVM_DUMP_CAPTURESTATE /
- * CONTROLVM_DUMP_GETTEXTDUMP / CONTROLVM_DUMP_COMPLETE conversation.
- */
-struct visor_livedump_info {
-	struct controlvm_message_header dumpcapture_header;
-	struct controlvm_message_header gettextdump_header;
-	struct controlvm_message_header dumpcomplete_header;
-	bool gettextdump_outstanding;
-	u32 crc32;
-	unsigned long length;
-	atomic_t buffers_in_use;
-	unsigned long destination;
-};
-
-static struct visor_livedump_info livedump_info;
-
 /* The following globals are used to handle the scenario where we are unable to
  * offload the payload from a controlvm message due to memory requirements.  In
  * this scenario, we simply stash the controlvm message, then attempt to
@@ -2332,8 +2316,6 @@ visorchipset_init(struct acpi_device *acpi_device)
 
 	memset(&busdev_notifiers, 0, sizeof(busdev_notifiers));
 	memset(&controlvm_payload_info, 0, sizeof(controlvm_payload_info));
-	memset(&livedump_info, 0, sizeof(livedump_info));
-	atomic_set(&livedump_info.buffers_in_use, 0);
 
 	controlvm_channel = visorchannel_create_with_lock(addr, tmp_sz,
 							  GFP_KERNEL, uuid);
