@@ -2238,6 +2238,37 @@ static struct attribute *coresight_etmv4_mgmt_attrs[] = {
 	NULL,
 };
 
+coresight_simple_func(trcidr0, TRCIDR0);
+coresight_simple_func(trcidr1, TRCIDR1);
+coresight_simple_func(trcidr2, TRCIDR2);
+coresight_simple_func(trcidr3, TRCIDR3);
+coresight_simple_func(trcidr4, TRCIDR4);
+coresight_simple_func(trcidr5, TRCIDR5);
+/* trcidr[6,7] are reserved */
+coresight_simple_func(trcidr8, TRCIDR8);
+coresight_simple_func(trcidr9, TRCIDR9);
+coresight_simple_func(trcidr10, TRCIDR10);
+coresight_simple_func(trcidr11, TRCIDR11);
+coresight_simple_func(trcidr12, TRCIDR12);
+coresight_simple_func(trcidr13, TRCIDR13);
+
+static struct attribute *coresight_etmv4_trcidr_attrs[] = {
+	&dev_attr_trcidr0.attr,
+	&dev_attr_trcidr1.attr,
+	&dev_attr_trcidr2.attr,
+	&dev_attr_trcidr3.attr,
+	&dev_attr_trcidr4.attr,
+	&dev_attr_trcidr5.attr,
+	/* trcidr[6,7] are reserved */
+	&dev_attr_trcidr8.attr,
+	&dev_attr_trcidr9.attr,
+	&dev_attr_trcidr10.attr,
+	&dev_attr_trcidr11.attr,
+	&dev_attr_trcidr12.attr,
+	&dev_attr_trcidr13.attr,
+	NULL,
+};
+
 static const struct attribute_group coresight_etmv4_group = {
 	.attrs = coresight_etmv4_attrs,
 };
@@ -2247,9 +2278,15 @@ static const struct attribute_group coresight_etmv4_mgmt_group = {
 	.name = "mgmt",
 };
 
+static const struct attribute_group coresight_etmv4_trcidr_group = {
+	.attrs = coresight_etmv4_trcidr_attrs,
+	.name = "trcidr",
+};
+
 static const struct attribute_group *coresight_etmv4_groups[] = {
 	&coresight_etmv4_group,
 	&coresight_etmv4_mgmt_group,
+	&coresight_etmv4_trcidr_group,
 	NULL,
 };
 

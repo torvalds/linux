@@ -358,3 +358,93 @@ KernelVersion:	4.01
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description:	(R) Print the content of the Peripheral ID3 Register
 		(0xFEC).  The value is taken directly from the HW.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/trcidr/trcidr0
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(R) Returns the tracing capabilities of the trace unit (0x1E0).
+		The value is taken directly from the HW.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/trcidr/trcidr1
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(R) Returns the tracing capabilities of the trace unit (0x1E4).
+		The value is taken directly from the HW.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/trcidr/trcidr2
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(R) Returns the maximum size of the data value, data address,
+		VMID, context ID and instuction address in the trace unit
+		(0x1E8).  The value is taken directly from the HW.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/trcidr/trcidr3
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(R) Returns the value associated with various resources
+		available to the trace unit.  See the Trace Macrocell
+		architecture specification for more details (0x1E8).
+		The value is taken directly from the HW.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/trcidr/trcidr4
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(R) Returns how many resources the trace unit supports (0x1F0).
+		The value is taken directly from the HW.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/trcidr/trcidr5
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(R) Returns how many resources the trace unit supports (0x1F4).
+		The value is taken directly from the HW.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/trcidr/trcidr8
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(R) Returns the maximum speculation depth of the instruction
+		trace stream. (0x180).  The value is taken directly from the HW.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/trcidr/trcidr9
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(R) Returns the number of P0 right-hand keys that the trace unit
+		can use (0x184).  The value is taken directly from the HW.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/trcidr/trcidr10
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(R) Returns the number of P1 right-hand keys that the trace unit
+		can use (0x188).  The value is taken directly from the HW.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/trcidr/trcidr11
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(R) Returns the number of special P1 right-hand keys that the
+		trace unit can use (0x18C).  The value is taken directly from
+		the HW.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/trcidr/trcidr12
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(R) Returns the number of conditional P1 right-hand keys that
+		the trace unit can use (0x190).  The value is taken directly
+		from the HW.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/trcidr/trcidr13
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(R) Returns the number of special conditional P1 right-hand keys
+		that the trace unit can use (0x194).  The value is taken
+		directly from the HW.
