@@ -154,3 +154,28 @@ KernelVersion:	4.01
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description: 	(RW) In non-secure state, each bit controls whether instruction
 		tracing is enabled for the corresponding exception level.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/addr_idx
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description: 	(RW) Select which address comparator or pair (of comparators) to
+		work with.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/addr_instdatatype
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description: 	(RW) Controls what type of comparison the trace unit performs.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/addr_single
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description: 	(RW) Used to setup single address comparator values.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/addr_range
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description: 	(RW) Used to setup address range comparator values.

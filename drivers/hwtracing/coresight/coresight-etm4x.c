@@ -1027,6 +1027,421 @@ static ssize_t ns_exlevel_vinst_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(ns_exlevel_vinst);
 
+static ssize_t addr_idx_show(struct device *dev,
+			     struct device_attribute *attr,
+			     char *buf)
+{
+	unsigned long val;
+	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	val = drvdata->addr_idx;
+	return scnprintf(buf, PAGE_SIZE, "%#lx\n", val);
+}
+
+static ssize_t addr_idx_store(struct device *dev,
+			      struct device_attribute *attr,
+			      const char *buf, size_t size)
+{
+	unsigned long val;
+	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	if (kstrtoul(buf, 16, &val))
+		return -EINVAL;
+	if (val >= drvdata->nr_addr_cmp * 2)
+		return -EINVAL;
+
+	/*
+	 * Use spinlock to ensure index doesn't change while it gets
+	 * dereferenced multiple times within a spinlock block elsewhere.
+	 */
+	spin_lock(&drvdata->spinlock);
+	drvdata->addr_idx = val;
+	spin_unlock(&drvdata->spinlock);
+	return size;
+}
+static DEVICE_ATTR_RW(addr_idx);
+
+static ssize_t addr_instdatatype_show(struct device *dev,
+				      struct device_attribute *attr,
+				      char *buf)
+{
+	ssize_t len;
+	u8 val, idx;
+	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	spin_lock(&drvdata->spinlock);
+	idx = drvdata->addr_idx;
+	val = BMVAL(drvdata->addr_acc[idx], 0, 1);
+	len = scnprintf(buf, PAGE_SIZE, "%s\n",
+			val == ETM_INSTR_ADDR ? "instr" :
+			(val == ETM_DATA_LOAD_ADDR ? "data_load" :
+			(val == ETM_DATA_STORE_ADDR ? "data_store" :
+			"data_load_store")));
+	spin_unlock(&drvdata->spinlock);
+	return len;
+}
+
+static ssize_t addr_instdatatype_store(struct device *dev,
+				       struct device_attribute *attr,
+				       const char *buf, size_t size)
+{
+	u8 idx;
+	char str[20] = "";
+	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	if (strlen(buf) >= 20)
+		return -EINVAL;
+	if (sscanf(buf, "%s", str) != 1)
+		return -EINVAL;
+
+	spin_lock(&drvdata->spinlock);
+	idx = drvdata->addr_idx;
+	if (!strcmp(str, "instr"))
+		/* TYPE, bits[1:0] */
+		drvdata->addr_acc[idx] &= ~(BIT(0) | BIT(1));
+
+	spin_unlock(&drvdata->spinlock);
+	return size;
+}
+static DEVICE_ATTR_RW(addr_instdatatype);
+
+static ssize_t addr_single_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	u8 idx;
+	unsigned long val;
+	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	idx = drvdata->addr_idx;
+	spin_lock(&drvdata->spinlock);
+	if (!(drvdata->addr_type[idx] == ETM_ADDR_TYPE_NONE ||
+	      drvdata->addr_type[idx] == ETM_ADDR_TYPE_SINGLE)) {
+		spin_unlock(&drvdata->spinlock);
+		return -EPERM;
+	}
+	val = (unsigned long)drvdata->addr_val[idx];
+	spin_unlock(&drvdata->spinlock);
+	return scnprintf(buf, PAGE_SIZE, "%#lx\n", val);
+}
+
+static ssize_t addr_single_store(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf, size_t size)
+{
+	u8 idx;
+	unsigned long val;
+	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	if (kstrtoul(buf, 16, &val))
+		return -EINVAL;
+
+	spin_lock(&drvdata->spinlock);
+	idx = drvdata->addr_idx;
+	if (!(drvdata->addr_type[idx] == ETM_ADDR_TYPE_NONE ||
+	      drvdata->addr_type[idx] == ETM_ADDR_TYPE_SINGLE)) {
+		spin_unlock(&drvdata->spinlock);
+		return -EPERM;
+	}
+
+	drvdata->addr_val[idx] = (u64)val;
+	drvdata->addr_type[idx] = ETM_ADDR_TYPE_SINGLE;
+	spin_unlock(&drvdata->spinlock);
+	return size;
+}
+static DEVICE_ATTR_RW(addr_single);
+
+static ssize_t addr_range_show(struct device *dev,
+			       struct device_attribute *attr,
+			       char *buf)
+{
+	u8 idx;
+	unsigned long val1, val2;
+	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	spin_lock(&drvdata->spinlock);
+	idx = drvdata->addr_idx;
+	if (idx % 2 != 0) {
+		spin_unlock(&drvdata->spinlock);
+		return -EPERM;
+	}
+	if (!((drvdata->addr_type[idx] == ETM_ADDR_TYPE_NONE &&
+	       drvdata->addr_type[idx + 1] == ETM_ADDR_TYPE_NONE) ||
+	      (drvdata->addr_type[idx] == ETM_ADDR_TYPE_RANGE &&
+	       drvdata->addr_type[idx + 1] == ETM_ADDR_TYPE_RANGE))) {
+		spin_unlock(&drvdata->spinlock);
+		return -EPERM;
+	}
+
+	val1 = (unsigned long)drvdata->addr_val[idx];
+	val2 = (unsigned long)drvdata->addr_val[idx + 1];
+	spin_unlock(&drvdata->spinlock);
+	return scnprintf(buf, PAGE_SIZE, "%#lx %#lx\n", val1, val2);
+}
+
+static ssize_t addr_range_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t size)
+{
+	u8 idx;
+	unsigned long val1, val2;
+	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	if (sscanf(buf, "%lx %lx", &val1, &val2) != 2)
+		return -EINVAL;
+	/* lower address comparator cannot have a higher address value */
+	if (val1 > val2)
+		return -EINVAL;
+
+	spin_lock(&drvdata->spinlock);
+	idx = drvdata->addr_idx;
+	if (idx % 2 != 0) {
+		spin_unlock(&drvdata->spinlock);
+		return -EPERM;
+	}
+
+	if (!((drvdata->addr_type[idx] == ETM_ADDR_TYPE_NONE &&
+	       drvdata->addr_type[idx + 1] == ETM_ADDR_TYPE_NONE) ||
+	      (drvdata->addr_type[idx] == ETM_ADDR_TYPE_RANGE &&
+	       drvdata->addr_type[idx + 1] == ETM_ADDR_TYPE_RANGE))) {
+		spin_unlock(&drvdata->spinlock);
+		return -EPERM;
+	}
+
+	drvdata->addr_val[idx] = (u64)val1;
+	drvdata->addr_type[idx] = ETM_ADDR_TYPE_RANGE;
+	drvdata->addr_val[idx + 1] = (u64)val2;
+	drvdata->addr_type[idx + 1] = ETM_ADDR_TYPE_RANGE;
+	/*
+	 * Program include or exclude control bits for vinst or vdata
+	 * whenever we change addr comparators to ETM_ADDR_TYPE_RANGE
+	 */
+	if (drvdata->mode & ETM_MODE_EXCLUDE)
+		etm4_set_mode_exclude(drvdata, true);
+	else
+		etm4_set_mode_exclude(drvdata, false);
+
+	spin_unlock(&drvdata->spinlock);
+	return size;
+}
+static DEVICE_ATTR_RW(addr_range);
+
+static ssize_t addr_start_show(struct device *dev,
+			       struct device_attribute *attr,
+			       char *buf)
+{
+	u8 idx;
+	unsigned long val;
+	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	spin_lock(&drvdata->spinlock);
+	idx = drvdata->addr_idx;
+
+	if (!(drvdata->addr_type[idx] == ETM_ADDR_TYPE_NONE ||
+	      drvdata->addr_type[idx] == ETM_ADDR_TYPE_START)) {
+		spin_unlock(&drvdata->spinlock);
+		return -EPERM;
+	}
+
+	val = (unsigned long)drvdata->addr_val[idx];
+	spin_unlock(&drvdata->spinlock);
+	return scnprintf(buf, PAGE_SIZE, "%#lx\n", val);
+}
+
+static ssize_t addr_start_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t size)
+{
+	u8 idx;
+	unsigned long val;
+	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	if (kstrtoul(buf, 16, &val))
+		return -EINVAL;
+
+	spin_lock(&drvdata->spinlock);
+	idx = drvdata->addr_idx;
+	if (!drvdata->nr_addr_cmp) {
+		spin_unlock(&drvdata->spinlock);
+		return -EINVAL;
+	}
+	if (!(drvdata->addr_type[idx] == ETM_ADDR_TYPE_NONE ||
+	      drvdata->addr_type[idx] == ETM_ADDR_TYPE_START)) {
+		spin_unlock(&drvdata->spinlock);
+		return -EPERM;
+	}
+
+	drvdata->addr_val[idx] = (u64)val;
+	drvdata->addr_type[idx] = ETM_ADDR_TYPE_START;
+	drvdata->vissctlr |= BIT(idx);
+	/* SSSTATUS, bit[9] - turn on start/stop logic */
+	drvdata->vinst_ctrl |= BIT(9);
+	spin_unlock(&drvdata->spinlock);
+	return size;
+}
+static DEVICE_ATTR_RW(addr_start);
+
+static ssize_t addr_stop_show(struct device *dev,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	u8 idx;
+	unsigned long val;
+	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	spin_lock(&drvdata->spinlock);
+	idx = drvdata->addr_idx;
+
+	if (!(drvdata->addr_type[idx] == ETM_ADDR_TYPE_NONE ||
+	      drvdata->addr_type[idx] == ETM_ADDR_TYPE_STOP)) {
+		spin_unlock(&drvdata->spinlock);
+		return -EPERM;
+	}
+
+	val = (unsigned long)drvdata->addr_val[idx];
+	spin_unlock(&drvdata->spinlock);
+	return scnprintf(buf, PAGE_SIZE, "%#lx\n", val);
+}
+
+static ssize_t addr_stop_store(struct device *dev,
+			       struct device_attribute *attr,
+			       const char *buf, size_t size)
+{
+	u8 idx;
+	unsigned long val;
+	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	if (kstrtoul(buf, 16, &val))
+		return -EINVAL;
+
+	spin_lock(&drvdata->spinlock);
+	idx = drvdata->addr_idx;
+	if (!drvdata->nr_addr_cmp) {
+		spin_unlock(&drvdata->spinlock);
+		return -EINVAL;
+	}
+	if (!(drvdata->addr_type[idx] == ETM_ADDR_TYPE_NONE ||
+	       drvdata->addr_type[idx] == ETM_ADDR_TYPE_STOP)) {
+		spin_unlock(&drvdata->spinlock);
+		return -EPERM;
+	}
+
+	drvdata->addr_val[idx] = (u64)val;
+	drvdata->addr_type[idx] = ETM_ADDR_TYPE_STOP;
+	drvdata->vissctlr |= BIT(idx + 16);
+	/* SSSTATUS, bit[9] - turn on start/stop logic */
+	drvdata->vinst_ctrl |= BIT(9);
+	spin_unlock(&drvdata->spinlock);
+	return size;
+}
+static DEVICE_ATTR_RW(addr_stop);
+
+static ssize_t addr_ctxtype_show(struct device *dev,
+				 struct device_attribute *attr,
+				 char *buf)
+{
+	ssize_t len;
+	u8 idx, val;
+	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	spin_lock(&drvdata->spinlock);
+	idx = drvdata->addr_idx;
+	/* CONTEXTTYPE, bits[3:2] */
+	val = BMVAL(drvdata->addr_acc[idx], 2, 3);
+	len = scnprintf(buf, PAGE_SIZE, "%s\n", val == ETM_CTX_NONE ? "none" :
+			(val == ETM_CTX_CTXID ? "ctxid" :
+			(val == ETM_CTX_VMID ? "vmid" : "all")));
+	spin_unlock(&drvdata->spinlock);
+	return len;
+}
+
+static ssize_t addr_ctxtype_store(struct device *dev,
+				  struct device_attribute *attr,
+				  const char *buf, size_t size)
+{
+	u8 idx;
+	char str[10] = "";
+	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	if (strlen(buf) >= 10)
+		return -EINVAL;
+	if (sscanf(buf, "%s", str) != 1)
+		return -EINVAL;
+
+	spin_lock(&drvdata->spinlock);
+	idx = drvdata->addr_idx;
+	if (!strcmp(str, "none"))
+		/* start by clearing context type bits */
+		drvdata->addr_acc[idx] &= ~(BIT(2) | BIT(3));
+	else if (!strcmp(str, "ctxid")) {
+		/* 0b01 The trace unit performs a Context ID */
+		if (drvdata->numcidc) {
+			drvdata->addr_acc[idx] |= BIT(2);
+			drvdata->addr_acc[idx] &= ~BIT(3);
+		}
+	} else if (!strcmp(str, "vmid")) {
+		/* 0b10 The trace unit performs a VMID */
+		if (drvdata->numvmidc) {
+			drvdata->addr_acc[idx] &= ~BIT(2);
+			drvdata->addr_acc[idx] |= BIT(3);
+		}
+	} else if (!strcmp(str, "all")) {
+		/*
+		 * 0b11 The trace unit performs a Context ID
+		 * comparison and a VMID
+		 */
+		if (drvdata->numcidc)
+			drvdata->addr_acc[idx] |= BIT(2);
+		if (drvdata->numvmidc)
+			drvdata->addr_acc[idx] |= BIT(3);
+	}
+	spin_unlock(&drvdata->spinlock);
+	return size;
+}
+static DEVICE_ATTR_RW(addr_ctxtype);
+
+static ssize_t addr_context_show(struct device *dev,
+				 struct device_attribute *attr,
+				 char *buf)
+{
+	u8 idx;
+	unsigned long val;
+	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	spin_lock(&drvdata->spinlock);
+	idx = drvdata->addr_idx;
+	/* context ID comparator bits[6:4] */
+	val = BMVAL(drvdata->addr_acc[idx], 4, 6);
+	spin_unlock(&drvdata->spinlock);
+	return scnprintf(buf, PAGE_SIZE, "%#lx\n", val);
+}
+
+static ssize_t addr_context_store(struct device *dev,
+				  struct device_attribute *attr,
+				  const char *buf, size_t size)
+{
+	u8 idx;
+	unsigned long val;
+	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	if (kstrtoul(buf, 16, &val))
+		return -EINVAL;
+	if ((drvdata->numcidc <= 1) && (drvdata->numvmidc <= 1))
+		return -EINVAL;
+	if (val >=  (drvdata->numcidc >= drvdata->numvmidc ?
+		     drvdata->numcidc : drvdata->numvmidc))
+		return -EINVAL;
+
+	spin_lock(&drvdata->spinlock);
+	idx = drvdata->addr_idx;
+	/* clear context ID comparator bits[6:4] */
+	drvdata->addr_acc[idx] &= ~(BIT(4) | BIT(5) | BIT(6));
+	drvdata->addr_acc[idx] |= (val << 4);
+	spin_unlock(&drvdata->spinlock);
+	return size;
+}
+static DEVICE_ATTR_RW(addr_context);
+
 static ssize_t cpu_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
@@ -1061,6 +1476,14 @@ static struct attribute *coresight_etmv4_attrs[] = {
 	&dev_attr_event_vinst.attr,
 	&dev_attr_s_exlevel_vinst.attr,
 	&dev_attr_ns_exlevel_vinst.attr,
+	&dev_attr_addr_idx.attr,
+	&dev_attr_addr_instdatatype.attr,
+	&dev_attr_addr_single.attr,
+	&dev_attr_addr_range.attr,
+	&dev_attr_addr_start.attr,
+	&dev_attr_addr_stop.attr,
+	&dev_attr_addr_ctxtype.attr,
+	&dev_attr_addr_context.attr,
 	&dev_attr_cpu.attr,
 	NULL,
 };
