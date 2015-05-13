@@ -85,10 +85,8 @@ enum vmcall_monitor_interface_method_tuple { /* VMCALL identification tuples  */
     /* The following uses VMCALL_POST_CODE_LOGEVENT interface but is currently
      * not used much */
 #define ISSUE_IO_VMCALL_POSTCODE_SEVERITY(postcode, severity)		\
-do {									\
 	ISSUE_IO_EXTENDED_VMCALL(VMCALL_POST_CODE_LOGEVENT, severity,	\
-				 MDS_APPOS, postcode);			\
-} while (0)
+				 MDS_APPOS, postcode)
 #endif
 
 /* Structures for IO VMCALLs */
