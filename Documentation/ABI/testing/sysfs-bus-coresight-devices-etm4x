@@ -1,0 +1,15 @@
+What:		/sys/bus/coresight/devices/<memory_map>.etm/enable_source
+Date:		April 2015
+KernelVersion:  4.01
+Contact:        Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(RW) Enable/disable tracing on this specific trace entiry.
+		Enabling a source implies the source has been configured
+		properly and a sink has been identidifed for it.  The path
+		of coresight components linking the source to the sink is
+		configured and managed automatically by the coresight framework.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/cpu
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description:	(R) The CPU this tracing entity is associated with.
