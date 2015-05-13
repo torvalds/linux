@@ -572,8 +572,7 @@ out:
 int kvm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 {
 	unsigned long old_cr0 = kvm_read_cr0(vcpu);
-	unsigned long update_bits = X86_CR0_PG | X86_CR0_WP |
-				    X86_CR0_CD | X86_CR0_NW;
+	unsigned long update_bits = X86_CR0_PG | X86_CR0_WP;
 
 	cr0 |= X86_CR0_ET;
 
