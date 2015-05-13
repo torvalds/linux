@@ -49,10 +49,10 @@ static void sdma_v3_0_set_buffer_funcs(struct amdgpu_device *adev);
 static void sdma_v3_0_set_vm_pte_funcs(struct amdgpu_device *adev);
 static void sdma_v3_0_set_irq_funcs(struct amdgpu_device *adev);
 
-MODULE_FIRMWARE("radeon/tonga_sdma.bin");
-MODULE_FIRMWARE("radeon/tonga_sdma1.bin");
-MODULE_FIRMWARE("radeon/carrizo_sdma.bin");
-MODULE_FIRMWARE("radeon/carrizo_sdma1.bin");
+MODULE_FIRMWARE("amdgpu/tonga_sdma.bin");
+MODULE_FIRMWARE("amdgpu/tonga_sdma1.bin");
+MODULE_FIRMWARE("amdgpu/carrizo_sdma.bin");
+MODULE_FIRMWARE("amdgpu/carrizo_sdma1.bin");
 
 static const u32 sdma_offsets[SDMA_MAX_INSTANCE] =
 {
@@ -174,9 +174,9 @@ static int sdma_v3_0_init_microcode(struct amdgpu_device *adev)
 
 	for (i = 0; i < SDMA_MAX_INSTANCE; i++) {
 		if (i == 0)
-			snprintf(fw_name, sizeof(fw_name), "radeon/%s_sdma.bin", chip_name);
+			snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_sdma.bin", chip_name);
 		else
-			snprintf(fw_name, sizeof(fw_name), "radeon/%s_sdma1.bin", chip_name);
+			snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_sdma1.bin", chip_name);
 		err = request_firmware(&adev->sdma[i].fw, fw_name, adev->dev);
 		if (err)
 			goto out;

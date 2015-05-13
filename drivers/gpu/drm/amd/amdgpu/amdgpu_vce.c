@@ -46,8 +46,8 @@
 #define FIRMWARE_HAWAII 	"radeon/hawaii_vce.bin"
 #define FIRMWARE_MULLINS	"radeon/mullins_vce.bin"
 #endif
-#define FIRMWARE_TONGA		"radeon/tonga_vce.bin"
-#define FIRMWARE_CARRIZO	"radeon/carrizo_vce.bin"
+#define FIRMWARE_TONGA		"amdgpu/tonga_vce.bin"
+#define FIRMWARE_CARRIZO	"amdgpu/carrizo_vce.bin"
 
 #ifdef CONFIG_DRM_AMDGPU_CIK
 MODULE_FIRMWARE(FIRMWARE_BONAIRE);

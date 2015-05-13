@@ -26,7 +26,7 @@
 #include "amdgpu.h"
 #include "iceland_smumgr.h"
 
-MODULE_FIRMWARE("radeon/topaz_smc.bin");
+MODULE_FIRMWARE("amdgpu/topaz_smc.bin");
 
 static void iceland_dpm_set_funcs(struct amdgpu_device *adev);
 
@@ -39,7 +39,7 @@ static int iceland_dpm_early_init(struct amdgpu_device *adev)
 
 static int iceland_dpm_init_microcode(struct amdgpu_device *adev)
 {
-	char fw_name[30] = "radeon/topaz_smc.bin";
+	char fw_name[30] = "amdgpu/topaz_smc.bin";
 	int err;
 
 	err = request_firmware(&adev->pm.fw, fw_name, adev->dev);

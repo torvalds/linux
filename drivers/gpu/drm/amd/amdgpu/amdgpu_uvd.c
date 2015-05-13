@@ -50,8 +50,8 @@
 #define FIRMWARE_HAWAII 	"radeon/hawaii_uvd.bin"
 #define FIRMWARE_MULLINS	"radeon/mullins_uvd.bin"
 #endif
-#define FIRMWARE_TONGA		"radeon/tonga_uvd.bin"
-#define FIRMWARE_CARRIZO	"radeon/carrizo_uvd.bin"
+#define FIRMWARE_TONGA		"amdgpu/tonga_uvd.bin"
+#define FIRMWARE_CARRIZO	"amdgpu/carrizo_uvd.bin"
 
 /**
  * amdgpu_uvd_cs_ctx - Command submission parser context

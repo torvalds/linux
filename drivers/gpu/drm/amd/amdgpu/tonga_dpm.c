@@ -26,7 +26,7 @@
 #include "amdgpu.h"
 #include "tonga_smumgr.h"
 
-MODULE_FIRMWARE("radeon/tonga_smc.bin");
+MODULE_FIRMWARE("amdgpu/tonga_smc.bin");
 
 static void tonga_dpm_set_funcs(struct amdgpu_device *adev);
 
@@ -39,7 +39,7 @@ static int tonga_dpm_early_init(struct amdgpu_device *adev)
 
 static int tonga_dpm_init_microcode(struct amdgpu_device *adev)
 {
-	char fw_name[30] = "radeon/tonga_smc.bin";
+	char fw_name[30] = "amdgpu/tonga_smc.bin";
 	int err;
 
 	err = request_firmware(&adev->pm.fw, fw_name, adev->dev);
