@@ -188,7 +188,8 @@ int switchdev_port_attr_set(struct net_device *dev, struct switchdev_attr *attr)
 }
 EXPORT_SYMBOL_GPL(switchdev_port_attr_set);
 
-int __switchdev_port_obj_add(struct net_device *dev, struct switchdev_obj *obj)
+static int __switchdev_port_obj_add(struct net_device *dev,
+				    struct switchdev_obj *obj)
 {
 	const struct switchdev_ops *ops = dev->switchdev_ops;
 	struct net_device *lower_dev;
@@ -644,7 +645,7 @@ int switchdev_fib_ipv4_add(u32 dst, int dst_len, struct fib_info *fi,
 	struct switchdev_obj fib_obj = {
 		.id = SWITCHDEV_OBJ_IPV4_FIB,
 		.ipv4_fib = {
-			.dst = htonl(dst),
+			.dst = dst,
 			.dst_len = dst_len,
 			.fi = fi,
 			.tos = tos,
@@ -698,7 +699,7 @@ int switchdev_fib_ipv4_del(u32 dst, int dst_len, struct fib_info *fi,
 	struct switchdev_obj fib_obj = {
 		.id = SWITCHDEV_OBJ_IPV4_FIB,
 		.ipv4_fib = {
-			.dst = htonl(dst),
+			.dst = dst,
 			.dst_len = dst_len,
 			.fi = fi,
 			.tos = tos,

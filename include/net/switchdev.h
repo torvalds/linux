@@ -53,7 +53,7 @@ struct switchdev_obj {
 	enum switchdev_obj_id id;
 	enum switchdev_trans trans;
 	union {
-		struct switchdev_obj_vlan {			/* PORT_VLAN */
+		struct switchdev_obj_vlan {		/* PORT_VLAN */
 			u16 flags;
 			u16 vid_start;
 			u16 vid_end;
