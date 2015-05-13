@@ -88,6 +88,35 @@ static int visorbus_uevent(struct device *xdev, struct kobj_uevent_env *env);
 static int visorbus_match(struct device *xdev, struct device_driver *xdrv);
 static void fix_vbus_dev_info(struct visor_device *visordev);
 
+/*  BUS type attributes
+ *
+ *  define & implement display of bus attributes under
+ *  /sys/bus/visorbus.
+ *
+ */
+
+static ssize_t version_show(struct bus_type *bus, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%s\n", VERSION);
+}
+
+static BUS_ATTR_RO(version);
+
+static struct attribute *visorbus_bus_attrs[] = {
+	&bus_attr_version.attr,
+	NULL,
+};
+
+static const struct attribute_group visorbus_bus_group = {
+	.attrs = visorbus_bus_attrs,
+};
+
+const struct attribute_group *visorbus_bus_groups[] = {
+	&visorbus_bus_group,
+	NULL,
+};
+
+
 /** This describes the TYPE of bus.
  *  (Don't confuse this with an INSTANCE of the bus.)
  */
@@ -95,6 +124,7 @@ static struct bus_type visorbus_type = {
 	.name = "visorbus",
 	.match = visorbus_match,
 	.uevent = visorbus_uevent,
+	.bus_groups = visorbus_bus_groups,
 };
 
 static struct delayed_work periodic_work;
@@ -608,37 +638,6 @@ void unregister_channel_attributes(struct visor_device *dev)
 }
 #define to_visorbus_devdata(obj) \
 	container_of(obj, struct visorbus_devdata, dev)
-
-/*  BUS type attributes
- *
- *  define & implement display of bus attributes under
- *  /sys/bus/visorbus.
- *
- */
-
-static ssize_t
-BUSTYPE_ATTR_version(struct bus_type *bus, char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "%s\n", VERSION);
-}
-
-static struct bus_attribute bustype_attr_version =
-__ATTR(version, S_IRUGO, BUSTYPE_ATTR_version, NULL);
-
-static int
-register_bustype_attributes(void)
-{
-	int rc = 0;
-
-	rc = bus_create_file(&visorbus_type, &bustype_attr_version);
-	return rc;
-}
-
-static void
-unregister_bustype_attributes(void)
-{
-	bus_remove_file(&visorbus_type, &bustype_attr_version);
-}
 
 /*  BUS instance attributes
  *
@@ -1580,10 +1579,6 @@ create_bus_type(void)
 
 	visorbus_type.dev_attrs = visor_device_attrs;
 	rc = bus_register(&visorbus_type);
-	if (rc < 0)
-			return rc;
-
-	rc = register_bustype_attributes();
 	return rc;
 }
 
@@ -1592,7 +1587,6 @@ create_bus_type(void)
 static void
 remove_bus_type(void)
 {
-	unregister_bustype_attributes();
 	bus_unregister(&visorbus_type);
 }
 
