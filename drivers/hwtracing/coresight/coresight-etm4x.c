@@ -932,6 +932,101 @@ static ssize_t bb_ctrl_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(bb_ctrl);
 
+static ssize_t event_vinst_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	unsigned long val;
+	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	val = drvdata->vinst_ctrl & ETMv4_EVENT_MASK;
+	return scnprintf(buf, PAGE_SIZE, "%#lx\n", val);
+}
+
+static ssize_t event_vinst_store(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf, size_t size)
+{
+	unsigned long val;
+	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	if (kstrtoul(buf, 16, &val))
+		return -EINVAL;
+
+	spin_lock(&drvdata->spinlock);
+	val &= ETMv4_EVENT_MASK;
+	drvdata->vinst_ctrl &= ~ETMv4_EVENT_MASK;
+	drvdata->vinst_ctrl |= val;
+	spin_unlock(&drvdata->spinlock);
+	return size;
+}
+static DEVICE_ATTR_RW(event_vinst);
+
+static ssize_t s_exlevel_vinst_show(struct device *dev,
+				    struct device_attribute *attr,
+				    char *buf)
+{
+	unsigned long val;
+	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	val = BMVAL(drvdata->vinst_ctrl, 16, 19);
+	return scnprintf(buf, PAGE_SIZE, "%#lx\n", val);
+}
+
+static ssize_t s_exlevel_vinst_store(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t size)
+{
+	unsigned long val;
+	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	if (kstrtoul(buf, 16, &val))
+		return -EINVAL;
+
+	spin_lock(&drvdata->spinlock);
+	/* clear all EXLEVEL_S bits (bit[18] is never implemented) */
+	drvdata->vinst_ctrl &= ~(BIT(16) | BIT(17) | BIT(19));
+	/* enable instruction tracing for corresponding exception level */
+	val &= drvdata->s_ex_level;
+	drvdata->vinst_ctrl |= (val << 16);
+	spin_unlock(&drvdata->spinlock);
+	return size;
+}
+static DEVICE_ATTR_RW(s_exlevel_vinst);
+
+static ssize_t ns_exlevel_vinst_show(struct device *dev,
+				     struct device_attribute *attr,
+				     char *buf)
+{
+	unsigned long val;
+	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	/* EXLEVEL_NS, bits[23:20] */
+	val = BMVAL(drvdata->vinst_ctrl, 20, 23);
+	return scnprintf(buf, PAGE_SIZE, "%#lx\n", val);
+}
+
+static ssize_t ns_exlevel_vinst_store(struct device *dev,
+				      struct device_attribute *attr,
+				      const char *buf, size_t size)
+{
+	unsigned long val;
+	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	if (kstrtoul(buf, 16, &val))
+		return -EINVAL;
+
+	spin_lock(&drvdata->spinlock);
+	/* clear EXLEVEL_NS bits (bit[23] is never implemented */
+	drvdata->vinst_ctrl &= ~(BIT(20) | BIT(21) | BIT(22));
+	/* enable instruction tracing for corresponding exception level */
+	val &= drvdata->ns_ex_level;
+	drvdata->vinst_ctrl |= (val << 20);
+	spin_unlock(&drvdata->spinlock);
+	return size;
+}
+static DEVICE_ATTR_RW(ns_exlevel_vinst);
+
 static ssize_t cpu_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
@@ -963,6 +1058,9 @@ static struct attribute *coresight_etmv4_attrs[] = {
 	&dev_attr_syncfreq.attr,
 	&dev_attr_cyc_threshold.attr,
 	&dev_attr_bb_ctrl.attr,
+	&dev_attr_event_vinst.attr,
+	&dev_attr_s_exlevel_vinst.attr,
+	&dev_attr_ns_exlevel_vinst.attr,
 	&dev_attr_cpu.attr,
 	NULL,
 };

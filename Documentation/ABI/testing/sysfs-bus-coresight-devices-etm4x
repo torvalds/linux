@@ -134,3 +134,23 @@ KernelVersion:	4.01
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description: 	(RW) Controls which regions in the memory map are enabled to
 		use branch broadcasting.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/event_vinst
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description: 	(RW) Controls instruction trace filtering.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/s_exlevel_vinst
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description: 	(RW) In Secure state, each bit controls whether instruction
+		tracing is enabled for the corresponding exception level.
+
+What:		/sys/bus/coresight/devices/<memory_map>.etm/ns_exlevel_vinst
+Date:		April 2015
+KernelVersion:	4.01
+Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
+Description: 	(RW) In non-secure state, each bit controls whether instruction
+		tracing is enabled for the corresponding exception level.
