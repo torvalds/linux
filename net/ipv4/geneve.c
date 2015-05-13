@@ -450,4 +450,3 @@ module_exit(geneve_cleanup_module);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jesse Gross <jesse@nicira.com>");
 MODULE_DESCRIPTION("Driver for GENEVE encapsulated traffic");
-MODULE_ALIAS_RTNL_LINK("geneve");
