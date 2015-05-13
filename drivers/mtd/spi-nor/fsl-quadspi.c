@@ -26,6 +26,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/spi-nor.h>
+#include <linux/mutex.h>
 
 /* The registers */
 #define QUADSPI_MCR			0x00
@@ -233,6 +234,7 @@ struct fsl_qspi {
 	u32 clk_rate;
 	unsigned int chip_base_addr; /* We may support two chips. */
 	bool has_second_chip;
+	struct mutex lock;
 };
 
 static inline int is_vybrid_qspi(struct fsl_qspi *q)
@@ -761,18 +763,24 @@ static int fsl_qspi_prep(struct spi_nor *nor, enum spi_nor_ops ops)
 	struct fsl_qspi *q = nor->priv;
 	int ret;
 
+	mutex_lock(&q->lock);
 	ret = clk_enable(q->clk_en);
 	if (ret)
-		return ret;
+		goto err_mutex;
 
 	ret = clk_enable(q->clk);
-	if (ret) {
-		clk_disable(q->clk_en);
-		return ret;
-	}
+	if (ret)
+		goto err_clk;
 
 	fsl_qspi_set_base_addr(q, nor);
 	return 0;
+
+err_clk:
+	clk_disable(q->clk_en);
+err_mutex:
+	mutex_unlock(&q->lock);
+
+	return ret;
 }
 
 static void fsl_qspi_unprep(struct spi_nor *nor, enum spi_nor_ops ops)
@@ -781,6 +789,7 @@ static void fsl_qspi_unprep(struct spi_nor *nor, enum spi_nor_ops ops)
 
 	clk_disable(q->clk);
 	clk_disable(q->clk_en);
+	mutex_unlock(&q->lock);
 }
 
 static int fsl_qspi_probe(struct platform_device *pdev)
@@ -864,6 +873,8 @@ static int fsl_qspi_probe(struct platform_device *pdev)
 	if (of_get_property(np, "fsl,qspi-has-second-chip", NULL))
 		q->has_second_chip = true;
 
+	mutex_init(&q->lock);
+
 	/* iterate the subnodes. */
 	for_each_available_child_of_node(dev->of_node, np) {
 		char modalias[40];
@@ -892,24 +903,24 @@ static int fsl_qspi_probe(struct platform_device *pdev)
 
 		ret = of_modalias_node(np, modalias, sizeof(modalias));
 		if (ret < 0)
-			goto irq_failed;
+			goto mutex_failed;
 
 		ret = of_property_read_u32(np, "spi-max-frequency",
 				&q->clk_rate);
 		if (ret < 0)
-			goto irq_failed;
+			goto mutex_failed;
 
 		/* set the chip address for READID */
 		fsl_qspi_set_base_addr(q, nor);
 
 		ret = spi_nor_scan(nor, modalias, SPI_NOR_QUAD);
 		if (ret)
-			goto irq_failed;
+			goto mutex_failed;
 
 		ppdata.of_node = np;
 		ret = mtd_device_parse_register(mtd, NULL, &ppdata, NULL, 0);
 		if (ret)
-			goto irq_failed;
+			goto mutex_failed;
 
 		/* Set the correct NOR size now. */
 		if (q->nor_size == 0) {
@@ -950,6 +961,8 @@ last_init_failed:
 			i *= 2;
 		mtd_device_unregister(&q->mtd[i]);
 	}
+mutex_failed:
+	mutex_destroy(&q->lock);
 irq_failed:
 	clk_disable_unprepare(q->clk);
 clk_failed:
@@ -973,6 +986,7 @@ static int fsl_qspi_remove(struct platform_device *pdev)
 	writel(QUADSPI_MCR_MDIS_MASK, q->iobase + QUADSPI_MCR);
 	writel(0x0, q->iobase + QUADSPI_RSER);
 
+	mutex_destroy(&q->lock);
 	clk_unprepare(q->clk);
 	clk_unprepare(q->clk_en);
 	return 0;
