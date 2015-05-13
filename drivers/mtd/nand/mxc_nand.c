@@ -960,6 +960,23 @@ static int get_eccsize(struct mtd_info *mtd)
 		return 8;
 }
 
+static void ecc_8bit_layout_4k(struct nand_ecclayout *layout)
+{
+	int i, j;
+
+	layout->eccbytes = 8*18;
+	for (i = 0; i < 8; i++)
+		for (j = 0; j < 18; j++)
+			layout->eccpos[i*18 + j] = i*26 + j + 7;
+
+	layout->oobfree[0].offset = 2;
+	layout->oobfree[0].length = 4;
+	for (i = 1; i < 8; i++) {
+		layout->oobfree[i].offset = i*26;
+		layout->oobfree[i].length = 7;
+	}
+}
+
 static void preset_v1(struct mtd_info *mtd)
 {
 	struct nand_chip *nand_chip = mtd->priv;
@@ -1636,8 +1653,11 @@ static int mxcnd_probe(struct platform_device *pdev)
 
 	if (mtd->writesize == 2048)
 		this->ecc.layout = host->devtype_data->ecclayout_2k;
-	else if (mtd->writesize == 4096)
+	else if (mtd->writesize == 4096) {
 		this->ecc.layout = host->devtype_data->ecclayout_4k;
+		if (get_eccsize(mtd) == 8)
+			ecc_8bit_layout_4k(this->ecc.layout);
+	}
 
 	/*
 	 * Experimentation shows that i.MX NFC can only handle up to 218 oob
