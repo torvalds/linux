@@ -5,7 +5,7 @@
  * ELF register definitions..
  */
 
-#include <asm/user.h>
+#include <arch/elf.h>
 
 #define R_CRIS_NONE             0
 #define R_CRIS_8                1
@@ -32,7 +32,6 @@ typedef unsigned long elf_greg_t;
 
 /* Note that NGREG is defined to ELF_NGREG in include/linux/elfcore.h, and is
    thus exposed to user-space. */
-#define ELF_NGREG (sizeof (struct user_regs_struct) / sizeof(elf_greg_t))
 typedef elf_greg_t elf_gregset_t[ELF_NGREG];
 
 /* A placeholder; CRIS does not have any fp regs.  */
@@ -44,8 +43,6 @@ typedef unsigned long elf_fpregset_t;
 #define ELF_CLASS	ELFCLASS32
 #define ELF_DATA	ELFDATA2LSB
 #define ELF_ARCH	EM_CRIS
-
-#include <arch/elf.h>
 
 /* The master for these definitions is {binutils}/include/elf/cris.h:  */
 /* User symbols in this file have a leading underscore.  */
