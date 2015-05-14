@@ -300,13 +300,20 @@ static struct platform_device *xgbe_of_get_phy_pdev(struct xgbe_prv_data *pdata)
 	struct platform_device *phy_pdev;
 
 	phy_node = of_parse_phandle(dev->of_node, "phy-handle", 0);
-	if (!phy_node) {
-		dev_err(dev, "unable to locate phy device\n");
-		return NULL;
+	if (phy_node) {
+		/* Old style device tree:
+		 *   The XGBE and PHY resources are separate
+		 */
+		phy_pdev = of_find_device_by_node(phy_node);
+		of_node_put(phy_node);
+	} else {
+		/* New style device tree:
+		 *   The XGBE and PHY resources are grouped together with
+		 *   the PHY resources listed last
+		 */
+		get_device(dev);
+		phy_pdev = pdata->pdev;
 	}
-
-	phy_pdev = of_find_device_by_node(phy_node);
-	of_node_put(phy_node);
 
 	return phy_pdev;
 }
@@ -401,14 +408,14 @@ static int xgbe_probe(struct platform_device *pdev)
 	phy_dev = &phy_pdev->dev;
 
 	if (pdev == phy_pdev) {
-		/* ACPI:
+		/* New style device tree or ACPI:
 		 *   The XGBE and PHY resources are grouped together with
 		 *   the PHY resources listed last
 		 */
 		phy_memnum = xgbe_resource_count(pdev, IORESOURCE_MEM) - 3;
 		phy_irqnum = xgbe_resource_count(pdev, IORESOURCE_IRQ) - 1;
 	} else {
-		/* Device tree:
+		/* Old style device tree:
 		 *   The XGBE and PHY resources are separate
 		 */
 		phy_memnum = 0;

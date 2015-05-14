@@ -129,7 +129,7 @@
 #include <net/dcbnl.h>
 
 #define XGBE_DRV_NAME		"amd-xgbe"
-#define XGBE_DRV_VERSION	"1.0.1"
+#define XGBE_DRV_VERSION	"1.0.2"
 #define XGBE_DRV_DESC		"AMD 10 Gigabit Ethernet Driver"
 
 /* Descriptor related defines */
