@@ -322,7 +322,7 @@ struct sirfsoc_uart_register sirfsoc_uart = {
 #define SIRFSOC_USP_RX_CLK_DIVISOR_OFFSET	24
 #define SIRFSOC_USP_ASYNC_DIV2_MASK		0x3f
 #define SIRFSOC_USP_ASYNC_DIV2_OFFSET		16
-
+#define SIRFSOC_USP_LOOP_BACK_CTRL		BIT(2)
 /* USP-UART Common */
 #define SIRFSOC_UART_RX_TIMEOUT(br, to)	(((br) * (((to) + 999) / 1000)) / 1000)
 #define SIRFUART_RECV_TIMEOUT_VALUE(x)	\
