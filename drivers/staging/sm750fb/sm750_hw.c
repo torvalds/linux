@@ -85,8 +85,7 @@ int hw_sm750_map(struct lynx_share* share, struct pci_dev* pdev)
 	}
 #endif
 
-	share->pvMem = ioremap(share->vidmem_start,
-							share->vidmem_size);
+	share->pvMem = ioremap_wc(share->vidmem_start, share->vidmem_size);
 
 	if(!share->pvMem){
 		pr_err("Map video memory failed\n");

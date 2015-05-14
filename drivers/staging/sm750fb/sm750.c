@@ -16,9 +16,6 @@
 #include<linux/vmalloc.h>
 #include<linux/pagemap.h>
 #include <linux/console.h>
-#ifdef CONFIG_MTRR
-#include <asm/mtrr.h>
-#endif
 #include <asm/fb.h>
 #include "sm750.h"
 #include "sm750_hw.h"
@@ -47,9 +44,7 @@ typedef int (*PROC_SPEC_INITHW)(struct lynx_share*, struct pci_dev*);
 /* common var for all device */
 static int g_hwcursor = 1;
 static int g_noaccel;
-#ifdef CONFIG_MTRR
 static int g_nomtrr;
-#endif
 static const char *g_fbmode[] = {NULL, NULL};
 static const char *g_def_fbmode = "800x600-16@60";
 static char *g_settings = NULL;
@@ -1126,11 +1121,8 @@ static int lynxfb_pci_probe(struct pci_dev *pdev,
 
 	pr_info("share->revid = %02x\n", share->revid);
 	share->pdev = pdev;
-#ifdef CONFIG_MTRR
 	share->mtrr_off = g_nomtrr;
 	share->mtrr.vram = 0;
-	share->mtrr.vram_added = 0;
-#endif
 	share->accel_off = g_noaccel;
 	share->dual = g_dualview;
 	spin_lock_init(&share->slock);
@@ -1158,22 +1150,9 @@ static int lynxfb_pci_probe(struct pci_dev *pdev,
 		goto err_map;
 	}
 
-#ifdef CONFIG_MTRR
-	if (!share->mtrr_off) {
-		pr_info("enable mtrr\n");
-		share->mtrr.vram = mtrr_add(share->vidmem_start,
-					    share->vidmem_size,
-					    MTRR_TYPE_WRCOMB, 1);
-
-		if (share->mtrr.vram < 0) {
-			/* don't block driver with the failure of MTRR */
-			pr_err("Unable to setup MTRR.\n");
-		} else {
-			share->mtrr.vram_added = 1;
-			pr_info("MTRR added successfully\n");
-		}
-	}
-#endif
+	if (!share->mtrr_off)
+		share->mtrr.vram = arch_phys_wc_add(share->vidmem_start,
+						    share->vidmem_size);
 
 	memset_io(share->pvMem, 0, share->vidmem_size);
 
@@ -1274,12 +1253,7 @@ static void lynxfb_pci_remove(struct pci_dev *pdev)
 		/* release frame buffer */
 		framebuffer_release(info);
 	}
-#ifdef CONFIG_MTRR
-	if (share->mtrr.vram_added)
-		mtrr_del(share->mtrr.vram,
-			 share->vidmem_start,
-			 share->vidmem_size);
-#endif
+	arch_phys_wc_del(share->mtrr.vram);
 
 	iounmap(share->pvReg);
 	iounmap(share->pvMem);
@@ -1321,10 +1295,8 @@ static int __init lynxfb_setup(char *options)
 		/* options that mean for any lynx chips are configured here */
 		if (!strncmp(opt, "noaccel", strlen("noaccel")))
 			g_noaccel = 1;
-#ifdef CONFIG_MTRR
 		else if (!strncmp(opt, "nomtrr", strlen("nomtrr")))
 			g_nomtrr = 1;
-#endif
 		else if (!strncmp(opt, "dual", strlen("dual")))
 			g_dualview = 1;
 		else {

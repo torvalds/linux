@@ -51,13 +51,10 @@ struct lynx_share{
 	struct lynx_accel accel;
 	int accel_off;
 	int dual;
-#ifdef CONFIG_MTRR
 		int mtrr_off;
 		struct{
 			int vram;
-			int vram_added;
 		}mtrr;
-#endif
 	/* all smi graphic adaptor got below attributes */
 	unsigned long vidmem_start;
 	unsigned long vidreg_start;
