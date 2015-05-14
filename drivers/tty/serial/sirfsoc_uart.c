@@ -344,7 +344,8 @@ static void sirfsoc_uart_enable_ms(struct uart_port *port)
 	if (sirfport->uart_reg->uart_type == SIRF_REAL_UART) {
 		wr_regl(port, ureg->sirfsoc_afc_ctrl,
 				rd_regl(port, ureg->sirfsoc_afc_ctrl) |
-				SIRFUART_AFC_TX_EN | SIRFUART_AFC_RX_EN);
+				SIRFUART_AFC_TX_EN | SIRFUART_AFC_RX_EN |
+				SIRFUART_AFC_CTRL_RX_THD);
 		if (!sirfport->is_atlas7)
 			wr_regl(port, ureg->sirfsoc_int_en_reg,
 					rd_regl(port, ureg->sirfsoc_int_en_reg)
