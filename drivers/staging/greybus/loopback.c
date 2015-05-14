@@ -401,23 +401,25 @@ static int gb_loopback_connection_init(struct gb_connection *connection)
 	connection->private = gb;
 	retval = sysfs_create_groups(&connection->dev.kobj, loopback_groups);
 	if (retval)
-		goto error;
+		goto out_free;
 
 	/* Check the version */
 	retval = get_version(gb);
 	if (retval)
-		goto error;
+		goto out_get_ver;
 
 	gb_loopback_reset_stats(gb);
 	gb->task = kthread_run(gb_loopback_fn, gb, "gb_loopback");
 	if (IS_ERR(gb->task)) {
 		retval = PTR_ERR(gb->task);
-		goto error;
+		goto out_get_ver;
 	}
 
 	return 0;
 
-error:
+out_get_ver:
+	sysfs_remove_groups(&connection->dev.kobj, loopback_groups);
+out_free:
 	kfree(gb);
 	return retval;
 }
