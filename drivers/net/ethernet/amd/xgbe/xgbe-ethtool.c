@@ -258,7 +258,6 @@ static int xgbe_set_pauseparam(struct net_device *netdev,
 			       struct ethtool_pauseparam *pause)
 {
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
-	struct phy_device *phydev = pdata->phydev;
 	int ret = 0;
 
 	DBGPR("-->xgbe_set_pauseparam\n");
@@ -268,19 +267,19 @@ static int xgbe_set_pauseparam(struct net_device *netdev,
 
 	pdata->pause_autoneg = pause->autoneg;
 	if (pause->autoneg) {
-		phydev->advertising |= ADVERTISED_Pause;
-		phydev->advertising |= ADVERTISED_Asym_Pause;
+		pdata->phy.advertising |= ADVERTISED_Pause;
+		pdata->phy.advertising |= ADVERTISED_Asym_Pause;
 
 	} else {
-		phydev->advertising &= ~ADVERTISED_Pause;
-		phydev->advertising &= ~ADVERTISED_Asym_Pause;
+		pdata->phy.advertising &= ~ADVERTISED_Pause;
+		pdata->phy.advertising &= ~ADVERTISED_Asym_Pause;
 
 		pdata->tx_pause = pause->tx_pause;
 		pdata->rx_pause = pause->rx_pause;
 	}
 
 	if (netif_running(netdev))
-		ret = phy_start_aneg(phydev);
+		ret = pdata->phy_if.phy_config_aneg(pdata);
 
 	DBGPR("<--xgbe_set_pauseparam\n");
 
@@ -291,36 +290,39 @@ static int xgbe_get_settings(struct net_device *netdev,
 			     struct ethtool_cmd *cmd)
 {
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
-	int ret;
 
 	DBGPR("-->xgbe_get_settings\n");
 
-	if (!pdata->phydev)
-		return -ENODEV;
+	cmd->phy_address = pdata->phy.address;
 
-	ret = phy_ethtool_gset(pdata->phydev, cmd);
+	cmd->supported = pdata->phy.supported;
+	cmd->advertising = pdata->phy.advertising;
+	cmd->lp_advertising = pdata->phy.lp_advertising;
+
+	cmd->autoneg = pdata->phy.autoneg;
+	ethtool_cmd_speed_set(cmd, pdata->phy.speed);
+	cmd->duplex = pdata->phy.duplex;
+
+	cmd->port = PORT_NONE;
+	cmd->transceiver = XCVR_INTERNAL;
 
 	DBGPR("<--xgbe_get_settings\n");
 
-	return ret;
+	return 0;
 }
 
 static int xgbe_set_settings(struct net_device *netdev,
 			     struct ethtool_cmd *cmd)
 {
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
-	struct phy_device *phydev = pdata->phydev;
 	u32 speed;
 	int ret;
 
 	DBGPR("-->xgbe_set_settings\n");
 
-	if (!pdata->phydev)
-		return -ENODEV;
-
 	speed = ethtool_cmd_speed(cmd);
 
-	if (cmd->phy_address != phydev->addr)
+	if (cmd->phy_address != pdata->phy.address)
 		return -EINVAL;
 
 	if ((cmd->autoneg != AUTONEG_ENABLE) &&
@@ -341,23 +343,23 @@ static int xgbe_set_settings(struct net_device *netdev,
 			return -EINVAL;
 	}
 
-	cmd->advertising &= phydev->supported;
+	cmd->advertising &= pdata->phy.supported;
 	if ((cmd->autoneg == AUTONEG_ENABLE) && !cmd->advertising)
 		return -EINVAL;
 
 	ret = 0;
-	phydev->autoneg = cmd->autoneg;
-	phydev->speed = speed;
-	phydev->duplex = cmd->duplex;
-	phydev->advertising = cmd->advertising;
+	pdata->phy.autoneg = cmd->autoneg;
+	pdata->phy.speed = speed;
+	pdata->phy.duplex = cmd->duplex;
+	pdata->phy.advertising = cmd->advertising;
 
 	if (cmd->autoneg == AUTONEG_ENABLE)
-		phydev->advertising |= ADVERTISED_Autoneg;
+		pdata->phy.advertising |= ADVERTISED_Autoneg;
 	else
-		phydev->advertising &= ~ADVERTISED_Autoneg;
+		pdata->phy.advertising &= ~ADVERTISED_Autoneg;
 
 	if (netif_running(netdev))
-		ret = phy_start_aneg(phydev);
+		ret = pdata->phy_if.phy_config_aneg(pdata);
 
 	DBGPR("<--xgbe_set_settings\n");
 

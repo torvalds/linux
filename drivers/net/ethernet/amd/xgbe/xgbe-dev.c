@@ -910,23 +910,6 @@ static void xgbe_write_mmd_regs(struct xgbe_prv_data *pdata, int prtad,
 	else
 		mmd_address = (pdata->mdio_mmd << 16) | (mmd_reg & 0xffff);
 
-	/* If the PCS is changing modes, match the MAC speed to it */
-	if (((mmd_address >> 16) == MDIO_MMD_PCS) &&
-	    ((mmd_address & 0xffff) == MDIO_CTRL2)) {
-		struct phy_device *phydev = pdata->phydev;
-
-		if (mmd_data & MDIO_PCS_CTRL2_TYPE) {
-			/* KX mode */
-			if (phydev->supported & SUPPORTED_1000baseKX_Full)
-				xgbe_set_gmii_speed(pdata);
-			else
-				xgbe_set_gmii_2500_speed(pdata);
-		} else {
-			/* KR mode */
-			xgbe_set_xgmii_speed(pdata);
-		}
-	}
-
 	/* The PCS registers are accessed using mmio. The underlying APB3
 	 * management interface uses indirect addressing to access the MMD
 	 * register sets. This requires accessing of the PCS register in two

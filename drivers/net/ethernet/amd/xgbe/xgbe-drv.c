@@ -437,12 +437,31 @@ static void xgbe_tx_timer(unsigned long data)
 	DBGPR("<--xgbe_tx_timer\n");
 }
 
-static void xgbe_init_tx_timers(struct xgbe_prv_data *pdata)
+static void xgbe_service(struct work_struct *work)
+{
+	struct xgbe_prv_data *pdata = container_of(work,
+						   struct xgbe_prv_data,
+						   service_work);
+
+	pdata->phy_if.phy_status(pdata);
+}
+
+static void xgbe_service_timer(unsigned long data)
+{
+	struct xgbe_prv_data *pdata = (struct xgbe_prv_data *)data;
+
+	schedule_work(&pdata->service_work);
+
+	mod_timer(&pdata->service_timer, jiffies + HZ);
+}
+
+static void xgbe_init_timers(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_channel *channel;
 	unsigned int i;
 
-	DBGPR("-->xgbe_init_tx_timers\n");
+	setup_timer(&pdata->service_timer, xgbe_service_timer,
+		    (unsigned long)pdata);
 
 	channel = pdata->channel;
 	for (i = 0; i < pdata->channel_count; i++, channel++) {
@@ -452,16 +471,19 @@ static void xgbe_init_tx_timers(struct xgbe_prv_data *pdata)
 		setup_timer(&channel->tx_timer, xgbe_tx_timer,
 			    (unsigned long)channel);
 	}
-
-	DBGPR("<--xgbe_init_tx_timers\n");
 }
 
-static void xgbe_stop_tx_timers(struct xgbe_prv_data *pdata)
+static void xgbe_start_timers(struct xgbe_prv_data *pdata)
+{
+	mod_timer(&pdata->service_timer, jiffies + HZ);
+}
+
+static void xgbe_stop_timers(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_channel *channel;
 	unsigned int i;
 
-	DBGPR("-->xgbe_stop_tx_timers\n");
+	del_timer_sync(&pdata->service_timer);
 
 	channel = pdata->channel;
 	for (i = 0; i < pdata->channel_count; i++, channel++) {
@@ -470,8 +492,6 @@ static void xgbe_stop_tx_timers(struct xgbe_prv_data *pdata)
 
 		del_timer_sync(&channel->tx_timer);
 	}
-
-	DBGPR("<--xgbe_stop_tx_timers\n");
 }
 
 void xgbe_get_all_hw_features(struct xgbe_prv_data *pdata)
@@ -758,113 +778,14 @@ static void xgbe_free_rx_data(struct xgbe_prv_data *pdata)
 	DBGPR("<--xgbe_free_rx_data\n");
 }
 
-static void xgbe_adjust_link(struct net_device *netdev)
-{
-	struct xgbe_prv_data *pdata = netdev_priv(netdev);
-	struct xgbe_hw_if *hw_if = &pdata->hw_if;
-	struct phy_device *phydev = pdata->phydev;
-	int new_state = 0;
-
-	if (!phydev)
-		return;
-
-	if (phydev->link) {
-		/* Flow control support */
-		if (pdata->pause_autoneg) {
-			if (phydev->pause || phydev->asym_pause) {
-				pdata->tx_pause = 1;
-				pdata->rx_pause = 1;
-			} else {
-				pdata->tx_pause = 0;
-				pdata->rx_pause = 0;
-			}
-		}
-
-		if (pdata->tx_pause != pdata->phy_tx_pause) {
-			hw_if->config_tx_flow_control(pdata);
-			pdata->phy_tx_pause = pdata->tx_pause;
-		}
-
-		if (pdata->rx_pause != pdata->phy_rx_pause) {
-			hw_if->config_rx_flow_control(pdata);
-			pdata->phy_rx_pause = pdata->rx_pause;
-		}
-
-		/* Speed support */
-		if (phydev->speed != pdata->phy_speed) {
-			new_state = 1;
-
-			switch (phydev->speed) {
-			case SPEED_10000:
-				hw_if->set_xgmii_speed(pdata);
-				break;
-
-			case SPEED_2500:
-				hw_if->set_gmii_2500_speed(pdata);
-				break;
-
-			case SPEED_1000:
-				hw_if->set_gmii_speed(pdata);
-				break;
-			}
-			pdata->phy_speed = phydev->speed;
-		}
-
-		if (phydev->link != pdata->phy_link) {
-			new_state = 1;
-			pdata->phy_link = 1;
-		}
-	} else if (pdata->phy_link) {
-		new_state = 1;
-		pdata->phy_link = 0;
-		pdata->phy_speed = SPEED_UNKNOWN;
-	}
-
-	if (new_state)
-		phy_print_status(phydev);
-}
-
 static int xgbe_phy_init(struct xgbe_prv_data *pdata)
 {
-	struct net_device *netdev = pdata->netdev;
-	struct phy_device *phydev = pdata->phydev;
-	int ret;
-
 	pdata->phy_link = -1;
 	pdata->phy_speed = SPEED_UNKNOWN;
 	pdata->phy_tx_pause = pdata->tx_pause;
 	pdata->phy_rx_pause = pdata->rx_pause;
 
-	ret = phy_connect_direct(netdev, phydev, &xgbe_adjust_link,
-				 pdata->phy_mode);
-	if (ret) {
-		netdev_err(netdev, "phy_connect_direct failed\n");
-		return ret;
-	}
-
-	if (!phydev->drv || (phydev->drv->phy_id == 0)) {
-		netdev_err(netdev, "phy_id not valid\n");
-		ret = -ENODEV;
-		goto err_phy_connect;
-	}
-	netif_dbg(pdata, ifup, pdata->netdev,
-		  "phy_connect_direct succeeded for PHY %s\n",
-		  dev_name(&phydev->dev));
-
-	return 0;
-
-err_phy_connect:
-	phy_disconnect(phydev);
-
-	return ret;
-}
-
-static void xgbe_phy_exit(struct xgbe_prv_data *pdata)
-{
-	if (!pdata->phydev)
-		return;
-
-	phy_disconnect(pdata->phydev);
+	return pdata->phy_if.phy_reset(pdata);
 }
 
 int xgbe_powerdown(struct net_device *netdev, unsigned int caller)
@@ -889,12 +810,13 @@ int xgbe_powerdown(struct net_device *netdev, unsigned int caller)
 
 	netif_tx_stop_all_queues(netdev);
 
+	xgbe_stop_timers(pdata);
+	flush_workqueue(pdata->dev_workqueue);
+
 	hw_if->powerdown_tx(pdata);
 	hw_if->powerdown_rx(pdata);
 
 	xgbe_napi_disable(pdata, 0);
-
-	phy_stop(pdata->phydev);
 
 	pdata->power_down = 1;
 
@@ -924,8 +846,6 @@ int xgbe_powerup(struct net_device *netdev, unsigned int caller)
 
 	pdata->power_down = 0;
 
-	phy_start(pdata->phydev);
-
 	xgbe_napi_enable(pdata, 0);
 
 	hw_if->powerup_tx(pdata);
@@ -935,6 +855,8 @@ int xgbe_powerup(struct net_device *netdev, unsigned int caller)
 		netif_device_attach(netdev);
 
 	netif_tx_start_all_queues(netdev);
+
+	xgbe_start_timers(pdata);
 
 	spin_unlock_irqrestore(&pdata->lock, flags);
 
@@ -946,6 +868,7 @@ int xgbe_powerup(struct net_device *netdev, unsigned int caller)
 static int xgbe_start(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_hw_if *hw_if = &pdata->hw_if;
+	struct xgbe_phy_if *phy_if = &pdata->phy_if;
 	struct net_device *netdev = pdata->netdev;
 	int ret;
 
@@ -953,7 +876,9 @@ static int xgbe_start(struct xgbe_prv_data *pdata)
 
 	hw_if->init(pdata);
 
-	phy_start(pdata->phydev);
+	ret = phy_if->phy_start(pdata);
+	if (ret)
+		goto err_phy;
 
 	xgbe_napi_enable(pdata, 1);
 
@@ -964,9 +889,10 @@ static int xgbe_start(struct xgbe_prv_data *pdata)
 	hw_if->enable_tx(pdata);
 	hw_if->enable_rx(pdata);
 
-	xgbe_init_tx_timers(pdata);
-
 	netif_tx_start_all_queues(netdev);
+
+	xgbe_start_timers(pdata);
+	schedule_work(&pdata->service_work);
 
 	DBGPR("<--xgbe_start\n");
 
@@ -975,8 +901,9 @@ static int xgbe_start(struct xgbe_prv_data *pdata)
 err_napi:
 	xgbe_napi_disable(pdata, 1);
 
-	phy_stop(pdata->phydev);
+	phy_if->phy_stop(pdata);
 
+err_phy:
 	hw_if->exit(pdata);
 
 	return ret;
@@ -985,6 +912,7 @@ err_napi:
 static void xgbe_stop(struct xgbe_prv_data *pdata)
 {
 	struct xgbe_hw_if *hw_if = &pdata->hw_if;
+	struct xgbe_phy_if *phy_if = &pdata->phy_if;
 	struct xgbe_channel *channel;
 	struct net_device *netdev = pdata->netdev;
 	struct netdev_queue *txq;
@@ -994,7 +922,8 @@ static void xgbe_stop(struct xgbe_prv_data *pdata)
 
 	netif_tx_stop_all_queues(netdev);
 
-	xgbe_stop_tx_timers(pdata);
+	xgbe_stop_timers(pdata);
+	flush_workqueue(pdata->dev_workqueue);
 
 	hw_if->disable_tx(pdata);
 	hw_if->disable_rx(pdata);
@@ -1003,7 +932,7 @@ static void xgbe_stop(struct xgbe_prv_data *pdata)
 
 	xgbe_napi_disable(pdata, 1);
 
-	phy_stop(pdata->phydev);
+	phy_if->phy_stop(pdata);
 
 	hw_if->exit(pdata);
 
@@ -1374,7 +1303,7 @@ static int xgbe_open(struct net_device *netdev)
 	ret = clk_prepare_enable(pdata->sysclk);
 	if (ret) {
 		netdev_alert(netdev, "dma clk_prepare_enable failed\n");
-		goto err_phy_init;
+		return ret;
 	}
 
 	ret = clk_prepare_enable(pdata->ptpclk);
@@ -1399,13 +1328,16 @@ static int xgbe_open(struct net_device *netdev)
 	if (ret)
 		goto err_channels;
 
-	/* Initialize the device restart and Tx timestamp work struct */
+	INIT_WORK(&pdata->service_work, xgbe_service);
 	INIT_WORK(&pdata->restart_work, xgbe_restart);
 	INIT_WORK(&pdata->tx_tstamp_work, xgbe_tx_tstamp);
+	xgbe_init_timers(pdata);
 
 	ret = xgbe_start(pdata);
 	if (ret)
 		goto err_rings;
+
+	clear_bit(XGBE_DOWN, &pdata->dev_state);
 
 	DBGPR("<--xgbe_open\n");
 
@@ -1422,9 +1354,6 @@ err_ptpclk:
 
 err_sysclk:
 	clk_disable_unprepare(pdata->sysclk);
-
-err_phy_init:
-	xgbe_phy_exit(pdata);
 
 	return ret;
 }
@@ -1449,8 +1378,7 @@ static int xgbe_close(struct net_device *netdev)
 	clk_disable_unprepare(pdata->ptpclk);
 	clk_disable_unprepare(pdata->sysclk);
 
-	/* Release the phy */
-	xgbe_phy_exit(pdata);
+	set_bit(XGBE_DOWN, &pdata->dev_state);
 
 	DBGPR("<--xgbe_close\n");
 
