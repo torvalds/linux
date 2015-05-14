@@ -9,11 +9,15 @@
  */
 
 #include <linux/mfd/syscon.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_net.h>
 #include <linux/phy.h>
+#include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/stmmac.h>
+
+#include "stmmac_platform.h"
 
 /* Register defines for CREG syscon */
 #define LPC18XX_CREG_CREG6			0x12c
@@ -67,8 +71,29 @@ static int lpc18xx_dwmac_init(struct platform_device *pdev, void *priv)
 	return 0;
 }
 
-const struct stmmac_of_data lpc18xx_dwmac_data = {
+static const struct stmmac_of_data lpc18xx_dwmac_data = {
 	.has_gmac = 1,
 	.setup = lpc18xx_dwmac_setup,
 	.init = lpc18xx_dwmac_init,
 };
+
+static const struct of_device_id lpc18xx_dwmac_match[] = {
+	{ .compatible = "nxp,lpc1850-dwmac", .data = &lpc18xx_dwmac_data },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, lpc18xx_dwmac_match);
+
+static struct platform_driver lpc18xx_dwmac_driver = {
+	.probe  = stmmac_pltfr_probe,
+	.remove = stmmac_pltfr_remove,
+	.driver = {
+		.name           = "lpc18xx-dwmac",
+		.pm		= &stmmac_pltfr_pm_ops,
+		.of_match_table = lpc18xx_dwmac_match,
+	},
+};
+module_platform_driver(lpc18xx_dwmac_driver);
+
+MODULE_AUTHOR("Joachim Eastwood <manabian@gmail.com>");
+MODULE_DESCRIPTION("DWMAC glue for LPC18xx/43xx Ethernet");
+MODULE_LICENSE("GPL v2");
