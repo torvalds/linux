@@ -668,6 +668,13 @@
 		SYS_STATUS_BOOST	324000
 		SYS_STATUS_ISP		533000
 		>;
+	bd-freq-table = <
+		/* bandwidth   freq */
+		5000           800000
+		3500           456000
+		2600           396000
+		2000           324000
+	>;
 	auto-freq-table = <
 		240000
 		324000
