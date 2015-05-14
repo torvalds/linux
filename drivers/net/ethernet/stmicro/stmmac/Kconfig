@@ -66,6 +66,18 @@ config DWMAC_ROCKCHIP
 	  This selects the Rockchip RK3288 SoC glue layer support for
 	  the stmmac device driver.
 
+config DWMAC_SOCFPGA
+	tristate "SOCFPGA dwmac support"
+	default ARCH_SOCFPGA
+	depends on OF
+	select MFD_SYSCON
+	help
+	  Support for ethernet controller on Altera SOCFPGA
+
+	  This selects the Altera SOCFPGA SoC glue layer support
+	  for the stmmac device driver. This driver is used for
+	  arria5 and cyclone5 FPGA SoCs.
+
 endif
 
 config STMMAC_PCI

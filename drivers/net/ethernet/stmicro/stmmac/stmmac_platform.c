@@ -39,7 +39,6 @@ static const struct of_device_id stmmac_dt_ids[] = {
 	{ .compatible = "st,stih416-dwmac", .data = &stih4xx_dwmac_data},
 	{ .compatible = "st,stid127-dwmac", .data = &stid127_dwmac_data},
 	{ .compatible = "st,stih407-dwmac", .data = &stih4xx_dwmac_data},
-	{ .compatible = "altr,socfpga-stmmac", .data = &socfpga_gmac_data },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, stmmac_dt_ids);
