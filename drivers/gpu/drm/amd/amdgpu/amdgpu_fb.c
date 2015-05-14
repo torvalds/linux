@@ -137,25 +137,13 @@ static int amdgpufb_create_pinned_object(struct amdgpu_fbdev *rfbdev,
 	if (fb_tiled)
 		tiling_flags = AMDGPU_TILING_MACRO;
 
-#ifdef __BIG_ENDIAN
-	switch (bpp) {
-	case 32:
-		tiling_flags |= AMDGPU_TILING_SWAP_32BIT;
-		break;
-	case 16:
-		tiling_flags |= AMDGPU_TILING_SWAP_16BIT;
-	default:
-		break;
-	}
-#endif
-
 	ret = amdgpu_bo_reserve(rbo, false);
 	if (unlikely(ret != 0))
 		goto out_unref;
 
 	if (tiling_flags) {
 		ret = amdgpu_bo_set_tiling_flags(rbo,
-						 tiling_flags | AMDGPU_TILING_SURFACE);
+						 tiling_flags);
 		if (ret)
 			dev_err(adev->dev, "FB failed to set tiling flags\n");
 	}
