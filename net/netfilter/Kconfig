@@ -1,6 +1,13 @@
 menu "Core Netfilter Configuration"
 	depends on NET && INET && NETFILTER
 
+config NETFILTER_INGRESS
+	bool "Netfilter ingress support"
+	select NET_INGRESS
+	help
+	  This allows you to classify packets from ingress using the Netfilter
+	  infrastructure.
+
 config NETFILTER_NETLINK
 	tristate
 

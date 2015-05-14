@@ -135,6 +135,7 @@
 #include <linux/if_macvlan.h>
 #include <linux/errqueue.h>
 #include <linux/hrtimer.h>
+#include <linux/netfilter_ingress.h>
 
 #include "net-sysfs.h"
 
@@ -1630,7 +1631,7 @@ int call_netdevice_notifiers(unsigned long val, struct net_device *dev)
 }
 EXPORT_SYMBOL(call_netdevice_notifiers);
 
-#ifdef CONFIG_NET_CLS_ACT
+#ifdef CONFIG_NET_INGRESS
 static struct static_key ingress_needed __read_mostly;
 
 void net_inc_ingress_queue(void)
@@ -3666,6 +3667,13 @@ static inline struct sk_buff *handle_ing(struct sk_buff *skb,
 
 	return skb;
 }
+#else
+static inline struct sk_buff *handle_ing(struct sk_buff *skb,
+					 struct packet_type **pt_prev,
+					 int *ret, struct net_device *orig_dev)
+{
+	return skb;
+}
 #endif
 
 /**
@@ -3739,6 +3747,28 @@ static bool skb_pfmemalloc_protocol(struct sk_buff *skb)
 	}
 }
 
+#ifdef CONFIG_NETFILTER_INGRESS
+static inline int nf_ingress(struct sk_buff *skb, struct packet_type **pt_prev,
+			     int *ret, struct net_device *orig_dev)
+{
+	if (nf_hook_ingress_active(skb)) {
+		if (*pt_prev) {
+			*ret = deliver_skb(skb, *pt_prev, orig_dev);
+			*pt_prev = NULL;
+		}
+
+		return nf_hook_ingress(skb);
+	}
+	return 0;
+}
+#else
+static inline int nf_ingress(struct sk_buff *skb, struct packet_type **pt_prev,
+			     int *ret, struct net_device *orig_dev)
+{
+	return 0;
+}
+#endif
+
 static int __netif_receive_skb_core(struct sk_buff *skb, bool pfmemalloc)
 {
 	struct packet_type *ptype, *pt_prev;
@@ -3798,13 +3828,17 @@ another_round:
 	}
 
 skip_taps:
-#ifdef CONFIG_NET_CLS_ACT
+#ifdef CONFIG_NET_INGRESS
 	if (static_key_false(&ingress_needed)) {
 		skb = handle_ing(skb, &pt_prev, &ret, orig_dev);
 		if (!skb)
 			goto unlock;
-	}
 
+		if (nf_ingress(skb, &pt_prev, &ret, orig_dev) < 0)
+			goto unlock;
+	}
+#endif
+#ifdef CONFIG_NET_CLS_ACT
 	skb->tc_verd = 0;
 ncls:
 #endif
@@ -6967,6 +7001,9 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 	dev->group = INIT_NETDEV_GROUP;
 	if (!dev->ethtool_ops)
 		dev->ethtool_ops = &default_ethtool_ops;
+
+	nf_hook_ingress_init(dev);
+
 	return dev;
 
 free_all:
