@@ -82,7 +82,7 @@ module_init(p8_init);
 module_exit(p8_exit);
 
 MODULE_AUTHOR("Marcelo Cerri<mhcerri@br.ibm.com>");
-MODULE_DESCRIPTION("IBM VMX cryptogaphic acceleration instructions support on Power 8");
+MODULE_DESCRIPTION("IBM VMX cryptographic acceleration instructions support on Power 8");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("1.0.0");
 
