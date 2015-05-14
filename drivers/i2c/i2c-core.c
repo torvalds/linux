@@ -2914,18 +2914,24 @@ int i2c_slave_register(struct i2c_client *client, i2c_slave_cb_t slave_cb)
 {
 	int ret;
 
-	if (!client || !slave_cb)
+	if (!client || !slave_cb) {
+		WARN(1, "insufficent data\n");
 		return -EINVAL;
+	}
 
 	if (!(client->flags & I2C_CLIENT_TEN)) {
 		/* Enforce stricter address checking */
 		ret = i2c_check_addr_validity(client->addr);
-		if (ret)
+		if (ret) {
+			dev_err(&client->dev, "%s: invalid address\n", __func__);
 			return ret;
+		}
 	}
 
-	if (!client->adapter->algo->reg_slave)
+	if (!client->adapter->algo->reg_slave) {
+		dev_err(&client->dev, "%s: not supported by adapter\n", __func__);
 		return -EOPNOTSUPP;
+	}
 
 	client->slave_cb = slave_cb;
 
@@ -2933,8 +2939,10 @@ int i2c_slave_register(struct i2c_client *client, i2c_slave_cb_t slave_cb)
 	ret = client->adapter->algo->reg_slave(client);
 	i2c_unlock_adapter(client->adapter);
 
-	if (ret)
+	if (ret) {
 		client->slave_cb = NULL;
+		dev_err(&client->dev, "%s: adapter returned error %d\n", __func__, ret);
+	}
 
 	return ret;
 }
@@ -2944,8 +2952,10 @@ int i2c_slave_unregister(struct i2c_client *client)
 {
 	int ret;
 
-	if (!client->adapter->algo->unreg_slave)
+	if (!client->adapter->algo->unreg_slave) {
+		dev_err(&client->dev, "%s: not supported by adapter\n", __func__);
 		return -EOPNOTSUPP;
+	}
 
 	i2c_lock_adapter(client->adapter);
 	ret = client->adapter->algo->unreg_slave(client);
@@ -2953,6 +2963,8 @@ int i2c_slave_unregister(struct i2c_client *client)
 
 	if (ret == 0)
 		client->slave_cb = NULL;
+	else
+		dev_err(&client->dev, "%s: adapter returned error %d\n", __func__, ret);
 
 	return ret;
 }
