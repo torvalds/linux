@@ -193,4 +193,4 @@ module_platform_driver(dw_mci_k3_pltfm_driver);
 
 MODULE_DESCRIPTION("K3 Specific DW-MSHC Driver Extension");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:dwmmc-k3");
+MODULE_ALIAS("platform:dwmmc_k3");
