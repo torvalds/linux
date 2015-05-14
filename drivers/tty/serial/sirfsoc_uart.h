@@ -20,6 +20,7 @@ struct sirfsoc_register {
 	u32 sirfsoc_tx_rx_en;
 	u32 sirfsoc_int_en_reg;
 	u32 sirfsoc_int_st_reg;
+	u32 sirfsoc_int_en_clr_reg;
 	u32 sirfsoc_tx_dma_io_ctrl;
 	u32 sirfsoc_tx_dma_io_len;
 	u32 sirfsoc_tx_fifo_ctrl;
@@ -143,6 +144,7 @@ struct sirfsoc_uart_register sirfsoc_usp = {
 		.sirfsoc_rx_fifo_op	= 0x0130,
 		.sirfsoc_rx_fifo_status	= 0x0134,
 		.sirfsoc_rx_fifo_data	= 0x0138,
+		.sirfsoc_int_en_clr_reg = 0x140,
 	},
 	.uart_int_en = {
 		.sirfsoc_rx_done_en	= BIT(0),
@@ -191,6 +193,7 @@ struct sirfsoc_uart_register sirfsoc_uart = {
 		.sirfsoc_divisor	= 0x0050,
 		.sirfsoc_int_en_reg	= 0x0054,
 		.sirfsoc_int_st_reg	= 0x0058,
+		.sirfsoc_int_en_clr_reg	= 0x0060,
 		.sirfsoc_tx_dma_io_ctrl	= 0x0100,
 		.sirfsoc_tx_dma_io_len	= 0x0104,
 		.sirfsoc_tx_fifo_ctrl	= 0x0108,
@@ -291,8 +294,6 @@ struct sirfsoc_uart_register sirfsoc_uart = {
 #define SIRFUART_IO_MODE			BIT(0)
 #define SIRFUART_DMA_MODE			0x0
 
-/* Macro Specific*/
-#define SIRFUART_INT_EN_CLR                    0x0060
 /* Baud Rate Calculation */
 #define SIRF_USP_MIN_SAMPLE_DIV			0x1
 #define SIRF_MIN_SAMPLE_DIV			0xf
@@ -326,34 +327,38 @@ struct sirfsoc_uart_register sirfsoc_uart = {
 #define SIRFSOC_UART_RX_TIMEOUT(br, to)	(((br) * (((to) + 999) / 1000)) / 1000)
 #define SIRFUART_RECV_TIMEOUT_VALUE(x)	\
 				(((x) > 0xFFFF) ? 0xFFFF : ((x) & 0xFFFF))
-#define SIRFUART_RECV_TIMEOUT(port, x)	\
-		(((port)->line > 2) ? (x & 0xFFFF) : ((x) & 0xFFFF) << 16)
+#define SIRFUART_USP_RECV_TIMEOUT(x)	(x & 0xFFFF)
+#define SIRFUART_UART_RECV_TIMEOUT(x)	((x & 0xFFFF) << 16)
 
 #define SIRFUART_FIFO_THD(port)		(port->fifosize >> 1)
-#define SIRFUART_ERR_INT_STAT(port, unit_st)			\
+#define SIRFUART_ERR_INT_STAT(unit_st, uart_type)			\
 				(uint_st->sirfsoc_rx_oflow |		\
 				uint_st->sirfsoc_frm_err |		\
 				uint_st->sirfsoc_rxd_brk |		\
-		((port->line > 2) ? 0 : uint_st->sirfsoc_parity_err))
-#define SIRFUART_RX_IO_INT_EN(port, uint_en)				\
-				(uint_en->sirfsoc_rx_timeout_en |\
+				((uart_type != SIRF_REAL_UART) ? \
+				 0 : uint_st->sirfsoc_parity_err))
+#define SIRFUART_RX_IO_INT_EN(uint_en, uart_type)			\
+				(uint_en->sirfsoc_rx_done_en |\
 				 uint_en->sirfsoc_rxfifo_thd_en |\
 				 uint_en->sirfsoc_rxfifo_full_en |\
 				 uint_en->sirfsoc_frm_err_en |\
 				 uint_en->sirfsoc_rx_oflow_en |\
 				 uint_en->sirfsoc_rxd_brk_en |\
-		((port->line > 2) ? 0 : uint_en->sirfsoc_parity_err_en))
+				((uart_type != SIRF_REAL_UART) ? \
+				 0 : uint_en->sirfsoc_parity_err_en))
 #define SIRFUART_RX_IO_INT_ST(uint_st)				\
-				(uint_st->sirfsoc_rx_timeout |\
-				 uint_st->sirfsoc_rxfifo_thd |\
-				 uint_st->sirfsoc_rxfifo_full)
+				(uint_st->sirfsoc_rxfifo_thd |\
+				 uint_st->sirfsoc_rxfifo_full|\
+				 uint_st->sirfsoc_rx_done |\
+				 uint_st->sirfsoc_rx_timeout)
 #define SIRFUART_CTS_INT_ST(uint_st)	(uint_st->sirfsoc_cts)
-#define SIRFUART_RX_DMA_INT_EN(port, uint_en)				\
+#define SIRFUART_RX_DMA_INT_EN(uint_en, uart_type)		\
 				(uint_en->sirfsoc_rx_timeout_en |\
 				 uint_en->sirfsoc_frm_err_en |\
 				 uint_en->sirfsoc_rx_oflow_en |\
 				 uint_en->sirfsoc_rxd_brk_en |\
-		((port->line > 2) ? 0 : uint_en->sirfsoc_parity_err_en))
+				((uart_type != SIRF_REAL_UART) ? \
+				 0 : uint_en->sirfsoc_parity_err_en))
 /* Generic Definitions */
 #define SIRFSOC_UART_NAME			"ttySiRF"
 #define SIRFSOC_UART_MAJOR			0
