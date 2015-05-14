@@ -528,7 +528,7 @@ static void link_state_event(struct tipc_link *l_ptr, unsigned int event)
 			l_ptr->fsm_msg_cnt = 0;
 			tipc_link_proto_xmit(l_ptr, STATE_MSG, 1, 0, 0, 0);
 			l_ptr->fsm_msg_cnt++;
-			link_set_timer(l_ptr, cont_intv / 4);
+			link_set_timer(l_ptr, cont_intv);
 			break;
 		case RESET_MSG:
 			pr_debug("%s<%s>, requested by peer\n",
@@ -579,7 +579,7 @@ static void link_state_event(struct tipc_link *l_ptr, unsigned int event)
 				tipc_link_proto_xmit(l_ptr, STATE_MSG,
 						     1, 0, 0, 0);
 				l_ptr->fsm_msg_cnt++;
-				link_set_timer(l_ptr, cont_intv / 4);
+				link_set_timer(l_ptr, cont_intv);
 			} else {	/* Link has failed */
 				pr_debug("%s<%s>, peer not responding\n",
 					 link_rst_msg, l_ptr->name);
@@ -1725,7 +1725,7 @@ static void link_set_supervision_props(struct tipc_link *l_ptr, u32 tol)
 
 	l_ptr->tolerance = tol;
 	l_ptr->cont_intv = msecs_to_jiffies(intv);
-	l_ptr->abort_limit = tol / (jiffies_to_msecs(l_ptr->cont_intv) / 4);
+	l_ptr->abort_limit = tol / (jiffies_to_msecs(l_ptr->cont_intv));
 }
 
 void tipc_link_set_queue_limits(struct tipc_link *l, u32 win)
