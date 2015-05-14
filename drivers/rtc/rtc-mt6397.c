@@ -150,7 +150,7 @@ static int mtk_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	time64_t time;
 	struct mt6397_rtc *rtc = dev_get_drvdata(dev);
-	int sec, ret;
+	int days, sec, ret;
 
 	do {
 		ret = __mtk_rtc_read_time(rtc, tm, &sec);
@@ -171,7 +171,8 @@ static int mtk_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	/* rtc_tm_to_time64 covert Gregorian date to seconds since
 	 * 01-01-1970 00:00:00, and this date is Thursday.
 	 */
-	tm->tm_wday = (time / 86400 + 4) % 7;
+	days = div_s64(time, 86400);
+	tm->tm_wday = (days + 4) % 7;
 
 exit:
 	return ret;
