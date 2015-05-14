@@ -296,6 +296,36 @@ int switchdev_port_obj_del(struct net_device *dev, struct switchdev_obj *obj)
 }
 EXPORT_SYMBOL_GPL(switchdev_port_obj_del);
 
+/**
+ *	switchdev_port_obj_dump - Dump port objects
+ *
+ *	@dev: port device
+ *	@obj: object to dump
+ */
+int switchdev_port_obj_dump(struct net_device *dev, struct switchdev_obj *obj)
+{
+	const struct switchdev_ops *ops = dev->switchdev_ops;
+	struct net_device *lower_dev;
+	struct list_head *iter;
+	int err = -EOPNOTSUPP;
+
+	if (ops && ops->switchdev_port_obj_dump)
+		return ops->switchdev_port_obj_dump(dev, obj);
+
+	/* Switch device port(s) may be stacked under
+	 * bond/team/vlan dev, so recurse down to dump objects on
+	 * first port at bottom of stack.
+	 */
+
+	netdev_for_each_lower_dev(dev, lower_dev, iter) {
+		err = switchdev_port_obj_dump(lower_dev, obj);
+		break;
+	}
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(switchdev_port_obj_dump);
+
 static DEFINE_MUTEX(switchdev_mutex);
 static RAW_NOTIFIER_HEAD(switchdev_notif_chain);
 
@@ -565,6 +595,151 @@ int switchdev_port_bridge_dellink(struct net_device *dev,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(switchdev_port_bridge_dellink);
+
+/**
+ *	switchdev_port_fdb_add - Add FDB (MAC/VLAN) entry to port
+ *
+ *	@ndmsg: netlink hdr
+ *	@nlattr: netlink attributes
+ *	@dev: port device
+ *	@addr: MAC address to add
+ *	@vid: VLAN to add
+ *
+ *	Add FDB entry to switch device.
+ */
+int switchdev_port_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
+			   struct net_device *dev, const unsigned char *addr,
+			   u16 vid, u16 nlm_flags)
+{
+	struct switchdev_obj obj = {
+		.id = SWITCHDEV_OBJ_PORT_FDB,
+		.u.fdb = {
+			.addr = addr,
+			.vid = vid,
+		},
+	};
+
+	return switchdev_port_obj_add(dev, &obj);
+}
+EXPORT_SYMBOL_GPL(switchdev_port_fdb_add);
+
+/**
+ *	switchdev_port_fdb_del - Delete FDB (MAC/VLAN) entry from port
+ *
+ *	@ndmsg: netlink hdr
+ *	@nlattr: netlink attributes
+ *	@dev: port device
+ *	@addr: MAC address to delete
+ *	@vid: VLAN to delete
+ *
+ *	Delete FDB entry from switch device.
+ */
+int switchdev_port_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
+			   struct net_device *dev, const unsigned char *addr,
+			   u16 vid)
+{
+	struct switchdev_obj obj = {
+		.id = SWITCHDEV_OBJ_PORT_FDB,
+		.u.fdb = {
+			.addr = addr,
+			.vid = vid,
+		},
+	};
+
+	return switchdev_port_obj_del(dev, &obj);
+}
+EXPORT_SYMBOL_GPL(switchdev_port_fdb_del);
+
+struct switchdev_fdb_dump {
+	struct switchdev_obj obj;
+	struct sk_buff *skb;
+	struct netlink_callback *cb;
+	struct net_device *filter_dev;
+	int idx;
+};
+
+static int switchdev_port_fdb_dump_cb(struct net_device *dev,
+				      struct switchdev_obj *obj)
+{
+	struct switchdev_fdb_dump *dump =
+		container_of(obj, struct switchdev_fdb_dump, obj);
+	u32 portid = NETLINK_CB(dump->cb->skb).portid;
+	u32 seq = dump->cb->nlh->nlmsg_seq;
+	struct nlmsghdr *nlh;
+	struct ndmsg *ndm;
+	struct net_device *master = netdev_master_upper_dev_get(dev);
+
+	if (dump->idx < dump->cb->args[0])
+		goto skip;
+
+	if (master && dump->filter_dev != master)
+		goto skip;
+
+	nlh = nlmsg_put(dump->skb, portid, seq, RTM_NEWNEIGH,
+			sizeof(*ndm), NLM_F_MULTI);
+	if (!nlh)
+		return -EMSGSIZE;
+
+	ndm = nlmsg_data(nlh);
+	ndm->ndm_family  = AF_BRIDGE;
+	ndm->ndm_pad1    = 0;
+	ndm->ndm_pad2    = 0;
+	ndm->ndm_flags   = NTF_SELF;
+	ndm->ndm_type    = 0;
+	ndm->ndm_ifindex = dev->ifindex;
+	ndm->ndm_state   = NUD_REACHABLE;
+
+	if (nla_put(dump->skb, NDA_LLADDR, ETH_ALEN, obj->u.fdb.addr))
+		goto nla_put_failure;
+
+	if (obj->u.fdb.vid && nla_put_u16(dump->skb, NDA_VLAN, obj->u.fdb.vid))
+		goto nla_put_failure;
+
+	nlmsg_end(dump->skb, nlh);
+
+skip:
+	dump->idx++;
+	return 0;
+
+nla_put_failure:
+	nlmsg_cancel(dump->skb, nlh);
+	return -EMSGSIZE;
+}
+
+/**
+ *	switchdev_port_fdb_dump - Dump port FDB (MAC/VLAN) entries
+ *
+ *	@skb: netlink skb
+ *	@cb: netlink callback
+ *	@dev: port device
+ *	@filter_dev: filter device
+ *	@idx:
+ *
+ *	Delete FDB entry from switch device.
+ */
+int switchdev_port_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
+			    struct net_device *dev,
+			    struct net_device *filter_dev, int idx)
+{
+	struct switchdev_fdb_dump dump = {
+		.obj = {
+			.id = SWITCHDEV_OBJ_PORT_FDB,
+			.cb = switchdev_port_fdb_dump_cb,
+		},
+		.skb = skb,
+		.cb = cb,
+		.filter_dev = filter_dev,
+		.idx = idx,
+	};
+	int err;
+
+	err = switchdev_port_obj_dump(dev, &dump.obj);
+	if (err)
+		return err;
+
+	return dump.idx;
+}
+EXPORT_SYMBOL_GPL(switchdev_port_fdb_dump);
 
 static struct net_device *switchdev_get_lowest_dev(struct net_device *dev)
 {
