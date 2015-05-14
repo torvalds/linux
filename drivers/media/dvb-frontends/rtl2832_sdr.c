@@ -112,8 +112,8 @@ struct rtl2832_sdr_frame_buf {
 };
 
 struct rtl2832_sdr_dev {
-#define POWER_ON           (1 << 1)
-#define URB_BUF            (1 << 2)
+#define POWER_ON           0  /* BIT(0) */
+#define URB_BUF            1  /* BIT(1) */
 	unsigned long flags;
 
 	struct platform_device *pdev;
@@ -356,7 +356,7 @@ static int rtl2832_sdr_free_stream_bufs(struct rtl2832_sdr_dev *dev)
 {
 	struct platform_device *pdev = dev->pdev;
 
-	if (dev->flags & USB_STATE_URB_BUF) {
+	if (test_bit(URB_BUF, &dev->flags)) {
 		while (dev->buf_num) {
 			dev->buf_num--;
 			dev_dbg(&pdev->dev, "free buf=%d\n", dev->buf_num);
@@ -365,7 +365,7 @@ static int rtl2832_sdr_free_stream_bufs(struct rtl2832_sdr_dev *dev)
 					  dev->dma_addr[dev->buf_num]);
 		}
 	}
-	dev->flags &= ~USB_STATE_URB_BUF;
+	clear_bit(URB_BUF, &dev->flags);
 
 	return 0;
 }
@@ -394,7 +394,7 @@ static int rtl2832_sdr_alloc_stream_bufs(struct rtl2832_sdr_dev *dev)
 		dev_dbg(&pdev->dev, "alloc buf=%d %p (dma %llu)\n",
 			dev->buf_num, dev->buf_list[dev->buf_num],
 			(long long)dev->dma_addr[dev->buf_num]);
-		dev->flags |= USB_STATE_URB_BUF;
+		set_bit(URB_BUF, &dev->flags);
 	}
 
 	return 0;
