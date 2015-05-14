@@ -1236,7 +1236,7 @@ sirfsoc_uart_console_setup(struct console *co, char *options)
 	struct sirfsoc_uart_port *sirfport;
 	struct sirfsoc_register *ureg;
 	if (co->index < 0 || co->index >= SIRFSOC_UART_NR)
-		return -EINVAL;
+		co->index = 1;
 	sirfport = sirf_ports[co->index];
 	if (!sirfport)
 		return -ENODEV;
