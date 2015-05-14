@@ -1821,7 +1821,7 @@ rcu_torture_init(void)
 		if (firsterr)
 			goto unwind;
 	}
-	if (test_no_idle_hz) {
+	if (test_no_idle_hz && shuffle_interval > 0) {
 		firsterr = torture_shuffle_init(shuffle_interval * HZ);
 		if (firsterr)
 			goto unwind;
