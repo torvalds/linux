@@ -41,6 +41,7 @@
 #include "link.h"
 #include "name_distr.h"
 #include "socket.h"
+#include "bcast.h"
 
 #define SS_LISTENING		-1	/* socket is listening */
 #define SS_READY		-2	/* socket is connectionless */
