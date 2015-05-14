@@ -1349,6 +1349,22 @@ static struct device_attribute *iwch_class_attributes[] = {
 	&dev_attr_board_id,
 };
 
+static int iwch_port_immutable(struct ib_device *ibdev, u8 port_num,
+			       struct ib_port_immutable *immutable)
+{
+	struct ib_port_attr attr;
+	int err;
+
+	err = iwch_query_port(ibdev, port_num, &attr);
+	if (err)
+		return err;
+
+	immutable->pkey_tbl_len = attr.pkey_tbl_len;
+	immutable->gid_tbl_len = attr.gid_tbl_len;
+
+	return 0;
+}
+
 int iwch_register_device(struct iwch_dev *dev)
 {
 	int ret;
@@ -1427,6 +1443,7 @@ int iwch_register_device(struct iwch_dev *dev)
 	dev->ibdev.post_recv = iwch_post_receive;
 	dev->ibdev.get_protocol_stats = iwch_get_mib;
 	dev->ibdev.uverbs_abi_ver = IWCH_UVERBS_ABI_VERSION;
+	dev->ibdev.get_port_immutable = iwch_port_immutable;
 
 	dev->ibdev.iwcm = kmalloc(sizeof(struct iw_cm_verbs), GFP_KERNEL);
 	if (!dev->ibdev.iwcm)

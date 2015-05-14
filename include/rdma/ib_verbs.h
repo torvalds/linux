@@ -1481,6 +1481,11 @@ struct ib_dma_mapping_ops {
 
 struct iw_cm_verbs;
 
+struct ib_port_immutable {
+	int                           pkey_tbl_len;
+	int                           gid_tbl_len;
+};
+
 struct ib_device {
 	struct device                *dma_device;
 
@@ -1494,8 +1499,10 @@ struct ib_device {
 	struct list_head              client_data_list;
 
 	struct ib_cache               cache;
-	int                          *pkey_tbl_len;
-	int                          *gid_tbl_len;
+	/**
+	 * port_immutable is indexed by port number
+	 */
+	struct ib_port_immutable     *port_immutable;
 
 	int			      num_comp_vectors;
 
@@ -1684,6 +1691,14 @@ struct ib_device {
 	u32			     local_dma_lkey;
 	u8                           node_type;
 	u8                           phys_port_cnt;
+
+	/**
+	 * The following mandatory functions are used only at device
+	 * registration.  Keep functions such as these at the end of this
+	 * structure to avoid cache line misses when accessing struct ib_device
+	 * in fast paths.
+	 */
+	int (*get_port_immutable)(struct ib_device *, u8, struct ib_port_immutable *);
 };
 
 struct ib_client {

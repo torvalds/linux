@@ -471,6 +471,22 @@ static struct device_attribute *c4iw_class_attributes[] = {
 	&dev_attr_board_id,
 };
 
+static int c4iw_port_immutable(struct ib_device *ibdev, u8 port_num,
+			       struct ib_port_immutable *immutable)
+{
+	struct ib_port_attr attr;
+	int err;
+
+	err = c4iw_query_port(ibdev, port_num, &attr);
+	if (err)
+		return err;
+
+	immutable->pkey_tbl_len = attr.pkey_tbl_len;
+	immutable->gid_tbl_len = attr.gid_tbl_len;
+
+	return 0;
+}
+
 int c4iw_register_device(struct c4iw_dev *dev)
 {
 	int ret;
@@ -549,6 +565,7 @@ int c4iw_register_device(struct c4iw_dev *dev)
 	dev->ibdev.post_recv = c4iw_post_receive;
 	dev->ibdev.get_protocol_stats = c4iw_get_mib;
 	dev->ibdev.uverbs_abi_ver = C4IW_UVERBS_ABI_VERSION;
+	dev->ibdev.get_port_immutable = c4iw_port_immutable;
 
 	dev->ibdev.iwcm = kmalloc(sizeof(struct iw_cm_verbs), GFP_KERNEL);
 	if (!dev->ibdev.iwcm)
