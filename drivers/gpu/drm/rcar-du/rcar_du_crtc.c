@@ -398,6 +398,19 @@ static void rcar_du_crtc_stop(struct rcar_du_crtc *rcrtc)
 	if (!rcrtc->started)
 		return;
 
+	/* Disable all planes and wait for the change to take effect. This is
+	 * required as the DSnPR registers are updated on vblank, and no vblank
+	 * will occur once the CRTC is stopped. Disabling planes when starting
+	 * the CRTC thus wouldn't be enough as it would start scanning out
+	 * immediately from old frame buffers until the next vblank.
+	 *
+	 * This increases the CRTC stop delay, especially when multiple CRTCs
+	 * are stopped in one operation as we now wait for one vblank per CRTC.
+	 * Whether this can be improved needs to be researched.
+	 */
+	rcar_du_group_write(rcrtc->group, rcrtc->index % 2 ? DS2PR : DS1PR, 0);
+	drm_crtc_wait_one_vblank(crtc);
+
 	/* Disable vertical blanking interrupt reporting. We first need to wait
 	 * for page flip completion before stopping the CRTC as userspace
 	 * expects page flips to eventually complete.
