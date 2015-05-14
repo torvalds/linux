@@ -76,6 +76,15 @@ static struct rk_fb_trsm_ops *trsm_lvds_ops;
 static struct rk_fb_trsm_ops *trsm_edp_ops;
 static struct rk_fb_trsm_ops *trsm_mipi_ops;
 static int uboot_logo_on;
+
+static int rk_fb_debug_lvl;
+module_param(rk_fb_debug_lvl, int, S_IRUGO | S_IWUSR);
+
+#define fb_dbg(level, x...) do {		\
+	if (unlikely(rk_fb_debug_lvl >= level))	\
+		printk(KERN_DEBUG x);		\
+	} while (0)
+
 int support_uboot_display(void)
 {
 	return uboot_logo_on;
@@ -1865,6 +1874,83 @@ static int rk_fb_check_config_var(struct rk_fb_area_par *area_par,
 	return 0;
 }
 
+static int rk_fb_config_debug(struct rk_lcdc_driver *dev_drv,
+				   struct rk_fb_win_cfg_data *win_data,
+				   struct rk_fb_reg_data *regs, u32 cmd)
+{
+	int i, j;
+	struct rk_fb_win_par *win_par;
+	struct rk_fb_area_par *area_par;
+	struct rk_fb_reg_win_data *reg_win_data;
+	struct rk_fb_reg_area_data *area_data;
+
+	unsigned int area_support[5] = {1, 1, 1, 1, 1};
+	if (dev_drv->ops->area_support_num)
+		dev_drv->ops->area_support_num(dev_drv, area_support);
+
+	mutex_lock(&dev_drv->output_lock);
+	fb_dbg(1, "-------------frame start-------------\n");
+	fb_dbg(1, "user config:\n");
+	for (i = 0; i < dev_drv->lcdc_win_num; i++) {
+		win_par = &(win_data->win_par[i]);
+		if ((win_par->area_par[0].ion_fd <= 0) &&
+		    (win_par->area_par[0].phy_addr <= 0))
+			continue;
+		fb_dbg(1, "win[%d]:z_order=%d,galhpa_v=%d\n",
+		       win_par->win_id, win_par->z_order,
+		       win_par->g_alpha_val);
+		for (j = 0; j < RK_WIN_MAX_AREA; j++) {
+			area_par = &(win_par->area_par[j]);
+			if (((j > 0) && (area_support[i] == 1)) ||
+			    ((win_par->area_par[j].ion_fd <= 0) &&
+			     (win_par->area_par[j].phy_addr <= 0)))
+				continue;
+			fb_dbg(1, " area[%d]:fmt=%d,ion_fd=%d,phy_add=0x%x,xoff=%d,yoff=%d\n",
+			       j, area_par->data_format, area_par->ion_fd,
+			       area_par->phy_addr, area_par->x_offset,
+			       area_par->y_offset);
+			fb_dbg(1, " 	   xpos=%d,ypos=%d,xsize=%d,ysize=%d\n",
+			       area_par->xpos, area_par->ypos,
+			       area_par->xsize, area_par->ysize);
+			fb_dbg(1, " 	   xact=%d,yact=%d,xvir=%d,yvir=%d\n",
+			       area_par->xact, area_par->yact,
+			       area_par->xvir, area_par->yvir);
+		}
+	}
+
+	fb_dbg(2, "regs data:\n");
+	fb_dbg(2, "win_num=%d,buf_num=%d\n",
+	       regs->win_num, regs->buf_num);
+	for (i = 0; i < dev_drv->lcdc_win_num; i++) {
+		reg_win_data = &(regs->reg_win_data[i]);
+		if (reg_win_data->reg_area_data[0].smem_start <= 0)
+			continue;
+		fb_dbg(2, "win[%d]:z_order=%d,area_num=%d,area_buf_num=%d\n",
+		       reg_win_data->win_id, reg_win_data->z_order,
+		       reg_win_data->area_num, reg_win_data->area_buf_num);
+		for (j = 0; j < RK_WIN_MAX_AREA; j++) {
+			area_data = &(reg_win_data->reg_area_data[j]);
+			if (((j > 0) && (area_support[i] == 1)) ||
+			    (area_data->smem_start <= 0))
+				continue;
+			fb_dbg(2, " area[%d]:fmt=%d,ion=%p,smem_star=0x%lx,cbr_star=0x%lx\n",
+			       j, area_data->data_format, area_data->ion_handle,
+			       area_data->smem_start, area_data->cbr_start);
+			fb_dbg(2, " 	   yoff=0x%x,coff=0x%x,area_data->buff_len=%x\n",
+			       area_data->y_offset, area_data->c_offset,area_data->buff_len);
+			fb_dbg(2, " 	   xpos=%d,ypos=%d,xsize=%d,ysize=%d\n",
+			       area_data->xpos, area_data->ypos,
+			       area_data->xsize, area_data->ysize);
+			fb_dbg(2, " 	   xact=%d,yact=%d,xvir=%d,yvir=%d\n",
+			       area_data->xact, area_data->yact,
+			       area_data->xvir, area_data->yvir);
+		}
+	}
+	fb_dbg(1, "-------------frame end---------------\n");
+
+	mutex_unlock(&dev_drv->output_lock);
+	return 0;
+}
 static int rk_fb_set_win_buffer(struct fb_info *info,
 				struct rk_fb_win_par *win_par,
 				struct rk_fb_reg_win_data *reg_win_data)
@@ -2306,6 +2392,8 @@ static int rk_fb_set_win_config(struct fb_info *info,
 
 err:
 	mutex_unlock(&dev_drv->output_lock);
+	if (rk_fb_debug_lvl > 0)
+		rk_fb_config_debug(dev_drv,win_data, regs, 0);
 	return ret;
 err_null_frame:
 	for (j = 0; j < RK_MAX_BUF_NUM; j++)
