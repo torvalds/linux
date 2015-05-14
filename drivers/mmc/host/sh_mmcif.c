@@ -57,6 +57,7 @@
 #include <linux/mmc/slot-gpio.h>
 #include <linux/mod_devicetable.h>
 #include <linux/mutex.h>
+#include <linux/of_device.h>
 #include <linux/pagemap.h>
 #include <linux/platform_device.h>
 #include <linux/pm_qos.h>
@@ -224,6 +225,9 @@ enum sh_mmcif_wait_for {
 	MMCIF_WAIT_FOR_STOP,
 };
 
+/*
+ * difference for each SoC
+ */
 struct sh_mmcif_host {
 	struct mmc_host *mmc;
 	struct mmc_request *mrq;
@@ -248,6 +252,7 @@ struct sh_mmcif_host {
 	bool ccs_enable;		/* Command Completion Signal support */
 	bool clk_ctrl2_enable;
 	struct mutex thread_lock;
+	u32 clkdiv_map;         /* see CE_CLK_CTRL::CLKDIV */
 
 	/* DMA support */
 	struct dma_chan		*chan_rx;
@@ -492,19 +497,55 @@ static void sh_mmcif_clock_control(struct sh_mmcif_host *host, unsigned int clk)
 	struct sh_mmcif_plat_data *p = dev->platform_data;
 	bool sup_pclk = p ? p->sup_pclk : false;
 	unsigned int current_clk = clk_get_rate(host->clk);
+	unsigned int clkdiv;
 
 	sh_mmcif_bitclr(host, MMCIF_CE_CLK_CTRL, CLK_ENABLE);
 	sh_mmcif_bitclr(host, MMCIF_CE_CLK_CTRL, CLK_CLEAR);
 
 	if (!clk)
 		return;
-	if (sup_pclk && clk == current_clk)
-		sh_mmcif_bitset(host, MMCIF_CE_CLK_CTRL, CLK_SUP_PCLK);
-	else
-		sh_mmcif_bitset(host, MMCIF_CE_CLK_CTRL, CLK_CLEAR &
-				((fls(DIV_ROUND_UP(current_clk,
-						   clk) - 1) - 1) << 16));
 
+	if (host->clkdiv_map) {
+		unsigned int freq, best_freq, myclk, div, diff_min, diff;
+		int i;
+
+		clkdiv = 0;
+		diff_min = ~0;
+		best_freq = 0;
+		for (i = 31; i >= 0; i--) {
+			if (!((1 << i) & host->clkdiv_map))
+				continue;
+
+			/*
+			 * clk = parent_freq / div
+			 * -> parent_freq = clk x div
+			 */
+
+			div = 1 << (i + 1);
+			freq = clk_round_rate(host->clk, clk * div);
+			myclk = freq / div;
+			diff = (myclk > clk) ? myclk - clk : clk - myclk;
+
+			if (diff <= diff_min) {
+				best_freq = freq;
+				clkdiv = i;
+				diff_min = diff;
+			}
+		}
+
+		dev_dbg(dev, "clk %u/%u (%u, 0x%x)\n",
+			(best_freq / (1 << (clkdiv + 1))), clk,
+			best_freq, clkdiv);
+
+		clk_set_rate(host->clk, best_freq);
+		clkdiv = clkdiv << 16;
+	} else if (sup_pclk && clk == current_clk) {
+		clkdiv = CLK_SUP_PCLK;
+	} else {
+		clkdiv = (fls(DIV_ROUND_UP(current_clk, clk) - 1) - 1) << 16;
+	}
+
+	sh_mmcif_bitset(host, MMCIF_CE_CLK_CTRL, CLK_CLEAR & clkdiv);
 	sh_mmcif_bitset(host, MMCIF_CE_CLK_CTRL, CLK_ENABLE);
 }
 
@@ -1000,10 +1041,35 @@ static void sh_mmcif_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 static void sh_mmcif_clk_setup(struct sh_mmcif_host *host)
 {
-	unsigned int clk = clk_get_rate(host->clk);
+	struct device *dev = sh_mmcif_host_to_dev(host);
 
-	host->mmc->f_max = clk / 2;
-	host->mmc->f_min = clk / 512;
+	if (host->mmc->f_max) {
+		unsigned int f_max, f_min = 0, f_min_old;
+
+		f_max = host->mmc->f_max;
+		for (f_min_old = f_max; f_min_old > 2;) {
+			f_min = clk_round_rate(host->clk, f_min_old / 2);
+			if (f_min == f_min_old)
+				break;
+			f_min_old = f_min;
+		}
+
+		/*
+		 * This driver assumes this SoC is R-Car Gen2 or later
+		 */
+		host->clkdiv_map = 0x3ff;
+
+		host->mmc->f_max = f_max / (1 << ffs(host->clkdiv_map));
+		host->mmc->f_min = f_min / (1 << fls(host->clkdiv_map));
+	} else {
+		unsigned int clk = clk_get_rate(host->clk);
+
+		host->mmc->f_max = clk / 2;
+		host->mmc->f_min = clk / 512;
+	}
+
+	dev_dbg(dev, "clk max/min = %d/%d\n",
+		host->mmc->f_max, host->mmc->f_min);
 }
 
 static void sh_mmcif_set_power(struct sh_mmcif_host *host, struct mmc_ios *ios)
