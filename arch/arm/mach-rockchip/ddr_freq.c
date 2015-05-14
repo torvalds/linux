@@ -54,6 +54,7 @@ static int auto_freq_table_size;
 static unsigned long vop_bandwidth_update_jiffies = 0, vop_bandwidth = 0;
 static int vop_bandwidth_update_flag = 0;
 static struct ddr_bw_info ddr_bw_ch0 = {0}, ddr_bw_ch1 = {0};
+static struct cpufreq_frequency_table *bd_freq_table;
 
 enum {
 	DEBUG_DDR = 1U << 0,
@@ -198,23 +199,17 @@ static void ddrfreq_mode(bool auto_self_refresh, unsigned long target_rate, char
 
 unsigned long req_freq_by_vop(unsigned long bandwidth)
 {
+	unsigned int i = 0;
+
 	if (time_after(jiffies, vop_bandwidth_update_jiffies +
 		msecs_to_jiffies(down_rate_delay_ms)))
 		return 0;
 
-	if (bandwidth >= 5000){
-		return 800000000;
-	}
-
-	if (bandwidth >= 3500) {
-		return 456000000;
-	}
-
-	if (bandwidth >= 2600) {
-		return 396000000;
-	}
-	if (bandwidth >= 2000) {
-		return 324000000;
+	if (bd_freq_table == NULL)
+		return 0;
+	for (i = 0; bd_freq_table[i].frequency != CPUFREQ_TABLE_END; i++) {
+		if (bandwidth >= bd_freq_table[i].index)
+			return bd_freq_table[i].frequency * 1000;
 	}
 
 	return 0;
@@ -822,6 +817,40 @@ static struct notifier_block ddrfreq_system_status_notifier = {
 		.notifier_call = ddrfreq_system_status_notifier_call,
 };
 
+static struct cpufreq_frequency_table
+	*of_get_bd_freq_table(struct device_node *np, const char *propname)
+{
+	struct cpufreq_frequency_table *freq_table = NULL;
+	const struct property *prop;
+	const __be32 *val;
+	int nr, i;
+
+	prop = of_find_property(np, propname, NULL);
+	if (!prop)
+		return NULL;
+	if (!prop->value)
+		return NULL;
+
+	nr = prop->length / sizeof(u32);
+	if (nr % 2) {
+		pr_err("%s: Invalid freq list\n", __func__);
+		return NULL;
+	}
+
+	freq_table = kzalloc(sizeof(*freq_table) * (nr/2 + 1), GFP_KERNEL);
+
+	val = prop->value;
+
+	for (i = 0; i < nr/2; i++) {
+		freq_table[i].index = be32_to_cpup(val++);
+		freq_table[i].frequency = be32_to_cpup(val++);
+	}
+
+	freq_table[i].index = 0;
+	freq_table[i].frequency = CPUFREQ_TABLE_END;
+
+	return freq_table;
+}
 
 int of_init_ddr_freq_table(void)
 {
@@ -897,6 +926,8 @@ int of_init_ddr_freq_table(void)
 
 		nr -= 2;
 	}
+
+	bd_freq_table = of_get_bd_freq_table(clk_ddr_dev_node, "bd-freq-table");
 
 	return 0;
 }
