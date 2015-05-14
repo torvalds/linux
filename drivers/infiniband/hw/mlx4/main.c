@@ -420,15 +420,6 @@ static int mlx4_ib_query_port(struct ib_device *ibdev, u8 port,
 	return __mlx4_ib_query_port(ibdev, port, props, 0);
 }
 
-static enum rdma_protocol_type
-mlx4_ib_query_protocol(struct ib_device *device, u8 port_num)
-{
-	struct mlx4_dev *dev = to_mdev(device)->dev;
-
-	return dev->caps.port_mask[port_num] == MLX4_PORT_TYPE_IB ?
-		RDMA_PROTOCOL_IB : RDMA_PROTOCOL_IBOE;
-}
-
 int __mlx4_ib_query_gid(struct ib_device *ibdev, u8 port, int index,
 			union ib_gid *gid, int netw_view)
 {
@@ -2136,6 +2127,11 @@ static int mlx4_port_immutable(struct ib_device *ibdev, u8 port_num,
 	immutable->pkey_tbl_len = attr.pkey_tbl_len;
 	immutable->gid_tbl_len = attr.gid_tbl_len;
 
+	if (mlx4_ib_port_link_layer(ibdev, port_num) == IB_LINK_LAYER_INFINIBAND)
+		immutable->core_cap_flags = RDMA_CORE_PORT_IBA_IB;
+	else
+		immutable->core_cap_flags = RDMA_CORE_PORT_IBA_ROCE;
+
 	return 0;
 }
 
@@ -2226,7 +2222,6 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 
 	ibdev->ib_dev.query_device	= mlx4_ib_query_device;
 	ibdev->ib_dev.query_port	= mlx4_ib_query_port;
-	ibdev->ib_dev.query_protocol	= mlx4_ib_query_protocol;
 	ibdev->ib_dev.get_link_layer	= mlx4_ib_port_link_layer;
 	ibdev->ib_dev.query_gid		= mlx4_ib_query_gid;
 	ibdev->ib_dev.query_pkey	= mlx4_ib_query_pkey;

@@ -242,12 +242,6 @@ query_port1:
 	return ret;
 }
 
-enum rdma_protocol_type
-ehca_query_protocol(struct ib_device *device, u8 port_num)
-{
-	return RDMA_PROTOCOL_IB;
-}
-
 int ehca_query_sma_attr(struct ehca_shca *shca,
 			u8 port, struct ehca_sma_attr *attr)
 {

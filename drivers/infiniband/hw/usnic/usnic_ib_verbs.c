@@ -348,12 +348,6 @@ int usnic_ib_query_port(struct ib_device *ibdev, u8 port,
 	return 0;
 }
 
-enum rdma_protocol_type
-usnic_ib_query_protocol(struct ib_device *device, u8 port_num)
-{
-	return RDMA_PROTOCOL_USNIC_UDP;
-}
-
 int usnic_ib_query_qp(struct ib_qp *qp, struct ib_qp_attr *qp_attr,
 				int qp_attr_mask,
 				struct ib_qp_init_attr *qp_init_attr)

@@ -187,12 +187,6 @@ int ocrdma_query_port(struct ib_device *ibdev,
 	return 0;
 }
 
-enum rdma_protocol_type
-ocrdma_query_protocol(struct ib_device *device, u8 port_num)
-{
-	return RDMA_PROTOCOL_IBOE;
-}
-
 int ocrdma_modify_port(struct ib_device *ibdev, u8 port, int mask,
 		       struct ib_port_modify *props)
 {

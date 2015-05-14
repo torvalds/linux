@@ -1650,12 +1650,6 @@ static int qib_query_port(struct ib_device *ibdev, u8 port,
 	return 0;
 }
 
-static enum rdma_protocol_type
-qib_query_protocol(struct ib_device *device, u8 port_num)
-{
-	return RDMA_PROTOCOL_IB;
-}
-
 static int qib_modify_device(struct ib_device *device,
 			     int device_modify_mask,
 			     struct ib_device_modify *device_modify)
@@ -2058,6 +2052,7 @@ static int qib_port_immutable(struct ib_device *ibdev, u8 port_num,
 
 	immutable->pkey_tbl_len = attr.pkey_tbl_len;
 	immutable->gid_tbl_len = attr.gid_tbl_len;
+	immutable->core_cap_flags = RDMA_CORE_PORT_IBA_IB;
 
 	return 0;
 }
@@ -2206,7 +2201,6 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	ibdev->query_device = qib_query_device;
 	ibdev->modify_device = qib_modify_device;
 	ibdev->query_port = qib_query_port;
-	ibdev->query_protocol = qib_query_protocol;
 	ibdev->modify_port = qib_modify_port;
 	ibdev->query_pkey = qib_query_pkey;
 	ibdev->query_gid = qib_query_gid;

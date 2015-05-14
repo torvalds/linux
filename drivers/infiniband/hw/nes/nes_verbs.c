@@ -606,12 +606,6 @@ static int nes_query_port(struct ib_device *ibdev, u8 port, struct ib_port_attr 
 	return 0;
 }
 
-static enum rdma_protocol_type
-nes_query_protocol(struct ib_device *device, u8 port_num)
-{
-	return RDMA_PROTOCOL_IWARP;
-}
-
 /**
  * nes_query_pkey
  */
@@ -3845,6 +3839,7 @@ static int nes_port_immutable(struct ib_device *ibdev, u8 port_num,
 
 	immutable->pkey_tbl_len = attr.pkey_tbl_len;
 	immutable->gid_tbl_len = attr.gid_tbl_len;
+	immutable->core_cap_flags = RDMA_CORE_PORT_IWARP;
 
 	return 0;
 }
@@ -3899,7 +3894,6 @@ struct nes_ib_device *nes_init_ofa_device(struct net_device *netdev)
 	nesibdev->ibdev.dev.parent = &nesdev->pcidev->dev;
 	nesibdev->ibdev.query_device = nes_query_device;
 	nesibdev->ibdev.query_port = nes_query_port;
-	nesibdev->ibdev.query_protocol = nes_query_protocol;
 	nesibdev->ibdev.query_pkey = nes_query_pkey;
 	nesibdev->ibdev.query_gid = nes_query_gid;
 	nesibdev->ibdev.alloc_ucontext = nes_alloc_ucontext;

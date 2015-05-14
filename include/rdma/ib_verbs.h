@@ -353,6 +353,40 @@ union rdma_protocol_stats {
 	struct iw_protocol_stats	iw;
 };
 
+/* Define bits for the various functionality this port needs to be supported by
+ * the core.
+ */
+/* Management                           0x00000FFF */
+#define RDMA_CORE_CAP_IB_MAD            0x00000001
+#define RDMA_CORE_CAP_IB_SMI            0x00000002
+#define RDMA_CORE_CAP_IB_CM             0x00000004
+#define RDMA_CORE_CAP_IW_CM             0x00000008
+#define RDMA_CORE_CAP_IB_SA             0x00000010
+
+/* Address format                       0x000FF000 */
+#define RDMA_CORE_CAP_AF_IB             0x00001000
+#define RDMA_CORE_CAP_ETH_AH            0x00002000
+
+/* Protocol                             0xFFF00000 */
+#define RDMA_CORE_CAP_PROT_IB           0x00100000
+#define RDMA_CORE_CAP_PROT_ROCE         0x00200000
+#define RDMA_CORE_CAP_PROT_IWARP        0x00400000
+
+#define RDMA_CORE_PORT_IBA_IB          (RDMA_CORE_CAP_PROT_IB  \
+					| RDMA_CORE_CAP_IB_MAD \
+					| RDMA_CORE_CAP_IB_SMI \
+					| RDMA_CORE_CAP_IB_CM  \
+					| RDMA_CORE_CAP_IB_SA  \
+					| RDMA_CORE_CAP_AF_IB)
+#define RDMA_CORE_PORT_IBA_ROCE        (RDMA_CORE_CAP_PROT_ROCE \
+					| RDMA_CORE_CAP_IB_MAD  \
+					| RDMA_CORE_CAP_IB_CM   \
+					| RDMA_CORE_CAP_IB_SA   \
+					| RDMA_CORE_CAP_AF_IB   \
+					| RDMA_CORE_CAP_ETH_AH)
+#define RDMA_CORE_PORT_IWARP           (RDMA_CORE_CAP_PROT_IWARP \
+					| RDMA_CORE_CAP_IW_CM)
+
 struct ib_port_attr {
 	enum ib_port_state	state;
 	enum ib_mtu		max_mtu;
@@ -1484,6 +1518,7 @@ struct iw_cm_verbs;
 struct ib_port_immutable {
 	int                           pkey_tbl_len;
 	int                           gid_tbl_len;
+	u32                           core_cap_flags;
 };
 
 struct ib_device {
@@ -1515,8 +1550,6 @@ struct ib_device {
 	int		           (*query_port)(struct ib_device *device,
 						 u8 port_num,
 						 struct ib_port_attr *port_attr);
-	enum rdma_protocol_type    (*query_protocol)(struct ib_device *device,
-						     u8 port_num);
 	enum rdma_link_layer	   (*get_link_layer)(struct ib_device *device,
 						     u8 port_num);
 	int		           (*query_gid)(struct ib_device *device,
@@ -1796,24 +1829,23 @@ static inline u8 rdma_end_port(const struct ib_device *device)
 
 static inline bool rdma_protocol_ib(struct ib_device *device, u8 port_num)
 {
-	return device->query_protocol(device, port_num) == RDMA_PROTOCOL_IB;
+	return device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_PROT_IB;
 }
 
 static inline bool rdma_protocol_iboe(struct ib_device *device, u8 port_num)
 {
-	return device->query_protocol(device, port_num) == RDMA_PROTOCOL_IBOE;
+	return device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_PROT_ROCE;
 }
 
 static inline bool rdma_protocol_iwarp(struct ib_device *device, u8 port_num)
 {
-	return device->query_protocol(device, port_num) == RDMA_PROTOCOL_IWARP;
+	return device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_PROT_IWARP;
 }
 
 static inline bool rdma_ib_or_iboe(struct ib_device *device, u8 port_num)
 {
-	enum rdma_protocol_type pt = device->query_protocol(device, port_num);
-
-	return (pt == RDMA_PROTOCOL_IB || pt == RDMA_PROTOCOL_IBOE);
+	return device->port_immutable[port_num].core_cap_flags &
+		(RDMA_CORE_CAP_PROT_IB | RDMA_CORE_CAP_PROT_ROCE);
 }
 
 /**
@@ -1830,7 +1862,7 @@ static inline bool rdma_ib_or_iboe(struct ib_device *device, u8 port_num)
  */
 static inline bool rdma_cap_ib_mad(struct ib_device *device, u8 port_num)
 {
-	return rdma_ib_or_iboe(device, port_num);
+	return device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_IB_MAD;
 }
 
 /**
@@ -1855,7 +1887,7 @@ static inline bool rdma_cap_ib_mad(struct ib_device *device, u8 port_num)
  */
 static inline bool rdma_cap_ib_smi(struct ib_device *device, u8 port_num)
 {
-	return rdma_protocol_ib(device, port_num);
+	return device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_IB_SMI;
 }
 
 /**
@@ -1875,7 +1907,7 @@ static inline bool rdma_cap_ib_smi(struct ib_device *device, u8 port_num)
  */
 static inline bool rdma_cap_ib_cm(struct ib_device *device, u8 port_num)
 {
-	return rdma_ib_or_iboe(device, port_num);
+	return device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_IB_CM;
 }
 
 /**
@@ -1892,7 +1924,7 @@ static inline bool rdma_cap_ib_cm(struct ib_device *device, u8 port_num)
  */
 static inline bool rdma_cap_iw_cm(struct ib_device *device, u8 port_num)
 {
-	return rdma_protocol_iwarp(device, port_num);
+	return device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_IW_CM;
 }
 
 /**
@@ -1912,7 +1944,7 @@ static inline bool rdma_cap_iw_cm(struct ib_device *device, u8 port_num)
  */
 static inline bool rdma_cap_ib_sa(struct ib_device *device, u8 port_num)
 {
-	return rdma_protocol_ib(device, port_num);
+	return device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_IB_SA;
 }
 
 /**
@@ -1952,7 +1984,7 @@ static inline bool rdma_cap_ib_mcast(struct ib_device *device, u8 port_num)
  */
 static inline bool rdma_cap_af_ib(struct ib_device *device, u8 port_num)
 {
-	return rdma_ib_or_iboe(device, port_num);
+	return device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_AF_IB;
 }
 
 /**
@@ -1973,7 +2005,7 @@ static inline bool rdma_cap_af_ib(struct ib_device *device, u8 port_num)
  */
 static inline bool rdma_cap_eth_ah(struct ib_device *device, u8 port_num)
 {
-	return rdma_protocol_iboe(device, port_num);
+	return device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_ETH_AH;
 }
 
 /**
@@ -2001,7 +2033,7 @@ static inline bool rdma_cap_eth_ah(struct ib_device *device, u8 port_num)
 static inline bool rdma_cap_read_multi_sge(struct ib_device *device,
 					   u8 port_num)
 {
-	return !rdma_protocol_iwarp(device, port_num);
+	return !(device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_PROT_IWARP);
 }
 
 int ib_query_gid(struct ib_device *device,
