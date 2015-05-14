@@ -18,7 +18,7 @@
 
 void ux500_restart(enum reboot_mode mode, const char *cmd);
 
-void __init ux500_map_io(void);
+void __init ux500_setup_id(void);
 
 extern void __init ux500_init_irq(void);
 

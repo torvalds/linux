@@ -46,7 +46,7 @@ static struct prcmu_pdata db8500_prcmu_pdata = {
 static void __init u8500_map_io(void)
 {
 	debug_ll_io_init();
-	ux500_map_io();
+	ux500_setup_id();
 }
 
 /*
