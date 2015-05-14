@@ -4,7 +4,6 @@
 
 config UNISYS_VISORCHANNEL
 	tristate "Unisys visorchannel driver"
-	select UNISYS_VISORUTIL
 	---help---
 	If you say Y here, you will enable the Unisys visorchannel driver.
 
