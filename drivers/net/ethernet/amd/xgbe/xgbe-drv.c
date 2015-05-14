@@ -183,9 +183,10 @@ static int xgbe_alloc_channels(struct xgbe_prv_data *pdata)
 			channel->rx_ring = rx_ring++;
 		}
 
-		DBGPR("  %s: queue=%u, dma_regs=%p, dma_irq=%d, tx=%p, rx=%p\n",
-		      channel->name, channel->queue_index, channel->dma_regs,
-		      channel->dma_irq, channel->tx_ring, channel->rx_ring);
+		netif_dbg(pdata, drv, pdata->netdev,
+			  "%s: dma_regs=%p, dma_irq=%d, tx=%p, rx=%p\n",
+			  channel->name, channel->dma_regs, channel->dma_irq,
+			  channel->tx_ring, channel->rx_ring);
 	}
 
 	pdata->channel = channel_mem;
@@ -235,7 +236,8 @@ static int xgbe_maybe_stop_tx_queue(struct xgbe_channel *channel,
 	struct xgbe_prv_data *pdata = channel->pdata;
 
 	if (count > xgbe_tx_avail_desc(ring)) {
-		DBGPR("  Tx queue stopped, not enough descriptors available\n");
+		netif_info(pdata, drv, pdata->netdev,
+			   "Tx queue stopped, not enough descriptors available\n");
 		netif_stop_subqueue(pdata->netdev, channel->queue_index);
 		ring->tx.queue_stopped = 1;
 
@@ -330,7 +332,7 @@ static irqreturn_t xgbe_isr(int irq, void *data)
 	if (!dma_isr)
 		goto isr_done;
 
-	DBGPR("  DMA_ISR = %08x\n", dma_isr);
+	netif_dbg(pdata, intr, pdata->netdev, "DMA_ISR=%#010x\n", dma_isr);
 
 	for (i = 0; i < pdata->channel_count; i++) {
 		if (!(dma_isr & (1 << i)))
@@ -339,7 +341,8 @@ static irqreturn_t xgbe_isr(int irq, void *data)
 		channel = pdata->channel + i;
 
 		dma_ch_isr = XGMAC_DMA_IOREAD(channel, DMA_CH_SR);
-		DBGPR("  DMA_CH%u_ISR = %08x\n", i, dma_ch_isr);
+		netif_dbg(pdata, intr, pdata->netdev, "DMA_CH%u_ISR=%#010x\n",
+			  i, dma_ch_isr);
 
 		/* The TI or RI interrupt bits may still be set even if using
 		 * per channel DMA interrupts. Check to be sure those are not
@@ -385,8 +388,6 @@ static irqreturn_t xgbe_isr(int irq, void *data)
 			}
 		}
 	}
-
-	DBGPR("  DMA_ISR = %08x\n", XGMAC_IOREAD(pdata, DMA_ISR));
 
 isr_done:
 	return IRQ_HANDLED;
@@ -448,7 +449,6 @@ static void xgbe_init_tx_timers(struct xgbe_prv_data *pdata)
 		if (!channel->tx_ring)
 			break;
 
-		DBGPR("  %s adding tx timer\n", channel->name);
 		setup_timer(&channel->tx_timer, xgbe_tx_timer,
 			    (unsigned long)channel);
 	}
@@ -468,7 +468,6 @@ static void xgbe_stop_tx_timers(struct xgbe_prv_data *pdata)
 		if (!channel->tx_ring)
 			break;
 
-		DBGPR("  %s deleting tx timer\n", channel->name);
 		del_timer_sync(&channel->tx_timer);
 	}
 
@@ -848,8 +847,9 @@ static int xgbe_phy_init(struct xgbe_prv_data *pdata)
 		ret = -ENODEV;
 		goto err_phy_connect;
 	}
-	DBGPR("  phy_connect_direct succeeded for PHY %s, link=%d\n",
-	      dev_name(&phydev->dev), phydev->link);
+	netif_dbg(pdata, ifup, pdata->netdev,
+		  "phy_connect_direct succeeded for PHY %s\n",
+		  dev_name(&phydev->dev));
 
 	return 0;
 
@@ -1478,7 +1478,8 @@ static int xgbe_xmit(struct sk_buff *skb, struct net_device *netdev)
 	ret = NETDEV_TX_OK;
 
 	if (skb->len == 0) {
-		netdev_err(netdev, "empty skb received from stack\n");
+		netif_err(pdata, tx_err, netdev,
+			  "empty skb received from stack\n");
 		dev_kfree_skb_any(skb);
 		goto tx_netdev_return;
 	}
@@ -1494,7 +1495,8 @@ static int xgbe_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	ret = xgbe_prep_tso(skb, packet);
 	if (ret) {
-		netdev_err(netdev, "error processing TSO packet\n");
+		netif_err(pdata, tx_err, netdev,
+			  "error processing TSO packet\n");
 		dev_kfree_skb_any(skb);
 		goto tx_netdev_return;
 	}
@@ -1513,9 +1515,8 @@ static int xgbe_xmit(struct sk_buff *skb, struct net_device *netdev)
 	/* Configure required descriptor fields for transmission */
 	hw_if->dev_xmit(channel);
 
-#ifdef XGMAC_ENABLE_TX_PKT_DUMP
-	xgbe_print_pkt(netdev, skb, true);
-#endif
+	if (netif_msg_pktdata(pdata))
+		xgbe_print_pkt(netdev, skb, true);
 
 	/* Stop the queue in advance if there may not be enough descriptors */
 	xgbe_maybe_stop_tx_queue(channel, ring, XGBE_TX_MAX_DESCS);
@@ -1710,7 +1711,8 @@ static int xgbe_setup_tc(struct net_device *netdev, u8 tc)
 			       (pdata->q2tc_map[queue] == i))
 				queue++;
 
-			DBGPR("  TC%u using TXq%u-%u\n", i, offset, queue - 1);
+			netif_dbg(pdata, drv, netdev, "TC%u using TXq%u-%u\n",
+				  i, offset, queue - 1);
 			netdev_set_tc_queue(netdev, i, queue - offset, offset);
 			offset = queue;
 		}
@@ -1877,9 +1879,8 @@ static int xgbe_tx_poll(struct xgbe_channel *channel)
 		 * bit */
 		dma_rmb();
 
-#ifdef XGMAC_ENABLE_TX_DESC_DUMP
-		xgbe_dump_tx_desc(ring, ring->dirty, 1, 0);
-#endif
+		if (netif_msg_tx_done(pdata))
+			xgbe_dump_tx_desc(pdata, ring, ring->dirty, 1, 0);
 
 		if (hw_if->is_last_desc(rdesc)) {
 			tx_packets += rdata->tx.packets;
@@ -1983,7 +1984,8 @@ read_again:
 
 		if (error || packet->errors) {
 			if (packet->errors)
-				DBGPR("Error in received packet\n");
+				netif_err(pdata, rx_err, netdev,
+					  "error in received packet\n");
 			dev_kfree_skb(skb);
 			goto next_packet;
 		}
@@ -2033,14 +2035,14 @@ skip_data:
 			max_len += VLAN_HLEN;
 
 		if (skb->len > max_len) {
-			DBGPR("packet length exceeds configured MTU\n");
+			netif_err(pdata, rx_err, netdev,
+				  "packet length exceeds configured MTU\n");
 			dev_kfree_skb(skb);
 			goto next_packet;
 		}
 
-#ifdef XGMAC_ENABLE_RX_PKT_DUMP
-		xgbe_print_pkt(netdev, skb, false);
-#endif
+		if (netif_msg_pktdata(pdata))
+			xgbe_print_pkt(netdev, skb, false);
 
 		skb_checksum_none_assert(skb);
 		if (XGMAC_GET_BITS(packet->attributes,
@@ -2164,8 +2166,8 @@ static int xgbe_all_poll(struct napi_struct *napi, int budget)
 	return processed;
 }
 
-void xgbe_dump_tx_desc(struct xgbe_ring *ring, unsigned int idx,
-		       unsigned int count, unsigned int flag)
+void xgbe_dump_tx_desc(struct xgbe_prv_data *pdata, struct xgbe_ring *ring,
+		       unsigned int idx, unsigned int count, unsigned int flag)
 {
 	struct xgbe_ring_data *rdata;
 	struct xgbe_ring_desc *rdesc;
@@ -2173,20 +2175,29 @@ void xgbe_dump_tx_desc(struct xgbe_ring *ring, unsigned int idx,
 	while (count--) {
 		rdata = XGBE_GET_DESC_DATA(ring, idx);
 		rdesc = rdata->rdesc;
-		pr_alert("TX_NORMAL_DESC[%d %s] = %08x:%08x:%08x:%08x\n", idx,
-			 (flag == 1) ? "QUEUED FOR TX" : "TX BY DEVICE",
-			 le32_to_cpu(rdesc->desc0), le32_to_cpu(rdesc->desc1),
-			 le32_to_cpu(rdesc->desc2), le32_to_cpu(rdesc->desc3));
+		netdev_dbg(pdata->netdev,
+			   "TX_NORMAL_DESC[%d %s] = %08x:%08x:%08x:%08x\n", idx,
+			   (flag == 1) ? "QUEUED FOR TX" : "TX BY DEVICE",
+			   le32_to_cpu(rdesc->desc0),
+			   le32_to_cpu(rdesc->desc1),
+			   le32_to_cpu(rdesc->desc2),
+			   le32_to_cpu(rdesc->desc3));
 		idx++;
 	}
 }
 
-void xgbe_dump_rx_desc(struct xgbe_ring *ring, struct xgbe_ring_desc *desc,
+void xgbe_dump_rx_desc(struct xgbe_prv_data *pdata, struct xgbe_ring *ring,
 		       unsigned int idx)
 {
-	pr_alert("RX_NORMAL_DESC[%d RX BY DEVICE] = %08x:%08x:%08x:%08x\n", idx,
-		 le32_to_cpu(desc->desc0), le32_to_cpu(desc->desc1),
-		 le32_to_cpu(desc->desc2), le32_to_cpu(desc->desc3));
+	struct xgbe_ring_data *rdata;
+	struct xgbe_ring_desc *rdesc;
+
+	rdata = XGBE_GET_DESC_DATA(ring, idx);
+	rdesc = rdata->rdesc;
+	netdev_dbg(pdata->netdev,
+		   "RX_NORMAL_DESC[%d RX BY DEVICE] = %08x:%08x:%08x:%08x\n",
+		   idx, le32_to_cpu(rdesc->desc0), le32_to_cpu(rdesc->desc1),
+		   le32_to_cpu(rdesc->desc2), le32_to_cpu(rdesc->desc3));
 }
 
 void xgbe_print_pkt(struct net_device *netdev, struct sk_buff *skb, bool tx_rx)
@@ -2196,21 +2207,21 @@ void xgbe_print_pkt(struct net_device *netdev, struct sk_buff *skb, bool tx_rx)
 	unsigned char buffer[128];
 	unsigned int i, j;
 
-	netdev_alert(netdev, "\n************** SKB dump ****************\n");
+	netdev_dbg(netdev, "\n************** SKB dump ****************\n");
 
-	netdev_alert(netdev, "%s packet of %d bytes\n",
-		     (tx_rx ? "TX" : "RX"), skb->len);
+	netdev_dbg(netdev, "%s packet of %d bytes\n",
+		   (tx_rx ? "TX" : "RX"), skb->len);
 
-	netdev_alert(netdev, "Dst MAC addr: %pM\n", eth->h_dest);
-	netdev_alert(netdev, "Src MAC addr: %pM\n", eth->h_source);
-	netdev_alert(netdev, "Protocol: 0x%04hx\n", ntohs(eth->h_proto));
+	netdev_dbg(netdev, "Dst MAC addr: %pM\n", eth->h_dest);
+	netdev_dbg(netdev, "Src MAC addr: %pM\n", eth->h_source);
+	netdev_dbg(netdev, "Protocol: %#06hx\n", ntohs(eth->h_proto));
 
 	for (i = 0, j = 0; i < skb->len;) {
 		j += snprintf(buffer + j, sizeof(buffer) - j, "%02hhx",
 			      buf[i++]);
 
 		if ((i % 32) == 0) {
-			netdev_alert(netdev, "  0x%04x: %s\n", i - 32, buffer);
+			netdev_dbg(netdev, "  %#06x: %s\n", i - 32, buffer);
 			j = 0;
 		} else if ((i % 16) == 0) {
 			buffer[j++] = ' ';
@@ -2220,7 +2231,7 @@ void xgbe_print_pkt(struct net_device *netdev, struct sk_buff *skb, bool tx_rx)
 		}
 	}
 	if (i % 32)
-		netdev_alert(netdev, "  0x%04x: %s\n", i - (i % 32), buffer);
+		netdev_dbg(netdev, "  %#06x: %s\n", i - (i % 32), buffer);
 
-	netdev_alert(netdev, "\n************** SKB dump ****************\n");
+	netdev_dbg(netdev, "\n************** SKB dump ****************\n");
 }

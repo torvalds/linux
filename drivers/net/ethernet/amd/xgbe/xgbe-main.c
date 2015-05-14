@@ -136,6 +136,13 @@ MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(XGBE_DRV_VERSION);
 MODULE_DESCRIPTION(XGBE_DRV_DESC);
 
+static int debug = -1;
+module_param(debug, int, S_IWUSR | S_IRUGO);
+MODULE_PARM_DESC(debug, " Network interface message level setting");
+
+static const u32 default_msg_level = (NETIF_MSG_LINK | NETIF_MSG_IFDOWN |
+				      NETIF_MSG_IFUP);
+
 static void xgbe_default_config(struct xgbe_prv_data *pdata)
 {
 	DBGPR("-->xgbe_default_config\n");
@@ -289,6 +296,8 @@ static int xgbe_probe(struct platform_device *pdev)
 	mutex_init(&pdata->rss_mutex);
 	spin_lock_init(&pdata->tstamp_lock);
 
+	pdata->msg_enable = netif_msg_init(debug, default_msg_level);
+
 	/* Check if we should use ACPI or DT */
 	pdata->use_acpi = (!pdata->adev || acpi_disabled) ? 0 : 1;
 
@@ -318,7 +327,8 @@ static int xgbe_probe(struct platform_device *pdev)
 		ret = PTR_ERR(pdata->xgmac_regs);
 		goto err_io;
 	}
-	DBGPR("  xgmac_regs = %p\n", pdata->xgmac_regs);
+	if (netif_msg_probe(pdata))
+		dev_dbg(dev, "xgmac_regs = %p\n", pdata->xgmac_regs);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	pdata->xpcs_regs = devm_ioremap_resource(dev, res);
@@ -327,7 +337,8 @@ static int xgbe_probe(struct platform_device *pdev)
 		ret = PTR_ERR(pdata->xpcs_regs);
 		goto err_io;
 	}
-	DBGPR("  xpcs_regs  = %p\n", pdata->xpcs_regs);
+	if (netif_msg_probe(pdata))
+		dev_dbg(dev, "xpcs_regs  = %p\n", pdata->xpcs_regs);
 
 	/* Retrieve the MAC address */
 	ret = device_property_read_u8_array(dev, XGBE_MAC_ADDR_PROPERTY,

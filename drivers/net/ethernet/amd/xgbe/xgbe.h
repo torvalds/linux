@@ -793,6 +793,9 @@ struct xgbe_prv_data {
 	/* Keeps track of power mode */
 	unsigned int power_down;
 
+	/* Network interface message level setting */
+	u32 msg_enable;
+
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *xgbe_debugfs;
 
@@ -818,9 +821,9 @@ void xgbe_mdio_unregister(struct xgbe_prv_data *);
 void xgbe_dump_phy_registers(struct xgbe_prv_data *);
 void xgbe_ptp_register(struct xgbe_prv_data *);
 void xgbe_ptp_unregister(struct xgbe_prv_data *);
-void xgbe_dump_tx_desc(struct xgbe_ring *, unsigned int, unsigned int,
-		       unsigned int);
-void xgbe_dump_rx_desc(struct xgbe_ring *, struct xgbe_ring_desc *,
+void xgbe_dump_tx_desc(struct xgbe_prv_data *, struct xgbe_ring *,
+		       unsigned int, unsigned int, unsigned int);
+void xgbe_dump_rx_desc(struct xgbe_prv_data *, struct xgbe_ring *,
 		       unsigned int);
 void xgbe_print_pkt(struct net_device *, struct sk_buff *, bool);
 void xgbe_get_all_hw_features(struct xgbe_prv_data *);
@@ -837,18 +840,6 @@ static inline void xgbe_debugfs_init(struct xgbe_prv_data *pdata) {}
 static inline void xgbe_debugfs_exit(struct xgbe_prv_data *pdata) {}
 #endif /* CONFIG_DEBUG_FS */
 
-/* NOTE: Uncomment for TX and RX DESCRIPTOR DUMP in KERNEL LOG */
-#if 0
-#define XGMAC_ENABLE_TX_DESC_DUMP
-#define XGMAC_ENABLE_RX_DESC_DUMP
-#endif
-
-/* NOTE: Uncomment for TX and RX PACKET DUMP in KERNEL LOG */
-#if 0
-#define XGMAC_ENABLE_TX_PKT_DUMP
-#define XGMAC_ENABLE_RX_PKT_DUMP
-#endif
-
 /* NOTE: Uncomment for function trace log messages in KERNEL LOG */
 #if 0
 #define YDEBUG
@@ -858,10 +849,8 @@ static inline void xgbe_debugfs_exit(struct xgbe_prv_data *pdata) {}
 /* For debug prints */
 #ifdef YDEBUG
 #define DBGPR(x...) pr_alert(x)
-#define DBGPHY_REGS(x...) xgbe_dump_phy_registers(x)
 #else
 #define DBGPR(x...) do { } while (0)
-#define DBGPHY_REGS(x...) do { } while (0)
 #endif
 
 #ifdef YDEBUG_MDIO

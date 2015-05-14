@@ -159,48 +159,48 @@ static int xgbe_mdio_write(struct mii_bus *mii, int prtad, int mmd_reg,
 void xgbe_dump_phy_registers(struct xgbe_prv_data *pdata)
 {
 	struct device *dev = pdata->dev;
-	struct phy_device *phydev = pdata->mii->phy_map[XGBE_PRTAD];
+	struct phy_device *phydev = pdata->phydev;
 	int i;
 
-	dev_alert(dev, "\n************* PHY Reg dump **********************\n");
+	dev_dbg(dev, "\n************* PHY Reg dump **********************\n");
 
-	dev_alert(dev, "PCS Control Reg (%#04x) = %#04x\n", MDIO_CTRL1,
-		  XMDIO_READ(pdata, MDIO_MMD_PCS, MDIO_CTRL1));
-	dev_alert(dev, "PCS Status Reg (%#04x) = %#04x\n", MDIO_STAT1,
-		  XMDIO_READ(pdata, MDIO_MMD_PCS, MDIO_STAT1));
-	dev_alert(dev, "Phy Id (PHYS ID 1 %#04x)= %#04x\n", MDIO_DEVID1,
-		  XMDIO_READ(pdata, MDIO_MMD_PCS, MDIO_DEVID1));
-	dev_alert(dev, "Phy Id (PHYS ID 2 %#04x)= %#04x\n", MDIO_DEVID2,
-		  XMDIO_READ(pdata, MDIO_MMD_PCS, MDIO_DEVID2));
-	dev_alert(dev, "Devices in Package (%#04x)= %#04x\n", MDIO_DEVS1,
-		  XMDIO_READ(pdata, MDIO_MMD_PCS, MDIO_DEVS1));
-	dev_alert(dev, "Devices in Package (%#04x)= %#04x\n", MDIO_DEVS2,
-		  XMDIO_READ(pdata, MDIO_MMD_PCS, MDIO_DEVS2));
+	dev_dbg(dev, "PCS Control Reg (%#04x) = %#04x\n", MDIO_CTRL1,
+		XMDIO_READ(pdata, MDIO_MMD_PCS, MDIO_CTRL1));
+	dev_dbg(dev, "PCS Status Reg (%#04x) = %#04x\n", MDIO_STAT1,
+		XMDIO_READ(pdata, MDIO_MMD_PCS, MDIO_STAT1));
+	dev_dbg(dev, "Phy Id (PHYS ID 1 %#04x)= %#04x\n", MDIO_DEVID1,
+		XMDIO_READ(pdata, MDIO_MMD_PCS, MDIO_DEVID1));
+	dev_dbg(dev, "Phy Id (PHYS ID 2 %#04x)= %#04x\n", MDIO_DEVID2,
+		XMDIO_READ(pdata, MDIO_MMD_PCS, MDIO_DEVID2));
+	dev_dbg(dev, "Devices in Package (%#04x)= %#04x\n", MDIO_DEVS1,
+		XMDIO_READ(pdata, MDIO_MMD_PCS, MDIO_DEVS1));
+	dev_dbg(dev, "Devices in Package (%#04x)= %#04x\n", MDIO_DEVS2,
+		XMDIO_READ(pdata, MDIO_MMD_PCS, MDIO_DEVS2));
 
-	dev_alert(dev, "Auto-Neg Control Reg (%#04x) = %#04x\n", MDIO_CTRL1,
-		  XMDIO_READ(pdata, MDIO_MMD_AN, MDIO_CTRL1));
-	dev_alert(dev, "Auto-Neg Status Reg (%#04x) = %#04x\n", MDIO_STAT1,
-		  XMDIO_READ(pdata, MDIO_MMD_AN, MDIO_STAT1));
-	dev_alert(dev, "Auto-Neg Ad Reg 1 (%#04x) = %#04x\n",
-		  MDIO_AN_ADVERTISE,
-		  XMDIO_READ(pdata, MDIO_MMD_AN, MDIO_AN_ADVERTISE));
-	dev_alert(dev, "Auto-Neg Ad Reg 2 (%#04x) = %#04x\n",
-		  MDIO_AN_ADVERTISE + 1,
-		  XMDIO_READ(pdata, MDIO_MMD_AN, MDIO_AN_ADVERTISE + 1));
-	dev_alert(dev, "Auto-Neg Ad Reg 3 (%#04x) = %#04x\n",
-		  MDIO_AN_ADVERTISE + 2,
-		  XMDIO_READ(pdata, MDIO_MMD_AN, MDIO_AN_ADVERTISE + 2));
-	dev_alert(dev, "Auto-Neg Completion Reg (%#04x) = %#04x\n",
-		  MDIO_AN_COMP_STAT,
-		  XMDIO_READ(pdata, MDIO_MMD_AN, MDIO_AN_COMP_STAT));
+	dev_dbg(dev, "Auto-Neg Control Reg (%#04x) = %#04x\n", MDIO_CTRL1,
+		XMDIO_READ(pdata, MDIO_MMD_AN, MDIO_CTRL1));
+	dev_dbg(dev, "Auto-Neg Status Reg (%#04x) = %#04x\n", MDIO_STAT1,
+		XMDIO_READ(pdata, MDIO_MMD_AN, MDIO_STAT1));
+	dev_dbg(dev, "Auto-Neg Ad Reg 1 (%#04x) = %#04x\n",
+		MDIO_AN_ADVERTISE,
+		XMDIO_READ(pdata, MDIO_MMD_AN, MDIO_AN_ADVERTISE));
+	dev_dbg(dev, "Auto-Neg Ad Reg 2 (%#04x) = %#04x\n",
+		MDIO_AN_ADVERTISE + 1,
+		XMDIO_READ(pdata, MDIO_MMD_AN, MDIO_AN_ADVERTISE + 1));
+	dev_dbg(dev, "Auto-Neg Ad Reg 3 (%#04x) = %#04x\n",
+		MDIO_AN_ADVERTISE + 2,
+		XMDIO_READ(pdata, MDIO_MMD_AN, MDIO_AN_ADVERTISE + 2));
+	dev_dbg(dev, "Auto-Neg Completion Reg (%#04x) = %#04x\n",
+		MDIO_AN_COMP_STAT,
+		XMDIO_READ(pdata, MDIO_MMD_AN, MDIO_AN_COMP_STAT));
 
-	dev_alert(dev, "MMD Device Mask = %#x\n",
-		  phydev->c45_ids.devices_in_package);
+	dev_dbg(dev, "MMD Device Mask = %#x\n",
+		phydev->c45_ids.devices_in_package);
 	for (i = 0; i < ARRAY_SIZE(phydev->c45_ids.device_ids); i++)
-		dev_alert(dev, "  MMD %d: ID = %#08x\n", i,
-			  phydev->c45_ids.device_ids[i]);
+		dev_dbg(dev, "  MMD %d: ID = %#08x\n", i,
+			phydev->c45_ids.device_ids[i]);
 
-	dev_alert(dev, "\n*************************************************\n");
+	dev_dbg(dev, "\n*************************************************\n");
 }
 
 int xgbe_mdio_register(struct xgbe_prv_data *pdata)
@@ -230,7 +230,9 @@ int xgbe_mdio_register(struct xgbe_prv_data *pdata)
 		dev_err(pdata->dev, "mdiobus_register failed\n");
 		goto err_mdiobus_alloc;
 	}
-	DBGPR("  mdiobus_register succeeded for %s\n", pdata->mii_bus_id);
+	if (netif_msg_drv(pdata))
+		dev_dbg(pdata->dev, "mdiobus_register succeeded for %s\n",
+			pdata->mii_bus_id);
 
 	/* Probe the PCS using Clause 45 */
 	phydev = get_phy_device(mii, XGBE_PRTAD, true);
@@ -275,7 +277,8 @@ int xgbe_mdio_register(struct xgbe_prv_data *pdata)
 
 	pdata->phydev = phydev;
 
-	DBGPHY_REGS(pdata);
+	if (netif_msg_drv(pdata))
+		xgbe_dump_phy_registers(pdata);
 
 	DBGPR("<--xgbe_mdio_register\n");
 
