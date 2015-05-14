@@ -391,7 +391,7 @@ static int cma_acquire_dev(struct rdma_id_private *id_priv,
 	if (listen_id_priv) {
 		cma_dev = listen_id_priv->cma_dev;
 		port = listen_id_priv->id.port_num;
-		gidp = rdma_protocol_iboe(cma_dev->device, port) ?
+		gidp = rdma_protocol_roce(cma_dev->device, port) ?
 		       &iboe_gid : &gid;
 
 		ret = cma_validate_port(cma_dev->device, port, gidp,
@@ -409,7 +409,7 @@ static int cma_acquire_dev(struct rdma_id_private *id_priv,
 			    listen_id_priv->id.port_num == port)
 				continue;
 
-			gidp = rdma_protocol_iboe(cma_dev->device, port) ?
+			gidp = rdma_protocol_roce(cma_dev->device, port) ?
 			       &iboe_gid : &gid;
 
 			ret = cma_validate_port(cma_dev->device, port, gidp,
@@ -647,7 +647,7 @@ static int cma_modify_qp_rtr(struct rdma_id_private *id_priv,
 
 	BUG_ON(id_priv->cma_dev->device != id_priv->id.device);
 
-	if (rdma_protocol_iboe(id_priv->id.device, id_priv->id.port_num)) {
+	if (rdma_protocol_roce(id_priv->id.device, id_priv->id.port_num)) {
 		ret = rdma_addr_find_smac_by_sgid(&sgid, qp_attr.smac, NULL);
 
 		if (ret)
@@ -1966,7 +1966,7 @@ int rdma_resolve_route(struct rdma_cm_id *id, int timeout_ms)
 	atomic_inc(&id_priv->refcount);
 	if (rdma_cap_ib_sa(id->device, id->port_num))
 		ret = cma_resolve_ib_route(id_priv, timeout_ms);
-	else if (rdma_protocol_iboe(id->device, id->port_num))
+	else if (rdma_protocol_roce(id->device, id->port_num))
 		ret = cma_resolve_iboe_route(id_priv);
 	else if (rdma_protocol_iwarp(id->device, id->port_num))
 		ret = cma_resolve_iw_route(id_priv, timeout_ms);
@@ -3325,7 +3325,7 @@ int rdma_join_multicast(struct rdma_cm_id *id, struct sockaddr *addr,
 	list_add(&mc->list, &id_priv->mc_list);
 	spin_unlock(&id_priv->lock);
 
-	if (rdma_protocol_iboe(id->device, id->port_num)) {
+	if (rdma_protocol_roce(id->device, id->port_num)) {
 		kref_init(&mc->mcref);
 		ret = cma_iboe_join_multicast(id_priv, mc);
 	} else if (rdma_cap_ib_mcast(id->device, id->port_num))
@@ -3365,7 +3365,7 @@ void rdma_leave_multicast(struct rdma_cm_id *id, struct sockaddr *addr)
 			if (rdma_cap_ib_mcast(id->device, id->port_num)) {
 				ib_sa_free_multicast(mc->multicast.ib);
 				kfree(mc);
-			} else if (rdma_protocol_iboe(id->device, id->port_num))
+			} else if (rdma_protocol_roce(id->device, id->port_num))
 				kref_put(&mc->mcref, release_mc);
 
 			return;

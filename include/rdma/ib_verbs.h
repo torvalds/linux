@@ -1832,7 +1832,7 @@ static inline bool rdma_protocol_ib(struct ib_device *device, u8 port_num)
 	return device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_PROT_IB;
 }
 
-static inline bool rdma_protocol_iboe(struct ib_device *device, u8 port_num)
+static inline bool rdma_protocol_roce(struct ib_device *device, u8 port_num)
 {
 	return device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_PROT_ROCE;
 }
@@ -1842,7 +1842,7 @@ static inline bool rdma_protocol_iwarp(struct ib_device *device, u8 port_num)
 	return device->port_immutable[port_num].core_cap_flags & RDMA_CORE_CAP_PROT_IWARP;
 }
 
-static inline bool rdma_ib_or_iboe(struct ib_device *device, u8 port_num)
+static inline bool rdma_ib_or_roce(struct ib_device *device, u8 port_num)
 {
 	return device->port_immutable[port_num].core_cap_flags &
 		(RDMA_CORE_CAP_PROT_IB | RDMA_CORE_CAP_PROT_ROCE);

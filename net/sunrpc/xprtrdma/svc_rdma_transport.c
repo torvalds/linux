@@ -987,7 +987,7 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	 */
 	if (!rdma_protocol_iwarp(newxprt->sc_cm_id->device,
 				 newxprt->sc_cm_id->port_num) &&
-	    !rdma_ib_or_iboe(newxprt->sc_cm_id->device,
+	    !rdma_ib_or_roce(newxprt->sc_cm_id->device,
 			     newxprt->sc_cm_id->port_num))
 		goto errout;
 
