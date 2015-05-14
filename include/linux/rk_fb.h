@@ -103,6 +103,7 @@
 #define ALIGN_ODD_TIMES(x, align)		(((x) % ((align) * 2) == 0) ? ((x) + (align)) : (x))
 #define ALIGN_64BYTE_ODD_TIMES(x, align)	ALIGN_ODD_TIMES(ALIGN_N_TIMES(x, align), align)
 
+#define DUMP_FRAME_NUM 3
 
 //#define USE_ION_MMU 1
 #if defined(CONFIG_ION_ROCKCHIP)
@@ -245,6 +246,12 @@ typedef enum {
 	SCREEN_PREPARE_DDR_CHANGE = 0x0,
 	SCREEN_UNPREPARE_DDR_CHANGE,
 } screen_status;
+
+typedef enum {
+	GET_PAGE_FAULT	= 0x0,
+	CLR_PAGE_FAULT  = 0x1,
+	UNMASK_PAGE_FAULT = 0x2
+} extern_func;
 
 struct rk_fb_rgb {
 	struct fb_bitfield red;
@@ -475,6 +482,7 @@ struct rk_lcdc_drv_ops {
 	int (*dsp_black) (struct rk_lcdc_driver *dev_drv, int enable);
 	int (*backlight_close)(struct rk_lcdc_driver *dev_drv, int enable);
 	int (*area_support_num)(struct rk_lcdc_driver *dev_drv, unsigned int *area_support);
+	int (*extern_func)(struct rk_lcdc_driver *dev_drv, int cmd);
 };
 
 struct rk_fb_area_par {
@@ -653,6 +661,9 @@ struct rk_lcdc_driver {
 	/*1:hdmi switch uncomplete,0:complete*/
 	bool hdmi_switch;
 	void *trace_buf;
+	struct rk_fb_win_cfg_data tmp_win_cfg[DUMP_FRAME_NUM];
+	struct rk_fb_reg_data tmp_regs[DUMP_FRAME_NUM];
+	unsigned int area_support[RK30_MAX_LAYER_SUPPORT];
 };
 
 struct rk_fb_par {

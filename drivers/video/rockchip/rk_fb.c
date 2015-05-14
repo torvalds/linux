@@ -78,13 +78,17 @@ static struct rk_fb_trsm_ops *trsm_mipi_ops;
 static int uboot_logo_on;
 
 static int rk_fb_debug_lvl;
+static int rk_fb_iommu_debug = 1;
 module_param(rk_fb_debug_lvl, int, S_IRUGO | S_IWUSR);
+module_param(rk_fb_iommu_debug, int, S_IRUGO | S_IWUSR);
 
 #define fb_dbg(level, x...) do {		\
 	if (unlikely(rk_fb_debug_lvl >= level))	\
-		printk(KERN_DEBUG x);		\
+		printk(KERN_INFO x);		\
 	} while (0)
-
+static int rk_fb_config_debug(struct rk_lcdc_driver *dev_drv,
+			      struct rk_fb_win_cfg_data *win_data,
+			      struct rk_fb_reg_data *regs, u32 cmd);
 int support_uboot_display(void)
 {
 	return uboot_logo_on;
@@ -1451,7 +1455,10 @@ static int rk_fb_copy_from_loader(struct fb_info *info)
 }
 #endif
 #ifdef CONFIG_ROCKCHIP_IOMMU
-static int g_last_addr[4][4];
+static int g_last_addr[5][4];
+static int g_now_config_addr[5][4];
+static int g_last_state[5][4];
+static int g_now_config_state[5][4];
 int g_last_timeout;
 u32 freed_addr[10];
 u32 freed_index;
@@ -1642,15 +1649,20 @@ static void rk_fb_update_win(struct rk_lcdc_driver *dev_drv,
 				    reg_win_data->reg_area_data[i].y_vir_stride;
 				win->area[i].state = 1;
 #if defined(CONFIG_ROCKCHIP_IOMMU)
-				if (dev_drv->iommu_enabled)
-					g_last_addr[win->id][i] = win->area[i].smem_start +
+				if (dev_drv->iommu_enabled) {
+					g_now_config_addr[win->id][i] =
+						win->area[i].smem_start +
 						win->area[i].y_offset;
+					g_now_config_state[win->id][i] = 1;
+				}
 #endif
 			} else {
 				win->area[i].state = 0;
 #if defined(CONFIG_ROCKCHIP_IOMMU)
-				if (dev_drv->iommu_enabled)
-					g_last_addr[win->id][i] = -1;
+				if (dev_drv->iommu_enabled) {
+					g_now_config_addr[win->id][i] = 0;
+					g_now_config_state[win->id][i] = 0;
+				}
 #endif
 			}
 		}
@@ -1679,14 +1691,10 @@ static int rk_fb_reg_effect(struct rk_lcdc_driver *dev_drv,
 	struct rk_fb *rk_fb = platform_get_drvdata(fb_pdev);
 	int i, j, wait_for_vsync = false;
 	unsigned int dsp_addr[5][4];
-	unsigned int area_support[5] = {1, 1, 1, 1, 1};
 	int win_status = 0;
 
 	if (dev_drv->ops->get_dsp_addr)
 		dev_drv->ops->get_dsp_addr(dev_drv, dsp_addr);
-
-	if (dev_drv->ops->area_support_num)
-		dev_drv->ops->area_support_num(dev_drv, area_support);
 
 	for (i = 0; i < dev_drv->lcdc_win_num; i++) {
 		if (rk_fb->disp_policy == DISPLAY_POLICY_BOX &&
@@ -1694,7 +1702,7 @@ static int rk_fb_reg_effect(struct rk_lcdc_driver *dev_drv,
 			continue;
 
 		for (j = 0;j < RK_WIN_MAX_AREA; j++) {
-			if ((j > 0) && (area_support[i] == 1)) {
+			if ((j > 0) && (dev_drv->area_support[i] == 1)) {
 				continue;
 			}
 			if (dev_drv->win[i]->area[j].state == 1) {
@@ -1730,6 +1738,67 @@ static int rk_fb_reg_effect(struct rk_lcdc_driver *dev_drv,
 	return wait_for_vsync;
 }
 
+static int rk_fb_iommu_page_fault_dump(struct rk_lcdc_driver *dev_drv)
+{
+	int i, j, state, page_fault = 0;
+	unsigned int dsp_addr[5][4];
+
+	if (dev_drv->ops->extern_func) {
+		dev_drv->ops->extern_func(dev_drv, UNMASK_PAGE_FAULT);
+		page_fault = dev_drv->ops->extern_func(dev_drv, GET_PAGE_FAULT);
+	}
+	if (page_fault) {
+		pr_info("last config:\n");
+		for(i = 0; i < dev_drv->lcdc_win_num; i++) {
+			for(j = 0; j < RK_WIN_MAX_AREA; j++) {
+				if ((j > 0) && (dev_drv->area_support[i] == 1))
+					continue;
+				pr_info("win[%d]area[%d],state=%d,addr=0x%08x\n",
+					i, j, g_last_state[i][j], g_last_addr[i][j]);
+			}
+		}
+
+		pr_info("last freed buffer:\n");
+		for (i = 0; (freed_addr[i] != 0xfefefefe) && freed_addr[i]; i++)
+			pr_info("%d:0x%08x\n", i, freed_addr[i]);
+
+		dev_drv->ops->get_dsp_addr(dev_drv, dsp_addr);
+		pr_info("vop now state:\n");
+		for(i = 0; i < dev_drv->lcdc_win_num; i++) {
+			for(j = 0; j < RK_WIN_MAX_AREA; j++) {
+				if ((j > 0) && (dev_drv->area_support[i] == 1))
+					continue;
+				state = dev_drv->ops->get_win_state(dev_drv, i, j);
+				pr_info("win[%d]area[%d],state=%d,addr=0x%08x\n",
+					i, j, state, dsp_addr[i][j]);
+	            }
+	        }
+		pr_info("now config:\n");
+		for(i = 0; i < dev_drv->lcdc_win_num; i++) {
+			for(j = 0; j < RK_WIN_MAX_AREA; j++) {
+				if ((j > 0) && (dev_drv->area_support[i] == 1))
+					continue;
+				pr_info("win[%d]area[%d],state=%d,addr=0x%08x\n",
+					i, j, g_now_config_state[i][j],
+					g_now_config_addr[i][j]);
+			}
+		}
+		for (i = 0; i < DUMP_FRAME_NUM; i++)
+			rk_fb_config_debug(dev_drv, &(dev_drv->tmp_win_cfg[i]),
+					   &(dev_drv->tmp_regs[i]), 0);
+	}
+
+	for (i = 0; i < dev_drv->lcdc_win_num; i++) {
+		for (j = 0; j < RK_WIN_MAX_AREA; j++) {
+			if ((j > 0) && (dev_drv->area_support[i] == 1))
+				continue;
+			g_last_addr[i][j] = g_now_config_addr[i][j];
+			g_last_state[i][j] = g_now_config_state[i][j];
+		}
+	}
+
+	return page_fault;
+}
 static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 			     struct rk_fb_reg_data *regs)
 {
@@ -1741,7 +1810,7 @@ static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 	bool wait_for_vsync;
 	int count = 100;
 	long timeout;
-
+	int pagefault = 0;
 	/* acq_fence wait */
 	for (i = 0; i < regs->win_num; i++) {
 		win_data = &regs->reg_win_data[i];
@@ -1774,13 +1843,22 @@ static void rk_fb_update_reg(struct rk_lcdc_driver *dev_drv,
 #if defined(CONFIG_ROCKCHIP_IOMMU)
 			if (dev_drv->iommu_enabled) {
 				for (j = 0; j < 4; j++)
-					g_last_addr[i][j] = -1;
+					g_now_config_addr[i][j] = 0;
 			}
 #endif
 		}
 	}
 	dev_drv->ops->ovl_mgr(dev_drv, 0, 1);
-	dev_drv->ops->cfg_done(dev_drv);
+
+	if (rk_fb_iommu_debug > 0) {
+		pagefault = rk_fb_iommu_page_fault_dump(dev_drv);
+	}
+
+        if (pagefault == 0) {
+	        dev_drv->ops->cfg_done(dev_drv);
+	} else {
+                sw_sync_timeline_inc(dev_drv->timeline, 1);
+	}
 
 	do {
 		timestamp = dev_drv->vsync_info.timestamp;
@@ -1875,8 +1953,8 @@ static int rk_fb_check_config_var(struct rk_fb_area_par *area_par,
 }
 
 static int rk_fb_config_debug(struct rk_lcdc_driver *dev_drv,
-				   struct rk_fb_win_cfg_data *win_data,
-				   struct rk_fb_reg_data *regs, u32 cmd)
+			      struct rk_fb_win_cfg_data *win_data,
+			      struct rk_fb_reg_data *regs, u32 cmd)
 {
 	int i, j;
 	struct rk_fb_win_par *win_par;
@@ -1884,71 +1962,88 @@ static int rk_fb_config_debug(struct rk_lcdc_driver *dev_drv,
 	struct rk_fb_reg_win_data *reg_win_data;
 	struct rk_fb_reg_area_data *area_data;
 
-	unsigned int area_support[5] = {1, 1, 1, 1, 1};
-	if (dev_drv->ops->area_support_num)
-		dev_drv->ops->area_support_num(dev_drv, area_support);
-
-	mutex_lock(&dev_drv->output_lock);
-	fb_dbg(1, "-------------frame start-------------\n");
-	fb_dbg(1, "user config:\n");
+	fb_dbg(cmd, "-------------frame start-------------\n");
+	fb_dbg(cmd, "user config:\n");
 	for (i = 0; i < dev_drv->lcdc_win_num; i++) {
 		win_par = &(win_data->win_par[i]);
 		if ((win_par->area_par[0].ion_fd <= 0) &&
 		    (win_par->area_par[0].phy_addr <= 0))
 			continue;
-		fb_dbg(1, "win[%d]:z_order=%d,galhpa_v=%d\n",
+		fb_dbg(cmd, "win[%d]:z_order=%d,galhpa_v=%d\n",
 		       win_par->win_id, win_par->z_order,
 		       win_par->g_alpha_val);
 		for (j = 0; j < RK_WIN_MAX_AREA; j++) {
 			area_par = &(win_par->area_par[j]);
-			if (((j > 0) && (area_support[i] == 1)) ||
+			if (((j > 0) && (dev_drv->area_support[i] == 1)) ||
 			    ((win_par->area_par[j].ion_fd <= 0) &&
 			     (win_par->area_par[j].phy_addr <= 0)))
 				continue;
-			fb_dbg(1, " area[%d]:fmt=%d,ion_fd=%d,phy_add=0x%x,xoff=%d,yoff=%d\n",
+			fb_dbg(cmd, " area[%d]:fmt=%d,ion_fd=%d,phy_add=0x%x,xoff=%d,yoff=%d\n",
 			       j, area_par->data_format, area_par->ion_fd,
 			       area_par->phy_addr, area_par->x_offset,
 			       area_par->y_offset);
-			fb_dbg(1, " 	   xpos=%d,ypos=%d,xsize=%d,ysize=%d\n",
+			fb_dbg(cmd, " 	   xpos=%d,ypos=%d,xsize=%d,ysize=%d\n",
 			       area_par->xpos, area_par->ypos,
 			       area_par->xsize, area_par->ysize);
-			fb_dbg(1, " 	   xact=%d,yact=%d,xvir=%d,yvir=%d\n",
+			fb_dbg(cmd, " 	   xact=%d,yact=%d,xvir=%d,yvir=%d\n",
 			       area_par->xact, area_par->yact,
 			       area_par->xvir, area_par->yvir);
 		}
 	}
 
-	fb_dbg(2, "regs data:\n");
-	fb_dbg(2, "win_num=%d,buf_num=%d\n",
+	fb_dbg(cmd, "regs data:\n");
+	fb_dbg(cmd, "win_num=%d,buf_num=%d\n",
 	       regs->win_num, regs->buf_num);
 	for (i = 0; i < dev_drv->lcdc_win_num; i++) {
 		reg_win_data = &(regs->reg_win_data[i]);
 		if (reg_win_data->reg_area_data[0].smem_start <= 0)
 			continue;
-		fb_dbg(2, "win[%d]:z_order=%d,area_num=%d,area_buf_num=%d\n",
+		fb_dbg(cmd, "win[%d]:z_order=%d,area_num=%d,area_buf_num=%d\n",
 		       reg_win_data->win_id, reg_win_data->z_order,
 		       reg_win_data->area_num, reg_win_data->area_buf_num);
 		for (j = 0; j < RK_WIN_MAX_AREA; j++) {
 			area_data = &(reg_win_data->reg_area_data[j]);
-			if (((j > 0) && (area_support[i] == 1)) ||
+			if (((j > 0) && (dev_drv->area_support[i] == 1)) ||
 			    (area_data->smem_start <= 0))
 				continue;
-			fb_dbg(2, " area[%d]:fmt=%d,ion=%p,smem_star=0x%lx,cbr_star=0x%lx\n",
+			fb_dbg(cmd, " area[%d]:fmt=%d,ion=%p,smem_star=0x%lx,cbr_star=0x%lx\n",
 			       j, area_data->data_format, area_data->ion_handle,
 			       area_data->smem_start, area_data->cbr_start);
-			fb_dbg(2, " 	   yoff=0x%x,coff=0x%x,area_data->buff_len=%x\n",
+			fb_dbg(cmd, " 	   yoff=0x%x,coff=0x%x,area_data->buff_len=%x\n",
 			       area_data->y_offset, area_data->c_offset,area_data->buff_len);
-			fb_dbg(2, " 	   xpos=%d,ypos=%d,xsize=%d,ysize=%d\n",
+			fb_dbg(cmd, " 	   xpos=%d,ypos=%d,xsize=%d,ysize=%d\n",
 			       area_data->xpos, area_data->ypos,
 			       area_data->xsize, area_data->ysize);
-			fb_dbg(2, " 	   xact=%d,yact=%d,xvir=%d,yvir=%d\n",
+			fb_dbg(cmd, " 	   xact=%d,yact=%d,xvir=%d,yvir=%d\n",
 			       area_data->xact, area_data->yact,
 			       area_data->xvir, area_data->yvir);
 		}
 	}
-	fb_dbg(1, "-------------frame end---------------\n");
+	fb_dbg(cmd, "-------------frame end---------------\n");
 
-	mutex_unlock(&dev_drv->output_lock);
+	return 0;
+}
+static int rk_fb_config_backup(struct rk_lcdc_driver *dev_drv,
+				   struct rk_fb_win_cfg_data *win_cfg,
+				   struct rk_fb_reg_data *regs)
+{
+	int i;
+
+	/*2->1->0: 0 is newest*/
+	for (i = 0; i < DUMP_FRAME_NUM - 1; i++) {
+		memcpy(&(dev_drv->tmp_win_cfg[DUMP_FRAME_NUM-1-i]),
+		       &(dev_drv->tmp_win_cfg[DUMP_FRAME_NUM-2-i]),
+		       sizeof(struct rk_fb_win_cfg_data));
+		memcpy(&(dev_drv->tmp_regs[DUMP_FRAME_NUM-1-i]),
+		       &(dev_drv->tmp_regs[DUMP_FRAME_NUM-2-i]),
+		       sizeof(struct rk_fb_reg_data));
+	}
+
+	memcpy(&(dev_drv->tmp_win_cfg[0]), win_cfg,
+	       sizeof(struct rk_fb_win_cfg_data));
+	memcpy(&(dev_drv->tmp_regs[0]), regs,
+	       sizeof(struct rk_fb_reg_data));
+
 	return 0;
 }
 static int rk_fb_set_win_buffer(struct fb_info *info,
@@ -1996,7 +2091,7 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 				if (IS_ERR(hdl)) {
 					pr_info("%s: Could not import handle:"
 						" %ld\n", __func__, (long)hdl);
-					/*return -EINVAL; */
+					return -EINVAL;
 					break;
 				}
 				reg_win_data->reg_area_data[i].ion_handle = hdl;
@@ -2307,6 +2402,7 @@ static int rk_fb_set_win_config(struct fb_info *info,
 			if (rk_fb_set_win_buffer(info, &win_data->win_par[i],
 						 &regs->reg_win_data[j])) {
 				ret = -ENOMEM;
+				pr_info("error:%s[%d]\n", __func__,__LINE__);
 				goto err2;
 			}
 			if (regs->reg_win_data[j].area_num > 0) {
@@ -2389,11 +2485,12 @@ static int rk_fb_set_win_config(struct fb_info *info,
 			rk_fb_update_reg(dev_drv, regs);
 		}
 	}
-
+	if (rk_fb_debug_lvl > 0)
+		rk_fb_config_debug(dev_drv, win_data, regs, rk_fb_debug_lvl);
+	if (rk_fb_iommu_debug > 0)
+		rk_fb_config_backup(dev_drv, win_data, regs);
 err:
 	mutex_unlock(&dev_drv->output_lock);
-	if (rk_fb_debug_lvl > 0)
-		rk_fb_config_debug(dev_drv,win_data, regs, 0);
 	return ret;
 err_null_frame:
 	for (j = 0; j < RK_MAX_BUF_NUM; j++)
@@ -3700,6 +3797,7 @@ static int init_lcdc_device_driver(struct rk_fb *rk_fb,
 	struct rk_screen *screen = devm_kzalloc(dev_drv->dev,
 						sizeof(struct rk_screen),
 						GFP_KERNEL);
+	int i = 0;
 
 	if (!screen) {
 		dev_err(dev_drv->dev, "malloc screen for lcdc%d fail!",
@@ -3748,6 +3846,10 @@ static int init_lcdc_device_driver(struct rk_fb *rk_fb,
 	dev_drv->overscan.top = 100;
 	dev_drv->overscan.right = 100;
 	dev_drv->overscan.bottom = 100;
+	for (i = 0; i < RK30_MAX_LAYER_SUPPORT; i++)
+		dev_drv->area_support[i] = 1;
+	if (dev_drv->ops->area_support_num)
+		dev_drv->ops->area_support_num(dev_drv, dev_drv->area_support);
 	rk_disp_pwr_ctr_parse_dt(dev_drv);
 	if (dev_drv->prop == PRMRY) {
 		rk_fb_set_prmry_screen(screen);
