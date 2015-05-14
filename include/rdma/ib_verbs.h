@@ -1752,6 +1752,33 @@ int ib_query_port(struct ib_device *device,
 enum rdma_link_layer rdma_port_get_link_layer(struct ib_device *device,
 					       u8 port_num);
 
+/**
+ * rdma_start_port - Return the first valid port number for the device
+ * specified
+ *
+ * @device: Device to be checked
+ *
+ * Return start port number
+ */
+static inline u8 rdma_start_port(const struct ib_device *device)
+{
+	return (device->node_type == RDMA_NODE_IB_SWITCH) ? 0 : 1;
+}
+
+/**
+ * rdma_end_port - Return the last valid port number for the device
+ * specified
+ *
+ * @device: Device to be checked
+ *
+ * Return last port number
+ */
+static inline u8 rdma_end_port(const struct ib_device *device)
+{
+	return (device->node_type == RDMA_NODE_IB_SWITCH) ?
+		0 : device->phys_port_cnt;
+}
+
 static inline bool rdma_protocol_ib(struct ib_device *device, u8 port_num)
 {
 	return device->query_protocol(device, port_num) == RDMA_PROTOCOL_IB;
