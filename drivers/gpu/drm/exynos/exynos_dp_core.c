@@ -195,7 +195,7 @@ static int exynos_dp_read_edid(struct exynos_dp_device *dp)
 		}
 	}
 
-	dev_err(dp->dev, "EDID Read success!\n");
+	dev_dbg(dp->dev, "EDID Read success!\n");
 	return 0;
 }
 
