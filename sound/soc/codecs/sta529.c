@@ -165,7 +165,7 @@ static int sta529_set_bias_level(struct snd_soc_codec *codec, enum
 				FFX_CLK_ENB);
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF)
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF)
 			regcache_sync(sta529->regmap);
 		snd_soc_update_bits(codec, STA529_FFXCFG0,
 					POWER_CNTLMSAK, POWER_STDBY);
