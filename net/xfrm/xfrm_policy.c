@@ -1114,6 +1114,9 @@ static struct xfrm_policy *xfrm_policy_lookup_bytype(struct net *net, u8 type,
 	}
 	chain = &net->xfrm.policy_inexact[dir];
 	hlist_for_each_entry(pol, chain, bydst) {
+		if ((pol->priority >= priority) && ret)
+			break;
+
 		err = xfrm_policy_match(pol, fl, type, family, dir);
 		if (err) {
 			if (err == -ESRCH)
@@ -1122,7 +1125,7 @@ static struct xfrm_policy *xfrm_policy_lookup_bytype(struct net *net, u8 type,
 				ret = ERR_PTR(err);
 				goto fail;
 			}
-		} else if (pol->priority < priority) {
+		} else {
 			ret = pol;
 			break;
 		}
@@ -3203,9 +3206,11 @@ static struct xfrm_policy *xfrm_migrate_policy_find(const struct xfrm_selector *
 	}
 	chain = &net->xfrm.policy_inexact[dir];
 	hlist_for_each_entry(pol, chain, bydst) {
+		if ((pol->priority >= priority) && ret)
+			break;
+
 		if (xfrm_migrate_selector_match(sel, &pol->selector) &&
-		    pol->type == type &&
-		    pol->priority < priority) {
+		    pol->type == type) {
 			ret = pol;
 			break;
 		}
