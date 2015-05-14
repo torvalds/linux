@@ -185,6 +185,11 @@
 			      <0xa0410100 0x100>;
 		};
 
+		scu@a04100000 {
+			compatible = "arm,cortex-a9-scu";
+			reg = <0xa0410000 0x100>;
+		};
+
 		L2: l2-cache {
 			compatible = "arm,pl310-cache";
 			reg = <0xa0412000 0x1000>;
@@ -242,6 +247,13 @@
 			reg = <0xa0410600 0x20>;
 			interrupts = <1 13 0x304>; /* IRQ level high per-CPU */
 
+			clocks = <&smp_twd_clk>;
+		};
+
+		watchdog@a0410620 {
+			compatible = "arm,cortex-a9-twd-wdt";
+			reg = <0xa0410620 0x20>;
+			interrupts = <1 14 0x304>;
 			clocks = <&smp_twd_clk>;
 		};
 
