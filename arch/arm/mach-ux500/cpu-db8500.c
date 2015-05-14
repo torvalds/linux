@@ -43,28 +43,10 @@ static struct prcmu_pdata db8500_prcmu_pdata = {
 	.legacy_offset	= DB8500_PRCMU_LEGACY_OFFSET,
 };
 
-/* U8500 IO map specific description */
-static struct map_desc u8500_io_desc[] __initdata = {
-	__IO_DEV_DESC(U8500_PRCMU_BASE, SZ_4K),
-	__IO_DEV_DESC(U8500_PRCMU_TCDM_BASE, SZ_4K),
-
-};
-
-/* U9540 IO map specific description */
-static struct map_desc u9540_io_desc[] __initdata = {
-	__IO_DEV_DESC(U8500_PRCMU_BASE, SZ_4K + SZ_8K),
-	__IO_DEV_DESC(U8500_PRCMU_TCDM_BASE, SZ_4K + SZ_8K),
-};
-
 static void __init u8500_map_io(void)
 {
 	debug_ll_io_init();
 	ux500_map_io();
-
-	if (cpu_is_ux540_family())
-		iotable_init(u9540_io_desc, ARRAY_SIZE(u9540_io_desc));
-	else
-		iotable_init(u8500_io_desc, ARRAY_SIZE(u8500_io_desc));
 }
 
 /*
