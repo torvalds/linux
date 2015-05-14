@@ -103,9 +103,9 @@ static inline bool nfs4_test_locked_slot(const struct nfs4_slot_table *tbl,
 	return !!test_bit(slotid, tbl->used_slots);
 }
 
-static inline struct nfs4_session *nfs4_get_session(const struct nfs_server *server)
+static inline struct nfs4_session *nfs4_get_session(const struct nfs_client *clp)
 {
-	return server->nfs_client->cl_session;
+	return clp->cl_session;
 }
 
 #if defined(CONFIG_NFS_V4_1)

@@ -952,7 +952,7 @@ static int nfs4_setup_sequence(const struct nfs_server *server,
 			       struct nfs4_sequence_res *res,
 			       struct rpc_task *task)
 {
-	struct nfs4_session *session = nfs4_get_session(server);
+	struct nfs4_session *session = nfs4_get_session(server->nfs_client);
 	int ret = 0;
 
 	if (!session)
@@ -972,7 +972,7 @@ static int nfs4_setup_sequence(const struct nfs_server *server,
 static void nfs41_call_sync_prepare(struct rpc_task *task, void *calldata)
 {
 	struct nfs4_call_sync_data *data = calldata;
-	struct nfs4_session *session = nfs4_get_session(data->seq_server);
+	struct nfs4_session *session = nfs4_get_session(data->seq_server->nfs_client);
 
 	dprintk("--> %s data->seq_server %p\n", __func__, data->seq_server);
 
@@ -8397,7 +8397,7 @@ nfs4_layoutget_prepare(struct rpc_task *task, void *calldata)
 {
 	struct nfs4_layoutget *lgp = calldata;
 	struct nfs_server *server = NFS_SERVER(lgp->args.inode);
-	struct nfs4_session *session = nfs4_get_session(server);
+	struct nfs4_session *session = nfs4_get_session(server->nfs_client);
 
 	dprintk("--> %s\n", __func__);
 	nfs41_setup_sequence(session, &lgp->args.seq_args,
@@ -8794,7 +8794,7 @@ static void nfs4_layoutcommit_prepare(struct rpc_task *task, void *calldata)
 {
 	struct nfs4_layoutcommit_data *data = calldata;
 	struct nfs_server *server = NFS_SERVER(data->args.inode);
-	struct nfs4_session *session = nfs4_get_session(server);
+	struct nfs4_session *session = nfs4_get_session(server->nfs_client);
 
 	nfs41_setup_sequence(session,
 			&data->args.seq_args,
@@ -9120,7 +9120,7 @@ struct nfs_free_stateid_data {
 static void nfs41_free_stateid_prepare(struct rpc_task *task, void *calldata)
 {
 	struct nfs_free_stateid_data *data = calldata;
-	nfs41_setup_sequence(nfs4_get_session(data->server),
+	nfs41_setup_sequence(nfs4_get_session(data->server->nfs_client),
 			&data->args.seq_args,
 			&data->res.seq_res,
 			task);

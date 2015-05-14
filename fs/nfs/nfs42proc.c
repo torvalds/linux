@@ -332,9 +332,8 @@ nfs42_layoutstat_prepare(struct rpc_task *task, void *calldata)
 	}
 	nfs4_stateid_copy(&data->args.stateid, &lo->plh_stateid);
 	spin_unlock(&inode->i_lock);
-	nfs41_setup_sequence(nfs4_get_session(server), &data->args.seq_args,
-			     &data->res.seq_res, task);
-
+	nfs41_setup_sequence(nfs4_get_session(server->nfs_client),
+			     &data->args.seq_args, &data->res.seq_res, task);
 }
 
 static void
