@@ -55,6 +55,17 @@ config DWMAC_MESON
 	  the stmmac device driver. This driver is used for Meson6 and
 	  Meson8 SoCs.
 
+config DWMAC_ROCKCHIP
+	tristate "Rockchip dwmac support"
+	default ARCH_ROCKCHIP
+	depends on OF
+	select MFD_SYSCON
+	help
+	  Support for Ethernet controller on Rockchip RK3288 SoC.
+
+	  This selects the Rockchip RK3288 SoC glue layer support for
+	  the stmmac device driver.
+
 endif
 
 config STMMAC_PCI
