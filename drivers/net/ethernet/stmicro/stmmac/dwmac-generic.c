@@ -1,6 +1,7 @@
 /*
  * Generic DWMAC platform driver
  *
+ * Copyright (C) 2007-2011  STMicroelectronics Ltd
  * Copyright (C) 2015 Joachim Eastwood <manabian@gmail.com>
  *
  * This file is licensed under the terms of the GNU General Public
@@ -12,6 +13,7 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 
+#include "stmmac.h"
 #include "stmmac_platform.h"
 
 static const struct of_device_id dwmac_generic_match[] = {
@@ -28,7 +30,7 @@ static struct platform_driver dwmac_generic_driver = {
 	.probe  = stmmac_pltfr_probe,
 	.remove = stmmac_pltfr_remove,
 	.driver = {
-		.name           = "dwmac-generic",
+		.name           = STMMAC_RESOURCE_NAME,
 		.pm		= &stmmac_pltfr_pm_ops,
 		.of_match_table = of_match_ptr(dwmac_generic_match),
 	},

@@ -32,12 +32,6 @@
 #include "stmmac.h"
 #include "stmmac_platform.h"
 
-static const struct of_device_id stmmac_dt_ids[] = {
-	/* SoC specific glue layers should come before generic bindings */
-	{ /* sentinel */ }
-};
-MODULE_DEVICE_TABLE(of, stmmac_dt_ids);
-
 #ifdef CONFIG_OF
 
 /**
@@ -431,19 +425,3 @@ static int stmmac_pltfr_resume(struct device *dev)
 SIMPLE_DEV_PM_OPS(stmmac_pltfr_pm_ops, stmmac_pltfr_suspend,
 				       stmmac_pltfr_resume);
 EXPORT_SYMBOL_GPL(stmmac_pltfr_pm_ops);
-
-static struct platform_driver stmmac_pltfr_driver = {
-	.probe = stmmac_pltfr_probe,
-	.remove = stmmac_pltfr_remove,
-	.driver = {
-		   .name = STMMAC_RESOURCE_NAME,
-		   .pm = &stmmac_pltfr_pm_ops,
-		   .of_match_table = of_match_ptr(stmmac_dt_ids),
-	},
-};
-
-module_platform_driver(stmmac_pltfr_driver);
-
-MODULE_DESCRIPTION("STMMAC 10/100/1000 Ethernet PLATFORM driver");
-MODULE_AUTHOR("Giuseppe Cavallaro <peppe.cavallaro@st.com>");
-MODULE_LICENSE("GPL");
