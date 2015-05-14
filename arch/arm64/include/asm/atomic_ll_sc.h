@@ -253,4 +253,38 @@ __CMPXCHG_CASE( ,  , mb_8, dmb ish, "memory")
 
 #undef __CMPXCHG_CASE
 
+#define __CMPXCHG_DBL(name, mb, cl)					\
+__LL_SC_INLINE int							\
+__LL_SC_PREFIX(__cmpxchg_double##name(unsigned long old1,		\
+				      unsigned long old2,		\
+				      unsigned long new1,		\
+				      unsigned long new2,		\
+				      volatile void *ptr))		\
+{									\
+	unsigned long tmp, ret;						\
+									\
+	asm volatile("// __cmpxchg_double" #name "\n"			\
+	"	" #mb "\n"						\
+	"1:	ldxp	%0, %1, %2\n"					\
+	"	eor	%0, %0, %3\n"					\
+	"	eor	%1, %1, %4\n"					\
+	"	orr	%1, %0, %1\n"					\
+	"	cbnz	%1, 2f\n"					\
+	"	stxp	%w0, %5, %6, %2\n"				\
+	"	cbnz	%w0, 1b\n"					\
+	"	" #mb "\n"						\
+	"2:"								\
+	: "=&r" (tmp), "=&r" (ret), "+Q" (*(unsigned long *)ptr)	\
+	: "r" (old1), "r" (old2), "r" (new1), "r" (new2)		\
+	: cl);								\
+									\
+	return ret;							\
+}									\
+__LL_SC_EXPORT(__cmpxchg_double##name);
+
+__CMPXCHG_DBL(   ,        ,         )
+__CMPXCHG_DBL(_mb, dmb ish, "memory")
+
+#undef __CMPXCHG_DBL
+
 #endif	/* __ASM_ATOMIC_LL_SC_H */

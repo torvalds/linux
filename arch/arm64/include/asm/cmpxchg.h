@@ -128,51 +128,6 @@ static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
 	unreachable();
 }
 
-#define system_has_cmpxchg_double()     1
-
-static inline int __cmpxchg_double(volatile void *ptr1, volatile void *ptr2,
-		unsigned long old1, unsigned long old2,
-		unsigned long new1, unsigned long new2, int size)
-{
-	unsigned long loop, lost;
-
-	switch (size) {
-	case 8:
-		VM_BUG_ON((unsigned long *)ptr2 - (unsigned long *)ptr1 != 1);
-		do {
-			asm volatile("// __cmpxchg_double8\n"
-			"	ldxp	%0, %1, %2\n"
-			"	eor	%0, %0, %3\n"
-			"	eor	%1, %1, %4\n"
-			"	orr	%1, %0, %1\n"
-			"	mov	%w0, #0\n"
-			"	cbnz	%1, 1f\n"
-			"	stxp	%w0, %5, %6, %2\n"
-			"1:\n"
-				: "=&r"(loop), "=&r"(lost), "+Q" (*(u64 *)ptr1)
-				: "r" (old1), "r"(old2), "r"(new1), "r"(new2));
-		} while (loop);
-		break;
-	default:
-		BUILD_BUG();
-	}
-
-	return !lost;
-}
-
-static inline int __cmpxchg_double_mb(volatile void *ptr1, volatile void *ptr2,
-			unsigned long old1, unsigned long old2,
-			unsigned long new1, unsigned long new2, int size)
-{
-	int ret;
-
-	smp_mb();
-	ret = __cmpxchg_double(ptr1, ptr2, old1, old2, new1, new2, size);
-	smp_mb();
-
-	return ret;
-}
-
 static inline unsigned long __cmpxchg_mb(volatile void *ptr, unsigned long old,
 					 unsigned long new, int size)
 {
@@ -210,21 +165,32 @@ static inline unsigned long __cmpxchg_mb(volatile void *ptr, unsigned long old,
 	__ret; \
 })
 
+#define system_has_cmpxchg_double()     1
+
+#define __cmpxchg_double_check(ptr1, ptr2)					\
+({										\
+	if (sizeof(*(ptr1)) != 8)						\
+		BUILD_BUG();							\
+	VM_BUG_ON((unsigned long *)(ptr2) - (unsigned long *)(ptr1) != 1);	\
+})
+
 #define cmpxchg_double(ptr1, ptr2, o1, o2, n1, n2) \
 ({\
 	int __ret;\
-	__ret = __cmpxchg_double_mb((ptr1), (ptr2), (unsigned long)(o1), \
-			(unsigned long)(o2), (unsigned long)(n1), \
-			(unsigned long)(n2), sizeof(*(ptr1)));\
+	__cmpxchg_double_check(ptr1, ptr2); \
+	__ret = !__cmpxchg_double_mb((unsigned long)(o1), (unsigned long)(o2), \
+				     (unsigned long)(n1), (unsigned long)(n2), \
+				     ptr1); \
 	__ret; \
 })
 
 #define cmpxchg_double_local(ptr1, ptr2, o1, o2, n1, n2) \
 ({\
 	int __ret;\
-	__ret = __cmpxchg_double((ptr1), (ptr2), (unsigned long)(o1), \
-			(unsigned long)(o2), (unsigned long)(n1), \
-			(unsigned long)(n2), sizeof(*(ptr1)));\
+	__cmpxchg_double_check(ptr1, ptr2); \
+	__ret = !__cmpxchg_double((unsigned long)(o1), (unsigned long)(o2), \
+				  (unsigned long)(n1), (unsigned long)(n2), \
+				  ptr1); \
 	__ret; \
 })
 

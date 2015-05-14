@@ -388,4 +388,47 @@ __CMPXCHG_CASE(x,  , mb_8, al, "memory")
 #undef __LL_SC_CMPXCHG
 #undef __CMPXCHG_CASE
 
+#define __LL_SC_CMPXCHG_DBL(op)	__LL_SC_CALL(__cmpxchg_double##op)
+
+#define __CMPXCHG_DBL(name, mb, cl...)					\
+static inline int __cmpxchg_double##name(unsigned long old1,		\
+					 unsigned long old2,		\
+					 unsigned long new1,		\
+					 unsigned long new2,		\
+					 volatile void *ptr)		\
+{									\
+	unsigned long oldval1 = old1;					\
+	unsigned long oldval2 = old2;					\
+	register unsigned long x0 asm ("x0") = old1;			\
+	register unsigned long x1 asm ("x1") = old2;			\
+	register unsigned long x2 asm ("x2") = new1;			\
+	register unsigned long x3 asm ("x3") = new2;			\
+	register unsigned long x4 asm ("x4") = (unsigned long)ptr;	\
+									\
+	asm volatile(ARM64_LSE_ATOMIC_INSN(				\
+	/* LL/SC */							\
+	"	nop\n"							\
+	"	nop\n"							\
+	"	nop\n"							\
+	__LL_SC_CMPXCHG_DBL(name),					\
+	/* LSE atomics */						\
+	"	casp" #mb "\t%[old1], %[old2], %[new1], %[new2], %[v]\n"\
+	"	eor	%[old1], %[old1], %[oldval1]\n"			\
+	"	eor	%[old2], %[old2], %[oldval2]\n"			\
+	"	orr	%[old1], %[old1], %[old2]")			\
+	: [old1] "+r" (x0), [old2] "+r" (x1),				\
+	  [v] "+Q" (*(unsigned long *)ptr)				\
+	: [new1] "r" (x2), [new2] "r" (x3), [ptr] "r" (x4),		\
+	  [oldval1] "r" (oldval1), [oldval2] "r" (oldval2)		\
+	: "x30" , ##cl);						\
+									\
+	return x0;							\
+}
+
+__CMPXCHG_DBL(   ,   )
+__CMPXCHG_DBL(_mb, al, "memory")
+
+#undef __LL_SC_CMPXCHG_DBL
+#undef __CMPXCHG_DBL
+
 #endif	/* __ASM_ATOMIC_LSE_H */
