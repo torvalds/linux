@@ -121,6 +121,11 @@ static void led_timer_function(unsigned long data)
 	brightness = led_get_brightness(led_cdev);
 	if (!brightness) {
 		/* Time to switch the LED on. */
+		if (led_cdev->delayed_set_value) {
+			led_cdev->blink_brightness =
+					led_cdev->delayed_set_value;
+			led_cdev->delayed_set_value = 0;
+		}
 		brightness = led_cdev->blink_brightness;
 		delay = led_cdev->blink_delay_on;
 	} else {
