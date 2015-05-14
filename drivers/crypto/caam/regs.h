@@ -542,6 +542,34 @@ struct caam_ctrl {
 #define JRSTART_JR2_START       0x00000004 /* Start Job ring 2 */
 #define JRSTART_JR3_START       0x00000008 /* Start Job ring 3 */
 
+/* Secure Memory Configuration - if you have it */
+/* Secure Memory Register Offset from JR Base Reg*/
+#define SM_V1_OFFSET 0x0f4
+#define SM_V2_OFFSET 0xa00
+
+/* Minimum SM Version ID requiring v2 SM register mapping */
+#define SMVID_V2 0x20105
+
+struct caam_secure_mem_v1 {
+	u32 sm_cmd;	/* SMCJRx - Secure memory command */
+	u32 rsvd1;
+	u32 sm_status;	/* SMCSJRx - Secure memory status */
+
+	u32 sm_perm;	/* SMAPJRx - Secure memory access perms */
+	u32 sm_group2;	/* SMAP2JRx - Secure memory access group 2 */
+	u32 sm_group1;	/* SMAP1JRx - Secure memory access group 1 */
+};
+
+struct caam_secure_mem_v2 {
+	u32 sm_perm;	/* SMAPJRx - Secure memory access perms */
+	u32 sm_group2;	/* SMAP2JRx - Secure memory access group 2 */
+	u32 sm_group1;	/* SMAP1JRx - Secure memory access group 1 */
+	u32 rsvd1[118];
+	u32 sm_cmd;	/* SMCJRx - Secure memory command */
+	u32 rsvd2;
+	u32 sm_status;	/* SMCSJRx - Secure memory status */
+};
+
 /*
  * caam_job_ring - direct job ring setup
  * 1-4 possible per instantiation, base + 1000/2000/3000/4000
@@ -583,19 +611,7 @@ struct caam_job_ring {
 	/* Command/control */
 	u32 rsvd11;
 	u32 jrcommand;	/* JRCRx - JobR command */
-
-	u32 rsvd12[33];
-
-	/* Secure Memory Configuration - if you have it */
-	u32 sm_cmd;	/* SMCJRx - Secure memory command */
-	u32 rsvd13;
-	u32 sm_status;	/* SMCSJRx - Secure memory status */
-	u32 rsvd14;
-	u32 sm_perm;	/* SMAPJRx - Secure memory access perms */
-	u32 sm_group2;	/* SMAP2JRx - Secure memory access group 2 */
-	u32 sm_group1;	/* SMAP1JRx - Secure memory access group 1 */
-
-	u32 rsvd15[891];
+	u32 rsvd12[931];
 
 	/* Performance Monitor                                  f00-fff */
 	struct caam_perfmon perfmon;

@@ -96,6 +96,9 @@ struct caam_drv_private_sm {
 	struct platform_device *sm_pdev;  /* Secure Memory platform device */
 	spinlock_t kslock ____cacheline_aligned;
 
+	/* SM Register offset from JR base address */
+	u32 sm_reg_offset;
+
 	/* Default parameters for geometry */
 	u32 max_pages;		/* maximum pages this instance can support */
 	u32 top_partition;	/* highest partition number in this instance */

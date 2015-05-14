@@ -58,6 +58,50 @@ void sm_show_page(struct device *dev, struct sm_page_descriptor *pgdesc)
 
 #define INITIAL_DESCSZ 16	/* size of tmp buffer for descriptor const. */
 
+static __always_inline int sm_set_cmd_reg(struct caam_drv_private_sm *smpriv,
+					  struct caam_drv_private_jr *jrpriv,
+					  u32 val)
+{
+
+	if (smpriv->sm_reg_offset == SM_V1_OFFSET) {
+		struct caam_secure_mem_v1 *sm_regs_v1;
+		sm_regs_v1 = (struct caam_secure_mem_v1 *)
+			((void *)jrpriv->rregs + SM_V1_OFFSET);
+		wr_reg32(&sm_regs_v1->sm_cmd, val);
+
+	} else if (smpriv->sm_reg_offset == SM_V2_OFFSET) {
+		struct caam_secure_mem_v2 *sm_regs_v2;
+		sm_regs_v2 = (struct caam_secure_mem_v2 *)
+			((void *)jrpriv->rregs + SM_V2_OFFSET);
+		wr_reg32(&sm_regs_v2->sm_cmd, val);
+	} else {
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static __always_inline u32 sm_get_status_reg(struct caam_drv_private_sm *smpriv,
+					     struct caam_drv_private_jr *jrpriv,
+					     u32 *val)
+{
+	if (smpriv->sm_reg_offset == SM_V1_OFFSET) {
+		struct caam_secure_mem_v1 *sm_regs_v1;
+		sm_regs_v1 = (struct caam_secure_mem_v1 *)
+			((void *)jrpriv->rregs + SM_V1_OFFSET);
+		*val = rd_reg32(&sm_regs_v1->sm_status);
+	} else if (smpriv->sm_reg_offset == SM_V2_OFFSET) {
+		struct caam_secure_mem_v2 *sm_regs_v2;
+		sm_regs_v2 = (struct caam_secure_mem_v2 *)
+			((void *)jrpriv->rregs + SM_V2_OFFSET);
+		*val = rd_reg32(&sm_regs_v2->sm_status);
+	} else {
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 /*
  * Construct a black key conversion job descriptor
  *
@@ -949,7 +993,7 @@ int caam_sm_startup(struct platform_device *pdev)
 	struct caam_drv_private_jr *jrpriv;	/* need this for reg page */
 	struct platform_device *sm_pdev;
 	struct sm_page_descriptor *lpagedesc;
-	u32 page, pgstat, lpagect, detectedpage;
+	u32 page, pgstat, lpagect, detectedpage, smvid;
 
 	struct device_node *np;
 	ctrldev = &pdev->dev;
@@ -986,6 +1030,13 @@ int caam_sm_startup(struct platform_device *pdev)
 	dev_set_drvdata(smdev, smpriv);
 	ctrlpriv->smdev = smdev;
 
+	/* Set the Secure Memory Register Map Version */
+	smvid = rd_reg32(&ctrlpriv->ctrl->perfmon.smvid);
+	if (smvid < SMVID_V2)
+		smpriv->sm_reg_offset = SM_V1_OFFSET;
+	else
+		smpriv->sm_reg_offset = SM_V2_OFFSET;
+
 	/*
 	 * Collect configuration limit data for reference
 	 * This batch comes from the partition data/vid registers in perfmon
@@ -994,7 +1045,7 @@ int caam_sm_startup(struct platform_device *pdev)
 			    & SMPART_MAX_NUMPG_MASK) >>
 			    SMPART_MAX_NUMPG_SHIFT) + 1;
 	smpriv->top_partition = ((rd_reg32(&ctrlpriv->ctrl->perfmon.smpart)
-				& SMPART_MAX_PNUM_MASK) >>
+				  & SMPART_MAX_PNUM_MASK) >>
 				SMPART_MAX_PNUM_SHIFT) + 1;
 	smpriv->top_page =  ((rd_reg32(&ctrlpriv->ctrl->perfmon.smpart)
 			    & SMPART_MAX_PG_MASK) >> SMPART_MAX_PG_SHIFT) + 1;
@@ -1024,6 +1075,7 @@ int caam_sm_startup(struct platform_device *pdev)
 	smpriv->smringdev = &ctrlpriv->jrpdev[0]->dev;
 	jrpriv = dev_get_drvdata(smpriv->smringdev);
 	lpagect = 0;
+	pgstat = 0;
 	lpagedesc = kzalloc(sizeof(struct sm_page_descriptor)
 			    * smpriv->max_pages, GFP_KERNEL);
 	if (lpagedesc == NULL) {
@@ -1032,10 +1084,13 @@ int caam_sm_startup(struct platform_device *pdev)
 	}
 
 	for (page = 0; page < smpriv->max_pages; page++) {
-		wr_reg32(&jrpriv->rregs->sm_cmd,
-			 ((page << SMC_PAGE_SHIFT) & SMC_PAGE_MASK) |
-			 (SMC_CMD_PAGE_INQUIRY & SMC_CMD_MASK));
-		pgstat = rd_reg32(&jrpriv->rregs->sm_status);
+		if (sm_set_cmd_reg(smpriv, jrpriv,
+				   ((page << SMC_PAGE_SHIFT) & SMC_PAGE_MASK) |
+				   (SMC_CMD_PAGE_INQUIRY & SMC_CMD_MASK)))
+			return -EINVAL;
+		if (sm_get_status_reg(smpriv, jrpriv, &pgstat))
+			return -EINVAL;
+
 		if (((pgstat & SMCS_PGWON_MASK) >> SMCS_PGOWN_SHIFT)
 		    == SMCS_PGOWN_OWNED) { /* our page? */
 			lpagedesc[page].phys_pagenum =
