@@ -737,6 +737,18 @@ static void xgbe_an_init(struct xgbe_prv_data *pdata)
 	XMDIO_WRITE(pdata, MDIO_MMD_AN, MDIO_AN_ADVERTISE, reg);
 }
 
+static const char *xgbe_phy_fc_string(struct xgbe_prv_data *pdata)
+{
+	if (pdata->tx_pause && pdata->rx_pause)
+		return "rx/tx";
+	else if (pdata->rx_pause)
+		return "rx";
+	else if (pdata->tx_pause)
+		return "tx";
+	else
+		return "off";
+}
+
 static const char *xgbe_phy_speed_string(int speed)
 {
 	switch (speed) {
@@ -760,7 +772,7 @@ static void xgbe_phy_print_status(struct xgbe_prv_data *pdata)
 			    "Link is Up - %s/%s - flow control %s\n",
 			    xgbe_phy_speed_string(pdata->phy.speed),
 			    pdata->phy.duplex == DUPLEX_FULL ? "Full" : "Half",
-			    pdata->phy.pause ? "rx/tx" : "off");
+			    xgbe_phy_fc_string(pdata));
 	else
 		netdev_info(pdata->netdev, "Link is Down\n");
 }
@@ -771,24 +783,18 @@ static void xgbe_phy_adjust_link(struct xgbe_prv_data *pdata)
 
 	if (pdata->phy.link) {
 		/* Flow control support */
-		if (pdata->pause_autoneg) {
-			if (pdata->phy.pause || pdata->phy.asym_pause) {
-				pdata->tx_pause = 1;
-				pdata->rx_pause = 1;
-			} else {
-				pdata->tx_pause = 0;
-				pdata->rx_pause = 0;
-			}
-		}
+		pdata->pause_autoneg = pdata->phy.pause_autoneg;
 
-		if (pdata->tx_pause != pdata->phy_tx_pause) {
+		if (pdata->tx_pause != pdata->phy.tx_pause) {
+			new_state = 1;
 			pdata->hw_if.config_tx_flow_control(pdata);
-			pdata->phy_tx_pause = pdata->tx_pause;
+			pdata->tx_pause = pdata->phy.tx_pause;
 		}
 
-		if (pdata->rx_pause != pdata->phy_rx_pause) {
+		if (pdata->rx_pause != pdata->phy.rx_pause) {
+			new_state = 1;
 			pdata->hw_if.config_rx_flow_control(pdata);
-			pdata->phy_rx_pause = pdata->rx_pause;
+			pdata->rx_pause = pdata->phy.rx_pause;
 		}
 
 		/* Speed support */
@@ -834,9 +840,6 @@ static int xgbe_phy_config_fixed(struct xgbe_prv_data *pdata)
 	/* Validate duplex mode */
 	if (pdata->phy.duplex != DUPLEX_FULL)
 		return -EINVAL;
-
-	pdata->phy.pause = 0;
-	pdata->phy.asym_pause = 0;
 
 	return 0;
 }
@@ -933,8 +936,6 @@ static void xgbe_phy_status_force(struct xgbe_prv_data *pdata)
 		}
 	}
 	pdata->phy.duplex = DUPLEX_FULL;
-	pdata->phy.pause = 0;
-	pdata->phy.asym_pause = 0;
 }
 
 static void xgbe_phy_status_aneg(struct xgbe_prv_data *pdata)
@@ -957,9 +958,21 @@ static void xgbe_phy_status_aneg(struct xgbe_prv_data *pdata)
 	if (lp_reg & 0x800)
 		pdata->phy.lp_advertising |= ADVERTISED_Asym_Pause;
 
-	ad_reg &= lp_reg;
-	pdata->phy.pause = (ad_reg & 0x400) ? 1 : 0;
-	pdata->phy.asym_pause = (ad_reg & 0x800) ? 1 : 0;
+	if (pdata->phy.pause_autoneg) {
+		/* Set flow control based on auto-negotiation result */
+		pdata->phy.tx_pause = 0;
+		pdata->phy.rx_pause = 0;
+
+		if (ad_reg & lp_reg & 0x400) {
+			pdata->phy.tx_pause = 1;
+			pdata->phy.rx_pause = 1;
+		} else if (ad_reg & lp_reg & 0x800) {
+			if (ad_reg & 0x400)
+				pdata->phy.rx_pause = 1;
+			else if (lp_reg & 0x400)
+				pdata->phy.tx_pause = 1;
+		}
+	}
 
 	/* Compare Advertisement and Link Partner register 2 */
 	ad_reg = XMDIO_READ(pdata, MDIO_MMD_AN, MDIO_AN_ADVERTISE + 1);
@@ -1222,6 +1235,22 @@ static void xgbe_phy_init(struct xgbe_prv_data *pdata)
 	pdata->phy.duplex = DUPLEX_UNKNOWN;
 
 	pdata->phy.link = 0;
+
+	pdata->phy.pause_autoneg = pdata->pause_autoneg;
+	pdata->phy.tx_pause = pdata->tx_pause;
+	pdata->phy.rx_pause = pdata->rx_pause;
+
+	/* Fix up Flow Control advertising */
+	pdata->phy.advertising &= ~ADVERTISED_Pause;
+	pdata->phy.advertising &= ~ADVERTISED_Asym_Pause;
+
+	if (pdata->rx_pause) {
+		pdata->phy.advertising |= ADVERTISED_Pause;
+		pdata->phy.advertising |= ADVERTISED_Asym_Pause;
+	}
+
+	if (pdata->tx_pause)
+		pdata->phy.advertising ^= ADVERTISED_Asym_Pause;
 
 	if (netif_msg_drv(pdata))
 		xgbe_dump_phy_registers(pdata);

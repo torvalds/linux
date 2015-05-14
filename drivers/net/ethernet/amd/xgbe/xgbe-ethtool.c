@@ -247,9 +247,9 @@ static void xgbe_get_pauseparam(struct net_device *netdev,
 
 	DBGPR("-->xgbe_get_pauseparam\n");
 
-	pause->autoneg = pdata->pause_autoneg;
-	pause->tx_pause = pdata->tx_pause;
-	pause->rx_pause = pdata->rx_pause;
+	pause->autoneg = pdata->phy.pause_autoneg;
+	pause->tx_pause = pdata->phy.tx_pause;
+	pause->rx_pause = pdata->phy.rx_pause;
 
 	DBGPR("<--xgbe_get_pauseparam\n");
 }
@@ -265,18 +265,23 @@ static int xgbe_set_pauseparam(struct net_device *netdev,
 	DBGPR("  autoneg = %d, tx_pause = %d, rx_pause = %d\n",
 	      pause->autoneg, pause->tx_pause, pause->rx_pause);
 
-	pdata->pause_autoneg = pause->autoneg;
-	if (pause->autoneg) {
+	if (pause->autoneg && (pdata->phy.autoneg != AUTONEG_ENABLE))
+		return -EINVAL;
+
+	pdata->phy.pause_autoneg = pause->autoneg;
+	pdata->phy.tx_pause = pause->tx_pause;
+	pdata->phy.rx_pause = pause->rx_pause;
+
+	pdata->phy.advertising &= ~ADVERTISED_Pause;
+	pdata->phy.advertising &= ~ADVERTISED_Asym_Pause;
+
+	if (pause->rx_pause) {
 		pdata->phy.advertising |= ADVERTISED_Pause;
 		pdata->phy.advertising |= ADVERTISED_Asym_Pause;
-
-	} else {
-		pdata->phy.advertising &= ~ADVERTISED_Pause;
-		pdata->phy.advertising &= ~ADVERTISED_Asym_Pause;
-
-		pdata->tx_pause = pause->tx_pause;
-		pdata->rx_pause = pause->rx_pause;
 	}
+
+	if (pause->tx_pause)
+		pdata->phy.advertising ^= ADVERTISED_Asym_Pause;
 
 	if (netif_running(netdev))
 		ret = pdata->phy_if.phy_config_aneg(pdata);

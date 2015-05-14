@@ -782,8 +782,6 @@ static int xgbe_phy_init(struct xgbe_prv_data *pdata)
 {
 	pdata->phy_link = -1;
 	pdata->phy_speed = SPEED_UNKNOWN;
-	pdata->phy_tx_pause = pdata->tx_pause;
-	pdata->phy_rx_pause = pdata->rx_pause;
 
 	return pdata->phy_if.phy_reset(pdata);
 }

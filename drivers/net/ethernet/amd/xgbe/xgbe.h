@@ -539,10 +539,12 @@ struct xgbe_phy {
 	int autoneg;
 	int speed;
 	int duplex;
-	int pause;
-	int asym_pause;
 
 	int link;
+
+	int pause_autoneg;
+	int tx_pause;
+	int rx_pause;
 };
 
 struct xgbe_mmc_stats {
@@ -910,8 +912,6 @@ struct xgbe_prv_data {
 	phy_interface_t phy_mode;
 	int phy_link;
 	int phy_speed;
-	unsigned int phy_tx_pause;
-	unsigned int phy_rx_pause;
 
 	/* MDIO/PHY related settings */
 	struct xgbe_phy phy;
