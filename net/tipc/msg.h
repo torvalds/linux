@@ -352,18 +352,22 @@ static inline void msg_set_seqno(struct tipc_msg *m, u16 n)
  */
 static inline u32 msg_importance(struct tipc_msg *m)
 {
-	if (unlikely(msg_user(m) == MSG_FRAGMENTER))
+	int usr = msg_user(m);
+
+	if (likely((usr <= TIPC_CRITICAL_IMPORTANCE) && !msg_errcode(m)))
+		return usr;
+	if ((usr == MSG_FRAGMENTER) || (usr == MSG_BUNDLER))
 		return msg_bits(m, 5, 13, 0x7);
-	if (likely(msg_isdata(m) && !msg_errcode(m)))
-		return msg_user(m);
 	return TIPC_SYSTEM_IMPORTANCE;
 }
 
 static inline void msg_set_importance(struct tipc_msg *m, u32 i)
 {
-	if (unlikely(msg_user(m) == MSG_FRAGMENTER))
+	int usr = msg_user(m);
+
+	if (likely((usr == MSG_FRAGMENTER) || (usr == MSG_BUNDLER)))
 		msg_set_bits(m, 5, 13, 0x7, i);
-	else if (likely(i < TIPC_SYSTEM_IMPORTANCE))
+	else if (i < TIPC_SYSTEM_IMPORTANCE)
 		msg_set_user(m, i);
 	else
 		pr_warn("Trying to set illegal importance in message\n");

@@ -365,6 +365,9 @@ bool tipc_msg_bundle(struct sk_buff *bskb, struct sk_buff *skb, u32 mtu)
 		return false;
 	if (unlikely(max < (start + msz)))
 		return false;
+	if ((msg_importance(msg) < TIPC_SYSTEM_IMPORTANCE) &&
+	    (msg_importance(bmsg) == TIPC_SYSTEM_IMPORTANCE))
+		return false;
 
 	skb_put(bskb, pad + msz);
 	skb_copy_to_linear_data_offset(bskb, start, skb->data, msz);
@@ -448,6 +451,10 @@ bool tipc_msg_make_bundle(struct sk_buff **skb, u32 mtu, u32 dnode)
 	bmsg = buf_msg(bskb);
 	tipc_msg_init(msg_prevnode(msg), bmsg, MSG_BUNDLER, 0,
 		      INT_H_SIZE, dnode);
+	if (msg_isdata(msg))
+		msg_set_importance(bmsg, TIPC_CRITICAL_IMPORTANCE);
+	else
+		msg_set_importance(bmsg, TIPC_SYSTEM_IMPORTANCE);
 	msg_set_seqno(bmsg, msg_seqno(msg));
 	msg_set_ack(bmsg, msg_ack(msg));
 	msg_set_bcast_ack(bmsg, msg_bcast_ack(msg));

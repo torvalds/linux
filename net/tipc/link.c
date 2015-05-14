@@ -645,7 +645,7 @@ int __tipc_link_xmit(struct net *net, struct tipc_link *link,
 {
 	struct tipc_msg *msg = buf_msg(skb_peek(list));
 	unsigned int maxwin = link->window;
-	unsigned int imp = msg_importance(msg);
+	unsigned int i, imp = msg_importance(msg);
 	uint mtu = link->mtu;
 	u16 ack = mod(link->rcv_nxt - 1);
 	u16 seqno = link->snd_nxt;
@@ -655,10 +655,11 @@ int __tipc_link_xmit(struct net *net, struct tipc_link *link,
 	struct sk_buff_head *backlogq = &link->backlogq;
 	struct sk_buff *skb, *tmp;
 
-	/* Match backlog limit against msg importance: */
-	if (unlikely(link->backlog[imp].len >= link->backlog[imp].limit))
-		return link_schedule_user(link, list);
-
+	/* Match msg importance against this and all higher backlog limits: */
+	for (i = imp; i <= TIPC_SYSTEM_IMPORTANCE; i++) {
+		if (unlikely(link->backlog[i].len >= link->backlog[i].limit))
+			return link_schedule_user(link, list);
+	}
 	if (unlikely(msg_size(msg) > mtu)) {
 		__skb_queue_purge(list);
 		return -EMSGSIZE;
