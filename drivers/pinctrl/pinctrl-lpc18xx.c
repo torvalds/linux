@@ -46,12 +46,6 @@
 
 #define LPC18XX_SCU_FUNC_PER_PIN	8
 
-struct lpc18xx_scu_data {
-	struct pinctrl_dev *pctl;
-	void __iomem *base;
-	struct clk *clk;
-};
-
 /* LPC18xx pin types */
 enum {
 	TYPE_ND,	/* Normal-drive */
@@ -113,10 +107,11 @@ enum {
 	FUNC_UART3,
 	FUNC_USB0,
 	FUNC_USB1,
+	FUNC_MAX
 };
 
 static const char *const lpc18xx_function_names[] = {
-	[FUNC_R]		= "",
+	[FUNC_R]		= "reserved",
 	[FUNC_ADC]		= "adc",
 	[FUNC_ADCTRIG]		= "adctrig",
 	[FUNC_CAN0]		= "can0",
@@ -166,6 +161,18 @@ static const char *const lpc18xx_function_names[] = {
 	[FUNC_UART3]		= "uart3",
 	[FUNC_USB0]		= "usb0",
 	[FUNC_USB1]		= "usb1",
+};
+
+struct lpc18xx_pmx_func {
+	const char **groups;
+	unsigned ngroups;
+};
+
+struct lpc18xx_scu_data {
+	struct pinctrl_dev *pctl;
+	void __iomem *base;
+	struct clk *clk;
+	struct lpc18xx_pmx_func func[FUNC_MAX];
 };
 
 struct lpc18xx_pin_caps {
@@ -962,6 +969,11 @@ static int lpc18xx_pmx_get_func_groups(struct pinctrl_dev *pctldev,
 				       const char *const **groups,
 				       unsigned *const num_groups)
 {
+	struct lpc18xx_scu_data *scu = pinctrl_dev_get_drvdata(pctldev);
+
+	*groups  = scu->func[function].groups;
+	*num_groups = scu->func[function].ngroups;
+
 	return 0;
 }
 
@@ -1081,6 +1093,57 @@ static struct pinctrl_desc lpc18xx_scu_desc = {
 	.owner = THIS_MODULE,
 };
 
+static bool lpc18xx_valid_pin_function(unsigned pin, unsigned function)
+{
+	struct lpc18xx_pin_caps *p = lpc18xx_pins[pin].drv_data;
+	int i;
+
+	if (function == FUNC_DAC && p->analog == DAC)
+		return true;
+
+	if (function == FUNC_ADC && p->analog)
+		return true;
+
+	if (function == FUNC_I2C0 && p->type == TYPE_I2C0)
+		return true;
+
+	if (function == FUNC_USB1 && p->type == TYPE_USB1)
+		return true;
+
+	for (i = 0; i < LPC18XX_SCU_FUNC_PER_PIN; i++) {
+		if (function == p->functions[i])
+			return true;
+	}
+
+	return false;
+}
+
+static int lpc18xx_create_group_func_map(struct device *dev,
+					 struct lpc18xx_scu_data *scu)
+{
+	u16 pins[ARRAY_SIZE(lpc18xx_pins)];
+	int func, ngroups, i;
+
+	for (func = 0; func < FUNC_MAX; ngroups = 0, func++) {
+
+		for (i = 0; i < ARRAY_SIZE(lpc18xx_pins); i++) {
+			if (lpc18xx_valid_pin_function(i, func))
+				pins[ngroups++] = i;
+		}
+
+		scu->func[func].ngroups = ngroups;
+		scu->func[func].groups = devm_kzalloc(dev, ngroups *
+						      sizeof(char *), GFP_KERNEL);
+		if (!scu->func[func].groups)
+			return -ENOMEM;
+
+		for (i = 0; i < ngroups; i++)
+			scu->func[func].groups[i] = lpc18xx_pins[pins[i]].name;
+	}
+
+	return 0;
+}
+
 static int lpc18xx_scu_probe(struct platform_device *pdev)
 {
 	struct lpc18xx_scu_data *scu;
@@ -1100,6 +1163,12 @@ static int lpc18xx_scu_probe(struct platform_device *pdev)
 	if (IS_ERR(scu->clk)) {
 		dev_err(&pdev->dev, "Input clock not found.\n");
 		return PTR_ERR(scu->clk);
+	}
+
+	ret = lpc18xx_create_group_func_map(&pdev->dev, scu);
+	if (ret) {
+		dev_err(&pdev->dev, "Unable to create group func map.\n");
+		return ret;
 	}
 
 	ret = clk_prepare_enable(scu->clk);
