@@ -494,6 +494,7 @@
 		dma-names = "tx", "rx";
 		reg-io-width = <4>;
 		status = "disabled";
+		max-frequency = <97500000>;
 	};
 
 	sdhi0: sd@ee100000 {
