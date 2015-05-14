@@ -459,49 +459,8 @@ int amdgpu_bo_fbdev_mmap(struct amdgpu_bo *bo,
 
 int amdgpu_bo_set_tiling_flags(struct amdgpu_bo *bo, u64 tiling_flags)
 {
-	unsigned bankw, bankh, mtaspect, tilesplit, stilesplit;
-
-	bankw = (tiling_flags >> AMDGPU_TILING_EG_BANKW_SHIFT) & AMDGPU_TILING_EG_BANKW_MASK;
-	bankh = (tiling_flags >> AMDGPU_TILING_EG_BANKH_SHIFT) & AMDGPU_TILING_EG_BANKH_MASK;
-	mtaspect = (tiling_flags >> AMDGPU_TILING_EG_MACRO_TILE_ASPECT_SHIFT) & AMDGPU_TILING_EG_MACRO_TILE_ASPECT_MASK;
-	tilesplit = (tiling_flags >> AMDGPU_TILING_EG_TILE_SPLIT_SHIFT) & AMDGPU_TILING_EG_TILE_SPLIT_MASK;
-	stilesplit = (tiling_flags >> AMDGPU_TILING_EG_STENCIL_TILE_SPLIT_SHIFT) & AMDGPU_TILING_EG_STENCIL_TILE_SPLIT_MASK;
-	switch (bankw) {
-	case 0:
-	case 1:
-	case 2:
-	case 4:
-	case 8:
-		break;
-	default:
+	if (AMDGPU_TILING_GET(tiling_flags, TILE_SPLIT) > 6)
 		return -EINVAL;
-	}
-	switch (bankh) {
-	case 0:
-	case 1:
-	case 2:
-	case 4:
-	case 8:
-		break;
-	default:
-		return -EINVAL;
-	}
-	switch (mtaspect) {
-	case 0:
-	case 1:
-	case 2:
-	case 4:
-	case 8:
-		break;
-	default:
-		return -EINVAL;
-	}
-	if (tilesplit > 6) {
-		return -EINVAL;
-	}
-	if (stilesplit > 6) {
-		return -EINVAL;
-	}
 
 	bo->tiling_flags = tiling_flags;
 	return 0;

@@ -2008,61 +2008,6 @@ static void dce_v10_0_grph_enable(struct drm_crtc *crtc, bool enable)
 		WREG32(mmGRPH_ENABLE + amdgpu_crtc->crtc_offset, 0);
 }
 
-static void dce_v10_0_tiling_fields(uint64_t tiling_flags, unsigned *bankw,
-				   unsigned *bankh, unsigned *mtaspect,
-				   unsigned *tile_split)
-{
-	*bankw = (tiling_flags >> AMDGPU_TILING_EG_BANKW_SHIFT) & AMDGPU_TILING_EG_BANKW_MASK;
-	*bankh = (tiling_flags >> AMDGPU_TILING_EG_BANKH_SHIFT) & AMDGPU_TILING_EG_BANKH_MASK;
-	*mtaspect = (tiling_flags >> AMDGPU_TILING_EG_MACRO_TILE_ASPECT_SHIFT) & AMDGPU_TILING_EG_MACRO_TILE_ASPECT_MASK;
-	*tile_split = (tiling_flags >> AMDGPU_TILING_EG_TILE_SPLIT_SHIFT) & AMDGPU_TILING_EG_TILE_SPLIT_MASK;
-	switch (*bankw) {
-	default:
-	case 1:
-		*bankw = ADDR_SURF_BANK_WIDTH_1;
-		break;
-	case 2:
-		*bankw = ADDR_SURF_BANK_WIDTH_2;
-		break;
-	case 4:
-		*bankw = ADDR_SURF_BANK_WIDTH_4;
-		break;
-	case 8:
-		*bankw = ADDR_SURF_BANK_WIDTH_8;
-		break;
-	}
-	switch (*bankh) {
-	default:
-	case 1:
-		*bankh = ADDR_SURF_BANK_HEIGHT_1;
-		break;
-	case 2:
-		*bankh = ADDR_SURF_BANK_HEIGHT_2;
-		break;
-	case 4:
-		*bankh = ADDR_SURF_BANK_HEIGHT_4;
-		break;
-	case 8:
-		*bankh = ADDR_SURF_BANK_HEIGHT_8;
-		break;
-	}
-	switch (*mtaspect) {
-	default:
-	case 1:
-		*mtaspect = ADDR_SURF_MACRO_ASPECT_1;
-		break;
-	case 2:
-		*mtaspect = ADDR_SURF_MACRO_ASPECT_2;
-		break;
-	case 4:
-		*mtaspect = ADDR_SURF_MACRO_ASPECT_4;
-		break;
-	case 8:
-		*mtaspect = ADDR_SURF_MACRO_ASPECT_8;
-		break;
-	}
-}
-
 static int dce_v10_0_crtc_do_set_base(struct drm_crtc *crtc,
 				     struct drm_framebuffer *fb,
 				     int x, int y, int atomic)
@@ -2076,10 +2021,8 @@ static int dce_v10_0_crtc_do_set_base(struct drm_crtc *crtc,
 	struct amdgpu_bo *rbo;
 	uint64_t fb_location, tiling_flags;
 	uint32_t fb_format, fb_pitch_pixels;
-	unsigned bankw, bankh, mtaspect, tile_split;
 	u32 fb_swap = REG_SET_FIELD(0, GRPH_SWAP_CNTL, GRPH_ENDIAN_SWAP, ENDIAN_NONE);
-	/* XXX change to VI */
-	u32 pipe_config = (adev->gfx.config.tile_mode_array[10] >> 6) & 0x1f;
+	u32 pipe_config;
 	u32 tmp, viewport_w, viewport_h;
 	int r;
 	bool bypass_lut = false;
@@ -2120,6 +2063,8 @@ static int dce_v10_0_crtc_do_set_base(struct drm_crtc *crtc,
 
 	amdgpu_bo_get_tiling_flags(rbo, &tiling_flags);
 	amdgpu_bo_unreserve(rbo);
+
+	pipe_config = AMDGPU_TILING_GET(tiling_flags, PIPE_CONFIG);
 
 	switch (target_fb->pixel_format) {
 	case DRM_FORMAT_C8:
@@ -2198,27 +2143,15 @@ static int dce_v10_0_crtc_do_set_base(struct drm_crtc *crtc,
 		return -EINVAL;
 	}
 
-	if (tiling_flags & AMDGPU_TILING_MACRO) {
-		unsigned tileb, index, num_banks, tile_split_bytes;
+	if (AMDGPU_TILING_GET(tiling_flags, ARRAY_MODE) == ARRAY_2D_TILED_THIN1) {
+		unsigned bankw, bankh, mtaspect, tile_split, num_banks;
 
-		dce_v10_0_tiling_fields(tiling_flags, &bankw, &bankh, &mtaspect, &tile_split);
-		/* Set NUM_BANKS. */
-		/* Calculate the macrotile mode index. */
-		tile_split_bytes = 64 << tile_split;
-		tileb = 8 * 8 * target_fb->bits_per_pixel / 8;
-		tileb = min(tile_split_bytes, tileb);
+		bankw = AMDGPU_TILING_GET(tiling_flags, BANK_WIDTH);
+		bankh = AMDGPU_TILING_GET(tiling_flags, BANK_HEIGHT);
+		mtaspect = AMDGPU_TILING_GET(tiling_flags, MACRO_TILE_ASPECT);
+		tile_split = AMDGPU_TILING_GET(tiling_flags, TILE_SPLIT);
+		num_banks = AMDGPU_TILING_GET(tiling_flags, NUM_BANKS);
 
-		for (index = 0; tileb > 64; index++) {
-			tileb >>= 1;
-		}
-
-		if (index >= 16) {
-			DRM_ERROR("Wrong screen bpp (%u) or tile split (%u)\n",
-				  target_fb->bits_per_pixel, tile_split);
-			return -EINVAL;
-		}
-
-		num_banks = (adev->gfx.config.macrotile_mode_array[index] >> 6) & 0x3;
 		fb_format = REG_SET_FIELD(fb_format, GRPH_CONTROL, GRPH_NUM_BANKS, num_banks);
 		fb_format = REG_SET_FIELD(fb_format, GRPH_CONTROL, GRPH_ARRAY_MODE,
 					  ARRAY_2D_TILED_THIN1);
@@ -2230,14 +2163,11 @@ static int dce_v10_0_crtc_do_set_base(struct drm_crtc *crtc,
 					  mtaspect);
 		fb_format = REG_SET_FIELD(fb_format, GRPH_CONTROL, GRPH_MICRO_TILE_MODE,
 					  ADDR_SURF_MICRO_TILING_DISPLAY);
-	} else if (tiling_flags & AMDGPU_TILING_MICRO) {
+	} else if (AMDGPU_TILING_GET(tiling_flags, ARRAY_MODE) == ARRAY_1D_TILED_THIN1) {
 		fb_format = REG_SET_FIELD(fb_format, GRPH_CONTROL, GRPH_ARRAY_MODE,
 					  ARRAY_1D_TILED_THIN1);
 	}
 
-	/* Read the pipe config from the 2D TILED SCANOUT mode.
-	 * It should be the same for the other modes too, but not all
-	 * modes set the pipe config field. */
 	fb_format = REG_SET_FIELD(fb_format, GRPH_CONTROL, GRPH_PIPE_CONFIG,
 				  pipe_config);
 

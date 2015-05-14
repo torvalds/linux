@@ -32,6 +32,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
+#include "cikd.h"
 
 #include <drm/drm_fb_helper.h>
 
@@ -135,7 +136,7 @@ static int amdgpufb_create_pinned_object(struct amdgpu_fbdev *rfbdev,
 	rbo = gem_to_amdgpu_bo(gobj);
 
 	if (fb_tiled)
-		tiling_flags = AMDGPU_TILING_MACRO;
+		tiling_flags = AMDGPU_TILING_SET(ARRAY_MODE, GRPH_ARRAY_2D_TILED_THIN1);
 
 	ret = amdgpu_bo_reserve(rbo, false);
 	if (unlikely(ret != 0))
