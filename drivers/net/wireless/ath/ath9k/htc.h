@@ -440,9 +440,9 @@ static inline void ath9k_htc_stop_btcoex(struct ath9k_htc_priv *priv)
 }
 #endif /* CONFIG_ATH9K_BTCOEX_SUPPORT */
 
-#define OP_BT_PRIORITY_DETECTED    BIT(3)
-#define OP_BT_SCAN                 BIT(4)
-#define OP_TSF_RESET               BIT(6)
+#define OP_BT_PRIORITY_DETECTED    3
+#define OP_BT_SCAN                 4
+#define OP_TSF_RESET               6
 
 enum htc_op_flags {
 	HTC_FWFLAG_NO_RMW,
