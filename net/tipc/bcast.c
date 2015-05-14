@@ -115,12 +115,8 @@ static void bclink_set_last_sent(struct net *net)
 {
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	struct tipc_link *bcl = tn->bcl;
-	struct sk_buff *skb = skb_peek(&bcl->backlogq);
 
-	if (skb)
-		bcl->silent_intv_cnt = mod(buf_seqno(skb) - 1);
-	else
-		bcl->silent_intv_cnt = mod(bcl->snd_nxt - 1);
+	bcl->silent_intv_cnt = mod(bcl->snd_nxt - 1);
 }
 
 u32 tipc_bclink_get_last_sent(struct net *net)

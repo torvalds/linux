@@ -653,7 +653,7 @@ int __tipc_link_xmit(struct net *net, struct tipc_link *link,
 	struct tipc_media_addr *addr = &link->media_addr;
 	struct sk_buff_head *transmq = &link->transmq;
 	struct sk_buff_head *backlogq = &link->backlogq;
-	struct sk_buff *skb, *tmp;
+	struct sk_buff *skb, *bskb;
 
 	/* Match msg importance against this and all higher backlog limits: */
 	for (i = imp; i <= TIPC_SYSTEM_IMPORTANCE; i++) {
@@ -665,32 +665,36 @@ int __tipc_link_xmit(struct net *net, struct tipc_link *link,
 		return -EMSGSIZE;
 	}
 	/* Prepare each packet for sending, and add to relevant queue: */
-	skb_queue_walk_safe(list, skb, tmp) {
-		__skb_unlink(skb, list);
+	while (skb_queue_len(list)) {
+		skb = skb_peek(list);
 		msg = buf_msg(skb);
 		msg_set_seqno(msg, seqno);
 		msg_set_ack(msg, ack);
 		msg_set_bcast_ack(msg, bc_last_in);
 
 		if (likely(skb_queue_len(transmq) < maxwin)) {
+			__skb_dequeue(list);
 			__skb_queue_tail(transmq, skb);
 			tipc_bearer_send(net, link->bearer_id, skb, addr);
 			link->rcv_unacked = 0;
 			seqno++;
 			continue;
 		}
-		if (tipc_msg_bundle(skb_peek_tail(backlogq), skb, mtu)) {
+		if (tipc_msg_bundle(skb_peek_tail(backlogq), msg, mtu)) {
+			kfree_skb(__skb_dequeue(list));
 			link->stats.sent_bundled++;
 			continue;
 		}
-		if (tipc_msg_make_bundle(&skb, mtu, link->addr)) {
+		if (tipc_msg_make_bundle(&bskb, msg, mtu, link->addr)) {
+			kfree_skb(__skb_dequeue(list));
+			__skb_queue_tail(backlogq, bskb);
+			link->backlog[msg_importance(buf_msg(bskb))].len++;
 			link->stats.sent_bundled++;
 			link->stats.sent_bundles++;
-			imp = msg_importance(buf_msg(skb));
+			continue;
 		}
-		__skb_queue_tail(backlogq, skb);
-		link->backlog[imp].len++;
-		seqno++;
+		link->backlog[imp].len += skb_queue_len(list);
+		skb_queue_splice_tail_init(list, backlogq);
 	}
 	link->snd_nxt = seqno;
 	return 0;
@@ -822,6 +826,7 @@ void tipc_link_push_packets(struct tipc_link *link)
 {
 	struct sk_buff *skb;
 	struct tipc_msg *msg;
+	u16 seqno = link->snd_nxt;
 	u16 ack = mod(link->rcv_nxt - 1);
 
 	while (skb_queue_len(&link->transmq) < link->window) {
@@ -831,12 +836,15 @@ void tipc_link_push_packets(struct tipc_link *link)
 		msg = buf_msg(skb);
 		link->backlog[msg_importance(msg)].len--;
 		msg_set_ack(msg, ack);
+		msg_set_seqno(msg, seqno);
+		seqno = mod(seqno + 1);
 		msg_set_bcast_ack(msg, link->owner->bclink.last_in);
 		link->rcv_unacked = 0;
 		__skb_queue_tail(&link->transmq, skb);
 		tipc_bearer_send(link->owner->net, link->bearer_id,
 				 skb, &link->media_addr);
 	}
+	link->snd_nxt = seqno;
 }
 
 void tipc_link_reset_all(struct tipc_node *node)
@@ -1526,6 +1534,11 @@ void tipc_link_failover_send_queue(struct tipc_link *l_ptr)
 
 	tipc_msg_init(link_own_addr(l_ptr), &tunnel_hdr, TUNNEL_PROTOCOL,
 		      FAILOVER_MSG, INT_H_SIZE, l_ptr->addr);
+
+	skb_queue_walk(&l_ptr->backlogq, skb) {
+		msg_set_seqno(buf_msg(skb), l_ptr->snd_nxt);
+		l_ptr->snd_nxt = mod(l_ptr->snd_nxt + 1);
+	}
 	skb_queue_splice_tail_init(&l_ptr->backlogq, &l_ptr->transmq);
 	tipc_link_purge_backlog(l_ptr);
 	msgcount = skb_queue_len(&l_ptr->transmq);
@@ -1586,6 +1599,7 @@ void tipc_link_dup_queue_xmit(struct tipc_link *link,
 	struct tipc_msg tnl_hdr;
 	struct sk_buff_head *queue = &link->transmq;
 	int mcnt;
+	u16 seqno;
 
 	tipc_msg_init(link_own_addr(link), &tnl_hdr, TUNNEL_PROTOCOL,
 		      SYNCH_MSG, INT_H_SIZE, link->addr);
@@ -1617,6 +1631,11 @@ tunnel_queue:
 	}
 	if (queue == &link->backlogq)
 		return;
+	seqno = link->snd_nxt;
+	skb_queue_walk(&link->backlogq, skb) {
+		msg_set_seqno(buf_msg(skb), seqno);
+		seqno = mod(seqno + 1);
+	}
 	queue = &link->backlogq;
 	goto tunnel_queue;
 }
