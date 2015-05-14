@@ -205,14 +205,14 @@
 #define CLKDEV_MMC_DATA		20000000 /* 20MHz */
 #define CLKDEV_INIT		400000   /* 400 KHz */
 
-enum mmcif_state {
+enum sh_mmcif_state {
 	STATE_IDLE,
 	STATE_REQUEST,
 	STATE_IOS,
 	STATE_TIMEOUT,
 };
 
-enum mmcif_wait_for {
+enum sh_mmcif_wait_for {
 	MMCIF_WAIT_FOR_REQUEST,
 	MMCIF_WAIT_FOR_CMD,
 	MMCIF_WAIT_FOR_MREAD,
@@ -237,8 +237,8 @@ struct sh_mmcif_host {
 	void __iomem *addr;
 	u32 *pio_ptr;
 	spinlock_t lock;		/* protect sh_mmcif_host::state */
-	enum mmcif_state state;
-	enum mmcif_wait_for wait_for;
+	enum sh_mmcif_state state;
+	enum sh_mmcif_wait_for wait_for;
 	struct delayed_work timeout_work;
 	size_t blocksize;
 	int sg_idx;
@@ -256,11 +256,11 @@ struct sh_mmcif_host {
 	bool			dma_active;
 };
 
-static const struct of_device_id mmcif_of_match[] = {
+static const struct of_device_id sh_mmcif_of_match[] = {
 	{ .compatible = "renesas,sh-mmcif" },
 	{ }
 };
-MODULE_DEVICE_TABLE(of, mmcif_of_match);
+MODULE_DEVICE_TABLE(of, sh_mmcif_of_match);
 
 #define sh_mmcif_host_to_dev(host) (&host->pd->dev)
 
@@ -276,7 +276,7 @@ static inline void sh_mmcif_bitclr(struct sh_mmcif_host *host,
 	writel(~val & readl(host->addr + reg), host->addr + reg);
 }
 
-static void mmcif_dma_complete(void *arg)
+static void sh_mmcif_dma_complete(void *arg)
 {
 	struct sh_mmcif_host *host = arg;
 	struct mmc_request *mrq = host->mrq;
@@ -310,7 +310,7 @@ static void sh_mmcif_start_dma_rx(struct sh_mmcif_host *host)
 	}
 
 	if (desc) {
-		desc->callback = mmcif_dma_complete;
+		desc->callback = sh_mmcif_dma_complete;
 		desc->callback_param = host;
 		cookie = dmaengine_submit(desc);
 		sh_mmcif_bitset(host, MMCIF_CE_BUF_ACC, BUF_ACC_DMAREN);
@@ -360,7 +360,7 @@ static void sh_mmcif_start_dma_tx(struct sh_mmcif_host *host)
 	}
 
 	if (desc) {
-		desc->callback = mmcif_dma_complete;
+		desc->callback = sh_mmcif_dma_complete;
 		desc->callback_param = host;
 		cookie = dmaengine_submit(desc);
 		sh_mmcif_bitset(host, MMCIF_CE_BUF_ACC, BUF_ACC_DMAWEN);
@@ -1327,7 +1327,7 @@ static irqreturn_t sh_mmcif_intr(int irq, void *dev_id)
 		if (!host->dma_active)
 			return IRQ_WAKE_THREAD;
 		else if (host->sd_error)
-			mmcif_dma_complete(host);
+			sh_mmcif_dma_complete(host);
 	} else {
 		dev_dbg(dev, "Unexpected IRQ 0x%x\n", state);
 	}
@@ -1335,7 +1335,7 @@ static irqreturn_t sh_mmcif_intr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void mmcif_timeout_work(struct work_struct *work)
+static void sh_mmcif_timeout_work(struct work_struct *work)
 {
 	struct delayed_work *d = container_of(work, struct delayed_work, work);
 	struct sh_mmcif_host *host = container_of(d, struct sh_mmcif_host, timeout_work);
@@ -1481,7 +1481,7 @@ static int sh_mmcif_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_clk;
 
-	INIT_DELAYED_WORK(&host->timeout_work, mmcif_timeout_work);
+	INIT_DELAYED_WORK(&host->timeout_work, sh_mmcif_timeout_work);
 
 	sh_mmcif_sync_reset(host);
 	sh_mmcif_writel(host->addr, MMCIF_CE_INT_MASK, MASK_ALL);
@@ -1587,7 +1587,7 @@ static struct platform_driver sh_mmcif_driver = {
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.pm	= &sh_mmcif_dev_pm_ops,
-		.of_match_table = mmcif_of_match,
+		.of_match_table = sh_mmcif_of_match,
 	},
 };
 
