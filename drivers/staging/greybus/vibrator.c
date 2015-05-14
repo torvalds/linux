@@ -93,7 +93,7 @@ static struct class vibrator_class = {
 #endif
 };
 
-static DEFINE_IDR(minors);
+static DEFINE_IDA(minors);
 
 static int gb_vibrator_connection_init(struct gb_connection *connection)
 {
@@ -117,7 +117,7 @@ static int gb_vibrator_connection_init(struct gb_connection *connection)
 	 * there is a "real" device somewhere in the kernel for this, but I
 	 * can't find it at the moment...
 	 */
-	vib->minor = idr_alloc(&minors, vib, 0, 0, GFP_KERNEL);
+	vib->minor = ida_simple_get(&minors, 0, 0, GFP_KERNEL);
 	if (vib->minor < 0) {
 		retval = vib->minor;
 		goto error;
@@ -126,7 +126,7 @@ static int gb_vibrator_connection_init(struct gb_connection *connection)
 			    "vibrator%d", vib->minor);
 	if (IS_ERR(dev)) {
 		retval = -EINVAL;
-		goto err_idr_remove;
+		goto err_ida_remove;
 	}
 	vib->dev = dev;
 
@@ -139,14 +139,14 @@ static int gb_vibrator_connection_init(struct gb_connection *connection)
 	retval = sysfs_create_group(&dev->kobj, vibrator_groups[0]);
 	if (retval) {
 		device_unregister(dev);
-		goto err_idr_remove;
+		goto err_ida_remove;
 	}
 #endif
 
 	return 0;
 
-err_idr_remove:
-	idr_remove(&minors, vib->minor);
+err_ida_remove:
+	ida_simple_remove(&minors, vib->minor);
 error:
 	kfree(vib);
 	return retval;
@@ -159,7 +159,7 @@ static void gb_vibrator_connection_exit(struct gb_connection *connection)
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(3,11,0)
 	sysfs_remove_group(&vib->dev->kobj, vibrator_groups[0]);
 #endif
-	idr_remove(&minors, vib->minor);
+	ida_simple_remove(&minors, vib->minor);
 	device_unregister(vib->dev);
 	kfree(vib);
 }
