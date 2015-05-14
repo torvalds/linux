@@ -1325,7 +1325,7 @@ static void ib_umad_remove_one(struct ib_device *device)
 		return;
 
 	for (i = 0; i <= rdma_end_port(device) - rdma_start_port(device); ++i) {
-		if (rdma_cap_ib_mad(device, i))
+		if (rdma_cap_ib_mad(device, i + rdma_start_port(device)))
 			ib_umad_kill_port(&umad_dev->port[i]);
 	}
 
