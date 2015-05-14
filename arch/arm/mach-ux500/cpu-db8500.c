@@ -45,10 +45,7 @@ static struct prcmu_pdata db8500_prcmu_pdata = {
 
 /*  U8500 and U9540 common io_desc */
 static struct map_desc u8500_common_io_desc[] __initdata = {
-	/* SCU base also covers GIC CPU BASE and TWD with its 4K page */
-	__IO_DEV_DESC(U8500_SCU_BASE, SZ_4K),
 	__IO_DEV_DESC(U8500_L2CC_BASE, SZ_4K),
-	__IO_DEV_DESC(U8500_BACKUPRAM0_BASE, SZ_8K),
 };
 
 /* U8500 IO map specific description */
