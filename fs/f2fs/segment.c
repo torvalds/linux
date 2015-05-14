@@ -569,8 +569,8 @@ static void add_discard_addrs(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 
 	if (!force) {
 		if (!test_opt(sbi, DISCARD) || !se->valid_blocks ||
-			SM_I(sbi)->nr_discards >= SM_I(sbi)->max_discards)
-		return;
+		    SM_I(sbi)->nr_discards >= SM_I(sbi)->max_discards)
+			return;
 	}
 
 	/* SIT_VBLOCK_MAP_SIZE should be multiple of sizeof(unsigned long) */
