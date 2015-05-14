@@ -1507,7 +1507,7 @@ static int rcu_torture_barrier_init(void)
 	int i;
 	int ret;
 
-	if (n_barrier_cbs == 0)
+	if (n_barrier_cbs <= 0)
 		return 0;
 	if (cur_ops->call == NULL || cur_ops->cb_barrier == NULL) {
 		pr_alert("%s" TORTURE_FLAG
