@@ -29,9 +29,9 @@
 #define RMI_SET_RMI_MODE_REPORT_ID	0x0f /* Feature Report */
 
 /* flags */
-#define RMI_READ_REQUEST_PENDING	BIT(0)
-#define RMI_READ_DATA_PENDING		BIT(1)
-#define RMI_STARTED			BIT(2)
+#define RMI_READ_REQUEST_PENDING	0
+#define RMI_READ_DATA_PENDING		1
+#define RMI_STARTED			2
 
 /* device flags */
 #define RMI_DEVICE			BIT(0)
