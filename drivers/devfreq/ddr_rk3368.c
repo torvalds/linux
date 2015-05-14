@@ -64,6 +64,16 @@ struct rockchip_ddr {
 
 static struct rockchip_ddr *ddr_data = NULL;
 
+static int _ddr_recalc_rate(void)
+{
+	int ddr_freq;
+
+	regmap_read(ddr_data->ddrpctl_regs, DDR_PCTL_TOGCNT_1U,
+		    &ddr_freq);
+	ddr_freq = ddr_freq * 2 * 1000000;
+	return ddr_freq;
+}
+
 static int _ddr_change_freq(u32 n_mhz)
 {
 	u32 ret;
@@ -71,7 +81,7 @@ static int _ddr_change_freq(u32 n_mhz)
 	printk(KERN_DEBUG pr_fmt("In func %s,freq=%dMHz\n"), __func__, n_mhz);
 	if (scpi_ddr_set_clk_rate(n_mhz))
 		pr_info("set ddr freq timeout\n");
-	ret = scpi_ddr_get_clk_rate();
+	ret = _ddr_recalc_rate() / 1000000;
 	printk(KERN_DEBUG pr_fmt("Func %s out,freq=%dMHz\n"), __func__, ret);
 	return ret;
 }
@@ -79,11 +89,6 @@ static int _ddr_change_freq(u32 n_mhz)
 static long _ddr_round_rate(u32 n_mhz)
 {
 	return (n_mhz / 12) * 12;
-}
-
-static int _ddr_recalc_rate(void)
-{
-	return (1000000 * scpi_ddr_get_clk_rate());
 }
 
 static void _ddr_set_auto_self_refresh(bool en)
