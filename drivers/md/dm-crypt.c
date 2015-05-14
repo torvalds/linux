@@ -925,10 +925,11 @@ static int crypt_convert(struct crypt_config *cc,
 
 		switch (r) {
 		/* async */
-		case -EINPROGRESS:
 		case -EBUSY:
 			wait_for_completion(&ctx->restart);
 			reinit_completion(&ctx->restart);
+			/* fall through*/
+		case -EINPROGRESS:
 			ctx->req = NULL;
 			ctx->cc_sector++;
 			continue;
@@ -1345,8 +1346,10 @@ static void kcryptd_async_done(struct crypto_async_request *async_req,
 	struct dm_crypt_io *io = container_of(ctx, struct dm_crypt_io, ctx);
 	struct crypt_config *cc = io->cc;
 
-	if (error == -EINPROGRESS)
+	if (error == -EINPROGRESS) {
+		complete(&ctx->restart);
 		return;
+	}
 
 	if (!error && cc->iv_gen_ops && cc->iv_gen_ops->post)
 		error = cc->iv_gen_ops->post(cc, iv_of_dmreq(cc, dmreq), dmreq);
@@ -1357,15 +1360,12 @@ static void kcryptd_async_done(struct crypto_async_request *async_req,
 	crypt_free_req(cc, req_of_dmreq(cc, dmreq), io->base_bio);
 
 	if (!atomic_dec_and_test(&ctx->cc_pending))
-		goto done;
+		return;
 
 	if (bio_data_dir(io->base_bio) == READ)
 		kcryptd_crypt_read_done(io);
 	else
 		kcryptd_crypt_write_io_submit(io, 1);
-done:
-	if (!completion_done(&ctx->restart))
-		complete(&ctx->restart);
 }
 
 static void kcryptd_crypt(struct work_struct *work)
