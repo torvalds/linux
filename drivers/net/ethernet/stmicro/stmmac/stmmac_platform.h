@@ -23,6 +23,4 @@ int stmmac_pltfr_probe(struct platform_device *pdev);
 int stmmac_pltfr_remove(struct platform_device *pdev);
 extern const struct dev_pm_ops stmmac_pltfr_pm_ops;
 
-extern const struct stmmac_of_data sun7i_gmac_data;
-
 #endif /* __STMMAC_PLATFORM_H__ */

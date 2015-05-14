@@ -11,8 +11,9 @@ obj-$(CONFIG_DWMAC_MESON)	+= dwmac-meson.o
 obj-$(CONFIG_DWMAC_ROCKCHIP)	+= dwmac-rk.o
 obj-$(CONFIG_DWMAC_SOCFPGA)	+= dwmac-socfpga.o
 obj-$(CONFIG_DWMAC_STI)		+= dwmac-sti.o
+obj-$(CONFIG_DWMAC_SUNXI)	+= dwmac-sunxi.o
 obj-$(CONFIG_DWMAC_GENERIC)	+= dwmac-generic.o
-stmmac-platform-objs:= stmmac_platform.o dwmac-sunxi.o \
+stmmac-platform-objs:= stmmac_platform.o
 
 obj-$(CONFIG_STMMAC_PCI) += stmmac-pci.o
 stmmac-pci-objs:= stmmac_pci.o
