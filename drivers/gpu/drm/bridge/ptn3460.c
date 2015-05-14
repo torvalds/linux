@@ -389,7 +389,7 @@ static int ptn3460_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ptn3460_i2c_table[] = {
-	{"nxp,ptn3460", 0},
+	{"ptn3460", 0},
 	{},
 };
 MODULE_DEVICE_TABLE(i2c, ptn3460_i2c_table);
