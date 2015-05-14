@@ -3092,9 +3092,9 @@ S:	Maintained
 F:	drivers/platform/x86/dell-smo8800.c
 
 DELL LAPTOP SMM DRIVER
-M:	Guenter Roeck <linux@roeck-us.net>
+M:	Pali Rohár <pali.rohar@gmail.com>
 S:	Maintained
-F:	drivers/char/i8k.c
+F:	drivers/hwmon/dell-smm-hwmon.c
 F:	include/uapi/linux/i8k.h
 
 DELL SYSTEMS MANAGEMENT BASE DRIVER (dcdbas)

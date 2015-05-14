@@ -1,12 +1,12 @@
 /*
- * i8k.c -- Linux driver for accessing the SMM BIOS on Dell laptops.
+ * dell-smm-hwmon.c -- Linux driver for accessing the SMM BIOS on Dell laptops.
  *
  * Copyright (C) 2001  Massimo Dal Zotto <dz@debian.org>
  *
  * Hwmon integration:
  * Copyright (C) 2011  Jean Delvare <jdelvare@suse.de>
  * Copyright (C) 2013, 2014  Guenter Roeck <linux@roeck-us.net>
- * Copyright (C) 2014  Pali Rohár <pali.rohar@gmail.com>
+ * Copyright (C) 2014, 2015  Pali Rohár <pali.rohar@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -80,8 +80,10 @@ static uint i8k_fan_max = I8K_FAN_HIGH;
 #define I8K_HWMON_HAVE_FAN2	(1 << 5)
 
 MODULE_AUTHOR("Massimo Dal Zotto (dz@debian.org)");
+MODULE_AUTHOR("Pali Rohár <pali.rohar@gmail.com>");
 MODULE_DESCRIPTION("Driver for accessing SMM BIOS on Dell laptops");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("i8k");
 
 static bool force;
 module_param(force, bool, 0);
