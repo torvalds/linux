@@ -1650,16 +1650,17 @@ static int max98095_set_bias_level(struct snd_soc_codec *codec,
 		 * away from ON. Disable the clock in that case, otherwise
 		 * enable it.
 		 */
-		if (!IS_ERR(max98095->mclk)) {
-			if (codec->dapm.bias_level == SND_SOC_BIAS_ON)
-				clk_disable_unprepare(max98095->mclk);
-			else
-				clk_prepare_enable(max98095->mclk);
-		}
+		if (IS_ERR(max98095->mclk))
+			break;
+
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_ON)
+			clk_disable_unprepare(max98095->mclk);
+		else
+			clk_prepare_enable(max98095->mclk);
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			ret = regcache_sync(max98095->regmap);
 
 			if (ret != 0) {
