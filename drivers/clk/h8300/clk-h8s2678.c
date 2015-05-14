@@ -107,13 +107,13 @@ static void __init h8s2678_pll_clk_setup(struct device_node *node)
 	pll_clock->sckcr = of_iomap(node, 0);
 	if (pll_clock->sckcr == NULL) {
 		pr_err("%s: failed to map divide register", clk_name);
-		goto error;
+		goto free_clock;
 	}
 
 	pll_clock->pllcr = of_iomap(node, 1);
 	if (pll_clock->pllcr == NULL) {
 		pr_err("%s: failed to map multiply register", clk_name);
-		goto error;
+		goto unmap_sckcr;
 	}
 
 	parent_name = of_clk_get_parent_name(node, 0);
@@ -125,22 +125,21 @@ static void __init h8s2678_pll_clk_setup(struct device_node *node)
 	pll_clock->hw.init = &init;
 
 	clk = clk_register(NULL, &pll_clock->hw);
-	if (IS_ERR(clk))
-		kfree(pll_clock);
-	if (!IS_ERR(clk)) {
-		of_clk_add_provider(node, of_clk_src_simple_get, clk);
-		return;
+	if (IS_ERR(clk)) {
+		pr_err("%s: failed to register %s div clock (%ld)\n",
+		       __func__, clk_name, PTR_ERR(clk));
+		goto unmap_pllcr;
 	}
-	pr_err("%s: failed to register %s div clock (%ld)\n",
-	       __func__, clk_name, PTR_ERR(clk));
-error:
-	if (pll_clock) {
-		if (pll_clock->sckcr)
-			iounmap(pll_clock->sckcr);
-		if (pll_clock->pllcr)
-			iounmap(pll_clock->pllcr);
-		kfree(pll_clock);
-	}
+
+	of_clk_add_provider(node, of_clk_src_simple_get, clk);
+	return;
+
+unmap_pllcr:
+	iounmap(pll_clock->pllcr);
+unmap_sckcr:
+	iounmap(pll_clock->sckcr);
+free_clock:
+	kfree(pll_clock);
 }
 
 CLK_OF_DECLARE(h8s2678_div_clk, "renesas,h8s2678-pll-clock",
