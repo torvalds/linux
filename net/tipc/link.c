@@ -311,8 +311,7 @@ void tipc_link_delete(struct tipc_link *l)
 	tipc_link_put(l);
 }
 
-void tipc_link_delete_list(struct net *net, unsigned int bearer_id,
-			   bool shutting_down)
+void tipc_link_delete_list(struct net *net, unsigned int bearer_id)
 {
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	struct tipc_link *link;
@@ -474,23 +473,6 @@ void tipc_link_reset(struct tipc_link *l_ptr)
 	l_ptr->fsm_msg_cnt = 0;
 	l_ptr->stale_count = 0;
 	link_reset_statistics(l_ptr);
-}
-
-void tipc_link_reset_list(struct net *net, unsigned int bearer_id)
-{
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
-	struct tipc_link *l_ptr;
-	struct tipc_node *n_ptr;
-
-	rcu_read_lock();
-	list_for_each_entry_rcu(n_ptr, &tn->node_list, list) {
-		tipc_node_lock(n_ptr);
-		l_ptr = n_ptr->links[bearer_id];
-		if (l_ptr)
-			tipc_link_reset(l_ptr);
-		tipc_node_unlock(n_ptr);
-	}
-	rcu_read_unlock();
 }
 
 static void link_activate(struct tipc_link *link)
