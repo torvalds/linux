@@ -43,6 +43,10 @@ config TRACE_IRQFLAGS_SUPPORT
 config STACKTRACE_SUPPORT
 	def_bool y
 
+config LOCKDEP_SUPPORT
+	depends on ETRAX_ARCH_V32
+	def_bool y
+
 config CRIS
 	bool
 	default y
