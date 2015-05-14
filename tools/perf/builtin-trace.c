@@ -16,7 +16,6 @@
 
 #include <libaudit.h>
 #include <stdlib.h>
-#include <sys/eventfd.h>
 #include <sys/mman.h>
 #include <linux/futex.h>
 
@@ -39,6 +38,34 @@
 
 #ifndef EFD_SEMAPHORE
 # define EFD_SEMAPHORE		1
+#endif
+
+#ifndef EFD_NONBLOCK
+# define EFD_NONBLOCK		00004000
+#endif
+
+#ifndef EFD_CLOEXEC
+# define EFD_CLOEXEC		02000000
+#endif
+
+#ifndef O_CLOEXEC
+# define O_CLOEXEC		02000000
+#endif
+
+#ifndef SOCK_DCCP
+# define SOCK_DCCP		6
+#endif
+
+#ifndef SOCK_CLOEXEC
+# define SOCK_CLOEXEC		02000000
+#endif
+
+#ifndef SOCK_NONBLOCK
+# define SOCK_NONBLOCK		00004000
+#endif
+
+#ifndef MSG_CMSG_CLOEXEC
+# define MSG_CMSG_CLOEXEC	0x40000000
 #endif
 
 struct tp_field {
