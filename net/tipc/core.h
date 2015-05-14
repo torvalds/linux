@@ -109,6 +109,26 @@ struct tipc_net {
 	atomic_t subscription_count;
 };
 
+static inline u16 mod(u16 x)
+{
+	return x & 0xffffu;
+}
+
+static inline int less_eq(u16 left, u16 right)
+{
+	return mod(right - left) < 32768u;
+}
+
+static inline int more(u16 left, u16 right)
+{
+	return !less_eq(left, right);
+}
+
+static inline int less(u16 left, u16 right)
+{
+	return less_eq(left, right) && (mod(right) != mod(left));
+}
+
 #ifdef CONFIG_SYSCTL
 int tipc_register_sysctl(void);
 void tipc_unregister_sysctl(void);

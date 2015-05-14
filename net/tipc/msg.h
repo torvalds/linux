@@ -313,12 +313,12 @@ static inline void msg_set_lookup_scope(struct tipc_msg *m, u32 n)
 	msg_set_bits(m, 1, 19, 0x3, n);
 }
 
-static inline u32 msg_bcast_ack(struct tipc_msg *m)
+static inline u16 msg_bcast_ack(struct tipc_msg *m)
 {
 	return msg_bits(m, 1, 0, 0xffff);
 }
 
-static inline void msg_set_bcast_ack(struct tipc_msg *m, u32 n)
+static inline void msg_set_bcast_ack(struct tipc_msg *m, u16 n)
 {
 	msg_set_bits(m, 1, 0, 0xffff, n);
 }
@@ -327,22 +327,22 @@ static inline void msg_set_bcast_ack(struct tipc_msg *m, u32 n)
 /*
  * Word 2
  */
-static inline u32 msg_ack(struct tipc_msg *m)
+static inline u16 msg_ack(struct tipc_msg *m)
 {
 	return msg_bits(m, 2, 16, 0xffff);
 }
 
-static inline void msg_set_ack(struct tipc_msg *m, u32 n)
+static inline void msg_set_ack(struct tipc_msg *m, u16 n)
 {
 	msg_set_bits(m, 2, 16, 0xffff, n);
 }
 
-static inline u32 msg_seqno(struct tipc_msg *m)
+static inline u16 msg_seqno(struct tipc_msg *m)
 {
 	return msg_bits(m, 2, 0, 0xffff);
 }
 
-static inline void msg_set_seqno(struct tipc_msg *m, u32 n)
+static inline void msg_set_seqno(struct tipc_msg *m, u16 n)
 {
 	msg_set_bits(m, 2, 0, 0xffff, n);
 }
@@ -781,6 +781,11 @@ int tipc_msg_build(struct tipc_msg *mhdr, struct msghdr *m,
 bool tipc_msg_lookup_dest(struct net *net, struct sk_buff *skb, u32 *dnode,
 			  int *err);
 struct sk_buff *tipc_msg_reassemble(struct sk_buff_head *list);
+
+static inline u16 buf_seqno(struct sk_buff *skb)
+{
+	return msg_seqno(buf_msg(skb));
+}
 
 /* tipc_skb_peek(): peek and reserve first buffer in list
  * @list: list to be peeked in

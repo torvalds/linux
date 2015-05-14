@@ -685,9 +685,9 @@ int __tipc_link_xmit(struct net *net, struct tipc_link *link,
 	unsigned int maxwin = link->window;
 	unsigned int imp = msg_importance(msg);
 	uint mtu = link->mtu;
-	uint ack = mod(link->next_in_no - 1);
-	uint seqno = link->next_out_no;
-	uint bc_last_in = link->owner->bclink.last_in;
+	u16 ack = mod(link->next_in_no - 1);
+	u16 seqno = link->next_out_no;
+	u16 bc_last_in = link->owner->bclink.last_in;
 	struct tipc_media_addr *addr = &link->media_addr;
 	struct sk_buff_head *transmq = &link->transmq;
 	struct sk_buff_head *backlogq = &link->backlogq;
@@ -859,7 +859,7 @@ void tipc_link_push_packets(struct tipc_link *link)
 {
 	struct sk_buff *skb;
 	struct tipc_msg *msg;
-	unsigned int ack = mod(link->next_in_no - 1);
+	u16 ack = mod(link->next_in_no - 1);
 
 	while (skb_queue_len(&link->transmq) < link->window) {
 		skb = __skb_dequeue(&link->backlogq);
@@ -998,13 +998,13 @@ synched:
 static void link_retrieve_defq(struct tipc_link *link,
 			       struct sk_buff_head *list)
 {
-	u32 seq_no;
+	u16 seq_no;
 
 	if (skb_queue_empty(&link->deferdq))
 		return;
 
 	seq_no = buf_seqno(skb_peek(&link->deferdq));
-	if (seq_no == mod(link->next_in_no))
+	if (seq_no == link->next_in_no)
 		skb_queue_splice_tail_init(&link->deferdq, list);
 }
 
@@ -1025,8 +1025,8 @@ void tipc_rcv(struct net *net, struct sk_buff *skb, struct tipc_bearer *b_ptr)
 	struct tipc_link *l_ptr;
 	struct sk_buff *skb1, *tmp;
 	struct tipc_msg *msg;
-	u32 seq_no;
-	u32 ackd;
+	u16 seq_no;
+	u16 ackd;
 	u32 released;
 
 	skb2list(skb, &head);
@@ -1119,7 +1119,7 @@ void tipc_rcv(struct net *net, struct sk_buff *skb, struct tipc_bearer *b_ptr)
 		}
 
 		/* Link is now in state WORKING_WORKING */
-		if (unlikely(seq_no != mod(l_ptr->next_in_no))) {
+		if (unlikely(seq_no != l_ptr->next_in_no)) {
 			link_handle_out_of_seq_msg(l_ptr, skb);
 			link_retrieve_defq(l_ptr, &head);
 			skb = NULL;
@@ -1250,7 +1250,7 @@ static void tipc_link_input(struct tipc_link *link, struct sk_buff *skb)
 u32 tipc_link_defer_pkt(struct sk_buff_head *list, struct sk_buff *skb)
 {
 	struct sk_buff *skb1;
-	u32 seq_no = buf_seqno(skb);
+	u16 seq_no = buf_seqno(skb);
 
 	/* Empty queue ? */
 	if (skb_queue_empty(list)) {
@@ -1266,7 +1266,7 @@ u32 tipc_link_defer_pkt(struct sk_buff_head *list, struct sk_buff *skb)
 
 	/* Locate insertion point in queue, then insert; discard if duplicate */
 	skb_queue_walk(list, skb1) {
-		u32 curr_seqno = buf_seqno(skb1);
+		u16 curr_seqno = buf_seqno(skb1);
 
 		if (seq_no == curr_seqno) {
 			kfree_skb(skb);
@@ -1301,7 +1301,7 @@ static void link_handle_out_of_seq_msg(struct tipc_link *l_ptr,
 	 * Discard packet if a duplicate; otherwise add it to deferred queue
 	 * and notify peer of gap as per protocol specification
 	 */
-	if (less(seq_no, mod(l_ptr->next_in_no))) {
+	if (less(seq_no, l_ptr->next_in_no)) {
 		l_ptr->stats.duplicates++;
 		kfree_skb(buf);
 		return;
@@ -1326,6 +1326,7 @@ void tipc_link_proto_xmit(struct tipc_link *l_ptr, u32 msg_typ, int probe_msg,
 	struct tipc_msg *msg = l_ptr->pmsg;
 	u32 msg_size = sizeof(l_ptr->proto_msg);
 	int r_flag;
+	u16 last_rcv;
 
 	/* Don't send protocol message during link failover */
 	if (l_ptr->flags & LINK_FAILINGOVER)
@@ -1342,7 +1343,7 @@ void tipc_link_proto_xmit(struct tipc_link *l_ptr, u32 msg_typ, int probe_msg,
 	msg_set_last_bcast(msg, tipc_bclink_get_last_sent(l_ptr->owner->net));
 
 	if (msg_typ == STATE_MSG) {
-		u32 next_sent = mod(l_ptr->next_out_no);
+		u16 next_sent = l_ptr->next_out_no;
 
 		if (!tipc_link_is_up(l_ptr))
 			return;
@@ -1350,8 +1351,8 @@ void tipc_link_proto_xmit(struct tipc_link *l_ptr, u32 msg_typ, int probe_msg,
 			next_sent = buf_seqno(skb_peek(&l_ptr->backlogq));
 		msg_set_next_sent(msg, next_sent);
 		if (!skb_queue_empty(&l_ptr->deferdq)) {
-			u32 rec = buf_seqno(skb_peek(&l_ptr->deferdq));
-			gap = mod(rec - mod(l_ptr->next_in_no));
+			last_rcv = buf_seqno(skb_peek(&l_ptr->deferdq));
+			gap = mod(last_rcv - l_ptr->next_in_no);
 		}
 		msg_set_seq_gap(msg, gap);
 		if (gap)
@@ -1485,10 +1486,8 @@ static void tipc_link_proto_rcv(struct tipc_link *l_ptr,
 		if (link_reset_unknown(l_ptr))
 			break;
 
-		if (less_eq(mod(l_ptr->next_in_no), msg_next_sent(msg))) {
-			rec_gap = mod(msg_next_sent(msg) -
-				      mod(l_ptr->next_in_no));
-		}
+		if (less_eq(l_ptr->next_in_no, msg_next_sent(msg)))
+			rec_gap = mod(msg_next_sent(msg) - l_ptr->next_in_no);
 
 		if (msg_probe(msg))
 			l_ptr->stats.recv_probes++;

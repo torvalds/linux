@@ -151,7 +151,7 @@ struct tipc_link {
 
 	/* Management and link supervision data */
 	unsigned int flags;
-	u32 checkpoint;
+	u16 checkpoint;
 	u32 peer_session;
 	u32 peer_bearer_id;
 	u32 bearer_id;
@@ -185,13 +185,13 @@ struct tipc_link {
 		u16 len;
 		u16 limit;
 	} backlog[5];
-	u32 next_out_no;
+	u16 next_out_no;
+	u16 last_retransmitted;
 	u32 window;
-	u32 last_retransmitted;
 	u32 stale_count;
 
 	/* Reception */
-	u32 next_in_no;
+	u16 next_in_no;
 	u32 rcv_unacked;
 	struct sk_buff_head deferdq;
 	struct sk_buff_head inputq;
@@ -244,39 +244,6 @@ int tipc_nl_link_set(struct sk_buff *skb, struct genl_info *info);
 int tipc_nl_link_reset_stats(struct sk_buff *skb, struct genl_info *info);
 int tipc_nl_parse_link_prop(struct nlattr *prop, struct nlattr *props[]);
 void link_prepare_wakeup(struct tipc_link *l);
-
-/*
- * Link sequence number manipulation routines (uses modulo 2**16 arithmetic)
- */
-static inline u32 buf_seqno(struct sk_buff *buf)
-{
-	return msg_seqno(buf_msg(buf));
-}
-
-static inline u32 mod(u32 x)
-{
-	return x & 0xffffu;
-}
-
-static inline int less_eq(u32 left, u32 right)
-{
-	return mod(right - left) < 32768u;
-}
-
-static inline int more(u32 left, u32 right)
-{
-	return !less_eq(left, right);
-}
-
-static inline int less(u32 left, u32 right)
-{
-	return less_eq(left, right) && (mod(right) != mod(left));
-}
-
-static inline u32 lesser(u32 left, u32 right)
-{
-	return less_eq(left, right) ? left : right;
-}
 
 static inline u32 link_own_addr(struct tipc_link *l)
 {
