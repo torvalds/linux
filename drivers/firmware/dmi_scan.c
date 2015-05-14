@@ -506,9 +506,8 @@ static int __init dmi_present(const u8 *buf)
 		if (dmi_walk_early(dmi_decode) == 0) {
 			if (smbios_ver) {
 				dmi_ver = smbios_ver;
-				pr_info("SMBIOS %d.%d%s present.\n",
-					dmi_ver >> 8, dmi_ver & 0xFF,
-					(dmi_ver < 0x0300) ? "" : ".x");
+				pr_info("SMBIOS %d.%d present.\n",
+				       dmi_ver >> 8, dmi_ver & 0xFF);
 			} else {
 				dmi_ver = (buf[14] & 0xF0) << 4 |
 					   (buf[14] & 0x0F);
