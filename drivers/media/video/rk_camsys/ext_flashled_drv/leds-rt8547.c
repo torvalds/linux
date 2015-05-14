@@ -728,13 +728,16 @@ static int rt8547_io_init(struct rt8547_platform_data *pdata,
 				      "rt8547_flset");
 		if (rc < 0) {
 			dev_err(dev, "request rt8547 flash set pin fail\n");
-			goto gpio_request3;
+			/*GPIO(gpio7 GPIO_B5) is EBUSY when register after factory data reset, but after power on ,it's  normal*/
+			/*goto gpio_request3;*/
 		}
 	}
 	return 0;
+/*
 gpio_request3:
     if(gpio_is_valid(pdata->ctl_gpio))
     	gpio_free(pdata->ctl_gpio);
+*/
 gpio_request2:
     if (gpio_is_valid(pdata->flen_gpio))
     	gpio_free(pdata->flen_gpio);

@@ -138,6 +138,10 @@ int camsys_ext_fsh_ctrl(void* dev,int mode,unsigned int on)
     }
 
     fled_dev = find_flashlight_by_name(cur_fsh_info->dev_model);
+	if(fled_dev == NULL){
+		camsys_err("--find_flashlight_by_name return NULL!--");
+		return -1;
+	}
     switch(mode){
         case 0: /* off */
            /* set flashlight mode to Off */
