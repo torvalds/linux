@@ -1764,7 +1764,7 @@ void fib_table_flush_external(struct fib_table *tb)
 			/* record local slen */
 			slen = fa->fa_slen;
 
-			if (!fi || !(fi->fib_flags & RTNH_F_EXTERNAL))
+			if (!fi || !(fi->fib_flags & RTNH_F_OFFLOAD))
 				continue;
 
 			netdev_switch_fib_ipv4_del(n->key,
