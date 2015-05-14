@@ -940,7 +940,7 @@ static void XGI_SetCRT1FIFO(struct xgi_hw_device_info *HwDeviceExtension,
 
 	data = xgifb_reg_get(pVBInfo->P3c4, 0x3D);
 	data &= 0xfe;
-	xgifb_reg_set(pVBInfo->P3c4, 0x3D, data); /* diable auto-threshold */
+	xgifb_reg_set(pVBInfo->P3c4, 0x3D, data); /* disable auto-threshold */
 
 	xgifb_reg_set(pVBInfo->P3c4, 0x08, 0x34);
 	data = xgifb_reg_get(pVBInfo->P3c4, 0x09);
