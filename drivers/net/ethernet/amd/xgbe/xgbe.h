@@ -334,8 +334,6 @@ struct xgbe_ring_data {
 	 */
 	unsigned int state_saved;
 	struct {
-		unsigned int incomplete;
-		unsigned int context_next;
 		struct sk_buff *skb;
 		unsigned int len;
 		unsigned int error;

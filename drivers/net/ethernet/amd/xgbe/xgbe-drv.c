@@ -1822,9 +1822,10 @@ static void xgbe_rx_refresh(struct xgbe_channel *channel)
 			  lower_32_bits(rdata->rdesc_dma));
 }
 
-static struct sk_buff *xgbe_create_skb(struct napi_struct *napi,
+static struct sk_buff *xgbe_create_skb(struct xgbe_prv_data *pdata,
+				       struct napi_struct *napi,
 				       struct xgbe_ring_data *rdata,
-				       unsigned int *len)
+				       unsigned int len)
 {
 	struct sk_buff *skb;
 	u8 *packet;
@@ -1834,14 +1835,31 @@ static struct sk_buff *xgbe_create_skb(struct napi_struct *napi,
 	if (!skb)
 		return NULL;
 
+	/* Start with the header buffer which may contain just the header
+	 * or the header plus data
+	 */
+	dma_sync_single_for_cpu(pdata->dev, rdata->rx.hdr.dma,
+				rdata->rx.hdr.dma_len, DMA_FROM_DEVICE);
+
 	packet = page_address(rdata->rx.hdr.pa.pages) +
 		 rdata->rx.hdr.pa.pages_offset;
-	copy_len = (rdata->rx.hdr_len) ? rdata->rx.hdr_len : *len;
+	copy_len = (rdata->rx.hdr_len) ? rdata->rx.hdr_len : len;
 	copy_len = min(rdata->rx.hdr.dma_len, copy_len);
 	skb_copy_to_linear_data(skb, packet, copy_len);
 	skb_put(skb, copy_len);
 
-	*len -= copy_len;
+	len -= copy_len;
+	if (len) {
+		/* Add the remaining data as a frag */
+		dma_sync_single_for_cpu(pdata->dev, rdata->rx.buf.dma,
+					rdata->rx.buf.dma_len, DMA_FROM_DEVICE);
+
+		skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
+				rdata->rx.buf.pa.pages,
+				rdata->rx.buf.pa.pages_offset,
+				len, rdata->rx.buf.dma_len);
+		rdata->rx.buf.pa.pages = NULL;
+	}
 
 	return skb;
 }
@@ -1923,7 +1941,7 @@ static int xgbe_rx_poll(struct xgbe_channel *channel, int budget)
 	struct sk_buff *skb;
 	struct skb_shared_hwtstamps *hwtstamps;
 	unsigned int incomplete, error, context_next, context;
-	unsigned int len, put_len, max_len;
+	unsigned int len, rdesc_len, max_len;
 	unsigned int received = 0;
 	int packet_count = 0;
 
@@ -1932,6 +1950,9 @@ static int xgbe_rx_poll(struct xgbe_channel *channel, int budget)
 	/* Nothing to do if there isn't a Rx ring for this channel */
 	if (!ring)
 		return 0;
+
+	incomplete = 0;
+	context_next = 0;
 
 	napi = (pdata->per_channel_irq) ? &channel->napi : &pdata->napi;
 
@@ -1942,15 +1963,11 @@ static int xgbe_rx_poll(struct xgbe_channel *channel, int budget)
 
 		/* First time in loop see if we need to restore state */
 		if (!received && rdata->state_saved) {
-			incomplete = rdata->state.incomplete;
-			context_next = rdata->state.context_next;
 			skb = rdata->state.skb;
 			error = rdata->state.error;
 			len = rdata->state.len;
 		} else {
 			memset(packet, 0, sizeof(*packet));
-			incomplete = 0;
-			context_next = 0;
 			skb = NULL;
 			error = 0;
 			len = 0;
@@ -1991,23 +2008,16 @@ read_again:
 		}
 
 		if (!context) {
-			put_len = rdata->rx.len - len;
-			len += put_len;
+			/* Length is cumulative, get this descriptor's length */
+			rdesc_len = rdata->rx.len - len;
+			len += rdesc_len;
 
-			if (!skb) {
-				dma_sync_single_for_cpu(pdata->dev,
-							rdata->rx.hdr.dma,
-							rdata->rx.hdr.dma_len,
-							DMA_FROM_DEVICE);
-
-				skb = xgbe_create_skb(napi, rdata, &put_len);
-				if (!skb) {
+			if (rdesc_len && !skb) {
+				skb = xgbe_create_skb(pdata, napi, rdata,
+						      rdesc_len);
+				if (!skb)
 					error = 1;
-					goto skip_data;
-				}
-			}
-
-			if (put_len) {
+			} else if (rdesc_len) {
 				dma_sync_single_for_cpu(pdata->dev,
 							rdata->rx.buf.dma,
 							rdata->rx.buf.dma_len,
@@ -2016,12 +2026,12 @@ read_again:
 				skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
 						rdata->rx.buf.pa.pages,
 						rdata->rx.buf.pa.pages_offset,
-						put_len, rdata->rx.buf.dma_len);
+						rdesc_len,
+						rdata->rx.buf.dma_len);
 				rdata->rx.buf.pa.pages = NULL;
 			}
 		}
 
-skip_data:
 		if (incomplete || context_next)
 			goto read_again;
 
@@ -2084,8 +2094,6 @@ next_packet:
 	if (received && (incomplete || context_next)) {
 		rdata = XGBE_GET_DESC_DATA(ring, ring->cur);
 		rdata->state_saved = 1;
-		rdata->state.incomplete = incomplete;
-		rdata->state.context_next = context_next;
 		rdata->state.skb = skb;
 		rdata->state.len = len;
 		rdata->state.error = error;
