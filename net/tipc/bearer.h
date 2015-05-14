@@ -38,9 +38,9 @@
 #define _TIPC_BEARER_H
 
 #include "netlink.h"
+#include "core.h"
 #include <net/genetlink.h>
 
-#define MAX_BEARERS	2
 #define MAX_MEDIA	3
 #define MAX_NODES	4096
 #define WSIZE		32

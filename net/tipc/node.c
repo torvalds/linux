@@ -39,6 +39,7 @@
 #include "node.h"
 #include "name_distr.h"
 #include "socket.h"
+#include "bcast.h"
 
 static void node_lost_contact(struct tipc_node *n_ptr);
 static void node_established_contact(struct tipc_node *n_ptr);

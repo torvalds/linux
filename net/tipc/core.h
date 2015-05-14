@@ -60,15 +60,18 @@
 #include <net/netns/generic.h>
 #include <linux/rhashtable.h>
 
-#include "node.h"
-#include "bearer.h"
-#include "bcast.h"
-#include "netlink.h"
-#include "link.h"
-#include "node.h"
-#include "msg.h"
+struct tipc_node;
+struct tipc_bearer;
+struct tipc_bcbearer;
+struct tipc_bclink;
+struct tipc_link;
+struct tipc_name_table;
+struct tipc_server;
 
 #define TIPC_MOD_VER "2.0.0"
+
+#define NODE_HTABLE_SIZE   512
+#define MAX_BEARERS	   3
 
 extern int tipc_net_id __read_mostly;
 extern int sysctl_tipc_rmem[3] __read_mostly;
