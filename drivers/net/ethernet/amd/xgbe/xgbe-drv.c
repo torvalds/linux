@@ -2072,7 +2072,6 @@ skip_data:
 		skb_record_rx_queue(skb, channel->queue_index);
 		skb_mark_napi_id(skb, napi);
 
-		netdev->last_rx = jiffies;
 		napi_gro_receive(napi, skb);
 
 next_packet:

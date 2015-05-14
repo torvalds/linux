@@ -698,7 +698,6 @@ static int netcp_process_one_rx_packet(struct netcp_intf *netcp)
 		}
 	}
 
-	netcp->ndev->last_rx = jiffies;
 	netcp->ndev->stats.rx_packets++;
 	netcp->ndev->stats.rx_bytes += skb->len;
 

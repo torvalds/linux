@@ -244,7 +244,6 @@ static int moxart_rx_poll(struct napi_struct *napi, int budget)
 		napi_gro_receive(&priv->napi, skb);
 		rx++;
 
-		ndev->last_rx = jiffies;
 		priv->stats.rx_packets++;
 		priv->stats.rx_bytes += len;
 		if (desc0 & RX_DESC0_MULTICAST)
