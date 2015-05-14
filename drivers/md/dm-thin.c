@@ -1086,16 +1086,14 @@ static void schedule_zero(struct thin_c *tc, dm_block_t virt_block,
 	 * zeroing pre-existing data, we can issue the bio immediately.
 	 * Otherwise we use kcopyd to zero the data first.
 	 */
-	if (!pool->pf.zero_new_blocks)
+	if (pool->pf.zero_new_blocks) {
+		if (io_overwrites_block(pool, bio))
+			remap_and_issue_overwrite(tc, bio, data_block, m);
+		else
+			ll_zero(tc, m, data_block * pool->sectors_per_block,
+				(data_block + 1) * pool->sectors_per_block);
+	} else
 		process_prepared_mapping(m);
-
-	else if (io_overwrites_block(pool, bio))
-		remap_and_issue_overwrite(tc, bio, data_block, m);
-
-	else
-		ll_zero(tc, m,
-			data_block * pool->sectors_per_block,
-			(data_block + 1) * pool->sectors_per_block);
 }
 
 static void schedule_external_copy(struct thin_c *tc, dm_block_t virt_block,
