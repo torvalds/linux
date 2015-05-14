@@ -1533,6 +1533,8 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 				  packet->tcp_payload_len);
 		XGMAC_SET_BITS_LE(rdesc->desc3, TX_NORMAL_DESC3, TCPHDRLEN,
 				  packet->tcp_header_len / 4);
+
+		pdata->ext_stats.tx_tso_packets++;
 	} else {
 		/* Enable CRC and Pad Insertion */
 		XGMAC_SET_BITS_LE(rdesc->desc3, TX_NORMAL_DESC3, CPC, 0);
@@ -1618,11 +1620,12 @@ static void xgbe_dev_xmit(struct xgbe_channel *channel)
 
 static int xgbe_dev_read(struct xgbe_channel *channel)
 {
+	struct xgbe_prv_data *pdata = channel->pdata;
 	struct xgbe_ring *ring = channel->rx_ring;
 	struct xgbe_ring_data *rdata;
 	struct xgbe_ring_desc *rdesc;
 	struct xgbe_packet_data *packet = &ring->packet_data;
-	struct net_device *netdev = channel->pdata->netdev;
+	struct net_device *netdev = pdata->netdev;
 	unsigned int err, etlt, l34t;
 
 	DBGPR("-->xgbe_dev_read: cur = %d\n", ring->cur);
@@ -1661,9 +1664,12 @@ static int xgbe_dev_read(struct xgbe_channel *channel)
 			       CONTEXT_NEXT, 1);
 
 	/* Get the header length */
-	if (XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, FD))
+	if (XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, FD)) {
 		rdata->rx.hdr_len = XGMAC_GET_BITS_LE(rdesc->desc2,
 						      RX_NORMAL_DESC2, HL);
+		if (rdata->rx.hdr_len)
+			pdata->ext_stats.rx_split_header_packets++;
+	}
 
 	/* Get the RSS hash */
 	if (XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, RSV)) {
@@ -1700,7 +1706,7 @@ static int xgbe_dev_read(struct xgbe_channel *channel)
 		       INCOMPLETE, 0);
 
 	/* Set checksum done indicator as appropriate */
-	if (channel->pdata->netdev->features & NETIF_F_RXCSUM)
+	if (netdev->features & NETIF_F_RXCSUM)
 		XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
 			       CSUM_DONE, 1);
 

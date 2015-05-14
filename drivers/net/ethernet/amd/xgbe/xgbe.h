@@ -492,6 +492,11 @@ struct xgbe_mmc_stats {
 	u64 rxwatchdogerror;
 };
 
+struct xgbe_ext_stats {
+	u64 tx_tso_packets;
+	u64 rx_split_header_packets;
+};
+
 struct xgbe_hw_if {
 	int (*tx_complete)(struct xgbe_ring_desc *);
 
@@ -750,6 +755,7 @@ struct xgbe_prv_data {
 	netdev_features_t netdev_features;
 	struct napi_struct napi;
 	struct xgbe_mmc_stats mmc_stats;
+	struct xgbe_ext_stats ext_stats;
 
 	/* Filtering support */
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];

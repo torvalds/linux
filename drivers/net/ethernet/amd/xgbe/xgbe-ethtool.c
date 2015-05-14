@@ -133,6 +133,12 @@ struct xgbe_stats {
 	  offsetof(struct xgbe_prv_data, mmc_stats._var),	\
 	}
 
+#define XGMAC_EXT_STAT(_string, _var)				\
+	{ _string,						\
+	  FIELD_SIZEOF(struct xgbe_ext_stats, _var),		\
+	  offsetof(struct xgbe_prv_data, ext_stats._var),	\
+	}
+
 static const struct xgbe_stats xgbe_gstring_stats[] = {
 	XGMAC_MMC_STAT("tx_bytes", txoctetcount_gb),
 	XGMAC_MMC_STAT("tx_packets", txframecount_gb),
@@ -140,6 +146,7 @@ static const struct xgbe_stats xgbe_gstring_stats[] = {
 	XGMAC_MMC_STAT("tx_broadcast_packets", txbroadcastframes_gb),
 	XGMAC_MMC_STAT("tx_multicast_packets", txmulticastframes_gb),
 	XGMAC_MMC_STAT("tx_vlan_packets", txvlanframes_g),
+	XGMAC_EXT_STAT("tx_tso_packets", tx_tso_packets),
 	XGMAC_MMC_STAT("tx_64_byte_packets", tx64octets_gb),
 	XGMAC_MMC_STAT("tx_65_to_127_byte_packets", tx65to127octets_gb),
 	XGMAC_MMC_STAT("tx_128_to_255_byte_packets", tx128to255octets_gb),
@@ -171,6 +178,7 @@ static const struct xgbe_stats xgbe_gstring_stats[] = {
 	XGMAC_MMC_STAT("rx_fifo_overflow_errors", rxfifooverflow),
 	XGMAC_MMC_STAT("rx_watchdog_errors", rxwatchdogerror),
 	XGMAC_MMC_STAT("rx_pause_frames", rxpauseframes),
+	XGMAC_EXT_STAT("rx_split_header_packets", rx_split_header_packets),
 };
 
 #define XGBE_STATS_COUNT	ARRAY_SIZE(xgbe_gstring_stats)
