@@ -86,7 +86,7 @@ static const struct nla_policy tipc_nl_prop_policy[TIPC_NLA_PROP_MAX + 1] = {
  */
 #define  STARTING_EVT    856384768	/* link processing trigger */
 #define  TRAFFIC_MSG_EVT 560815u	/* rx'd ??? */
-#define  TIMEOUT_EVT     560817u	/* link timer expired */
+#define  SILENCE_EVT     560817u	/* timer dicovered silence from peer */
 
 /*
  * State value stored in 'failover_pkts'
@@ -106,6 +106,7 @@ static void tipc_link_sync_rcv(struct tipc_node *n, struct sk_buff *buf);
 static void tipc_link_input(struct tipc_link *l, struct sk_buff *skb);
 static bool tipc_data_input(struct tipc_link *l, struct sk_buff *skb);
 static bool tipc_link_failover_rcv(struct tipc_link *l, struct sk_buff **skb);
+static void link_set_timer(struct tipc_link *link, unsigned long time);
 /*
  *  Simple link routines
  */
@@ -197,11 +198,12 @@ static void link_timeout(unsigned long data)
 	}
 
 	/* do all other link processing performed on a periodic basis */
-	link_state_event(l_ptr, TIMEOUT_EVT);
-
+	if (l_ptr->silent_intv_cnt || tipc_bclink_acks_missing(l_ptr->owner))
+		link_state_event(l_ptr, SILENCE_EVT);
+	l_ptr->silent_intv_cnt++;
 	if (skb_queue_len(&l_ptr->backlogq))
 		tipc_link_push_packets(l_ptr);
-
+	link_set_timer(l_ptr, l_ptr->keepalive_intv);
 	tipc_node_unlock(l_ptr->owner);
 	tipc_link_put(l_ptr);
 }
@@ -261,7 +263,6 @@ struct tipc_link *tipc_link_create(struct tipc_node *n_ptr,
 		/* note: peer i/f name is updated by reset/activate message */
 	memcpy(&l_ptr->media_addr, media_addr, sizeof(*media_addr));
 	l_ptr->owner = n_ptr;
-	l_ptr->checkpoint = 1;
 	l_ptr->peer_session = INVALID_SESSION;
 	l_ptr->bearer_id = b_ptr->identity;
 	link_set_supervision_props(l_ptr, b_ptr->tolerance);
@@ -468,7 +469,6 @@ void tipc_link_reset(struct tipc_link *l_ptr)
 	tipc_link_purge_backlog(l_ptr);
 	l_ptr->reasm_buf = NULL;
 	l_ptr->rcv_unacked = 0;
-	l_ptr->checkpoint = 1;
 	l_ptr->snd_nxt = 1;
 	l_ptr->silent_intv_cnt = 0;
 	l_ptr->stale_count = 0;
@@ -481,6 +481,7 @@ static void link_activate(struct tipc_link *link)
 
 	link->rcv_nxt = 1;
 	link->stats.recv_info = 1;
+	link->silent_intv_cnt = 0;
 	tipc_node_link_up(node, link);
 	tipc_bearer_add_dest(node->net, link->bearer_id, link->addr);
 }
@@ -501,45 +502,33 @@ static void link_state_event(struct tipc_link *l_ptr, unsigned int event)
 	if (!(l_ptr->flags & LINK_STARTED) && (event != STARTING_EVT))
 		return;		/* Not yet. */
 
-	if (l_ptr->flags & LINK_FAILINGOVER) {
-		if (event == TIMEOUT_EVT)
-			link_set_timer(l_ptr, timer_intv);
+	if (l_ptr->flags & LINK_FAILINGOVER)
 		return;
-	}
 
 	switch (l_ptr->state) {
 	case WORKING_WORKING:
 		switch (event) {
 		case TRAFFIC_MSG_EVT:
 		case ACTIVATE_MSG:
+			l_ptr->silent_intv_cnt = 0;
 			break;
-		case TIMEOUT_EVT:
-			if (l_ptr->rcv_nxt != l_ptr->checkpoint) {
-				l_ptr->checkpoint = l_ptr->rcv_nxt;
-				if (tipc_bclink_acks_missing(l_ptr->owner)) {
+		case SILENCE_EVT:
+			if (!l_ptr->silent_intv_cnt) {
+				if (tipc_bclink_acks_missing(l_ptr->owner))
 					tipc_link_proto_xmit(l_ptr, STATE_MSG,
 							     0, 0, 0, 0);
-					l_ptr->silent_intv_cnt++;
-				}
-				link_set_timer(l_ptr, timer_intv);
 				break;
 			}
 			l_ptr->state = WORKING_UNKNOWN;
-			l_ptr->silent_intv_cnt = 0;
 			tipc_link_proto_xmit(l_ptr, STATE_MSG, 1, 0, 0, 0);
-			l_ptr->silent_intv_cnt++;
-			link_set_timer(l_ptr, timer_intv);
 			break;
 		case RESET_MSG:
 			pr_debug("%s<%s>, requested by peer\n",
 				 link_rst_msg, l_ptr->name);
 			tipc_link_reset(l_ptr);
 			l_ptr->state = RESET_RESET;
-			l_ptr->silent_intv_cnt = 0;
 			tipc_link_proto_xmit(l_ptr, ACTIVATE_MSG,
 					     0, 0, 0, 0);
-			l_ptr->silent_intv_cnt++;
-			link_set_timer(l_ptr, timer_intv);
 			break;
 		default:
 			pr_debug("%s%u in WW state\n", link_unk_evt, event);
@@ -551,46 +540,32 @@ static void link_state_event(struct tipc_link *l_ptr, unsigned int event)
 		case ACTIVATE_MSG:
 			l_ptr->state = WORKING_WORKING;
 			l_ptr->silent_intv_cnt = 0;
-			link_set_timer(l_ptr, timer_intv);
 			break;
 		case RESET_MSG:
 			pr_debug("%s<%s>, requested by peer while probing\n",
 				 link_rst_msg, l_ptr->name);
 			tipc_link_reset(l_ptr);
 			l_ptr->state = RESET_RESET;
-			l_ptr->silent_intv_cnt = 0;
 			tipc_link_proto_xmit(l_ptr, ACTIVATE_MSG,
 					     0, 0, 0, 0);
-			l_ptr->silent_intv_cnt++;
-			link_set_timer(l_ptr, timer_intv);
 			break;
-		case TIMEOUT_EVT:
-			if (l_ptr->rcv_nxt != l_ptr->checkpoint) {
+		case SILENCE_EVT:
+			if (!l_ptr->silent_intv_cnt) {
 				l_ptr->state = WORKING_WORKING;
-				l_ptr->silent_intv_cnt = 0;
-				l_ptr->checkpoint = l_ptr->rcv_nxt;
-				if (tipc_bclink_acks_missing(l_ptr->owner)) {
+				if (tipc_bclink_acks_missing(l_ptr->owner))
 					tipc_link_proto_xmit(l_ptr, STATE_MSG,
 							     0, 0, 0, 0);
-					l_ptr->silent_intv_cnt++;
-				}
-				link_set_timer(l_ptr, timer_intv);
 			} else if (l_ptr->silent_intv_cnt <
 				   l_ptr->abort_limit) {
 				tipc_link_proto_xmit(l_ptr, STATE_MSG,
 						     1, 0, 0, 0);
-				l_ptr->silent_intv_cnt++;
-				link_set_timer(l_ptr, timer_intv);
 			} else {	/* Link has failed */
 				pr_debug("%s<%s>, peer not responding\n",
 					 link_rst_msg, l_ptr->name);
 				tipc_link_reset(l_ptr);
 				l_ptr->state = RESET_UNKNOWN;
-				l_ptr->silent_intv_cnt = 0;
 				tipc_link_proto_xmit(l_ptr, RESET_MSG,
 						     0, 0, 0, 0);
-				l_ptr->silent_intv_cnt++;
-				link_set_timer(l_ptr, timer_intv);
 			}
 			break;
 		default:
@@ -606,31 +581,22 @@ static void link_state_event(struct tipc_link *l_ptr, unsigned int event)
 			if (other && link_working_unknown(other))
 				break;
 			l_ptr->state = WORKING_WORKING;
-			l_ptr->silent_intv_cnt = 0;
 			link_activate(l_ptr);
 			tipc_link_proto_xmit(l_ptr, STATE_MSG, 1, 0, 0, 0);
-			l_ptr->silent_intv_cnt++;
 			if (l_ptr->owner->working_links == 1)
 				tipc_link_sync_xmit(l_ptr);
-			link_set_timer(l_ptr, timer_intv);
 			break;
 		case RESET_MSG:
 			l_ptr->state = RESET_RESET;
-			l_ptr->silent_intv_cnt = 0;
 			tipc_link_proto_xmit(l_ptr, ACTIVATE_MSG,
 					     1, 0, 0, 0);
-			l_ptr->silent_intv_cnt++;
-			link_set_timer(l_ptr, timer_intv);
 			break;
 		case STARTING_EVT:
 			l_ptr->flags |= LINK_STARTED;
-			l_ptr->silent_intv_cnt++;
 			link_set_timer(l_ptr, timer_intv);
 			break;
-		case TIMEOUT_EVT:
+		case SILENCE_EVT:
 			tipc_link_proto_xmit(l_ptr, RESET_MSG, 0, 0, 0, 0);
-			l_ptr->silent_intv_cnt++;
-			link_set_timer(l_ptr, timer_intv);
 			break;
 		default:
 			pr_err("%s%u in RU state\n", link_unk_evt, event);
@@ -644,21 +610,16 @@ static void link_state_event(struct tipc_link *l_ptr, unsigned int event)
 			if (other && link_working_unknown(other))
 				break;
 			l_ptr->state = WORKING_WORKING;
-			l_ptr->silent_intv_cnt = 0;
 			link_activate(l_ptr);
 			tipc_link_proto_xmit(l_ptr, STATE_MSG, 1, 0, 0, 0);
-			l_ptr->silent_intv_cnt++;
 			if (l_ptr->owner->working_links == 1)
 				tipc_link_sync_xmit(l_ptr);
-			link_set_timer(l_ptr, timer_intv);
 			break;
 		case RESET_MSG:
 			break;
-		case TIMEOUT_EVT:
+		case SILENCE_EVT:
 			tipc_link_proto_xmit(l_ptr, ACTIVATE_MSG,
 					     0, 0, 0, 0);
-			l_ptr->silent_intv_cnt++;
-			link_set_timer(l_ptr, timer_intv);
 			break;
 		default:
 			pr_err("%s%u in RR state\n", link_unk_evt, event);
@@ -1126,6 +1087,8 @@ void tipc_rcv(struct net *net, struct sk_buff *skb, struct tipc_bearer *b_ptr)
 			skb = NULL;
 			goto unlock;
 		}
+		l_ptr->silent_intv_cnt = 0;
+
 		/* Synchronize with parallel link if applicable */
 		if (unlikely((l_ptr->flags & LINK_SYNCHING) && !msg_dup(msg))) {
 			if (!link_synch(l_ptr))
@@ -1295,8 +1258,8 @@ static void link_handle_out_of_seq_msg(struct tipc_link *l_ptr,
 		return;
 	}
 
-	/* Record OOS packet arrival (force mismatch on next timeout) */
-	l_ptr->checkpoint--;
+	/* Record OOS packet arrival */
+	l_ptr->silent_intv_cnt = 0;
 
 	/*
 	 * Discard packet if a duplicate; otherwise add it to deferred queue
@@ -1480,7 +1443,7 @@ static void tipc_link_proto_rcv(struct tipc_link *l_ptr,
 		}
 
 		/* Record reception; force mismatch at next timeout: */
-		l_ptr->checkpoint--;
+		l_ptr->silent_intv_cnt = 0;
 
 		link_state_event(l_ptr, TRAFFIC_MSG_EVT);
 		l_ptr->stats.recv_states++;

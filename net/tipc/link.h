@@ -107,7 +107,6 @@ struct tipc_stats {
  * @owner: pointer to peer node
  * @refcnt: reference counter for permanent references (owner node & timer)
  * @flags: execution state flags for link endpoint instance
- * @checkpoint: reference point for triggering link continuity checking
  * @peer_session: link session # being used by peer end of link
  * @peer_bearer_id: bearer id used by link's peer endpoint
  * @bearer_id: local bearer id used by link
@@ -151,7 +150,6 @@ struct tipc_link {
 
 	/* Management and link supervision data */
 	unsigned int flags;
-	u16 checkpoint;
 	u32 peer_session;
 	u32 peer_bearer_id;
 	u32 bearer_id;
