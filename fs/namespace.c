@@ -3214,9 +3214,8 @@ static bool fs_fully_visible(struct file_system_type *type, int *new_mnt_flags)
 			/* Only worry about locked mounts */
 			if (!(mnt->mnt.mnt_flags & MNT_LOCKED))
 				continue;
-			if (!S_ISDIR(inode->i_mode))
-				goto next;
-			if (inode->i_nlink > 2)
+			/* Is the directory permanetly empty? */
+			if (!is_empty_dir_inode(inode))
 				goto next;
 		}
 		/* Preserve the locked attributes */
