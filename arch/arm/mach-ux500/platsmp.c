@@ -16,6 +16,8 @@
 #include <linux/device.h>
 #include <linux/smp.h>
 #include <linux/io.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
 
 #include <asm/cacheflush.h>
 #include <asm/smp_plat.h>
@@ -122,8 +124,13 @@ static void __init wakeup_secondary(void)
 static void __init ux500_smp_init_cpus(void)
 {
 	unsigned int i, ncores;
+	struct device_node *np;
 
-	scu_base = ioremap(U8500_SCU_BASE, 0x100);
+	np = of_find_compatible_node(NULL, NULL, "arm,cortex-a9-scu");
+	scu_base = of_iomap(np, 0);
+	of_node_put(np);
+	if (!scu_base)
+		return;
 	backupram = ioremap(U8500_BACKUPRAM0_BASE, SZ_8K);
 	ncores = scu_get_core_count(scu_base);
 
