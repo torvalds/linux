@@ -861,6 +861,7 @@ retest:
 		cm_reject_sidr_req(cm_id_priv, IB_SIDR_REJECT);
 		break;
 	case IB_CM_REQ_SENT:
+	case IB_CM_MRA_REQ_RCVD:
 		ib_cancel_mad(cm_id_priv->av.port->mad_agent, cm_id_priv->msg);
 		spin_unlock_irq(&cm_id_priv->lock);
 		ib_send_cm_rej(cm_id, IB_CM_REJ_TIMEOUT,
@@ -879,7 +880,6 @@ retest:
 				       NULL, 0, NULL, 0);
 		}
 		break;
-	case IB_CM_MRA_REQ_RCVD:
 	case IB_CM_REP_SENT:
 	case IB_CM_MRA_REP_RCVD:
 		ib_cancel_mad(cm_id_priv->av.port->mad_agent, cm_id_priv->msg);
