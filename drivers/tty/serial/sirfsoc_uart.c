@@ -606,14 +606,18 @@ static irqreturn_t sirfsoc_uart_isr(int irq, void *dev_id)
 			if (uart_handle_break(port))
 				goto recv_char;
 		}
-		if (intr_status & uint_st->sirfsoc_rx_oflow)
+		if (intr_status & uint_st->sirfsoc_rx_oflow) {
 			port->icount.overrun++;
+			flag = TTY_OVERRUN;
+		}
 		if (intr_status & uint_st->sirfsoc_frm_err) {
 			port->icount.frame++;
 			flag = TTY_FRAME;
 		}
-		if (intr_status & uint_st->sirfsoc_parity_err)
+		if (intr_status & uint_st->sirfsoc_parity_err) {
+			port->icount.parity++;
 			flag = TTY_PARITY;
+		}
 		wr_regl(port, ureg->sirfsoc_rx_fifo_op, SIRFUART_FIFO_RESET);
 		wr_regl(port, ureg->sirfsoc_rx_fifo_op, 0);
 		wr_regl(port, ureg->sirfsoc_rx_fifo_op, SIRFUART_FIFO_START);
@@ -932,10 +936,11 @@ static void sirfsoc_uart_set_termios(struct uart_port *port,
 					config_reg |= SIRFUART_STICK_BIT_MARK;
 				else
 					config_reg |= SIRFUART_STICK_BIT_SPACE;
-			} else if (termios->c_cflag & PARODD) {
-				config_reg |= SIRFUART_STICK_BIT_ODD;
 			} else {
-				config_reg |= SIRFUART_STICK_BIT_EVEN;
+				if (termios->c_cflag & PARODD)
+					config_reg |= SIRFUART_STICK_BIT_ODD;
+				else
+					config_reg |= SIRFUART_STICK_BIT_EVEN;
 			}
 		}
 	} else {
