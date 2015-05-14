@@ -973,7 +973,13 @@ static ssize_t f_midi_opts_id_show(struct f_midi_opts *opts, char *page)
 	int result;
 
 	mutex_lock(&opts->lock);
-	result = strlcpy(page, opts->id, PAGE_SIZE);
+	if (opts->id) {
+		result = strlcpy(page, opts->id, PAGE_SIZE);
+	} else {
+		page[0] = 0;
+		result = 0;
+	}
+
 	mutex_unlock(&opts->lock);
 
 	return result;
