@@ -926,16 +926,6 @@ void __ceph_remove_cap(struct ceph_cap *cap, bool queue_release)
 
 	/* remove from session list */
 	spin_lock(&session->s_cap_lock);
-	/*
-	 * s_cap_reconnect is protected by s_cap_lock. no one changes
-	 * s_cap_gen while session is in the reconnect state.
-	 */
-	if (queue_release &&
-	    (!session->s_cap_reconnect ||
-	     cap->cap_gen == session->s_cap_gen))
-		__queue_cap_release(session, ci->i_vino.ino, cap->cap_id,
-				    cap->mseq, cap->issue_seq);
-
 	if (session->s_cap_iterator == cap) {
 		/* not yet, we are iterating over this very cap */
 		dout("__ceph_remove_cap  delaying %p removal from session %p\n",
@@ -948,6 +938,25 @@ void __ceph_remove_cap(struct ceph_cap *cap, bool queue_release)
 	}
 	/* protect backpointer with s_cap_lock: see iterate_session_caps */
 	cap->ci = NULL;
+
+	/*
+	 * s_cap_reconnect is protected by s_cap_lock. no one changes
+	 * s_cap_gen while session is in the reconnect state.
+	 */
+	if (queue_release &&
+	    (!session->s_cap_reconnect || cap->cap_gen == session->s_cap_gen)) {
+		cap->queue_release = 1;
+		if (removed) {
+			list_add_tail(&cap->session_caps,
+				      &session->s_cap_releases);
+			session->s_num_cap_releases++;
+			removed = 0;
+		}
+	} else {
+		cap->queue_release = 0;
+	}
+	cap->cap_ino = ci->i_vino.ino;
+
 	spin_unlock(&session->s_cap_lock);
 
 	/* remove from inode list */
@@ -1051,44 +1060,6 @@ static int send_cap_msg(struct ceph_mds_session *session,
 
 	ceph_con_send(&session->s_con, msg);
 	return 0;
-}
-
-void __queue_cap_release(struct ceph_mds_session *session,
-			 u64 ino, u64 cap_id, u32 migrate_seq,
-			 u32 issue_seq)
-{
-	struct ceph_msg *msg;
-	struct ceph_mds_cap_release *head;
-	struct ceph_mds_cap_item *item;
-
-	BUG_ON(!session->s_num_cap_releases);
-	msg = list_first_entry(&session->s_cap_releases,
-			       struct ceph_msg, list_head);
-
-	dout(" adding %llx release to mds%d msg %p (%d left)\n",
-	     ino, session->s_mds, msg, session->s_num_cap_releases);
-
-	BUG_ON(msg->front.iov_len + sizeof(*item) > PAGE_CACHE_SIZE);
-	head = msg->front.iov_base;
-	le32_add_cpu(&head->num, 1);
-	item = msg->front.iov_base + msg->front.iov_len;
-	item->ino = cpu_to_le64(ino);
-	item->cap_id = cpu_to_le64(cap_id);
-	item->migrate_seq = cpu_to_le32(migrate_seq);
-	item->seq = cpu_to_le32(issue_seq);
-
-	session->s_num_cap_releases--;
-
-	msg->front.iov_len += sizeof(*item);
-	if (le32_to_cpu(head->num) == CEPH_CAPS_PER_RELEASE) {
-		dout(" release msg %p full\n", msg);
-		list_move_tail(&msg->list_head, &session->s_cap_releases_done);
-	} else {
-		dout(" release msg %p at %d/%d (%d)\n", msg,
-		     (int)le32_to_cpu(head->num),
-		     (int)CEPH_CAPS_PER_RELEASE,
-		     (int)msg->front.iov_len);
-	}
 }
 
 /*
@@ -3051,7 +3022,6 @@ retry:
 			mutex_lock_nested(&session->s_mutex,
 					  SINGLE_DEPTH_NESTING);
 		}
-		ceph_add_cap_releases(mdsc, tsession);
 		new_cap = ceph_get_cap(mdsc, NULL);
 	} else {
 		WARN_ON(1);
@@ -3247,16 +3217,20 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 	dout(" mds%d seq %lld cap seq %u\n", session->s_mds, session->s_seq,
 	     (unsigned)seq);
 
-	if (op == CEPH_CAP_OP_IMPORT)
-		ceph_add_cap_releases(mdsc, session);
-
 	if (!inode) {
 		dout(" i don't have ino %llx\n", vino.ino);
 
 		if (op == CEPH_CAP_OP_IMPORT) {
+			cap = ceph_get_cap(mdsc, NULL);
+			cap->cap_ino = vino.ino;
+			cap->queue_release = 1;
+			cap->cap_id = cap_id;
+			cap->mseq = mseq;
+			cap->seq = seq;
 			spin_lock(&session->s_cap_lock);
-			__queue_cap_release(session, vino.ino, cap_id,
-					    mseq, seq);
+			list_add_tail(&cap->session_caps,
+					&session->s_cap_releases);
+			session->s_num_cap_releases++;
 			spin_unlock(&session->s_cap_lock);
 		}
 		goto flush_cap_releases;
@@ -3332,11 +3306,10 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 
 flush_cap_releases:
 	/*
-	 * send any full release message to try to move things
+	 * send any cap release message to try to move things
 	 * along for the mds (who clearly thinks we still have this
 	 * cap).
 	 */
-	ceph_add_cap_releases(mdsc, session);
 	ceph_send_cap_releases(mdsc, session);
 
 done:

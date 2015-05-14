@@ -122,11 +122,21 @@ struct ceph_cap {
 	struct rb_node ci_node;          /* per-ci cap tree */
 	struct ceph_mds_session *session;
 	struct list_head session_caps;   /* per-session caplist */
-	int mds;
 	u64 cap_id;       /* unique cap id (mds provided) */
-	int issued;       /* latest, from the mds */
-	int implemented;  /* implemented superset of issued (for revocation) */
-	int mds_wanted;
+	union {
+		/* in-use caps */
+		struct {
+			int issued;       /* latest, from the mds */
+			int implemented;  /* implemented superset of
+					     issued (for revocation) */
+			int mds, mds_wanted;
+		};
+		/* caps to release */
+		struct {
+			u64 cap_ino;
+			int queue_release;
+		};
+	};
 	u32 seq, issue_seq, mseq;
 	u32 cap_gen;      /* active/stale cycle */
 	unsigned long last_used;
@@ -845,8 +855,6 @@ extern void ceph_put_cap(struct ceph_mds_client *mdsc,
 			 struct ceph_cap *cap);
 extern int ceph_is_any_caps(struct inode *inode);
 
-extern void __queue_cap_release(struct ceph_mds_session *session, u64 ino,
-				u64 cap_id, u32 migrate_seq, u32 issue_seq);
 extern void ceph_queue_caps_release(struct inode *inode);
 extern int ceph_write_inode(struct inode *inode, struct writeback_control *wbc);
 extern int ceph_fsync(struct file *file, loff_t start, loff_t end,
