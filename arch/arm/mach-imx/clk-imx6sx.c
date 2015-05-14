@@ -216,7 +216,7 @@ static void __init imx6sx_clocks_init(struct device_node *ccm_node)
 	clks[IMX6SX_CLK_USBPHY1_GATE] = imx_clk_gate("usbphy1_gate", "dummy", base + 0x10, 6);
 	clks[IMX6SX_CLK_USBPHY2_GATE] = imx_clk_gate("usbphy2_gate", "dummy", base + 0x20, 6);
 
-	/* FIXME 100Mhz is used for pcie ref for all imx6 pcie, excepted imx6q */
+	/* FIXME 100MHz is used for pcie ref for all imx6 pcie, excepted imx6q */
 	clks[IMX6SX_CLK_PCIE_REF] = imx_clk_fixed_factor("pcie_ref", "pll6_enet", 1, 5);
 	clks[IMX6SX_CLK_PCIE_REF_125M] = imx_clk_gate("pcie_ref_125m", "pcie_ref", base + 0xe0, 19);
 
@@ -520,7 +520,7 @@ static void __init imx6sx_clocks_init(struct device_node *ccm_node)
 		pr_err("Failed to set pcie parent clk.\n");
 
 	/*
-	 * Init enet system AHB clock, set to 200Mhz
+	 * Init enet system AHB clock, set to 200MHz
 	 * pll2_pfd2_396m-> ENET_PODF-> ENET_AHB
 	 */
 	clk_set_parent(clks[IMX6SX_CLK_ENET_PRE_SEL], clks[IMX6SX_CLK_PLL2_PFD2]);
