@@ -1055,24 +1055,19 @@ config TOSHIBA
 	  Say N otherwise.
 
 config I8K
-	tristate "Dell laptop support"
+	tristate "Dell i8k legacy laptop support"
 	select HWMON
+	select SENSORS_DELL_SMM
 	---help---
-	  This adds a driver to safely access the System Management Mode
-	  of the CPU on the Dell Inspiron 8000. The System Management Mode
-	  is used to read cpu temperature and cooling fan status and to
-	  control the fans on the I8K portables.
+	  This option enables legacy /proc/i8k userspace interface in hwmon
+	  dell-smm-hwmon driver. Character file /proc/i8k reports bios version,
+	  temperature and allows controlling fan speeds of Dell laptops via
+	  System Management Mode. For old Dell laptops (like Dell Inspiron 8000)
+	  it reports also power and hotkey status. For fan speed control is
+	  needed userspace package i8kutils.
 
-	  This driver has been tested only on the Inspiron 8000 but it may
-	  also work with other Dell laptops. You can force loading on other
-	  models by passing the parameter `force=1' to the module. Use at
-	  your own risk.
-
-	  For information on utilities to make use of this driver see the
-	  I8K Linux utilities web site at:
-	  <http://people.debian.org/~dz/i8k/>
-
-	  Say Y if you intend to run this kernel on a Dell Inspiron 8000.
+	  Say Y if you intend to run this kernel on old Dell laptops or want to
+	  use userspace package i8kutils.
 	  Say N otherwise.
 
 config X86_REBOOTFIXUPS
