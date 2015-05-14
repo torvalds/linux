@@ -200,10 +200,8 @@ struct clk *clk_register_composite(struct device *dev, const char *name,
 	struct clk_ops *clk_composite_ops;
 
 	composite = kzalloc(sizeof(*composite), GFP_KERNEL);
-	if (!composite) {
-		pr_err("%s: could not allocate composite clk\n", __func__);
+	if (!composite)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	init.name = name;
 	init.flags = flags | CLK_IS_BASIC;

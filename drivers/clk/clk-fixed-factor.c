@@ -74,10 +74,8 @@ struct clk *clk_register_fixed_factor(struct device *dev, const char *name,
 	struct clk *clk;
 
 	fix = kmalloc(sizeof(*fix), GFP_KERNEL);
-	if (!fix) {
-		pr_err("%s: could not allocate fixed factor clk\n", __func__);
+	if (!fix)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	/* struct clk_fixed_factor assignments */
 	fix->mult = mult;
