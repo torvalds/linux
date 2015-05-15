@@ -1359,13 +1359,18 @@ static int __init init_f2fs_fs(void)
 		err = -ENOMEM;
 		goto free_extent_cache;
 	}
-	err = register_filesystem(&f2fs_fs_type);
+	err = f2fs_init_crypto();
 	if (err)
 		goto free_kset;
+	err = register_filesystem(&f2fs_fs_type);
+	if (err)
+		goto free_crypto;
 	f2fs_create_root_stats();
 	f2fs_proc_root = proc_mkdir("fs/f2fs", NULL);
 	return 0;
 
+free_crypto:
+	f2fs_exit_crypto();
 free_kset:
 	kset_unregister(f2fs_kset);
 free_extent_cache:
@@ -1387,6 +1392,7 @@ static void __exit exit_f2fs_fs(void)
 	remove_proc_entry("fs/f2fs", NULL);
 	f2fs_destroy_root_stats();
 	unregister_filesystem(&f2fs_fs_type);
+	f2fs_exit_crypto();
 	destroy_extent_cache();
 	destroy_checkpoint_caches();
 	destroy_segment_manager_caches();

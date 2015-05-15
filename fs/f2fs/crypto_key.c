@@ -115,11 +115,9 @@ int _f2fs_get_encryption_info(struct inode *inode)
 	struct user_key_payload *ukp;
 	int res;
 
-	if (!f2fs_read_workqueue) {
-		res = f2fs_init_crypto();
-		if (res)
-			return res;
-	}
+	res = f2fs_crypto_initialize();
+	if (res)
+		return res;
 
 	if (fi->i_crypt_info) {
 		if (!fi->i_crypt_info->ci_keyring_key ||

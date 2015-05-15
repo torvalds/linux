@@ -2005,7 +2005,6 @@ int f2fs_get_policy(struct inode *, struct f2fs_encryption_policy *);
 
 /* crypt.c */
 extern struct kmem_cache *f2fs_crypt_info_cachep;
-extern struct workqueue_struct *f2fs_read_workqueue;
 bool f2fs_valid_contents_enc_mode(uint32_t);
 uint32_t f2fs_validate_encryption_key_size(uint32_t, uint32_t);
 struct f2fs_crypto_ctx *f2fs_get_crypto_ctx(struct inode *);
@@ -2032,7 +2031,8 @@ int f2fs_fname_usr_to_disk(struct inode *, const struct qstr *,
 void f2fs_restore_and_release_control_page(struct page **);
 void f2fs_restore_control_page(struct page *);
 
-int f2fs_init_crypto(void);
+int __init f2fs_init_crypto(void);
+int f2fs_crypto_initialize(void);
 void f2fs_exit_crypto(void);
 
 int f2fs_has_encryption_key(struct inode *);
@@ -2059,7 +2059,7 @@ void f2fs_fname_free_filename(struct f2fs_filename *);
 static inline void f2fs_restore_and_release_control_page(struct page **p) { }
 static inline void f2fs_restore_control_page(struct page *p) { }
 
-static inline int f2fs_init_crypto(void) { return 0; }
+static inline int __init f2fs_init_crypto(void) { return 0; }
 static inline void f2fs_exit_crypto(void) { }
 
 static inline int f2fs_has_encryption_key(struct inode *i) { return 0; }

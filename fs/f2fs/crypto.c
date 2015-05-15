@@ -63,7 +63,7 @@ static mempool_t *f2fs_bounce_page_pool;
 static LIST_HEAD(f2fs_free_crypto_ctxs);
 static DEFINE_SPINLOCK(f2fs_crypto_ctx_lock);
 
-struct workqueue_struct *f2fs_read_workqueue;
+static struct workqueue_struct *f2fs_read_workqueue;
 static DEFINE_MUTEX(crypto_init);
 
 static struct kmem_cache *f2fs_crypto_ctx_cachep;
@@ -225,10 +225,7 @@ void f2fs_end_io_crypto_work(struct f2fs_crypto_ctx *ctx, struct bio *bio)
 	queue_work(f2fs_read_workqueue, &ctx->r.work);
 }
 
-/**
- * f2fs_exit_crypto() - Shutdown the f2fs encryption system
- */
-void f2fs_exit_crypto(void)
+static void f2fs_crypto_destroy(void)
 {
 	struct f2fs_crypto_ctx *pos, *n;
 
@@ -241,70 +238,87 @@ void f2fs_exit_crypto(void)
 	if (f2fs_bounce_page_pool)
 		mempool_destroy(f2fs_bounce_page_pool);
 	f2fs_bounce_page_pool = NULL;
-	if (f2fs_read_workqueue)
-		destroy_workqueue(f2fs_read_workqueue);
-	f2fs_read_workqueue = NULL;
-	if (f2fs_crypto_ctx_cachep)
-		kmem_cache_destroy(f2fs_crypto_ctx_cachep);
-	f2fs_crypto_ctx_cachep = NULL;
-	if (f2fs_crypt_info_cachep)
-		kmem_cache_destroy(f2fs_crypt_info_cachep);
-	f2fs_crypt_info_cachep = NULL;
 }
 
 /**
- * f2fs_init_crypto() - Set up for f2fs encryption.
+ * f2fs_crypto_initialize() - Set up for f2fs encryption.
  *
  * We only call this when we start accessing encrypted files, since it
  * results in memory getting allocated that wouldn't otherwise be used.
  *
  * Return: Zero on success, non-zero otherwise.
  */
-int f2fs_init_crypto(void)
+int f2fs_crypto_initialize(void)
 {
 	int i, res = -ENOMEM;
 
+	if (f2fs_bounce_page_pool)
+		return 0;
+
 	mutex_lock(&crypto_init);
-	if (f2fs_read_workqueue)
+	if (f2fs_bounce_page_pool)
 		goto already_initialized;
+
+	for (i = 0; i < num_prealloc_crypto_ctxs; i++) {
+		struct f2fs_crypto_ctx *ctx;
+
+		ctx = kmem_cache_zalloc(f2fs_crypto_ctx_cachep, GFP_KERNEL);
+		if (!ctx)
+			goto fail;
+		list_add(&ctx->free_list, &f2fs_free_crypto_ctxs);
+	}
+
+	/* must be allocated at the last step to avoid race condition above */
+	f2fs_bounce_page_pool =
+		mempool_create_page_pool(num_prealloc_crypto_pages, 0);
+	if (!f2fs_bounce_page_pool)
+		goto fail;
+
+already_initialized:
+	mutex_unlock(&crypto_init);
+	return 0;
+fail:
+	f2fs_crypto_destroy();
+	mutex_unlock(&crypto_init);
+	return res;
+}
+
+/**
+ * f2fs_exit_crypto() - Shutdown the f2fs encryption system
+ */
+void f2fs_exit_crypto(void)
+{
+	f2fs_crypto_destroy();
+
+	if (f2fs_read_workqueue)
+		destroy_workqueue(f2fs_read_workqueue);
+	if (f2fs_crypto_ctx_cachep)
+		kmem_cache_destroy(f2fs_crypto_ctx_cachep);
+	if (f2fs_crypt_info_cachep)
+		kmem_cache_destroy(f2fs_crypt_info_cachep);
+}
+
+int __init f2fs_init_crypto(void)
+{
+	int res = -ENOMEM;
 
 	f2fs_read_workqueue = alloc_workqueue("f2fs_crypto", WQ_HIGHPRI, 0);
 	if (!f2fs_read_workqueue)
 		goto fail;
 
 	f2fs_crypto_ctx_cachep = KMEM_CACHE(f2fs_crypto_ctx,
-					    SLAB_RECLAIM_ACCOUNT);
+						SLAB_RECLAIM_ACCOUNT);
 	if (!f2fs_crypto_ctx_cachep)
 		goto fail;
 
 	f2fs_crypt_info_cachep = KMEM_CACHE(f2fs_crypt_info,
-					    SLAB_RECLAIM_ACCOUNT);
+						SLAB_RECLAIM_ACCOUNT);
 	if (!f2fs_crypt_info_cachep)
 		goto fail;
 
-	for (i = 0; i < num_prealloc_crypto_ctxs; i++) {
-		struct f2fs_crypto_ctx *ctx;
-
-		ctx = kmem_cache_zalloc(f2fs_crypto_ctx_cachep, GFP_KERNEL);
-		if (!ctx) {
-			res = -ENOMEM;
-			goto fail;
-		}
-		list_add(&ctx->free_list, &f2fs_free_crypto_ctxs);
-	}
-
-	f2fs_bounce_page_pool =
-		mempool_create_page_pool(num_prealloc_crypto_pages, 0);
-	if (!f2fs_bounce_page_pool) {
-		res = -ENOMEM;
-		goto fail;
-	}
-already_initialized:
-	mutex_unlock(&crypto_init);
 	return 0;
 fail:
 	f2fs_exit_crypto();
-	mutex_unlock(&crypto_init);
 	return res;
 }
 
