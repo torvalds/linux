@@ -366,14 +366,18 @@
 			clocks = <&refclk>;
 			clock-names = "refclk";
 
-			twsi0_pmux: twsi0-pmux {
-				groups = "G6";
-				function = "twsi0";
-			};
+			soc_pinctrl: pin-controller {
+				compatible = "marvell,berlin2q-soc-pinctrl";
 
-			twsi1_pmux: twsi1-pmux {
-				groups = "G7";
-				function = "twsi1";
+				twsi0_pmux: twsi0-pmux {
+					groups = "G6";
+					function = "twsi0";
+				};
+
+				twsi1_pmux: twsi1-pmux {
+					groups = "G7";
+					function = "twsi1";
+				};
 			};
 
 			chip_rst: reset {
@@ -533,24 +537,28 @@
 				compatible = "marvell,berlin2q-system-ctrl", "simple-mfd", "syscon";
 				reg = <0xd000 0x100>;
 
-				uart0_pmux: uart0-pmux {
-					groups = "GSM12";
-					function = "uart0";
-				};
+				sys_pinctrl: pin-controller {
+					compatible = "marvell,berlin2q-system-pinctrl";
 
-				uart1_pmux: uart1-pmux {
-					groups = "GSM14";
-					function = "uart1";
-				};
+					uart0_pmux: uart0-pmux {
+						groups = "GSM12";
+						function = "uart0";
+					};
 
-				twsi2_pmux: twsi2-pmux {
-					groups = "GSM13";
-					function = "twsi2";
-				};
+					uart1_pmux: uart1-pmux {
+						groups = "GSM14";
+						function = "uart1";
+					};
 
-				twsi3_pmux: twsi3-pmux {
-					groups = "GSM14";
-					function = "twsi3";
+					twsi2_pmux: twsi2-pmux {
+						groups = "GSM13";
+						function = "twsi2";
+					};
+
+					twsi3_pmux: twsi3-pmux {
+						groups = "GSM14";
+						function = "twsi3";
+					};
 				};
 			};
 

@@ -301,9 +301,13 @@
 			clocks = <&refclk>;
 			clock-names = "refclk";
 
-			uart0_pmux: uart0-pmux {
-				groups = "G6";
-				function = "uart0";
+			soc_pinctrl: pin-controller {
+				compatible = "marvell,berlin2cd-soc-pinctrl";
+
+				uart0_pmux: uart0-pmux {
+					groups = "G6";
+					function = "uart0";
+				};
 			};
 
 			chip_rst: reset {
@@ -395,6 +399,10 @@
 			sysctrl: system-controller@d000 {
 				compatible = "marvell,berlin2cd-system-ctrl", "simple-mfd", "syscon";
 				reg = <0xd000 0x100>;
+
+				sys_pinctrl: pin-controller {
+					compatible = "marvell,berlin2cd-system-pinctrl";
+				};
 			};
 
 			sic: interrupt-controller@e000 {

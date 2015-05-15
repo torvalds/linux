@@ -357,9 +357,13 @@
 			clocks = <&refclk>;
 			clock-names = "refclk";
 
-			emmc_pmux: emmc-pmux {
-				groups = "G26";
-				function = "emmc";
+			soc_pinctrl: pin-controller {
+				compatible = "marvell,berlin2-soc-pinctrl";
+
+				emmc_pmux: emmc-pmux {
+					groups = "G26";
+					function = "emmc";
+				};
 			};
 
 			chip_rst: reset {
@@ -449,19 +453,21 @@
 				compatible = "marvell,berlin2-system-ctrl", "simple-mfd", "syscon";
 				reg = <0xd000 0x100>;
 
-				uart0_pmux: uart0-pmux {
-					groups = "GSM4";
-					function = "uart0";
-				};
+				sys_pinctrl: pin-controller {
+					compatible = "marvell,berlin2-system-pinctrl";
+					uart0_pmux: uart0-pmux {
+						groups = "GSM4";
+						function = "uart0";
+					};
 
-				uart1_pmux: uart1-pmux {
-					groups = "GSM5";
-					function = "uart1";
-				};
-
-				uart2_pmux: uart2-pmux {
-					groups = "GSM3";
-					function = "uart2";
+					uart1_pmux: uart1-pmux {
+						groups = "GSM5";
+						function = "uart1";
+					};
+					uart2_pmux: uart2-pmux {
+						groups = "GSM3";
+						function = "uart2";
+					};
 				};
 			};
 
