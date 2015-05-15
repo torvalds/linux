@@ -25,6 +25,79 @@ DECLARE_DM_KCOPYD_THROTTLE_WITH_MODULE_PARM(cache_copy_throttle,
 
 /*----------------------------------------------------------------*/
 
+#define IOT_RESOLUTION 4
+
+struct io_tracker {
+	spinlock_t lock;
+
+	/*
+	 * Sectors of in-flight IO.
+	 */
+	sector_t in_flight;
+
+	/*
+	 * The time, in jiffies, when this device became idle (if it is
+	 * indeed idle).
+	 */
+	unsigned long idle_time;
+	unsigned long last_update_time;
+};
+
+static void iot_init(struct io_tracker *iot)
+{
+	spin_lock_init(&iot->lock);
+	iot->in_flight = 0ul;
+	iot->idle_time = 0ul;
+	iot->last_update_time = jiffies;
+}
+
+static bool __iot_idle_for(struct io_tracker *iot, unsigned long jifs)
+{
+	if (iot->in_flight)
+		return false;
+
+	return time_after(jiffies, iot->idle_time + jifs);
+}
+
+static bool iot_idle_for(struct io_tracker *iot, unsigned long jifs)
+{
+	bool r;
+	unsigned long flags;
+
+	spin_lock_irqsave(&iot->lock, flags);
+	r = __iot_idle_for(iot, jifs);
+	spin_unlock_irqrestore(&iot->lock, flags);
+
+	return r;
+}
+
+static void iot_io_begin(struct io_tracker *iot, sector_t len)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&iot->lock, flags);
+	iot->in_flight += len;
+	spin_unlock_irqrestore(&iot->lock, flags);
+}
+
+static void __iot_io_end(struct io_tracker *iot, sector_t len)
+{
+	iot->in_flight -= len;
+	if (!iot->in_flight)
+		iot->idle_time = jiffies;
+}
+
+static void iot_io_end(struct io_tracker *iot, sector_t len)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&iot->lock, flags);
+	__iot_io_end(iot, len);
+	spin_unlock_irqrestore(&iot->lock, flags);
+}
+
+/*----------------------------------------------------------------*/
+
 /*
  * Glossary:
  *
