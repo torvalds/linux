@@ -101,20 +101,22 @@
 		};
 
 		uart0: serial@40081000 {
-			compatible = "ns16550a";
+			compatible = "nxp,lpc1850-uart", "ns16550a";
 			reg = <0x40081000 0x1000>;
 			reg-shift = <2>;
 			interrupts = <24>;
 			clocks = <&ccu2 CLK_APB0_UART0>, <&ccu1 CLK_CPU_UART0>;
+			clock-names = "uartclk", "reg";
 			status = "disabled";
 		};
 
 		uart1: serial@40082000 {
-			compatible = "ns16550a";
+			compatible = "nxp,lpc1850-uart", "ns16550a";
 			reg = <0x40082000 0x1000>;
 			reg-shift = <2>;
 			interrupts = <25>;
 			clocks = <&ccu2 CLK_APB0_UART1>, <&ccu1 CLK_CPU_UART1>;
+			clock-names = "uartclk", "reg";
 			status = "disabled";
 		};
 
@@ -135,20 +137,22 @@
 		};
 
 		uart2: serial@400c1000 {
-			compatible = "ns16550a";
+			compatible = "nxp,lpc1850-uart", "ns16550a";
 			reg = <0x400c1000 0x1000>;
 			reg-shift = <2>;
 			interrupts = <26>;
 			clocks = <&ccu2 CLK_APB2_UART2>, <&ccu1 CLK_CPU_UART2>;
+			clock-names = "uartclk", "reg";
 			status = "disabled";
 		};
 
 		uart3: serial@400c2000 {
-			compatible = "ns16550a";
+			compatible = "nxp,lpc1850-uart", "ns16550a";
 			reg = <0x400c2000 0x1000>;
 			reg-shift = <2>;
 			interrupts = <27>;
 			clocks = <&ccu2 CLK_APB2_UART3>, <&ccu1 CLK_CPU_UART3>;
+			clock-names = "uartclk", "reg";
 			status = "disabled";
 		};
 
