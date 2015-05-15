@@ -1151,8 +1151,6 @@ void drm_atomic_helper_commit_planes(struct drm_device *dev,
 		if (!funcs)
 			continue;
 
-		old_plane_state = old_state->plane_states[i];
-
 		/*
 		 * Special-case disabling the plane if drivers support it.
 		 */
