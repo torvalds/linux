@@ -485,10 +485,10 @@ static int adis16400_read_raw(struct iio_dev *indio_dev,
 	}
 }
 
-#define ADIS16400_VOLTAGE_CHAN(addr, bits, name, si) { \
+#define ADIS16400_VOLTAGE_CHAN(addr, bits, name, si, chn) { \
 	.type = IIO_VOLTAGE, \
 	.indexed = 1, \
-	.channel = 0, \
+	.channel = chn, \
 	.extend_name = name, \
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | \
 		BIT(IIO_CHAN_INFO_SCALE), \
@@ -504,10 +504,10 @@ static int adis16400_read_raw(struct iio_dev *indio_dev,
 }
 
 #define ADIS16400_SUPPLY_CHAN(addr, bits) \
-	ADIS16400_VOLTAGE_CHAN(addr, bits, "supply", ADIS16400_SCAN_SUPPLY)
+	ADIS16400_VOLTAGE_CHAN(addr, bits, "supply", ADIS16400_SCAN_SUPPLY, 0)
 
 #define ADIS16400_AUX_ADC_CHAN(addr, bits) \
-	ADIS16400_VOLTAGE_CHAN(addr, bits, NULL, ADIS16400_SCAN_ADC)
+	ADIS16400_VOLTAGE_CHAN(addr, bits, NULL, ADIS16400_SCAN_ADC, 1)
 
 #define ADIS16400_GYRO_CHAN(mod, addr, bits) { \
 	.type = IIO_ANGL_VEL, \
