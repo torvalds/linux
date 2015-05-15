@@ -42,25 +42,6 @@
 
 #include "curproc.h"
 
-#ifndef offsetof
-# define offsetof(typ, memb) ((long)(long_ptr_t)((char *)&(((typ *)0)->memb)))
-#endif
-
-#ifndef ARRAY_SIZE
-#define ARRAY_SIZE(a) ((sizeof(a)) / (sizeof((a)[0])))
-#endif
-
-#if !defined(swap)
-#define swap(x, y) do { typeof(x) z = x; x = y; y = z; } while (0)
-#endif
-
-#if !defined(container_of)
-/* given a pointer @ptr to the field @member embedded into type (usually
- * struct) @type, return pointer to the embedding instance of @type. */
-#define container_of(ptr, type, member) \
-	((type *)((char *)(ptr)-(char *)(&((type *)0)->member)))
-#endif
-
 static inline int __is_po2(unsigned long long val)
 {
 	return !(val & (val - 1));
