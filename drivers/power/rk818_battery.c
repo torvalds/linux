@@ -3186,7 +3186,7 @@ static u8 get_cvcc_charge_hour(struct battery_info *di)
 	battery_read(di->rk818, CHRG_CTRL_REG2, &buf, 1);
 	hour = buf & 0x07;
 
-	return CHG_CVCC_HOUR[buf];
+	return CHG_CVCC_HOUR[hour];
 }
 
 /* we have to estimate the charging finish time from now, to decide
@@ -3920,11 +3920,11 @@ static int rk81x_battery_suspend(struct platform_device *dev,
 		di->sys_wakeup = false;
 	}
 
+	pr_info("rk81x-battery suspend: v=%d ld=%d lr=%d c=%d chg=%d\n",
+		_get_battery_voltage(di), di->real_soc, _get_soc(di),
+		_get_average_current(di), di->status);
+
 	cancel_delayed_work(&di->battery_monitor_work);
-	DBG("<%s>. suspend_rsoc,=%d, suspend_cap=%d\n"
-	    "sleep_status=%d, slp_curr=%d\n",
-	    __func__, di->suspend_rsoc, di->suspend_cap,
-	    di->sleep_status, di->suspend_charge_current);
 
 	return 0;
 }
@@ -3941,7 +3941,11 @@ static int rk81x_battery_resume(struct platform_device *dev)
 	if (di->sleep_status == POWER_SUPPLY_STATUS_CHARGING ||
 	    di->real_soc <= 5)
 		wake_lock_timeout(&di->resume_wake_lock, 5*HZ);
-	DBG("<%s>. current = %d\n", __func__, _get_average_current(di));
+
+	pr_info("rk81x-battery resume: v=%d  rv=%d ld=%d lr=%d c=%d chg=%d\n",
+		_get_battery_voltage(di), get_relax_voltage(di),
+		di->real_soc, _get_soc(di), _get_average_current(di),
+		di->status);
 	return 0;
 }
 static int rk81x_battery_remove(struct platform_device *dev)
