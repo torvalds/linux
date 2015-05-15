@@ -2076,6 +2076,16 @@ config KVM_GUEST_TIMER_FREQ
 	  emulation when determining guest CPU Frequency. Instead, the guest's
 	  timer frequency is specified directly.
 
+config MIPS_VA_BITS_48
+	bool "48 bits virtual memory"
+	depends on 64BIT
+	help
+	  Support a maximum at least 48 bits of application virtual memory.
+	  Default is 40 bits or less, depending on the CPU.
+	  This option result in a small memory overhead for page tables.
+	  This option is only supported with 16k and 64k page sizes.
+	  If unsure, say N.
+
 choice
 	prompt "Kernel page size"
 	default PAGE_SIZE_4KB
@@ -2083,6 +2093,7 @@ choice
 config PAGE_SIZE_4KB
 	bool "4kB"
 	depends on !CPU_LOONGSON2 && !CPU_LOONGSON3
+	depends on !MIPS_VA_BITS_48
 	help
 	 This option select the standard 4kB Linux page size.  On some
 	 R3000-family processors this is the only available page size.  Using
@@ -2092,6 +2103,7 @@ config PAGE_SIZE_4KB
 config PAGE_SIZE_8KB
 	bool "8kB"
 	depends on CPU_R8000 || CPU_CAVIUM_OCTEON
+	depends on !MIPS_VA_BITS_48
 	help
 	  Using 8kB page size will result in higher performance kernel at
 	  the price of higher memory consumption.  This option is available
@@ -2110,6 +2122,7 @@ config PAGE_SIZE_16KB
 config PAGE_SIZE_32KB
 	bool "32kB"
 	depends on CPU_CAVIUM_OCTEON
+	depends on !MIPS_VA_BITS_48
 	help
 	  Using 32kB page size will result in higher performance kernel at
 	  the price of higher memory consumption.  This option is available
