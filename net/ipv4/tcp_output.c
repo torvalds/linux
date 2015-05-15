@@ -2392,7 +2392,7 @@ u32 __tcp_select_window(struct sock *sk)
 	if (free_space < (full_space >> 1)) {
 		icsk->icsk_ack.quick = 0;
 
-		if (sk_under_memory_pressure(sk))
+		if (tcp_under_memory_pressure(sk))
 			tp->rcv_ssthresh = min(tp->rcv_ssthresh,
 					       4U * tp->advmss);
 
@@ -2843,7 +2843,7 @@ void tcp_send_fin(struct sock *sk)
 	 * Note: in the latter case, FIN packet will be sent after a timeout,
 	 * as TCP stack thinks it has already been transmitted.
 	 */
-	if (tskb && (tcp_send_head(sk) || sk_under_memory_pressure(sk))) {
+	if (tskb && (tcp_send_head(sk) || tcp_under_memory_pressure(sk))) {
 coalesce:
 		TCP_SKB_CB(tskb)->tcp_flags |= TCPHDR_FIN;
 		TCP_SKB_CB(tskb)->end_seq++;
