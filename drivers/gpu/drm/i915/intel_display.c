@@ -45,24 +45,23 @@
 #include <drm/drm_rect.h>
 #include <linux/dma_remapping.h>
 
-/* Primary plane formats supported by all gen */
-#define COMMON_PRIMARY_FORMATS \
-	DRM_FORMAT_C8, \
-	DRM_FORMAT_RGB565, \
-	DRM_FORMAT_XRGB8888, \
-	DRM_FORMAT_ARGB8888
-
 /* Primary plane formats for gen <= 3 */
 static const uint32_t i8xx_primary_formats[] = {
-	COMMON_PRIMARY_FORMATS,
+	DRM_FORMAT_C8,
+	DRM_FORMAT_RGB565,
 	DRM_FORMAT_XRGB1555,
 	DRM_FORMAT_ARGB1555,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_ARGB8888,
 };
 
 /* Primary plane formats for gen >= 4 */
 static const uint32_t i965_primary_formats[] = {
-	COMMON_PRIMARY_FORMATS, \
+	DRM_FORMAT_C8,
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_ARGB8888,
 	DRM_FORMAT_ABGR8888,
 	DRM_FORMAT_XRGB2101010,
 	DRM_FORMAT_ARGB2101010,
