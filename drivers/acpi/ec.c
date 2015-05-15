@@ -1269,15 +1269,6 @@ static int ec_validate_ecdt(const struct dmi_system_id *id)
 	return 0;
 }
 
-/* EC firmware needs special polling mode, enable it */
-static int ec_use_busy_polling(const struct dmi_system_id *id)
-{
-	pr_debug("Detected the EC firmware requiring busy polling mode.\n");
-	ec_busy_polling = 1;
-	EC_FLAGS_VALIDATE_ECDT = 1;
-	return 0;
-}
-
 /*
  * Acer EC firmware refuses to respond QR_EC when SCI_EVT is not set, for
  * which case, we complete the QR_EC without issuing it to the firmware.
@@ -1320,29 +1311,9 @@ static struct dmi_system_id ec_dmi_table[] __initdata = {
 	DMI_MATCH(DMI_BIOS_VENDOR, "COMPAL"),
 	DMI_MATCH(DMI_BOARD_NAME, "JFL92") }, NULL},
 	{
-	ec_use_busy_polling, "MSI hardware", {
-	DMI_MATCH(DMI_BIOS_VENDOR, "Micro-Star")}, NULL},
-	{
-	ec_use_busy_polling, "MSI hardware", {
-	DMI_MATCH(DMI_SYS_VENDOR, "Micro-Star")}, NULL},
-	{
-	ec_use_busy_polling, "MSI hardware", {
-	DMI_MATCH(DMI_CHASSIS_VENDOR, "MICRO-Star")}, NULL},
-	{
-	ec_use_busy_polling, "MSI hardware", {
-	DMI_MATCH(DMI_CHASSIS_VENDOR, "MICRO-STAR")}, NULL},
-	{
-	ec_use_busy_polling, "Quanta hardware", {
-	DMI_MATCH(DMI_SYS_VENDOR, "Quanta"),
-	DMI_MATCH(DMI_PRODUCT_NAME, "TW8/SW8/DW8"),}, NULL},
-	{
-	ec_use_busy_polling, "Quanta hardware", {
-	DMI_MATCH(DMI_SYS_VENDOR, "Quanta"),
-	DMI_MATCH(DMI_PRODUCT_NAME, "TW9/SW9"),}, NULL},
-	{
-	ec_use_busy_polling, "Clevo W350etq", {
-	DMI_MATCH(DMI_SYS_VENDOR, "CLEVO CO."),
-	DMI_MATCH(DMI_PRODUCT_NAME, "W35_37ET"),}, NULL},
+	ec_validate_ecdt, "MSI MS-171F", {
+	DMI_MATCH(DMI_SYS_VENDOR, "Micro-Star"),
+	DMI_MATCH(DMI_PRODUCT_NAME, "MS-171F"),}, NULL},
 	{
 	ec_validate_ecdt, "ASUS hardware", {
 	DMI_MATCH(DMI_BIOS_VENDOR, "ASUS") }, NULL},
