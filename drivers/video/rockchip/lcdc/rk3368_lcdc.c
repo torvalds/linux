@@ -4537,6 +4537,41 @@ static int rk3368_lcdc_set_overscan(struct rk_lcdc_driver *dev_drv,
         return 0;
 }
 
+static int rk3368_lcdc_extern_func(struct rk_lcdc_driver *dev_drv,
+					int cmd)
+{
+	struct lcdc_device *lcdc_dev =
+	    container_of(dev_drv, struct lcdc_device, driver);
+	u32 val;
+
+	if (unlikely(!lcdc_dev->clk_on)) {
+		pr_info("%s,clk_on = %d\n", __func__, lcdc_dev->clk_on);
+		return 0;
+	}
+
+	switch (cmd) {
+	case GET_PAGE_FAULT:
+		val = lcdc_readl(lcdc_dev, MMU_INT_RAWSTAT);
+		if ((val & 0x1) == 1) {
+			if ((val & 0x2) == 1)
+				pr_info("val = 0x%x, vop iommu bus error\n", val);
+			else
+				return 1;
+		}
+		break;
+	case CLR_PAGE_FAULT:
+		lcdc_writel(lcdc_dev, MMU_INT_CLEAR, 0x3);
+		break;
+	case UNMASK_PAGE_FAULT:
+		lcdc_writel(lcdc_dev, MMU_INT_MASK, 0x2);
+		break;
+	default:
+		break;
+	}
+
+        return 0;
+}
+
 static struct rk_lcdc_drv_ops lcdc_drv_ops = {
 	.open = rk3368_lcdc_open,
 	.win_direct_en = rk3368_lcdc_win_direct_en,
@@ -4578,6 +4613,7 @@ static struct rk_lcdc_drv_ops lcdc_drv_ops = {
 	.backlight_close = rk3368_lcdc_backlight_close,
 	.mmu_en    = rk3368_lcdc_mmu_en,
 	.set_overscan   = rk3368_lcdc_set_overscan,
+	.extern_func	= rk3368_lcdc_extern_func,
 };
 
 #ifdef LCDC_IRQ_EMPTY_DEBUG
