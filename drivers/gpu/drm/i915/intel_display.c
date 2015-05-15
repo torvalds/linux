@@ -50,7 +50,6 @@ static const uint32_t i8xx_primary_formats[] = {
 	DRM_FORMAT_C8,
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_XRGB1555,
-	DRM_FORMAT_ARGB1555,
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_ARGB8888,
 };
@@ -2699,7 +2698,6 @@ static void i9xx_update_primary_plane(struct drm_crtc *crtc,
 		dspcntr |= DISPPLANE_8BPP;
 		break;
 	case DRM_FORMAT_XRGB1555:
-	case DRM_FORMAT_ARGB1555:
 		dspcntr |= DISPPLANE_BGRX555;
 		break;
 	case DRM_FORMAT_RGB565:
@@ -13981,7 +13979,6 @@ static int intel_framebuffer_init(struct drm_device *dev,
 	case DRM_FORMAT_ARGB8888:
 		break;
 	case DRM_FORMAT_XRGB1555:
-	case DRM_FORMAT_ARGB1555:
 		if (INTEL_INFO(dev)->gen > 3) {
 			DRM_DEBUG("unsupported pixel format: %s\n",
 				  drm_get_format_name(mode_cmd->pixel_format));
