@@ -2076,49 +2076,6 @@ static void task_woken_rt(struct rq *rq, struct task_struct *p)
 		push_rt_tasks(rq);
 }
 
-static void set_cpus_allowed_rt(struct task_struct *p,
-				const struct cpumask *new_mask)
-{
-	struct rq *rq;
-	int weight;
-
-	BUG_ON(!rt_task(p));
-
-	weight = cpumask_weight(new_mask);
-
-	/*
-	 * Only update if the process changes its state from whether it
-	 * can migrate or not.
-	 */
-	if ((p->nr_cpus_allowed > 1) == (weight > 1))
-		goto done;
-
-	if (!task_on_rq_queued(p))
-		goto done;
-
-	rq = task_rq(p);
-
-	/*
-	 * The process used to be able to migrate OR it can now migrate
-	 */
-	if (weight <= 1) {
-		if (!task_current(rq, p))
-			dequeue_pushable_task(rq, p);
-		BUG_ON(!rq->rt.rt_nr_migratory);
-		rq->rt.rt_nr_migratory--;
-	} else {
-		if (!task_current(rq, p))
-			enqueue_pushable_task(rq, p);
-		rq->rt.rt_nr_migratory++;
-	}
-
-	update_rt_migration(&rq->rt);
-
-done:
-	cpumask_copy(&p->cpus_allowed, new_mask);
-	p->nr_cpus_allowed = weight;
-}
-
 /* Assumes rq->lock is held */
 static void rq_online_rt(struct rq *rq)
 {
@@ -2327,7 +2284,7 @@ const struct sched_class rt_sched_class = {
 #ifdef CONFIG_SMP
 	.select_task_rq		= select_task_rq_rt,
 
-	.set_cpus_allowed       = set_cpus_allowed_rt,
+	.set_cpus_allowed       = set_cpus_allowed_common,
 	.rq_online              = rq_online_rt,
 	.rq_offline             = rq_offline_rt,
 	.task_woken		= task_woken_rt,
