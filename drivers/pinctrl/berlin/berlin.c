@@ -301,9 +301,7 @@ int berlin_pinctrl_probe(struct platform_device *pdev,
 	struct regmap *regmap;
 	int ret;
 
-	regmap = dev_get_regmap(&pdev->dev, NULL);
-	if (!regmap)
-		regmap = syscon_node_to_regmap(parent_np);
+	regmap = syscon_node_to_regmap(parent_np);
 	of_node_put(parent_np);
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
