@@ -53,8 +53,6 @@ static int mc_recoverable_range_len;
 
 struct device_node *opal_node;
 static DEFINE_SPINLOCK(opal_write_lock);
-static unsigned int *opal_irqs;
-static unsigned int opal_irq_count;
 static ATOMIC_NOTIFIER_HEAD(opal_notifier_head);
 static struct atomic_notifier_head opal_msg_notifier_head[OPAL_MSG_TYPE_MAX];
 static DEFINE_SPINLOCK(opal_notifier_lock);
@@ -251,7 +249,7 @@ int opal_notifier_unregister(struct notifier_block *nb)
 }
 EXPORT_SYMBOL_GPL(opal_notifier_unregister);
 
-static void opal_do_notifier(uint64_t events)
+void opal_do_notifier(uint64_t events)
 {
 	unsigned long flags;
 	uint64_t changed_mask;
@@ -571,8 +569,10 @@ int opal_handle_hmi_exception(struct pt_regs *regs)
 
 	local_paca->hmi_event_available = 0;
 	rc = opal_poll_events(&evt);
-	if (rc == OPAL_SUCCESS && evt)
+	if (rc == OPAL_SUCCESS && evt) {
 		opal_do_notifier(be64_to_cpu(evt));
+		opal_handle_events(be64_to_cpu(evt));
+	}
 
 	return 1;
 }
@@ -607,17 +607,6 @@ bool opal_mce_check_early_recovery(struct pt_regs *regs)
 
 out:
 	return !!recover_addr;
-}
-
-static irqreturn_t opal_interrupt(int irq, void *data)
-{
-	__be64 events;
-
-	opal_handle_interrupt(virq_to_hw(irq), &events);
-
-	opal_do_notifier(be64_to_cpu(events));
-
-	return IRQ_HANDLED;
 }
 
 static int opal_sysfs_init(void)
@@ -718,52 +707,15 @@ static void opal_i2c_create_devs(void)
 		of_platform_device_create(np, NULL, NULL);
 }
 
-static void __init opal_irq_init(struct device_node *dn)
-{
-	const __be32 *irqs;
-	int i, irqlen;
-
-	/* Get interrupt property */
-	irqs = of_get_property(opal_node, "opal-interrupts", &irqlen);
-	opal_irq_count = irqs ? (irqlen / 4) : 0;
-	pr_debug("Found %d interrupts reserved for OPAL\n", opal_irq_count);
-	if (!opal_irq_count)
-		return;
-
-	/* Install interrupt handlers */
-	opal_irqs = kzalloc(opal_irq_count * sizeof(unsigned int), GFP_KERNEL);
-	for (i = 0; irqs && i < opal_irq_count; i++, irqs++) {
-		unsigned int irq, virq;
-		int rc;
-
-		/* Get hardware and virtual IRQ */
-		irq = be32_to_cpup(irqs);
-		virq = irq_create_mapping(NULL, irq);
-		if (virq == NO_IRQ) {
-			pr_warn("Failed to map irq 0x%x\n", irq);
-			continue;
-		}
-
-		/* Install interrupt handler */
-		rc = request_irq(virq, opal_interrupt, 0, "opal", NULL);
-		if (rc) {
-			irq_dispose_mapping(virq);
-			pr_warn("Error %d requesting irq %d (0x%x)\n",
-				 rc, virq, irq);
-			continue;
-		}
-
-		/* Cache IRQ */
-		opal_irqs[i] = virq;
-	}
-}
-
 static int kopald(void *unused)
 {
+	__be64 events;
+
 	set_freezable();
 	do {
 		try_to_freeze();
-		opal_poll_events(NULL);
+		opal_poll_events(&events);
+		opal_handle_events(be64_to_cpu(events));
 		msleep_interruptible(opal_heartbeat);
 	} while (!kthread_should_stop());
 
@@ -791,6 +743,9 @@ static int __init opal_init(void)
 		pr_warn("Device node not found\n");
 		return -ENODEV;
 	}
+
+	/* Initialise OPAL events */
+	opal_event_init();
 
 	/* Register OPAL consoles if any ports */
 	if (firmware_has_feature(FW_FEATURE_OPALv2))
@@ -824,9 +779,6 @@ static int __init opal_init(void)
 	/* Setup a heatbeat thread if requested by OPAL */
 	opal_init_heartbeat();
 
-	/* Find all OPAL interrupts and request them */
-	opal_irq_init(opal_node);
-
 	/* Create "opal" kobject under /sys/firmware */
 	rc = opal_sysfs_init();
 	if (rc == 0) {
@@ -857,15 +809,9 @@ machine_subsys_initcall(powernv, opal_init);
 
 void opal_shutdown(void)
 {
-	unsigned int i;
 	long rc = OPAL_BUSY;
 
-	/* First free interrupts, which will also mask them */
-	for (i = 0; i < opal_irq_count; i++) {
-		if (opal_irqs[i])
-			free_irq(opal_irqs[i], NULL);
-		opal_irqs[i] = 0;
-	}
+	opal_event_shutdown();
 
 	/*
 	 * Then sync with OPAL which ensure anything that can
