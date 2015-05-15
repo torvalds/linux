@@ -152,8 +152,6 @@ out:
 	mutex_unlock(&inode->i_mutex);
 
 	if (retval > 0) {
-		ssize_t err;
-
 		mark_inode_dirty(inode);
 		err = generic_write_sync(file, iocb->ki_pos - retval, retval);
 		if (err < 0)
