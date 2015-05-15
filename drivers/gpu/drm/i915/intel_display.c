@@ -11490,12 +11490,14 @@ clear_intel_crtc_state(struct intel_crtc_state *crtc_state)
 	struct intel_crtc_scaler_state scaler_state;
 	struct intel_dpll_hw_state dpll_hw_state;
 	enum intel_dpll_id shared_dpll;
+	uint32_t ddi_pll_sel;
 
 	/* Clear only the intel specific part of the crtc state excluding scalers */
 	tmp_state = crtc_state->base;
 	scaler_state = crtc_state->scaler_state;
 	shared_dpll = crtc_state->shared_dpll;
 	dpll_hw_state = crtc_state->dpll_hw_state;
+	ddi_pll_sel = crtc_state->ddi_pll_sel;
 
 	memset(crtc_state, 0, sizeof *crtc_state);
 
@@ -11503,6 +11505,7 @@ clear_intel_crtc_state(struct intel_crtc_state *crtc_state)
 	crtc_state->scaler_state = scaler_state;
 	crtc_state->shared_dpll = shared_dpll;
 	crtc_state->dpll_hw_state = dpll_hw_state;
+	crtc_state->ddi_pll_sel = ddi_pll_sel;
 }
 
 static int
