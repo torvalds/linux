@@ -438,6 +438,11 @@ static int adis16400_read_raw(struct iio_dev *indio_dev,
 			*val = st->variant->temp_scale_nano / 1000000;
 			*val2 = (st->variant->temp_scale_nano % 1000000);
 			return IIO_VAL_INT_PLUS_MICRO;
+		case IIO_PRESSURE:
+			/* 20 uBar = 0.002kPascal */
+			*val = 0;
+			*val2 = 2000;
+			return IIO_VAL_INT_PLUS_MICRO;
 		default:
 			return -EINVAL;
 		}
