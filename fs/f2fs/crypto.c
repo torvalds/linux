@@ -233,14 +233,6 @@ void f2fs_exit_crypto(void)
 	struct f2fs_crypto_ctx *pos, *n;
 
 	list_for_each_entry_safe(pos, n, &f2fs_free_crypto_ctxs, free_list) {
-		if (pos->w.bounce_page) {
-			if (pos->flags &
-				F2FS_BOUNCE_PAGE_REQUIRES_FREE_ENCRYPT_FL)
-				__free_page(pos->w.bounce_page);
-			else
-				mempool_free(pos->w.bounce_page,
-						f2fs_bounce_page_pool);
-		}
 		if (pos->tfm)
 			crypto_free_tfm(pos->tfm);
 		kmem_cache_free(f2fs_crypto_ctx_cachep, pos);
