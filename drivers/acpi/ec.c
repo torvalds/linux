@@ -504,8 +504,7 @@ static int ec_poll(struct acpi_ec *ec)
 			msecs_to_jiffies(ec_delay);
 		unsigned long usecs = ACPI_EC_UDELAY_POLL;
 		do {
-			/* don't sleep with disabled interrupts */
-			if (EC_FLAGS_MSI || irqs_disabled()) {
+			if (EC_FLAGS_MSI) {
 				usecs = ACPI_EC_MSI_UDELAY;
 				udelay(usecs);
 				if (ec_transaction_completed(ec))
