@@ -785,7 +785,6 @@ static void vpu_service_power_on(struct vpu_service_info *pservice)
 	if (pservice->enabled)
 		return ;
 
-	pservice->enabled = true;
 	pr_info("%s: power on\n", dev_name(pservice->dev));
 
 #define BIT_VCODEC_CLK_SEL	(1<<10)
@@ -808,6 +807,7 @@ static void vpu_service_power_on(struct vpu_service_info *pservice)
 #endif
 
 	udelay(10);
+	pservice->enabled = true;
 	wake_lock(&pservice->wake_lock);
 }
 
@@ -2430,6 +2430,7 @@ static irqreturn_t vdpu_isr(int irq, void *dev_id)
 			vpu_err("error: dec isr with no task waiting\n");
 		} else {
 			reg_from_run_to_done(data, pservice->reg_codec);
+			writel(1, dev->hwregs + 101);
 		}
 	}
 
