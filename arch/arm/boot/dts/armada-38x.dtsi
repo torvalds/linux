@@ -495,7 +495,7 @@
 				status = "disabled";
 			};
 
-			mdio@72004 {
+			mdio: mdio@72004 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "marvell,orion-mdio";

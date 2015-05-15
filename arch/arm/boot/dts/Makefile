@@ -671,12 +671,12 @@ dtb-$(CONFIG_MACH_ARMADA_XP) += \
 	armada-xp-openblocks-ax3-4.dtb \
 	armada-xp-synology-ds414.dtb
 dtb-$(CONFIG_MACH_DOVE) += \
-	dove-cm-a510.dtb \
 	dove-cubox.dtb \
 	dove-cubox-es.dtb \
 	dove-d2plug.dtb \
 	dove-d3plug.dtb \
-	dove-dove-db.dtb
+	dove-dove-db.dtb \
+	dove-sbc-a510.dtb
 dtb-$(CONFIG_ARCH_MEDIATEK) += \
 	mt6589-aquaris5.dtb \
 	mt6592-evb.dtb \
