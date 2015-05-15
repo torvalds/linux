@@ -614,7 +614,7 @@ struct multi_send_data {
 struct netvsc_stats {
 	u64 packets;
 	u64 bytes;
-	struct u64_stats_sync s_sync;
+	struct u64_stats_sync syncp;
 };
 
 /* The context of the netvsc device  */

@@ -580,10 +580,10 @@ do_send:
 
 drop:
 	if (ret == 0) {
-		u64_stats_update_begin(&tx_stats->s_sync);
+		u64_stats_update_begin(&tx_stats->syncp);
 		tx_stats->packets++;
 		tx_stats->bytes += skb_length;
-		u64_stats_update_end(&tx_stats->s_sync);
+		u64_stats_update_end(&tx_stats->syncp);
 	} else {
 		if (ret != -EAGAIN) {
 			dev_kfree_skb_any(skb);
@@ -692,10 +692,10 @@ int netvsc_recv_callback(struct hv_device *device_obj,
 	skb_record_rx_queue(skb, packet->channel->
 			    offermsg.offer.sub_channel_index);
 
-	u64_stats_update_begin(&rx_stats->s_sync);
+	u64_stats_update_begin(&rx_stats->syncp);
 	rx_stats->packets++;
 	rx_stats->bytes += packet->total_data_buflen;
-	u64_stats_update_end(&rx_stats->s_sync);
+	u64_stats_update_end(&rx_stats->syncp);
 
 	/*
 	 * Pass the skb back up. Network stack will deallocate the skb when it
@@ -776,16 +776,16 @@ static struct rtnl_link_stats64 *netvsc_get_stats64(struct net_device *net,
 		unsigned int start;
 
 		do {
-			start = u64_stats_fetch_begin_irq(&tx_stats->s_sync);
+			start = u64_stats_fetch_begin_irq(&tx_stats->syncp);
 			tx_packets = tx_stats->packets;
 			tx_bytes = tx_stats->bytes;
-		} while (u64_stats_fetch_retry_irq(&tx_stats->s_sync, start));
+		} while (u64_stats_fetch_retry_irq(&tx_stats->syncp, start));
 
 		do {
-			start = u64_stats_fetch_begin_irq(&rx_stats->s_sync);
+			start = u64_stats_fetch_begin_irq(&rx_stats->syncp);
 			rx_packets = rx_stats->packets;
 			rx_bytes = rx_stats->bytes;
-		} while (u64_stats_fetch_retry_irq(&rx_stats->s_sync, start));
+		} while (u64_stats_fetch_retry_irq(&rx_stats->syncp, start));
 
 		t->tx_bytes	+= tx_bytes;
 		t->tx_packets	+= tx_packets;
