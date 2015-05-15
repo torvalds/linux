@@ -226,6 +226,9 @@ enum v4l2_colorspace {
 
 	/* BT.2020 colorspace, used for UHDTV. */
 	V4L2_COLORSPACE_BT2020        = 10,
+
+	/* Raw colorspace: for RAW unprocessed images */
+	V4L2_COLORSPACE_RAW           = 11,
 };
 
 enum v4l2_ycbcr_encoding {
