@@ -243,6 +243,7 @@ extern void opal_msglog_init(void);
 extern int opal_async_comp_init(void);
 extern int opal_sensor_init(void);
 extern int opal_hmi_handler_init(void);
+extern int opal_event_init(void);
 
 extern int opal_machine_check(struct pt_regs *regs);
 extern bool opal_mce_check_early_recovery(struct pt_regs *regs);
@@ -253,6 +254,8 @@ extern void opal_shutdown(void);
 extern int opal_resync_timebase(void);
 
 extern void opal_lpc_init(void);
+
+extern int opal_event_request(unsigned int opal_event_nr);
 
 struct opal_sg_list *opal_vmalloc_to_sg_list(void *vmalloc_addr,
 					     unsigned long vmalloc_size);
