@@ -298,9 +298,6 @@ static int nx842_crypto_compress(struct crypto_tfm *tfm,
 	bool add_header;
 	u16 ignore = 0;
 
-	if (!tfm || !src || !slen || !dst || !dlen)
-		return -EINVAL;
-
 	p.in = (u8 *)src;
 	p.iremain = slen;
 	p.out = dst;
@@ -482,9 +479,6 @@ static int nx842_crypto_decompress(struct crypto_tfm *tfm,
 	int n, ret, hdr_len;
 	u16 ignore = 0;
 	bool usehw = true;
-
-	if (!tfm || !src || !slen || !dst || !dlen)
-		return -EINVAL;
 
 	p.in = (u8 *)src;
 	p.iremain = slen;
