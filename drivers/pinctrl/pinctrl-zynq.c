@@ -1205,7 +1205,7 @@ static int zynq_pinctrl_probe(struct platform_device *pdev)
 	return 0;
 }
 
-int zynq_pinctrl_remove(struct platform_device *pdev)
+static int zynq_pinctrl_remove(struct platform_device *pdev)
 {
 	struct zynq_pinctrl *pctrl = platform_get_drvdata(pdev);
 
