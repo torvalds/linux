@@ -732,9 +732,7 @@ static int xgene_ahci_probe(struct platform_device *pdev)
 		if (!acpi_id) {
 			dev_warn(&pdev->dev, "No node entry in ACPI table. Assume version1\n");
 			version = XGENE_AHCI_V1;
-		}
-
-		if (acpi_id->driver_data) {
+		} else if (acpi_id->driver_data) {
 			version = (enum xgene_ahci_version) acpi_id->driver_data;
 			status = acpi_get_object_info(ACPI_HANDLE(&pdev->dev), &info);
 			if (ACPI_FAILURE(status)) {
