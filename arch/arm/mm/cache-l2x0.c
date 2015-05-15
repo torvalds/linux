@@ -38,7 +38,7 @@ struct l2c_init_data {
 	unsigned way_size_0;
 	unsigned num_lock;
 	void (*of_parse)(const struct device_node *, u32 *, u32 *);
-	void (*enable)(void __iomem *, u32, unsigned);
+	void (*enable)(void __iomem *, unsigned);
 	void (*fixup)(void __iomem *, u32, struct outer_cache_fns *);
 	void (*save)(void __iomem *);
 	void (*configure)(void __iomem *);
@@ -118,11 +118,9 @@ static void l2c_configure(void __iomem *base)
  * Enable the L2 cache controller.  This function must only be
  * called when the cache controller is known to be disabled.
  */
-static void l2c_enable(void __iomem *base, u32 aux, unsigned num_lock)
+static void l2c_enable(void __iomem *base, unsigned num_lock)
 {
 	unsigned long flags;
-
-	l2x0_saved_regs.aux_ctrl = aux;
 
 	if (outer_cache.configure)
 		outer_cache.configure(&l2x0_saved_regs);
@@ -160,7 +158,7 @@ static void l2c_resume(void)
 
 	/* Do not touch the controller if already enabled. */
 	if (!(readl_relaxed(base + L2X0_CTRL) & L2X0_CTRL_EN))
-		l2c_enable(base, l2x0_saved_regs.aux_ctrl, l2x0_data->num_lock);
+		l2c_enable(base, l2x0_data->num_lock);
 }
 
 /*
@@ -390,16 +388,16 @@ static void l2c220_sync(void)
 	raw_spin_unlock_irqrestore(&l2x0_lock, flags);
 }
 
-static void l2c220_enable(void __iomem *base, u32 aux, unsigned num_lock)
+static void l2c220_enable(void __iomem *base, unsigned num_lock)
 {
 	/*
 	 * Always enable non-secure access to the lockdown registers -
 	 * we write to them as part of the L2C enable sequence so they
 	 * need to be accessible.
 	 */
-	aux |= L220_AUX_CTRL_NS_LOCKDOWN;
+	l2x0_saved_regs.aux_ctrl |= L220_AUX_CTRL_NS_LOCKDOWN;
 
-	l2c_enable(base, aux, num_lock);
+	l2c_enable(base, num_lock);
 }
 
 static void l2c220_unlock(void __iomem *base, unsigned num_lock)
@@ -612,10 +610,11 @@ static int l2c310_cpu_enable_flz(struct notifier_block *nb, unsigned long act, v
 	return NOTIFY_OK;
 }
 
-static void __init l2c310_enable(void __iomem *base, u32 aux, unsigned num_lock)
+static void __init l2c310_enable(void __iomem *base, unsigned num_lock)
 {
 	unsigned rev = readl_relaxed(base + L2X0_CACHE_ID) & L2X0_CACHE_ID_RTL_MASK;
 	bool cortex_a9 = read_cpuid_part() == ARM_CPU_PART_CORTEX_A9;
+	u32 aux = l2x0_saved_regs.aux_ctrl;
 
 	if (rev >= L310_CACHE_ID_RTL_R2P0) {
 		if (cortex_a9) {
@@ -658,9 +657,9 @@ static void __init l2c310_enable(void __iomem *base, u32 aux, unsigned num_lock)
 	 * we write to them as part of the L2C enable sequence so they
 	 * need to be accessible.
 	 */
-	aux |= L310_AUX_CTRL_NS_LOCKDOWN;
+	l2x0_saved_regs.aux_ctrl = aux | L310_AUX_CTRL_NS_LOCKDOWN;
 
-	l2c_enable(base, aux, num_lock);
+	l2c_enable(base, num_lock);
 
 	/* Read back resulting AUX_CTRL value as it could have been altered. */
 	aux = readl_relaxed(base + L2X0_AUX_CTRL);
@@ -872,8 +871,11 @@ static int __init __l2c_init(const struct l2c_init_data *data,
 	 * Check if l2x0 controller is already enabled.  If we are booting
 	 * in non-secure mode accessing the below registers will fault.
 	 */
-	if (!(readl_relaxed(l2x0_base + L2X0_CTRL) & L2X0_CTRL_EN))
-		data->enable(l2x0_base, aux, data->num_lock);
+	if (!(readl_relaxed(l2x0_base + L2X0_CTRL) & L2X0_CTRL_EN)) {
+		l2x0_saved_regs.aux_ctrl = aux;
+
+		data->enable(l2x0_base, data->num_lock);
+	}
 
 	outer_cache = fns;
 
@@ -1388,7 +1390,7 @@ static void aurora_save(void __iomem *base)
  * For Aurora cache in no outer mode, enable via the CP15 coprocessor
  * broadcasting of cache commands to L2.
  */
-static void __init aurora_enable_no_outer(void __iomem *base, u32 aux,
+static void __init aurora_enable_no_outer(void __iomem *base,
 	unsigned num_lock)
 {
 	u32 u;
@@ -1399,7 +1401,7 @@ static void __init aurora_enable_no_outer(void __iomem *base, u32 aux,
 
 	isb();
 
-	l2c_enable(base, aux, num_lock);
+	l2c_enable(base, num_lock);
 }
 
 static void __init aurora_fixup(void __iomem *base, u32 cache_id,
