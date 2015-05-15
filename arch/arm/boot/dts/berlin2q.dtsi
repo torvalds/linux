@@ -127,7 +127,7 @@
 			compatible = "marvell,berlin2-usb-phy";
 			reg = <0xa2f400 0x128>;
 			#phy-cells = <0>;
-			resets = <&chip 0x104 14>;
+			resets = <&chip_rst 0x104 14>;
 			status = "disabled";
 		};
 
@@ -145,7 +145,7 @@
 			compatible = "marvell,berlin2-usb-phy";
 			reg = <0xb74000 0x128>;
 			#phy-cells = <0>;
-			resets = <&chip 0x104 12>;
+			resets = <&chip_rst 0x104 12>;
 			status = "disabled";
 		};
 
@@ -153,7 +153,7 @@
 			compatible = "marvell,berlin2-usb-phy";
 			reg = <0xb78000 0x128>;
 			#phy-cells = <0>;
-			resets = <&chip 0x104 13>;
+			resets = <&chip_rst 0x104 13>;
 			status = "disabled";
 		};
 
@@ -362,7 +362,6 @@
 		chip: chip-control@ea0000 {
 			compatible = "marvell,berlin2q-chip-ctrl", "simple-mfd", "syscon";
 			#clock-cells = <1>;
-			#reset-cells = <2>;
 			reg = <0xea0000 0x400>, <0xdd0170 0x10>;
 			clocks = <&refclk>;
 			clock-names = "refclk";
@@ -375,6 +374,11 @@
 			twsi1_pmux: twsi1-pmux {
 				groups = "G7";
 				function = "twsi1";
+			};
+
+			chip_rst: reset {
+				compatible = "marvell,berlin2-reset";
+				#reset-cells = <2>;
 			};
 		};
 
