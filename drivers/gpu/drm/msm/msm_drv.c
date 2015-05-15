@@ -145,8 +145,8 @@ static int msm_unload(struct drm_device *dev)
 	if (gpu) {
 		mutex_lock(&dev->struct_mutex);
 		gpu->funcs->pm_suspend(gpu);
-		gpu->funcs->destroy(gpu);
 		mutex_unlock(&dev->struct_mutex);
+		gpu->funcs->destroy(gpu);
 	}
 
 	if (priv->vram.paddr) {
