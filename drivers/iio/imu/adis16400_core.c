@@ -824,11 +824,6 @@ static const struct iio_info adis16400_info = {
 	.debugfs_reg_access = adis_debugfs_reg_access,
 };
 
-static const unsigned long adis16400_burst_scan_mask[] = {
-	~0UL,
-	0,
-};
-
 static const char * const adis16400_status_error_msgs[] = {
 	[ADIS16400_DIAG_STAT_ZACCL_FAIL] = "Z-axis accelerometer self-test failure",
 	[ADIS16400_DIAG_STAT_YACCL_FAIL] = "Y-axis accelerometer self-test failure",
@@ -876,6 +871,20 @@ static const struct adis_data adis16400_data = {
 		BIT(ADIS16400_DIAG_STAT_POWER_LOW),
 };
 
+static void adis16400_setup_chan_mask(struct adis16400_state *st)
+{
+	const struct adis16400_chip_info *chip_info = st->variant;
+	unsigned i;
+
+	for (i = 0; i < chip_info->num_channels; i++) {
+		const struct iio_chan_spec *ch = &chip_info->channels[i];
+
+		if (ch->scan_index >= 0 &&
+		    ch->scan_index != ADIS16400_SCAN_TIMESTAMP)
+			st->avail_scan_mask[0] |= BIT(ch->scan_index);
+	}
+}
+
 static int adis16400_probe(struct spi_device *spi)
 {
 	struct adis16400_state *st;
@@ -899,8 +908,10 @@ static int adis16400_probe(struct spi_device *spi)
 	indio_dev->info = &adis16400_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	if (!(st->variant->flags & ADIS16400_NO_BURST))
-		indio_dev->available_scan_masks = adis16400_burst_scan_mask;
+	if (!(st->variant->flags & ADIS16400_NO_BURST)) {
+		adis16400_setup_chan_mask(st);
+		indio_dev->available_scan_masks = st->avail_scan_mask;
+	}
 
 	ret = adis_init(&st->adis, indio_dev, spi, &adis16400_data);
 	if (ret)
