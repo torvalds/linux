@@ -41,6 +41,7 @@
 	((((cmd) & CMD_ID_MASK) << CMD_ID_SHIFT) |			\
 	(((sender) & CMD_SENDER_ID_MASK) << CMD_SENDER_ID_SHIFT) |	\
 	(((txsz) & CMD_DATA_SIZE_MASK) << CMD_DATA_SIZE_SHIFT))
+#define SCPI_CMD_DEFAULT_TIMEOUT_MS  1000
 
 #define MAX_DVFS_DOMAINS	3
 #define MAX_DVFS_OPPS		8
@@ -51,6 +52,7 @@ struct scpi_data_buf {
 	int client_id;
 	struct rockchip_mbox_msg *data;
 	struct completion complete;
+	int timeout_ms;
 };
 
 static int high_priority_cmds[] = {
@@ -112,6 +114,7 @@ static int send_scpi_cmd(struct scpi_data_buf *scpi_buf, bool high_priority)
 	struct rockchip_mbox_msg *data = scpi_buf->data;
 	u32 status;
 	int ret;
+	int timeout = msecs_to_jiffies(scpi_buf->timeout_ms);
 
 	if (!the_scpi_device) {
 		pr_err("Scpi initializes unsuccessfully\n");
@@ -134,8 +137,7 @@ static int send_scpi_cmd(struct scpi_data_buf *scpi_buf, bool high_priority)
 		goto free_channel;
 	}
 
-	ret = wait_for_completion_timeout(&scpi_buf->complete,
-					  msecs_to_jiffies(1000));
+	ret = wait_for_completion_timeout(&scpi_buf->complete, timeout);
 	if (ret == 0) {
 		status = SCPI_ERR_TIMEOUT;
 		goto free_channel;
@@ -159,6 +161,7 @@ do {						\
 	pdata->rx_size = sizeof(_rx_buf);	\
 	scpi_buf.client_id = _client_id;	\
 	scpi_buf.data = pdata;			\
+	scpi_buf.timeout_ms = SCPI_CMD_DEFAULT_TIMEOUT_MS; \
 } while (0)
 
 static int scpi_execute_cmd(struct scpi_data_buf *scpi_buf)
