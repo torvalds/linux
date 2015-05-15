@@ -146,9 +146,12 @@ dma_addr_t rockchip_iovmm_map(struct device *dev,
 	spin_unlock(&vmm->lock);
 
 	ret = rockchip_iommu_tlb_invalidate(dev);
-	if (ret)
+	if (ret) {
+		spin_lock(&vmm->lock);
+		list_del(&region->node);
+		spin_unlock(&vmm->lock);
 		goto err_map_map;
-
+	}
 	dev_dbg(dev->archdata.iommu, "IOVMM: Allocated VM region @ %p/%#X bytes.\n",
 	&region->start, region->size);
 	
