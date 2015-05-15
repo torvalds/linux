@@ -1919,8 +1919,8 @@ static void _rtl88ee_read_adapter_info(struct ieee80211_hw *hw)
 		 "dev_addr: %pM\n", rtlefuse->dev_addr);
 	/*channel plan */
 	rtlefuse->eeprom_channelplan = hwinfo[EEPROM_CHANNELPLAN];
-	/* set channel paln to world wide 13 */
-	rtlefuse->channel_plan = COUNTRY_CODE_WORLD_WIDE_13;
+	/* set channel plan from efuse */
+	rtlefuse->channel_plan = rtlefuse->eeprom_channelplan;
 	/*tx power*/
 	_rtl88ee_read_txpower_info_from_hwpg(hw,
 					     rtlefuse->autoload_failflag,
