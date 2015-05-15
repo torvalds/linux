@@ -92,6 +92,14 @@ static unsigned int ec_delay __read_mostly = ACPI_EC_DELAY;
 module_param(ec_delay, uint, 0644);
 MODULE_PARM_DESC(ec_delay, "Timeout(ms) waited until an EC command completes");
 
+static bool ec_busy_polling __read_mostly;
+module_param(ec_busy_polling, bool, 0644);
+MODULE_PARM_DESC(ec_busy_polling, "Use busy polling to advance EC transaction");
+
+static unsigned int ec_polling_guard __read_mostly = ACPI_EC_UDELAY_POLL;
+module_param(ec_polling_guard, uint, 0644);
+MODULE_PARM_DESC(ec_polling_guard, "Guard time(us) between EC accesses in polling modes");
+
 /*
  * If the number of false interrupts per one transaction exceeds
  * this threshold, will think there is a GPE storm happened and
@@ -128,7 +136,6 @@ static void advance_transaction(struct acpi_ec *ec);
 struct acpi_ec *boot_ec, *first_ec;
 EXPORT_SYMBOL(first_ec);
 
-static int EC_FLAGS_MSI; /* Out-of-spec MSI controller */
 static int EC_FLAGS_VALIDATE_ECDT; /* ASUStec ECDTs need to be validated */
 static int EC_FLAGS_SKIP_DSDT_SCAN; /* Not all BIOS survive early DSDT scan */
 static int EC_FLAGS_CLEAR_ON_RESUME; /* Needs acpi_ec_clear() on boot/resume */
@@ -504,11 +511,11 @@ static void start_transaction(struct acpi_ec *ec)
 
 static int ec_guard(struct acpi_ec *ec)
 {
-	unsigned long guard = usecs_to_jiffies(ACPI_EC_UDELAY_POLL);
+	unsigned long guard = usecs_to_jiffies(ec_polling_guard);
 	unsigned long timeout = ec->timestamp + guard;
 
 	do {
-		if (EC_FLAGS_MSI) {
+		if (ec_busy_polling) {
 			/* Perform busy polling */
 			if (ec_transaction_completed(ec))
 				return 0;
@@ -985,7 +992,7 @@ acpi_ec_space_handler(u32 function, acpi_physical_address address,
 	if (function != ACPI_READ && function != ACPI_WRITE)
 		return AE_BAD_PARAMETER;
 
-	if (EC_FLAGS_MSI || bits > 8)
+	if (ec_busy_polling || bits > 8)
 		acpi_ec_burst_enable(ec);
 
 	for (i = 0; i < bytes; ++i, ++address, ++value)
@@ -993,7 +1000,7 @@ acpi_ec_space_handler(u32 function, acpi_physical_address address,
 			acpi_ec_read(ec, address, value) :
 			acpi_ec_write(ec, address, *value);
 
-	if (EC_FLAGS_MSI || bits > 8)
+	if (ec_busy_polling || bits > 8)
 		acpi_ec_burst_disable(ec);
 
 	switch (result) {
@@ -1262,11 +1269,11 @@ static int ec_validate_ecdt(const struct dmi_system_id *id)
 	return 0;
 }
 
-/* MSI EC needs special treatment, enable it */
-static int ec_flag_msi(const struct dmi_system_id *id)
+/* EC firmware needs special polling mode, enable it */
+static int ec_use_busy_polling(const struct dmi_system_id *id)
 {
-	pr_debug("Detected MSI hardware, enabling workarounds.\n");
-	EC_FLAGS_MSI = 1;
+	pr_debug("Detected the EC firmware requiring busy polling mode.\n");
+	ec_busy_polling = 1;
 	EC_FLAGS_VALIDATE_ECDT = 1;
 	return 0;
 }
@@ -1313,27 +1320,27 @@ static struct dmi_system_id ec_dmi_table[] __initdata = {
 	DMI_MATCH(DMI_BIOS_VENDOR, "COMPAL"),
 	DMI_MATCH(DMI_BOARD_NAME, "JFL92") }, NULL},
 	{
-	ec_flag_msi, "MSI hardware", {
+	ec_use_busy_polling, "MSI hardware", {
 	DMI_MATCH(DMI_BIOS_VENDOR, "Micro-Star")}, NULL},
 	{
-	ec_flag_msi, "MSI hardware", {
+	ec_use_busy_polling, "MSI hardware", {
 	DMI_MATCH(DMI_SYS_VENDOR, "Micro-Star")}, NULL},
 	{
-	ec_flag_msi, "MSI hardware", {
+	ec_use_busy_polling, "MSI hardware", {
 	DMI_MATCH(DMI_CHASSIS_VENDOR, "MICRO-Star")}, NULL},
 	{
-	ec_flag_msi, "MSI hardware", {
+	ec_use_busy_polling, "MSI hardware", {
 	DMI_MATCH(DMI_CHASSIS_VENDOR, "MICRO-STAR")}, NULL},
 	{
-	ec_flag_msi, "Quanta hardware", {
+	ec_use_busy_polling, "Quanta hardware", {
 	DMI_MATCH(DMI_SYS_VENDOR, "Quanta"),
 	DMI_MATCH(DMI_PRODUCT_NAME, "TW8/SW8/DW8"),}, NULL},
 	{
-	ec_flag_msi, "Quanta hardware", {
+	ec_use_busy_polling, "Quanta hardware", {
 	DMI_MATCH(DMI_SYS_VENDOR, "Quanta"),
 	DMI_MATCH(DMI_PRODUCT_NAME, "TW9/SW9"),}, NULL},
 	{
-	ec_flag_msi, "Clevo W350etq", {
+	ec_use_busy_polling, "Clevo W350etq", {
 	DMI_MATCH(DMI_SYS_VENDOR, "CLEVO CO."),
 	DMI_MATCH(DMI_PRODUCT_NAME, "W35_37ET"),}, NULL},
 	{
