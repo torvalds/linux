@@ -883,7 +883,7 @@ int klp_register_patch(struct klp_patch *patch)
 }
 EXPORT_SYMBOL_GPL(klp_register_patch);
 
-static void klp_module_notify_coming(struct klp_patch *patch,
+static int klp_module_notify_coming(struct klp_patch *patch,
 				     struct klp_object *obj)
 {
 	struct module *pmod = patch->mod;
@@ -891,22 +891,23 @@ static void klp_module_notify_coming(struct klp_patch *patch,
 	int ret;
 
 	ret = klp_init_object_loaded(patch, obj);
-	if (ret)
-		goto err;
+	if (ret) {
+		pr_warn("failed to initialize patch '%s' for module '%s' (%d)\n",
+			pmod->name, mod->name, ret);
+		return ret;
+	}
 
 	if (patch->state == KLP_DISABLED)
-		return;
+		return 0;
 
 	pr_notice("applying patch '%s' to loading module '%s'\n",
 		  pmod->name, mod->name);
 
 	ret = klp_enable_object(obj);
-	if (!ret)
-		return;
-
-err:
-	pr_warn("failed to apply patch '%s' to module '%s' (%d)\n",
-		pmod->name, mod->name, ret);
+	if (ret)
+		pr_warn("failed to apply patch '%s' to module '%s' (%d)\n",
+			pmod->name, mod->name, ret);
+	return ret;
 }
 
 static void klp_module_notify_going(struct klp_patch *patch,
@@ -930,6 +931,7 @@ disabled:
 static int klp_module_notify(struct notifier_block *nb, unsigned long action,
 			     void *data)
 {
+	int ret;
 	struct module *mod = data;
 	struct klp_patch *patch;
 	struct klp_object *obj;
@@ -955,7 +957,12 @@ static int klp_module_notify(struct notifier_block *nb, unsigned long action,
 
 			if (action == MODULE_STATE_COMING) {
 				obj->mod = mod;
-				klp_module_notify_coming(patch, obj);
+				ret = klp_module_notify_coming(patch, obj);
+				if (ret) {
+					obj->mod = NULL;
+					pr_warn("patch '%s' is in an inconsistent state!\n",
+						patch->mod->name);
+				}
 			} else /* MODULE_STATE_GOING */
 				klp_module_notify_going(patch, obj);
 
