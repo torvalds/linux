@@ -684,7 +684,8 @@ int acpi_power_get_inferred_state(struct acpi_device *device, int *state)
 		}
 	}
 
-	*state = ACPI_STATE_D3_COLD;
+	*state = device->power.states[ACPI_STATE_D3_COLD].flags.valid ?
+		ACPI_STATE_D3_COLD : ACPI_STATE_D3_HOT;
 	return 0;
 }
 
