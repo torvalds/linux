@@ -1247,17 +1247,6 @@ static int ec_flag_msi(const struct dmi_system_id *id)
 }
 
 /*
- * Clevo M720 notebook actually works ok with IRQ mode, if we lifted
- * the GPE storm threshold back to 20
- */
-static int ec_enlarge_storm_threshold(const struct dmi_system_id *id)
-{
-	pr_debug("Setting the EC GPE storm threshold to 20\n");
-	ec_storm_threshold  = 20;
-	return 0;
-}
-
-/*
  * Acer EC firmware refuses to respond QR_EC when SCI_EVT is not set, for
  * which case, we complete the QR_EC without issuing it to the firmware.
  * https://bugzilla.kernel.org/show_bug.cgi?id=86211
@@ -1328,10 +1317,6 @@ static struct dmi_system_id ec_dmi_table[] __initdata = {
 	{
 	ec_validate_ecdt, "ASUS hardware", {
 	DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer Inc.") }, NULL},
-	{
-	ec_enlarge_storm_threshold, "CLEVO hardware", {
-	DMI_MATCH(DMI_SYS_VENDOR, "CLEVO Co."),
-	DMI_MATCH(DMI_PRODUCT_NAME, "M720T/M730T"),}, NULL},
 	{
 	ec_skip_dsdt_scan, "HP Folio 13", {
 	DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
