@@ -258,4 +258,10 @@ config CLKSRC_PXA
 	help
 	  This enables OST0 support available on PXA and SA-11x0
 	  platforms.
+
+config CLKSRC_IMX_GPT
+	bool "Clocksource using i.MX GPT" if COMPILE_TEST
+	depends on ARM && CLKDEV_LOOKUP
+	select CLKSRC_MMIO
+
 endmenu
