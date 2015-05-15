@@ -376,7 +376,7 @@ void __init mxc_timer_init(unsigned long pbase, int irq, enum imx_gpt_type type)
 	_mxc_timer_init(imxtm);
 }
 
-static void __init mxc_timer_init_dt(struct device_node *np)
+static void __init mxc_timer_init_dt(struct device_node *np,  enum imx_gpt_type type)
 {
 	struct imx_timer *imxtm;
 	static int initialized;
@@ -399,15 +399,52 @@ static void __init mxc_timer_init_dt(struct device_node *np)
 	if (IS_ERR(imxtm->clk_per))
 		imxtm->clk_per = of_clk_get_by_name(np, "per");
 
+	imxtm->type = type;
+
 	_mxc_timer_init(imxtm);
 
 	initialized = 1;
 }
-CLOCKSOURCE_OF_DECLARE(mx1_timer, "fsl,imx1-gpt", mxc_timer_init_dt);
-CLOCKSOURCE_OF_DECLARE(mx25_timer, "fsl,imx25-gpt", mxc_timer_init_dt);
-CLOCKSOURCE_OF_DECLARE(mx50_timer, "fsl,imx50-gpt", mxc_timer_init_dt);
-CLOCKSOURCE_OF_DECLARE(mx51_timer, "fsl,imx51-gpt", mxc_timer_init_dt);
-CLOCKSOURCE_OF_DECLARE(mx53_timer, "fsl,imx53-gpt", mxc_timer_init_dt);
-CLOCKSOURCE_OF_DECLARE(mx6q_timer, "fsl,imx6q-gpt", mxc_timer_init_dt);
-CLOCKSOURCE_OF_DECLARE(mx6sl_timer, "fsl,imx6sl-gpt", mxc_timer_init_dt);
-CLOCKSOURCE_OF_DECLARE(mx6sx_timer, "fsl,imx6sx-gpt", mxc_timer_init_dt);
+
+static void __init imx1_timer_init_dt(struct device_node *np)
+{
+	mxc_timer_init_dt(np, GPT_TYPE_IMX1);
+}
+
+static void __init imx21_timer_init_dt(struct device_node *np)
+{
+	mxc_timer_init_dt(np, GPT_TYPE_IMX21);
+}
+
+static void __init imx31_timer_init_dt(struct device_node *np)
+{
+	enum imx_gpt_type type = GPT_TYPE_IMX31;
+
+	/*
+	 * We were using the same compatible string for i.MX6Q/D and i.MX6DL/S
+	 * GPT device, while they actually have different programming model.
+	 * This is a workaround to keep the existing i.MX6DL/S DTBs continue
+	 * working with the new kernel.
+	 */
+	if (of_machine_is_compatible("fsl,imx6dl"))
+		type = GPT_TYPE_IMX6DL;
+
+	mxc_timer_init_dt(np, type);
+}
+
+static void __init imx6dl_timer_init_dt(struct device_node *np)
+{
+	mxc_timer_init_dt(np, GPT_TYPE_IMX6DL);
+}
+
+CLOCKSOURCE_OF_DECLARE(imx1_timer, "fsl,imx1-gpt", imx1_timer_init_dt);
+CLOCKSOURCE_OF_DECLARE(imx21_timer, "fsl,imx21-gpt", imx21_timer_init_dt);
+CLOCKSOURCE_OF_DECLARE(imx31_timer, "fsl,imx31-gpt", imx31_timer_init_dt);
+CLOCKSOURCE_OF_DECLARE(imx25_timer, "fsl,imx25-gpt", imx31_timer_init_dt);
+CLOCKSOURCE_OF_DECLARE(imx50_timer, "fsl,imx50-gpt", imx31_timer_init_dt);
+CLOCKSOURCE_OF_DECLARE(imx51_timer, "fsl,imx51-gpt", imx31_timer_init_dt);
+CLOCKSOURCE_OF_DECLARE(imx53_timer, "fsl,imx53-gpt", imx31_timer_init_dt);
+CLOCKSOURCE_OF_DECLARE(imx6q_timer, "fsl,imx6q-gpt", imx31_timer_init_dt);
+CLOCKSOURCE_OF_DECLARE(imx6dl_timer, "fsl,imx6dl-gpt", imx6dl_timer_init_dt);
+CLOCKSOURCE_OF_DECLARE(imx6sl_timer, "fsl,imx6sl-gpt", imx6dl_timer_init_dt);
+CLOCKSOURCE_OF_DECLARE(imx6sx_timer, "fsl,imx6sx-gpt", imx6dl_timer_init_dt);
