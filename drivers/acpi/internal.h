@@ -138,6 +138,7 @@ struct acpi_ec {
 	struct transaction *curr;
 	spinlock_t lock;
 	struct work_struct work;
+	unsigned long timestamp;
 };
 
 extern struct acpi_ec *first_ec;

@@ -70,8 +70,7 @@ enum ec_command {
 
 #define ACPI_EC_DELAY		500	/* Wait 500ms max. during EC ops */
 #define ACPI_EC_UDELAY_GLK	1000	/* Wait 1ms max. to get global lock */
-#define ACPI_EC_MSI_UDELAY	550	/* Wait 550us for MSI EC */
-#define ACPI_EC_UDELAY_POLL	1000	/* Wait 1ms for EC transaction polling */
+#define ACPI_EC_UDELAY_POLL	550	/* Wait 1ms for EC transaction polling */
 #define ACPI_EC_CLEAR_MAX	100	/* Maximum number of events to query
 					 * when trying to clear the EC */
 
@@ -121,7 +120,6 @@ struct transaction {
 	u8 wlen;
 	u8 rlen;
 	u8 flags;
-	unsigned long timestamp;
 };
 
 static int acpi_ec_query(struct acpi_ec *ec, u8 *data);
@@ -218,7 +216,7 @@ static inline u8 acpi_ec_read_data(struct acpi_ec *ec)
 {
 	u8 x = inb(ec->data_addr);
 
-	ec->curr->timestamp = jiffies;
+	ec->timestamp = jiffies;
 	ec_dbg_raw("EC_DATA(R) = 0x%2.2x", x);
 	return x;
 }
@@ -227,14 +225,14 @@ static inline void acpi_ec_write_cmd(struct acpi_ec *ec, u8 command)
 {
 	ec_dbg_raw("EC_SC(W) = 0x%2.2x", command);
 	outb(command, ec->command_addr);
-	ec->curr->timestamp = jiffies;
+	ec->timestamp = jiffies;
 }
 
 static inline void acpi_ec_write_data(struct acpi_ec *ec, u8 data)
 {
 	ec_dbg_raw("EC_DATA(W) = 0x%2.2x", data);
 	outb(data, ec->data_addr);
-	ec->curr->timestamp = jiffies;
+	ec->timestamp = jiffies;
 }
 
 #ifdef DEBUG
@@ -392,6 +390,18 @@ static void acpi_ec_complete_query(struct acpi_ec *ec)
 	}
 }
 
+static int ec_transaction_polled(struct acpi_ec *ec)
+{
+	unsigned long flags;
+	int ret = 0;
+
+	spin_lock_irqsave(&ec->lock, flags);
+	if (ec->curr && (ec->curr->flags & ACPI_EC_COMMAND_POLL))
+		ret = 1;
+	spin_unlock_irqrestore(&ec->lock, flags);
+	return ret;
+}
+
 static int ec_transaction_completed(struct acpi_ec *ec)
 {
 	unsigned long flags;
@@ -490,8 +500,37 @@ static void start_transaction(struct acpi_ec *ec)
 {
 	ec->curr->irq_count = ec->curr->wi = ec->curr->ri = 0;
 	ec->curr->flags = 0;
-	ec->curr->timestamp = jiffies;
-	advance_transaction(ec);
+}
+
+static int ec_guard(struct acpi_ec *ec)
+{
+	unsigned long guard = usecs_to_jiffies(ACPI_EC_UDELAY_POLL);
+	unsigned long timeout = ec->timestamp + guard;
+
+	do {
+		if (EC_FLAGS_MSI) {
+			/* Perform busy polling */
+			if (ec_transaction_completed(ec))
+				return 0;
+			udelay(jiffies_to_usecs(guard));
+		} else {
+			/*
+			 * Perform wait polling
+			 *
+			 * The following check is there to keep the old
+			 * logic - no inter-transaction guarding for the
+			 * wait polling mode.
+			 */
+			if (!ec_transaction_polled(ec))
+				break;
+			if (wait_event_timeout(ec->wait,
+					       ec_transaction_completed(ec),
+					       guard))
+				return 0;
+		}
+		/* Guard the register accesses for the polling modes */
+	} while (time_before(jiffies, timeout));
+	return -ETIME;
 }
 
 static int ec_poll(struct acpi_ec *ec)
@@ -502,24 +541,11 @@ static int ec_poll(struct acpi_ec *ec)
 	while (repeat--) {
 		unsigned long delay = jiffies +
 			msecs_to_jiffies(ec_delay);
-		unsigned long usecs = ACPI_EC_UDELAY_POLL;
 		do {
-			if (EC_FLAGS_MSI) {
-				usecs = ACPI_EC_MSI_UDELAY;
-				udelay(usecs);
-				if (ec_transaction_completed(ec))
-					return 0;
-			} else {
-				if (wait_event_timeout(ec->wait,
-						ec_transaction_completed(ec),
-						usecs_to_jiffies(usecs)))
-					return 0;
-			}
+			if (!ec_guard(ec))
+				return 0;
 			spin_lock_irqsave(&ec->lock, flags);
-			if (time_after(jiffies,
-					ec->curr->timestamp +
-					usecs_to_jiffies(usecs)))
-				advance_transaction(ec);
+			advance_transaction(ec);
 			spin_unlock_irqrestore(&ec->lock, flags);
 		} while (time_before(jiffies, delay));
 		pr_debug("controller reset, restart transaction\n");
@@ -536,8 +562,6 @@ static int acpi_ec_transaction_unlocked(struct acpi_ec *ec,
 	unsigned long tmp;
 	int ret = 0;
 
-	if (EC_FLAGS_MSI)
-		udelay(ACPI_EC_MSI_UDELAY);
 	/* start transaction */
 	spin_lock_irqsave(&ec->lock, tmp);
 	/* Enable GPE for command processing (IBF=0/OBF=1) */
@@ -551,7 +575,9 @@ static int acpi_ec_transaction_unlocked(struct acpi_ec *ec,
 	ec_dbg_req("Command(%s) started", acpi_ec_cmd_string(t->command));
 	start_transaction(ec);
 	spin_unlock_irqrestore(&ec->lock, tmp);
+
 	ret = ec_poll(ec);
+
 	spin_lock_irqsave(&ec->lock, tmp);
 	if (t->irq_count == ec_storm_threshold)
 		acpi_ec_clear_storm(ec, EC_FLAGS_COMMAND_STORM);
@@ -574,6 +600,7 @@ static int acpi_ec_transaction(struct acpi_ec *ec, struct transaction *t)
 		return -EINVAL;
 	if (t->rdata)
 		memset(t->rdata, 0, t->rlen);
+
 	mutex_lock(&ec->mutex);
 	if (ec->global_lock) {
 		status = acpi_acquire_global_lock(ACPI_EC_UDELAY_GLK, &glk);
@@ -585,8 +612,6 @@ static int acpi_ec_transaction(struct acpi_ec *ec, struct transaction *t)
 
 	status = acpi_ec_transaction_unlocked(ec, t);
 
-	if (test_bit(EC_FLAGS_COMMAND_STORM, &ec->flags))
-		msleep(1);
 	if (ec->global_lock)
 		acpi_release_global_lock(glk);
 unlock:
@@ -1002,6 +1027,7 @@ static struct acpi_ec *make_acpi_ec(void)
 	INIT_LIST_HEAD(&ec->list);
 	spin_lock_init(&ec->lock);
 	INIT_WORK(&ec->work, acpi_ec_gpe_poller);
+	ec->timestamp = jiffies;
 	return ec;
 }
 
