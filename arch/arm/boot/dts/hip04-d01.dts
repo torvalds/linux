@@ -28,32 +28,5 @@
 		uart0: uart@4007000 {
 			status = "ok";
 		};
-
-		nand: nand@4020000 {
-			nand-bus-width = <8>;
-			nand-ecc-mode = "hw";
-			nand-ecc-strength = <16>;
-			nand-ecc-step-size = <1024>;
-
-			partition@0 {
-				label = "nand_text";
-				reg = <0x00000000 0x00400000>;
-			};
-
-			partition@00400000 {
-				label = "nand_monitor";
-				reg = <0x00400000 0x00400000>;
-			};
-
-			partition@00800000 {
-				label = "nand_kernel";
-				reg = <0x00800000 0x00800000>;
-			};
-
-			partition@01000000 {
-				label = "nand_fs";
-				reg = <0x01000000 0x1f000000>;
-			};
-		};
 	};
 };
