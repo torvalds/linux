@@ -360,7 +360,7 @@
 		};
 
 		chip: chip-control@ea0000 {
-			compatible = "marvell,berlin2q-chip-ctrl";
+			compatible = "marvell,berlin2q-chip-ctrl", "simple-mfd", "syscon";
 			#clock-cells = <1>;
 			#reset-cells = <2>;
 			reg = <0xea0000 0x400>, <0xdd0170 0x10>;
@@ -526,7 +526,7 @@
 			};
 
 			sysctrl: pin-controller@d000 {
-				compatible = "marvell,berlin2q-system-ctrl";
+				compatible = "marvell,berlin2q-system-ctrl", "simple-mfd", "syscon";
 				reg = <0xd000 0x100>;
 
 				uart0_pmux: uart0-pmux {

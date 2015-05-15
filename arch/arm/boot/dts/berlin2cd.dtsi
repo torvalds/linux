@@ -295,7 +295,7 @@
 		};
 
 		chip: chip-control@ea0000 {
-			compatible = "marvell,berlin2cd-chip-ctrl";
+			compatible = "marvell,berlin2cd-chip-ctrl", "simple-mfd", "syscon";
 			#clock-cells = <1>;
 			#reset-cells = <2>;
 			reg = <0xea0000 0x400>;
@@ -389,7 +389,7 @@
 			};
 
 			sysctrl: system-controller@d000 {
-				compatible = "marvell,berlin2cd-system-ctrl";
+				compatible = "marvell,berlin2cd-system-ctrl", "simple-mfd", "syscon";
 				reg = <0xd000 0x100>;
 			};
 
