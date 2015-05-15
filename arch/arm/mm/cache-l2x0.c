@@ -115,10 +115,10 @@ static void l2c_configure(void __iomem *base)
 		return;
 	}
 
+	l2c_write_sec(l2x0_saved_regs.aux_ctrl, base, L2X0_AUX_CTRL);
+
 	if (l2x0_data->configure)
 		l2x0_data->configure(base);
-
-	l2c_write_sec(l2x0_saved_regs.aux_ctrl, base, L2X0_AUX_CTRL);
 }
 
 /*
