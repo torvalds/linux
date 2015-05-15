@@ -36,9 +36,6 @@
 
 #include <asm/mach/time.h>
 
-#include "common.h"
-#include "hardware.h"
-
 /*
  * There are 4 versions of the timer hardware on Freescale MXC hardware.
  *  - MX1/MXL
@@ -79,9 +76,6 @@
 #define V2_TCMP			0x10
 
 #define V2_TIMER_RATE_OSC_DIV8	3000000
-
-#define timer_is_v1()	(cpu_is_mx1() || cpu_is_mx21() || cpu_is_mx27())
-#define timer_is_v2()	(!timer_is_v1())
 
 struct imx_timer {
 	enum imx_gpt_type type;
