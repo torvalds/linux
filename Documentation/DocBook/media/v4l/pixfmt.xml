@@ -538,6 +538,13 @@ BT.2020 which uses limited range R'G'B' quantization.</para>
 	    <entry><constant>V4L2_COLORSPACE_JPEG</constant></entry>
 	    <entry>See <xref linkend="col-jpeg" />.</entry>
 	  </row>
+	  <row>
+	    <entry><constant>V4L2_COLORSPACE_RAW</constant></entry>
+	    <entry>The raw colorspace. This is used for raw image capture where
+	    the image is minimally processed and is using the internal colorspace
+	    of the device. The software that processes an image using this
+	    'colorspace' will have to know the internals of the capture device.</entry>
+	  </row>
 	</tbody>
       </tgroup>
     </table>
