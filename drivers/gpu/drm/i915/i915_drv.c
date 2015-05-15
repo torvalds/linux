@@ -699,15 +699,22 @@ static int i915_drm_resume(struct drm_device *dev)
 	intel_init_pch_refclk(dev);
 	drm_mode_config_reset(dev);
 
+	/*
+	 * Interrupts have to be enabled before any batches are run. If not the
+	 * GPU will hang. i915_gem_init_hw() will initiate batches to
+	 * update/restore the context.
+	 *
+	 * Modeset enabling in intel_modeset_init_hw() also needs working
+	 * interrupts.
+	 */
+	intel_runtime_pm_enable_interrupts(dev_priv);
+
 	mutex_lock(&dev->struct_mutex);
 	if (i915_gem_init_hw(dev)) {
 		DRM_ERROR("failed to re-initialize GPU, declaring wedged!\n");
 		atomic_set_mask(I915_WEDGED, &dev_priv->gpu_error.reset_counter);
 	}
 	mutex_unlock(&dev->struct_mutex);
-
-	/* We need working interrupts for modeset enabling ... */
-	intel_runtime_pm_enable_interrupts(dev_priv);
 
 	intel_modeset_init_hw(dev);
 
