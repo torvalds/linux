@@ -15,6 +15,7 @@
 #include <linux/vmalloc.h>
 #include <linux/pagemap.h>
 #include <linux/delay.h>
+#include <linux/interrupt.h>
 
 #include <asm/opal.h>
 
@@ -60,7 +61,7 @@ static ssize_t dump_type_show(struct dump_obj *dump_obj,
 			      struct dump_attribute *attr,
 			      char *buf)
 {
-	
+
 	return sprintf(buf, "0x%x %s\n", dump_obj->type,
 		       dump_type_to_string(dump_obj->type));
 }
@@ -363,7 +364,7 @@ static struct dump_obj *create_dump_obj(uint32_t id, size_t size,
 	return dump;
 }
 
-static int process_dump(void)
+static irqreturn_t process_dump(int irq, void *data)
 {
 	int rc;
 	uint32_t dump_id, dump_size, dump_type;
@@ -387,45 +388,13 @@ static int process_dump(void)
 	if (!dump)
 		return -1;
 
-	return 0;
+	return IRQ_HANDLED;
 }
-
-static void dump_work_fn(struct work_struct *work)
-{
-	process_dump();
-}
-
-static DECLARE_WORK(dump_work, dump_work_fn);
-
-static void schedule_process_dump(void)
-{
-	schedule_work(&dump_work);
-}
-
-/*
- * New dump available notification
- *
- * Once we get notification, we add sysfs entries for it.
- * We only fetch the dump on demand, and create sysfs asynchronously.
- */
-static int dump_event(struct notifier_block *nb,
-		      unsigned long events, void *change)
-{
-	if (events & OPAL_EVENT_DUMP_AVAIL)
-		schedule_process_dump();
-
-	return 0;
-}
-
-static struct notifier_block dump_nb = {
-	.notifier_call  = dump_event,
-	.next           = NULL,
-	.priority       = 0
-};
 
 void __init opal_platform_dump_init(void)
 {
 	int rc;
+	int dump_irq;
 
 	/* ELOG not supported by firmware */
 	if (!opal_check_token(OPAL_DUMP_READ))
@@ -445,10 +414,19 @@ void __init opal_platform_dump_init(void)
 		return;
 	}
 
-	rc = opal_notifier_register(&dump_nb);
+	dump_irq = opal_event_request(ilog2(OPAL_EVENT_DUMP_AVAIL));
+	if (!dump_irq) {
+		pr_err("%s: Can't register OPAL event irq (%d)\n",
+		       __func__, dump_irq);
+		return;
+	}
+
+	rc = request_threaded_irq(dump_irq, NULL, process_dump,
+				IRQF_TRIGGER_HIGH | IRQF_ONESHOT,
+				"opal-dump", NULL);
 	if (rc) {
-		pr_warn("%s: Can't register OPAL event notifier (%d)\n",
-			__func__, rc);
+		pr_err("%s: Can't request OPAL event irq (%d)\n",
+		       __func__, rc);
 		return;
 	}
 
