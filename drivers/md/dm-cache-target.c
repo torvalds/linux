@@ -355,6 +355,8 @@ struct cache {
 	 */
 	spinlock_t invalidation_lock;
 	struct list_head invalidation_requests;
+
+	struct io_tracker origin_tracker;
 };
 
 struct per_bio_data {
@@ -362,6 +364,7 @@ struct per_bio_data {
 	unsigned req_nr:2;
 	struct dm_deferred_entry *all_io_entry;
 	struct dm_hook_info hook_info;
+	sector_t len;
 
 	/*
 	 * writethrough fields.  These MUST remain at the end of this
@@ -768,6 +771,7 @@ static struct per_bio_data *init_per_bio_data(struct bio *bio, size_t data_size)
 	pb->tick = false;
 	pb->req_nr = dm_bio_get_target_bio_nr(bio);
 	pb->all_io_entry = NULL;
+	pb->len = 0;
 
 	return pb;
 }
@@ -865,12 +869,43 @@ static void inc_ds(struct cache *cache, struct bio *bio,
 	pb->all_io_entry = dm_deferred_entry_inc(cache->all_io_ds);
 }
 
+static bool accountable_bio(struct cache *cache, struct bio *bio)
+{
+	return ((bio->bi_bdev == cache->origin_dev->bdev) &&
+		!(bio->bi_rw & REQ_DISCARD));
+}
+
+static void accounted_begin(struct cache *cache, struct bio *bio)
+{
+	size_t pb_data_size = get_per_bio_data_size(cache);
+	struct per_bio_data *pb = get_per_bio_data(bio, pb_data_size);
+
+	if (accountable_bio(cache, bio)) {
+		pb->len = bio_sectors(bio);
+		iot_io_begin(&cache->origin_tracker, pb->len);
+	}
+}
+
+static void accounted_complete(struct cache *cache, struct bio *bio)
+{
+	size_t pb_data_size = get_per_bio_data_size(cache);
+	struct per_bio_data *pb = get_per_bio_data(bio, pb_data_size);
+
+	iot_io_end(&cache->origin_tracker, pb->len);
+}
+
+static void accounted_request(struct cache *cache, struct bio *bio)
+{
+	accounted_begin(cache, bio);
+	generic_make_request(bio);
+}
+
 static void issue(struct cache *cache, struct bio *bio)
 {
 	unsigned long flags;
 
 	if (!bio_triggers_commit(cache, bio)) {
-		generic_make_request(bio);
+		accounted_request(cache, bio);
 		return;
 	}
 
@@ -1166,7 +1201,7 @@ static void issue_overwrite(struct dm_cache_migration *mg, struct bio *bio)
 	 * No need to inc_ds() here, since the cell will be held for the
 	 * duration of the io.
 	 */
-	generic_make_request(bio);
+	accounted_request(mg->cache, bio);
 }
 
 static bool bio_writes_complete_block(struct cache *cache, struct bio *bio)
@@ -1722,7 +1757,7 @@ static void process_deferred_flush_bios(struct cache *cache, bool submit_bios)
 	 * These bios have already been through inc_ds()
 	 */
 	while ((bio = bio_list_pop(&bios)))
-		submit_bios ? generic_make_request(bio) : bio_io_error(bio);
+		submit_bios ? accounted_request(cache, bio) : bio_io_error(bio);
 }
 
 static void process_deferred_writethrough_bios(struct cache *cache)
@@ -1742,7 +1777,7 @@ static void process_deferred_writethrough_bios(struct cache *cache)
 	 * These bios have already been through inc_ds()
 	 */
 	while ((bio = bio_list_pop(&bios)))
-		generic_make_request(bio);
+		accounted_request(cache, bio);
 }
 
 static void writeback_some_dirty_blocks(struct cache *cache)
@@ -2602,6 +2637,8 @@ static int cache_create(struct cache_args *ca, struct cache **result)
 	spin_lock_init(&cache->invalidation_lock);
 	INIT_LIST_HEAD(&cache->invalidation_requests);
 
+	iot_init(&cache->origin_tracker);
+
 	*result = cache;
 	return 0;
 
@@ -2791,9 +2828,13 @@ static int cache_map(struct dm_target *ti, struct bio *bio)
 	struct cache *cache = ti->private;
 
 	r = __cache_map(cache, bio, &cell);
-	if (r == DM_MAPIO_REMAPPED && cell) {
-		inc_ds(cache, bio, cell);
-		cell_defer(cache, cell, false);
+	if (r == DM_MAPIO_REMAPPED) {
+		accounted_begin(cache, bio);
+
+		if (cell) {
+			inc_ds(cache, bio, cell);
+			cell_defer(cache, cell, false);
+		}
 	}
 
 	return r;
@@ -2815,6 +2856,7 @@ static int cache_end_io(struct dm_target *ti, struct bio *bio, int error)
 	}
 
 	check_for_quiesced_migrations(cache, pb);
+	accounted_complete(cache, bio);
 
 	return 0;
 }
