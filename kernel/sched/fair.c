@@ -141,9 +141,9 @@ static inline void update_load_set(struct load_weight *lw, unsigned long w)
  *
  * This idea comes from the SD scheduler of Con Kolivas:
  */
-static int get_update_sysctl_factor(void)
+static unsigned int get_update_sysctl_factor(void)
 {
-	unsigned int cpus = min_t(int, num_online_cpus(), 8);
+	unsigned int cpus = min_t(unsigned int, num_online_cpus(), 8);
 	unsigned int factor;
 
 	switch (sysctl_sched_tunable_scaling) {
@@ -576,7 +576,7 @@ int sched_proc_update_handler(struct ctl_table *table, int write,
 		loff_t *ppos)
 {
 	int ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
-	int factor = get_update_sysctl_factor();
+	unsigned int factor = get_update_sysctl_factor();
 
 	if (ret || !write)
 		return ret;
