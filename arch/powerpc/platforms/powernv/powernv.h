@@ -35,7 +35,6 @@ extern u32 pnv_get_supported_cpuidle_states(void);
 
 extern void pnv_lpc_init(void);
 
-extern void opal_do_notifier(uint64_t events);
 extern void opal_handle_events(uint64_t events);
 extern void opal_event_shutdown(void);
 

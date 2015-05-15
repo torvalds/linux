@@ -53,11 +53,7 @@ static int mc_recoverable_range_len;
 
 struct device_node *opal_node;
 static DEFINE_SPINLOCK(opal_write_lock);
-static ATOMIC_NOTIFIER_HEAD(opal_notifier_head);
 static struct atomic_notifier_head opal_msg_notifier_head[OPAL_MSG_TYPE_MAX];
-static DEFINE_SPINLOCK(opal_notifier_lock);
-static uint64_t last_notified_mask = 0x0ul;
-static atomic_t opal_notifier_hold = ATOMIC_INIT(0);
 static uint32_t opal_heartbeat;
 
 static void opal_reinit_cores(void)
@@ -222,82 +218,6 @@ static int __init opal_register_exception_handlers(void)
 	return 0;
 }
 machine_early_initcall(powernv, opal_register_exception_handlers);
-
-int opal_notifier_register(struct notifier_block *nb)
-{
-	if (!nb) {
-		pr_warning("%s: Invalid argument (%p)\n",
-			   __func__, nb);
-		return -EINVAL;
-	}
-
-	atomic_notifier_chain_register(&opal_notifier_head, nb);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(opal_notifier_register);
-
-int opal_notifier_unregister(struct notifier_block *nb)
-{
-	if (!nb) {
-		pr_warning("%s: Invalid argument (%p)\n",
-			   __func__, nb);
-		return -EINVAL;
-	}
-
-	atomic_notifier_chain_unregister(&opal_notifier_head, nb);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(opal_notifier_unregister);
-
-void opal_do_notifier(uint64_t events)
-{
-	unsigned long flags;
-	uint64_t changed_mask;
-
-	if (atomic_read(&opal_notifier_hold))
-		return;
-
-	spin_lock_irqsave(&opal_notifier_lock, flags);
-	changed_mask = last_notified_mask ^ events;
-	last_notified_mask = events;
-	spin_unlock_irqrestore(&opal_notifier_lock, flags);
-
-	/*
-	 * We feed with the event bits and changed bits for
-	 * enough information to the callback.
-	 */
-	atomic_notifier_call_chain(&opal_notifier_head,
-				   events, (void *)changed_mask);
-}
-
-void opal_notifier_update_evt(uint64_t evt_mask,
-			      uint64_t evt_val)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&opal_notifier_lock, flags);
-	last_notified_mask &= ~evt_mask;
-	last_notified_mask |= evt_val;
-	spin_unlock_irqrestore(&opal_notifier_lock, flags);
-}
-
-void opal_notifier_enable(void)
-{
-	int64_t rc;
-	__be64 evt = 0;
-
-	atomic_set(&opal_notifier_hold, 0);
-
-	/* Process pending events */
-	rc = opal_poll_events(&evt);
-	if (rc == OPAL_SUCCESS && evt)
-		opal_do_notifier(be64_to_cpu(evt));
-}
-
-void opal_notifier_disable(void)
-{
-	atomic_set(&opal_notifier_hold, 1);
-}
 
 /*
  * Opal message notifier based on message type. Allow subscribers to get
@@ -570,10 +490,8 @@ int opal_handle_hmi_exception(struct pt_regs *regs)
 
 	local_paca->hmi_event_available = 0;
 	rc = opal_poll_events(&evt);
-	if (rc == OPAL_SUCCESS && evt) {
-		opal_do_notifier(be64_to_cpu(evt));
+	if (rc == OPAL_SUCCESS && evt)
 		opal_handle_events(be64_to_cpu(evt));
-	}
 
 	return 1;
 }
