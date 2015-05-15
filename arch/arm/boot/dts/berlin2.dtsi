@@ -351,7 +351,7 @@
 		};
 
 		chip: chip-control@ea0000 {
-			compatible = "marvell,berlin2-chip-ctrl", "simple-mfd", "syscon";
+			compatible = "simple-mfd", "syscon";
 			reg = <0xea0000 0x400>;
 
 			chip_clk: clock {
@@ -454,7 +454,7 @@
 			};
 
 			sysctrl: system-controller@d000 {
-				compatible = "marvell,berlin2-system-ctrl", "simple-mfd", "syscon";
+				compatible = "simple-mfd", "syscon";
 				reg = <0xd000 0x100>;
 
 				sys_pinctrl: pin-controller {
