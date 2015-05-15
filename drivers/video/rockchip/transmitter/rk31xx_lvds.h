@@ -186,8 +186,10 @@ static inline int lvds_dsi_writel(struct rk_lvds_device *lvds,
 static inline u32 lvds_phy_lockon(struct rk_lvds_device *lvds)
 {
 	u32 val = 0;
-
-	val = readl_relaxed(lvds->ctrl_reg + 0x10);
+	if (lvds->data->soc_type == LVDS_SOC_RK312X)
+		val = readl_relaxed(lvds->ctrl_reg);
+	else
+		val = readl_relaxed(lvds->ctrl_reg + 0x10);
 	return (val & 0x01);
 }
 

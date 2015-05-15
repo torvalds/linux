@@ -32,7 +32,7 @@
 #define grf_writel(v,offset)                                    \
         do {                                                    \
                 writel_relaxed(v, RK_GRF_VIRT + offset);        \
-		dsb(sy);					\
+		dsb(sy);                                        \
         } while (0)
 
 
@@ -455,6 +455,7 @@ static int rk31xx_lvds_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "ioremap mipi-lvds ctl reg failed\n");
 		return PTR_ERR(lvds->ctrl_reg);
 	}
+#ifdef CONFIG_MFD_SYSCON
 	if (lvds->data->soc_type == LVDS_SOC_RK3368) {
 		lvds->grf_lvds_base =
 			syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
@@ -463,6 +464,7 @@ static int rk31xx_lvds_probe(struct platform_device *pdev)
 			return PTR_ERR(lvds->grf_lvds_base);
 		}
 	}
+#endif
 	ret = rk31xx_lvds_clk_init(lvds);
 	if(ret < 0)
 		goto err_clk_init;
