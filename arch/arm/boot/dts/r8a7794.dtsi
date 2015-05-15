@@ -105,6 +105,7 @@
 			     <0 15 IRQ_TYPE_LEVEL_HIGH>,
 			     <0 16 IRQ_TYPE_LEVEL_HIGH>,
 			     <0 17 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp4_clks R8A7794_CLK_IRQC>;
 	};
 
 	dmac0: dma-controller@e6700000 {
@@ -624,6 +625,14 @@
 			clock-output-names =
 			        "sdhi2", "sdhi1", "sdhi0",
 				"mmcif0", "cmt1", "usbdmac0", "usbdmac1";
+		};
+		mstp4_clks: mstp4_clks@e6150140 {
+			compatible = "renesas,r8a7794-mstp-clocks", "renesas,cpg-mstp-clocks";
+			reg = <0 0xe6150140 0 4>, <0 0xe615004c 0 4>;
+			clocks = <&cp_clk>;
+			#clock-cells = <1>;
+			clock-indices = <R8A7794_CLK_IRQC>;
+			clock-output-names = "irqc";
 		};
 		mstp7_clks: mstp7_clks@e615014c {
 			compatible = "renesas,r8a7794-mstp-clocks", "renesas,cpg-mstp-clocks";
