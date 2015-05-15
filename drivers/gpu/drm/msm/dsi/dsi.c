@@ -29,6 +29,12 @@ static void dsi_destroy(struct msm_dsi *msm_dsi)
 		return;
 
 	msm_dsi_manager_unregister(msm_dsi);
+
+	if (msm_dsi->phy) {
+		msm_dsi_phy_destroy(msm_dsi->phy);
+		msm_dsi->phy = NULL;
+	}
+
 	if (msm_dsi->host) {
 		msm_dsi_host_destroy(msm_dsi->host);
 		msm_dsi->host = NULL;
@@ -62,6 +68,14 @@ static struct msm_dsi *dsi_init(struct platform_device *pdev)
 	ret = msm_dsi_host_init(msm_dsi);
 	if (ret)
 		goto fail;
+
+	/* Init dsi PHY */
+	msm_dsi->phy = msm_dsi_phy_init(pdev, msm_dsi->phy_type, msm_dsi->id);
+	if (!msm_dsi->phy) {
+		ret = -ENXIO;
+		pr_err("%s: phy init failed\n", __func__);
+		goto fail;
+	}
 
 	/* Register to dsi manager */
 	ret = msm_dsi_manager_register(msm_dsi);

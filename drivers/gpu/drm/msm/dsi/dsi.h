@@ -38,6 +38,13 @@
 #define DSI_ENCODER_MASTER	DSI_1
 #define DSI_ENCODER_SLAVE	DSI_0
 
+enum msm_dsi_phy_type {
+	MSM_DSI_PHY_UNKNOWN,
+	MSM_DSI_PHY_28NM_HPM,
+	MSM_DSI_PHY_28NM_LP,
+	MSM_DSI_PHY_MAX
+};
+
 struct msm_dsi {
 	struct drm_device *dev;
 	struct platform_device *pdev;
@@ -49,6 +56,8 @@ struct msm_dsi {
 	struct msm_dsi_phy *phy;
 	struct drm_panel *panel;
 	unsigned long panel_flags;
+
+	enum msm_dsi_phy_type phy_type;
 	bool phy_enabled;
 
 	/* the encoders we are hooked to (outside of dsi block) */
@@ -73,6 +82,29 @@ void msm_dsi_manager_unregister(struct msm_dsi *msm_dsi);
 /* msm dsi */
 struct drm_encoder *msm_dsi_get_encoder(struct msm_dsi *msm_dsi);
 
+/* dsi pll */
+struct msm_dsi_pll;
+#ifdef CONFIG_DRM_MSM_DSI_PLL
+struct msm_dsi_pll *msm_dsi_pll_init(struct platform_device *pdev,
+			enum msm_dsi_phy_type type, int dsi_id);
+void msm_dsi_pll_destroy(struct msm_dsi_pll *pll);
+int msm_dsi_pll_get_clk_provider(struct msm_dsi_pll *pll,
+	struct clk **byte_clk_provider, struct clk **pixel_clk_provider);
+#else
+static inline struct msm_dsi_pll *msm_dsi_pll_init(struct platform_device *pdev,
+			 enum msm_dsi_phy_type type, int id) {
+	return ERR_PTR(-ENODEV);
+}
+static inline void msm_dsi_pll_destroy(struct msm_dsi_pll *pll)
+{
+}
+static inline int msm_dsi_pll_get_clk_provider(struct msm_dsi_pll *pll,
+	struct clk **byte_clk_provider, struct clk **pixel_clk_provider)
+{
+	return -ENODEV;
+}
+#endif
+
 /* dsi host */
 int msm_dsi_host_xfer_prepare(struct mipi_dsi_host *host,
 					const struct mipi_dsi_msg *msg);
@@ -94,6 +126,8 @@ struct drm_panel *msm_dsi_host_get_panel(struct mipi_dsi_host *host,
 					unsigned long *panel_flags);
 int msm_dsi_host_register(struct mipi_dsi_host *host, bool check_defer);
 void msm_dsi_host_unregister(struct mipi_dsi_host *host);
+int msm_dsi_host_set_src_pll(struct mipi_dsi_host *host,
+			struct msm_dsi_pll *src_pll);
 void msm_dsi_host_destroy(struct mipi_dsi_host *host);
 int msm_dsi_host_modeset_init(struct mipi_dsi_host *host,
 					struct drm_device *dev);
@@ -101,18 +135,15 @@ int msm_dsi_host_init(struct msm_dsi *msm_dsi);
 
 /* dsi phy */
 struct msm_dsi_phy;
-enum msm_dsi_phy_type {
-	MSM_DSI_PHY_UNKNOWN,
-	MSM_DSI_PHY_28NM_HPM,
-	MSM_DSI_PHY_28NM_LP,
-	MSM_DSI_PHY_MAX
-};
 struct msm_dsi_phy *msm_dsi_phy_init(struct platform_device *pdev,
 			enum msm_dsi_phy_type type, int id);
+void msm_dsi_phy_destroy(struct msm_dsi_phy *phy);
 int msm_dsi_phy_enable(struct msm_dsi_phy *phy, bool is_dual_panel,
 	const unsigned long bit_rate, const unsigned long esc_rate);
 int msm_dsi_phy_disable(struct msm_dsi_phy *phy);
 void msm_dsi_phy_get_clk_pre_post(struct msm_dsi_phy *phy,
 					u32 *clk_pre, u32 *clk_post);
+struct msm_dsi_pll *msm_dsi_phy_get_pll(struct msm_dsi_phy *phy);
+
 #endif /* __DSI_CONNECTOR_H__ */
 

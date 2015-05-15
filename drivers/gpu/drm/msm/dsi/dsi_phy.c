@@ -34,10 +34,18 @@ struct dsi_dphy_timing {
 };
 
 struct msm_dsi_phy {
+	struct platform_device *pdev;
 	void __iomem *base;
 	void __iomem *reg_base;
 	int id;
+
+	struct clk *ahb_clk;
+
 	struct dsi_dphy_timing timing;
+	enum msm_dsi_phy_type type;
+
+	struct msm_dsi_pll *pll;
+
 	int (*enable)(struct msm_dsi_phy *phy, bool is_dual_panel,
 		const unsigned long bit_rate, const unsigned long esc_rate);
 	int (*disable)(struct msm_dsi_phy *phy);
@@ -284,6 +292,27 @@ static int dsi_28nm_phy_disable(struct msm_dsi_phy *phy)
 	return 0;
 }
 
+static int dsi_phy_enable_resource(struct msm_dsi_phy *phy)
+{
+	int ret;
+
+	pm_runtime_get_sync(&phy->pdev->dev);
+
+	ret = clk_prepare_enable(phy->ahb_clk);
+	if (ret) {
+		pr_err("%s: can't enable ahb clk, %d\n", __func__, ret);
+		pm_runtime_put_sync(&phy->pdev->dev);
+	}
+
+	return ret;
+}
+
+static void dsi_phy_disable_resource(struct msm_dsi_phy *phy)
+{
+	clk_disable_unprepare(phy->ahb_clk);
+	pm_runtime_put_sync(&phy->pdev->dev);
+}
+
 #define dsi_phy_func_init(name)	\
 	do {	\
 		phy->enable = dsi_##name##_phy_enable;	\
@@ -294,6 +323,7 @@ struct msm_dsi_phy *msm_dsi_phy_init(struct platform_device *pdev,
 			enum msm_dsi_phy_type type, int id)
 {
 	struct msm_dsi_phy *phy;
+	int ret;
 
 	phy = devm_kzalloc(&pdev->dev, sizeof(*phy), GFP_KERNEL);
 	if (!phy)
@@ -320,9 +350,39 @@ struct msm_dsi_phy *msm_dsi_phy_init(struct platform_device *pdev,
 		return NULL;
 	}
 
+	phy->type = type;
 	phy->id = id;
+	phy->pdev = pdev;
+
+	phy->ahb_clk = devm_clk_get(&pdev->dev, "iface_clk");
+	if (IS_ERR(phy->ahb_clk)) {
+		pr_err("%s: Unable to get ahb clk\n", __func__);
+		return NULL;
+	}
+
+	/* PLL init will call into clk_register which requires
+	 * register access, so we need to enable power and ahb clock.
+	 */
+	ret = dsi_phy_enable_resource(phy);
+	if (ret)
+		return NULL;
+
+	phy->pll = msm_dsi_pll_init(pdev, type, id);
+	if (!phy->pll)
+		pr_info("%s: pll init failed, need separate pll clk driver\n",
+			__func__);
+
+	dsi_phy_disable_resource(phy);
 
 	return phy;
+}
+
+void msm_dsi_phy_destroy(struct msm_dsi_phy *phy)
+{
+	if (phy->pll) {
+		msm_dsi_pll_destroy(phy->pll);
+		phy->pll = NULL;
+	}
 }
 
 int msm_dsi_phy_enable(struct msm_dsi_phy *phy, bool is_dual_panel,
@@ -349,5 +409,13 @@ void msm_dsi_phy_get_clk_pre_post(struct msm_dsi_phy *phy,
 		*clk_pre = phy->timing.clk_pre;
 	if (clk_post)
 		*clk_post = phy->timing.clk_post;
+}
+
+struct msm_dsi_pll *msm_dsi_phy_get_pll(struct msm_dsi_phy *phy)
+{
+	if (!phy)
+		return NULL;
+
+	return phy->pll;
 }
 

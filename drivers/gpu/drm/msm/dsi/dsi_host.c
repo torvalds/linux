@@ -205,6 +205,9 @@ struct msm_dsi_host {
 	struct clk *byte_clk;
 	struct clk *esc_clk;
 	struct clk *pixel_clk;
+	struct clk *byte_clk_src;
+	struct clk *pixel_clk_src;
+
 	u32 byte_clk_rate;
 
 	struct gpio_desc *disp_en_gpio;
@@ -460,6 +463,22 @@ static int dsi_clk_init(struct msm_dsi_host *msm_host)
 		pr_err("%s: can't find dsi_esc_clk. ret=%d\n",
 			__func__, ret);
 		msm_host->esc_clk = NULL;
+		goto exit;
+	}
+
+	msm_host->byte_clk_src = devm_clk_get(dev, "byte_clk_src");
+	if (IS_ERR(msm_host->byte_clk_src)) {
+		ret = PTR_ERR(msm_host->byte_clk_src);
+		pr_err("%s: can't find byte_clk_src. ret=%d\n", __func__, ret);
+		msm_host->byte_clk_src = NULL;
+		goto exit;
+	}
+
+	msm_host->pixel_clk_src = devm_clk_get(dev, "pixel_clk_src");
+	if (IS_ERR(msm_host->pixel_clk_src)) {
+		ret = PTR_ERR(msm_host->pixel_clk_src);
+		pr_err("%s: can't find pixel_clk_src. ret=%d\n", __func__, ret);
+		msm_host->pixel_clk_src = NULL;
 		goto exit;
 	}
 
@@ -1513,15 +1532,9 @@ int msm_dsi_host_init(struct msm_dsi *msm_dsi)
 	msm_host->workqueue = alloc_ordered_workqueue("dsi_drm_work", 0);
 	INIT_WORK(&msm_host->err_work, dsi_err_worker);
 
-	msm_dsi->phy = msm_dsi_phy_init(pdev, msm_host->cfg->phy_type,
-					msm_host->id);
-	if (!msm_dsi->phy) {
-		ret = -EINVAL;
-		pr_err("%s: phy init failed\n", __func__);
-		goto fail;
-	}
 	msm_dsi->host = &msm_host->base;
 	msm_dsi->id = msm_host->id;
+	msm_dsi->phy_type = msm_host->cfg->phy_type;
 
 	DBG("Dsi Host %d initialized", msm_host->id);
 	return 0;
@@ -1827,6 +1840,39 @@ void msm_dsi_host_cmd_xfer_commit(struct mipi_dsi_host *host, u32 iova, u32 len)
 
 	/* Make sure trigger happens */
 	wmb();
+}
+
+int msm_dsi_host_set_src_pll(struct mipi_dsi_host *host,
+	struct msm_dsi_pll *src_pll)
+{
+	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
+	struct clk *byte_clk_provider, *pixel_clk_provider;
+	int ret;
+
+	ret = msm_dsi_pll_get_clk_provider(src_pll,
+				&byte_clk_provider, &pixel_clk_provider);
+	if (ret) {
+		pr_info("%s: can't get provider from pll, don't set parent\n",
+			__func__);
+		return 0;
+	}
+
+	ret = clk_set_parent(msm_host->byte_clk_src, byte_clk_provider);
+	if (ret) {
+		pr_err("%s: can't set parent to byte_clk_src. ret=%d\n",
+			__func__, ret);
+		goto exit;
+	}
+
+	ret = clk_set_parent(msm_host->pixel_clk_src, pixel_clk_provider);
+	if (ret) {
+		pr_err("%s: can't set parent to pixel_clk_src. ret=%d\n",
+			__func__, ret);
+		goto exit;
+	}
+
+exit:
+	return ret;
 }
 
 int msm_dsi_host_enable(struct mipi_dsi_host *host)
