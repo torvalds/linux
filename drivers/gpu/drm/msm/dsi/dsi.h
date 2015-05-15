@@ -103,7 +103,8 @@ int msm_dsi_host_init(struct msm_dsi *msm_dsi);
 struct msm_dsi_phy;
 enum msm_dsi_phy_type {
 	MSM_DSI_PHY_UNKNOWN,
-	MSM_DSI_PHY_28NM,
+	MSM_DSI_PHY_28NM_HPM,
+	MSM_DSI_PHY_28NM_LP,
 	MSM_DSI_PHY_MAX
 };
 struct msm_dsi_phy *msm_dsi_phy_init(struct platform_device *pdev,

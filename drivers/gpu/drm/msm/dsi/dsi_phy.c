@@ -311,7 +311,8 @@ struct msm_dsi_phy *msm_dsi_phy_init(struct platform_device *pdev,
 	}
 
 	switch (type) {
-	case MSM_DSI_PHY_28NM:
+	case MSM_DSI_PHY_28NM_HPM:
+	case MSM_DSI_PHY_28NM_LP:
 		dsi_phy_func_init(28nm);
 		break;
 	default:
