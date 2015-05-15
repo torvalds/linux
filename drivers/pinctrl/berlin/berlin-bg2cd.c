@@ -168,6 +168,14 @@ static const struct of_device_id berlin2cd_pinctrl_match[] = {
 		.compatible = "marvell,berlin2cd-system-ctrl",
 		.data = &berlin2cd_sysmgr_pinctrl_data
 	},
+	{
+		.compatible = "marvell,berlin2cd-soc-pinctrl",
+		.data = &berlin2cd_soc_pinctrl_data
+	},
+	{
+		.compatible = "marvell,berlin2cd-system-pinctrl",
+		.data = &berlin2cd_sysmgr_pinctrl_data
+	},
 	{}
 };
 MODULE_DEVICE_TABLE(of, berlin2cd_pinctrl_match);
