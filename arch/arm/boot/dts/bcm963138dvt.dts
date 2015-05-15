@@ -28,3 +28,15 @@
 &serial1 {
 	status = "okay";
 };
+
+&nand {
+	status = "okay";
+
+	nandcs@0 {
+		compatible = "brcm,nandcs";
+		reg = <0>;
+		nand-ecc-strength = <4>;
+		nand-ecc-step-size = <512>;
+		brcm,nand-oob-sectors-size = <16>;
+	};
+};
