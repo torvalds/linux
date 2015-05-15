@@ -93,15 +93,6 @@ enum {
 	CEPH_MOUNT_SHUTDOWN,
 };
 
-/*
- * subtract jiffies
- */
-static inline unsigned long time_sub(unsigned long a, unsigned long b)
-{
-	BUG_ON(time_after(b, a));
-	return (long)a - (long)b;
-}
-
 struct ceph_mds_client;
 
 /*
