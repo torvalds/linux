@@ -37,10 +37,6 @@
 #ifndef __LIBCFS_LIBCFS_H__
 #define __LIBCFS_LIBCFS_H__
 
-#if !__GNUC__
-#define __attribute__(x)
-#endif
-
 #include "linux/libcfs.h"
 #include <linux/gfp.h>
 
