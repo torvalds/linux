@@ -865,9 +865,9 @@ static int ltr501_write_thresh(struct iio_dev *indio_dev,
 			return -EINVAL;
 		}
 	case IIO_PROXIMITY:
-		switch (dir) {
 		if (val > LTR501_PS_THRESH_MASK)
 			return -EINVAL;
+		switch (dir) {
 		case IIO_EV_DIR_RISING:
 			mutex_lock(&data->lock_ps);
 			ret = regmap_bulk_write(data->regmap,
