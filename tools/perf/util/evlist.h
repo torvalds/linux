@@ -1,6 +1,7 @@
 #ifndef __PERF_EVLIST_H
 #define __PERF_EVLIST_H 1
 
+#include <linux/atomic.h>
 #include <linux/list.h>
 #include <api/fd/array.h>
 #include <stdio.h>
@@ -27,7 +28,7 @@ struct record_opts;
 struct perf_mmap {
 	void		 *base;
 	int		 mask;
-	int		 refcnt;
+	atomic_t	 refcnt;
 	u64		 prev;
 	struct auxtrace_mmap auxtrace_mmap;
 	char		 event_copy[PERF_SAMPLE_MAX_SIZE] __attribute__((aligned(8)));
