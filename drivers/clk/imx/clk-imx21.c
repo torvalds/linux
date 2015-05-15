@@ -15,6 +15,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <dt-bindings/clock/imx21-clock.h>
+#include <soc/imx/timer.h>
 #include <asm/irq.h>
 
 #include "clk.h"
@@ -156,7 +157,7 @@ int __init mx21_clocks_init(unsigned long lref, unsigned long href)
 	clk_register_clkdev(clk[IMX21_CLK_I2C_GATE], NULL, "imx21-i2c.0");
 	clk_register_clkdev(clk[IMX21_CLK_OWIRE_GATE], NULL, "mxc_w1.0");
 
-	mxc_timer_init(MX21_GPT1_BASE_ADDR, MX21_INT_GPT1);
+	mxc_timer_init(MX21_GPT1_BASE_ADDR, MX21_INT_GPT1, GPT_TYPE_IMX21);
 
 	return 0;
 }

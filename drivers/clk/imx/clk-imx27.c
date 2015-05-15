@@ -6,6 +6,7 @@
 #include <linux/of_address.h>
 #include <dt-bindings/clock/imx27-clock.h>
 #include <soc/imx/revision.h>
+#include <soc/imx/timer.h>
 #include <asm/irq.h>
 
 #include "clk.h"
@@ -233,7 +234,7 @@ int __init mx27_clocks_init(unsigned long fref)
 	clk_register_clkdev(clk[IMX27_CLK_EMMA_AHB_GATE], "ahb", "m2m-emmaprp.0");
 	clk_register_clkdev(clk[IMX27_CLK_EMMA_IPG_GATE], "ipg", "m2m-emmaprp.0");
 
-	mxc_timer_init(MX27_GPT1_BASE_ADDR, MX27_INT_GPT1);
+	mxc_timer_init(MX27_GPT1_BASE_ADDR, MX27_INT_GPT1, GPT_TYPE_IMX21);
 
 	return 0;
 }

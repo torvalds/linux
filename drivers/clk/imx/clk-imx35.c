@@ -14,6 +14,7 @@
 #include <linux/of.h>
 #include <linux/err.h>
 #include <soc/imx/revision.h>
+#include <soc/imx/timer.h>
 #include <asm/irq.h>
 
 #include "clk.h"
@@ -293,7 +294,7 @@ int __init mx35_clocks_init(void)
 
 	imx_print_silicon_rev("i.MX35", mx35_revision());
 
-	mxc_timer_init(MX35_GPT1_BASE_ADDR, MX35_INT_GPT);
+	mxc_timer_init(MX35_GPT1_BASE_ADDR, MX35_INT_GPT, GPT_TYPE_IMX31);
 
 	return 0;
 }

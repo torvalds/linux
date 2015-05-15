@@ -22,6 +22,7 @@
 #include <linux/err.h>
 #include <linux/of.h>
 #include <soc/imx/revision.h>
+#include <soc/imx/timer.h>
 #include <asm/irq.h>
 
 #include "clk.h"
@@ -198,7 +199,7 @@ int __init mx31_clocks_init(unsigned long fref)
 	mx31_revision();
 	clk_disable_unprepare(clk[iim_gate]);
 
-	mxc_timer_init(MX31_GPT1_BASE_ADDR, MX31_INT_GPT);
+	mxc_timer_init(MX31_GPT1_BASE_ADDR, MX31_INT_GPT, GPT_TYPE_IMX31);
 
 	return 0;
 }

@@ -32,6 +32,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <soc/imx/timer.h>
 
 #include <asm/mach/time.h>
 
@@ -86,6 +87,7 @@ static struct clock_event_device clockevent_mxc;
 static enum clock_event_mode clockevent_mode = CLOCK_EVT_MODE_UNUSED;
 
 struct imx_timer {
+	enum imx_gpt_type type;
 	void __iomem *base;
 	int irq;
 	struct clk *clk_per;
@@ -356,7 +358,7 @@ static void __init _mxc_timer_init(struct imx_timer *imxtm)
 	setup_irq(imxtm->irq, &mxc_timer_irq);
 }
 
-void __init mxc_timer_init(unsigned long pbase, int irq)
+void __init mxc_timer_init(unsigned long pbase, int irq, enum imx_gpt_type type)
 {
 	struct imx_timer *imxtm;
 
@@ -368,6 +370,8 @@ void __init mxc_timer_init(unsigned long pbase, int irq)
 
 	imxtm->base = ioremap(pbase, SZ_4K);
 	BUG_ON(!imxtm->base);
+
+	imxtm->type = type;
 
 	_mxc_timer_init(imxtm);
 }
