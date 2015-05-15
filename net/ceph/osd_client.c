@@ -1097,7 +1097,7 @@ static void __move_osd_to_lru(struct ceph_osd_client *osdc,
 	BUG_ON(!list_empty(&osd->o_osd_lru));
 
 	list_add_tail(&osd->o_osd_lru, &osdc->osd_lru);
-	osd->lru_ttl = jiffies + osdc->client->options->osd_idle_ttl * HZ;
+	osd->lru_ttl = jiffies + osdc->client->options->osd_idle_ttl;
 }
 
 static void maybe_move_osd_to_lru(struct ceph_osd_client *osdc,
@@ -1208,7 +1208,7 @@ static struct ceph_osd *__lookup_osd(struct ceph_osd_client *osdc, int o)
 static void __schedule_osd_timeout(struct ceph_osd_client *osdc)
 {
 	schedule_delayed_work(&osdc->timeout_work,
-			osdc->client->options->osd_keepalive_timeout * HZ);
+			      osdc->client->options->osd_keepalive_timeout);
 }
 
 static void __cancel_osd_timeout(struct ceph_osd_client *osdc)
@@ -1576,10 +1576,9 @@ static void handle_timeout(struct work_struct *work)
 {
 	struct ceph_osd_client *osdc =
 		container_of(work, struct ceph_osd_client, timeout_work.work);
+	struct ceph_options *opts = osdc->client->options;
 	struct ceph_osd_request *req;
 	struct ceph_osd *osd;
-	unsigned long keepalive =
-		osdc->client->options->osd_keepalive_timeout * HZ;
 	struct list_head slow_osds;
 	dout("timeout\n");
 	down_read(&osdc->map_sem);
@@ -1595,7 +1594,8 @@ static void handle_timeout(struct work_struct *work)
 	 */
 	INIT_LIST_HEAD(&slow_osds);
 	list_for_each_entry(req, &osdc->req_lru, r_req_lru_item) {
-		if (time_before(jiffies, req->r_stamp + keepalive))
+		if (time_before(jiffies,
+				req->r_stamp + opts->osd_keepalive_timeout))
 			break;
 
 		osd = req->r_osd;
@@ -1622,8 +1622,7 @@ static void handle_osds_timeout(struct work_struct *work)
 	struct ceph_osd_client *osdc =
 		container_of(work, struct ceph_osd_client,
 			     osds_timeout_work.work);
-	unsigned long delay =
-		osdc->client->options->osd_idle_ttl * HZ >> 2;
+	unsigned long delay = osdc->client->options->osd_idle_ttl / 4;
 
 	dout("osds timeout\n");
 	down_read(&osdc->map_sem);
@@ -2628,7 +2627,7 @@ int ceph_osdc_init(struct ceph_osd_client *osdc, struct ceph_client *client)
 	osdc->event_count = 0;
 
 	schedule_delayed_work(&osdc->osds_timeout_work,
-	   round_jiffies_relative(osdc->client->options->osd_idle_ttl * HZ));
+	    round_jiffies_relative(osdc->client->options->osd_idle_ttl));
 
 	err = -ENOMEM;
 	osdc->req_mempool = mempool_create_kmalloc_pool(10,

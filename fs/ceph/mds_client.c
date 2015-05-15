@@ -2268,7 +2268,8 @@ int ceph_mdsc_do_request(struct ceph_mds_client *mdsc,
 	dout("do_request waiting\n");
 	if (req->r_timeout) {
 		err = (long)wait_for_completion_killable_timeout(
-			&req->r_completion, req->r_timeout);
+					&req->r_completion,
+					ceph_timeout_jiffies(req->r_timeout));
 		if (err == 0)
 			err = -EIO;
 	} else if (req->r_wait_for_completion) {
@@ -3424,8 +3425,8 @@ int ceph_mdsc_init(struct ceph_fs_client *fsc)
  */
 static void wait_requests(struct ceph_mds_client *mdsc)
 {
+	struct ceph_options *opts = mdsc->fsc->client->options;
 	struct ceph_mds_request *req;
-	struct ceph_fs_client *fsc = mdsc->fsc;
 
 	mutex_lock(&mdsc->mutex);
 	if (__get_oldest_req(mdsc)) {
@@ -3433,7 +3434,7 @@ static void wait_requests(struct ceph_mds_client *mdsc)
 
 		dout("wait_requests waiting for requests\n");
 		wait_for_completion_timeout(&mdsc->safe_umount_waiters,
-				    fsc->client->options->mount_timeout * HZ);
+				    ceph_timeout_jiffies(opts->mount_timeout));
 
 		/* tear down remaining requests */
 		mutex_lock(&mdsc->mutex);
@@ -3556,10 +3557,9 @@ static bool done_closing_sessions(struct ceph_mds_client *mdsc)
  */
 void ceph_mdsc_close_sessions(struct ceph_mds_client *mdsc)
 {
+	struct ceph_options *opts = mdsc->fsc->client->options;
 	struct ceph_mds_session *session;
 	int i;
-	struct ceph_fs_client *fsc = mdsc->fsc;
-	unsigned long timeout = fsc->client->options->mount_timeout * HZ;
 
 	dout("close_sessions\n");
 
@@ -3580,7 +3580,7 @@ void ceph_mdsc_close_sessions(struct ceph_mds_client *mdsc)
 
 	dout("waiting for sessions to close\n");
 	wait_event_timeout(mdsc->session_close_wq, done_closing_sessions(mdsc),
-			   timeout);
+			   ceph_timeout_jiffies(opts->mount_timeout));
 
 	/* tear down remaining sessions */
 	mutex_lock(&mdsc->mutex);

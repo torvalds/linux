@@ -1259,8 +1259,8 @@ static int ceph_dir_fsync(struct file *file, loff_t start, loff_t end,
 		     inode, req->r_tid, last_tid);
 		if (req->r_timeout) {
 			unsigned long time_left = wait_for_completion_timeout(
-							&req->r_safe_completion,
-							req->r_timeout);
+					&req->r_safe_completion,
+					ceph_timeout_jiffies(req->r_timeout));
 			if (time_left > 0)
 				ret = 0;
 			else

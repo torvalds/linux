@@ -227,7 +227,7 @@ struct ceph_mds_request {
 	int r_err;
 	bool r_aborted;
 
-	unsigned long r_timeout;  /* optional.  jiffies */
+	unsigned long r_timeout;  /* optional.  jiffies, 0 is "wait forever" */
 	unsigned long r_started;  /* start time to measure timeout against */
 	unsigned long r_request_started; /* start time for mds request only,
 					    used to measure lease durations */

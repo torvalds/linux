@@ -43,9 +43,9 @@ struct ceph_options {
 	int flags;
 	struct ceph_fsid fsid;
 	struct ceph_entity_addr my_addr;
-	int mount_timeout;
-	int osd_idle_ttl;
-	int osd_keepalive_timeout;
+	unsigned long mount_timeout;		/* jiffies */
+	unsigned long osd_idle_ttl;		/* jiffies */
+	unsigned long osd_keepalive_timeout;	/* jiffies */
 
 	/*
 	 * any type that can't be simply compared or doesn't need need
@@ -63,9 +63,9 @@ struct ceph_options {
 /*
  * defaults
  */
-#define CEPH_MOUNT_TIMEOUT_DEFAULT  60
-#define CEPH_OSD_KEEPALIVE_DEFAULT  5
-#define CEPH_OSD_IDLE_TTL_DEFAULT    60
+#define CEPH_MOUNT_TIMEOUT_DEFAULT	msecs_to_jiffies(60 * 1000)
+#define CEPH_OSD_KEEPALIVE_DEFAULT	msecs_to_jiffies(5 * 1000)
+#define CEPH_OSD_IDLE_TTL_DEFAULT	msecs_to_jiffies(60 * 1000)
 
 #define CEPH_MSG_MAX_FRONT_LEN	(16*1024*1024)
 #define CEPH_MSG_MAX_MIDDLE_LEN	(16*1024*1024)
@@ -92,6 +92,11 @@ enum {
 	CEPH_MOUNT_UNMOUNTED,
 	CEPH_MOUNT_SHUTDOWN,
 };
+
+static inline unsigned long ceph_timeout_jiffies(unsigned long timeout)
+{
+	return timeout ?: MAX_SCHEDULE_TIMEOUT;
+}
 
 struct ceph_mds_client;
 

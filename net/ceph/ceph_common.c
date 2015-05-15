@@ -352,8 +352,8 @@ ceph_parse_options(char *options, const char *dev_name,
 	/* start with defaults */
 	opt->flags = CEPH_OPT_DEFAULT;
 	opt->osd_keepalive_timeout = CEPH_OSD_KEEPALIVE_DEFAULT;
-	opt->mount_timeout = CEPH_MOUNT_TIMEOUT_DEFAULT; /* seconds */
-	opt->osd_idle_ttl = CEPH_OSD_IDLE_TTL_DEFAULT;   /* seconds */
+	opt->mount_timeout = CEPH_MOUNT_TIMEOUT_DEFAULT;
+	opt->osd_idle_ttl = CEPH_OSD_IDLE_TTL_DEFAULT;
 
 	/* get mon ip(s) */
 	/* ip1[:port1][,ip2[:port2]...] */
@@ -439,13 +439,32 @@ ceph_parse_options(char *options, const char *dev_name,
 			pr_warn("ignoring deprecated osdtimeout option\n");
 			break;
 		case Opt_osdkeepalivetimeout:
-			opt->osd_keepalive_timeout = intval;
+			/* 0 isn't well defined right now, reject it */
+			if (intval < 1 || intval > INT_MAX / 1000) {
+				pr_err("osdkeepalive out of range\n");
+				err = -EINVAL;
+				goto out;
+			}
+			opt->osd_keepalive_timeout =
+					msecs_to_jiffies(intval * 1000);
 			break;
 		case Opt_osd_idle_ttl:
-			opt->osd_idle_ttl = intval;
+			/* 0 isn't well defined right now, reject it */
+			if (intval < 1 || intval > INT_MAX / 1000) {
+				pr_err("osd_idle_ttl out of range\n");
+				err = -EINVAL;
+				goto out;
+			}
+			opt->osd_idle_ttl = msecs_to_jiffies(intval * 1000);
 			break;
 		case Opt_mount_timeout:
-			opt->mount_timeout = intval;
+			/* 0 is "wait forever" (i.e. infinite timeout) */
+			if (intval < 0 || intval > INT_MAX / 1000) {
+				pr_err("mount_timeout out of range\n");
+				err = -EINVAL;
+				goto out;
+			}
+			opt->mount_timeout = msecs_to_jiffies(intval * 1000);
 			break;
 
 		case Opt_share:
@@ -512,12 +531,14 @@ int ceph_print_client_options(struct seq_file *m, struct ceph_client *client)
 		seq_puts(m, "notcp_nodelay,");
 
 	if (opt->mount_timeout != CEPH_MOUNT_TIMEOUT_DEFAULT)
-		seq_printf(m, "mount_timeout=%d,", opt->mount_timeout);
+		seq_printf(m, "mount_timeout=%d,",
+			   jiffies_to_msecs(opt->mount_timeout) / 1000);
 	if (opt->osd_idle_ttl != CEPH_OSD_IDLE_TTL_DEFAULT)
-		seq_printf(m, "osd_idle_ttl=%d,", opt->osd_idle_ttl);
+		seq_printf(m, "osd_idle_ttl=%d,",
+			   jiffies_to_msecs(opt->osd_idle_ttl) / 1000);
 	if (opt->osd_keepalive_timeout != CEPH_OSD_KEEPALIVE_DEFAULT)
 		seq_printf(m, "osdkeepalivetimeout=%d,",
-			   opt->osd_keepalive_timeout);
+		    jiffies_to_msecs(opt->osd_keepalive_timeout) / 1000);
 
 	/* drop redundant comma */
 	if (m->count != pos)
@@ -627,7 +648,7 @@ static int have_mon_and_osd_map(struct ceph_client *client)
 int __ceph_open_session(struct ceph_client *client, unsigned long started)
 {
 	int err;
-	unsigned long timeout = client->options->mount_timeout * HZ;
+	unsigned long timeout = client->options->mount_timeout;
 
 	/* open session, and wait for mon and osd maps */
 	err = ceph_monc_open_session(&client->monc);
@@ -643,7 +664,7 @@ int __ceph_open_session(struct ceph_client *client, unsigned long started)
 		dout("mount waiting for mon_map\n");
 		err = wait_event_interruptible_timeout(client->auth_wq,
 			have_mon_and_osd_map(client) || (client->auth_err < 0),
-			timeout);
+			ceph_timeout_jiffies(timeout));
 		if (err == -EINTR || err == -ERESTARTSYS)
 			return err;
 		if (client->auth_err < 0)
