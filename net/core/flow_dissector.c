@@ -279,7 +279,6 @@ flow_label:
 
 		if (skb_flow_dissector_uses_key(flow_dissector,
 						FLOW_DISSECTOR_KEY_IPV6_HASH_ADDRS)) {
-			return true;
 			key_addrs = skb_flow_dissector_target(flow_dissector,
 							      FLOW_DISSECTOR_KEY_IPV6_HASH_ADDRS,
 							      target_container);
