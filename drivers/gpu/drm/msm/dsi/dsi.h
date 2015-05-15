@@ -14,6 +14,7 @@
 #ifndef __DSI_CONNECTOR_H__
 #define __DSI_CONNECTOR_H__
 
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 
 #include "drm_crtc.h"
@@ -39,10 +40,25 @@
 #define DSI_ENCODER_SLAVE	DSI_0
 
 enum msm_dsi_phy_type {
-	MSM_DSI_PHY_UNKNOWN,
 	MSM_DSI_PHY_28NM_HPM,
 	MSM_DSI_PHY_28NM_LP,
 	MSM_DSI_PHY_MAX
+};
+
+#define DSI_DEV_REGULATOR_MAX	8
+
+/* Regulators for DSI devices */
+struct dsi_reg_entry {
+	char name[32];
+	int min_voltage;
+	int max_voltage;
+	int enable_load;
+	int disable_load;
+};
+
+struct dsi_reg_config {
+	int num;
+	struct dsi_reg_entry regs[DSI_DEV_REGULATOR_MAX];
 };
 
 struct msm_dsi {
@@ -57,7 +73,7 @@ struct msm_dsi {
 	struct drm_panel *panel;
 	unsigned long panel_flags;
 
-	enum msm_dsi_phy_type phy_type;
+	struct device *phy_dev;
 	bool phy_enabled;
 
 	/* the encoders we are hooked to (outside of dsi block) */
@@ -135,9 +151,8 @@ int msm_dsi_host_init(struct msm_dsi *msm_dsi);
 
 /* dsi phy */
 struct msm_dsi_phy;
-struct msm_dsi_phy *msm_dsi_phy_init(struct platform_device *pdev,
-			enum msm_dsi_phy_type type, int id);
-void msm_dsi_phy_destroy(struct msm_dsi_phy *phy);
+void msm_dsi_phy_driver_register(void);
+void msm_dsi_phy_driver_unregister(void);
 int msm_dsi_phy_enable(struct msm_dsi_phy *phy, bool is_dual_panel,
 	const unsigned long bit_rate, const unsigned long esc_rate);
 int msm_dsi_phy_disable(struct msm_dsi_phy *phy);

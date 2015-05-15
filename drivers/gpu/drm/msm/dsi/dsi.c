@@ -23,6 +23,34 @@ struct drm_encoder *msm_dsi_get_encoder(struct msm_dsi *msm_dsi)
 		msm_dsi->encoders[MSM_DSI_CMD_ENCODER_ID];
 }
 
+static int dsi_get_phy(struct msm_dsi *msm_dsi)
+{
+	struct platform_device *pdev = msm_dsi->pdev;
+	struct platform_device *phy_pdev;
+	struct device_node *phy_node;
+
+	phy_node = of_parse_phandle(pdev->dev.of_node, "qcom,dsi-phy", 0);
+	if (!phy_node) {
+		dev_err(&pdev->dev, "cannot find phy device\n");
+		return -ENXIO;
+	}
+
+	phy_pdev = of_find_device_by_node(phy_node);
+	if (phy_pdev)
+		msm_dsi->phy = platform_get_drvdata(phy_pdev);
+
+	of_node_put(phy_node);
+
+	if (!phy_pdev || !msm_dsi->phy) {
+		dev_err(&pdev->dev, "%s: phy driver is not ready\n", __func__);
+		return -EPROBE_DEFER;
+	}
+
+	msm_dsi->phy_dev = get_device(&phy_pdev->dev);
+
+	return 0;
+}
+
 static void dsi_destroy(struct msm_dsi *msm_dsi)
 {
 	if (!msm_dsi)
@@ -30,9 +58,10 @@ static void dsi_destroy(struct msm_dsi *msm_dsi)
 
 	msm_dsi_manager_unregister(msm_dsi);
 
-	if (msm_dsi->phy) {
-		msm_dsi_phy_destroy(msm_dsi->phy);
+	if (msm_dsi->phy_dev) {
+		put_device(msm_dsi->phy_dev);
 		msm_dsi->phy = NULL;
+		msm_dsi->phy_dev = NULL;
 	}
 
 	if (msm_dsi->host) {
@@ -49,7 +78,6 @@ static struct msm_dsi *dsi_init(struct platform_device *pdev)
 	int ret;
 
 	if (!pdev) {
-		dev_err(&pdev->dev, "no dsi device\n");
 		ret = -ENXIO;
 		goto fail;
 	}
@@ -69,13 +97,10 @@ static struct msm_dsi *dsi_init(struct platform_device *pdev)
 	if (ret)
 		goto fail;
 
-	/* Init dsi PHY */
-	msm_dsi->phy = msm_dsi_phy_init(pdev, msm_dsi->phy_type, msm_dsi->id);
-	if (!msm_dsi->phy) {
-		ret = -ENXIO;
-		pr_err("%s: phy init failed\n", __func__);
+	/* GET dsi PHY */
+	ret = dsi_get_phy(msm_dsi);
+	if (ret)
 		goto fail;
-	}
 
 	/* Register to dsi manager */
 	ret = msm_dsi_manager_register(msm_dsi);
@@ -156,12 +181,14 @@ static struct platform_driver dsi_driver = {
 void __init msm_dsi_register(void)
 {
 	DBG("");
+	msm_dsi_phy_driver_register();
 	platform_driver_register(&dsi_driver);
 }
 
 void __exit msm_dsi_unregister(void)
 {
 	DBG("");
+	msm_dsi_phy_driver_unregister();
 	platform_driver_unregister(&dsi_driver);
 }
 

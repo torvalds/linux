@@ -36,35 +36,19 @@
 
 #define DSI_6G_REG_SHIFT	4
 
-#define DSI_REGULATOR_MAX	8
-struct dsi_reg_entry {
-	char name[32];
-	int min_voltage;
-	int max_voltage;
-	int enable_load;
-	int disable_load;
-};
-
-struct dsi_reg_config {
-	int num;
-	struct dsi_reg_entry regs[DSI_REGULATOR_MAX];
-};
-
 struct dsi_config {
 	u32 major;
 	u32 minor;
 	u32 io_offset;
-	enum msm_dsi_phy_type phy_type;
 	struct dsi_reg_config reg_cfg;
 };
 
 static const struct dsi_config dsi_cfgs[] = {
-	{MSM_DSI_VER_MAJOR_V2, 0, 0, MSM_DSI_PHY_UNKNOWN},
+	{MSM_DSI_VER_MAJOR_V2, 0, 0, {0,} },
 	{ /* 8974 v1 */
 		.major = MSM_DSI_VER_MAJOR_6G,
 		.minor = MSM_DSI_6G_VER_MINOR_V1_0,
 		.io_offset = DSI_6G_REG_SHIFT,
-		.phy_type = MSM_DSI_PHY_28NM_HPM,
 		.reg_cfg = {
 			.num = 4,
 			.regs = {
@@ -79,7 +63,6 @@ static const struct dsi_config dsi_cfgs[] = {
 		.major = MSM_DSI_VER_MAJOR_6G,
 		.minor = MSM_DSI_6G_VER_MINOR_V1_1,
 		.io_offset = DSI_6G_REG_SHIFT,
-		.phy_type = MSM_DSI_PHY_28NM_HPM,
 		.reg_cfg = {
 			.num = 4,
 			.regs = {
@@ -94,7 +77,6 @@ static const struct dsi_config dsi_cfgs[] = {
 		.major = MSM_DSI_VER_MAJOR_6G,
 		.minor = MSM_DSI_6G_VER_MINOR_V1_1_1,
 		.io_offset = DSI_6G_REG_SHIFT,
-		.phy_type = MSM_DSI_PHY_28NM_HPM,
 		.reg_cfg = {
 			.num = 4,
 			.regs = {
@@ -109,7 +91,6 @@ static const struct dsi_config dsi_cfgs[] = {
 		.major = MSM_DSI_VER_MAJOR_6G,
 		.minor = MSM_DSI_6G_VER_MINOR_V1_2,
 		.io_offset = DSI_6G_REG_SHIFT,
-		.phy_type = MSM_DSI_PHY_28NM_HPM,
 		.reg_cfg = {
 			.num = 4,
 			.regs = {
@@ -124,7 +105,6 @@ static const struct dsi_config dsi_cfgs[] = {
 		.major = MSM_DSI_VER_MAJOR_6G,
 		.minor = MSM_DSI_6G_VER_MINOR_V1_3_1,
 		.io_offset = DSI_6G_REG_SHIFT,
-		.phy_type = MSM_DSI_PHY_28NM_LP,
 		.reg_cfg = {
 			.num = 4,
 			.regs = {
@@ -197,7 +177,7 @@ struct msm_dsi_host {
 	int id;
 
 	void __iomem *ctrl_base;
-	struct regulator_bulk_data supplies[DSI_REGULATOR_MAX];
+	struct regulator_bulk_data supplies[DSI_DEV_REGULATOR_MAX];
 	struct clk *mdp_core_clk;
 	struct clk *ahb_clk;
 	struct clk *axi_clk;
@@ -1534,7 +1514,6 @@ int msm_dsi_host_init(struct msm_dsi *msm_dsi)
 
 	msm_dsi->host = &msm_host->base;
 	msm_dsi->id = msm_host->id;
-	msm_dsi->phy_type = msm_host->cfg->phy_type;
 
 	DBG("Dsi Host %d initialized", msm_host->id);
 	return 0;
