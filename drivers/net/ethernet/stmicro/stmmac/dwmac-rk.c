@@ -22,12 +22,16 @@
 #include <linux/phy.h>
 #include <linux/of_net.h>
 #include <linux/gpio.h>
+#include <linux/module.h>
 #include <linux/of_gpio.h>
 #include <linux/of_device.h>
+#include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/delay.h>
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
+
+#include "stmmac_platform.h"
 
 struct rk_priv_data {
 	struct platform_device *pdev;
@@ -428,10 +432,31 @@ static void rk_fix_speed(void *priv, unsigned int speed)
 		dev_err(dev, "unsupported interface %d", bsp_priv->phy_iface);
 }
 
-const struct stmmac_of_data rk3288_gmac_data = {
+static const struct stmmac_of_data rk3288_gmac_data = {
 	.has_gmac = 1,
 	.fix_mac_speed = rk_fix_speed,
 	.setup = rk_gmac_setup,
 	.init = rk_gmac_init,
 	.exit = rk_gmac_exit,
 };
+
+static const struct of_device_id rk_gmac_dwmac_match[] = {
+	{ .compatible = "rockchip,rk3288-gmac", .data = &rk3288_gmac_data},
+	{ }
+};
+MODULE_DEVICE_TABLE(of, rk_gmac_dwmac_match);
+
+static struct platform_driver rk_gmac_dwmac_driver = {
+	.probe  = stmmac_pltfr_probe,
+	.remove = stmmac_pltfr_remove,
+	.driver = {
+		.name           = "rk_gmac-dwmac",
+		.pm		= &stmmac_pltfr_pm_ops,
+		.of_match_table = rk_gmac_dwmac_match,
+	},
+};
+module_platform_driver(rk_gmac_dwmac_driver);
+
+MODULE_AUTHOR("Chen-Zhi (Roger Chen) <roger.chen@rock-chips.com>");
+MODULE_DESCRIPTION("Rockchip RK3288 DWMAC specific glue layer");
+MODULE_LICENSE("GPL");

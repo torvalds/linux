@@ -32,25 +32,6 @@
 #include "stmmac.h"
 #include "stmmac_platform.h"
 
-static const struct of_device_id stmmac_dt_ids[] = {
-	/* SoC specific glue layers should come before generic bindings */
-	{ .compatible = "rockchip,rk3288-gmac", .data = &rk3288_gmac_data},
-	{ .compatible = "amlogic,meson6-dwmac", .data = &meson6_dwmac_data},
-	{ .compatible = "allwinner,sun7i-a20-gmac", .data = &sun7i_gmac_data},
-	{ .compatible = "st,stih415-dwmac", .data = &stih4xx_dwmac_data},
-	{ .compatible = "st,stih416-dwmac", .data = &stih4xx_dwmac_data},
-	{ .compatible = "st,stid127-dwmac", .data = &stid127_dwmac_data},
-	{ .compatible = "st,stih407-dwmac", .data = &stih4xx_dwmac_data},
-	{ .compatible = "altr,socfpga-stmmac", .data = &socfpga_gmac_data },
-	{ .compatible = "st,spear600-gmac"},
-	{ .compatible = "snps,dwmac-3.610"},
-	{ .compatible = "snps,dwmac-3.70a"},
-	{ .compatible = "snps,dwmac-3.710"},
-	{ .compatible = "snps,dwmac"},
-	{ /* sentinel */ }
-};
-MODULE_DEVICE_TABLE(of, stmmac_dt_ids);
-
 #ifdef CONFIG_OF
 
 /**
@@ -129,11 +110,12 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 	struct device_node *np = pdev->dev.of_node;
 	struct stmmac_dma_cfg *dma_cfg;
 	const struct of_device_id *device;
+	struct device *dev = &pdev->dev;
 
 	if (!np)
 		return -ENODEV;
 
-	device = of_match_device(stmmac_dt_ids, &pdev->dev);
+	device = of_match_device(dev->driver->of_match_table, dev);
 	if (!device)
 		return -ENODEV;
 
@@ -268,7 +250,7 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
  * the necessary platform resources, invoke custom helper (if required) and
  * invoke the main probe function.
  */
-static int stmmac_pltfr_probe(struct platform_device *pdev)
+int stmmac_pltfr_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	struct resource *res;
@@ -374,6 +356,7 @@ static int stmmac_pltfr_probe(struct platform_device *pdev)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(stmmac_pltfr_probe);
 
 /**
  * stmmac_pltfr_remove
@@ -381,7 +364,7 @@ static int stmmac_pltfr_probe(struct platform_device *pdev)
  * Description: this function calls the main to free the net resources
  * and calls the platforms hook and release the resources (e.g. mem).
  */
-static int stmmac_pltfr_remove(struct platform_device *pdev)
+int stmmac_pltfr_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct stmmac_priv *priv = netdev_priv(ndev);
@@ -395,6 +378,7 @@ static int stmmac_pltfr_remove(struct platform_device *pdev)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(stmmac_pltfr_remove);
 
 #ifdef CONFIG_PM_SLEEP
 /**
@@ -438,21 +422,6 @@ static int stmmac_pltfr_resume(struct device *dev)
 }
 #endif /* CONFIG_PM_SLEEP */
 
-static SIMPLE_DEV_PM_OPS(stmmac_pltfr_pm_ops,
-			 stmmac_pltfr_suspend, stmmac_pltfr_resume);
-
-static struct platform_driver stmmac_pltfr_driver = {
-	.probe = stmmac_pltfr_probe,
-	.remove = stmmac_pltfr_remove,
-	.driver = {
-		   .name = STMMAC_RESOURCE_NAME,
-		   .pm = &stmmac_pltfr_pm_ops,
-		   .of_match_table = of_match_ptr(stmmac_dt_ids),
-	},
-};
-
-module_platform_driver(stmmac_pltfr_driver);
-
-MODULE_DESCRIPTION("STMMAC 10/100/1000 Ethernet PLATFORM driver");
-MODULE_AUTHOR("Giuseppe Cavallaro <peppe.cavallaro@st.com>");
-MODULE_LICENSE("GPL");
+SIMPLE_DEV_PM_OPS(stmmac_pltfr_pm_ops, stmmac_pltfr_suspend,
+				       stmmac_pltfr_resume);
+EXPORT_SYMBOL_GPL(stmmac_pltfr_pm_ops);
