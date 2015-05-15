@@ -129,10 +129,6 @@ static void l2c_enable(void __iomem *base, u32 aux, unsigned num_lock)
 {
 	unsigned long flags;
 
-	/* Do not touch the controller if already enabled. */
-	if (readl_relaxed(base + L2X0_CTRL) & L2X0_CTRL_EN)
-		return;
-
 	l2x0_saved_regs.aux_ctrl = aux;
 	l2c_configure(base);
 
@@ -163,7 +159,11 @@ static void l2c_save(void __iomem *base)
 
 static void l2c_resume(void)
 {
-	l2c_enable(l2x0_base, l2x0_saved_regs.aux_ctrl, l2x0_data->num_lock);
+	void __iomem *base = l2x0_base;
+
+	/* Do not touch the controller if already enabled. */
+	if (!(readl_relaxed(base + L2X0_CTRL) & L2X0_CTRL_EN))
+		l2c_enable(base, l2x0_saved_regs.aux_ctrl, l2x0_data->num_lock);
 }
 
 /*
