@@ -64,9 +64,7 @@ static const uint32_t i965_primary_formats[] = {
 	DRM_FORMAT_ARGB8888,
 	DRM_FORMAT_ABGR8888,
 	DRM_FORMAT_XRGB2101010,
-	DRM_FORMAT_ARGB2101010,
 	DRM_FORMAT_XBGR2101010,
-	DRM_FORMAT_ABGR2101010,
 };
 
 /* Cursor formats */
@@ -2716,11 +2714,9 @@ static void i9xx_update_primary_plane(struct drm_crtc *crtc,
 		dspcntr |= DISPPLANE_RGBX888;
 		break;
 	case DRM_FORMAT_XRGB2101010:
-	case DRM_FORMAT_ARGB2101010:
 		dspcntr |= DISPPLANE_BGRX101010;
 		break;
 	case DRM_FORMAT_XBGR2101010:
-	case DRM_FORMAT_ABGR2101010:
 		dspcntr |= DISPPLANE_RGBX101010;
 		break;
 	default:
@@ -2824,11 +2820,9 @@ static void ironlake_update_primary_plane(struct drm_crtc *crtc,
 		dspcntr |= DISPPLANE_RGBX888;
 		break;
 	case DRM_FORMAT_XRGB2101010:
-	case DRM_FORMAT_ARGB2101010:
 		dspcntr |= DISPPLANE_BGRX101010;
 		break;
 	case DRM_FORMAT_XBGR2101010:
-	case DRM_FORMAT_ABGR2101010:
 		dspcntr |= DISPPLANE_RGBX101010;
 		break;
 	default:
@@ -4518,9 +4512,7 @@ skl_update_scaler_users(
 		case DRM_FORMAT_ABGR8888:
 		case DRM_FORMAT_ARGB8888:
 		case DRM_FORMAT_XRGB2101010:
-		case DRM_FORMAT_ARGB2101010:
 		case DRM_FORMAT_XBGR2101010:
-		case DRM_FORMAT_ABGR2101010:
 		case DRM_FORMAT_YUYV:
 		case DRM_FORMAT_YVYU:
 		case DRM_FORMAT_UYVY:
@@ -13999,10 +13991,15 @@ static int intel_framebuffer_init(struct drm_device *dev,
 	case DRM_FORMAT_XBGR8888:
 	case DRM_FORMAT_ABGR8888:
 	case DRM_FORMAT_XRGB2101010:
-	case DRM_FORMAT_ARGB2101010:
 	case DRM_FORMAT_XBGR2101010:
-	case DRM_FORMAT_ABGR2101010:
 		if (INTEL_INFO(dev)->gen < 4) {
+			DRM_DEBUG("unsupported pixel format: %s\n",
+				  drm_get_format_name(mode_cmd->pixel_format));
+			return -EINVAL;
+		}
+		break;
+	case DRM_FORMAT_ABGR2101010:
+		if (!IS_VALLEYVIEW(dev)) {
 			DRM_DEBUG("unsupported pixel format: %s\n",
 				  drm_get_format_name(mode_cmd->pixel_format));
 			return -EINVAL;
