@@ -920,32 +920,36 @@ static int cx24120_set_inversion(struct cx24120_state *state,
 	return 0;
 }
 
-/*
- * FEC lookup table for tuning Some DVB-S2 val's have been found by
- * trial and error. Sofar it seems to match up with the contents of
- * the REG_FECMODE after tuning The rest will probably be the same but
- * would need testing.  Anything not in the table will run with
- * FEC_AUTO and take a while longer to tune in ( c.500ms instead of
- * 30ms )
- */
+/* FEC lookup table for tuning */
 static struct cx24120_modfec_table {
 	fe_delivery_system_t delsys;
 	fe_modulation_t mod;
 	fe_code_rate_t fec;
 	u8 val;
 } modfec_table[] = {
-	/*delsys	mod	fec	 val */
-	{ SYS_DVBS,  QPSK,  FEC_1_2, 0x2e },
-	{ SYS_DVBS,  QPSK,  FEC_2_3, 0x2f },
-	{ SYS_DVBS,  QPSK,  FEC_3_4, 0x30 },
-	{ SYS_DVBS,  QPSK,  FEC_5_6, 0x31 },
-	{ SYS_DVBS,  QPSK,  FEC_6_7, 0x32 },
-	{ SYS_DVBS,  QPSK,  FEC_7_8, 0x33 },
+	/*delsys     mod    fec       val */
+	{ SYS_DVBS,  QPSK,  FEC_1_2,  0x2e },
+	{ SYS_DVBS,  QPSK,  FEC_2_3,  0x2f },
+	{ SYS_DVBS,  QPSK,  FEC_3_4,  0x30 },
+	{ SYS_DVBS,  QPSK,  FEC_5_6,  0x31 },
+	{ SYS_DVBS,  QPSK,  FEC_6_7,  0x32 },
+	{ SYS_DVBS,  QPSK,  FEC_7_8,  0x33 },
 
-	{ SYS_DVBS2, QPSK,  FEC_3_4, 0x07 },
+	{ SYS_DVBS2, QPSK,  FEC_1_2,  0x04 },
+	{ SYS_DVBS2, QPSK,  FEC_3_5,  0x05 },
+	{ SYS_DVBS2, QPSK,  FEC_2_3,  0x06 },
+	{ SYS_DVBS2, QPSK,  FEC_3_4,  0x07 },
+	{ SYS_DVBS2, QPSK,  FEC_4_5,  0x08 },
+	{ SYS_DVBS2, QPSK,  FEC_5_6,  0x09 },
+	{ SYS_DVBS2, QPSK,  FEC_8_9,  0x0a },
+	{ SYS_DVBS2, QPSK,  FEC_9_10, 0x0b },
 
-	{ SYS_DVBS2, PSK_8, FEC_2_3, 0x0d },
-	{ SYS_DVBS2, PSK_8, FEC_3_4, 0x0e },
+	{ SYS_DVBS2, PSK_8, FEC_3_5,  0x0c },
+	{ SYS_DVBS2, PSK_8, FEC_2_3,  0x0d },
+	{ SYS_DVBS2, PSK_8, FEC_3_4,  0x0e },
+	{ SYS_DVBS2, PSK_8, FEC_5_6,  0x0f },
+	{ SYS_DVBS2, PSK_8, FEC_8_9,  0x10 },
+	{ SYS_DVBS2, PSK_8, FEC_9_10, 0x11 },
 };
 
 /* Set fec_val & fec_mask values from delsys, modulation & fec */
