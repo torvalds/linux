@@ -311,6 +311,8 @@ static inline bool tcp_out_of_memory(struct sock *sk)
 	return false;
 }
 
+void sk_forced_mem_schedule(struct sock *sk, int size);
+
 static inline bool tcp_too_many_orphans(struct sock *sk, int shift)
 {
 	struct percpu_counter *ocp = sk->sk_prot->orphan_count;
