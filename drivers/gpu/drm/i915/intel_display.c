@@ -2953,103 +2953,79 @@ void skl_detach_scalers(struct intel_crtc *intel_crtc)
 
 u32 skl_plane_ctl_format(uint32_t pixel_format)
 {
-	u32 format = 0;
-
 	switch (pixel_format) {
 	case DRM_FORMAT_C8:
-		format = PLANE_CTL_FORMAT_INDEXED;
-		break;
+		return PLANE_CTL_FORMAT_INDEXED;
 	case DRM_FORMAT_RGB565:
-		format = PLANE_CTL_FORMAT_RGB_565;
-		break;
+		return PLANE_CTL_FORMAT_RGB_565;
 	case DRM_FORMAT_XBGR8888:
-		format = PLANE_CTL_FORMAT_XRGB_8888 | PLANE_CTL_ORDER_RGBX;
-		break;
+		return PLANE_CTL_FORMAT_XRGB_8888 | PLANE_CTL_ORDER_RGBX;
 	case DRM_FORMAT_XRGB8888:
-		format = PLANE_CTL_FORMAT_XRGB_8888;
-		break;
+		return PLANE_CTL_FORMAT_XRGB_8888;
 	/*
 	 * XXX: For ARBG/ABGR formats we default to expecting scanout buffers
 	 * to be already pre-multiplied. We need to add a knob (or a different
 	 * DRM_FORMAT) for user-space to configure that.
 	 */
 	case DRM_FORMAT_ABGR8888:
-		format = PLANE_CTL_FORMAT_XRGB_8888 | PLANE_CTL_ORDER_RGBX |
+		return PLANE_CTL_FORMAT_XRGB_8888 | PLANE_CTL_ORDER_RGBX |
 			PLANE_CTL_ALPHA_SW_PREMULTIPLY;
-		break;
 	case DRM_FORMAT_ARGB8888:
-		format = PLANE_CTL_FORMAT_XRGB_8888 |
+		return PLANE_CTL_FORMAT_XRGB_8888 |
 			PLANE_CTL_ALPHA_SW_PREMULTIPLY;
-		break;
 	case DRM_FORMAT_XRGB2101010:
-		format = PLANE_CTL_FORMAT_XRGB_2101010;
-		break;
+		return PLANE_CTL_FORMAT_XRGB_2101010;
 	case DRM_FORMAT_XBGR2101010:
-		format = PLANE_CTL_ORDER_RGBX | PLANE_CTL_FORMAT_XRGB_2101010;
-		break;
+		return PLANE_CTL_ORDER_RGBX | PLANE_CTL_FORMAT_XRGB_2101010;
 	case DRM_FORMAT_YUYV:
-		format = PLANE_CTL_FORMAT_YUV422 | PLANE_CTL_YUV422_YUYV;
-		break;
+		return PLANE_CTL_FORMAT_YUV422 | PLANE_CTL_YUV422_YUYV;
 	case DRM_FORMAT_YVYU:
-		format = PLANE_CTL_FORMAT_YUV422 | PLANE_CTL_YUV422_YVYU;
-		break;
+		return PLANE_CTL_FORMAT_YUV422 | PLANE_CTL_YUV422_YVYU;
 	case DRM_FORMAT_UYVY:
-		format = PLANE_CTL_FORMAT_YUV422 | PLANE_CTL_YUV422_UYVY;
-		break;
+		return PLANE_CTL_FORMAT_YUV422 | PLANE_CTL_YUV422_UYVY;
 	case DRM_FORMAT_VYUY:
-		format = PLANE_CTL_FORMAT_YUV422 | PLANE_CTL_YUV422_VYUY;
-		break;
+		return PLANE_CTL_FORMAT_YUV422 | PLANE_CTL_YUV422_VYUY;
 	default:
 		MISSING_CASE(pixel_format);
 	}
 
-	return format;
+	return 0;
 }
 
 u32 skl_plane_ctl_tiling(uint64_t fb_modifier)
 {
-	u32 plane_ctl_tiling = 0;
-
 	switch (fb_modifier) {
 	case DRM_FORMAT_MOD_NONE:
 		break;
 	case I915_FORMAT_MOD_X_TILED:
-		plane_ctl_tiling = PLANE_CTL_TILED_X;
-		break;
+		return PLANE_CTL_TILED_X;
 	case I915_FORMAT_MOD_Y_TILED:
-		plane_ctl_tiling = PLANE_CTL_TILED_Y;
-		break;
+		return PLANE_CTL_TILED_Y;
 	case I915_FORMAT_MOD_Yf_TILED:
-		plane_ctl_tiling = PLANE_CTL_TILED_YF;
-		break;
+		return PLANE_CTL_TILED_YF;
 	default:
 		MISSING_CASE(fb_modifier);
 	}
 
-	return plane_ctl_tiling;
+	return 0;
 }
 
 u32 skl_plane_ctl_rotation(unsigned int rotation)
 {
-	u32 plane_ctl_rotation = 0;
-
 	switch (rotation) {
 	case BIT(DRM_ROTATE_0):
 		break;
 	case BIT(DRM_ROTATE_90):
-		plane_ctl_rotation = PLANE_CTL_ROTATE_90;
-		break;
+		return PLANE_CTL_ROTATE_90;
 	case BIT(DRM_ROTATE_180):
-		plane_ctl_rotation = PLANE_CTL_ROTATE_180;
-		break;
+		return PLANE_CTL_ROTATE_180;
 	case BIT(DRM_ROTATE_270):
-		plane_ctl_rotation = PLANE_CTL_ROTATE_270;
-		break;
+		return PLANE_CTL_ROTATE_270;
 	default:
 		MISSING_CASE(rotation);
 	}
 
-	return plane_ctl_rotation;
+	return 0;
 }
 
 static void skylake_update_primary_plane(struct drm_crtc *crtc,
