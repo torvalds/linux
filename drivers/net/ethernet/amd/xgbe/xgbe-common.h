@@ -857,6 +857,48 @@
  */
 #define PCS_MMD_SELECT			0xff
 
+/* SerDes integration register offsets */
+#define SIR0_KR_RT_1			0x002c
+#define SIR0_STATUS			0x0040
+#define SIR1_SPEED			0x0000
+
+/* SerDes integration register entry bit positions and sizes */
+#define SIR0_KR_RT_1_RESET_INDEX	11
+#define SIR0_KR_RT_1_RESET_WIDTH	1
+#define SIR0_STATUS_RX_READY_INDEX	0
+#define SIR0_STATUS_RX_READY_WIDTH	1
+#define SIR0_STATUS_TX_READY_INDEX	8
+#define SIR0_STATUS_TX_READY_WIDTH	1
+#define SIR1_SPEED_CDR_RATE_INDEX	12
+#define SIR1_SPEED_CDR_RATE_WIDTH	4
+#define SIR1_SPEED_DATARATE_INDEX	4
+#define SIR1_SPEED_DATARATE_WIDTH	2
+#define SIR1_SPEED_PLLSEL_INDEX		3
+#define SIR1_SPEED_PLLSEL_WIDTH		1
+#define SIR1_SPEED_RATECHANGE_INDEX	6
+#define SIR1_SPEED_RATECHANGE_WIDTH	1
+#define SIR1_SPEED_TXAMP_INDEX		8
+#define SIR1_SPEED_TXAMP_WIDTH		4
+#define SIR1_SPEED_WORDMODE_INDEX	0
+#define SIR1_SPEED_WORDMODE_WIDTH	3
+
+/* SerDes RxTx register offsets */
+#define RXTX_REG6			0x0018
+#define RXTX_REG20			0x0050
+#define RXTX_REG22			0x0058
+#define RXTX_REG114			0x01c8
+#define RXTX_REG129			0x0204
+
+/* SerDes RxTx register entry bit positions and sizes */
+#define RXTX_REG6_RESETB_RXD_INDEX	8
+#define RXTX_REG6_RESETB_RXD_WIDTH	1
+#define RXTX_REG20_BLWC_ENA_INDEX	2
+#define RXTX_REG20_BLWC_ENA_WIDTH	1
+#define RXTX_REG114_PQ_REG_INDEX	9
+#define RXTX_REG114_PQ_REG_WIDTH	7
+#define RXTX_REG129_RXDFE_CONFIG_INDEX	14
+#define RXTX_REG129_RXDFE_CONFIG_WIDTH	2
+
 /* Descriptor/Packet entry bit positions and sizes */
 #define RX_PACKET_ERRORS_CRC_INDEX		2
 #define RX_PACKET_ERRORS_CRC_WIDTH		1
@@ -973,9 +1015,46 @@
 #define TX_NORMAL_DESC2_VLAN_INSERT		0x2
 
 /* MDIO undefined or vendor specific registers */
+#ifndef MDIO_PMA_10GBR_PMD_CTRL
+#define MDIO_PMA_10GBR_PMD_CTRL		0x0096
+#endif
+
+#ifndef MDIO_PMA_10GBR_FECCTRL
+#define MDIO_PMA_10GBR_FECCTRL		0x00ab
+#endif
+
+#ifndef MDIO_AN_XNP
+#define MDIO_AN_XNP			0x0016
+#endif
+
+#ifndef MDIO_AN_LPX
+#define MDIO_AN_LPX			0x0019
+#endif
+
 #ifndef MDIO_AN_COMP_STAT
 #define MDIO_AN_COMP_STAT		0x0030
 #endif
+
+#ifndef MDIO_AN_INTMASK
+#define MDIO_AN_INTMASK			0x8001
+#endif
+
+#ifndef MDIO_AN_INT
+#define MDIO_AN_INT			0x8002
+#endif
+
+#ifndef MDIO_CTRL1_SPEED1G
+#define MDIO_CTRL1_SPEED1G		(MDIO_CTRL1_SPEED10G & ~BMCR_SPEED100)
+#endif
+
+/* MDIO mask values */
+#define XGBE_XNP_MCF_NULL_MESSAGE	0x001
+#define XGBE_XNP_ACK_PROCESSED		BIT(12)
+#define XGBE_XNP_MP_FORMATTED		BIT(13)
+#define XGBE_XNP_NP_EXCHANGE		BIT(15)
+
+#define XGBE_KR_TRAINING_START		BIT(0)
+#define XGBE_KR_TRAINING_ENABLE		BIT(1)
 
 /* Bit setting and getting macros
  *  The get macro will extract the current bit field value from within
@@ -1117,6 +1196,82 @@ do {									\
 
 #define XPCS_IOREAD(_pdata, _off)					\
 	ioread32((_pdata)->xpcs_regs + (_off))
+
+/* Macros for building, reading or writing register values or bits
+ * within the register values of SerDes integration registers.
+ */
+#define XSIR_GET_BITS(_var, _prefix, _field)                            \
+	GET_BITS((_var),                                                \
+		 _prefix##_##_field##_INDEX,                            \
+		 _prefix##_##_field##_WIDTH)
+
+#define XSIR_SET_BITS(_var, _prefix, _field, _val)                      \
+	SET_BITS((_var),                                                \
+		 _prefix##_##_field##_INDEX,                            \
+		 _prefix##_##_field##_WIDTH, (_val))
+
+#define XSIR0_IOREAD(_pdata, _reg)					\
+	ioread16((_pdata)->sir0_regs + _reg)
+
+#define XSIR0_IOREAD_BITS(_pdata, _reg, _field)				\
+	GET_BITS(XSIR0_IOREAD((_pdata), _reg),				\
+		 _reg##_##_field##_INDEX,				\
+		 _reg##_##_field##_WIDTH)
+
+#define XSIR0_IOWRITE(_pdata, _reg, _val)				\
+	iowrite16((_val), (_pdata)->sir0_regs + _reg)
+
+#define XSIR0_IOWRITE_BITS(_pdata, _reg, _field, _val)			\
+do {									\
+	u16 reg_val = XSIR0_IOREAD((_pdata), _reg);			\
+	SET_BITS(reg_val,						\
+		 _reg##_##_field##_INDEX,				\
+		 _reg##_##_field##_WIDTH, (_val));			\
+	XSIR0_IOWRITE((_pdata), _reg, reg_val);				\
+} while (0)
+
+#define XSIR1_IOREAD(_pdata, _reg)					\
+	ioread16((_pdata)->sir1_regs + _reg)
+
+#define XSIR1_IOREAD_BITS(_pdata, _reg, _field)				\
+	GET_BITS(XSIR1_IOREAD((_pdata), _reg),				\
+		 _reg##_##_field##_INDEX,				\
+		 _reg##_##_field##_WIDTH)
+
+#define XSIR1_IOWRITE(_pdata, _reg, _val)				\
+	iowrite16((_val), (_pdata)->sir1_regs + _reg)
+
+#define XSIR1_IOWRITE_BITS(_pdata, _reg, _field, _val)			\
+do {									\
+	u16 reg_val = XSIR1_IOREAD((_pdata), _reg);			\
+	SET_BITS(reg_val,						\
+		 _reg##_##_field##_INDEX,				\
+		 _reg##_##_field##_WIDTH, (_val));			\
+	XSIR1_IOWRITE((_pdata), _reg, reg_val);				\
+} while (0)
+
+/* Macros for building, reading or writing register values or bits
+ * within the register values of SerDes RxTx registers.
+ */
+#define XRXTX_IOREAD(_pdata, _reg)					\
+	ioread16((_pdata)->rxtx_regs + _reg)
+
+#define XRXTX_IOREAD_BITS(_pdata, _reg, _field)				\
+	GET_BITS(XRXTX_IOREAD((_pdata), _reg),				\
+		 _reg##_##_field##_INDEX,				\
+		 _reg##_##_field##_WIDTH)
+
+#define XRXTX_IOWRITE(_pdata, _reg, _val)				\
+	iowrite16((_val), (_pdata)->rxtx_regs + _reg)
+
+#define XRXTX_IOWRITE_BITS(_pdata, _reg, _field, _val)			\
+do {									\
+	u16 reg_val = XRXTX_IOREAD((_pdata), _reg);			\
+	SET_BITS(reg_val,						\
+		 _reg##_##_field##_INDEX,				\
+		 _reg##_##_field##_WIDTH, (_val));			\
+	XRXTX_IOWRITE((_pdata), _reg, reg_val);				\
+} while (0)
 
 /* Macros for building, reading or writing register values or bits
  * using MDIO.  Different from above because of the use of standardized
