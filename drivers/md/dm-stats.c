@@ -160,10 +160,7 @@ static void dm_kvfree(void *ptr, size_t alloc_size)
 
 	free_shared_memory(alloc_size);
 
-	if (is_vmalloc_addr(ptr))
-		vfree(ptr);
-	else
-		kfree(ptr);
+	kvfree(ptr);
 }
 
 static void dm_stat_free(struct rcu_head *head)
