@@ -508,10 +508,7 @@ static void __init berlin2_clock_setup(struct device_node *np)
 	u8 avpll_flags = 0;
 	int n;
 
-	if (of_device_is_compatible(parent_np, "syscon"))
-		np = parent_np;
-
-	gbase = of_iomap(np, 0);
+	gbase = of_iomap(parent_np, 0);
 	if (!gbase)
 		return;
 
@@ -689,9 +686,5 @@ static void __init berlin2_clock_setup(struct device_node *np)
 bg2_fail:
 	iounmap(gbase);
 }
-CLK_OF_DECLARE(berlin2_clock, "marvell,berlin2-chip-ctrl",
-	       berlin2_clock_setup);
-CLK_OF_DECLARE(berlin2cd_clock, "marvell,berlin2cd-chip-ctrl",
-	       berlin2_clock_setup);
 CLK_OF_DECLARE(berlin2_clk, "marvell,berlin2-clk",
 	       berlin2_clock_setup);
