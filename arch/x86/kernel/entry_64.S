@@ -1190,17 +1190,17 @@ ENTRY(xen_failsafe_callback)
 	/*CFI_REL_OFFSET ds,DS*/
 	CFI_REL_OFFSET r11,8
 	CFI_REL_OFFSET rcx,0
-	movw %ds,%cx
+	movl %ds,%ecx
 	cmpw %cx,0x10(%rsp)
 	CFI_REMEMBER_STATE
 	jne 1f
-	movw %es,%cx
+	movl %es,%ecx
 	cmpw %cx,0x18(%rsp)
 	jne 1f
-	movw %fs,%cx
+	movl %fs,%ecx
 	cmpw %cx,0x20(%rsp)
 	jne 1f
-	movw %gs,%cx
+	movl %gs,%ecx
 	cmpw %cx,0x28(%rsp)
 	jne 1f
 	/* All segments match their saved values => Category 2 (Bad IRET). */
