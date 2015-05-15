@@ -478,6 +478,16 @@ enum ip_defrag_users {
 	IP_DEFRAG_MACVLAN,
 };
 
+/* Return true if the value of 'user' is between 'lower_bond'
+ * and 'upper_bond' inclusively.
+ */
+static inline bool ip_defrag_user_in_between(u32 user,
+					     enum ip_defrag_users lower_bond,
+					     enum ip_defrag_users upper_bond)
+{
+	return user >= lower_bond && user <= upper_bond;
+}
+
 int ip_defrag(struct sk_buff *skb, u32 user);
 #ifdef CONFIG_INET
 struct sk_buff *ip_check_defrag(struct sk_buff *skb, u32 user);
