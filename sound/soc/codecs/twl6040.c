@@ -533,7 +533,7 @@ static int twl6040_pll_put_enum(struct snd_kcontrol *kcontrol,
 
 int twl6040_get_dl1_gain(struct snd_soc_codec *codec)
 {
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 
 	if (snd_soc_dapm_get_pin_status(dapm, "EP"))
 		return -1; /* -1dB */
