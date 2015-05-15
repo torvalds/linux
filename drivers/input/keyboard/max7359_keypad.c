@@ -166,7 +166,6 @@ static void max7359_close(struct input_dev *dev)
 static void max7359_initialize(struct i2c_client *client)
 {
 	max7359_write_reg(client, MAX7359_REG_CONFIG,
-		MAX7359_CFG_INTERRUPT | /* Irq clears after host read */
 		MAX7359_CFG_KEY_RELEASE | /* Key release enable */
 		MAX7359_CFG_WAKEUP); /* Key press wakeup enable */
 
