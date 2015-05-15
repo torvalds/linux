@@ -1697,17 +1697,17 @@ static void process_cell(struct cache *cache, struct prealloc *structs,
 	dm_oblock_t block = get_bio_block(cache, bio);
 	struct policy_result lookup_result;
 	bool passthrough = passthrough_mode(&cache->features);
-	bool discarded_block, can_migrate;
+	bool fast_promotion, can_migrate;
 	struct old_oblock_lock ool;
 
-	discarded_block = is_discarded_oblock(cache, block);
-	can_migrate = !passthrough && (discarded_block || spare_migration_bandwidth(cache));
+	fast_promotion = is_discarded_oblock(cache, block) || bio_writes_complete_block(cache, bio);
+	can_migrate = !passthrough && (fast_promotion || spare_migration_bandwidth(cache));
 
 	ool.locker.fn = cell_locker;
 	ool.cache = cache;
 	ool.structs = structs;
 	ool.cell = NULL;
-	r = policy_map(cache->policy, block, true, can_migrate, discarded_block,
+	r = policy_map(cache->policy, block, true, can_migrate, fast_promotion,
 		       bio, &ool.locker, &lookup_result);
 
 	if (r == -EWOULDBLOCK)
@@ -2895,7 +2895,7 @@ static int cache_map(struct dm_target *ti, struct bio *bio)
 	dm_oblock_t block = get_bio_block(cache, bio);
 	size_t pb_data_size = get_per_bio_data_size(cache);
 	bool can_migrate = false;
-	bool discarded_block;
+	bool fast_promotion;
 	struct policy_result lookup_result;
 	struct per_bio_data *pb = init_per_bio_data(bio, pb_data_size);
 	struct old_oblock_lock ool;
@@ -2937,9 +2937,9 @@ static int cache_map(struct dm_target *ti, struct bio *bio)
 		return DM_MAPIO_SUBMITTED;
 	}
 
-	discarded_block = is_discarded_oblock(cache, block);
+	fast_promotion = is_discarded_oblock(cache, block) || bio_writes_complete_block(cache, bio);
 
-	r = policy_map(cache->policy, block, false, can_migrate, discarded_block,
+	r = policy_map(cache->policy, block, false, can_migrate, fast_promotion,
 		       bio, &ool.locker, &lookup_result);
 	if (r == -EWOULDBLOCK) {
 		cell_defer(cache, cell, true);
