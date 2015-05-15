@@ -3135,22 +3135,35 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			in a given burst of a callback-flood test.
 
 	rcutorture.fqs_duration= [KNL]
-			Set duration of force_quiescent_state bursts.
+			Set duration of force_quiescent_state bursts
+			in microseconds.
 
 	rcutorture.fqs_holdoff= [KNL]
-			Set holdoff time within force_quiescent_state bursts.
+			Set holdoff time within force_quiescent_state bursts
+			in microseconds.
 
 	rcutorture.fqs_stutter= [KNL]
-			Set wait time between force_quiescent_state bursts.
+			Set wait time between force_quiescent_state bursts
+			in seconds.
+
+	rcutorture.gp_cond= [KNL]
+			Use conditional/asynchronous update-side
+			primitives, if available.
 
 	rcutorture.gp_exp= [KNL]
-			Use expedited update-side primitives.
+			Use expedited update-side primitives, if available.
 
 	rcutorture.gp_normal= [KNL]
-			Use normal (non-expedited) update-side primitives.
-			If both gp_exp and gp_normal are set, do both.
-			If neither gp_exp nor gp_normal are set, still
-			do both.
+			Use normal (non-expedited) asynchronous
+			update-side primitives, if available.
+
+	rcutorture.gp_sync= [KNL]
+			Use normal (non-expedited) synchronous
+			update-side primitives, if available.  If all
+			of rcutorture.gp_cond=, rcutorture.gp_exp=,
+			rcutorture.gp_normal=, and rcutorture.gp_sync=
+			are zero, rcutorture acts as if is interpreted
+			they are all non-zero.
 
 	rcutorture.n_barrier_cbs= [KNL]
 			Set callbacks/threads for rcu_barrier() testing.
@@ -3176,9 +3189,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	rcutorture.onoff_interval= [KNL]
 			Set time (s) between CPU-hotplug operations, or
 			zero to disable CPU-hotplug testing.
-
-	rcutorture.torture_runnable= [BOOT]
-			Start rcutorture running at boot time.
 
 	rcutorture.shuffle_interval= [KNL]
 			Set task-shuffle interval (s).  Shuffling tasks
@@ -3219,6 +3229,9 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	rcutorture.test_no_idle_hz= [KNL]
 			Test RCU's dyntick-idle handling.  See also the
 			rcutorture.shuffle_interval parameter.
+
+	rcutorture.torture_runnable= [BOOT]
+			Start rcutorture running at boot time.
 
 	rcutorture.torture_type= [KNL]
 			Specify the RCU implementation to test.
