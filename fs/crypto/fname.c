@@ -1,46 +1,35 @@
 /*
- * linux/fs/f2fs/crypto_fname.c
- *
- * Copied from linux/fs/ext4/crypto.c
+ * This contains functions for filename crypto management
  *
  * Copyright (C) 2015, Google, Inc.
  * Copyright (C) 2015, Motorola Mobility
  *
- * This contains functions for filename crypto management in f2fs
- *
  * Written by Uday Savagaonkar, 2014.
- *
- * Adjust f2fs dentry structure
- *	Jaegeuk Kim, 2015.
+ * Modified by Jaegeuk Kim, 2015.
  *
  * This has not yet undergone a rigorous security audit.
  */
+
 #include <crypto/hash.h>
 #include <crypto/sha.h>
 #include <keys/encrypted-type.h>
 #include <keys/user-type.h>
 #include <linux/crypto.h>
-#include <linux/gfp.h>
-#include <linux/kernel.h>
-#include <linux/key.h>
-#include <linux/list.h>
-#include <linux/mempool.h>
-#include <linux/random.h>
 #include <linux/scatterlist.h>
-#include <linux/spinlock_types.h>
-#include <linux/f2fs_fs.h>
 #include <linux/ratelimit.h>
+#include <linux/fscrypto.h>
 
-#include "f2fs.h"
-#include "f2fs_crypto.h"
-#include "xattr.h"
+static u32 size_round_up(size_t size, size_t blksize)
+{
+	return ((size + blksize - 1) / blksize) * blksize;
+}
 
 /**
- * f2fs_dir_crypt_complete() -
+ * dir_crypt_complete() -
  */
-static void f2fs_dir_crypt_complete(struct crypto_async_request *req, int res)
+static void dir_crypt_complete(struct crypto_async_request *req, int res)
 {
-	struct f2fs_completion_result *ecr = req->data;
+	struct fscrypt_completion_result *ecr = req->data;
 
 	if (res == -EINPROGRESS)
 		return;
@@ -48,45 +37,35 @@ static void f2fs_dir_crypt_complete(struct crypto_async_request *req, int res)
 	complete(&ecr->completion);
 }
 
-bool f2fs_valid_filenames_enc_mode(uint32_t mode)
-{
-	return (mode == F2FS_ENCRYPTION_MODE_AES_256_CTS);
-}
-
-static unsigned max_name_len(struct inode *inode)
-{
-	return S_ISLNK(inode->i_mode) ? inode->i_sb->s_blocksize :
-					F2FS_NAME_LEN;
-}
-
 /**
- * f2fs_fname_encrypt() -
+ * fname_encrypt() -
  *
  * This function encrypts the input filename, and returns the length of the
  * ciphertext. Errors are returned as negative numbers.  We trust the caller to
  * allocate sufficient memory to oname string.
  */
-static int f2fs_fname_encrypt(struct inode *inode,
-			const struct qstr *iname, struct f2fs_str *oname)
+static int fname_encrypt(struct inode *inode,
+			const struct qstr *iname, struct fscrypt_str *oname)
 {
 	u32 ciphertext_len;
 	struct ablkcipher_request *req = NULL;
-	DECLARE_F2FS_COMPLETION_RESULT(ecr);
-	struct f2fs_crypt_info *ci = F2FS_I(inode)->i_crypt_info;
+	DECLARE_FS_COMPLETION_RESULT(ecr);
+	struct fscrypt_info *ci = inode->i_crypt_info;
 	struct crypto_ablkcipher *tfm = ci->ci_ctfm;
 	int res = 0;
-	char iv[F2FS_CRYPTO_BLOCK_SIZE];
+	char iv[FS_CRYPTO_BLOCK_SIZE];
 	struct scatterlist src_sg, dst_sg;
-	int padding = 4 << (ci->ci_flags & F2FS_POLICY_FLAGS_PAD_MASK);
+	int padding = 4 << (ci->ci_flags & FS_POLICY_FLAGS_PAD_MASK);
 	char *workbuf, buf[32], *alloc_buf = NULL;
-	unsigned lim = max_name_len(inode);
+	unsigned lim;
 
+	lim = inode->i_sb->s_cop->max_namelen(inode);
 	if (iname->len <= 0 || iname->len > lim)
 		return -EIO;
 
-	ciphertext_len = (iname->len < F2FS_CRYPTO_BLOCK_SIZE) ?
-		F2FS_CRYPTO_BLOCK_SIZE : iname->len;
-	ciphertext_len = f2fs_fname_crypto_round_up(ciphertext_len, padding);
+	ciphertext_len = (iname->len < FS_CRYPTO_BLOCK_SIZE) ?
+					FS_CRYPTO_BLOCK_SIZE : iname->len;
+	ciphertext_len = size_round_up(ciphertext_len, padding);
 	ciphertext_len = (ciphertext_len > lim) ? lim : ciphertext_len;
 
 	if (ciphertext_len <= sizeof(buf)) {
@@ -108,7 +87,7 @@ static int f2fs_fname_encrypt(struct inode *inode,
 	}
 	ablkcipher_request_set_callback(req,
 			CRYPTO_TFM_REQ_MAY_BACKLOG | CRYPTO_TFM_REQ_MAY_SLEEP,
-			f2fs_dir_crypt_complete, &ecr);
+			dir_crypt_complete, &ecr);
 
 	/* Copy the input */
 	memcpy(workbuf, iname->name, iname->len);
@@ -116,7 +95,7 @@ static int f2fs_fname_encrypt(struct inode *inode,
 		memset(workbuf + iname->len, 0, ciphertext_len - iname->len);
 
 	/* Initialize IV */
-	memset(iv, 0, F2FS_CRYPTO_BLOCK_SIZE);
+	memset(iv, 0, FS_CRYPTO_BLOCK_SIZE);
 
 	/* Create encryption request */
 	sg_init_one(&src_sg, workbuf, ciphertext_len);
@@ -129,33 +108,35 @@ static int f2fs_fname_encrypt(struct inode *inode,
 	}
 	kfree(alloc_buf);
 	ablkcipher_request_free(req);
-	if (res < 0) {
+	if (res < 0)
 		printk_ratelimited(KERN_ERR
 				"%s: Error (error code %d)\n", __func__, res);
-	}
+
 	oname->len = ciphertext_len;
 	return res;
 }
 
 /*
- * f2fs_fname_decrypt()
+ * fname_decrypt()
  *	This function decrypts the input filename, and returns
  *	the length of the plaintext.
  *	Errors are returned as negative numbers.
  *	We trust the caller to allocate sufficient memory to oname string.
  */
-static int f2fs_fname_decrypt(struct inode *inode,
-			const struct f2fs_str *iname, struct f2fs_str *oname)
+static int fname_decrypt(struct inode *inode,
+				const struct fscrypt_str *iname,
+				struct fscrypt_str *oname)
 {
 	struct ablkcipher_request *req = NULL;
-	DECLARE_F2FS_COMPLETION_RESULT(ecr);
+	DECLARE_FS_COMPLETION_RESULT(ecr);
 	struct scatterlist src_sg, dst_sg;
-	struct f2fs_crypt_info *ci = F2FS_I(inode)->i_crypt_info;
+	struct fscrypt_info *ci = inode->i_crypt_info;
 	struct crypto_ablkcipher *tfm = ci->ci_ctfm;
 	int res = 0;
-	char iv[F2FS_CRYPTO_BLOCK_SIZE];
-	unsigned lim = max_name_len(inode);
+	char iv[FS_CRYPTO_BLOCK_SIZE];
+	unsigned lim;
 
+	lim = inode->i_sb->s_cop->max_namelen(inode);
 	if (iname->len <= 0 || iname->len > lim)
 		return -EIO;
 
@@ -168,10 +149,10 @@ static int f2fs_fname_decrypt(struct inode *inode,
 	}
 	ablkcipher_request_set_callback(req,
 		CRYPTO_TFM_REQ_MAY_BACKLOG | CRYPTO_TFM_REQ_MAY_SLEEP,
-		f2fs_dir_crypt_complete, &ecr);
+		dir_crypt_complete, &ecr);
 
 	/* Initialize IV */
-	memset(iv, 0, F2FS_CRYPTO_BLOCK_SIZE);
+	memset(iv, 0, FS_CRYPTO_BLOCK_SIZE);
 
 	/* Create decryption request */
 	sg_init_one(&src_sg, iname->name, iname->len);
@@ -185,8 +166,7 @@ static int f2fs_fname_decrypt(struct inode *inode,
 	ablkcipher_request_free(req);
 	if (res < 0) {
 		printk_ratelimited(KERN_ERR
-			"%s: Error in f2fs_fname_decrypt (error code %d)\n",
-			__func__, res);
+				"%s: Error (error code %d)\n", __func__, res);
 		return res;
 	}
 
@@ -198,7 +178,7 @@ static const char *lookup_table =
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+,";
 
 /**
- * f2fs_fname_encode_digest() -
+ * digest_encode() -
  *
  * Encodes the input digest using characters from the set [a-zA-Z0-9_+].
  * The encoded string is roughly 4/3 times the size of the input string.
@@ -247,156 +227,152 @@ static int digest_decode(const char *src, int len, char *dst)
 	return cp - dst;
 }
 
-/**
- * f2fs_fname_crypto_round_up() -
- *
- * Return: The next multiple of block size
- */
-u32 f2fs_fname_crypto_round_up(u32 size, u32 blksize)
+u32 fscrypt_fname_encrypted_size(struct inode *inode, u32 ilen)
 {
-	return ((size + blksize - 1) / blksize) * blksize;
-}
-
-unsigned f2fs_fname_encrypted_size(struct inode *inode, u32 ilen)
-{
-	struct f2fs_crypt_info *ci = F2FS_I(inode)->i_crypt_info;
 	int padding = 32;
+	struct fscrypt_info *ci = inode->i_crypt_info;
 
 	if (ci)
-		padding = 4 << (ci->ci_flags & F2FS_POLICY_FLAGS_PAD_MASK);
-	if (ilen < F2FS_CRYPTO_BLOCK_SIZE)
-		ilen = F2FS_CRYPTO_BLOCK_SIZE;
-	return f2fs_fname_crypto_round_up(ilen, padding);
+		padding = 4 << (ci->ci_flags & FS_POLICY_FLAGS_PAD_MASK);
+	if (ilen < FS_CRYPTO_BLOCK_SIZE)
+		ilen = FS_CRYPTO_BLOCK_SIZE;
+	return size_round_up(ilen, padding);
 }
+EXPORT_SYMBOL(fscrypt_fname_encrypted_size);
 
 /**
- * f2fs_fname_crypto_alloc_obuff() -
+ * fscrypt_fname_crypto_alloc_obuff() -
  *
  * Allocates an output buffer that is sufficient for the crypto operation
  * specified by the context and the direction.
  */
-int f2fs_fname_crypto_alloc_buffer(struct inode *inode,
-				   u32 ilen, struct f2fs_str *crypto_str)
+int fscrypt_fname_alloc_buffer(struct inode *inode,
+				u32 ilen, struct fscrypt_str *crypto_str)
 {
-	unsigned int olen = f2fs_fname_encrypted_size(inode, ilen);
+	unsigned int olen = fscrypt_fname_encrypted_size(inode, ilen);
 
 	crypto_str->len = olen;
-	if (olen < F2FS_FNAME_CRYPTO_DIGEST_SIZE * 2)
-		olen = F2FS_FNAME_CRYPTO_DIGEST_SIZE * 2;
-	/* Allocated buffer can hold one more character to null-terminate the
-	 * string */
+	if (olen < FS_FNAME_CRYPTO_DIGEST_SIZE * 2)
+		olen = FS_FNAME_CRYPTO_DIGEST_SIZE * 2;
+	/*
+	 * Allocated buffer can hold one more character to null-terminate the
+	 * string
+	 */
 	crypto_str->name = kmalloc(olen + 1, GFP_NOFS);
 	if (!(crypto_str->name))
 		return -ENOMEM;
 	return 0;
 }
+EXPORT_SYMBOL(fscrypt_fname_alloc_buffer);
 
 /**
- * f2fs_fname_crypto_free_buffer() -
+ * fscrypt_fname_crypto_free_buffer() -
  *
  * Frees the buffer allocated for crypto operation.
  */
-void f2fs_fname_crypto_free_buffer(struct f2fs_str *crypto_str)
+void fscrypt_fname_free_buffer(struct fscrypt_str *crypto_str)
 {
 	if (!crypto_str)
 		return;
 	kfree(crypto_str->name);
 	crypto_str->name = NULL;
 }
+EXPORT_SYMBOL(fscrypt_fname_free_buffer);
 
 /**
- * f2fs_fname_disk_to_usr() - converts a filename from disk space to user space
+ * fscrypt_fname_disk_to_usr() - converts a filename from disk space to user
+ * space
  */
-int f2fs_fname_disk_to_usr(struct inode *inode,
-			f2fs_hash_t *hash,
-			const struct f2fs_str *iname,
-			struct f2fs_str *oname)
+int fscrypt_fname_disk_to_usr(struct inode *inode,
+			u32 hash, u32 minor_hash,
+			const struct fscrypt_str *iname,
+			struct fscrypt_str *oname)
 {
 	const struct qstr qname = FSTR_TO_QSTR(iname);
 	char buf[24];
 	int ret;
 
-	if (is_dot_dotdot(&qname)) {
+	if (fscrypt_is_dot_dotdot(&qname)) {
 		oname->name[0] = '.';
 		oname->name[iname->len - 1] = '.';
 		oname->len = iname->len;
 		return oname->len;
 	}
-	if (iname->len < F2FS_CRYPTO_BLOCK_SIZE) {
-		printk("encrypted inode too small");
-		return -EUCLEAN;
-	}
-	if (F2FS_I(inode)->i_crypt_info)
-		return f2fs_fname_decrypt(inode, iname, oname);
 
-	if (iname->len <= F2FS_FNAME_CRYPTO_DIGEST_SIZE) {
+	if (iname->len < FS_CRYPTO_BLOCK_SIZE)
+		return -EUCLEAN;
+
+	if (inode->i_crypt_info)
+		return fname_decrypt(inode, iname, oname);
+
+	if (iname->len <= FS_FNAME_CRYPTO_DIGEST_SIZE) {
 		ret = digest_encode(iname->name, iname->len, oname->name);
 		oname->len = ret;
 		return ret;
 	}
 	if (hash) {
-		memcpy(buf, hash, 4);
-		memset(buf + 4, 0, 4);
-	} else
+		memcpy(buf, &hash, 4);
+		memcpy(buf + 4, &minor_hash, 4);
+	} else {
 		memset(buf, 0, 8);
+	}
 	memcpy(buf + 8, iname->name + iname->len - 16, 16);
 	oname->name[0] = '_';
 	ret = digest_encode(buf, 24, oname->name + 1);
 	oname->len = ret + 1;
 	return ret + 1;
 }
+EXPORT_SYMBOL(fscrypt_fname_disk_to_usr);
 
 /**
- * f2fs_fname_usr_to_disk() - converts a filename from user space to disk space
+ * fscrypt_fname_usr_to_disk() - converts a filename from user space to disk
+ * space
  */
-int f2fs_fname_usr_to_disk(struct inode *inode,
+int fscrypt_fname_usr_to_disk(struct inode *inode,
 			const struct qstr *iname,
-			struct f2fs_str *oname)
+			struct fscrypt_str *oname)
 {
-	int res;
-	struct f2fs_crypt_info *ci = F2FS_I(inode)->i_crypt_info;
-
-	if (is_dot_dotdot(iname)) {
+	if (fscrypt_is_dot_dotdot(iname)) {
 		oname->name[0] = '.';
 		oname->name[iname->len - 1] = '.';
 		oname->len = iname->len;
 		return oname->len;
 	}
-
-	if (ci) {
-		res = f2fs_fname_encrypt(inode, iname, oname);
-		return res;
-	}
-	/* Without a proper key, a user is not allowed to modify the filenames
+	if (inode->i_crypt_info)
+		return fname_encrypt(inode, iname, oname);
+	/*
+	 * Without a proper key, a user is not allowed to modify the filenames
 	 * in a directory. Consequently, a user space name cannot be mapped to
-	 * a disk-space name */
+	 * a disk-space name
+	 */
 	return -EACCES;
 }
+EXPORT_SYMBOL(fscrypt_fname_usr_to_disk);
 
-int f2fs_fname_setup_filename(struct inode *dir, const struct qstr *iname,
-			      int lookup, struct f2fs_filename *fname)
+int fscrypt_setup_filename(struct inode *dir, const struct qstr *iname,
+			      int lookup, struct fscrypt_name *fname)
 {
-	struct f2fs_crypt_info *ci;
 	int ret = 0, bigname = 0;
 
-	memset(fname, 0, sizeof(struct f2fs_filename));
+	memset(fname, 0, sizeof(struct fscrypt_name));
 	fname->usr_fname = iname;
 
-	if (!f2fs_encrypted_inode(dir) || is_dot_dotdot(iname)) {
+	if (!dir->i_sb->s_cop->is_encrypted(dir) ||
+				fscrypt_is_dot_dotdot(iname)) {
 		fname->disk_name.name = (unsigned char *)iname->name;
 		fname->disk_name.len = iname->len;
 		return 0;
 	}
-	ret = f2fs_get_encryption_info(dir);
-	if (ret)
+	ret = get_crypt_info(dir);
+	if (ret && ret != -EOPNOTSUPP)
 		return ret;
-	ci = F2FS_I(dir)->i_crypt_info;
-	if (ci) {
-		ret = f2fs_fname_crypto_alloc_buffer(dir, iname->len,
-						     &fname->crypto_buf);
+
+	if (dir->i_crypt_info) {
+		ret = fscrypt_fname_alloc_buffer(dir, iname->len,
+							&fname->crypto_buf);
 		if (ret < 0)
 			return ret;
-		ret = f2fs_fname_encrypt(dir, iname, &fname->crypto_buf);
+		ret = fname_encrypt(dir, iname, &fname->crypto_buf);
 		if (ret < 0)
 			goto errout;
 		fname->disk_name.name = fname->crypto_buf.name;
@@ -406,18 +382,19 @@ int f2fs_fname_setup_filename(struct inode *dir, const struct qstr *iname,
 	if (!lookup)
 		return -EACCES;
 
-	/* We don't have the key and we are doing a lookup; decode the
+	/*
+	 * We don't have the key and we are doing a lookup; decode the
 	 * user-supplied name
 	 */
 	if (iname->name[0] == '_')
 		bigname = 1;
-	if ((bigname && (iname->len != 33)) ||
-	    (!bigname && (iname->len > 43)))
+	if ((bigname && (iname->len != 33)) || (!bigname && (iname->len > 43)))
 		return -ENOENT;
 
 	fname->crypto_buf.name = kmalloc(32, GFP_KERNEL);
 	if (fname->crypto_buf.name == NULL)
 		return -ENOMEM;
+
 	ret = digest_decode(iname->name + bigname, iname->len - bigname,
 				fname->crypto_buf.name);
 	if (ret < 0) {
@@ -427,20 +404,24 @@ int f2fs_fname_setup_filename(struct inode *dir, const struct qstr *iname,
 	fname->crypto_buf.len = ret;
 	if (bigname) {
 		memcpy(&fname->hash, fname->crypto_buf.name, 4);
+		memcpy(&fname->minor_hash, fname->crypto_buf.name + 4, 4);
 	} else {
 		fname->disk_name.name = fname->crypto_buf.name;
 		fname->disk_name.len = fname->crypto_buf.len;
 	}
 	return 0;
+
 errout:
-	f2fs_fname_crypto_free_buffer(&fname->crypto_buf);
+	fscrypt_fname_free_buffer(&fname->crypto_buf);
 	return ret;
 }
+EXPORT_SYMBOL(fscrypt_setup_filename);
 
-void f2fs_fname_free_filename(struct f2fs_filename *fname)
+void fscrypt_free_filename(struct fscrypt_name *fname)
 {
 	kfree(fname->crypto_buf.name);
 	fname->crypto_buf.name = NULL;
 	fname->usr_fname = NULL;
 	fname->disk_name.name = NULL;
 }
+EXPORT_SYMBOL(fscrypt_free_filename);

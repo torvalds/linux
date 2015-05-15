@@ -389,10 +389,7 @@ no_delete:
 		}
 	}
 out_clear:
-#ifdef CONFIG_F2FS_FS_ENCRYPTION
-	if (fi->i_crypt_info)
-		f2fs_free_encryption_info(inode, fi->i_crypt_info);
-#endif
+	fscrypt_put_encryption_info(inode, NULL);
 	clear_inode(inode);
 }
 

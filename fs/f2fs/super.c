@@ -470,10 +470,6 @@ static struct inode *f2fs_alloc_inode(struct super_block *sb)
 
 	/* Will be used by directory only */
 	fi->i_dir_level = F2FS_SB(sb)->dir_level;
-
-#ifdef CONFIG_F2FS_FS_ENCRYPTION
-	fi->i_crypt_info = NULL;
-#endif
 	return &fi->vfs_inode;
 }
 
@@ -507,11 +503,7 @@ static int f2fs_drop_inode(struct inode *inode)
 
 			sb_end_intwrite(inode->i_sb);
 
-#ifdef CONFIG_F2FS_FS_ENCRYPTION
-			if (F2FS_I(inode)->i_crypt_info)
-				f2fs_free_encryption_info(inode,
-					F2FS_I(inode)->i_crypt_info);
-#endif
+			fscrypt_put_encryption_info(inode, NULL);
 			spin_lock(&inode->i_lock);
 			atomic_dec(&inode->i_count);
 		}
@@ -890,6 +882,41 @@ static struct super_operations f2fs_sops = {
 	.statfs		= f2fs_statfs,
 	.remount_fs	= f2fs_remount,
 };
+
+#ifdef CONFIG_F2FS_FS_ENCRYPTION
+static int f2fs_get_context(struct inode *inode, void *ctx, size_t len)
+{
+	return f2fs_getxattr(inode, F2FS_XATTR_INDEX_ENCRYPTION,
+				F2FS_XATTR_NAME_ENCRYPTION_CONTEXT,
+				ctx, len, NULL);
+}
+
+static int f2fs_set_context(struct inode *inode, const void *ctx, size_t len,
+							void *fs_data)
+{
+	return f2fs_setxattr(inode, F2FS_XATTR_INDEX_ENCRYPTION,
+				F2FS_XATTR_NAME_ENCRYPTION_CONTEXT,
+				ctx, len, fs_data, XATTR_CREATE);
+}
+
+static unsigned f2fs_max_namelen(struct inode *inode)
+{
+	return S_ISLNK(inode->i_mode) ?
+			inode->i_sb->s_blocksize : F2FS_NAME_LEN;
+}
+
+static struct fscrypt_operations f2fs_cryptops = {
+	.get_context	= f2fs_get_context,
+	.set_context	= f2fs_set_context,
+	.is_encrypted	= f2fs_encrypted_inode,
+	.empty_dir	= f2fs_empty_dir,
+	.max_namelen	= f2fs_max_namelen,
+};
+#else
+static struct fscrypt_operations f2fs_cryptops = {
+	.is_encrypted	= f2fs_encrypted_inode,
+};
+#endif
 
 static struct inode *f2fs_nfs_get_inode(struct super_block *sb,
 		u64 ino, u32 generation)
@@ -1314,6 +1341,7 @@ try_onemore:
 	get_random_bytes(&sbi->s_next_generation, sizeof(u32));
 
 	sb->s_op = &f2fs_sops;
+	sb->s_cop = &f2fs_cryptops;
 	sb->s_xattr = f2fs_xattr_handlers;
 	sb->s_export_op = &f2fs_export_ops;
 	sb->s_magic = F2FS_SUPER_MAGIC;
@@ -1619,13 +1647,9 @@ static int __init init_f2fs_fs(void)
 		err = -ENOMEM;
 		goto free_extent_cache;
 	}
-	err = f2fs_init_crypto();
-	if (err)
-		goto free_kset;
-
 	err = register_shrinker(&f2fs_shrinker_info);
 	if (err)
-		goto free_crypto;
+		goto free_kset;
 
 	err = register_filesystem(&f2fs_fs_type);
 	if (err)
@@ -1640,8 +1664,6 @@ free_filesystem:
 	unregister_filesystem(&f2fs_fs_type);
 free_shrinker:
 	unregister_shrinker(&f2fs_shrinker_info);
-free_crypto:
-	f2fs_exit_crypto();
 free_kset:
 	kset_unregister(f2fs_kset);
 free_extent_cache:
@@ -1664,7 +1686,6 @@ static void __exit exit_f2fs_fs(void)
 	f2fs_destroy_root_stats();
 	unregister_shrinker(&f2fs_shrinker_info);
 	unregister_filesystem(&f2fs_fs_type);
-	f2fs_exit_crypto();
 	destroy_extent_cache();
 	destroy_checkpoint_caches();
 	destroy_segment_manager_caches();

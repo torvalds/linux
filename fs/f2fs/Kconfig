@@ -76,15 +76,7 @@ config F2FS_FS_ENCRYPTION
 	bool "F2FS Encryption"
 	depends on F2FS_FS
 	depends on F2FS_FS_XATTR
-	select CRYPTO_AES
-	select CRYPTO_CBC
-	select CRYPTO_ECB
-	select CRYPTO_XTS
-	select CRYPTO_CTS
-	select CRYPTO_CTR
-	select CRYPTO_SHA256
-	select KEYS
-	select ENCRYPTED_KEYS
+	select FS_ENCRYPTION
 	help
 	  Enable encryption of f2fs files and directories.  This
 	  feature is similar to ecryptfs, but it is more memory

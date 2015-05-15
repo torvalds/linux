@@ -1,28 +1,24 @@
 /*
- * linux/fs/f2fs/crypto_key.c
- *
- * Copied from linux/fs/f2fs/crypto_key.c
+ * key management facility for FS encryption support.
  *
  * Copyright (C) 2015, Google, Inc.
  *
- * This contains encryption key functions for f2fs
+ * This contains encryption key functions.
  *
  * Written by Michael Halcrow, Ildar Muslukhov, and Uday Savagaonkar, 2015.
  */
+
 #include <keys/encrypted-type.h>
 #include <keys/user-type.h>
 #include <linux/random.h>
 #include <linux/scatterlist.h>
 #include <uapi/linux/keyctl.h>
 #include <crypto/hash.h>
-#include <linux/f2fs_fs.h>
-
-#include "f2fs.h"
-#include "xattr.h"
+#include <linux/fscrypto.h>
 
 static void derive_crypt_complete(struct crypto_async_request *req, int rc)
 {
-	struct f2fs_completion_result *ecr = req->data;
+	struct fscrypt_completion_result *ecr = req->data;
 
 	if (rc == -EINPROGRESS)
 		return;
@@ -32,20 +28,20 @@ static void derive_crypt_complete(struct crypto_async_request *req, int rc)
 }
 
 /**
- * f2fs_derive_key_aes() - Derive a key using AES-128-ECB
+ * derive_key_aes() - Derive a key using AES-128-ECB
  * @deriving_key: Encryption key used for derivation.
  * @source_key:   Source key to which to apply derivation.
  * @derived_key:  Derived key.
  *
  * Return: Zero on success; non-zero otherwise.
  */
-static int f2fs_derive_key_aes(char deriving_key[F2FS_AES_128_ECB_KEY_SIZE],
-				char source_key[F2FS_AES_256_XTS_KEY_SIZE],
-				char derived_key[F2FS_AES_256_XTS_KEY_SIZE])
+static int derive_key_aes(u8 deriving_key[FS_AES_128_ECB_KEY_SIZE],
+				u8 source_key[FS_AES_256_XTS_KEY_SIZE],
+				u8 derived_key[FS_AES_256_XTS_KEY_SIZE])
 {
 	int res = 0;
 	struct ablkcipher_request *req = NULL;
-	DECLARE_F2FS_COMPLETION_RESULT(ecr);
+	DECLARE_FS_COMPLETION_RESULT(ecr);
 	struct scatterlist src_sg, dst_sg;
 	struct crypto_ablkcipher *tfm = crypto_alloc_ablkcipher("ecb(aes)", 0,
 								0);
@@ -65,14 +61,14 @@ static int f2fs_derive_key_aes(char deriving_key[F2FS_AES_128_ECB_KEY_SIZE],
 			CRYPTO_TFM_REQ_MAY_BACKLOG | CRYPTO_TFM_REQ_MAY_SLEEP,
 			derive_crypt_complete, &ecr);
 	res = crypto_ablkcipher_setkey(tfm, deriving_key,
-				F2FS_AES_128_ECB_KEY_SIZE);
+					FS_AES_128_ECB_KEY_SIZE);
 	if (res < 0)
 		goto out;
 
-	sg_init_one(&src_sg, source_key, F2FS_AES_256_XTS_KEY_SIZE);
-	sg_init_one(&dst_sg, derived_key, F2FS_AES_256_XTS_KEY_SIZE);
+	sg_init_one(&src_sg, source_key, FS_AES_256_XTS_KEY_SIZE);
+	sg_init_one(&dst_sg, derived_key, FS_AES_256_XTS_KEY_SIZE);
 	ablkcipher_request_set_crypt(req, &src_sg, &dst_sg,
-					F2FS_AES_256_XTS_KEY_SIZE, NULL);
+					FS_AES_256_XTS_KEY_SIZE, NULL);
 	res = crypto_ablkcipher_encrypt(req);
 	if (res == -EINPROGRESS || res == -EBUSY) {
 		wait_for_completion(&ecr.completion);
@@ -86,71 +82,61 @@ out:
 	return res;
 }
 
-static void f2fs_free_crypt_info(struct f2fs_crypt_info *ci)
+static void put_crypt_info(struct fscrypt_info *ci)
 {
 	if (!ci)
 		return;
 
-	key_put(ci->ci_keyring_key);
+	if (ci->ci_keyring_key)
+		key_put(ci->ci_keyring_key);
 	crypto_free_ablkcipher(ci->ci_ctfm);
-	kmem_cache_free(f2fs_crypt_info_cachep, ci);
+	kmem_cache_free(fscrypt_info_cachep, ci);
 }
 
-void f2fs_free_encryption_info(struct inode *inode, struct f2fs_crypt_info *ci)
+int get_crypt_info(struct inode *inode)
 {
-	struct f2fs_inode_info *fi = F2FS_I(inode);
-	struct f2fs_crypt_info *prev;
-
-	if (ci == NULL)
-		ci = ACCESS_ONCE(fi->i_crypt_info);
-	if (ci == NULL)
-		return;
-	prev = cmpxchg(&fi->i_crypt_info, ci, NULL);
-	if (prev != ci)
-		return;
-
-	f2fs_free_crypt_info(ci);
-}
-
-int _f2fs_get_encryption_info(struct inode *inode)
-{
-	struct f2fs_inode_info *fi = F2FS_I(inode);
-	struct f2fs_crypt_info *crypt_info;
-	char full_key_descriptor[F2FS_KEY_DESC_PREFIX_SIZE +
-				(F2FS_KEY_DESCRIPTOR_SIZE * 2) + 1];
+	struct fscrypt_info *crypt_info;
+	u8 full_key_descriptor[FS_KEY_DESC_PREFIX_SIZE +
+				(FS_KEY_DESCRIPTOR_SIZE * 2) + 1];
 	struct key *keyring_key = NULL;
-	struct f2fs_encryption_key *master_key;
-	struct f2fs_encryption_context ctx;
+	struct fscrypt_key *master_key;
+	struct fscrypt_context ctx;
 	const struct user_key_payload *ukp;
 	struct crypto_ablkcipher *ctfm;
 	const char *cipher_str;
-	char raw_key[F2FS_MAX_KEY_SIZE];
-	char mode;
+	u8 raw_key[FS_MAX_KEY_SIZE];
+	u8 mode;
 	int res;
 
-	res = f2fs_crypto_initialize();
+	res = fscrypt_initialize();
 	if (res)
 		return res;
+
+	if (!inode->i_sb->s_cop->get_context)
+		return -EOPNOTSUPP;
 retry:
-	crypt_info = ACCESS_ONCE(fi->i_crypt_info);
+	crypt_info = ACCESS_ONCE(inode->i_crypt_info);
 	if (crypt_info) {
 		if (!crypt_info->ci_keyring_key ||
 				key_validate(crypt_info->ci_keyring_key) == 0)
 			return 0;
-		f2fs_free_encryption_info(inode, crypt_info);
+		fscrypt_put_encryption_info(inode, crypt_info);
 		goto retry;
 	}
 
-	res = f2fs_getxattr(inode, F2FS_XATTR_INDEX_ENCRYPTION,
-				F2FS_XATTR_NAME_ENCRYPTION_CONTEXT,
-				&ctx, sizeof(ctx), NULL);
-	if (res < 0)
-		return res;
-	else if (res != sizeof(ctx))
+	res = inode->i_sb->s_cop->get_context(inode, &ctx, sizeof(ctx));
+	if (res < 0) {
+		if (!fscrypt_dummy_context_enabled(inode))
+			return res;
+		ctx.contents_encryption_mode = FS_ENCRYPTION_MODE_AES_256_XTS;
+		ctx.filenames_encryption_mode = FS_ENCRYPTION_MODE_AES_256_CTS;
+		ctx.flags = 0;
+	} else if (res != sizeof(ctx)) {
 		return -EINVAL;
+	}
 	res = 0;
 
-	crypt_info = kmem_cache_alloc(f2fs_crypt_info_cachep, GFP_NOFS);
+	crypt_info = kmem_cache_alloc(fscrypt_info_cachep, GFP_NOFS);
 	if (!crypt_info)
 		return -ENOMEM;
 
@@ -169,27 +155,30 @@ retry:
 		BUG();
 
 	switch (mode) {
-	case F2FS_ENCRYPTION_MODE_AES_256_XTS:
+	case FS_ENCRYPTION_MODE_AES_256_XTS:
 		cipher_str = "xts(aes)";
 		break;
-	case F2FS_ENCRYPTION_MODE_AES_256_CTS:
+	case FS_ENCRYPTION_MODE_AES_256_CTS:
 		cipher_str = "cts(cbc(aes))";
 		break;
 	default:
 		printk_once(KERN_WARNING
-			    "f2fs: unsupported key mode %d (ino %u)\n",
-			    mode, (unsigned) inode->i_ino);
+			    "%s: unsupported key mode %d (ino %u)\n",
+			    __func__, mode, (unsigned) inode->i_ino);
 		res = -ENOKEY;
 		goto out;
 	}
-
-	memcpy(full_key_descriptor, F2FS_KEY_DESC_PREFIX,
-					F2FS_KEY_DESC_PREFIX_SIZE);
-	sprintf(full_key_descriptor + F2FS_KEY_DESC_PREFIX_SIZE,
-					"%*phN", F2FS_KEY_DESCRIPTOR_SIZE,
+	if (fscrypt_dummy_context_enabled(inode)) {
+		memset(raw_key, 0x42, FS_AES_256_XTS_KEY_SIZE);
+		goto got_key;
+	}
+	memcpy(full_key_descriptor, FS_KEY_DESC_PREFIX,
+					FS_KEY_DESC_PREFIX_SIZE);
+	sprintf(full_key_descriptor + FS_KEY_DESC_PREFIX_SIZE,
+					"%*phN", FS_KEY_DESCRIPTOR_SIZE,
 					ctx.master_key_descriptor);
-	full_key_descriptor[F2FS_KEY_DESC_PREFIX_SIZE +
-					(2 * F2FS_KEY_DESCRIPTOR_SIZE)] = '\0';
+	full_key_descriptor[FS_KEY_DESC_PREFIX_SIZE +
+					(2 * FS_KEY_DESCRIPTOR_SIZE)] = '\0';
 	keyring_key = request_key(&key_type_logon, full_key_descriptor, NULL);
 	if (IS_ERR(keyring_key)) {
 		res = PTR_ERR(keyring_key);
@@ -198,34 +187,34 @@ retry:
 	}
 	crypt_info->ci_keyring_key = keyring_key;
 	if (keyring_key->type != &key_type_logon) {
-		printk_once(KERN_WARNING "f2fs: key type must be logon\n");
+		printk_once(KERN_WARNING
+				"%s: key type must be logon\n", __func__);
 		res = -ENOKEY;
 		goto out;
 	}
 	down_read(&keyring_key->sem);
 	ukp = user_key_payload(keyring_key);
-	if (ukp->datalen != sizeof(struct f2fs_encryption_key)) {
+	if (ukp->datalen != sizeof(struct fscrypt_key)) {
 		res = -EINVAL;
 		up_read(&keyring_key->sem);
 		goto out;
 	}
-	master_key = (struct f2fs_encryption_key *)ukp->data;
-	BUILD_BUG_ON(F2FS_AES_128_ECB_KEY_SIZE !=
-				F2FS_KEY_DERIVATION_NONCE_SIZE);
-	if (master_key->size != F2FS_AES_256_XTS_KEY_SIZE) {
+	master_key = (struct fscrypt_key *)ukp->data;
+	BUILD_BUG_ON(FS_AES_128_ECB_KEY_SIZE != FS_KEY_DERIVATION_NONCE_SIZE);
+
+	if (master_key->size != FS_AES_256_XTS_KEY_SIZE) {
 		printk_once(KERN_WARNING
-				"f2fs: key size incorrect: %d\n",
-				master_key->size);
+				"%s: key size incorrect: %d\n",
+				__func__, master_key->size);
 		res = -ENOKEY;
 		up_read(&keyring_key->sem);
 		goto out;
 	}
-	res = f2fs_derive_key_aes(ctx.nonce, master_key->raw,
-				  raw_key);
+	res = derive_key_aes(ctx.nonce, master_key->raw, raw_key);
 	up_read(&keyring_key->sem);
 	if (res)
 		goto out;
-
+got_key:
 	ctfm = crypto_alloc_ablkcipher(cipher_str, 0, 0);
 	if (!ctfm || IS_ERR(ctfm)) {
 		res = ctfm ? PTR_ERR(ctfm) : -ENOMEM;
@@ -237,31 +226,53 @@ retry:
 	crypt_info->ci_ctfm = ctfm;
 	crypto_ablkcipher_clear_flags(ctfm, ~0);
 	crypto_tfm_set_flags(crypto_ablkcipher_tfm(ctfm),
-			     CRYPTO_TFM_REQ_WEAK_KEY);
-	res = crypto_ablkcipher_setkey(ctfm, raw_key,
-					f2fs_encryption_key_size(mode));
+					CRYPTO_TFM_REQ_WEAK_KEY);
+	res = crypto_ablkcipher_setkey(ctfm, raw_key, fscrypt_key_size(mode));
 	if (res)
 		goto out;
 
 	memzero_explicit(raw_key, sizeof(raw_key));
-	if (cmpxchg(&fi->i_crypt_info, NULL, crypt_info) != NULL) {
-		f2fs_free_crypt_info(crypt_info);
+	if (cmpxchg(&inode->i_crypt_info, NULL, crypt_info) != NULL) {
+		put_crypt_info(crypt_info);
 		goto retry;
 	}
 	return 0;
 
 out:
-	if (res == -ENOKEY && !S_ISREG(inode->i_mode))
+	if (res == -ENOKEY)
 		res = 0;
-
-	f2fs_free_crypt_info(crypt_info);
+	put_crypt_info(crypt_info);
 	memzero_explicit(raw_key, sizeof(raw_key));
 	return res;
 }
 
-int f2fs_has_encryption_key(struct inode *inode)
+void fscrypt_put_encryption_info(struct inode *inode, struct fscrypt_info *ci)
 {
-	struct f2fs_inode_info *fi = F2FS_I(inode);
+	struct fscrypt_info *prev;
 
-	return (fi->i_crypt_info != NULL);
+	if (ci == NULL)
+		ci = ACCESS_ONCE(inode->i_crypt_info);
+	if (ci == NULL)
+		return;
+
+	prev = cmpxchg(&inode->i_crypt_info, ci, NULL);
+	if (prev != ci)
+		return;
+
+	put_crypt_info(ci);
 }
+EXPORT_SYMBOL(fscrypt_put_encryption_info);
+
+int fscrypt_get_encryption_info(struct inode *inode)
+{
+	struct fscrypt_info *ci = inode->i_crypt_info;
+
+	if (!ci ||
+		(ci->ci_keyring_key &&
+		 (ci->ci_keyring_key->flags & ((1 << KEY_FLAG_INVALIDATED) |
+					       (1 << KEY_FLAG_REVOKED) |
+					       (1 << KEY_FLAG_DEAD)))))
+		return get_crypt_info(inode);
+	return 0;
+}
+EXPORT_SYMBOL(fscrypt_get_encryption_info);

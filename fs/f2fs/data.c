@@ -34,9 +34,9 @@ static void f2fs_read_end_io(struct bio *bio)
 
 	if (f2fs_bio_encrypted(bio)) {
 		if (bio->bi_error) {
-			f2fs_release_crypto_ctx(bio->bi_private);
+			fscrypt_release_ctx(bio->bi_private);
 		} else {
-			f2fs_end_io_crypto_work(bio->bi_private, bio);
+			fscrypt_decrypt_bio_pages(bio->bi_private, bio);
 			return;
 		}
 	}
@@ -64,7 +64,7 @@ static void f2fs_write_end_io(struct bio *bio)
 	bio_for_each_segment_all(bvec, bio, i) {
 		struct page *page = bvec->bv_page;
 
-		f2fs_restore_and_release_control_page(&page);
+		fscrypt_pullback_bio_page(&page, true);
 
 		if (unlikely(bio->bi_error)) {
 			set_bit(AS_EIO, &page->mapping->flags);
@@ -129,16 +129,10 @@ static bool __has_merged_page(struct f2fs_bio_info *io, struct inode *inode,
 
 	bio_for_each_segment_all(bvec, io->bio, i) {
 
-		if (bvec->bv_page->mapping) {
+		if (bvec->bv_page->mapping)
 			target = bvec->bv_page;
-		} else {
-			struct f2fs_crypto_ctx *ctx;
-
-			/* encrypted page */
-			ctx = (struct f2fs_crypto_ctx *)page_private(
-								bvec->bv_page);
-			target = ctx->w.control_page;
-		}
+		else
+			target = fscrypt_control_page(bvec->bv_page);
 
 		if (inode && inode == target->mapping->host)
 			return true;
@@ -220,7 +214,8 @@ void f2fs_flush_merged_bios(struct f2fs_sb_info *sbi)
 int f2fs_submit_page_bio(struct f2fs_io_info *fio)
 {
 	struct bio *bio;
-	struct page *page = fio->encrypted_page ? fio->encrypted_page : fio->page;
+	struct page *page = fio->encrypted_page ?
+			fio->encrypted_page : fio->page;
 
 	trace_f2fs_submit_page_bio(page, fio);
 	f2fs_trace_ios(fio, 0);
@@ -992,12 +987,12 @@ submit_and_realloc:
 			bio = NULL;
 		}
 		if (bio == NULL) {
-			struct f2fs_crypto_ctx *ctx = NULL;
+			struct fscrypt_ctx *ctx = NULL;
 
 			if (f2fs_encrypted_inode(inode) &&
 					S_ISREG(inode->i_mode)) {
 
-				ctx = f2fs_get_crypto_ctx(inode);
+				ctx = fscrypt_get_ctx(inode);
 				if (IS_ERR(ctx))
 					goto set_error_page;
 
@@ -1010,7 +1005,7 @@ submit_and_realloc:
 				min_t(int, nr_pages, BIO_MAX_PAGES));
 			if (!bio) {
 				if (ctx)
-					f2fs_release_crypto_ctx(ctx);
+					fscrypt_release_ctx(ctx);
 				goto set_error_page;
 			}
 			bio->bi_bdev = bdev;
@@ -1102,7 +1097,7 @@ int do_write_data_page(struct f2fs_io_info *fio)
 		f2fs_wait_on_encrypted_page_writeback(F2FS_I_SB(inode),
 							fio->old_blkaddr);
 
-		fio->encrypted_page = f2fs_encrypt(inode, fio->page);
+		fio->encrypted_page = fscrypt_encrypt_page(inode, fio->page);
 		if (IS_ERR(fio->encrypted_page)) {
 			err = PTR_ERR(fio->encrypted_page);
 			goto out_writepage;
@@ -1608,7 +1603,7 @@ repeat:
 
 		/* avoid symlink page */
 		if (f2fs_encrypted_inode(inode) && S_ISREG(inode->i_mode)) {
-			err = f2fs_decrypt(page);
+			err = fscrypt_decrypt_page(page);
 			if (err)
 				goto fail;
 		}
