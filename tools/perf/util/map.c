@@ -426,7 +426,7 @@ void map_groups__init(struct map_groups *mg, struct machine *machine)
 		INIT_LIST_HEAD(&mg->removed_maps[i]);
 	}
 	mg->machine = machine;
-	mg->refcnt = 1;
+	atomic_set(&mg->refcnt, 1);
 }
 
 static void maps__delete(struct rb_root *maps)
@@ -494,7 +494,7 @@ void map_groups__delete(struct map_groups *mg)
 
 void map_groups__put(struct map_groups *mg)
 {
-	if (--mg->refcnt == 0)
+	if (mg && atomic_dec_and_test(&mg->refcnt))
 		map_groups__delete(mg);
 }
 
