@@ -111,7 +111,7 @@ static void pnv_prepare_going_down(void)
 	 * Disable all notifiers from OPAL, we can't
 	 * service interrupts anymore anyway
 	 */
-	opal_notifier_disable();
+	opal_event_shutdown();
 
 	/* Soft disable interrupts */
 	local_irq_disable();
