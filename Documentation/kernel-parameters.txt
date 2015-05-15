@@ -2437,7 +2437,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	nomca		[IA-64] Disable machine check abort handling
 
-	nomce		[X86-32] Machine Check Exception
+	nomce		[X86-32] Disable Machine Check Exception
 
 	nomfgpt		[X86-32] Disable Multi-Function General Purpose
 			Timer usage (for AMD Geode machines).
