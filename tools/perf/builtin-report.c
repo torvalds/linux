@@ -333,15 +333,14 @@ static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
 	}
 
 	if (sort_order == NULL &&
-	    parent_pattern == default_parent_pattern) {
+	    parent_pattern == default_parent_pattern)
 		fprintf(stdout, "#\n# (%s)\n#\n", help);
 
-		if (rep->show_threads) {
-			bool style = !strcmp(rep->pretty_printing_style, "raw");
-			perf_read_values_display(stdout, &rep->show_threads_values,
-						 style);
-			perf_read_values_destroy(&rep->show_threads_values);
-		}
+	if (rep->show_threads) {
+		bool style = !strcmp(rep->pretty_printing_style, "raw");
+		perf_read_values_display(stdout, &rep->show_threads_values,
+					 style);
+		perf_read_values_destroy(&rep->show_threads_values);
 	}
 
 	return 0;
@@ -815,8 +814,8 @@ repeat:
 		goto error;
 	}
 
-	/* Force tty output for header output. */
-	if (report.header || report.header_only)
+	/* Force tty output for header output and per-thread stat. */
+	if (report.header || report.header_only || report.show_threads)
 		use_browser = 0;
 
 	if (strcmp(input_name, "-") != 0)

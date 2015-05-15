@@ -372,6 +372,8 @@ __cmd_probe(int argc, const char **argv, const char *prefix __maybe_unused)
 		     "Show accessible variables on PROBEDEF", opt_show_vars),
 	OPT_BOOLEAN('\0', "externs", &probe_conf.show_ext_vars,
 		    "Show external variables too (with --vars only)"),
+	OPT_BOOLEAN('\0', "range", &probe_conf.show_location_range,
+		"Show variables location range in scope (with --vars only)"),
 	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
 		   "file", "vmlinux pathname"),
 	OPT_STRING('s', "source", &symbol_conf.source_prefix,

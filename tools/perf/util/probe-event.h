@@ -9,6 +9,7 @@
 /* Probe related configurations */
 struct probe_conf {
 	bool	show_ext_vars;
+	bool	show_location_range;
 	bool	force_add;
 	bool	no_inlines;
 	int	max_probes;

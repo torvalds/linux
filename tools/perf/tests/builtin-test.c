@@ -219,7 +219,7 @@ static int run_test(struct test *test)
 	wait(&status);
 
 	if (WIFEXITED(status)) {
-		err = WEXITSTATUS(status);
+		err = (signed char)WEXITSTATUS(status);
 		pr_debug("test child finished with %d\n", err);
 	} else if (WIFSIGNALED(status)) {
 		err = -1;

@@ -364,7 +364,7 @@ static struct thread *____machine__findnew_thread(struct machine *machine,
 			return th;
 		}
 
-		thread__zput(machine->last_match);
+		machine->last_match = NULL;
 	}
 
 	while (*p != NULL) {
@@ -372,7 +372,7 @@ static struct thread *____machine__findnew_thread(struct machine *machine,
 		th = rb_entry(parent, struct thread, rb_node);
 
 		if (th->tid == tid) {
-			machine->last_match = thread__get(th);
+			machine->last_match = th;
 			machine__update_thread_pid(machine, th, pid);
 			return th;
 		}
@@ -409,7 +409,7 @@ static struct thread *____machine__findnew_thread(struct machine *machine,
 		 * It is now in the rbtree, get a ref
 		 */
 		thread__get(th);
-		machine->last_match = thread__get(th);
+		machine->last_match = th;
 	}
 
 	return th;
@@ -1309,7 +1309,7 @@ out_problem:
 static void __machine__remove_thread(struct machine *machine, struct thread *th, bool lock)
 {
 	if (machine->last_match == th)
-		thread__zput(machine->last_match);
+		machine->last_match = NULL;
 
 	BUG_ON(th->refcnt.counter == 0);
 	if (lock)

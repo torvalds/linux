@@ -85,6 +85,10 @@ extern Dwarf_Die *die_find_child(Dwarf_Die *rt_die,
 extern Dwarf_Die *die_find_realfunc(Dwarf_Die *cu_die, Dwarf_Addr addr,
 				    Dwarf_Die *die_mem);
 
+/* Search a non-inlined function with tail call at given address */
+Dwarf_Die *die_find_tailfunc(Dwarf_Die *cu_die, Dwarf_Addr addr,
+				    Dwarf_Die *die_mem);
+
 /* Search the top inlined function including given address */
 extern Dwarf_Die *die_find_top_inlinefunc(Dwarf_Die *sp_die, Dwarf_Addr addr,
 					  Dwarf_Die *die_mem);
@@ -117,8 +121,10 @@ extern Dwarf_Die *die_find_member(Dwarf_Die *st_die, const char *name,
 				  Dwarf_Die *die_mem);
 
 /* Get the name of given variable DIE */
-extern int die_get_typename(Dwarf_Die *vr_die, char *buf, int len);
+extern int die_get_typename(Dwarf_Die *vr_die, struct strbuf *buf);
 
 /* Get the name and type of given variable DIE, stored as "type\tname" */
-extern int die_get_varname(Dwarf_Die *vr_die, char *buf, int len);
+extern int die_get_varname(Dwarf_Die *vr_die, struct strbuf *buf);
+extern int die_get_var_range(Dwarf_Die *sp_die, Dwarf_Die *vr_die,
+			struct strbuf *buf);
 #endif
