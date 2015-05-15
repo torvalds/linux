@@ -359,7 +359,8 @@ static struct wb_cache_entry *get_next_dirty_entry(struct policy *p)
 
 static int wb_writeback_work(struct dm_cache_policy *pe,
 			     dm_oblock_t *oblock,
-			     dm_cblock_t *cblock)
+			     dm_cblock_t *cblock,
+			     bool critical_only)
 {
 	int r = -ENOENT;
 	struct policy *p = to_policy(pe);

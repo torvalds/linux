@@ -178,7 +178,9 @@ struct dm_cache_policy {
 	int (*remove_cblock)(struct dm_cache_policy *p, dm_cblock_t cblock);
 
 	/*
-	 * Provide a dirty block to be written back by the core target.
+	 * Provide a dirty block to be written back by the core target.  If
+	 * critical_only is set then the policy should only provide work if
+	 * it urgently needs it.
 	 *
 	 * Returns:
 	 *
@@ -186,7 +188,8 @@ struct dm_cache_policy {
 	 *
 	 * -ENODATA: no dirty blocks available
 	 */
-	int (*writeback_work)(struct dm_cache_policy *p, dm_oblock_t *oblock, dm_cblock_t *cblock);
+	int (*writeback_work)(struct dm_cache_policy *p, dm_oblock_t *oblock, dm_cblock_t *cblock,
+			      bool critical_only);
 
 	/*
 	 * How full is the cache?

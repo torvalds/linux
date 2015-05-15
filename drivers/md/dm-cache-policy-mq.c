@@ -1236,7 +1236,7 @@ static int __mq_writeback_work(struct mq_policy *mq, dm_oblock_t *oblock,
 }
 
 static int mq_writeback_work(struct dm_cache_policy *p, dm_oblock_t *oblock,
-			     dm_cblock_t *cblock)
+			     dm_cblock_t *cblock, bool critical_only)
 {
 	int r;
 	struct mq_policy *mq = to_mq_policy(p);
