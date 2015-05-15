@@ -637,15 +637,16 @@ static int skystarS2_rev33_attach(struct flexcop_device *fc,
 	struct i2c_adapter *i2c)
 {
 	fc->fe = dvb_attach(cx24120_attach,
-		&skystar2_rev3_3_cx24120_config, i2c);
-	if (fc->fe == NULL)
+			    &skystar2_rev3_3_cx24120_config, i2c);
+	if (!fc->fe)
 		return 0;
 
 	fc->dev_type = FC_SKYS2_REV33;
 	fc->fc_i2c_adap[2].no_base_addr = 1;
-	if ((dvb_attach(isl6421_attach, fc->fe,
-		&fc->fc_i2c_adap[2].i2c_adap, 0x08, 0, 0, false) == NULL)) {
+	if (!dvb_attach(isl6421_attach, fc->fe, &fc->fc_i2c_adap[2].i2c_adap,
+			0x08, 0, 0, false)) {
 		err("ISL6421 could NOT be attached!");
+		fc->fc_i2c_adap[2].no_base_addr = 0;
 		return 0;
 	}
 	info("ISL6421 successfully attached.");
