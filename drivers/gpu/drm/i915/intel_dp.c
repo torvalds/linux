@@ -1097,6 +1097,9 @@ skl_edp_set_pll_config(struct intel_crtc_state *pipe_config, int link_clock)
 {
 	u32 ctrl1;
 
+	memset(&pipe_config->dpll_hw_state, 0,
+	       sizeof(pipe_config->dpll_hw_state));
+
 	pipe_config->ddi_pll_sel = SKL_DPLL0;
 	pipe_config->dpll_hw_state.cfgcr1 = 0;
 	pipe_config->dpll_hw_state.cfgcr2 = 0;

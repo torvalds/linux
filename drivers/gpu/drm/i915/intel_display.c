@@ -7464,6 +7464,9 @@ static int i9xx_crtc_compute_clock(struct intel_crtc *crtc,
 	struct drm_connector_state *connector_state;
 	int i;
 
+	memset(&crtc_state->dpll_hw_state, 0,
+	       sizeof(crtc_state->dpll_hw_state));
+
 	for_each_connector_in_state(state, connector, connector_state, i) {
 		if (connector_state->crtc != &crtc->base)
 			continue;
@@ -8504,6 +8507,9 @@ static int ironlake_crtc_compute_clock(struct intel_crtc *crtc,
 	bool ok, has_reduced_clock = false;
 	bool is_lvds = false;
 	struct intel_shared_dpll *pll;
+
+	memset(&crtc_state->dpll_hw_state, 0,
+	       sizeof(crtc_state->dpll_hw_state));
 
 	is_lvds = intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS);
 
@@ -12261,8 +12267,6 @@ static int __intel_set_mode_setup_plls(struct drm_atomic_state *state)
 		if (needs_modeset(crtc_state)) {
 			clear_pipes |= 1 << intel_crtc->pipe;
 			intel_crtc_state->shared_dpll = DPLL_ID_PRIVATE;
-			memset(&intel_crtc_state->dpll_hw_state, 0,
-			       sizeof(intel_crtc_state->dpll_hw_state));
 		}
 	}
 

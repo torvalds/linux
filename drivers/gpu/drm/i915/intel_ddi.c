@@ -1087,6 +1087,9 @@ hsw_ddi_pll_select(struct intel_crtc *intel_crtc,
 		      WRPLL_DIVIDER_REFERENCE(r2) | WRPLL_DIVIDER_FEEDBACK(n2) |
 		      WRPLL_DIVIDER_POST(p);
 
+		memset(&crtc_state->dpll_hw_state, 0,
+		       sizeof(crtc_state->dpll_hw_state));
+
 		crtc_state->dpll_hw_state.wrpll = val;
 
 		pll = intel_get_shared_dpll(intel_crtc, crtc_state);
@@ -1309,6 +1312,9 @@ skl_ddi_pll_select(struct intel_crtc *intel_crtc,
 	} else /* eDP */
 		return true;
 
+	memset(&crtc_state->dpll_hw_state, 0,
+	       sizeof(crtc_state->dpll_hw_state));
+
 	crtc_state->dpll_hw_state.ctrl1 = ctrl1;
 	crtc_state->dpll_hw_state.cfgcr1 = cfgcr1;
 	crtc_state->dpll_hw_state.cfgcr2 = cfgcr2;
@@ -1418,6 +1424,9 @@ bxt_ddi_pll_select(struct intel_crtc *intel_crtc,
 			DRM_ERROR("Unknown link rate\n");
 		}
 	}
+
+	memset(&crtc_state->dpll_hw_state, 0,
+	       sizeof(crtc_state->dpll_hw_state));
 
 	crtc_state->dpll_hw_state.ebb0 =
 		PORT_PLL_P1(clk_div.p1) | PORT_PLL_P2(clk_div.p2);
