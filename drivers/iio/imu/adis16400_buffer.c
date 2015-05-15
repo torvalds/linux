@@ -29,6 +29,8 @@ int adis16400_update_scan_mode(struct iio_dev *indio_dev,
 
 	/* All but the timestamp channel */
 	burst_length = (indio_dev->num_channels - 1) * sizeof(u16);
+	if (st->variant->flags & ADIS16400_BURST_DIAG_STAT)
+		burst_length += sizeof(u16);
 
 	adis->xfer = kcalloc(2, sizeof(*adis->xfer), GFP_KERNEL);
 	if (!adis->xfer)
@@ -63,6 +65,7 @@ irqreturn_t adis16400_trigger_handler(int irq, void *p)
 	struct adis16400_state *st = iio_priv(indio_dev);
 	struct adis *adis = &st->adis;
 	u32 old_speed_hz = st->adis.spi->max_speed_hz;
+	void *buffer;
 	int ret;
 
 	if (!adis->buffer)
@@ -83,7 +86,12 @@ irqreturn_t adis16400_trigger_handler(int irq, void *p)
 		spi_setup(st->adis.spi);
 	}
 
-	iio_push_to_buffers_with_timestamp(indio_dev, adis->buffer,
+	if (st->variant->flags & ADIS16400_BURST_DIAG_STAT)
+		buffer = adis->buffer + sizeof(u16);
+	else
+		buffer = adis->buffer;
+
+	iio_push_to_buffers_with_timestamp(indio_dev, buffer,
 		pf->timestamp);
 
 	iio_trigger_notify_done(indio_dev->trig);
