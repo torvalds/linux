@@ -143,6 +143,8 @@ static void complete_flip(struct drm_crtc *crtc, struct drm_file *file)
 	}
 
 	if (mdp5_crtc->ctl && !crtc->state->enable) {
+		/* set STAGE_UNUSED for all layers */
+		mdp5_ctl_blend(mdp5_crtc->ctl, mdp5_crtc->lm, 0x00000000);
 		mdp5_ctl_release(mdp5_crtc->ctl);
 		mdp5_crtc->ctl = NULL;
 	}
@@ -273,9 +275,6 @@ static void mdp5_crtc_disable(struct drm_crtc *crtc)
 
 	if (WARN_ON(!mdp5_crtc->enabled))
 		return;
-
-	/* set STAGE_UNUSED for all layers */
-	mdp5_ctl_blend(mdp5_crtc->ctl, mdp5_crtc->lm, 0x00000000);
 
 	mdp_irq_unregister(&mdp5_kms->base, &mdp5_crtc->err);
 	mdp5_disable(mdp5_kms);
