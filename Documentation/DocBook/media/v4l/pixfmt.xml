@@ -498,6 +498,11 @@ BT.2020 which uses limited range R'G'B' quantization.</para>
 	</thead>
 	<tbody valign="top">
 	  <row>
+	    <entry><constant>V4L2_COLORSPACE_DEFAULT</constant></entry>
+	    <entry>The default colorspace. This can be used by applications to let the
+	    driver fill in the colorspace.</entry>
+	  </row>
+	  <row>
 	    <entry><constant>V4L2_COLORSPACE_SMPTE170M</constant></entry>
 	    <entry>See <xref linkend="col-smpte-170m" />.</entry>
 	  </row>
