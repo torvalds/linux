@@ -25,9 +25,9 @@ struct thread {
 	atomic_t		refcnt;
 	char			shortname[3];
 	bool			comm_set;
+	int			comm_len;
 	bool			dead; /* if set thread has exited */
 	struct list_head	comm_list;
-	int			comm_len;
 	u64			db_id;
 
 	void			*priv;

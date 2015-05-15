@@ -40,6 +40,7 @@ struct perf_evlist {
 	int		 nr_entries;
 	int		 nr_groups;
 	int		 nr_mmaps;
+	bool		 overwrite;
 	size_t		 mmap_len;
 	int		 id_pos;
 	int		 is_pos;
@@ -48,7 +49,6 @@ struct perf_evlist {
 		int	cork_fd;
 		pid_t	pid;
 	} workload;
-	bool		 overwrite;
 	struct fdarray	 pollfd;
 	struct perf_mmap *mmap;
 	struct thread_map *threads;
