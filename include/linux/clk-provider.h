@@ -361,6 +361,9 @@ struct clk_div_table {
  *	to the closest integer instead of the up one.
  * CLK_DIVIDER_READ_ONLY - The divider settings are preconfigured and should
  *	not be changed by the clock framework.
+ * CLK_DIVIDER_MAX_AT_ZERO - For dividers which are like CLK_DIVIDER_ONE_BASED
+ *	except when the value read from the register is zero, the divisor is
+ *	2^width of the field.
  */
 struct clk_divider {
 	struct clk_hw	hw;
@@ -378,6 +381,7 @@ struct clk_divider {
 #define CLK_DIVIDER_HIWORD_MASK		BIT(3)
 #define CLK_DIVIDER_ROUND_CLOSEST	BIT(4)
 #define CLK_DIVIDER_READ_ONLY		BIT(5)
+#define CLK_DIVIDER_MAX_AT_ZERO		BIT(6)
 
 extern const struct clk_ops clk_divider_ops;
 
