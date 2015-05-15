@@ -1652,48 +1652,15 @@ static void tpg_recalc(struct tpg_data *tpg)
 		tpg->recalc_lines = true;
 		tpg->real_ycbcr_enc = tpg->ycbcr_enc;
 		tpg->real_quantization = tpg->quantization;
-		if (tpg->ycbcr_enc == V4L2_YCBCR_ENC_DEFAULT) {
-			switch (tpg->colorspace) {
-			case V4L2_COLORSPACE_REC709:
-				tpg->real_ycbcr_enc = V4L2_YCBCR_ENC_709;
-				break;
-			case V4L2_COLORSPACE_SRGB:
-				tpg->real_ycbcr_enc = V4L2_YCBCR_ENC_SYCC;
-				break;
-			case V4L2_COLORSPACE_BT2020:
-				tpg->real_ycbcr_enc = V4L2_YCBCR_ENC_BT2020;
-				break;
-			case V4L2_COLORSPACE_SMPTE240M:
-				tpg->real_ycbcr_enc = V4L2_YCBCR_ENC_SMPTE240M;
-				break;
-			case V4L2_COLORSPACE_SMPTE170M:
-			case V4L2_COLORSPACE_470_SYSTEM_M:
-			case V4L2_COLORSPACE_470_SYSTEM_BG:
-			case V4L2_COLORSPACE_ADOBERGB:
-			default:
-				tpg->real_ycbcr_enc = V4L2_YCBCR_ENC_601;
-				break;
-			}
-		}
-		if (tpg->quantization == V4L2_QUANTIZATION_DEFAULT) {
-			tpg->real_quantization = V4L2_QUANTIZATION_FULL_RANGE;
-			if (tpg->is_yuv) {
-				switch (tpg->real_ycbcr_enc) {
-				case V4L2_YCBCR_ENC_SYCC:
-				case V4L2_YCBCR_ENC_XV601:
-				case V4L2_YCBCR_ENC_XV709:
-					break;
-				default:
-					tpg->real_quantization =
-						V4L2_QUANTIZATION_LIM_RANGE;
-					break;
-				}
-			} else if (tpg->colorspace == V4L2_COLORSPACE_BT2020) {
-				/* R'G'B' BT.2020 is limited range */
-				tpg->real_quantization =
-					V4L2_QUANTIZATION_LIM_RANGE;
-			}
-		}
+		if (tpg->ycbcr_enc == V4L2_YCBCR_ENC_DEFAULT)
+			tpg->real_ycbcr_enc =
+				V4L2_MAP_YCBCR_ENC_DEFAULT(tpg->colorspace);
+
+		if (tpg->quantization == V4L2_QUANTIZATION_DEFAULT)
+			tpg->real_quantization =
+				V4L2_MAP_QUANTIZATION_DEFAULT(!tpg->is_yuv,
+					tpg->colorspace, tpg->real_ycbcr_enc);
+
 		tpg_precalculate_colors(tpg);
 	}
 	if (tpg->recalc_square_border) {
