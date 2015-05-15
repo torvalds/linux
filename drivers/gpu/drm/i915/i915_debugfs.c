@@ -5154,6 +5154,9 @@ static int i915_dpcd_show(struct seq_file *m, void *data)
 	ssize_t err;
 	int i;
 
+	if (connector->status != connector_status_connected)
+		return -ENODEV;
+
 	for (i = 0; i < ARRAY_SIZE(i915_dpcd_debug); i++) {
 		const struct dpcd_block *b = &i915_dpcd_debug[i];
 		size_t size = b->end ? b->end - b->offset + 1 : (b->size ?: 1);
