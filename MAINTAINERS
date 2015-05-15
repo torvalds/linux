@@ -4605,6 +4605,18 @@ F:	drivers/hid/
 F:	include/linux/hid*
 F:	include/uapi/linux/hid*
 
+HID SENSOR HUB DRIVERS
+M:	Jiri Kosina <jkosina@suse.cz>
+M:	Jonathan Cameron <jic23@kernel.org>
+M:	Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>
+L:	linux-input@vger.kernel.org
+L:	linux-iio@vger.kernel.org
+S:	Maintained
+F:	Documentation/hid/hid-sensor*
+F:	drivers/hid/hid-sensor-*
+F:	drivers/iio/*/hid-*
+F:	include/linux/hid-sensor-*
+
 HIGH-RESOLUTION TIMERS, CLOCKEVENTS, DYNTICKS
 M:	Thomas Gleixner <tglx@linutronix.de>
 L:	linux-kernel@vger.kernel.org
