@@ -150,11 +150,11 @@ config COMMON_CLK_CDCE706
 	---help---
 	  This driver supports TI CDCE706 programmable 3-PLL clock synthesizer.
 
+source "drivers/clk/bcm/Kconfig"
 source "drivers/clk/qcom/Kconfig"
 
 endmenu
 
-source "drivers/clk/bcm/Kconfig"
 source "drivers/clk/mvebu/Kconfig"
 
 source "drivers/clk/samsung/Kconfig"
