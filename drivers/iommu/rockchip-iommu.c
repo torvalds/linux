@@ -170,12 +170,12 @@ enum iommu_status_bits {
 
 static struct kmem_cache *lv2table_kmem_cache;
 
-static unsigned int *rockchip_section_entry(unsigned int *pgtable, unsigned int iova)
+static unsigned int *rockchip_section_entry(unsigned int *pgtable, unsigned long iova)
 {
 	return pgtable + rockchip_lv1ent_offset(iova);
 }
 
-static unsigned int *rockchip_page_entry(unsigned int *sent, unsigned int iova)
+static unsigned int *rockchip_page_entry(unsigned int *sent, unsigned long iova)
 {
 	return (unsigned int *)phys_to_virt(rockchip_lv2table_base(sent)) +
 		rockchip_lv2ent_offset(iova);
@@ -822,7 +822,7 @@ static phys_addr_t rockchip_iommu_iova_to_phys(struct iommu_domain *domain,
 					       dma_addr_t iova)
 {
 	struct rk_iommu_domain *priv = domain->priv;
-	unsigned long *entry;
+	unsigned int *entry;
 	unsigned long flags;
 	phys_addr_t phys = 0;
 
@@ -849,8 +849,8 @@ static int rockchip_lv2set_page(unsigned int *pent, phys_addr_t paddr,
 	return 0;
 }
 
-static unsigned long *rockchip_alloc_lv2entry(unsigned int *sent,
-				     unsigned int iova, short *pgcounter)
+static unsigned int *rockchip_alloc_lv2entry(unsigned int *sent,
+				     unsigned long iova, short *pgcounter)
 {
 	if (rockchip_lv1ent_fault(sent)) {
 		unsigned int *pent;
@@ -870,7 +870,7 @@ static unsigned long *rockchip_alloc_lv2entry(unsigned int *sent,
 }
 
 static size_t rockchip_iommu_unmap(struct iommu_domain *domain,
-				   unsigned int iova, size_t size)
+				   unsigned long iova, size_t size)
 {
 	struct rk_iommu_domain *priv = domain->priv;
 	unsigned long flags;
@@ -903,7 +903,7 @@ static size_t rockchip_iommu_unmap(struct iommu_domain *domain,
 	goto done;
 
 done:
-	pr_debug("%s:unmap iova 0x%lx/0x%x bytes\n",
+	pr_debug("%s:unmap iova 0x%lx/%zx bytes\n",
 		  __func__, iova,size);
 	spin_unlock_irqrestore(&priv->pgtablelock, flags);
 
@@ -1070,13 +1070,13 @@ err_pgtable:
 }
 
 static struct iommu_ops rk_iommu_ops = {
-	.domain_init = &rockchip_iommu_domain_init,
-	.domain_destroy = &rockchip_iommu_domain_destroy,
-	.attach_dev = &rockchip_iommu_attach_device,
-	.detach_dev = &rockchip_iommu_detach_device,
-	.map = &rockchip_iommu_map,
-	.unmap = &rockchip_iommu_unmap,
-	.iova_to_phys = &rockchip_iommu_iova_to_phys,
+	.domain_init = rockchip_iommu_domain_init,
+	.domain_destroy = rockchip_iommu_domain_destroy,
+	.attach_dev = rockchip_iommu_attach_device,
+	.detach_dev = rockchip_iommu_detach_device,
+	.map = rockchip_iommu_map,
+	.unmap = rockchip_iommu_unmap,
+	.iova_to_phys = rockchip_iommu_iova_to_phys,
 	.pgsize_bitmap = SPAGE_SIZE,
 };
 
@@ -1159,14 +1159,14 @@ static int rockchip_iommu_probe(struct platform_device *pdev)
 			return -ENOMEM;
 		}
 
-		dev_dbg(dev,"res->start = 0x%pa ioremap to data->res_bases[%d] = 0x%08x\n",
-			&res->start, i, (unsigned int)data->res_bases[i]);
+		dev_dbg(dev,"res->start = 0x%pa ioremap to data->res_bases[%d] = %p\n",
+			&res->start, i, data->res_bases[i]);
 
 		if (strstr(data->dbgname, "vop") &&
 		    (soc_is_rk3128() || soc_is_rk3126())) {
 			rk312x_vop_mmu_base = data->res_bases[0];
-			dev_dbg(dev, "rk312x_vop_mmu_base = 0x%08x\n",
-				(unsigned int)rk312x_vop_mmu_base);
+			dev_dbg(dev, "rk312x_vop_mmu_base = %p\n",
+				rk312x_vop_mmu_base);
 		}
 	}
 
