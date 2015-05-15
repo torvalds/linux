@@ -3051,7 +3051,7 @@ static inline __sum16 __skb_checksum_validate_complete(struct sk_buff *skb,
 		}
 	} else if (skb->csum_bad) {
 		/* ip_summed == CHECKSUM_NONE in this case */
-		return 1;
+		return (__force __sum16)1;
 	}
 
 	skb->csum = psum;
@@ -3353,15 +3353,14 @@ static inline int gso_pskb_expand_head(struct sk_buff *skb, int extra)
 static inline __sum16 gso_make_checksum(struct sk_buff *skb, __wsum res)
 {
 	int plen = SKB_GSO_CB(skb)->csum_start - skb_headroom(skb) -
-	    skb_transport_offset(skb);
-	__u16 csum;
+		   skb_transport_offset(skb);
+	__wsum partial;
 
-	csum = csum_fold(csum_partial(skb_transport_header(skb),
-				      plen, skb->csum));
+	partial = csum_partial(skb_transport_header(skb), plen, skb->csum);
 	skb->csum = res;
 	SKB_GSO_CB(skb)->csum_start -= plen;
 
-	return csum;
+	return csum_fold(partial);
 }
 
 static inline bool skb_is_gso(const struct sk_buff *skb)
