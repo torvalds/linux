@@ -33,7 +33,9 @@ ret_fast_syscall:
  UNWIND(.fnstart	)
  UNWIND(.cantunwind	)
 	disable_irq				@ disable interrupts
-	ldr	r1, [tsk, #TI_FLAGS]
+	ldr	r1, [tsk, #TI_FLAGS]		@ re-check for syscall tracing
+	tst	r1, #_TIF_SYSCALL_WORK
+	bne	__sys_trace_return
 	tst	r1, #_TIF_WORK_MASK
 	bne	fast_work_pending
 	asm_trace_hardirqs_on
