@@ -5396,6 +5396,14 @@ int ext4_collapse_range(struct inode *inode, loff_t offset, loff_t len)
 	loff_t new_size, ioffset;
 	int ret;
 
+	/*
+	 * We need to test this early because xfstests assumes that a
+	 * collapse range of (0, 1) will return EOPNOTSUPP if the file
+	 * system does not support collapse range.
+	 */
+	if (!ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS))
+		return -EOPNOTSUPP;
+
 	/* Collapse range works only on fs block size aligned offsets. */
 	if (offset & (EXT4_CLUSTER_SIZE(sb) - 1) ||
 	    len & (EXT4_CLUSTER_SIZE(sb) - 1))
