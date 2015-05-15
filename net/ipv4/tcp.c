@@ -815,9 +815,20 @@ struct sk_buff *sk_stream_alloc_skb(struct sock *sk, int size, gfp_t gfp)
 	/* The TCP header must be at least 32-bit aligned.  */
 	size = ALIGN(size, 4);
 
+	if (unlikely(tcp_under_memory_pressure(sk)))
+		sk_mem_reclaim_partial(sk);
+
 	skb = alloc_skb_fclone(size + sk->sk_prot->max_header, gfp);
-	if (skb) {
-		if (sk_wmem_schedule(sk, skb->truesize)) {
+	if (likely(skb)) {
+		bool mem_schedule;
+
+		if (skb_queue_len(&sk->sk_write_queue) == 0) {
+			mem_schedule = true;
+			sk_forced_mem_schedule(sk, skb->truesize);
+		} else {
+			mem_schedule = sk_wmem_schedule(sk, skb->truesize);
+		}
+		if (likely(mem_schedule)) {
 			skb_reserve(skb, sk->sk_prot->max_header);
 			/*
 			 * Make sure that we have exactly size bytes
