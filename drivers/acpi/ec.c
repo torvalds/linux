@@ -267,7 +267,7 @@ static inline bool acpi_ec_is_gpe_raised(struct acpi_ec *ec)
 	acpi_event_status gpe_status = 0;
 
 	(void)acpi_get_gpe_status(NULL, ec->gpe, &gpe_status);
-	return (gpe_status & ACPI_EVENT_FLAG_SET) ? true : false;
+	return (gpe_status & ACPI_EVENT_FLAG_STATUS_SET) ? true : false;
 }
 
 static inline void acpi_ec_enable_gpe(struct acpi_ec *ec, bool open)
