@@ -2645,7 +2645,7 @@ static void dgap_cmdw_ext(struct channel_t *ch, u16 cmd, u16 word, uint ncmds)
  *      dgap_wmove - Write data to FEP buffer.
  *
  *              ch      - Pointer to channel structure.
- *              buf     - Poiter to characters to be moved.
+ *              buf     - Pointer to characters to be moved.
  *              cnt     - Number of characters to move.
  *
  *=======================================================================*/
