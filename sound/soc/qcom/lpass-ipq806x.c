@@ -43,6 +43,7 @@ enum lpaif_dma_channels {
 };
 
 static struct snd_soc_dai_driver ipq806x_lpass_cpu_dai_driver = {
+	.id	= IPQ806X_LPAIF_I2S_PORT_MI2S,
 	.playback = {
 		.stream_name	= "lpass-cpu-playback",
 		.formats	= SNDRV_PCM_FMTBIT_S16 |

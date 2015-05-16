@@ -138,8 +138,7 @@ static int lpass_cpu_daiops_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	ret = regmap_write(drvdata->lpaif_map,
-			   LPAIF_I2SCTL_REG(drvdata->variant,
-			   LPAIF_I2S_PORT_MI2S),
+			   LPAIF_I2SCTL_REG(drvdata->variant, dai->driver->id),
 			   regval);
 	if (ret) {
 		dev_err(dai->dev, "%s() error writing to i2sctl reg: %d\n",
@@ -164,8 +163,8 @@ static int lpass_cpu_daiops_hw_free(struct snd_pcm_substream *substream,
 	int ret;
 
 	ret = regmap_write(drvdata->lpaif_map,
-			   LPAIF_I2SCTL_REG(drvdata->variant,
-			   LPAIF_I2S_PORT_MI2S), 0);
+			   LPAIF_I2SCTL_REG(drvdata->variant, dai->driver->id),
+			   0);
 	if (ret)
 		dev_err(dai->dev, "%s() error writing to i2sctl reg: %d\n",
 				__func__, ret);
@@ -180,7 +179,7 @@ static int lpass_cpu_daiops_prepare(struct snd_pcm_substream *substream,
 	int ret;
 
 	ret = regmap_update_bits(drvdata->lpaif_map,
-			LPAIF_I2SCTL_REG(drvdata->variant, LPAIF_I2S_PORT_MI2S),
+			LPAIF_I2SCTL_REG(drvdata->variant, dai->driver->id),
 			LPAIF_I2SCTL_SPKEN_MASK, LPAIF_I2SCTL_SPKEN_ENABLE);
 	if (ret)
 		dev_err(dai->dev, "%s() error writing to i2sctl reg: %d\n",
@@ -201,7 +200,7 @@ static int lpass_cpu_daiops_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		ret = regmap_update_bits(drvdata->lpaif_map,
 				LPAIF_I2SCTL_REG(drvdata->variant,
-				LPAIF_I2S_PORT_MI2S),
+						dai->driver->id),
 				LPAIF_I2SCTL_SPKEN_MASK,
 				LPAIF_I2SCTL_SPKEN_ENABLE);
 		if (ret)
@@ -213,7 +212,7 @@ static int lpass_cpu_daiops_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		ret = regmap_update_bits(drvdata->lpaif_map,
 				LPAIF_I2SCTL_REG(drvdata->variant,
-				LPAIF_I2S_PORT_MI2S),
+						dai->driver->id),
 				LPAIF_I2SCTL_SPKEN_MASK,
 				LPAIF_I2SCTL_SPKEN_DISABLE);
 		if (ret)
@@ -243,8 +242,7 @@ int asoc_qcom_lpass_cpu_dai_probe(struct snd_soc_dai *dai)
 
 	/* ensure audio hardware is disabled */
 	ret = regmap_write(drvdata->lpaif_map,
-			   LPAIF_I2SCTL_REG(drvdata->variant,
-			   LPAIF_I2S_PORT_MI2S), 0);
+			LPAIF_I2SCTL_REG(drvdata->variant, dai->driver->id), 0);
 	if (ret)
 		dev_err(dai->dev, "%s() error writing to i2sctl reg: %d\n",
 				__func__, ret);
