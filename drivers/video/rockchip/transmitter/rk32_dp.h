@@ -531,6 +531,7 @@ struct rk32_edp {
 	struct rk_screen	screen;
 	struct fb_monspecs      specs;
 	bool 			clk_on;
+	bool edp_en;
 	struct dentry *debugfs_dir;
 };
 

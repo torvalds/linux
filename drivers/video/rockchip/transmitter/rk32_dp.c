@@ -1181,62 +1181,63 @@ static int rk32_edp_enable(void)
 	int ret = 0;
 	struct rk32_edp *edp = rk32_edp;
 
+	if (!edp->edp_en) {
+		rk32_edp_clk_enable(edp);
+		rk32_edp_pre_init(edp);
+		rk32_edp_init_edp(edp);
+		enable_irq(edp->irq);
+		/*ret = rk32_edp_handle_edid(edp);
+		if (ret) {
+			dev_err(edp->dev, "unable to handle edid\n");
+			//goto out;
+		}
 
-	rk32_edp_clk_enable(edp);
-	rk32_edp_pre_init(edp);
-	rk32_edp_init_edp(edp);
-	enable_irq(edp->irq);
-	/*ret = rk32_edp_handle_edid(edp);
-	if (ret) {
-		dev_err(edp->dev, "unable to handle edid\n");
-		//goto out;
-	}
+		ret = rk32_edp_enable_scramble(edp, 0);
+		if (ret) {
+			dev_err(edp->dev, "unable to set scramble\n");
+			//goto out;
+		}
 
+		ret = rk32_edp_enable_rx_to_enhanced_mode(edp, 0);
+		if (ret) {
+			dev_err(edp->dev, "unable to set enhanced mode\n");
+			//goto out;
+		}
+		rk32_edp_enable_enhanced_mode(edp, 1);*/
 
-	ret = rk32_edp_enable_scramble(edp, 0);
-	if (ret) {
-		dev_err(edp->dev, "unable to set scramble\n");
-		//goto out;
-	}
+		ret = rk32_edp_set_link_train(edp);
+		if (ret)
+			dev_err(edp->dev, "link train failed!\n");
+		else
+			dev_info(edp->dev, "link training success.\n");
 
-	ret = rk32_edp_enable_rx_to_enhanced_mode(edp, 0);
-	if (ret) {
-		dev_err(edp->dev, "unable to set enhanced mode\n");
-		//goto out;
-	}
-	rk32_edp_enable_enhanced_mode(edp, 1);*/
-
-	ret = rk32_edp_set_link_train(edp);
-	if (ret)
-		dev_err(edp->dev, "link train failed!\n");
-	else
-		dev_info(edp->dev, "link training success.\n");
-
-	rk32_edp_set_lane_count(edp, edp->link_train.lane_count);
-	rk32_edp_set_link_bandwidth(edp, edp->link_train.link_rate);
-	rk32_edp_init_video(edp);
+		rk32_edp_set_lane_count(edp, edp->link_train.lane_count);
+		rk32_edp_set_link_bandwidth(edp, edp->link_train.link_rate);
+		rk32_edp_init_video(edp);
 
 #ifdef EDP_BIST_MODE
-	rk32_edp_bist_cfg(edp);
+		rk32_edp_bist_cfg(edp);
 #endif
-	ret = rk32_edp_config_video(edp, &edp->video_info);
-	if (ret)
-		dev_err(edp->dev, "unable to config video\n");
+		ret = rk32_edp_config_video(edp, &edp->video_info);
+		if (ret)
+			dev_err(edp->dev, "unable to config video\n");
 
+		edp->edp_en = true;
+	}
 	return ret;
-
-
-
 }
 
 static int  rk32_edp_disable(void)
 {
 	struct rk32_edp *edp = rk32_edp;
 
-	disable_irq(edp->irq);
-	rk32_edp_reset(edp);
-	rk32_edp_analog_power_ctr(edp, 0);
-	rk32_edp_clk_disable(edp);
+	if (edp->edp_en) {
+		disable_irq(edp->irq);
+		rk32_edp_reset(edp);
+		rk32_edp_analog_power_ctr(edp, 0);
+		rk32_edp_clk_disable(edp);
+		edp->edp_en = false;
+	}
 
 	return 0;
 }
