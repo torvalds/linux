@@ -461,6 +461,13 @@ static void ep_reset_338x(struct net2280_regs __iomem *regs,
 	       BIT(DATA_PACKET_TRANSMITTED_INTERRUPT) |
 	       BIT(DATA_OUT_PING_TOKEN_INTERRUPT) |
 	       BIT(DATA_IN_TOKEN_INTERRUPT), &ep->regs->ep_stat);
+
+	tmp = readl(&ep->cfg->ep_cfg);
+	if (ep->is_in)
+		tmp &= ~USB3380_EP_CFG_MASK_IN;
+	else
+		tmp &= ~USB3380_EP_CFG_MASK_OUT;
+	writel(tmp, &ep->cfg->ep_cfg);
 }
 
 static void nuke(struct net2280_ep *);
