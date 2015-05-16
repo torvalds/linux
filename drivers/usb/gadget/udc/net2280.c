@@ -2883,6 +2883,26 @@ next_endpoints3:
 	return;
 }
 
+static void usb338x_handle_ep_intr(struct net2280 *dev, u32 stat0)
+{
+	u32 index;
+	u32 bit;
+
+	for (index = 0; index < ARRAY_SIZE(ep_bit); index++) {
+		bit = BIT(ep_bit[index]);
+
+		if (!stat0)
+			break;
+
+		if (!(stat0 & bit))
+			continue;
+
+		stat0 &= ~bit;
+
+		handle_ep_small(&dev->ep[index]);
+	}
+}
+
 static void handle_stat0_irqs(struct net2280 *dev, u32 stat)
 {
 	struct net2280_ep	*ep;
@@ -3107,20 +3127,31 @@ do_stall:
 #undef	w_length
 
 next_endpoints:
-	/* endpoint data irq ? */
-	scratch = stat & 0x7f;
-	stat &= ~0x7f;
-	for (num = 0; scratch; num++) {
-		u32		t;
+	if ((dev->quirks & PLX_SUPERSPEED) && dev->enhanced_mode) {
+		u32 mask = (BIT(ENDPOINT_0_INTERRUPT) |
+			USB3380_IRQSTAT0_EP_INTR_MASK_IN |
+			USB3380_IRQSTAT0_EP_INTR_MASK_OUT);
 
-		/* do this endpoint's FIFO and queue need tending? */
-		t = BIT(num);
-		if ((scratch & t) == 0)
-			continue;
-		scratch ^= t;
+		if (stat & mask) {
+			usb338x_handle_ep_intr(dev, stat & mask);
+			stat &= ~mask;
+		}
+	} else {
+		/* endpoint data irq ? */
+		scratch = stat & 0x7f;
+		stat &= ~0x7f;
+		for (num = 0; scratch; num++) {
+			u32		t;
 
-		ep = &dev->ep[num];
-		handle_ep_small(ep);
+			/* do this endpoint's FIFO and queue need tending? */
+			t = BIT(num);
+			if ((scratch & t) == 0)
+				continue;
+			scratch ^= t;
+
+			ep = &dev->ep[num];
+			handle_ep_small(ep);
+		}
 	}
 
 	if (stat)
