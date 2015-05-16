@@ -1979,9 +1979,15 @@ static void usb_reset_338x(struct net2280 *dev)
 	/* clear old dma and irq state */
 	for (tmp = 0; tmp < 4; tmp++) {
 		struct net2280_ep *ep = &dev->ep[tmp + 1];
+		struct net2280_dma_regs __iomem *dma;
 
-		if (ep->dma)
+		if (ep->dma) {
 			abort_dma(ep);
+		} else {
+			dma = &dev->dma[tmp];
+			writel(BIT(DMA_ABORT), &dma->dmastat);
+			writel(0, &dma->dmactl);
+		}
 	}
 
 	writel(~0, &dev->regs->irqstat0), writel(~0, &dev->regs->irqstat1);
