@@ -238,6 +238,7 @@ net2280_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 			tmp |= (ep->is_in << ENDPOINT_DIRECTION);
 		}
 
+		tmp |= (4 << ENDPOINT_BYTE_COUNT);
 		tmp |= usb_endpoint_num(desc);
 		tmp |= (ep->ep.maxburst << MAX_BURST_SIZE);
 	}
