@@ -202,6 +202,10 @@ static int ehci_platform_probe(struct platform_device *dev)
 					  "needs-reset-on-resume"))
 			pdata->reset_on_resume = 1;
 
+		if (of_property_read_bool(dev->dev.of_node,
+					  "has-transaction-translator"))
+			pdata->has_tt = 1;
+
 		priv->num_phys = of_count_phandle_with_args(dev->dev.of_node,
 				"phys", "#phy-cells");
 		priv->num_phys = priv->num_phys > 0 ? priv->num_phys : 1;
