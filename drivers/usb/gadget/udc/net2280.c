@@ -144,7 +144,9 @@ net2280_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 {
 	struct net2280		*dev;
 	struct net2280_ep	*ep;
-	u32			max, tmp;
+	u32			max;
+	u32 tmp = 0;
+	u32 type;
 	unsigned long		flags;
 	static const u32 ep_key[9] = { 1, 0, 1, 0, 1, 1, 0, 1, 0 };
 	int ret = 0;
@@ -200,15 +202,29 @@ net2280_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 
 	/* set type, direction, address; reset fifo counters */
 	writel(BIT(FIFO_FLUSH), &ep->regs->ep_stat);
-	tmp = (desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK);
-	if (tmp == USB_ENDPOINT_XFER_INT) {
+
+	if ((dev->quirks & PLX_SUPERSPEED) && dev->enhanced_mode) {
+		tmp = readl(&ep->cfg->ep_cfg);
+		/* If USB ep number doesn't match hardware ep number */
+		if ((tmp & 0xf) != usb_endpoint_num(desc)) {
+			ret = -EINVAL;
+			spin_unlock_irqrestore(&dev->lock, flags);
+			goto print_err;
+		}
+		if (ep->is_in)
+			tmp &= ~USB3380_EP_CFG_MASK_IN;
+		else
+			tmp &= ~USB3380_EP_CFG_MASK_OUT;
+	}
+	type = (desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK);
+	if (type == USB_ENDPOINT_XFER_INT) {
 		/* erratum 0105 workaround prevents hs NYET */
 		if (dev->chiprev == 0100 &&
 				dev->gadget.speed == USB_SPEED_HIGH &&
 				!(desc->bEndpointAddress & USB_DIR_IN))
 			writel(BIT(CLEAR_NAK_OUT_PACKETS_MODE),
 				&ep->regs->ep_rsp);
-	} else if (tmp == USB_ENDPOINT_XFER_BULK) {
+	} else if (type == USB_ENDPOINT_XFER_BULK) {
 		/* catch some particularly blatant driver bugs */
 		if ((dev->gadget.speed == USB_SPEED_SUPER && max != 1024) ||
 		    (dev->gadget.speed == USB_SPEED_HIGH && max != 512) ||
@@ -218,10 +234,10 @@ net2280_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 			goto print_err;
 		}
 	}
-	ep->is_iso = (tmp == USB_ENDPOINT_XFER_ISOC);
+	ep->is_iso = (type == USB_ENDPOINT_XFER_ISOC);
 	/* Enable this endpoint */
 	if (dev->quirks & PLX_LEGACY) {
-		tmp <<= ENDPOINT_TYPE;
+		tmp |= type << ENDPOINT_TYPE;
 		tmp |= desc->bEndpointAddress;
 		/* default full fifo lines */
 		tmp |= (4 << ENDPOINT_BYTE_COUNT);
@@ -230,16 +246,17 @@ net2280_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 	} else {
 		/* In Legacy mode, only OUT endpoints are used */
 		if (dev->enhanced_mode && ep->is_in) {
-			tmp <<= IN_ENDPOINT_TYPE;
+			tmp |= type << IN_ENDPOINT_TYPE;
 			tmp |= BIT(IN_ENDPOINT_ENABLE);
 		} else {
-			tmp <<= OUT_ENDPOINT_TYPE;
+			tmp |= type << OUT_ENDPOINT_TYPE;
 			tmp |= BIT(OUT_ENDPOINT_ENABLE);
 			tmp |= (ep->is_in << ENDPOINT_DIRECTION);
 		}
 
 		tmp |= (4 << ENDPOINT_BYTE_COUNT);
-		tmp |= usb_endpoint_num(desc);
+		if (!dev->enhanced_mode)
+			tmp |= usb_endpoint_num(desc);
 		tmp |= (ep->ep.maxburst << MAX_BURST_SIZE);
 	}
 
@@ -2074,6 +2091,12 @@ static void usb_reinit_338x(struct net2280 *dev)
 
 		if (dev->enhanced_mode) {
 			ep->cfg = &dev->epregs[ne[i]];
+			/*
+			 * Set USB endpoint number, hardware allows same number
+			 * in both directions.
+			 */
+			 if (i > 0 && i < 5)
+				writel(ne[i], &ep->cfg->ep_cfg);
 			ep->regs = (struct net2280_ep_regs __iomem *)
 				(((void __iomem *)&dev->epregs[ne[i]]) +
 				ep_reg_addr[i]);
