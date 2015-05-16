@@ -1860,8 +1860,8 @@ static void defect7374_enable_data_eps_zero(struct net2280 *dev)
 	tmp = ((0 << ENDPOINT_NUMBER) | BIT(ENDPOINT_DIRECTION) |
 			(2 << OUT_ENDPOINT_TYPE) | (2 << IN_ENDPOINT_TYPE) |
 			((dev->enhanced_mode) ?
-			 BIT(OUT_ENDPOINT_ENABLE) : BIT(ENDPOINT_ENABLE)) |
-			BIT(IN_ENDPOINT_ENABLE));
+			 BIT(OUT_ENDPOINT_ENABLE) | BIT(IN_ENDPOINT_ENABLE) :
+			 BIT(ENDPOINT_ENABLE)));
 
 	for (i = 1; i < 5; i++)
 		writel(tmp, &dev->ep[i].cfg->ep_cfg);
