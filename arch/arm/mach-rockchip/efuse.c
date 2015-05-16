@@ -67,7 +67,7 @@ static struct rockchip_efuse efuse;
 #define SEC_REG_WR_32 (SEC_REG_WR | SEC_REG_32)
 #define SEC_REG_WR_64 (SEC_REG_WR | SEC_REG_64)
 
-#define PSCI_OS_ACCESS_REG		(0xba00ffb0)
+#define PSCI_OS_ACCESS_REG		(0xa600ffb0)
 #define EFUSE_BASE        0xffb00000
 /*
  * arg2: rd/wr control, bit[0] 0-rd 1-rt, bit[1] 0-32bit, 1-64bit
