@@ -232,8 +232,6 @@ net2280_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 		if (dev->enhanced_mode && ep->is_in) {
 			tmp <<= IN_ENDPOINT_TYPE;
 			tmp |= BIT(IN_ENDPOINT_ENABLE);
-			/* Not applicable to Legacy */
-			tmp |= BIT(ENDPOINT_DIRECTION);
 		} else {
 			tmp <<= OUT_ENDPOINT_TYPE;
 			tmp |= BIT(OUT_ENDPOINT_ENABLE);
