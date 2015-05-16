@@ -124,6 +124,9 @@ static char *type_string(u8 bmAttributes)
 #define dma_done_ie	cpu_to_le32(BIT(DMA_DONE_INTERRUPT_ENABLE))
 
 static void ep_clear_seqnum(struct net2280_ep *ep);
+static void stop_activity(struct net2280 *dev,
+					struct usb_gadget_driver *driver);
+static void ep0_start(struct net2280 *dev);
 
 /*-------------------------------------------------------------------------*/
 static inline void enable_pciirqenb(struct net2280_ep *ep)
@@ -1495,11 +1498,14 @@ static int net2280_pullup(struct usb_gadget *_gadget, int is_on)
 	spin_lock_irqsave(&dev->lock, flags);
 	tmp = readl(&dev->usb->usbctl);
 	dev->softconnect = (is_on != 0);
-	if (is_on)
-		tmp |= BIT(USB_DETECT_ENABLE);
-	else
-		tmp &= ~BIT(USB_DETECT_ENABLE);
-	writel(tmp, &dev->usb->usbctl);
+	if (is_on) {
+		ep0_start(dev);
+		writel(tmp | BIT(USB_DETECT_ENABLE), &dev->usb->usbctl);
+	} else {
+		writel(tmp & ~BIT(USB_DETECT_ENABLE), &dev->usb->usbctl);
+		stop_activity(dev, dev->driver);
+	}
+
 	spin_unlock_irqrestore(&dev->lock, flags);
 
 	return 0;
