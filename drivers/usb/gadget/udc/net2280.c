@@ -123,6 +123,8 @@ static char *type_string(u8 bmAttributes)
 #define valid_bit	cpu_to_le32(BIT(VALID_BIT))
 #define dma_done_ie	cpu_to_le32(BIT(DMA_DONE_INTERRUPT_ENABLE))
 
+static void ep_clear_seqnum(struct net2280_ep *ep);
+
 /*-------------------------------------------------------------------------*/
 static inline void enable_pciirqenb(struct net2280_ep *ep)
 {
@@ -256,6 +258,8 @@ net2280_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 			BIT(CLEAR_NAK_OUT_PACKETS_MODE), &ep->regs->ep_rsp);
 	}
 
+	if (dev->quirks & PLX_SUPERSPEED)
+		ep_clear_seqnum(ep);
 	writel(tmp, &ep->cfg->ep_cfg);
 
 	/* enable irqs */
