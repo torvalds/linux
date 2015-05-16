@@ -13,6 +13,7 @@
 #ifndef __ND_H__
 #define __ND_H__
 #include <linux/libnvdimm.h>
+#include <linux/blkdev.h>
 #include <linux/device.h>
 #include <linux/mutex.h>
 #include <linux/ndctl.h>
@@ -202,5 +203,17 @@ int nvdimm_namespace_detach_btt(struct nd_namespace_common *ndns);
 const char *nvdimm_namespace_disk_name(struct nd_namespace_common *ndns,
 		char *name);
 int nd_blk_region_init(struct nd_region *nd_region);
+void __nd_iostat_start(struct bio *bio, unsigned long *start);
+static inline bool nd_iostat_start(struct bio *bio, unsigned long *start)
+{
+	struct gendisk *disk = bio->bi_bdev->bd_disk;
+
+	if (!blk_queue_io_stat(disk->queue))
+		return false;
+
+	__nd_iostat_start(bio, start);
+	return true;
+}
+void nd_iostat_end(struct bio *bio, unsigned long start);
 resource_size_t nd_namespace_blk_validate(struct nd_namespace_blk *nsblk);
 #endif /* __ND_H__ */
