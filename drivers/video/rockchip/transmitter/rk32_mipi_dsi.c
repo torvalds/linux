@@ -848,8 +848,8 @@ static int rk32_mipi_dsi_host_init(struct dsi *dsi)
 		rk32_dsi_set_bits(dsi, !screen->pin_vsync, vsync_active_low);
 
 		rk32_dsi_set_bits(dsi, screen->pin_den, dataen_active_low);
-		rk32_dsi_set_bits(dsi, 1, colorm_active_low);
-		rk32_dsi_set_bits(dsi, 1, shutd_active_low);
+		rk32_dsi_set_bits(dsi, 0, colorm_active_low);
+		rk32_dsi_set_bits(dsi, 0, shutd_active_low);
 	}
 
 	rk32_dsi_set_bits(dsi, dsi->host.video_mode, vid_mode_type); /* burst mode */
