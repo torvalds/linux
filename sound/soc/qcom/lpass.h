@@ -43,9 +43,37 @@ struct lpass_data {
 
 	/* interrupts from the low-power audio interface (LPAIF) */
 	int lpaif_irq;
+
+	/* SOC specific variations in the LPASS IP integration */
+	struct lpass_variant *variant;
+};
+
+/* Vairant data per each SOC */
+struct lpass_variant {
+	u32	i2sctrl_reg_base;
+	u32	i2sctrl_reg_stride;
+	u32	i2s_ports;
+	u32	irq_reg_base;
+	u32	irq_reg_stride;
+	u32	irq_ports;
+	u32	rdma_reg_base;
+	u32	rdma_reg_stride;
+	u32	rdma_channels;
+
+	/* SOC specific intialization like clocks */
+	int (*init)(struct platform_device *pdev);
+	int (*exit)(struct platform_device *pdev);
+
+	/* SOC specific dais */
+	struct snd_soc_dai_driver *dai_driver;
+	int num_dai;
 };
 
 /* register the platform driver from the CPU DAI driver */
 int asoc_qcom_lpass_platform_register(struct platform_device *);
+int asoc_qcom_lpass_cpu_platform_remove(struct platform_device *pdev);
+int asoc_qcom_lpass_cpu_platform_probe(struct platform_device *pdev);
+int asoc_qcom_lpass_cpu_dai_probe(struct snd_soc_dai *dai);
+extern struct snd_soc_dai_ops asoc_qcom_lpass_cpu_dai_ops;
 
 #endif /* __LPASS_H__ */

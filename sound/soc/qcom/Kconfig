@@ -12,11 +12,16 @@ config SND_SOC_LPASS_PLATFORM
 	tristate
 	select REGMAP_MMIO
 
+config SND_SOC_LPASS_IPQ806X
+	tristate
+	depends on SND_SOC_QCOM
+	select SND_SOC_LPASS_CPU
+	select SND_SOC_LPASS_PLATFORM
+
 config SND_SOC_STORM
 	tristate "ASoC I2S support for Storm boards"
 	depends on (ARCH_QCOM && SND_SOC_QCOM) || COMPILE_TEST
-	select SND_SOC_LPASS_CPU
-	select SND_SOC_LPASS_PLATFORM
+	select SND_SOC_LPASS_IPQ806X
 	select SND_SOC_MAX98357A
 	help
           Say Y or M if you want add support for SoC audio on the

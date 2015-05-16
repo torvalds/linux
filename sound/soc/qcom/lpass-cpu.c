@@ -17,14 +17,14 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <linux/regmap.h>
 #include <sound/soc.h>
 #include <sound/soc-dai.h>
-
-#include "lpass-lpaif-ipq806x.h"
+#include "lpass-lpaif-reg.h"
 #include "lpass.h"
 
 static int lpass_cpu_daiops_set_sysclk(struct snd_soc_dai *dai, int clk_id,
@@ -138,7 +138,9 @@ static int lpass_cpu_daiops_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	ret = regmap_write(drvdata->lpaif_map,
-			LPAIF_I2SCTL_REG(LPAIF_I2S_PORT_MI2S), regval);
+			   LPAIF_I2SCTL_REG(drvdata->variant,
+			   LPAIF_I2S_PORT_MI2S),
+			   regval);
 	if (ret) {
 		dev_err(dai->dev, "%s() error writing to i2sctl reg: %d\n",
 				__func__, ret);
@@ -162,7 +164,8 @@ static int lpass_cpu_daiops_hw_free(struct snd_pcm_substream *substream,
 	int ret;
 
 	ret = regmap_write(drvdata->lpaif_map,
-			LPAIF_I2SCTL_REG(LPAIF_I2S_PORT_MI2S), 0);
+			   LPAIF_I2SCTL_REG(drvdata->variant,
+			   LPAIF_I2S_PORT_MI2S), 0);
 	if (ret)
 		dev_err(dai->dev, "%s() error writing to i2sctl reg: %d\n",
 				__func__, ret);
@@ -177,7 +180,7 @@ static int lpass_cpu_daiops_prepare(struct snd_pcm_substream *substream,
 	int ret;
 
 	ret = regmap_update_bits(drvdata->lpaif_map,
-			LPAIF_I2SCTL_REG(LPAIF_I2S_PORT_MI2S),
+			LPAIF_I2SCTL_REG(drvdata->variant, LPAIF_I2S_PORT_MI2S),
 			LPAIF_I2SCTL_SPKEN_MASK, LPAIF_I2SCTL_SPKEN_ENABLE);
 	if (ret)
 		dev_err(dai->dev, "%s() error writing to i2sctl reg: %d\n",
@@ -197,7 +200,8 @@ static int lpass_cpu_daiops_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		ret = regmap_update_bits(drvdata->lpaif_map,
-				LPAIF_I2SCTL_REG(LPAIF_I2S_PORT_MI2S),
+				LPAIF_I2SCTL_REG(drvdata->variant,
+				LPAIF_I2S_PORT_MI2S),
 				LPAIF_I2SCTL_SPKEN_MASK,
 				LPAIF_I2SCTL_SPKEN_ENABLE);
 		if (ret)
@@ -208,7 +212,8 @@ static int lpass_cpu_daiops_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		ret = regmap_update_bits(drvdata->lpaif_map,
-				LPAIF_I2SCTL_REG(LPAIF_I2S_PORT_MI2S),
+				LPAIF_I2SCTL_REG(drvdata->variant,
+				LPAIF_I2S_PORT_MI2S),
 				LPAIF_I2SCTL_SPKEN_MASK,
 				LPAIF_I2SCTL_SPKEN_DISABLE);
 		if (ret)
@@ -220,7 +225,7 @@ static int lpass_cpu_daiops_trigger(struct snd_pcm_substream *substream,
 	return ret;
 }
 
-static struct snd_soc_dai_ops lpass_cpu_dai_ops = {
+struct snd_soc_dai_ops asoc_qcom_lpass_cpu_dai_ops = {
 	.set_sysclk	= lpass_cpu_daiops_set_sysclk,
 	.startup	= lpass_cpu_daiops_startup,
 	.shutdown	= lpass_cpu_daiops_shutdown,
@@ -229,41 +234,24 @@ static struct snd_soc_dai_ops lpass_cpu_dai_ops = {
 	.prepare	= lpass_cpu_daiops_prepare,
 	.trigger	= lpass_cpu_daiops_trigger,
 };
+EXPORT_SYMBOL_GPL(asoc_qcom_lpass_cpu_dai_ops);
 
-static int lpass_cpu_dai_probe(struct snd_soc_dai *dai)
+int asoc_qcom_lpass_cpu_dai_probe(struct snd_soc_dai *dai)
 {
 	struct lpass_data *drvdata = snd_soc_dai_get_drvdata(dai);
 	int ret;
 
 	/* ensure audio hardware is disabled */
 	ret = regmap_write(drvdata->lpaif_map,
-			LPAIF_I2SCTL_REG(LPAIF_I2S_PORT_MI2S), 0);
+			   LPAIF_I2SCTL_REG(drvdata->variant,
+			   LPAIF_I2S_PORT_MI2S), 0);
 	if (ret)
 		dev_err(dai->dev, "%s() error writing to i2sctl reg: %d\n",
 				__func__, ret);
 
 	return ret;
 }
-
-static struct snd_soc_dai_driver lpass_cpu_dai_driver = {
-	.playback = {
-		.stream_name	= "lpass-cpu-playback",
-		.formats	= SNDRV_PCM_FMTBIT_S16 |
-					SNDRV_PCM_FMTBIT_S24 |
-					SNDRV_PCM_FMTBIT_S32,
-		.rates		= SNDRV_PCM_RATE_8000 |
-					SNDRV_PCM_RATE_16000 |
-					SNDRV_PCM_RATE_32000 |
-					SNDRV_PCM_RATE_48000 |
-					SNDRV_PCM_RATE_96000,
-		.rate_min	= 8000,
-		.rate_max	= 96000,
-		.channels_min	= 1,
-		.channels_max	= 8,
-	},
-	.probe	= &lpass_cpu_dai_probe,
-	.ops    = &lpass_cpu_dai_ops,
-};
+EXPORT_SYMBOL_GPL(asoc_qcom_lpass_cpu_dai_probe);
 
 static const struct snd_soc_component_driver lpass_cpu_comp_driver = {
 	.name = "lpass-cpu",
@@ -271,27 +259,29 @@ static const struct snd_soc_component_driver lpass_cpu_comp_driver = {
 
 static bool lpass_cpu_regmap_writeable(struct device *dev, unsigned int reg)
 {
+	struct lpass_data *drvdata = dev_get_drvdata(dev);
+	struct lpass_variant *v = drvdata->variant;
 	int i;
 
-	for (i = 0; i < LPAIF_I2S_PORT_NUM; ++i)
-		if (reg == LPAIF_I2SCTL_REG(i))
+	for (i = 0; i < v->i2s_ports; ++i)
+		if (reg == LPAIF_I2SCTL_REG(v, i))
 			return true;
 
-	for (i = 0; i < LPAIF_IRQ_PORT_NUM; ++i) {
-		if (reg == LPAIF_IRQEN_REG(i))
+	for (i = 0; i < v->irq_ports; ++i) {
+		if (reg == LPAIF_IRQEN_REG(v, i))
 			return true;
-		if (reg == LPAIF_IRQCLEAR_REG(i))
+		if (reg == LPAIF_IRQCLEAR_REG(v, i))
 			return true;
 	}
 
-	for (i = 0; i < LPAIF_RDMA_CHAN_NUM; ++i) {
-		if (reg == LPAIF_RDMACTL_REG(i))
+	for (i = 0; i < v->rdma_channels; ++i) {
+		if (reg == LPAIF_RDMACTL_REG(v, i))
 			return true;
-		if (reg == LPAIF_RDMABASE_REG(i))
+		if (reg == LPAIF_RDMABASE_REG(v, i))
 			return true;
-		if (reg == LPAIF_RDMABUFF_REG(i))
+		if (reg == LPAIF_RDMABUFF_REG(v, i))
 			return true;
-		if (reg == LPAIF_RDMAPER_REG(i))
+		if (reg == LPAIF_RDMAPER_REG(v, i))
 			return true;
 	}
 
@@ -300,29 +290,31 @@ static bool lpass_cpu_regmap_writeable(struct device *dev, unsigned int reg)
 
 static bool lpass_cpu_regmap_readable(struct device *dev, unsigned int reg)
 {
+	struct lpass_data *drvdata = dev_get_drvdata(dev);
+	struct lpass_variant *v = drvdata->variant;
 	int i;
 
-	for (i = 0; i < LPAIF_I2S_PORT_NUM; ++i)
-		if (reg == LPAIF_I2SCTL_REG(i))
+	for (i = 0; i < v->i2s_ports; ++i)
+		if (reg == LPAIF_I2SCTL_REG(v, i))
 			return true;
 
-	for (i = 0; i < LPAIF_IRQ_PORT_NUM; ++i) {
-		if (reg == LPAIF_IRQEN_REG(i))
+	for (i = 0; i < v->irq_ports; ++i) {
+		if (reg == LPAIF_IRQEN_REG(v, i))
 			return true;
-		if (reg == LPAIF_IRQSTAT_REG(i))
+		if (reg == LPAIF_IRQSTAT_REG(v, i))
 			return true;
 	}
 
-	for (i = 0; i < LPAIF_RDMA_CHAN_NUM; ++i) {
-		if (reg == LPAIF_RDMACTL_REG(i))
+	for (i = 0; i < v->rdma_channels; ++i) {
+		if (reg == LPAIF_RDMACTL_REG(v, i))
 			return true;
-		if (reg == LPAIF_RDMABASE_REG(i))
+		if (reg == LPAIF_RDMABASE_REG(v, i))
 			return true;
-		if (reg == LPAIF_RDMABUFF_REG(i))
+		if (reg == LPAIF_RDMABUFF_REG(v, i))
 			return true;
-		if (reg == LPAIF_RDMACURR_REG(i))
+		if (reg == LPAIF_RDMACURR_REG(v, i))
 			return true;
-		if (reg == LPAIF_RDMAPER_REG(i))
+		if (reg == LPAIF_RDMAPER_REG(v, i))
 			return true;
 	}
 
@@ -331,35 +323,39 @@ static bool lpass_cpu_regmap_readable(struct device *dev, unsigned int reg)
 
 static bool lpass_cpu_regmap_volatile(struct device *dev, unsigned int reg)
 {
+	struct lpass_data *drvdata = dev_get_drvdata(dev);
+	struct lpass_variant *v = drvdata->variant;
 	int i;
 
-	for (i = 0; i < LPAIF_IRQ_PORT_NUM; ++i)
-		if (reg == LPAIF_IRQSTAT_REG(i))
+	for (i = 0; i < v->irq_ports; ++i)
+		if (reg == LPAIF_IRQSTAT_REG(v, i))
 			return true;
 
-	for (i = 0; i < LPAIF_RDMA_CHAN_NUM; ++i)
-		if (reg == LPAIF_RDMACURR_REG(i))
+	for (i = 0; i < v->rdma_channels; ++i)
+		if (reg == LPAIF_RDMACURR_REG(v, i))
 			return true;
 
 	return false;
 }
 
-static const struct regmap_config lpass_cpu_regmap_config = {
+static struct regmap_config lpass_cpu_regmap_config = {
 	.reg_bits = 32,
 	.reg_stride = 4,
 	.val_bits = 32,
-	.max_register = LPAIF_RDMAPER_REG(LPAIF_RDMA_CHAN_MAX),
 	.writeable_reg = lpass_cpu_regmap_writeable,
 	.readable_reg = lpass_cpu_regmap_readable,
 	.volatile_reg = lpass_cpu_regmap_volatile,
 	.cache_type = REGCACHE_FLAT,
 };
 
-static int lpass_cpu_platform_probe(struct platform_device *pdev)
+int asoc_qcom_lpass_cpu_platform_probe(struct platform_device *pdev)
 {
 	struct lpass_data *drvdata;
 	struct device_node *dsp_of_node;
 	struct resource *res;
+	struct lpass_variant *variant;
+	struct device *dev = &pdev->dev;
+	const struct of_device_id *match;
 	int ret;
 
 	dsp_of_node = of_parse_phandle(pdev->dev.of_node, "qcom,adsp", 0);
@@ -375,6 +371,13 @@ static int lpass_cpu_platform_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, drvdata);
 
+	match = of_match_device(dev->driver->of_match_table, dev);
+	if (!match || !match->data)
+		return -EINVAL;
+
+	drvdata->variant = (struct lpass_variant *)match->data;
+	variant = drvdata->variant;
+
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "lpass-lpaif");
 
 	drvdata->lpaif = devm_ioremap_resource(&pdev->dev, res);
@@ -385,6 +388,9 @@ static int lpass_cpu_platform_probe(struct platform_device *pdev)
 		return PTR_ERR((void const __force *)drvdata->lpaif);
 	}
 
+	lpass_cpu_regmap_config.max_register = LPAIF_RDMAPER_REG(variant,
+						variant->rdma_channels);
+
 	drvdata->lpaif_map = devm_regmap_init_mmio(&pdev->dev, drvdata->lpaif,
 			&lpass_cpu_regmap_config);
 	if (IS_ERR(drvdata->lpaif_map)) {
@@ -392,6 +398,9 @@ static int lpass_cpu_platform_probe(struct platform_device *pdev)
 				__func__, PTR_ERR(drvdata->lpaif_map));
 		return PTR_ERR(drvdata->lpaif_map);
 	}
+
+	if (variant->init)
+		variant->init(pdev);
 
 	drvdata->mi2s_osr_clk = devm_clk_get(&pdev->dev, "mi2s-osr-clk");
 	if (IS_ERR(drvdata->mi2s_osr_clk)) {
@@ -431,7 +440,9 @@ static int lpass_cpu_platform_probe(struct platform_device *pdev)
 	}
 
 	ret = devm_snd_soc_register_component(&pdev->dev,
-			&lpass_cpu_comp_driver, &lpass_cpu_dai_driver, 1);
+					      &lpass_cpu_comp_driver,
+					      variant->dai_driver,
+					      variant->num_dai);
 	if (ret) {
 		dev_err(&pdev->dev, "%s() error registering cpu driver: %d\n",
 				__func__, ret);
@@ -451,33 +462,17 @@ err_clk:
 	clk_disable_unprepare(drvdata->ahbix_clk);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(asoc_qcom_lpass_cpu_platform_probe);
 
-static int lpass_cpu_platform_remove(struct platform_device *pdev)
+int asoc_qcom_lpass_cpu_platform_remove(struct platform_device *pdev)
 {
 	struct lpass_data *drvdata = platform_get_drvdata(pdev);
+
+	if (drvdata->variant->exit)
+		drvdata->variant->exit(pdev);
 
 	clk_disable_unprepare(drvdata->ahbix_clk);
 
 	return 0;
 }
-
-#ifdef CONFIG_OF
-static const struct of_device_id lpass_cpu_device_id[] = {
-	{ .compatible = "qcom,lpass-cpu" },
-	{}
-};
-MODULE_DEVICE_TABLE(of, lpass_cpu_device_id);
-#endif
-
-static struct platform_driver lpass_cpu_platform_driver = {
-	.driver	= {
-		.name		= "lpass-cpu",
-		.of_match_table	= of_match_ptr(lpass_cpu_device_id),
-	},
-	.probe	= lpass_cpu_platform_probe,
-	.remove	= lpass_cpu_platform_remove,
-};
-module_platform_driver(lpass_cpu_platform_driver);
-
-MODULE_DESCRIPTION("QTi LPASS CPU Driver");
-MODULE_LICENSE("GPL v2");
+EXPORT_SYMBOL_GPL(asoc_qcom_lpass_cpu_platform_remove);
