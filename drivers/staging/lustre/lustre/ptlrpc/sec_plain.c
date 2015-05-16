@@ -870,7 +870,7 @@ int plain_authorize(struct ptlrpc_request *req)
 			lustre_msg_buf(msg, PLAIN_PACK_MSG_OFF, 0),
 			lustre_msg_buflen(msg, PLAIN_PACK_MSG_OFF),
 			NULL, 0, (unsigned char *)&msg->lm_cksum, &hsize);
-			req->rq_reply_off = 0;
+		req->rq_reply_off = 0;
 	}
 
 	return 0;
