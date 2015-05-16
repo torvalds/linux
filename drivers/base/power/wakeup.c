@@ -56,6 +56,11 @@ static LIST_HEAD(wakeup_sources);
 
 static DECLARE_WAIT_QUEUE_HEAD(wakeup_count_wait_queue);
 
+static struct wakeup_source deleted_ws = {
+	.name = "deleted",
+	.lock =  __SPIN_LOCK_UNLOCKED(deleted_ws.lock),
+};
+
 /**
  * wakeup_source_prepare - Prepare a new wakeup source for initialization.
  * @ws: Wakeup source to prepare.
@@ -107,6 +112,34 @@ void wakeup_source_drop(struct wakeup_source *ws)
 }
 EXPORT_SYMBOL_GPL(wakeup_source_drop);
 
+/*
+ * Record wakeup_source statistics being deleted into a dummy wakeup_source.
+ */
+static void wakeup_source_record(struct wakeup_source *ws)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&deleted_ws.lock, flags);
+
+	if (ws->event_count) {
+		deleted_ws.total_time =
+			ktime_add(deleted_ws.total_time, ws->total_time);
+		deleted_ws.prevent_sleep_time =
+			ktime_add(deleted_ws.prevent_sleep_time,
+				  ws->prevent_sleep_time);
+		deleted_ws.max_time =
+			ktime_compare(deleted_ws.max_time, ws->max_time) > 0 ?
+				deleted_ws.max_time : ws->max_time;
+		deleted_ws.event_count += ws->event_count;
+		deleted_ws.active_count += ws->active_count;
+		deleted_ws.relax_count += ws->relax_count;
+		deleted_ws.expire_count += ws->expire_count;
+		deleted_ws.wakeup_count += ws->wakeup_count;
+	}
+
+	spin_unlock_irqrestore(&deleted_ws.lock, flags);
+}
+
 /**
  * wakeup_source_destroy - Destroy a struct wakeup_source object.
  * @ws: Wakeup source to destroy.
@@ -119,6 +152,7 @@ void wakeup_source_destroy(struct wakeup_source *ws)
 		return;
 
 	wakeup_source_drop(ws);
+	wakeup_source_record(ws);
 	kfree(ws->name);
 	kfree(ws);
 }
@@ -911,6 +945,8 @@ static int wakeup_sources_stats_show(struct seq_file *m, void *unused)
 	list_for_each_entry_rcu(ws, &wakeup_sources, entry)
 		print_wakeup_source_stats(m, ws);
 	rcu_read_unlock();
+
+	print_wakeup_source_stats(m, &deleted_ws);
 
 	return 0;
 }
