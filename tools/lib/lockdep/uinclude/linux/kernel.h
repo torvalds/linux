@@ -28,6 +28,9 @@
 #define __init
 #define noinline
 #define list_add_tail_rcu list_add_tail
+#define list_for_each_entry_rcu list_for_each_entry
+#define barrier() 
+#define synchronize_sched()
 
 #ifndef CALLER_ADDR0
 #define CALLER_ADDR0 ((unsigned long)__builtin_return_address(0))
