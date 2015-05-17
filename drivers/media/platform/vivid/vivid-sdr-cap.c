@@ -33,6 +33,25 @@
 #include "vivid-ctrls.h"
 #include "vivid-sdr-cap.h"
 
+/* stream formats */
+struct vivid_format {
+	u32	pixelformat;
+	u32	buffersize;
+};
+
+/* format descriptions for capture and preview */
+static struct vivid_format formats[] = {
+	{
+		.pixelformat	= V4L2_SDR_FMT_CU8,
+		.buffersize	= SDR_CAP_SAMPLES_PER_BUF * 2,
+	}, {
+		.pixelformat	= V4L2_SDR_FMT_CS8,
+		.buffersize	= SDR_CAP_SAMPLES_PER_BUF * 2,
+	},
+};
+
+static const unsigned int NUM_FORMATS = ARRAY_SIZE(formats);
+
 static const struct v4l2_frequency_band bands_adc[] = {
 	{
 		.tuner = 0,
@@ -409,18 +428,60 @@ int vivid_sdr_s_tuner(struct file *file, void *fh, const struct v4l2_tuner *vt)
 
 int vidioc_enum_fmt_sdr_cap(struct file *file, void *fh, struct v4l2_fmtdesc *f)
 {
-	if (f->index)
+	if (f->index >= ARRAY_SIZE(formats))
 		return -EINVAL;
-	f->pixelformat = V4L2_SDR_FMT_CU8;
-	strlcpy(f->description, "IQ U8", sizeof(f->description));
+	f->pixelformat = formats[f->index].pixelformat;
 	return 0;
 }
 
 int vidioc_g_fmt_sdr_cap(struct file *file, void *fh, struct v4l2_format *f)
 {
-	f->fmt.sdr.pixelformat = V4L2_SDR_FMT_CU8;
-	f->fmt.sdr.buffersize = SDR_CAP_SAMPLES_PER_BUF * 2;
+	struct vivid_dev *dev = video_drvdata(file);
+
+	f->fmt.sdr.pixelformat = dev->sdr_pixelformat;
+	f->fmt.sdr.buffersize = dev->sdr_buffersize;
 	memset(f->fmt.sdr.reserved, 0, sizeof(f->fmt.sdr.reserved));
+	return 0;
+}
+
+int vidioc_s_fmt_sdr_cap(struct file *file, void *fh, struct v4l2_format *f)
+{
+	struct vivid_dev *dev = video_drvdata(file);
+	struct vb2_queue *q = &dev->vb_sdr_cap_q;
+	int i;
+
+	if (vb2_is_busy(q))
+		return -EBUSY;
+
+	memset(f->fmt.sdr.reserved, 0, sizeof(f->fmt.sdr.reserved));
+	for (i = 0; i < ARRAY_SIZE(formats); i++) {
+		if (formats[i].pixelformat == f->fmt.sdr.pixelformat) {
+			dev->sdr_pixelformat = formats[i].pixelformat;
+			dev->sdr_buffersize = formats[i].buffersize;
+			f->fmt.sdr.buffersize = formats[i].buffersize;
+			return 0;
+		}
+	}
+	dev->sdr_pixelformat = formats[0].pixelformat;
+	dev->sdr_buffersize = formats[0].buffersize;
+	f->fmt.sdr.pixelformat = formats[0].pixelformat;
+	f->fmt.sdr.buffersize = formats[0].buffersize;
+	return 0;
+}
+
+int vidioc_try_fmt_sdr_cap(struct file *file, void *fh, struct v4l2_format *f)
+{
+	int i;
+
+	memset(f->fmt.sdr.reserved, 0, sizeof(f->fmt.sdr.reserved));
+	for (i = 0; i < ARRAY_SIZE(formats); i++) {
+		if (formats[i].pixelformat == f->fmt.sdr.pixelformat) {
+			f->fmt.sdr.buffersize = formats[i].buffersize;
+			return 0;
+		}
+	}
+	f->fmt.sdr.pixelformat = formats[0].pixelformat;
+	f->fmt.sdr.buffersize = formats[0].buffersize;
 	return 0;
 }
 
@@ -477,11 +538,24 @@ void vivid_sdr_cap_process(struct vivid_dev *dev, struct vivid_buffer *buf)
 		fixp_i >>= (31 - FIXP_N);
 		fixp_q >>= (31 - FIXP_N);
 
-		/* convert 'fixp float' to u8 */
-		/* u8 = X * 127.5f + 127.5f; where X is float [-1.0 / +1.0] */
-		fixp_i = fixp_i * 1275 + FIXP_FRAC * 1275;
-		fixp_q = fixp_q * 1275 + FIXP_FRAC * 1275;
-		*vbuf++ = DIV_ROUND_CLOSEST(fixp_i, FIXP_FRAC * 10);
-		*vbuf++ = DIV_ROUND_CLOSEST(fixp_q, FIXP_FRAC * 10);
+		switch (dev->sdr_pixelformat) {
+		case V4L2_SDR_FMT_CU8:
+			/* convert 'fixp float' to u8 */
+			/* u8 = X * 127.5 + 127.5; X is float [-1.0, +1.0] */
+			fixp_i = fixp_i * 1275 + FIXP_FRAC * 1275;
+			fixp_q = fixp_q * 1275 + FIXP_FRAC * 1275;
+			*vbuf++ = DIV_ROUND_CLOSEST(fixp_i, FIXP_FRAC * 10);
+			*vbuf++ = DIV_ROUND_CLOSEST(fixp_q, FIXP_FRAC * 10);
+			break;
+		case V4L2_SDR_FMT_CS8:
+			/* convert 'fixp float' to s8 */
+			fixp_i = fixp_i * 1275;
+			fixp_q = fixp_q * 1275;
+			*vbuf++ = DIV_ROUND_CLOSEST(fixp_i, FIXP_FRAC * 10);
+			*vbuf++ = DIV_ROUND_CLOSEST(fixp_q, FIXP_FRAC * 10);
+			break;
+		default:
+			break;
+		}
 	}
 }
