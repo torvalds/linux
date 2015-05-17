@@ -45,8 +45,7 @@ struct fakelb_phy {
 	struct list_head list_ifup;
 };
 
-static int
-fakelb_hw_ed(struct ieee802154_hw *hw, u8 *level)
+static int fakelb_hw_ed(struct ieee802154_hw *hw, u8 *level)
 {
 	BUG_ON(!level);
 	*level = 0xbe;
@@ -54,8 +53,7 @@ fakelb_hw_ed(struct ieee802154_hw *hw, u8 *level)
 	return 0;
 }
 
-static int
-fakelb_hw_channel(struct ieee802154_hw *hw, u8 page, u8 channel)
+static int fakelb_hw_channel(struct ieee802154_hw *hw, u8 page, u8 channel)
 {
 	struct fakelb_phy *phy = hw->priv;
 
@@ -66,11 +64,9 @@ fakelb_hw_channel(struct ieee802154_hw *hw, u8 page, u8 channel)
 	return 0;
 }
 
-static int
-fakelb_hw_xmit(struct ieee802154_hw *hw, struct sk_buff *skb)
+static int fakelb_hw_xmit(struct ieee802154_hw *hw, struct sk_buff *skb)
 {
-	struct fakelb_phy *current_phy = hw->priv;
-	struct fakelb_phy *phy;
+	struct fakelb_phy *current_phy = hw->priv, *phy;
 
 	read_lock_bh(&fakelb_ifup_phys_lock);
 	list_for_each_entry(phy, &fakelb_ifup_phys, list_ifup) {
@@ -91,8 +87,8 @@ fakelb_hw_xmit(struct ieee802154_hw *hw, struct sk_buff *skb)
 	return 0;
 }
 
-static int
-fakelb_hw_start(struct ieee802154_hw *hw) {
+static int fakelb_hw_start(struct ieee802154_hw *hw)
+{
 	struct fakelb_phy *phy = hw->priv;
 
 	write_lock_bh(&fakelb_ifup_phys_lock);
@@ -102,8 +98,8 @@ fakelb_hw_start(struct ieee802154_hw *hw) {
 	return 0;
 }
 
-static void
-fakelb_hw_stop(struct ieee802154_hw *hw) {
+static void fakelb_hw_stop(struct ieee802154_hw *hw)
+{
 	struct fakelb_phy *phy = hw->priv;
 
 	write_lock_bh(&fakelb_ifup_phys_lock);
@@ -126,9 +122,9 @@ MODULE_PARM_DESC(numlbs, " number of pseudo devices");
 
 static int fakelb_add_one(struct device *dev)
 {
+	struct ieee802154_hw *hw;
 	struct fakelb_phy *phy;
 	int err;
-	struct ieee802154_hw *hw;
 
 	hw = ieee802154_alloc_hw(sizeof(*phy), &fakelb_ops);
 	if (!hw)
@@ -201,8 +197,7 @@ static void fakelb_del(struct fakelb_phy *phy)
 static int fakelb_probe(struct platform_device *pdev)
 {
 	struct fakelb_phy *phy, *tmp;
-	int err = -ENOMEM;
-	int i;
+	int err, i;
 
 	for (i = 0; i < numlbs; i++) {
 		err = fakelb_add_one(&pdev->dev);
@@ -223,10 +218,10 @@ err_slave:
 
 static int fakelb_remove(struct platform_device *pdev)
 {
-	struct fakelb_phy *phy, *temp;
+	struct fakelb_phy *phy, *tmp;
 
 	spin_lock(&fakelb_phys_lock);
-	list_for_each_entry_safe(phy, temp, &fakelb_phys, list)
+	list_for_each_entry_safe(phy, tmp, &fakelb_phys, list)
 		fakelb_del(phy);
 	spin_unlock(&fakelb_phys_lock);
 	return 0;
