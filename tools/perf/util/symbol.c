@@ -1819,6 +1819,7 @@ static void vmlinux_path__exit(void)
 {
 	while (--vmlinux_path__nr_entries >= 0)
 		zfree(&vmlinux_path[vmlinux_path__nr_entries]);
+	vmlinux_path__nr_entries = 0;
 
 	zfree(&vmlinux_path);
 }
