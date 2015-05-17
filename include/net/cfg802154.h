@@ -85,7 +85,7 @@ struct wpan_phy {
 	u8 current_channel;
 	u8 current_page;
 	u32 channels_supported[IEEE802154_MAX_PAGE + 1];
-	s8 transmit_power;
+	s32 transmit_power;
 	struct wpan_phy_cca cca;
 
 	__le64 perm_extended_addr;

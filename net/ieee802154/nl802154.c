@@ -207,7 +207,7 @@ static const struct nla_policy nl802154_policy[NL802154_ATTR_MAX+1] = {
 	[NL802154_ATTR_PAGE] = { .type = NLA_U8, },
 	[NL802154_ATTR_CHANNEL] = { .type = NLA_U8, },
 
-	[NL802154_ATTR_TX_POWER] = { .type = NLA_S8, },
+	[NL802154_ATTR_TX_POWER] = { .type = NLA_S32, },
 
 	[NL802154_ATTR_CCA_MODE] = { .type = NLA_U32, },
 	[NL802154_ATTR_CCA_OPT] = { .type = NLA_U32, },
@@ -301,8 +301,8 @@ static int nl802154_send_wpan_phy(struct cfg802154_registered_device *rdev,
 			goto nla_put_failure;
 	}
 
-	if (nla_put_s8(msg, NL802154_ATTR_TX_POWER,
-		       rdev->wpan_phy.transmit_power))
+	if (nla_put_s32(msg, NL802154_ATTR_TX_POWER,
+			rdev->wpan_phy.transmit_power))
 		goto nla_put_failure;
 
 finish:
