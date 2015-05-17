@@ -133,24 +133,22 @@ EXPORT_SYMBOL_GPL(microcode_sanity_check);
  */
 int get_matching_sig(unsigned int csig, int cpf, void *mc)
 {
-	struct microcode_header_intel *mc_header = mc;
-	struct extended_sigtable *ext_header;
-	unsigned long total_size = get_totalsize(mc_header);
-	int ext_sigcount, i;
+	struct microcode_header_intel *mc_hdr = mc;
+	struct extended_sigtable *ext_hdr;
 	struct extended_signature *ext_sig;
+	int i;
 
-	if (cpu_signatures_match(csig, cpf, mc_header->sig, mc_header->pf))
+	if (cpu_signatures_match(csig, cpf, mc_hdr->sig, mc_hdr->pf))
 		return 1;
 
 	/* Look for ext. headers: */
-	if (total_size <= get_datasize(mc_header) + MC_HEADER_SIZE)
+	if (get_totalsize(mc_hdr) <= get_datasize(mc_hdr) + MC_HEADER_SIZE)
 		return 0;
 
-	ext_header = mc + get_datasize(mc_header) + MC_HEADER_SIZE;
-	ext_sigcount = ext_header->count;
-	ext_sig = (void *)ext_header + EXT_HEADER_SIZE;
+	ext_hdr = mc + get_datasize(mc_hdr) + MC_HEADER_SIZE;
+	ext_sig = (void *)ext_hdr + EXT_HEADER_SIZE;
 
-	for (i = 0; i < ext_sigcount; i++) {
+	for (i = 0; i < ext_hdr->count; i++) {
 		if (cpu_signatures_match(csig, cpf, ext_sig->sig, ext_sig->pf))
 			return 1;
 		ext_sig++;
