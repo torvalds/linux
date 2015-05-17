@@ -215,7 +215,7 @@ static void fakelb_del(struct fakelb_dev_priv *priv)
 static int fakelb_probe(struct platform_device *pdev)
 {
 	struct fakelb_priv *priv;
-	struct fakelb_dev_priv *dp;
+	struct fakelb_dev_priv *dp, *tmp;
 	int err = -ENOMEM;
 	int i;
 
@@ -238,7 +238,7 @@ static int fakelb_probe(struct platform_device *pdev)
 	return 0;
 
 err_slave:
-	list_for_each_entry(dp, &priv->list, list)
+	list_for_each_entry_safe(dp, tmp, &priv->list, list)
 		fakelb_del(dp);
 err_alloc:
 	return err;
