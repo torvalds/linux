@@ -66,16 +66,6 @@ fakelb_hw_channel(struct ieee802154_hw *hw, u8 page, u8 channel)
 	return 0;
 }
 
-static void
-fakelb_hw_deliver(struct fakelb_phy *phy, struct sk_buff *skb)
-{
-	struct sk_buff *newskb;
-
-	newskb = pskb_copy(skb, GFP_ATOMIC);
-	if (newskb)
-		ieee802154_rx_irqsafe(phy->hw, newskb, 0xcc);
-}
-
 static int
 fakelb_hw_xmit(struct ieee802154_hw *hw, struct sk_buff *skb)
 {
@@ -88,8 +78,12 @@ fakelb_hw_xmit(struct ieee802154_hw *hw, struct sk_buff *skb)
 			continue;
 
 		if (current_phy->page == phy->page &&
-		    current_phy->channel == phy->channel)
-			fakelb_hw_deliver(phy, skb);
+		    current_phy->channel == phy->channel) {
+			struct sk_buff *newskb = pskb_copy(skb, GFP_ATOMIC);
+
+			if (newskb)
+				ieee802154_rx_irqsafe(phy->hw, newskb, 0xcc);
+		}
 	}
 	read_unlock_bh(&fakelb_ifup_phys_lock);
 
