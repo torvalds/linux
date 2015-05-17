@@ -2258,6 +2258,16 @@ static int ufshcd_uic_change_pwr_mode(struct ufs_hba *hba, u8 mode)
 	struct uic_command uic_cmd = {0};
 	int ret;
 
+	if (hba->quirks & UFSHCD_QUIRK_BROKEN_PA_RXHSUNTERMCAP) {
+		ret = ufshcd_dme_set(hba,
+				UIC_ARG_MIB_SEL(PA_RXHSUNTERMCAP, 0), 1);
+		if (ret) {
+			dev_err(hba->dev, "%s: failed to enable PA_RXHSUNTERMCAP ret %d\n",
+						__func__, ret);
+			goto out;
+		}
+	}
+
 	uic_cmd.command = UIC_CMD_DME_SET;
 	uic_cmd.argument1 = UIC_ARG_MIB(PA_PWRMODE);
 	uic_cmd.argument3 = mode;
@@ -2265,6 +2275,7 @@ static int ufshcd_uic_change_pwr_mode(struct ufs_hba *hba, u8 mode)
 	ret = ufshcd_uic_pwr_ctrl(hba, &uic_cmd);
 	ufshcd_release(hba);
 
+out:
 	return ret;
 }
 
