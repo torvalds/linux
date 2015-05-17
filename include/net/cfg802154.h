@@ -94,6 +94,18 @@ struct wpan_phy_cca {
 	enum nl802154_cca_opts opt;
 };
 
+static inline bool
+wpan_phy_cca_cmp(const struct wpan_phy_cca *a, const struct wpan_phy_cca *b)
+{
+	if (a->mode != b->mode)
+		return false;
+
+	if (a->mode == NL802154_CCA_ENERGY_CARRIER)
+		return a->opt == b->opt;
+
+	return true;
+}
+
 struct wpan_phy {
 	struct mutex pib_lock;
 
