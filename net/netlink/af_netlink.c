@@ -1299,20 +1299,24 @@ static int netlink_autobind(struct socket *sock)
 	struct netlink_table *table = &nl_table[sk->sk_protocol];
 	s32 portid = task_tgid_vnr(current);
 	int err;
-	static s32 rover = -4097;
+	s32 rover = -4096;
+	bool ok;
 
 retry:
 	cond_resched();
 	rcu_read_lock();
-	if (__netlink_lookup(table, portid, net)) {
+	ok = !__netlink_lookup(table, portid, net);
+	rcu_read_unlock();
+	if (!ok) {
 		/* Bind collision, search negative portid values. */
-		portid = rover--;
-		if (rover > -4097)
+		if (rover == -4096)
+			/* rover will be in range [S32_MIN, -4097] */
+			rover = S32_MIN + prandom_u32_max(-4096 - S32_MIN);
+		else if (rover >= -4096)
 			rover = -4097;
-		rcu_read_unlock();
+		portid = rover--;
 		goto retry;
 	}
-	rcu_read_unlock();
 
 	err = netlink_insert(sk, portid);
 	if (err == -EADDRINUSE)
