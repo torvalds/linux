@@ -59,10 +59,10 @@ load_microcode_early(struct microcode_intel **saved,
 		ucode_ptr = saved[i];
 		mc_hdr	  = (struct microcode_header_intel *)ucode_ptr;
 
-		ret = get_matching_microcode(uci->cpu_sig.sig,
-					     uci->cpu_sig.pf,
-					     new_rev,
-					     ucode_ptr);
+		ret = has_newer_microcode(ucode_ptr,
+					  uci->cpu_sig.sig,
+					  uci->cpu_sig.pf,
+					  new_rev);
 		if (!ret)
 			continue;
 
