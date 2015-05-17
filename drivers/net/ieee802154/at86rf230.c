@@ -1661,7 +1661,7 @@ at86rf230_detect_device(struct at86rf230_local *lp)
 	case 2:
 		chip = "at86rf230";
 		rc = -ENOTSUPP;
-		break;
+		goto not_supp;
 	case 3:
 		chip = "at86rf231";
 		lp->data = &at86rf231_data;
@@ -1697,9 +1697,12 @@ at86rf230_detect_device(struct at86rf230_local *lp)
 	default:
 		chip = "unknown";
 		rc = -ENOTSUPP;
-		break;
+		goto not_supp;
 	}
 
+	lp->hw->phy->cca_ed_level = lp->hw->phy->supported.cca_ed_levels[7];
+
+not_supp:
 	dev_info(&lp->spi->dev, "Detected %s chip version %d\n", chip, version);
 
 	return rc;
