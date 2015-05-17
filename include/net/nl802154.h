@@ -162,4 +162,26 @@ enum nl802154_cca_opts {
 	NL802154_CCA_OPT_ATTR_MAX = __NL802154_CCA_OPT_ATTR_AFTER_LAST - 1
 };
 
+/**
+ * enum nl802154_supported_bool_states - bool states for bool capability entry
+ *
+ * @NL802154_SUPPORTED_BOOL_FALSE: indicates to set false
+ * @NL802154_SUPPORTED_BOOL_TRUE: indicates to set true
+ * @__NL802154_SUPPORTED_BOOL_INVALD: reserved
+ * @NL802154_SUPPORTED_BOOL_BOTH: indicates to set true and false
+ * @__NL802154_SUPPORTED_BOOL_AFTER_LAST: Internal
+ * @NL802154_SUPPORTED_BOOL_MAX: highest value for bool states
+ */
+enum nl802154_supported_bool_states {
+	NL802154_SUPPORTED_BOOL_FALSE,
+	NL802154_SUPPORTED_BOOL_TRUE,
+	/* to handle them in a mask */
+	__NL802154_SUPPORTED_BOOL_INVALD,
+	NL802154_SUPPORTED_BOOL_BOTH,
+
+	/* keep last */
+	__NL802154_SUPPORTED_BOOL_AFTER_LAST,
+	NL802154_SUPPORTED_BOOL_MAX = __NL802154_SUPPORTED_BOOL_AFTER_LAST - 1
+};
+
 #endif /* __NL802154_H */

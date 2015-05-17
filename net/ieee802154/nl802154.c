@@ -642,7 +642,9 @@ static int nl802154_set_cca_mode(struct sk_buff *skb, struct genl_info *info)
 
 	cca.mode = nla_get_u32(info->attrs[NL802154_ATTR_CCA_MODE]);
 	/* checking 802.15.4 constraints */
-	if (cca.mode < NL802154_CCA_ENERGY || cca.mode > NL802154_CCA_ATTR_MAX)
+	if (cca.mode < NL802154_CCA_ENERGY ||
+	    cca.mode > NL802154_CCA_ATTR_MAX ||
+	    !(rdev->wpan_phy.supported.cca_modes & BIT(cca.mode)))
 		return -EINVAL;
 
 	if (cca.mode == NL802154_CCA_ENERGY_CARRIER) {
@@ -650,7 +652,8 @@ static int nl802154_set_cca_mode(struct sk_buff *skb, struct genl_info *info)
 			return -EINVAL;
 
 		cca.opt = nla_get_u32(info->attrs[NL802154_ATTR_CCA_OPT]);
-		if (cca.opt > NL802154_CCA_OPT_ATTR_MAX)
+		if (cca.opt > NL802154_CCA_OPT_ATTR_MAX ||
+		    !(rdev->wpan_phy.supported.cca_opts & BIT(cca.opt)))
 			return -EINVAL;
 	}
 
@@ -744,7 +747,11 @@ nl802154_set_backoff_exponent(struct sk_buff *skb, struct genl_info *info)
 	max_be = nla_get_u8(info->attrs[NL802154_ATTR_MAX_BE]);
 
 	/* check 802.15.4 constraints */
-	if (max_be < 3 || max_be > 8 || min_be > max_be)
+	if (min_be < rdev->wpan_phy.supported.min_minbe ||
+	    min_be > rdev->wpan_phy.supported.max_minbe ||
+	    max_be < rdev->wpan_phy.supported.min_maxbe ||
+	    max_be > rdev->wpan_phy.supported.max_maxbe ||
+	    min_be > max_be)
 		return -EINVAL;
 
 	return rdev_set_backoff_exponent(rdev, wpan_dev, min_be, max_be);
@@ -769,7 +776,8 @@ nl802154_set_max_csma_backoffs(struct sk_buff *skb, struct genl_info *info)
 			info->attrs[NL802154_ATTR_MAX_CSMA_BACKOFFS]);
 
 	/* check 802.15.4 constraints */
-	if (max_csma_backoffs > 5)
+	if (max_csma_backoffs < rdev->wpan_phy.supported.min_csma_backoffs ||
+	    max_csma_backoffs > rdev->wpan_phy.supported.max_csma_backoffs)
 		return -EINVAL;
 
 	return rdev_set_max_csma_backoffs(rdev, wpan_dev, max_csma_backoffs);
@@ -793,7 +801,8 @@ nl802154_set_max_frame_retries(struct sk_buff *skb, struct genl_info *info)
 			info->attrs[NL802154_ATTR_MAX_FRAME_RETRIES]);
 
 	/* check 802.15.4 constraints */
-	if (max_frame_retries < -1 || max_frame_retries > 7)
+	if (max_frame_retries < rdev->wpan_phy.supported.min_frame_retries ||
+	    max_frame_retries > rdev->wpan_phy.supported.max_frame_retries)
 		return -EINVAL;
 
 	return rdev_set_max_frame_retries(rdev, wpan_dev, max_frame_retries);
@@ -813,6 +822,9 @@ static int nl802154_set_lbt_mode(struct sk_buff *skb, struct genl_info *info)
 		return -EINVAL;
 
 	mode = !!nla_get_u8(info->attrs[NL802154_ATTR_LBT_MODE]);
+	if (!wpan_phy_supported_bool(mode, rdev->wpan_phy.supported.lbt))
+		return -EINVAL;
+
 	return rdev_set_lbt_mode(rdev, wpan_dev, mode);
 }
 

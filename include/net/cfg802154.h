@@ -61,8 +61,32 @@ struct cfg802154_ops {
 				struct wpan_dev *wpan_dev, bool mode);
 };
 
+static inline bool
+wpan_phy_supported_bool(bool b, enum nl802154_supported_bool_states st)
+{
+	switch (st) {
+	case NL802154_SUPPORTED_BOOL_TRUE:
+		return b;
+	case NL802154_SUPPORTED_BOOL_FALSE:
+		return !b;
+	case NL802154_SUPPORTED_BOOL_BOTH:
+		return true;
+	default:
+		WARN_ON(1);
+	}
+
+	return false;
+}
+
 struct wpan_phy_supported {
-	u32 channels[IEEE802154_MAX_PAGE + 1];
+	u32 channels[IEEE802154_MAX_PAGE + 1],
+	    cca_modes, cca_opts;
+	enum nl802154_supported_bool_states lbt;
+	u8 min_minbe, max_minbe, min_maxbe, max_maxbe,
+	   min_csma_backoffs, max_csma_backoffs;
+	s8 min_frame_retries, max_frame_retries;
+	size_t tx_powers_size, cca_ed_levels_size;
+	const s32 *tx_powers, *cca_ed_levels;
 };
 
 struct wpan_phy_cca {
