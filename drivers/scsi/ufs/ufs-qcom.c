@@ -694,6 +694,16 @@ out:
 	return ret;
 }
 
+static u32 ufs_qcom_get_ufs_hci_version(struct ufs_hba *hba)
+{
+	struct ufs_qcom_host *host = hba->priv;
+
+	if (host->hw_ver.major == 0x1)
+		return UFSHCI_VERSION_11;
+	else
+		return UFSHCI_VERSION_20;
+}
+
 /**
  * ufs_qcom_advertise_quirks - advertise the known QCOM UFS controller quirks
  * @hba: host controller instance
@@ -718,6 +728,7 @@ static void ufs_qcom_advertise_quirks(struct ufs_hba *hba)
 
 	if (host->hw_ver.major >= 0x2) {
 		hba->quirks |= UFSHCD_QUIRK_BROKEN_LCC;
+		hba->quirks |= UFSHCD_QUIRK_BROKEN_UFS_HCI_VERSION;
 
 		if (!ufs_qcom_cap_qunipro(host))
 			/* Legacy UniPro mode still need following quirks */
@@ -1026,6 +1037,7 @@ static const struct ufs_hba_variant_ops ufs_hba_qcom_vops = {
 	.name                   = "qcom",
 	.init                   = ufs_qcom_init,
 	.exit                   = ufs_qcom_exit,
+	.get_ufs_hci_version	= ufs_qcom_get_ufs_hci_version,
 	.clk_scale_notify	= ufs_qcom_clk_scale_notify,
 	.setup_clocks           = ufs_qcom_setup_clocks,
 	.hce_enable_notify      = ufs_qcom_hce_enable_notify,
