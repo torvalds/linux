@@ -85,11 +85,10 @@ void ieee802154_xmit_complete(struct ieee802154_hw *hw, struct sk_buff *skb,
 			hrtimer_start(&local->ifs_timer,
 				      ktime_set(0, hw->phy->sifs_period * NSEC_PER_USEC),
 				      HRTIMER_MODE_REL);
-
-		consume_skb(skb);
 	} else {
 		ieee802154_wake_queue(hw);
-		consume_skb(skb);
 	}
+
+	dev_consume_skb_any(skb);
 }
 EXPORT_SYMBOL(ieee802154_xmit_complete);
