@@ -417,11 +417,15 @@ struct ufs_hba {
 	unsigned int irq;
 	bool is_irq_enabled;
 
+	/* Interrupt aggregation support is broken */
+	#define UFSHCD_QUIRK_BROKEN_INTR_AGGR			UFS_BIT(0)
+
 	/*
 	 * delay before each dme command is required as the unipro
 	 * layer has shown instabilities
 	 */
-	#define UFSHCD_QUIRK_DELAY_BEFORE_DME_CMDS		UFS_BIT(0)
+	#define UFSHCD_QUIRK_DELAY_BEFORE_DME_CMDS		UFS_BIT(1)
+
 
 	unsigned int quirks;	/* Deviations from standard UFSHCI spec. */
 
@@ -478,6 +482,12 @@ struct ufs_hba {
 #define UFSHCD_CAP_CLK_SCALING	(1 << 2)
 	/* Allow auto bkops to enabled during runtime suspend */
 #define UFSHCD_CAP_AUTO_BKOPS_SUSPEND (1 << 3)
+	/*
+	 * This capability allows host controller driver to use the UFS HCI's
+	 * interrupt aggregation capability.
+	 * CAUTION: Enabling this might reduce overall UFS throughput.
+	 */
+#define UFSHCD_CAP_INTR_AGGR (1 << 4)
 
 	struct devfreq *devfreq;
 	struct ufs_clk_scaling clk_scaling;
@@ -500,6 +510,15 @@ static inline int ufshcd_is_clkscaling_enabled(struct ufs_hba *hba)
 static inline bool ufshcd_can_autobkops_during_suspend(struct ufs_hba *hba)
 {
 	return hba->caps & UFSHCD_CAP_AUTO_BKOPS_SUSPEND;
+}
+
+static inline bool ufshcd_is_intr_aggr_allowed(struct ufs_hba *hba)
+{
+	if ((hba->caps & UFSHCD_CAP_INTR_AGGR) &&
+	    !(hba->quirks & UFSHCD_QUIRK_BROKEN_INTR_AGGR))
+		return true;
+	else
+		return false;
 }
 
 #define ufshcd_writel(hba, val, reg)	\
