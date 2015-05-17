@@ -225,6 +225,8 @@ static const struct nla_policy nl802154_policy[NL802154_ATTR_MAX+1] = {
 	[NL802154_ATTR_MAX_FRAME_RETRIES] = { .type = NLA_S8, },
 
 	[NL802154_ATTR_LBT_MODE] = { .type = NLA_U8, },
+
+	[NL802154_ATTR_WPAN_PHY_CAPS] = { .type = NLA_NESTED },
 };
 
 /* message building helper */
@@ -233,6 +235,28 @@ static inline void *nl802154hdr_put(struct sk_buff *skb, u32 portid, u32 seq,
 {
 	/* since there is no private header just add the generic one */
 	return genlmsg_put(skb, portid, seq, &nl802154_fam, flags, cmd);
+}
+
+static int
+nl802154_put_flags(struct sk_buff *msg, int attr, u32 mask)
+{
+	struct nlattr *nl_flags = nla_nest_start(msg, attr);
+	int i;
+
+	if (!nl_flags)
+		return -ENOBUFS;
+
+	i = 0;
+	while (mask) {
+		if ((mask & 1) && nla_put_flag(msg, i))
+			return -ENOBUFS;
+
+		mask >>= 1;
+		i++;
+	}
+
+	nla_nest_end(msg, nl_flags);
+	return 0;
 }
 
 static int
@@ -252,6 +276,92 @@ nl802154_send_wpan_phy_channels(struct cfg802154_registered_device *rdev,
 			return -ENOBUFS;
 	}
 	nla_nest_end(msg, nl_page);
+
+	return 0;
+}
+
+static int
+nl802154_put_capabilities(struct sk_buff *msg,
+			  struct cfg802154_registered_device *rdev)
+{
+	const struct wpan_phy_supported *caps = &rdev->wpan_phy.supported;
+	struct nlattr *nl_caps, *nl_channels;
+	int i;
+
+	nl_caps = nla_nest_start(msg, NL802154_ATTR_WPAN_PHY_CAPS);
+	if (!nl_caps)
+		return -ENOBUFS;
+
+	nl_channels = nla_nest_start(msg, NL802154_CAP_ATTR_CHANNELS);
+	if (!nl_channels)
+		return -ENOBUFS;
+
+	for (i = 0; i <= IEEE802154_MAX_PAGE; i++) {
+		if (caps->channels[i]) {
+			if (nl802154_put_flags(msg, i, caps->channels[i]))
+				return -ENOBUFS;
+		}
+	}
+
+	nla_nest_end(msg, nl_channels);
+
+	if (rdev->wpan_phy.flags & WPAN_PHY_FLAG_CCA_ED_LEVEL) {
+		struct nlattr *nl_ed_lvls;
+
+		nl_ed_lvls = nla_nest_start(msg,
+					    NL802154_CAP_ATTR_CCA_ED_LEVELS);
+		if (!nl_ed_lvls)
+			return -ENOBUFS;
+
+		for (i = 0; i < caps->cca_ed_levels_size; i++) {
+			if (nla_put_s32(msg, i, caps->cca_ed_levels[i]))
+				return -ENOBUFS;
+		}
+
+		nla_nest_end(msg, nl_ed_lvls);
+	}
+
+	if (rdev->wpan_phy.flags & WPAN_PHY_FLAG_TXPOWER) {
+		struct nlattr *nl_tx_pwrs;
+
+		nl_tx_pwrs = nla_nest_start(msg, NL802154_CAP_ATTR_TX_POWERS);
+		if (!nl_tx_pwrs)
+			return -ENOBUFS;
+
+		for (i = 0; i < caps->tx_powers_size; i++) {
+			if (nla_put_s32(msg, i, caps->tx_powers[i]))
+				return -ENOBUFS;
+		}
+
+		nla_nest_end(msg, nl_tx_pwrs);
+	}
+
+	if (rdev->wpan_phy.flags & WPAN_PHY_FLAG_CCA_MODE) {
+		if (nl802154_put_flags(msg, NL802154_CAP_ATTR_CCA_MODES,
+				       caps->cca_modes) ||
+		    nl802154_put_flags(msg, NL802154_CAP_ATTR_CCA_OPTS,
+				       caps->cca_opts))
+			return -ENOBUFS;
+	}
+
+	if (nla_put_u8(msg, NL802154_CAP_ATTR_MIN_MINBE, caps->min_minbe) ||
+	    nla_put_u8(msg, NL802154_CAP_ATTR_MAX_MINBE, caps->max_minbe) ||
+	    nla_put_u8(msg, NL802154_CAP_ATTR_MIN_MAXBE, caps->min_maxbe) ||
+	    nla_put_u8(msg, NL802154_CAP_ATTR_MAX_MAXBE, caps->max_maxbe) ||
+	    nla_put_u8(msg, NL802154_CAP_ATTR_MIN_CSMA_BACKOFFS,
+		       caps->min_csma_backoffs) ||
+	    nla_put_u8(msg, NL802154_CAP_ATTR_MAX_CSMA_BACKOFFS,
+		       caps->max_csma_backoffs) ||
+	    nla_put_s8(msg, NL802154_CAP_ATTR_MIN_FRAME_RETRIES,
+		       caps->min_frame_retries) ||
+	    nla_put_s8(msg, NL802154_CAP_ATTR_MAX_FRAME_RETRIES,
+		       caps->max_frame_retries) ||
+	    nl802154_put_flags(msg, NL802154_CAP_ATTR_IFTYPES,
+			       caps->iftypes) ||
+	    nla_put_u32(msg, NL802154_CAP_ATTR_LBT, caps->lbt))
+		return -ENOBUFS;
+
+	nla_nest_end(msg, nl_caps);
 
 	return 0;
 }
@@ -286,7 +396,9 @@ static int nl802154_send_wpan_phy(struct cfg802154_registered_device *rdev,
 		       rdev->wpan_phy.current_channel))
 		goto nla_put_failure;
 
-	/* supported channels array */
+	/* TODO remove this behaviour, we still keep support it for a while
+	 * so users can change the behaviour to the new one.
+	 */
 	if (nl802154_send_wpan_phy_channels(rdev, msg))
 		goto nla_put_failure;
 
@@ -308,6 +420,9 @@ static int nl802154_send_wpan_phy(struct cfg802154_registered_device *rdev,
 				rdev->wpan_phy.transmit_power))
 			goto nla_put_failure;
 	}
+
+	if (nl802154_put_capabilities(msg, rdev))
+		goto nla_put_failure;
 
 finish:
 	genlmsg_end(msg, hdr);
