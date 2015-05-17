@@ -236,6 +236,7 @@ int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm,
 {
 	int r;
 	unsigned long n;
+	struct kvm_memslots *slots;
 	struct kvm_memory_slot *memslot;
 	int is_dirty = 0;
 
@@ -245,7 +246,8 @@ int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm,
 	if (log->slot >= KVM_USER_MEM_SLOTS)
 		goto out;
 
-	memslot = id_to_memslot(kvm->memslots, log->slot);
+	slots = kvm_memslots(kvm);
+	memslot = id_to_memslot(slots, log->slot);
 	r = -ENOENT;
 	if (!memslot->dirty_bitmap)
 		goto out;

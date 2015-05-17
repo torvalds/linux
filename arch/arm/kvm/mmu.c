@@ -1155,7 +1155,8 @@ static void stage2_wp_range(struct kvm *kvm, phys_addr_t addr, phys_addr_t end)
  */
 void kvm_mmu_wp_memory_region(struct kvm *kvm, int slot)
 {
-	struct kvm_memory_slot *memslot = id_to_memslot(kvm->memslots, slot);
+	struct kvm_memslots *slots = kvm_memslots(kvm);
+	struct kvm_memory_slot *memslot = id_to_memslot(slots, slot);
 	phys_addr_t start = memslot->base_gfn << PAGE_SHIFT;
 	phys_addr_t end = (memslot->base_gfn + memslot->npages) << PAGE_SHIFT;
 

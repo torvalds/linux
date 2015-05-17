@@ -968,6 +968,7 @@ out:
 /* Get (and clear) the dirty memory log for a memory slot. */
 int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm, struct kvm_dirty_log *log)
 {
+	struct kvm_memslots *slots;
 	struct kvm_memory_slot *memslot;
 	unsigned long ga, ga_end;
 	int is_dirty = 0;
@@ -982,7 +983,8 @@ int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm, struct kvm_dirty_log *log)
 
 	/* If nothing is dirty, don't bother messing with page tables. */
 	if (is_dirty) {
-		memslot = id_to_memslot(kvm->memslots, log->slot);
+		slots = kvm_memslots(kvm);
+		memslot = id_to_memslot(slots, log->slot);
 
 		ga = memslot->base_gfn << PAGE_SHIFT;
 		ga_end = ga + (memslot->npages << PAGE_SHIFT);

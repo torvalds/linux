@@ -734,7 +734,7 @@ static int check_memory_region_flags(struct kvm_userspace_memory_region *mem)
 static struct kvm_memslots *install_new_memslots(struct kvm *kvm,
 		struct kvm_memslots *slots)
 {
-	struct kvm_memslots *old_memslots = kvm->memslots;
+	struct kvm_memslots *old_memslots = kvm_memslots(kvm);
 
 	/*
 	 * Set the low bit in the generation, which disables SPTE caching
@@ -799,7 +799,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	if (mem->guest_phys_addr + mem->memory_size < mem->guest_phys_addr)
 		goto out;
 
-	slot = id_to_memslot(kvm->memslots, mem->slot);
+	slot = id_to_memslot(kvm_memslots(kvm), mem->slot);
 	base_gfn = mem->guest_phys_addr >> PAGE_SHIFT;
 	npages = mem->memory_size >> PAGE_SHIFT;
 
@@ -842,7 +842,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	if ((change == KVM_MR_CREATE) || (change == KVM_MR_MOVE)) {
 		/* Check for overlaps */
 		r = -EEXIST;
-		kvm_for_each_memslot(slot, kvm->memslots) {
+		kvm_for_each_memslot(slot, kvm_memslots(kvm)) {
 			if ((slot->id >= KVM_USER_MEM_SLOTS) ||
 			    (slot->id == mem->slot))
 				continue;
@@ -873,7 +873,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	slots = kvm_kvzalloc(sizeof(struct kvm_memslots));
 	if (!slots)
 		goto out_free;
-	memcpy(slots, kvm->memslots, sizeof(struct kvm_memslots));
+	memcpy(slots, kvm_memslots(kvm), sizeof(struct kvm_memslots));
 
 	if ((change == KVM_MR_DELETE) || (change == KVM_MR_MOVE)) {
 		slot = id_to_memslot(slots, mem->slot);
@@ -966,6 +966,7 @@ static int kvm_vm_ioctl_set_memory_region(struct kvm *kvm,
 int kvm_get_dirty_log(struct kvm *kvm,
 			struct kvm_dirty_log *log, int *is_dirty)
 {
+	struct kvm_memslots *slots;
 	struct kvm_memory_slot *memslot;
 	int r, i;
 	unsigned long n;
@@ -975,7 +976,8 @@ int kvm_get_dirty_log(struct kvm *kvm,
 	if (log->slot >= KVM_USER_MEM_SLOTS)
 		goto out;
 
-	memslot = id_to_memslot(kvm->memslots, log->slot);
+	slots = kvm_memslots(kvm);
+	memslot = id_to_memslot(slots, log->slot);
 	r = -ENOENT;
 	if (!memslot->dirty_bitmap)
 		goto out;
@@ -1024,6 +1026,7 @@ EXPORT_SYMBOL_GPL(kvm_get_dirty_log);
 int kvm_get_dirty_log_protect(struct kvm *kvm,
 			struct kvm_dirty_log *log, bool *is_dirty)
 {
+	struct kvm_memslots *slots;
 	struct kvm_memory_slot *memslot;
 	int r, i;
 	unsigned long n;
@@ -1034,7 +1037,8 @@ int kvm_get_dirty_log_protect(struct kvm *kvm,
 	if (log->slot >= KVM_USER_MEM_SLOTS)
 		goto out;
 
-	memslot = id_to_memslot(kvm->memslots, log->slot);
+	slots = kvm_memslots(kvm);
+	memslot = id_to_memslot(slots, log->slot);
 
 	dirty_bitmap = memslot->dirty_bitmap;
 	r = -ENOENT;
