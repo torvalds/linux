@@ -588,8 +588,7 @@ static long ft1000_ioctl(struct file *file, unsigned int command,
 				/* Check message qtype type which is the lower byte within qos_class */
 				qtype = ntohs(dpram_data->pseudohdr.qos_class) & 0xff;
 				/* pr_debug("qtype = %d\n", qtype); */
-				if (qtype) {
-				} else {
+				if (!qtype) {
 					/* Put message into Slow Queue */
 					/* Only put a message into the DPRAM if msg doorbell is available */
 					status = ft1000_read_register(ft1000dev, &tempword, FT1000_REG_DOORBELL);
