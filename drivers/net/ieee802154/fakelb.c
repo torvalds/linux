@@ -80,20 +80,16 @@ fakelb_hw_xmit(struct ieee802154_hw *hw, struct sk_buff *skb)
 {
 	struct fakelb_phy *current_phy = hw->priv;
 	struct fakelb_priv *fake = current_phy->fake;
+	struct fakelb_phy *phy;
 
 	read_lock_bh(&fake->lock);
-	if (current_phy->list.next == current_phy->list.prev) {
-		/* we are the only one device */
-		fakelb_hw_deliver(current_phy, skb);
-	} else {
-		struct fakelb_phy *phy;
+	list_for_each_entry(phy, &current_phy->fake->list, list) {
+		if (current_phy == phy)
+			continue;
 
-		list_for_each_entry(phy, &current_phy->fake->list, list) {
-			if (current_phy != phy &&
-			    (phy->hw->phy->current_channel ==
-			     current_phy->hw->phy->current_channel))
-				fakelb_hw_deliver(phy, skb);
-		}
+		if (phy->hw->phy->current_channel ==
+		    current_phy->hw->phy->current_channel)
+			fakelb_hw_deliver(phy, skb);
 	}
 	read_unlock_bh(&fake->lock);
 
