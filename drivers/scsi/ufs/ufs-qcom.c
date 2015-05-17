@@ -715,6 +715,8 @@ static void ufs_qcom_advertise_quirks(struct ufs_hba *hba)
 	}
 
 	if (host->hw_ver.major >= 0x2) {
+		hba->quirks |= UFSHCD_QUIRK_BROKEN_LCC;
+
 		if (!ufs_qcom_cap_qunipro(host))
 			/* Legacy UniPro mode still need following quirks */
 			hba->quirks |= UFSHCD_QUIRK_DELAY_BEFORE_DME_CMDS;
