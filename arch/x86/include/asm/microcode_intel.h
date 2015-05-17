@@ -55,7 +55,7 @@ struct extended_sigtable {
 
 extern int has_newer_microcode(void *mc, unsigned int csig, int cpf, int rev);
 extern int microcode_sanity_check(void *mc, int print_err);
-extern int get_matching_sig(unsigned int csig, int cpf, void *mc);
+extern int find_matching_signature(void *mc, unsigned int csig, int cpf);
 
 #ifdef CONFIG_MICROCODE_INTEL_EARLY
 extern void __init load_ucode_intel_bsp(void);

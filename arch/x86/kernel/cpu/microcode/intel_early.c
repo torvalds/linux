@@ -256,7 +256,7 @@ static unsigned int _save_mc(struct microcode_intel **mc_saved,
 		sig	     = mc_saved_hdr->sig;
 		pf	     = mc_saved_hdr->pf;
 
-		if (!get_matching_sig(sig, pf, ucode_ptr))
+		if (!find_matching_signature(ucode_ptr, sig, pf))
 			continue;
 
 		found = 1;

@@ -131,7 +131,7 @@ EXPORT_SYMBOL_GPL(microcode_sanity_check);
 /*
  * Returns 1 if update has been found, 0 otherwise.
  */
-int get_matching_sig(unsigned int csig, int cpf, void *mc)
+int find_matching_signature(void *mc, unsigned int csig, int cpf)
 {
 	struct microcode_header_intel *mc_hdr = mc;
 	struct extended_sigtable *ext_hdr;
@@ -166,6 +166,6 @@ int has_newer_microcode(void *mc, unsigned int csig, int cpf, int new_rev)
 	if (mc_hdr->rev <= new_rev)
 		return 0;
 
-	return get_matching_sig(csig, cpf, mc);
+	return find_matching_signature(mc, csig, cpf);
 }
 EXPORT_SYMBOL_GPL(has_newer_microcode);
