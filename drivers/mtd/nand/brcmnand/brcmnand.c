@@ -2069,7 +2069,7 @@ int brcmnand_probe(struct platform_device *pdev, struct brcmnand_soc *soc)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *dn = dev->of_node, *child;
-	static struct brcmnand_controller *ctrl;
+	struct brcmnand_controller *ctrl;
 	struct resource *res;
 	int ret;
 
