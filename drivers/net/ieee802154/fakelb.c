@@ -173,6 +173,11 @@ static int fakelb_add_one(struct device *dev)
 	/* 950 MHz GFSK 802.15.4d-2009 */
 	hw->phy->supported.channels[6] |= 0x3ffc00;
 
+	ieee802154_random_extended_addr(&hw->phy->perm_extended_addr);
+	/* fake phy channel 13 as default */
+	hw->phy->current_channel = 13;
+	phy->channel = hw->phy->current_channel;
+
 	hw->parent = dev;
 
 	err = ieee802154_register_hw(hw);
