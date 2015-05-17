@@ -106,6 +106,20 @@ wpan_phy_cca_cmp(const struct wpan_phy_cca *a, const struct wpan_phy_cca *b)
 	return true;
 }
 
+/**
+ * @WPAN_PHY_FLAG_TRANSMIT_POWER: Indicates that transceiver will support
+ *	transmit power setting.
+ * @WPAN_PHY_FLAG_CCA_ED_LEVEL: Indicates that transceiver will support cca ed
+ *	level setting.
+ * @WPAN_PHY_FLAG_CCA_MODE: Indicates that transceiver will support cca mode
+ *	setting.
+ */
+enum wpan_phy_flags {
+	WPAN_PHY_FLAG_TXPOWER		= BIT(1),
+	WPAN_PHY_FLAG_CCA_ED_LEVEL	= BIT(2),
+	WPAN_PHY_FLAG_CCA_MODE		= BIT(3),
+};
+
 struct wpan_phy {
 	struct mutex pib_lock;
 
@@ -116,6 +130,8 @@ struct wpan_phy {
 	 * help determine whether you own this wpan_phy or not.
 	 */
 	const void *privid;
+
+	u32 flags;
 
 	/*
 	 * This is a PIB according to 802.15.4-2011.

@@ -291,19 +291,23 @@ static int nl802154_send_wpan_phy(struct cfg802154_registered_device *rdev,
 		goto nla_put_failure;
 
 	/* cca mode */
-	if (nla_put_u32(msg, NL802154_ATTR_CCA_MODE,
-			rdev->wpan_phy.cca.mode))
-		goto nla_put_failure;
-
-	if (rdev->wpan_phy.cca.mode == NL802154_CCA_ENERGY_CARRIER) {
-		if (nla_put_u32(msg, NL802154_ATTR_CCA_OPT,
-				rdev->wpan_phy.cca.opt))
+	if (rdev->wpan_phy.flags & WPAN_PHY_FLAG_CCA_MODE) {
+		if (nla_put_u32(msg, NL802154_ATTR_CCA_MODE,
+				rdev->wpan_phy.cca.mode))
 			goto nla_put_failure;
+
+		if (rdev->wpan_phy.cca.mode == NL802154_CCA_ENERGY_CARRIER) {
+			if (nla_put_u32(msg, NL802154_ATTR_CCA_OPT,
+					rdev->wpan_phy.cca.opt))
+				goto nla_put_failure;
+		}
 	}
 
-	if (nla_put_s32(msg, NL802154_ATTR_TX_POWER,
-			rdev->wpan_phy.transmit_power))
-		goto nla_put_failure;
+	if (rdev->wpan_phy.flags & WPAN_PHY_FLAG_TXPOWER) {
+		if (nla_put_s32(msg, NL802154_ATTR_TX_POWER,
+				rdev->wpan_phy.transmit_power))
+			goto nla_put_failure;
+	}
 
 finish:
 	genlmsg_end(msg, hdr);
@@ -636,6 +640,9 @@ static int nl802154_set_cca_mode(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg802154_registered_device *rdev = info->user_ptr[0];
 	struct wpan_phy_cca cca;
+
+	if (rdev->wpan_phy.flags & WPAN_PHY_FLAG_CCA_MODE)
+		return -EOPNOTSUPP;
 
 	if (!info->attrs[NL802154_ATTR_CCA_MODE])
 		return -EINVAL;

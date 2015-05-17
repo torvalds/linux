@@ -91,19 +91,19 @@ static int mac802154_set_mac_params(struct net_device *dev,
 	wpan_dev->frame_retries = params->frame_retries;
 	wpan_dev->lbt = params->lbt;
 
-	if (local->hw.flags & IEEE802154_HW_TXPOWER) {
+	if (local->hw.phy->flags & WPAN_PHY_FLAG_TXPOWER) {
 		ret = drv_set_tx_power(local, params->transmit_power);
 		if (ret < 0)
 			return ret;
 	}
 
-	if (local->hw.flags & IEEE802154_HW_CCA_MODE) {
+	if (local->hw.phy->flags & WPAN_PHY_FLAG_CCA_MODE) {
 		ret = drv_set_cca_mode(local, &params->cca);
 		if (ret < 0)
 			return ret;
 	}
 
-	if (local->hw.flags & IEEE802154_HW_CCA_ED_LEVEL) {
+	if (local->hw.phy->flags & WPAN_PHY_FLAG_CCA_ED_LEVEL) {
 		ret = drv_set_cca_ed_level(local, params->cca_ed_level);
 		if (ret < 0)
 			return ret;
