@@ -668,10 +668,8 @@ static int nl802154_set_pan_id(struct sk_buff *skb, struct genl_info *info)
 		return -EBUSY;
 
 	/* don't change address fields on monitor */
-	if (wpan_dev->iftype == NL802154_IFTYPE_MONITOR)
-		return -EINVAL;
-
-	if (!info->attrs[NL802154_ATTR_PAN_ID])
+	if (wpan_dev->iftype == NL802154_IFTYPE_MONITOR ||
+	    !info->attrs[NL802154_ATTR_PAN_ID])
 		return -EINVAL;
 
 	pan_id = nla_get_le16(info->attrs[NL802154_ATTR_PAN_ID]);
@@ -691,10 +689,8 @@ static int nl802154_set_short_addr(struct sk_buff *skb, struct genl_info *info)
 		return -EBUSY;
 
 	/* don't change address fields on monitor */
-	if (wpan_dev->iftype == NL802154_IFTYPE_MONITOR)
-		return -EINVAL;
-
-	if (!info->attrs[NL802154_ATTR_SHORT_ADDR])
+	if (wpan_dev->iftype == NL802154_IFTYPE_MONITOR ||
+	    !info->attrs[NL802154_ATTR_SHORT_ADDR])
 		return -EINVAL;
 
 	short_addr = nla_get_le16(info->attrs[NL802154_ATTR_SHORT_ADDR]);
