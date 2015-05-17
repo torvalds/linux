@@ -164,7 +164,7 @@ static int codel_init(struct Qdisc *sch, struct nlattr *opt)
 
 	sch->limit = DEFAULT_CODEL_LIMIT;
 
-	codel_params_init(&q->params);
+	codel_params_init(&q->params, sch);
 	codel_vars_init(&q->vars);
 	codel_stats_init(&q->stats);
 

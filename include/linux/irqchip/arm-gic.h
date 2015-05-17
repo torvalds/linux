@@ -95,8 +95,6 @@
 
 struct device_node;
 
-extern struct irq_chip gic_arch_extn;
-
 void gic_set_irqchip_flags(unsigned long flags);
 void gic_init_bases(unsigned int, int, void __iomem *, void __iomem *,
 		    u32 offset, struct device_node *);

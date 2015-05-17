@@ -130,9 +130,9 @@ struct platform_device ip32_rtc_device = {
 	.resource		= ip32_rtc_resources,
 };
 
-+static int __init sgio2_rtc_devinit(void)
+static __init int sgio2_rtc_devinit(void)
 {
 	return platform_device_register(&ip32_rtc_device);
 }
 
-device_initcall(sgio2_cmos_devinit);
+device_initcall(sgio2_rtc_devinit);

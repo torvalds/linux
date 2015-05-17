@@ -60,12 +60,12 @@ struct mcp320x {
 	struct spi_message msg;
 	struct spi_transfer transfer[2];
 
-	u8 tx_buf;
-	u8 rx_buf[2];
-
 	struct regulator *reg;
 	struct mutex lock;
 	const struct mcp320x_chip_info *chip_info;
+
+	u8 tx_buf ____cacheline_aligned;
+	u8 rx_buf[2];
 };
 
 static int mcp320x_channel_to_tx_data(int device_index,
