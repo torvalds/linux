@@ -38,6 +38,9 @@ static DEFINE_RWLOCK(fakelb_ifup_phys_lock);
 struct fakelb_phy {
 	struct ieee802154_hw *hw;
 
+	u8 page;
+	u8 channel;
+
 	struct list_head list;
 	struct list_head list_ifup;
 };
@@ -54,8 +57,12 @@ fakelb_hw_ed(struct ieee802154_hw *hw, u8 *level)
 static int
 fakelb_hw_channel(struct ieee802154_hw *hw, u8 page, u8 channel)
 {
-	pr_debug("set channel to %d\n", channel);
+	struct fakelb_phy *phy = hw->priv;
 
+	write_lock_bh(&fakelb_ifup_phys_lock);
+	phy->page = page;
+	phy->channel = channel;
+	write_unlock_bh(&fakelb_ifup_phys_lock);
 	return 0;
 }
 
@@ -80,8 +87,8 @@ fakelb_hw_xmit(struct ieee802154_hw *hw, struct sk_buff *skb)
 		if (current_phy == phy)
 			continue;
 
-		if (phy->hw->phy->current_channel ==
-		    current_phy->hw->phy->current_channel)
+		if (current_phy->page == phy->page &&
+		    current_phy->channel == phy->channel)
 			fakelb_hw_deliver(phy, skb);
 	}
 	read_unlock_bh(&fakelb_ifup_phys_lock);
