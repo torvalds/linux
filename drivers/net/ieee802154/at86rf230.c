@@ -1701,6 +1701,7 @@ at86rf230_detect_device(struct at86rf230_local *lp)
 	}
 
 	lp->hw->phy->cca_ed_level = lp->hw->phy->supported.cca_ed_levels[7];
+	lp->hw->phy->transmit_power = lp->hw->phy->supported.tx_powers[0];
 
 not_supp:
 	dev_info(&lp->spi->dev, "Detected %s chip version %d\n", chip, version);
