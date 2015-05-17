@@ -116,6 +116,9 @@ ieee802154_alloc_hw(size_t priv_data_len, const struct ieee802154_ops *ops)
 	phy->supported.max_csma_backoffs = 5;
 	phy->supported.lbt = NL802154_SUPPORTED_BOOL_FALSE;
 
+	/* always supported */
+	phy->supported.iftypes = BIT(NL802154_IFTYPE_NODE);
+
 	return &local->hw;
 }
 EXPORT_SYMBOL(ieee802154_alloc_hw);
@@ -180,6 +183,9 @@ int ieee802154_register_hw(struct ieee802154_hw *hw)
 		local->phy->supported.min_frame_retries = -1;
 		local->phy->supported.max_frame_retries = -1;
 	}
+
+	if (hw->flags & IEEE802154_HW_PROMISCUOUS)
+		local->phy->supported.iftypes |= BIT(NL802154_IFTYPE_MONITOR);
 
 	rc = wpan_phy_register(local->phy);
 	if (rc < 0)

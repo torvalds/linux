@@ -80,7 +80,7 @@ wpan_phy_supported_bool(bool b, enum nl802154_supported_bool_states st)
 
 struct wpan_phy_supported {
 	u32 channels[IEEE802154_MAX_PAGE + 1],
-	    cca_modes, cca_opts;
+	    cca_modes, cca_opts, iftypes;
 	enum nl802154_supported_bool_states lbt;
 	u8 min_minbe, max_minbe, min_maxbe, max_maxbe,
 	   min_csma_backoffs, max_csma_backoffs;
