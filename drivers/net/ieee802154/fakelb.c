@@ -27,7 +27,7 @@
 #include <net/mac802154.h>
 #include <net/cfg802154.h>
 
-static int numlbs = 1;
+static int numlbs = 2;
 
 struct fakelb_dev_priv {
 	struct ieee802154_hw *hw;
