@@ -1013,7 +1013,7 @@ at86rf230_xmit_start(void *context)
 		if (lp->is_tx_from_off) {
 			lp->is_tx_from_off = false;
 			at86rf230_async_state_change(lp, ctx, STATE_TX_ARET_ON,
-						     at86rf230_xmit_tx_on,
+						     at86rf230_write_frame,
 						     false);
 		} else {
 			at86rf230_async_state_change(lp, ctx, STATE_TX_ON,
