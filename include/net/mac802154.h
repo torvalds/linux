@@ -184,7 +184,7 @@ struct ieee802154_hw {
  *	  Returns either zero, or negative errno.
  *
  * set_cca_ed_level
- *	  Sets the CCA energy detection threshold in dBm. Called with pib_lock
+ *	  Sets the CCA energy detection threshold in mBm. Called with pib_lock
  *	  held.
  *	  Returns either zero, or negative errno.
  *
@@ -217,8 +217,7 @@ struct ieee802154_ops {
 	int		(*set_lbt)(struct ieee802154_hw *hw, bool on);
 	int		(*set_cca_mode)(struct ieee802154_hw *hw,
 					const struct wpan_phy_cca *cca);
-	int		(*set_cca_ed_level)(struct ieee802154_hw *hw,
-					    s32 level);
+	int		(*set_cca_ed_level)(struct ieee802154_hw *hw, s32 mbm);
 	int		(*set_csma_params)(struct ieee802154_hw *hw,
 					   u8 min_be, u8 max_be, u8 retries);
 	int		(*set_frame_retries)(struct ieee802154_hw *hw,

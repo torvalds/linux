@@ -91,6 +91,7 @@ struct wpan_phy {
 
 	__le64 perm_extended_addr;
 
+	/* current cca ed threshold in mBm */
 	s32 cca_ed_level;
 
 	/* PHY depended MAC PIB values */

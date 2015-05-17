@@ -122,7 +122,7 @@ static int ieee802154_nl_fill_iface(struct sk_buff *msg, u32 portid,
 		    nla_put_u8(msg, IEEE802154_ATTR_CCA_MODE,
 			       params.cca.mode) ||
 		    nla_put_s32(msg, IEEE802154_ATTR_CCA_ED_LEVEL,
-				params.cca_ed_level) ||
+				params.cca_ed_level / 100) ||
 		    nla_put_u8(msg, IEEE802154_ATTR_CSMA_RETRIES,
 			       params.csma_retries) ||
 		    nla_put_u8(msg, IEEE802154_ATTR_CSMA_MIN_BE,
@@ -519,7 +519,7 @@ int ieee802154_set_macparams(struct sk_buff *skb, struct genl_info *info)
 		params.cca.mode = nla_get_u8(info->attrs[IEEE802154_ATTR_CCA_MODE]);
 
 	if (info->attrs[IEEE802154_ATTR_CCA_ED_LEVEL])
-		params.cca_ed_level = nla_get_s32(info->attrs[IEEE802154_ATTR_CCA_ED_LEVEL]);
+		params.cca_ed_level = nla_get_s32(info->attrs[IEEE802154_ATTR_CCA_ED_LEVEL]) * 100;
 
 	if (info->attrs[IEEE802154_ATTR_CSMA_RETRIES])
 		params.csma_retries = nla_get_u8(info->attrs[IEEE802154_ATTR_CSMA_RETRIES]);

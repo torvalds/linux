@@ -1268,9 +1268,10 @@ at86rf23x_get_desens_steps(struct at86rf230_local *lp, s32 level)
 }
 
 static int
-at86rf230_set_cca_ed_level(struct ieee802154_hw *hw, s32 level)
+at86rf230_set_cca_ed_level(struct ieee802154_hw *hw, s32 mbm)
 {
 	struct at86rf230_local *lp = hw->priv;
+	s32 level = mbm / 100;
 
 	if (level < lp->data->rssi_base_val || level > 30)
 		return -EINVAL;
