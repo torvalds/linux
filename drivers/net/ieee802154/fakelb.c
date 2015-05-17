@@ -149,35 +149,35 @@ static int fakelb_add_one(struct device *dev, struct fakelb_priv *fake)
 	priv->hw = hw;
 
 	/* 868 MHz BPSK	802.15.4-2003 */
-	hw->phy->channels_supported[0] |= 1;
+	hw->phy->supported.channels[0] |= 1;
 	/* 915 MHz BPSK	802.15.4-2003 */
-	hw->phy->channels_supported[0] |= 0x7fe;
+	hw->phy->supported.channels[0] |= 0x7fe;
 	/* 2.4 GHz O-QPSK 802.15.4-2003 */
-	hw->phy->channels_supported[0] |= 0x7FFF800;
+	hw->phy->supported.channels[0] |= 0x7FFF800;
 	/* 868 MHz ASK 802.15.4-2006 */
-	hw->phy->channels_supported[1] |= 1;
+	hw->phy->supported.channels[1] |= 1;
 	/* 915 MHz ASK 802.15.4-2006 */
-	hw->phy->channels_supported[1] |= 0x7fe;
+	hw->phy->supported.channels[1] |= 0x7fe;
 	/* 868 MHz O-QPSK 802.15.4-2006 */
-	hw->phy->channels_supported[2] |= 1;
+	hw->phy->supported.channels[2] |= 1;
 	/* 915 MHz O-QPSK 802.15.4-2006 */
-	hw->phy->channels_supported[2] |= 0x7fe;
+	hw->phy->supported.channels[2] |= 0x7fe;
 	/* 2.4 GHz CSS 802.15.4a-2007 */
-	hw->phy->channels_supported[3] |= 0x3fff;
+	hw->phy->supported.channels[3] |= 0x3fff;
 	/* UWB Sub-gigahertz 802.15.4a-2007 */
-	hw->phy->channels_supported[4] |= 1;
+	hw->phy->supported.channels[4] |= 1;
 	/* UWB Low band 802.15.4a-2007 */
-	hw->phy->channels_supported[4] |= 0x1e;
+	hw->phy->supported.channels[4] |= 0x1e;
 	/* UWB High band 802.15.4a-2007 */
-	hw->phy->channels_supported[4] |= 0xffe0;
+	hw->phy->supported.channels[4] |= 0xffe0;
 	/* 750 MHz O-QPSK 802.15.4c-2009 */
-	hw->phy->channels_supported[5] |= 0xf;
+	hw->phy->supported.channels[5] |= 0xf;
 	/* 750 MHz MPSK 802.15.4c-2009 */
-	hw->phy->channels_supported[5] |= 0xf0;
+	hw->phy->supported.channels[5] |= 0xf0;
 	/* 950 MHz BPSK 802.15.4d-2009 */
-	hw->phy->channels_supported[6] |= 0x3ff;
+	hw->phy->supported.channels[6] |= 0x3ff;
 	/* 950 MHz GFSK 802.15.4d-2009 */
-	hw->phy->channels_supported[6] |= 0x3ffc00;
+	hw->phy->supported.channels[6] |= 0x3ffc00;
 
 	INIT_LIST_HEAD(&priv->list);
 	priv->fake = fake;

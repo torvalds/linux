@@ -248,7 +248,7 @@ nl802154_send_wpan_phy_channels(struct cfg802154_registered_device *rdev,
 
 	for (page = 0; page <= IEEE802154_MAX_PAGE; page++) {
 		if (nla_put_u32(msg, NL802154_ATTR_SUPPORTED_CHANNEL,
-				rdev->wpan_phy.channels_supported[page]))
+				rdev->wpan_phy.supported.channels[page]))
 			return -ENOBUFS;
 	}
 	nla_nest_end(msg, nl_page);
@@ -626,7 +626,7 @@ static int nl802154_set_channel(struct sk_buff *skb, struct genl_info *info)
 
 	/* check 802.15.4 constraints */
 	if (page > IEEE802154_MAX_PAGE || channel > IEEE802154_MAX_CHANNEL ||
-	    !(rdev->wpan_phy.channels_supported[page] & BIT(channel)))
+	    !(rdev->wpan_phy.supported.channels[page] & BIT(channel)))
 		return -EINVAL;
 
 	return rdev_set_channel(rdev, page, channel);

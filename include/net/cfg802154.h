@@ -61,6 +61,10 @@ struct cfg802154_ops {
 				struct wpan_dev *wpan_dev, bool mode);
 };
 
+struct wpan_phy_supported {
+	u32 channels[IEEE802154_MAX_PAGE + 1];
+};
+
 struct wpan_phy_cca {
 	enum nl802154_cca_modes mode;
 	enum nl802154_cca_opts opt;
@@ -84,7 +88,7 @@ struct wpan_phy {
 	 */
 	u8 current_channel;
 	u8 current_page;
-	u32 channels_supported[IEEE802154_MAX_PAGE + 1];
+	struct wpan_phy_supported supported;
 	/* current transmit_power in mBm */
 	s32 transmit_power;
 	struct wpan_phy_cca cca;
