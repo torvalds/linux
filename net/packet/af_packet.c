@@ -1389,7 +1389,7 @@ static unsigned int fanout_demux_rollover(struct packet_fanout *f,
 					  unsigned int idx, bool try_self,
 					  unsigned int num)
 {
-	struct packet_sock *po, *po_next;
+	struct packet_sock *po, *po_next, *po_skip = NULL;
 	unsigned int i, j, room = ROOM_NONE;
 
 	po = pkt_sk(f->arr[idx]);
@@ -1399,12 +1399,13 @@ static unsigned int fanout_demux_rollover(struct packet_fanout *f,
 		if (room == ROOM_NORMAL ||
 		    (room == ROOM_LOW && !fanout_flow_is_huge(po, skb)))
 			return idx;
+		po_skip = po;
 	}
 
 	i = j = min_t(int, po->rollover->sock, num - 1);
 	do {
 		po_next = pkt_sk(f->arr[i]);
-		if (po_next != po && !po_next->pressure &&
+		if (po_next != po_skip && !po_next->pressure &&
 		    packet_rcv_has_room(po_next, skb) == ROOM_NORMAL) {
 			if (i != j)
 				po->rollover->sock = i;
@@ -1549,7 +1550,8 @@ static int fanout_add(struct sock *sk, u16 id, u16 type_flags)
 	if (po->fanout)
 		return -EALREADY;
 
-	if (type_flags & PACKET_FANOUT_FLAG_ROLLOVER) {
+	if (type == PACKET_FANOUT_ROLLOVER ||
+	    (type_flags & PACKET_FANOUT_FLAG_ROLLOVER)) {
 		po->rollover = kzalloc(sizeof(*po->rollover), GFP_KERNEL);
 		if (!po->rollover)
 			return -ENOMEM;
