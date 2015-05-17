@@ -1949,6 +1949,18 @@ static inline int input_available_p(struct tty_struct *tty, int poll)
 		return ldata->commit_head - ldata->read_tail >= amt;
 }
 
+static inline int check_other_done(struct tty_struct *tty)
+{
+	int done = test_bit(TTY_OTHER_DONE, &tty->flags);
+	if (done) {
+		/* paired with cmpxchg() in check_other_closed(); ensures
+		 * read buffer head index is not stale
+		 */
+		smp_mb__after_atomic();
+	}
+	return done;
+}
+
 /**
  *	copy_from_read_buf	-	copy read data directly
  *	@tty: terminal device
@@ -2167,7 +2179,7 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
 	struct n_tty_data *ldata = tty->disc_data;
 	unsigned char __user *b = buf;
 	DEFINE_WAIT_FUNC(wait, woken_wake_function);
-	int c;
+	int c, done;
 	int minimum, time;
 	ssize_t retval = 0;
 	long timeout;
@@ -2235,8 +2247,10 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file,
 		    ((minimum - (b - buf)) >= 1))
 			ldata->minimum_to_wake = (minimum - (b - buf));
 
+		done = check_other_done(tty);
+
 		if (!input_available_p(tty, 0)) {
-			if (test_bit(TTY_OTHER_CLOSED, &tty->flags)) {
+			if (done) {
 				retval = -EIO;
 				break;
 			}
@@ -2443,12 +2457,12 @@ static unsigned int n_tty_poll(struct tty_struct *tty, struct file *file,
 
 	poll_wait(file, &tty->read_wait, wait);
 	poll_wait(file, &tty->write_wait, wait);
+	if (check_other_done(tty))
+		mask |= POLLHUP;
 	if (input_available_p(tty, 1))
 		mask |= POLLIN | POLLRDNORM;
 	if (tty->packet && tty->link->ctrl_status)
 		mask |= POLLPRI | POLLIN | POLLRDNORM;
-	if (test_bit(TTY_OTHER_CLOSED, &tty->flags))
-		mask |= POLLHUP;
 	if (tty_hung_up_p(file))
 		mask |= POLLHUP;
 	if (!(mask & (POLLHUP | POLLIN | POLLRDNORM))) {

@@ -3180,8 +3180,6 @@ static int write_one_cache_group(struct btrfs_trans_handle *trans,
 	btrfs_mark_buffer_dirty(leaf);
 fail:
 	btrfs_release_path(path);
-	if (ret)
-		btrfs_abort_transaction(trans, root, ret);
 	return ret;
 
 }
@@ -3487,8 +3485,30 @@ again:
 				ret = 0;
 			}
 		}
-		if (!ret)
+		if (!ret) {
 			ret = write_one_cache_group(trans, root, path, cache);
+			/*
+			 * Our block group might still be attached to the list
+			 * of new block groups in the transaction handle of some
+			 * other task (struct btrfs_trans_handle->new_bgs). This
+			 * means its block group item isn't yet in the extent
+			 * tree. If this happens ignore the error, as we will
+			 * try again later in the critical section of the
+			 * transaction commit.
+			 */
+			if (ret == -ENOENT) {
+				ret = 0;
+				spin_lock(&cur_trans->dirty_bgs_lock);
+				if (list_empty(&cache->dirty_list)) {
+					list_add_tail(&cache->dirty_list,
+						      &cur_trans->dirty_bgs);
+					btrfs_get_block_group(cache);
+				}
+				spin_unlock(&cur_trans->dirty_bgs_lock);
+			} else if (ret) {
+				btrfs_abort_transaction(trans, root, ret);
+			}
+		}
 
 		/* if its not on the io list, we need to put the block group */
 		if (should_put)
@@ -3597,8 +3617,11 @@ int btrfs_write_dirty_block_groups(struct btrfs_trans_handle *trans,
 				ret = 0;
 			}
 		}
-		if (!ret)
+		if (!ret) {
 			ret = write_one_cache_group(trans, root, path, cache);
+			if (ret)
+				btrfs_abort_transaction(trans, root, ret);
+		}
 
 		/* if its not on the io list, we need to put the block group */
 		if (should_put)
