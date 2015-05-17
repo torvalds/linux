@@ -440,13 +440,60 @@ static int kvm_init_mmu_notifier(struct kvm *kvm)
 
 #endif /* CONFIG_MMU_NOTIFIER && KVM_ARCH_WANT_MMU_NOTIFIER */
 
-static void kvm_init_memslots_id(struct kvm *kvm)
+static struct kvm_memslots *kvm_alloc_memslots(void)
 {
 	int i;
-	struct kvm_memslots *slots = kvm->memslots;
+	struct kvm_memslots *slots;
 
+	slots = kvm_kvzalloc(sizeof(struct kvm_memslots));
+	if (!slots)
+		return NULL;
+
+	/*
+	 * Init kvm generation close to the maximum to easily test the
+	 * code of handling generation number wrap-around.
+	 */
+	slots->generation = -150;
 	for (i = 0; i < KVM_MEM_SLOTS_NUM; i++)
 		slots->id_to_index[i] = slots->memslots[i].id = i;
+
+	return slots;
+}
+
+static void kvm_destroy_dirty_bitmap(struct kvm_memory_slot *memslot)
+{
+	if (!memslot->dirty_bitmap)
+		return;
+
+	kvfree(memslot->dirty_bitmap);
+	memslot->dirty_bitmap = NULL;
+}
+
+/*
+ * Free any memory in @free but not in @dont.
+ */
+static void kvm_free_memslot(struct kvm *kvm, struct kvm_memory_slot *free,
+			      struct kvm_memory_slot *dont)
+{
+	if (!dont || free->dirty_bitmap != dont->dirty_bitmap)
+		kvm_destroy_dirty_bitmap(free);
+
+	kvm_arch_free_memslot(kvm, free, dont);
+
+	free->npages = 0;
+}
+
+static void kvm_free_memslots(struct kvm *kvm, struct kvm_memslots *slots)
+{
+	struct kvm_memory_slot *memslot;
+
+	if (!slots)
+		return;
+
+	kvm_for_each_memslot(memslot, slots)
+		kvm_free_memslot(kvm, memslot, NULL);
+
+	kvfree(slots);
 }
 
 static struct kvm *kvm_create_vm(unsigned long type)
@@ -472,17 +519,10 @@ static struct kvm *kvm_create_vm(unsigned long type)
 	BUILD_BUG_ON(KVM_MEM_SLOTS_NUM > SHRT_MAX);
 
 	r = -ENOMEM;
-	kvm->memslots = kvm_kvzalloc(sizeof(struct kvm_memslots));
+	kvm->memslots = kvm_alloc_memslots();
 	if (!kvm->memslots)
 		goto out_err_no_srcu;
 
-	/*
-	 * Init kvm generation close to the maximum to easily test the
-	 * code of handling generation number wrap-around.
-	 */
-	kvm->memslots->generation = -150;
-
-	kvm_init_memslots_id(kvm);
 	if (init_srcu_struct(&kvm->srcu))
 		goto out_err_no_srcu;
 	if (init_srcu_struct(&kvm->irq_srcu))
@@ -523,7 +563,7 @@ out_err_no_srcu:
 out_err_no_disable:
 	for (i = 0; i < KVM_NR_BUSES; i++)
 		kfree(kvm->buses[i]);
-	kvfree(kvm->memslots);
+	kvm_free_memslots(kvm, kvm->memslots);
 	kvm_arch_free_vm(kvm);
 	return ERR_PTR(r);
 }
@@ -538,40 +578,6 @@ void *kvm_kvzalloc(unsigned long size)
 		return vzalloc(size);
 	else
 		return kzalloc(size, GFP_KERNEL);
-}
-
-static void kvm_destroy_dirty_bitmap(struct kvm_memory_slot *memslot)
-{
-	if (!memslot->dirty_bitmap)
-		return;
-
-	kvfree(memslot->dirty_bitmap);
-	memslot->dirty_bitmap = NULL;
-}
-
-/*
- * Free any memory in @free but not in @dont.
- */
-static void kvm_free_physmem_slot(struct kvm *kvm, struct kvm_memory_slot *free,
-				  struct kvm_memory_slot *dont)
-{
-	if (!dont || free->dirty_bitmap != dont->dirty_bitmap)
-		kvm_destroy_dirty_bitmap(free);
-
-	kvm_arch_free_memslot(kvm, free, dont);
-
-	free->npages = 0;
-}
-
-static void kvm_free_physmem(struct kvm *kvm)
-{
-	struct kvm_memslots *slots = kvm->memslots;
-	struct kvm_memory_slot *memslot;
-
-	kvm_for_each_memslot(memslot, slots)
-		kvm_free_physmem_slot(kvm, memslot, NULL);
-
-	kvfree(kvm->memslots);
 }
 
 static void kvm_destroy_devices(struct kvm *kvm)
@@ -607,7 +613,7 @@ static void kvm_destroy_vm(struct kvm *kvm)
 #endif
 	kvm_arch_destroy_vm(kvm);
 	kvm_destroy_devices(kvm);
-	kvm_free_physmem(kvm);
+	kvm_free_memslots(kvm, kvm->memslots);
 	cleanup_srcu_struct(&kvm->irq_srcu);
 	cleanup_srcu_struct(&kvm->srcu);
 	kvm_arch_free_vm(kvm);
@@ -898,7 +904,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	if (r)
 		goto out_slots;
 
-	/* actual memory is freed via old in kvm_free_physmem_slot below */
+	/* actual memory is freed via old in kvm_free_memslot below */
 	if (change == KVM_MR_DELETE) {
 		new.dirty_bitmap = NULL;
 		memset(&new.arch, 0, sizeof(new.arch));
@@ -909,7 +915,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 
 	kvm_arch_commit_memory_region(kvm, mem, &old, change);
 
-	kvm_free_physmem_slot(kvm, &old, &new);
+	kvm_free_memslot(kvm, &old, &new);
 	kvfree(old_memslots);
 
 	/*
@@ -931,7 +937,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 out_slots:
 	kvfree(slots);
 out_free:
-	kvm_free_physmem_slot(kvm, &new, &old);
+	kvm_free_memslot(kvm, &new, &old);
 out:
 	return r;
 }
