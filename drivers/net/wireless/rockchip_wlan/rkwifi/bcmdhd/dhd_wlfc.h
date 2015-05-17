@@ -1,6 +1,6 @@
 /*
 * $Copyright Open 2009 Broadcom Corporation$
-* $Id: dhd_wlfc.h 490028 2014-07-09 05:58:25Z $
+* $Id: dhd_wlfc.h 501046 2014-09-06 01:25:16Z $
 *
 */
 #ifndef __wlfc_host_driver_definitions_h__
@@ -115,9 +115,9 @@ typedef struct wlfc_mac_descriptor {
 	uint8 send_tim_signal;
 	uint8 mac_handle;
 	/* Number of packets at dongle for this entry. */
-	uint transit_count;
+	int transit_count;
 	/* Numbe of suppression to wait before evict from delayQ */
-	uint suppr_transit_count;
+	int suppr_transit_count;
 	/* flag. TRUE when in suppress state */
 	uint8 suppressed;
 

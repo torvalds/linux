@@ -3,7 +3,7 @@
  *
  * $Copyright Open Broadcom Corporation$
  *
- * $Id: dhd_cdc.c 472193 2014-04-23 06:27:38Z $
+ * $Id: dhd_cdc.c 492377 2014-07-21 19:54:06Z $
  *
  * BDC is like CDC, except it includes a header for data packets to convey
  * packet priority over the bus, and flags (e.g. to indicate checksum status
@@ -437,12 +437,14 @@ dhd_prot_hdrpull(dhd_pub_t *dhd, int *ifidx, void *pktbuf, uchar *reorder_buf_in
 	PKTPULL(dhd->osh, pktbuf, BDC_HEADER_LEN);
 #endif /* BDC */
 
-#if defined(NDISVER) && (NDISVER < 0x0630)
+#if defined(NDISVER)
+#if (NDISVER < 0x0630)
 	if (PKTLEN(dhd->osh, pktbuf) < (uint32) (data_offset << 2)) {
 		DHD_ERROR(("%s: rx data too short (%d < %d)\n", __FUNCTION__,
 		           PKTLEN(dhd->osh, pktbuf), (data_offset * 4)));
 		return BCME_ERROR;
 	}
+#endif /* #if defined(NDISVER) */
 #endif /* (NDISVER < 0x0630) */
 
 #ifdef PROP_TXSTATUS

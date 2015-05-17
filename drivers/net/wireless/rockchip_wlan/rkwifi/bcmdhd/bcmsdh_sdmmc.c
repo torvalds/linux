@@ -59,9 +59,17 @@ static void IRQHandler(struct sdio_func *func);
 static void IRQHandlerF2(struct sdio_func *func);
 #endif /* !defined(OOB_INTR_ONLY) */
 static int sdioh_sdmmc_get_cisaddr(sdioh_info_t *sd, uint32 regaddr);
+#if defined(ENABLE_INSMOD_NO_FW_LOAD)
 extern int sdio_reset_comm(struct mmc_card *card);
-
+#else
+int sdio_reset_comm(struct mmc_card *card)
+{
+	return 0;
+}
+#endif
+#ifdef GLOBAL_SDMMC_INSTANCE
 extern PBCMSDH_SDMMC_INSTANCE gInstance;
+#endif
 
 #define DEFAULT_SDIO_F2_BLKSIZE		512
 #ifndef CUSTOM_SDIO_F2_BLKSIZE
@@ -155,10 +163,16 @@ sdioh_attach(osl_t *osh, struct sdio_func *func)
 	sd->fake_func0.num = 0;
 	sd->fake_func0.card = func->card;
 	sd->func[0] = &sd->fake_func0;
+#ifdef GLOBAL_SDMMC_INSTANCE
 	if (func->num == 2)
 		sd->func[1] = gInstance->func[1];
+#else
+	sd->func[1] = func->card->sdio_func[0];
+#endif
 	sd->func[2] = func->card->sdio_func[1];
+#ifdef GLOBAL_SDMMC_INSTANCE
 	sd->func[func->num] = func;
+#endif
 	sd->num_funcs = 2;
 	sd->sd_blockmode = TRUE;
 	sd->use_client_ints = TRUE;

@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdh_sdmmc.h 408158 2013-06-17 22:15:35Z $
+ * $Id: bcmsdh_sdmmc.h 496576 2014-08-13 15:04:56Z $
  */
 
 #ifndef __BCMSDH_SDMMC_H__
@@ -57,7 +57,7 @@
 /* private bus modes */
 #define SDIOH_MODE_SD4		2
 #define CLIENT_INTR			0x100	/* Get rid of this! */
-#define SDIOH_SDMMC_MAX_SG_ENTRIES	32
+#define SDIOH_SDMMC_MAX_SG_ENTRIES	(SDPCM_MAXGLOM_SIZE+2)
 
 struct sdioh_info {
 	osl_t		*osh;			/* osh handler */
@@ -115,8 +115,11 @@ extern void sdioh_sdmmc_free_irq(uint irq, sdioh_info_t *sd);
 extern sdioh_info_t *sdioh_attach(osl_t *osh, struct sdio_func *func);
 extern SDIOH_API_RC sdioh_detach(osl_t *osh, sdioh_info_t *sd);
 
+#ifdef GLOBAL_SDMMC_INSTANCE
 typedef struct _BCMSDH_SDMMC_INSTANCE {
 	sdioh_info_t	*sd;
 	struct sdio_func *func[SDIOD_MAX_IOFUNCS];
 } BCMSDH_SDMMC_INSTANCE, *PBCMSDH_SDMMC_INSTANCE;
+#endif
+
 #endif /* __BCMSDH_SDMMC_H__ */

@@ -232,12 +232,16 @@ extern int dhd_pno_init(dhd_pub_t *dhd);
 extern int dhd_pno_deinit(dhd_pub_t *dhd);
 #endif 
 
-#if (defined(NDISVER) && (NDISVER >= 0x0630)) && defined(PNO_SUPPORT)
+#if defined(NDISVER)
+#if defined(PNO_SUPPORT)
+#if (NDISVER >= 0x0630)
 extern int dhd_pno_cfg(dhd_pub_t *dhd, wl_pfn_cfg_t *pcfg);
 extern int dhd_pno_suspend(dhd_pub_t *dhd, int pfn_suspend);
 extern int dhd_pno_set_add(dhd_pub_t *dhd, wl_pfn_t *netinfo, int nssid, ushort scan_fr,
 	ushort slowscan_fr, uint8 pno_repeat, uint8 pno_freq_expo_max, int16 flags);
 extern int dhd_pno_enable(dhd_pub_t *dhd, int pfn_enabled);
 extern int dhd_pno_clean(dhd_pub_t *dhd);
-#endif /* (defined(NDISVER) && (NDISVER >= 0x0630)) && defined(PNO_SUPPORT) */
+#endif /* #if (NDISVER >= 0x0630) */
+#endif /* #if defined(PNO_SUPPORT) */
+#endif /* #if defined(NDISVER) */
 #endif /* __DHD_PNO_H__ */

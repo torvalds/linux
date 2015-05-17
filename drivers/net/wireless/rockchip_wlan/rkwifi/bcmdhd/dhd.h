@@ -6,7 +6,7 @@
  *
  * $Copyright Open Broadcom Corporation$
  *
- * $Id: dhd.h 491170 2014-07-15 06:23:58Z $
+ * $Id: dhd.h 504503 2014-09-24 11:28:56Z $
  */
 
 /****************
@@ -61,6 +61,7 @@ struct dhd_bus;
 struct dhd_prot;
 struct dhd_info;
 struct dhd_ioctl;
+struct pktq;
 
 /* The level of bus communication with the dongle */
 enum dhd_bus_state {
@@ -70,7 +71,8 @@ enum dhd_bus_state {
 	DHD_BUS_SUSPEND,	/* Bus has been suspended */
 };
 
-#if defined(NDISVER) && (NDISVER >= 0x0600)
+#if defined(NDISVER)
+#if (NDISVER >= 0x0600)
 /* Firmware requested operation mode */
 #define STA_MASK			0x0001
 #define HOSTAPD_MASK		0x0002
@@ -80,6 +82,10 @@ enum dhd_bus_state {
 #define P2P_GC_ENABLED		0x0020
 #define CONCURENT_MASK		0x00F0
 #endif /* (NDISVER >= 0x0600)  */
+#endif /* #if defined(NDISVER) */
+
+#define DHD_IF_ROLE_STA(role)	(role == WLC_E_IF_ROLE_STA ||\
+				role == WLC_E_IF_ROLE_P2P_CLIENT)
 
 /* For supporting multiple interfaces */
 #define DHD_MAX_IFS	16
@@ -145,7 +151,10 @@ enum dhd_prealloc_index {
 #if defined(STATIC_WL_PRIV_STRUCT)
 	DHD_PREALLOC_WIPHY_ESCAN0 = 5,
 #endif /* STATIC_WL_PRIV_STRUCT */
-	DHD_PREALLOC_DHD_INFO = 7
+	DHD_PREALLOC_DHD_INFO = 7,
+	DHD_PREALLOC_DHD_WLFC_INFO = 8,
+	DHD_PREALLOC_IF_FLOW_LKUP = 9,
+	DHD_PREALLOC_FLOWRING = 10
 };
 
 /* Packet alignment for most efficient SDIO (can change based on platform) */
@@ -177,6 +186,7 @@ enum {
 	 * 2. TCPACKs that don't need to hurry delivered remains longer in TXQ so can be suppressed.
 	 */
 	TCPACK_SUP_DELAYTX,
+	TCPACK_SUP_HOLD,
 	TCPACK_SUP_LAST_MODE
 };
 #endif /* DHDTCPACK_SUPPRESS */
@@ -351,6 +361,8 @@ typedef struct dhd_pub {
 #ifdef DHDTCPACK_SUPPRESS
 	uint8 tcpack_sup_mode;		/* TCPACK suppress mode */
 	void *tcpack_sup_module;	/* TCPACK suppress module */
+	uint32 tcpack_sup_ratio;
+	uint32 tcpack_sup_delay;
 #endif /* DHDTCPACK_SUPPRESS */
 #if defined(ARP_OFFLOAD_SUPPORT)
 	uint32 arp_version;
@@ -358,12 +370,18 @@ typedef struct dhd_pub {
 #if defined(BCMSUP_4WAY_HANDSHAKE) && defined(WLAN_AKM_SUITE_FT_8021X)
 	bool fw_4way_handshake;		/* Whether firmware will to do the 4way handshake. */
 #endif
+#if defined(CUSTOM_PLATFORM_NV_TEGRA)
+#ifdef PKT_FILTER_SUPPORT
+	uint pkt_filter_mode;
+	uint pkt_filter_ports_count;
+	uint16 pkt_filter_ports[WL_PKT_FILTER_PORTS_MAX];
+#endif /* PKT_FILTER_SUPPORT */
+#endif /* defined(CUSTOM_PLATFORM_NV_TEGRA) */
 #ifdef CUSTOM_SET_CPUCORE
 	struct task_struct * current_dpc;
 	struct task_struct * current_rxf;
 	int chan_isvht80;
 #endif /* CUSTOM_SET_CPUCORE */
-
 
 	void    *sta_pool;          /* pre-allocated pool of sta objects */
 	void    *staid_allocator;   /* allocator of sta indexes */
@@ -371,7 +389,11 @@ typedef struct dhd_pub {
 	void    *flowid_allocator;  /* unique flowid allocator */
 	void	*flow_ring_table;   /* flow ring table, include prot and bus info */
 	void	*if_flow_lkup;      /* per interface flowid lkup hash table */
+	void    *flowid_lock;       /* per os lock for flowid info protection */
 	uint32  num_flow_rings;
+
+	uint32 d2h_sync_mode;		/* D2H DMA completion sync mode */
+
 	uint8  flow_prio_map[NUMPRIO];
 	uint8	flow_prio_map_type;
 	char enable_log[MAX_EVENT];
@@ -483,6 +505,10 @@ extern int dhd_os_wake_lock_ctrl_timeout_enable(dhd_pub_t *pub, int val);
 extern int dhd_os_wake_lock_ctrl_timeout_cancel(dhd_pub_t *pub);
 extern int dhd_os_wd_wake_lock(dhd_pub_t *pub);
 extern int dhd_os_wd_wake_unlock(dhd_pub_t *pub);
+#ifdef BCMPCIE_OOB_HOST_WAKE
+extern int dhd_os_oob_irq_wake_lock_timeout(dhd_pub_t *pub, int val);
+extern int dhd_os_oob_irq_wake_unlock(dhd_pub_t *pub);
+#endif /* BCMPCIE_OOB_HOST_WAKE */
 extern int dhd_os_wake_lock_waive(dhd_pub_t *pub);
 extern int dhd_os_wake_lock_restore(dhd_pub_t *pub);
 
@@ -521,6 +547,11 @@ inline static void MUTEX_UNLOCK_SOFTAP_SET(dhd_pub_t * dhdp)
 
 #define DHD_OS_WD_WAKE_LOCK(pub)		dhd_os_wd_wake_lock(pub)
 #define DHD_OS_WD_WAKE_UNLOCK(pub)		dhd_os_wd_wake_unlock(pub)
+#ifdef BCMPCIE_OOB_HOST_WAKE
+#define OOB_WAKE_LOCK_TIMEOUT 500
+#define DHD_OS_OOB_IRQ_WAKE_LOCK_TIMEOUT(pub, val) dhd_os_oob_irq_wake_lock_timeout(pub, val)
+#define DHD_OS_OOB_IRQ_WAKE_UNLOCK(pub)		dhd_os_oob_irq_wake_unlock(pub)
+#endif /* BCMPCIE_OOB_HOST_WAKE */
 #define DHD_PACKET_TIMEOUT_MS	500
 #define DHD_EVENT_TIMEOUT_MS	1500
 
@@ -532,7 +563,7 @@ void dhd_net_if_lock(struct net_device *dev);
 void dhd_net_if_unlock(struct net_device *dev);
 
 #if defined(MULTIPLE_SUPPLICANT)
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25)) && 1 && defined(BCMSDIO)
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25)) && 1
 extern struct mutex _dhd_sdio_mutex_lock_;
 #endif
 #endif /* MULTIPLE_SUPPLICANT */
@@ -577,6 +608,7 @@ extern int dhd_register_if(dhd_pub_t *dhdp, int idx, bool need_rtnl_lock);
 /* Indication from bus module regarding removal/absence of dongle */
 extern void dhd_detach(dhd_pub_t *dhdp);
 extern void dhd_free(dhd_pub_t *dhdp);
+extern void dhd_clear(dhd_pub_t *dhdp);
 
 /* Indication from bus module to change flow-control state */
 extern void dhd_txflowcontrol(dhd_pub_t *dhdp, int ifidx, bool on);
@@ -605,11 +637,6 @@ extern int dhd_os_ioctl_resp_wait(dhd_pub_t * pub, uint * condition, bool * pend
 extern int dhd_os_ioctl_resp_wake(dhd_pub_t * pub);
 extern unsigned int dhd_os_get_ioctl_resp_timeout(void);
 extern void dhd_os_set_ioctl_resp_timeout(unsigned int timeout_msec);
-#if 0 && (NDISVER >= 0x0600)
-#define dhd_os_open_image(a) wl_os_open_image(a)
-#define dhd_os_close_image(a) wl_os_close_image(a)
-#define dhd_os_get_image_block(a, b, c) wl_os_get_image_block(a, b, c)
-#endif /* (NDISVER >= 0x0600)  */
 
 extern int dhd_os_get_image_block(char * buf, int len, void * image);
 extern void * dhd_os_open_image(char * filename);
@@ -639,6 +666,7 @@ extern int dhd_os_send_hang_message(dhd_pub_t *dhdp);
 extern void dhd_set_version_info(dhd_pub_t *pub, char *fw);
 extern bool dhd_os_check_if_up(dhd_pub_t *pub);
 extern int dhd_os_check_wakelock(dhd_pub_t *pub);
+extern int dhd_os_check_wakelock_all(dhd_pub_t *pub);
 extern int dhd_get_instance(dhd_pub_t *pub);
 #ifdef CUSTOM_SET_CPUCORE
 extern void dhd_set_cpucore(dhd_pub_t *dhd, int set);
@@ -648,6 +676,10 @@ extern void dhd_set_cpucore(dhd_pub_t *dhd, int set);
 extern int dhd_keep_alive_onoff(dhd_pub_t *dhd);
 #endif /* KEEP_ALIVE */
 
+#ifdef SUPPORT_AP_POWERSAVE
+extern int dhd_set_ap_powersave(dhd_pub_t *dhdp, int ifidx, int enable);
+#endif
+
 
 #ifdef PKT_FILTER_SUPPORT
 #define DHD_UNICAST_FILTER_NUM		0
@@ -656,10 +688,24 @@ extern int dhd_keep_alive_onoff(dhd_pub_t *dhd);
 #define DHD_MULTICAST6_FILTER_NUM	3
 #define DHD_MDNS_FILTER_NUM		4
 #define DHD_ARP_FILTER_NUM		5
-extern int 	dhd_os_enable_packet_filter(dhd_pub_t *dhdp, int val);
+
+#if defined(CUSTOM_PLATFORM_NV_TEGRA)
+/* Port based packet filtering command actions */
+#define PKT_FILTER_PORTS_CLEAR		0
+#define PKT_FILTER_PORTS_ADD		1
+#define PKT_FILTER_PORTS_DEL		2
+#define PKT_FILTER_PORTS_LOOPBACK	3
+#define PKT_FILTER_PORTS_MAX		PKT_FILTER_PORTS_LOOPBACK
+#endif /* defined(CUSTOM_PLATFORM_NV_TEGRA) */
+
+extern int dhd_os_enable_packet_filter(dhd_pub_t *dhdp, int val);
 extern void dhd_enable_packet_filter(int value, dhd_pub_t *dhd);
 extern int net_os_enable_packet_filter(struct net_device *dev, int val);
 extern int net_os_rxfilter_add_remove(struct net_device *dev, int val, int num);
+#if defined(CUSTOM_PLATFORM_NV_TEGRA)
+extern void dhd_set_packet_filter_mode(struct net_device *dev, char *command);
+extern int dhd_set_packet_filter_ports(struct net_device *dev, char *command);
+#endif /* defined(CUSTOM_PLATFORM_NV_TEGRA) */
 #endif /* PKT_FILTER_SUPPORT */
 
 extern int dhd_get_suspend_bcn_li_dtim(dhd_pub_t *dhd);
@@ -791,6 +837,16 @@ extern uint iw_msg_level;
 extern uint wl_dbg_level;
 #endif
 
+#ifdef CUSTOMER_HW
+struct wifi_platform_data {
+	int (*set_power)(bool val);
+	int (*set_carddetect)(bool val);
+	void *(*mem_prealloc)(int section, unsigned long size);
+	int (*get_mac_addr)(unsigned char *buf);
+	void *(*get_country_code)(char *ccode);
+};
+#endif
+
 extern uint dhd_slpauto;
 
 /* Use interrupts */
@@ -897,7 +953,11 @@ extern uint dhd_force_tx_queueing;
 #define WIFI_TURNON_DELAY		DEFAULT_WIFI_TURNON_DELAY
 #endif /* WIFI_TURNON_DELAY */
 
+#ifdef BCMSDIO
 #define DEFAULT_DHD_WATCHDOG_INTERVAL_MS	10 /* msec */
+#else
+#define DEFAULT_DHD_WATCHDOG_INTERVAL_MS	0 /* msec */
+#endif
 #ifndef CUSTOM_DHD_WATCHDOG_MS
 #define CUSTOM_DHD_WATCHDOG_MS			DEFAULT_DHD_WATCHDOG_INTERVAL_MS
 #endif /* DEFAULT_DHD_WATCHDOG_INTERVAL_MS */
@@ -914,6 +974,10 @@ extern uint dhd_force_tx_queueing;
 #endif
 #endif /* WLTDLS */
 
+#define DEFAULT_BCN_TIMEOUT		8
+#ifndef CUSTOM_BCN_TIMEOUT
+#define CUSTOM_BCN_TIMEOUT		DEFAULT_BCN_TIMEOUT
+#endif
 
 #define MAX_DTIM_SKIP_BEACON_INTERVAL	100 /* max allowed associated AP beacon for DTIM skip */
 #ifndef MAX_DTIM_ALLOWED_INTERVAL
@@ -1020,9 +1084,13 @@ extern void dhd_os_general_spin_unlock(dhd_pub_t *pub, unsigned long flags);
 #define DHD_GENERAL_UNLOCK(dhdp, flags) \
 	dhd_os_general_spin_unlock((dhdp), (flags))
 
-/* Enable DHD flowring queue spin lock/unlock */
-#define DHD_QUEUE_LOCK(lock, flags)       (flags) = dhd_os_spin_lock(lock)
-#define DHD_QUEUE_UNLOCK(lock, flags)     dhd_os_spin_unlock((lock), (flags))
+/* Enable DHD flowring spin lock/unlock */
+#define DHD_FLOWRING_LOCK(lock, flags)     (flags) = dhd_os_spin_lock(lock)
+#define DHD_FLOWRING_UNLOCK(lock, flags)   dhd_os_spin_unlock((lock), (flags))
+
+/* Enable DHD common flowring info spin lock/unlock */
+#define DHD_FLOWID_LOCK(lock, flags)       (flags) = dhd_os_spin_lock(lock)
+#define DHD_FLOWID_UNLOCK(lock, flags)     dhd_os_spin_unlock((lock), (flags))
 
 
 
@@ -1032,9 +1100,7 @@ typedef struct wl_io_pport {
 } wl_io_pport_t;
 
 extern void *dhd_pub_wlinfo(dhd_pub_t *dhd_pub);
-#ifdef EXYNOS5433_PCIE_WAR
-extern void exynos_pcie_set_l1_exit(void);
-extern void exynos_pcie_clear_l1_exit(void);
-extern int enum_wifi;
-#endif /* EXYNOS5433_PCIE_WAR */
+#ifdef CONFIG_MACH_UNIVERSAL5433
+extern int check_rev(void);
+#endif
 #endif /* _dhd_h_ */

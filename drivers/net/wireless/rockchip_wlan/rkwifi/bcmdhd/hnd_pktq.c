@@ -573,11 +573,11 @@ pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out)
 
 	q->len--;
 
-        // terence 20150308: fix for non-null pointer of skb->prev sent from ndo_start_xmit
-        if (q->len == 0) {
-            q->head = NULL;
-            q->tail = NULL;
-        }
+	// terence 20150308: fix for non-null pointer of skb->prev sent from ndo_start_xmit
+	if (q->len == 0) {
+		q->head = NULL;
+		q->tail = NULL;
+	}
 
 	if (prec_out)
 		*prec_out = prec;

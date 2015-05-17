@@ -91,7 +91,9 @@ static int clockoverride = 0;
 module_param(clockoverride, int, 0644);
 MODULE_PARM_DESC(clockoverride, "SDIO card clock override");
 
+#ifdef GLOBAL_SDMMC_INSTANCE
 PBCMSDH_SDMMC_INSTANCE gInstance;
+#endif
 
 /* Maximum number of bcmsdh_sdmmc devices supported by driver */
 #define BCMSDH_SDMMC_MAX_DEVICES 1
@@ -156,6 +158,7 @@ static void sdioh_remove(struct sdio_func *func)
 		sd_err(("%s: error, no sdioh handler found\n", __FUNCTION__));
 		return;
 	}
+	sd_err(("%s: Enter\n", __FUNCTION__));
 
 	osh = sdioh->osh;
 	bcmsdh_remove(sdioh->bcmsdh);
@@ -177,7 +180,9 @@ static int bcmsdh_sdmmc_probe(struct sdio_func *func,
 	sd_info(("sdio_device: 0x%04x\n", func->device));
 	sd_info(("Function#: 0x%04x\n", func->num));
 
+#ifdef GLOBAL_SDMMC_INSTANCE
 	gInstance->func[func->num] = func;
+#endif
 
 	/* 4318 doesn't have function 2 */
 	if ((func->num == 2) || (func->num == 1 && func->device == 0x4))
@@ -228,7 +233,7 @@ static int bcmsdh_sdmmc_suspend(struct device *pdev)
 	struct sdio_func *func = dev_to_sdio_func(pdev);
 	mmc_pm_flag_t sdio_flags;
 
-	printk("%s Enter\n", __FUNCTION__);
+	printk("%s Enter func->num=%d\n", __FUNCTION__, func->num);
 	if (func->num != 2)
 		return 0;
 
@@ -268,7 +273,7 @@ static int bcmsdh_sdmmc_resume(struct device *pdev)
 #endif
 	struct sdio_func *func = dev_to_sdio_func(pdev);
 
-	printk("%s Enter\n", __FUNCTION__);
+	printk("%s Enter func->num=%d\n", __FUNCTION__, func->num);
 	if (func->num != 2)
 		return 0;
 
@@ -276,7 +281,7 @@ static int bcmsdh_sdmmc_resume(struct device *pdev)
 #if defined(OOB_INTR_ONLY)
 	sdioh = sdio_get_drvdata(func);
 	bcmsdh_resume(sdioh->bcmsdh);
-#endif 
+#endif
 
 	smp_mb();
 	printk("%s Exit\n", __FUNCTION__);
@@ -339,7 +344,7 @@ static struct sdio_driver bcmsdh_sdmmc_driver = {
 	.pm	= &bcmsdh_sdmmc_pm_ops,
 	},
 #endif /* (LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 39)) && defined(CONFIG_PM) */
-	};
+};
 
 struct sdos_info {
 	sdioh_info_t *sd;
@@ -385,9 +390,11 @@ MODULE_AUTHOR(AUTHOR);
 */
 int bcmsdh_register_client_driver(void)
 {
+#ifdef GLOBAL_SDMMC_INSTANCE
 	gInstance = kzalloc(sizeof(BCMSDH_SDMMC_INSTANCE), GFP_KERNEL);
 	if (!gInstance)
 		return -ENOMEM;
+#endif
 
 	return sdio_register_driver(&bcmsdh_sdmmc_driver);
 }
@@ -398,6 +405,8 @@ int bcmsdh_register_client_driver(void)
 void bcmsdh_unregister_client_driver(void)
 {
 	sdio_unregister_driver(&bcmsdh_sdmmc_driver);
+#ifdef GLOBAL_SDMMC_INSTANCE
 	if (gInstance)
 		kfree(gInstance);
+#endif
 }

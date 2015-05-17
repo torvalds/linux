@@ -5,7 +5,7 @@
  *
  * $Copyright Open Broadcom Corporation$
  *
- * $Id: dhd_ip.h 458522 2014-02-27 02:26:15Z $
+ * $Id: dhd_ip.h 502735 2014-09-16 00:53:02Z $
  */
 
 #ifndef _dhd_ip_h_
@@ -26,6 +26,7 @@ typedef enum pkt_frag
 } pkt_frag_t;
 
 extern pkt_frag_t pkt_frag_info(osl_t *osh, void *p);
+extern bool pkt_is_dhcp(osl_t *osh, void *p);
 
 #ifdef DHDTCPACK_SUPPRESS
 #define	TCPACKSZMIN	(ETHER_HDR_LEN + IPV4_MIN_HEADER_LEN + TCP_MIN_HEADER_LEN)
@@ -39,12 +40,15 @@ extern pkt_frag_t pkt_frag_info(osl_t *osh, void *p);
 
 #define TCPDATA_INFO_TIMEOUT 5000	/* Remove tcpdata_info if inactive for this time (in ms) */
 
+#define TCPACK_SUPP_RATIO 3
+#define TCPACK_DELAY_TIME 10 /* ms */
+
 extern int dhd_tcpack_suppress_set(dhd_pub_t *dhdp, uint8 on);
 extern void dhd_tcpack_info_tbl_clean(dhd_pub_t *dhdp);
 extern int dhd_tcpack_check_xmit(dhd_pub_t *dhdp, void *pkt);
 extern bool dhd_tcpack_suppress(dhd_pub_t *dhdp, void *pkt);
 extern bool dhd_tcpdata_info_get(dhd_pub_t *dhdp, void *pkt);
-
+extern bool dhd_tcpack_hold(dhd_pub_t *dhdp, void *pkt, int ifidx);
 /* #define DHDTCPACK_SUP_DBG */
 #if defined(DEBUG_COUNTER) && defined(DHDTCPACK_SUP_DBG)
 extern counter_tbl_t tack_tbl;

@@ -3,7 +3,7 @@
  *
  * Fundamental types and constants relating to 802.11
  *
- * $Id: 802.11.h 469158 2014-04-09 21:31:31Z $
+ * $Id: 802.11.h 495738 2014-08-08 03:36:17Z $
  */
 
 #ifndef _802_11_H_
@@ -2905,7 +2905,7 @@ typedef struct d11cnt {
 BWL_PRE_PACKED_STRUCT struct brcm_prop_ie_s {
 	uint8 id;		/* IE ID, 221, DOT11_MNG_PROPR_ID */
 	uint8 len;		/* IE length */
-	uint8 oui[3];		/* Proprietary OUI, BRCM_PROP_OUI */
+	uint8 oui[3];
 	uint8 type;		/* type of this IE */
 	uint16 cap;		/* DPT capabilities */
 } BWL_POST_PACKED_STRUCT;
@@ -2949,10 +2949,6 @@ typedef	struct brcm_ie brcm_ie_t;
 #define BRF_ABCOUNTER_MASK	0xf0	/* afterburner is obsolete,  defined for backward compat */
 #define BRF_PROP_11N_MCS	0x10	/* re-use afterburner bit */
 
-/**
- * Support for Broadcom proprietary HT MCS rates. Re-uses afterburner bits since afterburner is not
- * used anymore. Checks for BRF_ABCAP to stay compliant with 'old' images in the field.
- */
 #define GET_BRF_PROP_11N_MCS(brcm_ie) \
 	(!((brcm_ie)->flags & BRF_ABCAP) && ((brcm_ie)->flags & BRF_PROP_11N_MCS))
 
@@ -3861,7 +3857,6 @@ typedef enum {
 /* QoS map */
 #define QOS_MAP_FIXED_LENGTH	(8 * 2)	/* DSCP ranges fixed with 8 entries */
 
-/* BCM proprietary IE type for AIBSS */
 #define BCM_AIBSS_IE_TYPE 56
 
 /* This marks the end of a packed structure section. */

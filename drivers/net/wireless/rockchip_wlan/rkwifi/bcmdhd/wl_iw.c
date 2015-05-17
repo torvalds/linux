@@ -1531,6 +1531,13 @@ wl_iw_get_scan(
 		ASSERT(((uintptr)bi + dtoh32(bi->length)) <= ((uintptr)list +
 			buflen));
 
+{
+		int channel;
+		channel = (bi->ctl_ch == 0) ? CHSPEC_CHANNEL(bi->chanspec) : bi->ctl_ch;
+		WL_SCAN(("%s: BSSID="MACSTR", channel=%d, RSSI=%d, merge broadcast SSID=\"%s\"\n",
+		__FUNCTION__, MAC2STR(bi->BSSID.octet), channel, dtoh16(bi->RSSI), bi->SSID));
+}
+
 		/* First entry must be the BSSID */
 		iwe.cmd = SIOCGIWAP;
 		iwe.u.ap_addr.sa_family = ARPHRD_ETHER;
@@ -1655,6 +1662,12 @@ wl_iw_iscan_get_scan(
 		if (event + ETHER_ADDR_LEN + bi->SSID_len + IW_EV_UINT_LEN + IW_EV_FREQ_LEN +
 			IW_EV_QUAL_LEN >= end)
 			return -E2BIG;
+{
+		int channel;
+		channel = (bi->ctl_ch == 0) ? CHSPEC_CHANNEL(bi->chanspec) : bi->ctl_ch;
+		WL_SCAN(("%s: BSSID="MACSTR", channel=%d, RSSI=%d, merge broadcast SSID=\"%s\"\n",
+		__FUNCTION__, MAC2STR(bi->BSSID.octet), channel, dtoh16(bi->RSSI), bi->SSID));
+}
 		/* First entry must be the BSSID */
 		iwe.cmd = SIOCGIWAP;
 		iwe.u.ap_addr.sa_family = ARPHRD_ETHER;
@@ -3469,6 +3482,8 @@ wl_iw_event(struct net_device *dev, wl_event_msg_t *e, void* data)
 		cmd = SIOCGIWSCAN;
 #endif
 		WL_TRACE(("event WLC_E_SCAN_COMPLETE\n"));
+		// terence 20150224: fix "wlan0: (WE) : Wireless Event too big (65306)"
+		memset(&wrqu, 0, sizeof(wrqu));
 		if ((g_iscan) && (g_iscan->sysioc_pid >= 0) &&
 			(g_iscan->iscan_state != ISCAN_STATE_IDLE))
 			up(&g_iscan->sysioc_sem);
@@ -3802,7 +3817,7 @@ wl_iw_attach(struct net_device *dev, void * dhdp)
 {
 	iscan_info_t *iscan = NULL;
 
-	WL_TRACE(("%s: iscan=%p\n", __FUNCTION__, iscan));
+	printk("%s: Enter\n", __FUNCTION__);
 
 	if (!dev)
 		return 0;

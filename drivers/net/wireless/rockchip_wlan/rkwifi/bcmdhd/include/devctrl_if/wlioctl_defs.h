@@ -68,11 +68,10 @@
 
 #define HIGHEST_SINGLE_STREAM_MCS	7 /* MCS values greater than this enable multiple streams */
 
-/* given a proprietary MCS, get number of spatial streams */
-#define GET_PROPRIETARY_11N_MCS_NSS(mcs) (1 + ((mcs) - 85) / 8)
+#define GET_PRO_PRIETARY_11N_MCS_NSS(mcs) (1 + ((mcs) - 85) / 8)
 
 #define GET_11N_MCS_NSS(mcs) ((mcs) < 32 ? (1 + ((mcs) / 8)) \
-				: ((mcs) == 32 ? 1 : GET_PROPRIETARY_11N_MCS_NSS(mcs)))
+				: ((mcs) == 32 ? 1 : GET_PRO_PRIETARY_11N_MCS_NSS(mcs)))
 
 #define MAX_CCA_CHANNELS 38	/* Max number of 20 Mhz wide channels */
 #define MAX_CCA_SECS	60	/* CCA keeps this many seconds history */

@@ -6,7 +6,7 @@
  *
  * $Copyright Open Broadcom Corporation$
  *
- * $Id: bcmmsgbuf.h 490808 2014-07-12 00:33:13Z $
+ * $Id: bcmmsgbuf.h 499474 2014-08-28 21:30:10Z $
  */
 #ifndef _bcmmsgbuf_h_
 #define	_bcmmsgbuf_h_
@@ -479,7 +479,7 @@ typedef struct host_txbuf_post {
 	uint16		metadata_buf_len;
 	/* provided data buffer len to receive data */
 	uint16		data_len;
-	uint32		rsvd;
+	uint32		flag2;
 } host_txbuf_post_t;
 
 #define BCMPCIE_PKT_FLAGS_FRAME_802_3	0x01
@@ -497,6 +497,9 @@ typedef struct host_txbuf_post {
 #define BCMPCIE_TXPOST_FLAGS_FRAME_802_11	BCMPCIE_PKT_FLAGS_FRAME_802_11
 #define BCMPCIE_TXPOST_FLAGS_PRIO_SHIFT		BCMPCIE_PKT_FLAGS_PRIO_SHIFT
 #define BCMPCIE_TXPOST_FLAGS_PRIO_MASK		BCMPCIE_PKT_FLAGS_PRIO_MASK
+
+#define BCMPCIE_PKT_FLAGS2_FORCELOWRATE_MASK	0x01
+#define BCMPCIE_PKT_FLAGS2_FORCELOWRATE_SHIFT	0
 
 /* H2D Txpost ring work items */
 typedef union txbuf_submit_item {

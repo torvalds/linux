@@ -18,13 +18,6 @@ config BCMDHD_NVRAM_PATH
 	---help---
 	  Path to the calibration file.
 
-config BCMDHD_CONFIG_PATH
-	depends on BCMDHD
-	string "Config path"
-	default "/system/etc/firmware/config.txt"
-	---help---
-	  Path to the driver configuration file.
-
 config BCMDHD_WEXT
 	bool "Enable WEXT support"
 	depends on BCMDHD && CFG80211 = n
@@ -34,20 +27,32 @@ config BCMDHD_WEXT
 	  Enables WEXT support
 
 choice
+	prompt "Enable Chip Interface"
 	depends on BCMDHD
+	---help---
+		Enable Chip Interface.
+config BCMDHD_SDIO
+		bool "SDIO bus interface support"
+		depends on BCMDHD && MMC
+config BCMDHD_PCIE
+		bool "PCIe bus interface support"
+		depends on BCMDHD && PCI
+endchoice
+
+choice
+	depends on BCMDHD && BCMDHD_SDIO
 	prompt "Interrupt type"
 	---help---
-	  Interrupt type
+		Interrupt type
 config BCMDHD_OOB
-	depends on BCMDHD
+	depends on BCMDHD && BCMDHD_SDIO
 	bool "Out-of-Band Interrupt"
 	default y
 	---help---
-	  Interrupt from WL_HOST_WAKE.
+		Interrupt from WL_HOST_WAKE.
 config BCMDHD_SDIO_IRQ
-	depends on BCMDHD
+	depends on BCMDHD && BCMDHD_SDIO
 	bool "In-Band Interrupt"
 	---help---
 	  Interrupt from SDIO DAT[1]
 endchoice
-

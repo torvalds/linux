@@ -3,9 +3,10 @@
  *
  * $Copyright Open Broadcom Corporation$
  *
- * $Id: dhd_cfg_vendor.c 487126 2014-06-24 23:06:12Z $
+ * $Id: dhd_cfg_vendor.c 495605 2014-08-07 18:41:34Z $
  */
 
+#include <linux/vmalloc.h>
 #include <linuxver.h>
 #include <net/cfg80211.h>
 #include <net/netlink.h>
@@ -15,6 +16,7 @@
 #include <wl_cfgvendor.h>
 #include <dngl_stats.h>
 #include <dhd.h>
+#include <dhd_dbg.h>
 #include <dhdioctl.h>
 #include <brcm_nl80211.h>
 

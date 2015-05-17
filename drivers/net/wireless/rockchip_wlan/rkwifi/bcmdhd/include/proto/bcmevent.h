@@ -5,7 +5,7 @@
  *
  * Dependencies: proto/bcmeth.h
  *
- * $Id: bcmevent.h 490387 2014-07-10 15:12:52Z $
+ * $Id: bcmevent.h 505096 2014-09-26 12:49:04Z $
  *
  */
 
@@ -383,6 +383,21 @@ typedef struct wl_event_data_rssi {
 #define WLC_E_REASON_RMC_NONE		0
 #define WLC_E_REASON_RMC_AR_LOST		1
 #define WLC_E_REASON_RMC_AR_NO_ACK		2
+
+#ifdef WLTDLS
+/* TDLS Action Category code */
+#define TDLS_AF_CATEGORY		12
+/* Wi-Fi Display (WFD) Vendor Specific Category */
+/* used for WFD Tunneled Probe Request and Response */
+#define TDLS_VENDOR_SPECIFIC					127
+/* TDLS Action Field Values */
+#define TDLS_ACTION_SETUP_REQ					0
+#define TDLS_ACTION_SETUP_RESP					1
+#define TDLS_ACTION_SETUP_CONFIRM				2
+#define TDLS_ACTION_TEARDOWN					3
+#define WLAN_TDLS_SET_PROBE_WFD_IE		 11
+#define WLAN_TDLS_SET_SETUP_WFD_IE		 12
+#endif
 
 
 /* GAS event data */

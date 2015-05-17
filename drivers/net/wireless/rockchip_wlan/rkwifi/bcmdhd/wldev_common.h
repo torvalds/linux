@@ -3,7 +3,7 @@
  *
  * $Copyright Open Broadcom Corporation$
  *
- * $Id: wldev_common.h 467328 2014-04-03 01:23:40Z $
+ * $Id: wldev_common.h 504503 2014-09-24 11:28:56Z $
  */
 #ifndef __WLDEV_COMMON_H__
 #define __WLDEV_COMMON_H__
@@ -96,5 +96,11 @@ int wldev_get_ssid(struct net_device *dev, wlc_ssid_t *pssid);
 int wldev_get_band(struct net_device *dev, uint *pband);
 
 int wldev_set_band(struct net_device *dev, uint band);
+
+#if defined(CUSTOM_PLATFORM_NV_TEGRA)
+int wldev_miracast_tuning(struct net_device *dev, char *command, int total_len);
+int wldev_get_assoc_resp_ie(struct net_device *dev, char *command, int total_len);
+int wldev_get_rx_rate_stats(struct net_device *dev, char *command, int total_len);
+#endif /* defined(CUSTOM_PLATFORM_NV_TEGRA) */
 
 #endif /* __WLDEV_COMMON_H__ */

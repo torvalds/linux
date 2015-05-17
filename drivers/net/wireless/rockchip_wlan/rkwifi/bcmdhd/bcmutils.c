@@ -2,7 +2,7 @@
  * Driver O/S-independent utility routines
  *
  * $Copyright Open Broadcom Corporation$
- * $Id: bcmutils.c 488316 2014-06-30 15:22:21Z $
+ * $Id: bcmutils.c 496061 2014-08-11 06:14:48Z $
  */
 
 #include <bcm_cfg.h>
@@ -2751,6 +2751,45 @@ id16_map_fini(osl_t *osh, void * id16_map_hndl)
 	MFREE(osh, id16_map, ID16_MAP_SZ(total_ids));
 
 	return NULL;
+}
+
+void
+id16_map_clear(void * id16_map_hndl, uint16 total_ids, uint16 start_val16)
+{
+	uint16 idx, val16;
+	id16_map_t * id16_map;
+
+	ASSERT(total_ids > 0);
+	ASSERT((start_val16 + total_ids) < ID16_INVALID);
+
+	id16_map = (id16_map_t *)id16_map_hndl;
+	if (id16_map == NULL) {
+		return;
+	}
+
+	id16_map->total = total_ids;
+	id16_map->start = start_val16;
+	id16_map->failures = 0;
+
+	/* Populate stack with 16bit id values, commencing with start_val16 */
+	id16_map->stack_idx = 0;
+	val16 = start_val16;
+
+	for (idx = 0; idx < total_ids; idx++, val16++) {
+		id16_map->stack_idx = idx;
+		id16_map->stack[id16_map->stack_idx] = val16;
+	}
+
+#if defined(BCM_DBG) && defined(BCM_DBG_ID16)
+	if (id16_map->dbg) {
+		id16_map_dbg_t *id16_map_dbg = (id16_map_dbg_t *)id16_map->dbg;
+
+		id16_map_dbg->total = total_ids;
+		for (idx = 0; idx < total_ids; idx++) {
+			id16_map_dbg->avail[idx] = TRUE;
+		}
+	}
+#endif /* BCM_DBG && BCM_DBG_ID16 */
 }
 
 uint16 BCMFASTPATH /* Allocate a unique 16bit id */

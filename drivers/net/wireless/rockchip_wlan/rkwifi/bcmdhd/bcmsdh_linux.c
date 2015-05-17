@@ -319,10 +319,17 @@ int bcmsdh_oob_intr_register(bcmsdh_info_t *bcmsdh, bcmsdh_cb_fn_t oob_irq_handl
 		SDLX_MSG(("%s: irq is already registered\n", __FUNCTION__));
 		return -EBUSY;
 	}
+#ifdef HW_OOB
+	printf("%s: HW_OOB enabled\n", __FUNCTION__);
+#else
+	printf("%s: SW_OOB enabled\n", __FUNCTION__);
+#endif
 	SDLX_MSG(("%s OOB irq=%d flags=%X\n", __FUNCTION__,
 		(int)bcmsdh_osinfo->oob_irq_num, (int)bcmsdh_osinfo->oob_irq_flags));
 	bcmsdh_osinfo->oob_irq_handler = oob_irq_handler;
 	bcmsdh_osinfo->oob_irq_handler_context = oob_irq_handler_context;
+	bcmsdh_osinfo->oob_irq_enabled = TRUE;
+	bcmsdh_osinfo->oob_irq_registered = TRUE;
 #if defined(CONFIG_ARCH_ODIN)
 	err = odin_gpio_sms_request_irq(bcmsdh_osinfo->oob_irq_num, wlan_oob_irq,
 		bcmsdh_osinfo->oob_irq_flags, "bcmsdh_sdmmc", bcmsdh);
@@ -331,6 +338,8 @@ int bcmsdh_oob_intr_register(bcmsdh_info_t *bcmsdh, bcmsdh_cb_fn_t oob_irq_handl
 		bcmsdh_osinfo->oob_irq_flags, "bcmsdh_sdmmc", bcmsdh);
 #endif /* defined(CONFIG_ARCH_ODIN) */
 	if (err) {
+		bcmsdh_osinfo->oob_irq_enabled = FALSE;
+		bcmsdh_osinfo->oob_irq_registered = FALSE;
 		SDLX_MSG(("%s: request_irq failed with %d\n", __FUNCTION__, err));
 		return err;
 	}
@@ -350,8 +359,6 @@ int bcmsdh_oob_intr_register(bcmsdh_info_t *bcmsdh, bcmsdh_cb_fn_t oob_irq_handl
 	else
 		bcmsdh_osinfo->oob_irq_wake_enabled = TRUE;
 #endif
-	bcmsdh_osinfo->oob_irq_enabled = TRUE;
-	bcmsdh_osinfo->oob_irq_registered = TRUE;
 
 	return 0;
 }

@@ -3,7 +3,7 @@
  *
  * $Copyright Open Broadcom Corporation$
  *
- * $Id: wl_cfg80211.h 491407 2014-07-16 09:23:04Z $
+ * $Id: wl_cfg80211.h 505096 2014-09-26 12:49:04Z $
  */
 
 /**
@@ -49,6 +49,12 @@ struct wl_ibss;
 #define WL_DBG_LEVEL 0xFF
 
 #define CFG80211_ERROR_TEXT		"CFG80211-ERROR) "
+
+#define MAX_WAIT_TIME 1500
+#define DNGL_FUNC(func, parameters) func parameters;
+
+#define PM_BLOCK 1
+#define PM_ENABLE 0
 
 #if defined(DHD_DEBUG)
 #define	WL_ERR(args)									\
@@ -394,6 +400,15 @@ struct escan_info {
 	struct net_device *ndev;
 };
 
+#ifdef ESCAN_BUF_OVERFLOW_MGMT
+#define BUF_OVERFLOW_MGMT_COUNT 3
+typedef struct {
+	int RSSI;
+	int length;
+	struct ether_addr BSSID;
+} removal_element_t;
+#endif /* ESCAN_BUF_OVERFLOW_MGMT */
+
 struct ap_info {
 /* Structure to hold WPS, WPA IEs for a AP */
 	u8   probe_res_ie[VNDR_IES_MAX_BUF_LEN];
@@ -638,8 +653,16 @@ struct bcm_cfg80211 {
 #ifdef WLFBT
 	uint8 fbt_key[FBT_KEYLEN];
 #endif
-	bool roam_offload;
+	int roam_offload;
 	bool nan_running;
+#ifdef P2PLISTEN_AP_SAMECHN
+	bool p2p_resp_apchn_status;
+#endif /* P2PLISTEN_AP_SAMECHN */
+#ifdef WLTDLS
+	u8 *tdls_mgmt_frame;
+	u32 tdls_mgmt_frame_len;
+	s32 tdls_mgmt_freq;
+#endif /* WLTDLS */
 };
 
 
@@ -939,6 +962,9 @@ extern s32 wl_cfg80211_get_p2p_noa(struct net_device *net, char* buf, int len);
 extern s32 wl_cfg80211_set_wps_p2p_ie(struct net_device *net, char *buf, int len,
 	enum wl_management_type type);
 extern s32 wl_cfg80211_set_p2p_ps(struct net_device *net, char* buf, int len);
+#ifdef P2PLISTEN_AP_SAMECHN
+extern s32 wl_cfg80211_set_p2p_resp_ap_chn(struct net_device *net, s32 enable);
+#endif /* P2PLISTEN_AP_SAMECHN */
 
 /* btcoex functions */
 void* wl_cfg80211_btcoex_init(struct net_device *ndev);
@@ -1036,11 +1062,15 @@ struct net_device *wl_cfg80211_get_remain_on_channel_ndev(struct bcm_cfg80211 *c
 #endif /* WL_SUPPORT_ACS */
 
 extern int wl_cfg80211_get_ioctl_version(void);
-extern int wl_cfg80211_enable_roam_offload(struct net_device *dev, bool enable);
+extern int wl_cfg80211_enable_roam_offload(struct net_device *dev, int enable);
 
 #ifdef WL_NAN
 extern int wl_cfg80211_nan_cmd_handler(struct net_device *ndev, char *cmd,
 	int cmd_len);
 #endif /* WL_NAN */
 
-#endif				/* _wl_cfg80211_h_ */
+#ifdef WL_CFG80211_P2P_DEV_IF
+extern void wl_cfg80211_del_p2p_wdev(void);
+#endif /* WL_CFG80211_P2P_DEV_IF */
+
+#endif /* _wl_cfg80211_h_ */

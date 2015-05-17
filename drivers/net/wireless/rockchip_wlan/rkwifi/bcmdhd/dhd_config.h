@@ -11,7 +11,9 @@
 #define FW_PATH_AUTO_SELECT 1
 extern char firmware_path[MOD_PARAM_PATHLEN];
 extern int disable_proptx;
+#ifdef BCMSDIO
 extern uint dhd_doflow;
+#endif
 
 /* mac range */
 typedef struct wl_mac_range {
@@ -72,8 +74,6 @@ typedef struct dhd_conf {
 	uint	chiprev;		/* chip revision */
 	wl_mac_list_ctrl_t fw_by_mac;	/* Firmware auto selection by MAC */
 	wl_mac_list_ctrl_t nv_by_mac;	/* NVRAM auto selection by MAC */
-	char fw_path[MOD_PARAM_PATHLEN];		/* Firmware path */
-	char nv_path[MOD_PARAM_PATHLEN];		/* NVRAM path */
 	uint band;			/* Band, b:2.4G only, otherwise for auto */
 	int mimo_bw_cap;			/* Bandwidth, 0:HT20ALL, 1: HT40ALL, 2:HT20IN2G_HT40PIN5G */
 	wl_country_t cspec;		/* Country */
@@ -96,20 +96,31 @@ typedef struct dhd_conf {
 	int srl;	/* short retry limit */
 	int lrl;	/* long retry limit */
 	uint bcn_timeout;	/* beacon timeout */
-	uint32 bus_txglom;	/* bus:txglom */
-	uint32 ampdu_ba_wsize;
 	bool kso_enable;
 	int spect;
+	int txbf;
+	int lpc;
+	int disable_proptx;
+	uint32 bus_txglom;	/* bus:txglom */
+	int use_rxchain;
+	bool bus_rxglom;	/* bus:rxglom */
+	int txglomsize;
+	uint32 ampdu_ba_wsize;
+	int dpc_cpucore;
+	int frameburst;
+	bool deepsleep;
 } dhd_conf_t;
 
+#ifdef BCMSDIO
+int dhd_conf_get_mac(dhd_pub_t *dhd, bcmsdh_info_t *sdh, uint8 *mac);
 void dhd_conf_set_fw_name_by_mac(dhd_pub_t *dhd, bcmsdh_info_t *sdh, char *fw_path);
 void dhd_conf_set_nv_name_by_mac(dhd_pub_t *dhd, bcmsdh_info_t *sdh, char *nv_path);
-void dhd_conf_set_fw_name_by_chip(dhd_pub_t *dhd, char *fw_path);
 #if defined(HW_OOB)
 void dhd_conf_set_hw_oob_intr(bcmsdh_info_t *sdh, uint chip);
 #endif
-void dhd_conf_set_fw_path(dhd_pub_t *dhd, char *fw_path);
-void dhd_conf_set_nv_path(dhd_pub_t *dhd, char *nv_path);
+#endif
+void dhd_conf_set_fw_name_by_chip(dhd_pub_t *dhd, char *fw_path);
+void dhd_conf_set_conf_path_by_nv_path(dhd_pub_t *dhd, char *conf_path, char *nv_path);
 int dhd_conf_set_band(dhd_pub_t *dhd);
 uint dhd_conf_get_band(dhd_pub_t *dhd);
 int dhd_conf_set_country(dhd_pub_t *dhd);
@@ -128,10 +139,14 @@ bool dhd_conf_del_pkt_filter(dhd_pub_t *dhd, uint32 id);
 void dhd_conf_discard_pkt_filter(dhd_pub_t *dhd);
 void dhd_conf_set_srl(dhd_pub_t *dhd);
 void dhd_conf_set_lrl(dhd_pub_t *dhd);
-void dhd_conf_set_glom(dhd_pub_t *dhd);
+void dhd_conf_set_bus_txglom(dhd_pub_t *dhd);
 void dhd_conf_set_ampdu_ba_wsize(dhd_pub_t *dhd);
 void dhd_conf_set_spect(dhd_pub_t *dhd);
-int dhd_conf_read_config(dhd_pub_t *dhd);
+void dhd_conf_set_txbf(dhd_pub_t *dhd);
+void dhd_conf_set_frameburst(dhd_pub_t *dhd);
+void dhd_conf_set_lpc(dhd_pub_t *dhd);
+void dhd_conf_set_disable_proptx(dhd_pub_t *dhd);
+int dhd_conf_read_config(dhd_pub_t *dhd, char *conf_path);
 int dhd_conf_set_chiprev(dhd_pub_t *dhd, uint chip, uint chiprev);
 uint dhd_conf_get_chip(void *context);
 uint dhd_conf_get_chiprev(void *context);

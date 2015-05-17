@@ -3,7 +3,7 @@
  *
  * $Copyright Open Broadcom Corporation$
  *
- * $Id: bcmutils.h 490808 2014-07-12 00:33:13Z $
+ * $Id: bcmutils.h 504037 2014-09-22 19:03:15Z $
  */
 
 #ifndef	_bcmutils_h_
@@ -651,6 +651,16 @@ typedef struct bcm_bit_desc_ex {
 /* buffer length for ethernet address from bcm_ether_ntoa() */
 #define ETHER_ADDR_STR_LEN	18	/* 18-bytes of Ethernet address buffer length */
 
+static INLINE uint32 /* 32bit word aligned xor-32 */
+bcm_compute_xor32(volatile uint32 *u32, int num_u32)
+{
+	int i;
+	uint32 xor32 = 0;
+	for (i = 0; i < num_u32; i++)
+		xor32 ^= *(u32 + i);
+	return xor32;
+}
+
 /* crypto utility function */
 /* 128-bit xor: *dst = *src1 xor *src2. dst1, src1 and src2 may have any alignment */
 static INLINE void
@@ -944,6 +954,7 @@ extern void bcm_mwbmap_audit(struct bcm_mwbmap * mwbmap_hdl);
  */
 extern void * id16_map_init(osl_t *osh, uint16 total_ids, uint16 start_val16);
 extern void * id16_map_fini(osl_t *osh, void * id16_map_hndl);
+extern void id16_map_clear(void * id16_map_hndl, uint16 total_ids, uint16 start_val16);
 
 /* Allocate a unique 16bit id */
 extern uint16 id16_map_alloc(void * id16_map_hndl);
@@ -1055,7 +1066,7 @@ dll_next_p(dll_t *node_p)
 static INLINE dll_t *
 dll_prev_p(dll_t *node_p)
 {
-	return (node_p)->next_p;
+	return (node_p)->prev_p;
 }
 
 

@@ -6,7 +6,7 @@
  *
  * $Copyright Open Broadcom Corporation$
  *
- * $Id: dhd_bus.h 491657 2014-07-17 06:29:40Z $
+ * $Id: dhd_bus.h 497466 2014-08-19 15:41:01Z $
  */
 
 #ifndef _dhd_bus_h_
@@ -150,7 +150,7 @@ extern void dhd_bus_write_flow_ring_states(struct dhd_bus *bus,
 extern void dhd_bus_read_flow_ring_states(struct dhd_bus *bus,
 	void * data, uint8 flowid);
 extern int dhd_bus_flow_ring_create_request(struct dhd_bus *bus, void *flow_ring_node);
-extern void dhd_bus_clean_flow_ring(struct dhd_bus *bus, uint16 flowid);
+extern void dhd_bus_clean_flow_ring(struct dhd_bus *bus, void *flow_ring_node);
 extern void dhd_bus_flow_ring_create_response(struct dhd_bus *bus, uint16 flow_id, int32 status);
 extern int dhd_bus_flow_ring_delete_request(struct dhd_bus *bus, void *flow_ring_node);
 extern void dhd_bus_flow_ring_delete_response(struct dhd_bus *bus, uint16 flowid, uint32 status);
@@ -167,6 +167,7 @@ extern int dhdpcie_bus_alloc_resource(struct dhd_bus *bus);
 extern void dhdpcie_bus_free_resource(struct dhd_bus *bus);
 extern bool dhdpcie_bus_dongle_attach(struct dhd_bus *bus);
 extern int dhd_bus_release_dongle(struct dhd_bus *bus);
+extern int dhd_bus_request_irq(struct dhd_bus *bus);
 
 
 #endif /* BCMPCIE */

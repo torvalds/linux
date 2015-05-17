@@ -6,7 +6,7 @@
  *
  * $Copyright Open Broadcom Corporation$
  *
- * $Id: wlioctl.h 490639 2014-07-11 08:31:53Z $
+ * $Id: wlioctl.h 504503 2014-09-24 11:28:56Z $
  */
 
 #ifndef _wlioctl_h_
@@ -24,9 +24,6 @@
 #include <bcmwifi_rates.h>
 #include <devctrl_if/wlioctl_defs.h>
 
-#if 0 && (NDISVER >= 0x0600)
-#include <proto/bcmipv6.h>
-#endif
 
 #ifndef LINUX_POSTMOGRIFY_REMOVAL
 #include <bcm_mpool_pub.h>
@@ -2264,6 +2261,25 @@ typedef struct {
 	uint32 bphy_badplcp;
 
 } wl_delta_stats_t;
+
+#if defined(CUSTOM_PLATFORM_NV_TEGRA)
+/* structure to store per-rate rx statistics */
+typedef struct wl_scb_rx_rate_stats {
+	uint32  rx1mbps[2];	/* packets rx at 1Mbps */
+	uint32  rx2mbps[2];	/* packets rx at 2Mbps */
+	uint32  rx5mbps5[2];	/* packets rx at 5.5Mbps */
+	uint32  rx6mbps[2];	/* packets rx at 6Mbps */
+	uint32  rx9mbps[2];	/* packets rx at 9Mbps */
+	uint32  rx11mbps[2];	/* packets rx at 11Mbps */
+	uint32  rx12mbps[2];	/* packets rx at 12Mbps */
+	uint32  rx18mbps[2];	/* packets rx at 18Mbps */
+	uint32  rx24mbps[2];	/* packets rx at 24Mbps */
+	uint32  rx36mbps[2];	/* packets rx at 36Mbps */
+	uint32  rx48mbps[2];	/* packets rx at 48Mbps */
+	uint32  rx54mbps[2];	/* packets rx at 54Mbps */
+} wl_scb_rx_rate_stats_t;
+#endif /* defined(CUSTOM_PLATFORM_NV_TEGRA) */
+
 #endif /* LINUX_POSTMOGRIFY_REMOVAL */
 
 typedef struct {
@@ -2917,6 +2933,20 @@ typedef struct wl_keep_alive_pkt {
  * Dongle pattern matching filter.
  */
 
+/* Packet filter operation mode */
+/* True: 1; False: 0 */
+#define PKT_FILTER_MODE_FORWARD_ON_MATCH		1
+/* Enable and disable pkt_filter as a whole */
+#define PKT_FILTER_MODE_DISABLE					2
+/* Cache first matched rx pkt(be queried by host later) */
+#define PKT_FILTER_MODE_PKT_CACHE_ON_MATCH		4
+/* If pkt_filter is enabled and no filter is set, don't forward anything */
+#define PKT_FILTER_MODE_PKT_FORWARD_OFF_DEFAULT 8
+#if defined(CUSTOM_PLATFORM_NV_TEGRA)
+/* Ports only filter mode */
+#define PKT_FILTER_MODE_PORTS_ONLY				16
+#endif /* defined(CUSTOM_PLATFORM_NV_TEGRA) */
+
 #define MAX_WAKE_PACKET_CACHE_BYTES 128 /* Maximum cached wake packet */
 
 #define MAX_WAKE_PACKET_BYTES	    (DOT11_A3_HDR_LEN +			    \
@@ -3458,6 +3488,13 @@ typedef BWL_PRE_PACKED_STRUCT struct pcie_bus_tput_stats {
 	uint32		count;
 } BWL_POST_PACKED_STRUCT pcie_bus_tput_stats_t;
 
+#define MAX_ROAMOFFL_BSSID_NUM	100
+
+typedef BWL_PRE_PACKED_STRUCT struct roamoffl_bssid_list {
+	int cnt;
+	struct ether_addr bssid[1];
+} BWL_POST_PACKED_STRUCT roamoffl_bssid_list_t;
+
 /* no default structure packing */
 #include <packed_section_end.h>
 
@@ -3663,22 +3700,6 @@ BWL_PRE_PACKED_STRUCT struct hostip_id {
 	uint8 id;
 } BWL_POST_PACKED_STRUCT;
 
-#if 0 && (NDISVER >= 0x0600)
-/* Return values */
-#define ND_REPLY_PEER		0x1	/* Reply was sent to service NS request from peer */
-#define ND_REQ_SINK			0x2	/* Input packet should be discarded */
-#define ND_FORCE_FORWARD	0X3	/* For the dongle to forward req to HOST */
-
-
-/* Neighbor Solicitation Response Offload IOVAR param */
-typedef BWL_PRE_PACKED_STRUCT struct nd_param {
-	struct ipv6_addr	host_ip[2];
-	struct ipv6_addr	solicit_ip;
-	struct ipv6_addr	remote_ip;
-	uint8	host_mac[ETHER_ADDR_LEN];
-	uint32	offload_id;
-} BWL_POST_PACKED_STRUCT nd_param_t;
-#endif 
 
 typedef BWL_PRE_PACKED_STRUCT struct wl_pfn_roam_thresh {
 	uint32 pfn_alert_thresh; /* time in ms */
@@ -5020,6 +5041,8 @@ typedef struct nan_debug_params {
 typedef BWL_PRE_PACKED_STRUCT struct nan_scan_params {
 	uint16 scan_time;
 	uint16 home_time;
+	uint16 ms_intvl; /* interval between merge scan */
+	uint16 ms_dur;  /* duration of merge scan */
 	uint16 chspec_num;
 	chanspec_t chspec_list[NAN_SCAN_MAX_CHCNT]; /* act. used 3, 5 rfu */
 } BWL_POST_PACKED_STRUCT nan_scan_params_t;
@@ -5857,6 +5880,48 @@ typedef struct wl_roam_prof_band {
 	uint16	len;			/* length in bytes of this structure */
 	wl_roam_prof_t roam_prof[WL_MAX_ROAM_PROF_BRACKETS];
 } wl_roam_prof_band_t;
+
+/* Data structures for Interface Create/Remove  */
+
+#define WL_INTERFACE_CREATE_VER	(0)
+
+/*
+ * The flags filed of the wl_interface_create is designed to be
+ * a Bit Mask. As of now only Bit 0 and Bit 1 are used as mentioned below.
+ * The rest of the bits can be used, incase we have to provide
+ * more information to the dongle
+ */
+
+/*
+ * Bit 0 of flags field is used to inform whether the interface requested to
+ * be created is STA or AP.
+ * 0 - Create a STA interface
+ * 1 - Create an AP interface
+ */
+#define WL_INTERFACE_CREATE_STA	(0 << 0)
+#define WL_INTERFACE_CREATE_AP	(1 << 0)
+
+/*
+ * Bit 1 of flags field is used to inform whether MAC is present in the
+ * data structure or not.
+ * 0 - Ignore mac_addr field
+ * 1 - Use the mac_addr field
+ */
+#define WL_INTERFACE_MAC_DONT_USE	(0 << 1)
+#define WL_INTERFACE_MAC_USE		(1 << 1)
+
+typedef struct wl_interface_create {
+	uint16	ver;			/* version of this struct */
+	uint32  flags;			/* flags that defines the operation */
+	struct	ether_addr   mac_addr;	/* Optional Mac address */
+} wl_interface_create_t;
+
+typedef struct wl_interface_info {
+	uint16	ver;			/* version of this struct */
+	struct ether_addr    mac_addr;	/* MAC address of the interface */
+	char	ifname[BCM_MSG_IFNAME_MAX]; /* name of interface */
+	uint8	bsscfgidx;		/* source bsscfg index */
+} wl_interface_info_t;
 
 /* no default structure packing */
 #include <packed_section_end.h>

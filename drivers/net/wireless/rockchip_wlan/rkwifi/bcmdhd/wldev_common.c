@@ -3,7 +3,7 @@
  *
  * $Copyright Open Broadcom Corporation$
  *
- * $Id: wldev_common.c 467328 2014-04-03 01:23:40Z $
+ * $Id: wldev_common.c 504503 2014-09-24 11:28:56Z $
  */
 
 #include <osl.h>

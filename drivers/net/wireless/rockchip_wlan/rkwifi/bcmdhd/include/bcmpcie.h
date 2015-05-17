@@ -4,7 +4,7 @@
  * Explains the shared area between host and dongle
  * $Copyright Open 2005 Broadcom Corporation$
  *
- * $Id: bcmpcie.h 490808 2014-07-12 00:33:13Z $
+ * $Id: bcmpcie.h 497456 2014-08-19 15:06:33Z $
  */
 
 #ifndef	_bcmpcie_h_
@@ -45,6 +45,12 @@ typedef struct {
 #define PCIE_SHARED_TXPUSH_SPRT		0x04000
 #define PCIE_SHARED_EVT_SEQNUM		0x08000
 #define PCIE_SHARED_DMA_INDEX		0x10000
+
+/* D2H M2M DMA Complete Sync mechanism: Modulo-253-SeqNum or XORCSUM */
+#define PCIE_SHARED_D2H_SYNC_SEQNUM		0x20000
+#define PCIE_SHARED_D2H_SYNC_XORCSUM		0x40000
+#define PCIE_SHARED_D2H_SYNC_MODE_MASK \
+	(PCIE_SHARED_D2H_SYNC_SEQNUM | PCIE_SHARED_D2H_SYNC_XORCSUM)
 
 #define BCMPCIE_H2D_MSGRING_CONTROL_SUBMIT		0
 #define BCMPCIE_H2D_MSGRING_RXPOST_SUBMIT		1

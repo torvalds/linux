@@ -4,7 +4,7 @@
  *
  * $Copyright Open Broadcom Corporation$
  *
- * $Id: siutils.c 481602 2014-05-29 22:43:34Z $
+ * $Id: siutils.c 497460 2014-08-19 15:14:13Z $
  */
 
 #include <bcm_cfg.h>
@@ -68,6 +68,7 @@ static bool si_pmu_is_ilp_sensitive(uint32 idx, uint regoff);
 static void si_config_gcigpio(si_t *sih, uint32 gci_pos, uint8 gcigpio,
 	uint8 gpioctl_mask, uint8 gpioctl_val);
 #endif /* BCMLTECOEX */
+
 
 
 /* global variable to indicate reservation/release of gpio's */
@@ -486,6 +487,18 @@ si_doattach(si_info_t *sii, uint devid, osl_t *osh, void *regs,
 		SI_ERROR(("%s: chipcommon register space is null \n", __FUNCTION__));
 		return NULL;
 	}
+#ifdef COSTOMER_HW4
+#ifdef CONFIG_MACH_UNIVERSAL5433
+	/* old revision check */
+	if (!check_rev()) {
+		/* abnormal link status */
+		if (!check_pcie_link_status()) {
+			printk("%s : PCIE LINK is abnormal status\n", __FUNCTION__);
+			return NULL;
+		}
+	}
+#endif /* CONFIG_MACH_UNIVERSAL5433 */
+#endif 
 	w = R_REG(osh, &cc->chipid);
 	if ((w & 0xfffff) == 148277) w -= 65532;
 	sih->socitype = (w & CID_TYPE_MASK) >> CID_TYPE_SHIFT;
