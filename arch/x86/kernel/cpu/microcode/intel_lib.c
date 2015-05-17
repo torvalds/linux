@@ -31,11 +31,18 @@
 #include <asm/processor.h>
 #include <asm/msr.h>
 
-static inline int
-update_match_cpu(unsigned int csig, unsigned int cpf,
-		 unsigned int sig, unsigned int pf)
+static inline bool cpu_signatures_match(unsigned int s1, unsigned int p1,
+					unsigned int s2, unsigned int p2)
 {
-	return (!sigmatch(sig, csig, pf, cpf)) ? 0 : 1;
+	if (s1 != s2)
+		return false;
+
+	/* Processor flags are either both 0 ... */
+	if (!p1 && !p2)
+		return true;
+
+	/* ... or they intersect. */
+	return p1 & p2;
 }
 
 int microcode_sanity_check(void *mc, int print_err)
@@ -132,7 +139,7 @@ int get_matching_sig(unsigned int csig, int cpf, void *mc)
 	int ext_sigcount, i;
 	struct extended_signature *ext_sig;
 
-	if (update_match_cpu(csig, cpf, mc_header->sig, mc_header->pf))
+	if (cpu_signatures_match(csig, cpf, mc_header->sig, mc_header->pf))
 		return 1;
 
 	/* Look for ext. headers: */
@@ -144,7 +151,7 @@ int get_matching_sig(unsigned int csig, int cpf, void *mc)
 	ext_sig = (void *)ext_header + EXT_HEADER_SIZE;
 
 	for (i = 0; i < ext_sigcount; i++) {
-		if (update_match_cpu(csig, cpf, ext_sig->sig, ext_sig->pf))
+		if (cpu_signatures_match(csig, cpf, ext_sig->sig, ext_sig->pf))
 			return 1;
 		ext_sig++;
 	}

@@ -51,9 +51,6 @@ struct extended_sigtable {
 	(((struct microcode_intel *)mc)->hdr.datasize ? \
 	 ((struct microcode_intel *)mc)->hdr.datasize : DEFAULT_UCODE_DATASIZE)
 
-#define sigmatch(s1, s2, p1, p2) \
-	(((s1) == (s2)) && (((p1) & (p2)) || (((p1) == 0) && ((p2) == 0))))
-
 #define exttable_size(et) ((et)->count * EXT_SIGNATURE_SIZE + EXT_HEADER_SIZE)
 
 extern int has_newer_microcode(void *mc, unsigned int csig, int cpf, int rev);
