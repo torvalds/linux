@@ -1765,7 +1765,7 @@ static void brcmnand_print_cfg(char *buf, struct brcmnand_cfg *cfg)
 	else if (cfg->sector_size_1k)
 		sprintf(buf, ", BCH-%u (1KiB sector)", cfg->ecc_level << 1);
 	else
-		sprintf(buf, ", BCH-%u\n", cfg->ecc_level);
+		sprintf(buf, ", BCH-%u", cfg->ecc_level);
 }
 
 /*
