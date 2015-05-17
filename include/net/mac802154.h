@@ -171,7 +171,7 @@ struct ieee802154_hw {
  *	  Returns either zero, or negative errno.
  *
  * set_txpower:
- *	  Set radio transmit power in dB. Called with pib_lock held.
+ *	  Set radio transmit power in mBm. Called with pib_lock held.
  *	  Returns either zero, or negative errno.
  *
  * set_lbt
@@ -213,7 +213,7 @@ struct ieee802154_ops {
 	int		(*set_hw_addr_filt)(struct ieee802154_hw *hw,
 					    struct ieee802154_hw_addr_filt *filt,
 					    unsigned long changed);
-	int		(*set_txpower)(struct ieee802154_hw *hw, s32 dbm);
+	int		(*set_txpower)(struct ieee802154_hw *hw, s32 mbm);
 	int		(*set_lbt)(struct ieee802154_hw *hw, bool on);
 	int		(*set_cca_mode)(struct ieee802154_hw *hw,
 					const struct wpan_phy_cca *cca);

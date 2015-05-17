@@ -117,7 +117,7 @@ static int ieee802154_nl_fill_iface(struct sk_buff *msg, u32 portid,
 		rtnl_unlock();
 
 		if (nla_put_s8(msg, IEEE802154_ATTR_TXPOWER,
-			       params.transmit_power) ||
+			       params.transmit_power / 100) ||
 		    nla_put_u8(msg, IEEE802154_ATTR_LBT_ENABLED, params.lbt) ||
 		    nla_put_u8(msg, IEEE802154_ATTR_CCA_MODE,
 			       params.cca.mode) ||
@@ -510,7 +510,7 @@ int ieee802154_set_macparams(struct sk_buff *skb, struct genl_info *info)
 	ops->get_mac_params(dev, &params);
 
 	if (info->attrs[IEEE802154_ATTR_TXPOWER])
-		params.transmit_power = nla_get_s8(info->attrs[IEEE802154_ATTR_TXPOWER]);
+		params.transmit_power = nla_get_s8(info->attrs[IEEE802154_ATTR_TXPOWER]) * 100;
 
 	if (info->attrs[IEEE802154_ATTR_LBT_ENABLED])
 		params.lbt = nla_get_u8(info->attrs[IEEE802154_ATTR_LBT_ENABLED]);

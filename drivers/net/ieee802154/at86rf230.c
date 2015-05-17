@@ -1194,9 +1194,10 @@ at86rf230_set_hw_addr_filt(struct ieee802154_hw *hw,
 }
 
 static int
-at86rf230_set_txpower(struct ieee802154_hw *hw, s32 db)
+at86rf230_set_txpower(struct ieee802154_hw *hw, s32 mbm)
 {
 	struct at86rf230_local *lp = hw->priv;
+	s8 db = mbm / 100;
 
 	/* typical maximum output is 5dBm with RG_PHY_TX_PWR 0x60, lower five
 	 * bits decrease power in 1dB steps. 0x60 represents extra PA gain of

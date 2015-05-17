@@ -58,7 +58,7 @@ drv_set_channel(struct ieee802154_local *local, u8 page, u8 channel)
 	return local->ops->set_channel(&local->hw, page, channel);
 }
 
-static inline int drv_set_tx_power(struct ieee802154_local *local, s32 dbm)
+static inline int drv_set_tx_power(struct ieee802154_local *local, s32 mbm)
 {
 	might_sleep();
 
@@ -67,7 +67,7 @@ static inline int drv_set_tx_power(struct ieee802154_local *local, s32 dbm)
 		return -EOPNOTSUPP;
 	}
 
-	return local->ops->set_txpower(&local->hw, dbm);
+	return local->ops->set_txpower(&local->hw, mbm);
 }
 
 static inline int drv_set_cca_mode(struct ieee802154_local *local,
