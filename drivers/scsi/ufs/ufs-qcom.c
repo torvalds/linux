@@ -307,6 +307,7 @@ static int ufs_qcom_hce_enable_notify(struct ufs_hba *hba, bool status)
 static unsigned long
 ufs_qcom_cfg_timers(struct ufs_hba *hba, u32 gear, u32 hs, u32 rate)
 {
+	struct ufs_qcom_host *host = hba->priv;
 	struct ufs_clk_info *clki;
 	u32 core_clk_period_in_ns;
 	u32 tx_clk_cycles_per_us = 0;
@@ -329,6 +330,16 @@ ufs_qcom_cfg_timers(struct ufs_hba *hba, u32 gear, u32 hs, u32 rate)
 		{UFS_HS_G1, 0x24},
 		{UFS_HS_G2, 0x49},
 	};
+
+	/*
+	 * The Qunipro controller does not use following registers:
+	 * SYS1CLK_1US_REG, TX_SYMBOL_CLK_1US_REG, CLK_NS_REG &
+	 * UFS_REG_PA_LINK_STARTUP_TIMER
+	 * But UTP controller uses SYS1CLK_1US_REG register for Interrupt
+	 * Aggregation logic.
+	*/
+	if (ufs_qcom_cap_qunipro(host) && !ufshcd_is_intr_aggr_allowed(hba))
+		goto out;
 
 	if (gear == 0) {
 		dev_err(hba->dev, "%s: invalid gear = %d\n", __func__, gear);
@@ -696,8 +707,12 @@ static void ufs_qcom_advertise_quirks(struct ufs_hba *hba)
 {
 	struct ufs_qcom_host *host = hba->priv;
 
-	if (host->hw_ver.major == 0x1)
+	if (host->hw_ver.major == 0x01) {
 		hba->quirks |= UFSHCD_QUIRK_DELAY_BEFORE_DME_CMDS;
+
+		if (host->hw_ver.minor == 0x0001 && host->hw_ver.step == 0x0001)
+			hba->quirks |= UFSHCD_QUIRK_BROKEN_INTR_AGGR;
+	}
 
 	if (host->hw_ver.major >= 0x2) {
 		if (!ufs_qcom_cap_qunipro(host))
