@@ -751,7 +751,7 @@ static struct kvm_memslots *install_new_memslots(struct kvm *kvm,
 	 */
 	slots->generation++;
 
-	kvm_arch_memslots_updated(kvm);
+	kvm_arch_memslots_updated(kvm, slots);
 
 	return old_memslots;
 }
