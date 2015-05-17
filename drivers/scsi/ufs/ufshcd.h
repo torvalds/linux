@@ -426,6 +426,14 @@ struct ufs_hba {
 	 */
 	#define UFSHCD_QUIRK_DELAY_BEFORE_DME_CMDS		UFS_BIT(1)
 
+	/*
+	 * If UFS host controller is having issue in processing LCC (Line
+	 * Control Command) coming from device then enable this quirk.
+	 * When this quirk is enabled, host controller driver should disable
+	 * the LCC transmission on UFS device (by clearing TX_LCC_ENABLE
+	 * attribute of device to 0).
+	 */
+	#define UFSHCD_QUIRK_BROKEN_LCC				UFS_BIT(2)
 
 	unsigned int quirks;	/* Deviations from standard UFSHCI spec. */
 

@@ -2640,6 +2640,42 @@ static int ufshcd_hba_enable(struct ufs_hba *hba)
 	return 0;
 }
 
+static int ufshcd_disable_tx_lcc(struct ufs_hba *hba, bool peer)
+{
+	int tx_lanes, i, err = 0;
+
+	if (!peer)
+		ufshcd_dme_get(hba, UIC_ARG_MIB(PA_CONNECTEDTXDATALANES),
+			       &tx_lanes);
+	else
+		ufshcd_dme_peer_get(hba, UIC_ARG_MIB(PA_CONNECTEDTXDATALANES),
+				    &tx_lanes);
+	for (i = 0; i < tx_lanes; i++) {
+		if (!peer)
+			err = ufshcd_dme_set(hba,
+				UIC_ARG_MIB_SEL(TX_LCC_ENABLE,
+					UIC_ARG_MPHY_TX_GEN_SEL_INDEX(i)),
+					0);
+		else
+			err = ufshcd_dme_peer_set(hba,
+				UIC_ARG_MIB_SEL(TX_LCC_ENABLE,
+					UIC_ARG_MPHY_TX_GEN_SEL_INDEX(i)),
+					0);
+		if (err) {
+			dev_err(hba->dev, "%s: TX LCC Disable failed, peer = %d, lane = %d, err = %d",
+				__func__, peer, i, err);
+			break;
+		}
+	}
+
+	return err;
+}
+
+static inline int ufshcd_disable_device_tx_lcc(struct ufs_hba *hba)
+{
+	return ufshcd_disable_tx_lcc(hba, true);
+}
+
 /**
  * ufshcd_link_startup - Initialize unipro link startup
  * @hba: per adapter instance
@@ -2676,6 +2712,12 @@ static int ufshcd_link_startup(struct ufs_hba *hba)
 	if (ret)
 		/* failed to get the link up... retire */
 		goto out;
+
+	if (hba->quirks & UFSHCD_QUIRK_BROKEN_LCC) {
+		ret = ufshcd_disable_device_tx_lcc(hba);
+		if (ret)
+			goto out;
+	}
 
 	/* Include any host controller configuration via UIC commands */
 	if (hba->vops && hba->vops->link_startup_notify) {
