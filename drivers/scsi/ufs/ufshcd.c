@@ -271,6 +271,11 @@ static inline u32 ufshcd_get_intr_mask(struct ufs_hba *hba)
  */
 static inline u32 ufshcd_get_ufs_version(struct ufs_hba *hba)
 {
+	if (hba->quirks & UFSHCD_QUIRK_BROKEN_UFS_HCI_VERSION) {
+		if (hba->vops && hba->vops->get_ufs_hci_version)
+			return hba->vops->get_ufs_hci_version(hba);
+	}
+
 	return ufshcd_readl(hba, REG_UFS_VERSION);
 }
 
