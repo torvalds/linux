@@ -28,16 +28,18 @@
 #include <net/cfg802154.h>
 
 static int numlbs = 2;
-static DEFINE_RWLOCK(fakelb_lock);
+
 static LIST_HEAD(fakelb_phys);
+static DEFINE_SPINLOCK(fakelb_phys_lock);
+
+static LIST_HEAD(fakelb_ifup_phys);
+static DEFINE_RWLOCK(fakelb_ifup_phys_lock);
 
 struct fakelb_phy {
 	struct ieee802154_hw *hw;
 
 	struct list_head list;
-
-	spinlock_t lock;
-	bool working;
+	struct list_head list_ifup;
 };
 
 static int
@@ -62,13 +64,9 @@ fakelb_hw_deliver(struct fakelb_phy *phy, struct sk_buff *skb)
 {
 	struct sk_buff *newskb;
 
-	spin_lock(&phy->lock);
-	if (phy->working) {
-		newskb = pskb_copy(skb, GFP_ATOMIC);
-		if (newskb)
-			ieee802154_rx_irqsafe(phy->hw, newskb, 0xcc);
-	}
-	spin_unlock(&phy->lock);
+	newskb = pskb_copy(skb, GFP_ATOMIC);
+	if (newskb)
+		ieee802154_rx_irqsafe(phy->hw, newskb, 0xcc);
 }
 
 static int
@@ -77,8 +75,8 @@ fakelb_hw_xmit(struct ieee802154_hw *hw, struct sk_buff *skb)
 	struct fakelb_phy *current_phy = hw->priv;
 	struct fakelb_phy *phy;
 
-	read_lock_bh(&fakelb_lock);
-	list_for_each_entry(phy, &fakelb_phys, list) {
+	read_lock_bh(&fakelb_ifup_phys_lock);
+	list_for_each_entry(phy, &fakelb_ifup_phys, list_ifup) {
 		if (current_phy == phy)
 			continue;
 
@@ -86,7 +84,7 @@ fakelb_hw_xmit(struct ieee802154_hw *hw, struct sk_buff *skb)
 		    current_phy->hw->phy->current_channel)
 			fakelb_hw_deliver(phy, skb);
 	}
-	read_unlock_bh(&fakelb_lock);
+	read_unlock_bh(&fakelb_ifup_phys_lock);
 
 	return 0;
 }
@@ -94,25 +92,21 @@ fakelb_hw_xmit(struct ieee802154_hw *hw, struct sk_buff *skb)
 static int
 fakelb_hw_start(struct ieee802154_hw *hw) {
 	struct fakelb_phy *phy = hw->priv;
-	int ret = 0;
 
-	spin_lock(&phy->lock);
-	if (phy->working)
-		ret = -EBUSY;
-	else
-		phy->working = 1;
-	spin_unlock(&phy->lock);
+	write_lock_bh(&fakelb_ifup_phys_lock);
+	list_add(&phy->list_ifup, &fakelb_ifup_phys);
+	write_unlock_bh(&fakelb_ifup_phys_lock);
 
-	return ret;
+	return 0;
 }
 
 static void
 fakelb_hw_stop(struct ieee802154_hw *hw) {
 	struct fakelb_phy *phy = hw->priv;
 
-	spin_lock(&phy->lock);
-	phy->working = 0;
-	spin_unlock(&phy->lock);
+	write_lock_bh(&fakelb_ifup_phys_lock);
+	list_del(&phy->list_ifup);
+	write_unlock_bh(&fakelb_ifup_phys_lock);
 }
 
 static const struct ieee802154_ops fakelb_ops = {
@@ -172,17 +166,15 @@ static int fakelb_add_one(struct device *dev)
 	/* 950 MHz GFSK 802.15.4d-2009 */
 	hw->phy->supported.channels[6] |= 0x3ffc00;
 
-	spin_lock_init(&phy->lock);
-
 	hw->parent = dev;
 
 	err = ieee802154_register_hw(hw);
 	if (err)
 		goto err_reg;
 
-	write_lock_bh(&fakelb_lock);
+	spin_lock(&fakelb_phys_lock);
 	list_add_tail(&phy->list, &fakelb_phys);
-	write_unlock_bh(&fakelb_lock);
+	spin_unlock(&fakelb_phys_lock);
 
 	return 0;
 
@@ -215,10 +207,10 @@ static int fakelb_probe(struct platform_device *pdev)
 	return 0;
 
 err_slave:
-	write_lock_bh(&fakelb_lock);
+	spin_lock(&fakelb_phys_lock);
 	list_for_each_entry_safe(phy, tmp, &fakelb_phys, list)
 		fakelb_del(phy);
-	write_unlock_bh(&fakelb_lock);
+	spin_unlock(&fakelb_phys_lock);
 	return err;
 }
 
@@ -226,10 +218,10 @@ static int fakelb_remove(struct platform_device *pdev)
 {
 	struct fakelb_phy *phy, *temp;
 
-	write_lock_bh(&fakelb_lock);
+	spin_lock(&fakelb_phys_lock);
 	list_for_each_entry_safe(phy, temp, &fakelb_phys, list)
 		fakelb_del(phy);
-	write_unlock_bh(&fakelb_lock);
+	spin_unlock(&fakelb_phys_lock);
 	return 0;
 }
 
