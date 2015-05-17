@@ -98,10 +98,6 @@ ieee802154_set_cca_mode(struct wpan_phy *wpan_phy,
 	if (wpan_phy_cca_cmp(&wpan_phy->cca, cca))
 		return 0;
 
-	/* check if phy support this setting */
-	if (!(local->hw.flags & IEEE802154_HW_CCA_MODE))
-		return -EOPNOTSUPP;
-
 	ret = drv_set_cca_mode(local, cca);
 	if (!ret)
 		wpan_phy->cca = *cca;
@@ -127,16 +123,11 @@ ieee802154_set_backoff_exponent(struct wpan_phy *wpan_phy,
 				struct wpan_dev *wpan_dev,
 				u8 min_be, u8 max_be)
 {
-	struct ieee802154_local *local = wpan_phy_priv(wpan_phy);
-
 	ASSERT_RTNL();
 
 	if (wpan_dev->min_be == min_be &&
 	    wpan_dev->max_be == max_be)
 		return 0;
-
-	if (!(local->hw.flags & IEEE802154_HW_CSMA_PARAMS))
-		return -EOPNOTSUPP;
 
 	wpan_dev->min_be = min_be;
 	wpan_dev->max_be = max_be;
@@ -161,15 +152,10 @@ ieee802154_set_max_csma_backoffs(struct wpan_phy *wpan_phy,
 				 struct wpan_dev *wpan_dev,
 				 u8 max_csma_backoffs)
 {
-	struct ieee802154_local *local = wpan_phy_priv(wpan_phy);
-
 	ASSERT_RTNL();
 
 	if (wpan_dev->csma_retries == max_csma_backoffs)
 		return 0;
-
-	if (!(local->hw.flags & IEEE802154_HW_CSMA_PARAMS))
-		return -EOPNOTSUPP;
 
 	wpan_dev->csma_retries = max_csma_backoffs;
 	return 0;
@@ -180,15 +166,10 @@ ieee802154_set_max_frame_retries(struct wpan_phy *wpan_phy,
 				 struct wpan_dev *wpan_dev,
 				 s8 max_frame_retries)
 {
-	struct ieee802154_local *local = wpan_phy_priv(wpan_phy);
-
 	ASSERT_RTNL();
 
 	if (wpan_dev->frame_retries == max_frame_retries)
 		return 0;
-
-	if (!(local->hw.flags & IEEE802154_HW_FRAME_RETRIES))
-		return -EOPNOTSUPP;
 
 	wpan_dev->frame_retries = max_frame_retries;
 	return 0;
@@ -198,15 +179,10 @@ static int
 ieee802154_set_lbt_mode(struct wpan_phy *wpan_phy, struct wpan_dev *wpan_dev,
 			bool mode)
 {
-	struct ieee802154_local *local = wpan_phy_priv(wpan_phy);
-
 	ASSERT_RTNL();
 
 	if (wpan_dev->lbt == mode)
 		return 0;
-
-	if (!(local->hw.flags & IEEE802154_HW_LBT))
-		return -EOPNOTSUPP;
 
 	wpan_dev->lbt = mode;
 	return 0;
