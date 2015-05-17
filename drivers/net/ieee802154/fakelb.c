@@ -28,6 +28,7 @@
 #include <net/cfg802154.h>
 
 static int numlbs = 2;
+static DEFINE_RWLOCK(fakelb_lock);
 
 struct fakelb_phy {
 	struct ieee802154_hw *hw;
@@ -41,7 +42,6 @@ struct fakelb_phy {
 
 struct fakelb_priv {
 	struct list_head list;
-	rwlock_t lock;
 };
 
 static int
@@ -79,10 +79,9 @@ static int
 fakelb_hw_xmit(struct ieee802154_hw *hw, struct sk_buff *skb)
 {
 	struct fakelb_phy *current_phy = hw->priv;
-	struct fakelb_priv *fake = current_phy->fake;
 	struct fakelb_phy *phy;
 
-	read_lock_bh(&fake->lock);
+	read_lock_bh(&fakelb_lock);
 	list_for_each_entry(phy, &current_phy->fake->list, list) {
 		if (current_phy == phy)
 			continue;
@@ -91,7 +90,7 @@ fakelb_hw_xmit(struct ieee802154_hw *hw, struct sk_buff *skb)
 		    current_phy->hw->phy->current_channel)
 			fakelb_hw_deliver(phy, skb);
 	}
-	read_unlock_bh(&fake->lock);
+	read_unlock_bh(&fakelb_lock);
 
 	return 0;
 }
@@ -188,9 +187,9 @@ static int fakelb_add_one(struct device *dev, struct fakelb_priv *fake)
 	if (err)
 		goto err_reg;
 
-	write_lock_bh(&fake->lock);
+	write_lock_bh(&fakelb_lock);
 	list_add_tail(&phy->list, &fake->list);
-	write_unlock_bh(&fake->lock);
+	write_unlock_bh(&fakelb_lock);
 
 	return 0;
 
@@ -201,9 +200,9 @@ err_reg:
 
 static void fakelb_del(struct fakelb_phy *phy)
 {
-	write_lock_bh(&phy->fake->lock);
+	write_lock_bh(&fakelb_lock);
 	list_del(&phy->list);
-	write_unlock_bh(&phy->fake->lock);
+	write_unlock_bh(&fakelb_lock);
 
 	ieee802154_unregister_hw(phy->hw);
 	ieee802154_free_hw(phy->hw);
@@ -222,7 +221,6 @@ static int fakelb_probe(struct platform_device *pdev)
 		goto err_alloc;
 
 	INIT_LIST_HEAD(&priv->list);
-	rwlock_init(&priv->lock);
 
 	for (i = 0; i < numlbs; i++) {
 		err = fakelb_add_one(&pdev->dev, priv);
