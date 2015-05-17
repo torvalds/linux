@@ -193,9 +193,7 @@ err_reg:
 
 static void fakelb_del(struct fakelb_phy *phy)
 {
-	write_lock_bh(&fakelb_lock);
 	list_del(&phy->list);
-	write_unlock_bh(&fakelb_lock);
 
 	ieee802154_unregister_hw(phy->hw);
 	ieee802154_free_hw(phy->hw);
@@ -217,8 +215,10 @@ static int fakelb_probe(struct platform_device *pdev)
 	return 0;
 
 err_slave:
+	write_lock_bh(&fakelb_lock);
 	list_for_each_entry_safe(phy, tmp, &fakelb_phys, list)
 		fakelb_del(phy);
+	write_unlock_bh(&fakelb_lock);
 	return err;
 }
 
@@ -226,9 +226,10 @@ static int fakelb_remove(struct platform_device *pdev)
 {
 	struct fakelb_phy *phy, *temp;
 
+	write_lock_bh(&fakelb_lock);
 	list_for_each_entry_safe(phy, temp, &fakelb_phys, list)
 		fakelb_del(phy);
-
+	write_unlock_bh(&fakelb_lock);
 	return 0;
 }
 
