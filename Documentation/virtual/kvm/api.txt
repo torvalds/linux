@@ -254,6 +254,11 @@ since the last call to this ioctl.  Bit 0 is the first page in the
 memory slot.  Ensure the entire structure is cleared to avoid padding
 issues.
 
+If KVM_CAP_MULTI_ADDRESS_SPACE is available, bits 16-31 specifies
+the address space for which you want to return the dirty bitmap.
+They must be less than the value that KVM_CHECK_EXTENSION returns for
+the KVM_CAP_MULTI_ADDRESS_SPACE capability.
+
 
 4.9 KVM_SET_MEMORY_ALIAS
 
@@ -923,6 +928,13 @@ This ioctl allows the user to create or modify a guest physical memory
 slot.  When changing an existing slot, it may be moved in the guest
 physical memory space, or its flags may be modified.  It may not be
 resized.  Slots may not overlap in guest physical address space.
+
+If KVM_CAP_MULTI_ADDRESS_SPACE is available, bits 16-31 of "slot"
+specifies the address space which is being modified.  They must be
+less than the value that KVM_CHECK_EXTENSION returns for the
+KVM_CAP_MULTI_ADDRESS_SPACE capability.  Slots in separate address spaces
+are unrelated; the restriction on overlapping slots only applies within
+each address space.
 
 Memory for the region is taken starting at the address denoted by the
 field userspace_addr, which must point at user addressable memory for

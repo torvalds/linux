@@ -44,6 +44,10 @@
 /* Two fragments for cross MMIO pages. */
 #define KVM_MAX_MMIO_FRAGMENTS	2
 
+#ifndef KVM_ADDRESS_SPACE_NUM
+#define KVM_ADDRESS_SPACE_NUM	1
+#endif
+
 /*
  * For the normal pfn, the highest 12 bits should be zero,
  * so we can mask bit 62 ~ bit 52  to indicate the error pfn,
@@ -331,6 +335,13 @@ struct kvm_kernel_irq_routing_entry {
 #define KVM_MEM_SLOTS_NUM (KVM_USER_MEM_SLOTS + KVM_PRIVATE_MEM_SLOTS)
 #endif
 
+#ifndef __KVM_VCPU_MULTIPLE_ADDRESS_SPACE
+static inline int kvm_arch_vcpu_memslots_id(struct kvm_vcpu *vcpu)
+{
+	return 0;
+}
+#endif
+
 /*
  * Note:
  * memslots are not sorted by id anymore, please use id_to_memslot()
@@ -349,7 +360,7 @@ struct kvm {
 	spinlock_t mmu_lock;
 	struct mutex slots_lock;
 	struct mm_struct *mm; /* userspace tied to this vm */
-	struct kvm_memslots *memslots;
+	struct kvm_memslots *memslots[KVM_ADDRESS_SPACE_NUM];
 	struct srcu_struct srcu;
 	struct srcu_struct irq_srcu;
 #ifdef CONFIG_KVM_APIC_ARCHITECTURE
@@ -464,16 +475,23 @@ void kvm_exit(void);
 void kvm_get_kvm(struct kvm *kvm);
 void kvm_put_kvm(struct kvm *kvm);
 
-static inline struct kvm_memslots *kvm_memslots(struct kvm *kvm)
+static inline struct kvm_memslots *__kvm_memslots(struct kvm *kvm, int as_id)
 {
-	return rcu_dereference_check(kvm->memslots,
+	return rcu_dereference_check(kvm->memslots[as_id],
 			srcu_read_lock_held(&kvm->srcu)
 			|| lockdep_is_held(&kvm->slots_lock));
 }
 
+static inline struct kvm_memslots *kvm_memslots(struct kvm *kvm)
+{
+	return __kvm_memslots(kvm, 0);
+}
+
 static inline struct kvm_memslots *kvm_vcpu_memslots(struct kvm_vcpu *vcpu)
 {
-	return kvm_memslots(vcpu->kvm);
+	int as_id = kvm_arch_vcpu_memslots_id(vcpu);
+
+	return __kvm_memslots(vcpu->kvm, as_id);
 }
 
 static inline struct kvm_memory_slot *

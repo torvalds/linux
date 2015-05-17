@@ -518,9 +518,11 @@ static struct kvm *kvm_create_vm(unsigned long type)
 	BUILD_BUG_ON(KVM_MEM_SLOTS_NUM > SHRT_MAX);
 
 	r = -ENOMEM;
-	kvm->memslots = kvm_alloc_memslots();
-	if (!kvm->memslots)
-		goto out_err_no_srcu;
+	for (i = 0; i < KVM_ADDRESS_SPACE_NUM; i++) {
+		kvm->memslots[i] = kvm_alloc_memslots();
+		if (!kvm->memslots[i])
+			goto out_err_no_srcu;
+	}
 
 	if (init_srcu_struct(&kvm->srcu))
 		goto out_err_no_srcu;
@@ -562,7 +564,8 @@ out_err_no_srcu:
 out_err_no_disable:
 	for (i = 0; i < KVM_NR_BUSES; i++)
 		kfree(kvm->buses[i]);
-	kvm_free_memslots(kvm, kvm->memslots);
+	for (i = 0; i < KVM_ADDRESS_SPACE_NUM; i++)
+		kvm_free_memslots(kvm, kvm->memslots[i]);
 	kvm_arch_free_vm(kvm);
 	return ERR_PTR(r);
 }
@@ -612,7 +615,8 @@ static void kvm_destroy_vm(struct kvm *kvm)
 #endif
 	kvm_arch_destroy_vm(kvm);
 	kvm_destroy_devices(kvm);
-	kvm_free_memslots(kvm, kvm->memslots);
+	for (i = 0; i < KVM_ADDRESS_SPACE_NUM; i++)
+		kvm_free_memslots(kvm, kvm->memslots[i]);
 	cleanup_srcu_struct(&kvm->irq_srcu);
 	cleanup_srcu_struct(&kvm->srcu);
 	kvm_arch_free_vm(kvm);
@@ -729,9 +733,9 @@ static int check_memory_region_flags(const struct kvm_userspace_memory_region *m
 }
 
 static struct kvm_memslots *install_new_memslots(struct kvm *kvm,
-		struct kvm_memslots *slots)
+		int as_id, struct kvm_memslots *slots)
 {
-	struct kvm_memslots *old_memslots = kvm_memslots(kvm);
+	struct kvm_memslots *old_memslots = __kvm_memslots(kvm, as_id);
 
 	/*
 	 * Set the low bit in the generation, which disables SPTE caching
@@ -740,7 +744,7 @@ static struct kvm_memslots *install_new_memslots(struct kvm *kvm,
 	WARN_ON(old_memslots->generation & 1);
 	slots->generation = old_memslots->generation + 1;
 
-	rcu_assign_pointer(kvm->memslots, slots);
+	rcu_assign_pointer(kvm->memslots[as_id], slots);
 	synchronize_srcu_expedited(&kvm->srcu);
 
 	/*
@@ -772,6 +776,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	struct kvm_memory_slot *slot;
 	struct kvm_memory_slot old, new;
 	struct kvm_memslots *slots = NULL, *old_memslots;
+	int as_id, id;
 	enum kvm_mr_change change;
 
 	r = check_memory_region_flags(mem);
@@ -779,24 +784,27 @@ int __kvm_set_memory_region(struct kvm *kvm,
 		goto out;
 
 	r = -EINVAL;
+	as_id = mem->slot >> 16;
+	id = (u16)mem->slot;
+
 	/* General sanity checks */
 	if (mem->memory_size & (PAGE_SIZE - 1))
 		goto out;
 	if (mem->guest_phys_addr & (PAGE_SIZE - 1))
 		goto out;
 	/* We can read the guest memory with __xxx_user() later on. */
-	if ((mem->slot < KVM_USER_MEM_SLOTS) &&
+	if ((id < KVM_USER_MEM_SLOTS) &&
 	    ((mem->userspace_addr & (PAGE_SIZE - 1)) ||
 	     !access_ok(VERIFY_WRITE,
 			(void __user *)(unsigned long)mem->userspace_addr,
 			mem->memory_size)))
 		goto out;
-	if (mem->slot >= KVM_MEM_SLOTS_NUM)
+	if (as_id >= KVM_ADDRESS_SPACE_NUM || id >= KVM_MEM_SLOTS_NUM)
 		goto out;
 	if (mem->guest_phys_addr + mem->memory_size < mem->guest_phys_addr)
 		goto out;
 
-	slot = id_to_memslot(kvm_memslots(kvm), mem->slot);
+	slot = id_to_memslot(__kvm_memslots(kvm, as_id), id);
 	base_gfn = mem->guest_phys_addr >> PAGE_SHIFT;
 	npages = mem->memory_size >> PAGE_SHIFT;
 
@@ -805,7 +813,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 
 	new = old = *slot;
 
-	new.id = mem->slot;
+	new.id = id;
 	new.base_gfn = base_gfn;
 	new.npages = npages;
 	new.flags = mem->flags;
@@ -840,9 +848,9 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	if ((change == KVM_MR_CREATE) || (change == KVM_MR_MOVE)) {
 		/* Check for overlaps */
 		r = -EEXIST;
-		kvm_for_each_memslot(slot, kvm_memslots(kvm)) {
+		kvm_for_each_memslot(slot, __kvm_memslots(kvm, as_id)) {
 			if ((slot->id >= KVM_USER_MEM_SLOTS) ||
-			    (slot->id == mem->slot))
+			    (slot->id == id))
 				continue;
 			if (!((base_gfn + npages <= slot->base_gfn) ||
 			      (base_gfn >= slot->base_gfn + slot->npages)))
@@ -871,13 +879,13 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	slots = kvm_kvzalloc(sizeof(struct kvm_memslots));
 	if (!slots)
 		goto out_free;
-	memcpy(slots, kvm_memslots(kvm), sizeof(struct kvm_memslots));
+	memcpy(slots, __kvm_memslots(kvm, as_id), sizeof(struct kvm_memslots));
 
 	if ((change == KVM_MR_DELETE) || (change == KVM_MR_MOVE)) {
-		slot = id_to_memslot(slots, mem->slot);
+		slot = id_to_memslot(slots, id);
 		slot->flags |= KVM_MEMSLOT_INVALID;
 
-		old_memslots = install_new_memslots(kvm, slots);
+		old_memslots = install_new_memslots(kvm, as_id, slots);
 
 		/* slot was deleted or moved, clear iommu mapping */
 		kvm_iommu_unmap_pages(kvm, &old);
@@ -909,7 +917,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	}
 
 	update_memslots(slots, &new);
-	old_memslots = install_new_memslots(kvm, slots);
+	old_memslots = install_new_memslots(kvm, as_id, slots);
 
 	kvm_arch_commit_memory_region(kvm, mem, &old, &new, change);
 
@@ -956,7 +964,7 @@ EXPORT_SYMBOL_GPL(kvm_set_memory_region);
 static int kvm_vm_ioctl_set_memory_region(struct kvm *kvm,
 					  struct kvm_userspace_memory_region *mem)
 {
-	if (mem->slot >= KVM_USER_MEM_SLOTS)
+	if ((u16)mem->slot >= KVM_USER_MEM_SLOTS)
 		return -EINVAL;
 
 	return kvm_set_memory_region(kvm, mem);
@@ -967,16 +975,18 @@ int kvm_get_dirty_log(struct kvm *kvm,
 {
 	struct kvm_memslots *slots;
 	struct kvm_memory_slot *memslot;
-	int r, i;
+	int r, i, as_id, id;
 	unsigned long n;
 	unsigned long any = 0;
 
 	r = -EINVAL;
-	if (log->slot >= KVM_USER_MEM_SLOTS)
+	as_id = log->slot >> 16;
+	id = (u16)log->slot;
+	if (as_id >= KVM_ADDRESS_SPACE_NUM || id >= KVM_USER_MEM_SLOTS)
 		goto out;
 
-	slots = kvm_memslots(kvm);
-	memslot = id_to_memslot(slots, log->slot);
+	slots = __kvm_memslots(kvm, as_id);
+	memslot = id_to_memslot(slots, id);
 	r = -ENOENT;
 	if (!memslot->dirty_bitmap)
 		goto out;
@@ -1027,17 +1037,19 @@ int kvm_get_dirty_log_protect(struct kvm *kvm,
 {
 	struct kvm_memslots *slots;
 	struct kvm_memory_slot *memslot;
-	int r, i;
+	int r, i, as_id, id;
 	unsigned long n;
 	unsigned long *dirty_bitmap;
 	unsigned long *dirty_bitmap_buffer;
 
 	r = -EINVAL;
-	if (log->slot >= KVM_USER_MEM_SLOTS)
+	as_id = log->slot >> 16;
+	id = (u16)log->slot;
+	if (as_id >= KVM_ADDRESS_SPACE_NUM || id >= KVM_USER_MEM_SLOTS)
 		goto out;
 
-	slots = kvm_memslots(kvm);
-	memslot = id_to_memslot(slots, log->slot);
+	slots = __kvm_memslots(kvm, as_id);
+	memslot = id_to_memslot(slots, id);
 
 	dirty_bitmap = memslot->dirty_bitmap;
 	r = -ENOENT;
@@ -2619,6 +2631,10 @@ static long kvm_vm_ioctl_check_extension_generic(struct kvm *kvm, long arg)
 #ifdef CONFIG_HAVE_KVM_IRQ_ROUTING
 	case KVM_CAP_IRQ_ROUTING:
 		return KVM_MAX_IRQ_ROUTES;
+#endif
+#if KVM_ADDRESS_SPACE_NUM > 1
+	case KVM_CAP_MULTI_ADDRESS_SPACE:
+		return KVM_ADDRESS_SPACE_NUM;
 #endif
 	default:
 		break;
