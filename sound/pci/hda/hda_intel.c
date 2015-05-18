@@ -64,6 +64,9 @@
 #include "hda_controller.h"
 #include "hda_intel.h"
 
+#define CREATE_TRACE_POINTS
+#include "hda_intel_trace.h"
+
 /* position fix mode */
 enum {
 	POS_FIX_AUTO,
@@ -831,6 +834,8 @@ static int azx_suspend(struct device *dev)
 	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL
 		&& hda->need_i915_power)
 		hda_display_power(hda, false);
+
+	trace_azx_suspend(chip);
 	return 0;
 }
 
@@ -864,6 +869,8 @@ static int azx_resume(struct device *dev)
 	hda_intel_init_chip(chip, true);
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
+
+	trace_azx_resume(chip);
 	return 0;
 }
 #endif /* CONFIG_PM_SLEEP || SUPPORT_VGA_SWITCHEROO */
@@ -897,6 +904,7 @@ static int azx_runtime_suspend(struct device *dev)
 		&& hda->need_i915_power)
 		hda_display_power(hda, false);
 
+	trace_azx_runtime_suspend(chip);
 	return 0;
 }
 
@@ -945,6 +953,7 @@ static int azx_runtime_resume(struct device *dev)
 	azx_writew(chip, WAKEEN, azx_readw(chip, WAKEEN) &
 			~STATESTS_INT_MASK);
 
+	trace_azx_runtime_resume(chip);
 	return 0;
 }
 

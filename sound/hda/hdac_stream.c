@@ -10,6 +10,7 @@
 #include <sound/pcm.h>
 #include <sound/hdaudio.h>
 #include <sound/hda_register.h>
+#include "trace.h"
 
 /**
  * snd_hdac_stream_init - initialize each stream (aka device)
@@ -48,6 +49,8 @@ void snd_hdac_stream_start(struct hdac_stream *azx_dev, bool fresh_start)
 {
 	struct hdac_bus *bus = azx_dev->bus;
 
+	trace_snd_hdac_stream_start(bus, azx_dev);
+
 	azx_dev->start_wallclk = snd_hdac_chip_readl(bus, WALLCLK);
 	if (!fresh_start)
 		azx_dev->start_wallclk -= azx_dev->period_wallclk;
@@ -82,6 +85,8 @@ EXPORT_SYMBOL_GPL(snd_hdac_stream_clear);
  */
 void snd_hdac_stream_stop(struct hdac_stream *azx_dev)
 {
+	trace_snd_hdac_stream_stop(azx_dev->bus, azx_dev);
+
 	snd_hdac_stream_clear(azx_dev);
 	/* disable SIE */
 	snd_hdac_chip_updatel(azx_dev->bus, INTCTL, 1 << azx_dev->index, 0);
