@@ -208,6 +208,12 @@ extern u16 total_len;
     }
 */
 
+/*CFG for GT911*/
+u8 gtp_dat_gt11[] = {
+/* <1200, 1920>*/
+#include "WGJ89006B_GT911_Config_20140625_085816_0X43.cfg" 
+};
+
 //WGJ10187_GT9271_Config_20140623_104014_0X41.cfg
 #define CTP_CFG_GROUP1 {\
     0x41,0x80,0x07,0xB0,0x04,0x0A,0x05,0x00,0x01,0x08,0x28,0x0F,0x50,0x32,0x03, \

@@ -410,6 +410,7 @@ static void gtp_touch_down(struct goodix_ts_data* ts,s32 id,s32 x,s32 y,s32 w)
         GTP_SWAP(x, y);
     }
 
+#ifndef CONFIG_GT911
     if(mGtp_X_Reverse){
         x = ts->abs_x_max - x;
     }
@@ -417,6 +418,7 @@ static void gtp_touch_down(struct goodix_ts_data* ts,s32 id,s32 x,s32 y,s32 w)
     if(mGtp_Y_Reverse){
         y = ts->abs_y_max - y;
     }
+#endif
 
 #if GTP_ICS_SLOT_REPORT
     input_mt_slot(ts->input_dev, id);
@@ -1347,6 +1349,7 @@ static s32 gtp_get_info(struct goodix_ts_data *ts)
     
     //ts->abs_x_max = GTP_MAX_WIDTH;
     //ts->abs_y_max = GTP_MAX_HEIGHT;
+
     ts->int_trigger_type = GTP_INT_TRIGGER;
         
     opr_buf[0] = (u8)((GTP_REG_CONFIG_DATA+1) >> 8);
@@ -1395,7 +1398,7 @@ static s32 gtp_init_panel(struct goodix_ts_data *ts)
     u8 check_sum = 0;
     u8 opr_buf[16] = {0};
     u8 sensor_id = 0; 
-    
+
     u8 cfg_info_group2[] = CTP_CFG_GROUP2;
     u8 cfg_info_group3[] = CTP_CFG_GROUP3;
     u8 cfg_info_group4[] = CTP_CFG_GROUP4;
@@ -1411,12 +1414,17 @@ static s32 gtp_init_panel(struct goodix_ts_data *ts)
                               CFG_GROUP_LEN(cfg_info_group6)};;
     
     GTP_INFO("  <%s>_%d \n", __func__, __LINE__);
-    
+   
     if(m89or101){
         send_cfg_buf[0] = gtp_dat_8_9;
         cfg_info_len[0] =  CFG_GROUP_LEN(gtp_dat_8_9);
     }
-    
+
+#ifdef CONFIG_GT911
+	send_cfg_buf[0] = gtp_dat_gt11;
+	cfg_info_len[0] =  CFG_GROUP_LEN(gtp_dat_gt11);
+#endif
+
     GTP_DEBUG_FUNC();
     GTP_DEBUG("Config Groups\' Lengths: %d, %d, %d, %d, %d, %d", 
         cfg_info_len[0], cfg_info_len[1], cfg_info_len[2], cfg_info_len[3],
@@ -2561,6 +2569,7 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
     	dev_err(&client->dev, "no max-x defined\n");
     	return -EINVAL;
     }
+
     if(val == 89){
         m89or101 = TRUE;
         mGtpChange_X2Y = TRUE;
@@ -2572,6 +2581,7 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
         mGtp_X_Reverse = TRUE;
         mGtp_Y_Reverse = FALSE;
     }
+
     ts->irq_pin = of_get_named_gpio_flags(np, "touch-gpio", 0, (enum of_gpio_flags *)(&ts->irq_flags));
     ts->rst_pin = of_get_named_gpio_flags(np, "reset-gpio", 0, &rst_flags);
     ts->pwr_pin = of_get_named_gpio_flags(np, "power-gpio", 0, &pwr_flags);
@@ -3081,7 +3091,6 @@ static void goodix_ts_exit(void)
         destroy_workqueue(goodix_wq);
     }
 }
-
 //late_initcall(goodix_ts_init);
 module_init(goodix_ts_init);
 
