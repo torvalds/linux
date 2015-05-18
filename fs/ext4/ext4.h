@@ -2059,6 +2059,7 @@ int ext4_get_policy(struct inode *inode,
 		    struct ext4_encryption_policy *policy);
 
 /* crypto.c */
+extern struct kmem_cache *ext4_crypt_info_cachep;
 bool ext4_valid_contents_enc_mode(uint32_t mode);
 uint32_t ext4_validate_encryption_key_size(uint32_t mode, uint32_t size);
 extern struct workqueue_struct *ext4_read_workqueue;

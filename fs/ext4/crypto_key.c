@@ -96,7 +96,7 @@ void ext4_free_encryption_info(struct inode *inode)
 		key_put(ci->ci_keyring_key);
 	crypto_free_ablkcipher(ci->ci_ctfm);
 	memzero_explicit(&ci->ci_raw, sizeof(ci->ci_raw));
-	kfree(ci);
+	kmem_cache_free(ext4_crypt_info_cachep, ci);
 	ei->i_crypt_info = NULL;
 }
 
@@ -112,6 +112,12 @@ int _ext4_get_encryption_info(struct inode *inode)
 	struct user_key_payload *ukp;
 	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 	int res;
+
+	if (!ext4_read_workqueue) {
+		res = ext4_init_crypto();
+		if (res)
+			return res;
+	}
 
 	if (ei->i_crypt_info) {
 		if (!ei->i_crypt_info->ci_keyring_key ||
@@ -134,7 +140,7 @@ int _ext4_get_encryption_info(struct inode *inode)
 		return -EINVAL;
 	res = 0;
 
-	crypt_info = kmalloc(sizeof(struct ext4_crypt_info), GFP_KERNEL);
+	crypt_info = kmem_cache_alloc(ext4_crypt_info_cachep, GFP_KERNEL);
 	if (!crypt_info)
 		return -ENOMEM;
 
@@ -188,7 +194,7 @@ out:
 	if (res < 0) {
 		if (res == -ENOKEY)
 			res = 0;
-		kfree(crypt_info);
+		kmem_cache_free(ext4_crypt_info_cachep, crypt_info);
 	} else {
 		ei->i_crypt_info = crypt_info;
 		crypt_info->ci_keyring_key = keyring_key;
