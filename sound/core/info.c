@@ -738,13 +738,12 @@ EXPORT_SYMBOL(snd_info_create_card_entry);
 
 static void snd_info_disconnect(struct snd_info_entry *entry)
 {
-	struct snd_info_entry *p, *n;
+	struct snd_info_entry *p;
 
 	if (!entry->p)
 		return;
-	list_for_each_entry_safe(p, n, &entry->children, list)
+	list_for_each_entry(p, &entry->children, list)
 		snd_info_disconnect(p);
-	list_del_init(&entry->list);
 	proc_remove(entry->p);
 	entry->p = NULL;
 }
@@ -771,6 +770,7 @@ void snd_info_free_entry(struct snd_info_entry * entry)
 	list_for_each_entry_safe(p, n, &entry->children, list)
 		snd_info_free_entry(p);
 
+	list_del(&entry->list);
 	kfree(entry->name);
 	if (entry->private_free)
 		entry->private_free(entry);
