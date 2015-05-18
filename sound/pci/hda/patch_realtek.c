@@ -4504,6 +4504,7 @@ enum {
 	ALC288_FIXUP_DELL_HEADSET_MODE,
 	ALC288_FIXUP_DELL1_MIC_NO_PRESENCE,
 	ALC288_FIXUP_DELL_XPS_13_GPIO6,
+	ALC298_FIXUP_DELL1_MIC_NO_PRESENCE,
 };
 
 static const struct hda_fixup alc269_fixups[] = {
@@ -5026,6 +5027,16 @@ static const struct hda_fixup alc269_fixups[] = {
 		.chained = true,
 		.chain_id = ALC288_FIXUP_DELL1_MIC_NO_PRESENCE
 	},
+	[ALC298_FIXUP_DELL1_MIC_NO_PRESENCE] = {
+		.type = HDA_FIXUP_PINS,
+		.v.pins = (const struct hda_pintbl[]) {
+			{ 0x18, 0x01a1913c }, /* use as headset mic, without its own jack detect */
+			{ 0x1a, 0x01a1913d }, /* use as headphone mic, without its own jack detect */
+			{ }
+		},
+		.chained = true,
+		.chain_id = ALC269_FIXUP_HEADSET_MODE
+	},
 };
 
 static const struct snd_pci_quirk alc269_fixup_tbl[] = {
@@ -5288,6 +5299,13 @@ static const struct hda_model_fixup alc269_fixup_models[] = {
 	{0x1b, 0x411111f0}, \
 	{0x1d, 0x40700001}, \
 	{0x1e, 0x411111f0}
+
+#define ALC298_STANDARD_PINS \
+	{0x18, 0x411111f0}, \
+	{0x19, 0x411111f0}, \
+	{0x1a, 0x411111f0}, \
+	{0x1e, 0x411111f0}, \
+	{0x1f, 0x411111f0}
 
 static const struct snd_hda_pin_quirk alc269_pin_fixup_tbl[] = {
 	SND_HDA_PIN_QUIRK(0x10ec0255, 0x1028, "Dell", ALC255_FIXUP_DELL2_MIC_NO_PRESENCE,
@@ -5554,6 +5572,14 @@ static const struct snd_hda_pin_quirk alc269_pin_fixup_tbl[] = {
 		{0x16, 0x411111f0},
 		{0x18, 0x411111f0},
 		{0x19, 0x411111f0}),
+	SND_HDA_PIN_QUIRK(0x10ec0298, 0x1028, "Dell", ALC298_FIXUP_DELL1_MIC_NO_PRESENCE,
+		ALC298_STANDARD_PINS,
+		{0x12, 0x90a60130},
+		{0x13, 0x40000000},
+		{0x14, 0x411111f0},
+		{0x17, 0x90170140},
+		{0x1d, 0x4068a36d},
+		{0x21, 0x03211020}),
 	{}
 };
 
