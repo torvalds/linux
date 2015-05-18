@@ -472,13 +472,8 @@ int rdma_addr_find_dmac_by_grh(union ib_gid *sgid, union ib_gid *dgid, u8 *dmac,
 	} sgid_addr, dgid_addr;
 
 
-	ret = rdma_gid2ip(&sgid_addr._sockaddr, sgid);
-	if (ret)
-		return ret;
-
-	ret = rdma_gid2ip(&dgid_addr._sockaddr, dgid);
-	if (ret)
-		return ret;
+	rdma_gid2ip(&sgid_addr._sockaddr, sgid);
+	rdma_gid2ip(&dgid_addr._sockaddr, dgid);
 
 	memset(&dev_addr, 0, sizeof(dev_addr));
 
@@ -512,10 +507,8 @@ int rdma_addr_find_smac_by_sgid(union ib_gid *sgid, u8 *smac, u16 *vlan_id)
 		struct sockaddr_in6 _sockaddr_in6;
 	} gid_addr;
 
-	ret = rdma_gid2ip(&gid_addr._sockaddr, sgid);
+	rdma_gid2ip(&gid_addr._sockaddr, sgid);
 
-	if (ret)
-		return ret;
 	memset(&dev_addr, 0, sizeof(dev_addr));
 	ret = rdma_translate_ip(&gid_addr._sockaddr, &dev_addr, vlan_id);
 	if (ret)

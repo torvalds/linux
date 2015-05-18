@@ -110,6 +110,7 @@ int ext4_generate_encryption_key(struct inode *inode)
 	}
 	res = 0;
 
+	ei->i_crypt_policy_flags = ctx.flags;
 	if (S_ISREG(inode->i_mode))
 		crypt_key->mode = ctx.contents_encryption_mode;
 	else if (S_ISDIR(inode->i_mode) || S_ISLNK(inode->i_mode))

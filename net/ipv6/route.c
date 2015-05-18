@@ -2245,9 +2245,10 @@ int ip6_route_get_saddr(struct net *net,
 			unsigned int prefs,
 			struct in6_addr *saddr)
 {
-	struct inet6_dev *idev = ip6_dst_idev((struct dst_entry *)rt);
+	struct inet6_dev *idev =
+		rt ? ip6_dst_idev((struct dst_entry *)rt) : NULL;
 	int err = 0;
-	if (rt->rt6i_prefsrc.plen)
+	if (rt && rt->rt6i_prefsrc.plen)
 		*saddr = rt->rt6i_prefsrc.addr;
 	else
 		err = ipv6_dev_get_saddr(net, idev ? idev->dev : NULL,

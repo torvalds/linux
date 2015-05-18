@@ -585,7 +585,7 @@
 		mainpll: mainpll {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
-			clock-frequency = <2000000000>;
+			clock-frequency = <1000000000>;
 		};
 
 		/* 25 MHz reference crystal */
