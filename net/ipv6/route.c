@@ -2541,11 +2541,14 @@ beginning:
 			}
 		}
 		/* Because each route is added like a single route we remove
-		 * this flag after the first nexthop (if there is a collision,
-		 * we have already fail to add the first nexthop:
-		 * fib6_add_rt2node() has reject it).
+		 * these flags after the first nexthop: if there is a collision,
+		 * we have already failed to add the first nexthop:
+		 * fib6_add_rt2node() has rejected it; when replacing, old
+		 * nexthops have been replaced by first new, the rest should
+		 * be added to it.
 		 */
-		cfg->fc_nlinfo.nlh->nlmsg_flags &= ~NLM_F_EXCL;
+		cfg->fc_nlinfo.nlh->nlmsg_flags &= ~(NLM_F_EXCL |
+						     NLM_F_REPLACE);
 		rtnh = rtnh_next(rtnh, &remaining);
 	}
 
