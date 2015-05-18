@@ -23,6 +23,8 @@
 
 #include <video/sa1100fb.h>
 
+#include <soc/sa1100/pwer.h>
+
 #include <asm/div64.h>
 #include <asm/mach/map.h>
 #include <asm/mach/flash.h>
@@ -416,3 +418,25 @@ void sa1110_mb_enable(void)
 	local_irq_restore(flags);
 }
 
+int sa11x0_gpio_set_wake(unsigned int gpio, unsigned int on)
+{
+	if (on)
+		PWER |= BIT(gpio);
+	else
+		PWER &= ~BIT(gpio);
+
+	return 0;
+}
+
+int sa11x0_sc_set_wake(unsigned int irq, unsigned int on)
+{
+	if (BIT(irq) != IC_RTCAlrm)
+		return -EINVAL;
+
+	if (on)
+		PWER |= PWER_RTC;
+	else
+		PWER &= ~PWER_RTC;
+
+	return 0;
+}
