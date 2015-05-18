@@ -10,7 +10,6 @@
 
 #include <linux/init.h>
 #include <asm/mach_desc.h>
-#include <plat/smp.h>
 
 /*----------------------- Machine Descriptions ------------------------------
  *
@@ -28,10 +27,6 @@ static const char *legacy_fpga_compat[] __initconst = {
 
 MACHINE_START(LEGACY_FPGA, "legacy_fpga")
 	.dt_compat	= legacy_fpga_compat,
-#ifdef CONFIG_ISS_SMP_EXTN
-	.init_early	= iss_model_init_early_smp,
-	.init_smp	= iss_model_init_smp,
-#endif
 MACHINE_END
 
 static const char *simulation_compat[] __initconst = {
