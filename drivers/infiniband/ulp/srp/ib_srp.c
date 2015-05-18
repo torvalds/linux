@@ -465,14 +465,13 @@ static struct srp_fr_pool *srp_alloc_fr_pool(struct srp_target_port *target)
  */
 static void srp_destroy_qp(struct srp_rdma_ch *ch)
 {
-	struct srp_target_port *target = ch->target;
 	static struct ib_qp_attr attr = { .qp_state = IB_QPS_ERR };
 	static struct ib_recv_wr wr = { .wr_id = SRP_LAST_WR_ID };
 	struct ib_recv_wr *bad_wr;
 	int ret;
 
 	/* Destroying a QP and reusing ch->done is only safe if not connected */
-	WARN_ON_ONCE(target->connected);
+	WARN_ON_ONCE(ch->connected);
 
 	ret = ib_modify_qp(ch->qp, &attr, IB_QP_STATE);
 	WARN_ONCE(ret, "ib_cm_init_qp_attr() returned %d\n", ret);
@@ -811,35 +810,19 @@ static bool srp_queue_remove_work(struct srp_target_port *target)
 	return changed;
 }
 
-static bool srp_change_conn_state(struct srp_target_port *target,
-				  bool connected)
-{
-	bool changed = false;
-
-	spin_lock_irq(&target->lock);
-	if (target->connected != connected) {
-		target->connected = connected;
-		changed = true;
-	}
-	spin_unlock_irq(&target->lock);
-
-	return changed;
-}
-
 static void srp_disconnect_target(struct srp_target_port *target)
 {
 	struct srp_rdma_ch *ch;
 	int i;
 
-	if (srp_change_conn_state(target, false)) {
-		/* XXX should send SRP_I_LOGOUT request */
+	/* XXX should send SRP_I_LOGOUT request */
 
-		for (i = 0; i < target->ch_count; i++) {
-			ch = &target->ch[i];
-			if (ch->cm_id && ib_send_cm_dreq(ch->cm_id, NULL, 0)) {
-				shost_printk(KERN_DEBUG, target->scsi_host,
-					     PFX "Sending CM DREQ failed\n");
-			}
+	for (i = 0; i < target->ch_count; i++) {
+		ch = &target->ch[i];
+		ch->connected = false;
+		if (ch->cm_id && ib_send_cm_dreq(ch->cm_id, NULL, 0)) {
+			shost_printk(KERN_DEBUG, target->scsi_host,
+				     PFX "Sending CM DREQ failed\n");
 		}
 	}
 }
@@ -986,12 +969,26 @@ static void srp_rport_delete(struct srp_rport *rport)
 	srp_queue_remove_work(target);
 }
 
+/**
+ * srp_connected_ch() - number of connected channels
+ * @target: SRP target port.
+ */
+static int srp_connected_ch(struct srp_target_port *target)
+{
+	int i, c = 0;
+
+	for (i = 0; i < target->ch_count; i++)
+		c += target->ch[i].connected;
+
+	return c;
+}
+
 static int srp_connect_ch(struct srp_rdma_ch *ch, bool multich)
 {
 	struct srp_target_port *target = ch->target;
 	int ret;
 
-	WARN_ON_ONCE(!multich && target->connected);
+	WARN_ON_ONCE(!multich && srp_connected_ch(target) > 0);
 
 	ret = srp_lookup_path(ch);
 	if (ret)
@@ -1014,7 +1011,7 @@ static int srp_connect_ch(struct srp_rdma_ch *ch, bool multich)
 		 */
 		switch (ch->status) {
 		case 0:
-			srp_change_conn_state(target, true);
+			ch->connected = true;
 			return 0;
 
 		case SRP_PORT_REDIRECT:
@@ -1930,7 +1927,7 @@ static void srp_handle_qp_err(u64 wr_id, enum ib_wc_status wc_status,
 		return;
 	}
 
-	if (target->connected && !target->qp_in_error) {
+	if (ch->connected && !target->qp_in_error) {
 		if (wr_id & LOCAL_INV_WR_ID_MASK) {
 			shost_printk(KERN_ERR, target->scsi_host, PFX
 				     "LOCAL_INV failed with status %d\n",
@@ -2368,7 +2365,7 @@ static int srp_cm_handler(struct ib_cm_id *cm_id, struct ib_cm_event *event)
 	case IB_CM_DREQ_RECEIVED:
 		shost_printk(KERN_WARNING, target->scsi_host,
 			     PFX "DREQ received - connection closed\n");
-		srp_change_conn_state(target, false);
+		ch->connected = false;
 		if (ib_send_cm_drep(cm_id, NULL, 0))
 			shost_printk(KERN_ERR, target->scsi_host,
 				     PFX "Sending CM DREP failed\n");
@@ -2424,7 +2421,7 @@ static int srp_send_tsk_mgmt(struct srp_rdma_ch *ch, u64 req_tag,
 	struct srp_iu *iu;
 	struct srp_tsk_mgmt *tsk_mgmt;
 
-	if (!target->connected || target->qp_in_error)
+	if (!ch->connected || target->qp_in_error)
 		return -1;
 
 	init_completion(&ch->tsk_mgmt_done);
@@ -2798,7 +2795,8 @@ static int srp_add_target(struct srp_host *host, struct srp_target_port *target)
 	scsi_scan_target(&target->scsi_host->shost_gendev,
 			 0, target->scsi_id, SCAN_WILD_CARD, 0);
 
-	if (!target->connected || target->qp_in_error) {
+	if (srp_connected_ch(target) < target->ch_count ||
+	    target->qp_in_error) {
 		shost_printk(KERN_INFO, target->scsi_host,
 			     PFX "SCSI scan failed - removing SCSI host\n");
 		srp_queue_remove_work(target);
