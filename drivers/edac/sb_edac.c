@@ -1242,9 +1242,9 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 			bits = GET_BITFIELD(addr, 7, 8) << 1;
 			bits |= GET_BITFIELD(addr, 9, 9);
 		} else
-			bits = GET_BITFIELD(addr, 7, 9);
+			bits = GET_BITFIELD(addr, 6, 8);
 
-		if (interleave_mode) {
+		if (interleave_mode == 0) {
 			/* interleave mode will XOR {8,7,6} with {18,17,16} */
 			idx = GET_BITFIELD(addr, 16, 18);
 			idx ^= bits;
