@@ -412,6 +412,8 @@ enum ib_event_type {
 	IB_EVENT_GID_CHANGE,
 };
 
+__attribute_const__ const char *ib_event_msg(enum ib_event_type event);
+
 struct ib_event {
 	struct ib_device	*device;
 	union {
@@ -662,6 +664,8 @@ enum ib_wc_status {
 	IB_WC_RESP_TIMEOUT_ERR,
 	IB_WC_GENERAL_ERR
 };
+
+__attribute_const__ const char *ib_wc_status_msg(enum ib_wc_status status);
 
 enum ib_wc_opcode {
 	IB_WC_SEND,

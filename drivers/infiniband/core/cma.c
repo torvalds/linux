@@ -65,6 +65,34 @@ MODULE_LICENSE("Dual BSD/GPL");
 #define CMA_CM_MRA_SETTING (IB_CM_MRA_FLAG_DELAY | 24)
 #define CMA_IBOE_PACKET_LIFETIME 18
 
+static const char * const cma_events[] = {
+	[RDMA_CM_EVENT_ADDR_RESOLVED]	 = "address resolved",
+	[RDMA_CM_EVENT_ADDR_ERROR]	 = "address error",
+	[RDMA_CM_EVENT_ROUTE_RESOLVED]	 = "route resolved ",
+	[RDMA_CM_EVENT_ROUTE_ERROR]	 = "route error",
+	[RDMA_CM_EVENT_CONNECT_REQUEST]	 = "connect request",
+	[RDMA_CM_EVENT_CONNECT_RESPONSE] = "connect response",
+	[RDMA_CM_EVENT_CONNECT_ERROR]	 = "connect error",
+	[RDMA_CM_EVENT_UNREACHABLE]	 = "unreachable",
+	[RDMA_CM_EVENT_REJECTED]	 = "rejected",
+	[RDMA_CM_EVENT_ESTABLISHED]	 = "established",
+	[RDMA_CM_EVENT_DISCONNECTED]	 = "disconnected",
+	[RDMA_CM_EVENT_DEVICE_REMOVAL]	 = "device removal",
+	[RDMA_CM_EVENT_MULTICAST_JOIN]	 = "multicast join",
+	[RDMA_CM_EVENT_MULTICAST_ERROR]	 = "multicast error",
+	[RDMA_CM_EVENT_ADDR_CHANGE]	 = "address change",
+	[RDMA_CM_EVENT_TIMEWAIT_EXIT]	 = "timewait exit",
+};
+
+const char *rdma_event_msg(enum rdma_cm_event_type event)
+{
+	size_t index = event;
+
+	return (index < ARRAY_SIZE(cma_events) && cma_events[index]) ?
+			cma_events[index] : "unrecognized event";
+}
+EXPORT_SYMBOL(rdma_event_msg);
+
 static void cma_add_one(struct ib_device *device);
 static void cma_remove_one(struct ib_device *device);
 

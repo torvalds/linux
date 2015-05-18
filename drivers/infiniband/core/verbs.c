@@ -48,6 +48,71 @@
 
 #include "core_priv.h"
 
+static const char * const ib_events[] = {
+	[IB_EVENT_CQ_ERR]		= "CQ error",
+	[IB_EVENT_QP_FATAL]		= "QP fatal error",
+	[IB_EVENT_QP_REQ_ERR]		= "QP request error",
+	[IB_EVENT_QP_ACCESS_ERR]	= "QP access error",
+	[IB_EVENT_COMM_EST]		= "communication established",
+	[IB_EVENT_SQ_DRAINED]		= "send queue drained",
+	[IB_EVENT_PATH_MIG]		= "path migration successful",
+	[IB_EVENT_PATH_MIG_ERR]		= "path migration error",
+	[IB_EVENT_DEVICE_FATAL]		= "device fatal error",
+	[IB_EVENT_PORT_ACTIVE]		= "port active",
+	[IB_EVENT_PORT_ERR]		= "port error",
+	[IB_EVENT_LID_CHANGE]		= "LID change",
+	[IB_EVENT_PKEY_CHANGE]		= "P_key change",
+	[IB_EVENT_SM_CHANGE]		= "SM change",
+	[IB_EVENT_SRQ_ERR]		= "SRQ error",
+	[IB_EVENT_SRQ_LIMIT_REACHED]	= "SRQ limit reached",
+	[IB_EVENT_QP_LAST_WQE_REACHED]	= "last WQE reached",
+	[IB_EVENT_CLIENT_REREGISTER]	= "client reregister",
+	[IB_EVENT_GID_CHANGE]		= "GID changed",
+};
+
+const char *ib_event_msg(enum ib_event_type event)
+{
+	size_t index = event;
+
+	return (index < ARRAY_SIZE(ib_events) && ib_events[index]) ?
+			ib_events[index] : "unrecognized event";
+}
+EXPORT_SYMBOL(ib_event_msg);
+
+static const char * const wc_statuses[] = {
+	[IB_WC_SUCCESS]			= "success",
+	[IB_WC_LOC_LEN_ERR]		= "local length error",
+	[IB_WC_LOC_QP_OP_ERR]		= "local QP operation error",
+	[IB_WC_LOC_EEC_OP_ERR]		= "local EE context operation error",
+	[IB_WC_LOC_PROT_ERR]		= "local protection error",
+	[IB_WC_WR_FLUSH_ERR]		= "WR flushed",
+	[IB_WC_MW_BIND_ERR]		= "memory management operation error",
+	[IB_WC_BAD_RESP_ERR]		= "bad response error",
+	[IB_WC_LOC_ACCESS_ERR]		= "local access error",
+	[IB_WC_REM_INV_REQ_ERR]		= "invalid request error",
+	[IB_WC_REM_ACCESS_ERR]		= "remote access error",
+	[IB_WC_REM_OP_ERR]		= "remote operation error",
+	[IB_WC_RETRY_EXC_ERR]		= "transport retry counter exceeded",
+	[IB_WC_RNR_RETRY_EXC_ERR]	= "RNR retry counter exceeded",
+	[IB_WC_LOC_RDD_VIOL_ERR]	= "local RDD violation error",
+	[IB_WC_REM_INV_RD_REQ_ERR]	= "remote invalid RD request",
+	[IB_WC_REM_ABORT_ERR]		= "operation aborted",
+	[IB_WC_INV_EECN_ERR]		= "invalid EE context number",
+	[IB_WC_INV_EEC_STATE_ERR]	= "invalid EE context state",
+	[IB_WC_FATAL_ERR]		= "fatal error",
+	[IB_WC_RESP_TIMEOUT_ERR]	= "response timeout error",
+	[IB_WC_GENERAL_ERR]		= "general error",
+};
+
+const char *ib_wc_status_msg(enum ib_wc_status status)
+{
+	size_t index = status;
+
+	return (index < ARRAY_SIZE(wc_statuses) && wc_statuses[index]) ?
+			wc_statuses[index] : "unrecognized status";
+}
+EXPORT_SYMBOL(ib_wc_status_msg);
+
 __attribute_const__ int ib_rate_to_mult(enum ib_rate rate)
 {
 	switch (rate) {
