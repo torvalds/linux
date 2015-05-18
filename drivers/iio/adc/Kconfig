@@ -135,6 +135,13 @@ config AXP288_ADC
 	  device. Depending on platform configuration, this general purpose ADC can
 	  be used for sampling sensors such as thermal resistors.
 
+config BERLIN2_ADC
+	tristate "Marvell Berlin2 ADC driver"
+	depends on ARCH_BERLIN
+	help
+	  Marvell Berlin2 ADC driver. This ADC has 8 channels, with one used for
+	  temperature measurement.
+
 config DA9150_GPADC
 	tristate "Dialog DA9150 GPADC driver support"
 	depends on MFD_DA9150
