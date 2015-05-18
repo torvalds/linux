@@ -77,5 +77,14 @@ config CPUQUIET_DEFAULT_GOV_RUNNABLE
 
 endchoice
 
+config ROCKCHIP_CPUQUIET
+	bool "CPUQuiet driver for Rockchip CPUs"
+	depends on ARCH_ROCKCHIP
+	default y
+	help
+	  This enables the CPUQuiet driver for Rockchip CPUs.
+
+	  If in doubt, say N.
+
 endif
 endmenu
