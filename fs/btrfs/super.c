@@ -1167,8 +1167,9 @@ static char *setup_root_args(char *args)
 	return buf;
 }
 
-static struct dentry *mount_subvol(const char *subvol_name, int flags,
-				   const char *device_name, char *data)
+static struct dentry *mount_subvol(const char *subvol_name, u64 subvol_objectid,
+				   int flags, const char *device_name,
+				   char *data)
 {
 	struct dentry *root;
 	struct vfsmount *mnt = NULL;
@@ -1214,12 +1215,27 @@ static struct dentry *mount_subvol(const char *subvol_name, int flags,
 	/* mount_subtree() drops our reference on the vfsmount. */
 	mnt = NULL;
 
-	if (!IS_ERR(root) && !is_subvolume_inode(d_inode(root))) {
+	if (!IS_ERR(root)) {
 		struct super_block *s = root->d_sb;
-		dput(root);
-		root = ERR_PTR(-EINVAL);
-		deactivate_locked_super(s);
-		pr_err("BTRFS: '%s' is not a valid subvolume\n", subvol_name);
+		struct inode *root_inode = d_inode(root);
+		u64 root_objectid = BTRFS_I(root_inode)->root->root_key.objectid;
+
+		ret = 0;
+		if (!is_subvolume_inode(root_inode)) {
+			pr_err("BTRFS: '%s' is not a valid subvolume\n",
+			       subvol_name);
+			ret = -EINVAL;
+		}
+		if (subvol_objectid && root_objectid != subvol_objectid) {
+			pr_err("BTRFS: subvol '%s' does not match subvolid %llu\n",
+			       subvol_name, subvol_objectid);
+			ret = -EINVAL;
+		}
+		if (ret) {
+			dput(root);
+			root = ERR_PTR(ret);
+			deactivate_locked_super(s);
+		}
 	}
 
 out:
@@ -1312,7 +1328,8 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 
 	if (subvol_name) {
 		/* mount_subvol() will free subvol_name. */
-		return mount_subvol(subvol_name, flags, device_name, data);
+		return mount_subvol(subvol_name, subvol_objectid, flags,
+				    device_name, data);
 	}
 
 	security_init_mnt_opts(&new_sec_opts);
