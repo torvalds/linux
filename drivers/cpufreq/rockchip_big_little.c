@@ -28,6 +28,10 @@
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
 #include <linux/string.h>
+#ifdef CONFIG_ROCKCHIP_CPUQUIET
+#include <linux/cpuquiet.h>
+#include <linux/pm_qos.h>
+#endif
 #include <linux/rockchip/cpu.h>
 #include <linux/rockchip/dvfs.h>
 #include <asm/smp_plat.h>
@@ -78,6 +82,12 @@ static struct dvfs_node *clk_cpu_dvfs_node[MAX_CLUSTERS];
 static struct dvfs_node *clk_gpu_dvfs_node;
 static struct dvfs_node *clk_ddr_dvfs_node;
 static struct cpumask *cluster_policy_mask[MAX_CLUSTERS];
+
+#ifdef CONFIG_ROCKCHIP_CPUQUIET
+static void rockchip_bl_balanced_cpufreq_transition(unsigned int cluster,
+						    unsigned int cpu_freq);
+static struct cpuquiet_governor rockchip_bl_balanced_governor;
+#endif
 
 /*******************************************************/
 static inline int cpu_to_cluster(int cpu)
@@ -198,6 +208,11 @@ static int rockchip_bl_cpufreq_scale_rate_for_dvfs(struct clk *clk,
 	ret = clk_set_rate(clk, rate);
 
 	freqs.new = clk_get_rate(clk) / 1000;
+
+#ifdef CONFIG_ROCKCHIP_CPUQUIET
+	rockchip_bl_balanced_cpufreq_transition(cur_cluster, freqs.new);
+#endif
+
 	/* notifiers */
 	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 
@@ -527,6 +542,10 @@ static int __init rockchip_bl_cpufreq_probe(struct platform_device *pdev)
 
 	ret = cpufreq_register_driver(&rockchip_bl_cpufreq_driver);
 
+#ifdef CONFIG_ROCKCHIP_CPUQUIET
+	ret = cpuquiet_register_governor(&rockchip_bl_balanced_governor);
+#endif
+
 	return ret;
 }
 
@@ -550,3 +569,696 @@ module_platform_driver_probe(rockchip_bl_cpufreq_platdrv,
 
 MODULE_AUTHOR("Xiao Feng <xf@rock-chips.com>");
 MODULE_LICENSE("GPL");
+
+#ifdef CONFIG_ROCKCHIP_CPUQUIET
+extern struct cpumask hmp_slow_cpu_mask;
+
+enum cpu_speed_balance {
+	CPU_SPEED_BALANCED,
+	CPU_SPEED_BIASED,
+	CPU_SPEED_SKEWED,
+	CPU_SPEED_BOOST,
+};
+
+enum balanced_state {
+	IDLE,
+	DOWN,
+	UP,
+};
+
+struct idle_info {
+	u64 idle_last_us;
+	u64 idle_current_us;
+};
+
+static u64 idleinfo_timestamp_us;
+static u64 idleinfo_last_timestamp_us;
+static DEFINE_PER_CPU(struct idle_info, idleinfo);
+static DEFINE_PER_CPU(unsigned int, cpu_load);
+
+static struct timer_list load_timer;
+static bool load_timer_active;
+
+/* configurable parameters */
+static unsigned int  balance_level = 60;
+static unsigned int  idle_bottom_freq[MAX_CLUSTERS];
+static unsigned int  idle_top_freq[MAX_CLUSTERS];
+static unsigned int  cpu_freq[MAX_CLUSTERS];
+static unsigned long up_delay_jiffies;
+static unsigned long down_delay_jiffies;
+static unsigned long last_change_time_jiffies;
+static unsigned int  load_sample_rate_jiffies = 20 / (MSEC_PER_SEC / HZ);
+static unsigned int  little_high_load = 80;
+static unsigned int  little_low_load = 20;
+static unsigned int  big_low_load = 20;
+static struct workqueue_struct *rockchip_bl_balanced_wq;
+static struct delayed_work rockchip_bl_balanced_work;
+static enum balanced_state rockchip_bl_balanced_state;
+static struct kobject *rockchip_bl_balanced_kobj;
+static DEFINE_MUTEX(rockchip_bl_balanced_lock);
+static bool rockchip_bl_balanced_enable;
+
+#define GOVERNOR_NAME "bl_balanced"
+
+static u64 get_idle_us(int cpu)
+{
+	return get_cpu_idle_time(cpu, NULL, 1 /* io_busy */);
+}
+
+static void calculate_load_timer(unsigned long data)
+{
+	int i;
+	u64 elapsed_time;
+
+	if (!load_timer_active)
+		return;
+
+	idleinfo_last_timestamp_us = idleinfo_timestamp_us;
+	idleinfo_timestamp_us = ktime_to_us(ktime_get());
+	elapsed_time = idleinfo_timestamp_us - idleinfo_last_timestamp_us;
+
+	for_each_present_cpu(i) {
+		struct idle_info *iinfo = &per_cpu(idleinfo, i);
+		unsigned int *load = &per_cpu(cpu_load, i);
+		u64 idle_time;
+
+		iinfo->idle_last_us = iinfo->idle_current_us;
+		iinfo->idle_current_us = get_idle_us(i);
+
+		idle_time = iinfo->idle_current_us - iinfo->idle_last_us;
+		idle_time *= 100;
+		do_div(idle_time, elapsed_time);
+		if (idle_time > 100)
+			idle_time = 100;
+		*load = 100 - idle_time;
+	}
+	mod_timer(&load_timer, jiffies + load_sample_rate_jiffies);
+}
+
+static void start_load_timer(void)
+{
+	int i;
+
+	if (load_timer_active)
+		return;
+
+	idleinfo_timestamp_us = ktime_to_us(ktime_get());
+	for_each_present_cpu(i) {
+		struct idle_info *iinfo = &per_cpu(idleinfo, i);
+
+		iinfo->idle_current_us = get_idle_us(i);
+	}
+	mod_timer(&load_timer, jiffies + load_sample_rate_jiffies);
+
+	load_timer_active = true;
+}
+
+static void stop_load_timer(void)
+{
+	if (!load_timer_active)
+		return;
+
+	load_timer_active = false;
+	del_timer(&load_timer);
+}
+
+static unsigned int get_slowest_cpu(void)
+{
+	unsigned int cpu = nr_cpu_ids;
+	unsigned long minload = ULONG_MAX;
+	int i;
+
+	for_each_online_cpu(i) {
+		unsigned int load = per_cpu(cpu_load, i);
+
+		if ((i > 0) && (minload >= load)) {
+			cpu = i;
+			minload = load;
+		}
+	}
+
+	return cpu;
+}
+
+static unsigned int get_offline_big_cpu(void)
+{
+	struct cpumask big, offline_big;
+
+	cpumask_andnot(&big, cpu_present_mask, &hmp_slow_cpu_mask);
+	cpumask_andnot(&offline_big, &big, cpu_online_mask);
+	return cpumask_first(&offline_big);
+}
+
+static unsigned int cpu_highest_speed(void)
+{
+	unsigned int maxload = 0;
+	int i;
+
+	for_each_online_cpu(i) {
+		unsigned int load = per_cpu(cpu_load, i);
+
+		maxload = max(maxload, load);
+	}
+
+	return maxload;
+}
+
+static unsigned int count_slow_cpus(unsigned int limit)
+{
+	unsigned int cnt = 0;
+	int i;
+
+	for_each_online_cpu(i) {
+		unsigned int load = per_cpu(cpu_load, i);
+
+		if (load <= limit)
+			cnt++;
+	}
+
+	return cnt;
+}
+
+#define NR_FSHIFT	2
+
+static unsigned int rt_profile[NR_CPUS] = {
+/*      1,  2,  3,  4,  5,  6,  7,  8 - on-line cpus target */
+	5,  9, 10, 11, 12, 13, 14,  UINT_MAX
+};
+
+static unsigned int nr_run_hysteresis = 2;	/* 0.5 thread */
+static unsigned int nr_run_last;
+
+struct runnables_avg_sample {
+	u64 previous_integral;
+	unsigned int avg;
+	bool integral_sampled;
+	u64 prev_timestamp;	/* ns */
+};
+
+static DEFINE_PER_CPU(struct runnables_avg_sample, avg_nr_sample);
+
+static unsigned int get_avg_nr_runnables(void)
+{
+	unsigned int i, sum = 0;
+	struct runnables_avg_sample *sample;
+	u64 integral, old_integral, delta_integral, delta_time, cur_time;
+
+	cur_time = ktime_to_ns(ktime_get());
+
+	for_each_online_cpu(i) {
+		sample = &per_cpu(avg_nr_sample, i);
+		integral = nr_running_integral(i);
+		old_integral = sample->previous_integral;
+		sample->previous_integral = integral;
+		delta_time = cur_time - sample->prev_timestamp;
+		sample->prev_timestamp = cur_time;
+
+		if (!sample->integral_sampled) {
+			sample->integral_sampled = true;
+			/* First sample to initialize prev_integral, skip
+			 * avg calculation
+			 */
+			continue;
+		}
+
+		if (integral < old_integral) {
+			/* Overflow */
+			delta_integral = (ULLONG_MAX - old_integral) + integral;
+		} else {
+			delta_integral = integral - old_integral;
+		}
+
+		/* Calculate average for the previous sample window */
+		do_div(delta_integral, delta_time);
+		sample->avg = delta_integral;
+		sum += sample->avg;
+	}
+
+	return sum;
+}
+
+static bool rockchip_bl_balanced_speed_boost(void)
+{
+	unsigned int cpu;
+	struct cpumask online_little;
+	unsigned int big_cpu;
+	bool has_low_load_little_cpu = false;
+
+	if (cpu_freq[L_CLUSTER] < idle_top_freq[L_CLUSTER])
+		return false;
+
+	cpumask_and(&online_little, cpu_online_mask, &hmp_slow_cpu_mask);
+
+	for_each_cpu(cpu, &online_little) {
+		if (per_cpu(cpu_load, cpu) < little_low_load) {
+			has_low_load_little_cpu = true;
+			break;
+		}
+	}
+
+	for_each_cpu(cpu, &online_little) {
+		unsigned int load;
+		unsigned int avg;
+		struct cpumask online_big;
+		bool has_low_load_big_cpu;
+
+		load = per_cpu(cpu_load, cpu);
+		/* skip low load cpu */
+		if (load < little_high_load)
+			continue;
+
+		avg = per_cpu(avg_nr_sample, cpu).avg;
+		/*
+		 * skip when we have low load cpu,
+		 * when cpu load is high because run many task.
+		 * we can migrate the task to low load cpu
+		 */
+		if (has_low_load_little_cpu &&
+		    (avg >> (FSHIFT - NR_FSHIFT)) >= 4)
+			continue;
+
+		/*
+		 * found one cpu which is busy by run one thread,
+		 * break if no big cpu offline
+		 */
+		if (get_offline_big_cpu() >= nr_cpu_ids)
+			break;
+
+		cpumask_andnot(&online_big,
+			       cpu_online_mask, &hmp_slow_cpu_mask);
+
+		has_low_load_big_cpu = false;
+		for_each_cpu(big_cpu, &online_big) {
+			unsigned int big_load;
+
+			big_load = per_cpu(cpu_load, big_cpu);
+			if (big_load < big_low_load) {
+				has_low_load_big_cpu = true;
+				break;
+			}
+		}
+		/* if we have idle big cpu, never up new one */
+		if (has_low_load_big_cpu)
+			break;
+
+		return true;
+	}
+
+	return false;
+}
+
+static enum cpu_speed_balance rockchip_bl_balanced_speed_balance(void)
+{
+	unsigned long highest_speed = cpu_highest_speed();
+	unsigned long balanced_speed = highest_speed * balance_level / 100;
+	unsigned long skewed_speed = balanced_speed / 2;
+	unsigned int nr_cpus = num_online_cpus();
+	unsigned int max_cpus = pm_qos_request(PM_QOS_MAX_ONLINE_CPUS);
+	unsigned int min_cpus = pm_qos_request(PM_QOS_MIN_ONLINE_CPUS);
+	unsigned int avg_nr_run = get_avg_nr_runnables();
+	unsigned int nr_run;
+
+	if (max_cpus > nr_cpu_ids || max_cpus == 0)
+		max_cpus = nr_cpu_ids;
+
+	if (rockchip_bl_balanced_speed_boost())
+		return CPU_SPEED_BOOST;
+
+	/* balanced: freq targets for all CPUs are above 60% of highest speed
+	   biased: freq target for at least one CPU is below 60% threshold
+	   skewed: freq targets for at least 2 CPUs are below 30% threshold */
+	for (nr_run = 1; nr_run < ARRAY_SIZE(rt_profile); nr_run++) {
+		unsigned int nr_threshold = rt_profile[nr_run - 1];
+
+		if (nr_run_last <= nr_run)
+			nr_threshold += nr_run_hysteresis;
+		if (avg_nr_run <= (nr_threshold << (FSHIFT - NR_FSHIFT)))
+			break;
+	}
+	nr_run_last = nr_run;
+
+	if ((count_slow_cpus(skewed_speed) >= 2 ||
+	     nr_run < nr_cpus ||
+	     (cpu_freq[B_CLUSTER] <= idle_bottom_freq[B_CLUSTER] &&
+	      cpu_freq[L_CLUSTER] <= idle_bottom_freq[L_CLUSTER]) ||
+	     nr_cpus > max_cpus) &&
+	    nr_cpus > min_cpus)
+		return CPU_SPEED_SKEWED;
+
+	if ((count_slow_cpus(balanced_speed) >= 1 ||
+	     nr_run <= nr_cpus ||
+	     (cpu_freq[B_CLUSTER] <= idle_bottom_freq[B_CLUSTER] &&
+	      cpu_freq[L_CLUSTER] <= idle_bottom_freq[L_CLUSTER]) ||
+	     nr_cpus == max_cpus) &&
+	    nr_cpus >= min_cpus)
+		return CPU_SPEED_BIASED;
+
+	return CPU_SPEED_BALANCED;
+}
+
+static void rockchip_bl_balanced_work_func(struct work_struct *work)
+{
+	bool up = false;
+	unsigned int cpu = nr_cpu_ids;
+	unsigned long now = jiffies;
+	struct workqueue_struct *wq = rockchip_bl_balanced_wq;
+	struct delayed_work *dwork = to_delayed_work(work);
+	enum cpu_speed_balance balance;
+
+	mutex_lock(&rockchip_bl_balanced_lock);
+
+	if (!rockchip_bl_balanced_enable)
+		goto out;
+
+	switch (rockchip_bl_balanced_state) {
+	case IDLE:
+		break;
+	case DOWN:
+		cpu = get_slowest_cpu();
+		if (cpu < nr_cpu_ids) {
+			up = false;
+			queue_delayed_work(wq, dwork, up_delay_jiffies);
+		} else {
+			stop_load_timer();
+		}
+		break;
+	case UP:
+		balance = rockchip_bl_balanced_speed_balance();
+		switch (balance) {
+		case CPU_SPEED_BOOST:
+			cpu = get_offline_big_cpu();
+			if (cpu < nr_cpu_ids)
+				up = true;
+			break;
+		/* cpu speed is up and balanced - one more on-line */
+		case CPU_SPEED_BALANCED:
+			cpu = cpumask_next_zero(0, cpu_online_mask);
+			if (cpu < nr_cpu_ids)
+				up = true;
+			break;
+		/* cpu speed is up, but skewed - remove one core */
+		case CPU_SPEED_SKEWED:
+			cpu = get_slowest_cpu();
+			if (cpu < nr_cpu_ids)
+				up = false;
+			break;
+		/* cpu speed is up, but under-utilized - do nothing */
+		case CPU_SPEED_BIASED:
+		default:
+			break;
+		}
+		queue_delayed_work(wq, dwork, up_delay_jiffies);
+		break;
+	default:
+		pr_err("%s: invalid cpuquiet governor state %d\n",
+		       __func__, rockchip_bl_balanced_state);
+	}
+
+	if (!up && ((now - last_change_time_jiffies) < down_delay_jiffies))
+		cpu = nr_cpu_ids;
+
+	if (cpu < nr_cpu_ids) {
+		last_change_time_jiffies = now;
+		if (up)
+			cpuquiet_wake_cpu(cpu, false);
+		else
+			cpuquiet_quiesence_cpu(cpu, false);
+	}
+
+out:
+	mutex_unlock(&rockchip_bl_balanced_lock);
+}
+
+static void rockchip_bl_balanced_cpufreq_transition(unsigned int cluster,
+						    unsigned int new_cpu_freq)
+{
+	struct workqueue_struct *wq;
+	struct delayed_work *dwork;
+
+	mutex_lock(&rockchip_bl_balanced_lock);
+
+	if (!rockchip_bl_balanced_enable)
+		goto out;
+
+	wq = rockchip_bl_balanced_wq;
+	dwork = &rockchip_bl_balanced_work;
+	cpu_freq[cluster] = new_cpu_freq;
+
+	switch (rockchip_bl_balanced_state) {
+	case IDLE:
+		if (cpu_freq[B_CLUSTER] >= idle_top_freq[B_CLUSTER] ||
+		    cpu_freq[L_CLUSTER] >= idle_top_freq[L_CLUSTER]) {
+			rockchip_bl_balanced_state = UP;
+			queue_delayed_work(wq, dwork, up_delay_jiffies);
+			start_load_timer();
+		} else if (cpu_freq[B_CLUSTER] <= idle_bottom_freq[B_CLUSTER] &&
+			   cpu_freq[L_CLUSTER] <= idle_bottom_freq[L_CLUSTER]) {
+			rockchip_bl_balanced_state = DOWN;
+			queue_delayed_work(wq, dwork, down_delay_jiffies);
+			start_load_timer();
+		}
+		break;
+	case DOWN:
+		if (cpu_freq[B_CLUSTER] >= idle_top_freq[B_CLUSTER] ||
+		    cpu_freq[L_CLUSTER] >= idle_top_freq[L_CLUSTER]) {
+			rockchip_bl_balanced_state = UP;
+			queue_delayed_work(wq, dwork, up_delay_jiffies);
+			start_load_timer();
+		}
+		break;
+	case UP:
+		if (cpu_freq[B_CLUSTER] <= idle_bottom_freq[B_CLUSTER] &&
+		    cpu_freq[L_CLUSTER] <= idle_bottom_freq[L_CLUSTER]) {
+			rockchip_bl_balanced_state = DOWN;
+			queue_delayed_work(wq, dwork, up_delay_jiffies);
+			start_load_timer();
+		}
+		break;
+	default:
+		pr_err("%s: invalid cpuquiet governor state %d\n",
+		       __func__, rockchip_bl_balanced_state);
+	}
+
+out:
+	mutex_unlock(&rockchip_bl_balanced_lock);
+}
+
+static void delay_callback(struct cpuquiet_attribute *attr)
+{
+	unsigned long val;
+
+	if (attr) {
+		val = (*((unsigned long *)(attr->param)));
+		(*((unsigned long *)(attr->param))) = msecs_to_jiffies(val);
+	}
+}
+
+#define CPQ_BASIC_ATTRIBUTE_B(_name, _mode, _type) \
+	static struct cpuquiet_attribute _name ## _b_attr = {		\
+		.attr = {.name = __stringify(_name ## _b), .mode = _mode },\
+		.show = show_ ## _type ## _attribute,			\
+		.store = store_ ## _type ## _attribute,			\
+		.param = &_name[B_CLUSTER],				\
+}
+#define CPQ_BASIC_ATTRIBUTE_L(_name, _mode, _type) \
+	static struct cpuquiet_attribute _name ## _l_attr = {		\
+		.attr = {.name = __stringify(_name ## _l), .mode = _mode },\
+		.show = show_ ## _type ## _attribute,			\
+		.store = store_ ## _type ## _attribute,			\
+		.param = &_name[L_CLUSTER],				\
+}
+CPQ_BASIC_ATTRIBUTE(balance_level, 0644, uint);
+CPQ_BASIC_ATTRIBUTE_B(idle_bottom_freq, 0644, uint);
+CPQ_BASIC_ATTRIBUTE_L(idle_bottom_freq, 0644, uint);
+CPQ_BASIC_ATTRIBUTE_B(idle_top_freq, 0644, uint);
+CPQ_BASIC_ATTRIBUTE_L(idle_top_freq, 0644, uint);
+CPQ_BASIC_ATTRIBUTE(load_sample_rate_jiffies, 0644, uint);
+CPQ_BASIC_ATTRIBUTE(nr_run_hysteresis, 0644, uint);
+CPQ_BASIC_ATTRIBUTE(little_high_load, 0644, uint);
+CPQ_BASIC_ATTRIBUTE(little_low_load, 0644, uint);
+CPQ_BASIC_ATTRIBUTE(big_low_load, 0644, uint);
+CPQ_ATTRIBUTE(up_delay_jiffies, 0644, ulong, delay_callback);
+CPQ_ATTRIBUTE(down_delay_jiffies, 0644, ulong, delay_callback);
+
+#define MAX_BYTES 100
+
+static ssize_t show_rt_profile(struct cpuquiet_attribute *attr, char *buf)
+{
+	char buffer[MAX_BYTES];
+	unsigned int i;
+	int size = 0;
+
+	buffer[0] = 0;
+	for (i = 0; i < ARRAY_SIZE(rt_profile); i++) {
+		size += snprintf(buffer + size, sizeof(buffer) - size,
+				"%u ", rt_profile[i]);
+	}
+	return snprintf(buf, sizeof(buffer), "%s\n", buffer);
+}
+
+static ssize_t store_rt_profile(struct cpuquiet_attribute *attr,
+				const char *buf, size_t count)
+{
+	int ret, i = 0;
+	char *val, *str, input[MAX_BYTES];
+	unsigned int profile[ARRAY_SIZE(rt_profile)];
+
+	if (!count || count >= MAX_BYTES)
+		return -EINVAL;
+	strncpy(input, buf, count);
+	input[count] = '\0';
+	str = input;
+	memcpy(profile, rt_profile, sizeof(rt_profile));
+	while ((val = strsep(&str, " ")) != NULL) {
+		if (*val == '\0')
+			continue;
+		if (i == ARRAY_SIZE(rt_profile) - 1)
+			break;
+		ret = kstrtouint(val, 10, &profile[i]);
+		if (ret)
+			return -EINVAL;
+		i++;
+	}
+
+	memcpy(rt_profile, profile, sizeof(profile));
+
+	return count;
+}
+CPQ_ATTRIBUTE_CUSTOM(rt_profile, 0644,
+		     show_rt_profile, store_rt_profile);
+
+static struct attribute *rockchip_bl_balanced_attributes[] = {
+	&balance_level_attr.attr,
+	&idle_bottom_freq_b_attr.attr,
+	&idle_bottom_freq_l_attr.attr,
+	&idle_top_freq_b_attr.attr,
+	&idle_top_freq_l_attr.attr,
+	&up_delay_jiffies_attr.attr,
+	&down_delay_jiffies_attr.attr,
+	&load_sample_rate_jiffies_attr.attr,
+	&nr_run_hysteresis_attr.attr,
+	&rt_profile_attr.attr,
+	&little_high_load_attr.attr,
+	&little_low_load_attr.attr,
+	&big_low_load_attr.attr,
+	NULL,
+};
+
+static const struct sysfs_ops rockchip_bl_balanced_sysfs_ops = {
+	.show = cpuquiet_auto_sysfs_show,
+	.store = cpuquiet_auto_sysfs_store,
+};
+
+static struct kobj_type rockchip_bl_balanced_ktype = {
+	.sysfs_ops = &rockchip_bl_balanced_sysfs_ops,
+	.default_attrs = rockchip_bl_balanced_attributes,
+};
+
+static int rockchip_bl_balanced_sysfs(void)
+{
+	int err;
+	struct kobject *kobj;
+
+	kobj = kzalloc(sizeof(*kobj), GFP_KERNEL);
+
+	if (!kobj)
+		return -ENOMEM;
+
+	err = cpuquiet_kobject_init(kobj, &rockchip_bl_balanced_ktype,
+				    GOVERNOR_NAME);
+
+	if (err)
+		kfree(kobj);
+
+	rockchip_bl_balanced_kobj = kobj;
+
+	return err;
+}
+
+static void rockchip_bl_balanced_stop(void)
+{
+	mutex_lock(&rockchip_bl_balanced_lock);
+
+	rockchip_bl_balanced_enable = false;
+	/* now we can force the governor to be idle */
+	rockchip_bl_balanced_state = IDLE;
+
+	mutex_unlock(&rockchip_bl_balanced_lock);
+
+	cancel_delayed_work_sync(&rockchip_bl_balanced_work);
+
+	destroy_workqueue(rockchip_bl_balanced_wq);
+	rockchip_bl_balanced_wq = NULL;
+	del_timer_sync(&load_timer);
+
+	kobject_put(rockchip_bl_balanced_kobj);
+	kfree(rockchip_bl_balanced_kobj);
+	rockchip_bl_balanced_kobj = NULL;
+}
+
+static int rockchip_bl_balanced_start(void)
+{
+	int err, count, cluster;
+	struct cpufreq_frequency_table *table;
+	unsigned int initial_freq;
+
+	err = rockchip_bl_balanced_sysfs();
+	if (err)
+		return err;
+
+	up_delay_jiffies = msecs_to_jiffies(100);
+	down_delay_jiffies = msecs_to_jiffies(2000);
+
+	for (cluster = 0; cluster < MAX_CLUSTERS; cluster++) {
+		table = freq_table[cluster];
+		if (!table)
+			return -EINVAL;
+
+		for (count = 0; table[count].frequency != CPUFREQ_TABLE_END;
+		     count++)
+			;
+
+		if (count < 4)
+			return -EINVAL;
+
+		idle_top_freq[cluster] = table[(count / 2) - 1].frequency;
+		idle_bottom_freq[cluster] = table[(count / 2) - 2].frequency;
+	}
+
+	rockchip_bl_balanced_wq
+		= alloc_workqueue(GOVERNOR_NAME, WQ_UNBOUND | WQ_FREEZABLE, 1);
+	if (!rockchip_bl_balanced_wq)
+		return -ENOMEM;
+
+	INIT_DELAYED_WORK(&rockchip_bl_balanced_work,
+			  rockchip_bl_balanced_work_func);
+
+	init_timer(&load_timer);
+	load_timer.function = calculate_load_timer;
+
+	mutex_lock(&rockchip_bl_balanced_lock);
+	rockchip_bl_balanced_enable = true;
+	if (clk_cpu_dvfs_node[L_CLUSTER])
+		cpu_freq[L_CLUSTER] =
+			clk_get_rate(clk_cpu_dvfs_node[L_CLUSTER]->clk) / 1000;
+	if (clk_cpu_dvfs_node[B_CLUSTER])
+		cpu_freq[B_CLUSTER] =
+			clk_get_rate(clk_cpu_dvfs_node[B_CLUSTER]->clk) / 1000;
+	mutex_unlock(&rockchip_bl_balanced_lock);
+
+	/* Kick start the state machine */
+	initial_freq = cpufreq_get(0);
+	if (initial_freq)
+		rockchip_bl_balanced_cpufreq_transition(L_CLUSTER,
+							initial_freq);
+
+	return 0;
+}
+
+static struct cpuquiet_governor rockchip_bl_balanced_governor = {
+	.name		= GOVERNOR_NAME,
+	.start		= rockchip_bl_balanced_start,
+	.stop		= rockchip_bl_balanced_stop,
+	.owner		= THIS_MODULE,
+};
+#endif
