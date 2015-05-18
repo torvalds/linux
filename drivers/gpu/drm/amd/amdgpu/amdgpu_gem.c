@@ -583,8 +583,9 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 			va_flags |= AMDGPU_PTE_WRITEABLE;
 		if (args->in.flags & AMDGPU_VM_PAGE_EXECUTABLE)
 			va_flags |= AMDGPU_PTE_EXECUTABLE;
-		r = amdgpu_vm_bo_map(adev, bo_va, args->in.va_address, 0,
-				     amdgpu_bo_size(bo_va->bo), va_flags);
+		r = amdgpu_vm_bo_map(adev, bo_va, args->in.va_address,
+				     args->in.offset_in_bo, args->in.map_size,
+				     va_flags);
 		break;
 	case AMDGPU_VA_OP_UNMAP:
 		r = amdgpu_vm_bo_unmap(adev, bo_va, args->in.va_address);
