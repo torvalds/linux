@@ -959,7 +959,7 @@ static int cpufreq_add_dev_symlink(struct cpufreq_policy *policy)
 	for_each_cpu(j, policy->cpus) {
 		struct device *cpu_dev;
 
-		if (j == policy->cpu)
+		if (j == policy->kobj_cpu)
 			continue;
 
 		pr_debug("Adding link for CPU: %u\n", j);
@@ -1178,6 +1178,7 @@ static int update_policy_cpu(struct cpufreq_policy *policy, unsigned int cpu,
 
 	down_write(&policy->rwsem);
 	policy->cpu = cpu;
+	policy->kobj_cpu = cpu;
 	up_write(&policy->rwsem);
 
 	return 0;
@@ -1235,10 +1236,12 @@ static int cpufreq_add_dev(struct device *dev, struct subsys_interface *sif)
 	 * the creation of a brand new one. So we need to perform this update
 	 * by invoking update_policy_cpu().
 	 */
-	if (recover_policy && cpu != policy->cpu)
+	if (recover_policy && cpu != policy->cpu) {
 		WARN_ON(update_policy_cpu(policy, cpu, dev));
-	else
+	} else {
 		policy->cpu = cpu;
+		policy->kobj_cpu = cpu;
+	}
 
 	cpumask_copy(policy->cpus, cpumask_of(cpu));
 
@@ -1417,7 +1420,7 @@ static int __cpufreq_remove_dev_prepare(struct device *dev,
 			CPUFREQ_NAME_LEN);
 	up_write(&policy->rwsem);
 
-	if (cpu != policy->cpu) {
+	if (cpu != policy->kobj_cpu) {
 		sysfs_remove_link(&dev->kobj, "cpufreq");
 	} else if (cpus > 1) {
 		/* Nominate new CPU */
