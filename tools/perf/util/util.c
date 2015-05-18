@@ -72,6 +72,49 @@ int mkdir_p(char *path, mode_t mode)
 	return (stat(path, &st) && mkdir(path, mode)) ? -1 : 0;
 }
 
+int rm_rf(char *path)
+{
+	DIR *dir;
+	int ret = 0;
+	struct dirent *d;
+	char namebuf[PATH_MAX];
+
+	dir = opendir(path);
+	if (dir == NULL)
+		return 0;
+
+	while ((d = readdir(dir)) != NULL && !ret) {
+		struct stat statbuf;
+
+		if (!strcmp(d->d_name, ".") || !strcmp(d->d_name, ".."))
+			continue;
+
+		scnprintf(namebuf, sizeof(namebuf), "%s/%s",
+			  path, d->d_name);
+
+		ret = stat(namebuf, &statbuf);
+		if (ret < 0) {
+			pr_debug("stat failed: %s\n", namebuf);
+			break;
+		}
+
+		if (S_ISREG(statbuf.st_mode))
+			ret = unlink(namebuf);
+		else if (S_ISDIR(statbuf.st_mode))
+			ret = rm_rf(namebuf);
+		else {
+			pr_debug("unknown file: %s\n", namebuf);
+			ret = -1;
+		}
+	}
+	closedir(dir);
+
+	if (ret < 0)
+		return ret;
+
+	return rmdir(path);
+}
+
 static int slow_copyfile(const char *from, const char *to, mode_t mode)
 {
 	int err = -1;
