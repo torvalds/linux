@@ -18,6 +18,8 @@
 #include <linux/ioport.h>
 #include <linux/syscore_ops.h>
 
+#include <soc/sa1100/pwer.h>
+
 #include <mach/hardware.h>
 #include <mach/irqs.h>
 #include <asm/mach/irq.h>
@@ -40,19 +42,9 @@ static void sa1100_unmask_irq(struct irq_data *d)
 	ICMR |= BIT(d->hwirq);
 }
 
-/*
- * Apart form GPIOs, only the RTC alarm can be a wakeup event.
- */
 static int sa1100_set_wake(struct irq_data *d, unsigned int on)
 {
-	if (BIT(d->hwirq) == IC_RTCAlrm) {
-		if (on)
-			PWER |= PWER_RTC;
-		else
-			PWER &= ~PWER_RTC;
-		return 0;
-	}
-	return -EINVAL;
+	return sa11x0_sc_set_wake(d->hwirq, on);
 }
 
 static struct irq_chip sa1100_normal_chip = {
