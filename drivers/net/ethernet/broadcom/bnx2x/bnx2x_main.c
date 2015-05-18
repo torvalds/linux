@@ -13371,8 +13371,13 @@ static int bnx2x_init_one(struct pci_dev *pdev,
 	/* Management FW 'remembers' living interfaces. Allow it some time
 	 * to forget previously living interfaces, allowing a proper re-load.
 	 */
-	if (is_kdump_kernel())
-		msleep(5000);
+	if (is_kdump_kernel()) {
+		ktime_t now = ktime_get_boottime();
+		ktime_t fw_ready_time = ktime_set(5, 0);
+
+		if (ktime_before(now, fw_ready_time))
+			msleep(ktime_ms_delta(fw_ready_time, now));
+	}
 
 	/* An estimated maximum supported CoS number according to the chip
 	 * version.

@@ -602,7 +602,6 @@ __\name\()_proc_info:
 		PMD_SECT_AP_WRITE | \
 		PMD_SECT_AP_READ
 	initfn	__feroceon_setup, __\name\()_proc_info
-	.long __feroceon_setup
 	.long	cpu_arch_name
 	.long	cpu_elf_name
 	.long	HWCAP_SWP|HWCAP_HALF|HWCAP_THUMB|HWCAP_FAST_MULT|HWCAP_EDSP

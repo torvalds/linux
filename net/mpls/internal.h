@@ -1,16 +1,6 @@
 #ifndef MPLS_INTERNAL_H
 #define MPLS_INTERNAL_H
 
-#define LABEL_IPV4_EXPLICIT_NULL	0 /* RFC3032 */
-#define LABEL_ROUTER_ALERT_LABEL	1 /* RFC3032 */
-#define LABEL_IPV6_EXPLICIT_NULL	2 /* RFC3032 */
-#define LABEL_IMPLICIT_NULL		3 /* RFC3032 */
-#define LABEL_ENTROPY_INDICATOR		7 /* RFC6790 */
-#define LABEL_GAL			13 /* RFC5586 */
-#define LABEL_OAM_ALERT			14 /* RFC3429 */
-#define LABEL_EXTENSION			15 /* RFC7274 */
-
-
 struct mpls_shim_hdr {
 	__be32 label_stack_entry;
 };

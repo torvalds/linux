@@ -1315,14 +1315,14 @@ static int armpmu_device_probe(struct platform_device *pdev)
 	if (!cpu_pmu)
 		return -ENODEV;
 
-	irqs = kcalloc(pdev->num_resources, sizeof(*irqs), GFP_KERNEL);
-	if (!irqs)
-		return -ENOMEM;
-
 	/* Don't bother with PPIs; they're already affine */
 	irq = platform_get_irq(pdev, 0);
 	if (irq >= 0 && irq_is_percpu(irq))
 		return 0;
+
+	irqs = kcalloc(pdev->num_resources, sizeof(*irqs), GFP_KERNEL);
+	if (!irqs)
+		return -ENOMEM;
 
 	for (i = 0; i < pdev->num_resources; ++i) {
 		struct device_node *dn;

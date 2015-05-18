@@ -122,46 +122,6 @@ enum iwl_scan_complete_status {
 	SCAN_COMP_STATUS_ERR_ALLOC_TE = 0x0C,
 };
 
-/**
- * struct iwl_scan_results_notif - scan results for one channel
- * ( SCAN_RESULTS_NOTIFICATION = 0x83 )
- * @channel: which channel the results are from
- * @band: 0 for 5.2 GHz, 1 for 2.4 GHz
- * @probe_status: SCAN_PROBE_STATUS_*, indicates success of probe request
- * @num_probe_not_sent: # of request that weren't sent due to not enough time
- * @duration: duration spent in channel, in usecs
- * @statistics: statistics gathered for this channel
- */
-struct iwl_scan_results_notif {
-	u8 channel;
-	u8 band;
-	u8 probe_status;
-	u8 num_probe_not_sent;
-	__le32 duration;
-	__le32 statistics[SCAN_RESULTS_STATISTICS];
-} __packed; /* SCAN_RESULT_NTF_API_S_VER_2 */
-
-/**
- * struct iwl_scan_complete_notif - notifies end of scanning (all channels)
- * ( SCAN_COMPLETE_NOTIFICATION = 0x84 )
- * @scanned_channels: number of channels scanned (and number of valid results)
- * @status: one of SCAN_COMP_STATUS_*
- * @bt_status: BT on/off status
- * @last_channel: last channel that was scanned
- * @tsf_low: TSF timer (lower half) in usecs
- * @tsf_high: TSF timer (higher half) in usecs
- * @results: array of scan results, only "scanned_channels" of them are valid
- */
-struct iwl_scan_complete_notif {
-	u8 scanned_channels;
-	u8 status;
-	u8 bt_status;
-	u8 last_channel;
-	__le32 tsf_low;
-	__le32 tsf_high;
-	struct iwl_scan_results_notif results[];
-} __packed; /* SCAN_COMPLETE_NTF_API_S_VER_2 */
-
 /* scan offload */
 #define IWL_SCAN_MAX_BLACKLIST_LEN	64
 #define IWL_SCAN_SHORT_BLACKLIST_LEN	16
@@ -554,7 +514,7 @@ struct iwl_scan_req_unified_lmac {
 } __packed;
 
 /**
- * struct iwl_lmac_scan_results_notif - scan results for one channel -
+ * struct iwl_scan_results_notif - scan results for one channel -
  *	SCAN_RESULT_NTF_API_S_VER_3
  * @channel: which channel the results are from
  * @band: 0 for 5.2 GHz, 1 for 2.4 GHz
@@ -562,7 +522,7 @@ struct iwl_scan_req_unified_lmac {
  * @num_probe_not_sent: # of request that weren't sent due to not enough time
  * @duration: duration spent in channel, in usecs
  */
-struct iwl_lmac_scan_results_notif {
+struct iwl_scan_results_notif {
 	u8 channel;
 	u8 band;
 	u8 probe_status;
