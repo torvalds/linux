@@ -2070,8 +2070,8 @@ static int canon_copy_from_read_buf(struct tty_struct *tty,
 
 	size = N_TTY_BUF_SIZE - tail;
 	n = eol - tail;
-	if (n > 4096)
-		n += 4096;
+	if (n > N_TTY_BUF_SIZE)
+		n += N_TTY_BUF_SIZE;
 	n += found;
 	c = n;
 
