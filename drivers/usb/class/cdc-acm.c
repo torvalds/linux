@@ -1263,12 +1263,9 @@ skip_normal_probe:
 						!= CDC_DATA_INTERFACE_TYPE) {
 		if (control_interface->cur_altsetting->desc.bInterfaceClass
 						== CDC_DATA_INTERFACE_TYPE) {
-			struct usb_interface *t;
 			dev_dbg(&intf->dev,
 				"Your device has switched interfaces.\n");
-			t = control_interface;
-			control_interface = data_interface;
-			data_interface = t;
+			swap(control_interface, data_interface);
 		} else {
 			return -EINVAL;
 		}
@@ -1297,12 +1294,9 @@ skip_normal_probe:
 	/* workaround for switched endpoints */
 	if (!usb_endpoint_dir_in(epread)) {
 		/* descriptors are swapped */
-		struct usb_endpoint_descriptor *t;
 		dev_dbg(&intf->dev,
 			"The data interface has switched endpoints\n");
-		t = epread;
-		epread = epwrite;
-		epwrite = t;
+		swap(epread, epwrite);
 	}
 made_compressed_probe:
 	dev_dbg(&intf->dev, "interfaces are valid\n");
