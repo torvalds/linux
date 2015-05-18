@@ -455,11 +455,12 @@ static struct snd_info_entry *create_subdir(struct module *mod,
 	return entry;
 }
 
-static struct snd_info_entry *snd_info_create_entry(const char *name);
+static struct snd_info_entry *
+snd_info_create_entry(const char *name, struct snd_info_entry *parent);
 
 int __init snd_info_init(void)
 {
-	snd_proc_root = snd_info_create_entry("asound");
+	snd_proc_root = snd_info_create_entry("asound", NULL);
 	if (!snd_proc_root)
 		return -ENOMEM;
 	snd_proc_root->mode = S_IFDIR | S_IRUGO | S_IXUGO;
@@ -515,22 +516,51 @@ int snd_info_card_create(struct snd_card *card)
 	return 0;
 }
 
+/* register all pending info entries */
+static int snd_info_register_recursive(struct snd_info_entry *entry)
+{
+	struct snd_info_entry *p;
+	int err;
+
+	if (!entry->p) {
+		err = snd_info_register(entry);
+		if (err < 0)
+			return err;
+	}
+
+	list_for_each_entry(p, &entry->children, list) {
+		err = snd_info_register_recursive(p);
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
+}
+
 /*
  * register the card proc file
  * called from init.c
+ * can be called multiple times for reinitialization
  */
 int snd_info_card_register(struct snd_card *card)
 {
 	struct proc_dir_entry *p;
+	int err;
 
 	if (snd_BUG_ON(!card))
 		return -ENXIO;
 
+	err = snd_info_register_recursive(card->proc_root);
+	if (err < 0)
+		return err;
+
 	if (!strcmp(card->id, card->proc_root->name))
 		return 0;
 
+	if (card->proc_root_link)
+		return 0;
 	p = proc_symlink(card->id, snd_proc_root->p, card->proc_root->name);
-	if (p == NULL)
+	if (!p)
 		return -ENOMEM;
 	card->proc_root_link = p;
 	return 0;
@@ -656,9 +686,10 @@ const char *snd_info_get_str(char *dest, const char *src, int len)
 
 EXPORT_SYMBOL(snd_info_get_str);
 
-/**
+/*
  * snd_info_create_entry - create an info entry
  * @name: the proc file name
+ * @parent: the parent directory
  *
  * Creates an info entry with the given file name and initializes as
  * the default state.
@@ -668,7 +699,8 @@ EXPORT_SYMBOL(snd_info_get_str);
  *
  * Return: The pointer of the new instance, or %NULL on failure.
  */
-static struct snd_info_entry *snd_info_create_entry(const char *name)
+static struct snd_info_entry *
+snd_info_create_entry(const char *name, struct snd_info_entry *parent)
 {
 	struct snd_info_entry *entry;
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
@@ -684,6 +716,9 @@ static struct snd_info_entry *snd_info_create_entry(const char *name)
 	mutex_init(&entry->access);
 	INIT_LIST_HEAD(&entry->children);
 	INIT_LIST_HEAD(&entry->list);
+	entry->parent = parent;
+	if (parent)
+		list_add_tail(&entry->list, &parent->children);
 	return entry;
 }
 
@@ -701,11 +736,9 @@ struct snd_info_entry *snd_info_create_module_entry(struct module * module,
 					       const char *name,
 					       struct snd_info_entry *parent)
 {
-	struct snd_info_entry *entry = snd_info_create_entry(name);
-	if (entry) {
+	struct snd_info_entry *entry = snd_info_create_entry(name, parent);
+	if (entry)
 		entry->module = module;
-		entry->parent = parent;
-	}
 	return entry;
 }
 
@@ -725,11 +758,10 @@ struct snd_info_entry *snd_info_create_card_entry(struct snd_card *card,
 					     const char *name,
 					     struct snd_info_entry * parent)
 {
-	struct snd_info_entry *entry = snd_info_create_entry(name);
+	struct snd_info_entry *entry = snd_info_create_entry(name, parent);
 	if (entry) {
 		entry->module = card->module;
 		entry->card = card;
-		entry->parent = parent;
 	}
 	return entry;
 }
@@ -738,13 +770,12 @@ EXPORT_SYMBOL(snd_info_create_card_entry);
 
 static void snd_info_disconnect(struct snd_info_entry *entry)
 {
-	struct snd_info_entry *p, *n;
+	struct snd_info_entry *p;
 
 	if (!entry->p)
 		return;
-	list_for_each_entry_safe(p, n, &entry->children, list)
+	list_for_each_entry(p, &entry->children, list)
 		snd_info_disconnect(p);
-	list_del_init(&entry->list);
 	proc_remove(entry->p);
 	entry->p = NULL;
 }
@@ -771,6 +802,7 @@ void snd_info_free_entry(struct snd_info_entry * entry)
 	list_for_each_entry_safe(p, n, &entry->children, list)
 		snd_info_free_entry(p);
 
+	list_del(&entry->list);
 	kfree(entry->name);
 	if (entry->private_free)
 		entry->private_free(entry);
@@ -816,8 +848,6 @@ int snd_info_register(struct snd_info_entry * entry)
 		proc_set_size(p, entry->size);
 	}
 	entry->p = p;
-	if (entry->parent)
-		list_add_tail(&entry->list, &entry->parent->children);
 	mutex_unlock(&info_mutex);
 	return 0;
 }
