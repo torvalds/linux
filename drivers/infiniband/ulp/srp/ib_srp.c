@@ -993,8 +993,6 @@ static int srp_connect_ch(struct srp_rdma_ch *ch, bool multich)
 
 	WARN_ON_ONCE(!multich && target->connected);
 
-	target->qp_in_error = false;
-
 	ret = srp_lookup_path(ch);
 	if (ret)
 		return ret;
@@ -1243,6 +1241,9 @@ static int srp_rport_reconnect(struct srp_rport *rport)
 		for (j = 0; j < target->queue_size; ++j)
 			list_add(&ch->tx_ring[j]->list, &ch->free_tx);
 	}
+
+	target->qp_in_error = false;
+
 	for (i = 0; i < target->ch_count; i++) {
 		ch = &target->ch[i];
 		if (ret || !ch->target) {
