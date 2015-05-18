@@ -1073,6 +1073,93 @@ at_xdmac_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 	return &first->tx_dma_desc;
 }
 
+static struct at_xdmac_desc *at_xdmac_memset_create_desc(struct dma_chan *chan,
+							 struct at_xdmac_chan *atchan,
+							 dma_addr_t dst_addr,
+							 size_t len,
+							 int value)
+{
+	struct at_xdmac_desc	*desc;
+	unsigned long		flags;
+	size_t			ublen;
+	u32			dwidth;
+	/*
+	 * WARNING: The channel configuration is set here since there is no
+	 * dmaengine_slave_config call in this case. Moreover we don't know the
+	 * direction, it involves we can't dynamically set the source and dest
+	 * interface so we have to use the same one. Only interface 0 allows EBI
+	 * access. Hopefully we can access DDR through both ports (at least on
+	 * SAMA5D4x), so we can use the same interface for source and dest,
+	 * that solves the fact we don't know the direction.
+	 */
+	u32			chan_cc = AT_XDMAC_CC_DAM_INCREMENTED_AM
+					| AT_XDMAC_CC_SAM_INCREMENTED_AM
+					| AT_XDMAC_CC_DIF(0)
+					| AT_XDMAC_CC_SIF(0)
+					| AT_XDMAC_CC_MBSIZE_SIXTEEN
+					| AT_XDMAC_CC_MEMSET_HW_MODE
+					| AT_XDMAC_CC_TYPE_MEM_TRAN;
+
+	dwidth = at_xdmac_align_width(chan, dst_addr);
+
+	if (len >= (AT_XDMAC_MBR_UBC_UBLEN_MAX << dwidth)) {
+		dev_err(chan2dev(chan),
+			"%s: Transfer too large, aborting...\n",
+			__func__);
+		return NULL;
+	}
+
+	spin_lock_irqsave(&atchan->lock, flags);
+	desc = at_xdmac_get_desc(atchan);
+	spin_unlock_irqrestore(&atchan->lock, flags);
+	if (!desc) {
+		dev_err(chan2dev(chan), "can't get descriptor\n");
+		return NULL;
+	}
+
+	chan_cc |= AT_XDMAC_CC_DWIDTH(dwidth);
+
+	ublen = len >> dwidth;
+
+	desc->lld.mbr_da = dst_addr;
+	desc->lld.mbr_ds = value;
+	desc->lld.mbr_ubc = AT_XDMAC_MBR_UBC_NDV3
+		| AT_XDMAC_MBR_UBC_NDEN
+		| AT_XDMAC_MBR_UBC_NSEN
+		| ublen;
+	desc->lld.mbr_cfg = chan_cc;
+
+	dev_dbg(chan2dev(chan),
+		"%s: lld: mbr_da=0x%08x, mbr_ds=0x%08x, mbr_ubc=0x%08x, mbr_cfg=0x%08x\n",
+		__func__, desc->lld.mbr_da, desc->lld.mbr_ds, desc->lld.mbr_ubc,
+		desc->lld.mbr_cfg);
+
+	return desc;
+}
+
+struct dma_async_tx_descriptor *
+at_xdmac_prep_dma_memset(struct dma_chan *chan, dma_addr_t dest, int value,
+			 size_t len, unsigned long flags)
+{
+	struct at_xdmac_chan	*atchan = to_at_xdmac_chan(chan);
+	struct at_xdmac_desc	*desc;
+
+	dev_dbg(chan2dev(chan), "%s: dest=0x%08x, len=%d, pattern=0x%x, flags=0x%lx\n",
+		__func__, dest, len, value, flags);
+
+	if (unlikely(!len))
+		return NULL;
+
+	desc = at_xdmac_memset_create_desc(chan, atchan, dest, len, value);
+	list_add_tail(&desc->desc_node, &desc->descs_list);
+
+	desc->tx_dma_desc.cookie = -EBUSY;
+	desc->tx_dma_desc.flags = flags;
+	desc->xfer_size = len;
+
+	return &desc->tx_dma_desc;
+}
+
 static enum dma_status
 at_xdmac_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 		struct dma_tx_state *txstate)
@@ -1599,6 +1686,7 @@ static int at_xdmac_probe(struct platform_device *pdev)
 	dma_cap_set(DMA_CYCLIC, atxdmac->dma.cap_mask);
 	dma_cap_set(DMA_INTERLEAVE, atxdmac->dma.cap_mask);
 	dma_cap_set(DMA_MEMCPY, atxdmac->dma.cap_mask);
+	dma_cap_set(DMA_MEMSET, atxdmac->dma.cap_mask);
 	dma_cap_set(DMA_SLAVE, atxdmac->dma.cap_mask);
 	/*
 	 * Without DMA_PRIVATE the driver is not able to allocate more than
@@ -1613,6 +1701,7 @@ static int at_xdmac_probe(struct platform_device *pdev)
 	atxdmac->dma.device_prep_dma_cyclic		= at_xdmac_prep_dma_cyclic;
 	atxdmac->dma.device_prep_interleaved_dma	= at_xdmac_prep_interleaved;
 	atxdmac->dma.device_prep_dma_memcpy		= at_xdmac_prep_dma_memcpy;
+	atxdmac->dma.device_prep_dma_memset		= at_xdmac_prep_dma_memset;
 	atxdmac->dma.device_prep_slave_sg		= at_xdmac_prep_slave_sg;
 	atxdmac->dma.device_config			= at_xdmac_device_config;
 	atxdmac->dma.device_pause			= at_xdmac_device_pause;
