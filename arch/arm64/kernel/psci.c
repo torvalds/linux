@@ -497,11 +497,17 @@ static int cpu_psci_cpu_kill(unsigned int cpu)
 	for (i = 0; i < 10; i++) {
 		err = psci_ops.affinity_info(cpu_logical_map(cpu), 0);
 		if (err == PSCI_0_2_AFFINITY_LEVEL_OFF) {
+#ifdef CONFIG_CPUQUIET_FRAMEWORK
+			if (system_state != SYSTEM_RUNNING)
+#endif
 			pr_info("CPU%d killed.\n", cpu);
 			return 1;
 		}
 
 		msleep(10);
+#ifdef CONFIG_CPUQUIET_FRAMEWORK
+		if (system_state != SYSTEM_RUNNING)
+#endif
 		pr_info("Retrying again to check for CPU kill\n");
 	}
 

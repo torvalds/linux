@@ -140,6 +140,9 @@ asmlinkage void __cpuinit secondary_start_kernel(void)
 	cpumask_set_cpu(cpu, mm_cpumask(mm));
 
 	set_my_cpu_offset(per_cpu_offset(smp_processor_id()));
+#ifdef CONFIG_CPUQUIET_FRAMEWORK
+	if (system_state != SYSTEM_RUNNING)
+#endif
 	printk("CPU%u: Booted secondary processor\n", cpu);
 
 	/*
@@ -261,6 +264,9 @@ void __cpu_die(unsigned int cpu)
 		pr_crit("CPU%u: cpu didn't die\n", cpu);
 		return;
 	}
+#ifdef CONFIG_CPUQUIET_FRAMEWORK
+	if (system_state != SYSTEM_RUNNING)
+#endif
 	pr_notice("CPU%u: shutdown\n", cpu);
 
 	/*
