@@ -65,9 +65,9 @@ static int ext4_fname_encrypt(struct ext4_fname_crypto_ctx *ctx,
 	struct crypto_ablkcipher *tfm = ctx->ctfm;
 	int res = 0;
 	char iv[EXT4_CRYPTO_BLOCK_SIZE];
-	struct scatterlist sg[1];
+	struct scatterlist src_sg, dst_sg;
 	int padding = 4 << (ctx->flags & EXT4_POLICY_FLAGS_PAD_MASK);
-	char *workbuf;
+	char *workbuf, buf[32], *alloc_buf = NULL;
 
 	if (iname->len <= 0 || iname->len > ctx->lim)
 		return -EIO;
@@ -78,19 +78,26 @@ static int ext4_fname_encrypt(struct ext4_fname_crypto_ctx *ctx,
 	ciphertext_len = (ciphertext_len > ctx->lim)
 			? ctx->lim : ciphertext_len;
 
+	if (ciphertext_len <= sizeof(buf)) {
+		workbuf = buf;
+	} else {
+		alloc_buf = kmalloc(ciphertext_len, GFP_NOFS);
+		if (!alloc_buf)
+			return -ENOMEM;
+		workbuf = alloc_buf;
+	}
+
 	/* Allocate request */
 	req = ablkcipher_request_alloc(tfm, GFP_NOFS);
 	if (!req) {
 		printk_ratelimited(
 		    KERN_ERR "%s: crypto_request_alloc() failed\n", __func__);
+		kfree(alloc_buf);
 		return -ENOMEM;
 	}
 	ablkcipher_request_set_callback(req,
 		CRYPTO_TFM_REQ_MAY_BACKLOG | CRYPTO_TFM_REQ_MAY_SLEEP,
 		ext4_dir_crypt_complete, &ecr);
-
-	/* Map the workpage */
-	workbuf = kmap(ctx->workpage);
 
 	/* Copy the input */
 	memcpy(workbuf, iname->name, iname->len);
@@ -101,21 +108,16 @@ static int ext4_fname_encrypt(struct ext4_fname_crypto_ctx *ctx,
 	memset(iv, 0, EXT4_CRYPTO_BLOCK_SIZE);
 
 	/* Create encryption request */
-	sg_init_table(sg, 1);
-	sg_set_page(sg, ctx->workpage, PAGE_SIZE, 0);
-	ablkcipher_request_set_crypt(req, sg, sg, ciphertext_len, iv);
+	sg_init_one(&src_sg, workbuf, ciphertext_len);
+	sg_init_one(&dst_sg, oname->name, ciphertext_len);
+	ablkcipher_request_set_crypt(req, &src_sg, &dst_sg, ciphertext_len, iv);
 	res = crypto_ablkcipher_encrypt(req);
 	if (res == -EINPROGRESS || res == -EBUSY) {
 		BUG_ON(req->base.data != &ecr);
 		wait_for_completion(&ecr.completion);
 		res = ecr.res;
 	}
-	if (res >= 0) {
-		/* Copy the result to output */
-		memcpy(oname->name, workbuf, ciphertext_len);
-		res = ciphertext_len;
-	}
-	kunmap(ctx->workpage);
+	kfree(alloc_buf);
 	ablkcipher_request_free(req);
 	if (res < 0) {
 		printk_ratelimited(
@@ -139,11 +141,10 @@ static int ext4_fname_decrypt(struct ext4_fname_crypto_ctx *ctx,
 	struct ext4_str tmp_in[2], tmp_out[1];
 	struct ablkcipher_request *req = NULL;
 	DECLARE_EXT4_COMPLETION_RESULT(ecr);
-	struct scatterlist sg[1];
+	struct scatterlist src_sg, dst_sg;
 	struct crypto_ablkcipher *tfm = ctx->ctfm;
 	int res = 0;
 	char iv[EXT4_CRYPTO_BLOCK_SIZE];
-	char *workbuf;
 
 	if (iname->len <= 0 || iname->len > ctx->lim)
 		return -EIO;
@@ -163,31 +164,19 @@ static int ext4_fname_decrypt(struct ext4_fname_crypto_ctx *ctx,
 		CRYPTO_TFM_REQ_MAY_BACKLOG | CRYPTO_TFM_REQ_MAY_SLEEP,
 		ext4_dir_crypt_complete, &ecr);
 
-	/* Map the workpage */
-	workbuf = kmap(ctx->workpage);
-
-	/* Copy the input */
-	memcpy(workbuf, iname->name, iname->len);
-
 	/* Initialize IV */
 	memset(iv, 0, EXT4_CRYPTO_BLOCK_SIZE);
 
 	/* Create encryption request */
-	sg_init_table(sg, 1);
-	sg_set_page(sg, ctx->workpage, PAGE_SIZE, 0);
-	ablkcipher_request_set_crypt(req, sg, sg, iname->len, iv);
+	sg_init_one(&src_sg, iname->name, iname->len);
+	sg_init_one(&dst_sg, oname->name, oname->len);
+	ablkcipher_request_set_crypt(req, &src_sg, &dst_sg, iname->len, iv);
 	res = crypto_ablkcipher_decrypt(req);
 	if (res == -EINPROGRESS || res == -EBUSY) {
 		BUG_ON(req->base.data != &ecr);
 		wait_for_completion(&ecr.completion);
 		res = ecr.res;
 	}
-	if (res >= 0) {
-		/* Copy the result to output */
-		memcpy(oname->name, workbuf, iname->len);
-		res = iname->len;
-	}
-	kunmap(ctx->workpage);
 	ablkcipher_request_free(req);
 	if (res < 0) {
 		printk_ratelimited(
@@ -267,8 +256,6 @@ void ext4_free_fname_crypto_ctx(struct ext4_fname_crypto_ctx *ctx)
 		crypto_free_ablkcipher(ctx->ctfm);
 	if (ctx->htfm && !IS_ERR(ctx->htfm))
 		crypto_free_hash(ctx->htfm);
-	if (ctx->workpage && !IS_ERR(ctx->workpage))
-		__free_page(ctx->workpage);
 	kfree(ctx);
 }
 
@@ -322,7 +309,6 @@ struct ext4_fname_crypto_ctx *ext4_alloc_fname_crypto_ctx(
 	ctx->ctfm_key_is_ready = 0;
 	ctx->ctfm = NULL;
 	ctx->htfm = NULL;
-	ctx->workpage = NULL;
 	return ctx;
 }
 
@@ -386,24 +372,6 @@ struct ext4_fname_crypto_ctx *ext4_get_fname_crypto_ctx(
 		if (ctx->ctfm == NULL) {
 			printk(
 			    KERN_DEBUG "%s: could not allocate crypto tfm\n",
-			    __func__);
-			ext4_put_fname_crypto_ctx(&ctx);
-			return ERR_PTR(-ENOMEM);
-		}
-		if (ctx->workpage == NULL)
-			ctx->workpage = alloc_page(GFP_NOFS);
-		if (IS_ERR(ctx->workpage)) {
-			res = PTR_ERR(ctx->workpage);
-			printk(
-			    KERN_DEBUG "%s: error (%d) allocating work page\n",
-			    __func__, res);
-			ctx->workpage = NULL;
-			ext4_put_fname_crypto_ctx(&ctx);
-			return ERR_PTR(res);
-		}
-		if (ctx->workpage == NULL) {
-			printk(
-			    KERN_DEBUG "%s: could not allocate work page\n",
 			    __func__);
 			ext4_put_fname_crypto_ctx(&ctx);
 			return ERR_PTR(-ENOMEM);

@@ -74,6 +74,7 @@ static void *ext4_follow_link(struct dentry *dentry, struct nameidata *nd)
 		goto errout;
 	}
 	pstr.name = paddr;
+	pstr.len = plen;
 	res = _ext4_fname_disk_to_usr(ctx, NULL, &cstr, &pstr);
 	if (res < 0)
 		goto errout;
