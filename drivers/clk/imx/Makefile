@@ -22,4 +22,5 @@ obj-$(CONFIG_SOC_IMX5)   += clk-imx51-imx53.o
 obj-$(CONFIG_SOC_IMX6Q)  += clk-imx6q.o
 obj-$(CONFIG_SOC_IMX6SL) += clk-imx6sl.o
 obj-$(CONFIG_SOC_IMX6SX) += clk-imx6sx.o
+obj-$(CONFIG_SOC_IMX7D)  += clk-imx7d.o
 obj-$(CONFIG_SOC_VF610)  += clk-vf610.o
