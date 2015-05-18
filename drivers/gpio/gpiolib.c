@@ -617,7 +617,7 @@ int gpiochip_irqchip_add(struct gpio_chip *gpiochip,
 	of_node = gpiochip->dev->of_node;
 #ifdef CONFIG_OF_GPIO
 	/*
-	 * If the gpiochip has an assigned OF node this takes precendence
+	 * If the gpiochip has an assigned OF node this takes precedence
 	 * FIXME: get rid of this and use gpiochip->dev->of_node everywhere
 	 */
 	if (gpiochip->of_node)
@@ -1220,7 +1220,7 @@ EXPORT_SYMBOL_GPL(gpiod_get_value);
 /*
  *  _gpio_set_open_drain_value() - Set the open drain gpio's value.
  * @desc: gpio descriptor whose state need to be set.
- * @value: Non-zero for setting it HIGH otherise it will set to LOW.
+ * @value: Non-zero for setting it HIGH otherwise it will set to LOW.
  */
 static void _gpio_set_open_drain_value(struct gpio_desc *desc, bool value)
 {
@@ -1247,7 +1247,7 @@ static void _gpio_set_open_drain_value(struct gpio_desc *desc, bool value)
 /*
  *  _gpio_set_open_source_value() - Set the open source gpio's value.
  * @desc: gpio descriptor whose state need to be set.
- * @value: Non-zero for setting it HIGH otherise it will set to LOW.
+ * @value: Non-zero for setting it HIGH otherwise it will set to LOW.
  */
 static void _gpio_set_open_source_value(struct gpio_desc *desc, bool value)
 {
@@ -1889,7 +1889,7 @@ EXPORT_SYMBOL_GPL(gpiod_count);
  *
  * Return the GPIO descriptor corresponding to the function con_id of device
  * dev, -ENOENT if no GPIO has been assigned to the requested function, or
- * another IS_ERR() code if an error occured while trying to acquire the GPIO.
+ * another IS_ERR() code if an error occurred while trying to acquire the GPIO.
  */
 struct gpio_desc *__must_check __gpiod_get(struct device *dev, const char *con_id,
 					 enum gpiod_flags flags)
@@ -1969,7 +1969,7 @@ static int gpiod_configure_flags(struct gpio_desc *desc, const char *con_id,
  *
  * Return a valid GPIO descriptor, -ENOENT if no GPIO has been assigned to the
  * requested function and/or index, or another IS_ERR() code if an error
- * occured while trying to acquire the GPIO.
+ * occurred while trying to acquire the GPIO.
  */
 struct gpio_desc *__must_check __gpiod_get_index(struct device *dev,
 					       const char *con_id,

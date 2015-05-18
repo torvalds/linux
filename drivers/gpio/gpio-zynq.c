@@ -335,7 +335,7 @@ static void zynq_gpio_irq_ack(struct irq_data *irq_data)
  * @irq_data:	irq data containing irq number of gpio pin for the interrupt
  *		to enable
  *
- * Clears the INTSTS bit and unmasks the given interrrupt.
+ * Clears the INTSTS bit and unmasks the given interrupt.
  */
 static void zynq_gpio_irq_enable(struct irq_data *irq_data)
 {

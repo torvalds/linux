@@ -630,7 +630,7 @@ static int device_pca957x_init(struct pca953x_chip *chip, u32 invert)
 		memset(val, 0, NBANK(chip));
 	pca953x_write_regs(chip, PCA957X_INVRT, val);
 
-	/* To enable register 6, 7 to controll pull up and pull down */
+	/* To enable register 6, 7 to control pull up and pull down */
 	memset(val, 0x02, NBANK(chip));
 	pca953x_write_regs(chip, PCA957X_BKEN, val);
 
