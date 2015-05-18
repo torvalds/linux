@@ -118,11 +118,13 @@ static unsigned int count_plts(Elf32_Addr base, const Elf32_Rel *rel, int num)
 					   __opcode_to_mem_arm(0x00ffffff)))
 				ret++;
 			break;
+#ifdef CONFIG_THUMB2_KERNEL
 		case R_ARM_THM_CALL:
 		case R_ARM_THM_JUMP24:
 			if (!duplicate_rel(base, rel, i,
 					   __opcode_to_mem_thumb32(0x07ff2fff)))
 				ret++;
+#endif
 		}
 	return ret;
 }
