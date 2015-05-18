@@ -358,16 +358,15 @@ int amdgpu_atombios_dp_get_dpcd(struct amdgpu_connector *amdgpu_connector)
 {
 	struct amdgpu_connector_atom_dig *dig_connector = amdgpu_connector->con_priv;
 	u8 msg[DP_DPCD_SIZE];
-	int ret, i;
+	int ret;
 
 	ret = drm_dp_dpcd_read(&amdgpu_connector->ddc_bus->aux, DP_DPCD_REV, msg,
 			       DP_DPCD_SIZE);
 	if (ret > 0) {
 		memcpy(dig_connector->dpcd, msg, DP_DPCD_SIZE);
-		DRM_DEBUG_KMS("DPCD: ");
-		for (i = 0; i < DP_DPCD_SIZE; i++)
-			DRM_DEBUG_KMS("%02x ", msg[i]);
-		DRM_DEBUG_KMS("\n");
+
+		DRM_DEBUG_KMS("DPCD: %*ph\n", (int)sizeof(dig_connector->dpcd),
+			      dig_connector->dpcd);
 
 		amdgpu_atombios_dp_probe_oui(amdgpu_connector);
 
