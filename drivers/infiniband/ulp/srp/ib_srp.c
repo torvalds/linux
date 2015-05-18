@@ -59,9 +59,10 @@
 #define DRV_RELDATE	"July 1, 2013"
 
 MODULE_AUTHOR("Roland Dreier");
-MODULE_DESCRIPTION("InfiniBand SCSI RDMA Protocol initiator "
-		   "v" DRV_VERSION " (" DRV_RELDATE ")");
+MODULE_DESCRIPTION("InfiniBand SCSI RDMA Protocol initiator");
 MODULE_LICENSE("Dual BSD/GPL");
+MODULE_VERSION(DRV_VERSION);
+MODULE_INFO(release_date, DRV_RELDATE);
 
 static unsigned int srp_sg_tablesize;
 static unsigned int cmd_sg_entries;
