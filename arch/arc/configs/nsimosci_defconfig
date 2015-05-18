@@ -1,4 +1,4 @@
-CONFIG_CROSS_COMPILE="arc-linux-uclibc-"
+CONFIG_CROSS_COMPILE="arc-linux-"
 # CONFIG_LOCALVERSION_AUTO is not set
 CONFIG_DEFAULT_HOSTNAME="ARCLinux"
 # CONFIG_SWAP is not set

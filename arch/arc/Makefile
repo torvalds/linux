@@ -9,7 +9,7 @@
 UTS_MACHINE := arc
 
 ifeq ($(CROSS_COMPILE),)
-CROSS_COMPILE := arc-linux-uclibc-
+CROSS_COMPILE := arc-linux-
 endif
 
 KBUILD_DEFCONFIG := nsim_700_defconfig
