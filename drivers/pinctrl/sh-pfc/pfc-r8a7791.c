@@ -2928,6 +2928,79 @@ static const unsigned int msiof2_tx_e_pins[] = {
 static const unsigned int msiof2_tx_e_mux[] = {
 	MSIOF2_TXD_E_MARK,
 };
+/* - PWM -------------------------------------------------------------------- */
+static const unsigned int pwm0_pins[] = {
+	RCAR_GP_PIN(6, 14),
+};
+static const unsigned int pwm0_mux[] = {
+	PWM0_MARK,
+};
+static const unsigned int pwm0_b_pins[] = {
+	RCAR_GP_PIN(5, 30),
+};
+static const unsigned int pwm0_b_mux[] = {
+	PWM0_B_MARK,
+};
+static const unsigned int pwm1_pins[] = {
+	RCAR_GP_PIN(1, 17),
+};
+static const unsigned int pwm1_mux[] = {
+	PWM1_MARK,
+};
+static const unsigned int pwm1_b_pins[] = {
+	RCAR_GP_PIN(6, 15),
+};
+static const unsigned int pwm1_b_mux[] = {
+	PWM1_B_MARK,
+};
+static const unsigned int pwm2_pins[] = {
+	RCAR_GP_PIN(1, 18),
+};
+static const unsigned int pwm2_mux[] = {
+	PWM2_MARK,
+};
+static const unsigned int pwm2_b_pins[] = {
+	RCAR_GP_PIN(0, 16),
+};
+static const unsigned int pwm2_b_mux[] = {
+	PWM2_B_MARK,
+};
+static const unsigned int pwm3_pins[] = {
+	RCAR_GP_PIN(1, 24),
+};
+static const unsigned int pwm3_mux[] = {
+	PWM3_MARK,
+};
+static const unsigned int pwm4_pins[] = {
+	RCAR_GP_PIN(3, 26),
+};
+static const unsigned int pwm4_mux[] = {
+	PWM4_MARK,
+};
+static const unsigned int pwm4_b_pins[] = {
+	RCAR_GP_PIN(3, 31),
+};
+static const unsigned int pwm4_b_mux[] = {
+	PWM4_B_MARK,
+};
+static const unsigned int pwm5_pins[] = {
+	RCAR_GP_PIN(7, 21),
+};
+static const unsigned int pwm5_mux[] = {
+	PWM5_MARK,
+};
+static const unsigned int pwm5_b_pins[] = {
+	RCAR_GP_PIN(7, 20),
+};
+static const unsigned int pwm5_b_mux[] = {
+	PWM5_B_MARK,
+};
+static const unsigned int pwm6_pins[] = {
+	RCAR_GP_PIN(7, 22),
+};
+static const unsigned int pwm6_mux[] = {
+	PWM6_MARK,
+};
 /* - QSPI ------------------------------------------------------------------- */
 static const unsigned int qspi_ctrl_pins[] = {
 	/* SPCLK, SSL */
@@ -4348,6 +4421,18 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(msiof2_sync_e),
 	SH_PFC_PIN_GROUP(msiof2_rx_e),
 	SH_PFC_PIN_GROUP(msiof2_tx_e),
+	SH_PFC_PIN_GROUP(pwm0),
+	SH_PFC_PIN_GROUP(pwm0_b),
+	SH_PFC_PIN_GROUP(pwm1),
+	SH_PFC_PIN_GROUP(pwm1_b),
+	SH_PFC_PIN_GROUP(pwm2),
+	SH_PFC_PIN_GROUP(pwm2_b),
+	SH_PFC_PIN_GROUP(pwm3),
+	SH_PFC_PIN_GROUP(pwm4),
+	SH_PFC_PIN_GROUP(pwm4_b),
+	SH_PFC_PIN_GROUP(pwm5),
+	SH_PFC_PIN_GROUP(pwm5_b),
+	SH_PFC_PIN_GROUP(pwm6),
 	SH_PFC_PIN_GROUP(qspi_ctrl),
 	SH_PFC_PIN_GROUP(qspi_data2),
 	SH_PFC_PIN_GROUP(qspi_data4),
@@ -4745,6 +4830,39 @@ static const char * const msiof2_groups[] = {
 	"msiof2_tx_e",
 };
 
+static const char * const pwm0_groups[] = {
+	"pwm0",
+	"pwm0_b",
+};
+
+static const char * const pwm1_groups[] = {
+	"pwm1",
+	"pwm1_b",
+};
+
+static const char * const pwm2_groups[] = {
+	"pwm2",
+	"pwm2_b",
+};
+
+static const char * const pwm3_groups[] = {
+	"pwm3",
+};
+
+static const char * const pwm4_groups[] = {
+	"pwm4",
+	"pwm4_b",
+};
+
+static const char * const pwm5_groups[] = {
+	"pwm5",
+	"pwm5_b",
+};
+
+static const char * const pwm6_groups[] = {
+	"pwm6",
+};
+
 static const char * const qspi_groups[] = {
 	"qspi_ctrl",
 	"qspi_data2",
@@ -4989,6 +5107,13 @@ static const struct sh_pfc_function pinmux_functions[] = {
 	SH_PFC_FUNCTION(msiof0),
 	SH_PFC_FUNCTION(msiof1),
 	SH_PFC_FUNCTION(msiof2),
+	SH_PFC_FUNCTION(pwm0),
+	SH_PFC_FUNCTION(pwm1),
+	SH_PFC_FUNCTION(pwm2),
+	SH_PFC_FUNCTION(pwm3),
+	SH_PFC_FUNCTION(pwm4),
+	SH_PFC_FUNCTION(pwm5),
+	SH_PFC_FUNCTION(pwm6),
 	SH_PFC_FUNCTION(qspi),
 	SH_PFC_FUNCTION(scif0),
 	SH_PFC_FUNCTION(scif1),
