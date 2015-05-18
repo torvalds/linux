@@ -493,7 +493,7 @@ void flush_dcache_page(struct page *page)
 	} else if (page_mapped(page)) {
 
 		/* kernel reading from page with U-mapping */
-		void *paddr = page_address(page);
+		unsigned long paddr = (unsigned long)page_address(page);
 		unsigned long vaddr = page->index << PAGE_CACHE_SHIFT;
 
 		if (addr_not_cache_congruent(paddr, vaddr))
@@ -605,7 +605,7 @@ void __inv_icache_page(unsigned long paddr, unsigned long vaddr)
  * wrapper to clearout kernel or userspace mappings of a page
  * For kernel mappings @vaddr == @paddr
  */
-void ___flush_dcache_page(unsigned long paddr, unsigned long vaddr)
+void __flush_dcache_page(unsigned long paddr, unsigned long vaddr)
 {
 	__dc_line_op(paddr, vaddr & PAGE_MASK, PAGE_SIZE, OP_FLUSH_N_INV);
 }
@@ -637,7 +637,7 @@ void flush_cache_page(struct vm_area_struct *vma, unsigned long u_vaddr,
 
 	u_vaddr &= PAGE_MASK;
 
-	___flush_dcache_page(paddr, u_vaddr);
+	__flush_dcache_page(paddr, u_vaddr);
 
 	if (vma->vm_flags & VM_EXEC)
 		__inv_icache_page(paddr, u_vaddr);
@@ -663,8 +663,8 @@ void flush_anon_page(struct vm_area_struct *vma, struct page *page,
 void copy_user_highpage(struct page *to, struct page *from,
 	unsigned long u_vaddr, struct vm_area_struct *vma)
 {
-	void *kfrom = page_address(from);
-	void *kto = page_address(to);
+	unsigned long kfrom = (unsigned long)page_address(from);
+	unsigned long kto = (unsigned long)page_address(to);
 	int clean_src_k_mappings = 0;
 
 	/*
@@ -680,7 +680,7 @@ void copy_user_highpage(struct page *to, struct page *from,
 		clean_src_k_mappings = 1;
 	}
 
-	copy_page(kto, kfrom);
+	copy_page((void *)kto, (void *)kfrom);
 
 	/*
 	 * Mark DST page K-mapping as dirty for a later finalization by
