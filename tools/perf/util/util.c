@@ -145,11 +145,38 @@ out:
 	return err;
 }
 
+int copyfile_offset(int ifd, loff_t off_in, int ofd, loff_t off_out, u64 size)
+{
+	void *ptr;
+	loff_t pgoff;
+
+	pgoff = off_in & ~(page_size - 1);
+	off_in -= pgoff;
+
+	ptr = mmap(NULL, off_in + size, PROT_READ, MAP_PRIVATE, ifd, pgoff);
+	if (ptr == MAP_FAILED)
+		return -1;
+
+	while (size) {
+		ssize_t ret = pwrite(ofd, ptr + off_in, size, off_out);
+		if (ret < 0 && errno == EINTR)
+			continue;
+		if (ret <= 0)
+			break;
+
+		size -= ret;
+		off_in += ret;
+		off_out -= ret;
+	}
+	munmap(ptr, off_in + size);
+
+	return size ? -1 : 0;
+}
+
 int copyfile_mode(const char *from, const char *to, mode_t mode)
 {
 	int fromfd, tofd;
 	struct stat st;
-	void *addr;
 	int err = -1;
 
 	if (stat(from, &st))
@@ -166,15 +193,8 @@ int copyfile_mode(const char *from, const char *to, mode_t mode)
 	if (tofd < 0)
 		goto out_close_from;
 
-	addr = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fromfd, 0);
-	if (addr == MAP_FAILED)
-		goto out_close_to;
+	err = copyfile_offset(fromfd, 0, tofd, 0, st.st_size);
 
-	if (write(tofd, addr, st.st_size) == st.st_size)
-		err = 0;
-
-	munmap(addr, st.st_size);
-out_close_to:
 	close(tofd);
 	if (err)
 		unlink(to);
