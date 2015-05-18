@@ -780,7 +780,7 @@ static int srp_send_req(struct srp_rdma_ch *ch, bool multich)
 		shost_printk(KERN_DEBUG, target->scsi_host,
 			     PFX "Topspin/Cisco initiator port ID workaround "
 			     "activated for target GUID %016llx\n",
-			     (unsigned long long) be64_to_cpu(target->ioc_guid));
+			     be64_to_cpu(target->ioc_guid));
 		memset(req->priv.initiator_port_id, 0, 8);
 		memcpy(req->priv.initiator_port_id + 8,
 		       &target->srp_host->srp_dev->dev->node_guid, 8);
@@ -2558,8 +2558,7 @@ static ssize_t show_id_ext(struct device *dev, struct device_attribute *attr,
 {
 	struct srp_target_port *target = host_to_target(class_to_shost(dev));
 
-	return sprintf(buf, "0x%016llx\n",
-		       (unsigned long long) be64_to_cpu(target->id_ext));
+	return sprintf(buf, "0x%016llx\n", be64_to_cpu(target->id_ext));
 }
 
 static ssize_t show_ioc_guid(struct device *dev, struct device_attribute *attr,
@@ -2567,8 +2566,7 @@ static ssize_t show_ioc_guid(struct device *dev, struct device_attribute *attr,
 {
 	struct srp_target_port *target = host_to_target(class_to_shost(dev));
 
-	return sprintf(buf, "0x%016llx\n",
-		       (unsigned long long) be64_to_cpu(target->ioc_guid));
+	return sprintf(buf, "0x%016llx\n", be64_to_cpu(target->ioc_guid));
 }
 
 static ssize_t show_service_id(struct device *dev,
@@ -2576,8 +2574,7 @@ static ssize_t show_service_id(struct device *dev,
 {
 	struct srp_target_port *target = host_to_target(class_to_shost(dev));
 
-	return sprintf(buf, "0x%016llx\n",
-		       (unsigned long long) be64_to_cpu(target->service_id));
+	return sprintf(buf, "0x%016llx\n", be64_to_cpu(target->service_id));
 }
 
 static ssize_t show_pkey(struct device *dev, struct device_attribute *attr,
@@ -2768,7 +2765,7 @@ static int srp_add_target(struct srp_host *host, struct srp_target_port *target)
 
 	target->state = SRP_TARGET_SCANNING;
 	sprintf(target->target_name, "SRP.T10:%016llX",
-		 (unsigned long long) be64_to_cpu(target->id_ext));
+		be64_to_cpu(target->id_ext));
 
 	if (scsi_add_host(target->scsi_host, host->srp_dev->dev->dma_device))
 		return -ENODEV;
