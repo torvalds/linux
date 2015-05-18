@@ -132,6 +132,11 @@ config ARM_GLOBAL_TIMER
 	help
 	  This options enables support for the ARM global timer unit
 
+config ARM_TIMER_SP804
+	bool "Support for Dual Timer SP804 module"
+	select CLKSRC_MMIO
+	select CLKSRC_OF if OF
+
 config CLKSRC_ARM_GLOBAL_TIMER_SCHED_CLOCK
 	bool
 	depends on ARM_GLOBAL_TIMER

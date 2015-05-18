@@ -975,11 +975,6 @@ config PLAT_PXA
 config PLAT_VERSATILE
 	bool
 
-config ARM_TIMER_SP804
-	bool
-	select CLKSRC_MMIO
-	select CLKSRC_OF if OF
-
 source "arch/arm/firmware/Kconfig"
 
 source arch/arm/mm/Kconfig

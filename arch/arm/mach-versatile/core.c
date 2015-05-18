@@ -41,6 +41,8 @@
 #include <linux/bitops.h>
 #include <linux/reboot.h>
 
+#include <clocksource/timer-sp804.h>
+
 #include <asm/irq.h>
 #include <asm/hardware/icst.h>
 #include <asm/mach-types.h>
@@ -51,7 +53,6 @@
 #include <asm/mach/map.h>
 #include <mach/hardware.h>
 #include <mach/platform.h>
-#include <asm/hardware/timer-sp.h>
 
 #include <plat/sched_clock.h>
 

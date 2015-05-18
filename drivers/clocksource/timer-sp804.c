@@ -1,5 +1,5 @@
 /*
- *  linux/arch/arm/common/timer-sp.c
+ *  linux/drivers/clocksource/timer-sp.c
  *
  *  Copyright (C) 1999 - 2003 ARM Limited
  *  Copyright (C) 2000 Deep Blue Solutions Ltd
@@ -30,8 +30,9 @@
 #include <linux/of_irq.h>
 #include <linux/sched_clock.h>
 
-#include <asm/hardware/arm_timer.h>
-#include <asm/hardware/timer-sp.h>
+#include <clocksource/timer-sp804.h>
+
+#include "timer-sp.h"
 
 static long __init sp804_get_clock_rate(struct clk *clk)
 {
