@@ -1243,11 +1243,8 @@ static int srp_rport_reconnect(struct srp_rport *rport)
 
 	for (i = 0; i < target->ch_count; i++) {
 		ch = &target->ch[i];
-		if (ret || !ch->target) {
-			if (i > 1)
-				ret = 0;
+		if (ret || !ch->target)
 			break;
-		}
 		ret = srp_connect_ch(ch, multich);
 		multich = true;
 	}
