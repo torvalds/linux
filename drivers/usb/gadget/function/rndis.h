@@ -177,7 +177,7 @@ typedef struct rndis_resp_t
 
 typedef struct rndis_params
 {
-	u8			confignr;
+	int			confignr;
 	u8			used;
 	u16			saved_filter;
 	enum rndis_state	state;

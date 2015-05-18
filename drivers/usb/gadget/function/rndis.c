@@ -872,7 +872,7 @@ static inline void rndis_put_nr(int nr)
 struct rndis_params *rndis_register(void (*resp_avail)(void *v), void *v)
 {
 	struct rndis_params *params;
-	u8 i;
+	int i;
 
 	if (!resp_avail)
 		return ERR_PTR(-EINVAL);
@@ -923,7 +923,7 @@ EXPORT_SYMBOL_GPL(rndis_register);
 
 void rndis_deregister(struct rndis_params *params)
 {
-	u8 i;
+	int i;
 
 	pr_debug("%s:\n", __func__);
 
