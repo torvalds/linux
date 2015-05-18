@@ -203,9 +203,9 @@ void amdgpu_atombios_dp_aux_init(struct amdgpu_connector *amdgpu_connector)
 #define DP_VOLTAGE_MAX         DP_TRAIN_VOLTAGE_SWING_LEVEL_3
 #define DP_PRE_EMPHASIS_MAX    DP_TRAIN_PRE_EMPH_LEVEL_3
 
-static void amdgpu_atombios_dp_get_adjust_train(u8 link_status[DP_LINK_STATUS_SIZE],
-					 int lane_count,
-					 u8 train_set[4])
+static void amdgpu_atombios_dp_get_adjust_train(const u8 link_status[DP_LINK_STATUS_SIZE],
+						int lane_count,
+						u8 train_set[4])
 {
 	u8 v = 0;
 	u8 p = 0;
@@ -265,8 +265,8 @@ static int amdgpu_atombios_dp_get_max_dp_pix_clock(int link_rate,
  * if the max lane# < low rate lane# then use max lane# instead.
  */
 static int amdgpu_atombios_dp_get_dp_lane_number(struct drm_connector *connector,
-					  u8 dpcd[DP_DPCD_SIZE],
-					  int pix_clock)
+						 const u8 dpcd[DP_DPCD_SIZE],
+						 int pix_clock)
 {
 	int bpp = amdgpu_atombios_dp_convert_bpc_to_bpp(amdgpu_connector_get_monitor_bpc(connector));
 	int max_link_rate = drm_dp_max_link_rate(dpcd);
@@ -284,8 +284,8 @@ static int amdgpu_atombios_dp_get_dp_lane_number(struct drm_connector *connector
 }
 
 static int amdgpu_atombios_dp_get_dp_link_clock(struct drm_connector *connector,
-					 u8 dpcd[DP_DPCD_SIZE],
-					 int pix_clock)
+						const u8 dpcd[DP_DPCD_SIZE],
+						int pix_clock)
 {
 	int bpp = amdgpu_atombios_dp_convert_bpc_to_bpp(amdgpu_connector_get_monitor_bpc(connector));
 	int lane_num, max_pix_clock;
