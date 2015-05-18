@@ -1374,12 +1374,6 @@ struct ext4_sb_info {
 	struct ratelimit_state s_err_ratelimit_state;
 	struct ratelimit_state s_warning_ratelimit_state;
 	struct ratelimit_state s_msg_ratelimit_state;
-
-#ifdef CONFIG_EXT4_FS_ENCRYPTION
-	/* Encryption */
-	uint32_t s_file_encryption_mode;
-	uint32_t s_dir_encryption_mode;
-#endif
 };
 
 static inline struct ext4_sb_info *EXT4_SB(struct super_block *sb)

@@ -51,6 +51,10 @@ static int ext4_create_encryption_context_from_policy(
 	struct ext4_encryption_context ctx;
 	int res = 0;
 
+	res = ext4_convert_inline_data(inode);
+	if (res)
+		return res;
+
 	ctx.format = EXT4_ENCRYPTION_CONTEXT_FORMAT_V1;
 	memcpy(ctx.master_key_descriptor, policy->master_key_descriptor,
 	       EXT4_KEY_DESCRIPTOR_SIZE);
@@ -199,8 +203,9 @@ int ext4_inherit_context(struct inode *parent, struct inode *child)
 	res = ext4_xattr_set(child, EXT4_XATTR_INDEX_ENCRYPTION,
 			     EXT4_XATTR_NAME_ENCRYPTION_CONTEXT, &ctx,
 			     sizeof(ctx), 0);
-	if (!res)
+	if (!res) {
 		ext4_set_inode_flag(child, EXT4_INODE_ENCRYPT);
+		ext4_clear_inode_state(child, EXT4_STATE_MAY_INLINE_DATA);
+	}
 	return res;
-
 }

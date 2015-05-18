@@ -3452,11 +3452,6 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	if (sb->s_bdev->bd_part)
 		sbi->s_sectors_written_start =
 			part_stat_read(sb->s_bdev->bd_part, sectors[1]);
-#ifdef CONFIG_EXT4_FS_ENCRYPTION
-	/* Modes of operations for file and directory encryption. */
-	sbi->s_file_encryption_mode = EXT4_ENCRYPTION_MODE_AES_256_XTS;
-	sbi->s_dir_encryption_mode = EXT4_ENCRYPTION_MODE_INVALID;
-#endif
 
 	/* Cleanup superblock name */
 	for (cp = sb->s_id; (cp = strchr(cp, '/'));)

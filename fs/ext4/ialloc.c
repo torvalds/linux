@@ -1034,28 +1034,9 @@ got:
 	ext4_set_inode_state(inode, EXT4_STATE_NEW);
 
 	ei->i_extra_isize = EXT4_SB(sb)->s_want_extra_isize;
-#ifdef CONFIG_EXT4_FS_ENCRYPTION
-	if ((sbi->s_file_encryption_mode == EXT4_ENCRYPTION_MODE_INVALID) &&
-	    (sbi->s_dir_encryption_mode == EXT4_ENCRYPTION_MODE_INVALID)) {
-		ei->i_inline_off = 0;
-		if (EXT4_HAS_INCOMPAT_FEATURE(sb,
-			EXT4_FEATURE_INCOMPAT_INLINE_DATA))
-			ext4_set_inode_state(inode,
-			EXT4_STATE_MAY_INLINE_DATA);
-	} else {
-		/* Inline data and encryption are incompatible
-		 * We turn off inline data since encryption is enabled */
-		ei->i_inline_off = 1;
-		if (EXT4_HAS_INCOMPAT_FEATURE(sb,
-			EXT4_FEATURE_INCOMPAT_INLINE_DATA))
-			ext4_clear_inode_state(inode,
-			EXT4_STATE_MAY_INLINE_DATA);
-	}
-#else
 	ei->i_inline_off = 0;
 	if (EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_INLINE_DATA))
 		ext4_set_inode_state(inode, EXT4_STATE_MAY_INLINE_DATA);
-#endif
 	ret = inode;
 	err = dquot_alloc_inode(inode);
 	if (err)
