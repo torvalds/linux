@@ -439,8 +439,10 @@ static void __rport_fail_io_fast(struct srp_rport *rport)
 
 	/* Involve the LLD if possible to terminate all I/O on the rport. */
 	i = to_srp_internal(shost->transportt);
-	if (i->f->terminate_rport_io)
+	if (i->f->terminate_rport_io) {
+		srp_wait_for_queuecommand(shost);
 		i->f->terminate_rport_io(rport);
+	}
 }
 
 /**
