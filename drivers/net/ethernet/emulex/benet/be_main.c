@@ -5612,9 +5612,9 @@ static void be_remove(struct pci_dev *pdev)
 	free_netdev(adapter->netdev);
 }
 
-ssize_t be_hwmon_show_temp(struct device *dev,
-			   struct device_attribute *dev_attr,
-			   char *buf)
+static ssize_t be_hwmon_show_temp(struct device *dev,
+				  struct device_attribute *dev_attr,
+				  char *buf)
 {
 	struct be_adapter *adapter = dev_get_drvdata(dev);
 
@@ -5756,7 +5756,7 @@ static int be_probe(struct pci_dev *pdev, const struct pci_device_id *pdev_id)
 	be_schedule_err_detection(adapter);
 
 	/* On Die temperature not supported for VF. */
-	if (be_physfn(adapter)) {
+	if (be_physfn(adapter) && IS_ENABLED(CONFIG_BE2NET_HWMON)) {
 		adapter->hwmon_info.hwmon_dev =
 			devm_hwmon_device_register_with_groups(&pdev->dev,
 							       DRV_NAME,
