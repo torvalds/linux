@@ -62,7 +62,7 @@
 #endif
 #define FREQ_ERR(fmt, args...) pr_err(fmt, ## args)
 
-static struct cpufreq_frequency_table *freq_table[MAX_CLUSTERS + 1];
+static struct cpufreq_frequency_table *freq_table[MAX_CLUSTERS];
 /*********************************************************/
 /* additional symantics for "relation" in cpufreq with pm */
 #define DISABLE_FURTHER_CPUFREQ         0x10
@@ -244,11 +244,11 @@ static int cluster_cpus_freq_dvfs_init(u32 cluster_id, char *dvfs_name)
 
 	for (i = 0; freq_table[cluster_id][i].frequency != CPUFREQ_TABLE_END;
 	     i++) {
-			if (freq_table[cluster_id][i].index >= suspend_volt &&
-			    v > freq_table[cluster_id][i].index) {
-				suspend_freq[cluster_id] =
-					freq_table[cluster_id][i].frequency;
-				v = freq_table[cluster_id][i].index;
+		if (freq_table[cluster_id][i].index >= suspend_volt &&
+		    v > freq_table[cluster_id][i].index) {
+			suspend_freq[cluster_id] =
+				freq_table[cluster_id][i].frequency;
+			v = freq_table[cluster_id][i].index;
 		}
 	}
 	low_battery_freq[cluster_id] =
