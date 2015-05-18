@@ -169,8 +169,8 @@ CONTENTS
  of all the tasks executing on a CPU if and only if the total utilization
  of the tasks running on such a CPU is smaller or equal than 1.
  If D_i != P_i for some task, then it is possible to define the density of
- a task as C_i/min{D_i,P_i}, and EDF is able to respect all the deadlines
- of all the tasks running on a CPU if the sum sum_i C_i/min{D_i,P_i} of the
+ a task as WCET_i/min{D_i,P_i}, and EDF is able to respect all the deadlines
+ of all the tasks running on a CPU if the sum sum_i WCET_i/min{D_i,P_i} of the
  densities of the tasks running on such a CPU is smaller or equal than 1
  (notice that this condition is only sufficient, and not necessary).
 
