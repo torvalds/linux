@@ -98,7 +98,7 @@ ip_set_get_ip4_port(const struct sk_buff *skb, bool src,
 		    __be16 *port, u8 *proto)
 {
 	const struct iphdr *iph = ip_hdr(skb);
-	unsigned int protooff = ip_hdrlen(skb);
+	unsigned int protooff = skb_network_offset(skb) + ip_hdrlen(skb);
 	int protocol = iph->protocol;
 
 	/* See comments at tcp_match in ip_tables.c */
@@ -135,7 +135,9 @@ ip_set_get_ip6_port(const struct sk_buff *skb, bool src,
 	__be16 frag_off = 0;
 
 	nexthdr = ipv6_hdr(skb)->nexthdr;
-	protoff = ipv6_skip_exthdr(skb, sizeof(struct ipv6hdr), &nexthdr,
+	protoff = ipv6_skip_exthdr(skb,
+				   skb_network_offset(skb) +
+					sizeof(struct ipv6hdr), &nexthdr,
 				   &frag_off);
 	if (protoff < 0 || (frag_off & htons(~0x7)) != 0)
 		return false;

@@ -170,12 +170,14 @@ struct nf_bridge_info {
 		BRNF_PROTO_UNCHANGED,
 		BRNF_PROTO_8021Q,
 		BRNF_PROTO_PPPOE
-	} orig_proto;
+	} orig_proto:8;
 	bool			pkt_otherhost;
 	unsigned int		mask;
 	struct net_device	*physindev;
-	struct net_device	*physoutdev;
-	char			neigh_header[8];
+	union {
+		struct net_device *physoutdev;
+		char neigh_header[8];
+	};
 };
 #endif
 

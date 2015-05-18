@@ -52,7 +52,12 @@ hash_mac4_data_equal(const struct hash_mac4_elem *e1,
 static inline bool
 hash_mac4_data_list(struct sk_buff *skb, const struct hash_mac4_elem *e)
 {
-	return nla_put(skb, IPSET_ATTR_ETHER, ETH_ALEN, e->ether);
+	if (nla_put(skb, IPSET_ATTR_ETHER, ETH_ALEN, e->ether))
+		goto nla_put_failure;
+	return false;
+
+nla_put_failure:
+	return true;
 }
 
 static inline void
@@ -62,7 +67,6 @@ hash_mac4_data_next(struct hash_mac4_elem *next,
 }
 
 #define MTYPE		hash_mac4
-#define PF		4
 #define HOST_MASK	32
 #define IP_SET_EMIT_CREATE
 #define IP_SET_PROTO_UNDEF
@@ -149,7 +153,8 @@ static struct ip_set_type hash_mac_type __read_mostly = {
 		[IPSET_ATTR_LINENO]	= { .type = NLA_U32 },
 		[IPSET_ATTR_BYTES]	= { .type = NLA_U64 },
 		[IPSET_ATTR_PACKETS]	= { .type = NLA_U64 },
-		[IPSET_ATTR_COMMENT]	= { .type = NLA_NUL_STRING },
+		[IPSET_ATTR_COMMENT]	= { .type = NLA_NUL_STRING,
+					    .len  = IPSET_MAX_COMMENT_SIZE },
 		[IPSET_ATTR_SKBMARK]	= { .type = NLA_U64 },
 		[IPSET_ATTR_SKBPRIO]	= { .type = NLA_U32 },
 		[IPSET_ATTR_SKBQUEUE]	= { .type = NLA_U16 },

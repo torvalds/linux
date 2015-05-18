@@ -180,6 +180,7 @@ hbucket_elem_add(struct hbucket *n, u8 ahash_max, size_t dsize)
 #undef mtype_data_equal
 #undef mtype_do_data_match
 #undef mtype_data_set_flags
+#undef mtype_data_reset_elem
 #undef mtype_data_reset_flags
 #undef mtype_data_netmask
 #undef mtype_data_list
@@ -193,7 +194,6 @@ hbucket_elem_add(struct hbucket *n, u8 ahash_max, size_t dsize)
 #undef mtype_ahash_memsize
 #undef mtype_flush
 #undef mtype_destroy
-#undef mtype_gc_init
 #undef mtype_same_set
 #undef mtype_kadt
 #undef mtype_uadt
@@ -227,6 +227,7 @@ hbucket_elem_add(struct hbucket *n, u8 ahash_max, size_t dsize)
 #define mtype_data_list		IPSET_TOKEN(MTYPE, _data_list)
 #define mtype_data_next		IPSET_TOKEN(MTYPE, _data_next)
 #define mtype_elem		IPSET_TOKEN(MTYPE, _elem)
+
 #define mtype_ahash_destroy	IPSET_TOKEN(MTYPE, _ahash_destroy)
 #define mtype_ext_cleanup	IPSET_TOKEN(MTYPE, _ext_cleanup)
 #define mtype_add_cidr		IPSET_TOKEN(MTYPE, _add_cidr)
@@ -234,7 +235,6 @@ hbucket_elem_add(struct hbucket *n, u8 ahash_max, size_t dsize)
 #define mtype_ahash_memsize	IPSET_TOKEN(MTYPE, _ahash_memsize)
 #define mtype_flush		IPSET_TOKEN(MTYPE, _flush)
 #define mtype_destroy		IPSET_TOKEN(MTYPE, _destroy)
-#define mtype_gc_init		IPSET_TOKEN(MTYPE, _gc_init)
 #define mtype_same_set		IPSET_TOKEN(MTYPE, _same_set)
 #define mtype_kadt		IPSET_TOKEN(MTYPE, _kadt)
 #define mtype_uadt		IPSET_TOKEN(MTYPE, _uadt)
@@ -249,8 +249,17 @@ hbucket_elem_add(struct hbucket *n, u8 ahash_max, size_t dsize)
 #define mtype_head		IPSET_TOKEN(MTYPE, _head)
 #define mtype_list		IPSET_TOKEN(MTYPE, _list)
 #define mtype_gc		IPSET_TOKEN(MTYPE, _gc)
+#define mtype_gc_init		IPSET_TOKEN(MTYPE, _gc_init)
 #define mtype_variant		IPSET_TOKEN(MTYPE, _variant)
 #define mtype_data_match	IPSET_TOKEN(MTYPE, _data_match)
+
+#ifndef MTYPE
+#error "MTYPE is not defined!"
+#endif
+
+#ifndef HOST_MASK
+#error "HOST_MASK is not defined!"
+#endif
 
 #ifndef HKEY_DATALEN
 #define HKEY_DATALEN		sizeof(struct mtype_elem)
@@ -261,6 +270,9 @@ hbucket_elem_add(struct hbucket *n, u8 ahash_max, size_t dsize)
 	& jhash_mask(htable_bits))
 
 #ifndef htype
+#ifndef HTYPE
+#error "HTYPE is not defined!"
+#endif /* HTYPE */
 #define htype			HTYPE
 
 /* The generic hash structure */
@@ -287,7 +299,7 @@ struct htype {
 	struct net_prefixes nets[0]; /* book-keeping of prefixes */
 #endif
 };
-#endif
+#endif /* htype */
 
 #ifdef IP_SET_HASH_WITH_NETS
 /* Network cidr size book keeping when the hash stores different
@@ -1045,7 +1057,7 @@ IPSET_TOKEN(HTYPE, _create)(struct net *net, struct ip_set *set,
 	u8 netmask;
 #endif
 	size_t hsize;
-	struct HTYPE *h;
+	struct htype *h;
 	struct htable *t;
 
 #ifndef IP_SET_PROTO_UNDEF
@@ -1165,3 +1177,5 @@ IPSET_TOKEN(HTYPE, _create)(struct net *net, struct ip_set *set,
 	return 0;
 }
 #endif /* IP_SET_EMIT_CREATE */
+
+#undef HKEY_DATALEN
