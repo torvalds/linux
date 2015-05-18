@@ -249,9 +249,17 @@ CONTENTS
  the total utilization is smaller or equal than M then the response times of
  the tasks are limited.
 
- SCHED_DEADLINE can be used to schedule real-time tasks guaranteeing that
- the jobs' deadlines of a task are respected. In order to do this, a task
- must be scheduled by setting:
+ Finally, it is important to understand the relationship between the
+ SCHED_DEADLINE scheduling parameters described in Section 2 (runtime,
+ deadline and period) and the real-time task parameters (WCET, D, P)
+ described in this section. Note that the tasks' temporal constraints are
+ represented by its absolute deadlines d_j = r_j + D described above, while
+ SCHED_DEADLINE schedules the tasks according to scheduling deadlines (see
+ Section 2).
+ If an admission test is used to guarantee that the scheduling deadlines
+ are respected, then SCHED_DEADLINE can be used to schedule real-time tasks
+ guaranteeing that all the jobs' deadlines of a task are respected.
+ In order to do this, a task must be scheduled by setting:
 
   - runtime >= WCET
   - deadline = D
