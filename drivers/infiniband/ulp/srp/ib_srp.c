@@ -836,7 +836,7 @@ static void srp_free_req_data(struct srp_target_port *target,
 	struct srp_request *req;
 	int i;
 
-	if (!ch->target || !ch->req_ring)
+	if (!ch->req_ring)
 		return;
 
 	for (i = 0; i < target->req_ring_size; ++i) {
