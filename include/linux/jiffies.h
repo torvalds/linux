@@ -343,12 +343,24 @@ static inline unsigned long _msecs_to_jiffies(const unsigned int m)
  *   handling any 32-bit overflows.
  *   for the details see __msecs_to_jiffies()
  *
- * the HZ range specific helpers _msecs_to_jiffies() are called from
- * __msecs_to_jiffies().
+ * msecs_to_jiffies() checks for the passed in value being a constant
+ * via __builtin_constant_p() allowing gcc to eliminate most of the
+ * code, __msecs_to_jiffies() is called if the value passed does not
+ * allow constant folding and the actual conversion must be done at
+ * runtime.
+ * the HZ range specific helpers _msecs_to_jiffies() are called both
+ * directly here and from __msecs_to_jiffies() in the case where
+ * constant folding is not possible.
  */
 static inline unsigned long msecs_to_jiffies(const unsigned int m)
 {
-	return __msecs_to_jiffies(m);
+	if (__builtin_constant_p(m)) {
+		if ((int)m < 0)
+			return MAX_JIFFY_OFFSET;
+		return _msecs_to_jiffies(m);
+	} else {
+		return __msecs_to_jiffies(m);
+	}
 }
 
 extern unsigned long usecs_to_jiffies(const unsigned int u);
