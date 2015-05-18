@@ -127,6 +127,7 @@ struct zx_dma_dev {
 	struct dma_pool		*pool;
 	u32			dma_channels;
 	u32			dma_requests;
+	int 			irq;
 };
 
 #define to_zx_dma(dmadev) container_of(dmadev, struct zx_dma_dev, slave)
@@ -683,7 +684,7 @@ static int zx_dma_probe(struct platform_device *op)
 {
 	struct zx_dma_dev *d;
 	struct resource *iores;
-	int i, ret = 0, irq = 0;
+	int i, ret = 0;
 
 	iores = platform_get_resource(op, IORESOURCE_MEM, 0);
 	if (!iores)
@@ -710,8 +711,8 @@ static int zx_dma_probe(struct platform_device *op)
 		return PTR_ERR(d->clk);
 	}
 
-	irq = platform_get_irq(op, 0);
-	ret = devm_request_irq(&op->dev, irq, zx_dma_int_handler,
+	d->irq = platform_get_irq(op, 0);
+	ret = devm_request_irq(&op->dev, d->irq, zx_dma_int_handler,
 			       0, DRIVER_NAME, d);
 	if (ret)
 		return ret;
@@ -806,6 +807,9 @@ static int zx_dma_remove(struct platform_device *op)
 {
 	struct zx_dma_chan *c, *cn;
 	struct zx_dma_dev *d = platform_get_drvdata(op);
+
+	/* explictly free the irq */
+	devm_free_irq(&op->dev, d->irq, d);
 
 	dma_async_device_unregister(&d->slave);
 	of_dma_controller_free((&op->dev)->of_node);
