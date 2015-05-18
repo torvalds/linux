@@ -934,7 +934,6 @@ void rndis_deregister(struct rndis_params *params)
 
 #ifdef CONFIG_USB_GADGET_DEBUG_FILES
 	{
-		u8 i;
 		char name[20];
 
 		sprintf(name, NAME_TEMPLATE, i);
