@@ -1171,55 +1171,61 @@ static struct dentry *mount_subvol(const char *subvol_name, int flags,
 				   const char *device_name, char *data)
 {
 	struct dentry *root;
-	struct vfsmount *mnt;
+	struct vfsmount *mnt = NULL;
 	char *newargs;
+	int ret;
 
 	newargs = setup_root_args(data);
-	if (!newargs)
-		return ERR_PTR(-ENOMEM);
-	mnt = vfs_kern_mount(&btrfs_fs_type, flags, device_name,
-			     newargs);
+	if (!newargs) {
+		root = ERR_PTR(-ENOMEM);
+		goto out;
+	}
 
-	if (PTR_RET(mnt) == -EBUSY) {
+	mnt = vfs_kern_mount(&btrfs_fs_type, flags, device_name, newargs);
+	if (PTR_ERR_OR_ZERO(mnt) == -EBUSY) {
 		if (flags & MS_RDONLY) {
-			mnt = vfs_kern_mount(&btrfs_fs_type, flags & ~MS_RDONLY, device_name,
-					     newargs);
+			mnt = vfs_kern_mount(&btrfs_fs_type, flags & ~MS_RDONLY,
+					     device_name, newargs);
 		} else {
-			int r;
-			mnt = vfs_kern_mount(&btrfs_fs_type, flags | MS_RDONLY, device_name,
-					     newargs);
+			mnt = vfs_kern_mount(&btrfs_fs_type, flags | MS_RDONLY,
+					     device_name, newargs);
 			if (IS_ERR(mnt)) {
-				kfree(newargs);
-				return ERR_CAST(mnt);
+				root = ERR_CAST(mnt);
+				mnt = NULL;
+				goto out;
 			}
 
 			down_write(&mnt->mnt_sb->s_umount);
-			r = btrfs_remount(mnt->mnt_sb, &flags, NULL);
+			ret = btrfs_remount(mnt->mnt_sb, &flags, NULL);
 			up_write(&mnt->mnt_sb->s_umount);
-			if (r < 0) {
-				/* FIXME: release vfsmount mnt ??*/
-				kfree(newargs);
-				return ERR_PTR(r);
+			if (ret < 0) {
+				root = ERR_PTR(ret);
+				goto out;
 			}
 		}
 	}
-
-	kfree(newargs);
-
-	if (IS_ERR(mnt))
-		return ERR_CAST(mnt);
+	if (IS_ERR(mnt)) {
+		root = ERR_CAST(mnt);
+		mnt = NULL;
+		goto out;
+	}
 
 	root = mount_subtree(mnt, subvol_name);
+	/* mount_subtree() drops our reference on the vfsmount. */
+	mnt = NULL;
 
 	if (!IS_ERR(root) && !is_subvolume_inode(d_inode(root))) {
 		struct super_block *s = root->d_sb;
 		dput(root);
 		root = ERR_PTR(-EINVAL);
 		deactivate_locked_super(s);
-		printk(KERN_ERR "BTRFS: '%s' is not a valid subvolume\n",
-				subvol_name);
+		pr_err("BTRFS: '%s' is not a valid subvolume\n", subvol_name);
 	}
 
+out:
+	mntput(mnt);
+	kfree(newargs);
+	kfree(subvol_name);
 	return root;
 }
 
@@ -1305,9 +1311,8 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 	}
 
 	if (subvol_name) {
-		root = mount_subvol(subvol_name, flags, device_name, data);
-		kfree(subvol_name);
-		return root;
+		/* mount_subvol() will free subvol_name. */
+		return mount_subvol(subvol_name, flags, device_name, data);
 	}
 
 	security_init_mnt_opts(&new_sec_opts);
