@@ -955,7 +955,7 @@ struct ext4_inode_info {
 
 #ifdef CONFIG_EXT4_FS_ENCRYPTION
 	/* Encryption params */
-	struct ext4_encryption_key i_encryption_key;
+	struct ext4_crypt_info i_crypt_info;
 #endif
 };
 

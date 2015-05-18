@@ -118,7 +118,7 @@ struct ext4_crypto_ctx *ext4_get_crypto_ctx(struct inode *inode)
 	struct ext4_crypto_ctx *ctx = NULL;
 	int res = 0;
 	unsigned long flags;
-	struct ext4_encryption_key *key = &EXT4_I(inode)->i_encryption_key;
+	struct ext4_crypt_info *ci = &EXT4_I(inode)->i_crypt_info;
 
 	if (!ext4_read_workqueue)
 		ext4_init_crypto();
@@ -152,14 +152,14 @@ struct ext4_crypto_ctx *ext4_get_crypto_ctx(struct inode *inode)
 
 	/* Allocate a new Crypto API context if we don't already have
 	 * one or if it isn't the right mode. */
-	BUG_ON(key->mode == EXT4_ENCRYPTION_MODE_INVALID);
-	if (ctx->tfm && (ctx->mode != key->mode)) {
+	BUG_ON(ci->ci_mode == EXT4_ENCRYPTION_MODE_INVALID);
+	if (ctx->tfm && (ctx->mode != ci->ci_mode)) {
 		crypto_free_tfm(ctx->tfm);
 		ctx->tfm = NULL;
 		ctx->mode = EXT4_ENCRYPTION_MODE_INVALID;
 	}
 	if (!ctx->tfm) {
-		switch (key->mode) {
+		switch (ci->ci_mode) {
 		case EXT4_ENCRYPTION_MODE_AES_256_XTS:
 			ctx->tfm = crypto_ablkcipher_tfm(
 				crypto_alloc_ablkcipher("xts(aes)", 0, 0));
@@ -177,9 +177,9 @@ struct ext4_crypto_ctx *ext4_get_crypto_ctx(struct inode *inode)
 			ctx->tfm = NULL;
 			goto out;
 		}
-		ctx->mode = key->mode;
+		ctx->mode = ci->ci_mode;
 	}
-	BUG_ON(key->size != ext4_encryption_key_size(key->mode));
+	BUG_ON(ci->ci_size != ext4_encryption_key_size(ci->ci_mode));
 
 	/* There shouldn't be a bounce page attached to the crypto
 	 * context at this point. */
@@ -322,7 +322,7 @@ static int ext4_page_crypto(struct ext4_crypto_ctx *ctx,
 	int res = 0;
 
 	BUG_ON(!ctx->tfm);
-	BUG_ON(ctx->mode != ei->i_encryption_key.mode);
+	BUG_ON(ctx->mode != ei->i_crypt_info.ci_mode);
 
 	if (ctx->mode != EXT4_ENCRYPTION_MODE_AES_256_XTS) {
 		printk_ratelimited(KERN_ERR
@@ -334,8 +334,8 @@ static int ext4_page_crypto(struct ext4_crypto_ctx *ctx,
 	crypto_ablkcipher_clear_flags(atfm, ~0);
 	crypto_tfm_set_flags(ctx->tfm, CRYPTO_TFM_REQ_WEAK_KEY);
 
-	res = crypto_ablkcipher_setkey(atfm, ei->i_encryption_key.raw,
-				       ei->i_encryption_key.size);
+	res = crypto_ablkcipher_setkey(atfm, ei->i_crypt_info.ci_raw,
+				       ei->i_crypt_info.ci_size);
 	if (res) {
 		printk_ratelimited(KERN_ERR
 				   "%s: crypto_ablkcipher_setkey() failed\n",

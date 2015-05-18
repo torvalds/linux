@@ -91,7 +91,7 @@ out:
 int ext4_generate_encryption_key(struct inode *inode)
 {
 	struct ext4_inode_info *ei = EXT4_I(inode);
-	struct ext4_encryption_key *crypt_key = &ei->i_encryption_key;
+	struct ext4_crypt_info *crypt_info = &ei->i_crypt_info;
 	char full_key_descriptor[EXT4_KEY_DESC_PREFIX_SIZE +
 				 (EXT4_KEY_DESCRIPTOR_SIZE * 2) + 1];
 	struct key *keyring_key = NULL;
@@ -112,17 +112,17 @@ int ext4_generate_encryption_key(struct inode *inode)
 
 	ei->i_crypt_policy_flags = ctx.flags;
 	if (S_ISREG(inode->i_mode))
-		crypt_key->mode = ctx.contents_encryption_mode;
+		crypt_info->ci_mode = ctx.contents_encryption_mode;
 	else if (S_ISDIR(inode->i_mode) || S_ISLNK(inode->i_mode))
-		crypt_key->mode = ctx.filenames_encryption_mode;
+		crypt_info->ci_mode = ctx.filenames_encryption_mode;
 	else {
 		printk(KERN_ERR "ext4 crypto: Unsupported inode type.\n");
 		BUG();
 	}
-	crypt_key->size = ext4_encryption_key_size(crypt_key->mode);
-	BUG_ON(!crypt_key->size);
+	crypt_info->ci_size = ext4_encryption_key_size(crypt_info->ci_mode);
+	BUG_ON(!crypt_info->ci_size);
 	if (DUMMY_ENCRYPTION_ENABLED(sbi)) {
-		memset(crypt_key->raw, 0x42, EXT4_AES_256_XTS_KEY_SIZE);
+		memset(crypt_info->ci_raw, 0x42, EXT4_AES_256_XTS_KEY_SIZE);
 		goto out;
 	}
 	memcpy(full_key_descriptor, EXT4_KEY_DESC_PREFIX,
@@ -148,19 +148,20 @@ int ext4_generate_encryption_key(struct inode *inode)
 	BUILD_BUG_ON(EXT4_AES_128_ECB_KEY_SIZE !=
 		     EXT4_KEY_DERIVATION_NONCE_SIZE);
 	BUG_ON(master_key->size != EXT4_AES_256_XTS_KEY_SIZE);
-	res = ext4_derive_key_aes(ctx.nonce, master_key->raw, crypt_key->raw);
+	res = ext4_derive_key_aes(ctx.nonce, master_key->raw,
+				  crypt_info->ci_raw);
 out:
 	if (keyring_key)
 		key_put(keyring_key);
 	if (res < 0)
-		crypt_key->mode = EXT4_ENCRYPTION_MODE_INVALID;
+		crypt_info->ci_mode = EXT4_ENCRYPTION_MODE_INVALID;
 	return res;
 }
 
 int ext4_has_encryption_key(struct inode *inode)
 {
 	struct ext4_inode_info *ei = EXT4_I(inode);
-	struct ext4_encryption_key *crypt_key = &ei->i_encryption_key;
+	struct ext4_crypt_info *crypt_info = &ei->i_crypt_info;
 
-	return (crypt_key->mode != EXT4_ENCRYPTION_MODE_INVALID);
+	return (crypt_info->ci_mode != EXT4_ENCRYPTION_MODE_INVALID);
 }

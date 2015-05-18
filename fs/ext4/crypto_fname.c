@@ -278,33 +278,24 @@ void ext4_put_fname_crypto_ctx(struct ext4_fname_crypto_ctx **ctx)
 }
 
 /**
- * ext4_search_fname_crypto_ctx() -
- */
-static struct ext4_fname_crypto_ctx *ext4_search_fname_crypto_ctx(
-		const struct ext4_encryption_key *key)
-{
-	return NULL;
-}
-
-/**
  * ext4_alloc_fname_crypto_ctx() -
  */
 struct ext4_fname_crypto_ctx *ext4_alloc_fname_crypto_ctx(
-	const struct ext4_encryption_key *key)
+	const struct ext4_crypt_info *ci)
 {
 	struct ext4_fname_crypto_ctx *ctx;
 
 	ctx = kmalloc(sizeof(struct ext4_fname_crypto_ctx), GFP_NOFS);
 	if (ctx == NULL)
 		return ERR_PTR(-ENOMEM);
-	if (key->mode == EXT4_ENCRYPTION_MODE_INVALID) {
+	if (ci->ci_mode == EXT4_ENCRYPTION_MODE_INVALID) {
 		/* This will automatically set key mode to invalid
 		 * As enum for ENCRYPTION_MODE_INVALID is zero */
-		memset(&ctx->key, 0, sizeof(ctx->key));
+		memset(&ctx->ci, 0, sizeof(ctx->ci));
 	} else {
-		memcpy(&ctx->key, key, sizeof(struct ext4_encryption_key));
+		memcpy(&ctx->ci, ci, sizeof(struct ext4_crypt_info));
 	}
-	ctx->has_valid_key = (EXT4_ENCRYPTION_MODE_INVALID == key->mode)
+	ctx->has_valid_key = (EXT4_ENCRYPTION_MODE_INVALID == ci->ci_mode)
 		? 0 : 1;
 	ctx->ctfm_key_is_ready = 0;
 	ctx->ctfm = NULL;
@@ -335,21 +326,17 @@ struct ext4_fname_crypto_ctx *ext4_get_fname_crypto_ctx(
 	if (!ext4_has_encryption_key(inode))
 		ext4_generate_encryption_key(inode);
 
-	/* Get a crypto context based on the key.
-	 * A new context is allocated if no context matches the requested key.
-	 */
-	ctx = ext4_search_fname_crypto_ctx(&(ei->i_encryption_key));
-	if (ctx == NULL)
-		ctx = ext4_alloc_fname_crypto_ctx(&(ei->i_encryption_key));
+	/* Get a crypto context based on the key. */
+	ctx = ext4_alloc_fname_crypto_ctx(&(ei->i_crypt_info));
 	if (IS_ERR(ctx))
 		return ctx;
 
 	ctx->flags = ei->i_crypt_policy_flags;
 	if (ctx->has_valid_key) {
-		if (ctx->key.mode != EXT4_ENCRYPTION_MODE_AES_256_CTS) {
+		if (ctx->ci.ci_mode != EXT4_ENCRYPTION_MODE_AES_256_CTS) {
 			printk_once(KERN_WARNING
 				    "ext4: unsupported key mode %d\n",
-				    ctx->key.mode);
+				    ctx->ci.ci_mode);
 			return ERR_PTR(-ENOKEY);
 		}
 
@@ -389,7 +376,7 @@ struct ext4_fname_crypto_ctx *ext4_get_fname_crypto_ctx(
 			 * are pretty weak,
 			 * we directly use the inode master key */
 			res = crypto_ablkcipher_setkey(ctx->ctfm,
-					ctx->key.raw, ctx->key.size);
+					ctx->ci.ci_raw, ctx->ci.ci_size);
 			if (res) {
 				ext4_put_fname_crypto_ctx(&ctx);
 				return ERR_PTR(-EIO);
