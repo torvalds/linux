@@ -118,8 +118,9 @@ struct ext4_crypto_ctx *ext4_get_crypto_ctx(struct inode *inode)
 	struct ext4_crypto_ctx *ctx = NULL;
 	int res = 0;
 	unsigned long flags;
-	struct ext4_crypt_info *ci = &EXT4_I(inode)->i_crypt_info;
+	struct ext4_crypt_info *ci = EXT4_I(inode)->i_crypt_info;
 
+	BUG_ON(ci == NULL);
 	if (!ext4_read_workqueue)
 		ext4_init_crypto();
 
@@ -322,7 +323,7 @@ static int ext4_page_crypto(struct ext4_crypto_ctx *ctx,
 	int res = 0;
 
 	BUG_ON(!ctx->tfm);
-	BUG_ON(ctx->mode != ei->i_crypt_info.ci_mode);
+	BUG_ON(ctx->mode != ei->i_crypt_info->ci_mode);
 
 	if (ctx->mode != EXT4_ENCRYPTION_MODE_AES_256_XTS) {
 		printk_ratelimited(KERN_ERR
@@ -334,8 +335,8 @@ static int ext4_page_crypto(struct ext4_crypto_ctx *ctx,
 	crypto_ablkcipher_clear_flags(atfm, ~0);
 	crypto_tfm_set_flags(ctx->tfm, CRYPTO_TFM_REQ_WEAK_KEY);
 
-	res = crypto_ablkcipher_setkey(atfm, ei->i_crypt_info.ci_raw,
-				       ei->i_crypt_info.ci_size);
+	res = crypto_ablkcipher_setkey(atfm, ei->i_crypt_info->ci_raw,
+				       ei->i_crypt_info->ci_size);
 	if (res) {
 		printk_ratelimited(KERN_ERR
 				   "%s: crypto_ablkcipher_setkey() failed\n",

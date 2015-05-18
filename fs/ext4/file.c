@@ -223,7 +223,7 @@ static int ext4_file_mmap(struct file *file, struct vm_area_struct *vma)
 	struct inode *inode = file->f_mapping->host;
 
 	if (ext4_encrypted_inode(inode)) {
-		int err = ext4_generate_encryption_key(inode);
+		int err = ext4_get_encryption_info(inode);
 		if (err)
 			return 0;
 	}
@@ -289,7 +289,7 @@ static int ext4_file_open(struct inode * inode, struct file * filp)
 	}
 	ret = dquot_file_open(inode, filp);
 	if (!ret && ext4_encrypted_inode(inode)) {
-		ret = ext4_generate_encryption_key(inode);
+		ret = ext4_get_encryption_info(inode);
 		if (ret)
 			ret = -EACCES;
 	}

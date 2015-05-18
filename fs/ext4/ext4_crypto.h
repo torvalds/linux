@@ -76,7 +76,13 @@ struct ext4_encryption_key {
 struct ext4_crypt_info {
 	unsigned char	ci_mode;
 	unsigned char	ci_size;
+	char		ci_data_mode;
+	char		ci_filename_mode;
+	char		ci_flags;
+	struct crypto_ablkcipher *ci_ctfm;
+	struct key	*ci_keyring_key;
 	char		ci_raw[EXT4_MAX_KEY_SIZE];
+	char		ci_master_key[EXT4_KEY_DESCRIPTOR_SIZE];
 };
 
 #define EXT4_CTX_REQUIRES_FREE_ENCRYPT_FL             0x00000001
@@ -126,16 +132,6 @@ static inline int ext4_encryption_key_size(int mode)
 struct ext4_str {
 	unsigned char *name;
 	u32 len;
-};
-
-struct ext4_fname_crypto_ctx {
-	u32 lim;
-	struct crypto_ablkcipher *ctfm;
-	struct crypto_hash *htfm;
-	struct ext4_crypt_info ci;
-	unsigned flags : 8;
-	unsigned has_valid_key : 1;
-	unsigned ctfm_key_is_ready : 1;
 };
 
 /**

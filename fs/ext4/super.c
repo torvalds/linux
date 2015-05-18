@@ -879,9 +879,8 @@ static struct inode *ext4_alloc_inode(struct super_block *sb)
 	atomic_set(&ei->i_unwritten, 0);
 	INIT_WORK(&ei->i_rsv_conversion_work, ext4_end_io_rsv_work);
 #ifdef CONFIG_EXT4_FS_ENCRYPTION
-	ei->i_crypt_info.ci_mode = EXT4_ENCRYPTION_MODE_INVALID;
+	ei->i_crypt_info = NULL;
 #endif
-
 	return &ei->vfs_inode;
 }
 
@@ -958,6 +957,10 @@ void ext4_clear_inode(struct inode *inode)
 		jbd2_free_inode(EXT4_I(inode)->jinode);
 		EXT4_I(inode)->jinode = NULL;
 	}
+#ifdef CONFIG_EXT4_FS_ENCRYPTION
+	if (EXT4_I(inode)->i_crypt_info)
+		ext4_free_encryption_info(inode);
+#endif
 }
 
 static struct inode *ext4_nfs_get_inode(struct super_block *sb,
