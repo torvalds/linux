@@ -1209,7 +1209,9 @@ static struct dentry *mount_subvol(const char *subvol_name, int flags,
 				return ERR_CAST(mnt);
 			}
 
+			down_write(&mnt->mnt_sb->s_umount);
 			r = btrfs_remount(mnt->mnt_sb, &flags, NULL);
+			up_write(&mnt->mnt_sb->s_umount);
 			if (r < 0) {
 				/* FIXME: release vfsmount mnt ??*/
 				kfree(newargs);
