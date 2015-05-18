@@ -86,7 +86,9 @@ static ssize_t qeth_bridge_port_role_store(struct device *dev,
 
 	mutex_lock(&card->conf_mutex);
 
-	if (qeth_card_hw_is_reachable(card)) {
+	if (card->options.sbp.reflect_promisc) /* Forbid direct manipulation */
+		rc = -EPERM;
+	else if (qeth_card_hw_is_reachable(card)) {
 		rc = qeth_bridgeport_setrole(card, role);
 		if (!rc)
 			card->options.sbp.role = role;
@@ -184,6 +186,7 @@ static ssize_t qeth_bridgeport_reflect_store(struct device *dev,
 {
 	struct qeth_card *card = dev_get_drvdata(dev);
 	int enable, primary;
+	int rc = 0;
 
 	if (!card)
 		return -EINVAL;
@@ -202,12 +205,17 @@ static ssize_t qeth_bridgeport_reflect_store(struct device *dev,
 
 	mutex_lock(&card->conf_mutex);
 
-	card->options.sbp.reflect_promisc = enable;
-	card->options.sbp.reflect_promisc_primary = primary;
+	if (card->options.sbp.role != QETH_SBP_ROLE_NONE)
+		rc = -EPERM;
+	else {
+		card->options.sbp.reflect_promisc = enable;
+		card->options.sbp.reflect_promisc_primary = primary;
+		rc = 0;
+	}
 
 	mutex_unlock(&card->conf_mutex);
 
-	return count;
+	return rc ? rc : count;
 }
 
 static DEVICE_ATTR(bridge_reflect_promisc, 0644,
