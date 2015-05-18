@@ -1578,6 +1578,9 @@ static int pl011_startup(struct uart_port *port)
 
 	writew(uap->vendor->ifls, uap->port.membase + UART011_IFLS);
 
+	/* Assume that TX IRQ doesn't work until we see one: */
+	uap->tx_irq_seen = 0;
+
 	spin_lock_irq(&uap->port.lock);
 
 	/* restore RTS and DTR */

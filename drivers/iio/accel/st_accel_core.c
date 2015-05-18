@@ -546,6 +546,7 @@ int st_accel_common_probe(struct iio_dev *indio_dev)
 
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &accel_info;
+	mutex_init(&adata->tb.buf_lock);
 
 	st_sensors_power_enable(indio_dev);
 

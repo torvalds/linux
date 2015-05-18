@@ -1250,7 +1250,7 @@ err_enable:
 	return -ENODEV;
 }
 
-static void __exit lynxfb_pci_remove(struct pci_dev *pdev)
+static void lynxfb_pci_remove(struct pci_dev *pdev)
 {
 	struct fb_info *info;
 	struct lynx_share *share;

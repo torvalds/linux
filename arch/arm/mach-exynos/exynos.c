@@ -167,6 +167,33 @@ static void __init exynos_init_io(void)
 }
 
 /*
+ * Set or clear the USE_DELAYED_RESET_ASSERTION option. Used by smp code
+ * and suspend.
+ *
+ * This is necessary only on Exynos4 SoCs. When system is running
+ * USE_DELAYED_RESET_ASSERTION should be set so the ARM CLK clock down
+ * feature could properly detect global idle state when secondary CPU is
+ * powered down.
+ *
+ * However this should not be set when such system is going into suspend.
+ */
+void exynos_set_delayed_reset_assertion(bool enable)
+{
+	if (of_machine_is_compatible("samsung,exynos4")) {
+		unsigned int tmp, core_id;
+
+		for (core_id = 0; core_id < num_possible_cpus(); core_id++) {
+			tmp = pmu_raw_readl(EXYNOS_ARM_CORE_OPTION(core_id));
+			if (enable)
+				tmp |= S5P_USE_DELAYED_RESET_ASSERTION;
+			else
+				tmp &= ~(S5P_USE_DELAYED_RESET_ASSERTION);
+			pmu_raw_writel(tmp, EXYNOS_ARM_CORE_OPTION(core_id));
+		}
+	}
+}
+
+/*
  * Apparently, these SoCs are not able to wake-up from suspend using
  * the PMU. Too bad. Should they suddenly become capable of such a
  * feat, the matches below should be moved to suspend.c.
