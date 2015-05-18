@@ -34,30 +34,6 @@
 
 extern void exynos4_secondary_startup(void);
 
-/*
- * Set or clear the USE_DELAYED_RESET_ASSERTION option, set on Exynos4 SoCs
- * during hot-(un)plugging CPUx.
- *
- * The feature can be cleared safely during first boot of secondary CPU.
- *
- * Exynos4 SoCs require setting USE_DELAYED_RESET_ASSERTION during powering
- * down a CPU so the CPU idle clock down feature could properly detect global
- * idle state when CPUx is off.
- */
-static void exynos_set_delayed_reset_assertion(u32 core_id, bool enable)
-{
-	if (soc_is_exynos4()) {
-		unsigned int tmp;
-
-		tmp = pmu_raw_readl(EXYNOS_ARM_CORE_OPTION(core_id));
-		if (enable)
-			tmp |= S5P_USE_DELAYED_RESET_ASSERTION;
-		else
-			tmp &= ~(S5P_USE_DELAYED_RESET_ASSERTION);
-		pmu_raw_writel(tmp, EXYNOS_ARM_CORE_OPTION(core_id));
-	}
-}
-
 #ifdef CONFIG_HOTPLUG_CPU
 static inline void cpu_leave_lowpower(u32 core_id)
 {
@@ -73,8 +49,6 @@ static inline void cpu_leave_lowpower(u32 core_id)
 	  : "=&r" (v)
 	  : "Ir" (CR_C), "Ir" (0x40)
 	  : "cc");
-
-	 exynos_set_delayed_reset_assertion(core_id, false);
 }
 
 static inline void platform_do_lowpower(unsigned int cpu, int *spurious)
@@ -86,14 +60,6 @@ static inline void platform_do_lowpower(unsigned int cpu, int *spurious)
 
 		/* Turn the CPU off on next WFI instruction. */
 		exynos_cpu_power_down(core_id);
-
-		/*
-		 * Exynos4 SoCs require setting
-		 * USE_DELAYED_RESET_ASSERTION so the CPU idle
-		 * clock down feature could properly detect
-		 * global idle state when CPUx is off.
-		 */
-		exynos_set_delayed_reset_assertion(core_id, true);
 
 		wfi();
 
@@ -371,9 +337,6 @@ static int exynos_boot_secondary(unsigned int cpu, struct task_struct *idle)
 		udelay(10);
 	}
 
-	/* No harm if this is called during first boot of secondary CPU */
-	exynos_set_delayed_reset_assertion(core_id, false);
-
 	/*
 	 * now the secondary core is starting up let it run its
 	 * calibrations, then wait for it to finish
@@ -419,6 +382,8 @@ static void __init exynos_smp_prepare_cpus(unsigned int max_cpus)
 	int i;
 
 	exynos_sysram_init();
+
+	exynos_set_delayed_reset_assertion(true);
 
 	if (read_cpuid_part() == ARM_CPU_PART_CORTEX_A9)
 		scu_enable(scu_base_addr());
