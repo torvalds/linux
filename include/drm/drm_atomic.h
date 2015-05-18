@@ -35,6 +35,11 @@ drm_atomic_state_alloc(struct drm_device *dev);
 void drm_atomic_state_clear(struct drm_atomic_state *state);
 void drm_atomic_state_free(struct drm_atomic_state *state);
 
+int  __must_check
+drm_atomic_state_init(struct drm_device *dev, struct drm_atomic_state *state);
+void drm_atomic_state_default_clear(struct drm_atomic_state *state);
+void drm_atomic_state_default_release(struct drm_atomic_state *state);
+
 struct drm_crtc_state * __must_check
 drm_atomic_get_crtc_state(struct drm_atomic_state *state,
 			  struct drm_crtc *crtc);

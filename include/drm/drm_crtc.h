@@ -979,6 +979,9 @@ struct drm_mode_set {
  * @atomic_check: check whether a given atomic state update is possible
  * @atomic_commit: commit an atomic state update previously verified with
  * 	atomic_check()
+ * @atomic_state_alloc: allocate a new atomic state
+ * @atomic_state_clear: clear the atomic state
+ * @atomic_state_free: free the atomic state
  *
  * Some global (i.e. not per-CRTC, connector, etc) mode setting functions that
  * involve drivers.
@@ -994,6 +997,9 @@ struct drm_mode_config_funcs {
 	int (*atomic_commit)(struct drm_device *dev,
 			     struct drm_atomic_state *a,
 			     bool async);
+	struct drm_atomic_state *(*atomic_state_alloc)(struct drm_device *dev);
+	void (*atomic_state_clear)(struct drm_atomic_state *state);
+	void (*atomic_state_free)(struct drm_atomic_state *state);
 };
 
 /**
