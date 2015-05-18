@@ -71,6 +71,11 @@ static u64 notrace sp804_read(void)
 	return ~readl_relaxed(sched_clock_base + TIMER_VALUE);
 }
 
+void __init sp804_timer_disable(void __iomem *base)
+{
+	writel(0, base + TIMER_CTRL);
+}
+
 void __init __sp804_clocksource_and_sched_clock_init(void __iomem *base,
 						     const char *name,
 						     struct clk *clk,
