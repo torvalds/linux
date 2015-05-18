@@ -4502,9 +4502,10 @@ skl_update_scaler_users(
 	}
 
 	/* check colorkey */
-	if (intel_plane && intel_plane->ckey.flags != I915_SET_COLORKEY_NONE) {
-		DRM_DEBUG_KMS("PLANE:%d scaling with color key not allowed",
-			intel_plane->base.base.id);
+	if (WARN_ON(intel_plane &&
+		intel_plane->ckey.flags != I915_SET_COLORKEY_NONE)) {
+		DRM_DEBUG_KMS("PLANE:%d scaling %ux%u->%ux%u not allowed with colorkey",
+			intel_plane->base.base.id, src_w, src_h, dst_w, dst_h);
 		return -EINVAL;
 	}
 
@@ -13261,8 +13262,11 @@ intel_check_primary_plane(struct drm_plane *plane,
 		intel_atomic_get_crtc_state(state->base.state, intel_crtc) : NULL;
 
 	if (INTEL_INFO(dev)->gen >= 9) {
-		min_scale = 1;
-		max_scale = skl_max_scale(intel_crtc, crtc_state);
+		/* use scaler when colorkey is not required */
+		if (to_intel_plane(plane)->ckey.flags == I915_SET_COLORKEY_NONE) {
+			min_scale = 1;
+			max_scale = skl_max_scale(intel_crtc, crtc_state);
+		}
 		can_position = true;
 	}
 

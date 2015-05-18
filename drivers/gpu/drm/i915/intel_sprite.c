@@ -770,6 +770,7 @@ intel_check_sprite_plane(struct drm_plane *plane,
 	const struct drm_rect *clip = &state->clip;
 	int hscale, vscale;
 	int max_scale, min_scale;
+	bool can_scale;
 	int pixel_size;
 	int ret;
 
@@ -794,18 +795,29 @@ intel_check_sprite_plane(struct drm_plane *plane,
 		return -EINVAL;
 	}
 
+	/* setup can_scale, min_scale, max_scale */
+	if (INTEL_INFO(dev)->gen >= 9) {
+		/* use scaler when colorkey is not required */
+		if (intel_plane->ckey.flags == I915_SET_COLORKEY_NONE) {
+			can_scale = 1;
+			min_scale = 1;
+			max_scale = skl_max_scale(intel_crtc, crtc_state);
+		} else {
+			can_scale = 0;
+			min_scale = DRM_PLANE_HELPER_NO_SCALING;
+			max_scale = DRM_PLANE_HELPER_NO_SCALING;
+		}
+	} else {
+		can_scale = intel_plane->can_scale;
+		max_scale = intel_plane->max_downscale << 16;
+		min_scale = intel_plane->can_scale ? 1 : (1 << 16);
+	}
+
 	/*
 	 * FIXME the following code does a bunch of fuzzy adjustments to the
 	 * coordinates and sizes. We probably need some way to decide whether
 	 * more strict checking should be done instead.
 	 */
-	max_scale = intel_plane->max_downscale << 16;
-	min_scale = intel_plane->can_scale ? 1 : (1 << 16);
-
-	if (INTEL_INFO(dev)->gen >= 9) {
-		min_scale = 1;
-		max_scale = skl_max_scale(intel_crtc, crtc_state);
-	}
 
 	drm_rect_rotate(src, fb->width << 16, fb->height << 16,
 			state->base.rotation);
@@ -876,7 +888,7 @@ intel_check_sprite_plane(struct drm_plane *plane,
 			 * Must keep src and dst the
 			 * same if we can't scale.
 			 */
-			if (!intel_plane->can_scale)
+			if (!can_scale)
 				crtc_w &= ~1;
 
 			if (crtc_w == 0)
@@ -888,7 +900,7 @@ intel_check_sprite_plane(struct drm_plane *plane,
 	if (state->visible && (src_w != crtc_w || src_h != crtc_h)) {
 		unsigned int width_bytes;
 
-		WARN_ON(!intel_plane->can_scale);
+		WARN_ON(!can_scale);
 
 		/* FIXME interlacing min height is 6 */
 
