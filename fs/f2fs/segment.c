@@ -519,7 +519,7 @@ void discard_next_dnode(struct f2fs_sb_info *sbi, block_t blkaddr)
 
 	if (err) {
 		struct page *page = grab_meta_page(sbi, blkaddr);
-		/* zero-filled page */
+		memset(page_address(page), 0, F2FS_BLKSIZE);
 		set_page_dirty(page);
 		f2fs_put_page(page, 1);
 	}
