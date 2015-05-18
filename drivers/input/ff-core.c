@@ -213,7 +213,7 @@ static int erase_effect(struct input_dev *dev, int effect_id,
 /**
  * input_ff_erase - erase a force-feedback effect from device
  * @dev: input device to erase effect from
- * @effect_id: id of the ffect to be erased
+ * @effect_id: id of the effect to be erased
  * @file: purported owner of the request
  *
  * This function erases a force-feedback effect from specified device.
