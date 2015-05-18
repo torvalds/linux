@@ -114,6 +114,10 @@
 #define RCV_FIFO_WPTR			(0x74)
 #define RCV_FIFO_RPTR			(0x78)
 
+/* SIM SETUP register bits */
+#define SIM_SETUP_SPS_PORT0		(0 << 1)
+#define SIM_SETUP_SPS_PORT1		(1 << 1)
+
 /* SIM port[0|1]_cntl register bits */
 #define SIM_PORT_CNTL_SFPD		(1 << 7)
 #define SIM_PORT_CNTL_3VOLT		(1 << 6)
@@ -131,6 +135,8 @@
 /* SIM enable register bits */
 #define SIM_ENABLE_XMTEN		(1 << 1)
 #define SIM_ENABLE_RCVEN		(1 << 0)
+#define SIM_ESTOP_EN			(1 << 5)
+#define SIM_ESTOP_EXE			(1 << 6)
 
 /* SIM int_mask register bits */
 #define SIM_INT_MASK_RFEM		(1 << 13)
@@ -227,13 +233,14 @@
 #define ATR_THRESHOLD_MAX		(100)
 #define ATR_MAX_CWT			(10080)
 #define ATR_MAX_DURATION		(20160)
-#define FCLK_FREQ			(5000000)
-#define SIM_BLOCK_CLK_FREQ		(60000000)
+#define FCLK_FREQ			(4000000)
 
 #define ATR_TIMEOUT			(5)
 #define TX_TIMEOUT			(10)
 #define RX_TIMEOUT			(100)
 #define RESET_RETRY_TIMES		(5)
+#define SIM_QUIRK_TKT259347		(1 << 0)
+#define EMV_RESET_LOW_CYCLES		42000
 
 /* Main SIM driver structure */
 struct sim_t{
@@ -274,7 +281,12 @@ struct sim_t{
 	bool last_is_tx;
 	u16 rcv_head;
 	spinlock_t lock;
+	bool sven_low_active;
+	u32 port_index;
+	u32 port_detect_reg;
+	u32 port_ctrl_reg;
 	u32 clk_rate;
+	u32 quirks;
 };
 
 static struct miscdevice sim_dev;
@@ -328,9 +340,11 @@ static void sim_set_tx(struct sim_t *sim, u8 enable)
 	u32 reg_data;
 
 	reg_data = __raw_readl(sim->ioaddr + ENABLE);
-	if (enable)
-		reg_data |= SIM_ENABLE_XMTEN;
-	else
+	if (enable) {
+		reg_data |= SIM_ENABLE_XMTEN | SIM_ENABLE_RCVEN;
+		if (sim->quirks & SIM_QUIRK_TKT259347)
+			reg_data &= ~(SIM_ESTOP_EN | SIM_ESTOP_EXE);
+	} else
 		reg_data &= ~SIM_ENABLE_XMTEN;
 
 	__raw_writel(reg_data, sim->ioaddr + ENABLE);
@@ -340,10 +354,16 @@ static void sim_set_rx(struct sim_t *sim, u8 enable)
 {
 	u32 reg_data;
 	reg_data = __raw_readl(sim->ioaddr + ENABLE);
-	if (enable)
+	if (enable) {
 		reg_data |= SIM_ENABLE_RCVEN;
-	else
+		reg_data &= ~SIM_ENABLE_XMTEN;
+		if (sim->quirks & SIM_QUIRK_TKT259347)
+			reg_data |= (SIM_ESTOP_EN | SIM_ESTOP_EXE);
+	} else {
 		reg_data &= ~SIM_ENABLE_RCVEN;
+		if (sim->quirks & SIM_QUIRK_TKT259347)
+			reg_data &= ~(SIM_ESTOP_EN | SIM_ESTOP_EXE);
+	}
 
 	__raw_writel(reg_data, sim->ioaddr + ENABLE);
 }
@@ -387,7 +407,7 @@ static void sim_receive_atr_set(struct sim_t *sim)
 	u32 reg_data;
 
 	/*Enable RX*/
-	__raw_writel(SIM_ENABLE_RCVEN, sim->ioaddr + ENABLE);
+	sim_set_rx(sim, 1);
 
 	/*Receive fifo threshold = 1 to trigger GPC timer in irq handler*/
 	reg_data = SIM_RCV_THRESHOLD_RTH(0) | SIM_RCV_THRESHOLD_RDT(1);
@@ -746,45 +766,54 @@ static void sim_start(struct sim_t *sim)
 	u32 reg_data, clk_rate, clk_div = 0;
 	pr_debug("%s entering.\n", __func__);
 
-	__raw_writel(0, sim->ioaddr + SETUP);
+	if (sim->port_index == 1)
+		__raw_writel(SIM_SETUP_SPS_PORT1, sim->ioaddr + SETUP);
+	else
+		__raw_writel(SIM_SETUP_SPS_PORT0, sim->ioaddr + SETUP);
 
-	/* ~ 5 MHz */
+	/*1 ~ 5 MHz */
 	clk_rate = clk_get_rate(sim->clk);
 	clk_div = (clk_rate + sim->clk_rate - 1) / sim->clk_rate;
 	__raw_writel(clk_div, sim->ioaddr + CLK_PRESCALER);
 
 	/*Set the port pin to be open drained*/
 	reg_data = __raw_readl(sim->ioaddr + OD_CONFIG);
-	reg_data |= SIM_OD_CONFIG_OD_P0;
+	if (sim->port_index == 1)
+		reg_data |= SIM_OD_CONFIG_OD_P1;
+	else
+		reg_data |= SIM_OD_CONFIG_OD_P0;
+
 	__raw_writel(reg_data, sim->ioaddr + OD_CONFIG);
-	reg_data = __raw_readl(sim->ioaddr + PORT0_CNTL);
+
+	reg_data = __raw_readl(sim->ioaddr + sim->port_ctrl_reg);
 
 	/*One pin mode*/
 	reg_data |= SIM_PORT_CNTL_3VOLT | SIM_PORT_CNTL_STEN;
-	__raw_writel(reg_data, sim->ioaddr + PORT0_CNTL);
+	__raw_writel(reg_data, sim->ioaddr + sim->port_ctrl_reg);
 
 	/* presense detect */
 	pr_debug("%s p0_det is 0x%x \n", __func__,
-		 __raw_readl(sim->ioaddr + PORT0_DETECT));
-	if (__raw_readl(sim->ioaddr + PORT0_DETECT) & SIM_PORT_DETECT_SPDP) {
-		reg_data = __raw_readl(sim->ioaddr + PORT0_DETECT);
+		 __raw_readl(sim->ioaddr + sim->port_detect_reg));
+	if (__raw_readl(sim->ioaddr +  sim->port_detect_reg)
+			& SIM_PORT_DETECT_SPDP) {
+		reg_data = __raw_readl(sim->ioaddr +  sim->port_detect_reg);
 		reg_data &= ~SIM_PORT_DETECT_SPDS;
-		__raw_writel(reg_data, sim->ioaddr + PORT0_DETECT);
+		__raw_writel(reg_data, sim->ioaddr +  sim->port_detect_reg);
 		sim->present = SIM_PRESENT_REMOVED;
 		sim->state = SIM_STATE_REMOVED;
 	} else {
-		reg_data = __raw_readl(sim->ioaddr + PORT0_DETECT);
+		reg_data = __raw_readl(sim->ioaddr + sim->port_detect_reg);
 		reg_data |= SIM_PORT_DETECT_SPDS;
-		__raw_writel(reg_data, sim->ioaddr + PORT0_DETECT);
+		__raw_writel(reg_data, sim->ioaddr + sim->port_detect_reg);
 		sim->present = SIM_PRESENT_DETECTED;
 		sim->state = SIM_STATE_DETECTED;
 	};
 
 	/*enable card interrupt. clear interrupt status*/
-	reg_data = __raw_readl(sim->ioaddr + PORT0_DETECT);
+	reg_data = __raw_readl(sim->ioaddr + sim->port_detect_reg);
 	reg_data |= SIM_PORT_DETECT_SDI;
 	reg_data |= SIM_PORT_DETECT_SDIM;
-	__raw_writel(reg_data, sim->ioaddr + PORT0_DETECT);
+	__raw_writel(reg_data, sim->ioaddr + sim->port_detect_reg);
 };
 
 static void sim_activate(struct sim_t *sim)
@@ -794,48 +823,72 @@ static void sim_activate(struct sim_t *sim)
 	/* activate on sequence */
 	if (sim->present != SIM_PRESENT_REMOVED) {
 		/*Disable Reset pin*/
-		reg_data = __raw_readl(sim->ioaddr + PORT0_CNTL);
+		reg_data = __raw_readl(sim->ioaddr + sim->port_ctrl_reg);
 		reg_data &= ~SIM_PORT_CNTL_SRST;
-		__raw_writel(reg_data, sim->ioaddr + PORT0_CNTL);
+		/*If sven is low active, we need to set sevn to be high*/
+		if (sim->sven_low_active)
+			reg_data |= SIM_PORT_CNTL_SVEN;
+
+		__raw_writel(reg_data, sim->ioaddr + sim->port_ctrl_reg);
 
 		/*Enable VCC pin*/
-		reg_data = __raw_readl(sim->ioaddr + PORT0_CNTL);
-		reg_data |= SIM_PORT_CNTL_SVEN;
-		__raw_writel(reg_data, sim->ioaddr + PORT0_CNTL);
+		reg_data = __raw_readl(sim->ioaddr + sim->port_ctrl_reg);
+
+		if (sim->sven_low_active)
+			reg_data &= ~SIM_PORT_CNTL_SVEN;
+		else
+			reg_data |= SIM_PORT_CNTL_SVEN;
+
+		__raw_writel(reg_data, sim->ioaddr + sim->port_ctrl_reg);
+
 		msleep(10);
 		/*Enable clock pin*/
-		reg_data = __raw_readl(sim->ioaddr + PORT0_CNTL);
+		reg_data = __raw_readl(sim->ioaddr + sim->port_ctrl_reg);
 		reg_data |= SIM_PORT_CNTL_SCEN;
-		__raw_writel(reg_data, sim->ioaddr + PORT0_CNTL);
+		__raw_writel(reg_data, sim->ioaddr + sim->port_ctrl_reg);
 		msleep(10);
 	} else {
 		pr_err("No card%s\n", __func__);
 	}
 }
 
+static void sim_reset_low_delay(struct sim_t *sim)
+{
+	u32 fclk_in_khz;
+	u32 delay_in_us;
+
+	fclk_in_khz = sim->clk_rate / MSEC_PER_SEC;
+	delay_in_us = EMV_RESET_LOW_CYCLES * USEC_PER_MSEC / fclk_in_khz;
+	mdelay(delay_in_us / USEC_PER_MSEC);
+	udelay(delay_in_us % USEC_PER_MSEC);
+}
+
 static void sim_cold_reset_sequency(struct sim_t *sim)
 {
 	u32 reg_data;
 
-	reg_data = __raw_readl(sim->ioaddr + PORT0_CNTL);
+	reg_data = __raw_readl(sim->ioaddr + sim->port_ctrl_reg);
 	reg_data &= ~SIM_PORT_CNTL_SRST;
-	__raw_writel(reg_data, sim->ioaddr + PORT0_CNTL);
+	__raw_writel(reg_data, sim->ioaddr + sim->port_ctrl_reg);
+	reg_data = __raw_readl(sim->ioaddr + sim->port_ctrl_reg);
 
-	reg_data = __raw_readl(sim->ioaddr + PORT0_CNTL);
-	reg_data |= SIM_PORT_CNTL_SVEN;
-	__raw_writel(reg_data, sim->ioaddr + PORT0_CNTL);
+	if (sim->sven_low_active)
+		reg_data &= ~SIM_PORT_CNTL_SVEN;
+	else
+		reg_data |= SIM_PORT_CNTL_SVEN;
+
+	__raw_writel(reg_data, sim->ioaddr + sim->port_ctrl_reg);
 	mdelay(9);
 
-	reg_data = __raw_readl(sim->ioaddr + PORT0_CNTL);
+	reg_data = __raw_readl(sim->ioaddr + sim->port_ctrl_reg);
 	reg_data |= SIM_PORT_CNTL_SCEN;
-	__raw_writel(reg_data, sim->ioaddr + PORT0_CNTL);
+	__raw_writel(reg_data, sim->ioaddr + sim->port_ctrl_reg);
 
-	mdelay(8);
-	udelay(600);
+	sim_reset_low_delay(sim);
 
-	reg_data = __raw_readl(sim->ioaddr + PORT0_CNTL);
+	reg_data = __raw_readl(sim->ioaddr + sim->port_ctrl_reg);
 	reg_data |= SIM_PORT_CNTL_SRST;
-	__raw_writel(reg_data, sim->ioaddr + PORT0_CNTL);
+	__raw_writel(reg_data, sim->ioaddr + sim->port_ctrl_reg);
 };
 
 static void sim_deactivate(struct sim_t *sim)
@@ -845,16 +898,34 @@ static void sim_deactivate(struct sim_t *sim)
 	pr_debug("%s entering.\n", __func__);
 	/* Auto powdown to implement the deactivate sequence */
 	if (sim->present != SIM_PRESENT_REMOVED) {
-		reg_data = __raw_readl(sim->ioaddr + PORT0_CNTL);
-		reg_data |= SIM_PORT_CNTL_SAPD;
-		__raw_writel(reg_data, sim->ioaddr + PORT0_CNTL);
-		reg_data |= SIM_PORT_CNTL_SFPD;
-		__raw_writel(reg_data, sim->ioaddr + PORT0_CNTL);
-	} else {
-		pr_err("No card%s\n", __func__);
-	}
 
-	sim->present = SIM_PRESENT_REMOVED;
+		if (sim->sven_low_active) {
+			/*Set the RESET to be low*/
+			reg_data = __raw_readl(sim->ioaddr + sim->port_ctrl_reg);
+			reg_data &= ~SIM_PORT_CNTL_SRST;
+			writel(reg_data, sim->ioaddr + sim->port_ctrl_reg);
+			usleep_range(2, 5);
+
+			/*Set the clock to be low*/
+			reg_data &= ~SIM_PORT_CNTL_SCEN;
+			writel(reg_data, sim->ioaddr + sim->port_ctrl_reg);
+			usleep_range(2, 5);
+
+			/*Set the sven to be high*/
+			reg_data |= SIM_PORT_CNTL_SVEN;
+			writel(reg_data, sim->ioaddr + sim->port_ctrl_reg);
+
+		} else {
+			reg_data = __raw_readl(sim->ioaddr + sim->port_ctrl_reg);
+			reg_data |= SIM_PORT_CNTL_SAPD;
+			__raw_writel(reg_data,
+				sim->ioaddr + sim->port_ctrl_reg);
+			reg_data |= SIM_PORT_CNTL_SFPD;
+			__raw_writel(reg_data,
+				sim->ioaddr + sim->port_ctrl_reg);
+		}
+	} else
+		pr_err(">>>No card%s\n", __func__);
 };
 
 static void sim_cold_reset(struct sim_t *sim)
@@ -873,20 +944,25 @@ static void sim_warm_reset_sequency(struct sim_t *sim)
 {
 	u32 reg_data;
 
-	reg_data = __raw_readl(sim->ioaddr + PORT0_CNTL);
-	reg_data |= (SIM_PORT_CNTL_SRST | SIM_PORT_CNTL_SVEN | SIM_PORT_CNTL_SCEN);
-	__raw_writel(reg_data, sim->ioaddr + PORT0_CNTL);
+	reg_data = __raw_readl(sim->ioaddr + sim->port_ctrl_reg);
+	reg_data |= (SIM_PORT_CNTL_SRST | SIM_PORT_CNTL_SCEN);
+	if (sim->sven_low_active)
+		reg_data &= ~SIM_PORT_CNTL_SVEN;
+	else
+		reg_data |= SIM_PORT_CNTL_SVEN;
+	__raw_writel(reg_data, sim->ioaddr + sim->port_ctrl_reg);
 
 	udelay(20);
 
+	reg_data = __raw_readl(sim->ioaddr + sim->port_ctrl_reg);
 	reg_data &= ~SIM_PORT_CNTL_SRST;
-	__raw_writel(reg_data, sim->ioaddr + PORT0_CNTL);
+	__raw_writel(reg_data, sim->ioaddr + sim->port_ctrl_reg);
 
-	mdelay(8);
-	udelay(600);
+	sim_reset_low_delay(sim);
 
+	reg_data = __raw_readl(sim->ioaddr + sim->port_ctrl_reg);
 	reg_data |= SIM_PORT_CNTL_SRST;
-	__raw_writel(reg_data, sim->ioaddr + PORT0_CNTL);
+	__raw_writel(reg_data, sim->ioaddr + sim->port_ctrl_reg);
 }
 
 static void sim_warm_reset(struct sim_t *sim)
@@ -1492,9 +1568,9 @@ static int sim_release(struct inode *inode, struct file *file)
 	struct sim_t *sim = (struct sim_t *) file->private_data;
 
 	/* disable presense detection */
-	reg_data = __raw_readl(sim->ioaddr + PORT0_DETECT);
+	reg_data = __raw_readl(sim->ioaddr + sim->port_detect_reg);
 	__raw_writel(reg_data | SIM_PORT_DETECT_SDIM,
-		     sim->ioaddr + PORT0_DETECT);
+		     sim->ioaddr + sim->port_detect_reg);
 
 	if (sim->present != SIM_PRESENT_REMOVED)
 		sim_deactivate(sim);
@@ -1528,13 +1604,23 @@ static struct platform_device_id imx_sim_devtype[] = {
 		.name = "imx7d-sim",
 		.driver_data = 0,
 	}, {
+		.name = "imx6ul-sim",
+		.driver_data = SIM_QUIRK_TKT259347,
+	}, {
 		/* sentinel */
 	}
 };
 
+enum imx_sim_type {
+	IMX7D_SIM = 0,
+	IMX6UL_SIM,
+};
+
 static const struct of_device_id sim_imx_dt_ids[] = {
 	{ .compatible = "fsl,imx7d-sim",
-		.data = &imx_sim_devtype[0], },
+		.data = &imx_sim_devtype[IMX7D_SIM], },
+	{ .compatible = "fsl,imx6ul-sim",
+		.data = &imx_sim_devtype[IMX6UL_SIM], },
 	{ /* sentinel */ }
 };
 
@@ -1545,6 +1631,7 @@ static int sim_probe(struct platform_device *pdev)
 	int ret = 0;
 	const struct of_device_id *of_id;
 	struct sim_t *sim = NULL;
+	struct device_node *of_node = pdev->dev.of_node;
 
 	sim = devm_kzalloc(&pdev->dev, sizeof(struct sim_t),
 				GFP_KERNEL);
@@ -1596,6 +1683,18 @@ static int sim_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "can't claim irq %d\n", sim->ipb_irq);
 		return -ENOENT;
 	}
+
+	sim->sven_low_active = of_property_read_bool(of_node,
+						"sven_low_active");
+
+	ret = of_property_read_u32(of_node, "port", &sim->port_index);
+	if (ret)
+		sim->port_index = 0;
+	sim->port_ctrl_reg = (sim->port_index == 0) ?
+				PORT0_CNTL : PORT1_CNTL;
+	sim->port_detect_reg = (sim->port_index == 0) ?
+				PORT0_DETECT : PORT1_DETECT;
+	sim->quirks = pdev->id_entry->driver_data;
 
 	platform_set_drvdata(pdev, sim);
 
