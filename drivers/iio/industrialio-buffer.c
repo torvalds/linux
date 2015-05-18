@@ -539,28 +539,6 @@ static void iio_buffer_deactivate(struct iio_buffer *buffer)
 	iio_buffer_put(buffer);
 }
 
-void iio_disable_all_buffers(struct iio_dev *indio_dev)
-{
-	struct iio_buffer *buffer, *_buffer;
-
-	if (list_empty(&indio_dev->buffer_list))
-		return;
-
-	if (indio_dev->setup_ops->predisable)
-		indio_dev->setup_ops->predisable(indio_dev);
-
-	list_for_each_entry_safe(buffer, _buffer,
-			&indio_dev->buffer_list, buffer_list)
-		iio_buffer_deactivate(buffer);
-
-	indio_dev->currentmode = INDIO_DIRECT_MODE;
-	if (indio_dev->setup_ops->postdisable)
-		indio_dev->setup_ops->postdisable(indio_dev);
-
-	if (indio_dev->available_scan_masks == NULL)
-		kfree(indio_dev->active_scan_mask);
-}
-
 static void iio_buffer_update_bytes_per_datum(struct iio_dev *indio_dev,
 	struct iio_buffer *buffer)
 {
@@ -683,6 +661,87 @@ static int iio_verify_update(struct iio_dev *indio_dev,
 	return 0;
 }
 
+static int iio_enable_buffers(struct iio_dev *indio_dev,
+	struct iio_device_config *config)
+{
+	int ret;
+
+	indio_dev->active_scan_mask = config->scan_mask;
+	indio_dev->scan_timestamp = config->scan_timestamp;
+	indio_dev->scan_bytes = config->scan_bytes;
+
+	iio_update_demux(indio_dev);
+
+	/* Wind up again */
+	if (indio_dev->setup_ops->preenable) {
+		ret = indio_dev->setup_ops->preenable(indio_dev);
+		if (ret) {
+			dev_dbg(&indio_dev->dev,
+			       "Buffer not started: buffer preenable failed (%d)\n", ret);
+			goto err_undo_config;
+		}
+	}
+
+	if (indio_dev->info->update_scan_mode) {
+		ret = indio_dev->info
+			->update_scan_mode(indio_dev,
+					   indio_dev->active_scan_mask);
+		if (ret < 0) {
+			dev_dbg(&indio_dev->dev,
+				"Buffer not started: update scan mode failed (%d)\n",
+				ret);
+			goto err_run_postdisable;
+		}
+	}
+
+	indio_dev->currentmode = config->mode;
+
+	if (indio_dev->setup_ops->postenable) {
+		ret = indio_dev->setup_ops->postenable(indio_dev);
+		if (ret) {
+			dev_dbg(&indio_dev->dev,
+			       "Buffer not started: postenable failed (%d)\n", ret);
+			goto err_run_postdisable;
+		}
+	}
+
+	return 0;
+
+err_run_postdisable:
+	indio_dev->currentmode = INDIO_DIRECT_MODE;
+	if (indio_dev->setup_ops->postdisable)
+		indio_dev->setup_ops->postdisable(indio_dev);
+err_undo_config:
+	indio_dev->active_scan_mask = NULL;
+
+	return ret;
+}
+
+static int iio_disable_buffers(struct iio_dev *indio_dev)
+{
+	int ret;
+
+	/* Wind down existing buffers - iff there are any */
+	if (list_empty(&indio_dev->buffer_list))
+		return 0;
+
+	if (indio_dev->setup_ops->predisable) {
+		ret = indio_dev->setup_ops->predisable(indio_dev);
+		if (ret)
+			return ret;
+	}
+
+	indio_dev->currentmode = INDIO_DIRECT_MODE;
+
+	if (indio_dev->setup_ops->postdisable) {
+		ret = indio_dev->setup_ops->postdisable(indio_dev);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int __iio_update_buffers(struct iio_dev *indio_dev,
 		       struct iio_buffer *insert_buffer,
 		       struct iio_buffer *remove_buffer)
@@ -702,24 +761,15 @@ static int __iio_update_buffers(struct iio_dev *indio_dev,
 			goto err_free_config;
 	}
 
-	/* Wind down existing buffers - iff there are any */
-	if (!list_empty(&indio_dev->buffer_list)) {
-		if (indio_dev->setup_ops->predisable) {
-			ret = indio_dev->setup_ops->predisable(indio_dev);
-			if (ret)
-				goto err_free_config;
-		}
-		indio_dev->currentmode = INDIO_DIRECT_MODE;
-		if (indio_dev->setup_ops->postdisable) {
-			ret = indio_dev->setup_ops->postdisable(indio_dev);
-			if (ret)
-				goto err_free_config;
-		}
-	}
 	/* Keep a copy of current setup to allow roll back */
 	old_mask = indio_dev->active_scan_mask;
-	if (!indio_dev->available_scan_masks)
-		indio_dev->active_scan_mask = NULL;
+	indio_dev->active_scan_mask = NULL;
+
+	ret = iio_disable_buffers(indio_dev);
+	if (ret) {
+		iio_free_scan_mask(indio_dev, old_mask);
+		goto err_free_config;
+	}
 
 	if (remove_buffer)
 		iio_buffer_deactivate(remove_buffer);
@@ -728,68 +778,20 @@ static int __iio_update_buffers(struct iio_dev *indio_dev,
 
 	/* If no buffers in list, we are done */
 	if (list_empty(&indio_dev->buffer_list)) {
-		indio_dev->currentmode = INDIO_DIRECT_MODE;
 		iio_free_scan_mask(indio_dev, old_mask);
 		return 0;
 	}
 
-	indio_dev->active_scan_mask = new_config.scan_mask;
-	indio_dev->scan_timestamp = new_config.scan_timestamp;
-	indio_dev->scan_bytes = new_config.scan_bytes;
-
-	iio_update_demux(indio_dev);
-
-	/* Wind up again */
-	if (indio_dev->setup_ops->preenable) {
-		ret = indio_dev->setup_ops->preenable(indio_dev);
-		if (ret) {
-			dev_dbg(&indio_dev->dev,
-			       "Buffer not started: buffer preenable failed (%d)\n", ret);
-			goto error_remove_inserted;
-		}
-	}
-
-	if (indio_dev->info->update_scan_mode) {
-		ret = indio_dev->info
-			->update_scan_mode(indio_dev,
-					   indio_dev->active_scan_mask);
-		if (ret < 0) {
-			dev_dbg(&indio_dev->dev,
-				"Buffer not started: update scan mode failed (%d)\n",
-				ret);
-			goto error_run_postdisable;
-		}
-	}
-
-	indio_dev->currentmode = new_config.mode;
-
-	if (indio_dev->setup_ops->postenable) {
-		ret = indio_dev->setup_ops->postenable(indio_dev);
-		if (ret) {
-			dev_dbg(&indio_dev->dev,
-			       "Buffer not started: postenable failed (%d)\n", ret);
-			indio_dev->currentmode = INDIO_DIRECT_MODE;
-			if (indio_dev->setup_ops->postdisable)
-				indio_dev->setup_ops->postdisable(indio_dev);
-			goto error_disable_all_buffers;
-		}
+	ret = iio_enable_buffers(indio_dev, &new_config);
+	if (ret) {
+		if (insert_buffer)
+			iio_buffer_deactivate(insert_buffer);
+		indio_dev->active_scan_mask = old_mask;
+		goto err_free_config;
 	}
 
 	iio_free_scan_mask(indio_dev, old_mask);
-
 	return 0;
-
-error_disable_all_buffers:
-	indio_dev->currentmode = INDIO_DIRECT_MODE;
-error_run_postdisable:
-	if (indio_dev->setup_ops->postdisable)
-		indio_dev->setup_ops->postdisable(indio_dev);
-error_remove_inserted:
-	if (insert_buffer)
-		iio_buffer_deactivate(insert_buffer);
-	iio_free_scan_mask(indio_dev, indio_dev->active_scan_mask);
-	indio_dev->active_scan_mask = old_mask;
-	return ret;
 
 err_free_config:
 	iio_free_scan_mask(indio_dev, new_config.scan_mask);
@@ -833,6 +835,19 @@ out_unlock:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(iio_update_buffers);
+
+void iio_disable_all_buffers(struct iio_dev *indio_dev)
+{
+	struct iio_buffer *buffer, *_buffer;
+
+	iio_disable_buffers(indio_dev);
+	iio_free_scan_mask(indio_dev, indio_dev->active_scan_mask);
+	indio_dev->active_scan_mask = NULL;
+
+	list_for_each_entry_safe(buffer, _buffer,
+			&indio_dev->buffer_list, buffer_list)
+		iio_buffer_deactivate(buffer);
+}
 
 static ssize_t iio_buffer_store_enable(struct device *dev,
 				       struct device_attribute *attr,
