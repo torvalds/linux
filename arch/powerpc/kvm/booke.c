@@ -1784,13 +1784,13 @@ int kvmppc_core_create_memslot(struct kvm *kvm, struct kvm_memory_slot *slot,
 
 int kvmppc_core_prepare_memory_region(struct kvm *kvm,
 				      struct kvm_memory_slot *memslot,
-				      struct kvm_userspace_memory_region *mem)
+				      const struct kvm_userspace_memory_region *mem)
 {
 	return 0;
 }
 
 void kvmppc_core_commit_memory_region(struct kvm *kvm,
-				struct kvm_userspace_memory_region *mem,
+				const struct kvm_userspace_memory_region *mem,
 				const struct kvm_memory_slot *old)
 {
 }

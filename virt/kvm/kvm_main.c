@@ -676,8 +676,6 @@ static void update_memslots(struct kvm_memslots *slots,
 	WARN_ON(mslots[i].id != id);
 	if (!new->npages) {
 		WARN_ON(!mslots[i].npages);
-		new->base_gfn = 0;
-		new->flags = 0;
 		if (mslots[i].npages)
 			slots->used_slots--;
 	} else {
@@ -717,7 +715,7 @@ static void update_memslots(struct kvm_memslots *slots,
 	slots->id_to_index[mslots[i].id] = i;
 }
 
-static int check_memory_region_flags(struct kvm_userspace_memory_region *mem)
+static int check_memory_region_flags(const struct kvm_userspace_memory_region *mem)
 {
 	u32 valid_flags = KVM_MEM_LOG_DIRTY_PAGES;
 
@@ -767,7 +765,7 @@ static struct kvm_memslots *install_new_memslots(struct kvm *kvm,
  * Must be called holding kvm->slots_lock for write.
  */
 int __kvm_set_memory_region(struct kvm *kvm,
-			    struct kvm_userspace_memory_region *mem)
+			    const struct kvm_userspace_memory_region *mem)
 {
 	int r;
 	gfn_t base_gfn;
@@ -806,9 +804,6 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	if (npages > KVM_MEM_MAX_NR_PAGES)
 		goto out;
 
-	if (!npages)
-		mem->flags &= ~KVM_MEM_LOG_DIRTY_PAGES;
-
 	new = old = *slot;
 
 	new.id = mem->slot;
@@ -834,10 +829,14 @@ int __kvm_set_memory_region(struct kvm *kvm,
 				goto out;
 			}
 		}
-	} else if (old.npages) {
+	} else {
+		if (!old.npages)
+			goto out;
+
 		change = KVM_MR_DELETE;
-	} else /* Modify a non-existent slot: disallowed. */
-		goto out;
+		new.base_gfn = 0;
+		new.flags = 0;
+	}
 
 	if ((change == KVM_MR_CREATE) || (change == KVM_MR_MOVE)) {
 		/* Check for overlaps */
@@ -944,7 +943,7 @@ out:
 EXPORT_SYMBOL_GPL(__kvm_set_memory_region);
 
 int kvm_set_memory_region(struct kvm *kvm,
-			  struct kvm_userspace_memory_region *mem)
+			  const struct kvm_userspace_memory_region *mem)
 {
 	int r;
 
@@ -960,6 +959,7 @@ static int kvm_vm_ioctl_set_memory_region(struct kvm *kvm,
 {
 	if (mem->slot >= KVM_USER_MEM_SLOTS)
 		return -EINVAL;
+
 	return kvm_set_memory_region(kvm, mem);
 }
 
