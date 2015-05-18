@@ -9,6 +9,7 @@
 
 #include <dt-bindings/sound/samsung-i2s.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/clock/maxim,max77686.h>
 #include "exynos4412.dtsi"
 
 / {
@@ -105,6 +106,8 @@
 
 	rtc@10070000 {
 		status = "okay";
+		clocks = <&clock CLK_RTC>, <&max77686 MAX77686_CLK_AP>;
+		clock-names = "rtc", "rtc_src";
 	};
 
 	g2d@10800000 {

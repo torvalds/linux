@@ -429,7 +429,8 @@ int rndis_filter_receive(struct hv_device *dev,
 
 	rndis_msg = pkt->data;
 
-	dump_rndis_message(dev, rndis_msg);
+	if (netif_msg_rx_err(net_dev->nd_ctx))
+		dump_rndis_message(dev, rndis_msg);
 
 	switch (rndis_msg->ndis_msg_type) {
 	case RNDIS_MSG_PACKET:

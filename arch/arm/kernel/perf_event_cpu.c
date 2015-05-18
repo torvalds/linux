@@ -303,11 +303,16 @@ static int probe_current_pmu(struct arm_pmu *pmu)
 
 static int of_pmu_irq_cfg(struct platform_device *pdev)
 {
-	int i;
+	int i, irq;
 	int *irqs = kcalloc(pdev->num_resources, sizeof(*irqs), GFP_KERNEL);
 
 	if (!irqs)
 		return -ENOMEM;
+
+	/* Don't bother with PPIs; they're already affine */
+	irq = platform_get_irq(pdev, 0);
+	if (irq >= 0 && irq_is_percpu(irq))
+		return 0;
 
 	for (i = 0; i < pdev->num_resources; ++i) {
 		struct device_node *dn;
@@ -317,7 +322,7 @@ static int of_pmu_irq_cfg(struct platform_device *pdev)
 				      i);
 		if (!dn) {
 			pr_warn("Failed to parse %s/interrupt-affinity[%d]\n",
-				of_node_full_name(dn), i);
+				of_node_full_name(pdev->dev.of_node), i);
 			break;
 		}
 

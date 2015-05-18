@@ -539,6 +539,7 @@ struct t4_cq {
 	size_t memsize;
 	__be64 bits_type_ts;
 	u32 cqid;
+	u32 qid_mask;
 	int vector;
 	u16 size; /* including status page */
 	u16 cidx;
@@ -563,12 +564,12 @@ static inline int t4_arm_cq(struct t4_cq *cq, int se)
 	set_bit(CQ_ARMED, &cq->flags);
 	while (cq->cidx_inc > CIDXINC_M) {
 		val = SEINTARM_V(0) | CIDXINC_V(CIDXINC_M) | TIMERREG_V(7) |
-		      INGRESSQID_V(cq->cqid);
+		      INGRESSQID_V(cq->cqid & cq->qid_mask);
 		writel(val, cq->gts);
 		cq->cidx_inc -= CIDXINC_M;
 	}
 	val = SEINTARM_V(se) | CIDXINC_V(cq->cidx_inc) | TIMERREG_V(6) |
-	      INGRESSQID_V(cq->cqid);
+	      INGRESSQID_V(cq->cqid & cq->qid_mask);
 	writel(val, cq->gts);
 	cq->cidx_inc = 0;
 	return 0;
@@ -601,7 +602,7 @@ static inline void t4_hwcq_consume(struct t4_cq *cq)
 		u32 val;
 
 		val = SEINTARM_V(0) | CIDXINC_V(cq->cidx_inc) | TIMERREG_V(7) |
-		      INGRESSQID_V(cq->cqid);
+		      INGRESSQID_V(cq->cqid & cq->qid_mask);
 		writel(val, cq->gts);
 		cq->cidx_inc = 0;
 	}
