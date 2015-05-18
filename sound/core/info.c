@@ -455,11 +455,12 @@ static struct snd_info_entry *create_subdir(struct module *mod,
 	return entry;
 }
 
-static struct snd_info_entry *snd_info_create_entry(const char *name);
+static struct snd_info_entry *
+snd_info_create_entry(const char *name, struct snd_info_entry *parent);
 
 int __init snd_info_init(void)
 {
-	snd_proc_root = snd_info_create_entry("asound");
+	snd_proc_root = snd_info_create_entry("asound", NULL);
 	if (!snd_proc_root)
 		return -ENOMEM;
 	snd_proc_root->mode = S_IFDIR | S_IRUGO | S_IXUGO;
@@ -688,6 +689,7 @@ EXPORT_SYMBOL(snd_info_get_str);
 /**
  * snd_info_create_entry - create an info entry
  * @name: the proc file name
+ * @parent: the parent directory
  *
  * Creates an info entry with the given file name and initializes as
  * the default state.
@@ -697,7 +699,8 @@ EXPORT_SYMBOL(snd_info_get_str);
  *
  * Return: The pointer of the new instance, or %NULL on failure.
  */
-static struct snd_info_entry *snd_info_create_entry(const char *name)
+static struct snd_info_entry *
+snd_info_create_entry(const char *name, struct snd_info_entry *parent)
 {
 	struct snd_info_entry *entry;
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
@@ -713,6 +716,9 @@ static struct snd_info_entry *snd_info_create_entry(const char *name)
 	mutex_init(&entry->access);
 	INIT_LIST_HEAD(&entry->children);
 	INIT_LIST_HEAD(&entry->list);
+	entry->parent = parent;
+	if (parent)
+		list_add_tail(&entry->list, &parent->children);
 	return entry;
 }
 
@@ -730,13 +736,9 @@ struct snd_info_entry *snd_info_create_module_entry(struct module * module,
 					       const char *name,
 					       struct snd_info_entry *parent)
 {
-	struct snd_info_entry *entry = snd_info_create_entry(name);
-	if (entry) {
+	struct snd_info_entry *entry = snd_info_create_entry(name, parent);
+	if (entry)
 		entry->module = module;
-		entry->parent = parent;
-		if (parent)
-			list_add_tail(&entry->list, &parent->children);
-	}
 	return entry;
 }
 
@@ -756,13 +758,10 @@ struct snd_info_entry *snd_info_create_card_entry(struct snd_card *card,
 					     const char *name,
 					     struct snd_info_entry * parent)
 {
-	struct snd_info_entry *entry = snd_info_create_entry(name);
+	struct snd_info_entry *entry = snd_info_create_entry(name, parent);
 	if (entry) {
 		entry->module = card->module;
 		entry->card = card;
-		entry->parent = parent;
-		if (parent)
-			list_add_tail(&entry->list, &parent->children);
 	}
 	return entry;
 }
