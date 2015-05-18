@@ -8842,7 +8842,9 @@ again:
 out:
 	if (cache->flags & BTRFS_BLOCK_GROUP_SYSTEM) {
 		alloc_flags = update_block_group_flags(root, cache->flags);
+		lock_chunks(root->fs_info->chunk_root);
 		check_system_chunk(trans, root, alloc_flags);
+		unlock_chunks(root->fs_info->chunk_root);
 	}
 	mutex_unlock(&root->fs_info->ro_block_group_mutex);
 
