@@ -1580,7 +1580,8 @@ static int kvmppc_core_prepare_memory_region_pr(struct kvm *kvm,
 
 static void kvmppc_core_commit_memory_region_pr(struct kvm *kvm,
 				const struct kvm_userspace_memory_region *mem,
-				const struct kvm_memory_slot *old)
+				const struct kvm_memory_slot *old,
+				const struct kvm_memory_slot *new)
 {
 	return;
 }

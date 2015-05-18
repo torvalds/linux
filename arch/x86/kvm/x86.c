@@ -7780,13 +7780,12 @@ static void kvm_mmu_slot_apply_flags(struct kvm *kvm,
 void kvm_arch_commit_memory_region(struct kvm *kvm,
 				const struct kvm_userspace_memory_region *mem,
 				const struct kvm_memory_slot *old,
+				const struct kvm_memory_slot *new,
 				enum kvm_mr_change change)
 {
-	struct kvm_memslots *slots;
-	struct kvm_memory_slot *new;
 	int nr_mmu_pages = 0;
 
-	if ((mem->slot >= KVM_USER_MEM_SLOTS) && (change == KVM_MR_DELETE)) {
+	if (change == KVM_MR_DELETE && old->id >= KVM_USER_MEM_SLOTS) {
 		int ret;
 
 		ret = vm_munmap(old->userspace_addr,
@@ -7802,10 +7801,6 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 
 	if (nr_mmu_pages)
 		kvm_mmu_change_mmu_pages(kvm, nr_mmu_pages);
-
-	/* It's OK to get 'new' slot here as it has already been installed */
-	slots = kvm_memslots(kvm);
-	new = id_to_memslot(slots, mem->slot);
 
 	/*
 	 * Dirty logging tracks sptes in 4k granularity, meaning that large
@@ -7831,9 +7826,11 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 	 * been zapped so no dirty logging staff is needed for old slot. For
 	 * KVM_MR_FLAGS_ONLY, the old slot is essentially the same one as the
 	 * new and it's also covered when dealing with the new slot.
+	 *
+	 * FIXME: const-ify all uses of struct kvm_memory_slot.
 	 */
 	if (change != KVM_MR_DELETE)
-		kvm_mmu_slot_apply_flags(kvm, new);
+		kvm_mmu_slot_apply_flags(kvm, (struct kvm_memory_slot *) new);
 }
 
 void kvm_arch_flush_shadow_all(struct kvm *kvm)

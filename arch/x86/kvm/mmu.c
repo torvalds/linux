@@ -4621,10 +4621,12 @@ restart:
 }
 
 void kvm_mmu_zap_collapsible_sptes(struct kvm *kvm,
-			struct kvm_memory_slot *memslot)
+				   const struct kvm_memory_slot *memslot)
 {
+	/* FIXME: const-ify all uses of struct kvm_memory_slot.  */
 	spin_lock(&kvm->mmu_lock);
-	slot_handle_leaf(kvm, memslot, kvm_mmu_zap_collapsible_spte, true);
+	slot_handle_leaf(kvm, (struct kvm_memory_slot *)memslot,
+			 kvm_mmu_zap_collapsible_spte, true);
 	spin_unlock(&kvm->mmu_lock);
 }
 
