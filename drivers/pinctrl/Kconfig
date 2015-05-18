@@ -132,6 +132,8 @@ config PINCTRL_SIRF
 	bool "CSR SiRFprimaII pin controller driver"
 	depends on ARCH_SIRF
 	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
 	select GPIOLIB_IRQCHIP
 
 config PINCTRL_PISTACHIO
