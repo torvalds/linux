@@ -1808,10 +1808,9 @@ int qeth_bridgeport_query_ports(struct qeth_card *card,
 	cmd->data.sbp.hdr.seq_no = 1;
 	rc = qeth_send_ipa_cmd(card, iob, qeth_bridgeport_query_ports_cb,
 				(void *)&cbctl);
-	if (rc)
+	if (rc < 0)
 		return rc;
-	rc = qeth_bridgeport_makerc(card, &cbctl, IPA_SBP_QUERY_BRIDGE_PORTS);
-	return rc;
+	return qeth_bridgeport_makerc(card, &cbctl, IPA_SBP_QUERY_BRIDGE_PORTS);
 }
 EXPORT_SYMBOL_GPL(qeth_bridgeport_query_ports);
 
@@ -1874,10 +1873,9 @@ int qeth_bridgeport_setrole(struct qeth_card *card, enum qeth_sbp_roles role)
 	cmd->data.sbp.hdr.seq_no = 1;
 	rc = qeth_send_ipa_cmd(card, iob, qeth_bridgeport_set_cb,
 				(void *)&cbctl);
-	if (rc)
+	if (rc < 0)
 		return rc;
-	rc = qeth_bridgeport_makerc(card, &cbctl, setcmd);
-	return rc;
+	return qeth_bridgeport_makerc(card, &cbctl, setcmd);
 }
 
 /**
