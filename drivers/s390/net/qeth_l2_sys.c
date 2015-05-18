@@ -23,8 +23,6 @@ static ssize_t qeth_bridge_port_role_state_show(struct device *dev,
 	if (!card)
 		return -EINVAL;
 
-	mutex_lock(&card->conf_mutex);
-
 	if (qeth_card_hw_is_reachable(card) &&
 					card->options.sbp.supported_funcs)
 		rc = qeth_bridgeport_query_ports(card,
@@ -58,8 +56,6 @@ static ssize_t qeth_bridge_port_role_state_show(struct device *dev,
 		else
 			rc = sprintf(buf, "%s\n", word);
 	}
-
-	mutex_unlock(&card->conf_mutex);
 
 	return rc;
 }
@@ -123,11 +119,7 @@ static ssize_t qeth_bridgeport_hostnotification_show(struct device *dev,
 	if (!card)
 		return -EINVAL;
 
-	mutex_lock(&card->conf_mutex);
-
 	enabled = card->options.sbp.hostnotification;
-
-	mutex_unlock(&card->conf_mutex);
 
 	return sprintf(buf, "%d\n", enabled);
 }
