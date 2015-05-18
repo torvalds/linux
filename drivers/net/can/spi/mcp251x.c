@@ -1086,8 +1086,8 @@ static int mcp251x_can_probe(struct spi_device *spi)
 	if (ret)
 		goto out_clk;
 
-	priv->power = devm_regulator_get(&spi->dev, "vdd");
-	priv->transceiver = devm_regulator_get(&spi->dev, "xceiver");
+	priv->power = devm_regulator_get_optional(&spi->dev, "vdd");
+	priv->transceiver = devm_regulator_get_optional(&spi->dev, "xceiver");
 	if ((PTR_ERR(priv->power) == -EPROBE_DEFER) ||
 	    (PTR_ERR(priv->transceiver) == -EPROBE_DEFER)) {
 		ret = -EPROBE_DEFER;
