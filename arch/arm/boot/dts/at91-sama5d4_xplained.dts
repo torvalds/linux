@@ -122,6 +122,11 @@
 				status = "okay";
 			};
 
+			spi1: spi@fc018000 {
+				cs-gpios = <&pioB 21 0>;
+				status = "okay";
+			};
+
 			adc0: adc@fc034000 {
 				atmel,adc-vref = <3300>;
 				status = "okay";
