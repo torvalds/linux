@@ -186,12 +186,13 @@ int misc_register(struct miscdevice * misc)
 {
 	dev_t dev;
 	int err = 0;
+	bool is_dynamic = (misc->minor == MISC_DYNAMIC_MINOR);
 
 	INIT_LIST_HEAD(&misc->list);
 
 	mutex_lock(&misc_mtx);
 
-	if (misc->minor == MISC_DYNAMIC_MINOR) {
+	if (is_dynamic) {
 		int i = find_first_zero_bit(misc_minors, DYNAMIC_MINORS);
 		if (i >= DYNAMIC_MINORS) {
 			err = -EBUSY;
@@ -216,9 +217,13 @@ int misc_register(struct miscdevice * misc)
 		device_create_with_groups(misc_class, misc->parent, dev,
 					  misc, misc->groups, "%s", misc->name);
 	if (IS_ERR(misc->this_device)) {
-		int i = DYNAMIC_MINORS - misc->minor - 1;
-		if (i < DYNAMIC_MINORS && i >= 0)
-			clear_bit(i, misc_minors);
+		if (is_dynamic) {
+			int i = DYNAMIC_MINORS - misc->minor - 1;
+
+			if (i < DYNAMIC_MINORS && i >= 0)
+				clear_bit(i, misc_minors);
+			misc->minor = MISC_DYNAMIC_MINOR;
+		}
 		err = PTR_ERR(misc->this_device);
 		goto out;
 	}
