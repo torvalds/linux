@@ -683,6 +683,39 @@ static int qeth_l2_set_mac_address(struct net_device *dev, void *p)
 	return rc ? -EINVAL : 0;
 }
 
+static void qeth_promisc_to_bridge(struct qeth_card *card)
+{
+	struct net_device *dev = card->dev;
+	enum qeth_ipa_promisc_modes promisc_mode;
+	int role;
+	int rc;
+
+	QETH_CARD_TEXT(card, 3, "pmisc2br");
+
+	if (!card->options.sbp.reflect_promisc)
+		return;
+	promisc_mode = (dev->flags & IFF_PROMISC) ? SET_PROMISC_MODE_ON
+						: SET_PROMISC_MODE_OFF;
+	if (promisc_mode == card->info.promisc_mode)
+		return;
+
+	if (promisc_mode == SET_PROMISC_MODE_ON) {
+		if (card->options.sbp.reflect_promisc_primary)
+			role = QETH_SBP_ROLE_PRIMARY;
+		else
+			role = QETH_SBP_ROLE_SECONDARY;
+	} else
+		role = QETH_SBP_ROLE_NONE;
+
+	rc = qeth_bridgeport_setrole(card, role);
+	QETH_DBF_TEXT_(SETUP, 2, "bpm%c%04x",
+			(promisc_mode == SET_PROMISC_MODE_ON) ? '+' : '-', rc);
+	if (!rc) {
+		card->options.sbp.role = role;
+		card->info.promisc_mode = promisc_mode;
+	}
+}
+
 static void qeth_l2_set_multicast_list(struct net_device *dev)
 {
 	struct qeth_card *card = dev->ml_priv;
@@ -704,9 +737,10 @@ static void qeth_l2_set_multicast_list(struct net_device *dev)
 		qeth_l2_add_mc(card, ha->addr, 1);
 
 	spin_unlock_bh(&card->mclock);
-	if (!qeth_adp_supported(card, IPA_SETADP_SET_PROMISC_MODE))
-		return;
-	qeth_setadp_promisc_mode(card);
+	if (qeth_adp_supported(card, IPA_SETADP_SET_PROMISC_MODE))
+		qeth_setadp_promisc_mode(card);
+	else
+		qeth_promisc_to_bridge(card);
 }
 
 static int qeth_l2_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
