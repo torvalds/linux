@@ -1269,7 +1269,7 @@ static void snprintf_int_array(char *str, size_t len,
 	str[0] = '\0';
 
 	for (i = 0; i < nelem; i++) {
-		int r = snprintf(str, len, "%d,", array[i]);
+		int r = snprintf(str, len, "%s%d", i ? ", " : "", array[i]);
 		if (r >= len)
 			return;
 		str += r;
