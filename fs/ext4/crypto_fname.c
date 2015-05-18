@@ -272,9 +272,9 @@ int ext4_setup_fname_crypto(struct inode *inode)
 	if (!ci || ci->ci_ctfm)
 		return 0;
 
-	if (ci->ci_mode != EXT4_ENCRYPTION_MODE_AES_256_CTS) {
+	if (ci->ci_filename_mode != EXT4_ENCRYPTION_MODE_AES_256_CTS) {
 		printk_once(KERN_WARNING "ext4: unsupported key mode %d\n",
-			    ci->ci_mode);
+			    ci->ci_filename_mode);
 		return -ENOKEY;
 	}
 
