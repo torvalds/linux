@@ -109,7 +109,7 @@ struct clk *mtk_clk_register_gate(
 {
 	struct mtk_clk_gate *cg;
 	struct clk *clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 
 	cg = kzalloc(sizeof(*cg), GFP_KERNEL);
 	if (!cg)
