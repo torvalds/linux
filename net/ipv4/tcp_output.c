@@ -2392,7 +2392,7 @@ u32 __tcp_select_window(struct sock *sk)
 	if (free_space < (full_space >> 1)) {
 		icsk->icsk_ack.quick = 0;
 
-		if (sk_under_memory_pressure(sk))
+		if (tcp_under_memory_pressure(sk))
 			tp->rcv_ssthresh = min(tp->rcv_ssthresh,
 					       4U * tp->advmss);
 
@@ -2816,8 +2816,10 @@ begin_fwd:
  * connection tear down and (memory) recovery.
  * Otherwise tcp_send_fin() could be tempted to either delay FIN
  * or even be forced to close flow without any FIN.
+ * In general, we want to allow one skb per socket to avoid hangs
+ * with edge trigger epoll()
  */
-static void sk_forced_wmem_schedule(struct sock *sk, int size)
+void sk_forced_mem_schedule(struct sock *sk, int size)
 {
 	int amt, status;
 
@@ -2841,7 +2843,7 @@ void tcp_send_fin(struct sock *sk)
 	 * Note: in the latter case, FIN packet will be sent after a timeout,
 	 * as TCP stack thinks it has already been transmitted.
 	 */
-	if (tskb && (tcp_send_head(sk) || sk_under_memory_pressure(sk))) {
+	if (tskb && (tcp_send_head(sk) || tcp_under_memory_pressure(sk))) {
 coalesce:
 		TCP_SKB_CB(tskb)->tcp_flags |= TCPHDR_FIN;
 		TCP_SKB_CB(tskb)->end_seq++;
@@ -2864,7 +2866,7 @@ coalesce:
 			return;
 		}
 		skb_reserve(skb, MAX_TCP_HEADER);
-		sk_forced_wmem_schedule(sk, skb->truesize);
+		sk_forced_mem_schedule(sk, skb->truesize);
 		/* FIN eats a sequence byte, write_seq advanced by tcp_queue_skb(). */
 		tcp_init_nondata_skb(skb, tp->write_seq,
 				     TCPHDR_ACK | TCPHDR_FIN);

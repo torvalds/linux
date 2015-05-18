@@ -247,7 +247,7 @@ void tcp_delack_timer_handler(struct sock *sk)
 	}
 
 out:
-	if (sk_under_memory_pressure(sk))
+	if (tcp_under_memory_pressure(sk))
 		sk_mem_reclaim(sk);
 }
 

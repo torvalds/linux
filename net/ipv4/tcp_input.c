@@ -359,7 +359,7 @@ static void tcp_grow_window(struct sock *sk, const struct sk_buff *skb)
 	/* Check #1 */
 	if (tp->rcv_ssthresh < tp->window_clamp &&
 	    (int)tp->rcv_ssthresh < tcp_space(sk) &&
-	    !sk_under_memory_pressure(sk)) {
+	    !tcp_under_memory_pressure(sk)) {
 		int incr;
 
 		/* Check #2. Increase window, if skb with such overhead
@@ -446,7 +446,7 @@ static void tcp_clamp_window(struct sock *sk)
 
 	if (sk->sk_rcvbuf < sysctl_tcp_rmem[2] &&
 	    !(sk->sk_userlocks & SOCK_RCVBUF_LOCK) &&
-	    !sk_under_memory_pressure(sk) &&
+	    !tcp_under_memory_pressure(sk) &&
 	    sk_memory_allocated(sk) < sk_prot_mem_limits(sk, 0)) {
 		sk->sk_rcvbuf = min(atomic_read(&sk->sk_rmem_alloc),
 				    sysctl_tcp_rmem[2]);
@@ -4507,10 +4507,12 @@ static void tcp_data_queue(struct sock *sk, struct sk_buff *skb)
 
 		if (eaten <= 0) {
 queue_and_out:
-			if (eaten < 0 &&
-			    tcp_try_rmem_schedule(sk, skb, skb->truesize))
-				goto drop;
-
+			if (eaten < 0) {
+				if (skb_queue_len(&sk->sk_receive_queue) == 0)
+					sk_forced_mem_schedule(sk, skb->truesize);
+				else if (tcp_try_rmem_schedule(sk, skb, skb->truesize))
+					goto drop;
+			}
 			eaten = tcp_queue_rcv(sk, skb, 0, &fragstolen);
 		}
 		tcp_rcv_nxt_update(tp, TCP_SKB_CB(skb)->end_seq);
@@ -4781,7 +4783,7 @@ static int tcp_prune_queue(struct sock *sk)
 
 	if (atomic_read(&sk->sk_rmem_alloc) >= sk->sk_rcvbuf)
 		tcp_clamp_window(sk);
-	else if (sk_under_memory_pressure(sk))
+	else if (tcp_under_memory_pressure(sk))
 		tp->rcv_ssthresh = min(tp->rcv_ssthresh, 4U * tp->advmss);
 
 	tcp_collapse_ofo_queue(sk);
@@ -4825,7 +4827,7 @@ static bool tcp_should_expand_sndbuf(const struct sock *sk)
 		return false;
 
 	/* If we are under global TCP memory pressure, do not expand.  */
-	if (sk_under_memory_pressure(sk))
+	if (tcp_under_memory_pressure(sk))
 		return false;
 
 	/* If we are under soft global TCP memory pressure, do not expand.  */
