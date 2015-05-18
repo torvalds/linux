@@ -137,6 +137,9 @@ CONTENTS
  A real-time task can be periodic with period P if r_{j+1} = r_j + P, or
  sporadic with minimum inter-arrival time P is r_{j+1} >= r_j + P. Finally,
  d_j = r_j + D, where D is the task's relative deadline.
+ Summing up, a real-time task can be described as
+	Task = (WCET, D, P)
+
  The utilization of a real-time task is defined as the ratio between its
  WCET and its period (or minimum inter-arrival time), and represents
  the fraction of CPU time needed to execute the task.
@@ -170,9 +173,35 @@ CONTENTS
  of the tasks running on such a CPU is smaller or equal than 1.
  If D_i != P_i for some task, then it is possible to define the density of
  a task as WCET_i/min{D_i,P_i}, and EDF is able to respect all the deadlines
- of all the tasks running on a CPU if the sum sum(WCET_i/min{D_i,P_i}) of the
- densities of the tasks running on such a CPU is smaller or equal than 1
- (notice that this condition is only sufficient, and not necessary).
+ of all the tasks running on a CPU if the sum of the densities of the tasks
+ running on such a CPU is smaller or equal than 1:
+	sum(WCET_i / min{D_i, P_i}) <= 1
+ It is important to notice that this condition is only sufficient, and not
+ necessary: there are task sets that are schedulable, but do not respect the
+ condition. For example, consider the task set {Task_1,Task_2} composed by
+ Task_1=(50ms,50ms,100ms) and Task_2=(10ms,100ms,100ms).
+ EDF is clearly able to schedule the two tasks without missing any deadline
+ (Task_1 is scheduled as soon as it is released, and finishes just in time
+ to respect its deadline; Task_2 is scheduled immediately after Task_1, hence
+ its response time cannot be larger than 50ms + 10ms = 60ms) even if
+	50 / min{50,100} + 10 / min{100, 100} = 50 / 50 + 10 / 100 = 1.1
+ Of course it is possible to test the exact schedulability of tasks with
+ D_i != P_i (checking a condition that is both sufficient and necessary),
+ but this cannot be done by comparing the total utilization or density with
+ a constant. Instead, the so called "processor demand" approach can be used,
+ computing the total amount of CPU time h(t) needed by all the tasks to
+ respect all of their deadlines in a time interval of size t, and comparing
+ such a time with the interval size t. If h(t) is smaller than t (that is,
+ the amount of time needed by the tasks in a time interval of size t is
+ smaller than the size of the interval) for all the possible values of t, then
+ EDF is able to schedule the tasks respecting all of their deadlines. Since
+ performing this check for all possible values of t is impossible, it has been
+ proven[4,5,6] that it is sufficient to perform the test for values of t
+ between 0 and a maximum value L. The cited papers contain all of the
+ mathematical details and explain how to compute h(t) and L.
+ In any case, this kind of analysis is too complex as well as too
+ time-consuming to be performed on-line. Hence, as explained in Section
+ 4 Linux uses an admission test based on the tasks' utilizations.
 
  On multiprocessor systems with global EDF scheduling (non partitioned
  systems), a sufficient test for schedulability can not be based on the
@@ -206,6 +235,16 @@ CONTENTS
       Symposium, 1998. http://retis.sssup.it/~giorgio/paps/1998/rtss98-cbs.pdf
   3 - L. Abeni. Server Mechanisms for Multimedia Applications. ReTiS Lab
       Technical Report. http://disi.unitn.it/~abeni/tr-98-01.pdf
+  4 - J. Y. Leung and M.L. Merril. A Note on Preemptive Scheduling of
+      Periodic, Real-Time Tasks. Information Processing Letters, vol. 11,
+      no. 3, pp. 115-118, 1980.
+  5 - S. K. Baruah, A. K. Mok and L. E. Rosier. Preemptively Scheduling
+      Hard-Real-Time Sporadic Tasks on One Processor. Proceedings of the
+      11th IEEE Real-time Systems Symposium, 1990.
+  6 - S. K. Baruah, L. E. Rosier and R. R. Howell. Algorithms and Complexity
+      Concerning the Preemptive Scheduling of Periodic Real-Time tasks on
+      One Processor. Real-Time Systems Journal, vol. 4, no. 2, pp 301-324,
+      1990.
 
 4. Bandwidth management
 =======================
