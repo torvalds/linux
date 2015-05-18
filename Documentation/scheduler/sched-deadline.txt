@@ -8,6 +8,10 @@ CONTENTS
  1. Overview
  2. Scheduling algorithm
  3. Scheduling Real-Time Tasks
+   3.1 Definitions
+   3.2 Schedulability Analysis for Uniprocessor Systems
+   3.3 Schedulability Analysis for Multiprocessor Systems
+   3.4 Relationship with SCHED_DEADLINE Parameters
  4. Bandwidth management
    4.1 System-wide settings
    4.2 Task interface
@@ -126,6 +130,9 @@ CONTENTS
  suited for periodic or sporadic real-time tasks that need guarantees on their
  timing behavior, e.g., multimedia, streaming, control applications, etc.
 
+3.1 Definitions
+------------------------
+
  A typical real-time task is composed of a repetition of computation phases
  (task instances, or jobs) which are activated on a periodic or sporadic
  fashion.
@@ -166,6 +173,9 @@ CONTENTS
  is the minimum WCET, and U_max = max{WCET_i/P_i} is the maximum
  utilization[12].
 
+3.2 Schedulability Analysis for Uniprocessor Systems
+------------------------
+
  If M=1 (uniprocessor system), or in case of partitioned scheduling (each
  real-time task is statically assigned to one and only one CPU), it is
  possible to formally check if all the deadlines are respected.
@@ -203,6 +213,9 @@ CONTENTS
  In any case, this kind of analysis is too complex as well as too
  time-consuming to be performed on-line. Hence, as explained in Section
  4 Linux uses an admission test based on the tasks' utilizations.
+
+3.3 Schedulability Analysis for Multiprocessor Systems
+------------------------
 
  On multiprocessor systems with global EDF scheduling (non partitioned
  systems), a sufficient test for schedulability can not be based on the
@@ -248,6 +261,9 @@ CONTENTS
  but the theoretical result that is important for SCHED_DEADLINE is that if
  the total utilization is smaller or equal than M then the response times of
  the tasks are limited.
+
+3.4 Relationship with SCHED_DEADLINE Parameters
+------------------------
 
  Finally, it is important to understand the relationship between the
  SCHED_DEADLINE scheduling parameters described in Section 2 (runtime,
