@@ -989,7 +989,7 @@ static int i915_pm_suspend_late(struct device *dev)
 	struct drm_device *drm_dev = dev_to_i915(dev)->dev;
 
 	/*
-	 * We have a suspedn ordering issue with the snd-hda driver also
+	 * We have a suspend ordering issue with the snd-hda driver also
 	 * requiring our device to be power up. Due to the lack of a
 	 * parent/child relationship we currently solve this with an late
 	 * suspend hook.
