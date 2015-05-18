@@ -163,7 +163,8 @@ CONTENTS
  maximum tardiness of each task is smaller or equal than
 	((M − 1) · WCET_max − WCET_min)/(M − (M − 2) · U_max) + WCET_max
  where WCET_max = max{WCET_i} is the maximum WCET, WCET_min=min{WCET_i}
- is the minimum WCET, and U_max = max{WCET_i/P_i} is the maximum utilization.
+ is the minimum WCET, and U_max = max{WCET_i/P_i} is the maximum
+ utilization[12].
 
  If M=1 (uniprocessor system), or in case of partitioned scheduling (each
  real-time task is statically assigned to one and only one CPU), it is
@@ -205,11 +206,48 @@ CONTENTS
 
  On multiprocessor systems with global EDF scheduling (non partitioned
  systems), a sufficient test for schedulability can not be based on the
- utilizations (it can be shown that task sets with utilizations slightly
- larger than 1 can miss deadlines regardless of the number of CPUs M).
- However, as previously stated, enforcing that the total utilization is smaller
- than M is enough to guarantee that non real-time tasks are not starved and
- that the tardiness of real-time tasks has an upper bound.
+ utilizations or densities: it can be shown that even if D_i = P_i task
+ sets with utilizations slightly larger than 1 can miss deadlines regardless
+ of the number of CPUs.
+
+ Consider a set {Task_1,...Task_{M+1}} of M+1 tasks on a system with M
+ CPUs, with the first task Task_1=(P,P,P) having period, relative deadline
+ and WCET equal to P. The remaining M tasks Task_i=(e,P-1,P-1) have an
+ arbitrarily small worst case execution time (indicated as "e" here) and a
+ period smaller than the one of the first task. Hence, if all the tasks
+ activate at the same time t, global EDF schedules these M tasks first
+ (because their absolute deadlines are equal to t + P - 1, hence they are
+ smaller than the absolute deadline of Task_1, which is t + P). As a
+ result, Task_1 can be scheduled only at time t + e, and will finish at
+ time t + e + P, after its absolute deadline. The total utilization of the
+ task set is U = M · e / (P - 1) + P / P = M · e / (P - 1) + 1, and for small
+ values of e this can become very close to 1. This is known as "Dhall's
+ effect"[7]. Note: the example in the original paper by Dhall has been
+ slightly simplified here (for example, Dhall more correctly computed
+ lim_{e->0}U).
+
+ More complex schedulability tests for global EDF have been developed in
+ real-time literature[8,9], but they are not based on a simple comparison
+ between total utilization (or density) and a fixed constant. If all tasks
+ have D_i = P_i, a sufficient schedulability condition can be expressed in
+ a simple way:
+	sum(WCET_i / P_i) <= M - (M - 1) · U_max
+ where U_max = max{WCET_i / P_i}[10]. Notice that for U_max = 1,
+ M - (M - 1) · U_max becomes M - M + 1 = 1 and this schedulability condition
+ just confirms the Dhall's effect. A more complete survey of the literature
+ about schedulability tests for multi-processor real-time scheduling can be
+ found in [11].
+
+ As seen, enforcing that the total utilization is smaller than M does not
+ guarantee that global EDF schedules the tasks without missing any deadline
+ (in other words, global EDF is not an optimal scheduling algorithm). However,
+ a total utilization smaller than M is enough to guarantee that non real-time
+ tasks are not starved and that the tardiness of real-time tasks has an upper
+ bound[12] (as previously noted). Different bounds on the maximum tardiness
+ experienced by real-time tasks have been developed in various papers[13,14],
+ but the theoretical result that is important for SCHED_DEADLINE is that if
+ the total utilization is smaller or equal than M then the response times of
+ the tasks are limited.
 
  SCHED_DEADLINE can be used to schedule real-time tasks guaranteeing that
  the jobs' deadlines of a task are respected. In order to do this, a task
@@ -245,6 +283,29 @@ CONTENTS
       Concerning the Preemptive Scheduling of Periodic Real-Time tasks on
       One Processor. Real-Time Systems Journal, vol. 4, no. 2, pp 301-324,
       1990.
+  7 - S. J. Dhall and C. L. Liu. On a real-time scheduling problem. Operations
+      research, vol. 26, no. 1, pp 127-140, 1978.
+  8 - T. Baker. Multiprocessor EDF and Deadline Monotonic Schedulability
+      Analysis. Proceedings of the 24th IEEE Real-Time Systems Symposium, 2003.
+  9 - T. Baker. An Analysis of EDF Schedulability on a Multiprocessor.
+      IEEE Transactions on Parallel and Distributed Systems, vol. 16, no. 8,
+      pp 760-768, 2005.
+  10 - J. Goossens, S. Funk and S. Baruah, Priority-Driven Scheduling of
+       Periodic Task Systems on Multiprocessors. Real-Time Systems Journal,
+       vol. 25, no. 2–3, pp. 187–205, 2003.
+  11 - R. Davis and A. Burns. A Survey of Hard Real-Time Scheduling for
+       Multiprocessor Systems. ACM Computing Surveys, vol. 43, no. 4, 2011.
+       http://www-users.cs.york.ac.uk/~robdavis/papers/MPSurveyv5.0.pdf
+  12 - U. C. Devi and J. H. Anderson. Tardiness Bounds under Global EDF
+       Scheduling on a Multiprocessor. Real-Time Systems Journal, vol. 32,
+       no. 2, pp 133-189, 2008.
+  13 - P. Valente and G. Lipari. An Upper Bound to the Lateness of Soft
+       Real-Time Tasks Scheduled by EDF on Multiprocessors. Proceedings of
+       the 26th IEEE Real-Time Systems Symposium, 2005.
+  14 - J. Erickson, U. Devi and S. Baruah. Improved tardiness bounds for
+       Global EDF. Proceedings of the 22nd Euromicro Conference on
+       Real-Time Systems, 2010.
+
 
 4. Bandwidth management
 =======================
