@@ -75,6 +75,14 @@ static inline unsigned long __reverse_ffs(unsigned long word)
 static unsigned long __find_rev_next_bit(const unsigned long *addr,
 			unsigned long size, unsigned long offset)
 {
+	while (!f2fs_test_bit(offset, (unsigned char *)addr))
+		offset++;
+
+	if (offset > size)
+		offset = size;
+
+	return offset;
+#if 0
 	const unsigned long *p = addr + BIT_WORD(offset);
 	unsigned long result = offset & ~(BITS_PER_LONG - 1);
 	unsigned long tmp;
@@ -121,11 +129,20 @@ found_first:
 		return result + size;   /* Nope. */
 found_middle:
 	return result + __reverse_ffs(tmp);
+#endif
 }
 
 static unsigned long __find_rev_next_zero_bit(const unsigned long *addr,
 			unsigned long size, unsigned long offset)
 {
+	while (f2fs_test_bit(offset, (unsigned char *)addr))
+		offset++;
+
+	if (offset > size)
+		offset = size;
+
+	return offset;
+#if 0
 	const unsigned long *p = addr + BIT_WORD(offset);
 	unsigned long result = offset & ~(BITS_PER_LONG - 1);
 	unsigned long tmp;
@@ -173,6 +190,7 @@ found_first:
 		return result + size;   /* Nope. */
 found_middle:
 	return result + __reverse_ffz(tmp);
+#endif
 }
 
 void register_inmem_page(struct inode *inode, struct page *page)
