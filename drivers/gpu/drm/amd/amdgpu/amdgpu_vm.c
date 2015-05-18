@@ -936,6 +936,13 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 	uint64_t eaddr;
 	int r;
 
+	/* validate the parameters */
+	if (saddr & AMDGPU_GPU_PAGE_MASK || offset & AMDGPU_GPU_PAGE_MASK ||
+	    size == 0 || size & AMDGPU_GPU_PAGE_MASK) {
+		amdgpu_bo_unreserve(bo_va->bo);
+		return -EINVAL;
+	}
+
 	/* make sure object fit at this offset */
 	eaddr = saddr + size;
 	if ((saddr >= eaddr) || (offset + size > amdgpu_bo_size(bo_va->bo))) {
