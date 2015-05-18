@@ -100,12 +100,43 @@ static struct pm_qos_object network_throughput_pm_qos = {
 	.name = "network_throughput",
 };
 
+#ifdef CONFIG_CPUQUIET_FRAMEWORK
+static BLOCKING_NOTIFIER_HEAD(min_online_cpus_notifier);
+static struct pm_qos_constraints min_online_cpus_constraints = {
+	.list = PLIST_HEAD_INIT(min_online_cpus_constraints.list),
+	.target_value = PM_QOS_MIN_ONLINE_CPUS_DEFAULT_VALUE,
+	.default_value = PM_QOS_MIN_ONLINE_CPUS_DEFAULT_VALUE,
+	.type = PM_QOS_MAX,
+	.notifiers = &min_online_cpus_notifier,
+};
+static struct pm_qos_object min_online_cpus_pm_qos = {
+	.constraints = &min_online_cpus_constraints,
+	.name = "min_online_cpus",
+};
+
+static BLOCKING_NOTIFIER_HEAD(max_online_cpus_notifier);
+static struct pm_qos_constraints max_online_cpus_constraints = {
+	.list = PLIST_HEAD_INIT(max_online_cpus_constraints.list),
+	.target_value = PM_QOS_MAX_ONLINE_CPUS_DEFAULT_VALUE,
+	.default_value = PM_QOS_MAX_ONLINE_CPUS_DEFAULT_VALUE,
+	.type = PM_QOS_MIN,
+	.notifiers = &max_online_cpus_notifier,
+};
+static struct pm_qos_object max_online_cpus_pm_qos = {
+	.constraints = &max_online_cpus_constraints,
+	.name = "max_online_cpus",
+};
+#endif
 
 static struct pm_qos_object *pm_qos_array[] = {
 	&null_pm_qos,
 	&cpu_dma_pm_qos,
 	&network_lat_pm_qos,
-	&network_throughput_pm_qos
+	&network_throughput_pm_qos,
+#ifdef CONFIG_CPUQUIET_FRAMEWORK
+	&min_online_cpus_pm_qos,
+	&max_online_cpus_pm_qos,
+#endif
 };
 
 static ssize_t pm_qos_power_write(struct file *filp, const char __user *buf,
