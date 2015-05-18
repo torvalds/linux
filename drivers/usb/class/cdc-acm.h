@@ -19,7 +19,7 @@
  */
 
 #define ACM_TTY_MAJOR		166
-#define ACM_TTY_MINORS		32
+#define ACM_TTY_MINORS		256
 
 /*
  * Requests.
