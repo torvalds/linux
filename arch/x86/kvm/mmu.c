@@ -806,13 +806,15 @@ static struct kvm_lpage_info *lpage_info_slot(gfn_t gfn,
 
 static void account_shadowed(struct kvm *kvm, struct kvm_mmu_page *sp)
 {
+	struct kvm_memslots *slots;
 	struct kvm_memory_slot *slot;
 	struct kvm_lpage_info *linfo;
 	gfn_t gfn;
 	int i;
 
 	gfn = sp->gfn;
-	slot = gfn_to_memslot(kvm, gfn);
+	slots = kvm_memslots_for_spte_role(kvm, sp->role);
+	slot = __gfn_to_memslot(slots, gfn);
 	for (i = PT_DIRECTORY_LEVEL; i <= PT_MAX_HUGEPAGE_LEVEL; ++i) {
 		linfo = lpage_info_slot(gfn, slot, i);
 		linfo->write_count += 1;
@@ -822,13 +824,15 @@ static void account_shadowed(struct kvm *kvm, struct kvm_mmu_page *sp)
 
 static void unaccount_shadowed(struct kvm *kvm, struct kvm_mmu_page *sp)
 {
+	struct kvm_memslots *slots;
 	struct kvm_memory_slot *slot;
 	struct kvm_lpage_info *linfo;
 	gfn_t gfn;
 	int i;
 
 	gfn = sp->gfn;
-	slot = gfn_to_memslot(kvm, gfn);
+	slots = kvm_memslots_for_spte_role(kvm, sp->role);
+	slot = __gfn_to_memslot(slots, gfn);
 	for (i = PT_DIRECTORY_LEVEL; i <= PT_MAX_HUGEPAGE_LEVEL; ++i) {
 		linfo = lpage_info_slot(gfn, slot, i);
 		linfo->write_count -= 1;
@@ -1045,9 +1049,11 @@ static unsigned long *__gfn_to_rmap(gfn_t gfn, int level,
  */
 static unsigned long *gfn_to_rmap(struct kvm *kvm, gfn_t gfn, struct kvm_mmu_page *sp)
 {
+	struct kvm_memslots *slots;
 	struct kvm_memory_slot *slot;
 
-	slot = gfn_to_memslot(kvm, gfn);
+	slots = kvm_memslots_for_spte_role(kvm, sp->role);
+	slot = __gfn_to_memslot(slots, gfn);
 	return __gfn_to_rmap(gfn, sp->role.level, slot);
 }
 
@@ -3924,6 +3930,7 @@ static void init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
 	struct kvm_mmu *context = &vcpu->arch.mmu;
 
 	context->base_role.word = 0;
+	context->base_role.smm = is_smm(vcpu);
 	context->page_fault = tdp_page_fault;
 	context->sync_page = nonpaging_sync_page;
 	context->invlpg = nonpaging_invlpg;
@@ -3985,6 +3992,7 @@ void kvm_init_shadow_mmu(struct kvm_vcpu *vcpu)
 		= smep && !is_write_protection(vcpu);
 	context->base_role.smap_andnot_wp
 		= smap && !is_write_protection(vcpu);
+	context->base_role.smm = is_smm(vcpu);
 }
 EXPORT_SYMBOL_GPL(kvm_init_shadow_mmu);
 
@@ -4268,6 +4276,7 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 	mask.nxe = 1;
 	mask.smep_andnot_wp = 1;
 	mask.smap_andnot_wp = 1;
+	mask.smm = 1;
 
 	/*
 	 * If we don't have indirect shadow pages, it means no page is

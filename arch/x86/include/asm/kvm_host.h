@@ -184,23 +184,12 @@ struct kvm_mmu_memory_cache {
 	void *objects[KVM_NR_MEM_OBJS];
 };
 
-/*
- * kvm_mmu_page_role, below, is defined as:
- *
- *   bits 0:3 - total guest paging levels (2-4, or zero for real mode)
- *   bits 4:7 - page table level for this shadow (1-4)
- *   bits 8:9 - page table quadrant for 2-level guests
- *   bit   16 - direct mapping of virtual to physical mapping at gfn
- *              used for real mode and two-dimensional paging
- *   bits 17:19 - common access permissions for all ptes in this shadow page
- */
 union kvm_mmu_page_role {
 	unsigned word;
 	struct {
 		unsigned level:4;
 		unsigned cr4_pae:1;
 		unsigned quadrant:2;
-		unsigned pad_for_nice_hex_output:6;
 		unsigned direct:1;
 		unsigned access:3;
 		unsigned invalid:1;
@@ -208,6 +197,15 @@ union kvm_mmu_page_role {
 		unsigned cr0_wp:1;
 		unsigned smep_andnot_wp:1;
 		unsigned smap_andnot_wp:1;
+		unsigned :8;
+
+		/*
+		 * This is left at the top of the word so that
+		 * kvm_memslots_for_spte_role can extract it with a
+		 * simple shift.  While there is room, give it a whole
+		 * byte so it is also faster to load it from memory.
+		 */
+		unsigned smm:8;
 	};
 };
 
@@ -1119,6 +1117,12 @@ enum {
 #define HF_GUEST_MASK		(1 << 5) /* VCPU is in guest-mode */
 #define HF_SMM_MASK		(1 << 6)
 #define HF_SMM_INSIDE_NMI_MASK	(1 << 7)
+
+#define __KVM_VCPU_MULTIPLE_ADDRESS_SPACE
+#define KVM_ADDRESS_SPACE_NUM 2
+
+#define kvm_arch_vcpu_memslots_id(vcpu) ((vcpu)->arch.hflags & HF_SMM_MASK ? 1 : 0)
+#define kvm_memslots_for_spte_role(kvm, role) __kvm_memslots(kvm, (role).smm)
 
 /*
  * Hardware virtualization extension instructions may fault if a

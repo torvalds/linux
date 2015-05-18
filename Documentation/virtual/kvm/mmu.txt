@@ -173,6 +173,12 @@ Shadow pages contain the following information:
     Contains the value of cr4.smap && !cr0.wp for which the page is valid
     (pages for which this is true are different from other pages; see the
     treatment of cr0.wp=0 below).
+  role.smm:
+    Is 1 if the page is valid in system management mode.  This field
+    determines which of the kvm_memslots array was used to build this
+    shadow page; it is also used to go back from a struct kvm_mmu_page
+    to a memslot, through the kvm_memslots_for_spte_role macro and
+    __gfn_to_memslot.
   gfn:
     Either the guest page table containing the translations shadowed by this
     page, or the base page frame for linear translations.  See role.direct.
