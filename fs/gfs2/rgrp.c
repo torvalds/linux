@@ -1711,10 +1711,8 @@ static int gfs2_rbm_find(struct gfs2_rbm *rbm, u8 state, u32 *minext,
 		return ret;
 
 bitmap_full:	/* Mark bitmap as full and fall through */
-		if ((state == GFS2_BLKST_FREE) && initial_offset == 0) {
-			struct gfs2_bitmap *bi = rbm_bi(rbm);
+		if ((state == GFS2_BLKST_FREE) && initial_offset == 0)
 			set_bit(GBF_FULL, &bi->bi_flags);
-		}
 
 next_bitmap:	/* Find next bitmap in the rgrp */
 		rbm->offset = 0;
