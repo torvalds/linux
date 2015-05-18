@@ -2876,6 +2876,7 @@ static int rt5645_jack_detect(struct snd_soc_codec *codec, int jack_insert)
 }
 
 static int rt5645_irq_detection(struct rt5645_priv *rt5645);
+static irqreturn_t rt5645_irq(int irq, void *data);
 
 int rt5645_set_jack_detect(struct snd_soc_codec *codec,
 	struct snd_soc_jack *hp_jack, struct snd_soc_jack *mic_jack,
@@ -2895,7 +2896,7 @@ int rt5645_set_jack_detect(struct snd_soc_codec *codec,
 		regmap_update_bits(rt5645->regmap, RT5645_GEN_CTRL1,
 				RT5645_DIG_GATE_CTRL, RT5645_DIG_GATE_CTRL);
 	}
-	rt5645_irq_detection(rt5645);
+	rt5645_irq(0, rt5645);
 
 	return 0;
 }
