@@ -146,7 +146,7 @@ static void inspect_spte_has_rmap(struct kvm *kvm, u64 *sptep)
 		return;
 	}
 
-	rmapp = gfn_to_rmap(kvm, gfn, rev_sp->role.level);
+	rmapp = gfn_to_rmap(kvm, gfn, rev_sp);
 	if (!*rmapp) {
 		if (!__ratelimit(&ratelimit_state))
 			return;
@@ -191,11 +191,15 @@ static void audit_write_protection(struct kvm *kvm, struct kvm_mmu_page *sp)
 	unsigned long *rmapp;
 	u64 *sptep;
 	struct rmap_iterator iter;
+	struct kvm_memslots *slots;
+	struct kvm_memory_slot *slot;
 
 	if (sp->role.direct || sp->unsync || sp->role.invalid)
 		return;
 
-	rmapp = gfn_to_rmap(kvm, sp->gfn, PT_PAGE_TABLE_LEVEL);
+	slots = kvm_memslots(kvm);
+	slot = __gfn_to_memslot(slots, sp->gfn);
+	rmapp = __gfn_to_rmap(sp->gfn, PT_PAGE_TABLE_LEVEL, slot);
 
 	for_each_rmap_spte(rmapp, &iter, sptep)
 		if (is_writable_pte(*sptep))
