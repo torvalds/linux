@@ -190,6 +190,7 @@ static bool check_hw_exists(void)
 	u64 val, val_fail, val_new= ~0;
 	int i, reg, reg_fail, ret = 0;
 	int bios_fail = 0;
+	int reg_safe = -1;
 
 	/*
 	 * Check to see if the BIOS enabled any of the counters, if so
@@ -204,6 +205,8 @@ static bool check_hw_exists(void)
 			bios_fail = 1;
 			val_fail = val;
 			reg_fail = reg;
+		} else {
+			reg_safe = i;
 		}
 	}
 
@@ -222,11 +225,22 @@ static bool check_hw_exists(void)
 	}
 
 	/*
+	 * If all the counters are enabled, the below test will always
+	 * fail.  The tools will also become useless in this scenario.
+	 * Just fail and disable the hardware counters.
+	 */
+
+	if (reg_safe == -1) {
+		reg = reg_safe;
+		goto msr_fail;
+	}
+
+	/*
 	 * Read the current value, change it and read it back to see if it
 	 * matches, this is needed to detect certain hardware emulators
 	 * (qemu/kvm) that don't trap on the MSR access and always return 0s.
 	 */
-	reg = x86_pmu_event_addr(0);
+	reg = x86_pmu_event_addr(reg_safe);
 	if (rdmsrl_safe(reg, &val))
 		goto msr_fail;
 	val ^= 0xffffUL;
