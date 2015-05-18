@@ -81,7 +81,7 @@ static DEFINE_MUTEX(cpufreq_mutex);
 static struct dvfs_node *clk_cpu_dvfs_node[MAX_CLUSTERS];
 static struct dvfs_node *clk_gpu_dvfs_node;
 static struct dvfs_node *clk_ddr_dvfs_node;
-static struct cpumask *cluster_policy_mask[MAX_CLUSTERS];
+static cpumask_var_t cluster_policy_mask[MAX_CLUSTERS];
 
 #ifdef CONFIG_ROCKCHIP_CPUQUIET
 static void rockchip_bl_balanced_cpufreq_transition(unsigned int cluster,
@@ -193,7 +193,9 @@ static int rockchip_bl_cpufreq_scale_rate_for_dvfs(struct clk *clk,
 
 	cur_cluster = clk_node_get_cluster_id(clk);
 	cpu = cpumask_first_and(cluster_policy_mask[cur_cluster],
-				cpu_online_mask);
+		cpu_online_mask);
+	if (cpu >= nr_cpu_ids)
+		return 0;
 	policy = cpufreq_cpu_get(cpu);
 	if (!policy)
 		return 0;
@@ -288,15 +290,16 @@ static int rockchip_bl_cpufreq_init(struct cpufreq_policy *policy)
 	if (cpu0_err)
 		return cpu0_err;
 
-	cluster_policy_mask[cur_cluster] = policy->cpus;
-
 	/* set freq min max */
 	cpufreq_frequency_table_cpuinfo(policy, freq_table[cur_cluster]);
 	/* sys nod */
 	cpufreq_frequency_table_get_attr(freq_table[cur_cluster], policy->cpu);
 
-	if (cur_cluster < MAX_CLUSTERS)
+	if (cur_cluster < MAX_CLUSTERS) {
 		cpumask_copy(policy->cpus, topology_core_cpumask(policy->cpu));
+		cpumask_copy(cluster_policy_mask[cur_cluster],
+			     topology_core_cpumask(policy->cpu));
+	}
 
 	policy->cur = clk_get_rate(clk_cpu_dvfs_node[cur_cluster]->clk) / 1000;
 
@@ -427,10 +430,12 @@ static int rockchip_bl_cpufreq_pm_notifier_event(struct notifier_block *this,
 
 	for (i = 0; i < MAX_CLUSTERS; i++) {
 		cpu = cpumask_first_and(cluster_policy_mask[i],
-					cpu_online_mask);
+			cpu_online_mask);
+		if (cpu >= nr_cpu_ids)
+			continue;
 		policy = cpufreq_cpu_get(cpu);
 		if (!policy)
-			return ret;
+			continue;
 
 		if (!cpufreq_is_ondemand(policy))
 			goto out;
@@ -464,6 +469,7 @@ static int rockchip_bl_cpufreq_pm_notifier_event(struct notifier_block *this,
 out:
 		cpufreq_cpu_put(policy);
 	}
+
 	return ret;
 }
 
@@ -535,7 +541,12 @@ MODULE_DEVICE_TABLE(of, rockchip_bl_cpufreq_match);
 
 static int __init rockchip_bl_cpufreq_probe(struct platform_device *pdev)
 {
-	int ret;
+	int ret, i;
+
+	for (i = 0; i < MAX_CLUSTERS; i++) {
+		if (!alloc_cpumask_var(&cluster_policy_mask[i], GFP_KERNEL))
+			return -ENOMEM;
+	}
 
 	register_reboot_notifier(&rockchip_bl_cpufreq_reboot_notifier);
 	register_pm_notifier(&rockchip_bl_cpufreq_pm_notifier);
@@ -551,6 +562,10 @@ static int __init rockchip_bl_cpufreq_probe(struct platform_device *pdev)
 
 static int rockchip_bl_cpufreq_remove(struct platform_device *pdev)
 {
+	int i;
+
+	for (i = 0; i < MAX_CLUSTERS; i++)
+		free_cpumask_var(cluster_policy_mask[i]);
 	cpufreq_unregister_driver(&rockchip_bl_cpufreq_driver);
 	return 0;
 }
