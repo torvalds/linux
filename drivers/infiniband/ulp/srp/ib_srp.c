@@ -3172,11 +3172,11 @@ static ssize_t srp_create_target(struct device *dev,
 
 	ret = srp_parse_options(buf, target);
 	if (ret)
-		goto err;
+		goto out;
 
 	ret = scsi_init_shared_tag_map(target_host, target_host->can_queue);
 	if (ret)
-		goto err;
+		goto out;
 
 	target->req_ring_size = target->queue_size - SRP_TSK_MGMT_SQ_SIZE;
 
@@ -3187,7 +3187,7 @@ static ssize_t srp_create_target(struct device *dev,
 			     be64_to_cpu(target->ioc_guid),
 			     be64_to_cpu(target->initiator_ext));
 		ret = -EEXIST;
-		goto err;
+		goto out;
 	}
 
 	if (!srp_dev->has_fmr && !srp_dev->has_fr && !target->allow_ext_sg &&
@@ -3208,7 +3208,7 @@ static ssize_t srp_create_target(struct device *dev,
 	spin_lock_init(&target->lock);
 	ret = ib_query_gid(ibdev, host->port, 0, &target->sgid);
 	if (ret)
-		goto err;
+		goto out;
 
 	ret = -ENOMEM;
 	target->ch_count = max_t(unsigned, num_online_nodes(),
@@ -3219,7 +3219,7 @@ static ssize_t srp_create_target(struct device *dev,
 	target->ch = kcalloc(target->ch_count, sizeof(*target->ch),
 			     GFP_KERNEL);
 	if (!target->ch)
-		goto err;
+		goto out;
 
 	node_idx = 0;
 	for_each_online_node(node) {
@@ -3315,9 +3315,6 @@ err_disconnect:
 	}
 
 	kfree(target->ch);
-
-err:
-	scsi_host_put(target_host);
 	goto out;
 }
 
