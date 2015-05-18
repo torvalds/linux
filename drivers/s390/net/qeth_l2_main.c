@@ -137,7 +137,7 @@ static int qeth_setdel_makerc(struct qeth_card *card, int retcode)
 		rc = 0;
 		break;
 	case IPA_RC_L2_UNSUPPORTED_CMD:
-		rc = -ENOSYS;
+		rc = -EOPNOTSUPP;
 		break;
 	case IPA_RC_L2_ADDR_TABLE_FULL:
 		rc = -ENOSPC;
@@ -1662,7 +1662,7 @@ static int qeth_bridgeport_makerc(struct qeth_card *card,
 			break;
 		case 0x2B04:
 		case 0x0004:
-			rc = -ENOSYS;
+			rc = -EOPNOTSUPP;
 			break;
 		case 0x2B0C:
 		case 0x000C: /* Not configured as bridge Port */
@@ -1717,10 +1717,10 @@ static int qeth_bridgeport_makerc(struct qeth_card *card,
 	else
 		switch (cbctl->ipa_rc) {
 		case IPA_RC_NOTSUPP:
-			rc = -ENOSYS;
+			rc = -EOPNOTSUPP;
 			break;
 		case IPA_RC_UNSUPPORTED_COMMAND:
-			rc = -ENOSYS;
+			rc = -EOPNOTSUPP;
 			break;
 		default:
 			rc = -EIO;
@@ -1948,7 +1948,7 @@ static int qeth_anset_makerc(struct qeth_card *card, int pnso_rc, u16 response)
 		case 0x0004:
 		case 0x0100:
 		case 0x0106:
-			rc = -ENOSYS;
+			rc = -EOPNOTSUPP;
 			dev_err(&card->gdev->dev,
 				"Setting address notification failed\n");
 			break;
