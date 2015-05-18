@@ -1838,6 +1838,17 @@ struct dx_hash_info
  */
 #define HASH_NB_ALWAYS		1
 
+struct ext4_filename {
+	const struct qstr *usr_fname;
+	struct ext4_str disk_name;
+	struct dx_hash_info hinfo;
+#ifdef CONFIG_EXT4_FS_ENCRYPTION
+	struct ext4_str crypto_buf;
+#endif
+};
+
+#define fname_name(p) ((p)->disk_name.name)
+#define fname_len(p)  ((p)->disk_name.len)
 
 /*
  * Describe an inode's exact location on disk and in memory
@@ -2098,21 +2109,16 @@ int ext4_fname_disk_to_usr(struct ext4_fname_crypto_ctx *ctx,
 int ext4_fname_usr_to_disk(struct ext4_fname_crypto_ctx *ctx,
 			   const struct qstr *iname,
 			   struct ext4_str *oname);
-int ext4_fname_usr_to_hash(struct ext4_fname_crypto_ctx *ctx,
-			   const struct qstr *iname,
-			   struct dx_hash_info *hinfo);
 int ext4_fname_crypto_namelen_on_disk(struct ext4_fname_crypto_ctx *ctx,
 				      u32 namelen);
-int ext4_fname_match(struct ext4_fname_crypto_ctx *ctx, struct ext4_str *cstr,
-		     int len, const char * const name,
-		     struct ext4_dir_entry_2 *de);
-
-
 #ifdef CONFIG_EXT4_FS_ENCRYPTION
 void ext4_put_fname_crypto_ctx(struct ext4_fname_crypto_ctx **ctx);
 struct ext4_fname_crypto_ctx *ext4_get_fname_crypto_ctx(struct inode *inode,
 							u32 max_len);
 void ext4_fname_crypto_free_buffer(struct ext4_str *crypto_str);
+int ext4_fname_setup_filename(struct inode *dir, const struct qstr *iname,
+			      int lookup, struct ext4_filename *fname);
+void ext4_fname_free_filename(struct ext4_filename *fname);
 #else
 static inline
 void ext4_put_fname_crypto_ctx(struct ext4_fname_crypto_ctx **ctx) { }
@@ -2123,6 +2129,16 @@ struct ext4_fname_crypto_ctx *ext4_get_fname_crypto_ctx(struct inode *inode,
 	return NULL;
 }
 static inline void ext4_fname_crypto_free_buffer(struct ext4_str *p) { }
+static inline int ext4_fname_setup_filename(struct inode *dir,
+				     const struct qstr *iname,
+				     int lookup, struct ext4_filename *fname)
+{
+	fname->usr_fname = iname;
+	fname->disk_name.name = (unsigned char *) iname->name;
+	fname->disk_name.len = iname->len;
+	return 0;
+}
+static inline void ext4_fname_free_filename(struct ext4_filename *fname) { }
 #endif
 
 
@@ -2156,14 +2172,13 @@ extern void ext4_htree_free_dir_info(struct dir_private_info *p);
 extern int ext4_find_dest_de(struct inode *dir, struct inode *inode,
 			     struct buffer_head *bh,
 			     void *buf, int buf_size,
-			     const char *name, int namelen,
+			     struct ext4_filename *fname,
 			     struct ext4_dir_entry_2 **dest_de);
 int ext4_insert_dentry(struct inode *dir,
-			struct inode *inode,
-			struct ext4_dir_entry_2 *de,
-			int buf_size,
-		       const struct qstr *iname,
-			const char *name, int namelen);
+		       struct inode *inode,
+		       struct ext4_dir_entry_2 *de,
+		       int buf_size,
+		       struct ext4_filename *fname);
 static inline void ext4_update_dx_flag(struct inode *inode)
 {
 	if (!EXT4_HAS_COMPAT_FEATURE(inode->i_sb,
@@ -2317,13 +2332,14 @@ extern int ext4_orphan_add(handle_t *, struct inode *);
 extern int ext4_orphan_del(handle_t *, struct inode *);
 extern int ext4_htree_fill_tree(struct file *dir_file, __u32 start_hash,
 				__u32 start_minor_hash, __u32 *next_hash);
-extern int search_dir(struct buffer_head *bh,
-		      char *search_buf,
-		      int buf_size,
-		      struct inode *dir,
-		      const struct qstr *d_name,
-		      unsigned int offset,
-		      struct ext4_dir_entry_2 **res_dir);
+extern int ext4_search_dir(struct buffer_head *bh,
+			   char *search_buf,
+			   int buf_size,
+			   struct inode *dir,
+			   struct ext4_filename *fname,
+			   const struct qstr *d_name,
+			   unsigned int offset,
+			   struct ext4_dir_entry_2 **res_dir);
 extern int ext4_generic_delete_entry(handle_t *handle,
 				     struct inode *dir,
 				     struct ext4_dir_entry_2 *de_del,
@@ -2768,7 +2784,9 @@ extern int ext4_da_write_inline_data_begin(struct address_space *mapping,
 extern int ext4_da_write_inline_data_end(struct inode *inode, loff_t pos,
 					 unsigned len, unsigned copied,
 					 struct page *page);
-extern int ext4_try_add_inline_entry(handle_t *handle, struct dentry *dentry,
+extern int ext4_try_add_inline_entry(handle_t *handle,
+				     struct ext4_filename *fname,
+				     struct dentry *dentry,
 				     struct inode *inode);
 extern int ext4_try_create_inline_dir(handle_t *handle,
 				      struct inode *parent,
@@ -2782,6 +2800,7 @@ extern int htree_inlinedir_to_tree(struct file *dir_file,
 				   __u32 start_hash, __u32 start_minor_hash,
 				   int *has_inline_data);
 extern struct buffer_head *ext4_find_inline_entry(struct inode *dir,
+					struct ext4_filename *fname,
 					const struct qstr *d_name,
 					struct ext4_dir_entry_2 **res_dir,
 					int *has_inline_data);
