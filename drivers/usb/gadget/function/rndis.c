@@ -1144,11 +1144,11 @@ static ssize_t rndis_proc_write(struct file *file, const char __user *buffer,
 			break;
 		case 'C':
 		case 'c':
-			rndis_signal_connect(p->confignr);
+			rndis_signal_connect(p);
 			break;
 		case 'D':
 		case 'd':
-			rndis_signal_disconnect(p->confignr);
+			rndis_signal_disconnect(p);
 			break;
 		default:
 			if (fl_speed) p->speed = speed;
