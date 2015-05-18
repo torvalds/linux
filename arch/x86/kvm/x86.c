@@ -7963,6 +7963,40 @@ void kvm_arch_sync_events(struct kvm *kvm)
 	kvm_free_pit(kvm);
 }
 
+int __x86_set_memory_region(struct kvm *kvm,
+			    const struct kvm_userspace_memory_region *mem)
+{
+	int i, r;
+
+	/* Called with kvm->slots_lock held.  */
+	BUG_ON(mem->slot >= KVM_MEM_SLOTS_NUM);
+
+	for (i = 0; i < KVM_ADDRESS_SPACE_NUM; i++) {
+		struct kvm_userspace_memory_region m = *mem;
+
+		m.slot |= i << 16;
+		r = __kvm_set_memory_region(kvm, &m);
+		if (r < 0)
+			return r;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(__x86_set_memory_region);
+
+int x86_set_memory_region(struct kvm *kvm,
+			  const struct kvm_userspace_memory_region *mem)
+{
+	int r;
+
+	mutex_lock(&kvm->slots_lock);
+	r = __x86_set_memory_region(kvm, mem);
+	mutex_unlock(&kvm->slots_lock);
+
+	return r;
+}
+EXPORT_SYMBOL_GPL(x86_set_memory_region);
+
 void kvm_arch_destroy_vm(struct kvm *kvm)
 {
 	if (current->mm == kvm->mm) {
@@ -7974,13 +8008,13 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 		struct kvm_userspace_memory_region mem;
 		memset(&mem, 0, sizeof(mem));
 		mem.slot = APIC_ACCESS_PAGE_PRIVATE_MEMSLOT;
-		kvm_set_memory_region(kvm, &mem);
+		x86_set_memory_region(kvm, &mem);
 
 		mem.slot = IDENTITY_PAGETABLE_PRIVATE_MEMSLOT;
-		kvm_set_memory_region(kvm, &mem);
+		x86_set_memory_region(kvm, &mem);
 
 		mem.slot = TSS_PRIVATE_MEMSLOT;
-		kvm_set_memory_region(kvm, &mem);
+		x86_set_memory_region(kvm, &mem);
 	}
 	kvm_iommu_unmap_guest(kvm);
 	kfree(kvm->arch.vpic);

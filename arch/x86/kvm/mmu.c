@@ -1503,30 +1503,33 @@ static int kvm_handle_hva_range(struct kvm *kvm,
 	struct kvm_memory_slot *memslot;
 	struct slot_rmap_walk_iterator iterator;
 	int ret = 0;
+	int i;
 
-	slots = kvm_memslots(kvm);
+	for (i = 0; i < KVM_ADDRESS_SPACE_NUM; i++) {
+		slots = __kvm_memslots(kvm, i);
+		kvm_for_each_memslot(memslot, slots) {
+			unsigned long hva_start, hva_end;
+			gfn_t gfn_start, gfn_end;
 
-	kvm_for_each_memslot(memslot, slots) {
-		unsigned long hva_start, hva_end;
-		gfn_t gfn_start, gfn_end;
+			hva_start = max(start, memslot->userspace_addr);
+			hva_end = min(end, memslot->userspace_addr +
+				      (memslot->npages << PAGE_SHIFT));
+			if (hva_start >= hva_end)
+				continue;
+			/*
+			 * {gfn(page) | page intersects with [hva_start, hva_end)} =
+			 * {gfn_start, gfn_start+1, ..., gfn_end-1}.
+			 */
+			gfn_start = hva_to_gfn_memslot(hva_start, memslot);
+			gfn_end = hva_to_gfn_memslot(hva_end + PAGE_SIZE - 1, memslot);
 
-		hva_start = max(start, memslot->userspace_addr);
-		hva_end = min(end, memslot->userspace_addr +
-					(memslot->npages << PAGE_SHIFT));
-		if (hva_start >= hva_end)
-			continue;
-		/*
-		 * {gfn(page) | page intersects with [hva_start, hva_end)} =
-		 * {gfn_start, gfn_start+1, ..., gfn_end-1}.
-		 */
-		gfn_start = hva_to_gfn_memslot(hva_start, memslot);
-		gfn_end = hva_to_gfn_memslot(hva_end + PAGE_SIZE - 1, memslot);
-
-		for_each_slot_rmap_range(memslot, PT_PAGE_TABLE_LEVEL,
-				PT_MAX_HUGEPAGE_LEVEL, gfn_start, gfn_end - 1,
-				&iterator)
-			ret |= handler(kvm, iterator.rmap, memslot,
-				       iterator.gfn, iterator.level, data);
+			for_each_slot_rmap_range(memslot, PT_PAGE_TABLE_LEVEL,
+						 PT_MAX_HUGEPAGE_LEVEL,
+						 gfn_start, gfn_end - 1,
+						 &iterator)
+				ret |= handler(kvm, iterator.rmap, memslot,
+					       iterator.gfn, iterator.level, data);
+		}
 	}
 
 	return ret;
@@ -4536,21 +4539,23 @@ void kvm_zap_gfn_range(struct kvm *kvm, gfn_t gfn_start, gfn_t gfn_end)
 {
 	struct kvm_memslots *slots;
 	struct kvm_memory_slot *memslot;
-
-	slots = kvm_memslots(kvm);
+	int i;
 
 	spin_lock(&kvm->mmu_lock);
-	kvm_for_each_memslot(memslot, slots) {
-		gfn_t start, end;
+	for (i = 0; i < KVM_ADDRESS_SPACE_NUM; i++) {
+		slots = __kvm_memslots(kvm, i);
+		kvm_for_each_memslot(memslot, slots) {
+			gfn_t start, end;
 
-		start = max(gfn_start, memslot->base_gfn);
-		end = min(gfn_end, memslot->base_gfn + memslot->npages);
-		if (start >= end)
-			continue;
+			start = max(gfn_start, memslot->base_gfn);
+			end = min(gfn_end, memslot->base_gfn + memslot->npages);
+			if (start >= end)
+				continue;
 
-		slot_handle_level_range(kvm, memslot, kvm_zap_rmapp,
-				PT_PAGE_TABLE_LEVEL, PT_MAX_HUGEPAGE_LEVEL,
-				start, end - 1, true);
+			slot_handle_level_range(kvm, memslot, kvm_zap_rmapp,
+						PT_PAGE_TABLE_LEVEL, PT_MAX_HUGEPAGE_LEVEL,
+						start, end - 1, true);
+		}
 	}
 
 	spin_unlock(&kvm->mmu_lock);
@@ -4907,15 +4912,18 @@ unsigned int kvm_mmu_calculate_mmu_pages(struct kvm *kvm)
 	unsigned int  nr_pages = 0;
 	struct kvm_memslots *slots;
 	struct kvm_memory_slot *memslot;
+	int i;
 
-	slots = kvm_memslots(kvm);
+	for (i = 0; i < KVM_ADDRESS_SPACE_NUM; i++) {
+		slots = __kvm_memslots(kvm, i);
 
-	kvm_for_each_memslot(memslot, slots)
-		nr_pages += memslot->npages;
+		kvm_for_each_memslot(memslot, slots)
+			nr_pages += memslot->npages;
+	}
 
 	nr_mmu_pages = nr_pages * KVM_PERMILLE_MMU_PAGES / 1000;
 	nr_mmu_pages = max(nr_mmu_pages,
-			(unsigned int) KVM_MIN_ALLOC_MMU_PAGES);
+			   (unsigned int) KVM_MIN_ALLOC_MMU_PAGES);
 
 	return nr_mmu_pages;
 }

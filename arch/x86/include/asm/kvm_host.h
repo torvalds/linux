@@ -1189,4 +1189,9 @@ int kvm_pmu_read_pmc(struct kvm_vcpu *vcpu, unsigned pmc, u64 *data);
 void kvm_handle_pmu_event(struct kvm_vcpu *vcpu);
 void kvm_deliver_pmi(struct kvm_vcpu *vcpu);
 
+int __x86_set_memory_region(struct kvm *kvm,
+			    const struct kvm_userspace_memory_region *mem);
+int x86_set_memory_region(struct kvm *kvm,
+			  const struct kvm_userspace_memory_region *mem);
+
 #endif /* _ASM_X86_KVM_HOST_H */
