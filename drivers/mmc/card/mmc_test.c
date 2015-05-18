@@ -820,9 +820,7 @@ static int mmc_test_nonblock_transfer(struct mmc_test_card *test,
 				mmc_test_nonblock_reset(&mrq1, &cmd1,
 							&stop1, &data1);
 		}
-		done_areq = cur_areq;
-		cur_areq = other_areq;
-		other_areq = done_areq;
+		swap(cur_areq, other_areq);
 		dev_addr += blocks;
 	}
 
