@@ -208,8 +208,8 @@ static int efx_siena_sriov_cmd(struct efx_nic *efx, bool enable,
 	MCDI_SET_DWORD(inbuf, SRIOV_IN_VI_BASE, EFX_VI_BASE);
 	MCDI_SET_DWORD(inbuf, SRIOV_IN_VF_COUNT, efx->vf_count);
 
-	rc = efx_mcdi_rpc(efx, MC_CMD_SRIOV, inbuf, MC_CMD_SRIOV_IN_LEN,
-			  outbuf, MC_CMD_SRIOV_OUT_LEN, &outlen);
+	rc = efx_mcdi_rpc_quiet(efx, MC_CMD_SRIOV, inbuf, MC_CMD_SRIOV_IN_LEN,
+				outbuf, MC_CMD_SRIOV_OUT_LEN, &outlen);
 	if (rc)
 		return rc;
 	if (outlen < MC_CMD_SRIOV_OUT_LEN)
@@ -1058,8 +1058,10 @@ void efx_siena_sriov_probe(struct efx_nic *efx)
 	if (!max_vfs)
 		return;
 
-	if (efx_siena_sriov_cmd(efx, false, &efx->vi_scale, &count))
+	if (efx_siena_sriov_cmd(efx, false, &efx->vi_scale, &count)) {
+		netif_info(efx, probe, efx->net_dev, "no SR-IOV VFs probed\n");
 		return;
+	}
 	if (count > 0 && count > max_vfs)
 		count = max_vfs;
 
