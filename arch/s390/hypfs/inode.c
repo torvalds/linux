@@ -62,18 +62,13 @@ static void hypfs_add_dentry(struct dentry *dentry)
 	hypfs_last_dentry = dentry;
 }
 
-static inline int hypfs_positive(struct dentry *dentry)
-{
-	return d_really_is_positive(dentry) && !d_unhashed(dentry);
-}
-
 static void hypfs_remove(struct dentry *dentry)
 {
 	struct dentry *parent;
 
 	parent = dentry->d_parent;
 	mutex_lock(&d_inode(parent)->i_mutex);
-	if (hypfs_positive(dentry)) {
+	if (simple_positive(dentry)) {
 		if (d_is_dir(dentry))
 			simple_rmdir(d_inode(parent), dentry);
 		else

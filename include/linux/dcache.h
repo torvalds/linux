@@ -507,6 +507,11 @@ static inline bool d_really_is_positive(const struct dentry *dentry)
 	return dentry->d_inode != NULL;
 }
 
+static inline int simple_positive(struct dentry *dentry)
+{
+	return d_really_is_positive(dentry) && !d_unhashed(dentry);
+}
+
 extern void d_set_fallthru(struct dentry *dentry);
 
 static inline bool d_is_fallthru(const struct dentry *dentry)

@@ -161,7 +161,7 @@ more:
 		}
 		spin_lock_nested(&dentry->d_lock, DENTRY_D_LOCK_NESTED);
 		if (di->lease_shared_gen == shared_gen &&
-		    !d_unhashed(dentry) && d_really_is_positive(dentry) &&
+		    simple_positive(dentry) &&
 		    ceph_snap(d_inode(dentry)) != CEPH_SNAPDIR &&
 		    ceph_ino(d_inode(dentry)) != CEPH_INO_CEPH &&
 		    fpos_cmp(ctx->pos, di->offset) <= 0)

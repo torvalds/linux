@@ -25,11 +25,6 @@
 static struct vfsmount *mount;
 static int mount_count;
 
-static inline int positive(struct dentry *dentry)
-{
-	return d_really_is_positive(dentry) && !d_unhashed(dentry);
-}
-
 static int fill_super(struct super_block *sb, void *data, int silent)
 {
 	static struct tree_descr files[] = {{""}};
@@ -201,14 +196,12 @@ void securityfs_remove(struct dentry *dentry)
 		return;
 
 	mutex_lock(&d_inode(parent)->i_mutex);
-	if (positive(dentry)) {
-		if (d_really_is_positive(dentry)) {
-			if (d_is_dir(dentry))
-				simple_rmdir(d_inode(parent), dentry);
-			else
-				simple_unlink(d_inode(parent), dentry);
-			dput(dentry);
-		}
+	if (simple_positive(dentry)) {
+		if (d_is_dir(dentry))
+			simple_rmdir(d_inode(parent), dentry);
+		else
+			simple_unlink(d_inode(parent), dentry);
+		dput(dentry);
 	}
 	mutex_unlock(&d_inode(parent)->i_mutex);
 	simple_release_fs(&mount, &mount_count);
