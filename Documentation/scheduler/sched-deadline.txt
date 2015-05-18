@@ -133,7 +133,7 @@ CONTENTS
  arrival time r_j (the time when the job starts), an amount of computation
  time c_j needed to finish the job, and a job absolute deadline d_j, which
  is the time within which the job should be finished. The maximum execution
- time max_j{c_j} is called "Worst Case Execution Time" (WCET) for the task.
+ time max{c_j} is called "Worst Case Execution Time" (WCET) for the task.
  A real-time task can be periodic with period P if r_{j+1} = r_j + P, or
  sporadic with minimum inter-arrival time P is r_{j+1} >= r_j + P. Finally,
  d_j = r_j + D, where D is the task's relative deadline.
@@ -141,7 +141,7 @@ CONTENTS
  WCET and its period (or minimum inter-arrival time), and represents
  the fraction of CPU time needed to execute the task.
 
- If the total utilization sum_i(WCET_i/P_i) is larger than M (with M equal
+ If the total utilization U=sum(WCET_i/P_i) is larger than M (with M equal
  to the number of CPUs), then the scheduler is unable to respect all the
  deadlines.
  Note that total utilization is defined as the sum of the utilizations
@@ -159,8 +159,8 @@ CONTENTS
  More precisely, it can be proven that using a global EDF scheduler the
  maximum tardiness of each task is smaller or equal than
 	((M − 1) · WCET_max − WCET_min)/(M − (M − 2) · U_max) + WCET_max
- where WCET_max = max_i{WCET_i} is the maximum WCET, WCET_min=min_i{WCET_i}
- is the minimum WCET, and U_max = max_i{WCET_i/P_i} is the maximum utilization.
+ where WCET_max = max{WCET_i} is the maximum WCET, WCET_min=min{WCET_i}
+ is the minimum WCET, and U_max = max{WCET_i/P_i} is the maximum utilization.
 
  If M=1 (uniprocessor system), or in case of partitioned scheduling (each
  real-time task is statically assigned to one and only one CPU), it is
@@ -170,7 +170,7 @@ CONTENTS
  of the tasks running on such a CPU is smaller or equal than 1.
  If D_i != P_i for some task, then it is possible to define the density of
  a task as WCET_i/min{D_i,P_i}, and EDF is able to respect all the deadlines
- of all the tasks running on a CPU if the sum sum_i WCET_i/min{D_i,P_i} of the
+ of all the tasks running on a CPU if the sum sum(WCET_i/min{D_i,P_i}) of the
  densities of the tasks running on such a CPU is smaller or equal than 1
  (notice that this condition is only sufficient, and not necessary).
 
