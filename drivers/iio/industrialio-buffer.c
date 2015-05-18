@@ -539,6 +539,15 @@ static void iio_buffer_deactivate(struct iio_buffer *buffer)
 	iio_buffer_put(buffer);
 }
 
+static void iio_buffer_deactivate_all(struct iio_dev *indio_dev)
+{
+	struct iio_buffer *buffer, *_buffer;
+
+	list_for_each_entry_safe(buffer, _buffer,
+			&indio_dev->buffer_list, buffer_list)
+		iio_buffer_deactivate(buffer);
+}
+
 static void iio_buffer_update_bytes_per_datum(struct iio_dev *indio_dev,
 	struct iio_buffer *buffer)
 {
@@ -719,36 +728,46 @@ err_undo_config:
 
 static int iio_disable_buffers(struct iio_dev *indio_dev)
 {
-	int ret;
+	int ret = 0;
+	int ret2;
 
 	/* Wind down existing buffers - iff there are any */
 	if (list_empty(&indio_dev->buffer_list))
 		return 0;
 
+	/*
+	 * If things go wrong at some step in disable we still need to continue
+	 * to perform the other steps, otherwise we leave the device in a
+	 * inconsistent state. We return the error code for the first error we
+	 * encountered.
+	 */
+
 	if (indio_dev->setup_ops->predisable) {
-		ret = indio_dev->setup_ops->predisable(indio_dev);
-		if (ret)
-			return ret;
+		ret2 = indio_dev->setup_ops->predisable(indio_dev);
+		if (ret2 && !ret)
+			ret = ret2;
 	}
 
 	indio_dev->currentmode = INDIO_DIRECT_MODE;
 
 	if (indio_dev->setup_ops->postdisable) {
-		ret = indio_dev->setup_ops->postdisable(indio_dev);
-		if (ret)
-			return ret;
+		ret2 = indio_dev->setup_ops->postdisable(indio_dev);
+		if (ret2 && !ret)
+			ret = ret2;
 	}
 
-	return 0;
+	iio_free_scan_mask(indio_dev, indio_dev->active_scan_mask);
+	indio_dev->active_scan_mask = NULL;
+
+	return ret;
 }
 
 static int __iio_update_buffers(struct iio_dev *indio_dev,
 		       struct iio_buffer *insert_buffer,
 		       struct iio_buffer *remove_buffer)
 {
-	int ret;
-	const unsigned long *old_mask;
 	struct iio_device_config new_config;
+	int ret;
 
 	ret = iio_verify_update(indio_dev, insert_buffer, remove_buffer,
 		&new_config);
@@ -761,15 +780,9 @@ static int __iio_update_buffers(struct iio_dev *indio_dev,
 			goto err_free_config;
 	}
 
-	/* Keep a copy of current setup to allow roll back */
-	old_mask = indio_dev->active_scan_mask;
-	indio_dev->active_scan_mask = NULL;
-
 	ret = iio_disable_buffers(indio_dev);
-	if (ret) {
-		iio_free_scan_mask(indio_dev, old_mask);
-		goto err_free_config;
-	}
+	if (ret)
+		goto err_deactivate_all;
 
 	if (remove_buffer)
 		iio_buffer_deactivate(remove_buffer);
@@ -777,21 +790,25 @@ static int __iio_update_buffers(struct iio_dev *indio_dev,
 		iio_buffer_activate(indio_dev, insert_buffer);
 
 	/* If no buffers in list, we are done */
-	if (list_empty(&indio_dev->buffer_list)) {
-		iio_free_scan_mask(indio_dev, old_mask);
+	if (list_empty(&indio_dev->buffer_list))
 		return 0;
-	}
 
 	ret = iio_enable_buffers(indio_dev, &new_config);
-	if (ret) {
-		if (insert_buffer)
-			iio_buffer_deactivate(insert_buffer);
-		indio_dev->active_scan_mask = old_mask;
-		goto err_free_config;
-	}
+	if (ret)
+		goto err_deactivate_all;
 
-	iio_free_scan_mask(indio_dev, old_mask);
 	return 0;
+
+err_deactivate_all:
+	/*
+	 * We've already verified that the config is valid earlier. If things go
+	 * wrong in either enable or disable the most likely reason is an IO
+	 * error from the device. In this case there is no good recovery
+	 * strategy. Just make sure to disable everything and leave the device
+	 * in a sane state.  With a bit of luck the device might come back to
+	 * life again later and userspace can try again.
+	 */
+	iio_buffer_deactivate_all(indio_dev);
 
 err_free_config:
 	iio_free_scan_mask(indio_dev, new_config.scan_mask);
@@ -838,15 +855,8 @@ EXPORT_SYMBOL_GPL(iio_update_buffers);
 
 void iio_disable_all_buffers(struct iio_dev *indio_dev)
 {
-	struct iio_buffer *buffer, *_buffer;
-
 	iio_disable_buffers(indio_dev);
-	iio_free_scan_mask(indio_dev, indio_dev->active_scan_mask);
-	indio_dev->active_scan_mask = NULL;
-
-	list_for_each_entry_safe(buffer, _buffer,
-			&indio_dev->buffer_list, buffer_list)
-		iio_buffer_deactivate(buffer);
+	iio_buffer_deactivate_all(indio_dev);
 }
 
 static ssize_t iio_buffer_store_enable(struct device *dev,
