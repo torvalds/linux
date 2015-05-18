@@ -1227,10 +1227,14 @@ static void ath10k_pci_irq_enable(struct ath10k *ar)
 
 static int ath10k_pci_hif_start(struct ath10k *ar)
 {
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot hif start\n");
 
 	ath10k_pci_irq_enable(ar);
 	ath10k_pci_rx_post(ar);
+
+	pcie_capability_write_word(ar_pci->pdev, PCI_EXP_LNKCTL,
+				   ar_pci->link_ctl);
 
 	return 0;
 }
@@ -1981,6 +1985,7 @@ static int ath10k_pci_chip_reset(struct ath10k *ar)
 
 static int ath10k_pci_hif_power_up(struct ath10k *ar)
 {
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	int ret;
 
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot hif power up\n");
@@ -1990,6 +1995,11 @@ static int ath10k_pci_hif_power_up(struct ath10k *ar)
 		ath10k_err(ar, "failed to wake up target: %d\n", ret);
 		return ret;
 	}
+
+	pcie_capability_read_word(ar_pci->pdev, PCI_EXP_LNKCTL,
+				  &ar_pci->link_ctl);
+	pcie_capability_write_word(ar_pci->pdev, PCI_EXP_LNKCTL,
+				   ar_pci->link_ctl & ~PCI_EXP_LNKCTL_ASPMC);
 
 	/*
 	 * Bring the target up cleanly.
@@ -2502,7 +2512,6 @@ static int ath10k_pci_claim(struct ath10k *ar)
 {
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	struct pci_dev *pdev = ar_pci->pdev;
-	u32 lcr_val;
 	int ret;
 
 	pci_set_drvdata(pdev, ar);
@@ -2535,10 +2544,6 @@ static int ath10k_pci_claim(struct ath10k *ar)
 	}
 
 	pci_set_master(pdev);
-
-	/* Workaround: Disable ASPM */
-	pci_read_config_dword(pdev, 0x80, &lcr_val);
-	pci_write_config_dword(pdev, 0x80, (lcr_val & 0xffffff00));
 
 	/* Arrange for access to Target SoC registers. */
 	ar_pci->mem = pci_iomap(pdev, BAR_NUM, 0);

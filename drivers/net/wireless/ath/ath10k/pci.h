@@ -185,6 +185,12 @@ struct ath10k_pci {
 	/* Map CE id to ce_state */
 	struct ath10k_ce_pipe ce_states[CE_COUNT_MAX];
 	struct timer_list rx_post_retry;
+
+	/* Due to HW quirks it is recommended to disable ASPM during device
+	 * bootup. To do that the original PCI-E Link Control is stored before
+	 * device bootup is executed and re-programmed later.
+	 */
+	u16 link_ctl;
 };
 
 static inline struct ath10k_pci *ath10k_pci_priv(struct ath10k *ar)
