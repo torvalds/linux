@@ -591,12 +591,8 @@ static int matroxfb_decode_var(const struct matrox_fb_info *minfo,
 			unsigned int max_yres;
 
 			while (m1) {
-				int t;
-
 				while (m2 >= m1) m2 -= m1;
-				t = m1;
-				m1 = m2;
-				m2 = t;
+				swap(m1, m2);
 			}
 			m2 = linelen * PAGE_SIZE / m2;
 			*ydstorg = m2 = 0x400000 % m2;
