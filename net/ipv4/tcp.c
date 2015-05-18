@@ -2845,7 +2845,15 @@ static int do_tcp_getsockopt(struct sock *sk, int level,
 
 		lock_sock(sk);
 		if (tp->saved_syn) {
-			len = min_t(unsigned int, tp->saved_syn[0], len);
+			if (len < tp->saved_syn[0]) {
+				if (put_user(tp->saved_syn[0], optlen)) {
+					release_sock(sk);
+					return -EFAULT;
+				}
+				release_sock(sk);
+				return -EINVAL;
+			}
+			len = tp->saved_syn[0];
 			if (put_user(len, optlen)) {
 				release_sock(sk);
 				return -EFAULT;
