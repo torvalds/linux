@@ -180,7 +180,6 @@ int spi_bitbang_setup(struct spi_device *spi)
 {
 	struct spi_bitbang_cs	*cs = spi->controller_state;
 	struct spi_bitbang	*bitbang;
-	int			retval;
 	unsigned long		flags;
 
 	bitbang = spi_master_get_devdata(spi->master);
@@ -197,9 +196,11 @@ int spi_bitbang_setup(struct spi_device *spi)
 	if (!cs->txrx_word)
 		return -EINVAL;
 
-	retval = bitbang->setup_transfer(spi, NULL);
-	if (retval < 0)
-		return retval;
+	if (bitbang->setup_transfer) {
+		int retval = bitbang->setup_transfer(spi, NULL);
+		if (retval < 0)
+			return retval;
+	}
 
 	dev_dbg(&spi->dev, "%s, %u nsec/bit\n", __func__, 2 * cs->nsecs);
 
@@ -295,9 +296,11 @@ static int spi_bitbang_transfer_one(struct spi_master *master,
 
 		/* init (-1) or override (1) transfer params */
 		if (do_setup != 0) {
-			status = bitbang->setup_transfer(spi, t);
-			if (status < 0)
-				break;
+			if (bitbang->setup_transfer) {
+				status = bitbang->setup_transfer(spi, t);
+				if (status < 0)
+					break;
+			}
 			if (do_setup == -1)
 				do_setup = 0;
 		}
