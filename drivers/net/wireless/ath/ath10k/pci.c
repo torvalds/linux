@@ -330,6 +330,205 @@ static const struct service_to_pipe target_service_to_ce_map_wlan[] = {
 	},
 };
 
+static bool ath10k_pci_is_awake(struct ath10k *ar)
+{
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+	u32 val = ioread32(ar_pci->mem + PCIE_LOCAL_BASE_ADDRESS +
+			   RTC_STATE_ADDRESS);
+
+	return RTC_STATE_V_GET(val) == RTC_STATE_V_ON;
+}
+
+static void __ath10k_pci_wake(struct ath10k *ar)
+{
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+
+	lockdep_assert_held(&ar_pci->ps_lock);
+
+	ath10k_dbg(ar, ATH10K_DBG_PCI_PS, "pci ps wake reg refcount %lu awake %d\n",
+		   ar_pci->ps_wake_refcount, ar_pci->ps_awake);
+
+	iowrite32(PCIE_SOC_WAKE_V_MASK,
+		  ar_pci->mem + PCIE_LOCAL_BASE_ADDRESS +
+		  PCIE_SOC_WAKE_ADDRESS);
+}
+
+static void __ath10k_pci_sleep(struct ath10k *ar)
+{
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+
+	lockdep_assert_held(&ar_pci->ps_lock);
+
+	ath10k_dbg(ar, ATH10K_DBG_PCI_PS, "pci ps sleep reg refcount %lu awake %d\n",
+		   ar_pci->ps_wake_refcount, ar_pci->ps_awake);
+
+	iowrite32(PCIE_SOC_WAKE_RESET,
+		  ar_pci->mem + PCIE_LOCAL_BASE_ADDRESS +
+		  PCIE_SOC_WAKE_ADDRESS);
+	ar_pci->ps_awake = false;
+}
+
+static int ath10k_pci_wake_wait(struct ath10k *ar)
+{
+	int tot_delay = 0;
+	int curr_delay = 5;
+
+	while (tot_delay < PCIE_WAKE_TIMEOUT) {
+		if (ath10k_pci_is_awake(ar))
+			return 0;
+
+		udelay(curr_delay);
+		tot_delay += curr_delay;
+
+		if (curr_delay < 50)
+			curr_delay += 5;
+	}
+
+	return -ETIMEDOUT;
+}
+
+static int ath10k_pci_wake(struct ath10k *ar)
+{
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+	unsigned long flags;
+	int ret = 0;
+
+	spin_lock_irqsave(&ar_pci->ps_lock, flags);
+
+	ath10k_dbg(ar, ATH10K_DBG_PCI_PS, "pci ps wake refcount %lu awake %d\n",
+		   ar_pci->ps_wake_refcount, ar_pci->ps_awake);
+
+	/* This function can be called very frequently. To avoid excessive
+	 * CPU stalls for MMIO reads use a cache var to hold the device state.
+	 */
+	if (!ar_pci->ps_awake) {
+		__ath10k_pci_wake(ar);
+
+		ret = ath10k_pci_wake_wait(ar);
+		if (ret == 0)
+			ar_pci->ps_awake = true;
+	}
+
+	if (ret == 0) {
+		ar_pci->ps_wake_refcount++;
+		WARN_ON(ar_pci->ps_wake_refcount == 0);
+	}
+
+	spin_unlock_irqrestore(&ar_pci->ps_lock, flags);
+
+	return ret;
+}
+
+static void ath10k_pci_sleep(struct ath10k *ar)
+{
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+	unsigned long flags;
+
+	spin_lock_irqsave(&ar_pci->ps_lock, flags);
+
+	ath10k_dbg(ar, ATH10K_DBG_PCI_PS, "pci ps sleep refcount %lu awake %d\n",
+		   ar_pci->ps_wake_refcount, ar_pci->ps_awake);
+
+	if (WARN_ON(ar_pci->ps_wake_refcount == 0))
+		goto skip;
+
+	ar_pci->ps_wake_refcount--;
+
+	mod_timer(&ar_pci->ps_timer, jiffies +
+		  msecs_to_jiffies(ATH10K_PCI_SLEEP_GRACE_PERIOD_MSEC));
+
+skip:
+	spin_unlock_irqrestore(&ar_pci->ps_lock, flags);
+}
+
+static void ath10k_pci_ps_timer(unsigned long ptr)
+{
+	struct ath10k *ar = (void *)ptr;
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+	unsigned long flags;
+
+	spin_lock_irqsave(&ar_pci->ps_lock, flags);
+
+	ath10k_dbg(ar, ATH10K_DBG_PCI_PS, "pci ps timer refcount %lu awake %d\n",
+		   ar_pci->ps_wake_refcount, ar_pci->ps_awake);
+
+	if (ar_pci->ps_wake_refcount > 0)
+		goto skip;
+
+	__ath10k_pci_sleep(ar);
+
+skip:
+	spin_unlock_irqrestore(&ar_pci->ps_lock, flags);
+}
+
+static void ath10k_pci_sleep_sync(struct ath10k *ar)
+{
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+	unsigned long flags;
+
+	del_timer_sync(&ar_pci->ps_timer);
+
+	spin_lock_irqsave(&ar_pci->ps_lock, flags);
+	WARN_ON(ar_pci->ps_wake_refcount > 0);
+	__ath10k_pci_sleep(ar);
+	spin_unlock_irqrestore(&ar_pci->ps_lock, flags);
+}
+
+void ath10k_pci_write32(struct ath10k *ar, u32 offset, u32 value)
+{
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+	int ret;
+
+	ret = ath10k_pci_wake(ar);
+	if (ret) {
+		ath10k_warn(ar, "failed to wake target for write32 of 0x%08x at 0x%08x: %d\n",
+			    value, offset, ret);
+		return;
+	}
+
+	iowrite32(value, ar_pci->mem + offset);
+	ath10k_pci_sleep(ar);
+}
+
+u32 ath10k_pci_read32(struct ath10k *ar, u32 offset)
+{
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+	u32 val;
+	int ret;
+
+	ret = ath10k_pci_wake(ar);
+	if (ret) {
+		ath10k_warn(ar, "failed to wake target for read32 at 0x%08x: %d\n",
+			    offset, ret);
+		return 0xffffffff;
+	}
+
+	val = ioread32(ar_pci->mem + offset);
+	ath10k_pci_sleep(ar);
+
+	return val;
+}
+
+u32 ath10k_pci_soc_read32(struct ath10k *ar, u32 addr)
+{
+	return ath10k_pci_read32(ar, RTC_SOC_BASE_ADDRESS + addr);
+}
+
+void ath10k_pci_soc_write32(struct ath10k *ar, u32 addr, u32 val)
+{
+	ath10k_pci_write32(ar, RTC_SOC_BASE_ADDRESS + addr, val);
+}
+
+u32 ath10k_pci_reg_read32(struct ath10k *ar, u32 addr)
+{
+	return ath10k_pci_read32(ar, PCIE_LOCAL_BASE_ADDRESS + addr);
+}
+
+void ath10k_pci_reg_write32(struct ath10k *ar, u32 addr, u32 val)
+{
+	ath10k_pci_write32(ar, PCIE_LOCAL_BASE_ADDRESS + addr, val);
+}
+
 static bool ath10k_pci_irq_pending(struct ath10k *ar)
 {
 	u32 cause;
@@ -791,60 +990,6 @@ static int ath10k_pci_diag_write32(struct ath10k *ar, u32 address, u32 value)
 	__le32 val = __cpu_to_le32(value);
 
 	return ath10k_pci_diag_write_mem(ar, address, &val, sizeof(val));
-}
-
-static bool ath10k_pci_is_awake(struct ath10k *ar)
-{
-	u32 val = ath10k_pci_reg_read32(ar, RTC_STATE_ADDRESS);
-
-	return RTC_STATE_V_GET(val) == RTC_STATE_V_ON;
-}
-
-static int ath10k_pci_wake_wait(struct ath10k *ar)
-{
-	int tot_delay = 0;
-	int curr_delay = 5;
-
-	while (tot_delay < PCIE_WAKE_TIMEOUT) {
-		if (ath10k_pci_is_awake(ar))
-			return 0;
-
-		udelay(curr_delay);
-		tot_delay += curr_delay;
-
-		if (curr_delay < 50)
-			curr_delay += 5;
-	}
-
-	return -ETIMEDOUT;
-}
-
-/* The rule is host is forbidden from accessing device registers while it's
- * asleep. Currently ath10k_pci_wake() and ath10k_pci_sleep() calls aren't
- * balanced and the device is kept awake all the time. This is intended for a
- * simpler solution for the following problems:
- *
- *   * device can enter sleep during s2ram without the host knowing,
- *
- *   * irq handlers access registers which is a problem if other device asserts
- *     a shared irq line when ath10k is between hif_power_down() and
- *     hif_power_up().
- *
- * FIXME: If power consumption is a concern (and there are *real* gains) then a
- * refcounted wake/sleep needs to be implemented.
- */
-
-static int ath10k_pci_wake(struct ath10k *ar)
-{
-	ath10k_pci_reg_write32(ar, PCIE_SOC_WAKE_ADDRESS,
-			       PCIE_SOC_WAKE_V_MASK);
-	return ath10k_pci_wake_wait(ar);
-}
-
-static void ath10k_pci_sleep(struct ath10k *ar)
-{
-	ath10k_pci_reg_write32(ar, PCIE_SOC_WAKE_ADDRESS,
-			       PCIE_SOC_WAKE_RESET);
 }
 
 /* Called by lower (CE) layer when a send to Target completes. */
@@ -1348,6 +1493,9 @@ static void ath10k_pci_flush(struct ath10k *ar)
 
 static void ath10k_pci_hif_stop(struct ath10k *ar)
 {
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
+	unsigned long flags;
+
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot hif stop\n");
 
 	/* Most likely the device has HTT Rx ring configured. The only way to
@@ -1366,6 +1514,10 @@ static void ath10k_pci_hif_stop(struct ath10k *ar)
 	ath10k_pci_irq_disable(ar);
 	ath10k_pci_irq_sync(ar);
 	ath10k_pci_flush(ar);
+
+	spin_lock_irqsave(&ar_pci->ps_lock, flags);
+	WARN_ON(ar_pci->ps_wake_refcount > 0);
+	spin_unlock_irqrestore(&ar_pci->ps_lock, flags);
 }
 
 static int ath10k_pci_hif_exchange_bmi_msg(struct ath10k *ar,
@@ -1990,12 +2142,6 @@ static int ath10k_pci_hif_power_up(struct ath10k *ar)
 
 	ath10k_dbg(ar, ATH10K_DBG_BOOT, "boot hif power up\n");
 
-	ret = ath10k_pci_wake(ar);
-	if (ret) {
-		ath10k_err(ar, "failed to wake up target: %d\n", ret);
-		return ret;
-	}
-
 	pcie_capability_read_word(ar_pci->pdev, PCI_EXP_LNKCTL,
 				  &ar_pci->link_ctl);
 	pcie_capability_write_word(ar_pci->pdev, PCI_EXP_LNKCTL,
@@ -2047,7 +2193,6 @@ err_ce:
 	ath10k_pci_ce_deinit(ar);
 
 err_sleep:
-	ath10k_pci_sleep(ar);
 	return ret;
 }
 
@@ -2064,7 +2209,12 @@ static void ath10k_pci_hif_power_down(struct ath10k *ar)
 
 static int ath10k_pci_hif_suspend(struct ath10k *ar)
 {
-	ath10k_pci_sleep(ar);
+	/* The grace timer can still be counting down and ar->ps_awake be true.
+	 * It is known that the device may be asleep after resuming regardless
+	 * of the SoC powersave state before suspending. Hence make sure the
+	 * device is asleep before proceeding.
+	 */
+	ath10k_pci_sleep_sync(ar);
 
 	return 0;
 }
@@ -2074,13 +2224,6 @@ static int ath10k_pci_hif_resume(struct ath10k *ar)
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	struct pci_dev *pdev = ar_pci->pdev;
 	u32 val;
-	int ret;
-
-	ret = ath10k_pci_wake(ar);
-	if (ret) {
-		ath10k_err(ar, "failed to wake device up on resume: %d\n", ret);
-		return ret;
-	}
 
 	/* Suspend/Resume resets the PCI configuration space, so we have to
 	 * re-disable the RETRY_TIMEOUT register (0x41) to keep PCI Tx retries
@@ -2091,7 +2234,7 @@ static int ath10k_pci_hif_resume(struct ath10k *ar)
 	if ((val & 0x0000ff00) != 0)
 		pci_write_config_dword(pdev, 0x40, val & 0xffff00ff);
 
-	return ret;
+	return 0;
 }
 #endif
 
@@ -2185,13 +2328,6 @@ static irqreturn_t ath10k_pci_interrupt_handler(int irq, void *arg)
 {
 	struct ath10k *ar = arg;
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
-	int ret;
-
-	ret = ath10k_pci_wake(ar);
-	if (ret) {
-		ath10k_warn(ar, "failed to wake device up on irq: %d\n", ret);
-		return IRQ_NONE;
-	}
 
 	if (ar_pci->num_msi_intrs == 0) {
 		if (!ath10k_pci_irq_pending(ar))
@@ -2638,19 +2774,17 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 			  pdev->subsystem_vendor, pdev->subsystem_device);
 
 	spin_lock_init(&ar_pci->ce_lock);
+	spin_lock_init(&ar_pci->ps_lock);
+
 	setup_timer(&ar_pci->rx_post_retry, ath10k_pci_rx_replenish_retry,
+		    (unsigned long)ar);
+	setup_timer(&ar_pci->ps_timer, ath10k_pci_ps_timer,
 		    (unsigned long)ar);
 
 	ret = ath10k_pci_claim(ar);
 	if (ret) {
 		ath10k_err(ar, "failed to claim device: %d\n", ret);
 		goto err_core_destroy;
-	}
-
-	ret = ath10k_pci_wake(ar);
-	if (ret) {
-		ath10k_err(ar, "failed to wake up: %d\n", ret);
-		goto err_release;
 	}
 
 	ret = ath10k_pci_alloc_pipes(ar);
@@ -2716,9 +2850,6 @@ err_free_pipes:
 	ath10k_pci_free_pipes(ar);
 
 err_sleep:
-	ath10k_pci_sleep(ar);
-
-err_release:
 	ath10k_pci_release(ar);
 
 err_core_destroy:
@@ -2748,6 +2879,7 @@ static void ath10k_pci_remove(struct pci_dev *pdev)
 	ath10k_pci_deinit_irq(ar);
 	ath10k_pci_ce_deinit(ar);
 	ath10k_pci_free_pipes(ar);
+	ath10k_pci_sleep_sync(ar);
 	ath10k_pci_release(ar);
 	ath10k_core_destroy(ar);
 }
