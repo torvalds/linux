@@ -478,7 +478,7 @@ static void nrs_resource_get_safe(struct ptlrpc_nrs *nrs,
  *
  * \param resp	the resource hierarchy that is being released
  *
- * \see ptlrpcnrs_req_hp_move()
+ * \see ptlrpc_nrs_req_hp_move()
  * \see ptlrpc_nrs_req_finalize()
  */
 static void nrs_resource_put_safe(struct ptlrpc_nrs_resource **resp)
