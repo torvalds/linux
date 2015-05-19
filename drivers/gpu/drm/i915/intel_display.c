@@ -51,11 +51,19 @@ static const uint32_t i8xx_primary_formats[] = {
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_XRGB1555,
 	DRM_FORMAT_XRGB8888,
-	DRM_FORMAT_ARGB8888,
 };
 
 /* Primary plane formats for gen >= 4 */
 static const uint32_t i965_primary_formats[] = {
+	DRM_FORMAT_C8,
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_XRGB2101010,
+	DRM_FORMAT_XBGR2101010,
+};
+
+static const uint32_t skl_primary_formats[] = {
 	DRM_FORMAT_C8,
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_XRGB8888,
@@ -2704,11 +2712,9 @@ static void i9xx_update_primary_plane(struct drm_crtc *crtc,
 		dspcntr |= DISPPLANE_BGRX565;
 		break;
 	case DRM_FORMAT_XRGB8888:
-	case DRM_FORMAT_ARGB8888:
 		dspcntr |= DISPPLANE_BGRX888;
 		break;
 	case DRM_FORMAT_XBGR8888:
-	case DRM_FORMAT_ABGR8888:
 		dspcntr |= DISPPLANE_RGBX888;
 		break;
 	case DRM_FORMAT_XRGB2101010:
@@ -2810,11 +2816,9 @@ static void ironlake_update_primary_plane(struct drm_crtc *crtc,
 		dspcntr |= DISPPLANE_BGRX565;
 		break;
 	case DRM_FORMAT_XRGB8888:
-	case DRM_FORMAT_ARGB8888:
 		dspcntr |= DISPPLANE_BGRX888;
 		break;
 	case DRM_FORMAT_XBGR8888:
-	case DRM_FORMAT_ABGR8888:
 		dspcntr |= DISPPLANE_RGBX888;
 		break;
 	case DRM_FORMAT_XRGB2101010:
@@ -13293,12 +13297,15 @@ static struct drm_plane *intel_primary_plane_create(struct drm_device *dev,
 	if (HAS_FBC(dev) && INTEL_INFO(dev)->gen < 4)
 		primary->plane = !pipe;
 
-	if (INTEL_INFO(dev)->gen <= 3) {
-		intel_primary_formats = i8xx_primary_formats;
-		num_formats = ARRAY_SIZE(i8xx_primary_formats);
-	} else {
+	if (INTEL_INFO(dev)->gen >= 9) {
+		intel_primary_formats = skl_primary_formats;
+		num_formats = ARRAY_SIZE(skl_primary_formats);
+	} else if (INTEL_INFO(dev)->gen >= 4) {
 		intel_primary_formats = i965_primary_formats;
 		num_formats = ARRAY_SIZE(i965_primary_formats);
+	} else {
+		intel_primary_formats = i8xx_primary_formats;
+		num_formats = ARRAY_SIZE(i8xx_primary_formats);
 	}
 
 	drm_universal_plane_init(dev, &primary->base, 0,
@@ -13985,8 +13992,14 @@ static int intel_framebuffer_init(struct drm_device *dev,
 			return -EINVAL;
 		}
 		break;
-	case DRM_FORMAT_XBGR8888:
 	case DRM_FORMAT_ABGR8888:
+		if (!IS_VALLEYVIEW(dev) && INTEL_INFO(dev)->gen < 9) {
+			DRM_DEBUG("unsupported pixel format: %s\n",
+				  drm_get_format_name(mode_cmd->pixel_format));
+			return -EINVAL;
+		}
+		break;
+	case DRM_FORMAT_XBGR8888:
 	case DRM_FORMAT_XRGB2101010:
 	case DRM_FORMAT_XBGR2101010:
 		if (INTEL_INFO(dev)->gen < 4) {
