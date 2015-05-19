@@ -186,12 +186,15 @@ static int psci_migrate_info_type(void)
 	return err;
 }
 
-static int __maybe_unused cpu_psci_cpu_init_idle(struct device_node *cpu_node,
-						 unsigned int cpu)
+static int __maybe_unused cpu_psci_cpu_init_idle(unsigned int cpu)
 {
 	int i, ret, count = 0;
 	struct psci_power_state *psci_states;
-	struct device_node *state_node;
+	struct device_node *state_node, *cpu_node;
+
+	cpu_node = of_get_cpu_node(cpu, NULL);
+	if (!cpu_node)
+		return -ENODEV;
 
 	/*
 	 * If the PSCI cpu_suspend function hook has not been initialized
@@ -444,7 +447,7 @@ int __init psci_acpi_init(void)
 
 #ifdef CONFIG_SMP
 
-static int __init cpu_psci_cpu_init(struct device_node *dn, unsigned int cpu)
+static int __init cpu_psci_cpu_init(unsigned int cpu)
 {
 	return 0;
 }
