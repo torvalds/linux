@@ -20,6 +20,7 @@
 #include <linux/workqueue.h>
 #include <linux/bitops.h>
 #include <linux/time.h>
+#include <linux/ktime.h>
 #include <xen/platform_pci.h>
 
 #include <asm/xen/swiotlb-xen.h>
@@ -115,7 +116,6 @@ static int do_pci_op(struct pcifront_device *pdev, struct xen_pci_op *op)
 	evtchn_port_t port = pdev->evtchn;
 	unsigned irq = pdev->irq;
 	s64 ns, ns_timeout;
-	struct timeval tv;
 
 	spin_lock_irqsave(&pdev->sh_info_lock, irq_flags);
 
@@ -132,8 +132,7 @@ static int do_pci_op(struct pcifront_device *pdev, struct xen_pci_op *op)
 	 * (in the latter case we end up continually re-executing poll() with a
 	 * timeout in the past). 1s difference gives plenty of slack for error.
 	 */
-	do_gettimeofday(&tv);
-	ns_timeout = timeval_to_ns(&tv) + 2 * (s64)NSEC_PER_SEC;
+	ns_timeout = ktime_get_ns() + 2 * (s64)NSEC_PER_SEC;
 
 	xen_clear_irq_pending(irq);
 
@@ -141,8 +140,7 @@ static int do_pci_op(struct pcifront_device *pdev, struct xen_pci_op *op)
 			(unsigned long *)&pdev->sh_info->flags)) {
 		xen_poll_irq_timeout(irq, jiffies + 3*HZ);
 		xen_clear_irq_pending(irq);
-		do_gettimeofday(&tv);
-		ns = timeval_to_ns(&tv);
+		ns = ktime_get_ns();
 		if (ns > ns_timeout) {
 			dev_err(&pdev->xdev->dev,
 				"pciback not responding!!!\n");
