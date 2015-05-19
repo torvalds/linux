@@ -853,9 +853,6 @@ static int bdw_init_workarounds(struct intel_engine_cs *ring)
 			    GEN6_WIZ_HASHING_MASK,
 			    GEN6_WIZ_HASHING_16x4);
 
-	/* WaProgramL3SqcReg1Default:bdw */
-	WA_WRITE(GEN8_L3SQCREG1, BDW_WA_L3SQCREG1_DEFAULT);
-
 	return 0;
 }
 
