@@ -173,7 +173,8 @@ static void free_hd(struct kref *kref)
 }
 
 struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *driver,
-					      struct device *parent)
+					      struct device *parent,
+					      size_t buffer_size_max)
 {
 	struct greybus_host_device *hd;
 
@@ -187,6 +188,16 @@ struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *driver
 		return NULL;
 	}
 
+	/*
+	 * Make sure to never allocate messages larger than what the Greybus
+	 * protocol supports.
+	 */
+	if (buffer_size_max > GB_OPERATION_MESSAGE_SIZE_MAX) {
+		dev_warn(parent, "limiting buffer size to %u\n",
+			 GB_OPERATION_MESSAGE_SIZE_MAX);
+		buffer_size_max = GB_OPERATION_MESSAGE_SIZE_MAX;
+	}
+
 	hd = kzalloc(sizeof(*hd) + driver->hd_priv_size, GFP_KERNEL);
 	if (!hd)
 		return NULL;
@@ -197,6 +208,7 @@ struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *driver
 	INIT_LIST_HEAD(&hd->interfaces);
 	INIT_LIST_HEAD(&hd->connections);
 	ida_init(&hd->cport_id_map);
+	hd->buffer_size_max = buffer_size_max;
 
 	hd->endo = gb_endo_create(hd);
 	if (!hd->endo) {

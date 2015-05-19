@@ -69,6 +69,8 @@ struct gb_operation_msg_hdr {
 	__u8	pad[2];		/* must be zero (ignore when read) */
 } __aligned(sizeof(u64));
 
+#define GB_OPERATION_MESSAGE_SIZE_MAX	4096
+
 /*
  * Protocol code should only examine the payload and payload_size
  * fields.  All other fields are intended to be private to the

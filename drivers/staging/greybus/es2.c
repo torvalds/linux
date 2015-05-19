@@ -98,22 +98,6 @@ static void cport_out_callback(struct urb *urb);
 static void usb_log_enable(struct es1_ap_dev *es1);
 static void usb_log_disable(struct es1_ap_dev *es1);
 
-/*
- * Buffer constraints for the host driver.
- *
- * A "buffer" is used to hold data to be transferred for Greybus by
- * the host driver.  A buffer is represented by a "buffer pointer",
- * which defines a region of memory used by the host driver for
- * transferring the data.  When Greybus allocates a buffer, it must
- * do so subject to the constraints associated with the host driver.
- *
- *  size_max:	The maximum size of a buffer
- */
-static void hd_buffer_constraints(struct greybus_host_device *hd)
-{
-	hd->buffer_size_max = ES1_GBUF_MSG_SIZE_MAX;
-}
-
 #define ES1_TIMEOUT	500	/* 500 ms for the SVC to do something */
 static int submit_svc(struct svc_msg *svc_msg, struct greybus_host_device *hd)
 {
@@ -571,14 +555,11 @@ static int ap_probe(struct usb_interface *interface,
 
 	udev = usb_get_dev(interface_to_usbdev(interface));
 
-	hd = greybus_create_hd(&es1_driver, &udev->dev);
+	hd = greybus_create_hd(&es1_driver, &udev->dev, ES1_GBUF_MSG_SIZE_MAX);
 	if (!hd) {
 		usb_put_dev(udev);
 		return -ENOMEM;
 	}
-
-	/* Fill in the buffer allocation constraints */
-	hd_buffer_constraints(hd);
 
 	es1 = hd_to_es1(hd);
 	es1->hd = hd;

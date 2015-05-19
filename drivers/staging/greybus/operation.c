@@ -17,12 +17,6 @@
 /* The default amount of time a request is given to complete */
 #define OPERATION_TIMEOUT_DEFAULT	1000	/* milliseconds */
 
-/*
- * XXX This needs to be coordinated with host driver parameters
- * XXX May need to reduce to allow for message header within a page
- */
-#define GB_OPERATION_MESSAGE_SIZE_MAX	4096
-
 static struct kmem_cache *gb_operation_cache;
 static struct kmem_cache *gb_message_cache;
 
@@ -281,12 +275,6 @@ gb_operation_message_alloc(struct greybus_host_device *hd, u8 type,
 	struct gb_message *message;
 	struct gb_operation_msg_hdr *header;
 	size_t message_size = payload_size + sizeof(*header);
-
-	if (hd->buffer_size_max > GB_OPERATION_MESSAGE_SIZE_MAX) {
-		pr_warn("limiting buffer size to %u\n",
-			GB_OPERATION_MESSAGE_SIZE_MAX);
-		hd->buffer_size_max = GB_OPERATION_MESSAGE_SIZE_MAX;
-	}
 
 	if (message_size > hd->buffer_size_max) {
 		pr_warn("requested message size too big (%zu > %zu)\n",
@@ -936,9 +924,6 @@ EXPORT_SYMBOL_GPL(gb_operation_sync);
 
 int gb_operation_init(void)
 {
-	BUILD_BUG_ON(GB_OPERATION_MESSAGE_SIZE_MAX >
-			U16_MAX - sizeof(struct gb_operation_msg_hdr));
-
 	gb_message_cache = kmem_cache_create("gb_message_cache",
 				sizeof(struct gb_message), 0, 0, NULL);
 	if (!gb_message_cache)

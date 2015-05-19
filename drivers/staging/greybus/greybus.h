@@ -105,7 +105,8 @@ struct greybus_host_device {
 };
 
 struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *hd,
-					      struct device *parent);
+					      struct device *parent,
+					      size_t buffer_size_max);
 void greybus_remove_hd(struct greybus_host_device *hd);
 
 struct greybus_driver {
