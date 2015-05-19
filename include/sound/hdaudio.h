@@ -11,6 +11,7 @@
 #include <sound/core.h>
 #include <sound/memalloc.h>
 #include <sound/hda_verbs.h>
+#include <drm/i915_component.h>
 
 /* codec node id */
 typedef u16 hda_nid_t;
@@ -285,6 +286,10 @@ struct hdac_bus {
 	/* locks */
 	spinlock_t reg_lock;
 	struct mutex cmd_mutex;
+
+	/* i915 component interface */
+	struct i915_audio_component *audio_component;
+	int i915_power_refcount;
 };
 
 int snd_hdac_bus_init(struct hdac_bus *bus, struct device *dev,

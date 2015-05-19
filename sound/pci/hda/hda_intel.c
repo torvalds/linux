@@ -57,6 +57,8 @@
 #endif
 #include <sound/core.h>
 #include <sound/initval.h>
+#include <sound/hdaudio.h>
+#include <sound/hda_i915.h>
 #include <linux/vgaarb.h>
 #include <linux/vga_switcheroo.h>
 #include <linux/firmware.h>
@@ -496,13 +498,13 @@ static void azx_init_pci(struct azx *chip)
 
 static void hda_intel_init_chip(struct azx *chip, bool full_reset)
 {
-	struct hda_intel *hda = container_of(chip, struct hda_intel, chip);
+	struct hdac_bus *bus = azx_bus(chip);
 
 	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL)
-		hda_set_codec_wakeup(hda, true);
+		snd_hdac_set_codec_wakeup(bus, true);
 	azx_init_chip(chip, full_reset);
 	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL)
-		hda_set_codec_wakeup(hda, false);
+		snd_hdac_set_codec_wakeup(bus, false);
 }
 
 /* calculate runtime delay from LPIB */
@@ -560,9 +562,9 @@ static int azx_position_check(struct azx *chip, struct azx_dev *azx_dev)
 /* Enable/disable i915 display power for the link */
 static int azx_intel_link_power(struct azx *chip, bool enable)
 {
-	struct hda_intel *hda = container_of(chip, struct hda_intel, chip);
+	struct hdac_bus *bus = azx_bus(chip);
 
-	return hda_display_power(hda, enable);
+	return snd_hdac_display_power(bus, enable);
 }
 
 /*
@@ -800,6 +802,50 @@ static int param_set_xint(const char *val, const struct kernel_param *kp)
 #define azx_del_card_list(chip) /* NOP */
 #endif /* CONFIG_PM */
 
+/* Intel HSW/BDW display HDA controller is in GPU. Both its power and link BCLK
+ * depends on GPU. Two Extended Mode registers EM4 (M value) and EM5 (N Value)
+ * are used to convert CDClk (Core Display Clock) to 24MHz BCLK:
+ * BCLK = CDCLK * M / N
+ * The values will be lost when the display power well is disabled and need to
+ * be restored to avoid abnormal playback speed.
+ */
+static void haswell_set_bclk(struct hda_intel *hda)
+{
+	struct azx *chip = &hda->chip;
+	int cdclk_freq;
+	unsigned int bclk_m, bclk_n;
+
+	if (!hda->need_i915_power)
+		return;
+
+	cdclk_freq = snd_hdac_get_display_clk(azx_bus(chip));
+	switch (cdclk_freq) {
+	case 337500:
+		bclk_m = 16;
+		bclk_n = 225;
+		break;
+
+	case 450000:
+	default: /* default CDCLK 450MHz */
+		bclk_m = 4;
+		bclk_n = 75;
+		break;
+
+	case 540000:
+		bclk_m = 4;
+		bclk_n = 90;
+		break;
+
+	case 675000:
+		bclk_m = 8;
+		bclk_n = 225;
+		break;
+	}
+
+	azx_writew(chip, HSW_EM4, bclk_m);
+	azx_writew(chip, HSW_EM5, bclk_n);
+}
+
 #if defined(CONFIG_PM_SLEEP) || defined(SUPPORT_VGA_SWITCHEROO)
 /*
  * power management
@@ -833,7 +879,7 @@ static int azx_suspend(struct device *dev)
 		pci_disable_msi(chip->pci);
 	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL
 		&& hda->need_i915_power)
-		hda_display_power(hda, false);
+		snd_hdac_display_power(bus, false);
 
 	trace_azx_suspend(chip);
 	return 0;
@@ -856,7 +902,7 @@ static int azx_resume(struct device *dev)
 
 	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL
 		&& hda->need_i915_power) {
-		hda_display_power(hda, true);
+		snd_hdac_display_power(azx_bus(chip), true);
 		haswell_set_bclk(hda);
 	}
 	if (chip->msi)
@@ -902,7 +948,7 @@ static int azx_runtime_suspend(struct device *dev)
 	azx_clear_irq_pending(chip);
 	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL
 		&& hda->need_i915_power)
-		hda_display_power(hda, false);
+		snd_hdac_display_power(azx_bus(chip), false);
 
 	trace_azx_runtime_suspend(chip);
 	return 0;
@@ -913,6 +959,7 @@ static int azx_runtime_resume(struct device *dev)
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip;
 	struct hda_intel *hda;
+	struct hdac_bus *bus;
 	struct hda_codec *codec;
 	int status;
 
@@ -929,11 +976,12 @@ static int azx_runtime_resume(struct device *dev)
 
 	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL
 		&& hda->need_i915_power) {
-		hda_display_power(hda, true);
+		bus =  azx_bus(chip);
+		snd_hdac_display_power(bus, true);
 		haswell_set_bclk(hda);
 		/* toggle codec wakeup bit for STATESTS read */
-		hda_set_codec_wakeup(hda, true);
-		hda_set_codec_wakeup(hda, false);
+		snd_hdac_set_codec_wakeup(bus, true);
+		snd_hdac_set_codec_wakeup(bus, false);
 	}
 
 	/* Read STATESTS before controller reset */
@@ -1152,10 +1200,11 @@ static int azx_free(struct azx *chip)
 #ifdef CONFIG_SND_HDA_PATCH_LOADER
 	release_firmware(chip->fw);
 #endif
+
 	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL) {
 		if (hda->need_i915_power)
-			hda_display_power(hda, false);
-		hda_i915_exit(hda);
+			snd_hdac_display_power(bus, false);
+		snd_hdac_i915_exit(bus);
 	}
 	kfree(hda);
 
@@ -1914,6 +1963,7 @@ static unsigned int azx_max_codecs[AZX_NUM_DRIVERS] = {
 static int azx_probe_continue(struct azx *chip)
 {
 	struct hda_intel *hda = container_of(chip, struct hda_intel, chip);
+	struct hdac_bus *bus = azx_bus(chip);
 	struct pci_dev *pci = chip->pci;
 	int dev = chip->dev_index;
 	int err;
@@ -1930,11 +1980,11 @@ static int azx_probe_continue(struct azx *chip)
 		if (pci->device != 0x0f04 && pci->device != 0x2284)
 			hda->need_i915_power = 1;
 
-		err = hda_i915_init(hda);
+		err = snd_hdac_i915_init(bus);
 		if (err < 0)
 			goto i915_power_fail;
 
-		err = hda_display_power(hda, true);
+		err = snd_hdac_display_power(bus, true);
 		if (err < 0) {
 			dev_err(chip->card->dev,
 				"Cannot turn on display power on i915\n");
@@ -1986,7 +2036,7 @@ static int azx_probe_continue(struct azx *chip)
 out_free:
 	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL
 		&& !hda->need_i915_power)
-		hda_display_power(hda, false);
+		snd_hdac_display_power(bus, false);
 
 i915_power_fail:
 	if (err < 0)
