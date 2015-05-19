@@ -324,7 +324,7 @@ int handle_device_events(int fd, void *map)
   /* Process events from cmd ring until we catch up with cmd_head */
   while (ent != (void *)mb + mb->cmdr_off + mb->cmd_head) {
 
-    if (tcmu_hdr_get_op(&ent->hdr) == TCMU_OP_CMD) {
+    if (tcmu_hdr_get_op(ent->hdr.len_op) == TCMU_OP_CMD) {
       uint8_t *cdb = (void *)mb + ent->req.cdb_off;
       bool success = true;
 
@@ -339,8 +339,12 @@ int handle_device_events(int fd, void *map)
         ent->rsp.scsi_status = SCSI_CHECK_CONDITION;
       }
     }
+    else if (tcmu_hdr_get_op(ent->hdr.len_op) != TCMU_OP_PAD) {
+      /* Tell the kernel we didn't handle unknown opcodes */
+      ent->hdr.uflags |= TCMU_UFLAG_UNKNOWN_OP;
+    }
     else {
-      /* Do nothing for PAD entries */
+      /* Do nothing for PAD entries except update cmd_tail */
     }
 
     /* update cmd_tail */
