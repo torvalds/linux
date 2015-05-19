@@ -422,7 +422,7 @@ static void klp_disable_object(struct klp_object *obj)
 {
 	struct klp_func *func;
 
-	for (func = obj->funcs; func->old_name; func++)
+	klp_for_each_func(obj, func)
 		if (func->state == KLP_ENABLED)
 			klp_disable_func(func);
 
@@ -440,7 +440,7 @@ static int klp_enable_object(struct klp_object *obj)
 	if (WARN_ON(!klp_is_object_loaded(obj)))
 		return -EINVAL;
 
-	for (func = obj->funcs; func->old_name; func++) {
+	klp_for_each_func(obj, func) {
 		ret = klp_enable_func(func);
 		if (ret) {
 			klp_disable_object(obj);
@@ -463,7 +463,7 @@ static int __klp_disable_patch(struct klp_patch *patch)
 
 	pr_notice("disabling patch '%s'\n", patch->mod->name);
 
-	for (obj = patch->objs; obj->funcs; obj++) {
+	klp_for_each_object(patch, obj) {
 		if (obj->state == KLP_ENABLED)
 			klp_disable_object(obj);
 	}
@@ -523,7 +523,7 @@ static int __klp_enable_patch(struct klp_patch *patch)
 
 	pr_notice("enabling patch '%s'\n", patch->mod->name);
 
-	for (obj = patch->objs; obj->funcs; obj++) {
+	klp_for_each_object(patch, obj) {
 		if (!klp_is_object_loaded(obj))
 			continue;
 
@@ -689,7 +689,7 @@ static void klp_free_object_loaded(struct klp_object *obj)
 
 	obj->mod = NULL;
 
-	for (func = obj->funcs; func->old_name; func++)
+	klp_for_each_func(obj, func)
 		func->old_addr = 0;
 }
 
@@ -738,7 +738,7 @@ static int klp_init_object_loaded(struct klp_patch *patch,
 			return ret;
 	}
 
-	for (func = obj->funcs; func->old_name; func++) {
+	klp_for_each_func(obj, func) {
 		ret = klp_find_verify_func_addr(obj, func);
 		if (ret)
 			return ret;
@@ -767,7 +767,7 @@ static int klp_init_object(struct klp_patch *patch, struct klp_object *obj)
 	if (ret)
 		return ret;
 
-	for (func = obj->funcs; func->old_name; func++) {
+	klp_for_each_func(obj, func) {
 		ret = klp_init_func(obj, func);
 		if (ret)
 			goto free;
@@ -804,7 +804,7 @@ static int klp_init_patch(struct klp_patch *patch)
 	if (ret)
 		goto unlock;
 
-	for (obj = patch->objs; obj->funcs; obj++) {
+	klp_for_each_object(patch, obj) {
 		ret = klp_init_object(patch, obj);
 		if (ret)
 			goto free;
@@ -961,7 +961,7 @@ static int klp_module_notify(struct notifier_block *nb, unsigned long action,
 		mod->klp_alive = false;
 
 	list_for_each_entry(patch, &klp_patches, list) {
-		for (obj = patch->objs; obj->funcs; obj++) {
+		klp_for_each_object(patch, obj) {
 			if (!klp_is_module(obj) || strcmp(obj->name, mod->name))
 				continue;
 

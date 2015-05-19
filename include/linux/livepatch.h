@@ -123,6 +123,12 @@ struct klp_patch {
 	enum klp_state state;
 };
 
+#define klp_for_each_object(patch, obj) \
+	for (obj = patch->objs; obj->funcs; obj++)
+
+#define klp_for_each_func(obj, func) \
+	for (func = obj->funcs; func->old_name; func++)
+
 int klp_register_patch(struct klp_patch *);
 int klp_unregister_patch(struct klp_patch *);
 int klp_enable_patch(struct klp_patch *);
