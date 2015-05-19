@@ -504,6 +504,14 @@ struct gb_operation *gb_operation_create(struct gb_connection *connection,
 }
 EXPORT_SYMBOL_GPL(gb_operation_create);
 
+size_t gb_operation_get_payload_size_max(struct gb_connection *connection)
+{
+	struct greybus_host_device *hd = connection->hd;
+
+	return hd->buffer_size_max - sizeof(struct gb_operation_msg_hdr);
+}
+EXPORT_SYMBOL_GPL(gb_operation_get_payload_size_max);
+
 static struct gb_operation *
 gb_operation_create_incoming(struct gb_connection *connection, u16 id,
 				u8 type, void *data, size_t size)

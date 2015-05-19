@@ -130,6 +130,7 @@ void gb_connection_recv(struct gb_connection *connection,
 
 int gb_operation_result(struct gb_operation *operation);
 
+size_t gb_operation_get_payload_size_max(struct gb_connection *connection);
 struct gb_operation *gb_operation_create(struct gb_connection *connection,
 					u8 type, size_t request_size,
 					size_t response_size);
