@@ -150,7 +150,7 @@ struct cx24120_state {
 
 	fe_status_t fe_status;
 
-	/* ber stats calulations */
+	/* dvbv5 stats calculations */
 	u32 bitrate;
 	u32 berw_usecs;
 	u32 ber_prev;
