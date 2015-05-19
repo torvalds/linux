@@ -269,7 +269,8 @@ struct mtk_pinctrl {
 };
 
 int mtk_pctrl_init(struct platform_device *pdev,
-		const struct mtk_pinctrl_devdata *data);
+		const struct mtk_pinctrl_devdata *data,
+		struct regmap *regmap);
 
 int mtk_pctrl_spec_pull_set_samereg(struct regmap *regmap,
 		const struct mtk_pin_spec_pupd_set_samereg *pupd_infos,

@@ -361,7 +361,7 @@ static const struct mtk_pinctrl_devdata mt8173_pinctrl_data = {
 
 static int mt8173_pinctrl_probe(struct platform_device *pdev)
 {
-	return mtk_pctrl_init(pdev, &mt8173_pinctrl_data);
+	return mtk_pctrl_init(pdev, &mt8173_pinctrl_data, NULL);
 }
 
 static const struct of_device_id mt8173_pctrl_match[] = {
