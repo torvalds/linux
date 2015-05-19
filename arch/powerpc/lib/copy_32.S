@@ -129,13 +129,18 @@ _GLOBAL(memset)
  * We only use this version if the source and dest don't overlap.
  * -- paulus.
  */
-_GLOBAL(cacheable_memcpy)
+_GLOBAL(memmove)
+	cmplw	0,r3,r4
+	bgt	backwards_memcpy
+	/* fall through */
+
+_GLOBAL(memcpy)
 	add	r7,r3,r5		/* test if the src & dst overlap */
 	add	r8,r4,r5
 	cmplw	0,r4,r7
 	cmplw	1,r3,r8
 	crand	0,0,4			/* cr0.lt &= cr1.lt */
-	blt	memcpy			/* if regions overlap */
+	blt	generic_memcpy		/* if regions overlap */
 
 	addi	r4,r4,-4
 	addi	r6,r3,-4
@@ -201,12 +206,7 @@ _GLOBAL(cacheable_memcpy)
 	bdnz	40b
 65:	blr
 
-_GLOBAL(memmove)
-	cmplw	0,r3,r4
-	bgt	backwards_memcpy
-	/* fall through */
-
-_GLOBAL(memcpy)
+_GLOBAL(generic_memcpy)
 	srwi.	r7,r5,3
 	addi	r6,r3,-4
 	addi	r4,r4,-4
