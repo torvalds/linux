@@ -1033,11 +1033,6 @@ static int intel_cqm_event_add(struct perf_event *event, int mode)
 	return 0;
 }
 
-static void intel_cqm_event_del(struct perf_event *event, int mode)
-{
-	intel_cqm_event_stop(event, mode);
-}
-
 static void intel_cqm_event_destroy(struct perf_event *event)
 {
 	struct perf_event *group_other = NULL;
@@ -1230,7 +1225,7 @@ static struct pmu intel_cqm_pmu = {
 	.task_ctx_nr	     = perf_sw_context,
 	.event_init	     = intel_cqm_event_init,
 	.add		     = intel_cqm_event_add,
-	.del		     = intel_cqm_event_del,
+	.del		     = intel_cqm_event_stop,
 	.start		     = intel_cqm_event_start,
 	.stop		     = intel_cqm_event_stop,
 	.read		     = intel_cqm_event_read,
