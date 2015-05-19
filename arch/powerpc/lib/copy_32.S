@@ -75,8 +75,9 @@ CACHELINE_MASK = (L1_CACHE_BYTES-1)
  * area is cacheable.  -- paulus
  */
 _GLOBAL(memset)
-	cmplwi	r4,0
-	bne-	generic_memset
+	rlwimi	r4,r4,8,16,23
+	rlwimi	r4,r4,16,0,15
+
 	addi	r6,r3,-4
 	cmplwi	0,r5,4
 	blt	7f
@@ -85,6 +86,9 @@ _GLOBAL(memset)
 	andi.	r0,r6,3
 	add	r5,r0,r5
 	subf	r6,r0,r6
+	cmplwi	0,r4,0
+	bne	2f	/* Use normal procedure if r4 is not zero */
+
 	clrlwi	r7,r6,32-LG_CACHELINE_BYTES
 	add	r8,r7,r5
 	srwi	r9,r8,LG_CACHELINE_BYTES
@@ -103,32 +107,8 @@ _GLOBAL(memset)
 	bdnz	10b
 	clrlwi	r5,r8,32-LG_CACHELINE_BYTES
 	addi	r5,r5,4
-2:	srwi	r0,r5,2
-	mtctr	r0
-	bdz	6f
-1:	stwu	r4,4(r6)
-	bdnz	1b
-6:	andi.	r5,r5,3
-7:	cmpwi	0,r5,0
-	beqlr
-	mtctr	r5
-	addi	r6,r6,3
-8:	stbu	r4,1(r6)
-	bdnz	8b
-	blr
 
-_GLOBAL(generic_memset)
-	rlwimi	r4,r4,8,16,23
-	rlwimi	r4,r4,16,0,15
-	addi	r6,r3,-4
-	cmplwi	0,r5,4
-	blt	7f
-	stwu	r4,4(r6)
-	beqlr
-	andi.	r0,r6,3
-	add	r5,r0,r5
-	subf	r6,r0,r6
-	srwi	r0,r5,2
+2:	srwi	r0,r5,2
 	mtctr	r0
 	bdz	6f
 1:	stwu	r4,4(r6)
