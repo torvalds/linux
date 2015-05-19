@@ -6687,7 +6687,7 @@ static int merge_extent_mapping(struct extent_map_tree *em_tree,
 }
 
 static noinline int uncompress_inline(struct btrfs_path *path,
-				      struct inode *inode, struct page *page,
+				      struct page *page,
 				      size_t pg_offset, u64 extent_offset,
 				      struct btrfs_file_extent_item *item)
 {
@@ -6883,8 +6883,7 @@ next:
 		if (create == 0 && !PageUptodate(page)) {
 			if (btrfs_file_extent_compression(leaf, item) !=
 			    BTRFS_COMPRESS_NONE) {
-				ret = uncompress_inline(path, inode, page,
-							pg_offset,
+				ret = uncompress_inline(path, page, pg_offset,
 							extent_offset, item);
 				if (ret) {
 					err = ret;
