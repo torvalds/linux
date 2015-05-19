@@ -1392,7 +1392,7 @@ static void slic_cmdq_reset(struct adapter *adapter)
 	unsigned long flags;
 
 	spin_lock_irqsave(&adapter->cmdq_free.lock, flags);
-	spin_lock_irqsave(&adapter->cmdq_done.lock, flags);
+	spin_lock(&adapter->cmdq_done.lock);
 	outstanding = adapter->cmdq_all.count - adapter->cmdq_done.count;
 	outstanding -= adapter->cmdq_free.count;
 	hcmd = adapter->cmdq_all.head;
@@ -1423,7 +1423,7 @@ static void slic_cmdq_reset(struct adapter *adapter)
 			"free_count %d != all count %d\n",
 			adapter->cmdq_free.count, adapter->cmdq_all.count);
 	}
-	spin_unlock_irqrestore(&adapter->cmdq_done.lock, flags);
+	spin_unlock(&adapter->cmdq_done.lock);
 	spin_unlock_irqrestore(&adapter->cmdq_free.lock, flags);
 }
 
