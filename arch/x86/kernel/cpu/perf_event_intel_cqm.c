@@ -978,7 +978,12 @@ static void intel_cqm_event_start(struct perf_event *event, int mode)
 		WARN_ON_ONCE(state->rmid);
 
 	state->rmid = rmid;
-	wrmsrl(MSR_IA32_PQR_ASSOC, state->rmid);
+	/*
+	 * This is actually wrong, as the upper 32 bit MSR contain the
+	 * closid which is used for configuring the Cache Allocation
+	 * Technology component.
+	 */
+	wrmsr(MSR_IA32_PQR_ASSOC, rmid, 0);
 
 	raw_spin_unlock_irqrestore(&state->lock, flags);
 }
@@ -998,7 +1003,13 @@ static void intel_cqm_event_stop(struct perf_event *event, int mode)
 
 	if (!--state->cnt) {
 		state->rmid = 0;
-		wrmsrl(MSR_IA32_PQR_ASSOC, 0);
+		/*
+		 * This is actually wrong, as the upper 32 bit of the
+		 * MSR contain the closid which is used for
+		 * configuring the Cache Allocation Technology
+		 * component.
+		 */
+		wrmsr(MSR_IA32_PQR_ASSOC, 0, 0);
 	} else {
 		WARN_ON_ONCE(!state->rmid);
 	}
