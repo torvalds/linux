@@ -2434,27 +2434,3 @@ LNetDist(lnet_nid_t dstnid, lnet_nid_t *srcnidp, __u32 *orderp)
 	return -EHOSTUNREACH;
 }
 EXPORT_SYMBOL(LNetDist);
-
-/**
- * Set the number of asynchronous messages expected from a target process.
- *
- * This function is only meaningful for userspace callers. It's a no-op when
- * called from kernel.
- *
- * Asynchronous messages are those that can come from a target when the
- * userspace process is not waiting for IO to complete; e.g., AST callbacks
- * from Lustre servers. Specifying the expected number of such messages
- * allows them to be eagerly received when user process is not running in
- * LNet; otherwise network errors may occur.
- *
- * \param id Process ID of the target process.
- * \param nasync Number of asynchronous messages expected from the target.
- *
- * \return 0 on success, and an error code otherwise.
- */
-int
-LNetSetAsync(lnet_process_id_t id, int nasync)
-{
-	return 0;
-}
-EXPORT_SYMBOL(LNetSetAsync);

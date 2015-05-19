@@ -209,7 +209,6 @@ int LNetGet(lnet_nid_t	self,
 int LNetSetLazyPortal(int portal);
 int LNetClearLazyPortal(int portal);
 int LNetCtl(unsigned int cmd, void *arg);
-int LNetSetAsync(lnet_process_id_t id, int nasync);
 
 /** @} lnet_misc */
 
