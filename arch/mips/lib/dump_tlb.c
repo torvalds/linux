@@ -73,7 +73,15 @@ static void dump_tlb(int first, int last)
 		 */
 		if ((entryhi & ~0x1ffffUL) == CKSEG0)
 			continue;
-		if ((entryhi & 0xff) != asid)
+		/*
+		 * ASID takes effect in absence of G (global) bit.
+		 * We check both G bits, even though architecturally they should
+		 * match one another, because some revisions of the SB1 core may
+		 * leave only a single G bit set after a machine check exception
+		 * due to duplicate TLB entry.
+		 */
+		if (!((entrylo0 | entrylo1) & MIPS_ENTRYLO_G) &&
+		    (entryhi & 0xff) != asid)
 			continue;
 
 		/*
