@@ -37,7 +37,7 @@ of_coresight_get_endpoint_device(struct device_node *endpoint)
 	struct device *dev = NULL;
 
 	/*
-	 * If we have a non-configuable replicator, it will be found on the
+	 * If we have a non-configurable replicator, it will be found on the
 	 * platform bus.
 	 */
 	dev = bus_find_device(&platform_bus_type, NULL,
