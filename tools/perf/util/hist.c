@@ -851,18 +851,14 @@ const struct hist_iter_ops hist_iter_cumulative = {
 };
 
 int hist_entry_iter__add(struct hist_entry_iter *iter, struct addr_location *al,
-			 struct perf_evsel *evsel, struct perf_sample *sample,
 			 int max_stack_depth, void *arg)
 {
 	int err, err2;
 
-	err = sample__resolve_callchain(sample, &iter->parent, evsel, al,
-					max_stack_depth);
+	err = sample__resolve_callchain(iter->sample, &iter->parent,
+					iter->evsel, al, max_stack_depth);
 	if (err)
 		return err;
-
-	iter->evsel = evsel;
-	iter->sample = sample;
 
 	err = iter->ops->prepare_entry(iter, al);
 	if (err)

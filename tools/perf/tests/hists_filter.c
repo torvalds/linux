@@ -63,6 +63,8 @@ static int add_hist_entries(struct perf_evlist *evlist,
 				},
 			};
 			struct hist_entry_iter iter = {
+				.evsel = evsel,
+				.sample = &sample,
 				.ops = &hist_iter_normal,
 				.hide_unresolved = false,
 			};
@@ -81,7 +83,7 @@ static int add_hist_entries(struct perf_evlist *evlist,
 							  &sample) < 0)
 				goto out;
 
-			if (hist_entry_iter__add(&iter, &al, evsel, &sample,
+			if (hist_entry_iter__add(&iter, &al,
 						 PERF_MAX_STACK_DEPTH, NULL) < 0) {
 				addr_location__put(&al);
 				goto out;
