@@ -142,6 +142,18 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 #if defined(CONFIG_X86_IO_APIC)
 	seq_printf(p, "%*s: %10u\n", prec, "MIS", atomic_read(&irq_mis_count));
 #endif
+#ifdef CONFIG_HAVE_KVM
+	seq_printf(p, "%*s: ", prec, "PIN");
+	for_each_online_cpu(j)
+		seq_printf(p, "%10u ", irq_stats(j)->kvm_posted_intr_ipis);
+	seq_puts(p, "  Posted-interrupt notification event\n");
+
+	seq_printf(p, "%*s: ", prec, "PIW");
+	for_each_online_cpu(j)
+		seq_printf(p, "%10u ",
+			   irq_stats(j)->kvm_posted_intr_wakeup_ipis);
+	seq_puts(p, "  Posted-interrupt wakeup event\n");
+#endif
 	return 0;
 }
 
