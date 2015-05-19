@@ -5011,4 +5011,12 @@ static int __init xhci_hcd_init(void)
 	BUILD_BUG_ON(sizeof(struct xhci_run_regs) != (8+8*128)*32/8);
 	return 0;
 }
+
+/*
+ * If an init function is provided, an exit function must also be provided
+ * to allow module unload.
+ */
+static void __exit xhci_hcd_fini(void) { }
+
 module_init(xhci_hcd_init);
+module_exit(xhci_hcd_fini);
