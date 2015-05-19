@@ -51,6 +51,7 @@ struct sst_plat_ipc_ops {
 	void (*shim_dbg)(struct sst_generic_ipc *, const char *);
 	void (*tx_data_copy)(struct ipc_message *, char *, size_t);
 	u64  (*reply_msg_match)(u64 header, u64 *mask);
+	bool (*is_dsp_busy)(struct sst_dsp *dsp);
 };
 
 /* SST generic IPC data */
