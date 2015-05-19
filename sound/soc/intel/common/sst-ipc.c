@@ -142,7 +142,6 @@ static void ipc_tx_msgs(struct kthread_work *work)
 		container_of(work, struct sst_generic_ipc, kwork);
 	struct ipc_message *msg;
 	unsigned long flags;
-	u64 ipcx;
 
 	spin_lock_irqsave(&ipc->dsp->spinlock, flags);
 
@@ -153,8 +152,8 @@ static void ipc_tx_msgs(struct kthread_work *work)
 
 	/* if the DSP is busy, we will TX messages after IRQ.
 	 * also postpone if we are in the middle of procesing completion irq*/
-	ipcx = sst_dsp_shim_read_unlocked(ipc->dsp, SST_IPCX);
-	if (ipcx & (SST_IPCX_BUSY | SST_IPCX_DONE)) {
+	if (ipc->ops.is_dsp_busy && ipc->ops.is_dsp_busy(ipc->dsp)) {
+		dev_dbg(ipc->dev, "ipc_tx_msgs dsp busy\n");
 		spin_unlock_irqrestore(&ipc->dsp->spinlock, flags);
 		return;
 	}
