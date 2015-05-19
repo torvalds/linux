@@ -527,7 +527,11 @@ struct rcu_state {
 /* Values for rcu_state structure's gp_flags field. */
 #define RCU_GP_WAIT_INIT 0	/* Initial state. */
 #define RCU_GP_WAIT_GPS  1	/* Wait for grace-period start. */
-#define RCU_GP_WAIT_FQS  2	/* Wait for force-quiescent-state time. */
+#define RCU_GP_DONE_GPS  2	/* Wait done for grace-period start. */
+#define RCU_GP_WAIT_FQS  3	/* Wait for force-quiescent-state time. */
+#define RCU_GP_DONE_FQS  4	/* Wait done for force-quiescent-state time. */
+#define RCU_GP_CLEANUP   5	/* Grace-period cleanup started. */
+#define RCU_GP_CLEANED   6	/* Grace-period cleanup complete. */
 
 extern struct list_head rcu_struct_flavors;
 

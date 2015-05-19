@@ -1178,9 +1178,11 @@ static void rcu_check_gp_kthread_starvation(struct rcu_state *rsp)
 	j = jiffies;
 	gpa = READ_ONCE(rsp->gp_activity);
 	if (j - gpa > 2 * HZ)
-		pr_err("%s kthread starved for %ld jiffies! g%lu c%lu f%#x\n",
+		pr_err("%s kthread starved for %ld jiffies! g%lu c%lu f%#x s%d ->state=%#lx\n",
 		       rsp->name, j - gpa,
-		       rsp->gpnum, rsp->completed, rsp->gp_flags);
+		       rsp->gpnum, rsp->completed,
+		       rsp->gp_flags, rsp->gp_state,
+		       rsp->gp_kthread ? rsp->gp_kthread->state : 0);
 }
 
 /*
@@ -2041,6 +2043,7 @@ static int __noreturn rcu_gp_kthread(void *arg)
 			wait_event_interruptible(rsp->gp_wq,
 						 READ_ONCE(rsp->gp_flags) &
 						 RCU_GP_FLAG_INIT);
+			rsp->gp_state = RCU_GP_DONE_GPS;
 			/* Locking provides needed memory barrier. */
 			if (rcu_gp_init(rsp))
 				break;
@@ -2073,6 +2076,7 @@ static int __noreturn rcu_gp_kthread(void *arg)
 					(!READ_ONCE(rnp->qsmask) &&
 					 !rcu_preempt_blocked_readers_cgp(rnp)),
 					j);
+			rsp->gp_state = RCU_GP_DONE_FQS;
 			/* Locking provides needed memory barriers. */
 			/* If grace period done, leave loop. */
 			if (!READ_ONCE(rnp->qsmask) &&
@@ -2110,7 +2114,9 @@ static int __noreturn rcu_gp_kthread(void *arg)
 		}
 
 		/* Handle grace-period end. */
+		rsp->gp_state = RCU_GP_CLEANUP;
 		rcu_gp_cleanup(rsp);
+		rsp->gp_state = RCU_GP_CLEANED;
 	}
 }
 
