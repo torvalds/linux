@@ -56,7 +56,13 @@ static inline int set_av_attr(struct ocrdma_dev *dev, struct ocrdma_ah *ah,
 	vlan_tag = attr->vlan_id;
 	if (!vlan_tag || (vlan_tag > 0xFFF))
 		vlan_tag = dev->pvid;
-	if (vlan_tag && (vlan_tag < 0x1000)) {
+	if (vlan_tag || dev->pfc_state) {
+		if (!vlan_tag) {
+			pr_err("ocrdma%d:Using VLAN with PFC is recommended\n",
+				dev->id);
+			pr_err("ocrdma%d:Using VLAN 0 for this connection\n",
+				dev->id);
+		}
 		eth.eth_type = cpu_to_be16(0x8100);
 		eth.roce_eth_type = cpu_to_be16(OCRDMA_ROCE_ETH_TYPE);
 		vlan_tag |= (dev->sl & 0x07) << OCRDMA_VID_PCP_SHIFT;

@@ -2434,7 +2434,7 @@ static int ocrdma_set_av_params(struct ocrdma_qp *qp,
 	int status;
 	struct ib_ah_attr *ah_attr = &attrs->ah_attr;
 	union ib_gid sgid, zgid;
-	u32 vlan_id;
+	u32 vlan_id = 0xFFFF;
 	u8 mac_addr[6];
 	struct ocrdma_dev *dev = get_ocrdma_dev(qp->ibqp.device);
 
@@ -2474,12 +2474,22 @@ static int ocrdma_set_av_params(struct ocrdma_qp *qp,
 	cmd->params.vlan_dmac_b4_to_b5 = mac_addr[4] | (mac_addr[5] << 8);
 	if (attr_mask & IB_QP_VID) {
 		vlan_id = attrs->vlan_id;
+	} else if (dev->pfc_state) {
+		vlan_id = 0;
+		pr_err("ocrdma%d:Using VLAN with PFC is recommended\n",
+			dev->id);
+		pr_err("ocrdma%d:Using VLAN 0 for this connection\n",
+			dev->id);
+	}
+
+	if (vlan_id < 0x1000) {
 		cmd->params.vlan_dmac_b4_to_b5 |=
 		    vlan_id << OCRDMA_QP_PARAMS_VLAN_SHIFT;
 		cmd->flags |= OCRDMA_QP_PARA_VLAN_EN_VALID;
 		cmd->params.rnt_rc_sl_fl |=
 			(dev->sl & 0x07) << OCRDMA_QP_PARAMS_SL_SHIFT;
 	}
+
 	return 0;
 }
 
