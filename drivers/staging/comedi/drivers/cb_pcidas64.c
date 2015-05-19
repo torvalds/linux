@@ -243,7 +243,8 @@ enum adc_control0_contents {
 	ADC_SOFT_GATE_BITS = 0x1,	/*  software gate */
 	ADC_EXT_GATE_BITS = 0x2,	/*  external digital gate */
 	ADC_ANALOG_GATE_BITS = 0x3,	/*  analog level gate */
-	ADC_GATE_LEVEL_BIT = 0x4,	/*  level-sensitive gate (for digital) */
+	/*  level-sensitive gate (for digital) */
+	ADC_GATE_LEVEL_BIT = 0x4,
 	ADC_GATE_POLARITY_BIT = 0x8,	/*  gate active low */
 	ADC_START_TRIG_SOFT_BITS = 0x10,
 	ADC_START_TRIG_EXT_BITS = 0x20,
@@ -1381,7 +1382,9 @@ static int set_ai_fifo_segment_length(struct comedi_device *dev,
 	return devpriv->ai_fifo_segment_length;
 }
 
-/* adjusts the size of hardware fifo (which determines block size for dma xfers) */
+/*
+ * adjusts the size of hardware fifo (which determines block size for dma xfers)
+ */
 static int set_ai_fifo_size(struct comedi_device *dev, unsigned int num_samples)
 {
 	const struct pcidas64_board *thisboard = dev->board_ptr;
@@ -1588,7 +1591,9 @@ static inline void warn_external_queue(struct comedi_device *dev)
 		"Use internal AI channel queue (channels must be consecutive and use same range/aref)\n");
 }
 
-/* Their i2c requires a huge delay on setting clock or data high for some reason */
+/*
+ * their i2c requires a huge delay on setting clock or data high for some reason
+ */
 static const int i2c_high_udelay = 1000;
 static const int i2c_low_udelay = 10;
 
@@ -1987,7 +1992,8 @@ static unsigned int get_divisor(unsigned int ns, unsigned int flags)
 
 /* utility function that rounds desired timing to an achievable time, and
  * sets cmd members appropriately.
- * adc paces conversions from master clock by dividing by (x + 3) where x is 24 bit number
+ * adc paces conversions from master clock by dividing by (x + 3) where x is
+ * 24 bit number
  */
 static void check_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd)
 {
