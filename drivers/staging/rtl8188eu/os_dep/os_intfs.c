@@ -185,17 +185,20 @@ MODULE_PARM_DESC(rtw_notch_filter, "0:Disable, 1:Enable, 2:Enable only for P2P")
 module_param_named(debug, rtw_debug, int, 0444);
 MODULE_PARM_DESC(debug, "Set debug level (1-9) (default 1)");
 
+static int netdev_open(struct net_device *pnetdev);
+static int netdev_close(struct net_device *pnetdev);
+
 /* dummy routines */
 void rtw_proc_remove_one(struct net_device *dev)
 {
 }
 
-void rtw_proc_init_one(struct net_device *dev)
+static void rtw_proc_init_one(struct net_device *dev)
 {
 }
 
 #if 0	/* TODO: Convert these to /sys */
-void rtw_proc_init_one(struct net_device *dev)
+static void rtw_proc_init_one(struct net_device *dev)
 {
 	struct proc_dir_entry *dir_dev = NULL;
 	struct proc_dir_entry *entry = NULL;
@@ -749,7 +752,7 @@ struct net_device *rtw_init_netdev(struct adapter *old_padapter)
 	return pnetdev;
 }
 
-u32 rtw_start_drv_threads(struct adapter *padapter)
+static u32 rtw_start_drv_threads(struct adapter *padapter)
 {
 	u32 _status = _SUCCESS;
 
@@ -973,7 +976,7 @@ u8 rtw_free_drv_sw(struct adapter *padapter)
 	return _SUCCESS;
 }
 
-int _netdev_open(struct net_device *pnetdev)
+static int _netdev_open(struct net_device *pnetdev)
 {
 	uint status;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(pnetdev);
@@ -1044,7 +1047,7 @@ netdev_open_error:
 	return -1;
 }
 
-int netdev_open(struct net_device *pnetdev)
+static int netdev_open(struct net_device *pnetdev)
 {
 	int ret;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(pnetdev);
@@ -1142,7 +1145,7 @@ int pm_netdev_open(struct net_device *pnetdev, u8 bnormal)
 	return status;
 }
 
-int netdev_close(struct net_device *pnetdev)
+static int netdev_close(struct net_device *pnetdev)
 {
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(pnetdev);
 	struct hal_data_8188e *rtlhal = GET_HAL_DATA(padapter);
