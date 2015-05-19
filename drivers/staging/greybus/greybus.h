@@ -155,9 +155,6 @@ struct dentry *gb_debugfs_get(void);
 
 extern struct bus_type greybus_bus_type;
 
-int gb_uart_device_init(struct gb_connection *connection);
-void gb_uart_device_exit(struct gb_connection *connection);
-
 int svc_set_route_send(struct gb_bundle *bundle,
 			       struct greybus_host_device *hd);
 
