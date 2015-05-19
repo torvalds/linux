@@ -1082,6 +1082,9 @@ static int exynos_iommu_add_device(struct device *dev)
 	struct iommu_group *group;
 	int ret;
 
+	if (!has_sysmmu(dev))
+		return -ENODEV;
+
 	group = iommu_group_get(dev);
 
 	if (!group) {
@@ -1100,6 +1103,9 @@ static int exynos_iommu_add_device(struct device *dev)
 
 static void exynos_iommu_remove_device(struct device *dev)
 {
+	if (!has_sysmmu(dev))
+		return;
+
 	iommu_group_remove_device(dev);
 }
 
