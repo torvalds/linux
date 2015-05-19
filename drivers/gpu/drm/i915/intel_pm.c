@@ -6214,6 +6214,13 @@ static void broadwell_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(GEN8_L3SQCREG1, BDW_WA_L3SQCREG1_DEFAULT);
 	I915_WRITE(GEN7_MISCCPCTL, misccpctl);
 
+	/*
+	 * WaGttCachingOffByDefault:bdw
+	 * GTT cache may not work with big pages, so if those
+	 * are ever enabled GTT cache may need to be disabled.
+	 */
+	I915_WRITE(HSW_GTT_CACHE_EN, GTT_CACHE_EN_ALL);
+
 	lpt_init_clock_gating(dev);
 }
 
@@ -6489,6 +6496,12 @@ static void cherryview_init_clock_gating(struct drm_device *dev)
 	/* WaDisableSDEUnitClockGating:chv */
 	I915_WRITE(GEN8_UCGCTL6, I915_READ(GEN8_UCGCTL6) |
 		   GEN8_SDEUNIT_CLOCK_GATE_DISABLE);
+
+	/*
+	 * GTT cache may not work with big pages, so if those
+	 * are ever enabled GTT cache may need to be disabled.
+	 */
+	I915_WRITE(HSW_GTT_CACHE_EN, GTT_CACHE_EN_ALL);
 }
 
 static void g4x_init_clock_gating(struct drm_device *dev)

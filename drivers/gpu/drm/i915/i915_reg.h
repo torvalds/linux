@@ -1461,6 +1461,8 @@ enum skl_disp_power_wells {
 #define RING_HWS_PGA(base)	((base)+0x80)
 #define RING_HWS_PGA_GEN6(base)	((base)+0x2080)
 
+#define HSW_GTT_CACHE_EN	0x4024
+#define   GTT_CACHE_EN_ALL	0xF0007FFF
 #define GEN7_WR_WATERMARK	0x4028
 #define GEN7_GFX_PRIO_CTRL	0x402C
 #define ARB_MODE		0x4030
