@@ -228,7 +228,6 @@ struct net_device *r8712_init_netdev(void)
 	pnetdev->watchdog_timeo = HZ; /* 1 second timeout */
 	pnetdev->wireless_handlers = (struct iw_handler_def *)
 				     &r871x_handlers_def;
-	/*step 2.*/
 	loadparam(padapter, pnetdev);
 	netif_carrier_off(pnetdev);
 	padapter->pid = 0;  /* Initial the PID value used for HW PBC.*/
