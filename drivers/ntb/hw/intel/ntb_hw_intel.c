@@ -1317,6 +1317,9 @@ static int snb_poll_link(struct intel_ntb_dev *ndev)
 
 static int snb_link_is_up(struct intel_ntb_dev *ndev)
 {
+	if (ndev->ntb.topo == NTB_TOPO_SEC)
+		return 1;
+
 	return NTB_LNK_STA_ACTIVE(ndev->lnk_sta);
 }
 
@@ -1613,6 +1616,7 @@ static int snb_setup_b2b_mw(struct intel_ntb_dev *ndev,
 static int snb_init_ntb(struct intel_ntb_dev *ndev)
 {
 	int rc;
+	u32 ntb_ctl;
 
 	if (ndev->bar4_split)
 		ndev->mw_count = HSX_SPLIT_BAR_MW_COUNT;
@@ -1629,6 +1633,12 @@ static int snb_init_ntb(struct intel_ntb_dev *ndev)
 			dev_err(ndev_dev(ndev), "NTB Primary config disabled\n");
 			return -EINVAL;
 		}
+
+		/* enable link to allow secondary side device to appear */
+		ntb_ctl = ioread32(ndev->self_mmio + ndev->reg->ntb_ctl);
+		ntb_ctl &= ~NTB_CTL_DISABLE;
+		iowrite32(ntb_ctl, ndev->self_mmio + ndev->reg->ntb_ctl);
+
 		/* use half the spads for the peer */
 		ndev->spad_count >>= 1;
 		ndev->self_reg = &snb_pri_reg;
