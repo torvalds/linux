@@ -305,6 +305,7 @@ static struct platform_driver mtk8250_platform_driver = {
 };
 module_platform_driver(mtk8250_platform_driver);
 
+#ifdef CONFIG_SERIAL_8250_CONSOLE
 static int __init early_mtk8250_setup(struct earlycon_device *device,
 					const char *options)
 {
@@ -317,6 +318,7 @@ static int __init early_mtk8250_setup(struct earlycon_device *device,
 }
 
 OF_EARLYCON_DECLARE(mtk8250, "mediatek,mt6577-uart", early_mtk8250_setup);
+#endif
 
 MODULE_AUTHOR("Matthias Brugger");
 MODULE_LICENSE("GPL");
