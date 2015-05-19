@@ -44,7 +44,7 @@ static inline const char *msk2str(unsigned int mask)
 static void dump_tlb(int first, int last)
 {
 	unsigned long s_entryhi, entryhi, asid;
-	unsigned long long entrylo0, entrylo1;
+	unsigned long long entrylo0, entrylo1, pa;
 	unsigned int s_index, s_pagemask, pagemask, c0, c1, i;
 #ifdef CONFIG_32BIT
 	int width = 8;
@@ -98,15 +98,28 @@ static void dump_tlb(int first, int last)
 		printk("va=%0*lx asid=%02lx\n",
 		       width, (entryhi & ~0x1fffUL),
 		       entryhi & 0xff);
-		printk("\t[pa=%0*llx c=%d d=%d v=%d g=%d] ",
-		       width,
-		       (entrylo0 << 6) & PAGE_MASK, c0,
+		/* RI/XI are in awkward places, so mask them off separately */
+		pa = entrylo0 & ~(MIPS_ENTRYLO_RI | MIPS_ENTRYLO_XI);
+		pa = (pa << 6) & PAGE_MASK;
+		printk("\t[");
+		if (cpu_has_rixi)
+			printk("ri=%d xi=%d ",
+			       (entrylo0 & MIPS_ENTRYLO_RI) ? 1 : 0,
+			       (entrylo0 & MIPS_ENTRYLO_XI) ? 1 : 0);
+		printk("pa=%0*llx c=%d d=%d v=%d g=%d] [",
+		       width, pa, c0,
 		       (entrylo0 & MIPS_ENTRYLO_D) ? 1 : 0,
 		       (entrylo0 & MIPS_ENTRYLO_V) ? 1 : 0,
 		       (entrylo0 & MIPS_ENTRYLO_G) ? 1 : 0);
-		printk("[pa=%0*llx c=%d d=%d v=%d g=%d]\n",
-		       width,
-		       (entrylo1 << 6) & PAGE_MASK, c1,
+		/* RI/XI are in awkward places, so mask them off separately */
+		pa = entrylo1 & ~(MIPS_ENTRYLO_RI | MIPS_ENTRYLO_XI);
+		pa = (pa << 6) & PAGE_MASK;
+		if (cpu_has_rixi)
+			printk("ri=%d xi=%d ",
+			       (entrylo1 & MIPS_ENTRYLO_RI) ? 1 : 0,
+			       (entrylo1 & MIPS_ENTRYLO_XI) ? 1 : 0);
+		printk("pa=%0*llx c=%d d=%d v=%d g=%d]\n",
+		       width, pa, c1,
 		       (entrylo1 & MIPS_ENTRYLO_D) ? 1 : 0,
 		       (entrylo1 & MIPS_ENTRYLO_V) ? 1 : 0,
 		       (entrylo1 & MIPS_ENTRYLO_G) ? 1 : 0);
