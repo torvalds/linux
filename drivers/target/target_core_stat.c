@@ -545,11 +545,11 @@ static ssize_t target_stat_scsi_port_show_attr_inst(
 	struct se_device *dev;
 	ssize_t ret = -ENODEV;
 
-	spin_lock(&lun->lun_sep_lock);
-	dev = lun->lun_se_dev;
+	rcu_read_lock();
+	dev = rcu_dereference(lun->lun_se_dev);
 	if (dev)
-		ret = snprintf(page, PAGE_SIZE, "%u\n", dev->se_hba->hba_index);
-	spin_unlock(&lun->lun_sep_lock);
+		ret = snprintf(page, PAGE_SIZE, "%u\n", dev->hba_index);
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_PORT_ATTR_RO(inst);
@@ -561,11 +561,11 @@ static ssize_t target_stat_scsi_port_show_attr_dev(
 	struct se_device *dev;
 	ssize_t ret = -ENODEV;
 
-	spin_lock(&lun->lun_sep_lock);
-	dev = lun->lun_se_dev;
+	rcu_read_lock();
+	dev = rcu_dereference(lun->lun_se_dev);
 	if (dev)
 		ret = snprintf(page, PAGE_SIZE, "%u\n", dev->dev_index);
-	spin_unlock(&lun->lun_sep_lock);
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_PORT_ATTR_RO(dev);
@@ -577,11 +577,11 @@ static ssize_t target_stat_scsi_port_show_attr_indx(
 	struct se_device *dev;
 	ssize_t ret = -ENODEV;
 
-	spin_lock(&lun->lun_sep_lock);
-	dev = lun->lun_se_dev;
+	rcu_read_lock();
+	dev = rcu_dereference(lun->lun_se_dev);
 	if (dev)
 		ret = snprintf(page, PAGE_SIZE, "%u\n", lun->lun_rtpi);
-	spin_unlock(&lun->lun_sep_lock);
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_PORT_ATTR_RO(indx);
@@ -593,11 +593,11 @@ static ssize_t target_stat_scsi_port_show_attr_role(
 	struct se_device *dev;
 	ssize_t ret = -ENODEV;
 
-	spin_lock(&lun->lun_sep_lock);
-	dev = lun->lun_se_dev;
+	rcu_read_lock();
+	dev = rcu_dereference(lun->lun_se_dev);
 	if (dev)
 		ret = snprintf(page, PAGE_SIZE, "%s%u\n", "Device", dev->dev_index);
-	spin_unlock(&lun->lun_sep_lock);
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_PORT_ATTR_RO(role);
@@ -609,13 +609,13 @@ static ssize_t target_stat_scsi_port_show_attr_busy_count(
 	struct se_device *dev;
 	ssize_t ret = -ENODEV;
 
-	spin_lock(&lun->lun_sep_lock);
-	dev = lun->lun_se_dev;
+	rcu_read_lock();
+	dev = rcu_dereference(lun->lun_se_dev);
 	if (dev) {
 		/* FIXME: scsiPortBusyStatuses  */
 		ret = snprintf(page, PAGE_SIZE, "%u\n", 0);
 	}
-	spin_unlock(&lun->lun_sep_lock);
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_PORT_ATTR_RO(busy_count);
@@ -666,11 +666,11 @@ static ssize_t target_stat_scsi_tgt_port_show_attr_inst(
 	struct se_device *dev;
 	ssize_t ret = -ENODEV;
 
-	spin_lock(&lun->lun_sep_lock);
-	dev = lun->lun_se_dev;
+	rcu_read_lock();
+	dev = rcu_dereference(lun->lun_se_dev);
 	if (dev)
-		ret = snprintf(page, PAGE_SIZE, "%u\n", dev->se_hba->hba_index);
-	spin_unlock(&lun->lun_sep_lock);
+		ret = snprintf(page, PAGE_SIZE, "%u\n", dev->hba_index);
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_TGT_PORT_ATTR_RO(inst);
@@ -682,11 +682,11 @@ static ssize_t target_stat_scsi_tgt_port_show_attr_dev(
 	struct se_device *dev;
 	ssize_t ret = -ENODEV;
 
-	spin_lock(&lun->lun_sep_lock);
-	dev = lun->lun_se_dev;
+	rcu_read_lock();
+	dev = rcu_dereference(lun->lun_se_dev);
 	if (dev)
 		ret = snprintf(page, PAGE_SIZE, "%u\n", dev->dev_index);
-	spin_unlock(&lun->lun_sep_lock);
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_TGT_PORT_ATTR_RO(dev);
@@ -698,11 +698,11 @@ static ssize_t target_stat_scsi_tgt_port_show_attr_indx(
 	struct se_device *dev;
 	ssize_t ret = -ENODEV;
 
-	spin_lock(&lun->lun_sep_lock);
-	dev = lun->lun_se_dev;
+	rcu_read_lock();
+	dev = rcu_dereference(lun->lun_se_dev);
 	if (dev)
 		ret = snprintf(page, PAGE_SIZE, "%u\n", lun->lun_rtpi);
-	spin_unlock(&lun->lun_sep_lock);
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_TGT_PORT_ATTR_RO(indx);
@@ -715,13 +715,13 @@ static ssize_t target_stat_scsi_tgt_port_show_attr_name(
 	struct se_device *dev;
 	ssize_t ret = -ENODEV;
 
-	spin_lock(&lun->lun_sep_lock);
-	dev = lun->lun_se_dev;
+	rcu_read_lock();
+	dev = rcu_dereference(lun->lun_se_dev);
 	if (dev)
 		ret = snprintf(page, PAGE_SIZE, "%sPort#%u\n",
 			tpg->se_tpg_tfo->get_fabric_name(),
 			lun->lun_rtpi);
-	spin_unlock(&lun->lun_sep_lock);
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_TGT_PORT_ATTR_RO(name);
@@ -734,13 +734,13 @@ static ssize_t target_stat_scsi_tgt_port_show_attr_port_index(
 	struct se_device *dev;
 	ssize_t ret = -ENODEV;
 
-	spin_lock(&lun->lun_sep_lock);
-	dev = lun->lun_se_dev;
+	rcu_read_lock();
+	dev = rcu_dereference(lun->lun_se_dev);
 	if (dev)
 		ret = snprintf(page, PAGE_SIZE, "%s%s%d\n",
 			tpg->se_tpg_tfo->tpg_get_wwn(tpg), "+t+",
 			tpg->se_tpg_tfo->tpg_get_tag(tpg));
-	spin_unlock(&lun->lun_sep_lock);
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_TGT_PORT_ATTR_RO(port_index);
@@ -752,11 +752,12 @@ static ssize_t target_stat_scsi_tgt_port_show_attr_in_cmds(
 	struct se_device *dev;
 	ssize_t ret = -ENODEV;
 
-	spin_lock(&lun->lun_sep_lock);
-	dev = lun->lun_se_dev;
+	rcu_read_lock();
+	dev = rcu_dereference(lun->lun_se_dev);
 	if (dev)
-		ret = snprintf(page, PAGE_SIZE, "%u\n", lun->lun_stats.cmd_pdus);
-	spin_unlock(&lun->lun_sep_lock);
+		ret = snprintf(page, PAGE_SIZE, "%lu\n",
+			       atomic_long_read(&lun->lun_stats.cmd_pdus));
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_TGT_PORT_ATTR_RO(in_cmds);
@@ -768,12 +769,12 @@ static ssize_t target_stat_scsi_tgt_port_show_attr_write_mbytes(
 	struct se_device *dev;
 	ssize_t ret = -ENODEV;
 
-	spin_lock(&lun->lun_sep_lock);
-	dev = lun->lun_se_dev;
+	rcu_read_lock();
+	dev = rcu_dereference(lun->lun_se_dev);
 	if (dev)
 		ret = snprintf(page, PAGE_SIZE, "%u\n",
-				(u32)(lun->lun_stats.rx_data_octets >> 20));
-	spin_unlock(&lun->lun_sep_lock);
+			(u32)(atomic_long_read(&lun->lun_stats.rx_data_octets) >> 20));
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_TGT_PORT_ATTR_RO(write_mbytes);
@@ -785,12 +786,12 @@ static ssize_t target_stat_scsi_tgt_port_show_attr_read_mbytes(
 	struct se_device *dev;
 	ssize_t ret = -ENODEV;
 
-	spin_lock(&lun->lun_sep_lock);
-	dev = lun->lun_se_dev;
+	rcu_read_lock();
+	dev = rcu_dereference(lun->lun_se_dev);
 	if (dev)
 		ret = snprintf(page, PAGE_SIZE, "%u\n",
-				(u32)(lun->lun_stats.tx_data_octets >> 20));
-	spin_unlock(&lun->lun_sep_lock);
+				(u32)(atomic_long_read(&lun->lun_stats.tx_data_octets) >> 20));
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_TGT_PORT_ATTR_RO(read_mbytes);
@@ -802,13 +803,13 @@ static ssize_t target_stat_scsi_tgt_port_show_attr_hs_in_cmds(
 	struct se_device *dev;
 	ssize_t ret = -ENODEV;
 
-	spin_lock(&lun->lun_sep_lock);
-	dev = lun->lun_se_dev;
+	rcu_read_lock();
+	dev = rcu_dereference(lun->lun_se_dev);
 	if (dev) {
 		/* FIXME: scsiTgtPortHsInCommands */
 		ret = snprintf(page, PAGE_SIZE, "%u\n", 0);
 	}
-	spin_unlock(&lun->lun_sep_lock);
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_TGT_PORT_ATTR_RO(hs_in_cmds);
@@ -865,11 +866,11 @@ static ssize_t target_stat_scsi_transport_show_attr_inst(
 	struct se_device *dev;
 	ssize_t ret = -ENODEV;
 
-	spin_lock(&lun->lun_sep_lock);
-	dev = lun->lun_se_dev;
+	rcu_read_lock();
+	dev = rcu_dereference(lun->lun_se_dev);
 	if (dev)
-		ret = snprintf(page, PAGE_SIZE, "%u\n", dev->se_hba->hba_index);
-	spin_unlock(&lun->lun_sep_lock);
+		ret = snprintf(page, PAGE_SIZE, "%u\n", dev->hba_index);
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_TRANSPORT_ATTR_RO(inst);
@@ -882,14 +883,14 @@ static ssize_t target_stat_scsi_transport_show_attr_device(
 	struct se_portal_group *tpg = lun->lun_tpg;
 	ssize_t ret = -ENODEV;
 
-	spin_lock(&lun->lun_sep_lock);
-	dev = lun->lun_se_dev;
+	rcu_read_lock();
+	dev = rcu_dereference(lun->lun_se_dev);
 	if (dev) {
 		/* scsiTransportType */
 		ret = snprintf(page, PAGE_SIZE, "scsiTransport%s\n",
 			       tpg->se_tpg_tfo->get_fabric_name());
 	}
-	spin_unlock(&lun->lun_sep_lock);
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_TRANSPORT_ATTR_RO(device);
@@ -902,12 +903,12 @@ static ssize_t target_stat_scsi_transport_show_attr_indx(
 	struct se_portal_group *tpg = lun->lun_tpg;
 	ssize_t ret = -ENODEV;
 
-	spin_lock(&lun->lun_sep_lock);
-	dev = lun->lun_se_dev;
+	rcu_read_lock();
+	dev = rcu_dereference(lun->lun_se_dev);
 	if (dev)
 		ret = snprintf(page, PAGE_SIZE, "%u\n",
 			       tpg->se_tpg_tfo->tpg_get_inst_index(tpg));
-	spin_unlock(&lun->lun_sep_lock);
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_TRANSPORT_ATTR_RO(indx);
@@ -916,13 +917,13 @@ static ssize_t target_stat_scsi_transport_show_attr_dev_name(
 	struct se_port_stat_grps *pgrps, char *page)
 {
 	struct se_lun *lun = container_of(pgrps, struct se_lun, port_stat_grps);
-	struct se_device *dev = lun->lun_se_dev;
+	struct se_device *dev;
 	struct se_portal_group *tpg = lun->lun_tpg;
 	struct t10_wwn *wwn;
 	ssize_t ret = -ENODEV;
 
-	spin_lock(&lun->lun_sep_lock);
-	dev = lun->lun_se_dev;
+	rcu_read_lock();
+	dev = rcu_dereference(lun->lun_se_dev);
 	if (dev) {
 		wwn = &dev->t10_wwn;
 		/* scsiTransportDevName */
@@ -931,7 +932,7 @@ static ssize_t target_stat_scsi_transport_show_attr_dev_name(
 				(strlen(wwn->unit_serial)) ? wwn->unit_serial :
 				wwn->vendor);
 	}
-	spin_unlock(&lun->lun_sep_lock);
+	rcu_read_unlock();
 	return ret;
 }
 DEV_STAT_SCSI_TRANSPORT_ATTR_RO(dev_name);

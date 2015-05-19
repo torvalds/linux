@@ -1905,8 +1905,11 @@ static int sbp_update_unit_directory(struct sbp_tport *tport)
 	hlist_for_each_entry_rcu(lun, &tport->tpg->se_tpg.tpg_lun_hlist, link) {
 		struct se_device *dev;
 		int type;
-
-		dev = lun->lun_se_dev;
+		/*
+		 * rcu_dereference_raw protected by se_lun->lun_group symlink
+		 * reference to se_device->dev_group.
+		 */
+		dev = rcu_dereference_raw(lun->lun_se_dev);
 		type = dev->transport->get_device_type(dev);
 
 		/* logical_unit_number */

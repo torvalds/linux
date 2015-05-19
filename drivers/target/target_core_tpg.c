@@ -102,7 +102,8 @@ void core_tpg_add_node_to_devs(
 		if (lun_orig && lun != lun_orig)
 			continue;
 
-		dev = lun->lun_se_dev;
+		dev = rcu_dereference_check(lun->lun_se_dev,
+					    lockdep_is_held(&tpg->tpg_lun_mutex));
 		/*
 		 * By default in LIO-Target $FABRIC_MOD,
 		 * demo_mode_write_protect is ON, or READ_ONLY;
@@ -598,7 +599,6 @@ struct se_lun *core_tpg_alloc_lun(
 	lun->unpacked_lun = unpacked_lun;
 	lun->lun_link_magic = SE_LUN_LINK_MAGIC;
 	atomic_set(&lun->lun_acl_count, 0);
-	spin_lock_init(&lun->lun_sep_lock);
 	init_completion(&lun->lun_ref_comp);
 	INIT_LIST_HEAD(&lun->lun_deve_list);
 	INIT_LIST_HEAD(&lun->lun_dev_link);
@@ -636,12 +636,8 @@ int core_tpg_add_lun(
 
 	mutex_lock(&tpg->tpg_lun_mutex);
 
-	spin_lock(&lun->lun_sep_lock);
-	lun->lun_index = dev->dev_index;
-	lun->lun_se_dev = dev;
-	spin_unlock(&lun->lun_sep_lock);
-
 	spin_lock(&dev->se_port_lock);
+	lun->lun_index = dev->dev_index;
 	rcu_assign_pointer(lun->lun_se_dev, dev);
 	dev->export_count++;
 	list_add_tail(&lun->lun_dev_link, &dev->dev_sep_list);
@@ -664,7 +660,11 @@ void core_tpg_remove_lun(
 	struct se_portal_group *tpg,
 	struct se_lun *lun)
 {
-	struct se_device *dev = lun->lun_se_dev;
+	/*
+	 * rcu_dereference_raw protected by se_lun->lun_group symlink
+	 * reference to se_device->dev_group.
+	 */
+	struct se_device *dev = rcu_dereference_raw(lun->lun_se_dev);
 
 	core_clear_lun_from_tpg(lun, tpg);
 	transport_clear_lun_ref(lun);
