@@ -663,6 +663,15 @@ static void cx24120_get_stats(struct cx24120_state *state)
 		c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 	}
 
+	/* BER & UCB require lock */
+	if (!(state->fe_status & FE_HAS_LOCK)) {
+		c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->block_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		return;
+	}
+
 	/* BER */
 	if (time_after(jiffies, state->ber_jiffies_stats)) {
 		msecs = (state->berw_usecs + 500) / 1000;
