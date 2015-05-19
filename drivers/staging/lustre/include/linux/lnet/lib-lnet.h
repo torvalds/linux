@@ -172,8 +172,6 @@ lnet_net_lock_current(void)
 #define lnet_eq_wait_unlock()	spin_unlock(&the_lnet.ln_eq_wait_lock)
 #define lnet_ni_lock(ni)	spin_lock(&(ni)->ni_lock)
 #define lnet_ni_unlock(ni)	spin_unlock(&(ni)->ni_lock)
-#define LNET_MUTEX_LOCK(m)	mutex_lock(m)
-#define LNET_MUTEX_UNLOCK(m)	mutex_unlock(m)
 
 #define MAX_PORTALS     64
 
