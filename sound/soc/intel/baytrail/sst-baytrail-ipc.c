@@ -708,6 +708,8 @@ int sst_byt_dsp_init(struct device *dev, struct sst_pdata *pdata)
 	ipc->ops.tx_data_copy = byt_tx_data_copy;
 	ipc->ops.reply_msg_match = byt_reply_msg_match;
 	ipc->ops.is_dsp_busy = byt_is_dsp_busy;
+	ipc->tx_data_max_size = IPC_MAX_MAILBOX_BYTES;
+	ipc->rx_data_max_size = IPC_MAX_MAILBOX_BYTES;
 
 	err = sst_ipc_init(ipc);
 	if (err != 0)
