@@ -389,8 +389,10 @@ PE_NAME ':' PE_NAME
 	if (parse_events_add_tracepoint(list, &data->idx, $1, $3)) {
 		struct parse_events_error *error = data->error;
 
-		error->idx = @1.first_column;
-		error->str = strdup("unknown tracepoint");
+		if (error) {
+			error->idx = @1.first_column;
+			error->str = strdup("unknown tracepoint");
+		}
 		return -1;
 	}
 	$$ = list;

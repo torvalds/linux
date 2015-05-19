@@ -1659,6 +1659,8 @@ void parse_events_evlist_error(struct parse_events_evlist *data,
 {
 	struct parse_events_error *err = data->error;
 
+	if (!err)
+		return;
 	err->idx = idx;
 	err->str = strdup(str);
 	WARN_ONCE(!err->str, "WARNING: failed to allocate error string");
