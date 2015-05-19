@@ -180,32 +180,49 @@ static char *sysmmu_fault_name[SYSMMU_FAULTS_NUM] = {
 	"UNKNOWN FAULT"
 };
 
-/* attached to dev.archdata.iommu of the master device */
+/*
+ * This structure is attached to dev.archdata.iommu of the master device
+ * on device add, contains a list of SYSMMU controllers defined by device tree,
+ * which are bound to given master device. It is usually referenced by 'owner'
+ * pointer.
+*/
 struct exynos_iommu_owner {
-	struct device *sysmmu;
+	struct device *sysmmu;		/* sysmmu controller for given master */
 };
 
+/*
+ * This structure exynos specific generalization of struct iommu_domain.
+ * It contains list of SYSMMU controllers from all master devices, which has
+ * been attached to this domain and page tables of IO address space defined by
+ * it. It is usually referenced by 'domain' pointer.
+ */
 struct exynos_iommu_domain {
-	struct list_head clients; /* list of sysmmu_drvdata.node */
-	sysmmu_pte_t *pgtable; /* lv1 page table, 16KB */
-	short *lv2entcnt; /* free lv2 entry counter for each section */
-	spinlock_t lock; /* lock for this structure */
-	spinlock_t pgtablelock; /* lock for modifying page table @ pgtable */
+	struct list_head clients; /* list of sysmmu_drvdata.domain_node */
+	sysmmu_pte_t *pgtable;	/* lv1 page table, 16KB */
+	short *lv2entcnt;	/* free lv2 entry counter for each section */
+	spinlock_t lock;	/* lock for modyfying list of clients */
+	spinlock_t pgtablelock;	/* lock for modifying page table @ pgtable */
 	struct iommu_domain domain; /* generic domain data structure */
 };
 
+/*
+ * This structure hold all data of a single SYSMMU controller, this includes
+ * hw resources like registers and clocks, pointers and list nodes to connect
+ * it to all other structures, internal state and parameters read from device
+ * tree. It is usually referenced by 'data' pointer.
+ */
 struct sysmmu_drvdata {
-	struct device *sysmmu;	/* System MMU's device descriptor */
-	struct device *master;	/* Owner of system MMU */
-	void __iomem *sfrbase;
-	struct clk *clk;
-	struct clk *clk_master;
-	int activations;
-	spinlock_t lock;
-	struct exynos_iommu_domain *domain;
-	struct list_head domain_node;
-	phys_addr_t pgtable;
-	unsigned int version;
+	struct device *sysmmu;		/* SYSMMU controller device */
+	struct device *master;		/* master device (owner) */
+	void __iomem *sfrbase;		/* our registers */
+	struct clk *clk;		/* SYSMMU's clock */
+	struct clk *clk_master;		/* master's device clock */
+	int activations;		/* number of calls to sysmmu_enable */
+	spinlock_t lock;		/* lock for modyfying state */
+	struct exynos_iommu_domain *domain; /* domain we belong to */
+	struct list_head domain_node;	/* node for domain clients list */
+	phys_addr_t pgtable;		/* assigned page table structure */
+	unsigned int version;		/* our version */
 };
 
 static struct exynos_iommu_domain *to_exynos_domain(struct iommu_domain *dom)
