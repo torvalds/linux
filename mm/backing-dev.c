@@ -359,23 +359,6 @@ static void bdi_wb_shutdown(struct backing_dev_info *bdi)
 	flush_delayed_work(&bdi->wb.dwork);
 }
 
-/*
- * Called when the device behind @bdi has been removed or ejected.
- *
- * We can't really do much here except for reducing the dirty ratio at
- * the moment.  In the future we should be able to set a flag so that
- * the filesystem can handle errors at mark_inode_dirty time instead
- * of only at writeback time.
- */
-void bdi_unregister(struct backing_dev_info *bdi)
-{
-	if (WARN_ON_ONCE(!bdi->dev))
-		return;
-
-	bdi_set_min_ratio(bdi, 0);
-}
-EXPORT_SYMBOL(bdi_unregister);
-
 static void bdi_wb_init(struct bdi_writeback *wb, struct backing_dev_info *bdi)
 {
 	memset(wb, 0, sizeof(*wb));
@@ -443,6 +426,7 @@ void bdi_destroy(struct backing_dev_info *bdi)
 	int i;
 
 	bdi_wb_shutdown(bdi);
+	bdi_set_min_ratio(bdi, 0);
 
 	WARN_ON(!list_empty(&bdi->work_list));
 	WARN_ON(delayed_work_pending(&bdi->wb.dwork));
