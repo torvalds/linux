@@ -76,7 +76,7 @@ int exynos_check_plane(struct drm_plane *plane, struct drm_framebuffer *fb)
 			return -EFAULT;
 		}
 
-		exynos_plane->dma_addr[i] = buffer->dma_addr;
+		exynos_plane->dma_addr[i] = buffer->dma_addr + fb->offsets[i];
 
 		DRM_DEBUG_KMS("buffer: %d, dma_addr = 0x%lx\n",
 				i, (unsigned long)exynos_plane->dma_addr[i]);

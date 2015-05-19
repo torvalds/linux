@@ -238,11 +238,11 @@ static struct drm_crtc_funcs exynos_crtc_funcs = {
 };
 
 struct exynos_drm_crtc *exynos_drm_crtc_create(struct drm_device *drm_dev,
-					       struct drm_plane *plane,
-					       int pipe,
-					       enum exynos_drm_output_type type,
-					       struct exynos_drm_crtc_ops *ops,
-					       void *ctx)
+					struct drm_plane *plane,
+					int pipe,
+					enum exynos_drm_output_type type,
+					const struct exynos_drm_crtc_ops *ops,
+					void *ctx)
 {
 	struct exynos_drm_crtc *exynos_crtc;
 	struct exynos_drm_private *private = drm_dev->dev_private;
