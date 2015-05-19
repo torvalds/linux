@@ -1059,6 +1059,7 @@ int netdev_open(struct net_device *pnetdev)
 static int  ips_netdrv_open(struct adapter *padapter)
 {
 	int status = _SUCCESS;
+
 	padapter->net_closed = false;
 	DBG_88E("===> %s.........\n", __func__);
 
@@ -1091,6 +1092,7 @@ int rtw_ips_pwr_up(struct adapter *padapter)
 {
 	int result;
 	u32 start_time = jiffies;
+
 	DBG_88E("===>  rtw_ips_pwr_up..............\n");
 	rtw_reset_drv_sw(padapter);
 
@@ -1105,6 +1107,7 @@ int rtw_ips_pwr_up(struct adapter *padapter)
 void rtw_ips_pwr_down(struct adapter *padapter)
 {
 	u32 start_time = jiffies;
+
 	DBG_88E("===> rtw_ips_pwr_down...................\n");
 
 	padapter->net_closed = true;
