@@ -675,10 +675,7 @@ void pcie_aspm_pm_state_change(struct pci_dev *pdev)
 {
 	struct pcie_link_state *link = pdev->link_state;
 
-	if (aspm_disabled || !pci_is_pcie(pdev) || !link)
-		return;
-	if ((pci_pcie_type(pdev) != PCI_EXP_TYPE_ROOT_PORT) &&
-	    (pci_pcie_type(pdev) != PCI_EXP_TYPE_DOWNSTREAM))
+	if (aspm_disabled || !link)
 		return;
 	/*
 	 * Devices changed PM state, we should recheck if latency
@@ -696,14 +693,10 @@ void pcie_aspm_powersave_config_link(struct pci_dev *pdev)
 {
 	struct pcie_link_state *link = pdev->link_state;
 
-	if (aspm_disabled || !pci_is_pcie(pdev) || !link)
+	if (aspm_disabled || !link)
 		return;
 
 	if (aspm_policy != POLICY_POWERSAVE)
-		return;
-
-	if ((pci_pcie_type(pdev) != PCI_EXP_TYPE_ROOT_PORT) &&
-	    (pci_pcie_type(pdev) != PCI_EXP_TYPE_DOWNSTREAM))
 		return;
 
 	down_read(&pci_bus_sem);
@@ -906,9 +899,7 @@ void pcie_aspm_create_sysfs_dev_files(struct pci_dev *pdev)
 {
 	struct pcie_link_state *link_state = pdev->link_state;
 
-	if (!pci_is_pcie(pdev) ||
-	    (pci_pcie_type(pdev) != PCI_EXP_TYPE_ROOT_PORT &&
-	     pci_pcie_type(pdev) != PCI_EXP_TYPE_DOWNSTREAM) || !link_state)
+	if (!link_state)
 		return;
 
 	if (link_state->aspm_support)
@@ -923,9 +914,7 @@ void pcie_aspm_remove_sysfs_dev_files(struct pci_dev *pdev)
 {
 	struct pcie_link_state *link_state = pdev->link_state;
 
-	if (!pci_is_pcie(pdev) ||
-	    (pci_pcie_type(pdev) != PCI_EXP_TYPE_ROOT_PORT &&
-	     pci_pcie_type(pdev) != PCI_EXP_TYPE_DOWNSTREAM) || !link_state)
+	if (!link_state)
 		return;
 
 	if (link_state->aspm_support)
