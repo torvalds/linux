@@ -188,6 +188,10 @@ static struct amba_id tpiu_ids[] = {
 		.id	= 0x0003b912,
 		.mask	= 0x0003ffff,
 	},
+	{
+		.id	= 0x0004b912,
+		.mask	= 0x0007ffff,
+	},
 	{ 0, 0},
 };
 
