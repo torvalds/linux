@@ -141,7 +141,6 @@
  * @base:	memory mapped base address for this component.
  * @dev:	the device entity associated to this component.
  * @csdev:	component vitals needed by the framework.
- * @clk:	the clock this component is associated to.
  * @spinlock:	only one at a time pls.
  * @cpu:	the cpu this component is affined to.
  * @port_size:	port size as reported by ETMCR bit 4-6 and 21.
@@ -193,7 +192,6 @@ struct etm_drvdata {
 	void __iomem			*base;
 	struct device			*dev;
 	struct coresight_device		*csdev;
-	struct clk			*clk;
 	spinlock_t			spinlock;
 	int				cpu;
 	int				port_size;

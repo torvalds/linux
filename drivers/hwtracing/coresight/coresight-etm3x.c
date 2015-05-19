@@ -23,7 +23,7 @@
 #include <linux/smp.h>
 #include <linux/sysfs.h>
 #include <linux/stat.h>
-#include <linux/clk.h>
+#include <linux/pm_runtime.h>
 #include <linux/cpu.h>
 #include <linux/of.h>
 #include <linux/coresight.h>
@@ -325,9 +325,7 @@ static int etm_trace_id(struct coresight_device *csdev)
 
 	if (!drvdata->enable)
 		return drvdata->traceid;
-
-	if (clk_prepare_enable(drvdata->clk))
-		goto out;
+	pm_runtime_get_sync(csdev->dev.parent);
 
 	spin_lock_irqsave(&drvdata->spinlock, flags);
 
@@ -336,8 +334,8 @@ static int etm_trace_id(struct coresight_device *csdev)
 	CS_LOCK(drvdata->base);
 
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
-	clk_disable_unprepare(drvdata->clk);
-out:
+	pm_runtime_put(csdev->dev.parent);
+
 	return trace_id;
 }
 
@@ -346,10 +344,7 @@ static int etm_enable(struct coresight_device *csdev)
 	struct etm_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 	int ret;
 
-	ret = clk_prepare_enable(drvdata->clk);
-	if (ret)
-		goto err_clk;
-
+	pm_runtime_get_sync(csdev->dev.parent);
 	spin_lock(&drvdata->spinlock);
 
 	/*
@@ -373,8 +368,7 @@ static int etm_enable(struct coresight_device *csdev)
 	return 0;
 err:
 	spin_unlock(&drvdata->spinlock);
-	clk_disable_unprepare(drvdata->clk);
-err_clk:
+	pm_runtime_put(csdev->dev.parent);
 	return ret;
 }
 
@@ -423,8 +417,7 @@ static void etm_disable(struct coresight_device *csdev)
 
 	spin_unlock(&drvdata->spinlock);
 	put_online_cpus();
-
-	clk_disable_unprepare(drvdata->clk);
+	pm_runtime_put(csdev->dev.parent);
 
 	dev_info(drvdata->dev, "ETM tracing disabled\n");
 }
@@ -474,14 +467,10 @@ static DEVICE_ATTR_RO(nr_ctxid_cmp);
 static ssize_t etmsr_show(struct device *dev,
 			  struct device_attribute *attr, char *buf)
 {
-	int ret;
 	unsigned long flags, val;
 	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
 
-	ret = clk_prepare_enable(drvdata->clk);
-	if (ret)
-		return ret;
-
+	pm_runtime_get_sync(drvdata->dev);
 	spin_lock_irqsave(&drvdata->spinlock, flags);
 	CS_UNLOCK(drvdata->base);
 
@@ -489,7 +478,7 @@ static ssize_t etmsr_show(struct device *dev,
 
 	CS_LOCK(drvdata->base);
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
-	clk_disable_unprepare(drvdata->clk);
+	pm_runtime_put(drvdata->dev);
 
 	return sprintf(buf, "%#lx\n", val);
 }
@@ -1317,7 +1306,6 @@ static DEVICE_ATTR_RW(seq_13_event);
 static ssize_t seq_curr_state_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
-	int ret;
 	unsigned long val, flags;
 	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
 
@@ -1326,9 +1314,7 @@ static ssize_t seq_curr_state_show(struct device *dev,
 		goto out;
 	}
 
-	ret = clk_prepare_enable(drvdata->clk);
-	if (ret)
-		return ret;
+	pm_runtime_get_sync(drvdata->dev);
 
 	spin_lock_irqsave(&drvdata->spinlock, flags);
 
@@ -1337,7 +1323,7 @@ static ssize_t seq_curr_state_show(struct device *dev,
 	CS_LOCK(drvdata->base);
 
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
-	clk_disable_unprepare(drvdata->clk);
+	pm_runtime_put(drvdata->dev);
 out:
 	return sprintf(buf, "%#lx\n", val);
 }
@@ -1521,10 +1507,7 @@ static ssize_t status_show(struct device *dev,
 	unsigned long flags;
 	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
 
-	ret = clk_prepare_enable(drvdata->clk);
-	if (ret)
-		return ret;
-
+	pm_runtime_get_sync(drvdata->dev);
 	spin_lock_irqsave(&drvdata->spinlock, flags);
 
 	CS_UNLOCK(drvdata->base);
@@ -1550,7 +1533,7 @@ static ssize_t status_show(struct device *dev,
 	CS_LOCK(drvdata->base);
 
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
-	clk_disable_unprepare(drvdata->clk);
+	pm_runtime_put(drvdata->dev);
 
 	return ret;
 }
@@ -1559,7 +1542,6 @@ static DEVICE_ATTR_RO(status);
 static ssize_t traceid_show(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {
-	int ret;
 	unsigned long val, flags;
 	struct etm_drvdata *drvdata = dev_get_drvdata(dev->parent);
 
@@ -1568,10 +1550,7 @@ static ssize_t traceid_show(struct device *dev,
 		goto out;
 	}
 
-	ret = clk_prepare_enable(drvdata->clk);
-	if (ret)
-		return ret;
-
+	pm_runtime_get_sync(drvdata->dev);
 	spin_lock_irqsave(&drvdata->spinlock, flags);
 	CS_UNLOCK(drvdata->base);
 
@@ -1579,7 +1558,7 @@ static ssize_t traceid_show(struct device *dev,
 
 	CS_LOCK(drvdata->base);
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
-	clk_disable_unprepare(drvdata->clk);
+	pm_runtime_put(drvdata->dev);
 out:
 	return sprintf(buf, "%#lx\n", val);
 }
@@ -1817,11 +1796,6 @@ static int etm_probe(struct amba_device *adev, const struct amba_id *id)
 
 	spin_lock_init(&drvdata->spinlock);
 
-	drvdata->clk = adev->pclk;
-	ret = clk_prepare_enable(drvdata->clk);
-	if (ret)
-		return ret;
-
 	drvdata->cpu = pdata ? pdata->cpu : 0;
 
 	get_online_cpus();
@@ -1845,8 +1819,6 @@ static int etm_probe(struct amba_device *adev, const struct amba_id *id)
 	}
 	etm_init_default_data(drvdata);
 
-	clk_disable_unprepare(drvdata->clk);
-
 	desc->type = CORESIGHT_DEV_TYPE_SOURCE;
 	desc->subtype.source_subtype = CORESIGHT_DEV_SUBTYPE_SOURCE_PROC;
 	desc->ops = &etm_cs_ops;
@@ -1859,6 +1831,7 @@ static int etm_probe(struct amba_device *adev, const struct amba_id *id)
 		goto err_arch_supported;
 	}
 
+	pm_runtime_put(&adev->dev);
 	dev_info(dev, "%s initialized\n", (char *)id->data);
 
 	if (boot_enable) {
@@ -1869,7 +1842,6 @@ static int etm_probe(struct amba_device *adev, const struct amba_id *id)
 	return 0;
 
 err_arch_supported:
-	clk_disable_unprepare(drvdata->clk);
 	if (--etm_count == 0)
 		unregister_hotcpu_notifier(&etm_cpu_notifier);
 	return ret;
