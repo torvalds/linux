@@ -74,9 +74,9 @@ CACHELINE_MASK = (L1_CACHE_BYTES-1)
  * to set them to zero.  This requires that the destination
  * area is cacheable.  -- paulus
  */
-_GLOBAL(cacheable_memzero)
-	mr	r5,r4
-	li	r4,0
+_GLOBAL(memset)
+	cmplwi	r4,0
+	bne-	generic_memset
 	addi	r6,r3,-4
 	cmplwi	0,r5,4
 	blt	7f
@@ -117,7 +117,7 @@ _GLOBAL(cacheable_memzero)
 	bdnz	8b
 	blr
 
-_GLOBAL(memset)
+_GLOBAL(generic_memset)
 	rlwimi	r4,r4,8,16,23
 	rlwimi	r4,r4,16,0,15
 	addi	r6,r3,-4
