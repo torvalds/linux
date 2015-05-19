@@ -27,6 +27,7 @@
    I2C slave support (c) 2014 by Wolfram Sang <wsa@sang-engineering.com>
  */
 
+#include <dt-bindings/i2c/i2c.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
@@ -1288,7 +1289,8 @@ static struct i2c_client *of_i2c_register_device(struct i2c_adapter *adap,
 	struct i2c_client *result;
 	struct i2c_board_info info = {};
 	struct dev_archdata dev_ad = {};
-	const __be32 *addr;
+	const __be32 *addr_be;
+	u32 addr;
 	int len;
 
 	dev_dbg(&adap->dev, "of_i2c: register %s\n", node->full_name);
@@ -1299,20 +1301,31 @@ static struct i2c_client *of_i2c_register_device(struct i2c_adapter *adap,
 		return ERR_PTR(-EINVAL);
 	}
 
-	addr = of_get_property(node, "reg", &len);
-	if (!addr || (len < sizeof(*addr))) {
+	addr_be = of_get_property(node, "reg", &len);
+	if (!addr_be || (len < sizeof(*addr_be))) {
 		dev_err(&adap->dev, "of_i2c: invalid reg on %s\n",
 			node->full_name);
 		return ERR_PTR(-EINVAL);
 	}
 
-	info.addr = be32_to_cpup(addr);
-	if (info.addr > (1 << 10) - 1) {
+	addr = be32_to_cpup(addr_be);
+	if (addr & I2C_TEN_BIT_ADDRESS) {
+		addr &= ~I2C_TEN_BIT_ADDRESS;
+		info.flags |= I2C_CLIENT_TEN;
+	}
+
+	if (addr & I2C_OWN_SLAVE_ADDRESS) {
+		addr &= ~I2C_OWN_SLAVE_ADDRESS;
+		info.flags |= I2C_CLIENT_SLAVE;
+	}
+
+	if (i2c_check_addr_validity(addr, info.flags)) {
 		dev_err(&adap->dev, "of_i2c: invalid addr=%x on %s\n",
 			info.addr, node->full_name);
 		return ERR_PTR(-EINVAL);
 	}
 
+	info.addr = addr;
 	info.of_node = of_node_get(node);
 	info.archdata = &dev_ad;
 
