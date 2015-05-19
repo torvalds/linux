@@ -1387,33 +1387,11 @@ pfn_t __gfn_to_pfn_memslot(struct kvm_memory_slot *slot, gfn_t gfn, bool atomic,
 }
 EXPORT_SYMBOL_GPL(__gfn_to_pfn_memslot);
 
-static pfn_t __gfn_to_pfn(struct kvm *kvm, gfn_t gfn, bool atomic,
-			  bool write_fault, bool *writable)
-{
-	struct kvm_memory_slot *slot;
-
-	slot = gfn_to_memslot(kvm, gfn);
-
-	return __gfn_to_pfn_memslot(slot, gfn, atomic, NULL, write_fault,
-				    writable);
-}
-
-pfn_t gfn_to_pfn_atomic(struct kvm *kvm, gfn_t gfn)
-{
-	return __gfn_to_pfn(kvm, gfn, true, true, NULL);
-}
-EXPORT_SYMBOL_GPL(gfn_to_pfn_atomic);
-
-pfn_t gfn_to_pfn(struct kvm *kvm, gfn_t gfn)
-{
-	return __gfn_to_pfn(kvm, gfn, false, true, NULL);
-}
-EXPORT_SYMBOL_GPL(gfn_to_pfn);
-
 pfn_t gfn_to_pfn_prot(struct kvm *kvm, gfn_t gfn, bool write_fault,
 		      bool *writable)
 {
-	return __gfn_to_pfn(kvm, gfn, false, write_fault, writable);
+	return __gfn_to_pfn_memslot(gfn_to_memslot(kvm, gfn), gfn, false, NULL,
+				    write_fault, writable);
 }
 EXPORT_SYMBOL_GPL(gfn_to_pfn_prot);
 
@@ -1421,12 +1399,25 @@ pfn_t gfn_to_pfn_memslot(struct kvm_memory_slot *slot, gfn_t gfn)
 {
 	return __gfn_to_pfn_memslot(slot, gfn, false, NULL, true, NULL);
 }
+EXPORT_SYMBOL_GPL(gfn_to_pfn_memslot);
 
 pfn_t gfn_to_pfn_memslot_atomic(struct kvm_memory_slot *slot, gfn_t gfn)
 {
 	return __gfn_to_pfn_memslot(slot, gfn, true, NULL, true, NULL);
 }
 EXPORT_SYMBOL_GPL(gfn_to_pfn_memslot_atomic);
+
+pfn_t gfn_to_pfn_atomic(struct kvm *kvm, gfn_t gfn)
+{
+	return gfn_to_pfn_memslot_atomic(gfn_to_memslot(kvm, gfn), gfn);
+}
+EXPORT_SYMBOL_GPL(gfn_to_pfn_atomic);
+
+pfn_t gfn_to_pfn(struct kvm *kvm, gfn_t gfn)
+{
+	return gfn_to_pfn_memslot(gfn_to_memslot(kvm, gfn), gfn);
+}
+EXPORT_SYMBOL_GPL(gfn_to_pfn);
 
 int gfn_to_page_many_atomic(struct kvm_memory_slot *slot, gfn_t gfn,
 			    struct page **pages, int nr_pages)
