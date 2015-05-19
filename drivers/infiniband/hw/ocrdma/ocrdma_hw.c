@@ -3147,9 +3147,9 @@ void ocrdma_cleanup_hw(struct ocrdma_dev *dev)
 	ocrdma_free_pd_pool(dev);
 	ocrdma_mbx_delete_ah_tbl(dev);
 
-	/* cleanup the eqs */
-	ocrdma_destroy_eqs(dev);
-
 	/* cleanup the control path */
 	ocrdma_destroy_mq(dev);
+
+	/* cleanup the eqs */
+	ocrdma_destroy_eqs(dev);
 }
