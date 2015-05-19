@@ -178,6 +178,16 @@ config REGULATOR_DA9055
 	  This driver can also be built as a module. If so, the module
 	  will be called da9055-regulator.
 
+config REGULATOR_DA9062
+	tristate "Dialog Semiconductor DA9062 regulators"
+	depends on MFD_DA9062
+	help
+	  Say y here to support the BUCKs and LDOs regulators found on
+	  DA9062 PMICs.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called da9062-regulator.
+
 config REGULATOR_DA9063
 	tristate "Dialog Semiconductor DA9063 regulators"
 	depends on MFD_DA9063
