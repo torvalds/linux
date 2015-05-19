@@ -950,6 +950,20 @@ int irq_chip_retrigger_hierarchy(struct irq_data *data)
 }
 
 /**
+ * irq_chip_set_vcpu_affinity_parent - Set vcpu affinity on the parent interrupt
+ * @data:	Pointer to interrupt specific data
+ * @dest:	The vcpu affinity information
+ */
+int irq_chip_set_vcpu_affinity_parent(struct irq_data *data, void *vcpu_info)
+{
+	data = data->parent_data;
+	if (data->chip->irq_set_vcpu_affinity)
+		return data->chip->irq_set_vcpu_affinity(data, vcpu_info);
+
+	return -ENOSYS;
+}
+
+/**
  * irq_chip_set_wake_parent - Set/reset wake-up on the parent interrupt
  * @data:	Pointer to interrupt specific data
  * @on:		Whether to set or reset the wake-up capability of this irq
