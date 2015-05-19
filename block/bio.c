@@ -694,29 +694,6 @@ integrity_clone:
 EXPORT_SYMBOL(bio_clone_bioset);
 
 /**
- *	bio_get_nr_vecs		- return approx number of vecs
- *	@bdev:  I/O target
- *
- *	Return the approximate number of pages we can send to this target.
- *	There's no guarantee that you will be able to fit this number of pages
- *	into a bio, it does not account for dynamic restrictions that vary
- *	on offset.
- */
-int bio_get_nr_vecs(struct block_device *bdev)
-{
-	struct request_queue *q = bdev_get_queue(bdev);
-	int nr_pages;
-
-	nr_pages = min_t(unsigned,
-		     queue_max_segments(q),
-		     queue_max_sectors(q) / (PAGE_SIZE >> 9) + 1);
-
-	return min_t(unsigned, nr_pages, BIO_MAX_PAGES);
-
-}
-EXPORT_SYMBOL(bio_get_nr_vecs);
-
-/**
  *	bio_add_pc_page	-	attempt to add page to bio
  *	@q: the target queue
  *	@bio: destination bio

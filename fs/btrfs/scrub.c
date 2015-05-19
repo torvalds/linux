@@ -454,27 +454,14 @@ struct scrub_ctx *scrub_setup_ctx(struct btrfs_device *dev, int is_dev_replace)
 	struct scrub_ctx *sctx;
 	int		i;
 	struct btrfs_fs_info *fs_info = dev->dev_root->fs_info;
-	int pages_per_rd_bio;
 	int ret;
 
-	/*
-	 * the setting of pages_per_rd_bio is correct for scrub but might
-	 * be wrong for the dev_replace code where we might read from
-	 * different devices in the initial huge bios. However, that
-	 * code is able to correctly handle the case when adding a page
-	 * to a bio fails.
-	 */
-	if (dev->bdev)
-		pages_per_rd_bio = min_t(int, SCRUB_PAGES_PER_RD_BIO,
-					 bio_get_nr_vecs(dev->bdev));
-	else
-		pages_per_rd_bio = SCRUB_PAGES_PER_RD_BIO;
 	sctx = kzalloc(sizeof(*sctx), GFP_NOFS);
 	if (!sctx)
 		goto nomem;
 	atomic_set(&sctx->refs, 1);
 	sctx->is_dev_replace = is_dev_replace;
-	sctx->pages_per_rd_bio = pages_per_rd_bio;
+	sctx->pages_per_rd_bio = SCRUB_PAGES_PER_RD_BIO;
 	sctx->curr = -1;
 	sctx->dev_root = dev->dev_root;
 	for (i = 0; i < SCRUB_BIOS_PER_SCTX; ++i) {
@@ -3896,8 +3883,7 @@ static int scrub_setup_wr_ctx(struct scrub_ctx *sctx,
 		return 0;
 
 	WARN_ON(!dev->bdev);
-	wr_ctx->pages_per_wr_bio = min_t(int, SCRUB_PAGES_PER_WR_BIO,
-					 bio_get_nr_vecs(dev->bdev));
+	wr_ctx->pages_per_wr_bio = SCRUB_PAGES_PER_WR_BIO;
 	wr_ctx->tgtdev = dev;
 	atomic_set(&wr_ctx->flush_all_writes, 0);
 	return 0;

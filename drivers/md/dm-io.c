@@ -316,7 +316,7 @@ static void do_region(int rw, unsigned region, struct dm_io_region *where,
 		if ((rw & REQ_DISCARD) || (rw & REQ_WRITE_SAME))
 			num_bvecs = 1;
 		else
-			num_bvecs = min_t(int, bio_get_nr_vecs(where->bdev),
+			num_bvecs = min_t(int, BIO_MAX_PAGES,
 					  dm_sector_div_up(remaining, (PAGE_SIZE >> SECTOR_SHIFT)));
 
 		bio = bio_alloc_bioset(GFP_NOIO, num_bvecs, io->client->bios);

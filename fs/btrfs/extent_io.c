@@ -2795,9 +2795,7 @@ static int submit_extent_page(int rw, struct extent_io_tree *tree,
 {
 	int ret = 0;
 	struct bio *bio;
-	int nr;
 	int contig = 0;
-	int this_compressed = bio_flags & EXTENT_BIO_COMPRESSED;
 	int old_compressed = prev_bio_flags & EXTENT_BIO_COMPRESSED;
 	size_t page_size = min_t(size_t, size, PAGE_CACHE_SIZE);
 
@@ -2822,12 +2820,9 @@ static int submit_extent_page(int rw, struct extent_io_tree *tree,
 			return 0;
 		}
 	}
-	if (this_compressed)
-		nr = BIO_MAX_PAGES;
-	else
-		nr = bio_get_nr_vecs(bdev);
 
-	bio = btrfs_bio_alloc(bdev, sector, nr, GFP_NOFS | __GFP_HIGH);
+	bio = btrfs_bio_alloc(bdev, sector, BIO_MAX_PAGES,
+			GFP_NOFS | __GFP_HIGH);
 	if (!bio)
 		return -ENOMEM;
 

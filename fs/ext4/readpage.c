@@ -284,7 +284,7 @@ int ext4_mpage_readpages(struct address_space *mapping,
 					goto set_error_page;
 			}
 			bio = bio_alloc(GFP_KERNEL,
-				min_t(int, nr_pages, bio_get_nr_vecs(bdev)));
+				min_t(int, nr_pages, BIO_MAX_PAGES));
 			if (!bio) {
 				if (ctx)
 					ext4_release_crypto_ctx(ctx);

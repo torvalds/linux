@@ -261,18 +261,11 @@ void gfs2_log_flush_bio(struct gfs2_sbd *sdp, int rw)
 static struct bio *gfs2_log_alloc_bio(struct gfs2_sbd *sdp, u64 blkno)
 {
 	struct super_block *sb = sdp->sd_vfs;
-	unsigned nrvecs = bio_get_nr_vecs(sb->s_bdev);
 	struct bio *bio;
 
 	BUG_ON(sdp->sd_log_bio);
 
-	while (1) {
-		bio = bio_alloc(GFP_NOIO, nrvecs);
-		if (likely(bio))
-			break;
-		nrvecs = max(nrvecs/2, 1U);
-	}
-
+	bio = bio_alloc(GFP_NOIO, BIO_MAX_PAGES);
 	bio->bi_iter.bi_sector = blkno * (sb->s_blocksize >> 9);
 	bio->bi_bdev = sb->s_bdev;
 	bio->bi_end_io = gfs2_end_log_write;
