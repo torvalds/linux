@@ -125,9 +125,8 @@ MODULE_PARM_DESC(initmac, "MAC-Address, default: use FUSE");
 static int netdev_open(struct net_device *pnetdev);
 static int netdev_close(struct net_device *pnetdev);
 
-static uint loadparam(struct _adapter *padapter, struct  net_device *pnetdev)
+static void loadparam(struct _adapter *padapter, struct  net_device *pnetdev)
 {
-	uint status = _SUCCESS;
 	struct registry_priv  *registry_par = &padapter->registrypriv;
 
 	registry_par->chip_version = (u8)chip_version;
@@ -171,7 +170,6 @@ static uint loadparam(struct _adapter *padapter, struct  net_device *pnetdev)
 	registry_par->low_power = (u8)low_power;
 	registry_par->wifi_test = (u8) wifi_test;
 	r8712_initmac = initmac;
-	return status;
 }
 
 static int r871x_net_set_mac_address(struct net_device *pnetdev, void *p)
