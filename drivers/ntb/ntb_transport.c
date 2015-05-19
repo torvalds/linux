@@ -88,6 +88,10 @@ static unsigned int copy_bytes = 1024;
 module_param(copy_bytes, uint, 0644);
 MODULE_PARM_DESC(copy_bytes, "Threshold under which NTB will use the CPU to copy instead of DMA");
 
+static bool use_dma;
+module_param(use_dma, bool, 0644);
+MODULE_PARM_DESC(use_dma, "Use DMA engine to perform large data copy");
+
 static struct dentry *nt_debugfs_dir;
 
 struct ntb_queue_entry {
@@ -1589,10 +1593,15 @@ ntb_transport_create_queue(void *data, struct device *client_dev,
 	dma_cap_zero(dma_mask);
 	dma_cap_set(DMA_MEMCPY, dma_mask);
 
-	qp->dma_chan = dma_request_channel(dma_mask, ntb_dma_filter_fn,
-					   (void *)(unsigned long)node);
-	if (!qp->dma_chan)
-		dev_info(&pdev->dev, "Unable to allocate DMA channel, using CPU instead\n");
+	if (use_dma) {
+		qp->dma_chan = dma_request_channel(dma_mask, ntb_dma_filter_fn,
+						   (void *)(unsigned long)node);
+		if (!qp->dma_chan)
+			dev_info(&pdev->dev, "Unable to allocate DMA channel\n");
+	} else {
+		qp->dma_chan = NULL;
+	}
+	dev_dbg(&pdev->dev, "Using %s memcpy\n", qp->dma_chan ? "DMA" : "CPU");
 
 	for (i = 0; i < NTB_QP_DEF_NUM_ENTRIES; i++) {
 		entry = kzalloc_node(sizeof(*entry), GFP_ATOMIC, node);
