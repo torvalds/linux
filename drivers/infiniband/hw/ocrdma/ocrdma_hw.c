@@ -2534,8 +2534,10 @@ static int ocrdma_set_qp_params(struct ocrdma_qp *qp,
 		cmd->flags |= OCRDMA_QP_PARA_DST_QPN_VALID;
 	}
 	if (attr_mask & IB_QP_PATH_MTU) {
-		if (attrs->path_mtu < IB_MTU_256 ||
+		if (attrs->path_mtu < IB_MTU_512 ||
 		    attrs->path_mtu > IB_MTU_4096) {
+			pr_err("ocrdma%d: IB MTU %d is not supported\n",
+			       dev->id, ib_mtu_enum_to_int(attrs->path_mtu));
 			status = -EINVAL;
 			goto pmtu_err;
 		}
