@@ -188,6 +188,11 @@ struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *driver
 		return NULL;
 	}
 
+	if (buffer_size_max < GB_OPERATION_MESSAGE_SIZE_MIN) {
+		dev_err(parent, "greybus host-device buffers too small\n");
+		return NULL;
+	}
+
 	/*
 	 * Make sure to never allocate messages larger than what the Greybus
 	 * protocol supports.

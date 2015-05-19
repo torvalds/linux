@@ -69,6 +69,7 @@ struct gb_operation_msg_hdr {
 	__u8	pad[2];		/* must be zero (ignore when read) */
 } __aligned(sizeof(u64));
 
+#define GB_OPERATION_MESSAGE_SIZE_MIN	sizeof(struct gb_operation_msg_hdr)
 #define GB_OPERATION_MESSAGE_SIZE_MAX	U16_MAX
 
 /*
