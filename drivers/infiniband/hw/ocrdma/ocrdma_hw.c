@@ -2412,7 +2412,7 @@ int ocrdma_mbx_query_qp(struct ocrdma_dev *dev, struct ocrdma_qp *qp,
 	struct ocrdma_query_qp *cmd;
 	struct ocrdma_query_qp_rsp *rsp;
 
-	cmd = ocrdma_init_emb_mqe(OCRDMA_CMD_QUERY_QP, sizeof(*cmd));
+	cmd = ocrdma_init_emb_mqe(OCRDMA_CMD_QUERY_QP, sizeof(*rsp));
 	if (!cmd)
 		return status;
 	cmd->qp_id = qp->id;
