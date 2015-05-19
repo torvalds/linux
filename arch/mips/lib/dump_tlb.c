@@ -47,9 +47,13 @@ static void dump_tlb(int first, int last)
 	unsigned long long entrylo0, entrylo1, pa;
 	unsigned int s_index, s_pagemask, pagemask, c0, c1, i;
 #ifdef CONFIG_32BIT
-	int width = 8;
+	bool xpa = cpu_has_xpa && (read_c0_pagegrain() & PG_ELPA);
+	int pwidth = xpa ? 11 : 8;
+	int vwidth = 8;
 #else
-	int width = 11;
+	bool xpa = false;
+	int pwidth = 11;
+	int vwidth = 11;
 #endif
 
 	s_pagemask = read_c0_pagemask();
@@ -96,10 +100,12 @@ static void dump_tlb(int first, int last)
 		c1 = (entrylo1 & MIPS_ENTRYLO_C) >> MIPS_ENTRYLO_C_SHIFT;
 
 		printk("va=%0*lx asid=%02lx\n",
-		       width, (entryhi & ~0x1fffUL),
+		       vwidth, (entryhi & ~0x1fffUL),
 		       entryhi & 0xff);
 		/* RI/XI are in awkward places, so mask them off separately */
 		pa = entrylo0 & ~(MIPS_ENTRYLO_RI | MIPS_ENTRYLO_XI);
+		if (xpa)
+			pa |= (unsigned long long)readx_c0_entrylo0() << 30;
 		pa = (pa << 6) & PAGE_MASK;
 		printk("\t[");
 		if (cpu_has_rixi)
@@ -107,19 +113,21 @@ static void dump_tlb(int first, int last)
 			       (entrylo0 & MIPS_ENTRYLO_RI) ? 1 : 0,
 			       (entrylo0 & MIPS_ENTRYLO_XI) ? 1 : 0);
 		printk("pa=%0*llx c=%d d=%d v=%d g=%d] [",
-		       width, pa, c0,
+		       pwidth, pa, c0,
 		       (entrylo0 & MIPS_ENTRYLO_D) ? 1 : 0,
 		       (entrylo0 & MIPS_ENTRYLO_V) ? 1 : 0,
 		       (entrylo0 & MIPS_ENTRYLO_G) ? 1 : 0);
 		/* RI/XI are in awkward places, so mask them off separately */
 		pa = entrylo1 & ~(MIPS_ENTRYLO_RI | MIPS_ENTRYLO_XI);
+		if (xpa)
+			pa |= (unsigned long long)readx_c0_entrylo1() << 30;
 		pa = (pa << 6) & PAGE_MASK;
 		if (cpu_has_rixi)
 			printk("ri=%d xi=%d ",
 			       (entrylo1 & MIPS_ENTRYLO_RI) ? 1 : 0,
 			       (entrylo1 & MIPS_ENTRYLO_XI) ? 1 : 0);
 		printk("pa=%0*llx c=%d d=%d v=%d g=%d]\n",
-		       width, pa, c1,
+		       pwidth, pa, c1,
 		       (entrylo1 & MIPS_ENTRYLO_D) ? 1 : 0,
 		       (entrylo1 & MIPS_ENTRYLO_V) ? 1 : 0,
 		       (entrylo1 & MIPS_ENTRYLO_G) ? 1 : 0);
