@@ -94,6 +94,7 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr, int size
 		break;
 #endif
 	default:
+		/* Cause a link-time error, the xchg() size is not supported */
 		__bad_xchg(ptr, size), ret = 0;
 		break;
 	}
