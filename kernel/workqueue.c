@@ -3621,6 +3621,46 @@ static void apply_wqattrs_commit(struct apply_wqattrs_ctx *ctx)
 	mutex_unlock(&ctx->wq->mutex);
 }
 
+static void apply_wqattrs_lock(void)
+{
+	/* CPUs should stay stable across pwq creations and installations */
+	get_online_cpus();
+	mutex_lock(&wq_pool_mutex);
+}
+
+static void apply_wqattrs_unlock(void)
+{
+	mutex_unlock(&wq_pool_mutex);
+	put_online_cpus();
+}
+
+static int apply_workqueue_attrs_locked(struct workqueue_struct *wq,
+					const struct workqueue_attrs *attrs)
+{
+	struct apply_wqattrs_ctx *ctx;
+	int ret = -ENOMEM;
+
+	/* only unbound workqueues can change attributes */
+	if (WARN_ON(!(wq->flags & WQ_UNBOUND)))
+		return -EINVAL;
+
+	/* creating multiple pwqs breaks ordering guarantee */
+	if (WARN_ON((wq->flags & __WQ_ORDERED) && !list_empty(&wq->pwqs)))
+		return -EINVAL;
+
+	ctx = apply_wqattrs_prepare(wq, attrs);
+
+	/* the ctx has been prepared successfully, let's commit it */
+	if (ctx) {
+		apply_wqattrs_commit(ctx);
+		ret = 0;
+	}
+
+	apply_wqattrs_cleanup(ctx);
+
+	return ret;
+}
+
 /**
  * apply_workqueue_attrs - apply new workqueue_attrs to an unbound workqueue
  * @wq: the target workqueue
@@ -3640,37 +3680,11 @@ static void apply_wqattrs_commit(struct apply_wqattrs_ctx *ctx)
 int apply_workqueue_attrs(struct workqueue_struct *wq,
 			  const struct workqueue_attrs *attrs)
 {
-	struct apply_wqattrs_ctx *ctx;
-	int ret = -ENOMEM;
+	int ret;
 
-	/* only unbound workqueues can change attributes */
-	if (WARN_ON(!(wq->flags & WQ_UNBOUND)))
-		return -EINVAL;
-
-	/* creating multiple pwqs breaks ordering guarantee */
-	if (WARN_ON((wq->flags & __WQ_ORDERED) && !list_empty(&wq->pwqs)))
-		return -EINVAL;
-
-	/*
-	 * CPUs should stay stable across pwq creations and installations.
-	 * Pin CPUs, determine the target cpumask for each node and create
-	 * pwqs accordingly.
-	 */
-	get_online_cpus();
-	mutex_lock(&wq_pool_mutex);
-
-	ctx = apply_wqattrs_prepare(wq, attrs);
-
-	/* the ctx has been prepared successfully, let's commit it */
-	if (ctx) {
-		apply_wqattrs_commit(ctx);
-		ret = 0;
-	}
-
-	mutex_unlock(&wq_pool_mutex);
-	put_online_cpus();
-
-	apply_wqattrs_cleanup(ctx);
+	apply_wqattrs_lock();
+	ret = apply_workqueue_attrs_locked(wq, attrs);
+	apply_wqattrs_unlock();
 
 	return ret;
 }
@@ -4799,10 +4813,9 @@ int workqueue_set_unbound_cpumask(cpumask_var_t cpumask)
 	if (!zalloc_cpumask_var(&saved_cpumask, GFP_KERNEL))
 		return -ENOMEM;
 
-	get_online_cpus();
 	cpumask_and(cpumask, cpumask, cpu_possible_mask);
 	if (!cpumask_empty(cpumask)) {
-		mutex_lock(&wq_pool_mutex);
+		apply_wqattrs_lock();
 
 		/* save the old wq_unbound_cpumask. */
 		cpumask_copy(saved_cpumask, wq_unbound_cpumask);
@@ -4815,9 +4828,8 @@ int workqueue_set_unbound_cpumask(cpumask_var_t cpumask)
 		if (ret < 0)
 			cpumask_copy(wq_unbound_cpumask, saved_cpumask);
 
-		mutex_unlock(&wq_pool_mutex);
+		apply_wqattrs_unlock();
 	}
-	put_online_cpus();
 
 	free_cpumask_var(saved_cpumask);
 	return ret;
