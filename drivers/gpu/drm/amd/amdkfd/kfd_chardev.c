@@ -289,8 +289,10 @@ static int kfd_ioctl_create_queue(struct file *filep, struct kfd_process *p,
 
 	args->queue_id = queue_id;
 
+
 	/* Return gpu_id as doorbell offset for mmap usage */
-	args->doorbell_offset = args->gpu_id << PAGE_SHIFT;
+	args->doorbell_offset = (KFD_MMAP_DOORBELL_MASK | args->gpu_id);
+	args->doorbell_offset <<= PAGE_SHIFT;
 
 	mutex_unlock(&p->mutex);
 
@@ -514,6 +516,62 @@ static int kfd_ioctl_get_process_apertures(struct file *filp,
 	return 0;
 }
 
+static int kfd_ioctl_create_event(struct file *filp, struct kfd_process *p,
+					void *data)
+{
+	struct kfd_ioctl_create_event_args *args = data;
+	int err;
+
+	err = kfd_event_create(filp, p, args->event_type,
+				args->auto_reset != 0, args->node_id,
+				&args->event_id, &args->event_trigger_data,
+				&args->event_page_offset,
+				&args->event_slot_index);
+
+	return err;
+}
+
+static int kfd_ioctl_destroy_event(struct file *filp, struct kfd_process *p,
+					void *data)
+{
+	struct kfd_ioctl_destroy_event_args *args = data;
+
+	return kfd_event_destroy(p, args->event_id);
+}
+
+static int kfd_ioctl_set_event(struct file *filp, struct kfd_process *p,
+				void *data)
+{
+	struct kfd_ioctl_set_event_args *args = data;
+
+	return kfd_set_event(p, args->event_id);
+}
+
+static int kfd_ioctl_reset_event(struct file *filp, struct kfd_process *p,
+				void *data)
+{
+	struct kfd_ioctl_reset_event_args *args = data;
+
+	return kfd_reset_event(p, args->event_id);
+}
+
+static int kfd_ioctl_wait_events(struct file *filp, struct kfd_process *p,
+				void *data)
+{
+	struct kfd_ioctl_wait_events_args *args = data;
+	enum kfd_event_wait_result wait_result;
+	int err;
+
+	err = kfd_wait_on_events(p, args->num_events,
+			(void __user *)args->events_ptr,
+			(args->wait_for_all != 0),
+			args->timeout, &wait_result);
+
+	args->wait_result = wait_result;
+
+	return err;
+}
+
 #define AMDKFD_IOCTL_DEF(ioctl, _func, _flags) \
 	[_IOC_NR(ioctl)] = {.cmd = ioctl, .func = _func, .flags = _flags, .cmd_drv = 0, .name = #ioctl}
 
@@ -539,6 +597,21 @@ static const struct amdkfd_ioctl_desc amdkfd_ioctls[] = {
 
 	AMDKFD_IOCTL_DEF(AMDKFD_IOC_UPDATE_QUEUE,
 			kfd_ioctl_update_queue, 0),
+
+	AMDKFD_IOCTL_DEF(AMDKFD_IOC_CREATE_EVENT,
+			kfd_ioctl_create_event, 0),
+
+	AMDKFD_IOCTL_DEF(AMDKFD_IOC_DESTROY_EVENT,
+			kfd_ioctl_destroy_event, 0),
+
+	AMDKFD_IOCTL_DEF(AMDKFD_IOC_SET_EVENT,
+			kfd_ioctl_set_event, 0),
+
+	AMDKFD_IOCTL_DEF(AMDKFD_IOC_RESET_EVENT,
+			kfd_ioctl_reset_event, 0),
+
+	AMDKFD_IOCTL_DEF(AMDKFD_IOC_WAIT_EVENTS,
+			kfd_ioctl_wait_events, 0),
 };
 
 #define AMDKFD_CORE_IOCTL_COUNT	ARRAY_SIZE(amdkfd_ioctls)
@@ -639,5 +712,15 @@ static int kfd_mmap(struct file *filp, struct vm_area_struct *vma)
 	if (IS_ERR(process))
 		return PTR_ERR(process);
 
-	return kfd_doorbell_mmap(process, vma);
+	if ((vma->vm_pgoff & KFD_MMAP_DOORBELL_MASK) ==
+			KFD_MMAP_DOORBELL_MASK) {
+		vma->vm_pgoff = vma->vm_pgoff ^ KFD_MMAP_DOORBELL_MASK;
+		return kfd_doorbell_mmap(process, vma);
+	} else if ((vma->vm_pgoff & KFD_MMAP_EVENTS_MASK) ==
+			KFD_MMAP_EVENTS_MASK) {
+		vma->vm_pgoff = vma->vm_pgoff ^ KFD_MMAP_EVENTS_MASK;
+		return kfd_event_mmap(process, vma);
+	}
+
+	return -EFAULT;
 }

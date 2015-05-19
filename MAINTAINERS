@@ -631,7 +631,7 @@ F:	drivers/iommu/amd_iommu*.[ch]
 F:	include/linux/amd-iommu.h
 
 AMD KFD
-M:	Oded Gabbay <oded.gabbay@amd.com>
+M:	Oded Gabbay <oded.gabbay@gmail.com>
 L:	dri-devel@lists.freedesktop.org
 T:	git git://people.freedesktop.org/~gabbayo/linux.git
 S:	Supported

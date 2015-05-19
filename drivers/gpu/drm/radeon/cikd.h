@@ -1335,6 +1335,7 @@
 #       define CNTX_EMPTY_INT_ENABLE                    (1 << 20)
 #       define PRIV_INSTR_INT_ENABLE                    (1 << 22)
 #       define PRIV_REG_INT_ENABLE                      (1 << 23)
+#       define OPCODE_ERROR_INT_ENABLE                  (1 << 24)
 #       define TIME_STAMP_INT_ENABLE                    (1 << 26)
 #       define CP_RINGID2_INT_ENABLE                    (1 << 29)
 #       define CP_RINGID1_INT_ENABLE                    (1 << 30)

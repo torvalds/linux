@@ -120,6 +120,21 @@ struct device_queue_manager_ops {
 					   uint64_t alternate_aperture_size);
 };
 
+struct device_queue_manager_asic_ops {
+	int	(*register_process)(struct device_queue_manager *dqm,
+					struct qcm_process_device *qpd);
+	int	(*initialize)(struct device_queue_manager *dqm);
+	bool	(*set_cache_memory_policy)(struct device_queue_manager *dqm,
+					   struct qcm_process_device *qpd,
+					   enum cache_policy default_policy,
+					   enum cache_policy alternate_policy,
+					   void __user *alternate_aperture_base,
+					   uint64_t alternate_aperture_size);
+	void	(*init_sdma_vm)(struct device_queue_manager *dqm,
+				struct queue *q,
+				struct qcm_process_device *qpd);
+};
+
 /**
  * struct device_queue_manager
  *
@@ -134,7 +149,7 @@ struct device_queue_manager_ops {
 
 struct device_queue_manager {
 	struct device_queue_manager_ops ops;
-	struct device_queue_manager_ops ops_asic_specific;
+	struct device_queue_manager_asic_ops ops_asic_specific;
 
 	struct mqd_manager	*mqds[KFD_MQD_TYPE_MAX];
 	struct packet_manager	packets;
@@ -157,8 +172,8 @@ struct device_queue_manager {
 	bool			active_runlist;
 };
 
-void device_queue_manager_init_cik(struct device_queue_manager_ops *ops);
-void device_queue_manager_init_vi(struct device_queue_manager_ops *ops);
+void device_queue_manager_init_cik(struct device_queue_manager_asic_ops *ops);
+void device_queue_manager_init_vi(struct device_queue_manager_asic_ops *ops);
 void program_sh_mem_settings(struct device_queue_manager *dqm,
 					struct qcm_process_device *qpd);
 int init_pipelines(struct device_queue_manager *dqm,

@@ -178,6 +178,8 @@ static void kfd_process_wq_release(struct work_struct *work)
 		kfree(pdd);
 	}
 
+	kfd_event_free_process(p);
+
 	kfd_pasid_free(p->pasid);
 
 	mutex_unlock(&p->mutex);
@@ -203,8 +205,7 @@ static void kfd_process_destroy_delayed(struct rcu_head *rcu)
 
 	mmdrop(p->mm);
 
-	work = (struct kfd_process_release_work *)
-		kmalloc(sizeof(struct kfd_process_release_work), GFP_ATOMIC);
+	work = kmalloc(sizeof(struct kfd_process_release_work), GFP_ATOMIC);
 
 	if (work) {
 		INIT_WORK((struct work_struct *) work, kfd_process_wq_release);
@@ -288,6 +289,8 @@ static struct kfd_process *create_process(const struct task_struct *thread)
 	process->queue_array_size = INITIAL_QUEUE_ARRAY_SIZE;
 
 	INIT_LIST_HEAD(&process->per_device_data);
+
+	kfd_event_init_process(process);
 
 	err = pqm_init(&process->pqm, process);
 	if (err != 0)
@@ -430,4 +433,24 @@ struct kfd_process_device *kfd_get_next_process_device_data(struct kfd_process *
 bool kfd_has_process_device_data(struct kfd_process *p)
 {
 	return !(list_empty(&p->per_device_data));
+}
+
+/* This returns with process->mutex locked. */
+struct kfd_process *kfd_lookup_process_by_pasid(unsigned int pasid)
+{
+	struct kfd_process *p;
+	unsigned int temp;
+
+	int idx = srcu_read_lock(&kfd_processes_srcu);
+
+	hash_for_each_rcu(kfd_processes_table, temp, p, kfd_processes) {
+		if (p->pasid == pasid) {
+			mutex_lock(&p->mutex);
+			break;
+		}
+	}
+
+	srcu_read_unlock(&kfd_processes_srcu, idx);
+
+	return p;
 }
