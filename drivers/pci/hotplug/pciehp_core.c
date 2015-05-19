@@ -248,12 +248,9 @@ static int pciehp_probe(struct pcie_device *dev)
 	struct slot *slot;
 	u8 occupied, poweron;
 
-	if (pciehp_force)
-		dev_info(&dev->device,
-			 "Bypassing BIOS check for pciehp use on %s\n",
-			 pci_name(dev->port));
-	else if (pciehp_acpi_slot_detection_check(dev->port))
-		goto err_out_none;
+	/* If this is not a "hotplug" service, we have no business here. */
+	if (dev->service != PCIE_PORT_SERVICE_HP)
+		return -ENODEV;
 
 	if (!dev->port->subordinate) {
 		/* Can happen if we run out of bus numbers during probe */
@@ -366,7 +363,6 @@ static int __init pcied_init(void)
 {
 	int retval = 0;
 
-	pciehp_firmware_init();
 	retval = pcie_port_service_register(&hpdriver_portdrv);
 	dbg("pcie_port_service_register = %d\n", retval);
 	info(DRIVER_DESC " version: " DRIVER_VERSION "\n");
