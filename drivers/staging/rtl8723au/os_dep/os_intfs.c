@@ -371,7 +371,6 @@ struct net_device *rtw_init_netdev23a(struct rtw_adapter *old_padapter)
 
 	pnetdev->watchdog_timeo = HZ*3; /* 3 second timeout */
 
-	/* step 2. */
 	loadparam(padapter, pnetdev);
 	return pnetdev;
 }
