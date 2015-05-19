@@ -87,7 +87,7 @@ enum command_message_id {
 
 	CMD_FWVERSION		= 0x35,
 
-	CMD_TUNER_INIT		= 0x3c,		/* cmd.len = 0x03; */
+	CMD_BER_CTRL		= 0x3c,		/* cmd.len = 0x03; */
 };
 
 #define CX24120_MAX_CMD_LEN	30
@@ -106,6 +106,10 @@ enum command_message_id {
 #define CX24120_HAS_UNK2	0x20
 #define CX24120_STATUS_MASK	0x0f
 #define CX24120_SIGNAL_MASK	0xc0
+
+/* ber window */
+#define CX24120_BER_WINDOW	16
+#define CX24120_BER_WSIZE	((1 << CX24120_BER_WINDOW) * 208 * 8)
 
 #define info(args...) pr_info("cx24120: " args)
 #define err(args...)  pr_err("cx24120: ### ERROR: " args)
@@ -145,6 +149,10 @@ struct cx24120_state {
 	struct cx24120_tuning dnxt;
 
 	fe_status_t fe_status;
+
+	/* ber stats calulations */
+	u32 berw_usecs;
+	unsigned long ber_jiffies_stats;
 };
 
 /* Command message to firmware */
@@ -599,8 +607,9 @@ static void cx24120_get_stats(struct cx24120_state *state)
 	struct dvb_frontend *fe = &state->frontend;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct cx24120_cmd cmd;
-	int ret, cnr;
+	int ret, cnr, msecs;
 	u16 sig;
+	u32 ber;
 
 	dev_dbg(&state->i2c->dev, "\n");
 
@@ -647,7 +656,23 @@ static void cx24120_get_stats(struct cx24120_state *state)
 		c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 	}
 
-	/* FIXME: add UCB/BER */
+	/* BER */
+	if (time_after(jiffies, state->ber_jiffies_stats)) {
+		msecs = (state->berw_usecs + 500) / 1000;
+		state->ber_jiffies_stats = jiffies + msecs_to_jiffies(msecs);
+
+		ret = cx24120_read_ber(fe, &ber);
+		if (ret != 0)
+			return;
+
+		c->post_bit_error.stat[0].scale = FE_SCALE_COUNTER;
+		c->post_bit_error.stat[0].uvalue += ber;
+
+		c->post_bit_count.stat[0].scale = FE_SCALE_COUNTER;
+		c->post_bit_count.stat[0].uvalue += CX24120_BER_WSIZE;
+	}
+
+	/* FIXME: add UCB */
 }
 
 static void cx24120_set_clock_ratios(struct dvb_frontend *fe);
@@ -777,6 +802,29 @@ static int cx24120_get_fec(struct dvb_frontend *fe)
 	return 0;
 }
 
+/* Calculate ber window time */
+void cx24120_calculate_ber_window(struct cx24120_state *state, u32 rate)
+{
+	struct dvb_frontend *fe = &state->frontend;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	u64 bitrate, tmp;
+
+	/*
+	 * Calculate bitrate from rate in the clock ratios table.
+	 * This isn't *exactly* right but close enough.
+	 */
+	bitrate = (u64)c->symbol_rate * rate;
+	do_div(bitrate, 256);
+
+	/* usecs per ber window */
+	tmp = 1000000ULL * CX24120_BER_WSIZE;
+	do_div(tmp, bitrate);
+	state->berw_usecs = tmp;
+
+	dev_dbg(&state->i2c->dev, "bitrate: %llu, berw_usecs: %u\n",
+		bitrate, state->berw_usecs);
+}
+
 /*
  * Clock ratios lookup table
  *
@@ -897,6 +945,9 @@ static void cx24120_set_clock_ratios(struct dvb_frontend *fe)
 	cmd.arg[9] = (clock_ratios_table[idx].rate >> 0) & 0xff;
 
 	cx24120_message_send(state, &cmd);
+
+	/* Calculate ber window rates for stat work */
+	cx24120_calculate_ber_window(state, clock_ratios_table[idx].rate);
 }
 
 /* Set inversion value */
@@ -1343,14 +1394,14 @@ static int cx24120_init(struct dvb_frontend *fe)
 		return -EREMOTEIO;
 	}
 
-	/* ???? */
-	cmd.id = CMD_TUNER_INIT;
+	/* Set size of BER window */
+	cmd.id = CMD_BER_CTRL;
 	cmd.len = 3;
 	cmd.arg[0] = 0x00;
-	cmd.arg[1] = 0x10;
-	cmd.arg[2] = 0x10;
+	cmd.arg[1] = CX24120_BER_WINDOW;
+	cmd.arg[2] = CX24120_BER_WINDOW;
 	if (cx24120_message_send(state, &cmd)) {
-		err("Error sending final init message. :(\n");
+		err("Error setting ber window\n");
 		return -EREMOTEIO;
 	}
 
@@ -1371,6 +1422,10 @@ static int cx24120_init(struct dvb_frontend *fe)
 	c->strength.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 	c->cnr.len = 1;
 	c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->post_bit_error.len = 1;
+	c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->post_bit_count.len = 1;
+	c->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 
 	state->cold_init = 1;
 	return 0;
