@@ -2596,31 +2596,10 @@ void target_wait_for_sess_cmds(struct se_session *se_sess)
 }
 EXPORT_SYMBOL(target_wait_for_sess_cmds);
 
-static int transport_clear_lun_ref_thread(void *p)
+void transport_clear_lun_ref(struct se_lun *lun)
 {
-	struct se_lun *lun = p;
-
 	percpu_ref_kill(&lun->lun_ref);
-
 	wait_for_completion(&lun->lun_ref_comp);
-	complete(&lun->lun_shutdown_comp);
-
-	return 0;
-}
-
-int transport_clear_lun_ref(struct se_lun *lun)
-{
-	struct task_struct *kt;
-
-	kt = kthread_run(transport_clear_lun_ref_thread, lun,
-			"tcm_cl_%u", lun->unpacked_lun);
-	if (IS_ERR(kt)) {
-		pr_err("Unable to start clear_lun thread\n");
-		return PTR_ERR(kt);
-	}
-	wait_for_completion(&lun->lun_shutdown_comp);
-
-	return 0;
 }
 
 /**

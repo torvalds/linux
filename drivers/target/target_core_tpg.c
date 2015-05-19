@@ -494,7 +494,6 @@ static int core_tpg_setup_virtual_lun0(struct se_portal_group *se_tpg)
 
 	lun->unpacked_lun = 0;
 	atomic_set(&lun->lun_acl_count, 0);
-	init_completion(&lun->lun_shutdown_comp);
 	spin_lock_init(&lun->lun_sep_lock);
 	init_completion(&lun->lun_ref_comp);
 
@@ -606,7 +605,6 @@ struct se_lun *core_tpg_alloc_lun(
 	lun->unpacked_lun = unpacked_lun;
 	lun->lun_link_magic = SE_LUN_LINK_MAGIC;
 	atomic_set(&lun->lun_acl_count, 0);
-	init_completion(&lun->lun_shutdown_comp);
 	spin_lock_init(&lun->lun_sep_lock);
 	init_completion(&lun->lun_ref_comp);
 
