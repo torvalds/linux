@@ -12,8 +12,6 @@
 
 #include <linux/list.h>
 
-#include "greybus.h"
-
 enum gb_connection_state {
 	GB_CONNECTION_STATE_INVALID	= 0,
 	GB_CONNECTION_STATE_DISABLED	= 1,

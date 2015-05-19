@@ -10,8 +10,7 @@
 #ifndef __PROTOCOL_H
 #define __PROTOCOL_H
 
-#include "greybus.h"
-
+struct gb_connection;
 struct gb_operation;
 
 /* version request has no payload */
