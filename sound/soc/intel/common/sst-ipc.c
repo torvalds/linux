@@ -129,11 +129,31 @@ static int msg_empty_list_init(struct sst_generic_ipc *ipc)
 		return -ENOMEM;
 
 	for (i = 0; i < IPC_EMPTY_LIST_SIZE; i++) {
+		ipc->msg[i].tx_data = kzalloc(ipc->tx_data_max_size, GFP_KERNEL);
+		if (ipc->msg[i].tx_data == NULL)
+			goto free_mem;
+
+		ipc->msg[i].rx_data = kzalloc(ipc->rx_data_max_size, GFP_KERNEL);
+		if (ipc->msg[i].rx_data == NULL) {
+			kfree(ipc->msg[i].tx_data);
+			goto free_mem;
+		}
+
 		init_waitqueue_head(&ipc->msg[i].waitq);
 		list_add(&ipc->msg[i].list, &ipc->empty_list);
 	}
 
 	return 0;
+
+free_mem:
+	while (i > 0) {
+		kfree(ipc->msg[i-1].tx_data);
+		kfree(ipc->msg[i-1].rx_data);
+		--i;
+	}
+	kfree(ipc->msg);
+
+	return -ENOMEM;
 }
 
 static void ipc_tx_msgs(struct kthread_work *work)
@@ -279,11 +299,18 @@ EXPORT_SYMBOL_GPL(sst_ipc_init);
 
 void sst_ipc_fini(struct sst_generic_ipc *ipc)
 {
+	int i;
+
 	if (ipc->tx_thread)
 		kthread_stop(ipc->tx_thread);
 
-	if (ipc->msg)
+	if (ipc->msg) {
+		for (i = 0; i < IPC_EMPTY_LIST_SIZE; i++) {
+			kfree(ipc->msg[i].tx_data);
+			kfree(ipc->msg[i].rx_data);
+		}
 		kfree(ipc->msg);
+	}
 }
 EXPORT_SYMBOL_GPL(sst_ipc_fini);
 

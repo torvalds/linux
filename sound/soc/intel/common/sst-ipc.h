@@ -32,9 +32,9 @@ struct ipc_message {
 	u64 header;
 
 	/* direction wrt host CPU */
-	char tx_data[IPC_MAX_MAILBOX_BYTES];
+	char *tx_data;
 	size_t tx_size;
-	char rx_data[IPC_MAX_MAILBOX_BYTES];
+	char *rx_data;
 	size_t rx_size;
 
 	wait_queue_head_t waitq;
