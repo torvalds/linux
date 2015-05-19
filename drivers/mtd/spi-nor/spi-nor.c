@@ -1015,11 +1015,11 @@ int spi_nor_scan(struct spi_nor *nor, const char *name, enum read_mode mode)
 	if (ret)
 		return ret;
 
-	/* Try to auto-detect if chip name wasn't specified */
-	if (!name)
-		id = spi_nor_read_id(nor);
-	else
+	if (name)
 		id = spi_nor_match_id(name);
+	/* Try to auto-detect if chip name wasn't specified or not found */
+	if (!id)
+		id = spi_nor_read_id(nor);
 	if (IS_ERR_OR_NULL(id))
 		return -ENOENT;
 
