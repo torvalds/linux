@@ -69,6 +69,8 @@ struct sst_generic_ipc {
 	struct kthread_work kwork;
 	bool pending;
 	struct ipc_message *msg;
+	int tx_data_max_size;
+	int rx_data_max_size;
 
 	struct sst_plat_ipc_ops ops;
 };
