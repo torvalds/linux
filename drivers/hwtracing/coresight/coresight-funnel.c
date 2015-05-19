@@ -21,6 +21,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/coresight.h>
 #include <linux/amba/bus.h>
+#include <linux/clk.h>
 
 #include "coresight-priv.h"
 
@@ -35,12 +36,14 @@
  * struct funnel_drvdata - specifics associated to a funnel component
  * @base:	memory mapped base address for this component.
  * @dev:	the device entity associated to this component.
+ * @atclk:	optional clock for the core parts of the funnel.
  * @csdev:	component vitals needed by the framework.
  * @priority:	port selection order.
  */
 struct funnel_drvdata {
 	void __iomem		*base;
 	struct device		*dev;
+	struct clk		*atclk;
 	struct coresight_device	*csdev;
 	unsigned long		priority;
 };
@@ -168,6 +171,7 @@ ATTRIBUTE_GROUPS(coresight_funnel);
 
 static int funnel_probe(struct amba_device *adev, const struct amba_id *id)
 {
+	int ret;
 	void __iomem *base;
 	struct device *dev = &adev->dev;
 	struct coresight_platform_data *pdata = NULL;
@@ -188,6 +192,12 @@ static int funnel_probe(struct amba_device *adev, const struct amba_id *id)
 		return -ENOMEM;
 
 	drvdata->dev = &adev->dev;
+	drvdata->atclk = devm_clk_get(&adev->dev, "atclk"); /* optional */
+	if (!IS_ERR(drvdata->atclk)) {
+		ret = clk_prepare_enable(drvdata->atclk);
+		if (ret)
+			return ret;
+	}
 	dev_set_drvdata(dev, drvdata);
 
 	/* Validity for the resource is already checked by the AMBA core */
@@ -224,6 +234,32 @@ static int funnel_remove(struct amba_device *adev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int funnel_runtime_suspend(struct device *dev)
+{
+	struct funnel_drvdata *drvdata = dev_get_drvdata(dev);
+
+	if (drvdata && !IS_ERR(drvdata->atclk))
+		clk_disable_unprepare(drvdata->atclk);
+
+	return 0;
+}
+
+static int funnel_runtime_resume(struct device *dev)
+{
+	struct funnel_drvdata *drvdata = dev_get_drvdata(dev);
+
+	if (drvdata && !IS_ERR(drvdata->atclk))
+		clk_prepare_enable(drvdata->atclk);
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops funnel_dev_pm_ops = {
+	SET_RUNTIME_PM_OPS(funnel_runtime_suspend, funnel_runtime_resume, NULL)
+};
+
 static struct amba_id funnel_ids[] = {
 	{
 		.id     = 0x0003b908,
@@ -236,6 +272,7 @@ static struct amba_driver funnel_driver = {
 	.drv = {
 		.name	= "coresight-funnel",
 		.owner	= THIS_MODULE,
+		.pm	= &funnel_dev_pm_ops,
 	},
 	.probe		= funnel_probe,
 	.remove		= funnel_remove,
