@@ -221,6 +221,7 @@ static void set_hpll_clk_out(unsigned clk)
             aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x600c0436);
             aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x400c0436);
             aml_write_reg32(P_HHI_VID_PLL_CNTL5, 0x00016385);
+            WAIT_FOR_PLL_LOCKED(P_HHI_VID_PLL_CNTL);
             break;
         default:
             printk("error hpll clk: %d\n", clk);
@@ -268,6 +269,7 @@ static void set_hpll_clk_out(unsigned clk)
             aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x600c0436);
             aml_write_reg32(P_HHI_VID_PLL_CNTL,  0x400c0436);
             aml_write_reg32(P_HHI_VID_PLL_CNTL5, 0x00016385);
+            WAIT_FOR_PLL_LOCKED(P_HHI_VID_PLL_CNTL);
             break;
         default:
             printk("error hpll clk: %d\n", clk);
