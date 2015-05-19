@@ -146,6 +146,16 @@ static int find_cable_index_by_name(struct extcon_dev *edev, const char *name)
 	return find_cable_index_by_id(edev, id);
 }
 
+static bool is_extcon_changed(u32 prev, u32 new, int idx, bool *attached)
+{
+	if (((prev >> idx) & 0x1) != ((new >> idx) & 0x1)) {
+		*attached = new ? true : false;
+		return true;
+	}
+
+	return false;
+}
+
 static ssize_t state_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
@@ -254,23 +264,27 @@ int extcon_update_state(struct extcon_dev *edev, u32 mask, u32 state)
 	char *envp[3];
 	int env_offset = 0;
 	int length;
+	int index;
 	unsigned long flags;
+	bool attached;
 
 	spin_lock_irqsave(&edev->lock, flags);
 
 	if (edev->state != ((edev->state & ~mask) | (state & mask))) {
-		u32 old_state = edev->state;
-
 		if (check_mutually_exclusive(edev, (edev->state & ~mask) |
 						   (state & mask))) {
 			spin_unlock_irqrestore(&edev->lock, flags);
 			return -EPERM;
 		}
 
+		for (index = 0; index < edev->max_supported; index++) {
+			if (is_extcon_changed(edev->state, state, index, &attached))
+				raw_notifier_call_chain(&edev->nh[index], attached, edev);
+		}
+
 		edev->state &= ~mask;
 		edev->state |= state & mask;
 
-		raw_notifier_call_chain(&edev->nh, old_state, edev);
 		/* This could be in interrupt handler */
 		prop_buf = (char *)get_zeroed_page(GFP_ATOMIC);
 		if (prop_buf) {
@@ -423,29 +437,6 @@ out:
 }
 EXPORT_SYMBOL_GPL(extcon_get_extcon_dev);
 
-static int _call_per_cable(struct notifier_block *nb, unsigned long val,
-			   void *ptr)
-{
-	struct extcon_specific_cable_nb *obj = container_of(nb,
-			struct extcon_specific_cable_nb, internal_nb);
-	struct extcon_dev *edev = ptr;
-
-	if ((val & (1 << obj->cable_index)) !=
-	    (edev->state & (1 << obj->cable_index))) {
-		bool cable_state = true;
-
-		obj->previous_value = val;
-
-		if (val & (1 << obj->cable_index))
-			cable_state = false;
-
-		return obj->user_nb->notifier_call(obj->user_nb,
-				cable_state, ptr);
-	}
-
-	return NOTIFY_OK;
-}
-
 /**
  * extcon_register_interest() - Register a notifier for a state change of a
  *				specific cable, not an entier set of cables of a
@@ -491,11 +482,10 @@ int extcon_register_interest(struct extcon_specific_cable_nb *obj,
 
 		obj->user_nb = nb;
 
-		obj->internal_nb.notifier_call = _call_per_cable;
-
 		spin_lock_irqsave(&obj->edev->lock, flags);
-		ret = raw_notifier_chain_register(&obj->edev->nh,
-						  &obj->internal_nb);
+		ret = raw_notifier_chain_register(
+					&obj->edev->nh[obj->cable_index],
+					obj->user_nb);
 		spin_unlock_irqrestore(&obj->edev->lock, flags);
 	} else {
 		struct class_dev_iter iter;
@@ -538,7 +528,8 @@ int extcon_unregister_interest(struct extcon_specific_cable_nb *obj)
 		return -EINVAL;
 
 	spin_lock_irqsave(&obj->edev->lock, flags);
-	ret = raw_notifier_chain_unregister(&obj->edev->nh, &obj->internal_nb);
+	ret = raw_notifier_chain_unregister(
+			&obj->edev->nh[obj->cable_index], obj->user_nb);
 	spin_unlock_irqrestore(&obj->edev->lock, flags);
 
 	return ret;
@@ -548,21 +539,24 @@ EXPORT_SYMBOL_GPL(extcon_unregister_interest);
 /**
  * extcon_register_notifier() - Register a notifiee to get notified by
  *				any attach status changes from the extcon.
- * @edev:	the extcon device.
+ * @edev:	the extcon device that has the external connecotr.
+ * @id:		the unique id of each external connector in extcon enumeration.
  * @nb:		a notifier block to be registered.
  *
  * Note that the second parameter given to the callback of nb (val) is
  * "old_state", not the current state. The current state can be retrieved
  * by looking at the third pameter (edev pointer)'s state value.
  */
-int extcon_register_notifier(struct extcon_dev *edev,
-			struct notifier_block *nb)
+int extcon_register_notifier(struct extcon_dev *edev, enum extcon id,
+			     struct notifier_block *nb)
 {
 	unsigned long flags;
-	int ret;
+	int ret, idx;
+
+	idx = find_cable_index_by_id(edev, id);
 
 	spin_lock_irqsave(&edev->lock, flags);
-	ret = raw_notifier_chain_register(&edev->nh, nb);
+	ret = raw_notifier_chain_register(&edev->nh[idx], nb);
 	spin_unlock_irqrestore(&edev->lock, flags);
 
 	return ret;
@@ -571,17 +565,20 @@ EXPORT_SYMBOL_GPL(extcon_register_notifier);
 
 /**
  * extcon_unregister_notifier() - Unregister a notifiee from the extcon device.
- * @edev:	the extcon device.
- * @nb:		a registered notifier block to be unregistered.
+ * @edev:	the extcon device that has the external connecotr.
+ * @id:		the unique id of each external connector in extcon enumeration.
+ * @nb:		a notifier block to be registered.
  */
-int extcon_unregister_notifier(struct extcon_dev *edev,
-			struct notifier_block *nb)
+int extcon_unregister_notifier(struct extcon_dev *edev, enum extcon id,
+				struct notifier_block *nb)
 {
 	unsigned long flags;
-	int ret;
+	int ret, idx;
+
+	idx = find_cable_index_by_id(edev, id);
 
 	spin_lock_irqsave(&edev->lock, flags);
-	ret = raw_notifier_chain_unregister(&edev->nh, nb);
+	ret = raw_notifier_chain_unregister(&edev->nh[idx], nb);
 	spin_unlock_irqrestore(&edev->lock, flags);
 
 	return ret;
@@ -893,7 +890,15 @@ int extcon_dev_register(struct extcon_dev *edev)
 
 	spin_lock_init(&edev->lock);
 
-	RAW_INIT_NOTIFIER_HEAD(&edev->nh);
+	edev->nh = devm_kzalloc(&edev->dev,
+			sizeof(*edev->nh) * edev->max_supported, GFP_KERNEL);
+	if (!edev->nh) {
+		ret = -ENOMEM;
+		goto err_dev;
+	}
+
+	for (index = 0; index < edev->max_supported; index++)
+		RAW_INIT_NOTIFIER_HEAD(&edev->nh[index]);
 
 	dev_set_drvdata(&edev->dev, edev);
 	edev->state = 0;

@@ -116,7 +116,7 @@ struct extcon_dev {
 
 	/* Internal data. Please do not set. */
 	struct device dev;
-	struct raw_notifier_head nh;
+	struct raw_notifier_head *nh;
 	struct list_head entry;
 	int max_supported;
 	spinlock_t lock;	/* could be called by irq handler */
@@ -155,8 +155,6 @@ struct extcon_cable {
 /**
  * struct extcon_specific_cable_nb - An internal data for
  *				     extcon_register_interest().
- * @internal_nb:	A notifier block bridging extcon notifier
- *			and cable notifier.
  * @user_nb:		user provided notifier block for events from
  *			a specific cable.
  * @cable_index:	the target cable.
@@ -164,7 +162,6 @@ struct extcon_cable {
  * @previous_value:	the saved previous event value.
  */
 struct extcon_specific_cable_nb {
-	struct notifier_block internal_nb;
 	struct notifier_block *user_nb;
 	int cable_index;
 	struct extcon_dev *edev;
@@ -240,10 +237,10 @@ extern int extcon_unregister_interest(struct extcon_specific_cable_nb *nb);
  * we do not recommend to use this for normal 'notifiee' device drivers who
  * want to be notified by a specific external port of the notifier.
  */
-extern int extcon_register_notifier(struct extcon_dev *edev,
+extern int extcon_register_notifier(struct extcon_dev *edev, enum extcon id,
 				    struct notifier_block *nb);
-extern int extcon_unregister_notifier(struct extcon_dev *edev,
-				      struct notifier_block *nb);
+extern int extcon_unregister_notifier(struct extcon_dev *edev, enum extcon id,
+				    struct notifier_block *nb);
 
 /*
  * Following API get the extcon device from devicetree.
@@ -333,13 +330,15 @@ static inline struct extcon_dev *extcon_get_extcon_dev(const char *extcon_name)
 }
 
 static inline int extcon_register_notifier(struct extcon_dev *edev,
-					   struct notifier_block *nb)
+					enum extcon id,
+					struct notifier_block *nb)
 {
 	return 0;
 }
 
 static inline int extcon_unregister_notifier(struct extcon_dev *edev,
-					     struct notifier_block *nb)
+					enum extcon id,
+					struct notifier_block *nb)
 {
 	return 0;
 }
