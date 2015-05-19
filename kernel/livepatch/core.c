@@ -651,6 +651,15 @@ static struct kobj_type klp_ktype_patch = {
 	.default_attrs = klp_patch_attrs,
 };
 
+static void klp_kobj_release_object(struct kobject *kobj)
+{
+}
+
+static struct kobj_type klp_ktype_object = {
+	.release = klp_kobj_release_object,
+	.sysfs_ops = &kobj_sysfs_ops,
+};
+
 static void klp_kobj_release_func(struct kobject *kobj)
 {
 }
@@ -695,7 +704,7 @@ static void klp_free_objects_limited(struct klp_patch *patch,
 
 	for (obj = patch->objs; obj->funcs && obj != limit; obj++) {
 		klp_free_funcs_limited(obj, NULL);
-		kobject_put(obj->kobj);
+		kobject_put(&obj->kobj);
 	}
 }
 
@@ -713,7 +722,7 @@ static int klp_init_func(struct klp_object *obj, struct klp_func *func)
 	func->state = KLP_DISABLED;
 
 	return kobject_init_and_add(&func->kobj, &klp_ktype_func,
-				    obj->kobj, "%s", func->old_name);
+				    &obj->kobj, "%s", func->old_name);
 }
 
 /* parts of the initialization that is done only when the object is loaded */
@@ -753,9 +762,10 @@ static int klp_init_object(struct klp_patch *patch, struct klp_object *obj)
 	klp_find_object_module(obj);
 
 	name = klp_is_module(obj) ? obj->name : "vmlinux";
-	obj->kobj = kobject_create_and_add(name, &patch->kobj);
-	if (!obj->kobj)
-		return -ENOMEM;
+	ret = kobject_init_and_add(&obj->kobj, &klp_ktype_object,
+				   &patch->kobj, "%s", name);
+	if (ret)
+		return ret;
 
 	for (func = obj->funcs; func->old_name; func++) {
 		ret = klp_init_func(obj, func);
@@ -773,7 +783,7 @@ static int klp_init_object(struct klp_patch *patch, struct klp_object *obj)
 
 free:
 	klp_free_funcs_limited(obj, func);
-	kobject_put(obj->kobj);
+	kobject_put(&obj->kobj);
 	return ret;
 }
 

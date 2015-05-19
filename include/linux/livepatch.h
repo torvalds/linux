@@ -99,7 +99,7 @@ struct klp_object {
 	struct klp_func *funcs;
 
 	/* internal */
-	struct kobject *kobj;
+	struct kobject kobj;
 	struct module *mod;
 	enum klp_state state;
 };
