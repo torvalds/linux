@@ -2728,15 +2728,17 @@ static int direct_pte_prefetch_many(struct kvm_vcpu *vcpu,
 				    u64 *start, u64 *end)
 {
 	struct page *pages[PTE_PREFETCH_NUM];
+	struct kvm_memory_slot *slot;
 	unsigned access = sp->role.access;
 	int i, ret;
 	gfn_t gfn;
 
 	gfn = kvm_mmu_page_get_gfn(sp, start - sp->spt);
-	if (!gfn_to_memslot_dirty_bitmap(vcpu, gfn, access & ACC_WRITE_MASK))
+	slot = gfn_to_memslot_dirty_bitmap(vcpu, gfn, access & ACC_WRITE_MASK);
+	if (!slot)
 		return -1;
 
-	ret = gfn_to_page_many_atomic(vcpu->kvm, gfn, pages, end - start);
+	ret = gfn_to_page_many_atomic(slot, gfn, pages, end - start);
 	if (ret <= 0)
 		return -1;
 

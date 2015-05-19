@@ -1428,13 +1428,13 @@ pfn_t gfn_to_pfn_memslot_atomic(struct kvm_memory_slot *slot, gfn_t gfn)
 }
 EXPORT_SYMBOL_GPL(gfn_to_pfn_memslot_atomic);
 
-int gfn_to_page_many_atomic(struct kvm *kvm, gfn_t gfn, struct page **pages,
-								  int nr_pages)
+int gfn_to_page_many_atomic(struct kvm_memory_slot *slot, gfn_t gfn,
+			    struct page **pages, int nr_pages)
 {
 	unsigned long addr;
 	gfn_t entry;
 
-	addr = gfn_to_hva_many(gfn_to_memslot(kvm, gfn), gfn, &entry);
+	addr = gfn_to_hva_many(slot, gfn, &entry);
 	if (kvm_is_error_hva(addr))
 		return -1;
 

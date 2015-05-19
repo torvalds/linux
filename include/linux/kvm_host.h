@@ -526,8 +526,8 @@ void kvm_arch_flush_shadow_all(struct kvm *kvm);
 void kvm_arch_flush_shadow_memslot(struct kvm *kvm,
 				   struct kvm_memory_slot *slot);
 
-int gfn_to_page_many_atomic(struct kvm *kvm, gfn_t gfn, struct page **pages,
-			    int nr_pages);
+int gfn_to_page_many_atomic(struct kvm_memory_slot *slot, gfn_t gfn,
+			    struct page **pages, int nr_pages);
 
 struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn);
 unsigned long gfn_to_hva(struct kvm *kvm, gfn_t gfn);
