@@ -117,6 +117,32 @@ struct mtk_pin_drv_grp {
 		.grp = _grp,	\
 	}
 
+/**
+ * struct mtk_pin_spec_pupd_set_samereg
+ * - For special pins' pull up/down setting which resides in same register
+ * @pin: The pin number.
+ * @offset: The offset of special pull up/down setting register.
+ * @pupd_bit: The pull up/down bit in this register.
+ * @r0_bit: The r0 bit of pull resistor.
+ * @r1_bit: The r1 bit of pull resistor.
+ */
+struct mtk_pin_spec_pupd_set_samereg {
+	unsigned short pin;
+	unsigned short offset;
+	unsigned char pupd_bit;
+	unsigned char r1_bit;
+	unsigned char r0_bit;
+};
+
+#define MTK_PIN_PUPD_SPEC_SR(_pin, _offset, _pupd, _r1, _r0)	\
+	{	\
+		.pin = _pin,	\
+		.offset = _offset,	\
+		.pupd_bit = _pupd,	\
+		.r1_bit = _r1,		\
+		.r0_bit = _r0,		\
+	}
+
 struct mtk_eint_offsets {
 	const char *name;
 	unsigned int  stat;
@@ -219,5 +245,10 @@ struct mtk_pinctrl {
 
 int mtk_pctrl_init(struct platform_device *pdev,
 		const struct mtk_pinctrl_devdata *data);
+
+int mtk_pctrl_spec_pull_set_samereg(struct regmap *regmap,
+		const struct mtk_pin_spec_pupd_set_samereg *pupd_infos,
+		unsigned int info_num, unsigned int pin,
+		unsigned char align, bool isup, unsigned int r1r0);
 
 #endif /* __PINCTRL_MTK_COMMON_H */
