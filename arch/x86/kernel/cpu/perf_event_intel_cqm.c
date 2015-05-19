@@ -18,7 +18,7 @@ static unsigned int cqm_l3_scale; /* supposedly cacheline size */
 
 struct intel_cqm_state {
 	raw_spinlock_t		lock;
-	int			rmid;
+	u32			rmid;
 	int			cnt;
 };
 
@@ -962,7 +962,7 @@ out:
 static void intel_cqm_event_start(struct perf_event *event, int mode)
 {
 	struct intel_cqm_state *state = this_cpu_ptr(&cqm_state);
-	unsigned int rmid = event->hw.cqm_rmid;
+	u32 rmid = event->hw.cqm_rmid;
 	unsigned long flags;
 
 	if (!(event->hw.cqm_state & PERF_HES_STOPPED))
