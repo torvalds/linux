@@ -173,6 +173,15 @@ static void ipq_kill(struct ipq *ipq)
 	inet_frag_kill(&ipq->q, &ip4_frags);
 }
 
+static bool frag_expire_skip_icmp(u32 user)
+{
+	return user == IP_DEFRAG_AF_PACKET ||
+	       ip_defrag_user_in_between(user, IP_DEFRAG_CONNTRACK_IN,
+					 __IP_DEFRAG_CONNTRACK_IN_END) ||
+	       ip_defrag_user_in_between(user, IP_DEFRAG_CONNTRACK_BRIDGE_IN,
+					 __IP_DEFRAG_CONNTRACK_BRIDGE_IN);
+}
+
 /*
  * Oops, a fragment queue timed out.  Kill it and send an ICMP reply.
  */
@@ -217,10 +226,8 @@ static void ip_expire(unsigned long arg)
 		/* Only an end host needs to send an ICMP
 		 * "Fragment Reassembly Timeout" message, per RFC792.
 		 */
-		if (qp->user == IP_DEFRAG_AF_PACKET ||
-		    ((qp->user >= IP_DEFRAG_CONNTRACK_IN) &&
-		     (qp->user <= __IP_DEFRAG_CONNTRACK_IN_END) &&
-		     (skb_rtable(head)->rt_type != RTN_LOCAL)))
+		if (frag_expire_skip_icmp(qp->user) &&
+		    (skb_rtable(head)->rt_type != RTN_LOCAL))
 			goto out_rcu_unlock;
 
 		/* Send an ICMP "Fragment Reassembly Timeout" message. */
