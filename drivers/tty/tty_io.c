@@ -3152,9 +3152,12 @@ static int tty_cdev_add(struct tty_driver *driver, dev_t dev,
 		unsigned int index, unsigned int count)
 {
 	/* init here, since reused cdevs cause crashes */
-	cdev_init(&driver->cdevs[index], &tty_fops);
-	driver->cdevs[index].owner = driver->owner;
-	return cdev_add(&driver->cdevs[index], dev, count);
+	driver->cdevs[index] = cdev_alloc();
+	if (!driver->cdevs[index])
+		return -ENOMEM;
+	cdev_init(driver->cdevs[index], &tty_fops);
+	driver->cdevs[index]->owner = driver->owner;
+	return cdev_add(driver->cdevs[index], dev, count);
 }
 
 /**
@@ -3260,8 +3263,10 @@ struct device *tty_register_device_attr(struct tty_driver *driver,
 
 error:
 	put_device(dev);
-	if (cdev)
-		cdev_del(&driver->cdevs[index]);
+	if (cdev) {
+		cdev_del(driver->cdevs[index]);
+		driver->cdevs[index] = NULL;
+	}
 	return ERR_PTR(retval);
 }
 EXPORT_SYMBOL_GPL(tty_register_device_attr);
@@ -3281,8 +3286,10 @@ void tty_unregister_device(struct tty_driver *driver, unsigned index)
 {
 	device_destroy(tty_class,
 		MKDEV(driver->major, driver->minor_start) + index);
-	if (!(driver->flags & TTY_DRIVER_DYNAMIC_ALLOC))
-		cdev_del(&driver->cdevs[index]);
+	if (!(driver->flags & TTY_DRIVER_DYNAMIC_ALLOC)) {
+		cdev_del(driver->cdevs[index]);
+		driver->cdevs[index] = NULL;
+	}
 }
 EXPORT_SYMBOL(tty_unregister_device);
 
@@ -3347,6 +3354,7 @@ err_free_all:
 	kfree(driver->ports);
 	kfree(driver->ttys);
 	kfree(driver->termios);
+	kfree(driver->cdevs);
 	kfree(driver);
 	return ERR_PTR(err);
 }
@@ -3375,7 +3383,7 @@ static void destruct_tty_driver(struct kref *kref)
 		}
 		proc_tty_unregister_driver(driver);
 		if (driver->flags & TTY_DRIVER_DYNAMIC_ALLOC)
-			cdev_del(&driver->cdevs[0]);
+			cdev_del(driver->cdevs[0]);
 	}
 	kfree(driver->cdevs);
 	kfree(driver->ports);
