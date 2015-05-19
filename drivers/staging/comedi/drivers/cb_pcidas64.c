@@ -155,8 +155,10 @@ static inline unsigned int dac_msb_4020_reg(unsigned int channel)
 }
 
 enum read_only_registers {
-	/*  hardware status register,
-	 *  reading this apparently clears pending interrupts as well */
+	/*
+	 * hardware status register,
+	 * reading this apparently clears pending interrupts as well
+	 */
 	HW_STATUS_REG = 0x0,
 	PIPE1_READ_REG = 0x4,
 	ADC_READ_PNTR_REG = 0x8,
@@ -301,7 +303,8 @@ enum calibration_contents {
 	CAL_GAIN_BIT = 0x800,
 };
 
-/* calibration sources for 6025 are:
+/*
+ * calibration sources for 6025 are:
  *  0 : ground
  *  1 : 10V
  *  2 : 5V
@@ -661,8 +664,10 @@ static const struct hw_fifo_info ai_fifo_60xx = {
 	.fifo_size_reg_mask = 0x7f,
 };
 
-/* maximum number of dma transfers we will chain together into a ring
- * (and the maximum number of dma buffers we maintain) */
+/*
+ * maximum number of dma transfers we will chain together into a ring
+ * (and the maximum number of dma buffers we maintain)
+ */
 #define MAX_AI_DMA_RING_COUNT (0x80000 / DMA_BUFFER_SIZE)
 #define MIN_AI_DMA_RING_COUNT (0x10000 / DMA_BUFFER_SIZE)
 #define AO_DMA_RING_COUNT (0x10000 / DMA_BUFFER_SIZE)
@@ -1261,8 +1266,10 @@ static void enable_ai_interrupts(struct comedi_device *dev,
 
 	bits = EN_ADC_OVERRUN_BIT | EN_ADC_DONE_INTR_BIT |
 	       EN_ADC_ACTIVE_INTR_BIT | EN_ADC_STOP_INTR_BIT;
-	/*  Use pio transfer and interrupt on end of conversion
-	 *  if CMDF_WAKE_EOS flag is set. */
+	/*
+	 * Use pio transfer and interrupt on end of conversion
+	 * if CMDF_WAKE_EOS flag is set.
+	 */
 	if (cmd->flags & CMDF_WAKE_EOS) {
 		/*  4020 doesn't support pio transfers except for fifo dregs */
 		if (thisboard->layout != LAYOUT_4020)
@@ -1425,8 +1432,10 @@ static void init_stc_registers(struct comedi_device *dev)
 
 	spin_lock_irqsave(&dev->spinlock, flags);
 
-	/*  bit should be set for 6025,
-	 *  although docs say boards with <= 16 chans should be cleared XXX */
+	/*
+	 * bit should be set for 6025,
+	 * although docs say boards with <= 16 chans should be cleared XXX
+	 */
 	if (1)
 		devpriv->adc_control1_bits |= ADC_QUEUE_CONFIG_BIT;
 	writew(devpriv->adc_control1_bits,
@@ -1689,8 +1698,10 @@ static void i2c_write(struct comedi_device *dev, unsigned int address,
 	uint8_t bitstream;
 	static const int read_bit = 0x1;
 
-	/* XXX need mutex to prevent simultaneous attempts to access
-	 * eeprom and i2c bus */
+	/*
+	 * XXX need mutex to prevent simultaneous attempts to access
+	 * eeprom and i2c bus
+	 */
 
 	/*  make sure we dont send anything to eeprom */
 	devpriv->plx_control_bits &= ~CTL_EE_CS;
@@ -1782,14 +1793,18 @@ static int ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 				cal_en_bit = CAL_EN_60XX_BIT;
 			else
 				cal_en_bit = CAL_EN_64XX_BIT;
-			/*  select internal reference source to connect
-			 *  to channel 0 */
+			/*
+			 * select internal reference source to connect
+			 * to channel 0
+			 */
 			writew(cal_en_bit |
 			       adc_src_bits(devpriv->calibration_source),
 			       devpriv->main_iobase + CALIBRATION_REG);
 		} else {
-			/*  make sure internal calibration source
-			 *  is turned off */
+			/*
+			 * make sure internal calibration source
+			 * is turned off
+			 */
 			writew(0, devpriv->main_iobase + CALIBRATION_REG);
 		}
 		/*  load internal queue */
@@ -1821,8 +1836,10 @@ static int ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 			devpriv->i2c_cal_range_bits |= attenuate_bit(channel);
 		else
 			devpriv->i2c_cal_range_bits &= ~attenuate_bit(channel);
-		/*  update calibration/range i2c register only if necessary,
-		 *  as it is very slow */
+		/*
+		 * update calibration/range i2c register only if necessary,
+		 * as it is very slow
+		 */
 		if (old_cal_range_bits != devpriv->i2c_cal_range_bits) {
 			uint8_t i2c_data = devpriv->i2c_cal_range_bits;
 
@@ -1830,10 +1847,12 @@ static int ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 				  sizeof(i2c_data));
 		}
 
-		/* 4020 manual asks that sample interval register to be set
+		/*
+		 * 4020 manual asks that sample interval register to be set
 		 * before writing to convert register.
 		 * Using somewhat arbitrary setting of 4 master clock ticks
-		 * = 0.1 usec */
+		 * = 0.1 usec
+		 */
 		writew(0, devpriv->main_iobase + ADC_SAMPLE_INTERVAL_UPPER_REG);
 		writew(2, devpriv->main_iobase + ADC_SAMPLE_INTERVAL_LOWER_REG);
 	}
@@ -1968,9 +1987,11 @@ static int ai_config_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 	return -EINVAL;
 }
 
-/* Gets nearest achievable timing given master clock speed, does not
+/*
+ * Gets nearest achievable timing given master clock speed, does not
  * take into account possible minimum/maximum divisor values.  Used
- * by other timing checking functions. */
+ * by other timing checking functions.
+ */
 static unsigned int get_divisor(unsigned int ns, unsigned int flags)
 {
 	unsigned int divisor;
@@ -1990,7 +2011,8 @@ static unsigned int get_divisor(unsigned int ns, unsigned int flags)
 	return divisor;
 }
 
-/* utility function that rounds desired timing to an achievable time, and
+/*
+ * utility function that rounds desired timing to an achievable time, and
  * sets cmd members appropriately.
  * adc paces conversions from master clock by dividing by (x + 3) where x is
  * 24 bit number
@@ -2474,8 +2496,10 @@ static int setup_channel_queue(struct comedi_device *dev,
 				       devpriv->main_iobase +
 				       ADC_QUEUE_FIFO_REG);
 			}
-			/* doing a queue clear is not specified in board docs,
-			 * but required for reliable operation */
+			/*
+			 * doing a queue clear is not specified in board docs,
+			 * but required for reliable operation
+			 */
 			writew(0, devpriv->main_iobase + ADC_QUEUE_CLEAR_REG);
 			/*  prime queue holding register */
 			writew(0, devpriv->main_iobase + ADC_QUEUE_LOAD_REG);
@@ -2498,8 +2522,10 @@ static int setup_channel_queue(struct comedi_device *dev,
 				devpriv->i2c_cal_range_bits &=
 					~attenuate_bit(channel);
 		}
-		/*  update calibration/range i2c register only if necessary,
-		 *  as it is very slow */
+		/*
+		 * update calibration/range i2c register only if necessary,
+		 * as it is very slow
+		 */
 		if (old_cal_range_bits != devpriv->i2c_cal_range_bits) {
 			uint8_t i2c_data = devpriv->i2c_cal_range_bits;
 
@@ -2516,11 +2542,13 @@ static inline void load_first_dma_descriptor(struct comedi_device *dev,
 {
 	struct pcidas64_private *devpriv = dev->private;
 
-	/* The transfer size, pci address, and local address registers
+	/*
+	 * The transfer size, pci address, and local address registers
 	 * are supposedly unused during chained dma,
 	 * but I have found that left over values from last operation
 	 * occasionally cause problems with transfer of first dma
-	 * block.  Initializing them to zero seems to fix the problem. */
+	 * block.  Initializing them to zero seems to fix the problem.
+	 */
 	if (dma_channel) {
 		writel(0,
 		       devpriv->plx9080_iobase + PLX_DMA1_TRANSFER_SIZE_REG);
@@ -2675,15 +2703,19 @@ static void pio_drain_ai_fifo_16(struct comedi_device *dev)
 			     0x7fff;
 		write_index = readw(devpriv->main_iobase + ADC_WRITE_PNTR_REG) &
 			      0x7fff;
-		/* Get most significant bits (grey code).
+		/*
+		 * Get most significant bits (grey code).
 		 * Different boards use different code so use a scheme
 		 * that doesn't depend on encoding.  This read must
 		 * occur after reading least significant 15 bits to avoid race
-		 * with fifo switching to next segment. */
+		 * with fifo switching to next segment.
+		 */
 		prepost_bits = readw(devpriv->main_iobase + PREPOST_REG);
 
-		/* if read and write pointers are not on the same fifo segment,
-		 * read to the end of the read segment */
+		/*
+		 * if read and write pointers are not on the same fifo segment,
+		 * read to the end of the read segment
+		 */
 		read_segment = adc_upper_read_ptr_code(prepost_bits);
 		write_segment = adc_upper_write_ptr_code(prepost_bits);
 
@@ -2712,7 +2744,8 @@ static void pio_drain_ai_fifo_16(struct comedi_device *dev)
 	} while (read_segment != write_segment);
 }
 
-/* Read from 32 bit wide ai fifo of 4020 - deal with insane grey coding of
+/*
+ * Read from 32 bit wide ai fifo of 4020 - deal with insane grey coding of
  * pointers.  The pci-4020 hardware only supports dma transfers (it only
  * supports the use of pio for draining the last remaining points from the
  * fifo when a data acquisition operation has completed).
@@ -2790,8 +2823,10 @@ static void drain_dma_buffers(struct comedi_device *dev, unsigned int channel)
 		devpriv->ai_dma_index = (devpriv->ai_dma_index + 1) %
 					ai_dma_ring_count(thisboard);
 	}
-	/* XXX check for dma ring buffer overrun
-	 * (use end-of-chain bit to mark last unused buffer) */
+	/*
+	 * XXX check for dma ring buffer overrun
+	 * (use end-of-chain bit to mark last unused buffer)
+	 */
 }
 
 static void handle_ai_interrupt(struct comedi_device *dev,
@@ -2939,8 +2974,10 @@ static unsigned int load_ao_dma_buffer(struct comedi_device *dev,
 	next_bits = le32_to_cpu(devpriv->ao_dma_desc[buffer_index].next);
 	next_bits |= PLX_END_OF_CHAIN_BIT;
 	devpriv->ao_dma_desc[buffer_index].next = cpu_to_le32(next_bits);
-	/* clear end of chain bit on previous buffer now that we have set it
-	 * for the last buffer */
+	/*
+	 * clear end of chain bit on previous buffer now that we have set it
+	 * for the last buffer
+	 */
 	next_bits = le32_to_cpu(devpriv->ao_dma_desc[prev_buffer_index].next);
 	next_bits &= ~PLX_END_OF_CHAIN_BIT;
 	devpriv->ao_dma_desc[prev_buffer_index].next = cpu_to_le32(next_bits);
@@ -3033,9 +3070,11 @@ static irqreturn_t handle_interrupt(int irq, void *d)
 	plx_status = readl(devpriv->plx9080_iobase + PLX_INTRCS_REG);
 	status = readw(devpriv->main_iobase + HW_STATUS_REG);
 
-	/* an interrupt before all the postconfig stuff gets done could
+	/*
+	 * an interrupt before all the postconfig stuff gets done could
 	 * cause a NULL dereference if we continue through the
-	 * interrupt handler */
+	 * interrupt handler
+	 */
 	if (!dev->attached)
 		return IRQ_HANDLED;
 
@@ -3195,8 +3234,10 @@ static int prep_ao_dma(struct comedi_device *dev, const struct comedi_cmd *cmd)
 	unsigned int nbytes;
 	int i;
 
-	/* clear queue pointer too, since external queue has
-	 * weird interactions with ao fifo */
+	/*
+	 * clear queue pointer too, since external queue has
+	 * weird interactions with ao fifo
+	 */
 	writew(0, devpriv->main_iobase + ADC_QUEUE_CLEAR_REG);
 	writew(0, devpriv->main_iobase + DAC_BUFFER_CLEAR_REG);
 
@@ -3465,7 +3506,8 @@ static int dio_60xx_wbits(struct comedi_device *dev,
 	return insn->n;
 }
 
-/* pci-6025 8800 caldac:
+/*
+ * pci-6025 8800 caldac:
  * address 0 == dac channel 0 offset
  * address 1 == dac channel 0 gain
  * address 2 == dac channel 1 offset
@@ -3475,7 +3517,8 @@ static int dio_60xx_wbits(struct comedi_device *dev,
  * address 6 == coarse adc gain
  * address 7 == fine adc gain
  */
-/* pci-6402/16 uses all 8 channels for dac:
+/*
+ * pci-6402/16 uses all 8 channels for dac:
  * address 0 == dac channel 0 fine gain
  * address 1 == dac channel 0 coarse gain
  * address 2 == dac channel 0 coarse offset
@@ -3484,7 +3527,7 @@ static int dio_60xx_wbits(struct comedi_device *dev,
  * address 5 == dac channel 1 coarse gain
  * address 6 == dac channel 0 fine offset
  * address 7 == dac channel 1 fine offset
-*/
+ */
 
 static int caldac_8800_write(struct comedi_device *dev, unsigned int address,
 			     uint8_t value)
@@ -3744,7 +3787,8 @@ static int eeprom_read_insn(struct comedi_device *dev,
 	return 1;
 }
 
-/* Allocate and initialize the subdevice structures.
+/*
+ * Allocate and initialize the subdevice structures.
  */
 static int setup_subdevices(struct comedi_device *dev)
 {
@@ -3779,8 +3823,10 @@ static int setup_subdevices(struct comedi_device *dev)
 	s->cancel = ai_cancel;
 	if (thisboard->layout == LAYOUT_4020) {
 		uint8_t data;
-		/*  set adc to read from inputs
-		 *  (not internal calibration sources) */
+		/*
+		 * set adc to read from inputs
+		 * (not internal calibration sources)
+		 */
 		devpriv->i2c_cal_range_bits = adc_src_4020_bits(4);
 		/*  set channels to +-5 volt input ranges */
 		for (i = 0; i < s->n_chan; i++)
