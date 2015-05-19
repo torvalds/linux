@@ -151,9 +151,12 @@ struct cx24120_state {
 	fe_status_t fe_status;
 
 	/* ber stats calulations */
+	u32 bitrate;
 	u32 berw_usecs;
 	u32 ber_prev;
+	u32 per_prev;
 	unsigned long ber_jiffies_stats;
+	unsigned long per_jiffies_stats;
 };
 
 /* Command message to firmware */
@@ -612,7 +615,7 @@ static void cx24120_get_stats(struct cx24120_state *state)
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct cx24120_cmd cmd;
 	int ret, cnr, msecs;
-	u16 sig;
+	u16 sig, ucb;
 	u32 ber;
 
 	dev_dbg(&state->i2c->dev, "\n");
@@ -678,7 +681,20 @@ static void cx24120_get_stats(struct cx24120_state *state)
 		c->post_bit_count.stat[0].uvalue += CX24120_BER_WSIZE;
 	}
 
-	/* FIXME: add UCB */
+	/* UCB */
+	if (time_after(jiffies, state->per_jiffies_stats)) {
+		state->per_jiffies_stats = jiffies + msecs_to_jiffies(1000);
+
+		ucb = cx24120_readreg(state, CX24120_REG_UCB_H) << 8;
+		ucb |= cx24120_readreg(state, CX24120_REG_UCB_L);
+		dev_dbg(&state->i2c->dev, "ucblocks = %d\n", ucb);
+
+		c->block_error.stat[0].scale = FE_SCALE_COUNTER;
+		c->block_error.stat[0].uvalue += ucb;
+
+		c->block_count.stat[0].scale = FE_SCALE_COUNTER;
+		c->block_count.stat[0].uvalue += state->bitrate / 8 / 208;
+	}
 }
 
 static void cx24120_set_clock_ratios(struct dvb_frontend *fe);
@@ -813,22 +829,23 @@ void cx24120_calculate_ber_window(struct cx24120_state *state, u32 rate)
 {
 	struct dvb_frontend *fe = &state->frontend;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
-	u64 bitrate, tmp;
+	u64 tmp;
 
 	/*
 	 * Calculate bitrate from rate in the clock ratios table.
 	 * This isn't *exactly* right but close enough.
 	 */
-	bitrate = (u64)c->symbol_rate * rate;
-	do_div(bitrate, 256);
+	tmp = (u64)c->symbol_rate * rate;
+	do_div(tmp, 256);
+	state->bitrate = tmp;
 
 	/* usecs per ber window */
 	tmp = 1000000ULL * CX24120_BER_WSIZE;
-	do_div(tmp, bitrate);
+	do_div(tmp, state->bitrate);
 	state->berw_usecs = tmp;
 
-	dev_dbg(&state->i2c->dev, "bitrate: %llu, berw_usecs: %u\n",
-		bitrate, state->berw_usecs);
+	dev_dbg(&state->i2c->dev, "bitrate: %u, berw_usecs: %u\n",
+		state->bitrate, state->berw_usecs);
 }
 
 /*
@@ -1432,6 +1449,11 @@ static int cx24120_init(struct dvb_frontend *fe)
 	c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 	c->post_bit_count.len = 1;
 	c->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->block_error.len = 1;
+	c->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	c->block_count.len = 1;
+	c->block_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+
 
 	state->cold_init = 1;
 	return 0;
@@ -1503,11 +1525,16 @@ static void cx24120_release(struct dvb_frontend *fe)
 static int cx24120_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 {
 	struct cx24120_state *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 
-	*ucblocks = (cx24120_readreg(state, CX24120_REG_UCB_H) << 8) |
-		     cx24120_readreg(state, CX24120_REG_UCB_L);
+	if (c->block_error.stat[0].scale != FE_SCALE_COUNTER) {
+		*ucblocks = 0;
+		return 0;
+	}
 
-	dev_dbg(&state->i2c->dev, "ucblocks = %d\n", *ucblocks);
+	*ucblocks = c->block_error.stat[0].uvalue - state->per_prev;
+	state->per_prev = c->block_error.stat[0].uvalue;
+
 	return 0;
 }
 
