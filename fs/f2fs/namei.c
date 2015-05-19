@@ -569,6 +569,12 @@ out:
 
 static int f2fs_tmpfile(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
+	if (f2fs_encrypted_inode(dir)) {
+		int err = f2fs_get_encryption_info(dir);
+		if (err)
+			return err;
+	}
+
 	return __f2fs_tmpfile(dir, dentry, mode, NULL);
 }
 
