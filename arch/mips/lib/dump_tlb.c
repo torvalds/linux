@@ -81,8 +81,8 @@ static void dump_tlb(int first, int last)
 		 */
 		printk("Index: %2d pgmask=%s ", i, msk2str(pagemask));
 
-		c0 = (entrylo0 >> 3) & 7;
-		c1 = (entrylo1 >> 3) & 7;
+		c0 = (entrylo0 & MIPS_ENTRYLO_C) >> MIPS_ENTRYLO_C_SHIFT;
+		c1 = (entrylo1 & MIPS_ENTRYLO_C) >> MIPS_ENTRYLO_C_SHIFT;
 
 		printk("va=%0*lx asid=%02lx\n",
 		       width, (entryhi & ~0x1fffUL),
@@ -90,15 +90,15 @@ static void dump_tlb(int first, int last)
 		printk("\t[pa=%0*llx c=%d d=%d v=%d g=%d] ",
 		       width,
 		       (entrylo0 << 6) & PAGE_MASK, c0,
-		       (entrylo0 & 4) ? 1 : 0,
-		       (entrylo0 & 2) ? 1 : 0,
-		       (entrylo0 & 1) ? 1 : 0);
+		       (entrylo0 & MIPS_ENTRYLO_D) ? 1 : 0,
+		       (entrylo0 & MIPS_ENTRYLO_V) ? 1 : 0,
+		       (entrylo0 & MIPS_ENTRYLO_G) ? 1 : 0);
 		printk("[pa=%0*llx c=%d d=%d v=%d g=%d]\n",
 		       width,
 		       (entrylo1 << 6) & PAGE_MASK, c1,
-		       (entrylo1 & 4) ? 1 : 0,
-		       (entrylo1 & 2) ? 1 : 0,
-		       (entrylo1 & 1) ? 1 : 0);
+		       (entrylo1 & MIPS_ENTRYLO_D) ? 1 : 0,
+		       (entrylo1 & MIPS_ENTRYLO_V) ? 1 : 0,
+		       (entrylo1 & MIPS_ENTRYLO_G) ? 1 : 0);
 	}
 	printk("\n");
 
