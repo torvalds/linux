@@ -1049,48 +1049,7 @@ tcmu_pass_op(struct se_cmd *se_cmd)
 static sense_reason_t
 tcmu_parse_cdb(struct se_cmd *cmd)
 {
-	unsigned char *cdb = cmd->t_task_cdb;
-
-	/*
-	 * For REPORT LUNS we always need to emulate the response, for everything
-	 * else, pass it up.
-	 */
-	if (cdb[0] == REPORT_LUNS) {
-		cmd->execute_cmd = spc_emulate_report_luns;
-		return TCM_NO_SENSE;
-	}
-
-	/* Set DATA_CDB flag for ops that should have it */
-	switch (cdb[0]) {
-	case READ_6:
-	case READ_10:
-	case READ_12:
-	case READ_16:
-	case WRITE_6:
-	case WRITE_10:
-	case WRITE_12:
-	case WRITE_16:
-	case WRITE_VERIFY:
-	case WRITE_VERIFY_12:
-	case 0x8e: /* WRITE_VERIFY_16 */
-	case COMPARE_AND_WRITE:
-	case XDWRITEREAD_10:
-		cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
-		break;
-	case VARIABLE_LENGTH_CMD:
-		switch (get_unaligned_be16(&cdb[8])) {
-		case READ_32:
-		case WRITE_32:
-		case 0x0c: /* WRITE_VERIFY_32 */
-		case XDWRITEREAD_32:
-			cmd->se_cmd_flags |= SCF_SCSI_DATA_CDB;
-			break;
-		}
-	}
-
-	cmd->execute_cmd = tcmu_pass_op;
-
-	return TCM_NO_SENSE;
+	return passthrough_parse_cdb(cmd, tcmu_pass_op);
 }
 
 DEF_TB_DEV_ATTRIB_RO(tcmu, hw_pi_prot_type);

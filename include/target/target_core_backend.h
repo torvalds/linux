@@ -138,5 +138,7 @@ int	se_dev_set_queue_depth(struct se_device *, u32);
 int	se_dev_set_max_sectors(struct se_device *, u32);
 int	se_dev_set_optimal_sectors(struct se_device *, u32);
 int	se_dev_set_block_size(struct se_device *, u32);
+sense_reason_t passthrough_parse_cdb(struct se_cmd *cmd,
+	sense_reason_t (*exec_cmd)(struct se_cmd *cmd));
 
 #endif /* TARGET_CORE_BACKEND_H */
