@@ -37,7 +37,6 @@ void __tegra_cpu_reset_handler_start(void);
 void __tegra_cpu_reset_handler(void);
 void __tegra20_cpu1_resettable_status_offset(void);
 void __tegra_cpu_reset_handler_end(void);
-void tegra_secondary_startup(void);
 
 #ifdef CONFIG_PM_SLEEP
 #define tegra_cpu_lp1_mask \
