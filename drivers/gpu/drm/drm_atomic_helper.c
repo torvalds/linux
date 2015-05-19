@@ -1127,6 +1127,10 @@ EXPORT_SYMBOL(drm_atomic_helper_prepare_planes);
  *
  * It still requires the global state object @old_state to know which planes and
  * crtcs need to be updated though.
+ *
+ * Note that this function does all plane updates across all CRTCs in one step.
+ * If the hardware can't support this approach look at
+ * drm_atomic_helper_commit_planes_on_crtc() instead.
  */
 void drm_atomic_helper_commit_planes(struct drm_device *dev,
 				     struct drm_atomic_state *old_state)
@@ -1179,6 +1183,64 @@ void drm_atomic_helper_commit_planes(struct drm_device *dev,
 	}
 }
 EXPORT_SYMBOL(drm_atomic_helper_commit_planes);
+
+/**
+ * drm_atomic_helper_commit_planes_on_crtc - commit plane state for a crtc
+ * @old_crtc_state: atomic state object with the old crtc state
+ *
+ * This function commits the new plane state using the plane and atomic helper
+ * functions for planes on the specific crtc. It assumes that the atomic state
+ * has already been pushed into the relevant object state pointers, since this
+ * step can no longer fail.
+ *
+ * This function is useful when plane updates should be done crtc-by-crtc
+ * instead of one global step like drm_atomic_helper_commit_planes() does.
+ *
+ * This function can only be savely used when planes are not allowed to move
+ * between different CRTCs because this function doesn't handle inter-CRTC
+ * depencies. Callers need to ensure that either no such depencies exist,
+ * resolve them through ordering of commit calls or through some other means.
+ */
+void
+drm_atomic_helper_commit_planes_on_crtc(struct drm_crtc_state *old_crtc_state)
+{
+	const struct drm_crtc_helper_funcs *crtc_funcs;
+	struct drm_crtc *crtc = old_crtc_state->crtc;
+	struct drm_atomic_state *old_state = old_crtc_state->state;
+	struct drm_plane *plane;
+	unsigned plane_mask;
+
+	plane_mask = old_crtc_state->plane_mask;
+	plane_mask |= crtc->state->plane_mask;
+
+	crtc_funcs = crtc->helper_private;
+	if (crtc_funcs && crtc_funcs->atomic_begin)
+		crtc_funcs->atomic_begin(crtc);
+
+	drm_for_each_plane_mask(plane, crtc->dev, plane_mask) {
+		struct drm_plane_state *old_plane_state =
+			drm_atomic_get_existing_plane_state(old_state, plane);
+		const struct drm_plane_helper_funcs *plane_funcs;
+
+		plane_funcs = plane->helper_private;
+
+		if (!old_plane_state || !plane_funcs)
+			continue;
+
+		WARN_ON(plane->state->crtc && plane->state->crtc != crtc);
+
+		if (drm_atomic_plane_disabling(plane, old_plane_state) &&
+		    plane_funcs->atomic_disable)
+			plane_funcs->atomic_disable(plane, old_plane_state);
+		else if (plane->state->crtc ||
+			 drm_atomic_plane_disabling(plane, old_plane_state))
+			plane_funcs->atomic_update(plane, old_plane_state);
+	}
+
+	if (crtc_funcs && crtc_funcs->atomic_flush)
+		crtc_funcs->atomic_flush(crtc);
+}
+EXPORT_SYMBOL(drm_atomic_helper_commit_planes_on_crtc);
 
 /**
  * drm_atomic_helper_cleanup_planes - cleanup plane resources after commit
