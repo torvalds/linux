@@ -114,7 +114,7 @@ static int usb_extcon_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	info->dev = dev;
-	info->id_gpiod = devm_gpiod_get(&pdev->dev, "id");
+	info->id_gpiod = devm_gpiod_get(&pdev->dev, "id", GPIOD_IN);
 	if (IS_ERR(info->id_gpiod)) {
 		dev_err(dev, "failed to get ID GPIO\n");
 		return PTR_ERR(info->id_gpiod);
