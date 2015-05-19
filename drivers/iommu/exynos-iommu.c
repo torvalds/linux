@@ -601,6 +601,36 @@ static int __init exynos_sysmmu_probe(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int exynos_sysmmu_suspend(struct device *dev)
+{
+	struct sysmmu_drvdata *data = dev_get_drvdata(dev);
+
+	dev_dbg(dev, "suspend\n");
+	if (is_sysmmu_active(data)) {
+		__sysmmu_disable_nocount(data);
+		pm_runtime_put(dev);
+	}
+	return 0;
+}
+
+static int exynos_sysmmu_resume(struct device *dev)
+{
+	struct sysmmu_drvdata *data = dev_get_drvdata(dev);
+
+	dev_dbg(dev, "resume\n");
+	if (is_sysmmu_active(data)) {
+		pm_runtime_get_sync(dev);
+		__sysmmu_enable_nocount(data);
+	}
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops sysmmu_pm_ops = {
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(exynos_sysmmu_suspend, exynos_sysmmu_resume)
+};
+
 static const struct of_device_id sysmmu_of_match[] __initconst = {
 	{ .compatible	= "samsung,exynos-sysmmu", },
 	{ },
@@ -611,6 +641,7 @@ static struct platform_driver exynos_sysmmu_driver __refdata = {
 	.driver	= {
 		.name		= "exynos-sysmmu",
 		.of_match_table	= sysmmu_of_match,
+		.pm		= &sysmmu_pm_ops,
 	}
 };
 
