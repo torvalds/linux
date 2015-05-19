@@ -26,6 +26,7 @@
 #include <linux/seq_file.h>
 #include <linux/coresight.h>
 #include <linux/amba/bus.h>
+#include <linux/clk.h>
 
 #include "coresight-priv.h"
 
@@ -66,6 +67,7 @@
  * struct etb_drvdata - specifics associated to an ETB component
  * @base:	memory mapped base address for this component.
  * @dev:	the device entity associated to this component.
+ * @atclk:	optional clock for the core parts of the ETB.
  * @csdev:	component vitals needed by the framework.
  * @miscdev:	specifics to handle "/dev/xyz.etb" entry.
  * @spinlock:	only one at a time pls.
@@ -78,6 +80,7 @@
 struct etb_drvdata {
 	void __iomem		*base;
 	struct device		*dev;
+	struct clk		*atclk;
 	struct coresight_device	*csdev;
 	struct miscdevice	miscdev;
 	spinlock_t		spinlock;
@@ -426,6 +429,12 @@ static int etb_probe(struct amba_device *adev, const struct amba_id *id)
 		return -ENOMEM;
 
 	drvdata->dev = &adev->dev;
+	drvdata->atclk = devm_clk_get(&adev->dev, "atclk"); /* optional */
+	if (!IS_ERR(drvdata->atclk)) {
+		ret = clk_prepare_enable(drvdata->atclk);
+		if (ret)
+			return ret;
+	}
 	dev_set_drvdata(dev, drvdata);
 
 	/* validity for the resource is already checked by the AMBA core */
@@ -489,6 +498,32 @@ static int etb_remove(struct amba_device *adev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int etb_runtime_suspend(struct device *dev)
+{
+	struct etb_drvdata *drvdata = dev_get_drvdata(dev);
+
+	if (drvdata && !IS_ERR(drvdata->atclk))
+		clk_disable_unprepare(drvdata->atclk);
+
+	return 0;
+}
+
+static int etb_runtime_resume(struct device *dev)
+{
+	struct etb_drvdata *drvdata = dev_get_drvdata(dev);
+
+	if (drvdata && !IS_ERR(drvdata->atclk))
+		clk_prepare_enable(drvdata->atclk);
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops etb_dev_pm_ops = {
+	SET_RUNTIME_PM_OPS(etb_runtime_suspend, etb_runtime_resume, NULL)
+};
+
 static struct amba_id etb_ids[] = {
 	{
 		.id	= 0x0003b907,
@@ -501,6 +536,8 @@ static struct amba_driver etb_driver = {
 	.drv = {
 		.name	= "coresight-etb10",
 		.owner	= THIS_MODULE,
+		.pm	= &etb_dev_pm_ops,
+
 	},
 	.probe		= etb_probe,
 	.remove		= etb_remove,
