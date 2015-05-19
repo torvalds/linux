@@ -3627,11 +3627,11 @@ int (*br_fdb_test_addr_hook)(struct net_device *dev,
 EXPORT_SYMBOL_GPL(br_fdb_test_addr_hook);
 #endif
 
-#ifdef CONFIG_NET_CLS_ACT
 static inline struct sk_buff *handle_ing(struct sk_buff *skb,
 					 struct packet_type **pt_prev,
 					 int *ret, struct net_device *orig_dev)
 {
+#ifdef CONFIG_NET_CLS_ACT
 	struct tcf_proto *cl = rcu_dereference_bh(skb->dev->ingress_cl_list);
 	struct tcf_result cl_res;
 
@@ -3665,17 +3665,9 @@ static inline struct sk_buff *handle_ing(struct sk_buff *skb,
 	default:
 		break;
 	}
-
+#endif /* CONFIG_NET_CLS_ACT */
 	return skb;
 }
-#else
-static inline struct sk_buff *handle_ing(struct sk_buff *skb,
-					 struct packet_type **pt_prev,
-					 int *ret, struct net_device *orig_dev)
-{
-	return skb;
-}
-#endif
 
 /**
  *	netdev_rx_handler_register - register receive handler
@@ -3748,10 +3740,10 @@ static bool skb_pfmemalloc_protocol(struct sk_buff *skb)
 	}
 }
 
-#ifdef CONFIG_NETFILTER_INGRESS
 static inline int nf_ingress(struct sk_buff *skb, struct packet_type **pt_prev,
 			     int *ret, struct net_device *orig_dev)
 {
+#ifdef CONFIG_NETFILTER_INGRESS
 	if (nf_hook_ingress_active(skb)) {
 		if (*pt_prev) {
 			*ret = deliver_skb(skb, *pt_prev, orig_dev);
@@ -3760,15 +3752,9 @@ static inline int nf_ingress(struct sk_buff *skb, struct packet_type **pt_prev,
 
 		return nf_hook_ingress(skb);
 	}
+#endif /* CONFIG_NETFILTER_INGRESS */
 	return 0;
 }
-#else
-static inline int nf_ingress(struct sk_buff *skb, struct packet_type **pt_prev,
-			     int *ret, struct net_device *orig_dev)
-{
-	return 0;
-}
-#endif
 
 static int __netif_receive_skb_core(struct sk_buff *skb, bool pfmemalloc)
 {
