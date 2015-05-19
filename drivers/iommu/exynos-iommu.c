@@ -189,9 +189,6 @@ struct exynos_iommu_owner {
 	struct list_head client; /* entry of exynos_iommu_domain.clients */
 	struct device *dev;
 	struct device *sysmmu;
-	struct iommu_domain *domain;
-	void *vmm_data;         /* IO virtual memory manager's data */
-	spinlock_t lock;        /* Lock to preserve consistency of System MMU */
 };
 
 struct exynos_iommu_domain {
@@ -477,13 +474,10 @@ static int __exynos_sysmmu_enable(struct device *dev, phys_addr_t pgtable,
 				  struct iommu_domain *domain)
 {
 	int ret = 0;
-	unsigned long flags;
 	struct exynos_iommu_owner *owner = dev->archdata.iommu;
 	struct sysmmu_drvdata *data;
 
 	BUG_ON(!has_sysmmu(dev));
-
-	spin_lock_irqsave(&owner->lock, flags);
 
 	data = dev_get_drvdata(owner->sysmmu);
 
@@ -491,29 +485,22 @@ static int __exynos_sysmmu_enable(struct device *dev, phys_addr_t pgtable,
 	if (ret >= 0)
 		data->master = dev;
 
-	spin_unlock_irqrestore(&owner->lock, flags);
-
 	return ret;
 }
 
 static bool exynos_sysmmu_disable(struct device *dev)
 {
-	unsigned long flags;
 	bool disabled = true;
 	struct exynos_iommu_owner *owner = dev->archdata.iommu;
 	struct sysmmu_drvdata *data;
 
 	BUG_ON(!has_sysmmu(dev));
 
-	spin_lock_irqsave(&owner->lock, flags);
-
 	data = dev_get_drvdata(owner->sysmmu);
 
 	disabled = __sysmmu_disable(data);
 	if (disabled)
 		data->master = NULL;
-
-	spin_unlock_irqrestore(&owner->lock, flags);
 
 	return disabled;
 }
@@ -762,10 +749,8 @@ static int exynos_iommu_attach_device(struct iommu_domain *domain,
 	spin_lock_irqsave(&priv->lock, flags);
 
 	ret = __exynos_sysmmu_enable(dev, pagetable, domain);
-	if (ret == 0) {
+	if (ret == 0)
 		list_add_tail(&owner->client, &priv->clients);
-		owner->domain = domain;
-	}
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -793,10 +778,8 @@ static void exynos_iommu_detach_device(struct iommu_domain *domain,
 
 	list_for_each_entry(owner, &priv->clients, client) {
 		if (owner == dev->archdata.iommu) {
-			if (exynos_sysmmu_disable(dev)) {
+			if (exynos_sysmmu_disable(dev))
 				list_del_init(&owner->client);
-				owner->domain = NULL;
-			}
 			break;
 		}
 	}
