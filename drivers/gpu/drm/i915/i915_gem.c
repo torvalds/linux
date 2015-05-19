@@ -1635,6 +1635,7 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	struct drm_i915_gem_object *obj = to_intel_bo(vma->vm_private_data);
 	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct i915_ggtt_view view = i915_ggtt_view_normal;
 	pgoff_t page_offset;
 	unsigned long pfn;
 	int ret = 0;
@@ -1667,8 +1668,23 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 		goto unlock;
 	}
 
-	/* Now bind it into the GTT if needed */
-	ret = i915_gem_obj_ggtt_pin(obj, 0, PIN_MAPPABLE);
+	/* Use a partial view if the object is bigger than the aperture. */
+	if (obj->base.size >= dev_priv->gtt.mappable_end &&
+	    obj->tiling_mode == I915_TILING_NONE) {
+		static const unsigned int chunk_size = 256; // 1 MiB
+
+		memset(&view, 0, sizeof(view));
+		view.type = I915_GGTT_VIEW_PARTIAL;
+		view.params.partial.offset = rounddown(page_offset, chunk_size);
+		view.params.partial.size =
+			min_t(unsigned int,
+			      chunk_size,
+			      (vma->vm_end - vma->vm_start)/PAGE_SIZE -
+			      view.params.partial.offset);
+	}
+
+	/* Now pin it into the GTT if needed */
+	ret = i915_gem_object_ggtt_pin(obj, &view, 0, PIN_MAPPABLE);
 	if (ret)
 		goto unlock;
 
@@ -1681,30 +1697,50 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 		goto unpin;
 
 	/* Finally, remap it using the new GTT offset */
-	pfn = dev_priv->gtt.mappable_base + i915_gem_obj_ggtt_offset(obj);
+	pfn = dev_priv->gtt.mappable_base +
+		i915_gem_obj_ggtt_offset_view(obj, &view);
 	pfn >>= PAGE_SHIFT;
 
-	if (!obj->fault_mappable) {
-		unsigned long size = min_t(unsigned long,
-					   vma->vm_end - vma->vm_start,
-					   obj->base.size);
-		int i;
+	if (unlikely(view.type == I915_GGTT_VIEW_PARTIAL)) {
+		/* Overriding existing pages in partial view does not cause
+		 * us any trouble as TLBs are still valid because the fault
+		 * is due to userspace losing part of the mapping or never
+		 * having accessed it before (at this partials' range).
+		 */
+		unsigned long base = vma->vm_start +
+				     (view.params.partial.offset << PAGE_SHIFT);
+		unsigned int i;
 
-		for (i = 0; i < size >> PAGE_SHIFT; i++) {
-			ret = vm_insert_pfn(vma,
-					    (unsigned long)vma->vm_start + i * PAGE_SIZE,
-					    pfn + i);
+		for (i = 0; i < view.params.partial.size; i++) {
+			ret = vm_insert_pfn(vma, base + i * PAGE_SIZE, pfn + i);
 			if (ret)
 				break;
 		}
 
 		obj->fault_mappable = true;
-	} else
-		ret = vm_insert_pfn(vma,
-				    (unsigned long)vmf->virtual_address,
-				    pfn + page_offset);
+	} else {
+		if (!obj->fault_mappable) {
+			unsigned long size = min_t(unsigned long,
+						   vma->vm_end - vma->vm_start,
+						   obj->base.size);
+			int i;
+
+			for (i = 0; i < size >> PAGE_SHIFT; i++) {
+				ret = vm_insert_pfn(vma,
+						    (unsigned long)vma->vm_start + i * PAGE_SIZE,
+						    pfn + i);
+				if (ret)
+					break;
+			}
+
+			obj->fault_mappable = true;
+		} else
+			ret = vm_insert_pfn(vma,
+					    (unsigned long)vmf->virtual_address,
+					    pfn + page_offset);
+	}
 unpin:
-	i915_gem_object_ggtt_unpin(obj);
+	i915_gem_object_ggtt_unpin_view(obj, &view);
 unlock:
 	mutex_unlock(&dev->struct_mutex);
 out:
@@ -1895,11 +1931,6 @@ i915_gem_mmap_gtt(struct drm_file *file,
 	if (&obj->base == NULL) {
 		ret = -ENOENT;
 		goto unlock;
-	}
-
-	if (obj->base.size > dev_priv->gtt.mappable_end) {
-		ret = -E2BIG;
-		goto out;
 	}
 
 	if (obj->madv != I915_MADV_WILLNEED) {
@@ -3069,6 +3100,7 @@ int i915_vma_unbind(struct i915_vma *vma)
 	trace_i915_vma_unbind(vma);
 
 	vma->vm->unbind_vma(vma);
+	vma->bound = 0;
 
 	list_del_init(&vma->mm_list);
 	if (i915_is_ggtt(vma->vm)) {
@@ -3497,7 +3529,8 @@ static bool i915_gem_valid_gtt_space(struct i915_vma *vma,
 }
 
 /**
- * Finds free space in the GTT aperture and binds the object there.
+ * Finds free space in the GTT aperture and binds the object or a view of it
+ * there.
  */
 static struct i915_vma *
 i915_gem_object_bind_to_vm(struct drm_i915_gem_object *obj,
@@ -3516,36 +3549,60 @@ i915_gem_object_bind_to_vm(struct drm_i915_gem_object *obj,
 	struct i915_vma *vma;
 	int ret;
 
-	if(WARN_ON(i915_is_ggtt(vm) != !!ggtt_view))
-		return ERR_PTR(-EINVAL);
+	if (i915_is_ggtt(vm)) {
+		u32 view_size;
 
-	fence_size = i915_gem_get_gtt_size(dev,
-					   obj->base.size,
-					   obj->tiling_mode);
-	fence_alignment = i915_gem_get_gtt_alignment(dev,
-						     obj->base.size,
-						     obj->tiling_mode, true);
-	unfenced_alignment =
-		i915_gem_get_gtt_alignment(dev,
-					   obj->base.size,
-					   obj->tiling_mode, false);
+		if (WARN_ON(!ggtt_view))
+			return ERR_PTR(-EINVAL);
+
+		view_size = i915_ggtt_view_size(obj, ggtt_view);
+
+		fence_size = i915_gem_get_gtt_size(dev,
+						   view_size,
+						   obj->tiling_mode);
+		fence_alignment = i915_gem_get_gtt_alignment(dev,
+							     view_size,
+							     obj->tiling_mode,
+							     true);
+		unfenced_alignment = i915_gem_get_gtt_alignment(dev,
+								view_size,
+								obj->tiling_mode,
+								false);
+		size = flags & PIN_MAPPABLE ? fence_size : view_size;
+	} else {
+		fence_size = i915_gem_get_gtt_size(dev,
+						   obj->base.size,
+						   obj->tiling_mode);
+		fence_alignment = i915_gem_get_gtt_alignment(dev,
+							     obj->base.size,
+							     obj->tiling_mode,
+							     true);
+		unfenced_alignment =
+			i915_gem_get_gtt_alignment(dev,
+						   obj->base.size,
+						   obj->tiling_mode,
+						   false);
+		size = flags & PIN_MAPPABLE ? fence_size : obj->base.size;
+	}
 
 	if (alignment == 0)
 		alignment = flags & PIN_MAPPABLE ? fence_alignment :
 						unfenced_alignment;
 	if (flags & PIN_MAPPABLE && alignment & (fence_alignment - 1)) {
-		DRM_DEBUG("Invalid object alignment requested %u\n", alignment);
+		DRM_DEBUG("Invalid object (view type=%u) alignment requested %u\n",
+			  ggtt_view ? ggtt_view->type : 0,
+			  alignment);
 		return ERR_PTR(-EINVAL);
 	}
 
-	size = flags & PIN_MAPPABLE ? fence_size : obj->base.size;
-
-	/* If the object is bigger than the entire aperture, reject it early
-	 * before evicting everything in a vain attempt to find space.
+	/* If binding the object/GGTT view requires more space than the entire
+	 * aperture has, reject it early before evicting everything in a vain
+	 * attempt to find space.
 	 */
-	if (obj->base.size > end) {
-		DRM_DEBUG("Attempting to bind an object larger than the aperture: object=%zd > %s aperture=%lu\n",
-			  obj->base.size,
+	if (size > end) {
+		DRM_DEBUG("Attempting to bind an object (view type=%u) larger than the aperture: size=%u > %s aperture=%lu\n",
+			  ggtt_view ? ggtt_view->type : 0,
+			  size,
 			  flags & PIN_MAPPABLE ? "mappable" : "total",
 			  end);
 		return ERR_PTR(-E2BIG);
@@ -3841,17 +3898,10 @@ int i915_gem_get_caching_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_i915_gem_caching *args = data;
 	struct drm_i915_gem_object *obj;
-	int ret;
-
-	ret = i915_mutex_lock_interruptible(dev);
-	if (ret)
-		return ret;
 
 	obj = to_intel_bo(drm_gem_object_lookup(dev, file, args->handle));
-	if (&obj->base == NULL) {
-		ret = -ENOENT;
-		goto unlock;
-	}
+	if (&obj->base == NULL)
+		return -ENOENT;
 
 	switch (obj->cache_level) {
 	case I915_CACHE_LLC:
@@ -3868,10 +3918,8 @@ int i915_gem_get_caching_ioctl(struct drm_device *dev, void *data,
 		break;
 	}
 
-	drm_gem_object_unreference(&obj->base);
-unlock:
-	mutex_unlock(&dev->struct_mutex);
-	return ret;
+	drm_gem_object_unreference_unlocked(&obj->base);
+	return 0;
 }
 
 int i915_gem_set_caching_ioctl(struct drm_device *dev, void *data,
@@ -4207,7 +4255,8 @@ i915_gem_object_do_pin(struct drm_i915_gem_object *obj,
 			return ret;
 	}
 
-	if ((bound ^ vma->bound) & GLOBAL_BIND) {
+	if (ggtt_view && ggtt_view->type == I915_GGTT_VIEW_NORMAL &&
+	    (bound ^ vma->bound) & GLOBAL_BIND) {
 		bool mappable, fenceable;
 		u32 fence_size, fence_alignment;
 
@@ -4226,9 +4275,9 @@ i915_gem_object_do_pin(struct drm_i915_gem_object *obj,
 			    dev_priv->gtt.mappable_end);
 
 		obj->map_and_fenceable = mappable && fenceable;
-	}
 
-	WARN_ON(flags & PIN_MAPPABLE && !obj->map_and_fenceable);
+		WARN_ON(flags & PIN_MAPPABLE && !obj->map_and_fenceable);
+	}
 
 	vma->pin_count++;
 	return 0;
@@ -5226,13 +5275,10 @@ unsigned long i915_gem_obj_size(struct drm_i915_gem_object *o,
 bool i915_gem_obj_is_pinned(struct drm_i915_gem_object *obj)
 {
 	struct i915_vma *vma;
-	list_for_each_entry(vma, &obj->vma_list, vma_link) {
-		if (i915_is_ggtt(vma->vm) &&
-		    vma->ggtt_view.type != I915_GGTT_VIEW_NORMAL)
-			continue;
+	list_for_each_entry(vma, &obj->vma_list, vma_link)
 		if (vma->pin_count > 0)
 			return true;
-	}
+
 	return false;
 }
 

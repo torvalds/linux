@@ -117,7 +117,8 @@ typedef uint64_t gen8_pde_t;
 
 enum i915_ggtt_view_type {
 	I915_GGTT_VIEW_NORMAL = 0,
-	I915_GGTT_VIEW_ROTATED
+	I915_GGTT_VIEW_ROTATED,
+	I915_GGTT_VIEW_PARTIAL,
 };
 
 struct intel_rotation_info {
@@ -129,6 +130,13 @@ struct intel_rotation_info {
 
 struct i915_ggtt_view {
 	enum i915_ggtt_view_type type;
+
+	union {
+		struct {
+			unsigned long offset;
+			unsigned int size;
+		} partial;
+	} params;
 
 	struct sg_table *pages;
 
@@ -495,7 +503,15 @@ i915_ggtt_view_equal(const struct i915_ggtt_view *a,
 	if (WARN_ON(!a || !b))
 		return false;
 
-	return a->type == b->type;
+	if (a->type != b->type)
+		return false;
+	if (a->type == I915_GGTT_VIEW_PARTIAL)
+		return !memcmp(&a->params, &b->params, sizeof(a->params));
+	return true;
 }
+
+size_t
+i915_ggtt_view_size(struct drm_i915_gem_object *obj,
+		    const struct i915_ggtt_view *view);
 
 #endif

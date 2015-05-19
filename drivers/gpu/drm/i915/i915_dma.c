@@ -816,6 +816,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	spin_lock_init(&dev_priv->mmio_flip_lock);
 	mutex_init(&dev_priv->dpio_lock);
 	mutex_init(&dev_priv->modeset_restore_lock);
+	mutex_init(&dev_priv->csr_lock);
 
 	intel_pm_setup(dev);
 
@@ -861,9 +862,12 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	intel_uncore_init(dev);
 
+	/* Load CSR Firmware for SKL */
+	intel_csr_ucode_init(dev);
+
 	ret = i915_gem_gtt_init(dev);
 	if (ret)
-		goto out_regs;
+		goto out_freecsr;
 
 	/* WARNING: Apparently we must kick fbdev drivers before vgacon,
 	 * otherwise the vga fbdev driver falls over. */
@@ -1033,7 +1037,8 @@ out_mtrrfree:
 	io_mapping_free(dev_priv->gtt.mappable);
 out_gtt:
 	i915_global_gtt_cleanup(dev);
-out_regs:
+out_freecsr:
+	intel_csr_ucode_fini(dev);
 	intel_uncore_fini(dev);
 	pci_iounmap(dev->pdev, dev_priv->regs);
 put_bridge:
@@ -1112,6 +1117,8 @@ int i915_driver_unload(struct drm_device *dev)
 	i915_gem_context_fini(dev);
 	mutex_unlock(&dev->struct_mutex);
 	i915_gem_cleanup_stolen(dev);
+
+	intel_csr_ucode_fini(dev);
 
 	intel_teardown_gmbus(dev);
 	intel_teardown_mchbar(dev);

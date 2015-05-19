@@ -169,7 +169,7 @@ int intel_atomic_commit(struct drm_device *dev,
 		plane->state->state = NULL;
 	}
 
-	/* swap crtc_state */
+	/* swap crtc_scaler_state */
 	for (i = 0; i < dev->mode_config.num_crtc; i++) {
 		struct drm_crtc *crtc = state->crtcs[i];
 		if (!crtc) {
@@ -178,6 +178,9 @@ int intel_atomic_commit(struct drm_device *dev,
 
 		to_intel_crtc(crtc)->config->scaler_state =
 			to_intel_crtc_state(state->crtc_states[i])->scaler_state;
+
+		if (INTEL_INFO(dev)->gen >= 9)
+			skl_detach_scalers(to_intel_crtc(crtc));
 	}
 
 	drm_atomic_helper_commit_planes(dev, state);
@@ -247,8 +250,12 @@ intel_crtc_duplicate_state(struct drm_crtc *crtc)
 		crtc_state = kmemdup(intel_crtc->config,
 				     sizeof(*intel_crtc->config), GFP_KERNEL);
 
-	if (crtc_state)
-		crtc_state->base.crtc = crtc;
+	if (!crtc_state)
+		return NULL;
+
+	__drm_atomic_helper_crtc_duplicate_state(crtc, &crtc_state->base);
+
+	crtc_state->base.crtc = crtc;
 
 	return &crtc_state->base;
 }

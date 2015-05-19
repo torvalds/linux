@@ -647,6 +647,7 @@ struct drm_encoder {
  * @audio_latency: audio latency info from ELD, if found
  * @null_edid_counter: track sinks that give us all zeros for the EDID
  * @bad_edid_counter: track sinks that give us an EDID with invalid checksum
+ * @edid_corrupt: indicates whether the last read EDID was corrupt
  * @debugfs_entry: debugfs directory for this connector
  * @state: current atomic state for this connector
  * @has_tile: is this connector connected to a tiled monitor
@@ -718,6 +719,11 @@ struct drm_connector {
 	int audio_latency[2];
 	int null_edid_counter; /* needed to workaround some HW bugs where we get all 0s */
 	unsigned bad_edid_counter;
+
+	/* Flag for raw EDID header corruption - used in Displayport
+	 * compliance testing - * Displayport Link CTS Core 1.2 rev1.1 4.2.2.6
+	 */
+	bool edid_corrupt;
 
 	struct dentry *debugfs_entry;
 
@@ -1443,7 +1449,8 @@ extern void drm_set_preferred_mode(struct drm_connector *connector,
 				   int hpref, int vpref);
 
 extern int drm_edid_header_is_valid(const u8 *raw_edid);
-extern bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid);
+extern bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid,
+				 bool *edid_corrupt);
 extern bool drm_edid_is_valid(struct edid *edid);
 
 extern struct drm_tile_group *drm_mode_create_tile_group(struct drm_device *dev,

@@ -242,7 +242,7 @@ static void intel_sdvo_write_sdvox(struct intel_sdvo *intel_sdvo, u32 val)
 
 	if (intel_sdvo->sdvo_reg == PCH_SDVOB) {
 		I915_WRITE(intel_sdvo->sdvo_reg, val);
-		I915_READ(intel_sdvo->sdvo_reg);
+		POSTING_READ(intel_sdvo->sdvo_reg);
 		return;
 	}
 
@@ -259,9 +259,9 @@ static void intel_sdvo_write_sdvox(struct intel_sdvo *intel_sdvo, u32 val)
 	for (i = 0; i < 2; i++)
 	{
 		I915_WRITE(GEN3_SDVOB, bval);
-		I915_READ(GEN3_SDVOB);
+		POSTING_READ(GEN3_SDVOB);
 		I915_WRITE(GEN3_SDVOC, cval);
-		I915_READ(GEN3_SDVOC);
+		POSTING_READ(GEN3_SDVOC);
 	}
 }
 

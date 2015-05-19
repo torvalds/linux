@@ -88,8 +88,7 @@ static void skl_init_clock_gating(struct drm_device *dev)
 
 		/* WaDisableChickenBitTSGBarrierAckForFFSliceCS:skl */
 		I915_WRITE(FF_SLICE_CS_CHICKEN2,
-			   I915_READ(FF_SLICE_CS_CHICKEN2) |
-			   GEN9_TSG_BARRIER_ACK_DISABLE);
+			   _MASKED_BIT_ENABLE(GEN9_TSG_BARRIER_ACK_DISABLE));
 	}
 
 	if (INTEL_REVID(dev) <= SKL_REVID_E0)
@@ -4295,8 +4294,8 @@ static void gen6_init_rps_frequencies(struct drm_device *dev)
 	if (dev_priv->rps.min_freq_softlimit == 0) {
 		if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 			dev_priv->rps.min_freq_softlimit =
-				/* max(RPe, 450 MHz) */
-				max(dev_priv->rps.efficient_freq, (u8) 9);
+				max_t(int, dev_priv->rps.efficient_freq,
+				      intel_freq_opcode(dev_priv, 450));
 		else
 			dev_priv->rps.min_freq_softlimit =
 				dev_priv->rps.min_freq;
@@ -5082,6 +5081,12 @@ static void cherryview_enable_rps(struct drm_device *dev)
 		   GEN6_RP_UP_BUSY_AVG |
 		   GEN6_RP_DOWN_IDLE_AVG);
 
+	/* Setting Fixed Bias */
+	val = VLV_OVERRIDE_EN |
+		  VLV_SOC_TDP_EN |
+		  CHV_BIAS_CPU_50_SOC_50;
+	vlv_punit_write(dev_priv, VLV_TURBO_SOC_OVERRIDE, val);
+
 	val = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
 
 	/* RPS code assumes GPLL is used */
@@ -5165,6 +5170,12 @@ static void valleyview_enable_rps(struct drm_device *dev)
 	intel_print_rc6_info(dev, rc6_mode);
 
 	I915_WRITE(GEN6_RC_CONTROL, rc6_mode);
+
+	/* Setting Fixed Bias */
+	val = VLV_OVERRIDE_EN |
+		  VLV_SOC_TDP_EN |
+		  VLV_BIAS_CPU_125_SOC_875;
+	vlv_punit_write(dev_priv, VLV_TURBO_SOC_OVERRIDE, val);
 
 	val = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
 

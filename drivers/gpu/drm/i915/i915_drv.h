@@ -56,7 +56,7 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20150423"
+#define DRIVER_DATE		"20150508"
 
 #undef WARN_ON
 /* Many gcc seem to no see through this and fall over :( */
@@ -238,6 +238,11 @@ enum hpd_pin {
 #define for_each_crtc(dev, crtc) \
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
 
+#define for_each_intel_plane(dev, intel_plane) \
+	list_for_each_entry(intel_plane,			\
+			    &dev->mode_config.plane_list,	\
+			    base.head)
+
 #define for_each_intel_crtc(dev, intel_crtc) \
 	list_for_each_entry(intel_crtc, &dev->mode_config.crtc_list, base.head)
 
@@ -295,7 +300,7 @@ struct intel_dpll_hw_state {
 	/* skl */
 	/*
 	 * DPLL_CTRL1 has 6 bits for each each this DPLL. We store those in
-	 * lower part of crtl1 and they get shifted into position when writing
+	 * lower part of ctrl1 and they get shifted into position when writing
 	 * the register.  This allows us to easily compare the state to share
 	 * the DPLL.
 	 */
@@ -668,6 +673,22 @@ struct intel_uncore {
 
 #define for_each_fw_domain(domain__, dev_priv__, i__) \
 	for_each_fw_domain_mask(domain__, FORCEWAKE_ALL, dev_priv__, i__)
+
+enum csr_state {
+	FW_UNINITIALIZED = 0,
+	FW_LOADED,
+	FW_FAILED
+};
+
+struct intel_csr {
+	const char *fw_path;
+	__be32 *dmc_payload;
+	uint32_t dmc_fw_size;
+	uint32_t mmio_count;
+	uint32_t mmioaddr[8];
+	uint32_t mmiodata[8];
+	enum csr_state state;
+};
 
 #define DEV_INFO_FOR_EACH_FLAG(func, sep) \
 	func(is_mobile) sep \
@@ -1348,7 +1369,6 @@ struct intel_vbt_data {
 	bool edp_initialized;
 	bool edp_support;
 	int edp_bpp;
-	bool edp_low_vswing;
 	struct edp_power_seq edp_pps;
 
 	struct {
@@ -1574,6 +1594,11 @@ struct drm_i915_private {
 
 	struct i915_virtual_gpu vgpu;
 
+	struct intel_csr csr;
+
+	/* Display CSR-related protection */
+	struct mutex csr_lock;
+
 	struct intel_gmbus gmbus[GMBUS_NUM_PINS];
 
 	/** gmbus_mutex protects against concurrent usage of the single hw gmbus
@@ -1757,6 +1782,8 @@ struct drm_i915_private {
 
 	u32 fdi_rx_config;
 
+	u32 chv_phy_control;
+
 	u32 suspend_count;
 	struct i915_suspend_saved_registers regfile;
 	struct vlv_s0ix_state vlv_s0ix_state;
@@ -1824,6 +1851,8 @@ struct drm_i915_private {
 		void (*cleanup_ring)(struct intel_engine_cs *ring);
 		void (*stop_ring)(struct intel_engine_cs *ring);
 	} gt;
+
+	bool edp_low_vswing;
 
 	/*
 	 * NOTE: This is the dri1/ums dungeon, don't add stuff here. Your patch
@@ -2422,9 +2451,12 @@ struct drm_i915_cmd_table {
 				 IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev) || \
 				 IS_SKYLAKE(dev))
 #define HAS_RUNTIME_PM(dev)	(IS_GEN6(dev) || IS_HASWELL(dev) || \
-				 IS_BROADWELL(dev) || IS_VALLEYVIEW(dev))
+				 IS_BROADWELL(dev) || IS_VALLEYVIEW(dev) || \
+				 IS_SKYLAKE(dev))
 #define HAS_RC6(dev)		(INTEL_INFO(dev)->gen >= 6)
 #define HAS_RC6p(dev)		(INTEL_INFO(dev)->gen == 6 || IS_IVYBRIDGE(dev))
+
+#define HAS_CSR(dev)	(IS_SKYLAKE(dev))
 
 #define INTEL_PCH_DEVICE_ID_MASK		0xff00
 #define INTEL_PCH_IBX_DEVICE_ID_TYPE		0x3b00
@@ -2491,6 +2523,7 @@ struct i915_params {
 	int mmio_debug;
 	bool verbose_state_checks;
 	bool nuclear_pageflip;
+	int edp_vswing;
 };
 extern struct i915_params i915 __read_mostly;
 
@@ -2516,6 +2549,7 @@ extern unsigned long i915_gfx_val(struct drm_i915_private *dev_priv);
 extern void i915_update_gfx_val(struct drm_i915_private *dev_priv);
 int vlv_force_gfx_clock(struct drm_i915_private *dev_priv, bool on);
 void intel_hpd_cancel_work(struct drm_i915_private *dev_priv);
+void i915_firmware_load_error_print(const char *fw_path, int err);
 
 /* i915_irq.c */
 void i915_queue_hangcheck(struct drm_device *dev);

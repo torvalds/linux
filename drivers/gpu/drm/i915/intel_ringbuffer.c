@@ -919,53 +919,45 @@ static int gen9_init_workarounds(struct intel_engine_cs *ring)
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	/* WaDisablePartialInstShootdown:skl */
+	/* WaDisablePartialInstShootdown:skl,bxt */
 	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN,
 			  PARTIAL_INSTRUCTION_SHOOTDOWN_DISABLE);
 
-	/* Syncing dependencies between camera and graphics */
+	/* Syncing dependencies between camera and graphics:skl,bxt */
 	WA_SET_BIT_MASKED(HALF_SLICE_CHICKEN3,
 			  GEN9_DISABLE_OCL_OOB_SUPPRESS_LOGIC);
 
-	if (INTEL_REVID(dev) == SKL_REVID_A0 ||
-	    INTEL_REVID(dev) == SKL_REVID_B0) {
-		/* WaDisableDgMirrorFixInHalfSliceChicken5:skl */
+	if ((IS_SKYLAKE(dev) && (INTEL_REVID(dev) == SKL_REVID_A0 ||
+	    INTEL_REVID(dev) == SKL_REVID_B0)) ||
+	    (IS_BROXTON(dev) && INTEL_REVID(dev) < BXT_REVID_B0)) {
+		/* WaDisableDgMirrorFixInHalfSliceChicken5:skl,bxt */
 		WA_CLR_BIT_MASKED(GEN9_HALF_SLICE_CHICKEN5,
 				  GEN9_DG_MIRROR_FIX_ENABLE);
 	}
 
-	if (IS_SKYLAKE(dev) && INTEL_REVID(dev) <= SKL_REVID_B0) {
-		/* WaSetDisablePixMaskCammingAndRhwoInCommonSliceChicken:skl */
+	if ((IS_SKYLAKE(dev) && INTEL_REVID(dev) <= SKL_REVID_B0) ||
+	    (IS_BROXTON(dev) && INTEL_REVID(dev) < BXT_REVID_B0)) {
+		/* WaSetDisablePixMaskCammingAndRhwoInCommonSliceChicken:skl,bxt */
 		WA_SET_BIT_MASKED(GEN7_COMMON_SLICE_CHICKEN1,
 				  GEN9_RHWO_OPTIMIZATION_DISABLE);
 		WA_SET_BIT_MASKED(GEN9_SLICE_COMMON_ECO_CHICKEN0,
 				  DISABLE_PIXEL_MASK_CAMMING);
 	}
 
-	if (INTEL_REVID(dev) >= SKL_REVID_C0) {
-		/* WaEnableYV12BugFixInHalfSliceChicken7:skl */
+	if ((IS_SKYLAKE(dev) && INTEL_REVID(dev) >= SKL_REVID_C0) ||
+	    IS_BROXTON(dev)) {
+		/* WaEnableYV12BugFixInHalfSliceChicken7:skl,bxt */
 		WA_SET_BIT_MASKED(GEN9_HALF_SLICE_CHICKEN7,
 				  GEN9_ENABLE_YV12_BUGFIX);
 	}
 
-	if (INTEL_REVID(dev) <= SKL_REVID_D0) {
-		/*
-		 *Use Force Non-Coherent whenever executing a 3D context. This
-		 * is a workaround for a possible hang in the unlikely event
-		 * a TLB invalidation occurs during a PSD flush.
-		 */
-		/* WaForceEnableNonCoherent:skl */
-		WA_SET_BIT_MASKED(HDC_CHICKEN0,
-				  HDC_FORCE_NON_COHERENT);
-	}
-
-	/* Wa4x4STCOptimizationDisable:skl */
+	/* Wa4x4STCOptimizationDisable:skl,bxt */
 	WA_SET_BIT_MASKED(CACHE_MODE_1, GEN8_4x4_STC_OPTIMIZATION_DISABLE);
 
-	/* WaDisablePartialResolveInVc:skl */
+	/* WaDisablePartialResolveInVc:skl,bxt */
 	WA_SET_BIT_MASKED(CACHE_MODE_1, GEN9_PARTIAL_RESOLVE_IN_VC_DISABLE);
 
-	/* WaCcsTlbPrefetchDisable:skl */
+	/* WaCcsTlbPrefetchDisable:skl,bxt */
 	WA_CLR_BIT_MASKED(GEN9_HALF_SLICE_CHICKEN5,
 			  GEN9_CCS_TLB_PREFETCH_ENABLE);
 
@@ -1036,12 +1028,41 @@ static int skl_init_workarounds(struct intel_engine_cs *ring)
 		WA_SET_BIT_MASKED(HIZ_CHICKEN,
 				  BDW_HIZ_POWER_COMPILER_CLOCK_GATING_DISABLE);
 
+	if (INTEL_REVID(dev) <= SKL_REVID_D0) {
+		/*
+		 *Use Force Non-Coherent whenever executing a 3D context. This
+		 * is a workaround for a possible hang in the unlikely event
+		 * a TLB invalidation occurs during a PSD flush.
+		 */
+		/* WaForceEnableNonCoherent:skl */
+		WA_SET_BIT_MASKED(HDC_CHICKEN0,
+				  HDC_FORCE_NON_COHERENT);
+	}
+
 	return skl_tune_iz_hashing(ring);
 }
 
 static int bxt_init_workarounds(struct intel_engine_cs *ring)
 {
+	struct drm_device *dev = ring->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
 	gen9_init_workarounds(ring);
+
+	/* WaDisableThreadStallDopClockGating:bxt */
+	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN,
+			  STALL_DOP_GATING_DISABLE);
+
+	/* WaDisableSbeCacheDispatchPortSharing:bxt */
+	if (INTEL_REVID(dev) <= BXT_REVID_B0) {
+		WA_SET_BIT_MASKED(
+			GEN7_HALF_SLICE_CHICKEN1,
+			GEN7_SBE_SS_CACHE_DISPATCH_PORT_SHARING_DISABLE);
+	}
+
+	/* WaForceContextSaveRestoreNonCoherent:bxt */
+	WA_SET_BIT_MASKED(HDC_CHICKEN0,
+			  HDC_FORCE_CONTEXT_SAVE_RESTORE_NON_COHERENT);
 
 	return 0;
 }

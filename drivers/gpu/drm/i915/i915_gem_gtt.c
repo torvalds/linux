@@ -756,8 +756,8 @@ static int gen8_ppgtt_alloc_page_directories(struct i915_hw_ppgtt *ppgtt,
 
 	WARN_ON(!bitmap_empty(new_pds, GEN8_LEGACY_PDPES));
 
-	/* FIXME: PPGTT container_of won't work for 64b */
-	WARN_ON((start + length) > 0x800000000ULL);
+	/* FIXME: upper bound must not overflow 32 bits  */
+	WARN_ON((start + length) >= (1ULL << 32));
 
 	gen8_for_each_pdpe(pd, pdp, start, length, temp, pdpe) {
 		if (pd)
@@ -843,15 +843,6 @@ static int gen8_alloc_va_range(struct i915_address_space *vm,
 	uint64_t temp;
 	uint32_t pdpe;
 	int ret;
-
-#ifndef CONFIG_64BIT
-	/* Disallow 64b address on 32b platforms. Nothing is wrong with doing
-	 * this in hardware, but a lot of the drm code is not prepared to handle
-	 * 64b offset on 32b platforms.
-	 * This will be addressed when 48b PPGTT is added */
-	if (start + length > 0x100000000ULL)
-		return -E2BIG;
-#endif
 
 	/* Wrap is never okay since we can only represent 48b, and we don't
 	 * actually use the other side of the canonical address space.
@@ -1945,19 +1936,23 @@ static void ggtt_unbind_vma(struct i915_vma *vma)
 	struct drm_device *dev = vma->vm->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj = vma->obj;
+	const uint64_t size = min_t(uint64_t,
+				    obj->base.size,
+				    vma->node.size);
 
 	if (vma->bound & GLOBAL_BIND) {
 		vma->vm->clear_range(vma->vm,
 				     vma->node.start,
-				     obj->base.size,
+				     size,
 				     true);
 	}
 
 	if (dev_priv->mm.aliasing_ppgtt && vma->bound & LOCAL_BIND) {
 		struct i915_hw_ppgtt *appgtt = dev_priv->mm.aliasing_ppgtt;
+
 		appgtt->base.clear_range(&appgtt->base,
 					 vma->node.start,
-					 obj->base.size,
+					 size,
 					 true);
 	}
 }
@@ -2758,6 +2753,47 @@ err_st_alloc:
 	return ERR_PTR(ret);
 }
 
+static struct sg_table *
+intel_partial_pages(const struct i915_ggtt_view *view,
+		    struct drm_i915_gem_object *obj)
+{
+	struct sg_table *st;
+	struct scatterlist *sg;
+	struct sg_page_iter obj_sg_iter;
+	int ret = -ENOMEM;
+
+	st = kmalloc(sizeof(*st), GFP_KERNEL);
+	if (!st)
+		goto err_st_alloc;
+
+	ret = sg_alloc_table(st, view->params.partial.size, GFP_KERNEL);
+	if (ret)
+		goto err_sg_alloc;
+
+	sg = st->sgl;
+	st->nents = 0;
+	for_each_sg_page(obj->pages->sgl, &obj_sg_iter, obj->pages->nents,
+		view->params.partial.offset)
+	{
+		if (st->nents >= view->params.partial.size)
+			break;
+
+		sg_set_page(sg, NULL, PAGE_SIZE, 0);
+		sg_dma_address(sg) = sg_page_iter_dma_address(&obj_sg_iter);
+		sg_dma_len(sg) = PAGE_SIZE;
+
+		sg = sg_next(sg);
+		st->nents++;
+	}
+
+	return st;
+
+err_sg_alloc:
+	kfree(st);
+err_st_alloc:
+	return ERR_PTR(ret);
+}
+
 static int
 i915_get_ggtt_vma_pages(struct i915_vma *vma)
 {
@@ -2771,6 +2807,9 @@ i915_get_ggtt_vma_pages(struct i915_vma *vma)
 	else if (vma->ggtt_view.type == I915_GGTT_VIEW_ROTATED)
 		vma->ggtt_view.pages =
 			intel_rotate_fb_obj_pages(&vma->ggtt_view, vma->obj);
+	else if (vma->ggtt_view.type == I915_GGTT_VIEW_PARTIAL)
+		vma->ggtt_view.pages =
+			intel_partial_pages(&vma->ggtt_view, vma->obj);
 	else
 		WARN_ONCE(1, "GGTT view %u not implemented!\n",
 			  vma->ggtt_view.type);
@@ -2842,4 +2881,26 @@ int i915_vma_bind(struct i915_vma *vma, enum i915_cache_level cache_level,
 	vma->bound |= bind_flags;
 
 	return 0;
+}
+
+/**
+ * i915_ggtt_view_size - Get the size of a GGTT view.
+ * @obj: Object the view is of.
+ * @view: The view in question.
+ *
+ * @return The size of the GGTT view in bytes.
+ */
+size_t
+i915_ggtt_view_size(struct drm_i915_gem_object *obj,
+		    const struct i915_ggtt_view *view)
+{
+	if (view->type == I915_GGTT_VIEW_NORMAL ||
+	    view->type == I915_GGTT_VIEW_ROTATED) {
+		return obj->base.size;
+	} else if (view->type == I915_GGTT_VIEW_PARTIAL) {
+		return view->params.partial.size << PAGE_SHIFT;
+	} else {
+		WARN_ONCE(1, "GGTT view %u not implemented!\n", view->type);
+		return obj->base.size;
+	}
 }

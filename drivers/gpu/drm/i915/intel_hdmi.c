@@ -964,6 +964,7 @@ static bool hdmi_12bpc_possible(struct intel_crtc_state *crtc_state)
 	struct drm_device *dev = crtc_state->base.crtc->dev;
 	struct drm_atomic_state *state;
 	struct intel_encoder *encoder;
+	struct drm_connector *connector;
 	struct drm_connector_state *connector_state;
 	int count = 0, count_hdmi = 0;
 	int i;
@@ -973,11 +974,7 @@ static bool hdmi_12bpc_possible(struct intel_crtc_state *crtc_state)
 
 	state = crtc_state->base.state;
 
-	for (i = 0; i < state->num_connector; i++) {
-		if (!state->connectors[i])
-			continue;
-
-		connector_state = state->connector_states[i];
+	for_each_connector_in_state(state, connector, connector_state, i) {
 		if (connector_state->crtc != crtc_state->base.crtc)
 			continue;
 
@@ -1327,7 +1324,7 @@ static void vlv_hdmi_pre_enable(struct intel_encoder *encoder)
 
 	intel_enable_hdmi(encoder);
 
-	vlv_wait_port_ready(dev_priv, dport);
+	vlv_wait_port_ready(dev_priv, dport, 0x0);
 }
 
 static void vlv_hdmi_pre_pll_enable(struct intel_encoder *encoder)
@@ -1490,7 +1487,7 @@ static void chv_hdmi_pre_enable(struct intel_encoder *encoder)
 		&intel_crtc->config->base.adjusted_mode;
 	enum dpio_channel ch = vlv_dport_to_channel(dport);
 	int pipe = intel_crtc->pipe;
-	int data, i;
+	int data, i, stagger;
 	u32 val;
 
 	mutex_lock(&dev_priv->dpio_lock);
@@ -1530,7 +1527,38 @@ static void chv_hdmi_pre_enable(struct intel_encoder *encoder)
 	}
 
 	/* Data lane stagger programming */
-	/* FIXME: Fix up value only after power analysis */
+	if (intel_crtc->config->port_clock > 270000)
+		stagger = 0x18;
+	else if (intel_crtc->config->port_clock > 135000)
+		stagger = 0xd;
+	else if (intel_crtc->config->port_clock > 67500)
+		stagger = 0x7;
+	else if (intel_crtc->config->port_clock > 33750)
+		stagger = 0x4;
+	else
+		stagger = 0x2;
+
+	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW11(ch));
+	val |= DPIO_TX2_STAGGER_MASK(0x1f);
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW11(ch), val);
+
+	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW11(ch));
+	val |= DPIO_TX2_STAGGER_MASK(0x1f);
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW11(ch), val);
+
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW12(ch),
+		       DPIO_LANESTAGGER_STRAP(stagger) |
+		       DPIO_LANESTAGGER_STRAP_OVRD |
+		       DPIO_TX1_STAGGER_MASK(0x1f) |
+		       DPIO_TX1_STAGGER_MULT(6) |
+		       DPIO_TX2_STAGGER_MULT(0));
+
+	vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW12(ch),
+		       DPIO_LANESTAGGER_STRAP(stagger) |
+		       DPIO_LANESTAGGER_STRAP_OVRD |
+		       DPIO_TX1_STAGGER_MASK(0x1f) |
+		       DPIO_TX1_STAGGER_MULT(7) |
+		       DPIO_TX2_STAGGER_MULT(5));
 
 	/* Clear calc init */
 	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW10(ch));
@@ -1613,7 +1641,7 @@ static void chv_hdmi_pre_enable(struct intel_encoder *encoder)
 
 	intel_enable_hdmi(encoder);
 
-	vlv_wait_port_ready(dev_priv, dport);
+	vlv_wait_port_ready(dev_priv, dport, 0x0);
 }
 
 static void intel_hdmi_destroy(struct drm_connector *connector)

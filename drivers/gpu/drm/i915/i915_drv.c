@@ -556,6 +556,26 @@ void intel_hpd_cancel_work(struct drm_i915_private *dev_priv)
 	cancel_delayed_work_sync(&dev_priv->hotplug_reenable_work);
 }
 
+void i915_firmware_load_error_print(const char *fw_path, int err)
+{
+	DRM_ERROR("failed to load firmware %s (%d)\n", fw_path, err);
+
+	/*
+	 * If the reason is not known assume -ENOENT since that's the most
+	 * usual failure mode.
+	 */
+	if (!err)
+		err = -ENOENT;
+
+	if (!(IS_BUILTIN(CONFIG_DRM_I915) && err == -ENOENT))
+		return;
+
+	DRM_ERROR(
+	  "The driver is built-in, so to load the firmware you need to\n"
+	  "include it either in the kernel (see CONFIG_EXTRA_FIRMWARE) or\n"
+	  "in your initrd/initramfs image.\n");
+}
+
 static void intel_suspend_encoders(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
@@ -574,6 +594,8 @@ static void intel_suspend_encoders(struct drm_i915_private *dev_priv)
 static int intel_suspend_complete(struct drm_i915_private *dev_priv);
 static int vlv_resume_prepare(struct drm_i915_private *dev_priv,
 			      bool rpm_resume);
+static int skl_resume_prepare(struct drm_i915_private *dev_priv);
+
 
 static int i915_drm_suspend(struct drm_device *dev)
 {
@@ -788,6 +810,8 @@ static int i915_drm_resume_early(struct drm_device *dev)
 
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		hsw_disable_pc8(dev_priv);
+	else if (IS_SKYLAKE(dev_priv))
+		ret = skl_resume_prepare(dev_priv);
 
 	intel_uncore_sanitize(dev);
 	intel_power_domains_init_hw(dev_priv);
@@ -1002,6 +1026,19 @@ static int i915_pm_resume(struct device *dev)
 	return i915_drm_resume(drm_dev);
 }
 
+static int skl_suspend_complete(struct drm_i915_private *dev_priv)
+{
+	/* Enabling DC6 is not a hard requirement to enter runtime D3 */
+
+	/*
+	 * This is to ensure that CSR isn't identified as loaded before
+	 * CSR-loading program is called during runtime-resume.
+	 */
+	intel_csr_load_status_set(dev_priv, FW_UNINITIALIZED);
+
+	return 0;
+}
+
 static int hsw_suspend_complete(struct drm_i915_private *dev_priv)
 {
 	hsw_enable_pc8(dev_priv);
@@ -1037,6 +1074,15 @@ static int bxt_resume_prepare(struct drm_i915_private *dev_priv)
 	broxton_init_cdclk(dev);
 	broxton_ddi_phy_init(dev);
 	intel_prepare_ddi(dev);
+
+	return 0;
+}
+
+static int skl_resume_prepare(struct drm_i915_private *dev_priv)
+{
+	struct drm_device *dev = dev_priv->dev;
+
+	intel_csr_load_program(dev);
 
 	return 0;
 }
@@ -1502,6 +1548,8 @@ static int intel_runtime_resume(struct device *device)
 
 	if (IS_BROXTON(dev))
 		ret = bxt_resume_prepare(dev_priv);
+	else if (IS_SKYLAKE(dev))
+		ret = skl_resume_prepare(dev_priv);
 	else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		hsw_disable_pc8(dev_priv);
 	else if (IS_VALLEYVIEW(dev_priv))
@@ -1536,6 +1584,8 @@ static int intel_suspend_complete(struct drm_i915_private *dev_priv)
 
 	if (IS_BROXTON(dev))
 		ret = bxt_suspend_complete(dev_priv);
+	else if (IS_SKYLAKE(dev))
+		ret = skl_suspend_complete(dev_priv);
 	else if (IS_HASWELL(dev) || IS_BROADWELL(dev))
 		ret = hsw_suspend_complete(dev_priv);
 	else if (IS_VALLEYVIEW(dev))

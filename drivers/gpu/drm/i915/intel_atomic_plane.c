@@ -85,8 +85,8 @@ intel_plane_duplicate_state(struct drm_plane *plane)
 		return NULL;
 
 	state = &intel_state->base;
-	if (state->fb)
-		drm_framebuffer_reference(state->fb);
+
+	__drm_atomic_helper_plane_duplicate_state(plane, state);
 
 	return state;
 }
@@ -111,6 +111,7 @@ static int intel_plane_atomic_check(struct drm_plane *plane,
 {
 	struct drm_crtc *crtc = state->crtc;
 	struct intel_crtc *intel_crtc;
+	struct intel_crtc_state *crtc_state;
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct intel_plane_state *intel_state = to_intel_plane_state(state);
 
@@ -125,6 +126,17 @@ static int intel_plane_atomic_check(struct drm_plane *plane,
 	 */
 	if (!crtc)
 		return 0;
+
+	/* FIXME: temporary hack necessary while we still use the plane update
+	 * helper. */
+	if (state->state) {
+		crtc_state =
+			intel_atomic_get_crtc_state(state->state, intel_crtc);
+		if (IS_ERR(crtc_state))
+			return PTR_ERR(crtc_state);
+	} else {
+		crtc_state = intel_crtc->config;
+	}
 
 	/*
 	 * The original src/dest coordinates are stored in state->base, but
@@ -144,9 +156,9 @@ static int intel_plane_atomic_check(struct drm_plane *plane,
 	intel_state->clip.x1 = 0;
 	intel_state->clip.y1 = 0;
 	intel_state->clip.x2 =
-		intel_crtc->active ? intel_crtc->config->pipe_src_w : 0;
+		crtc_state->base.active ? crtc_state->pipe_src_w : 0;
 	intel_state->clip.y2 =
-		intel_crtc->active ? intel_crtc->config->pipe_src_h : 0;
+		crtc_state->base.active ? crtc_state->pipe_src_h : 0;
 
 	/*
 	 * Disabling a plane is always okay; we just need to update

@@ -40,7 +40,9 @@ static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	int bpp, i;
 	int lane_count, slots, rate;
 	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
-	struct intel_connector *found = NULL;
+	struct drm_connector *drm_connector;
+	struct intel_connector *connector, *found = NULL;
+	struct drm_connector_state *connector_state;
 	int mst_pbn;
 
 	pipe_config->dp_encoder_is_mst = true;
@@ -70,12 +72,11 @@ static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
 
 	state = pipe_config->base.state;
 
-	for (i = 0; i < state->num_connector; i++) {
-		if (!state->connectors[i])
-			continue;
+	for_each_connector_in_state(state, drm_connector, connector_state, i) {
+		connector = to_intel_connector(drm_connector);
 
-		if (state->connector_states[i]->best_encoder == &encoder->base) {
-			found = to_intel_connector(state->connectors[i]);
+		if (connector_state->best_encoder == &encoder->base) {
+			found = connector;
 			break;
 		}
 	}

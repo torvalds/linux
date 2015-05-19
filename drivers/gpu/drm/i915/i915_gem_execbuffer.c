@@ -1540,29 +1540,39 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	}
 
 	if (i915_needs_cmd_parser(ring) && args->batch_len) {
-		batch_obj = i915_gem_execbuffer_parse(ring,
+		struct drm_i915_gem_object *parsed_batch_obj;
+
+		parsed_batch_obj = i915_gem_execbuffer_parse(ring,
 						      &shadow_exec_entry,
 						      eb,
 						      batch_obj,
 						      args->batch_start_offset,
 						      args->batch_len,
 						      file->is_master);
-		if (IS_ERR(batch_obj)) {
-			ret = PTR_ERR(batch_obj);
+		if (IS_ERR(parsed_batch_obj)) {
+			ret = PTR_ERR(parsed_batch_obj);
 			goto err;
 		}
 
 		/*
-		 * Set the DISPATCH_SECURE bit to remove the NON_SECURE
-		 * bit from MI_BATCH_BUFFER_START commands issued in the
-		 * dispatch_execbuffer implementations. We specifically
-		 * don't want that set when the command parser is
-		 * enabled.
+		 * parsed_batch_obj == batch_obj means batch not fully parsed:
+		 * Accept, but don't promote to secure.
 		 */
-		if (USES_PPGTT(dev))
-			dispatch_flags |= I915_DISPATCH_SECURE;
 
-		exec_start = 0;
+		if (parsed_batch_obj != batch_obj) {
+			/*
+			 * Batch parsed and accepted:
+			 *
+			 * Set the DISPATCH_SECURE bit to remove the NON_SECURE
+			 * bit from MI_BATCH_BUFFER_START commands issued in
+			 * the dispatch_execbuffer implementations. We
+			 * specifically don't want that set on batches the
+			 * command parser has accepted.
+			 */
+			dispatch_flags |= I915_DISPATCH_SECURE;
+			exec_start = 0;
+			batch_obj = parsed_batch_obj;
+		}
 	}
 
 	batch_obj->base.pending_read_domains |= I915_GEM_DOMAIN_COMMAND;
