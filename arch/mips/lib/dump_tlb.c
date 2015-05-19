@@ -67,6 +67,9 @@ static void dump_tlb(int first, int last)
 		entrylo0 = read_c0_entrylo0();
 		entrylo1 = read_c0_entrylo1();
 
+		/* EHINV bit marks entire entry as invalid */
+		if (cpu_has_tlbinv && entryhi & MIPS_ENTRYHI_EHINV)
+			continue;
 		/*
 		 * Prior to tlbinv, unused entries have a virtual address of
 		 * CKSEG0.
