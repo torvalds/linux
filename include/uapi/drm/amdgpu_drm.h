@@ -67,20 +67,12 @@
 #define AMDGPU_GEM_DOMAIN_GWS		0x10
 #define AMDGPU_GEM_DOMAIN_OA		0x20
 
-#define AMDGPU_GEM_DOMAIN_MASK		0x3F
-
 /* Flag that CPU access will be required for the case of VRAM domain */
 #define AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED	(1 << 0)
 /* Flag that CPU access will not work, this VRAM domain is invisible */
 #define AMDGPU_GEM_CREATE_NO_CPU_ACCESS		(1 << 1)
 /* Flag that USWC attributes should be used for GTT */
 #define AMDGPU_GEM_CREATE_CPU_GTT_USWC		(1 << 2)
-
-/* Flag mask for GTT domain_flags */
-#define AMDGPU_GEM_CREATE_CPU_GTT_MASK \
-	(AMDGPU_GEM_CREATE_CPU_GTT_USWC | \
-	 AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED | \
-	 AMDGPU_GEM_CREATE_NO_CPU_ACCESS)
 
 struct drm_amdgpu_gem_create_in  {
 	/** the requested memory size */
