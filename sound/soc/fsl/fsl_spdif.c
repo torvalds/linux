@@ -1324,7 +1324,6 @@ static int fsl_spdif_suspend(struct device *dev)
 	regmap_read(spdif_priv->regmap, REG_SPDIF_SRPC,
 			&spdif_priv->regcache_srpc);
 
-	regcache_cache_only(spdif_priv->regmap, true);
 	regcache_mark_dirty(spdif_priv->regmap);
 
 	return 0;
@@ -1333,8 +1332,6 @@ static int fsl_spdif_suspend(struct device *dev)
 static int fsl_spdif_resume(struct device *dev)
 {
 	struct fsl_spdif_priv *spdif_priv = dev_get_drvdata(dev);
-
-	regcache_cache_only(spdif_priv->regmap, false);
 
 	regmap_update_bits(spdif_priv->regmap, REG_SPDIF_SRPC,
 			SRPC_CLKSRC_SEL_MASK | SRPC_GAINSEL_MASK,
