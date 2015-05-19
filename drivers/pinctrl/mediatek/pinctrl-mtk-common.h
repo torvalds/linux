@@ -19,8 +19,6 @@
 #include <linux/regmap.h>
 
 #define NO_EINT_SUPPORT    255
-#define MTK_CHIP_TYPE_BASE     0
-#define MTK_CHIP_TYPE_PMIC     1
 #define MT_EDGE_SENSITIVE           0
 #define MT_LEVEL_SENSITIVE          1
 #define EINT_DBNC_SET_DBNC_BITS     4
@@ -39,7 +37,6 @@ struct mtk_desc_eint {
 
 struct mtk_desc_pin {
 	struct pinctrl_pin_desc	pin;
-	const char *chip;
 	const struct mtk_desc_eint eint;
 	const struct mtk_desc_function	*functions;
 };
@@ -47,7 +44,6 @@ struct mtk_desc_pin {
 #define MTK_PIN(_pin, _pad, _chip, _eint, ...)		\
 	{							\
 		.pin = _pin,					\
-		.chip = _chip,					\
 		.eint = _eint,					\
 		.functions = (struct mtk_desc_function[]){	\
 			__VA_ARGS__, { } },			\
@@ -107,8 +103,8 @@ struct mtk_drv_group_desc {
  * @grp: The group for this pin belongs to.
  */
 struct mtk_pin_drv_grp {
-	unsigned int pin;
-	unsigned int offset;
+	unsigned short pin;
+	unsigned short offset;
 	unsigned char bit;
 	unsigned char grp;
 };
@@ -193,7 +189,6 @@ struct mtk_pinctrl_devdata {
 	unsigned int pullen_offset;
 	unsigned int pullsel_offset;
 	unsigned int drv_offset;
-	unsigned int invser_offset;
 	unsigned int dout_offset;
 	unsigned int din_offset;
 	unsigned int pinmux_offset;
@@ -202,7 +197,6 @@ struct mtk_pinctrl_devdata {
 	unsigned char  port_shf;
 	unsigned char  port_mask;
 	unsigned char  port_align;
-	unsigned char	chip_type;
 	struct mtk_eint_offsets eint_offsets;
 	unsigned int	ap_num;
 	unsigned int	db_cnt;
