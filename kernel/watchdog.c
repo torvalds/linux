@@ -621,7 +621,7 @@ void watchdog_nmi_enable_all(void)
 	put_online_cpus();
 
 unlock:
-	mutex_lock(&watchdog_proc_mutex);
+	mutex_unlock(&watchdog_proc_mutex);
 }
 
 void watchdog_nmi_disable_all(void)
