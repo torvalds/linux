@@ -147,7 +147,7 @@ fini_lnet(void)
 }
 
 MODULE_AUTHOR("Peter J. Braam <braam@clusterfs.com>");
-MODULE_DESCRIPTION("Portals v3.1");
+MODULE_DESCRIPTION("LNet v3.1");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("1.0.0");
 
