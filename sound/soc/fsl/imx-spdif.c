@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Freescale Semiconductor, Inc.
+ * Copyright (C) 2013-2015 Freescale Semiconductor, Inc.
  *
  * The code contained herein is licensed under the GNU General Public
  * License. You may obtain a copy of the GNU General Public License
@@ -72,8 +72,6 @@ static int imx_spdif_audio_probe(struct platform_device *pdev)
 		goto end;
 	}
 
-	platform_set_drvdata(pdev, data);
-
 end:
 	of_node_put(spdif_np);
 
@@ -89,6 +87,7 @@ MODULE_DEVICE_TABLE(of, imx_spdif_dt_ids);
 static struct platform_driver imx_spdif_driver = {
 	.driver = {
 		.name = "imx-spdif",
+		.pm = &snd_soc_pm_ops,
 		.of_match_table = imx_spdif_dt_ids,
 	},
 	.probe = imx_spdif_audio_probe,
