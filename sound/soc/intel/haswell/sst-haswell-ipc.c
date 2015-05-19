@@ -2127,6 +2127,9 @@ int sst_hsw_dsp_init(struct device *dev, struct sst_pdata *pdata)
 	ipc->ops.reply_msg_match = hsw_reply_msg_match;
 	ipc->ops.is_dsp_busy = hsw_is_dsp_busy;
 
+	ipc->tx_data_max_size = IPC_MAX_MAILBOX_BYTES;
+	ipc->rx_data_max_size = IPC_MAX_MAILBOX_BYTES;
+
 	ret = sst_ipc_init(ipc);
 	if (ret != 0)
 		goto ipc_init_err;
