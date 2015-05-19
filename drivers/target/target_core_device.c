@@ -528,7 +528,7 @@ static void core_export_port(
 	list_add_tail(&port->sep_list, &dev->dev_sep_list);
 	spin_unlock(&dev->se_port_lock);
 
-	if (dev->transport->transport_type != TRANSPORT_PLUGIN_PHBA_PDEV &&
+	if (!(dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH) &&
 	    !(dev->se_hba->hba_flags & HBA_FLAGS_INTERNAL_USE)) {
 		tg_pt_gp_mem = core_alua_allocate_tg_pt_gp_mem(port);
 		if (IS_ERR(tg_pt_gp_mem) || !tg_pt_gp_mem) {
@@ -1604,7 +1604,7 @@ int target_configure_device(struct se_device *dev)
 	 * anything virtual (IBLOCK, FILEIO, RAMDISK), but not for TCM/pSCSI
 	 * passthrough because this is being provided by the backend LLD.
 	 */
-	if (dev->transport->transport_type != TRANSPORT_PLUGIN_PHBA_PDEV) {
+	if (!(dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH)) {
 		strncpy(&dev->t10_wwn.vendor[0], "LIO-ORG", 8);
 		strncpy(&dev->t10_wwn.model[0],
 			dev->transport->inquiry_prod, 16);
