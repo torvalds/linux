@@ -715,6 +715,7 @@ static int exynos_iommu_attach_device(struct iommu_domain *iommu_domain,
 		return -ENODEV;
 
 	list_for_each_entry(data, &owner->controllers, owner_node) {
+		pm_runtime_get_sync(data->sysmmu);
 		ret = __sysmmu_enable(data, pagetable, domain);
 		if (ret >= 0) {
 			data->master = dev;
@@ -756,6 +757,7 @@ static void exynos_iommu_detach_device(struct iommu_domain *iommu_domain,
 				data->master = NULL;
 				list_del_init(&data->domain_node);
 			}
+			pm_runtime_put(data->sysmmu);
 			found = true;
 		}
 	}
