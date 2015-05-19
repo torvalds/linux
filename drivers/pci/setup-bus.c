@@ -435,9 +435,11 @@ static void __assign_resources_sorted(struct list_head *head,
 			list_for_each_entry(dev_res2, head, list) {
 				align = pci_resource_alignment(dev_res2->dev,
 							       dev_res2->res);
-				if (add_align > align)
+				if (add_align > align) {
 					list_move_tail(&dev_res->list,
 						       &dev_res2->list);
+					break;
+				}
 			}
                }
 
