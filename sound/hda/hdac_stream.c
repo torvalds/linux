@@ -139,9 +139,13 @@ EXPORT_SYMBOL_GPL(snd_hdac_stream_reset);
 int snd_hdac_stream_setup(struct hdac_stream *azx_dev)
 {
 	struct hdac_bus *bus = azx_dev->bus;
-	struct snd_pcm_runtime *runtime = azx_dev->substream->runtime;
+	struct snd_pcm_runtime *runtime;
 	unsigned int val;
 
+	if (azx_dev->substream)
+		runtime = azx_dev->substream->runtime;
+	else
+		runtime = NULL;
 	/* make sure the run bit is zero for SD */
 	snd_hdac_stream_clear(azx_dev);
 	/* program the stream_tag */
@@ -189,14 +193,15 @@ int snd_hdac_stream_setup(struct hdac_stream *azx_dev)
 	 * we ignore it; currently set the threshold statically to
 	 * 64 frames
 	 */
-	if (runtime->period_size > 64)
+	if (runtime && runtime->period_size > 64)
 		azx_dev->delay_negative_threshold =
 			-frames_to_bytes(runtime, 64);
 	else
 		azx_dev->delay_negative_threshold = 0;
 
 	/* wallclk has 24Mhz clock source */
-	azx_dev->period_wallclk = (((runtime->period_size * 24000) /
+	if (runtime)
+		azx_dev->period_wallclk = (((runtime->period_size * 24000) /
 				    runtime->rate) * 1000);
 
 	return 0;
@@ -611,6 +616,7 @@ int snd_hdac_dsp_prepare(struct hdac_stream *azx_dev, unsigned int format,
 	if (err < 0)
 		goto err_alloc;
 
+	azx_dev->substream = NULL;
 	azx_dev->bufsize = byte_size;
 	azx_dev->period_bytes = byte_size;
 	azx_dev->format_val = format;
