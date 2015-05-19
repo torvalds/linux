@@ -628,6 +628,9 @@ static void __register_request(struct ceph_mds_client *mdsc,
 	req->r_uid = current_fsuid();
 	req->r_gid = current_fsgid();
 
+	if (mdsc->oldest_tid == 0 && req->r_op != CEPH_MDS_OP_SETFILELOCK)
+		mdsc->oldest_tid = req->r_tid;
+
 	if (dir) {
 		struct ceph_inode_info *ci = ceph_inode(dir);
 
@@ -643,6 +646,21 @@ static void __unregister_request(struct ceph_mds_client *mdsc,
 				 struct ceph_mds_request *req)
 {
 	dout("__unregister_request %p tid %lld\n", req, req->r_tid);
+
+	if (req->r_tid == mdsc->oldest_tid) {
+		struct rb_node *p = rb_next(&req->r_node);
+		mdsc->oldest_tid = 0;
+		while (p) {
+			struct ceph_mds_request *next_req =
+				rb_entry(p, struct ceph_mds_request, r_node);
+			if (next_req->r_op != CEPH_MDS_OP_SETFILELOCK) {
+				mdsc->oldest_tid = next_req->r_tid;
+				break;
+			}
+			p = rb_next(p);
+		}
+	}
+
 	rb_erase(&req->r_node, &mdsc->request_tree);
 	RB_CLEAR_NODE(&req->r_node);
 
@@ -1682,13 +1700,9 @@ static struct ceph_mds_request *__get_oldest_req(struct ceph_mds_client *mdsc)
 			struct ceph_mds_request, r_node);
 }
 
-static u64 __get_oldest_tid(struct ceph_mds_client *mdsc)
+static inline  u64 __get_oldest_tid(struct ceph_mds_client *mdsc)
 {
-	struct ceph_mds_request *req = __get_oldest_req(mdsc);
-
-	if (req)
-		return req->r_tid;
-	return 0;
+	return mdsc->oldest_tid;
 }
 
 /*
@@ -3378,6 +3392,7 @@ int ceph_mdsc_init(struct ceph_fs_client *fsc)
 	INIT_LIST_HEAD(&mdsc->snap_empty);
 	spin_lock_init(&mdsc->snap_empty_lock);
 	mdsc->last_tid = 0;
+	mdsc->oldest_tid = 0;
 	mdsc->request_tree = RB_ROOT;
 	INIT_DELAYED_WORK(&mdsc->delayed_work, delayed_work);
 	mdsc->last_renew_caps = jiffies;
@@ -3471,7 +3486,8 @@ restart:
 			nextreq = rb_entry(n, struct ceph_mds_request, r_node);
 		else
 			nextreq = NULL;
-		if ((req->r_op & CEPH_MDS_OP_WRITE)) {
+		if (req->r_op != CEPH_MDS_OP_SETFILELOCK &&
+		    (req->r_op & CEPH_MDS_OP_WRITE)) {
 			/* write op */
 			ceph_mdsc_get_request(req);
 			if (nextreq)
