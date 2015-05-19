@@ -205,6 +205,8 @@ enum ieee80211_packet_rx_flags {
  * @IEEE80211_RX_CMNTR: received on cooked monitor already
  * @IEEE80211_RX_BEACON_REPORTED: This frame was already reported
  *	to cfg80211_report_obss_beacon().
+ * @IEEE80211_RX_REORDER_TIMER: this frame is released by the
+ *	reorder buffer timeout timer, not the normal RX path
  *
  * These flags are used across handling multiple interfaces
  * for a single frame.
@@ -212,6 +214,7 @@ enum ieee80211_packet_rx_flags {
 enum ieee80211_rx_flags {
 	IEEE80211_RX_CMNTR		= BIT(0),
 	IEEE80211_RX_BEACON_REPORTED	= BIT(1),
+	IEEE80211_RX_REORDER_TIMER	= BIT(2),
 };
 
 struct ieee80211_rx_data {
