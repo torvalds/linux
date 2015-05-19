@@ -48,8 +48,8 @@
 #define key_dbg(bdata, format, arg...)
 #endif
 
-#define DEFAULT_DEBOUNCE_INTERVAL	10  /* 10ms */
-#define ADC_SAMPLE_TIME			100
+#define DEBOUNCE_JIFFIES	(10 / (MSEC_PER_SEC / HZ))	/* 10ms */
+#define ADC_SAMPLE_JIFFIES	(100 / (MSEC_PER_SEC / HZ))	/* 100ms */
 
 enum rk_key_type {
 	TYPE_GPIO = 1,
@@ -140,7 +140,7 @@ static void keys_timer(unsigned long _data)
 	}
 
 	if (state)
-		mod_timer(&button->timer, jiffies + msecs_to_jiffies(DEFAULT_DEBOUNCE_INTERVAL));
+		mod_timer(&button->timer, jiffies + DEBOUNCE_JIFFIES);
 }
 
 static irqreturn_t keys_isr(int irq, void *dev_id)
@@ -151,7 +151,7 @@ static irqreturn_t keys_isr(int irq, void *dev_id)
 
 	BUG_ON(irq != gpio_to_irq(button->gpio));
 
-	if (button->wakeup == 1 && pdata->in_suspend == true) {
+	if (button->wakeup && pdata->in_suspend) {
 		button->state = 1;
 		key_dbg(pdata,
 			"wakeup: %skey[%s]: report event[%d] state[%d]\n",
@@ -160,7 +160,7 @@ static irqreturn_t keys_isr(int irq, void *dev_id)
 		input_event(input, EV_KEY, button->code, button->state);
 		input_sync(input);
 	}
-	mod_timer(&button->timer, jiffies + msecs_to_jiffies(DEFAULT_DEBOUNCE_INTERVAL));
+	mod_timer(&button->timer, jiffies + DEBOUNCE_JIFFIES);
 
 	return IRQ_HANDLED;
 }
@@ -219,11 +219,11 @@ static void adc_key_poll(struct work_struct *work)
 				button->adc_state = 0;
 			if (button->state != button->adc_state)
 				mod_timer(&button->timer,
-					  jiffies + msecs_to_jiffies(DEFAULT_DEBOUNCE_INTERVAL));
+					  jiffies + DEBOUNCE_JIFFIES);
 		}
 	}
 
-	schedule_delayed_work(&ddata->adc_poll_work, msecs_to_jiffies(ADC_SAMPLE_TIME));
+	schedule_delayed_work(&ddata->adc_poll_work, ADC_SAMPLE_JIFFIES);
 }
 
 static int rk_key_type_get(struct device_node *node,
@@ -433,7 +433,7 @@ static int keys_probe(struct platform_device *pdev)
 	if (ddata->chan) {
 		INIT_DELAYED_WORK(&ddata->adc_poll_work, adc_key_poll);
 		schedule_delayed_work(&ddata->adc_poll_work,
-				      msecs_to_jiffies(ADC_SAMPLE_TIME));
+				      ADC_SAMPLE_JIFFIES);
 	}
 
 	spdata = ddata;
