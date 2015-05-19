@@ -4954,18 +4954,22 @@ static ssize_t wq_nice_store(struct device *dev, struct device_attribute *attr,
 {
 	struct workqueue_struct *wq = dev_to_wq(dev);
 	struct workqueue_attrs *attrs;
-	int ret;
+	int ret = -ENOMEM;
+
+	apply_wqattrs_lock();
 
 	attrs = wq_sysfs_prep_attrs(wq);
 	if (!attrs)
-		return -ENOMEM;
+		goto out_unlock;
 
 	if (sscanf(buf, "%d", &attrs->nice) == 1 &&
 	    attrs->nice >= MIN_NICE && attrs->nice <= MAX_NICE)
-		ret = apply_workqueue_attrs(wq, attrs);
+		ret = apply_workqueue_attrs_locked(wq, attrs);
 	else
 		ret = -EINVAL;
 
+out_unlock:
+	apply_wqattrs_unlock();
 	free_workqueue_attrs(attrs);
 	return ret ?: count;
 }
@@ -4989,16 +4993,20 @@ static ssize_t wq_cpumask_store(struct device *dev,
 {
 	struct workqueue_struct *wq = dev_to_wq(dev);
 	struct workqueue_attrs *attrs;
-	int ret;
+	int ret = -ENOMEM;
+
+	apply_wqattrs_lock();
 
 	attrs = wq_sysfs_prep_attrs(wq);
 	if (!attrs)
-		return -ENOMEM;
+		goto out_unlock;
 
 	ret = cpumask_parse(buf, attrs->cpumask);
 	if (!ret)
-		ret = apply_workqueue_attrs(wq, attrs);
+		ret = apply_workqueue_attrs_locked(wq, attrs);
 
+out_unlock:
+	apply_wqattrs_unlock();
 	free_workqueue_attrs(attrs);
 	return ret ?: count;
 }
@@ -5022,18 +5030,22 @@ static ssize_t wq_numa_store(struct device *dev, struct device_attribute *attr,
 {
 	struct workqueue_struct *wq = dev_to_wq(dev);
 	struct workqueue_attrs *attrs;
-	int v, ret;
+	int v, ret = -ENOMEM;
+
+	apply_wqattrs_lock();
 
 	attrs = wq_sysfs_prep_attrs(wq);
 	if (!attrs)
-		return -ENOMEM;
+		goto out_unlock;
 
 	ret = -EINVAL;
 	if (sscanf(buf, "%d", &v) == 1) {
 		attrs->no_numa = !v;
-		ret = apply_workqueue_attrs(wq, attrs);
+		ret = apply_workqueue_attrs_locked(wq, attrs);
 	}
 
+out_unlock:
+	apply_wqattrs_unlock();
 	free_workqueue_attrs(attrs);
 	return ret ?: count;
 }
