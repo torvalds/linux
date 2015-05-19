@@ -515,6 +515,8 @@ static inline int ocrdma_resolve_dmac(struct ocrdma_dev *dev,
 	memcpy(&in6, ah_attr->grh.dgid.raw, sizeof(in6));
 	if (rdma_is_multicast_addr(&in6))
 		rdma_get_mcast_mac(&in6, mac_addr);
+	else if (rdma_link_local_addr(&in6))
+		rdma_get_ll_mac(&in6, mac_addr);
 	else
 		memcpy(mac_addr, ah_attr->dmac, ETH_ALEN);
 	return 0;
