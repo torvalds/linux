@@ -1845,12 +1845,15 @@ int nfs_wb_all(struct inode *inode)
 	trace_nfs_writeback_inode_enter(inode);
 
 	ret = filemap_write_and_wait(inode->i_mapping);
-	if (!ret) {
-		ret = nfs_commit_inode(inode, FLUSH_SYNC);
-		if (!ret)
-			pnfs_sync_inode(inode, true);
-	}
+	if (ret)
+		goto out;
+	ret = nfs_commit_inode(inode, FLUSH_SYNC);
+	if (ret < 0)
+		goto out;
+	pnfs_sync_inode(inode, true);
+	ret = 0;
 
+out:
 	trace_nfs_writeback_inode_exit(inode, ret);
 	return ret;
 }
