@@ -30,6 +30,7 @@
 #include <linux/amba/bus.h>
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
+#include <linux/clk.h>
 #include <asm/sections.h>
 
 #include "coresight-etm.h"
@@ -1315,7 +1316,6 @@ static ssize_t seq_curr_state_show(struct device *dev,
 	}
 
 	pm_runtime_get_sync(drvdata->dev);
-
 	spin_lock_irqsave(&drvdata->spinlock, flags);
 
 	CS_UNLOCK(drvdata->base);
@@ -1796,6 +1796,13 @@ static int etm_probe(struct amba_device *adev, const struct amba_id *id)
 
 	spin_lock_init(&drvdata->spinlock);
 
+	drvdata->atclk = devm_clk_get(&adev->dev, "atclk"); /* optional */
+	if (!IS_ERR(drvdata->atclk)) {
+		ret = clk_prepare_enable(drvdata->atclk);
+		if (ret)
+			return ret;
+	}
+
 	drvdata->cpu = pdata ? pdata->cpu : 0;
 
 	get_online_cpus();
@@ -1858,6 +1865,32 @@ static int etm_remove(struct amba_device *adev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int etm_runtime_suspend(struct device *dev)
+{
+	struct etm_drvdata *drvdata = dev_get_drvdata(dev);
+
+	if (drvdata && !IS_ERR(drvdata->atclk))
+		clk_disable_unprepare(drvdata->atclk);
+
+	return 0;
+}
+
+static int etm_runtime_resume(struct device *dev)
+{
+	struct etm_drvdata *drvdata = dev_get_drvdata(dev);
+
+	if (drvdata && !IS_ERR(drvdata->atclk))
+		clk_prepare_enable(drvdata->atclk);
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops etm_dev_pm_ops = {
+	SET_RUNTIME_PM_OPS(etm_runtime_suspend, etm_runtime_resume, NULL)
+};
+
 static struct amba_id etm_ids[] = {
 	{	/* ETM 3.3 */
 		.id	= 0x0003b921,
@@ -1886,6 +1919,7 @@ static struct amba_driver etm_driver = {
 	.drv = {
 		.name	= "coresight-etm3x",
 		.owner	= THIS_MODULE,
+		.pm	= &etm_dev_pm_ops,
 	},
 	.probe		= etm_probe,
 	.remove		= etm_remove,

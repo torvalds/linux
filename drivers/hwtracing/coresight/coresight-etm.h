@@ -140,6 +140,7 @@
  * struct etm_drvdata - specifics associated to an ETM component
  * @base:	memory mapped base address for this component.
  * @dev:	the device entity associated to this component.
+ * @atclk:	optional clock for the core parts of the ETM.
  * @csdev:	component vitals needed by the framework.
  * @spinlock:	only one at a time pls.
  * @cpu:	the cpu this component is affined to.
@@ -191,6 +192,7 @@
 struct etm_drvdata {
 	void __iomem			*base;
 	struct device			*dev;
+	struct clk			*atclk;
 	struct coresight_device		*csdev;
 	spinlock_t			spinlock;
 	int				cpu;
