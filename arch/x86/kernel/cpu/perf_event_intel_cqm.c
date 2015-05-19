@@ -974,10 +974,12 @@ static void intel_cqm_event_start(struct perf_event *event, int mode)
 
 	event->hw.cqm_state &= ~PERF_HES_STOPPED;
 
-	if (state->cnt++)
-		WARN_ON_ONCE(state->rmid != rmid);
-	else
+	if (state->cnt++) {
+		if (!WARN_ON_ONCE(state->rmid != rmid))
+			return;
+	} else {
 		WARN_ON_ONCE(state->rmid);
+	}
 
 	state->rmid = rmid;
 	/*
