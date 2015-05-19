@@ -308,7 +308,7 @@ int ceph_monc_wait_osdmap(struct ceph_mon_client *monc, u32 epoch,
 			  unsigned long timeout)
 {
 	unsigned long started = jiffies;
-	int ret;
+	long ret;
 
 	mutex_lock(&monc->mutex);
 	while (monc->have_osdmap < epoch) {

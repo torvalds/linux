@@ -647,8 +647,8 @@ static int have_mon_and_osd_map(struct ceph_client *client)
  */
 int __ceph_open_session(struct ceph_client *client, unsigned long started)
 {
-	int err;
 	unsigned long timeout = client->options->mount_timeout;
+	long err;
 
 	/* open session, and wait for mon and osd maps */
 	err = ceph_monc_open_session(&client->monc);
@@ -656,16 +656,15 @@ int __ceph_open_session(struct ceph_client *client, unsigned long started)
 		return err;
 
 	while (!have_mon_and_osd_map(client)) {
-		err = -EIO;
 		if (timeout && time_after_eq(jiffies, started + timeout))
-			return err;
+			return -ETIMEDOUT;
 
 		/* wait */
 		dout("mount waiting for mon_map\n");
 		err = wait_event_interruptible_timeout(client->auth_wq,
 			have_mon_and_osd_map(client) || (client->auth_err < 0),
 			ceph_timeout_jiffies(timeout));
-		if (err == -EINTR || err == -ERESTARTSYS)
+		if (err < 0)
 			return err;
 		if (client->auth_err < 0)
 			return client->auth_err;
