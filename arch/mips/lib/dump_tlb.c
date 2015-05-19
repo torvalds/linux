@@ -7,6 +7,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 
+#include <asm/hazards.h>
 #include <asm/mipsregs.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
@@ -40,12 +41,6 @@ static inline const char *msk2str(unsigned int mask)
 	return "";
 }
 
-#define BARRIER()					\
-	__asm__ __volatile__(				\
-		".set\tnoreorder\n\t"			\
-		"nop;nop;nop;nop;nop;nop;nop\n\t"	\
-		".set\treorder");
-
 static void dump_tlb(int first, int last)
 {
 	unsigned long s_entryhi, entryhi, asid;
@@ -59,9 +54,9 @@ static void dump_tlb(int first, int last)
 
 	for (i = first; i <= last; i++) {
 		write_c0_index(i);
-		BARRIER();
+		mtc0_tlbr_hazard();
 		tlb_read();
-		BARRIER();
+		tlb_read_hazard();
 		pagemask = read_c0_pagemask();
 		entryhi	 = read_c0_entryhi();
 		entrylo0 = read_c0_entrylo0();
