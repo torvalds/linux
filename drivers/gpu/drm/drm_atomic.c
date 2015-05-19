@@ -30,7 +30,15 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_plane_helper.h>
 
-static void kfree_state(struct drm_atomic_state *state)
+/**
+ * drm_atomic_state_default_release -
+ * release memory initialized by drm_atomic_state_init
+ * @state: atomic state
+ *
+ * Free all the memory allocated by drm_atomic_state_init.
+ * This is useful for drivers that subclass the atomic state.
+ */
+void drm_atomic_state_default_release(struct drm_atomic_state *state)
 {
 	kfree(state->connectors);
 	kfree(state->connector_states);
@@ -38,24 +46,20 @@ static void kfree_state(struct drm_atomic_state *state)
 	kfree(state->crtc_states);
 	kfree(state->planes);
 	kfree(state->plane_states);
-	kfree(state);
 }
+EXPORT_SYMBOL(drm_atomic_state_default_release);
 
 /**
- * drm_atomic_state_alloc - allocate atomic state
+ * drm_atomic_state_init - init new atomic state
  * @dev: DRM device
+ * @state: atomic state
  *
- * This allocates an empty atomic state to track updates.
+ * Default implementation for filling in a new atomic state.
+ * This is useful for drivers that subclass the atomic state.
  */
-struct drm_atomic_state *
-drm_atomic_state_alloc(struct drm_device *dev)
+int
+drm_atomic_state_init(struct drm_device *dev, struct drm_atomic_state *state)
 {
-	struct drm_atomic_state *state;
-
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
-	if (!state)
-		return NULL;
-
 	/* TODO legacy paths should maybe do a better job about
 	 * setting this appropriately?
 	 */
@@ -92,31 +96,50 @@ drm_atomic_state_alloc(struct drm_device *dev)
 
 	state->dev = dev;
 
-	DRM_DEBUG_ATOMIC("Allocate atomic state %p\n", state);
+	DRM_DEBUG_ATOMIC("Allocated atomic state %p\n", state);
 
-	return state;
+	return 0;
 fail:
-	kfree_state(state);
+	drm_atomic_state_default_release(state);
+	return -ENOMEM;
+}
+EXPORT_SYMBOL(drm_atomic_state_init);
 
-	return NULL;
+/**
+ * drm_atomic_state_alloc - allocate atomic state
+ * @dev: DRM device
+ *
+ * This allocates an empty atomic state to track updates.
+ */
+struct drm_atomic_state *
+drm_atomic_state_alloc(struct drm_device *dev)
+{
+	struct drm_mode_config *config = &dev->mode_config;
+	struct drm_atomic_state *state;
+
+	if (!config->funcs->atomic_state_alloc) {
+		state = kzalloc(sizeof(*state), GFP_KERNEL);
+		if (!state)
+			return NULL;
+		if (drm_atomic_state_init(dev, state) < 0) {
+			kfree(state);
+			return NULL;
+		}
+		return state;
+	}
+
+	return config->funcs->atomic_state_alloc(dev);
 }
 EXPORT_SYMBOL(drm_atomic_state_alloc);
 
 /**
- * drm_atomic_state_clear - clear state object
+ * drm_atomic_state_default_clear - clear base atomic state
  * @state: atomic state
  *
- * When the w/w mutex algorithm detects a deadlock we need to back off and drop
- * all locks. So someone else could sneak in and change the current modeset
- * configuration. Which means that all the state assembled in @state is no
- * longer an atomic update to the current state, but to some arbitrary earlier
- * state. Which could break assumptions the driver's ->atomic_check likely
- * relies on.
- *
- * Hence we must clear all cached state and completely start over, using this
- * function.
+ * Default implementation for clearing atomic state.
+ * This is useful for drivers that subclass the atomic state.
  */
-void drm_atomic_state_clear(struct drm_atomic_state *state)
+void drm_atomic_state_default_clear(struct drm_atomic_state *state)
 {
 	struct drm_device *dev = state->dev;
 	struct drm_mode_config *config = &dev->mode_config;
@@ -162,6 +185,32 @@ void drm_atomic_state_clear(struct drm_atomic_state *state)
 		state->plane_states[i] = NULL;
 	}
 }
+EXPORT_SYMBOL(drm_atomic_state_default_clear);
+
+/**
+ * drm_atomic_state_clear - clear state object
+ * @state: atomic state
+ *
+ * When the w/w mutex algorithm detects a deadlock we need to back off and drop
+ * all locks. So someone else could sneak in and change the current modeset
+ * configuration. Which means that all the state assembled in @state is no
+ * longer an atomic update to the current state, but to some arbitrary earlier
+ * state. Which could break assumptions the driver's ->atomic_check likely
+ * relies on.
+ *
+ * Hence we must clear all cached state and completely start over, using this
+ * function.
+ */
+void drm_atomic_state_clear(struct drm_atomic_state *state)
+{
+	struct drm_device *dev = state->dev;
+	struct drm_mode_config *config = &dev->mode_config;
+
+	if (config->funcs->atomic_state_clear)
+		config->funcs->atomic_state_clear(state);
+	else
+		drm_atomic_state_default_clear(state);
+}
 EXPORT_SYMBOL(drm_atomic_state_clear);
 
 /**
@@ -173,14 +222,25 @@ EXPORT_SYMBOL(drm_atomic_state_clear);
  */
 void drm_atomic_state_free(struct drm_atomic_state *state)
 {
+	struct drm_device *dev;
+	struct drm_mode_config *config;
+
 	if (!state)
 		return;
+
+	dev = state->dev;
+	config = &dev->mode_config;
 
 	drm_atomic_state_clear(state);
 
 	DRM_DEBUG_ATOMIC("Freeing atomic state %p\n", state);
 
-	kfree_state(state);
+	if (config->funcs->atomic_state_free) {
+		config->funcs->atomic_state_free(state);
+	} else {
+		drm_atomic_state_default_release(state);
+		kfree(state);
+	}
 }
 EXPORT_SYMBOL(drm_atomic_state_free);
 
@@ -203,13 +263,12 @@ struct drm_crtc_state *
 drm_atomic_get_crtc_state(struct drm_atomic_state *state,
 			  struct drm_crtc *crtc)
 {
-	int ret, index;
+	int ret, index = drm_crtc_index(crtc);
 	struct drm_crtc_state *crtc_state;
 
-	index = drm_crtc_index(crtc);
-
-	if (state->crtc_states[index])
-		return state->crtc_states[index];
+	crtc_state = drm_atomic_get_existing_crtc_state(state, crtc);
+	if (crtc_state)
+		return crtc_state;
 
 	ret = drm_modeset_lock(&crtc->mutex, state->acquire_ctx);
 	if (ret)
@@ -337,13 +396,12 @@ struct drm_plane_state *
 drm_atomic_get_plane_state(struct drm_atomic_state *state,
 			  struct drm_plane *plane)
 {
-	int ret, index;
+	int ret, index = drm_plane_index(plane);
 	struct drm_plane_state *plane_state;
 
-	index = drm_plane_index(plane);
-
-	if (state->plane_states[index])
-		return state->plane_states[index];
+	plane_state = drm_atomic_get_existing_plane_state(state, plane);
+	if (plane_state)
+		return plane_state;
 
 	ret = drm_modeset_lock(&plane->mutex, state->acquire_ctx);
 	if (ret)

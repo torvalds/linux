@@ -959,7 +959,12 @@ int drm_helper_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mod
 	if (crtc_funcs->atomic_check) {
 		ret = crtc_funcs->atomic_check(crtc, crtc_state);
 		if (ret) {
-			kfree(crtc_state);
+			if (crtc->funcs->atomic_destroy_state) {
+				crtc->funcs->atomic_destroy_state(crtc,
+				                                  crtc_state);
+			} else {
+				kfree(crtc_state);
+			}
 
 			return ret;
 		}

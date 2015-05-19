@@ -35,6 +35,11 @@ drm_atomic_state_alloc(struct drm_device *dev);
 void drm_atomic_state_clear(struct drm_atomic_state *state);
 void drm_atomic_state_free(struct drm_atomic_state *state);
 
+int  __must_check
+drm_atomic_state_init(struct drm_device *dev, struct drm_atomic_state *state);
+void drm_atomic_state_default_clear(struct drm_atomic_state *state);
+void drm_atomic_state_default_release(struct drm_atomic_state *state);
+
 struct drm_crtc_state * __must_check
 drm_atomic_get_crtc_state(struct drm_atomic_state *state,
 			  struct drm_crtc *crtc);
@@ -53,6 +58,56 @@ drm_atomic_get_connector_state(struct drm_atomic_state *state,
 int drm_atomic_connector_set_property(struct drm_connector *connector,
 		struct drm_connector_state *state, struct drm_property *property,
 		uint64_t val);
+
+/**
+ * drm_atomic_get_existing_crtc_state - get crtc state, if it exists
+ * @state: global atomic state object
+ * @crtc: crtc to grab
+ *
+ * This function returns the crtc state for the given crtc, or NULL
+ * if the crtc is not part of the global atomic state.
+ */
+static inline struct drm_crtc_state *
+drm_atomic_get_existing_crtc_state(struct drm_atomic_state *state,
+				   struct drm_crtc *crtc)
+{
+	return state->crtc_states[drm_crtc_index(crtc)];
+}
+
+/**
+ * drm_atomic_get_existing_plane_state - get plane state, if it exists
+ * @state: global atomic state object
+ * @plane: plane to grab
+ *
+ * This function returns the plane state for the given plane, or NULL
+ * if the plane is not part of the global atomic state.
+ */
+static inline struct drm_plane_state *
+drm_atomic_get_existing_plane_state(struct drm_atomic_state *state,
+				    struct drm_plane *plane)
+{
+	return state->plane_states[drm_plane_index(plane)];
+}
+
+/**
+ * drm_atomic_get_existing_connector_state - get connector state, if it exists
+ * @state: global atomic state object
+ * @connector: connector to grab
+ *
+ * This function returns the connector state for the given connector,
+ * or NULL if the connector is not part of the global atomic state.
+ */
+static inline struct drm_connector_state *
+drm_atomic_get_existing_connector_state(struct drm_atomic_state *state,
+					struct drm_connector *connector)
+{
+	int index = drm_connector_index(connector);
+
+	if (index >= state->num_connector)
+		return NULL;
+
+	return state->connector_states[index];
+}
 
 int __must_check
 drm_atomic_set_crtc_for_plane(struct drm_plane_state *plane_state,
