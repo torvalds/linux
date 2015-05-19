@@ -365,7 +365,7 @@ static struct ocrdma_pd *_ocrdma_alloc_pd(struct ocrdma_dev *dev,
 	if (!pd)
 		return ERR_PTR(-ENOMEM);
 
-	if (udata && uctx) {
+	if (udata && uctx && dev->attr.max_dpp_pds) {
 		pd->dpp_enabled =
 			ocrdma_get_asic_type(dev) == OCRDMA_ASIC_GEN_SKH_R;
 		pd->num_dpp_qp =
