@@ -427,11 +427,13 @@ struct iwl_fw_dbg_reg_op {
  * @SMEM_MODE: monitor stores the data in SMEM
  * @EXTERNAL_MODE: monitor stores the data in allocated DRAM
  * @MARBH_MODE: monitor stores the data in MARBH buffer
+ * @MIPI_MODE: monitor outputs the data through the MIPI interface
  */
 enum iwl_fw_dbg_monitor_mode {
 	SMEM_MODE = 0,
 	EXTERNAL_MODE = 1,
 	MARBH_MODE = 2,
+	MIPI_MODE = 3,
 };
 
 /**
