@@ -433,6 +433,14 @@ choice
 		  Say Y here if you want kernel low-level debugging support
 		  on KS8695.
 
+	config DEBUG_LPC18XX_UART0
+		bool "Kernel low-level debugging via LPC18xx/43xx UART0"
+		depends on ARCH_LPC18XX
+		select DEBUG_UART_8250
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on NXP LPC18xx/43xx UART0.
+
 	config DEBUG_MESON_UARTAO
 		bool "Kernel low-level debugging via Meson6 UARTAO"
 		depends on ARCH_MESON
@@ -1381,7 +1389,7 @@ config DEBUG_UART_PHYS
 	default 0x20201000 if DEBUG_BCM2835
 	default 0x3e000000 if DEBUG_BCM_KONA_UART
 	default 0x4000e400 if DEBUG_LL_UART_EFM32
-	default 0x40081000 if ARCH_LPC18XX
+	default 0x40081000 if DEBUG_LPC18XX_UART0
 	default 0x40090000 if ARCH_LPC32XX
 	default 0x40100000 if DEBUG_PXA_UART1
 	default 0x42000000 if ARCH_GEMINI
