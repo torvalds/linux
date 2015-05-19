@@ -1031,8 +1031,11 @@ static void ieee80211_update_sta_info(struct ieee80211_sub_if_data *sdata,
 		}
 	}
 
-	if (sta && elems->wmm_info && local->hw.queues >= IEEE80211_NUM_ACS)
+	if (sta && !sta->sta.wme &&
+	    elems->wmm_info && local->hw.queues >= IEEE80211_NUM_ACS) {
 		sta->sta.wme = true;
+		ieee80211_check_fast_xmit(sta);
+	}
 
 	if (sta && elems->ht_operation && elems->ht_cap_elem &&
 	    sdata->u.ibss.chandef.width != NL80211_CHAN_WIDTH_20_NOHT &&

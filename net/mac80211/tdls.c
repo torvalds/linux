@@ -527,30 +527,19 @@ ieee80211_tdls_add_setup_cfm_ies(struct ieee80211_sub_if_data *sdata,
 
 	/* if HT support is only added in TDLS, we need an HT-operation IE */
 	if (!ap_sta->sta.ht_cap.ht_supported && sta->sta.ht_cap.ht_supported) {
-		struct ieee80211_chanctx_conf *chanctx_conf =
-				rcu_dereference(sdata->vif.chanctx_conf);
-		if (!WARN_ON(!chanctx_conf)) {
-			pos = skb_put(skb, 2 +
-				      sizeof(struct ieee80211_ht_operation));
-			/* send an empty HT operation IE */
-			ieee80211_ie_build_ht_oper(pos, &sta->sta.ht_cap,
-						   &chanctx_conf->def, 0);
-		}
+		pos = skb_put(skb, 2 + sizeof(struct ieee80211_ht_operation));
+		/* send an empty HT operation IE */
+		ieee80211_ie_build_ht_oper(pos, &sta->sta.ht_cap,
+					   &sdata->vif.bss_conf.chandef, 0);
 	}
 
 	ieee80211_tdls_add_link_ie(sdata, skb, peer, initiator);
 
 	/* only include VHT-operation if not on the 2.4GHz band */
-	if (band != IEEE80211_BAND_2GHZ && !ap_sta->sta.vht_cap.vht_supported &&
-	    sta->sta.vht_cap.vht_supported) {
-		struct ieee80211_chanctx_conf *chanctx_conf =
-				rcu_dereference(sdata->vif.chanctx_conf);
-		if (!WARN_ON(!chanctx_conf)) {
-			pos = skb_put(skb, 2 +
-				      sizeof(struct ieee80211_vht_operation));
-			ieee80211_ie_build_vht_oper(pos, &sta->sta.vht_cap,
-						    &chanctx_conf->def);
-		}
+	if (band != IEEE80211_BAND_2GHZ && sta->sta.vht_cap.vht_supported) {
+		pos = skb_put(skb, 2 + sizeof(struct ieee80211_vht_operation));
+		ieee80211_ie_build_vht_oper(pos, &sta->sta.vht_cap,
+					    &sdata->vif.bss_conf.chandef);
 	}
 
 	rcu_read_unlock();

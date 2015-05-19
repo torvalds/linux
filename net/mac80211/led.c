@@ -276,10 +276,10 @@ static void tpt_trig_timer(unsigned long data)
 		}
 	}
 
-	read_lock(&tpt_trig->trig.leddev_list_lock);
-	list_for_each_entry(led_cdev, &tpt_trig->trig.led_cdevs, trig_list)
+	read_lock(&local->tpt_led.leddev_list_lock);
+	list_for_each_entry(led_cdev, &local->tpt_led.led_cdevs, trig_list)
 		led_blink_set(led_cdev, &on, &off);
-	read_unlock(&tpt_trig->trig.leddev_list_lock);
+	read_unlock(&local->tpt_led.leddev_list_lock);
 }
 
 const char *
@@ -341,10 +341,10 @@ static void ieee80211_stop_tpt_led_trig(struct ieee80211_local *local)
 	tpt_trig->running = false;
 	del_timer_sync(&tpt_trig->timer);
 
-	read_lock(&tpt_trig->trig.leddev_list_lock);
-	list_for_each_entry(led_cdev, &tpt_trig->trig.led_cdevs, trig_list)
+	read_lock(&local->tpt_led.leddev_list_lock);
+	list_for_each_entry(led_cdev, &local->tpt_led.led_cdevs, trig_list)
 		led_set_brightness(led_cdev, LED_OFF);
-	read_unlock(&tpt_trig->trig.leddev_list_lock);
+	read_unlock(&local->tpt_led.leddev_list_lock);
 }
 
 void ieee80211_mod_tpt_led_trig(struct ieee80211_local *local,
