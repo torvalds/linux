@@ -267,6 +267,15 @@ tcp_ecn - INTEGER
 		  but do not request ECN on outgoing connections.
 	Default: 2
 
+tcp_ecn_fallback - BOOLEAN
+	If the kernel detects that ECN connection misbehaves, enable fall
+	back to non-ECN. Currently, this knob implements the fallback
+	from RFC3168, section 6.1.1.1., but we reserve that in future,
+	additional detection mechanisms could be implemented under this
+	knob. The value	is not used, if tcp_ecn or per route (or congestion
+	control) ECN settings are disabled.
+	Default: 1 (fallback enabled)
+
 tcp_fack - BOOLEAN
 	Enable FACK congestion avoidance and fast retransmission.
 	The value is not used, if tcp_sack is not enabled.

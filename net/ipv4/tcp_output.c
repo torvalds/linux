@@ -350,6 +350,15 @@ static void tcp_ecn_send_syn(struct sock *sk, struct sk_buff *skb)
 	}
 }
 
+static void tcp_ecn_clear_syn(struct sock *sk, struct sk_buff *skb)
+{
+	if (sock_net(sk)->ipv4.sysctl_tcp_ecn_fallback)
+		/* tp->ecn_flags are cleared at a later point in time when
+		 * SYN ACK is ultimatively being received.
+		 */
+		TCP_SKB_CB(skb)->tcp_flags &= ~(TCPHDR_ECE | TCPHDR_CWR);
+}
+
 static void
 tcp_ecn_make_synack(const struct request_sock *req, struct tcphdr *th,
 		    struct sock *sk)
@@ -2614,6 +2623,10 @@ int __tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
 			tcp_adjust_pcount(sk, skb, oldpcount - tcp_skb_pcount(skb));
 		}
 	}
+
+	/* RFC3168, section 6.1.1.1. ECN fallback */
+	if ((TCP_SKB_CB(skb)->tcp_flags & TCPHDR_SYN_ECN) == TCPHDR_SYN_ECN)
+		tcp_ecn_clear_syn(sk, skb);
 
 	tcp_retrans_try_collapse(sk, skb, cur_mss);
 
