@@ -161,10 +161,7 @@ struct iscsi_portal_group *iscsit_get_tpg_from_np(
 int iscsit_get_tpg(
 	struct iscsi_portal_group *tpg)
 {
-	int ret;
-
-	ret = mutex_lock_interruptible(&tpg->tpg_access_lock);
-	return ((ret != 0) || signal_pending(current)) ? -1 : 0;
+	return mutex_lock_interruptible(&tpg->tpg_access_lock);
 }
 
 void iscsit_put_tpg(struct iscsi_portal_group *tpg)
