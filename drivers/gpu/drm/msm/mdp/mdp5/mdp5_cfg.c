@@ -72,14 +72,13 @@ const struct mdp5_cfg_hw msm8x74_config = {
 		.base = { 0x12d00, 0x12e00, 0x12f00 },
 	},
 	.intf = {
-		.count = 4,
 		.base = { 0x12500, 0x12700, 0x12900, 0x12b00 },
-	},
-	.intfs = {
-		[0] = INTF_eDP,
-		[1] = INTF_DSI,
-		[2] = INTF_DSI,
-		[3] = INTF_HDMI,
+		.connect = {
+			[0] = INTF_eDP,
+			[1] = INTF_DSI,
+			[2] = INTF_DSI,
+			[3] = INTF_HDMI,
+		},
 	},
 	.max_clk = 200000000,
 };
@@ -142,14 +141,13 @@ const struct mdp5_cfg_hw apq8084_config = {
 		.base = { 0x12f00, 0x13000, 0x13100, 0x13200 },
 	},
 	.intf = {
-		.count = 5,
 		.base = { 0x12500, 0x12700, 0x12900, 0x12b00, 0x12d00 },
-	},
-	.intfs = {
-		[0] = INTF_eDP,
-		[1] = INTF_DSI,
-		[2] = INTF_DSI,
-		[3] = INTF_HDMI,
+		.connect = {
+			[0] = INTF_eDP,
+			[1] = INTF_DSI,
+			[2] = INTF_DSI,
+			[3] = INTF_HDMI,
+		},
 	},
 	.max_clk = 320000000,
 };
@@ -196,10 +194,12 @@ const struct mdp5_cfg_hw msm8x16_config = {
 
 	},
 	.intf = {
-		.count = 1, /* INTF_1 */
-		.base = { 0x6B800 },
+		.base = { 0x00000, 0x6b800 },
+		.connect = {
+			[0] = INTF_DISABLED,
+			[1] = INTF_DSI,
+		},
 	},
-	/* TODO enable .intfs[] with [1] = INTF_DSI, once DSI is implemented */
 	.max_clk = 320000000,
 };
 

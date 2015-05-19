@@ -1023,7 +1023,7 @@ static int dsi_short_read1_resp(u8 *buf, const struct mipi_dsi_msg *msg)
 		*data = buf[1]; /* strip out dcs type */
 		return 1;
 	} else {
-		pr_err("%s: read data does not match with rx_buf len %d\n",
+		pr_err("%s: read data does not match with rx_buf len %zu\n",
 			__func__, msg->rx_len);
 		return -EINVAL;
 	}
@@ -1040,7 +1040,7 @@ static int dsi_short_read2_resp(u8 *buf, const struct mipi_dsi_msg *msg)
 		data[1] = buf[2];
 		return 2;
 	} else {
-		pr_err("%s: read data does not match with rx_buf len %d\n",
+		pr_err("%s: read data does not match with rx_buf len %zu\n",
 			__func__, msg->rx_len);
 		return -EINVAL;
 	}
@@ -1093,7 +1093,6 @@ static int dsi_cmd_dma_rx(struct msm_dsi_host *msm_host,
 {
 	u32 *lp, *temp, data;
 	int i, j = 0, cnt;
-	bool ack_error = false;
 	u32 read_cnt;
 	u8 reg[16];
 	int repeated_bytes = 0;
@@ -1105,15 +1104,10 @@ static int dsi_cmd_dma_rx(struct msm_dsi_host *msm_host,
 	if (cnt > 4)
 		cnt = 4; /* 4 x 32 bits registers only */
 
-	/* Calculate real read data count */
-	read_cnt = dsi_read(msm_host, 0x1d4) >> 16;
-
-	ack_error = (rx_byte == 4) ?
-		(read_cnt == 8) : /* short pkt + 4-byte error pkt */
-		(read_cnt == (pkt_size + 6 + 4)); /* long pkt+4-byte error pkt*/
-
-	if (ack_error)
-		read_cnt -= 4; /* Remove 4 byte error pkt */
+	if (rx_byte == 4)
+		read_cnt = 4;
+	else
+		read_cnt = pkt_size + 6;
 
 	/*
 	 * In case of multiple reads from the panel, after the first read, there
@@ -1215,7 +1209,7 @@ static void dsi_err_worker(struct work_struct *work)
 		container_of(work, struct msm_dsi_host, err_work);
 	u32 status = msm_host->err_work_state;
 
-	pr_err("%s: status=%x\n", __func__, status);
+	pr_err_ratelimited("%s: status=%x\n", __func__, status);
 	if (status & DSI_ERR_STATE_MDP_FIFO_UNDERFLOW)
 		dsi_sw_reset_restore(msm_host);
 
@@ -1797,6 +1791,7 @@ int msm_dsi_host_cmd_rx(struct mipi_dsi_host *host,
 	case MIPI_DSI_RX_ACKNOWLEDGE_AND_ERROR_REPORT:
 		pr_err("%s: rx ACK_ERR_PACLAGE\n", __func__);
 		ret = 0;
+		break;
 	case MIPI_DSI_RX_GENERIC_SHORT_READ_RESPONSE_1BYTE:
 	case MIPI_DSI_RX_DCS_SHORT_READ_RESPONSE_1BYTE:
 		ret = dsi_short_read1_resp(buf, msg);
