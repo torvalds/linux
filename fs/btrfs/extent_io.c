@@ -4497,6 +4497,8 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		}
 		if (test_bit(EXTENT_FLAG_COMPRESSED, &em->flags))
 			flags |= FIEMAP_EXTENT_ENCODED;
+		if (test_bit(EXTENT_FLAG_PREALLOC, &em->flags))
+			flags |= FIEMAP_EXTENT_UNWRITTEN;
 
 		free_extent_map(em);
 		em = NULL;
