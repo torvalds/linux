@@ -933,12 +933,18 @@ static irqreturn_t ocrdma_irq_handler(int irq, void *handle)
 	struct ocrdma_eqe eqe;
 	struct ocrdma_eqe *ptr;
 	u16 cq_id;
+	u8 mcode;
 	int budget = eq->cq_cnt;
 
 	do {
 		ptr = ocrdma_get_eqe(eq);
 		eqe = *ptr;
 		ocrdma_le32_to_cpu(&eqe, sizeof(eqe));
+		mcode = (eqe.id_valid & OCRDMA_EQE_MAJOR_CODE_MASK)
+				>> OCRDMA_EQE_MAJOR_CODE_SHIFT;
+		if (mcode == OCRDMA_MAJOR_CODE_SENTINAL)
+			pr_err("EQ full on eqid = 0x%x, eqe = 0x%x\n",
+			       eq->q.id, eqe.id_valid);
 		if ((eqe.id_valid & OCRDMA_EQE_VALID_MASK) == 0)
 			break;
 
