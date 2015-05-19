@@ -1916,17 +1916,7 @@ static struct amba_driver etm_driver = {
 	.id_table	= etm_ids,
 };
 
-int __init etm_init(void)
-{
-	return amba_driver_register(&etm_driver);
-}
-module_init(etm_init);
-
-void __exit etm_exit(void)
-{
-	amba_driver_unregister(&etm_driver);
-}
-module_exit(etm_exit);
+module_amba_driver(etm_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("CoreSight Program Flow Trace driver");
