@@ -17,7 +17,7 @@
 #include <linux/io.h>
 #include <linux/err.h>
 #include <linux/slab.h>
-#include <linux/clk.h>
+#include <linux/pm_runtime.h>
 #include <linux/coresight.h>
 #include <linux/amba/bus.h>
 
@@ -51,13 +51,11 @@
  * @base:	memory mapped base address for this component.
  * @dev:	the device entity associated to this component.
  * @csdev:	component vitals needed by the framework.
- * @clk:	the clock this component is associated to.
  */
 struct tpiu_drvdata {
 	void __iomem		*base;
 	struct device		*dev;
 	struct coresight_device	*csdev;
-	struct clk		*clk;
 };
 
 static void tpiu_enable_hw(struct tpiu_drvdata *drvdata)
@@ -72,12 +70,8 @@ static void tpiu_enable_hw(struct tpiu_drvdata *drvdata)
 static int tpiu_enable(struct coresight_device *csdev)
 {
 	struct tpiu_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
-	int ret;
 
-	ret = clk_prepare_enable(drvdata->clk);
-	if (ret)
-		return ret;
-
+	pm_runtime_get_sync(csdev->dev.parent);
 	tpiu_enable_hw(drvdata);
 
 	dev_info(drvdata->dev, "TPIU enabled\n");
@@ -101,8 +95,7 @@ static void tpiu_disable(struct coresight_device *csdev)
 	struct tpiu_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 
 	tpiu_disable_hw(drvdata);
-
-	clk_disable_unprepare(drvdata->clk);
+	pm_runtime_put(csdev->dev.parent);
 
 	dev_info(drvdata->dev, "TPIU disabled\n");
 }
@@ -118,7 +111,6 @@ static const struct coresight_ops tpiu_cs_ops = {
 
 static int tpiu_probe(struct amba_device *adev, const struct amba_id *id)
 {
-	int ret;
 	void __iomem *base;
 	struct device *dev = &adev->dev;
 	struct coresight_platform_data *pdata = NULL;
@@ -148,15 +140,10 @@ static int tpiu_probe(struct amba_device *adev, const struct amba_id *id)
 
 	drvdata->base = base;
 
-	drvdata->clk = adev->pclk;
-	ret = clk_prepare_enable(drvdata->clk);
-	if (ret)
-		return ret;
-
 	/* Disable tpiu to support older devices */
 	tpiu_disable_hw(drvdata);
 
-	clk_disable_unprepare(drvdata->clk);
+	pm_runtime_put(&adev->dev);
 
 	desc = devm_kzalloc(dev, sizeof(*desc), GFP_KERNEL);
 	if (!desc)
