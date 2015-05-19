@@ -1,9 +1,10 @@
 /*
  * linux/arch/arm/mach-sa1100/irq.c
  *
+ * Copyright (C) 2015 Dmitry Eremin-Solenikov
  * Copyright (C) 1999-2001 Nicolas Pitre
  *
- * Generic IRQ handling for the SA11x0, GPIO 11-27 IRQ demultiplexing.
+ * Generic IRQ handling for the SA11x0.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -15,15 +16,12 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
-#include <linux/ioport.h>
 #include <linux/syscore_ops.h>
+#include <linux/irqchip/irq-sa11x0.h>
 
 #include <soc/sa1100/pwer.h>
 
-#include <mach/irqs.h>
 #include <asm/exception.h>
-
-#include "generic.h"
 
 #define ICIP	0x00  /* IC IRQ Pending reg. */
 #define ICMR	0x04  /* IC Mask Reg.        */
@@ -85,9 +83,6 @@ static struct irq_domain_ops sa1100_normal_irqdomain_ops = {
 };
 
 static struct irq_domain *sa1100_normal_irqdomain;
-
-static struct resource irq_resource =
-	DEFINE_RES_MEM_NAMED(0x90050000, SZ_64K, "irqs");
 
 static struct sa1100irq_state {
 	unsigned int	saved;
@@ -156,11 +151,9 @@ sa1100_handle_irq(struct pt_regs *regs)
 	} while (1);
 }
 
-void __init sa1100_init_irq(void)
+void __init sa11x0_init_irq_nodt(int irq_start, resource_size_t io_start)
 {
-	request_resource(&iomem_resource, &irq_resource);
-
-	iobase = ioremap(irq_resource.start, SZ_64K);
+	iobase = ioremap(io_start, SZ_64K);
 	if (WARN_ON(!iobase))
 		return;
 
@@ -177,10 +170,8 @@ void __init sa1100_init_irq(void)
 	writel_relaxed(1, iobase + ICCR);
 
 	sa1100_normal_irqdomain = irq_domain_add_simple(NULL,
-			32, IRQ_GPIO0_SC,
+			32, irq_start,
 			&sa1100_normal_irqdomain_ops, NULL);
 
 	set_handle_irq(sa1100_handle_irq);
-
-	sa1100_init_gpio();
 }
