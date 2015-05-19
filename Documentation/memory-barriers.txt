@@ -746,7 +746,7 @@ You must also be careful not to rely too much on boolean short-circuit
 evaluation.  Consider this example:
 
 	q = READ_ONCE_CTRL(a);
-	if (a || 1 > 0)
+	if (q || 1 > 0)
 		ACCESS_ONCE(b) = 1;
 
 Because the first condition cannot fault and the second condition is
