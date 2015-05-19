@@ -1179,7 +1179,7 @@ static int cx24120_set_vco(struct cx24120_state *state)
 	return cx24120_message_send(state, &cmd);
 }
 
-int cx24120_init(struct dvb_frontend *fe)
+static int cx24120_init(struct dvb_frontend *fe)
 {
 	const struct firmware *fw;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
