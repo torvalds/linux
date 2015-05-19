@@ -22,7 +22,7 @@
 #include <linux/uaccess.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <linux/clk.h>
+#include <linux/pm_runtime.h>
 #include <linux/seq_file.h>
 #include <linux/coresight.h>
 #include <linux/amba/bus.h>
@@ -68,7 +68,6 @@
  * @dev:	the device entity associated to this component.
  * @csdev:	component vitals needed by the framework.
  * @miscdev:	specifics to handle "/dev/xyz.etb" entry.
- * @clk:	the clock this component is associated to.
  * @spinlock:	only one at a time pls.
  * @in_use:	synchronise user space access to etb buffer.
  * @buf:	area of memory where ETB buffer content gets sent.
@@ -81,7 +80,6 @@ struct etb_drvdata {
 	struct device		*dev;
 	struct coresight_device	*csdev;
 	struct miscdevice	miscdev;
-	struct clk		*clk;
 	spinlock_t		spinlock;
 	atomic_t		in_use;
 	u8			*buf;
@@ -92,17 +90,14 @@ struct etb_drvdata {
 
 static unsigned int etb_get_buffer_depth(struct etb_drvdata *drvdata)
 {
-	int ret;
 	u32 depth = 0;
 
-	ret = clk_prepare_enable(drvdata->clk);
-	if (ret)
-		return ret;
+	pm_runtime_get_sync(drvdata->dev);
 
 	/* RO registers don't need locking */
 	depth = readl_relaxed(drvdata->base + ETB_RAM_DEPTH_REG);
 
-	clk_disable_unprepare(drvdata->clk);
+	pm_runtime_put(drvdata->dev);
 	return depth;
 }
 
@@ -137,12 +132,9 @@ static void etb_enable_hw(struct etb_drvdata *drvdata)
 static int etb_enable(struct coresight_device *csdev)
 {
 	struct etb_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
-	int ret;
 	unsigned long flags;
 
-	ret = clk_prepare_enable(drvdata->clk);
-	if (ret)
-		return ret;
+	pm_runtime_get_sync(drvdata->dev);
 
 	spin_lock_irqsave(&drvdata->spinlock, flags);
 	etb_enable_hw(drvdata);
@@ -252,7 +244,7 @@ static void etb_disable(struct coresight_device *csdev)
 	drvdata->enable = false;
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
 
-	clk_disable_unprepare(drvdata->clk);
+	pm_runtime_put(drvdata->dev);
 
 	dev_info(drvdata->dev, "ETB disabled\n");
 }
@@ -339,16 +331,12 @@ static const struct file_operations etb_fops = {
 static ssize_t status_show(struct device *dev,
 			   struct device_attribute *attr, char *buf)
 {
-	int ret;
 	unsigned long flags;
 	u32 etb_rdr, etb_sr, etb_rrp, etb_rwp;
 	u32 etb_trg, etb_cr, etb_ffsr, etb_ffcr;
 	struct etb_drvdata *drvdata = dev_get_drvdata(dev->parent);
 
-	ret = clk_prepare_enable(drvdata->clk);
-	if (ret)
-		goto out;
-
+	pm_runtime_get_sync(drvdata->dev);
 	spin_lock_irqsave(&drvdata->spinlock, flags);
 	CS_UNLOCK(drvdata->base);
 
@@ -364,7 +352,7 @@ static ssize_t status_show(struct device *dev,
 	CS_LOCK(drvdata->base);
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
 
-	clk_disable_unprepare(drvdata->clk);
+	pm_runtime_put(drvdata->dev);
 
 	return sprintf(buf,
 		       "Depth:\t\t0x%x\n"
@@ -377,7 +365,7 @@ static ssize_t status_show(struct device *dev,
 		       "Flush ctrl:\t0x%x\n",
 		       etb_rdr, etb_sr, etb_rrp, etb_rwp,
 		       etb_trg, etb_cr, etb_ffsr, etb_ffcr);
-out:
+
 	return -EINVAL;
 }
 static DEVICE_ATTR_RO(status);
@@ -449,13 +437,8 @@ static int etb_probe(struct amba_device *adev, const struct amba_id *id)
 
 	spin_lock_init(&drvdata->spinlock);
 
-	drvdata->clk = adev->pclk;
-	ret = clk_prepare_enable(drvdata->clk);
-	if (ret)
-		return ret;
-
 	drvdata->buffer_depth = etb_get_buffer_depth(drvdata);
-	clk_disable_unprepare(drvdata->clk);
+	pm_runtime_put(&adev->dev);
 
 	if (drvdata->buffer_depth & 0x80000000)
 		return -EINVAL;
