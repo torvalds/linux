@@ -118,7 +118,7 @@ static int hdmi_set_3dmode(struct rk_display_device *device, int mode)
 
 	if ((mode != HDMI_3D_NONE) &&
 	    ((display_modelist->format_3d & (1 << mode)) == 0))
-		return -1;
+		pr_warn("warning: sink not support input 3d mode %d", mode);
 
 	if (hdmi->mode_3d != mode) {
 		hdmi->mode_3d = mode;
