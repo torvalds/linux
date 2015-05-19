@@ -187,13 +187,8 @@ static int __init param_setup_earlycon(char *buf)
 		return 0;
 
 	err = setup_earlycon(buf);
-	if (err == -ENOENT) {
-		pr_warn("no match for %s\n", buf);
-		err = 0;
-	} else if (err == -EALREADY) {
-		pr_warn("already registered\n");
-		err = 0;
-	}
+	if (err == -ENOENT || err == -EALREADY)
+		return 0;
 	return err;
 }
 early_param("earlycon", param_setup_earlycon);

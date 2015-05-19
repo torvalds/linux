@@ -188,7 +188,7 @@ no_clk:
 		args.np = np;
 		args.args_count = 0;
 		child_domain = of_genpd_get_from_provider(&args);
-		if (!child_domain)
+		if (IS_ERR(child_domain))
 			continue;
 
 		if (of_parse_phandle_with_args(np, "power-domains",
@@ -196,7 +196,7 @@ no_clk:
 			continue;
 
 		parent_domain = of_genpd_get_from_provider(&args);
-		if (!parent_domain)
+		if (IS_ERR(parent_domain))
 			continue;
 
 		if (pm_genpd_add_subdomain(parent_domain, child_domain))

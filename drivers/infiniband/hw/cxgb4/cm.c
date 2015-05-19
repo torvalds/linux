@@ -583,18 +583,18 @@ static void c4iw_record_pm_msg(struct c4iw_ep *ep,
 		sizeof(ep->com.mapped_remote_addr));
 }
 
-static int get_remote_addr(struct c4iw_ep *ep)
+static int get_remote_addr(struct c4iw_ep *parent_ep, struct c4iw_ep *child_ep)
 {
 	int ret;
 
-	print_addr(&ep->com, __func__, "get_remote_addr");
+	print_addr(&parent_ep->com, __func__, "get_remote_addr parent_ep ");
+	print_addr(&child_ep->com, __func__, "get_remote_addr child_ep ");
 
-	ret = iwpm_get_remote_info(&ep->com.mapped_local_addr,
-				   &ep->com.mapped_remote_addr,
-				   &ep->com.remote_addr, RDMA_NL_C4IW);
+	ret = iwpm_get_remote_info(&parent_ep->com.mapped_local_addr,
+				   &child_ep->com.mapped_remote_addr,
+				   &child_ep->com.remote_addr, RDMA_NL_C4IW);
 	if (ret)
-		pr_info(MOD "Unable to find remote peer addr info - err %d\n",
-			ret);
+		PDBG("Unable to find remote peer addr info - err %d\n", ret);
 
 	return ret;
 }
@@ -2420,7 +2420,7 @@ static int pass_accept_req(struct c4iw_dev *dev, struct sk_buff *skb)
 	}
 	memcpy(&child_ep->com.remote_addr, &child_ep->com.mapped_remote_addr,
 	       sizeof(child_ep->com.remote_addr));
-	get_remote_addr(child_ep);
+	get_remote_addr(parent_ep, child_ep);
 
 	c4iw_get_ep(&parent_ep->com);
 	child_ep->parent_ep = parent_ep;

@@ -178,12 +178,13 @@ ftrace_print_hex_seq(struct trace_seq *p, const unsigned char *buf, int buf_len)
 EXPORT_SYMBOL(ftrace_print_hex_seq);
 
 const char *
-ftrace_print_array_seq(struct trace_seq *p, const void *buf, int buf_len,
+ftrace_print_array_seq(struct trace_seq *p, const void *buf, int count,
 		       size_t el_size)
 {
 	const char *ret = trace_seq_buffer_ptr(p);
 	const char *prefix = "";
 	void *ptr = (void *)buf;
+	size_t buf_len = count * el_size;
 
 	trace_seq_putc(p, '{');
 
