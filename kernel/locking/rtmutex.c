@@ -624,7 +624,7 @@ static int rt_mutex_adjust_prio_chain(struct task_struct *task,
 	 */
 	prerequeue_top_waiter = rt_mutex_top_waiter(lock);
 
-	/* [7] Requeue the waiter in the lock waiter list. */
+	/* [7] Requeue the waiter in the lock waiter tree. */
 	rt_mutex_dequeue(lock, waiter);
 	waiter->prio = task->prio;
 	rt_mutex_enqueue(lock, waiter);
@@ -662,7 +662,7 @@ static int rt_mutex_adjust_prio_chain(struct task_struct *task,
 		/*
 		 * The waiter became the new top (highest priority)
 		 * waiter on the lock. Replace the previous top waiter
-		 * in the owner tasks pi waiters list with this waiter
+		 * in the owner tasks pi waiters tree with this waiter
 		 * and adjust the priority of the owner.
 		 */
 		rt_mutex_dequeue_pi(task, prerequeue_top_waiter);
@@ -673,7 +673,7 @@ static int rt_mutex_adjust_prio_chain(struct task_struct *task,
 		/*
 		 * The waiter was the top waiter on the lock, but is
 		 * no longer the top prority waiter. Replace waiter in
-		 * the owner tasks pi waiters list with the new top
+		 * the owner tasks pi waiters tree with the new top
 		 * (highest priority) waiter and adjust the priority
 		 * of the owner.
 		 * The new top waiter is stored in @waiter so that
@@ -747,7 +747,7 @@ static int rt_mutex_adjust_prio_chain(struct task_struct *task,
  *
  * @lock:   The lock to be acquired.
  * @task:   The task which wants to acquire the lock
- * @waiter: The waiter that is queued to the lock's wait list if the
+ * @waiter: The waiter that is queued to the lock's wait tree if the
  *	    callsite called task_blocked_on_lock(), otherwise NULL
  */
 static int try_to_take_rt_mutex(struct rt_mutex *lock, struct task_struct *task,
@@ -782,7 +782,7 @@ static int try_to_take_rt_mutex(struct rt_mutex *lock, struct task_struct *task,
 
 	/*
 	 * If @waiter != NULL, @task has already enqueued the waiter
-	 * into @lock waiter list. If @waiter == NULL then this is a
+	 * into @lock waiter tree. If @waiter == NULL then this is a
 	 * trylock attempt.
 	 */
 	if (waiter) {
@@ -795,7 +795,7 @@ static int try_to_take_rt_mutex(struct rt_mutex *lock, struct task_struct *task,
 
 		/*
 		 * We can acquire the lock. Remove the waiter from the
-		 * lock waiters list.
+		 * lock waiters tree.
 		 */
 		rt_mutex_dequeue(lock, waiter);
 
@@ -827,7 +827,7 @@ static int try_to_take_rt_mutex(struct rt_mutex *lock, struct task_struct *task,
 			 * No waiters. Take the lock without the
 			 * pi_lock dance.@task->pi_blocked_on is NULL
 			 * and we have no waiters to enqueue in @task
-			 * pi waiters list.
+			 * pi waiters tree.
 			 */
 			goto takeit;
 		}
@@ -844,7 +844,7 @@ static int try_to_take_rt_mutex(struct rt_mutex *lock, struct task_struct *task,
 	/*
 	 * Finish the lock acquisition. @task is the new owner. If
 	 * other waiters exist we have to insert the highest priority
-	 * waiter into @task->pi_waiters list.
+	 * waiter into @task->pi_waiters tree.
 	 */
 	if (rt_mutex_has_waiters(lock))
 		rt_mutex_enqueue_pi(task, rt_mutex_top_waiter(lock));
@@ -955,7 +955,7 @@ static int task_blocks_on_rt_mutex(struct rt_mutex *lock,
 }
 
 /*
- * Remove the top waiter from the current tasks pi waiter list and
+ * Remove the top waiter from the current tasks pi waiter tree and
  * queue it up.
  *
  * Called with lock->wait_lock held.
