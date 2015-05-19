@@ -365,17 +365,17 @@ static void cx24120_check_cmd(struct cx24120_state *state, u8 id)
 static int cx24120_message_send(struct cx24120_state *state,
 				struct cx24120_cmd *cmd)
 {
-	int ret, ficus;
+	int ficus;
 
 	if (state->mpeg_enabled) {
 		/* Disable mpeg out on certain commands */
 		cx24120_check_cmd(state, cmd->id);
 	}
 
-	ret = cx24120_writereg(state, CX24120_REG_CMD_START, cmd->id);
-	ret = cx24120_writeregs(state, CX24120_REG_CMD_ARGS, &cmd->arg[0],
-				cmd->len, 1);
-	ret = cx24120_writereg(state, CX24120_REG_CMD_END, 0x01);
+	cx24120_writereg(state, CX24120_REG_CMD_START, cmd->id);
+	cx24120_writeregs(state, CX24120_REG_CMD_ARGS, &cmd->arg[0],
+			  cmd->len, 1);
+	cx24120_writereg(state, CX24120_REG_CMD_END, 0x01);
 
 	ficus = 1000;
 	while (cx24120_readreg(state, CX24120_REG_CMD_END)) {
