@@ -808,7 +808,8 @@ ssize_t tcp_splice_read(struct socket *sock, loff_t *ppos,
 }
 EXPORT_SYMBOL(tcp_splice_read);
 
-struct sk_buff *sk_stream_alloc_skb(struct sock *sk, int size, gfp_t gfp)
+struct sk_buff *sk_stream_alloc_skb(struct sock *sk, int size, gfp_t gfp,
+				    bool force_schedule)
 {
 	struct sk_buff *skb;
 
@@ -820,15 +821,15 @@ struct sk_buff *sk_stream_alloc_skb(struct sock *sk, int size, gfp_t gfp)
 
 	skb = alloc_skb_fclone(size + sk->sk_prot->max_header, gfp);
 	if (likely(skb)) {
-		bool mem_schedule;
+		bool mem_scheduled;
 
-		if (skb_queue_len(&sk->sk_write_queue) == 0) {
-			mem_schedule = true;
+		if (force_schedule) {
+			mem_scheduled = true;
 			sk_forced_mem_schedule(sk, skb->truesize);
 		} else {
-			mem_schedule = sk_wmem_schedule(sk, skb->truesize);
+			mem_scheduled = sk_wmem_schedule(sk, skb->truesize);
 		}
-		if (likely(mem_schedule)) {
+		if (likely(mem_scheduled)) {
 			skb_reserve(skb, sk->sk_prot->max_header);
 			/*
 			 * Make sure that we have exactly size bytes
@@ -918,7 +919,8 @@ new_segment:
 			if (!sk_stream_memory_free(sk))
 				goto wait_for_sndbuf;
 
-			skb = sk_stream_alloc_skb(sk, 0, sk->sk_allocation);
+			skb = sk_stream_alloc_skb(sk, 0, sk->sk_allocation,
+						  skb_queue_empty(&sk->sk_write_queue));
 			if (!skb)
 				goto wait_for_memory;
 
@@ -1154,7 +1156,8 @@ new_segment:
 
 			skb = sk_stream_alloc_skb(sk,
 						  select_size(sk, sg),
-						  sk->sk_allocation);
+						  sk->sk_allocation,
+						  skb_queue_empty(&sk->sk_write_queue));
 			if (!skb)
 				goto wait_for_memory;
 
