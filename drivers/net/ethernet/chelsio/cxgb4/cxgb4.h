@@ -1220,10 +1220,6 @@ void t4_read_rss_vf_config(struct adapter *adapter, unsigned int index,
 u32 t4_read_rss_pf_map(struct adapter *adapter);
 u32 t4_read_rss_pf_mask(struct adapter *adapter);
 
-int t4_mc_read(struct adapter *adap, int idx, u32 addr, __be32 *data,
-	       u64 *parity);
-int t4_edc_read(struct adapter *adap, int idx, u32 addr, __be32 *data,
-		u64 *parity);
 unsigned int t4_get_mps_bg_map(struct adapter *adapter, int idx);
 void t4_pmtx_get_stats(struct adapter *adap, u32 cnt[], u64 cycles[]);
 void t4_pmrx_get_stats(struct adapter *adap, u32 cnt[], u64 cycles[]);
