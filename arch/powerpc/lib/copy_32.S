@@ -155,9 +155,9 @@ _GLOBAL(memcpy)
 	mtctr	r8
 	beq+	61f
 70:	lbz	r9,4(r4)		/* do some bytes */
-	stb	r9,4(r6)
 	addi	r4,r4,1
 	addi	r6,r6,1
+	stb	r9,3(r6)
 	bdnz	70b
 61:	srwi.	r0,r0,2
 	mtctr	r0
@@ -199,10 +199,10 @@ _GLOBAL(memcpy)
 64:	andi.	r0,r5,3
 	mtctr	r0
 	beq+	65f
-40:	lbz	r0,4(r4)
-	stb	r0,4(r6)
-	addi	r4,r4,1
-	addi	r6,r6,1
+	addi	r4,r4,3
+	addi	r6,r6,3
+40:	lbzu	r0,1(r4)
+	stbu	r0,1(r6)
 	bdnz	40b
 65:	blr
 
