@@ -144,6 +144,8 @@ static void __init apic_intr_init(void)
 #ifdef CONFIG_HAVE_KVM
 	/* IPI for KVM to deliver posted interrupt */
 	alloc_intr_gate(POSTED_INTR_VECTOR, kvm_posted_intr_ipi);
+	/* IPI for KVM to deliver interrupt to wake up tasks */
+	alloc_intr_gate(POSTED_INTR_WAKEUP_VECTOR, kvm_posted_intr_wakeup_ipi);
 #endif
 
 	/* IPI vectors for APIC spurious and error interrupts */
