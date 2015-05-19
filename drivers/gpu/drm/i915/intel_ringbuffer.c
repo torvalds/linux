@@ -961,12 +961,9 @@ static int gen9_init_workarounds(struct intel_engine_cs *ring)
 	WA_CLR_BIT_MASKED(GEN9_HALF_SLICE_CHICKEN5,
 			  GEN9_CCS_TLB_PREFETCH_ENABLE);
 
-	/*
-	 * FIXME: don't apply the following on BXT for stepping C. On BXT A0
-	 * the flag reads back as 0.
-	 */
-	/* WaDisableMaskBasedCammingInRCC:sklC,bxtA */
-	if (INTEL_REVID(dev) == SKL_REVID_C0 || IS_BROXTON(dev))
+	/* WaDisableMaskBasedCammingInRCC:skl,bxt */
+	if ((IS_SKYLAKE(dev) && INTEL_REVID(dev) == SKL_REVID_C0) ||
+	    (IS_BROXTON(dev) && INTEL_REVID(dev) < BXT_REVID_B0))
 		WA_SET_BIT_MASKED(SLICE_ECO_CHICKEN0,
 				  PIXEL_MASK_CAMMING_DISABLE);
 
