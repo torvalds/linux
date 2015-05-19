@@ -23,6 +23,7 @@
 #include <linux/input.h>
 #include <linux/adc.h>
 #include <linux/slab.h>
+#include <linux/wakelock.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/machine.h>
@@ -50,6 +51,7 @@
 
 #define DEBOUNCE_JIFFIES	(10 / (MSEC_PER_SEC / HZ))	/* 10ms */
 #define ADC_SAMPLE_JIFFIES	(100 / (MSEC_PER_SEC / HZ))	/* 100ms */
+#define WAKE_LOCK_JIFFIES	(1 * HZ)			/* 1s */
 
 enum rk_key_type {
 	TYPE_GPIO = 1,
@@ -75,6 +77,7 @@ struct rk_keys_drvdata {
 	bool in_suspend;
 	int result;
 	int rep;
+	struct wake_lock wake_lock;
 	struct input_dev *input;
 	struct delayed_work adc_poll_work;
 	struct iio_channel *chan;
@@ -160,6 +163,8 @@ static irqreturn_t keys_isr(int irq, void *dev_id)
 		input_event(input, EV_KEY, button->code, button->state);
 		input_sync(input);
 	}
+	if (button->wakeup)
+		wake_lock_timeout(&pdata->wake_lock, WAKE_LOCK_JIFFIES);
 	mod_timer(&button->timer, jiffies + DEBOUNCE_JIFFIES);
 
 	return IRQ_HANDLED;
@@ -371,6 +376,8 @@ static int keys_probe(struct platform_device *pdev)
 		input_set_capability(input, EV_KEY, button->code);
 	}
 
+	wake_lock_init(&ddata->wake_lock, WAKE_LOCK_SUSPEND, input->name);
+
 	for (i = 0; i < ddata->nbuttons; i++) {
 		struct rk_keys_button *button = &ddata->button[i];
 
@@ -443,6 +450,7 @@ static int keys_probe(struct platform_device *pdev)
 fail2:
 	device_init_wakeup(dev, 0);
 fail1:
+	wake_lock_destroy(&ddata->wake_lock);
 	while (--i >= 0)
 		del_timer_sync(&ddata->button[i].timer);
 fail0:
@@ -464,6 +472,7 @@ static int keys_remove(struct platform_device *pdev)
 	if (ddata->chan)
 		cancel_delayed_work_sync(&ddata->adc_poll_work);
 	input_unregister_device(input);
+	wake_lock_destroy(&ddata->wake_lock);
 
 	sinput_dev = NULL;
 	spdata = NULL;
