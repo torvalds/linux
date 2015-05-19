@@ -1,6 +1,4 @@
 /*
- * linux/arch/arm/mach-sa1100/irq.c
- *
  * Copyright (C) 2015 Dmitry Eremin-Solenikov
  * Copyright (C) 1999-2001 Nicolas Pitre
  *
