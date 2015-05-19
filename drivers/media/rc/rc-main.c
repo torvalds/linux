@@ -800,7 +800,6 @@ static struct {
 	{ RC_BIT_SANYO,		"sanyo"		},
 	{ RC_BIT_SHARP,		"sharp"		},
 	{ RC_BIT_MCE_KBD,	"mce_kbd"	},
-	{ RC_BIT_LIRC,		"lirc"		},
 	{ RC_BIT_XMP,		"xmp"		},
 };
 
@@ -885,6 +884,9 @@ static ssize_t show_protocols(struct device *device,
 			allowed &= ~proto_names[i].type;
 	}
 
+	if (dev->driver_type == RC_DRIVER_IR_RAW)
+		tmp += sprintf(tmp, "[lirc] ");
+
 	if (tmp != buf)
 		tmp--;
 	*tmp = '\n';
@@ -936,8 +938,12 @@ static int parse_protocol_change(u64 *protocols, const char *buf)
 		}
 
 		if (i == ARRAY_SIZE(proto_names)) {
-			IR_dprintk(1, "Unknown protocol: '%s'\n", tmp);
-			return -EINVAL;
+			if (!strcasecmp(tmp, "lirc"))
+				mask = 0;
+			else {
+				IR_dprintk(1, "Unknown protocol: '%s'\n", tmp);
+				return -EINVAL;
+			}
 		}
 
 		count++;
@@ -1425,8 +1431,6 @@ int rc_register_device(struct rc_dev *dev)
 
 	if (dev->change_protocol) {
 		u64 rc_type = (1ll << rc_map->rc_type);
-		if (dev->driver_type == RC_DRIVER_IR_RAW)
-			rc_type |= RC_BIT_LIRC;
 		rc = dev->change_protocol(dev, &rc_type);
 		if (rc < 0)
 			goto out_raw;
