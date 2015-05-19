@@ -110,7 +110,6 @@ int ip_output(struct sock *sk, struct sk_buff *skb);
 int ip_mc_output(struct sock *sk, struct sk_buff *skb);
 int ip_do_fragment(struct sock *sk, struct sk_buff *skb,
 		   int (*output)(struct sock *, struct sk_buff *));
-int ip_do_nat(struct sk_buff *skb);
 void ip_send_check(struct iphdr *ip);
 int __ip_local_out(struct sk_buff *skb);
 int ip_local_out_sk(struct sock *sk, struct sk_buff *skb);
