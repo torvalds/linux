@@ -17,6 +17,7 @@
 
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/regmap.h>
+#include <linux/pinctrl/pinconf-generic.h>
 
 #define NO_EINT_SUPPORT    255
 #define MT_EDGE_SENSITIVE           0
@@ -24,6 +25,8 @@
 #define EINT_DBNC_SET_DBNC_BITS     4
 #define EINT_DBNC_RST_BIT           (0x1 << 1)
 #define EINT_DBNC_SET_EN            (0x1 << 0)
+
+#define MTK_PINCTRL_NOT_SUPPORT	(0xffff)
 
 struct mtk_desc_function {
 	const char *name;
@@ -143,6 +146,28 @@ struct mtk_pin_spec_pupd_set_samereg {
 		.r0_bit = _r0,		\
 	}
 
+/**
+ * struct mtk_pin_ies_set - For special pins' ies and smt setting.
+ * @start: The start pin number of those special pins.
+ * @end: The end pin number of those special pins.
+ * @offset: The offset of special setting register.
+ * @bit: The bit of special setting register.
+ */
+struct mtk_pin_ies_smt_set {
+	unsigned short start;
+	unsigned short end;
+	unsigned short offset;
+	unsigned char bit;
+};
+
+#define MTK_PIN_IES_SMT_SPEC(_start, _end, _offset, _bit)	\
+	{	\
+		.start = _start,	\
+		.end = _end,	\
+		.bit = _bit,	\
+		.offset = _offset,	\
+	}
+
 struct mtk_eint_offsets {
 	const char *name;
 	unsigned int  stat;
@@ -208,7 +233,7 @@ struct mtk_pinctrl_devdata {
 	int (*spec_pull_set)(struct regmap *reg, unsigned int pin,
 			unsigned char align, bool isup, unsigned int arg);
 	int (*spec_ies_smt_set)(struct regmap *reg, unsigned int pin,
-			unsigned char align, int value);
+			unsigned char align, int value, enum pin_config_param arg);
 	unsigned int dir_offset;
 	unsigned int ies_offset;
 	unsigned int smt_offset;
@@ -250,5 +275,9 @@ int mtk_pctrl_spec_pull_set_samereg(struct regmap *regmap,
 		const struct mtk_pin_spec_pupd_set_samereg *pupd_infos,
 		unsigned int info_num, unsigned int pin,
 		unsigned char align, bool isup, unsigned int r1r0);
+
+int mtk_pconf_spec_set_ies_smt_range(struct regmap *regmap,
+		const struct mtk_pin_ies_smt_set *ies_smt_infos, unsigned int info_num,
+		unsigned int pin, unsigned char align, int value);
 
 #endif /* __PINCTRL_MTK_COMMON_H */

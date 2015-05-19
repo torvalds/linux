@@ -18,34 +18,13 @@
 #include <linux/of_device.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/regmap.h>
+#include <linux/pinctrl/pinconf-generic.h>
 #include <dt-bindings/pinctrl/mt65xx.h>
 
 #include "pinctrl-mtk-common.h"
 #include "pinctrl-mtk-mt8173.h"
 
 #define DRV_BASE				0xb00
-
-/**
- * struct mtk_pin_ies_smt_set - For special pins' ies and smt setting.
- * @start: The start pin number of those special pins.
- * @end: The end pin number of those special pins.
- * @offset: The offset of special setting register.
- * @bit: The bit of special setting register.
- */
-struct mtk_pin_ies_smt_set {
-	unsigned int start;
-	unsigned int end;
-	unsigned int offset;
-	unsigned char bit;
-};
-
-#define MTK_PIN_IES_SMT_SET(_start, _end, _offset, _bit)	\
-	{	\
-		.start = _start,	\
-		.end = _end,	\
-		.bit = _bit,	\
-		.offset = _offset,	\
-	}
 
 static const struct mtk_pin_spec_pupd_set_samereg mt8173_spec_pupd[] = {
 	MTK_PIN_PUPD_SPEC_SR(119, 0xe00, 2, 1, 0),  /* KROW0 */
@@ -97,80 +76,114 @@ static int mt8173_spec_pull_set(struct regmap *regmap, unsigned int pin,
 		ARRAY_SIZE(mt8173_spec_pupd), pin, align, isup, r1r0);
 }
 
-static const struct mtk_pin_ies_smt_set mt8173_ies_smt_set[] = {
-	MTK_PIN_IES_SMT_SET(0, 4, 0x930, 1),
-	MTK_PIN_IES_SMT_SET(5, 9, 0x930, 2),
-	MTK_PIN_IES_SMT_SET(10, 13, 0x930, 10),
-	MTK_PIN_IES_SMT_SET(14, 15, 0x940, 10),
-	MTK_PIN_IES_SMT_SET(16, 16, 0x930, 0),
-	MTK_PIN_IES_SMT_SET(17, 17, 0x950, 2),
-	MTK_PIN_IES_SMT_SET(18, 21, 0x940, 3),
-	MTK_PIN_IES_SMT_SET(29, 32, 0x930, 3),
-	MTK_PIN_IES_SMT_SET(33, 33, 0x930, 4),
-	MTK_PIN_IES_SMT_SET(34, 36, 0x930, 5),
-	MTK_PIN_IES_SMT_SET(37, 38, 0x930, 6),
-	MTK_PIN_IES_SMT_SET(39, 39, 0x930, 7),
-	MTK_PIN_IES_SMT_SET(40, 41, 0x930, 9),
-	MTK_PIN_IES_SMT_SET(42, 42, 0x940, 0),
-	MTK_PIN_IES_SMT_SET(43, 44, 0x930, 11),
-	MTK_PIN_IES_SMT_SET(45, 46, 0x930, 12),
-	MTK_PIN_IES_SMT_SET(57, 64, 0xc20, 13),
-	MTK_PIN_IES_SMT_SET(65, 65, 0xc10, 13),
-	MTK_PIN_IES_SMT_SET(66, 66, 0xc00, 13),
-	MTK_PIN_IES_SMT_SET(67, 67, 0xd10, 13),
-	MTK_PIN_IES_SMT_SET(68, 68, 0xd00, 13),
-	MTK_PIN_IES_SMT_SET(69, 72, 0x940, 14),
-	MTK_PIN_IES_SMT_SET(73, 76, 0xc60, 13),
-	MTK_PIN_IES_SMT_SET(77, 77, 0xc40, 13),
-	MTK_PIN_IES_SMT_SET(78, 78, 0xc50, 13),
-	MTK_PIN_IES_SMT_SET(79, 82, 0x940, 15),
-	MTK_PIN_IES_SMT_SET(83, 83, 0x950, 0),
-	MTK_PIN_IES_SMT_SET(84, 85, 0x950, 1),
-	MTK_PIN_IES_SMT_SET(86, 91, 0x950, 2),
-	MTK_PIN_IES_SMT_SET(92, 92, 0x930, 13),
-	MTK_PIN_IES_SMT_SET(93, 95, 0x930, 14),
-	MTK_PIN_IES_SMT_SET(96, 99, 0x930, 15),
-	MTK_PIN_IES_SMT_SET(100, 103, 0xca0, 13),
-	MTK_PIN_IES_SMT_SET(104, 104, 0xc80, 13),
-	MTK_PIN_IES_SMT_SET(105, 105, 0xc90, 13),
-	MTK_PIN_IES_SMT_SET(106, 107, 0x940, 4),
-	MTK_PIN_IES_SMT_SET(108, 112, 0x940, 1),
-	MTK_PIN_IES_SMT_SET(113, 116, 0x940, 2),
-	MTK_PIN_IES_SMT_SET(117, 118, 0x940, 5),
-	MTK_PIN_IES_SMT_SET(119, 124, 0x940, 6),
-	MTK_PIN_IES_SMT_SET(125, 126, 0x940, 7),
-	MTK_PIN_IES_SMT_SET(127, 127, 0x940, 0),
-	MTK_PIN_IES_SMT_SET(128, 128, 0x950, 8),
-	MTK_PIN_IES_SMT_SET(129, 130, 0x950, 9),
-	MTK_PIN_IES_SMT_SET(131, 132, 0x950, 8),
-	MTK_PIN_IES_SMT_SET(133, 134, 0x910, 8)
+static const struct mtk_pin_ies_smt_set mt8173_smt_set[] = {
+	MTK_PIN_IES_SMT_SPEC(0, 4, 0x930, 1),
+	MTK_PIN_IES_SMT_SPEC(5, 9, 0x930, 2),
+	MTK_PIN_IES_SMT_SPEC(10, 13, 0x930, 10),
+	MTK_PIN_IES_SMT_SPEC(14, 15, 0x940, 10),
+	MTK_PIN_IES_SMT_SPEC(16, 16, 0x930, 0),
+	MTK_PIN_IES_SMT_SPEC(17, 17, 0x950, 2),
+	MTK_PIN_IES_SMT_SPEC(18, 21, 0x940, 3),
+	MTK_PIN_IES_SMT_SPEC(29, 32, 0x930, 3),
+	MTK_PIN_IES_SMT_SPEC(33, 33, 0x930, 4),
+	MTK_PIN_IES_SMT_SPEC(34, 36, 0x930, 5),
+	MTK_PIN_IES_SMT_SPEC(37, 38, 0x930, 6),
+	MTK_PIN_IES_SMT_SPEC(39, 39, 0x930, 7),
+	MTK_PIN_IES_SMT_SPEC(40, 41, 0x930, 9),
+	MTK_PIN_IES_SMT_SPEC(42, 42, 0x940, 0),
+	MTK_PIN_IES_SMT_SPEC(43, 44, 0x930, 11),
+	MTK_PIN_IES_SMT_SPEC(45, 46, 0x930, 12),
+	MTK_PIN_IES_SMT_SPEC(57, 64, 0xc20, 13),
+	MTK_PIN_IES_SMT_SPEC(65, 65, 0xc10, 13),
+	MTK_PIN_IES_SMT_SPEC(66, 66, 0xc00, 13),
+	MTK_PIN_IES_SMT_SPEC(67, 67, 0xd10, 13),
+	MTK_PIN_IES_SMT_SPEC(68, 68, 0xd00, 13),
+	MTK_PIN_IES_SMT_SPEC(69, 72, 0x940, 14),
+	MTK_PIN_IES_SMT_SPEC(73, 76, 0xc60, 13),
+	MTK_PIN_IES_SMT_SPEC(77, 77, 0xc40, 13),
+	MTK_PIN_IES_SMT_SPEC(78, 78, 0xc50, 13),
+	MTK_PIN_IES_SMT_SPEC(79, 82, 0x940, 15),
+	MTK_PIN_IES_SMT_SPEC(83, 83, 0x950, 0),
+	MTK_PIN_IES_SMT_SPEC(84, 85, 0x950, 1),
+	MTK_PIN_IES_SMT_SPEC(86, 91, 0x950, 2),
+	MTK_PIN_IES_SMT_SPEC(92, 92, 0x930, 13),
+	MTK_PIN_IES_SMT_SPEC(93, 95, 0x930, 14),
+	MTK_PIN_IES_SMT_SPEC(96, 99, 0x930, 15),
+	MTK_PIN_IES_SMT_SPEC(100, 103, 0xca0, 13),
+	MTK_PIN_IES_SMT_SPEC(104, 104, 0xc80, 13),
+	MTK_PIN_IES_SMT_SPEC(105, 105, 0xc90, 13),
+	MTK_PIN_IES_SMT_SPEC(106, 107, 0x940, 4),
+	MTK_PIN_IES_SMT_SPEC(108, 112, 0x940, 1),
+	MTK_PIN_IES_SMT_SPEC(113, 116, 0x940, 2),
+	MTK_PIN_IES_SMT_SPEC(117, 118, 0x940, 5),
+	MTK_PIN_IES_SMT_SPEC(119, 124, 0x940, 6),
+	MTK_PIN_IES_SMT_SPEC(125, 126, 0x940, 7),
+	MTK_PIN_IES_SMT_SPEC(127, 127, 0x940, 0),
+	MTK_PIN_IES_SMT_SPEC(128, 128, 0x950, 8),
+	MTK_PIN_IES_SMT_SPEC(129, 130, 0x950, 9),
+	MTK_PIN_IES_SMT_SPEC(131, 132, 0x950, 8),
+	MTK_PIN_IES_SMT_SPEC(133, 134, 0x910, 8)
 };
 
-static int spec_ies_smt_set(struct regmap *regmap, unsigned int pin,
-		unsigned char align, int value)
+static const struct mtk_pin_ies_smt_set mt8173_ies_set[] = {
+	MTK_PIN_IES_SMT_SPEC(0, 4, 0x900, 1),
+	MTK_PIN_IES_SMT_SPEC(5, 9, 0x900, 2),
+	MTK_PIN_IES_SMT_SPEC(10, 13, 0x900, 10),
+	MTK_PIN_IES_SMT_SPEC(14, 15, 0x910, 10),
+	MTK_PIN_IES_SMT_SPEC(16, 16, 0x900, 0),
+	MTK_PIN_IES_SMT_SPEC(17, 17, 0x920, 2),
+	MTK_PIN_IES_SMT_SPEC(18, 21, 0x910, 3),
+	MTK_PIN_IES_SMT_SPEC(29, 32, 0x900, 3),
+	MTK_PIN_IES_SMT_SPEC(33, 33, 0x900, 4),
+	MTK_PIN_IES_SMT_SPEC(34, 36, 0x900, 5),
+	MTK_PIN_IES_SMT_SPEC(37, 38, 0x900, 6),
+	MTK_PIN_IES_SMT_SPEC(39, 39, 0x900, 7),
+	MTK_PIN_IES_SMT_SPEC(40, 41, 0x900, 9),
+	MTK_PIN_IES_SMT_SPEC(42, 42, 0x910, 0),
+	MTK_PIN_IES_SMT_SPEC(43, 44, 0x900, 11),
+	MTK_PIN_IES_SMT_SPEC(45, 46, 0x900, 12),
+	MTK_PIN_IES_SMT_SPEC(57, 64, 0xc20, 14),
+	MTK_PIN_IES_SMT_SPEC(65, 65, 0xc10, 14),
+	MTK_PIN_IES_SMT_SPEC(66, 66, 0xc00, 14),
+	MTK_PIN_IES_SMT_SPEC(67, 67, 0xd10, 14),
+	MTK_PIN_IES_SMT_SPEC(68, 68, 0xd00, 14),
+	MTK_PIN_IES_SMT_SPEC(69, 72, 0x910, 14),
+	MTK_PIN_IES_SMT_SPEC(73, 76, 0xc60, 14),
+	MTK_PIN_IES_SMT_SPEC(77, 77, 0xc40, 14),
+	MTK_PIN_IES_SMT_SPEC(78, 78, 0xc50, 14),
+	MTK_PIN_IES_SMT_SPEC(79, 82, 0x910, 15),
+	MTK_PIN_IES_SMT_SPEC(83, 83, 0x920, 0),
+	MTK_PIN_IES_SMT_SPEC(84, 85, 0x920, 1),
+	MTK_PIN_IES_SMT_SPEC(86, 91, 0x920, 2),
+	MTK_PIN_IES_SMT_SPEC(92, 92, 0x900, 13),
+	MTK_PIN_IES_SMT_SPEC(93, 95, 0x900, 14),
+	MTK_PIN_IES_SMT_SPEC(96, 99, 0x900, 15),
+	MTK_PIN_IES_SMT_SPEC(100, 103, 0xca0, 14),
+	MTK_PIN_IES_SMT_SPEC(104, 104, 0xc80, 14),
+	MTK_PIN_IES_SMT_SPEC(105, 105, 0xc90, 14),
+	MTK_PIN_IES_SMT_SPEC(106, 107, 0x91, 4),
+	MTK_PIN_IES_SMT_SPEC(108, 112, 0x910, 1),
+	MTK_PIN_IES_SMT_SPEC(113, 116, 0x910, 2),
+	MTK_PIN_IES_SMT_SPEC(117, 118, 0x910, 5),
+	MTK_PIN_IES_SMT_SPEC(119, 124, 0x910, 6),
+	MTK_PIN_IES_SMT_SPEC(125, 126, 0x910, 7),
+	MTK_PIN_IES_SMT_SPEC(127, 127, 0x910, 0),
+	MTK_PIN_IES_SMT_SPEC(128, 128, 0x920, 8),
+	MTK_PIN_IES_SMT_SPEC(129, 130, 0x920, 9),
+	MTK_PIN_IES_SMT_SPEC(131, 132, 0x920, 8),
+	MTK_PIN_IES_SMT_SPEC(133, 134, 0x910, 8)
+};
+
+static int mt8173_ies_smt_set(struct regmap *regmap, unsigned int pin,
+		unsigned char align, int value, enum pin_config_param arg)
 {
-	unsigned int i, reg_addr, bit;
-	bool find = false;
-
-	for (i = 0; i < ARRAY_SIZE(mt8173_ies_smt_set); i++) {
-		if (pin >= mt8173_ies_smt_set[i].start &&
-				pin <= mt8173_ies_smt_set[i].end) {
-			find = true;
-			break;
-		}
-	}
-
-	if (!find)
-		return -EINVAL;
-
-	if (value)
-		reg_addr = mt8173_ies_smt_set[i].offset + align;
-	else
-		reg_addr = mt8173_ies_smt_set[i].offset + (align << 1);
-
-	bit = BIT(mt8173_ies_smt_set[i].bit);
-	regmap_write(regmap, reg_addr, bit);
-	return 0;
+	if (arg == PIN_CONFIG_INPUT_ENABLE)
+		return mtk_pconf_spec_set_ies_smt_range(regmap, mt8173_ies_set,
+			ARRAY_SIZE(mt8173_ies_set), pin, align, value);
+	else if (arg == PIN_CONFIG_INPUT_SCHMITT_ENABLE)
+		return mtk_pconf_spec_set_ies_smt_range(regmap, mt8173_smt_set,
+			ARRAY_SIZE(mt8173_smt_set), pin, align, value);
+	return -EINVAL;
 }
 
 static const struct mtk_drv_group_desc mt8173_drv_grp[] =  {
@@ -307,7 +320,7 @@ static const struct mtk_pinctrl_devdata mt8173_pinctrl_data = {
 	.pin_drv_grp = mt8173_pin_drv,
 	.n_pin_drv_grps = ARRAY_SIZE(mt8173_pin_drv),
 	.spec_pull_set = mt8173_spec_pull_set,
-	.spec_ies_smt_set = spec_ies_smt_set,
+	.spec_ies_smt_set = mt8173_ies_smt_set,
 	.dir_offset = 0x0000,
 	.pullen_offset = 0x0100,
 	.pullsel_offset = 0x0200,

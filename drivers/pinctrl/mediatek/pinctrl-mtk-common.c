@@ -107,28 +107,38 @@ static void mtk_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 	regmap_write(mtk_get_regmap(pctl, offset), reg_addr, bit);
 }
 
-static void mtk_pconf_set_ies_smt(struct mtk_pinctrl *pctl, unsigned pin,
-		int value, enum pin_config_param param)
+static int mtk_pconf_set_ies_smt(struct mtk_pinctrl *pctl, unsigned pin,
+		int value, enum pin_config_param arg)
 {
 	unsigned int reg_addr, offset;
 	unsigned int bit;
-	int ret;
+
+	/**
+	 * Due to some soc are not support ies/smt config, add this special
+	 * control to handle it.
+	 */
+	if (!pctl->devdata->spec_ies_smt_set &&
+		pctl->devdata->ies_offset == MTK_PINCTRL_NOT_SUPPORT &&
+			arg == PIN_CONFIG_INPUT_ENABLE)
+		return -EINVAL;
+
+	if (!pctl->devdata->spec_ies_smt_set &&
+		pctl->devdata->smt_offset == MTK_PINCTRL_NOT_SUPPORT &&
+			arg == PIN_CONFIG_INPUT_SCHMITT_ENABLE)
+		return -EINVAL;
 
 	/*
 	 * Due to some pins are irregular, their input enable and smt
-	 * control register are discontinuous, but they are mapping together.
-	 * So we need this special handle.
+	 * control register are discontinuous, so we need this special handle.
 	 */
 	if (pctl->devdata->spec_ies_smt_set) {
-		ret = pctl->devdata->spec_ies_smt_set(mtk_get_regmap(pctl, pin),
-			pin, pctl->devdata->port_align, value);
-		if (!ret)
-			return;
+		return pctl->devdata->spec_ies_smt_set(mtk_get_regmap(pctl, pin),
+			pin, pctl->devdata->port_align, value, arg);
 	}
 
 	bit = BIT(pin & 0xf);
 
-	if (param == PIN_CONFIG_INPUT_ENABLE)
+	if (arg == PIN_CONFIG_INPUT_ENABLE)
 		offset = pctl->devdata->ies_offset;
 	else
 		offset = pctl->devdata->smt_offset;
@@ -139,6 +149,33 @@ static void mtk_pconf_set_ies_smt(struct mtk_pinctrl *pctl, unsigned pin,
 		reg_addr = CLR_ADDR(mtk_get_port(pctl, pin) + offset, pctl);
 
 	regmap_write(mtk_get_regmap(pctl, pin), reg_addr, bit);
+	return 0;
+}
+
+int mtk_pconf_spec_set_ies_smt_range(struct regmap *regmap,
+		const struct mtk_pin_ies_smt_set *ies_smt_infos, unsigned int info_num,
+		unsigned int pin, unsigned char align, int value)
+{
+	unsigned int i, reg_addr, bit;
+
+	for (i = 0; i < info_num; i++) {
+		if (pin >= ies_smt_infos[i].start &&
+				pin <= ies_smt_infos[i].end) {
+			break;
+		}
+	}
+
+	if (i == info_num)
+		return -EINVAL;
+
+	if (value)
+		reg_addr = ies_smt_infos[i].offset + align;
+	else
+		reg_addr = ies_smt_infos[i].offset + (align << 1);
+
+	bit = BIT(ies_smt_infos[i].bit);
+	regmap_write(regmap, reg_addr, bit);
+	return 0;
 }
 
 static const struct mtk_pin_drv_grp *mtk_find_pin_drv_grp_by_pin(
@@ -295,36 +332,37 @@ static int mtk_pconf_parse_conf(struct pinctrl_dev *pctldev,
 		unsigned int pin, enum pin_config_param param,
 		enum pin_config_param arg)
 {
+	int ret = 0;
 	struct mtk_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
 
 	switch (param) {
 	case PIN_CONFIG_BIAS_DISABLE:
-		mtk_pconf_set_pull_select(pctl, pin, false, false, arg);
+		ret = mtk_pconf_set_pull_select(pctl, pin, false, false, arg);
 		break;
 	case PIN_CONFIG_BIAS_PULL_UP:
-		mtk_pconf_set_pull_select(pctl, pin, true, true, arg);
+		ret = mtk_pconf_set_pull_select(pctl, pin, true, true, arg);
 		break;
 	case PIN_CONFIG_BIAS_PULL_DOWN:
-		mtk_pconf_set_pull_select(pctl, pin, true, false, arg);
+		ret = mtk_pconf_set_pull_select(pctl, pin, true, false, arg);
 		break;
 	case PIN_CONFIG_INPUT_ENABLE:
-		mtk_pconf_set_ies_smt(pctl, pin, arg, param);
+		ret = mtk_pconf_set_ies_smt(pctl, pin, arg, param);
 		break;
 	case PIN_CONFIG_OUTPUT:
 		mtk_gpio_set(pctl->chip, pin, arg);
-		mtk_pmx_gpio_set_direction(pctldev, NULL, pin, false);
+		ret = mtk_pmx_gpio_set_direction(pctldev, NULL, pin, false);
 		break;
 	case PIN_CONFIG_INPUT_SCHMITT_ENABLE:
-		mtk_pconf_set_ies_smt(pctl, pin, arg, param);
+		ret = mtk_pconf_set_ies_smt(pctl, pin, arg, param);
 		break;
 	case PIN_CONFIG_DRIVE_STRENGTH:
-		mtk_pconf_set_driving(pctl, pin, arg);
+		ret = mtk_pconf_set_driving(pctl, pin, arg);
 		break;
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
 	}
 
-	return 0;
+	return ret;
 }
 
 static int mtk_pconf_group_get(struct pinctrl_dev *pctldev,
@@ -343,12 +381,14 @@ static int mtk_pconf_group_set(struct pinctrl_dev *pctldev, unsigned group,
 {
 	struct mtk_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
 	struct mtk_pinctrl_group *g = &pctl->groups[group];
-	int i;
+	int i, ret;
 
 	for (i = 0; i < num_configs; i++) {
-		mtk_pconf_parse_conf(pctldev, g->pin,
+		ret = mtk_pconf_parse_conf(pctldev, g->pin,
 			pinconf_to_config_param(configs[i]),
 			pinconf_to_config_argument(configs[i]));
+		if (ret < 0)
+			return ret;
 
 		g->config = configs[i];
 	}
