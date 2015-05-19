@@ -688,6 +688,7 @@ do {									      \
 
 #define OBD_FREE_LARGE(ptr, size)					     \
 do {									  \
+	(void)(size);							\
 	kvfree(ptr);							  \
 } while (0)
 
