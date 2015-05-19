@@ -1411,6 +1411,7 @@ static int ieee80211_change_station(struct wiphy *wiphy,
 		}
 
 		sta->sdata = vlansdata;
+		ieee80211_check_fast_xmit(sta);
 
 		if (sta->sta_state == IEEE80211_STA_AUTHORIZED &&
 		    prev_4addr != new_4addr) {
