@@ -328,12 +328,6 @@ struct mesh_preq_queue {
 	u8 flags;
 };
 
-#if HZ/100 == 0
-#define IEEE80211_ROC_MIN_LEFT	1
-#else
-#define IEEE80211_ROC_MIN_LEFT	(HZ/100)
-#endif
-
 struct ieee80211_roc_work {
 	struct list_head list;
 	struct list_head dependents;
