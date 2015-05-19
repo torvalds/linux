@@ -181,7 +181,8 @@ static int hdmi_edid_parse_3dinfo(unsigned char *buf, struct list_head *head)
 		len = (buf[1] & 0xe0) >> 5;
 		for (i = 0; i < len; i++) {
 			if (buf[offset])
-				hdmi_add_vic((96 - buf[offset++]), head);
+				hdmi_add_vic((96 - buf[offset]), head);
+			offset++;
 		}
 	}
 
