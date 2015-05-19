@@ -2266,16 +2266,18 @@ int ceph_mdsc_do_request(struct ceph_mds_client *mdsc,
 	/* wait */
 	mutex_unlock(&mdsc->mutex);
 	dout("do_request waiting\n");
-	if (req->r_timeout) {
-		err = (long)wait_for_completion_killable_timeout(
-					&req->r_completion,
-					ceph_timeout_jiffies(req->r_timeout));
-		if (err == 0)
-			err = -EIO;
-	} else if (req->r_wait_for_completion) {
+	if (!req->r_timeout && req->r_wait_for_completion) {
 		err = req->r_wait_for_completion(mdsc, req);
 	} else {
-		err = wait_for_completion_killable(&req->r_completion);
+		long timeleft = wait_for_completion_killable_timeout(
+					&req->r_completion,
+					ceph_timeout_jiffies(req->r_timeout));
+		if (timeleft > 0)
+			err = 0;
+		else if (!timeleft)
+			err = -EIO;  /* timed out */
+		else
+			err = timeleft;  /* killed */
 	}
 	dout("do_request waited, got %d\n", err);
 	mutex_lock(&mdsc->mutex);
