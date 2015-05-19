@@ -517,12 +517,8 @@ void discard_next_dnode(struct f2fs_sb_info *sbi, block_t blkaddr)
 		err = f2fs_issue_discard(sbi, blkaddr, 1);
 	}
 
-	if (err) {
-		struct page *page = grab_meta_page(sbi, blkaddr);
-		memset(page_address(page), 0, F2FS_BLKSIZE);
-		set_page_dirty(page);
-		f2fs_put_page(page, 1);
-	}
+	if (err)
+		update_meta_page(sbi, NULL, blkaddr);
 }
 
 static void __add_discard_entry(struct f2fs_sb_info *sbi,
@@ -801,14 +797,23 @@ struct page *get_sum_page(struct f2fs_sb_info *sbi, unsigned int segno)
 	return get_meta_page(sbi, GET_SUM_BLOCK(sbi, segno));
 }
 
+void update_meta_page(struct f2fs_sb_info *sbi, void *src, block_t blk_addr)
+{
+	struct page *page = grab_meta_page(sbi, blk_addr);
+	void *dst = page_address(page);
+
+	if (src)
+		memcpy(dst, src, PAGE_CACHE_SIZE);
+	else
+		memset(dst, 0, PAGE_CACHE_SIZE);
+	set_page_dirty(page);
+	f2fs_put_page(page, 1);
+}
+
 static void write_sum_page(struct f2fs_sb_info *sbi,
 			struct f2fs_summary_block *sum_blk, block_t blk_addr)
 {
-	struct page *page = grab_meta_page(sbi, blk_addr);
-	void *kaddr = page_address(page);
-	memcpy(kaddr, sum_blk, PAGE_CACHE_SIZE);
-	set_page_dirty(page);
-	f2fs_put_page(page, 1);
+	update_meta_page(sbi, (void *)sum_blk, blk_addr);
 }
 
 static int is_next_segment_free(struct f2fs_sb_info *sbi, int type)
