@@ -156,6 +156,7 @@ static int rsnd_dmaen_init(struct rsnd_priv *priv, struct rsnd_dma *dma, int id,
 						  (void *)id);
 	}
 	if (IS_ERR_OR_NULL(dmaen->chan)) {
+		dmaen->chan = NULL;
 		dev_err(dev, "can't get dma channel\n");
 		goto rsnd_dma_channel_err;
 	}

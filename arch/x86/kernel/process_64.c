@@ -419,6 +419,34 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 		     task_thread_info(prev_p)->flags & _TIF_WORK_CTXSW_PREV))
 		__switch_to_xtra(prev_p, next_p, tss);
 
+	if (static_cpu_has_bug(X86_BUG_SYSRET_SS_ATTRS)) {
+		/*
+		 * AMD CPUs have a misfeature: SYSRET sets the SS selector but
+		 * does not update the cached descriptor.  As a result, if we
+		 * do SYSRET while SS is NULL, we'll end up in user mode with
+		 * SS apparently equal to __USER_DS but actually unusable.
+		 *
+		 * The straightforward workaround would be to fix it up just
+		 * before SYSRET, but that would slow down the system call
+		 * fast paths.  Instead, we ensure that SS is never NULL in
+		 * system call context.  We do this by replacing NULL SS
+		 * selectors at every context switch.  SYSCALL sets up a valid
+		 * SS, so the only way to get NULL is to re-enter the kernel
+		 * from CPL 3 through an interrupt.  Since that can't happen
+		 * in the same task as a running syscall, we are guaranteed to
+		 * context switch between every interrupt vector entry and a
+		 * subsequent SYSRET.
+		 *
+		 * We read SS first because SS reads are much faster than
+		 * writes.  Out of caution, we force SS to __KERNEL_DS even if
+		 * it previously had a different non-NULL value.
+		 */
+		unsigned short ss_sel;
+		savesegment(ss, ss_sel);
+		if (ss_sel != __KERNEL_DS)
+			loadsegment(ss, __KERNEL_DS);
+	}
+
 	return prev_p;
 }
 

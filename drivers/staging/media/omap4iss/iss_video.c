@@ -171,13 +171,13 @@ static void iss_video_pix_to_mbus(const struct v4l2_pix_format *pix,
 	mbus->width = pix->width;
 	mbus->height = pix->height;
 
-	for (i = 0; i < ARRAY_SIZE(formats); ++i) {
+	/* Skip the last format in the loop so that it will be selected if no
+	 * match is found.
+	 */
+	for (i = 0; i < ARRAY_SIZE(formats) - 1; ++i) {
 		if (formats[i].pixelformat == pix->pixelformat)
 			break;
 	}
-
-	if (WARN_ON(i == ARRAY_SIZE(formats)))
-		return;
 
 	mbus->code = formats[i].code;
 	mbus->colorspace = pix->colorspace;

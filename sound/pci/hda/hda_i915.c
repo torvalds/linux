@@ -55,6 +55,12 @@ void haswell_set_bclk(struct hda_intel *hda)
 	int cdclk_freq;
 	unsigned int bclk_m, bclk_n;
 	struct i915_audio_component *acomp = &hda->audio_component;
+	struct pci_dev *pci = hda->chip.pci;
+
+	/* Only Haswell/Broadwell need set BCLK */
+	if (pci->device != 0x0a0c && pci->device != 0x0c0c
+	   && pci->device != 0x0d0c && pci->device != 0x160c)
+		return;
 
 	if (!acomp->ops)
 		return;

@@ -2959,7 +2959,7 @@ static int ocfs2_dlm_init_debug(struct ocfs2_super *osb)
 							 osb->osb_debug_root,
 							 osb,
 							 &ocfs2_dlm_debug_fops);
-	if (IS_ERR_OR_NULL(dlm_debug->d_locking_state)) {
+	if (!dlm_debug->d_locking_state) {
 		ret = -EINVAL;
 		mlog(ML_ERROR,
 		     "Unable to create locking state debugfs file.\n");

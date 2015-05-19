@@ -607,7 +607,7 @@ cifs_get_root(struct smb_vol *vol, struct super_block *sb)
 	p = s = full_path;
 
 	do {
-		struct inode *dir = dentry->d_inode;
+		struct inode *dir = d_inode(dentry);
 		struct dentry *child;
 
 		if (!dir) {

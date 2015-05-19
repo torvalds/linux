@@ -32,7 +32,7 @@ static const struct proc_ns_operations *ns_entries[] = {
 
 static void *proc_ns_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	const struct proc_ns_operations *ns_ops = PROC_I(inode)->ns_ops;
 	struct task_struct *task;
 	struct path ns_path;
@@ -53,7 +53,7 @@ static void *proc_ns_follow_link(struct dentry *dentry, struct nameidata *nd)
 
 static int proc_ns_readlink(struct dentry *dentry, char __user *buffer, int buflen)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	const struct proc_ns_operations *ns_ops = PROC_I(inode)->ns_ops;
 	struct task_struct *task;
 	char name[50];

@@ -45,7 +45,7 @@ struct si2165_config {
 	bool inversion;
 };
 
-#if IS_ENABLED(CONFIG_DVB_SI2165)
+#if IS_REACHABLE(CONFIG_DVB_SI2165)
 struct dvb_frontend *si2165_attach(
 	const struct si2165_config *config,
 	struct i2c_adapter *i2c);

@@ -27,7 +27,7 @@ struct a8293_config {
 	u8 i2c_addr;
 };
 
-#if IS_ENABLED(CONFIG_DVB_A8293)
+#if IS_REACHABLE(CONFIG_DVB_A8293)
 extern struct dvb_frontend *a8293_attach(struct dvb_frontend *fe,
 	struct i2c_adapter *i2c, const struct a8293_config *cfg);
 #else

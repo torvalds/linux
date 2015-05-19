@@ -288,6 +288,9 @@ static inline bool kvmppc_supports_magic_page(struct kvm_vcpu *vcpu)
 	return !is_kvmppc_hv_enabled(vcpu->kvm);
 }
 
+extern int kvmppc_h_logical_ci_load(struct kvm_vcpu *vcpu);
+extern int kvmppc_h_logical_ci_store(struct kvm_vcpu *vcpu);
+
 /* Magic register values loaded into r3 and r4 before the 'sc' assembly
  * instruction for the OSI hypercalls */
 #define OSI_SC_MAGIC_R3			0x113724FA

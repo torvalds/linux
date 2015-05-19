@@ -1251,8 +1251,7 @@ int mv88e6xxx_setup_port_common(struct dsa_switch *ds, int port)
 	/* Port Control 1: disable trunking, disable sending
 	 * learning messages to this port.
 	 */
-	ret = _mv88e6xxx_reg_write(ds, REG_PORT(port), PORT_DEFAULT_VLAN,
-				   0x0000);
+	ret = _mv88e6xxx_reg_write(ds, REG_PORT(port), PORT_CONTROL_1, 0x0000);
 	if (ret)
 		goto abort;
 
@@ -1275,7 +1274,8 @@ int mv88e6xxx_setup_port_common(struct dsa_switch *ds, int port)
 	/* Default VLAN ID and priority: don't set a default VLAN
 	 * ID, and set the default packet priority to zero.
 	 */
-	ret = _mv88e6xxx_reg_write(ds, REG_PORT(port), 0x07, 0x0000);
+	ret = _mv88e6xxx_reg_write(ds, REG_PORT(port), PORT_DEFAULT_VLAN,
+				   0x0000);
 abort:
 	mutex_unlock(&ps->smi_mutex);
 	return ret;
@@ -1468,6 +1468,9 @@ static void __exit mv88e6xxx_cleanup(void)
 {
 #if IS_ENABLED(CONFIG_NET_DSA_MV88E6171)
 	unregister_switch_driver(&mv88e6171_switch_driver);
+#endif
+#if IS_ENABLED(CONFIG_NET_DSA_MV88E6352)
+	unregister_switch_driver(&mv88e6352_switch_driver);
 #endif
 #if IS_ENABLED(CONFIG_NET_DSA_MV88E6123_61_65)
 	unregister_switch_driver(&mv88e6123_61_65_switch_driver);

@@ -689,8 +689,8 @@ static int ocfs2_link(struct dentry *old_dentry,
 		      struct dentry *dentry)
 {
 	handle_t *handle;
-	struct inode *inode = old_dentry->d_inode;
-	struct inode *old_dir = old_dentry->d_parent->d_inode;
+	struct inode *inode = d_inode(old_dentry);
+	struct inode *old_dir = d_inode(old_dentry->d_parent);
 	int err;
 	struct buffer_head *fe_bh = NULL;
 	struct buffer_head *old_dir_bh = NULL;
@@ -879,7 +879,7 @@ static int ocfs2_unlink(struct inode *dir,
 	int status;
 	int child_locked = 0;
 	bool is_unlinkable = false;
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct inode *orphan_dir = NULL;
 	struct ocfs2_super *osb = OCFS2_SB(dir->i_sb);
 	u64 blkno;
@@ -898,7 +898,7 @@ static int ocfs2_unlink(struct inode *dir,
 
 	dquot_initialize(dir);
 
-	BUG_ON(dentry->d_parent->d_inode != dir);
+	BUG_ON(d_inode(dentry->d_parent) != dir);
 
 	if (inode == osb->root_inode)
 		return -EPERM;
@@ -1209,8 +1209,8 @@ static int ocfs2_rename(struct inode *old_dir,
 {
 	int status = 0, rename_lock = 0, parents_locked = 0, target_exists = 0;
 	int old_child_locked = 0, new_child_locked = 0, update_dot_dot = 0;
-	struct inode *old_inode = old_dentry->d_inode;
-	struct inode *new_inode = new_dentry->d_inode;
+	struct inode *old_inode = d_inode(old_dentry);
+	struct inode *new_inode = d_inode(new_dentry);
 	struct inode *orphan_dir = NULL;
 	struct ocfs2_dinode *newfe = NULL;
 	char orphan_name[OCFS2_ORPHAN_NAMELEN + 1];
@@ -1454,7 +1454,7 @@ static int ocfs2_rename(struct inode *old_dir,
 			should_add_orphan = true;
 		}
 	} else {
-		BUG_ON(new_dentry->d_parent->d_inode != new_dir);
+		BUG_ON(d_inode(new_dentry->d_parent) != new_dir);
 
 		status = ocfs2_check_dir_for_entry(new_dir,
 						   new_dentry->d_name.name,

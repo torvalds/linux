@@ -939,21 +939,34 @@ static int mlx4_MAD_IFC_wrapper(struct mlx4_dev *dev, int slave,
 				return err;
 			}
 			if (smp->attr_id == IB_SMP_ATTR_GUID_INFO) {
-				/* compute slave's gid block */
-				smp->attr_mod = cpu_to_be32(slave / 8);
-				/* execute cmd */
-				err = mlx4_cmd_box(dev, inbox->dma, outbox->dma,
-					     vhcr->in_modifier, opcode_modifier,
-					     vhcr->op, MLX4_CMD_TIME_CLASS_C, MLX4_CMD_NATIVE);
-				if (!err) {
-					/* if needed, move slave gid to index 0 */
-					if (slave % 8)
-						memcpy(outsmp->data,
-						       outsmp->data + (slave % 8) * 8, 8);
-					/* delete all other gids */
-					memset(outsmp->data + 8, 0, 56);
+				__be64 guid = mlx4_get_admin_guid(dev, slave,
+								  port);
+
+				/* set the PF admin guid to the FW/HW burned
+				 * GUID, if it wasn't yet set
+				 */
+				if (slave == 0 && guid == 0) {
+					smp->attr_mod = 0;
+					err = mlx4_cmd_box(dev,
+							   inbox->dma,
+							   outbox->dma,
+							   vhcr->in_modifier,
+							   opcode_modifier,
+							   vhcr->op,
+							   MLX4_CMD_TIME_CLASS_C,
+							   MLX4_CMD_NATIVE);
+					if (err)
+						return err;
+					mlx4_set_admin_guid(dev,
+							    *(__be64 *)outsmp->
+							    data, slave, port);
+				} else {
+					memcpy(outsmp->data, &guid, 8);
 				}
-				return err;
+
+				/* clean all other gids */
+				memset(outsmp->data + 8, 0, 56);
+				return 0;
 			}
 			if (smp->attr_id == IB_SMP_ATTR_NODE_INFO) {
 				err = mlx4_cmd_box(dev, inbox->dma, outbox->dma,
@@ -2350,6 +2363,7 @@ int mlx4_multi_func_init(struct mlx4_dev *dev)
 				oper_vport->qos_vport = MLX4_VPP_DEFAULT_VPORT;
 				vf_oper->vport[port].vlan_idx = NO_INDX;
 				vf_oper->vport[port].mac_idx = NO_INDX;
+				mlx4_set_random_admin_guid(dev, i, port);
 			}
 			spin_lock_init(&s_state->lock);
 		}

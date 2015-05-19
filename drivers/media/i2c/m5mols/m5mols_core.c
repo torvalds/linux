@@ -531,17 +531,17 @@ static int __find_resolution(struct v4l2_subdev *sd,
 }
 
 static struct v4l2_mbus_framefmt *__find_format(struct m5mols_info *info,
-				struct v4l2_subdev_fh *fh,
+				struct v4l2_subdev_pad_config *cfg,
 				enum v4l2_subdev_format_whence which,
 				enum m5mols_restype type)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return fh ? v4l2_subdev_get_try_format(fh, 0) : NULL;
+		return cfg ? v4l2_subdev_get_try_format(&info->sd, cfg, 0) : NULL;
 
 	return &info->ffmt[type];
 }
 
-static int m5mols_get_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
+static int m5mols_get_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct m5mols_info *info = to_m5mols(sd);
@@ -550,7 +550,7 @@ static int m5mols_get_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 
 	mutex_lock(&info->lock);
 
-	format = __find_format(info, fh, fmt->which, info->res_type);
+	format = __find_format(info, cfg, fmt->which, info->res_type);
 	if (format)
 		fmt->format = *format;
 	else
@@ -560,7 +560,7 @@ static int m5mols_get_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 	return ret;
 }
 
-static int m5mols_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
+static int m5mols_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *cfg,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct m5mols_info *info = to_m5mols(sd);
@@ -574,7 +574,7 @@ static int m5mols_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 	if (ret < 0)
 		return ret;
 
-	sfmt = __find_format(info, fh, fmt->which, type);
+	sfmt = __find_format(info, cfg, fmt->which, type);
 	if (!sfmt)
 		return 0;
 
@@ -640,7 +640,7 @@ static int m5mols_set_frame_desc(struct v4l2_subdev *sd, unsigned int pad,
 
 
 static int m5mols_enum_mbus_code(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_fh *fh,
+				 struct v4l2_subdev_pad_config *cfg,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (!code || code->index >= SIZE_DEFAULT_FFMT)
@@ -895,7 +895,7 @@ static const struct v4l2_subdev_core_ops m5mols_core_ops = {
  */
 static int m5mols_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
-	struct v4l2_mbus_framefmt *format = v4l2_subdev_get_try_format(fh, 0);
+	struct v4l2_mbus_framefmt *format = v4l2_subdev_get_try_format(sd, fh->pad, 0);
 
 	*format = m5mols_default_ffmt[0];
 	return 0;

@@ -427,6 +427,13 @@ sysretl_from_sys_call:
 	 * cs and ss are loaded from MSRs.
 	 * (Note: 32bit->32bit SYSRET is different: since r11
 	 * does not exist, it merely sets eflags.IF=1).
+	 *
+	 * NB: On AMD CPUs with the X86_BUG_SYSRET_SS_ATTRS bug, the ss
+	 * descriptor is not reinitialized.  This means that we must
+	 * avoid SYSRET with SS == NULL, which could happen if we schedule,
+	 * exit the kernel, and re-enter using an interrupt vector.  (All
+	 * interrupt entries on x86_64 set SS to NULL.)  We prevent that
+	 * from happening by reloading SS in __switch_to.
 	 */
 	USERGS_SYSRET32
 

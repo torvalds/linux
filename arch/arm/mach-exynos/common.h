@@ -126,6 +126,12 @@ enum {
 
 void exynos_firmware_init(void);
 
+/* CPU BOOT mode flag for Exynos3250 SoC bootloader */
+#define C2_STATE	(1 << 3)
+
+void exynos_set_boot_flag(unsigned int cpu, unsigned int mode);
+void exynos_clear_boot_flag(unsigned int cpu, unsigned int mode);
+
 extern u32 exynos_get_eint_wake_mask(void);
 
 #ifdef CONFIG_PM_SLEEP
@@ -152,6 +158,8 @@ extern int exynos_pm_central_resume(void);
 extern void exynos_enter_aftr(void);
 
 extern struct cpuidle_exynos_data cpuidle_coupled_exynos_data;
+
+extern void exynos_set_delayed_reset_assertion(bool enable);
 
 extern void s5p_init_cpu(void __iomem *cpuid_addr);
 extern unsigned int samsung_rev(void);

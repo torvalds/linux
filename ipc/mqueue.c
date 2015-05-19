@@ -466,7 +466,7 @@ out_unlock:
 
 static int mqueue_unlink(struct inode *dir, struct dentry *dentry)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 
 	dir->i_ctime = dir->i_mtime = dir->i_atime = CURRENT_TIME;
 	dir->i_size -= DIRENT_SIZE;
@@ -770,7 +770,7 @@ static struct file *do_open(struct path *path, int oflag)
 	if ((oflag & O_ACCMODE) == (O_RDWR | O_WRONLY))
 		return ERR_PTR(-EINVAL);
 	acc = oflag2acc[oflag & O_ACCMODE];
-	if (inode_permission(path->dentry->d_inode, acc))
+	if (inode_permission(d_inode(path->dentry), acc))
 		return ERR_PTR(-EACCES);
 	return dentry_open(path, oflag, current_cred());
 }
@@ -802,7 +802,7 @@ SYSCALL_DEFINE4(mq_open, const char __user *, u_name, int, oflag, umode_t, mode,
 
 	ro = mnt_want_write(mnt);	/* we'll drop it in any case */
 	error = 0;
-	mutex_lock(&root->d_inode->i_mutex);
+	mutex_lock(&d_inode(root)->i_mutex);
 	path.dentry = lookup_one_len(name->name, root, strlen(name->name));
 	if (IS_ERR(path.dentry)) {
 		error = PTR_ERR(path.dentry);
@@ -811,7 +811,7 @@ SYSCALL_DEFINE4(mq_open, const char __user *, u_name, int, oflag, umode_t, mode,
 	path.mnt = mntget(mnt);
 
 	if (oflag & O_CREAT) {
-		if (path.dentry->d_inode) {	/* entry already exists */
+		if (d_really_is_positive(path.dentry)) {	/* entry already exists */
 			audit_inode(name, path.dentry, 0);
 			if (oflag & O_EXCL) {
 				error = -EEXIST;
@@ -824,12 +824,12 @@ SYSCALL_DEFINE4(mq_open, const char __user *, u_name, int, oflag, umode_t, mode,
 				goto out;
 			}
 			audit_inode_parent_hidden(name, root);
-			filp = do_create(ipc_ns, root->d_inode,
+			filp = do_create(ipc_ns, d_inode(root),
 						&path, oflag, mode,
 						u_attr ? &attr : NULL);
 		}
 	} else {
-		if (!path.dentry->d_inode) {
+		if (d_really_is_negative(path.dentry)) {
 			error = -ENOENT;
 			goto out;
 		}
@@ -848,7 +848,7 @@ out_putfd:
 		put_unused_fd(fd);
 		fd = error;
 	}
-	mutex_unlock(&root->d_inode->i_mutex);
+	mutex_unlock(&d_inode(root)->i_mutex);
 	if (!ro)
 		mnt_drop_write(mnt);
 out_putname:
@@ -873,7 +873,7 @@ SYSCALL_DEFINE1(mq_unlink, const char __user *, u_name)
 	err = mnt_want_write(mnt);
 	if (err)
 		goto out_name;
-	mutex_lock_nested(&mnt->mnt_root->d_inode->i_mutex, I_MUTEX_PARENT);
+	mutex_lock_nested(&d_inode(mnt->mnt_root)->i_mutex, I_MUTEX_PARENT);
 	dentry = lookup_one_len(name->name, mnt->mnt_root,
 				strlen(name->name));
 	if (IS_ERR(dentry)) {
@@ -881,17 +881,17 @@ SYSCALL_DEFINE1(mq_unlink, const char __user *, u_name)
 		goto out_unlock;
 	}
 
-	inode = dentry->d_inode;
+	inode = d_inode(dentry);
 	if (!inode) {
 		err = -ENOENT;
 	} else {
 		ihold(inode);
-		err = vfs_unlink(dentry->d_parent->d_inode, dentry, NULL);
+		err = vfs_unlink(d_inode(dentry->d_parent), dentry, NULL);
 	}
 	dput(dentry);
 
 out_unlock:
-	mutex_unlock(&mnt->mnt_root->d_inode->i_mutex);
+	mutex_unlock(&d_inode(mnt->mnt_root)->i_mutex);
 	if (inode)
 		iput(inode);
 	mnt_drop_write(mnt);

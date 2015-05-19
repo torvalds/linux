@@ -793,8 +793,8 @@ video_register_device_no_warn() instead.
 
 Whenever a device node is created some attributes are also created for you.
 If you look in /sys/class/video4linux you see the devices. Go into e.g.
-video0 and you will see 'name', 'debug' and 'index' attributes. The 'name'
-attribute is the 'name' field of the video_device struct. The 'debug' attribute
+video0 and you will see 'name', 'dev_debug' and 'index' attributes. The 'name'
+attribute is the 'name' field of the video_device struct. The 'dev_debug' attribute
 can be used to enable core debugging. See the next section for more detailed
 information on this.
 
@@ -821,7 +821,7 @@ unregister the device if the registration failed.
 video device debugging
 ----------------------
 
-The 'debug' attribute that is created for each video, vbi, radio or swradio
+The 'dev_debug' attribute that is created for each video, vbi, radio or swradio
 device in /sys/class/video4linux/<devX>/ allows you to enable logging of
 file operations.
 

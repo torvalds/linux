@@ -930,8 +930,8 @@ int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 	union ubifs_key key;
 	struct ubifs_dent_node *dent, *dent2;
 	int err, dlen1, dlen2, ilen, lnum, offs, len;
-	const struct inode *old_inode = old_dentry->d_inode;
-	const struct inode *new_inode = new_dentry->d_inode;
+	const struct inode *old_inode = d_inode(old_dentry);
+	const struct inode *new_inode = d_inode(new_dentry);
 	int aligned_dlen1, aligned_dlen2, plen = UBIFS_INO_NODE_SZ;
 	int last_reference = !!(new_inode && new_inode->i_nlink == 0);
 	int move = (old_dir != new_dir);

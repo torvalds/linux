@@ -56,11 +56,13 @@ MODULE_PARM_DESC(enable_qos, "Enable Enhanced QoS support (default: on)");
 #define MLX4_GET(dest, source, offset)				      \
 	do {							      \
 		void *__p = (char *) (source) + (offset);	      \
+		u64 val;                                              \
 		switch (sizeof (dest)) {			      \
 		case 1: (dest) = *(u8 *) __p;	    break;	      \
 		case 2: (dest) = be16_to_cpup(__p); break;	      \
 		case 4: (dest) = be32_to_cpup(__p); break;	      \
-		case 8: (dest) = be64_to_cpup(__p); break;	      \
+		case 8: val = get_unaligned((u64 *)__p);              \
+			(dest) = be64_to_cpu(val);  break;            \
 		default: __buggy_use_of_MLX4_GET();		      \
 		}						      \
 	} while (0)
@@ -781,10 +783,10 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_VL_PORT_OFFSET);
 	dev_cap->num_ports = field & 0xf;
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_MAX_MSG_SZ_OFFSET);
+	dev_cap->max_msg_sz = 1 << (field & 0x1f);
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_PORT_FLOWSTATS_COUNTERS_OFFSET);
 	if (field & 0x10)
 		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_FLOWSTATS_EN;
-	dev_cap->max_msg_sz = 1 << (field & 0x1f);
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_FLOW_STEERING_RANGE_EN_OFFSET);
 	if (field & 0x80)
 		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_FS_EN;
@@ -1605,9 +1607,17 @@ static void get_board_id(void *vsd, char *board_id)
 		 * swaps each 4-byte word before passing it back to
 		 * us.  Therefore we need to swab it before printing.
 		 */
-		for (i = 0; i < 4; ++i)
-			((u32 *) board_id)[i] =
-				swab32(*(u32 *) (vsd + VSD_OFFSET_MLX_BOARD_ID + i * 4));
+		u32 *bid_u32 = (u32 *)board_id;
+
+		for (i = 0; i < 4; ++i) {
+			u32 *addr;
+			u32 val;
+
+			addr = (u32 *) (vsd + VSD_OFFSET_MLX_BOARD_ID + i * 4);
+			val = get_unaligned(addr);
+			val = swab32(val);
+			put_unaligned(val, &bid_u32[i]);
+		}
 	}
 }
 

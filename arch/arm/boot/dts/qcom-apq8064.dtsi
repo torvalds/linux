@@ -23,6 +23,7 @@
 			next-level-cache = <&L2>;
 			qcom,acc = <&acc0>;
 			qcom,saw = <&saw0>;
+			cpu-idle-states = <&CPU_SPC>;
 		};
 
 		cpu@1 {
@@ -33,6 +34,7 @@
 			next-level-cache = <&L2>;
 			qcom,acc = <&acc1>;
 			qcom,saw = <&saw1>;
+			cpu-idle-states = <&CPU_SPC>;
 		};
 
 		cpu@2 {
@@ -43,6 +45,7 @@
 			next-level-cache = <&L2>;
 			qcom,acc = <&acc2>;
 			qcom,saw = <&saw2>;
+			cpu-idle-states = <&CPU_SPC>;
 		};
 
 		cpu@3 {
@@ -53,11 +56,22 @@
 			next-level-cache = <&L2>;
 			qcom,acc = <&acc3>;
 			qcom,saw = <&saw3>;
+			cpu-idle-states = <&CPU_SPC>;
 		};
 
 		L2: l2-cache {
 			compatible = "cache";
 			cache-level = <2>;
+		};
+
+		idle-states {
+			CPU_SPC: spc {
+				compatible = "qcom,idle-state-spc",
+						"arm,idle-state";
+				entry-latency-us = <400>;
+				exit-latency-us = <900>;
+				min-residency-us = <3000>;
+			};
 		};
 	};
 
@@ -139,26 +153,26 @@
 			reg = <0x020b8000 0x1000>, <0x02008000 0x1000>;
 		};
 
-		saw0: regulator@2089000 {
-			compatible = "qcom,saw2";
+		saw0: power-controller@2089000 {
+			compatible = "qcom,apq8064-saw2-v1.1-cpu", "qcom,saw2";
 			reg = <0x02089000 0x1000>, <0x02009000 0x1000>;
 			regulator;
 		};
 
-		saw1: regulator@2099000 {
-			compatible = "qcom,saw2";
+		saw1: power-controller@2099000 {
+			compatible = "qcom,apq8064-saw2-v1.1-cpu", "qcom,saw2";
 			reg = <0x02099000 0x1000>, <0x02009000 0x1000>;
 			regulator;
 		};
 
-		saw2: regulator@20a9000 {
-			compatible = "qcom,saw2";
+		saw2: power-controller@20a9000 {
+			compatible = "qcom,apq8064-saw2-v1.1-cpu", "qcom,saw2";
 			reg = <0x020a9000 0x1000>, <0x02009000 0x1000>;
 			regulator;
 		};
 
-		saw3: regulator@20b9000 {
-			compatible = "qcom,saw2";
+		saw3: power-controller@20b9000 {
+			compatible = "qcom,apq8064-saw2-v1.1-cpu", "qcom,saw2";
 			reg = <0x020b9000 0x1000>, <0x02009000 0x1000>;
 			regulator;
 		};
@@ -166,12 +180,15 @@
 		gsbi1: gsbi@12440000 {
 			status = "disabled";
 			compatible = "qcom,gsbi-v1.0.0";
+			cell-index = <1>;
 			reg = <0x12440000 0x100>;
 			clocks = <&gcc GSBI1_H_CLK>;
 			clock-names = "iface";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
+
+			syscon-tcsr = <&tcsr>;
 
 			i2c1: i2c@12460000 {
 				compatible = "qcom,i2c-qup-v1.1.1";
@@ -187,12 +204,15 @@
 		gsbi2: gsbi@12480000 {
 			status = "disabled";
 			compatible = "qcom,gsbi-v1.0.0";
+			cell-index = <2>;
 			reg = <0x12480000 0x100>;
 			clocks = <&gcc GSBI2_H_CLK>;
 			clock-names = "iface";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
+
+			syscon-tcsr = <&tcsr>;
 
 			i2c2: i2c@124a0000 {
 				compatible = "qcom,i2c-qup-v1.1.1";
@@ -208,12 +228,15 @@
 		gsbi7: gsbi@16600000 {
 			status = "disabled";
 			compatible = "qcom,gsbi-v1.0.0";
+			cell-index = <7>;
 			reg = <0x16600000 0x100>;
 			clocks = <&gcc GSBI7_H_CLK>;
 			clock-names = "iface";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
+
+			syscon-tcsr = <&tcsr>;
 
 			serial@16640000 {
 				compatible = "qcom,msm-uartdm-v1.3", "qcom,msm-uartdm";
@@ -235,6 +258,13 @@
 		gcc: clock-controller@900000 {
 			compatible = "qcom,gcc-apq8064";
 			reg = <0x00900000 0x4000>;
+			#clock-cells = <1>;
+			#reset-cells = <1>;
+		};
+
+		lcc: clock-controller@28000000 {
+			compatible = "qcom,lcc-apq8064";
+			reg = <0x28000000 0x1000>;
 			#clock-cells = <1>;
 			#reset-cells = <1>;
 		};
@@ -348,6 +378,11 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&sdc4_gpios>;
 			};
+		};
+
+		tcsr: syscon@1a400000 {
+			compatible = "qcom,tcsr-apq8064", "syscon";
+			reg = <0x1a400000 0x100>;
 		};
 	};
 };

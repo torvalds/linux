@@ -3179,6 +3179,12 @@ bool fs_fully_visible(struct file_system_type *type)
 		if (mnt->mnt.mnt_sb->s_type != type)
 			continue;
 
+		/* This mount is not fully visible if it's root directory
+		 * is not the root directory of the filesystem.
+		 */
+		if (mnt->mnt.mnt_root != mnt->mnt.mnt_sb->s_root)
+			continue;
+
 		/* This mount is not fully visible if there are any child mounts
 		 * that cover anything except for empty directories.
 		 */

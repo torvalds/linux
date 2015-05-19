@@ -651,9 +651,6 @@ out:
 	return ret;
 }
 
-/* Number of keypresses to ignore before start repeating */
-#define RC_REPEAT_DELAY_V1_20 10
-
 /* This is the structure of the RC response packet starting in firmware 1.20 */
 struct dib0700_rc_response {
 	u8 report_id;

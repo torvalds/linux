@@ -1,7 +1,8 @@
 * OMAP OCP2SCP - ocp interface to scp interface
 
 properties:
-- compatible : Should be "ti,omap-ocp2scp"
+- compatible : Should be "ti,am437x-ocp2scp" for AM437x processor
+	       Should be "ti,omap-ocp2scp" for all others
 - reg : Address and length of the register set for the device
 - #address-cells, #size-cells : Must be present if the device has sub-nodes
 - ranges : the child address space are mapped 1:1 onto the parent address space

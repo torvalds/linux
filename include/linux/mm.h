@@ -499,7 +499,7 @@ static inline int page_count(struct page *page)
 
 static inline bool __compound_tail_refcounted(struct page *page)
 {
-	return PageAnon(page) && !PageSlab(page) && !PageHeadHuge(page);
+	return !PageSlab(page) && !PageHeadHuge(page);
 }
 
 /*

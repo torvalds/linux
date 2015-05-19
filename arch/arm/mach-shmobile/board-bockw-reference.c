@@ -36,7 +36,9 @@ static void __init bockw_init(void)
 	void __iomem *fpga;
 	void __iomem *pfc;
 
+#ifndef CONFIG_COMMON_CLK
 	r8a7778_clock_init();
+#endif
 	r8a7778_init_irq_extpin_dt(1);
 	r8a7778_add_dt_devices();
 

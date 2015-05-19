@@ -355,7 +355,7 @@ static inline bool use_multiport(struct ports_device *portdev)
 	 * early_init
 	 */
 	if (!portdev->vdev)
-		return 0;
+		return false;
 	return __virtio_test_bit(portdev->vdev, VIRTIO_CONSOLE_F_MULTIPORT);
 }
 

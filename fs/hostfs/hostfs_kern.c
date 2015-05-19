@@ -581,7 +581,7 @@ static int hostfs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 	if (name == NULL)
 		goto out_put;
 
-	fd = file_create(name, mode & S_IFMT);
+	fd = file_create(name, mode & 0777);
 	if (fd < 0)
 		error = fd;
 	else
@@ -807,7 +807,7 @@ static int hostfs_permission(struct inode *ino, int desired)
 
 static int hostfs_setattr(struct dentry *dentry, struct iattr *attr)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = d_inode(dentry);
 	struct hostfs_iattr attrs;
 	char *name;
 	int err;

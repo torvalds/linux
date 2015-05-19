@@ -108,6 +108,7 @@ config SERIAL_8250_PCI
 	tristate "8250/16550 PCI device support" if EXPERT
 	depends on SERIAL_8250 && PCI
 	default SERIAL_8250
+	select RATIONAL
 	help
 	  This builds standard PCI serial support. You may be able to
 	  disable this feature if you only need legacy serial support.

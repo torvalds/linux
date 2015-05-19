@@ -201,12 +201,12 @@ static struct rcar_phy_platform_data usb_phy_platform_data __initdata =
 
 
 /* SDHI */
-static struct sh_mobile_sdhi_info sdhi0_info __initdata = {
-	.dma_slave_tx	= HPBDMA_SLAVE_SDHI0_TX,
-	.dma_slave_rx	= HPBDMA_SLAVE_SDHI0_RX,
-	.tmio_caps	= MMC_CAP_SD_HIGHSPEED,
-	.tmio_ocr_mask	= MMC_VDD_165_195 | MMC_VDD_32_33 | MMC_VDD_33_34,
-	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT,
+static struct tmio_mmc_data sdhi0_info __initdata = {
+	.chan_priv_tx	= (void *)HPBDMA_SLAVE_SDHI0_TX,
+	.chan_priv_rx	= (void *)HPBDMA_SLAVE_SDHI0_RX,
+	.capabilities	= MMC_CAP_SD_HIGHSPEED,
+	.ocr_mask	= MMC_VDD_165_195 | MMC_VDD_32_33 | MMC_VDD_33_34,
+	.flags		= TMIO_MMC_HAS_IDLE_WAIT,
 };
 
 static struct resource sdhi0_resources[] __initdata = {
@@ -683,7 +683,7 @@ static void __init bockw_init(void)
 		platform_device_register_resndata(
 			NULL, "sh_mobile_sdhi", 0,
 			sdhi0_resources, ARRAY_SIZE(sdhi0_resources),
-			&sdhi0_info, sizeof(struct sh_mobile_sdhi_info));
+			&sdhi0_info, sizeof(struct tmio_mmc_data));
 	}
 
 	/* for Audio */

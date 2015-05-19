@@ -511,7 +511,7 @@ static int uvc_v4l2_open(struct file *file)
 	stream->dev->users++;
 	mutex_unlock(&stream->dev->lock);
 
-	v4l2_fh_init(&handle->vfh, stream->vdev);
+	v4l2_fh_init(&handle->vfh, &stream->vdev);
 	v4l2_fh_add(&handle->vfh);
 	handle->chain = stream->chain;
 	handle->stream = stream;
@@ -882,6 +882,35 @@ static int uvc_ioctl_queryctrl(struct file *file, void *fh,
 	return uvc_query_v4l2_ctrl(chain, qc);
 }
 
+static int uvc_ioctl_query_ext_ctrl(struct file *file, void *fh,
+				    struct v4l2_query_ext_ctrl *qec)
+{
+	struct uvc_fh *handle = fh;
+	struct uvc_video_chain *chain = handle->chain;
+	struct v4l2_queryctrl qc = { qec->id };
+	int ret;
+
+	ret = uvc_query_v4l2_ctrl(chain, &qc);
+	if (ret)
+		return ret;
+
+	qec->id = qc.id;
+	qec->type = qc.type;
+	strlcpy(qec->name, qc.name, sizeof(qec->name));
+	qec->minimum = qc.minimum;
+	qec->maximum = qc.maximum;
+	qec->step = qc.step;
+	qec->default_value = qc.default_value;
+	qec->flags = qc.flags;
+	qec->elem_size = 4;
+	qec->elems = 1;
+	qec->nr_of_dims = 0;
+	memset(qec->dims, 0, sizeof(qec->dims));
+	memset(qec->reserved, 0, sizeof(qec->reserved));
+
+	return 0;
+}
+
 static int uvc_ioctl_g_ctrl(struct file *file, void *fh,
 			    struct v4l2_control *ctrl)
 {
@@ -1018,26 +1047,37 @@ static int uvc_ioctl_querymenu(struct file *file, void *fh,
 	return uvc_query_v4l2_menu(chain, qm);
 }
 
-static int uvc_ioctl_cropcap(struct file *file, void *fh,
-			     struct v4l2_cropcap *ccap)
+static int uvc_ioctl_g_selection(struct file *file, void *fh,
+				 struct v4l2_selection *sel)
 {
 	struct uvc_fh *handle = fh;
 	struct uvc_streaming *stream = handle->stream;
 
-	if (ccap->type != stream->type)
+	if (sel->type != stream->type)
 		return -EINVAL;
 
-	ccap->bounds.left = 0;
-	ccap->bounds.top = 0;
+	switch (sel->target) {
+	case V4L2_SEL_TGT_CROP_DEFAULT:
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+		if (stream->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+			return -EINVAL;
+		break;
+	case V4L2_SEL_TGT_COMPOSE_DEFAULT:
+	case V4L2_SEL_TGT_COMPOSE_BOUNDS:
+		if (stream->type != V4L2_BUF_TYPE_VIDEO_OUTPUT)
+			return -EINVAL;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	sel->r.left = 0;
+	sel->r.top = 0;
 	mutex_lock(&stream->mutex);
-	ccap->bounds.width = stream->cur_frame->wWidth;
-	ccap->bounds.height = stream->cur_frame->wHeight;
+	sel->r.width = stream->cur_frame->wWidth;
+	sel->r.height = stream->cur_frame->wHeight;
 	mutex_unlock(&stream->mutex);
 
-	ccap->defrect = ccap->bounds;
-
-	ccap->pixelaspect.numerator = 1;
-	ccap->pixelaspect.denominator = 1;
 	return 0;
 }
 
@@ -1133,6 +1173,9 @@ static int uvc_ioctl_enum_frameintervals(struct file *file, void *fh,
 		uvc_simplify_fraction(&fival->discrete.numerator,
 			&fival->discrete.denominator, 8, 333);
 	} else {
+		if (fival->index)
+			return -EINVAL;
+
 		fival->type = V4L2_FRMIVAL_TYPE_STEPWISE;
 		fival->stepwise.min.numerator = frame->dwFrameInterval[0];
 		fival->stepwise.min.denominator = 10000000;
@@ -1443,13 +1486,14 @@ const struct v4l2_ioctl_ops uvc_ioctl_ops = {
 	.vidioc_g_input = uvc_ioctl_g_input,
 	.vidioc_s_input = uvc_ioctl_s_input,
 	.vidioc_queryctrl = uvc_ioctl_queryctrl,
+	.vidioc_query_ext_ctrl = uvc_ioctl_query_ext_ctrl,
 	.vidioc_g_ctrl = uvc_ioctl_g_ctrl,
 	.vidioc_s_ctrl = uvc_ioctl_s_ctrl,
 	.vidioc_g_ext_ctrls = uvc_ioctl_g_ext_ctrls,
 	.vidioc_s_ext_ctrls = uvc_ioctl_s_ext_ctrls,
 	.vidioc_try_ext_ctrls = uvc_ioctl_try_ext_ctrls,
 	.vidioc_querymenu = uvc_ioctl_querymenu,
-	.vidioc_cropcap = uvc_ioctl_cropcap,
+	.vidioc_g_selection = uvc_ioctl_g_selection,
 	.vidioc_g_parm = uvc_ioctl_g_parm,
 	.vidioc_s_parm = uvc_ioctl_s_parm,
 	.vidioc_enum_framesizes = uvc_ioctl_enum_framesizes,

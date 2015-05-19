@@ -225,7 +225,7 @@ fill_pre_wcc(struct svc_fh *fhp)
 {
 	struct inode    *inode;
 
-	inode = fhp->fh_dentry->d_inode;
+	inode = d_inode(fhp->fh_dentry);
 	if (!fhp->fh_pre_saved) {
 		fhp->fh_pre_mtime = inode->i_mtime;
 		fhp->fh_pre_ctime = inode->i_ctime;
@@ -264,7 +264,7 @@ fh_lock_nested(struct svc_fh *fhp, unsigned int subclass)
 		return;
 	}
 
-	inode = dentry->d_inode;
+	inode = d_inode(dentry);
 	mutex_lock_nested(&inode->i_mutex, subclass);
 	fill_pre_wcc(fhp);
 	fhp->fh_locked = 1;
@@ -284,7 +284,7 @@ fh_unlock(struct svc_fh *fhp)
 {
 	if (fhp->fh_locked) {
 		fill_post_wcc(fhp);
-		mutex_unlock(&fhp->fh_dentry->d_inode->i_mutex);
+		mutex_unlock(&d_inode(fhp->fh_dentry)->i_mutex);
 		fhp->fh_locked = 0;
 	}
 }

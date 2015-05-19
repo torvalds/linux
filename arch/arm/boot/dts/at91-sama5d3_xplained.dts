@@ -167,7 +167,13 @@
 
 			macb1: ethernet@f802c000 {
 				phy-mode = "rmii";
+				#address-cells = <1>;
+				#size-cells = <0>;
 				status = "okay";
+
+				ethernet-phy@1 {
+					reg = <0x1>;
+				};
 			};
 
 			dbgu: serial@ffffee00 {
@@ -186,6 +192,11 @@
 						atmel,pins =
 							<AT91_PIOA 18 AT91_PERIPH_B AT91_PINCTRL_PULL_UP>,
 							<AT91_PIOA 19 AT91_PERIPH_B AT91_PINCTRL_PULL_UP>;
+					};
+
+					pinctrl_key_gpio: key_gpio_0 {
+						atmel,pins =
+							<AT91_PIOE 29 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>;
 					};
 
 					pinctrl_mmc0_cd: mmc0_cd {
@@ -275,6 +286,9 @@
 
 	gpio_keys {
 		compatible = "gpio-keys";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_key_gpio>;
 
 		bp3 {
 			label = "PB_USER";

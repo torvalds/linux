@@ -1157,6 +1157,15 @@ struct em28xx_board em28xx_boards[] = {
 		.i2c_speed    = EM28XX_I2C_CLK_WAIT_ENABLE |
 				EM28XX_I2C_FREQ_400_KHZ,
 	},
+	[EM2884_BOARD_ELGATO_EYETV_HYBRID_2008] = {
+		.name         = "Elgato EyeTV Hybrid 2008 INT",
+		.has_dvb      = 1,
+		.ir_codes     = RC_MAP_NEC_TERRATEC_CINERGY_XS,
+		.tuner_type   = TUNER_ABSENT,
+		.def_i2c_bus  = 1,
+		.i2c_speed    = EM28XX_I2C_CLK_WAIT_ENABLE |
+				EM28XX_I2C_FREQ_400_KHZ,
+	},
 	[EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900] = {
 		.name         = "Hauppauge WinTV HVR 900",
 		.tda9887_conf = TDA9887_PRESENT,
@@ -2378,8 +2387,10 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM2860_BOARD_TERRATEC_GRABBY },
 	{ USB_DEVICE(0x0ccd, 0x00b2),
 			.driver_info = EM2884_BOARD_CINERGY_HTC_STICK },
+	{ USB_DEVICE(0x0fd9, 0x0018),
+			.driver_info = EM2884_BOARD_ELGATO_EYETV_HYBRID_2008 },
 	{ USB_DEVICE(0x0fd9, 0x0033),
-			.driver_info = EM2860_BOARD_ELGATO_VIDEO_CAPTURE},
+			.driver_info = EM2860_BOARD_ELGATO_VIDEO_CAPTURE },
 	{ USB_DEVICE(0x185b, 0x2870),
 			.driver_info = EM2870_BOARD_COMPRO_VIDEOMATE },
 	{ USB_DEVICE(0x185b, 0x2041),

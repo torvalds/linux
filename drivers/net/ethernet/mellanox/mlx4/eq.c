@@ -702,6 +702,8 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 				priv->mfunc.master.slave_state[flr_slave].is_slave_going_down = 1;
 			}
 			spin_unlock_irqrestore(&priv->mfunc.master.slave_state_lock, flags);
+			mlx4_dispatch_event(dev, MLX4_DEV_EVENT_SLAVE_SHUTDOWN,
+					    flr_slave);
 			queue_work(priv->mfunc.master.comm_wq,
 				   &priv->mfunc.master.slave_flr_event_work);
 			break;

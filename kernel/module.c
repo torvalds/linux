@@ -387,9 +387,9 @@ static bool check_symbol(const struct symsearch *syms,
 		pr_warn("Symbol %s is marked as UNUSED, however this module is "
 			"using it.\n", fsa->name);
 		pr_warn("This symbol will go away in the future.\n");
-		pr_warn("Please evalute if this is the right api to use and if "
-			"it really is, submit a report the linux kernel "
-			"mailinglist together with submitting your code for "
+		pr_warn("Please evaluate if this is the right api to use and "
+			"if it really is, submit a report to the linux kernel "
+			"mailing list together with submitting your code for "
 			"inclusion.\n");
 	}
 #endif
@@ -2511,7 +2511,8 @@ static int copy_module_from_user(const void __user *umod, unsigned long len,
 		return err;
 
 	/* Suck in entire file: we'll want most of it. */
-	info->hdr = vmalloc(info->len);
+	info->hdr = __vmalloc(info->len,
+			GFP_KERNEL | __GFP_HIGHMEM | __GFP_NOWARN, PAGE_KERNEL);
 	if (!info->hdr)
 		return -ENOMEM;
 

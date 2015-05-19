@@ -2241,10 +2241,11 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	if (err < 0)
 		goto out_error_mmap;
 
+	if (!target__none(&trace->opts.target))
+		perf_evlist__enable(evlist);
+
 	if (forks)
 		perf_evlist__start_workload(evlist);
-	else
-		perf_evlist__enable(evlist);
 
 	trace->multiple_threads = evlist->threads->map[0] == -1 ||
 				  evlist->threads->nr > 1 ||
@@ -2272,6 +2273,11 @@ next_event:
 
 			if (interrupted)
 				goto out_disable;
+
+			if (done && !draining) {
+				perf_evlist__disable(evlist);
+				draining = true;
+			}
 		}
 	}
 

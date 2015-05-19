@@ -1112,7 +1112,7 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 
 	osb->osb_debug_root = debugfs_create_dir(osb->uuid_str,
 						 ocfs2_debugfs_root);
-	if (IS_ERR_OR_NULL(osb->osb_debug_root)) {
+	if (!osb->osb_debug_root) {
 		status = -EINVAL;
 		mlog(ML_ERROR, "Unable to create per-mount debugfs root.\n");
 		goto read_super_error;
@@ -1122,7 +1122,7 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 					    osb->osb_debug_root,
 					    osb,
 					    &ocfs2_osb_debug_fops);
-	if (IS_ERR_OR_NULL(osb->osb_ctxt)) {
+	if (!osb->osb_ctxt) {
 		status = -EINVAL;
 		mlog_errno(status);
 		goto read_super_error;
@@ -1606,9 +1606,8 @@ static int __init ocfs2_init(void)
 	}
 
 	ocfs2_debugfs_root = debugfs_create_dir("ocfs2", NULL);
-	if (IS_ERR_OR_NULL(ocfs2_debugfs_root)) {
-		status = ocfs2_debugfs_root ?
-			PTR_ERR(ocfs2_debugfs_root) : -ENOMEM;
+	if (!ocfs2_debugfs_root) {
+		status = -ENOMEM;
 		mlog(ML_ERROR, "Unable to create ocfs2 debugfs root.\n");
 		goto out4;
 	}

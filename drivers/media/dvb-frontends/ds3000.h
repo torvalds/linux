@@ -35,7 +35,7 @@ struct ds3000_config {
 	void (*set_lock_led)(struct dvb_frontend *fe, int offon);
 };
 
-#if IS_ENABLED(CONFIG_DVB_DS3000)
+#if IS_REACHABLE(CONFIG_DVB_DS3000)
 extern struct dvb_frontend *ds3000_attach(const struct ds3000_config *config,
 					struct i2c_adapter *i2c);
 #else
