@@ -237,6 +237,7 @@ struct power_supply {
 	/* private */
 	struct device dev;
 	struct work_struct changed_work;
+	struct delayed_work deferred_register_work;
 	spinlock_t changed_lock;
 	bool changed;
 	atomic_t use_cnt;
