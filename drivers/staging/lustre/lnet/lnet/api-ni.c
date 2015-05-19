@@ -98,12 +98,6 @@ lnet_init_locks(void)
 	mutex_init(&the_lnet.ln_api_mutex);
 }
 
-static void
-lnet_fini_locks(void)
-{
-}
-
-
 static int
 lnet_create_remote_nets_table(void)
 {
@@ -153,8 +147,6 @@ lnet_destroy_locks(void)
 		cfs_percpt_lock_free(the_lnet.ln_net_lock);
 		the_lnet.ln_net_lock = NULL;
 	}
-
-	lnet_fini_locks();
 }
 
 static int
