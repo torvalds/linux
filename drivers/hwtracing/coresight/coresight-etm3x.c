@@ -1859,7 +1859,7 @@ static int etm_probe(struct amba_device *adev, const struct amba_id *id)
 		goto err_arch_supported;
 	}
 
-	dev_info(dev, "ETM initialized\n");
+	dev_info(dev, "%s initialized\n", (char *)id->data);
 
 	if (boot_enable) {
 		coresight_enable(drvdata->csdev);
@@ -1890,18 +1890,22 @@ static struct amba_id etm_ids[] = {
 	{	/* ETM 3.3 */
 		.id	= 0x0003b921,
 		.mask	= 0x0003ffff,
+		.data	= "ETM 3.3",
 	},
 	{	/* ETM 3.5 */
 		.id	= 0x0003b956,
 		.mask	= 0x0003ffff,
+		.data	= "ETM 3.5",
 	},
 	{	/* PTM 1.0 */
 		.id	= 0x0003b950,
 		.mask	= 0x0003ffff,
+		.data	= "PTM 1.0",
 	},
 	{	/* PTM 1.1 */
 		.id	= 0x0003b95f,
 		.mask	= 0x0003ffff,
+		.data	= "PTM 1.1",
 	},
 	{ 0, 0},
 };
