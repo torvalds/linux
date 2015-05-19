@@ -80,8 +80,8 @@ LNetMEAttach(unsigned int portal,
 	     lnet_handle_me_t *handle)
 {
 	struct lnet_match_table *mtable;
-	struct lnet_me		*me;
-	struct list_head		*head;
+	struct lnet_me *me;
+	struct list_head *head;
 
 	LASSERT(the_lnet.ln_init);
 	LASSERT(the_lnet.ln_refcount > 0);
@@ -151,10 +151,10 @@ LNetMEInsert(lnet_handle_me_t current_meh,
 	     lnet_unlink_t unlink, lnet_ins_pos_t pos,
 	     lnet_handle_me_t *handle)
 {
-	struct lnet_me		*current_me;
-	struct lnet_me		*new_me;
-	struct lnet_portal	*ptl;
-	int			cpt;
+	struct lnet_me *current_me;
+	struct lnet_me *new_me;
+	struct lnet_portal *ptl;
+	int cpt;
 
 	LASSERT(the_lnet.ln_init);
 	LASSERT(the_lnet.ln_refcount > 0);
@@ -228,10 +228,10 @@ EXPORT_SYMBOL(LNetMEInsert);
 int
 LNetMEUnlink(lnet_handle_me_t meh)
 {
-	lnet_me_t	*me;
-	lnet_libmd_t	*md;
-	lnet_event_t	ev;
-	int		cpt;
+	lnet_me_t *me;
+	lnet_libmd_t *md;
+	lnet_event_t ev;
+	int cpt;
 
 	LASSERT(the_lnet.ln_init);
 	LASSERT(the_lnet.ln_refcount > 0);

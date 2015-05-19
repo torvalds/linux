@@ -41,7 +41,7 @@
 
 #define D_LNI D_CONSOLE
 
-lnet_t      the_lnet;			   /* THE state of the network */
+lnet_t the_lnet;			   /* THE state of the network */
 EXPORT_SYMBOL(the_lnet);
 
 
@@ -70,8 +70,8 @@ lnet_get_routes(void)
 static char *
 lnet_get_networks(void)
 {
-	char   *nets;
-	int     rc;
+	char *nets;
+	int rc;
 
 	if (*networks != 0 && *ip2nets != 0) {
 		LCONSOLE_ERROR_MSG(0x101, "Please specify EITHER 'networks' or 'ip2nets' but not both at once\n");
@@ -107,8 +107,8 @@ lnet_fini_locks(void)
 static int
 lnet_create_remote_nets_table(void)
 {
-	int		i;
-	struct list_head	*hash;
+	int i;
+	struct list_head *hash;
 
 	LASSERT(the_lnet.ln_remote_nets_hash == NULL);
 	LASSERT(the_lnet.ln_remote_nets_hbits > 0);
@@ -273,8 +273,8 @@ static void lnet_assert_wire_constants(void)
 static lnd_t *
 lnet_find_lnd_by_type(int type)
 {
-	lnd_t	      *lnd;
-	struct list_head	 *tmp;
+	lnd_t *lnd;
+	struct list_head *tmp;
 
 	/* holding lnd mutex */
 	list_for_each(tmp, &the_lnet.ln_lnds) {
@@ -325,7 +325,7 @@ void
 lnet_counters_get(lnet_counters_t *counters)
 {
 	lnet_counters_t *ctr;
-	int		i;
+	int i;
 
 	memset(counters, 0, sizeof(*counters));
 
@@ -353,7 +353,7 @@ void
 lnet_counters_reset(void)
 {
 	lnet_counters_t *counters;
-	int		i;
+	int i;
 
 	lnet_net_lock(LNET_LOCK_EX);
 
@@ -396,8 +396,8 @@ lnet_freelist_init(lnet_freelist_t *fl, int n, int size)
 void
 lnet_freelist_fini(lnet_freelist_t *fl)
 {
-	struct list_head       *el;
-	int	       count;
+	struct list_head *el;
+	int count;
 
 	if (fl->fl_nobjs == 0)
 		return;
@@ -441,7 +441,7 @@ lnet_res_type2str(int type)
 static void
 lnet_res_container_cleanup(struct lnet_res_container *rec)
 {
-	int	count = 0;
+	int count = 0;
 
 	if (rec->rec_type == 0) /* not set yet, it's uninitialized */
 		return;
@@ -486,8 +486,8 @@ static int
 lnet_res_container_setup(struct lnet_res_container *rec,
 			 int cpt, int type, int objnum, int objsz)
 {
-	int	rc = 0;
-	int	i;
+	int rc = 0;
+	int i;
 
 	LASSERT(rec->rec_type == 0);
 
@@ -525,8 +525,8 @@ out:
 static void
 lnet_res_containers_destroy(struct lnet_res_container **recs)
 {
-	struct lnet_res_container	*rec;
-	int				i;
+	struct lnet_res_container *rec;
+	int i;
 
 	cfs_percpt_for_each(rec, i, recs)
 		lnet_res_container_cleanup(rec);
@@ -537,10 +537,10 @@ lnet_res_containers_destroy(struct lnet_res_container **recs)
 static struct lnet_res_container **
 lnet_res_containers_create(int type, int objnum, int objsz)
 {
-	struct lnet_res_container	**recs;
-	struct lnet_res_container	*rec;
-	int				rc;
-	int				i;
+	struct lnet_res_container **recs;
+	struct lnet_res_container *rec;
+	int rc;
+	int i;
 
 	recs = cfs_percpt_alloc(lnet_cpt_table(), sizeof(*rec));
 	if (recs == NULL) {
@@ -564,9 +564,9 @@ lnet_libhandle_t *
 lnet_res_lh_lookup(struct lnet_res_container *rec, __u64 cookie)
 {
 	/* ALWAYS called with lnet_res_lock held */
-	struct list_head		*head;
-	lnet_libhandle_t	*lh;
-	unsigned int		hash;
+	struct list_head *head;
+	lnet_libhandle_t *lh;
+	unsigned int hash;
 
 	if ((cookie & LNET_COOKIE_MASK) != rec->rec_type)
 		return NULL;
@@ -586,8 +586,8 @@ void
 lnet_res_lh_initialize(struct lnet_res_container *rec, lnet_libhandle_t *lh)
 {
 	/* ALWAYS called with lnet_res_lock held */
-	unsigned int	ibits = LNET_COOKIE_TYPE_BITS + LNET_CPT_BITS;
-	unsigned int	hash;
+	unsigned int ibits = LNET_COOKIE_TYPE_BITS + LNET_CPT_BITS;
+	unsigned int hash;
 
 	lh->lh_cookie = rec->rec_lh_cookie;
 	rec->rec_lh_cookie += 1 << ibits;
@@ -605,7 +605,7 @@ lnet_prepare(lnet_pid_t requested_pid)
 {
 	/* Prepare to bring up the network */
 	struct lnet_res_container **recs;
-	int			  rc = 0;
+	int rc = 0;
 
 	LASSERT(the_lnet.ln_refcount == 0);
 
@@ -725,8 +725,8 @@ lnet_unprepare(void)
 lnet_ni_t  *
 lnet_net2ni_locked(__u32 net, int cpt)
 {
-	struct list_head	*tmp;
-	lnet_ni_t	*ni;
+	struct list_head *tmp;
+	lnet_ni_t *ni;
 
 	LASSERT(cpt != LNET_LOCK_EX);
 
@@ -758,8 +758,8 @@ EXPORT_SYMBOL(lnet_net2ni);
 static unsigned int
 lnet_nid_cpt_hash(lnet_nid_t nid, unsigned int number)
 {
-	__u64		key = nid;
-	unsigned int	val;
+	__u64 key = nid;
+	unsigned int val;
 
 	LASSERT(number >= 1 && number <= LNET_CPT_NUMBER);
 
@@ -801,8 +801,8 @@ lnet_cpt_of_nid_locked(lnet_nid_t nid)
 int
 lnet_cpt_of_nid(lnet_nid_t nid)
 {
-	int	cpt;
-	int	cpt2;
+	int cpt;
+	int cpt2;
 
 	if (LNET_CPT_NUMBER == 1)
 		return 0; /* the only one */
@@ -821,8 +821,8 @@ EXPORT_SYMBOL(lnet_cpt_of_nid);
 int
 lnet_islocalnet(__u32 net)
 {
-	struct lnet_ni	*ni;
-	int		cpt;
+	struct lnet_ni *ni;
+	int cpt;
 
 	cpt = lnet_net_lock_current();
 
@@ -838,8 +838,8 @@ lnet_islocalnet(__u32 net)
 lnet_ni_t  *
 lnet_nid2ni_locked(lnet_nid_t nid, int cpt)
 {
-	struct lnet_ni	*ni;
-	struct list_head	*tmp;
+	struct lnet_ni *ni;
+	struct list_head *tmp;
 
 	LASSERT(cpt != LNET_LOCK_EX);
 
@@ -858,8 +858,8 @@ lnet_nid2ni_locked(lnet_nid_t nid, int cpt)
 int
 lnet_islocalnid(lnet_nid_t nid)
 {
-	struct lnet_ni	*ni;
-	int		cpt;
+	struct lnet_ni *ni;
+	int cpt;
 
 	cpt = lnet_net_lock_current();
 	ni = lnet_nid2ni_locked(nid, cpt);
@@ -874,10 +874,10 @@ int
 lnet_count_acceptor_nis(void)
 {
 	/* Return the # of NIs that need the acceptor. */
-	int		count = 0;
-	struct list_head	*tmp;
-	struct lnet_ni	*ni;
-	int		cpt;
+	int count = 0;
+	struct list_head *tmp;
+	struct lnet_ni *ni;
+	int cpt;
 
 	cpt = lnet_net_lock_current();
 	list_for_each(tmp, &the_lnet.ln_nis) {
@@ -895,7 +895,7 @@ lnet_count_acceptor_nis(void)
 static int
 lnet_ni_tq_credits(lnet_ni_t *ni)
 {
-	int	credits;
+	int credits;
 
 	LASSERT(ni->ni_ncpts >= 1);
 
@@ -912,9 +912,9 @@ lnet_ni_tq_credits(lnet_ni_t *ni)
 static void
 lnet_shutdown_lndnis(void)
 {
-	int		i;
-	int		islo;
-	lnet_ni_t	 *ni;
+	int i;
+	int islo;
+	lnet_ni_t *ni;
 
 	/* NB called holding the global mutex */
 
@@ -968,8 +968,8 @@ lnet_shutdown_lndnis(void)
 	 * and shut them down in guaranteed thread context */
 	i = 2;
 	while (!list_empty(&the_lnet.ln_nis_zombie)) {
-		int	*ref;
-		int	j;
+		int *ref;
+		int j;
 
 		ni = list_entry(the_lnet.ln_nis_zombie.next,
 				    lnet_ni_t, ni_list);
@@ -1029,15 +1029,15 @@ lnet_shutdown_lndnis(void)
 static int
 lnet_startup_lndnis(void)
 {
-	lnd_t			*lnd;
-	struct lnet_ni		*ni;
-	struct lnet_tx_queue	*tq;
-	struct list_head		nilist;
-	int			i;
-	int		rc = 0;
-	int		lnd_type;
-	int		nicount = 0;
-	char	      *nets = lnet_get_networks();
+	lnd_t *lnd;
+	struct lnet_ni *ni;
+	struct lnet_tx_queue *tq;
+	struct list_head nilist;
+	int i;
+	int rc = 0;
+	int lnd_type;
+	int nicount = 0;
+	char *nets = lnet_get_networks();
 
 	INIT_LIST_HEAD(&nilist);
 
@@ -1181,7 +1181,7 @@ lnet_startup_lndnis(void)
 int
 LNetInit(void)
 {
-	int	rc;
+	int rc;
 
 	lnet_assert_wire_constants();
 	LASSERT(!the_lnet.ln_init);
@@ -1277,8 +1277,8 @@ EXPORT_SYMBOL(LNetFini);
 int
 LNetNIInit(lnet_pid_t requested_pid)
 {
-	int	 im_a_router = 0;
-	int	 rc;
+	int im_a_router = 0;
+	int rc;
 
 	LNET_MUTEX_LOCK(&the_lnet.ln_api_mutex);
 
@@ -1413,9 +1413,9 @@ int
 LNetCtl(unsigned int cmd, void *arg)
 {
 	struct libcfs_ioctl_data *data = arg;
-	lnet_process_id_t	 id = {0};
-	lnet_ni_t		*ni;
-	int		       rc;
+	lnet_process_id_t id = {0};
+	lnet_ni_t *ni;
+	int rc;
 
 	LASSERT(the_lnet.ln_init);
 	LASSERT(the_lnet.ln_refcount > 0);
@@ -1531,10 +1531,10 @@ EXPORT_SYMBOL(LNetCtl);
 int
 LNetGetId(unsigned int index, lnet_process_id_t *id)
 {
-	struct lnet_ni	*ni;
-	struct list_head	*tmp;
-	int		cpt;
-	int		rc = -ENOENT;
+	struct lnet_ni *ni;
+	struct list_head *tmp;
+	int cpt;
+	int rc = -ENOENT;
 
 	LASSERT(the_lnet.ln_init);
 
@@ -1575,11 +1575,11 @@ EXPORT_SYMBOL(LNetSnprintHandle);
 static int
 lnet_create_ping_info(void)
 {
-	int	       i;
-	int	       n;
-	int	       rc;
-	unsigned int      infosz;
-	lnet_ni_t	*ni;
+	int i;
+	int n;
+	int rc;
+	unsigned int infosz;
+	lnet_ni_t *ni;
 	lnet_process_id_t id;
 	lnet_ping_info_t *pinfo;
 
@@ -1633,7 +1633,7 @@ lnet_create_ping_info(void)
 static void
 lnet_destroy_ping_info(void)
 {
-	struct lnet_ni	*ni;
+	struct lnet_ni *ni;
 
 	lnet_net_lock(0);
 
@@ -1654,12 +1654,12 @@ lnet_destroy_ping_info(void)
 int
 lnet_ping_target_init(void)
 {
-	lnet_md_t	 md = { NULL };
-	lnet_handle_me_t  meh;
+	lnet_md_t md = { NULL };
+	lnet_handle_me_t meh;
 	lnet_process_id_t id;
-	int	       rc;
-	int	       rc2;
-	int	       infosz;
+	int rc;
+	int rc2;
+	int infosz;
 
 	rc = lnet_create_ping_info();
 	if (rc != 0)
@@ -1722,11 +1722,11 @@ lnet_ping_target_init(void)
 void
 lnet_ping_target_fini(void)
 {
-	lnet_event_t    event;
-	int	     rc;
-	int	     which;
-	int	     timeout_ms = 1000;
-	sigset_t    blocked = cfs_block_allsigs();
+	lnet_event_t event;
+	int rc;
+	int which;
+	int timeout_ms = 1000;
+	sigset_t blocked = cfs_block_allsigs();
 
 	LNetMDUnlink(the_lnet.ln_ping_target_md);
 	/* NB md could be busy; this just starts the unlink */
@@ -1759,22 +1759,22 @@ lnet_ping_target_fini(void)
 int
 lnet_ping(lnet_process_id_t id, int timeout_ms, lnet_process_id_t *ids, int n_ids)
 {
-	lnet_handle_eq_t     eqh;
-	lnet_handle_md_t     mdh;
-	lnet_event_t	 event;
-	lnet_md_t	    md = { NULL };
-	int		  which;
-	int		  unlinked = 0;
-	int		  replied = 0;
-	const int	    a_long_time = 60000; /* mS */
-	int		  infosz = offsetof(lnet_ping_info_t, pi_ni[n_ids]);
-	lnet_ping_info_t    *info;
-	lnet_process_id_t    tmpid;
-	int		  i;
-	int		  nob;
-	int		  rc;
-	int		  rc2;
-	sigset_t	 blocked;
+	lnet_handle_eq_t eqh;
+	lnet_handle_md_t mdh;
+	lnet_event_t event;
+	lnet_md_t md = { NULL };
+	int which;
+	int unlinked = 0;
+	int replied = 0;
+	const int a_long_time = 60000; /* mS */
+	int infosz = offsetof(lnet_ping_info_t, pi_ni[n_ids]);
+	lnet_ping_info_t *info;
+	lnet_process_id_t tmpid;
+	int i;
+	int nob;
+	int rc;
+	int rc2;
+	sigset_t blocked;
 
 	if (n_ids <= 0 ||
 	    id.nid == LNET_NID_ANY ||

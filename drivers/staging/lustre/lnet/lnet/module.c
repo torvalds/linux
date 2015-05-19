@@ -47,7 +47,7 @@ static int
 lnet_configure(void *arg)
 {
 	/* 'arg' only there so I can be passed to cfs_create_thread() */
-	int    rc = 0;
+	int rc = 0;
 
 	LNET_MUTEX_LOCK(&lnet_config_mutex);
 
@@ -66,7 +66,7 @@ lnet_configure(void *arg)
 static int
 lnet_unconfigure(void)
 {
-	int   refcount;
+	int refcount;
 
 	LNET_MUTEX_LOCK(&lnet_config_mutex);
 
@@ -86,7 +86,7 @@ lnet_unconfigure(void)
 static int
 lnet_ioctl(unsigned int cmd, struct libcfs_ioctl_data *data)
 {
-	int   rc;
+	int rc;
 
 	switch (cmd) {
 	case IOC_LIBCFS_CONFIGURE:
@@ -113,7 +113,7 @@ static DECLARE_IOCTL_HANDLER(lnet_ioctl_handler, lnet_ioctl);
 static int __init
 init_lnet(void)
 {
-	int		  rc;
+	int rc;
 
 	mutex_init(&lnet_config_mutex);
 

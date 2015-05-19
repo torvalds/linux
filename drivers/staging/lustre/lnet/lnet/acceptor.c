@@ -143,10 +143,10 @@ lnet_connect(struct socket **sockp, lnet_nid_t peer_nid,
 	    __u32 local_ip, __u32 peer_ip, int peer_port)
 {
 	lnet_acceptor_connreq_t cr;
-	struct socket	   *sock;
-	int		     rc;
-	int		     port;
-	int		     fatal;
+	struct socket *sock;
+	int rc;
+	int port;
+	int fatal;
 
 	CLASSERT(sizeof(cr) <= 16);	    /* not too big to be on the stack */
 
@@ -211,12 +211,12 @@ static int
 lnet_accept(struct socket *sock, __u32 magic)
 {
 	lnet_acceptor_connreq_t cr;
-	__u32		   peer_ip;
-	int		     peer_port;
-	int		     rc;
-	int		     flip;
-	lnet_ni_t	      *ni;
-	char		   *str;
+	__u32 peer_ip;
+	int peer_port;
+	int rc;
+	int flip;
+	lnet_ni_t *ni;
+	char *str;
 
 	LASSERT(sizeof(cr) <= 16);	     /* not too big for the stack */
 
@@ -333,11 +333,11 @@ static int
 lnet_acceptor(void *arg)
 {
 	struct socket *newsock;
-	int	    rc;
-	__u32	  magic;
-	__u32	  peer_ip;
-	int	    peer_port;
-	int	    secure = (int)((long_ptr_t)arg);
+	int rc;
+	__u32 magic;
+	__u32 peer_ip;
+	int peer_port;
+	int secure = (int)((long_ptr_t)arg);
 
 	LASSERT(lnet_acceptor_state.pta_sock == NULL);
 
@@ -444,7 +444,7 @@ accept2secure(const char *acc, long *sec)
 int
 lnet_acceptor_start(void)
 {
-	int  rc;
+	int rc;
 	long rc2;
 	long secure;
 

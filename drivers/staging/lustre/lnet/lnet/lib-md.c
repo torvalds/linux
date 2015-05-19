@@ -74,7 +74,7 @@ lnet_md_unlink(lnet_libmd_t *md)
 	CDEBUG(D_NET, "Unlinking md %p\n", md);
 
 	if (md->md_eq != NULL) {
-		int	cpt = lnet_cpt_of_cookie(md->md_lh.lh_cookie);
+		int cpt = lnet_cpt_of_cookie(md->md_lh.lh_cookie);
 
 		LASSERT(*md->md_eq->eq_refs[cpt] > 0);
 		(*md->md_eq->eq_refs[cpt])--;
@@ -88,9 +88,9 @@ lnet_md_unlink(lnet_libmd_t *md)
 static int
 lnet_md_build(lnet_libmd_t *lmd, lnet_md_t *umd, int unlink)
 {
-	int	  i;
+	int i;
 	unsigned int niov;
-	int	  total_length = 0;
+	int total_length = 0;
 
 	lmd->md_me = NULL;
 	lmd->md_start = umd->start;
@@ -268,10 +268,10 @@ LNetMDAttach(lnet_handle_me_t meh, lnet_md_t umd,
 {
 	LIST_HEAD(matches);
 	LIST_HEAD(drops);
-	struct lnet_me		*me;
-	struct lnet_libmd	*md;
-	int			cpt;
-	int			rc;
+	struct lnet_me *me;
+	struct lnet_libmd *md;
+	int cpt;
+	int rc;
 
 	LASSERT(the_lnet.ln_init);
 	LASSERT(the_lnet.ln_refcount > 0);
@@ -346,9 +346,9 @@ EXPORT_SYMBOL(LNetMDAttach);
 int
 LNetMDBind(lnet_md_t umd, lnet_unlink_t unlink, lnet_handle_md_t *handle)
 {
-	lnet_libmd_t	*md;
-	int		cpt;
-	int		rc;
+	lnet_libmd_t *md;
+	int cpt;
+	int rc;
 
 	LASSERT(the_lnet.ln_init);
 	LASSERT(the_lnet.ln_refcount > 0);
@@ -421,9 +421,9 @@ EXPORT_SYMBOL(LNetMDBind);
 int
 LNetMDUnlink(lnet_handle_md_t mdh)
 {
-	lnet_event_t	ev;
-	lnet_libmd_t	*md;
-	int		cpt;
+	lnet_event_t ev;
+	lnet_libmd_t *md;
+	int cpt;
 
 	LASSERT(the_lnet.ln_init);
 	LASSERT(the_lnet.ln_refcount > 0);
