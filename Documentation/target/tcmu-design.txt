@@ -15,8 +15,7 @@ Contents:
   a) Discovering and configuring TCMU uio devices
   b) Waiting for events on the device(s)
   c) Managing the command ring
-3) Command filtering
-4) A final note
+3) A final note
 
 
 TCM Userspace Design
@@ -362,24 +361,6 @@ int handle_device_events(int fd, void *map)
 
   return 0;
 }
-
-
-Command filtering
------------------
-
-Initial TCMU support is for a filtered commandset.  Only IO-related
-commands are presented to userspace, and the rest are handled by LIO's
-in-kernel command emulation. The commands presented are all versions
-of:
-
-READ
-WRITE
-WRITE_VERIFY
-XDWRITEREAD
-WRITE_SAME
-COMPARE_AND_WRITE
-SYNCHRONIZE_CACHE
-UNMAP
 
 
 A final note
