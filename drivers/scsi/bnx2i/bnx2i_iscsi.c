@@ -2093,7 +2093,8 @@ int bnx2i_hw_ep_disconnect(struct bnx2i_endpoint *bnx2i_ep)
 	else
 		/* wait for option-2 conn teardown */
 		wait_event_interruptible(bnx2i_ep->ofld_wait,
-				 bnx2i_ep->state != EP_STATE_DISCONN_START);
+				((bnx2i_ep->state != EP_STATE_DISCONN_START)
+				&& (bnx2i_ep->state != EP_STATE_TCP_FIN_RCVD)));
 
 	if (signal_pending(current))
 		flush_signals(current);
