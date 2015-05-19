@@ -429,6 +429,10 @@ drm_atomic_helper_check_modeset(struct drm_device *dev,
 		if (ret != 0)
 			return ret;
 
+		ret = drm_atomic_add_affected_planes(state, crtc);
+		if (ret != 0)
+			return ret;
+
 		num_connectors = drm_atomic_connectors_for_crtc(state,
 								crtc);
 
