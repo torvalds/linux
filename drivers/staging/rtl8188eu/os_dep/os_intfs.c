@@ -752,21 +752,21 @@ struct net_device *rtw_init_netdev(struct adapter *old_padapter)
 	return pnetdev;
 }
 
-static u32 rtw_start_drv_threads(struct adapter *padapter)
+static int rtw_start_drv_threads(struct adapter *padapter)
 {
-	u32 _status = _SUCCESS;
+	int err = 0;
 
 	RT_TRACE(_module_os_intfs_c_, _drv_info_, ("+rtw_start_drv_threads\n"));
 
 	padapter->cmdThread = kthread_run(rtw_cmd_thread, padapter,
 					  "RTW_CMD_THREAD");
 	if (IS_ERR(padapter->cmdThread))
-		_status = _FAIL;
+		err = PTR_ERR(padapter->cmdThread);
 	else
 		/* wait for cmd_thread to run */
 		_rtw_down_sema(&padapter->cmdpriv.terminate_cmdthread_sema);
 
-	return _status;
+	return err;
 }
 
 void rtw_stop_drv_threads(struct adapter *padapter)
@@ -979,6 +979,7 @@ u8 rtw_free_drv_sw(struct adapter *padapter)
 static int _netdev_open(struct net_device *pnetdev)
 {
 	uint status;
+	int err;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(pnetdev);
 	struct pwrctrl_priv *pwrctrlpriv = &padapter->pwrctrlpriv;
 
@@ -1002,8 +1003,8 @@ static int _netdev_open(struct net_device *pnetdev)
 
 		pr_info("MAC Address = %pM\n", pnetdev->dev_addr);
 
-		status = rtw_start_drv_threads(padapter);
-		if (status == _FAIL) {
+		err = rtw_start_drv_threads(padapter);
+		if (err) {
 			pr_info("Initialize driver software resource Failed!\n");
 			goto netdev_open_error;
 		}
