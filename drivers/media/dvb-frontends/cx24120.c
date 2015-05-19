@@ -152,6 +152,7 @@ struct cx24120_state {
 
 	/* ber stats calulations */
 	u32 berw_usecs;
+	u32 ber_prev;
 	unsigned long ber_jiffies_stats;
 };
 
@@ -338,12 +339,15 @@ static int cx24120_read_snr(struct dvb_frontend *fe, u16 *snr)
 static int cx24120_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
 	struct cx24120_state *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 
-	*ber =  (cx24120_readreg(state, CX24120_REG_BER_HH) << 24)	|
-		(cx24120_readreg(state, CX24120_REG_BER_HL) << 16)	|
-		(cx24120_readreg(state, CX24120_REG_BER_LH) <<  8)	|
-		 cx24120_readreg(state, CX24120_REG_BER_LL);
-	dev_dbg(&state->i2c->dev, "read BER index = %d\n", *ber);
+	if (c->post_bit_error.stat[0].scale != FE_SCALE_COUNTER) {
+		*ber = 0;
+		return 0;
+	}
+
+	*ber = c->post_bit_error.stat[0].uvalue - state->ber_prev;
+	state->ber_prev = c->post_bit_error.stat[0].uvalue;
 
 	return 0;
 }
@@ -661,9 +665,11 @@ static void cx24120_get_stats(struct cx24120_state *state)
 		msecs = (state->berw_usecs + 500) / 1000;
 		state->ber_jiffies_stats = jiffies + msecs_to_jiffies(msecs);
 
-		ret = cx24120_read_ber(fe, &ber);
-		if (ret != 0)
-			return;
+		ber = cx24120_readreg(state, CX24120_REG_BER_HH) << 24;
+		ber |= cx24120_readreg(state, CX24120_REG_BER_HL) << 16;
+		ber |= cx24120_readreg(state, CX24120_REG_BER_LH) << 8;
+		ber |= cx24120_readreg(state, CX24120_REG_BER_LL);
+		dev_dbg(&state->i2c->dev, "read BER index = %d\n", ber);
 
 		c->post_bit_error.stat[0].scale = FE_SCALE_COUNTER;
 		c->post_bit_error.stat[0].uvalue += ber;
