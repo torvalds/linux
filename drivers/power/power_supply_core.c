@@ -659,7 +659,6 @@ __power_supply_register(struct device *parent,
 	dev->release = power_supply_dev_release;
 	dev_set_drvdata(dev, psy);
 	psy->desc = desc;
-	atomic_inc(&psy->use_cnt);
 	if (cfg) {
 		psy->drv_data = cfg->drv_data;
 		psy->of_node = cfg->of_node;
@@ -700,6 +699,16 @@ __power_supply_register(struct device *parent,
 	if (rc)
 		goto create_triggers_failed;
 
+	/*
+	 * Update use_cnt after any uevents (most notably from device_add()).
+	 * We are here still during driver's probe but
+	 * the power_supply_uevent() calls back driver's get_property
+	 * method so:
+	 * 1. Driver did not assigned the returned struct power_supply,
+	 * 2. Driver could not finish initialization (anything in its probe
+	 *    after calling power_supply_register()).
+	 */
+	atomic_inc(&psy->use_cnt);
 	power_supply_changed(psy);
 
 	return psy;
