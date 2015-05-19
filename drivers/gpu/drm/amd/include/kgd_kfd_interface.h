@@ -175,6 +175,14 @@ struct kfd2kgd_calls {
 	uint32_t (*address_watch_get_offset)(struct kgd_dev *kgd,
 					unsigned int watch_point_id,
 					unsigned int reg_offset);
+	bool (*get_atc_vmid_pasid_mapping_valid)(
+					struct kgd_dev *kgd,
+					uint8_t vmid);
+	uint16_t (*get_atc_vmid_pasid_mapping_pasid)(
+					struct kgd_dev *kgd,
+					uint8_t vmid);
+	void (*write_vmid_invalidate_request)(struct kgd_dev *kgd,
+					uint8_t vmid);
 
 	uint16_t (*get_fw_version)(struct kgd_dev *kgd,
 				enum kgd_engine_type type);
