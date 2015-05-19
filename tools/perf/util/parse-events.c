@@ -25,12 +25,6 @@
 extern int parse_events_debug;
 #endif
 int parse_events_parse(void *data, void *scanner);
-int parse_events_term__num(struct parse_events_term **term,
-			   int type_term, char *config, u64 num,
-			   YYLTYPE *loc_term, YYLTYPE *loc_val);
-int parse_events_term__str(struct parse_events_term **term,
-			   int type_term, char *config, char *str,
-			   YYLTYPE *loc_term, YYLTYPE *loc_val);
 
 static struct perf_pmu_event_symbol *perf_pmu_events_list;
 /*
@@ -1601,8 +1595,11 @@ static int new_term(struct parse_events_term **_term, int type_val,
 
 int parse_events_term__num(struct parse_events_term **term,
 			   int type_term, char *config, u64 num,
-			   YYLTYPE *loc_term, YYLTYPE *loc_val)
+			   void *loc_term_, void *loc_val_)
 {
+	YYLTYPE *loc_term = loc_term_;
+	YYLTYPE *loc_val = loc_val_;
+
 	return new_term(term, PARSE_EVENTS__TERM_TYPE_NUM, type_term,
 			config, NULL, num,
 			loc_term ? loc_term->first_column : 0,
@@ -1611,8 +1608,11 @@ int parse_events_term__num(struct parse_events_term **term,
 
 int parse_events_term__str(struct parse_events_term **term,
 			   int type_term, char *config, char *str,
-			   YYLTYPE *loc_term, YYLTYPE *loc_val)
+			   void *loc_term_, void *loc_val_)
 {
+	YYLTYPE *loc_term = loc_term_;
+	YYLTYPE *loc_val = loc_val_;
+
 	return new_term(term, PARSE_EVENTS__TERM_TYPE_STR, type_term,
 			config, str, 0,
 			loc_term ? loc_term->first_column : 0,
