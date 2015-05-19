@@ -46,6 +46,11 @@ static void dump_tlb(int first, int last)
 	unsigned long s_entryhi, entryhi, asid;
 	unsigned long long entrylo0, entrylo1;
 	unsigned int s_index, s_pagemask, pagemask, c0, c1, i;
+#ifdef CONFIG_32BIT
+	int width = 8;
+#else
+	int width = 11;
+#endif
 
 	s_pagemask = read_c0_pagemask();
 	s_entryhi = read_c0_entryhi();
@@ -62,38 +67,38 @@ static void dump_tlb(int first, int last)
 		entrylo0 = read_c0_entrylo0();
 		entrylo1 = read_c0_entrylo1();
 
-		/* Unused entries have a virtual address of CKSEG0.  */
-		if ((entryhi & ~0x1ffffUL) != CKSEG0
-		    && (entryhi & 0xff) == asid) {
-#ifdef CONFIG_32BIT
-			int width = 8;
-#else
-			int width = 11;
-#endif
-			/*
-			 * Only print entries in use
-			 */
-			printk("Index: %2d pgmask=%s ", i, msk2str(pagemask));
+		/*
+		 * Prior to tlbinv, unused entries have a virtual address of
+		 * CKSEG0.
+		 */
+		if ((entryhi & ~0x1ffffUL) == CKSEG0)
+			continue;
+		if ((entryhi & 0xff) != asid)
+			continue;
 
-			c0 = (entrylo0 >> 3) & 7;
-			c1 = (entrylo1 >> 3) & 7;
+		/*
+		 * Only print entries in use
+		 */
+		printk("Index: %2d pgmask=%s ", i, msk2str(pagemask));
 
-			printk("va=%0*lx asid=%02lx\n",
-			       width, (entryhi & ~0x1fffUL),
-			       entryhi & 0xff);
-			printk("\t[pa=%0*llx c=%d d=%d v=%d g=%d] ",
-			       width,
-			       (entrylo0 << 6) & PAGE_MASK, c0,
-			       (entrylo0 & 4) ? 1 : 0,
-			       (entrylo0 & 2) ? 1 : 0,
-			       (entrylo0 & 1) ? 1 : 0);
-			printk("[pa=%0*llx c=%d d=%d v=%d g=%d]\n",
-			       width,
-			       (entrylo1 << 6) & PAGE_MASK, c1,
-			       (entrylo1 & 4) ? 1 : 0,
-			       (entrylo1 & 2) ? 1 : 0,
-			       (entrylo1 & 1) ? 1 : 0);
-		}
+		c0 = (entrylo0 >> 3) & 7;
+		c1 = (entrylo1 >> 3) & 7;
+
+		printk("va=%0*lx asid=%02lx\n",
+		       width, (entryhi & ~0x1fffUL),
+		       entryhi & 0xff);
+		printk("\t[pa=%0*llx c=%d d=%d v=%d g=%d] ",
+		       width,
+		       (entrylo0 << 6) & PAGE_MASK, c0,
+		       (entrylo0 & 4) ? 1 : 0,
+		       (entrylo0 & 2) ? 1 : 0,
+		       (entrylo0 & 1) ? 1 : 0);
+		printk("[pa=%0*llx c=%d d=%d v=%d g=%d]\n",
+		       width,
+		       (entrylo1 << 6) & PAGE_MASK, c1,
+		       (entrylo1 & 4) ? 1 : 0,
+		       (entrylo1 & 2) ? 1 : 0,
+		       (entrylo1 & 1) ? 1 : 0);
 	}
 	printk("\n");
 
