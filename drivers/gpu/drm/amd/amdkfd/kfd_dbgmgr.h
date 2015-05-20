@@ -268,6 +268,8 @@ struct kfd_dbgdev {
 	/* virtualized function pointers to device dbg */
 	int (*dbgdev_register)(struct kfd_dbgdev *dbgdev);
 	int (*dbgdev_unregister)(struct kfd_dbgdev *dbgdev);
+	int (*dbgdev_address_watch)(struct kfd_dbgdev *dbgdev,
+				struct dbg_address_watch_info *adw_info);
 	int (*dbgdev_wave_control)(struct kfd_dbgdev *dbgdev,
 				struct dbg_wave_control_info *wac_info);
 
@@ -287,4 +289,6 @@ long kfd_dbgmgr_register(struct kfd_dbgmgr *pmgr, struct kfd_process *p);
 long kfd_dbgmgr_unregister(struct kfd_dbgmgr *pmgr, struct kfd_process *p);
 long kfd_dbgmgr_wave_control(struct kfd_dbgmgr *pmgr,
 				struct dbg_wave_control_info *wac_info);
+long kfd_dbgmgr_address_watch(struct kfd_dbgmgr *pmgr,
+			struct dbg_address_watch_info *adw_info);
 #endif /* KFD_DBGMGR_H_ */

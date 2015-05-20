@@ -236,6 +236,278 @@ static int dbgdev_unregister_diq(struct kfd_dbgdev *dbgdev)
 	return status;
 }
 
+static void dbgdev_address_watch_set_registers(
+			const struct dbg_address_watch_info *adw_info,
+			union TCP_WATCH_ADDR_H_BITS *addrHi,
+			union TCP_WATCH_ADDR_L_BITS *addrLo,
+			union TCP_WATCH_CNTL_BITS *cntl,
+			unsigned int index, unsigned int vmid)
+{
+	union ULARGE_INTEGER addr;
+
+	BUG_ON(!adw_info || !addrHi || !addrLo || !cntl);
+
+	addr.quad_part = 0;
+	addrHi->u32All = 0;
+	addrLo->u32All = 0;
+	cntl->u32All = 0;
+
+	if (adw_info->watch_mask != NULL)
+		cntl->bitfields.mask =
+			(uint32_t) (adw_info->watch_mask[index] &
+					ADDRESS_WATCH_REG_CNTL_DEFAULT_MASK);
+	else
+		cntl->bitfields.mask = ADDRESS_WATCH_REG_CNTL_DEFAULT_MASK;
+
+	addr.quad_part = (unsigned long long) adw_info->watch_address[index];
+
+	addrHi->bitfields.addr = addr.u.high_part &
+					ADDRESS_WATCH_REG_ADDHIGH_MASK;
+	addrLo->bitfields.addr =
+			(addr.u.low_part >> ADDRESS_WATCH_REG_ADDLOW_SHIFT);
+
+	cntl->bitfields.mode = adw_info->watch_mode[index];
+	cntl->bitfields.vmid = (uint32_t) vmid;
+	/* for now assume it is an ATC address */
+	cntl->u32All |= ADDRESS_WATCH_REG_CNTL_ATC_BIT;
+
+	pr_debug("\t\t%20s %08x\n", "set reg mask :", cntl->bitfields.mask);
+	pr_debug("\t\t%20s %08x\n", "set reg add high :",
+			addrHi->bitfields.addr);
+	pr_debug("\t\t%20s %08x\n", "set reg add low :",
+			addrLo->bitfields.addr);
+}
+
+static int dbgdev_address_watch_nodiq(struct kfd_dbgdev *dbgdev,
+					struct dbg_address_watch_info *adw_info)
+{
+	union TCP_WATCH_ADDR_H_BITS addrHi;
+	union TCP_WATCH_ADDR_L_BITS addrLo;
+	union TCP_WATCH_CNTL_BITS cntl;
+	struct kfd_process_device *pdd;
+	unsigned int i;
+
+	BUG_ON(!dbgdev || !dbgdev->dev || !adw_info);
+
+	/* taking the vmid for that process on the safe way using pdd */
+	pdd = kfd_get_process_device_data(dbgdev->dev,
+					adw_info->process);
+	if (!pdd) {
+		pr_err("amdkfd: Failed to get pdd for wave control no DIQ\n");
+		return -EFAULT;
+	}
+
+	addrHi.u32All = 0;
+	addrLo.u32All = 0;
+	cntl.u32All = 0;
+
+	if ((adw_info->num_watch_points > MAX_WATCH_ADDRESSES) ||
+			(adw_info->num_watch_points == 0)) {
+		pr_err("amdkfd: num_watch_points is invalid\n");
+		return -EINVAL;
+	}
+
+	if ((adw_info->watch_mode == NULL) ||
+		(adw_info->watch_address == NULL)) {
+		pr_err("amdkfd: adw_info fields are not valid\n");
+		return -EINVAL;
+	}
+
+	for (i = 0 ; i < adw_info->num_watch_points ; i++) {
+		dbgdev_address_watch_set_registers(adw_info, &addrHi, &addrLo,
+						&cntl, i, pdd->qpd.vmid);
+
+		pr_debug("\t\t%30s\n", "* * * * * * * * * * * * * * * * * *");
+		pr_debug("\t\t%20s %08x\n", "register index :", i);
+		pr_debug("\t\t%20s %08x\n", "vmid is :", pdd->qpd.vmid);
+		pr_debug("\t\t%20s %08x\n", "Address Low is :",
+				addrLo.bitfields.addr);
+		pr_debug("\t\t%20s %08x\n", "Address high is :",
+				addrHi.bitfields.addr);
+		pr_debug("\t\t%20s %08x\n", "Address high is :",
+				addrHi.bitfields.addr);
+		pr_debug("\t\t%20s %08x\n", "Control Mask is :",
+				cntl.bitfields.mask);
+		pr_debug("\t\t%20s %08x\n", "Control Mode is :",
+				cntl.bitfields.mode);
+		pr_debug("\t\t%20s %08x\n", "Control Vmid is :",
+				cntl.bitfields.vmid);
+		pr_debug("\t\t%20s %08x\n", "Control atc  is :",
+				cntl.bitfields.atc);
+		pr_debug("\t\t%30s\n", "* * * * * * * * * * * * * * * * * *");
+
+		pdd->dev->kfd2kgd->address_watch_execute(
+						dbgdev->dev->kgd,
+						i,
+						cntl.u32All,
+						addrHi.u32All,
+						addrLo.u32All);
+	}
+
+	return 0;
+}
+
+static int dbgdev_address_watch_diq(struct kfd_dbgdev *dbgdev,
+					struct dbg_address_watch_info *adw_info)
+{
+	struct pm4__set_config_reg *packets_vec;
+	union TCP_WATCH_ADDR_H_BITS addrHi;
+	union TCP_WATCH_ADDR_L_BITS addrLo;
+	union TCP_WATCH_CNTL_BITS cntl;
+	struct kfd_mem_obj *mem_obj;
+	unsigned int aw_reg_add_dword;
+	uint32_t *packet_buff_uint;
+	unsigned int i;
+	int status;
+	size_t ib_size = sizeof(struct pm4__set_config_reg) * 4;
+	/* we do not control the vmid in DIQ mode, just a place holder */
+	unsigned int vmid = 0;
+
+	BUG_ON(!dbgdev || !dbgdev->dev || !adw_info);
+
+	addrHi.u32All = 0;
+	addrLo.u32All = 0;
+	cntl.u32All = 0;
+
+	if ((adw_info->num_watch_points > MAX_WATCH_ADDRESSES) ||
+			(adw_info->num_watch_points == 0)) {
+		pr_err("amdkfd: num_watch_points is invalid\n");
+		return -EINVAL;
+	}
+
+	if ((NULL == adw_info->watch_mode) ||
+			(NULL == adw_info->watch_address)) {
+		pr_err("amdkfd: adw_info fields are not valid\n");
+		return -EINVAL;
+	}
+
+	status = kfd_gtt_sa_allocate(dbgdev->dev, ib_size, &mem_obj);
+
+	if (status != 0) {
+		pr_err("amdkfd: Failed to allocate GART memory\n");
+		return status;
+	}
+
+	packet_buff_uint = mem_obj->cpu_ptr;
+
+	memset(packet_buff_uint, 0, ib_size);
+
+	packets_vec = (struct pm4__set_config_reg *) (packet_buff_uint);
+
+	packets_vec[0].header.count = 1;
+	packets_vec[0].header.opcode = IT_SET_CONFIG_REG;
+	packets_vec[0].header.type = PM4_TYPE_3;
+	packets_vec[0].bitfields2.vmid_shift = ADDRESS_WATCH_CNTL_OFFSET;
+	packets_vec[0].bitfields2.insert_vmid = 1;
+	packets_vec[1].ordinal1 = packets_vec[0].ordinal1;
+	packets_vec[1].bitfields2.insert_vmid = 0;
+	packets_vec[2].ordinal1 = packets_vec[0].ordinal1;
+	packets_vec[2].bitfields2.insert_vmid = 0;
+	packets_vec[3].ordinal1 = packets_vec[0].ordinal1;
+	packets_vec[3].bitfields2.vmid_shift = ADDRESS_WATCH_CNTL_OFFSET;
+	packets_vec[3].bitfields2.insert_vmid = 1;
+
+	for (i = 0; i < adw_info->num_watch_points; i++) {
+		dbgdev_address_watch_set_registers(adw_info,
+						&addrHi,
+						&addrLo,
+						&cntl,
+						i,
+						vmid);
+
+		pr_debug("\t\t%30s\n", "* * * * * * * * * * * * * * * * * *");
+		pr_debug("\t\t%20s %08x\n", "register index :", i);
+		pr_debug("\t\t%20s %08x\n", "vmid is :", vmid);
+		pr_debug("\t\t%20s %p\n", "Add ptr is :",
+				adw_info->watch_address);
+		pr_debug("\t\t%20s %08llx\n", "Add     is :",
+				adw_info->watch_address[i]);
+		pr_debug("\t\t%20s %08x\n", "Address Low is :",
+				addrLo.bitfields.addr);
+		pr_debug("\t\t%20s %08x\n", "Address high is :",
+				addrHi.bitfields.addr);
+		pr_debug("\t\t%20s %08x\n", "Control Mask is :",
+				cntl.bitfields.mask);
+		pr_debug("\t\t%20s %08x\n", "Control Mode is :",
+				cntl.bitfields.mode);
+		pr_debug("\t\t%20s %08x\n", "Control Vmid is :",
+				cntl.bitfields.vmid);
+		pr_debug("\t\t%20s %08x\n", "Control atc  is :",
+				cntl.bitfields.atc);
+		pr_debug("\t\t%30s\n", "* * * * * * * * * * * * * * * * * *");
+
+		aw_reg_add_dword =
+				dbgdev->dev->kfd2kgd->address_watch_get_offset(
+					dbgdev->dev->kgd,
+					i,
+					ADDRESS_WATCH_REG_CNTL);
+
+		aw_reg_add_dword /= sizeof(uint32_t);
+
+		packets_vec[0].bitfields2.reg_offset =
+					aw_reg_add_dword - CONFIG_REG_BASE;
+
+		packets_vec[0].reg_data[0] = cntl.u32All;
+
+		aw_reg_add_dword =
+				dbgdev->dev->kfd2kgd->address_watch_get_offset(
+					dbgdev->dev->kgd,
+					i,
+					ADDRESS_WATCH_REG_ADDR_HI);
+
+		aw_reg_add_dword /= sizeof(uint32_t);
+
+		packets_vec[1].bitfields2.reg_offset =
+					aw_reg_add_dword - CONFIG_REG_BASE;
+		packets_vec[1].reg_data[0] = addrHi.u32All;
+
+		aw_reg_add_dword =
+				dbgdev->dev->kfd2kgd->address_watch_get_offset(
+					dbgdev->dev->kgd,
+					i,
+					ADDRESS_WATCH_REG_ADDR_LO);
+
+		aw_reg_add_dword /= sizeof(uint32_t);
+
+		packets_vec[2].bitfields2.reg_offset =
+				aw_reg_add_dword - CONFIG_REG_BASE;
+		packets_vec[2].reg_data[0] = addrLo.u32All;
+
+		/* enable watch flag if address is not zero*/
+		if (adw_info->watch_address[i] > 0)
+			cntl.bitfields.valid = 1;
+		else
+			cntl.bitfields.valid = 0;
+
+		aw_reg_add_dword =
+				dbgdev->dev->kfd2kgd->address_watch_get_offset(
+					dbgdev->dev->kgd,
+					i,
+					ADDRESS_WATCH_REG_CNTL);
+
+		aw_reg_add_dword /= sizeof(uint32_t);
+
+		packets_vec[3].bitfields2.reg_offset =
+					aw_reg_add_dword - CONFIG_REG_BASE;
+		packets_vec[3].reg_data[0] = cntl.u32All;
+
+		status = dbgdev_diq_submit_ib(
+					dbgdev,
+					adw_info->process->pasid,
+					mem_obj->gpu_addr,
+					packet_buff_uint,
+					ib_size);
+
+		if (status != 0) {
+			pr_err("amdkfd: Failed to submit IB to DIQ\n");
+			break;
+		}
+	}
+
+	kfd_gtt_sa_free(dbgdev->dev, mem_obj);
+	return status;
+}
+
 static int dbgdev_wave_control_set_registers(
 				struct dbg_wave_control_info *wac_info,
 				union SQ_CMD_BITS *in_reg_sq_cmd,
@@ -535,12 +807,14 @@ void kfd_dbgdev_init(struct kfd_dbgdev *pdbgdev, struct kfd_dev *pdev,
 		pdbgdev->dbgdev_register = dbgdev_register_nodiq;
 		pdbgdev->dbgdev_unregister = dbgdev_unregister_nodiq;
 		pdbgdev->dbgdev_wave_control = dbgdev_wave_control_nodiq;
+		pdbgdev->dbgdev_address_watch = dbgdev_address_watch_nodiq;
 		break;
 	case DBGDEV_TYPE_DIQ:
 	default:
 		pdbgdev->dbgdev_register = dbgdev_register_diq;
 		pdbgdev->dbgdev_unregister = dbgdev_unregister_diq;
 		pdbgdev->dbgdev_wave_control =  dbgdev_wave_control_diq;
+		pdbgdev->dbgdev_address_watch = dbgdev_address_watch_diq;
 		break;
 	}
 

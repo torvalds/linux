@@ -149,3 +149,20 @@ long kfd_dbgmgr_wave_control(struct kfd_dbgmgr *pmgr,
 	return (long) pmgr->dbgdev->dbgdev_wave_control(pmgr->dbgdev, wac_info);
 }
 
+long kfd_dbgmgr_address_watch(struct kfd_dbgmgr *pmgr,
+				struct dbg_address_watch_info *adw_info)
+{
+	BUG_ON(!pmgr || !pmgr->dbgdev || !adw_info);
+
+
+	/* Is the requests coming from the already registered process? */
+	if (pmgr->pasid != adw_info->process->pasid) {
+		pr_debug("H/W debugger support was not registered for requester pasid %d\n",
+				adw_info->process->pasid);
+		return -EINVAL;
+	}
+
+	return (long) pmgr->dbgdev->dbgdev_address_watch(pmgr->dbgdev,
+							adw_info);
+}
+
