@@ -752,6 +752,7 @@ static const struct panel_desc hannstar_hsd100pxn1 = {
 		.width = 203,
 		.height = 152,
 	},
+	.bus_format = MEDIA_BUS_FMT_RGB666_1X7X3_SPWG,
 };
 
 static const struct drm_display_mode hitachi_tx23d38vm0caa_mode = {
