@@ -16,7 +16,7 @@ static DEFINE_SPINLOCK(gb_protocols_lock);
 static LIST_HEAD(gb_protocols);
 
 /* Caller must hold gb_protocols_lock */
-static struct gb_protocol *_gb_protocol_find(u8 id, u8 major, u8 minor)
+static struct gb_protocol *gb_protocol_find(u8 id, u8 major, u8 minor)
 {
 	struct gb_protocol *protocol;
 
@@ -119,8 +119,8 @@ int gb_protocol_deregister(struct gb_protocol *protocol)
 		return 0;
 
 	spin_lock_irq(&gb_protocols_lock);
-	protocol = _gb_protocol_find(protocol->id, protocol->major,
-						protocol->minor);
+	protocol = gb_protocol_find(protocol->id, protocol->major,
+				    protocol->minor);
 	if (protocol) {
 		protocol_count = protocol->count;
 		if (!protocol_count)
@@ -142,7 +142,7 @@ struct gb_protocol *gb_protocol_get(u8 id, u8 major, u8 minor)
 	u8 protocol_count;
 
 	spin_lock_irq(&gb_protocols_lock);
-	protocol = _gb_protocol_find(id, major, minor);
+	protocol = gb_protocol_find(id, major, minor);
 	if (protocol) {
 		if (!try_module_get(protocol->owner)) {
 			protocol = NULL;
@@ -204,7 +204,7 @@ void gb_protocol_put(struct gb_protocol *protocol)
 	minor = protocol->minor;
 
 	spin_lock_irq(&gb_protocols_lock);
-	protocol = _gb_protocol_find(id, major, minor);
+	protocol = gb_protocol_find(id, major, minor);
 	if (protocol) {
 		protocol_count = protocol->count;
 		if (protocol_count)
