@@ -721,22 +721,22 @@ dhd_conf_get_wme(dhd_pub_t *dhd, edcf_acparam_t *acp)
 	CONFIG_TRACE(("%s: BK: aci %d aifsn %d ecwmin %d ecwmax %d size %zu\n", __FUNCTION__,
 		acparam->ACI, acparam->ACI&EDCF_AIFSN_MASK,
 		acparam->ECW&EDCF_ECWMIN_MASK, (acparam->ECW&EDCF_ECWMAX_MASK)>>EDCF_ECWMAX_SHIFT,
-		(int)sizeof(acp)));
+		sizeof(acp)));
 	acparam = &acp[AC_BE];
 	CONFIG_TRACE(("%s: BE: aci %d aifsn %d ecwmin %d ecwmax %d size %zu\n", __FUNCTION__,
 		acparam->ACI, acparam->ACI&EDCF_AIFSN_MASK,
 		acparam->ECW&EDCF_ECWMIN_MASK, (acparam->ECW&EDCF_ECWMAX_MASK)>>EDCF_ECWMAX_SHIFT,
-		(int)sizeof(acp)));
+		sizeof(acp)));
 	acparam = &acp[AC_VI];
 	CONFIG_TRACE(("%s: VI: aci %d aifsn %d ecwmin %d ecwmax %d size %zu\n", __FUNCTION__,
 		acparam->ACI, acparam->ACI&EDCF_AIFSN_MASK,
 		acparam->ECW&EDCF_ECWMIN_MASK, (acparam->ECW&EDCF_ECWMAX_MASK)>>EDCF_ECWMAX_SHIFT,
-		(int)sizeof(acp)));
+		sizeof(acp)));
 	acparam = &acp[AC_VO];
 	CONFIG_TRACE(("%s: VO: aci %d aifsn %d ecwmin %d ecwmax %d size %zu\n", __FUNCTION__,
 		acparam->ACI, acparam->ACI&EDCF_AIFSN_MASK,
 		acparam->ECW&EDCF_ECWMIN_MASK, (acparam->ECW&EDCF_ECWMAX_MASK)>>EDCF_ECWMAX_SHIFT,
-		(int)sizeof(acp)));
+		sizeof(acp)));
 
 	return;
 }
@@ -772,7 +772,7 @@ dhd_conf_update_wme(dhd_pub_t *dhd, edcf_acparam_t *acparam_cur, int aci)
 	CONFIG_TRACE(("%s: mod aci %d aifsn %d ecwmin %d ecwmax %d size %zu\n", __FUNCTION__,
 		acp->ACI, acp->ACI&EDCF_AIFSN_MASK,
 		acp->ECW&EDCF_ECWMIN_MASK, (acp->ECW&EDCF_ECWMAX_MASK)>>EDCF_ECWMAX_SHIFT,
-		(int)sizeof(edcf_acparam_t)));
+		sizeof(edcf_acparam_t)));
 
 	/*
 	* Now use buf as an output buffer.
