@@ -613,7 +613,7 @@ static int wm8741_i2c_probe(struct i2c_client *i2c,
 		return ret;
 	}
 
-	wm8741_set_pdata(&i2c->dev, wm8741);
+	ret = wm8741_set_pdata(&i2c->dev, wm8741);
 	if (ret != 0) {
 		dev_err(&i2c->dev, "Failed to set pdata: %d\n", ret);
 		return ret;
@@ -679,7 +679,7 @@ static int wm8741_spi_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	wm8741_set_pdata(&spi->dev, wm8741);
+	ret = wm8741_set_pdata(&spi->dev, wm8741);
 	if (ret != 0) {
 		dev_err(&spi->dev, "Failed to set pdata: %d\n", ret);
 		return ret;
