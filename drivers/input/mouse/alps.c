@@ -688,24 +688,17 @@ static void alps_process_touchpad_packet_v3_v5(struct psmouse *psmouse)
 		 */
 		if (f->is_mp) {
 			fingers = f->fingers;
+			/*
+			 * Bitmap processing uses position packet's coordinate
+			 * data, so we need to do decode it first.
+			 */
+			priv->decode_fields(f, priv->multi_data, psmouse);
+
 			if (priv->proto_version == ALPS_PROTO_V3 ||
 			    priv->proto_version == ALPS_PROTO_V3_RUSHMORE) {
 				if (alps_process_bitmap(priv, f) == 0)
 					fingers = 0; /* Use st data */
-
-				/* Now process position packet */
-				priv->decode_fields(f, priv->multi_data,
-						    psmouse);
 			} else {
-				/*
-				 * Because Dolphin uses position packet's
-				 * coordinate data as Pt1 and uses it to
-				 * calculate Pt2, so we need to do position
-				 * packet decode first.
-				 */
-				priv->decode_fields(f, priv->multi_data,
-						    psmouse);
-
 				/*
 				 * Since Dolphin's finger number is reliable,
 				 * there is no need to compare with bmap_fn.
@@ -873,6 +866,14 @@ static void alps_process_packet_v4(struct psmouse *psmouse)
 	priv->multi_data[offset] = packet[6];
 	priv->multi_data[offset + 1] = packet[7];
 
+	f->left = !!(packet[4] & 0x01);
+	f->right = !!(packet[4] & 0x02);
+
+	f->st.x = ((packet[1] & 0x7f) << 4) | ((packet[3] & 0x30) >> 2) |
+		  ((packet[0] & 0x30) >> 4);
+	f->st.y = ((packet[2] & 0x7f) << 4) | (packet[3] & 0x0f);
+	f->pressure = packet[5] & 0x7f;
+
 	if (++priv->multi_packet > 2) {
 		priv->multi_packet = 0;
 
@@ -886,14 +887,6 @@ static void alps_process_packet_v4(struct psmouse *psmouse)
 
 		f->fingers = alps_process_bitmap(priv, f);
 	}
-
-	f->left = !!(packet[4] & 0x01);
-	f->right = !!(packet[4] & 0x02);
-
-	f->st.x = ((packet[1] & 0x7f) << 4) | ((packet[3] & 0x30) >> 2) |
-		  ((packet[0] & 0x30) >> 4);
-	f->st.y = ((packet[2] & 0x7f) << 4) | (packet[3] & 0x0f);
-	f->pressure = packet[5] & 0x7f;
 
 	alps_report_semi_mt_data(psmouse, f->fingers);
 }
