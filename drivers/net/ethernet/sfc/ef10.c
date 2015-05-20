@@ -544,6 +544,25 @@ static void efx_ef10_remove(struct efx_nic *efx)
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	int rc;
 
+#ifdef CONFIG_SFC_SRIOV
+	struct efx_ef10_nic_data *nic_data_pf;
+	struct pci_dev *pci_dev_pf;
+	struct efx_nic *efx_pf;
+	struct ef10_vf *vf;
+
+	if (efx->pci_dev->is_virtfn) {
+		pci_dev_pf = efx->pci_dev->physfn;
+		if (pci_dev_pf) {
+			efx_pf = pci_get_drvdata(pci_dev_pf);
+			nic_data_pf = efx_pf->nic_data;
+			vf = nic_data_pf->vf + nic_data->vf_index;
+			vf->efx = NULL;
+		} else
+			netif_info(efx, drv, efx->net_dev,
+				   "Could not get the PF id from VF\n");
+	}
+#endif
+
 	efx_ptp_remove(efx);
 
 	efx_mcdi_mon_remove(efx);
@@ -581,6 +600,19 @@ static int efx_ef10_probe_vf(struct efx_nic *efx)
 	rc = efx_ef10_get_vf_index(efx);
 	if (rc)
 		goto fail;
+
+	if (efx->pci_dev->is_virtfn) {
+		if (efx->pci_dev->physfn) {
+			struct efx_nic *efx_pf =
+				pci_get_drvdata(efx->pci_dev->physfn);
+			struct efx_ef10_nic_data *nic_data_p = efx_pf->nic_data;
+			struct efx_ef10_nic_data *nic_data = efx->nic_data;
+
+			nic_data_p->vf[nic_data->vf_index].efx = efx;
+		} else
+			netif_info(efx, drv, efx->net_dev,
+				   "Could not get the PF id from VF\n");
+	}
 
 	return 0;
 

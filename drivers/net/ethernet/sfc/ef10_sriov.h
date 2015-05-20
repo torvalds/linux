@@ -14,11 +14,13 @@
 
 /**
  * struct ef10_vf - PF's store of VF data
+ * @efx: efx_nic struct for the current VF
  * @vport_id: vport ID for the VF
  * @vport_assigned: record whether the vport is currently assigned to the VF
  * @mac: MAC address for the VF, zero when address is removed from the vport
  */
 struct ef10_vf {
+	struct efx_nic *efx;
 	unsigned int vport_id;
 	unsigned int vport_assigned;
 	u8 mac[ETH_ALEN];

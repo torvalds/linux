@@ -160,6 +160,8 @@ static void efx_ef10_sriov_free_vf_vports(struct efx_nic *efx)
 			efx_ef10_vport_free(efx, vf->vport_id);
 			vf->vport_id = 0;
 		}
+
+		vf->efx = NULL;
 	}
 }
 
@@ -215,6 +217,7 @@ static int efx_ef10_sriov_alloc_vf_vswitching(struct efx_nic *efx)
 
 	for (i = 0; i < efx->vf_count; i++) {
 		random_ether_addr(nic_data->vf[i].mac);
+		nic_data->vf[i].efx = NULL;
 
 		rc = efx_ef10_sriov_assign_vf_vport(efx, i);
 		if (rc)
