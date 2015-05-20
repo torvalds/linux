@@ -1590,16 +1590,15 @@ static int intel_runtime_resume(struct device *device)
  */
 static int intel_suspend_complete(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = dev_priv->dev;
 	int ret;
 
-	if (IS_BROXTON(dev))
+	if (IS_BROXTON(dev_priv))
 		ret = bxt_suspend_complete(dev_priv);
-	else if (IS_SKYLAKE(dev))
+	else if (IS_SKYLAKE(dev_priv))
 		ret = skl_suspend_complete(dev_priv);
-	else if (IS_HASWELL(dev) || IS_BROADWELL(dev))
+	else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		ret = hsw_suspend_complete(dev_priv);
-	else if (IS_VALLEYVIEW(dev))
+	else if (IS_VALLEYVIEW(dev_priv))
 		ret = vlv_suspend_complete(dev_priv);
 	else
 		ret = 0;
