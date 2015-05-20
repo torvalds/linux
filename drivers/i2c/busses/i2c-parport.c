@@ -46,6 +46,9 @@ struct i2c_par {
 
 static LIST_HEAD(adapter_list);
 static DEFINE_MUTEX(adapter_list_lock);
+#define MAX_DEVICE 4
+static int parport[MAX_DEVICE] = {0, -1, -1, -1};
+
 
 /* ----- Low-level parallel port access ----------------------------------- */
 
@@ -163,6 +166,19 @@ static void i2c_parport_irq(void *data)
 static void i2c_parport_attach(struct parport *port)
 {
 	struct i2c_par *adapter;
+	int i;
+	struct pardev_cb i2c_parport_cb;
+
+	for (i = 0; i < MAX_DEVICE; i++) {
+		if (parport[i] == -1)
+			continue;
+		if (port->number == parport[i])
+			break;
+	}
+	if (i == MAX_DEVICE) {
+		pr_debug("i2c-parport: Not using parport%d.\n", port->number);
+		return;
+	}
 
 	adapter = kzalloc(sizeof(struct i2c_par), GFP_KERNEL);
 	if (adapter == NULL) {
@@ -297,6 +313,13 @@ static void __exit i2c_parport_exit(void)
 MODULE_AUTHOR("Jean Delvare <jdelvare@suse.de>");
 MODULE_DESCRIPTION("I2C bus over parallel port");
 MODULE_LICENSE("GPL");
+
+module_param_array(parport, int, NULL, 0);
+MODULE_PARM_DESC(parport,
+		 "List of parallel ports to bind to, by index.\n"
+		 " Atmost " __stringify(MAX_DEVICE) " devices are supported.\n"
+		 " Default is one device connected to parport0.\n"
+);
 
 module_init(i2c_parport_init);
 module_exit(i2c_parport_exit);
