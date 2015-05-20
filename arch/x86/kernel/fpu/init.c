@@ -284,42 +284,57 @@ static int __init no_387(char *s)
 	setup_clear_cpu_cap(X86_FEATURE_FPU);
 	return 1;
 }
-
 __setup("no387", no_387);
 
-static int __init x86_xsave_setup(char *s)
+/*
+ * Disable all xstate CPU features:
+ */
+static int __init x86_noxsave_setup(char *s)
 {
 	if (strlen(s))
 		return 0;
+
 	setup_clear_cpu_cap(X86_FEATURE_XSAVE);
 	setup_clear_cpu_cap(X86_FEATURE_XSAVEOPT);
 	setup_clear_cpu_cap(X86_FEATURE_XSAVES);
 	setup_clear_cpu_cap(X86_FEATURE_AVX);
 	setup_clear_cpu_cap(X86_FEATURE_AVX2);
+
 	return 1;
 }
-__setup("noxsave", x86_xsave_setup);
+__setup("noxsave", x86_noxsave_setup);
 
-static int __init x86_xsaveopt_setup(char *s)
+/*
+ * Disable the XSAVEOPT instruction specifically:
+ */
+static int __init x86_noxsaveopt_setup(char *s)
 {
 	setup_clear_cpu_cap(X86_FEATURE_XSAVEOPT);
+
 	return 1;
 }
-__setup("noxsaveopt", x86_xsaveopt_setup);
+__setup("noxsaveopt", x86_noxsaveopt_setup);
 
-static int __init x86_xsaves_setup(char *s)
+/*
+ * Disable the XSAVES instruction:
+ */
+static int __init x86_noxsaves_setup(char *s)
 {
 	setup_clear_cpu_cap(X86_FEATURE_XSAVES);
+
 	return 1;
 }
-__setup("noxsaves", x86_xsaves_setup);
+__setup("noxsaves", x86_noxsaves_setup);
 
-static int __init x86_fxsr_setup(char *s)
+/*
+ * Disable FX save/restore and SSE support:
+ */
+static int __init x86_nofxsr_setup(char *s)
 {
 	setup_clear_cpu_cap(X86_FEATURE_FXSR);
 	setup_clear_cpu_cap(X86_FEATURE_FXSR_OPT);
 	setup_clear_cpu_cap(X86_FEATURE_XMM);
+
 	return 1;
 }
-__setup("nofxsr", x86_fxsr_setup);
-
+__setup("nofxsr", x86_nofxsr_setup);
