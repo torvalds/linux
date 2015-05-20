@@ -167,8 +167,8 @@ struct kfd_dev {
 
 	const struct kfd2kgd_calls *kfd2kgd;
 	struct mutex doorbell_mutex;
-	unsigned long doorbell_available_index[DIV_ROUND_UP(
-		KFD_MAX_NUM_OF_QUEUES_PER_PROCESS, BITS_PER_LONG)];
+	DECLARE_BITMAP(doorbell_available_index,
+			KFD_MAX_NUM_OF_QUEUES_PER_PROCESS);
 
 	void *gtt_mem;
 	uint64_t gtt_start_gpu_addr;
@@ -502,8 +502,6 @@ struct kfd_process {
 
 	/* Size is queue_array_size, up to MAX_PROCESS_QUEUES. */
 	struct kfd_queue **queues;
-
-	unsigned long allocated_queue_bitmap[DIV_ROUND_UP(KFD_MAX_NUM_OF_QUEUES_PER_PROCESS, BITS_PER_LONG)];
 
 	/*Is the user space process 32 bit?*/
 	bool is_32bit_user_mode;
