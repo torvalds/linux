@@ -14,6 +14,7 @@
 #include <linux/spi/spi.h>
 
 #include "greybus.h"
+#include "gpbridge.h"
 
 struct gb_spi {
 	struct gb_connection	*connection;
@@ -41,89 +42,6 @@ struct gb_spi {
 	 * use board-specific GPIOs.
 	 */
 	u16			num_chipselect;
-};
-
-/* Version of the Greybus spi protocol we support */
-#define GB_SPI_VERSION_MAJOR		0x00
-#define GB_SPI_VERSION_MINOR		0x01
-
-/* Should match up with modes in linux/spi/spi.h */
-#define GB_SPI_MODE_CPHA		0x01		/* clock phase */
-#define GB_SPI_MODE_CPOL		0x02		/* clock polarity */
-#define GB_SPI_MODE_MODE_0		(0|0)		/* (original MicroWire) */
-#define GB_SPI_MODE_MODE_1		(0|GB_SPI_MODE_CPHA)
-#define GB_SPI_MODE_MODE_2		(GB_SPI_MODE_CPOL|0)
-#define GB_SPI_MODE_MODE_3		(GB_SPI_MODE_CPOL|GB_SPI_MODE_CPHA)
-#define GB_SPI_MODE_CS_HIGH		0x04		/* chipselect active high? */
-#define GB_SPI_MODE_LSB_FIRST		0x08		/* per-word bits-on-wire */
-#define GB_SPI_MODE_3WIRE		0x10		/* SI/SO signals shared */
-#define GB_SPI_MODE_LOOP		0x20		/* loopback mode */
-#define GB_SPI_MODE_NO_CS		0x40		/* 1 dev/bus, no chipselect */
-#define GB_SPI_MODE_READY		0x80		/* slave pulls low to pause */
-
-/* Should match up with flags in linux/spi/spi.h */
-#define GB_SPI_FLAG_HALF_DUPLEX		BIT(0)		/* can't do full duplex */
-#define GB_SPI_FLAG_NO_RX		BIT(1)		/* can't do buffer read */
-#define GB_SPI_FLAG_NO_TX		BIT(2)		/* can't do buffer write */
-
-/* Greybus spi operation types */
-#define GB_SPI_TYPE_INVALID		0x00
-#define GB_SPI_TYPE_PROTOCOL_VERSION	0x01
-#define GB_SPI_TYPE_MODE		0x02
-#define GB_SPI_TYPE_FLAGS		0x03
-#define GB_SPI_TYPE_BITS_PER_WORD_MASK	0x04
-#define GB_SPI_TYPE_NUM_CHIPSELECT	0x05
-#define GB_SPI_TYPE_TRANSFER		0x06
-
-/* mode request has no payload */
-struct gb_spi_mode_response {
-	__le16	mode;
-};
-
-/* flags request has no payload */
-struct gb_spi_flags_response {
-	__le16	flags;
-};
-
-/* bits-per-word request has no payload */
-struct gb_spi_bpw_response {
-	__le32	bits_per_word_mask;
-};
-
-/* num-chipselects request has no payload */
-struct gb_spi_chipselect_response {
-	__le16	num_chipselect;
-};
-
-/**
- * struct gb_spi_transfer - a read/write buffer pair
- * @speed_hz: Select a speed other than the device default for this transfer. If
- *	0 the default (from @spi_device) is used.
- * @len: size of rx and tx buffers (in bytes)
- * @delay_usecs: microseconds to delay after this transfer before (optionally)
- * 	changing the chipselect status, then starting the next transfer or
- * 	completing this spi_message.
- * @cs_change: affects chipselect after this transfer completes
- * @bits_per_word: select a bits_per_word other than the device default for this
- *	transfer. If 0 the default (from @spi_device) is used.
- */
-struct gb_spi_transfer {
-	__le32		speed_hz;
-	__le32		len;
-	__le16		delay_usecs;
-	__u8		cs_change;
-	__u8		bits_per_word;
-};
-
-struct gb_spi_transfer_request {
-	__u8			chip_select;	/* of the spi device */
-	__u8			mode;		/* of the spi device */
-	__le16			count;
-	struct gb_spi_transfer	transfers[0];	/* trnasfer_count of these */
-};
-
-struct gb_spi_transfer_response {
-	__u8			data[0];	/* inbound data */
 };
 
 /* Routines to transfer data */
