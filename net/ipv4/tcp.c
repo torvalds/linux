@@ -2695,6 +2695,8 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 	spin_lock_bh(&sk->sk_lock.slock);
 	info->tcpi_bytes_acked = tp->bytes_acked;
 	info->tcpi_bytes_received = tp->bytes_received;
+	info->tcpi_segs_out = tp->segs_out;
+	info->tcpi_segs_in = tp->segs_in;
 	spin_unlock_bh(&sk->sk_lock.slock);
 }
 EXPORT_SYMBOL_GPL(tcp_get_info);
