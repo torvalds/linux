@@ -3480,6 +3480,13 @@ static int efx_ef10_mac_reconfigure(struct efx_nic *efx)
 	return efx_mcdi_set_mac(efx);
 }
 
+static int efx_ef10_mac_reconfigure_vf(struct efx_nic *efx)
+{
+	efx_ef10_filter_sync_rx_mode(efx);
+
+	return 0;
+}
+
 static int efx_ef10_start_bist(struct efx_nic *efx, u32 bist_type)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_START_BIST_IN_LEN);
@@ -3833,7 +3840,7 @@ const struct efx_nic_type efx_hunt_a0_vf_nic_type = {
 	.stop_stats = efx_port_dummy_op_void,
 	.set_id_led = efx_mcdi_set_id_led,
 	.push_irq_moderation = efx_ef10_push_irq_moderation,
-	.reconfigure_mac = efx_ef10_mac_reconfigure,
+	.reconfigure_mac = efx_ef10_mac_reconfigure_vf,
 	.check_mac_fault = efx_mcdi_mac_check_fault,
 	.reconfigure_port = efx_mcdi_port_reconfigure,
 	.get_wol = efx_ef10_get_wol_vf,
