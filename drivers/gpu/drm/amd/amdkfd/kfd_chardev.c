@@ -537,7 +537,93 @@ static int kfd_ioctl_dbg_address_watch(struct file *filep,
 static int kfd_ioctl_dbg_wave_control(struct file *filep,
 					struct kfd_process *p, void *data)
 {
-	long status = -EFAULT;
+	struct kfd_ioctl_dbg_wave_control_args *args = data;
+	struct kfd_dev *dev;
+	struct dbg_wave_control_info wac_info;
+	unsigned char *args_buff;
+	uint32_t computed_buff_size;
+	long status;
+	void __user *cmd_from_user;
+	unsigned int args_idx = 0;
+
+	memset((void *) &wac_info, 0, sizeof(struct dbg_wave_control_info));
+
+	/* we use compact form, independent of the packing attribute value */
+	computed_buff_size = sizeof(*args) +
+				sizeof(wac_info.mode) +
+				sizeof(wac_info.operand) +
+				sizeof(wac_info.dbgWave_msg.DbgWaveMsg) +
+				sizeof(wac_info.dbgWave_msg.MemoryVA) +
+				sizeof(wac_info.trapId);
+
+	dev = kfd_device_by_id(args->gpu_id);
+	if (dev == NULL)
+		return -EINVAL;
+
+	if (dev->device_info->asic_family == CHIP_CARRIZO) {
+		pr_debug("kfd_ioctl_dbg_wave_control not supported on CZ\n");
+		return -EINVAL;
+	}
+
+	/* input size must match the computed "compact" size */
+	if (args->buf_size_in_bytes != computed_buff_size) {
+		pr_debug("size mismatch, computed : actual %u : %u\n",
+				args->buf_size_in_bytes, computed_buff_size);
+		return -EINVAL;
+	}
+
+	cmd_from_user = (void __user *) args->content_ptr;
+
+	if (cmd_from_user == NULL)
+		return -EINVAL;
+
+	/* this is the actual buffer to work with */
+
+	args_buff = kmalloc(args->buf_size_in_bytes - sizeof(*args),
+			GFP_KERNEL);
+
+	if (args_buff == NULL)
+		return -ENOMEM;
+
+	/* Now copy the entire buffer from user */
+	status = copy_from_user(args_buff, cmd_from_user,
+				args->buf_size_in_bytes - sizeof(*args));
+	if (status != 0) {
+		pr_debug("Failed to copy wave control user data\n");
+		kfree(args_buff);
+		return -EINVAL;
+	}
+
+	/* move ptr to the start of the "pay-load" area */
+	wac_info.process = p;
+
+	wac_info.operand = *((enum HSA_DBG_WAVEOP *)(&args_buff[args_idx]));
+	args_idx += sizeof(wac_info.operand);
+
+	wac_info.mode = *((enum HSA_DBG_WAVEMODE *)(&args_buff[args_idx]));
+	args_idx += sizeof(wac_info.mode);
+
+	wac_info.trapId = *((uint32_t *)(&args_buff[args_idx]));
+	args_idx += sizeof(wac_info.trapId);
+
+	wac_info.dbgWave_msg.DbgWaveMsg.WaveMsgInfoGen2.Value =
+					*((uint32_t *)(&args_buff[args_idx]));
+	wac_info.dbgWave_msg.MemoryVA = NULL;
+
+	mutex_lock(kfd_get_dbgmgr_mutex());
+
+	pr_debug("Calling dbg manager process %p, operand %u, mode %u, trapId %u, message %u\n",
+			wac_info.process, wac_info.operand,
+			wac_info.mode, wac_info.trapId,
+			wac_info.dbgWave_msg.DbgWaveMsg.WaveMsgInfoGen2.Value);
+
+	status = kfd_dbgmgr_wave_control(dev->dbgmgr, &wac_info);
+
+	pr_debug("Returned status of dbg manager is %ld\n", status);
+
+	mutex_unlock(kfd_get_dbgmgr_mutex());
+
+	kfree(args_buff);
 
 	return status;
 }
