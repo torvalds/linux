@@ -1388,7 +1388,6 @@ static void lo_release(struct gendisk *disk, fmode_t mode)
 		loop_flush(lo);
 	}
 
-out:
 	mutex_unlock(&lo->lo_ctl_mutex);
 }
 
