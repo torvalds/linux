@@ -924,6 +924,7 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 	return ret;
 }
 
+#ifdef CONFIG_COMPAT
 static long compat_rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 {
     struct rga2_req req;
@@ -1024,7 +1025,7 @@ static long compat_rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 
 	return ret;
 }
-
+#endif
 
 
 long rga2_ioctl_kernel(struct rga_req *req_rga)
@@ -1135,7 +1136,9 @@ struct file_operations rga2_fops = {
 	.open		= rga2_open,
 	.release	= rga2_release,
 	.unlocked_ioctl		= rga_ioctl,
+#ifdef CONFIG_COMPAT
 	.compat_ioctl		= compat_rga_ioctl,
+#endif
 };
 
 static struct miscdevice rga2_dev ={
