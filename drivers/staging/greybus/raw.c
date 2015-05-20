@@ -357,6 +357,7 @@ error_chrdev:
 error_class:
 	return retval;
 }
+module_init(raw_init);
 
 static void __exit raw_exit(void)
 {
@@ -364,8 +365,6 @@ static void __exit raw_exit(void)
 	unregister_chrdev_region(MKDEV(raw_major, 0), NUM_MINORS);
 	class_destroy(raw_class);
 }
-
-module_init(raw_init);
 module_exit(raw_exit);
 
 MODULE_LICENSE("GPL v2");
