@@ -128,6 +128,7 @@ struct kfd_device_info {
 	unsigned int asic_family;
 	const struct kfd_event_interrupt_class *event_interrupt_class;
 	unsigned int max_pasid_bits;
+	unsigned int max_no_of_hqd;
 	size_t ih_ring_entry_size;
 	uint8_t num_of_watch_points;
 	uint16_t mqd_size_aligned;
@@ -231,6 +232,7 @@ struct device *kfd_chardev(void);
 enum kfd_preempt_type_filter {
 	KFD_PREEMPT_TYPE_FILTER_SINGLE_QUEUE,
 	KFD_PREEMPT_TYPE_FILTER_ALL_QUEUES,
+	KFD_PREEMPT_TYPE_FILTER_DYNAMIC_QUEUES,
 	KFD_PREEMPT_TYPE_FILTER_BY_PASID
 };
 

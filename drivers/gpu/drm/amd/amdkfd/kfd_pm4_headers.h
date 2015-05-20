@@ -237,7 +237,8 @@ struct pm4_map_queues {
 	struct {
 		union {
 			struct {
-				uint32_t reserved5:2;
+				uint32_t is_static:1;
+				uint32_t reserved5:1;
 				uint32_t doorbell_offset:21;
 				uint32_t reserved6:3;
 				uint32_t queue:6;
@@ -328,7 +329,8 @@ enum unmap_queues_action_enum {
 enum unmap_queues_queue_sel_enum {
 	queue_sel__mes_unmap_queues__perform_request_on_specified_queues = 0,
 	queue_sel__mes_unmap_queues__perform_request_on_pasid_queues = 1,
-	queue_sel__mes_unmap_queues__perform_request_on_all_active_queues = 2
+	queue_sel__mes_unmap_queues__perform_request_on_all_active_queues = 2,
+	queue_sel__mes_unmap_queues__perform_request_on_dynamic_queues_only = 3
 };
 
 enum unmap_queues_engine_sel_enum {
