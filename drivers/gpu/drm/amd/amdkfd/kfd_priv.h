@@ -196,6 +196,9 @@ struct kfd_dev {
 	 * from the HW ring into a SW ring.
 	 */
 	bool interrupts_active;
+
+	/* Debug manager */
+	struct kfd_dbgmgr           *dbgmgr;
 };
 
 /* KGD2KFD callbacks */
@@ -650,6 +653,8 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid);
 int pqm_update_queue(struct process_queue_manager *pqm, unsigned int qid,
 			struct queue_properties *p);
+struct kernel_queue *pqm_get_kernel_queue(struct process_queue_manager *pqm,
+						unsigned int qid);
 
 /* Packet Manager */
 

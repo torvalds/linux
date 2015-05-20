@@ -37,6 +37,7 @@ static const struct kfd_device_info kaveri_device_info = {
 	.max_no_of_hqd	= 24,
 	.ih_ring_entry_size = 4 * sizeof(uint32_t),
 	.event_interrupt_class = &event_interrupt_class_cik,
+	.num_of_watch_points = 4,
 	.mqd_size_aligned = MQD_SIZE_ALIGNED
 };
 
@@ -295,6 +296,8 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 			kfd->pdev->vendor, kfd->pdev->device);
 		goto dqm_start_error;
 	}
+
+	kfd->dbgmgr = NULL;
 
 	kfd->init_complete = true;
 	dev_info(kfd_device, "added device (%x:%x)\n", kfd->pdev->vendor,
