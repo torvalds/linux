@@ -222,8 +222,6 @@ static int stmmac_pci_probe(struct pci_dev *pdev,
 	priv->dev->irq = pdev->irq;
 	priv->wol_irq = pdev->irq;
 
-	pci_set_drvdata(pdev, priv->dev);
-
 	dev_dbg(&pdev->dev, "STMMAC PCI driver registration completed\n");
 
 	return 0;

@@ -2828,6 +2828,8 @@ struct stmmac_priv *stmmac_dvr_probe(struct device *device,
 	priv->ioaddr = addr;
 	priv->dev->base_addr = (unsigned long)addr;
 
+	dev_set_drvdata(device, priv);
+
 	/* Verify driver arguments */
 	stmmac_verify_args();
 

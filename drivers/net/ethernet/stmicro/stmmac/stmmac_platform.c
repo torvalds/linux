@@ -350,8 +350,6 @@ int stmmac_pltfr_probe(struct platform_device *pdev)
 	if (mac)
 		memcpy(priv->dev->dev_addr, mac, ETH_ALEN);
 
-	platform_set_drvdata(pdev, priv->dev);
-
 	pr_debug("STMMAC platform driver registration completed");
 
 	return 0;
