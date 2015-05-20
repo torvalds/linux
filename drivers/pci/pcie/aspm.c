@@ -714,8 +714,7 @@ void pcie_aspm_powersave_config_link(struct pci_dev *pdev)
 	up_read(&pci_bus_sem);
 }
 
-static void __pci_disable_link_state(struct pci_dev *pdev, int state, bool sem,
-				     bool force)
+static void __pci_disable_link_state(struct pci_dev *pdev, int state, bool sem)
 {
 	struct pci_dev *parent = pdev->bus->self;
 	struct pcie_link_state *link;
@@ -737,7 +736,7 @@ static void __pci_disable_link_state(struct pci_dev *pdev, int state, bool sem,
 	 * a similar mechanism using "PciASPMOptOut", which is also
 	 * ignored in this situation.
 	 */
-	if (aspm_disabled && !force) {
+	if (aspm_disabled) {
 		dev_warn(&pdev->dev, "can't disable ASPM; OS doesn't have ASPM control\n");
 		return;
 	}
@@ -763,7 +762,7 @@ static void __pci_disable_link_state(struct pci_dev *pdev, int state, bool sem,
 
 void pci_disable_link_state_locked(struct pci_dev *pdev, int state)
 {
-	__pci_disable_link_state(pdev, state, false, false);
+	__pci_disable_link_state(pdev, state, false);
 }
 EXPORT_SYMBOL(pci_disable_link_state_locked);
 
@@ -778,7 +777,7 @@ EXPORT_SYMBOL(pci_disable_link_state_locked);
  */
 void pci_disable_link_state(struct pci_dev *pdev, int state)
 {
-	__pci_disable_link_state(pdev, state, true, false);
+	__pci_disable_link_state(pdev, state, true);
 }
 EXPORT_SYMBOL(pci_disable_link_state);
 
