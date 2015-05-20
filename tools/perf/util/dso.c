@@ -473,23 +473,33 @@ out:
 }
 
 /**
- * dso__data_fd - Get dso's data file descriptor
+ * dso__data_get_fd - Get dso's data file descriptor
  * @dso: dso object
  * @machine: machine object
  *
  * External interface to find dso's file, open it and
- * returns file descriptor.
+ * returns file descriptor.  It should be paired with
+ * dso__data_put_fd() if it returns non-negative value.
  */
-int dso__data_fd(struct dso *dso, struct machine *machine)
+int dso__data_get_fd(struct dso *dso, struct machine *machine)
 {
 	if (dso->data.status == DSO_DATA_STATUS_ERROR)
 		return -1;
 
-	pthread_mutex_lock(&dso__data_open_lock);
+	if (pthread_mutex_lock(&dso__data_open_lock) < 0)
+		return -1;
+
 	try_to_open_dso(dso, machine);
-	pthread_mutex_unlock(&dso__data_open_lock);
+
+	if (dso->data.fd < 0)
+		pthread_mutex_unlock(&dso__data_open_lock);
 
 	return dso->data.fd;
+}
+
+void dso__data_put_fd(struct dso *dso __maybe_unused)
+{
+	pthread_mutex_unlock(&dso__data_open_lock);
 }
 
 bool dso__data_status_seen(struct dso *dso, enum dso_data_status_seen by)
@@ -1199,12 +1209,15 @@ size_t dso__fprintf(struct dso *dso, enum map_type type, FILE *fp)
 enum dso_type dso__type(struct dso *dso, struct machine *machine)
 {
 	int fd;
+	enum dso_type type = DSO__TYPE_UNKNOWN;
 
-	fd = dso__data_fd(dso, machine);
-	if (fd < 0)
-		return DSO__TYPE_UNKNOWN;
+	fd = dso__data_get_fd(dso, machine);
+	if (fd >= 0) {
+		type = dso__type_fd(fd);
+		dso__data_put_fd(dso);
+	}
 
-	return dso__type_fd(fd);
+	return type;
 }
 
 int dso__strerror_load(struct dso *dso, char *buf, size_t buflen)

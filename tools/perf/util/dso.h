@@ -240,7 +240,8 @@ int __kmod_path__parse(struct kmod_path *m, const char *path,
 
 /*
  * The dso__data_* external interface provides following functions:
- *   dso__data_fd
+ *   dso__data_get_fd
+ *   dso__data_put_fd
  *   dso__data_close
  *   dso__data_size
  *   dso__data_read_offset
@@ -257,8 +258,11 @@ int __kmod_path__parse(struct kmod_path *m, const char *path,
  * The current usage of the dso__data_* interface is as follows:
  *
  * Get DSO's fd:
- *   int fd = dso__data_fd(dso, machine);
- *   USE 'fd' SOMEHOW
+ *   int fd = dso__data_get_fd(dso, machine);
+ *   if (fd >= 0) {
+ *       USE 'fd' SOMEHOW
+ *       dso__data_put_fd(dso);
+ *   }
  *
  * Read DSO's data:
  *   n = dso__data_read_offset(dso_0, &machine, 0, buf, BUFSIZE);
@@ -277,7 +281,8 @@ int __kmod_path__parse(struct kmod_path *m, const char *path,
  *
  * TODO
 */
-int dso__data_fd(struct dso *dso, struct machine *machine);
+int dso__data_get_fd(struct dso *dso, struct machine *machine);
+void dso__data_put_fd(struct dso *dso __maybe_unused);
 void dso__data_close(struct dso *dso);
 
 off_t dso__data_size(struct dso *dso, struct machine *machine);
