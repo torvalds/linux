@@ -846,7 +846,7 @@ static ssize_t ffs_epfile_io(struct file *file, struct ffs_io_data *io_data)
 				ret = ep->status;
 				if (io_data->read && ret > 0) {
 					ret = copy_to_iter(data, ret, &io_data->data);
-					if (unlikely(iov_iter_count(&io_data->data)))
+					if (!ret)
 						ret = -EFAULT;
 				}
 			}
