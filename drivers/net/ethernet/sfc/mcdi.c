@@ -1558,7 +1558,9 @@ int efx_mcdi_reset(struct efx_nic *efx, enum reset_type method)
 	if (rc)
 		return rc;
 
-	if (method == RESET_TYPE_WORLD)
+	if (method == RESET_TYPE_DATAPATH)
+		return 0;
+	else if (method == RESET_TYPE_WORLD)
 		return efx_mcdi_reset_mc(efx);
 	else
 		return efx_mcdi_reset_func(efx);

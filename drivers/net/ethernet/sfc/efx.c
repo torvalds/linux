@@ -77,6 +77,7 @@ const char *const efx_reset_type_names[] = {
 	[RESET_TYPE_RECOVER_OR_ALL]     = "RECOVER_OR_ALL",
 	[RESET_TYPE_WORLD]              = "WORLD",
 	[RESET_TYPE_RECOVER_OR_DISABLE] = "RECOVER_OR_DISABLE",
+	[RESET_TYPE_DATAPATH]           = "DATAPATH",
 	[RESET_TYPE_MC_BIST]		= "MC_BIST",
 	[RESET_TYPE_DISABLE]            = "DISABLE",
 	[RESET_TYPE_TX_WATCHDOG]        = "TX_WATCHDOG",
@@ -2430,7 +2431,8 @@ void efx_reset_down(struct efx_nic *efx, enum reset_type method)
 	efx_disable_interrupts(efx);
 
 	mutex_lock(&efx->mac_lock);
-	if (efx->port_initialized && method != RESET_TYPE_INVISIBLE)
+	if (efx->port_initialized && method != RESET_TYPE_INVISIBLE &&
+	    method != RESET_TYPE_DATAPATH)
 		efx->phy_op->fini(efx);
 	efx->type->fini(efx);
 }
@@ -2459,7 +2461,8 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 	if (!ok)
 		goto fail;
 
-	if (efx->port_initialized && method != RESET_TYPE_INVISIBLE) {
+	if (efx->port_initialized && method != RESET_TYPE_INVISIBLE &&
+	    method != RESET_TYPE_DATAPATH) {
 		rc = efx->phy_op->init(efx);
 		if (rc)
 			goto fail;
@@ -2655,6 +2658,7 @@ void efx_schedule_reset(struct efx_nic *efx, enum reset_type type)
 	case RESET_TYPE_WORLD:
 	case RESET_TYPE_DISABLE:
 	case RESET_TYPE_RECOVER_OR_DISABLE:
+	case RESET_TYPE_DATAPATH:
 	case RESET_TYPE_MC_BIST:
 	case RESET_TYPE_MCDI_TIMEOUT:
 		method = type;

@@ -866,6 +866,14 @@ static void efx_ef10_reset_mc_allocations(struct efx_nic *efx)
 	nic_data->rx_rss_context = EFX_EF10_RSS_CONTEXT_INVALID;
 }
 
+static enum reset_type efx_ef10_map_reset_reason(enum reset_type reason)
+{
+	if (reason == RESET_TYPE_MC_FAILURE)
+		return RESET_TYPE_DATAPATH;
+
+	return efx_mcdi_map_reset_reason(reason);
+}
+
 static int efx_ef10_map_reset_flags(u32 *flags)
 {
 	enum {
@@ -3940,7 +3948,7 @@ const struct efx_nic_type efx_hunt_a0_vf_nic_type = {
 	.dimension_resources = efx_ef10_dimension_resources,
 	.init = efx_ef10_init_nic,
 	.fini = efx_port_dummy_op_void,
-	.map_reset_reason = efx_mcdi_map_reset_reason,
+	.map_reset_reason = efx_ef10_map_reset_reason,
 	.map_reset_flags = efx_ef10_map_reset_flags,
 	.reset = efx_ef10_reset,
 	.probe_port = efx_mcdi_port_probe,
@@ -4040,7 +4048,7 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.dimension_resources = efx_ef10_dimension_resources,
 	.init = efx_ef10_init_nic,
 	.fini = efx_port_dummy_op_void,
-	.map_reset_reason = efx_mcdi_map_reset_reason,
+	.map_reset_reason = efx_ef10_map_reset_reason,
 	.map_reset_flags = efx_ef10_map_reset_flags,
 	.reset = efx_ef10_reset,
 	.probe_port = efx_mcdi_port_probe,
