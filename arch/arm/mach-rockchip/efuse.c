@@ -10,31 +10,12 @@
 #include <linux/delay.h>
 #include <linux/rockchip/cpu.h>
 #include <linux/rockchip/iomap.h>
-
-#include <linux/cpuidle.h>
-#include <linux/init.h>
-#include <linux/of.h>
-#include <linux/smp.h>
-#include <linux/slab.h>
-#include <linux/reboot.h>
-#include <linux/pm.h>
-#include <linux/delay.h>
-#include <linux/slab.h>
-#include <uapi/linux/psci.h>
-
 #include <asm/compiler.h>
-#include <asm/cpu_ops.h>
-#include <asm/errno.h>
 #include <asm/psci.h>
-#include <asm/smp_plat.h>
-#include <asm/suspend.h>
-#include <asm/system_misc.h>
-
 #ifdef CONFIG_ARM
 #include <asm/system_info.h>
 #endif
 #include "efuse.h"
-
 
 #define efuse_readl(offset) readl_relaxed(RK_EFUSE_VIRT + offset)
 #define efuse_writel(val, offset) writel_relaxed(val, RK_EFUSE_VIRT + offset)
@@ -50,8 +31,7 @@ struct rockchip_efuse {
 
 static struct rockchip_efuse efuse;
 
-
-
+#ifdef CONFIG_ARM64
 /****************************secure reg access****************************/
 
 #define SEC_REG_RW_SHT (0x0)
@@ -180,6 +160,12 @@ static int rk3368_efuse_readregs(u32 addr, u32 length, u8 *buf)
 
 	return ret;
 }
+#else
+static int rk3368_efuse_readregs(u32 addr, u32 length, u8 *buf)
+{
+	return 0;
+}
+#endif
 
 static int __init rk3288_efuse_readregs(u32 addr, u32 length, u8 *buf)
 {
