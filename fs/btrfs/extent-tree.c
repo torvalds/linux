@@ -8829,6 +8829,24 @@ again:
 		goto again;
 	}
 
+	/*
+	 * if we are changing raid levels, try to allocate a corresponding
+	 * block group with the new raid level.
+	 */
+	alloc_flags = update_block_group_flags(root, cache->flags);
+	if (alloc_flags != cache->flags) {
+		ret = do_chunk_alloc(trans, root, alloc_flags,
+				     CHUNK_ALLOC_FORCE);
+		/*
+		 * ENOSPC is allowed here, we may have enough space
+		 * already allocated at the new raid level to
+		 * carry on
+		 */
+		if (ret == -ENOSPC)
+			ret = 0;
+		if (ret < 0)
+			goto out;
+	}
 
 	ret = set_block_group_ro(cache, 0);
 	if (!ret)
