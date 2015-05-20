@@ -24,6 +24,7 @@
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/miscdevice.h>
+#include <linux/hrtimer.h>
 #include <linux/platform_data/spi-rockchip.h>
 #include <asm/uaccess.h>
 
@@ -43,8 +44,6 @@ struct spi_test_data {
 };
 
 static struct spi_test_data *g_spi_test_data[MAX_SPI_DEV_NUM];
-ktime_t ktime_get(void);
-ktime_t k1,k2;
 
 
 static ssize_t spi_test_write(struct file *file, 
@@ -55,6 +54,7 @@ static ssize_t spi_test_write(struct file *file,
 	int i = 0;
 	struct spi_device *spi = NULL;
 	char txbuf[256],rxbuf[256];
+	ktime_t k1,k2;
 
 	printk("%s:0:bus=0,cs=0; 1:bus=0,cs=1; 2:bus=1,cs=0; 3:bus=1,cs=1; 4:bus=2,cs=0; 5:bus=2,cs=1\n",__func__);
 
@@ -96,7 +96,7 @@ static ssize_t spi_test_write(struct file *file,
 	k2 = ktime_get();
 	k2 = ktime_sub(k2, k1);
 	if(!ret)
-	printk("%s:bus_num=%d,chip_select=%d,ok cost:%lldus data rate:%lld Kbits/s\n",__func__,spi->master->bus_num, spi->chip_select, ktime_to_us(k2), 1536*5000*8/ktime_to_ms(k2));
+	printk("%s:bus_num=%d,chip_select=%d,ok cost:%lldus data rate:%d Kbits/s\n",__func__,spi->master->bus_num, spi->chip_select, ktime_to_us(k2), 1536*5000*8/(s32)ktime_to_ms(k2));
 	else
 	printk("%s:bus_num=%d,chip_select=%d,error\n",__func__,spi->master->bus_num, spi->chip_select);
 	
