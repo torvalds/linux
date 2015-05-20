@@ -48,6 +48,7 @@ static struct regmap *sgrf_regmap;
 
 static u32 rk3288_pmu_pwr_mode_con;
 static u32 rk3288_sgrf_soc_con0;
+static u32 rk3288_sgrf_cpu_con0;
 
 static inline u32 rk3288_l2_config(void)
 {
@@ -70,6 +71,7 @@ static void rk3288_slp_mode_set(int level)
 {
 	u32 mode_set, mode_set1;
 
+	regmap_read(sgrf_regmap, RK3288_SGRF_CPU_CON0, &rk3288_sgrf_cpu_con0);
 	regmap_read(sgrf_regmap, RK3288_SGRF_SOC_CON0, &rk3288_sgrf_soc_con0);
 
 	regmap_read(pmu_regmap, RK3288_PMU_PWRMODE_CON,
@@ -129,6 +131,9 @@ static void rk3288_slp_mode_set(int level)
 
 static void rk3288_slp_mode_set_resume(void)
 {
+	regmap_write(sgrf_regmap, RK3288_SGRF_CPU_CON0,
+		     rk3288_sgrf_cpu_con0 | SGRF_DAPDEVICEEN_WRITE);
+
 	regmap_write(pmu_regmap, RK3288_PMU_PWRMODE_CON,
 		     rk3288_pmu_pwr_mode_con);
 
