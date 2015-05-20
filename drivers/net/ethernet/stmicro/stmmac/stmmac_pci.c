@@ -163,6 +163,7 @@ static int stmmac_pci_probe(struct pci_dev *pdev,
 {
 	struct stmmac_pci_info *info = (struct stmmac_pci_info *)id->driver_data;
 	struct plat_stmmacenet_data *plat;
+	struct stmmac_resources res;
 	struct stmmac_priv *priv;
 	int i;
 	int ret;
@@ -214,13 +215,16 @@ static int stmmac_pci_probe(struct pci_dev *pdev,
 
 	pci_enable_msi(pdev);
 
-	priv = stmmac_dvr_probe(&pdev->dev, plat, pcim_iomap_table(pdev)[i]);
+	memset(&res, 0, sizeof(res));
+	res.addr = pcim_iomap_table(pdev)[i];
+	res.wol_irq = pdev->irq;
+	res.irq = pdev->irq;
+
+	priv = stmmac_dvr_probe(&pdev->dev, plat, &res);
 	if (IS_ERR(priv)) {
 		dev_err(&pdev->dev, "%s: main driver probe failed\n", __func__);
 		return PTR_ERR(priv);
 	}
-	priv->dev->irq = pdev->irq;
-	priv->wol_irq = pdev->irq;
 
 	dev_dbg(&pdev->dev, "STMMAC PCI driver registration completed\n");
 

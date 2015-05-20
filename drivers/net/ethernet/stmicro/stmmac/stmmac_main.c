@@ -2797,7 +2797,7 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
  * stmmac_dvr_probe
  * @device: device pointer
  * @plat_dat: platform data pointer
- * @addr: iobase memory address
+ * @res: stmmac resource pointer
  * Description: this is the main probe function used to
  * call the alloc_etherdev, allocate the priv structure.
  * Return:
@@ -2806,7 +2806,7 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
  */
 struct stmmac_priv *stmmac_dvr_probe(struct device *device,
 				     struct plat_stmmacenet_data *plat_dat,
-				     void __iomem *addr)
+				     struct stmmac_resources *res)
 {
 	int ret = 0;
 	struct net_device *ndev = NULL;
@@ -2825,8 +2825,15 @@ struct stmmac_priv *stmmac_dvr_probe(struct device *device,
 	stmmac_set_ethtool_ops(ndev);
 	priv->pause = pause;
 	priv->plat = plat_dat;
-	priv->ioaddr = addr;
-	priv->dev->base_addr = (unsigned long)addr;
+	priv->ioaddr = res->addr;
+	priv->dev->base_addr = (unsigned long)res->addr;
+
+	priv->dev->irq = res->irq;
+	priv->wol_irq = res->wol_irq;
+	priv->lpi_irq = res->lpi_irq;
+
+	if (res->mac)
+		memcpy(priv->dev->dev_addr, res->mac, ETH_ALEN);
 
 	dev_set_drvdata(device, priv);
 
