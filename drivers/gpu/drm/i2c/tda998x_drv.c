@@ -620,7 +620,8 @@ tda998x_write_avi(struct tda998x_priv *priv, struct drm_display_mode *mode)
 
 	len = hdmi_avi_infoframe_pack(&frame, buf, sizeof(buf));
 	if (len < 0) {
-		dev_err(&priv->hdmi->dev, "hdmi_avi_infoframe_pack() failed: %d\n", len);
+		dev_err(&priv->hdmi->dev,
+			"hdmi_avi_infoframe_pack() failed: %zd\n", len);
 		return;
 	}
 
