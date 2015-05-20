@@ -2,7 +2,9 @@
 #define __MACH_ROCKCHIP_SRAM_H
 
 #include <linux/pie.h>
+#ifdef CONFIG_PIE
 #include <asm/pie.h>
+#endif
 
 extern char __pie_common_start[];
 extern char __pie_common_end[];

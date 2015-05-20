@@ -1456,6 +1456,9 @@ static int sensor_misc_device_register(struct sensor_private_data *sensor, int t
 			{
 				sensor->fops.owner = THIS_MODULE;
 				sensor->fops.unlocked_ioctl = gsensor_dev_ioctl;
+                #ifdef CONFIG_COMPAT
+				sensor->fops.compat_ioctl = gsensor_dev_ioctl;
+				#endif
 				sensor->fops.open = gsensor_dev_open;
 				sensor->fops.release = gsensor_dev_release;
 
@@ -1656,7 +1659,7 @@ int sensor_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 	int result = 0;
 	int type = 0;
 	
-	dev_info(&client->adapter->dev, "%s: %s,0x%x\n", __func__, devid->name,(unsigned int)client);
+	dev_info(&client->adapter->dev, "%s: %s,%p\n", __func__, devid->name, client);
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		result = -ENODEV;
@@ -2099,6 +2102,7 @@ static const struct i2c_device_id sensor_id[] = {
 	{"gs_lsm303d", ACCEL_ID_LSM303D},
 	{"gs_mc3230",ACCEL_ID_MC3230},
 	{"mpu6880_acc",ACCEL_ID_MPU6880},
+	{"mpu6500_acc",ACCEL_ID_MPU6500},
 	/*compass*/
 	{"compass", COMPASS_ID_ALL},
 	{"ak8975", COMPASS_ID_AK8975},	

@@ -25,6 +25,7 @@
 #include <linux/of_platform.h>
 #include <linux/rockchip/common.h>
 #include <linux/rockchip/cpu.h>
+#include <linux/rockchip/cpu_axi.h>
 #include <linux/rockchip/cru.h>
 #include <linux/rockchip/dvfs.h>
 #include <linux/rockchip/grf.h>
@@ -35,7 +36,6 @@
 #include <asm/cputype.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
-#include "cpu_axi.h"
 #include "loader.h"
 #define CPU 3288
 #include "sram.h"

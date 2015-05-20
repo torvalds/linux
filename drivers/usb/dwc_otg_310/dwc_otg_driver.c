@@ -960,14 +960,12 @@ static int host20_driver_probe(struct platform_device *_dev)
 	    of_match_device(of_match_ptr(usb20_host_of_match), &_dev->dev);
 
 	if (match && match->data) {
-		dev->platform_data = (void *)match->data;
+		pldata = (void *)match->data;
+		pldata->dev = dev;
 	} else {
-		dev_err(dev, "usb20host match failed\n");
+		dev_err(dev, "usb20otg match failed\n");
 		return -EINVAL;
 	}
-
-	pldata = dev->platform_data;
-	pldata->dev = dev;
 
 	if (!node) {
 		dev_err(dev, "device node not found\n");
@@ -1013,8 +1011,14 @@ static int host20_driver_probe(struct platform_device *_dev)
 		retval = -ENOMEM;
 		goto clk_disable;
 	}
-	dev_dbg(&_dev->dev, "base=0x%08x\n",
-		(unsigned)dwc_otg_device->os_dep.base);
+	dev_dbg(&_dev->dev, "base=0x%p\n", dwc_otg_device->os_dep.base);
+
+	/* Set device flags indicating whether the HCD supports DMA. */
+	if (!_dev->dev.dma_mask)
+		_dev->dev.dma_mask = &_dev->dev.coherent_dma_mask;
+	retval = dma_set_coherent_mask(&_dev->dev, DMA_BIT_MASK(32));
+	if (retval)
+		goto clk_disable;
 
 	/*
 	 * Initialize driver data to point to the global DWC_otg
@@ -1150,22 +1154,20 @@ static int dwc_otg_driver_resume(struct platform_device *_dev)
 static void dwc_otg_driver_shutdown(struct platform_device *_dev)
 {
 	struct device *dev = &_dev->dev;
-	struct dwc_otg_platform_data *pldata = dev->platform_data;
 	dwc_otg_device_t *otg_dev = dev->platform_data;
 	dwc_otg_core_if_t *core_if = otg_dev->core_if;
+	struct dwc_otg_platform_data *pldata = otg_dev->pldata;
 	dctl_data_t dctl = {.d32 = 0 };
+	dwc_otg_pcd_t *pcd = core_if->otg_dev->pcd;
 
 	DWC_PRINTF("%s: disconnect USB %s mode\n", __func__,
 		   dwc_otg_is_host_mode(core_if) ? "host" : "device");
 
-    if( pldata->dwc_otg_uart_mode != NULL)
-        pldata->dwc_otg_uart_mode( pldata, PHY_USB_MODE);
-    if(pldata->phy_suspend != NULL)
-        pldata->phy_suspend(pldata, USB_PHY_ENABLED);
 	if (dwc_otg_is_host_mode(core_if)) {
 		if (core_if->hcd_cb && core_if->hcd_cb->stop)
 			core_if->hcd_cb->stop(core_if->hcd_cb_p);
 	} else {
+		cancel_delayed_work_sync(&pcd->check_vbus_work);
 		/* soft disconnect */
 		dctl.d32 =
 		    DWC_READ_REG32(&core_if->dev_if->dev_global_regs->dctl);
@@ -1175,6 +1177,11 @@ static void dwc_otg_driver_shutdown(struct platform_device *_dev)
 	}
 	/* Clear any pending interrupts */
 	DWC_WRITE_REG32(&core_if->core_global_regs->gintsts, 0xFFFFFFFF);
+
+	if (pldata->dwc_otg_uart_mode != NULL)
+		pldata->dwc_otg_uart_mode(pldata, PHY_USB_MODE);
+	if (pldata->phy_suspend != NULL)
+		pldata->phy_suspend(pldata, USB_PHY_ENABLED);
 
 }
 
@@ -1297,6 +1304,10 @@ static const struct of_device_id usb20_otg_of_match[] = {
 	 .compatible = "rockchip,rk3126_usb20_otg",
 	 .data = &usb20otg_pdata_rk3126,
 	 },
+	{
+	 .compatible = "rockchip,rk3368_usb20_otg",
+	 .data = &usb20otg_pdata_rk3368,
+	 },
 	{ },
 };
 
@@ -1326,21 +1337,19 @@ static int otg20_driver_probe(struct platform_device *_dev)
 	const struct of_device_id *match =
 	    of_match_device(of_match_ptr(usb20_otg_of_match), &_dev->dev);
 
-	if (match) {
-		dev->platform_data = (void *)match->data;
+	if (match && match->data) {
+		pldata = (void *)match->data;
+		pldata->dev = dev;
 	} else {
 		dev_err(dev, "usb20otg match failed\n");
 		return -EINVAL;
 	}
 
-	pldata = dev->platform_data;
-	pldata->dev = dev;
-
 	if (!node) {
 		dev_err(dev, "device node not found\n");
 		return -EINVAL;
 	}
-	/*todo : move to usbdev_rk-XX.c */
+
 	if (pldata->hw_init)
 		pldata->hw_init();
 
@@ -1389,8 +1398,14 @@ static int otg20_driver_probe(struct platform_device *_dev)
 		retval = -ENOMEM;
 		goto clk_disable;
 	}
-	dev_dbg(&_dev->dev, "base=0x%08x\n",
-		(unsigned)dwc_otg_device->os_dep.base);
+	dev_dbg(&_dev->dev, "base=0x%p\n", dwc_otg_device->os_dep.base);
+
+	/* Set device flags indicating whether the HCD supports DMA. */
+	if (!_dev->dev.dma_mask)
+		_dev->dev.dma_mask = &_dev->dev.coherent_dma_mask;
+	retval = dma_set_coherent_mask(&_dev->dev, DMA_BIT_MASK(32));
+	if (retval)
+		goto clk_disable;
 
 	/*
 	 * Initialize driver data to point to the global DWC_otg
@@ -1508,7 +1523,8 @@ static int otg20_driver_probe(struct platform_device *_dev)
 	 * perform initial actions required for Internal ADP logic.
 	 */
 	if (!dwc_otg_get_param_adp_enable(dwc_otg_device->core_if)) {
-		if (pldata->phy_status == USB_PHY_ENABLED) {
+		if (dwc_otg_device->core_if->usb_mode == USB_MODE_NORMAL &&
+		    pldata->phy_status == USB_PHY_ENABLED) {
 			pldata->phy_suspend(pldata, USB_PHY_SUSPEND);
 			udelay(3);
 			pldata->clock_enable(pldata, 0);

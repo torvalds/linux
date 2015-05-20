@@ -112,7 +112,7 @@ static void * __init last_ion_vmap(phys_addr_t start, unsigned int page_count)
 		pages[i] = pfn_to_page(addr >> PAGE_SHIFT);
 	}
 	pages[page_count] = pfn_to_page(start >> PAGE_SHIFT);
-	return vmap(pages, page_count + 1, VM_MAP, pgprot_noncached(PAGE_KERNEL));
+	return vmap(pages, page_count + 1, VM_MAP, pgprot_writecombine(PAGE_KERNEL));
 }
 
 static int __init rockchip_ion_snapshot_init(void)

@@ -21,6 +21,8 @@
 #include <linux/rockchip/cpu.h>
 #include <linux/rockchip/cru.h>
 #include <linux/delay.h>
+#include <linux/mfd/syscon.h>
+#include <linux/regmap.h>
 #include "rk_sdmmc.h"
 #include "dw_mmc-pltfm.h"
 #include "../../clk/rockchip/clk-ops.h"
@@ -79,13 +81,6 @@ enum{
         SLEW_RATE_FAST = 1,
 };
 
-/* Variations in Rockchip specific dw-mshc controller */
-enum dw_mci_rockchip_type {
-	DW_MCI_TYPE_RK3188,
-	DW_MCI_TYPE_RK3288,
-	DW_MCI_TYPE_RK3036,
-	DW_MCI_TYPE_RK312X,
-};
 
 /* Rockchip implementation specific driver private data */
 struct dw_mci_rockchip_priv_data {
@@ -112,6 +107,9 @@ static struct dw_mci_rockchip_compatible {
 	},{
 		.compatible	= "rockchip,rk312x-sdmmc",
 		.ctrl_type	= DW_MCI_TYPE_RK312X,
+	},{
+		.compatible     = "rockchip,rk3368-sdmmc",
+		.ctrl_type      = DW_MCI_TYPE_RK3368,
 	},
 };
 
@@ -128,8 +126,12 @@ static int dw_mci_rockchip_priv_init(struct dw_mci *host)
 
 	for(idx = 0; idx < ARRAY_SIZE(rockchip_compat); idx++){
                 if(of_device_is_compatible(host->dev->of_node,
-                                rockchip_compat[idx].compatible))
+                                rockchip_compat[idx].compatible)) {
 			priv->ctrl_type = rockchip_compat[idx].ctrl_type;
+			host->cid = priv->ctrl_type;
+			host->grf = syscon_regmap_lookup_by_phandle(host->dev->of_node,
+								"rockchip,grf");
+		}
 	}
 
 	host->priv = priv;
@@ -142,7 +144,8 @@ static int dw_mci_rockchip_setup_clock(struct dw_mci *host)
 
 	if ((priv->ctrl_type == DW_MCI_TYPE_RK3288) ||
                 (priv->ctrl_type == DW_MCI_TYPE_RK3036) ||
-                (priv->ctrl_type == DW_MCI_TYPE_RK312X))
+                (priv->ctrl_type == DW_MCI_TYPE_RK312X) ||
+		(priv->ctrl_type == DW_MCI_TYPE_RK3368))
 		host->bus_hz /= (priv->ciu_div + 1);
 
 	return 0;
@@ -185,6 +188,9 @@ static inline void dw_mci_rockchip_set_delaynum(struct dw_mci *host, u8 con_id, 
                 con_id, tuning_type, regs, mmc_hostname(host->mmc));
 
         cru_writel(regs, CRU_SDMMC_CON(con_id, tuning_type));
+
+	MMC_DBG_INFO_FUNC(host->mmc,"CRU_SDMMC_CON(con_id, tuning_type) = 0x%x, regs = 0x%x [%s]",
+	                CRU_SDMMC_CON(con_id, tuning_type), cru_readl(CRU_SDMMC_CON(con_id, tuning_type)), mmc_hostname(host->mmc));
 }
 
 static inline void dw_mci_rockchip_set_degree(struct dw_mci *host, u8 con_id, u8 tuning_type, u8 phase)
@@ -200,6 +206,8 @@ static inline void dw_mci_rockchip_set_degree(struct dw_mci *host, u8 con_id, u8
                 con_id, tuning_type, regs, mmc_hostname(host->mmc));
 	
 	cru_writel(regs, CRU_SDMMC_CON(con_id, tuning_type));
+	MMC_DBG_INFO_FUNC(host->mmc,"CRU_SDMMC_CON(con_id, tuning_type) = 0x%x, regs = 0x%x [%s]",
+		CRU_SDMMC_CON(con_id, tuning_type), cru_readl(CRU_SDMMC_CON(con_id, tuning_type)), mmc_hostname(host->mmc));
 }
 
 static inline void dw_mci_rockchip_turning_sel(struct dw_mci *host, u8 con_id, u8 tuning_type, u8 mode)
@@ -267,14 +275,34 @@ static void dw_mci_rockchip_load_signal_integrity(struct dw_mci *host, u32 sr, u
                         grf_writel(0x000c0006, 0x01e4); /* GPIO3B1 */
                         grf_writel(0x003f0015, 0x01e8); /* GPIO3C2-C0 */
                 }
-        }
+        } else if (host->cid == DW_MCI_TYPE_RK3368) {
+		 if (host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SDIO) {
+			regmap_write(host->grf, 0x21c, 0xff000000 | (drv << 14) | (drv << 12) |
+						(drv << 10) | (drv << 8)); /* GPIO2D4-D7 */
+			regmap_write(host->grf, 0x220, 0x000f0000 | (drv << 0) | (drv << 2)); /* GPIO3A0-A1 */
+		}else if (host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD) {
+		        regmap_write(host->grf, 0x210, 0xfc000000 | (drv << 10) | (drv << 12) | (drv << 14)); /* GPIO2A5-A7 */
+			regmap_write(host->grf, 0x214, 0x003f0000 | (drv << 0) | (drv << 2) | (drv << 4)); /* GPIO2B0-2 */
+		}else if (host->mmc->restrict_caps & RESTRICT_CARD_TYPE_EMMC) {
+			regmap_write(host->grf, 0x208, 0xfff00000 | (drv << 4) | (drv << 6) | (drv << 8) | (drv << 10) 
+								| (drv << 12) | (drv << 14)); /* GPIO1C2-C7 */
+			regmap_write(host->grf, 0x20c, 0x003f0000 | (drv << 0) | (drv << 2) | (drv << 4)); /* GPIO1D0-D2 */
+			regmap_write(host->grf, 0x210, 0x03000000 | (drv << 8)); /* GPIO2A4 */
+		}
+	}
 
 }
-static void dw_mci_rockchip_load_tuning_base(void)
+static void dw_mci_rockchip_load_tuning_base(struct dw_mci *host)
 {
         /* load tuning base */
-        if(cpu_is_rk3288())
+        if (cpu_is_rk3288()) {
                 cru_tuning_base =  RK3288_CRU_SDMMC_CON0;
+	} else if (host->cid == DW_MCI_TYPE_RK3368) {
+		if (IS_ERR(host->grf))
+			pr_err("rk_sdmmc: dts couldn't find grf regmap\n");
+
+		cru_tuning_base =  0x400;
+	}
 }
 
 static int inline __dw_mci_rockchip_execute_tuning(struct dw_mci_slot *slot, u32 opcode,
@@ -339,7 +367,7 @@ static int dw_mci_rockchip_execute_tuning(struct dw_mci_slot *slot, u32 opcode,
 
 	MMC_DBG_INFO_FUNC(host->mmc,"execute tuning:  [%s]", mmc_hostname(host->mmc));
 
-	dw_mci_rockchip_load_tuning_base();
+	dw_mci_rockchip_load_tuning_base(host);
 
 	blk_test = kmalloc(blksz, GFP_KERNEL);
 	if (!blk_test)
@@ -381,8 +409,8 @@ static int dw_mci_rockchip_execute_tuning(struct dw_mci_slot *slot, u32 opcode,
                                         "execute tuning: TOO LARGE STEP![%s]", mmc_hostname(host->mmc));
                 }
                 MMC_DBG_INFO_FUNC(host->mmc,
-                                "execute tuning: SOC is UNKNOWN, step = %d[%s]",
-                                step, mmc_hostname(host->mmc));
+                                "execute tuning: SOC id is %d, step = %d[%s]",
+                                host->cid, step, mmc_hostname(host->mmc));
         }
 
 re_phase:
@@ -394,7 +422,7 @@ re_phase:
 
         dw_mci_rockchip_load_signal_integrity(host, SLEW_RATE_SLOW, default_drv);
         /* Loop degree from 0 ~ 270 */
-        for(start_degree = SDMMC_SHIFT_DEGREE_0; start_degree < SDMMC_SHIFT_DEGREE_270; start_degree++){
+        for(start_degree = SDMMC_SHIFT_DEGREE_0; start_degree <= SDMMC_SHIFT_DEGREE_270; start_degree++){
                 dw_mci_rockchip_set_degree(host, tuning_data->con_id, tuning_data->tuning_type, start_degree);
                 if(0 == __dw_mci_rockchip_execute_tuning(slot, opcode, blk_test, blksz)){
                         if(!memcmp(blk_pattern, blk_test, blksz)){
@@ -427,9 +455,18 @@ re_phase:
                 MMC_DBG_INFO_FUNC(host->mmc,
                                 "execute tuning: candidates_degree = SDMMC_SHIFT_DEGREE_90 [%s]",
                                 mmc_hostname(host->mmc));
-                                
-                dw_mci_rockchip_set_degree(host, tuning_data->con_id, 
-                        tuning_data->tuning_type, SDMMC_SHIFT_DEGREE_90);
+                if (host->cid == DW_MCI_TYPE_RK3368 && (candidates_degree[3] == SDMMC_SHIFT_DEGREE_270)) {
+			MMC_DBG_INFO_FUNC(host->mmc,
+				"execute tuning: candidates_degree = SDMMC_SHIFT_DEGREE_180 [%s]",
+				mmc_hostname(host->mmc));
+			dw_mci_rockchip_set_degree(host, tuning_data->con_id,
+				tuning_data->tuning_type, SDMMC_SHIFT_DEGREE_180);
+		}
+		else {
+			dw_mci_rockchip_set_degree(host, tuning_data->con_id,
+				tuning_data->tuning_type, SDMMC_SHIFT_DEGREE_90);
+		}
+
                 ret = 0;
                 goto done;
         }else if((candidates_degree[0] == SDMMC_SHIFT_DEGREE_90) 
@@ -458,7 +495,17 @@ re_phase:
                 ret = 0;
 		goto done;  
                 #endif       
-        }else if((candidates_degree[0]==SDMMC_SHIFT_DEGREE_0) 
+        }else if((candidates_degree[0]==SDMMC_SHIFT_DEGREE_0)
+		&& (candidates_degree[1]==SDMMC_SHIFT_DEGREE_180)
+		&& (candidates_degree[2]==SDMMC_SHIFT_DEGREE_270)){
+		MMC_DBG_INFO_FUNC(host->mmc,
+			"execute tuning: candidates_degree = SDMMC_SHIFT_DEGREE_0 AND SDMMC_SHIFT_DEGREE_180 AND SDMMC_SHIFT_DEGREE_270[%s]",
+			mmc_hostname(host->mmc));
+		dw_mci_rockchip_set_degree(host, tuning_data->con_id, tuning_data->tuning_type, SDMMC_SHIFT_DEGREE_180);
+		dw_mci_rockchip_set_delaynum(host, tuning_data->con_id, tuning_data->tuning_type, step);
+		ret = 0;
+		goto done;
+	}else if((candidates_degree[0]==SDMMC_SHIFT_DEGREE_0) 
                 && (candidates_degree[1]==SDMMC_SHIFT_DEGREE_180)){
 
                 MMC_DBG_INFO_FUNC(host->mmc,

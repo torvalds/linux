@@ -28,6 +28,7 @@
 #include <linux/mutex.h>
 #include <linux/regulator/machine.h>
 #include <linux/log2.h>
+#include <linux/gpio.h>
 //#include <mach/io.h>
 //#include <mach/gpio.h>
 //#include <mach/iomux.h>

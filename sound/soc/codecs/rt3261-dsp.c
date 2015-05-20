@@ -1075,7 +1075,7 @@ static ssize_t dsp_reg_store(struct device *dev,
 	unsigned int val=0,addr=0;
 	int i;
 
-	printk("register \"%s\" count=%d\n",buf,count);
+	dev_dbg(codec->dev, "register \"%s\" count=%zu\n", buf, count);
 
 	for(i=0;i<count;i++) //address
 	{
@@ -1117,10 +1117,11 @@ static ssize_t dsp_reg_store(struct device *dev,
 			break;
 		}
 	}
-	printk("addr=0x%x val=0x%x\n",addr,val);
+	dev_dbg(codec->dev, "addr=0x%x val=0x%x\n", addr, val);
 	if(i==count)
 	{
-		printk("0x%04x = 0x%04x\n",addr,rt3261_dsp_read(codec, addr));
+		dev_dbg(codec->dev, "0x%04x = 0x%04x\n",
+			addr, rt3261_dsp_read(codec, addr));
 	}
 	else
 	{
@@ -1223,7 +1224,7 @@ int rt_codec_dsp_ioctl_common(struct snd_hwdep *hw, struct file *file, unsigned 
 		dev_err(codec->dev, "copy_from_user faild\n");
 		return -EFAULT;
 	}
-	dev_dbg(codec->dev, "rt_codec.number=%d\n",rt_codec.number);
+	dev_dbg(codec->dev, "rt_codec.number=%zu\n", rt_codec.number);
 	buf = kmalloc(sizeof(*buf) * rt_codec.number, GFP_KERNEL);
 	if (buf == NULL)
 		return -ENOMEM;

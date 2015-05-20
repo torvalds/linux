@@ -1,9 +1,9 @@
 /*
- * "$Id: mxml-attr.c 408 2010-09-19 05:26:46Z mike $"
+ * "$Id: mxml-attr.c 451 2014-01-04 21:50:06Z msweet $"
  *
  * Attribute support code for Mini-XML, a small XML-like file parsing library.
  *
- * Copyright 2003-2010 by Michael R Sweet.
+ * Copyright 2003-2014 by Michael R Sweet.
  *
  * These coded instructions, statements, and computer programs are the
  * property of Michael R Sweet and are protected by Federal copyright
@@ -11,15 +11,7 @@
  * which should have been included with this file.  If this file is
  * missing or damaged, see the license at:
  *
- *     http://www.minixml.org/
- *
- * Contents:
- *
- *   mxmlElementDeleteAttr() - Delete an attribute.
- *   mxmlElementGetAttr()    - Get an attribute.
- *   mxmlElementSetAttr()    - Set an attribute.
- *   mxmlElementSetAttrf()   - Set an attribute with a formatted value.
- *   mxml_set_attr()         - Set or add an attribute name/value pair.
+ *     http://www.msweet.org/projects.php/Mini-XML
  */
 
 /*
@@ -90,6 +82,9 @@ mxmlElementDeleteAttr(mxml_node_t *node,/* I - Element */
         memmove(attr, attr + 1, i * sizeof(mxml_attr_t));
 
       node->value.element.num_attrs --;
+
+      if (node->value.element.num_attrs == 0)
+        free(node->value.element.attrs);
       return;
     }
   }
@@ -315,5 +310,5 @@ mxml_set_attr(mxml_node_t *node,	/* I - Element node */
 
 
 /*
- * End of "$Id: mxml-attr.c 408 2010-09-19 05:26:46Z mike $".
+ * End of "$Id: mxml-attr.c 451 2014-01-04 21:50:06Z msweet $".
  */

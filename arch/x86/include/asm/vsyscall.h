@@ -34,7 +34,7 @@ static inline unsigned int __getcpu(void)
 		native_read_tscp(&p);
 	} else {
 		/* Load per CPU data from GDT */
-		asm("lsl %1,%0" : "=r" (p) : "r" (__PER_CPU_SEG));
+		asm volatile ("lsl %1,%0" : "=r" (p) : "r" (__PER_CPU_SEG));
 	}
 
 	return p;

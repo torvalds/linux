@@ -21,7 +21,6 @@
 #include <linux/rfkill.h>
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <asm/gpio.h>
 #include <linux/delay.h>
 #include <linux/rfkill-bt.h>
 #include <linux/rfkill-wlan.h>
@@ -423,26 +422,29 @@ static const struct rfkill_ops rfkill_rk_ops = {
 
 static struct proc_dir_entry *bluetooth_dir, *sleep_dir;
 
-static int bluesleep_read_proc_lpm(struct file *file, char __user *buffer, 
-                    size_t count, loff_t *data)
+static ssize_t bluesleep_read_proc_lpm(struct file *file, char __user *buffer,
+				       size_t count, loff_t *data)
 {
     return sprintf(buffer, "unsupported to read\n");
 }
 
-static int bluesleep_write_proc_lpm(struct file *file, const char __user *buffer, 
-                    size_t count, loff_t *data)
+static ssize_t bluesleep_write_proc_lpm(struct file *file,
+					const char __user *buffer,
+					size_t count, loff_t *data)
 {
     return count;
 }
 
-static int bluesleep_read_proc_btwrite(struct file *file, char __user *buffer, 
-                    size_t count, loff_t *data)
+static ssize_t bluesleep_read_proc_btwrite(struct file *file,
+					   char __user *buffer,
+					   size_t count, loff_t *data)
 {
     return sprintf(buffer, "unsupported to read\n");
 }
 
-static int bluesleep_write_proc_btwrite(struct file *file, const char __user *buffer, 
-                    size_t count, loff_t *data)
+static ssize_t bluesleep_write_proc_btwrite(struct file *file,
+					    const char __user *buffer,
+					    size_t count, loff_t *data)
 {
     char b;
 

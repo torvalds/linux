@@ -549,6 +549,7 @@ affs_remount(struct super_block *sb, int *flags, char *data)
 
 	pr_debug("AFFS: remount(flags=0x%x,opts=\"%s\")\n",*flags,data);
 
+	sync_filesystem(sb);
 	*flags |= MS_NODIRATIME;
 
 	memcpy(volume, sbi->s_volume, 32);

@@ -302,7 +302,7 @@ static int camsys_mrv_reset_cb(void *ptr,unsigned int on)
     if (camsys_dev->soc) {
         soc = (camsys_soc_priv_t*)camsys_dev->soc;
         if (soc->soc_cfg) {
-            (soc->soc_cfg)(Isp_SoftRst,(void*)on);
+            (soc->soc_cfg)(Isp_SoftRst,(void*)(unsigned long)on);
         } else {
             camsys_err("camsys_dev->soc->soc_cfg is NULL!");
         }

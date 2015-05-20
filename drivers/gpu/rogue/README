@@ -1,0 +1,32 @@
+Rogue Embedded Systems DDK for Linux kernel.
+Copyright (C) Imagination Technologies Ltd. All rights reserved.
+======================================================================
+
+
+About 
+-------------------------------------------
+
+This is the Imagination Technologies Rogue DDK for the Linux kernel.
+
+
+License
+-------------------------------------------
+
+You may use, distribute and copy this software under the terms of the MIT
+license.  Details of this license can be found in the file "MIT-COPYING".
+
+Alternatively, you may use, distribute and copy this software under the terms
+of the GNU General Public License version 2.  The full GNU General Public
+License version 2 can be found in the file "GPL-COPYING".
+
+
+Build and Install Instructions
+-------------------------------------------
+
+For details see the "INSTALL" file and the platform guide.
+
+Contact information:
+-------------------------------------------
+
+Imagination Technologies Ltd. <gpl-support@imgtec.com>
+Home Park Estate, Kings Langley, Herts, WD4 8LZ, UK

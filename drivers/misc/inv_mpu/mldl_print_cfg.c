@@ -88,9 +88,9 @@ void mldl_print_cfg(struct mldl_cfg *mldl_cfg)
 		if (!slave[ii])
 			continue;
 		MPL_LOGV("SLAVE %d:\n", ii);
-		MPL_LOGV("    suspend  = %02x\n", (int)slave[ii]->suspend);
-		MPL_LOGV("    resume   = %02x\n", (int)slave[ii]->resume);
-		MPL_LOGV("    read     = %02x\n", (int)slave[ii]->read);
+		MPL_LOGV("    suspend  = %pf\n", slave[ii]->suspend);
+		MPL_LOGV("    resume   = %pf\n", slave[ii]->resume);
+		MPL_LOGV("    read     = %pf\n", slave[ii]->read);
 		MPL_LOGV("    type     = %02x\n", slave[ii]->type);
 		MPL_LOGV("    reg      = %02x\n", slave[ii]->read_reg);
 		MPL_LOGV("    len      = %02x\n", slave[ii]->read_len);

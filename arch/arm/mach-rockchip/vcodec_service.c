@@ -14,6 +14,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -328,6 +330,7 @@ typedef struct vpu_reg {
 	enum VPU_CLIENT_TYPE type;
 	VPU_FREQ freq;
 	vpu_session *session;
+	struct vpu_subdev_data *data;
 	struct list_head session_link;		/* link to vpu service session */
 	struct list_head status_link;		/* link to register set list */
 	unsigned long size;
@@ -471,7 +474,7 @@ struct vcodec_combo {
 };
 
 typedef struct vpu_request {
-	unsigned long *req;
+	u64 req;
 	u32 size;
 } vpu_request;
 
@@ -571,9 +574,13 @@ static void vcodec_enter_mode(struct vpu_subdev_data *data)
 	pservice->curr_mode = data->mode;
 }
 
-static void vcodec_exit_mode(struct vpu_service_info *pservice)
+static void vcodec_exit_mode(struct vpu_subdev_data *data)
 {
-
+	if (data->mmu_dev && test_bit(MMU_ACTIVATED, &data->state)) {
+		clear_bit(MMU_ACTIVATED, &data->state);
+		rockchip_iovmm_deactivate(data->dev);
+		data->pservice->curr_mode = VCODEC_RUNNING_MODE_NONE;
+	}
 }
 
 static int vpu_get_clk(struct vpu_service_info *pservice)
@@ -778,7 +785,6 @@ static void vpu_service_power_on(struct vpu_service_info *pservice)
 	if (pservice->enabled)
 		return ;
 
-	pservice->enabled = true;
 	pr_info("%s: power on\n", dev_name(pservice->dev));
 
 #define BIT_VCODEC_CLK_SEL	(1<<10)
@@ -801,6 +807,7 @@ static void vpu_service_power_on(struct vpu_service_info *pservice)
 #endif
 
 	udelay(10);
+	pservice->enabled = true;
 	wake_lock(&pservice->wake_lock);
 }
 
@@ -850,10 +857,8 @@ static int vcodec_fd_to_iova(struct vpu_subdev_data *data, vpu_reg *reg,int fd)
 	}
 
 	mem_region->hdl = hdl;
-	vcodec_enter_mode(data);
 	ret = ion_map_iommu(data->dev, pservice->ion_client,
 		mem_region->hdl, &mem_region->iova, &mem_region->len);
-	vcodec_exit_mode(pservice);
 
 	if (ret < 0) {
 		vpu_err("ion map iommu failed\n");
@@ -938,13 +943,11 @@ static int vcodec_bufid_to_iova(struct vpu_subdev_data *data, u8 *tbl,
 
 			mem_region->hdl = hdl;
 			mem_region->reg_idx = tbl[i];
-			vcodec_enter_mode(data);
 			ret = ion_map_iommu(data->dev,
                                             pservice->ion_client,
                                             mem_region->hdl,
                                             &mem_region->iova,
                                             &mem_region->len);
-			vcodec_exit_mode(pservice);
 
 			if (ret < 0) {
 				dev_err(pservice->dev, "ion map iommu failed\n");
@@ -1062,6 +1065,7 @@ static vpu_reg *reg_init(struct vpu_subdev_data *data,
 		size = data->reg_size;
 	}
 	reg->session = session;
+	reg->data = data;
 	reg->type = session->type;
 	reg->size = size;
 	reg->freq = VPU_FREQ_DEFAULT;
@@ -1107,7 +1111,7 @@ static vpu_reg *reg_init(struct vpu_subdev_data *data,
 					reg->freq = VPU_FREQ_200M;
 				} else if (reg_check_fmt(reg) == VPU_DEC_FMT_H264) {
 					if (reg_probe_width(reg) > 3200) {
-						// raise frequency for 4k avc.
+						/*raise frequency for 4k avc.*/
 						reg->freq = VPU_FREQ_500M;
 					}
 				} else {
@@ -1196,7 +1200,7 @@ static void reg_from_run_to_done(struct vpu_subdev_data *data,
 	list_del_init(&reg->session_link);
 	list_add_tail(&reg->session_link, &reg->session->done);
 
-	vcodec_enter_mode(data);
+	/*vcodec_enter_mode(data);*/
 	switch (reg->type) {
 	case VPU_ENC : {
 		pservice->reg_codec = NULL;
@@ -1229,7 +1233,7 @@ static void reg_from_run_to_done(struct vpu_subdev_data *data,
 		break;
 	}
 	}
-	vcodec_exit_mode(pservice);
+	vcodec_exit_mode(data);
 
 	if (irq_reg != -1)
 		reg->reg[irq_reg] = pservice->irq_status;
@@ -1306,7 +1310,7 @@ static void reg_copy_to_hw(struct vpu_subdev_data *data, vpu_reg *reg)
 
 		VEPU_CLEAN_CACHE(dst);
 
-		dsb();
+		dsb(sy);
 
 		dst[VPU_REG_ENC_GATE] = src[VPU_REG_ENC_GATE] | VPU_REG_ENC_GATE_BIT;
 		dst[VPU_REG_EN_ENC]   = src[VPU_REG_EN_ENC];
@@ -1331,7 +1335,7 @@ static void reg_copy_to_hw(struct vpu_subdev_data *data, vpu_reg *reg)
 			HEVC_CLEAN_CACHE(dst);
 		}
 
-		dsb();
+		dsb(sy);
 
 		if (data->hw_info->hw_id != HEVC_ID) {
 			dst[VPU_REG_DEC_GATE] = src[VPU_REG_DEC_GATE] | VPU_REG_DEC_GATE_BIT;
@@ -1339,8 +1343,8 @@ static void reg_copy_to_hw(struct vpu_subdev_data *data, vpu_reg *reg)
 		} else {
 			dst[VPU_REG_EN_DEC] = src[VPU_REG_EN_DEC];
 		}
-		dsb();
-		dmb();
+		dsb(sy);
+		dmb(sy);
 #if VPU_SERVICE_SHOW_TIME
 		do_gettimeofday(&dec_start);
 #endif
@@ -1354,7 +1358,7 @@ static void reg_copy_to_hw(struct vpu_subdev_data *data, vpu_reg *reg)
 		for (i = VPU_REG_PP_GATE + 1; i < REG_NUM_9190_PP; i++)
 			dst[i] = src[i];
 
-		dsb();
+		dsb(sy);
 
 		dst[VPU_REG_EN_PP] = src[VPU_REG_EN_PP];
 #if VPU_SERVICE_SHOW_TIME
@@ -1374,7 +1378,7 @@ static void reg_copy_to_hw(struct vpu_subdev_data *data, vpu_reg *reg)
 			dst[i] = src[i];
 
 		dst[VPU_REG_EN_DEC_PP]   = src[VPU_REG_EN_DEC_PP] | 0x2;
-		dsb();
+		dsb(sy);
 
 		dst[VPU_REG_DEC_PP_GATE] = src[VPU_REG_DEC_PP_GATE] | VPU_REG_PP_GATE_BIT;
 		dst[VPU_REG_DEC_GATE]	 = src[VPU_REG_DEC_GATE]    | VPU_REG_DEC_GATE_BIT;
@@ -1391,7 +1395,7 @@ static void reg_copy_to_hw(struct vpu_subdev_data *data, vpu_reg *reg)
 	}
 	}
 
-	vcodec_exit_mode(pservice);
+	/*vcodec_exit_mode(data);*/
 	vpu_debug_leave();
 }
 
@@ -1438,7 +1442,7 @@ static void try_set_reg(struct vpu_subdev_data *data)
 		}
 		if (can_set) {
 			reg_from_wait_to_run(pservice, reg);
-			reg_copy_to_hw(data, reg);
+			reg_copy_to_hw(reg->data, reg);
 		}
 	}
 	vpu_debug_leave();
@@ -1839,7 +1843,6 @@ static const struct file_operations vpu_service_fops = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl   = compat_vpu_service_ioctl,
 #endif
-	//.fasync 	= vpu_service_fasync,
 };
 
 static irqreturn_t vdpu_irq(int irq, void *dev_id);
@@ -1951,7 +1954,7 @@ static int vcodec_subdev_probe(struct platform_device *pdev,
 
 	of_property_read_string(np, "name", (const char**)&name);
 	of_property_read_u32(np, "dev_mode", (u32*)&data->mode);
-	dev_set_name(dev, name);
+	/*dev_set_name(dev, name);*/
 
 	if (pservice->reg_base == 0) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -2016,7 +2019,6 @@ static int vcodec_subdev_probe(struct platform_device *pdev,
 	atomic_set(&data->enc_dev.irq_count_pp, 0);
 #if defined(CONFIG_VCODEC_MMU)
 	if (iommu_en) {
-		vcodec_enter_mode(data);
 		if (data->mode == VCODEC_RUNNING_MODE_HEVC)
 			sprintf(mmu_dev_dts_name,
 				HEVC_IOMMU_COMPATIBLE_NAME);
@@ -2033,8 +2035,9 @@ static int vcodec_subdev_probe(struct platform_device *pdev,
 		rockchip_iovmm_set_fault_handler(dev, vcodec_sysmmu_fault_hdl);
 	}
 #endif
+	vcodec_exit_mode(data);
 	/* create device node */
-	ret = alloc_chrdev_region(&data->dev_t, 0, 1, dev_name(dev));
+	ret = alloc_chrdev_region(&data->dev_t, 0, 1, name);
 	if (ret) {
 		dev_err(dev, "alloc dev_t failed\n");
 		goto err;
@@ -2052,7 +2055,7 @@ static int vcodec_subdev_probe(struct platform_device *pdev,
 		goto err;
 	}
 
-	data->cls = class_create(THIS_MODULE, dev_name(dev));
+	data->cls = class_create(THIS_MODULE, name);
 
 	if (IS_ERR(data->cls)) {
 		ret = PTR_ERR(data->cls);
@@ -2061,7 +2064,7 @@ static int vcodec_subdev_probe(struct platform_device *pdev,
 	}
 
 	data->child_dev = device_create(data->cls, dev,
-		data->dev_t, NULL, dev_name(dev));
+		data->dev_t, NULL, name);
 
 	get_hw_info(data);
 
@@ -2069,18 +2072,18 @@ static int vcodec_subdev_probe(struct platform_device *pdev,
 
 	INIT_LIST_HEAD(&data->lnk_service);
 	list_add_tail(&data->lnk_service, &pservice->subdev_list);
-	
+
 #ifdef CONFIG_DEBUG_FS
 	data->debugfs_dir =
-		vcodec_debugfs_create_device_dir((char*)dev_name(dev), parent);
+		vcodec_debugfs_create_device_dir((char*)name, parent);
 	if (data->debugfs_dir == NULL)
-		vpu_err("create debugfs dir %s failed\n", dev_name(dev));
+		vpu_err("create debugfs dir %s failed\n", name);
 
 	data->debugfs_file_regs =
 		debugfs_create_file("regs", 0664,
 				    data->debugfs_dir, data,
 				    &debug_vcodec_fops);
-#endif	
+#endif
 	return 0;
 err:
 	if (data->irq_enc > 0)
@@ -2344,11 +2347,9 @@ static void get_hw_info(struct vpu_subdev_data *data)
 			enc->reg_size = data->reg_size;
 			enc->reserv[0] = enc->reserv[1] = 0;
 		}
-		pservice->auto_freq = soc_is_rk2928g() || soc_is_rk2928l() || soc_is_rk2926() || soc_is_rk3288();
-		if (pservice->auto_freq) {
-			vpu_debug(3, "vpu_service set to auto frequency mode\n");
-			atomic_set(&pservice->freq_status, VPU_FREQ_BUT);
-		}
+		pservice->auto_freq = true;
+		vpu_debug(3, "vpu_service set to auto frequency mode\n");
+		atomic_set(&pservice->freq_status, VPU_FREQ_BUT);
 
 		pservice->bug_dec_addr = cpu_is_rk30xx();
 	} else {
@@ -2369,7 +2370,7 @@ static irqreturn_t vdpu_irq(int irq, void *dev_id)
 	u32 raw_status;
 	u32 irq_status;
 
-	vcodec_enter_mode(data);
+	/*vcodec_enter_mode(data);*/
 
 	irq_status = raw_status = readl(dev->hwregs + DEC_INTERRUPT_REGISTER);
 
@@ -2401,9 +2402,13 @@ static irqreturn_t vdpu_irq(int irq, void *dev_id)
 
 	pservice->irq_status = raw_status;
 
-	vcodec_exit_mode(pservice);
+	/*vcodec_exit_mode(pservice);*/
 
-	return IRQ_WAKE_THREAD;
+	if (atomic_read(&dev->irq_count_pp) ||
+	    atomic_read(&dev->irq_count_codec))
+		return IRQ_WAKE_THREAD;
+	else
+		return IRQ_NONE;
 }
 
 static irqreturn_t vdpu_isr(int irq, void *dev_id)
@@ -2425,6 +2430,7 @@ static irqreturn_t vdpu_isr(int irq, void *dev_id)
 			vpu_err("error: dec isr with no task waiting\n");
 		} else {
 			reg_from_run_to_done(data, pservice->reg_codec);
+			writel(1, dev->hwregs + 101);
 		}
 	}
 
@@ -2454,7 +2460,7 @@ static irqreturn_t vepu_irq(int irq, void *dev_id)
 	vpu_device *dev = &data->enc_dev;
 	u32 irq_status;
 
-	vcodec_enter_mode(data);
+	/*vcodec_enter_mode(data);*/
 	irq_status= readl(dev->hwregs + ENC_INTERRUPT_REGISTER);
 
 	pr_debug("vepu_irq irq status %x\n", irq_status);
@@ -2473,9 +2479,12 @@ static irqreturn_t vepu_irq(int irq, void *dev_id)
 
 	pservice->irq_status = irq_status;
 
-	vcodec_exit_mode(pservice);
+	/*vcodec_exit_mode(pservice);*/
 
-	return IRQ_WAKE_THREAD;
+	if (atomic_read(&dev->irq_count_codec))
+		return IRQ_WAKE_THREAD;
+	else
+		return IRQ_NONE;
 }
 
 static irqreturn_t vepu_isr(int irq, void *dev_id)
@@ -2617,7 +2626,7 @@ u8* get_align_ptr(u8* tbl, int len, u32 *phy)
 {
 	int size = (len+15) & (~15);
 	struct ion_handle *handle;
-	u8 *ptr;// = (u8*)kzalloc(size, GFP_KERNEL);
+	u8 *ptr;
 
 	if (ion_client == NULL)
 		ion_client = rockchip_ion_client_create("vcodec");
@@ -2656,7 +2665,7 @@ static int hevc_test_case0(vpu_service_info *pservice)
 {
 	vpu_session session;
 	vpu_reg *reg;
-	unsigned long size = 272;//sizeof(register_00); // registers array length
+	unsigned long size = 272;
 	int testidx = 0;
 	int ret = 0;
 	u8 *pps_tbl[TEST_CNT];

@@ -1372,7 +1372,7 @@ static int hdmi_dev_config_audio(struct hdmi *hdmi, struct hdmi_audio *audio)
 
 	switch (audio->rate) {
 	case HDMI_AUDIO_FS_32000:
-		mclk_fs = FS_64;
+		mclk_fs = FS_128;
 		rate = AUDIO_32K;
 		if (hdmi_dev->tmdsclk >= 594000000)
 			N = N_32K_HIGHCLK;
@@ -1384,7 +1384,7 @@ static int hdmi_dev_config_audio(struct hdmi *hdmi, struct hdmi_audio *audio)
 		CTS = CALC_CTS(N, hdmi_dev->tmdsclk/1000, 32);
 		break;
 	case HDMI_AUDIO_FS_44100:
-		mclk_fs = FS_64;
+		mclk_fs = FS_128;
 		rate = AUDIO_441K;
 		if (hdmi_dev->tmdsclk >= 594000000)
 			N = N_441K_HIGHCLK;
@@ -1396,7 +1396,7 @@ static int hdmi_dev_config_audio(struct hdmi *hdmi, struct hdmi_audio *audio)
 		CTS = CALC_CTS(N, hdmi_dev->tmdsclk/100, 441);
 		break;
 	case HDMI_AUDIO_FS_48000:
-		mclk_fs = FS_64;
+		mclk_fs = FS_128;
 		rate = AUDIO_48K;
 		if (hdmi_dev->tmdsclk >= 594000000)	/*FS_153.6*/
 			N = N_48K_HIGHCLK;
@@ -1408,7 +1408,7 @@ static int hdmi_dev_config_audio(struct hdmi *hdmi, struct hdmi_audio *audio)
 		CTS = CALC_CTS(N, hdmi_dev->tmdsclk/1000, 48);
 		break;
 	case HDMI_AUDIO_FS_88200:
-		mclk_fs = FS_64;
+		mclk_fs = FS_128;
 		rate = AUDIO_882K;
 		if (hdmi_dev->tmdsclk >= 594000000)
 			N = N_882K_HIGHCLK;
@@ -1420,7 +1420,7 @@ static int hdmi_dev_config_audio(struct hdmi *hdmi, struct hdmi_audio *audio)
 		CTS = CALC_CTS(N, hdmi_dev->tmdsclk/100, 882);
 		break;
 	case HDMI_AUDIO_FS_96000:
-		mclk_fs = FS_64;
+		mclk_fs = FS_128;
 		rate = AUDIO_96K;
 		if (hdmi_dev->tmdsclk >= 594000000)	/*FS_153.6*/
 			N = N_96K_HIGHCLK;
@@ -1432,7 +1432,7 @@ static int hdmi_dev_config_audio(struct hdmi *hdmi, struct hdmi_audio *audio)
 		CTS = CALC_CTS(N, hdmi_dev->tmdsclk/1000, 96);
 		break;
 	case HDMI_AUDIO_FS_176400:
-		mclk_fs = FS_64;
+		mclk_fs = FS_128;
 		rate = AUDIO_1764K;
 		if (hdmi_dev->tmdsclk >= 594000000)
 			N = N_1764K_HIGHCLK;
@@ -1444,7 +1444,7 @@ static int hdmi_dev_config_audio(struct hdmi *hdmi, struct hdmi_audio *audio)
 		CTS = CALC_CTS(N, hdmi_dev->tmdsclk/100, 1764);
 		break;
 	case HDMI_AUDIO_FS_192000:
-		mclk_fs = FS_64;
+		mclk_fs = FS_128;
 		rate = AUDIO_192K;
 		if (hdmi_dev->tmdsclk >= 594000000)	/*FS_153.6*/
 			N = N_192K_HIGHCLK;
@@ -1505,7 +1505,20 @@ static int hdmi_dev_config_audio(struct hdmi *hdmi, struct hdmi_audio *audio)
 		hdmi_msk_reg(hdmi_dev, AUD_CONF0,
 			     m_SW_AUD_FIFO_RST, v_SW_AUD_FIFO_RST(1));
 		hdmi_writel(hdmi_dev, MC_SWRSTZREQ, 0xF7);
+		hdmi_writel(hdmi_dev, AUD_CONF2, 0x0);
 		usleep_range(90, 100);
+		if (I2S_CHANNEL_7_8 == channel) {
+			HDMIDBG("hbr mode.\n");
+			hdmi_writel(hdmi_dev, AUD_CONF2, 0x1);
+			word_length = I2S_24BIT_SAMPLE;
+		} else if ((HDMI_AUDIO_FS_48000 == audio->rate) ||
+			   (HDMI_AUDIO_FS_192000 == audio->rate)) {
+			HDMIDBG("nlpcm mode.\n");
+			hdmi_writel(hdmi_dev, AUD_CONF2, 0x2);
+			word_length = I2S_24BIT_SAMPLE;
+		} else {
+			hdmi_writel(hdmi_dev, AUD_CONF2, 0x0);
+		}
 		hdmi_msk_reg(hdmi_dev, AUD_CONF0,
 			     m_I2S_SEL | m_I2S_IN_EN,
 			     v_I2S_SEL(AUDIO_I2S) | v_I2S_IN_EN(channel));
@@ -1535,8 +1548,10 @@ static int hdmi_dev_config_audio(struct hdmi *hdmi, struct hdmi_audio *audio)
 	/* set channel status register */
 	hdmi_msk_reg(hdmi_dev, FC_AUDSCHNLS7,
 		     m_AUDIO_SAMPLE_RATE, v_AUDIO_SAMPLE_RATE(rate));
-	/* hdmi_writel(hdmi_dev, FC_AUDSCHNLS2, 0x1); */
-	/* hdmi_writel(hdmi_dev, FC_AUDSCHNLS8, ((~rate) << 4) | 0x2); */
+	hdmi_writel(hdmi_dev, FC_AUDSCHNLS8, ((~rate) << 4) | 0x2);
+
+	hdmi_msk_reg(hdmi_dev, AUD_CONF0,
+		     m_SW_AUD_FIFO_RST, v_SW_AUD_FIFO_RST(1));
 
 	hdmi_dev_config_aai(hdmi_dev, audio);
 

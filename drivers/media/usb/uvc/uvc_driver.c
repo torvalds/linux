@@ -1603,11 +1603,11 @@ static void uvc_delete(struct uvc_device *dev)
 {
 	struct list_head *p, *n;
 
-	usb_put_intf(dev->intf);
-	usb_put_dev(dev->udev);
-
 	uvc_status_cleanup(dev);
 	uvc_ctrl_cleanup_device(dev);
+
+	usb_put_intf(dev->intf);
+	usb_put_dev(dev->udev);
 
 	if (dev->vdev.dev)
 		v4l2_device_unregister(&dev->vdev);

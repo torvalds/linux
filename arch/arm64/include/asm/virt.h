@@ -50,6 +50,10 @@ static inline bool is_hyp_mode_mismatched(void)
 	return __boot_cpu_mode[0] != __boot_cpu_mode[1];
 }
 
+/* The section containing the hypervisor text */
+extern char __hyp_text_start[];
+extern char __hyp_text_end[];
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* ! __ASM__VIRT_H */

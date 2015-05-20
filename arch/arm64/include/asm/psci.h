@@ -14,10 +14,6 @@
 #ifndef __ASM_PSCI_H
 #define __ASM_PSCI_H
 
-struct cpuidle_driver;
-void psci_init(void);
-
-int __init psci_dt_register_idle_states(struct cpuidle_driver *,
-					struct device_node *[]);
+int psci_init(void);
 
 #endif /* __ASM_PSCI_H */

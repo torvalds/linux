@@ -5,7 +5,11 @@
 #include <asm/io.h>
 #endif
 
+#ifdef IOMEM
 #define RK_IO_ADDRESS(x)                IOMEM(0xFED00000 + x)
+#else
+#define RK_IO_ADDRESS(x)                ((void __force __iomem *)(0xFED00000 + x))
+#endif
 
 #define RK_CRU_VIRT                     RK_IO_ADDRESS(0x00000000)
 #define RK_GRF_VIRT                     RK_IO_ADDRESS(0x00010000)

@@ -2,7 +2,8 @@
 #define _RK31XX_LVDS_H_
 
 #include <linux/rk_screen.h>
-
+#include <linux/mfd/syscon.h>
+#include <linux/regmap.h>
 
 #define BITS(x, bit)            ((x) << (bit))
 #define BITS_MASK(x, mask, bit)  BITS((x) & (mask), bit)
@@ -17,6 +18,13 @@
 #define v_MIPIPHY_LANE0_EN(x)   (BITS_MASK(x, 1, 8) | BITS_EN(1, 8))
 #define v_MIPIDPI_FORCEX_EN(x)  (BITS_MASK(x, 1, 9) | BITS_EN(1, 9))
 
+/* RK3368_GRF_SOC_CON7 */
+#define v_RK3368_LVDS_OUTPUT_FORMAT(x) (BITS_MASK(x, 3, 13) | BITS_EN(3, 13))
+#define v_RK3368_LVDS_MSBSEL(x)        (BITS_MASK(x, 1, 11) | BITS_EN(1, 11))
+#define v_RK3368_LVDSMODE_EN(x)        (BITS_MASK(x, 1, 12) | BITS_EN(1, 12))
+#define v_RK3368_MIPIPHY_TTL_EN(x)     (BITS_MASK(x, 1, 15) | BITS_EN(1, 15))
+#define v_RK3368_MIPIPHY_LANE0_EN(x)   (BITS_MASK(x, 1, 5) | BITS_EN(1, 5))
+#define v_RK3368_MIPIDPI_FORCEX_EN(x)  (BITS_MASK(x, 1, 6) | BITS_EN(1, 6))
 enum {
         LVDS_DATA_FROM_LCDC = 0,
         LVDS_DATA_FORM_EBC,
@@ -88,6 +96,13 @@ enum {
 #define v_LVDS_EN(x)            BITS_MASK(x, 1, 1)
 #define v_TTL_EN(x)             BITS_MASK(x, 1, 2)
 
+#define MIPIPHY_REGE4		0x0390
+#define m_VOCM			BITS(3, 4)
+#define m_DIFF_V		BITS(3, 6)
+
+#define v_VOCM(x)		BITS_MASK(x, 3, 4)
+#define v_DIFF_V(x)		BITS_MASK(x, 3, 6)
+
 #define MIPIPHY_REGE8           0x03a0
 
 #define MIPIPHY_REGEB           0x03ac
@@ -98,11 +113,26 @@ enum {
 #define v_LANE1_EN(x)           BITS_MASK(x, 1, 6)
 #define v_LANE0_EN(x)           BITS_MASK(x, 1, 7)
 
+#define GRF_SOC_CON7_LVDS	0x041c
+#define GRF_SOC_CON15_LVDS      0x043c
+#define v_RK3368_FORCE_JETAG(x) (BITS_MASK(x, 1, 13) | BITS_EN(1, 13))
+enum {
+	LVDS_SOC_RK312X,
+	LVDS_SOC_RK3368
+};
+
+struct rk_lvds_drvdata  {
+	u8 soc_type;
+	u32 reversed;
+};
 
 struct rk_lvds_device {
+	struct rk_lvds_drvdata *data;
 	struct device 		*dev;
 	void __iomem  		*regbase;
 	void __iomem		*ctrl_reg;
+	struct regmap		*grf_lvds_base;
+	struct clk    		*pd;  /*power domain*/
 	struct clk    		*pclk;  /*phb clk*/
 	struct clk    		*ctrl_pclk;	/* mipi ctrl pclk*/
 	struct clk    		*ctrl_hclk;	/* mipi ctrl hclk*/
@@ -135,11 +165,31 @@ static inline u32 lvds_readl(struct rk_lvds_device *lvds, u32 offset)
 	return readl_relaxed(lvds->regbase + offset);
 }
 
+static inline int lvds_grf_writel(struct rk_lvds_device *lvds,
+				  u32 offset, u32 val)
+{
+	regmap_write(lvds->grf_lvds_base, offset, val);
+	dsb(sy);
+
+	return 0;
+}
+
+static inline int lvds_dsi_writel(struct rk_lvds_device *lvds,
+				  u32 offset, u32 val)
+{
+	writel_relaxed(val, lvds->ctrl_reg + offset);
+	dsb(sy);
+
+	return 0;
+}
+
 static inline u32 lvds_phy_lockon(struct rk_lvds_device *lvds)
 {
 	u32 val = 0;
-
-	val = readl_relaxed(lvds->ctrl_reg);
+	if (lvds->data->soc_type == LVDS_SOC_RK312X)
+		val = readl_relaxed(lvds->ctrl_reg);
+	else
+		val = readl_relaxed(lvds->ctrl_reg + 0x10);
 	return (val & 0x01);
 }
 

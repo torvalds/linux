@@ -43,6 +43,8 @@ struct spi_test_data {
 };
 
 static struct spi_test_data *g_spi_test_data[MAX_SPI_DEV_NUM];
+ktime_t ktime_get(void);
+ktime_t k1,k2;
 
 
 static ssize_t spi_test_write(struct file *file, 
@@ -80,7 +82,7 @@ static ssize_t spi_test_write(struct file *file,
 	}
 
 	spi = g_spi_test_data[nr]->spi;
-
+	k1 = ktime_get();
 	for(i=0; i<5000; i++)
 	{
 		ret = spi_write(spi, txbuf, 256);
@@ -91,9 +93,10 @@ static ssize_t spi_test_write(struct file *file,
 		if(i%500==0)
 		printk("%s:test %d times\n\n",__func__,i+1);
 	}
-	
+	k2 = ktime_get();
+	k2 = ktime_sub(k2, k1);
 	if(!ret)
-	printk("%s:bus_num=%d,chip_select=%d,ok\n",__func__,spi->master->bus_num, spi->chip_select);
+	printk("%s:bus_num=%d,chip_select=%d,ok cost:%lldus data rate:%lld Kbits/s\n",__func__,spi->master->bus_num, spi->chip_select, ktime_to_us(k2), 1536*5000*8/ktime_to_ms(k2));
 	else
 	printk("%s:bus_num=%d,chip_select=%d,error\n",__func__,spi->master->bus_num, spi->chip_select);
 	
@@ -159,8 +162,8 @@ static int rockchip_spi_test_probe(struct spi_device *spi)
 {	
 	int ret;
 	int id = 0;
-	static struct dw_spi_chip *spi_chip_data;
-	struct spi_test_data *spi_test_data;
+	struct dw_spi_chip *spi_chip_data = NULL;
+	struct spi_test_data *spi_test_data = NULL;
 	
 	if(!spi)	
 	return -ENOMEM;

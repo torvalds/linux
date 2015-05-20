@@ -18,8 +18,12 @@
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
 
+#ifdef CONFIG_LOCAL_TIMERS
 #include <asm/localtimer.h>
+#endif
+#ifdef CONFIG_ARM
 #include <asm/sched_clock.h>
+#endif
 
 #define TIMER_NAME "rk_timer"
 
@@ -67,13 +71,13 @@ static struct bc_timer bc_timer;
 static inline void rk_timer_disable(void __iomem *base)
 {
 	writel_relaxed(TIMER_DISABLE, base + TIMER_CONTROL_REG);
-	dsb();
+	dsb(sy);
 }
 
 static inline void rk_timer_enable(void __iomem *base, u32 flags)
 {
 	writel_relaxed(TIMER_ENABLE | flags, base + TIMER_CONTROL_REG);
-	dsb();
+	dsb(sy);
 }
 
 static inline u32 rk_timer_read_current_value(void __iomem *base)
@@ -98,7 +102,7 @@ static inline int rk_timer_do_set_next_event(unsigned long cycles, void __iomem 
 	rk_timer_disable(base);
 	writel_relaxed(cycles, base + TIMER_LOAD_COUNT0);
 	writel_relaxed(0, base + TIMER_LOAD_COUNT1);
-	dsb();
+	dsb(sy);
 	rk_timer_enable(base, TIMER_MODE_USER_DEFINED_COUNT | TIMER_INT_UNMASK);
 	return 0;
 }
@@ -119,7 +123,7 @@ static inline void rk_timer_do_set_mode(enum clock_event_mode mode, void __iomem
 	case CLOCK_EVT_MODE_PERIODIC:
 		rk_timer_disable(base);
 		writel_relaxed(24000000 / HZ - 1, base + TIMER_LOAD_COUNT0);
-		dsb();
+		dsb(sy);
 		rk_timer_enable(base, TIMER_MODE_FREE_RUNNING | TIMER_INT_UNMASK);
 	case CLOCK_EVT_MODE_RESUME:
 	case CLOCK_EVT_MODE_ONESHOT:
@@ -148,7 +152,7 @@ static inline irqreturn_t rk_timer_interrupt(void __iomem *base, struct clock_ev
 	if (ce->mode == CLOCK_EVT_MODE_ONESHOT) {
 		writel_relaxed(TIMER_DISABLE, base + TIMER_CONTROL_REG);
 	}
-	dsb();
+	dsb(sy);
 
 	ce->event_handler(ce);
 
@@ -188,7 +192,7 @@ static __cpuinit int rk_timer_init_clockevent(struct clock_event_device *ce, uns
 	irq_set_affinity(irq->irq, cpumask_of(cpu));
 	setup_irq(irq->irq, irq);
 
-	clockevents_config_and_register(ce, 24000000, 0xF, 0xFFFFFFFF);
+	clockevents_config_and_register(ce, 24000000, 0xF, 0x7FFFFFFF);
 
 	return 0;
 }
@@ -228,6 +232,7 @@ static __init void rk_timer_init_broadcast(struct device_node *np)
 	clockevents_config_and_register(ce, 24000000, 0xF, 0xFFFFFFFF);
 }
 
+#ifdef CONFIG_LOCAL_TIMERS
 static int __cpuinit rk_local_timer_setup(struct clock_event_device *ce)
 {
 	ce->rating = 450;
@@ -244,6 +249,17 @@ static struct local_timer_ops rk_local_timer_ops __cpuinitdata = {
 	.setup	= rk_local_timer_setup,
 	.stop	= rk_local_timer_stop,
 };
+#else
+static DEFINE_PER_CPU(struct clock_event_device, percpu_clockevent);
+
+static int __init rk_timer_init_percpu_clockevent(unsigned int cpu)
+{
+	struct clock_event_device *ce = &per_cpu(percpu_clockevent, cpu);
+
+	ce->rating = 500;
+	return rk_timer_init_clockevent(ce, cpu);
+}
+#endif
 
 static cycle_t rk_timer_read(struct clocksource *cs)
 {
@@ -274,11 +290,12 @@ static void __init rk_timer_init_clocksource(struct device_node *np)
 	rk_timer_disable(base);
 	writel_relaxed(0xFFFFFFFF, base + TIMER_LOAD_COUNT0);
 	writel_relaxed(0xFFFFFFFF, base + TIMER_LOAD_COUNT1);
-	dsb();
+	dsb(sy);
 	rk_timer_enable(base, TIMER_MODE_FREE_RUNNING | TIMER_INT_MASK);
 	clocksource_register_hz(cs, 24000000);
 }
 
+#ifdef CONFIG_ARM
 static u32 rockchip_read_sched_clock(void)
 {
 	return ~rk_timer_read_current_value(cs_timer.base);
@@ -288,6 +305,7 @@ static u32 rockchip_read_sched_clock_up(void)
 {
 	return rk_timer_read_current_value(cs_timer.base);
 }
+#endif
 
 static void __init rk_timer_init_ce_timer(struct device_node *np, unsigned int cpu)
 {
@@ -302,25 +320,36 @@ static void __init rk_timer_init_ce_timer(struct device_node *np, unsigned int c
 	irq->handler = rk_timer_clockevent_interrupt;
 }
 
+#ifdef CONFIG_ARM
 static struct delay_timer rk_delay_timer = {
 	.read_current_timer = (unsigned long (*)(void))rockchip_read_sched_clock,
 	.freq = 24000000,
 };
+#endif
 
 static void __init rk_timer_init(struct device_node *np)
 {
 	u32 val = 0;
 	if (of_property_read_u32(np, "rockchip,percpu", &val) == 0) {
+#ifdef CONFIG_LOCAL_TIMERS
 		local_timer_register(&rk_local_timer_ops);
+#else
+#endif
 		rk_timer_init_ce_timer(np, val);
+#ifndef CONFIG_LOCAL_TIMERS
+		rk_timer_init_percpu_clockevent(val);
+#endif
 	} else if (of_property_read_u32(np, "rockchip,clocksource", &val) == 0 && val) {
 		u32 count_up = 0;
 		of_property_read_u32(np, "rockchip,count-up", &count_up);
 		if (count_up) {
 			rk_timer_clocksource.read = rk_timer_read_up;
+#ifdef CONFIG_ARM
 			rk_delay_timer.read_current_timer = (unsigned long (*)(void))rockchip_read_sched_clock_up;
+#endif
 		}
 		rk_timer_init_clocksource(np);
+#ifdef CONFIG_ARM
 		if (!lpj_fine) {
 			if (count_up)
 				setup_sched_clock(rockchip_read_sched_clock_up, 32, 24000000);
@@ -328,6 +357,7 @@ static void __init rk_timer_init(struct device_node *np)
 				setup_sched_clock(rockchip_read_sched_clock, 32, 24000000);
 			register_current_timer_delay(&rk_delay_timer);
 		}
+#endif
 	} else if (of_property_read_u32(np, "rockchip,broadcast", &val) == 0 && val) {
 		rk_timer_init_broadcast(np);
 	}

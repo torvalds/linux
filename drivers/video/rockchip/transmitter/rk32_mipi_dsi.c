@@ -25,6 +25,7 @@
 #endif
 #define DWC_DSI_VERSION			0x3133302A
 #define DWC_DSI_VERSION_RK312x		0x3132312A
+#define DWC_DSI_VERSION_RK3368		0x3133302B
 #define DWC_DSI_VERSION_ERR		-1
 
 #include <linux/kernel.h>
@@ -84,11 +85,32 @@ static int rk32_mipi_power_down_DDR(void);
 static int rk32_mipi_power_up_DDR(void);
 int rk_mipi_screen_standby(u8 enable);
 
+int rockchip_get_screen_type(void)
+{
+	struct device_node *type_node;
+	struct device_node *childnode;
+	u32 val = 0;
+
+	type_node = of_find_node_by_name(NULL, "display-timings");
+	if (!type_node) {
+		pr_err("could not find display-timings node\n");
+		return -1;
+	}
+
+	for_each_child_of_node(type_node, childnode) {
+		if (!of_property_read_u32(childnode, "screen-type", &val))
+			return val;
+	}
+
+	return 0;
+}
+
 static int rk32_dsi_read_reg(struct dsi *dsi, u16 reg, u32 *pval)
 {
 	if (dsi->ops.id == DWC_DSI_VERSION)
 		*pval = __raw_readl(dsi->host.membase + (reg - MIPI_DSI_HOST_OFFSET));
-	else if (dsi->ops.id == DWC_DSI_VERSION_RK312x) {
+	else if (dsi->ops.id == DWC_DSI_VERSION_RK312x ||
+		dsi->ops.id == DWC_DSI_VERSION_RK3368) {
 		if (reg >= MIPI_DSI_HOST_OFFSET)
 			*pval = __raw_readl(dsi->host.membase + (reg - MIPI_DSI_HOST_OFFSET));
 		else if (reg >= MIPI_DSI_PHY_OFFSET)
@@ -101,7 +123,8 @@ static int rk32_dsi_write_reg(struct dsi *dsi, u16 reg, u32 *pval)
 {
 	if (dsi->ops.id == DWC_DSI_VERSION)
 		__raw_writel(*pval, dsi->host.membase + (reg - MIPI_DSI_HOST_OFFSET));
-	else if (dsi->ops.id == DWC_DSI_VERSION_RK312x) {
+	else if (dsi->ops.id == DWC_DSI_VERSION_RK312x ||
+		dsi->ops.id == DWC_DSI_VERSION_RK3368) {
 		if (reg >= MIPI_DSI_HOST_OFFSET)
 			__raw_writel(*pval, dsi->host.membase + (reg - MIPI_DSI_HOST_OFFSET));
 		else if (reg >= MIPI_DSI_PHY_OFFSET)
@@ -436,8 +459,12 @@ static int rk312x_phy_power_up(struct dsi *dsi)
 	clk_prepare_enable(dsi->phy.refclk);
 	clk_prepare_enable(dsi->dsi_pclk);
 	clk_prepare_enable(dsi->dsi_host_pclk);
-	clk_prepare_enable(dsi->h2p_hclk);
-	clk_prepare_enable(dsi->dsi_pd);
+	if (dsi->ops.id == DWC_DSI_VERSION_RK312x) {
+		clk_prepare_enable(dsi->h2p_hclk);
+		clk_prepare_enable(dsi->dsi_pd);
+	} else
+		clk_prepare_enable(dsi->dsi_pd);
+
 	udelay(10);
 
 	rk32_dsi_set_bits(dsi, 0xe4, DPHY_REGISTER1);
@@ -471,7 +498,8 @@ static int rk_phy_power_up(struct dsi *dsi)
 {
 	if (dsi->ops.id == DWC_DSI_VERSION)
 		rk32_phy_power_up(dsi);
-	else if (dsi->ops.id == DWC_DSI_VERSION_RK312x)
+	else if (dsi->ops.id == DWC_DSI_VERSION_RK312x ||
+		dsi->ops.id == DWC_DSI_VERSION_RK3368)
 		rk312x_phy_power_up(dsi);
 	return 0;
 }
@@ -493,8 +521,12 @@ static int rk312x_phy_power_down(struct dsi *dsi)
 	clk_disable_unprepare(dsi->phy.refclk);
 	clk_disable_unprepare(dsi->dsi_pclk);
 	clk_disable_unprepare(dsi->dsi_host_pclk);
-	clk_disable_unprepare(dsi->h2p_hclk);
-	clk_disable_unprepare(dsi->dsi_pd);
+
+	if (dsi->ops.id == DWC_DSI_VERSION_RK312x) {
+		clk_disable_unprepare(dsi->h2p_hclk);
+		clk_disable_unprepare(dsi->dsi_pd);
+	} else
+		clk_disable_unprepare(dsi->dsi_pd);
 	return 0;
 }
 
@@ -502,7 +534,8 @@ static int rk_phy_power_down(struct dsi *dsi)
 {
 	if (dsi->ops.id == DWC_DSI_VERSION)
 		rk32_phy_power_down(dsi);
-	else if (dsi->ops.id == DWC_DSI_VERSION_RK312x)
+	else if (dsi->ops.id == DWC_DSI_VERSION_RK312x ||
+		dsi->ops.id == DWC_DSI_VERSION_RK3368)
 		rk312x_phy_power_down(dsi);
 	return 0;
 }
@@ -682,7 +715,11 @@ static int rk312x_phy_init(struct dsi *dsi, int n)
 	*/
 
 	if (dsi->phy.ddr_clk >= 800*MHz) {
-		rk32_dsi_set_bits(dsi, 0x30, DSI_DPHY_BITS(0x05<<2, 32, 0));
+		if (dsi->ops.id == DWC_DSI_VERSION_RK3368) {
+			rk32_dsi_set_bits(dsi, 0x10, DSI_DPHY_BITS(0x05<<2, 32, 0));
+		} else {
+			rk32_dsi_set_bits(dsi, 0x30, DSI_DPHY_BITS(0x05<<2, 32, 0));
+		}
 	} else {
 		rk32_dsi_set_bits(dsi, 1, reg_da_ppfc);
 	}
@@ -712,8 +749,11 @@ static int rk312x_phy_init(struct dsi *dsi, int n)
 
 	rk32_dsi_set_bits(dsi, 0x0063, reg10_phy);
 	*/
-
-	rk32_dsi_set_bits(dsi, 0x06, reg5_phy);
+	if (dsi->ops.id == DWC_DSI_VERSION_RK3368) {
+		rk32_dsi_set_bits(dsi, 0x1, reg5_phy);
+	} else {
+		rk32_dsi_set_bits(dsi, 0x6, reg5_phy);
+	}
 	rk32_dsi_set_bits(dsi, 0x6, reg10_4_6_phy);
 	rk32_dsi_set_bits(dsi, 0x9, regb_phy);
 	return 0;
@@ -724,7 +764,8 @@ static int rk_phy_init(struct dsi *dsi)
 {
 	if (dsi->ops.id == DWC_DSI_VERSION)
 		rk32_phy_init(dsi);
-	else if (dsi->ops.id == DWC_DSI_VERSION_RK312x)
+	else if (dsi->ops.id == DWC_DSI_VERSION_RK312x ||
+		dsi->ops.id == DWC_DSI_VERSION_RK3368)
 		rk312x_phy_init(dsi, 4);
 	return 0;
 }
@@ -794,7 +835,8 @@ static int rk32_mipi_dsi_host_init(struct dsi *dsi)
 	default:
 		break;
 	}
-	if (dsi->ops.id == DWC_DSI_VERSION) {
+	if (dsi->ops.id == DWC_DSI_VERSION ||
+		dsi->ops.id == DWC_DSI_VERSION_RK3368) {
 		rk32_dsi_set_bits(dsi, 1, hsync_active_low);
 		rk32_dsi_set_bits(dsi, 1, vsync_active_low);
 
@@ -806,8 +848,8 @@ static int rk32_mipi_dsi_host_init(struct dsi *dsi)
 		rk32_dsi_set_bits(dsi, !screen->pin_vsync, vsync_active_low);
 
 		rk32_dsi_set_bits(dsi, screen->pin_den, dataen_active_low);
-		rk32_dsi_set_bits(dsi, 1, colorm_active_low);
-		rk32_dsi_set_bits(dsi, 1, shutd_active_low);
+		rk32_dsi_set_bits(dsi, 0, colorm_active_low);
+		rk32_dsi_set_bits(dsi, 0, shutd_active_low);
 	}
 
 	rk32_dsi_set_bits(dsi, dsi->host.video_mode, vid_mode_type); /* burst mode */
@@ -848,7 +890,7 @@ static int rk32_mipi_dsi_host_init(struct dsi *dsi)
 		rk32_dsi_set_bits(dsi, dsi->phy.Tpclk * (screen->x_res + screen->left_margin +
 					screen->hsync_len + screen->right_margin) \
 						/ dsi->phy.Ttxbyte_clk, vid_hline_time);
-	} else {
+	} else { /* used for dual mipi screen */
 		rk32_dsi_set_bits(dsi, dsi->phy.Tpclk * (screen->x_res + 8 + screen->left_margin +
 					screen->hsync_len + screen->right_margin) \
 						/ dsi->phy.Ttxbyte_clk, vid_hline_time);
@@ -936,7 +978,8 @@ static int rk_mipi_dsi_init(void *arg, u32 n)
 
 	if (dsi->phy.refclk)
 		dsi->phy.ref_clk = clk_get_rate(dsi->phy.refclk) ;
-	if (dsi->ops.id == DWC_DSI_VERSION_RK312x)
+	if (dsi->ops.id == DWC_DSI_VERSION_RK312x ||
+		dsi->ops.id == DWC_DSI_VERSION_RK3368)
 		dsi->phy.ref_clk = dsi->phy.ref_clk / 2; /* 1/2 of input refclk */
 
 	dsi->phy.sys_clk = dsi->phy.ref_clk;
@@ -947,7 +990,8 @@ static int rk_mipi_dsi_init(void *arg, u32 n)
 			dsi->phy.ddr_clk = 1500 * MHz; /* default is 1.5HGz */
 		else
 			dsi->phy.ddr_clk = screen->hs_tx_clk;
-	} else if (dsi->ops.id == DWC_DSI_VERSION_RK312x) {
+	} else if (dsi->ops.id == DWC_DSI_VERSION_RK312x ||
+		dsi->ops.id == DWC_DSI_VERSION_RK3368) {
 		if ((screen->hs_tx_clk <= 80 * MHz) || (screen->hs_tx_clk >= 1000 * MHz))
 			dsi->phy.ddr_clk = 1000 * MHz; /* default is 1GHz */
 		else
@@ -1270,7 +1314,7 @@ static int rk_mipi_dsi_probe(struct dsi *dsi)
 #include <asm/uaccess.h>
 #include <linux/slab.h>
 
-int reg_proc_write(struct file *file, const char __user *buff, size_t count, loff_t *offp)
+ssize_t reg_proc_write(struct file *file, const char __user *buff, size_t count, loff_t *offp)
 {
 	int ret = -1, i = 0;
 	u32 read_val = 0;
@@ -1399,7 +1443,7 @@ struct file_operations reg_proc_fops = {
 	.read = seq_read,
 };
 
-int reg_proc_write1(struct file *file, const char __user *buff, size_t count, loff_t *offp)
+ssize_t reg_proc_write1(struct file *file, const char __user *buff, size_t count, loff_t *offp)
 {
 	int ret = -1, i = 0;
 	u32 read_val = 0;
@@ -1533,31 +1577,34 @@ static int dwc_phy_test_rd(struct dsi *dsi, unsigned char test_code)
 static int rk32_dsi_enable(void)
 {
 	MIPI_DBG("rk32_dsi_enable-------\n");
-	rk_fb_get_prmry_screen(dsi0->screen.screen);
-	dsi0->screen.lcdc_id = dsi0->screen.screen->lcdc_id;
-	rk32_init_phy_mode(dsi0->screen.lcdc_id);
+	if (!dsi0->clk_on) {
+		dsi0->clk_on = 1;
+		rk_fb_get_prmry_screen(dsi0->screen.screen);
+		dsi0->screen.lcdc_id = dsi0->screen.screen->lcdc_id;
+		rk32_init_phy_mode(dsi0->screen.lcdc_id);
 
-	dsi_init(0, 0);
-	if (rk_mipi_get_dsi_num() == 2)
-		dsi_init(1, 0);
+		dsi_init(0, 0);
+		if (rk_mipi_get_dsi_num() == 2)
+			dsi_init(1, 0);
 
-	rk_mipi_screen_standby(0);
+		rk_mipi_screen_standby(0);
 
-	/*
-		After the core reset, DPI waits for the first VSYNC active transition to start signal sampling, including
-		pixel data, and preventing image transmission in the middle of a frame.
+	/* After the core reset, DPI waits for the first VSYNC
+	active transition to start signal sampling, including pixel data,
+	and preventing image transmission in the middle of a frame.
 	*/
-	dsi_is_enable(0, 0);
-	if (rk_mipi_get_dsi_num() == 2)
-		dsi_is_enable(1, 0);
+		dsi_is_enable(0, 0);
+		if (rk_mipi_get_dsi_num() == 2)
+			dsi_is_enable(1, 0);
 
-	dsi_enable_video_mode(0, 1);
-	if (rk_mipi_get_dsi_num() == 2)
-		dsi_enable_video_mode(1, 1);
+		dsi_enable_video_mode(0, 1);
+		if (rk_mipi_get_dsi_num() == 2)
+			dsi_enable_video_mode(1, 1);
 
-	dsi_is_enable(0, 1);
-	if (rk_mipi_get_dsi_num() == 2)
-		dsi_is_enable(1, 1);
+		dsi_is_enable(0, 1);
+		if (rk_mipi_get_dsi_num() == 2)
+			dsi_is_enable(1, 1);
+	}
 	return 0;
 }
 
@@ -1565,10 +1612,13 @@ static int rk32_dsi_enable(void)
 static int rk32_dsi_disable(void)
 {
 	MIPI_DBG("rk32_dsi_disable-------\n");
-	rk_mipi_screen_standby(1);
-	dsi_power_off(0);
-	if (rk_mipi_get_dsi_num() == 2)
-		dsi_power_off(1);
+	if (dsi0->clk_on) {
+		dsi0->clk_on = 0;
+		rk_mipi_screen_standby(1);
+		dsi_power_off(0);
+		if (rk_mipi_get_dsi_num() == 2)
+			dsi_power_off(1);
+	}
 	return 0;
 }
 
@@ -1585,7 +1635,8 @@ static void rk32_init_phy_mode(int lcdc_id)
 
 	MIPI_DBG("rk32_init_phy_mode----------lcdc_id=%d\n", lcdc_id);
 
-	if (dsi0->ops.id == DWC_DSI_VERSION_RK312x)
+	/* Only the rk3288 VOP need setting the VOP output. */
+	if (dsi0->ops.id != DWC_DSI_VERSION)
 		return;
 
 	/* D-PHY mode select */
@@ -1646,9 +1697,15 @@ static struct dsi_type dsi_rk32 = {
 	.dsi_id = DWC_DSI_VERSION,
 };
 
+static struct dsi_type dsi_rk3368 = {
+	.label = "rk3368-dsi",
+	.dsi_id = DWC_DSI_VERSION_RK3368,
+};
+
 static const struct of_device_id of_rk_mipi_dsi_match[] = {
 	{ .compatible = "rockchip,rk32-dsi", .data = &dsi_rk32},
 	{ .compatible = "rockchip,rk312x-dsi", .data = &dsi_rk312x},
+	{ .compatible = "rockchip,rk3368-dsi", .data = &dsi_rk3368},
 	{ /* Sentinel */ }
 };
 
@@ -1677,7 +1734,6 @@ static int rk32_mipi_dsi_probe(struct platform_device *pdev)
 	}
 	dsi->ops.id = data->dsi_id;
 	printk(KERN_INFO "%s\n", data->label);
-
 	if (dsi->ops.id == DWC_DSI_VERSION) {
 		res_host = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 		dsi->host.membase = devm_request_and_ioremap(&pdev->dev, res_host);
@@ -1685,7 +1741,8 @@ static int rk32_mipi_dsi_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "get resource mipi host membase fail!\n");
 			return -ENOMEM;
 		}
-	} else if (dsi->ops.id == DWC_DSI_VERSION_RK312x) {
+	} else if (dsi->ops.id == DWC_DSI_VERSION_RK312x ||
+			dsi->ops.id == DWC_DSI_VERSION_RK3368) {
 		res_host = platform_get_resource_byname(pdev, IORESOURCE_MEM, "mipi_dsi_host");
 		dsi->host.membase = devm_request_and_ioremap(&pdev->dev, res_host);
 		if (!dsi->host.membase) {
@@ -1706,15 +1763,30 @@ static int rk32_mipi_dsi_probe(struct platform_device *pdev)
 		return PTR_ERR(dsi->phy.refclk);
 	}
 
-	/* Get the mipi phy pclk */
+	/* Get the APB bus clk access mipi phy */
 	dsi->dsi_pclk = devm_clk_get(&pdev->dev, "pclk_mipi_dsi");
 	if (unlikely(IS_ERR(dsi->dsi_pclk))) {
 		dev_err(&pdev->dev, "get pclk_mipi_dsi clock fail\n");
 		return PTR_ERR(dsi->dsi_pclk);
 	}
 
+	if (dsi->ops.id == DWC_DSI_VERSION_RK3368) {
+		/* Get the APB bus clk access mipi host */
+		dsi->dsi_host_pclk = devm_clk_get(&pdev->dev, "pclk_mipi_dsi_host");
+		if (unlikely(IS_ERR(dsi->dsi_host_pclk))) {
+			dev_err(&pdev->dev, "get pclk_mipi_dsi_host clock fail\n");
+			return PTR_ERR(dsi->dsi_host_pclk);
+		}
+
+		dsi->dsi_pd = devm_clk_get(&pdev->dev, "pd_mipi_dsi");
+		if (unlikely(IS_ERR(dsi->dsi_pd))) {
+			dev_err(&pdev->dev, "get pd_mipi_dsi clock fail\n");
+			return PTR_ERR(dsi->dsi_pd);
+		}
+	}
+
 	if (dsi->ops.id == DWC_DSI_VERSION_RK312x) {
-		/* Get the mipi host pclk */
+		/* Get the APB bus clk access mipi host */
 		dsi->dsi_host_pclk = devm_clk_get(&pdev->dev, "pclk_mipi_dsi_host");
 		if (unlikely(IS_ERR(dsi->dsi_host_pclk))) {
 			dev_err(&pdev->dev, "get pclk_mipi_dsi_host clock fail\n");
@@ -1726,11 +1798,20 @@ static int rk32_mipi_dsi_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "get hclk_vio_h2p clock fail\n");
 			return PTR_ERR(dsi->h2p_hclk);
 		}
+
+		dsi->dsi_pd = devm_clk_get(&pdev->dev, "pd_mipi_dsi");
+		if (unlikely(IS_ERR(dsi->dsi_pd))) {
+			dev_err(&pdev->dev, "get pd_mipi_dsi clock fail\n");
+			return PTR_ERR(dsi->dsi_pd);
+		}
 	}
-	dsi->dsi_pd = devm_clk_get(&pdev->dev, "pd_mipi_dsi");
-	if (unlikely(IS_ERR(dsi->dsi_pd))) {
-		dev_err(&pdev->dev, "get pd_mipi_dsi clock fail\n");
-		return PTR_ERR(dsi->dsi_pd);
+
+	if (dsi->ops.id == DWC_DSI_VERSION) {
+		dsi->dsi_pd = devm_clk_get(&pdev->dev, "pd_mipi_dsi");
+		if (unlikely(IS_ERR(dsi->dsi_pd))) {
+			dev_err(&pdev->dev, "get pd_mipi_dsi clock fail\n");
+			return PTR_ERR(dsi->dsi_pd);
+		}
 	}
 	dsi->host.irq = platform_get_irq(pdev, 0);
 	if (dsi->host.irq < 0) {
@@ -1833,10 +1914,13 @@ static int rk32_mipi_dsi_probe(struct platform_device *pdev)
 		if (dsi->ops.id == DWC_DSI_VERSION_RK312x) {
 			clk_prepare_enable(dsi->dsi_host_pclk);
 			clk_prepare_enable(dsi->h2p_hclk);
-		}
+		} else if (dsi->ops.id == DWC_DSI_VERSION_RK3368)
+			clk_prepare_enable(dsi->dsi_host_pclk);
+
 		clk_prepare_enable(dsi->dsi_pd);
 		udelay(10);
 	}
+
 	dev_info(&pdev->dev, "rk mipi_dsi probe success!\n");
 	dev_info(&pdev->dev, "%s\n", RK_MIPI_DSI_VERSION_AND_TIME);
 

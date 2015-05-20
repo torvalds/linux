@@ -23,8 +23,6 @@
 #endif
 #endif
 
-#include "gator_trace_gpu.h"
-
 /*
  * Taken from MALI_PROFILING_EVENT_TYPE_* items in Mali DDK.
  */
@@ -37,7 +35,6 @@
 /* Note whether tracepoints have been registered */
 static int mali_timeline_trace_registered;
 static int mali_job_slots_trace_registered;
-static int gpu_trace_registered;
 
 enum {
 	GPU_UNIT_NONE = 0,
@@ -47,74 +44,117 @@ enum {
 	NUMBER_OF_GPU_UNITS
 };
 
-#define MALI_4xx     (0x0b07)
-#define MALI_T6xx    (0x0056)
+#if defined(MALI_SUPPORT)
 
-struct mali_gpu_job {
+struct mali_activity {
+	int core;
+	int key;
 	int count;
-	int last_tgid;
+	int last_activity;
 	int last_pid;
-	int last_job_id;
 };
 
 #define NUMBER_OF_GPU_CORES 16
-static struct mali_gpu_job mali_gpu_jobs[NUMBER_OF_GPU_UNITS][NUMBER_OF_GPU_CORES];
-static DEFINE_SPINLOCK(mali_gpu_jobs_lock);
+static struct mali_activity mali_activities[NUMBER_OF_GPU_UNITS*NUMBER_OF_GPU_CORES];
+static DEFINE_SPINLOCK(mali_activities_lock);
 
-/* Only one event should be running on a unit and core at a time (ie, a start
- * event can only be followed by a stop and vice versa), but because the kernel
- * only knows when a job is enqueued and not started, it is possible for a
- * start1, start2, stop1, stop2. Change it back into start1, stop1, start2,
- * stop2 by queueing up start2 and releasing it when stop1 is received.
+/* Only one event should be running on a unit and core at a time (ie,
+ * a start event can only be followed by a stop and vice versa), but
+ * because the kernel only knows when a job is enqueued and not
+ * started, it is possible for a start1, start2, stop1, stop2. Change
+ * it back into start1, stop1, start2, stop2 by queueing up start2 and
+ * releasing it when stop1 is received.
  */
-static void mali_gpu_enqueue(int unit, int core, int tgid, int pid, int job_id)
+
+static int mali_activity_index(int core, int key)
 {
-	int count;
+	int i;
 
-	spin_lock(&mali_gpu_jobs_lock);
-	count = mali_gpu_jobs[unit][core].count;
-	BUG_ON(count < 0);
-	++mali_gpu_jobs[unit][core].count;
-	if (count) {
-		mali_gpu_jobs[unit][core].last_tgid = tgid;
-		mali_gpu_jobs[unit][core].last_pid = pid;
-		mali_gpu_jobs[unit][core].last_job_id = job_id;
+	for (i = 0; i < ARRAY_SIZE(mali_activities); ++i) {
+		if ((mali_activities[i].core == core) && (mali_activities[i].key == key))
+			break;
+		if ((mali_activities[i].core == 0) && (mali_activities[i].key == 0)) {
+			mali_activities[i].core = core;
+			mali_activities[i].key = key;
+			break;
+		}
 	}
-	spin_unlock(&mali_gpu_jobs_lock);
+	BUG_ON(i >= ARRAY_SIZE(mali_activities));
 
-	if (!count) {
-		marshal_sched_gpu_start(unit, core, tgid, pid/*, job_id*/);
-	}
+	return i;
 }
 
-static void mali_gpu_stop(int unit, int core)
+static void mali_activity_enqueue(int core, int key, int activity, int pid)
 {
+	int i;
 	int count;
-	int last_tgid = 0;
-	int last_pid = 0;
-	//int last_job_id = 0;
 
-	spin_lock(&mali_gpu_jobs_lock);
-	if (mali_gpu_jobs[unit][core].count == 0) {
-		spin_unlock(&mali_gpu_jobs_lock);
+	spin_lock(&mali_activities_lock);
+	i = mali_activity_index(core, key);
+
+	count = mali_activities[i].count;
+	BUG_ON(count < 0);
+	++mali_activities[i].count;
+	if (count) {
+		mali_activities[i].last_activity = activity;
+		mali_activities[i].last_pid = pid;
+	}
+	spin_unlock(&mali_activities_lock);
+
+	if (!count)
+		gator_marshal_activity_switch(core, key, activity, pid);
+}
+
+static void mali_activity_stop(int core, int key)
+{
+	int i;
+	int count;
+	int last_activity = 0;
+	int last_pid = 0;
+
+	spin_lock(&mali_activities_lock);
+	i = mali_activity_index(core, key);
+
+	if (mali_activities[i].count == 0) {
+		spin_unlock(&mali_activities_lock);
 		return;
 	}
-	--mali_gpu_jobs[unit][core].count;
-	count = mali_gpu_jobs[unit][core].count;
+	--mali_activities[i].count;
+	count = mali_activities[i].count;
 	if (count) {
-		last_tgid = mali_gpu_jobs[unit][core].last_tgid;
-		last_pid = mali_gpu_jobs[unit][core].last_pid;
-		//last_job_id = mali_gpu_jobs[unit][core].last_job_id;
+		last_activity = mali_activities[i].last_activity;
+		last_pid = mali_activities[i].last_pid;
 	}
-	spin_unlock(&mali_gpu_jobs_lock);
+	spin_unlock(&mali_activities_lock);
 
-	marshal_sched_gpu_stop(unit, core);
-	if (count) {
-		marshal_sched_gpu_start(unit, core, last_tgid, last_pid/*, last_job_id*/);
+	gator_marshal_activity_switch(core, key, 0, 0);
+	if (count)
+		gator_marshal_activity_switch(core, key, last_activity, last_pid);
+}
+
+void mali_activity_clear(struct mali_counter mali_activity[], size_t mali_activity_size)
+{
+	int activity;
+	int cores;
+	int core;
+
+	for (activity = 0; activity < mali_activity_size; ++activity) {
+		cores = mali_activity[activity].cores;
+		if (cores < 0)
+			cores = 1;
+		for (core = 0; core < cores; ++core) {
+			if (mali_activity[activity].enabled) {
+				preempt_disable();
+				gator_marshal_activity_switch(core, mali_activity[activity].key, 0, 0);
+				preempt_enable();
+			}
+		}
 	}
 }
 
-#if defined(MALI_SUPPORT) && (MALI_SUPPORT != MALI_T6xx)
+#endif
+
+#if defined(MALI_SUPPORT) && (MALI_SUPPORT != MALI_MIDGARD)
 #include "gator_events_mali_4xx.h"
 
 /*
@@ -142,30 +182,36 @@ enum {
 	EVENT_REASON_SINGLE_GPU_FREQ_VOLT_CHANGE = 1,
 };
 
+struct mali_counter mali_activity[2];
+
 GATOR_DEFINE_PROBE(mali_timeline_event, TP_PROTO(unsigned int event_id, unsigned int d0, unsigned int d1, unsigned int d2, unsigned int d3, unsigned int d4))
 {
 	unsigned int component, state;
 
-	// do as much work as possible before disabling interrupts
-	component = (event_id >> 16) & 0xFF;	// component is an 8-bit field
-	state = (event_id >> 24) & 0xF;	// state is a 4-bit field
+	/* do as much work as possible before disabling interrupts */
+	component = (event_id >> 16) & 0xFF;	/* component is an 8-bit field */
+	state = (event_id >> 24) & 0xF;	/* state is a 4-bit field */
 
 	switch (state) {
 	case EVENT_TYPE_START:
 		if (component == EVENT_CHANNEL_VP0) {
 			/* tgid = d0; pid = d1; */
-			mali_gpu_enqueue(GPU_UNIT_VP, 0, d0, d1, 0);
+			if (mali_activity[1].enabled)
+				mali_activity_enqueue(0, mali_activity[1].key, 1, d1);
 		} else if (component >= EVENT_CHANNEL_FP0 && component <= EVENT_CHANNEL_FP7) {
 			/* tgid = d0; pid = d1; */
-			mali_gpu_enqueue(GPU_UNIT_FP, component - EVENT_CHANNEL_FP0, d0, d1, 0);
+			if (mali_activity[0].enabled)
+				mali_activity_enqueue(component - EVENT_CHANNEL_FP0, mali_activity[0].key, 1, d1);
 		}
 		break;
 
 	case EVENT_TYPE_STOP:
 		if (component == EVENT_CHANNEL_VP0) {
-			mali_gpu_stop(GPU_UNIT_VP, 0);
+			if (mali_activity[1].enabled)
+				mali_activity_stop(0, mali_activity[1].key);
 		} else if (component >= EVENT_CHANNEL_FP0 && component <= EVENT_CHANNEL_FP7) {
-			mali_gpu_stop(GPU_UNIT_FP, component - EVENT_CHANNEL_FP0);
+			if (mali_activity[0].enabled)
+				mali_activity_stop(component - EVENT_CHANNEL_FP0, mali_activity[0].key);
 		}
 		break;
 
@@ -173,9 +219,8 @@ GATOR_DEFINE_PROBE(mali_timeline_event, TP_PROTO(unsigned int event_id, unsigned
 		if (component == EVENT_CHANNEL_GPU) {
 			unsigned int reason = (event_id & 0xffff);
 
-			if (reason == EVENT_REASON_SINGLE_GPU_FREQ_VOLT_CHANGE) {
+			if (reason == EVENT_REASON_SINGLE_GPU_FREQ_VOLT_CHANGE)
 				gator_events_mali_log_dvfs_event(d0, d1);
-			}
 		}
 		break;
 
@@ -185,7 +230,10 @@ GATOR_DEFINE_PROBE(mali_timeline_event, TP_PROTO(unsigned int event_id, unsigned
 }
 #endif
 
-#if defined(MALI_SUPPORT) && (MALI_SUPPORT == MALI_T6xx)
+#if defined(MALI_SUPPORT) && (MALI_SUPPORT == MALI_MIDGARD)
+
+struct mali_counter mali_activity[3];
+
 #if defined(MALI_JOB_SLOTS_EVENT_CHANGED)
 GATOR_DEFINE_PROBE(mali_job_slots_event, TP_PROTO(unsigned int event_id, unsigned int tgid, unsigned int pid, unsigned char job_id))
 #else
@@ -197,8 +245,8 @@ GATOR_DEFINE_PROBE(mali_job_slots_event, TP_PROTO(unsigned int event_id, unsigne
 	unsigned char job_id = 0;
 #endif
 
-	component = (event_id >> 16) & 0xFF;	// component is an 8-bit field
-	state = (event_id >> 24) & 0xF;	// state is a 4-bit field
+	component = (event_id >> 16) & 0xFF;	/* component is an 8-bit field */
+	state = (event_id >> 24) & 0xF;	/* state is a 4-bit field */
 
 	switch (component) {
 	case 0:
@@ -217,30 +265,18 @@ GATOR_DEFINE_PROBE(mali_job_slots_event, TP_PROTO(unsigned int event_id, unsigne
 	if (unit != GPU_UNIT_NONE) {
 		switch (state) {
 		case EVENT_TYPE_START:
-			mali_gpu_enqueue(unit, 0, tgid, (pid != 0 ? pid : tgid), job_id);
+			if (mali_activity[component].enabled)
+				mali_activity_enqueue(0, mali_activity[component].key, 1, (pid != 0 ? pid : tgid));
 			break;
 		case EVENT_TYPE_STOP:
-			mali_gpu_stop(unit, 0);
+		default: /* Some jobs can be soft-stopped, so ensure that this terminates the activity trace. */
+			if (mali_activity[component].enabled)
+				mali_activity_stop(0, mali_activity[component].key);
 			break;
-		default:
-			/*
-			 * Some jobs can be soft-stopped, so ensure that this terminates the activity trace.
-			 */
-			mali_gpu_stop(unit, 0);
 		}
 	}
 }
 #endif
-
-GATOR_DEFINE_PROBE(gpu_activity_start, TP_PROTO(int gpu_unit, int gpu_core, struct task_struct *p))
-{
-	mali_gpu_enqueue(gpu_unit, gpu_core, (int)p->tgid, (int)p->pid, 0);
-}
-
-GATOR_DEFINE_PROBE(gpu_activity_stop, TP_PROTO(int gpu_unit, int gpu_core))
-{
-	mali_gpu_stop(gpu_unit, gpu_core);
-}
 
 static int gator_trace_gpu_start(void)
 {
@@ -249,53 +285,37 @@ static int gator_trace_gpu_start(void)
 	 * Absence of gpu trace points is not an error
 	 */
 
-	memset(&mali_gpu_jobs, 0, sizeof(mali_gpu_jobs));
-	gpu_trace_registered = mali_timeline_trace_registered = mali_job_slots_trace_registered = 0;
+#if defined(MALI_SUPPORT)
+	memset(&mali_activities, 0, sizeof(mali_activities));
+#endif
+	mali_timeline_trace_registered = mali_job_slots_trace_registered = 0;
 
-#if defined(MALI_SUPPORT) && (MALI_SUPPORT != MALI_T6xx)
-	if (!GATOR_REGISTER_TRACE(mali_timeline_event)) {
+#if defined(MALI_SUPPORT) && (MALI_SUPPORT != MALI_MIDGARD)
+	mali_activity_clear(mali_activity, ARRAY_SIZE(mali_activity));
+	if (!GATOR_REGISTER_TRACE(mali_timeline_event))
 		mali_timeline_trace_registered = 1;
-	}
 #endif
 
-#if defined(MALI_SUPPORT) && (MALI_SUPPORT == MALI_T6xx)
-	if (!GATOR_REGISTER_TRACE(mali_job_slots_event)) {
+#if defined(MALI_SUPPORT) && (MALI_SUPPORT == MALI_MIDGARD)
+	mali_activity_clear(mali_activity, ARRAY_SIZE(mali_activity));
+	if (!GATOR_REGISTER_TRACE(mali_job_slots_event))
 		mali_job_slots_trace_registered = 1;
-	}
 #endif
-
-	if (!mali_timeline_trace_registered) {
-		if (GATOR_REGISTER_TRACE(gpu_activity_start)) {
-			return 0;
-		}
-		if (GATOR_REGISTER_TRACE(gpu_activity_stop)) {
-			GATOR_UNREGISTER_TRACE(gpu_activity_start);
-			return 0;
-		}
-		gpu_trace_registered = 1;
-	}
 
 	return 0;
 }
 
 static void gator_trace_gpu_stop(void)
 {
-#if defined(MALI_SUPPORT) && (MALI_SUPPORT != MALI_T6xx)
-	if (mali_timeline_trace_registered) {
+#if defined(MALI_SUPPORT) && (MALI_SUPPORT != MALI_MIDGARD)
+	if (mali_timeline_trace_registered)
 		GATOR_UNREGISTER_TRACE(mali_timeline_event);
-	}
 #endif
 
-#if defined(MALI_SUPPORT) && (MALI_SUPPORT == MALI_T6xx)
-	if (mali_job_slots_trace_registered) {
+#if defined(MALI_SUPPORT) && (MALI_SUPPORT == MALI_MIDGARD)
+	if (mali_job_slots_trace_registered)
 		GATOR_UNREGISTER_TRACE(mali_job_slots_event);
-	}
 #endif
 
-	if (gpu_trace_registered) {
-		GATOR_UNREGISTER_TRACE(gpu_activity_stop);
-		GATOR_UNREGISTER_TRACE(gpu_activity_start);
-	}
-
-	gpu_trace_registered = mali_timeline_trace_registered = mali_job_slots_trace_registered = 0;
+	mali_timeline_trace_registered = mali_job_slots_trace_registered = 0;
 }

@@ -1752,6 +1752,12 @@ static void dwc_otg_pcd_work_init(dwc_otg_pcd_t *pcd,
 		pldata->dwc_otg_uart_mode(pldata, PHY_USB_MODE);
 	}
 	schedule_delayed_work(&pcd->check_id_work, 8 * HZ);
+	if (otg_dev->core_if->usb_mode == USB_MODE_FORCE_DEVICE) {
+		pcd->vbus_status = 0;
+		dwc_otg_core_init(otg_dev->core_if);
+		cil_pcd_start(otg_dev->core_if);
+		dwc_otg_pcd_start_check_vbus_work(pcd);
+	}
 }
 
 #endif /* DWC_HOST_ONLY */

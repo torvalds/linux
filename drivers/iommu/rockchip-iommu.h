@@ -36,8 +36,9 @@ struct iommu_drvdata {
 	int activations;
 	spinlock_t data_lock;
 	struct iommu_domain *domain; /* domain given to iommu_attach_device() */
-	unsigned long pgtable;
+	unsigned int pgtable;
 	struct rk_iovmm vmm;
+	rockchip_iommu_fault_handler_t fault_handler;
 };
 
 #ifdef CONFIG_ROCKCHIP_IOVMM
@@ -47,8 +48,8 @@ struct iommu_drvdata {
 
 struct rk_vm_region {
 	struct list_head node;
-	dma_addr_t start;
-	size_t size;
+	unsigned int start;
+	unsigned int size;
 };
 
 static inline struct rk_iovmm *rockchip_get_iovmm(struct device *dev)
@@ -79,9 +80,14 @@ static inline int rockchip_init_iovmm(struct device *iommu,
  * This function flush all TLB entry in iommu
  */
 int rockchip_iommu_tlb_invalidate(struct device *owner);
+int rockchip_iommu_tlb_invalidate_global(struct device *owner);
 
 #else /* CONFIG_ROCKCHIP_IOMMU */
 static inline int rockchip_iommu_tlb_invalidate(struct device *owner)
+{
+	return -1;
+}
+static int rockchip_iommu_tlb_invalidate_global(struct device *owner)
 {
 	return -1;
 }

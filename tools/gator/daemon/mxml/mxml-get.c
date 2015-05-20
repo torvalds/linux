@@ -1,9 +1,9 @@
 /*
- * "$Id: mxml-get.c 427 2011-01-03 02:03:29Z mike $"
+ * "$Id: mxml-get.c 451 2014-01-04 21:50:06Z msweet $"
  *
  * Node get functions for Mini-XML, a small XML-like file parsing library.
  *
- * Copyright 2011 by Michael R Sweet.
+ * Copyright 2014 by Michael R Sweet.
  *
  * These coded instructions, statements, and computer programs are the
  * property of Michael R Sweet and are protected by Federal copyright
@@ -11,26 +11,7 @@
  * which should have been included with this file.  If this file is
  * missing or damaged, see the license at:
  *
- *     http://www.minixml.org/
- *
- * Contents:
- *
- *   mxmlGetCDATA()       - Get the value for a CDATA node.
- *   mxmlGetCustom()      - Get the value for a custom node.
- *   mxmlGetElement()     - Get the name for an element node.
- *   mxmlGetFirstChild()  - Get the first child of an element node.
- *   mxmlGetInteger()     - Get the integer value from the specified node or its
- *                          first child.
- *   mxmlGetLastChild()   - Get the last child of an element node.
- *   mxmlGetNextSibling() - Get the next node for the current parent.
- *   mxmlGetOpaque()      - Get an opaque string value for a node or its first
- *                          child.
- *   mxmlGetParent()      - Get the parent node.
- *   mxmlGetPrevSibling() - Get the previous node for the current parent.
- *   mxmlGetReal()        - Get the real value for a node or its first child.
- *   mxmlGetText()        - Get the text value for a node or its first child.
- *   mxmlGetType()        - Get the node type.
- *   mxmlGetUserData()    - Get the user data pointer for a node.
+ *     http://www.msweet.org/projects.php/Mini-XML
  */
 
 /*
@@ -467,5 +448,5 @@ mxmlGetUserData(mxml_node_t *node)	/* I - Node to get */
 
 
 /*
- * End of "$Id: mxml-get.c 427 2011-01-03 02:03:29Z mike $".
+ * End of "$Id: mxml-get.c 451 2014-01-04 21:50:06Z msweet $".
  */

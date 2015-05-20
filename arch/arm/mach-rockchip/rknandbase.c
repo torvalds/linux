@@ -156,13 +156,22 @@ EXPORT_SYMBOL(rknand_dma_flush_dcache);
 
 unsigned long rknand_dma_map_single(unsigned long ptr,int size,int dir)
 {
+#ifdef CONFIG_ARM64
+    __dma_map_area((void*)ptr, size, dir);
+    return ((unsigned long )virt_to_phys((void *)ptr));
+#else
     return dma_map_single(NULL,(void*)ptr,size, dir?DMA_TO_DEVICE:DMA_FROM_DEVICE);
+#endif
 }
 EXPORT_SYMBOL(rknand_dma_map_single);
 
 void rknand_dma_unmap_single(unsigned long ptr,int size,int dir)
 {
+#ifdef CONFIG_ARM64
+    __dma_unmap_area(phys_to_virt(ptr), size, dir);
+#else
     dma_unmap_single(NULL, (dma_addr_t)ptr,size, dir?DMA_TO_DEVICE:DMA_FROM_DEVICE);
+#endif
 }
 EXPORT_SYMBOL(rknand_dma_unmap_single);
 
@@ -199,6 +208,14 @@ int rknand_nandc_irq_init(int id,int mode,void * pfun)
 }
 EXPORT_SYMBOL(rknand_nandc_irq_init);
 
+/*1:flash 2:emmc 4:sdcard0 8:sdcard1*/
+static int rknand_boot_media = 2;
+int rknand_get_boot_media(void)
+{
+	return rknand_boot_media;
+}
+EXPORT_SYMBOL(rknand_get_boot_media);
+
 static int rknand_probe(struct platform_device *pdev)
 {
 	unsigned int id = 0;
@@ -232,6 +249,11 @@ static int rknand_probe(struct platform_device *pdev)
     if(id == 0)
 	{
         memcpy(nand_idb_data,membase+0x1000,0x800);
+		if (*(int *)(&nand_idb_data[0]) == 0x44535953) {
+			rknand_boot_media = *(int *)(&nand_idb_data[8]);
+			if (rknand_boot_media == 2) /*boot from emmc*/
+				return -1;
+		}
 	}
 	else if(id >= 2)
 	{

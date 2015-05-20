@@ -1,5 +1,6 @@
 #include <linux/ctype.h>
 #include <linux/string.h>
+#include <linux/delay.h>
 #include "rk1000_tve.h"
 
 
@@ -10,6 +11,7 @@ static const struct fb_videomode rk1000_cvbs_mode[] = {
 };
 
 static struct rk1000_monspecs cvbs_monspecs;
+extern int cvbsformat;
 
 int rk1000_tv_ntsc_init(void)
 {
@@ -18,6 +20,10 @@ int rk1000_tv_ntsc_init(void)
 	int i;
 	int ret;
 
+	if(cvbsformat>=0){
+		return;
+	}
+	
 	for (i = 0; i < sizeof(tv_encoder_regs); i++) {
 		ret = rk1000_tv_write_block(i, tv_encoder_regs + i, 1);
 		if (ret < 0) {
@@ -46,6 +52,10 @@ int rk1000_tv_pal_init(void)
 	int i;
 	int ret;
 
+	if(cvbsformat>=0){
+		return;
+	}
+	
 	for (i = 0; i < sizeof(tv_encoder_regs); i++) {
 		ret = rk1000_tv_write_block(i, tv_encoder_regs+i, 1);
 		if (ret < 0) {
@@ -68,6 +78,8 @@ int rk1000_tv_pal_init(void)
 
 static int rk1000_cvbs_set_enable(struct rk_display_device *device, int enable)
 {
+	unsigned char val;
+
 	if (cvbs_monspecs.suspend)
 		return 0;
 	if ((cvbs_monspecs.enable != enable) ||
@@ -76,8 +88,20 @@ static int rk1000_cvbs_set_enable(struct rk_display_device *device, int enable)
 			cvbs_monspecs.enable = 0;
 			rk1000_tv_standby(RK1000_TVOUT_CVBS);
 		} else if (enable == 1) {
-			rk1000_switch_fb(cvbs_monspecs.mode,
+
+		  if(cvbsformat>=0){
+		  		rk1000_switch_fb(cvbs_monspecs.mode,
 					 cvbs_monspecs.mode_set);
+				cvbsformat=-1;
+		  	}else{	
+				val = 0x07;
+				rk1000_tv_write_block(0x03, &val, 1);
+				rk1000_switch_fb(cvbs_monspecs.mode,
+						 cvbs_monspecs.mode_set);
+				msleep(600);
+				val = 0x03;
+				rk1000_tv_write_block(0x03, &val, 1);
+		  	}		
 			cvbs_monspecs.enable = 1;
 		}
 	}
@@ -176,7 +200,8 @@ int rk1000_register_display_cvbs(struct device *parent)
 	cvbs_monspecs.ddev = rk_display_device_register(&display_rk1000_cvbs,
 							parent, NULL);
 	rk1000_tve.cvbs = &cvbs_monspecs;
-	if (rk1000_tve.mode < TVOUT_YPBPR_720X480P_60)
+	if (rk1000_tve.mode < TVOUT_YPBPR_720X480P_60){
 		rk_display_device_enable(cvbs_monspecs.ddev);
+	}
 	return 0;
 }

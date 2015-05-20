@@ -12,20 +12,20 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/errno.h>
-#include <linux/string.h>
-#include <linux/slab.h>
-#include <linux/delay.h>
-#include <linux/interrupt.h>
 #include <linux/clk.h>
+#include <linux/delay.h>
+#include <linux/errno.h>
+#include <linux/init.h>
+#include <linux/interrupt.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/uaccess.h>
+#include <linux/rockchip/cpu.h>
 #include <linux/rockchip/iomap.h>
 #include <linux/rockchip/grf.h>
-#include "rk32_dp.h"
+#include <linux/string.h>
+#include <linux/slab.h>
+#include <linux/uaccess.h>
 
 #if defined(CONFIG_OF)
 #include <linux/of.h>
@@ -37,16 +37,27 @@
 #include <linux/seq_file.h>
 #endif
 
+#include "rk32_dp.h"
+
 /*#define EDP_BIST_MODE*/
 /*#define SW_LT*/
+
+#define RK3368_GRF_SOC_CON4	0x410
+
 static struct rk32_edp *rk32_edp;
 
 static int rk32_edp_clk_enable(struct rk32_edp *edp)
 {
+	int ret;
+
 	if (!edp->clk_on) {
-		clk_prepare_enable(edp->pd);
+		if (edp->pd)
+			clk_prepare_enable(edp->pd);
 		clk_prepare_enable(edp->pclk);
 		clk_prepare_enable(edp->clk_edp);
+		ret = clk_set_rate(edp->clk_24m, 24000000);
+		if (ret < 0)
+			dev_err(edp->dev, "cannot set edp clk_24m %d\n", ret);
 		clk_prepare_enable(edp->clk_24m);
 		edp->clk_on = true;
 	}
@@ -60,30 +71,46 @@ static int rk32_edp_clk_disable(struct rk32_edp *edp)
 		clk_disable_unprepare(edp->pclk);
 		clk_disable_unprepare(edp->clk_edp);
 		clk_disable_unprepare(edp->clk_24m);
-		clk_disable_unprepare(edp->pd);
+		if (edp->pd)
+			clk_disable_unprepare(edp->pd);
 		edp->clk_on = false;
 	}
 
 	return 0;
 }
 
-static int rk32_edp_pre_init(void)
+static int rk32_edp_pre_init(struct rk32_edp *edp)
 {
 	u32 val;
-	val = GRF_EDP_REF_CLK_SEL_INTER | (GRF_EDP_REF_CLK_SEL_INTER << 16);
-	writel_relaxed(val, RK_GRF_VIRT + RK3288_GRF_SOC_CON12);
 
-	val = 0x80008000;
-	writel_relaxed(val, RK_CRU_VIRT + 0x0d0); /*select 24m*/
-	dsb();
-	val = 0x80008000;
-	writel_relaxed(val, RK_CRU_VIRT + 0x01d0); /*reset edp*/
-	dsb();
-	udelay(1);
-	val = 0x80000000;
-	writel_relaxed(val, RK_CRU_VIRT + 0x01d0);
-	dsb();
-	udelay(1);
+	if (cpu_is_rk3288()) {
+		val = GRF_EDP_REF_CLK_SEL_INTER |
+			(GRF_EDP_REF_CLK_SEL_INTER << 16);
+		writel_relaxed(val, RK_GRF_VIRT + RK3288_GRF_SOC_CON12);
+
+		val = 0x80008000;
+		writel_relaxed(val, RK_CRU_VIRT + 0x01d0); /*reset edp*/
+		dsb(sy);
+		udelay(1);
+		val = 0x80000000;
+		writel_relaxed(val, RK_CRU_VIRT + 0x01d0);
+		dsb(sy);
+		udelay(1);
+	} else {
+		/* The rk3368 reset the edp 24M clock and apb bus
+		 * according to the CRU_SOFTRST6_CON and CRU_SOFTRST7_CON.
+		 */
+		val = 0x01 | (0x01 << 16);
+		regmap_write(edp->grf, RK3368_GRF_SOC_CON4, val);
+
+		reset_control_assert(edp->rst_24m);
+		usleep_range(10, 20);
+		reset_control_deassert(edp->rst_24m);
+
+		reset_control_assert(edp->rst_apb);
+		usleep_range(10, 20);
+		reset_control_deassert(edp->rst_apb);
+	}
 	return 0;
 }
 
@@ -93,11 +120,14 @@ static int rk32_edp_init_edp(struct rk32_edp *edp)
 	u32 val = 0;
 
 	rk_fb_get_prmry_screen(screen);
-	if (screen->lcdc_id == 1)  /*select lcdc*/
-		val = EDP_SEL_VOP_LIT | (EDP_SEL_VOP_LIT << 16);
-	else
-		val = EDP_SEL_VOP_LIT << 16;
-	writel_relaxed(val, RK_GRF_VIRT + RK3288_GRF_SOC_CON6);
+
+	if (cpu_is_rk3288()) {
+		if (screen->lcdc_id == 1)  /*select lcdc*/
+			val = EDP_SEL_VOP_LIT | (EDP_SEL_VOP_LIT << 16);
+		else
+			val = EDP_SEL_VOP_LIT << 16;
+		writel_relaxed(val, RK_GRF_VIRT + RK3288_GRF_SOC_CON6);
+	}
 
 	rk32_edp_reset(edp);
 	rk32_edp_init_refclk(edp);
@@ -1151,62 +1181,63 @@ static int rk32_edp_enable(void)
 	int ret = 0;
 	struct rk32_edp *edp = rk32_edp;
 
+	if (!edp->edp_en) {
+		rk32_edp_clk_enable(edp);
+		rk32_edp_pre_init(edp);
+		rk32_edp_init_edp(edp);
+		enable_irq(edp->irq);
+		/*ret = rk32_edp_handle_edid(edp);
+		if (ret) {
+			dev_err(edp->dev, "unable to handle edid\n");
+			//goto out;
+		}
 
-	rk32_edp_clk_enable(edp);
-	rk32_edp_pre_init();
-	rk32_edp_init_edp(edp);
-	enable_irq(edp->irq);
-	/*ret = rk32_edp_handle_edid(edp);
-	if (ret) {
-		dev_err(edp->dev, "unable to handle edid\n");
-		//goto out;
-	}
+		ret = rk32_edp_enable_scramble(edp, 0);
+		if (ret) {
+			dev_err(edp->dev, "unable to set scramble\n");
+			//goto out;
+		}
 
+		ret = rk32_edp_enable_rx_to_enhanced_mode(edp, 0);
+		if (ret) {
+			dev_err(edp->dev, "unable to set enhanced mode\n");
+			//goto out;
+		}
+		rk32_edp_enable_enhanced_mode(edp, 1);*/
 
-	ret = rk32_edp_enable_scramble(edp, 0);
-	if (ret) {
-		dev_err(edp->dev, "unable to set scramble\n");
-		//goto out;
-	}
+		ret = rk32_edp_set_link_train(edp);
+		if (ret)
+			dev_err(edp->dev, "link train failed!\n");
+		else
+			dev_info(edp->dev, "link training success.\n");
 
-	ret = rk32_edp_enable_rx_to_enhanced_mode(edp, 0);
-	if (ret) {
-		dev_err(edp->dev, "unable to set enhanced mode\n");
-		//goto out;
-	}
-	rk32_edp_enable_enhanced_mode(edp, 1);*/
-
-	ret = rk32_edp_set_link_train(edp);
-	if (ret)
-		dev_err(edp->dev, "link train failed!\n");
-	else
-		dev_info(edp->dev, "link training success.\n");
-
-	rk32_edp_set_lane_count(edp, edp->link_train.lane_count);
-	rk32_edp_set_link_bandwidth(edp, edp->link_train.link_rate);
-	rk32_edp_init_video(edp);
+		rk32_edp_set_lane_count(edp, edp->link_train.lane_count);
+		rk32_edp_set_link_bandwidth(edp, edp->link_train.link_rate);
+		rk32_edp_init_video(edp);
 
 #ifdef EDP_BIST_MODE
-	rk32_edp_bist_cfg(edp);
+		rk32_edp_bist_cfg(edp);
 #endif
-	ret = rk32_edp_config_video(edp, &edp->video_info);
-	if (ret)
-		dev_err(edp->dev, "unable to config video\n");
+		ret = rk32_edp_config_video(edp, &edp->video_info);
+		if (ret)
+			dev_err(edp->dev, "unable to config video\n");
 
+		edp->edp_en = true;
+	}
 	return ret;
-
-
-
 }
 
 static int  rk32_edp_disable(void)
 {
 	struct rk32_edp *edp = rk32_edp;
 
-	disable_irq(edp->irq);
-	rk32_edp_reset(edp);
-	rk32_edp_analog_power_ctr(edp, 0);
-	rk32_edp_clk_disable(edp);
+	if (edp->edp_en) {
+		disable_irq(edp->irq);
+		rk32_edp_reset(edp);
+		rk32_edp_analog_power_ctr(edp, 0);
+		rk32_edp_clk_disable(edp);
+		edp->edp_en = false;
+	}
 
 	return 0;
 }
@@ -1352,9 +1383,18 @@ static int rk32_edp_probe(struct platform_device *pdev)
 		return PTR_ERR(edp->regs);
 	}
 
+	edp->grf = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
+	if (IS_ERR(edp->grf)) {
+		dev_err(&pdev->dev, "can't find rockchip,grf property\n");
+		return PTR_ERR(edp->grf);
+	}
+
 	edp->pd = devm_clk_get(&pdev->dev, "pd_edp");
-	if (IS_ERR(edp->pd))
+	if (IS_ERR(edp->pd)) {
 		dev_err(&pdev->dev, "cannot get pd\n");
+		edp->pd = NULL;
+	}
+
 	edp->clk_edp = devm_clk_get(&pdev->dev, "clk_edp");
 	if (IS_ERR(edp->clk_edp)) {
 		dev_err(&pdev->dev, "cannot get clk_edp\n");
@@ -1372,9 +1412,24 @@ static int rk32_edp_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "cannot get pclk\n");
 		return PTR_ERR(edp->pclk);
 	}
+
+	/* We use the reset API to control the software reset at this version
+	 * and later, and we reserve the code that setting the cru regs directly
+	 * in the rk3288.
+	 */
+	/*edp 24m need sorft reset*/
+	edp->rst_24m = devm_reset_control_get(&pdev->dev, "edp_24m");
+	if (IS_ERR(edp->rst_24m)) {
+		dev_err(&pdev->dev, "failed to get reset\n");
+	}
+	/* edp ctrl apb bus need sorft reset */
+	edp->rst_apb = devm_reset_control_get(&pdev->dev, "edp_apb");
+	if (IS_ERR(edp->rst_apb)) {
+		dev_err(&pdev->dev, "failed to get reset\n");
+	}
 	rk32_edp_clk_enable(edp);
 	if (!support_uboot_display())
-		rk32_edp_pre_init();
+		rk32_edp_pre_init(edp);
 	edp->irq = platform_get_irq(pdev, 0);
 	if (edp->irq < 0) {
 		dev_err(&pdev->dev, "cannot find IRQ\n");

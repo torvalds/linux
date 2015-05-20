@@ -21,6 +21,7 @@
 #include <asm/tlbflush.h>
 #include <linux/vmalloc.h>
 #include <linux/rockchip/common.h>
+#include <linux/rockchip/cpu_axi.h>
 #include <linux/rockchip/dvfs.h>
 #include <dt-bindings/clock/ddr.h>
 #include <dt-bindings/clock/rk_system_status.h>
@@ -30,7 +31,6 @@
 #include <linux/clk-private.h>
 #include <linux/rockchip/cpu.h>
 #include "../../../drivers/clk/rockchip/clk-pd.h"
-#include "cpu_axi.h"
 
 static DECLARE_COMPLETION(ddrfreq_completion);
 static DEFINE_MUTEX(ddrfreq_mutex);
@@ -180,19 +180,25 @@ static void ddrfreq_mode(bool auto_self_refresh, unsigned long target_rate, char
 	}
 
 	if (target_rate != dvfs_clk_get_last_set_rate(ddr.clk_dvfs_node)) {
-		freq_limit_en = dvfs_clk_get_limit(clk_cpu_dvfs_node, &min_rate, &max_rate);
+		if (clk_cpu_dvfs_node) {
+			freq_limit_en = dvfs_clk_get_limit(clk_cpu_dvfs_node,
+							   &min_rate,
+							   &max_rate);
 
-		dvfs_clk_enable_limit(clk_cpu_dvfs_node, 600000000, -1);
+			dvfs_clk_enable_limit(clk_cpu_dvfs_node, 600000000, -1);
+		}
 		if (dvfs_clk_set_rate(ddr.clk_dvfs_node, target_rate) == 0) {
 			target_rate = dvfs_clk_get_rate(ddr.clk_dvfs_node);
 			auto_freq_update_index(target_rate);
 			dprintk(DEBUG_DDR, "change freq to %lu MHz when %s\n", target_rate / MHZ, name);
 		}
-
-		if (freq_limit_en) {
-			dvfs_clk_enable_limit(clk_cpu_dvfs_node, min_rate, max_rate);
-		} else {
-			dvfs_clk_disable_limit(clk_cpu_dvfs_node);
+		if (clk_cpu_dvfs_node) {
+			if (freq_limit_en) {
+				dvfs_clk_enable_limit(clk_cpu_dvfs_node,
+						      min_rate, max_rate);
+			} else {
+				dvfs_clk_disable_limit(clk_cpu_dvfs_node);
+			}
 		}
 	}
 }
@@ -219,7 +225,7 @@ static void ddr_auto_freq(void)
 {
 	unsigned long freq, new_freq=0, vop_req_freq=0, total_bw_req_freq=0;
 	u32 ddr_percent, target_load;
-	static u32 local_jiffies=0, max_ddr_percent=0;
+	static unsigned long local_jiffies=0, max_ddr_percent=0;
 
 	if (!local_jiffies)
 		local_jiffies = jiffies;
@@ -544,7 +550,7 @@ static ssize_t video_state_write(struct file *file, const char __user *buffer,
 		return -EFAULT;
 	}
 
-	dprintk(DEBUG_VIDEO_STATE, "%s: %s,len %d\n", __func__, cookie_pot,count);
+	dprintk(DEBUG_VIDEO_STATE, "%s: %s,len %zu\n", __func__, cookie_pot,count);
 
 	state=cookie_pot[0];
 	if( (count>=3) && (cookie_pot[2]=='w') )
@@ -644,6 +650,9 @@ static long ddr_freq_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 static const struct file_operations ddr_freq_fops = {
 	.owner	= THIS_MODULE,
 	.unlocked_ioctl = ddr_freq_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= ddr_freq_ioctl,
+#endif
 };
 
 static struct miscdevice ddr_freq_dev = {
@@ -965,10 +974,6 @@ static int ddrfreq_init(void)
 #endif
 
 	clk_cpu_dvfs_node = clk_get_dvfs_node("clk_core");
-	if (!clk_cpu_dvfs_node){
-		return -EINVAL;
-	}
-
 	memset(&ddr, 0x00, sizeof(ddr));
 	ddr.clk_dvfs_node = clk_get_dvfs_node("clk_ddr");
 	if (!ddr.clk_dvfs_node){

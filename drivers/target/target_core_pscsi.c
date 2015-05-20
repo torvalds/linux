@@ -1112,7 +1112,7 @@ static u32 pscsi_get_device_type(struct se_device *dev)
 	struct pscsi_dev_virt *pdv = PSCSI_DEV(dev);
 	struct scsi_device *sd = pdv->pdv_sd;
 
-	return sd->type;
+	return (sd) ? sd->type : TYPE_NO_LUN;
 }
 
 static sector_t pscsi_get_blocks(struct se_device *dev)

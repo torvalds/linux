@@ -1,0 +1,168 @@
+/dts-v1/;
+
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/rkfb/rk_fb.h>
+
+/ {
+	compatible = "rockchip,rk3368";
+
+	interrupt-parent = <&gic>;
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	xin24m: xin24m {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <24000000>;
+		clock-output-names = "xin24m";
+	};
+
+	aliases {
+		serial2 = &uart_dbg;
+	};
+
+	cpus {
+		#address-cells = <2>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53","arm,armv8";
+			reg = <0x0 0x0>;
+		};
+	};
+
+	chosen {
+		bootargs = "console=ttyS2 earlyprintk=uart8250-32bit,0xff690000";
+	};
+
+	timer {
+		compatible = "arm,armv8-timer";
+		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_HIGH)>,
+			     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_HIGH)>,
+			     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_HIGH)>,
+			     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_HIGH)>;
+		clock-frequency = <24000000>;
+	};
+
+	memory@00000000 {
+		device_type = "memory";
+		reg = <0x00000000 0x00000000 0x0 0x20000000>;
+	};
+
+	uart_dbg: serial@ff690000 {
+		compatible = "rockchip,serial";
+		reg = <0x0 0xff690000 0x0 0x100>;
+		interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
+		clock-frequency = <24000000>;
+		clocks = <&xin24m>, <&xin24m>;
+		clock-names = "sclk_uart", "pclk_uart";
+		reg-shift = <2>;
+		reg-io-width = <4>;
+	};
+
+	gic: interrupt-controller@ffb70000 {
+		compatible = "arm,cortex-a15-gic";
+		#interrupt-cells = <3>;
+		#address-cells = <0>;
+		interrupt-controller;
+		reg = <0x0 0xffb71000 0 0x1000>,
+		      <0x0 0xffb72000 0 0x1000>;
+	};
+
+	ion {
+		compatible = "rockchip,ion";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ion_cma: rockchip,ion-heap@1 { /* CMA HEAP */
+			compatible = "rockchip,ion-heap";
+			rockchip,ion_heap = <1>;
+			reg = <0x00000000 0x08000000>; /* 512MB */
+		};
+		rockchip,ion-heap@3 { /* VMALLOC HEAP */
+			compatible = "rockchip,ion-heap";
+			rockchip,ion_heap = <3>;
+		};
+	};
+
+	fb: fb {
+		compatible = "rockchip,rk-fb";
+		rockchip,disp-mode = <NO_DUAL>;
+	};
+
+
+	rk_screen: rk_screen {
+			compatible = "rockchip,screen";
+			disp_timings: display-timings {
+			native-mode = <&timing0>;
+			timing0: timing0 {
+						screen-type = <SCREEN_RGB>;
+						out-face    = <OUT_P888>;
+						color-mode = <COLOR_RGB>;
+						clock-frequency = <27000000>;
+						hactive = <800>;
+						vactive = <480>;
+						hback-porch = <206>;
+						hfront-porch = <1>;
+						vback-porch = <25>;
+						vfront-porch = <10>;
+						hsync-len = <10>;
+						vsync-len = <10>;
+						hsync-active = <0>;
+						vsync-active = <0>;
+						de-active = <0>;
+						pixelclk-active = <0>;
+						swap-rb = <0>;
+						swap-rg = <0>;
+						swap-gb = <0>;
+			};
+		};
+	};
+
+	lvds: lvds@ff968000 {
+		compatible = "rockchip,rk3368-lvds";
+		reg = <0x0 0xff968000 0x0 0x4000>, <0x0 0xff9600b0 0x0 0x01>;
+		//reg = <0xff968000 0x4000>, <0xff9600b0 0x01>;
+		reg-names = "mipi_lvds_phy", "mipi_lvds_ctl";
+		//clocks = <&dummy>, <&dummy>;
+		//clock-names = "pclk_lvds", "pclk_lvds_ctl";
+		status = "okay";
+	};
+
+	lcdc: lcdc@ff930000 {
+		compatible = "rockchip,rk3368-lcdc";
+		rockchip,prop = <PRMRY>;
+		rockchip,pwr18 = <0>;
+		rockchip,iommu-enabled = <0>;
+		//reg = <0xff930000 0x10000>;
+		reg = <0x0 0xff930000 0x0 0x10000>;
+		interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
+		//pinctrl-names = "default", "gpio";
+		//pinctrl-0 = <&lcdc_lcdc>;
+		//pinctrl-1 = <&lcdc_gpio>;
+		status = "okay";
+		//clocks = <&dummy>, <&dummy>, <&dummy>, <&dummy>, <&dummy>;
+		//clock-names = "aclk_lcdc", "dclk_lcdc", "hclk_lcdc", "pd_lcdc", "sclk_lcdc";
+		power_ctr: power_ctr {
+		rockchip,debug = <0>;
+		/*
+		lcd_en:lcd_en {
+			rockchip,power_type = <GPIO>;
+			gpios = <&gpio7 GPIO_A3 GPIO_ACTIVE_HIGH>;
+			rockchip,delay = <10>;
+		};
+		*/
+		/*lcd_cs:lcd_cs {
+			rockchip,power_type = <REGULATOR>;
+			rockchip,delay = <10>;
+		};
+
+		lcd_rst:lcd_rst {
+			rockchip,power_type = <GPIO>;
+			gpios = <&gpio3 GPIO_D6 GPIO_ACTIVE_HIGH>;
+			rockchip,delay = <5>;
+		};*/
+		};
+	};
+};

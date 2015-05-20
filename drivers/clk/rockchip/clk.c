@@ -25,6 +25,24 @@
 #include "clk-pll.h"
 #include "clk-pd.h"
 
+static void __iomem *rk_cru_base;
+static void __iomem *rk_grf_base;
+
+u32 cru_readl(u32 offset)
+{
+	return readl_relaxed(rk_cru_base + (offset));
+}
+
+void cru_writel(u32 val, u32 offset)
+{
+	writel_relaxed(val, rk_cru_base + (offset));
+	dsb(sy);
+}
+
+u32 grf_readl(u32 offset)
+{
+	return readl_relaxed(rk_grf_base + (offset));
+}
 
 struct rkclk_muxinfo {
 	const char		*clk_name;
@@ -1050,6 +1068,31 @@ out:
 	return ret;
 }
 
+static int __init rkclk_init_special_regs(struct device_node *np)
+{
+	struct device_node *node;
+	const char *compatible;
+	void __iomem *reg = 0;
+	int ret = 0;
+
+
+	for_each_available_child_of_node(np, node) {
+		clk_debug("\n");
+		of_property_read_string(node, "compatible", &compatible);
+		if (strcmp(compatible, "rockchip,rk3188-mux-con") == 0) {
+			reg = of_iomap(node, 0);
+			ret = rkclk_init_muxinfo(node, reg);
+			if (ret != 0) {
+				clk_err("%s: init mux con err\n", __func__);
+				goto out;
+			}
+		}
+	}
+
+out:
+	return ret;
+}
+
 static int __init rkclk_init_pd(struct device_node *np)
 {
 	struct device_node *node = NULL;
@@ -1477,6 +1520,10 @@ static void rkclk_add_provider(struct device_node *np)
 			for_each_available_child_of_node(node, node_prd) {
 				 _rkclk_add_provider(node_prd);
 			}
+		} else if (strcmp(compatible, "rockchip,rk-clock-special-regs") == 0) {
+			for_each_available_child_of_node(node, node_prd) {
+				 _rkclk_add_provider(node_prd);
+			}
 		} else {
 			clk_err("%s: unknown\n", __func__);
 		}
@@ -1522,7 +1569,8 @@ static void rkclk_cache_parents(struct rkclk *rkclk)
 void rk_dump_cru(void)
 {
 	printk(KERN_WARNING "CRU:\n");
-	print_hex_dump(KERN_WARNING, "", DUMP_PREFIX_OFFSET, 16, 4, RK_CRU_VIRT, 0x220, false);
+	print_hex_dump(KERN_WARNING, "", DUMP_PREFIX_OFFSET, 32, 4, rk_cru_base,
+		       0x420, false);
 }
 EXPORT_SYMBOL_GPL(rk_dump_cru);
 
@@ -1821,15 +1869,23 @@ static void __init rk_clk_tree_init(struct device_node *np)
 	struct rkclk *rkclk;
 	const char *compatible;
 
-	printk("%s start! cru base = 0x%08x\n", __func__, (u32)RK_CRU_VIRT);
+	printk("%s start!\n", __func__);
 
-	node_init=of_find_node_by_name(NULL,"clocks-init");
+	node_init = of_find_node_by_name(NULL, "clocks-init");
 	if (!node_init) {
 		clk_err("%s: can not get clocks-init node\n", __func__);
 		return;
 	}
-        clk_root_node=of_find_node_by_name(NULL,"clock_regs");
 
+	clk_root_node = of_find_node_by_name(NULL, "clock_regs");
+	rk_cru_base = of_iomap(clk_root_node, 0);
+	if (!rk_cru_base) {
+		clk_err("%s: could not map cru region\n", __func__);
+		return;
+	}
+
+	node = of_parse_phandle(np, "rockchip,grf", 0);
+	rk_grf_base = of_iomap(node, 0);
 
 	for_each_available_child_of_node(np, node) {
 		clk_debug("\n");
@@ -1839,22 +1895,27 @@ static void __init rk_clk_tree_init(struct device_node *np)
 		if (strcmp(compatible, "rockchip,rk-fixed-rate-cons") == 0) {
 			if (rkclk_init_fixed_rate(node) != 0) {
 				clk_err("%s: init fixed_rate err\n", __func__);
-				return ;
+				return;
 			}
 		} else if (strcmp(compatible, "rockchip,rk-fixed-factor-cons") == 0) {
 			if (rkclk_init_fixed_factor(node) != 0) {
 				clk_err("%s: init fixed_factor err\n", __func__);
-				return ;
+				return;
 			}
 		} else if (strcmp(compatible, "rockchip,rk-clock-regs") == 0) {
 			if (rkclk_init_regcon(node) != 0) {
 				clk_err("%s: init reg cons err\n", __func__);
-				return ;
+				return;
 			}
 		} else if (strcmp(compatible, "rockchip,rk-pd-cons") == 0) {
 			if (rkclk_init_pd(node) != 0) {
 				clk_err("%s: init pd err\n", __func__);
-				return ;
+				return;
+			}
+		} else if (strcmp(compatible, "rockchip,rk-clock-special-regs") == 0) {
+			if (rkclk_init_special_regs(node) != 0) {
+				clk_err("%s: init special reg err\n", __func__);
+				return;
 			}
 		} else {
 			clk_err("%s: unknown\n", __func__);
@@ -2178,7 +2239,7 @@ u32 clk_suspend_clkgt_info_get(u32 *clk_ungt_msk,u32 *clk_ungt_msk_last,u32 buf_
                     {
                         reg_n=of_iomap(node_gt, 0);
 
-                        if(((u32)reg_n-(u32)reg_p)!=4)
+                        if(((long)reg_n-(long)reg_p)!=4)
                         {
                             printk("%s: gt reg is not continue\n",__FUNCTION__);
                             return 0;
@@ -2186,7 +2247,7 @@ u32 clk_suspend_clkgt_info_get(u32 *clk_ungt_msk,u32 *clk_ungt_msk_last,u32 buf_
                         reg_p=reg_n;
                     }
 
-                    clk_debug("%s:gt%d,reg=%x,val=(%x,%x)\n",__FUNCTION__,gt_cnt,(u32)reg_n,
+                    clk_debug("%s:gt%d,reg=%p,val=(%x,%x)\n",__FUNCTION__,gt_cnt, reg_n,
                     clk_ungt_msk[gt_cnt], clk_ungt_msk_last[gt_cnt]);
 
                     gt_cnt++;

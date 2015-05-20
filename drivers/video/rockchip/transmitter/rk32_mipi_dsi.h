@@ -298,6 +298,7 @@ struct dsi {
 	u8 dsi_id;
 	u8 lcdc_id;
 	u8 vid;
+	u8 clk_on;
 	struct dsi_phy phy;
 	struct dsi_host host;
 	struct mipi_dsi_ops ops;
@@ -308,7 +309,7 @@ struct dsi {
 	struct clk	*h2p_hclk;
 	struct clk	*dsi_pd;
 #endif
-    struct dentry *debugfs_dir;
+	struct dentry *debugfs_dir;
 	struct platform_device *pdev;
 };
 

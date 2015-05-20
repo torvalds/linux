@@ -1,0 +1,15 @@
+obj-y += ../../arm/mach-rockchip/common.o
+obj-y += ../../arm/mach-rockchip/cpu.o
+obj-y += ../../arm/mach-rockchip/efuse.o
+obj-y += ../../arm/mach-rockchip/pvtm.o
+obj-y += ../../arm/mach-rockchip/rk_system_status.o
+obj-y += ../../arm/mach-rockchip/ddr_freq.o
+obj-$(CONFIG_PM) += ../../arm/mach-rockchip/rockchip_pm.o pm-rk3368.o
+obj-$(CONFIG_RK_LAST_LOG) += ../../arm/mach-rockchip/last_log.o
+obj-$(CONFIG_DVFS) += ../../arm/mach-rockchip/dvfs.o
+obj-$(CONFIG_BLOCK_RKNAND) += ../../arm/mach-rockchip/rknandbase.o
+obj-$(CONFIG_RK_PL330_DMA_TEST) += ../../arm/mach-rockchip/dma_memcpy_test.o
+obj-$(CONFIG_RK_VCODEC) += ../../arm/mach-rockchip/vcodec_service.o
+obj-$(CONFIG_DDR_TEST) += ../../arm/mach-rockchip/ddr_test.o
+obj-$(CONFIG_RK_PM_TESTS) += ../../arm/mach-rockchip/rk_pm_tests/
+obj-$(CONFIG_ROCK_CHIP_SOC_CAMERA) += ../../arm/mach-rockchip/rk_camera.o

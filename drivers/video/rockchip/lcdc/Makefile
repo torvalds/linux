@@ -5,3 +5,4 @@ obj-$(CONFIG_LCDC_RK3188) += rk3188_lcdc.o
 obj-$(CONFIG_LCDC_RK3288) += rk3288_lcdc.o
 obj-$(CONFIG_LCDC_RK3036) += rk3036_lcdc.o
 obj-$(CONFIG_LCDC_RK312X) += rk312x_lcdc.o
+obj-$(CONFIG_LCDC_RK3368) += rk3368_lcdc.o

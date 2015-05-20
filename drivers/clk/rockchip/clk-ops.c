@@ -409,6 +409,7 @@ const struct clk_ops clkops_rate_core_peri = {
 	.set_rate	= NULL,
 };
 
+#if 0
 static unsigned long clk_ddr_recalc_rate(struct clk_hw *hw,
 		unsigned long parent_rate)
 {
@@ -438,7 +439,7 @@ static long clk_ddr_determine_rate(struct clk_hw *hw, unsigned long rate,
 }
 
 static long clk_ddr_round_rate(struct clk_hw *hw, unsigned long rate,
-		unsigned long *prate)
+		 unsigned long *prate)
 {
 	return clk_ddr_determine_rate(hw, rate, prate, NULL);
 }
@@ -494,6 +495,25 @@ const struct clk_ops clkops_rate_ddr_div2 = {
 	.set_rate	= clk_ddr_set_rate,
 	.determine_rate = clk_ddr_determine_rate,
 };
+
+static unsigned long clk_ddr_div4_recalc_rate(struct clk_hw *hw,
+					      unsigned long parent_rate)
+{
+	/* Same as clk_core, we should NOT set clk_ddr's parent
+	 * (dpll) rate directly as a side effect.
+	 */
+	struct clk *parent = __clk_get_parent(hw->clk);
+
+	return clk_divider_recalc_rate(hw, __clk_get_rate(parent))/4;
+}
+
+const struct clk_ops clkops_rate_ddr_div4 = {
+	.recalc_rate	= clk_ddr_div4_recalc_rate,
+	.round_rate	= clk_ddr_round_rate,
+	.set_rate	= clk_ddr_set_rate,
+	.determine_rate = clk_ddr_determine_rate,
+};
+#endif
 
 static unsigned long clk_3288_i2s_recalc_rate(struct clk_hw *hw,
 		unsigned long parent_rate)
@@ -707,6 +727,185 @@ const struct clk_ops clkops_rate_3288_dclk_lcdc1 = {
 	.recalc_rate	= clk_divider_recalc_rate,
 };
 
+#define CONFIG_RK3368_MUX_NO_USE_NPLL
+
+static long clk_3368_mux_div_determine_rate(struct clk_hw *div_hw,
+					    unsigned long rate,
+					    unsigned long *best_parent_rate,
+					    struct clk **best_parent_p)
+{
+	struct clk *clk = div_hw->clk, *parent = NULL, *best_parent = NULL;
+	int i, num_parents;
+	unsigned long parent_rate = 0, best_prate = 0, best = 0, now = 0;
+
+	parent = __clk_get_parent(clk);
+	if (!parent) {
+		best = __clk_get_rate(clk);
+		goto out;
+	}
+
+	/* if NO_REPARENT flag set, pass through to current parent */
+	if (clk->flags & CLK_SET_RATE_NO_REPARENT) {
+		best_prate = __clk_get_rate(parent);
+		best = clk_divider_ops.round_rate(div_hw, rate, &best_prate);
+		goto out;
+	}
+
+	/* find the parent that can provide the fastest rate <= rate */
+	num_parents = clk->num_parents;
+	for (i = 0; i < num_parents; i++) {
+		parent = clk_get_parent_by_index(clk, i);
+		if (!parent)
+			continue;
+
+#ifdef CONFIG_RK3368_MUX_NO_USE_NPLL
+		if (!strcmp(__clk_get_name(parent), "clk_npll"))
+			continue;
+#endif
+		parent_rate = __clk_get_rate(parent);
+		now = clk_divider_ops.round_rate(div_hw, rate, &parent_rate);
+
+		if (now <= rate && now > best) {
+			best_parent = parent;
+			best_prate = parent_rate;
+			best = now;
+		}
+	}
+
+out:
+	if (best_prate)
+		*best_parent_rate = best_prate;
+
+	if (best_parent)
+		*best_parent_p = best_parent;
+
+	clk_debug("clk name = %s, determine rate = %lu, best = %lu\n"
+		  "\tbest_parent name = %s, best_prate = %lu\n",
+		  clk->name, rate, best,
+		  __clk_get_name(*best_parent_p), *best_parent_rate);
+
+	return best;
+}
+
+const struct clk_ops clkops_rate_3368_auto_parent = {
+	.recalc_rate    = clk_divider_recalc_rate,
+	.round_rate     = clk_divider_round_rate,
+	.set_rate       = clk_divider_set_rate,
+	.determine_rate = clk_3368_mux_div_determine_rate,
+};
+
+#define RK3368_LIMIT_NPLL (1250*MHZ)
+
+static long clk_3368_dclk_lcdc_determine_rate(struct clk_hw *hw,
+					      unsigned long rate,
+					      unsigned long *best_parent_rate,
+					      struct clk **best_parent_p)
+{
+	struct clk *npll = clk_get(NULL, "clk_npll");
+	unsigned long div, prate, best, *p_prate;
+	static unsigned long rk3368_pll_rates[] = {1188*MHZ, 0};
+
+	if (best_parent_p)
+		*best_parent_p = npll;
+
+	/* first get parent_rate from table */
+	p_prate = rk3368_pll_rates;
+
+	while (*p_prate) {
+		if (!(*p_prate % (rate*2)) || (*p_prate == rate)) {
+			clk_debug("%s: get rate from table\n", __func__);
+			*best_parent_rate = *p_prate;
+			best = rate;
+			return best;
+		}
+		p_prate++;
+	}
+
+	/* if not suitable parent_rate found in table, then auto calc rate */
+	div = RK3368_LIMIT_NPLL/rate;
+	/* div should be even */
+	if (div % 2)
+		div = div - 1;
+
+	prate = div * rate;
+	*best_parent_rate = clk_round_rate(npll, prate);
+	best = (*best_parent_rate)/div;
+
+	return best;
+}
+
+static long clk_3368_dclk_lcdc_round_rate(struct clk_hw *hw, unsigned long rate,
+					  unsigned long *prate)
+{
+	return clk_3368_dclk_lcdc_determine_rate(hw, rate, prate, NULL);
+}
+
+const struct clk_ops clkops_rate_3368_dclk_lcdc = {
+	.determine_rate = clk_3368_dclk_lcdc_determine_rate,
+	.set_rate	= clk_divider_set_rate,
+	.round_rate	= clk_3368_dclk_lcdc_round_rate,
+	.recalc_rate	= clk_divider_recalc_rate,
+};
+
+static unsigned long clk_rk3368_ddr_recalc_rate(struct clk_hw *hw,
+		unsigned long parent_rate)
+{
+	if (!ddr_recalc_rate)
+		return (clk_core_recalc_rate(hw, parent_rate)/2);
+	else
+		return ddr_recalc_rate();
+}
+
+static long clk_ddr_determine_rate(struct clk_hw *hw, unsigned long rate,
+		unsigned long *best_parent_rate,
+			struct clk **best_parent_p)
+{
+	long best = 0;
+
+	if (!ddr_round_rate) {
+		/* Do nothing before ddr init */
+		best = rate;
+	} else {
+		/* Func provided by ddr driver */
+		best = ddr_round_rate(rate/MHZ) * MHZ;
+	}
+	clk_debug("%s: from %lu to %lu\n", __func__, rate, best);
+	return best;
+}
+static long clk_ddr_round_rate(struct clk_hw *hw, unsigned long rate,
+		unsigned long *prate)
+{
+	return clk_ddr_determine_rate(hw, rate, prate, NULL);
+}
+static int clk_ddr_set_rate(struct clk_hw *hw, unsigned long rate,
+		unsigned long parent_rate)
+{
+	struct clk *parent = __clk_get_parent(hw->clk);
+	struct clk *grand_p = __clk_get_parent(parent);
+
+	/* Do nothing before ddr init */
+	if (!ddr_change_freq)
+		return 0;
+	if (IS_ERR_OR_NULL(parent) || IS_ERR_OR_NULL(grand_p)) {
+		clk_err("fail to get parent or grand_parent!\n");
+		return -EINVAL;
+	}
+	clk_debug("%s: will set rate = %lu\n", __func__, rate);
+	/* Func provided by ddr driver */
+	ddr_change_freq(rate/MHZ);
+	parent->rate = parent->ops->recalc_rate(parent->hw,
+	__clk_get_rate(grand_p));
+	return 0;
+}
+
+const struct clk_ops clkops_rate_rk3368_ddr = {
+	.recalc_rate	= clk_rk3368_ddr_recalc_rate,
+	.round_rate	= clk_ddr_round_rate,
+	.set_rate	= clk_ddr_set_rate,
+	.determine_rate = clk_ddr_determine_rate,
+};
+
+
 
 struct clk_ops_table rk_clkops_rate_table[] = {
 	{.index = CLKOPS_RATE_MUX_DIV,		.clk_ops = &clkops_rate_auto_parent},
@@ -716,12 +915,16 @@ struct clk_ops_table rk_clkops_rate_table[] = {
 	{.index = CLKOPS_RATE_FRAC,		.clk_ops = &clkops_rate_frac},
 	{.index = CLKOPS_RATE_CORE,		.clk_ops = &clkops_rate_core},
 	{.index = CLKOPS_RATE_CORE_CHILD,	.clk_ops = &clkops_rate_core_peri},
-	{.index = CLKOPS_RATE_DDR,		.clk_ops = &clkops_rate_ddr},
+	{.index = CLKOPS_RATE_DDR,		.clk_ops = NULL},
 	{.index = CLKOPS_RATE_RK3288_I2S,	.clk_ops = &clkops_rate_3288_i2s},
 	{.index = CLKOPS_RATE_RK3288_USB480M,	.clk_ops = &clkops_rate_3288_usb480m},
 	{.index = CLKOPS_RATE_RK3288_DCLK_LCDC0,.clk_ops = &clkops_rate_3288_dclk_lcdc0},
 	{.index = CLKOPS_RATE_RK3288_DCLK_LCDC1,.clk_ops = &clkops_rate_3288_dclk_lcdc1},
-	{.index = CLKOPS_RATE_DDR_DIV2,	.clk_ops = &clkops_rate_ddr_div2},
+	{.index = CLKOPS_RATE_DDR_DIV2,		.clk_ops = NULL},
+	{.index = CLKOPS_RATE_DDR_DIV4,		.clk_ops = NULL},
+	{.index = CLKOPS_RATE_RK3368_MUX_DIV_NPLL,   .clk_ops = &clkops_rate_3368_auto_parent},
+	{.index = CLKOPS_RATE_RK3368_DCLK_LCDC, .clk_ops = &clkops_rate_3368_dclk_lcdc},
+	{.index = CLKOPS_RATE_RK3368_DDR,   .clk_ops = &clkops_rate_rk3368_ddr},
 	{.index = CLKOPS_RATE_I2S,		.clk_ops = NULL},
 	{.index = CLKOPS_RATE_CIFOUT,		.clk_ops = NULL},
 	{.index = CLKOPS_RATE_UART,		.clk_ops = NULL},

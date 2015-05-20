@@ -21,11 +21,13 @@
 #include <linux/of_platform.h>
 #include <linux/of_fdt.h>
 #include <asm/cputype.h>
+#ifdef CONFIG_CACHE_L2X0
 #include <asm/hardware/cache-l2x0.h>
+#endif
 #include <linux/rockchip/common.h>
+#include <linux/rockchip/cpu_axi.h>
 #include <linux/rockchip/pmu.h>
 #include <linux/memblock.h>
-#include "cpu_axi.h"
 #include "loader.h"
 #include "sram.h"
 
@@ -103,7 +105,7 @@ static int __init rockchip_cpu_axi_init(void)
 				iounmap(base);
 		}
 	}
-	dsb();
+	dsb(sy);
 
 #undef MAP
 
@@ -111,6 +113,7 @@ static int __init rockchip_cpu_axi_init(void)
 }
 early_initcall(rockchip_cpu_axi_init);
 
+#ifdef CONFIG_CACHE_L2X0
 static int __init rockchip_pl330_l2_cache_init(void)
 {
 	struct device_node *np;
@@ -150,6 +153,7 @@ static int __init rockchip_pl330_l2_cache_init(void)
 	return 0;
 }
 early_initcall(rockchip_pl330_l2_cache_init);
+#endif
 
 struct gen_pool *rockchip_sram_pool = NULL;
 struct pie_chunk *rockchip_pie_chunk = NULL;
@@ -273,6 +277,7 @@ void (*ddr_bandwidth_get)(struct ddr_bw_info *ddr_bw_ch0,
 int (*ddr_change_freq)(uint32_t nMHz) = NULL;
 long (*ddr_round_rate)(uint32_t nMHz) = NULL;
 void (*ddr_set_auto_self_refresh)(bool en) = NULL;
+int (*ddr_recalc_rate)(void) = NULL;
 
 extern struct ion_platform_data ion_pdata;
 extern void __init ion_reserve(struct ion_platform_data *data);

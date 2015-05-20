@@ -16,9 +16,6 @@
 #include "Logging.h"
 #include "SessionData.h"
 
-#define NS_PER_S ((uint64_t)1000000000)
-#define NS_PER_US 1000
-
 extern Child *child;
 
 UserSpaceSource::UserSpaceSource(sem_t *senderSem) : mBuffer(0, FRAME_BLOCK_COUNTER, gSessionData->mTotalBufferSize*1024*1024, senderSem) {
@@ -34,30 +31,28 @@ bool UserSpaceSource::prepare() {
 void UserSpaceSource::run() {
 	prctl(PR_SET_NAME, (unsigned long)&"gatord-counters", 0, 0, 0);
 
-	gSessionData->hwmon.start();
+	for (int i = 0; i < ARRAY_LENGTH(gSessionData->usDrivers); ++i) {
+		gSessionData->usDrivers[i]->start();
+	}
 
 	int64_t monotonic_started = 0;
 	while (monotonic_started <= 0) {
 		usleep(10);
 
-		if (DriverSource::readInt64Driver("/dev/gator/started", &monotonic_started) == -1) {
-			logg->logError(__FILE__, __LINE__, "Error reading gator driver start time");
-			handleException();
+		if (gSessionData->perf.isSetup()) {
+			monotonic_started = gSessionData->mMonotonicStarted;
+		} else {
+			if (DriverSource::readInt64Driver("/dev/gator/started", &monotonic_started) == -1) {
+				logg->logError(__FILE__, __LINE__, "Error reading gator driver start time");
+				handleException();
+			}
+			gSessionData->mMonotonicStarted = monotonic_started;
 		}
 	}
 
 	uint64_t next_time = 0;
 	while (gSessionData->mSessionIsActive) {
-		struct timespec ts;
-#ifndef CLOCK_MONOTONIC_RAW
-		// Android doesn't have this defined but it was added in Linux 2.6.28
-#define CLOCK_MONOTONIC_RAW 4
-#endif
-		if (clock_gettime(CLOCK_MONOTONIC_RAW, &ts) != 0) {
-			logg->logError(__FILE__, __LINE__, "Failed to get uptime");
-			handleException();
-		}
-		const uint64_t curr_time = (NS_PER_S*ts.tv_sec + ts.tv_nsec) - monotonic_started;
+		const uint64_t curr_time = getTime() - monotonic_started;
 		// Sample ten times a second ignoring gSessionData->mSampleRate
 		next_time += NS_PER_S/10;//gSessionData->mSampleRate;
 		if (next_time < curr_time) {
@@ -66,7 +61,9 @@ void UserSpaceSource::run() {
 		}
 
 		if (mBuffer.eventHeader(curr_time)) {
-			gSessionData->hwmon.read(&mBuffer);
+			for (int i = 0; i < ARRAY_LENGTH(gSessionData->usDrivers); ++i) {
+				gSessionData->usDrivers[i]->read(&mBuffer);
+			}
 			// Only check after writing all counters so that time and corresponding counters appear in the same frame
 			mBuffer.check(curr_time);
 		}

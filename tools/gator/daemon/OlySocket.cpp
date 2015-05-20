@@ -9,15 +9,16 @@
 #include "OlySocket.h"
 
 #include <stdio.h>
+#include <string.h>
 #ifdef WIN32
 #include <Winsock2.h>
 #include <ws2tcpip.h>
 #else
 #include <netinet/in.h>
-#include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
 #include <netdb.h>
+#include <fcntl.h>
 #endif
 
 #include "Logging.h"
@@ -31,6 +32,48 @@
 #define SHUTDOWN_RX_TX SHUT_RDWR
 #endif
 
+int socket_cloexec(int domain, int type, int protocol) {
+#ifdef SOCK_CLOEXEC
+  return socket(domain, type | SOCK_CLOEXEC, protocol);
+#else
+  int sock = socket(domain, type, protocol);
+#ifdef FD_CLOEXEC
+  if (sock < 0) {
+    return -1;
+  }
+  int fdf = fcntl(sock, F_GETFD);
+  if ((fdf == -1) || (fcntl(sock, F_SETFD, fdf | FD_CLOEXEC) != 0)) {
+    close(sock);
+    return -1;
+  }
+#endif
+  return sock;
+#endif
+}
+
+int accept_cloexec(int sockfd, struct sockaddr *addr, socklen_t *addrlen) {
+  int sock;
+#ifdef SOCK_CLOEXEC
+  sock = accept4(sockfd, addr, addrlen, SOCK_CLOEXEC);
+  if (sock >= 0) {
+    return sock;
+  }
+  // accept4 with SOCK_CLOEXEC may not work on all kernels, so fallback
+#endif
+  sock = accept(sockfd, addr, addrlen);
+#ifdef FD_CLOEXEC
+  if (sock < 0) {
+    return -1;
+  }
+  int fdf = fcntl(sock, F_GETFD);
+  if ((fdf == -1) || (fcntl(sock, F_SETFD, fdf | FD_CLOEXEC) != 0)) {
+    close(sock);
+    return -1;
+  }
+#endif
+  return sock;
+}
+
 OlyServerSocket::OlyServerSocket(int port) {
 #ifdef WIN32
   WSADATA wsaData;
@@ -43,30 +86,30 @@ OlyServerSocket::OlyServerSocket(int port) {
   createServerSocket(port);
 }
 
-OlySocket::OlySocket(int port, const char* host) {
-  createClientSocket(host, port);
-}
-
 OlySocket::OlySocket(int socketID) : mSocketID(socketID) {
 }
 
 #ifndef WIN32
 
-OlyServerSocket::OlyServerSocket(const char* path) {
+#define MIN(A, B) ({ \
+  const __typeof__(A) __a = A; \
+  const __typeof__(B) __b = B; \
+  __a > __b ? __b : __a; \
+})
+
+OlyServerSocket::OlyServerSocket(const char* path, const size_t pathSize) {
   // Create socket
-  mFDServer = socket(PF_UNIX, SOCK_STREAM, 0);
+  mFDServer = socket_cloexec(PF_UNIX, SOCK_STREAM, 0);
   if (mFDServer < 0) {
     logg->logError(__FILE__, __LINE__, "Error creating server socket");
     handleException();
   }
 
-  unlink(path);
-
   // Create sockaddr_in structure, ensuring non-populated fields are zero
   struct sockaddr_un sockaddr;
   memset((void*)&sockaddr, 0, sizeof(sockaddr));
   sockaddr.sun_family = AF_UNIX;
-  strncpy(sockaddr.sun_path, path, sizeof(sockaddr.sun_path) - 1);
+  memcpy(sockaddr.sun_path, path, MIN(pathSize, sizeof(sockaddr.sun_path)));
   sockaddr.sun_path[sizeof(sockaddr.sun_path) - 1] = '\0';
 
   // Bind the socket to an address
@@ -82,24 +125,25 @@ OlyServerSocket::OlyServerSocket(const char* path) {
   }
 }
 
-OlySocket::OlySocket(const char* path) {
-  mSocketID = socket(PF_UNIX, SOCK_STREAM, 0);
-  if (mSocketID < 0) {
-    return;
+int OlySocket::connect(const char* path, const size_t pathSize) {
+  int fd = socket_cloexec(PF_UNIX, SOCK_STREAM, 0);
+  if (fd < 0) {
+    return -1;
   }
 
   // Create sockaddr_in structure, ensuring non-populated fields are zero
   struct sockaddr_un sockaddr;
   memset((void*)&sockaddr, 0, sizeof(sockaddr));
   sockaddr.sun_family = AF_UNIX;
-  strncpy(sockaddr.sun_path, path, sizeof(sockaddr.sun_path) - 1);
+  memcpy(sockaddr.sun_path, path, MIN(pathSize, sizeof(sockaddr.sun_path)));
   sockaddr.sun_path[sizeof(sockaddr.sun_path) - 1] = '\0';
 
-  if (connect(mSocketID, (const struct sockaddr*)&sockaddr, sizeof(sockaddr)) < 0) {
-    close(mSocketID);
-    mSocketID = -1;
-    return;
+  if (::connect(fd, (const struct sockaddr*)&sockaddr, sizeof(sockaddr)) < 0) {
+    close(fd);
+    return -1;
   }
+
+  return fd;
 }
 
 #endif
@@ -137,55 +181,14 @@ void OlyServerSocket::closeServerSocket() {
   mFDServer = 0;
 }
 
-void OlySocket::createClientSocket(const char* hostname, int portno) {
-#ifdef WIN32
-  // TODO: Implement for Windows
-#else
-  char buf[32];
-  struct addrinfo hints, *res, *res0;
-
-  snprintf(buf, sizeof(buf), "%d", portno);
-  mSocketID = -1;
-  memset((void*)&hints, 0, sizeof(hints));
-  hints.ai_family = PF_UNSPEC;
-  hints.ai_socktype = SOCK_STREAM;
-
-  if (getaddrinfo(hostname, buf, &hints, &res0)) {
-    logg->logError(__FILE__, __LINE__, "Client socket failed to get address info for %s", hostname);
-    handleException();
-  }
-  for (res=res0; res!=NULL; res = res->ai_next) {
-    if ( res->ai_family != PF_INET || res->ai_socktype != SOCK_STREAM ) {
-      continue;
-    }
-    mSocketID = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-    if (mSocketID < 0) {
-      continue;
-    }
-    if (connect(mSocketID, res->ai_addr, res->ai_addrlen) < 0) {
-      close(mSocketID);
-      mSocketID = -1;
-    }
-    if (mSocketID > 0) {
-      break;
-    }
-  }
-  freeaddrinfo(res0);
-  if (mSocketID <= 0) {
-    logg->logError(__FILE__, __LINE__, "Could not connect to client socket. Ensure ARM Streamline is running.");
-    handleException();
-  }
-#endif
-}
-
 void OlyServerSocket::createServerSocket(int port) {
   int family = AF_INET6;
 
   // Create socket
-  mFDServer = socket(PF_INET6, SOCK_STREAM, IPPROTO_TCP);
+  mFDServer = socket_cloexec(PF_INET6, SOCK_STREAM, IPPROTO_TCP);
   if (mFDServer < 0) {
     family = AF_INET;
-    mFDServer = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+    mFDServer = socket_cloexec(PF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (mFDServer < 0) {
       logg->logError(__FILE__, __LINE__, "Error creating server socket");
       handleException();
@@ -229,7 +232,7 @@ int OlyServerSocket::acceptConnection() {
   }
 
   // Accept a connection, note that this call blocks until a client connects
-  socketID = accept(mFDServer, NULL, NULL);
+  socketID = accept_cloexec(mFDServer, NULL, NULL);
   if (socketID < 0) {
     logg->logError(__FILE__, __LINE__, "Socket acceptance failed");
     handleException();

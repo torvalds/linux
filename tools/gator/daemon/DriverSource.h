@@ -14,6 +14,7 @@
 
 #include "Source.h"
 
+class Buffer;
 class Fifo;
 
 class DriverSource : public Source {
@@ -37,6 +38,10 @@ public:
 	static int writeReadDriver(const char *path, int64_t *value);
 
 private:
+	static void *bootstrapThreadStatic(void *arg);
+	void bootstrapThread();
+
+	Buffer *mBuffer;
 	Fifo *mFifo;
 	sem_t *const mSenderSem;
 	sem_t *const mStartProfile;

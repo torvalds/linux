@@ -29,7 +29,6 @@
 #include <linux/rockchip/cpu.h>
 #include <linux/rockchip/dvfs.h>
 #include <asm/smp_plat.h>
-#include <asm/cpu.h>
 #include <asm/unistd.h>
 #include <asm/uaccess.h>
 #include <asm/system_misc.h>
@@ -253,15 +252,7 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 
 	policy->cpuinfo.transition_latency = 40 * NSEC_PER_USEC;	// make ondemand default sampling_rate to 40000
 
-	/*
-	 * On SMP configuartion, both processors share the voltage
-	 * and clock. So both CPUs needs to be scaled together and hence
-	 * needs software co-ordination. Use cpufreq affected_cpus
-	 * interface to handle this scenario. Additional is_smp() check
-	 * is to keep SMP_ON_UP build working.
-	 */
-	if (is_smp())
-		cpumask_setall(policy->cpus);
+	cpumask_setall(policy->cpus);
 
 	return 0;
 

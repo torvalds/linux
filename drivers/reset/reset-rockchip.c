@@ -125,7 +125,7 @@ static int rockchip_register_reset(struct device_node *np,
 	return 0;
 };
 
-static int rockchip_reset_probe(struct platform_device *pdev)
+static int __init rockchip_reset_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	void __iomem *base;
@@ -158,12 +158,17 @@ static const struct of_device_id rockchip_reset_dt_ids[]  = {
 MODULE_DEVICE_TABLE(of, rockchip_reset_dt_ids);
 
 static struct platform_driver rockchip_reset_driver = {
-	.probe  = rockchip_reset_probe,
 	.driver = {
 		.name           = "rockchip-reset",
 		.owner          = THIS_MODULE,
 		.of_match_table = rockchip_reset_dt_ids,
 	},
 };
-module_platform_driver(rockchip_reset_driver);
 
+static int __init rockchip_reset_module_init(void)
+{
+	return platform_driver_probe(&rockchip_reset_driver,
+				     rockchip_reset_probe);
+}
+
+subsys_initcall_sync(rockchip_reset_module_init);

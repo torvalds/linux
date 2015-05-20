@@ -32,7 +32,9 @@
 #include <linux/clk.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
+#ifndef CONFIG_ARM64
 #include <asm/mach/map.h>
+#endif
 #ifdef CONFIG_OF
 #include <linux/of.h>
 #endif
@@ -124,7 +126,17 @@ static char		 expect_close;
 		printk(KERN_INFO msg); \
 	} while (0)
 
-#define wdt_writel(v, offset) do { writel_relaxed(v, wdt_base + offset); dsb(); } while (0)
+#ifdef CONFIG_ARM64
+#define wdt_writel(v, offset) do { \
+	writel_relaxed(v, wdt_base + offset);\
+	dsb(sy);\
+	} while (0)
+#else
+#define wdt_writel(v, offset) do { \
+	writel_relaxed(v, wdt_base + offset);\
+	dsb();\
+	} while (0)
+#endif
 
 /* functions */
 void rk29_wdt_keepalive(void)

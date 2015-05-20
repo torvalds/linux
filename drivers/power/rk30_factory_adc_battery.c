@@ -22,9 +22,6 @@
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <asm/io.h>
-#include <asm/mach-types.h>
-#include <asm/mach/arch.h>
-#include <asm/mach/map.h>
 #include <linux/adc.h>
 #include <linux/delay.h>
 #include <linux/ktime.h>

@@ -140,6 +140,8 @@
 		pdma: pdma@20078000 {
 			compatible = "arm,pl330", "arm,primecell";
 			reg = <0x20078000 0x4000>;
+			clocks = <&clk_gates5 1>;
+			clock-names = "apb_pclk";
 			interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
 			#dma-cells = <1>;
@@ -297,7 +299,7 @@
 
 				/*aclk_peri_pre*/
 				<&clk_gates4 3>,/*aclk_peri_axi_matrix*/
-				<&clk_gates5 1>,/*aclk_dmac2*/
+				//<&clk_gates5 1>,/*aclk_dmac2*/
 				<&clk_gates9 15>,/*aclk_peri_niu*/
 				<&clk_gates4 2>,/*aclk_cpu_peri*/
 

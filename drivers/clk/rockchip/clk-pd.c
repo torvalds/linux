@@ -100,7 +100,7 @@ static int clk_pd_endisable(struct clk_hw *hw, bool enable)
 {
 	struct clk_pd *pd = to_clk_pd(hw);
 	unsigned long flags = 0;
-	int ret;
+	int ret = 0;
 
 	if (pd->lock)
 		spin_lock_irqsave(pd->lock, flags);

@@ -43,3 +43,8 @@ config LCDC_RK312X
         depends on DRM_ROCKCHIP || FB_ROCKCHIP
         help
           Driver for rk312x lcdc.
+config LCDC_RK3368
+		bool "rk3368 lcdc support"
+			depends on DRM_ROCKCHIP || FB_ROCKCHIP
+			help
+			Driver for rk3368 lcdc.There are one lcd controllers on rk3368

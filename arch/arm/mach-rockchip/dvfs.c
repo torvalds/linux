@@ -33,11 +33,37 @@
 static LIST_HEAD(rk_dvfs_tree);
 static DEFINE_MUTEX(rk_dvfs_mutex);
 static struct workqueue_struct *dvfs_wq;
+static struct dvfs_node *clk_cpu_b_dvfs_node;
+static struct dvfs_node *clk_cpu_l_dvfs_node;
+static struct dvfs_node *clk_cpu_bl_dvfs_node;
 static struct dvfs_node *clk_cpu_dvfs_node;
 static struct dvfs_node *clk_gpu_dvfs_node;
 static int pd_gpu_off, early_suspend;
 static DEFINE_MUTEX(switch_vdd_gpu_mutex);
 struct regulator *vdd_gpu_regulator;
+
+static int dvfs_get_temp(int chn)
+{
+	int temp = INVALID_TEMP;
+
+#if IS_ENABLED(CONFIG_ROCKCHIP_THERMAL)
+	int read_back = 0;
+
+	if (clk_cpu_bl_dvfs_node == NULL ||
+	    IS_ERR_OR_NULL(clk_cpu_bl_dvfs_node->vd->regulator))
+		return temp;
+
+	mutex_lock(&clk_cpu_bl_dvfs_node->vd->mutex);
+	read_back = dvfs_regulator_get_voltage(
+		clk_cpu_bl_dvfs_node->vd->regulator);
+	temp = rockchip_tsadc_get_temp(chn, read_back);
+	mutex_unlock(&clk_cpu_bl_dvfs_node->vd->mutex);
+#else
+	temp = rockchip_tsadc_get_temp(chn);
+#endif
+
+	return temp;
+}
 
 static int vdd_gpu_reboot_notifier_event(struct notifier_block *this,
 	unsigned long event, void *ptr)
@@ -959,7 +985,11 @@ static int pvtm_set_single_dvfs(struct dvfs_node *dvfs_node, u32 idx,
 		n++;
 
 	pvtm_margin = n*info->delta_pvtm_by_volt;
-	temp = rockchip_tsadc_get_temp(1);
+	if (cpu_is_rk3288())
+		temp = dvfs_get_temp(1);
+	else
+		temp = dvfs_get_temp(0);
+
 	target_pvtm = min_pvtm+temp * info->delta_pvtm_by_temp + pvtm_margin;
 
 	DVFS_DBG("=====%s: temp:%d, freq:%d, target pvtm:%d=====\n",
@@ -1190,22 +1220,38 @@ static void dvfs_temp_limit(struct dvfs_node *dvfs_node, int temp)
 	DVFS_DBG("cur temp: %d, temp_limit_core_rate: %lu\n",
 		 temp, dvfs_node->temp_limit_rate);
 }
+
 static void dvfs_temp_limit_work_func(struct work_struct *work)
 {
 	unsigned long delay = HZ/10;
-	int temp = 0;
+	int temp = INVALID_TEMP;
 
 	queue_delayed_work_on(0, dvfs_wq, to_delayed_work(work), delay);
 
-	if (clk_cpu_dvfs_node->temp_limit_enable == 1) {
-		temp = rockchip_tsadc_get_temp(1);
+	if (clk_cpu_b_dvfs_node &&
+	    clk_cpu_b_dvfs_node->temp_limit_enable == 1) {
+		temp = dvfs_get_temp(0);
+		if (temp != INVALID_TEMP)
+			dvfs_temp_limit(clk_cpu_b_dvfs_node, temp);
+	}
+	if (clk_cpu_l_dvfs_node &&
+	    clk_cpu_l_dvfs_node->temp_limit_enable == 1) {
+		if (temp == INVALID_TEMP)
+			temp = dvfs_get_temp(0);
+		if (temp != INVALID_TEMP)
+			dvfs_temp_limit(clk_cpu_l_dvfs_node, temp);
+	}
+	if (clk_cpu_dvfs_node &&
+	    clk_cpu_dvfs_node->temp_limit_enable == 1) {
+		temp = dvfs_get_temp(1);
 		if (temp == INVALID_TEMP)
 			dvfs_virt_temp_limit_work_func(clk_cpu_dvfs_node);
 		else
 			dvfs_temp_limit(clk_cpu_dvfs_node, temp);
 	}
-	if (clk_gpu_dvfs_node->temp_limit_enable == 1) {
-		temp = rockchip_tsadc_get_temp(2);
+	if (clk_gpu_dvfs_node &&
+	    clk_gpu_dvfs_node->temp_limit_enable == 1) {
+		temp = dvfs_get_temp(2);
 		if (temp != INVALID_TEMP)
 			dvfs_temp_limit(clk_gpu_dvfs_node, temp);
 	}
@@ -1281,6 +1327,10 @@ int dvfs_clk_disable_limit(struct dvfs_node *clk_dvfs_node)
 EXPORT_SYMBOL(dvfs_clk_disable_limit);
 
 void dvfs_disable_temp_limit(void) {
+	if (clk_cpu_b_dvfs_node)
+		clk_cpu_b_dvfs_node->temp_limit_enable = 0;
+	if (clk_cpu_l_dvfs_node)
+		clk_cpu_l_dvfs_node->temp_limit_enable = 0;
 	if (clk_cpu_dvfs_node)
 		clk_cpu_dvfs_node->temp_limit_enable = 0;
 	if (clk_gpu_dvfs_node)
@@ -2228,6 +2278,10 @@ int of_dvfs_init(void)
 	return 0;
 }
 
+#ifdef CONFIG_ARM64
+arch_initcall_sync(of_dvfs_init);
+#endif
+
 /*********************************************************************************/
 /**
  * dump_dbg_map() : Draw all informations of dvfs while debug
@@ -2337,19 +2391,38 @@ static int __init dvfs_init(void)
 		}
 	}
 
+	clk_cpu_b_dvfs_node = clk_get_dvfs_node("clk_core_b");
+	if (clk_cpu_b_dvfs_node) {
+		clk_cpu_b_dvfs_node->temp_limit_rate =
+		clk_cpu_b_dvfs_node->max_rate;
+		if (clk_cpu_bl_dvfs_node == NULL)
+			clk_cpu_bl_dvfs_node = clk_cpu_b_dvfs_node;
+	}
+
+	clk_cpu_l_dvfs_node = clk_get_dvfs_node("clk_core_l");
+	if (clk_cpu_l_dvfs_node) {
+		clk_cpu_l_dvfs_node->temp_limit_rate =
+		clk_cpu_l_dvfs_node->max_rate;
+		if (clk_cpu_bl_dvfs_node == NULL)
+			clk_cpu_bl_dvfs_node = clk_cpu_l_dvfs_node;
+	}
+
 	clk_cpu_dvfs_node = clk_get_dvfs_node("clk_core");
-	if (!clk_cpu_dvfs_node)
-		return -EINVAL;
-	clk_cpu_dvfs_node->temp_limit_rate = clk_cpu_dvfs_node->max_rate;
+	if (clk_cpu_dvfs_node)
+		clk_cpu_dvfs_node->temp_limit_rate =
+		clk_cpu_dvfs_node->max_rate;
 
 	clk_gpu_dvfs_node = clk_get_dvfs_node("clk_gpu");
-	if (!clk_gpu_dvfs_node)
-		return -EINVAL;
-	clk_gpu_dvfs_node->temp_limit_rate = clk_gpu_dvfs_node->max_rate;
+	if (clk_gpu_dvfs_node)
+		clk_gpu_dvfs_node->temp_limit_rate =
+		clk_gpu_dvfs_node->max_rate;
 
-	if (clk_cpu_dvfs_node->temp_limit_enable ||
-	    clk_gpu_dvfs_node->temp_limit_enable) {
-		dvfs_wq = alloc_workqueue("dvfs", WQ_NON_REENTRANT | WQ_MEM_RECLAIM | WQ_HIGHPRI | WQ_FREEZABLE, 1);
+	if ((clk_cpu_b_dvfs_node && clk_cpu_b_dvfs_node->temp_limit_enable) ||
+	    (clk_cpu_l_dvfs_node && clk_cpu_l_dvfs_node->temp_limit_enable) ||
+	    (clk_gpu_dvfs_node && clk_gpu_dvfs_node->temp_limit_enable) ||
+	    (clk_cpu_dvfs_node && clk_cpu_dvfs_node->temp_limit_enable)) {
+		dvfs_wq = alloc_workqueue("dvfs", WQ_NON_REENTRANT |
+			WQ_MEM_RECLAIM | WQ_HIGHPRI | WQ_FREEZABLE, 1);
 		queue_delayed_work_on(0, dvfs_wq, &dvfs_temp_limit_work, 0*HZ);
 	}
 

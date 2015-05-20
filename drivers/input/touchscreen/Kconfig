@@ -30,6 +30,16 @@ config TOUCHSCREEN_GT8XX
 	  code includes that in its table of IIC devices.
 	  If unsure, say N.
 
+config TOUCHSCREEN_GT9XX
+	tristate "Goodix touch screen gt9xx support for rockchip based platform"
+	help
+	  Say Y here if you have a touchscreen interface using the
+	  two goodix gt9xx, and your board-specific initialization
+	  code includes that in its table of IIC devices.
+	  If unsure, say N.
+
+source "drivers/input/touchscreen/gt9xx/Kconfig"
+
 config TOUCHSCREEN_CT36X_TS
 	tristate "CT36X touchscreens support"
 	

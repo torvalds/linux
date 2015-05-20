@@ -1,0 +1,86 @@
+  <counter_set name="ARMv7_Cortex_A17_cnt" count="6"/>
+  <category name="Cortex-A17" counter_set="ARMv7_Cortex_A17_cnt" per_cpu="yes" supports_event_based_sampling="yes">
+    <event counter="ARMv7_Cortex_A17_ccnt" event="0xff" title="Clock" name="Cycles" display="hertz" units="Hz" average_selection="yes" average_cores="yes" description="The number of core clock cycles"/>
+    <event event="0x01" title="Cache" name="Instruction refill" description="Instruction fetch that causes a refill of at least the level of instruction or unified cache closest to the processor"/>
+    <event event="0x02" title="Cache" name="Inst TLB refill" description="Instruction fetch that causes a TLB refill of at least the level of TLB closest to the processor"/>
+    <event event="0x03" title="Cache" name="Data refill" description="Memory Read or Write operation that causes a refill of at least the level of data or unified cache closest to the processor"/>
+    <event event="0x04" title="Cache" name="Data access" description="Memory Read or Write operation that causes a cache access to at least the level of data or unified cache closest to the processor"/>
+    <event event="0x05" title="Cache" name="Data TLB refill" description="Memory Read or Write operation that causes a TLB refill of at least the level of TLB closest to the processor"/>
+    <event event="0x08" title="Instruction" name="Executed" description="Instruction architecturally executed"/>
+    <event event="0x09" title="Exception" name="Taken" description="Exceptions taken"/>
+    <event event="0x0a" title="Exception" name="Return" description="Exception return architecturally executed"/>
+    <event event="0x0b" title="Instruction" name="CONTEXTIDR" description="Instruction that writes to the CONTEXTIDR architecturally executed"/>
+    <event event="0x10" title="Branch" name="Mispredicted" description="Branch mispredicted or not predicted"/>
+    <event event="0x12" title="Branch" name="Potential prediction" description="Branch or other change in program flow that could have been predicted by the branch prediction resources of the processor"/>
+    <event event="0x13" title="Memory" name="Memory access" description="Data memory access"/>
+    <event event="0x14" title="Cache" name="L1 inst access" description="Instruction cache access"/>
+    <event event="0x15" title="Cache" name="L1 data write" description="Level 1 data cache Write-Back"/>
+    <event event="0x16" title="Cache" name="L2 data access" description="Level 2 data cache access"/>
+    <event event="0x17" title="Cache" name="L2 data refill" description="Level 2 data cache refill"/>
+    <event event="0x18" title="Cache" name="L2 data write" description="Level 2 data cache Write-Back"/>
+    <event event="0x19" title="Bus" name="Access" description="Bus - Access"/>
+    <event event="0x1b" title="Instruction" name="Speculative" description="Instruction speculatively executed"/>
+    <event event="0x1c" title="Memory" name="Translation table" description="Write to translation table base architecturally executed"/>
+    <event event="0x1d" title="Bus" name="Cycle" description="Bus - Cycle"/>
+    <event event="0x40" title="Cache" name="L1 data read" description="Level 1 data cache access - Read"/>
+    <event event="0x41" title="Cache" name="L1 data access write" description="Level 1 data cache access - Write"/>
+    <event event="0x50" title="Cache" name="L2 data read" description="Level 2 data cache access - Read"/>
+    <event event="0x51" title="Cache" name="L2 data access write" description="Level 2 data cache access - Write"/>
+    <event event="0x56" title="Cache" name="L2 data victim" description="Level 2 data cache Write-Back - Victim"/>
+    <event event="0x57" title="Cache" name="L2 data clean" description="Level 2 data cache Write-Back - Cleaning and coherency"/>
+    <event event="0x58" title="Cache" name="L2 data invalidate" description="Level 2 data cache invalidate"/>
+    <event event="0x60" title="Bus" name="Read" description="Bus access - Read"/>
+    <event event="0x62" title="Bus" name="Access shared" description="Bus access - Normal"/>
+    <event event="0x63" title="Bus" name="Access not shared" description="Bus access - Not normal"/>
+    <event event="0x64" title="Bus" name="Access normal" description="Bus access - Normal"/>
+    <event event="0x65" title="Bus" name="Peripheral" description="Bus access - Peripheral"/>
+    <event event="0x66" title="Memory" name="Read" description="Data memory access - Read"/>
+    <event event="0x67" title="Memory" name="Write" description="Data memory access - Write"/>
+    <event event="0x68" title="Memory" name="Unaligned Read" description="Unaligned access - Read"/>
+    <event event="0x69" title="Memory" name="Unaligned Write" description="Unaligned access - Write"/>
+    <event event="0x6a" title="Memory" name="Unaligned" description="Unaligned access"/>
+    <event event="0x6c" title="Intrinsic" name="LDREX" description="Exclusive instruction speculatively executed - LDREX"/>
+    <event event="0x6e" title="Intrinsic" name="STREX fail" description="Exclusive instruction speculatively executed - STREX fail"/>
+    <event event="0x6f" title="Intrinsic" name="STREX" description="Exclusive instruction speculatively executed - STREX"/>
+    <event event="0x70" title="Instruction" name="Load" description="Instruction speculatively executed - Load"/>
+    <event event="0x71" title="Instruction" name="Store" description="Instruction speculatively executed - Store"/>
+    <event event="0x72" title="Instruction" name="Load/Store" description="Instruction speculatively executed - Load or store"/>
+    <event event="0x73" title="Instruction" name="Integer" description="Instruction speculatively executed - Integer data processing"/>
+    <event event="0x74" title="Instruction" name="Advanced SIMD" description="Instruction speculatively executed - Advanced SIMD"/>
+    <event event="0x75" title="Instruction" name="VFP" description="Instruction speculatively executed - VFP"/>
+    <event event="0x76" title="Instruction" name="Software change" description="Instruction speculatively executed - Software change of the PC"/>
+    <event event="0x78" title="Instruction" name="Immediate branch" description="Branch speculatively executed - Immediate branch"/>
+    <event event="0x79" title="Instruction" name="Procedure return" description="Branch speculatively executed - Procedure return"/>
+    <event event="0x7a" title="Instruction" name="Indirect branch" description="Branch speculatively executed - Indirect branch"/>
+    <event event="0x7c" title="Instruction" name="ISB" description="Barrier speculatively executed - ISB"/>
+    <event event="0x7d" title="Instruction" name="DSB" description="Barrier speculatively executed - DSB"/>
+    <event event="0x7e" title="Instruction" name="DMB" description="Barrier speculatively executed - DMB"/>
+    <event event="0x81" title="Exception" name="Undefined" description="Exception taken, other synchronous"/>
+    <event event="0x8a" title="Exception" name="Hypervisor call" description="Exception taken, Hypervisor Call"/>
+    <event event="0xc0" title="Instruction" name="Stalled Linefill" description="Instruction side stalled due to a Linefill"/>
+    <event event="0xc1" title="Instruction" name="Stalled Page Table Walk" description="Instruction Side stalled due to a Page Table Walk"/>
+    <event event="0xc2" title="Cache" name="4 Ways Read" description="Number of set of 4 ways read in the instruction cache - Tag RAM"/>
+    <event event="0xc3" title="Cache" name="Ways Read" description="Number of ways read in the instruction cache - Data RAM"/>
+    <event event="0xc4" title="Cache" name="BATC Read" description="Number of ways read in the instruction BTAC RAM"/>
+    <event event="0xca" title="Memory" name="Snoop" description="Data snooped from other processor. This event counts memory-read operations that read data from another processor within the local Cortex-A17 cluster, rather than accessing the L2 cache or issuing an external read. It increments on each transaction, rather than on each beat of data"/>
+    <event event="0xd3" title="Slots" name="Load-Store Unit" description="Duration during which all slots in the Load-Store Unit are busy"/>
+    <event event="0xd8" title="Slots" name="Load-Store Issue Queue" description="Duration during which all slots in the Load-Store Issue queue are busy"/>
+    <event event="0xd9" title="Slots" name="Data Processing Issue Queue" description="Duration during which all slots in the Data Processing issue queue are busy"/>
+    <event event="0xda" title="Slots" name="Data Engine Issue Queue" description="Duration during which all slots in the Data Engine issue queue are busy"/>
+    <event event="0xdb" title="NEON" name="Flush" description="Number of NEON instruction which fail their condition code and lead to a flush of the DE pipe"/>
+    <event event="0xdc" title="Hypervisor" name="Traps" description="Number of Trap to hypervisor"/>
+    <event event="0xde" title="PTM" name="EXTOUT 0" description="PTM EXTOUT 0"/>
+    <event event="0xdf" title="PTM" name="EXTOUT 1" description="PTM EXTOUT 1"/>
+    <event event="0xe0" title="MMU" name="Table Walk" description="Duration during which the MMU handle a Page table walk"/>
+    <event event="0xe1" title="MMU" name="Stage1 Table Walk" description="Duration during which the MMU handle a Stage1 Page table walk"/>
+    <event event="0xe2" title="MMU" name="Stage2 Table Walk" description="Duration during which the MMU handle a Stage2 Page table walk"/>
+    <event event="0xe3" title="MMU" name="LSU Table Walk" description="Duration during which the MMU handle a Page table walk requested by the Load Store Unit"/>
+    <event event="0xe4" title="MMU" name="Instruction Table Walk" description="Duration during which the MMU handle a Page table walk requested by the Instruction side"/>
+    <event event="0xe5" title="MMU" name="Preload Table Walk" description="Duration during which the MMU handle a Page table walk requested by a Preload instruction or Prefetch request"/>
+    <event event="0xe6" title="MMU" name="cp15 Table Walk" description="Duration during which the MMU handle a Page table walk requested by a cp15 operation (maintenance by MVA and VA-to-PA operation)"/>
+    <event event="0xe7" title="Cache" name="L1 PLD TLB refill" description="Level 1 PLD TLB refill"/>
+    <event event="0xe8" title="Cache" name="L1 CP15 TLB refill" description="Level 1 CP15 TLB refill"/>
+    <event event="0xe9" title="Cache" name="L1 TLB flush" description="Level 1 TLB flush"/>
+    <event event="0xea" title="Cache" name="L2 TLB access" description="Level 2 TLB access"/>
+    <event event="0xeb" title="Cache" name="L2 TLB miss" description="Level 2 TLB miss"/>
+  </category>

@@ -36,6 +36,7 @@ extern void (*ddr_bandwidth_get)(struct ddr_bw_info *ddr_bw_ch0,
 extern int (*ddr_change_freq)(uint32_t mhz);
 extern long (*ddr_round_rate)(uint32_t mhz);
 extern void (*ddr_set_auto_self_refresh)(bool en);
+extern int (*ddr_recalc_rate)(void);
 
 int rockchip_cpu_kill(unsigned int cpu);
 void rockchip_cpu_die(unsigned int cpu);
@@ -80,10 +81,14 @@ unsigned long rockchip_get_system_status(void);
 u32 pvtm_get_value(u32 ch, u32 time_us);
 
 #define INVALID_TEMP INT_MAX
+#if IS_ENABLED(CONFIG_ROCKCHIP_THERMAL)
+int rockchip_tsadc_get_temp(int chn, int voltage);
+#else
 #if IS_ENABLED(CONFIG_SENSORS_ROCKCHIP_TSADC)
 int rockchip_tsadc_get_temp(int chn);
 #else
 static inline int rockchip_tsadc_get_temp(int chn) { return INVALID_TEMP; }
+#endif
 #endif
 
 #ifdef CONFIG_RK_LAST_LOG

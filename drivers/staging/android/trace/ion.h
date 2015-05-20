@@ -1,3 +1,121 @@
+#define ION_TRACE_EMIT
+
+#ifdef ION_TRACE_EMIT
+
+/*
+  ion_trace_lvl
+    0: no trace
+    1: trace iommu
+    2: trace all
+ */
+static int ion_trace_lvl = 0;
+
+#define pr_ion_trace(lvl, fmt, ...) \
+	if (unlikely(ion_trace_lvl>=lvl)) \
+		printk(KERN_INFO "%15.s-%5.d: %s: "pr_fmt(fmt), current->comm,\
+		       current->pid, __func__, ##__VA_ARGS__)
+
+static inline void trace_ion_buffer_alloc(const char* client, void* buf,
+                                   unsigned int size)
+{
+	pr_ion_trace(2, "client=%s,buffer=%p:%d\n", client, buf, size);
+}
+
+static inline void trace_ion_buffer_free(const char* client, void* buf,
+                                   unsigned int size)
+{
+	pr_ion_trace(2, "client=%s,buffer=%p:%d\n", client, buf, size);
+}
+
+static inline void trace_ion_buffer_import(const char* client, void* buf,
+                                   unsigned int size)
+{
+	pr_ion_trace(2, "client=%s,buffer=%p:%d\n", client, buf, size);
+}
+
+static inline void trace_ion_buffer_destroy(const char* client, void* buf,
+                                   unsigned int size)
+{
+	pr_ion_trace(2, "client=%s,buffer=%p:%d\n", client, buf, size);
+}
+
+static inline void trace_ion_kernel_unmap(const char* client, void* buf,
+                                   unsigned int size)
+{
+	pr_ion_trace(2, "client=%s,buffer=%p:%d\n", client, buf, size);
+}
+
+static inline void trace_ion_buffer_share(const char* client, void* buf,
+                                   unsigned int size, int fd)
+{
+	pr_ion_trace(2, "client=%s,buffer=%p:%d,fd=%d\n", client, buf, size, fd);
+}
+
+static inline void trace_ion_client_create(const char* client)
+{
+	pr_ion_trace(2, "client=%s\n", client);
+}
+
+static inline void trace_ion_client_destroy(const char* client)
+{
+	pr_ion_trace(2, "client=%s\n", client);
+}
+
+static inline void trace_ion_iommu_map(const char* client, void* buf,
+                                unsigned int size, const char* iommu_dev,
+                                unsigned int iommu_addr,
+                                unsigned int iommu_size, unsigned int map_cnt)
+{
+	pr_ion_trace(1, "client=%s,buffer=%p:%d,iommu=%s[%08x:%08x]:%d\n",
+		     client,buf, size, iommu_dev, iommu_addr,
+		     iommu_addr+iommu_size, map_cnt);
+}
+
+static inline void trace_ion_iommu_unmap(const char* client, void* buf,
+                                unsigned int size, const char* iommu_dev,
+                                unsigned int iommu_addr,
+                                unsigned int iommu_size, unsigned int map_cnt)
+{
+	pr_ion_trace(1, "client=%s,buffer=%p:%d,iommu=%s[%08x:%08x]:%d\n",
+		     client,buf, size, iommu_dev, iommu_addr,
+		     iommu_addr+iommu_size, map_cnt);
+}
+
+static inline void trace_ion_iommu_release(const char* client, void* buf,
+                                unsigned int size, const char* iommu_dev,
+                                unsigned int iommu_addr,
+                                unsigned int iommu_size, unsigned int map_cnt)
+{
+	pr_ion_trace(1, "client=%s,buffer=%p:%d,iommu=%s[%08x:%08x]:%d\n",
+		     client,buf, size, iommu_dev, iommu_addr,
+		     iommu_addr+iommu_size, map_cnt);
+}
+
+static inline void trace_ion_kernel_map(const char* client, void* buf,
+                                 unsigned int size, void* kaddr)
+{
+	pr_ion_trace(2, "client=%s,buffer=%p:%d,kaddr=%p\n", client, buf, size,
+		     kaddr);
+}
+
+static inline void trace_ion_buffer_mmap(const char* client, void* buf,
+                                  unsigned int size, unsigned long vm_start,
+                                  unsigned long vm_end)
+{
+	pr_ion_trace(2, "client=%s,buffer=%p:%d,vma[%08lx:%08lx]\n", client,
+		     buf, size, vm_start, vm_end);
+}
+
+static inline void trace_ion_buffer_munmap(const char* client, void* buf,
+                                    unsigned int size, unsigned long vm_start,
+                                    unsigned long vm_end)
+{
+	pr_ion_trace(2, "client=%s,buffer=%p:%d,vma[%08lx:%08lx]\n", client,
+		     buf, size, vm_start, vm_end);
+}
+
+#else
+
 #undef TRACE_SYSTEM
 #define TRACE_INCLUDE_PATH ../../drivers/staging/android/trace
 #define TRACE_SYSTEM ion
@@ -183,3 +301,4 @@ DEFINE_EVENT(ion_mmap_op, ion_buffer_munmap,
 
 /* This part must be outside protection */
 #include <trace/define_trace.h>
+#endif

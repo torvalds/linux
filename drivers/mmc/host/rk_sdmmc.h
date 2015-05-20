@@ -344,4 +344,14 @@ struct dw_mci_drv_data {
 	int		(*execute_tuning)(struct dw_mci_slot *slot, u32 opcode,
 					struct dw_mci_tuning_data *tuning_data);
 };
+
+/* Variations in Rockchip specific dw-mshc controller */
+enum dw_mci_rockchip_type {
+         DW_MCI_TYPE_RK3188,
+         DW_MCI_TYPE_RK3288,
+         DW_MCI_TYPE_RK3036,
+         DW_MCI_TYPE_RK312X,
+         DW_MCI_TYPE_RK3368,
+};
+
 #endif /* _DW_MMC_H_ */

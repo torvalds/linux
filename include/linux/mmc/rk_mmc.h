@@ -180,6 +180,7 @@ struct dw_mci {
 	struct dw_mci_board	*pdata;
 	const struct dw_mci_drv_data	*drv_data;
 	void			*priv;
+	struct clk	*hpclk_mmc;
 	struct clk      *hclk_mmc;
 	struct clk      *clk_mmc;
 	struct dw_mci_slot	*slot[MAX_MCI_SLOTS];
@@ -214,6 +215,9 @@ struct dw_mci {
 	struct pinctrl_state	*pins_default; /* Function port */
 	struct pinctrl_state	*pins_idle;    /* Gpio port */
 	struct pinctrl_state    *pins_udbg;    /* uart_dbg port */
+
+	u32	cid;
+	struct regmap	*grf;
 };
 
 /* DMA ops for Internal/External DMAC interface */
@@ -291,7 +295,7 @@ struct dw_mci_board {
 	struct block_settings *blk_settings;
 };
 #define grf_writel(v, offset)   do \
-        { writel_relaxed(v, RK_GRF_VIRT + offset); dsb(); } \
+        { writel_relaxed(v, RK_GRF_VIRT + offset); dsb(sy); } \
                 while (0)
 
 #endif /* LINUX_MMC_DW_MMC_H */

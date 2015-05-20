@@ -6,8 +6,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef	__STREAMLINE_SETUP_H__
-#define	__STREAMLINE_SETUP_H__
+#ifndef __STREAMLINE_SETUP_H__
+#define __STREAMLINE_SETUP_H__
 
 #include <stdint.h>
 #include <string.h>
@@ -21,7 +21,7 @@ enum {
 	COMMAND_APC_START   = 2,
 	COMMAND_APC_STOP    = 3,
 	COMMAND_DISCONNECT  = 4,
-	COMMAND_PING		= 5
+	COMMAND_PING        = 5
 };
 
 class StreamlineSetup {
@@ -47,4 +47,4 @@ private:
 	StreamlineSetup &operator=(const StreamlineSetup &);
 };
 
-#endif 	//__STREAMLINE_SETUP_H__
+#endif //__STREAMLINE_SETUP_H__

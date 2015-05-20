@@ -1,5 +1,6 @@
 config MICROBLAZE
 	def_bool y
+	select ARCH_HAS_GCOV_PROFILE_ALL
 	select HAVE_MEMBLOCK
 	select HAVE_MEMBLOCK_NODE_MAP
 	select HAVE_FUNCTION_TRACER

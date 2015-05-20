@@ -586,8 +586,8 @@ static int __cpuinit cpu_numa_callback(struct notifier_block *nfb,
 	case CPU_UP_CANCELED:
 	case CPU_UP_CANCELED_FROZEN:
 		unmap_cpu_from_node(lcpu);
-		break;
 		ret = NOTIFY_OK;
+		break;
 #endif
 	}
 	return ret;
@@ -1633,12 +1633,11 @@ static void stage_topology_update(int core_id)
 static int dt_update_callback(struct notifier_block *nb,
 				unsigned long action, void *data)
 {
-	struct of_prop_reconfig *update;
+	struct of_reconfig_data *update = data;
 	int rc = NOTIFY_DONE;
 
 	switch (action) {
 	case OF_RECONFIG_UPDATE_PROPERTY:
-		update = (struct of_prop_reconfig *)data;
 		if (!of_prop_cmp(update->dn->type, "cpu") &&
 		    !of_prop_cmp(update->prop->name, "ibm,associativity")) {
 			u32 core_id;

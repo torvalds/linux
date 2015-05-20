@@ -59,13 +59,19 @@ static void * __init last_log_vmap(phys_addr_t start, unsigned int page_count)
 {
 	struct page *pages[page_count + 1];
 	unsigned int i;
+	pgprot_t prot;
 
 	for (i = 0; i < page_count; i++) {
 		phys_addr_t addr = start + i * PAGE_SIZE;
 		pages[i] = pfn_to_page(addr >> PAGE_SHIFT);
 	}
 	pages[page_count] = pfn_to_page(start >> PAGE_SHIFT);
-	return vmap(pages, page_count + 1, VM_MAP, pgprot_noncached(PAGE_KERNEL));
+#ifdef CONFIG_ARM64
+	prot = pgprot_writecombine(PAGE_KERNEL);
+#else
+	prot = pgprot_noncached(PAGE_KERNEL);
+#endif
+	return vmap(pages, page_count + 1, VM_MAP, prot);
 }
 
 static int __init rk_last_log_init(void)
@@ -73,19 +79,19 @@ static int __init rk_last_log_init(void)
 	size_t early_log_size;
 	char *buf;
 	struct proc_dir_entry *entry;
-
-	if (!cpu_is_rockchip())
-		return 0;
+	phys_addr_t buf_phys;
 
 	buf = (char *)__get_free_pages(GFP_KERNEL, LOG_BUF_PAGE_ORDER);
 	if (!buf) {
 		pr_err("failed to __get_free_pages(%d)\n", LOG_BUF_PAGE_ORDER);
 		return 0;
 	}
+	buf_phys = virt_to_phys(buf);
 
-	log_buf = last_log_vmap(virt_to_phys(buf), 1 << LOG_BUF_PAGE_ORDER);
+	log_buf = last_log_vmap(buf_phys, 1 << LOG_BUF_PAGE_ORDER);
 	if (!log_buf) {
-		pr_err("failed to map %d pages at 0x%08x\n", 1 << LOG_BUF_PAGE_ORDER, virt_to_phys(buf));
+		pr_err("failed to map %d pages at %pa\n", 1 << LOG_BUF_PAGE_ORDER,
+		       &buf_phys);
 		return 0;
 	}
 
@@ -100,7 +106,7 @@ static int __init rk_last_log_init(void)
 	memcpy(log_buf, early_log_buf, early_log_size);
 	memset(log_buf + early_log_size, 0, LOG_BUF_LEN - early_log_size);
 
-	pr_info("0x%08x map to 0x%p and copy to 0x%p, size 0x%x early 0x%x (version 3.0)\n", virt_to_phys(buf), log_buf, last_log_buf, LOG_BUF_LEN, early_log_size);
+	pr_info("%pa map to 0x%p and copy to 0x%p, size 0x%x early 0x%zx (version 3.1)\n", &buf_phys, log_buf, last_log_buf, LOG_BUF_LEN, early_log_size);
 
 	entry = proc_create("last_kmsg", S_IRUSR, NULL, &last_log_fops);
 	if (!entry) {

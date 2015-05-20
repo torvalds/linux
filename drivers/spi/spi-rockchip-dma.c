@@ -265,8 +265,11 @@ static int mid_spi_dma_transfer(struct dw_spi *dws, int cs_change)
 		
 		memset(&dws->tx_sgl, 0, sizeof(dws->tx_sgl));
 		dws->tx_sgl.dma_address = dws->tx_dma;
+#ifdef CONFIG_NEED_SG_DMA_LENGTH
+		dws->tx_sgl.dma_length = dws->len;
+#else
 		dws->tx_sgl.length = dws->len;
-
+#endif
 		txdesc = dmaengine_prep_slave_sg(txchan,
 					&dws->tx_sgl,
 					1,
@@ -276,7 +279,8 @@ static int mid_spi_dma_transfer(struct dw_spi *dws, int cs_change)
 		txdesc->callback = dw_spi_dma_txcb;
 		txdesc->callback_param = dws;
 
-		DBG_SPI("%s:dst_addr=0x%p,tx_dma=0x%p,len=%d,burst=%d,width=%d\n",__func__,(int *)dws->tx_dma_addr, (int *)dws->tx_dma, dws->len,txconf.dst_maxburst, width);
+		DBG_SPI("%s:dst_addr=0x%p,tx_dma=0x%p,len=%ld,burst=%d,width=%d\n"
+			,__func__,(int *)dws->tx_dma_addr, (int *)dws->tx_dma, (long)dws->len,txconf.dst_maxburst, width);
 	}
 
 	if (dws->rx)
@@ -297,7 +301,11 @@ static int mid_spi_dma_transfer(struct dw_spi *dws, int cs_change)
 
 		memset(&dws->rx_sgl, 0, sizeof(dws->rx_sgl));
 		dws->rx_sgl.dma_address = dws->rx_dma;
-		dws->rx_sgl.length = dws->len;				
+#ifdef CONFIG_NEED_SG_DMA_LENGTH
+		dws->rx_sgl.dma_length = dws->len;				
+#else
+		dws->rx_sgl.length = dws->len;
+#endif
 
 		rxdesc = dmaengine_prep_slave_sg(rxchan,
 					&dws->rx_sgl,
@@ -307,7 +315,8 @@ static int mid_spi_dma_transfer(struct dw_spi *dws, int cs_change)
 		rxdesc->callback = dw_spi_dma_rxcb;
 		rxdesc->callback_param = dws;
 		
-		DBG_SPI("%s:src_addr=0x%p,rx_dma=0x%p,len=%d,burst=%d,width=%d\n",__func__, (int *)dws->rx_dma_addr, (int *)dws->rx_dma, dws->len, rxconf.src_maxburst, width);
+		DBG_SPI("%s:src_addr=0x%p,rx_dma=0x%p,len=%ld,burst=%d,width=%d\n"
+			,__func__, (int *)dws->rx_dma_addr, (int *)dws->rx_dma, (long)dws->len, rxconf.src_maxburst, width);
 	}
 
 	if(!dws->tx)

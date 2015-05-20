@@ -148,9 +148,9 @@ of banks, as set via the KVM_X86_SETUP_MCE ioctl.
 
 4.4 KVM_CHECK_EXTENSION
 
-Capability: basic
+Capability: basic, KVM_CAP_CHECK_EXTENSION_VM for vm ioctl
 Architectures: all
-Type: system ioctl
+Type: system ioctl, vm ioctl
 Parameters: extension identifier (KVM_CAP_*)
 Returns: 0 if unsupported; 1 (or some other positive integer) if supported
 
@@ -160,6 +160,9 @@ receives an integer that describes the extension availability.
 Generally 0 means no and 1 means yes, but some extensions may report
 additional information in the integer return value.
 
+Based on their initialization different VMs may have different capabilities.
+It is thus encouraged to use the vm ioctl to query for capabilities (available
+with KVM_CAP_CHECK_EXTENSION_VM on the vm fd)
 
 4.5 KVM_GET_VCPU_MMAP_SIZE
 
@@ -280,7 +283,7 @@ kvm_run' (see below).
 4.11 KVM_GET_REGS
 
 Capability: basic
-Architectures: all except ARM
+Architectures: all except ARM, arm64
 Type: vcpu ioctl
 Parameters: struct kvm_regs (out)
 Returns: 0 on success, -1 on error
@@ -301,7 +304,7 @@ struct kvm_regs {
 4.12 KVM_SET_REGS
 
 Capability: basic
-Architectures: all except ARM
+Architectures: all except ARM, arm64
 Type: vcpu ioctl
 Parameters: struct kvm_regs (in)
 Returns: 0 on success, -1 on error
@@ -587,7 +590,7 @@ struct kvm_fpu {
 4.24 KVM_CREATE_IRQCHIP
 
 Capability: KVM_CAP_IRQCHIP
-Architectures: x86, ia64, ARM
+Architectures: x86, ia64, ARM, arm64
 Type: vm ioctl
 Parameters: none
 Returns: 0 on success, -1 on error
@@ -595,14 +598,14 @@ Returns: 0 on success, -1 on error
 Creates an interrupt controller model in the kernel.  On x86, creates a virtual
 ioapic, a virtual PIC (two PICs, nested), and sets up future vcpus to have a
 local APIC.  IRQ routing for GSIs 0-15 is set to both PIC and IOAPIC; GSI 16-23
-only go to the IOAPIC.  On ia64, a IOSAPIC is created. On ARM, a GIC is
+only go to the IOAPIC.  On ia64, a IOSAPIC is created. On ARM/arm64, a GIC is
 created.
 
 
 4.25 KVM_IRQ_LINE
 
 Capability: KVM_CAP_IRQCHIP
-Architectures: x86, ia64, arm
+Architectures: x86, ia64, arm, arm64
 Type: vm ioctl
 Parameters: struct kvm_irq_level
 Returns: 0 on success, -1 on error
@@ -612,9 +615,10 @@ On some architectures it is required that an interrupt controller model has
 been previously created with KVM_CREATE_IRQCHIP.  Note that edge-triggered
 interrupts require the level to be set to 1 and then back to 0.
 
-ARM can signal an interrupt either at the CPU level, or at the in-kernel irqchip
-(GIC), and for in-kernel irqchip can tell the GIC to use PPIs designated for
-specific cpus.  The irq field is interpreted like this:
+ARM/arm64 can signal an interrupt either at the CPU level, or at the
+in-kernel irqchip (GIC), and for in-kernel irqchip can tell the GIC to
+use PPIs designated for specific cpus.  The irq field is interpreted
+like this:
 
   bits:  | 31 ... 24 | 23  ... 16 | 15    ...    0 |
   field: | irq_type  | vcpu_index |     irq_id     |
@@ -968,18 +972,20 @@ uniprocessor guests).
 
 Possible values are:
 
- - KVM_MP_STATE_RUNNABLE:        the vcpu is currently running
+ - KVM_MP_STATE_RUNNABLE:        the vcpu is currently running [x86, ia64]
  - KVM_MP_STATE_UNINITIALIZED:   the vcpu is an application processor (AP)
-                                 which has not yet received an INIT signal
+                                 which has not yet received an INIT signal [x86,
+                                 ia64]
  - KVM_MP_STATE_INIT_RECEIVED:   the vcpu has received an INIT signal, and is
-                                 now ready for a SIPI
+                                 now ready for a SIPI [x86, ia64]
  - KVM_MP_STATE_HALTED:          the vcpu has executed a HLT instruction and
-                                 is waiting for an interrupt
+                                 is waiting for an interrupt [x86, ia64]
  - KVM_MP_STATE_SIPI_RECEIVED:   the vcpu has just received a SIPI (vector
-                                 accessible via KVM_GET_VCPU_EVENTS)
+                                 accessible via KVM_GET_VCPU_EVENTS) [x86, ia64]
 
-This ioctl is only useful after KVM_CREATE_IRQCHIP.  Without an in-kernel
-irqchip, the multiprocessing state must be maintained by userspace.
+On x86 and ia64, this ioctl is only useful after KVM_CREATE_IRQCHIP. Without an
+in-kernel irqchip, the multiprocessing state must be maintained by userspace on
+these architectures.
 
 
 4.39 KVM_SET_MP_STATE
@@ -993,8 +999,9 @@ Returns: 0 on success; -1 on error
 Sets the vcpu's current "multiprocessing state"; see KVM_GET_MP_STATE for
 arguments.
 
-This ioctl is only useful after KVM_CREATE_IRQCHIP.  Without an in-kernel
-irqchip, the multiprocessing state must be maintained by userspace.
+On x86 and ia64, this ioctl is only useful after KVM_CREATE_IRQCHIP. Without an
+in-kernel irqchip, the multiprocessing state must be maintained by userspace on
+these architectures.
 
 
 4.40 KVM_SET_IDENTITY_MAP_ADDR
@@ -1121,9 +1128,9 @@ struct kvm_cpuid2 {
 	struct kvm_cpuid_entry2 entries[0];
 };
 
-#define KVM_CPUID_FLAG_SIGNIFCANT_INDEX 1
-#define KVM_CPUID_FLAG_STATEFUL_FUNC    2
-#define KVM_CPUID_FLAG_STATE_READ_NEXT  4
+#define KVM_CPUID_FLAG_SIGNIFCANT_INDEX		BIT(0)
+#define KVM_CPUID_FLAG_STATEFUL_FUNC		BIT(1)
+#define KVM_CPUID_FLAG_STATE_READ_NEXT		BIT(2)
 
 struct kvm_cpuid_entry2 {
 	__u32 function;
@@ -1831,6 +1838,22 @@ ARM 32-bit VFP control registers have the following id bit patterns:
 ARM 64-bit FP registers have the following id bit patterns:
   0x4030 0000 0012 0 <regno:12>
 
+
+arm64 registers are mapped using the lower 32 bits. The upper 16 of
+that is the register group type, or coprocessor number:
+
+arm64 core/FP-SIMD registers have the following id bit patterns. Note
+that the size of the access is variable, as the kvm_regs structure
+contains elements ranging from 32 to 128 bits. The index is a 32bit
+value in the kvm_regs structure seen as a 32bit array.
+  0x60x0 0000 0010 <index into the kvm_regs struct:16>
+
+arm64 CCSIDR registers are demultiplexed by CSSELR value:
+  0x6020 0000 0011 00 <csselr:8>
+
+arm64 system registers have the following id bit patterns:
+  0x6030 0000 0013 <op0:2> <op1:3> <crn:4> <crm:4> <op2:3>
+
 4.69 KVM_GET_ONE_REG
 
 Capability: KVM_CAP_ONE_REG
@@ -2264,7 +2287,7 @@ current state.  "addr" is ignored.
 4.77 KVM_ARM_VCPU_INIT
 
 Capability: basic
-Architectures: arm
+Architectures: arm, arm64
 Type: vcpu ioctl
 Parameters: struct struct kvm_vcpu_init (in)
 Returns: 0 on success; -1 on error
@@ -2283,12 +2306,14 @@ should be created before this ioctl is invoked.
 Possible features:
 	- KVM_ARM_VCPU_POWER_OFF: Starts the CPU in a power-off state.
 	  Depends on KVM_CAP_ARM_PSCI.
+	- KVM_ARM_VCPU_EL1_32BIT: Starts the CPU in a 32bit mode.
+	  Depends on KVM_CAP_ARM_EL1_32BIT (arm64 only).
 
 
 4.78 KVM_GET_REG_LIST
 
 Capability: basic
-Architectures: arm
+Architectures: arm, arm64
 Type: vcpu ioctl
 Parameters: struct kvm_reg_list (in/out)
 Returns: 0 on success; -1 on error
@@ -2305,10 +2330,10 @@ This ioctl returns the guest registers that are supported for the
 KVM_GET_ONE_REG/KVM_SET_ONE_REG calls.
 
 
-4.80 KVM_ARM_SET_DEVICE_ADDR
+4.85 KVM_ARM_SET_DEVICE_ADDR (deprecated)
 
 Capability: KVM_CAP_ARM_SET_DEVICE_ADDR
-Architectures: arm
+Architectures: arm, arm64
 Type: vm ioctl
 Parameters: struct kvm_arm_device_address (in)
 Returns: 0 on success, -1 on error
@@ -2329,20 +2354,25 @@ can access emulated or directly exposed devices, which the host kernel needs
 to know about. The id field is an architecture specific identifier for a
 specific device.
 
-ARM divides the id field into two parts, a device id and an address type id
-specific to the individual device.
+ARM/arm64 divides the id field into two parts, a device id and an
+address type id specific to the individual device.
 
   bits:  | 63        ...       32 | 31    ...    16 | 15    ...    0 |
   field: |        0x00000000      |     device id   |  addr type id  |
 
-ARM currently only require this when using the in-kernel GIC support for the
-hardware VGIC features, using KVM_ARM_DEVICE_VGIC_V2 as the device id.  When
-setting the base address for the guest's mapping of the VGIC virtual CPU
-and distributor interface, the ioctl must be called after calling
-KVM_CREATE_IRQCHIP, but before calling KVM_RUN on any of the VCPUs.  Calling
-this ioctl twice for any of the base addresses will return -EEXIST.
+ARM/arm64 currently only require this when using the in-kernel GIC
+support for the hardware VGIC features, using KVM_ARM_DEVICE_VGIC_V2
+as the device id.  When setting the base address for the guest's
+mapping of the VGIC virtual CPU and distributor interface, the ioctl
+must be called after calling KVM_CREATE_IRQCHIP, but before calling
+KVM_RUN on any of the VCPUs.  Calling this ioctl twice for any of the
+base addresses will return -EEXIST.
 
-4.82 KVM_PPC_RTAS_DEFINE_TOKEN
+Note, this IOCTL is deprecated and the more flexible SET/GET_DEVICE_ATTR API
+should be used instead.
+
+
+4.86 KVM_PPC_RTAS_DEFINE_TOKEN
 
 Capability: KVM_CAP_PPC_RTAS
 Architectures: ppc
@@ -2612,6 +2642,21 @@ It gets triggered whenever both KVM_CAP_PPC_EPR are enabled and an
 external interrupt has just been delivered into the guest. User space
 should put the acknowledged interrupt vector into the 'epr' field.
 
+		/* KVM_EXIT_SYSTEM_EVENT */
+		struct {
+#define KVM_SYSTEM_EVENT_SHUTDOWN       1
+#define KVM_SYSTEM_EVENT_RESET          2
+			__u32 type;
+			__u64 flags;
+		} system_event;
+
+If exit_reason is KVM_EXIT_SYSTEM_EVENT then the vcpu has triggered
+a system-level event using some architecture specific mechanism (hypercall
+or some special instruction). In case of ARM/ARM64, this is triggered using
+HVC instruction based PSCI call from the vcpu. The 'type' field describes
+the system-level event type. The 'flags' field describes architecture
+specific flags for the system-level event.
+
 		/* Fix the size of the union. */
 		char padding[256];
 	};
@@ -2639,6 +2684,77 @@ and usually define the validity of a groups of registers. (e.g. one bit
  for general purpose registers)
 
 };
+
+
+4.81 KVM_GET_EMULATED_CPUID
+
+Capability: KVM_CAP_EXT_EMUL_CPUID
+Architectures: x86
+Type: system ioctl
+Parameters: struct kvm_cpuid2 (in/out)
+Returns: 0 on success, -1 on error
+
+struct kvm_cpuid2 {
+	__u32 nent;
+	__u32 flags;
+	struct kvm_cpuid_entry2 entries[0];
+};
+
+The member 'flags' is used for passing flags from userspace.
+
+#define KVM_CPUID_FLAG_SIGNIFCANT_INDEX		BIT(0)
+#define KVM_CPUID_FLAG_STATEFUL_FUNC		BIT(1)
+#define KVM_CPUID_FLAG_STATE_READ_NEXT		BIT(2)
+
+struct kvm_cpuid_entry2 {
+	__u32 function;
+	__u32 index;
+	__u32 flags;
+	__u32 eax;
+	__u32 ebx;
+	__u32 ecx;
+	__u32 edx;
+	__u32 padding[3];
+};
+
+This ioctl returns x86 cpuid features which are emulated by
+kvm.Userspace can use the information returned by this ioctl to query
+which features are emulated by kvm instead of being present natively.
+
+Userspace invokes KVM_GET_EMULATED_CPUID by passing a kvm_cpuid2
+structure with the 'nent' field indicating the number of entries in
+the variable-size array 'entries'. If the number of entries is too low
+to describe the cpu capabilities, an error (E2BIG) is returned. If the
+number is too high, the 'nent' field is adjusted and an error (ENOMEM)
+is returned. If the number is just right, the 'nent' field is adjusted
+to the number of valid entries in the 'entries' array, which is then
+filled.
+
+The entries returned are the set CPUID bits of the respective features
+which kvm emulates, as returned by the CPUID instruction, with unknown
+or unsupported feature bits cleared.
+
+Features like x2apic, for example, may not be present in the host cpu
+but are exposed by kvm in KVM_GET_SUPPORTED_CPUID because they can be
+emulated efficiently and thus not included here.
+
+The fields in each entry are defined as follows:
+
+  function: the eax value used to obtain the entry
+  index: the ecx value used to obtain the entry (for entries that are
+         affected by ecx)
+  flags: an OR of zero or more of the following:
+        KVM_CPUID_FLAG_SIGNIFCANT_INDEX:
+           if the index field is valid
+        KVM_CPUID_FLAG_STATEFUL_FUNC:
+           if cpuid for this function returns different values for successive
+           invocations; there will be several entries with the same function,
+           all with this flag set
+        KVM_CPUID_FLAG_STATE_READ_NEXT:
+           for KVM_CPUID_FLAG_STATEFUL_FUNC entries, set if this entry is
+           the first entry to be read by a cpu
+   eax, ebx, ecx, edx: the values returned by the cpuid instruction for
+         this function/index combination
 
 
 6. Capabilities that can be enabled

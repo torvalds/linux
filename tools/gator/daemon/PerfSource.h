@@ -33,12 +33,13 @@ public:
 	void write(Sender *sender);
 
 private:
-	bool handleUEvent();
+	bool handleUEvent(const uint64_t currTime);
 
 	Buffer mSummary;
 	Buffer mBuffer;
 	PerfBuffer mCountersBuf;
 	PerfGroup mCountersGroup;
+	PerfGroup mIdleGroup;
 	Monitor mMonitor;
 	UEvent mUEvent;
 	sem_t *const mSenderSem;

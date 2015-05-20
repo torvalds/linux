@@ -173,11 +173,11 @@ int hdmi_set_lcdc(struct hdmi *hdmi)
 
 	if (rc == 0) {
 		rk_fb_switch_screen(&screen, 1, hdmi->lcdc->id);
-		if (rk_fb_get_display_policy() != DISPLAY_POLICY_BOX)
+/*		if (rk_fb_get_display_policy() != DISPLAY_POLICY_BOX)
 			rk_fb_disp_scale(hdmi->xscale,
 					 hdmi->yscale,
 					 hdmi->lcdc->id);
-	}
+*/	}
 	return rc;
 }
 

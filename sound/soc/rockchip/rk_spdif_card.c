@@ -129,7 +129,21 @@ static struct platform_driver rockchip_spdif_card_driver = {
 	.remove         = rockchip_spdif_card_remove,
 };
 
-module_platform_driver(rockchip_spdif_card_driver);
+//module_platform_driver(rockchip_spdif_card_driver);
+
+
+static int __init rockchip_spdif_init(void)
+{
+        return platform_driver_register(&rockchip_spdif_card_driver);
+};
+late_initcall(rockchip_spdif_init);
+
+static void __exit rockchip_spdif_exit(void)
+{
+        platform_driver_unregister(&rockchip_spdif_card_driver);
+}
+module_exit(rockchip_spdif_exit);
+
 
 MODULE_AUTHOR("hzb, <hzb@rock-chips.com>");
 MODULE_DESCRIPTION("ALSA SoC RK S/PDIF");

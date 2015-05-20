@@ -1,0 +1,90 @@
+menu "CPUQUIET Framework"
+
+config CPUQUIET_FRAMEWORK
+	bool "Cpuquiet framework"
+	help
+	  Cpuquiet implements pluggable policies for forcing cpu cores into a
+	  quiescent state. Appropriate policies will save power without hurting
+	  performance.
+
+
+if CPUQUIET_FRAMEWORK
+
+config CPUQUIET_STATS
+	bool "per CPU statistics"
+	default n
+	help
+	  Enable up/down count and total time plugged statistics per CPU. These
+	  depend on correct driver input for reliability
+
+	  If in doubt say N.
+
+config CPUQUIET_GOVERNOR_USERSPACE
+	bool "userspace"
+	default y
+	help
+	  Manual control of the number of CPUs online.
+	  This governor allows userspace to control the number of online CPUs.
+
+	  If in doubt say Y.
+
+config CPUQUIET_GOVERNOR_BALANCED
+	bool "balanced"
+	default y
+	depends on CPU_FREQ
+	help
+	  Scale the number of CPUs online depending on the CPU load.
+	  This governor will scale the number of CPUs online depending on the
+	  CPU load and the number of runnable threads.
+
+	  If in doubt say Y.
+
+config CPUQUIET_GOVERNOR_RUNNABLE
+	bool "runnable threads"
+	default y
+	help
+	  Scale the number of CPUs online depending on the number of runnable
+	  threads.  This governor will scale the number of CPUs online depending
+	  on the number of runnable threads.
+
+	  If in doubt say Y.
+
+choice
+	prompt "Default CPUQuiet governor"
+	default CPUQUIET_DEFAULT_GOV_USERSPACE
+	help
+	  This option sets which CPUQuiet governor shall be loaded at
+	  startup. If in doubt, select 'userspace'.
+
+config CPUQUIET_DEFAULT_GOV_USERSPACE
+	bool "userspace"
+	select CPUQUIET_GOVERNOR_USERSPACE
+	help
+	  Use the CPUQuiet governor 'userspace' as default.
+
+config CPUQUIET_DEFAULT_GOV_BALANCED
+	bool "balanced"
+	select CPUQUIET_GOVERNOR_BALANCED
+	depends on CPU_FREQ
+	help
+	  Use the CPUQuiet governor 'balanced' as default.
+
+config CPUQUIET_DEFAULT_GOV_RUNNABLE
+	bool "runnable threads"
+	select CPUQUIET_GOVERNOR_RUNNABLE
+	help
+	  Use the CPUQuiet governor 'runnable threads' as default.
+
+endchoice
+
+config ROCKCHIP_CPUQUIET
+	bool "CPUQuiet driver for Rockchip CPUs"
+	depends on ARCH_ROCKCHIP
+	default y
+	help
+	  This enables the CPUQuiet driver for Rockchip CPUs.
+
+	  If in doubt, say N.
+
+endif
+endmenu

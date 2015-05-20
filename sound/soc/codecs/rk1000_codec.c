@@ -391,9 +391,9 @@ static int rk1000_codec_set_bias_level(struct snd_soc_codec *codec,
 
 	case SND_SOC_BIAS_STANDBY:
 		DBG("rk1000 standby\n");
-		rk1000_codec_write(codec, ACCELCODEC_R1D, 0xFF);
-		rk1000_codec_write(codec, ACCELCODEC_R1E, 0xFF);
-		rk1000_codec_write(codec, ACCELCODEC_R1F, 0xFF);
+		rk1000_codec_write(codec, ACCELCODEC_R1D, 0x2a);
+		rk1000_codec_write(codec, ACCELCODEC_R1E, 0x40);
+		rk1000_codec_write(codec, ACCELCODEC_R1F, 0x49);
 		break;
 
 	case SND_SOC_BIAS_OFF:
@@ -613,7 +613,7 @@ static struct snd_soc_dai_ops rk1000_codec_ops = {
 	.digital_mute = rk1000_codec_mute,
 };
 
-#define RK1000_CODEC_RATES SNDRV_PCM_RATE_8000_96000
+#define RK1000_CODEC_RATES SNDRV_PCM_RATE_8000_192000
 #define RK1000_CODEC_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | \
 				SNDRV_PCM_FMTBIT_S20_3LE |\
 				SNDRV_PCM_FMTBIT_S24_LE)
@@ -623,7 +623,7 @@ static struct snd_soc_dai_driver rk1000_codec_dai[] = {
 		.playback = {
 			.stream_name = "Playback",
 			.channels_min = 1,
-			.channels_max = 2,
+			.channels_max = 8,
 			.rates = RK1000_CODEC_RATES,
 			.formats = RK1000_CODEC_FORMATS,
 		},
@@ -738,11 +738,13 @@ static int rk1000_codec_suspend(struct snd_soc_codec *codec)
 {
 	DBG("Enter::%s----%d\n", __func__, __LINE__);
 	spk_ctrl_fun(GPIO_LOW);
+	rk1000_codec_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;
 }
 
 static int rk1000_codec_resume(struct snd_soc_codec *codec)
 {
+	rk1000_codec_set_bias_level(codec, SND_SOC_BIAS_PREPARE);
 	spk_ctrl_fun(GPIO_HIGH);
 	return 0;
 }

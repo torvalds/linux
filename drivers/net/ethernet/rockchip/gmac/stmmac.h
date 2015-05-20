@@ -111,14 +111,16 @@ struct stmmac_priv {
 };
 
 enum {
-    RK3288_GMAC,
-    RK312X_GMAC
+	RK3288_GMAC,
+	RK312X_GMAC,
+	RK3368_GMAC
 };
 
 struct bsp_priv {
+	struct regmap *grf;
+	struct platform_device *pdev;
 	bool power_ctrl_by_pmu;
 	char pmu_regulator[32];
-	int pmu_enable_level;
 	int power_io;
 	int power_io_level;
 	int reset_io;

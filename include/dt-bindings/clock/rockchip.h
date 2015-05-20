@@ -43,6 +43,9 @@
 #define CLK_PLL_3036_APLL	BIT(6)
 #define CLK_PLL_3036PLUS_AUTO	BIT(7)
 #define CLK_PLL_312XPLUS	BIT(8)
+#define CLK_PLL_3368_APLLB	BIT(9)
+#define CLK_PLL_3368_APLLL	BIT(10)
+#define CLK_PLL_3368_LOW_JITTER	BIT(11)
 
 
 /* rate_ops index */
@@ -64,6 +67,11 @@
 #define CLKOPS_RATE_RK3288_DCLK_LCDC0	16
 #define CLKOPS_RATE_RK3288_DCLK_LCDC1	17
 #define CLKOPS_RATE_DDR_DIV2		18
+#define CLKOPS_RATE_DDR_DIV4		19
+#define CLKOPS_RATE_RK3368_MUX_DIV_NPLL 20
+#define CLKOPS_RATE_RK3368_DCLK_LCDC	21
+#define CLKOPS_RATE_RK3368_DDR		22
+
 #define CLKOPS_TABLE_END		(~0)
 
 /* pd id */
@@ -81,6 +89,9 @@
 #define CLK_PD_SCU 		11
 #define CLK_PD_VIDEO 		12
 #define CLK_PD_VIO		13
+#define CLK_PD_GPU_0		14
+#define CLK_PD_GPU_1		15
+
 #define CLK_PD_VIRT		255
 
 /* reset flag */
