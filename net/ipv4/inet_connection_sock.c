@@ -127,11 +127,6 @@ again:
 					    (tb->num_owners < smallest_size || smallest_size == -1)) {
 						smallest_size = tb->num_owners;
 						smallest_rover = rover;
-						if (atomic_read(&hashinfo->bsockets) > (high - low) + 1 &&
-						    !inet_csk(sk)->icsk_af_ops->bind_conflict(sk, tb, false)) {
-							snum = smallest_rover;
-							goto tb_found;
-						}
 					}
 					if (!inet_csk(sk)->icsk_af_ops->bind_conflict(sk, tb, false)) {
 						snum = rover;
