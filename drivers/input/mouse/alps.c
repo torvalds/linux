@@ -524,7 +524,11 @@ static void alps_report_semi_mt_data(struct psmouse *psmouse, int fingers)
 		priv->second_touch = -1;
 	}
 
-	alps_report_mt_data(psmouse, (fingers <= 2) ? fingers : 2);
+	if (fingers >= 1)
+		alps_set_slot(dev, 0, f->mt[0].x, f->mt[0].y);
+	if (fingers >= 2)
+		alps_set_slot(dev, 1, f->mt[1].x, f->mt[1].y);
+	input_mt_sync_frame(dev);
 
 	input_mt_report_finger_count(dev, fingers);
 
@@ -2826,7 +2830,7 @@ static void alps_set_abs_params_mt(struct alps_data *priv,
 
 	input_mt_init_slots(dev1, MAX_TOUCHES,
 			    INPUT_MT_POINTER | INPUT_MT_DROP_UNUSED |
-				INPUT_MT_TRACK | INPUT_MT_SEMI_MT);
+				INPUT_MT_SEMI_MT);
 }
 
 static void alps_set_abs_params_v7(struct alps_data *priv,
