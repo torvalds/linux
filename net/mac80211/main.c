@@ -770,8 +770,10 @@ static int ieee80211_init_cipher_suites(struct ieee80211_local *local)
 
 		for (r = 0; r < local->hw.n_cipher_schemes; r++) {
 			suites[w++] = cs[r].cipher;
-			if (WARN_ON(cs[r].pn_len > IEEE80211_MAX_PN_LEN))
+			if (WARN_ON(cs[r].pn_len > IEEE80211_MAX_PN_LEN)) {
+				kfree(suites);
 				return -EINVAL;
+			}
 		}
 	}
 
