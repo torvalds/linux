@@ -112,13 +112,7 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 	const struct of_device_id *device;
 	struct device *dev = &pdev->dev;
 
-	if (!np)
-		return -ENODEV;
-
 	device = of_match_device(dev->driver->of_match_table, dev);
-	if (!device)
-		return -ENODEV;
-
 	if (device->data) {
 		const struct stmmac_of_data *data = device->data;
 		plat->has_gmac = data->has_gmac;
