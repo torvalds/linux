@@ -937,12 +937,13 @@ static int udf_load_pvoldesc(struct super_block *sb, sector_t block)
 		udf_debug("volIdent[] = '%s'\n", UDF_SB(sb)->s_volume_ident);
 	}
 
-	if (!udf_build_ustr(instr, pvoldesc->volSetIdent, 128))
+	if (!udf_build_ustr(instr, pvoldesc->volSetIdent, 128)) {
 		ret = udf_CS0toUTF8(outstr, instr);
 		if (ret < 0)
 			goto out_bh;
 
 		udf_debug("volSetIdent[] = '%s'\n", outstr->u_name);
+	}
 
 	ret = 0;
 out_bh:
