@@ -352,6 +352,20 @@ int iwl_mvm_rx_scan_match_found(struct iwl_mvm *mvm,
 	return 0;
 }
 
+static const char *iwl_mvm_ebs_status_str(enum iwl_scan_ebs_status status)
+{
+	switch (status) {
+	case IWL_SCAN_EBS_SUCCESS:
+		return "successful";
+	case IWL_SCAN_EBS_INACTIVE:
+		return "inactive";
+	case IWL_SCAN_EBS_FAILED:
+	case IWL_SCAN_EBS_CHAN_NOT_FOUND:
+	default:
+		return "failed";
+	}
+}
+
 int iwl_mvm_rx_lmac_scan_complete_notif(struct iwl_mvm *mvm,
 					struct iwl_rx_cmd_buffer *rxb,
 					struct iwl_device_cmd *cmd)
@@ -359,7 +373,6 @@ int iwl_mvm_rx_lmac_scan_complete_notif(struct iwl_mvm *mvm,
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_periodic_scan_complete *scan_notif = (void *)pkt->data;
 	bool aborted = (scan_notif->status == IWL_SCAN_OFFLOAD_ABORTED);
-	bool ebs_successful = (scan_notif->ebs_status == IWL_SCAN_EBS_SUCCESS);
 
 	/* scan status must be locked for proper checking */
 	lockdep_assert_held(&mvm->mutex);
@@ -379,13 +392,13 @@ int iwl_mvm_rx_lmac_scan_complete_notif(struct iwl_mvm *mvm,
 
 		IWL_DEBUG_SCAN(mvm, "Scheduled scan %s, EBS status %s\n",
 			       aborted ? "aborted" : "completed",
-			       ebs_successful ? "successful" : "failed");
+			       iwl_mvm_ebs_status_str(scan_notif->ebs_status));
 
 		mvm->scan_status &= ~IWL_MVM_SCAN_STOPPING_SCHED;
 	} else if (mvm->scan_status & IWL_MVM_SCAN_STOPPING_REGULAR) {
 		IWL_DEBUG_SCAN(mvm, "Regular scan %s, EBS status %s\n",
 			       aborted ? "aborted" : "completed",
-			       ebs_successful ? "successful" : "failed");
+			       iwl_mvm_ebs_status_str(scan_notif->ebs_status));
 
 		mvm->scan_status &= ~IWL_MVM_SCAN_STOPPING_REGULAR;
 	} else if (mvm->scan_status & IWL_MVM_SCAN_SCHED) {
@@ -393,14 +406,14 @@ int iwl_mvm_rx_lmac_scan_complete_notif(struct iwl_mvm *mvm,
 
 		IWL_DEBUG_SCAN(mvm, "Scheduled scan %s, EBS status %s (FW)\n",
 			       aborted ? "aborted" : "completed",
-			       ebs_successful ? "successful" : "failed");
+			       iwl_mvm_ebs_status_str(scan_notif->ebs_status));
 
 		mvm->scan_status &= ~IWL_MVM_SCAN_SCHED;
 		ieee80211_sched_scan_stopped(mvm->hw);
 	} else if (mvm->scan_status & IWL_MVM_SCAN_REGULAR) {
 		IWL_DEBUG_SCAN(mvm, "Regular scan %s, EBS status %s (FW)\n",
 			       aborted ? "aborted" : "completed",
-			       ebs_successful ? "successful" : "failed");
+			       iwl_mvm_ebs_status_str(scan_notif->ebs_status));
 
 		mvm->scan_status &= ~IWL_MVM_SCAN_REGULAR;
 		ieee80211_scan_completed(mvm->hw,
@@ -408,7 +421,9 @@ int iwl_mvm_rx_lmac_scan_complete_notif(struct iwl_mvm *mvm,
 		iwl_mvm_unref(mvm, IWL_MVM_REF_SCAN);
 	}
 
-	mvm->last_ebs_successful = ebs_successful;
+	mvm->last_ebs_successful =
+			scan_notif->ebs_status == IWL_SCAN_EBS_SUCCESS ||
+			scan_notif->ebs_status == IWL_SCAN_EBS_INACTIVE;
 
 	return 0;
 }
@@ -1376,10 +1391,10 @@ int iwl_mvm_rx_umac_scan_complete_notif(struct iwl_mvm *mvm,
 		       uid, mvm->scan_uid_status[uid],
 		       notif->status == IWL_SCAN_OFFLOAD_COMPLETED ?
 				"completed" : "aborted",
-		       notif->ebs_status == IWL_SCAN_EBS_SUCCESS ?
-				"success" : "failed");
+		       iwl_mvm_ebs_status_str(notif->ebs_status));
 
-	if (notif->ebs_status)
+	if (notif->ebs_status != IWL_SCAN_EBS_SUCCESS &&
+	    notif->ebs_status != IWL_SCAN_EBS_INACTIVE)
 		mvm->last_ebs_successful = false;
 
 	mvm->scan_uid_status[uid] = 0;
