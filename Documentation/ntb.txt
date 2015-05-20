@@ -115,13 +115,13 @@ Module Parameters:
 * b2b\_mw\_share - If the peer ntb is to be accessed via a memory window, and if
 	the memory window is large enough, still allow the client to use the
 	second half of the memory window for address translation to the peer.
-* snb\_b2b\_usd\_bar2\_addr64 - If using B2B topology on Xeon hardware, use this
-	64 bit address on the bus between the NTB devices for the window at
-	BAR2, on the upstream side of the link.
-* snb\_b2b\_usd\_bar4\_addr64 - See *snb\_b2b\_bar2\_addr64*.
-* snb\_b2b\_usd\_bar4\_addr32 - See *snb\_b2b\_bar2\_addr64*.
-* snb\_b2b\_usd\_bar5\_addr32 - See *snb\_b2b\_bar2\_addr64*.
-* snb\_b2b\_dsd\_bar2\_addr64 - See *snb\_b2b\_bar2\_addr64*.
-* snb\_b2b\_dsd\_bar4\_addr64 - See *snb\_b2b\_bar2\_addr64*.
-* snb\_b2b\_dsd\_bar4\_addr32 - See *snb\_b2b\_bar2\_addr64*.
-* snb\_b2b\_dsd\_bar5\_addr32 - See *snb\_b2b\_bar2\_addr64*.
+* xeon\_b2b\_usd\_bar2\_addr64 - If using B2B topology on Xeon hardware, use
+	this 64 bit address on the bus between the NTB devices for the window
+	at BAR2, on the upstream side of the link.
+* xeon\_b2b\_usd\_bar4\_addr64 - See *xeon\_b2b\_bar2\_addr64*.
+* xeon\_b2b\_usd\_bar4\_addr32 - See *xeon\_b2b\_bar2\_addr64*.
+* xeon\_b2b\_usd\_bar5\_addr32 - See *xeon\_b2b\_bar2\_addr64*.
+* xeon\_b2b\_dsd\_bar2\_addr64 - See *xeon\_b2b\_bar2\_addr64*.
+* xeon\_b2b\_dsd\_bar4\_addr64 - See *xeon\_b2b\_bar2\_addr64*.
+* xeon\_b2b\_dsd\_bar4\_addr32 - See *xeon\_b2b\_bar2\_addr64*.
+* xeon\_b2b\_dsd\_bar5\_addr32 - See *xeon\_b2b\_bar2\_addr64*.
