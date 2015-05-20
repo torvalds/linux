@@ -6282,6 +6282,8 @@ void kvm_vcpu_reload_apic_access_page(struct kvm_vcpu *vcpu)
 		return;
 
 	page = gfn_to_page(vcpu->kvm, APIC_DEFAULT_PHYS_BASE >> PAGE_SHIFT);
+	if (is_error_page(page))
+		return;
 	kvm_x86_ops->set_apic_access_page_addr(vcpu, page_to_phys(page));
 
 	/*
@@ -7155,7 +7157,7 @@ void kvm_put_guest_fpu(struct kvm_vcpu *vcpu)
 	 * Every 255 times fpu_counter rolls over to 0; a guest that uses
 	 * the FPU in bursts will revert to loading it on demand.
 	 */
-	if (!use_eager_fpu()) {
+	if (!vcpu->arch.eager_fpu) {
 		if (++vcpu->fpu_counter < 5)
 			kvm_make_request(KVM_REQ_DEACTIVATE_FPU, vcpu);
 	}
@@ -7174,11 +7176,21 @@ void kvm_arch_vcpu_free(struct kvm_vcpu *vcpu)
 struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm,
 						unsigned int id)
 {
+	struct kvm_vcpu *vcpu;
+
 	if (check_tsc_unstable() && atomic_read(&kvm->online_vcpus) != 0)
 		printk_once(KERN_WARNING
 		"kvm: SMP vm created on host with unstable TSC; "
 		"guest TSC will not be reliable\n");
-	return kvm_x86_ops->vcpu_create(kvm, id);
+
+	vcpu = kvm_x86_ops->vcpu_create(kvm, id);
+
+	/*
+	 * Activate fpu unconditionally in case the guest needs eager FPU.  It will be
+	 * deactivated soon if it doesn't.
+	 */
+	kvm_x86_ops->fpu_activate(vcpu);
+	return vcpu;
 }
 
 int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
