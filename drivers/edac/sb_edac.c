@@ -508,17 +508,35 @@ static const struct pci_id_table pci_dev_descr_haswell_table[] = {
  * DE processor:
  *	- 1 IMC
  *	- 2 DDR3 channels, 2 DPC per channel
+ * EP processor:
+ *	- 1 or 2 IMC
+ *	- 4 DDR4 channels, 3 DPC per channel
+ * EP 4S processor:
+ *	- 2 IMC
+ *	- 4 DDR4 channels, 3 DPC per channel
+ * EX processor:
+ *	- 2 IMC
+ *	- each IMC interfaces with a SMI 2 channel
+ *	- each SMI channel interfaces with a scalable memory buffer
+ *	- each scalable memory buffer supports 4 DDR3/DDR4 channels, 3 DPC
  */
 #define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_VTD_MISC 0x6f28
 #define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0	0x6fa0
+#define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1	0x6f60
 #define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TA	0x6fa8
 #define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_THERMAL 0x6f71
+#define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TA	0x6f68
+#define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_THERMAL 0x6f79
 #define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_CBO_SAD0 0x6ffc
 #define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_CBO_SAD1 0x6ffd
 #define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TAD0 0x6faa
 #define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TAD1 0x6fab
 #define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TAD2 0x6fac
 #define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TAD3 0x6fad
+#define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TAD0 0x6f6a
+#define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TAD1 0x6f6b
+#define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TAD2 0x6f6c
+#define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TAD3 0x6f6d
 #define PCI_DEVICE_ID_INTEL_BROADWELL_IMC_DDRIO0 0x6faf
 
 static const struct pci_id_descr pci_dev_descr_broadwell[] = {
@@ -528,13 +546,23 @@ static const struct pci_id_descr pci_dev_descr_broadwell[] = {
 	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_CBO_SAD0, 0)	},
 	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_CBO_SAD1, 0)	},
 
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1, 1)		},
+
 	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TA, 0)	},
 	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_THERMAL, 0)	},
 	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TAD0, 0)	},
 	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TAD1, 0)	},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TAD2, 0)	},
-	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TAD3, 0)	},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TAD2, 1)	},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TAD3, 1)	},
+
 	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_DDRIO0, 1)	},
+
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TA, 1)	},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_THERMAL, 1)	},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TAD0, 1)	},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TAD1, 1)	},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TAD2, 1)	},
+	{ PCI_DESCR(PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TAD3, 1)	},
 };
 
 static const struct pci_id_table pci_dev_descr_broadwell_table[] = {
@@ -563,7 +591,7 @@ static inline int numrank(enum type type, u32 mtr)
 	int ranks = (1 << RANK_CNT_BITS(mtr));
 	int max = 4;
 
-	if (type == HASWELL)
+	if (type == HASWELL || type == BROADWELL)
 		max = 8;
 
 	if (ranks > max) {
@@ -1880,6 +1908,7 @@ static int broadwell_mci_bind_devs(struct mem_ctl_info *mci,
 {
 	struct sbridge_pvt *pvt = mci->pvt_info;
 	struct pci_dev *pdev;
+	u8 saw_chan_mask = 0;
 	int i;
 
 	/* there's only one device per system; not tied to any bus */
@@ -1911,19 +1940,33 @@ static int broadwell_mci_bind_devs(struct mem_ctl_info *mci,
 			pvt->pci_ras = pdev;
 			break;
 		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TAD0:
-			pvt->pci_tad[0] = pdev;
-			break;
 		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TAD1:
-			pvt->pci_tad[1] = pdev;
-			break;
 		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TAD2:
-			pvt->pci_tad[2] = pdev;
-			break;
 		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TAD3:
-			pvt->pci_tad[3] = pdev;
+		{
+			int id = pdev->device - PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA0_TAD0;
+			pvt->pci_tad[id] = pdev;
+			saw_chan_mask |= 1 << id;
+		}
+			break;
+		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TAD0:
+		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TAD1:
+		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TAD2:
+		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TAD3:
+		{
+			int id = pdev->device - PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TAD0 + 4;
+			pvt->pci_tad[id] = pdev;
+			saw_chan_mask |= 1 << id;
+		}
 			break;
 		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_DDRIO0:
 			pvt->pci_ddrio = pdev;
+			break;
+		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1:
+			pvt->pci_ha1 = pdev;
+			break;
+		case PCI_DEVICE_ID_INTEL_BROADWELL_IMC_HA1_TA:
+			pvt->pci_ha1_ta = pdev;
 			break;
 		default:
 			break;
@@ -1940,10 +1983,10 @@ static int broadwell_mci_bind_devs(struct mem_ctl_info *mci,
 	    !pvt->pci_ras  || !pvt->pci_ta || !pvt->info.pci_vtd)
 		goto enodev;
 
-	for (i = 0; i < NUM_CHANNELS; i++) {
-		if (!pvt->pci_tad[i])
-			goto enodev;
-	}
+	if (saw_chan_mask != 0x0f && /* -EN */
+	    saw_chan_mask != 0x33 && /* -EP */
+	    saw_chan_mask != 0xff)   /* -EX */
+		goto enodev;
 	return 0;
 
 enodev:
@@ -1982,7 +2025,7 @@ static void sbridge_mce_output_error(struct mem_ctl_info *mci,
 	int rc, dimm;
 	char *area_type = NULL;
 
-	if (pvt->info.type == IVY_BRIDGE)
+	if (pvt->info.type != SANDY_BRIDGE)
 		recoverable = true;
 	else
 		recoverable = GET_BITFIELD(m->status, 56, 56);
