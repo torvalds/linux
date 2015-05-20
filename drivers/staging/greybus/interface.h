@@ -47,10 +47,10 @@ static inline void *gb_interface_get_drvdata(struct gb_interface *intf)
 struct gb_interface *gb_interface_find(struct greybus_host_device *hd,
 				       u8 interface_id);
 
-void gb_add_interface(struct greybus_host_device *hd, u8 interface_id, u8 *data,
+void gb_interface_add(struct greybus_host_device *hd, u8 interface_id, u8 *data,
 		      int size);
-void gb_remove_interface(struct greybus_host_device *hd, u8 interface_id);
-void gb_remove_interfaces(struct greybus_host_device *hd);
+void gb_interface_remove(struct greybus_host_device *hd, u8 interface_id);
+void gb_interfaces_remove(struct greybus_host_device *hd);
 
 
 #endif /* __INTERFACE_H */

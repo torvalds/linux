@@ -54,7 +54,7 @@ struct gb_interface *gb_interface_find(struct greybus_host_device *hd,
 	return NULL;
 }
 
-static void greybus_interface_release(struct device *dev)
+static void gb_interface_release(struct device *dev)
 {
 	struct gb_interface *intf = to_gb_interface(dev);
 
@@ -63,7 +63,7 @@ static void greybus_interface_release(struct device *dev)
 
 struct device_type greybus_interface_type = {
 	.name =		"greybus_interface",
-	.release =	greybus_interface_release,
+	.release =	gb_interface_release,
 };
 
 /*
@@ -161,12 +161,12 @@ static void gb_interface_destroy(struct gb_interface *intf)
 }
 
 /**
- * gb_add_interface
+ * gb_interface_add
  *
  * Pass in a buffer that _should_ contain a Greybus manifest
  * and register a greybus device structure with the kernel core.
  */
-void gb_add_interface(struct greybus_host_device *hd, u8 interface_id, u8 *data,
+void gb_interface_add(struct greybus_host_device *hd, u8 interface_id, u8 *data,
 		      int size)
 {
 	struct gb_interface *intf;
@@ -201,7 +201,7 @@ err_parse:
 	gb_interface_destroy(intf);
 }
 
-void gb_remove_interface(struct greybus_host_device *hd, u8 interface_id)
+void gb_interface_remove(struct greybus_host_device *hd, u8 interface_id)
 {
 	struct gb_interface *intf = gb_interface_find(hd, interface_id);
 
@@ -212,7 +212,7 @@ void gb_remove_interface(struct greybus_host_device *hd, u8 interface_id)
 			interface_id);
 }
 
-void gb_remove_interfaces(struct greybus_host_device *hd)
+void gb_interfaces_remove(struct greybus_host_device *hd)
 {
 	struct gb_interface *intf, *temp;
 

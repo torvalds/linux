@@ -215,7 +215,7 @@ void greybus_remove_hd(struct greybus_host_device *hd)
 	 * with this host controller before freeing the memory associated with
 	 * the host controller.
 	 */
-	gb_remove_interfaces(hd);
+	gb_interfaces_remove(hd);
 	gb_endo_remove(hd->endo);
 	kref_put_mutex(&hd->kref, free_hd, &hd_mutex);
 }

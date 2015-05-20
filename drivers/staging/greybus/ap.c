@@ -175,7 +175,7 @@ static void svc_hotplug(struct svc_function_hotplug *hotplug,
 			return;
 		}
 		dev_dbg(hd->parent, "interface id %d added\n", interface_id);
-		gb_add_interface(hd, interface_id, hotplug->data,
+		gb_interface_add(hd, interface_id, hotplug->data,
 				 payload_length - 0x02);
 		break;
 
@@ -189,7 +189,7 @@ static void svc_hotplug(struct svc_function_hotplug *hotplug,
 			return;
 		}
 		dev_dbg(hd->parent, "interface id %d removed\n", interface_id);
-		gb_remove_interface(hd, interface_id);
+		gb_interface_remove(hd, interface_id);
 		break;
 
 	default:
