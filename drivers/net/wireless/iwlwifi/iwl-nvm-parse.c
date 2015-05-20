@@ -533,6 +533,10 @@ static void iwl_set_hw_address_family_8000(struct device *dev,
 	const u8 *hw_addr;
 
 	if (mac_override) {
+		static const u8 reserved_mac[] = {
+			0x02, 0xcc, 0xaa, 0xff, 0xee, 0x00
+		};
+
 		hw_addr = (const u8 *)(mac_override +
 				 MAC_ADDRESS_OVERRIDE_FAMILY_8000);
 
@@ -544,7 +548,12 @@ static void iwl_set_hw_address_family_8000(struct device *dev,
 		data->hw_addr[4] = hw_addr[5];
 		data->hw_addr[5] = hw_addr[4];
 
-		if (is_valid_ether_addr(data->hw_addr))
+		/*
+		 * Force the use of the OTP MAC address in case of reserved MAC
+		 * address in the NVM, or if address is given but invalid.
+		 */
+		if (is_valid_ether_addr(data->hw_addr) &&
+		    memcmp(reserved_mac, hw_addr, ETH_ALEN) != 0)
 			return;
 
 		IWL_ERR_DEV(dev,
