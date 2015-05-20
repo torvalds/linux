@@ -156,7 +156,7 @@ config MOUSE_PS2_VMMOUSE
 	  Say Y here if you are running under control of VMware hypervisor
 	  (ESXi, Workstation or Fusion). Also make sure that when you enable
 	  this option, you remove the xf86-input-vmmouse user-space driver
-	  or upgrade it to at least xf86-input-vmmouse 13.0.1, which doesn't
+	  or upgrade it to at least xf86-input-vmmouse 13.1.0, which doesn't
 	  load in the presence of an in-kernel vmmouse driver.
 
 	  If unsure, say N.
