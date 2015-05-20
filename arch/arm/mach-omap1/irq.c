@@ -43,6 +43,7 @@
 #include <linux/io.h>
 
 #include <asm/irq.h>
+#include <asm/exception.h>
 #include <asm/mach/irq.h>
 
 #include "soc.h"
@@ -61,7 +62,7 @@ struct omap_irq_bank {
 	unsigned long wake_enable;
 };
 
-u32 omap_irq_flags;
+static u32 omap_l2_irq;
 static unsigned int irq_bank_count;
 static struct omap_irq_bank *irq_banks;
 static struct irq_domain *domain;
@@ -140,6 +141,36 @@ static struct omap_irq_bank omap1610_irq_banks[] = {
 };
 #endif
 
+asmlinkage void __exception_irq_entry omap1_handle_irq(struct pt_regs *regs)
+{
+	void __iomem *l1 = irq_banks[0].va;
+	void __iomem *l2 = irq_banks[1].va;
+	u32 irqnr;
+
+	do {
+		irqnr = readl_relaxed(l1 + IRQ_ITR_REG_OFFSET);
+		irqnr &= ~(readl_relaxed(l1 + IRQ_MIR_REG_OFFSET) & 0xffffffff);
+		if (!irqnr)
+			break;
+
+		irqnr = readl_relaxed(l1 + IRQ_SIR_FIQ_REG_OFFSET);
+		if (irqnr)
+			goto irq;
+
+		irqnr = readl_relaxed(l1 + IRQ_SIR_IRQ_REG_OFFSET);
+		if (irqnr == omap_l2_irq) {
+			irqnr = readl_relaxed(l2 + IRQ_SIR_IRQ_REG_OFFSET);
+			if (irqnr)
+				irqnr += 32;
+		}
+irq:
+		if (irqnr)
+			handle_domain_irq(domain, irqnr, regs);
+		else
+			break;
+	} while (irqnr);
+}
+
 static __init void
 omap_alloc_gc(void __iomem *base, unsigned int irq_start, unsigned int num)
 {
@@ -167,26 +198,22 @@ void __init omap1_init_irq(void)
 
 #if defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP850)
 	if (cpu_is_omap7xx()) {
-		omap_irq_flags = INT_7XX_IH2_IRQ;
 		irq_banks = omap7xx_irq_banks;
 		irq_bank_count = ARRAY_SIZE(omap7xx_irq_banks);
 	}
 #endif
 #ifdef CONFIG_ARCH_OMAP15XX
 	if (cpu_is_omap1510()) {
-		omap_irq_flags = INT_1510_IH2_IRQ;
 		irq_banks = omap1510_irq_banks;
 		irq_bank_count = ARRAY_SIZE(omap1510_irq_banks);
 	}
 	if (cpu_is_omap310()) {
-		omap_irq_flags = INT_1510_IH2_IRQ;
 		irq_banks = omap310_irq_banks;
 		irq_bank_count = ARRAY_SIZE(omap310_irq_banks);
 	}
 #endif
 #if defined(CONFIG_ARCH_OMAP16XX)
 	if (cpu_is_omap16xx()) {
-		omap_irq_flags = INT_1510_IH2_IRQ;
 		irq_banks = omap1610_irq_banks;
 		irq_bank_count = ARRAY_SIZE(omap1610_irq_banks);
 	}
@@ -205,6 +232,7 @@ void __init omap1_init_irq(void)
 		pr_warn("Couldn't allocate IRQ numbers\n");
 		irq_base = 0;
 	}
+	omap_l2_irq = cpu_is_omap7xx() ? irq_base + 1 : irq_base;
 
 	domain = irq_domain_add_legacy(NULL, nr_irqs, irq_base, 0,
 				       &irq_domain_simple_ops, NULL);
@@ -239,7 +267,7 @@ void __init omap1_init_irq(void)
 	}
 
 	/* Unmask level 2 handler */
-	d = irq_get_irq_data(omap_irq_flags);
+	d = irq_get_irq_data(irq_find_mapping(domain, omap_l2_irq));
 	if (d) {
 		ct = irq_data_get_chip_type(d);
 		ct->chip.irq_unmask(d);
