@@ -835,7 +835,8 @@ static void es8316_pcm_shutdown(struct snd_pcm_substream *substream,
 	if (--es8316->pwr_count) {
 		DBG("%s pwr count: %d\n", __func__, es8316->pwr_count);
 	} else {
-		snd_soc_write(codec, ES8316_SYS_PDN_REG0D, 0x26);
+		snd_soc_write(codec, ES8316_SYS_PDN_REG0D, 0x3F);
+		snd_soc_write(codec, ES8316_CLKMGR_CLKSW_REG01, 0xF3);
 		DBG("%s pwr count close ES8316_SYS_PDN_REG0D\n", __func__);
 	}
 }
@@ -1169,10 +1170,10 @@ static int es8316_probe(struct snd_soc_codec *codec)
 			snd_soc_write(codec, ES8316_HPMIX_SWITCH_REG14, 0x00);
 			snd_soc_write(codec, ES8316_HPMIX_PDN_REG15, 0x33);
 			snd_soc_write(codec, ES8316_HPMIX_VOL_REG16, 0x00);
-			snd_soc_write(codec, ES8316_SYS_PDN_REG0D, 0x26);
+			snd_soc_write(codec, ES8316_SYS_PDN_REG0D, 0x3F);
 			snd_soc_write(codec, ES8316_SYS_LP1_REG0E, 0xFF);
 			snd_soc_write(codec, ES8316_SYS_LP2_REG0F, 0xFF);
-			snd_soc_write(codec, ES8316_CLKMGR_CLKSW_REG01, 0xFF);
+			snd_soc_write(codec, ES8316_CLKMGR_CLKSW_REG01, 0xF3);
 			snd_soc_write(codec,
 				      ES8316_ADC_PDN_LINSEL_REG22, 0xc0);
 			es8316_init_reg = 1;
