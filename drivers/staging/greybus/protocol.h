@@ -90,6 +90,7 @@ extern void gb_hid_protocol_exit(void);
 extern int gb_audio_protocol_init(void);
 extern void gb_audio_protocol_exit(void);
 
+/* __protocol: Pointer to struct gb_protocol */
 #define gb_protocol_driver(__protocol)			\
 static int __init protocol_init(void)			\
 {							\
@@ -101,6 +102,17 @@ static void __exit protocol_exit(void)			\
 	gb_protocol_deregister(__protocol);		\
 }							\
 module_exit(protocol_exit)
+
+/* __protocol: string matching name of struct gb_protocol */
+#define gb_gpbridge_protocol_driver(__protocol)		\
+int __init gb_##__protocol##_init(void)			\
+{							\
+	return gb_protocol_register(&__protocol);	\
+}							\
+void __exit gb_##__protocol##_exit(void)		\
+{							\
+	gb_protocol_deregister(&__protocol);		\
+}							\
 
 /*
  * Macro to create get_version() routine for protocols
