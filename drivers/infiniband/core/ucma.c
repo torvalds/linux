@@ -722,26 +722,13 @@ static ssize_t ucma_query_route(struct ucma_file *file,
 
 	resp.node_guid = (__force __u64) ctx->cm_id->device->node_guid;
 	resp.port_num = ctx->cm_id->port_num;
-	switch (rdma_node_get_transport(ctx->cm_id->device->node_type)) {
-	case RDMA_TRANSPORT_IB:
-		switch (rdma_port_get_link_layer(ctx->cm_id->device,
-			ctx->cm_id->port_num)) {
-		case IB_LINK_LAYER_INFINIBAND:
-			ucma_copy_ib_route(&resp, &ctx->cm_id->route);
-			break;
-		case IB_LINK_LAYER_ETHERNET:
-			ucma_copy_iboe_route(&resp, &ctx->cm_id->route);
-			break;
-		default:
-			break;
-		}
-		break;
-	case RDMA_TRANSPORT_IWARP:
+
+	if (rdma_cap_ib_sa(ctx->cm_id->device, ctx->cm_id->port_num))
+		ucma_copy_ib_route(&resp, &ctx->cm_id->route);
+	else if (rdma_protocol_roce(ctx->cm_id->device, ctx->cm_id->port_num))
+		ucma_copy_iboe_route(&resp, &ctx->cm_id->route);
+	else if (rdma_protocol_iwarp(ctx->cm_id->device, ctx->cm_id->port_num))
 		ucma_copy_iw_route(&resp, &ctx->cm_id->route);
-		break;
-	default:
-		break;
-	}
 
 out:
 	if (copy_to_user((void __user *)(unsigned long)cmd.response,

@@ -431,6 +431,23 @@ init_node_guid1:
 	return ret;
 }
 
+static int ehca_port_immutable(struct ib_device *ibdev, u8 port_num,
+			       struct ib_port_immutable *immutable)
+{
+	struct ib_port_attr attr;
+	int err;
+
+	err = ehca_query_port(ibdev, port_num, &attr);
+	if (err)
+		return err;
+
+	immutable->pkey_tbl_len = attr.pkey_tbl_len;
+	immutable->gid_tbl_len = attr.gid_tbl_len;
+	immutable->core_cap_flags = RDMA_CORE_PORT_IBA_IB;
+
+	return 0;
+}
+
 static int ehca_init_device(struct ehca_shca *shca)
 {
 	int ret;
@@ -510,6 +527,7 @@ static int ehca_init_device(struct ehca_shca *shca)
 	shca->ib_device.process_mad	    = ehca_process_mad;
 	shca->ib_device.mmap		    = ehca_mmap;
 	shca->ib_device.dma_ops		    = &ehca_dma_mapping_ops;
+	shca->ib_device.get_port_immutable  = ehca_port_immutable;
 
 	if (EHCA_BMASK_GET(HCA_CAP_SRQ, shca->hca_cap)) {
 		shca->ib_device.uverbs_cmd_mask |=

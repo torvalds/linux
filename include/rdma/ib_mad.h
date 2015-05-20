@@ -263,7 +263,7 @@ struct ib_mad_send_buf {
  * ib_response_mad - Returns if the specified MAD has been generated in
  *   response to a sent request or trap.
  */
-int ib_response_mad(struct ib_mad *mad);
+int ib_response_mad(const struct ib_mad_hdr *hdr);
 
 /**
  * ib_get_rmpp_resptime - Returns the RMPP response time.
@@ -675,6 +675,6 @@ void ib_free_send_mad(struct ib_mad_send_buf *send_buf);
  * @agent: the agent in question
  * @return: true if agent is performing rmpp, false otherwise.
  */
-int ib_mad_kernel_rmpp_agent(struct ib_mad_agent *agent);
+int ib_mad_kernel_rmpp_agent(const struct ib_mad_agent *agent);
 
 #endif /* IB_MAD_H */

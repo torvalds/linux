@@ -757,6 +757,23 @@ static struct net_device *c2_pseudo_netdev_init(struct c2_dev *c2dev)
 	return netdev;
 }
 
+static int c2_port_immutable(struct ib_device *ibdev, u8 port_num,
+			     struct ib_port_immutable *immutable)
+{
+	struct ib_port_attr attr;
+	int err;
+
+	err = c2_query_port(ibdev, port_num, &attr);
+	if (err)
+		return err;
+
+	immutable->pkey_tbl_len = attr.pkey_tbl_len;
+	immutable->gid_tbl_len = attr.gid_tbl_len;
+	immutable->core_cap_flags = RDMA_CORE_PORT_IWARP;
+
+	return 0;
+}
+
 int c2_register_device(struct c2_dev *dev)
 {
 	int ret = -ENOMEM;
@@ -820,6 +837,7 @@ int c2_register_device(struct c2_dev *dev)
 	dev->ibdev.reg_phys_mr = c2_reg_phys_mr;
 	dev->ibdev.reg_user_mr = c2_reg_user_mr;
 	dev->ibdev.dereg_mr = c2_dereg_mr;
+	dev->ibdev.get_port_immutable = c2_port_immutable;
 
 	dev->ibdev.alloc_fmr = NULL;
 	dev->ibdev.unmap_fmr = NULL;

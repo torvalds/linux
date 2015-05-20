@@ -175,8 +175,8 @@ void svc_rdma_put_req_map(struct svc_rdma_req_map *map)
 static void cq_event_handler(struct ib_event *event, void *context)
 {
 	struct svc_xprt *xprt = context;
-	dprintk("svcrdma: received CQ event id=%d, context=%p\n",
-		event->event, context);
+	dprintk("svcrdma: received CQ event %s (%d), context=%p\n",
+		ib_event_msg(event->event), event->event, context);
 	set_bit(XPT_CLOSE, &xprt->xpt_flags);
 }
 
@@ -191,8 +191,9 @@ static void qp_event_handler(struct ib_event *event, void *context)
 	case IB_EVENT_COMM_EST:
 	case IB_EVENT_SQ_DRAINED:
 	case IB_EVENT_QP_LAST_WQE_REACHED:
-		dprintk("svcrdma: QP event %d received for QP=%p\n",
-			event->event, event->element.qp);
+		dprintk("svcrdma: QP event %s (%d) received for QP=%p\n",
+			ib_event_msg(event->event), event->event,
+			event->element.qp);
 		break;
 	/* These are considered fatal events */
 	case IB_EVENT_PATH_MIG_ERR:
@@ -201,9 +202,10 @@ static void qp_event_handler(struct ib_event *event, void *context)
 	case IB_EVENT_QP_ACCESS_ERR:
 	case IB_EVENT_DEVICE_FATAL:
 	default:
-		dprintk("svcrdma: QP ERROR event %d received for QP=%p, "
+		dprintk("svcrdma: QP ERROR event %s (%d) received for QP=%p, "
 			"closing transport\n",
-			event->event, event->element.qp);
+			ib_event_msg(event->event), event->event,
+			event->element.qp);
 		set_bit(XPT_CLOSE, &xprt->xpt_flags);
 		break;
 	}
@@ -402,7 +404,8 @@ static void sq_cq_reap(struct svcxprt_rdma *xprt)
 		for (i = 0; i < ret; i++) {
 			wc = &wc_a[i];
 			if (wc->status != IB_WC_SUCCESS) {
-				dprintk("svcrdma: sq wc err status %d\n",
+				dprintk("svcrdma: sq wc err status %s (%d)\n",
+					ib_wc_status_msg(wc->status),
 					wc->status);
 
 				/* Close the transport */
@@ -616,7 +619,8 @@ static int rdma_listen_handler(struct rdma_cm_id *cma_id,
 	switch (event->event) {
 	case RDMA_CM_EVENT_CONNECT_REQUEST:
 		dprintk("svcrdma: Connect request on cma_id=%p, xprt = %p, "
-			"event=%d\n", cma_id, cma_id->context, event->event);
+			"event = %s (%d)\n", cma_id, cma_id->context,
+			rdma_event_msg(event->event), event->event);
 		handle_connect_req(cma_id,
 				   event->param.conn.initiator_depth);
 		break;
@@ -636,7 +640,8 @@ static int rdma_listen_handler(struct rdma_cm_id *cma_id,
 
 	default:
 		dprintk("svcrdma: Unexpected event on listening endpoint %p, "
-			"event=%d\n", cma_id, event->event);
+			"event = %s (%d)\n", cma_id,
+			rdma_event_msg(event->event), event->event);
 		break;
 	}
 
@@ -669,7 +674,8 @@ static int rdma_cma_handler(struct rdma_cm_id *cma_id,
 		break;
 	case RDMA_CM_EVENT_DEVICE_REMOVAL:
 		dprintk("svcrdma: Device removal cma_id=%p, xprt = %p, "
-			"event=%d\n", cma_id, xprt, event->event);
+			"event = %s (%d)\n", cma_id, xprt,
+			rdma_event_msg(event->event), event->event);
 		if (xprt) {
 			set_bit(XPT_CLOSE, &xprt->xpt_flags);
 			svc_xprt_enqueue(xprt);
@@ -677,7 +683,8 @@ static int rdma_cma_handler(struct rdma_cm_id *cma_id,
 		break;
 	default:
 		dprintk("svcrdma: Unexpected event on DTO endpoint %p, "
-			"event=%d\n", cma_id, event->event);
+			"event = %s (%d)\n", cma_id,
+			rdma_event_msg(event->event), event->event);
 		break;
 	}
 	return 0;
@@ -851,7 +858,7 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	struct ib_qp_init_attr qp_attr;
 	struct ib_device_attr devattr;
 	int uninitialized_var(dma_mr_acc);
-	int need_dma_mr;
+	int need_dma_mr = 0;
 	int ret;
 	int i;
 
@@ -985,34 +992,25 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 	/*
 	 * Determine if a DMA MR is required and if so, what privs are required
 	 */
-	switch (rdma_node_get_transport(newxprt->sc_cm_id->device->node_type)) {
-	case RDMA_TRANSPORT_IWARP:
-		newxprt->sc_dev_caps |= SVCRDMA_DEVCAP_READ_W_INV;
-		if (!(newxprt->sc_dev_caps & SVCRDMA_DEVCAP_FAST_REG)) {
-			need_dma_mr = 1;
-			dma_mr_acc =
-				(IB_ACCESS_LOCAL_WRITE |
-				 IB_ACCESS_REMOTE_WRITE);
-		} else if (!(devattr.device_cap_flags & IB_DEVICE_LOCAL_DMA_LKEY)) {
-			need_dma_mr = 1;
-			dma_mr_acc = IB_ACCESS_LOCAL_WRITE;
-		} else
-			need_dma_mr = 0;
-		break;
-	case RDMA_TRANSPORT_IB:
-		if (!(newxprt->sc_dev_caps & SVCRDMA_DEVCAP_FAST_REG)) {
-			need_dma_mr = 1;
-			dma_mr_acc = IB_ACCESS_LOCAL_WRITE;
-		} else if (!(devattr.device_cap_flags &
-			     IB_DEVICE_LOCAL_DMA_LKEY)) {
-			need_dma_mr = 1;
-			dma_mr_acc = IB_ACCESS_LOCAL_WRITE;
-		} else
-			need_dma_mr = 0;
-		break;
-	default:
+	if (!rdma_protocol_iwarp(newxprt->sc_cm_id->device,
+				 newxprt->sc_cm_id->port_num) &&
+	    !rdma_ib_or_roce(newxprt->sc_cm_id->device,
+			     newxprt->sc_cm_id->port_num))
 		goto errout;
+
+	if (!(newxprt->sc_dev_caps & SVCRDMA_DEVCAP_FAST_REG) ||
+	    !(devattr.device_cap_flags & IB_DEVICE_LOCAL_DMA_LKEY)) {
+		need_dma_mr = 1;
+		dma_mr_acc = IB_ACCESS_LOCAL_WRITE;
+		if (rdma_protocol_iwarp(newxprt->sc_cm_id->device,
+					newxprt->sc_cm_id->port_num) &&
+		    !(newxprt->sc_dev_caps & SVCRDMA_DEVCAP_FAST_REG))
+			dma_mr_acc |= IB_ACCESS_REMOTE_WRITE;
 	}
+
+	if (rdma_protocol_iwarp(newxprt->sc_cm_id->device,
+				newxprt->sc_cm_id->port_num))
+		newxprt->sc_dev_caps |= SVCRDMA_DEVCAP_READ_W_INV;
 
 	/* Create the DMA MR if needed, otherwise, use the DMA LKEY */
 	if (need_dma_mr) {

@@ -575,7 +575,6 @@ struct rds_statistics {
 };
 
 /* af_rds.c */
-char *rds_str_array(char **array, size_t elements, size_t index);
 void rds_sock_addref(struct rds_sock *rs);
 void rds_sock_put(struct rds_sock *rs);
 void rds_wake_sk_sleep(struct rds_sock *rs);

@@ -99,7 +99,6 @@ struct ib_umad_port {
 };
 
 struct ib_umad_device {
-	int                  start_port, end_port;
 	struct kobject       kobj;
 	struct ib_umad_port  port[0];
 };
@@ -426,11 +425,11 @@ static int is_duplicate(struct ib_umad_file *file,
 		 * the same TID, reject the second as a duplicate.  This is more
 		 * restrictive than required by the spec.
 		 */
-		if (!ib_response_mad((struct ib_mad *) hdr)) {
-			if (!ib_response_mad((struct ib_mad *) sent_hdr))
+		if (!ib_response_mad(hdr)) {
+			if (!ib_response_mad(sent_hdr))
 				return 1;
 			continue;
-		} else if (!ib_response_mad((struct ib_mad *) sent_hdr))
+		} else if (!ib_response_mad(sent_hdr))
 			continue;
 
 		if (same_destination(&packet->mad.hdr, &sent_packet->mad.hdr))
@@ -1273,16 +1272,10 @@ static void ib_umad_add_one(struct ib_device *device)
 {
 	struct ib_umad_device *umad_dev;
 	int s, e, i;
+	int count = 0;
 
-	if (rdma_node_get_transport(device->node_type) != RDMA_TRANSPORT_IB)
-		return;
-
-	if (device->node_type == RDMA_NODE_IB_SWITCH)
-		s = e = 0;
-	else {
-		s = 1;
-		e = device->phys_port_cnt;
-	}
+	s = rdma_start_port(device);
+	e = rdma_end_port(device);
 
 	umad_dev = kzalloc(sizeof *umad_dev +
 			   (e - s + 1) * sizeof (struct ib_umad_port),
@@ -1292,25 +1285,34 @@ static void ib_umad_add_one(struct ib_device *device)
 
 	kobject_init(&umad_dev->kobj, &ib_umad_dev_ktype);
 
-	umad_dev->start_port = s;
-	umad_dev->end_port   = e;
-
 	for (i = s; i <= e; ++i) {
+		if (!rdma_cap_ib_mad(device, i))
+			continue;
+
 		umad_dev->port[i - s].umad_dev = umad_dev;
 
 		if (ib_umad_init_port(device, i, umad_dev,
 				      &umad_dev->port[i - s]))
 			goto err;
+
+		count++;
 	}
+
+	if (!count)
+		goto free;
 
 	ib_set_client_data(device, &umad_client, umad_dev);
 
 	return;
 
 err:
-	while (--i >= s)
-		ib_umad_kill_port(&umad_dev->port[i - s]);
+	while (--i >= s) {
+		if (!rdma_cap_ib_mad(device, i))
+			continue;
 
+		ib_umad_kill_port(&umad_dev->port[i - s]);
+	}
+free:
 	kobject_put(&umad_dev->kobj);
 }
 
@@ -1322,8 +1324,10 @@ static void ib_umad_remove_one(struct ib_device *device)
 	if (!umad_dev)
 		return;
 
-	for (i = 0; i <= umad_dev->end_port - umad_dev->start_port; ++i)
-		ib_umad_kill_port(&umad_dev->port[i]);
+	for (i = 0; i <= rdma_end_port(device) - rdma_start_port(device); ++i) {
+		if (rdma_cap_ib_mad(device, i + rdma_start_port(device)))
+			ib_umad_kill_port(&umad_dev->port[i]);
+	}
 
 	kobject_put(&umad_dev->kobj);
 }

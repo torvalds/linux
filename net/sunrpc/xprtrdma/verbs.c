@@ -105,32 +105,6 @@ rpcrdma_run_tasklet(unsigned long data)
 
 static DECLARE_TASKLET(rpcrdma_tasklet_g, rpcrdma_run_tasklet, 0UL);
 
-static const char * const async_event[] = {
-	"CQ error",
-	"QP fatal error",
-	"QP request error",
-	"QP access error",
-	"communication established",
-	"send queue drained",
-	"path migration successful",
-	"path mig error",
-	"device fatal error",
-	"port active",
-	"port error",
-	"LID change",
-	"P_key change",
-	"SM change",
-	"SRQ error",
-	"SRQ limit reached",
-	"last WQE reached",
-	"client reregister",
-	"GID change",
-};
-
-#define ASYNC_MSG(status)					\
-	((status) < ARRAY_SIZE(async_event) ?			\
-		async_event[(status)] : "unknown async error")
-
 static void
 rpcrdma_schedule_tasklet(struct list_head *sched_list)
 {
@@ -148,7 +122,7 @@ rpcrdma_qp_async_error_upcall(struct ib_event *event, void *context)
 	struct rpcrdma_ep *ep = context;
 
 	pr_err("RPC:       %s: %s on device %s ep %p\n",
-	       __func__, ASYNC_MSG(event->event),
+	       __func__, ib_event_msg(event->event),
 		event->device->name, context);
 	if (ep->rep_connected == 1) {
 		ep->rep_connected = -EIO;
@@ -163,7 +137,7 @@ rpcrdma_cq_async_error_upcall(struct ib_event *event, void *context)
 	struct rpcrdma_ep *ep = context;
 
 	pr_err("RPC:       %s: %s on device %s ep %p\n",
-	       __func__, ASYNC_MSG(event->event),
+	       __func__, ib_event_msg(event->event),
 		event->device->name, context);
 	if (ep->rep_connected == 1) {
 		ep->rep_connected = -EIO;
@@ -171,35 +145,6 @@ rpcrdma_cq_async_error_upcall(struct ib_event *event, void *context)
 		wake_up_all(&ep->rep_connect_wait);
 	}
 }
-
-static const char * const wc_status[] = {
-	"success",
-	"local length error",
-	"local QP operation error",
-	"local EE context operation error",
-	"local protection error",
-	"WR flushed",
-	"memory management operation error",
-	"bad response error",
-	"local access error",
-	"remote invalid request error",
-	"remote access error",
-	"remote operation error",
-	"transport retry counter exceeded",
-	"RNR retry counter exceeded",
-	"local RDD violation error",
-	"remove invalid RD request",
-	"operation aborted",
-	"invalid EE context number",
-	"invalid EE context state",
-	"fatal error",
-	"response timeout error",
-	"general error",
-};
-
-#define COMPLETION_MSG(status)					\
-	((status) < ARRAY_SIZE(wc_status) ?			\
-		wc_status[(status)] : "unexpected completion error")
 
 static void
 rpcrdma_sendcq_process_wc(struct ib_wc *wc)
@@ -209,7 +154,7 @@ rpcrdma_sendcq_process_wc(struct ib_wc *wc)
 		if (wc->status != IB_WC_SUCCESS &&
 		    wc->status != IB_WC_WR_FLUSH_ERR)
 			pr_err("RPC:       %s: SEND: %s\n",
-			       __func__, COMPLETION_MSG(wc->status));
+			       __func__, ib_wc_status_msg(wc->status));
 	} else {
 		struct rpcrdma_mw *r;
 
@@ -302,7 +247,7 @@ out_schedule:
 out_fail:
 	if (wc->status != IB_WC_WR_FLUSH_ERR)
 		pr_err("RPC:       %s: rep %p: %s\n",
-		       __func__, rep, COMPLETION_MSG(wc->status));
+		       __func__, rep, ib_wc_status_msg(wc->status));
 	rep->rr_len = ~0U;
 	goto out_schedule;
 }
@@ -386,31 +331,6 @@ rpcrdma_flush_cqs(struct rpcrdma_ep *ep)
 		rpcrdma_sendcq_process_wc(&wc);
 }
 
-#if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
-static const char * const conn[] = {
-	"address resolved",
-	"address error",
-	"route resolved",
-	"route error",
-	"connect request",
-	"connect response",
-	"connect error",
-	"unreachable",
-	"rejected",
-	"established",
-	"disconnected",
-	"device removal",
-	"multicast join",
-	"multicast error",
-	"address change",
-	"timewait exit",
-};
-
-#define CONNECTION_MSG(status)						\
-	((status) < ARRAY_SIZE(conn) ?					\
-		conn[(status)] : "unrecognized connection error")
-#endif
-
 static int
 rpcrdma_conn_upcall(struct rdma_cm_id *id, struct rdma_cm_event *event)
 {
@@ -476,7 +396,7 @@ connected:
 	default:
 		dprintk("RPC:       %s: %pIS:%u (ep 0x%p): %s\n",
 			__func__, sap, rpc_get_port(sap), ep,
-			CONNECTION_MSG(event->event));
+			rdma_event_msg(event->event));
 		break;
 	}
 

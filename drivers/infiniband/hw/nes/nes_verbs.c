@@ -606,7 +606,6 @@ static int nes_query_port(struct ib_device *ibdev, u8 port, struct ib_port_attr 
 	return 0;
 }
 
-
 /**
  * nes_query_pkey
  */
@@ -3828,6 +3827,22 @@ static int nes_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags notify_
 	return 0;
 }
 
+static int nes_port_immutable(struct ib_device *ibdev, u8 port_num,
+			      struct ib_port_immutable *immutable)
+{
+	struct ib_port_attr attr;
+	int err;
+
+	err = nes_query_port(ibdev, port_num, &attr);
+	if (err)
+		return err;
+
+	immutable->pkey_tbl_len = attr.pkey_tbl_len;
+	immutable->gid_tbl_len = attr.gid_tbl_len;
+	immutable->core_cap_flags = RDMA_CORE_PORT_IWARP;
+
+	return 0;
+}
 
 /**
  * nes_init_ofa_device
@@ -3928,6 +3943,7 @@ struct nes_ib_device *nes_init_ofa_device(struct net_device *netdev)
 	nesibdev->ibdev.iwcm->reject = nes_reject;
 	nesibdev->ibdev.iwcm->create_listen = nes_create_listen;
 	nesibdev->ibdev.iwcm->destroy_listen = nes_destroy_listen;
+	nesibdev->ibdev.get_port_immutable   = nes_port_immutable;
 
 	return nesibdev;
 }
