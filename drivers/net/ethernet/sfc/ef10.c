@@ -4135,6 +4135,7 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.sriov_set_vf_vlan = efx_ef10_sriov_set_vf_vlan,
 	.sriov_set_vf_spoofchk = efx_ef10_sriov_set_vf_spoofchk,
 	.sriov_get_vf_config = efx_ef10_sriov_get_vf_config,
+	.sriov_set_vf_link_state = efx_ef10_sriov_set_vf_link_state,
 	.vswitching_probe = efx_ef10_vswitching_probe_pf,
 	.vswitching_restore = efx_ef10_vswitching_restore_pf,
 	.vswitching_remove = efx_ef10_vswitching_remove_pf,

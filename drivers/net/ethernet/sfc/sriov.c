@@ -58,3 +58,15 @@ int efx_sriov_get_vf_config(struct net_device *net_dev, int vf_i,
 	else
 		return -EOPNOTSUPP;
 }
+
+int efx_sriov_set_vf_link_state(struct net_device *net_dev, int vf_i,
+				int link_state)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+
+	if (efx->type->sriov_set_vf_link_state)
+		return efx->type->sriov_set_vf_link_state(efx, vf_i,
+							  link_state);
+	else
+		return -EOPNOTSUPP;
+}

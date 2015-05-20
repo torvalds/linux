@@ -4227,6 +4227,38 @@
 
 
 /***********************************/
+/* MC_CMD_LINK_STATE_MODE
+ * Read/set link state mode of a VF
+ */
+#define MC_CMD_LINK_STATE_MODE 0x5c
+
+#define MC_CMD_0x5c_PRIVILEGE_CTG SRIOV_CTG_GENERAL
+
+/* MC_CMD_LINK_STATE_MODE_IN msgrequest */
+#define    MC_CMD_LINK_STATE_MODE_IN_LEN 8
+/* The target function to have its link state mode read or set, must be a VF
+ * e.g. VF 1,3 = 0x00030001
+ */
+#define       MC_CMD_LINK_STATE_MODE_IN_FUNCTION_OFST 0
+#define        MC_CMD_LINK_STATE_MODE_IN_FUNCTION_PF_LBN 0
+#define        MC_CMD_LINK_STATE_MODE_IN_FUNCTION_PF_WIDTH 16
+#define        MC_CMD_LINK_STATE_MODE_IN_FUNCTION_VF_LBN 16
+#define        MC_CMD_LINK_STATE_MODE_IN_FUNCTION_VF_WIDTH 16
+/* New link state mode to be set */
+#define       MC_CMD_LINK_STATE_MODE_IN_NEW_MODE_OFST 4
+#define          MC_CMD_LINK_STATE_MODE_IN_LINK_STATE_AUTO       0x0 /* enum */
+#define          MC_CMD_LINK_STATE_MODE_IN_LINK_STATE_UP         0x1 /* enum */
+#define          MC_CMD_LINK_STATE_MODE_IN_LINK_STATE_DOWN       0x2 /* enum */
+/* enum: Use this value to just read the existing setting without modifying it.
+ */
+#define          MC_CMD_LINK_STATE_MODE_IN_DO_NOT_CHANGE         0xffffffff
+
+/* MC_CMD_LINK_STATE_MODE_OUT msgresponse */
+#define    MC_CMD_LINK_STATE_MODE_OUT_LEN 4
+#define       MC_CMD_LINK_STATE_MODE_OUT_OLD_MODE_OFST 0
+
+
+/***********************************/
 /* MC_CMD_READ_REGS
  * Get a dump of the MCPU registers
  */

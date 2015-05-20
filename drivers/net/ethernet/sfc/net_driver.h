@@ -1348,6 +1348,8 @@ struct efx_nic_type {
 				     bool spoofchk);
 	int (*sriov_get_vf_config)(struct efx_nic *efx, int vf_i,
 				   struct ifla_vf_info *ivi);
+	int (*sriov_set_vf_link_state)(struct efx_nic *efx, int vf_i,
+				       int link_state);
 	int (*vswitching_probe)(struct efx_nic *efx);
 	int (*vswitching_restore)(struct efx_nic *efx);
 	void (*vswitching_remove)(struct efx_nic *efx);

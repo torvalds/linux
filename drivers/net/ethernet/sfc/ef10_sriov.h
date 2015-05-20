@@ -58,6 +58,9 @@ static inline int efx_ef10_sriov_set_vf_spoofchk(struct efx_nic *efx, int vf,
 int efx_ef10_sriov_get_vf_config(struct efx_nic *efx, int vf_i,
 				 struct ifla_vf_info *ivf);
 
+int efx_ef10_sriov_set_vf_link_state(struct efx_nic *efx, int vf_i,
+				     int link_state);
+
 int efx_ef10_vswitching_probe_pf(struct efx_nic *efx);
 int efx_ef10_vswitching_probe_vf(struct efx_nic *efx);
 int efx_ef10_vswitching_restore_pf(struct efx_nic *efx);

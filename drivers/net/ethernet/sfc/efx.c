@@ -2281,6 +2281,7 @@ static const struct net_device_ops efx_netdev_ops = {
 	.ndo_set_vf_vlan	= efx_sriov_set_vf_vlan,
 	.ndo_set_vf_spoofchk	= efx_sriov_set_vf_spoofchk,
 	.ndo_get_vf_config	= efx_sriov_get_vf_config,
+	.ndo_set_vf_link_state  = efx_sriov_set_vf_link_state,
 #endif
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = efx_netpoll,
