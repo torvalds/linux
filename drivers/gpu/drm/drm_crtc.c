@@ -3249,6 +3249,32 @@ static int framebuffer_check(const struct drm_mode_fb_cmd2 *r)
 		}
 	}
 
+	for (i = num_planes; i < 4; i++) {
+		if (r->modifier[i]) {
+			DRM_DEBUG_KMS("non-zero modifier for unused plane %d\n", i);
+			return -EINVAL;
+		}
+
+		/* Pre-FB_MODIFIERS userspace didn't clear the structs properly. */
+		if (!(r->flags & DRM_MODE_FB_MODIFIERS))
+			continue;
+
+		if (r->handles[i]) {
+			DRM_DEBUG_KMS("buffer object handle for unused plane %d\n", i);
+			return -EINVAL;
+		}
+
+		if (r->pitches[i]) {
+			DRM_DEBUG_KMS("non-zero pitch for unused plane %d\n", i);
+			return -EINVAL;
+		}
+
+		if (r->offsets[i]) {
+			DRM_DEBUG_KMS("non-zero offset for unused plane %d\n", i);
+			return -EINVAL;
+		}
+	}
+
 	return 0;
 }
 
