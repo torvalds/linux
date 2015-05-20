@@ -38,6 +38,21 @@
 		};
 	};
 
+	clocks {
+		xinw {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <32768>;
+			clock-output-names = "xinw";
+		};
+		xin {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <26000000>;
+			clock-output-names = "xin";
+		};
+	};
+
 	noc {
 		compatible = "simple-bus";
 		#address-cells = <1>;
