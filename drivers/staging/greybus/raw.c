@@ -13,6 +13,7 @@
 #include <linux/cdev.h>
 #include <linux/fs.h>
 #include <linux/idr.h>
+#include <linux/uaccess.h>
 
 #include "greybus.h"
 
