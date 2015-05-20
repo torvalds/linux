@@ -812,7 +812,8 @@ static int i915_drm_resume_early(struct drm_device *dev)
 	if (IS_VALLEYVIEW(dev_priv))
 		ret = vlv_resume_prepare(dev_priv, false);
 	if (ret)
-		DRM_ERROR("Resume prepare failed: %d,Continuing resume\n", ret);
+		DRM_ERROR("Resume prepare failed: %d, continuing anyway\n",
+			  ret);
 
 	intel_uncore_early_sanitize(dev, true);
 
