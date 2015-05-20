@@ -667,6 +667,12 @@ reset_nic:
 	return rc ? rc : rc2;
 }
 
+int efx_ef10_sriov_set_vf_spoofchk(struct efx_nic *efx, int vf_i,
+				   bool spoofchk)
+{
+	return spoofchk ? -EOPNOTSUPP : 0;
+}
+
 int efx_ef10_sriov_set_vf_link_state(struct efx_nic *efx, int vf_i,
 				     int link_state)
 {

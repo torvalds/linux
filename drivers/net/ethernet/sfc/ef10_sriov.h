@@ -49,11 +49,8 @@ int efx_ef10_sriov_set_vf_mac(struct efx_nic *efx, int vf, u8 *mac);
 int efx_ef10_sriov_set_vf_vlan(struct efx_nic *efx, int vf_i,
 			       u16 vlan, u8 qos);
 
-static inline int efx_ef10_sriov_set_vf_spoofchk(struct efx_nic *efx, int vf,
-						 bool spoofchk)
-{
-	return -EOPNOTSUPP;
-}
+int efx_ef10_sriov_set_vf_spoofchk(struct efx_nic *efx, int vf,
+				   bool spoofchk);
 
 int efx_ef10_sriov_get_vf_config(struct efx_nic *efx, int vf_i,
 				 struct ifla_vf_info *ivf);
