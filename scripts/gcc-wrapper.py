@@ -51,6 +51,7 @@ allowed_warnings = set([
     "compat_binfmt_elf.c:58",
     "psci.c:299",
     "psci.c:304",
+    "sysctl_net_core.c:24",
  ])
 
 # Capture the name of the object file, can find it.
