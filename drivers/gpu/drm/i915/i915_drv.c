@@ -595,6 +595,7 @@ static int intel_suspend_complete(struct drm_i915_private *dev_priv);
 static int vlv_resume_prepare(struct drm_i915_private *dev_priv,
 			      bool rpm_resume);
 static int skl_resume_prepare(struct drm_i915_private *dev_priv);
+static int bxt_resume_prepare(struct drm_i915_private *dev_priv);
 
 
 static int i915_drm_suspend(struct drm_device *dev)
@@ -815,10 +816,12 @@ static int i915_drm_resume_early(struct drm_device *dev)
 
 	intel_uncore_early_sanitize(dev, true);
 
-	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
-		hsw_disable_pc8(dev_priv);
+	if (IS_BROXTON(dev))
+		ret = bxt_resume_prepare(dev_priv);
 	else if (IS_SKYLAKE(dev_priv))
 		ret = skl_resume_prepare(dev_priv);
+	else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
+		hsw_disable_pc8(dev_priv);
 
 	intel_uncore_sanitize(dev);
 	intel_power_domains_init_hw(dev_priv);
