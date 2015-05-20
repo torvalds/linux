@@ -183,7 +183,7 @@ struct rcar_dmac {
 	unsigned int n_channels;
 	struct rcar_dmac_chan *channels;
 
-	unsigned long modules[256 / BITS_PER_LONG];
+	DECLARE_BITMAP(modules, 256);
 };
 
 #define to_rcar_dmac(d)		container_of(d, struct rcar_dmac, engine)
