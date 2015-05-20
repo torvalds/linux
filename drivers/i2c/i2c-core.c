@@ -258,7 +258,7 @@ acpi_i2c_space_handler(u32 function, acpi_physical_address command,
 	struct acpi_connection_info *info = &data->info;
 	struct acpi_resource_i2c_serialbus *sb;
 	struct i2c_adapter *adapter = data->adapter;
-	struct i2c_client client;
+	struct i2c_client *client;
 	struct acpi_resource *ares;
 	u32 accessor_type = function >> 16;
 	u8 action = function & ACPI_IO_MASK;
@@ -268,6 +268,12 @@ acpi_i2c_space_handler(u32 function, acpi_physical_address command,
 	ret = acpi_buffer_to_resource(info->connection, info->length, &ares);
 	if (ACPI_FAILURE(ret))
 		return ret;
+
+	client = kzalloc(sizeof(*client), GFP_KERNEL);
+	if (!client) {
+		ret = AE_NO_MEMORY;
+		goto err;
+	}
 
 	if (!value64 || ares->type != ACPI_RESOURCE_TYPE_SERIAL_BUS) {
 		ret = AE_BAD_PARAMETER;
@@ -280,75 +286,73 @@ acpi_i2c_space_handler(u32 function, acpi_physical_address command,
 		goto err;
 	}
 
-	memset(&client, 0, sizeof(client));
-	client.adapter = adapter;
-	client.addr = sb->slave_address;
-	client.flags = 0;
+	client->adapter = adapter;
+	client->addr = sb->slave_address;
 
 	if (sb->access_mode == ACPI_I2C_10BIT_MODE)
-		client.flags |= I2C_CLIENT_TEN;
+		client->flags |= I2C_CLIENT_TEN;
 
 	switch (accessor_type) {
 	case ACPI_GSB_ACCESS_ATTRIB_SEND_RCV:
 		if (action == ACPI_READ) {
-			status = i2c_smbus_read_byte(&client);
+			status = i2c_smbus_read_byte(client);
 			if (status >= 0) {
 				gsb->bdata = status;
 				status = 0;
 			}
 		} else {
-			status = i2c_smbus_write_byte(&client, gsb->bdata);
+			status = i2c_smbus_write_byte(client, gsb->bdata);
 		}
 		break;
 
 	case ACPI_GSB_ACCESS_ATTRIB_BYTE:
 		if (action == ACPI_READ) {
-			status = i2c_smbus_read_byte_data(&client, command);
+			status = i2c_smbus_read_byte_data(client, command);
 			if (status >= 0) {
 				gsb->bdata = status;
 				status = 0;
 			}
 		} else {
-			status = i2c_smbus_write_byte_data(&client, command,
+			status = i2c_smbus_write_byte_data(client, command,
 					gsb->bdata);
 		}
 		break;
 
 	case ACPI_GSB_ACCESS_ATTRIB_WORD:
 		if (action == ACPI_READ) {
-			status = i2c_smbus_read_word_data(&client, command);
+			status = i2c_smbus_read_word_data(client, command);
 			if (status >= 0) {
 				gsb->wdata = status;
 				status = 0;
 			}
 		} else {
-			status = i2c_smbus_write_word_data(&client, command,
+			status = i2c_smbus_write_word_data(client, command,
 					gsb->wdata);
 		}
 		break;
 
 	case ACPI_GSB_ACCESS_ATTRIB_BLOCK:
 		if (action == ACPI_READ) {
-			status = i2c_smbus_read_block_data(&client, command,
+			status = i2c_smbus_read_block_data(client, command,
 					gsb->data);
 			if (status >= 0) {
 				gsb->len = status;
 				status = 0;
 			}
 		} else {
-			status = i2c_smbus_write_block_data(&client, command,
+			status = i2c_smbus_write_block_data(client, command,
 					gsb->len, gsb->data);
 		}
 		break;
 
 	case ACPI_GSB_ACCESS_ATTRIB_MULTIBYTE:
 		if (action == ACPI_READ) {
-			status = acpi_gsb_i2c_read_bytes(&client, command,
+			status = acpi_gsb_i2c_read_bytes(client, command,
 					gsb->data, info->access_length);
 			if (status > 0)
 				status = 0;
 		} else {
-			status = acpi_gsb_i2c_write_bytes(&client, command,
+			status = acpi_gsb_i2c_write_bytes(client, command,
 					gsb->data, info->access_length);
 		}
 		break;
@@ -362,6 +366,7 @@ acpi_i2c_space_handler(u32 function, acpi_physical_address command,
 	gsb->status = status;
 
  err:
+	kfree(client);
 	ACPI_FREE(ares);
 	return ret;
 }
