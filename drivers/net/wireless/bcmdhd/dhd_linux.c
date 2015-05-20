@@ -5328,6 +5328,10 @@ void dhd_detach(dhd_pub_t *dhdp)
 		OSL_SLEEP(100);
 	}
 
+#ifdef WL_CFG80211
+	wl_cfg80211_down(NULL);
+#endif /* WL_CFG80211 */
+
 	if (dhd->dhd_state & DHD_ATTACH_STATE_PROT_ATTACH) {
 		dhd_bus_detach(dhdp);
 

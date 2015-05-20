@@ -7905,6 +7905,11 @@ wl_notify_connect_status(struct bcm_cfg80211 *cfg, bcm_struct_cfgdev *cfgdev,
 						MAC2STRDBG(curbssid), MAC2STRDBG((u8*)(&e->addr))));
 					return 0;
 				}
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 14, 0))
+				cfg80211_disconnected(ndev, reason, NULL, 0, GFP_KERNEL);
+#endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 14, 0)) */
+
 				wl_clr_drv_status(cfg, CONNECTED, ndev);
 				if (! wl_get_drv_status(cfg, DISCONNECTING, ndev)) {
 					/* To make sure disconnect, explictly send dissassoc
@@ -10894,6 +10899,11 @@ static s32 __wl_cfg80211_down(struct bcm_cfg80211 *cfg)
 #endif /* PROP_TXSTATUS_VSDB */
 	}
 
+	/* Check if cfg80211 interface is already down */
+	if (!wl_get_drv_status(cfg, READY, ndev)) {
+		WL_DBG(("cfg80211 interface is already down"));
+		return err;     /* it is even not ready */
+	}
 
 	/* If primary BSS is operational (for e.g SoftAP), bring it down */
 	if (!(wl_cfgp2p_find_idx(cfg, ndev, &bssidx)) &&
@@ -10902,9 +10912,6 @@ static s32 __wl_cfg80211_down(struct bcm_cfg80211 *cfg)
 			WL_ERR(("BSS down failed \n"));
 	}
 
-	/* Check if cfg80211 interface is already down */
-	if (!wl_get_drv_status(cfg, READY, ndev))
-		return err;	/* it is even not ready */
 	for_each_ndev(cfg, iter, next)
 		wl_set_drv_status(cfg, SCAN_ABORTING, iter->ndev);
 
@@ -10917,6 +10924,11 @@ static s32 __wl_cfg80211_down(struct bcm_cfg80211 *cfg)
 	spin_unlock_irqrestore(&cfg->cfgdrv_lock, flags);
 
 	for_each_ndev(cfg, iter, next) {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 14, 0))
+		if (wl_get_drv_status(cfg, CONNECTED, iter->ndev)) {
+			cfg80211_disconnected(iter->ndev, 0, NULL, 0, GFP_KERNEL);
+		}
+#endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 14, 0)) */
 		wl_clr_drv_status(cfg, READY, iter->ndev);
 		wl_clr_drv_status(cfg, SCANNING, iter->ndev);
 		wl_clr_drv_status(cfg, SCAN_ABORTING, iter->ndev);
