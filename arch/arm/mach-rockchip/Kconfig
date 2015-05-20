@@ -22,5 +22,6 @@ config ARCH_ROCKCHIP
 	select FIQ_GLUE
 	select ARM_ERRATA_818325 if !ARM_TRUSTZONE
 	select ARM_ERRATA_821420 if !ARM_TRUSTZONE
+	select MFD_SYSCON
 
 source "arch/arm/mach-rockchip/Kconfig.common"
