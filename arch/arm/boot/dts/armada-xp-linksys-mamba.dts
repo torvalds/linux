@@ -95,6 +95,11 @@
 
 		internal-regs {
 
+			rtc@10300 {
+				/* No crystal connected to the internal RTC */
+				status = "disabled";
+			};
+
 			/* J10: VCC, NC, RX, NC, TX, GND  */
 			serial@12000 {
 				status = "okay";
