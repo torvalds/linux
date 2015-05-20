@@ -656,6 +656,10 @@ int pqm_update_queue(struct process_queue_manager *pqm, unsigned int qid,
 struct kernel_queue *pqm_get_kernel_queue(struct process_queue_manager *pqm,
 						unsigned int qid);
 
+int amdkfd_fence_wait_timeout(unsigned int *fence_addr,
+				unsigned int fence_value,
+				unsigned long timeout);
+
 /* Packet Manager */
 
 #define KFD_HIQ_TIMEOUT (500)
