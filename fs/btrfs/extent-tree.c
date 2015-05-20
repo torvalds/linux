@@ -4092,7 +4092,7 @@ static int should_alloc_chunk(struct btrfs_root *root,
 	return 1;
 }
 
-static u64 get_system_chunk_thresh(struct btrfs_root *root, u64 type)
+static u64 get_profile_num_devs(struct btrfs_root *root, u64 type)
 {
 	u64 num_dev;
 
@@ -4106,17 +4106,24 @@ static u64 get_system_chunk_thresh(struct btrfs_root *root, u64 type)
 	else
 		num_dev = 1;	/* DUP or single */
 
-	/* metadata for updaing devices and chunk tree */
-	return btrfs_calc_trans_metadata_size(root, num_dev + 1);
+	return num_dev;
 }
 
-static void check_system_chunk(struct btrfs_trans_handle *trans,
-			       struct btrfs_root *root, u64 type)
+/*
+ * If @is_allocation is true, reserve space in the system space info necessary
+ * for allocating a chunk, otherwise if it's false, reserve space necessary for
+ * removing a chunk.
+ */
+void check_system_chunk(struct btrfs_trans_handle *trans,
+			struct btrfs_root *root,
+			u64 type,
+			const bool is_allocation)
 {
 	struct btrfs_space_info *info;
 	u64 left;
 	u64 thresh;
 	int ret = 0;
+	u64 num_devs;
 
 	/*
 	 * Needed because we can end up allocating a system chunk and for an
@@ -4131,7 +4138,15 @@ static void check_system_chunk(struct btrfs_trans_handle *trans,
 		info->bytes_may_use;
 	spin_unlock(&info->lock);
 
-	thresh = get_system_chunk_thresh(root, type);
+	num_devs = get_profile_num_devs(root, type);
+
+	/* num_devs device items to update and 1 chunk item to add or remove */
+	if (is_allocation)
+		thresh = btrfs_calc_trans_metadata_size(root, num_devs + 1);
+	else
+		thresh = btrfs_calc_trans_metadata_size(root, num_devs) +
+			btrfs_calc_trunc_metadata_size(root, 1);
+
 	if (left < thresh && btrfs_test_opt(root, ENOSPC_DEBUG)) {
 		btrfs_info(root->fs_info, "left=%llu, need=%llu, flags=%llu",
 			left, thresh, type);
@@ -4243,7 +4258,7 @@ again:
 	 * Check if we have enough space in SYSTEM chunk because we may need
 	 * to update devices.
 	 */
-	check_system_chunk(trans, extent_root, flags);
+	check_system_chunk(trans, extent_root, flags, true);
 
 	ret = btrfs_alloc_chunk(trans, extent_root, flags);
 	trans->allocating_chunk = false;
@@ -8905,7 +8920,7 @@ out:
 	if (cache->flags & BTRFS_BLOCK_GROUP_SYSTEM) {
 		alloc_flags = update_block_group_flags(root, cache->flags);
 		lock_chunks(root->fs_info->chunk_root);
-		check_system_chunk(trans, root, alloc_flags);
+		check_system_chunk(trans, root, alloc_flags, true);
 		unlock_chunks(root->fs_info->chunk_root);
 	}
 	mutex_unlock(&root->fs_info->ro_block_group_mutex);

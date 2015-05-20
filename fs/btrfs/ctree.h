@@ -3516,6 +3516,10 @@ int btrfs_delayed_refs_qgroup_accounting(struct btrfs_trans_handle *trans,
 int __get_raid_index(u64 flags);
 int btrfs_start_write_no_snapshoting(struct btrfs_root *root);
 void btrfs_end_write_no_snapshoting(struct btrfs_root *root);
+void check_system_chunk(struct btrfs_trans_handle *trans,
+			struct btrfs_root *root,
+			const u64 type,
+			const bool is_allocation);
 /* ctree.c */
 int btrfs_bin_search(struct extent_buffer *eb, struct btrfs_key *key,
 		     int level, int *slot);
