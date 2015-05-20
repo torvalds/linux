@@ -247,6 +247,8 @@ static char *pd_errs[17] = { "ERR", "INDEX", "ECC", "DRQ", "SEEK", "WRERR",
 	"IDNF", "MC", "UNC", "???", "TMO"
 };
 
+static void *par_drv;		/* reference of parport driver */
+
 static inline int status_reg(struct pd_unit *disk)
 {
 	return pi_read_regr(disk->pi, 1, 6);
@@ -872,6 +874,12 @@ static int pd_detect(void)
 			pd_drive_count++;
 	}
 
+	par_drv = pi_register_driver(name);
+	if (!par_drv) {
+		pr_err("failed to register %s driver\n", name);
+		return -1;
+	}
+
 	if (pd_drive_count == 0) { /* nothing spec'd - so autoprobe for 1 */
 		disk = pd;
 		if (pi_init(disk->pi, 1, -1, -1, -1, -1, -1, pd_scratch,
@@ -902,8 +910,10 @@ static int pd_detect(void)
 			found = 1;
 		}
 	}
-	if (!found)
+	if (!found) {
 		printk("%s: no valid drive found\n", name);
+		pi_unregister_driver(par_drv);
+	}
 	return found;
 }
 
