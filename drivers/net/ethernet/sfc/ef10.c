@@ -119,6 +119,26 @@ static int efx_ef10_get_pf_index(struct efx_nic *efx)
 	return 0;
 }
 
+#ifdef CONFIG_SFC_SRIOV
+static int efx_ef10_get_vf_index(struct efx_nic *efx)
+{
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_FUNCTION_INFO_OUT_LEN);
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	size_t outlen;
+	int rc;
+
+	rc = efx_mcdi_rpc(efx, MC_CMD_GET_FUNCTION_INFO, NULL, 0, outbuf,
+			  sizeof(outbuf), &outlen);
+	if (rc)
+		return rc;
+	if (outlen < sizeof(outbuf))
+		return -EIO;
+
+	nic_data->vf_index = MCDI_DWORD(outbuf, GET_FUNCTION_INFO_OUT_VF);
+	return 0;
+}
+#endif
+
 static int efx_ef10_init_datapath_caps(struct efx_nic *efx)
 {
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_CAPABILITIES_OUT_LEN);
@@ -327,23 +347,6 @@ fail1:
 	efx->nic_data = NULL;
 	return rc;
 }
-
-static int efx_ef10_probe_pf(struct efx_nic *efx)
-{
-	return efx_ef10_probe(efx);
-}
-
-#ifdef CONFIG_SFC_SRIOV
-static int efx_ef10_probe_vf(struct efx_nic *efx)
-{
-	return efx_ef10_probe(efx);
-}
-#else
-static int efx_ef10_probe_vf(struct efx_nic *efx __attribute__ ((unused)))
-{
-	return 0;
-}
-#endif
 
 static int efx_ef10_free_vis(struct efx_nic *efx)
 {
@@ -560,6 +563,37 @@ static void efx_ef10_remove(struct efx_nic *efx)
 	efx_nic_free_buffer(efx, &nic_data->mcdi_buf);
 	kfree(nic_data);
 }
+
+static int efx_ef10_probe_pf(struct efx_nic *efx)
+{
+	return efx_ef10_probe(efx);
+}
+
+#ifdef CONFIG_SFC_SRIOV
+static int efx_ef10_probe_vf(struct efx_nic *efx)
+{
+	int rc;
+
+	rc = efx_ef10_probe(efx);
+	if (rc)
+		return rc;
+
+	rc = efx_ef10_get_vf_index(efx);
+	if (rc)
+		goto fail;
+
+	return 0;
+
+fail:
+	efx_ef10_remove(efx);
+	return rc;
+}
+#else
+static int efx_ef10_probe_vf(struct efx_nic *efx __attribute__ ((unused)))
+{
+	return 0;
+}
+#endif
 
 static int efx_ef10_alloc_vis(struct efx_nic *efx,
 			      unsigned int min_vis, unsigned int max_vis)

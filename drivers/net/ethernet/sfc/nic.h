@@ -525,6 +525,7 @@ struct efx_ef10_nic_data {
 	bool must_probe_vswitching;
 	unsigned int pf_index;
 #ifdef CONFIG_SFC_SRIOV
+	unsigned int vf_index;
 	struct ef10_vf *vf;
 #endif
 	u8 vport_mac[ETH_ALEN];
