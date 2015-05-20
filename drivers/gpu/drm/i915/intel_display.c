@@ -3010,12 +3010,16 @@ u32 skl_plane_ctl_rotation(unsigned int rotation)
 	switch (rotation) {
 	case BIT(DRM_ROTATE_0):
 		break;
+	/*
+	 * DRM_ROTATE_ is counter clockwise to stay compatible with Xrandr
+	 * while i915 HW rotation is clockwise, thats why this swapping.
+	 */
 	case BIT(DRM_ROTATE_90):
-		return PLANE_CTL_ROTATE_90;
+		return PLANE_CTL_ROTATE_270;
 	case BIT(DRM_ROTATE_180):
 		return PLANE_CTL_ROTATE_180;
 	case BIT(DRM_ROTATE_270):
-		return PLANE_CTL_ROTATE_270;
+		return PLANE_CTL_ROTATE_90;
 	default:
 		MISSING_CASE(rotation);
 	}
