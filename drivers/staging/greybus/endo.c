@@ -62,7 +62,7 @@ static const struct attribute_group *endo_groups[] = {
 	NULL,
 };
 
-static void greybus_endo_release(struct device *dev)
+static void gb_endo_release(struct device *dev)
 {
 	struct gb_endo *endo = to_gb_endo(dev);
 
@@ -71,7 +71,7 @@ static void greybus_endo_release(struct device *dev)
 
 struct device_type greybus_endo_type = {
 	.name =		"greybus_endo",
-	.release =	greybus_endo_release,
+	.release =	gb_endo_release,
 };
 
 
@@ -272,7 +272,7 @@ static bool validate_back_ribs(struct greybus_host_device *hd,
  * Validate the endo-id passed from SVC. Error out if its not a valid Endo,
  * else return structure representing ribs positions on front and back of Endo.
  */
-static int gb_validate_endo_id(struct greybus_host_device *hd,
+static int gb_endo_validate_id(struct greybus_host_device *hd,
 			       struct endo_layout *layout, u16 endo_id)
 {
 	/* Validate Endo Size */
@@ -434,7 +434,7 @@ struct gb_endo *gb_endo_create(struct greybus_host_device *hd)
 		return NULL;
 
 	/* First check if the value supplied is a valid endo id */
-	if (gb_validate_endo_id(hd, &endo->layout, endo_id))
+	if (gb_endo_validate_id(hd, &endo->layout, endo_id))
 		goto free_endo;
 
 	endo->id = endo_id;
