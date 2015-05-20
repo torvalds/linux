@@ -32,14 +32,10 @@
 #define SOCFPGA_MMC_CLK			"sdmmc_clk"
 #define SOCFPGA_GPIO_DB_CLK_OFFSET	0xA8
 
-#define streq(a, b) (strcmp((a), (b)) == 0)
-
 #define to_socfpga_gate_clk(p) container_of(p, struct socfpga_gate_clk, hw.hw)
 
 /* SDMMC Group for System Manager defines */
 #define SYSMGR_SDMMCGRP_CTRL_OFFSET    0x108
-#define SYSMGR_SDMMC_CTRL_SET(smplsel, drvsel) \
-	((((smplsel) & 0x7) << 3) | (((drvsel) & 0x7) << 0))
 
 static u8 socfpga_clk_get_parent(struct clk_hw *hwclk)
 {

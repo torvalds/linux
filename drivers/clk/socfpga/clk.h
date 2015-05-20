@@ -26,8 +26,12 @@
 #define CLKMGR_L4SRC		0x70
 #define CLKMGR_PERPLL_SRC	0xAC
 
-#define SOCFPGA_MAX_PARENTS		3
+#define SOCFPGA_MAX_PARENTS		5
 #define div_mask(width) ((1 << (width)) - 1)
+
+#define streq(a, b) (strcmp((a), (b)) == 0)
+#define SYSMGR_SDMMC_CTRL_SET(smplsel, drvsel) \
+	((((smplsel) & 0x7) << 3) | (((drvsel) & 0x7) << 0))
 
 extern void __iomem *clk_mgr_base_addr;
 
