@@ -100,7 +100,7 @@ static void ralink_intc_irq_handler(unsigned int irq, struct irq_desc *desc)
 	u32 pending = rt_intc_r32(INTC_REG_STATUS0);
 
 	if (pending) {
-		struct irq_domain *domain = irq_get_handler_data(irq);
+		struct irq_domain *domain = irq_desc_get_handler_data(desc);
 		generic_handle_irq(irq_find_mapping(domain, __ffs(pending)));
 	} else {
 		spurious_interrupt();
