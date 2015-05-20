@@ -25,6 +25,7 @@
 #include <linux/highmem.h>
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
+#include <linux/rwsem.h>
 #include <linux/vmalloc.h>
 #include <linux/i2c.h>
 #include <linux/mtd/mtd.h>
@@ -896,7 +897,8 @@ struct vfdi_status;
  * @loopback_mode: Loopback status
  * @loopback_modes: Supported loopback mode bitmask
  * @loopback_selftest: Offline self-test private state
- * @filter_lock: Filter table lock
+ * @filter_sem: Filter table rw_semaphore, for freeing the table
+ * @filter_lock: Filter table lock, for mere content changes
  * @filter_state: Architecture-dependent filter table state
  * @rps_flow_id: Flow IDs of filters allocated for accelerated RFS,
  *	indexed by filter ID
@@ -1038,6 +1040,7 @@ struct efx_nic {
 
 	void *loopback_selftest;
 
+	struct rw_semaphore filter_sem;
 	spinlock_t filter_lock;
 	void *filter_state;
 #ifdef CONFIG_RFS_ACCEL

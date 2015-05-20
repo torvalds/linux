@@ -949,6 +949,16 @@ void efx_link_set_wanted_fc(struct efx_nic *efx, u8 wanted_fc)
 
 static void efx_fini_port(struct efx_nic *efx);
 
+/* We assume that efx->type->reconfigure_mac will always try to sync RX
+ * filters and therefore needs to read-lock the filter table against freeing
+ */
+void efx_mac_reconfigure(struct efx_nic *efx)
+{
+	down_read(&efx->filter_sem);
+	efx->type->reconfigure_mac(efx);
+	up_read(&efx->filter_sem);
+}
+
 /* Push loopback/power/transmit disable settings to the PHY, and reconfigure
  * the MAC appropriately. All other PHY configuration changes are pushed
  * through phy_op->set_settings(), and pushed asynchronously to the MAC
@@ -1002,7 +1012,7 @@ static void efx_mac_work(struct work_struct *data)
 
 	mutex_lock(&efx->mac_lock);
 	if (efx->port_enabled)
-		efx->type->reconfigure_mac(efx);
+		efx_mac_reconfigure(efx);
 	mutex_unlock(&efx->mac_lock);
 }
 
@@ -1042,7 +1052,7 @@ static int efx_init_port(struct efx_nic *efx)
 
 	/* Reconfigure the MAC before creating dma queues (required for
 	 * Falcon/A1 where RX_INGR_EN/TX_DRAIN_EN isn't supported) */
-	efx->type->reconfigure_mac(efx);
+	efx_mac_reconfigure(efx);
 
 	/* Ensure the PHY advertises the correct flow control settings */
 	rc = efx->phy_op->reconfigure(efx);
@@ -1068,7 +1078,7 @@ static void efx_start_port(struct efx_nic *efx)
 	efx->port_enabled = true;
 
 	/* Ensure MAC ingress/egress is enabled */
-	efx->type->reconfigure_mac(efx);
+	efx_mac_reconfigure(efx);
 
 	mutex_unlock(&efx->mac_lock);
 }
@@ -1672,10 +1682,11 @@ static int efx_probe_filters(struct efx_nic *efx)
 	int rc;
 
 	spin_lock_init(&efx->filter_lock);
-
+	init_rwsem(&efx->filter_sem);
+	down_write(&efx->filter_sem);
 	rc = efx->type->filter_table_probe(efx);
 	if (rc)
-		return rc;
+		goto out_unlock;
 
 #ifdef CONFIG_RFS_ACCEL
 	if (efx->type->offload_features & NETIF_F_NTUPLE) {
@@ -1684,12 +1695,14 @@ static int efx_probe_filters(struct efx_nic *efx)
 					   GFP_KERNEL);
 		if (!efx->rps_flow_id) {
 			efx->type->filter_table_remove(efx);
-			return -ENOMEM;
+			rc = -ENOMEM;
+			goto out_unlock;
 		}
 	}
 #endif
-
-	return 0;
+out_unlock:
+	up_write(&efx->filter_sem);
+	return rc;
 }
 
 static void efx_remove_filters(struct efx_nic *efx)
@@ -1697,12 +1710,16 @@ static void efx_remove_filters(struct efx_nic *efx)
 #ifdef CONFIG_RFS_ACCEL
 	kfree(efx->rps_flow_id);
 #endif
+	down_write(&efx->filter_sem);
 	efx->type->filter_table_remove(efx);
+	up_write(&efx->filter_sem);
 }
 
 static void efx_restore_filters(struct efx_nic *efx)
 {
+	down_read(&efx->filter_sem);
 	efx->type->filter_table_restore(efx);
+	up_read(&efx->filter_sem);
 }
 
 /**************************************************************************
@@ -2183,7 +2200,7 @@ static int efx_change_mtu(struct net_device *net_dev, int new_mtu)
 
 	mutex_lock(&efx->mac_lock);
 	net_dev->mtu = new_mtu;
-	efx->type->reconfigure_mac(efx);
+	efx_mac_reconfigure(efx);
 	mutex_unlock(&efx->mac_lock);
 
 	efx_start_all(efx);
@@ -2219,7 +2236,7 @@ static int efx_set_mac_address(struct net_device *net_dev, void *data)
 
 	/* Reconfigure the MAC */
 	mutex_lock(&efx->mac_lock);
-	efx->type->reconfigure_mac(efx);
+	efx_mac_reconfigure(efx);
 	mutex_unlock(&efx->mac_lock);
 
 	return 0;
@@ -2464,7 +2481,9 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 			   " VFs may not function\n", rc);
 #endif
 
+	down_read(&efx->filter_sem);
 	efx_restore_filters(efx);
+	up_read(&efx->filter_sem);
 	if (efx->type->sriov_reset)
 		efx->type->sriov_reset(efx);
 

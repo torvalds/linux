@@ -74,6 +74,8 @@ void efx_schedule_slow_fill(struct efx_rx_queue *rx_queue);
 
 /* Filters */
 
+void efx_mac_reconfigure(struct efx_nic *efx);
+
 /**
  * efx_filter_insert_filter - add or replace a filter
  * @efx: NIC in which to insert the filter

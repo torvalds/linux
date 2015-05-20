@@ -3314,6 +3314,9 @@ fail:
 	return rc;
 }
 
+/* Caller must hold efx->filter_sem for read if race against
+ * efx_ef10_filter_table_remove() is possible
+ */
 static void efx_ef10_filter_table_restore(struct efx_nic *efx)
 {
 	struct efx_ef10_filter_table *table = efx->filter_state;
@@ -3323,7 +3326,12 @@ static void efx_ef10_filter_table_restore(struct efx_nic *efx)
 	bool failed = false;
 	int rc;
 
+	WARN_ON(!rwsem_is_locked(&efx->filter_sem));
+
 	if (!nic_data->must_restore_filters)
+		return;
+
+	if (!table)
 		return;
 
 	spin_lock_bh(&efx->filter_lock);
@@ -3361,6 +3369,7 @@ static void efx_ef10_filter_table_restore(struct efx_nic *efx)
 		nic_data->must_restore_filters = false;
 }
 
+/* Caller must hold efx->filter_sem for write */
 static void efx_ef10_filter_table_remove(struct efx_nic *efx)
 {
 	struct efx_ef10_filter_table *table = efx->filter_state;
@@ -3368,6 +3377,10 @@ static void efx_ef10_filter_table_remove(struct efx_nic *efx)
 	struct efx_filter_spec *spec;
 	unsigned int filter_idx;
 	int rc;
+
+	efx->filter_state = NULL;
+	if (!table)
+		return;
 
 	for (filter_idx = 0; filter_idx < HUNT_FILTER_TBL_ROWS; filter_idx++) {
 		spec = efx_ef10_filter_entry_spec(table, filter_idx);
@@ -3394,6 +3407,9 @@ static void efx_ef10_filter_table_remove(struct efx_nic *efx)
 	kfree(table);
 }
 
+/* Caller must hold efx->filter_sem for read if race against
+ * efx_ef10_filter_table_remove() is possible
+ */
 static void efx_ef10_filter_sync_rx_mode(struct efx_nic *efx)
 {
 	struct efx_ef10_filter_table *table = efx->filter_state;
@@ -3406,6 +3422,9 @@ static void efx_ef10_filter_sync_rx_mode(struct efx_nic *efx)
 	int i, n, rc;
 
 	if (!efx_dev_registered(efx))
+		return;
+
+	if (!table)
 		return;
 
 	/* Mark old filters that may need to be removed */
