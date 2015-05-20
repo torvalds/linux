@@ -994,11 +994,11 @@ static int die_get_var_innermost_scope(Dwarf_Die *sp_die, Dwarf_Die *vr_die,
 		end -= entry;
 
 		if (first) {
-			strbuf_addf(buf, "@<%s+[%lu-%lu",
+			strbuf_addf(buf, "@<%s+[%" PRIu64 "-%" PRIu64,
 				name, start, end);
 			first = false;
 		} else {
-			strbuf_addf(buf, ",%lu-%lu",
+			strbuf_addf(buf, ",%" PRIu64 "-%" PRIu64,
 				start, end);
 		}
 	}
@@ -1057,11 +1057,11 @@ int die_get_var_range(Dwarf_Die *sp_die, Dwarf_Die *vr_die, struct strbuf *buf)
 		start -= entry;
 		end -= entry;
 		if (first) {
-			strbuf_addf(buf, "@<%s+[%lu-%lu",
+			strbuf_addf(buf, "@<%s+[%" PRIu64 "-%" PRIu64,
 				name, start, end);
 			first = false;
 		} else {
-			strbuf_addf(buf, ",%lu-%lu",
+			strbuf_addf(buf, ",%" PRIu64 "-%" PRIu64,
 				start, end);
 		}
 	}

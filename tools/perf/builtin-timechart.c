@@ -61,13 +61,13 @@ struct timechart {
 				tasks_only,
 				with_backtrace,
 				topology;
+	bool			force;
 	/* IO related settings */
-	u64			io_events;
 	bool			io_only,
 				skip_eagain;
+	u64			io_events;
 	u64			min_time,
 				merge_dist;
-	bool			force;
 };
 
 struct per_pidcomm;

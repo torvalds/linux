@@ -1,6 +1,7 @@
 #ifndef __PERF_MAP_H
 #define __PERF_MAP_H
 
+#include <linux/atomic.h>
 #include <linux/compiler.h>
 #include <linux/list.h>
 #include <linux/rbtree.h>
@@ -61,7 +62,7 @@ struct map_groups {
 	struct rb_root	 maps[MAP__NR_TYPES];
 	struct list_head removed_maps[MAP__NR_TYPES];
 	struct machine	 *machine;
-	int		 refcnt;
+	atomic_t	 refcnt;
 };
 
 struct map_groups *map_groups__new(struct machine *machine);
@@ -70,7 +71,8 @@ bool map_groups__empty(struct map_groups *mg);
 
 static inline struct map_groups *map_groups__get(struct map_groups *mg)
 {
-	++mg->refcnt;
+	if (mg)
+		atomic_inc(&mg->refcnt);
 	return mg;
 }
 

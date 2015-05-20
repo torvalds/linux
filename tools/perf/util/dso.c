@@ -265,6 +265,7 @@ int __kmod_path__parse(struct kmod_path *m, const char *path,
  */
 static LIST_HEAD(dso__data_open);
 static long dso__data_open_cnt;
+static pthread_mutex_t dso__data_open_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static void dso__list_add(struct dso *dso)
 {
@@ -434,7 +435,9 @@ static void check_data_close(void)
  */
 void dso__data_close(struct dso *dso)
 {
+	pthread_mutex_lock(&dso__data_open_lock);
 	close_dso(dso);
+	pthread_mutex_unlock(&dso__data_open_lock);
 }
 
 /**
@@ -456,6 +459,8 @@ int dso__data_fd(struct dso *dso, struct machine *machine)
 
 	if (dso->data.status == DSO_DATA_STATUS_ERROR)
 		return -1;
+
+	pthread_mutex_lock(&dso__data_open_lock);
 
 	if (dso->data.fd >= 0)
 		goto out;
@@ -479,6 +484,7 @@ out:
 	else
 		dso->data.status = DSO_DATA_STATUS_ERROR;
 
+	pthread_mutex_unlock(&dso__data_open_lock);
 	return dso->data.fd;
 }
 
@@ -495,10 +501,12 @@ bool dso__data_status_seen(struct dso *dso, enum dso_data_status_seen by)
 }
 
 static void
-dso_cache__free(struct rb_root *root)
+dso_cache__free(struct dso *dso)
 {
+	struct rb_root *root = &dso->data.cache;
 	struct rb_node *next = rb_first(root);
 
+	pthread_mutex_lock(&dso->lock);
 	while (next) {
 		struct dso_cache *cache;
 
@@ -507,10 +515,12 @@ dso_cache__free(struct rb_root *root)
 		rb_erase(&cache->rb_node, root);
 		free(cache);
 	}
+	pthread_mutex_unlock(&dso->lock);
 }
 
-static struct dso_cache *dso_cache__find(const struct rb_root *root, u64 offset)
+static struct dso_cache *dso_cache__find(struct dso *dso, u64 offset)
 {
+	const struct rb_root *root = &dso->data.cache;
 	struct rb_node * const *p = &root->rb_node;
 	const struct rb_node *parent = NULL;
 	struct dso_cache *cache;
@@ -529,17 +539,20 @@ static struct dso_cache *dso_cache__find(const struct rb_root *root, u64 offset)
 		else
 			return cache;
 	}
+
 	return NULL;
 }
 
-static void
-dso_cache__insert(struct rb_root *root, struct dso_cache *new)
+static struct dso_cache *
+dso_cache__insert(struct dso *dso, struct dso_cache *new)
 {
+	struct rb_root *root = &dso->data.cache;
 	struct rb_node **p = &root->rb_node;
 	struct rb_node *parent = NULL;
 	struct dso_cache *cache;
 	u64 offset = new->offset;
 
+	pthread_mutex_lock(&dso->lock);
 	while (*p != NULL) {
 		u64 end;
 
@@ -551,10 +564,17 @@ dso_cache__insert(struct rb_root *root, struct dso_cache *new)
 			p = &(*p)->rb_left;
 		else if (offset >= end)
 			p = &(*p)->rb_right;
+		else
+			goto out;
 	}
 
 	rb_link_node(&new->rb_node, parent, p);
 	rb_insert_color(&new->rb_node, root);
+
+	cache = NULL;
+out:
+	pthread_mutex_unlock(&dso->lock);
+	return cache;
 }
 
 static ssize_t
@@ -569,19 +589,34 @@ dso_cache__memcpy(struct dso_cache *cache, u64 offset,
 }
 
 static ssize_t
-dso_cache__read(struct dso *dso, u64 offset, u8 *data, ssize_t size)
+dso_cache__read(struct dso *dso, struct machine *machine,
+		u64 offset, u8 *data, ssize_t size)
 {
 	struct dso_cache *cache;
+	struct dso_cache *old;
 	ssize_t ret;
 
 	do {
 		u64 cache_offset;
 
-		ret = -ENOMEM;
-
 		cache = zalloc(sizeof(*cache) + DSO__DATA_CACHE_SIZE);
 		if (!cache)
-			break;
+			return -ENOMEM;
+
+		pthread_mutex_lock(&dso__data_open_lock);
+
+		/*
+		 * dso->data.fd might be closed if other thread opened another
+		 * file (dso) due to open file limit (RLIMIT_NOFILE).
+		 */
+		if (dso->data.fd < 0) {
+			dso->data.fd = open_dso(dso, machine);
+			if (dso->data.fd < 0) {
+				ret = -errno;
+				dso->data.status = DSO_DATA_STATUS_ERROR;
+				break;
+			}
+		}
 
 		cache_offset = offset & DSO__DATA_CACHE_MASK;
 
@@ -591,11 +626,20 @@ dso_cache__read(struct dso *dso, u64 offset, u8 *data, ssize_t size)
 
 		cache->offset = cache_offset;
 		cache->size   = ret;
-		dso_cache__insert(&dso->data.cache, cache);
+	} while (0);
+
+	pthread_mutex_unlock(&dso__data_open_lock);
+
+	if (ret > 0) {
+		old = dso_cache__insert(dso, cache);
+		if (old) {
+			/* we lose the race */
+			free(cache);
+			cache = old;
+		}
 
 		ret = dso_cache__memcpy(cache, offset, data, size);
-
-	} while (0);
+	}
 
 	if (ret <= 0)
 		free(cache);
@@ -603,16 +647,16 @@ dso_cache__read(struct dso *dso, u64 offset, u8 *data, ssize_t size)
 	return ret;
 }
 
-static ssize_t dso_cache_read(struct dso *dso, u64 offset,
-			      u8 *data, ssize_t size)
+static ssize_t dso_cache_read(struct dso *dso, struct machine *machine,
+			      u64 offset, u8 *data, ssize_t size)
 {
 	struct dso_cache *cache;
 
-	cache = dso_cache__find(&dso->data.cache, offset);
+	cache = dso_cache__find(dso, offset);
 	if (cache)
 		return dso_cache__memcpy(cache, offset, data, size);
 	else
-		return dso_cache__read(dso, offset, data, size);
+		return dso_cache__read(dso, machine, offset, data, size);
 }
 
 /*
@@ -620,7 +664,8 @@ static ssize_t dso_cache_read(struct dso *dso, u64 offset,
  * in the rb_tree. Any read to already cached data is served
  * by cached data.
  */
-static ssize_t cached_read(struct dso *dso, u64 offset, u8 *data, ssize_t size)
+static ssize_t cached_read(struct dso *dso, struct machine *machine,
+			   u64 offset, u8 *data, ssize_t size)
 {
 	ssize_t r = 0;
 	u8 *p = data;
@@ -628,7 +673,7 @@ static ssize_t cached_read(struct dso *dso, u64 offset, u8 *data, ssize_t size)
 	do {
 		ssize_t ret;
 
-		ret = dso_cache_read(dso, offset, p, size);
+		ret = dso_cache_read(dso, machine, offset, p, size);
 		if (ret < 0)
 			return ret;
 
@@ -648,21 +693,42 @@ static ssize_t cached_read(struct dso *dso, u64 offset, u8 *data, ssize_t size)
 	return r;
 }
 
-static int data_file_size(struct dso *dso)
+static int data_file_size(struct dso *dso, struct machine *machine)
 {
+	int ret = 0;
 	struct stat st;
 	char sbuf[STRERR_BUFSIZE];
 
-	if (!dso->data.file_size) {
-		if (fstat(dso->data.fd, &st)) {
-			pr_err("dso mmap failed, fstat: %s\n",
-				strerror_r(errno, sbuf, sizeof(sbuf)));
-			return -1;
+	if (dso->data.file_size)
+		return 0;
+
+	pthread_mutex_lock(&dso__data_open_lock);
+
+	/*
+	 * dso->data.fd might be closed if other thread opened another
+	 * file (dso) due to open file limit (RLIMIT_NOFILE).
+	 */
+	if (dso->data.fd < 0) {
+		dso->data.fd = open_dso(dso, machine);
+		if (dso->data.fd < 0) {
+			ret = -errno;
+			dso->data.status = DSO_DATA_STATUS_ERROR;
+			goto out;
 		}
-		dso->data.file_size = st.st_size;
 	}
 
-	return 0;
+	if (fstat(dso->data.fd, &st) < 0) {
+		ret = -errno;
+		pr_err("dso cache fstat failed: %s\n",
+		       strerror_r(errno, sbuf, sizeof(sbuf)));
+		dso->data.status = DSO_DATA_STATUS_ERROR;
+		goto out;
+	}
+	dso->data.file_size = st.st_size;
+
+out:
+	pthread_mutex_unlock(&dso__data_open_lock);
+	return ret;
 }
 
 /**
@@ -680,17 +746,17 @@ off_t dso__data_size(struct dso *dso, struct machine *machine)
 	if (fd < 0)
 		return fd;
 
-	if (data_file_size(dso))
+	if (data_file_size(dso, machine))
 		return -1;
 
 	/* For now just estimate dso data size is close to file size */
 	return dso->data.file_size;
 }
 
-static ssize_t data_read_offset(struct dso *dso, u64 offset,
-				u8 *data, ssize_t size)
+static ssize_t data_read_offset(struct dso *dso, struct machine *machine,
+				u64 offset, u8 *data, ssize_t size)
 {
-	if (data_file_size(dso))
+	if (data_file_size(dso, machine))
 		return -1;
 
 	/* Check the offset sanity. */
@@ -700,7 +766,7 @@ static ssize_t data_read_offset(struct dso *dso, u64 offset,
 	if (offset + size < offset)
 		return -1;
 
-	return cached_read(dso, offset, data, size);
+	return cached_read(dso, machine, offset, data, size);
 }
 
 /**
@@ -717,10 +783,10 @@ static ssize_t data_read_offset(struct dso *dso, u64 offset,
 ssize_t dso__data_read_offset(struct dso *dso, struct machine *machine,
 			      u64 offset, u8 *data, ssize_t size)
 {
-	if (dso__data_fd(dso, machine) < 0)
+	if (dso->data.status == DSO_DATA_STATUS_ERROR)
 		return -1;
 
-	return data_read_offset(dso, offset, data, size);
+	return data_read_offset(dso, machine, offset, data, size);
 }
 
 /**
@@ -936,6 +1002,7 @@ struct dso *dso__new(const char *name)
 		RB_CLEAR_NODE(&dso->rb_node);
 		INIT_LIST_HEAD(&dso->node);
 		INIT_LIST_HEAD(&dso->data.open_entry);
+		pthread_mutex_init(&dso->lock, NULL);
 	}
 
 	return dso;
@@ -963,9 +1030,10 @@ void dso__delete(struct dso *dso)
 
 	dso__data_close(dso);
 	auxtrace_cache__free(dso->auxtrace_cache);
-	dso_cache__free(&dso->data.cache);
+	dso_cache__free(dso);
 	dso__free_a2l(dso);
 	zfree(&dso->symsrc_filename);
+	pthread_mutex_destroy(&dso->lock);
 	free(dso);
 }
 

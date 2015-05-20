@@ -34,9 +34,15 @@ INSTALL = install
 DESTDIR ?=
 DESTDIR_SQ = '$(subst ','\'',$(DESTDIR))'
 
+LP64 := $(shell echo __LP64__ | ${CC} ${CFLAGS} -E -x c - | tail -n 1)
+ifeq ($(LP64), 1)
+  libdir_relative = lib64
+else
+  libdir_relative = lib
+endif
+
 prefix ?= /usr/local
-bindir_relative = bin
-bindir = $(prefix)/$(bindir_relative)
+libdir = $(prefix)/$(libdir_relative)
 man_dir = $(prefix)/share/man
 man_dir_SQ = '$(subst ','\'',$(man_dir))'
 
@@ -58,7 +64,7 @@ ifeq ($(prefix),$(HOME))
 override plugin_dir = $(HOME)/.traceevent/plugins
 set_plugin_dir := 0
 else
-override plugin_dir = $(prefix)/lib/traceevent/plugins
+override plugin_dir = $(libdir)/traceevent/plugins
 endif
 endif
 
@@ -85,11 +91,11 @@ srctree := $(patsubst %/,%,$(dir $(srctree)))
 #$(info Determined 'srctree' to be $(srctree))
 endif
 
-export prefix bindir src obj
+export prefix libdir src obj
 
 # Shell quotes
-bindir_SQ = $(subst ','\'',$(bindir))
-bindir_relative_SQ = $(subst ','\'',$(bindir_relative))
+libdir_SQ = $(subst ','\'',$(libdir))
+libdir_relative_SQ = $(subst ','\'',$(libdir_relative))
 plugin_dir_SQ = $(subst ','\'',$(plugin_dir))
 
 LIB_FILE = libtraceevent.a libtraceevent.so
@@ -240,7 +246,7 @@ endef
 
 install_lib: all_cmd install_plugins
 	$(call QUIET_INSTALL, $(LIB_FILE)) \
-		$(call do_install,$(LIB_FILE),$(bindir_SQ))
+		$(call do_install,$(LIB_FILE),$(libdir_SQ))
 
 install_plugins: $(PLUGINS)
 	$(call QUIET_INSTALL, trace_plugins) \

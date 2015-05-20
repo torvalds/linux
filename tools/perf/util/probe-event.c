@@ -2499,6 +2499,9 @@ static int find_probe_functions(struct map *map, char *name)
 	struct symbol *sym;
 	struct rb_node *tmp;
 
+	if (map__load(map, NULL) < 0)
+		return 0;
+
 	map__for_each_symbol(map, sym, tmp) {
 		if (strglobmatch(sym->name, name))
 			found++;

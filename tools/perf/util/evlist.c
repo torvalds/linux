@@ -700,14 +700,14 @@ static bool perf_mmap__empty(struct perf_mmap *md)
 
 static void perf_evlist__mmap_get(struct perf_evlist *evlist, int idx)
 {
-	++evlist->mmap[idx].refcnt;
+	atomic_inc(&evlist->mmap[idx].refcnt);
 }
 
 static void perf_evlist__mmap_put(struct perf_evlist *evlist, int idx)
 {
-	BUG_ON(evlist->mmap[idx].refcnt == 0);
+	BUG_ON(atomic_read(&evlist->mmap[idx].refcnt) == 0);
 
-	if (--evlist->mmap[idx].refcnt == 0)
+	if (atomic_dec_and_test(&evlist->mmap[idx].refcnt))
 		__perf_evlist__munmap(evlist, idx);
 }
 
@@ -721,7 +721,7 @@ void perf_evlist__mmap_consume(struct perf_evlist *evlist, int idx)
 		perf_mmap__write_tail(md, old);
 	}
 
-	if (md->refcnt == 1 && perf_mmap__empty(md))
+	if (atomic_read(&md->refcnt) == 1 && perf_mmap__empty(md))
 		perf_evlist__mmap_put(evlist, idx);
 }
 
@@ -758,7 +758,7 @@ static void __perf_evlist__munmap(struct perf_evlist *evlist, int idx)
 	if (evlist->mmap[idx].base != NULL) {
 		munmap(evlist->mmap[idx].base, evlist->mmap_len);
 		evlist->mmap[idx].base = NULL;
-		evlist->mmap[idx].refcnt = 0;
+		atomic_set(&evlist->mmap[idx].refcnt, 0);
 	}
 	auxtrace_mmap__munmap(&evlist->mmap[idx].auxtrace_mmap);
 }
@@ -807,7 +807,7 @@ static int __perf_evlist__mmap(struct perf_evlist *evlist, int idx,
 	 * evlist layer can't just drop it when filtering events in
 	 * perf_evlist__filter_pollfd().
 	 */
-	evlist->mmap[idx].refcnt = 2;
+	atomic_set(&evlist->mmap[idx].refcnt, 2);
 	evlist->mmap[idx].prev = 0;
 	evlist->mmap[idx].mask = mp->mask;
 	evlist->mmap[idx].base = mmap(NULL, evlist->mmap_len, mp->prot,
