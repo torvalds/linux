@@ -32,6 +32,8 @@ Optional properties:
   0 <= osc-clkgate-delay <= 7.
 - maximum-speed: limit the maximum connection speed to "full-speed".
 - tpl-support: TPL (Targeted Peripheral List) feature for targeted hosts
+- phy-clkgate-delay-us: the delay time(us) between putting phy into low power
+  mode and gate phy clock.
 
 Examples:
 usb@02184000 { /* USB OTG */
@@ -50,4 +52,5 @@ usb@02184000 { /* USB OTG */
 	osc-clkgate-delay = <0x3>;
 	maximum-speed = "full-speed";
 	tpl-support;
+	phy-clkgate-delay-us = <400>;
 };
