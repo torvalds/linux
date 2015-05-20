@@ -71,7 +71,7 @@ static struct attribute *module_attrs[] = {
 };
 ATTRIBUTE_GROUPS(module);
 
-static void greybus_module_release(struct device *dev)
+static void gb_module_release(struct device *dev)
 {
 	struct gb_module *module = to_gb_module(dev);
 
@@ -80,7 +80,7 @@ static void greybus_module_release(struct device *dev)
 
 struct device_type greybus_module_type = {
 	.name =		"greybus_module",
-	.release =	greybus_module_release,
+	.release =	gb_module_release,
 };
 
 struct module_find {
