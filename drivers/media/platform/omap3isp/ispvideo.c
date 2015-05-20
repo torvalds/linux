@@ -1018,8 +1018,7 @@ isp_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 
 	pipe->entities = 0;
 
-	if (video->isp->pdata && video->isp->pdata->set_constraints)
-		video->isp->pdata->set_constraints(video->isp, true);
+	/* TODO: Implement PM QoS */
 	pipe->l3_ick = clk_get_rate(video->isp->clock[ISP_CLK_L3_ICK]);
 	pipe->max_rate = pipe->l3_ick;
 
@@ -1100,8 +1099,7 @@ err_set_stream:
 err_check_format:
 	media_entity_pipeline_stop(&video->video.entity);
 err_pipeline_start:
-	if (video->isp->pdata && video->isp->pdata->set_constraints)
-		video->isp->pdata->set_constraints(video->isp, false);
+	/* TODO: Implement PM QoS */
 	/* The DMA queue must be emptied here, otherwise CCDC interrupts that
 	 * will get triggered the next time the CCDC is powered up will try to
 	 * access buffers that might have been freed but still present in the
@@ -1161,8 +1159,7 @@ isp_video_streamoff(struct file *file, void *fh, enum v4l2_buf_type type)
 	video->queue = NULL;
 	video->error = false;
 
-	if (video->isp->pdata && video->isp->pdata->set_constraints)
-		video->isp->pdata->set_constraints(video->isp, false);
+	/* TODO: Implement PM QoS */
 	media_entity_pipeline_stop(&video->video.entity);
 
 done:
