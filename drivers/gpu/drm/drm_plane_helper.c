@@ -465,6 +465,9 @@ int drm_plane_helper_commit(struct drm_plane *plane,
 		if (!crtc[i])
 			continue;
 
+		if (crtc[i]->cursor == plane)
+			continue;
+
 		/* There's no other way to figure out whether the crtc is running. */
 		ret = drm_crtc_vblank_get(crtc[i]);
 		if (ret == 0) {
