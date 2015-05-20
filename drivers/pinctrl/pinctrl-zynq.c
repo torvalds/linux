@@ -714,12 +714,13 @@ static const char * const gpio0_groups[] = {"gpio0_0_grp",
 		.mux_val = mval,			\
 	}
 
-#define DEFINE_ZYNQ_PINMUX_FUNCTION_MUX(fname, mval, mux, mask, shift)	\
+#define DEFINE_ZYNQ_PINMUX_FUNCTION_MUX(fname, mval, offset, mask, shift)\
 	[ZYNQ_PMUX_##fname] = {				\
 		.name = #fname,				\
 		.groups = fname##_groups,		\
 		.ngroups = ARRAY_SIZE(fname##_groups),	\
 		.mux_val = mval,			\
+		.mux = offset,				\
 		.mux_mask = mask,			\
 		.mux_shift = shift,			\
 	}
