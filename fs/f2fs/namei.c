@@ -364,7 +364,7 @@ static int f2fs_symlink(struct inode *dir, struct dentry *dentry,
 		if (err)
 			goto err_out;
 
-		err = f2fs_setup_fname_crypto(inode);
+		err = f2fs_get_encryption_info(inode);
 		if (err)
 			goto err_out;
 
@@ -929,7 +929,7 @@ static void *f2fs_encrypted_follow_link(struct dentry *dentry,
 	u32 max_size = inode->i_sb->s_blocksize;
 	int res;
 
-	res = f2fs_setup_fname_crypto(inode);
+	res = f2fs_get_encryption_info(inode);
 	if (res)
 		return ERR_PTR(res);
 

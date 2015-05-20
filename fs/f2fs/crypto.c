@@ -91,8 +91,6 @@ void f2fs_release_crypto_ctx(struct f2fs_crypto_ctx *ctx)
 	}
 	ctx->w.control_page = NULL;
 	if (ctx->flags & F2FS_CTX_REQUIRES_FREE_ENCRYPT_FL) {
-		if (ctx->tfm)
-			crypto_free_tfm(ctx->tfm);
 		kmem_cache_free(f2fs_crypto_ctx_cachep, ctx);
 	} else {
 		spin_lock_irqsave(&f2fs_crypto_ctx_lock, flags);
@@ -113,7 +111,6 @@ void f2fs_release_crypto_ctx(struct f2fs_crypto_ctx *ctx)
 struct f2fs_crypto_ctx *f2fs_get_crypto_ctx(struct inode *inode)
 {
 	struct f2fs_crypto_ctx *ctx = NULL;
-	int res = 0;
 	unsigned long flags;
 	struct f2fs_crypt_info *ci = F2FS_I(inode)->i_crypt_info;
 
@@ -138,56 +135,13 @@ struct f2fs_crypto_ctx *f2fs_get_crypto_ctx(struct inode *inode)
 	spin_unlock_irqrestore(&f2fs_crypto_ctx_lock, flags);
 	if (!ctx) {
 		ctx = kmem_cache_zalloc(f2fs_crypto_ctx_cachep, GFP_NOFS);
-		if (!ctx) {
-			res = -ENOMEM;
-			goto out;
-		}
+		if (!ctx)
+			return ERR_PTR(-ENOMEM);
 		ctx->flags |= F2FS_CTX_REQUIRES_FREE_ENCRYPT_FL;
 	} else {
 		ctx->flags &= ~F2FS_CTX_REQUIRES_FREE_ENCRYPT_FL;
 	}
 	ctx->flags &= ~F2FS_WRITE_PATH_FL;
-
-	/*
-	 * Allocate a new Crypto API context if we don't already have
-	 * one or if it isn't the right mode.
-	 */
-	if (ctx->tfm && (ctx->mode != ci->ci_data_mode)) {
-		crypto_free_tfm(ctx->tfm);
-		ctx->tfm = NULL;
-		ctx->mode = F2FS_ENCRYPTION_MODE_INVALID;
-	}
-	if (!ctx->tfm) {
-		switch (ci->ci_data_mode) {
-		case F2FS_ENCRYPTION_MODE_AES_256_XTS:
-			ctx->tfm = crypto_ablkcipher_tfm(
-				crypto_alloc_ablkcipher("xts(aes)", 0, 0));
-			break;
-		case F2FS_ENCRYPTION_MODE_AES_256_GCM:
-			/*
-			 * TODO(mhalcrow): AEAD w/ gcm(aes);
-			 * crypto_aead_setauthsize()
-			 */
-			ctx->tfm = ERR_PTR(-ENOTSUPP);
-			break;
-		default:
-			BUG();
-		}
-		if (IS_ERR_OR_NULL(ctx->tfm)) {
-			res = PTR_ERR(ctx->tfm);
-			ctx->tfm = NULL;
-			goto out;
-		}
-		ctx->mode = ci->ci_data_mode;
-	}
-	BUG_ON(ci->ci_size != f2fs_encryption_key_size(ci->ci_data_mode));
-
-out:
-	if (res) {
-		if (!IS_ERR_OR_NULL(ctx))
-			f2fs_release_crypto_ctx(ctx);
-		ctx = ERR_PTR(res);
-	}
 	return ctx;
 }
 
@@ -229,11 +183,8 @@ static void f2fs_crypto_destroy(void)
 {
 	struct f2fs_crypto_ctx *pos, *n;
 
-	list_for_each_entry_safe(pos, n, &f2fs_free_crypto_ctxs, free_list) {
-		if (pos->tfm)
-			crypto_free_tfm(pos->tfm);
+	list_for_each_entry_safe(pos, n, &f2fs_free_crypto_ctxs, free_list)
 		kmem_cache_free(f2fs_crypto_ctx_cachep, pos);
-	}
 	INIT_LIST_HEAD(&f2fs_free_crypto_ctxs);
 	if (f2fs_bounce_page_pool)
 		mempool_destroy(f2fs_bounce_page_pool);
@@ -383,32 +334,11 @@ static int f2fs_page_crypto(struct f2fs_crypto_ctx *ctx,
 	struct ablkcipher_request *req = NULL;
 	DECLARE_F2FS_COMPLETION_RESULT(ecr);
 	struct scatterlist dst, src;
-	struct f2fs_inode_info *fi = F2FS_I(inode);
-	struct crypto_ablkcipher *atfm = __crypto_ablkcipher_cast(ctx->tfm);
+	struct f2fs_crypt_info *ci = F2FS_I(inode)->i_crypt_info;
+	struct crypto_ablkcipher *tfm = ci->ci_ctfm;
 	int res = 0;
 
-	BUG_ON(!ctx->tfm);
-	BUG_ON(ctx->mode != fi->i_crypt_info->ci_data_mode);
-
-	if (ctx->mode != F2FS_ENCRYPTION_MODE_AES_256_XTS) {
-		printk_ratelimited(KERN_ERR
-				"%s: unsupported crypto algorithm: %d\n",
-				__func__, ctx->mode);
-		return -ENOTSUPP;
-	}
-
-	crypto_ablkcipher_clear_flags(atfm, ~0);
-	crypto_tfm_set_flags(ctx->tfm, CRYPTO_TFM_REQ_WEAK_KEY);
-
-	res = crypto_ablkcipher_setkey(atfm, fi->i_crypt_info->ci_raw,
-					fi->i_crypt_info->ci_size);
-	if (res) {
-		printk_ratelimited(KERN_ERR
-				"%s: crypto_ablkcipher_setkey() failed\n",
-				__func__);
-		return res;
-	}
-	req = ablkcipher_request_alloc(atfm, GFP_NOFS);
+	req = ablkcipher_request_alloc(tfm, GFP_NOFS);
 	if (!req) {
 		printk_ratelimited(KERN_ERR
 				"%s: crypto_request_alloc() failed\n",

@@ -449,7 +449,8 @@ static int f2fs_drop_inode(struct inode *inode)
 
 #ifdef CONFIG_F2FS_FS_ENCRYPTION
 			if (F2FS_I(inode)->i_crypt_info)
-				f2fs_free_encryption_info(inode);
+				f2fs_free_encryption_info(inode,
+					F2FS_I(inode)->i_crypt_info);
 #endif
 			spin_lock(&inode->i_lock);
 		}

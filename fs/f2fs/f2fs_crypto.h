@@ -75,13 +75,11 @@ struct f2fs_encryption_key {
 } __attribute__((__packed__));
 
 struct f2fs_crypt_info {
-	unsigned char	ci_size;
 	char		ci_data_mode;
 	char		ci_filename_mode;
 	char		ci_flags;
 	struct crypto_ablkcipher *ci_ctfm;
 	struct key	*ci_keyring_key;
-	char		ci_raw[F2FS_MAX_KEY_SIZE];
 	char		ci_master_key[F2FS_KEY_DESCRIPTOR_SIZE];
 };
 
@@ -90,7 +88,6 @@ struct f2fs_crypt_info {
 #define F2FS_WRITE_PATH_FL			      0x00000004
 
 struct f2fs_crypto_ctx {
-	struct crypto_tfm *tfm;         /* Crypto API context */
 	union {
 		struct {
 			struct page *bounce_page;       /* Ciphertext page */
@@ -103,7 +100,6 @@ struct f2fs_crypto_ctx {
 		struct list_head free_list;     /* Free list */
 	};
 	char flags;                      /* Flags */
-	char mode;                       /* Encryption mode for tfm */
 };
 
 struct f2fs_completion_result {

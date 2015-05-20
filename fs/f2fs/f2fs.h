@@ -2016,7 +2016,7 @@ int f2fs_decrypt_one(struct inode *, struct page *);
 void f2fs_end_io_crypto_work(struct f2fs_crypto_ctx *, struct bio *);
 
 /* crypto_key.c */
-void f2fs_free_encryption_info(struct inode *);
+void f2fs_free_encryption_info(struct inode *, struct f2fs_crypt_info *);
 int _f2fs_get_encryption_info(struct inode *inode);
 
 /* crypto_fname.c */
@@ -2051,7 +2051,6 @@ static inline int f2fs_get_encryption_info(struct inode *inode)
 	return 0;
 }
 
-int f2fs_setup_fname_crypto(struct inode *);
 void f2fs_fname_crypto_free_buffer(struct f2fs_str *);
 int f2fs_fname_setup_filename(struct inode *, const struct qstr *,
 				int lookup, struct f2fs_filename *);
@@ -2065,8 +2064,6 @@ static inline void f2fs_exit_crypto(void) { }
 
 static inline int f2fs_has_encryption_key(struct inode *i) { return 0; }
 static inline int f2fs_get_encryption_info(struct inode *i) { return 0; }
-
-static inline int f2fs_setup_fname_crypto(struct inode *i) { return 0; }
 static inline void f2fs_fname_crypto_free_buffer(struct f2fs_str *p) { }
 
 static inline int f2fs_fname_setup_filename(struct inode *dir,

@@ -249,52 +249,6 @@ static int digest_decode(const char *src, int len, char *dst)
 	return cp - dst;
 }
 
-int f2fs_setup_fname_crypto(struct inode *inode)
-{
-	struct f2fs_inode_info *fi = F2FS_I(inode);
-	struct f2fs_crypt_info *ci = fi->i_crypt_info;
-	struct crypto_ablkcipher *ctfm;
-	int res;
-
-	/* Check if the crypto policy is set on the inode */
-	res = f2fs_encrypted_inode(inode);
-	if (res == 0)
-		return 0;
-
-	res = f2fs_get_encryption_info(inode);
-	if (res < 0)
-		return res;
-	ci = fi->i_crypt_info;
-
-	if (!ci || ci->ci_ctfm)
-		return 0;
-
-	if (ci->ci_filename_mode != F2FS_ENCRYPTION_MODE_AES_256_CTS) {
-		printk_once(KERN_WARNING "f2fs: unsupported key mode %d\n",
-				ci->ci_filename_mode);
-		return -ENOKEY;
-	}
-
-	ctfm = crypto_alloc_ablkcipher("cts(cbc(aes))", 0, 0);
-	if (!ctfm || IS_ERR(ctfm)) {
-		res = ctfm ? PTR_ERR(ctfm) : -ENOMEM;
-		printk(KERN_DEBUG "%s: error (%d) allocating crypto tfm\n",
-				__func__, res);
-		return res;
-	}
-	crypto_ablkcipher_clear_flags(ctfm, ~0);
-	crypto_tfm_set_flags(crypto_ablkcipher_tfm(ctfm),
-			     CRYPTO_TFM_REQ_WEAK_KEY);
-
-	res = crypto_ablkcipher_setkey(ctfm, ci->ci_raw, ci->ci_size);
-	if (res) {
-		crypto_free_ablkcipher(ctfm);
-		return -EIO;
-	}
-	ci->ci_ctfm = ctfm;
-	return 0;
-}
-
 /**
  * f2fs_fname_crypto_round_up() -
  *
@@ -427,7 +381,7 @@ int f2fs_fname_setup_filename(struct inode *dir, const struct qstr *iname,
 		fname->disk_name.len = iname->len;
 		return 0;
 	}
-	ret = f2fs_setup_fname_crypto(dir);
+	ret = f2fs_get_encryption_info(dir);
 	if (ret)
 		return ret;
 	ci = F2FS_I(dir)->i_crypt_info;

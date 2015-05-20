@@ -364,7 +364,7 @@ no_delete:
 out_clear:
 #ifdef CONFIG_F2FS_FS_ENCRYPTION
 	if (F2FS_I(inode)->i_crypt_info)
-		f2fs_free_encryption_info(inode);
+		f2fs_free_encryption_info(inode, F2FS_I(inode)->i_crypt_info);
 #endif
 	clear_inode(inode);
 }
