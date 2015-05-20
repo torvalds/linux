@@ -982,6 +982,24 @@ static void __init mtk_pericfg_init(struct device_node *node)
 }
 CLK_OF_DECLARE(mtk_pericfg, "mediatek,mt8173-pericfg", mtk_pericfg_init);
 
+struct mtk_clk_usb {
+	int id;
+	const char *name;
+	const char *parent;
+	u32 reg_ofs;
+};
+
+#define APMIXED_USB(_id, _name, _parent, _reg_ofs) {			\
+		.id = _id,						\
+		.name = _name,						\
+		.parent = _parent,					\
+		.reg_ofs = _reg_ofs,					\
+	}
+
+static const struct mtk_clk_usb apmixed_usb[] __initconst = {
+	APMIXED_USB(CLK_APMIXED_REF2USB_TX, "ref2usb_tx", "clk26m", 0x8),
+};
+
 #define MT8173_PLL_FMAX		(3000UL * MHZ)
 
 #define CON0_MT8173_RST_BAR	BIT(24)
@@ -1042,12 +1060,41 @@ static const struct mtk_pll_data plls[] = {
 static void __init mtk_apmixedsys_init(struct device_node *node)
 {
 	struct clk_onecell_data *clk_data;
+	void __iomem *base;
+	struct clk *clk;
+	int r, i;
+
+	base = of_iomap(node, 0);
+	if (!base) {
+		pr_err("%s(): ioremap failed\n", __func__);
+		return;
+	}
 
 	mt8173_pll_clk_data = clk_data = mtk_alloc_clk_data(CLK_APMIXED_NR_CLK);
 	if (!clk_data)
 		return;
 
 	mtk_clk_register_plls(node, plls, ARRAY_SIZE(plls), clk_data);
+
+	for (i = 0; i < ARRAY_SIZE(apmixed_usb); i++) {
+		const struct mtk_clk_usb *cku = &apmixed_usb[i];
+
+		clk = mtk_clk_register_ref2usb_tx(cku->name, cku->parent,
+					base + cku->reg_ofs);
+
+		if (IS_ERR(clk)) {
+			pr_err("Failed to register clk %s: %ld\n", cku->name,
+					PTR_ERR(clk));
+			continue;
+		}
+
+		clk_data->clks[cku->id] = clk;
+	}
+
+	r = of_clk_add_provider(node, of_clk_src_onecell_get, clk_data);
+	if (r)
+		pr_err("%s(): could not register clock provider: %d\n",
+			__func__, r);
 
 	mtk_clk_enable_critical();
 }
