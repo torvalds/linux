@@ -55,6 +55,7 @@ struct ci_hdrc_platform_data {
 	u32			ahb_burst_config;
 	u32			tx_burst_size;
 	u32			rx_burst_size;
+	u32			phy_clkgate_delay_us;
 };
 
 /* Default offset of capability registers */

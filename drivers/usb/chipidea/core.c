@@ -695,6 +695,10 @@ static int ci_get_platdata(struct device *dev,
 		platdata->flags |= CI_HDRC_OVERRIDE_RX_BURST;
 	}
 
+	if (of_find_property(dev->of_node, "phy-clkgate-delay-us", NULL))
+		of_property_read_u32(dev->of_node, "phy-clkgate-delay-us",
+					&platdata->phy_clkgate_delay_us);
+
 	return 0;
 }
 
@@ -1051,6 +1055,9 @@ static void ci_controller_suspend(struct ci_hdrc *ci)
 {
 	disable_irq(ci->irq);
 	ci_hdrc_enter_lpm(ci, true);
+	if (ci->platdata->phy_clkgate_delay_us)
+		usleep_range(ci->platdata->phy_clkgate_delay_us,
+				ci->platdata->phy_clkgate_delay_us + 50);
 	usb_phy_set_suspend(ci->usb_phy, 1);
 	ci->in_lpm = true;
 	enable_irq(ci->irq);
