@@ -36,6 +36,31 @@
 #include "radeon_ucode.h"
 #include "clearstate_cayman.h"
 
+/*
+ * Indirect registers accessor
+ */
+u32 tn_smc_rreg(struct radeon_device *rdev, u32 reg)
+{
+	unsigned long flags;
+	u32 r;
+
+	spin_lock_irqsave(&rdev->smc_idx_lock, flags);
+	WREG32(TN_SMC_IND_INDEX_0, (reg));
+	r = RREG32(TN_SMC_IND_DATA_0);
+	spin_unlock_irqrestore(&rdev->smc_idx_lock, flags);
+	return r;
+}
+
+void tn_smc_wreg(struct radeon_device *rdev, u32 reg, u32 v)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&rdev->smc_idx_lock, flags);
+	WREG32(TN_SMC_IND_INDEX_0, (reg));
+	WREG32(TN_SMC_IND_DATA_0, (v));
+	spin_unlock_irqrestore(&rdev->smc_idx_lock, flags);
+}
+
 static const u32 tn_rlc_save_restore_register_list[] =
 {
 	0x98fc,

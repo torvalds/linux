@@ -174,6 +174,31 @@ int cik_get_allowed_info_register(struct radeon_device *rdev,
 	}
 }
 
+/*
+ * Indirect registers accessor
+ */
+u32 cik_didt_rreg(struct radeon_device *rdev, u32 reg)
+{
+	unsigned long flags;
+	u32 r;
+
+	spin_lock_irqsave(&rdev->didt_idx_lock, flags);
+	WREG32(CIK_DIDT_IND_INDEX, (reg));
+	r = RREG32(CIK_DIDT_IND_DATA);
+	spin_unlock_irqrestore(&rdev->didt_idx_lock, flags);
+	return r;
+}
+
+void cik_didt_wreg(struct radeon_device *rdev, u32 reg, u32 v)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&rdev->didt_idx_lock, flags);
+	WREG32(CIK_DIDT_IND_INDEX, (reg));
+	WREG32(CIK_DIDT_IND_DATA, (v));
+	spin_unlock_irqrestore(&rdev->didt_idx_lock, flags);
+}
+
 /* get temperature in millidegrees */
 int ci_get_temp(struct radeon_device *rdev)
 {
