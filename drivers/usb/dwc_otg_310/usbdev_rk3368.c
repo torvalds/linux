@@ -1,3 +1,4 @@
+#ifdef CONFIG_ARM64
 #include "usbdev_rk.h"
 #include "dwc_otg_regs.h"
 
@@ -516,3 +517,4 @@ MODULE_ALIAS("platform: dwc_control_usb");
 MODULE_AUTHOR("RockChip Inc.");
 MODULE_DESCRIPTION("RockChip Control Module USB Driver");
 MODULE_LICENSE("GPL v2");
+#endif

@@ -248,6 +248,7 @@ static ssize_t test_sq_store(struct device *dev,
 static DEVICE_ATTR(test_sq, S_IWUSR, NULL, test_sq_store);
 
 static struct of_device_id rk_ehci_of_match[] = {
+#ifdef CONFIG_ARM
 	{
 	 .compatible = "rockchip,rk3288_rk_ehci_host",
 	 .data = &rkehci_pdata_rk3288,
@@ -256,10 +257,13 @@ static struct of_device_id rk_ehci_of_match[] = {
 	 .compatible = "rockchip,rk3126_ehci",
 	 .data = &usb20ehci_pdata_rk3126,
 	 },
+#endif
+#ifdef CONFIG_ARM64
 	{
 	 .compatible = "rockchip,rk3368_ehci",
 	 .data = &usb20ehci_pdata_rk3368,
 	 },
+#endif
 	{},
 };
 

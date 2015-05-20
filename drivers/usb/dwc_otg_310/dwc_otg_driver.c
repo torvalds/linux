@@ -915,6 +915,7 @@ static int host20_driver_remove(struct platform_device *_dev)
 }
 
 static const struct of_device_id usb20_host_of_match[] = {
+#ifdef CONFIG_ARM
 	{
 	 .compatible = "rockchip,rk3188_usb20_host",
 	 .data = &usb20host_pdata_rk3188,
@@ -931,6 +932,7 @@ static const struct of_device_id usb20_host_of_match[] = {
 	 .compatible = "rockchip,rk3126_usb20_host",
 	 .data = &usb20host_pdata_rk3126,
 	 },
+#endif
 	{},
 };
 
@@ -1288,6 +1290,7 @@ static int otg20_driver_remove(struct platform_device *_dev)
 }
 
 static const struct of_device_id usb20_otg_of_match[] = {
+#ifdef CONFIG_ARM
 	{
 	 .compatible = "rockchip,rk3188_usb20_otg",
 	 .data = &usb20otg_pdata_rk3188,
@@ -1304,10 +1307,13 @@ static const struct of_device_id usb20_otg_of_match[] = {
 	 .compatible = "rockchip,rk3126_usb20_otg",
 	 .data = &usb20otg_pdata_rk3126,
 	 },
+#endif
+#ifdef CONFIG_ARM64
 	{
 	 .compatible = "rockchip,rk3368_usb20_otg",
 	 .data = &usb20otg_pdata_rk3368,
 	 },
+#endif
 	{ },
 };
 
