@@ -1463,8 +1463,8 @@ static int cx24120_init(struct dvb_frontend *fe)
 	c->block_count.len = 1;
 	c->block_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 
-
 	state->cold_init = 1;
+
 	return 0;
 }
 
