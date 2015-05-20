@@ -35,6 +35,7 @@
 #include <asm/processor.h>
 #include "kfd_priv.h"
 #include "kfd_device_queue_manager.h"
+#include "kfd_dbgmgr.h"
 
 static long kfd_ioctl(struct file *, unsigned int, unsigned long);
 static int kfd_open(struct inode *, struct file *);
@@ -435,7 +436,53 @@ out:
 static int kfd_ioctl_dbg_register(struct file *filep,
 				struct kfd_process *p, void *data)
 {
-	long status = -EFAULT;
+	struct kfd_ioctl_dbg_register_args *args = data;
+	struct kfd_dev *dev;
+	struct kfd_dbgmgr *dbgmgr_ptr;
+	struct kfd_process_device *pdd;
+	bool create_ok;
+	long status = 0;
+
+	dev = kfd_device_by_id(args->gpu_id);
+	if (dev == NULL)
+		return -EINVAL;
+
+	if (dev->device_info->asic_family == CHIP_CARRIZO) {
+		pr_debug("kfd_ioctl_dbg_register not supported on CZ\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(kfd_get_dbgmgr_mutex());
+	mutex_lock(&p->mutex);
+
+	/*
+	 * make sure that we have pdd, if this the first queue created for
+	 * this process
+	 */
+	pdd = kfd_bind_process_to_device(dev, p);
+	if (IS_ERR(pdd)) {
+		mutex_unlock(&p->mutex);
+		mutex_unlock(kfd_get_dbgmgr_mutex());
+		return PTR_ERR(pdd);
+	}
+
+	if (dev->dbgmgr == NULL) {
+		/* In case of a legal call, we have no dbgmgr yet */
+		create_ok = kfd_dbgmgr_create(&dbgmgr_ptr, dev);
+		if (create_ok) {
+			status = kfd_dbgmgr_register(dbgmgr_ptr, p);
+			if (status != 0)
+				kfd_dbgmgr_destroy(dbgmgr_ptr);
+			else
+				dev->dbgmgr = dbgmgr_ptr;
+		}
+	} else {
+		pr_debug("debugger already registered\n");
+		status = -EINVAL;
+	}
+
+	mutex_unlock(&p->mutex);
+	mutex_unlock(kfd_get_dbgmgr_mutex());
 
 	return status;
 }
@@ -443,7 +490,28 @@ static int kfd_ioctl_dbg_register(struct file *filep,
 static int kfd_ioctl_dbg_unrgesiter(struct file *filep,
 				struct kfd_process *p, void *data)
 {
-	long status = -EFAULT;
+	struct kfd_ioctl_dbg_unregister_args *args = data;
+	struct kfd_dev *dev;
+	long status;
+
+	dev = kfd_device_by_id(args->gpu_id);
+	if (dev == NULL)
+		return -EINVAL;
+
+	if (dev->device_info->asic_family == CHIP_CARRIZO) {
+		pr_debug("kfd_ioctl_dbg_unrgesiter not supported on CZ\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(kfd_get_dbgmgr_mutex());
+
+	status = kfd_dbgmgr_unregister(dev->dbgmgr, p);
+	if (status == 0) {
+		kfd_dbgmgr_destroy(dev->dbgmgr);
+		dev->dbgmgr = NULL;
+	}
+
+	mutex_unlock(kfd_get_dbgmgr_mutex());
 
 	return status;
 }
