@@ -154,7 +154,7 @@ struct cx24120_state {
 	u32 bitrate;
 	u32 berw_usecs;
 	u32 ber_prev;
-	u32 per_prev;
+	u32 ucb_offset;
 	unsigned long ber_jiffies_stats;
 	unsigned long per_jiffies_stats;
 };
@@ -698,8 +698,12 @@ static void cx24120_get_stats(struct cx24120_state *state)
 		ucb |= cx24120_readreg(state, CX24120_REG_UCB_L);
 		dev_dbg(&state->i2c->dev, "ucblocks = %d\n", ucb);
 
+		/* handle reset */
+		if (ucb < state->ucb_offset)
+			state->ucb_offset = c->block_error.stat[0].uvalue;
+
 		c->block_error.stat[0].scale = FE_SCALE_COUNTER;
-		c->block_error.stat[0].uvalue += ucb;
+		c->block_error.stat[0].uvalue = ucb + state->ucb_offset;
 
 		c->block_count.stat[0].scale = FE_SCALE_COUNTER;
 		c->block_count.stat[0].uvalue += state->bitrate / 8 / 208;
@@ -1541,8 +1545,7 @@ static int cx24120_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 		return 0;
 	}
 
-	*ucblocks = c->block_error.stat[0].uvalue - state->per_prev;
-	state->per_prev = c->block_error.stat[0].uvalue;
+	*ucblocks = c->block_error.stat[0].uvalue - state->ucb_offset;
 
 	return 0;
 }
