@@ -900,6 +900,9 @@ int i915_gem_context_getparam_ioctl(struct drm_device *dev, void *data,
 	case I915_CONTEXT_PARAM_BAN_PERIOD:
 		args->value = ctx->hang_stats.ban_period_seconds;
 		break;
+	case I915_CONTEXT_PARAM_NO_ZEROMAP:
+		args->value = ctx->flags & CONTEXT_NO_ZEROMAP;
+		break;
 	default:
 		ret = -EINVAL;
 		break;
@@ -936,6 +939,14 @@ int i915_gem_context_setparam_ioctl(struct drm_device *dev, void *data,
 			ret = -EPERM;
 		else
 			ctx->hang_stats.ban_period_seconds = args->value;
+		break;
+	case I915_CONTEXT_PARAM_NO_ZEROMAP:
+		if (args->size) {
+			ret = -EINVAL;
+		} else {
+			ctx->flags &= ~CONTEXT_NO_ZEROMAP;
+			ctx->flags |= args->value ? CONTEXT_NO_ZEROMAP : 0;
+		}
 		break;
 	default:
 		ret = -EINVAL;

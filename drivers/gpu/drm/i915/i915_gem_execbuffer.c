@@ -676,6 +676,7 @@ eb_vma_misplaced(struct i915_vma *vma)
 static int
 i915_gem_execbuffer_reserve(struct intel_engine_cs *ring,
 			    struct list_head *vmas,
+			    struct intel_context *ctx,
 			    bool *need_relocs)
 {
 	struct drm_i915_gem_object *obj;
@@ -697,6 +698,9 @@ i915_gem_execbuffer_reserve(struct intel_engine_cs *ring,
 		vma = list_first_entry(vmas, struct i915_vma, exec_list);
 		obj = vma->obj;
 		entry = vma->exec_entry;
+
+		if (ctx->flags & CONTEXT_NO_ZEROMAP)
+			entry->flags |= __EXEC_OBJECT_NEEDS_BIAS;
 
 		if (!has_fenced_gpu_access)
 			entry->flags &= ~EXEC_OBJECT_NEEDS_FENCE;
@@ -775,7 +779,8 @@ i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 				  struct drm_file *file,
 				  struct intel_engine_cs *ring,
 				  struct eb_vmas *eb,
-				  struct drm_i915_gem_exec_object2 *exec)
+				  struct drm_i915_gem_exec_object2 *exec,
+				  struct intel_context *ctx)
 {
 	struct drm_i915_gem_relocation_entry *reloc;
 	struct i915_address_space *vm;
@@ -861,7 +866,7 @@ i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 		goto err;
 
 	need_relocs = (args->flags & I915_EXEC_NO_RELOC) == 0;
-	ret = i915_gem_execbuffer_reserve(ring, &eb->vmas, &need_relocs);
+	ret = i915_gem_execbuffer_reserve(ring, &eb->vmas, ctx, &need_relocs);
 	if (ret)
 		goto err;
 
@@ -1519,7 +1524,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 
 	/* Move the objects en-masse into the GTT, evicting if necessary. */
 	need_relocs = (args->flags & I915_EXEC_NO_RELOC) == 0;
-	ret = i915_gem_execbuffer_reserve(ring, &eb->vmas, &need_relocs);
+	ret = i915_gem_execbuffer_reserve(ring, &eb->vmas, ctx, &need_relocs);
 	if (ret)
 		goto err;
 
@@ -1529,7 +1534,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	if (ret) {
 		if (ret == -EFAULT) {
 			ret = i915_gem_execbuffer_relocate_slow(dev, args, file, ring,
-								eb, exec);
+								eb, exec, ctx);
 			BUG_ON(!mutex_is_locked(&dev->struct_mutex));
 		}
 		if (ret)

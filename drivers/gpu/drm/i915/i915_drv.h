@@ -805,11 +805,15 @@ struct i915_ctx_hang_stats {
 
 /* This must match up with the value previously used for execbuf2.rsvd1. */
 #define DEFAULT_CONTEXT_HANDLE 0
+
+#define CONTEXT_NO_ZEROMAP (1<<0)
 /**
  * struct intel_context - as the name implies, represents a context.
  * @ref: reference count.
  * @user_handle: userspace tracking identity for this context.
  * @remap_slice: l3 row remapping information.
+ * @flags: context specific flags:
+ *         CONTEXT_NO_ZEROMAP: do not allow mapping things to page 0.
  * @file_priv: filp associated with this context (NULL for global default
  *	       context).
  * @hang_stats: information about the role of this context in possible GPU
@@ -826,6 +830,7 @@ struct intel_context {
 	struct kref ref;
 	int user_handle;
 	uint8_t remap_slice;
+	int flags;
 	struct drm_i915_file_private *file_priv;
 	struct i915_ctx_hang_stats hang_stats;
 	struct i915_hw_ppgtt *ppgtt;
