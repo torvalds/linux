@@ -1351,6 +1351,7 @@ struct efx_nic_type {
 	int (*vswitching_probe)(struct efx_nic *efx);
 	int (*vswitching_restore)(struct efx_nic *efx);
 	void (*vswitching_remove)(struct efx_nic *efx);
+	int (*get_mac_address)(struct efx_nic *efx, unsigned char *perm_addr);
 
 	int revision;
 	unsigned int txd_ptr_tbl_base;

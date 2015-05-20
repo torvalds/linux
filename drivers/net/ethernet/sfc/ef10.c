@@ -198,7 +198,7 @@ static int efx_ef10_get_sysclk_freq(struct efx_nic *efx)
 	return rc > 0 ? rc : -ERANGE;
 }
 
-static int efx_ef10_get_mac_address(struct efx_nic *efx, u8 *mac_address)
+static int efx_ef10_get_mac_address_pf(struct efx_nic *efx, u8 *mac_address)
 {
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_MAC_ADDRESSES_OUT_LEN);
 	size_t outlen;
@@ -215,6 +215,34 @@ static int efx_ef10_get_mac_address(struct efx_nic *efx, u8 *mac_address)
 
 	ether_addr_copy(mac_address,
 			MCDI_PTR(outbuf, GET_MAC_ADDRESSES_OUT_MAC_ADDR_BASE));
+	return 0;
+}
+
+static int efx_ef10_get_mac_address_vf(struct efx_nic *efx, u8 *mac_address)
+{
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_VPORT_GET_MAC_ADDRESSES_IN_LEN);
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_VPORT_GET_MAC_ADDRESSES_OUT_LENMAX);
+	size_t outlen;
+	int num_addrs, rc;
+
+	MCDI_SET_DWORD(inbuf, VPORT_GET_MAC_ADDRESSES_IN_VPORT_ID,
+		       EVB_PORT_ID_ASSIGNED);
+	rc = efx_mcdi_rpc(efx, MC_CMD_VPORT_GET_MAC_ADDRESSES, inbuf,
+			  sizeof(inbuf), outbuf, sizeof(outbuf), &outlen);
+
+	if (rc)
+		return rc;
+	if (outlen < MC_CMD_VPORT_GET_MAC_ADDRESSES_OUT_LENMIN)
+		return -EIO;
+
+	num_addrs = MCDI_DWORD(outbuf,
+			       VPORT_GET_MAC_ADDRESSES_OUT_MACADDR_COUNT);
+
+	WARN_ON(num_addrs != 1);
+
+	ether_addr_copy(mac_address,
+			MCDI_PTR(outbuf, VPORT_GET_MAC_ADDRESSES_OUT_MACADDR));
+
 	return 0;
 }
 
@@ -299,7 +327,7 @@ static int efx_ef10_probe(struct efx_nic *efx)
 		goto fail3;
 	efx->port_num = rc;
 
-	rc = efx_ef10_get_mac_address(efx, efx->net_dev->perm_addr);
+	rc = efx->type->get_mac_address(efx, efx->net_dev->perm_addr);
 	if (rc)
 		goto fail3;
 
@@ -3982,6 +4010,8 @@ const struct efx_nic_type efx_hunt_a0_vf_nic_type = {
 	.vswitching_restore = efx_ef10_vswitching_restore_vf,
 	.vswitching_remove = efx_ef10_vswitching_remove_vf,
 #endif
+	.get_mac_address = efx_ef10_get_mac_address_vf,
+
 	.revision = EFX_REV_HUNT_A0,
 	.max_dma_mask = DMA_BIT_MASK(ESF_DZ_TX_KER_BUF_ADDR_WIDTH),
 	.rx_prefix_size = ES_DZ_RX_PREFIX_SIZE,
@@ -4099,6 +4129,7 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.vswitching_restore = efx_ef10_vswitching_restore_pf,
 	.vswitching_remove = efx_ef10_vswitching_remove_pf,
 #endif
+	.get_mac_address = efx_ef10_get_mac_address_pf,
 
 	.revision = EFX_REV_HUNT_A0,
 	.max_dma_mask = DMA_BIT_MASK(ESF_DZ_TX_KER_BUF_ADDR_WIDTH),
