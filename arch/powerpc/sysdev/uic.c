@@ -198,7 +198,7 @@ void uic_irq_cascade(unsigned int virq, struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	struct irq_data *idata = irq_desc_get_irq_data(desc);
-	struct uic *uic = irq_get_handler_data(virq);
+	struct uic *uic = irq_desc_get_handler_data(desc);
 	u32 msr;
 	int src;
 	int subvirq;

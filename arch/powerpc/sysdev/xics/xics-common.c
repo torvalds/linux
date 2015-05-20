@@ -227,7 +227,7 @@ void xics_migrate_irqs_away(void)
 
 		/* Locate interrupt server */
 		server = -1;
-		ics = irq_get_chip_data(virq);
+		ics = irq_desc_get_chip_data(desc);
 		if (ics)
 			server = ics->get_server(ics, irq);
 		if (server < 0) {

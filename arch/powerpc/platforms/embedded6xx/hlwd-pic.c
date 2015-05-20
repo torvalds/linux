@@ -124,7 +124,7 @@ static void hlwd_pic_irq_cascade(unsigned int cascade_virq,
 				      struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
-	struct irq_domain *irq_domain = irq_get_handler_data(cascade_virq);
+	struct irq_domain *irq_domain = irq_desc_get_handler_data(desc);
 	unsigned int virq;
 
 	raw_spin_lock(&desc->lock);

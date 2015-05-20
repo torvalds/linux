@@ -96,7 +96,7 @@ static void msic_dcr_write(struct axon_msic *msic, unsigned int dcr_n, u32 val)
 static void axon_msi_cascade(unsigned int irq, struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
-	struct axon_msic *msic = irq_get_handler_data(irq);
+	struct axon_msic *msic = irq_desc_get_handler_data(desc);
 	u32 write_offset, msi;
 	int idx;
 	int retry = 0;
