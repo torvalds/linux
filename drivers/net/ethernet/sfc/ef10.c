@@ -378,7 +378,7 @@ fail1:
 
 static int efx_ef10_free_vis(struct efx_nic *efx)
 {
-	MCDI_DECLARE_BUF_OUT_OR_ERR(outbuf, 0);
+	MCDI_DECLARE_BUF_ERR(outbuf);
 	size_t outlen;
 	int rc = efx_mcdi_rpc_quiet(efx, MC_CMD_FREE_VIS, NULL, 0,
 				    outbuf, sizeof(outbuf), &outlen);
@@ -449,9 +449,9 @@ static int efx_ef10_alloc_piobufs(struct efx_nic *efx, unsigned int n)
 static int efx_ef10_link_piobufs(struct efx_nic *efx)
 {
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
-	MCDI_DECLARE_BUF(inbuf,
-			 max(MC_CMD_LINK_PIOBUF_IN_LEN,
-			     MC_CMD_UNLINK_PIOBUF_IN_LEN));
+	_MCDI_DECLARE_BUF(inbuf,
+			  max(MC_CMD_LINK_PIOBUF_IN_LEN,
+			      MC_CMD_UNLINK_PIOBUF_IN_LEN));
 	struct efx_channel *channel;
 	struct efx_tx_queue *tx_queue;
 	unsigned int offset, index;
@@ -459,6 +459,8 @@ static int efx_ef10_link_piobufs(struct efx_nic *efx)
 
 	BUILD_BUG_ON(MC_CMD_LINK_PIOBUF_OUT_LEN != 0);
 	BUILD_BUG_ON(MC_CMD_UNLINK_PIOBUF_OUT_LEN != 0);
+
+	memset(inbuf, 0, sizeof(inbuf));
 
 	/* Link a buffer to each VI in the write-combining mapping */
 	for (index = 0; index < nic_data->n_piobufs; ++index) {
@@ -1406,17 +1408,17 @@ static void efx_ef10_tx_init(struct efx_tx_queue *tx_queue)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_INIT_TXQ_IN_LEN(EFX_MAX_DMAQ_SIZE * 8 /
 						       EFX_BUF_SIZE));
-	MCDI_DECLARE_BUF(outbuf, MC_CMD_INIT_TXQ_OUT_LEN);
 	bool csum_offload = tx_queue->queue & EFX_TXQ_TYPE_OFFLOAD;
 	size_t entries = tx_queue->txd.buf.len / EFX_BUF_SIZE;
 	struct efx_channel *channel = tx_queue->channel;
 	struct efx_nic *efx = tx_queue->efx;
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
-	size_t inlen, outlen;
+	size_t inlen;
 	dma_addr_t dma_addr;
 	efx_qword_t *txd;
 	int rc;
 	int i;
+	BUILD_BUG_ON(MC_CMD_INIT_TXQ_OUT_LEN != 0);
 
 	MCDI_SET_DWORD(inbuf, INIT_TXQ_IN_SIZE, tx_queue->ptr_mask + 1);
 	MCDI_SET_DWORD(inbuf, INIT_TXQ_IN_TARGET_EVQ, channel->channel);
@@ -1441,7 +1443,7 @@ static void efx_ef10_tx_init(struct efx_tx_queue *tx_queue)
 	inlen = MC_CMD_INIT_TXQ_IN_LEN(entries);
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_INIT_TXQ, inbuf, inlen,
-			  outbuf, sizeof(outbuf), &outlen);
+			  NULL, 0, NULL);
 	if (rc)
 		goto fail;
 
@@ -1474,7 +1476,7 @@ fail:
 static void efx_ef10_tx_fini(struct efx_tx_queue *tx_queue)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_FINI_TXQ_IN_LEN);
-	MCDI_DECLARE_BUF(outbuf, MC_CMD_FINI_TXQ_OUT_LEN);
+	MCDI_DECLARE_BUF_ERR(outbuf);
 	struct efx_nic *efx = tx_queue->efx;
 	size_t outlen;
 	int rc;
@@ -1781,15 +1783,15 @@ static void efx_ef10_rx_init(struct efx_rx_queue *rx_queue)
 	MCDI_DECLARE_BUF(inbuf,
 			 MC_CMD_INIT_RXQ_IN_LEN(EFX_MAX_DMAQ_SIZE * 8 /
 						EFX_BUF_SIZE));
-	MCDI_DECLARE_BUF(outbuf, MC_CMD_INIT_RXQ_OUT_LEN);
 	struct efx_channel *channel = efx_rx_queue_channel(rx_queue);
 	size_t entries = rx_queue->rxd.buf.len / EFX_BUF_SIZE;
 	struct efx_nic *efx = rx_queue->efx;
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
-	size_t inlen, outlen;
+	size_t inlen;
 	dma_addr_t dma_addr;
 	int rc;
 	int i;
+	BUILD_BUG_ON(MC_CMD_INIT_RXQ_OUT_LEN != 0);
 
 	rx_queue->scatter_n = 0;
 	rx_queue->scatter_len = 0;
@@ -1818,7 +1820,7 @@ static void efx_ef10_rx_init(struct efx_rx_queue *rx_queue)
 	inlen = MC_CMD_INIT_RXQ_IN_LEN(entries);
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_INIT_RXQ, inbuf, inlen,
-			  outbuf, sizeof(outbuf), &outlen);
+			  NULL, 0, NULL);
 	if (rc)
 		netdev_WARN(efx->net_dev, "failed to initialise RXQ %d\n",
 			    efx_rx_queue_index(rx_queue));
@@ -1827,7 +1829,7 @@ static void efx_ef10_rx_init(struct efx_rx_queue *rx_queue)
 static void efx_ef10_rx_fini(struct efx_rx_queue *rx_queue)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_FINI_RXQ_IN_LEN);
-	MCDI_DECLARE_BUF(outbuf, MC_CMD_FINI_RXQ_OUT_LEN);
+	MCDI_DECLARE_BUF_ERR(outbuf);
 	struct efx_nic *efx = rx_queue->efx;
 	size_t outlen;
 	int rc;
@@ -1989,7 +1991,7 @@ static int efx_ef10_ev_init(struct efx_channel *channel)
 static void efx_ef10_ev_fini(struct efx_channel *channel)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_FINI_EVQ_IN_LEN);
-	MCDI_DECLARE_BUF(outbuf, MC_CMD_FINI_EVQ_OUT_LEN);
+	MCDI_DECLARE_BUF_ERR(outbuf);
 	struct efx_nic *efx = channel->efx;
 	size_t outlen;
 	int rc;
