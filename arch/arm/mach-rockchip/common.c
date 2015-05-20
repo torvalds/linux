@@ -120,7 +120,7 @@ static int __init rockchip_pl330_l2_cache_init(void)
 	void __iomem *base;
 	u32 aux[2] = { 0, ~0 }, prefetch, power;
 
-	if (read_cpuid_part_number() != ARM_CPU_PART_CORTEX_A9)
+	if (read_cpuid_part() != ARM_CPU_PART_CORTEX_A9)
 		return -ENODEV;
 
 	np = of_find_compatible_node(NULL, NULL, "rockchip,pl310-cache");

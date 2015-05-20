@@ -43,7 +43,7 @@ static int __init rockchip_ca9_cpuidle_init(void)
 
 	if (!cpu_is_rockchip())
 		return -ENODEV;
-	if (read_cpuid_part_number() != ARM_CPU_PART_CORTEX_A9)
+	if (read_cpuid_part() != ARM_CPU_PART_CORTEX_A9)
 		return -ENODEV;
 	np = of_find_compatible_node(NULL, NULL, "arm,cortex-a9-gic");
 	if (!np)

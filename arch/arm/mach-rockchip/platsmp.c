@@ -97,7 +97,7 @@ static int __init rockchip_smp_prepare_bootram(void)
 	}
 
 	/* set the boot function for the bootram code */
-	if (read_cpuid_part_number() == ARM_CPU_PART_CORTEX_A9)
+	if (read_cpuid_part() == ARM_CPU_PART_CORTEX_A9)
 		rockchip_boot_fn = virt_to_phys(rockchip_a9_secondary_startup);
 	else
 		rockchip_boot_fn = virt_to_phys(secondary_startup);
