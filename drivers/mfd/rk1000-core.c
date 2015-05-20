@@ -106,7 +106,7 @@ int rk1000_i2c_recv(const u8 addr, const u8 reg, const char *buf)
 	return (ret == 2) ? 0 : -1;
 }
 
-static ssize_t rk1000_show(struct kobject *kobj, struct kobj_attribute *attr,char *buf)
+static ssize_t rk1000_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
        int ret=-1;
       int i=0;

@@ -21,7 +21,7 @@ int rk1000_tv_ntsc_init(void)
 	int ret;
 
 	if(cvbsformat>=0){
-		return;
+		return 0;
 	}
 	
 	for (i = 0; i < sizeof(tv_encoder_regs); i++) {
@@ -53,7 +53,7 @@ int rk1000_tv_pal_init(void)
 	int ret;
 
 	if(cvbsformat>=0){
-		return;
+		return 0;
 	}
 	
 	for (i = 0; i < sizeof(tv_encoder_regs); i++) {
