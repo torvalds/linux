@@ -17,6 +17,7 @@
  * battery charging and regulator control, firmware update.
  */
 
+#include <linux/of_platform.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -109,18 +110,8 @@ EXPORT_SYMBOL(cros_ec_cmd_xfer);
 
 static const struct mfd_cell cros_devs[] = {
 	{
-		.name = "cros-ec-keyb",
-		.id = 1,
-		.of_compatible = "google,cros-ec-keyb",
-	},
-	{
-		.name = "cros-ec-i2c-tunnel",
-		.id = 2,
-		.of_compatible = "google,cros-ec-i2c-tunnel",
-	},
-	{
 		.name = "cros-ec-ctl",
-		.id = 3,
+		.id = PLATFORM_DEVID_AUTO,
 	},
 };
 
@@ -148,6 +139,15 @@ int cros_ec_register(struct cros_ec_device *ec_dev)
 	if (err) {
 		dev_err(dev, "failed to add mfd devices\n");
 		return err;
+	}
+
+	if (IS_ENABLED(CONFIG_OF) && dev->of_node) {
+		err = of_platform_populate(dev->of_node, NULL, NULL, dev);
+		if (err) {
+			mfd_remove_devices(dev);
+			dev_err(dev, "Failed to register sub-devices\n");
+			return err;
+		}
 	}
 
 	dev_info(dev, "Chrome EC device registered\n");
