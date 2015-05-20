@@ -999,6 +999,9 @@ do_error:
 	if (copied)
 		goto out;
 out_err:
+	/* make sure we wake any epoll edge trigger waiter */
+	if (unlikely(skb_queue_len(&sk->sk_write_queue) == 0 && err == -EAGAIN))
+		sk->sk_write_space(sk);
 	return sk_stream_error(sk, flags, err);
 }
 
@@ -1288,6 +1291,9 @@ do_error:
 		goto out;
 out_err:
 	err = sk_stream_error(sk, flags, err);
+	/* make sure we wake any epoll edge trigger waiter */
+	if (unlikely(skb_queue_len(&sk->sk_write_queue) == 0 && err == -EAGAIN))
+		sk->sk_write_space(sk);
 	release_sock(sk);
 	return err;
 }
