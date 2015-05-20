@@ -576,20 +576,22 @@ static int alps_decode_pinnacle(struct alps_fields *f, unsigned char *p,
 	f->first_mp = !!(p[4] & 0x40);
 	f->is_mp = !!(p[0] & 0x40);
 
-	f->fingers = (p[5] & 0x3) + 1;
-	f->x_map = ((p[4] & 0x7e) << 8) |
-		   ((p[1] & 0x7f) << 2) |
-		   ((p[0] & 0x30) >> 4);
-	f->y_map = ((p[3] & 0x70) << 4) |
-		   ((p[2] & 0x7f) << 1) |
-		   (p[4] & 0x01);
+	if (f->is_mp) {
+		f->fingers = (p[5] & 0x3) + 1;
+		f->x_map = ((p[4] & 0x7e) << 8) |
+			   ((p[1] & 0x7f) << 2) |
+			   ((p[0] & 0x30) >> 4);
+		f->y_map = ((p[3] & 0x70) << 4) |
+			   ((p[2] & 0x7f) << 1) |
+			   (p[4] & 0x01);
+	} else {
+		f->st.x = ((p[1] & 0x7f) << 4) | ((p[4] & 0x30) >> 2) |
+		       ((p[0] & 0x30) >> 4);
+		f->st.y = ((p[2] & 0x7f) << 4) | (p[4] & 0x0f);
+		f->pressure = p[5] & 0x7f;
 
-	f->st.x = ((p[1] & 0x7f) << 4) | ((p[4] & 0x30) >> 2) |
-	       ((p[0] & 0x30) >> 4);
-	f->st.y = ((p[2] & 0x7f) << 4) | (p[4] & 0x0f);
-	f->pressure = p[5] & 0x7f;
-
-	alps_decode_buttons_v3(f, p);
+		alps_decode_buttons_v3(f, p);
+	}
 
 	return 0;
 }
@@ -600,22 +602,24 @@ static int alps_decode_rushmore(struct alps_fields *f, unsigned char *p,
 	f->first_mp = !!(p[4] & 0x40);
 	f->is_mp = !!(p[5] & 0x40);
 
-	f->fingers = max((p[5] & 0x3), ((p[5] >> 2) & 0x3)) + 1;
-	f->x_map = ((p[5] & 0x10) << 11) |
-		   ((p[4] & 0x7e) << 8) |
-		   ((p[1] & 0x7f) << 2) |
-		   ((p[0] & 0x30) >> 4);
-	f->y_map = ((p[5] & 0x20) << 6) |
-		   ((p[3] & 0x70) << 4) |
-		   ((p[2] & 0x7f) << 1) |
-		   (p[4] & 0x01);
+	if (f->is_mp) {
+		f->fingers = max((p[5] & 0x3), ((p[5] >> 2) & 0x3)) + 1;
+		f->x_map = ((p[5] & 0x10) << 11) |
+			   ((p[4] & 0x7e) << 8) |
+			   ((p[1] & 0x7f) << 2) |
+			   ((p[0] & 0x30) >> 4);
+		f->y_map = ((p[5] & 0x20) << 6) |
+			   ((p[3] & 0x70) << 4) |
+			   ((p[2] & 0x7f) << 1) |
+			   (p[4] & 0x01);
+	} else {
+		f->st.x = ((p[1] & 0x7f) << 4) | ((p[4] & 0x30) >> 2) |
+		       ((p[0] & 0x30) >> 4);
+		f->st.y = ((p[2] & 0x7f) << 4) | (p[4] & 0x0f);
+		f->pressure = p[5] & 0x7f;
 
-	f->st.x = ((p[1] & 0x7f) << 4) | ((p[4] & 0x30) >> 2) |
-	       ((p[0] & 0x30) >> 4);
-	f->st.y = ((p[2] & 0x7f) << 4) | (p[4] & 0x0f);
-	f->pressure = p[5] & 0x7f;
-
-	alps_decode_buttons_v3(f, p);
+		alps_decode_buttons_v3(f, p);
+	}
 
 	return 0;
 }
