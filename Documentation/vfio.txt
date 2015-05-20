@@ -385,6 +385,18 @@ The code flow from the example above should be slightly changed:
 
 	....
 
+	/* Inject EEH error, which is expected to be caused by 32-bits
+	 * config load.
+	 */
+	pe_op.op = VFIO_EEH_PE_INJECT_ERR;
+	pe_op.err.type = EEH_ERR_TYPE_32;
+	pe_op.err.func = EEH_ERR_FUNC_LD_CFG_ADDR;
+	pe_op.err.addr = 0ul;
+	pe_op.err.mask = 0ul;
+	ioctl(container, VFIO_EEH_PE_OP, &pe_op);
+
+	....
+
 	/* When 0xFF's returned from reading PCI config space or IO BARs
 	 * of the PCI device. Check the PE's state to see if that has been
 	 * frozen.

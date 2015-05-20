@@ -10,6 +10,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/of.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
@@ -276,24 +277,15 @@ static void elog_work_fn(struct work_struct *work)
 
 static DECLARE_WORK(elog_work, elog_work_fn);
 
-static int elog_event(struct notifier_block *nb,
-				unsigned long events, void *change)
+static irqreturn_t elog_event(int irq, void *data)
 {
-	/* check for error log event */
-	if (events & OPAL_EVENT_ERROR_LOG_AVAIL)
-		schedule_work(&elog_work);
-	return 0;
+	schedule_work(&elog_work);
+	return IRQ_HANDLED;
 }
-
-static struct notifier_block elog_nb = {
-	.notifier_call  = elog_event,
-	.next           = NULL,
-	.priority       = 0
-};
 
 int __init opal_elog_init(void)
 {
-	int rc = 0;
+	int rc = 0, irq;
 
 	/* ELOG not supported by firmware */
 	if (!opal_check_token(OPAL_ELOG_READ))
@@ -305,10 +297,18 @@ int __init opal_elog_init(void)
 		return -1;
 	}
 
-	rc = opal_notifier_register(&elog_nb);
+	irq = opal_event_request(ilog2(OPAL_EVENT_ERROR_LOG_AVAIL));
+	if (!irq) {
+		pr_err("%s: Can't register OPAL event irq (%d)\n",
+		       __func__, irq);
+		return irq;
+	}
+
+	rc = request_irq(irq, elog_event,
+			IRQ_TYPE_LEVEL_HIGH, "opal-elog", NULL);
 	if (rc) {
-		pr_err("%s: Can't register OPAL event notifier (%d)\n",
-		__func__, rc);
+		pr_err("%s: Can't request OPAL event irq (%d)\n",
+		       __func__, rc);
 		return rc;
 	}
 
