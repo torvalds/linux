@@ -792,6 +792,71 @@ static int dbgdev_wave_control_nodiq(struct kfd_dbgdev *dbgdev,
 							reg_sq_cmd.u32All);
 }
 
+int dbgdev_wave_reset_wavefronts(struct kfd_dev *dev, struct kfd_process *p)
+{
+	int status = 0;
+	unsigned int vmid;
+	union SQ_CMD_BITS reg_sq_cmd;
+	union GRBM_GFX_INDEX_BITS reg_gfx_index;
+	struct kfd_process_device *pdd;
+	struct dbg_wave_control_info wac_info;
+	int temp;
+	int first_vmid_to_scan = 8;
+	int last_vmid_to_scan = 15;
+
+	first_vmid_to_scan = ffs(dev->shared_resources.compute_vmid_bitmap) - 1;
+	temp = dev->shared_resources.compute_vmid_bitmap >> first_vmid_to_scan;
+	last_vmid_to_scan = first_vmid_to_scan + ffz(temp);
+
+	reg_sq_cmd.u32All = 0;
+	status = 0;
+
+	wac_info.mode = HSA_DBG_WAVEMODE_BROADCAST_PROCESS;
+	wac_info.operand = HSA_DBG_WAVEOP_KILL;
+
+	pr_debug("Killing all process wavefronts\n");
+
+	/* Scan all registers in the range ATC_VMID8_PASID_MAPPING ..
+	 * ATC_VMID15_PASID_MAPPING
+	 * to check which VMID the current process is mapped to. */
+
+	for (vmid = first_vmid_to_scan; vmid <= last_vmid_to_scan; vmid++) {
+		if (dev->kfd2kgd->get_atc_vmid_pasid_mapping_valid
+				(dev->kgd, vmid)) {
+			if (dev->kfd2kgd->get_atc_vmid_pasid_mapping_valid
+					(dev->kgd, vmid) == p->pasid) {
+				pr_debug("Killing wave fronts of vmid %d and pasid %d\n",
+						vmid, p->pasid);
+				break;
+			}
+		}
+	}
+
+	if (vmid > last_vmid_to_scan) {
+		pr_err("amdkfd: didn't found vmid for pasid (%d)\n", p->pasid);
+		return -EFAULT;
+	}
+
+	/* taking the VMID for that process on the safe way using PDD */
+	pdd = kfd_get_process_device_data(dev, p);
+	if (!pdd)
+		return -EFAULT;
+
+	status = dbgdev_wave_control_set_registers(&wac_info, &reg_sq_cmd,
+			&reg_gfx_index);
+	if (status != 0)
+		return -EINVAL;
+
+	/* for non DIQ we need to patch the VMID: */
+	reg_sq_cmd.bits.vm_id = vmid;
+
+	dev->kfd2kgd->wave_control_execute(dev->kgd,
+					reg_gfx_index.u32All,
+					reg_sq_cmd.u32All);
+
+	return 0;
+}
+
 void kfd_dbgdev_init(struct kfd_dbgdev *pdbgdev, struct kfd_dev *pdev,
 			enum DBGDEV_TYPE type)
 {

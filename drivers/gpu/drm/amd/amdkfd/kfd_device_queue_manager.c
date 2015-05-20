@@ -946,6 +946,7 @@ static int destroy_queues_cpsch(struct device_queue_manager *dqm,
 {
 	int retval;
 	enum kfd_preempt_type_filter preempt_type;
+	struct kfd_process *p;
 
 	BUG_ON(!dqm);
 
@@ -977,8 +978,13 @@ static int destroy_queues_cpsch(struct device_queue_manager *dqm,
 	pm_send_query_status(&dqm->packets, dqm->fence_gpu_addr,
 				KFD_FENCE_COMPLETED);
 	/* should be timed out */
-	amdkfd_fence_wait_timeout(dqm->fence_addr, KFD_FENCE_COMPLETED,
+	retval = amdkfd_fence_wait_timeout(dqm->fence_addr, KFD_FENCE_COMPLETED,
 				QUEUE_PREEMPT_DEFAULT_TIMEOUT_MS);
+	if (retval != 0) {
+		p = kfd_get_process(current);
+		p->reset_wavefronts = true;
+		goto out;
+	}
 	pm_release_ib(&dqm->packets);
 	dqm->active_runlist = false;
 

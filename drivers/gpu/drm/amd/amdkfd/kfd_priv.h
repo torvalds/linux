@@ -519,6 +519,11 @@ struct kfd_process {
 								event_pages */
 	u32 next_nonsignal_event_id;
 	size_t signal_event_count;
+	/*
+	 * This flag tells if we should reset all wavefronts on
+	 * process termination
+	 */
+	bool reset_wavefronts;
 };
 
 /**
@@ -725,5 +730,7 @@ int kfd_event_create(struct file *devkfd, struct kfd_process *p,
 		     uint32_t *event_id, uint32_t *event_trigger_data,
 		     uint64_t *event_page_offset, uint32_t *event_slot_index);
 int kfd_event_destroy(struct kfd_process *p, uint32_t event_id);
+
+int dbgdev_wave_reset_wavefronts(struct kfd_dev *dev, struct kfd_process *p);
 
 #endif

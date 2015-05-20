@@ -31,6 +31,7 @@
 struct mm_struct;
 
 #include "kfd_priv.h"
+#include "kfd_dbgmgr.h"
 
 /*
  * Initial size for the array of queues.
@@ -172,6 +173,9 @@ static void kfd_process_wq_release(struct work_struct *work)
 		pr_debug("Releasing pdd (topology id %d) for process (pasid %d) in workqueue\n",
 				pdd->dev->id, p->pasid);
 
+		if (p->reset_wavefronts)
+			dbgdev_wave_reset_wavefronts(pdd->dev, p);
+
 		amd_iommu_unbind_pasid(pdd->dev->pdev, p->pasid);
 		list_del(&pdd->per_device_list);
 
@@ -301,6 +305,8 @@ static struct kfd_process *create_process(const struct task_struct *thread)
 	if (kfd_init_apertures(process) != 0)
 		goto err_init_apretures;
 
+	process->reset_wavefronts = false;
+
 	return process;
 
 err_init_apretures:
@@ -399,7 +405,12 @@ void kfd_unbind_process_from_device(struct kfd_dev *dev, unsigned int pasid)
 
 	mutex_lock(&p->mutex);
 
+	if ((dev->dbgmgr) && (dev->dbgmgr->pasid == p->pasid))
+		kfd_dbgmgr_destroy(dev->dbgmgr);
+
 	pqm_uninit(&p->pqm);
+	if (p->reset_wavefronts)
+		dbgdev_wave_reset_wavefronts(dev, p);
 
 	pdd = kfd_get_process_device_data(dev, p);
 
