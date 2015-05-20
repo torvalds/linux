@@ -47,12 +47,18 @@ extern void update_regset_xstate_info(unsigned int size, u64 xstate_mask);
 #define XRSTOR		".byte " REX_PREFIX "0x0f,0xae,0x2f"
 #define XRSTORS		".byte " REX_PREFIX "0x0f,0xc7,0x1f"
 
-#define xstate_fault	".section .fixup,\"ax\"\n"	\
-			"3:  movl $-1,%[err]\n"		\
-			"    jmp  2b\n"			\
-			".previous\n"			\
-			_ASM_EXTABLE(1b, 3b)		\
-			: [err] "=r" (err)
+/* xstate instruction fault handler: */
+#define xstate_fault(__err)		\
+					\
+	".section .fixup,\"ax\"\n"	\
+					\
+	"3:  movl $-1,%[err]\n"		\
+	"    jmp  2b\n"			\
+					\
+	".previous\n"			\
+					\
+	_ASM_EXTABLE(1b, 3b)		\
+	: [err] "=r" (__err)
 
 /*
  * This function is called only during boot time when x86 caps are not set
@@ -70,13 +76,13 @@ static inline int copy_xregs_to_kernel_booting(struct xregs_state *fx)
 	if (boot_cpu_has(X86_FEATURE_XSAVES))
 		asm volatile("1:"XSAVES"\n\t"
 			"2:\n\t"
-			     xstate_fault
+			     xstate_fault(err)
 			: "D" (fx), "m" (*fx), "a" (lmask), "d" (hmask)
 			:   "memory");
 	else
 		asm volatile("1:"XSAVE"\n\t"
 			"2:\n\t"
-			     xstate_fault
+			     xstate_fault(err)
 			: "D" (fx), "m" (*fx), "a" (lmask), "d" (hmask)
 			:   "memory");
 	return err;
@@ -97,13 +103,13 @@ static inline int copy_kernel_to_xregs_booting(struct xregs_state *fx, u64 mask)
 	if (boot_cpu_has(X86_FEATURE_XSAVES))
 		asm volatile("1:"XRSTORS"\n\t"
 			"2:\n\t"
-			     xstate_fault
+			     xstate_fault(err)
 			: "D" (fx), "m" (*fx), "a" (lmask), "d" (hmask)
 			:   "memory");
 	else
 		asm volatile("1:"XRSTOR"\n\t"
 			"2:\n\t"
-			     xstate_fault
+			     xstate_fault(err)
 			: "D" (fx), "m" (*fx), "a" (lmask), "d" (hmask)
 			:   "memory");
 	return err;
@@ -141,7 +147,7 @@ static inline int copy_xregs_to_kernel(struct xregs_state *fx)
 		[fx] "D" (fx), "a" (lmask), "d" (hmask) :
 		"memory");
 	asm volatile("2:\n\t"
-		     xstate_fault
+		     xstate_fault(err)
 		     : "0" (0)
 		     : "memory");
 
@@ -169,7 +175,7 @@ static inline int copy_kernel_to_xregs(struct xregs_state *fx, u64 mask)
 		: "memory");
 
 	asm volatile("2:\n"
-		     xstate_fault
+		     xstate_fault(err)
 		     : "0" (0)
 		     : "memory");
 
@@ -201,7 +207,7 @@ static inline int copy_xregs_to_user(struct xregs_state __user *buf)
 	__asm__ __volatile__(ASM_STAC "\n"
 			     "1:"XSAVE"\n"
 			     "2: " ASM_CLAC "\n"
-			     xstate_fault
+			     xstate_fault(err)
 			     : "D" (buf), "a" (-1), "d" (-1), "0" (0)
 			     : "memory");
 	return err;
@@ -220,7 +226,7 @@ static inline int copy_user_to_xregs(struct xregs_state __user *buf, u64 mask)
 	__asm__ __volatile__(ASM_STAC "\n"
 			     "1:"XRSTOR"\n"
 			     "2: " ASM_CLAC "\n"
-			     xstate_fault
+			     xstate_fault(err)
 			     : "D" (xstate), "a" (lmask), "d" (hmask), "0" (0)
 			     : "memory");	/* memory required? */
 	return err;
