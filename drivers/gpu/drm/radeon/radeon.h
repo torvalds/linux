@@ -719,7 +719,7 @@ struct radeon_doorbell {
 	resource_size_t		size;
 	u32 __iomem		*ptr;
 	u32			num_doorbells;	/* Number of doorbells actually reserved for radeon. */
-	unsigned long		used[DIV_ROUND_UP(RADEON_MAX_DOORBELLS, BITS_PER_LONG)];
+	DECLARE_BITMAP(used, RADEON_MAX_DOORBELLS);
 };
 
 int radeon_doorbell_get(struct radeon_device *rdev, u32 *page);
