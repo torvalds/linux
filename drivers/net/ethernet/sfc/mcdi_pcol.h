@@ -5877,7 +5877,7 @@
 #define MC_CMD_0x98_PRIVILEGE_CTG SRIOV_CTG_GENERAL
 
 /* MC_CMD_VADAPTOR_ALLOC_IN msgrequest */
-#define    MC_CMD_VADAPTOR_ALLOC_IN_LEN 16
+#define    MC_CMD_VADAPTOR_ALLOC_IN_LEN 30
 /* The port to connect to the v-adaptor's port. */
 #define       MC_CMD_VADAPTOR_ALLOC_IN_UPSTREAM_PORT_ID_OFST 0
 /* Flags controlling v-adaptor creation */
@@ -5886,6 +5886,19 @@
 #define        MC_CMD_VADAPTOR_ALLOC_IN_FLAG_AUTO_VADAPTOR_WIDTH 1
 /* The number of VLAN tags to strip on receive */
 #define       MC_CMD_VADAPTOR_ALLOC_IN_NUM_VLANS_OFST 12
+/* The number of VLAN tags to transparently insert/remove. */
+#define       MC_CMD_VADAPTOR_ALLOC_IN_NUM_VLAN_TAGS_OFST 16
+/* The actual VLAN tags to insert/remove */
+#define       MC_CMD_VADAPTOR_ALLOC_IN_VLAN_TAGS_OFST 20
+#define        MC_CMD_VADAPTOR_ALLOC_IN_VLAN_TAG_0_LBN 0
+#define        MC_CMD_VADAPTOR_ALLOC_IN_VLAN_TAG_0_WIDTH 16
+#define        MC_CMD_VADAPTOR_ALLOC_IN_VLAN_TAG_1_LBN 16
+#define        MC_CMD_VADAPTOR_ALLOC_IN_VLAN_TAG_1_WIDTH 16
+/* The MAC address to assign to this v-adaptor */
+#define       MC_CMD_VADAPTOR_ALLOC_IN_MACADDR_OFST 24
+#define       MC_CMD_VADAPTOR_ALLOC_IN_MACADDR_LEN 6
+/* enum: Derive the MAC address from the upstream port */
+#define          MC_CMD_VADAPTOR_ALLOC_IN_AUTO_MAC  0x0
 
 /* MC_CMD_VADAPTOR_ALLOC_OUT msgresponse */
 #define    MC_CMD_VADAPTOR_ALLOC_OUT_LEN 0
