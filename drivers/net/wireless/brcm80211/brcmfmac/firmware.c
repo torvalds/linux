@@ -162,17 +162,20 @@ brcmf_nvram_handle_value(struct nvram_parser *nvp)
 static enum nvram_parser_state
 brcmf_nvram_handle_comment(struct nvram_parser *nvp)
 {
-	char *eol, *sol;
+	char *eoc, *sol;
 
 	sol = (char *)&nvp->fwnv->data[nvp->pos];
-	eol = strchr(sol, '\n');
-	if (eol == NULL)
-		return END;
+	eoc = strchr(sol, '\n');
+	if (!eoc) {
+		eoc = strchr(sol, '\0');
+		if (!eoc)
+			return END;
+	}
 
 	/* eat all moving to next line */
 	nvp->line++;
 	nvp->column = 1;
-	nvp->pos += (eol - sol) + 1;
+	nvp->pos += (eoc - sol) + 1;
 	return IDLE;
 }
 
