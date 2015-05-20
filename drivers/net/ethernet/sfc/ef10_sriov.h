@@ -41,11 +41,7 @@ static inline void efx_ef10_sriov_reset(struct efx_nic *efx) {}
 void efx_ef10_sriov_fini(struct efx_nic *efx);
 static inline void efx_ef10_sriov_flr(struct efx_nic *efx, unsigned vf_i) {}
 
-static inline int efx_ef10_sriov_set_vf_mac(struct efx_nic *efx, int vf,
-					    u8 *mac)
-{
-	return -EOPNOTSUPP;
-}
+int efx_ef10_sriov_set_vf_mac(struct efx_nic *efx, int vf, u8 *mac);
 
 static inline int efx_ef10_sriov_set_vf_vlan(struct efx_nic *efx, int vf,
 					     u16 vlan, u8 qos)

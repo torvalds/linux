@@ -19,6 +19,9 @@
 #define EFX_MEM_BAR 2
 #define EFX_MEM_VF_BAR 0
 
+int efx_net_open(struct net_device *net_dev);
+int efx_net_stop(struct net_device *net_dev);
+
 /* TX */
 int efx_probe_tx_queue(struct efx_tx_queue *tx_queue);
 void efx_remove_tx_queue(struct efx_tx_queue *tx_queue);

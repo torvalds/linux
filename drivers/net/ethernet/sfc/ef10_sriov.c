@@ -431,3 +431,93 @@ void efx_ef10_sriov_fini(struct efx_nic *efx)
 	else
 		netif_dbg(efx, drv, efx->net_dev, "SRIOV disabled\n");
 }
+
+static int efx_ef10_vport_del_vf_mac(struct efx_nic *efx, unsigned int port_id,
+				     u8 *mac)
+{
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_VPORT_DEL_MAC_ADDRESS_IN_LEN);
+	MCDI_DECLARE_BUF_ERR(outbuf);
+	size_t outlen;
+	int rc;
+
+	MCDI_SET_DWORD(inbuf, VPORT_DEL_MAC_ADDRESS_IN_VPORT_ID, port_id);
+	ether_addr_copy(MCDI_PTR(inbuf, VPORT_DEL_MAC_ADDRESS_IN_MACADDR), mac);
+
+	rc = efx_mcdi_rpc(efx, MC_CMD_VPORT_DEL_MAC_ADDRESS, inbuf,
+			  sizeof(inbuf), outbuf, sizeof(outbuf), &outlen);
+
+	return rc;
+}
+
+int efx_ef10_sriov_set_vf_mac(struct efx_nic *efx, int vf_i, u8 *mac)
+{
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	struct ef10_vf *vf;
+	int rc;
+
+	if (!nic_data->vf)
+		return -EOPNOTSUPP;
+
+	if (vf_i >= efx->vf_count)
+		return -EINVAL;
+	vf = nic_data->vf + vf_i;
+
+	if (vf->efx) {
+		efx_device_detach_sync(vf->efx);
+		efx_net_stop(vf->efx->net_dev);
+
+		down_write(&vf->efx->filter_sem);
+		vf->efx->type->filter_table_remove(vf->efx);
+
+		rc = efx_ef10_vadaptor_free(vf->efx, EVB_PORT_ID_ASSIGNED);
+		if (rc) {
+			up_write(&vf->efx->filter_sem);
+			return rc;
+		}
+	}
+
+	rc = efx_ef10_evb_port_assign(efx, EVB_PORT_ID_NULL, vf_i);
+	if (rc)
+		return rc;
+
+	if (!is_zero_ether_addr(vf->mac)) {
+		rc = efx_ef10_vport_del_vf_mac(efx, vf->vport_id, vf->mac);
+		if (rc)
+			return rc;
+	}
+
+	if (!is_zero_ether_addr(mac)) {
+		rc = efx_ef10_vport_add_mac(efx, vf->vport_id, mac);
+		if (rc) {
+			eth_zero_addr(vf->mac);
+			goto fail;
+		}
+		if (vf->efx)
+			ether_addr_copy(vf->efx->net_dev->dev_addr, mac);
+	}
+
+	ether_addr_copy(vf->mac, mac);
+
+	rc = efx_ef10_evb_port_assign(efx, vf->vport_id, vf_i);
+	if (rc)
+		goto fail;
+
+	if (vf->efx) {
+		/* VF cannot use the vport_id that the PF created */
+		rc = efx_ef10_vadaptor_alloc(vf->efx, EVB_PORT_ID_ASSIGNED);
+		if (rc) {
+			up_write(&vf->efx->filter_sem);
+			return rc;
+		}
+		vf->efx->type->filter_table_probe(vf->efx);
+		up_write(&vf->efx->filter_sem);
+		efx_net_open(vf->efx->net_dev);
+		netif_device_attach(vf->efx->net_dev);
+	}
+
+	return 0;
+
+fail:
+	memset(vf->mac, 0, ETH_ALEN);
+	return rc;
+}
