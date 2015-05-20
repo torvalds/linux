@@ -999,6 +999,12 @@ static int tegra_uart_dma_channel_allocate(struct tegra_uart_port *tup,
 			dma_release_channel(dma_chan);
 			return -ENOMEM;
 		}
+		dma_sconfig.src_addr = tup->uport.mapbase;
+		dma_sconfig.src_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
+		dma_sconfig.src_maxburst = 4;
+		tup->rx_dma_chan = dma_chan;
+		tup->rx_dma_buf_virt = dma_buf;
+		tup->rx_dma_buf_phys = dma_phys;
 	} else {
 		dma_phys = dma_map_single(tup->uport.dev,
 			tup->uport.state->xmit.buf, UART_XMIT_SIZE,
@@ -1009,39 +1015,23 @@ static int tegra_uart_dma_channel_allocate(struct tegra_uart_port *tup,
 			return -ENOMEM;
 		}
 		dma_buf = tup->uport.state->xmit.buf;
-	}
-
-	if (dma_to_memory) {
-		dma_sconfig.src_addr = tup->uport.mapbase;
-		dma_sconfig.src_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
-		dma_sconfig.src_maxburst = 4;
-	} else {
 		dma_sconfig.dst_addr = tup->uport.mapbase;
 		dma_sconfig.dst_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
 		dma_sconfig.dst_maxburst = 16;
+		tup->tx_dma_chan = dma_chan;
+		tup->tx_dma_buf_virt = dma_buf;
+		tup->tx_dma_buf_phys = dma_phys;
 	}
 
 	ret = dmaengine_slave_config(dma_chan, &dma_sconfig);
 	if (ret < 0) {
 		dev_err(tup->uport.dev,
 			"Dma slave config failed, err = %d\n", ret);
-		goto scrub;
+		tegra_uart_dma_channel_free(tup, dma_to_memory);
+		return ret;
 	}
 
-	if (dma_to_memory) {
-		tup->rx_dma_chan = dma_chan;
-		tup->rx_dma_buf_virt = dma_buf;
-		tup->rx_dma_buf_phys = dma_phys;
-	} else {
-		tup->tx_dma_chan = dma_chan;
-		tup->tx_dma_buf_virt = dma_buf;
-		tup->tx_dma_buf_phys = dma_phys;
-	}
 	return 0;
-
-scrub:
-	tegra_uart_dma_channel_free(tup, dma_to_memory);
-	return ret;
 }
 
 static int tegra_uart_startup(struct uart_port *u)
