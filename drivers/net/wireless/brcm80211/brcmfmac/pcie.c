@@ -112,10 +112,9 @@ enum brcmf_pcie_state {
 						 BRCMF_PCIE_MB_INT_D2H3_DB0 | \
 						 BRCMF_PCIE_MB_INT_D2H3_DB1)
 
-#define BRCMF_PCIE_MIN_SHARED_VERSION		4
+#define BRCMF_PCIE_MIN_SHARED_VERSION		5
 #define BRCMF_PCIE_MAX_SHARED_VERSION		5
 #define BRCMF_PCIE_SHARED_VERSION_MASK		0x00FF
-#define BRCMF_PCIE_SHARED_TXPUSH_SUPPORT	0x4000
 
 #define BRCMF_PCIE_FLAGS_HTOD_SPLIT		0x4000
 #define BRCMF_PCIE_FLAGS_DTOH_SPLIT		0x8000
@@ -1278,11 +1277,6 @@ brcmf_pcie_init_share_ram_info(struct brcmf_pciedev_info *devinfo,
 	if ((version > BRCMF_PCIE_MAX_SHARED_VERSION) ||
 	    (version < BRCMF_PCIE_MIN_SHARED_VERSION)) {
 		brcmf_err("Unsupported PCIE version %d\n", version);
-		return -EINVAL;
-	}
-	if (shared->flags & BRCMF_PCIE_SHARED_TXPUSH_SUPPORT) {
-		brcmf_err("Unsupported legacy TX mode 0x%x\n",
-			  shared->flags & BRCMF_PCIE_SHARED_TXPUSH_SUPPORT);
 		return -EINVAL;
 	}
 
