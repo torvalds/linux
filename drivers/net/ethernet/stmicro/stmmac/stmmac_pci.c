@@ -164,7 +164,6 @@ static int stmmac_pci_probe(struct pci_dev *pdev,
 	struct stmmac_pci_info *info = (struct stmmac_pci_info *)id->driver_data;
 	struct plat_stmmacenet_data *plat;
 	struct stmmac_resources res;
-	struct stmmac_priv *priv;
 	int i;
 	int ret;
 
@@ -220,15 +219,7 @@ static int stmmac_pci_probe(struct pci_dev *pdev,
 	res.wol_irq = pdev->irq;
 	res.irq = pdev->irq;
 
-	priv = stmmac_dvr_probe(&pdev->dev, plat, &res);
-	if (IS_ERR(priv)) {
-		dev_err(&pdev->dev, "%s: main driver probe failed\n", __func__);
-		return PTR_ERR(priv);
-	}
-
-	dev_dbg(&pdev->dev, "STMMAC PCI driver registration completed\n");
-
-	return 0;
+	return stmmac_dvr_probe(&pdev->dev, plat, &res);
 }
 
 /**
