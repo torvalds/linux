@@ -517,7 +517,7 @@ static void __device_attach_async_helper(void *_dev, async_cookie_t cookie)
 	put_device(dev);
 }
 
-int __device_attach(struct device *dev, bool allow_async)
+static int __device_attach(struct device *dev, bool allow_async)
 {
 	int ret = 0;
 
