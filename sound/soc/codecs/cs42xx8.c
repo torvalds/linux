@@ -652,6 +652,7 @@ static int cs42xx8_runtime_suspend(struct device *dev)
 {
 	struct cs42xx8_priv *cs42xx8 = dev_get_drvdata(dev);
 
+	regcache_mark_dirty(cs42xx8->regmap);
 	regcache_cache_only(cs42xx8->regmap, true);
 
 	regulator_bulk_disable(ARRAY_SIZE(cs42xx8->supplies),
