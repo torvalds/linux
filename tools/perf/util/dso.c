@@ -745,12 +745,6 @@ out:
  */
 off_t dso__data_size(struct dso *dso, struct machine *machine)
 {
-	int fd;
-
-	fd = dso__data_fd(dso, machine);
-	if (fd < 0)
-		return fd;
-
 	if (data_file_size(dso, machine))
 		return -1;
 
