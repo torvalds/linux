@@ -2196,6 +2196,8 @@ static int efx_set_mac_address(struct net_device *net_dev, void *data)
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct sockaddr *addr = data;
 	u8 *new_addr = addr->sa_data;
+	u8 old_addr[6];
+	int rc;
 
 	if (!is_valid_ether_addr(new_addr)) {
 		netif_err(efx, drv, efx->net_dev,
@@ -2204,9 +2206,16 @@ static int efx_set_mac_address(struct net_device *net_dev, void *data)
 		return -EADDRNOTAVAIL;
 	}
 
+	/* save old address */
+	ether_addr_copy(old_addr, net_dev->dev_addr);
 	ether_addr_copy(net_dev->dev_addr, new_addr);
-	if (efx->type->sriov_mac_address_changed)
-		efx->type->sriov_mac_address_changed(efx);
+	if (efx->type->sriov_mac_address_changed) {
+		rc = efx->type->sriov_mac_address_changed(efx);
+		if (rc) {
+			ether_addr_copy(net_dev->dev_addr, old_addr);
+			return rc;
+		}
+	}
 
 	/* Reconfigure the MAC */
 	mutex_lock(&efx->mac_lock);

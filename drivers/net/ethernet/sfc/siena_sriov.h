@@ -44,7 +44,7 @@
 int efx_siena_sriov_configure(struct efx_nic *efx, int num_vfs);
 int efx_siena_sriov_init(struct efx_nic *efx);
 void efx_siena_sriov_fini(struct efx_nic *efx);
-void efx_siena_sriov_mac_address_changed(struct efx_nic *efx);
+int efx_siena_sriov_mac_address_changed(struct efx_nic *efx);
 bool efx_siena_sriov_wanted(struct efx_nic *efx);
 void efx_siena_sriov_reset(struct efx_nic *efx);
 void efx_siena_sriov_flr(struct efx_nic *efx, unsigned flr);
