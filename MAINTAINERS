@@ -7392,13 +7392,16 @@ S:	Maintained
 F:	Documentation/mn10300/
 F:	arch/mn10300/
 
-PARALLEL PORT SUPPORT
+PARALLEL PORT SUBSYSTEM
+M:	Sudip Mukherjee <sudipm.mukherjee@gmail.com>
+M:	Sudip Mukherjee <sudip@vectorindia.org>
 L:	linux-parport@lists.infradead.org (subscribers-only)
-S:	Orphan
+S:	Maintained
 F:	drivers/parport/
 F:	include/linux/parport*.h
 F:	drivers/char/ppdev.c
 F:	include/uapi/linux/ppdev.h
+F:	Documentation/parport*.txt
 
 PARAVIRT_OPS INTERFACE
 M:	Jeremy Fitzhardinge <jeremy@goop.org>
