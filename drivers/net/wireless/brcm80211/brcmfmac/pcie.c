@@ -115,6 +115,8 @@ enum brcmf_pcie_state {
 #define BRCMF_PCIE_MIN_SHARED_VERSION		5
 #define BRCMF_PCIE_MAX_SHARED_VERSION		5
 #define BRCMF_PCIE_SHARED_VERSION_MASK		0x00FF
+#define BRCMF_PCIE_SHARED_DMA_INDEX		0x10000
+#define BRCMF_PCIE_SHARED_DMA_2B_IDX		0x100000
 
 #define BRCMF_PCIE_FLAGS_HTOD_SPLIT		0x4000
 #define BRCMF_PCIE_FLAGS_DTOH_SPLIT		0x8000
@@ -146,6 +148,10 @@ enum brcmf_pcie_state {
 #define BRCMF_SHARED_RING_H2D_R_IDX_PTR_OFFSET	8
 #define BRCMF_SHARED_RING_D2H_W_IDX_PTR_OFFSET	12
 #define BRCMF_SHARED_RING_D2H_R_IDX_PTR_OFFSET	16
+#define BRCMF_SHARED_RING_H2D_WP_HADDR_OFFSET	20
+#define BRCMF_SHARED_RING_H2D_RP_HADDR_OFFSET	28
+#define BRCMF_SHARED_RING_D2H_WP_HADDR_OFFSET	36
+#define BRCMF_SHARED_RING_D2H_RP_HADDR_OFFSET	44
 #define BRCMF_SHARED_RING_TCM_MEMLOC_OFFSET	0
 #define BRCMF_SHARED_RING_MAX_SUB_QUEUES	52
 
@@ -247,6 +253,13 @@ struct brcmf_pciedev_info {
 	bool mbdata_completed;
 	bool irq_allocated;
 	bool wowl_enabled;
+	u8 dma_idx_sz;
+	void *idxbuf;
+	u32 idxbuf_sz;
+	dma_addr_t idxbuf_dmahandle;
+	u16 (*read_ptr)(struct brcmf_pciedev_info *devinfo, u32 mem_offset);
+	void (*write_ptr)(struct brcmf_pciedev_info *devinfo, u32 mem_offset,
+			  u16 value);
 };
 
 struct brcmf_pcie_ringbuf {
@@ -320,6 +333,25 @@ brcmf_pcie_write_tcm16(struct brcmf_pciedev_info *devinfo, u32 mem_offset,
 	void __iomem *address = devinfo->tcm + mem_offset;
 
 	iowrite16(value, address);
+}
+
+
+static u16
+brcmf_pcie_read_idx(struct brcmf_pciedev_info *devinfo, u32 mem_offset)
+{
+	u16 *address = devinfo->idxbuf + mem_offset;
+
+	return (*(address));
+}
+
+
+static void
+brcmf_pcie_write_idx(struct brcmf_pciedev_info *devinfo, u32 mem_offset,
+		     u16 value)
+{
+	u16 *address = devinfo->idxbuf + mem_offset;
+
+	*(address) = value;
 }
 
 
@@ -868,7 +900,7 @@ static int brcmf_pcie_ring_mb_write_rptr(void *ctx)
 	brcmf_dbg(PCIE, "W r_ptr %d (%d), ring %d\n", commonring->r_ptr,
 		  commonring->w_ptr, ring->id);
 
-	brcmf_pcie_write_tcm16(devinfo, ring->r_idx_addr, commonring->r_ptr);
+	devinfo->write_ptr(devinfo, ring->r_idx_addr, commonring->r_ptr);
 
 	return 0;
 }
@@ -886,7 +918,7 @@ static int brcmf_pcie_ring_mb_write_wptr(void *ctx)
 	brcmf_dbg(PCIE, "W w_ptr %d (%d), ring %d\n", commonring->w_ptr,
 		  commonring->r_ptr, ring->id);
 
-	brcmf_pcie_write_tcm16(devinfo, ring->w_idx_addr, commonring->w_ptr);
+	devinfo->write_ptr(devinfo, ring->w_idx_addr, commonring->w_ptr);
 
 	return 0;
 }
@@ -915,7 +947,7 @@ static int brcmf_pcie_ring_mb_update_rptr(void *ctx)
 	if (devinfo->state != BRCMFMAC_PCIE_STATE_UP)
 		return -EIO;
 
-	commonring->r_ptr = brcmf_pcie_read_tcm16(devinfo, ring->r_idx_addr);
+	commonring->r_ptr = devinfo->read_ptr(devinfo, ring->r_idx_addr);
 
 	brcmf_dbg(PCIE, "R r_ptr %d (%d), ring %d\n", commonring->r_ptr,
 		  commonring->w_ptr, ring->id);
@@ -933,7 +965,7 @@ static int brcmf_pcie_ring_mb_update_wptr(void *ctx)
 	if (devinfo->state != BRCMFMAC_PCIE_STATE_UP)
 		return -EIO;
 
-	commonring->w_ptr = brcmf_pcie_read_tcm16(devinfo, ring->w_idx_addr);
+	commonring->w_ptr = devinfo->read_ptr(devinfo, ring->w_idx_addr);
 
 	brcmf_dbg(PCIE, "R w_ptr %d (%d), ring %d\n", commonring->w_ptr,
 		  commonring->r_ptr, ring->id);
@@ -1038,6 +1070,13 @@ static void brcmf_pcie_release_ringbuffers(struct brcmf_pciedev_info *devinfo)
 	}
 	kfree(devinfo->shared.flowrings);
 	devinfo->shared.flowrings = NULL;
+	if (devinfo->idxbuf) {
+		dma_free_coherent(&devinfo->pdev->dev,
+				  devinfo->idxbuf_sz,
+				  devinfo->idxbuf,
+				  devinfo->idxbuf_dmahandle);
+		devinfo->idxbuf = NULL;
+	}
 }
 
 
@@ -1053,19 +1092,72 @@ static int brcmf_pcie_init_ringbuffers(struct brcmf_pciedev_info *devinfo)
 	u32 addr;
 	u32 ring_mem_ptr;
 	u32 i;
+	u64 address;
+	u32 bufsz;
 	u16 max_sub_queues;
+	u8 idx_offset;
 
 	ring_addr = devinfo->shared.ring_info_addr;
 	brcmf_dbg(PCIE, "Base ring addr = 0x%08x\n", ring_addr);
+	addr = ring_addr + BRCMF_SHARED_RING_MAX_SUB_QUEUES;
+	max_sub_queues = brcmf_pcie_read_tcm16(devinfo, addr);
 
-	addr = ring_addr + BRCMF_SHARED_RING_D2H_W_IDX_PTR_OFFSET;
-	d2h_w_idx_ptr = brcmf_pcie_read_tcm32(devinfo, addr);
-	addr = ring_addr + BRCMF_SHARED_RING_D2H_R_IDX_PTR_OFFSET;
-	d2h_r_idx_ptr = brcmf_pcie_read_tcm32(devinfo, addr);
-	addr = ring_addr + BRCMF_SHARED_RING_H2D_W_IDX_PTR_OFFSET;
-	h2d_w_idx_ptr = brcmf_pcie_read_tcm32(devinfo, addr);
-	addr = ring_addr + BRCMF_SHARED_RING_H2D_R_IDX_PTR_OFFSET;
-	h2d_r_idx_ptr = brcmf_pcie_read_tcm32(devinfo, addr);
+	if (devinfo->dma_idx_sz != 0) {
+		bufsz = (BRCMF_NROF_D2H_COMMON_MSGRINGS + max_sub_queues) *
+			devinfo->dma_idx_sz * 2;
+		devinfo->idxbuf = dma_alloc_coherent(&devinfo->pdev->dev, bufsz,
+						     &devinfo->idxbuf_dmahandle,
+						     GFP_KERNEL);
+		if (!devinfo->idxbuf)
+			devinfo->dma_idx_sz = 0;
+	}
+
+	if (devinfo->dma_idx_sz == 0) {
+		addr = ring_addr + BRCMF_SHARED_RING_D2H_W_IDX_PTR_OFFSET;
+		d2h_w_idx_ptr = brcmf_pcie_read_tcm32(devinfo, addr);
+		addr = ring_addr + BRCMF_SHARED_RING_D2H_R_IDX_PTR_OFFSET;
+		d2h_r_idx_ptr = brcmf_pcie_read_tcm32(devinfo, addr);
+		addr = ring_addr + BRCMF_SHARED_RING_H2D_W_IDX_PTR_OFFSET;
+		h2d_w_idx_ptr = brcmf_pcie_read_tcm32(devinfo, addr);
+		addr = ring_addr + BRCMF_SHARED_RING_H2D_R_IDX_PTR_OFFSET;
+		h2d_r_idx_ptr = brcmf_pcie_read_tcm32(devinfo, addr);
+		idx_offset = sizeof(u32);
+		devinfo->write_ptr = brcmf_pcie_write_tcm16;
+		devinfo->read_ptr = brcmf_pcie_read_tcm16;
+		brcmf_dbg(PCIE, "Using TCM indices\n");
+	} else {
+		memset(devinfo->idxbuf, 0, bufsz);
+		devinfo->idxbuf_sz = bufsz;
+		idx_offset = devinfo->dma_idx_sz;
+		devinfo->write_ptr = brcmf_pcie_write_idx;
+		devinfo->read_ptr = brcmf_pcie_read_idx;
+
+		h2d_w_idx_ptr = 0;
+		addr = ring_addr + BRCMF_SHARED_RING_H2D_WP_HADDR_OFFSET;
+		address = (u64)devinfo->idxbuf_dmahandle;
+		brcmf_pcie_write_tcm32(devinfo, addr, address & 0xffffffff);
+		brcmf_pcie_write_tcm32(devinfo, addr + 4, address >> 32);
+
+		h2d_r_idx_ptr = h2d_w_idx_ptr + max_sub_queues * idx_offset;
+		addr = ring_addr + BRCMF_SHARED_RING_H2D_RP_HADDR_OFFSET;
+		address += max_sub_queues * idx_offset;
+		brcmf_pcie_write_tcm32(devinfo, addr, address & 0xffffffff);
+		brcmf_pcie_write_tcm32(devinfo, addr + 4, address >> 32);
+
+		d2h_w_idx_ptr = h2d_r_idx_ptr + max_sub_queues * idx_offset;
+		addr = ring_addr + BRCMF_SHARED_RING_D2H_WP_HADDR_OFFSET;
+		address += max_sub_queues * idx_offset;
+		brcmf_pcie_write_tcm32(devinfo, addr, address & 0xffffffff);
+		brcmf_pcie_write_tcm32(devinfo, addr + 4, address >> 32);
+
+		d2h_r_idx_ptr = d2h_w_idx_ptr +
+				BRCMF_NROF_D2H_COMMON_MSGRINGS * idx_offset;
+		addr = ring_addr + BRCMF_SHARED_RING_D2H_RP_HADDR_OFFSET;
+		address += BRCMF_NROF_D2H_COMMON_MSGRINGS * idx_offset;
+		brcmf_pcie_write_tcm32(devinfo, addr, address & 0xffffffff);
+		brcmf_pcie_write_tcm32(devinfo, addr + 4, address >> 32);
+		brcmf_dbg(PCIE, "Using host memory indices\n");
+	}
 
 	addr = ring_addr + BRCMF_SHARED_RING_TCM_MEMLOC_OFFSET;
 	ring_mem_ptr = brcmf_pcie_read_tcm32(devinfo, addr);
@@ -1079,8 +1171,8 @@ static int brcmf_pcie_init_ringbuffers(struct brcmf_pciedev_info *devinfo)
 		ring->id = i;
 		devinfo->shared.commonrings[i] = ring;
 
-		h2d_w_idx_ptr += sizeof(u32);
-		h2d_r_idx_ptr += sizeof(u32);
+		h2d_w_idx_ptr += idx_offset;
+		h2d_r_idx_ptr += idx_offset;
 		ring_mem_ptr += BRCMF_RING_MEM_SZ;
 	}
 
@@ -1094,13 +1186,11 @@ static int brcmf_pcie_init_ringbuffers(struct brcmf_pciedev_info *devinfo)
 		ring->id = i;
 		devinfo->shared.commonrings[i] = ring;
 
-		d2h_w_idx_ptr += sizeof(u32);
-		d2h_r_idx_ptr += sizeof(u32);
+		d2h_w_idx_ptr += idx_offset;
+		d2h_r_idx_ptr += idx_offset;
 		ring_mem_ptr += BRCMF_RING_MEM_SZ;
 	}
 
-	addr = ring_addr + BRCMF_SHARED_RING_MAX_SUB_QUEUES;
-	max_sub_queues = brcmf_pcie_read_tcm16(devinfo, addr);
 	devinfo->shared.nrof_flowrings =
 			max_sub_queues - BRCMF_NROF_H2D_COMMON_MSGRINGS;
 	rings = kcalloc(devinfo->shared.nrof_flowrings, sizeof(*ring),
@@ -1124,15 +1214,15 @@ static int brcmf_pcie_init_ringbuffers(struct brcmf_pciedev_info *devinfo)
 					     ring);
 		ring->w_idx_addr = h2d_w_idx_ptr;
 		ring->r_idx_addr = h2d_r_idx_ptr;
-		h2d_w_idx_ptr += sizeof(u32);
-		h2d_r_idx_ptr += sizeof(u32);
+		h2d_w_idx_ptr += idx_offset;
+		h2d_r_idx_ptr += idx_offset;
 	}
 	devinfo->shared.flowrings = rings;
 
 	return 0;
 
 fail:
-	brcmf_err("Allocating commonring buffers failed\n");
+	brcmf_err("Allocating ring buffers failed\n");
 	brcmf_pcie_release_ringbuffers(devinfo);
 	return -ENOMEM;
 }
@@ -1267,6 +1357,14 @@ brcmf_pcie_init_share_ram_info(struct brcmf_pciedev_info *devinfo,
 	    (version < BRCMF_PCIE_MIN_SHARED_VERSION)) {
 		brcmf_err("Unsupported PCIE version %d\n", version);
 		return -EINVAL;
+	}
+
+	/* check firmware support dma indicies */
+	if (shared->flags & BRCMF_PCIE_SHARED_DMA_INDEX) {
+		if (shared->flags & BRCMF_PCIE_SHARED_DMA_2B_IDX)
+			devinfo->dma_idx_sz = sizeof(u16);
+		else
+			devinfo->dma_idx_sz = sizeof(u32);
 	}
 
 	addr = sharedram_addr + BRCMF_SHARED_MAX_RXBUFPOST_OFFSET;
