@@ -1072,6 +1072,9 @@ static int wacom_wac_finger_count_touches(struct wacom_wac *wacom)
 	int count = 0;
 	int i;
 
+	if (!touch_max)
+		return 0;
+
 	/* non-HID_GENERIC single touch input doesn't call this routine */
 	if ((touch_max == 1) && (wacom->features.type == HID_GENERIC))
 		return wacom->hid_data.tipswitch &&
