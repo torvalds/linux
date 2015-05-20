@@ -112,18 +112,15 @@ struct bio {
  * bio flags
  */
 #define BIO_UPTODATE	0	/* ok after I/O completion */
-#define BIO_RW_BLOCK	1	/* RW_AHEAD set, and read/write would block */
-#define BIO_EOF		2	/* out-out-bounds error */
-#define BIO_SEG_VALID	3	/* bi_phys_segments valid */
-#define BIO_CLONED	4	/* doesn't own data */
-#define BIO_BOUNCED	5	/* bio is a bounce bio */
-#define BIO_USER_MAPPED 6	/* contains user pages */
-#define BIO_EOPNOTSUPP	7	/* not supported */
-#define BIO_NULL_MAPPED 8	/* contains invalid user pages */
-#define BIO_QUIET	9	/* Make BIO Quiet */
-#define BIO_SNAP_STABLE	10	/* bio data must be snapshotted during write */
-#define BIO_CHAIN	11	/* chained bio, ->bi_remaining in effect */
-#define BIO_REFFED	12	/* bio has elevated ->bi_cnt */
+#define BIO_SEG_VALID	1	/* bi_phys_segments valid */
+#define BIO_CLONED	2	/* doesn't own data */
+#define BIO_BOUNCED	3	/* bio is a bounce bio */
+#define BIO_USER_MAPPED 4	/* contains user pages */
+#define BIO_NULL_MAPPED 5	/* contains invalid user pages */
+#define BIO_QUIET	6	/* Make BIO Quiet */
+#define BIO_SNAP_STABLE	7	/* bio data must be snapshotted during write */
+#define BIO_CHAIN	8	/* chained bio, ->bi_remaining in effect */
+#define BIO_REFFED	9	/* bio has elevated ->bi_cnt */
 
 /*
  * Flags starting here get preserved by bio_reset() - this includes
