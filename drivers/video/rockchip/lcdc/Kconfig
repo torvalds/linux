@@ -10,41 +10,43 @@ config LCDC_RK30
         help
           Driver for rk30 lcdc .There are two lcd controllers on rk30
 
-
 config LCDC_RK3066B
         tristate "rk3066b lcdc support"
         depends on (DRM_ROCKCHIP || FB_ROCKCHIP) && ARCH_RK3066B
         help
           Driver for rk3066b  lcdc.
 
-
-
 config LCDC_RK3188
         bool "rk3188 lcdc support"
         depends on DRM_ROCKCHIP || FB_ROCKCHIP 
+	depends on ARM
         help
           Driver for rk3188/rk302x/rk319x lcdc.There are two lcd controllers on rk3188
-
 
 config LCDC_RK3288
         bool "rk3288 lcdc support"
         depends on DRM_ROCKCHIP || FB_ROCKCHIP 
+	depends on ARM
         help
           Driver for rk3288 lcdc.There are two lcd controllers on rk3288
 
 config LCDC_RK3036
 	bool "rk3036 lcdc support"
 	depends on DRM_ROCKCHIP || FB_ROCKCHIP 
+	depends on ARM
         help
           Driver for rk3036 lcdc.
 
 config LCDC_RK312X
         bool "rk312x lcdc support"
         depends on DRM_ROCKCHIP || FB_ROCKCHIP
+	depends on ARM
         help
           Driver for rk312x lcdc.
+
 config LCDC_RK3368
-		bool "rk3368 lcdc support"
-			depends on DRM_ROCKCHIP || FB_ROCKCHIP
-			help
-			Driver for rk3368 lcdc.There are one lcd controllers on rk3368
+	bool "rk3368 lcdc support"
+	depends on DRM_ROCKCHIP || FB_ROCKCHIP
+	depends on ARM64
+	help
+	  Driver for rk3368 lcdc.There are one lcd controllers on rk3368
