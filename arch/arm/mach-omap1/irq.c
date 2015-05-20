@@ -233,6 +233,7 @@ void __init omap1_init_irq(void)
 		irq_base = 0;
 	}
 	omap_l2_irq = cpu_is_omap7xx() ? irq_base + 1 : irq_base;
+	omap_l2_irq -= NR_IRQS_LEGACY;
 
 	domain = irq_domain_add_legacy(NULL, nr_irqs, irq_base, 0,
 				       &irq_domain_simple_ops, NULL);
