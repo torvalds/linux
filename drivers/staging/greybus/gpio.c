@@ -282,7 +282,7 @@ static int gb_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 			dev_err(chip->dev, "failed to set irq type: %d\n",
 				ret);
 		}
-                break;
+		break;
 	default:
 		dev_err(chip->dev, "unsupported irq type: %u\n", type);
 		ret = -EINVAL;
