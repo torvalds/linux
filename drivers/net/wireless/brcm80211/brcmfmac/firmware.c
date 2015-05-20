@@ -25,7 +25,7 @@
 
 #define BRCMF_FW_MAX_NVRAM_SIZE			64000
 #define BRCMF_FW_NVRAM_DEVPATH_LEN		19	/* devpath0=pcie/1/4/ */
-#define BRCMF_FW_NVRAM_PCIEDEV_LEN		9	/* pcie/1/4/ */
+#define BRCMF_FW_NVRAM_PCIEDEV_LEN		10	/* pcie/1/4/ + \0 */
 
 char brcmf_firmware_path[BRCMF_FW_PATH_LEN];
 module_param_string(firmware_path, brcmf_firmware_path,
@@ -297,6 +297,8 @@ fail:
 static void brcmf_fw_strip_multi_v2(struct nvram_parser *nvp, u16 domain_nr,
 				    u16 bus_nr)
 {
+	char prefix[BRCMF_FW_NVRAM_PCIEDEV_LEN];
+	size_t len;
 	u32 i, j;
 	u8 *nvram;
 
@@ -308,14 +310,13 @@ static void brcmf_fw_strip_multi_v2(struct nvram_parser *nvp, u16 domain_nr,
 	 * Valid entries are of type pcie/X/Y/ where X = domain_nr and
 	 * Y = bus_nr.
 	 */
+	snprintf(prefix, sizeof(prefix), "pcie/%d/%d/", domain_nr, bus_nr);
+	len = strlen(prefix);
 	i = 0;
 	j = 0;
-	while (i < nvp->nvram_len - BRCMF_FW_NVRAM_PCIEDEV_LEN) {
-		if ((strncmp(&nvp->nvram[i], "pcie/", 5) == 0) &&
-		    (nvp->nvram[i + 6] == '/') && (nvp->nvram[i + 8] == '/') &&
-		    ((nvp->nvram[i + 5] - '0') == domain_nr) &&
-		    ((nvp->nvram[i + 7] - '0') == bus_nr)) {
-			i += BRCMF_FW_NVRAM_PCIEDEV_LEN;
+	while (i < nvp->nvram_len - len) {
+		if (strncmp(&nvp->nvram[i], prefix, len) == 0) {
+			i += len;
 			while (nvp->nvram[i] != 0) {
 				nvram[j] = nvp->nvram[i];
 				i++;
