@@ -162,7 +162,7 @@ static int max77843_regulator_probe(struct platform_device *pdev)
 				&max77843_supported_regulators[i], &config);
 		if (IS_ERR(regulator)) {
 			dev_err(&pdev->dev,
-					"Failed to regiser regulator-%d\n", i);
+					"Failed to register regulator-%d\n", i);
 			return PTR_ERR(regulator);
 		}
 	}

@@ -96,7 +96,7 @@ static int mhu_startup(struct mbox_chan *chan)
 			  IRQF_SHARED, "mhu_link", chan);
 	if (ret) {
 		dev_err(chan->mbox->dev,
-			"Unable to aquire IRQ %d\n", mlink->irq);
+			"Unable to acquire IRQ %d\n", mlink->irq);
 		return ret;
 	}
 
