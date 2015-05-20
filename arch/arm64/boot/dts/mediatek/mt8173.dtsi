@@ -14,6 +14,7 @@
 #include <dt-bindings/clock/mt8173-clk.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/reset-controller/mt8173-resets.h>
 #include "mt8173-pinfunc.h"
 
 / {
@@ -157,6 +158,17 @@
 		syscfg_pctl_a: syscfg_pctl_a@10005000 {
 			compatible = "mediatek,mt8173-pctl-a-syscfg", "syscon";
 			reg = <0 0x10005000 0 0x1000>;
+		};
+
+		pwrap: pwrap@1000d000 {
+			compatible = "mediatek,mt8173-pwrap";
+			reg = <0 0x1000d000 0 0x1000>;
+			reg-names = "pwrap";
+			interrupts = <GIC_SPI 153 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&infracfg MT8173_INFRA_PMIC_WRAP_RST>;
+			reset-names = "pwrap";
+			clocks = <&infracfg CLK_INFRA_PMICSPI>, <&infracfg CLK_INFRA_PMICWRAP>;
+			clock-names = "spi", "wrap";
 		};
 
 		sysirq: intpol-controller@10200620 {
