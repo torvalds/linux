@@ -509,6 +509,7 @@ again:
 	h->transaction = cur_trans;
 	h->blocks_used = 0;
 	h->bytes_reserved = 0;
+	h->chunk_bytes_reserved = 0;
 	h->root = root;
 	h->delayed_ref_updates = 0;
 	h->use_count = 1;
@@ -791,6 +792,8 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 
 	if (!list_empty(&trans->new_bgs))
 		btrfs_create_pending_block_groups(trans, root);
+
+	btrfs_trans_release_chunk_metadata(trans);
 
 	if (lock && !atomic_read(&root->fs_info->open_ioctl_trans) &&
 	    should_end_transaction(trans, root) &&
@@ -2054,6 +2057,8 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	clear_bit(BTRFS_INODE_BTREE_LOG1_ERR, &btree_ino->runtime_flags);
 	clear_bit(BTRFS_INODE_BTREE_LOG2_ERR, &btree_ino->runtime_flags);
 
+	btrfs_trans_release_chunk_metadata(trans);
+
 	spin_lock(&root->fs_info->trans_lock);
 	cur_trans->state = TRANS_STATE_UNBLOCKED;
 	root->fs_info->running_transaction = NULL;
@@ -2123,6 +2128,7 @@ scrub_continue:
 	btrfs_scrub_continue(root);
 cleanup_transaction:
 	btrfs_trans_release_metadata(trans, root);
+	btrfs_trans_release_chunk_metadata(trans);
 	trans->block_rsv = NULL;
 	if (trans->qgroup_reserved) {
 		btrfs_qgroup_free(root, trans->qgroup_reserved);

@@ -4116,11 +4116,19 @@ static void check_system_chunk(struct btrfs_trans_handle *trans,
 	struct btrfs_space_info *info;
 	u64 left;
 	u64 thresh;
+	int ret = 0;
+
+	/*
+	 * Needed because we can end up allocating a system chunk and for an
+	 * atomic and race free space reservation in the chunk block reserve.
+	 */
+	ASSERT(mutex_is_locked(&root->fs_info->chunk_mutex));
 
 	info = __find_space_info(root->fs_info, BTRFS_BLOCK_GROUP_SYSTEM);
 	spin_lock(&info->lock);
 	left = info->total_bytes - info->bytes_used - info->bytes_pinned -
-		info->bytes_reserved - info->bytes_readonly;
+		info->bytes_reserved - info->bytes_readonly -
+		info->bytes_may_use;
 	spin_unlock(&info->lock);
 
 	thresh = get_system_chunk_thresh(root, type);
@@ -4134,7 +4142,21 @@ static void check_system_chunk(struct btrfs_trans_handle *trans,
 		u64 flags;
 
 		flags = btrfs_get_alloc_profile(root->fs_info->chunk_root, 0);
-		btrfs_alloc_chunk(trans, root, flags);
+		/*
+		 * Ignore failure to create system chunk. We might end up not
+		 * needing it, as we might not need to COW all nodes/leafs from
+		 * the paths we visit in the chunk tree (they were already COWed
+		 * or created in the current transaction for example).
+		 */
+		ret = btrfs_alloc_chunk(trans, root, flags);
+	}
+
+	if (!ret) {
+		ret = btrfs_block_rsv_add(root->fs_info->chunk_root,
+					  &root->fs_info->chunk_block_rsv,
+					  thresh, BTRFS_RESERVE_NO_FLUSH);
+		if (!ret)
+			trans->chunk_bytes_reserved += thresh;
 	}
 }
 
@@ -5190,6 +5212,24 @@ void btrfs_trans_release_metadata(struct btrfs_trans_handle *trans,
 				      trans->transid, trans->bytes_reserved, 0);
 	btrfs_block_rsv_release(root, trans->block_rsv, trans->bytes_reserved);
 	trans->bytes_reserved = 0;
+}
+
+/*
+ * To be called after all the new block groups attached to the transaction
+ * handle have been created (btrfs_create_pending_block_groups()).
+ */
+void btrfs_trans_release_chunk_metadata(struct btrfs_trans_handle *trans)
+{
+	struct btrfs_fs_info *fs_info = trans->root->fs_info;
+
+	if (!trans->chunk_bytes_reserved)
+		return;
+
+	WARN_ON_ONCE(!list_empty(&trans->new_bgs));
+
+	block_rsv_release_bytes(fs_info, &fs_info->chunk_block_rsv, NULL,
+				trans->chunk_bytes_reserved);
+	trans->chunk_bytes_reserved = 0;
 }
 
 /* Can only return 0 or -ENOSPC */

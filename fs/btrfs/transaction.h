@@ -102,6 +102,7 @@ struct btrfs_transaction {
 struct btrfs_trans_handle {
 	u64 transid;
 	u64 bytes_reserved;
+	u64 chunk_bytes_reserved;
 	u64 qgroup_reserved;
 	unsigned long use_count;
 	unsigned long blocks_reserved;
