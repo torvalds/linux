@@ -89,14 +89,18 @@ static const struct hc_driver ohci_rk_hc_driver = {
 };
 
 static struct of_device_id rk_ohci_of_match[] = {
+#ifdef CONFIG_ARM
 	{
 	 .compatible = "rockchip,rk3126_ohci",
 	 .data = &usb20ohci_pdata_rk3126,
 	 },
+#endif
+#ifdef CONFIG_ARM64
 	{
 	 .compatible = "rockchip,rk3368_ohci",
 	 .data = &usb20ohci_pdata_rk3368,
 	 },
+#endif
 	{},
 };
 
