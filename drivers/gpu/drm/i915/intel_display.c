@@ -11485,7 +11485,11 @@ clear_intel_crtc_state(struct intel_crtc_state *crtc_state)
 	enum intel_dpll_id shared_dpll;
 	uint32_t ddi_pll_sel;
 
-	/* Clear only the intel specific part of the crtc state excluding scalers */
+	/* FIXME: before the switch to atomic started, a new pipe_config was
+	 * kzalloc'd. Code that depends on any field being zero should be
+	 * fixed, so that the crtc_state can be safely duplicated. For now,
+	 * only fields that are know to not cause problems are preserved. */
+
 	tmp_state = crtc_state->base;
 	scaler_state = crtc_state->scaler_state;
 	shared_dpll = crtc_state->shared_dpll;
