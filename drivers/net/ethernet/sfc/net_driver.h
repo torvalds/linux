@@ -1205,6 +1205,7 @@ struct efx_mtd_partition {
  * @ptp_set_ts_config: Set hardware timestamp configuration.  The flags
  *	and tx_type will already have been validated but this operation
  *	must validate and update rx_filter.
+ * @set_mac_address: Set the MAC address of the device
  * @revision: Hardware architecture revision
  * @txd_ptr_tbl_base: TX descriptor ring base address
  * @rxd_ptr_tbl_base: RX descriptor ring base address
@@ -1337,7 +1338,6 @@ struct efx_nic_type {
 	int (*sriov_configure)(struct efx_nic *efx, int num_vfs);
 	int (*sriov_init)(struct efx_nic *efx);
 	void (*sriov_fini)(struct efx_nic *efx);
-	int (*sriov_mac_address_changed)(struct efx_nic *efx);
 	bool (*sriov_wanted)(struct efx_nic *efx);
 	void (*sriov_reset)(struct efx_nic *efx);
 	void (*sriov_flr)(struct efx_nic *efx, unsigned vf_i);
@@ -1354,6 +1354,7 @@ struct efx_nic_type {
 	int (*vswitching_restore)(struct efx_nic *efx);
 	void (*vswitching_remove)(struct efx_nic *efx);
 	int (*get_mac_address)(struct efx_nic *efx, unsigned char *perm_addr);
+	int (*set_mac_address)(struct efx_nic *efx);
 
 	int revision;
 	unsigned int txd_ptr_tbl_base;

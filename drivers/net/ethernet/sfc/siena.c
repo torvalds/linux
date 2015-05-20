@@ -1010,7 +1010,6 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.sriov_configure = efx_siena_sriov_configure,
 	.sriov_init = efx_siena_sriov_init,
 	.sriov_fini = efx_siena_sriov_fini,
-	.sriov_mac_address_changed = efx_siena_sriov_mac_address_changed,
 	.sriov_wanted = efx_siena_sriov_wanted,
 	.sriov_reset = efx_siena_sriov_reset,
 	.sriov_flr = efx_siena_sriov_flr,
@@ -1021,6 +1020,7 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.vswitching_probe = efx_port_dummy_op_int,
 	.vswitching_restore = efx_port_dummy_op_int,
 	.vswitching_remove = efx_port_dummy_op_void,
+	.set_mac_address = efx_siena_sriov_mac_address_changed,
 #endif
 
 	.revision = EFX_REV_SIENA_A0,

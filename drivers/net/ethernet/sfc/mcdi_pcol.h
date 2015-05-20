@@ -5954,6 +5954,46 @@
 
 
 /***********************************/
+/* MC_CMD_VADAPTOR_SET_MAC
+ * assign a new MAC address to a v-adaptor.
+ */
+#define MC_CMD_VADAPTOR_SET_MAC 0x5d
+
+#define MC_CMD_0x5d_PRIVILEGE_CTG SRIOV_CTG_GENERAL
+
+/* MC_CMD_VADAPTOR_SET_MAC_IN msgrequest */
+#define    MC_CMD_VADAPTOR_SET_MAC_IN_LEN 10
+/* The port to which the v-adaptor is connected. */
+#define       MC_CMD_VADAPTOR_SET_MAC_IN_UPSTREAM_PORT_ID_OFST 0
+/* The new MAC address to assign to this v-adaptor */
+#define       MC_CMD_VADAPTOR_SET_MAC_IN_MACADDR_OFST 4
+#define       MC_CMD_VADAPTOR_SET_MAC_IN_MACADDR_LEN 6
+
+/* MC_CMD_VADAPTOR_SET_MAC_OUT msgresponse */
+#define    MC_CMD_VADAPTOR_SET_MAC_OUT_LEN 0
+
+
+/***********************************/
+/* MC_CMD_VADAPTOR_GET_MAC
+ * read the MAC address assigned to a v-adaptor.
+ */
+#define MC_CMD_VADAPTOR_GET_MAC 0x5e
+
+#define MC_CMD_0x5e_PRIVILEGE_CTG SRIOV_CTG_GENERAL
+
+/* MC_CMD_VADAPTOR_GET_MAC_IN msgrequest */
+#define    MC_CMD_VADAPTOR_GET_MAC_IN_LEN 4
+/* The port to which the v-adaptor is connected. */
+#define       MC_CMD_VADAPTOR_GET_MAC_IN_UPSTREAM_PORT_ID_OFST 0
+
+/* MC_CMD_VADAPTOR_GET_MAC_OUT msgresponse */
+#define    MC_CMD_VADAPTOR_GET_MAC_OUT_LEN 6
+/* The MAC address assigned to this v-adaptor */
+#define       MC_CMD_VADAPTOR_GET_MAC_OUT_MACADDR_OFST 0
+#define       MC_CMD_VADAPTOR_GET_MAC_OUT_MACADDR_LEN 6
+
+
+/***********************************/
 /* MC_CMD_EVB_PORT_ASSIGN
  * assign a port to a PCI function.
  */

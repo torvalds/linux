@@ -3596,6 +3596,78 @@ static void efx_ef10_filter_sync_rx_mode(struct efx_nic *efx)
 	WARN_ON(remove_failed);
 }
 
+static int efx_ef10_set_mac_address(struct efx_nic *efx)
+{
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_VADAPTOR_SET_MAC_IN_LEN);
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	bool was_enabled = efx->port_enabled;
+	int rc;
+
+	efx_device_detach_sync(efx);
+	efx_net_stop(efx->net_dev);
+	down_write(&efx->filter_sem);
+	efx_ef10_filter_table_remove(efx);
+
+	ether_addr_copy(MCDI_PTR(inbuf, VADAPTOR_SET_MAC_IN_MACADDR),
+			efx->net_dev->dev_addr);
+	MCDI_SET_DWORD(inbuf, VADAPTOR_SET_MAC_IN_UPSTREAM_PORT_ID,
+		       nic_data->vport_id);
+	rc = efx_mcdi_rpc(efx, MC_CMD_VADAPTOR_SET_MAC, inbuf,
+			  sizeof(inbuf), NULL, 0, NULL);
+
+	efx_ef10_filter_table_probe(efx);
+	up_write(&efx->filter_sem);
+	if (was_enabled)
+		efx_net_open(efx->net_dev);
+	netif_device_attach(efx->net_dev);
+
+#if !defined(CONFIG_SFC_SRIOV)
+	if (rc == -EPERM)
+		netif_err(efx, drv, efx->net_dev,
+			  "Cannot change MAC address; use sfboot to enable mac-spoofing"
+			  " on this interface\n");
+#else
+	if (rc == -EPERM) {
+		struct pci_dev *pci_dev_pf = efx->pci_dev->physfn;
+
+		/* Switch to PF and change MAC address on vport */
+		if (efx->pci_dev->is_virtfn && pci_dev_pf) {
+			struct efx_nic *efx_pf = pci_get_drvdata(pci_dev_pf);
+
+			if (!efx_ef10_sriov_set_vf_mac(efx_pf,
+						       nic_data->vf_index,
+						       efx->net_dev->dev_addr))
+				return 0;
+		}
+		netif_err(efx, drv, efx->net_dev,
+			  "Cannot change MAC address; use sfboot to enable mac-spoofing"
+			  " on this interface\n");
+	} else if (efx->pci_dev->is_virtfn) {
+		/* Successfully changed by VF (with MAC spoofing), so update the
+		 * parent PF if possible.
+		 */
+		struct pci_dev *pci_dev_pf = efx->pci_dev->physfn;
+
+		if (pci_dev_pf) {
+			struct efx_nic *efx_pf = pci_get_drvdata(pci_dev_pf);
+			struct efx_ef10_nic_data *nic_data = efx_pf->nic_data;
+			unsigned int i;
+
+			for (i = 0; i < efx_pf->vf_count; ++i) {
+				struct ef10_vf *vf = nic_data->vf + i;
+
+				if (vf->efx == efx) {
+					ether_addr_copy(vf->mac,
+							efx->net_dev->dev_addr);
+					return 0;
+				}
+			}
+		}
+	}
+#endif
+	return rc;
+}
+
 static int efx_ef10_mac_reconfigure(struct efx_nic *efx)
 {
 	efx_ef10_filter_sync_rx_mode(efx);
@@ -4021,6 +4093,7 @@ const struct efx_nic_type efx_hunt_a0_vf_nic_type = {
 	.vswitching_remove = efx_ef10_vswitching_remove_vf,
 #endif
 	.get_mac_address = efx_ef10_get_mac_address_vf,
+	.set_mac_address = efx_ef10_set_mac_address,
 
 	.revision = EFX_REV_HUNT_A0,
 	.max_dma_mask = DMA_BIT_MASK(ESF_DZ_TX_KER_BUF_ADDR_WIDTH),
@@ -4127,7 +4200,6 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.sriov_configure = efx_ef10_sriov_configure,
 	.sriov_init = efx_ef10_sriov_init,
 	.sriov_fini = efx_ef10_sriov_fini,
-	.sriov_mac_address_changed = efx_ef10_sriov_mac_address_changed,
 	.sriov_wanted = efx_ef10_sriov_wanted,
 	.sriov_reset = efx_ef10_sriov_reset,
 	.sriov_flr = efx_ef10_sriov_flr,
@@ -4141,6 +4213,7 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.vswitching_remove = efx_ef10_vswitching_remove_pf,
 #endif
 	.get_mac_address = efx_ef10_get_mac_address_pf,
+	.set_mac_address = efx_ef10_set_mac_address,
 
 	.revision = EFX_REV_HUNT_A0,
 	.max_dma_mask = DMA_BIT_MASK(ESF_DZ_TX_KER_BUF_ADDR_WIDTH),
