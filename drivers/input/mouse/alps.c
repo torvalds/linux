@@ -388,9 +388,10 @@ static void alps_get_bitmap_points(unsigned int map,
 static int alps_process_bitmap(struct alps_data *priv,
 			       struct alps_fields *fields)
 {
-	int i, fingers_x = 0, fingers_y = 0, fingers;
+	int i, fingers_x = 0, fingers_y = 0, fingers, closest;
 	struct alps_bitmap_point x_low = {0,}, x_high = {0,};
 	struct alps_bitmap_point y_low = {0,}, y_high = {0,};
+	struct input_mt_pos corner[4];
 
 	if (!fields->x_map || !fields->y_map)
 		return 0;
@@ -421,25 +422,68 @@ static int alps_process_bitmap(struct alps_data *priv,
 		y_high.num_bits = max(i, 1);
 	}
 
-	fields->mt[0].x =
+	/* top-left corner */
+	corner[0].x =
 		(priv->x_max * (2 * x_low.start_bit + x_low.num_bits - 1)) /
 		(2 * (priv->x_bits - 1));
-	fields->mt[0].y =
+	corner[0].y =
 		(priv->y_max * (2 * y_low.start_bit + y_low.num_bits - 1)) /
 		(2 * (priv->y_bits - 1));
 
-	fields->mt[1].x =
+	/* top-right corner */
+	corner[1].x =
 		(priv->x_max * (2 * x_high.start_bit + x_high.num_bits - 1)) /
 		(2 * (priv->x_bits - 1));
-	fields->mt[1].y =
+	corner[1].y =
+		(priv->y_max * (2 * y_low.start_bit + y_low.num_bits - 1)) /
+		(2 * (priv->y_bits - 1));
+
+	/* bottom-right corner */
+	corner[2].x =
+		(priv->x_max * (2 * x_high.start_bit + x_high.num_bits - 1)) /
+		(2 * (priv->x_bits - 1));
+	corner[2].y =
+		(priv->y_max * (2 * y_high.start_bit + y_high.num_bits - 1)) /
+		(2 * (priv->y_bits - 1));
+
+	/* bottom-left corner */
+	corner[3].x =
+		(priv->x_max * (2 * x_low.start_bit + x_low.num_bits - 1)) /
+		(2 * (priv->x_bits - 1));
+	corner[3].y =
 		(priv->y_max * (2 * y_high.start_bit + y_high.num_bits - 1)) /
 		(2 * (priv->y_bits - 1));
 
 	/* y-bitmap order is reversed, except on rushmore */
 	if (priv->proto_version != ALPS_PROTO_V3_RUSHMORE) {
-		fields->mt[0].y = priv->y_max - fields->mt[0].y;
-		fields->mt[1].y = priv->y_max - fields->mt[1].y;
+		for (i = 0; i < 4; i++)
+			corner[i].y = priv->y_max - corner[i].y;
 	}
+
+	/*
+	 * We only select a corner for the second touch once per 2 finger
+	 * touch sequence to avoid the chosen corner (and thus the coordinates)
+	 * jumping around when the first touch is in the middle.
+	 */
+	if (priv->second_touch == -1) {
+		/* Find corner closest to our st coordinates */
+		closest = 0x7fffffff;
+		for (i = 0; i < 4; i++) {
+			int dx = fields->st.x - corner[i].x;
+			int dy = fields->st.y - corner[i].y;
+			int distance = dx * dx + dy * dy;
+
+			if (distance < closest) {
+				priv->second_touch = i;
+				closest = distance;
+			}
+		}
+		/* And select the opposite corner to use for the 2nd touch */
+		priv->second_touch = (priv->second_touch + 2) % 4;
+	}
+
+	fields->mt[0] = fields->st;
+	fields->mt[1] = corner[priv->second_touch];
 
 	return fingers;
 }
@@ -477,6 +521,7 @@ static void alps_report_semi_mt_data(struct psmouse *psmouse, int fingers)
 		f->mt[0].x = f->st.x;
 		f->mt[0].y = f->st.y;
 		fingers = f->pressure > 0 ? 1 : 0;
+		priv->second_touch = -1;
 	}
 
 	alps_report_mt_data(psmouse, (fingers <= 2) ? fingers : 2);
