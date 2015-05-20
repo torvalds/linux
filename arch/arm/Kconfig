@@ -334,6 +334,7 @@ config ARM_SINGLE_ARMV7M
 	depends on !MMU
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select ARM_NVIC
+	select AUTO_ZRELADDR
 	select CLKSRC_OF
 	select COMMON_CLK
 	select CPU_V7M
@@ -410,24 +411,6 @@ config ARCH_EBSA110
 	  from Digital. It has limited hardware on-board, including an
 	  Ethernet interface, two PCMCIA sockets, two serial ports and a
 	  parallel port.
-
-config ARCH_EFM32
-	bool "Energy Micro efm32"
-	depends on !MMU
-	select ARCH_REQUIRE_GPIOLIB
-	select ARM_NVIC
-	select AUTO_ZRELADDR
-	select CLKSRC_OF
-	select COMMON_CLK
-	select CPU_V7M
-	select GENERIC_CLOCKEVENTS
-	select NO_DMA
-	select NO_IOPORT_MAP
-	select SPARSE_IRQ
-	select USE_OF
-	help
-	  Support for Energy Micro's (now Silicon Labs) efm32 Giant Gecko
-	  processors.
 
 config ARCH_EP93XX
 	bool "EP93xx-based"
@@ -598,26 +581,6 @@ config ARCH_W90X900
 
 	  <http://www.nuvoton.com/hq/enu/ProductAndSales/ProductLines/
 		ConsumerElectronicsIC/ARMMicrocontroller/ARMMicrocontroller>
-
-config ARCH_LPC18XX
-	bool "NXP LPC18xx/LPC43xx"
-	depends on !MMU
-	select ARCH_HAS_RESET_CONTROLLER
-	select ARCH_REQUIRE_GPIOLIB
-	select ARM_AMBA
-	select ARM_NVIC
-	select AUTO_ZRELADDR
-	select CLKSRC_LPC32XX
-	select COMMON_CLK
-	select CPU_V7M
-	select GENERIC_CLOCKEVENTS
-	select NO_IOPORT_MAP
-	select PINCTRL
-	select SPARSE_IRQ
-	select USE_OF
-	help
-	  Support for NXP's LPC18xx Cortex-M3 and LPC43xx Cortex-M4
-	  high performance microcontrollers.
 
 config ARCH_LPC32XX
 	bool "NXP LPC32XX"
@@ -792,24 +755,6 @@ config ARCH_OMAP1
 	select SPARSE_IRQ
 	help
 	  Support for older TI OMAP1 (omap7xx, omap15xx or omap16xx)
-
-config ARCH_STM32
-	bool "STMicrolectronics STM32"
-	depends on !MMU
-	select ARCH_HAS_RESET_CONTROLLER
-	select ARM_NVIC
-	select ARMV7M_SYSTICK
-	select AUTO_ZRELADDR
-	select CLKSRC_OF
-	select COMMON_CLK
-	select CPU_V7M
-	select GENERIC_CLOCKEVENTS
-	select NO_IOPORT_MAP
-	select RESET_CONTROLLER
-	select SPARSE_IRQ
-	select USE_OF
-	help
-	  Support for STMicroelectronics STM32 processors.
 
 endchoice
 
@@ -1007,6 +952,35 @@ source "arch/arm/mach-w90x900/Kconfig"
 source "arch/arm/mach-zx/Kconfig"
 
 source "arch/arm/mach-zynq/Kconfig"
+
+# ARMv7-M architecture
+config ARCH_EFM32
+	bool "Energy Micro efm32"
+	depends on ARM_SINGLE_ARMV7M
+	select ARCH_REQUIRE_GPIOLIB
+	help
+	  Support for Energy Micro's (now Silicon Labs) efm32 Giant Gecko
+	  processors.
+
+config ARCH_LPC18XX
+	bool "NXP LPC18xx/LPC43xx"
+	depends on ARM_SINGLE_ARMV7M
+	select ARCH_HAS_RESET_CONTROLLER
+	select ARM_AMBA
+	select CLKSRC_LPC32XX
+	select PINCTRL
+	help
+	  Support for NXP's LPC18xx Cortex-M3 and LPC43xx Cortex-M4
+	  high performance microcontrollers.
+
+config ARCH_STM32
+	bool "STMicrolectronics STM32"
+	depends on ARM_SINGLE_ARMV7M
+	select ARCH_HAS_RESET_CONTROLLER
+	select ARMV7M_SYSTICK
+	select RESET_CONTROLLER
+	help
+	  Support for STMicroelectronics STM32 processors.
 
 # Definitions to make life easier
 config ARCH_ACORN

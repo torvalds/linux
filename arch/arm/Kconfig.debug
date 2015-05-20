@@ -1596,9 +1596,8 @@ config DEBUG_UNCOMPRESS
 config UNCOMPRESS_INCLUDE
 	string
 	default "debug/uncompress.h" if ARCH_MULTIPLATFORM || ARCH_MSM || \
-					PLAT_SAMSUNG || ARCH_EFM32 || \
-					ARCH_SHMOBILE_LEGACY || \
-					ARCH_LPC18XX || ARM_SINGLE_ARMV7M
+					PLAT_SAMSUNG || ARM_SINGLE_ARMV7M || \
+					ARCH_SHMOBILE_LEGACY
 	default "mach/uncompress.h"
 
 config EARLY_PRINTK
