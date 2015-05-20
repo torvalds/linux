@@ -114,8 +114,16 @@ module_param_named(dbg_level, pwm_dbg_level, int, 0644);
 
 };
 
+#ifdef CONFIG_ARM64
 extern int rk3368_lcdc_update_pwm(int bl_pwm_period, int bl_pwm_duty);
 extern int rk3368_lcdc_cabc_status(void);
+#else
+static inline int rk3368_lcdc_update_pwm(int bl_pwm_period, int bl_pwm_duty)
+{
+	return 0;
+}
+static inline int rk3368_lcdc_cabc_status(void) { return 0; }
+#endif
 
 static inline void rk_pwm_writel(struct rk_pwm_chip *chip,
 				    unsigned int num, unsigned long offset,
