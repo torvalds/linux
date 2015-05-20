@@ -672,12 +672,4 @@ static struct gb_protocol gpio_protocol = {
 	.request_recv		= gb_gpio_request_recv,
 };
 
-int gb_gpio_protocol_init(void)
-{
-	return gb_protocol_register(&gpio_protocol);
-}
-
-void gb_gpio_protocol_exit(void)
-{
-	gb_protocol_deregister(&gpio_protocol);
-}
+gb_gpbridge_protocol_driver(gpio_protocol);

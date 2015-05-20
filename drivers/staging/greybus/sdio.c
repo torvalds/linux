@@ -88,12 +88,4 @@ static struct gb_protocol sdio_protocol = {
 	.request_recv		= NULL,	/* no incoming requests */
 };
 
-int gb_sdio_protocol_init(void)
-{
-	return gb_protocol_register(&sdio_protocol);
-}
-
-void gb_sdio_protocol_exit(void)
-{
-	gb_protocol_deregister(&sdio_protocol);
-}
+gb_gpbridge_protocol_driver(sdio_protocol);

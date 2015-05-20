@@ -745,12 +745,4 @@ static struct gb_protocol uart_protocol = {
 	.request_recv		= NULL,	/* FIXME we have 2 types of requests!!! */
 };
 
-int gb_uart_protocol_init(void)
-{
-	return gb_protocol_register(&uart_protocol);
-}
-
-void gb_uart_protocol_exit(void)
-{
-	gb_protocol_deregister(&uart_protocol);
-}
+gb_gpbridge_protocol_driver(uart_protocol);

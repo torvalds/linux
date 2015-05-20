@@ -246,12 +246,4 @@ static struct gb_protocol pwm_protocol = {
 	.request_recv		= NULL, /* no incoming requests */
 };
 
-int gb_pwm_protocol_init(void)
-{
-	return gb_protocol_register(&pwm_protocol);
-}
-
-void gb_pwm_protocol_exit(void)
-{
-	gb_protocol_deregister(&pwm_protocol);
-}
+gb_gpbridge_protocol_driver(pwm_protocol);

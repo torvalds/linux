@@ -529,12 +529,4 @@ static struct gb_protocol hid_protocol = {
 	.request_recv		= gb_hid_irq_handler,
 };
 
-int gb_hid_protocol_init(void)
-{
-	return gb_protocol_register(&hid_protocol);
-}
-
-void gb_hid_protocol_exit(void)
-{
-	gb_protocol_deregister(&hid_protocol);
-}
+gb_gpbridge_protocol_driver(hid_protocol);

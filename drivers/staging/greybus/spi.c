@@ -348,12 +348,4 @@ static struct gb_protocol spi_protocol = {
 	.request_recv		= NULL,
 };
 
-int gb_spi_protocol_init(void)
-{
-	return gb_protocol_register(&spi_protocol);
-}
-
-void gb_spi_protocol_exit(void)
-{
-	gb_protocol_deregister(&spi_protocol);
-}
+gb_gpbridge_protocol_driver(spi_protocol);
