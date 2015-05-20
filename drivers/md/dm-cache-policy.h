@@ -70,6 +70,18 @@ enum policy_operation {
 };
 
 /*
+ * When issuing a POLICY_REPLACE the policy needs to make a callback to
+ * lock the block being demoted.  This doesn't need to occur during a
+ * writeback operation since the block remains in the cache.
+ */
+struct policy_locker;
+typedef int (*policy_lock_fn)(struct policy_locker *l, dm_oblock_t oblock);
+
+struct policy_locker {
+	policy_lock_fn fn;
+};
+
+/*
  * This is the instruction passed back to the core target.
  */
 struct policy_result {
@@ -122,7 +134,8 @@ struct dm_cache_policy {
 	 */
 	int (*map)(struct dm_cache_policy *p, dm_oblock_t oblock,
 		   bool can_block, bool can_migrate, bool discarded_oblock,
-		   struct bio *bio, struct policy_result *result);
+		   struct bio *bio, struct policy_locker *locker,
+		   struct policy_result *result);
 
 	/*
 	 * Sometimes we want to see if a block is in the cache, without

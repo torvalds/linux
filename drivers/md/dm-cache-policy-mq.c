@@ -693,9 +693,10 @@ static void requeue(struct mq_policy *mq, struct entry *e)
  * - set the hit count to a hard coded value other than 1, eg, is it better
  *   if it goes in at level 2?
  */
-static int demote_cblock(struct mq_policy *mq, dm_oblock_t *oblock)
+static int demote_cblock(struct mq_policy *mq,
+			 struct policy_locker *locker, dm_oblock_t *oblock)
 {
-	struct entry *demoted = pop(mq, &mq->cache_clean);
+	struct entry *demoted = peek(&mq->cache_clean);
 
 	if (!demoted)
 		/*
@@ -707,6 +708,13 @@ static int demote_cblock(struct mq_policy *mq, dm_oblock_t *oblock)
 		 */
 		return -ENOSPC;
 
+	if (locker->fn(locker, demoted->oblock))
+		/*
+		 * We couldn't lock the demoted block.
+		 */
+		return -EBUSY;
+
+	del(mq, demoted);
 	*oblock = demoted->oblock;
 	free_entry(&mq->cache_pool, demoted);
 
@@ -795,6 +803,7 @@ static int cache_entry_found(struct mq_policy *mq,
  * finding which cache block to use.
  */
 static int pre_cache_to_cache(struct mq_policy *mq, struct entry *e,
+			      struct policy_locker *locker,
 			      struct policy_result *result)
 {
 	int r;
@@ -803,11 +812,12 @@ static int pre_cache_to_cache(struct mq_policy *mq, struct entry *e,
 	/* Ensure there's a free cblock in the cache */
 	if (epool_empty(&mq->cache_pool)) {
 		result->op = POLICY_REPLACE;
-		r = demote_cblock(mq, &result->old_oblock);
+		r = demote_cblock(mq, locker, &result->old_oblock);
 		if (r) {
 			result->op = POLICY_MISS;
 			return 0;
 		}
+
 	} else
 		result->op = POLICY_NEW;
 
@@ -829,7 +839,8 @@ static int pre_cache_to_cache(struct mq_policy *mq, struct entry *e,
 
 static int pre_cache_entry_found(struct mq_policy *mq, struct entry *e,
 				 bool can_migrate, bool discarded_oblock,
-				 int data_dir, struct policy_result *result)
+				 int data_dir, struct policy_locker *locker,
+				 struct policy_result *result)
 {
 	int r = 0;
 
@@ -842,7 +853,7 @@ static int pre_cache_entry_found(struct mq_policy *mq, struct entry *e,
 
 	else {
 		requeue(mq, e);
-		r = pre_cache_to_cache(mq, e, result);
+		r = pre_cache_to_cache(mq, e, locker, result);
 	}
 
 	return r;
@@ -872,6 +883,7 @@ static void insert_in_pre_cache(struct mq_policy *mq,
 }
 
 static void insert_in_cache(struct mq_policy *mq, dm_oblock_t oblock,
+			    struct policy_locker *locker,
 			    struct policy_result *result)
 {
 	int r;
@@ -879,7 +891,7 @@ static void insert_in_cache(struct mq_policy *mq, dm_oblock_t oblock,
 
 	if (epool_empty(&mq->cache_pool)) {
 		result->op = POLICY_REPLACE;
-		r = demote_cblock(mq, &result->old_oblock);
+		r = demote_cblock(mq, locker, &result->old_oblock);
 		if (unlikely(r)) {
 			result->op = POLICY_MISS;
 			insert_in_pre_cache(mq, oblock);
@@ -907,11 +919,12 @@ static void insert_in_cache(struct mq_policy *mq, dm_oblock_t oblock,
 
 static int no_entry_found(struct mq_policy *mq, dm_oblock_t oblock,
 			  bool can_migrate, bool discarded_oblock,
-			  int data_dir, struct policy_result *result)
+			  int data_dir, struct policy_locker *locker,
+			  struct policy_result *result)
 {
 	if (adjusted_promote_threshold(mq, discarded_oblock, data_dir) <= 1) {
 		if (can_migrate)
-			insert_in_cache(mq, oblock, result);
+			insert_in_cache(mq, oblock, locker, result);
 		else
 			return -EWOULDBLOCK;
 	} else {
@@ -928,7 +941,8 @@ static int no_entry_found(struct mq_policy *mq, dm_oblock_t oblock,
  */
 static int map(struct mq_policy *mq, dm_oblock_t oblock,
 	       bool can_migrate, bool discarded_oblock,
-	       int data_dir, struct policy_result *result)
+	       int data_dir, struct policy_locker *locker,
+	       struct policy_result *result)
 {
 	int r = 0;
 	struct entry *e = hash_lookup(mq, oblock);
@@ -942,11 +956,11 @@ static int map(struct mq_policy *mq, dm_oblock_t oblock,
 
 	else if (e)
 		r = pre_cache_entry_found(mq, e, can_migrate, discarded_oblock,
-					  data_dir, result);
+					  data_dir, locker, result);
 
 	else
 		r = no_entry_found(mq, oblock, can_migrate, discarded_oblock,
-				   data_dir, result);
+				   data_dir, locker, result);
 
 	if (r == -EWOULDBLOCK)
 		result->op = POLICY_MISS;
@@ -1012,7 +1026,8 @@ static void copy_tick(struct mq_policy *mq)
 
 static int mq_map(struct dm_cache_policy *p, dm_oblock_t oblock,
 		  bool can_block, bool can_migrate, bool discarded_oblock,
-		  struct bio *bio, struct policy_result *result)
+		  struct bio *bio, struct policy_locker *locker,
+		  struct policy_result *result)
 {
 	int r;
 	struct mq_policy *mq = to_mq_policy(p);
@@ -1028,7 +1043,7 @@ static int mq_map(struct dm_cache_policy *p, dm_oblock_t oblock,
 
 	iot_examine_bio(&mq->tracker, bio);
 	r = map(mq, oblock, can_migrate, discarded_oblock,
-		bio_data_dir(bio), result);
+		bio_data_dir(bio), locker, result);
 
 	mutex_unlock(&mq->lock);
 
