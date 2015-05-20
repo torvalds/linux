@@ -515,6 +515,102 @@ int t4_memory_rw(struct adapter *adap, int win, int mtype, u32 addr,
 	return 0;
 }
 
+/* Return the specified PCI-E Configuration Space register from our Physical
+ * Function.  We try first via a Firmware LDST Command since we prefer to let
+ * the firmware own all of these registers, but if that fails we go for it
+ * directly ourselves.
+ */
+u32 t4_read_pcie_cfg4(struct adapter *adap, int reg)
+{
+	u32 val, ldst_addrspace;
+
+	/* If fw_attach != 0, construct and send the Firmware LDST Command to
+	 * retrieve the specified PCI-E Configuration Space register.
+	 */
+	struct fw_ldst_cmd ldst_cmd;
+	int ret;
+
+	memset(&ldst_cmd, 0, sizeof(ldst_cmd));
+	ldst_addrspace = FW_LDST_CMD_ADDRSPACE_V(FW_LDST_ADDRSPC_FUNC_PCIE);
+	ldst_cmd.op_to_addrspace = cpu_to_be32(FW_CMD_OP_V(FW_LDST_CMD) |
+					       FW_CMD_REQUEST_F |
+					       FW_CMD_READ_F |
+					       ldst_addrspace);
+	ldst_cmd.cycles_to_len16 = cpu_to_be32(FW_LEN16(ldst_cmd));
+	ldst_cmd.u.pcie.select_naccess = FW_LDST_CMD_NACCESS_V(1);
+	ldst_cmd.u.pcie.ctrl_to_fn =
+		(FW_LDST_CMD_LC_F | FW_LDST_CMD_FN_V(adap->fn));
+	ldst_cmd.u.pcie.r = reg;
+
+	/* If the LDST Command succeeds, return the result, otherwise
+	 * fall through to reading it directly ourselves ...
+	 */
+	ret = t4_wr_mbox(adap, adap->mbox, &ldst_cmd, sizeof(ldst_cmd),
+			 &ldst_cmd);
+	if (ret == 0)
+		val = be32_to_cpu(ldst_cmd.u.pcie.data[0]);
+	else
+		/* Read the desired Configuration Space register via the PCI-E
+		 * Backdoor mechanism.
+		 */
+		t4_hw_pci_read_cfg4(adap, reg, &val);
+	return val;
+}
+
+/* Get the window based on base passed to it.
+ * Window aperture is currently unhandled, but there is no use case for it
+ * right now
+ */
+static u32 t4_get_window(struct adapter *adap, u32 pci_base, u64 pci_mask,
+			 u32 memwin_base)
+{
+	u32 ret;
+
+	if (is_t4(adap->params.chip)) {
+		u32 bar0;
+
+		/* Truncation intentional: we only read the bottom 32-bits of
+		 * the 64-bit BAR0/BAR1 ...  We use the hardware backdoor
+		 * mechanism to read BAR0 instead of using
+		 * pci_resource_start() because we could be operating from
+		 * within a Virtual Machine which is trapping our accesses to
+		 * our Configuration Space and we need to set up the PCI-E
+		 * Memory Window decoders with the actual addresses which will
+		 * be coming across the PCI-E link.
+		 */
+		bar0 = t4_read_pcie_cfg4(adap, pci_base);
+		bar0 &= pci_mask;
+		adap->t4_bar0 = bar0;
+
+		ret = bar0 + memwin_base;
+	} else {
+		/* For T5, only relative offset inside the PCIe BAR is passed */
+		ret = memwin_base;
+	}
+	return ret;
+}
+
+/* Get the default utility window (win0) used by everyone */
+u32 t4_get_util_window(struct adapter *adap)
+{
+	return t4_get_window(adap, PCI_BASE_ADDRESS_0,
+			     PCI_BASE_ADDRESS_MEM_MASK, MEMWIN0_BASE);
+}
+
+/* Set up memory window for accessing adapter memory ranges.  (Read
+ * back MA register to ensure that changes propagate before we attempt
+ * to use the new values.)
+ */
+void t4_setup_memwin(struct adapter *adap, u32 memwin_base, u32 window)
+{
+	t4_write_reg(adap,
+		     PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_BASE_WIN_A, window),
+		     memwin_base | BIR_V(0) |
+		     WINDOW_V(ilog2(MEMWIN0_APERTURE) - WINDOW_SHIFT_X));
+	t4_read_reg(adap,
+		    PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_BASE_WIN_A, window));
+}
+
 /**
  *	t4_get_regs_len - return the size of the chips register set
  *	@adapter: the adapter
