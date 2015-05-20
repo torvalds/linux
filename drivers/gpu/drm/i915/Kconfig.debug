@@ -1,0 +1,5 @@
+config DRM_I915_WERROR
+	bool "Force GCC to throw an error instead of a warning when compiling"
+	default n
+	---help---
+	  Add -Werror to the build flags for (and only for) i915.ko
