@@ -186,7 +186,7 @@ int sclp_cpu_deconfigure(u8 cpu)
 static DEFINE_MUTEX(sclp_mem_mutex);
 static LIST_HEAD(sclp_mem_list);
 static u8 sclp_max_storage_id;
-static unsigned long sclp_storage_ids[256 / BITS_PER_LONG];
+static DECLARE_BITMAP(sclp_storage_ids, 256);
 static int sclp_mem_state_changed;
 
 struct memory_increment {
