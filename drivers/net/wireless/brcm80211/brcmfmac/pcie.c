@@ -276,15 +276,6 @@ static const u32 brcmf_ring_itemsize[BRCMF_NROF_COMMON_MSGRINGS] = {
 };
 
 
-/* dma flushing needs implementation for mips and arm platforms. Should
- * be put in util. Note, this is not real flushing. It is virtual non
- * cached memory. Only write buffers should have to be drained. Though
- * this may be different depending on platform......
- */
-#define brcmf_dma_flush(addr, len)
-#define brcmf_dma_invalidate_cache(addr, len)
-
-
 static u32
 brcmf_pcie_read_reg32(struct brcmf_pciedev_info *devinfo, u32 reg_offset)
 {
@@ -1174,7 +1165,6 @@ static int brcmf_pcie_init_scratchbuffers(struct brcmf_pciedev_info *devinfo)
 		goto fail;
 
 	memset(devinfo->shared.scratch, 0, BRCMF_DMA_D2H_SCRATCH_BUF_LEN);
-	brcmf_dma_flush(devinfo->shared.scratch, BRCMF_DMA_D2H_SCRATCH_BUF_LEN);
 
 	addr = devinfo->shared.tcm_base_address +
 	       BRCMF_SHARED_DMA_SCRATCH_ADDR_OFFSET;
@@ -1192,7 +1182,6 @@ static int brcmf_pcie_init_scratchbuffers(struct brcmf_pciedev_info *devinfo)
 		goto fail;
 
 	memset(devinfo->shared.ringupd, 0, BRCMF_DMA_D2H_RINGUPD_BUF_LEN);
-	brcmf_dma_flush(devinfo->shared.ringupd, BRCMF_DMA_D2H_RINGUPD_BUF_LEN);
 
 	addr = devinfo->shared.tcm_base_address +
 	       BRCMF_SHARED_DMA_RINGUPD_ADDR_OFFSET;

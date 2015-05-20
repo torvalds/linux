@@ -278,16 +278,6 @@ struct brcmf_msgbuf_pktids {
 	struct brcmf_msgbuf_pktid *array;
 };
 
-
-/* dma flushing needs implementation for mips and arm platforms. Should
- * be put in util. Note, this is not real flushing. It is virtual non
- * cached memory. Only write buffers should have to be drained. Though
- * this may be different depending on platform......
- */
-#define brcmf_dma_flush(addr, len)
-#define brcmf_dma_invalidate_cache(addr, len)
-
-
 static void brcmf_msgbuf_rxbuf_ioctlresp_post(struct brcmf_msgbuf *msgbuf);
 
 
@@ -462,7 +452,6 @@ static int brcmf_msgbuf_tx_ioctl(struct brcmf_pub *drvr, int ifidx,
 		memcpy(msgbuf->ioctbuf, buf, buf_len);
 	else
 		memset(msgbuf->ioctbuf, 0, buf_len);
-	brcmf_dma_flush(ioctl_buf, buf_len);
 
 	err = brcmf_commonring_write_complete(commonring);
 	brcmf_commonring_unlock(commonring);
