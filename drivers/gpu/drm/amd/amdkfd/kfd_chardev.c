@@ -528,7 +528,107 @@ static int kfd_ioctl_dbg_unrgesiter(struct file *filep,
 static int kfd_ioctl_dbg_address_watch(struct file *filep,
 					struct kfd_process *p, void *data)
 {
-	long status = -EFAULT;
+	struct kfd_ioctl_dbg_address_watch_args *args = data;
+	struct kfd_dev *dev;
+	struct dbg_address_watch_info aw_info;
+	unsigned char *args_buff;
+	long status;
+	void __user *cmd_from_user;
+	uint64_t watch_mask_value = 0;
+	unsigned int args_idx = 0;
+
+	memset((void *) &aw_info, 0, sizeof(struct dbg_address_watch_info));
+
+	dev = kfd_device_by_id(args->gpu_id);
+	if (dev == NULL)
+		return -EINVAL;
+
+	if (dev->device_info->asic_family == CHIP_CARRIZO) {
+		pr_debug("kfd_ioctl_dbg_wave_control not supported on CZ\n");
+		return -EINVAL;
+	}
+
+	cmd_from_user = (void __user *) args->content_ptr;
+
+	/* Validate arguments */
+
+	if ((args->buf_size_in_bytes > MAX_ALLOWED_AW_BUFF_SIZE) ||
+		(args->buf_size_in_bytes <= sizeof(*args)) ||
+		(cmd_from_user == NULL))
+		return -EINVAL;
+
+	/* this is the actual buffer to work with */
+
+	args_buff = kmalloc(args->buf_size_in_bytes -
+					sizeof(*args), GFP_KERNEL);
+	if (args_buff == NULL)
+		return -ENOMEM;
+
+	status = copy_from_user(args_buff, cmd_from_user,
+				args->buf_size_in_bytes - sizeof(*args));
+
+	if (status != 0) {
+		pr_debug("Failed to copy address watch user data\n");
+		kfree(args_buff);
+		return -EINVAL;
+	}
+
+	aw_info.process = p;
+
+	aw_info.num_watch_points = *((uint32_t *)(&args_buff[args_idx]));
+	args_idx += sizeof(aw_info.num_watch_points);
+
+	aw_info.watch_mode = (enum HSA_DBG_WATCH_MODE *) &args_buff[args_idx];
+	args_idx += sizeof(enum HSA_DBG_WATCH_MODE) * aw_info.num_watch_points;
+
+	/*
+	 * set watch address base pointer to point on the array base
+	 * within args_buff
+	 */
+	aw_info.watch_address = (uint64_t *) &args_buff[args_idx];
+
+	/* skip over the addresses buffer */
+	args_idx += sizeof(aw_info.watch_address) * aw_info.num_watch_points;
+
+	if (args_idx >= args->buf_size_in_bytes) {
+		kfree(args_buff);
+		return -EINVAL;
+	}
+
+	watch_mask_value = (uint64_t) args_buff[args_idx];
+
+	if (watch_mask_value > 0) {
+		/*
+		 * There is an array of masks.
+		 * set watch mask base pointer to point on the array base
+		 * within args_buff
+		 */
+		aw_info.watch_mask = (uint64_t *) &args_buff[args_idx];
+
+		/* skip over the masks buffer */
+		args_idx += sizeof(aw_info.watch_mask) *
+				aw_info.num_watch_points;
+	} else {
+		/* just the NULL mask, set to NULL and skip over it */
+		aw_info.watch_mask = NULL;
+		args_idx += sizeof(aw_info.watch_mask);
+	}
+
+	if (args_idx > args->buf_size_in_bytes) {
+		kfree(args_buff);
+		return -EINVAL;
+	}
+
+	/* Currently HSA Event is not supported for DBG */
+	aw_info.watch_event = NULL;
+
+	mutex_lock(kfd_get_dbgmgr_mutex());
+
+	status = kfd_dbgmgr_address_watch(dev->dbgmgr, &aw_info);
+
+	mutex_unlock(kfd_get_dbgmgr_mutex());
+
+	kfree(args_buff);
 
 	return status;
 }
