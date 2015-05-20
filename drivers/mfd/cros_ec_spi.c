@@ -363,7 +363,6 @@ static int cros_ec_spi_probe(struct spi_device *spi)
 	ec_dev->cmd_xfer = cros_ec_cmd_xfer_spi;
 	ec_dev->ec_name = ec_spi->spi->modalias;
 	ec_dev->phys_name = dev_name(&ec_spi->spi->dev);
-	ec_dev->parent = &ec_spi->spi->dev;
 	ec_dev->din_size = EC_MSG_BYTES + EC_MSG_PREAMBLE_COUNT;
 	ec_dev->dout_size = EC_MSG_BYTES;
 

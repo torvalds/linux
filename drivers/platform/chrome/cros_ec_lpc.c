@@ -214,7 +214,6 @@ static int cros_ec_lpc_probe(struct platform_device *pdev)
 	ec_dev->dev = dev;
 	ec_dev->ec_name = pdev->name;
 	ec_dev->phys_name = dev_name(dev);
-	ec_dev->parent = dev;
 	ec_dev->cmd_xfer = cros_ec_cmd_xfer_lpc;
 	ec_dev->cmd_readmem = cros_ec_lpc_readmem;
 

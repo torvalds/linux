@@ -145,7 +145,6 @@ static int cros_ec_i2c_probe(struct i2c_client *client,
 	ec_dev->cmd_xfer = cros_ec_cmd_xfer_i2c;
 	ec_dev->ec_name = client->name;
 	ec_dev->phys_name = client->adapter->name;
-	ec_dev->parent = &client->dev;
 
 	err = cros_ec_register(ec_dev);
 	if (err) {
