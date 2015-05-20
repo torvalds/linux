@@ -73,7 +73,7 @@
 #define BRCMF_MSGBUF_TX_FLUSH_CNT1		32
 #define BRCMF_MSGBUF_TX_FLUSH_CNT2		96
 
-#define BRCMF_MSGBUF_DELAY_TXWORKER_THRS	64
+#define BRCMF_MSGBUF_DELAY_TXWORKER_THRS	96
 #define BRCMF_MSGBUF_TRICKLE_TXWORKER_THRS	32
 
 struct msgbuf_common_hdr {
@@ -797,6 +797,8 @@ static int brcmf_msgbuf_txdata(struct brcmf_pub *drvr, int ifidx,
 	struct brcmf_flowring *flow = msgbuf->flow;
 	struct ethhdr *eh = (struct ethhdr *)(skb->data);
 	u32 flowid;
+	u32 queue_count;
+	bool force;
 
 	flowid = brcmf_flowring_lookup(flow, eh->h_dest, skb->priority, ifidx);
 	if (flowid == BRCMF_FLOWRING_INVALID_ID) {
@@ -804,8 +806,9 @@ static int brcmf_msgbuf_txdata(struct brcmf_pub *drvr, int ifidx,
 		if (flowid == BRCMF_FLOWRING_INVALID_ID)
 			return -ENOMEM;
 	}
-	brcmf_flowring_enqueue(flow, flowid, skb);
-	brcmf_msgbuf_schedule_txdata(msgbuf, flowid, false);
+	queue_count = brcmf_flowring_enqueue(flow, flowid, skb);
+	force = ((queue_count % BRCMF_MSGBUF_TRICKLE_TXWORKER_THRS) == 0);
+	brcmf_msgbuf_schedule_txdata(msgbuf, flowid, force);
 
 	return 0;
 }
