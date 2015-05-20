@@ -1,4 +1,4 @@
-/// Make sure threaded IRQs without a primary handler are always request with
+/// Make sure threaded IRQs without a primary handler are always requested with
 /// IRQF_ONESHOT
 ///
 //
