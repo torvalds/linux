@@ -505,7 +505,7 @@
 
 					pinctrl_usart1_sck: usart1_sck-0 {
 						atmel,pins =
-							<AT91_PIOC 28 AT91_PERIPH_C AT91_PINCTRL_NONE>;	/* PC29 periph C */
+							<AT91_PIOC 29 AT91_PERIPH_C AT91_PINCTRL_NONE>;	/* PC29 periph C */
 					};
 				};
 
