@@ -350,8 +350,8 @@ mwifiex_parse_mgmt_packet(struct mwifiex_private *priv, u8 *payload, u16 len,
 		}
 		break;
 	default:
-		mwifiex_dbg(priv->adapter, ERROR,
-			    "unknown mgmt frame subytpe %#x\n", stype);
+		mwifiex_dbg(priv->adapter, INFO,
+			    "unknown mgmt frame subtype %#x\n", stype);
 	}
 
 	return 0;
