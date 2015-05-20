@@ -1,7 +1,5 @@
 snd-hda-intel-objs := hda_intel.o
 snd-hda-tegra-objs := hda_tegra.o
-# for haswell power well
-snd-hda-intel-$(CONFIG_SND_HDA_I915) +=	hda_i915.o
 
 snd-hda-codec-y := hda_bind.o hda_codec.o hda_jack.o hda_auto_parser.o hda_sysfs.o
 snd-hda-codec-y += hda_controller.o
