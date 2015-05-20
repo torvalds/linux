@@ -10,7 +10,7 @@ greybus-y :=	core.o		\
 		protocol.o	\
 		operation.o
 
-gb-phy-y :=	gpb.o	\
+gb-phy-y :=	gpbridge.o	\
 		sdio.o	\
 		uart.o	\
 		pwm.o	\
