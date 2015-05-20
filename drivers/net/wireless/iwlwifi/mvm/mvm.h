@@ -820,6 +820,8 @@ struct iwl_mvm {
 	} tdls_cs;
 
 	struct iwl_mvm_shared_mem_cfg shared_mem_cfg;
+
+	u32 ciphers[6];
 };
 
 /* Extract MVM priv from op_mode and _hw */
