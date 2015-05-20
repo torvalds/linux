@@ -521,3 +521,27 @@ fail:
 	memset(vf->mac, 0, ETH_ALEN);
 	return rc;
 }
+
+int efx_ef10_sriov_get_vf_config(struct efx_nic *efx, int vf_i,
+				 struct ifla_vf_info *ivf)
+{
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	struct ef10_vf *vf;
+
+	if (vf_i >= efx->vf_count)
+		return -EINVAL;
+
+	if (!nic_data->vf)
+		return -EOPNOTSUPP;
+
+	vf = nic_data->vf + vf_i;
+
+	ivf->vf = vf_i;
+	ivf->min_tx_rate = 0;
+	ivf->max_tx_rate = 0;
+	ether_addr_copy(ivf->mac, vf->mac);
+	ivf->vlan = 0;
+	ivf->qos = 0;
+
+	return 0;
+}
