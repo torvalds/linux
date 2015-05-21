@@ -753,38 +753,6 @@ static ssize_t default_easize_show(struct kobject *kobj,
 }
 LUSTRE_RO_ATTR(default_easize);
 
-static int ll_max_cookiesize_seq_show(struct seq_file *m, void *v)
-{
-	struct super_block *sb = m->private;
-	struct ll_sb_info *sbi = ll_s2sbi(sb);
-	unsigned int cookielen;
-	int rc;
-
-	rc = ll_get_max_cookiesize(sbi, &cookielen);
-	if (rc)
-		return rc;
-
-	seq_printf(m, "%u\n", cookielen);
-	return 0;
-}
-LPROC_SEQ_FOPS_RO(ll_max_cookiesize);
-
-static int ll_default_cookiesize_seq_show(struct seq_file *m, void *v)
-{
-	struct super_block *sb = m->private;
-	struct ll_sb_info *sbi = ll_s2sbi(sb);
-	unsigned int cookielen;
-	int rc;
-
-	rc = ll_get_default_cookiesize(sbi, &cookielen);
-	if (rc)
-		return rc;
-
-	seq_printf(m, "%u\n", cookielen);
-	return 0;
-}
-LPROC_SEQ_FOPS_RO(ll_default_cookiesize);
-
 static int ll_sbi_flags_seq_show(struct seq_file *m, void *v)
 {
 	const char *str[] = LL_SBI_FLAGS;
@@ -850,8 +818,6 @@ static struct lprocfs_vars lprocfs_llite_obd_vars[] = {
 	/* { "filegroups",   lprocfs_rd_filegroups,  0, 0 }, */
 	{ "max_cached_mb",    &ll_max_cached_mb_fops, NULL },
 	{ "statahead_stats",  &ll_statahead_stats_fops, NULL, 0 },
-	{ "max_cookiesize",   &ll_max_cookiesize_fops, NULL, 0 },
-	{ "default_cookiesize", &ll_default_cookiesize_fops, NULL, 0 },
 	{ "sbi_flags",	      &ll_sbi_flags_fops, NULL, 0 },
 	{ "xattr_cache",      &ll_xattr_cache_fops, NULL, 0 },
 	{ NULL }
