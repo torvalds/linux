@@ -1514,7 +1514,7 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 	struct fc_rport *rport;
 	struct serv_parm *sp;
 	uint8_t  name[sizeof(struct lpfc_name)];
-	uint32_t rc, keepDID = 0;
+	uint32_t rc, keepDID = 0, keep_nlp_flag = 0;
 	int  put_node;
 	int  put_rport;
 	unsigned long *active_rrqs_xri_bitmap = NULL;
@@ -1603,9 +1603,9 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 		       ndlp->active_rrqs_xri_bitmap,
 		       phba->cfg_rrq_xri_bitmap_sz);
 
-	if (ndlp->nlp_flag & NLP_NPR_2B_DISC)
-		new_ndlp->nlp_flag |= NLP_NPR_2B_DISC;
-	ndlp->nlp_flag &= ~NLP_NPR_2B_DISC;
+	keep_nlp_flag = new_ndlp->nlp_flag;
+	new_ndlp->nlp_flag = ndlp->nlp_flag;
+	ndlp->nlp_flag = keep_nlp_flag;
 
 	/* Set state will put new_ndlp on to node list if not already done */
 	lpfc_nlp_set_state(vport, new_ndlp, ndlp->nlp_state);
@@ -1648,7 +1648,9 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 			memcpy(ndlp->active_rrqs_xri_bitmap,
 			       active_rrqs_xri_bitmap,
 			       phba->cfg_rrq_xri_bitmap_sz);
-		lpfc_drop_node(vport, ndlp);
+
+		if (!NLP_CHK_NODE_ACT(ndlp))
+			lpfc_drop_node(vport, ndlp);
 	}
 	else {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
