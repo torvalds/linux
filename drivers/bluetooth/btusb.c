@@ -2382,6 +2382,7 @@ struct qca_device_info {
 static const struct qca_device_info qca_devices_table[] = {
 	{ 0x00000100, 20, 4, 10 }, /* Rome 1.0 */
 	{ 0x00000101, 20, 4, 10 }, /* Rome 1.1 */
+	{ 0x00000200, 28, 4, 18 }, /* Rome 2.0 */
 	{ 0x00000201, 28, 4, 18 }, /* Rome 2.1 */
 	{ 0x00000300, 28, 4, 18 }, /* Rome 3.0 */
 	{ 0x00000302, 28, 4, 18 }, /* Rome 3.2 */
