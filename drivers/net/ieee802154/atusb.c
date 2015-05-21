@@ -568,7 +568,8 @@ static int atusb_probe(struct usb_interface *interface,
 		goto fail;
 
 	hw->parent = &usb_dev->dev;
-	hw->flags = IEEE802154_HW_TX_OMIT_CKSUM | IEEE802154_HW_AFILT;
+	hw->flags = IEEE802154_HW_TX_OMIT_CKSUM | IEEE802154_HW_AFILT |
+		    IEEE802154_HW_AACK;
 
 	hw->phy->current_page = 0;
 	hw->phy->current_channel = 11;	/* reset default */
