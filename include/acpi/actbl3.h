@@ -119,6 +119,8 @@ struct acpi_table_bgrt {
 /*******************************************************************************
  *
  * DRTM - Dynamic Root of Trust for Measurement table
+ * Conforms to "TCG D-RTM Architecture" June 17 2013, Version 1.0.0
+ * Table version 1
  *
  ******************************************************************************/
 
@@ -135,22 +137,40 @@ struct acpi_table_drtm {
 	u32 flags;
 };
 
-/* 1) Validated Tables List */
+/* Flag Definitions for above */
 
-struct acpi_drtm_vtl_list {
-	u32 validated_table_list_count;
+#define ACPI_DRTM_ACCESS_ALLOWED            (1)
+#define ACPI_DRTM_ENABLE_GAP_CODE           (1<<1)
+#define ACPI_DRTM_INCOMPLETE_MEASUREMENTS   (1<<2)
+#define ACPI_DRTM_AUTHORITY_ORDER           (1<<3)
+
+/* 1) Validated Tables List (64-bit addresses) */
+
+struct acpi_drtm_vtable_list {
+	u32 validated_table_count;
+	u64 validated_tables[1];
 };
 
-/* 2) Resources List */
+/* 2) Resources List (of Resource Descriptors) */
+
+/* Resource Descriptor */
+
+struct acpi_drtm_resource {
+	u8 size[7];
+	u8 type;
+	u64 address;
+};
 
 struct acpi_drtm_resource_list {
-	u32 resource_list_count;
+	u32 resource_count;
+	struct acpi_drtm_resource resources[1];
 };
 
 /* 3) Platform-specific Identifiers List */
 
-struct acpi_drtm_id_list {
-	u32 id_list_count;
+struct acpi_drtm_dps_id {
+	u32 dps_id_length;
+	u8 dps_id[16];
 };
 
 /*******************************************************************************
