@@ -487,9 +487,6 @@ struct ll_sb_info {
 	unsigned int	      ll_namelen;
 	struct file_operations   *ll_fop;
 
-	/* =0 - hold lock over whole read/write
-	 * >0 - max. chunk to be read/written w/o lock re-acquiring */
-	unsigned long	     ll_max_rw_chunk;
 	unsigned int	      ll_md_brw_size; /* used by readdir */
 
 	struct lu_site	   *ll_site;
@@ -522,8 +519,6 @@ struct ll_sb_info {
 	struct super_block	*ll_sb; /* struct super_block (for sysfs code)*/
 	struct completion	 ll_kobj_unregister;
 };
-
-#define LL_DEFAULT_MAX_RW_CHUNK      (32 * 1024 * 1024)
 
 struct ll_ra_read {
 	pgoff_t	     lrr_start;

@@ -520,29 +520,6 @@ static ssize_t checksum_pages_store(struct kobject *kobj,
 }
 LUSTRE_RW_ATTR(checksum_pages);
 
-static int ll_max_rw_chunk_seq_show(struct seq_file *m, void *v)
-{
-	struct super_block *sb = m->private;
-
-	seq_printf(m, "%lu\n", ll_s2sbi(sb)->ll_max_rw_chunk);
-	return 0;
-}
-
-static ssize_t ll_max_rw_chunk_seq_write(struct file *file,
-					 const char __user *buffer,
-					 size_t count, loff_t *off)
-{
-	struct super_block *sb = ((struct seq_file *)file->private_data)->private;
-	int rc, val;
-
-	rc = lprocfs_write_helper(buffer, count, &val);
-	if (rc)
-		return rc;
-	ll_s2sbi(sb)->ll_max_rw_chunk = val;
-	return count;
-}
-LPROC_SEQ_FOPS(ll_max_rw_chunk);
-
 static int ll_rd_track_id(struct seq_file *m, enum stats_track_type type)
 {
 	struct super_block *sb = m->private;
@@ -852,7 +829,6 @@ static struct lprocfs_vars lprocfs_llite_obd_vars[] = {
 	{ "site",	  &ll_site_stats_fops,    NULL, 0 },
 	/* { "filegroups",   lprocfs_rd_filegroups,  0, 0 }, */
 	{ "max_cached_mb",    &ll_max_cached_mb_fops, NULL },
-	{ "max_rw_chunk",     &ll_max_rw_chunk_fops, NULL },
 	{ "stats_track_pid",  &ll_track_pid_fops, NULL },
 	{ "stats_track_ppid", &ll_track_ppid_fops, NULL },
 	{ "stats_track_gid",  &ll_track_gid_fops, NULL },
