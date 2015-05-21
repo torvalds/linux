@@ -391,7 +391,7 @@ Description:
 		Maximum number of readdir pages to fit into a single readdir
 		RPC.
 
-What:		/sys/fs/lustre/mdc/{connection_name}/max_rpcs_in_flight
+What:		/sys/fs/lustre/{mdc,osc}/{connection_name}/max_rpcs_in_flight
 Date:		May 2015
 Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
 Description:
@@ -400,3 +400,108 @@ Description:
 		latency links, but has a chance of overloading a server
 		if you have too many clients like this.
 		Default: 8
+
+What:		/sys/fs/lustre/osc/{connection_name}/max_pages_per_rpc
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Maximum number of pages to fit into a single RPC.
+		Typically bigger RPCs allow for better performance.
+		Default: however many pages to form 1M of data (256 pages
+		for 4K page sized platforms)
+
+What:		/sys/fs/lustre/osc/{connection_name}/active
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls accessibility of this connection. If set to 0,
+		fail all accesses immediately.
+
+What:		/sys/fs/lustre/osc/{connection_name}/checksums
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls whenever to checksum bulk RPC data over the wire
+		to this target.
+		1: enable (default) ; 0: disable
+
+What:		/sys/fs/lustre/osc/{connection_name}/contention_seconds
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls for how long to consider a file contended once
+		indicated as such by the server.
+		When a file is considered contended, all operations switch to
+		synchronous lockless mode to avoid cache and lock pingpong.
+
+What:		/sys/fs/lustre/osc/{connection_name}/cur_dirty_bytes
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Displays how many dirty bytes is presently in the cache for this
+		target.
+
+What:		/sys/fs/lustre/osc/{connection_name}/cur_grant_bytes
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Shows how many bytes we have as a "dirty cache" grant from the
+		server. Writing a value smaller than shown allows to release
+		some grant back to the server.
+		Dirty cache grant is a way Lustre ensures that cached successful
+		writes on client do not end up discarded by the server due to
+		lack of space later on.
+
+What:		/sys/fs/lustre/osc/{connection_name}/cur_lost_grant_bytes
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Shows how many granted bytes were released to the server due
+		to lack of write activity on this client.
+
+What:		/sys/fs/lustre/osc/{connection_name}/grant_shrink_interval
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Number of seconds with no write activity for this target
+		to start releasing dirty grant back to the server.
+
+What:		/sys/fs/lustre/osc/{connection_name}/destroys_in_flight
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Number of DESTROY RPCs currently in flight to this target.
+
+What:		/sys/fs/lustre/osc/{connection_name}/lockless_truncate
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls whether lockless truncate RPCs are allowed to this
+		target.
+		Lockless truncate causes server to perform the locking which
+		is beneficial if the truncate is not followed by a write
+		immediately.
+		1: enable ; 0: disable (default)
+
+What:		/sys/fs/lustre/osc/{connection_name}/max_dirty_mb
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls how much dirty data this client can accumulate
+		for this target. This is orthogonal to dirty grant and is
+		a hard limit even if the server would allow a bigger dirty
+		cache.
+		While allowing higher dirty cache is beneficial for write
+		performance, flushing write cache takes longer and as such
+		the node might be more prone to OOMs.
+		Having this value set too low might result in not being able
+		to sent too many parallel WRITE RPCs.
+		Default: 32
+
+What:		/sys/fs/lustre/osc/{connection_name}/resend_count
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls how many times to try and resend RPCs to this target
+		that failed with "recoverable" status, such as EAGAIN,
+		ENOMEM.
