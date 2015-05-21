@@ -153,8 +153,7 @@ irqreturn_t cobalt_irq_handler(int irq, void *dev_id)
 
 	for (i = 0; i < COBALT_NUM_STREAMS; i++) {
 		struct cobalt_stream *s = &cobalt->streams[i];
-		unsigned dma_fifo_mask =
-		    COBALT_SYSSTAT_VI0_LOST_DATA_MSK << (4 * s->video_channel);
+		unsigned dma_fifo_mask = s->dma_fifo_mask;
 
 		if (dma_interrupt & (1 << s->dma_channel)) {
 			cobalt->irq_dma[i]++;
@@ -169,7 +168,7 @@ irqreturn_t cobalt_irq_handler(int irq, void *dev_id)
 		}
 		if (s->is_audio)
 			continue;
-		if (edge & (0x20 << (4 * s->video_channel)))
+		if (edge & s->adv_irq_mask)
 			set_bit(COBALT_STREAM_FL_ADV_IRQ, &s->flags);
 		if ((edge & mask & dma_fifo_mask) && vb2_is_streaming(&s->q)) {
 			cobalt_info("full rx FIFO %d\n", i);
@@ -219,7 +218,7 @@ void cobalt_irq_work_handler(struct work_struct *work)
 					interrupt_service_routine, 0, NULL);
 			mask = cobalt_read_bar1(cobalt, COBALT_SYS_STAT_MASK);
 			cobalt_write_bar1(cobalt, COBALT_SYS_STAT_MASK,
-				mask | (0x20 << (4 * s->video_channel)));
+				mask | s->adv_irq_mask);
 		}
 	}
 }

@@ -96,9 +96,9 @@
 #define COBALT_SYSSTAT_VIHSMA_INT1_MSK		(1 << 21)
 #define COBALT_SYSSTAT_VIHSMA_INT2_MSK		(1 << 22)
 #define COBALT_SYSSTAT_VIHSMA_LOST_DATA_MSK	(1 << 23)
-#define COBALT_SYSSTAT_VOHSMA_INT1_MSK		(1 << 25)
-#define COBALT_SYSSTAT_VOHSMA_PLL_LOCKED_MSK	(1 << 26)
-#define COBALT_SYSSTAT_VOHSMA_LOST_DATA_MSK	(1 << 27)
+#define COBALT_SYSSTAT_VOHSMA_INT1_MSK		(1 << 24)
+#define COBALT_SYSSTAT_VOHSMA_PLL_LOCKED_MSK	(1 << 25)
+#define COBALT_SYSSTAT_VOHSMA_LOST_DATA_MSK	(1 << 26)
 #define COBALT_SYSSTAT_AUD_PLL_LOCKED_MSK	(1 << 28)
 #define COBALT_SYSSTAT_AUD_IN_LOST_DATA_MSK	(1 << 29)
 #define COBALT_SYSSTAT_AUD_OUT_LOST_DATA_MSK	(1 << 30)
@@ -236,6 +236,8 @@ struct cobalt_stream {
 
 	u8 dma_channel;
 	int video_channel;
+	unsigned dma_fifo_mask;
+	unsigned adv_irq_mask;
 	struct sg_dma_desc_info dma_desc_info[NR_BUFS];
 	unsigned long flags;
 	bool unstable_frame;

@@ -451,20 +451,30 @@ static void cobalt_stream_struct_init(struct cobalt *cobalt)
 		if (i <= COBALT_HSMA_IN_NODE) {
 			s->dma_channel = i + cobalt->first_fifo_channel;
 			s->video_channel = i;
+			s->dma_fifo_mask =
+				COBALT_SYSSTAT_VI0_LOST_DATA_MSK << (4 * i);
+			s->adv_irq_mask =
+				COBALT_SYSSTAT_VI0_INT1_MSK << (4 * i);
 		} else if (i >= COBALT_AUDIO_IN_STREAM &&
 			   i <= COBALT_AUDIO_IN_STREAM + 4) {
-			s->dma_channel = 6 + i - COBALT_AUDIO_IN_STREAM;
+			unsigned idx = i - COBALT_AUDIO_IN_STREAM;
+
+			s->dma_channel = 6 + idx;
 			s->is_audio = true;
-			s->video_channel = i - COBALT_AUDIO_IN_STREAM;
+			s->video_channel = idx;
+			s->dma_fifo_mask = COBALT_SYSSTAT_AUD_IN_LOST_DATA_MSK;
 		} else if (i == COBALT_HSMA_OUT_NODE) {
 			s->dma_channel = 11;
 			s->is_output = true;
 			s->video_channel = 5;
+			s->dma_fifo_mask = COBALT_SYSSTAT_VOHSMA_LOST_DATA_MSK;
+			s->adv_irq_mask = COBALT_SYSSTAT_VOHSMA_INT1_MSK;
 		} else if (i == COBALT_AUDIO_OUT_STREAM) {
 			s->dma_channel = 12;
 			s->is_audio = true;
 			s->is_output = true;
 			s->video_channel = 5;
+			s->dma_fifo_mask = COBALT_SYSSTAT_AUD_OUT_LOST_DATA_MSK;
 		} else {
 			/* FIXME: Memory DMA for debug purpose */
 			s->dma_channel = i - COBALT_NUM_NODES;
