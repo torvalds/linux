@@ -145,3 +145,19 @@ Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
 Description:
 		Limit Lustre vfs operations gathering to just a single gid.
 		0 to track everything.
+
+What:		/sys/fs/lustre/llite/<fsname>-<uuid>/statahead_max
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls maximum number of statahead requests to send when
+		sequential readdir+stat pattern is detected.
+
+What:		/sys/fs/lustre/llite/<fsname>-<uuid>/statahead_agl
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls if AGL (async glimpse ahead - obtain object information
+		from OSTs in parallel with MDS during statahead) should be
+		enabled or disabled.
+		0 to disable, 1 to enable.

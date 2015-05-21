@@ -603,55 +603,61 @@ static ssize_t stats_track_gid_store(struct kobject *kobj,
 }
 LUSTRE_RW_ATTR(stats_track_gid);
 
-static int ll_statahead_max_seq_show(struct seq_file *m, void *v)
+static ssize_t statahead_max_show(struct kobject *kobj,
+				  struct attribute *attr,
+				  char *buf)
 {
-	struct super_block *sb = m->private;
-	struct ll_sb_info *sbi = ll_s2sbi(sb);
+	struct ll_sb_info *sbi = container_of(kobj, struct ll_sb_info,
+					      ll_kobj);
 
-	seq_printf(m, "%u\n", sbi->ll_sa_max);
-	return 0;
+	return sprintf(buf, "%u\n", sbi->ll_sa_max);
 }
 
-static ssize_t ll_statahead_max_seq_write(struct file *file,
-					  const char __user *buffer,
-					  size_t count, loff_t *off)
+static ssize_t statahead_max_store(struct kobject *kobj,
+				   struct attribute *attr,
+				   const char *buffer,
+				   size_t count)
 {
-	struct super_block *sb = ((struct seq_file *)file->private_data)->private;
-	struct ll_sb_info *sbi = ll_s2sbi(sb);
-	int val, rc;
+	struct ll_sb_info *sbi = container_of(kobj, struct ll_sb_info,
+					      ll_kobj);
+	int rc;
+	unsigned long val;
 
-	rc = lprocfs_write_helper(buffer, count, &val);
+	rc = kstrtoul(buffer, 10, &val);
 	if (rc)
 		return rc;
 
-	if (val >= 0 && val <= LL_SA_RPC_MAX)
+	if (val <= LL_SA_RPC_MAX)
 		sbi->ll_sa_max = val;
 	else
-		CERROR("Bad statahead_max value %d. Valid values are in the range [0, %d]\n",
+		CERROR("Bad statahead_max value %lu. Valid values are in the range [0, %d]\n",
 		       val, LL_SA_RPC_MAX);
 
 	return count;
 }
-LPROC_SEQ_FOPS(ll_statahead_max);
+LUSTRE_RW_ATTR(statahead_max);
 
-static int ll_statahead_agl_seq_show(struct seq_file *m, void *v)
+static ssize_t statahead_agl_show(struct kobject *kobj,
+				  struct attribute *attr,
+				  char *buf)
 {
-	struct super_block *sb = m->private;
-	struct ll_sb_info *sbi = ll_s2sbi(sb);
+	struct ll_sb_info *sbi = container_of(kobj, struct ll_sb_info,
+					      ll_kobj);
 
-	seq_printf(m, "%u\n", sbi->ll_flags & LL_SBI_AGL_ENABLED ? 1 : 0);
-	return 0;
+	return sprintf(buf, "%u\n", sbi->ll_flags & LL_SBI_AGL_ENABLED ? 1 : 0);
 }
 
-static ssize_t ll_statahead_agl_seq_write(struct file *file,
-					  const char __user *buffer,
-					  size_t count, loff_t *off)
+static ssize_t statahead_agl_store(struct kobject *kobj,
+				   struct attribute *attr,
+				   const char *buffer,
+				   size_t count)
 {
-	struct super_block *sb = ((struct seq_file *)file->private_data)->private;
-	struct ll_sb_info *sbi = ll_s2sbi(sb);
-	int val, rc;
+	struct ll_sb_info *sbi = container_of(kobj, struct ll_sb_info,
+					      ll_kobj);
+	int rc;
+	unsigned long val;
 
-	rc = lprocfs_write_helper(buffer, count, &val);
+	rc = kstrtoul(buffer, 10, &val);
 	if (rc)
 		return rc;
 
@@ -662,7 +668,7 @@ static ssize_t ll_statahead_agl_seq_write(struct file *file,
 
 	return count;
 }
-LPROC_SEQ_FOPS(ll_statahead_agl);
+LUSTRE_RW_ATTR(statahead_agl);
 
 static int ll_statahead_stats_seq_show(struct seq_file *m, void *v)
 {
@@ -838,8 +844,6 @@ static struct lprocfs_vars lprocfs_llite_obd_vars[] = {
 	{ "site",	  &ll_site_stats_fops,    NULL, 0 },
 	/* { "filegroups",   lprocfs_rd_filegroups,  0, 0 }, */
 	{ "max_cached_mb",    &ll_max_cached_mb_fops, NULL },
-	{ "statahead_max",    &ll_statahead_max_fops, NULL },
-	{ "statahead_agl",    &ll_statahead_agl_fops, NULL },
 	{ "statahead_stats",  &ll_statahead_stats_fops, NULL, 0 },
 	{ "lazystatfs",       &ll_lazystatfs_fops, NULL },
 	{ "max_easize",       &ll_max_easize_fops, NULL, 0 },
@@ -870,6 +874,8 @@ static struct attribute *llite_attrs[] = {
 	&lustre_attr_stats_track_pid.attr,
 	&lustre_attr_stats_track_ppid.attr,
 	&lustre_attr_stats_track_gid.attr,
+	&lustre_attr_statahead_max.attr,
+	&lustre_attr_statahead_agl.attr,
 	NULL,
 };
 
