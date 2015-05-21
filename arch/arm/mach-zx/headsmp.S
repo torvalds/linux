@@ -10,6 +10,7 @@
 #include <linux/linkage.h>
 
 	.align 3
+	.arm
 
 /* It runs from physical address */
 ENTRY(zx_resume_jump)
