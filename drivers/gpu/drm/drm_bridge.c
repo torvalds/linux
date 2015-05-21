@@ -28,9 +28,42 @@
 
 #include "drm/drmP.h"
 
+/**
+ * DOC: overview
+ *
+ * drm_bridge represents a device that hangs on to an encoder. These are handy
+ * when a regular drm_encoder entity isn't enough to represent the entire
+ * encoder chain.
+ *
+ * A bridge is always associated to a single drm_encoder at a time, but can be
+ * either connected to it directly, or through an intermediate bridge:
+ *
+ * encoder ---> bridge B ---> bridge A
+ *
+ * Here, the output of the encoder feeds to bridge B, and that furthers feeds to
+ * bridge A.
+ *
+ * The driver using the bridge is responsible to make the associations between
+ * the encoder and bridges. Once these links are made, the bridges will
+ * participate along with encoder functions to perform mode_set/enable/disable
+ * through the ops provided in drm_bridge_funcs.
+ *
+ * drm_bridge, like drm_panel, aren't drm_mode_object entities like planes,
+ * crtcs, encoders or connectors. They just provide additional hooks to get the
+ * desired output at the end of the encoder chain.
+ */
+
 static DEFINE_MUTEX(bridge_lock);
 static LIST_HEAD(bridge_list);
 
+/**
+ * drm_bridge_add - add the given bridge to the global bridge list
+ *
+ * @bridge: bridge control structure
+ *
+ * RETURNS:
+ * Unconditionally returns Zero.
+ */
 int drm_bridge_add(struct drm_bridge *bridge)
 {
 	mutex_lock(&bridge_lock);
@@ -41,6 +74,11 @@ int drm_bridge_add(struct drm_bridge *bridge)
 }
 EXPORT_SYMBOL(drm_bridge_add);
 
+/**
+ * drm_bridge_remove - remove the given bridge from the global bridge list
+ *
+ * @bridge: bridge control structure
+ */
 void drm_bridge_remove(struct drm_bridge *bridge)
 {
 	mutex_lock(&bridge_lock);
@@ -49,6 +87,21 @@ void drm_bridge_remove(struct drm_bridge *bridge)
 }
 EXPORT_SYMBOL(drm_bridge_remove);
 
+/**
+ * drm_bridge_attach - associate given bridge to our DRM device
+ *
+ * @dev: DRM device
+ * @bridge: bridge control structure
+ *
+ * called by a kms driver to link one of our encoder/bridge to the given
+ * bridge.
+ *
+ * Note that setting up links between the bridge and our encoder/bridge
+ * objects needs to be handled by the kms driver itself
+ *
+ * RETURNS:
+ * Zero on success, error code on failure
+ */
 int drm_bridge_attach(struct drm_device *dev, struct drm_bridge *bridge)
 {
 	if (!dev || !bridge)
@@ -65,6 +118,39 @@ int drm_bridge_attach(struct drm_device *dev, struct drm_bridge *bridge)
 	return 0;
 }
 EXPORT_SYMBOL(drm_bridge_attach);
+
+/**
+ * DOC: bridge callbacks
+ *
+ * The drm_bridge_funcs ops are populated by the bridge driver. The drm
+ * internals(atomic and crtc helpers) use the helpers defined in drm_bridge.c
+ * These helpers call a specific drm_bridge_funcs op for all the bridges
+ * during encoder configuration.
+ *
+ * When creating a bridge driver, one can implement drm_bridge_funcs op with
+ * the help of these rough rules:
+ *
+ * pre_enable: this contains things needed to be done for the bridge before
+ * its clock and timings are enabled by its source. For a bridge, its source
+ * is generally the encoder or bridge just before it in the encoder chain.
+ *
+ * enable: this contains things needed to be done for the bridge once its
+ * source is enabled. In other words, enable is called once the source is
+ * ready with clock and timing needed by the bridge.
+ *
+ * disable: this contains things needed to be done for the bridge assuming
+ * that its source is still enabled, i.e. clock and timings are still on.
+ *
+ * post_disable: this contains things needed to be done for the bridge once
+ * its source is disabled, i.e. once clocks and timings are off.
+ *
+ * mode_fixup: this should fixup the given mode for the bridge. It is called
+ * after the encoder's mode fixup. mode_fixup can also reject a mode completely
+ * if it's unsuitable for the hardware.
+ *
+ * mode_set: this sets up the mode for the bridge. It assumes that its source
+ * (an encoder or a bridge) has set the mode too.
+ */
 
 /**
  * drm_bridge_mode_fixup - fixup proposed mode for all bridges in the
@@ -214,6 +300,15 @@ void drm_bridge_enable(struct drm_bridge *bridge)
 EXPORT_SYMBOL(drm_bridge_enable);
 
 #ifdef CONFIG_OF
+/**
+ * of_drm_find_bridge - find the bridge corresponding to the device node in
+ *			the global bridge list
+ *
+ * @np: device node
+ *
+ * RETURNS:
+ * drm_bridge control struct on success, NULL on failure
+ */
 struct drm_bridge *of_drm_find_bridge(struct device_node *np)
 {
 	struct drm_bridge *bridge;
