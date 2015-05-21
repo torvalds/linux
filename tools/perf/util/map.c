@@ -775,7 +775,7 @@ struct map *maps__first(struct rb_root *maps)
 	return NULL;
 }
 
-struct map *maps__next(struct map *map)
+struct map *map__next(struct map *map)
 {
 	struct rb_node *next = rb_next(&map->rb_node);
 
