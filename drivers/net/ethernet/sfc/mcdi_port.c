@@ -865,6 +865,7 @@ int efx_mcdi_set_mac(struct efx_nic *efx)
 
 	BUILD_BUG_ON(MC_CMD_SET_MAC_OUT_LEN != 0);
 
+	/* This has no effect on EF10 */
 	ether_addr_copy(MCDI_PTR(cmdbytes, SET_MAC_IN_ADDR),
 			efx->net_dev->dev_addr);
 

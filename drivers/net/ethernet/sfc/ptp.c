@@ -306,7 +306,7 @@ struct efx_ptp_data {
 	struct work_struct pps_work;
 	struct workqueue_struct *pps_workwq;
 	bool nic_ts_enabled;
-	MCDI_DECLARE_BUF(txbuf, MC_CMD_PTP_IN_TRANSMIT_LENMAX);
+	_MCDI_DECLARE_BUF(txbuf, MC_CMD_PTP_IN_TRANSMIT_LENMAX);
 
 	unsigned int good_syncs;
 	unsigned int fast_syncs;
@@ -573,7 +573,7 @@ static int efx_ptp_get_timestamp_corrections(struct efx_nic *efx)
 static int efx_ptp_enable(struct efx_nic *efx)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_PTP_IN_ENABLE_LEN);
-	MCDI_DECLARE_BUF_OUT_OR_ERR(outbuf, 0);
+	MCDI_DECLARE_BUF_ERR(outbuf);
 	int rc;
 
 	MCDI_SET_DWORD(inbuf, PTP_IN_OP, MC_CMD_PTP_OP_ENABLE);
@@ -601,7 +601,7 @@ static int efx_ptp_enable(struct efx_nic *efx)
 static int efx_ptp_disable(struct efx_nic *efx)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_PTP_IN_DISABLE_LEN);
-	MCDI_DECLARE_BUF_OUT_OR_ERR(outbuf, 0);
+	MCDI_DECLARE_BUF_ERR(outbuf);
 	int rc;
 
 	MCDI_SET_DWORD(inbuf, PTP_IN_OP, MC_CMD_PTP_OP_DISABLE);

@@ -406,7 +406,7 @@ static bool efx_mcdi_complete_async(struct efx_mcdi_iface *mcdi, bool timeout)
 	struct efx_mcdi_async_param *async;
 	size_t hdr_len, data_len, err_len;
 	efx_dword_t *outbuf;
-	MCDI_DECLARE_BUF_OUT_OR_ERR(errbuf, 0);
+	MCDI_DECLARE_BUF_ERR(errbuf);
 	int rc;
 
 	if (cmpxchg(&mcdi->state,
@@ -534,7 +534,7 @@ static int _efx_mcdi_rpc_finish(struct efx_nic *efx, unsigned cmd, size_t inlen,
 				size_t *outlen_actual, bool quiet)
 {
 	struct efx_mcdi_iface *mcdi = efx_mcdi(efx);
-	MCDI_DECLARE_BUF_OUT_OR_ERR(errbuf, 0);
+	MCDI_DECLARE_BUF_ERR(errbuf);
 	int rc;
 
 	if (mcdi->mode == MCDI_MODE_POLL)
@@ -1389,7 +1389,7 @@ fail1:
 static int efx_mcdi_read_assertion(struct efx_nic *efx)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_GET_ASSERTS_IN_LEN);
-	MCDI_DECLARE_BUF_OUT_OR_ERR(outbuf, MC_CMD_GET_ASSERTS_OUT_LEN);
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_ASSERTS_OUT_LEN);
 	unsigned int flags, index;
 	const char *reason;
 	size_t outlen;
@@ -1558,7 +1558,9 @@ int efx_mcdi_reset(struct efx_nic *efx, enum reset_type method)
 	if (rc)
 		return rc;
 
-	if (method == RESET_TYPE_WORLD)
+	if (method == RESET_TYPE_DATAPATH)
+		return 0;
+	else if (method == RESET_TYPE_WORLD)
 		return efx_mcdi_reset_mc(efx);
 	else
 		return efx_mcdi_reset_func(efx);
@@ -1699,7 +1701,7 @@ int efx_mcdi_set_workaround(struct efx_nic *efx, u32 type, bool enabled)
 int efx_mcdi_get_workarounds(struct efx_nic *efx, unsigned int *impl_out,
 			     unsigned int *enabled_out)
 {
-	MCDI_DECLARE_BUF_OUT_OR_ERR(outbuf, MC_CMD_GET_WORKAROUNDS_OUT_LEN);
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_WORKAROUNDS_OUT_LEN);
 	size_t outlen;
 	int rc;
 

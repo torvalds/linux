@@ -25,6 +25,7 @@
 #include <linux/highmem.h>
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
+#include <linux/rwsem.h>
 #include <linux/vmalloc.h>
 #include <linux/i2c.h>
 #include <linux/mtd/mtd.h>
@@ -896,7 +897,8 @@ struct vfdi_status;
  * @loopback_mode: Loopback status
  * @loopback_modes: Supported loopback mode bitmask
  * @loopback_selftest: Offline self-test private state
- * @filter_lock: Filter table lock
+ * @filter_sem: Filter table rw_semaphore, for freeing the table
+ * @filter_lock: Filter table lock, for mere content changes
  * @filter_state: Architecture-dependent filter table state
  * @rps_flow_id: Flow IDs of filters allocated for accelerated RFS,
  *	indexed by filter ID
@@ -1038,6 +1040,7 @@ struct efx_nic {
 
 	void *loopback_selftest;
 
+	struct rw_semaphore filter_sem;
 	spinlock_t filter_lock;
 	void *filter_state;
 #ifdef CONFIG_RFS_ACCEL
@@ -1202,6 +1205,7 @@ struct efx_mtd_partition {
  * @ptp_set_ts_config: Set hardware timestamp configuration.  The flags
  *	and tx_type will already have been validated but this operation
  *	must validate and update rx_filter.
+ * @set_mac_address: Set the MAC address of the device
  * @revision: Hardware architecture revision
  * @txd_ptr_tbl_base: TX descriptor ring base address
  * @rxd_ptr_tbl_base: RX descriptor ring base address
@@ -1334,7 +1338,6 @@ struct efx_nic_type {
 	int (*sriov_configure)(struct efx_nic *efx, int num_vfs);
 	int (*sriov_init)(struct efx_nic *efx);
 	void (*sriov_fini)(struct efx_nic *efx);
-	void (*sriov_mac_address_changed)(struct efx_nic *efx);
 	bool (*sriov_wanted)(struct efx_nic *efx);
 	void (*sriov_reset)(struct efx_nic *efx);
 	void (*sriov_flr)(struct efx_nic *efx, unsigned vf_i);
@@ -1345,9 +1348,13 @@ struct efx_nic_type {
 				     bool spoofchk);
 	int (*sriov_get_vf_config)(struct efx_nic *efx, int vf_i,
 				   struct ifla_vf_info *ivi);
+	int (*sriov_set_vf_link_state)(struct efx_nic *efx, int vf_i,
+				       int link_state);
 	int (*vswitching_probe)(struct efx_nic *efx);
 	int (*vswitching_restore)(struct efx_nic *efx);
 	void (*vswitching_remove)(struct efx_nic *efx);
+	int (*get_mac_address)(struct efx_nic *efx, unsigned char *perm_addr);
+	int (*set_mac_address)(struct efx_nic *efx);
 
 	int revision;
 	unsigned int txd_ptr_tbl_base;

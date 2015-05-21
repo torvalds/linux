@@ -1476,16 +1476,18 @@ void efx_siena_sriov_flr(struct efx_nic *efx, unsigned vf_i)
 	vf->evq0_count = 0;
 }
 
-void efx_siena_sriov_mac_address_changed(struct efx_nic *efx)
+int efx_siena_sriov_mac_address_changed(struct efx_nic *efx)
 {
 	struct siena_nic_data *nic_data = efx->nic_data;
 	struct vfdi_status *vfdi_status = nic_data->vfdi_status.addr;
 
 	if (!efx->vf_init_count)
-		return;
+		return 0;
 	ether_addr_copy(vfdi_status->peers[0].mac_addr,
 			efx->net_dev->dev_addr);
 	queue_work(vfdi_workqueue, &nic_data->peer_work);
+
+	return 0;
 }
 
 void efx_siena_sriov_tx_flush_done(struct efx_nic *efx, efx_qword_t *event)

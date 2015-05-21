@@ -734,7 +734,7 @@ static int efx_ethtool_set_pauseparam(struct net_device *net_dev,
 	/* Reconfigure the MAC. The PHY *may* generate a link state change event
 	 * if the user just changed the advertised capabilities, but there's no
 	 * harm doing this twice */
-	efx->type->reconfigure_mac(efx);
+	efx_mac_reconfigure(efx);
 
 out:
 	mutex_unlock(&efx->mac_lock);

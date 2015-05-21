@@ -119,6 +119,26 @@ static int efx_ef10_get_pf_index(struct efx_nic *efx)
 	return 0;
 }
 
+#ifdef CONFIG_SFC_SRIOV
+static int efx_ef10_get_vf_index(struct efx_nic *efx)
+{
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_FUNCTION_INFO_OUT_LEN);
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	size_t outlen;
+	int rc;
+
+	rc = efx_mcdi_rpc(efx, MC_CMD_GET_FUNCTION_INFO, NULL, 0, outbuf,
+			  sizeof(outbuf), &outlen);
+	if (rc)
+		return rc;
+	if (outlen < sizeof(outbuf))
+		return -EIO;
+
+	nic_data->vf_index = MCDI_DWORD(outbuf, GET_FUNCTION_INFO_OUT_VF);
+	return 0;
+}
+#endif
+
 static int efx_ef10_init_datapath_caps(struct efx_nic *efx)
 {
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_CAPABILITIES_OUT_LEN);
@@ -178,7 +198,7 @@ static int efx_ef10_get_sysclk_freq(struct efx_nic *efx)
 	return rc > 0 ? rc : -ERANGE;
 }
 
-static int efx_ef10_get_mac_address(struct efx_nic *efx, u8 *mac_address)
+static int efx_ef10_get_mac_address_pf(struct efx_nic *efx, u8 *mac_address)
 {
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_MAC_ADDRESSES_OUT_LEN);
 	size_t outlen;
@@ -195,6 +215,34 @@ static int efx_ef10_get_mac_address(struct efx_nic *efx, u8 *mac_address)
 
 	ether_addr_copy(mac_address,
 			MCDI_PTR(outbuf, GET_MAC_ADDRESSES_OUT_MAC_ADDR_BASE));
+	return 0;
+}
+
+static int efx_ef10_get_mac_address_vf(struct efx_nic *efx, u8 *mac_address)
+{
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_VPORT_GET_MAC_ADDRESSES_IN_LEN);
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_VPORT_GET_MAC_ADDRESSES_OUT_LENMAX);
+	size_t outlen;
+	int num_addrs, rc;
+
+	MCDI_SET_DWORD(inbuf, VPORT_GET_MAC_ADDRESSES_IN_VPORT_ID,
+		       EVB_PORT_ID_ASSIGNED);
+	rc = efx_mcdi_rpc(efx, MC_CMD_VPORT_GET_MAC_ADDRESSES, inbuf,
+			  sizeof(inbuf), outbuf, sizeof(outbuf), &outlen);
+
+	if (rc)
+		return rc;
+	if (outlen < MC_CMD_VPORT_GET_MAC_ADDRESSES_OUT_LENMIN)
+		return -EIO;
+
+	num_addrs = MCDI_DWORD(outbuf,
+			       VPORT_GET_MAC_ADDRESSES_OUT_MACADDR_COUNT);
+
+	WARN_ON(num_addrs != 1);
+
+	ether_addr_copy(mac_address,
+			MCDI_PTR(outbuf, VPORT_GET_MAC_ADDRESSES_OUT_MACADDR));
+
 	return 0;
 }
 
@@ -279,7 +327,7 @@ static int efx_ef10_probe(struct efx_nic *efx)
 		goto fail3;
 	efx->port_num = rc;
 
-	rc = efx_ef10_get_mac_address(efx, efx->net_dev->perm_addr);
+	rc = efx->type->get_mac_address(efx, efx->net_dev->perm_addr);
 	if (rc)
 		goto fail3;
 
@@ -328,26 +376,9 @@ fail1:
 	return rc;
 }
 
-static int efx_ef10_probe_pf(struct efx_nic *efx)
-{
-	return efx_ef10_probe(efx);
-}
-
-#ifdef CONFIG_SFC_SRIOV
-static int efx_ef10_probe_vf(struct efx_nic *efx)
-{
-	return efx_ef10_probe(efx);
-}
-#else
-static int efx_ef10_probe_vf(struct efx_nic *efx __attribute__ ((unused)))
-{
-	return 0;
-}
-#endif
-
 static int efx_ef10_free_vis(struct efx_nic *efx)
 {
-	MCDI_DECLARE_BUF_OUT_OR_ERR(outbuf, 0);
+	MCDI_DECLARE_BUF_ERR(outbuf);
 	size_t outlen;
 	int rc = efx_mcdi_rpc_quiet(efx, MC_CMD_FREE_VIS, NULL, 0,
 				    outbuf, sizeof(outbuf), &outlen);
@@ -418,9 +449,9 @@ static int efx_ef10_alloc_piobufs(struct efx_nic *efx, unsigned int n)
 static int efx_ef10_link_piobufs(struct efx_nic *efx)
 {
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
-	MCDI_DECLARE_BUF(inbuf,
-			 max(MC_CMD_LINK_PIOBUF_IN_LEN,
-			     MC_CMD_UNLINK_PIOBUF_IN_LEN));
+	_MCDI_DECLARE_BUF(inbuf,
+			  max(MC_CMD_LINK_PIOBUF_IN_LEN,
+			      MC_CMD_UNLINK_PIOBUF_IN_LEN));
 	struct efx_channel *channel;
 	struct efx_tx_queue *tx_queue;
 	unsigned int offset, index;
@@ -428,6 +459,8 @@ static int efx_ef10_link_piobufs(struct efx_nic *efx)
 
 	BUILD_BUG_ON(MC_CMD_LINK_PIOBUF_OUT_LEN != 0);
 	BUILD_BUG_ON(MC_CMD_UNLINK_PIOBUF_OUT_LEN != 0);
+
+	memset(inbuf, 0, sizeof(inbuf));
 
 	/* Link a buffer to each VI in the write-combining mapping */
 	for (index = 0; index < nic_data->n_piobufs; ++index) {
@@ -541,6 +574,25 @@ static void efx_ef10_remove(struct efx_nic *efx)
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	int rc;
 
+#ifdef CONFIG_SFC_SRIOV
+	struct efx_ef10_nic_data *nic_data_pf;
+	struct pci_dev *pci_dev_pf;
+	struct efx_nic *efx_pf;
+	struct ef10_vf *vf;
+
+	if (efx->pci_dev->is_virtfn) {
+		pci_dev_pf = efx->pci_dev->physfn;
+		if (pci_dev_pf) {
+			efx_pf = pci_get_drvdata(pci_dev_pf);
+			nic_data_pf = efx_pf->nic_data;
+			vf = nic_data_pf->vf + nic_data->vf_index;
+			vf->efx = NULL;
+		} else
+			netif_info(efx, drv, efx->net_dev,
+				   "Could not get the PF id from VF\n");
+	}
+#endif
+
 	efx_ptp_remove(efx);
 
 	efx_mcdi_mon_remove(efx);
@@ -560,6 +612,50 @@ static void efx_ef10_remove(struct efx_nic *efx)
 	efx_nic_free_buffer(efx, &nic_data->mcdi_buf);
 	kfree(nic_data);
 }
+
+static int efx_ef10_probe_pf(struct efx_nic *efx)
+{
+	return efx_ef10_probe(efx);
+}
+
+#ifdef CONFIG_SFC_SRIOV
+static int efx_ef10_probe_vf(struct efx_nic *efx)
+{
+	int rc;
+
+	rc = efx_ef10_probe(efx);
+	if (rc)
+		return rc;
+
+	rc = efx_ef10_get_vf_index(efx);
+	if (rc)
+		goto fail;
+
+	if (efx->pci_dev->is_virtfn) {
+		if (efx->pci_dev->physfn) {
+			struct efx_nic *efx_pf =
+				pci_get_drvdata(efx->pci_dev->physfn);
+			struct efx_ef10_nic_data *nic_data_p = efx_pf->nic_data;
+			struct efx_ef10_nic_data *nic_data = efx->nic_data;
+
+			nic_data_p->vf[nic_data->vf_index].efx = efx;
+		} else
+			netif_info(efx, drv, efx->net_dev,
+				   "Could not get the PF id from VF\n");
+	}
+
+	return 0;
+
+fail:
+	efx_ef10_remove(efx);
+	return rc;
+}
+#else
+static int efx_ef10_probe_vf(struct efx_nic *efx __attribute__ ((unused)))
+{
+	return 0;
+}
+#endif
 
 static int efx_ef10_alloc_vis(struct efx_nic *efx,
 			      unsigned int min_vis, unsigned int max_vis)
@@ -768,6 +864,14 @@ static void efx_ef10_reset_mc_allocations(struct efx_nic *efx)
 	nic_data->must_restore_filters = true;
 	nic_data->must_restore_piobufs = true;
 	nic_data->rx_rss_context = EFX_EF10_RSS_CONTEXT_INVALID;
+}
+
+static enum reset_type efx_ef10_map_reset_reason(enum reset_type reason)
+{
+	if (reason == RESET_TYPE_MC_FAILURE)
+		return RESET_TYPE_DATAPATH;
+
+	return efx_mcdi_map_reset_reason(reason);
 }
 
 static int efx_ef10_map_reset_flags(u32 *flags)
@@ -1312,17 +1416,17 @@ static void efx_ef10_tx_init(struct efx_tx_queue *tx_queue)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_INIT_TXQ_IN_LEN(EFX_MAX_DMAQ_SIZE * 8 /
 						       EFX_BUF_SIZE));
-	MCDI_DECLARE_BUF(outbuf, MC_CMD_INIT_TXQ_OUT_LEN);
 	bool csum_offload = tx_queue->queue & EFX_TXQ_TYPE_OFFLOAD;
 	size_t entries = tx_queue->txd.buf.len / EFX_BUF_SIZE;
 	struct efx_channel *channel = tx_queue->channel;
 	struct efx_nic *efx = tx_queue->efx;
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
-	size_t inlen, outlen;
+	size_t inlen;
 	dma_addr_t dma_addr;
 	efx_qword_t *txd;
 	int rc;
 	int i;
+	BUILD_BUG_ON(MC_CMD_INIT_TXQ_OUT_LEN != 0);
 
 	MCDI_SET_DWORD(inbuf, INIT_TXQ_IN_SIZE, tx_queue->ptr_mask + 1);
 	MCDI_SET_DWORD(inbuf, INIT_TXQ_IN_TARGET_EVQ, channel->channel);
@@ -1347,7 +1451,7 @@ static void efx_ef10_tx_init(struct efx_tx_queue *tx_queue)
 	inlen = MC_CMD_INIT_TXQ_IN_LEN(entries);
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_INIT_TXQ, inbuf, inlen,
-			  outbuf, sizeof(outbuf), &outlen);
+			  NULL, 0, NULL);
 	if (rc)
 		goto fail;
 
@@ -1380,7 +1484,7 @@ fail:
 static void efx_ef10_tx_fini(struct efx_tx_queue *tx_queue)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_FINI_TXQ_IN_LEN);
-	MCDI_DECLARE_BUF(outbuf, MC_CMD_FINI_TXQ_OUT_LEN);
+	MCDI_DECLARE_BUF_ERR(outbuf);
 	struct efx_nic *efx = tx_queue->efx;
 	size_t outlen;
 	int rc;
@@ -1687,15 +1791,15 @@ static void efx_ef10_rx_init(struct efx_rx_queue *rx_queue)
 	MCDI_DECLARE_BUF(inbuf,
 			 MC_CMD_INIT_RXQ_IN_LEN(EFX_MAX_DMAQ_SIZE * 8 /
 						EFX_BUF_SIZE));
-	MCDI_DECLARE_BUF(outbuf, MC_CMD_INIT_RXQ_OUT_LEN);
 	struct efx_channel *channel = efx_rx_queue_channel(rx_queue);
 	size_t entries = rx_queue->rxd.buf.len / EFX_BUF_SIZE;
 	struct efx_nic *efx = rx_queue->efx;
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
-	size_t inlen, outlen;
+	size_t inlen;
 	dma_addr_t dma_addr;
 	int rc;
 	int i;
+	BUILD_BUG_ON(MC_CMD_INIT_RXQ_OUT_LEN != 0);
 
 	rx_queue->scatter_n = 0;
 	rx_queue->scatter_len = 0;
@@ -1724,7 +1828,7 @@ static void efx_ef10_rx_init(struct efx_rx_queue *rx_queue)
 	inlen = MC_CMD_INIT_RXQ_IN_LEN(entries);
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_INIT_RXQ, inbuf, inlen,
-			  outbuf, sizeof(outbuf), &outlen);
+			  NULL, 0, NULL);
 	if (rc)
 		netdev_WARN(efx->net_dev, "failed to initialise RXQ %d\n",
 			    efx_rx_queue_index(rx_queue));
@@ -1733,7 +1837,7 @@ static void efx_ef10_rx_init(struct efx_rx_queue *rx_queue)
 static void efx_ef10_rx_fini(struct efx_rx_queue *rx_queue)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_FINI_RXQ_IN_LEN);
-	MCDI_DECLARE_BUF(outbuf, MC_CMD_FINI_RXQ_OUT_LEN);
+	MCDI_DECLARE_BUF_ERR(outbuf);
 	struct efx_nic *efx = rx_queue->efx;
 	size_t outlen;
 	int rc;
@@ -1895,7 +1999,7 @@ static int efx_ef10_ev_init(struct efx_channel *channel)
 static void efx_ef10_ev_fini(struct efx_channel *channel)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_FINI_EVQ_IN_LEN);
-	MCDI_DECLARE_BUF(outbuf, MC_CMD_FINI_EVQ_OUT_LEN);
+	MCDI_DECLARE_BUF_ERR(outbuf);
 	struct efx_nic *efx = channel->efx;
 	size_t outlen;
 	int rc;
@@ -3248,6 +3352,9 @@ fail:
 	return rc;
 }
 
+/* Caller must hold efx->filter_sem for read if race against
+ * efx_ef10_filter_table_remove() is possible
+ */
 static void efx_ef10_filter_table_restore(struct efx_nic *efx)
 {
 	struct efx_ef10_filter_table *table = efx->filter_state;
@@ -3257,7 +3364,12 @@ static void efx_ef10_filter_table_restore(struct efx_nic *efx)
 	bool failed = false;
 	int rc;
 
+	WARN_ON(!rwsem_is_locked(&efx->filter_sem));
+
 	if (!nic_data->must_restore_filters)
+		return;
+
+	if (!table)
 		return;
 
 	spin_lock_bh(&efx->filter_lock);
@@ -3295,6 +3407,7 @@ static void efx_ef10_filter_table_restore(struct efx_nic *efx)
 		nic_data->must_restore_filters = false;
 }
 
+/* Caller must hold efx->filter_sem for write */
 static void efx_ef10_filter_table_remove(struct efx_nic *efx)
 {
 	struct efx_ef10_filter_table *table = efx->filter_state;
@@ -3302,6 +3415,10 @@ static void efx_ef10_filter_table_remove(struct efx_nic *efx)
 	struct efx_filter_spec *spec;
 	unsigned int filter_idx;
 	int rc;
+
+	efx->filter_state = NULL;
+	if (!table)
+		return;
 
 	for (filter_idx = 0; filter_idx < HUNT_FILTER_TBL_ROWS; filter_idx++) {
 		spec = efx_ef10_filter_entry_spec(table, filter_idx);
@@ -3328,6 +3445,9 @@ static void efx_ef10_filter_table_remove(struct efx_nic *efx)
 	kfree(table);
 }
 
+/* Caller must hold efx->filter_sem for read if race against
+ * efx_ef10_filter_table_remove() is possible
+ */
 static void efx_ef10_filter_sync_rx_mode(struct efx_nic *efx)
 {
 	struct efx_ef10_filter_table *table = efx->filter_state;
@@ -3340,6 +3460,9 @@ static void efx_ef10_filter_sync_rx_mode(struct efx_nic *efx)
 	int i, n, rc;
 
 	if (!efx_dev_registered(efx))
+		return;
+
+	if (!table)
 		return;
 
 	/* Mark old filters that may need to be removed */
@@ -3473,11 +3596,90 @@ static void efx_ef10_filter_sync_rx_mode(struct efx_nic *efx)
 	WARN_ON(remove_failed);
 }
 
+static int efx_ef10_set_mac_address(struct efx_nic *efx)
+{
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_VADAPTOR_SET_MAC_IN_LEN);
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	bool was_enabled = efx->port_enabled;
+	int rc;
+
+	efx_device_detach_sync(efx);
+	efx_net_stop(efx->net_dev);
+	down_write(&efx->filter_sem);
+	efx_ef10_filter_table_remove(efx);
+
+	ether_addr_copy(MCDI_PTR(inbuf, VADAPTOR_SET_MAC_IN_MACADDR),
+			efx->net_dev->dev_addr);
+	MCDI_SET_DWORD(inbuf, VADAPTOR_SET_MAC_IN_UPSTREAM_PORT_ID,
+		       nic_data->vport_id);
+	rc = efx_mcdi_rpc(efx, MC_CMD_VADAPTOR_SET_MAC, inbuf,
+			  sizeof(inbuf), NULL, 0, NULL);
+
+	efx_ef10_filter_table_probe(efx);
+	up_write(&efx->filter_sem);
+	if (was_enabled)
+		efx_net_open(efx->net_dev);
+	netif_device_attach(efx->net_dev);
+
+#if !defined(CONFIG_SFC_SRIOV)
+	if (rc == -EPERM)
+		netif_err(efx, drv, efx->net_dev,
+			  "Cannot change MAC address; use sfboot to enable mac-spoofing"
+			  " on this interface\n");
+#else
+	if (rc == -EPERM) {
+		struct pci_dev *pci_dev_pf = efx->pci_dev->physfn;
+
+		/* Switch to PF and change MAC address on vport */
+		if (efx->pci_dev->is_virtfn && pci_dev_pf) {
+			struct efx_nic *efx_pf = pci_get_drvdata(pci_dev_pf);
+
+			if (!efx_ef10_sriov_set_vf_mac(efx_pf,
+						       nic_data->vf_index,
+						       efx->net_dev->dev_addr))
+				return 0;
+		}
+		netif_err(efx, drv, efx->net_dev,
+			  "Cannot change MAC address; use sfboot to enable mac-spoofing"
+			  " on this interface\n");
+	} else if (efx->pci_dev->is_virtfn) {
+		/* Successfully changed by VF (with MAC spoofing), so update the
+		 * parent PF if possible.
+		 */
+		struct pci_dev *pci_dev_pf = efx->pci_dev->physfn;
+
+		if (pci_dev_pf) {
+			struct efx_nic *efx_pf = pci_get_drvdata(pci_dev_pf);
+			struct efx_ef10_nic_data *nic_data = efx_pf->nic_data;
+			unsigned int i;
+
+			for (i = 0; i < efx_pf->vf_count; ++i) {
+				struct ef10_vf *vf = nic_data->vf + i;
+
+				if (vf->efx == efx) {
+					ether_addr_copy(vf->mac,
+							efx->net_dev->dev_addr);
+					return 0;
+				}
+			}
+		}
+	}
+#endif
+	return rc;
+}
+
 static int efx_ef10_mac_reconfigure(struct efx_nic *efx)
 {
 	efx_ef10_filter_sync_rx_mode(efx);
 
 	return efx_mcdi_set_mac(efx);
+}
+
+static int efx_ef10_mac_reconfigure_vf(struct efx_nic *efx)
+{
+	efx_ef10_filter_sync_rx_mode(efx);
+
+	return 0;
 }
 
 static int efx_ef10_start_bist(struct efx_nic *efx, u32 bist_type)
@@ -3818,7 +4020,7 @@ const struct efx_nic_type efx_hunt_a0_vf_nic_type = {
 	.dimension_resources = efx_ef10_dimension_resources,
 	.init = efx_ef10_init_nic,
 	.fini = efx_port_dummy_op_void,
-	.map_reset_reason = efx_mcdi_map_reset_reason,
+	.map_reset_reason = efx_ef10_map_reset_reason,
 	.map_reset_flags = efx_ef10_map_reset_flags,
 	.reset = efx_ef10_reset,
 	.probe_port = efx_mcdi_port_probe,
@@ -3833,7 +4035,7 @@ const struct efx_nic_type efx_hunt_a0_vf_nic_type = {
 	.stop_stats = efx_port_dummy_op_void,
 	.set_id_led = efx_mcdi_set_id_led,
 	.push_irq_moderation = efx_ef10_push_irq_moderation,
-	.reconfigure_mac = efx_ef10_mac_reconfigure,
+	.reconfigure_mac = efx_ef10_mac_reconfigure_vf,
 	.check_mac_fault = efx_mcdi_mac_check_fault,
 	.reconfigure_port = efx_mcdi_port_reconfigure,
 	.get_wol = efx_ef10_get_wol_vf,
@@ -3890,6 +4092,9 @@ const struct efx_nic_type efx_hunt_a0_vf_nic_type = {
 	.vswitching_restore = efx_ef10_vswitching_restore_vf,
 	.vswitching_remove = efx_ef10_vswitching_remove_vf,
 #endif
+	.get_mac_address = efx_ef10_get_mac_address_vf,
+	.set_mac_address = efx_ef10_set_mac_address,
+
 	.revision = EFX_REV_HUNT_A0,
 	.max_dma_mask = DMA_BIT_MASK(ESF_DZ_TX_KER_BUF_ADDR_WIDTH),
 	.rx_prefix_size = ES_DZ_RX_PREFIX_SIZE,
@@ -3916,7 +4121,7 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.dimension_resources = efx_ef10_dimension_resources,
 	.init = efx_ef10_init_nic,
 	.fini = efx_port_dummy_op_void,
-	.map_reset_reason = efx_mcdi_map_reset_reason,
+	.map_reset_reason = efx_ef10_map_reset_reason,
 	.map_reset_flags = efx_ef10_map_reset_flags,
 	.reset = efx_ef10_reset,
 	.probe_port = efx_mcdi_port_probe,
@@ -3995,7 +4200,6 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.sriov_configure = efx_ef10_sriov_configure,
 	.sriov_init = efx_ef10_sriov_init,
 	.sriov_fini = efx_ef10_sriov_fini,
-	.sriov_mac_address_changed = efx_ef10_sriov_mac_address_changed,
 	.sriov_wanted = efx_ef10_sriov_wanted,
 	.sriov_reset = efx_ef10_sriov_reset,
 	.sriov_flr = efx_ef10_sriov_flr,
@@ -4003,10 +4207,13 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.sriov_set_vf_vlan = efx_ef10_sriov_set_vf_vlan,
 	.sriov_set_vf_spoofchk = efx_ef10_sriov_set_vf_spoofchk,
 	.sriov_get_vf_config = efx_ef10_sriov_get_vf_config,
+	.sriov_set_vf_link_state = efx_ef10_sriov_set_vf_link_state,
 	.vswitching_probe = efx_ef10_vswitching_probe_pf,
 	.vswitching_restore = efx_ef10_vswitching_restore_pf,
 	.vswitching_remove = efx_ef10_vswitching_remove_pf,
 #endif
+	.get_mac_address = efx_ef10_get_mac_address_pf,
+	.set_mac_address = efx_ef10_set_mac_address,
 
 	.revision = EFX_REV_HUNT_A0,
 	.max_dma_mask = DMA_BIT_MASK(ESF_DZ_TX_KER_BUF_ADDR_WIDTH),
