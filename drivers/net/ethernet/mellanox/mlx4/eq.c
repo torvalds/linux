@@ -145,7 +145,7 @@ void mlx4_gen_slave_eqe(struct work_struct *work)
 	struct mlx4_slave_event_eq *slave_eq = &mfunc->master.slave_eq;
 	struct mlx4_eqe *eqe;
 	u8 slave;
-	int i;
+	int i, phys_port, slave_port;
 
 	for (eqe = next_slave_event_eqe(slave_eq); eqe;
 	      eqe = next_slave_event_eqe(slave_eq)) {
@@ -154,9 +154,20 @@ void mlx4_gen_slave_eqe(struct work_struct *work)
 		/* All active slaves need to receive the event */
 		if (slave == ALL_SLAVES) {
 			for (i = 0; i <= dev->persist->num_vfs; i++) {
+				phys_port = 0;
+				if (eqe->type == MLX4_EVENT_TYPE_PORT_MNG_CHG_EVENT &&
+				    eqe->subtype == MLX4_DEV_PMC_SUBTYPE_PORT_INFO) {
+					phys_port  = eqe->event.port_mgmt_change.port;
+					slave_port = mlx4_phys_to_slave_port(dev, i, phys_port);
+					if (slave_port < 0) /* VF doesn't have this port */
+						continue;
+					eqe->event.port_mgmt_change.port = slave_port;
+				}
 				if (mlx4_GEN_EQE(dev, i, eqe))
 					mlx4_warn(dev, "Failed to generate event for slave %d\n",
 						  i);
+				if (phys_port)
+					eqe->event.port_mgmt_change.port = phys_port;
 			}
 		} else {
 			if (mlx4_GEN_EQE(dev, slave, eqe))
@@ -224,7 +235,7 @@ int mlx4_gen_pkey_eqe(struct mlx4_dev *dev, int slave, u8 port)
 
 	eqe.type = MLX4_EVENT_TYPE_PORT_MNG_CHG_EVENT;
 	eqe.subtype = MLX4_DEV_PMC_SUBTYPE_PKEY_TABLE;
-	eqe.event.port_mgmt_change.port = port;
+	eqe.event.port_mgmt_change.port = mlx4_phys_to_slave_port(dev, slave, port);
 
 	return mlx4_GEN_EQE(dev, slave, &eqe);
 }
@@ -241,7 +252,7 @@ int mlx4_gen_guid_change_eqe(struct mlx4_dev *dev, int slave, u8 port)
 
 	eqe.type = MLX4_EVENT_TYPE_PORT_MNG_CHG_EVENT;
 	eqe.subtype = MLX4_DEV_PMC_SUBTYPE_GUID_INFO;
-	eqe.event.port_mgmt_change.port = port;
+	eqe.event.port_mgmt_change.port = mlx4_phys_to_slave_port(dev, slave, port);
 
 	return mlx4_GEN_EQE(dev, slave, &eqe);
 }
@@ -251,6 +262,7 @@ int mlx4_gen_port_state_change_eqe(struct mlx4_dev *dev, int slave, u8 port,
 				   u8 port_subtype_change)
 {
 	struct mlx4_eqe eqe;
+	u8 slave_port = mlx4_phys_to_slave_port(dev, slave, port);
 
 	/*don't send if we don't have the that slave */
 	if (dev->persist->num_vfs < slave)
@@ -259,7 +271,7 @@ int mlx4_gen_port_state_change_eqe(struct mlx4_dev *dev, int slave, u8 port,
 
 	eqe.type = MLX4_EVENT_TYPE_PORT_CHANGE;
 	eqe.subtype = port_subtype_change;
-	eqe.event.port_change.port = cpu_to_be32(port << 28);
+	eqe.event.port_change.port = cpu_to_be32(slave_port << 28);
 
 	mlx4_dbg(dev, "%s: sending: %d to slave: %d on port: %d\n", __func__,
 		 port_subtype_change, slave, port);
@@ -589,6 +601,10 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 						if (SLAVE_PORT_GEN_EVENT_DOWN ==  gen_event) {
 							if (i == mlx4_master_func_num(dev))
 								continue;
+							eqe->event.port_change.port =
+								cpu_to_be32(
+								(be32_to_cpu(eqe->event.port_change.port) & 0xFFFFFFF)
+								| (mlx4_phys_to_slave_port(dev, i, port) << 28));
 							mlx4_slave_event(dev, i, eqe);
 						}
 					}
