@@ -22,6 +22,7 @@
 
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
+#include <linux/math64.h>
 #include <linux/pci.h>
 #include <linux/v4l2-dv-timings.h>
 
@@ -314,8 +315,8 @@ static int cobalt_start_streaming(struct vb2_queue *q, unsigned int count)
 	cvi->frame_height = bt->height;
 	tot_size = V4L2_DV_BT_FRAME_WIDTH(bt) * V4L2_DV_BT_FRAME_HEIGHT(bt);
 	vmr->hsync_timeout_val =
-		((u64)V4L2_DV_BT_FRAME_WIDTH(bt) * COBALT_CLK * 4) /
-		bt->pixelclock;
+		div_u64((u64)V4L2_DV_BT_FRAME_WIDTH(bt) * COBALT_CLK * 4,
+			bt->pixelclock);
 	vmr->control = M00233_CONTROL_BITMAP_ENABLE_MEASURE_MSK;
 	clkloss->ref_clk_cnt_val = fw->clk_freq / 1000000;
 	/* The lower bound for the clock frequency is 0.5% lower as is
@@ -324,7 +325,7 @@ static int cobalt_start_streaming(struct vb2_queue *q, unsigned int count)
 		(((u64)bt->pixelclock * 995) / 1000) / 1000000;
 	/* will be enabled after the first frame has been received */
 	fw->active_length = bt->width * bt->height;
-	fw->total_length = ((u64)fw->clk_freq * tot_size) / bt->pixelclock;
+	fw->total_length = div_u64((u64)fw->clk_freq * tot_size, bt->pixelclock);
 	vmr->irq_triggers = M00233_IRQ_TRIGGERS_BITMAP_VACTIVE_AREA_MSK |
 		M00233_IRQ_TRIGGERS_BITMAP_HACTIVE_AREA_MSK;
 	cvi->control = 0;
