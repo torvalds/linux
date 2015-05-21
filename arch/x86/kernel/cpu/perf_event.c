@@ -881,9 +881,7 @@ int x86_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign)
 			if (x86_pmu.commit_scheduling)
 				x86_pmu.commit_scheduling(cpuc, i, assign[i]);
 		}
-	}
-
-	if (!assign || unsched) {
+	} else {
 		for (i = 0; i < n; i++) {
 			e = cpuc->event_list[i];
 			/*
