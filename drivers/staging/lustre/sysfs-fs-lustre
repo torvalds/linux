@@ -65,3 +65,15 @@ Description:
 		Shows total number of free kilobytes of space on this filesystem
 		actually available for use (taking into account per-client
 		grants and filesystem reservations).
+
+What:		/sys/fs/lustre/llite/<fsname>-<uuid>/filestotal
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Shows total number of inodes on the filesystem.
+
+What:		/sys/fs/lustre/llite/<fsname>-<uuid>/filesfree
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Shows estimated number of free inodes on the filesystem

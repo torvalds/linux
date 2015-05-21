@@ -141,39 +141,41 @@ static ssize_t kbytesavail_show(struct kobject *kobj, struct attribute *attr,
 }
 LUSTRE_RO_ATTR(kbytesavail);
 
-static int ll_filestotal_seq_show(struct seq_file *m, void *v)
+static ssize_t filestotal_show(struct kobject *kobj, struct attribute *attr,
+			       char *buf)
 {
-	struct super_block *sb = (struct super_block *)m->private;
+	struct ll_sb_info *sbi = container_of(kobj, struct ll_sb_info,
+					      ll_kobj);
 	struct obd_statfs osfs;
 	int rc;
 
-	LASSERT(sb != NULL);
-	rc = ll_statfs_internal(sb, &osfs,
+	rc = ll_statfs_internal(sbi->ll_sb, &osfs,
 				cfs_time_shift_64(-OBD_STATFS_CACHE_SECONDS),
 				OBD_STATFS_NODELAY);
 	if (!rc)
-		seq_printf(m, "%llu\n", osfs.os_files);
+		return sprintf(buf, "%llu\n", osfs.os_files);
 
 	return rc;
 }
-LPROC_SEQ_FOPS_RO(ll_filestotal);
+LUSTRE_RO_ATTR(filestotal);
 
-static int ll_filesfree_seq_show(struct seq_file *m, void *v)
+static ssize_t filesfree_show(struct kobject *kobj, struct attribute *attr,
+			      char *buf)
 {
-	struct super_block *sb = (struct super_block *)m->private;
+	struct ll_sb_info *sbi = container_of(kobj, struct ll_sb_info,
+					      ll_kobj);
 	struct obd_statfs osfs;
 	int rc;
 
-	LASSERT(sb != NULL);
-	rc = ll_statfs_internal(sb, &osfs,
+	rc = ll_statfs_internal(sbi->ll_sb, &osfs,
 				cfs_time_shift_64(-OBD_STATFS_CACHE_SECONDS),
 				OBD_STATFS_NODELAY);
 	if (!rc)
-		seq_printf(m, "%llu\n", osfs.os_ffree);
+		return sprintf(buf, "%llu\n", osfs.os_ffree);
 
 	return rc;
 }
-LPROC_SEQ_FOPS_RO(ll_filesfree);
+LUSTRE_RO_ATTR(filesfree);
 
 static int ll_client_type_seq_show(struct seq_file *m, void *v)
 {
@@ -843,8 +845,6 @@ static struct lprocfs_vars lprocfs_llite_obd_vars[] = {
 	/* { "mntpt_path",   ll_rd_path,	     0, 0 }, */
 	{ "fstype",       &ll_fstype_fops,	  NULL, 0 },
 	{ "site",	  &ll_site_stats_fops,    NULL, 0 },
-	{ "filestotal",   &ll_filestotal_fops,    NULL, 0 },
-	{ "filesfree",    &ll_filesfree_fops,	  NULL, 0 },
 	{ "client_type",  &ll_client_type_fops,   NULL, 0 },
 	/* { "filegroups",   lprocfs_rd_filegroups,  0, 0 }, */
 	{ "max_read_ahead_mb", &ll_max_readahead_mb_fops, NULL },
@@ -877,6 +877,8 @@ static struct attribute *llite_attrs[] = {
 	&lustre_attr_kbytestotal.attr,
 	&lustre_attr_kbytesfree.attr,
 	&lustre_attr_kbytesavail.attr,
+	&lustre_attr_filestotal.attr,
+	&lustre_attr_filesfree.attr,
 	NULL,
 };
 
