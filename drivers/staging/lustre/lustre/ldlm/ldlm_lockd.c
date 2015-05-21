@@ -58,6 +58,10 @@ MODULE_PARM_DESC(ldlm_cpts, "CPU partitions ldlm threads should run on");
 static struct mutex	ldlm_ref_mutex;
 static int ldlm_refcount;
 
+struct kobject *ldlm_kobj;
+struct kset *ldlm_ns_kset;
+struct kset *ldlm_svc_kset;
+
 struct ldlm_cb_async_args {
 	struct ldlm_cb_set_arg *ca_set_arg;
 	struct ldlm_lock       *ca_lock;
@@ -1002,6 +1006,15 @@ void ldlm_destroy_export(struct obd_export *exp)
 }
 EXPORT_SYMBOL(ldlm_destroy_export);
 
+/* These are for root of /sys/fs/lustre/ldlm */
+struct attribute *ldlm_attrs[] = {
+	NULL,
+};
+
+static struct attribute_group ldlm_attr_group = {
+	.attrs = ldlm_attrs,
+};
+
 static int ldlm_setup(void)
 {
 	static struct ptlrpc_service_conf	conf;
@@ -1015,6 +1028,28 @@ static int ldlm_setup(void)
 	ldlm_state = kzalloc(sizeof(*ldlm_state), GFP_NOFS);
 	if (ldlm_state == NULL)
 		return -ENOMEM;
+
+	ldlm_kobj = kobject_create_and_add("ldlm", lustre_kobj);
+	if (!ldlm_kobj) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	rc = sysfs_create_group(ldlm_kobj, &ldlm_attr_group);
+	if (rc)
+		goto out;
+
+	ldlm_ns_kset = kset_create_and_add("namespaces", NULL, ldlm_kobj);
+	if (!ldlm_ns_kset) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	ldlm_svc_kset = kset_create_and_add("services", NULL, ldlm_kobj);
+	if (!ldlm_svc_kset) {
+		rc = -ENOMEM;
+		goto out;
+	}
 
 	rc = ldlm_proc_setup();
 	if (rc != 0)
@@ -1088,7 +1123,6 @@ static int ldlm_setup(void)
 			goto out;
 	}
 
-
 	rc = ldlm_pools_init();
 	if (rc) {
 		CERROR("Failed to initialize LDLM pools: %d\n", rc);
@@ -1134,6 +1168,13 @@ static int ldlm_cleanup(void)
 
 	if (ldlm_state->ldlm_cb_service != NULL)
 		ptlrpc_unregister_service(ldlm_state->ldlm_cb_service);
+
+	if (ldlm_ns_kset)
+		kset_unregister(ldlm_ns_kset);
+	if (ldlm_svc_kset)
+		kset_unregister(ldlm_svc_kset);
+	if (ldlm_kobj)
+		kobject_put(ldlm_kobj);
 
 	ldlm_proc_cleanup();
 

@@ -60,6 +60,9 @@
 struct obd_ops;
 struct obd_device;
 
+extern struct kset *ldlm_ns_kset;
+extern struct kset *ldlm_svc_kset;
+
 #define OBD_LDLM_DEVICENAME  "ldlm"
 
 #define LDLM_DEFAULT_LRU_SIZE (100 * num_online_cpus())
@@ -501,6 +504,9 @@ struct ldlm_namespace {
 	 * recalculation of LDLM pool statistics should be skipped.
 	 */
 	unsigned		ns_stopping:1;
+
+	struct kobject		ns_kobj; /* sysfs object */
+	struct completion	ns_kobj_unregister;
 };
 
 /**

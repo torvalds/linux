@@ -307,6 +307,24 @@ static ssize_t lprocfs_elc_seq_write(struct file *file,
 }
 LPROC_SEQ_FOPS(lprocfs_elc);
 
+/* These are for namespaces in /sys/fs/lustre/ldlm/namespaces/ */
+static struct attribute *ldlm_ns_attrs[] = {
+	NULL,
+};
+
+static void ldlm_ns_release(struct kobject *kobj)
+{
+	struct ldlm_namespace *ns = container_of(kobj, struct ldlm_namespace,
+						 ns_kobj);
+	complete(&ns->ns_kobj_unregister);
+}
+
+static struct kobj_type ldlm_ns_ktype = {
+	.default_attrs  = ldlm_ns_attrs,
+	.sysfs_ops      = &lustre_sysfs_ops,
+	.release        = ldlm_ns_release,
+};
+
 void ldlm_namespace_proc_unregister(struct ldlm_namespace *ns)
 {
 	if (ns->ns_proc_dir_entry == NULL)
@@ -319,6 +337,12 @@ void ldlm_namespace_proc_unregister(struct ldlm_namespace *ns)
 		lprocfs_free_stats(&ns->ns_stats);
 }
 
+void ldlm_namespace_sysfs_unregister(struct ldlm_namespace *ns)
+{
+	kobject_put(&ns->ns_kobj);
+	wait_for_completion(&ns->ns_kobj_unregister);
+}
+
 #define LDLM_NS_ADD_VAR(name, var, ops)				\
 	do {							\
 		snprintf(lock_name, MAX_STRING_SIZE, name);	\
@@ -326,6 +350,19 @@ void ldlm_namespace_proc_unregister(struct ldlm_namespace *ns)
 		lock_vars[0].fops = ops;			\
 		lprocfs_add_vars(ns_pde, lock_vars, NULL);	\
 	} while (0)
+
+
+int ldlm_namespace_sysfs_register(struct ldlm_namespace *ns)
+{
+	int err;
+
+	ns->ns_kobj.kset = ldlm_ns_kset;
+	init_completion(&ns->ns_kobj_unregister);
+	err = kobject_init_and_add(&ns->ns_kobj, &ldlm_ns_ktype, NULL,
+				   "%s", ldlm_ns_name(ns));
+
+	return err;
+}
 
 int ldlm_namespace_proc_register(struct ldlm_namespace *ns)
 {
@@ -636,10 +673,17 @@ struct ldlm_namespace *ldlm_namespace_new(struct obd_device *obd, char *name,
 	ns->ns_orig_connect_flags = 0;
 	ns->ns_connect_flags      = 0;
 	ns->ns_stopping	   = 0;
+
+	rc = ldlm_namespace_sysfs_register(ns);
+	if (rc != 0) {
+		CERROR("Can't initialize ns sysfs, rc %d\n", rc);
+		goto out_hash;
+	}
+
 	rc = ldlm_namespace_proc_register(ns);
 	if (rc != 0) {
 		CERROR("Can't initialize ns proc, rc %d\n", rc);
-		goto out_hash;
+		goto out_sysfs;
 	}
 
 	idx = ldlm_namespace_nr_read(client);
@@ -653,6 +697,8 @@ struct ldlm_namespace *ldlm_namespace_new(struct obd_device *obd, char *name,
 	return ns;
 out_proc:
 	ldlm_namespace_proc_unregister(ns);
+out_sysfs:
+	ldlm_namespace_sysfs_unregister(ns);
 	ldlm_namespace_cleanup(ns, 0);
 out_hash:
 	cfs_hash_putref(ns->ns_rs_hash);
