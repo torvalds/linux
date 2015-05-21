@@ -613,6 +613,7 @@ struct lmv_obd {
 	struct lmv_tgt_desc	**tgts;
 
 	struct obd_connect_data	conn_data;
+	struct kobject		*lmv_tgts_kobj;
 };
 
 struct niobuf_local {
@@ -917,7 +918,6 @@ struct obd_device {
 	struct lprocfs_stats  *md_stats;
 
 	struct proc_dir_entry  *obd_proc_entry;
-	void		  *obd_proc_private; /* type private PDEs */
 	struct proc_dir_entry  *obd_proc_exports_entry;
 	struct proc_dir_entry  *obd_svc_procroot;
 	struct lprocfs_stats  *obd_svc_stats;

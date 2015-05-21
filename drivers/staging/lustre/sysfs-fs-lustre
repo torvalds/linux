@@ -518,3 +518,26 @@ Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
 Description:
 		Number of OSC targets managed by this LOV instance that are
 		actually active.
+
+What:		/sys/fs/lustre/lmv/{connection_name}/numobd
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Number of MDC targets managed by this LMV instance.
+
+What:		/sys/fs/lustre/lmv/{connection_name}/activeobd
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Number of MDC targets managed by this LMV instance that are
+		actually active.
+
+What:		/sys/fs/lustre/lmv/{connection_name}/placement
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Determines policy of inode placement in case of multiple
+		metadata servers:
+		CHAR - based on a hash of the file name used at creation time
+		       (Default)
+		NID - based on a hash of creating client network id.

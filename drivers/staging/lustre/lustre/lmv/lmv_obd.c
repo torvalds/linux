@@ -199,7 +199,6 @@ static int lmv_connect(const struct lu_env *env,
 		       struct obd_uuid *cluuid, struct obd_connect_data *data,
 		       void *localdata)
 {
-	struct proc_dir_entry *lmv_proc_dir;
 	struct lmv_obd	*lmv = &obd->u.lmv;
 	struct lustre_handle  conn = { 0 };
 	int		    rc = 0;
@@ -230,19 +229,8 @@ static int lmv_connect(const struct lu_env *env,
 	if (data)
 		lmv->conn_data = *data;
 
-	if (obd->obd_proc_private != NULL) {
-		lmv_proc_dir = obd->obd_proc_private;
-	} else {
-		lmv_proc_dir = lprocfs_register("target_obds", obd->obd_proc_entry,
-						NULL, NULL);
-		if (IS_ERR(lmv_proc_dir)) {
-			CERROR("could not register /proc/fs/lustre/%s/%s/target_obds.",
-			       obd->obd_type->typ_name, obd->obd_name);
-			lmv_proc_dir = NULL;
-		}
-		obd->obd_proc_private = lmv_proc_dir;
-	}
-
+	lmv->lmv_tgts_kobj = kobject_create_and_add("target_obds",
+						    &obd->obd_kobj);
 	/*
 	 * All real clients should perform actual connection right away, because
 	 * it is possible, that LMV will not have opportunity to connect targets
@@ -252,10 +240,8 @@ static int lmv_connect(const struct lu_env *env,
 	if (data->ocd_connect_flags & OBD_CONNECT_REAL)
 		rc = lmv_check_connect(obd);
 
-	if (rc && lmv_proc_dir) {
-		lprocfs_remove(&lmv_proc_dir);
-		obd->obd_proc_private = NULL;
-	}
+	if (rc && lmv->lmv_tgts_kobj)
+		kobject_put(lmv->lmv_tgts_kobj);
 
 	return rc;
 }
@@ -337,7 +323,6 @@ static int lmv_init_ea_size(struct obd_export *exp, int easize,
 
 static int lmv_connect_mdc(struct obd_device *obd, struct lmv_tgt_desc *tgt)
 {
-	struct proc_dir_entry   *lmv_proc_dir;
 	struct lmv_obd	  *lmv = &obd->u.lmv;
 	struct obd_uuid	 *cluuid = &lmv->cluuid;
 	struct obd_uuid	  lmv_mdc_uuid = { "LMV_MDC_UUID" };
@@ -415,25 +400,10 @@ static int lmv_connect_mdc(struct obd_device *obd, struct lmv_tgt_desc *tgt)
 		mdc_obd->obd_name, mdc_obd->obd_uuid.uuid,
 		atomic_read(&obd->obd_refcount));
 
-	lmv_proc_dir = obd->obd_proc_private;
-	if (lmv_proc_dir) {
-		struct proc_dir_entry *mdc_symlink;
-
-		LASSERT(mdc_obd->obd_type != NULL);
-		LASSERT(mdc_obd->obd_type->typ_name != NULL);
-		mdc_symlink = lprocfs_add_symlink(mdc_obd->obd_name,
-						  lmv_proc_dir,
-						  "../../../%s/%s",
-						  mdc_obd->obd_type->typ_name,
-						  mdc_obd->obd_name);
-		if (mdc_symlink == NULL) {
-			CERROR("Could not register LMV target /proc/fs/lustre/%s/%s/target_obds/%s.",
-			       obd->obd_type->typ_name, obd->obd_name,
-			       mdc_obd->obd_name);
-			lprocfs_remove(&lmv_proc_dir);
-			obd->obd_proc_private = NULL;
-		}
-	}
+	if (lmv->lmv_tgts_kobj)
+		/* Even if we failed to create the link, that's fine */
+		rc = sysfs_create_link(lmv->lmv_tgts_kobj, &mdc_obd->obd_kobj,
+				       mdc_obd->obd_name);
 	return 0;
 }
 
@@ -610,7 +580,6 @@ int lmv_check_connect(struct obd_device *obd)
 
 static int lmv_disconnect_mdc(struct obd_device *obd, struct lmv_tgt_desc *tgt)
 {
-	struct proc_dir_entry  *lmv_proc_dir;
 	struct lmv_obd	 *lmv = &obd->u.lmv;
 	struct obd_device      *mdc_obd;
 	int		     rc;
@@ -626,9 +595,9 @@ static int lmv_disconnect_mdc(struct obd_device *obd, struct lmv_tgt_desc *tgt)
 		mdc_obd->obd_no_recov = obd->obd_no_recov;
 	}
 
-	lmv_proc_dir = obd->obd_proc_private;
-	if (lmv_proc_dir)
-		lprocfs_remove_proc_entry(mdc_obd->obd_name, lmv_proc_dir);
+	if (lmv->lmv_tgts_kobj)
+		sysfs_remove_link(lmv->lmv_tgts_kobj,
+				  mdc_obd->obd_name);
 
 	rc = obd_fid_fini(tgt->ltd_exp->exp_obd);
 	if (rc)
@@ -676,11 +645,8 @@ static int lmv_disconnect(struct obd_export *exp)
 		lmv_disconnect_mdc(obd, lmv->tgts[i]);
 	}
 
-	if (obd->obd_proc_private)
-		lprocfs_remove((struct proc_dir_entry **)&obd->obd_proc_private);
-	else
-		CERROR("/proc/fs/lustre/%s/%s/target_obds missing\n",
-		       obd->obd_type->typ_name, obd->obd_name);
+	if (lmv->lmv_tgts_kobj)
+		kobject_put(lmv->lmv_tgts_kobj);
 
 out_local:
 	/*
