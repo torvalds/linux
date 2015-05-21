@@ -785,7 +785,7 @@ static int rk_iommu_attach_device(struct iommu_domain *domain,
 	list_add_tail(&iommu->node, &rk_domain->iommus);
 	spin_unlock_irqrestore(&rk_domain->iommus_lock, flags);
 
-	dev_info(dev, "Attached to iommu domain\n");
+	dev_dbg(dev, "Attached to iommu domain\n");
 
 	rk_iommu_disable_stall(iommu);
 
@@ -819,7 +819,7 @@ static void rk_iommu_detach_device(struct iommu_domain *domain,
 
 	iommu->domain = NULL;
 
-	dev_info(dev, "Detached from iommu domain\n");
+	dev_dbg(dev, "Detached from iommu domain\n");
 }
 
 static struct iommu_domain *rk_iommu_domain_alloc(unsigned type)
