@@ -2277,7 +2277,7 @@ static int lmv_precleanup(struct obd_device *obd, enum obd_cleanup_stage stage)
 		 * stack. */
 		break;
 	case OBD_CLEANUP_EXPORTS:
-		fld_client_proc_fini(&lmv->lmv_fld);
+		fld_client_debugfs_fini(&lmv->lmv_fld);
 		lprocfs_obd_cleanup(obd);
 		break;
 	default:
