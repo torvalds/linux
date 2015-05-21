@@ -413,10 +413,12 @@ static int __init imx5_pm_common_init(const struct imx5_pm_data *data)
 
 void __init imx51_pm_init(void)
 {
-	imx5_pm_common_init(&imx51_pm_data);
+	if (IS_ENABLED(CONFIG_SOC_IMX51))
+		imx5_pm_common_init(&imx51_pm_data);
 }
 
 void __init imx53_pm_init(void)
 {
-	imx5_pm_common_init(&imx53_pm_data);
+	if (IS_ENABLED(CONFIG_SOC_IMX53))
+		imx5_pm_common_init(&imx53_pm_data);
 }
