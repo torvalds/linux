@@ -1624,8 +1624,9 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 		if (rport) {
 			rdata = rport->dd_data;
 			if (rdata->pnode == ndlp) {
-				lpfc_nlp_put(ndlp);
+				/* break the link before dropping the ref */
 				ndlp->rport = NULL;
+				lpfc_nlp_put(ndlp);
 				rdata->pnode = lpfc_nlp_get(new_ndlp);
 				new_ndlp->rport = rport;
 			}
@@ -3674,6 +3675,7 @@ lpfc_cmpl_els_logo_acc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	 * Remove the ndlp reference if it's a fabric node that has
 	 * sent us an unsolicted LOGO.
 	 */
+	/* FIXME: this one frees ndlp before breaking rport link */
 	if (ndlp->nlp_type & NLP_FABRIC)
 		lpfc_nlp_put(ndlp);
 
@@ -7351,8 +7353,13 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	 * Do not process any unsolicited ELS commands
 	 * if the ndlp is in DEV_LOSS
 	 */
-	if (ndlp->nlp_add_flag & NLP_IN_DEV_LOSS)
+	shost = lpfc_shost_from_vport(vport);
+	spin_lock_irq(shost->host_lock);
+	if (ndlp->nlp_flag & NLP_IN_DEV_LOSS) {
+		spin_unlock_irq(shost->host_lock);
 		goto dropit;
+	}
+	spin_unlock_irq(shost->host_lock);
 
 	elsiocb->context1 = lpfc_nlp_get(ndlp);
 	elsiocb->vport = vport;
@@ -7396,7 +7403,6 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			rjt_exp = LSEXP_NOTHING_MORE;
 			break;
 		}
-		shost = lpfc_shost_from_vport(vport);
 		if (vport->port_state < LPFC_DISC_AUTH) {
 			if (!(phba->pport->fc_flag & FC_PT2PT) ||
 				(phba->pport->fc_flag & FC_PT2PT_PLOGI)) {
