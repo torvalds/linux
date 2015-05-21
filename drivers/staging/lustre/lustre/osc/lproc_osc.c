@@ -520,14 +520,7 @@ static ssize_t osc_obd_max_pages_per_rpc_seq_write(struct file *file,
 }
 LPROC_SEQ_FOPS(osc_obd_max_pages_per_rpc);
 
-LPROC_SEQ_FOPS_RO_TYPE(osc, uuid);
 LPROC_SEQ_FOPS_RO_TYPE(osc, connect_flags);
-LPROC_SEQ_FOPS_RO_TYPE(osc, blksize);
-LPROC_SEQ_FOPS_RO_TYPE(osc, kbytestotal);
-LPROC_SEQ_FOPS_RO_TYPE(osc, kbytesfree);
-LPROC_SEQ_FOPS_RO_TYPE(osc, kbytesavail);
-LPROC_SEQ_FOPS_RO_TYPE(osc, filestotal);
-LPROC_SEQ_FOPS_RO_TYPE(osc, filesfree);
 LPROC_SEQ_FOPS_RO_TYPE(osc, server_uuid);
 LPROC_SEQ_FOPS_RO_TYPE(osc, conn_uuid);
 LPROC_SEQ_FOPS_RO_TYPE(osc, timeouts);
@@ -539,15 +532,8 @@ LPROC_SEQ_FOPS_RW_TYPE(osc, import);
 LPROC_SEQ_FOPS_RW_TYPE(osc, pinger_recov);
 
 static struct lprocfs_vars lprocfs_osc_obd_vars[] = {
-	{ "uuid",	     &osc_uuid_fops,	NULL, 0 },
 	{ "ping",	     &osc_ping_fops,    NULL, 0222 },
 	{ "connect_flags",   &osc_connect_flags_fops, NULL, 0 },
-	{ "blocksize",       &osc_blksize_fops,     NULL, 0 },
-	{ "kbytestotal",     &osc_kbytestotal_fops, NULL, 0 },
-	{ "kbytesfree",      &osc_kbytesfree_fops,  NULL, 0 },
-	{ "kbytesavail",     &osc_kbytesavail_fops, NULL, 0 },
-	{ "filestotal",      &osc_filestotal_fops,  NULL, 0 },
-	{ "filesfree",       &osc_filesfree_fops,   NULL, 0 },
 	/*{ "filegroups",      lprocfs_rd_filegroups,  NULL, 0 },*/
 	{ "ost_server_uuid", &osc_server_uuid_fops, NULL, 0 },
 	{ "ost_conn_uuid",   &osc_conn_uuid_fops, NULL, 0 },

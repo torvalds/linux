@@ -633,7 +633,6 @@ extern int lprocfs_wr_atomic(struct file *file, const char __user *buffer,
 extern int lprocfs_rd_uint(struct seq_file *m, void *data);
 extern int lprocfs_wr_uint(struct file *file, const char __user *buffer,
 			   unsigned long count, void *data);
-extern int lprocfs_rd_uuid(struct seq_file *m, void *data);
 extern int lprocfs_rd_name(struct seq_file *m, void *data);
 extern int lprocfs_rd_server_uuid(struct seq_file *m, void *data);
 extern int lprocfs_rd_conn_uuid(struct seq_file *m, void *data);
@@ -658,12 +657,6 @@ extern int lprocfs_wr_pinger_recov(struct file *file, const char __user *buffer,
 				   size_t count, loff_t *off);
 
 /* Statfs helpers */
-extern int lprocfs_rd_blksize(struct seq_file *m, void *data);
-extern int lprocfs_rd_kbytestotal(struct seq_file *m, void *data);
-extern int lprocfs_rd_kbytesfree(struct seq_file *m, void *data);
-extern int lprocfs_rd_kbytesavail(struct seq_file *m, void *data);
-extern int lprocfs_rd_filestotal(struct seq_file *m, void *data);
-extern int lprocfs_rd_filesfree(struct seq_file *m, void *data);
 
 extern int lprocfs_write_helper(const char __user *buffer, unsigned long count,
 				int *val);

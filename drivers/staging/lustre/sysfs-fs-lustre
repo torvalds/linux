@@ -336,3 +336,51 @@ Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
 Description:
 		Controls what percentage of ldlm callback threads is dedicated
 		to "high priority" incoming requests.
+
+What:		/sys/fs/lustre/{obdtype}/{connection_name}/blocksize
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Blocksize on backend filesystem for service behind this obd
+		device (or biggest blocksize for compound devices like lov
+		and lmv)
+
+What:		/sys/fs/lustre/{obdtype}/{connection_name}/kbytestotal
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Total number of kilobytes of space on backend filesystem
+		for service behind this obd (or total amount for compound
+		devices like lov lmv)
+
+What:		/sys/fs/lustre/{obdtype}/{connection_name}/kbytesfree
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Number of free kilobytes on backend filesystem for service
+		behind this obd (or total amount for compound devices
+		like lov lmv)
+
+What:		/sys/fs/lustre/{obdtype}/{connection_name}/kbytesavail
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Number of kilobytes of free space on backend filesystem
+		for service behind this obd (or total amount for compound
+		devices like lov lmv) that is actually available for use
+		(taking into account per-client and filesystem reservations).
+
+What:		/sys/fs/lustre/{obdtype}/{connection_name}/filestotal
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Number of inodes on backend filesystem for service behind this
+		obd.
+
+What:		/sys/fs/lustre/{obdtype}/{connection_name}/filesfree
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Number of free inodes on backend filesystem for service
+		behind this obd.
+

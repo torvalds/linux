@@ -262,29 +262,14 @@ static int lov_target_seq_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-LPROC_SEQ_FOPS_RO_TYPE(lov, uuid);
-LPROC_SEQ_FOPS_RO_TYPE(lov, filestotal);
-LPROC_SEQ_FOPS_RO_TYPE(lov, filesfree);
-LPROC_SEQ_FOPS_RO_TYPE(lov, blksize);
-LPROC_SEQ_FOPS_RO_TYPE(lov, kbytestotal);
-LPROC_SEQ_FOPS_RO_TYPE(lov, kbytesfree);
-LPROC_SEQ_FOPS_RO_TYPE(lov, kbytesavail);
-
 static struct lprocfs_vars lprocfs_lov_obd_vars[] = {
-	{ "uuid",	  &lov_uuid_fops,	  NULL, 0 },
 	{ "stripesize",   &lov_stripesize_fops,   NULL },
 	{ "stripeoffset", &lov_stripeoffset_fops, NULL },
 	{ "stripecount",  &lov_stripecount_fops,  NULL },
 	{ "stripetype",   &lov_stripetype_fops,   NULL },
 	{ "numobd",       &lov_numobd_fops,	  NULL, 0 },
 	{ "activeobd",    &lov_activeobd_fops,	  NULL, 0 },
-	{ "filestotal",   &lov_filestotal_fops,   NULL, 0 },
-	{ "filesfree",    &lov_filesfree_fops,    NULL, 0 },
 	/*{ "filegroups", lprocfs_rd_filegroups,  NULL, 0 },*/
-	{ "blocksize",    &lov_blksize_fops,      NULL, 0 },
-	{ "kbytestotal",  &lov_kbytestotal_fops,  NULL, 0 },
-	{ "kbytesfree",   &lov_kbytesfree_fops,   NULL, 0 },
-	{ "kbytesavail",  &lov_kbytesavail_fops,  NULL, 0 },
 	{ "desc_uuid",    &lov_desc_uuid_fops,    NULL, 0 },
 	{ NULL }
 };

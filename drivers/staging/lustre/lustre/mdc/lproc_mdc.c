@@ -155,14 +155,7 @@ static struct file_operations mdc_kuc_fops = {
 
 LPROC_SEQ_FOPS_WR_ONLY(mdc, ping);
 
-LPROC_SEQ_FOPS_RO_TYPE(mdc, uuid);
 LPROC_SEQ_FOPS_RO_TYPE(mdc, connect_flags);
-LPROC_SEQ_FOPS_RO_TYPE(mdc, blksize);
-LPROC_SEQ_FOPS_RO_TYPE(mdc, kbytestotal);
-LPROC_SEQ_FOPS_RO_TYPE(mdc, kbytesfree);
-LPROC_SEQ_FOPS_RO_TYPE(mdc, kbytesavail);
-LPROC_SEQ_FOPS_RO_TYPE(mdc, filestotal);
-LPROC_SEQ_FOPS_RO_TYPE(mdc, filesfree);
 LPROC_SEQ_FOPS_RO_TYPE(mdc, server_uuid);
 LPROC_SEQ_FOPS_RO_TYPE(mdc, conn_uuid);
 LPROC_SEQ_FOPS_RO_TYPE(mdc, timeouts);
@@ -178,15 +171,8 @@ LPROC_SEQ_FOPS_RW_TYPE(mdc, import);
 LPROC_SEQ_FOPS_RW_TYPE(mdc, pinger_recov);
 
 static struct lprocfs_vars lprocfs_mdc_obd_vars[] = {
-	{ "uuid",		&mdc_uuid_fops,			NULL, 0 },
 	{ "ping",		&mdc_ping_fops,			NULL, 0222 },
 	{ "connect_flags",	&mdc_connect_flags_fops,	NULL, 0 },
-	{ "blocksize",		&mdc_blksize_fops,		NULL, 0 },
-	{ "kbytestotal",	&mdc_kbytestotal_fops,		NULL, 0 },
-	{ "kbytesfree",		&mdc_kbytesfree_fops,		NULL, 0 },
-	{ "kbytesavail",	&mdc_kbytesavail_fops,		NULL, 0 },
-	{ "filestotal",		&mdc_filestotal_fops,		NULL, 0 },
-	{ "filesfree",		&mdc_filesfree_fops,		NULL, 0 },
 	/*{ "filegroups",	lprocfs_rd_filegroups,		NULL, 0 },*/
 	{ "mds_server_uuid",	&mdc_server_uuid_fops,		NULL, 0 },
 	{ "mds_conn_uuid",	&mdc_conn_uuid_fops,		NULL, 0 },
