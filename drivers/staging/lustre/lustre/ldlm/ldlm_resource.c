@@ -150,9 +150,11 @@ void ldlm_proc_cleanup(void)
 	ldlm_ns_proc_dir = NULL;
 }
 
-static int lprocfs_ns_resources_seq_show(struct seq_file *m, void *v)
+static ssize_t resource_count_show(struct kobject *kobj, struct attribute *attr,
+				   char *buf)
 {
-	struct ldlm_namespace *ns  = m->private;
+	struct ldlm_namespace *ns = container_of(kobj, struct ldlm_namespace,
+						 ns_kobj);
 	__u64		  res = 0;
 	struct cfs_hash_bd	  bd;
 	int		    i;
@@ -160,9 +162,9 @@ static int lprocfs_ns_resources_seq_show(struct seq_file *m, void *v)
 	/* result is not strictly consistent */
 	cfs_hash_for_each_bucket(ns->ns_rs_hash, &bd, i)
 		res += cfs_hash_bd_count_get(&bd);
-	return lprocfs_rd_u64(m, &res);
+	return sprintf(buf, "%lld\n", res);
 }
-LPROC_SEQ_FOPS_RO(lprocfs_ns_resources);
+LUSTRE_RO_ATTR(resource_count);
 
 static int lprocfs_ns_locks_seq_show(struct seq_file *m, void *v)
 {
@@ -305,6 +307,7 @@ LPROC_SEQ_FOPS(lprocfs_elc);
 
 /* These are for namespaces in /sys/fs/lustre/ldlm/namespaces/ */
 static struct attribute *ldlm_ns_attrs[] = {
+	&lustre_attr_resource_count.attr,
 	NULL,
 };
 
@@ -390,7 +393,6 @@ int ldlm_namespace_proc_register(struct ldlm_namespace *ns)
 	memset(lock_vars, 0, sizeof(lock_vars));
 	lock_vars[0].name = lock_name;
 
-	LDLM_NS_ADD_VAR("resource_count", ns, &lprocfs_ns_resources_fops);
 	LDLM_NS_ADD_VAR("lock_count", ns, &lprocfs_ns_locks_fops);
 
 	if (ns_is_client(ns)) {

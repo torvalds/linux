@@ -200,3 +200,10 @@ Description:
 		recovery times might become prolonged.
 		1 - just locally cancel unused locks (default)
 		0 - replay unused locks.
+
+What:		/sys/fs/lustre/ldlm/namespaces/<name>/resource_count
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Displays number of lock resources (objects on which individual
+		locks are taken) currently allocated in this namespace.
