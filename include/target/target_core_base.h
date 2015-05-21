@@ -721,7 +721,6 @@ struct se_lun {
 	struct t10_alua_tg_pt_gp *lun_tg_pt_gp;
 	spinlock_t		lun_tg_pt_gp_lock;
 
-	atomic_t		lun_active;
 	struct se_portal_group	*lun_tpg;
 	struct scsi_port_stats	lun_stats;
 	struct config_group	lun_group;

@@ -969,7 +969,8 @@ static void core_alua_do_transition_tg_pt_work(struct work_struct *work)
 		 * every I_T nexus other than the I_T nexus on which the SET
 		 * TARGET PORT GROUPS command
 		 */
-		atomic_inc_mb(&lun->lun_active);
+		if (!percpu_ref_tryget_live(&lun->lun_ref))
+			continue;
 		spin_unlock(&tg_pt_gp->tg_pt_gp_lock);
 
 		spin_lock_bh(&lun->lun_deve_lock);
@@ -998,7 +999,7 @@ static void core_alua_do_transition_tg_pt_work(struct work_struct *work)
 		spin_unlock_bh(&lun->lun_deve_lock);
 
 		spin_lock(&tg_pt_gp->tg_pt_gp_lock);
-		atomic_dec_mb(&lun->lun_active);
+		percpu_ref_put(&lun->lun_ref);
 	}
 	spin_unlock(&tg_pt_gp->tg_pt_gp_lock);
 	/*

@@ -704,7 +704,8 @@ static struct t10_pr_registration *__core_scsi3_alloc_registration(
 	 */
 	spin_lock(&dev->se_port_lock);
 	list_for_each_entry_safe(lun_tmp, next, &dev->dev_sep_list, lun_dev_link) {
-		atomic_inc_mb(&lun_tmp->lun_active);
+		if (!percpu_ref_tryget_live(&lun_tmp->lun_ref))
+			continue;
 		spin_unlock(&dev->se_port_lock);
 
 		spin_lock_bh(&lun_tmp->lun_deve_lock);
@@ -751,7 +752,7 @@ static struct t10_pr_registration *__core_scsi3_alloc_registration(
 			if (ret < 0) {
 				pr_err("core_scsi3_lunacl_depend"
 						"_item() failed\n");
-				atomic_dec_mb(&lun->lun_active);
+				percpu_ref_put(&lun_tmp->lun_ref);
 				kref_put(&deve_tmp->pr_kref, target_pr_kref_release);
 				goto out;
 			}
@@ -770,7 +771,7 @@ static struct t10_pr_registration *__core_scsi3_alloc_registration(
 						deve_tmp->mapped_lun, NULL,
 						sa_res_key, all_tg_pt, aptpl);
 			if (!pr_reg_atp) {
-				atomic_dec_mb(&lun_tmp->lun_active);
+				percpu_ref_put(&lun_tmp->lun_ref);
 				core_scsi3_lunacl_undepend_item(deve_tmp);
 				goto out;
 			}
@@ -782,7 +783,7 @@ static struct t10_pr_registration *__core_scsi3_alloc_registration(
 		spin_unlock_bh(&lun_tmp->lun_deve_lock);
 
 		spin_lock(&dev->se_port_lock);
-		atomic_dec_mb(&lun_tmp->lun_active);
+		percpu_ref_put(&lun_tmp->lun_ref);
 	}
 	spin_unlock(&dev->se_port_lock);
 

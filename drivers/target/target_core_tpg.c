@@ -607,7 +607,6 @@ struct se_lun *core_tpg_alloc_lun(
 	mutex_init(&lun->lun_tg_pt_md_mutex);
 	INIT_LIST_HEAD(&lun->lun_tg_pt_gp_link);
 	spin_lock_init(&lun->lun_tg_pt_gp_lock);
-	atomic_set(&lun->lun_active, 0);
 	lun->lun_tpg = tpg;
 
 	return lun;
@@ -667,13 +666,16 @@ void core_tpg_remove_lun(
 	struct se_device *dev = rcu_dereference_raw(lun->lun_se_dev);
 
 	core_clear_lun_from_tpg(lun, tpg);
+	/*
+	 * Wait for any active I/O references to percpu se_lun->lun_ref to
+	 * be released.  Also, se_lun->lun_ref is now used by PR and ALUA
+	 * logic when referencing a remote target port during ALL_TGT_PT=1
+	 * and generating UNIT_ATTENTIONs for ALUA access state transition.
+	 */
 	transport_clear_lun_ref(lun);
 
 	mutex_lock(&tpg->tpg_lun_mutex);
 	if (lun->lun_se_dev) {
-		while (atomic_read(&lun->lun_active))
-			cpu_relax();
-
 		target_detach_tg_pt_gp(lun);
 
 		spin_lock(&dev->se_port_lock);
