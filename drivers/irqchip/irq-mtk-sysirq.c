@@ -144,7 +144,7 @@ static int __init mtk_sysirq_of_init(struct device_node *node,
 	chip_data->intpol_base = ioremap(res.start, size);
 	if (!chip_data->intpol_base) {
 		pr_err("mtk_sysirq: unable to map sysirq register\n");
-		ret = PTR_ERR(chip_data->intpol_base);
+		ret = -ENXIO;
 		goto out_free;
 	}
 
