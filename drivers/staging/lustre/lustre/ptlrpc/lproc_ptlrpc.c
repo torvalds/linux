@@ -1049,6 +1049,46 @@ static ssize_t ptlrpc_lprocfs_hp_ratio_seq_write(struct file *file,
 }
 LPROC_SEQ_FOPS(ptlrpc_lprocfs_hp_ratio);
 
+static struct attribute *ptlrpc_svc_attrs[] = {
+	NULL,
+};
+
+static void ptlrpc_sysfs_svc_release(struct kobject *kobj)
+{
+	struct ptlrpc_service *svc = container_of(kobj, struct ptlrpc_service,
+						  srv_kobj);
+
+	complete(&svc->srv_kobj_unregister);
+}
+
+static struct kobj_type ptlrpc_svc_ktype = {
+	.default_attrs	= ptlrpc_svc_attrs,
+	.sysfs_ops	= &lustre_sysfs_ops,
+	.release	= ptlrpc_sysfs_svc_release,
+};
+
+void ptlrpc_sysfs_unregister_service(struct ptlrpc_service *svc)
+{
+	/* Let's see if we had a chance at initialization first */
+	if (svc->srv_kobj.kset) {
+		kobject_put(&svc->srv_kobj);
+		wait_for_completion(&svc->srv_kobj_unregister);
+	}
+}
+
+int ptlrpc_sysfs_register_service(struct kset *parent,
+				  struct ptlrpc_service *svc)
+{
+	int rc;
+
+	svc->srv_kobj.kset = parent;
+	init_completion(&svc->srv_kobj_unregister);
+	rc = kobject_init_and_add(&svc->srv_kobj, &ptlrpc_svc_ktype, NULL,
+				  "%s", svc->srv_name);
+
+	return rc;
+}
+
 void ptlrpc_lprocfs_register_service(struct proc_dir_entry *entry,
 				     struct ptlrpc_service *svc)
 {

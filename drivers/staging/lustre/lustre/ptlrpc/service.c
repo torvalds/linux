@@ -680,6 +680,7 @@ free_reqs_array:
  */
 struct ptlrpc_service *
 ptlrpc_register_service(struct ptlrpc_service_conf *conf,
+			struct kset *parent,
 			struct proc_dir_entry *proc_entry)
 {
 	struct ptlrpc_service_cpt_conf	*cconf = &conf->psc_cpt;
@@ -797,6 +798,12 @@ ptlrpc_register_service(struct ptlrpc_service_conf *conf,
 	mutex_lock(&ptlrpc_all_services_mutex);
 	list_add(&service->srv_list, &ptlrpc_all_services);
 	mutex_unlock(&ptlrpc_all_services_mutex);
+
+	if (parent) {
+		rc = ptlrpc_sysfs_register_service(parent, service);
+		if (rc)
+			goto failed;
+	}
 
 	if (proc_entry != NULL)
 		ptlrpc_lprocfs_register_service(proc_entry, service);
@@ -3033,6 +3040,7 @@ int ptlrpc_unregister_service(struct ptlrpc_service *service)
 	ptlrpc_service_nrs_cleanup(service);
 
 	ptlrpc_lprocfs_unregister_service(service);
+	ptlrpc_sysfs_unregister_service(service);
 
 	ptlrpc_service_free(service);
 

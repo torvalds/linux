@@ -76,6 +76,10 @@ void ptlrpc_initiate_recovery(struct obd_import *imp);
 int lustre_unpack_req_ptlrpc_body(struct ptlrpc_request *req, int offset);
 int lustre_unpack_rep_ptlrpc_body(struct ptlrpc_request *req, int offset);
 
+int ptlrpc_sysfs_register_service(struct kset *parent,
+				  struct ptlrpc_service *svc);
+void ptlrpc_sysfs_unregister_service(struct ptlrpc_service *svc);
+
 #if defined(CONFIG_PROC_FS)
 void ptlrpc_lprocfs_register_service(struct proc_dir_entry *proc_entry,
 				     struct ptlrpc_service *svc);
