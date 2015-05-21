@@ -89,21 +89,12 @@ int gb_i2s_mgmt_set_samples_per_message(
 				 &request, sizeof(request), NULL, 0);
 }
 
-/*
- * XXX This is sort of a generic "setup" function which  probably needs
- * to be broken up, and tied into the constraints.
- *
- * I'm on the fence if we should just dictate that we only support
- * 48k, 16bit, 2 channel, and avoid doign the whole probe for configurations
- * and then picking one.
- */
-int gb_i2s_mgmt_setup(struct gb_connection *connection)
+int gb_i2s_mgmt_get_cfgs(struct gb_snd *snd_dev,
+			 struct gb_connection *connection)
 {
 	struct gb_i2s_mgmt_get_supported_configurations_response *get_cfg;
-	struct gb_i2s_mgmt_set_configuration_request set_cfg;
-	struct gb_i2s_mgmt_configuration *cfg;
 	size_t size;
-	int i, ret;
+	int ret;
 
 	size = sizeof(*get_cfg) +
 	       (CONFIG_COUNT_MAX * sizeof(get_cfg->config[0]));
@@ -116,19 +107,48 @@ int gb_i2s_mgmt_setup(struct gb_connection *connection)
 						       size);
 	if (ret) {
 		pr_err("get_supported_config failed: %d\n", ret);
-		goto free_get_cfg;
+		goto err_free_get_cfg;
 	}
 
-	/* Pick 48KHz 16-bits/channel */
-	for (i = 0, cfg = get_cfg->config; i < CONFIG_COUNT_MAX; i++, cfg++) {
-		if ((le32_to_cpu(cfg->sample_frequency) == GB_SAMPLE_RATE) &&
-		    (cfg->num_channels == 2) &&
-		    (cfg->bytes_per_channel == 2) &&
-		    (cfg->byte_order & GB_I2S_MGMT_BYTE_ORDER_LE) &&
-		    (le32_to_cpu(cfg->spatial_locations) ==
-			(GB_I2S_MGMT_SPATIAL_LOCATION_FL |
-			 GB_I2S_MGMT_SPATIAL_LOCATION_FR)) &&
-		    (le32_to_cpu(cfg->ll_protocol) & GB_I2S_MGMT_PROTOCOL_I2S) &&
+	snd_dev->i2s_configs = get_cfg;
+
+	return 0;
+
+err_free_get_cfg:
+	kfree(get_cfg);
+	return ret;
+}
+
+void gb_i2s_mgmt_free_cfgs(struct gb_snd *snd_dev)
+{
+	kfree(snd_dev->i2s_configs);
+	snd_dev->i2s_configs = NULL;
+}
+
+int gb_i2s_mgmt_set_cfg(struct gb_snd *snd_dev, int rate, int chans,
+			int bytes_per_chan, int is_le)
+{
+	struct gb_i2s_mgmt_set_configuration_request set_cfg;
+	struct gb_i2s_mgmt_configuration *cfg;
+	int i, ret;
+	u8 byte_order = GB_I2S_MGMT_BYTE_ORDER_NA;
+
+	if (bytes_per_chan > 1) {
+		if (is_le)
+			byte_order = GB_I2S_MGMT_BYTE_ORDER_LE;
+		else
+			byte_order = GB_I2S_MGMT_BYTE_ORDER_BE;
+	}
+
+	for (i = 0, cfg = snd_dev->i2s_configs->config;
+	     i < CONFIG_COUNT_MAX;
+	     i++, cfg++) {
+		if ((cfg->sample_frequency == cpu_to_le32(rate)) &&
+		    (cfg->num_channels == chans) &&
+		    (cfg->bytes_per_channel == bytes_per_chan) &&
+		    (cfg->byte_order & byte_order) &&
+		    (cfg->ll_protocol &
+			     cpu_to_le32(GB_I2S_MGMT_PROTOCOL_I2S)) &&
 		    (cfg->ll_mclk_role & GB_I2S_MGMT_ROLE_MASTER) &&
 		    (cfg->ll_bclk_role & GB_I2S_MGMT_ROLE_MASTER) &&
 		    (cfg->ll_wclk_role & GB_I2S_MGMT_ROLE_MASTER) &&
@@ -142,12 +162,11 @@ int gb_i2s_mgmt_setup(struct gb_connection *connection)
 
 	if (i >= CONFIG_COUNT_MAX) {
 		pr_err("No valid configuration\n");
-		ret = -EINVAL;
-		goto free_get_cfg;
+		return -EINVAL;
 	}
 
 	memcpy(&set_cfg, cfg, sizeof(set_cfg));
-	set_cfg.config.byte_order = GB_I2S_MGMT_BYTE_ORDER_LE;
+	set_cfg.config.byte_order = byte_order;
 	set_cfg.config.ll_protocol = cpu_to_le32(GB_I2S_MGMT_PROTOCOL_I2S);
 	set_cfg.config.ll_mclk_role = GB_I2S_MGMT_ROLE_MASTER;
 	set_cfg.config.ll_bclk_role = GB_I2S_MGMT_ROLE_MASTER;
@@ -157,19 +176,17 @@ int gb_i2s_mgmt_setup(struct gb_connection *connection)
 	set_cfg.config.ll_wclk_tx_edge = GB_I2S_MGMT_EDGE_RISING;
 	set_cfg.config.ll_wclk_rx_edge = GB_I2S_MGMT_EDGE_FALLING;
 
-	ret = gb_i2s_mgmt_set_configuration(connection, &set_cfg);
+	ret = gb_i2s_mgmt_set_configuration(snd_dev->mgmt_connection, &set_cfg);
 	if (ret) {
 		pr_err("set_configuration failed: %d\n", ret);
-		goto free_get_cfg;
+		return ret;
 	}
 
-	ret = gb_i2s_mgmt_set_samples_per_message(connection,
+	ret = gb_i2s_mgmt_set_samples_per_message(snd_dev->mgmt_connection,
 						  CONFIG_SAMPLES_PER_MSG);
 	if (ret)
 		pr_err("set_samples_per_msg failed: %d\n", ret);
 
-free_get_cfg:
-	kfree(get_cfg);
 	return ret;
 }
 

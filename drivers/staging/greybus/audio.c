@@ -286,17 +286,23 @@ static int gb_i2s_mgmt_connection_init(struct gb_connection *connection)
 		goto err_free_snd_dev;
 	}
 
-	gb_i2s_mgmt_setup(connection);
+	ret = gb_i2s_mgmt_get_cfgs(snd_dev, connection);
+	if (ret) {
+		pr_err("can't get i2s configurations: %d\n", ret);
+		goto err_free_snd_dev;
+	}
 
 	snd_dev->send_data_req_buf = kzalloc(SEND_DATA_BUF_LEN, GFP_KERNEL);
 
 	if (!snd_dev->send_data_req_buf) {
 		ret = -ENOMEM;
-		goto err_free_snd_dev;
+		goto err_free_i2s_configs;
 	}
 
 	return 0;
 
+err_free_i2s_configs:
+	gb_i2s_mgmt_free_cfgs(snd_dev);
 err_free_snd_dev:
 	gb_free_snd(snd_dev);
 	return ret;
@@ -305,6 +311,8 @@ err_free_snd_dev:
 static void gb_i2s_mgmt_connection_exit(struct gb_connection *connection)
 {
 	struct gb_snd *snd_dev = (struct gb_snd *)connection->private;
+
+	gb_i2s_mgmt_free_cfgs(snd_dev);
 
 	kfree(snd_dev->send_data_req_buf);
 	snd_dev->send_data_req_buf = NULL;

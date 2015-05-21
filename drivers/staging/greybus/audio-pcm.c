@@ -220,6 +220,21 @@ static int gb_pcm_close(struct snd_pcm_substream *substream)
 static int gb_pcm_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *hw_params)
 {
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct gb_snd *snd_dev;
+	int rate, chans, bytes_per_chan, is_le, ret;
+
+	snd_dev = snd_soc_dai_get_drvdata(rtd->cpu_dai);
+
+	rate = params_rate(hw_params);
+	chans = params_channels(hw_params);
+	bytes_per_chan = snd_pcm_format_width(params_format(hw_params)) / 8;
+	is_le = snd_pcm_format_little_endian(params_format(hw_params));
+
+	ret = gb_i2s_mgmt_set_cfg(snd_dev, rate, chans, bytes_per_chan, is_le);
+	if (ret)
+		return ret;
+
 	return snd_pcm_lib_malloc_pages(substream,
 					params_buffer_bytes(hw_params));
 }

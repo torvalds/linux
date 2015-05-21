@@ -45,6 +45,8 @@ struct gb_snd {
 	struct gb_connection		*mgmt_connection;
 	struct gb_connection		*i2s_tx_connection;
 	struct gb_connection		*i2s_rx_connection;
+	struct gb_i2s_mgmt_get_supported_configurations_response
+					*i2s_configs;
 	char				*send_data_req_buf;
 	long				send_data_sample_count;
 	int				gb_bundle_id;
@@ -79,7 +81,11 @@ int gb_i2s_mgmt_set_configuration(struct gb_connection *connection,
 			struct gb_i2s_mgmt_set_configuration_request *set_cfg);
 int gb_i2s_mgmt_set_samples_per_message(struct gb_connection *connection,
 					uint16_t samples_per_message);
-int gb_i2s_mgmt_setup(struct gb_connection *connection);
+int gb_i2s_mgmt_get_cfgs(struct gb_snd *snd_dev,
+			 struct gb_connection *connection);
+void gb_i2s_mgmt_free_cfgs(struct gb_snd *snd_dev);
+int gb_i2s_mgmt_set_cfg(struct gb_snd *snd_dev, int rate, int chans,
+			int bytes_per_chan, int is_le);
 int gb_i2s_send_data(struct gb_connection *connection, void *req_buf,
 				void *source_addr, size_t len, int sample_num);
 
