@@ -777,26 +777,27 @@ static int ll_sbi_flags_seq_show(struct seq_file *m, void *v)
 }
 LPROC_SEQ_FOPS_RO(ll_sbi_flags);
 
-static int ll_xattr_cache_seq_show(struct seq_file *m, void *v)
+static ssize_t xattr_cache_show(struct kobject *kobj,
+				struct attribute *attr,
+				char *buf)
 {
-	struct super_block *sb = m->private;
-	struct ll_sb_info *sbi = ll_s2sbi(sb);
+	struct ll_sb_info *sbi = container_of(kobj, struct ll_sb_info,
+					      ll_kobj);
 
-	seq_printf(m, "%u\n", sbi->ll_xattr_cache_enabled);
-
-	return 0;
+	return sprintf(buf, "%u\n", sbi->ll_xattr_cache_enabled);
 }
 
-static ssize_t ll_xattr_cache_seq_write(struct file *file,
-					const char __user *buffer,
-					size_t count, loff_t *off)
+static ssize_t xattr_cache_store(struct kobject *kobj,
+				 struct attribute *attr,
+				 const char *buffer,
+				 size_t count)
 {
-	struct seq_file *seq = file->private_data;
-	struct super_block *sb = seq->private;
-	struct ll_sb_info *sbi = ll_s2sbi(sb);
-	int val, rc;
+	struct ll_sb_info *sbi = container_of(kobj, struct ll_sb_info,
+					      ll_kobj);
+	int rc;
+	unsigned long val;
 
-	rc = lprocfs_write_helper(buffer, count, &val);
+	rc = kstrtoul(buffer, 10, &val);
 	if (rc)
 		return rc;
 
@@ -810,7 +811,7 @@ static ssize_t ll_xattr_cache_seq_write(struct file *file,
 
 	return count;
 }
-LPROC_SEQ_FOPS(ll_xattr_cache);
+LUSTRE_RW_ATTR(xattr_cache);
 
 static struct lprocfs_vars lprocfs_llite_obd_vars[] = {
 	/* { "mntpt_path",   ll_rd_path,	     0, 0 }, */
@@ -819,7 +820,6 @@ static struct lprocfs_vars lprocfs_llite_obd_vars[] = {
 	{ "max_cached_mb",    &ll_max_cached_mb_fops, NULL },
 	{ "statahead_stats",  &ll_statahead_stats_fops, NULL, 0 },
 	{ "sbi_flags",	      &ll_sbi_flags_fops, NULL, 0 },
-	{ "xattr_cache",      &ll_xattr_cache_fops, NULL, 0 },
 	{ NULL }
 };
 
@@ -847,6 +847,7 @@ static struct attribute *llite_attrs[] = {
 	&lustre_attr_lazystatfs.attr,
 	&lustre_attr_max_easize.attr,
 	&lustre_attr_default_easize.attr,
+	&lustre_attr_xattr_cache.attr,
 	NULL,
 };
 
