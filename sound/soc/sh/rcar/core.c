@@ -170,6 +170,14 @@ void rsnd_mod_quit(struct rsnd_mod *mod)
 		clk_unprepare(mod->clk);
 }
 
+int rsnd_mod_is_working(struct rsnd_mod *mod)
+{
+	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
+
+	/* see rsnd_dai_stream_init/quit() */
+	return !!io->substream;
+}
+
 /*
  *	settting function
  */
@@ -362,7 +370,7 @@ static int rsnd_soc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 	int ret;
 	unsigned long flags;
 
-	rsnd_lock(priv, flags);
+	spin_lock_irqsave(&priv->lock, flags);
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -400,7 +408,7 @@ static int rsnd_soc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 	}
 
 dai_trigger_end:
-	rsnd_unlock(priv, flags);
+	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return ret;
 }

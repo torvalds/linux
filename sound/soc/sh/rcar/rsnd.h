@@ -303,6 +303,7 @@ int rsnd_mod_init(struct rsnd_mod *mod,
 		   int id);
 void rsnd_mod_quit(struct rsnd_mod *mod);
 char *rsnd_mod_name(struct rsnd_mod *mod);
+int rsnd_mod_is_working(struct rsnd_mod *mod);
 struct dma_chan *rsnd_mod_dma_req(struct rsnd_mod *mod);
 
 /*
@@ -449,8 +450,6 @@ struct rsnd_priv {
 #define rsnd_priv_to_pdev(priv)	((priv)->pdev)
 #define rsnd_priv_to_dev(priv)	(&(rsnd_priv_to_pdev(priv)->dev))
 #define rsnd_priv_to_info(priv)	((priv)->info)
-#define rsnd_lock(priv, flags) spin_lock_irqsave(&priv->lock, flags)
-#define rsnd_unlock(priv, flags) spin_unlock_irqrestore(&priv->lock, flags)
 
 /*
  *	rsnd_kctrl

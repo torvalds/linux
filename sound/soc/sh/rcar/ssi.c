@@ -423,10 +423,15 @@ static irqreturn_t rsnd_ssi_interrupt(int irq, void *data)
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
 	int is_dma = rsnd_ssi_is_dma_mode(mod);
-	u32 status = rsnd_mod_read(mod, SSISR);
+	u32 status;
 
-	if (!io)
-		return IRQ_NONE;
+	spin_lock(&priv->lock);
+
+	/* ignore all cases if not working */
+	if (!rsnd_mod_is_working(mod))
+		goto rsnd_ssi_interrupt_out;
+
+	status = rsnd_mod_read(mod, SSISR);
 
 	/* PIO only */
 	if (!is_dma && (status & DIRQ)) {
@@ -465,6 +470,9 @@ static irqreturn_t rsnd_ssi_interrupt(int irq, void *data)
 	}
 
 	rsnd_ssi_record_error(ssi, status);
+
+rsnd_ssi_interrupt_out:
+	spin_unlock(&priv->lock);
 
 	return IRQ_HANDLED;
 }
