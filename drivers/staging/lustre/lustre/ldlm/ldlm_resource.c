@@ -276,23 +276,27 @@ static ssize_t lru_size_store(struct kobject *kobj, struct attribute *attr,
 }
 LUSTRE_RW_ATTR(lru_size);
 
-static int lprocfs_elc_seq_show(struct seq_file *m, void *v)
+static ssize_t early_lock_cancel_show(struct kobject *kobj,
+				      struct attribute *attr,
+				      char *buf)
 {
-	struct ldlm_namespace *ns = m->private;
-	unsigned int supp = ns_connect_cancelset(ns);
+	struct ldlm_namespace *ns = container_of(kobj, struct ldlm_namespace,
+						 ns_kobj);
 
-	return lprocfs_rd_uint(m, &supp);
+	return sprintf(buf, "%d\n", ns_connect_cancelset(ns));
 }
 
-static ssize_t lprocfs_elc_seq_write(struct file *file,
-				const char __user *buffer,
-				size_t count, loff_t *off)
+static ssize_t early_lock_cancel_store(struct kobject *kobj,
+				       struct attribute *attr,
+				       const char *buffer,
+				       size_t count)
 {
-	struct ldlm_namespace *ns = ((struct seq_file *)file->private_data)->private;
-	unsigned int supp = -1;
+	struct ldlm_namespace *ns = container_of(kobj, struct ldlm_namespace,
+						 ns_kobj);
+	unsigned long supp = -1;
 	int rc;
 
-	rc = lprocfs_wr_uint(file, buffer, count, &supp);
+	rc = kstrtoul(buffer, 10, &supp);
 	if (rc < 0)
 		return rc;
 
@@ -302,13 +306,14 @@ static ssize_t lprocfs_elc_seq_write(struct file *file,
 		ns->ns_connect_flags |= OBD_CONNECT_CANCELSET;
 	return count;
 }
-LPROC_SEQ_FOPS(lprocfs_elc);
+LUSTRE_RW_ATTR(early_lock_cancel);
 
 /* These are for namespaces in /sys/fs/lustre/ldlm/namespaces/ */
 static struct attribute *ldlm_ns_attrs[] = {
 	&lustre_attr_resource_count.attr,
 	&lustre_attr_lock_count.attr,
 	&lustre_attr_lru_size.attr,
+	&lustre_attr_early_lock_cancel.attr,
 	NULL,
 };
 
@@ -401,7 +406,6 @@ int ldlm_namespace_proc_register(struct ldlm_namespace *ns)
 				&ldlm_uint_fops);
 		LDLM_NS_ADD_VAR("lru_max_age", &ns->ns_max_age,
 				&ldlm_rw_uint_fops);
-		LDLM_NS_ADD_VAR("early_lock_cancel", ns, &lprocfs_elc_fops);
 	} else {
 		LDLM_NS_ADD_VAR("ctime_age_limit", &ns->ns_ctime_age_limit,
 				&ldlm_rw_uint_fops);

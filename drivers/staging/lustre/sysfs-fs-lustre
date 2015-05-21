@@ -222,3 +222,16 @@ Description:
 		namespace.
 		0 - LRU size is unlimited, controlled by server resources
 		positive number - number of locks to allow in lock LRU list
+
+What:		/sys/fs/lustre/ldlm/namespaces/<name>/early_lock_cancel
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls "early lock cancellation" feature on this namespace
+		if supported by the server.
+		When enabled, tries to preemtively cancel locks that would be
+		cancelled by verious operations and bundle the cancellation
+		requests in the same RPC as the main operation, which results
+		in significant speedups due to reduced lock-pingpong RPCs.
+		0 - disabled
+		1 - enabled (default)
