@@ -170,7 +170,6 @@ int gb_i2s_mgmt_setup(struct gb_connection *connection)
 		goto free_get_cfg;
 	}
 
-	/* XXX Add start delay here (probably 1ms) */
 	ret = gb_i2s_mgmt_activate_cport(connection,
 					 CONFIG_I2S_REMOTE_DATA_CPORT);
 	if (ret) {
