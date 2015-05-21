@@ -342,7 +342,7 @@ enum {
 				 */
 };
 
-#define STRIPE_EXPAND_SYNC_FLAG \
+#define STRIPE_EXPAND_SYNC_FLAGS \
 	((1 << STRIPE_EXPAND_SOURCE) |\
 	(1 << STRIPE_EXPAND_READY) |\
 	(1 << STRIPE_EXPANDING) |\
