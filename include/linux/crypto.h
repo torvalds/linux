@@ -268,7 +268,7 @@ struct ablkcipher_alg {
 };
 
 /**
- * struct aead_alg - AEAD cipher definition
+ * struct old_aead_alg - AEAD cipher definition
  * @maxauthsize: Set the maximum authentication tag size supported by the
  *		 transformation. A transformation may support smaller tag sizes.
  *		 As the authentication tag is a message digest to ensure the
@@ -293,7 +293,7 @@ struct ablkcipher_alg {
  * All fields except @givencrypt , @givdecrypt , @geniv and @ivsize are
  * mandatory and must be filled.
  */
-struct aead_alg {
+struct old_aead_alg {
 	int (*setkey)(struct crypto_aead *tfm, const u8 *key,
 	              unsigned int keylen);
 	int (*setauthsize)(struct crypto_aead *tfm, unsigned int authsize);
@@ -501,7 +501,7 @@ struct crypto_alg {
 
 	union {
 		struct ablkcipher_alg ablkcipher;
-		struct aead_alg aead;
+		struct old_aead_alg aead;
 		struct blkcipher_alg blkcipher;
 		struct cipher_alg cipher;
 		struct compress_alg compress;

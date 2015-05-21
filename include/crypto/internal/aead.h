@@ -26,6 +26,11 @@ struct crypto_aead_spawn {
 extern const struct crypto_type crypto_aead_type;
 extern const struct crypto_type crypto_nivaead_type;
 
+static inline struct old_aead_alg *crypto_old_aead_alg(struct crypto_aead *tfm)
+{
+	return &crypto_aead_tfm(tfm)->__crt_alg->cra_aead;
+}
+
 static inline struct aead_alg *crypto_aead_alg(struct crypto_aead *tfm)
 {
 	return &crypto_aead_tfm(tfm)->__crt_alg->cra_aead;

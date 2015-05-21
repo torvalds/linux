@@ -17,6 +17,8 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 
+#define aead_alg old_aead_alg
+
 /**
  * DOC: Authenticated Encryption With Associated Data (AEAD) Cipher API
  *

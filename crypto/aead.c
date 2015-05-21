@@ -33,7 +33,7 @@ static int aead_null_givdecrypt(struct aead_givcrypt_request *req);
 static int setkey_unaligned(struct crypto_aead *tfm, const u8 *key,
 			    unsigned int keylen)
 {
-	struct aead_alg *aead = crypto_aead_alg(tfm);
+	struct old_aead_alg *aead = crypto_old_aead_alg(tfm);
 	unsigned long alignmask = crypto_aead_alignmask(tfm);
 	int ret;
 	u8 *buffer, *alignbuffer;
@@ -55,7 +55,7 @@ static int setkey_unaligned(struct crypto_aead *tfm, const u8 *key,
 int crypto_aead_setkey(struct crypto_aead *tfm,
 		       const u8 *key, unsigned int keylen)
 {
-	struct aead_alg *aead = crypto_aead_alg(tfm);
+	struct old_aead_alg *aead = crypto_old_aead_alg(tfm);
 	unsigned long alignmask = crypto_aead_alignmask(tfm);
 
 	tfm = tfm->child;
@@ -71,11 +71,12 @@ int crypto_aead_setauthsize(struct crypto_aead *tfm, unsigned int authsize)
 {
 	int err;
 
-	if (authsize > crypto_aead_alg(tfm)->maxauthsize)
+	if (authsize > crypto_old_aead_alg(tfm)->maxauthsize)
 		return -EINVAL;
 
-	if (crypto_aead_alg(tfm)->setauthsize) {
-		err = crypto_aead_alg(tfm)->setauthsize(tfm->child, authsize);
+	if (crypto_old_aead_alg(tfm)->setauthsize) {
+		err = crypto_old_aead_alg(tfm)->setauthsize(
+			tfm->child, authsize);
 		if (err)
 			return err;
 	}
@@ -126,7 +127,7 @@ static int old_crypt(struct aead_request *req,
 static int old_encrypt(struct aead_request *req)
 {
 	struct crypto_aead *aead = crypto_aead_reqtfm(req);
-	struct aead_alg *alg = crypto_aead_alg(aead);
+	struct old_aead_alg *alg = crypto_old_aead_alg(aead);
 
 	return old_crypt(req, alg->encrypt);
 }
@@ -134,7 +135,7 @@ static int old_encrypt(struct aead_request *req)
 static int old_decrypt(struct aead_request *req)
 {
 	struct crypto_aead *aead = crypto_aead_reqtfm(req);
-	struct aead_alg *alg = crypto_aead_alg(aead);
+	struct old_aead_alg *alg = crypto_old_aead_alg(aead);
 
 	return old_crypt(req, alg->decrypt);
 }
@@ -146,7 +147,7 @@ static int no_givcrypt(struct aead_givcrypt_request *req)
 
 static int crypto_aead_init_tfm(struct crypto_tfm *tfm)
 {
-	struct aead_alg *alg = &tfm->__crt_alg->cra_aead;
+	struct old_aead_alg *alg = &tfm->__crt_alg->cra_aead;
 	struct crypto_aead *crt = __crypto_aead_cast(tfm);
 
 	if (max(alg->maxauthsize, alg->ivsize) > PAGE_SIZE / 8)
@@ -172,7 +173,7 @@ static int crypto_aead_init_tfm(struct crypto_tfm *tfm)
 static int crypto_aead_report(struct sk_buff *skb, struct crypto_alg *alg)
 {
 	struct crypto_report_aead raead;
-	struct aead_alg *aead = &alg->cra_aead;
+	struct old_aead_alg *aead = &alg->cra_aead;
 
 	strncpy(raead.type, "aead", sizeof(raead.type));
 	strncpy(raead.geniv, aead->geniv ?: "<built-in>", sizeof(raead.geniv));
@@ -200,7 +201,7 @@ static void crypto_aead_show(struct seq_file *m, struct crypto_alg *alg)
 	__attribute__ ((unused));
 static void crypto_aead_show(struct seq_file *m, struct crypto_alg *alg)
 {
-	struct aead_alg *aead = &alg->cra_aead;
+	struct old_aead_alg *aead = &alg->cra_aead;
 
 	seq_printf(m, "type         : aead\n");
 	seq_printf(m, "async        : %s\n", alg->cra_flags & CRYPTO_ALG_ASYNC ?
@@ -240,7 +241,7 @@ static int aead_null_givdecrypt(struct aead_givcrypt_request *req)
 static int crypto_nivaead_report(struct sk_buff *skb, struct crypto_alg *alg)
 {
 	struct crypto_report_aead raead;
-	struct aead_alg *aead = &alg->cra_aead;
+	struct old_aead_alg *aead = &alg->cra_aead;
 
 	strncpy(raead.type, "nivaead", sizeof(raead.type));
 	strncpy(raead.geniv, aead->geniv, sizeof(raead.geniv));
@@ -269,7 +270,7 @@ static void crypto_nivaead_show(struct seq_file *m, struct crypto_alg *alg)
 	__attribute__ ((unused));
 static void crypto_nivaead_show(struct seq_file *m, struct crypto_alg *alg)
 {
-	struct aead_alg *aead = &alg->cra_aead;
+	struct old_aead_alg *aead = &alg->cra_aead;
 
 	seq_printf(m, "type         : nivaead\n");
 	seq_printf(m, "async        : %s\n", alg->cra_flags & CRYPTO_ALG_ASYNC ?
