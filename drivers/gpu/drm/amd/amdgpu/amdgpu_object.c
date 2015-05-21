@@ -549,30 +549,45 @@ void amdgpu_bo_move_notify(struct ttm_buffer_object *bo,
 int amdgpu_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 {
 	struct amdgpu_device *adev;
-	struct amdgpu_bo *rbo;
-	unsigned long offset, size;
-	int r;
+	struct amdgpu_bo *abo;
+	unsigned long offset, size, lpfn;
+	int i, r;
 
 	if (!amdgpu_ttm_bo_is_amdgpu_bo(bo))
 		return 0;
-	rbo = container_of(bo, struct amdgpu_bo, tbo);
-	adev = rbo->adev;
-	if (bo->mem.mem_type == TTM_PL_VRAM) {
-		size = bo->mem.num_pages << PAGE_SHIFT;
-		offset = bo->mem.start << PAGE_SHIFT;
-		if ((offset + size) > adev->mc.visible_vram_size) {
-			/* hurrah the memory is not visible ! */
-			amdgpu_ttm_placement_from_domain(rbo, AMDGPU_GEM_DOMAIN_VRAM);
-			rbo->placements[0].lpfn = adev->mc.visible_vram_size >> PAGE_SHIFT;
-			r = ttm_bo_validate(bo, &rbo->placement, false, false);
-			if (unlikely(r != 0))
-				return r;
-			offset = bo->mem.start << PAGE_SHIFT;
-			/* this should not happen */
-			if ((offset + size) > adev->mc.visible_vram_size)
-				return -EINVAL;
-		}
+
+	abo = container_of(bo, struct amdgpu_bo, tbo);
+	adev = abo->adev;
+	if (bo->mem.mem_type != TTM_PL_VRAM)
+		return 0;
+
+	size = bo->mem.num_pages << PAGE_SHIFT;
+	offset = bo->mem.start << PAGE_SHIFT;
+	if ((offset + size) <= adev->mc.visible_vram_size)
+		return 0;
+
+	/* hurrah the memory is not visible ! */
+	amdgpu_ttm_placement_from_domain(abo, AMDGPU_GEM_DOMAIN_VRAM);
+	lpfn =	adev->mc.visible_vram_size >> PAGE_SHIFT;
+	for (i = 0; i < abo->placement.num_placement; i++) {
+		/* Force into visible VRAM */
+		if ((abo->placements[i].flags & TTM_PL_FLAG_VRAM) &&
+		    (!abo->placements[i].lpfn || abo->placements[i].lpfn > lpfn))
+			abo->placements[i].lpfn = lpfn;
 	}
+	r = ttm_bo_validate(bo, &abo->placement, false, false);
+	if (unlikely(r == -ENOMEM)) {
+		amdgpu_ttm_placement_from_domain(abo, AMDGPU_GEM_DOMAIN_GTT);
+		return ttm_bo_validate(bo, &abo->placement, false, false);
+	} else if (unlikely(r != 0)) {
+		return r;
+	}
+
+	offset = bo->mem.start << PAGE_SHIFT;
+	/* this should never happen */
+	if ((offset + size) > adev->mc.visible_vram_size)
+		return -EINVAL;
+
 	return 0;
 }
 
