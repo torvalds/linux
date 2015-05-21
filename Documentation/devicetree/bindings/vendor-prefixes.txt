@@ -168,6 +168,7 @@ lego	LEGO Systems A/S
 lenovo	Lenovo Group Ltd.
 lg	LG Corporation
 licheepi	Lichee Pi
+linaro	Linaro Limited
 linux	Linux-specific binding
 lltc	Linear Technology Corporation
 lsi	LSI Corp. (LSI Logic)
