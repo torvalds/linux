@@ -427,7 +427,7 @@ bool driver_allows_async_probing(struct device_driver *drv)
 		return false;
 
 	default:
-		if (drv->owner && drv->owner->async_probe_requested)
+		if (module_requested_async_probing(drv->owner))
 			return true;
 
 		return false;
