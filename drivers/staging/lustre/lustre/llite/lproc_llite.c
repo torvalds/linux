@@ -719,10 +719,12 @@ static ssize_t lazystatfs_store(struct kobject *kobj,
 }
 LUSTRE_RW_ATTR(lazystatfs);
 
-static int ll_max_easize_seq_show(struct seq_file *m, void *v)
+static ssize_t max_easize_show(struct kobject *kobj,
+			       struct attribute *attr,
+			       char *buf)
 {
-	struct super_block *sb = m->private;
-	struct ll_sb_info *sbi = ll_s2sbi(sb);
+	struct ll_sb_info *sbi = container_of(kobj, struct ll_sb_info,
+					      ll_kobj);
 	unsigned int ealen;
 	int rc;
 
@@ -730,15 +732,16 @@ static int ll_max_easize_seq_show(struct seq_file *m, void *v)
 	if (rc)
 		return rc;
 
-	seq_printf(m, "%u\n", ealen);
-	return 0;
+	return sprintf(buf, "%u\n", ealen);
 }
-LPROC_SEQ_FOPS_RO(ll_max_easize);
+LUSTRE_RO_ATTR(max_easize);
 
-static int ll_default_easize_seq_show(struct seq_file *m, void *v)
+static ssize_t default_easize_show(struct kobject *kobj,
+				   struct attribute *attr,
+				   char *buf)
 {
-	struct super_block *sb = m->private;
-	struct ll_sb_info *sbi = ll_s2sbi(sb);
+	struct ll_sb_info *sbi = container_of(kobj, struct ll_sb_info,
+					      ll_kobj);
 	unsigned int ealen;
 	int rc;
 
@@ -746,10 +749,9 @@ static int ll_default_easize_seq_show(struct seq_file *m, void *v)
 	if (rc)
 		return rc;
 
-	seq_printf(m, "%u\n", ealen);
-	return 0;
+	return sprintf(buf, "%u\n", ealen);
 }
-LPROC_SEQ_FOPS_RO(ll_default_easize);
+LUSTRE_RO_ATTR(default_easize);
 
 static int ll_max_cookiesize_seq_show(struct seq_file *m, void *v)
 {
@@ -848,8 +850,6 @@ static struct lprocfs_vars lprocfs_llite_obd_vars[] = {
 	/* { "filegroups",   lprocfs_rd_filegroups,  0, 0 }, */
 	{ "max_cached_mb",    &ll_max_cached_mb_fops, NULL },
 	{ "statahead_stats",  &ll_statahead_stats_fops, NULL, 0 },
-	{ "max_easize",       &ll_max_easize_fops, NULL, 0 },
-	{ "default_easize",   &ll_default_easize_fops, NULL, 0 },
 	{ "max_cookiesize",   &ll_max_cookiesize_fops, NULL, 0 },
 	{ "default_cookiesize", &ll_default_cookiesize_fops, NULL, 0 },
 	{ "sbi_flags",	      &ll_sbi_flags_fops, NULL, 0 },
@@ -879,6 +879,8 @@ static struct attribute *llite_attrs[] = {
 	&lustre_attr_statahead_max.attr,
 	&lustre_attr_statahead_agl.attr,
 	&lustre_attr_lazystatfs.attr,
+	&lustre_attr_max_easize.attr,
+	&lustre_attr_default_easize.attr,
 	NULL,
 };
 

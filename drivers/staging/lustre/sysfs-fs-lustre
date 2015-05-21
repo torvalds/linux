@@ -169,3 +169,17 @@ Description:
 		Controls statfs(2) behaviour in the face of down servers.
 		If 0, always wait for all servers to come online,
 		if 1, ignote inactive servers.
+
+What:		/sys/fs/lustre/llite/<fsname>-<uuid>/max_easize
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Shows maximum number of bytes file striping data could be
+		in current configuration of storage.
+
+What:		/sys/fs/lustre/llite/<fsname>-<uuid>/default_easize
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Shows maximum observed file striping data seen by this
+		filesystem client instance.
