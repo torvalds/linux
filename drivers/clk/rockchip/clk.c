@@ -1885,7 +1885,12 @@ static void __init rk_clk_tree_init(struct device_node *np)
 	}
 
 	node = of_parse_phandle(np, "rockchip,grf", 0);
-	rk_grf_base = of_iomap(node, 0);
+	if (node)
+		rk_grf_base = of_iomap(node, 0);
+#ifdef CONFIG_ARM
+	if (!rk_grf_base)
+		rk_grf_base = RK_GRF_VIRT;
+#endif
 
 	for_each_available_child_of_node(np, node) {
 		clk_debug("\n");
