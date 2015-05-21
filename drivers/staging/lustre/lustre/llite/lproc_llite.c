@@ -686,24 +686,27 @@ static int ll_statahead_stats_seq_show(struct seq_file *m, void *v)
 }
 LPROC_SEQ_FOPS_RO(ll_statahead_stats);
 
-static int ll_lazystatfs_seq_show(struct seq_file *m, void *v)
+static ssize_t lazystatfs_show(struct kobject *kobj,
+			       struct attribute *attr,
+			       char *buf)
 {
-	struct super_block *sb = m->private;
-	struct ll_sb_info *sbi = ll_s2sbi(sb);
+	struct ll_sb_info *sbi = container_of(kobj, struct ll_sb_info,
+					      ll_kobj);
 
-	seq_printf(m, "%u\n", sbi->ll_flags & LL_SBI_LAZYSTATFS ? 1 : 0);
-	return 0;
+	return sprintf(buf, "%u\n", sbi->ll_flags & LL_SBI_LAZYSTATFS ? 1 : 0);
 }
 
-static ssize_t ll_lazystatfs_seq_write(struct file *file,
-				       const char __user *buffer,
-				       size_t count, loff_t *off)
+static ssize_t lazystatfs_store(struct kobject *kobj,
+				struct attribute *attr,
+				const char *buffer,
+				size_t count)
 {
-	struct super_block *sb = ((struct seq_file *)file->private_data)->private;
-	struct ll_sb_info *sbi = ll_s2sbi(sb);
-	int val, rc;
+	struct ll_sb_info *sbi = container_of(kobj, struct ll_sb_info,
+					      ll_kobj);
+	int rc;
+	unsigned long val;
 
-	rc = lprocfs_write_helper(buffer, count, &val);
+	rc = kstrtoul(buffer, 10, &val);
 	if (rc)
 		return rc;
 
@@ -714,7 +717,7 @@ static ssize_t ll_lazystatfs_seq_write(struct file *file,
 
 	return count;
 }
-LPROC_SEQ_FOPS(ll_lazystatfs);
+LUSTRE_RW_ATTR(lazystatfs);
 
 static int ll_max_easize_seq_show(struct seq_file *m, void *v)
 {
@@ -845,7 +848,6 @@ static struct lprocfs_vars lprocfs_llite_obd_vars[] = {
 	/* { "filegroups",   lprocfs_rd_filegroups,  0, 0 }, */
 	{ "max_cached_mb",    &ll_max_cached_mb_fops, NULL },
 	{ "statahead_stats",  &ll_statahead_stats_fops, NULL, 0 },
-	{ "lazystatfs",       &ll_lazystatfs_fops, NULL },
 	{ "max_easize",       &ll_max_easize_fops, NULL, 0 },
 	{ "default_easize",   &ll_default_easize_fops, NULL, 0 },
 	{ "max_cookiesize",   &ll_max_cookiesize_fops, NULL, 0 },
@@ -876,6 +878,7 @@ static struct attribute *llite_attrs[] = {
 	&lustre_attr_stats_track_gid.attr,
 	&lustre_attr_statahead_max.attr,
 	&lustre_attr_statahead_agl.attr,
+	&lustre_attr_lazystatfs.attr,
 	NULL,
 };
 
