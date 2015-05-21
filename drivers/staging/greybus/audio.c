@@ -19,6 +19,9 @@
 #define GB_AUDIO_DATA_DRIVER_NAME		"gb_audio_data"
 #define GB_AUDIO_MGMT_DRIVER_NAME		"gb_audio_mgmt"
 
+#define RT5647_I2C_ADAPTER_NR			6
+#define RT5647_I2C_ADDR				0x1b
+
 /*
  * gb_snd management functions
  */
@@ -111,7 +114,8 @@ static struct asoc_simple_card_info *setup_card_info(int device_count)
 #endif
 #if USE_RT5645
 	obj->card_info.daifmt		= GB_FMTS;
-	sprintf(obj->codec_name, "rt5645.%s", "6-001b"); /* XXX do i2c bus addr dynamically */
+	sprintf(obj->codec_name, "rt5645.%d-%04x", RT5647_I2C_ADAPTER_NR,
+		RT5647_I2C_ADDR);
 	obj->card_info.codec_dai.name	= "rt5645-aif1";
 	obj->card_info.codec_dai.fmt	= SND_SOC_DAIFMT_CBM_CFM;
 	obj->card_info.codec_dai.sysclk	= 12288000;

@@ -22,7 +22,6 @@
 
 #define CONFIG_COUNT_MAX			20
 #define CONFIG_I2S_REMOTE_DATA_CPORT		7 /* XXX shouldn't be hardcoded...*/
-#define RT5647_SLAVE_ADDR			0x1b /* from toshiba/quanta code */
 
 /* Switch between dummy spdif and jetson rt5645 codec */
 #define USE_RT5645				0
