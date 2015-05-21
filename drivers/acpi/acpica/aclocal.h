@@ -1175,4 +1175,9 @@ struct ah_uuid {
 	char *string;
 };
 
+struct ah_table {
+	char *signature;
+	char *description;
+};
+
 #endif				/* __ACLOCAL_H__ */
