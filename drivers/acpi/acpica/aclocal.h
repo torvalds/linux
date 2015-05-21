@@ -352,11 +352,21 @@ struct acpi_package_info3 {
 	u16 reserved;
 };
 
+struct acpi_package_info4 {
+	u8 type;
+	u8 object_type1;
+	u8 count1;
+	u8 sub_object_types;
+	u8 pkg_count;
+	u16 reserved;
+};
+
 union acpi_predefined_info {
 	struct acpi_name_info info;
 	struct acpi_package_info ret_info;
 	struct acpi_package_info2 ret_info2;
 	struct acpi_package_info3 ret_info3;
+	struct acpi_package_info4 ret_info4;
 };
 
 /* Reset to default packing */
