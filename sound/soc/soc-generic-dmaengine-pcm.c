@@ -121,21 +121,10 @@ static void dmaengine_pcm_free(struct snd_pcm *pcm)
 	snd_pcm_lib_preallocate_free_for_all(pcm);
 }
 
-static struct dma_chan *dmaengine_pcm_compat_request_channel(
-	struct snd_soc_pcm_runtime *rtd,
-	struct snd_pcm_substream *substream)
-{
-	struct dmaengine_pcm *pcm = soc_platform_to_pcm(rtd->platform);
-
-	if ((pcm->flags & SND_DMAENGINE_PCM_FLAG_HALF_DUPLEX) && pcm->chan[0])
-		return pcm->chan[0];
-
-	if (pcm->config->compat_request_channel)
-		return pcm->config->compat_request_channel(rtd, substream);
-
-	return snd_dmaengine_pcm_request_channel(pcm->config->compat_filter_fn,
-		snd_soc_dai_get_dma_data(rtd->cpu_dai, substream));
-}
+static const char * const dmaengine_pcm_dma_channel_names[] = {
+	[SNDRV_PCM_STREAM_PLAYBACK] = "tx",
+	[SNDRV_PCM_STREAM_CAPTURE] = "rx",
+};
 
 static int dmaengine_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
@@ -151,8 +140,8 @@ static int dmaengine_pcm_new(struct snd_soc_pcm_runtime *rtd)
 			continue;
 
 		if (!pcm->chan[i] && (pcm->flags & SND_DMAENGINE_PCM_FLAG_COMPAT)) {
-			pcm->chan[i] = dmaengine_pcm_compat_request_channel(rtd,
-				substream);
+			pcm->chan[i] = dma_request_slave_channel(rtd->platform->dev,
+								 dmaengine_pcm_dma_channel_names[i]);
 		}
 
 		if (!pcm->chan[i]) {
@@ -210,11 +199,6 @@ static const struct snd_soc_platform_driver dmaengine_no_residue_pcm_platform = 
 	.pcm_new	= dmaengine_pcm_new,
 	.pcm_free	= dmaengine_pcm_free,
 	.probe_order	= SND_SOC_COMP_ORDER_LATE,
-};
-
-static const char * const dmaengine_pcm_dma_channel_names[] = {
-	[SNDRV_PCM_STREAM_PLAYBACK] = "tx",
-	[SNDRV_PCM_STREAM_CAPTURE] = "rx",
 };
 
 static void dmaengine_pcm_request_chan_of(struct dmaengine_pcm *pcm,
