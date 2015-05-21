@@ -1097,7 +1097,7 @@ static int aead_setup(struct crypto_aead *tfm, unsigned int authsize)
 {
 	struct ixp_ctx *ctx = crypto_aead_ctx(tfm);
 	u32 *flags = &tfm->base.crt_flags;
-	unsigned digest_len = crypto_aead_alg(tfm)->maxauthsize;
+	unsigned digest_len = crypto_aead_maxauthsize(tfm);
 	int ret;
 
 	if (!ctx->enckey_len && !ctx->authkey_len)
@@ -1139,7 +1139,7 @@ out:
 
 static int aead_setauthsize(struct crypto_aead *tfm, unsigned int authsize)
 {
-	int max = crypto_aead_alg(tfm)->maxauthsize >> 2;
+	int max = crypto_aead_maxauthsize(tfm) >> 2;
 
 	if ((authsize>>2) < 1 || (authsize>>2) > max || (authsize & 3))
 		return -EINVAL;
