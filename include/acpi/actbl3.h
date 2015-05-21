@@ -68,6 +68,7 @@
 #define ACPI_SIG_PCCT           "PCCT"	/* Platform Communications Channel Table */
 #define ACPI_SIG_PMTT           "PMTT"	/* Platform Memory Topology Table */
 #define ACPI_SIG_RASF           "RASF"	/* RAS Feature table */
+#define ACPI_SIG_STAO           "STAO"	/* Status Override table */
 #define ACPI_SIG_TPM2           "TPM2"	/* Trusted Platform Module 2.0 H/W interface table */
 
 #define ACPI_SIG_S3PT           "S3PT"	/* S3 Performance (sub)Table */
@@ -682,6 +683,21 @@ enum acpi_rasf_status {
 #define ACPI_RASF_SCI_DOORBELL          (1<<1)
 #define ACPI_RASF_ERROR                 (1<<2)
 #define ACPI_RASF_STATUS                (0x1F<<3)
+
+/*******************************************************************************
+ *
+ * STAO - Status Override Table (_STA override) - ACPI 6.0
+ *        Version 1
+ *
+ * Conforms to "ACPI Specification for Status Override Table"
+ * 6 January 2015
+ *
+ ******************************************************************************/
+
+struct acpi_table_stao {
+	struct acpi_table_header header;	/* Common ACPI table header */
+	u8 ignore_uart;
+};
 
 /*******************************************************************************
  *
