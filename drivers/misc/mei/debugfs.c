@@ -149,6 +149,13 @@ static ssize_t mei_dbgfs_read_devstate(struct file *fp, char __user *ubuf,
 			mei_dev_state_str(dev->dev_state));
 	pos += scnprintf(buf + pos, bufsz - pos, "hbm: %s\n",
 			mei_hbm_state_str(dev->hbm_state));
+
+	if (dev->hbm_state == MEI_HBM_STARTED) {
+		pos += scnprintf(buf + pos, bufsz - pos, "hbm features:\n");
+		pos += scnprintf(buf + pos, bufsz - pos, "\tPG: %01d\n",
+				 dev->hbm_f_pg_supported);
+	}
+
 	pos += scnprintf(buf + pos, bufsz - pos, "pg:  %s, %s\n",
 			mei_pg_is_enabled(dev) ? "ENABLED" : "DISABLED",
 			mei_pg_state_str(mei_pg_state(dev)));
