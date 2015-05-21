@@ -503,9 +503,9 @@ static int hci_sock_release(struct socket *sock)
 
 	if (hdev) {
 		if (hci_pi(sk)->channel == HCI_CHANNEL_USER) {
-			mgmt_index_added(hdev);
-			hci_dev_clear_flag(hdev, HCI_USER_CHANNEL);
 			hci_dev_close(hdev->id);
+			hci_dev_clear_flag(hdev, HCI_USER_CHANNEL);
+			mgmt_index_added(hdev);
 		}
 
 		atomic_dec(&hdev->promisc);
