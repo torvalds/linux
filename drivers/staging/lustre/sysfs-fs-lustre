@@ -97,3 +97,10 @@ Date:		May 2015
 Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
 Description:
 		Shows this filesystem superblock uuid
+
+What:		/sys/fs/lustre/llite/<fsname>-<uuid>/max_read_ahead_mb
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Sets maximum number of megabytes in system memory to be
+		given to read-ahead cache.

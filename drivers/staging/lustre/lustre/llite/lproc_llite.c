@@ -220,10 +220,11 @@ static int ll_site_stats_seq_show(struct seq_file *m, void *v)
 }
 LPROC_SEQ_FOPS_RO(ll_site_stats);
 
-static int ll_max_readahead_mb_seq_show(struct seq_file *m, void *v)
+static ssize_t max_read_ahead_mb_show(struct kobject *kobj,
+				      struct attribute *attr, char *buf)
 {
-	struct super_block *sb = m->private;
-	struct ll_sb_info *sbi = ll_s2sbi(sb);
+	struct ll_sb_info *sbi = container_of(kobj, struct ll_sb_info,
+					      ll_kobj);
 	long pages_number;
 	int mult;
 
@@ -232,23 +233,27 @@ static int ll_max_readahead_mb_seq_show(struct seq_file *m, void *v)
 	spin_unlock(&sbi->ll_lock);
 
 	mult = 1 << (20 - PAGE_CACHE_SHIFT);
-	return lprocfs_seq_read_frac_helper(m, pages_number, mult);
+	return lprocfs_read_frac_helper(buf, PAGE_SIZE, pages_number, mult);
 }
 
-static ssize_t ll_max_readahead_mb_seq_write(struct file *file,
-					     const char __user *buffer,
-					     size_t count, loff_t *off)
+static ssize_t max_read_ahead_mb_store(struct kobject *kobj,
+				       struct attribute *attr,
+				       const char *buffer,
+				       size_t count)
 {
-	struct super_block *sb = ((struct seq_file *)file->private_data)->private;
-	struct ll_sb_info *sbi = ll_s2sbi(sb);
-	int mult, rc, pages_number;
+	struct ll_sb_info *sbi = container_of(kobj, struct ll_sb_info,
+					      ll_kobj);
+	int rc;
+	unsigned long pages_number;
 
-	mult = 1 << (20 - PAGE_CACHE_SHIFT);
-	rc = lprocfs_write_frac_helper(buffer, count, &pages_number, mult);
+	rc = kstrtoul(buffer, 10, &pages_number);
 	if (rc)
 		return rc;
 
-	if (pages_number < 0 || pages_number > totalram_pages / 2) {
+	pages_number *= 1 << (20 - PAGE_CACHE_SHIFT); /* MB -> pages */
+
+	if (pages_number > totalram_pages / 2) {
+
 		CERROR("can't set file readahead more than %lu MB\n",
 		       totalram_pages >> (20 - PAGE_CACHE_SHIFT + 1)); /*1/2 of RAM*/
 		return -ERANGE;
@@ -260,7 +265,7 @@ static ssize_t ll_max_readahead_mb_seq_write(struct file *file,
 
 	return count;
 }
-LPROC_SEQ_FOPS(ll_max_readahead_mb);
+LUSTRE_RW_ATTR(max_read_ahead_mb);
 
 static int ll_max_readahead_per_file_mb_seq_show(struct seq_file *m, void *v)
 {
@@ -840,7 +845,6 @@ static struct lprocfs_vars lprocfs_llite_obd_vars[] = {
 	/* { "mntpt_path",   ll_rd_path,	     0, 0 }, */
 	{ "site",	  &ll_site_stats_fops,    NULL, 0 },
 	/* { "filegroups",   lprocfs_rd_filegroups,  0, 0 }, */
-	{ "max_read_ahead_mb", &ll_max_readahead_mb_fops, NULL },
 	{ "max_read_ahead_per_file_mb", &ll_max_readahead_per_file_mb_fops,
 		NULL },
 	{ "max_read_ahead_whole_mb", &ll_max_read_ahead_whole_mb_fops, NULL },
@@ -875,6 +879,7 @@ static struct attribute *llite_attrs[] = {
 	&lustre_attr_client_type.attr,
 	&lustre_attr_fstype.attr,
 	&lustre_attr_uuid.attr,
+	&lustre_attr_max_read_ahead_mb.attr,
 	NULL,
 };
 
