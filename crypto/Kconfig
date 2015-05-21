@@ -227,6 +227,16 @@ config CRYPTO_SEQIV
 	  This IV generator generates an IV based on a sequence number by
 	  xoring it with a salt.  This algorithm is mainly useful for CTR
 
+config CRYPTO_ECHAINIV
+	tristate "Encrypted Chain IV Generator"
+	select CRYPTO_AEAD
+	select CRYPTO_NULL
+	select CRYPTO_RNG
+	help
+	  This IV generator generates an IV based on the encryption of
+	  a sequence number xored with a salt.  This is the default
+	  algorithm for CBC.
+
 comment "Block modes"
 
 config CRYPTO_CBC
