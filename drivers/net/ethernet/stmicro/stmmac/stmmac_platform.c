@@ -112,13 +112,7 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 	const struct of_device_id *device;
 	struct device *dev = &pdev->dev;
 
-	if (!np)
-		return -ENODEV;
-
 	device = of_match_device(dev->driver->of_match_table, dev);
-	if (!device)
-		return -ENODEV;
-
 	if (device->data) {
 		const struct stmmac_of_data *data = device->data;
 		plat->has_gmac = data->has_gmac;
@@ -252,25 +246,24 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
  */
 int stmmac_pltfr_probe(struct platform_device *pdev)
 {
+	struct stmmac_resources stmmac_res;
 	int ret = 0;
 	struct resource *res;
 	struct device *dev = &pdev->dev;
-	void __iomem *addr = NULL;
-	struct stmmac_priv *priv = NULL;
 	struct plat_stmmacenet_data *plat_dat = NULL;
-	const char *mac = NULL;
-	int irq, wol_irq, lpi_irq;
+
+	memset(&stmmac_res, 0, sizeof(stmmac_res));
 
 	/* Get IRQ information early to have an ability to ask for deferred
 	 * probe if needed before we went too far with resource allocation.
 	 */
-	irq = platform_get_irq_byname(pdev, "macirq");
-	if (irq < 0) {
-		if (irq != -EPROBE_DEFER) {
+	stmmac_res.irq = platform_get_irq_byname(pdev, "macirq");
+	if (stmmac_res.irq < 0) {
+		if (stmmac_res.irq != -EPROBE_DEFER) {
 			dev_err(dev,
 				"MAC IRQ configuration information not found\n");
 		}
-		return irq;
+		return stmmac_res.irq;
 	}
 
 	/* On some platforms e.g. SPEAr the wake up irq differs from the mac irq
@@ -280,21 +273,21 @@ int stmmac_pltfr_probe(struct platform_device *pdev)
 	 * In case the wake up interrupt is not passed from the platform
 	 * so the driver will continue to use the mac irq (ndev->irq)
 	 */
-	wol_irq = platform_get_irq_byname(pdev, "eth_wake_irq");
-	if (wol_irq < 0) {
-		if (wol_irq == -EPROBE_DEFER)
+	stmmac_res.wol_irq = platform_get_irq_byname(pdev, "eth_wake_irq");
+	if (stmmac_res.wol_irq < 0) {
+		if (stmmac_res.wol_irq == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
-		wol_irq = irq;
+		stmmac_res.wol_irq = stmmac_res.irq;
 	}
 
-	lpi_irq = platform_get_irq_byname(pdev, "eth_lpi");
-	if (lpi_irq == -EPROBE_DEFER)
+	stmmac_res.lpi_irq = platform_get_irq_byname(pdev, "eth_lpi");
+	if (stmmac_res.lpi_irq == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	addr = devm_ioremap_resource(dev, res);
-	if (IS_ERR(addr))
-		return PTR_ERR(addr);
+	stmmac_res.addr = devm_ioremap_resource(dev, res);
+	if (IS_ERR(stmmac_res.addr))
+		return PTR_ERR(stmmac_res.addr);
 
 	plat_dat = dev_get_platdata(&pdev->dev);
 
@@ -314,7 +307,7 @@ int stmmac_pltfr_probe(struct platform_device *pdev)
 	plat_dat->unicast_filter_entries = 1;
 
 	if (pdev->dev.of_node) {
-		ret = stmmac_probe_config_dt(pdev, plat_dat, &mac);
+		ret = stmmac_probe_config_dt(pdev, plat_dat, &stmmac_res.mac);
 		if (ret) {
 			pr_err("%s: main dt probe failed", __func__);
 			return ret;
@@ -335,26 +328,7 @@ int stmmac_pltfr_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	priv = stmmac_dvr_probe(&(pdev->dev), plat_dat, addr);
-	if (IS_ERR(priv)) {
-		pr_err("%s: main driver probe failed", __func__);
-		return PTR_ERR(priv);
-	}
-
-	/* Copy IRQ values to priv structure which is now avaialble */
-	priv->dev->irq = irq;
-	priv->wol_irq = wol_irq;
-	priv->lpi_irq = lpi_irq;
-
-	/* Get MAC address if available (DT) */
-	if (mac)
-		memcpy(priv->dev->dev_addr, mac, ETH_ALEN);
-
-	platform_set_drvdata(pdev, priv->dev);
-
-	pr_debug("STMMAC platform driver registration completed");
-
-	return 0;
+	return stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
 }
 EXPORT_SYMBOL_GPL(stmmac_pltfr_probe);
 
