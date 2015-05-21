@@ -368,18 +368,25 @@ static void sim_set_rx(struct sim_t *sim, u8 enable)
 	__raw_writel(reg_data, sim->ioaddr + ENABLE);
 }
 
-static void sim_set_waiting_timers(struct sim_t *sim, u8 enable)
+static void sim_set_cwt(struct sim_t *sim, u8 enable)
 {
 	u32 reg_val;
 	reg_val = __raw_readl(sim->ioaddr + CNTL);
-	if (enable) {
-		if (sim->timing_data.cwt)
-			reg_val |= (SIM_CNTL_CWTEN);
-		if (sim->timing_data.bwt || sim->timing_data.bgt)
-			reg_val |= (SIM_CNTL_BWTEN);
-	} else {
-		reg_val &= ~(SIM_CNTL_CWTEN | SIM_CNTL_BWTEN);
-	}
+	if (enable && sim->timing_data.cwt)
+		reg_val |= SIM_CNTL_CWTEN;
+	else
+		reg_val &= ~SIM_CNTL_CWTEN;
+	__raw_writel(reg_val, sim->ioaddr + CNTL);
+}
+
+static void sim_set_bwt(struct sim_t *sim, u8 enable)
+{
+	u32 reg_val;
+	reg_val = __raw_readl(sim->ioaddr + CNTL);
+	if (enable && (sim->timing_data.bwt || sim->timing_data.bgt))
+		reg_val |= SIM_CNTL_BWTEN;
+	else
+		reg_val &= ~SIM_CNTL_BWTEN;
 	__raw_writel(reg_val, sim->ioaddr + CNTL);
 }
 
@@ -569,12 +576,10 @@ static void sim_tx_irq_disable(struct sim_t *sim)
 static void sim_rx_irq_enable(struct sim_t *sim)
 {
 	u32 reg_data;
-	/*Clear status and enable interrupt
-	 *It is suggested by Tengda from IC team. TX may have CWT status so clear it
+	/*
+	 * Ensure the CWT timer is enabled.
 	 */
-	if (sim->last_is_tx)
-		__raw_writel(SIM_RCV_STATUS_CWT, sim->ioaddr + RCV_STATUS);
-
+	sim_set_cwt(sim, 1);
 	reg_data = __raw_readl(sim->ioaddr + INT_MASK);
 	reg_data |= (SIM_INT_MASK_TCIM | SIM_INT_MASK_TDTFM | SIM_INT_MASK_XTM);
 	reg_data &= ~(SIM_INT_MASK_RIM | SIM_INT_MASK_CWTM | SIM_INT_MASK_BWTM);
@@ -658,14 +663,15 @@ static irqreturn_t sim_irq_handler(int irq, void *dev_id)
 	else if (sim->state == SIM_STATE_XMTING) {
 		/*The CWT BWT expire should not happen when in the transmitting state*/
 		if (tx_status & SIM_XMT_STATUS_ETC) {
-			/*Once the transmit frame is completed, need to enable RX immedially*/
-			sim_set_rx(sim, 1);
+			/*Once the transmit frame is completed, need to enable CWT timer*/
+			sim_set_cwt(sim, 1);
 		}
 		if (tx_status & SIM_XMT_STATUS_XTE) {
 			/*Disable TX*/
 			sim_set_tx(sim, 0);
 			/*Disalbe the timers*/
-			sim_set_waiting_timers(sim, 0);
+			sim_set_cwt(sim, 0);
+			sim_set_bwt(sim, 0);
 			/*Disable the NACK interruptand TX related interrupt*/
 			sim_tx_irq_disable(sim);
 
@@ -703,7 +709,8 @@ static irqreturn_t sim_irq_handler(int irq, void *dev_id)
 			/*Disable RX*/
 			sim_set_rx(sim, 0);
 			/*Disable the BWT timer and CWT timer right now*/
-			sim_set_waiting_timers(sim, 0);
+			sim_set_cwt(sim, 0);
+			sim_set_bwt(sim, 0);
 			/*Disable the interrupt right now*/
 			sim_rx_irq_disable(sim);
 			/*Should we read the fifo or just flush the fifo?*/
@@ -733,7 +740,8 @@ static irqreturn_t sim_irq_handler(int irq, void *dev_id)
 			(rx_status & SIM_RCV_STATUS_BGT)) {
 
 			/*Disable the BWT timer and CWT timer right now*/
-			sim_set_waiting_timers(sim, 0);
+			sim_set_cwt(sim, 0);
+			sim_set_bwt(sim, 0);
 			sim_rx_irq_disable(sim);
 
 			if (rx_status & SIM_RCV_STATUS_BWT) {
@@ -1111,14 +1119,15 @@ static void sim_xmt_start(struct sim_t *sim)
 	}
 	sim_tx_irq_enable(sim);
 
-	/*Enable  BWT, CWT timers*/
-	sim_set_waiting_timers(sim, 1);
-
-	/*Enable TX*/
-	sim_set_tx(sim, 1);
+	/*Enable  BWT and disalbe CWT timers when tx*/
+	sim_set_bwt(sim, 1);
+	sim_set_cwt(sim, 0);
 
 	/*Disalbe RX*/
 	sim_set_rx(sim, 0);
+
+	/*Enable TX*/
+	sim_set_tx(sim, 1);
 }
 
 static void sim_flush_fifo(struct sim_t *sim, u8 flush_tx, u8 flush_rx)
@@ -1209,6 +1218,15 @@ static void sim_polling_delay(struct sim_t *sim, u32 delay)
 	while (!(__raw_readl(sim->ioaddr + XMT_STATUS) & SIM_XMT_STATUS_GPCNT))
 		usleep_range(10, 20);
 	__raw_writel(SIM_XMT_STATUS_GPCNT, sim->ioaddr + XMT_STATUS);
+}
+
+void sim_clear_rx_buf(struct sim_t *sim)
+{
+	unsigned int i;
+	for (i = 0; i < SIM_RCV_BUFFER_SIZE; i++)
+		sim->rcv_buffer[i] = 0;
+	sim->rcv_count = 0;
+	sim->rcv_head = 0;
 }
 
 static long sim_ioctl(struct file *file,
@@ -1319,11 +1337,13 @@ static long sim_ioctl(struct file *file,
 			errval = ret;
 			break;
 		}
+
+		sim_clear_rx_buf(sim);
+		sim_set_cwt(sim, 0);
+		sim_set_bwt(sim, 0);
 		/*Flush the tx rx fifo*/
 		sim_flush_fifo(sim, 1, 1);
 		sim->xmt_pos = 0;
-		sim->rcv_count = 0;
-		sim->rcv_head = 0;
 		sim->errval = 0;
 
 		sim_xmt_fill_fifo(sim);
@@ -1354,7 +1374,8 @@ static long sim_ioctl(struct file *file,
 		if (timeout == 0 || sim->state == SIM_STATE_XMT_ERROR) {
 			pr_err("TX error\n");
 			/*Disable timers*/
-			sim_set_waiting_timers(sim, 0);
+			sim_set_cwt(sim, 0);
+			sim_set_bwt(sim, 0);
 			/*Disable TX*/
 			sim_set_tx(sim, 0);
 			/*Flush the tx fifos*/
@@ -1375,7 +1396,6 @@ static long sim_ioctl(struct file *file,
 						sizeof(sim->errval));
 		sim->last_is_tx = true;
 		/*Start RX*/
-		sim->rcv_count = 0;
 		sim->errval = 0;
 		sim->state = SIM_STATE_RECEIVING;
 		sim_start_rcv(sim);
@@ -1409,7 +1429,8 @@ static long sim_ioctl(struct file *file,
 		if (sim->state != SIM_STATE_RECEIVING) {
 			sim_set_timer_counter(sim);
 			/*Enable CWT BWT*/
-			sim_set_waiting_timers(sim, 1);
+			sim_set_cwt(sim, 1);
+			sim_set_bwt(sim, 1);
 			sim->state = SIM_STATE_RECEIVING;
 			sim_start_rcv(sim);
 		}
@@ -1424,7 +1445,8 @@ static long sim_ioctl(struct file *file,
 
 		if (timeout == 0) {
 			pr_err("Receiving timeout\n");
-			sim_set_waiting_timers(sim, 0);
+			sim_set_cwt(sim, 0);
+			sim_set_bwt(sim, 0);
 			sim_rx_irq_disable(sim);
 			errval = -SIM_E_TIMEOUT;
 			break;
