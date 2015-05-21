@@ -70,6 +70,7 @@
 #define ACPI_SIG_RASF           "RASF"	/* RAS Feature table */
 #define ACPI_SIG_STAO           "STAO"	/* Status Override table */
 #define ACPI_SIG_TPM2           "TPM2"	/* Trusted Platform Module 2.0 H/W interface table */
+#define ACPI_SIG_WPBT           "WPBT"	/* Windows Platform Binary Table */
 #define ACPI_SIG_XENV           "XENV"	/* Xen Environment table */
 
 #define ACPI_SIG_S3PT           "S3PT"	/* S3 Performance (sub)Table */
@@ -79,7 +80,6 @@
 
 #define ACPI_SIG_MATR           "MATR"	/* Memory Address Translation Table */
 #define ACPI_SIG_MSDM           "MSDM"	/* Microsoft Data Management Table */
-#define ACPI_SIG_WPBT           "WPBT"	/* Windows Platform Binary Table */
 
 /*
  * All tables must be byte-packed to match the ACPI specification, since
@@ -728,6 +728,24 @@ struct acpi_tpm2_control {
 	u64 command_address;
 	u32 response_size;
 	u64 response_address;
+};
+
+/*******************************************************************************
+ *
+ * WPBT - Windows Platform Environment Table (ACPI 6.0)
+ *        Version 1
+ *
+ * Conforms to "Windows Platform Binary Table (WPBT)" 29 November 2011
+ *
+ ******************************************************************************/
+
+struct acpi_table_wpbt {
+	struct acpi_table_header header;	/* Common ACPI table header */
+	u32 handoff_size;
+	u64 handoff_address;
+	u8 layout;
+	u8 type;
+	u16 arguments_length;
 };
 
 /*******************************************************************************
