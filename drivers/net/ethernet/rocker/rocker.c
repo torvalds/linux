@@ -3853,7 +3853,6 @@ rocker_internal_vlan_tbl_find(struct rocker *rocker, int ifindex)
 }
 
 static __be16 rocker_port_internal_vlan_id_get(struct rocker_port *rocker_port,
-					       enum switchdev_trans trans,
 					       int ifindex)
 {
 	struct rocker *rocker = rocker_port->rocker;
@@ -3862,7 +3861,7 @@ static __be16 rocker_port_internal_vlan_id_get(struct rocker_port *rocker_port,
 	unsigned long lock_flags;
 	int i;
 
-	entry = rocker_port_kzalloc(rocker_port, trans, sizeof(*entry));
+	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
 		return 0;
 
@@ -3872,7 +3871,7 @@ static __be16 rocker_port_internal_vlan_id_get(struct rocker_port *rocker_port,
 
 	found = rocker_internal_vlan_tbl_find(rocker, ifindex);
 	if (found) {
-		rocker_port_kfree(rocker_port, trans, entry);
+		kfree(entry);
 		goto found;
 	}
 
@@ -3896,7 +3895,6 @@ found:
 }
 
 static void rocker_port_internal_vlan_id_put(struct rocker_port *rocker_port,
-					     enum switchdev_trans trans,
 					     int ifindex)
 {
 	struct rocker *rocker = rocker_port->rocker;
@@ -3918,7 +3916,7 @@ static void rocker_port_internal_vlan_id_put(struct rocker_port *rocker_port,
 		bit = ntohs(found->vlan_id) - ROCKER_INTERNAL_VLAN_ID_BASE;
 		clear_bit(bit, rocker->internal_vlan_bitmap);
 		hash_del(&found->entry);
-		rocker_port_kfree(rocker_port, trans, found);
+		kfree(found);
 	}
 
 not_found:
@@ -4904,9 +4902,7 @@ static int rocker_probe_port(struct rocker *rocker, unsigned int port_number)
 	rocker_port_set_learning(rocker_port, SWITCHDEV_TRANS_NONE);
 
 	rocker_port->internal_vlan_id =
-		rocker_port_internal_vlan_id_get(rocker_port,
-						 SWITCHDEV_TRANS_NONE,
-						 dev->ifindex);
+		rocker_port_internal_vlan_id_get(rocker_port, dev->ifindex);
 	err = rocker_port_ig_tbl(rocker_port, SWITCHDEV_TRANS_NONE, 0);
 	if (err) {
 		dev_err(&pdev->dev, "install ig port table failed\n");
@@ -5154,7 +5150,7 @@ static int rocker_port_bridge_join(struct rocker_port *rocker_port,
 {
 	int err;
 
-	rocker_port_internal_vlan_id_put(rocker_port, SWITCHDEV_TRANS_NONE,
+	rocker_port_internal_vlan_id_put(rocker_port,
 					 rocker_port->dev->ifindex);
 
 	rocker_port->bridge_dev = bridge;
@@ -5165,9 +5161,7 @@ static int rocker_port_bridge_join(struct rocker_port *rocker_port,
 	if (err)
 		return err;
 	rocker_port->internal_vlan_id =
-		rocker_port_internal_vlan_id_get(rocker_port,
-						 SWITCHDEV_TRANS_NONE,
-						 bridge->ifindex);
+		rocker_port_internal_vlan_id_get(rocker_port, bridge->ifindex);
 	return rocker_port_vlan(rocker_port, SWITCHDEV_TRANS_NONE, 0, 0);
 }
 
@@ -5175,7 +5169,7 @@ static int rocker_port_bridge_leave(struct rocker_port *rocker_port)
 {
 	int err;
 
-	rocker_port_internal_vlan_id_put(rocker_port, SWITCHDEV_TRANS_NONE,
+	rocker_port_internal_vlan_id_put(rocker_port,
 					 rocker_port->bridge_dev->ifindex);
 
 	rocker_port->bridge_dev = NULL;
@@ -5187,7 +5181,6 @@ static int rocker_port_bridge_leave(struct rocker_port *rocker_port)
 		return err;
 	rocker_port->internal_vlan_id =
 		rocker_port_internal_vlan_id_get(rocker_port,
-						 SWITCHDEV_TRANS_NONE,
 						 rocker_port->dev->ifindex);
 	err = rocker_port_vlan(rocker_port, SWITCHDEV_TRANS_NONE, 0, 0);
 	if (err)
