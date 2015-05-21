@@ -23,6 +23,7 @@
 
 #define LPASS_AHBIX_CLOCK_FREQUENCY		131072000
 #define LPASS_MAX_MI2S_PORTS			(8)
+#define LPASS_MAX_DMA_CHANNELS			(8)
 
 /* Both the CPU DAI and platform drivers will access this data */
 struct lpass_data {
@@ -47,6 +48,9 @@ struct lpass_data {
 
 	/* SOC specific variations in the LPASS IP integration */
 	struct lpass_variant *variant;
+
+	/* used it for handling interrupt per dma channel */
+	struct snd_pcm_substream *substream[LPASS_MAX_DMA_CHANNELS];
 };
 
 /* Vairant data per each SOC */
