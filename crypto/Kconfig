@@ -221,6 +221,7 @@ config CRYPTO_SEQIV
 	tristate "Sequence Number IV Generator"
 	select CRYPTO_AEAD
 	select CRYPTO_BLKCIPHER
+	select CRYPTO_NULL
 	select CRYPTO_RNG
 	help
 	  This IV generator generates an IV based on a sequence number by
