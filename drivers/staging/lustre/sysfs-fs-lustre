@@ -190,3 +190,13 @@ Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
 Description:
 		Controls extended attributes client-side cache.
 		1 to enable, 0 to disable.
+
+What:		/sys/fs/lustre/ldlm/cancel_unused_locks_before_replay
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls if client should replay unused locks during recovery
+		If a client tends to have a lot of unused locks in LRU,
+		recovery times might become prolonged.
+		1 - just locally cancel unused locks (default)
+		0 - replay unused locks.

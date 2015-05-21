@@ -65,8 +65,6 @@ struct proc_dir_entry *ldlm_type_proc_dir = NULL;
 static struct proc_dir_entry *ldlm_ns_proc_dir = NULL;
 struct proc_dir_entry *ldlm_svc_proc_dir = NULL;
 
-extern unsigned int ldlm_cancel_unused_locks_before_replay;
-
 /* during debug dump certain amount of granted locks for one resource to avoid
  * DDOS. */
 unsigned int ldlm_dump_granted_max = 256;
@@ -91,8 +89,6 @@ int ldlm_proc_setup(void)
 		{ "dump_namespaces", &ldlm_dump_ns_fops, NULL, 0222 },
 		{ "dump_granted_max", &ldlm_rw_uint_fops,
 		  &ldlm_dump_granted_max },
-		{ "cancel_unused_locks_before_replay", &ldlm_rw_uint_fops,
-		  &ldlm_cancel_unused_locks_before_replay },
 		{ NULL } };
 	LASSERT(ldlm_ns_proc_dir == NULL);
 

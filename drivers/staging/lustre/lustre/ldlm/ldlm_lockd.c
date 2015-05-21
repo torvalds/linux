@@ -1006,8 +1006,35 @@ void ldlm_destroy_export(struct obd_export *exp)
 }
 EXPORT_SYMBOL(ldlm_destroy_export);
 
+extern unsigned int ldlm_cancel_unused_locks_before_replay;
+
+static ssize_t cancel_unused_locks_before_replay_show(struct kobject *kobj,
+						      struct attribute *attr,
+						      char *buf)
+{
+	return sprintf(buf, "%d\n", ldlm_cancel_unused_locks_before_replay);
+}
+static ssize_t cancel_unused_locks_before_replay_store(struct kobject *kobj,
+						       struct attribute *attr,
+						       const char *buffer,
+						       size_t count)
+{
+	int rc;
+	unsigned long val;
+
+	rc = kstrtoul(buffer, 10, &val);
+	if (rc)
+		return rc;
+
+	ldlm_cancel_unused_locks_before_replay = val;
+
+	return count;
+}
+LUSTRE_RW_ATTR(cancel_unused_locks_before_replay);
+
 /* These are for root of /sys/fs/lustre/ldlm */
-struct attribute *ldlm_attrs[] = {
+static struct attribute *ldlm_attrs[] = {
+	&lustre_attr_cancel_unused_locks_before_replay.attr,
 	NULL,
 };
 
