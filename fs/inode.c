@@ -1673,7 +1673,32 @@ int should_remove_suid(struct dentry *dentry)
 }
 EXPORT_SYMBOL(should_remove_suid);
 
-static int __remove_suid(struct dentry *dentry, int kill)
+/*
+ * Return mask of changes for notify_change() that need to be done as a
+ * response to write or truncate. Return 0 if nothing has to be changed.
+ * Negative value on error (change should be denied).
+ */
+int file_needs_remove_privs(struct file *file)
+{
+	struct dentry *dentry = file->f_path.dentry;
+	struct inode *inode = d_inode(dentry);
+	int mask = 0;
+	int ret;
+
+	if (IS_NOSEC(inode))
+		return 0;
+
+	mask = should_remove_suid(dentry);
+	ret = security_inode_need_killpriv(dentry);
+	if (ret < 0)
+		return ret;
+	if (ret)
+		mask |= ATTR_KILL_PRIV;
+	return mask;
+}
+EXPORT_SYMBOL(file_needs_remove_privs);
+
+static int __remove_privs(struct dentry *dentry, int kill)
 {
 	struct iattr newattrs;
 
@@ -1693,23 +1718,18 @@ int file_remove_privs(struct file *file)
 {
 	struct dentry *dentry = file->f_path.dentry;
 	struct inode *inode = d_inode(dentry);
-	int killsuid;
-	int killpriv;
+	int kill;
 	int error = 0;
 
 	/* Fast path for nothing security related */
 	if (IS_NOSEC(inode))
 		return 0;
 
-	killsuid = should_remove_suid(dentry);
-	killpriv = security_inode_need_killpriv(dentry);
-
-	if (killpriv < 0)
-		return killpriv;
-	if (killpriv)
-		error = security_inode_killpriv(dentry);
-	if (!error && killsuid)
-		error = __remove_suid(dentry, killsuid);
+	kill = file_needs_remove_privs(file);
+	if (kill < 0)
+		return kill;
+	if (kill)
+		error = __remove_privs(dentry, kill);
 	if (!error)
 		inode_has_no_xattr(inode);
 
