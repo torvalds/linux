@@ -3379,7 +3379,7 @@ struct caam_alg_template {
 	u32 type;
 	union {
 		struct ablkcipher_alg ablkcipher;
-		struct aead_alg aead;
+		struct old_aead_alg aead;
 	} template_u;
 	u32 class1_alg_type;
 	u32 class2_alg_type;
