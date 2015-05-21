@@ -6,3 +6,14 @@ config NTB_PINGPONG
 	 your ntb hardware and drivers are functioning at a basic level.
 
 	 If unsure, say N.
+
+config NTB_TOOL
+	tristate "NTB Debugging Tool Test Client"
+	help
+	 This is a simple debugging driver that enables the doorbell and
+	 scratchpad registers to be read and written from the debugfs.  This
+	 enables more complicated debugging to be scripted from user space.
+	 This driver may be used to test that your ntb hardware and drivers are
+	 functioning at a basic level.
+
+	 If unsure, say N.
