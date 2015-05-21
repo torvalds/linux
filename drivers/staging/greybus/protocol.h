@@ -108,7 +108,7 @@ int __init gb_##__protocol##_init(void)			\
 {							\
 	return gb_protocol_register(&__protocol);	\
 }							\
-void __exit gb_##__protocol##_exit(void)		\
+void gb_##__protocol##_exit(void)			\
 {							\
 	gb_protocol_deregister(&__protocol);		\
 }							\
