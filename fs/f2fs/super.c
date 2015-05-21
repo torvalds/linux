@@ -970,29 +970,36 @@ static void init_sb_info(struct f2fs_sb_info *sbi)
  */
 static int read_raw_super_block(struct super_block *sb,
 			struct f2fs_super_block **raw_super,
-			struct buffer_head **raw_super_buf)
+			struct buffer_head **raw_super_buf,
+			int *recovery)
 {
 	int block = 0;
+	struct buffer_head *buffer;
+	struct f2fs_super_block *super;
+	int err = 0;
 
 retry:
-	*raw_super_buf = sb_bread(sb, block);
-	if (!*raw_super_buf) {
+	buffer = sb_bread(sb, block);
+	if (!buffer) {
+		*recovery = 1;
 		f2fs_msg(sb, KERN_ERR, "Unable to read %dth superblock",
 				block + 1);
 		if (block == 0) {
 			block++;
 			goto retry;
 		} else {
-			return -EIO;
+			err = -EIO;
+			goto out;
 		}
 	}
 
-	*raw_super = (struct f2fs_super_block *)
-		((char *)(*raw_super_buf)->b_data + F2FS_SUPER_OFFSET);
+	super = (struct f2fs_super_block *)
+		((char *)(buffer)->b_data + F2FS_SUPER_OFFSET);
 
 	/* sanity checking of raw super */
-	if (sanity_check_raw_super(sb, *raw_super)) {
-		brelse(*raw_super_buf);
+	if (sanity_check_raw_super(sb, super)) {
+		brelse(buffer);
+		*recovery = 1;
 		f2fs_msg(sb, KERN_ERR,
 			"Can't find valid F2FS filesystem in %dth superblock",
 								block + 1);
@@ -1000,9 +1007,29 @@ retry:
 			block++;
 			goto retry;
 		} else {
-			return -EINVAL;
+			err = -EINVAL;
+			goto out;
 		}
 	}
+
+	if (!*raw_super) {
+		*raw_super_buf = buffer;
+		*raw_super = super;
+	} else {
+		/* already have a valid superblock */
+		brelse(buffer);
+	}
+
+	/* check the validity of the second superblock */
+	if (block == 0) {
+		block++;
+		goto retry;
+	}
+
+out:
+	/* No valid superblock */
+	if (!*raw_super)
+		return err;
 
 	return 0;
 }
@@ -1034,15 +1061,20 @@ out:
 static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct f2fs_sb_info *sbi;
-	struct f2fs_super_block *raw_super = NULL;
+	struct f2fs_super_block *raw_super;
 	struct buffer_head *raw_super_buf;
 	struct inode *root;
-	long err = -EINVAL;
+	long err;
 	bool retry = true, need_fsck = false;
 	char *options = NULL;
-	int i;
+	int recovery, i;
 
 try_onemore:
+	err = -EINVAL;
+	raw_super = NULL;
+	raw_super_buf = NULL;
+	recovery = 0;
+
 	/* allocate memory for f2fs-specific super block info */
 	sbi = kzalloc(sizeof(struct f2fs_sb_info), GFP_KERNEL);
 	if (!sbi)
@@ -1054,7 +1086,7 @@ try_onemore:
 		goto free_sbi;
 	}
 
-	err = read_raw_super_block(sb, &raw_super, &raw_super_buf);
+	err = read_raw_super_block(sb, &raw_super, &raw_super_buf, &recovery);
 	if (err)
 		goto free_sbi;
 
@@ -1252,6 +1284,13 @@ try_onemore:
 			goto free_kobj;
 	}
 	kfree(options);
+
+	/* recover broken superblock */
+	if (recovery && !f2fs_readonly(sb) && !bdev_read_only(sb->s_bdev)) {
+		f2fs_msg(sb, KERN_INFO, "Recover invalid superblock");
+		f2fs_commit_super(sbi);
+	}
+
 	return 0;
 
 free_kobj:
