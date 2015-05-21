@@ -292,6 +292,13 @@ static int gb_i2s_mgmt_connection_init(struct gb_connection *connection)
 		goto err_free_snd_dev;
 	}
 
+	ret = gb_i2s_mgmt_set_samples_per_message(snd_dev->mgmt_connection,
+						  CONFIG_SAMPLES_PER_MSG);
+	if (ret) {
+		pr_err("set_samples_per_msg failed: %d\n", ret);
+		goto err_free_i2s_configs;
+	}
+
 	snd_dev->send_data_req_buf = kzalloc(SEND_DATA_BUF_LEN, GFP_KERNEL);
 
 	if (!snd_dev->send_data_req_buf) {

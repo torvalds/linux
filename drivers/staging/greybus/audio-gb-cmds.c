@@ -177,15 +177,8 @@ int gb_i2s_mgmt_set_cfg(struct gb_snd *snd_dev, int rate, int chans,
 	set_cfg.config.ll_wclk_rx_edge = GB_I2S_MGMT_EDGE_FALLING;
 
 	ret = gb_i2s_mgmt_set_configuration(snd_dev->mgmt_connection, &set_cfg);
-	if (ret) {
-		pr_err("set_configuration failed: %d\n", ret);
-		return ret;
-	}
-
-	ret = gb_i2s_mgmt_set_samples_per_message(snd_dev->mgmt_connection,
-						  CONFIG_SAMPLES_PER_MSG);
 	if (ret)
-		pr_err("set_samples_per_msg failed: %d\n", ret);
+		pr_err("set_configuration failed: %d\n", ret);
 
 	return ret;
 }
