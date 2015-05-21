@@ -303,7 +303,7 @@ static void tick_handle_periodic_broadcast(struct clock_event_device *dev)
 	raw_spin_lock(&tick_broadcast_lock);
 	bc_local = tick_do_periodic_broadcast();
 
-	if (dev->state == CLOCK_EVT_STATE_ONESHOT) {
+	if (clockevent_state_oneshot(dev)) {
 		ktime_t next = ktime_add(dev->next_event, tick_period);
 
 		clockevents_program_event(dev, next, true);
@@ -528,7 +528,7 @@ static void tick_broadcast_set_affinity(struct clock_event_device *bc,
 static void tick_broadcast_set_event(struct clock_event_device *bc, int cpu,
 				     ktime_t expires)
 {
-	if (bc->state != CLOCK_EVT_STATE_ONESHOT)
+	if (!clockevent_state_oneshot(bc))
 		clockevents_set_state(bc, CLOCK_EVT_STATE_ONESHOT);
 
 	clockevents_program_event(bc, expires, 1);
@@ -831,7 +831,7 @@ void tick_broadcast_setup_oneshot(struct clock_event_device *bc)
 
 	/* Set it up only once ! */
 	if (bc->event_handler != tick_handle_oneshot_broadcast) {
-		int was_periodic = bc->state == CLOCK_EVT_STATE_PERIODIC;
+		int was_periodic = clockevent_state_periodic(bc);
 
 		bc->event_handler = tick_handle_oneshot_broadcast;
 

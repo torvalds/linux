@@ -36,7 +36,7 @@ int tick_program_event(ktime_t expires, int force)
 		return 0;
 	}
 
-	if (unlikely(dev->state == CLOCK_EVT_STATE_ONESHOT_STOPPED)) {
+	if (unlikely(clockevent_state_oneshot_stopped(dev))) {
 		/*
 		 * We need the clock event again, configure it in ONESHOT mode
 		 * before using it.

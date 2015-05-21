@@ -112,7 +112,7 @@ void tick_handle_periodic(struct clock_event_device *dev)
 		return;
 #endif
 
-	if (dev->state != CLOCK_EVT_STATE_ONESHOT)
+	if (!clockevent_state_oneshot(dev))
 		return;
 	for (;;) {
 		/*
