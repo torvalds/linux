@@ -27,7 +27,7 @@
 #define FE_SUPPORTED(fe) (defined(CONFIG_DVB_##fe) || \
 	(defined(CONFIG_DVB_##fe##_MODULE) && defined(MODULE)))
 
-#if FE_SUPPORTED(BCM3510) || FE_SUPPORTED(CX24120)
+#if FE_SUPPORTED(BCM3510) || (FE_SUPPORTED(CX24120) && FE_SUPPORTED(ISL6421))
 static int flexcop_fe_request_firmware(struct dvb_frontend *fe,
 	const struct firmware **fw, char *name)
 {
