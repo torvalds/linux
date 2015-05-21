@@ -1927,11 +1927,6 @@ intel_start_scheduling(struct cpu_hw_events *cpuc)
 	 * makes scheduling appear as a transaction
 	 */
 	raw_spin_lock(&excl_cntrs->lock);
-
-	/*
-	 * Save a copy of our state to work on.
-	 */
-	memcpy(xl->init_state, xl->state, sizeof(xl->init_state));
 }
 
 static void intel_commit_scheduling(struct cpu_hw_events *cpuc, int idx, int cntr)
@@ -1955,9 +1950,9 @@ static void intel_commit_scheduling(struct cpu_hw_events *cpuc, int idx, int cnt
 	lockdep_assert_held(&excl_cntrs->lock);
 
 	if (c->flags & PERF_X86_EVENT_EXCL)
-		xl->init_state[cntr] = INTEL_EXCL_EXCLUSIVE;
+		xl->state[cntr] = INTEL_EXCL_EXCLUSIVE;
 	else
-		xl->init_state[cntr] = INTEL_EXCL_SHARED;
+		xl->state[cntr] = INTEL_EXCL_SHARED;
 }
 
 static void
@@ -1979,11 +1974,6 @@ intel_stop_scheduling(struct cpu_hw_events *cpuc)
 		return;
 
 	xl = &excl_cntrs->states[tid];
-
-	/*
-	 * Commit the working state.
-	 */
-	memcpy(xl->state, xl->init_state, sizeof(xl->state));
 
 	xl->sched_started = false;
 	/*
@@ -2519,19 +2509,11 @@ struct intel_shared_regs *allocate_shared_regs(int cpu)
 static struct intel_excl_cntrs *allocate_excl_cntrs(int cpu)
 {
 	struct intel_excl_cntrs *c;
-	int i;
 
 	c = kzalloc_node(sizeof(struct intel_excl_cntrs),
 			 GFP_KERNEL, cpu_to_node(cpu));
 	if (c) {
 		raw_spin_lock_init(&c->lock);
-		for (i = 0; i < X86_PMC_IDX_MAX; i++) {
-			c->states[0].state[i] = INTEL_EXCL_UNUSED;
-			c->states[0].init_state[i] = INTEL_EXCL_UNUSED;
-
-			c->states[1].state[i] = INTEL_EXCL_UNUSED;
-			c->states[1].init_state[i] = INTEL_EXCL_UNUSED;
-		}
 		c->core_id = -1;
 	}
 	return c;
