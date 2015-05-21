@@ -654,7 +654,6 @@ int ldlm_pool_setup(struct ldlm_pool *pl, int limit)
 }
 EXPORT_SYMBOL(ldlm_pool_setup);
 
-#if defined(CONFIG_PROC_FS)
 static int lprocfs_pool_state_seq_show(struct seq_file *m, void *unused)
 {
 	int granted, grant_rate, cancel_rate, grant_step;
@@ -745,7 +744,7 @@ LUSTRE_RW_ATTR(lock_volume_factor);
 		snprintf(var_name, MAX_STRING_SIZE, #name);	\
 		pool_vars[0].data = var;			\
 		pool_vars[0].fops = ops;			\
-		lprocfs_add_vars(pl->pl_proc_dir, pool_vars, NULL);\
+		ldebugfs_add_vars(pl->pl_debugfs_entry, pool_vars, NULL);\
 	} while (0)
 
 /* These are for pools in /sys/fs/lustre/ldlm/namespaces/.../pool */
@@ -787,10 +786,10 @@ static int ldlm_pool_sysfs_init(struct ldlm_pool *pl)
 	return err;
 }
 
-static int ldlm_pool_proc_init(struct ldlm_pool *pl)
+static int ldlm_pool_debugfs_init(struct ldlm_pool *pl)
 {
 	struct ldlm_namespace *ns = ldlm_pl2ns(pl);
-	struct proc_dir_entry *parent_ns_proc;
+	struct dentry *debugfs_ns_parent;
 	struct lprocfs_vars pool_vars[2];
 	char *var_name = NULL;
 	int rc = 0;
@@ -799,19 +798,19 @@ static int ldlm_pool_proc_init(struct ldlm_pool *pl)
 	if (!var_name)
 		return -ENOMEM;
 
-	parent_ns_proc = ns->ns_proc_dir_entry;
-	if (parent_ns_proc == NULL) {
-		CERROR("%s: proc entry is not initialized\n",
+	debugfs_ns_parent = ns->ns_debugfs_entry;
+	if (IS_ERR_OR_NULL(debugfs_ns_parent)) {
+		CERROR("%s: debugfs entry is not initialized\n",
 		       ldlm_ns_name(ns));
 		rc = -EINVAL;
 		goto out_free_name;
 	}
-	pl->pl_proc_dir = lprocfs_register("pool", parent_ns_proc,
-					   NULL, NULL);
-	if (IS_ERR(pl->pl_proc_dir)) {
-		CERROR("LProcFS failed in ldlm-pool-init\n");
-		rc = PTR_ERR(pl->pl_proc_dir);
-		pl->pl_proc_dir = NULL;
+	pl->pl_debugfs_entry = ldebugfs_register("pool", debugfs_ns_parent,
+						 NULL, NULL);
+	if (IS_ERR(pl->pl_debugfs_entry)) {
+		CERROR("LdebugFS failed in ldlm-pool-init\n");
+		rc = PTR_ERR(pl->pl_debugfs_entry);
+		pl->pl_debugfs_entry = NULL;
 		goto out_free_name;
 	}
 
@@ -819,7 +818,7 @@ static int ldlm_pool_proc_init(struct ldlm_pool *pl)
 	memset(pool_vars, 0, sizeof(pool_vars));
 	pool_vars[0].name = var_name;
 
-	LDLM_POOL_ADD_VAR("state", pl, &lprocfs_pool_state_fops);
+	LDLM_POOL_ADD_VAR(state, pl, &lprocfs_pool_state_fops);
 
 	pl->pl_stats = lprocfs_alloc_stats(LDLM_POOL_LAST_STAT -
 					   LDLM_POOL_FIRST_STAT, 0);
@@ -861,7 +860,8 @@ static int ldlm_pool_proc_init(struct ldlm_pool *pl)
 	lprocfs_counter_init(pl->pl_stats, LDLM_POOL_TIMING_STAT,
 			     LPROCFS_CNTR_AVGMINMAX | LPROCFS_CNTR_STDDEV,
 			     "recalc_timing", "sec");
-	rc = lprocfs_register_stats(pl->pl_proc_dir, "stats", pl->pl_stats);
+	rc = ldebugfs_register_stats(pl->pl_debugfs_entry, "stats",
+				     pl->pl_stats);
 
 out_free_name:
 	kfree(var_name);
@@ -874,25 +874,17 @@ static void ldlm_pool_sysfs_fini(struct ldlm_pool *pl)
 	wait_for_completion(&pl->pl_kobj_unregister);
 }
 
-static void ldlm_pool_proc_fini(struct ldlm_pool *pl)
+static void ldlm_pool_debugfs_fini(struct ldlm_pool *pl)
 {
 	if (pl->pl_stats != NULL) {
 		lprocfs_free_stats(&pl->pl_stats);
 		pl->pl_stats = NULL;
 	}
-	if (pl->pl_proc_dir != NULL) {
-		lprocfs_remove(&pl->pl_proc_dir);
-		pl->pl_proc_dir = NULL;
+	if (pl->pl_debugfs_entry != NULL) {
+		ldebugfs_remove(&pl->pl_debugfs_entry);
+		pl->pl_debugfs_entry = NULL;
 	}
 }
-#else /* !CONFIG_PROC_FS */
-static int ldlm_pool_proc_init(struct ldlm_pool *pl)
-{
-	return 0;
-}
-
-static void ldlm_pool_proc_fini(struct ldlm_pool *pl) {}
-#endif /* CONFIG_PROC_FS */
 
 int ldlm_pool_init(struct ldlm_pool *pl, struct ldlm_namespace *ns,
 		   int idx, ldlm_side_t client)
@@ -923,7 +915,7 @@ int ldlm_pool_init(struct ldlm_pool *pl, struct ldlm_namespace *ns,
 		pl->pl_recalc_period = LDLM_POOL_CLI_DEF_RECALC_PERIOD;
 	}
 	pl->pl_client_lock_volume = 0;
-	rc = ldlm_pool_proc_init(pl);
+	rc = ldlm_pool_debugfs_init(pl);
 	if (rc)
 		return rc;
 
@@ -940,7 +932,7 @@ EXPORT_SYMBOL(ldlm_pool_init);
 void ldlm_pool_fini(struct ldlm_pool *pl)
 {
 	ldlm_pool_sysfs_fini(pl);
-	ldlm_pool_proc_fini(pl);
+	ldlm_pool_debugfs_fini(pl);
 
 	/*
 	 * Pool should not be used after this point. We can't free it here as

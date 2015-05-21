@@ -1978,8 +1978,8 @@ struct ptlrpc_service {
 	int				srv_nthrs_cpt_init;
 	/** limit of threads number for each partition */
 	int				srv_nthrs_cpt_limit;
-	/** Root of /proc dir tree for this service */
-	struct proc_dir_entry	   *srv_procroot;
+	/** Root of debugfs dir tree for this service */
+	struct dentry		   *srv_debugfs_entry;
 	/** Pointer to statistic data for this service */
 	struct lprocfs_stats	   *srv_stats;
 	/** # hp per lp reqs to handle */
@@ -2530,7 +2530,7 @@ int ptlrpc_hpreq_handler(struct ptlrpc_request *req);
 struct ptlrpc_service *ptlrpc_register_service(
 				struct ptlrpc_service_conf *conf,
 				struct kset *parent,
-				struct proc_dir_entry *proc_entry);
+				struct dentry *debugfs_entry);
 void ptlrpc_stop_all_threads(struct ptlrpc_service *svc);
 
 int ptlrpc_start_threads(struct ptlrpc_service *svc);

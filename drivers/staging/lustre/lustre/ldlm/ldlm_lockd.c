@@ -1078,7 +1078,7 @@ static int ldlm_setup(void)
 		goto out;
 	}
 
-	rc = ldlm_proc_setup();
+	rc = ldlm_debugfs_setup();
 	if (rc != 0)
 		goto out;
 
@@ -1113,7 +1113,7 @@ static int ldlm_setup(void)
 	};
 	ldlm_state->ldlm_cb_service =
 			ptlrpc_register_service(&conf, ldlm_svc_kset,
-						ldlm_svc_proc_dir);
+						ldlm_svc_debugfs_dir);
 	if (IS_ERR(ldlm_state->ldlm_cb_service)) {
 		CERROR("failed to start service\n");
 		rc = PTR_ERR(ldlm_state->ldlm_cb_service);
@@ -1204,8 +1204,7 @@ static int ldlm_cleanup(void)
 	if (ldlm_kobj)
 		kobject_put(ldlm_kobj);
 
-	ldlm_proc_cleanup();
-
+	ldlm_debugfs_cleanup();
 
 	kfree(ldlm_state);
 	ldlm_state = NULL;

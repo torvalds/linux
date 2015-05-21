@@ -681,7 +681,7 @@ free_reqs_array:
 struct ptlrpc_service *
 ptlrpc_register_service(struct ptlrpc_service_conf *conf,
 			struct kset *parent,
-			struct proc_dir_entry *proc_entry)
+			struct dentry *debugfs_entry)
 {
 	struct ptlrpc_service_cpt_conf	*cconf = &conf->psc_cpt;
 	struct ptlrpc_service		*service;
@@ -805,8 +805,8 @@ ptlrpc_register_service(struct ptlrpc_service_conf *conf,
 			goto failed;
 	}
 
-	if (proc_entry != NULL)
-		ptlrpc_lprocfs_register_service(proc_entry, service);
+	if (!IS_ERR_OR_NULL(debugfs_entry))
+		ptlrpc_ldebugfs_register_service(debugfs_entry, service);
 
 	rc = ptlrpc_service_nrs_setup(service);
 	if (rc != 0)

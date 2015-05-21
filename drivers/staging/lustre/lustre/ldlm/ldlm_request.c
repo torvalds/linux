@@ -1462,7 +1462,7 @@ static ldlm_policy_res_t ldlm_cancel_lrur_policy(struct ldlm_namespace *ns,
 			      lock->l_last_used));
 	lv = lvf * la * unused;
 
-	/* Inform pool about current CLV to see it via proc. */
+	/* Inform pool about current CLV to see it via debugfs. */
 	ldlm_pool_set_clv(pl, lv);
 
 	/* Stop when SLV is not yet come from server or lv is smaller than
@@ -1472,7 +1472,7 @@ static ldlm_policy_res_t ldlm_cancel_lrur_policy(struct ldlm_namespace *ns,
 }
 
 /**
- * Callback function for proc used policy. Makes decision whether to keep
+ * Callback function for debugfs used policy. Makes decision whether to keep
  * \a lock in LRU for current \a LRU size \a unused, added in current scan \a
  * added and number of locks to be preferably canceled \a count.
  *
