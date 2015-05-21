@@ -96,9 +96,6 @@ out:
 static int gcm_aes_nx_setauthsize(struct crypto_aead *tfm,
 				  unsigned int authsize)
 {
-	if (authsize > crypto_aead_alg(tfm)->maxauthsize)
-		return -EINVAL;
-
 	crypto_aead_crt(tfm)->authsize = authsize;
 
 	return 0;
