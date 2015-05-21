@@ -124,3 +124,24 @@ Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
 Description:
 		Enables or disables per-page checksum at llite layer, before
 		the pages are actually given to lower level for network transfer
+
+What:		/sys/fs/lustre/llite/<fsname>-<uuid>/stats_track_pid
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Limit Lustre vfs operations gathering to just a single pid.
+		0 to track everything.
+
+What:		/sys/fs/lustre/llite/<fsname>-<uuid>/stats_track_ppid
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Limit Lustre vfs operations gathering to just a single ppid.
+		0 to track everything.
+
+What:		/sys/fs/lustre/llite/<fsname>-<uuid>/stats_track_gid
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Limit Lustre vfs operations gathering to just a single gid.
+		0 to track everything.

@@ -520,79 +520,88 @@ static ssize_t checksum_pages_store(struct kobject *kobj,
 }
 LUSTRE_RW_ATTR(checksum_pages);
 
-static int ll_rd_track_id(struct seq_file *m, enum stats_track_type type)
+static ssize_t ll_rd_track_id(struct kobject *kobj, char *buf,
+			      enum stats_track_type type)
 {
-	struct super_block *sb = m->private;
+	struct ll_sb_info *sbi = container_of(kobj, struct ll_sb_info,
+					      ll_kobj);
 
-	if (ll_s2sbi(sb)->ll_stats_track_type == type)
-		seq_printf(m, "%d\n", ll_s2sbi(sb)->ll_stats_track_id);
-	else if (ll_s2sbi(sb)->ll_stats_track_type == STATS_TRACK_ALL)
-		seq_puts(m, "0 (all)\n");
+	if (sbi->ll_stats_track_type == type)
+		return sprintf(buf, "%d\n", sbi->ll_stats_track_id);
+	else if (sbi->ll_stats_track_type == STATS_TRACK_ALL)
+		return sprintf(buf, "0 (all)\n");
 	else
-		seq_puts(m, "untracked\n");
-
-	return 0;
+		return sprintf(buf, "untracked\n");
 }
 
-static int ll_wr_track_id(const char __user *buffer, unsigned long count,
-			  void *data, enum stats_track_type type)
+static ssize_t ll_wr_track_id(struct kobject *kobj, const char *buffer,
+			      size_t count,
+			      enum stats_track_type type)
 {
-	struct super_block *sb = data;
-	int rc, pid;
+	struct ll_sb_info *sbi = container_of(kobj, struct ll_sb_info,
+					      ll_kobj);
+	int rc;
+	unsigned long pid;
 
-	rc = lprocfs_write_helper(buffer, count, &pid);
+	rc = kstrtoul(buffer, 10, &pid);
 	if (rc)
 		return rc;
-	ll_s2sbi(sb)->ll_stats_track_id = pid;
+	sbi->ll_stats_track_id = pid;
 	if (pid == 0)
-		ll_s2sbi(sb)->ll_stats_track_type = STATS_TRACK_ALL;
+		sbi->ll_stats_track_type = STATS_TRACK_ALL;
 	else
-		ll_s2sbi(sb)->ll_stats_track_type = type;
-	lprocfs_clear_stats(ll_s2sbi(sb)->ll_stats);
+		sbi->ll_stats_track_type = type;
+	lprocfs_clear_stats(sbi->ll_stats);
 	return count;
 }
 
-static int ll_track_pid_seq_show(struct seq_file *m, void *v)
+static ssize_t stats_track_pid_show(struct kobject *kobj,
+				    struct attribute *attr,
+				    char *buf)
 {
-	return ll_rd_track_id(m, STATS_TRACK_PID);
+	return ll_rd_track_id(kobj, buf, STATS_TRACK_PID);
 }
 
-static ssize_t ll_track_pid_seq_write(struct file *file,
-				      const char __user *buffer,
-				      size_t count, loff_t *off)
+static ssize_t stats_track_pid_store(struct kobject *kobj,
+				     struct attribute *attr,
+				     const char *buffer,
+				     size_t count)
 {
-	struct seq_file *seq = file->private_data;
-	return ll_wr_track_id(buffer, count, seq->private, STATS_TRACK_PID);
+	return ll_wr_track_id(kobj, buffer, count, STATS_TRACK_PID);
 }
-LPROC_SEQ_FOPS(ll_track_pid);
+LUSTRE_RW_ATTR(stats_track_pid);
 
-static int ll_track_ppid_seq_show(struct seq_file *m, void *v)
+static ssize_t stats_track_ppid_show(struct kobject *kobj,
+				     struct attribute *attr,
+				     char *buf)
 {
-	return ll_rd_track_id(m, STATS_TRACK_PPID);
-}
-
-static ssize_t ll_track_ppid_seq_write(struct file *file,
-				       const char __user *buffer,
-				       size_t count, loff_t *off)
-{
-	struct seq_file *seq = file->private_data;
-	return ll_wr_track_id(buffer, count, seq->private, STATS_TRACK_PPID);
-}
-LPROC_SEQ_FOPS(ll_track_ppid);
-
-static int ll_track_gid_seq_show(struct seq_file *m, void *v)
-{
-	return ll_rd_track_id(m, STATS_TRACK_GID);
+	return ll_rd_track_id(kobj, buf, STATS_TRACK_PPID);
 }
 
-static ssize_t ll_track_gid_seq_write(struct file *file,
-				      const char __user *buffer,
-				      size_t count, loff_t *off)
+static ssize_t stats_track_ppid_store(struct kobject *kobj,
+				      struct attribute *attr,
+				      const char *buffer,
+				      size_t count)
 {
-	struct seq_file *seq = file->private_data;
-	return ll_wr_track_id(buffer, count, seq->private, STATS_TRACK_GID);
+	return ll_wr_track_id(kobj, buffer, count, STATS_TRACK_PPID);
 }
-LPROC_SEQ_FOPS(ll_track_gid);
+LUSTRE_RW_ATTR(stats_track_ppid);
+
+static ssize_t stats_track_gid_show(struct kobject *kobj,
+				    struct attribute *attr,
+				    char *buf)
+{
+	return ll_rd_track_id(kobj, buf, STATS_TRACK_GID);
+}
+
+static ssize_t stats_track_gid_store(struct kobject *kobj,
+				     struct attribute *attr,
+				     const char *buffer,
+				     size_t count)
+{
+	return ll_wr_track_id(kobj, buffer, count, STATS_TRACK_GID);
+}
+LUSTRE_RW_ATTR(stats_track_gid);
 
 static int ll_statahead_max_seq_show(struct seq_file *m, void *v)
 {
@@ -829,9 +838,6 @@ static struct lprocfs_vars lprocfs_llite_obd_vars[] = {
 	{ "site",	  &ll_site_stats_fops,    NULL, 0 },
 	/* { "filegroups",   lprocfs_rd_filegroups,  0, 0 }, */
 	{ "max_cached_mb",    &ll_max_cached_mb_fops, NULL },
-	{ "stats_track_pid",  &ll_track_pid_fops, NULL },
-	{ "stats_track_ppid", &ll_track_ppid_fops, NULL },
-	{ "stats_track_gid",  &ll_track_gid_fops, NULL },
 	{ "statahead_max",    &ll_statahead_max_fops, NULL },
 	{ "statahead_agl",    &ll_statahead_agl_fops, NULL },
 	{ "statahead_stats",  &ll_statahead_stats_fops, NULL, 0 },
@@ -861,6 +867,9 @@ static struct attribute *llite_attrs[] = {
 	&lustre_attr_max_read_ahead_per_file_mb.attr,
 	&lustre_attr_max_read_ahead_whole_mb.attr,
 	&lustre_attr_checksum_pages.attr,
+	&lustre_attr_stats_track_pid.attr,
+	&lustre_attr_stats_track_ppid.attr,
+	&lustre_attr_stats_track_gid.attr,
 	NULL,
 };
 
