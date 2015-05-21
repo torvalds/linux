@@ -188,15 +188,15 @@ static ssize_t client_type_show(struct kobject *kobj, struct attribute *attr,
 }
 LUSTRE_RO_ATTR(client_type);
 
-static int ll_fstype_seq_show(struct seq_file *m, void *v)
+static ssize_t fstype_show(struct kobject *kobj, struct attribute *attr,
+			   char *buf)
 {
-	struct super_block *sb = (struct super_block *)m->private;
+	struct ll_sb_info *sbi = container_of(kobj, struct ll_sb_info,
+					      ll_kobj);
 
-	LASSERT(sb != NULL);
-	seq_printf(m, "%s\n", sb->s_type->name);
-	return 0;
+	return sprintf(buf, "%s\n", sbi->ll_sb->s_type->name);
 }
-LPROC_SEQ_FOPS_RO(ll_fstype);
+LUSTRE_RO_ATTR(fstype);
 
 static int ll_sb_uuid_seq_show(struct seq_file *m, void *v)
 {
@@ -839,7 +839,6 @@ LPROC_SEQ_FOPS(ll_xattr_cache);
 static struct lprocfs_vars lprocfs_llite_obd_vars[] = {
 	{ "uuid",	  &ll_sb_uuid_fops,	  NULL, 0 },
 	/* { "mntpt_path",   ll_rd_path,	     0, 0 }, */
-	{ "fstype",       &ll_fstype_fops,	  NULL, 0 },
 	{ "site",	  &ll_site_stats_fops,    NULL, 0 },
 	/* { "filegroups",   lprocfs_rd_filegroups,  0, 0 }, */
 	{ "max_read_ahead_mb", &ll_max_readahead_mb_fops, NULL },
@@ -875,6 +874,7 @@ static struct attribute *llite_attrs[] = {
 	&lustre_attr_filestotal.attr,
 	&lustre_attr_filesfree.attr,
 	&lustre_attr_client_type.attr,
+	&lustre_attr_fstype.attr,
 	NULL,
 };
 
