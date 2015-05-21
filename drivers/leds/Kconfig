@@ -58,6 +58,14 @@ config LEDS_BCM6328
 	  This option enables support for LEDs connected to the BCM6328
 	  LED HW controller accessed via MMIO registers.
 
+config LEDS_BCM6358
+	tristate "LED Support for Broadcom BCM6358"
+	depends on LEDS_CLASS
+	depends on OF
+	help
+	  This option enables support for LEDs connected to the BCM6358
+	  LED HW controller accessed via MMIO registers.
+
 config LEDS_LM3530
 	tristate "LCD Backlight driver for LM3530"
 	depends on LEDS_CLASS
