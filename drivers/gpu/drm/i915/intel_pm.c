@@ -4143,17 +4143,25 @@ void gen6_rps_idle(struct drm_i915_private *dev_priv)
 		dev_priv->rps.last_adj = 0;
 		I915_WRITE(GEN6_PMINTRMSK, 0xffffffff);
 	}
+	mutex_unlock(&dev_priv->rps.hw_lock);
 
+	spin_lock(&dev_priv->rps.client_lock);
 	while (!list_empty(&dev_priv->rps.clients))
 		list_del_init(dev_priv->rps.clients.next);
-	mutex_unlock(&dev_priv->rps.hw_lock);
+	spin_unlock(&dev_priv->rps.client_lock);
 }
 
 void gen6_rps_boost(struct drm_i915_private *dev_priv,
 		    struct intel_rps_client *rps,
 		    unsigned long submitted)
 {
-	u32 val;
+	/* This is intentionally racy! We peek at the state here, then
+	 * validate inside the RPS worker.
+	 */
+	if (!(dev_priv->mm.busy &&
+	      dev_priv->rps.enabled &&
+	      dev_priv->rps.cur_freq < dev_priv->rps.max_freq_softlimit))
+		return;
 
 	/* Force a RPS boost (and don't count it against the client) if
 	 * the GPU is severely congested.
@@ -4161,14 +4169,14 @@ void gen6_rps_boost(struct drm_i915_private *dev_priv,
 	if (rps && time_after(jiffies, submitted + DRM_I915_THROTTLE_JIFFIES))
 		rps = NULL;
 
-	mutex_lock(&dev_priv->rps.hw_lock);
-	val = dev_priv->rps.max_freq_softlimit;
-	if (dev_priv->rps.enabled &&
-	    dev_priv->mm.busy &&
-	    dev_priv->rps.cur_freq < val &&
-	    (rps == NULL || list_empty(&rps->link))) {
-		intel_set_rps(dev_priv->dev, val);
-		dev_priv->rps.last_adj = 0;
+	spin_lock(&dev_priv->rps.client_lock);
+	if (rps == NULL || list_empty(&rps->link)) {
+		spin_lock_irq(&dev_priv->irq_lock);
+		if (dev_priv->rps.interrupts_enabled) {
+			dev_priv->rps.client_boost = true;
+			queue_work(dev_priv->wq, &dev_priv->rps.work);
+		}
+		spin_unlock_irq(&dev_priv->irq_lock);
 
 		if (rps != NULL) {
 			list_add(&rps->link, &dev_priv->rps.clients);
@@ -4176,7 +4184,7 @@ void gen6_rps_boost(struct drm_i915_private *dev_priv,
 		} else
 			dev_priv->rps.boosts++;
 	}
-	mutex_unlock(&dev_priv->rps.hw_lock);
+	spin_unlock(&dev_priv->rps.client_lock);
 }
 
 void intel_set_rps(struct drm_device *dev, u8 val)
@@ -6913,6 +6921,7 @@ void intel_pm_setup(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	mutex_init(&dev_priv->rps.hw_lock);
+	spin_lock_init(&dev_priv->rps.client_lock);
 
 	INIT_DELAYED_WORK(&dev_priv->rps.delayed_resume_work,
 			  intel_gen6_powersave_work);

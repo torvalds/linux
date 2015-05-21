@@ -1089,9 +1089,12 @@ struct intel_gen6_power_mgmt {
 	int last_adj;
 	enum { LOW_POWER, BETWEEN, HIGH_POWER } power;
 
+	spinlock_t client_lock;
+	struct list_head clients;
+	bool client_boost;
+
 	bool enabled;
 	struct delayed_work delayed_resume_work;
-	struct list_head clients;
 	unsigned boosts;
 
 	struct intel_rps_client semaphores, mmioflips;
@@ -1101,7 +1104,9 @@ struct intel_gen6_power_mgmt {
 
 	/*
 	 * Protects RPS/RC6 register access and PCU communication.
-	 * Must be taken after struct_mutex if nested.
+	 * Must be taken after struct_mutex if nested. Note that
+	 * this lock may be held for long periods of time when
+	 * talking to hw - so only take it when talking to hw!
 	 */
 	struct mutex hw_lock;
 };
