@@ -666,6 +666,7 @@ static int cdce706_probe(struct i2c_client *client,
 
 static int cdce706_remove(struct i2c_client *client)
 {
+	of_clk_del_provider(client->dev.of_node);
 	return 0;
 }
 
