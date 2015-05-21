@@ -3658,7 +3658,8 @@ static int rocker_port_fdb_flush(struct rocker_port *rocker_port,
 					    found->key.vlan_id);
 		if (err)
 			goto err_out;
-		hash_del(&found->entry);
+		if (trans != SWITCHDEV_TRANS_PREPARE)
+			hash_del(&found->entry);
 	}
 
 err_out:
