@@ -119,5 +119,10 @@ static inline void crypto_aead_set_reqsize(struct crypto_aead *aead,
 	crypto_aead_crt(aead)->reqsize = reqsize;
 }
 
+static inline unsigned int crypto_aead_maxauthsize(struct crypto_aead *aead)
+{
+	return crypto_old_aead_alg(aead)->maxauthsize;
+}
+
 #endif	/* _CRYPTO_INTERNAL_AEAD_H */
 
