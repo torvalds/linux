@@ -4,7 +4,6 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/workqueue.h>
-#include <linux/i2c.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -157,6 +156,9 @@ static int gb_i2s_transmitter_connection_init(struct gb_connection *connection)
 	struct gb_snd *snd_dev;
 	struct platform_device *codec, *dai;
 	struct asoc_simple_card_info *simple_card;
+#if USE_RT5645
+	struct i2c_board_info rt5647_info;
+#endif
 	unsigned long flags;
 	int ret;
 
@@ -219,6 +221,18 @@ static int gb_i2s_transmitter_connection_init(struct gb_connection *connection)
 		goto out_get_ver;
 	}
 
+#if USE_RT5645
+	rt5647_info.addr = RT5647_I2C_ADDR;
+	strlcpy(rt5647_info.type, "rt5647", I2C_NAME_SIZE);
+
+	snd_dev->rt5647 = i2c_new_device(i2c_get_adapter(RT5647_I2C_ADAPTER_NR),
+					 &rt5647_info);
+	if (!snd_dev->rt5647) {
+		pr_err("can't create rt5647 i2c device\n");
+		goto out_get_ver;
+	}
+#endif
+
 	return 0;
 
 out_get_ver:
@@ -237,6 +251,10 @@ static void gb_i2s_transmitter_connection_exit(struct gb_connection *connection)
 	struct gb_snd *snd_dev;
 
 	snd_dev = (struct gb_snd *)connection->private;
+
+#if USE_RT5645
+	i2c_unregister_device(snd_dev->rt5647);
+#endif
 
 	platform_device_unregister(&snd_dev->card);
 	platform_device_unregister(&snd_dev->cpu_dai);

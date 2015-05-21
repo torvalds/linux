@@ -4,6 +4,7 @@
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <sound/soc.h>
 #include "greybus.h"
@@ -41,6 +42,7 @@ struct gb_snd {
 	struct platform_device		cpu_dai;
 	struct platform_device		*codec;
 	struct asoc_simple_card_info	*simple_card_info;
+	struct i2c_client		*rt5647;
 	struct gb_connection		*mgmt_connection;
 	struct gb_connection		*i2s_tx_connection;
 	struct gb_connection		*i2s_rx_connection;
