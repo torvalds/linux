@@ -1,4 +1,4 @@
-TEST_PROGS := dscr_default_test dscr_explicit_test
+TEST_PROGS := dscr_default_test dscr_explicit_test dscr_user_test
 
 dscr_default_test: LDLIBS += -lpthread
 
