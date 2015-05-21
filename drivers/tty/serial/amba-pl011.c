@@ -101,6 +101,14 @@ static struct vendor_data vendor_arm = {
 	.get_fifosize		= get_fifosize_arm,
 };
 
+static struct vendor_data vendor_sbsa = {
+	.oversampling		= false,
+	.dma_threshold		= false,
+	.cts_event_workaround	= false,
+	.always_enabled		= true,
+	.fixed_options		= true,
+};
+
 static unsigned int get_fifosize_st(struct amba_device *dev)
 {
 	return 64;
@@ -1641,6 +1649,28 @@ static int pl011_startup(struct uart_port *port)
 	return retval;
 }
 
+static int sbsa_uart_startup(struct uart_port *port)
+{
+	struct uart_amba_port *uap =
+		container_of(port, struct uart_amba_port, port);
+	int retval;
+
+	retval = pl011_hwinit(port);
+	if (retval)
+		return retval;
+
+	retval = pl011_allocate_irq(uap);
+	if (retval)
+		return retval;
+
+	/* The SBSA UART does not support any modem status lines. */
+	uap->old_status = 0;
+
+	pl011_enable_interrupts(uap);
+
+	return 0;
+}
+
 static void pl011_shutdown_channel(struct uart_amba_port *uap,
 					unsigned int lcrh)
 {
@@ -1716,6 +1746,19 @@ static void pl011_shutdown(struct uart_port *port)
 		if (plat->exit)
 			plat->exit();
 	}
+
+	if (uap->port.ops->flush_buffer)
+		uap->port.ops->flush_buffer(port);
+}
+
+static void sbsa_uart_shutdown(struct uart_port *port)
+{
+	struct uart_amba_port *uap =
+		container_of(port, struct uart_amba_port, port);
+
+	pl011_disable_interrupts(uap);
+
+	free_irq(uap->port.irq, uap);
 
 	if (uap->port.ops->flush_buffer)
 		uap->port.ops->flush_buffer(port);
@@ -1872,6 +1915,27 @@ pl011_set_termios(struct uart_port *port, struct ktermios *termios,
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
+static void
+sbsa_uart_set_termios(struct uart_port *port, struct ktermios *termios,
+		      struct ktermios *old)
+{
+	struct uart_amba_port *uap =
+	    container_of(port, struct uart_amba_port, port);
+	unsigned long flags;
+
+	tty_termios_encode_baud_rate(termios, uap->fixed_baud, uap->fixed_baud);
+
+	/* The SBSA UART only supports 8n1 without hardware flow control. */
+	termios->c_cflag &= ~(CSIZE | CSTOPB | PARENB | PARODD);
+	termios->c_cflag &= ~(CMSPAR | CRTSCTS);
+	termios->c_cflag |= CS8 | CLOCAL;
+
+	spin_lock_irqsave(&port->lock, flags);
+	uart_update_timeout(port, CS8, uap->fixed_baud);
+	pl011_setup_status_masks(port, termios);
+	spin_unlock_irqrestore(&port->lock, flags);
+}
+
 static const char *pl011_type(struct uart_port *port)
 {
 	struct uart_amba_port *uap =
@@ -1935,6 +1999,37 @@ static struct uart_ops amba_pl011_pops = {
 	.shutdown	= pl011_shutdown,
 	.flush_buffer	= pl011_dma_flush_buffer,
 	.set_termios	= pl011_set_termios,
+	.type		= pl011_type,
+	.release_port	= pl011_release_port,
+	.request_port	= pl011_request_port,
+	.config_port	= pl011_config_port,
+	.verify_port	= pl011_verify_port,
+#ifdef CONFIG_CONSOLE_POLL
+	.poll_init     = pl011_hwinit,
+	.poll_get_char = pl011_get_poll_char,
+	.poll_put_char = pl011_put_poll_char,
+#endif
+};
+
+static void sbsa_uart_set_mctrl(struct uart_port *port, unsigned int mctrl)
+{
+}
+
+static unsigned int sbsa_uart_get_mctrl(struct uart_port *port)
+{
+	return 0;
+}
+
+static const struct uart_ops sbsa_uart_pops = {
+	.tx_empty	= pl011_tx_empty,
+	.set_mctrl	= sbsa_uart_set_mctrl,
+	.get_mctrl	= sbsa_uart_get_mctrl,
+	.stop_tx	= pl011_stop_tx,
+	.start_tx	= pl011_start_tx,
+	.stop_rx	= pl011_stop_rx,
+	.startup	= sbsa_uart_startup,
+	.shutdown	= sbsa_uart_shutdown,
+	.set_termios	= sbsa_uart_set_termios,
 	.type		= pl011_type,
 	.release_port	= pl011_release_port,
 	.request_port	= pl011_request_port,
@@ -2327,6 +2422,79 @@ static int pl011_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(pl011_dev_pm_ops, pl011_suspend, pl011_resume);
 
+static int sbsa_uart_probe(struct platform_device *pdev)
+{
+	struct uart_amba_port *uap;
+	struct resource *r;
+	int portnr, ret;
+	int baudrate;
+
+	/*
+	 * Check the mandatory baud rate parameter in the DT node early
+	 * so that we can easily exit with the error.
+	 */
+	if (pdev->dev.of_node) {
+		struct device_node *np = pdev->dev.of_node;
+
+		ret = of_property_read_u32(np, "current-speed", &baudrate);
+		if (ret)
+			return ret;
+	} else {
+		baudrate = 115200;
+	}
+
+	portnr = pl011_find_free_port();
+	if (portnr < 0)
+		return portnr;
+
+	uap = devm_kzalloc(&pdev->dev, sizeof(struct uart_amba_port),
+			   GFP_KERNEL);
+	if (!uap)
+		return -ENOMEM;
+
+	uap->vendor	= &vendor_sbsa;
+	uap->fifosize	= 32;
+	uap->port.irq	= platform_get_irq(pdev, 0);
+	uap->port.ops	= &sbsa_uart_pops;
+	uap->fixed_baud = baudrate;
+
+	snprintf(uap->type, sizeof(uap->type), "SBSA");
+
+	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+
+	ret = pl011_setup_port(&pdev->dev, uap, r, portnr);
+	if (ret)
+		return ret;
+
+	platform_set_drvdata(pdev, uap);
+
+	return pl011_register_port(uap);
+}
+
+static int sbsa_uart_remove(struct platform_device *pdev)
+{
+	struct uart_amba_port *uap = platform_get_drvdata(pdev);
+
+	uart_remove_one_port(&amba_reg, &uap->port);
+	pl011_unregister_port(uap);
+	return 0;
+}
+
+static const struct of_device_id sbsa_uart_of_match[] = {
+	{ .compatible = "arm,sbsa-uart", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, sbsa_uart_of_match);
+
+static struct platform_driver arm_sbsa_uart_platform_driver = {
+	.probe		= sbsa_uart_probe,
+	.remove		= sbsa_uart_remove,
+	.driver	= {
+		.name	= "sbsa-uart",
+		.of_match_table = of_match_ptr(sbsa_uart_of_match),
+	},
+};
+
 static struct amba_id pl011_ids[] = {
 	{
 		.id	= 0x00041011,
@@ -2357,11 +2525,14 @@ static int __init pl011_init(void)
 {
 	printk(KERN_INFO "Serial: AMBA PL011 UART driver\n");
 
+	if (platform_driver_register(&arm_sbsa_uart_platform_driver))
+		pr_warn("could not register SBSA UART platform driver\n");
 	return amba_driver_register(&pl011_driver);
 }
 
 static void __exit pl011_exit(void)
 {
+	platform_driver_unregister(&arm_sbsa_uart_platform_driver);
 	amba_driver_unregister(&pl011_driver);
 }
 
