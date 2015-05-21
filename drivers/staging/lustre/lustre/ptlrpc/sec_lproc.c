@@ -51,10 +51,6 @@
 
 #include "ptlrpc_internal.h"
 
-
-struct proc_dir_entry *sptlrpc_proc_root = NULL;
-EXPORT_SYMBOL(sptlrpc_proc_root);
-
 static char *sec_flags2str(unsigned long flags, char *buf, int bufsize)
 {
 	buf[0] = '\0';
@@ -174,17 +170,20 @@ static struct lprocfs_vars sptlrpc_lprocfs_vars[] = {
 	{ NULL }
 };
 
+static struct dentry *sptlrpc_debugfs_dir;
+
 int sptlrpc_lproc_init(void)
 {
-	int     rc;
+	int rc;
 
-	LASSERT(sptlrpc_proc_root == NULL);
+	LASSERT(sptlrpc_debugfs_dir == NULL);
 
-	sptlrpc_proc_root = lprocfs_register("sptlrpc", proc_lustre_root,
-					     sptlrpc_lprocfs_vars, NULL);
-	if (IS_ERR(sptlrpc_proc_root)) {
-		rc = PTR_ERR(sptlrpc_proc_root);
-		sptlrpc_proc_root = NULL;
+	sptlrpc_debugfs_dir = ldebugfs_register("sptlrpc", debugfs_lustre_root,
+						sptlrpc_lprocfs_vars, NULL);
+	if (IS_ERR_OR_NULL(sptlrpc_debugfs_dir)) {
+		rc = sptlrpc_debugfs_dir ? PTR_ERR(sptlrpc_debugfs_dir)
+					 : -ENOMEM;
+		sptlrpc_debugfs_dir = NULL;
 		return rc;
 	}
 	return 0;
@@ -192,8 +191,6 @@ int sptlrpc_lproc_init(void)
 
 void sptlrpc_lproc_fini(void)
 {
-	if (sptlrpc_proc_root) {
-		lprocfs_remove(&sptlrpc_proc_root);
-		sptlrpc_proc_root = NULL;
-	}
+	if (!IS_ERR_OR_NULL(sptlrpc_debugfs_dir))
+		ldebugfs_remove(&sptlrpc_debugfs_dir);
 }
