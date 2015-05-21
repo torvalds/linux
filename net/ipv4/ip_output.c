@@ -1233,11 +1233,9 @@ ssize_t	ip_append_page(struct sock *sk, struct flowi4 *fl4, struct page *page,
 	}
 
 	while (size > 0) {
-		int i;
-
-		if (skb_is_gso(skb))
+		if (skb_is_gso(skb)) {
 			len = size;
-		else {
+		} else {
 
 			/* Check if the remaining data fits into current packet. */
 			len = mtu - skb->len;
@@ -1289,15 +1287,10 @@ ssize_t	ip_append_page(struct sock *sk, struct flowi4 *fl4, struct page *page,
 			continue;
 		}
 
-		i = skb_shinfo(skb)->nr_frags;
 		if (len > size)
 			len = size;
-		if (skb_can_coalesce(skb, i, page, offset)) {
-			skb_frag_size_add(&skb_shinfo(skb)->frags[i-1], len);
-		} else if (i < MAX_SKB_FRAGS) {
-			get_page(page);
-			skb_fill_page_desc(skb, i, page, offset, len);
-		} else {
+
+		if (skb_append_pagefrags(skb, page, offset, len)) {
 			err = -EMSGSIZE;
 			goto error;
 		}

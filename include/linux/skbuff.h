@@ -861,6 +861,9 @@ int skb_append_datato_frags(struct sock *sk, struct sk_buff *skb,
 					int len, int odd, struct sk_buff *skb),
 			    void *from, int length);
 
+int skb_append_pagefrags(struct sk_buff *skb, struct page *page,
+			 int offset, size_t size);
+
 struct skb_seq_state {
 	__u32		lower_offset;
 	__u32		upper_offset;
