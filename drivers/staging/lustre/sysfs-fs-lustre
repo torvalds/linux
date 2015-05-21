@@ -77,3 +77,11 @@ Date:		May 2015
 Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
 Description:
 		Shows estimated number of free inodes on the filesystem
+
+What:		/sys/fs/lustre/llite/<fsname>-<uuid>/client_type
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Shows whenever this filesystem considers this client to be
+		compute cluster-local or remote. Remote clients have
+		additional uid/gid convrting logic applied.
