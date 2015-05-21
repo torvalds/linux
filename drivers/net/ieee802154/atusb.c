@@ -365,8 +365,8 @@ static int atusb_channel(struct ieee802154_hw *hw, u8 page, u8 channel)
 
 static int atusb_ed(struct ieee802154_hw *hw, u8 *level)
 {
-	/* @@@ not used by the stack yet */
-	*level = 0;
+	BUG_ON(!level);
+	*level = 0xbe;
 	return 0;
 }
 
