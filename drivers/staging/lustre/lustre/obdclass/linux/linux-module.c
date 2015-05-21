@@ -407,7 +407,7 @@ static int obd_device_list_open(struct inode *inode, struct file *file)
 		return rc;
 
 	seq = file->private_data;
-	seq->private = PDE_DATA(inode);
+	seq->private = inode->i_private;
 
 	return 0;
 }
@@ -467,12 +467,7 @@ int class_procfs_init(void)
 		kobject_put(lustre_kobj);
 		goto out;
 	}
-
-	rc = lprocfs_seq_create(proc_lustre_root, "devices", 0444,
-				&obd_device_list_fops, NULL);
 out:
-	if (rc)
-		CERROR("error adding /proc/fs/lustre/devices file\n");
 	return rc;
 }
 
