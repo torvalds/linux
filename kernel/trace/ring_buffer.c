@@ -2741,23 +2741,23 @@ ring_buffer_lock_reserve(struct ring_buffer *buffer, unsigned long length)
 	/* If we are tracing schedule, we don't want to recurse */
 	preempt_disable_notrace();
 
-	if (atomic_read(&buffer->record_disabled))
+	if (unlikely(atomic_read(&buffer->record_disabled)))
 		goto out_nocheck;
 
-	if (trace_recursive_lock())
+	if (unlikely(trace_recursive_lock()))
 		goto out_nocheck;
 
 	cpu = raw_smp_processor_id();
 
-	if (!cpumask_test_cpu(cpu, buffer->cpumask))
+	if (unlikely(!cpumask_test_cpu(cpu, buffer->cpumask)))
 		goto out;
 
 	cpu_buffer = buffer->buffers[cpu];
 
-	if (atomic_read(&cpu_buffer->record_disabled))
+	if (unlikely(atomic_read(&cpu_buffer->record_disabled)))
 		goto out;
 
-	if (length > BUF_MAX_DATA_SIZE)
+	if (unlikely(length > BUF_MAX_DATA_SIZE))
 		goto out;
 
 	event = rb_reserve_next_event(buffer, cpu_buffer, length);
