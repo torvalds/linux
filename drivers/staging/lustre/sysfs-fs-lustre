@@ -311,3 +311,21 @@ Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
 Description:
 		Controls length of time between recalculation of above
 		values (in seconds).
+
+What:		/sys/fs/lustre/ldlm/services/ldlm_cbd/threads_min
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls minimum number of ldlm callback threads to start.
+
+What:		/sys/fs/lustre/ldlm/services/ldlm_cbd/threads_max
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls maximum number of ldlm callback threads to start.
+
+What:		/sys/fs/lustre/ldlm/services/ldlm_cbd/threads_started
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Shows actual number of ldlm callback threads running.
