@@ -161,7 +161,8 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 			ndlp->rport = NULL;
 			if (put_node)
 				lpfc_nlp_put(ndlp);
-			put_device(&rport->dev);
+			if (put_rport)
+				put_device(&rport->dev);
 			return;
 		}
 
