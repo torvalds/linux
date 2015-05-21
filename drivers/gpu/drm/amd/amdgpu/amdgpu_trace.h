@@ -9,7 +9,6 @@
 
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM amdgpu
-#define TRACE_SYSTEM_STRING __stringify(TRACE_SYSTEM)
 #define TRACE_INCLUDE_FILE amdgpu_trace
 
 TRACE_EVENT(amdgpu_bo_create,
