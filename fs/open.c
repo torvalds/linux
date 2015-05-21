@@ -51,8 +51,10 @@ int do_truncate(struct dentry *dentry, loff_t length, unsigned int time_attrs,
 		newattrs.ia_valid |= ATTR_FILE;
 	}
 
-	/* Remove suid/sgid on truncate too */
-	ret = should_remove_suid(dentry);
+	/* Remove suid, sgid, and file capabilities on truncate too */
+	ret = dentry_needs_remove_privs(dentry);
+	if (ret < 0)
+		return ret;
 	if (ret)
 		newattrs.ia_valid |= ret | ATTR_FORCE;
 

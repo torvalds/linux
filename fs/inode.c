@@ -1678,9 +1678,8 @@ EXPORT_SYMBOL(should_remove_suid);
  * response to write or truncate. Return 0 if nothing has to be changed.
  * Negative value on error (change should be denied).
  */
-int file_needs_remove_privs(struct file *file)
+int dentry_needs_remove_privs(struct dentry *dentry)
 {
-	struct dentry *dentry = file->f_path.dentry;
 	struct inode *inode = d_inode(dentry);
 	int mask = 0;
 	int ret;
@@ -1696,7 +1695,7 @@ int file_needs_remove_privs(struct file *file)
 		mask |= ATTR_KILL_PRIV;
 	return mask;
 }
-EXPORT_SYMBOL(file_needs_remove_privs);
+EXPORT_SYMBOL(dentry_needs_remove_privs);
 
 static int __remove_privs(struct dentry *dentry, int kill)
 {
