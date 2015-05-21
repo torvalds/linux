@@ -118,7 +118,9 @@ static struct asoc_simple_card_info *setup_card_info(int device_count)
 	sprintf(obj->codec_name, "rt5645.%d-%04x", RT5647_I2C_ADAPTER_NR,
 		RT5647_I2C_ADDR);
 	obj->card_info.codec_dai.name	= "rt5645-aif1";
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 1, 0)
 	obj->card_info.codec_dai.fmt	= SND_SOC_DAIFMT_CBS_CFS;
+#endif
 	obj->card_info.codec_dai.sysclk	= 12288000;
 #else
 	sprintf(obj->codec_name, "spdif-dit");
