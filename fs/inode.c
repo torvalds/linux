@@ -1685,7 +1685,11 @@ static int __remove_suid(struct dentry *dentry, int kill)
 	return notify_change(dentry, &newattrs, NULL);
 }
 
-int file_remove_suid(struct file *file)
+/*
+ * Remove special file priviledges (suid, capabilities) when file is written
+ * to or truncated.
+ */
+int file_remove_privs(struct file *file)
 {
 	struct dentry *dentry = file->f_path.dentry;
 	struct inode *inode = d_inode(dentry);
@@ -1711,7 +1715,7 @@ int file_remove_suid(struct file *file)
 
 	return error;
 }
-EXPORT_SYMBOL(file_remove_suid);
+EXPORT_SYMBOL(file_remove_privs);
 
 /**
  *	file_update_time	-	update mtime and ctime time
@@ -1966,9 +1970,8 @@ EXPORT_SYMBOL(inode_dio_wait);
  * inode is being instantiated).  The reason for the cmpxchg() loop
  * --- which wouldn't be necessary if all code paths which modify
  * i_flags actually followed this rule, is that there is at least one
- * code path which doesn't today --- for example,
- * __generic_file_aio_write() calls file_remove_suid() without holding
- * i_mutex --- so we use cmpxchg() out of an abundance of caution.
+ * code path which doesn't today so we use cmpxchg() out of an abundance
+ * of caution.
  *
  * In the long run, i_mutex is overkill, and we should probably look
  * at using the i_lock spinlock to protect i_flags, and then make sure

@@ -623,7 +623,7 @@ restart:
 	 * setgid bits if the process is not being run by root.  This keeps
 	 * people from modifying setuid and setgid binaries.
 	 */
-	return file_remove_suid(file);
+	return file_remove_privs(file);
 }
 
 /*
