@@ -143,6 +143,8 @@ config X86
 	select ACPI_LEGACY_TABLES_LOOKUP if ACPI
 	select X86_FEATURE_NAMES if PROC_FS
 	select SRCU
+	select EDAC_SUPPORT
+	select EDAC_ATOMIC_SCRUB
 
 config INSTRUCTION_DECODER
 	def_bool y

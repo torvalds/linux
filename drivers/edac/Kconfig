@@ -2,15 +2,16 @@
 #	EDAC Kconfig
 #	Copyright (c) 2008 Doug Thompson www.softwarebitmaker.com
 #	Licensed and distributed under the GPL
-#
+
+config EDAC_ATOMIC_SCRUB
+	bool
 
 config EDAC_SUPPORT
 	bool
 
 menuconfig EDAC
 	bool "EDAC (Error Detection And Correction) reporting"
-	depends on HAS_IOMEM
-	depends on X86 || PPC || TILE || ARM || EDAC_SUPPORT
+	depends on HAS_IOMEM && EDAC_SUPPORT
 	help
 	  EDAC is designed to report errors in the core system.
 	  These are low-level errors that are reported in the CPU or

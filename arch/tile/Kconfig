@@ -28,6 +28,7 @@ config TILE
 	select HAVE_DEBUG_STACKOVERFLOW
 	select ARCH_WANT_FRAME_POINTERS
 	select HAVE_CONTEXT_TRACKING
+	select EDAC_SUPPORT
 
 # FIXME: investigate whether we need/want these options.
 #	select HAVE_IOREMAP_PROT
