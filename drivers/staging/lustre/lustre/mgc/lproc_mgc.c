@@ -67,14 +67,7 @@ static struct lprocfs_vars lprocfs_mgc_obd_vars[] = {
 	{ NULL }
 };
 
-LPROC_SEQ_FOPS_RO_TYPE(mgc, numrefs);
-static struct lprocfs_vars lprocfs_mgc_module_vars[] = {
-	{ "num_refs",	&mgc_numrefs_fops,       NULL, 0 },
-	{ NULL }
-};
-
 void lprocfs_mgc_init_vars(struct lprocfs_static_vars *lvars)
 {
-	lvars->module_vars = lprocfs_mgc_module_vars;
 	lvars->obd_vars    = lprocfs_mgc_obd_vars;
 }

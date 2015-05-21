@@ -2149,7 +2149,6 @@ int echo_client_init(void)
 	rc = lu_kmem_init(echo_caches);
 	if (rc == 0) {
 		rc = class_register_type(&echo_client_obd_ops, NULL,
-					 lvars.module_vars,
 					 LUSTRE_ECHO_CLIENT_NAME,
 					 &echo_device_type);
 		if (rc)

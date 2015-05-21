@@ -1004,16 +1004,6 @@ int lprocfs_rd_num_exports(struct seq_file *m, void *data)
 }
 EXPORT_SYMBOL(lprocfs_rd_num_exports);
 
-int lprocfs_rd_numrefs(struct seq_file *m, void *data)
-{
-	struct obd_type *class = (struct obd_type *) data;
-
-	LASSERT(class != NULL);
-	seq_printf(m, "%d\n", class->typ_refcnt);
-	return 0;
-}
-EXPORT_SYMBOL(lprocfs_rd_numrefs);
-
 int lprocfs_obd_setup(struct obd_device *obd, struct lprocfs_vars *list)
 {
 	int rc = 0;

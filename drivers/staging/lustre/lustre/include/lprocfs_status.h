@@ -61,7 +61,6 @@ struct lprocfs_vars {
 };
 
 struct lprocfs_static_vars {
-	struct lprocfs_vars *module_vars;
 	struct lprocfs_vars *obd_vars;
 };
 
@@ -640,7 +639,6 @@ extern int lprocfs_rd_import(struct seq_file *m, void *data);
 extern int lprocfs_rd_state(struct seq_file *m, void *data);
 extern int lprocfs_rd_connect_flags(struct seq_file *m, void *data);
 extern int lprocfs_rd_num_exports(struct seq_file *m, void *data);
-extern int lprocfs_rd_numrefs(struct seq_file *m, void *data);
 
 struct adaptive_timeout;
 extern int lprocfs_at_hist_helper(struct seq_file *m,

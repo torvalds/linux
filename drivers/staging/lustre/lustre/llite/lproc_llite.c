@@ -1532,6 +1532,5 @@ LPROC_SEQ_FOPS(ll_rw_offset_stats);
 
 void lprocfs_llite_init_vars(struct lprocfs_static_vars *lvars)
 {
-    lvars->module_vars  = NULL;
     lvars->obd_vars     = lprocfs_llite_obd_vars;
 }

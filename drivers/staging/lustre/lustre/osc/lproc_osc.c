@@ -573,12 +573,6 @@ static struct lprocfs_vars lprocfs_osc_obd_vars[] = {
 	{ NULL }
 };
 
-LPROC_SEQ_FOPS_RO_TYPE(osc, numrefs);
-static struct lprocfs_vars lprocfs_osc_module_vars[] = {
-	{ "num_refs",	&osc_numrefs_fops,     NULL, 0 },
-	{ NULL }
-};
-
 #define pct(a, b) (b ? a * 100 / b : 0)
 
 static int osc_rpc_stats_seq_show(struct seq_file *seq, void *v)
@@ -746,6 +740,5 @@ int lproc_osc_attach_seqstat(struct obd_device *dev)
 
 void lprocfs_osc_init_vars(struct lprocfs_static_vars *lvars)
 {
-	lvars->module_vars = lprocfs_osc_module_vars;
 	lvars->obd_vars    = lprocfs_osc_obd_vars;
 }

@@ -2365,7 +2365,7 @@ static int __init lov_init(void)
 	}
 	lprocfs_lov_init_vars(&lvars);
 
-	rc = class_register_type(&lov_obd_ops, NULL, lvars.module_vars,
+	rc = class_register_type(&lov_obd_ops, NULL,
 				 LUSTRE_LOV_NAME, &lov_device_type);
 
 	if (rc) {

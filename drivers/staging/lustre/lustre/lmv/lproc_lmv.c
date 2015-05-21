@@ -215,13 +215,6 @@ static struct lprocfs_vars lprocfs_lmv_obd_vars[] = {
 	{ NULL }
 };
 
-LPROC_SEQ_FOPS_RO_TYPE(lmv, numrefs);
-
-static struct lprocfs_vars lprocfs_lmv_module_vars[] = {
-	{ "num_refs",	   &lmv_numrefs_fops, NULL, 0 },
-	{ NULL }
-};
-
 struct file_operations lmv_proc_target_fops = {
 	.owner		= THIS_MODULE,
 	.open		 = lmv_target_seq_open,
@@ -232,6 +225,5 @@ struct file_operations lmv_proc_target_fops = {
 
 void lprocfs_lmv_init_vars(struct lprocfs_static_vars *lvars)
 {
-	lvars->module_vars    = lprocfs_lmv_module_vars;
 	lvars->obd_vars       = lprocfs_lmv_obd_vars;
 }

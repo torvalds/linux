@@ -2873,7 +2873,7 @@ static int __init lmv_init(void)
 	lprocfs_lmv_init_vars(&lvars);
 
 	rc = class_register_type(&lmv_obd_ops, &lmv_md_ops,
-				 lvars.module_vars, LUSTRE_LMV_NAME, NULL);
+				 LUSTRE_LMV_NAME, NULL);
 	return rc;
 }
 

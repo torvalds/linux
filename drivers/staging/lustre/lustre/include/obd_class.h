@@ -75,8 +75,7 @@ struct lu_device_type;
 extern struct list_head obd_types;
 struct obd_export *class_conn2export(struct lustre_handle *);
 int class_register_type(struct obd_ops *, struct md_ops *,
-			struct lprocfs_vars *, const char *nm,
-			struct lu_device_type *ldt);
+			const char *nm, struct lu_device_type *ldt);
 int class_unregister_type(const char *nm);
 
 struct obd_device *class_newdev(const char *type_name, const char *name);

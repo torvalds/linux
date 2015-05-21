@@ -2713,7 +2713,7 @@ static int __init mdc_init(void)
 
 	lprocfs_mdc_init_vars(&lvars);
 
-	return class_register_type(&mdc_obd_ops, &mdc_md_ops, lvars.module_vars,
+	return class_register_type(&mdc_obd_ops, &mdc_md_ops,
 				 LUSTRE_MDC_NAME, NULL);
 }
 
