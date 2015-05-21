@@ -15,7 +15,7 @@
  *	@rq: rq number to steer to
  *
  * This function returns filter_id(hardware_id) of the filter
- * added. In case of error it returns an negative number.
+ * added. In case of error it returns a negative number.
  */
 int enic_addfltr_5t(struct enic *enic, struct flow_keys *keys, u16 rq)
 {
