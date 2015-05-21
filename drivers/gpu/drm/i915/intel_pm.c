@@ -6842,34 +6842,34 @@ int intel_freq_opcode(struct drm_i915_private *dev_priv, int val)
 
 struct request_boost {
 	struct work_struct work;
-	struct drm_i915_gem_request *rq;
+	struct drm_i915_gem_request *req;
 };
 
 static void __intel_rps_boost_work(struct work_struct *work)
 {
 	struct request_boost *boost = container_of(work, struct request_boost, work);
 
-	if (!i915_gem_request_completed(boost->rq, true))
-		gen6_rps_boost(to_i915(boost->rq->ring->dev), NULL);
+	if (!i915_gem_request_completed(boost->req, true))
+		gen6_rps_boost(to_i915(boost->req->ring->dev), NULL);
 
-	i915_gem_request_unreference__unlocked(boost->rq);
+	i915_gem_request_unreference__unlocked(boost->req);
 	kfree(boost);
 }
 
 void intel_queue_rps_boost_for_request(struct drm_device *dev,
-				       struct drm_i915_gem_request *rq)
+				       struct drm_i915_gem_request *req)
 {
 	struct request_boost *boost;
 
-	if (rq == NULL || INTEL_INFO(dev)->gen < 6)
+	if (req == NULL || INTEL_INFO(dev)->gen < 6)
 		return;
 
 	boost = kmalloc(sizeof(*boost), GFP_ATOMIC);
 	if (boost == NULL)
 		return;
 
-	i915_gem_request_reference(rq);
-	boost->rq = rq;
+	i915_gem_request_reference(req);
+	boost->req = req;
 
 	INIT_WORK(&boost->work, __intel_rps_boost_work);
 	queue_work(to_i915(dev)->wq, &boost->work);

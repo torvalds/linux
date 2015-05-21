@@ -665,7 +665,7 @@ static int i915_gem_request_info(struct seq_file *m, void *data)
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *ring;
-	struct drm_i915_gem_request *rq;
+	struct drm_i915_gem_request *req;
 	int ret, any, i;
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
@@ -677,22 +677,22 @@ static int i915_gem_request_info(struct seq_file *m, void *data)
 		int count;
 
 		count = 0;
-		list_for_each_entry(rq, &ring->request_list, list)
+		list_for_each_entry(req, &ring->request_list, list)
 			count++;
 		if (count == 0)
 			continue;
 
 		seq_printf(m, "%s requests: %d\n", ring->name, count);
-		list_for_each_entry(rq, &ring->request_list, list) {
+		list_for_each_entry(req, &ring->request_list, list) {
 			struct task_struct *task;
 
 			rcu_read_lock();
 			task = NULL;
-			if (rq->pid)
-				task = pid_task(rq->pid, PIDTYPE_PID);
+			if (req->pid)
+				task = pid_task(req->pid, PIDTYPE_PID);
 			seq_printf(m, "    %x @ %d: %s [%d]\n",
-				   rq->seqno,
-				   (int) (jiffies - rq->emitted_jiffies),
+				   req->seqno,
+				   (int) (jiffies - req->emitted_jiffies),
 				   task ? task->comm : "<unknown>",
 				   task ? task->pid : -1);
 			rcu_read_unlock();

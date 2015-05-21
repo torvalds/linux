@@ -10785,14 +10785,14 @@ static void intel_mmio_flip_work_func(struct work_struct *work)
 	struct intel_mmio_flip *mmio_flip =
 		container_of(work, struct intel_mmio_flip, work);
 
-	if (mmio_flip->rq)
-		WARN_ON(__i915_wait_request(mmio_flip->rq,
+	if (mmio_flip->req)
+		WARN_ON(__i915_wait_request(mmio_flip->req,
 					    mmio_flip->crtc->reset_counter,
 					    false, NULL, NULL));
 
 	intel_do_mmio_flip(mmio_flip->crtc);
 
-	i915_gem_request_unreference__unlocked(mmio_flip->rq);
+	i915_gem_request_unreference__unlocked(mmio_flip->req);
 	kfree(mmio_flip);
 }
 
@@ -10809,7 +10809,7 @@ static int intel_queue_mmio_flip(struct drm_device *dev,
 	if (mmio_flip == NULL)
 		return -ENOMEM;
 
-	mmio_flip->rq = i915_gem_request_reference(obj->last_write_req);
+	mmio_flip->req = i915_gem_request_reference(obj->last_write_req);
 	mmio_flip->crtc = to_intel_crtc(crtc);
 
 	INIT_WORK(&mmio_flip->work, intel_mmio_flip_work_func);

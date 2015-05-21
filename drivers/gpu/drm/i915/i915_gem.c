@@ -1178,16 +1178,16 @@ static bool missed_irq(struct drm_i915_private *dev_priv,
 	return test_bit(ring->id, &dev_priv->gpu_error.missed_irq_rings);
 }
 
-static int __i915_spin_request(struct drm_i915_gem_request *rq)
+static int __i915_spin_request(struct drm_i915_gem_request *req)
 {
 	unsigned long timeout;
 
-	if (i915_gem_request_get_ring(rq)->irq_refcount)
+	if (i915_gem_request_get_ring(req)->irq_refcount)
 		return -EBUSY;
 
 	timeout = jiffies + 1;
 	while (!need_resched()) {
-		if (i915_gem_request_completed(rq, true))
+		if (i915_gem_request_completed(req, true))
 			return 0;
 
 		if (time_after_eq(jiffies, timeout))
@@ -1195,7 +1195,7 @@ static int __i915_spin_request(struct drm_i915_gem_request *rq)
 
 		cpu_relax_lowlatency();
 	}
-	if (i915_gem_request_completed(rq, false))
+	if (i915_gem_request_completed(req, false))
 		return 0;
 
 	return -EAGAIN;
@@ -2572,37 +2572,37 @@ int i915_gem_request_alloc(struct intel_engine_cs *ring,
 			   struct intel_context *ctx)
 {
 	struct drm_i915_private *dev_priv = to_i915(ring->dev);
-	struct drm_i915_gem_request *rq;
+	struct drm_i915_gem_request *req;
 	int ret;
 
 	if (ring->outstanding_lazy_request)
 		return 0;
 
-	rq = kmem_cache_zalloc(dev_priv->requests, GFP_KERNEL);
-	if (rq == NULL)
+	req = kmem_cache_zalloc(dev_priv->requests, GFP_KERNEL);
+	if (req == NULL)
 		return -ENOMEM;
 
-	kref_init(&rq->ref);
-	rq->i915 = dev_priv;
+	kref_init(&req->ref);
+	req->i915 = dev_priv;
 
-	ret = i915_gem_get_seqno(ring->dev, &rq->seqno);
+	ret = i915_gem_get_seqno(ring->dev, &req->seqno);
 	if (ret) {
-		kfree(rq);
+		kfree(req);
 		return ret;
 	}
 
-	rq->ring = ring;
+	req->ring = ring;
 
 	if (i915.enable_execlists)
-		ret = intel_logical_ring_alloc_request_extras(rq, ctx);
+		ret = intel_logical_ring_alloc_request_extras(req, ctx);
 	else
-		ret = intel_ring_alloc_request_extras(rq);
+		ret = intel_ring_alloc_request_extras(req);
 	if (ret) {
-		kfree(rq);
+		kfree(req);
 		return ret;
 	}
 
-	ring->outstanding_lazy_request = rq;
+	ring->outstanding_lazy_request = req;
 	return 0;
 }
 
