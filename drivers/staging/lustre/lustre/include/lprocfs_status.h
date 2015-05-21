@@ -742,6 +742,27 @@ static struct file_operations name##_fops = {				\
 		.release = lprocfs_single_release,			\
 	}
 
+struct lustre_attr {
+	struct attribute attr;
+	ssize_t (*show)(struct kobject *kobj, struct attribute *attr,
+			char *buf);
+	ssize_t (*store)(struct kobject *kobj, struct attribute *attr,
+			 const char *buf, size_t len);
+};
+
+#define LUSTRE_ATTR(name, mode, show, store) \
+static struct lustre_attr lustre_attr_##name = __ATTR(name, mode, show, store)
+
+#define LUSTRE_RO_ATTR(name) LUSTRE_ATTR(name, 0444, name##_show, NULL)
+#define LUSTRE_RW_ATTR(name) LUSTRE_ATTR(name, 0644, name##_show, name##_store)
+
+ssize_t lustre_attr_show(struct kobject *kobj, struct attribute *attr,
+			 char *buf);
+ssize_t lustre_attr_store(struct kobject *kobj, struct attribute *attr,
+			  const char *buf, size_t len);
+
+extern const struct sysfs_ops lustre_sysfs_ops;
+
 /* lproc_ptlrpc.c */
 struct ptlrpc_request;
 extern void target_print_req(void *seq_file, struct ptlrpc_request *req);
