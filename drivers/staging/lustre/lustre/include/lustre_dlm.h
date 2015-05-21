@@ -67,7 +67,6 @@ extern struct kset *ldlm_svc_kset;
 
 #define LDLM_DEFAULT_LRU_SIZE (100 * num_online_cpus())
 #define LDLM_DEFAULT_MAX_ALIVE (cfs_time_seconds(36000))
-#define LDLM_CTIME_AGE_LIMIT (10)
 #define LDLM_DEFAULT_PARALLEL_AST_LIMIT 1024
 
 /**
@@ -305,14 +304,6 @@ typedef enum {
 	LDLM_NAMESPACE_MODEST = 1 << 1
 } ldlm_appetite_t;
 
-/**
- * Default values for the "max_nolock_size", "contention_time" and
- * "contended_locks" namespace tunables.
- */
-#define NS_DEFAULT_MAX_NOLOCK_BYTES 0
-#define NS_DEFAULT_CONTENTION_SECONDS 2
-#define NS_DEFAULT_CONTENDED_LOCKS 32
-
 struct ldlm_ns_bucket {
 	/** back pointer to namespace */
 	struct ldlm_namespace      *nsb_namespace;
@@ -424,18 +415,6 @@ struct ldlm_namespace {
 	unsigned int		ns_max_unused;
 	/** Maximum allowed age (last used time) for locks in the LRU */
 	unsigned int		ns_max_age;
-	/**
-	 * Server only: number of times we evicted clients due to lack of reply
-	 * to ASTs.
-	 */
-	unsigned int		ns_timeouts;
-	/**
-	 * Number of seconds since the file change time after which the
-	 * MDT will return an UPDATE lock along with a LOOKUP lock.
-	 * This allows the client to start caching negative dentries
-	 * for a directory and may save an RPC for a later stat.
-	 */
-	unsigned int		ns_ctime_age_limit;
 
 	/**
 	 * Used to rate-limit ldlm_namespace_dump calls.
@@ -468,27 +447,6 @@ struct ldlm_namespace {
 	struct ldlm_pool	ns_pool;
 	/** Definition of how eagerly unused locks will be released from LRU */
 	ldlm_appetite_t		ns_appetite;
-
-	/**
-	 * If more than \a ns_contended_locks are found, the resource is
-	 * considered to be contended. Lock enqueues might specify that no
-	 * contended locks should be granted
-	 */
-	unsigned		ns_contended_locks;
-
-	/**
-	 * The resources in this namespace remember contended state during
-	 * \a ns_contention_time, in seconds.
-	 */
-	unsigned		ns_contention_time;
-
-	/**
-	 * Limit size of contended extent locks, in bytes.
-	 * If extended lock is requested for more then this many bytes and
-	 * caller instructs us not to grant contended locks, we would disregard
-	 * such a request.
-	 */
-	unsigned		ns_max_nolock_size;
 
 	/** Limit of parallel AST RPC count. */
 	unsigned		ns_max_parallel_ast;

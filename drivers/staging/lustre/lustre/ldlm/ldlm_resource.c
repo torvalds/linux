@@ -80,7 +80,6 @@ static ssize_t lprocfs_wr_dump_ns(struct file *file, const char __user *buffer,
 LPROC_SEQ_FOPS_WR_ONLY(ldlm, dump_ns);
 
 LPROC_SEQ_FOPS_RW_TYPE(ldlm_rw, uint);
-LPROC_SEQ_FOPS_RO_TYPE(ldlm, uint);
 
 int ldlm_proc_setup(void)
 {
@@ -388,15 +387,6 @@ void ldlm_namespace_sysfs_unregister(struct ldlm_namespace *ns)
 	wait_for_completion(&ns->ns_kobj_unregister);
 }
 
-#define LDLM_NS_ADD_VAR(name, var, ops)				\
-	do {							\
-		snprintf(lock_name, MAX_STRING_SIZE, name);	\
-		lock_vars[0].data = var;			\
-		lock_vars[0].fops = ops;			\
-		lprocfs_add_vars(ns_pde, lock_vars, NULL);	\
-	} while (0)
-
-
 int ldlm_namespace_sysfs_register(struct ldlm_namespace *ns)
 {
 	int err;
@@ -420,8 +410,6 @@ int ldlm_namespace_sysfs_register(struct ldlm_namespace *ns)
 
 int ldlm_namespace_proc_register(struct ldlm_namespace *ns)
 {
-	struct lprocfs_vars lock_vars[2];
-	char lock_name[MAX_STRING_SIZE + 1];
 	struct proc_dir_entry *ns_pde;
 
 	LASSERT(ns != NULL);
@@ -436,26 +424,6 @@ int ldlm_namespace_proc_register(struct ldlm_namespace *ns)
 		ns->ns_proc_dir_entry = ns_pde;
 	}
 
-	lock_name[MAX_STRING_SIZE] = '\0';
-
-	memset(lock_vars, 0, sizeof(lock_vars));
-	lock_vars[0].name = lock_name;
-
-	if (ns_is_client(ns)) {
-	} else {
-		LDLM_NS_ADD_VAR("ctime_age_limit", &ns->ns_ctime_age_limit,
-				&ldlm_rw_uint_fops);
-		LDLM_NS_ADD_VAR("lock_timeouts", &ns->ns_timeouts,
-				&ldlm_uint_fops);
-		LDLM_NS_ADD_VAR("max_nolock_bytes", &ns->ns_max_nolock_size,
-				&ldlm_rw_uint_fops);
-		LDLM_NS_ADD_VAR("contention_seconds", &ns->ns_contention_time,
-				&ldlm_rw_uint_fops);
-		LDLM_NS_ADD_VAR("contended_locks", &ns->ns_contended_locks,
-				&ldlm_rw_uint_fops);
-		LDLM_NS_ADD_VAR("max_parallel_ast", &ns->ns_max_parallel_ast,
-				&ldlm_rw_uint_fops);
-	}
 	return 0;
 }
 #undef MAX_STRING_SIZE
@@ -698,16 +666,10 @@ struct ldlm_namespace *ldlm_namespace_new(struct obd_device *obd, char *name,
 	atomic_set(&ns->ns_bref, 0);
 	init_waitqueue_head(&ns->ns_waitq);
 
-	ns->ns_max_nolock_size    = NS_DEFAULT_MAX_NOLOCK_BYTES;
-	ns->ns_contention_time    = NS_DEFAULT_CONTENTION_SECONDS;
-	ns->ns_contended_locks    = NS_DEFAULT_CONTENDED_LOCKS;
-
 	ns->ns_max_parallel_ast   = LDLM_DEFAULT_PARALLEL_AST_LIMIT;
 	ns->ns_nr_unused	  = 0;
 	ns->ns_max_unused	 = LDLM_DEFAULT_LRU_SIZE;
 	ns->ns_max_age	    = LDLM_DEFAULT_MAX_ALIVE;
-	ns->ns_ctime_age_limit    = LDLM_CTIME_AGE_LIMIT;
-	ns->ns_timeouts	   = 0;
 	ns->ns_orig_connect_flags = 0;
 	ns->ns_connect_flags      = 0;
 	ns->ns_stopping	   = 0;
