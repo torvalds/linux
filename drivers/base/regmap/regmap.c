@@ -2613,6 +2613,18 @@ int regmap_get_val_bytes(struct regmap *map)
 }
 EXPORT_SYMBOL_GPL(regmap_get_val_bytes);
 
+/**
+ * regmap_get_max_register(): Report the max register value
+ *
+ * Report the max register value, mainly intended to for use by
+ * generic infrastructure built on top of regmap.
+ */
+int regmap_get_max_register(struct regmap *map)
+{
+	return map->max_register ? map->max_register : -EINVAL;
+}
+EXPORT_SYMBOL_GPL(regmap_get_max_register);
+
 int regmap_parse_val(struct regmap *map, const void *buf,
 			unsigned int *val)
 {
