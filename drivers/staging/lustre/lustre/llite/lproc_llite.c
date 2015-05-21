@@ -480,28 +480,30 @@ out:
 }
 LPROC_SEQ_FOPS(ll_max_cached_mb);
 
-static int ll_checksum_seq_show(struct seq_file *m, void *v)
+static ssize_t checksum_pages_show(struct kobject *kobj, struct attribute *attr,
+				   char *buf)
 {
-	struct super_block *sb = m->private;
-	struct ll_sb_info *sbi = ll_s2sbi(sb);
+	struct ll_sb_info *sbi = container_of(kobj, struct ll_sb_info,
+					      ll_kobj);
 
-	seq_printf(m, "%u\n", (sbi->ll_flags & LL_SBI_CHECKSUM) ? 1 : 0);
-	return 0;
+	return sprintf(buf, "%u\n", (sbi->ll_flags & LL_SBI_CHECKSUM) ? 1 : 0);
 }
 
-static ssize_t ll_checksum_seq_write(struct file *file,
-				     const char __user *buffer,
-				     size_t count, loff_t *off)
+static ssize_t checksum_pages_store(struct kobject *kobj,
+				    struct attribute *attr,
+				    const char *buffer,
+				    size_t count)
 {
-	struct super_block *sb = ((struct seq_file *)file->private_data)->private;
-	struct ll_sb_info *sbi = ll_s2sbi(sb);
-	int val, rc;
+	struct ll_sb_info *sbi = container_of(kobj, struct ll_sb_info,
+					      ll_kobj);
+	int rc;
+	unsigned long val;
 
 	if (!sbi->ll_dt_exp)
 		/* Not set up yet */
 		return -EAGAIN;
 
-	rc = lprocfs_write_helper(buffer, count, &val);
+	rc = kstrtoul(buffer, 10, &val);
 	if (rc)
 		return rc;
 	if (val)
@@ -516,7 +518,7 @@ static ssize_t ll_checksum_seq_write(struct file *file,
 
 	return count;
 }
-LPROC_SEQ_FOPS(ll_checksum);
+LUSTRE_RW_ATTR(checksum_pages);
 
 static int ll_max_rw_chunk_seq_show(struct seq_file *m, void *v)
 {
@@ -850,7 +852,6 @@ static struct lprocfs_vars lprocfs_llite_obd_vars[] = {
 	{ "site",	  &ll_site_stats_fops,    NULL, 0 },
 	/* { "filegroups",   lprocfs_rd_filegroups,  0, 0 }, */
 	{ "max_cached_mb",    &ll_max_cached_mb_fops, NULL },
-	{ "checksum_pages",   &ll_checksum_fops, NULL },
 	{ "max_rw_chunk",     &ll_max_rw_chunk_fops, NULL },
 	{ "stats_track_pid",  &ll_track_pid_fops, NULL },
 	{ "stats_track_ppid", &ll_track_ppid_fops, NULL },
@@ -883,6 +884,7 @@ static struct attribute *llite_attrs[] = {
 	&lustre_attr_max_read_ahead_mb.attr,
 	&lustre_attr_max_read_ahead_per_file_mb.attr,
 	&lustre_attr_max_read_ahead_whole_mb.attr,
+	&lustre_attr_checksum_pages.attr,
 	NULL,
 };
 

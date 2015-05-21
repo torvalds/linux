@@ -117,3 +117,10 @@ Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
 Description:
 		For small reads, how many megabytes to actually request from
 		the server as initial read-ahead.
+
+What:		/sys/fs/lustre/llite/<fsname>-<uuid>/checksum_pages
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Enables or disables per-page checksum at llite layer, before
+		the pages are actually given to lower level for network transfer
