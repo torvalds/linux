@@ -58,6 +58,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/sizes.h>
 #include <linux/io.h>
+#include <linux/acpi.h>
 
 #define UART_NR			14
 
@@ -2486,12 +2487,19 @@ static const struct of_device_id sbsa_uart_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, sbsa_uart_of_match);
 
+static const struct acpi_device_id sbsa_uart_acpi_match[] = {
+	{ "ARMH0011", 0 },
+	{},
+};
+MODULE_DEVICE_TABLE(acpi, sbsa_uart_acpi_match);
+
 static struct platform_driver arm_sbsa_uart_platform_driver = {
 	.probe		= sbsa_uart_probe,
 	.remove		= sbsa_uart_remove,
 	.driver	= {
 		.name	= "sbsa-uart",
 		.of_match_table = of_match_ptr(sbsa_uart_of_match),
+		.acpi_match_table = ACPI_PTR(sbsa_uart_acpi_match),
 	},
 };
 
