@@ -39,3 +39,9 @@ Description:
 			       command name and pid with a dot in between
 			       e.g. dd.1253
 		nodelocal - use jobid_name value from above.
+
+What:		/sys/fs/lustre/llite/<fsname>-<uuid>/blocksize
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Biggest blocksize on object storage server for this filesystem.
