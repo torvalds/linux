@@ -304,6 +304,33 @@ static int hdmi_get_monspecs(struct rk_display_device *device,
 	return 0;
 }
 
+static int hdmi_get_debug(struct rk_display_device *device, char *buf)
+{
+	struct hdmi *hdmi = device->priv_data;
+	char *buff;
+	int i, j, len = 0;
+
+	if (!hdmi)
+		return 0;
+	len += snprintf(buf+len, PAGE_SIZE, "EDID status:%s\n",
+			hdmi->edid.status ? "False" : "Okay");
+	len += snprintf(buf+len, PAGE_SIZE, "Raw Data:");
+	mutex_lock(&hdmi->lock);
+	for (i = 0; i < HDMI_MAX_EDID_BLOCK; i++) {
+		if (!hdmi->edid.raw[i])
+			break;
+		buff = hdmi->edid.raw[i];
+		for (j = 0; j < HDMI_EDID_BLOCK_SIZE; j++) {
+			if (j % 16 == 0)
+				len += snprintf(buf+len, PAGE_SIZE, "\n");
+			len += snprintf(buf+len, PAGE_SIZE, "0x%02x, ",
+					buff[j]);
+		}
+	}
+	mutex_unlock(&hdmi->lock);
+	return len;
+}
+
 static struct rk_display_ops hdmi_display_ops = {
 	.setenable = hdmi_set_enable,
 	.getenable = hdmi_get_enable,
@@ -319,6 +346,7 @@ static struct rk_display_ops hdmi_display_ops = {
 	.getmonspecs = hdmi_get_monspecs,
 	.setscale = hdmi_set_scale,
 	.getscale = hdmi_get_scale,
+	.getdebug = hdmi_get_debug,
 };
 
 static int hdmi_display_probe(struct rk_display_device *device, void *devdata)

@@ -263,6 +263,7 @@ struct hdmi_audio {
 	u32	word_length;		/*Audio data word length*/
 };
 
+#define HDMI_MAX_EDID_BLOCK		8
 /* HDMI EDID Information */
 struct hdmi_edid {
 	unsigned char sink_hdmi;	/*HDMI display device flag*/
@@ -294,6 +295,9 @@ struct hdmi_edid {
 	unsigned char baseaudio_support;
 	struct hdmi_audio *audio;	/*Device supported audio info*/
 	unsigned int  audio_num;	/*Device supported audio type number*/
+
+	unsigned int status;		/*EDID read status, success or failed*/
+	char *raw[HDMI_MAX_EDID_BLOCK]; /*Raw EDID Data*/
 };
 
 struct hdmi;

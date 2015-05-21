@@ -123,7 +123,7 @@ static void hdmi_wq_set_video(struct hdmi *hdmi)
 static void hdmi_wq_parse_edid(struct hdmi *hdmi)
 {
 	struct hdmi_edid *pedid;
-	unsigned char *buff = NULL;
+
 	int rc = HDMI_ERROR_SUCESS, extendblock = 0, i, trytimes;
 
 	if (hdmi == NULL)
@@ -136,8 +136,8 @@ static void hdmi_wq_parse_edid(struct hdmi *hdmi)
 	memset(pedid, 0, sizeof(struct hdmi_edid));
 	INIT_LIST_HEAD(&pedid->modelist);
 
-	buff = kmalloc(HDMI_EDID_BLOCK_SIZE, GFP_KERNEL);
-	if (buff == NULL) {
+	pedid->raw[0] = kmalloc(HDMI_EDID_BLOCK_SIZE, GFP_KERNEL);
+	if (pedid->raw[0] == NULL) {
 		dev_err(hdmi->dev,
 			"[%s] can not allocate memory for edid buff.\n",
 			__func__);
@@ -154,15 +154,15 @@ static void hdmi_wq_parse_edid(struct hdmi *hdmi)
 	for (trytimes = 0; trytimes < 3; trytimes++) {
 		if (trytimes)
 			msleep(50);
-		memset(buff, 0 , HDMI_EDID_BLOCK_SIZE);
-		rc = hdmi->ops->getedid(hdmi, 0, buff);
+		memset(pedid->raw[0], 0 , HDMI_EDID_BLOCK_SIZE);
+		rc = hdmi->ops->getedid(hdmi, 0, pedid->raw[0]);
 		if (rc) {
 			dev_err(hdmi->dev,
 				"[HDMI] read edid base block error\n");
 			continue;
 		}
 
-		rc = hdmi_edid_parse_base(buff, &extendblock, pedid);
+		rc = hdmi_edid_parse_base(pedid->raw[0], &extendblock, pedid);
 		if (rc) {
 			dev_err(hdmi->dev,
 				"[HDMI] parse edid base block error\n");
@@ -174,12 +174,20 @@ static void hdmi_wq_parse_edid(struct hdmi *hdmi)
 	if (rc)
 		goto out;
 
-	for (i = 1; i < extendblock + 1; i++) {
+	for (i = 1; (i < extendblock + 1) && (i < HDMI_MAX_EDID_BLOCK); i++) {
+		pedid->raw[i] = kmalloc(HDMI_EDID_BLOCK_SIZE, GFP_KERNEL);
+		if (pedid->raw[i] == NULL) {
+			dev_err(hdmi->dev,
+				"[%s] can not allocate memory for edid buff.\n",
+				__func__);
+			rc = HDMI_ERROR_FALSE;
+			goto out;
+		}
 		for (trytimes = 0; trytimes < 3; trytimes++) {
 			if (trytimes)
 				msleep(20);
-			memset(buff, 0 , HDMI_EDID_BLOCK_SIZE);
-			rc = hdmi->ops->getedid(hdmi, i, buff);
+			memset(pedid->raw[i], 0 , HDMI_EDID_BLOCK_SIZE);
+			rc = hdmi->ops->getedid(hdmi, i, pedid->raw[i]);
 			if (rc) {
 				dev_err(hdmi->dev,
 					"[HDMI] read edid block %d error\n",
@@ -187,7 +195,7 @@ static void hdmi_wq_parse_edid(struct hdmi *hdmi)
 				continue;
 			}
 
-			rc = hdmi_edid_parse_extensions(buff, pedid);
+			rc = hdmi_edid_parse_extensions(pedid->raw[i], pedid);
 			if (rc) {
 				dev_err(hdmi->dev,
 					"[HDMI] parse edid block %d error\n",
@@ -200,7 +208,6 @@ static void hdmi_wq_parse_edid(struct hdmi *hdmi)
 		}
 	}
 out:
-	kfree(buff);
 	rc = hdmi_ouputmode_select(hdmi, rc);
 }
 
@@ -234,6 +241,7 @@ static void hdmi_wq_remove(struct hdmi *hdmi)
 {
 	struct list_head *pos, *n;
 	struct rk_screen screen;
+	int i;
 
 	DBG("%s", __func__);
 	if (hdmi->ops->remove)
@@ -249,6 +257,8 @@ static void hdmi_wq_remove(struct hdmi *hdmi)
 		list_del(pos);
 		kfree(pos);
 	}
+	for (i = 0; i < HDMI_MAX_EDID_BLOCK; i++)
+		kfree(hdmi->edid.raw[i]);
 	kfree(hdmi->edid.audio);
 	if (hdmi->edid.specs) {
 		kfree(hdmi->edid.specs->modedb);

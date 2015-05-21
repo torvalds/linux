@@ -532,6 +532,7 @@ int hdmi_ouputmode_select(struct hdmi *hdmi, int edid_ok)
 
 	if (edid_ok != HDMI_ERROR_SUCESS) {
 		dev_err(hdmi->dev, "warning: EDID error, assume sink as HDMI !!!!");
+		hdmi->edid.status = -1;
 		hdmi->edid.sink_hdmi = 1;
 		hdmi->edid.baseaudio_support = 1;
 		hdmi->edid.ycbcr444 = 0;
