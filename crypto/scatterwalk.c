@@ -104,22 +104,18 @@ void scatterwalk_map_and_copy(void *buf, struct scatterlist *sg,
 			      unsigned int start, unsigned int nbytes, int out)
 {
 	struct scatter_walk walk;
-	unsigned int offset = 0;
+	struct scatterlist tmp[2];
 
 	if (!nbytes)
 		return;
 
-	for (;;) {
-		scatterwalk_start(&walk, sg);
+	sg = scatterwalk_ffwd(tmp, sg, start);
 
-		if (start < offset + sg->length)
-			break;
+	if (sg_page(sg) == virt_to_page(buf) &&
+	    sg->offset == offset_in_page(buf))
+		return;
 
-		offset += sg->length;
-		sg = sg_next(sg);
-	}
-
-	scatterwalk_advance(&walk, start - offset);
+	scatterwalk_start(&walk, sg);
 	scatterwalk_copychunks(buf, &walk, nbytes, out);
 	scatterwalk_done(&walk, out, 0);
 }
