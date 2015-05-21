@@ -346,7 +346,7 @@ struct lu_client_seq {
 	struct lu_seq_range	 lcs_space;
 
 	/* Seq related proc */
-	struct proc_dir_entry   *lcs_proc_dir;
+	struct dentry		*lcs_debugfs_entry;
 
 	/* This holds last allocated fid in last obtained seq */
 	struct lu_fid	   lcs_fid;

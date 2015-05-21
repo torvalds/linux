@@ -53,6 +53,8 @@
 #include "../include/lustre_mdc.h"
 #include "fid_internal.h"
 
+static struct dentry *seq_debugfs_dir;
+
 static int seq_client_rpc(struct lu_client_seq *seq,
 			  struct lu_seq_range *output, __u32 opc,
 			  const char *opcname)
@@ -400,37 +402,32 @@ void seq_client_flush(struct lu_client_seq *seq)
 }
 EXPORT_SYMBOL(seq_client_flush);
 
-static void seq_client_proc_fini(struct lu_client_seq *seq)
+static void seq_client_debugfs_fini(struct lu_client_seq *seq)
 {
-#if defined(CONFIG_PROC_FS)
-	if (seq->lcs_proc_dir) {
-		if (!IS_ERR(seq->lcs_proc_dir))
-			lprocfs_remove(&seq->lcs_proc_dir);
-		seq->lcs_proc_dir = NULL;
-	}
-#endif /* CONFIG_PROC_FS */
+	if (!IS_ERR_OR_NULL(seq->lcs_debugfs_entry))
+		ldebugfs_remove(&seq->lcs_debugfs_entry);
 }
 
-static int seq_client_proc_init(struct lu_client_seq *seq)
+static int seq_client_debugfs_init(struct lu_client_seq *seq)
 {
-#if defined(CONFIG_PROC_FS)
 	int rc;
 
-	seq->lcs_proc_dir = lprocfs_register(seq->lcs_name,
-					     seq_type_proc_dir,
-					     NULL, NULL);
+	seq->lcs_debugfs_entry = ldebugfs_register(seq->lcs_name,
+						   seq_debugfs_dir,
+						   NULL, NULL);
 
-	if (IS_ERR(seq->lcs_proc_dir)) {
-		CERROR("%s: LProcFS failed in seq-init\n",
-		       seq->lcs_name);
-		rc = PTR_ERR(seq->lcs_proc_dir);
+	if (IS_ERR_OR_NULL(seq->lcs_debugfs_entry)) {
+		CERROR("%s: LdebugFS failed in seq-init\n", seq->lcs_name);
+		rc = seq->lcs_debugfs_entry ? PTR_ERR(seq->lcs_debugfs_entry)
+					    : -ENOMEM;
+		seq->lcs_debugfs_entry = NULL;
 		return rc;
 	}
 
-	rc = lprocfs_add_vars(seq->lcs_proc_dir,
-			      seq_client_proc_list, seq);
+	rc = ldebugfs_add_vars(seq->lcs_debugfs_entry,
+			       seq_client_debugfs_list, seq);
 	if (rc) {
-		CERROR("%s: Can't init sequence manager proc, rc %d\n",
+		CERROR("%s: Can't init sequence manager debugfs, rc %d\n",
 		       seq->lcs_name, rc);
 		goto out_cleanup;
 	}
@@ -438,12 +435,8 @@ static int seq_client_proc_init(struct lu_client_seq *seq)
 	return 0;
 
 out_cleanup:
-	seq_client_proc_fini(seq);
+	seq_client_debugfs_fini(seq);
 	return rc;
-
-#else /* CONFIG_PROC_FS */
-	return 0;
-#endif
 }
 
 int seq_client_init(struct lu_client_seq *seq,
@@ -478,7 +471,7 @@ int seq_client_init(struct lu_client_seq *seq,
 	snprintf(seq->lcs_name, sizeof(seq->lcs_name),
 		 "cli-%s", prefix);
 
-	rc = seq_client_proc_init(seq);
+	rc = seq_client_debugfs_init(seq);
 	if (rc)
 		seq_client_fini(seq);
 	return rc;
@@ -487,7 +480,7 @@ EXPORT_SYMBOL(seq_client_init);
 
 void seq_client_fini(struct lu_client_seq *seq)
 {
-	seq_client_proc_fini(seq);
+	seq_client_debugfs_fini(seq);
 
 	if (seq->lcs_exp != NULL) {
 		class_export_put(seq->lcs_exp);
@@ -545,22 +538,18 @@ int client_fid_fini(struct obd_device *obd)
 }
 EXPORT_SYMBOL(client_fid_fini);
 
-struct proc_dir_entry *seq_type_proc_dir;
-
 static int __init fid_mod_init(void)
 {
-	seq_type_proc_dir = lprocfs_register(LUSTRE_SEQ_NAME,
-					     proc_lustre_root,
-					     NULL, NULL);
-	return PTR_ERR_OR_ZERO(seq_type_proc_dir);
+	seq_debugfs_dir = ldebugfs_register(LUSTRE_SEQ_NAME,
+					    debugfs_lustre_root,
+					    NULL, NULL);
+	return PTR_ERR_OR_ZERO(seq_debugfs_dir);
 }
 
 static void __exit fid_mod_exit(void)
 {
-	if (seq_type_proc_dir != NULL && !IS_ERR(seq_type_proc_dir)) {
-		lprocfs_remove(&seq_type_proc_dir);
-		seq_type_proc_dir = NULL;
-	}
+	if (!IS_ERR_OR_NULL(seq_debugfs_dir))
+		ldebugfs_remove(&seq_debugfs_dir);
 }
 
 MODULE_AUTHOR("Sun Microsystems, Inc. <http://www.lustre.org/>");
