@@ -207,3 +207,9 @@ Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
 Description:
 		Displays number of lock resources (objects on which individual
 		locks are taken) currently allocated in this namespace.
+
+What:		/sys/fs/lustre/ldlm/namespaces/<name>/lock_count
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Displays number or locks allocated in this namespace.

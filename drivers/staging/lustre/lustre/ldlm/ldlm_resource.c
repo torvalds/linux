@@ -166,16 +166,18 @@ static ssize_t resource_count_show(struct kobject *kobj, struct attribute *attr,
 }
 LUSTRE_RO_ATTR(resource_count);
 
-static int lprocfs_ns_locks_seq_show(struct seq_file *m, void *v)
+static ssize_t lock_count_show(struct kobject *kobj, struct attribute *attr,
+			       char *buf)
 {
-	struct ldlm_namespace *ns = m->private;
+	struct ldlm_namespace *ns = container_of(kobj, struct ldlm_namespace,
+						 ns_kobj);
 	__u64		  locks;
 
 	locks = lprocfs_stats_collector(ns->ns_stats, LDLM_NSS_LOCKS,
 					LPROCFS_FIELDS_FLAGS_SUM);
-	return lprocfs_rd_u64(m, &locks);
+	return sprintf(buf, "%lld\n", locks);
 }
-LPROC_SEQ_FOPS_RO(lprocfs_ns_locks);
+LUSTRE_RO_ATTR(lock_count);
 
 static int lprocfs_lru_size_seq_show(struct seq_file *m, void *v)
 {
@@ -308,6 +310,7 @@ LPROC_SEQ_FOPS(lprocfs_elc);
 /* These are for namespaces in /sys/fs/lustre/ldlm/namespaces/ */
 static struct attribute *ldlm_ns_attrs[] = {
 	&lustre_attr_resource_count.attr,
+	&lustre_attr_lock_count.attr,
 	NULL,
 };
 
@@ -360,6 +363,15 @@ int ldlm_namespace_sysfs_register(struct ldlm_namespace *ns)
 	err = kobject_init_and_add(&ns->ns_kobj, &ldlm_ns_ktype, NULL,
 				   "%s", ldlm_ns_name(ns));
 
+	ns->ns_stats = lprocfs_alloc_stats(LDLM_NSS_LAST, 0);
+	if (ns->ns_stats == NULL) {
+		kobject_put(&ns->ns_kobj);
+		return -ENOMEM;
+	}
+
+	lprocfs_counter_init(ns->ns_stats, LDLM_NSS_LOCKS,
+			     LPROCFS_CNTR_AVGMINMAX, "locks", "locks");
+
 	return err;
 }
 
@@ -381,19 +393,10 @@ int ldlm_namespace_proc_register(struct ldlm_namespace *ns)
 		ns->ns_proc_dir_entry = ns_pde;
 	}
 
-	ns->ns_stats = lprocfs_alloc_stats(LDLM_NSS_LAST, 0);
-	if (ns->ns_stats == NULL)
-		return -ENOMEM;
-
-	lprocfs_counter_init(ns->ns_stats, LDLM_NSS_LOCKS,
-			     LPROCFS_CNTR_AVGMINMAX, "locks", "locks");
-
 	lock_name[MAX_STRING_SIZE] = '\0';
 
 	memset(lock_vars, 0, sizeof(lock_vars));
 	lock_vars[0].name = lock_name;
-
-	LDLM_NS_ADD_VAR("lock_count", ns, &lprocfs_ns_locks_fops);
 
 	if (ns_is_client(ns)) {
 		LDLM_NS_ADD_VAR("lock_unused_count", &ns->ns_nr_unused,
