@@ -611,6 +611,7 @@ struct sched_state {
 	int	event;		/* event index */
 	int	counter;	/* counter index */
 	int	unassigned;	/* number of events to be assigned left */
+	int	nr_gp;		/* number of GP counters used */
 	unsigned long used[BITS_TO_LONGS(X86_PMC_IDX_MAX)];
 };
 
@@ -620,9 +621,10 @@ struct sched_state {
 struct perf_sched {
 	int			max_weight;
 	int			max_events;
+	int			max_gp;
+	int			saved_states;
 	struct event_constraint	**constraints;
 	struct sched_state	state;
-	int			saved_states;
 	struct sched_state	saved[SCHED_STATES_MAX];
 };
 
@@ -630,13 +632,14 @@ struct perf_sched {
  * Initialize interator that runs through all events and counters.
  */
 static void perf_sched_init(struct perf_sched *sched, struct event_constraint **constraints,
-			    int num, int wmin, int wmax)
+			    int num, int wmin, int wmax, int gpmax)
 {
 	int idx;
 
 	memset(sched, 0, sizeof(*sched));
 	sched->max_events	= num;
 	sched->max_weight	= wmax;
+	sched->max_gp		= gpmax;
 	sched->constraints	= constraints;
 
 	for (idx = 0; idx < num; idx++) {
@@ -696,11 +699,16 @@ static bool __perf_sched_find_counter(struct perf_sched *sched)
 				goto done;
 		}
 	}
+
 	/* Grab the first unused counter starting with idx */
 	idx = sched->state.counter;
 	for_each_set_bit_from(idx, c->idxmsk, INTEL_PMC_IDX_FIXED) {
-		if (!__test_and_set_bit(idx, sched->state.used))
+		if (!__test_and_set_bit(idx, sched->state.used)) {
+			if (sched->state.nr_gp++ >= sched->max_gp)
+				return false;
+
 			goto done;
+		}
 	}
 
 	return false;
@@ -757,11 +765,11 @@ static bool perf_sched_next_event(struct perf_sched *sched)
  * Assign a counter for each event.
  */
 int perf_assign_events(struct event_constraint **constraints, int n,
-			int wmin, int wmax, int *assign)
+			int wmin, int wmax, int gpmax, int *assign)
 {
 	struct perf_sched sched;
 
-	perf_sched_init(&sched, constraints, n, wmin, wmax);
+	perf_sched_init(&sched, constraints, n, wmin, wmax, gpmax);
 
 	do {
 		if (!perf_sched_find_counter(&sched))
@@ -822,8 +830,24 @@ int x86_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign)
 
 	/* slow path */
 	if (i != n) {
+		int gpmax = x86_pmu.num_counters;
+
+		/*
+		 * Do not allow scheduling of more than half the available
+		 * generic counters.
+		 *
+		 * This helps avoid counter starvation of sibling thread by
+		 * ensuring at most half the counters cannot be in exclusive
+		 * mode. There is no designated counters for the limits. Any
+		 * N/2 counters can be used. This helps with events with
+		 * specific counter constraints.
+		 */
+		if (is_ht_workaround_enabled() && !cpuc->is_fake &&
+		    READ_ONCE(cpuc->excl_cntrs->exclusive_present))
+			gpmax /= 2;
+
 		unsched = perf_assign_events(cpuc->event_constraint, n, wmin,
-					     wmax, assign);
+					     wmax, gpmax, assign);
 	}
 
 	/*

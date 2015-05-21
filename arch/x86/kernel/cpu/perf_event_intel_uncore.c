@@ -395,7 +395,7 @@ static int uncore_assign_events(struct intel_uncore_box *box, int assign[], int 
 	/* slow path */
 	if (i != n)
 		ret = perf_assign_events(box->event_constraint, n,
-					 wmin, wmax, assign);
+					 wmin, wmax, n, assign);
 
 	if (!assign || ret) {
 		for (i = 0; i < n; i++)

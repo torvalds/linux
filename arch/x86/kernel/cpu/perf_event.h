@@ -74,6 +74,7 @@ struct event_constraint {
 #define PERF_X86_EVENT_EXCL		0x0040 /* HT exclusivity on counter */
 #define PERF_X86_EVENT_DYNAMIC		0x0080 /* dynamic alloc'd constraint */
 #define PERF_X86_EVENT_RDPMC_ALLOWED	0x0100 /* grant rdpmc permission */
+#define PERF_X86_EVENT_EXCL_ACCT	0x0200 /* accounted EXCL event */
 
 
 struct amd_nb {
@@ -134,8 +135,6 @@ enum intel_excl_state_type {
 struct intel_excl_states {
 	enum intel_excl_state_type init_state[X86_PMC_IDX_MAX];
 	enum intel_excl_state_type state[X86_PMC_IDX_MAX];
-	int  num_alloc_cntrs;/* #counters allocated */
-	int  max_alloc_cntrs;/* max #counters allowed */
 	bool sched_started; /* true if scheduling has started */
 };
 
@@ -143,6 +142,11 @@ struct intel_excl_cntrs {
 	raw_spinlock_t	lock;
 
 	struct intel_excl_states states[2];
+
+	union {
+		u16	has_exclusive[2];
+		u32	exclusive_present;
+	};
 
 	int		refcnt;		/* per-core: #HT threads */
 	unsigned	core_id;	/* per-core: core id */
@@ -176,6 +180,7 @@ struct cpu_hw_events {
 	struct perf_event	*event_list[X86_PMC_IDX_MAX]; /* in enabled order */
 	struct event_constraint	*event_constraint[X86_PMC_IDX_MAX];
 
+	int			n_excl; /* the number of exclusive events */
 
 	unsigned int		group_flag;
 	int			is_fake;
@@ -719,7 +724,7 @@ static inline void __x86_pmu_enable_event(struct hw_perf_event *hwc,
 void x86_pmu_enable_all(int added);
 
 int perf_assign_events(struct event_constraint **constraints, int n,
-			int wmin, int wmax, int *assign);
+			int wmin, int wmax, int gpmax, int *assign);
 int x86_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign);
 
 void x86_pmu_stop(struct perf_event *event, int flags);
@@ -930,4 +935,8 @@ static inline struct intel_shared_regs *allocate_shared_regs(int cpu)
 	return NULL;
 }
 
+static inline int is_ht_workaround_enabled(void)
+{
+	return 0;
+}
 #endif /* CONFIG_CPU_SUP_INTEL */
