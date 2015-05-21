@@ -241,6 +241,7 @@ Current commands and configuration options
 
 start
 stop
+reset
 
 ** Thread commands:
 
@@ -252,6 +253,7 @@ rem_device_all
 
 count
 clone_skb
+burst
 debug
 
 frags
@@ -264,6 +266,13 @@ pkt_size
 min_pkt_size
 max_pkt_size
 
+queue_map_min
+queue_map_max
+skb_priority
+
+tos           (ipv4)
+traffic_class (ipv6)
+
 mpls
 
 udp_src_min
@@ -271,6 +280,8 @@ udp_src_max
 
 udp_dst_min
 udp_dst_max
+
+node
 
 flag
   IPSRC_RND
@@ -292,6 +303,8 @@ flag
   NODE_ALLOC
   NO_TIMESTAMP
 
+spi (ipsec)
+
 dst_min
 dst_max
 
@@ -303,8 +316,10 @@ src_mac
 
 clear_counters
 
-dst6
 src6
+dst6
+dst6_max
+dst6_min
 
 flows
 flowlen
@@ -313,6 +328,14 @@ rate
 ratep
 
 xmit_mode <start_xmit|netif_receive>
+
+vlan_cfi
+vlan_id
+vlan_p
+
+svlan_cfi
+svlan_id
+svlan_p
 
 
 References:
