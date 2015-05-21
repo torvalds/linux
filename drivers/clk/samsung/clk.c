@@ -389,7 +389,7 @@ struct samsung_clk_provider * __init samsung_cmu_register_one(
 
 	ctx = samsung_clk_init(np, reg_base, cmu->nr_clk_ids);
 	if (!ctx) {
-		panic("%s: unable to alllocate ctx\n", __func__);
+		panic("%s: unable to allocate ctx\n", __func__);
 		return ctx;
 	}
 
