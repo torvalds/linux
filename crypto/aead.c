@@ -13,6 +13,7 @@
  */
 
 #include <crypto/internal/aead.h>
+#include <crypto/scatterwalk.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -85,6 +86,59 @@ int crypto_aead_setauthsize(struct crypto_aead *tfm, unsigned int authsize)
 }
 EXPORT_SYMBOL_GPL(crypto_aead_setauthsize);
 
+struct aead_old_request {
+	struct scatterlist srcbuf[2];
+	struct scatterlist dstbuf[2];
+	struct aead_request subreq;
+};
+
+unsigned int crypto_aead_reqsize(struct crypto_aead *tfm)
+{
+	return tfm->reqsize + sizeof(struct aead_old_request);
+}
+EXPORT_SYMBOL_GPL(crypto_aead_reqsize);
+
+static int old_crypt(struct aead_request *req,
+		     int (*crypt)(struct aead_request *req))
+{
+	struct aead_old_request *nreq = aead_request_ctx(req);
+	struct crypto_aead *aead = crypto_aead_reqtfm(req);
+	struct scatterlist *src, *dst;
+
+	if (req->old)
+		return crypt(req);
+
+	src = scatterwalk_ffwd(nreq->srcbuf, req->src,
+			       req->assoclen + req->cryptoff);
+	dst = scatterwalk_ffwd(nreq->dstbuf, req->dst,
+			       req->assoclen + req->cryptoff);
+
+	aead_request_set_tfm(&nreq->subreq, aead);
+	aead_request_set_callback(&nreq->subreq, aead_request_flags(req),
+				  req->base.complete, req->base.data);
+	aead_request_set_crypt(&nreq->subreq, src, dst, req->cryptlen,
+			       req->iv);
+	aead_request_set_assoc(&nreq->subreq, req->src, req->assoclen);
+
+	return crypt(&nreq->subreq);
+}
+
+static int old_encrypt(struct aead_request *req)
+{
+	struct crypto_aead *aead = crypto_aead_reqtfm(req);
+	struct aead_alg *alg = crypto_aead_alg(aead);
+
+	return old_crypt(req, alg->encrypt);
+}
+
+static int old_decrypt(struct aead_request *req)
+{
+	struct crypto_aead *aead = crypto_aead_reqtfm(req);
+	struct aead_alg *alg = crypto_aead_alg(aead);
+
+	return old_crypt(req, alg->decrypt);
+}
+
 static int no_givcrypt(struct aead_givcrypt_request *req)
 {
 	return -ENOSYS;
@@ -98,8 +152,8 @@ static int crypto_aead_init_tfm(struct crypto_tfm *tfm)
 	if (max(alg->maxauthsize, alg->ivsize) > PAGE_SIZE / 8)
 		return -EINVAL;
 
-	crt->encrypt = alg->encrypt;
-	crt->decrypt = alg->decrypt;
+	crt->encrypt = old_encrypt;
+	crt->decrypt = old_decrypt;
 	if (alg->ivsize) {
 		crt->givencrypt = alg->givencrypt ?: no_givcrypt;
 		crt->givdecrypt = alg->givdecrypt ?: no_givcrypt;
