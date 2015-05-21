@@ -528,7 +528,7 @@ int hdmi_ouputmode_select(struct hdmi *hdmi, int edid_ok)
 	struct list_head *head = &hdmi->edid.modelist;
 	struct fb_monspecs *specs = hdmi->edid.specs;
 	struct fb_videomode *modedb = NULL, *mode = NULL;
-	int i, pixclock;
+	int i, pixclock, feature = hdmi->property->feature;
 
 	if (edid_ok != HDMI_ERROR_SUCESS) {
 		dev_err(hdmi->dev, "warning: EDID error, assume sink as HDMI !!!!");
@@ -580,12 +580,30 @@ int hdmi_ouputmode_select(struct hdmi *hdmi, int edid_ok)
 				    (mode->yres > modedb->yres))
 					continue;
 			} else {
-				if (!(hdmi->property->feature & SUPPORT_4K) &&
-				    mode->xres >= 3840)
-					continue;
-				else if (mode->pixclock > 340000000)
+				/* If there is no valid information in EDID,
+				   just list common hdmi foramt. */
+				if (mode->xres > 3840 ||
+				    mode->refresh < 50 ||
+				    mode->vmode == FB_VMODE_INTERLACED)
 					continue;
 			}
+			if ((feature & SUPPORT_TMDS_600M) == 0 &&
+			    mode->pixclock > 340000000)
+				continue;
+			if ((feature & SUPPORT_4K) == 0 &&
+			    mode->xres >= 3840)
+				continue;
+			if ((feature & SUPPORT_4K_4096) == 0 &&
+			    mode->xres == 4096)
+				continue;
+			if ((feature & SUPPORT_1080I) == 0 &&
+			    mode->xres == 1920 &&
+			    mode->vmode == FB_VMODE_INTERLACED)
+				continue;
+			if ((feature & SUPPORT_480I_576I) == 0 &&
+			    mode->xres == 720 &&
+			    mode->vmode == FB_VMODE_INTERLACED)
+				continue;
 			hdmi_add_videomode(mode, head);
 		}
 	} else {
