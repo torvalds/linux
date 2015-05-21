@@ -2625,6 +2625,18 @@ int regmap_get_max_register(struct regmap *map)
 }
 EXPORT_SYMBOL_GPL(regmap_get_max_register);
 
+/**
+ * regmap_get_reg_stride(): Report the register address stride
+ *
+ * Report the register address stride, mainly intended to for use by
+ * generic infrastructure built on top of regmap.
+ */
+int regmap_get_reg_stride(struct regmap *map)
+{
+	return map->reg_stride;
+}
+EXPORT_SYMBOL_GPL(regmap_get_reg_stride);
+
 int regmap_parse_val(struct regmap *map, const void *buf,
 			unsigned int *val)
 {
