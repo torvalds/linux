@@ -230,6 +230,13 @@ Description:
 		Display number of locks currently sitting in the LRU list
 		of this namespace
 
+What:		/sys/fs/lustre/ldlm/namespaces/<name>/lru_max_age
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Maximum number of milliseconds a lock could sit in LRU list
+		before client would voluntarily cancel it as unused.
+
 What:		/sys/fs/lustre/ldlm/namespaces/<name>/early_lock_cancel
 Date:		May 2015
 Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
