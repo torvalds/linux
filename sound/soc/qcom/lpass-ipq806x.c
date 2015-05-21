@@ -63,12 +63,12 @@ static struct snd_soc_dai_driver ipq806x_lpass_cpu_dai_driver = {
 	.ops    = &asoc_qcom_lpass_cpu_dai_ops,
 };
 
-int ipq806x_lpass_alloc_dma_channel(struct lpass_data *drvdata)
+static int ipq806x_lpass_alloc_dma_channel(struct lpass_data *drvdata)
 {
 	return IPQ806X_LPAIF_RDMA_CHAN_MI2S;
 }
 
-int ipq806x_lpass_free_dma_channel(struct lpass_data *drvdata, int chan)
+static int ipq806x_lpass_free_dma_channel(struct lpass_data *drvdata, int chan)
 {
 	return 0;
 }
