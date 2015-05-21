@@ -515,6 +515,102 @@ int t4_memory_rw(struct adapter *adap, int win, int mtype, u32 addr,
 	return 0;
 }
 
+/* Return the specified PCI-E Configuration Space register from our Physical
+ * Function.  We try first via a Firmware LDST Command since we prefer to let
+ * the firmware own all of these registers, but if that fails we go for it
+ * directly ourselves.
+ */
+u32 t4_read_pcie_cfg4(struct adapter *adap, int reg)
+{
+	u32 val, ldst_addrspace;
+
+	/* If fw_attach != 0, construct and send the Firmware LDST Command to
+	 * retrieve the specified PCI-E Configuration Space register.
+	 */
+	struct fw_ldst_cmd ldst_cmd;
+	int ret;
+
+	memset(&ldst_cmd, 0, sizeof(ldst_cmd));
+	ldst_addrspace = FW_LDST_CMD_ADDRSPACE_V(FW_LDST_ADDRSPC_FUNC_PCIE);
+	ldst_cmd.op_to_addrspace = cpu_to_be32(FW_CMD_OP_V(FW_LDST_CMD) |
+					       FW_CMD_REQUEST_F |
+					       FW_CMD_READ_F |
+					       ldst_addrspace);
+	ldst_cmd.cycles_to_len16 = cpu_to_be32(FW_LEN16(ldst_cmd));
+	ldst_cmd.u.pcie.select_naccess = FW_LDST_CMD_NACCESS_V(1);
+	ldst_cmd.u.pcie.ctrl_to_fn =
+		(FW_LDST_CMD_LC_F | FW_LDST_CMD_FN_V(adap->fn));
+	ldst_cmd.u.pcie.r = reg;
+
+	/* If the LDST Command succeeds, return the result, otherwise
+	 * fall through to reading it directly ourselves ...
+	 */
+	ret = t4_wr_mbox(adap, adap->mbox, &ldst_cmd, sizeof(ldst_cmd),
+			 &ldst_cmd);
+	if (ret == 0)
+		val = be32_to_cpu(ldst_cmd.u.pcie.data[0]);
+	else
+		/* Read the desired Configuration Space register via the PCI-E
+		 * Backdoor mechanism.
+		 */
+		t4_hw_pci_read_cfg4(adap, reg, &val);
+	return val;
+}
+
+/* Get the window based on base passed to it.
+ * Window aperture is currently unhandled, but there is no use case for it
+ * right now
+ */
+static u32 t4_get_window(struct adapter *adap, u32 pci_base, u64 pci_mask,
+			 u32 memwin_base)
+{
+	u32 ret;
+
+	if (is_t4(adap->params.chip)) {
+		u32 bar0;
+
+		/* Truncation intentional: we only read the bottom 32-bits of
+		 * the 64-bit BAR0/BAR1 ...  We use the hardware backdoor
+		 * mechanism to read BAR0 instead of using
+		 * pci_resource_start() because we could be operating from
+		 * within a Virtual Machine which is trapping our accesses to
+		 * our Configuration Space and we need to set up the PCI-E
+		 * Memory Window decoders with the actual addresses which will
+		 * be coming across the PCI-E link.
+		 */
+		bar0 = t4_read_pcie_cfg4(adap, pci_base);
+		bar0 &= pci_mask;
+		adap->t4_bar0 = bar0;
+
+		ret = bar0 + memwin_base;
+	} else {
+		/* For T5, only relative offset inside the PCIe BAR is passed */
+		ret = memwin_base;
+	}
+	return ret;
+}
+
+/* Get the default utility window (win0) used by everyone */
+u32 t4_get_util_window(struct adapter *adap)
+{
+	return t4_get_window(adap, PCI_BASE_ADDRESS_0,
+			     PCI_BASE_ADDRESS_MEM_MASK, MEMWIN0_BASE);
+}
+
+/* Set up memory window for accessing adapter memory ranges.  (Read
+ * back MA register to ensure that changes propagate before we attempt
+ * to use the new values.)
+ */
+void t4_setup_memwin(struct adapter *adap, u32 memwin_base, u32 window)
+{
+	t4_write_reg(adap,
+		     PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_BASE_WIN_A, window),
+		     memwin_base | BIR_V(0) |
+		     WINDOW_V(ilog2(MEMWIN0_APERTURE) - WINDOW_SHIFT_X));
+	t4_read_reg(adap,
+		    PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_BASE_WIN_A, window));
+}
+
 /**
  *	t4_get_regs_len - return the size of the chips register set
  *	@adapter: the adapter
@@ -556,7 +652,8 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x11fc, 0x123c,
 		0x1300, 0x173c,
 		0x1800, 0x18fc,
-		0x3000, 0x30d8,
+		0x3000, 0x305c,
+		0x3068, 0x30d8,
 		0x30e0, 0x5924,
 		0x5960, 0x59d4,
 		0x5a00, 0x5af8,
@@ -619,7 +716,7 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x19238, 0x1924c,
 		0x193f8, 0x19474,
 		0x19490, 0x194f8,
-		0x19800, 0x19f30,
+		0x19800, 0x19f4c,
 		0x1a000, 0x1a06c,
 		0x1a0b0, 0x1a120,
 		0x1a128, 0x1a138,
@@ -768,7 +865,7 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x27780, 0x2778c,
 		0x27800, 0x27c38,
 		0x27c80, 0x27d7c,
-		0x27e00, 0x27e04
+		0x27e00, 0x27e04,
 	};
 
 	static const unsigned int t5_reg_ranges[] = {
@@ -778,7 +875,7 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x1280, 0x173c,
 		0x1800, 0x18fc,
 		0x3000, 0x3028,
-		0x3060, 0x30d8,
+		0x3068, 0x30d8,
 		0x30e0, 0x30fc,
 		0x3140, 0x357c,
 		0x35a8, 0x35cc,
@@ -790,7 +887,7 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x5940, 0x59dc,
 		0x59fc, 0x5a18,
 		0x5a60, 0x5a9c,
-		0x5b9c, 0x5bfc,
+		0x5b94, 0x5bfc,
 		0x6000, 0x6040,
 		0x6058, 0x614c,
 		0x7700, 0x7798,
@@ -904,27 +1001,30 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x30800, 0x30834,
 		0x308c0, 0x30908,
 		0x30910, 0x309ac,
-		0x30a00, 0x30a04,
-		0x30a0c, 0x30a2c,
+		0x30a00, 0x30a2c,
 		0x30a44, 0x30a50,
 		0x30a74, 0x30c24,
+		0x30d00, 0x30d00,
 		0x30d08, 0x30d14,
 		0x30d1c, 0x30d20,
 		0x30d3c, 0x30d50,
 		0x31200, 0x3120c,
 		0x31220, 0x31220,
 		0x31240, 0x31240,
-		0x31600, 0x31600,
-		0x31608, 0x3160c,
+		0x31600, 0x3160c,
 		0x31a00, 0x31a1c,
-		0x31e04, 0x31e20,
+		0x31e00, 0x31e20,
 		0x31e38, 0x31e3c,
 		0x31e80, 0x31e80,
 		0x31e88, 0x31ea8,
 		0x31eb0, 0x31eb4,
 		0x31ec8, 0x31ed4,
 		0x31fb8, 0x32004,
-		0x32208, 0x3223c,
+		0x32200, 0x32200,
+		0x32208, 0x32240,
+		0x32248, 0x32280,
+		0x32288, 0x322c0,
+		0x322c8, 0x322fc,
 		0x32600, 0x32630,
 		0x32a00, 0x32abc,
 		0x32b00, 0x32b70,
@@ -964,27 +1064,30 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x34800, 0x34834,
 		0x348c0, 0x34908,
 		0x34910, 0x349ac,
-		0x34a00, 0x34a04,
-		0x34a0c, 0x34a2c,
+		0x34a00, 0x34a2c,
 		0x34a44, 0x34a50,
 		0x34a74, 0x34c24,
+		0x34d00, 0x34d00,
 		0x34d08, 0x34d14,
 		0x34d1c, 0x34d20,
 		0x34d3c, 0x34d50,
 		0x35200, 0x3520c,
 		0x35220, 0x35220,
 		0x35240, 0x35240,
-		0x35600, 0x35600,
-		0x35608, 0x3560c,
+		0x35600, 0x3560c,
 		0x35a00, 0x35a1c,
-		0x35e04, 0x35e20,
+		0x35e00, 0x35e20,
 		0x35e38, 0x35e3c,
 		0x35e80, 0x35e80,
 		0x35e88, 0x35ea8,
 		0x35eb0, 0x35eb4,
 		0x35ec8, 0x35ed4,
 		0x35fb8, 0x36004,
-		0x36208, 0x3623c,
+		0x36200, 0x36200,
+		0x36208, 0x36240,
+		0x36248, 0x36280,
+		0x36288, 0x362c0,
+		0x362c8, 0x362fc,
 		0x36600, 0x36630,
 		0x36a00, 0x36abc,
 		0x36b00, 0x36b70,
@@ -1024,27 +1127,30 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x38800, 0x38834,
 		0x388c0, 0x38908,
 		0x38910, 0x389ac,
-		0x38a00, 0x38a04,
-		0x38a0c, 0x38a2c,
+		0x38a00, 0x38a2c,
 		0x38a44, 0x38a50,
 		0x38a74, 0x38c24,
+		0x38d00, 0x38d00,
 		0x38d08, 0x38d14,
 		0x38d1c, 0x38d20,
 		0x38d3c, 0x38d50,
 		0x39200, 0x3920c,
 		0x39220, 0x39220,
 		0x39240, 0x39240,
-		0x39600, 0x39600,
-		0x39608, 0x3960c,
+		0x39600, 0x3960c,
 		0x39a00, 0x39a1c,
-		0x39e04, 0x39e20,
+		0x39e00, 0x39e20,
 		0x39e38, 0x39e3c,
 		0x39e80, 0x39e80,
 		0x39e88, 0x39ea8,
 		0x39eb0, 0x39eb4,
 		0x39ec8, 0x39ed4,
 		0x39fb8, 0x3a004,
-		0x3a208, 0x3a23c,
+		0x3a200, 0x3a200,
+		0x3a208, 0x3a240,
+		0x3a248, 0x3a280,
+		0x3a288, 0x3a2c0,
+		0x3a2c8, 0x3a2fc,
 		0x3a600, 0x3a630,
 		0x3aa00, 0x3aabc,
 		0x3ab00, 0x3ab70,
@@ -1084,27 +1190,30 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x3c800, 0x3c834,
 		0x3c8c0, 0x3c908,
 		0x3c910, 0x3c9ac,
-		0x3ca00, 0x3ca04,
-		0x3ca0c, 0x3ca2c,
+		0x3ca00, 0x3ca2c,
 		0x3ca44, 0x3ca50,
 		0x3ca74, 0x3cc24,
+		0x3cd00, 0x3cd00,
 		0x3cd08, 0x3cd14,
 		0x3cd1c, 0x3cd20,
 		0x3cd3c, 0x3cd50,
 		0x3d200, 0x3d20c,
 		0x3d220, 0x3d220,
 		0x3d240, 0x3d240,
-		0x3d600, 0x3d600,
-		0x3d608, 0x3d60c,
+		0x3d600, 0x3d60c,
 		0x3da00, 0x3da1c,
-		0x3de04, 0x3de20,
+		0x3de00, 0x3de20,
 		0x3de38, 0x3de3c,
 		0x3de80, 0x3de80,
 		0x3de88, 0x3dea8,
 		0x3deb0, 0x3deb4,
 		0x3dec8, 0x3ded4,
 		0x3dfb8, 0x3e004,
-		0x3e208, 0x3e23c,
+		0x3e200, 0x3e200,
+		0x3e208, 0x3e240,
+		0x3e248, 0x3e280,
+		0x3e288, 0x3e2c0,
+		0x3e2c8, 0x3e2fc,
 		0x3e600, 0x3e630,
 		0x3ea00, 0x3eabc,
 		0x3eb00, 0x3eb70,
@@ -1137,7 +1246,7 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x3fcf0, 0x3fcfc,
 		0x40000, 0x4000c,
 		0x40040, 0x40068,
-		0x40080, 0x40144,
+		0x4007c, 0x40144,
 		0x40180, 0x4018c,
 		0x40200, 0x40298,
 		0x402ac, 0x4033c,
@@ -1165,7 +1274,7 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x47800, 0x47814,
 		0x48000, 0x4800c,
 		0x48040, 0x48068,
-		0x48080, 0x48144,
+		0x4807c, 0x48144,
 		0x48180, 0x4818c,
 		0x48200, 0x48298,
 		0x482ac, 0x4833c,
