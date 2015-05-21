@@ -58,6 +58,7 @@
 
 struct kmem_cache *ll_file_data_slab;
 struct proc_dir_entry *proc_lustre_fs_root;
+struct kset *llite_kset;
 
 static LIST_HEAD(ll_super_blocks);
 static DEFINE_SPINLOCK(ll_sb_lock);
@@ -66,7 +67,7 @@ static DEFINE_SPINLOCK(ll_sb_lock);
 #define log2(n) ffz(~(n))
 #endif
 
-static struct ll_sb_info *ll_init_sbi(void)
+static struct ll_sb_info *ll_init_sbi(struct super_block *sb)
 {
 	struct ll_sb_info *sbi = NULL;
 	unsigned long pages;
@@ -133,6 +134,8 @@ static struct ll_sb_info *ll_init_sbi(void)
 	atomic_set(&sbi->ll_sa_wrong, 0);
 	atomic_set(&sbi->ll_agl_total, 0);
 	sbi->ll_flags |= LL_SBI_AGL_ENABLED;
+
+	sbi->ll_sb = sb;
 
 	return sbi;
 }
@@ -919,7 +922,7 @@ int ll_fill_super(struct super_block *sb, struct vfsmount *mnt)
 	try_module_get(THIS_MODULE);
 
 	/* client additional sb info */
-	lsi->lsi_llsbi = sbi = ll_init_sbi();
+	lsi->lsi_llsbi = sbi = ll_init_sbi(sb);
 	if (!sbi) {
 		module_put(THIS_MODULE);
 		kfree(cfg);

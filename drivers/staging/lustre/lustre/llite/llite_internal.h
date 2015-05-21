@@ -518,6 +518,9 @@ struct ll_sb_info {
 	struct rmtacl_ctl_table   ll_rct;
 	struct eacl_table	 ll_et;
 	__kernel_fsid_t		  ll_fsid;
+	struct kobject		 ll_kobj; /* sysfs object */
+	struct super_block	*ll_sb; /* struct super_block (for sysfs code)*/
+	struct completion	 ll_kobj_unregister;
 };
 
 #define LL_DEFAULT_MAX_RW_CHUNK      (32 * 1024 * 1024)
@@ -639,6 +642,7 @@ struct lov_stripe_md;
 extern spinlock_t inode_lock;
 
 extern struct proc_dir_entry *proc_lustre_fs_root;
+extern struct kset *llite_kset;
 
 static inline struct inode *ll_info2i(struct ll_inode_info *lli)
 {

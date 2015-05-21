@@ -138,6 +138,12 @@ static int __init init_lustre_lite(void)
 
 	proc_lustre_fs_root = entry;
 
+	llite_kset = kset_create_and_add("llite", NULL, lustre_kobj);
+	if (!llite_kset) {
+		rc = -ENOMEM;
+		goto out_proc;
+	}
+
 	cfs_get_random_bytes(seed, sizeof(seed));
 
 	/* Nodes with small feet have little entropy. The NID for this
@@ -155,7 +161,7 @@ static int __init init_lustre_lite(void)
 	setup_timer(&ll_capa_timer, ll_capa_timer_callback, 0);
 	rc = ll_capa_thread_start();
 	if (rc != 0)
-		goto out_proc;
+		goto out_sysfs;
 
 	rc = vvp_global_init();
 	if (rc != 0)
@@ -176,6 +182,8 @@ out_vvp:
 out_capa:
 	del_timer(&ll_capa_timer);
 	ll_capa_thread_stop();
+out_sysfs:
+	kset_unregister(llite_kset);
 out_proc:
 	lprocfs_remove(&proc_lustre_fs_root);
 out_cache:
@@ -201,6 +209,7 @@ static void __exit exit_lustre_lite(void)
 	lustre_register_client_process_config(NULL);
 
 	lprocfs_remove(&proc_lustre_fs_root);
+	kset_unregister(llite_kset);
 
 	ll_xattr_fini();
 	vvp_global_fini();

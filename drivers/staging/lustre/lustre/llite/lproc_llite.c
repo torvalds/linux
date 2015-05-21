@@ -872,6 +872,23 @@ static struct lprocfs_vars lprocfs_llite_obd_vars[] = {
 
 #define MAX_STRING_SIZE 128
 
+static struct attribute *llite_attrs[] = {
+	NULL,
+};
+
+static void llite_sb_release(struct kobject *kobj)
+{
+	struct ll_sb_info *sbi = container_of(kobj, struct ll_sb_info,
+					      ll_kobj);
+	complete(&sbi->ll_kobj_unregister);
+}
+
+static struct kobj_type llite_ktype = {
+	.default_attrs	= llite_attrs,
+	.sysfs_ops	= &lustre_sysfs_ops,
+	.release	= llite_sb_release,
+};
+
 static const struct llite_file_opcode {
 	__u32       opcode;
 	__u32       type;
@@ -1064,6 +1081,13 @@ int lprocfs_register_mountpoint(struct proc_dir_entry *parent,
 	if (err)
 		goto out;
 
+	sbi->ll_kobj.kset = llite_kset;
+	init_completion(&sbi->ll_kobj_unregister);
+	err = kobject_init_and_add(&sbi->ll_kobj, &llite_ktype, NULL,
+				   "%s", name);
+	if (err)
+		goto out;
+
 	/* MDC info */
 	obd = class_name2obd(mdc);
 
@@ -1124,6 +1148,8 @@ void lprocfs_unregister_mountpoint(struct ll_sb_info *sbi)
 {
 	if (sbi->ll_proc_root) {
 		lprocfs_remove(&sbi->ll_proc_root);
+		kobject_put(&sbi->ll_kobj);
+		wait_for_completion(&sbi->ll_kobj_unregister);
 		lprocfs_free_stats(&sbi->ll_ra_stats);
 		lprocfs_free_stats(&sbi->ll_stats);
 	}
