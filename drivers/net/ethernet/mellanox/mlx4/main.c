@@ -2988,18 +2988,6 @@ slave_start:
 	/* In master functions, the communication channel must be initialized
 	 * after obtaining its address from fw */
 	if (mlx4_is_master(dev)) {
-		int ib_ports = 0;
-
-		mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_IB)
-			ib_ports++;
-
-		if (ib_ports &&
-		    (num_vfs_argc > 1 || probe_vfs_argc > 1)) {
-			mlx4_err(dev,
-				 "Invalid syntax of num_vfs/probe_vfs with IB port - single port VFs syntax is only supported when all ports are configured as ethernet\n");
-			err = -EINVAL;
-			goto err_close;
-		}
 		if (dev->caps.num_ports < 2 &&
 		    num_vfs_argc > 1) {
 			err = -EINVAL;
