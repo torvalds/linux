@@ -125,7 +125,7 @@ static int __set_clk_rates(struct device_node *node, bool clk_supplier)
  * and sets any specified clock parents and rates. The @clk_supplier argument
  * should be set to true if @node may be also a clock supplier of any clock
  * listed in its 'assigned-clocks' or 'assigned-clock-parents' properties.
- * If @clk_supplier is false the function exits returnning 0 as soon as it
+ * If @clk_supplier is false the function exits returning 0 as soon as it
  * determines the @node is also a supplier of any of the clocks.
  */
 int of_clk_set_defaults(struct device_node *node, bool clk_supplier)
