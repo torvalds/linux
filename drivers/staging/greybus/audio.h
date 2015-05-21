@@ -53,6 +53,7 @@ struct gb_snd {
 	struct snd_pcm_substream	*substream;
 	struct hrtimer			timer;
 	atomic_t			running;
+	bool				cport_active;
 	struct workqueue_struct		*workqueue;
 	struct work_struct		work;
 	int				hwptr_done;

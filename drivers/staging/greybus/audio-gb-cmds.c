@@ -165,17 +165,8 @@ int gb_i2s_mgmt_setup(struct gb_connection *connection)
 
 	ret = gb_i2s_mgmt_set_samples_per_message(connection,
 						  CONFIG_SAMPLES_PER_MSG);
-	if (ret) {
+	if (ret)
 		pr_err("set_samples_per_msg failed: %d\n", ret);
-		goto free_get_cfg;
-	}
-
-	ret = gb_i2s_mgmt_activate_cport(connection,
-					 CONFIG_I2S_REMOTE_DATA_CPORT);
-	if (ret) {
-		pr_err("activate_cport failed: %d\n", ret);
-		goto free_get_cfg;
-	}
 
 free_get_cfg:
 	kfree(get_cfg);

@@ -292,13 +292,11 @@ static int gb_i2s_mgmt_connection_init(struct gb_connection *connection)
 
 	if (!snd_dev->send_data_req_buf) {
 		ret = -ENOMEM;
-		goto err_deactivate_cport;
+		goto err_free_snd_dev;
 	}
 
 	return 0;
 
-err_deactivate_cport:
-	gb_i2s_mgmt_deactivate_cport(connection, CONFIG_I2S_REMOTE_DATA_CPORT);
 err_free_snd_dev:
 	gb_free_snd(snd_dev);
 	return ret;
@@ -307,12 +305,6 @@ err_free_snd_dev:
 static void gb_i2s_mgmt_connection_exit(struct gb_connection *connection)
 {
 	struct gb_snd *snd_dev = (struct gb_snd *)connection->private;
-	int ret;
-
-	ret = gb_i2s_mgmt_deactivate_cport(connection,
-					   CONFIG_I2S_REMOTE_DATA_CPORT);
-	if (ret)
-		pr_err("deactivate_cport failed: %d\n", ret);
 
 	kfree(snd_dev->send_data_req_buf);
 	snd_dev->send_data_req_buf = NULL;

@@ -32,15 +32,33 @@ static void gb_pcm_work(struct work_struct *work)
 	struct snd_pcm_substream *substream = snd_dev->substream;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	unsigned int stride, frames, oldptr;
-	int period_elapsed;
+	int period_elapsed, ret;
 	char *address;
 	long len;
 
 	if (!snd_dev)
 		return;
 
-	if (!atomic_read(&snd_dev->running))
+	if (!atomic_read(&snd_dev->running)) {
+		if (snd_dev->cport_active) {
+			ret = gb_i2s_mgmt_deactivate_cport(
+						snd_dev->mgmt_connection,
+						CONFIG_I2S_REMOTE_DATA_CPORT);
+			if (ret) /* XXX Do what else with failure? */
+				pr_err("deactivate_cport failed: %d\n", ret);
+
+			snd_dev->cport_active = false;
+		}
+
 		return;
+	} else if (!snd_dev->cport_active) {
+		ret = gb_i2s_mgmt_activate_cport(snd_dev->mgmt_connection,
+						 CONFIG_I2S_REMOTE_DATA_CPORT);
+		if (ret)
+			pr_err("activate_cport failed: %d\n", ret);
+
+		snd_dev->cport_active = true;
+	}
 
 	address = runtime->dma_area + snd_dev->hwptr_done;
 
@@ -88,6 +106,7 @@ static enum hrtimer_restart gb_pcm_timer_function(struct hrtimer *hrtimer)
 void gb_pcm_hrtimer_start(struct gb_snd *snd_dev)
 {
 	atomic_set(&snd_dev->running, 1);
+	queue_work(snd_dev->workqueue, &snd_dev->work); /* Activates CPort */
 	hrtimer_start(&snd_dev->timer, ns_to_ktime(CONFIG_PERIOD_NS),
 						HRTIMER_MODE_REL);
 }
@@ -96,6 +115,7 @@ void gb_pcm_hrtimer_stop(struct gb_snd *snd_dev)
 {
 	atomic_set(&snd_dev->running, 0);
 	hrtimer_cancel(&snd_dev->timer);
+	queue_work(snd_dev->workqueue, &snd_dev->work); /* Deactivates CPort */
 }
 
 static int gb_pcm_hrtimer_init(struct gb_snd *snd_dev)
