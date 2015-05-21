@@ -62,6 +62,7 @@ struct lprocfs_vars {
 
 struct lprocfs_static_vars {
 	struct lprocfs_vars *obd_vars;
+	struct attribute_group *sysfs_vars;
 };
 
 /* if we find more consumers this could be generalized */
@@ -605,7 +606,8 @@ extern void lprocfs_remove(struct proc_dir_entry **root);
 extern void lprocfs_remove_proc_entry(const char *name,
 				      struct proc_dir_entry *parent);
 
-extern int lprocfs_obd_setup(struct obd_device *obd, struct lprocfs_vars *list);
+extern int lprocfs_obd_setup(struct obd_device *obd, struct lprocfs_vars *list,
+			     struct attribute_group *attrs);
 extern int lprocfs_obd_cleanup(struct obd_device *obd);
 
 extern int ldebugfs_seq_create(struct dentry *parent,

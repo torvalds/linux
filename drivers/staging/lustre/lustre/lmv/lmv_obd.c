@@ -1309,7 +1309,7 @@ int lmv_fid_alloc(struct obd_export *exp, struct lu_fid *fid,
 static int lmv_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 {
 	struct lmv_obd	     *lmv = &obd->u.lmv;
-	struct lprocfs_static_vars  lvars;
+	struct lprocfs_static_vars  lvars = { NULL };
 	struct lmv_desc	    *desc;
 	int			 rc;
 
@@ -1343,7 +1343,7 @@ static int lmv_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 
 	lprocfs_lmv_init_vars(&lvars);
 
-	lprocfs_obd_setup(obd, lvars.obd_vars);
+	lprocfs_obd_setup(obd, lvars.obd_vars, lvars.sysfs_vars);
 #if defined (CONFIG_PROC_FS)
 	{
 		rc = lprocfs_seq_create(obd->obd_proc_entry, "target_obd",

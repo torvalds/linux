@@ -199,6 +199,12 @@ int class_register_type(struct obd_ops *dt_ops, struct md_ops *md_ops,
 		goto failed;
 	}
 
+	type->typ_kobj = kobject_create_and_add(type->typ_name, lustre_kobj);
+	if (!type->typ_kobj) {
+		rc = -ENOMEM;
+		goto failed;
+	}
+
 	if (ldt != NULL) {
 		type->typ_lu = ldt;
 		rc = lu_device_type_init(ldt);
@@ -213,6 +219,8 @@ int class_register_type(struct obd_ops *dt_ops, struct md_ops *md_ops,
 	return 0;
 
  failed:
+	if (type->typ_kobj)
+		kobject_put(type->typ_kobj);
 	kfree(type->typ_name);
 	kfree(type->typ_md_ops);
 	kfree(type->typ_dt_ops);
@@ -238,6 +246,9 @@ int class_unregister_type(const char *name)
 		kfree(type->typ_md_ops);
 		return -EBUSY;
 	}
+
+	if (type->typ_kobj)
+		kobject_put(type->typ_kobj);
 
 	if (type->typ_procroot) {
 		lprocfs_remove(&type->typ_procroot);

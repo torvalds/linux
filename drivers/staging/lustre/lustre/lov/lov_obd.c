@@ -821,7 +821,7 @@ int lov_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 		goto out;
 
 	lprocfs_lov_init_vars(&lvars);
-	lprocfs_obd_setup(obd, lvars.obd_vars);
+	lprocfs_obd_setup(obd, lvars.obd_vars, lvars.sysfs_vars);
 #if defined (CONFIG_PROC_FS)
 	{
 		int rc1;

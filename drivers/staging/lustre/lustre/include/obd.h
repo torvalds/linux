@@ -249,6 +249,7 @@ struct obd_type {
 	int  typ_refcnt;
 	struct lu_device_type *typ_lu;
 	spinlock_t obd_type_lock;
+	struct kobject *typ_kobj;
 };
 
 struct brw_page {
@@ -936,6 +937,9 @@ struct obd_device {
 	struct lu_ref	  obd_reference;
 
 	int		       obd_conn_inprogress;
+
+	struct kobject		obd_kobj; /* sysfs object */
+	struct completion	obd_kobj_unregister;
 };
 
 #define OBD_LLOG_FL_SENDNOW     0x0001

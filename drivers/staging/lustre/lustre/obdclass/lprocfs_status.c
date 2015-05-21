@@ -994,7 +994,26 @@ int lprocfs_rd_connect_flags(struct seq_file *m, void *data)
 }
 EXPORT_SYMBOL(lprocfs_rd_connect_flags);
 
-int lprocfs_obd_setup(struct obd_device *obd, struct lprocfs_vars *list)
+static struct attribute *obd_def_attrs[] = {
+	NULL,
+};
+
+static void obd_sysfs_release(struct kobject *kobj)
+{
+	struct obd_device *obd = container_of(kobj, struct obd_device,
+					      obd_kobj);
+
+	complete(&obd->obd_kobj_unregister);
+}
+
+static struct kobj_type obd_ktype = {
+	.default_attrs	= obd_def_attrs,
+	.sysfs_ops	= &lustre_sysfs_ops,
+	.release	= obd_sysfs_release,
+};
+
+int lprocfs_obd_setup(struct obd_device *obd, struct lprocfs_vars *list,
+		      struct attribute_group *attrs)
 {
 	int rc = 0;
 
@@ -1002,15 +1021,32 @@ int lprocfs_obd_setup(struct obd_device *obd, struct lprocfs_vars *list)
 	LASSERT(obd->obd_magic == OBD_DEVICE_MAGIC);
 	LASSERT(obd->obd_type->typ_procroot != NULL);
 
+	init_completion(&obd->obd_kobj_unregister);
+	rc = kobject_init_and_add(&obd->obd_kobj, &obd_ktype,
+				  obd->obd_type->typ_kobj,
+				  "%s", obd->obd_name);
+	if (rc)
+		return rc;
+
+	if (attrs) {
+		rc = sysfs_create_group(&obd->obd_kobj, attrs);
+		if (rc) {
+			kobject_put(&obd->obd_kobj);
+			return rc;
+		}
+	}
+
 	obd->obd_proc_entry = lprocfs_register(obd->obd_name,
 					       obd->obd_type->typ_procroot,
 					       list, obd);
 	if (IS_ERR(obd->obd_proc_entry)) {
+		kobject_put(&obd->obd_kobj);
 		rc = PTR_ERR(obd->obd_proc_entry);
 		CERROR("error %d setting up lprocfs for %s\n",
 		       rc, obd->obd_name);
 		obd->obd_proc_entry = NULL;
 	}
+
 	return rc;
 }
 EXPORT_SYMBOL(lprocfs_obd_setup);
@@ -1028,6 +1064,8 @@ int lprocfs_obd_cleanup(struct obd_device *obd)
 		lprocfs_remove(&obd->obd_proc_entry);
 		obd->obd_proc_entry = NULL;
 	}
+	kobject_put(&obd->obd_kobj);
+	wait_for_completion(&obd->obd_kobj_unregister);
 	return 0;
 }
 EXPORT_SYMBOL(lprocfs_obd_cleanup);
