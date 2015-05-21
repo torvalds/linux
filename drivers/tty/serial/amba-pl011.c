@@ -2173,65 +2173,54 @@ static void pl011_unregister_port(struct uart_amba_port *uap)
 		uart_unregister_driver(&amba_reg);
 }
 
-static int pl011_probe(struct amba_device *dev, const struct amba_id *id)
+static int pl011_find_free_port(void)
 {
-	struct uart_amba_port *uap;
-	struct vendor_data *vendor = id->data;
-	void __iomem *base;
-	int i, ret;
+	int i;
 
 	for (i = 0; i < ARRAY_SIZE(amba_ports); i++)
 		if (amba_ports[i] == NULL)
-			break;
+			return i;
 
-	if (i == ARRAY_SIZE(amba_ports))
-		return -EBUSY;
+	return -EBUSY;
+}
 
-	uap = devm_kzalloc(&dev->dev, sizeof(struct uart_amba_port),
-			   GFP_KERNEL);
-	if (uap == NULL)
-		return -ENOMEM;
+static int pl011_setup_port(struct device *dev, struct uart_amba_port *uap,
+			    struct resource *mmiobase, int index)
+{
+	void __iomem *base;
 
-	i = pl011_probe_dt_alias(i, &dev->dev);
-
-	base = devm_ioremap(&dev->dev, dev->res.start,
-			    resource_size(&dev->res));
+	base = devm_ioremap_resource(dev, mmiobase);
 	if (!base)
 		return -ENOMEM;
 
-	uap->clk = devm_clk_get(&dev->dev, NULL);
-	if (IS_ERR(uap->clk))
-		return PTR_ERR(uap->clk);
+	index = pl011_probe_dt_alias(index, dev);
 
-	uap->vendor = vendor;
-	uap->lcrh_rx = vendor->lcrh_rx;
-	uap->lcrh_tx = vendor->lcrh_tx;
 	uap->old_cr = 0;
-	uap->fifosize = vendor->get_fifosize(dev);
-	uap->port.dev = &dev->dev;
-	uap->port.mapbase = dev->res.start;
+	uap->port.dev = dev;
+	uap->port.mapbase = mmiobase->start;
 	uap->port.membase = base;
 	uap->port.iotype = UPIO_MEM;
-	uap->port.irq = dev->irq[0];
 	uap->port.fifosize = uap->fifosize;
-	uap->port.ops = &amba_pl011_pops;
 	uap->port.flags = UPF_BOOT_AUTOCONF;
-	uap->port.line = i;
+	uap->port.line = index;
+
+	amba_ports[index] = uap;
+
+	return 0;
+}
+
+static int pl011_register_port(struct uart_amba_port *uap)
+{
+	int ret;
 
 	/* Ensure interrupts from this UART are masked and cleared */
 	writew(0, uap->port.membase + UART011_IMSC);
 	writew(0xffff, uap->port.membase + UART011_ICR);
 
-	snprintf(uap->type, sizeof(uap->type), "PL011 rev%u", amba_rev(dev));
-
-	amba_ports[i] = uap;
-
-	amba_set_drvdata(dev, uap);
-
 	if (!amba_reg.state) {
 		ret = uart_register_driver(&amba_reg);
 		if (ret < 0) {
-			dev_err(&dev->dev,
+			dev_err(uap->port.dev,
 				"Failed to register AMBA-PL011 driver\n");
 			return ret;
 		}
@@ -2242,6 +2231,43 @@ static int pl011_probe(struct amba_device *dev, const struct amba_id *id)
 		pl011_unregister_port(uap);
 
 	return ret;
+}
+
+static int pl011_probe(struct amba_device *dev, const struct amba_id *id)
+{
+	struct uart_amba_port *uap;
+	struct vendor_data *vendor = id->data;
+	int portnr, ret;
+
+	portnr = pl011_find_free_port();
+	if (portnr < 0)
+		return portnr;
+
+	uap = devm_kzalloc(&dev->dev, sizeof(struct uart_amba_port),
+			   GFP_KERNEL);
+	if (!uap)
+		return -ENOMEM;
+
+	uap->clk = devm_clk_get(&dev->dev, NULL);
+	if (IS_ERR(uap->clk))
+		return PTR_ERR(uap->clk);
+
+	uap->vendor = vendor;
+	uap->lcrh_rx = vendor->lcrh_rx;
+	uap->lcrh_tx = vendor->lcrh_tx;
+	uap->fifosize = vendor->get_fifosize(dev);
+	uap->port.irq = dev->irq[0];
+	uap->port.ops = &amba_pl011_pops;
+
+	snprintf(uap->type, sizeof(uap->type), "PL011 rev%u", amba_rev(dev));
+
+	ret = pl011_setup_port(&dev->dev, uap, &dev->res, portnr);
+	if (ret)
+		return ret;
+
+	amba_set_drvdata(dev, uap);
+
+	return pl011_register_port(uap);
 }
 
 static int pl011_remove(struct amba_device *dev)
