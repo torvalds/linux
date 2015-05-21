@@ -2137,8 +2137,12 @@ static void vcodec_read_property(struct device_node *np,
 	pservice->grf_base = (u32*)RK_GRF_VIRT;
 #endif
 	if (IS_ERR(pservice->grf_base)) {
+#ifdef CONFIG_ARM
+		pservice->grf_base = RK_GRF_VIRT;
+#else
 		vpu_err("can't find vpu grf property\n");
 		return;
+#endif
 	}
 	of_property_read_string(np, "name", (const char**)&pservice->name);
 }
