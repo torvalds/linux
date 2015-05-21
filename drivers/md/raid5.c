@@ -4234,15 +4234,10 @@ static int clear_batch_ready(struct stripe_head *sh)
 	return 0;
 }
 
-static void check_break_stripe_batch_list(struct stripe_head *sh)
+static void break_stripe_batch_list(struct stripe_head *head_sh)
 {
-	struct stripe_head *head_sh, *next;
+	struct stripe_head *sh, *next;
 	int i;
-
-	if (!test_and_clear_bit(STRIPE_BATCH_ERR, &sh->state))
-		return;
-
-	head_sh = sh;
 
 	list_for_each_entry_safe(sh, next, &head_sh->batch_list, batch_list) {
 
@@ -4290,7 +4285,8 @@ static void handle_stripe(struct stripe_head *sh)
 		return;
 	}
 
-	check_break_stripe_batch_list(sh);
+	if (test_and_clear_bit(STRIPE_BATCH_ERR, &sh->state))
+		break_stripe_batch_list(sh);
 
 	if (test_bit(STRIPE_SYNC_REQUESTED, &sh->state) && !sh->batch_head) {
 		spin_lock(&sh->stripe_lock);
