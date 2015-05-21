@@ -19,6 +19,10 @@
 
 struct rtattr;
 
+struct aead_instance {
+	struct aead_alg alg;
+};
+
 struct crypto_aead_spawn {
 	struct crypto_spawn base;
 };
@@ -33,7 +37,8 @@ static inline struct old_aead_alg *crypto_old_aead_alg(struct crypto_aead *tfm)
 
 static inline struct aead_alg *crypto_aead_alg(struct crypto_aead *tfm)
 {
-	return &crypto_aead_tfm(tfm)->__crt_alg->cra_aead;
+	return container_of(crypto_aead_tfm(tfm)->__crt_alg,
+			    struct aead_alg, base);
 }
 
 static inline void *crypto_aead_ctx(struct crypto_aead *tfm)
@@ -45,6 +50,22 @@ static inline struct crypto_instance *crypto_aead_alg_instance(
 	struct crypto_aead *aead)
 {
 	return crypto_tfm_alg_instance(&aead->base);
+}
+
+static inline struct crypto_instance *aead_crypto_instance(
+	struct aead_instance *inst)
+{
+	return container_of(&inst->alg.base, struct crypto_instance, alg);
+}
+
+static inline struct aead_instance *aead_instance(struct crypto_instance *inst)
+{
+	return container_of(&inst->alg, struct aead_instance, alg.base);
+}
+
+static inline void *aead_instance_ctx(struct aead_instance *inst)
+{
+	return crypto_instance_ctx(aead_crypto_instance(inst));
 }
 
 static inline void *aead_request_ctx(struct aead_request *req)
@@ -84,6 +105,12 @@ static inline struct crypto_alg *crypto_aead_spawn_alg(
 	return spawn->base.alg;
 }
 
+static inline struct aead_alg *crypto_spawn_aead_alg(
+	struct crypto_aead_spawn *spawn)
+{
+	return container_of(spawn->base.alg, struct aead_alg, base);
+}
+
 static inline struct crypto_aead *crypto_spawn_aead(
 	struct crypto_aead_spawn *spawn)
 {
@@ -121,8 +148,13 @@ static inline void crypto_aead_set_reqsize(struct crypto_aead *aead,
 
 static inline unsigned int crypto_aead_maxauthsize(struct crypto_aead *aead)
 {
-	return crypto_old_aead_alg(aead)->maxauthsize;
+	return aead->maxauthsize;
 }
+
+int crypto_register_aead(struct aead_alg *alg);
+int crypto_unregister_aead(struct aead_alg *alg);
+int aead_register_instance(struct crypto_template *tmpl,
+			   struct aead_instance *inst);
 
 #endif	/* _CRYPTO_INTERNAL_AEAD_H */
 

@@ -33,7 +33,6 @@ static int aead_null_givdecrypt(struct aead_givcrypt_request *req);
 static int setkey_unaligned(struct crypto_aead *tfm, const u8 *key,
 			    unsigned int keylen)
 {
-	struct old_aead_alg *aead = crypto_old_aead_alg(tfm);
 	unsigned long alignmask = crypto_aead_alignmask(tfm);
 	int ret;
 	u8 *buffer, *alignbuffer;
@@ -46,7 +45,7 @@ static int setkey_unaligned(struct crypto_aead *tfm, const u8 *key,
 
 	alignbuffer = (u8 *)ALIGN((unsigned long)buffer, alignmask + 1);
 	memcpy(alignbuffer, key, keylen);
-	ret = aead->setkey(tfm, alignbuffer, keylen);
+	ret = tfm->setkey(tfm, alignbuffer, keylen);
 	memset(alignbuffer, 0, keylen);
 	kfree(buffer);
 	return ret;
@@ -55,7 +54,6 @@ static int setkey_unaligned(struct crypto_aead *tfm, const u8 *key,
 int crypto_aead_setkey(struct crypto_aead *tfm,
 		       const u8 *key, unsigned int keylen)
 {
-	struct old_aead_alg *aead = crypto_old_aead_alg(tfm);
 	unsigned long alignmask = crypto_aead_alignmask(tfm);
 
 	tfm = tfm->child;
@@ -63,7 +61,7 @@ int crypto_aead_setkey(struct crypto_aead *tfm,
 	if ((unsigned long)key & alignmask)
 		return setkey_unaligned(tfm, key, keylen);
 
-	return aead->setkey(tfm, key, keylen);
+	return tfm->setkey(tfm, key, keylen);
 }
 EXPORT_SYMBOL_GPL(crypto_aead_setkey);
 
@@ -71,12 +69,11 @@ int crypto_aead_setauthsize(struct crypto_aead *tfm, unsigned int authsize)
 {
 	int err;
 
-	if (authsize > crypto_old_aead_alg(tfm)->maxauthsize)
+	if (authsize > tfm->maxauthsize)
 		return -EINVAL;
 
-	if (crypto_old_aead_alg(tfm)->setauthsize) {
-		err = crypto_old_aead_alg(tfm)->setauthsize(
-			tfm->child, authsize);
+	if (tfm->setauthsize) {
+		err = tfm->setauthsize(tfm->child, authsize);
 		if (err)
 			return err;
 	}
@@ -145,7 +142,7 @@ static int no_givcrypt(struct aead_givcrypt_request *req)
 	return -ENOSYS;
 }
 
-static int crypto_aead_init_tfm(struct crypto_tfm *tfm)
+static int crypto_old_aead_init_tfm(struct crypto_tfm *tfm)
 {
 	struct old_aead_alg *alg = &tfm->__crt_alg->cra_aead;
 	struct crypto_aead *crt = __crypto_aead_cast(tfm);
@@ -153,6 +150,8 @@ static int crypto_aead_init_tfm(struct crypto_tfm *tfm)
 	if (max(alg->maxauthsize, alg->ivsize) > PAGE_SIZE / 8)
 		return -EINVAL;
 
+	crt->setkey = alg->setkey;
+	crt->setauthsize = alg->setauthsize;
 	crt->encrypt = old_encrypt;
 	crt->decrypt = old_decrypt;
 	if (alg->ivsize) {
@@ -164,19 +163,98 @@ static int crypto_aead_init_tfm(struct crypto_tfm *tfm)
 	}
 	crt->child = __crypto_aead_cast(tfm);
 	crt->ivsize = alg->ivsize;
+	crt->maxauthsize = alg->maxauthsize;
 	crt->authsize = alg->maxauthsize;
 
 	return 0;
 }
 
+static int crypto_aead_init_tfm(struct crypto_tfm *tfm)
+{
+	struct crypto_aead *aead = __crypto_aead_cast(tfm);
+	struct aead_alg *alg = crypto_aead_alg(aead);
+
+	if (crypto_old_aead_alg(aead)->encrypt)
+		return crypto_old_aead_init_tfm(tfm);
+
+	aead->setkey = alg->setkey;
+	aead->setauthsize = alg->setauthsize;
+	aead->encrypt = alg->encrypt;
+	aead->decrypt = alg->decrypt;
+	aead->child = __crypto_aead_cast(tfm);
+	aead->ivsize = alg->ivsize;
+	aead->maxauthsize = alg->maxauthsize;
+	aead->authsize = alg->maxauthsize;
+
+	return 0;
+}
+
 #ifdef CONFIG_NET
-static int crypto_aead_report(struct sk_buff *skb, struct crypto_alg *alg)
+static int crypto_old_aead_report(struct sk_buff *skb, struct crypto_alg *alg)
 {
 	struct crypto_report_aead raead;
 	struct old_aead_alg *aead = &alg->cra_aead;
 
 	strncpy(raead.type, "aead", sizeof(raead.type));
 	strncpy(raead.geniv, aead->geniv ?: "<built-in>", sizeof(raead.geniv));
+
+	raead.blocksize = alg->cra_blocksize;
+	raead.maxauthsize = aead->maxauthsize;
+	raead.ivsize = aead->ivsize;
+
+	if (nla_put(skb, CRYPTOCFGA_REPORT_AEAD,
+		    sizeof(struct crypto_report_aead), &raead))
+		goto nla_put_failure;
+	return 0;
+
+nla_put_failure:
+	return -EMSGSIZE;
+}
+#else
+static int crypto_old_aead_report(struct sk_buff *skb, struct crypto_alg *alg)
+{
+	return -ENOSYS;
+}
+#endif
+
+static void crypto_old_aead_show(struct seq_file *m, struct crypto_alg *alg)
+	__attribute__ ((unused));
+static void crypto_old_aead_show(struct seq_file *m, struct crypto_alg *alg)
+{
+	struct old_aead_alg *aead = &alg->cra_aead;
+
+	seq_printf(m, "type         : aead\n");
+	seq_printf(m, "async        : %s\n", alg->cra_flags & CRYPTO_ALG_ASYNC ?
+					     "yes" : "no");
+	seq_printf(m, "blocksize    : %u\n", alg->cra_blocksize);
+	seq_printf(m, "ivsize       : %u\n", aead->ivsize);
+	seq_printf(m, "maxauthsize  : %u\n", aead->maxauthsize);
+	seq_printf(m, "geniv        : %s\n", aead->geniv ?: "<built-in>");
+}
+
+const struct crypto_type crypto_aead_type = {
+	.extsize = crypto_alg_extsize,
+	.init_tfm = crypto_aead_init_tfm,
+#ifdef CONFIG_PROC_FS
+	.show = crypto_old_aead_show,
+#endif
+	.report = crypto_old_aead_report,
+	.lookup = crypto_lookup_aead,
+	.maskclear = ~(CRYPTO_ALG_TYPE_MASK | CRYPTO_ALG_GENIV),
+	.maskset = CRYPTO_ALG_TYPE_MASK,
+	.type = CRYPTO_ALG_TYPE_AEAD,
+	.tfmsize = offsetof(struct crypto_aead, base),
+};
+EXPORT_SYMBOL_GPL(crypto_aead_type);
+
+#ifdef CONFIG_NET
+static int crypto_aead_report(struct sk_buff *skb, struct crypto_alg *alg)
+{
+	struct crypto_report_aead raead;
+	struct aead_alg *aead = container_of(alg, struct aead_alg, base);
+
+	strncpy(raead.type, "aead", sizeof(raead.type));
+	strncpy(raead.geniv, "<none>", sizeof(raead.geniv));
 
 	raead.blocksize = alg->cra_blocksize;
 	raead.maxauthsize = aead->maxauthsize;
@@ -201,7 +279,7 @@ static void crypto_aead_show(struct seq_file *m, struct crypto_alg *alg)
 	__attribute__ ((unused));
 static void crypto_aead_show(struct seq_file *m, struct crypto_alg *alg)
 {
-	struct old_aead_alg *aead = &alg->cra_aead;
+	struct aead_alg *aead = container_of(alg, struct aead_alg, base);
 
 	seq_printf(m, "type         : aead\n");
 	seq_printf(m, "async        : %s\n", alg->cra_flags & CRYPTO_ALG_ASYNC ?
@@ -209,23 +287,21 @@ static void crypto_aead_show(struct seq_file *m, struct crypto_alg *alg)
 	seq_printf(m, "blocksize    : %u\n", alg->cra_blocksize);
 	seq_printf(m, "ivsize       : %u\n", aead->ivsize);
 	seq_printf(m, "maxauthsize  : %u\n", aead->maxauthsize);
-	seq_printf(m, "geniv        : %s\n", aead->geniv ?: "<built-in>");
+	seq_printf(m, "geniv        : <none>\n");
 }
 
-const struct crypto_type crypto_aead_type = {
+static const struct crypto_type crypto_new_aead_type = {
 	.extsize = crypto_alg_extsize,
 	.init_tfm = crypto_aead_init_tfm,
 #ifdef CONFIG_PROC_FS
 	.show = crypto_aead_show,
 #endif
 	.report = crypto_aead_report,
-	.lookup = crypto_lookup_aead,
-	.maskclear = ~(CRYPTO_ALG_TYPE_MASK | CRYPTO_ALG_GENIV),
+	.maskclear = ~CRYPTO_ALG_TYPE_MASK,
 	.maskset = CRYPTO_ALG_TYPE_MASK,
 	.type = CRYPTO_ALG_TYPE_AEAD,
 	.tfmsize = offsetof(struct crypto_aead, base),
 };
-EXPORT_SYMBOL_GPL(crypto_aead_type);
 
 static int aead_null_givencrypt(struct aead_givcrypt_request *req)
 {
@@ -551,6 +627,52 @@ struct crypto_aead *crypto_alloc_aead(const char *alg_name, u32 type, u32 mask)
 	return crypto_alloc_tfm(alg_name, &crypto_aead_type, type, mask);
 }
 EXPORT_SYMBOL_GPL(crypto_alloc_aead);
+
+static int aead_prepare_alg(struct aead_alg *alg)
+{
+	struct crypto_alg *base = &alg->base;
+
+	if (max(alg->maxauthsize, alg->ivsize) > PAGE_SIZE / 8)
+		return -EINVAL;
+
+	base->cra_type = &crypto_new_aead_type;
+	base->cra_flags &= ~CRYPTO_ALG_TYPE_MASK;
+	base->cra_flags |= CRYPTO_ALG_TYPE_AEAD;
+
+	return 0;
+}
+
+int crypto_register_aead(struct aead_alg *alg)
+{
+	struct crypto_alg *base = &alg->base;
+	int err;
+
+	err = aead_prepare_alg(alg);
+	if (err)
+		return err;
+
+	return crypto_register_alg(base);
+}
+EXPORT_SYMBOL_GPL(crypto_register_aead);
+
+int crypto_unregister_aead(struct aead_alg *alg)
+{
+	return crypto_unregister_alg(&alg->base);
+}
+EXPORT_SYMBOL_GPL(crypto_unregister_aead);
+
+int aead_register_instance(struct crypto_template *tmpl,
+			   struct aead_instance *inst)
+{
+	int err;
+
+	err = aead_prepare_alg(&inst->alg);
+	if (err)
+		return err;
+
+	return crypto_register_instance(tmpl, aead_crypto_instance(inst));
+}
+EXPORT_SYMBOL_GPL(aead_register_instance);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Authenticated Encryption with Associated Data (AEAD)");
