@@ -295,6 +295,23 @@ static void cryptd_blkcipher_exit_tfm(struct crypto_tfm *tfm)
 	crypto_free_blkcipher(ctx->child);
 }
 
+static int cryptd_init_instance(struct crypto_instance *inst,
+				struct crypto_alg *alg)
+{
+	if (snprintf(inst->alg.cra_driver_name, CRYPTO_MAX_ALG_NAME,
+		     "cryptd(%s)",
+		     alg->cra_driver_name) >= CRYPTO_MAX_ALG_NAME)
+		return -ENAMETOOLONG;
+
+	memcpy(inst->alg.cra_name, alg->cra_name, CRYPTO_MAX_ALG_NAME);
+
+	inst->alg.cra_priority = alg->cra_priority + 50;
+	inst->alg.cra_blocksize = alg->cra_blocksize;
+	inst->alg.cra_alignmask = alg->cra_alignmask;
+
+	return 0;
+}
+
 static void *cryptd_alloc_instance(struct crypto_alg *alg, unsigned int head,
 				   unsigned int tail)
 {
@@ -308,16 +325,9 @@ static void *cryptd_alloc_instance(struct crypto_alg *alg, unsigned int head,
 
 	inst = (void *)(p + head);
 
-	err = -ENAMETOOLONG;
-	if (snprintf(inst->alg.cra_driver_name, CRYPTO_MAX_ALG_NAME,
-		     "cryptd(%s)", alg->cra_driver_name) >= CRYPTO_MAX_ALG_NAME)
+	err = cryptd_init_instance(inst, alg);
+	if (err)
 		goto out_free_inst;
-
-	memcpy(inst->alg.cra_name, alg->cra_name, CRYPTO_MAX_ALG_NAME);
-
-	inst->alg.cra_priority = alg->cra_priority + 50;
-	inst->alg.cra_blocksize = alg->cra_blocksize;
-	inst->alg.cra_alignmask = alg->cra_alignmask;
 
 out:
 	return p;
@@ -747,28 +757,33 @@ static int cryptd_create_aead(struct crypto_template *tmpl,
 	struct aead_instance_ctx *ctx;
 	struct crypto_instance *inst;
 	struct crypto_alg *alg;
-	u32 type = CRYPTO_ALG_TYPE_AEAD;
-	u32 mask = CRYPTO_ALG_TYPE_MASK;
+	const char *name;
+	u32 type = 0;
+	u32 mask = 0;
 	int err;
 
 	cryptd_check_internal(tb, &type, &mask);
 
-	alg = crypto_get_attr_alg(tb, type, mask);
-        if (IS_ERR(alg))
-		return PTR_ERR(alg);
+	name = crypto_attr_alg_name(tb[1]);
+	if (IS_ERR(name))
+		return PTR_ERR(name);
 
-	inst = cryptd_alloc_instance(alg, 0, sizeof(*ctx));
-	err = PTR_ERR(inst);
-	if (IS_ERR(inst))
-		goto out_put_alg;
+	inst = kzalloc(sizeof(*inst) + sizeof(*ctx), GFP_KERNEL);
+	if (!inst)
+		return -ENOMEM;
 
 	ctx = crypto_instance_ctx(inst);
 	ctx->queue = queue;
 
-	err = crypto_init_spawn(&ctx->aead_spawn.base, alg, inst,
-			CRYPTO_ALG_TYPE_MASK | CRYPTO_ALG_ASYNC);
+	crypto_set_aead_spawn(&ctx->aead_spawn, inst);
+	err = crypto_grab_aead(&ctx->aead_spawn, name, type, mask);
 	if (err)
 		goto out_free_inst;
+
+	alg = crypto_aead_spawn_alg(&ctx->aead_spawn);
+	err = cryptd_init_instance(inst, alg);
+	if (err)
+		goto out_drop_aead;
 
 	type = CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_ASYNC;
 	if (alg->cra_flags & CRYPTO_ALG_INTERNAL)
@@ -790,12 +805,11 @@ static int cryptd_create_aead(struct crypto_template *tmpl,
 
 	err = crypto_register_instance(tmpl, inst);
 	if (err) {
-		crypto_drop_spawn(&ctx->aead_spawn.base);
+out_drop_aead:
+		crypto_drop_aead(&ctx->aead_spawn);
 out_free_inst:
 		kfree(inst);
 	}
-out_put_alg:
-	crypto_mod_put(alg);
 	return err;
 }
 
