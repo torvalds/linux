@@ -2653,10 +2653,8 @@ int i915_gem_request_alloc(struct intel_engine_cs *ring,
 	req->i915 = dev_priv;
 
 	ret = i915_gem_get_seqno(ring->dev, &req->seqno);
-	if (ret) {
-		kfree(req);
-		return ret;
-	}
+	if (ret)
+		goto err;
 
 	req->ring = ring;
 
@@ -2664,13 +2662,15 @@ int i915_gem_request_alloc(struct intel_engine_cs *ring,
 		ret = intel_logical_ring_alloc_request_extras(req, ctx);
 	else
 		ret = intel_ring_alloc_request_extras(req);
-	if (ret) {
-		kfree(req);
-		return ret;
-	}
+	if (ret)
+		goto err;
 
 	ring->outstanding_lazy_request = req;
 	return 0;
+
+err:
+	kmem_cache_free(dev_priv->requests, req);
+	return ret;
 }
 
 struct drm_i915_gem_request *
