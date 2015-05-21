@@ -2035,6 +2035,8 @@ static const struct usb_device_id af9035_id_table[] = {
 		&af9035_props, "Asus U3100Mini Plus", NULL) },
 	{ DVB_USB_DEVICE(USB_VID_TERRATEC, 0x00aa,
 		&af9035_props, "TerraTec Cinergy T Stick (rev. 2)", NULL) },
+	{ DVB_USB_DEVICE(USB_VID_AVERMEDIA, 0x0337,
+		&af9035_props, "AVerMedia HD Volar (A867)", NULL) },
 
 	/* IT9135 devices */
 	{ DVB_USB_DEVICE(USB_VID_ITETECH, USB_PID_ITETECH_IT9135,
