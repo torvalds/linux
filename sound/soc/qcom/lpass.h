@@ -49,6 +49,9 @@ struct lpass_data {
 	/* SOC specific variations in the LPASS IP integration */
 	struct lpass_variant *variant;
 
+	/* bit map to keep track of static channel allocations */
+	unsigned long rdma_ch_bit_map;
+
 	/* used it for handling interrupt per dma channel */
 	struct snd_pcm_substream *substream[LPASS_MAX_DMA_CHANNELS];
 };
