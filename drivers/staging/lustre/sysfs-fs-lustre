@@ -91,3 +91,9 @@ Date:		May 2015
 Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
 Description:
 		Shows filesystem type of the filesystem
+
+What:		/sys/fs/lustre/llite/<fsname>-<uuid>/uuid
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Shows this filesystem superblock uuid
