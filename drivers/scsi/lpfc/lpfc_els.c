@@ -4587,16 +4587,16 @@ lpfc_els_disc_plogi(struct lpfc_vport *vport)
 		if (!NLP_CHK_NODE_ACT(ndlp))
 			continue;
 		if (ndlp->nlp_state == NLP_STE_NPR_NODE &&
-		    (ndlp->nlp_flag & NLP_NPR_2B_DISC) != 0 &&
-		    (ndlp->nlp_flag & NLP_DELAY_TMO) == 0 &&
-		    (ndlp->nlp_flag & NLP_NPR_ADISC) == 0) {
+				(ndlp->nlp_flag & NLP_NPR_2B_DISC) != 0 &&
+				(ndlp->nlp_flag & NLP_DELAY_TMO) == 0 &&
+				(ndlp->nlp_flag & NLP_NPR_ADISC) == 0) {
 			ndlp->nlp_prev_state = ndlp->nlp_state;
 			lpfc_nlp_set_state(vport, ndlp, NLP_STE_PLOGI_ISSUE);
 			lpfc_issue_els_plogi(vport, ndlp->nlp_DID, 0);
 			sentplogi++;
 			vport->num_disc_nodes++;
 			if (vport->num_disc_nodes >=
-			    vport->cfg_discovery_threads) {
+					vport->cfg_discovery_threads) {
 				spin_lock_irq(shost->host_lock);
 				vport->fc_flag |= FC_NLP_MORE;
 				spin_unlock_irq(shost->host_lock);
@@ -4614,6 +4614,233 @@ lpfc_els_disc_plogi(struct lpfc_vport *vport)
 	}
 	return sentplogi;
 }
+
+static void
+lpfc_els_lcb_rsp(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
+{
+	MAILBOX_t *mb;
+	IOCB_t *icmd;
+	uint8_t *pcmd;
+	struct lpfc_iocbq *elsiocb;
+	struct lpfc_nodelist *ndlp;
+	struct ls_rjt *stat;
+	struct lpfc_lcb_context *lcb_context;
+	struct fc_lcb_res_frame *lcb_res;
+	uint32_t cmdsize;
+	int rc;
+
+	mb = &pmb->u.mb;
+
+	lcb_context = (struct lpfc_lcb_context *)pmb->context1;
+	ndlp = lcb_context->ndlp;
+	pmb->context1 = NULL;
+	pmb->context2 = NULL;
+
+	if (mb->mbxStatus) {
+		mempool_free(pmb, phba->mbox_mem_pool);
+		goto error;
+	}
+
+	mempool_free(pmb, phba->mbox_mem_pool);
+
+	cmdsize = sizeof(struct fc_lcb_res_frame);
+	elsiocb = lpfc_prep_els_iocb(phba->pport, 0, cmdsize,
+			lpfc_max_els_tries, ndlp,
+			ndlp->nlp_DID, ELS_CMD_ACC);
+
+	/* Decrement the ndlp reference count from previous mbox command */
+	lpfc_nlp_put(ndlp);
+
+	if (!elsiocb)
+		goto free_lcb_context;
+
+	lcb_res = (struct fc_lcb_res_frame *)
+		(((struct lpfc_dmabuf *)elsiocb->context2)->virt);
+
+	icmd = &elsiocb->iocb;
+	icmd->ulpContext = lcb_context->rx_id;
+	icmd->unsli3.rcvsli3.ox_id = lcb_context->ox_id;
+
+	pcmd = (uint8_t *)(((struct lpfc_dmabuf *)elsiocb->context2)->virt);
+	*((uint32_t *)(pcmd)) = ELS_CMD_ACC;
+	lcb_res->lcb_sub_command = lcb_context->sub_command;
+	lcb_res->lcb_type = lcb_context->type;
+	lcb_res->lcb_frequency = lcb_context->frequency;
+	elsiocb->iocb_cmpl = lpfc_cmpl_els_rsp;
+	phba->fc_stat.elsXmitACC++;
+	rc = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, elsiocb, 0);
+	if (rc == IOCB_ERROR)
+		lpfc_els_free_iocb(phba, elsiocb);
+
+	kfree(lcb_context);
+	return;
+
+error:
+	cmdsize = sizeof(struct fc_lcb_res_frame);
+	elsiocb = lpfc_prep_els_iocb(phba->pport, 0, cmdsize,
+			lpfc_max_els_tries, ndlp,
+			ndlp->nlp_DID, ELS_CMD_LS_RJT);
+	lpfc_nlp_put(ndlp);
+	if (!elsiocb)
+		goto free_lcb_context;
+
+	icmd = &elsiocb->iocb;
+	icmd->ulpContext = lcb_context->rx_id;
+	icmd->unsli3.rcvsli3.ox_id = lcb_context->ox_id;
+	pcmd = (uint8_t *)(((struct lpfc_dmabuf *)elsiocb->context2)->virt);
+
+	*((uint32_t *)(pcmd)) = ELS_CMD_LS_RJT;
+	stat = (struct ls_rjt *)(pcmd + sizeof(uint32_t));
+	stat->un.b.lsRjtRsnCode = LSRJT_UNABLE_TPC;
+
+	elsiocb->iocb_cmpl = lpfc_cmpl_els_rsp;
+	phba->fc_stat.elsXmitLSRJT++;
+	rc = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, elsiocb, 0);
+	if (rc == IOCB_ERROR)
+		lpfc_els_free_iocb(phba, elsiocb);
+free_lcb_context:
+	kfree(lcb_context);
+}
+
+static int
+lpfc_sli4_set_beacon(struct lpfc_vport *vport,
+		     struct lpfc_lcb_context *lcb_context,
+		     uint32_t beacon_state)
+{
+	struct lpfc_hba *phba = vport->phba;
+	LPFC_MBOXQ_t *mbox = NULL;
+	uint32_t len;
+	int rc;
+
+	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mbox)
+		return 1;
+
+	len = sizeof(struct lpfc_mbx_set_beacon_config) -
+		sizeof(struct lpfc_sli4_cfg_mhdr);
+	lpfc_sli4_config(phba, mbox, LPFC_MBOX_SUBSYSTEM_COMMON,
+			 LPFC_MBOX_OPCODE_SET_BEACON_CONFIG, len,
+			 LPFC_SLI4_MBX_EMBED);
+	mbox->context1 = (void *)lcb_context;
+	mbox->vport = phba->pport;
+	mbox->mbox_cmpl = lpfc_els_lcb_rsp;
+	bf_set(lpfc_mbx_set_beacon_port_num, &mbox->u.mqe.un.beacon_config,
+	       phba->sli4_hba.physical_port);
+	bf_set(lpfc_mbx_set_beacon_state, &mbox->u.mqe.un.beacon_config,
+	       beacon_state);
+	bf_set(lpfc_mbx_set_beacon_port_type, &mbox->u.mqe.un.beacon_config, 1);
+	bf_set(lpfc_mbx_set_beacon_duration, &mbox->u.mqe.un.beacon_config, 0);
+	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
+	if (rc == MBX_NOT_FINISHED) {
+		mempool_free(mbox, phba->mbox_mem_pool);
+		return 1;
+	}
+
+	return 0;
+}
+
+
+/**
+ * lpfc_els_rcv_lcb - Process an unsolicited LCB
+ * @vport: pointer to a host virtual N_Port data structure.
+ * @cmdiocb: pointer to lpfc command iocb data structure.
+ * @ndlp: pointer to a node-list data structure.
+ *
+ * This routine processes an unsolicited LCB(LINK CABLE BEACON) IOCB.
+ * First, the payload of the unsolicited LCB is checked.
+ * Then based on Subcommand beacon will either turn on or off.
+ *
+ * Return code
+ * 0 - Sent the acc response
+ * 1 - Sent the reject response.
+ **/
+static int
+lpfc_els_rcv_lcb(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
+		 struct lpfc_nodelist *ndlp)
+{
+	struct lpfc_hba *phba = vport->phba;
+	struct lpfc_dmabuf *pcmd;
+	IOCB_t *icmd;
+	uint8_t *lp;
+	struct fc_lcb_request_frame *beacon;
+	struct lpfc_lcb_context *lcb_context;
+	uint8_t state, rjt_err;
+	struct ls_rjt stat;
+
+	icmd = &cmdiocb->iocb;
+	pcmd = (struct lpfc_dmabuf *)cmdiocb->context2;
+	lp = (uint8_t *)pcmd->virt;
+	beacon = (struct fc_lcb_request_frame *)pcmd->virt;
+
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
+			"0192 ELS LCB Data x%x x%x x%x x%x sub x%x "
+			"type x%x frequency %x duration x%x\n",
+			lp[0], lp[1], lp[2],
+			beacon->lcb_command,
+			beacon->lcb_sub_command,
+			beacon->lcb_type,
+			beacon->lcb_frequency,
+			be16_to_cpu(beacon->lcb_duration));
+
+	if (phba->sli_rev < LPFC_SLI_REV4 ||
+	    (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) !=
+	    LPFC_SLI_INTF_IF_TYPE_2)) {
+		rjt_err = LSRJT_CMD_UNSUPPORTED;
+		goto rjt;
+	}
+	lcb_context = kmalloc(sizeof(struct lpfc_lcb_context), GFP_KERNEL);
+
+	if (phba->hba_flag & HBA_FCOE_MODE) {
+		rjt_err = LSRJT_CMD_UNSUPPORTED;
+		goto rjt;
+	}
+	if (beacon->lcb_frequency == 0) {
+		rjt_err = LSRJT_CMD_UNSUPPORTED;
+		goto rjt;
+	}
+	if ((beacon->lcb_type != LPFC_LCB_GREEN) &&
+	    (beacon->lcb_type != LPFC_LCB_AMBER)) {
+		rjt_err = LSRJT_CMD_UNSUPPORTED;
+		goto rjt;
+	}
+	if ((beacon->lcb_sub_command != LPFC_LCB_ON) &&
+	    (beacon->lcb_sub_command != LPFC_LCB_OFF)) {
+		rjt_err = LSRJT_CMD_UNSUPPORTED;
+		goto rjt;
+	}
+	if ((beacon->lcb_sub_command == LPFC_LCB_ON) &&
+	    (beacon->lcb_type != LPFC_LCB_GREEN) &&
+	    (beacon->lcb_type != LPFC_LCB_AMBER)) {
+		rjt_err = LSRJT_CMD_UNSUPPORTED;
+		goto rjt;
+	}
+	if (be16_to_cpu(beacon->lcb_duration) != 0) {
+		rjt_err = LSRJT_CMD_UNSUPPORTED;
+		goto rjt;
+	}
+
+	state = (beacon->lcb_sub_command == LPFC_LCB_ON) ? 1 : 0;
+	lcb_context->sub_command = beacon->lcb_sub_command;
+	lcb_context->type = beacon->lcb_type;
+	lcb_context->frequency = beacon->lcb_frequency;
+	lcb_context->ox_id = cmdiocb->iocb.unsli3.rcvsli3.ox_id;
+	lcb_context->rx_id = cmdiocb->iocb.ulpContext;
+	lcb_context->ndlp = lpfc_nlp_get(ndlp);
+	if (lpfc_sli4_set_beacon(vport, lcb_context, state)) {
+		lpfc_printf_vlog(ndlp->vport, KERN_ERR,
+				 LOG_ELS, "0193 failed to send mail box");
+		lpfc_nlp_put(ndlp);
+		rjt_err = LSRJT_UNABLE_TPC;
+		goto rjt;
+	}
+	return 0;
+rjt:
+	memset(&stat, 0, sizeof(stat));
+	stat.un.b.lsRjtRsnCode = rjt_err;
+	lpfc_els_rsp_reject(vport, stat.un.lsRjtError, cmdiocb, ndlp, NULL);
+	return 1;
+}
+
 
 /**
  * lpfc_els_flush_rscn - Clean up any rscn activities with a vport
@@ -6820,6 +7047,10 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			break;
 		}
 		lpfc_disc_state_machine(vport, ndlp, elsiocb, NLP_EVT_RCV_PRLO);
+		break;
+	case ELS_CMD_LCB:
+		phba->fc_stat.elsRcvLCB++;
+		lpfc_els_rcv_lcb(vport, elsiocb, ndlp);
 		break;
 	case ELS_CMD_RSCN:
 		phba->fc_stat.elsRcvRSCN++;

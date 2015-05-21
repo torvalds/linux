@@ -914,6 +914,8 @@ struct mbox_header {
 #define LPFC_MBOX_OPCODE_FUNCTION_RESET			0x3D
 #define LPFC_MBOX_OPCODE_SET_PHYSICAL_LINK_CONFIG	0x3E
 #define LPFC_MBOX_OPCODE_SET_BOOT_CONFIG		0x43
+#define LPFC_MBOX_OPCODE_SET_BEACON_CONFIG              0x45
+#define LPFC_MBOX_OPCODE_GET_BEACON_CONFIG              0x46
 #define LPFC_MBOX_OPCODE_GET_PORT_NAME			0x4D
 #define LPFC_MBOX_OPCODE_MQ_CREATE_EXT			0x5A
 #define LPFC_MBOX_OPCODE_GET_VPD_DATA			0x5B
@@ -1477,6 +1479,26 @@ struct lpfc_mbx_query_fw_config {
 		uint32_t ulp0_nap2_words[2];
 		uint32_t ulp1_nap2_words[2];
 	} rsp;
+};
+
+struct lpfc_mbx_set_beacon_config {
+	struct mbox_header header;
+	uint32_t word4;
+#define lpfc_mbx_set_beacon_port_num_SHIFT		0
+#define lpfc_mbx_set_beacon_port_num_MASK		0x0000003F
+#define lpfc_mbx_set_beacon_port_num_WORD		word4
+#define lpfc_mbx_set_beacon_port_type_SHIFT		6
+#define lpfc_mbx_set_beacon_port_type_MASK		0x00000003
+#define lpfc_mbx_set_beacon_port_type_WORD		word4
+#define lpfc_mbx_set_beacon_state_SHIFT			8
+#define lpfc_mbx_set_beacon_state_MASK			0x000000FF
+#define lpfc_mbx_set_beacon_state_WORD			word4
+#define lpfc_mbx_set_beacon_duration_SHIFT		16
+#define lpfc_mbx_set_beacon_duration_MASK		0x000000FF
+#define lpfc_mbx_set_beacon_duration_WORD		word4
+#define lpfc_mbx_set_beacon_status_duration_SHIFT	24
+#define lpfc_mbx_set_beacon_status_duration_MASK	0x000000FF
+#define lpfc_mbx_set_beacon_status_duration_WORD	word4
 };
 
 struct lpfc_id_range {
@@ -3021,6 +3043,7 @@ struct lpfc_mqe {
 		struct lpfc_mbx_request_features req_ftrs;
 		struct lpfc_mbx_post_hdr_tmpl hdr_tmpl;
 		struct lpfc_mbx_query_fw_config query_fw_cfg;
+		struct lpfc_mbx_set_beacon_config beacon_config;
 		struct lpfc_mbx_supp_pages supp_pages;
 		struct lpfc_mbx_pc_sli4_params sli4_params;
 		struct lpfc_mbx_get_sli4_parameters get_sli4_parameters;
@@ -3041,8 +3064,8 @@ struct lpfc_mcqe {
 #define lpfc_mcqe_status_MASK		0x0000FFFF
 #define lpfc_mcqe_status_WORD		word0
 #define lpfc_mcqe_ext_status_SHIFT	16
-#define lpfc_mcqe_ext_status_MASK  	0x0000FFFF
-#define lpfc_mcqe_ext_status_WORD 	word0
+#define lpfc_mcqe_ext_status_MASK	0x0000FFFF
+#define lpfc_mcqe_ext_status_WORD	word0
 	uint32_t mcqe_tag0;
 	uint32_t mcqe_tag1;
 	uint32_t trailer;

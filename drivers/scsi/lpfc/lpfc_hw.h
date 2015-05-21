@@ -558,6 +558,7 @@ struct fc_vft_header {
 #define ELS_CMD_SCR       0x62000000
 #define ELS_CMD_RNID      0x78000000
 #define ELS_CMD_LIRR      0x7A000000
+#define ELS_CMD_LCB	  0x81000000
 #else	/*  __LITTLE_ENDIAN_BITFIELD */
 #define ELS_CMD_MASK      0xffff
 #define ELS_RSP_MASK      0xff
@@ -595,6 +596,7 @@ struct fc_vft_header {
 #define ELS_CMD_SCR       0x62
 #define ELS_CMD_RNID      0x78
 #define ELS_CMD_LIRR      0x7A
+#define ELS_CMD_LCB	  0x81
 #endif
 
 /*
@@ -1009,6 +1011,36 @@ typedef struct _ELS_PKT {	/* Structure is in Big Endian format */
 		uint8_t pad[128 - 4];	/* Pad out to payload of 128 bytes */
 	} un;
 } ELS_PKT;
+
+/*
+ * Link Cable Beacon (LCB) ELS Frame
+ */
+
+struct fc_lcb_request_frame {
+	uint32_t      lcb_command;      /* ELS command opcode (0x81)     */
+	uint8_t       lcb_sub_command;/* LCB Payload Word 1, bit 24:31 */
+#define LPFC_LCB_ON    0x1
+#define LPFC_LCB_OFF   0x2
+	uint8_t       reserved[3];
+
+	uint8_t       lcb_type; /* LCB Payload Word 2, bit 24:31 */
+#define LPFC_LCB_GREEN 0x1
+#define LPFC_LCB_AMBER 0x2
+	uint8_t       lcb_frequency;    /* LCB Payload Word 2, bit 16:23 */
+	uint16_t      lcb_duration;     /* LCB Payload Word 2, bit 15:0  */
+};
+
+/*
+ * Link Cable Beacon (LCB) ELS Response Frame
+ */
+struct fc_lcb_res_frame {
+	uint32_t      lcb_ls_acc;       /* Acceptance of LCB request (0x02) */
+	uint8_t       lcb_sub_command;/* LCB Payload Word 1, bit 24:31 */
+	uint8_t       reserved[3];
+	uint8_t       lcb_type; /* LCB Payload Word 2, bit 24:31 */
+	uint8_t       lcb_frequency;    /* LCB Payload Word 2, bit 16:23 */
+	uint16_t      lcb_duration;     /* LCB Payload Word 2, bit 15:0  */
+};
 
 /******** FDMI ********/
 

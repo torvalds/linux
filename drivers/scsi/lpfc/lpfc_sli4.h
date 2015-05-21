@@ -602,6 +602,7 @@ struct lpfc_sli4_hba {
 	struct lpfc_iov iov;
 	spinlock_t abts_scsi_buf_list_lock; /* list of aborted SCSI IOs */
 	spinlock_t abts_sgl_list_lock; /* list of aborted els IOs */
+	uint32_t physical_port;
 
 	/* CPU to vector mapping information */
 	struct lpfc_vector_map_info *cpu_map;
@@ -650,6 +651,16 @@ struct lpfc_rsrc_blks {
 	uint16_t rsrc_size;
 	uint16_t rsrc_used;
 };
+
+struct lpfc_lcb_context {
+	uint8_t  sub_command;
+	uint8_t  type;
+	uint8_t  frequency;
+	uint16_t ox_id;
+	uint16_t rx_id;
+	struct lpfc_nodelist *ndlp;
+};
+
 
 /*
  * SLI4 specific function prototypes
