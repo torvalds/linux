@@ -1629,7 +1629,7 @@ static int only_one_child(struct pci_bus *bus)
 		return 0;
 	if (pci_pcie_type(parent) == PCI_EXP_TYPE_ROOT_PORT)
 		return 1;
-	if (pci_pcie_type(parent) == PCI_EXP_TYPE_DOWNSTREAM &&
+	if (parent->has_secondary_link &&
 	    !pci_has_flag(PCI_SCAN_ALL_PCIE_DEVS))
 		return 1;
 	return 0;
