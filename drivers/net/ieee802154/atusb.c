@@ -469,6 +469,12 @@ static int atusb_get_and_show_revision(struct atusb *atusb)
 		dev_info(&usb_dev->dev,
 			 "Firmware: major: %u, minor: %u, hardware type: %u\n",
 			 buffer[0], buffer[1], buffer[2]);
+	if (buffer[0] == 0 && buffer[1] < 2) {
+		dev_info(&usb_dev->dev,
+			 "Firmware version (%u.%u) is predates our first public release.",
+			 buffer[0], buffer[1]);
+		dev_info(&usb_dev->dev, "Please update to version 0.2 or newer");
+	}
 
 	return ret;
 }
