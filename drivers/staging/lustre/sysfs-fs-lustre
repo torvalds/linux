@@ -223,6 +223,13 @@ Description:
 		0 - LRU size is unlimited, controlled by server resources
 		positive number - number of locks to allow in lock LRU list
 
+What:		/sys/fs/lustre/ldlm/namespaces/<name>/lock_unused_count
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Display number of locks currently sitting in the LRU list
+		of this namespace
+
 What:		/sys/fs/lustre/ldlm/namespaces/<name>/early_lock_cancel
 Date:		May 2015
 Contact:	"Oleg Drokin" <oleg.drokin@intel.com>

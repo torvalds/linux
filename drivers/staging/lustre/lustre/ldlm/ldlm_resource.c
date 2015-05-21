@@ -179,6 +179,17 @@ static ssize_t lock_count_show(struct kobject *kobj, struct attribute *attr,
 }
 LUSTRE_RO_ATTR(lock_count);
 
+static ssize_t lock_unused_count_show(struct kobject *kobj,
+				      struct attribute *attr,
+				      char *buf)
+{
+	struct ldlm_namespace *ns = container_of(kobj, struct ldlm_namespace,
+						 ns_kobj);
+
+	return sprintf(buf, "%d\n", ns->ns_nr_unused);
+}
+LUSTRE_RO_ATTR(lock_unused_count);
+
 static ssize_t lru_size_show(struct kobject *kobj, struct attribute *attr,
 			     char *buf)
 {
@@ -312,6 +323,7 @@ LUSTRE_RW_ATTR(early_lock_cancel);
 static struct attribute *ldlm_ns_attrs[] = {
 	&lustre_attr_resource_count.attr,
 	&lustre_attr_lock_count.attr,
+	&lustre_attr_lock_unused_count.attr,
 	&lustre_attr_lru_size.attr,
 	&lustre_attr_early_lock_cancel.attr,
 	NULL,
@@ -402,8 +414,6 @@ int ldlm_namespace_proc_register(struct ldlm_namespace *ns)
 	lock_vars[0].name = lock_name;
 
 	if (ns_is_client(ns)) {
-		LDLM_NS_ADD_VAR("lock_unused_count", &ns->ns_nr_unused,
-				&ldlm_uint_fops);
 		LDLM_NS_ADD_VAR("lru_max_age", &ns->ns_max_age,
 				&ldlm_rw_uint_fops);
 	} else {
