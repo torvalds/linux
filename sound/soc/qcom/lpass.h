@@ -22,6 +22,7 @@
 #include <linux/regmap.h>
 
 #define LPASS_AHBIX_CLOCK_FREQUENCY		131072000
+#define LPASS_MAX_MI2S_PORTS			(8)
 
 /* Both the CPU DAI and platform drivers will access this data */
 struct lpass_data {
@@ -30,10 +31,10 @@ struct lpass_data {
 	struct clk *ahbix_clk;
 
 	/* MI2S system clock */
-	struct clk *mi2s_osr_clk;
+	struct clk *mi2s_osr_clk[LPASS_MAX_MI2S_PORTS];
 
 	/* MI2S bit clock (derived from system clock by a divider */
-	struct clk *mi2s_bit_clk;
+	struct clk *mi2s_bit_clk[LPASS_MAX_MI2S_PORTS];
 
 	/* low-power audio interface (LPAIF) registers */
 	void __iomem *lpaif;
