@@ -907,6 +907,23 @@ static int check_call(struct verifier_env *env, int func_id)
 			fn->ret_type, func_id);
 		return -EINVAL;
 	}
+
+	if (map && map->map_type == BPF_MAP_TYPE_PROG_ARRAY &&
+	    func_id != BPF_FUNC_tail_call)
+		/* prog_array map type needs extra care:
+		 * only allow to pass it into bpf_tail_call() for now.
+		 * bpf_map_delete_elem() can be allowed in the future,
+		 * while bpf_map_update_elem() must only be done via syscall
+		 */
+		return -EINVAL;
+
+	if (func_id == BPF_FUNC_tail_call &&
+	    map->map_type != BPF_MAP_TYPE_PROG_ARRAY)
+		/* don't allow any other map type to be passed into
+		 * bpf_tail_call()
+		 */
+		return -EINVAL;
+
 	return 0;
 }
 
