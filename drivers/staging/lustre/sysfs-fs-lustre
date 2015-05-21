@@ -249,3 +249,65 @@ Description:
 		in significant speedups due to reduced lock-pingpong RPCs.
 		0 - disabled
 		1 - enabled (default)
+
+What:		/sys/fs/lustre/ldlm/namespaces/<name>/pool/granted
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Displays number of granted locks in this namespace
+
+What:		/sys/fs/lustre/ldlm/namespaces/<name>/pool/grant_rate
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Number of granted locks in this namespace during last
+		time interval
+
+What:		/sys/fs/lustre/ldlm/namespaces/<name>/pool/cancel_rate
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Number of lock cancellations in this namespace during
+		last time interval
+
+What:		/sys/fs/lustre/ldlm/namespaces/<name>/pool/grant_speed
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Calculated speed of lock granting (grant_rate - cancel_rate)
+		in this namespace
+
+What:		/sys/fs/lustre/ldlm/namespaces/<name>/pool/grant_plan
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Estimated number of locks to be granted in the next time
+		interval in this namespace
+
+What:		/sys/fs/lustre/ldlm/namespaces/<name>/pool/limit
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls number of allowed locks in this pool.
+		When lru_size is 0, this is the actual limit then.
+
+What:		/sys/fs/lustre/ldlm/namespaces/<name>/pool/lock_volume_factor
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Multiplier for all lock volume calculations above.
+		Default is 1. Increase to make the client to more agressively
+		clean it's lock LRU list for this namespace.
+
+What:		/sys/fs/lustre/ldlm/namespaces/<name>/pool/server_lock_volume
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Calculated server lock volume.
+
+What:		/sys/fs/lustre/ldlm/namespaces/<name>/pool/recalc_period
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls length of time between recalculation of above
+		values (in seconds).
