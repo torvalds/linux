@@ -364,7 +364,12 @@ static ssize_t display_show_monspecs(struct device *dev,
 static ssize_t display_show_debug(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
-	return -EINVAL;
+	struct rk_display_device *dsp = dev_get_drvdata(dev);
+
+	if (dsp->ops && dsp->ops->getdebug)
+		return dsp->ops->getdebug(dsp, buf);
+	else
+		return -EINVAL;
 }
 
 static ssize_t display_store_debug(struct device *dev,

@@ -61,6 +61,7 @@ struct rk_display_ops {
 	int (*getcolor)(struct rk_display_device *, char *);
 	int (*setcolor)(struct rk_display_device *, const char *, int);
 	int (*setdebug)(struct rk_display_device *, int);
+	int (*getdebug)(struct rk_display_device *, char *);
 	int (*getedidaudioinfo)(struct rk_display_device *,
 				char *audioinfo, int len);
 	int (*getmonspecs)(struct rk_display_device *,
