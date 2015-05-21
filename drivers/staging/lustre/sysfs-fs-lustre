@@ -1,0 +1,41 @@
+What:		/sys/fs/lustre/version
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Shows current running lustre version.
+
+What:		/sys/fs/lustre/pinger
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Shows if the lustre module has pinger support.
+		"on" means yes and "off" means no.
+
+What:		/sys/fs/lustre/health
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Shows whenever current system state believed to be "healthy",
+		"NOT HEALTHY", or "LBUG" whenever lustre has experienced
+		an internal assertion failure
+
+What:		/sys/fs/lustre/jobid_name
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Currently running job "name" for this node to be transferred
+		to Lustre servers for purposes of QoS and statistics gathering.
+		Writing into this file will change the name, reading outputs
+		currently set value.
+
+What:		/sys/fs/lustre/jobid_var
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Control file for lustre "jobstats" functionality, write new
+		value from the list below to change the mode:
+		disable - disable job name reporting to the servers (default)
+		procname_uid - form the job name as the current running
+			       command name and pid with a dot in between
+			       e.g. dd.1253
+		nodelocal - use jobid_name value from above.

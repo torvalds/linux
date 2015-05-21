@@ -350,6 +350,8 @@ enum {
 /* class_obd.c */
 extern struct proc_dir_entry *proc_lustre_root;
 
+extern struct kobject *lustre_kobj;
+
 struct obd_device;
 struct obd_histogram;
 
