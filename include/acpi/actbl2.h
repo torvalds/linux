@@ -824,7 +824,7 @@ struct acpi_ivrs_memory {
  *
  * LPIT - Low Power Idle Table
  *
- * Conforms to "ACPI Low Power Idle Table (LPIT) and _LPD Proposal (DRAFT)"
+ * Conforms to "ACPI Low Power Idle Table (LPIT)" July 2014.
  *
  ******************************************************************************/
 
@@ -846,8 +846,7 @@ struct acpi_lpit_header {
 
 enum acpi_lpit_type {
 	ACPI_LPIT_TYPE_NATIVE_CSTATE = 0x00,
-	ACPI_LPIT_TYPE_SIMPLE_IO = 0x01,
-	ACPI_LPIT_TYPE_RESERVED = 0x02	/* 2 and above are reserved */
+	ACPI_LPIT_TYPE_RESERVED = 0x01	/* 1 and above are reserved */
 };
 
 /* Masks for Flags field above  */
@@ -864,21 +863,6 @@ enum acpi_lpit_type {
 struct acpi_lpit_native {
 	struct acpi_lpit_header header;
 	struct acpi_generic_address entry_trigger;
-	u32 residency;
-	u32 latency;
-	struct acpi_generic_address residency_counter;
-	u64 counter_frequency;
-};
-
-/* 0x01: Simple I/O based LPI structure */
-
-struct acpi_lpit_io {
-	struct acpi_lpit_header header;
-	struct acpi_generic_address entry_trigger;
-	u32 trigger_action;
-	u64 trigger_value;
-	u64 trigger_mask;
-	struct acpi_generic_address minimum_idle_state;
 	u32 residency;
 	u32 latency;
 	struct acpi_generic_address residency_counter;
