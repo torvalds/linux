@@ -66,8 +66,12 @@ int iscsit_load_discovery_tpg(void)
 		pr_err("Unable to allocate struct iscsi_portal_group\n");
 		return -1;
 	}
-
-	ret = core_tpg_register(&iscsi_ops, NULL, &tpg->tpg_se_tpg, -1);
+	/*
+	 * Save iscsi_ops pointer for special case discovery TPG that
+	 * doesn't exist as se_wwn->wwn_group within configfs.
+	 */
+	tpg->tpg_se_tpg.se_tpg_tfo = &iscsi_ops;
+	ret = core_tpg_register(NULL, &tpg->tpg_se_tpg, -1);
 	if (ret < 0) {
 		kfree(tpg);
 		return -1;

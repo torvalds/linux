@@ -1419,8 +1419,7 @@ static struct se_portal_group *lio_target_tiqn_addtpg(
 	if (!tpg)
 		return NULL;
 
-	ret = core_tpg_register(&iscsi_ops, wwn, &tpg->tpg_se_tpg,
-				SCSI_PROTOCOL_ISCSI);
+	ret = core_tpg_register(wwn, &tpg->tpg_se_tpg, SCSI_PROTOCOL_ISCSI);
 	if (ret < 0)
 		return NULL;
 

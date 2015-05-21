@@ -203,8 +203,6 @@ static LIST_HEAD(scsiback_free_pages);
 static DEFINE_MUTEX(scsiback_mutex);
 static LIST_HEAD(scsiback_list);
 
-static const struct target_core_fabric_ops scsiback_ops;
-
 static void scsiback_get(struct vscsibk_info *info)
 {
 	atomic_inc(&info->nr_unreplied_reqs);
@@ -1765,8 +1763,7 @@ scsiback_make_tpg(struct se_wwn *wwn,
 	tpg->tport = tport;
 	tpg->tport_tpgt = tpgt;
 
-	ret = core_tpg_register(&scsiback_ops, wwn, &tpg->se_tpg,
-				tport->tport_proto_id);
+	ret = core_tpg_register(wwn, &tpg->se_tpg, tport->tport_proto_id);
 	if (ret < 0) {
 		kfree(tpg);
 		return NULL;

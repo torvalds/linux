@@ -52,9 +52,6 @@
 static struct workqueue_struct *tcm_qla2xxx_free_wq;
 static struct workqueue_struct *tcm_qla2xxx_cmd_wq;
 
-static const struct target_core_fabric_ops tcm_qla2xxx_ops;
-static const struct target_core_fabric_ops tcm_qla2xxx_npiv_ops;
-
 /*
  * Parse WWN.
  * If strict, we require lower-case hex and colon separators to be sure
@@ -1004,8 +1001,7 @@ static struct se_portal_group *tcm_qla2xxx_make_tpg(
 	tpg->tpg_attrib.cache_dynamic_acls = 1;
 	tpg->tpg_attrib.demo_mode_login_only = 1;
 
-	ret = core_tpg_register(&tcm_qla2xxx_ops, wwn, &tpg->se_tpg,
-				SCSI_PROTOCOL_FCP);
+	ret = core_tpg_register(wwn, &tpg->se_tpg, SCSI_PROTOCOL_FCP);
 	if (ret < 0) {
 		kfree(tpg);
 		return NULL;
@@ -1124,8 +1120,7 @@ static struct se_portal_group *tcm_qla2xxx_npiv_make_tpg(
 	tpg->tpg_attrib.cache_dynamic_acls = 1;
 	tpg->tpg_attrib.demo_mode_login_only = 1;
 
-	ret = core_tpg_register(&tcm_qla2xxx_npiv_ops, wwn, &tpg->se_tpg,
-				SCSI_PROTOCOL_FCP);
+	ret = core_tpg_register(wwn, &tpg->se_tpg, SCSI_PROTOCOL_FCP);
 	if (ret < 0) {
 		kfree(tpg);
 		return NULL;

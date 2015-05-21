@@ -47,8 +47,6 @@
 
 #include "tcm_fc.h"
 
-static const struct target_core_fabric_ops ft_fabric_ops;
-
 static LIST_HEAD(ft_wwn_list);
 DEFINE_MUTEX(ft_lport_lock);
 
@@ -282,8 +280,7 @@ static struct se_portal_group *ft_add_tpg(
 		return NULL;
 	}
 
-	ret = core_tpg_register(&ft_fabric_ops, wwn, &tpg->se_tpg,
-				SCSI_PROTOCOL_FCP);
+	ret = core_tpg_register(wwn, &tpg->se_tpg, SCSI_PROTOCOL_FCP);
 	if (ret < 0) {
 		destroy_workqueue(wq);
 		kfree(tpg);

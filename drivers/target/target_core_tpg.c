@@ -37,6 +37,7 @@
 
 #include <target/target_core_base.h>
 #include <target/target_core_backend.h>
+#include <target/target_core_configfs.h>
 #include <target/target_core_fabric.h>
 
 #include "target_core_internal.h"
@@ -487,16 +488,34 @@ static void core_tpg_lun_ref_release(struct percpu_ref *ref)
 }
 
 int core_tpg_register(
-	const struct target_core_fabric_ops *tfo,
 	struct se_wwn *se_wwn,
 	struct se_portal_group *se_tpg,
 	int proto_id)
 {
 	int ret;
 
+	if (!se_tpg)
+		return -EINVAL;
+	/*
+	 * For the typical case where core_tpg_register() is called by a
+	 * fabric driver from target_core_fabric_ops->fabric_make_tpg()
+	 * configfs context, use the original tf_ops pointer already saved
+	 * by target-core in target_fabric_make_wwn().
+	 *
+	 * Otherwise, for special cases like iscsi-target discovery TPGs
+	 * the caller is responsible for setting ->se_tpg_tfo ahead of
+	 * calling core_tpg_register().
+	 */
+	if (se_wwn)
+		se_tpg->se_tpg_tfo = se_wwn->wwn_tf->tf_ops;
+
+	if (!se_tpg->se_tpg_tfo) {
+		pr_err("Unable to locate se_tpg->se_tpg_tfo pointer\n");
+		return -EINVAL;
+	}
+
 	INIT_HLIST_HEAD(&se_tpg->tpg_lun_hlist);
 	se_tpg->proto_id = proto_id;
-	se_tpg->se_tpg_tfo = tfo;
 	se_tpg->se_tpg_wwn = se_wwn;
 	atomic_set(&se_tpg->tpg_pr_ref_count, 0);
 	INIT_LIST_HEAD(&se_tpg->acl_node_list);
@@ -524,9 +543,10 @@ int core_tpg_register(
 	spin_unlock_bh(&tpg_lock);
 
 	pr_debug("TARGET_CORE[%s]: Allocated portal_group for endpoint: %s, "
-		 "Proto: %d, Portal Tag: %u\n", tfo->get_fabric_name(),
-		tfo->tpg_get_wwn(se_tpg) ? tfo->tpg_get_wwn(se_tpg) : NULL,
-		se_tpg->proto_id, tfo->tpg_get_tag(se_tpg));
+		 "Proto: %d, Portal Tag: %u\n", se_tpg->se_tpg_tfo->get_fabric_name(),
+		se_tpg->se_tpg_tfo->tpg_get_wwn(se_tpg) ?
+		se_tpg->se_tpg_tfo->tpg_get_wwn(se_tpg) : NULL,
+		se_tpg->proto_id, se_tpg->se_tpg_tfo->tpg_get_tag(se_tpg));
 
 	return 0;
 }

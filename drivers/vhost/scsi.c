@@ -206,7 +206,6 @@ struct vhost_scsi {
 	int vs_events_nr; /* num of pending events, protected by vq->mutex */
 };
 
-static struct target_core_fabric_ops vhost_scsi_ops;
 static struct workqueue_struct *vhost_scsi_workqueue;
 
 /* Global spinlock to protect vhost_scsi TPG list for vhost IOCTL access */
@@ -2001,8 +2000,7 @@ vhost_scsi_make_tpg(struct se_wwn *wwn,
 	tpg->tport = tport;
 	tpg->tport_tpgt = tpgt;
 
-	ret = core_tpg_register(&vhost_scsi_ops, wwn, &tpg->se_tpg,
-				tport->tport_proto_id);
+	ret = core_tpg_register(wwn, &tpg->se_tpg, tport->tport_proto_id);
 	if (ret < 0) {
 		kfree(tpg);
 		return NULL;

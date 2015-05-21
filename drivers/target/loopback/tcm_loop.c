@@ -40,8 +40,6 @@
 
 #define to_tcm_loop_hba(hba)	container_of(hba, struct tcm_loop_hba, dev)
 
-static const struct target_core_fabric_ops loop_ops;
-
 static struct workqueue_struct *tcm_loop_workqueue;
 static struct kmem_cache *tcm_loop_cmd_cache;
 
@@ -1081,8 +1079,7 @@ static struct se_portal_group *tcm_loop_make_naa_tpg(
 	/*
 	 * Register the tl_tpg as a emulated SAS TCM Target Endpoint
 	 */
-	ret = core_tpg_register(&loop_ops, wwn, &tl_tpg->tl_se_tpg,
-				tl_hba->tl_proto_id);
+	ret = core_tpg_register(wwn, &tl_tpg->tl_se_tpg, tl_hba->tl_proto_id);
 	if (ret < 0)
 		return ERR_PTR(-ENOMEM);
 
