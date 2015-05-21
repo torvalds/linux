@@ -573,6 +573,8 @@ struct lov_obd {
 	void		       *lov_cache;
 
 	struct rw_semaphore     lov_notify_lock;
+
+	struct kobject		*lov_tgts_kobj;
 };
 
 struct lmv_tgt_desc {

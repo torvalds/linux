@@ -127,7 +127,6 @@ int lov_connect_obd(struct obd_device *obd, __u32 index, int activate,
 	struct obd_device *tgt_obd;
 	static struct obd_uuid lov_osc_uuid = { "LOV_OSC_UUID" };
 	struct obd_import *imp;
-	struct proc_dir_entry *lov_proc_dir;
 	int rc;
 
 	if (!lov->lov_tgts[index])
@@ -186,28 +185,10 @@ int lov_connect_obd(struct obd_device *obd, __u32 index, int activate,
 	CDEBUG(D_CONFIG, "Connected tgt idx %d %s (%s) %sactive\n", index,
 	       obd_uuid2str(tgt_uuid), tgt_obd->obd_name, activate ? "":"in");
 
-	lov_proc_dir = obd->obd_proc_private;
-	if (lov_proc_dir) {
-		struct obd_device *osc_obd = lov->lov_tgts[index]->ltd_exp->exp_obd;
-		struct proc_dir_entry *osc_symlink;
-
-		LASSERT(osc_obd != NULL);
-		LASSERT(osc_obd->obd_magic == OBD_DEVICE_MAGIC);
-		LASSERT(osc_obd->obd_type->typ_name != NULL);
-
-		osc_symlink = lprocfs_add_symlink(osc_obd->obd_name,
-						  lov_proc_dir,
-						  "../../../%s/%s",
-						  osc_obd->obd_type->typ_name,
-						  osc_obd->obd_name);
-		if (osc_symlink == NULL) {
-			CERROR("could not register LOV target /proc/fs/lustre/%s/%s/target_obds/%s.",
-			       obd->obd_type->typ_name, obd->obd_name,
-			       osc_obd->obd_name);
-			lprocfs_remove(&lov_proc_dir);
-			obd->obd_proc_private = NULL;
-		}
-	}
+	if (lov->lov_tgts_kobj)
+		/* Even if we failed, that's ok */
+		rc = sysfs_create_link(lov->lov_tgts_kobj, &tgt_obd->obd_kobj,
+				       tgt_obd->obd_name);
 
 	return 0;
 }
@@ -239,6 +220,10 @@ static int lov_connect(const struct lu_env *env,
 		lov->lov_ocd = *data;
 
 	obd_getref(obd);
+
+	lov->lov_tgts_kobj = kobject_create_and_add("target_obds",
+						    &obd->obd_kobj);
+
 	for (i = 0; i < lov->desc.ld_tgt_count; i++) {
 		tgt = lov->lov_tgts[i];
 		if (!tgt || obd_uuid_empty(&tgt->ltd_uuid))
@@ -268,7 +253,6 @@ static int lov_connect(const struct lu_env *env,
 
 static int lov_disconnect_obd(struct obd_device *obd, struct lov_tgt_desc *tgt)
 {
-	struct proc_dir_entry *lov_proc_dir;
 	struct lov_obd *lov = &obd->u.lov;
 	struct obd_device *osc_obd;
 	int rc;
@@ -284,10 +268,10 @@ static int lov_disconnect_obd(struct obd_device *obd, struct lov_tgt_desc *tgt)
 	}
 
 	if (osc_obd) {
-		lov_proc_dir = obd->obd_proc_private;
-		if (lov_proc_dir) {
-			lprocfs_remove_proc_entry(osc_obd->obd_name, lov_proc_dir);
-		}
+		if (lov->lov_tgts_kobj)
+			sysfs_remove_link(lov->lov_tgts_kobj,
+					  osc_obd->obd_name);
+
 		/* Pass it on to our clients.
 		 * XXX This should be an argument to disconnect,
 		 * XXX not a back-door flag on the OBD.  Ah well.
@@ -337,6 +321,10 @@ static int lov_disconnect(struct obd_export *exp)
 			lov_del_target(obd, i, NULL, lov->lov_tgts[i]->ltd_gen);
 		}
 	}
+
+	if (lov->lov_tgts_kobj)
+		kobject_put(lov->lov_tgts_kobj);
+
 	obd_putref(obd);
 
 out:

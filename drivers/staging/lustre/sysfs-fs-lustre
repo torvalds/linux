@@ -505,3 +505,16 @@ Description:
 		Controls how many times to try and resend RPCs to this target
 		that failed with "recoverable" status, such as EAGAIN,
 		ENOMEM.
+
+What:		/sys/fs/lustre/lov/{connection_name}/numobd
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Number of OSC targets managed by this LOV instance.
+
+What:		/sys/fs/lustre/lov/{connection_name}/activeobd
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Number of OSC targets managed by this LOV instance that are
+		actually active.

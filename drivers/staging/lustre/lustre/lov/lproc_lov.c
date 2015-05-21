@@ -166,29 +166,29 @@ static ssize_t lov_stripecount_seq_write(struct file *file,
 }
 LPROC_SEQ_FOPS(lov_stripecount);
 
-static int lov_numobd_seq_show(struct seq_file *m, void *v)
+static ssize_t numobd_show(struct kobject *kobj, struct attribute *attr,
+			   char *buf)
 {
-	struct obd_device *dev = (struct obd_device *)m->private;
+	struct obd_device *dev = container_of(kobj, struct obd_device,
+					      obd_kobj);
 	struct lov_desc *desc;
 
-	LASSERT(dev != NULL);
 	desc = &dev->u.lov.desc;
-	seq_printf(m, "%u\n", desc->ld_tgt_count);
-	return 0;
+	return sprintf(buf, "%u\n", desc->ld_tgt_count);
 }
-LPROC_SEQ_FOPS_RO(lov_numobd);
+LUSTRE_RO_ATTR(numobd);
 
-static int lov_activeobd_seq_show(struct seq_file *m, void *v)
+static ssize_t activeobd_show(struct kobject *kobj, struct attribute *attr,
+			      char *buf)
 {
-	struct obd_device *dev = (struct obd_device *)m->private;
+	struct obd_device *dev = container_of(kobj, struct obd_device,
+					      obd_kobj);
 	struct lov_desc *desc;
 
-	LASSERT(dev != NULL);
 	desc = &dev->u.lov.desc;
-	seq_printf(m, "%u\n", desc->ld_active_tgt_count);
-	return 0;
+	return sprintf(buf, "%u\n", desc->ld_active_tgt_count);
 }
-LPROC_SEQ_FOPS_RO(lov_activeobd);
+LUSTRE_RO_ATTR(activeobd);
 
 static int lov_desc_uuid_seq_show(struct seq_file *m, void *v)
 {
@@ -267,16 +267,25 @@ static struct lprocfs_vars lprocfs_lov_obd_vars[] = {
 	{ "stripeoffset", &lov_stripeoffset_fops, NULL },
 	{ "stripecount",  &lov_stripecount_fops,  NULL },
 	{ "stripetype",   &lov_stripetype_fops,   NULL },
-	{ "numobd",       &lov_numobd_fops,	  NULL, 0 },
-	{ "activeobd",    &lov_activeobd_fops,	  NULL, 0 },
 	/*{ "filegroups", lprocfs_rd_filegroups,  NULL, 0 },*/
 	{ "desc_uuid",    &lov_desc_uuid_fops,    NULL, 0 },
 	{ NULL }
 };
 
+static struct attribute *lov_attrs[] = {
+	&lustre_attr_activeobd.attr,
+	&lustre_attr_numobd.attr,
+	NULL,
+};
+
+static struct attribute_group lov_attr_group = {
+	.attrs = lov_attrs,
+};
+
 void lprocfs_lov_init_vars(struct lprocfs_static_vars *lvars)
 {
-    lvars->obd_vars     = lprocfs_lov_obd_vars;
+	lvars->sysfs_vars = &lov_attr_group;
+	lvars->obd_vars = lprocfs_lov_obd_vars;
 }
 
 const struct file_operations lov_proc_target_fops = {
