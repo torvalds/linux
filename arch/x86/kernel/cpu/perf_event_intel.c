@@ -1903,9 +1903,8 @@ static void
 intel_start_scheduling(struct cpu_hw_events *cpuc)
 {
 	struct intel_excl_cntrs *excl_cntrs = cpuc->excl_cntrs;
-	struct intel_excl_states *xl, *xlo;
+	struct intel_excl_states *xl;
 	int tid = cpuc->excl_thread_id;
-	int o_tid = 1 - tid; /* sibling thread */
 
 	/*
 	 * nothing needed if in group validation mode
@@ -1919,7 +1918,6 @@ intel_start_scheduling(struct cpu_hw_events *cpuc)
 	if (!excl_cntrs)
 		return;
 
-	xlo = &excl_cntrs->states[o_tid];
 	xl = &excl_cntrs->states[tid];
 
 	xl->sched_started = true;
@@ -1932,18 +1930,17 @@ intel_start_scheduling(struct cpu_hw_events *cpuc)
 	raw_spin_lock(&excl_cntrs->lock);
 
 	/*
-	 * save initial state of sibling thread
+	 * Save a copy of our state to work on.
 	 */
-	memcpy(xlo->init_state, xlo->state, sizeof(xlo->init_state));
+	memcpy(xl->init_state, xl->state, sizeof(xl->init_state));
 }
 
 static void
 intel_stop_scheduling(struct cpu_hw_events *cpuc)
 {
 	struct intel_excl_cntrs *excl_cntrs = cpuc->excl_cntrs;
-	struct intel_excl_states *xl, *xlo;
+	struct intel_excl_states *xl;
 	int tid = cpuc->excl_thread_id;
-	int o_tid = 1 - tid; /* sibling thread */
 
 	/*
 	 * nothing needed if in group validation mode
@@ -1956,13 +1953,12 @@ intel_stop_scheduling(struct cpu_hw_events *cpuc)
 	if (!excl_cntrs)
 		return;
 
-	xlo = &excl_cntrs->states[o_tid];
 	xl = &excl_cntrs->states[tid];
 
 	/*
-	 * make new sibling thread state visible
+	 * Commit the working state.
 	 */
-	memcpy(xlo->state, xlo->init_state, sizeof(xlo->state));
+	memcpy(xl->state, xl->init_state, sizeof(xl->state));
 
 	xl->sched_started = false;
 	/*
@@ -1977,10 +1973,9 @@ intel_get_excl_constraints(struct cpu_hw_events *cpuc, struct perf_event *event,
 {
 	struct event_constraint *cx;
 	struct intel_excl_cntrs *excl_cntrs = cpuc->excl_cntrs;
-	struct intel_excl_states *xl, *xlo;
-	int is_excl, i;
+	struct intel_excl_states *xlo;
 	int tid = cpuc->excl_thread_id;
-	int o_tid = 1 - tid; /* alternate */
+	int is_excl, i;
 
 	/*
 	 * validating a group does not require
@@ -1994,23 +1989,6 @@ intel_get_excl_constraints(struct cpu_hw_events *cpuc, struct perf_event *event,
 	 */
 	if (!excl_cntrs)
 		return c;
-	/*
-	 * event requires exclusive counter access
-	 * across HT threads
-	 */
-	is_excl = c->flags & PERF_X86_EVENT_EXCL;
-	if (is_excl && !(event->hw.flags & PERF_X86_EVENT_EXCL_ACCT)) {
-		event->hw.flags |= PERF_X86_EVENT_EXCL_ACCT;
-		if (!cpuc->n_excl++)
-			WRITE_ONCE(excl_cntrs->has_exclusive[tid], 1);
-	}
-
-	/*
-	 * xl = state of current HT
-	 * xlo = state of sibling HT
-	 */
-	xl = &excl_cntrs->states[tid];
-	xlo = &excl_cntrs->states[o_tid];
 
 	cx = c;
 
@@ -2054,6 +2032,22 @@ intel_get_excl_constraints(struct cpu_hw_events *cpuc, struct perf_event *event,
 	 */
 
 	/*
+	 * state of sibling HT
+	 */
+	xlo = &excl_cntrs->states[tid ^ 1];
+
+	/*
+	 * event requires exclusive counter access
+	 * across HT threads
+	 */
+	is_excl = c->flags & PERF_X86_EVENT_EXCL;
+	if (is_excl && !(event->hw.flags & PERF_X86_EVENT_EXCL_ACCT)) {
+		event->hw.flags |= PERF_X86_EVENT_EXCL_ACCT;
+		if (!cpuc->n_excl++)
+			WRITE_ONCE(excl_cntrs->has_exclusive[tid], 1);
+	}
+
+	/*
 	 * Modify static constraint with current dynamic
 	 * state of thread
 	 *
@@ -2067,14 +2061,14 @@ intel_get_excl_constraints(struct cpu_hw_events *cpuc, struct perf_event *event,
 		 * our corresponding counter cannot be used
 		 * regardless of our event
 		 */
-		if (xl->state[i] == INTEL_EXCL_EXCLUSIVE)
+		if (xlo->state[i] == INTEL_EXCL_EXCLUSIVE)
 			__clear_bit(i, cx->idxmsk);
 		/*
 		 * if measuring an exclusive event, sibling
 		 * measuring non-exclusive, then counter cannot
 		 * be used
 		 */
-		if (is_excl && xl->state[i] == INTEL_EXCL_SHARED)
+		if (is_excl && xlo->state[i] == INTEL_EXCL_SHARED)
 			__clear_bit(i, cx->idxmsk);
 	}
 
@@ -2124,10 +2118,9 @@ static void intel_put_excl_constraints(struct cpu_hw_events *cpuc,
 {
 	struct hw_perf_event *hwc = &event->hw;
 	struct intel_excl_cntrs *excl_cntrs = cpuc->excl_cntrs;
-	struct intel_excl_states *xlo, *xl;
-	unsigned long flags = 0; /* keep compiler happy */
 	int tid = cpuc->excl_thread_id;
-	int o_tid = 1 - tid;
+	struct intel_excl_states *xl;
+	unsigned long flags = 0; /* keep compiler happy */
 
 	/*
 	 * nothing needed if in group validation mode
@@ -2141,7 +2134,6 @@ static void intel_put_excl_constraints(struct cpu_hw_events *cpuc,
 		return;
 
 	xl = &excl_cntrs->states[tid];
-	xlo = &excl_cntrs->states[o_tid];
 	if (hwc->flags & PERF_X86_EVENT_EXCL_ACCT) {
 		hwc->flags &= ~PERF_X86_EVENT_EXCL_ACCT;
 		if (!--cpuc->n_excl)
@@ -2161,7 +2153,7 @@ static void intel_put_excl_constraints(struct cpu_hw_events *cpuc,
 	 * counter state as unused now
 	 */
 	if (hwc->idx >= 0)
-		xlo->state[hwc->idx] = INTEL_EXCL_UNUSED;
+		xl->state[hwc->idx] = INTEL_EXCL_UNUSED;
 
 	if (!xl->sched_started)
 		raw_spin_unlock_irqrestore(&excl_cntrs->lock, flags);
@@ -2200,15 +2192,11 @@ static void intel_commit_scheduling(struct cpu_hw_events *cpuc, int idx, int cnt
 {
 	struct intel_excl_cntrs *excl_cntrs = cpuc->excl_cntrs;
 	struct event_constraint *c = cpuc->event_constraint[idx];
-	struct intel_excl_states *xlo, *xl;
+	struct intel_excl_states *xl;
 	int tid = cpuc->excl_thread_id;
-	int o_tid = 1 - tid;
-	int is_excl;
 
 	if (cpuc->is_fake || !c)
 		return;
-
-	is_excl = c->flags & PERF_X86_EVENT_EXCL;
 
 	if (!(c->flags & PERF_X86_EVENT_DYNAMIC))
 		return;
@@ -2219,15 +2207,14 @@ static void intel_commit_scheduling(struct cpu_hw_events *cpuc, int idx, int cnt
 		return;
 
 	xl = &excl_cntrs->states[tid];
-	xlo = &excl_cntrs->states[o_tid];
 
 	WARN_ON_ONCE(!raw_spin_is_locked(&excl_cntrs->lock));
 
 	if (cntr >= 0) {
-		if (is_excl)
-			xlo->init_state[cntr] = INTEL_EXCL_EXCLUSIVE;
+		if (c->flags & PERF_X86_EVENT_EXCL)
+			xl->init_state[cntr] = INTEL_EXCL_EXCLUSIVE;
 		else
-			xlo->init_state[cntr] = INTEL_EXCL_SHARED;
+			xl->init_state[cntr] = INTEL_EXCL_SHARED;
 	}
 }
 
