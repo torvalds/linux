@@ -1970,7 +1970,6 @@ static struct event_constraint *
 intel_get_excl_constraints(struct cpu_hw_events *cpuc, struct perf_event *event,
 			   int idx, struct event_constraint *c)
 {
-	struct event_constraint *cx;
 	struct intel_excl_cntrs *excl_cntrs = cpuc->excl_cntrs;
 	struct intel_excl_states *xlo;
 	int tid = cpuc->excl_thread_id;
@@ -1989,8 +1988,6 @@ intel_get_excl_constraints(struct cpu_hw_events *cpuc, struct perf_event *event,
 	if (!excl_cntrs)
 		return c;
 
-	cx = c;
-
 	/*
 	 * because we modify the constraint, we need
 	 * to make a copy. Static constraints come
@@ -2000,6 +1997,7 @@ intel_get_excl_constraints(struct cpu_hw_events *cpuc, struct perf_event *event,
 	 * been cloned (marked dynamic)
 	 */
 	if (!(c->flags & PERF_X86_EVENT_DYNAMIC)) {
+		struct event_constraint *cx;
 
 		/* sanity check */
 		if (idx < 0)
@@ -2014,13 +2012,14 @@ intel_get_excl_constraints(struct cpu_hw_events *cpuc, struct perf_event *event,
 		 * initialize dynamic constraint
 		 * with static constraint
 		 */
-		memcpy(cx, c, sizeof(*cx));
+		*cx = *c;
 
 		/*
 		 * mark constraint as dynamic, so we
 		 * can free it later on
 		 */
 		cx->flags |= PERF_X86_EVENT_DYNAMIC;
+		c = cx;
 	}
 
 	/*
@@ -2054,37 +2053,37 @@ intel_get_excl_constraints(struct cpu_hw_events *cpuc, struct perf_event *event,
 	 * SHARED   : sibling counter measuring non-exclusive event
 	 * UNUSED   : sibling counter unused
 	 */
-	for_each_set_bit(i, cx->idxmsk, X86_PMC_IDX_MAX) {
+	for_each_set_bit(i, c->idxmsk, X86_PMC_IDX_MAX) {
 		/*
 		 * exclusive event in sibling counter
 		 * our corresponding counter cannot be used
 		 * regardless of our event
 		 */
 		if (xlo->state[i] == INTEL_EXCL_EXCLUSIVE)
-			__clear_bit(i, cx->idxmsk);
+			__clear_bit(i, c->idxmsk);
 		/*
 		 * if measuring an exclusive event, sibling
 		 * measuring non-exclusive, then counter cannot
 		 * be used
 		 */
 		if (is_excl && xlo->state[i] == INTEL_EXCL_SHARED)
-			__clear_bit(i, cx->idxmsk);
+			__clear_bit(i, c->idxmsk);
 	}
 
 	/*
 	 * recompute actual bit weight for scheduling algorithm
 	 */
-	cx->weight = hweight64(cx->idxmsk64);
+	c->weight = hweight64(c->idxmsk64);
 
 	/*
 	 * if we return an empty mask, then switch
 	 * back to static empty constraint to avoid
 	 * the cost of freeing later on
 	 */
-	if (cx->weight == 0)
-		cx = &emptyconstraint;
+	if (c->weight == 0)
+		c = &emptyconstraint;
 
-	return cx;
+	return c;
 }
 
 static struct event_constraint *
