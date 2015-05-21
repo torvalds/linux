@@ -219,10 +219,30 @@ Examples:
 Sample scripts
 ==============
 
-A collection of small tutorial scripts for pktgen is in the
-samples/pktgen directory:
+A collection of tutorial scripts and helpers for pktgen is in the
+samples/pktgen directory. The helper parameters.sh file support easy
+and consistant parameter parsing across the sample scripts.
 
-pktgen.conf-1-1                  # 1 CPU 1 dev 
+Usage example and help:
+ ./pktgen_sample01_simple.sh -i eth4 -m 00:1B:21:3C:9D:F8 -d 192.168.8.2
+
+Usage: ./pktgen_sample01_simple.sh [-vx] -i ethX
+  -i : ($DEV)       output interface/device (required)
+  -s : ($PKT_SIZE)  packet size
+  -d : ($DEST_IP)   destination IP
+  -m : ($DST_MAC)   destination MAC-addr
+  -t : ($THREADS)   threads to start
+  -c : ($SKB_CLONE) SKB clones send before alloc new SKB
+  -b : ($BURST)     HW level bursting of SKBs
+  -v : ($VERBOSE)   verbose
+  -x : ($DEBUG)     debug
+
+The global variables being set are also listed.  E.g. the required
+interface/device parameter "-i" sets variable $DEV.  Copy the
+pktgen_sampleXX scripts and modify them to fit your own needs.
+
+The old scripts:
+
 pktgen.conf-1-2                  # 1 CPU 2 dev
 pktgen.conf-2-1                  # 2 CPU's 1 dev 
 pktgen.conf-2-2                  # 2 CPU's 2 dev
@@ -230,9 +250,6 @@ pktgen.conf-1-1-rdos             # 1 CPU 1 dev w. route DoS
 pktgen.conf-1-1-ip6              # 1 CPU 1 dev ipv6
 pktgen.conf-1-1-ip6-rdos         # 1 CPU 1 dev ipv6  w. route DoS
 pktgen.conf-1-1-flows            # 1 CPU 1 dev multiple flows.
-
-Run in shell: ./pktgen.conf-X-Y
-This does all the setup including sending.
 
 
 Interrupt affinity
