@@ -90,7 +90,7 @@ gf100_devinit_disable(struct nvkm_devinit *devinit)
 	return disable;
 }
 
-static int
+int
 gf100_devinit_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		   struct nvkm_oclass *oclass, void *data, u32 size,
 		   struct nvkm_object **pobject)
