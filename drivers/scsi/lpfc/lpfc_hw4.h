@@ -2455,6 +2455,205 @@ struct lpfc_mbx_supp_pages {
 #define LPFC_SLI4_PARAMETERS		2
 };
 
+struct lpfc_mbx_memory_dump_type3 {
+	uint32_t word1;
+#define lpfc_mbx_memory_dump_type3_type_SHIFT    0
+#define lpfc_mbx_memory_dump_type3_type_MASK     0x0000000f
+#define lpfc_mbx_memory_dump_type3_type_WORD     word1
+#define lpfc_mbx_memory_dump_type3_link_SHIFT    24
+#define lpfc_mbx_memory_dump_type3_link_MASK     0x000000ff
+#define lpfc_mbx_memory_dump_type3_link_WORD     word1
+	uint32_t word2;
+#define lpfc_mbx_memory_dump_type3_page_no_SHIFT  0
+#define lpfc_mbx_memory_dump_type3_page_no_MASK   0x0000ffff
+#define lpfc_mbx_memory_dump_type3_page_no_WORD   word2
+#define lpfc_mbx_memory_dump_type3_offset_SHIFT   16
+#define lpfc_mbx_memory_dump_type3_offset_MASK    0x0000ffff
+#define lpfc_mbx_memory_dump_type3_offset_WORD    word2
+	uint32_t word3;
+#define lpfc_mbx_memory_dump_type3_length_SHIFT  0
+#define lpfc_mbx_memory_dump_type3_length_MASK   0x00ffffff
+#define lpfc_mbx_memory_dump_type3_length_WORD   word3
+	uint32_t addr_lo;
+	uint32_t addr_hi;
+	uint32_t return_len;
+};
+
+#define DMP_PAGE_A0             0xa0
+#define DMP_PAGE_A2             0xa2
+#define DMP_SFF_PAGE_A0_SIZE	256
+#define DMP_SFF_PAGE_A2_SIZE	256
+
+#define SFP_WAVELENGTH_LC1310	1310
+#define SFP_WAVELENGTH_LL1550	1550
+
+
+/*
+ *  * SFF-8472 TABLE 3.4
+ *   */
+#define  SFF_PG0_CONNECTOR_UNKNOWN    0x00   /* Unknown  */
+#define  SFF_PG0_CONNECTOR_SC         0x01   /* SC       */
+#define  SFF_PG0_CONNECTOR_FC_COPPER1 0x02   /* FC style 1 copper connector */
+#define  SFF_PG0_CONNECTOR_FC_COPPER2 0x03   /* FC style 2 copper connector */
+#define  SFF_PG0_CONNECTOR_BNC        0x04   /* BNC / TNC */
+#define  SFF_PG0_CONNECTOR__FC_COAX   0x05   /* FC coaxial headers */
+#define  SFF_PG0_CONNECTOR_FIBERJACK  0x06   /* FiberJack */
+#define  SFF_PG0_CONNECTOR_LC         0x07   /* LC        */
+#define  SFF_PG0_CONNECTOR_MT         0x08   /* MT - RJ   */
+#define  SFF_PG0_CONNECTOR_MU         0x09   /* MU        */
+#define  SFF_PG0_CONNECTOR_SF         0x0A   /* SG        */
+#define  SFF_PG0_CONNECTOR_OPTICAL_PIGTAIL 0x0B /* Optical pigtail */
+#define  SFF_PG0_CONNECTOR_OPTICAL_PARALLEL 0x0C /* MPO Parallel Optic */
+#define  SFF_PG0_CONNECTOR_HSSDC_II   0x20   /* HSSDC II */
+#define  SFF_PG0_CONNECTOR_COPPER_PIGTAIL 0x21 /* Copper pigtail */
+#define  SFF_PG0_CONNECTOR_RJ45       0x22  /* RJ45 */
+
+/* SFF-8472 Table 3.1 Diagnostics: Data Fields Address/Page A0 */
+
+#define SSF_IDENTIFIER			0
+#define SSF_EXT_IDENTIFIER		1
+#define SSF_CONNECTOR			2
+#define SSF_TRANSCEIVER_CODE_B0		3
+#define SSF_TRANSCEIVER_CODE_B1		4
+#define SSF_TRANSCEIVER_CODE_B2		5
+#define SSF_TRANSCEIVER_CODE_B3		6
+#define SSF_TRANSCEIVER_CODE_B4		7
+#define SSF_TRANSCEIVER_CODE_B5		8
+#define SSF_TRANSCEIVER_CODE_B6		9
+#define SSF_TRANSCEIVER_CODE_B7		10
+#define SSF_ENCODING			11
+#define SSF_BR_NOMINAL			12
+#define SSF_RATE_IDENTIFIER		13
+#define SSF_LENGTH_9UM_KM		14
+#define SSF_LENGTH_9UM			15
+#define SSF_LENGTH_50UM_OM2		16
+#define SSF_LENGTH_62UM_OM1		17
+#define SFF_LENGTH_COPPER		18
+#define SSF_LENGTH_50UM_OM3		19
+#define SSF_VENDOR_NAME			20
+#define SSF_VENDOR_OUI			36
+#define SSF_VENDOR_PN			40
+#define SSF_VENDOR_REV			56
+#define SSF_WAVELENGTH_B1		60
+#define SSF_WAVELENGTH_B0		61
+#define SSF_CC_BASE			63
+#define SSF_OPTIONS_B1			64
+#define SSF_OPTIONS_B0			65
+#define SSF_BR_MAX			66
+#define SSF_BR_MIN			67
+#define SSF_VENDOR_SN			68
+#define SSF_DATE_CODE			84
+#define SSF_MONITORING_TYPEDIAGNOSTIC	92
+#define SSF_ENHANCED_OPTIONS		93
+#define SFF_8472_COMPLIANCE		94
+#define SSF_CC_EXT			95
+#define SSF_A0_VENDOR_SPECIFIC		96
+
+/* SFF-8472 Table 3.1a Diagnostics: Data Fields Address/Page A2 */
+
+#define SSF_AW_THRESHOLDS		0
+#define SSF_EXT_CAL_CONSTANTS		56
+#define SSF_CC_DMI			95
+#define SFF_TEMPERATURE_B1		96
+#define SFF_TEMPERATURE_B0		97
+#define SFF_VCC_B1			98
+#define SFF_VCC_B0			99
+#define SFF_TX_BIAS_CURRENT_B1		100
+#define SFF_TX_BIAS_CURRENT_B0		101
+#define SFF_TXPOWER_B1			102
+#define SFF_TXPOWER_B0			103
+#define SFF_RXPOWER_B1			104
+#define SFF_RXPOWER_B0			105
+#define SSF_STATUS_CONTROL		110
+#define SSF_ALARM_FLAGS_B1		112
+#define SSF_ALARM_FLAGS_B0		113
+#define SSF_WARNING_FLAGS_B1		116
+#define SSF_WARNING_FLAGS_B0		117
+#define SSF_EXT_TATUS_CONTROL_B1	118
+#define SSF_EXT_TATUS_CONTROL_B0	119
+#define SSF_A2_VENDOR_SPECIFIC		120
+#define SSF_USER_EEPROM			128
+#define SSF_VENDOR_CONTROL		148
+
+
+/*
+ * Tranceiver codes Fibre Channel SFF-8472
+ * Table 3.5.
+ */
+
+struct sff_trasnceiver_codes_byte0 {
+	uint8_t inifiband:4;
+	uint8_t teng_ethernet:4;
+};
+
+struct sff_trasnceiver_codes_byte1 {
+	uint8_t  sonet:6;
+	uint8_t  escon:2;
+};
+
+struct sff_trasnceiver_codes_byte2 {
+	uint8_t  soNet:8;
+};
+
+struct sff_trasnceiver_codes_byte3 {
+	uint8_t ethernet:8;
+};
+
+struct sff_trasnceiver_codes_byte4 {
+	uint8_t fc_el_lo:1;
+	uint8_t fc_lw_laser:1;
+	uint8_t fc_sw_laser:1;
+	uint8_t fc_md_distance:1;
+	uint8_t fc_lg_distance:1;
+	uint8_t fc_int_distance:1;
+	uint8_t fc_short_distance:1;
+	uint8_t fc_vld_distance:1;
+};
+
+struct sff_trasnceiver_codes_byte5 {
+	uint8_t reserved1:1;
+	uint8_t reserved2:1;
+	uint8_t fc_sfp_active:1;  /* Active cable   */
+	uint8_t fc_sfp_passive:1; /* Passive cable  */
+	uint8_t fc_lw_laser:1;     /* Longwave laser */
+	uint8_t fc_sw_laser_sl:1;
+	uint8_t fc_sw_laser_sn:1;
+	uint8_t fc_el_hi:1;        /* Electrical enclosure high bit */
+};
+
+struct sff_trasnceiver_codes_byte6 {
+	uint8_t fc_tm_sm:1;      /* Single Mode */
+	uint8_t reserved:1;
+	uint8_t fc_tm_m6:1;       /* Multimode, 62.5um (M6) */
+	uint8_t fc_tm_tv:1;      /* Video Coax (TV) */
+	uint8_t fc_tm_mi:1;      /* Miniature Coax (MI) */
+	uint8_t fc_tm_tp:1;      /* Twisted Pair (TP) */
+	uint8_t fc_tm_tw:1;      /* Twin Axial Pair  */
+};
+
+struct sff_trasnceiver_codes_byte7 {
+	uint8_t fc_sp_100MB:1;   /*  100 MB/sec */
+	uint8_t reserve:1;
+	uint8_t fc_sp_200mb:1;   /*  200 MB/sec */
+	uint8_t fc_sp_3200MB:1;  /* 3200 MB/sec */
+	uint8_t fc_sp_400MB:1;   /*  400 MB/sec */
+	uint8_t fc_sp_1600MB:1;  /* 1600 MB/sec */
+	uint8_t fc_sp_800MB:1;   /*  800 MB/sec */
+	uint8_t fc_sp_1200MB:1;  /* 1200 MB/sec */
+};
+
+/* User writable non-volatile memory, SFF-8472 Table 3.20 */
+struct user_eeprom {
+	uint8_t vendor_name[16];
+	uint8_t vendor_oui[3];
+	uint8_t vendor_pn[816];
+	uint8_t vendor_rev[4];
+	uint8_t vendor_sn[16];
+	uint8_t datecode[6];
+	uint8_t lot_code[2];
+	uint8_t reserved191[57];
+};
+
 struct lpfc_mbx_pc_sli4_params {
 	uint32_t word1;
 #define qs_SHIFT				0
@@ -3054,6 +3253,7 @@ struct lpfc_mqe {
 		struct lpfc_mbx_get_prof_cfg get_prof_cfg;
 		struct lpfc_mbx_wr_object wr_object;
 		struct lpfc_mbx_get_port_name get_port_name;
+		struct lpfc_mbx_memory_dump_type3 mem_dump_type3;
 		struct lpfc_mbx_nop nop;
 	} un;
 };
@@ -3199,6 +3399,7 @@ struct lpfc_acqe_fc_la {
 #define LPFC_FC_LA_SPEED_8G		0x8
 #define LPFC_FC_LA_SPEED_10G		0xA
 #define LPFC_FC_LA_SPEED_16G		0x10
+#define LPFC_FC_LA_SPEED_32G            0x20
 #define lpfc_acqe_fc_la_topology_SHIFT		16
 #define lpfc_acqe_fc_la_topology_MASK		0x000000FF
 #define lpfc_acqe_fc_la_topology_WORD		word0
