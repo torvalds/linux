@@ -45,3 +45,23 @@ Date:		May 2015
 Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
 Description:
 		Biggest blocksize on object storage server for this filesystem.
+
+What:		/sys/fs/lustre/llite/<fsname>-<uuid>/kbytestotal
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Shows total number of kilobytes of space on this filesystem
+
+What:		/sys/fs/lustre/llite/<fsname>-<uuid>/kbytesfree
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Shows total number of free kilobytes of space on this filesystem
+
+What:		/sys/fs/lustre/llite/<fsname>-<uuid>/kbytesavail
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Shows total number of free kilobytes of space on this filesystem
+		actually available for use (taking into account per-client
+		grants and filesystem reservations).
