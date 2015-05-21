@@ -673,7 +673,8 @@ enum acpi_madt_type {
 	ACPI_MADT_TYPE_GENERIC_DISTRIBUTOR = 12,
 	ACPI_MADT_TYPE_GENERIC_MSI_FRAME = 13,
 	ACPI_MADT_TYPE_GENERIC_REDISTRIBUTOR = 14,
-	ACPI_MADT_TYPE_RESERVED = 15	/* 15 and greater are reserved */
+	ACPI_MADT_TYPE_GENERIC_TRANSLATOR = 15,
+	ACPI_MADT_TYPE_RESERVED = 16	/* 16 and greater are reserved */
 };
 
 /*
@@ -794,7 +795,7 @@ struct acpi_madt_local_x2apic_nmi {
 	u8 reserved[3];		/* reserved - must be zero */
 };
 
-/* 11: Generic Interrupt (ACPI 5.0) */
+/* 11: Generic Interrupt (ACPI 5.0 + ACPI 6.0 changes) */
 
 struct acpi_madt_generic_interrupt {
 	struct acpi_subtable_header header;
@@ -811,6 +812,8 @@ struct acpi_madt_generic_interrupt {
 	u32 vgic_interrupt;
 	u64 gicr_base_address;
 	u64 arm_mpidr;
+	u8 efficiency_class;
+	u8 reserved2[3];
 };
 
 /* Masks for Flags field above */
@@ -819,7 +822,7 @@ struct acpi_madt_generic_interrupt {
 #define ACPI_MADT_PERFORMANCE_IRQ_MODE  (1<<1)	/* 01: Performance Interrupt Mode */
 #define ACPI_MADT_VGIC_IRQ_MODE         (1<<2)	/* 02: VGIC Maintenance Interrupt mode */
 
-/* 12: Generic Distributor (ACPI 5.0) */
+/* 12: Generic Distributor (ACPI 5.0 + ACPI 6.0 changes) */
 
 struct acpi_madt_generic_distributor {
 	struct acpi_subtable_header header;
@@ -827,7 +830,8 @@ struct acpi_madt_generic_distributor {
 	u32 gic_id;
 	u64 base_address;
 	u32 global_irq_base;
-	u32 reserved2;		/* reserved - must be zero */
+	u8 version;
+	u8 reserved2[3];	/* reserved - must be zero */
 };
 
 /* 13: Generic MSI Frame (ACPI 5.1) */
@@ -853,6 +857,16 @@ struct acpi_madt_generic_redistributor {
 	u16 reserved;		/* reserved - must be zero */
 	u64 base_address;
 	u32 length;
+};
+
+/* 15: Generic Translator (ACPI 6.0) */
+
+struct acpi_madt_generic_translator {
+	struct acpi_subtable_header header;
+	u16 reserved;		/* reserved - must be zero */
+	u32 translation_id;
+	u64 base_address;
+	u32 reserved2;
 };
 
 /*
