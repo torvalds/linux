@@ -527,9 +527,9 @@ struct x86_pmu {
 	void		(*put_event_constraints)(struct cpu_hw_events *cpuc,
 						 struct perf_event *event);
 
-	void		(*commit_scheduling)(struct cpu_hw_events *cpuc, int idx, int cntr);
-
 	void		(*start_scheduling)(struct cpu_hw_events *cpuc);
+
+	void		(*commit_scheduling)(struct cpu_hw_events *cpuc, int idx, int cntr);
 
 	void		(*stop_scheduling)(struct cpu_hw_events *cpuc);
 

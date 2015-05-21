@@ -1934,6 +1934,34 @@ intel_start_scheduling(struct cpu_hw_events *cpuc)
 	memcpy(xl->init_state, xl->state, sizeof(xl->init_state));
 }
 
+static void intel_commit_scheduling(struct cpu_hw_events *cpuc, int idx, int cntr)
+{
+	struct intel_excl_cntrs *excl_cntrs = cpuc->excl_cntrs;
+	struct event_constraint *c = cpuc->event_constraint[idx];
+	struct intel_excl_states *xl;
+	int tid = cpuc->excl_thread_id;
+
+	if (cpuc->is_fake || !is_ht_workaround_enabled())
+		return;
+
+	if (WARN_ON_ONCE(!excl_cntrs))
+		return;
+
+	if (!(c->flags & PERF_X86_EVENT_DYNAMIC))
+		return;
+
+	xl = &excl_cntrs->states[tid];
+
+	lockdep_assert_held(&excl_cntrs->lock);
+
+	if (cntr >= 0) {
+		if (c->flags & PERF_X86_EVENT_EXCL)
+			xl->init_state[cntr] = INTEL_EXCL_EXCLUSIVE;
+		else
+			xl->init_state[cntr] = INTEL_EXCL_SHARED;
+	}
+}
+
 static void
 intel_stop_scheduling(struct cpu_hw_events *cpuc)
 {
@@ -2182,34 +2210,6 @@ static void intel_put_event_constraints(struct cpu_hw_events *cpuc,
 	 */
 	if (cpuc->excl_cntrs)
 		intel_put_excl_constraints(cpuc, event);
-}
-
-static void intel_commit_scheduling(struct cpu_hw_events *cpuc, int idx, int cntr)
-{
-	struct intel_excl_cntrs *excl_cntrs = cpuc->excl_cntrs;
-	struct event_constraint *c = cpuc->event_constraint[idx];
-	struct intel_excl_states *xl;
-	int tid = cpuc->excl_thread_id;
-
-	if (cpuc->is_fake || !is_ht_workaround_enabled())
-		return;
-
-	if (WARN_ON_ONCE(!excl_cntrs))
-		return;
-
-	if (!(c->flags & PERF_X86_EVENT_DYNAMIC))
-		return;
-
-	xl = &excl_cntrs->states[tid];
-
-	lockdep_assert_held(&excl_cntrs->lock);
-
-	if (cntr >= 0) {
-		if (c->flags & PERF_X86_EVENT_EXCL)
-			xl->init_state[cntr] = INTEL_EXCL_EXCLUSIVE;
-		else
-			xl->init_state[cntr] = INTEL_EXCL_SHARED;
-	}
 }
 
 static void intel_pebs_aliases_core2(struct perf_event *event)
@@ -2920,8 +2920,8 @@ static __init void intel_ht_bug(void)
 {
 	x86_pmu.flags |= PMU_FL_EXCL_CNTRS | PMU_FL_EXCL_ENABLED;
 
-	x86_pmu.commit_scheduling = intel_commit_scheduling;
 	x86_pmu.start_scheduling = intel_start_scheduling;
+	x86_pmu.commit_scheduling = intel_commit_scheduling;
 	x86_pmu.stop_scheduling = intel_stop_scheduling;
 }
 
@@ -3377,8 +3377,8 @@ static __init int fixup_ht_bug(void)
 
 	x86_pmu.flags &= ~(PMU_FL_EXCL_CNTRS | PMU_FL_EXCL_ENABLED);
 
-	x86_pmu.commit_scheduling = NULL;
 	x86_pmu.start_scheduling = NULL;
+	x86_pmu.commit_scheduling = NULL;
 	x86_pmu.stop_scheduling = NULL;
 
 	watchdog_nmi_enable_all();
