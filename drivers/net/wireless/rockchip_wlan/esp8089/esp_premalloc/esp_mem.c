@@ -149,7 +149,11 @@ void esp_put_sip_skb(struct sk_buff **skb)
 	for (i = 0; i < SIP_SKB_ARR_NUM; i++) {
 		if (gl_sip_skb_arr[i].skb_p == *skb) {
 			gl_sip_skb_arr[i].skb_p->data = gl_sip_skb_arr[i].skb_p->head;
+#if BITS_PER_LONG > 32
+                        gl_sip_skb_arr[i].skb_p->tail = 0;
+#else
 			gl_sip_skb_arr[i].skb_p->tail = gl_sip_skb_arr[i].skb_p->head;
+#endif
 			gl_sip_skb_arr[i].skb_p->data_len = 0;
 			gl_sip_skb_arr[i].skb_p->len = 0;
 			skb_trim(gl_sip_skb_arr[i].skb_p, 0);
