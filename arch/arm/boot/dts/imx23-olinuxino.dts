@@ -89,6 +89,7 @@
 
 	ahb@80080000 {
 		usb0: usb@80080000 {
+			dr_mode = "host";
 			vbus-supply = <&reg_usb0_vbus>;
 			status = "okay";
 		};

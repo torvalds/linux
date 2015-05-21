@@ -1,0 +1,33 @@
+  <counter_set name="Other_cnt" count="6"/>
+  <category name="Other" counter_set="Other_cnt" per_cpu="yes" supports_event_based_sampling="yes">
+    <event counter="Other_ccnt" event="0xff" title="Clock" name="Cycles" display="hertz" units="Hz" average_selection="yes" average_cores="yes" description="The number of core clock cycles"/>
+    <event event="0x00" title="Software" name="Increment" description="Instruction architecturally executed, condition code check pass, software increment"/>
+    <event event="0x01" title="Cache" name="Instruction refill" description="Level 1 instruction cache refill"/>
+    <event event="0x02" title="Cache" name="Inst TLB refill" description="Level 1 instruction TLB refill"/>
+    <event event="0x03" title="Cache" name="Data refill" description="Level 1 data cache refill"/>
+    <event event="0x04" title="Cache" name="Data access" description="Level 1 data cache access"/>
+    <event event="0x05" title="Cache" name="Data TLB refill" description="Level 1 data TLB refill"/>
+    <event event="0x06" title="Instruction" name="Memory read" description="Instruction architecturally executed, condition code check pass, load"/>
+    <event event="0x07" title="Instruction" name="Memory write" description="Instruction architecturally executed, condition code check pass, store"/>
+    <event event="0x08" title="Instruction" name="Executed" description="Instruction architecturally executed"/>
+    <event event="0x09" title="Exception" name="Taken" description="Exception taken"/>
+    <event event="0x0a" title="Exception" name="Return" description="Instruction architecturally executed, condition code check pass, exception return"/>
+    <event event="0x0b" title="Instruction" name="CONTEXTIDR" description="Instruction architecturally executed, condition code check pass, write to CONTEXTIDR"/>
+    <event event="0x0c" title="Branch" name="PC change" description="Instruction architecturally executed, condition code check pass, software change of the PC"/>
+    <event event="0x0d" title="Branch" name="Immediate" description="Instruction architecturally executed, immediate branch"/>
+    <event event="0x0e" title="Procedure" name="Return" description="Instruction architecturally executed, condition code check pass, procedure return"/>
+    <event event="0x0f" title="Memory" name="Unaligned access" description="Instruction architecturally executed, condition code check pass, unaligned load or store"/>
+    <event event="0x10" title="Branch" name="Mispredicted" description="Mispredicted or not predicted branch speculatively executed"/>
+    <event event="0x12" title="Branch" name="Potential prediction" description="Predictable branch speculatively executed"/>
+    <event event="0x13" title="Memory" name="Memory access" description="Data memory access"/>
+    <event event="0x14" title="Cache" name="L1 inst access" description="Level 1 instruction cache access"/>
+    <event event="0x15" title="Cache" name="L1 data write" description="Level 1 data cache write-back"/>
+    <event event="0x16" title="Cache" name="L2 data access" description="Level 2 data cache access"/>
+    <event event="0x17" title="Cache" name="L2 data refill" description="Level 2 data cache refill"/>
+    <event event="0x18" title="Cache" name="L2 data write" description="Level 2 data cache write-back"/>
+    <event event="0x19" title="Bus" name="Access" description="Bus access"/>
+    <event event="0x1a" title="Memory" name="Error" description="Local memory error"/>
+    <event event="0x1b" title="Instruction" name="Speculative" description="Instruction speculatively executed"/>
+    <event event="0x1c" title="Memory" name="Translation table" description="Instruction architecturally executed, condition code check pass, write to TTBR"/>
+    <event event="0x1d" title="Bus" name="Cycle" description="Bus cycle"/>
+  </category>

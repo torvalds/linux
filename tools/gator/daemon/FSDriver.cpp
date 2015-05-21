@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2014. All rights reserved.
+ * Copyright (C) ARM Limited 2014-2015. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -42,7 +42,7 @@ FSCounter::FSCounter(DriverCounter *next, char *name, char *path, const char *re
 		if (result != 0) {
 			char buf[128];
 			regerror(result, &mReg, buf, sizeof(buf));
-			logg->logError(__FILE__, __LINE__, "Invalid regex '%s': %s", regex, buf);
+			logg->logError("Invalid regex '%s': %s", regex, buf);
 			handleException();
 		}
 	}
@@ -79,21 +79,19 @@ int64_t FSCounter::read() {
 		regmatch_t match[2];
 		int result = regexec(&mReg, buf, 2, match, 0);
 		if (result != 0) {
-			regerror(result, &mReg, buf, sizeof(buf));
-			logg->logError(__FILE__, __LINE__, "Parsing %s failed: %s", mPath, buf);
-			handleException();
+			// No match
+			return 0;
 		}
 
 		if (match[1].rm_so < 0) {
-			logg->logError(__FILE__, __LINE__, "Parsing %s failed", mPath);
-			handleException();
-		}
-
-		errno = 0;
-		value = strtoll(buf + match[1].rm_so, NULL, 0);
-		if (errno != 0) {
-			logg->logError(__FILE__, __LINE__, "Parsing %s failed: %s", mPath, strerror(errno));
-			handleException();
+			value = 1;
+		} else {
+			errno = 0;
+			value = strtoll(buf + match[1].rm_so, NULL, 0);
+			if (errno != 0) {
+				logg->logError("Parsing %s failed: %s", mPath, strerror(errno));
+				handleException();
+			}
 		}
 	} else {
 		if (DriverSource::readInt64Driver(mPath, &value) != 0) {
@@ -103,7 +101,7 @@ int64_t FSCounter::read() {
 	return value;
 
  fail:
-	logg->logError(__FILE__, __LINE__, "Unable to read %s", mPath);
+	logg->logError("Unable to read %s", mPath);
 	handleException();
 }
 
@@ -126,7 +124,7 @@ void FSDriver::readEvents(mxml_node_t *const xml) {
 		}
 
 		if (counter[0] == '/') {
-			logg->logError(__FILE__, __LINE__, "Old style filesystem counter (%s) detected, please create a new unique counter value and move the filename into the path attribute, see events-Filesystem.xml for examples", counter);
+			logg->logError("Old style filesystem counter (%s) detected, please create a new unique counter value and move the filename into the path attribute, see events-Filesystem.xml for examples", counter);
 			handleException();
 		}
 
@@ -136,7 +134,7 @@ void FSDriver::readEvents(mxml_node_t *const xml) {
 
 		const char *path = mxmlElementGetAttr(node, "path");
 		if (path == NULL) {
-			logg->logError(__FILE__, __LINE__, "The filesystem counter %s is missing the required path attribute", counter);
+			logg->logError("The filesystem counter %s is missing the required path attribute", counter);
 			handleException();
 		}
 		const char *regex = mxmlElementGetAttr(node, "regex");

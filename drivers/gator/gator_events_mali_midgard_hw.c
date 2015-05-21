@@ -1,5 +1,5 @@
 /**
- * Copyright (C) ARM Limited 2012-2014. All rights reserved.
+ * Copyright (C) ARM Limited 2012-2015. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -18,7 +18,7 @@
 /* Mali Midgard DDK includes */
 #if defined(MALI_SIMPLE_API)
 /* Header with wrapper functions to kbase structures and functions */
-#include "mali/mali_kbase_gator_api.h"
+#include "mali_kbase_gator_api.h"
 #elif defined(MALI_DIR_MIDGARD)
 /* New DDK Directory structure with kernel/drivers/gpu/arm/midgard */
 #include "mali_linux_trace.h"
@@ -38,6 +38,10 @@
 
 #if (MALI_DDK_GATOR_API_VERSION != 1) && (MALI_DDK_GATOR_API_VERSION != 2) && (MALI_DDK_GATOR_API_VERSION != 3)
 #error MALI_DDK_GATOR_API_VERSION is invalid (must be 1 for r1/r2 DDK, or 2 for r3/r4 DDK, or 3 for r5 and later DDK).
+#endif
+
+#if !defined(CONFIG_MALI_GATOR_SUPPORT)
+#error CONFIG_MALI_GATOR_SUPPORT is required for GPU activity and software counters
 #endif
 
 #include "gator_events_mali_common.h"
@@ -748,12 +752,12 @@ static int read_counter(const int cnt, const int len, const struct mali_counter 
 {
 	const int block = GET_HW_BLOCK(cnt);
 	const int counter_offset = GET_COUNTER_OFFSET(cnt);
+	u32 value = 0;
 
 #if MALI_DDK_GATOR_API_VERSION == 3
 	const char *block_base_address = (char *)in_out_info->kernel_dump_buffer;
 	int i;
 	int shader_core_count = 0;
-	u32 value = 0;
 
 	for (i = 0; i < in_out_info->nr_hwc_blocks; i++) {
 		if (block == in_out_info->hwc_layout[i]) {
@@ -766,6 +770,12 @@ static int read_counter(const int cnt, const int len, const struct mali_counter 
 	if (shader_core_count > 1)
 		value /= shader_core_count;
 #else
+	const unsigned int vithar_blocks[] = {
+		0x700,	/* VITHAR_JOB_MANAGER,     Block 0 */
+		0x400,	/* VITHAR_TILER,           Block 1 */
+		0x000,	/* VITHAR_SHADER_CORE,     Block 2 */
+		0x500	/* VITHAR_MEMORY_SYSTEM,   Block 3 */
+	};
 	const char *block_base_address = (char *)kernel_dump_buffer + vithar_blocks[block];
 
 	/* If counter belongs to shader block need to take into account all cores */
@@ -831,31 +841,22 @@ static int read(int **buffer, bool sched_switch)
 	 * Only process hardware counters if at least one of the hardware counters is enabled.
 	 */
 	if (num_hardware_counters_enabled > 0) {
-#if MALI_DDK_GATOR_API_VERSION != 3
-		const unsigned int vithar_blocks[] = {
-			0x700,	/* VITHAR_JOB_MANAGER,     Block 0 */
-			0x400,	/* VITHAR_TILER,           Block 1 */
-			0x000,	/* VITHAR_SHADER_CORE,     Block 2 */
-			0x500	/* VITHAR_MEMORY_SYSTEM,   Block 3 */
-		};
-#endif
-
 #if MALI_DDK_GATOR_API_VERSION == 3
 		if (!handles)
 			return -1;
 
 		/* Mali symbols can be called safely since a kbcontext is valid */
-		if (kbase_gator_instr_hwcnt_dump_complete_symbol(handles, &success) == MALI_TRUE) {
+		if (kbase_gator_instr_hwcnt_dump_complete_symbol(handles, &success)) {
 #else
 		if (!kbcontext)
 			return -1;
 
 		/* Mali symbols can be called safely since a kbcontext is valid */
-		if (kbase_instr_hwcnt_dump_complete_symbol(kbcontext, &success) == MALI_TRUE) {
+		if (kbase_instr_hwcnt_dump_complete_symbol(kbcontext, &success)) {
 #endif
 			kbase_device_busy = false;
 
-			if (success == MALI_TRUE) {
+			if (success) {
 				/* Cycle through hardware counters and accumulate totals */
 				for (cnt = 0; cnt < number_of_hardware_counters; cnt++) {
 					const struct mali_counter *counter = &counters[cnt];
