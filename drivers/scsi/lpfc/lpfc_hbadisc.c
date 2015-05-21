@@ -1777,7 +1777,7 @@ lpfc_sli4_fcf_rec_mbox_parse(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq,
 	dma_addr_t phys_addr;
 	struct lpfc_mbx_sge sge;
 	struct lpfc_mbx_read_fcf_tbl *read_fcf;
-	uint32_t shdr_status, shdr_add_status;
+	uint32_t shdr_status, shdr_add_status, if_type;
 	union lpfc_sli4_cfg_shdr *shdr;
 	struct fcf_record *new_fcf_record;
 
@@ -1798,9 +1798,11 @@ lpfc_sli4_fcf_rec_mbox_parse(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq,
 	lpfc_sli_pcimem_bcopy(shdr, shdr,
 			      sizeof(union lpfc_sli4_cfg_shdr));
 	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
+	if_type = bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf);
 	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
 	if (shdr_status || shdr_add_status) {
-		if (shdr_status == STATUS_FCF_TABLE_EMPTY)
+		if (shdr_status == STATUS_FCF_TABLE_EMPTY ||
+					if_type == LPFC_SLI_INTF_IF_TYPE_2)
 			lpfc_printf_log(phba, KERN_ERR, LOG_FIP,
 					"2726 READ_FCF_RECORD Indicates empty "
 					"FCF table.\n");
