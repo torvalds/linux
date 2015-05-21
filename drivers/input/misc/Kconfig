@@ -796,4 +796,9 @@ config INPUT_MPL3115
 	  This driver can also be built as a module.  If so, the module
 	  will be called mpl3115
 
+config SENSOR_FXLS8471
+	tristate "FXLS8471 motion sensor device driver"
+	depends on I2C
+	default n
+
 endif
