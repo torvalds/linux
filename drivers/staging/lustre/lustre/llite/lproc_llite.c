@@ -950,24 +950,17 @@ static const char *ra_stat_string[] = {
 	[RA_STAT_WRONG_GRAB_PAGE] = "wrong page from grab_cache_page",
 };
 
-LPROC_SEQ_FOPS_RO_TYPE(llite, name);
-LPROC_SEQ_FOPS_RO_TYPE(llite, uuid);
-
 int lprocfs_register_mountpoint(struct proc_dir_entry *parent,
 				struct super_block *sb, char *osc, char *mdc)
 {
-	struct lprocfs_vars lvars[2];
 	struct lustre_sb_info *lsi = s2lsi(sb);
 	struct ll_sb_info *sbi = ll_s2sbi(sb);
 	struct obd_device *obd;
-	struct proc_dir_entry *dir;
 	char name[MAX_STRING_SIZE + 1], *ptr;
 	int err, id, len, rc;
 
-	memset(lvars, 0, sizeof(lvars));
 
 	name[MAX_STRING_SIZE] = '\0';
-	lvars[0].name = name;
 
 	LASSERT(sbi != NULL);
 	LASSERT(mdc != NULL);
@@ -1066,50 +1059,16 @@ int lprocfs_register_mountpoint(struct proc_dir_entry *parent,
 	/* MDC info */
 	obd = class_name2obd(mdc);
 
-	LASSERT(obd != NULL);
-	LASSERT(obd->obd_magic == OBD_DEVICE_MAGIC);
-	LASSERT(obd->obd_type->typ_name != NULL);
-
-	dir = proc_mkdir(obd->obd_type->typ_name, sbi->ll_proc_root);
-	if (dir == NULL) {
-		err = -ENOMEM;
-		goto out;
-	}
-
-	snprintf(name, MAX_STRING_SIZE, "common_name");
-	lvars[0].fops = &llite_name_fops;
-	err = lprocfs_add_vars(dir, lvars, obd);
-	if (err)
-		goto out;
-
-	snprintf(name, MAX_STRING_SIZE, "uuid");
-	lvars[0].fops = &llite_uuid_fops;
-	err = lprocfs_add_vars(dir, lvars, obd);
+	err = sysfs_create_link(&sbi->ll_kobj, &obd->obd_kobj,
+				obd->obd_type->typ_name);
 	if (err)
 		goto out;
 
 	/* OSC */
 	obd = class_name2obd(osc);
 
-	LASSERT(obd != NULL);
-	LASSERT(obd->obd_magic == OBD_DEVICE_MAGIC);
-	LASSERT(obd->obd_type->typ_name != NULL);
-
-	dir = proc_mkdir(obd->obd_type->typ_name, sbi->ll_proc_root);
-	if (dir == NULL) {
-		err = -ENOMEM;
-		goto out;
-	}
-
-	snprintf(name, MAX_STRING_SIZE, "common_name");
-	lvars[0].fops = &llite_name_fops;
-	err = lprocfs_add_vars(dir, lvars, obd);
-	if (err)
-		goto out;
-
-	snprintf(name, MAX_STRING_SIZE, "uuid");
-	lvars[0].fops = &llite_uuid_fops;
-	err = lprocfs_add_vars(dir, lvars, obd);
+	err = sysfs_create_link(&sbi->ll_kobj, &obd->obd_kobj,
+				obd->obd_type->typ_name);
 out:
 	if (err) {
 		lprocfs_remove(&sbi->ll_proc_root);
