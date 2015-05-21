@@ -4296,9 +4296,9 @@ lpfc_drop_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	if (vport->phba->sli_rev == LPFC_SLI_REV4) {
 		lpfc_cleanup_vports_rrqs(vport, ndlp);
 		lpfc_unreg_rpi(vport, ndlp);
-	} else {
-		lpfc_nlp_put(ndlp);
 	}
+
+	lpfc_nlp_put(ndlp);
 	return;
 }
 
