@@ -20,7 +20,7 @@
 #define CONFIG_SAMPLES_PER_MSG			48L
 #define CONFIG_PERIOD_NS			1000000 /* send msg every 1ms */
 
-#define CONFIG_COUNT_MAX			32
+#define CONFIG_COUNT_MAX			20
 #define CONFIG_I2S_REMOTE_DATA_CPORT		7 /* XXX shouldn't be hardcoded...*/
 #define RT5647_SLAVE_ADDR			0x1b /* from toshiba/quanta code */
 
