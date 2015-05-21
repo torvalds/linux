@@ -12,6 +12,7 @@
 #include <crypto/internal/aead.h>
 #include <crypto/internal/skcipher.h>
 #include <crypto/internal/hash.h>
+#include <crypto/null.h>
 #include <crypto/scatterwalk.h>
 #include <crypto/hash.h>
 #include "internal.h"
@@ -39,7 +40,6 @@ struct crypto_rfc4106_ctx {
 
 struct crypto_rfc4543_instance_ctx {
 	struct crypto_aead_spawn aead;
-	struct crypto_skcipher_spawn null;
 };
 
 struct crypto_rfc4543_ctx {
@@ -1246,7 +1246,7 @@ static int crypto_rfc4543_init_tfm(struct crypto_tfm *tfm)
 	if (IS_ERR(aead))
 		return PTR_ERR(aead);
 
-	null = crypto_spawn_blkcipher(&ictx->null.base);
+	null = crypto_get_default_null_skcipher();
 	err = PTR_ERR(null);
 	if (IS_ERR(null))
 		goto err_free_aead;
@@ -1273,7 +1273,7 @@ static void crypto_rfc4543_exit_tfm(struct crypto_tfm *tfm)
 	struct crypto_rfc4543_ctx *ctx = crypto_tfm_ctx(tfm);
 
 	crypto_free_aead(ctx->child);
-	crypto_free_blkcipher(ctx->null);
+	crypto_put_default_null_skcipher();
 }
 
 static struct crypto_instance *crypto_rfc4543_alloc(struct rtattr **tb)
@@ -1311,23 +1311,15 @@ static struct crypto_instance *crypto_rfc4543_alloc(struct rtattr **tb)
 
 	alg = crypto_aead_spawn_alg(spawn);
 
-	crypto_set_skcipher_spawn(&ctx->null, inst);
-	err = crypto_grab_skcipher(&ctx->null, "ecb(cipher_null)", 0,
-				   CRYPTO_ALG_ASYNC);
-	if (err)
-		goto out_drop_alg;
-
-	crypto_skcipher_spawn_alg(&ctx->null);
-
 	err = -EINVAL;
 
 	/* We only support 16-byte blocks. */
 	if (alg->cra_aead.ivsize != 16)
-		goto out_drop_ecbnull;
+		goto out_drop_alg;
 
 	/* Not a stream cipher? */
 	if (alg->cra_blocksize != 1)
-		goto out_drop_ecbnull;
+		goto out_drop_alg;
 
 	err = -ENAMETOOLONG;
 	if (snprintf(inst->alg.cra_name, CRYPTO_MAX_ALG_NAME,
@@ -1335,7 +1327,7 @@ static struct crypto_instance *crypto_rfc4543_alloc(struct rtattr **tb)
 	    snprintf(inst->alg.cra_driver_name, CRYPTO_MAX_ALG_NAME,
 		     "rfc4543(%s)", alg->cra_driver_name) >=
 	    CRYPTO_MAX_ALG_NAME)
-		goto out_drop_ecbnull;
+		goto out_drop_alg;
 
 	inst->alg.cra_flags = CRYPTO_ALG_TYPE_AEAD;
 	inst->alg.cra_flags |= alg->cra_flags & CRYPTO_ALG_ASYNC;
@@ -1362,8 +1354,6 @@ static struct crypto_instance *crypto_rfc4543_alloc(struct rtattr **tb)
 out:
 	return inst;
 
-out_drop_ecbnull:
-	crypto_drop_skcipher(&ctx->null);
 out_drop_alg:
 	crypto_drop_aead(spawn);
 out_free_inst:
@@ -1377,7 +1367,6 @@ static void crypto_rfc4543_free(struct crypto_instance *inst)
 	struct crypto_rfc4543_instance_ctx *ctx = crypto_instance_ctx(inst);
 
 	crypto_drop_aead(&ctx->aead);
-	crypto_drop_skcipher(&ctx->null);
 
 	kfree(inst);
 }
