@@ -2106,7 +2106,7 @@ static struct event_constraint *
 intel_get_event_constraints(struct cpu_hw_events *cpuc, int idx,
 			    struct perf_event *event)
 {
-	struct event_constraint *c1 = event->hw.constraint;
+	struct event_constraint *c1 = cpuc->event_constraint[idx];
 	struct event_constraint *c2;
 
 	/*
@@ -2188,8 +2188,6 @@ intel_put_shared_regs_event_constraints(struct cpu_hw_events *cpuc,
 static void intel_put_event_constraints(struct cpu_hw_events *cpuc,
 					struct perf_event *event)
 {
-	struct event_constraint *c = event->hw.constraint;
-
 	intel_put_shared_regs_event_constraints(cpuc, event);
 
 	/*
@@ -2197,19 +2195,14 @@ static void intel_put_event_constraints(struct cpu_hw_events *cpuc,
 	 * all events are subject to and must call the
 	 * put_excl_constraints() routine
 	 */
-	if (c && cpuc->excl_cntrs)
+	if (cpuc->excl_cntrs)
 		intel_put_excl_constraints(cpuc, event);
-
-	/* cleanup dynamic constraint */
-	if (c && (c->flags & PERF_X86_EVENT_DYNAMIC))
-		event->hw.constraint = NULL;
 }
 
-static void intel_commit_scheduling(struct cpu_hw_events *cpuc,
-				    struct perf_event *event, int cntr)
+static void intel_commit_scheduling(struct cpu_hw_events *cpuc, int idx, int cntr)
 {
 	struct intel_excl_cntrs *excl_cntrs = cpuc->excl_cntrs;
-	struct event_constraint *c = event->hw.constraint;
+	struct event_constraint *c = cpuc->event_constraint[idx];
 	struct intel_excl_states *xlo, *xl;
 	int tid = cpuc->excl_thread_id;
 	int o_tid = 1 - tid;

@@ -172,7 +172,10 @@ struct cpu_hw_events {
 					     added in the current transaction */
 	int			assign[X86_PMC_IDX_MAX]; /* event to counter assignment */
 	u64			tags[X86_PMC_IDX_MAX];
+
 	struct perf_event	*event_list[X86_PMC_IDX_MAX]; /* in enabled order */
+	struct event_constraint	*event_constraint[X86_PMC_IDX_MAX];
+
 
 	unsigned int		group_flag;
 	int			is_fake;
@@ -519,9 +522,7 @@ struct x86_pmu {
 	void		(*put_event_constraints)(struct cpu_hw_events *cpuc,
 						 struct perf_event *event);
 
-	void		(*commit_scheduling)(struct cpu_hw_events *cpuc,
-					     struct perf_event *event,
-					     int cntr);
+	void		(*commit_scheduling)(struct cpu_hw_events *cpuc, int idx, int cntr);
 
 	void		(*start_scheduling)(struct cpu_hw_events *cpuc);
 
@@ -717,7 +718,7 @@ static inline void __x86_pmu_enable_event(struct hw_perf_event *hwc,
 
 void x86_pmu_enable_all(int added);
 
-int perf_assign_events(struct perf_event **events, int n,
+int perf_assign_events(struct event_constraint **constraints, int n,
 			int wmin, int wmax, int *assign);
 int x86_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign);
 
