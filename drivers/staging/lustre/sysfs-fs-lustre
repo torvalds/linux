@@ -329,3 +329,10 @@ Date:		May 2015
 Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
 Description:
 		Shows actual number of ldlm callback threads running.
+
+What:		/sys/fs/lustre/ldlm/services/ldlm_cbd/high_priority_ratio
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls what percentage of ldlm callback threads is dedicated
+		to "high priority" incoming requests.

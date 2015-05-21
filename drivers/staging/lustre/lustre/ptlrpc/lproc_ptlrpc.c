@@ -1018,23 +1018,26 @@ static int ptlrpc_lprocfs_timeouts_seq_show(struct seq_file *m, void *n)
 }
 LPROC_SEQ_FOPS_RO(ptlrpc_lprocfs_timeouts);
 
-static int ptlrpc_lprocfs_hp_ratio_seq_show(struct seq_file *m, void *v)
+static ssize_t high_priority_ratio_show(struct kobject *kobj,
+					struct attribute *attr,
+					char *buf)
 {
-	struct ptlrpc_service *svc = m->private;
-	seq_printf(m, "%d", svc->srv_hpreq_ratio);
-	return 0;
+	struct ptlrpc_service *svc = container_of(kobj, struct ptlrpc_service,
+						  srv_kobj);
+	return sprintf(buf, "%d\n", svc->srv_hpreq_ratio);
 }
 
-static ssize_t ptlrpc_lprocfs_hp_ratio_seq_write(struct file *file,
-					     const char __user *buffer,
-					     size_t count,
-					     loff_t *off)
+static ssize_t high_priority_ratio_store(struct kobject *kobj,
+					 struct attribute *attr,
+					 const char *buffer,
+					 size_t count)
 {
-	struct ptlrpc_service *svc = ((struct seq_file *)file->private_data)->private;
-	int	rc;
-	int	val;
+	struct ptlrpc_service *svc = container_of(kobj, struct ptlrpc_service,
+						  srv_kobj);
+	int rc;
+	unsigned long val;
 
-	rc = lprocfs_write_helper(buffer, count, &val);
+	rc = kstrtoul(buffer, 10, &val);
 	if (rc < 0)
 		return rc;
 
@@ -1047,12 +1050,13 @@ static ssize_t ptlrpc_lprocfs_hp_ratio_seq_write(struct file *file,
 
 	return count;
 }
-LPROC_SEQ_FOPS(ptlrpc_lprocfs_hp_ratio);
+LUSTRE_RW_ATTR(high_priority_ratio);
 
 static struct attribute *ptlrpc_svc_attrs[] = {
 	&lustre_attr_threads_min.attr,
 	&lustre_attr_threads_started.attr,
 	&lustre_attr_threads_max.attr,
+	&lustre_attr_high_priority_ratio.attr,
 	NULL,
 };
 
@@ -1096,9 +1100,6 @@ void ptlrpc_lprocfs_register_service(struct proc_dir_entry *entry,
 				     struct ptlrpc_service *svc)
 {
 	struct lprocfs_vars lproc_vars[] = {
-		{.name       = "high_priority_ratio",
-		 .fops	     = &ptlrpc_lprocfs_hp_ratio_fops,
-		 .data       = svc},
 		{.name       = "req_buffer_history_len",
 		 .fops	     = &ptlrpc_lprocfs_req_history_len_fops,
 		 .data       = svc},
