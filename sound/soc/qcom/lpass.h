@@ -61,6 +61,11 @@ struct lpass_variant {
 	u32	rdma_reg_stride;
 	u32	rdma_channels;
 
+	/**
+	 * on SOCs like APQ8016 the channel control bits start
+	 * at different offset to ipq806x
+	 **/
+	u32	rdmactl_audif_start;
 	/* SOC specific intialization like clocks */
 	int (*init)(struct platform_device *pdev);
 	int (*exit)(struct platform_device *pdev);
