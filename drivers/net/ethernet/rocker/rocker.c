@@ -2909,9 +2909,13 @@ static struct rocker_neigh_tbl_entry *
 }
 
 static void _rocker_neigh_add(struct rocker *rocker,
+			      enum switchdev_trans trans,
 			      struct rocker_neigh_tbl_entry *entry)
 {
-	entry->index = rocker->neigh_tbl_next_index++;
+	entry->index = rocker->neigh_tbl_next_index;
+	if (trans == SWITCHDEV_TRANS_PREPARE)
+		return;
+	rocker->neigh_tbl_next_index++;
 	entry->ref_count++;
 	hash_add(rocker->neigh_tbl, &entry->entry,
 		 be32_to_cpu(entry->ip_addr));
@@ -2921,6 +2925,8 @@ static void _rocker_neigh_del(struct rocker_port *rocker_port,
 			      enum switchdev_trans trans,
 			      struct rocker_neigh_tbl_entry *entry)
 {
+	if (trans == SWITCHDEV_TRANS_PREPARE)
+		return;
 	if (--entry->ref_count == 0) {
 		hash_del(&entry->entry);
 		rocker_port_kfree(rocker_port, trans, entry);
@@ -2928,12 +2934,13 @@ static void _rocker_neigh_del(struct rocker_port *rocker_port,
 }
 
 static void _rocker_neigh_update(struct rocker_neigh_tbl_entry *entry,
+				 enum switchdev_trans trans,
 				 u8 *eth_dst, bool ttl_check)
 {
 	if (eth_dst) {
 		ether_addr_copy(entry->eth_dst, eth_dst);
 		entry->ttl_check = ttl_check;
-	} else {
+	} else if (trans != SWITCHDEV_TRANS_PREPARE) {
 		entry->ref_count++;
 	}
 }
@@ -2973,12 +2980,12 @@ static int rocker_port_ipv4_neigh(struct rocker_port *rocker_port,
 		entry->dev = rocker_port->dev;
 		ether_addr_copy(entry->eth_dst, eth_dst);
 		entry->ttl_check = true;
-		_rocker_neigh_add(rocker, entry);
+		_rocker_neigh_add(rocker, trans, entry);
 	} else if (removing) {
 		memcpy(entry, found, sizeof(*entry));
 		_rocker_neigh_del(rocker_port, trans, found);
 	} else if (updating) {
-		_rocker_neigh_update(found, eth_dst, true);
+		_rocker_neigh_update(found, trans, eth_dst, true);
 		memcpy(entry, found, sizeof(*entry));
 	} else {
 		err = -ENOENT;
@@ -3089,13 +3096,13 @@ static int rocker_port_ipv4_nh(struct rocker_port *rocker_port,
 	if (adding) {
 		entry->ip_addr = ip_addr;
 		entry->dev = rocker_port->dev;
-		_rocker_neigh_add(rocker, entry);
+		_rocker_neigh_add(rocker, trans, entry);
 		*index = entry->index;
 		resolved = false;
 	} else if (removing) {
 		_rocker_neigh_del(rocker_port, trans, found);
 	} else if (updating) {
-		_rocker_neigh_update(found, NULL, false);
+		_rocker_neigh_update(found, trans, NULL, false);
 		resolved = !is_zero_ether_addr(found->eth_dst);
 	} else {
 		err = -ENOENT;
@@ -3612,9 +3619,11 @@ static int rocker_port_fdb(struct rocker_port *rocker_port,
 
 	if (removing && found) {
 		rocker_port_kfree(rocker_port, trans, fdb);
-		hash_del(&found->entry);
+		if (trans != SWITCHDEV_TRANS_PREPARE)
+			hash_del(&found->entry);
 	} else if (!removing && !found) {
-		hash_add(rocker->fdb_tbl, &fdb->entry, fdb->key_crc32);
+		if (trans != SWITCHDEV_TRANS_PREPARE)
+			hash_add(rocker->fdb_tbl, &fdb->entry, fdb->key_crc32);
 	}
 
 	spin_unlock_irqrestore(&rocker->fdb_tbl_lock, lock_flags);
@@ -3658,7 +3667,8 @@ static int rocker_port_fdb_flush(struct rocker_port *rocker_port,
 					    found->key.vlan_id);
 		if (err)
 			goto err_out;
-		hash_del(&found->entry);
+		if (trans != SWITCHDEV_TRANS_PREPARE)
+			hash_del(&found->entry);
 	}
 
 err_out:
@@ -3843,7 +3853,6 @@ rocker_internal_vlan_tbl_find(struct rocker *rocker, int ifindex)
 }
 
 static __be16 rocker_port_internal_vlan_id_get(struct rocker_port *rocker_port,
-					       enum switchdev_trans trans,
 					       int ifindex)
 {
 	struct rocker *rocker = rocker_port->rocker;
@@ -3852,7 +3861,7 @@ static __be16 rocker_port_internal_vlan_id_get(struct rocker_port *rocker_port,
 	unsigned long lock_flags;
 	int i;
 
-	entry = rocker_port_kzalloc(rocker_port, trans, sizeof(*entry));
+	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
 		return 0;
 
@@ -3862,7 +3871,7 @@ static __be16 rocker_port_internal_vlan_id_get(struct rocker_port *rocker_port,
 
 	found = rocker_internal_vlan_tbl_find(rocker, ifindex);
 	if (found) {
-		rocker_port_kfree(rocker_port, trans, entry);
+		kfree(entry);
 		goto found;
 	}
 
@@ -3886,7 +3895,6 @@ found:
 }
 
 static void rocker_port_internal_vlan_id_put(struct rocker_port *rocker_port,
-					     enum switchdev_trans trans,
 					     int ifindex)
 {
 	struct rocker *rocker = rocker_port->rocker;
@@ -3908,7 +3916,7 @@ static void rocker_port_internal_vlan_id_put(struct rocker_port *rocker_port,
 		bit = ntohs(found->vlan_id) - ROCKER_INTERNAL_VLAN_ID_BASE;
 		clear_bit(bit, rocker->internal_vlan_bitmap);
 		hash_del(&found->entry);
-		rocker_port_kfree(rocker_port, trans, found);
+		kfree(found);
 	}
 
 not_found:
@@ -4894,9 +4902,7 @@ static int rocker_probe_port(struct rocker *rocker, unsigned int port_number)
 	rocker_port_set_learning(rocker_port, SWITCHDEV_TRANS_NONE);
 
 	rocker_port->internal_vlan_id =
-		rocker_port_internal_vlan_id_get(rocker_port,
-						 SWITCHDEV_TRANS_NONE,
-						 dev->ifindex);
+		rocker_port_internal_vlan_id_get(rocker_port, dev->ifindex);
 	err = rocker_port_ig_tbl(rocker_port, SWITCHDEV_TRANS_NONE, 0);
 	if (err) {
 		dev_err(&pdev->dev, "install ig port table failed\n");
@@ -5144,7 +5150,7 @@ static int rocker_port_bridge_join(struct rocker_port *rocker_port,
 {
 	int err;
 
-	rocker_port_internal_vlan_id_put(rocker_port, SWITCHDEV_TRANS_NONE,
+	rocker_port_internal_vlan_id_put(rocker_port,
 					 rocker_port->dev->ifindex);
 
 	rocker_port->bridge_dev = bridge;
@@ -5155,9 +5161,7 @@ static int rocker_port_bridge_join(struct rocker_port *rocker_port,
 	if (err)
 		return err;
 	rocker_port->internal_vlan_id =
-		rocker_port_internal_vlan_id_get(rocker_port,
-						 SWITCHDEV_TRANS_NONE,
-						 bridge->ifindex);
+		rocker_port_internal_vlan_id_get(rocker_port, bridge->ifindex);
 	return rocker_port_vlan(rocker_port, SWITCHDEV_TRANS_NONE, 0, 0);
 }
 
@@ -5165,7 +5169,7 @@ static int rocker_port_bridge_leave(struct rocker_port *rocker_port)
 {
 	int err;
 
-	rocker_port_internal_vlan_id_put(rocker_port, SWITCHDEV_TRANS_NONE,
+	rocker_port_internal_vlan_id_put(rocker_port,
 					 rocker_port->bridge_dev->ifindex);
 
 	rocker_port->bridge_dev = NULL;
@@ -5177,7 +5181,6 @@ static int rocker_port_bridge_leave(struct rocker_port *rocker_port)
 		return err;
 	rocker_port->internal_vlan_id =
 		rocker_port_internal_vlan_id_get(rocker_port,
-						 SWITCHDEV_TRANS_NONE,
 						 rocker_port->dev->ifindex);
 	err = rocker_port_vlan(rocker_port, SWITCHDEV_TRANS_NONE, 0, 0);
 	if (err)
