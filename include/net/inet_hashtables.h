@@ -148,8 +148,6 @@ struct inet_hashinfo {
 	 */
 	struct inet_listen_hashbucket	listening_hash[INET_LHTABLE_SIZE]
 					____cacheline_aligned_in_smp;
-
-	atomic_t			bsockets;
 };
 
 static inline struct inet_ehash_bucket *inet_ehash_bucket(
