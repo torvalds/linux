@@ -134,8 +134,8 @@ int gb_i2s_mgmt_setup(struct gb_connection *connection)
 		    (cfg->ll_wclk_role & GB_I2S_MGMT_ROLE_MASTER) &&
 		    (cfg->ll_wclk_polarity & GB_I2S_MGMT_POLARITY_NORMAL) &&
 		    (cfg->ll_wclk_change_edge & GB_I2S_MGMT_EDGE_FALLING) &&
-		    (cfg->ll_wclk_tx_edge & GB_I2S_MGMT_EDGE_FALLING) &&
-		    (cfg->ll_wclk_rx_edge & GB_I2S_MGMT_EDGE_RISING) &&
+		    (cfg->ll_wclk_tx_edge & GB_I2S_MGMT_EDGE_RISING) &&
+		    (cfg->ll_wclk_rx_edge & GB_I2S_MGMT_EDGE_FALLING) &&
 		    (cfg->ll_data_offset == 1))
 			break;
 	}
@@ -153,9 +153,9 @@ int gb_i2s_mgmt_setup(struct gb_connection *connection)
 	set_cfg.config.ll_bclk_role = GB_I2S_MGMT_ROLE_MASTER;
 	set_cfg.config.ll_wclk_role = GB_I2S_MGMT_ROLE_MASTER;
 	set_cfg.config.ll_wclk_polarity = GB_I2S_MGMT_POLARITY_NORMAL;
-	set_cfg.config.ll_wclk_change_edge = GB_I2S_MGMT_EDGE_RISING;
-	set_cfg.config.ll_wclk_tx_edge = GB_I2S_MGMT_EDGE_FALLING;
-	set_cfg.config.ll_wclk_rx_edge = GB_I2S_MGMT_EDGE_RISING;
+	set_cfg.config.ll_wclk_change_edge = GB_I2S_MGMT_EDGE_FALLING;
+	set_cfg.config.ll_wclk_tx_edge = GB_I2S_MGMT_EDGE_RISING;
+	set_cfg.config.ll_wclk_rx_edge = GB_I2S_MGMT_EDGE_FALLING;
 
 	ret = gb_i2s_mgmt_set_configuration(connection, &set_cfg);
 	if (ret) {
