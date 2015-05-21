@@ -66,6 +66,153 @@ int drm_bridge_attach(struct drm_device *dev, struct drm_bridge *bridge)
 }
 EXPORT_SYMBOL(drm_bridge_attach);
 
+/**
+ * drm_bridge_mode_fixup - fixup proposed mode for all bridges in the
+ *			   encoder chain
+ * @bridge: bridge control structure
+ * @mode: desired mode to be set for the bridge
+ * @adjusted_mode: updated mode that works for this bridge
+ *
+ * Calls 'mode_fixup' drm_bridge_funcs op for all the bridges in the
+ * encoder chain, starting from the first bridge to the last.
+ *
+ * Note: the bridge passed should be the one closest to the encoder
+ *
+ * RETURNS:
+ * true on success, false on failure
+ */
+bool drm_bridge_mode_fixup(struct drm_bridge *bridge,
+			const struct drm_display_mode *mode,
+			struct drm_display_mode *adjusted_mode)
+{
+	bool ret = true;
+
+	if (!bridge)
+		return true;
+
+	if (bridge->funcs->mode_fixup)
+		ret = bridge->funcs->mode_fixup(bridge, mode, adjusted_mode);
+
+	ret = ret && drm_bridge_mode_fixup(bridge->next, mode, adjusted_mode);
+
+	return ret;
+}
+EXPORT_SYMBOL(drm_bridge_mode_fixup);
+
+/**
+ * drm_bridge_disable - calls 'disable' drm_bridge_funcs op for all
+ *			bridges in the encoder chain.
+ * @bridge: bridge control structure
+ *
+ * Calls 'disable' drm_bridge_funcs op for all the bridges in the encoder
+ * chain, starting from the last bridge to the first. These are called before
+ * calling the encoder's prepare op.
+ *
+ * Note: the bridge passed should be the one closest to the encoder
+ */
+void drm_bridge_disable(struct drm_bridge *bridge)
+{
+	if (!bridge)
+		return;
+
+	drm_bridge_disable(bridge->next);
+
+	bridge->funcs->disable(bridge);
+}
+EXPORT_SYMBOL(drm_bridge_disable);
+
+/**
+ * drm_bridge_post_disable - calls 'post_disable' drm_bridge_funcs op for
+ *			     all bridges in the encoder chain.
+ * @bridge: bridge control structure
+ *
+ * Calls 'post_disable' drm_bridge_funcs op for all the bridges in the
+ * encoder chain, starting from the first bridge to the last. These are called
+ * after completing the encoder's prepare op.
+ *
+ * Note: the bridge passed should be the one closest to the encoder
+ */
+void drm_bridge_post_disable(struct drm_bridge *bridge)
+{
+	if (!bridge)
+		return;
+
+	bridge->funcs->post_disable(bridge);
+
+	drm_bridge_post_disable(bridge->next);
+}
+EXPORT_SYMBOL(drm_bridge_post_disable);
+
+/**
+ * drm_bridge_mode_set - set proposed mode for all bridges in the
+ *			 encoder chain
+ * @bridge: bridge control structure
+ * @mode: desired mode to be set for the bridge
+ * @adjusted_mode: updated mode that works for this bridge
+ *
+ * Calls 'mode_set' drm_bridge_funcs op for all the bridges in the
+ * encoder chain, starting from the first bridge to the last.
+ *
+ * Note: the bridge passed should be the one closest to the encoder
+ */
+void drm_bridge_mode_set(struct drm_bridge *bridge,
+			struct drm_display_mode *mode,
+			struct drm_display_mode *adjusted_mode)
+{
+	if (!bridge)
+		return;
+
+	if (bridge->funcs->mode_set)
+		bridge->funcs->mode_set(bridge, mode, adjusted_mode);
+
+	drm_bridge_mode_set(bridge->next, mode, adjusted_mode);
+}
+EXPORT_SYMBOL(drm_bridge_mode_set);
+
+/**
+ * drm_bridge_pre_enable - calls 'pre_enable' drm_bridge_funcs op for all
+ *			   bridges in the encoder chain.
+ * @bridge: bridge control structure
+ *
+ * Calls 'pre_enable' drm_bridge_funcs op for all the bridges in the encoder
+ * chain, starting from the last bridge to the first. These are called
+ * before calling the encoder's commit op.
+ *
+ * Note: the bridge passed should be the one closest to the encoder
+ */
+void drm_bridge_pre_enable(struct drm_bridge *bridge)
+{
+	if (!bridge)
+		return;
+
+	drm_bridge_pre_enable(bridge->next);
+
+	bridge->funcs->pre_enable(bridge);
+}
+EXPORT_SYMBOL(drm_bridge_pre_enable);
+
+/**
+ * drm_bridge_enable - calls 'enable' drm_bridge_funcs op for all bridges
+ *		       in the encoder chain.
+ * @bridge: bridge control structure
+ *
+ * Calls 'enable' drm_bridge_funcs op for all the bridges in the encoder
+ * chain, starting from the first bridge to the last. These are called
+ * after completing the encoder's commit op.
+ *
+ * Note that the bridge passed should be the one closest to the encoder
+ */
+void drm_bridge_enable(struct drm_bridge *bridge)
+{
+	if (!bridge)
+		return;
+
+	bridge->funcs->enable(bridge);
+
+	drm_bridge_enable(bridge->next);
+}
+EXPORT_SYMBOL(drm_bridge_enable);
+
 #ifdef CONFIG_OF
 struct drm_bridge *of_drm_find_bridge(struct device_node *np)
 {
