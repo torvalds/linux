@@ -4158,7 +4158,7 @@ void gen6_rps_boost(struct drm_i915_private *dev_priv,
 	/* Force a RPS boost (and don't count it against the client) if
 	 * the GPU is severely congested.
 	 */
-	if (rps && time_after(jiffies, submitted + msecs_to_jiffies(20)))
+	if (rps && time_after(jiffies, submitted + DRM_I915_THROTTLE_JIFFIES))
 		rps = NULL;
 
 	mutex_lock(&dev_priv->rps.hw_lock);

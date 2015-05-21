@@ -279,6 +279,12 @@ struct drm_i915_file_private {
 	struct {
 		spinlock_t lock;
 		struct list_head request_list;
+/* 20ms is a fairly arbitrary limit (greater than the average frame time)
+ * chosen to prevent the CPU getting more than a frame ahead of the GPU
+ * (when using lax throttling for the frontbuffer). We also use it to
+ * offer free GPU waitboosts for severely congested workloads.
+ */
+#define DRM_I915_THROTTLE_JIFFIES msecs_to_jiffies(20)
 	} mm;
 	struct idr context_idr;
 
