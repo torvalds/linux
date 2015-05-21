@@ -210,7 +210,7 @@ enum bc_port_type usb_battery_charger_detect_inno(bool wait)
 {
 	enum bc_port_type port_type = USB_BC_TYPE_DISCNT;
 	int dcd_state = DCD_POSITIVE;
-	int timeout = 0, i = 0;
+	int timeout = 0, i = 0, filted_cpdet = 0;
 
 	/* VBUS Valid detect */
 	if (BC_GET(INNO_BC_BVALID) &&
@@ -248,8 +248,22 @@ enum bc_port_type usb_battery_charger_detect_inno(bool wait)
 		BC_SET(INNO_BC_IDMSINKEN, 1);
 		udelay(T_BC_CHGDET_VALID);
 
+		/*
+		 * Filter for Primary Detection,
+		 * double check CPDET field
+		 */
+		timeout = T_BC_CHGDET_VALID;
+		while(timeout--) {
+			/*
+			 * In rapidly hotplug case, it's more likely to
+			 * distinguish SDP as DCP/CDP because of line
+			 * bounce
+			 */
+			filted_cpdet += (BC_GET(INNO_BC_CPDET) ? 1 : -2);
+			udelay(1);
+		}
 		/* SDP and CDP/DCP distinguish */
-		if (BC_GET(INNO_BC_CPDET)) {
+		if (filted_cpdet > 0) {
 			/* Turn off VDPSRC */
 			BC_SET(INNO_BC_VDPSRCEN, 0);
 			BC_SET(INNO_BC_IDMSINKEN, 0);

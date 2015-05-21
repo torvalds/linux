@@ -1637,7 +1637,7 @@ static void dwc_otg_pcd_check_vbus_work(struct work_struct *work)
 			_pcd->conn_status++;
 			if (pldata->bc_detect_cb != NULL) {
 				pldata->bc_detect_cb(_pcd->vbus_status =
-						     USB_BC_TYPE_DCP);
+						     usb_battery_charger_detect(1));
 			} else {
 				_pcd->vbus_status = USB_BC_TYPE_DCP;
 			}
