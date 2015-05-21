@@ -1,6 +1,6 @@
 
 
-                  HOWTO for the linux packet generator 
+                  HOWTO for the linux packet generator
                   ------------------------------------
 
 Enable CONFIG_NET_PKTGEN to compile and build pktgen either in-kernel
@@ -52,11 +52,10 @@ For ixgbe use e.g. "30" resulting in approx 33K interrupts/sec (1/30*10^6):
 
 Viewing threads
 ===============
-/proc/net/pktgen/kpktgend_0 
-Name: kpktgend_0  max_before_softirq: 10000
-Running: 
-Stopped: eth1 
-Result: OK: max_before_softirq=10000
+/proc/net/pktgen/kpktgend_0
+Running:
+Stopped: eth1
+Result: OK: add_device=eth1
 
 Most important are the devices assigned to the thread.  Note that a
 device can only belong to one thread.
@@ -69,7 +68,7 @@ The Params section holds configured information.  The Current section
 holds running statistics.  The Result is printed after a run or after
 interruption.  Example:
 
-/proc/net/pktgen/eth1       
+/proc/net/pktgen/eth1
 
 Params: count 10000000  min_pkt_size: 60  max_pkt_size: 60
      frags: 0  delay: 0  clone_skb: 1000000  ifname: eth1
@@ -126,7 +125,7 @@ Examples:
                          To select queue 1 of a given device,
                          use queue_map_min=1 and queue_map_max=1
 
- pgset "src_mac_count 1" Sets the number of MACs we'll range through.  
+ pgset "src_mac_count 1" Sets the number of MACs we'll range through.
                          The 'minimum' MAC is what you set with srcmac.
 
  pgset "dst_mac_count 1" Sets the number of MACs we'll range through.
@@ -247,7 +246,6 @@ stop
 
 add_device
 rem_device_all
-max_before_softirq
 
 
 ** Device commands:
@@ -262,7 +260,7 @@ delay
 src_mac_count
 dst_mac_count
 
-pkt_size 
+pkt_size
 min_pkt_size
 max_pkt_size
 
