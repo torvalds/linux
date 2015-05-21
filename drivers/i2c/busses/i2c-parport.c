@@ -185,11 +185,15 @@ static void i2c_parport_attach(struct parport *port)
 		printk(KERN_ERR "i2c-parport: Failed to kzalloc\n");
 		return;
 	}
+	memset(&i2c_parport_cb, 0, sizeof(i2c_parport_cb));
+	i2c_parport_cb.flags = PARPORT_FLAG_EXCL;
+	i2c_parport_cb.irq_func = i2c_parport_irq;
+	i2c_parport_cb.private = adapter;
 
 	pr_debug("i2c-parport: attaching to %s\n", port->name);
 	parport_disable_irq(port);
-	adapter->pdev = parport_register_device(port, "i2c-parport",
-		NULL, NULL, i2c_parport_irq, PARPORT_FLAG_EXCL, adapter);
+	adapter->pdev = parport_register_dev_model(port, "i2c-parport",
+						   &i2c_parport_cb, i);
 	if (!adapter->pdev) {
 		printk(KERN_ERR "i2c-parport: Unable to register with parport\n");
 		goto err_free;
@@ -283,9 +287,10 @@ static void i2c_parport_detach(struct parport *port)
 }
 
 static struct parport_driver i2c_parport_driver = {
-	.name	= "i2c-parport",
-	.attach	= i2c_parport_attach,
-	.detach	= i2c_parport_detach,
+	.name = "i2c-parport",
+	.match_port = i2c_parport_attach,
+	.detach = i2c_parport_detach,
+	.devmodel = true,
 };
 
 /* ----- Module loading, unloading and information ------------------------ */
