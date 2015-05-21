@@ -243,6 +243,29 @@ EXPORT_SYMBOL(lprocfs_seq_release);
 
 /* lprocfs API calls */
 
+struct dentry *ldebugfs_add_simple(struct dentry *root,
+				   char *name, void *data,
+				   struct file_operations *fops)
+{
+	struct dentry *entry;
+	umode_t mode = 0;
+
+	if (root == NULL || name == NULL || fops == NULL)
+		return ERR_PTR(-EINVAL);
+
+	if (fops->read)
+		mode = 0444;
+	if (fops->write)
+		mode |= 0200;
+	entry = debugfs_create_file(name, mode, root, data, fops);
+	if (IS_ERR_OR_NULL(entry)) {
+		CERROR("LprocFS: No memory to create <debugfs> entry %s", name);
+		return entry ?: ERR_PTR(-ENOMEM);
+	}
+	return entry;
+}
+EXPORT_SYMBOL(ldebugfs_add_simple);
+
 struct proc_dir_entry *lprocfs_add_simple(struct proc_dir_entry *root,
 				     char *name, void *data,
 				     struct file_operations *fops)
@@ -1036,10 +1059,6 @@ int lprocfs_obd_setup(struct obd_device *obd, struct lprocfs_vars *list,
 {
 	int rc = 0;
 
-	LASSERT(obd != NULL);
-	LASSERT(obd->obd_magic == OBD_DEVICE_MAGIC);
-	LASSERT(obd->obd_type->typ_procroot != NULL);
-
 	init_completion(&obd->obd_kobj_unregister);
 	rc = kobject_init_and_add(&obd->obd_kobj, &obd_ktype,
 				  obd->obd_type->typ_kobj,
@@ -1055,15 +1074,15 @@ int lprocfs_obd_setup(struct obd_device *obd, struct lprocfs_vars *list,
 		}
 	}
 
-	obd->obd_proc_entry = lprocfs_register(obd->obd_name,
-					       obd->obd_type->typ_procroot,
-					       list, obd);
-	if (IS_ERR(obd->obd_proc_entry)) {
-		kobject_put(&obd->obd_kobj);
-		rc = PTR_ERR(obd->obd_proc_entry);
+	obd->obd_debugfs_entry = ldebugfs_register(obd->obd_name,
+						   obd->obd_type->typ_debugfs_entry,
+						   list, obd);
+	if (IS_ERR_OR_NULL(obd->obd_debugfs_entry)) {
+		rc = obd->obd_debugfs_entry ? PTR_ERR(obd->obd_debugfs_entry)
+					    : -ENOMEM;
 		CERROR("error %d setting up lprocfs for %s\n",
 		       rc, obd->obd_name);
-		obd->obd_proc_entry = NULL;
+		obd->obd_debugfs_entry = NULL;
 	}
 
 	return rc;
@@ -1074,17 +1093,19 @@ int lprocfs_obd_cleanup(struct obd_device *obd)
 {
 	if (!obd)
 		return -EINVAL;
+
 	if (obd->obd_proc_exports_entry) {
 		/* Should be no exports left */
 		lprocfs_remove(&obd->obd_proc_exports_entry);
 		obd->obd_proc_exports_entry = NULL;
 	}
-	if (obd->obd_proc_entry) {
-		lprocfs_remove(&obd->obd_proc_entry);
-		obd->obd_proc_entry = NULL;
-	}
+
+	if (!IS_ERR_OR_NULL(obd->obd_debugfs_entry))
+		ldebugfs_remove(&obd->obd_debugfs_entry);
+
 	kobject_put(&obd->obd_kobj);
 	wait_for_completion(&obd->obd_kobj_unregister);
+
 	return 0;
 }
 EXPORT_SYMBOL(lprocfs_obd_cleanup);
@@ -1507,7 +1528,7 @@ int lprocfs_alloc_obd_stats(struct obd_device *obd, unsigned num_private_stats)
 	int rc, i;
 
 	LASSERT(obd->obd_stats == NULL);
-	LASSERT(obd->obd_proc_entry != NULL);
+	LASSERT(obd->obd_debugfs_entry != NULL);
 	LASSERT(obd->obd_cntr_base == 0);
 
 	num_stats = ((int)sizeof(*obd->obd_type->typ_dt_ops) / sizeof(void *)) +
@@ -1528,7 +1549,7 @@ int lprocfs_alloc_obd_stats(struct obd_device *obd, unsigned num_private_stats)
 			 "Missing obd_stat initializer obd_op operation at offset %d.\n",
 			 i - num_private_stats);
 	}
-	rc = lprocfs_register_stats(obd->obd_proc_entry, "stats", stats);
+	rc = ldebugfs_register_stats(obd->obd_debugfs_entry, "stats", stats);
 	if (rc < 0) {
 		lprocfs_free_stats(&stats);
 	} else {
@@ -1598,7 +1619,7 @@ int lprocfs_alloc_md_stats(struct obd_device *obd,
 	int rc, i;
 
 	LASSERT(obd->md_stats == NULL);
-	LASSERT(obd->obd_proc_entry != NULL);
+	LASSERT(obd->obd_debugfs_entry != NULL);
 	LASSERT(obd->md_cntr_base == 0);
 
 	num_stats = 1 + MD_COUNTER_OFFSET(revalidate_lock) +
@@ -1616,7 +1637,7 @@ int lprocfs_alloc_md_stats(struct obd_device *obd,
 			LBUG();
 		}
 	}
-	rc = lprocfs_register_stats(obd->obd_proc_entry, "md_stats", stats);
+	rc = ldebugfs_register_stats(obd->obd_debugfs_entry, "md_stats", stats);
 	if (rc < 0) {
 		lprocfs_free_stats(&stats);
 	} else {
@@ -2134,8 +2155,8 @@ int lprocfs_obd_seq_create(struct obd_device *dev,
 			   const struct file_operations *seq_fops,
 			   void *data)
 {
-	return lprocfs_seq_create(dev->obd_proc_entry, name,
-				  mode, seq_fops, data);
+	return ldebugfs_seq_create(dev->obd_debugfs_entry, name,
+				   mode, seq_fops, data);
 }
 EXPORT_SYMBOL(lprocfs_obd_seq_create);
 

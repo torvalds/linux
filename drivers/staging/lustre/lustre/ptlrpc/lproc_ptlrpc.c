@@ -1142,11 +1142,9 @@ void ptlrpc_ldebugfs_register_service(struct dentry *entry,
 
 void ptlrpc_lprocfs_register_obd(struct obd_device *obddev)
 {
-/* TODO: enable after change type of obddev->obd_proc_entry
- *	ptlrpc_ldebugfs_register(obddev->obd_proc_entry, NULL, "stats",
- *				&obddev->obd_svc_procroot,
- *				&obddev->obd_svc_stats);
- */
+	ptlrpc_ldebugfs_register(obddev->obd_debugfs_entry, NULL, "stats",
+				 &obddev->obd_svc_debugfs_entry,
+				 &obddev->obd_svc_stats);
 }
 EXPORT_SYMBOL(ptlrpc_lprocfs_register_obd);
 
@@ -1203,8 +1201,8 @@ void ptlrpc_lprocfs_unregister_service(struct ptlrpc_service *svc)
 
 void ptlrpc_lprocfs_unregister_obd(struct obd_device *obd)
 {
-	if (obd->obd_svc_procroot)
-		lprocfs_remove(&obd->obd_svc_procroot);
+	if (!IS_ERR_OR_NULL(obd->obd_svc_debugfs_entry))
+		ldebugfs_remove(&obd->obd_svc_debugfs_entry);
 
 	if (obd->obd_svc_stats)
 		lprocfs_free_stats(&obd->obd_svc_stats);

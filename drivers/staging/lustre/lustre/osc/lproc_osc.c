@@ -738,8 +738,8 @@ int lproc_osc_attach_seqstat(struct obd_device *dev)
 {
 	int rc;
 
-	rc = lprocfs_seq_create(dev->obd_proc_entry, "osc_stats", 0644,
-				&osc_stats_fops, dev);
+	rc = ldebugfs_seq_create(dev->obd_debugfs_entry, "osc_stats", 0644,
+				 &osc_stats_fops, dev);
 	if (rc == 0)
 		rc = lprocfs_obd_seq_create(dev, "rpc_stats", 0644,
 					    &osc_rpc_stats_fops, dev);

@@ -84,7 +84,7 @@ LUSTRE_RW_ATTR(max_rpcs_in_flight);
 
 static int mdc_kuc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, NULL, PDE_DATA(inode));
+	return single_open(file, NULL, inode->i_private ?: PDE_DATA(inode));
 }
 
 /* temporary for testing */

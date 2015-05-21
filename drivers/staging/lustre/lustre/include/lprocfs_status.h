@@ -565,6 +565,10 @@ extern int lprocfs_add_clear_entry(struct obd_device *obd,
 extern int lprocfs_exp_setup(struct obd_export *exp,
 			     lnet_nid_t *peer_nid, int *newnid);
 extern int lprocfs_exp_cleanup(struct obd_export *exp);
+extern struct dentry *ldebugfs_add_simple(struct dentry *root,
+					  char *name,
+					  void *data,
+					  struct file_operations *fops);
 extern struct proc_dir_entry *lprocfs_add_simple(struct proc_dir_entry *root,
 						char *name,
 						void *data,

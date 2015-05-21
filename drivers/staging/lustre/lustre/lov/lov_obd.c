@@ -810,20 +810,15 @@ int lov_setup(struct obd_device *obd, struct lustre_cfg *lcfg)
 
 	lprocfs_lov_init_vars(&lvars);
 	lprocfs_obd_setup(obd, lvars.obd_vars, lvars.sysfs_vars);
-#if defined (CONFIG_PROC_FS)
-	{
-		int rc1;
 
-		rc1 = lprocfs_seq_create(obd->obd_proc_entry, "target_obd",
-					0444, &lov_proc_target_fops, obd);
-		if (rc1)
-			CWARN("Error adding the target_obd file\n");
-	}
-#endif
-	lov->lov_pool_proc_entry = lprocfs_register("pools",
-						    obd->obd_proc_entry,
-						    NULL, NULL);
+	rc = ldebugfs_seq_create(obd->obd_debugfs_entry, "target_obd",
+				 0444, &lov_proc_target_fops, obd);
+	if (rc)
+		CWARN("Error adding the target_obd file\n");
 
+	lov->lov_pool_debugfs_entry = ldebugfs_register("pools",
+						     obd->obd_debugfs_entry,
+						     NULL, NULL);
 	return 0;
 
 out:

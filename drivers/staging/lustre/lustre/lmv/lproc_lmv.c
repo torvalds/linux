@@ -194,7 +194,7 @@ static int lmv_target_seq_open(struct inode *inode, struct file *file)
 		return rc;
 
 	seq = file->private_data;
-	seq->private = PDE_DATA(inode);
+	seq->private = inode->i_private;
 
 	return 0;
 }
