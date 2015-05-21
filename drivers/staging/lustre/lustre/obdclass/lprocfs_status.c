@@ -994,16 +994,6 @@ int lprocfs_rd_connect_flags(struct seq_file *m, void *data)
 }
 EXPORT_SYMBOL(lprocfs_rd_connect_flags);
 
-int lprocfs_rd_num_exports(struct seq_file *m, void *data)
-{
-	struct obd_device *obd = data;
-
-	LASSERT(obd != NULL);
-	seq_printf(m, "%u\n", obd->obd_num_exports);
-	return 0;
-}
-EXPORT_SYMBOL(lprocfs_rd_num_exports);
-
 int lprocfs_obd_setup(struct obd_device *obd, struct lprocfs_vars *list)
 {
 	int rc = 0;

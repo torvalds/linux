@@ -638,7 +638,6 @@ extern int lprocfs_rd_conn_uuid(struct seq_file *m, void *data);
 extern int lprocfs_rd_import(struct seq_file *m, void *data);
 extern int lprocfs_rd_state(struct seq_file *m, void *data);
 extern int lprocfs_rd_connect_flags(struct seq_file *m, void *data);
-extern int lprocfs_rd_num_exports(struct seq_file *m, void *data);
 
 struct adaptive_timeout;
 extern int lprocfs_at_hist_helper(struct seq_file *m,
