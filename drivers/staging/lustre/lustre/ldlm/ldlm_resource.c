@@ -179,31 +179,28 @@ static ssize_t lock_count_show(struct kobject *kobj, struct attribute *attr,
 }
 LUSTRE_RO_ATTR(lock_count);
 
-static int lprocfs_lru_size_seq_show(struct seq_file *m, void *v)
+static ssize_t lru_size_show(struct kobject *kobj, struct attribute *attr,
+			     char *buf)
 {
-	struct ldlm_namespace *ns = m->private;
+	struct ldlm_namespace *ns = container_of(kobj, struct ldlm_namespace,
+						 ns_kobj);
 	__u32 *nr = &ns->ns_max_unused;
 
 	if (ns_connect_lru_resize(ns))
 		nr = &ns->ns_nr_unused;
-	return lprocfs_rd_uint(m, nr);
+	return sprintf(buf, "%u", *nr);
 }
 
-static ssize_t lprocfs_lru_size_seq_write(struct file *file,
-					const char __user *buffer,
-					size_t count, loff_t *off)
+static ssize_t lru_size_store(struct kobject *kobj, struct attribute *attr,
+			      const char *buffer, size_t count)
 {
-	struct ldlm_namespace *ns = ((struct seq_file *)file->private_data)->private;
-	char dummy[MAX_STRING_SIZE + 1];
+	struct ldlm_namespace *ns = container_of(kobj, struct ldlm_namespace,
+						 ns_kobj);
 	unsigned long tmp;
 	int lru_resize;
 	int err;
 
-	dummy[MAX_STRING_SIZE] = '\0';
-	if (copy_from_user(dummy, buffer, MAX_STRING_SIZE))
-		return -EFAULT;
-
-	if (strncmp(dummy, "clear", 5) == 0) {
+	if (strncmp(buffer, "clear", 5) == 0) {
 		CDEBUG(D_DLMTRACE,
 		       "dropping all unused locks from namespace %s\n",
 		       ldlm_ns_name(ns));
@@ -229,9 +226,9 @@ static ssize_t lprocfs_lru_size_seq_write(struct file *file,
 		return count;
 	}
 
-	err = kstrtoul(dummy, 10, &tmp);
+	err = kstrtoul(buffer, 10, &tmp);
 	if (err != 0) {
-		CERROR("invalid value written\n");
+		CERROR("lru_size: invalid value written\n");
 		return -EINVAL;
 	}
 	lru_resize = (tmp == 0);
@@ -277,7 +274,7 @@ static ssize_t lprocfs_lru_size_seq_write(struct file *file,
 
 	return count;
 }
-LPROC_SEQ_FOPS(lprocfs_lru_size);
+LUSTRE_RW_ATTR(lru_size);
 
 static int lprocfs_elc_seq_show(struct seq_file *m, void *v)
 {
@@ -311,6 +308,7 @@ LPROC_SEQ_FOPS(lprocfs_elc);
 static struct attribute *ldlm_ns_attrs[] = {
 	&lustre_attr_resource_count.attr,
 	&lustre_attr_lock_count.attr,
+	&lustre_attr_lru_size.attr,
 	NULL,
 };
 
@@ -401,7 +399,6 @@ int ldlm_namespace_proc_register(struct ldlm_namespace *ns)
 	if (ns_is_client(ns)) {
 		LDLM_NS_ADD_VAR("lock_unused_count", &ns->ns_nr_unused,
 				&ldlm_uint_fops);
-		LDLM_NS_ADD_VAR("lru_size", ns, &lprocfs_lru_size_fops);
 		LDLM_NS_ADD_VAR("lru_max_age", &ns->ns_max_age,
 				&ldlm_rw_uint_fops);
 		LDLM_NS_ADD_VAR("early_lock_cancel", ns, &lprocfs_elc_fops);

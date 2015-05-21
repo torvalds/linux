@@ -213,3 +213,12 @@ Date:		May 2015
 Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
 Description:
 		Displays number or locks allocated in this namespace.
+
+What:		/sys/fs/lustre/ldlm/namespaces/<name>/lru_size
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Controls and displays LRU size limit for unused locks for this
+		namespace.
+		0 - LRU size is unlimited, controlled by server resources
+		positive number - number of locks to allow in lock LRU list
