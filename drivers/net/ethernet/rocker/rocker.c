@@ -3612,9 +3612,11 @@ static int rocker_port_fdb(struct rocker_port *rocker_port,
 
 	if (removing && found) {
 		rocker_port_kfree(rocker_port, trans, fdb);
-		hash_del(&found->entry);
+		if (trans != SWITCHDEV_TRANS_PREPARE)
+			hash_del(&found->entry);
 	} else if (!removing && !found) {
-		hash_add(rocker->fdb_tbl, &fdb->entry, fdb->key_crc32);
+		if (trans != SWITCHDEV_TRANS_PREPARE)
+			hash_add(rocker->fdb_tbl, &fdb->entry, fdb->key_crc32);
 	}
 
 	spin_unlock_irqrestore(&rocker->fdb_tbl_lock, lock_flags);
