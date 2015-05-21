@@ -244,8 +244,6 @@ pktgen_sampleXX scripts and modify them to fit your own needs.
 The old scripts:
 
 pktgen.conf-1-2                  # 1 CPU 2 dev
-pktgen.conf-2-1                  # 2 CPU's 1 dev 
-pktgen.conf-2-2                  # 2 CPU's 2 dev
 pktgen.conf-1-1-rdos             # 1 CPU 1 dev w. route DoS 
 pktgen.conf-1-1-ip6              # 1 CPU 1 dev ipv6
 pktgen.conf-1-1-ip6-rdos         # 1 CPU 1 dev ipv6  w. route DoS
