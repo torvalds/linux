@@ -318,6 +318,10 @@ static ssize_t jobid_name_store(struct kobject *kobj, struct attribute *attr,
 	return count;
 }
 
+/* Root for /sys/kernel/debug/lustre */
+struct dentry *debugfs_lustre_root;
+EXPORT_SYMBOL_GPL(debugfs_lustre_root);
+
 #if defined(CONFIG_PROC_FS)
 /* Root for /proc/fs/lustre */
 struct proc_dir_entry *proc_lustre_root = NULL;
@@ -426,6 +430,7 @@ static struct attribute_group lustre_attr_group = {
 int class_procfs_init(void)
 {
 	int rc = 0;
+	struct dentry *file;
 
 	lustre_kobj = kobject_create_and_add("lustre", fs_kobj);
 	if (lustre_kobj == NULL)
@@ -438,8 +443,24 @@ int class_procfs_init(void)
 		goto out;
 	}
 
-	proc_lustre_root = lprocfs_register("fs/lustre", NULL,
-					    NULL, NULL);
+	debugfs_lustre_root = debugfs_create_dir("lustre", NULL);
+	if (IS_ERR_OR_NULL(debugfs_lustre_root)) {
+		rc = debugfs_lustre_root ? PTR_ERR(debugfs_lustre_root)
+					 : -ENOMEM;
+		debugfs_lustre_root = NULL;
+		kobject_put(lustre_kobj);
+		goto out;
+	}
+
+	file = debugfs_create_file("devices", 0444, debugfs_lustre_root, NULL,
+				   &obd_device_list_fops);
+	if (IS_ERR_OR_NULL(file)) {
+		rc = file ? PTR_ERR(file) : -ENOMEM;
+		kobject_put(lustre_kobj);
+		goto out;
+	}
+
+	proc_lustre_root = lprocfs_register("fs/lustre", NULL, NULL, NULL);
 	if (IS_ERR(proc_lustre_root)) {
 		rc = PTR_ERR(proc_lustre_root);
 		proc_lustre_root = NULL;
@@ -452,11 +473,16 @@ int class_procfs_init(void)
 out:
 	if (rc)
 		CERROR("error adding /proc/fs/lustre/devices file\n");
-	return 0;
+	return rc;
 }
 
 int class_procfs_clean(void)
 {
+	if (debugfs_lustre_root != NULL)
+		debugfs_remove_recursive(debugfs_lustre_root);
+
+	debugfs_lustre_root = NULL;
+
 	if (proc_lustre_root) {
 		lprocfs_remove(&proc_lustre_root);
 	}

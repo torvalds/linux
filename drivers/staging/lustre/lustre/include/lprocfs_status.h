@@ -43,6 +43,7 @@
 #define _LPROCFS_SNMP_H
 
 #include <linux/proc_fs.h>
+#include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
@@ -349,7 +350,7 @@ enum {
 #define EXTRA_FIRST_OPC LDLM_GLIMPSE_ENQUEUE
 /* class_obd.c */
 extern struct proc_dir_entry *proc_lustre_root;
-
+extern struct dentry *debugfs_lustre_root;
 extern struct kobject *lustre_kobj;
 
 struct obd_device;
@@ -577,19 +578,30 @@ lprocfs_nid_stats_clear_write(struct file *file, const char *buffer,
 			      unsigned long count, void *data);
 extern int lprocfs_nid_stats_clear_read(struct seq_file *m, void *data);
 
+extern int ldebugfs_register_stats(struct dentry *parent,
+				   const char *name,
+				   struct lprocfs_stats *stats);
 extern int lprocfs_register_stats(struct proc_dir_entry *root, const char *name,
 				  struct lprocfs_stats *stats);
 
 /* lprocfs_status.c */
+extern int ldebugfs_add_vars(struct dentry *parent,
+			     struct lprocfs_vars *var,
+			     void *data);
 extern int lprocfs_add_vars(struct proc_dir_entry *root,
 			    struct lprocfs_vars *var,
 			    void *data);
 
+extern struct dentry *ldebugfs_register(const char *name,
+					struct dentry *parent,
+					struct lprocfs_vars *list,
+					void *data);
 extern struct proc_dir_entry *lprocfs_register(const char *name,
 					      struct proc_dir_entry *parent,
 					      struct lprocfs_vars *list,
 					      void *data);
 
+extern void ldebugfs_remove(struct dentry **entryp);
 extern void lprocfs_remove(struct proc_dir_entry **root);
 extern void lprocfs_remove_proc_entry(const char *name,
 				      struct proc_dir_entry *parent);
@@ -597,6 +609,11 @@ extern void lprocfs_remove_proc_entry(const char *name,
 extern int lprocfs_obd_setup(struct obd_device *obd, struct lprocfs_vars *list);
 extern int lprocfs_obd_cleanup(struct obd_device *obd);
 
+extern int ldebugfs_seq_create(struct dentry *parent,
+			       const char *name,
+			       umode_t mode,
+			       const struct file_operations *seq_fops,
+			       void *data);
 extern int lprocfs_seq_create(struct proc_dir_entry *parent, const char *name,
 			      umode_t mode,
 			      const struct file_operations *seq_fops,
@@ -691,7 +708,8 @@ extern int lprocfs_seq_release(struct inode *, struct file *);
 #define __LPROC_SEQ_FOPS(name, custom_seq_write)			\
 static int name##_single_open(struct inode *inode, struct file *file)	\
 {									\
-	return single_open(file, name##_seq_show, PDE_DATA(inode));	\
+	return single_open(file, name##_seq_show,			\
+			   inode->i_private ?: PDE_DATA(inode));	\
 }									\
 static struct file_operations name##_fops = {				\
 	.owner   = THIS_MODULE,					    \
@@ -736,7 +754,8 @@ static struct file_operations name##_fops = {				\
 	}								\
 	static int name##_##type##_open(struct inode *inode, struct file *file) \
 	{								\
-		return single_open(file, NULL, PDE_DATA(inode));	\
+		return single_open(file, NULL,				\
+				   inode->i_private ?: PDE_DATA(inode));\
 	}								\
 	static struct file_operations name##_##type##_fops = {	\
 		.open	= name##_##type##_open,				\

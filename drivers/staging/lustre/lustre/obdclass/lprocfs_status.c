@@ -296,6 +296,37 @@ EXPORT_SYMBOL(lprocfs_add_symlink);
 
 static struct file_operations lprocfs_generic_fops = { };
 
+int ldebugfs_add_vars(struct dentry *parent,
+		      struct lprocfs_vars *list,
+		      void *data)
+{
+	if (IS_ERR_OR_NULL(parent) || IS_ERR_OR_NULL(list))
+		return -EINVAL;
+
+	while (list->name != NULL) {
+		struct dentry *entry;
+		umode_t mode = 0;
+
+		if (list->proc_mode != 0000) {
+			mode = list->proc_mode;
+		} else if (list->fops) {
+			if (list->fops->read)
+				mode = 0444;
+			if (list->fops->write)
+				mode |= 0200;
+		}
+		entry = debugfs_create_file(list->name, mode, parent,
+					    list->data ?: data,
+					    list->fops ?: &lprocfs_generic_fops
+					   );
+		if (IS_ERR_OR_NULL(entry))
+			return entry ? PTR_ERR(entry) : -ENOMEM;
+		list++;
+	}
+	return 0;
+}
+EXPORT_SYMBOL(ldebugfs_add_vars);
+
 /**
  * Add /proc entries.
  *
@@ -336,6 +367,13 @@ int lprocfs_add_vars(struct proc_dir_entry *root, struct lprocfs_vars *list,
 }
 EXPORT_SYMBOL(lprocfs_add_vars);
 
+void ldebugfs_remove(struct dentry **entryp)
+{
+	debugfs_remove(*entryp);
+	*entryp = NULL;
+}
+EXPORT_SYMBOL(ldebugfs_remove);
+
 void lprocfs_remove(struct proc_dir_entry **rooth)
 {
 	proc_remove(*rooth);
@@ -349,6 +387,32 @@ void lprocfs_remove_proc_entry(const char *name, struct proc_dir_entry *parent)
 	remove_proc_entry(name, parent);
 }
 EXPORT_SYMBOL(lprocfs_remove_proc_entry);
+
+struct dentry *ldebugfs_register(const char *name,
+				 struct dentry *parent,
+				 struct lprocfs_vars *list, void *data)
+{
+	struct dentry *entry;
+
+	entry = debugfs_create_dir(name, parent);
+	if (IS_ERR_OR_NULL(entry)) {
+		entry = entry ?: ERR_PTR(-ENOMEM);
+		goto out;
+	}
+
+	if (!IS_ERR_OR_NULL(list)) {
+		int rc;
+
+		rc = ldebugfs_add_vars(entry, list, data);
+		if (rc != 0) {
+			debugfs_remove(entry);
+			entry = ERR_PTR(rc);
+		}
+	}
+out:
+	return entry;
+}
+EXPORT_SYMBOL(ldebugfs_register);
 
 struct proc_dir_entry *lprocfs_register(const char *name,
 					struct proc_dir_entry *parent,
@@ -1257,8 +1321,10 @@ static int lprocfs_stats_seq_open(struct inode *inode, struct file *file)
 	rc = seq_open(file, &lprocfs_stats_seq_sops);
 	if (rc)
 		return rc;
+
 	seq = file->private_data;
-	seq->private = PDE_DATA(inode);
+	seq->private = inode->i_private ?: PDE_DATA(inode);
+
 	return 0;
 }
 
@@ -1270,6 +1336,22 @@ struct file_operations lprocfs_stats_seq_fops = {
 	.llseek  = seq_lseek,
 	.release = lprocfs_seq_release,
 };
+
+int ldebugfs_register_stats(struct dentry *parent, const char *name,
+			   struct lprocfs_stats *stats)
+{
+	struct dentry *entry;
+
+	LASSERT(!IS_ERR_OR_NULL(parent));
+
+	entry = debugfs_create_file(name, 0644, parent, stats,
+				    &lprocfs_stats_seq_fops);
+	if (IS_ERR_OR_NULL(entry))
+		return entry ? PTR_ERR(entry) : -ENOMEM;
+
+	return 0;
+}
+EXPORT_SYMBOL(ldebugfs_register_stats);
 
 int lprocfs_register_stats(struct proc_dir_entry *root, const char *name,
 			   struct lprocfs_stats *stats)
@@ -1970,6 +2052,25 @@ char *lprocfs_find_named_value(const char *buffer, const char *name,
 	return val - *count;
 }
 EXPORT_SYMBOL(lprocfs_find_named_value);
+
+int ldebugfs_seq_create(struct dentry *parent,
+		       const char *name,
+		       umode_t mode,
+		       const struct file_operations *seq_fops,
+		       void *data)
+{
+	struct dentry *entry;
+
+	/* Disallow secretly (un)writable entries. */
+	LASSERT((seq_fops->write == NULL) == ((mode & 0222) == 0));
+
+	entry = debugfs_create_file(name, mode, parent, data, seq_fops);
+	if (IS_ERR_OR_NULL(entry))
+		return entry ? PTR_ERR(entry) : -ENOMEM;
+
+	return 0;
+}
+EXPORT_SYMBOL(ldebugfs_seq_create);
 
 int lprocfs_seq_create(struct proc_dir_entry *parent,
 		       const char *name,
