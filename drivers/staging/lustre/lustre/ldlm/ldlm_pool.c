@@ -90,10 +90,10 @@
  * pl_server_lock_volume - Current server lock volume (calculated);
  *
  * As it may be seen from list above, we have few possible tunables which may
- * affect behavior much. They all may be modified via proc. However, they also
+ * affect behavior much. They all may be modified via sysfs. However, they also
  * give a possibility for constructing few pre-defined behavior policies. If
  * none of predefines is suitable for a working pattern being used, new one may
- * be "constructed" via proc tunables.
+ * be "constructed" via sysfs tunables.
  */
 
 #define DEBUG_SUBSYSTEM S_LDLM
@@ -738,6 +738,36 @@ LPROC_SEQ_FOPS_RO(lprocfs_grant_speed);
 		lprocfs_add_vars(pl->pl_proc_dir, pool_vars, NULL);\
 	} while (0)
 
+/* These are for pools in /sys/fs/lustre/ldlm/namespaces/.../pool */
+static struct attribute *ldlm_pl_attrs[] = {
+	NULL,
+};
+
+static void ldlm_pl_release(struct kobject *kobj)
+{
+	struct ldlm_pool *pl = container_of(kobj, struct ldlm_pool,
+					    pl_kobj);
+	complete(&pl->pl_kobj_unregister);
+}
+
+static struct kobj_type ldlm_pl_ktype = {
+	.default_attrs	= ldlm_pl_attrs,
+	.sysfs_ops	= &lustre_sysfs_ops,
+	.release	= ldlm_pl_release,
+};
+
+static int ldlm_pool_sysfs_init(struct ldlm_pool *pl)
+{
+	struct ldlm_namespace *ns = ldlm_pl2ns(pl);
+	int err;
+
+	init_completion(&pl->pl_kobj_unregister);
+	err = kobject_init_and_add(&pl->pl_kobj, &ldlm_pl_ktype, &ns->ns_kobj,
+				   "pool");
+
+	return err;
+}
+
 static int ldlm_pool_proc_init(struct ldlm_pool *pl)
 {
 	struct ldlm_namespace *ns = ldlm_pl2ns(pl);
@@ -832,6 +862,12 @@ out_free_name:
 	return rc;
 }
 
+static void ldlm_pool_sysfs_fini(struct ldlm_pool *pl)
+{
+	kobject_put(&pl->pl_kobj);
+	wait_for_completion(&pl->pl_kobj_unregister);
+}
+
 static void ldlm_pool_proc_fini(struct ldlm_pool *pl)
 {
 	if (pl->pl_stats != NULL) {
@@ -885,6 +921,10 @@ int ldlm_pool_init(struct ldlm_pool *pl, struct ldlm_namespace *ns,
 	if (rc)
 		return rc;
 
+	rc = ldlm_pool_sysfs_init(pl);
+	if (rc)
+		return rc;
+
 	CDEBUG(D_DLMTRACE, "Lock pool %s is initialized\n", pl->pl_name);
 
 	return rc;
@@ -893,6 +933,7 @@ EXPORT_SYMBOL(ldlm_pool_init);
 
 void ldlm_pool_fini(struct ldlm_pool *pl)
 {
+	ldlm_pool_sysfs_fini(pl);
 	ldlm_pool_proc_fini(pl);
 
 	/*

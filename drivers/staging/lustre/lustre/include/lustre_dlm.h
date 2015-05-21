@@ -265,6 +265,10 @@ struct ldlm_pool {
 	int			pl_grant_plan;
 	/** Pool statistics. */
 	struct lprocfs_stats	*pl_stats;
+
+	/* sysfs object */
+	struct kobject		 pl_kobj;
+	struct completion	 pl_kobj_unregister;
 };
 
 typedef int (*ldlm_res_policy)(struct ldlm_namespace *, struct ldlm_lock **,
