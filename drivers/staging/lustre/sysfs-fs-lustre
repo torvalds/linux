@@ -384,3 +384,19 @@ Description:
 		Number of free inodes on backend filesystem for service
 		behind this obd.
 
+What:		/sys/fs/lustre/mdc/{connection_name}/max_pages_per_rpc
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Maximum number of readdir pages to fit into a single readdir
+		RPC.
+
+What:		/sys/fs/lustre/mdc/{connection_name}/max_rpcs_in_flight
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		Maximum number of parallel RPCs on the wire to allow on
+		this connection. Increasing this number would help on higher
+		latency links, but has a chance of overloading a server
+		if you have too many clients like this.
+		Default: 8
