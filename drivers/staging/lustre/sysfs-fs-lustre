@@ -110,3 +110,10 @@ Date:		May 2015
 Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
 Description:
 		Sets maximum number of megabytes to read-ahead for a single file
+
+What:		/sys/fs/lustre/llite/<fsname>-<uuid>/max_read_ahead_whole_mb
+Date:		May 2015
+Contact:	"Oleg Drokin" <oleg.drokin@intel.com>
+Description:
+		For small reads, how many megabytes to actually request from
+		the server as initial read-ahead.
