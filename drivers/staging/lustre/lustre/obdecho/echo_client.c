@@ -2141,10 +2141,7 @@ static struct obd_ops echo_client_obd_ops = {
 
 int echo_client_init(void)
 {
-	struct lprocfs_static_vars lvars = { NULL };
 	int rc;
-
-	lprocfs_echo_init_vars(&lvars);
 
 	rc = lu_kmem_init(echo_caches);
 	if (rc == 0) {
@@ -2165,14 +2162,9 @@ void echo_client_exit(void)
 
 static int __init obdecho_init(void)
 {
-	struct lprocfs_static_vars lvars;
-
 	LCONSOLE_INFO("Echo OBD driver; http://www.lustre.org/\n");
 
 	LASSERT(PAGE_CACHE_SIZE % OBD_ECHO_BLOCK_SIZE == 0);
-
-	lprocfs_echo_init_vars(&lvars);
-
 
 	return echo_client_init();
 }
