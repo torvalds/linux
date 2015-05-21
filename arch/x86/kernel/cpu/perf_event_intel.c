@@ -1954,12 +1954,10 @@ static void intel_commit_scheduling(struct cpu_hw_events *cpuc, int idx, int cnt
 
 	lockdep_assert_held(&excl_cntrs->lock);
 
-	if (cntr >= 0) {
-		if (c->flags & PERF_X86_EVENT_EXCL)
-			xl->init_state[cntr] = INTEL_EXCL_EXCLUSIVE;
-		else
-			xl->init_state[cntr] = INTEL_EXCL_SHARED;
-	}
+	if (c->flags & PERF_X86_EVENT_EXCL)
+		xl->init_state[cntr] = INTEL_EXCL_EXCLUSIVE;
+	else
+		xl->init_state[cntr] = INTEL_EXCL_SHARED;
 }
 
 static void
@@ -2026,10 +2024,6 @@ intel_get_excl_constraints(struct cpu_hw_events *cpuc, struct perf_event *event,
 	 */
 	if (!(c->flags & PERF_X86_EVENT_DYNAMIC)) {
 		struct event_constraint *cx;
-
-		/* sanity check */
-		if (idx < 0)
-			return &emptyconstraint;
 
 		/*
 		 * grab pre-allocated constraint entry
