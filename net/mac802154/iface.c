@@ -62,8 +62,7 @@ mac802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		(struct sockaddr_ieee802154 *)&ifr->ifr_addr;
 	int err = -ENOIOCTLCMD;
 
-	ASSERT_RTNL();
-
+	rtnl_lock();
 	spin_lock_bh(&sdata->mib_lock);
 
 	switch (cmd) {
@@ -90,6 +89,7 @@ mac802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	case SIOCSIFADDR:
 		if (netif_running(dev)) {
 			spin_unlock_bh(&sdata->mib_lock);
+			rtnl_unlock();
 			return -EBUSY;
 		}
 
@@ -112,6 +112,7 @@ mac802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	}
 
 	spin_unlock_bh(&sdata->mib_lock);
+	rtnl_unlock();
 	return err;
 }
 
