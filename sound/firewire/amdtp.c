@@ -909,7 +909,7 @@ static void amdtp_stream_first_callback(struct fw_iso_context *context,
 
 	if (s->direction == AMDTP_IN_STREAM)
 		context->callback.sc = in_stream_callback;
-	else if ((s->flags & CIP_BLOCKING) && (s->flags & CIP_SYNC_TO_DEVICE))
+	else if (s->flags & CIP_SYNC_TO_DEVICE)
 		context->callback.sc = slave_stream_callback;
 	else
 		context->callback.sc = out_stream_callback;
