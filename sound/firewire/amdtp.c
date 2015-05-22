@@ -647,15 +647,12 @@ static inline int queue_in_packet(struct amdtp_stream *s)
 			    amdtp_stream_get_max_payload(s), false);
 }
 
-static void handle_out_packet(struct amdtp_stream *s, unsigned int data_blocks,
-			      unsigned int syt)
+static int handle_out_packet(struct amdtp_stream *s, unsigned int data_blocks,
+			     unsigned int syt)
 {
 	__be32 *buffer;
 	unsigned int payload_length;
 	struct snd_pcm_substream *pcm;
-
-	if (s->packet_index < 0)
-		return;
 
 	buffer = s->buffer.packets[s->packet_index].buffer;
 	buffer[0] = cpu_to_be32(ACCESS_ONCE(s->source_node_id_field) |
@@ -676,14 +673,14 @@ static void handle_out_packet(struct amdtp_stream *s, unsigned int data_blocks,
 	s->data_block_counter = (s->data_block_counter + data_blocks) & 0xff;
 
 	payload_length = 8 + data_blocks * 4 * s->data_block_quadlets;
-	if (queue_out_packet(s, payload_length, false) < 0) {
-		s->packet_index = -1;
-		amdtp_stream_pcm_abort(s);
-		return;
-	}
+	if (queue_out_packet(s, payload_length, false) < 0)
+		return -EIO;
 
 	if (pcm)
 		update_pcm_pointers(s, pcm, data_blocks);
+
+	/* No need to return the number of handled data blocks. */
+	return 0;
 }
 
 static int handle_in_packet(struct amdtp_stream *s,
@@ -795,6 +792,9 @@ static void out_stream_callback(struct fw_iso_context *context, u32 cycle,
 	unsigned int i, syt, packets = header_length / 4;
 	unsigned int data_blocks;
 
+	if (s->packet_index < 0)
+		return;
+
 	/*
 	 * Compute the cycle of the last queued packet.
 	 * (We need only the four lowest bits for the SYT, so we can ignore
@@ -806,8 +806,13 @@ static void out_stream_callback(struct fw_iso_context *context, u32 cycle,
 		syt = calculate_syt(s, ++cycle);
 		data_blocks = calculate_data_blocks(s, syt);
 
-		handle_out_packet(s, data_blocks, syt);
+		if (handle_out_packet(s, data_blocks, syt) < 0) {
+			s->packet_index = -1;
+			amdtp_stream_pcm_abort(s);
+			return;
+		}
 	}
+
 	fw_iso_context_queue_flush(s->context);
 }
 
@@ -821,6 +826,9 @@ static void in_stream_callback(struct fw_iso_context *context, u32 cycle,
 	unsigned int data_blocks;
 	__be32 *buffer, *headers = header;
 
+	if (s->packet_index < 0)
+		return;
+
 	/* The number of packets in buffer */
 	packets = header_length / IN_PACKET_HEADER_SIZE;
 
@@ -828,9 +836,6 @@ static void in_stream_callback(struct fw_iso_context *context, u32 cycle,
 	max_payload_quadlets = amdtp_stream_get_max_payload(s) / 4;
 
 	for (p = 0; p < packets; p++) {
-		if (s->packet_index < 0)
-			break;
-
 		buffer = s->buffer.packets[s->packet_index].buffer;
 
 		/* The number of quadlets in this packet */
@@ -853,7 +858,11 @@ static void in_stream_callback(struct fw_iso_context *context, u32 cycle,
 		/* Process sync slave stream */
 		if (s->sync_slave && s->sync_slave->callbacked) {
 			syt = be32_to_cpu(buffer[1]) & CIP_SYT_MASK;
-			handle_out_packet(s->sync_slave, data_blocks, syt);
+			if (handle_out_packet(s->sync_slave,
+					      data_blocks, syt) < 0) {
+				s->packet_index = -1;
+				break;
+			}
 		}
 	}
 
