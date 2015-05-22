@@ -6,6 +6,12 @@ config SND_PCM
 	tristate
 	select SND_TIMER
 
+config SND_PCM_ELD
+	bool
+
+config SND_PCM_IEC958
+	bool
+
 config SND_DMAENGINE_PCM
 	tristate
 
