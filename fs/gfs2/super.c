@@ -748,7 +748,7 @@ static int gfs2_write_inode(struct inode *inode, struct writeback_control *wbc)
 
 	if (wbc->sync_mode == WB_SYNC_ALL)
 		gfs2_log_flush(GFS2_SB(inode), ip->i_gl, NORMAL_FLUSH);
-	if (bdi->dirty_exceeded)
+	if (bdi->wb.dirty_exceeded)
 		gfs2_ail1_flush(sdp, wbc);
 	else
 		filemap_fdatawrite(metamapping);

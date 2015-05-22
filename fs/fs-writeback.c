@@ -624,7 +624,7 @@ out:
 	return ret;
 }
 
-static long writeback_chunk_size(struct backing_dev_info *bdi,
+static long writeback_chunk_size(struct bdi_writeback *wb,
 				 struct wb_writeback_work *work)
 {
 	long pages;
@@ -645,7 +645,7 @@ static long writeback_chunk_size(struct backing_dev_info *bdi,
 	if (work->sync_mode == WB_SYNC_ALL || work->tagged_writepages)
 		pages = LONG_MAX;
 	else {
-		pages = min(bdi->avg_write_bandwidth / 2,
+		pages = min(wb->avg_write_bandwidth / 2,
 			    global_dirty_limit / DIRTY_SCOPE);
 		pages = min(pages, work->nr_pages);
 		pages = round_down(pages + MIN_WRITEBACK_PAGES,
@@ -743,7 +743,7 @@ static long writeback_sb_inodes(struct super_block *sb,
 		inode->i_state |= I_SYNC;
 		spin_unlock(&inode->i_lock);
 
-		write_chunk = writeback_chunk_size(wb->bdi, work);
+		write_chunk = writeback_chunk_size(wb, work);
 		wbc.nr_to_write = write_chunk;
 		wbc.pages_skipped = 0;
 
@@ -830,7 +830,7 @@ static long writeback_inodes_wb(struct bdi_writeback *wb, long nr_pages,
 	return nr_pages - work.nr_pages;
 }
 
-static bool over_bground_thresh(struct backing_dev_info *bdi)
+static bool over_bground_thresh(struct bdi_writeback *wb)
 {
 	unsigned long background_thresh, dirty_thresh;
 
@@ -840,8 +840,7 @@ static bool over_bground_thresh(struct backing_dev_info *bdi)
 	    global_page_state(NR_UNSTABLE_NFS) > background_thresh)
 		return true;
 
-	if (wb_stat(&bdi->wb, WB_RECLAIMABLE) >
-				bdi_dirty_limit(bdi, background_thresh))
+	if (wb_stat(wb, WB_RECLAIMABLE) > wb_dirty_limit(wb, background_thresh))
 		return true;
 
 	return false;
@@ -854,7 +853,7 @@ static bool over_bground_thresh(struct backing_dev_info *bdi)
 static void wb_update_bandwidth(struct bdi_writeback *wb,
 				unsigned long start_time)
 {
-	__bdi_update_bandwidth(wb->bdi, 0, 0, 0, 0, 0, start_time);
+	__wb_update_bandwidth(wb, 0, 0, 0, 0, 0, start_time);
 }
 
 /*
@@ -906,7 +905,7 @@ static long wb_writeback(struct bdi_writeback *wb,
 		 * For background writeout, stop when we are below the
 		 * background dirty threshold
 		 */
-		if (work->for_background && !over_bground_thresh(wb->bdi))
+		if (work->for_background && !over_bground_thresh(wb))
 			break;
 
 		/*
@@ -998,7 +997,7 @@ static unsigned long get_nr_dirty_pages(void)
 
 static long wb_check_background_flush(struct bdi_writeback *wb)
 {
-	if (over_bground_thresh(wb->bdi)) {
+	if (over_bground_thresh(wb)) {
 
 		struct wb_writeback_work work = {
 			.nr_pages	= LONG_MAX,

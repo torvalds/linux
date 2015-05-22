@@ -66,7 +66,7 @@ static int bdi_debug_stats_show(struct seq_file *m, void *v)
 	spin_unlock(&wb->list_lock);
 
 	global_dirty_limits(&background_thresh, &dirty_thresh);
-	bdi_thresh = bdi_dirty_limit(bdi, dirty_thresh);
+	bdi_thresh = wb_dirty_limit(wb, dirty_thresh);
 
 #define K(x) ((x) << (PAGE_SHIFT - 10))
 	seq_printf(m,
@@ -91,7 +91,7 @@ static int bdi_debug_stats_show(struct seq_file *m, void *v)
 		   K(background_thresh),
 		   (unsigned long) K(wb_stat(wb, WB_DIRTIED)),
 		   (unsigned long) K(wb_stat(wb, WB_WRITTEN)),
-		   (unsigned long) K(bdi->write_bandwidth),
+		   (unsigned long) K(wb->write_bandwidth),
 		   nr_dirty,
 		   nr_io,
 		   nr_more_io,
@@ -376,6 +376,11 @@ void bdi_unregister(struct backing_dev_info *bdi)
 }
 EXPORT_SYMBOL(bdi_unregister);
 
+/*
+ * Initial write bandwidth: 100 MB/s
+ */
+#define INIT_BW		(100 << (20 - PAGE_SHIFT))
+
 static int bdi_wb_init(struct bdi_writeback *wb, struct backing_dev_info *bdi)
 {
 	int i, err;
@@ -391,11 +396,22 @@ static int bdi_wb_init(struct bdi_writeback *wb, struct backing_dev_info *bdi)
 	spin_lock_init(&wb->list_lock);
 	INIT_DELAYED_WORK(&wb->dwork, bdi_writeback_workfn);
 
+	wb->bw_time_stamp = jiffies;
+	wb->balanced_dirty_ratelimit = INIT_BW;
+	wb->dirty_ratelimit = INIT_BW;
+	wb->write_bandwidth = INIT_BW;
+	wb->avg_write_bandwidth = INIT_BW;
+
+	err = fprop_local_init_percpu(&wb->completions, GFP_KERNEL);
+	if (err)
+		return err;
+
 	for (i = 0; i < NR_WB_STAT_ITEMS; i++) {
 		err = percpu_counter_init(&wb->stat[i], 0, GFP_KERNEL);
 		if (err) {
 			while (--i)
 				percpu_counter_destroy(&wb->stat[i]);
+			fprop_local_destroy_percpu(&wb->completions);
 			return err;
 		}
 	}
@@ -411,12 +427,9 @@ static void bdi_wb_exit(struct bdi_writeback *wb)
 
 	for (i = 0; i < NR_WB_STAT_ITEMS; i++)
 		percpu_counter_destroy(&wb->stat[i]);
-}
 
-/*
- * Initial write bandwidth: 100 MB/s
- */
-#define INIT_BW		(100 << (20 - PAGE_SHIFT))
+	fprop_local_destroy_percpu(&wb->completions);
+}
 
 int bdi_init(struct backing_dev_info *bdi)
 {
@@ -435,22 +448,6 @@ int bdi_init(struct backing_dev_info *bdi)
 	if (err)
 		return err;
 
-	bdi->dirty_exceeded = 0;
-
-	bdi->bw_time_stamp = jiffies;
-	bdi->written_stamp = 0;
-
-	bdi->balanced_dirty_ratelimit = INIT_BW;
-	bdi->dirty_ratelimit = INIT_BW;
-	bdi->write_bandwidth = INIT_BW;
-	bdi->avg_write_bandwidth = INIT_BW;
-
-	err = fprop_local_init_percpu(&bdi->completions, GFP_KERNEL);
-	if (err) {
-		bdi_wb_exit(&bdi->wb);
-		return err;
-	}
-
 	return 0;
 }
 EXPORT_SYMBOL(bdi_init);
@@ -468,8 +465,6 @@ void bdi_destroy(struct backing_dev_info *bdi)
 	}
 
 	bdi_wb_exit(&bdi->wb);
-
-	fprop_local_destroy_percpu(&bdi->completions);
 }
 EXPORT_SYMBOL(bdi_destroy);
 

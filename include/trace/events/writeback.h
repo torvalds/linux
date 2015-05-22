@@ -400,13 +400,13 @@ TRACE_EVENT(bdi_dirty_ratelimit,
 
 	TP_fast_assign(
 		strlcpy(__entry->bdi, dev_name(bdi->dev), 32);
-		__entry->write_bw	= KBps(bdi->write_bandwidth);
-		__entry->avg_write_bw	= KBps(bdi->avg_write_bandwidth);
+		__entry->write_bw	= KBps(bdi->wb.write_bandwidth);
+		__entry->avg_write_bw	= KBps(bdi->wb.avg_write_bandwidth);
 		__entry->dirty_rate	= KBps(dirty_rate);
-		__entry->dirty_ratelimit = KBps(bdi->dirty_ratelimit);
+		__entry->dirty_ratelimit = KBps(bdi->wb.dirty_ratelimit);
 		__entry->task_ratelimit	= KBps(task_ratelimit);
 		__entry->balanced_dirty_ratelimit =
-					  KBps(bdi->balanced_dirty_ratelimit);
+					KBps(bdi->wb.balanced_dirty_ratelimit);
 	),
 
 	TP_printk("bdi %s: "

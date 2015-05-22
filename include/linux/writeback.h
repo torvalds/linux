@@ -155,16 +155,15 @@ int dirty_writeback_centisecs_handler(struct ctl_table *, int,
 				      void __user *, size_t *, loff_t *);
 
 void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty);
-unsigned long bdi_dirty_limit(struct backing_dev_info *bdi,
-			       unsigned long dirty);
+unsigned long wb_dirty_limit(struct bdi_writeback *wb, unsigned long dirty);
 
-void __bdi_update_bandwidth(struct backing_dev_info *bdi,
-			    unsigned long thresh,
-			    unsigned long bg_thresh,
-			    unsigned long dirty,
-			    unsigned long bdi_thresh,
-			    unsigned long bdi_dirty,
-			    unsigned long start_time);
+void __wb_update_bandwidth(struct bdi_writeback *wb,
+			   unsigned long thresh,
+			   unsigned long bg_thresh,
+			   unsigned long dirty,
+			   unsigned long bdi_thresh,
+			   unsigned long bdi_dirty,
+			   unsigned long start_time);
 
 void page_writeback_init(void);
 void balance_dirty_pages_ratelimited(struct address_space *mapping);
