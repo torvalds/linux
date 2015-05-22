@@ -949,30 +949,6 @@ struct snd_soc_dai_link {
 
 	enum snd_soc_dpcm_trigger trigger[2]; /* trigger type for DPCM */
 
-	/* Keep DAI active over suspend */
-	unsigned int ignore_suspend:1;
-
-	/* Symmetry requirements */
-	unsigned int symmetric_rates:1;
-	unsigned int symmetric_channels:1;
-	unsigned int symmetric_samplebits:1;
-
-	/* Mark this pcm with non atomic ops */
-	bool nonatomic;
-
-	/* Do not create a PCM for this DAI link (Backend link) */
-	unsigned int no_pcm:1;
-
-	/* This DAI link can route to other DAI links at runtime (Frontend)*/
-	unsigned int dynamic:1;
-
-	/* DPCM capture and Playback support */
-	unsigned int dpcm_capture:1;
-	unsigned int dpcm_playback:1;
-
-	/* pmdown_time is ignored at stop */
-	unsigned int ignore_pmdown_time:1;
-
 	/* codec/machine specific init - e.g. add machine controls */
 	int (*init)(struct snd_soc_pcm_runtime *rtd);
 
@@ -987,6 +963,33 @@ struct snd_soc_dai_link {
 	/* For unidirectional dai links */
 	bool playback_only;
 	bool capture_only;
+
+	/* Mark this pcm with non atomic ops */
+	bool nonatomic;
+
+	/* Keep DAI active over suspend */
+	unsigned int ignore_suspend:1;
+
+	/* Symmetry requirements */
+	unsigned int symmetric_rates:1;
+	unsigned int symmetric_channels:1;
+	unsigned int symmetric_samplebits:1;
+
+	/* Do not create a PCM for this DAI link (Backend link) */
+	unsigned int no_pcm:1;
+
+	/* This DAI link can route to other DAI links at runtime (Frontend)*/
+	unsigned int dynamic:1;
+
+	/* DPCM capture and Playback support */
+	unsigned int dpcm_capture:1;
+	unsigned int dpcm_playback:1;
+
+	/* DPCM used FE & BE merged format */
+	unsigned int dpcm_merged_format:1;
+
+	/* pmdown_time is ignored at stop */
+	unsigned int ignore_pmdown_time:1;
 };
 
 struct snd_soc_codec_conf {
