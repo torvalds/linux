@@ -95,6 +95,8 @@ struct writeback_control {
  * dirtyable memory accordingly.
  */
 struct wb_domain {
+	spinlock_t lock;
+
 	/*
 	 * Scale the writeback cache size proportional to the relative
 	 * writeout speed.
@@ -115,6 +117,19 @@ struct wb_domain {
 	struct fprop_global completions;
 	struct timer_list period_timer;	/* timer for aging of completions */
 	unsigned long period_time;
+
+	/*
+	 * The dirtyable memory and dirty threshold could be suddenly
+	 * knocked down by a large amount (eg. on the startup of KVM in a
+	 * swapless system). This may throw the system into deep dirty
+	 * exceeded state and throttle heavy/light dirtiers alike. To
+	 * retain good responsiveness, maintain global_dirty_limit for
+	 * tracking slowly down to the knocked down dirty threshold.
+	 *
+	 * Both fields are protected by ->lock.
+	 */
+	unsigned long dirty_limit_tstamp;
+	unsigned long dirty_limit;
 };
 
 /*
@@ -153,7 +168,7 @@ void throttle_vm_writeout(gfp_t gfp_mask);
 bool zone_dirty_ok(struct zone *zone);
 int wb_domain_init(struct wb_domain *dom, gfp_t gfp);
 
-extern unsigned long global_dirty_limit;
+extern struct wb_domain global_wb_domain;
 
 /* These are exported to sysctl. */
 extern int dirty_background_ratio;

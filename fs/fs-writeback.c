@@ -887,7 +887,7 @@ static long writeback_chunk_size(struct bdi_writeback *wb,
 		pages = LONG_MAX;
 	else {
 		pages = min(wb->avg_write_bandwidth / 2,
-			    global_dirty_limit / DIRTY_SCOPE);
+			    global_wb_domain.dirty_limit / DIRTY_SCOPE);
 		pages = min(pages, work->nr_pages);
 		pages = round_down(pages + MIN_WRITEBACK_PAGES,
 				   MIN_WRITEBACK_PAGES);

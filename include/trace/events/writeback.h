@@ -361,7 +361,7 @@ TRACE_EVENT(global_dirty_state,
 		__entry->nr_written	= global_page_state(NR_WRITTEN);
 		__entry->background_thresh = background_thresh;
 		__entry->dirty_thresh	= dirty_thresh;
-		__entry->dirty_limit = global_dirty_limit;
+		__entry->dirty_limit	= global_wb_domain.dirty_limit;
 	),
 
 	TP_printk("dirty=%lu writeback=%lu unstable=%lu "
@@ -463,8 +463,9 @@ TRACE_EVENT(balance_dirty_pages,
 		unsigned long freerun = (thresh + bg_thresh) / 2;
 		strlcpy(__entry->bdi, dev_name(bdi->dev), 32);
 
-		__entry->limit		= global_dirty_limit;
-		__entry->setpoint	= (global_dirty_limit + freerun) / 2;
+		__entry->limit		= global_wb_domain.dirty_limit;
+		__entry->setpoint	= (global_wb_domain.dirty_limit +
+						freerun) / 2;
 		__entry->dirty		= dirty;
 		__entry->bdi_setpoint	= __entry->setpoint *
 						bdi_thresh / (thresh + 1);

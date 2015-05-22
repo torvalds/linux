@@ -122,9 +122,7 @@ EXPORT_SYMBOL(laptop_mode);
 
 /* End of sysctl-exported parameters */
 
-unsigned long global_dirty_limit;
-
-static struct wb_domain global_wb_domain;
+struct wb_domain global_wb_domain;
 
 /*
  * Length of period for aging writeout fractions of bdis. This is an
@@ -470,9 +468,15 @@ static void writeout_period(unsigned long t)
 int wb_domain_init(struct wb_domain *dom, gfp_t gfp)
 {
 	memset(dom, 0, sizeof(*dom));
+
+	spin_lock_init(&dom->lock);
+
 	init_timer_deferrable(&dom->period_timer);
 	dom->period_timer.function = writeout_period;
 	dom->period_timer.data = (unsigned long)dom;
+
+	dom->dirty_limit_tstamp = jiffies;
+
 	return fprop_global_init(&dom->completions, gfp);
 }
 
@@ -532,7 +536,9 @@ static unsigned long dirty_freerun_ceiling(unsigned long thresh,
 
 static unsigned long hard_dirty_limit(unsigned long thresh)
 {
-	return max(thresh, global_dirty_limit);
+	struct wb_domain *dom = &global_wb_domain;
+
+	return max(thresh, dom->dirty_limit);
 }
 
 /**
@@ -916,17 +922,10 @@ out:
 	wb->avg_write_bandwidth = avg;
 }
 
-/*
- * The global dirtyable memory and dirty threshold could be suddenly knocked
- * down by a large amount (eg. on the startup of KVM in a swapless system).
- * This may throw the system into deep dirty exceeded state and throttle
- * heavy/light dirtiers alike. To retain good responsiveness, maintain
- * global_dirty_limit for tracking slowly down to the knocked down dirty
- * threshold.
- */
 static void update_dirty_limit(unsigned long thresh, unsigned long dirty)
 {
-	unsigned long limit = global_dirty_limit;
+	struct wb_domain *dom = &global_wb_domain;
+	unsigned long limit = dom->dirty_limit;
 
 	/*
 	 * Follow up in one step.
@@ -939,7 +938,7 @@ static void update_dirty_limit(unsigned long thresh, unsigned long dirty)
 	/*
 	 * Follow down slowly. Use the higher one as the target, because thresh
 	 * may drop below dirty. This is exactly the reason to introduce
-	 * global_dirty_limit which is guaranteed to lie above the dirty pages.
+	 * dom->dirty_limit which is guaranteed to lie above the dirty pages.
 	 */
 	thresh = max(thresh, dirty);
 	if (limit > thresh) {
@@ -948,28 +947,27 @@ static void update_dirty_limit(unsigned long thresh, unsigned long dirty)
 	}
 	return;
 update:
-	global_dirty_limit = limit;
+	dom->dirty_limit = limit;
 }
 
 static void global_update_bandwidth(unsigned long thresh,
 				    unsigned long dirty,
 				    unsigned long now)
 {
-	static DEFINE_SPINLOCK(dirty_lock);
-	static unsigned long update_time = INITIAL_JIFFIES;
+	struct wb_domain *dom = &global_wb_domain;
 
 	/*
 	 * check locklessly first to optimize away locking for the most time
 	 */
-	if (time_before(now, update_time + BANDWIDTH_INTERVAL))
+	if (time_before(now, dom->dirty_limit_tstamp + BANDWIDTH_INTERVAL))
 		return;
 
-	spin_lock(&dirty_lock);
-	if (time_after_eq(now, update_time + BANDWIDTH_INTERVAL)) {
+	spin_lock(&dom->lock);
+	if (time_after_eq(now, dom->dirty_limit_tstamp + BANDWIDTH_INTERVAL)) {
 		update_dirty_limit(thresh, dirty);
-		update_time = now;
+		dom->dirty_limit_tstamp = now;
 	}
-	spin_unlock(&dirty_lock);
+	spin_unlock(&dom->lock);
 }
 
 /*
@@ -1761,10 +1759,12 @@ void laptop_sync_completion(void)
 
 void writeback_set_ratelimit(void)
 {
+	struct wb_domain *dom = &global_wb_domain;
 	unsigned long background_thresh;
 	unsigned long dirty_thresh;
+
 	global_dirty_limits(&background_thresh, &dirty_thresh);
-	global_dirty_limit = dirty_thresh;
+	dom->dirty_limit = dirty_thresh;
 	ratelimit_pages = dirty_thresh / (num_online_cpus() * 32);
 	if (ratelimit_pages < 16)
 		ratelimit_pages = 16;
