@@ -256,13 +256,13 @@ static int pciehp_probe(struct pcie_device *dev)
 		/* Can happen if we run out of bus numbers during probe */
 		dev_err(&dev->device,
 			"Hotplug bridge without secondary bus, ignoring\n");
-		goto err_out_none;
+		return -ENODEV;
 	}
 
 	ctrl = pcie_init(dev);
 	if (!ctrl) {
 		dev_err(&dev->device, "Controller initialization failed\n");
-		goto err_out_none;
+		return -ENODEV;
 	}
 	set_service_data(dev, ctrl);
 
@@ -302,7 +302,6 @@ err_out_free_ctrl_slot:
 	cleanup_slot(ctrl);
 err_out_release_ctlr:
 	pciehp_release_ctrl(ctrl);
-err_out_none:
 	return -ENODEV;
 }
 
