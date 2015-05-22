@@ -71,8 +71,6 @@ enum {
 int handle_mmio_page_fault_common(struct kvm_vcpu *vcpu, u64 addr, bool direct);
 void kvm_init_shadow_mmu(struct kvm_vcpu *vcpu);
 void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly);
-void update_permission_bitmask(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
-		bool ept);
 
 static inline unsigned int kvm_mmu_available_pages(struct kvm *kvm)
 {
@@ -165,6 +163,8 @@ static inline bool permission_fault(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 	unsigned long smap = (cpl - 3) & (rflags & X86_EFLAGS_AC);
 	int index = (pfec >> 1) +
 		    (smap >> (X86_EFLAGS_AC_BIT - PFERR_RSVD_BIT + 1));
+
+	WARN_ON(pfec & PFERR_RSVD_MASK);
 
 	return (mmu->permissions[index] >> pte_access) & 1;
 }
