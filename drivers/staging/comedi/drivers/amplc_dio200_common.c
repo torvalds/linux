@@ -337,9 +337,10 @@ static int dio200_handle_read_intr(struct comedi_device *dev,
 			 * interested in (just in case there's a race
 			 * condition).
 			 */
-			if (triggered & subpriv->enabled_isns)
+			if (triggered & subpriv->enabled_isns) {
 				/* Collect scan data. */
 				dio200_read_scan_intr(dev, s, triggered);
+			}
 		}
 	}
 	spin_unlock_irqrestore(&subpriv->spinlock, flags);
@@ -576,12 +577,13 @@ static int dio200_subdev_8254_init(struct comedi_device *dev,
 		regshift = 0;
 	}
 
-	if (dev->mmio)
+	if (dev->mmio) {
 		i8254 = comedi_8254_mm_init(dev->mmio + offset,
 					    0, I8254_IO8, regshift);
-	else
+	} else {
 		i8254 = comedi_8254_init(dev->iobase + offset,
 					 0, I8254_IO8, regshift);
+	}
 	if (!i8254)
 		return -ENOMEM;
 
@@ -641,15 +643,18 @@ static int dio200_subdev_8255_bits(struct comedi_device *dev,
 
 	mask = comedi_dio_update_state(s, data);
 	if (mask) {
-		if (mask & 0xff)
+		if (mask & 0xff) {
 			dio200_write8(dev, subpriv->ofs + I8255_DATA_A_REG,
 				      s->state & 0xff);
-		if (mask & 0xff00)
+		}
+		if (mask & 0xff00) {
 			dio200_write8(dev, subpriv->ofs + I8255_DATA_B_REG,
 				      (s->state >> 8) & 0xff);
-		if (mask & 0xff0000)
+		}
+		if (mask & 0xff0000) {
 			dio200_write8(dev, subpriv->ofs + I8255_DATA_C_REG,
 				      (s->state >> 16) & 0xff);
+		}
 	}
 
 	val = dio200_read8(dev, subpriv->ofs + I8255_DATA_A_REG);
