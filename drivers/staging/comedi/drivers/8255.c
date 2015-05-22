@@ -55,7 +55,8 @@
 
 struct subdev_8255_private {
 	unsigned long regbase;
-	int (*io)(struct comedi_device *, int, int, int, unsigned long);
+	int (*io)(struct comedi_device *dev, int dir, int port, int data,
+		  unsigned long regbase);
 };
 
 static int subdev_8255_io(struct comedi_device *dev,
@@ -160,8 +161,9 @@ static int subdev_8255_insn_config(struct comedi_device *dev,
 
 static int __subdev_8255_init(struct comedi_device *dev,
 			      struct comedi_subdevice *s,
-			      int (*io)(struct comedi_device *,
-					int, int, int, unsigned long),
+			      int (*io)(struct comedi_device *dev,
+					int dir, int port, int data,
+					unsigned long regbase),
 			      unsigned long regbase,
 			      bool is_mmio)
 {
@@ -204,11 +206,10 @@ static int __subdev_8255_init(struct comedi_device *dev,
  * If the optional I/O call-back function is provided, its prototype is of
  * the following form:
  *
- *   int my_8255_callback(struct comedi_device *dev,
- *                        struct comedi_subdevice *s, int dir, int port,
+ *   int my_8255_callback(struct comedi_device *dev, int dir, int port,
  *                        int data, unsigned long regbase);
  *
- * where 'dev', 's', and 'regbase' match the values passed to this function,
+ * where 'dev', and 'regbase' match the values passed to this function,
  * 'port' is the 8255 port number 0 to 3 (including the control port), 'dir'
  * is the direction (0 for read, 1 for write) and 'data' is the value to be
  * written.  It should return 0 if writing or the value read if reading.
@@ -220,8 +221,8 @@ static int __subdev_8255_init(struct comedi_device *dev,
  * Return: -ENOMEM if failed to allocate memory, zero on success.
  */
 int subdev_8255_init(struct comedi_device *dev, struct comedi_subdevice *s,
-		     int (*io)(struct comedi_device *,
-			       int, int, int, unsigned long),
+		     int (*io)(struct comedi_device *dev, int dir, int port,
+			       int data, unsigned long regbase),
 		     unsigned long regbase)
 {
 	return __subdev_8255_init(dev, s, io, regbase, false);
@@ -240,11 +241,10 @@ EXPORT_SYMBOL_GPL(subdev_8255_init);
  * If the optional I/O call-back function is provided, its prototype is of
  * the following form:
  *
- *   int my_8255_callback(struct comedi_device *dev,
- *                        struct comedi_subdevice *s, int dir, int port,
+ *   int my_8255_callback(struct comedi_device *dev, int dir, int port,
  *                        int data, unsigned long regbase);
  *
- * where 'dev', 's', and 'regbase' match the values passed to this function,
+ * where 'dev', and 'regbase' match the values passed to this function,
  * 'port' is the 8255 port number 0 to 3 (including the control port), 'dir'
  * is the direction (0 for read, 1 for write) and 'data' is the value to be
  * written.  It should return 0 if writing or the value read if reading.
@@ -256,8 +256,8 @@ EXPORT_SYMBOL_GPL(subdev_8255_init);
  * Return: -ENOMEM if failed to allocate memory, zero on success.
  */
 int subdev_8255_mm_init(struct comedi_device *dev, struct comedi_subdevice *s,
-			int (*io)(struct comedi_device *,
-				  int, int, int, unsigned long),
+			int (*io)(struct comedi_device *dev, int dir, int port,
+				  int data, unsigned long regbase),
 			unsigned long regbase)
 {
 	return __subdev_8255_init(dev, s, io, regbase, true);
