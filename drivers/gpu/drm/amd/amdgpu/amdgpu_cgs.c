@@ -21,6 +21,7 @@
  *
  *
  */
+#include <linux/pci.h>
 #include "amdgpu.h"
 #include "cgs_linux.h"
 
@@ -163,42 +164,57 @@ static void amdgpu_cgs_write_ind_register(void *cgs_device,
 
 static uint8_t amdgpu_cgs_read_pci_config_byte(void *cgs_device, unsigned addr)
 {
-	/* TODO */
-	return 0;
+	CGS_FUNC_ADEV;
+	uint8_t val;
+	int ret = pci_read_config_byte(adev->pdev, addr, &val);
+	if (WARN(ret, "pci_read_config_byte error"))
+		return 0;
+	return val;
 }
 
 static uint16_t amdgpu_cgs_read_pci_config_word(void *cgs_device, unsigned addr)
 {
-	/* TODO */
-	return 0;
+	CGS_FUNC_ADEV;
+	uint16_t val;
+	int ret = pci_read_config_word(adev->pdev, addr, &val);
+	if (WARN(ret, "pci_read_config_word error"))
+		return 0;
+	return val;
 }
 
 static uint32_t amdgpu_cgs_read_pci_config_dword(void *cgs_device,
 						 unsigned addr)
 {
-	/* TODO */
-	return 0;
+	CGS_FUNC_ADEV;
+	uint32_t val;
+	int ret = pci_read_config_dword(adev->pdev, addr, &val);
+	if (WARN(ret, "pci_read_config_dword error"))
+		return 0;
+	return val;
 }
 
 static void amdgpu_cgs_write_pci_config_byte(void *cgs_device, unsigned addr,
 					     uint8_t value)
 {
-	/* TODO */
-	return;
+	CGS_FUNC_ADEV;
+	int ret = pci_write_config_byte(adev->pdev, addr, value);
+	WARN(ret, "pci_write_config_byte error");
 }
 
 static void amdgpu_cgs_write_pci_config_word(void *cgs_device, unsigned addr,
 					     uint16_t value)
 {
-	/* TODO */
-	return;
+	CGS_FUNC_ADEV;
+	int ret = pci_write_config_word(adev->pdev, addr, value);
+	WARN(ret, "pci_write_config_word error");
 }
 
 static void amdgpu_cgs_write_pci_config_dword(void *cgs_device, unsigned addr,
 					      uint32_t value)
 {
-	/* TODO */
-	return;
+	CGS_FUNC_ADEV;
+	int ret = pci_write_config_dword(adev->pdev, addr, value);
+	WARN(ret, "pci_write_config_dword error");
 }
 
 static const void *amdgpu_cgs_atom_get_data_table(void *cgs_device,
