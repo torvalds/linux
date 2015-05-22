@@ -144,10 +144,14 @@ static void mdp5_encoder_mode_set(struct drm_encoder *encoder,
 			mode->type, mode->flags);
 
 	ctrl_pol = 0;
-	if (mode->flags & DRM_MODE_FLAG_NHSYNC)
-		ctrl_pol |= MDP5_INTF_POLARITY_CTL_HSYNC_LOW;
-	if (mode->flags & DRM_MODE_FLAG_NVSYNC)
-		ctrl_pol |= MDP5_INTF_POLARITY_CTL_VSYNC_LOW;
+
+	/* DSI controller cannot handle active-low sync signals. */
+	if (mdp5_encoder->intf.type != INTF_DSI) {
+		if (mode->flags & DRM_MODE_FLAG_NHSYNC)
+			ctrl_pol |= MDP5_INTF_POLARITY_CTL_HSYNC_LOW;
+		if (mode->flags & DRM_MODE_FLAG_NVSYNC)
+			ctrl_pol |= MDP5_INTF_POLARITY_CTL_VSYNC_LOW;
+	}
 	/* probably need to get DATA_EN polarity from panel.. */
 
 	dtv_hsync_skew = 0;  /* get this from panel? */
