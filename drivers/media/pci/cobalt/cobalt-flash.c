@@ -23,7 +23,7 @@
 #include <linux/mtd/cfi.h>
 #include <linux/time.h>
 
-#include "cobalt-driver.h"
+#include "cobalt-flash.h"
 
 #define ADRS(offset) (COBALT_BUS_FLASH_BASE + offset)
 

@@ -20,7 +20,7 @@
 
 #include <linux/delay.h>
 
-#include "cobalt-driver.h"
+#include "cobalt-cpld.h"
 
 #define ADRS(offset) (COBALT_BUS_CPLD_BASE + offset)
 
