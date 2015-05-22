@@ -726,7 +726,7 @@ static int handle_in_packet(struct amdtp_stream *s,
 			dev_err(&s->unit->device,
 				"Detect invalid value in dbs field: %08X\n",
 				cip_header[0]);
-			return -EIO;
+			return -EPROTO;
 		}
 		if (s->flags & CIP_WRONG_DBS)
 			data_block_quadlets = s->data_block_quadlets;
