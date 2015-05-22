@@ -146,21 +146,15 @@ static inline u64 nvme_block_nr(struct nvme_ns *ns, sector_t sector)
 	return (sector >> (ns->lba_shift - 9));
 }
 
-/**
- * nvme_free_iod - frees an nvme_iod
- * @dev: The device that the I/O was submitted to
- * @iod: The memory to free
- */
-void nvme_free_iod(struct nvme_dev *dev, struct nvme_iod *iod);
-
-int nvme_setup_prps(struct nvme_dev *, struct nvme_iod *, int, gfp_t);
-struct nvme_iod *nvme_map_user_pages(struct nvme_dev *dev, int write,
-				unsigned long addr, unsigned length);
-void nvme_unmap_user_pages(struct nvme_dev *dev, int write,
-			struct nvme_iod *iod);
-int nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd);
-int nvme_identify(struct nvme_dev *, unsigned nsid, unsigned cns,
-							dma_addr_t dma_addr);
+int nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
+		void *buf, unsigned bufflen);
+int __nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
+		void *buffer, void __user *ubuffer, unsigned bufflen,
+		u32 *result, unsigned timeout);
+int nvme_identify_ctrl(struct nvme_dev *dev, struct nvme_id_ctrl **id);
+int nvme_identify_ns(struct nvme_dev *dev, unsigned nsid,
+		struct nvme_id_ns **id);
+int nvme_get_log_page(struct nvme_dev *dev, struct nvme_smart_log **log);
 int nvme_get_features(struct nvme_dev *dev, unsigned fid, unsigned nsid,
 			dma_addr_t dma_addr, u32 *result);
 int nvme_set_features(struct nvme_dev *dev, unsigned fid, unsigned dword11,
