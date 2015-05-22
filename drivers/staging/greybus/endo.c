@@ -430,16 +430,19 @@ struct gb_endo *gb_endo_create(struct greybus_host_device *hd, u16 endo_id)
 
 	endo = kzalloc(sizeof(*endo), GFP_KERNEL);
 	if (!endo)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	/* First check if the value supplied is a valid endo id */
-	if (gb_endo_validate_id(hd, &endo->layout, endo_id))
+	if (gb_endo_validate_id(hd, &endo->layout, endo_id)) {
+		retval = -EINVAL;
 		goto free_endo;
+	}
 
 	endo->id = endo_id;
 
 	/* Register Endo device */
-	if (gb_endo_register(hd, endo))
+	retval = gb_endo_register(hd, endo);
+	if (retval)
 		goto free_endo;
 
 	/* Create modules/interfaces */
@@ -453,7 +456,8 @@ struct gb_endo *gb_endo_create(struct greybus_host_device *hd, u16 endo_id)
 
 free_endo:
 	kfree(endo);
-	return NULL;
+
+	return ERR_PTR(retval);
 }
 
 void gb_endo_remove(struct gb_endo *endo)
