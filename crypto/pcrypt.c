@@ -20,6 +20,7 @@
 
 #include <crypto/algapi.h>
 #include <crypto/internal/aead.h>
+#include <linux/atomic.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -61,7 +62,7 @@ static struct kset           *pcrypt_kset;
 
 struct pcrypt_instance_ctx {
 	struct crypto_aead_spawn spawn;
-	unsigned int tfm_count;
+	atomic_t tfm_count;
 };
 
 struct pcrypt_aead_ctx {
@@ -278,9 +279,8 @@ static int pcrypt_aead_init_tfm(struct crypto_tfm *tfm)
 	struct pcrypt_aead_ctx *ctx = crypto_tfm_ctx(tfm);
 	struct crypto_aead *cipher;
 
-	ictx->tfm_count++;
-
-	cpu_index = ictx->tfm_count % cpumask_weight(cpu_online_mask);
+	cpu_index = (unsigned int)atomic_inc_return(&ictx->tfm_count) %
+		    cpumask_weight(cpu_online_mask);
 
 	ctx->cb_cpu = cpumask_first(cpu_online_mask);
 	for (cpu = 0; cpu < cpu_index; cpu++)
