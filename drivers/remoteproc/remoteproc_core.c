@@ -44,6 +44,9 @@
 
 #include "remoteproc_internal.h"
 
+static DEFINE_MUTEX(rproc_list_mutex);
+static LIST_HEAD(rproc_list);
+
 typedef int (*rproc_handle_resources_t)(struct rproc *rproc,
 				struct resource_table *table, int len);
 typedef int (*rproc_handle_resource_t)(struct rproc *rproc,
@@ -1145,6 +1148,43 @@ out:
 EXPORT_SYMBOL(rproc_shutdown);
 
 /**
+ * rproc_get_by_phandle() - find a remote processor by phandle
+ * @phandle: phandle to the rproc
+ *
+ * Finds an rproc handle using the remote processor's phandle, and then
+ * return a handle to the rproc.
+ *
+ * This function increments the remote processor's refcount, so always
+ * use rproc_put() to decrement it back once rproc isn't needed anymore.
+ *
+ * Returns the rproc handle on success, and NULL on failure.
+ */
+struct rproc *rproc_get_by_phandle(phandle phandle)
+{
+	struct rproc *rproc = NULL, *r;
+	struct device_node *np;
+
+	np = of_find_node_by_phandle(phandle);
+	if (!np)
+		return NULL;
+
+	mutex_lock(&rproc_list_mutex);
+	list_for_each_entry(r, &rproc_list, node) {
+		if (r->dev.parent && r->dev.parent->of_node == np) {
+			rproc = r;
+			get_device(&rproc->dev);
+			break;
+		}
+	}
+	mutex_unlock(&rproc_list_mutex);
+
+	of_node_put(np);
+
+	return rproc;
+}
+EXPORT_SYMBOL(rproc_get_by_phandle);
+
+/**
  * rproc_add() - register a remote processor
  * @rproc: the remote processor handle to register
  *
@@ -1172,6 +1212,11 @@ int rproc_add(struct rproc *rproc)
 	ret = device_add(dev);
 	if (ret < 0)
 		return ret;
+
+	/* expose to rproc_get_by_phandle users */
+	mutex_lock(&rproc_list_mutex);
+	list_add(&rproc->node, &rproc_list);
+	mutex_unlock(&rproc_list_mutex);
 
 	dev_info(dev, "%s is available\n", rproc->name);
 
@@ -1359,6 +1404,11 @@ int rproc_del(struct rproc *rproc)
 
 	/* Free the copy of the resource table */
 	kfree(rproc->cached_table);
+
+	/* the rproc is downref'ed as soon as it's removed from the klist */
+	mutex_lock(&rproc_list_mutex);
+	list_del(&rproc->node);
+	mutex_unlock(&rproc_list_mutex);
 
 	device_del(&rproc->dev);
 
