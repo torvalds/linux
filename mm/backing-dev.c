@@ -256,7 +256,7 @@ static int __init default_bdi_init(void)
 }
 subsys_initcall(default_bdi_init);
 
-int bdi_has_dirty_io(struct backing_dev_info *bdi)
+bool bdi_has_dirty_io(struct backing_dev_info *bdi)
 {
 	return wb_has_dirty_io(&bdi->wb);
 }

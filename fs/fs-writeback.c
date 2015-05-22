@@ -93,6 +93,66 @@ static inline struct inode *wb_inode(struct list_head *head)
 
 EXPORT_TRACEPOINT_SYMBOL_GPL(wbc_writepage);
 
+static bool wb_io_lists_populated(struct bdi_writeback *wb)
+{
+	if (wb_has_dirty_io(wb)) {
+		return false;
+	} else {
+		set_bit(WB_has_dirty_io, &wb->state);
+		return true;
+	}
+}
+
+static void wb_io_lists_depopulated(struct bdi_writeback *wb)
+{
+	if (wb_has_dirty_io(wb) && list_empty(&wb->b_dirty) &&
+	    list_empty(&wb->b_io) && list_empty(&wb->b_more_io))
+		clear_bit(WB_has_dirty_io, &wb->state);
+}
+
+/**
+ * inode_wb_list_move_locked - move an inode onto a bdi_writeback IO list
+ * @inode: inode to be moved
+ * @wb: target bdi_writeback
+ * @head: one of @wb->b_{dirty|io|more_io}
+ *
+ * Move @inode->i_wb_list to @list of @wb and set %WB_has_dirty_io.
+ * Returns %true if @inode is the first occupant of the !dirty_time IO
+ * lists; otherwise, %false.
+ */
+static bool inode_wb_list_move_locked(struct inode *inode,
+				      struct bdi_writeback *wb,
+				      struct list_head *head)
+{
+	assert_spin_locked(&wb->list_lock);
+
+	list_move(&inode->i_wb_list, head);
+
+	/* dirty_time doesn't count as dirty_io until expiration */
+	if (head != &wb->b_dirty_time)
+		return wb_io_lists_populated(wb);
+
+	wb_io_lists_depopulated(wb);
+	return false;
+}
+
+/**
+ * inode_wb_list_del_locked - remove an inode from its bdi_writeback IO list
+ * @inode: inode to be removed
+ * @wb: bdi_writeback @inode is being removed from
+ *
+ * Remove @inode which may be on one of @wb->b_{dirty|io|more_io} lists and
+ * clear %WB_has_dirty_io if all are empty afterwards.
+ */
+static void inode_wb_list_del_locked(struct inode *inode,
+				     struct bdi_writeback *wb)
+{
+	assert_spin_locked(&wb->list_lock);
+
+	list_del_init(&inode->i_wb_list);
+	wb_io_lists_depopulated(wb);
+}
+
 static void wb_wakeup(struct bdi_writeback *wb)
 {
 	spin_lock_bh(&wb->work_lock);
@@ -217,7 +277,7 @@ void inode_wb_list_del(struct inode *inode)
 	struct bdi_writeback *wb = inode_to_wb(inode);
 
 	spin_lock(&wb->list_lock);
-	list_del_init(&inode->i_wb_list);
+	inode_wb_list_del_locked(inode, wb);
 	spin_unlock(&wb->list_lock);
 }
 
@@ -232,7 +292,6 @@ void inode_wb_list_del(struct inode *inode)
  */
 static void redirty_tail(struct inode *inode, struct bdi_writeback *wb)
 {
-	assert_spin_locked(&wb->list_lock);
 	if (!list_empty(&wb->b_dirty)) {
 		struct inode *tail;
 
@@ -240,7 +299,7 @@ static void redirty_tail(struct inode *inode, struct bdi_writeback *wb)
 		if (time_before(inode->dirtied_when, tail->dirtied_when))
 			inode->dirtied_when = jiffies;
 	}
-	list_move(&inode->i_wb_list, &wb->b_dirty);
+	inode_wb_list_move_locked(inode, wb, &wb->b_dirty);
 }
 
 /*
@@ -248,8 +307,7 @@ static void redirty_tail(struct inode *inode, struct bdi_writeback *wb)
  */
 static void requeue_io(struct inode *inode, struct bdi_writeback *wb)
 {
-	assert_spin_locked(&wb->list_lock);
-	list_move(&inode->i_wb_list, &wb->b_more_io);
+	inode_wb_list_move_locked(inode, wb, &wb->b_more_io);
 }
 
 static void inode_sync_complete(struct inode *inode)
@@ -358,6 +416,8 @@ static void queue_io(struct bdi_writeback *wb, struct wb_writeback_work *work)
 	moved = move_expired_inodes(&wb->b_dirty, &wb->b_io, 0, work);
 	moved += move_expired_inodes(&wb->b_dirty_time, &wb->b_io,
 				     EXPIRE_DIRTY_ATIME, work);
+	if (moved)
+		wb_io_lists_populated(wb);
 	trace_writeback_queue_io(wb, work, moved);
 }
 
@@ -483,10 +543,10 @@ static void requeue_inode(struct inode *inode, struct bdi_writeback *wb,
 		redirty_tail(inode, wb);
 	} else if (inode->i_state & I_DIRTY_TIME) {
 		inode->dirtied_when = jiffies;
-		list_move(&inode->i_wb_list, &wb->b_dirty_time);
+		inode_wb_list_move_locked(inode, wb, &wb->b_dirty_time);
 	} else {
 		/* The inode is clean. Remove from writeback lists. */
-		list_del_init(&inode->i_wb_list);
+		inode_wb_list_del_locked(inode, wb);
 	}
 }
 
@@ -628,7 +688,7 @@ writeback_single_inode(struct inode *inode, struct bdi_writeback *wb,
 	 * touch it. See comment above for explanation.
 	 */
 	if (!(inode->i_state & I_DIRTY_ALL))
-		list_del_init(&inode->i_wb_list);
+		inode_wb_list_del_locked(inode, wb);
 	spin_unlock(&wb->list_lock);
 	inode_sync_complete(inode);
 out:
@@ -1327,37 +1387,39 @@ void __mark_inode_dirty(struct inode *inode, int flags)
 		 * reposition it (that would break b_dirty time-ordering).
 		 */
 		if (!was_dirty) {
+			struct list_head *dirty_list;
 			bool wakeup_bdi = false;
 			bdi = inode_to_bdi(inode);
 
 			spin_unlock(&inode->i_lock);
 			spin_lock(&bdi->wb.list_lock);
-			if (bdi_cap_writeback_dirty(bdi)) {
-				WARN(!test_bit(WB_registered, &bdi->wb.state),
-				     "bdi-%s not registered\n", bdi->name);
 
-				/*
-				 * If this is the first dirty inode for this
-				 * bdi, we have to wake-up the corresponding
-				 * bdi thread to make sure background
-				 * write-back happens later.
-				 */
-				if (!wb_has_dirty_io(&bdi->wb))
-					wakeup_bdi = true;
-			}
+			WARN(bdi_cap_writeback_dirty(bdi) &&
+			     !test_bit(WB_registered, &bdi->wb.state),
+			     "bdi-%s not registered\n", bdi->name);
 
 			inode->dirtied_when = jiffies;
 			if (dirtytime)
 				inode->dirtied_time_when = jiffies;
+
 			if (inode->i_state & (I_DIRTY_INODE | I_DIRTY_PAGES))
-				list_move(&inode->i_wb_list, &bdi->wb.b_dirty);
+				dirty_list = &bdi->wb.b_dirty;
 			else
-				list_move(&inode->i_wb_list,
-					  &bdi->wb.b_dirty_time);
+				dirty_list = &bdi->wb.b_dirty_time;
+
+			wakeup_bdi = inode_wb_list_move_locked(inode, &bdi->wb,
+							       dirty_list);
+
 			spin_unlock(&bdi->wb.list_lock);
 			trace_writeback_dirty_inode_enqueue(inode);
 
-			if (wakeup_bdi)
+			/*
+			 * If this is the first dirty inode for this bdi,
+			 * we have to wake-up the corresponding bdi thread
+			 * to make sure background write-back happens
+			 * later.
+			 */
+			if (bdi_cap_writeback_dirty(bdi) && wakeup_bdi)
 				wb_wakeup_delayed(&bdi->wb);
 			return;
 		}
