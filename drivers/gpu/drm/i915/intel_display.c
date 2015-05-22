@@ -6826,6 +6826,14 @@ static int i85x_get_display_clock_speed(struct drm_device *dev)
 {
 	u16 hpllcc = 0;
 
+	/*
+	 * 852GM/852GMV only supports 133 MHz and the HPLLCC
+	 * encoding is different :(
+	 * FIXME is this the right way to detect 852GM/852GMV?
+	 */
+	if (dev->pdev->revision == 0x1)
+		return 133333;
+
 	pci_bus_read_config_word(dev->pdev->bus,
 				 PCI_DEVFN(0, 3), HPLLCC, &hpllcc);
 
