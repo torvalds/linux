@@ -35,7 +35,7 @@ static ssize_t serial_number_show(struct device *dev,
 {
 	struct gb_endo *endo = to_gb_endo(dev);
 
-	return sprintf(buf, "%s", &endo->svc.serial_number[0]);
+	return sprintf(buf, "%s", &endo->svc_info.serial_number[0]);
 }
 static DEVICE_ATTR_RO(serial_number);
 
@@ -44,7 +44,7 @@ static ssize_t version_show(struct device *dev, struct device_attribute *attr,
 {
 	struct gb_endo *endo = to_gb_endo(dev);
 
-	return sprintf(buf, "%s", &endo->svc.version[0]);
+	return sprintf(buf, "%s", &endo->svc_info.version[0]);
 }
 static DEVICE_ATTR_RO(version);
 
@@ -409,8 +409,8 @@ static int gb_endo_register(struct greybus_host_device *hd,
 	// FIXME
 	// Get the version and serial number from the SVC, right now we are
 	// using "fake" numbers.
-	strcpy(&endo->svc.serial_number[0], "042");
-	strcpy(&endo->svc.version[0], "0.0");
+	strcpy(&endo->svc_info.serial_number[0], "042");
+	strcpy(&endo->svc_info.version[0], "0.0");
 
 	dev_set_name(&endo->dev, "endo-0x%04x", endo->id);
 	retval = device_add(&endo->dev);

@@ -10,7 +10,7 @@
 #define __ENDO_H
 
 /* Greybus "public" definitions" */
-struct gb_svc {
+struct gb_svc_info {
 	u8 serial_number[10];
 	u8 version[10];
 };
@@ -36,9 +36,9 @@ struct endo_layout {
 };
 
 struct gb_endo {
-	struct endo_layout layout;
 	struct device dev;
-	struct gb_svc svc;
+	struct endo_layout layout;
+	struct gb_svc_info svc_info;
 	u16 id;
 };
 #define to_gb_endo(d) container_of(d, struct gb_endo, dev)
