@@ -16,10 +16,13 @@ struct dentry;
  * Bits in bdi_writeback.state
  */
 enum wb_state {
-	WB_async_congested,	/* The async (write) queue is getting full */
-	WB_sync_congested,	/* The sync queue is getting full */
 	WB_registered,		/* bdi_register() was done */
 	WB_writeback_running,	/* Writeback is in progress */
+};
+
+enum wb_congested_state {
+	WB_async_congested,	/* The async (write) queue is getting full */
+	WB_sync_congested,	/* The sync queue is getting full */
 };
 
 typedef int (congested_fn)(void *, int);
@@ -34,6 +37,10 @@ enum wb_stat_item {
 
 #define WB_STAT_BATCH (8*(1+ilog2(nr_cpu_ids)))
 
+struct bdi_writeback_congested {
+	unsigned long state;		/* WB_[a]sync_congested flags */
+};
+
 struct bdi_writeback {
 	struct backing_dev_info *bdi;	/* our parent bdi */
 
@@ -47,6 +54,8 @@ struct bdi_writeback {
 	spinlock_t list_lock;		/* protects the b_* lists */
 
 	struct percpu_counter stat[NR_WB_STAT_ITEMS];
+
+	struct bdi_writeback_congested *congested;
 
 	unsigned long bw_time_stamp;	/* last time write bw is updated */
 	unsigned long dirtied_stamp;
@@ -84,6 +93,7 @@ struct backing_dev_info {
 	unsigned int max_ratio, max_prop_frac;
 
 	struct bdi_writeback wb;  /* default writeback info for this bdi */
+	struct bdi_writeback_congested wb_congested;
 
 	struct device *dev;
 

@@ -167,7 +167,7 @@ static inline int bdi_congested(struct backing_dev_info *bdi, int bdi_bits)
 {
 	if (bdi->congested_fn)
 		return bdi->congested_fn(bdi->congested_data, bdi_bits);
-	return (bdi->wb.state & bdi_bits);
+	return (bdi->wb.congested->state & bdi_bits);
 }
 
 static inline int bdi_read_congested(struct backing_dev_info *bdi)
