@@ -970,6 +970,12 @@ static inline bool iwl_mvm_is_csum_supported(struct iwl_mvm *mvm)
 			   IWL_UCODE_TLV_CAPA_CSUM_SUPPORT);
 }
 
+static inline bool iwl_mvm_has_new_rx_api(struct iwl_mvm *mvm)
+{
+	/* firmware flag isn't defined yet */
+	return false;
+}
+
 extern const u8 iwl_mvm_ac_to_tx_fifo[];
 
 struct iwl_rate_info {
