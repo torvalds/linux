@@ -1160,18 +1160,21 @@ static void wb_update_dirty_ratelimit(struct bdi_writeback *wb,
 	trace_bdi_dirty_ratelimit(wb->bdi, dirty_rate, task_ratelimit);
 }
 
-void __wb_update_bandwidth(struct bdi_writeback *wb,
-			   unsigned long thresh,
-			   unsigned long bg_thresh,
-			   unsigned long dirty,
-			   unsigned long wb_thresh,
-			   unsigned long wb_dirty,
-			   unsigned long start_time)
+static void __wb_update_bandwidth(struct bdi_writeback *wb,
+				  unsigned long thresh,
+				  unsigned long bg_thresh,
+				  unsigned long dirty,
+				  unsigned long wb_thresh,
+				  unsigned long wb_dirty,
+				  unsigned long start_time,
+				  bool update_ratelimit)
 {
 	unsigned long now = jiffies;
 	unsigned long elapsed = now - wb->bw_time_stamp;
 	unsigned long dirtied;
 	unsigned long written;
+
+	lockdep_assert_held(&wb->list_lock);
 
 	/*
 	 * rate-limit, only update once every 200ms.
@@ -1189,7 +1192,7 @@ void __wb_update_bandwidth(struct bdi_writeback *wb,
 	if (elapsed > HZ && time_before(wb->bw_time_stamp, start_time))
 		goto snapshot;
 
-	if (thresh) {
+	if (update_ratelimit) {
 		global_update_bandwidth(thresh, dirty, now);
 		wb_update_dirty_ratelimit(wb, thresh, bg_thresh, dirty,
 					  wb_thresh, wb_dirty,
@@ -1203,20 +1206,9 @@ snapshot:
 	wb->bw_time_stamp = now;
 }
 
-static void wb_update_bandwidth(struct bdi_writeback *wb,
-				unsigned long thresh,
-				unsigned long bg_thresh,
-				unsigned long dirty,
-				unsigned long wb_thresh,
-				unsigned long wb_dirty,
-				unsigned long start_time)
+void wb_update_bandwidth(struct bdi_writeback *wb, unsigned long start_time)
 {
-	if (time_is_after_eq_jiffies(wb->bw_time_stamp + BANDWIDTH_INTERVAL))
-		return;
-	spin_lock(&wb->list_lock);
-	__wb_update_bandwidth(wb, thresh, bg_thresh, dirty,
-			      wb_thresh, wb_dirty, start_time);
-	spin_unlock(&wb->list_lock);
+	__wb_update_bandwidth(wb, 0, 0, 0, 0, 0, start_time, false);
 }
 
 /*
@@ -1467,8 +1459,15 @@ static void balance_dirty_pages(struct address_space *mapping,
 		if (dirty_exceeded && !wb->dirty_exceeded)
 			wb->dirty_exceeded = 1;
 
-		wb_update_bandwidth(wb, dirty_thresh, background_thresh,
-				    nr_dirty, wb_thresh, wb_dirty, start_time);
+		if (time_is_before_jiffies(wb->bw_time_stamp +
+					   BANDWIDTH_INTERVAL)) {
+			spin_lock(&wb->list_lock);
+			__wb_update_bandwidth(wb, dirty_thresh,
+					      background_thresh, nr_dirty,
+					      wb_thresh, wb_dirty, start_time,
+					      true);
+			spin_unlock(&wb->list_lock);
+		}
 
 		dirty_ratelimit = wb->dirty_ratelimit;
 		pos_ratio = wb_position_ratio(wb, dirty_thresh,

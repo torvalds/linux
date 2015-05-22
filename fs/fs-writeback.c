@@ -1088,16 +1088,6 @@ static bool over_bground_thresh(struct bdi_writeback *wb)
 }
 
 /*
- * Called under wb->list_lock. If there are multiple wb per bdi,
- * only the flusher working on the first wb should do it.
- */
-static void wb_update_bandwidth(struct bdi_writeback *wb,
-				unsigned long start_time)
-{
-	__wb_update_bandwidth(wb, 0, 0, 0, 0, 0, start_time);
-}
-
-/*
  * Explicit flushing or periodic writeback of "old" data.
  *
  * Define "old": the first time one of an inode's pages is dirtied, we mark the
