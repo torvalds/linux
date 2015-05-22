@@ -5044,25 +5044,36 @@ lpfc_els_lcb_rsp(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	struct lpfc_iocbq *elsiocb;
 	struct lpfc_nodelist *ndlp;
 	struct ls_rjt *stat;
+	union lpfc_sli4_cfg_shdr *shdr;
 	struct lpfc_lcb_context *lcb_context;
 	struct fc_lcb_res_frame *lcb_res;
-	uint32_t cmdsize;
+	uint32_t cmdsize, shdr_status, shdr_add_status;
 	int rc;
 
 	mb = &pmb->u.mb;
-
 	lcb_context = (struct lpfc_lcb_context *)pmb->context1;
 	ndlp = lcb_context->ndlp;
 	pmb->context1 = NULL;
 	pmb->context2 = NULL;
 
-	if (mb->mbxStatus) {
+	shdr = (union lpfc_sli4_cfg_shdr *)
+			&pmb->u.mqe.un.beacon_config.header.cfg_shdr;
+	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
+	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_MBOX,
+				"0194 SET_BEACON_CONFIG mailbox "
+				"completed with status x%x add_status x%x,"
+				" mbx status x%x\n",
+				shdr_status, shdr_add_status, mb->mbxStatus);
+
+	if (mb->mbxStatus && !(shdr_status &&
+		shdr_add_status == ADD_STATUS_OPERATION_ALREADY_ACTIVE)) {
 		mempool_free(pmb, phba->mbox_mem_pool);
 		goto error;
 	}
 
 	mempool_free(pmb, phba->mbox_mem_pool);
-
 	cmdsize = sizeof(struct fc_lcb_res_frame);
 	elsiocb = lpfc_prep_els_iocb(phba->pport, 0, cmdsize,
 			lpfc_max_els_tries, ndlp,

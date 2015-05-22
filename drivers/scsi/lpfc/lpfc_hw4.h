@@ -1943,6 +1943,12 @@ struct lpfc_mbx_redisc_fcf_tbl {
 #define STATUS_FCF_IN_USE				0x3a
 #define STATUS_FCF_TABLE_EMPTY				0x43
 
+/*
+ * Additional status field for embedded SLI_CONFIG mailbox
+ * command.
+ */
+#define ADD_STATUS_OPERATION_ALREADY_ACTIVE		0x67
+
 struct lpfc_mbx_sli4_config {
 	struct mbox_header header;
 };
