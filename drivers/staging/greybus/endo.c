@@ -29,6 +29,20 @@
 #define endo_back_left_ribs(id, ribs)		(((id) >> (ribs)) & ENDO_BACK_SIDE_RIBS_MASK(ribs))
 #define endo_back_right_ribs(id, ribs)		((id) & ENDO_BACK_SIDE_RIBS_MASK(ribs))
 
+/*
+ * An Endo has interface block positions on the front and back.
+ * Each has numeric ID, starting with 1 (interface 0 represents
+ * the SVC within the Endo itself).  The maximum interface ID is the
+ * also the number of non-SVC interfaces possible on the endo.
+ *
+ * Total number of interfaces:
+ * - Front: 4
+ * - Back left: max_ribs + 1
+ * - Back right: max_ribs + 1
+ */
+#define max_endo_interface_id(endo_layout) \
+		(4 + ((endo_layout)->max_ribs + 1) * 2)
+
 /* endo sysfs attributes */
 static ssize_t serial_number_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)
@@ -361,19 +375,12 @@ static int create_modules(struct gb_endo *endo)
 	int prev_module_id = 0;
 	int interface_id;
 	int module_id;
-	int interfaces;
+	int max_id;
 
-	/*
-	 * Total number of interfaces:
-	 * - Front: 4
-	 * - Back:
-	 *   - Left: max_ribs + 1
-	 *   - Right: max_ribs + 1
-	 */
-	interfaces = 4 + (endo->layout.max_ribs + 1) * 2;
+	max_id = max_endo_interface_id(&endo->layout);
 
 	/* Find module corresponding to each interface */
-	for (interface_id = 1; interface_id <= interfaces; interface_id++) {
+	for (interface_id = 1; interface_id <= max_id; interface_id++) {
 		module_id = endo_get_module_id(endo, interface_id);
 
 		if (WARN_ON(!module_id))
