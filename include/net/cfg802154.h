@@ -121,8 +121,6 @@ enum wpan_phy_flags {
 };
 
 struct wpan_phy {
-	struct mutex pib_lock;
-
 	/* If multiple wpan_phys are registered and you're handed e.g.
 	 * a regular netdev with assigned ieee802154_ptr, you won't
 	 * know whether it points to a wpan_phy your driver has registered

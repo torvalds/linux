@@ -91,16 +91,16 @@ void mac802154_dev_set_page_channel(struct net_device *dev, u8 page, u8 chan)
 	struct ieee802154_local *local = sdata->local;
 	int res;
 
+	ASSERT_RTNL();
+
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
 
 	res = drv_set_channel(local, page, chan);
 	if (res) {
 		pr_debug("set_channel failed\n");
 	} else {
-		mutex_lock(&local->phy->pib_lock);
 		local->phy->current_channel = chan;
 		local->phy->current_page = page;
-		mutex_unlock(&local->phy->pib_lock);
 	}
 }
 

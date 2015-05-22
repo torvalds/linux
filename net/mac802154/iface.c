@@ -242,7 +242,6 @@ static int mac802154_wpan_open(struct net_device *dev)
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
 	struct ieee802154_local *local = sdata->local;
 	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
-	struct wpan_phy *phy = sdata->local->phy;
 
 	rc = ieee802154_check_concurrent_iface(sdata, sdata->vif.type);
 	if (rc < 0)
@@ -251,8 +250,6 @@ static int mac802154_wpan_open(struct net_device *dev)
 	rc = mac802154_slave_open(dev);
 	if (rc < 0)
 		return rc;
-
-	mutex_lock(&phy->pib_lock);
 
 	if (local->hw.flags & IEEE802154_HW_PROMISCUOUS) {
 		rc = drv_set_promiscuous_mode(local,
@@ -295,11 +292,7 @@ static int mac802154_wpan_open(struct net_device *dev)
 			goto out;
 	}
 
-	mutex_unlock(&phy->pib_lock);
-	return 0;
-
 out:
-	mutex_unlock(&phy->pib_lock);
 	return rc;
 }
 
