@@ -2,8 +2,11 @@
 #define __LINUX_BACKING_DEV_DEFS_H
 
 #include <linux/list.h>
+#include <linux/radix-tree.h>
+#include <linux/rbtree.h>
 #include <linux/spinlock.h>
 #include <linux/percpu_counter.h>
+#include <linux/percpu-refcount.h>
 #include <linux/flex_proportions.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
@@ -37,10 +40,43 @@ enum wb_stat_item {
 
 #define WB_STAT_BATCH (8*(1+ilog2(nr_cpu_ids)))
 
+/*
+ * For cgroup writeback, multiple wb's may map to the same blkcg.  Those
+ * wb's can operate mostly independently but should share the congested
+ * state.  To facilitate such sharing, the congested state is tracked using
+ * the following struct which is created on demand, indexed by blkcg ID on
+ * its bdi, and refcounted.
+ */
 struct bdi_writeback_congested {
 	unsigned long state;		/* WB_[a]sync_congested flags */
+
+#ifdef CONFIG_CGROUP_WRITEBACK
+	struct backing_dev_info *bdi;	/* the associated bdi */
+	atomic_t refcnt;		/* nr of attached wb's and blkg */
+	int blkcg_id;			/* ID of the associated blkcg */
+	struct rb_node rb_node;		/* on bdi->cgwb_congestion_tree */
+#endif
 };
 
+/*
+ * Each wb (bdi_writeback) can perform writeback operations, is measured
+ * and throttled, independently.  Without cgroup writeback, each bdi
+ * (bdi_writeback) is served by its embedded bdi->wb.
+ *
+ * On the default hierarchy, blkcg implicitly enables memcg.  This allows
+ * using memcg's page ownership for attributing writeback IOs, and every
+ * memcg - blkcg combination can be served by its own wb by assigning a
+ * dedicated wb to each memcg, which enables isolation across different
+ * cgroups and propagation of IO back pressure down from the IO layer upto
+ * the tasks which are generating the dirty pages to be written back.
+ *
+ * A cgroup wb is indexed on its bdi by the ID of the associated memcg,
+ * refcounted with the number of inodes attached to it, and pins the memcg
+ * and the corresponding blkcg.  As the corresponding blkcg for a memcg may
+ * change as blkcg is disabled and enabled higher up in the hierarchy, a wb
+ * is tested for blkcg after lookup and removed from index on mismatch so
+ * that a new wb for the combination can be created.
+ */
 struct bdi_writeback {
 	struct backing_dev_info *bdi;	/* our parent bdi */
 
@@ -78,6 +114,19 @@ struct bdi_writeback {
 	spinlock_t work_lock;		/* protects work_list & dwork scheduling */
 	struct list_head work_list;
 	struct delayed_work dwork;	/* work item used for writeback */
+
+#ifdef CONFIG_CGROUP_WRITEBACK
+	struct percpu_ref refcnt;	/* used only for !root wb's */
+	struct cgroup_subsys_state *memcg_css; /* the associated memcg */
+	struct cgroup_subsys_state *blkcg_css; /* and blkcg */
+	struct list_head memcg_node;	/* anchored at memcg->cgwb_list */
+	struct list_head blkcg_node;	/* anchored at blkcg->cgwb_list */
+
+	union {
+		struct work_struct release_work;
+		struct rcu_head rcu;
+	};
+#endif
 };
 
 struct backing_dev_info {
@@ -92,9 +141,13 @@ struct backing_dev_info {
 	unsigned int min_ratio;
 	unsigned int max_ratio, max_prop_frac;
 
-	struct bdi_writeback wb;  /* default writeback info for this bdi */
-	struct bdi_writeback_congested wb_congested;
-
+	struct bdi_writeback wb;  /* the root writeback info for this bdi */
+	struct bdi_writeback_congested wb_congested; /* its congested state */
+#ifdef CONFIG_CGROUP_WRITEBACK
+	struct radix_tree_root cgwb_tree; /* radix tree of active cgroup wbs */
+	struct rb_root cgwb_congested_tree; /* their congested states */
+	atomic_t usage_cnt; /* counts both cgwbs and cgwb_contested's */
+#endif
 	struct device *dev;
 
 	struct timer_list laptop_mode_wb_timer;

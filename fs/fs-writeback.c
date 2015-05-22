@@ -185,11 +185,11 @@ void bdi_start_background_writeback(struct backing_dev_info *bdi)
  */
 void inode_wb_list_del(struct inode *inode)
 {
-	struct backing_dev_info *bdi = inode_to_bdi(inode);
+	struct bdi_writeback *wb = inode_to_wb(inode);
 
-	spin_lock(&bdi->wb.list_lock);
+	spin_lock(&wb->list_lock);
 	list_del_init(&inode->i_wb_list);
-	spin_unlock(&bdi->wb.list_lock);
+	spin_unlock(&wb->list_lock);
 }
 
 /*
@@ -1267,6 +1267,8 @@ void __mark_inode_dirty(struct inode *inode, int flags)
 		goto out_unlock_inode;
 	if ((inode->i_state & flags) != flags) {
 		const int was_dirty = inode->i_state & I_DIRTY;
+
+		inode_attach_wb(inode, NULL);
 
 		if (flags & I_DIRTY_INODE)
 			inode->i_state &= ~I_DIRTY_TIME;

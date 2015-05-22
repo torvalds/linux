@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/err.h>
 #include <linux/blkdev.h>
+#include <linux/backing-dev.h>
 #include <linux/slab.h>
 #include <linux/genhd.h>
 #include <linux/delay.h>
@@ -797,6 +798,8 @@ static void blkcg_css_offline(struct cgroup_subsys_state *css)
 	}
 
 	spin_unlock_irq(&blkcg->lock);
+
+	wb_blkcg_offline(blkcg);
 }
 
 static void blkcg_css_free(struct cgroup_subsys_state *css)
@@ -827,7 +830,9 @@ done:
 	spin_lock_init(&blkcg->lock);
 	INIT_RADIX_TREE(&blkcg->blkg_tree, GFP_ATOMIC);
 	INIT_HLIST_HEAD(&blkcg->blkg_list);
-
+#ifdef CONFIG_CGROUP_WRITEBACK
+	INIT_LIST_HEAD(&blkcg->cgwb_list);
+#endif
 	return &blkcg->css;
 }
 

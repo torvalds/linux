@@ -2097,16 +2097,21 @@ int __set_page_dirty_no_writeback(struct page *page)
 void account_page_dirtied(struct page *page, struct address_space *mapping,
 			  struct mem_cgroup *memcg)
 {
+	struct inode *inode = mapping->host;
+
 	trace_writeback_dirty_page(page, mapping);
 
 	if (mapping_cap_account_dirty(mapping)) {
-		struct backing_dev_info *bdi = inode_to_bdi(mapping->host);
+		struct bdi_writeback *wb;
+
+		inode_attach_wb(inode, page);
+		wb = inode_to_wb(inode);
 
 		mem_cgroup_inc_page_stat(memcg, MEM_CGROUP_STAT_DIRTY);
 		__inc_zone_page_state(page, NR_FILE_DIRTY);
 		__inc_zone_page_state(page, NR_DIRTIED);
-		__inc_wb_stat(&bdi->wb, WB_RECLAIMABLE);
-		__inc_wb_stat(&bdi->wb, WB_DIRTIED);
+		__inc_wb_stat(wb, WB_RECLAIMABLE);
+		__inc_wb_stat(wb, WB_DIRTIED);
 		task_io_account_write(PAGE_CACHE_SIZE);
 		current->nr_dirtied++;
 		this_cpu_inc(bdp_ratelimits);

@@ -388,6 +388,10 @@ enum {
 	OVER_LIMIT,
 };
 
+#ifdef CONFIG_CGROUP_WRITEBACK
+struct list_head *mem_cgroup_cgwb_list(struct mem_cgroup *memcg);
+#endif
+
 struct sock;
 #if defined(CONFIG_INET) && defined(CONFIG_MEMCG_KMEM)
 void sock_update_memcg(struct sock *sk);
