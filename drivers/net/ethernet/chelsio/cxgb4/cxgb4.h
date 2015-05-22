@@ -1101,6 +1101,19 @@ static inline int is_bypass_device(int device)
 	}
 }
 
+static inline int is_10gbt_device(int device)
+{
+	/* this should be set based upon device capabilities */
+	switch (device) {
+	case 0x4409:
+	case 0x4486:
+		return 1;
+
+	default:
+		return 0;
+	}
+}
+
 static inline unsigned int core_ticks_per_usec(const struct adapter *adap)
 {
 	return adap->params.vpd.cclk / 1000;
@@ -1123,8 +1136,18 @@ static inline unsigned int core_ticks_to_us(const struct adapter *adapter,
 void t4_set_reg_field(struct adapter *adap, unsigned int addr, u32 mask,
 		      u32 val);
 
+int t4_wr_mbox_meat_timeout(struct adapter *adap, int mbox, const void *cmd,
+			    int size, void *rpl, bool sleep_ok, int timeout);
 int t4_wr_mbox_meat(struct adapter *adap, int mbox, const void *cmd, int size,
 		    void *rpl, bool sleep_ok);
+
+static inline int t4_wr_mbox_timeout(struct adapter *adap, int mbox,
+				     const void *cmd, int size, void *rpl,
+				     int timeout)
+{
+	return t4_wr_mbox_meat_timeout(adap, mbox, cmd, size, rpl, true,
+				       timeout);
+}
 
 static inline int t4_wr_mbox(struct adapter *adap, int mbox, const void *cmd,
 			     int size, void *rpl)
@@ -1179,6 +1202,11 @@ int get_vpd_params(struct adapter *adapter, struct vpd_params *p);
 int t4_read_flash(struct adapter *adapter, unsigned int addr,
 		  unsigned int nwords, u32 *data, int byte_oriented);
 int t4_load_fw(struct adapter *adapter, const u8 *fw_data, unsigned int size);
+int t4_load_phy_fw(struct adapter *adap,
+		   int win, spinlock_t *lock,
+		   int (*phy_fw_version)(const u8 *, size_t),
+		   const u8 *phy_fw_data, size_t phy_fw_size);
+int t4_phy_fw_ver(struct adapter *adap, int *phy_fw_ver);
 int t4_fwcache(struct adapter *adap, enum fw_params_param_dev_fwcache op);
 int t4_fw_upgrade(struct adapter *adap, unsigned int mbox,
 		  const u8 *fw_data, unsigned int size, int force);
@@ -1269,13 +1297,16 @@ int t4_fw_initialize(struct adapter *adap, unsigned int mbox);
 int t4_query_params(struct adapter *adap, unsigned int mbox, unsigned int pf,
 		    unsigned int vf, unsigned int nparams, const u32 *params,
 		    u32 *val);
+int t4_query_params_rw(struct adapter *adap, unsigned int mbox, unsigned int pf,
+		       unsigned int vf, unsigned int nparams, const u32 *params,
+		       u32 *val, int rw);
+int t4_set_params_timeout(struct adapter *adap, unsigned int mbox,
+			  unsigned int pf, unsigned int vf,
+			  unsigned int nparams, const u32 *params,
+			  const u32 *val, int timeout);
 int t4_set_params(struct adapter *adap, unsigned int mbox, unsigned int pf,
 		  unsigned int vf, unsigned int nparams, const u32 *params,
 		  const u32 *val);
-int t4_set_params_nosleep(struct adapter *adap, unsigned int mbox,
-			  unsigned int pf, unsigned int vf,
-			  unsigned int nparams, const u32 *params,
-			  const u32 *val);
 int t4_cfg_pfvf(struct adapter *adap, unsigned int mbox, unsigned int pf,
 		unsigned int vf, unsigned int txq, unsigned int txq_eth_ctrl,
 		unsigned int rxqi, unsigned int rxq, unsigned int tc,

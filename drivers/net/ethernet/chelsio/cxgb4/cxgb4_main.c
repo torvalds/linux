@@ -137,6 +137,10 @@ struct filter_entry {
 #define FW5_FNAME "cxgb4/t5fw.bin"
 #define FW4_CFNAME "cxgb4/t4-config.txt"
 #define FW5_CFNAME "cxgb4/t5-config.txt"
+#define PHY_AQ1202_FIRMWARE "cxgb4/aq1202_fw.cld"
+#define PHY_BCM84834_FIRMWARE "cxgb4/bcm8483.bin"
+#define PHY_AQ1202_DEVICEID 0x4409
+#define PHY_BCM84834_DEVICEID 0x4486
 
 MODULE_DESCRIPTION(DRV_DESC);
 MODULE_AUTHOR("Chelsio Communications");
@@ -318,8 +322,9 @@ static void dcb_tx_queue_prio_enable(struct net_device *dev, int enable)
 		 * level") we need to issue the Set Parameters Commannd
 		 * without sleeping (timeout < 0).
 		 */
-		err = t4_set_params_nosleep(adap, adap->mbox, adap->fn, 0, 1,
-					    &name, &value);
+		err = t4_set_params_timeout(adap, adap->mbox, adap->fn, 0, 1,
+					    &name, &value,
+					    -FW_CMD_MAX_TIMEOUT);
 
 		if (err)
 			dev_err(adap->pdev_dev,
@@ -3222,6 +3227,142 @@ static int adap_init0_tweaks(struct adapter *adapter)
 	return 0;
 }
 
+/* 10Gb/s-BT PHY Support. chip-external 10Gb/s-BT PHYs are complex chips
+ * unto themselves and they contain their own firmware to perform their
+ * tasks ...
+ */
+static int phy_aq1202_version(const u8 *phy_fw_data,
+			      size_t phy_fw_size)
+{
+	int offset;
+
+	/* At offset 0x8 you're looking for the primary image's
+	 * starting offset which is 3 Bytes wide
+	 *
+	 * At offset 0xa of the primary image, you look for the offset
+	 * of the DRAM segment which is 3 Bytes wide.
+	 *
+	 * The FW version is at offset 0x27e of the DRAM and is 2 Bytes
+	 * wide
+	 */
+	#define be16(__p) (((__p)[0] << 8) | (__p)[1])
+	#define le16(__p) ((__p)[0] | ((__p)[1] << 8))
+	#define le24(__p) (le16(__p) | ((__p)[2] << 16))
+
+	offset = le24(phy_fw_data + 0x8) << 12;
+	offset = le24(phy_fw_data + offset + 0xa);
+	return be16(phy_fw_data + offset + 0x27e);
+
+	#undef be16
+	#undef le16
+	#undef le24
+}
+
+static struct info_10gbt_phy_fw {
+	unsigned int phy_fw_id;		/* PCI Device ID */
+	char *phy_fw_file;		/* /lib/firmware/ PHY Firmware file */
+	int (*phy_fw_version)(const u8 *phy_fw_data, size_t phy_fw_size);
+	int phy_flash;			/* Has FLASH for PHY Firmware */
+} phy_info_array[] = {
+	{
+		PHY_AQ1202_DEVICEID,
+		PHY_AQ1202_FIRMWARE,
+		phy_aq1202_version,
+		1,
+	},
+	{
+		PHY_BCM84834_DEVICEID,
+		PHY_BCM84834_FIRMWARE,
+		NULL,
+		0,
+	},
+	{ 0, NULL, NULL },
+};
+
+static struct info_10gbt_phy_fw *find_phy_info(int devid)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(phy_info_array); i++) {
+		if (phy_info_array[i].phy_fw_id == devid)
+			return &phy_info_array[i];
+	}
+	return NULL;
+}
+
+/* Handle updating of chip-external 10Gb/s-BT PHY firmware.  This needs to
+ * happen after the FW_RESET_CMD but before the FW_INITIALIZE_CMD.  On error
+ * we return a negative error number.  If we transfer new firmware we return 1
+ * (from t4_load_phy_fw()).  If we don't do anything we return 0.
+ */
+static int adap_init0_phy(struct adapter *adap)
+{
+	const struct firmware *phyf;
+	int ret;
+	struct info_10gbt_phy_fw *phy_info;
+
+	/* Use the device ID to determine which PHY file to flash.
+	 */
+	phy_info = find_phy_info(adap->pdev->device);
+	if (!phy_info) {
+		dev_warn(adap->pdev_dev,
+			 "No PHY Firmware file found for this PHY\n");
+		return -EOPNOTSUPP;
+	}
+
+	/* If we have a T4 PHY firmware file under /lib/firmware/cxgb4/, then
+	 * use that. The adapter firmware provides us with a memory buffer
+	 * where we can load a PHY firmware file from the host if we want to
+	 * override the PHY firmware File in flash.
+	 */
+	ret = request_firmware_direct(&phyf, phy_info->phy_fw_file,
+				      adap->pdev_dev);
+	if (ret < 0) {
+		/* For adapters without FLASH attached to PHY for their
+		 * firmware, it's obviously a fatal error if we can't get the
+		 * firmware to the adapter.  For adapters with PHY firmware
+		 * FLASH storage, it's worth a warning if we can't find the
+		 * PHY Firmware but we'll neuter the error ...
+		 */
+		dev_err(adap->pdev_dev, "unable to find PHY Firmware image "
+			"/lib/firmware/%s, error %d\n",
+			phy_info->phy_fw_file, -ret);
+		if (phy_info->phy_flash) {
+			int cur_phy_fw_ver = 0;
+
+			t4_phy_fw_ver(adap, &cur_phy_fw_ver);
+			dev_warn(adap->pdev_dev, "continuing with, on-adapter "
+				 "FLASH copy, version %#x\n", cur_phy_fw_ver);
+			ret = 0;
+		}
+
+		return ret;
+	}
+
+	/* Load PHY Firmware onto adapter.
+	 */
+	ret = t4_load_phy_fw(adap, MEMWIN_NIC, &adap->win0_lock,
+			     phy_info->phy_fw_version,
+			     (u8 *)phyf->data, phyf->size);
+	if (ret < 0)
+		dev_err(adap->pdev_dev, "PHY Firmware transfer error %d\n",
+			-ret);
+	else if (ret > 0) {
+		int new_phy_fw_ver = 0;
+
+		if (phy_info->phy_fw_version)
+			new_phy_fw_ver = phy_info->phy_fw_version(phyf->data,
+								  phyf->size);
+		dev_info(adap->pdev_dev, "Successfully transferred PHY "
+			 "Firmware /lib/firmware/%s, version %#x\n",
+			 phy_info->phy_fw_file, new_phy_fw_ver);
+	}
+
+	release_firmware(phyf);
+
+	return ret;
+}
+
 /*
  * Attempt to initialize the adapter via a Firmware Configuration File.
  */
@@ -3246,6 +3387,16 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 			goto bye;
 	}
 
+	/* If this is a 10Gb/s-BT adapter make sure the chip-external
+	 * 10Gb/s-BT PHYs have up-to-date firmware.  Note that this step needs
+	 * to be performed after any global adapter RESET above since some
+	 * PHYs only have local RAM copies of the PHY firmware.
+	 */
+	if (is_10gbt_device(adapter->pdev->device)) {
+		ret = adap_init0_phy(adapter);
+		if (ret < 0)
+			goto bye;
+	}
 	/*
 	 * If we have a T4 configuration file under /lib/firmware/cxgb4/,
 	 * then use that.  Otherwise, use the configuration file stored

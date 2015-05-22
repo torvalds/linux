@@ -233,13 +233,14 @@ static void dump_mbox(struct adapter *adap, int mbox, u32 data_reg)
 }
 
 /**
- *	t4_wr_mbox_meat - send a command to FW through the given mailbox
+ *	t4_wr_mbox_meat_timeout - send a command to FW through the given mailbox
  *	@adap: the adapter
  *	@mbox: index of the mailbox to use
  *	@cmd: the command to write
  *	@size: command length in bytes
  *	@rpl: where to optionally store the reply
  *	@sleep_ok: if true we may sleep while awaiting command completion
+ *	@timeout: time to wait for command to finish before timing out
  *
  *	Sends the given command to FW through the selected mailbox and waits
  *	for the FW to execute the command.  If @rpl is not %NULL it is used to
@@ -254,8 +255,8 @@ static void dump_mbox(struct adapter *adap, int mbox, u32 data_reg)
  *	command or FW executes it but signals an error.  In the latter case
  *	the return value is the error code indicated by FW (negated).
  */
-int t4_wr_mbox_meat(struct adapter *adap, int mbox, const void *cmd, int size,
-		    void *rpl, bool sleep_ok)
+int t4_wr_mbox_meat_timeout(struct adapter *adap, int mbox, const void *cmd,
+			    int size, void *rpl, bool sleep_ok, int timeout)
 {
 	static const int delay[] = {
 		1, 1, 3, 5, 10, 10, 20, 50, 100, 200
@@ -294,7 +295,7 @@ int t4_wr_mbox_meat(struct adapter *adap, int mbox, const void *cmd, int size,
 	delay_idx = 0;
 	ms = delay[0];
 
-	for (i = 0; i < FW_CMD_MAX_TIMEOUT; i += ms) {
+	for (i = 0; i < timeout; i += ms) {
 		if (sleep_ok) {
 			ms = delay[delay_idx];  /* last element may repeat */
 			if (delay_idx < ARRAY_SIZE(delay) - 1)
@@ -330,6 +331,13 @@ int t4_wr_mbox_meat(struct adapter *adap, int mbox, const void *cmd, int size,
 		*(const u8 *)cmd, mbox);
 	t4_report_fw_error(adap);
 	return -ETIMEDOUT;
+}
+
+int t4_wr_mbox_meat(struct adapter *adap, int mbox, const void *cmd, int size,
+		    void *rpl, bool sleep_ok)
+{
+	return t4_wr_mbox_meat_timeout(adap, mbox, cmd, size, rpl, sleep_ok,
+				       FW_CMD_MAX_TIMEOUT);
 }
 
 /**
@@ -2035,6 +2043,147 @@ out:
 	else
 		ret = t4_get_fw_version(adap, &adap->params.fw_vers);
 	return ret;
+}
+
+/**
+ *	t4_phy_fw_ver - return current PHY firmware version
+ *	@adap: the adapter
+ *	@phy_fw_ver: return value buffer for PHY firmware version
+ *
+ *	Returns the current version of external PHY firmware on the
+ *	adapter.
+ */
+int t4_phy_fw_ver(struct adapter *adap, int *phy_fw_ver)
+{
+	u32 param, val;
+	int ret;
+
+	param = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
+		 FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_PHYFW) |
+		 FW_PARAMS_PARAM_Y_V(adap->params.portvec) |
+		 FW_PARAMS_PARAM_Z_V(FW_PARAMS_PARAM_DEV_PHYFW_VERSION));
+	ret = t4_query_params(adap, adap->mbox, adap->fn, 0, 1,
+			      &param, &val);
+	if (ret < 0)
+		return ret;
+	*phy_fw_ver = val;
+	return 0;
+}
+
+/**
+ *	t4_load_phy_fw - download port PHY firmware
+ *	@adap: the adapter
+ *	@win: the PCI-E Memory Window index to use for t4_memory_rw()
+ *	@win_lock: the lock to use to guard the memory copy
+ *	@phy_fw_version: function to check PHY firmware versions
+ *	@phy_fw_data: the PHY firmware image to write
+ *	@phy_fw_size: image size
+ *
+ *	Transfer the specified PHY firmware to the adapter.  If a non-NULL
+ *	@phy_fw_version is supplied, then it will be used to determine if
+ *	it's necessary to perform the transfer by comparing the version
+ *	of any existing adapter PHY firmware with that of the passed in
+ *	PHY firmware image.  If @win_lock is non-NULL then it will be used
+ *	around the call to t4_memory_rw() which transfers the PHY firmware
+ *	to the adapter.
+ *
+ *	A negative error number will be returned if an error occurs.  If
+ *	version number support is available and there's no need to upgrade
+ *	the firmware, 0 will be returned.  If firmware is successfully
+ *	transferred to the adapter, 1 will be retured.
+ *
+ *	NOTE: some adapters only have local RAM to store the PHY firmware.  As
+ *	a result, a RESET of the adapter would cause that RAM to lose its
+ *	contents.  Thus, loading PHY firmware on such adapters must happen
+ *	after any FW_RESET_CMDs ...
+ */
+int t4_load_phy_fw(struct adapter *adap,
+		   int win, spinlock_t *win_lock,
+		   int (*phy_fw_version)(const u8 *, size_t),
+		   const u8 *phy_fw_data, size_t phy_fw_size)
+{
+	unsigned long mtype = 0, maddr = 0;
+	u32 param, val;
+	int cur_phy_fw_ver = 0, new_phy_fw_vers = 0;
+	int ret;
+
+	/* If we have version number support, then check to see if the adapter
+	 * already has up-to-date PHY firmware loaded.
+	 */
+	 if (phy_fw_version) {
+		new_phy_fw_vers = phy_fw_version(phy_fw_data, phy_fw_size);
+		ret = t4_phy_fw_ver(adap, &cur_phy_fw_ver);
+		if (ret < 0)
+			return ret;
+
+		if (cur_phy_fw_ver >= new_phy_fw_vers) {
+			CH_WARN(adap, "PHY Firmware already up-to-date, "
+				"version %#x\n", cur_phy_fw_ver);
+			return 0;
+		}
+	}
+
+	/* Ask the firmware where it wants us to copy the PHY firmware image.
+	 * The size of the file requires a special version of the READ coommand
+	 * which will pass the file size via the values field in PARAMS_CMD and
+	 * retrieve the return value from firmware and place it in the same
+	 * buffer values
+	 */
+	param = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
+		 FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_PHYFW) |
+		 FW_PARAMS_PARAM_Y_V(adap->params.portvec) |
+		 FW_PARAMS_PARAM_Z_V(FW_PARAMS_PARAM_DEV_PHYFW_DOWNLOAD));
+	val = phy_fw_size;
+	ret = t4_query_params_rw(adap, adap->mbox, adap->fn, 0, 1,
+				 &param, &val, 1);
+	if (ret < 0)
+		return ret;
+	mtype = val >> 8;
+	maddr = (val & 0xff) << 16;
+
+	/* Copy the supplied PHY Firmware image to the adapter memory location
+	 * allocated by the adapter firmware.
+	 */
+	if (win_lock)
+		spin_lock_bh(win_lock);
+	ret = t4_memory_rw(adap, win, mtype, maddr,
+			   phy_fw_size, (__be32 *)phy_fw_data,
+			   T4_MEMORY_WRITE);
+	if (win_lock)
+		spin_unlock_bh(win_lock);
+	if (ret)
+		return ret;
+
+	/* Tell the firmware that the PHY firmware image has been written to
+	 * RAM and it can now start copying it over to the PHYs.  The chip
+	 * firmware will RESET the affected PHYs as part of this operation
+	 * leaving them running the new PHY firmware image.
+	 */
+	param = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
+		 FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_PHYFW) |
+		 FW_PARAMS_PARAM_Y_V(adap->params.portvec) |
+		 FW_PARAMS_PARAM_Z_V(FW_PARAMS_PARAM_DEV_PHYFW_DOWNLOAD));
+	ret = t4_set_params_timeout(adap, adap->mbox, adap->fn, 0, 1,
+				    &param, &val, 30000);
+
+	/* If we have version number support, then check to see that the new
+	 * firmware got loaded properly.
+	 */
+	if (phy_fw_version) {
+		ret = t4_phy_fw_ver(adap, &cur_phy_fw_ver);
+		if (ret < 0)
+			return ret;
+
+		if (cur_phy_fw_ver != new_phy_fw_vers) {
+			CH_WARN(adap, "PHY Firmware did not update: "
+				"version on adapter %#x, "
+				"version flashed %#x\n",
+				cur_phy_fw_ver, new_phy_fw_vers);
+			return -ENXIO;
+		}
+	}
+
+	return 1;
 }
 
 /**
@@ -4362,7 +4511,7 @@ int t4_fw_initialize(struct adapter *adap, unsigned int mbox)
 }
 
 /**
- *	t4_query_params - query FW or device parameters
+ *	t4_query_params_rw - query FW or device parameters
  *	@adap: the adapter
  *	@mbox: mailbox to use for the FW command
  *	@pf: the PF
@@ -4370,13 +4519,14 @@ int t4_fw_initialize(struct adapter *adap, unsigned int mbox)
  *	@nparams: the number of parameters
  *	@params: the parameter names
  *	@val: the parameter values
+ *	@rw: Write and read flag
  *
  *	Reads the value of FW or device parameters.  Up to 7 parameters can be
  *	queried at once.
  */
-int t4_query_params(struct adapter *adap, unsigned int mbox, unsigned int pf,
-		    unsigned int vf, unsigned int nparams, const u32 *params,
-		    u32 *val)
+int t4_query_params_rw(struct adapter *adap, unsigned int mbox, unsigned int pf,
+		       unsigned int vf, unsigned int nparams, const u32 *params,
+		       u32 *val, int rw)
 {
 	int i, ret;
 	struct fw_params_cmd c;
@@ -4392,8 +4542,12 @@ int t4_query_params(struct adapter *adap, unsigned int mbox, unsigned int pf,
 				  FW_PARAMS_CMD_VFN_V(vf));
 	c.retval_len16 = cpu_to_be32(FW_LEN16(c));
 
-	for (i = 0; i < nparams; i++, p += 2)
-		*p = cpu_to_be32(*params++);
+	for (i = 0; i < nparams; i++) {
+		*p++ = cpu_to_be32(*params++);
+		if (rw)
+			*p = cpu_to_be32(*(val + i));
+		p++;
+	}
 
 	ret = t4_wr_mbox(adap, mbox, &c, sizeof(c), &c);
 	if (ret == 0)
@@ -4402,8 +4556,15 @@ int t4_query_params(struct adapter *adap, unsigned int mbox, unsigned int pf,
 	return ret;
 }
 
+int t4_query_params(struct adapter *adap, unsigned int mbox, unsigned int pf,
+		    unsigned int vf, unsigned int nparams, const u32 *params,
+		    u32 *val)
+{
+	return t4_query_params_rw(adap, mbox, pf, vf, nparams, params, val, 0);
+}
+
 /**
- *      t4_set_params_nosleep - sets FW or device parameters
+ *      t4_set_params_timeout - sets FW or device parameters
  *      @adap: the adapter
  *      @mbox: mailbox to use for the FW command
  *      @pf: the PF
@@ -4411,15 +4572,15 @@ int t4_query_params(struct adapter *adap, unsigned int mbox, unsigned int pf,
  *      @nparams: the number of parameters
  *      @params: the parameter names
  *      @val: the parameter values
+ *      @timeout: the timeout time
  *
- *	 Does not ever sleep
  *      Sets the value of FW or device parameters.  Up to 7 parameters can be
  *      specified at once.
  */
-int t4_set_params_nosleep(struct adapter *adap, unsigned int mbox,
+int t4_set_params_timeout(struct adapter *adap, unsigned int mbox,
 			  unsigned int pf, unsigned int vf,
 			  unsigned int nparams, const u32 *params,
-			  const u32 *val)
+			  const u32 *val, int timeout)
 {
 	struct fw_params_cmd c;
 	__be32 *p = &c.param[0].mnem;
@@ -4429,9 +4590,9 @@ int t4_set_params_nosleep(struct adapter *adap, unsigned int mbox,
 
 	memset(&c, 0, sizeof(c));
 	c.op_to_vfn = cpu_to_be32(FW_CMD_OP_V(FW_PARAMS_CMD) |
-				FW_CMD_REQUEST_F | FW_CMD_WRITE_F |
-				FW_PARAMS_CMD_PFN_V(pf) |
-				FW_PARAMS_CMD_VFN_V(vf));
+				  FW_CMD_REQUEST_F | FW_CMD_WRITE_F |
+				  FW_PARAMS_CMD_PFN_V(pf) |
+				  FW_PARAMS_CMD_VFN_V(vf));
 	c.retval_len16 = cpu_to_be32(FW_LEN16(c));
 
 	while (nparams--) {
@@ -4439,7 +4600,7 @@ int t4_set_params_nosleep(struct adapter *adap, unsigned int mbox,
 		*p++ = cpu_to_be32(*val++);
 	}
 
-	return t4_wr_mbox_ns(adap, mbox, &c, sizeof(c), NULL);
+	return t4_wr_mbox_timeout(adap, mbox, &c, sizeof(c), NULL, timeout);
 }
 
 /**
@@ -4459,24 +4620,8 @@ int t4_set_params(struct adapter *adap, unsigned int mbox, unsigned int pf,
 		  unsigned int vf, unsigned int nparams, const u32 *params,
 		  const u32 *val)
 {
-	struct fw_params_cmd c;
-	__be32 *p = &c.param[0].mnem;
-
-	if (nparams > 7)
-		return -EINVAL;
-
-	memset(&c, 0, sizeof(c));
-	c.op_to_vfn = cpu_to_be32(FW_CMD_OP_V(FW_PARAMS_CMD) |
-				  FW_CMD_REQUEST_F | FW_CMD_WRITE_F |
-				  FW_PARAMS_CMD_PFN_V(pf) |
-				  FW_PARAMS_CMD_VFN_V(vf));
-	c.retval_len16 = cpu_to_be32(FW_LEN16(c));
-	while (nparams--) {
-		*p++ = cpu_to_be32(*params++);
-		*p++ = cpu_to_be32(*val++);
-	}
-
-	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
+	return t4_set_params_timeout(adap, mbox, pf, vf, nparams, params, val,
+				     FW_CMD_MAX_TIMEOUT);
 }
 
 /**
