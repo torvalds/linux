@@ -306,8 +306,15 @@ static int dev_8255_attach(struct comedi_device *dev,
 			s->type = COMEDI_SUBD_UNUSED;
 		} else {
 			ret = subdev_8255_init(dev, s, NULL, iobase);
-			if (ret)
+			if (ret) {
+				/*
+				 * Release the I/O port region here, as the
+				 * "detach" handler cannot find it.
+				 */
+				release_region(iobase, I8255_SIZE);
+				s->type = COMEDI_SUBD_UNUSED;
 				return ret;
+			}
 		}
 	}
 
