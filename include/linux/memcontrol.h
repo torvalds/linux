@@ -392,12 +392,21 @@ enum {
 
 struct list_head *mem_cgroup_cgwb_list(struct mem_cgroup *memcg);
 struct wb_domain *mem_cgroup_wb_domain(struct bdi_writeback *wb);
+void mem_cgroup_wb_stats(struct bdi_writeback *wb, unsigned long *pavail,
+			 unsigned long *pdirty, unsigned long *pwriteback);
 
 #else	/* CONFIG_CGROUP_WRITEBACK */
 
 static inline struct wb_domain *mem_cgroup_wb_domain(struct bdi_writeback *wb)
 {
 	return NULL;
+}
+
+static inline void mem_cgroup_wb_stats(struct bdi_writeback *wb,
+				       unsigned long *pavail,
+				       unsigned long *pdirty,
+				       unsigned long *pwriteback)
+{
 }
 
 #endif	/* CONFIG_CGROUP_WRITEBACK */
