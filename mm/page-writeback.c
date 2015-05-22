@@ -134,6 +134,7 @@ struct dirty_throttle_control {
 
 	unsigned long		wb_dirty;	/* per-wb counterparts */
 	unsigned long		wb_thresh;
+	unsigned long		wb_bg_thresh;
 };
 
 #define GDTC_INIT(__wb)		.wb = (__wb)
@@ -761,7 +762,6 @@ static unsigned long wb_position_ratio(struct dirty_throttle_control *dtc)
 	 */
 	if (unlikely(wb->bdi->capabilities & BDI_CAP_STRICTLIMIT)) {
 		long long wb_pos_ratio;
-		unsigned long wb_bg_thresh;
 
 		if (dtc->wb_dirty < 8)
 			return min_t(long long, pos_ratio * 2,
@@ -770,9 +770,8 @@ static unsigned long wb_position_ratio(struct dirty_throttle_control *dtc)
 		if (dtc->wb_dirty >= wb_thresh)
 			return 0;
 
-		wb_bg_thresh = div_u64((u64)wb_thresh * dtc->bg_thresh,
-				       dtc->thresh);
-		wb_setpoint = dirty_freerun_ceiling(wb_thresh, wb_bg_thresh);
+		wb_setpoint = dirty_freerun_ceiling(wb_thresh,
+						    dtc->wb_bg_thresh);
 
 		if (wb_setpoint == 0 || wb_setpoint == wb_thresh)
 			return 0;
@@ -1104,15 +1103,14 @@ static void wb_update_dirty_ratelimit(struct dirty_throttle_control *dtc,
 	 *
 	 * We rampup dirty_ratelimit forcibly if wb_dirty is low because
 	 * it's possible that wb_thresh is close to zero due to inactivity
-	 * of backing device (see the implementation of wb_calc_thresh()).
+	 * of backing device.
 	 */
 	if (unlikely(wb->bdi->capabilities & BDI_CAP_STRICTLIMIT)) {
 		dirty = dtc->wb_dirty;
 		if (dtc->wb_dirty < 8)
 			setpoint = dtc->wb_dirty + 1;
 		else
-			setpoint = (dtc->wb_thresh +
-				    wb_calc_thresh(wb, dtc->bg_thresh)) / 2;
+			setpoint = (dtc->wb_thresh + dtc->wb_bg_thresh) / 2;
 	}
 
 	if (dirty < setpoint) {
@@ -1307,8 +1305,7 @@ static long wb_min_pause(struct bdi_writeback *wb,
 	return pages >= DIRTY_POLL_THRESH ? 1 + t / 2 : t;
 }
 
-static inline void wb_dirty_limits(struct dirty_throttle_control *dtc,
-				   unsigned long *wb_bg_thresh)
+static inline void wb_dirty_limits(struct dirty_throttle_control *dtc)
 {
 	struct bdi_writeback *wb = dtc->wb;
 	unsigned long wb_reclaimable;
@@ -1327,11 +1324,8 @@ static inline void wb_dirty_limits(struct dirty_throttle_control *dtc,
 	 *   at some rate <= (write_bw / 2) for bringing down wb_dirty.
 	 */
 	dtc->wb_thresh = wb_calc_thresh(dtc->wb, dtc->thresh);
-
-	if (wb_bg_thresh)
-		*wb_bg_thresh = dtc->thresh ? div_u64((u64)dtc->wb_thresh *
-						      dtc->bg_thresh,
-						      dtc->thresh) : 0;
+	dtc->wb_bg_thresh = dtc->thresh ?
+		div_u64((u64)dtc->wb_thresh * dtc->bg_thresh, dtc->thresh) : 0;
 
 	/*
 	 * In order to avoid the stacked BDI deadlock we need
@@ -1396,10 +1390,11 @@ static void balance_dirty_pages(struct address_space *mapping,
 		global_dirty_limits(&gdtc->bg_thresh, &gdtc->thresh);
 
 		if (unlikely(strictlimit)) {
-			wb_dirty_limits(gdtc, &bg_thresh);
+			wb_dirty_limits(gdtc);
 
 			dirty = gdtc->wb_dirty;
 			thresh = gdtc->wb_thresh;
+			bg_thresh = gdtc->wb_bg_thresh;
 		} else {
 			dirty = gdtc->dirty;
 			thresh = gdtc->thresh;
@@ -1427,7 +1422,7 @@ static void balance_dirty_pages(struct address_space *mapping,
 			wb_start_background_writeback(wb);
 
 		if (!strictlimit)
-			wb_dirty_limits(gdtc, NULL);
+			wb_dirty_limits(gdtc);
 
 		dirty_exceeded = (gdtc->wb_dirty > gdtc->wb_thresh) &&
 			((gdtc->dirty > gdtc->thresh) || strictlimit);
