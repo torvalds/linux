@@ -1081,7 +1081,7 @@ static bool over_bground_thresh(struct bdi_writeback *wb)
 	    global_page_state(NR_UNSTABLE_NFS) > background_thresh)
 		return true;
 
-	if (wb_stat(wb, WB_RECLAIMABLE) > wb_dirty_limit(wb, background_thresh))
+	if (wb_stat(wb, WB_RECLAIMABLE) > wb_calc_thresh(wb, background_thresh))
 		return true;
 
 	return false;

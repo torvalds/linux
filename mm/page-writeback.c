@@ -556,7 +556,7 @@ static unsigned long hard_dirty_limit(unsigned long thresh)
 }
 
 /**
- * wb_dirty_limit - @wb's share of dirty throttling threshold
+ * wb_calc_thresh - @wb's share of dirty throttling threshold
  * @wb: bdi_writeback to query
  * @dirty: global dirty limit in pages
  *
@@ -577,28 +577,28 @@ static unsigned long hard_dirty_limit(unsigned long thresh)
  * The wb's share of dirty limit will be adapting to its throughput and
  * bounded by the bdi->min_ratio and/or bdi->max_ratio parameters, if set.
  */
-unsigned long wb_dirty_limit(struct bdi_writeback *wb, unsigned long dirty)
+unsigned long wb_calc_thresh(struct bdi_writeback *wb, unsigned long thresh)
 {
-	u64 wb_dirty;
+	u64 wb_thresh;
 	long numerator, denominator;
 	unsigned long wb_min_ratio, wb_max_ratio;
 
 	/*
-	 * Calculate this BDI's share of the dirty ratio.
+	 * Calculate this BDI's share of the thresh ratio.
 	 */
 	wb_writeout_fraction(wb, &numerator, &denominator);
 
-	wb_dirty = (dirty * (100 - bdi_min_ratio)) / 100;
-	wb_dirty *= numerator;
-	do_div(wb_dirty, denominator);
+	wb_thresh = (thresh * (100 - bdi_min_ratio)) / 100;
+	wb_thresh *= numerator;
+	do_div(wb_thresh, denominator);
 
 	wb_min_max_ratio(wb, &wb_min_ratio, &wb_max_ratio);
 
-	wb_dirty += (dirty * wb_min_ratio) / 100;
-	if (wb_dirty > (dirty * wb_max_ratio) / 100)
-		wb_dirty = dirty * wb_max_ratio / 100;
+	wb_thresh += (thresh * wb_min_ratio) / 100;
+	if (wb_thresh > (thresh * wb_max_ratio) / 100)
+		wb_thresh = thresh * wb_max_ratio / 100;
 
-	return wb_dirty;
+	return wb_thresh;
 }
 
 /*
@@ -750,7 +750,7 @@ static unsigned long wb_position_ratio(struct bdi_writeback *wb,
 	 * total amount of RAM is 16GB, bdi->max_ratio is equal to 1%, global
 	 * limits are set by default to 10% and 20% (background and throttle).
 	 * Then wb_thresh is 1% of 20% of 16GB. This amounts to ~8K pages.
-	 * wb_dirty_limit(wb, bg_thresh) is about ~4K pages. wb_setpoint is
+	 * wb_calc_thresh(wb, bg_thresh) is about ~4K pages. wb_setpoint is
 	 * about ~6K pages (as the average of background and throttle wb
 	 * limits). The 3rd order polynomial will provide positive feedback if
 	 * wb_dirty is under wb_setpoint and vice versa.
@@ -1115,7 +1115,7 @@ static void wb_update_dirty_ratelimit(struct bdi_writeback *wb,
 	 *
 	 * We rampup dirty_ratelimit forcibly if wb_dirty is low because
 	 * it's possible that wb_thresh is close to zero due to inactivity
-	 * of backing device (see the implementation of wb_dirty_limit()).
+	 * of backing device (see the implementation of wb_calc_thresh()).
 	 */
 	if (unlikely(wb->bdi->capabilities & BDI_CAP_STRICTLIMIT)) {
 		dirty = wb_dirty;
@@ -1123,7 +1123,7 @@ static void wb_update_dirty_ratelimit(struct bdi_writeback *wb,
 			setpoint = wb_dirty + 1;
 		else
 			setpoint = (wb_thresh +
-				    wb_dirty_limit(wb, bg_thresh)) / 2;
+				    wb_calc_thresh(wb, bg_thresh)) / 2;
 	}
 
 	if (dirty < setpoint) {
@@ -1352,7 +1352,7 @@ static inline void wb_dirty_limits(struct bdi_writeback *wb,
 	 *   wb_position_ratio() will let the dirtier task progress
 	 *   at some rate <= (write_bw / 2) for bringing down wb_dirty.
 	 */
-	*wb_thresh = wb_dirty_limit(wb, dirty_thresh);
+	*wb_thresh = wb_calc_thresh(wb, dirty_thresh);
 
 	if (wb_bg_thresh)
 		*wb_bg_thresh = dirty_thresh ? div_u64((u64)*wb_thresh *

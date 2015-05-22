@@ -49,7 +49,7 @@ static int bdi_debug_stats_show(struct seq_file *m, void *v)
 	struct bdi_writeback *wb = &bdi->wb;
 	unsigned long background_thresh;
 	unsigned long dirty_thresh;
-	unsigned long bdi_thresh;
+	unsigned long wb_thresh;
 	unsigned long nr_dirty, nr_io, nr_more_io, nr_dirty_time;
 	struct inode *inode;
 
@@ -67,7 +67,7 @@ static int bdi_debug_stats_show(struct seq_file *m, void *v)
 	spin_unlock(&wb->list_lock);
 
 	global_dirty_limits(&background_thresh, &dirty_thresh);
-	bdi_thresh = wb_dirty_limit(wb, dirty_thresh);
+	wb_thresh = wb_calc_thresh(wb, dirty_thresh);
 
 #define K(x) ((x) << (PAGE_SHIFT - 10))
 	seq_printf(m,
@@ -87,7 +87,7 @@ static int bdi_debug_stats_show(struct seq_file *m, void *v)
 		   "state:              %10lx\n",
 		   (unsigned long) K(wb_stat(wb, WB_WRITEBACK)),
 		   (unsigned long) K(wb_stat(wb, WB_RECLAIMABLE)),
-		   K(bdi_thresh),
+		   K(wb_thresh),
 		   K(dirty_thresh),
 		   K(background_thresh),
 		   (unsigned long) K(wb_stat(wb, WB_DIRTIED)),
