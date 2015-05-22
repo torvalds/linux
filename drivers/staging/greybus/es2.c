@@ -556,9 +556,9 @@ static int ap_probe(struct usb_interface *interface,
 	udev = usb_get_dev(interface_to_usbdev(interface));
 
 	hd = greybus_create_hd(&es1_driver, &udev->dev, ES1_GBUF_MSG_SIZE_MAX);
-	if (!hd) {
+	if (IS_ERR(hd)) {
 		usb_put_dev(udev);
-		return -ENOMEM;
+		return PTR_ERR(hd);
 	}
 
 	es1 = hd_to_es1(hd);

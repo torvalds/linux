@@ -187,7 +187,7 @@ struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *driver
 	if ((!driver->message_send) || (!driver->message_cancel) ||
 	    (!driver->submit_svc)) {
 		pr_err("Must implement all greybus_host_driver callbacks!\n");
-		return NULL;
+		return ERR_PTR(-EINVAL);
 	}
 
 	/*
@@ -202,7 +202,7 @@ struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *driver
 
 	hd = kzalloc(sizeof(*hd) + driver->hd_priv_size, GFP_KERNEL);
 	if (!hd)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	kref_init(&hd->kref);
 	hd->parent = parent;
@@ -215,7 +215,7 @@ struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *driver
 	endo = gb_endo_create(hd, endo_id);
 	if (IS_ERR(endo)) {
 		greybus_remove_hd(hd);
-		return NULL;
+		return ERR_CAST(endo);
 	}
 	hd->endo = endo;
 
