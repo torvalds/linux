@@ -214,12 +214,12 @@ static void kvmppc_set_msr_hv(struct kvm_vcpu *vcpu, u64 msr)
 	kvmppc_end_cede(vcpu);
 }
 
-void kvmppc_set_pvr_hv(struct kvm_vcpu *vcpu, u32 pvr)
+static void kvmppc_set_pvr_hv(struct kvm_vcpu *vcpu, u32 pvr)
 {
 	vcpu->arch.pvr = pvr;
 }
 
-int kvmppc_set_arch_compat(struct kvm_vcpu *vcpu, u32 arch_compat)
+static int kvmppc_set_arch_compat(struct kvm_vcpu *vcpu, u32 arch_compat)
 {
 	unsigned long pcr = 0;
 	struct kvmppc_vcore *vc = vcpu->arch.vcore;
@@ -259,7 +259,7 @@ int kvmppc_set_arch_compat(struct kvm_vcpu *vcpu, u32 arch_compat)
 	return 0;
 }
 
-void kvmppc_dump_regs(struct kvm_vcpu *vcpu)
+static void kvmppc_dump_regs(struct kvm_vcpu *vcpu)
 {
 	int r;
 
@@ -292,7 +292,7 @@ void kvmppc_dump_regs(struct kvm_vcpu *vcpu)
 	       vcpu->arch.last_inst);
 }
 
-struct kvm_vcpu *kvmppc_find_vcpu(struct kvm *kvm, int id)
+static struct kvm_vcpu *kvmppc_find_vcpu(struct kvm *kvm, int id)
 {
 	int r;
 	struct kvm_vcpu *v, *ret = NULL;
