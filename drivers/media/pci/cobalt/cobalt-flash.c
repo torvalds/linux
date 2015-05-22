@@ -36,10 +36,9 @@ static struct map_info cobalt_flash_map = {
 
 static map_word flash_read16(struct map_info *map, unsigned long offset)
 {
-	struct cobalt *cobalt = map->virt;
 	map_word r;
 
-	r.x[0] = cobalt_bus_read32(cobalt, ADRS(offset));
+	r.x[0] = cobalt_bus_read32(map->virt, ADRS(offset));
 	if (offset & 0x2)
 		r.x[0] >>= 16;
 	else
@@ -51,22 +50,20 @@ static map_word flash_read16(struct map_info *map, unsigned long offset)
 static void flash_write16(struct map_info *map, const map_word datum,
 			  unsigned long offset)
 {
-	struct cobalt *cobalt = map->virt;
 	u16 data = (u16)datum.x[0];
 
-	cobalt_bus_write16(cobalt, ADRS(offset), data);
+	cobalt_bus_write16(map->virt, ADRS(offset), data);
 }
 
 static void flash_copy_from(struct map_info *map, void *to,
 			    unsigned long from, ssize_t len)
 {
-	struct cobalt *cobalt = map->virt;
 	u32 src = from;
 	u8 *dest = to;
 	u32 data;
 
 	while (len) {
-		data = cobalt_bus_read32(cobalt, ADRS(src));
+		data = cobalt_bus_read32(map->virt, ADRS(src));
 		do {
 			*dest = data >> (8 * (src & 3));
 			src++;
@@ -79,11 +76,10 @@ static void flash_copy_from(struct map_info *map, void *to,
 static void flash_copy_to(struct map_info *map, unsigned long to,
 			  const void *from, ssize_t len)
 {
-	struct cobalt *cobalt = map->virt;
 	const u8 *src = from;
 	u32 dest = to;
 
-	cobalt_info("%s: offset 0x%x: length %zu\n", __func__, dest, len);
+	pr_info("%s: offset 0x%x: length %zu\n", __func__, dest, len);
 	while (len) {
 		u16 data = 0xffff;
 
@@ -94,7 +90,7 @@ static void flash_copy_to(struct map_info *map, unsigned long to,
 			len--;
 		} while (len && (dest % 2));
 
-		cobalt_bus_write16(cobalt, ADRS(dest - 2), data);
+		cobalt_bus_write16(map->virt, ADRS(dest - 2), data);
 	}
 }
 
@@ -104,7 +100,7 @@ int cobalt_flash_probe(struct cobalt *cobalt)
 	struct mtd_info *mtd;
 
 	BUG_ON(!map_bankwidth_supported(map->bankwidth));
-	map->virt = cobalt;
+	map->virt = cobalt->bar1;
 	map->read = flash_read16;
 	map->write = flash_write16;
 	map->copy_from = flash_copy_from;

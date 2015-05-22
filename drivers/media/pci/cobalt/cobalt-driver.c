@@ -296,11 +296,11 @@ static void cobalt_pci_iounmap(struct cobalt *cobalt, struct pci_dev *pci_dev)
 {
 	if (cobalt->bar0) {
 		pci_iounmap(pci_dev, cobalt->bar0);
-		cobalt->bar0 = 0;
+		cobalt->bar0 = NULL;
 	}
 	if (cobalt->bar1) {
 		pci_iounmap(pci_dev, cobalt->bar1);
-		cobalt->bar1 = 0;
+		cobalt->bar1 = NULL;
 	}
 }
 
