@@ -647,16 +647,15 @@ static inline int queue_in_packet(struct amdtp_stream *s)
 			    amdtp_stream_get_max_payload(s), false);
 }
 
-static void handle_out_packet(struct amdtp_stream *s, unsigned int syt)
+static void handle_out_packet(struct amdtp_stream *s, unsigned int data_blocks,
+			      unsigned int syt)
 {
 	__be32 *buffer;
-	unsigned int data_blocks, payload_length;
+	unsigned int payload_length;
 	struct snd_pcm_substream *pcm;
 
 	if (s->packet_index < 0)
 		return;
-
-	data_blocks = calculate_data_blocks(s, syt);
 
 	buffer = s->buffer.packets[s->packet_index].buffer;
 	buffer[0] = cpu_to_be32(ACCESS_ONCE(s->source_node_id_field) |
@@ -687,13 +686,12 @@ static void handle_out_packet(struct amdtp_stream *s, unsigned int syt)
 		update_pcm_pointers(s, pcm, data_blocks);
 }
 
-static void handle_in_packet(struct amdtp_stream *s,
-			     unsigned int payload_quadlets,
-			     __be32 *buffer)
+static int handle_in_packet(struct amdtp_stream *s,
+			    unsigned int payload_quadlets, __be32 *buffer)
 {
 	u32 cip_header[2];
-	unsigned int data_blocks, data_block_quadlets, data_block_counter,
-		     dbc_interval;
+	unsigned int data_blocks;
+	unsigned int data_block_quadlets, data_block_counter, dbc_interval;
 	struct snd_pcm_substream *pcm = NULL;
 	bool lost;
 
@@ -710,6 +708,7 @@ static void handle_in_packet(struct amdtp_stream *s,
 		dev_info_ratelimited(&s->unit->device,
 				"Invalid CIP header for AMDTP: %08X:%08X\n",
 				cip_header[0], cip_header[1]);
+		data_blocks = 0;
 		goto end;
 	}
 
@@ -726,7 +725,7 @@ static void handle_in_packet(struct amdtp_stream *s,
 			dev_info_ratelimited(&s->unit->device,
 				"Detect invalid value in dbs field: %08X\n",
 				cip_header[0]);
-			goto err;
+			return -EIO;
 		}
 		if (s->flags & CIP_WRONG_DBS)
 			data_block_quadlets = s->data_block_quadlets;
@@ -759,7 +758,7 @@ static void handle_in_packet(struct amdtp_stream *s,
 		dev_info(&s->unit->device,
 			 "Detect discontinuity of CIP: %02X %02X\n",
 			 s->data_block_counter, data_block_counter);
-		goto err;
+		return -EIO;
 	}
 
 	if (data_blocks > 0) {
@@ -780,15 +779,12 @@ static void handle_in_packet(struct amdtp_stream *s,
 				(data_block_counter + data_blocks) & 0xff;
 end:
 	if (queue_in_packet(s) < 0)
-		goto err;
+		return -EIO;
 
 	if (pcm)
 		update_pcm_pointers(s, pcm, data_blocks);
 
-	return;
-err:
-	s->packet_index = -1;
-	amdtp_stream_pcm_abort(s);
+	return data_blocks;
 }
 
 static void out_stream_callback(struct fw_iso_context *context, u32 cycle,
@@ -797,6 +793,7 @@ static void out_stream_callback(struct fw_iso_context *context, u32 cycle,
 {
 	struct amdtp_stream *s = private_data;
 	unsigned int i, syt, packets = header_length / 4;
+	unsigned int data_blocks;
 
 	/*
 	 * Compute the cycle of the last queued packet.
@@ -807,7 +804,9 @@ static void out_stream_callback(struct fw_iso_context *context, u32 cycle,
 
 	for (i = 0; i < packets; ++i) {
 		syt = calculate_syt(s, ++cycle);
-		handle_out_packet(s, syt);
+		data_blocks = calculate_data_blocks(s, syt);
+
+		handle_out_packet(s, data_blocks, syt);
 	}
 	fw_iso_context_queue_flush(s->context);
 }
@@ -819,6 +818,7 @@ static void in_stream_callback(struct fw_iso_context *context, u32 cycle,
 	struct amdtp_stream *s = private_data;
 	unsigned int p, syt, packets;
 	unsigned int payload_quadlets, max_payload_quadlets;
+	unsigned int data_blocks;
 	__be32 *buffer, *headers = header;
 
 	/* The number of packets in buffer */
@@ -833,12 +833,6 @@ static void in_stream_callback(struct fw_iso_context *context, u32 cycle,
 
 		buffer = s->buffer.packets[s->packet_index].buffer;
 
-		/* Process sync slave stream */
-		if (s->sync_slave && s->sync_slave->callbacked) {
-			syt = be32_to_cpu(buffer[1]) & CIP_SYT_MASK;
-			handle_out_packet(s->sync_slave, syt);
-		}
-
 		/* The number of quadlets in this packet */
 		payload_quadlets =
 			(be32_to_cpu(headers[p]) >> ISO_DATA_LENGTH_SHIFT) / 4;
@@ -850,11 +844,23 @@ static void in_stream_callback(struct fw_iso_context *context, u32 cycle,
 			break;
 		}
 
-		handle_in_packet(s, payload_quadlets, buffer);
+		data_blocks = handle_in_packet(s, payload_quadlets, buffer);
+		if (data_blocks < 0) {
+			s->packet_index = -1;
+			break;
+		}
+
+		/* Process sync slave stream */
+		if (s->sync_slave && s->sync_slave->callbacked) {
+			syt = be32_to_cpu(buffer[1]) & CIP_SYT_MASK;
+			handle_out_packet(s->sync_slave, data_blocks, syt);
+		}
 	}
 
 	/* Queueing error or detecting discontinuity */
 	if (s->packet_index < 0) {
+		amdtp_stream_pcm_abort(s);
+
 		/* Abort sync slave. */
 		if (s->sync_slave) {
 			s->sync_slave->packet_index = -1;
