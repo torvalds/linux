@@ -43,7 +43,7 @@ enum {
  * @len: total length of the original datagram
  * @meat: length of received fragments so far
  * @flags: fragment queue flags
- * @max_size: (ipv4 only) maximum received fragment size with IP_DF set
+ * @max_size: maximum received fragment size
  * @net: namespace that this frag belongs to
  */
 struct inet_frag_queue {
