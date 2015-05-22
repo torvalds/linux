@@ -20,4 +20,23 @@ config ODROID_TOUCHSCREEN_ADS7846
 	  To compile this driver as a module, choose M here: the
 	  module will be called ads7846.
 
+config ODROID_AML_GPIO_LIB
+	tristate "GPIO-LIB Driver for AMLogic GPIO IRQ "
+	default n
+	depends on GPIO_AMLOGIC
+	help
+	    GPIO-LIB for AMLogic GPIO IRQ
+	    sysfs location is /sys/class/aml_gpio/...
+
+if ODROID_AML_GPIO_LIB = y
+
+config ALLOC_CPU_FOR_IRQ
+    int "Alloction CPU for AMLogic GPIO IRQ"
+    default 3
+    help
+        Allocation CPU for IRQ(0..3)
+        Default alloction is CPU(3)
+
+endif
+
 endmenu
