@@ -261,7 +261,7 @@ int bdi_has_dirty_io(struct backing_dev_info *bdi)
 }
 
 /*
- * This function is used when the first inode for this bdi is marked dirty. It
+ * This function is used when the first inode for this wb is marked dirty. It
  * wakes-up the corresponding bdi thread which should then take care of the
  * periodic background write-out of dirty inodes. Since the write-out would
  * starts only 'dirty_writeback_interval' centisecs from now anyway, we just
@@ -274,15 +274,15 @@ int bdi_has_dirty_io(struct backing_dev_info *bdi)
  * We have to be careful not to postpone flush work if it is scheduled for
  * earlier. Thus we use queue_delayed_work().
  */
-void bdi_wakeup_thread_delayed(struct backing_dev_info *bdi)
+void wb_wakeup_delayed(struct bdi_writeback *wb)
 {
 	unsigned long timeout;
 
 	timeout = msecs_to_jiffies(dirty_writeback_interval * 10);
-	spin_lock_bh(&bdi->wb_lock);
-	if (test_bit(WB_registered, &bdi->wb.state))
-		queue_delayed_work(bdi_wq, &bdi->wb.dwork, timeout);
-	spin_unlock_bh(&bdi->wb_lock);
+	spin_lock_bh(&wb->work_lock);
+	if (test_bit(WB_registered, &wb->state))
+		queue_delayed_work(bdi_wq, &wb->dwork, timeout);
+	spin_unlock_bh(&wb->work_lock);
 }
 
 /*
@@ -335,28 +335,24 @@ EXPORT_SYMBOL(bdi_register_dev);
 /*
  * Remove bdi from the global list and shutdown any threads we have running
  */
-static void bdi_wb_shutdown(struct backing_dev_info *bdi)
+static void wb_shutdown(struct bdi_writeback *wb)
 {
 	/* Make sure nobody queues further work */
-	spin_lock_bh(&bdi->wb_lock);
-	if (!test_and_clear_bit(WB_registered, &bdi->wb.state)) {
-		spin_unlock_bh(&bdi->wb_lock);
+	spin_lock_bh(&wb->work_lock);
+	if (!test_and_clear_bit(WB_registered, &wb->state)) {
+		spin_unlock_bh(&wb->work_lock);
 		return;
 	}
-	spin_unlock_bh(&bdi->wb_lock);
+	spin_unlock_bh(&wb->work_lock);
 
 	/*
-	 * Make sure nobody finds us on the bdi_list anymore
+	 * Drain work list and shutdown the delayed_work.  !WB_registered
+	 * tells wb_workfn() that @wb is dying and its work_list needs to
+	 * be drained no matter what.
 	 */
-	bdi_remove_from_list(bdi);
-
-	/*
-	 * Drain work list and shutdown the delayed_work.  At this point,
-	 * @bdi->bdi_list is empty telling bdi_Writeback_workfn() that @bdi
-	 * is dying and its work_list needs to be drained no matter what.
-	 */
-	mod_delayed_work(bdi_wq, &bdi->wb.dwork, 0);
-	flush_delayed_work(&bdi->wb.dwork);
+	mod_delayed_work(bdi_wq, &wb->dwork, 0);
+	flush_delayed_work(&wb->dwork);
+	WARN_ON(!list_empty(&wb->work_list));
 }
 
 /*
@@ -381,7 +377,7 @@ EXPORT_SYMBOL(bdi_unregister);
  */
 #define INIT_BW		(100 << (20 - PAGE_SHIFT))
 
-static int bdi_wb_init(struct bdi_writeback *wb, struct backing_dev_info *bdi)
+static int wb_init(struct bdi_writeback *wb, struct backing_dev_info *bdi)
 {
 	int i, err;
 
@@ -394,13 +390,16 @@ static int bdi_wb_init(struct bdi_writeback *wb, struct backing_dev_info *bdi)
 	INIT_LIST_HEAD(&wb->b_more_io);
 	INIT_LIST_HEAD(&wb->b_dirty_time);
 	spin_lock_init(&wb->list_lock);
-	INIT_DELAYED_WORK(&wb->dwork, bdi_writeback_workfn);
 
 	wb->bw_time_stamp = jiffies;
 	wb->balanced_dirty_ratelimit = INIT_BW;
 	wb->dirty_ratelimit = INIT_BW;
 	wb->write_bandwidth = INIT_BW;
 	wb->avg_write_bandwidth = INIT_BW;
+
+	spin_lock_init(&wb->work_lock);
+	INIT_LIST_HEAD(&wb->work_list);
+	INIT_DELAYED_WORK(&wb->dwork, wb_workfn);
 
 	err = fprop_local_init_percpu(&wb->completions, GFP_KERNEL);
 	if (err)
@@ -419,7 +418,7 @@ static int bdi_wb_init(struct bdi_writeback *wb, struct backing_dev_info *bdi)
 	return 0;
 }
 
-static void bdi_wb_exit(struct bdi_writeback *wb)
+static void wb_exit(struct bdi_writeback *wb)
 {
 	int i;
 
@@ -440,11 +439,9 @@ int bdi_init(struct backing_dev_info *bdi)
 	bdi->min_ratio = 0;
 	bdi->max_ratio = 100;
 	bdi->max_prop_frac = FPROP_FRAC_BASE;
-	spin_lock_init(&bdi->wb_lock);
 	INIT_LIST_HEAD(&bdi->bdi_list);
-	INIT_LIST_HEAD(&bdi->work_list);
 
-	err = bdi_wb_init(&bdi->wb, bdi);
+	err = wb_init(&bdi->wb, bdi);
 	if (err)
 		return err;
 
@@ -454,9 +451,9 @@ EXPORT_SYMBOL(bdi_init);
 
 void bdi_destroy(struct backing_dev_info *bdi)
 {
-	bdi_wb_shutdown(bdi);
-
-	WARN_ON(!list_empty(&bdi->work_list));
+	/* make sure nobody finds us on the bdi_list anymore */
+	bdi_remove_from_list(bdi);
+	wb_shutdown(&bdi->wb);
 
 	if (bdi->dev) {
 		bdi_debug_unregister(bdi);
@@ -464,7 +461,7 @@ void bdi_destroy(struct backing_dev_info *bdi)
 		bdi->dev = NULL;
 	}
 
-	bdi_wb_exit(&bdi->wb);
+	wb_exit(&bdi->wb);
 }
 EXPORT_SYMBOL(bdi_destroy);
 

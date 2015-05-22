@@ -109,34 +109,33 @@ static inline struct inode *wb_inode(struct list_head *head)
 
 EXPORT_TRACEPOINT_SYMBOL_GPL(wbc_writepage);
 
-static void bdi_wakeup_thread(struct backing_dev_info *bdi)
+static void wb_wakeup(struct bdi_writeback *wb)
 {
-	spin_lock_bh(&bdi->wb_lock);
-	if (test_bit(WB_registered, &bdi->wb.state))
-		mod_delayed_work(bdi_wq, &bdi->wb.dwork, 0);
-	spin_unlock_bh(&bdi->wb_lock);
+	spin_lock_bh(&wb->work_lock);
+	if (test_bit(WB_registered, &wb->state))
+		mod_delayed_work(bdi_wq, &wb->dwork, 0);
+	spin_unlock_bh(&wb->work_lock);
 }
 
-static void bdi_queue_work(struct backing_dev_info *bdi,
-			   struct wb_writeback_work *work)
+static void wb_queue_work(struct bdi_writeback *wb,
+			  struct wb_writeback_work *work)
 {
-	trace_writeback_queue(bdi, work);
+	trace_writeback_queue(wb->bdi, work);
 
-	spin_lock_bh(&bdi->wb_lock);
-	if (!test_bit(WB_registered, &bdi->wb.state)) {
+	spin_lock_bh(&wb->work_lock);
+	if (!test_bit(WB_registered, &wb->state)) {
 		if (work->done)
 			complete(work->done);
 		goto out_unlock;
 	}
-	list_add_tail(&work->list, &bdi->work_list);
-	mod_delayed_work(bdi_wq, &bdi->wb.dwork, 0);
+	list_add_tail(&work->list, &wb->work_list);
+	mod_delayed_work(bdi_wq, &wb->dwork, 0);
 out_unlock:
-	spin_unlock_bh(&bdi->wb_lock);
+	spin_unlock_bh(&wb->work_lock);
 }
 
-static void
-__bdi_start_writeback(struct backing_dev_info *bdi, long nr_pages,
-		      bool range_cyclic, enum wb_reason reason)
+static void __wb_start_writeback(struct bdi_writeback *wb, long nr_pages,
+				 bool range_cyclic, enum wb_reason reason)
 {
 	struct wb_writeback_work *work;
 
@@ -146,8 +145,8 @@ __bdi_start_writeback(struct backing_dev_info *bdi, long nr_pages,
 	 */
 	work = kzalloc(sizeof(*work), GFP_ATOMIC);
 	if (!work) {
-		trace_writeback_nowork(bdi);
-		bdi_wakeup_thread(bdi);
+		trace_writeback_nowork(wb->bdi);
+		wb_wakeup(wb);
 		return;
 	}
 
@@ -156,7 +155,7 @@ __bdi_start_writeback(struct backing_dev_info *bdi, long nr_pages,
 	work->range_cyclic = range_cyclic;
 	work->reason	= reason;
 
-	bdi_queue_work(bdi, work);
+	wb_queue_work(wb, work);
 }
 
 /**
@@ -174,7 +173,7 @@ __bdi_start_writeback(struct backing_dev_info *bdi, long nr_pages,
 void bdi_start_writeback(struct backing_dev_info *bdi, long nr_pages,
 			enum wb_reason reason)
 {
-	__bdi_start_writeback(bdi, nr_pages, true, reason);
+	__wb_start_writeback(&bdi->wb, nr_pages, true, reason);
 }
 
 /**
@@ -194,7 +193,7 @@ void bdi_start_background_writeback(struct backing_dev_info *bdi)
 	 * writeback as soon as there is no other work to do.
 	 */
 	trace_writeback_wake_background(bdi);
-	bdi_wakeup_thread(bdi);
+	wb_wakeup(&bdi->wb);
 }
 
 /*
@@ -898,7 +897,7 @@ static long wb_writeback(struct bdi_writeback *wb,
 		 * after the other works are all done.
 		 */
 		if ((work->for_background || work->for_kupdate) &&
-		    !list_empty(&wb->bdi->work_list))
+		    !list_empty(&wb->work_list))
 			break;
 
 		/*
@@ -969,18 +968,17 @@ static long wb_writeback(struct bdi_writeback *wb,
 /*
  * Return the next wb_writeback_work struct that hasn't been processed yet.
  */
-static struct wb_writeback_work *
-get_next_work_item(struct backing_dev_info *bdi)
+static struct wb_writeback_work *get_next_work_item(struct bdi_writeback *wb)
 {
 	struct wb_writeback_work *work = NULL;
 
-	spin_lock_bh(&bdi->wb_lock);
-	if (!list_empty(&bdi->work_list)) {
-		work = list_entry(bdi->work_list.next,
+	spin_lock_bh(&wb->work_lock);
+	if (!list_empty(&wb->work_list)) {
+		work = list_entry(wb->work_list.next,
 				  struct wb_writeback_work, list);
 		list_del_init(&work->list);
 	}
-	spin_unlock_bh(&bdi->wb_lock);
+	spin_unlock_bh(&wb->work_lock);
 	return work;
 }
 
@@ -1052,14 +1050,13 @@ static long wb_check_old_data_flush(struct bdi_writeback *wb)
  */
 static long wb_do_writeback(struct bdi_writeback *wb)
 {
-	struct backing_dev_info *bdi = wb->bdi;
 	struct wb_writeback_work *work;
 	long wrote = 0;
 
 	set_bit(WB_writeback_running, &wb->state);
-	while ((work = get_next_work_item(bdi)) != NULL) {
+	while ((work = get_next_work_item(wb)) != NULL) {
 
-		trace_writeback_exec(bdi, work);
+		trace_writeback_exec(wb->bdi, work);
 
 		wrote += wb_writeback(wb, work);
 
@@ -1087,43 +1084,42 @@ static long wb_do_writeback(struct bdi_writeback *wb)
  * Handle writeback of dirty data for the device backed by this bdi. Also
  * reschedules periodically and does kupdated style flushing.
  */
-void bdi_writeback_workfn(struct work_struct *work)
+void wb_workfn(struct work_struct *work)
 {
 	struct bdi_writeback *wb = container_of(to_delayed_work(work),
 						struct bdi_writeback, dwork);
-	struct backing_dev_info *bdi = wb->bdi;
 	long pages_written;
 
-	set_worker_desc("flush-%s", dev_name(bdi->dev));
+	set_worker_desc("flush-%s", dev_name(wb->bdi->dev));
 	current->flags |= PF_SWAPWRITE;
 
 	if (likely(!current_is_workqueue_rescuer() ||
 		   !test_bit(WB_registered, &wb->state))) {
 		/*
-		 * The normal path.  Keep writing back @bdi until its
+		 * The normal path.  Keep writing back @wb until its
 		 * work_list is empty.  Note that this path is also taken
-		 * if @bdi is shutting down even when we're running off the
+		 * if @wb is shutting down even when we're running off the
 		 * rescuer as work_list needs to be drained.
 		 */
 		do {
 			pages_written = wb_do_writeback(wb);
 			trace_writeback_pages_written(pages_written);
-		} while (!list_empty(&bdi->work_list));
+		} while (!list_empty(&wb->work_list));
 	} else {
 		/*
 		 * bdi_wq can't get enough workers and we're running off
 		 * the emergency worker.  Don't hog it.  Hopefully, 1024 is
 		 * enough for efficient IO.
 		 */
-		pages_written = writeback_inodes_wb(&bdi->wb, 1024,
+		pages_written = writeback_inodes_wb(wb, 1024,
 						    WB_REASON_FORKER_THREAD);
 		trace_writeback_pages_written(pages_written);
 	}
 
-	if (!list_empty(&bdi->work_list))
+	if (!list_empty(&wb->work_list))
 		mod_delayed_work(bdi_wq, &wb->dwork, 0);
 	else if (wb_has_dirty_io(wb) && dirty_writeback_interval)
-		bdi_wakeup_thread_delayed(bdi);
+		wb_wakeup_delayed(wb);
 
 	current->flags &= ~PF_SWAPWRITE;
 }
@@ -1143,7 +1139,7 @@ void wakeup_flusher_threads(long nr_pages, enum wb_reason reason)
 	list_for_each_entry_rcu(bdi, &bdi_list, bdi_list) {
 		if (!bdi_has_dirty_io(bdi))
 			continue;
-		__bdi_start_writeback(bdi, nr_pages, false, reason);
+		__wb_start_writeback(&bdi->wb, nr_pages, false, reason);
 	}
 	rcu_read_unlock();
 }
@@ -1174,7 +1170,7 @@ static void wakeup_dirtytime_writeback(struct work_struct *w)
 	list_for_each_entry_rcu(bdi, &bdi_list, bdi_list) {
 		if (list_empty(&bdi->wb.b_dirty_time))
 			continue;
-		bdi_wakeup_thread(bdi);
+		wb_wakeup(&bdi->wb);
 	}
 	rcu_read_unlock();
 	schedule_delayed_work(&dirtytime_work, dirtytime_expire_interval * HZ);
@@ -1347,7 +1343,7 @@ void __mark_inode_dirty(struct inode *inode, int flags)
 			trace_writeback_dirty_inode_enqueue(inode);
 
 			if (wakeup_bdi)
-				bdi_wakeup_thread_delayed(bdi);
+				wb_wakeup_delayed(&bdi->wb);
 			return;
 		}
 	}
@@ -1437,7 +1433,7 @@ void writeback_inodes_sb_nr(struct super_block *sb,
 	if (sb->s_bdi == &noop_backing_dev_info)
 		return;
 	WARN_ON(!rwsem_is_locked(&sb->s_umount));
-	bdi_queue_work(sb->s_bdi, &work);
+	wb_queue_work(&sb->s_bdi->wb, &work);
 	wait_for_completion(&done);
 }
 EXPORT_SYMBOL(writeback_inodes_sb_nr);
@@ -1521,7 +1517,7 @@ void sync_inodes_sb(struct super_block *sb)
 		return;
 	WARN_ON(!rwsem_is_locked(&sb->s_umount));
 
-	bdi_queue_work(sb->s_bdi, &work);
+	wb_queue_work(&sb->s_bdi->wb, &work);
 	wait_for_completion(&done);
 
 	wait_sb_inodes(sb);
