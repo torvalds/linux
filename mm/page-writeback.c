@@ -396,11 +396,11 @@ static unsigned long wp_next_time(unsigned long cur_time)
  * Increment the BDI's writeout completion count and the global writeout
  * completion count. Called from test_clear_page_writeback().
  */
-static inline void __bdi_writeout_inc(struct backing_dev_info *bdi)
+static inline void __wb_writeout_inc(struct bdi_writeback *wb)
 {
-	__inc_bdi_stat(bdi, BDI_WRITTEN);
-	__fprop_inc_percpu_max(&writeout_completions, &bdi->completions,
-			       bdi->max_prop_frac);
+	__inc_wb_stat(wb, WB_WRITTEN);
+	__fprop_inc_percpu_max(&writeout_completions, &wb->bdi->completions,
+			       wb->bdi->max_prop_frac);
 	/* First event after period switching was turned off? */
 	if (!unlikely(writeout_period_time)) {
 		/*
@@ -414,15 +414,15 @@ static inline void __bdi_writeout_inc(struct backing_dev_info *bdi)
 	}
 }
 
-void bdi_writeout_inc(struct backing_dev_info *bdi)
+void wb_writeout_inc(struct bdi_writeback *wb)
 {
 	unsigned long flags;
 
 	local_irq_save(flags);
-	__bdi_writeout_inc(bdi);
+	__wb_writeout_inc(wb);
 	local_irq_restore(flags);
 }
-EXPORT_SYMBOL_GPL(bdi_writeout_inc);
+EXPORT_SYMBOL_GPL(wb_writeout_inc);
 
 /*
  * Obtain an accurate fraction of the BDI's portion.
@@ -1130,8 +1130,8 @@ void __bdi_update_bandwidth(struct backing_dev_info *bdi,
 	if (elapsed < BANDWIDTH_INTERVAL)
 		return;
 
-	dirtied = percpu_counter_read(&bdi->bdi_stat[BDI_DIRTIED]);
-	written = percpu_counter_read(&bdi->bdi_stat[BDI_WRITTEN]);
+	dirtied = percpu_counter_read(&bdi->wb.stat[WB_DIRTIED]);
+	written = percpu_counter_read(&bdi->wb.stat[WB_WRITTEN]);
 
 	/*
 	 * Skip quiet periods when disk bandwidth is under-utilized.
@@ -1288,7 +1288,8 @@ static inline void bdi_dirty_limits(struct backing_dev_info *bdi,
 				    unsigned long *bdi_thresh,
 				    unsigned long *bdi_bg_thresh)
 {
-	unsigned long bdi_reclaimable;
+	struct bdi_writeback *wb = &bdi->wb;
+	unsigned long wb_reclaimable;
 
 	/*
 	 * bdi_thresh is not treated as some limiting factor as
@@ -1320,14 +1321,12 @@ static inline void bdi_dirty_limits(struct backing_dev_info *bdi,
 	 * actually dirty; with m+n sitting in the percpu
 	 * deltas.
 	 */
-	if (*bdi_thresh < 2 * bdi_stat_error(bdi)) {
-		bdi_reclaimable = bdi_stat_sum(bdi, BDI_RECLAIMABLE);
-		*bdi_dirty = bdi_reclaimable +
-			bdi_stat_sum(bdi, BDI_WRITEBACK);
+	if (*bdi_thresh < 2 * wb_stat_error(wb)) {
+		wb_reclaimable = wb_stat_sum(wb, WB_RECLAIMABLE);
+		*bdi_dirty = wb_reclaimable + wb_stat_sum(wb, WB_WRITEBACK);
 	} else {
-		bdi_reclaimable = bdi_stat(bdi, BDI_RECLAIMABLE);
-		*bdi_dirty = bdi_reclaimable +
-			bdi_stat(bdi, BDI_WRITEBACK);
+		wb_reclaimable = wb_stat(wb, WB_RECLAIMABLE);
+		*bdi_dirty = wb_reclaimable + wb_stat(wb, WB_WRITEBACK);
 	}
 }
 
@@ -1514,9 +1513,9 @@ pause:
 		 * In theory 1 page is enough to keep the comsumer-producer
 		 * pipe going: the flusher cleans 1 page => the task dirties 1
 		 * more page. However bdi_dirty has accounting errors.  So use
-		 * the larger and more IO friendly bdi_stat_error.
+		 * the larger and more IO friendly wb_stat_error.
 		 */
-		if (bdi_dirty <= bdi_stat_error(bdi))
+		if (bdi_dirty <= wb_stat_error(&bdi->wb))
 			break;
 
 		if (fatal_signal_pending(current))
@@ -2106,8 +2105,8 @@ void account_page_dirtied(struct page *page, struct address_space *mapping,
 		mem_cgroup_inc_page_stat(memcg, MEM_CGROUP_STAT_DIRTY);
 		__inc_zone_page_state(page, NR_FILE_DIRTY);
 		__inc_zone_page_state(page, NR_DIRTIED);
-		__inc_bdi_stat(bdi, BDI_RECLAIMABLE);
-		__inc_bdi_stat(bdi, BDI_DIRTIED);
+		__inc_wb_stat(&bdi->wb, WB_RECLAIMABLE);
+		__inc_wb_stat(&bdi->wb, WB_DIRTIED);
 		task_io_account_write(PAGE_CACHE_SIZE);
 		current->nr_dirtied++;
 		this_cpu_inc(bdp_ratelimits);
@@ -2126,7 +2125,7 @@ void account_page_cleaned(struct page *page, struct address_space *mapping,
 	if (mapping_cap_account_dirty(mapping)) {
 		mem_cgroup_dec_page_stat(memcg, MEM_CGROUP_STAT_DIRTY);
 		dec_zone_page_state(page, NR_FILE_DIRTY);
-		dec_bdi_stat(inode_to_bdi(mapping->host), BDI_RECLAIMABLE);
+		dec_wb_stat(&inode_to_bdi(mapping->host)->wb, WB_RECLAIMABLE);
 		task_io_account_cancelled_write(PAGE_CACHE_SIZE);
 	}
 }
@@ -2190,7 +2189,7 @@ void account_page_redirty(struct page *page)
 	if (mapping && mapping_cap_account_dirty(mapping)) {
 		current->nr_dirtied--;
 		dec_zone_page_state(page, NR_DIRTIED);
-		dec_bdi_stat(inode_to_bdi(mapping->host), BDI_DIRTIED);
+		dec_wb_stat(&inode_to_bdi(mapping->host)->wb, WB_DIRTIED);
 	}
 }
 EXPORT_SYMBOL(account_page_redirty);
@@ -2369,8 +2368,8 @@ int clear_page_dirty_for_io(struct page *page)
 		if (TestClearPageDirty(page)) {
 			mem_cgroup_dec_page_stat(memcg, MEM_CGROUP_STAT_DIRTY);
 			dec_zone_page_state(page, NR_FILE_DIRTY);
-			dec_bdi_stat(inode_to_bdi(mapping->host),
-					BDI_RECLAIMABLE);
+			dec_wb_stat(&inode_to_bdi(mapping->host)->wb,
+				    WB_RECLAIMABLE);
 			ret = 1;
 		}
 		mem_cgroup_end_page_stat(memcg);
@@ -2398,8 +2397,8 @@ int test_clear_page_writeback(struct page *page)
 						page_index(page),
 						PAGECACHE_TAG_WRITEBACK);
 			if (bdi_cap_account_writeback(bdi)) {
-				__dec_bdi_stat(bdi, BDI_WRITEBACK);
-				__bdi_writeout_inc(bdi);
+				__dec_wb_stat(&bdi->wb, WB_WRITEBACK);
+				__wb_writeout_inc(&bdi->wb);
 			}
 		}
 		spin_unlock_irqrestore(&mapping->tree_lock, flags);
@@ -2433,7 +2432,7 @@ int __test_set_page_writeback(struct page *page, bool keep_write)
 						page_index(page),
 						PAGECACHE_TAG_WRITEBACK);
 			if (bdi_cap_account_writeback(bdi))
-				__inc_bdi_stat(bdi, BDI_WRITEBACK);
+				__inc_wb_stat(&bdi->wb, WB_WRITEBACK);
 		}
 		if (!PageDirty(page))
 			radix_tree_tag_clear(&mapping->page_tree,

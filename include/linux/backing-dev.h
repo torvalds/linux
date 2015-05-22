@@ -36,15 +36,15 @@ enum wb_state {
 
 typedef int (congested_fn)(void *, int);
 
-enum bdi_stat_item {
-	BDI_RECLAIMABLE,
-	BDI_WRITEBACK,
-	BDI_DIRTIED,
-	BDI_WRITTEN,
-	NR_BDI_STAT_ITEMS
+enum wb_stat_item {
+	WB_RECLAIMABLE,
+	WB_WRITEBACK,
+	WB_DIRTIED,
+	WB_WRITTEN,
+	NR_WB_STAT_ITEMS
 };
 
-#define BDI_STAT_BATCH (8*(1+ilog2(nr_cpu_ids)))
+#define WB_STAT_BATCH (8*(1+ilog2(nr_cpu_ids)))
 
 struct bdi_writeback {
 	struct backing_dev_info *bdi;	/* our parent bdi */
@@ -58,6 +58,8 @@ struct bdi_writeback {
 	struct list_head b_more_io;	/* parked for more writeback */
 	struct list_head b_dirty_time;	/* time stamps are dirty */
 	spinlock_t list_lock;		/* protects the b_* lists */
+
+	struct percpu_counter stat[NR_WB_STAT_ITEMS];
 };
 
 struct backing_dev_info {
@@ -68,8 +70,6 @@ struct backing_dev_info {
 	void *congested_data;	/* Pointer to aux data for congested func */
 
 	char *name;
-
-	struct percpu_counter bdi_stat[NR_BDI_STAT_ITEMS];
 
 	unsigned long bw_time_stamp;	/* last time write bw is updated */
 	unsigned long dirtied_stamp;
@@ -137,78 +137,74 @@ static inline int wb_has_dirty_io(struct bdi_writeback *wb)
 	       !list_empty(&wb->b_more_io);
 }
 
-static inline void __add_bdi_stat(struct backing_dev_info *bdi,
-		enum bdi_stat_item item, s64 amount)
+static inline void __add_wb_stat(struct bdi_writeback *wb,
+				 enum wb_stat_item item, s64 amount)
 {
-	__percpu_counter_add(&bdi->bdi_stat[item], amount, BDI_STAT_BATCH);
+	__percpu_counter_add(&wb->stat[item], amount, WB_STAT_BATCH);
 }
 
-static inline void __inc_bdi_stat(struct backing_dev_info *bdi,
-		enum bdi_stat_item item)
+static inline void __inc_wb_stat(struct bdi_writeback *wb,
+				 enum wb_stat_item item)
 {
-	__add_bdi_stat(bdi, item, 1);
+	__add_wb_stat(wb, item, 1);
 }
 
-static inline void inc_bdi_stat(struct backing_dev_info *bdi,
-		enum bdi_stat_item item)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	__inc_bdi_stat(bdi, item);
-	local_irq_restore(flags);
-}
-
-static inline void __dec_bdi_stat(struct backing_dev_info *bdi,
-		enum bdi_stat_item item)
-{
-	__add_bdi_stat(bdi, item, -1);
-}
-
-static inline void dec_bdi_stat(struct backing_dev_info *bdi,
-		enum bdi_stat_item item)
+static inline void inc_wb_stat(struct bdi_writeback *wb, enum wb_stat_item item)
 {
 	unsigned long flags;
 
 	local_irq_save(flags);
-	__dec_bdi_stat(bdi, item);
+	__inc_wb_stat(wb, item);
 	local_irq_restore(flags);
 }
 
-static inline s64 bdi_stat(struct backing_dev_info *bdi,
-		enum bdi_stat_item item)
+static inline void __dec_wb_stat(struct bdi_writeback *wb,
+				 enum wb_stat_item item)
 {
-	return percpu_counter_read_positive(&bdi->bdi_stat[item]);
+	__add_wb_stat(wb, item, -1);
 }
 
-static inline s64 __bdi_stat_sum(struct backing_dev_info *bdi,
-		enum bdi_stat_item item)
+static inline void dec_wb_stat(struct bdi_writeback *wb, enum wb_stat_item item)
 {
-	return percpu_counter_sum_positive(&bdi->bdi_stat[item]);
+	unsigned long flags;
+
+	local_irq_save(flags);
+	__dec_wb_stat(wb, item);
+	local_irq_restore(flags);
 }
 
-static inline s64 bdi_stat_sum(struct backing_dev_info *bdi,
-		enum bdi_stat_item item)
+static inline s64 wb_stat(struct bdi_writeback *wb, enum wb_stat_item item)
+{
+	return percpu_counter_read_positive(&wb->stat[item]);
+}
+
+static inline s64 __wb_stat_sum(struct bdi_writeback *wb,
+				enum wb_stat_item item)
+{
+	return percpu_counter_sum_positive(&wb->stat[item]);
+}
+
+static inline s64 wb_stat_sum(struct bdi_writeback *wb, enum wb_stat_item item)
 {
 	s64 sum;
 	unsigned long flags;
 
 	local_irq_save(flags);
-	sum = __bdi_stat_sum(bdi, item);
+	sum = __wb_stat_sum(wb, item);
 	local_irq_restore(flags);
 
 	return sum;
 }
 
-extern void bdi_writeout_inc(struct backing_dev_info *bdi);
+extern void wb_writeout_inc(struct bdi_writeback *wb);
 
 /*
  * maximal error of a stat counter.
  */
-static inline unsigned long bdi_stat_error(struct backing_dev_info *bdi)
+static inline unsigned long wb_stat_error(struct bdi_writeback *wb)
 {
 #ifdef CONFIG_SMP
-	return nr_cpu_ids * BDI_STAT_BATCH;
+	return nr_cpu_ids * WB_STAT_BATCH;
 #else
 	return 1;
 #endif

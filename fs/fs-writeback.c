@@ -840,7 +840,7 @@ static bool over_bground_thresh(struct backing_dev_info *bdi)
 	    global_page_state(NR_UNSTABLE_NFS) > background_thresh)
 		return true;
 
-	if (bdi_stat(bdi, BDI_RECLAIMABLE) >
+	if (wb_stat(&bdi->wb, WB_RECLAIMABLE) >
 				bdi_dirty_limit(bdi, background_thresh))
 		return true;
 
