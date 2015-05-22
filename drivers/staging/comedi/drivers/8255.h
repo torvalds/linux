@@ -19,8 +19,6 @@
 #ifndef _8255_H
 #define _8255_H
 
-#include "../comedidev.h"
-
 #define I8255_SIZE		0x04
 
 #define I8255_DATA_A_REG	0x00
@@ -34,6 +32,9 @@
 #define I8255_CTRL_A_IO		(1 << 4)
 #define I8255_CTRL_A_MODE(x)	((x) << 5)
 #define I8255_CTRL_CW		(1 << 7)
+
+struct comedi_device;
+struct comedi_subdevice;
 
 int subdev_8255_init(struct comedi_device *, struct comedi_subdevice *,
 		     int (*io)(struct comedi_device *,
