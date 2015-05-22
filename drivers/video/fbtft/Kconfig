@@ -15,6 +15,13 @@ config FB_TFT_ODROIDC32
 	help
 	  Framebuffer support for the ODROID-C1 3.2 Inch TFT LCD display
 
+config FB_TFT_ST7565
+    tristate "FB driver for the ST7565R 2.0 Inch LCD Controller"
+    depends on FB_TFT
+	depends on MACH_MESON8B_ODROIDC
+	help
+	  Framebuffer support for the ODROID-C1 2.0 Inch Mono LCD display
+
 config FB_TFT_AGM1264K_FL
 	tristate "FB driver for the AGM1264K-FL LCD display"
 	depends on FB_TFT
