@@ -2090,15 +2090,20 @@ int __set_page_dirty_no_writeback(struct page *page)
 
 /*
  * Helper function for set_page_dirty family.
+ *
+ * Caller must hold mem_cgroup_begin_page_stat().
+ *
  * NOTE: This relies on being atomic wrt interrupts.
  */
-void account_page_dirtied(struct page *page, struct address_space *mapping)
+void account_page_dirtied(struct page *page, struct address_space *mapping,
+			  struct mem_cgroup *memcg)
 {
 	trace_writeback_dirty_page(page, mapping);
 
 	if (mapping_cap_account_dirty(mapping)) {
 		struct backing_dev_info *bdi = inode_to_bdi(mapping->host);
 
+		mem_cgroup_inc_page_stat(memcg, MEM_CGROUP_STAT_DIRTY);
 		__inc_zone_page_state(page, NR_FILE_DIRTY);
 		__inc_zone_page_state(page, NR_DIRTIED);
 		__inc_bdi_stat(bdi, BDI_RECLAIMABLE);
@@ -2112,10 +2117,14 @@ EXPORT_SYMBOL(account_page_dirtied);
 
 /*
  * Helper function for deaccounting dirty page without writeback.
+ *
+ * Caller must hold mem_cgroup_begin_page_stat().
  */
-void account_page_cleaned(struct page *page, struct address_space *mapping)
+void account_page_cleaned(struct page *page, struct address_space *mapping,
+			  struct mem_cgroup *memcg)
 {
 	if (mapping_cap_account_dirty(mapping)) {
+		mem_cgroup_dec_page_stat(memcg, MEM_CGROUP_STAT_DIRTY);
 		dec_zone_page_state(page, NR_FILE_DIRTY);
 		dec_bdi_stat(inode_to_bdi(mapping->host), BDI_RECLAIMABLE);
 		task_io_account_cancelled_write(PAGE_CACHE_SIZE);
@@ -2136,26 +2145,34 @@ void account_page_cleaned(struct page *page, struct address_space *mapping)
  */
 int __set_page_dirty_nobuffers(struct page *page)
 {
+	struct mem_cgroup *memcg;
+
+	memcg = mem_cgroup_begin_page_stat(page);
 	if (!TestSetPageDirty(page)) {
 		struct address_space *mapping = page_mapping(page);
 		unsigned long flags;
 
-		if (!mapping)
+		if (!mapping) {
+			mem_cgroup_end_page_stat(memcg);
 			return 1;
+		}
 
 		spin_lock_irqsave(&mapping->tree_lock, flags);
 		BUG_ON(page_mapping(page) != mapping);
 		WARN_ON_ONCE(!PagePrivate(page) && !PageUptodate(page));
-		account_page_dirtied(page, mapping);
+		account_page_dirtied(page, mapping, memcg);
 		radix_tree_tag_set(&mapping->page_tree, page_index(page),
 				   PAGECACHE_TAG_DIRTY);
 		spin_unlock_irqrestore(&mapping->tree_lock, flags);
+		mem_cgroup_end_page_stat(memcg);
+
 		if (mapping->host) {
 			/* !PageAnon && !swapper_space */
 			__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
 		}
 		return 1;
 	}
+	mem_cgroup_end_page_stat(memcg);
 	return 0;
 }
 EXPORT_SYMBOL(__set_page_dirty_nobuffers);
@@ -2273,8 +2290,20 @@ EXPORT_SYMBOL(set_page_dirty_lock);
  */
 void cancel_dirty_page(struct page *page)
 {
-	if (TestClearPageDirty(page))
-		account_page_cleaned(page, page_mapping(page));
+	struct address_space *mapping = page_mapping(page);
+
+	if (mapping_cap_account_dirty(mapping)) {
+		struct mem_cgroup *memcg;
+
+		memcg = mem_cgroup_begin_page_stat(page);
+
+		if (TestClearPageDirty(page))
+			account_page_cleaned(page, mapping, memcg);
+
+		mem_cgroup_end_page_stat(memcg);
+	} else {
+		ClearPageDirty(page);
+	}
 }
 EXPORT_SYMBOL(cancel_dirty_page);
 
@@ -2295,6 +2324,8 @@ EXPORT_SYMBOL(cancel_dirty_page);
 int clear_page_dirty_for_io(struct page *page)
 {
 	struct address_space *mapping = page_mapping(page);
+	struct mem_cgroup *memcg;
+	int ret = 0;
 
 	BUG_ON(!PageLocked(page));
 
@@ -2334,13 +2365,16 @@ int clear_page_dirty_for_io(struct page *page)
 		 * always locked coming in here, so we get the desired
 		 * exclusion.
 		 */
+		memcg = mem_cgroup_begin_page_stat(page);
 		if (TestClearPageDirty(page)) {
+			mem_cgroup_dec_page_stat(memcg, MEM_CGROUP_STAT_DIRTY);
 			dec_zone_page_state(page, NR_FILE_DIRTY);
 			dec_bdi_stat(inode_to_bdi(mapping->host),
 					BDI_RECLAIMABLE);
-			return 1;
+			ret = 1;
 		}
-		return 0;
+		mem_cgroup_end_page_stat(memcg);
+		return ret;
 	}
 	return TestClearPageDirty(page);
 }

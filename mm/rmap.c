@@ -30,6 +30,8 @@
  *             swap_lock (in swap_duplicate, swap_info_get)
  *               mmlist_lock (in mmput, drain_mmlist and others)
  *               mapping->private_lock (in __set_page_dirty_buffers)
+ *                 mem_cgroup_{begin,end}_page_stat (memcg->move_lock)
+ *                   mapping->tree_lock (widely used)
  *               inode->i_lock (in set_page_dirty's __mark_inode_dirty)
  *               bdi.wb->list_lock (in set_page_dirty's __mark_inode_dirty)
  *                 sb_lock (within inode_lock in fs/fs-writeback.c)
