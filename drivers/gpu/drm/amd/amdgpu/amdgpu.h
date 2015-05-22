@@ -84,9 +84,6 @@ extern int amdgpu_vm_block_size;
 #define AMDGPUFB_CONN_LIMIT			4
 #define AMDGPU_BIOS_NUM_SCRATCH			8
 
-/* fence seq are set to this number when signaled */
-#define AMDGPU_FENCE_SIGNALED_SEQ		0LL
-
 /* max number of rings */
 #define AMDGPU_MAX_RINGS			16
 #define AMDGPU_MAX_GFX_RINGS			1

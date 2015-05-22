@@ -463,11 +463,7 @@ bool amdgpu_fence_signaled(struct amdgpu_fence *fence)
 	if (!fence)
 		return true;
 
-	if (fence->seq == AMDGPU_FENCE_SIGNALED_SEQ)
-		return true;
-
 	if (amdgpu_fence_seq_signaled(fence->ring, fence->seq)) {
-		fence->seq = AMDGPU_FENCE_SIGNALED_SEQ;
 		if (!fence_signal(&fence->base))
 			FENCE_TRACE(&fence->base, "signaled from amdgpu_fence_signaled\n");
 		return true;
@@ -637,15 +633,11 @@ int amdgpu_fence_wait(struct amdgpu_fence *fence, bool intr)
 	long r;
 
 	seq[fence->ring->idx] = fence->seq;
-	if (seq[fence->ring->idx] == AMDGPU_FENCE_SIGNALED_SEQ)
-		return 0;
-
 	r = amdgpu_fence_wait_seq_timeout(fence->ring->adev, seq, intr, MAX_SCHEDULE_TIMEOUT);
 	if (r < 0) {
 		return r;
 	}
 
-	fence->seq = AMDGPU_FENCE_SIGNALED_SEQ;
 	r = fence_signal(&fence->base);
 	if (!r)
 		FENCE_TRACE(&fence->base, "signaled from fence_wait\n");
@@ -682,10 +674,6 @@ int amdgpu_fence_wait_any(struct amdgpu_device *adev,
 
 		seq[i] = fences[i]->seq;
 		++num_rings;
-
-		/* test if something was allready signaled */
-		if (seq[i] == AMDGPU_FENCE_SIGNALED_SEQ)
-			return 0;
 	}
 
 	/* nothing to wait for ? */
