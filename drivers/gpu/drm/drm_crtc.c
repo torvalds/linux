@@ -1736,93 +1736,6 @@ void drm_reinit_primary_mode_group(struct drm_device *dev)
 EXPORT_SYMBOL(drm_reinit_primary_mode_group);
 
 /**
- * drm_crtc_convert_to_umode - convert a drm_display_mode into a modeinfo
- * @out: drm_mode_modeinfo struct to return to the user
- * @in: drm_display_mode to use
- *
- * Convert a drm_display_mode into a drm_mode_modeinfo structure to return to
- * the user.
- */
-static void drm_crtc_convert_to_umode(struct drm_mode_modeinfo *out,
-				      const struct drm_display_mode *in)
-{
-	WARN(in->hdisplay > USHRT_MAX || in->hsync_start > USHRT_MAX ||
-	     in->hsync_end > USHRT_MAX || in->htotal > USHRT_MAX ||
-	     in->hskew > USHRT_MAX || in->vdisplay > USHRT_MAX ||
-	     in->vsync_start > USHRT_MAX || in->vsync_end > USHRT_MAX ||
-	     in->vtotal > USHRT_MAX || in->vscan > USHRT_MAX,
-	     "timing values too large for mode info\n");
-
-	out->clock = in->clock;
-	out->hdisplay = in->hdisplay;
-	out->hsync_start = in->hsync_start;
-	out->hsync_end = in->hsync_end;
-	out->htotal = in->htotal;
-	out->hskew = in->hskew;
-	out->vdisplay = in->vdisplay;
-	out->vsync_start = in->vsync_start;
-	out->vsync_end = in->vsync_end;
-	out->vtotal = in->vtotal;
-	out->vscan = in->vscan;
-	out->vrefresh = in->vrefresh;
-	out->flags = in->flags;
-	out->type = in->type;
-	strncpy(out->name, in->name, DRM_DISPLAY_MODE_LEN);
-	out->name[DRM_DISPLAY_MODE_LEN-1] = 0;
-}
-
-/**
- * drm_crtc_convert_umode - convert a modeinfo into a drm_display_mode
- * @out: drm_display_mode to return to the user
- * @in: drm_mode_modeinfo to use
- *
- * Convert a drm_mode_modeinfo into a drm_display_mode structure to return to
- * the caller.
- *
- * Returns:
- * Zero on success, negative errno on failure.
- */
-static int drm_crtc_convert_umode(struct drm_display_mode *out,
-				  const struct drm_mode_modeinfo *in)
-{
-	int ret = -EINVAL;
-
-	if (in->clock > INT_MAX || in->vrefresh > INT_MAX) {
-		ret = -ERANGE;
-		goto out;
-	}
-
-	if ((in->flags & DRM_MODE_FLAG_3D_MASK) > DRM_MODE_FLAG_3D_MAX)
-		goto out;
-
-	out->clock = in->clock;
-	out->hdisplay = in->hdisplay;
-	out->hsync_start = in->hsync_start;
-	out->hsync_end = in->hsync_end;
-	out->htotal = in->htotal;
-	out->hskew = in->hskew;
-	out->vdisplay = in->vdisplay;
-	out->vsync_start = in->vsync_start;
-	out->vsync_end = in->vsync_end;
-	out->vtotal = in->vtotal;
-	out->vscan = in->vscan;
-	out->vrefresh = in->vrefresh;
-	out->flags = in->flags;
-	out->type = in->type;
-	strncpy(out->name, in->name, DRM_DISPLAY_MODE_LEN);
-	out->name[DRM_DISPLAY_MODE_LEN-1] = 0;
-
-	out->status = drm_mode_validate_basic(out);
-	if (out->status != MODE_OK)
-		goto out;
-
-	ret = 0;
-
-out:
-	return ret;
-}
-
-/**
  * drm_mode_getresources - get graphics configuration
  * @dev: drm device for the ioctl
  * @data: data pointer for the ioctl
@@ -2048,7 +1961,7 @@ int drm_mode_getcrtc(struct drm_device *dev,
 		crtc_resp->x = crtc->primary->state->src_x >> 16;
 		crtc_resp->y = crtc->primary->state->src_y >> 16;
 		if (crtc->state->enable) {
-			drm_crtc_convert_to_umode(&crtc_resp->mode, &crtc->state->mode);
+			drm_mode_convert_to_umode(&crtc_resp->mode, &crtc->state->mode);
 			crtc_resp->mode_valid = 1;
 
 		} else {
@@ -2058,7 +1971,7 @@ int drm_mode_getcrtc(struct drm_device *dev,
 		crtc_resp->x = crtc->x;
 		crtc_resp->y = crtc->y;
 		if (crtc->enabled) {
-			drm_crtc_convert_to_umode(&crtc_resp->mode, &crtc->mode);
+			drm_mode_convert_to_umode(&crtc_resp->mode, &crtc->mode);
 			crtc_resp->mode_valid = 1;
 
 		} else {
@@ -2215,7 +2128,7 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 			if (!drm_mode_expose_to_userspace(mode, file_priv))
 				continue;
 
-			drm_crtc_convert_to_umode(&u_mode, mode);
+			drm_mode_convert_to_umode(&u_mode, mode);
 			if (copy_to_user(mode_ptr + copied,
 					 &u_mode, sizeof(u_mode))) {
 				ret = -EFAULT;
@@ -2826,7 +2739,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 			goto out;
 		}
 
-		ret = drm_crtc_convert_umode(mode, &crtc_req->mode);
+		ret = drm_mode_convert_umode(mode, &crtc_req->mode);
 		if (ret) {
 			DRM_DEBUG_KMS("Invalid mode\n");
 			goto out;
