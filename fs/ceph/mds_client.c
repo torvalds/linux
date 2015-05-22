@@ -8,6 +8,7 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/utsname.h>
+#include <linux/ratelimit.h>
 
 #include "super.h"
 #include "mds_client.h"
@@ -1048,7 +1049,8 @@ static void cleanup_session_requests(struct ceph_mds_client *mdsc,
 		req = list_first_entry(&session->s_unsafe,
 				       struct ceph_mds_request, r_unsafe_item);
 		list_del_init(&req->r_unsafe_item);
-		pr_info(" dropping unsafe request %llu\n", req->r_tid);
+		pr_warn_ratelimited(" dropping unsafe request %llu\n",
+				    req->r_tid);
 		__unregister_request(mdsc, req);
 	}
 	/* zero r_attempts, so kick_requests() will re-send requests */
@@ -1152,7 +1154,8 @@ static int remove_session_caps_cb(struct inode *inode, struct ceph_cap *cap,
 
 		spin_lock(&mdsc->cap_dirty_lock);
 		if (!list_empty(&ci->i_dirty_item)) {
-			pr_info(" dropping dirty %s state for %p %lld\n",
+			pr_warn_ratelimited(
+				" dropping dirty %s state for %p %lld\n",
 				ceph_cap_string(ci->i_dirty_caps),
 				inode, ceph_ino(inode));
 			ci->i_dirty_caps = 0;
@@ -1160,7 +1163,8 @@ static int remove_session_caps_cb(struct inode *inode, struct ceph_cap *cap,
 			drop = 1;
 		}
 		if (!list_empty(&ci->i_flushing_item)) {
-			pr_info(" dropping dirty+flushing %s state for %p %lld\n",
+			pr_warn_ratelimited(
+				" dropping dirty+flushing %s state for %p %lld\n",
 				ceph_cap_string(ci->i_flushing_caps),
 				inode, ceph_ino(inode));
 			ci->i_flushing_caps = 0;
