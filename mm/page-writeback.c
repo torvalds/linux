@@ -126,6 +126,9 @@ struct wb_domain global_wb_domain;
 
 /* consolidated parameters for balance_dirty_pages() and its subroutines */
 struct dirty_throttle_control {
+#ifdef CONFIG_CGROUP_WRITEBACK
+	struct wb_domain	*dom;
+#endif
 	struct bdi_writeback	*wb;
 	struct fprop_local_percpu *wb_completions;
 
@@ -140,7 +143,7 @@ struct dirty_throttle_control {
 	unsigned long		pos_ratio;
 };
 
-#define GDTC_INIT(__wb)		.wb = (__wb),				\
+#define DTC_INIT_COMMON(__wb)	.wb = (__wb),				\
 				.wb_completions = &(__wb)->completions
 
 /*
@@ -151,6 +154,14 @@ struct dirty_throttle_control {
 #define VM_COMPLETIONS_PERIOD_LEN (3*HZ)
 
 #ifdef CONFIG_CGROUP_WRITEBACK
+
+#define GDTC_INIT(__wb)		.dom = &global_wb_domain,		\
+				DTC_INIT_COMMON(__wb)
+
+static struct wb_domain *dtc_dom(struct dirty_throttle_control *dtc)
+{
+	return dtc->dom;
+}
 
 static void wb_min_max_ratio(struct bdi_writeback *wb,
 			     unsigned long *minp, unsigned long *maxp)
@@ -180,6 +191,13 @@ static void wb_min_max_ratio(struct bdi_writeback *wb,
 }
 
 #else	/* CONFIG_CGROUP_WRITEBACK */
+
+#define GDTC_INIT(__wb)		DTC_INIT_COMMON(__wb)
+
+static struct wb_domain *dtc_dom(struct dirty_throttle_control *dtc)
+{
+	return &global_wb_domain;
+}
 
 static void wb_min_max_ratio(struct bdi_writeback *wb,
 			     unsigned long *minp, unsigned long *maxp)
@@ -583,7 +601,7 @@ static unsigned long hard_dirty_limit(unsigned long thresh)
  */
 static unsigned long __wb_calc_thresh(struct dirty_throttle_control *dtc)
 {
-	struct wb_domain *dom = &global_wb_domain;
+	struct wb_domain *dom = dtc_dom(dtc);
 	unsigned long thresh = dtc->thresh;
 	u64 wb_thresh;
 	long numerator, denominator;
@@ -952,7 +970,7 @@ out:
 
 static void update_dirty_limit(struct dirty_throttle_control *dtc)
 {
-	struct wb_domain *dom = &global_wb_domain;
+	struct wb_domain *dom = dtc_dom(dtc);
 	unsigned long thresh = dtc->thresh;
 	unsigned long limit = dom->dirty_limit;
 
@@ -979,10 +997,10 @@ update:
 	dom->dirty_limit = limit;
 }
 
-static void global_update_bandwidth(struct dirty_throttle_control *dtc,
+static void domain_update_bandwidth(struct dirty_throttle_control *dtc,
 				    unsigned long now)
 {
-	struct wb_domain *dom = &global_wb_domain;
+	struct wb_domain *dom = dtc_dom(dtc);
 
 	/*
 	 * check locklessly first to optimize away locking for the most time
@@ -1190,7 +1208,7 @@ static void __wb_update_bandwidth(struct dirty_throttle_control *dtc,
 		goto snapshot;
 
 	if (update_ratelimit) {
-		global_update_bandwidth(dtc, now);
+		domain_update_bandwidth(dtc, now);
 		wb_update_dirty_ratelimit(dtc, dirtied, elapsed);
 	}
 	wb_update_write_bandwidth(wb, elapsed, written);
