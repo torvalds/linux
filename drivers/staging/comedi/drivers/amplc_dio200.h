@@ -23,6 +23,10 @@
 #ifndef AMPLC_DIO200_H_INCLUDED
 #define AMPLC_DIO200_H_INCLUDED
 
+#include <linux/types.h>
+
+struct comedi_device;
+
 /*
  * Subdevice types.
  */
