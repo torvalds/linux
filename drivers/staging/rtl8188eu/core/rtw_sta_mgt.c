@@ -54,14 +54,12 @@ static void _rtw_init_stainfo(struct sta_info *psta)
 
 	psta->bpairwise_key_installed = false;
 
-#ifdef CONFIG_88EU_AP_MODE
 	psta->nonerp_set = 0;
 	psta->no_short_slot_time_set = 0;
 	psta->no_short_preamble_set = 0;
 	psta->no_ht_gf_set = 0;
 	psta->no_ht_set = 0;
 	psta->ht_20mhz_set = 0;
-#endif
 
 	psta->under_exist_checking = 0;
 

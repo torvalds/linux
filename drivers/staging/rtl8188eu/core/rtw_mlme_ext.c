@@ -794,9 +794,7 @@ unsigned int OnAuth(struct adapter *padapter, struct recv_frame *precv_frame)
 	/*  Now, we are going to issue_auth... */
 	pstat->auth_seq = seq + 1;
 
-#ifdef CONFIG_88EU_AP_MODE
 	issue_auth(padapter, pstat, (unsigned short)(_STATS_SUCCESSFUL_));
-#endif
 
 	if (pstat->state & WIFI_FW_AUTH_SUCCESS)
 		pstat->auth_seq = 0;
@@ -813,11 +811,9 @@ auth_fail:
 	pstat->auth_seq = 2;
 	memcpy(pstat->hwaddr, sa, 6);
 
-#ifdef CONFIG_88EU_AP_MODE
 	issue_auth(padapter, pstat, (unsigned short)status);
-#endif
 
-#endif
+#endif /* CONFIG_88EU_AP_MODE */
 	return _FAIL;
 }
 
@@ -1295,7 +1291,6 @@ unsigned int OnAssocReq(struct adapter *padapter, struct recv_frame *precv_frame
 
 	/*  now the station is qualified to join our BSS... */
 	if (pstat && (pstat->state & WIFI_FW_ASSOC_SUCCESS) && (_STATS_SUCCESSFUL_ == status)) {
-#ifdef CONFIG_88EU_AP_MODE
 		/* 1 bss_cap_update & sta_info_update */
 		bss_cap_update_on_sta_join(padapter, pstat);
 		sta_info_update(padapter, pstat);
@@ -1312,30 +1307,23 @@ unsigned int OnAssocReq(struct adapter *padapter, struct recv_frame *precv_frame
 
 		/* 3-(1) report sta add event */
 		report_add_sta_event(padapter, pstat->hwaddr, pstat->aid);
-#endif
 	}
 
 	return _SUCCESS;
 
 asoc_class2_error:
 
-#ifdef CONFIG_88EU_AP_MODE
 	issue_deauth(padapter, (void *)GetAddr2Ptr(pframe), status);
-#endif
 
 	return _FAIL;
 
 OnAssocReqFail:
 
-
-#ifdef CONFIG_88EU_AP_MODE
 	pstat->aid = 0;
 	if (frame_type == WIFI_ASSOCREQ)
 		issue_asocrsp(padapter, status, pstat, WIFI_ASSOCRSP);
 	else
 		issue_asocrsp(padapter, status, pstat, WIFI_REASSOCRSP);
-#endif
-
 
 #endif /* CONFIG_88EU_AP_MODE */
 
