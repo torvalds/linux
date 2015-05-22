@@ -226,7 +226,7 @@ int cpufreq_generic_init(struct cpufreq_policy *policy,
 	policy->cpuinfo.transition_latency = transition_latency;
 
 	/*
-	 * The driver only supports the SMP configuartion where all processors
+	 * The driver only supports the SMP configuration where all processors
 	 * share the clock and voltage and clock.
 	 */
 	cpumask_setall(policy->cpus);
@@ -1931,7 +1931,7 @@ static int __target_index(struct cpufreq_policy *policy,
 		 * Failed after setting to intermediate freq? Driver should have
 		 * reverted back to initial frequency and so should we. Check
 		 * here for intermediate_freq instead of get_intermediate, in
-		 * case we have't switched to intermediate freq at all.
+		 * case we haven't switched to intermediate freq at all.
 		 */
 		if (unlikely(retval && intermediate_freq)) {
 			freqs.old = intermediate_freq;
