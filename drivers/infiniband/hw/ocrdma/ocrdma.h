@@ -40,7 +40,7 @@
 #include <be_roce.h>
 #include "ocrdma_sli.h"
 
-#define OCRDMA_ROCE_DRV_VERSION "10.4.205.0u"
+#define OCRDMA_ROCE_DRV_VERSION "10.6.0.0"
 
 #define OCRDMA_ROCE_DRV_DESC "Emulex OneConnect RoCE Driver"
 #define OCRDMA_NODE_DESC "Emulex OneConnect RoCE HCA"
@@ -515,6 +515,8 @@ static inline int ocrdma_resolve_dmac(struct ocrdma_dev *dev,
 	memcpy(&in6, ah_attr->grh.dgid.raw, sizeof(in6));
 	if (rdma_is_multicast_addr(&in6))
 		rdma_get_mcast_mac(&in6, mac_addr);
+	else if (rdma_link_local_addr(&in6))
+		rdma_get_ll_mac(&in6, mac_addr);
 	else
 		memcpy(mac_addr, ah_attr->dmac, ETH_ALEN);
 	return 0;

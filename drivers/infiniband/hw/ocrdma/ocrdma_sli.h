@@ -1176,6 +1176,8 @@ struct ocrdma_query_qp_rsp {
 	struct ocrdma_mqe_hdr hdr;
 	struct ocrdma_mbx_rsp rsp;
 	struct ocrdma_qp_params params;
+	u32 dpp_credits_cqid;
+	u32 rbq_id;
 };
 
 enum {
@@ -1624,10 +1626,17 @@ struct ocrdma_delete_ah_tbl_rsp {
 enum {
 	OCRDMA_EQE_VALID_SHIFT		= 0,
 	OCRDMA_EQE_VALID_MASK		= BIT(0),
+	OCRDMA_EQE_MAJOR_CODE_MASK      = 0x0E,
+	OCRDMA_EQE_MAJOR_CODE_SHIFT     = 0x01,
 	OCRDMA_EQE_FOR_CQE_MASK		= 0xFFFE,
 	OCRDMA_EQE_RESOURCE_ID_SHIFT	= 16,
 	OCRDMA_EQE_RESOURCE_ID_MASK	= 0xFFFF <<
 				OCRDMA_EQE_RESOURCE_ID_SHIFT,
+};
+
+enum major_code {
+	OCRDMA_MAJOR_CODE_COMPLETION    = 0x00,
+	OCRDMA_MAJOR_CODE_SENTINAL      = 0x01
 };
 
 struct ocrdma_eqe {
