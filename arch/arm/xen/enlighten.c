@@ -272,6 +272,7 @@ void xen_arch_pre_suspend(void) { }
 void xen_arch_post_suspend(int suspend_cancelled) { }
 void xen_timer_resume(void) { }
 void xen_arch_resume(void) { }
+void xen_arch_suspend(void) { }
 
 
 /* In the hypervisor.S file. */
