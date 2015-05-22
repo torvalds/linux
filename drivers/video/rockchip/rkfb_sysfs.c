@@ -1044,6 +1044,17 @@ static ssize_t set_scale(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
+static ssize_t show_lcdc_id(struct device *dev,
+			    struct device_attribute *attr,
+			    char *buf)
+{
+	struct fb_info *fbi = dev_get_drvdata(dev);
+	struct rk_fb_par *fb_par = (struct rk_fb_par *)fbi->par;
+	struct rk_lcdc_driver *dev_drv = fb_par->lcdc_drv;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", dev_drv->id);
+}
+
 static struct device_attribute rkfb_attrs[] = {
 	__ATTR(phys_addr, S_IRUGO, show_phys, NULL),
 	__ATTR(virt_addr, S_IRUGO, show_virt, NULL),
@@ -1061,6 +1072,7 @@ static struct device_attribute rkfb_attrs[] = {
 	__ATTR(cabc, S_IRUGO | S_IWUSR, show_dsp_cabc, set_dsp_cabc),
 	__ATTR(bcsh, S_IRUGO | S_IWUSR, show_dsp_bcsh, set_dsp_bcsh),
 	__ATTR(scale, S_IRUGO | S_IWUSR, show_scale, set_scale),
+	__ATTR(lcdcid, S_IRUGO, show_lcdc_id, NULL),
 };
 
 int rkfb_create_sysfs(struct fb_info *fbi)
