@@ -167,27 +167,13 @@ static inline struct backing_dev_info *inode_to_bdi(struct inode *inode)
 	return sb->s_bdi;
 }
 
-static inline int bdi_congested(struct backing_dev_info *bdi, int bdi_bits)
+static inline int wb_congested(struct bdi_writeback *wb, int cong_bits)
 {
+	struct backing_dev_info *bdi = wb->bdi;
+
 	if (bdi->congested_fn)
-		return bdi->congested_fn(bdi->congested_data, bdi_bits);
-	return (bdi->wb.congested->state & bdi_bits);
-}
-
-static inline int bdi_read_congested(struct backing_dev_info *bdi)
-{
-	return bdi_congested(bdi, 1 << WB_sync_congested);
-}
-
-static inline int bdi_write_congested(struct backing_dev_info *bdi)
-{
-	return bdi_congested(bdi, 1 << WB_async_congested);
-}
-
-static inline int bdi_rw_congested(struct backing_dev_info *bdi)
-{
-	return bdi_congested(bdi, (1 << WB_sync_congested) |
-				  (1 << WB_async_congested));
+		return bdi->congested_fn(bdi->congested_data, cong_bits);
+	return wb->congested->state & cong_bits;
 }
 
 long congestion_wait(int sync, long timeout);
@@ -453,5 +439,26 @@ static inline void wb_blkcg_offline(struct blkcg *blkcg)
 }
 
 #endif	/* CONFIG_CGROUP_WRITEBACK */
+
+static inline int bdi_congested(struct backing_dev_info *bdi, int cong_bits)
+{
+	return wb_congested(&bdi->wb, cong_bits);
+}
+
+static inline int bdi_read_congested(struct backing_dev_info *bdi)
+{
+	return bdi_congested(bdi, 1 << WB_sync_congested);
+}
+
+static inline int bdi_write_congested(struct backing_dev_info *bdi)
+{
+	return bdi_congested(bdi, 1 << WB_async_congested);
+}
+
+static inline int bdi_rw_congested(struct backing_dev_info *bdi)
+{
+	return bdi_congested(bdi, (1 << WB_sync_congested) |
+				  (1 << WB_async_congested));
+}
 
 #endif	/* _LINUX_BACKING_DEV_H */

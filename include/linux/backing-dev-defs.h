@@ -163,7 +163,17 @@ enum {
 	BLK_RW_SYNC	= 1,
 };
 
-void clear_bdi_congested(struct backing_dev_info *bdi, int sync);
-void set_bdi_congested(struct backing_dev_info *bdi, int sync);
+void clear_wb_congested(struct bdi_writeback_congested *congested, int sync);
+void set_wb_congested(struct bdi_writeback_congested *congested, int sync);
+
+static inline void clear_bdi_congested(struct backing_dev_info *bdi, int sync)
+{
+	clear_wb_congested(bdi->wb.congested, sync);
+}
+
+static inline void set_bdi_congested(struct backing_dev_info *bdi, int sync)
+{
+	set_wb_congested(bdi->wb.congested, sync);
+}
 
 #endif	/* __LINUX_BACKING_DEV_DEFS_H */
