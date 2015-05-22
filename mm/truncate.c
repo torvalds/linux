@@ -116,9 +116,7 @@ truncate_complete_page(struct address_space *mapping, struct page *page)
 	 * the VM has canceled the dirty bit (eg ext3 journaling).
 	 * Hence dirty accounting check is placed after invalidation.
 	 */
-	if (TestClearPageDirty(page))
-		account_page_cleaned(page, mapping);
-
+	cancel_dirty_page(page);
 	ClearPageMappedToDisk(page);
 	delete_from_page_cache(page);
 	return 0;

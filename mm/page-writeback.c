@@ -2112,12 +2112,6 @@ EXPORT_SYMBOL(account_page_dirtied);
 
 /*
  * Helper function for deaccounting dirty page without writeback.
- *
- * Doing this should *normally* only ever be done when a page
- * is truncated, and is not actually mapped anywhere at all. However,
- * fs/buffer.c does this when it notices that somebody has cleaned
- * out all the buffers on a page without actually doing it through
- * the VM. Can you say "ext3 is horribly ugly"? Thought you could.
  */
 void account_page_cleaned(struct page *page, struct address_space *mapping)
 {
@@ -2127,7 +2121,6 @@ void account_page_cleaned(struct page *page, struct address_space *mapping)
 		task_io_account_cancelled_write(PAGE_CACHE_SIZE);
 	}
 }
-EXPORT_SYMBOL(account_page_cleaned);
 
 /*
  * For address_spaces which do not use buffers.  Just tag the page as dirty in
@@ -2264,6 +2257,26 @@ int set_page_dirty_lock(struct page *page)
 	return ret;
 }
 EXPORT_SYMBOL(set_page_dirty_lock);
+
+/*
+ * This cancels just the dirty bit on the kernel page itself, it does NOT
+ * actually remove dirty bits on any mmap's that may be around. It also
+ * leaves the page tagged dirty, so any sync activity will still find it on
+ * the dirty lists, and in particular, clear_page_dirty_for_io() will still
+ * look at the dirty bits in the VM.
+ *
+ * Doing this should *normally* only ever be done when a page is truncated,
+ * and is not actually mapped anywhere at all. However, fs/buffer.c does
+ * this when it notices that somebody has cleaned out all the buffers on a
+ * page without actually doing it through the VM. Can you say "ext3 is
+ * horribly ugly"? Thought you could.
+ */
+void cancel_dirty_page(struct page *page)
+{
+	if (TestClearPageDirty(page))
+		account_page_cleaned(page, page_mapping(page));
+}
+EXPORT_SYMBOL(cancel_dirty_page);
 
 /*
  * Clear a page's dirty flag, while caring for dirty memory accounting.
