@@ -369,7 +369,7 @@ static void gen8_initialize_pt(struct i915_address_space *vm,
 	kunmap_atomic(pt_vaddr);
 }
 
-static struct i915_page_table *alloc_pt_single(struct drm_device *dev)
+static struct i915_page_table *alloc_pt(struct drm_device *dev)
 {
 	struct i915_page_table *pt;
 	const size_t count = INTEL_INFO(dev)->gen >= 8 ?
@@ -417,7 +417,7 @@ static void unmap_and_free_pd(struct i915_page_directory *pd,
 	}
 }
 
-static struct i915_page_directory *alloc_pd_single(struct drm_device *dev)
+static struct i915_page_directory *alloc_pd(struct drm_device *dev)
 {
 	struct i915_page_directory *pd;
 	int ret = -ENOMEM;
@@ -702,7 +702,7 @@ static int gen8_ppgtt_alloc_pagetabs(struct i915_hw_ppgtt *ppgtt,
 			continue;
 		}
 
-		pt = alloc_pt_single(dev);
+		pt = alloc_pt(dev);
 		if (IS_ERR(pt))
 			goto unwind_out;
 
@@ -763,7 +763,7 @@ static int gen8_ppgtt_alloc_page_directories(struct i915_hw_ppgtt *ppgtt,
 		if (pd)
 			continue;
 
-		pd = alloc_pd_single(dev);
+		pd = alloc_pd(dev);
 		if (IS_ERR(pd))
 			goto unwind_out;
 
@@ -939,11 +939,11 @@ err_out:
  */
 static int gen8_ppgtt_init(struct i915_hw_ppgtt *ppgtt)
 {
-	ppgtt->scratch_pt = alloc_pt_single(ppgtt->base.dev);
+	ppgtt->scratch_pt = alloc_pt(ppgtt->base.dev);
 	if (IS_ERR(ppgtt->scratch_pt))
 		return PTR_ERR(ppgtt->scratch_pt);
 
-	ppgtt->scratch_pd = alloc_pd_single(ppgtt->base.dev);
+	ppgtt->scratch_pd = alloc_pd(ppgtt->base.dev);
 	if (IS_ERR(ppgtt->scratch_pd))
 		return PTR_ERR(ppgtt->scratch_pd);
 
@@ -1327,7 +1327,7 @@ static int gen6_alloc_va_range(struct i915_address_space *vm,
 		/* We've already allocated a page table */
 		WARN_ON(!bitmap_empty(pt->used_ptes, GEN6_PTES));
 
-		pt = alloc_pt_single(dev);
+		pt = alloc_pt(dev);
 		if (IS_ERR(pt)) {
 			ret = PTR_ERR(pt);
 			goto unwind_out;
@@ -1413,7 +1413,7 @@ static int gen6_ppgtt_allocate_page_directories(struct i915_hw_ppgtt *ppgtt)
 	 * size. We allocate at the top of the GTT to avoid fragmentation.
 	 */
 	BUG_ON(!drm_mm_initialized(&dev_priv->gtt.base.mm));
-	ppgtt->scratch_pt = alloc_pt_single(ppgtt->base.dev);
+	ppgtt->scratch_pt = alloc_pt(ppgtt->base.dev);
 	if (IS_ERR(ppgtt->scratch_pt))
 		return PTR_ERR(ppgtt->scratch_pt);
 
