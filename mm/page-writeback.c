@@ -135,6 +135,8 @@ struct dirty_throttle_control {
 	unsigned long		wb_dirty;	/* per-wb counterparts */
 	unsigned long		wb_thresh;
 	unsigned long		wb_bg_thresh;
+
+	unsigned long		pos_ratio;
 };
 
 #define GDTC_INIT(__wb)		.wb = (__wb)
@@ -717,7 +719,7 @@ static long long pos_ratio_polynom(unsigned long setpoint,
  *   card's wb_dirty may rush to many times higher than wb_setpoint.
  * - the wb dirty thresh drops quickly due to change of JBOD workload
  */
-static unsigned long wb_position_ratio(struct dirty_throttle_control *dtc)
+static void wb_position_ratio(struct dirty_throttle_control *dtc)
 {
 	struct bdi_writeback *wb = dtc->wb;
 	unsigned long write_bw = wb->avg_write_bandwidth;
@@ -731,8 +733,10 @@ static unsigned long wb_position_ratio(struct dirty_throttle_control *dtc)
 	long long pos_ratio;		/* for scaling up/down the rate limit */
 	long x;
 
+	dtc->pos_ratio = 0;
+
 	if (unlikely(dtc->dirty >= limit))
-		return 0;
+		return;
 
 	/*
 	 * global setpoint
@@ -770,18 +774,20 @@ static unsigned long wb_position_ratio(struct dirty_throttle_control *dtc)
 	if (unlikely(wb->bdi->capabilities & BDI_CAP_STRICTLIMIT)) {
 		long long wb_pos_ratio;
 
-		if (dtc->wb_dirty < 8)
-			return min_t(long long, pos_ratio * 2,
-				     2 << RATELIMIT_CALC_SHIFT);
+		if (dtc->wb_dirty < 8) {
+			dtc->pos_ratio = min_t(long long, pos_ratio * 2,
+					   2 << RATELIMIT_CALC_SHIFT);
+			return;
+		}
 
 		if (dtc->wb_dirty >= wb_thresh)
-			return 0;
+			return;
 
 		wb_setpoint = dirty_freerun_ceiling(wb_thresh,
 						    dtc->wb_bg_thresh);
 
 		if (wb_setpoint == 0 || wb_setpoint == wb_thresh)
-			return 0;
+			return;
 
 		wb_pos_ratio = pos_ratio_polynom(wb_setpoint, dtc->wb_dirty,
 						 wb_thresh);
@@ -807,7 +813,8 @@ static unsigned long wb_position_ratio(struct dirty_throttle_control *dtc)
 		 * is 2. We might want to tweak this if we observe the control
 		 * system is too slow to adapt.
 		 */
-		return min(pos_ratio, wb_pos_ratio);
+		dtc->pos_ratio = min(pos_ratio, wb_pos_ratio);
+		return;
 	}
 
 	/*
@@ -888,7 +895,7 @@ static unsigned long wb_position_ratio(struct dirty_throttle_control *dtc)
 			pos_ratio *= 8;
 	}
 
-	return pos_ratio;
+	dtc->pos_ratio = pos_ratio;
 }
 
 static void wb_update_write_bandwidth(struct bdi_writeback *wb,
@@ -1009,7 +1016,6 @@ static void wb_update_dirty_ratelimit(struct dirty_throttle_control *dtc,
 	unsigned long dirty_rate;
 	unsigned long task_ratelimit;
 	unsigned long balanced_dirty_ratelimit;
-	unsigned long pos_ratio;
 	unsigned long step;
 	unsigned long x;
 
@@ -1019,12 +1025,11 @@ static void wb_update_dirty_ratelimit(struct dirty_throttle_control *dtc,
 	 */
 	dirty_rate = (dirtied - wb->dirtied_stamp) * HZ / elapsed;
 
-	pos_ratio = wb_position_ratio(dtc);
 	/*
 	 * task_ratelimit reflects each dd's dirty rate for the past 200ms.
 	 */
 	task_ratelimit = (u64)dirty_ratelimit *
-					pos_ratio >> RATELIMIT_CALC_SHIFT;
+					dtc->pos_ratio >> RATELIMIT_CALC_SHIFT;
 	task_ratelimit++; /* it helps rampup dirty_ratelimit from tiny values */
 
 	/*
@@ -1375,7 +1380,6 @@ static void balance_dirty_pages(struct address_space *mapping,
 	bool dirty_exceeded = false;
 	unsigned long task_ratelimit;
 	unsigned long dirty_ratelimit;
-	unsigned long pos_ratio;
 	struct backing_dev_info *bdi = wb->bdi;
 	bool strictlimit = bdi->capabilities & BDI_CAP_STRICTLIMIT;
 	unsigned long start_time = jiffies;
@@ -1433,6 +1437,9 @@ static void balance_dirty_pages(struct address_space *mapping,
 
 		dirty_exceeded = (gdtc->wb_dirty > gdtc->wb_thresh) &&
 			((gdtc->dirty > gdtc->thresh) || strictlimit);
+
+		wb_position_ratio(gdtc);
+
 		if (dirty_exceeded && !wb->dirty_exceeded)
 			wb->dirty_exceeded = 1;
 
@@ -1444,8 +1451,7 @@ static void balance_dirty_pages(struct address_space *mapping,
 		}
 
 		dirty_ratelimit = wb->dirty_ratelimit;
-		pos_ratio = wb_position_ratio(gdtc);
-		task_ratelimit = ((u64)dirty_ratelimit * pos_ratio) >>
+		task_ratelimit = ((u64)dirty_ratelimit * gdtc->pos_ratio) >>
 							RATELIMIT_CALC_SHIFT;
 		max_pause = wb_max_pause(wb, gdtc->wb_dirty);
 		min_pause = wb_min_pause(wb, max_pause,
