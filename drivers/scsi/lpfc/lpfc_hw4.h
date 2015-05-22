@@ -291,7 +291,7 @@ struct sli4_bls_rsp {
 struct lpfc_eqe {
 	uint32_t word0;
 #define lpfc_eqe_resource_id_SHIFT	16
-#define lpfc_eqe_resource_id_MASK	0x000000FF
+#define lpfc_eqe_resource_id_MASK	0x0000FFFF
 #define lpfc_eqe_resource_id_WORD	word0
 #define lpfc_eqe_minor_code_SHIFT	4
 #define lpfc_eqe_minor_code_MASK	0x00000FFF
