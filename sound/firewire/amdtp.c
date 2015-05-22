@@ -723,7 +723,7 @@ static int handle_in_packet(struct amdtp_stream *s,
 			(cip_header[0] & CIP_DBS_MASK) >> CIP_DBS_SHIFT;
 		/* avoid division by zero */
 		if (data_block_quadlets == 0) {
-			dev_info_ratelimited(&s->unit->device,
+			dev_err(&s->unit->device,
 				"Detect invalid value in dbs field: %08X\n",
 				cip_header[0]);
 			return -EIO;
@@ -756,9 +756,9 @@ static int handle_in_packet(struct amdtp_stream *s,
 	}
 
 	if (lost) {
-		dev_info(&s->unit->device,
-			 "Detect discontinuity of CIP: %02X %02X\n",
-			 s->data_block_counter, data_block_counter);
+		dev_err(&s->unit->device,
+			"Detect discontinuity of CIP: %02X %02X\n",
+			s->data_block_counter, data_block_counter);
 		return -EIO;
 	}
 
