@@ -6864,6 +6864,175 @@ static int i830_get_display_clock_speed(struct drm_device *dev)
 	return 133333;
 }
 
+static unsigned int intel_hpll_vco(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	static const unsigned int blb_vco[8] = {
+		[0] = 3200000,
+		[1] = 4000000,
+		[2] = 5333333,
+		[3] = 4800000,
+		[4] = 6400000,
+	};
+	static const unsigned int pnv_vco[8] = {
+		[0] = 3200000,
+		[1] = 4000000,
+		[2] = 5333333,
+		[3] = 4800000,
+		[4] = 2666667,
+	};
+	static const unsigned int cl_vco[8] = {
+		[0] = 3200000,
+		[1] = 4000000,
+		[2] = 5333333,
+		[3] = 6400000,
+		[4] = 3333333,
+		[5] = 3566667,
+		[6] = 4266667,
+	};
+	static const unsigned int elk_vco[8] = {
+		[0] = 3200000,
+		[1] = 4000000,
+		[2] = 5333333,
+		[3] = 4800000,
+	};
+	static const unsigned int ctg_vco[8] = {
+		[0] = 3200000,
+		[1] = 4000000,
+		[2] = 5333333,
+		[3] = 6400000,
+		[4] = 2666667,
+		[5] = 4266667,
+	};
+	const unsigned int *vco_table;
+	unsigned int vco;
+	uint8_t tmp = 0;
+
+	/* FIXME other chipsets? */
+	if (IS_GM45(dev))
+		vco_table = ctg_vco;
+	else if (IS_G4X(dev))
+		vco_table = elk_vco;
+	else if (IS_CRESTLINE(dev))
+		vco_table = cl_vco;
+	else if (IS_PINEVIEW(dev))
+		vco_table = pnv_vco;
+	else if (IS_G33(dev))
+		vco_table = blb_vco;
+	else
+		return 0;
+
+	tmp = I915_READ(IS_MOBILE(dev) ? HPLLVCO_MOBILE : HPLLVCO);
+
+	vco = vco_table[tmp & 0x7];
+	if (vco == 0)
+		DRM_ERROR("Bad HPLL VCO (HPLLVCO=0x%02x)\n", tmp);
+	else
+		DRM_DEBUG_KMS("HPLL VCO %u kHz\n", vco);
+
+	return vco;
+}
+
+static int gm45_get_display_clock_speed(struct drm_device *dev)
+{
+	unsigned int cdclk_sel, vco = intel_hpll_vco(dev);
+	uint16_t tmp = 0;
+
+	pci_read_config_word(dev->pdev, GCFGC, &tmp);
+
+	cdclk_sel = (tmp >> 12) & 0x1;
+
+	switch (vco) {
+	case 2666667:
+	case 4000000:
+	case 5333333:
+		return cdclk_sel ? 333333 : 222222;
+	case 3200000:
+		return cdclk_sel ? 320000 : 228571;
+	default:
+		DRM_ERROR("Unable to determine CDCLK. HPLL VCO=%u, CFGC=0x%04x\n", vco, tmp);
+		return 222222;
+	}
+}
+
+static int i965gm_get_display_clock_speed(struct drm_device *dev)
+{
+	static const uint8_t div_3200[] = { 16, 10,  8 };
+	static const uint8_t div_4000[] = { 20, 12, 10 };
+	static const uint8_t div_5333[] = { 24, 16, 14 };
+	const uint8_t *div_table;
+	unsigned int cdclk_sel, vco = intel_hpll_vco(dev);
+	uint16_t tmp = 0;
+
+	pci_read_config_word(dev->pdev, GCFGC, &tmp);
+
+	cdclk_sel = ((tmp >> 8) & 0x1f) - 1;
+
+	if (cdclk_sel >= ARRAY_SIZE(div_3200))
+		goto fail;
+
+	switch (vco) {
+	case 3200000:
+		div_table = div_3200;
+		break;
+	case 4000000:
+		div_table = div_4000;
+		break;
+	case 5333333:
+		div_table = div_5333;
+		break;
+	default:
+		goto fail;
+	}
+
+	return DIV_ROUND_CLOSEST(vco, div_table[cdclk_sel]);
+
+ fail:
+	DRM_ERROR("Unable to determine CDCLK. HPLL VCO=%u kHz, CFGC=0x%04x\n", vco, tmp);
+	return 200000;
+}
+
+static int g33_get_display_clock_speed(struct drm_device *dev)
+{
+	static const uint8_t div_3200[] = { 12, 10,  8,  7, 5, 16 };
+	static const uint8_t div_4000[] = { 14, 12, 10,  8, 6, 20 };
+	static const uint8_t div_4800[] = { 20, 14, 12, 10, 8, 24 };
+	static const uint8_t div_5333[] = { 20, 16, 12, 12, 8, 28 };
+	const uint8_t *div_table;
+	unsigned int cdclk_sel, vco = intel_hpll_vco(dev);
+	uint16_t tmp = 0;
+
+	pci_read_config_word(dev->pdev, GCFGC, &tmp);
+
+	cdclk_sel = (tmp >> 4) & 0x7;
+
+	if (cdclk_sel >= ARRAY_SIZE(div_3200))
+		goto fail;
+
+	switch (vco) {
+	case 3200000:
+		div_table = div_3200;
+		break;
+	case 4000000:
+		div_table = div_4000;
+		break;
+	case 4800000:
+		div_table = div_4800;
+		break;
+	case 5333333:
+		div_table = div_5333;
+		break;
+	default:
+		goto fail;
+	}
+
+	return DIV_ROUND_CLOSEST(vco, div_table[cdclk_sel]);
+
+ fail:
+	DRM_ERROR("Unable to determine CDCLK. HPLL VCO=%u kHz, CFGC=0x%08x\n", vco, tmp);
+	return 190476;
+}
+
 static void
 intel_reduce_m_n_ratio(uint32_t *num, uint32_t *den)
 {
@@ -14396,9 +14565,21 @@ static void intel_init_display(struct drm_device *dev)
 		dev_priv->display.get_display_clock_speed =
 			ilk_get_display_clock_speed;
 	else if (IS_I945G(dev) || IS_BROADWATER(dev) ||
-		 IS_GEN6(dev) || IS_IVYBRIDGE(dev) || (IS_G33(dev) && !IS_PINEVIEW_M(dev)))
+		 IS_GEN6(dev) || IS_IVYBRIDGE(dev))
 		dev_priv->display.get_display_clock_speed =
 			i945_get_display_clock_speed;
+	else if (IS_GM45(dev))
+		dev_priv->display.get_display_clock_speed =
+			gm45_get_display_clock_speed;
+	else if (IS_CRESTLINE(dev))
+		dev_priv->display.get_display_clock_speed =
+			i965gm_get_display_clock_speed;
+	else if (IS_PINEVIEW(dev))
+		dev_priv->display.get_display_clock_speed =
+			pnv_get_display_clock_speed;
+	else if (IS_G33(dev) || IS_G4X(dev))
+		dev_priv->display.get_display_clock_speed =
+			g33_get_display_clock_speed;
 	else if (IS_I915G(dev))
 		dev_priv->display.get_display_clock_speed =
 			i915_get_display_clock_speed;
