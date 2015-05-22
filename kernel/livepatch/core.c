@@ -990,7 +990,7 @@ static struct notifier_block klp_module_nb = {
 	.priority = INT_MIN+1, /* called late but before ftrace notifier */
 };
 
-static int klp_init(void)
+static int __init klp_init(void)
 {
 	int ret;
 
