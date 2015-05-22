@@ -110,11 +110,11 @@ void acpi_init_properties(struct acpi_device *adev)
 	int i;
 
 	/*
-	 * Check if the special PRP0001 ACPI ID is present and in that case we
-	 * fill in Device Tree compatible properties for this device.
+	 * Check if ACPI_DT_NAMESPACE_HID is present and inthat case we fill in
+	 * Device Tree compatible properties for this device.
 	 */
 	list_for_each_entry(hwid, &adev->pnp.ids, list) {
-		if (!strcmp(hwid->id, "PRP0001")) {
+		if (!strcmp(hwid->id, ACPI_DT_NAMESPACE_HID)) {
 			acpi_of = true;
 			break;
 		}
@@ -170,7 +170,7 @@ void acpi_init_properties(struct acpi_device *adev)
  out:
 	if (acpi_of && !adev->flags.of_compatible_ok)
 		acpi_handle_info(adev->handle,
-				 "PRP0001 requires 'compatible' property\n");
+			 ACPI_DT_NAMESPACE_HID " requires 'compatible' property\n");
 }
 
 void acpi_free_properties(struct acpi_device *adev)
