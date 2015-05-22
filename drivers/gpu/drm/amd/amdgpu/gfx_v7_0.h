@@ -24,7 +24,7 @@
 #ifndef __GFX_V7_0_H__
 #define __GFX_V7_0_H__
 
-extern const struct amdgpu_ip_funcs gfx_v7_0_ip_funcs;
+extern const struct amd_ip_funcs gfx_v7_0_ip_funcs;
 
 /* XXX these shouldn't be exported */
 void gfx_v7_0_enter_rlc_safe_mode(struct amdgpu_device *adev);

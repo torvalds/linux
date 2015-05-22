@@ -24,6 +24,6 @@
 #ifndef __UVD_V5_0_H__
 #define __UVD_V5_0_H__
 
-extern const struct amdgpu_ip_funcs uvd_v5_0_ip_funcs;
+extern const struct amd_ip_funcs uvd_v5_0_ip_funcs;
 
 #endif

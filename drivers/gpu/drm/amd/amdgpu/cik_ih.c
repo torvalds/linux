@@ -271,16 +271,19 @@ static void cik_ih_set_rptr(struct amdgpu_device *adev)
 	WREG32(mmIH_RB_RPTR, adev->irq.ih.rptr);
 }
 
-static int cik_ih_early_init(struct amdgpu_device *adev)
+static int cik_ih_early_init(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
 	cik_ih_set_interrupt_funcs(adev);
 
 	return 0;
 }
 
-static int cik_ih_sw_init(struct amdgpu_device *adev)
+static int cik_ih_sw_init(void *handle)
 {
 	int r;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	r = amdgpu_ih_ring_init(adev, 64 * 1024, false);
 	if (r)
@@ -291,17 +294,20 @@ static int cik_ih_sw_init(struct amdgpu_device *adev)
 	return r;
 }
 
-static int cik_ih_sw_fini(struct amdgpu_device *adev)
+static int cik_ih_sw_fini(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
 	amdgpu_irq_fini(adev);
 	amdgpu_ih_ring_fini(adev);
 
 	return 0;
 }
 
-static int cik_ih_hw_init(struct amdgpu_device *adev)
+static int cik_ih_hw_init(void *handle)
 {
 	int r;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	r = cik_ih_irq_init(adev);
 	if (r)
@@ -310,25 +316,32 @@ static int cik_ih_hw_init(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int cik_ih_hw_fini(struct amdgpu_device *adev)
+static int cik_ih_hw_fini(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
 	cik_ih_irq_disable(adev);
 
 	return 0;
 }
 
-static int cik_ih_suspend(struct amdgpu_device *adev)
+static int cik_ih_suspend(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
 	return cik_ih_hw_fini(adev);
 }
 
-static int cik_ih_resume(struct amdgpu_device *adev)
+static int cik_ih_resume(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
 	return cik_ih_hw_init(adev);
 }
 
-static bool cik_ih_is_idle(struct amdgpu_device *adev)
+static bool cik_ih_is_idle(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	u32 tmp = RREG32(mmSRBM_STATUS);
 
 	if (tmp & SRBM_STATUS__IH_BUSY_MASK)
@@ -337,10 +350,11 @@ static bool cik_ih_is_idle(struct amdgpu_device *adev)
 	return true;
 }
 
-static int cik_ih_wait_for_idle(struct amdgpu_device *adev)
+static int cik_ih_wait_for_idle(void *handle)
 {
 	unsigned i;
 	u32 tmp;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	for (i = 0; i < adev->usec_timeout; i++) {
 		/* read MC_STATUS */
@@ -352,8 +366,10 @@ static int cik_ih_wait_for_idle(struct amdgpu_device *adev)
 	return -ETIMEDOUT;
 }
 
-static void cik_ih_print_status(struct amdgpu_device *adev)
+static void cik_ih_print_status(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
 	dev_info(adev->dev, "CIK IH registers\n");
 	dev_info(adev->dev, "  SRBM_STATUS=0x%08X\n",
 		RREG32(mmSRBM_STATUS));
@@ -379,8 +395,10 @@ static void cik_ih_print_status(struct amdgpu_device *adev)
 		 RREG32(mmIH_RB_WPTR));
 }
 
-static int cik_ih_soft_reset(struct amdgpu_device *adev)
+static int cik_ih_soft_reset(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
 	u32 srbm_soft_reset = 0;
 	u32 tmp = RREG32(mmSRBM_STATUS);
 
@@ -388,7 +406,7 @@ static int cik_ih_soft_reset(struct amdgpu_device *adev)
 		srbm_soft_reset |= SRBM_SOFT_RESET__SOFT_RESET_IH_MASK;
 
 	if (srbm_soft_reset) {
-		cik_ih_print_status(adev);
+		cik_ih_print_status((void *)adev);
 
 		tmp = RREG32(mmSRBM_SOFT_RESET);
 		tmp |= srbm_soft_reset;
@@ -405,25 +423,25 @@ static int cik_ih_soft_reset(struct amdgpu_device *adev)
 		/* Wait a little for things to settle down */
 		udelay(50);
 
-		cik_ih_print_status(adev);
+		cik_ih_print_status((void *)adev);
 	}
 
 	return 0;
 }
 
-static int cik_ih_set_clockgating_state(struct amdgpu_device *adev,
-					  enum amdgpu_clockgating_state state)
+static int cik_ih_set_clockgating_state(void *handle,
+					  enum amd_clockgating_state state)
 {
 	return 0;
 }
 
-static int cik_ih_set_powergating_state(struct amdgpu_device *adev,
-					  enum amdgpu_powergating_state state)
+static int cik_ih_set_powergating_state(void *handle,
+					  enum amd_powergating_state state)
 {
 	return 0;
 }
 
-const struct amdgpu_ip_funcs cik_ih_ip_funcs = {
+const struct amd_ip_funcs cik_ih_ip_funcs = {
 	.early_init = cik_ih_early_init,
 	.late_init = NULL,
 	.sw_init = cik_ih_sw_init,

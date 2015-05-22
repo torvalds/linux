@@ -24,6 +24,6 @@
 #ifndef __TONGA_IH_H__
 #define __TONGA_IH_H__
 
-extern const struct amdgpu_ip_funcs tonga_ih_ip_funcs;
+extern const struct amd_ip_funcs tonga_ih_ip_funcs;
 
 #endif /* __CZ_IH_H__ */

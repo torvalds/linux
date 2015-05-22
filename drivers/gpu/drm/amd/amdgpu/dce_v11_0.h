@@ -24,6 +24,6 @@
 #ifndef __DCE_V11_0_H__
 #define __DCE_V11_0_H__
 
-extern const struct amdgpu_ip_funcs dce_v11_0_ip_funcs;
+extern const struct amd_ip_funcs dce_v11_0_ip_funcs;
 
 #endif

@@ -1892,63 +1892,63 @@ static const struct amdgpu_ip_block_version bonaire_ip_blocks[] =
 {
 	/* ORDER MATTERS! */
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_COMMON,
+		.type = AMD_IP_BLOCK_TYPE_COMMON,
 		.major = 1,
 		.minor = 0,
 		.rev = 0,
 		.funcs = &cik_common_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_GMC,
+		.type = AMD_IP_BLOCK_TYPE_GMC,
 		.major = 7,
 		.minor = 0,
 		.rev = 0,
 		.funcs = &gmc_v7_0_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_IH,
+		.type = AMD_IP_BLOCK_TYPE_IH,
 		.major = 2,
 		.minor = 0,
 		.rev = 0,
 		.funcs = &cik_ih_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_SMC,
+		.type = AMD_IP_BLOCK_TYPE_SMC,
 		.major = 7,
 		.minor = 0,
 		.rev = 0,
 		.funcs = &ci_dpm_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_DCE,
+		.type = AMD_IP_BLOCK_TYPE_DCE,
 		.major = 8,
 		.minor = 2,
 		.rev = 0,
 		.funcs = &dce_v8_0_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_GFX,
+		.type = AMD_IP_BLOCK_TYPE_GFX,
 		.major = 7,
 		.minor = 2,
 		.rev = 0,
 		.funcs = &gfx_v7_0_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_SDMA,
+		.type = AMD_IP_BLOCK_TYPE_SDMA,
 		.major = 2,
 		.minor = 0,
 		.rev = 0,
 		.funcs = &cik_sdma_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_UVD,
+		.type = AMD_IP_BLOCK_TYPE_UVD,
 		.major = 4,
 		.minor = 2,
 		.rev = 0,
 		.funcs = &uvd_v4_2_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_VCE,
+		.type = AMD_IP_BLOCK_TYPE_VCE,
 		.major = 2,
 		.minor = 0,
 		.rev = 0,
@@ -1960,63 +1960,63 @@ static const struct amdgpu_ip_block_version hawaii_ip_blocks[] =
 {
 	/* ORDER MATTERS! */
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_COMMON,
+		.type = AMD_IP_BLOCK_TYPE_COMMON,
 		.major = 1,
 		.minor = 0,
 		.rev = 0,
 		.funcs = &cik_common_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_GMC,
+		.type = AMD_IP_BLOCK_TYPE_GMC,
 		.major = 7,
 		.minor = 0,
 		.rev = 0,
 		.funcs = &gmc_v7_0_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_IH,
+		.type = AMD_IP_BLOCK_TYPE_IH,
 		.major = 2,
 		.minor = 0,
 		.rev = 0,
 		.funcs = &cik_ih_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_SMC,
+		.type = AMD_IP_BLOCK_TYPE_SMC,
 		.major = 7,
 		.minor = 0,
 		.rev = 0,
 		.funcs = &ci_dpm_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_DCE,
+		.type = AMD_IP_BLOCK_TYPE_DCE,
 		.major = 8,
 		.minor = 5,
 		.rev = 0,
 		.funcs = &dce_v8_0_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_GFX,
+		.type = AMD_IP_BLOCK_TYPE_GFX,
 		.major = 7,
 		.minor = 3,
 		.rev = 0,
 		.funcs = &gfx_v7_0_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_SDMA,
+		.type = AMD_IP_BLOCK_TYPE_SDMA,
 		.major = 2,
 		.minor = 0,
 		.rev = 0,
 		.funcs = &cik_sdma_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_UVD,
+		.type = AMD_IP_BLOCK_TYPE_UVD,
 		.major = 4,
 		.minor = 2,
 		.rev = 0,
 		.funcs = &uvd_v4_2_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_VCE,
+		.type = AMD_IP_BLOCK_TYPE_VCE,
 		.major = 2,
 		.minor = 0,
 		.rev = 0,
@@ -2028,63 +2028,63 @@ static const struct amdgpu_ip_block_version kabini_ip_blocks[] =
 {
 	/* ORDER MATTERS! */
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_COMMON,
+		.type = AMD_IP_BLOCK_TYPE_COMMON,
 		.major = 1,
 		.minor = 0,
 		.rev = 0,
 		.funcs = &cik_common_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_GMC,
+		.type = AMD_IP_BLOCK_TYPE_GMC,
 		.major = 7,
 		.minor = 0,
 		.rev = 0,
 		.funcs = &gmc_v7_0_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_IH,
+		.type = AMD_IP_BLOCK_TYPE_IH,
 		.major = 2,
 		.minor = 0,
 		.rev = 0,
 		.funcs = &cik_ih_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_SMC,
+		.type = AMD_IP_BLOCK_TYPE_SMC,
 		.major = 7,
 		.minor = 0,
 		.rev = 0,
 		.funcs = &kv_dpm_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_DCE,
+		.type = AMD_IP_BLOCK_TYPE_DCE,
 		.major = 8,
 		.minor = 3,
 		.rev = 0,
 		.funcs = &dce_v8_0_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_GFX,
+		.type = AMD_IP_BLOCK_TYPE_GFX,
 		.major = 7,
 		.minor = 2,
 		.rev = 0,
 		.funcs = &gfx_v7_0_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_SDMA,
+		.type = AMD_IP_BLOCK_TYPE_SDMA,
 		.major = 2,
 		.minor = 0,
 		.rev = 0,
 		.funcs = &cik_sdma_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_UVD,
+		.type = AMD_IP_BLOCK_TYPE_UVD,
 		.major = 4,
 		.minor = 2,
 		.rev = 0,
 		.funcs = &uvd_v4_2_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_VCE,
+		.type = AMD_IP_BLOCK_TYPE_VCE,
 		.major = 2,
 		.minor = 0,
 		.rev = 0,
@@ -2096,63 +2096,63 @@ static const struct amdgpu_ip_block_version mullins_ip_blocks[] =
 {
 	/* ORDER MATTERS! */
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_COMMON,
+		.type = AMD_IP_BLOCK_TYPE_COMMON,
 		.major = 1,
 		.minor = 0,
 		.rev = 0,
 		.funcs = &cik_common_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_GMC,
+		.type = AMD_IP_BLOCK_TYPE_GMC,
 		.major = 7,
 		.minor = 0,
 		.rev = 0,
 		.funcs = &gmc_v7_0_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_IH,
+		.type = AMD_IP_BLOCK_TYPE_IH,
 		.major = 2,
 		.minor = 0,
 		.rev = 0,
 		.funcs = &cik_ih_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_SMC,
+		.type = AMD_IP_BLOCK_TYPE_SMC,
 		.major = 7,
 		.minor = 0,
 		.rev = 0,
 		.funcs = &kv_dpm_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_DCE,
+		.type = AMD_IP_BLOCK_TYPE_DCE,
 		.major = 8,
 		.minor = 3,
 		.rev = 0,
 		.funcs = &dce_v8_0_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_GFX,
+		.type = AMD_IP_BLOCK_TYPE_GFX,
 		.major = 7,
 		.minor = 2,
 		.rev = 0,
 		.funcs = &gfx_v7_0_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_SDMA,
+		.type = AMD_IP_BLOCK_TYPE_SDMA,
 		.major = 2,
 		.minor = 0,
 		.rev = 0,
 		.funcs = &cik_sdma_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_UVD,
+		.type = AMD_IP_BLOCK_TYPE_UVD,
 		.major = 4,
 		.minor = 2,
 		.rev = 0,
 		.funcs = &uvd_v4_2_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_VCE,
+		.type = AMD_IP_BLOCK_TYPE_VCE,
 		.major = 2,
 		.minor = 0,
 		.rev = 0,
@@ -2164,63 +2164,63 @@ static const struct amdgpu_ip_block_version kaveri_ip_blocks[] =
 {
 	/* ORDER MATTERS! */
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_COMMON,
+		.type = AMD_IP_BLOCK_TYPE_COMMON,
 		.major = 1,
 		.minor = 0,
 		.rev = 0,
 		.funcs = &cik_common_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_GMC,
+		.type = AMD_IP_BLOCK_TYPE_GMC,
 		.major = 7,
 		.minor = 0,
 		.rev = 0,
 		.funcs = &gmc_v7_0_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_IH,
+		.type = AMD_IP_BLOCK_TYPE_IH,
 		.major = 2,
 		.minor = 0,
 		.rev = 0,
 		.funcs = &cik_ih_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_SMC,
+		.type = AMD_IP_BLOCK_TYPE_SMC,
 		.major = 7,
 		.minor = 0,
 		.rev = 0,
 		.funcs = &kv_dpm_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_DCE,
+		.type = AMD_IP_BLOCK_TYPE_DCE,
 		.major = 8,
 		.minor = 1,
 		.rev = 0,
 		.funcs = &dce_v8_0_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_GFX,
+		.type = AMD_IP_BLOCK_TYPE_GFX,
 		.major = 7,
 		.minor = 1,
 		.rev = 0,
 		.funcs = &gfx_v7_0_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_SDMA,
+		.type = AMD_IP_BLOCK_TYPE_SDMA,
 		.major = 2,
 		.minor = 0,
 		.rev = 0,
 		.funcs = &cik_sdma_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_UVD,
+		.type = AMD_IP_BLOCK_TYPE_UVD,
 		.major = 4,
 		.minor = 2,
 		.rev = 0,
 		.funcs = &uvd_v4_2_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_VCE,
+		.type = AMD_IP_BLOCK_TYPE_VCE,
 		.major = 2,
 		.minor = 0,
 		.rev = 0,
@@ -2278,8 +2278,10 @@ static const struct amdgpu_asic_funcs cik_asic_funcs =
 	.wait_for_mc_idle = &gmc_v7_0_mc_wait_for_idle,
 };
 
-static int cik_common_early_init(struct amdgpu_device *adev)
+static int cik_common_early_init(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
 	adev->smc_rreg = &cik_smc_rreg;
 	adev->smc_wreg = &cik_smc_wreg;
 	adev->pcie_rreg = &cik_pcie_rreg;
@@ -2417,18 +2419,20 @@ static int cik_common_early_init(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int cik_common_sw_init(struct amdgpu_device *adev)
+static int cik_common_sw_init(void *handle)
 {
 	return 0;
 }
 
-static int cik_common_sw_fini(struct amdgpu_device *adev)
+static int cik_common_sw_fini(void *handle)
 {
 	return 0;
 }
 
-static int cik_common_hw_init(struct amdgpu_device *adev)
+static int cik_common_hw_init(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
 	/* move the golden regs per IP block */
 	cik_init_golden_registers(adev);
 	/* enable pcie gen2/3 link */
@@ -2439,55 +2443,59 @@ static int cik_common_hw_init(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int cik_common_hw_fini(struct amdgpu_device *adev)
+static int cik_common_hw_fini(void *handle)
 {
 	return 0;
 }
 
-static int cik_common_suspend(struct amdgpu_device *adev)
+static int cik_common_suspend(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
 	return cik_common_hw_fini(adev);
 }
 
-static int cik_common_resume(struct amdgpu_device *adev)
+static int cik_common_resume(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
 	return cik_common_hw_init(adev);
 }
 
-static bool cik_common_is_idle(struct amdgpu_device *adev)
+static bool cik_common_is_idle(void *handle)
 {
 	return true;
 }
 
-static int cik_common_wait_for_idle(struct amdgpu_device *adev)
+static int cik_common_wait_for_idle(void *handle)
 {
 	return 0;
 }
 
-static void cik_common_print_status(struct amdgpu_device *adev)
+static void cik_common_print_status(void *handle)
 {
 
 }
 
-static int cik_common_soft_reset(struct amdgpu_device *adev)
+static int cik_common_soft_reset(void *handle)
 {
 	/* XXX hard reset?? */
 	return 0;
 }
 
-static int cik_common_set_clockgating_state(struct amdgpu_device *adev,
-					    enum amdgpu_clockgating_state state)
+static int cik_common_set_clockgating_state(void *handle,
+					    enum amd_clockgating_state state)
 {
 	return 0;
 }
 
-static int cik_common_set_powergating_state(struct amdgpu_device *adev,
-					    enum amdgpu_powergating_state state)
+static int cik_common_set_powergating_state(void *handle,
+					    enum amd_powergating_state state)
 {
 	return 0;
 }
 
-const struct amdgpu_ip_funcs cik_common_ip_funcs = {
+const struct amd_ip_funcs cik_common_ip_funcs = {
 	.early_init = cik_common_early_init,
 	.late_init = NULL,
 	.sw_init = cik_common_sw_init,

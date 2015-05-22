@@ -24,13 +24,13 @@
 #ifndef __VI_DPM_H__
 #define __VI_DPM_H__
 
-extern const struct amdgpu_ip_funcs cz_dpm_ip_funcs;
+extern const struct amd_ip_funcs cz_dpm_ip_funcs;
 int cz_smu_init(struct amdgpu_device *adev);
 int cz_smu_start(struct amdgpu_device *adev);
 int cz_smu_fini(struct amdgpu_device *adev);
 
-extern const struct amdgpu_ip_funcs tonga_dpm_ip_funcs;
+extern const struct amd_ip_funcs tonga_dpm_ip_funcs;
 
-extern const struct amdgpu_ip_funcs iceland_dpm_ip_funcs;
+extern const struct amd_ip_funcs iceland_dpm_ip_funcs;
 
 #endif

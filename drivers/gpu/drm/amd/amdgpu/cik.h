@@ -24,7 +24,7 @@
 #ifndef __CIK_H__
 #define __CIK_H__
 
-extern const struct amdgpu_ip_funcs cik_common_ip_funcs;
+extern const struct amd_ip_funcs cik_common_ip_funcs;
 
 void cik_srbm_select(struct amdgpu_device *adev,
 		     u32 me, u32 pipe, u32 queue, u32 vmid);

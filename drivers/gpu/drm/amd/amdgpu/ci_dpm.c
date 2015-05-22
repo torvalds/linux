@@ -4227,8 +4227,8 @@ static int ci_update_vce_dpm(struct amdgpu_device *adev,
 	if (amdgpu_current_state->evclk != amdgpu_new_state->evclk) {
 		if (amdgpu_new_state->evclk) {
 			/* turn the clocks on when encoding */
-			ret = amdgpu_set_clockgating_state(adev, AMDGPU_IP_BLOCK_TYPE_VCE,
-							    AMDGPU_CG_STATE_UNGATE);
+			ret = amdgpu_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_VCE,
+							    AMD_CG_STATE_UNGATE);
 			if (ret)
 				return ret;
 
@@ -4241,8 +4241,8 @@ static int ci_update_vce_dpm(struct amdgpu_device *adev,
 			ret = ci_enable_vce_dpm(adev, true);
 		} else {
 			/* turn the clocks off when not encoding */
-			ret = amdgpu_set_clockgating_state(adev, AMDGPU_IP_BLOCK_TYPE_VCE,
-							    AMDGPU_CG_STATE_GATE);
+			ret = amdgpu_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_VCE,
+							    AMD_CG_STATE_GATE);
 			if (ret)
 				return ret;
 
@@ -6171,17 +6171,20 @@ static int ci_set_temperature_range(struct amdgpu_device *adev)
 	return ret;
 }
 
-static int ci_dpm_early_init(struct amdgpu_device *adev)
+static int ci_dpm_early_init(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
 	ci_dpm_set_dpm_funcs(adev);
 	ci_dpm_set_irq_funcs(adev);
 
 	return 0;
 }
 
-static int ci_dpm_late_init(struct amdgpu_device *adev)
+static int ci_dpm_late_init(void *handle)
 {
 	int ret;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	if (!amdgpu_dpm)
 		return 0;
@@ -6195,9 +6198,10 @@ static int ci_dpm_late_init(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int ci_dpm_sw_init(struct amdgpu_device *adev)
+static int ci_dpm_sw_init(void *handle)
 {
 	int ret;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	ret = amdgpu_irq_add_id(adev, 230, &adev->pm.dpm.thermal.irq);
 	if (ret)
@@ -6243,8 +6247,10 @@ dpm_failed:
 	return ret;
 }
 
-static int ci_dpm_sw_fini(struct amdgpu_device *adev)
+static int ci_dpm_sw_fini(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
 	mutex_lock(&adev->pm.mutex);
 	amdgpu_pm_sysfs_fini(adev);
 	ci_dpm_fini(adev);
@@ -6253,9 +6259,11 @@ static int ci_dpm_sw_fini(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int ci_dpm_hw_init(struct amdgpu_device *adev)
+static int ci_dpm_hw_init(void *handle)
 {
 	int ret;
+
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	if (!amdgpu_dpm)
 		return 0;
@@ -6272,8 +6280,10 @@ static int ci_dpm_hw_init(struct amdgpu_device *adev)
 	return ret;
 }
 
-static int ci_dpm_hw_fini(struct amdgpu_device *adev)
+static int ci_dpm_hw_fini(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
 	if (adev->pm.dpm_enabled) {
 		mutex_lock(&adev->pm.mutex);
 		ci_dpm_disable(adev);
@@ -6283,8 +6293,10 @@ static int ci_dpm_hw_fini(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int ci_dpm_suspend(struct amdgpu_device *adev)
+static int ci_dpm_suspend(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
 	if (adev->pm.dpm_enabled) {
 		mutex_lock(&adev->pm.mutex);
 		/* disable dpm */
@@ -6296,9 +6308,10 @@ static int ci_dpm_suspend(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int ci_dpm_resume(struct amdgpu_device *adev)
+static int ci_dpm_resume(void *handle)
 {
 	int ret;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	if (adev->pm.dpm_enabled) {
 		/* asic init will reset to the boot state */
@@ -6316,20 +6329,22 @@ static int ci_dpm_resume(struct amdgpu_device *adev)
 	return 0;
 }
 
-static bool ci_dpm_is_idle(struct amdgpu_device *adev)
+static bool ci_dpm_is_idle(void *handle)
 {
 	/* XXX */
 	return true;
 }
 
-static int ci_dpm_wait_for_idle(struct amdgpu_device *adev)
+static int ci_dpm_wait_for_idle(void *handle)
 {
 	/* XXX */
 	return 0;
 }
 
-static void ci_dpm_print_status(struct amdgpu_device *adev)
+static void ci_dpm_print_status(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
 	dev_info(adev->dev, "CIK DPM registers\n");
 	dev_info(adev->dev, "  BIOS_SCRATCH_4=0x%08X\n",
 		 RREG32(mmBIOS_SCRATCH_4));
@@ -6535,7 +6550,7 @@ static void ci_dpm_print_status(struct amdgpu_device *adev)
 		 RREG32_SMC(ixSMC_PC_C));
 }
 
-static int ci_dpm_soft_reset(struct amdgpu_device *adev)
+static int ci_dpm_soft_reset(void *handle)
 {
 	return 0;
 }
@@ -6618,19 +6633,19 @@ static int ci_dpm_process_interrupt(struct amdgpu_device *adev,
 	return 0;
 }
 
-static int ci_dpm_set_clockgating_state(struct amdgpu_device *adev,
-					  enum amdgpu_clockgating_state state)
+static int ci_dpm_set_clockgating_state(void *handle,
+					  enum amd_clockgating_state state)
 {
 	return 0;
 }
 
-static int ci_dpm_set_powergating_state(struct amdgpu_device *adev,
-					  enum amdgpu_powergating_state state)
+static int ci_dpm_set_powergating_state(void *handle,
+					  enum amd_powergating_state state)
 {
 	return 0;
 }
 
-const struct amdgpu_ip_funcs ci_dpm_ip_funcs = {
+const struct amd_ip_funcs ci_dpm_ip_funcs = {
 	.early_init = ci_dpm_early_init,
 	.late_init = ci_dpm_late_init,
 	.sw_init = ci_dpm_sw_init,

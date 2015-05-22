@@ -186,7 +186,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		return copy_to_user(out, &ui32, min(size, 4u)) ? -EFAULT : 0;
 	case AMDGPU_INFO_HW_IP_INFO: {
 		struct drm_amdgpu_info_hw_ip ip = {};
-		enum amdgpu_ip_block_type type;
+		enum amd_ip_block_type type;
 		uint32_t ring_mask = 0;
 
 		if (info->query_hw_ip.ip_instance >= AMDGPU_HW_IP_INSTANCE_MAX_COUNT)
@@ -194,26 +194,26 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 
 		switch (info->query_hw_ip.type) {
 		case AMDGPU_HW_IP_GFX:
-			type = AMDGPU_IP_BLOCK_TYPE_GFX;
+			type = AMD_IP_BLOCK_TYPE_GFX;
 			for (i = 0; i < adev->gfx.num_gfx_rings; i++)
 				ring_mask |= ((adev->gfx.gfx_ring[i].ready ? 1 : 0) << i);
 			break;
 		case AMDGPU_HW_IP_COMPUTE:
-			type = AMDGPU_IP_BLOCK_TYPE_GFX;
+			type = AMD_IP_BLOCK_TYPE_GFX;
 			for (i = 0; i < adev->gfx.num_compute_rings; i++)
 				ring_mask |= ((adev->gfx.compute_ring[i].ready ? 1 : 0) << i);
 			break;
 		case AMDGPU_HW_IP_DMA:
-			type = AMDGPU_IP_BLOCK_TYPE_SDMA;
+			type = AMD_IP_BLOCK_TYPE_SDMA;
 			ring_mask = adev->sdma[0].ring.ready ? 1 : 0;
 			ring_mask |= ((adev->sdma[1].ring.ready ? 1 : 0) << 1);
 			break;
 		case AMDGPU_HW_IP_UVD:
-			type = AMDGPU_IP_BLOCK_TYPE_UVD;
+			type = AMD_IP_BLOCK_TYPE_UVD;
 			ring_mask = adev->uvd.ring.ready ? 1 : 0;
 			break;
 		case AMDGPU_HW_IP_VCE:
-			type = AMDGPU_IP_BLOCK_TYPE_VCE;
+			type = AMD_IP_BLOCK_TYPE_VCE;
 			for (i = 0; i < AMDGPU_MAX_VCE_RINGS; i++)
 				ring_mask |= ((adev->vce.ring[i].ready ? 1 : 0) << i);
 			break;
@@ -235,24 +235,24 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 				    min((size_t)size, sizeof(ip))) ? -EFAULT : 0;
 	}
 	case AMDGPU_INFO_HW_IP_COUNT: {
-		enum amdgpu_ip_block_type type;
+		enum amd_ip_block_type type;
 		uint32_t count = 0;
 
 		switch (info->query_hw_ip.type) {
 		case AMDGPU_HW_IP_GFX:
-			type = AMDGPU_IP_BLOCK_TYPE_GFX;
+			type = AMD_IP_BLOCK_TYPE_GFX;
 			break;
 		case AMDGPU_HW_IP_COMPUTE:
-			type = AMDGPU_IP_BLOCK_TYPE_GFX;
+			type = AMD_IP_BLOCK_TYPE_GFX;
 			break;
 		case AMDGPU_HW_IP_DMA:
-			type = AMDGPU_IP_BLOCK_TYPE_SDMA;
+			type = AMD_IP_BLOCK_TYPE_SDMA;
 			break;
 		case AMDGPU_HW_IP_UVD:
-			type = AMDGPU_IP_BLOCK_TYPE_UVD;
+			type = AMD_IP_BLOCK_TYPE_UVD;
 			break;
 		case AMDGPU_HW_IP_VCE:
-			type = AMDGPU_IP_BLOCK_TYPE_VCE;
+			type = AMD_IP_BLOCK_TYPE_VCE;
 			break;
 		default:
 			return -EINVAL;

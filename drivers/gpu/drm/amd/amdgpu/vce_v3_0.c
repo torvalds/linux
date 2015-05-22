@@ -190,16 +190,19 @@ static int vce_v3_0_start(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int vce_v3_0_early_init(struct amdgpu_device *adev)
+static int vce_v3_0_early_init(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
 	vce_v3_0_set_ring_funcs(adev);
 	vce_v3_0_set_irq_funcs(adev);
 
 	return 0;
 }
 
-static int vce_v3_0_sw_init(struct amdgpu_device *adev)
+static int vce_v3_0_sw_init(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct amdgpu_ring *ring;
 	int r;
 
@@ -234,9 +237,10 @@ static int vce_v3_0_sw_init(struct amdgpu_device *adev)
 	return r;
 }
 
-static int vce_v3_0_sw_fini(struct amdgpu_device *adev)
+static int vce_v3_0_sw_fini(void *handle)
 {
 	int r;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	r = amdgpu_vce_suspend(adev);
 	if (r)
@@ -249,10 +253,11 @@ static int vce_v3_0_sw_fini(struct amdgpu_device *adev)
 	return r;
 }
 
-static int vce_v3_0_hw_init(struct amdgpu_device *adev)
+static int vce_v3_0_hw_init(void *handle)
 {
 	struct amdgpu_ring *ring;
 	int r;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	r = vce_v3_0_start(adev);
 	if (r)
@@ -279,15 +284,15 @@ static int vce_v3_0_hw_init(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int vce_v3_0_hw_fini(struct amdgpu_device *adev)
+static int vce_v3_0_hw_fini(void *handle)
 {
-	// TODO
 	return 0;
 }
 
-static int vce_v3_0_suspend(struct amdgpu_device *adev)
+static int vce_v3_0_suspend(void *handle)
 {
 	int r;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	r = vce_v3_0_hw_fini(adev);
 	if (r)
@@ -300,9 +305,10 @@ static int vce_v3_0_suspend(struct amdgpu_device *adev)
 	return r;
 }
 
-static int vce_v3_0_resume(struct amdgpu_device *adev)
+static int vce_v3_0_resume(void *handle)
 {
 	int r;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	r = amdgpu_vce_resume(adev);
 	if (r)
@@ -362,14 +368,17 @@ static void vce_v3_0_mc_resume(struct amdgpu_device *adev, int idx)
 		 ~VCE_SYS_INT_EN__VCE_SYS_INT_TRAP_INTERRUPT_EN_MASK);
 }
 
-static bool vce_v3_0_is_idle(struct amdgpu_device *adev)
+static bool vce_v3_0_is_idle(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
 	return !(RREG32(mmSRBM_STATUS2) & SRBM_STATUS2__VCE_BUSY_MASK);
 }
 
-static int vce_v3_0_wait_for_idle(struct amdgpu_device *adev)
+static int vce_v3_0_wait_for_idle(void *handle)
 {
 	unsigned i;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	for (i = 0; i < adev->usec_timeout; i++) {
 		if (!(RREG32(mmSRBM_STATUS2) & SRBM_STATUS2__VCE_BUSY_MASK))
@@ -378,8 +387,10 @@ static int vce_v3_0_wait_for_idle(struct amdgpu_device *adev)
 	return -ETIMEDOUT;
 }
 
-static int vce_v3_0_soft_reset(struct amdgpu_device *adev)
+static int vce_v3_0_soft_reset(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
 	WREG32_P(mmSRBM_SOFT_RESET, SRBM_SOFT_RESET__SOFT_RESET_VCE_MASK,
 			~SRBM_SOFT_RESET__SOFT_RESET_VCE_MASK);
 	mdelay(5);
@@ -387,8 +398,10 @@ static int vce_v3_0_soft_reset(struct amdgpu_device *adev)
 	return vce_v3_0_start(adev);
 }
 
-static void vce_v3_0_print_status(struct amdgpu_device *adev)
+static void vce_v3_0_print_status(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
 	dev_info(adev->dev, "VCE 3.0 registers\n");
 	dev_info(adev->dev, "  VCE_STATUS=0x%08X\n",
 		 RREG32(mmVCE_STATUS));
@@ -487,15 +500,14 @@ static int vce_v3_0_process_interrupt(struct amdgpu_device *adev,
 	return 0;
 }
 
-static int vce_v3_0_set_clockgating_state(struct amdgpu_device *adev,
-					  enum amdgpu_clockgating_state state)
+static int vce_v3_0_set_clockgating_state(void *handle,
+					  enum amd_clockgating_state state)
 {
-	//TODO
 	return 0;
 }
 
-static int vce_v3_0_set_powergating_state(struct amdgpu_device *adev,
-					  enum amdgpu_powergating_state state)
+static int vce_v3_0_set_powergating_state(void *handle,
+					  enum amd_powergating_state state)
 {
 	/* This doesn't actually powergate the VCE block.
 	 * That's done in the dpm code via the SMC.  This
@@ -504,14 +516,16 @@ static int vce_v3_0_set_powergating_state(struct amdgpu_device *adev,
 	 * revisit this when there is a cleaner line between
 	 * the smc and the hw blocks
 	 */
-	if (state == AMDGPU_PG_STATE_GATE)
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (state == AMD_PG_STATE_GATE)
 		/* XXX do we need a vce_v3_0_stop()? */
 		return 0;
 	else
 		return vce_v3_0_start(adev);
 }
 
-const struct amdgpu_ip_funcs vce_v3_0_ip_funcs = {
+const struct amd_ip_funcs vce_v3_0_ip_funcs = {
 	.early_init = vce_v3_0_early_init,
 	.late_init = NULL,
 	.sw_init = vce_v3_0_sw_init,

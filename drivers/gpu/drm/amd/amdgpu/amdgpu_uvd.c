@@ -185,7 +185,7 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 	}
 
 	/* from uvd v5.0 HW addressing capacity increased to 64 bits */
-	if (!amdgpu_ip_block_version_cmp(adev, AMDGPU_IP_BLOCK_TYPE_UVD, 5, 0))
+	if (!amdgpu_ip_block_version_cmp(adev, AMD_IP_BLOCK_TYPE_UVD, 5, 0))
 		adev->uvd.address_64_bit = true;
 
 	return 0;

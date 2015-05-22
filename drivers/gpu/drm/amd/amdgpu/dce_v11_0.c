@@ -2863,8 +2863,10 @@ static int dce_v11_0_crtc_init(struct amdgpu_device *adev, int index)
 	return 0;
 }
 
-static int dce_v11_0_early_init(struct amdgpu_device *adev)
+static int dce_v11_0_early_init(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
 	adev->audio_endpt_rreg = &dce_v11_0_audio_endpt_rreg;
 	adev->audio_endpt_wreg = &dce_v11_0_audio_endpt_wreg;
 
@@ -2885,9 +2887,10 @@ static int dce_v11_0_early_init(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int dce_v11_0_sw_init(struct amdgpu_device *adev)
+static int dce_v11_0_sw_init(void *handle)
 {
 	int r, i;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	for (i = 0; i < adev->mode_info.num_crtc; i++) {
 		r = amdgpu_irq_add_id(adev, i + 1, &adev->crtc_irq);
@@ -2949,8 +2952,10 @@ static int dce_v11_0_sw_init(struct amdgpu_device *adev)
 	return r;
 }
 
-static int dce_v11_0_sw_fini(struct amdgpu_device *adev)
+static int dce_v11_0_sw_fini(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
 	kfree(adev->mode_info.bios_hardcoded_edid);
 
 	drm_kms_helper_poll_fini(adev->ddev);
@@ -2964,9 +2969,10 @@ static int dce_v11_0_sw_fini(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int dce_v11_0_hw_init(struct amdgpu_device *adev)
+static int dce_v11_0_hw_init(void *handle)
 {
 	int i;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	dce_v11_0_init_golden_registers(adev);
 
@@ -2984,9 +2990,10 @@ static int dce_v11_0_hw_init(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int dce_v11_0_hw_fini(struct amdgpu_device *adev)
+static int dce_v11_0_hw_fini(void *handle)
 {
 	int i;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	dce_v11_0_hpd_fini(adev);
 
@@ -2997,9 +3004,10 @@ static int dce_v11_0_hw_fini(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int dce_v11_0_suspend(struct amdgpu_device *adev)
+static int dce_v11_0_suspend(void *handle)
 {
 	struct drm_connector *connector;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	drm_kms_helper_poll_disable(adev->ddev);
 
@@ -3015,9 +3023,10 @@ static int dce_v11_0_suspend(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int dce_v11_0_resume(struct amdgpu_device *adev)
+static int dce_v11_0_resume(void *handle)
 {
 	struct drm_connector *connector;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	dce_v11_0_init_golden_registers(adev);
 
@@ -3050,33 +3059,34 @@ static int dce_v11_0_resume(struct amdgpu_device *adev)
 	return 0;
 }
 
-static bool dce_v11_0_is_idle(struct amdgpu_device *adev)
+static bool dce_v11_0_is_idle(void *handle)
 {
-	/* XXX todo */
 	return true;
 }
 
-static int dce_v11_0_wait_for_idle(struct amdgpu_device *adev)
+static int dce_v11_0_wait_for_idle(void *handle)
 {
-	/* XXX todo */
 	return 0;
 }
 
-static void dce_v11_0_print_status(struct amdgpu_device *adev)
+static void dce_v11_0_print_status(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
 	dev_info(adev->dev, "DCE 10.x registers\n");
 	/* XXX todo */
 }
 
-static int dce_v11_0_soft_reset(struct amdgpu_device *adev)
+static int dce_v11_0_soft_reset(void *handle)
 {
 	u32 srbm_soft_reset = 0, tmp;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	if (dce_v11_0_is_display_hung(adev))
 		srbm_soft_reset |= SRBM_SOFT_RESET__SOFT_RESET_DC_MASK;
 
 	if (srbm_soft_reset) {
-		dce_v11_0_print_status(adev);
+		dce_v11_0_print_status((void *)adev);
 
 		tmp = RREG32(mmSRBM_SOFT_RESET);
 		tmp |= srbm_soft_reset;
@@ -3092,7 +3102,7 @@ static int dce_v11_0_soft_reset(struct amdgpu_device *adev)
 
 		/* Wait a little for things to settle down */
 		udelay(50);
-		dce_v11_0_print_status(adev);
+		dce_v11_0_print_status((void *)adev);
 	}
 	return 0;
 }
@@ -3448,19 +3458,19 @@ static int dce_v11_0_hpd_irq(struct amdgpu_device *adev,
 	return 0;
 }
 
-static int dce_v11_0_set_clockgating_state(struct amdgpu_device *adev,
-					  enum amdgpu_clockgating_state state)
+static int dce_v11_0_set_clockgating_state(void *handle,
+					  enum amd_clockgating_state state)
 {
 	return 0;
 }
 
-static int dce_v11_0_set_powergating_state(struct amdgpu_device *adev,
-					  enum amdgpu_powergating_state state)
+static int dce_v11_0_set_powergating_state(void *handle,
+					  enum amd_powergating_state state)
 {
 	return 0;
 }
 
-const struct amdgpu_ip_funcs dce_v11_0_ip_funcs = {
+const struct amd_ip_funcs dce_v11_0_ip_funcs = {
 	.early_init = dce_v11_0_early_init,
 	.late_init = NULL,
 	.sw_init = dce_v11_0_sw_init,

@@ -24,7 +24,7 @@
 #ifndef __GMC_V8_0_H__
 #define __GMC_V8_0_H__
 
-extern const struct amdgpu_ip_funcs gmc_v8_0_ip_funcs;
+extern const struct amd_ip_funcs gmc_v8_0_ip_funcs;
 
 /* XXX these shouldn't be exported */
 void gmc_v8_0_mc_stop(struct amdgpu_device *adev,

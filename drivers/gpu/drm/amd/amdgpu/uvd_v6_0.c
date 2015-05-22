@@ -79,18 +79,21 @@ static void uvd_v6_0_ring_set_wptr(struct amdgpu_ring *ring)
 	WREG32(mmUVD_RBC_RB_WPTR, ring->wptr);
 }
 
-static int uvd_v6_0_early_init(struct amdgpu_device *adev)
+static int uvd_v6_0_early_init(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
 	uvd_v6_0_set_ring_funcs(adev);
 	uvd_v6_0_set_irq_funcs(adev);
 
 	return 0;
 }
 
-static int uvd_v6_0_sw_init(struct amdgpu_device *adev)
+static int uvd_v6_0_sw_init(void *handle)
 {
 	struct amdgpu_ring *ring;
 	int r;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	/* UVD TRAP */
 	r = amdgpu_irq_add_id(adev, 124, &adev->uvd.irq);
@@ -113,9 +116,10 @@ static int uvd_v6_0_sw_init(struct amdgpu_device *adev)
 	return r;
 }
 
-static int uvd_v6_0_sw_fini(struct amdgpu_device *adev)
+static int uvd_v6_0_sw_fini(void *handle)
 {
 	int r;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	r = amdgpu_uvd_suspend(adev);
 	if (r)
@@ -135,8 +139,9 @@ static int uvd_v6_0_sw_fini(struct amdgpu_device *adev)
  *
  * Initialize the hardware, boot up the VCPU and do some testing
  */
-static int uvd_v6_0_hw_init(struct amdgpu_device *adev)
+static int uvd_v6_0_hw_init(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct amdgpu_ring *ring = &adev->uvd.ring;
 	uint32_t tmp;
 	int r;
@@ -193,8 +198,9 @@ done:
  *
  * Stop the UVD block, mark ring as not ready any more
  */
-static int uvd_v6_0_hw_fini(struct amdgpu_device *adev)
+static int uvd_v6_0_hw_fini(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct amdgpu_ring *ring = &adev->uvd.ring;
 
 	uvd_v6_0_stop(adev);
@@ -203,9 +209,10 @@ static int uvd_v6_0_hw_fini(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int uvd_v6_0_suspend(struct amdgpu_device *adev)
+static int uvd_v6_0_suspend(void *handle)
 {
 	int r;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	r = uvd_v6_0_hw_fini(adev);
 	if (r)
@@ -218,9 +225,10 @@ static int uvd_v6_0_suspend(struct amdgpu_device *adev)
 	return r;
 }
 
-static int uvd_v6_0_resume(struct amdgpu_device *adev)
+static int uvd_v6_0_resume(void *handle)
 {
 	int r;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	r = amdgpu_uvd_resume(adev);
 	if (r)
@@ -593,14 +601,17 @@ error:
 	return r;
 }
 
-static bool uvd_v6_0_is_idle(struct amdgpu_device *adev)
+static bool uvd_v6_0_is_idle(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
 	return !(RREG32(mmSRBM_STATUS) & SRBM_STATUS__UVD_BUSY_MASK);
 }
 
-static int uvd_v6_0_wait_for_idle(struct amdgpu_device *adev)
+static int uvd_v6_0_wait_for_idle(void *handle)
 {
 	unsigned i;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	for (i = 0; i < adev->usec_timeout; i++) {
 		if (!(RREG32(mmSRBM_STATUS) & SRBM_STATUS__UVD_BUSY_MASK))
@@ -609,8 +620,10 @@ static int uvd_v6_0_wait_for_idle(struct amdgpu_device *adev)
 	return -ETIMEDOUT;
 }
 
-static int uvd_v6_0_soft_reset(struct amdgpu_device *adev)
+static int uvd_v6_0_soft_reset(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
 	uvd_v6_0_stop(adev);
 
 	WREG32_P(mmSRBM_SOFT_RESET, SRBM_SOFT_RESET__SOFT_RESET_UVD_MASK,
@@ -620,8 +633,9 @@ static int uvd_v6_0_soft_reset(struct amdgpu_device *adev)
 	return uvd_v6_0_start(adev);
 }
 
-static void uvd_v6_0_print_status(struct amdgpu_device *adev)
+static void uvd_v6_0_print_status(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	dev_info(adev->dev, "UVD 6.0 registers\n");
 	dev_info(adev->dev, "  UVD_SEMA_ADDR_LOW=0x%08X\n",
 		 RREG32(mmUVD_SEMA_ADDR_LOW));
@@ -737,16 +751,14 @@ static int uvd_v6_0_process_interrupt(struct amdgpu_device *adev,
 	return 0;
 }
 
-static int uvd_v6_0_set_clockgating_state(struct amdgpu_device *adev,
-					  enum amdgpu_clockgating_state state)
+static int uvd_v6_0_set_clockgating_state(void *handle,
+					  enum amd_clockgating_state state)
 {
-	//TODO
-
 	return 0;
 }
 
-static int uvd_v6_0_set_powergating_state(struct amdgpu_device *adev,
-					  enum amdgpu_powergating_state state)
+static int uvd_v6_0_set_powergating_state(void *handle,
+					  enum amd_powergating_state state)
 {
 	/* This doesn't actually powergate the UVD block.
 	 * That's done in the dpm code via the SMC.  This
@@ -755,7 +767,9 @@ static int uvd_v6_0_set_powergating_state(struct amdgpu_device *adev,
 	 * revisit this when there is a cleaner line between
 	 * the smc and the hw blocks
 	 */
-	if (state == AMDGPU_PG_STATE_GATE) {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (state == AMD_PG_STATE_GATE) {
 		uvd_v6_0_stop(adev);
 		return 0;
 	} else {
@@ -763,7 +777,7 @@ static int uvd_v6_0_set_powergating_state(struct amdgpu_device *adev,
 	}
 }
 
-const struct amdgpu_ip_funcs uvd_v6_0_ip_funcs = {
+const struct amd_ip_funcs uvd_v6_0_ip_funcs = {
 	.early_init = uvd_v6_0_early_init,
 	.late_init = NULL,
 	.sw_init = uvd_v6_0_sw_init,

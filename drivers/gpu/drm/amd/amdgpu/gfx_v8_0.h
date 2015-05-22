@@ -24,7 +24,7 @@
 #ifndef __GFX_V8_0_H__
 #define __GFX_V8_0_H__
 
-extern const struct amdgpu_ip_funcs gfx_v8_0_ip_funcs;
+extern const struct amd_ip_funcs gfx_v8_0_ip_funcs;
 
 uint64_t gfx_v8_0_get_gpu_clock_counter(struct amdgpu_device *adev);
 void gfx_v8_0_select_se_sh(struct amdgpu_device *adev, u32 se_num, u32 sh_num);

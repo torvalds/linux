@@ -24,6 +24,6 @@
 #ifndef __SDMA_V3_0_H__
 #define __SDMA_V3_0_H__
 
-extern const struct amdgpu_ip_funcs sdma_v3_0_ip_funcs;
+extern const struct amd_ip_funcs sdma_v3_0_ip_funcs;
 
 #endif

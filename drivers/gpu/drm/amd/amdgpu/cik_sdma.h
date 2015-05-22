@@ -24,6 +24,6 @@
 #ifndef __CIK_SDMA_H__
 #define __CIK_SDMA_H__
 
-extern const struct amdgpu_ip_funcs cik_sdma_ip_funcs;
+extern const struct amd_ip_funcs cik_sdma_ip_funcs;
 
 #endif

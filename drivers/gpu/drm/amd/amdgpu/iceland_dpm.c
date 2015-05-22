@@ -30,8 +30,10 @@ MODULE_FIRMWARE("amdgpu/topaz_smc.bin");
 
 static void iceland_dpm_set_funcs(struct amdgpu_device *adev);
 
-static int iceland_dpm_early_init(struct amdgpu_device *adev)
+static int iceland_dpm_early_init(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
 	iceland_dpm_set_funcs(adev);
 
 	return 0;
@@ -56,9 +58,10 @@ out:
 	return err;
 }
 
-static int iceland_dpm_sw_init(struct amdgpu_device *adev)
+static int iceland_dpm_sw_init(void *handle)
 {
 	int ret;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	ret = iceland_dpm_init_microcode(adev);
 	if (ret)
@@ -67,14 +70,15 @@ static int iceland_dpm_sw_init(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int iceland_dpm_sw_fini(struct amdgpu_device *adev)
+static int iceland_dpm_sw_fini(void *handle)
 {
 	return 0;
 }
 
-static int iceland_dpm_hw_init(struct amdgpu_device *adev)
+static int iceland_dpm_hw_init(void *handle)
 {
 	int ret;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	mutex_lock(&adev->pm.mutex);
 
@@ -99,41 +103,47 @@ fail:
 	return -EINVAL;
 }
 
-static int iceland_dpm_hw_fini(struct amdgpu_device *adev)
+static int iceland_dpm_hw_fini(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
 	mutex_lock(&adev->pm.mutex);
 	iceland_smu_fini(adev);
 	mutex_unlock(&adev->pm.mutex);
 	return 0;
 }
 
-static int iceland_dpm_suspend(struct amdgpu_device *adev)
+static int iceland_dpm_suspend(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
 	iceland_dpm_hw_fini(adev);
 
 	return 0;
 }
 
-static int iceland_dpm_resume(struct amdgpu_device *adev)
+static int iceland_dpm_resume(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
 	iceland_dpm_hw_init(adev);
 
 	return 0;
 }
 
-static int iceland_dpm_set_clockgating_state(struct amdgpu_device *adev,
-			enum amdgpu_clockgating_state state)
+static int iceland_dpm_set_clockgating_state(void *handle,
+			enum amd_clockgating_state state)
 {
 	return 0;
 }
 
-static int iceland_dpm_set_powergating_state(struct amdgpu_device *adev,
-			enum amdgpu_powergating_state state)
+static int iceland_dpm_set_powergating_state(void *handle,
+			enum amd_powergating_state state)
 {
 	return 0;
 }
 
-const struct amdgpu_ip_funcs iceland_dpm_ip_funcs = {
+const struct amd_ip_funcs iceland_dpm_ip_funcs = {
 	.early_init = iceland_dpm_early_init,
 	.late_init = NULL,
 	.sw_init = iceland_dpm_sw_init,

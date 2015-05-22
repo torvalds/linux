@@ -24,6 +24,6 @@
 #ifndef __VCE_V3_0_H__
 #define __VCE_V3_0_H__
 
-extern const struct amdgpu_ip_funcs vce_v3_0_ip_funcs;
+extern const struct amd_ip_funcs vce_v3_0_ip_funcs;
 
 #endif

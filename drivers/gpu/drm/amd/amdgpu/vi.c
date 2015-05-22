@@ -994,42 +994,42 @@ static const struct amdgpu_ip_block_version topaz_ip_blocks[] =
 {
 	/* ORDER MATTERS! */
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_COMMON,
+		.type = AMD_IP_BLOCK_TYPE_COMMON,
 		.major = 2,
 		.minor = 0,
 		.rev = 0,
 		.funcs = &vi_common_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_GMC,
+		.type = AMD_IP_BLOCK_TYPE_GMC,
 		.major = 8,
 		.minor = 0,
 		.rev = 0,
 		.funcs = &gmc_v8_0_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_IH,
+		.type = AMD_IP_BLOCK_TYPE_IH,
 		.major = 2,
 		.minor = 4,
 		.rev = 0,
 		.funcs = &iceland_ih_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_SMC,
+		.type = AMD_IP_BLOCK_TYPE_SMC,
 		.major = 7,
 		.minor = 1,
 		.rev = 0,
 		.funcs = &iceland_dpm_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_GFX,
+		.type = AMD_IP_BLOCK_TYPE_GFX,
 		.major = 8,
 		.minor = 0,
 		.rev = 0,
 		.funcs = &gfx_v8_0_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_SDMA,
+		.type = AMD_IP_BLOCK_TYPE_SDMA,
 		.major = 2,
 		.minor = 4,
 		.rev = 0,
@@ -1041,63 +1041,63 @@ static const struct amdgpu_ip_block_version tonga_ip_blocks[] =
 {
 	/* ORDER MATTERS! */
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_COMMON,
+		.type = AMD_IP_BLOCK_TYPE_COMMON,
 		.major = 2,
 		.minor = 0,
 		.rev = 0,
 		.funcs = &vi_common_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_GMC,
+		.type = AMD_IP_BLOCK_TYPE_GMC,
 		.major = 8,
 		.minor = 0,
 		.rev = 0,
 		.funcs = &gmc_v8_0_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_IH,
+		.type = AMD_IP_BLOCK_TYPE_IH,
 		.major = 3,
 		.minor = 0,
 		.rev = 0,
 		.funcs = &tonga_ih_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_SMC,
+		.type = AMD_IP_BLOCK_TYPE_SMC,
 		.major = 7,
 		.minor = 1,
 		.rev = 0,
 		.funcs = &tonga_dpm_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_DCE,
+		.type = AMD_IP_BLOCK_TYPE_DCE,
 		.major = 10,
 		.minor = 0,
 		.rev = 0,
 		.funcs = &dce_v10_0_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_GFX,
+		.type = AMD_IP_BLOCK_TYPE_GFX,
 		.major = 8,
 		.minor = 0,
 		.rev = 0,
 		.funcs = &gfx_v8_0_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_SDMA,
+		.type = AMD_IP_BLOCK_TYPE_SDMA,
 		.major = 3,
 		.minor = 0,
 		.rev = 0,
 		.funcs = &sdma_v3_0_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_UVD,
+		.type = AMD_IP_BLOCK_TYPE_UVD,
 		.major = 5,
 		.minor = 0,
 		.rev = 0,
 		.funcs = &uvd_v5_0_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_VCE,
+		.type = AMD_IP_BLOCK_TYPE_VCE,
 		.major = 3,
 		.minor = 0,
 		.rev = 0,
@@ -1109,63 +1109,63 @@ static const struct amdgpu_ip_block_version cz_ip_blocks[] =
 {
 	/* ORDER MATTERS! */
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_COMMON,
+		.type = AMD_IP_BLOCK_TYPE_COMMON,
 		.major = 2,
 		.minor = 0,
 		.rev = 0,
 		.funcs = &vi_common_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_GMC,
+		.type = AMD_IP_BLOCK_TYPE_GMC,
 		.major = 8,
 		.minor = 0,
 		.rev = 0,
 		.funcs = &gmc_v8_0_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_IH,
+		.type = AMD_IP_BLOCK_TYPE_IH,
 		.major = 3,
 		.minor = 0,
 		.rev = 0,
 		.funcs = &cz_ih_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_SMC,
+		.type = AMD_IP_BLOCK_TYPE_SMC,
 		.major = 8,
 		.minor = 0,
 		.rev = 0,
 		.funcs = &cz_dpm_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_DCE,
+		.type = AMD_IP_BLOCK_TYPE_DCE,
 		.major = 11,
 		.minor = 0,
 		.rev = 0,
 		.funcs = &dce_v11_0_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_GFX,
+		.type = AMD_IP_BLOCK_TYPE_GFX,
 		.major = 8,
 		.minor = 0,
 		.rev = 0,
 		.funcs = &gfx_v8_0_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_SDMA,
+		.type = AMD_IP_BLOCK_TYPE_SDMA,
 		.major = 3,
 		.minor = 0,
 		.rev = 0,
 		.funcs = &sdma_v3_0_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_UVD,
+		.type = AMD_IP_BLOCK_TYPE_UVD,
 		.major = 6,
 		.minor = 0,
 		.rev = 0,
 		.funcs = &uvd_v6_0_ip_funcs,
 	},
 	{
-		.type = AMDGPU_IP_BLOCK_TYPE_VCE,
+		.type = AMD_IP_BLOCK_TYPE_VCE,
 		.major = 3,
 		.minor = 0,
 		.rev = 0,
@@ -1225,9 +1225,10 @@ static const struct amdgpu_asic_funcs vi_asic_funcs =
 	.wait_for_mc_idle = &gmc_v8_0_mc_wait_for_idle,
 };
 
-static int vi_common_early_init(struct amdgpu_device *adev)
+static int vi_common_early_init(void *handle)
 {
 	bool smc_enabled = false;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	adev->smc_rreg = &vi_smc_rreg;
 	adev->smc_wreg = &vi_smc_wreg;
@@ -1240,8 +1241,8 @@ static int vi_common_early_init(struct amdgpu_device *adev)
 
 	adev->asic_funcs = &vi_asic_funcs;
 
-	if (amdgpu_get_ip_block(adev, AMDGPU_IP_BLOCK_TYPE_SMC) &&
-		(amdgpu_ip_block_mask & (1 << AMDGPU_IP_BLOCK_TYPE_SMC)))
+	if (amdgpu_get_ip_block(adev, AMD_IP_BLOCK_TYPE_SMC) &&
+		(amdgpu_ip_block_mask & (1 << AMD_IP_BLOCK_TYPE_SMC)))
 		smc_enabled = true;
 
 	adev->rev_id = vi_get_rev_id(adev);
@@ -1279,18 +1280,20 @@ static int vi_common_early_init(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int vi_common_sw_init(struct amdgpu_device *adev)
+static int vi_common_sw_init(void *handle)
 {
 	return 0;
 }
 
-static int vi_common_sw_fini(struct amdgpu_device *adev)
+static int vi_common_sw_fini(void *handle)
 {
 	return 0;
 }
 
-static int vi_common_hw_init(struct amdgpu_device *adev)
+static int vi_common_hw_init(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
 	/* move the golden regs per IP block */
 	vi_init_golden_registers(adev);
 	/* enable pcie gen2/3 link */
@@ -1303,58 +1306,63 @@ static int vi_common_hw_init(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int vi_common_hw_fini(struct amdgpu_device *adev)
+static int vi_common_hw_fini(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
 	/* enable the doorbell aperture */
 	vi_enable_doorbell_aperture(adev, false);
 
 	return 0;
 }
 
-static int vi_common_suspend(struct amdgpu_device *adev)
+static int vi_common_suspend(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
 	return vi_common_hw_fini(adev);
 }
 
-static int vi_common_resume(struct amdgpu_device *adev)
+static int vi_common_resume(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
 	return vi_common_hw_init(adev);
 }
 
-static bool vi_common_is_idle(struct amdgpu_device *adev)
+static bool vi_common_is_idle(void *handle)
 {
 	return true;
 }
 
-static int vi_common_wait_for_idle(struct amdgpu_device *adev)
+static int vi_common_wait_for_idle(void *handle)
 {
 	return 0;
 }
 
-static void vi_common_print_status(struct amdgpu_device *adev)
+static void vi_common_print_status(void *handle)
 {
-
+	return;
 }
 
-static int vi_common_soft_reset(struct amdgpu_device *adev)
-{
-	/* XXX hard reset?? */
-	return 0;
-}
-
-static int vi_common_set_clockgating_state(struct amdgpu_device *adev,
-					    enum amdgpu_clockgating_state state)
+static int vi_common_soft_reset(void *handle)
 {
 	return 0;
 }
 
-static int vi_common_set_powergating_state(struct amdgpu_device *adev,
-					    enum amdgpu_powergating_state state)
+static int vi_common_set_clockgating_state(void *handle,
+					    enum amd_clockgating_state state)
 {
 	return 0;
 }
 
-const struct amdgpu_ip_funcs vi_common_ip_funcs = {
+static int vi_common_set_powergating_state(void *handle,
+					    enum amd_powergating_state state)
+{
+	return 0;
+}
+
+const struct amd_ip_funcs vi_common_ip_funcs = {
 	.early_init = vi_common_early_init,
 	.late_init = NULL,
 	.sw_init = vi_common_sw_init,

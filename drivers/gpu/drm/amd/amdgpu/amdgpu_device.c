@@ -1081,14 +1081,14 @@ static const struct vga_switcheroo_client_ops amdgpu_switcheroo_ops = {
 };
 
 int amdgpu_set_clockgating_state(struct amdgpu_device *adev,
-				  enum amdgpu_ip_block_type block_type,
-				  enum amdgpu_clockgating_state state)
+				  enum amd_ip_block_type block_type,
+				  enum amd_clockgating_state state)
 {
 	int i, r = 0;
 
 	for (i = 0; i < adev->num_ip_blocks; i++) {
 		if (adev->ip_blocks[i].type == block_type) {
-			r = adev->ip_blocks[i].funcs->set_clockgating_state(adev,
+			r = adev->ip_blocks[i].funcs->set_clockgating_state((void *)adev,
 									    state);
 			if (r)
 				return r;
@@ -1098,14 +1098,14 @@ int amdgpu_set_clockgating_state(struct amdgpu_device *adev,
 }
 
 int amdgpu_set_powergating_state(struct amdgpu_device *adev,
-				  enum amdgpu_ip_block_type block_type,
-				  enum amdgpu_powergating_state state)
+				  enum amd_ip_block_type block_type,
+				  enum amd_powergating_state state)
 {
 	int i, r = 0;
 
 	for (i = 0; i < adev->num_ip_blocks; i++) {
 		if (adev->ip_blocks[i].type == block_type) {
-			r = adev->ip_blocks[i].funcs->set_powergating_state(adev,
+			r = adev->ip_blocks[i].funcs->set_powergating_state((void *)adev,
 									    state);
 			if (r)
 				return r;
@@ -1116,7 +1116,7 @@ int amdgpu_set_powergating_state(struct amdgpu_device *adev,
 
 const struct amdgpu_ip_block_version * amdgpu_get_ip_block(
 					struct amdgpu_device *adev,
-					enum amdgpu_ip_block_type type)
+					enum amd_ip_block_type type)
 {
 	int i;
 
@@ -1131,7 +1131,7 @@ const struct amdgpu_ip_block_version * amdgpu_get_ip_block(
  * amdgpu_ip_block_version_cmp
  *
  * @adev: amdgpu_device pointer
- * @type: enum amdgpu_ip_block_type
+ * @type: enum amd_ip_block_type
  * @major: major version
  * @minor: minor version
  *
@@ -1139,7 +1139,7 @@ const struct amdgpu_ip_block_version * amdgpu_get_ip_block(
  * return 1 if smaller or the ip_block doesn't exist
  */
 int amdgpu_ip_block_version_cmp(struct amdgpu_device *adev,
-				enum amdgpu_ip_block_type type,
+				enum amd_ip_block_type type,
 				u32 major, u32 minor)
 {
 	const struct amdgpu_ip_block_version *ip_block;
@@ -1204,7 +1204,7 @@ static int amdgpu_early_init(struct amdgpu_device *adev)
 			adev->ip_block_enabled[i] = false;
 		} else {
 			if (adev->ip_blocks[i].funcs->early_init) {
-				r = adev->ip_blocks[i].funcs->early_init(adev);
+				r = adev->ip_blocks[i].funcs->early_init((void *)adev);
 				if (r)
 					return r;
 			}
@@ -1222,15 +1222,15 @@ static int amdgpu_init(struct amdgpu_device *adev)
 	for (i = 0; i < adev->num_ip_blocks; i++) {
 		if (!adev->ip_block_enabled[i])
 			continue;
-		r = adev->ip_blocks[i].funcs->sw_init(adev);
+		r = adev->ip_blocks[i].funcs->sw_init((void *)adev);
 		if (r)
 			return r;
 		/* need to do gmc hw init early so we can allocate gpu mem */
-		if (adev->ip_blocks[i].type == AMDGPU_IP_BLOCK_TYPE_GMC) {
+		if (adev->ip_blocks[i].type == AMD_IP_BLOCK_TYPE_GMC) {
 			r = amdgpu_vram_scratch_init(adev);
 			if (r)
 				return r;
-			r = adev->ip_blocks[i].funcs->hw_init(adev);
+			r = adev->ip_blocks[i].funcs->hw_init((void *)adev);
 			if (r)
 				return r;
 			r = amdgpu_wb_init(adev);
@@ -1243,9 +1243,9 @@ static int amdgpu_init(struct amdgpu_device *adev)
 		if (!adev->ip_block_enabled[i])
 			continue;
 		/* gmc hw init is done early */
-		if (adev->ip_blocks[i].type == AMDGPU_IP_BLOCK_TYPE_GMC)
+		if (adev->ip_blocks[i].type == AMD_IP_BLOCK_TYPE_GMC)
 			continue;
-		r = adev->ip_blocks[i].funcs->hw_init(adev);
+		r = adev->ip_blocks[i].funcs->hw_init((void *)adev);
 		if (r)
 			return r;
 	}
@@ -1261,12 +1261,12 @@ static int amdgpu_late_init(struct amdgpu_device *adev)
 		if (!adev->ip_block_enabled[i])
 			continue;
 		/* enable clockgating to save power */
-		r = adev->ip_blocks[i].funcs->set_clockgating_state(adev,
-								    AMDGPU_CG_STATE_GATE);
+		r = adev->ip_blocks[i].funcs->set_clockgating_state((void *)adev,
+								    AMD_CG_STATE_GATE);
 		if (r)
 			return r;
 		if (adev->ip_blocks[i].funcs->late_init) {
-			r = adev->ip_blocks[i].funcs->late_init(adev);
+			r = adev->ip_blocks[i].funcs->late_init((void *)adev);
 			if (r)
 				return r;
 		}
@@ -1282,23 +1282,23 @@ static int amdgpu_fini(struct amdgpu_device *adev)
 	for (i = adev->num_ip_blocks - 1; i >= 0; i--) {
 		if (!adev->ip_block_enabled[i])
 			continue;
-		if (adev->ip_blocks[i].type == AMDGPU_IP_BLOCK_TYPE_GMC) {
+		if (adev->ip_blocks[i].type == AMD_IP_BLOCK_TYPE_GMC) {
 			amdgpu_wb_fini(adev);
 			amdgpu_vram_scratch_fini(adev);
 		}
 		/* ungate blocks before hw fini so that we can shutdown the blocks safely */
-		r = adev->ip_blocks[i].funcs->set_clockgating_state(adev,
-								    AMDGPU_CG_STATE_UNGATE);
+		r = adev->ip_blocks[i].funcs->set_clockgating_state((void *)adev,
+								    AMD_CG_STATE_UNGATE);
 		if (r)
 			return r;
-		r = adev->ip_blocks[i].funcs->hw_fini(adev);
+		r = adev->ip_blocks[i].funcs->hw_fini((void *)adev);
 		/* XXX handle errors */
 	}
 
 	for (i = adev->num_ip_blocks - 1; i >= 0; i--) {
 		if (!adev->ip_block_enabled[i])
 			continue;
-		r = adev->ip_blocks[i].funcs->sw_fini(adev);
+		r = adev->ip_blocks[i].funcs->sw_fini((void *)adev);
 		/* XXX handle errors */
 		adev->ip_block_enabled[i] = false;
 	}
@@ -1314,8 +1314,8 @@ static int amdgpu_suspend(struct amdgpu_device *adev)
 		if (!adev->ip_block_enabled[i])
 			continue;
 		/* ungate blocks so that suspend can properly shut them down */
-		r = adev->ip_blocks[i].funcs->set_clockgating_state(adev,
-								    AMDGPU_CG_STATE_UNGATE);
+		r = adev->ip_blocks[i].funcs->set_clockgating_state((void *)adev,
+								    AMD_CG_STATE_UNGATE);
 		/* XXX handle errors */
 		r = adev->ip_blocks[i].funcs->suspend(adev);
 		/* XXX handle errors */

@@ -44,6 +44,7 @@
 
 #include <drm/drm_gem.h>
 
+#include "amd_shared.h"
 #include "amdgpu_family.h"
 #include "amdgpu_mode.h"
 #include "amdgpu_ih.h"
@@ -205,86 +206,28 @@ enum amdgpu_thermal_irq {
 	AMDGPU_THERMAL_IRQ_LAST
 };
 
-/*
- * IP block functions
- */
-enum amdgpu_ip_block_type {
-	AMDGPU_IP_BLOCK_TYPE_COMMON,
-	AMDGPU_IP_BLOCK_TYPE_GMC,
-	AMDGPU_IP_BLOCK_TYPE_IH,
-	AMDGPU_IP_BLOCK_TYPE_SMC,
-	AMDGPU_IP_BLOCK_TYPE_DCE,
-	AMDGPU_IP_BLOCK_TYPE_GFX,
-	AMDGPU_IP_BLOCK_TYPE_SDMA,
-	AMDGPU_IP_BLOCK_TYPE_UVD,
-	AMDGPU_IP_BLOCK_TYPE_VCE,
-};
-
-enum amdgpu_clockgating_state {
-	AMDGPU_CG_STATE_GATE = 0,
-	AMDGPU_CG_STATE_UNGATE,
-};
-
-enum amdgpu_powergating_state {
-	AMDGPU_PG_STATE_GATE = 0,
-	AMDGPU_PG_STATE_UNGATE,
-};
-
-struct amdgpu_ip_funcs {
-	/* sets up early driver state (pre sw_init), does not configure hw - Optional */
-	int (*early_init)(struct amdgpu_device *adev);
-	/* sets up late driver/hw state (post hw_init) - Optional */
-	int (*late_init)(struct amdgpu_device *adev);
-	/* sets up driver state, does not configure hw */
-	int (*sw_init)(struct amdgpu_device *adev);
-	/* tears down driver state, does not configure hw */
-	int (*sw_fini)(struct amdgpu_device *adev);
-	/* sets up the hw state */
-	int (*hw_init)(struct amdgpu_device *adev);
-	/* tears down the hw state */
-	int (*hw_fini)(struct amdgpu_device *adev);
-	/* handles IP specific hw/sw changes for suspend */
-	int (*suspend)(struct amdgpu_device *adev);
-	/* handles IP specific hw/sw changes for resume */
-	int (*resume)(struct amdgpu_device *adev);
-	/* returns current IP block idle status */
-	bool (*is_idle)(struct amdgpu_device *adev);
-	/* poll for idle */
-	int (*wait_for_idle)(struct amdgpu_device *adev);
-	/* soft reset the IP block */
-	int (*soft_reset)(struct amdgpu_device *adev);
-	/* dump the IP block status registers */
-	void (*print_status)(struct amdgpu_device *adev);
-	/* enable/disable cg for the IP block */
-	int (*set_clockgating_state)(struct amdgpu_device *adev,
-				     enum amdgpu_clockgating_state state);
-	/* enable/disable pg for the IP block */
-	int (*set_powergating_state)(struct amdgpu_device *adev,
-				     enum amdgpu_powergating_state state);
-};
-
 int amdgpu_set_clockgating_state(struct amdgpu_device *adev,
-				  enum amdgpu_ip_block_type block_type,
-				  enum amdgpu_clockgating_state state);
+				  enum amd_ip_block_type block_type,
+				  enum amd_clockgating_state state);
 int amdgpu_set_powergating_state(struct amdgpu_device *adev,
-				  enum amdgpu_ip_block_type block_type,
-				  enum amdgpu_powergating_state state);
+				  enum amd_ip_block_type block_type,
+				  enum amd_powergating_state state);
 
 struct amdgpu_ip_block_version {
-	enum amdgpu_ip_block_type type;
+	enum amd_ip_block_type type;
 	u32 major;
 	u32 minor;
 	u32 rev;
-	const struct amdgpu_ip_funcs *funcs;
+	const struct amd_ip_funcs *funcs;
 };
 
 int amdgpu_ip_block_version_cmp(struct amdgpu_device *adev,
-				enum amdgpu_ip_block_type type,
+				enum amd_ip_block_type type,
 				u32 major, u32 minor);
 
 const struct amdgpu_ip_block_version * amdgpu_get_ip_block(
 					struct amdgpu_device *adev,
-					enum amdgpu_ip_block_type type);
+					enum amd_ip_block_type type);
 
 /* provided by hw blocks that can move/clear data.  e.g., gfx or sdma */
 struct amdgpu_buffer_funcs {

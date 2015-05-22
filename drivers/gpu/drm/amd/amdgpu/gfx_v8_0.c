@@ -784,10 +784,11 @@ static int gfx_v8_0_mec_init(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int gfx_v8_0_sw_init(struct amdgpu_device *adev)
+static int gfx_v8_0_sw_init(void *handle)
 {
 	int i, r;
 	struct amdgpu_ring *ring;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	/* EOP Event */
 	r = amdgpu_irq_add_id(adev, 181, &adev->gfx.eop_irq);
@@ -897,9 +898,10 @@ static int gfx_v8_0_sw_init(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int gfx_v8_0_sw_fini(struct amdgpu_device *adev)
+static int gfx_v8_0_sw_fini(void *handle)
 {
 	int i;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	amdgpu_bo_unref(&adev->gds.oa_gfx_bo);
 	amdgpu_bo_unref(&adev->gds.gws_gfx_bo);
@@ -3148,9 +3150,10 @@ static void gfx_v8_0_cp_enable(struct amdgpu_device *adev, bool enable)
 	gfx_v8_0_cp_compute_enable(adev, enable);
 }
 
-static int gfx_v8_0_hw_init(struct amdgpu_device *adev)
+static int gfx_v8_0_hw_init(void *handle)
 {
 	int r;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	gfx_v8_0_init_golden_registers(adev);
 
@@ -3167,8 +3170,10 @@ static int gfx_v8_0_hw_init(struct amdgpu_device *adev)
 	return r;
 }
 
-static int gfx_v8_0_hw_fini(struct amdgpu_device *adev)
+static int gfx_v8_0_hw_fini(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
 	gfx_v8_0_cp_enable(adev, false);
 	gfx_v8_0_rlc_stop(adev);
 	gfx_v8_0_cp_compute_fini(adev);
@@ -3176,28 +3181,35 @@ static int gfx_v8_0_hw_fini(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int gfx_v8_0_suspend(struct amdgpu_device *adev)
+static int gfx_v8_0_suspend(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
 	return gfx_v8_0_hw_fini(adev);
 }
 
-static int gfx_v8_0_resume(struct amdgpu_device *adev)
+static int gfx_v8_0_resume(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
 	return gfx_v8_0_hw_init(adev);
 }
 
-static bool gfx_v8_0_is_idle(struct amdgpu_device *adev)
+static bool gfx_v8_0_is_idle(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
 	if (REG_GET_FIELD(RREG32(mmGRBM_STATUS), GRBM_STATUS, GUI_ACTIVE))
 		return false;
 	else
 		return true;
 }
 
-static int gfx_v8_0_wait_for_idle(struct amdgpu_device *adev)
+static int gfx_v8_0_wait_for_idle(void *handle)
 {
 	unsigned i;
 	u32 tmp;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	for (i = 0; i < adev->usec_timeout; i++) {
 		/* read MC_STATUS */
@@ -3210,9 +3222,10 @@ static int gfx_v8_0_wait_for_idle(struct amdgpu_device *adev)
 	return -ETIMEDOUT;
 }
 
-static void gfx_v8_0_print_status(struct amdgpu_device *adev)
+static void gfx_v8_0_print_status(void *handle)
 {
 	int i;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	dev_info(adev->dev, "GFX 8.x registers\n");
 	dev_info(adev->dev, "  GRBM_STATUS=0x%08X\n",
@@ -3398,10 +3411,11 @@ static void gfx_v8_0_print_status(struct amdgpu_device *adev)
 	mutex_unlock(&adev->srbm_mutex);
 }
 
-static int gfx_v8_0_soft_reset(struct amdgpu_device *adev)
+static int gfx_v8_0_soft_reset(void *handle)
 {
 	u32 grbm_soft_reset = 0, srbm_soft_reset = 0;
 	u32 tmp;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	/* GRBM_STATUS */
 	tmp = RREG32(mmGRBM_STATUS);
@@ -3437,7 +3451,7 @@ static int gfx_v8_0_soft_reset(struct amdgpu_device *adev)
 						SRBM_SOFT_RESET, SOFT_RESET_GRBM, 1);
 
 	if (grbm_soft_reset || srbm_soft_reset) {
-		gfx_v8_0_print_status(adev);
+		gfx_v8_0_print_status((void *)adev);
 		/* stop the rlc */
 		gfx_v8_0_rlc_stop(adev);
 
@@ -3476,7 +3490,7 @@ static int gfx_v8_0_soft_reset(struct amdgpu_device *adev)
 		}
 		/* Wait a little for things to settle down */
 		udelay(50);
-		gfx_v8_0_print_status(adev);
+		gfx_v8_0_print_status((void *)adev);
 	}
 	return 0;
 }
@@ -3549,8 +3563,9 @@ static void gfx_v8_0_ring_emit_gds_switch(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, (1 << (oa_size + oa_base)) - (1 << oa_base));
 }
 
-static int gfx_v8_0_early_init(struct amdgpu_device *adev)
+static int gfx_v8_0_early_init(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	adev->gfx.num_gfx_rings = GFX8_NUM_GFX_RINGS;
 	adev->gfx.num_compute_rings = GFX8_NUM_COMPUTE_RINGS;
@@ -3561,14 +3576,14 @@ static int gfx_v8_0_early_init(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int gfx_v8_0_set_powergating_state(struct amdgpu_device *adev,
-					  enum amdgpu_powergating_state state)
+static int gfx_v8_0_set_powergating_state(void *handle,
+					  enum amd_powergating_state state)
 {
 	return 0;
 }
 
-static int gfx_v8_0_set_clockgating_state(struct amdgpu_device *adev,
-					  enum amdgpu_clockgating_state state)
+static int gfx_v8_0_set_clockgating_state(void *handle,
+					  enum amd_clockgating_state state)
 {
 	return 0;
 }
@@ -4116,7 +4131,7 @@ static int gfx_v8_0_priv_inst_irq(struct amdgpu_device *adev,
 	return 0;
 }
 
-const struct amdgpu_ip_funcs gfx_v8_0_ip_funcs = {
+const struct amd_ip_funcs gfx_v8_0_ip_funcs = {
 	.early_init = gfx_v8_0_early_init,
 	.late_init = NULL,
 	.sw_init = gfx_v8_0_sw_init,
