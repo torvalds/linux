@@ -52,7 +52,7 @@
 
 	aliases {
 		serial0 = &uart0;
-		serial1 = &uart2;
+		serial1 = &uart4;
 		serial2 = &uart7;
 	};
 
@@ -250,9 +250,9 @@
 	status = "okay";
 };
 
-&uart2 {
+&uart4 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart2_pins_a>;
+	pinctrl-0 = <&uart4_pins_b>;
 	status = "okay";
 };
 
