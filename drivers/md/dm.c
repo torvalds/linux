@@ -990,57 +990,6 @@ static void clone_endio(struct bio *bio, int error)
 	dec_pending(io, error);
 }
 
-/*
- * Partial completion handling for request-based dm
- */
-static void end_clone_bio(struct bio *clone, int error)
-{
-	struct dm_rq_clone_bio_info *info =
-		container_of(clone, struct dm_rq_clone_bio_info, clone);
-	struct dm_rq_target_io *tio = info->tio;
-	struct bio *bio = info->orig;
-	unsigned int nr_bytes = info->orig->bi_iter.bi_size;
-
-	bio_put(clone);
-
-	if (tio->error)
-		/*
-		 * An error has already been detected on the request.
-		 * Once error occurred, just let clone->end_io() handle
-		 * the remainder.
-		 */
-		return;
-	else if (error) {
-		/*
-		 * Don't notice the error to the upper layer yet.
-		 * The error handling decision is made by the target driver,
-		 * when the request is completed.
-		 */
-		tio->error = error;
-		return;
-	}
-
-	/*
-	 * I/O for the bio successfully completed.
-	 * Notice the data completion to the upper layer.
-	 */
-
-	/*
-	 * bios are processed from the head of the list.
-	 * So the completing bio should always be rq->bio.
-	 * If it's not, something wrong is happening.
-	 */
-	if (tio->orig->bio != bio)
-		DMERR("bio completion is going in the middle of the request");
-
-	/*
-	 * Update the original request.
-	 * Do not use blk_end_request() here, because it may complete
-	 * the original request before the clone, and break the ordering.
-	 */
-	blk_update_request(tio->orig, 0, nr_bytes);
-}
-
 static struct dm_rq_target_io *tio_from_request(struct request *rq)
 {
 	return (rq->q->mq_ops ? blk_mq_rq_to_pdu(rq) : rq->special);
@@ -1088,8 +1037,6 @@ static void free_rq_clone(struct request *clone, bool must_be_mapped)
 	struct mapped_device *md = tio->md;
 
 	WARN_ON_ONCE(must_be_mapped && !clone->q);
-
-	blk_rq_unprep_clone(clone);
 
 	if (md->type == DM_TYPE_MQ_REQUEST_BASED)
 		/* stacked on blk-mq queue(s) */
@@ -1821,39 +1768,13 @@ static void dm_dispatch_clone_request(struct request *clone, struct request *rq)
 		dm_complete_request(rq, r);
 }
 
-static int dm_rq_bio_constructor(struct bio *bio, struct bio *bio_orig,
-				 void *data)
+static void setup_clone(struct request *clone, struct request *rq,
+		        struct dm_rq_target_io *tio)
 {
-	struct dm_rq_target_io *tio = data;
-	struct dm_rq_clone_bio_info *info =
-		container_of(bio, struct dm_rq_clone_bio_info, clone);
-
-	info->orig = bio_orig;
-	info->tio = tio;
-	bio->bi_end_io = end_clone_bio;
-
-	return 0;
-}
-
-static int setup_clone(struct request *clone, struct request *rq,
-		       struct dm_rq_target_io *tio, gfp_t gfp_mask)
-{
-	int r;
-
-	r = blk_rq_prep_clone(clone, rq, tio->md->bs, gfp_mask,
-			      dm_rq_bio_constructor, tio);
-	if (r)
-		return r;
-
-	clone->cmd = rq->cmd;
-	clone->cmd_len = rq->cmd_len;
-	clone->sense = rq->sense;
+	blk_rq_prep_clone(clone, rq);
 	clone->end_io = end_clone_request;
 	clone->end_io_data = tio;
-
 	tio->clone = clone;
-
-	return 0;
 }
 
 static struct request *clone_rq(struct request *rq, struct mapped_device *md,
@@ -1874,12 +1795,7 @@ static struct request *clone_rq(struct request *rq, struct mapped_device *md,
 		clone = tio->clone;
 
 	blk_rq_init(NULL, clone);
-	if (setup_clone(clone, rq, tio, gfp_mask)) {
-		/* -ENOMEM */
-		if (alloc_clone)
-			free_clone_request(md, clone);
-		return NULL;
-	}
+	setup_clone(clone, rq, tio);
 
 	return clone;
 }
@@ -1973,11 +1889,7 @@ static int map_request(struct dm_rq_target_io *tio, struct request *rq,
 		}
 		if (IS_ERR(clone))
 			return DM_MAPIO_REQUEUE;
-		if (setup_clone(clone, rq, tio, GFP_ATOMIC)) {
-			/* -ENOMEM */
-			ti->type->release_clone_rq(clone);
-			return DM_MAPIO_REQUEUE;
-		}
+		setup_clone(clone, rq, tio);
 	}
 
 	switch (r) {
@@ -2430,8 +2342,6 @@ static void __bind_mempools(struct mapped_device *md, struct dm_table *t)
 		 */
 		goto out;
 	}
-
-	BUG_ON(!p || md->io_pool || md->rq_pool || md->bs);
 
 	md->io_pool = p->io_pool;
 	p->io_pool = NULL;
@@ -3536,48 +3446,23 @@ int dm_noflush_suspending(struct dm_target *ti)
 }
 EXPORT_SYMBOL_GPL(dm_noflush_suspending);
 
-struct dm_md_mempools *dm_alloc_md_mempools(struct mapped_device *md, unsigned type,
-					    unsigned integrity, unsigned per_bio_data_size)
+struct dm_md_mempools *dm_alloc_bio_mempools(unsigned integrity,
+					     unsigned per_bio_data_size)
 {
-	struct dm_md_mempools *pools = kzalloc(sizeof(*pools), GFP_KERNEL);
-	struct kmem_cache *cachep = NULL;
-	unsigned int pool_size = 0;
+	struct dm_md_mempools *pools;
+	unsigned int pool_size = dm_get_reserved_bio_based_ios();
 	unsigned int front_pad;
 
+	pools = kzalloc(sizeof(*pools), GFP_KERNEL);
 	if (!pools)
 		return NULL;
 
-	type = filter_md_type(type, md);
+	front_pad = roundup(per_bio_data_size, __alignof__(struct dm_target_io)) +
+		offsetof(struct dm_target_io, clone);
 
-	switch (type) {
-	case DM_TYPE_BIO_BASED:
-		cachep = _io_cache;
-		pool_size = dm_get_reserved_bio_based_ios();
-		front_pad = roundup(per_bio_data_size, __alignof__(struct dm_target_io)) + offsetof(struct dm_target_io, clone);
-		break;
-	case DM_TYPE_REQUEST_BASED:
-		cachep = _rq_tio_cache;
-		pool_size = dm_get_reserved_rq_based_ios();
-		pools->rq_pool = mempool_create_slab_pool(pool_size, _rq_cache);
-		if (!pools->rq_pool)
-			goto out;
-		/* fall through to setup remaining rq-based pools */
-	case DM_TYPE_MQ_REQUEST_BASED:
-		if (!pool_size)
-			pool_size = dm_get_reserved_rq_based_ios();
-		front_pad = offsetof(struct dm_rq_clone_bio_info, clone);
-		/* per_bio_data_size is not used. See __bind_mempools(). */
-		WARN_ON(per_bio_data_size != 0);
-		break;
-	default:
-		BUG();
-	}
-
-	if (cachep) {
-		pools->io_pool = mempool_create_slab_pool(pool_size, cachep);
-		if (!pools->io_pool)
-			goto out;
-	}
+	pools->io_pool = mempool_create_slab_pool(pool_size, _io_cache);
+	if (!pools->io_pool)
+		goto out;
 
 	pools->bs = bioset_create_nobvec(pool_size, front_pad);
 	if (!pools->bs)
@@ -3587,10 +3472,34 @@ struct dm_md_mempools *dm_alloc_md_mempools(struct mapped_device *md, unsigned t
 		goto out;
 
 	return pools;
-
 out:
 	dm_free_md_mempools(pools);
+	return NULL;
+}
 
+struct dm_md_mempools *dm_alloc_rq_mempools(struct mapped_device *md,
+					    unsigned type)
+{
+	unsigned int pool_size = dm_get_reserved_rq_based_ios();
+	struct dm_md_mempools *pools;
+
+	pools = kzalloc(sizeof(*pools), GFP_KERNEL);
+	if (!pools)
+		return NULL;
+
+	if (filter_md_type(type, md) == DM_TYPE_REQUEST_BASED) {
+		pools->rq_pool = mempool_create_slab_pool(pool_size, _rq_cache);
+		if (!pools->rq_pool)
+			goto out;
+	}
+
+	pools->io_pool = mempool_create_slab_pool(pool_size, _rq_tio_cache);
+	if (!pools->io_pool)
+		goto out;
+
+	return pools;
+out:
+	dm_free_md_mempools(pools);
 	return NULL;
 }
 
