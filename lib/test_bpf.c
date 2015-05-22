@@ -263,6 +263,57 @@ static int bpf_fill_maxinsns8(struct bpf_test *self)
 	return 0;
 }
 
+static int bpf_fill_maxinsns9(struct bpf_test *self)
+{
+	unsigned int len = BPF_MAXINSNS;
+	struct bpf_insn *insn;
+	int i;
+
+	insn = kmalloc_array(len, sizeof(*insn), GFP_KERNEL);
+	if (!insn)
+		return -ENOMEM;
+
+	insn[0] = BPF_JMP_IMM(BPF_JA, 0, 0, len - 2);
+	insn[1] = BPF_ALU32_IMM(BPF_MOV, R0, 0xcbababab);
+	insn[2] = BPF_EXIT_INSN();
+
+	for (i = 3; i < len - 2; i++)
+		insn[i] = BPF_ALU32_IMM(BPF_MOV, R0, 0xfefefefe);
+
+	insn[len - 2] = BPF_EXIT_INSN();
+	insn[len - 1] = BPF_JMP_IMM(BPF_JA, 0, 0, -(len - 1));
+
+	self->u.ptr.insns = insn;
+	self->u.ptr.len = len;
+
+	return 0;
+}
+
+static int bpf_fill_maxinsns10(struct bpf_test *self)
+{
+	unsigned int len = BPF_MAXINSNS, hlen = len - 2;
+	struct bpf_insn *insn;
+	int i;
+
+	insn = kmalloc_array(len, sizeof(*insn), GFP_KERNEL);
+	if (!insn)
+		return -ENOMEM;
+
+	for (i = 0; i < hlen / 2; i++)
+		insn[i] = BPF_JMP_IMM(BPF_JA, 0, 0, hlen - 2 - 2 * i);
+	for (i = hlen - 1; i > hlen / 2; i--)
+		insn[i] = BPF_JMP_IMM(BPF_JA, 0, 0, hlen - 1 - 2 * i);
+
+	insn[hlen / 2] = BPF_JMP_IMM(BPF_JA, 0, 0, hlen / 2 - 1);
+	insn[hlen]     = BPF_ALU32_IMM(BPF_MOV, R0, 0xabababac);
+	insn[hlen + 1] = BPF_EXIT_INSN();
+
+	self->u.ptr.insns = insn;
+	self->u.ptr.len = len;
+
+	return 0;
+}
+
 static struct bpf_test tests[] = {
 	{
 		"TAX",
@@ -4267,6 +4318,22 @@ static struct bpf_test tests[] = {
 		{ },
 		{ { 0, 0xffffffff } },
 		.fill_helper = bpf_fill_maxinsns8,
+	},
+	{	/* Mainly checking JIT here. */
+		"BPF_MAXINSNS: Very long jump backwards",
+		{ },
+		INTERNAL | FLAG_NO_DATA,
+		{ },
+		{ { 0, 0xcbababab } },
+		.fill_helper = bpf_fill_maxinsns9,
+	},
+	{	/* Mainly checking JIT here. */
+		"BPF_MAXINSNS: Edge hopping nuthouse",
+		{ },
+		INTERNAL | FLAG_NO_DATA,
+		{ },
+		{ { 0, 0xabababac } },
+		.fill_helper = bpf_fill_maxinsns10,
 	},
 };
 
