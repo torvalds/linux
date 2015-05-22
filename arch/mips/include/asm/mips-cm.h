@@ -11,6 +11,7 @@
 #ifndef __MIPS_ASM_MIPS_CM_H__
 #define __MIPS_ASM_MIPS_CM_H__
 
+#include <linux/errno.h>
 #include <linux/io.h>
 #include <linux/types.h>
 
