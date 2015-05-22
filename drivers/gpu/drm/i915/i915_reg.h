@@ -50,12 +50,17 @@
 
 /* PCI config space */
 
-#define HPLLCC	0xc0 /* 855 only */
-#define   GC_CLOCK_CONTROL_MASK		(0xf << 0)
+#define HPLLCC	0xc0 /* 85x only */
+#define   GC_CLOCK_CONTROL_MASK		(0x7 << 0)
 #define   GC_CLOCK_133_200		(0 << 0)
 #define   GC_CLOCK_100_200		(1 << 0)
 #define   GC_CLOCK_100_133		(2 << 0)
-#define   GC_CLOCK_166_250		(3 << 0)
+#define   GC_CLOCK_133_266		(3 << 0)
+#define   GC_CLOCK_133_200_2		(4 << 0)
+#define   GC_CLOCK_133_266_2		(5 << 0)
+#define   GC_CLOCK_166_266		(6 << 0)
+#define   GC_CLOCK_166_250		(7 << 0)
+
 #define GCFGC2	0xda
 #define GCFGC	0xf0 /* 915+ only */
 #define   GC_LOW_FREQUENCY_ENABLE	(1 << 7)

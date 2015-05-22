@@ -6822,20 +6822,29 @@ static int i865_get_display_clock_speed(struct drm_device *dev)
 	return 266667;
 }
 
-static int i855_get_display_clock_speed(struct drm_device *dev)
+static int i85x_get_display_clock_speed(struct drm_device *dev)
 {
 	u16 hpllcc = 0;
+
+	pci_bus_read_config_word(dev->pdev->bus,
+				 PCI_DEVFN(0, 3), HPLLCC, &hpllcc);
+
 	/* Assume that the hardware is in the high speed state.  This
 	 * should be the default.
 	 */
 	switch (hpllcc & GC_CLOCK_CONTROL_MASK) {
 	case GC_CLOCK_133_200:
+	case GC_CLOCK_133_200_2:
 	case GC_CLOCK_100_200:
 		return 200000;
 	case GC_CLOCK_166_250:
 		return 250000;
 	case GC_CLOCK_100_133:
 		return 133333;
+	case GC_CLOCK_133_266:
+	case GC_CLOCK_133_266_2:
+	case GC_CLOCK_166_266:
+		return 266667;
 	}
 
 	/* Shouldn't happen */
@@ -14399,8 +14408,8 @@ static void intel_init_display(struct drm_device *dev)
 			i865_get_display_clock_speed;
 	else if (IS_I85X(dev))
 		dev_priv->display.get_display_clock_speed =
-			i855_get_display_clock_speed;
-	else /* 852, 830 */
+			i85x_get_display_clock_speed;
+	else /* 830 */
 		dev_priv->display.get_display_clock_speed =
 			i830_get_display_clock_speed;
 
