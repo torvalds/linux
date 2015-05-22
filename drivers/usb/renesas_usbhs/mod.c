@@ -223,6 +223,8 @@ static int usbhs_status_get_each_irq(struct usbhs_priv *priv,
 	if (usbhs_mod_is_host(priv)) {
 		state->intsts1 = usbhs_read(priv, INTSTS1);
 		intenb1 = usbhs_read(priv, INTENB1);
+	} else {
+		state->intsts1 = intenb1 = 0;
 	}
 
 	/* mask */
