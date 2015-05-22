@@ -11,10 +11,9 @@
 #include <linux/kernel.h>
 #include <linux/fs.h>
 #include <linux/sched.h>
+#include <linux/blkdev.h>
 #include <linux/writeback.h>
 #include <linux/backing-dev-defs.h>
-
-struct backing_dev_info *inode_to_bdi(struct inode *inode);
 
 int __must_check bdi_init(struct backing_dev_info *bdi);
 void bdi_destroy(struct backing_dev_info *bdi);
@@ -148,6 +147,21 @@ int bdi_set_max_ratio(struct backing_dev_info *bdi, unsigned int max_ratio);
 extern struct backing_dev_info noop_backing_dev_info;
 
 int writeback_in_progress(struct backing_dev_info *bdi);
+
+static inline struct backing_dev_info *inode_to_bdi(struct inode *inode)
+{
+	struct super_block *sb;
+
+	if (!inode)
+		return &noop_backing_dev_info;
+
+	sb = inode->i_sb;
+#ifdef CONFIG_BLOCK
+	if (sb_is_blkdev_sb(sb))
+		return blk_get_backing_dev_info(I_BDEV(inode));
+#endif
+	return sb->s_bdi;
+}
 
 static inline int bdi_congested(struct backing_dev_info *bdi, int bdi_bits)
 {
