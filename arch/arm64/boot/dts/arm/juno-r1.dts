@@ -1,7 +1,7 @@
 /*
  * ARM Ltd. Juno Platform
  *
- * Copyright (c) 2013-2014 ARM Ltd.
+ * Copyright (c) 2015 ARM Ltd.
  *
  * This file is licensed under a dual GPLv2 or BSD license.
  */
@@ -11,8 +11,8 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
 / {
-	model = "ARM Juno development board (r0)";
-	compatible = "arm,juno", "arm,vexpress";
+	model = "ARM Juno development board (r1)";
+	compatible = "arm,juno-r1", "arm,juno", "arm,vexpress";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
 	#size-cells = <2>;
@@ -108,4 +108,9 @@
 	};
 
 	#include "juno-base.dtsi"
+
+};
+
+&memtimer {
+	status = "okay";
 };
