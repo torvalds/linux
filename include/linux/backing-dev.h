@@ -134,12 +134,15 @@ int bdi_set_max_ratio(struct backing_dev_info *bdi, unsigned int max_ratio);
  * BDI_CAP_NO_WRITEBACK:   Don't write pages back
  * BDI_CAP_NO_ACCT_WB:     Don't automatically account writeback pages
  * BDI_CAP_STRICTLIMIT:    Keep number of dirty pages below bdi threshold.
+ *
+ * BDI_CAP_CGROUP_WRITEBACK: Supports cgroup-aware writeback.
  */
 #define BDI_CAP_NO_ACCT_DIRTY	0x00000001
 #define BDI_CAP_NO_WRITEBACK	0x00000002
 #define BDI_CAP_NO_ACCT_WB	0x00000004
 #define BDI_CAP_STABLE_WRITES	0x00000008
 #define BDI_CAP_STRICTLIMIT	0x00000010
+#define BDI_CAP_CGROUP_WRITEBACK 0x00000020
 
 #define BDI_CAP_NO_ACCT_AND_WRITEBACK \
 	(BDI_CAP_NO_WRITEBACK | BDI_CAP_NO_ACCT_DIRTY | BDI_CAP_NO_ACCT_WB)
@@ -229,4 +232,31 @@ static inline int bdi_sched_wait(void *word)
 	return 0;
 }
 
-#endif		/* _LINUX_BACKING_DEV_H */
+#ifdef CONFIG_CGROUP_WRITEBACK
+
+/**
+ * inode_cgwb_enabled - test whether cgroup writeback is enabled on an inode
+ * @inode: inode of interest
+ *
+ * cgroup writeback requires support from both the bdi and filesystem.
+ * Test whether @inode has both.
+ */
+static inline bool inode_cgwb_enabled(struct inode *inode)
+{
+	struct backing_dev_info *bdi = inode_to_bdi(inode);
+
+	return bdi_cap_account_dirty(bdi) &&
+		(bdi->capabilities & BDI_CAP_CGROUP_WRITEBACK) &&
+		(inode->i_sb->s_type->fs_flags & FS_CGROUP_WRITEBACK);
+}
+
+#else	/* CONFIG_CGROUP_WRITEBACK */
+
+static inline bool inode_cgwb_enabled(struct inode *inode)
+{
+	return false;
+}
+
+#endif	/* CONFIG_CGROUP_WRITEBACK */
+
+#endif	/* _LINUX_BACKING_DEV_H */
