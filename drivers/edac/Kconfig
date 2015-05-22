@@ -393,4 +393,11 @@ config EDAC_SYNOPSYS
 	  Support for error detection and correction on the Synopsys DDR
 	  memory controller.
 
+config EDAC_XGENE
+	tristate "APM X-Gene SoC"
+	depends on EDAC_MM_EDAC && (ARM64 || COMPILE_TEST)
+	help
+	  Support for error detection and correction on the
+	  APM X-Gene family of SOCs.
+
 endif # EDAC
