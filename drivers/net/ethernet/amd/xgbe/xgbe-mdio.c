@@ -185,8 +185,8 @@ static void xgbe_serdes_complete_ratechange(struct xgbe_prv_data *pdata)
 			goto rx_reset;
 	}
 
-	netdev_dbg(pdata->netdev, "SerDes rx/tx not ready (%#hx)\n",
-		   status);
+	netif_dbg(pdata, link, pdata->netdev, "SerDes rx/tx not ready (%#hx)\n",
+		  status);
 
 rx_reset:
 	/* Perform Rx reset for the DFE changes */
@@ -238,6 +238,8 @@ static void xgbe_xgmii_mode(struct xgbe_prv_data *pdata)
 		      pdata->serdes_dfe_tap_ena[XGBE_SPEED_10000]);
 
 	xgbe_serdes_complete_ratechange(pdata);
+
+	netif_dbg(pdata, link, pdata->netdev, "10GbE KR mode set\n");
 }
 
 static void xgbe_gmii_2500_mode(struct xgbe_prv_data *pdata)
@@ -284,6 +286,8 @@ static void xgbe_gmii_2500_mode(struct xgbe_prv_data *pdata)
 		      pdata->serdes_dfe_tap_ena[XGBE_SPEED_2500]);
 
 	xgbe_serdes_complete_ratechange(pdata);
+
+	netif_dbg(pdata, link, pdata->netdev, "2.5GbE KX mode set\n");
 }
 
 static void xgbe_gmii_mode(struct xgbe_prv_data *pdata)
@@ -330,6 +334,8 @@ static void xgbe_gmii_mode(struct xgbe_prv_data *pdata)
 		      pdata->serdes_dfe_tap_ena[XGBE_SPEED_1000]);
 
 	xgbe_serdes_complete_ratechange(pdata);
+
+	netif_dbg(pdata, link, pdata->netdev, "1GbE KX mode set\n");
 }
 
 static void xgbe_cur_mode(struct xgbe_prv_data *pdata,
@@ -434,11 +440,15 @@ static void xgbe_set_an(struct xgbe_prv_data *pdata, bool enable, bool restart)
 static void xgbe_restart_an(struct xgbe_prv_data *pdata)
 {
 	xgbe_set_an(pdata, true, true);
+
+	netif_dbg(pdata, link, pdata->netdev, "AN enabled/restarted\n");
 }
 
 static void xgbe_disable_an(struct xgbe_prv_data *pdata)
 {
 	xgbe_set_an(pdata, false, false);
+
+	netif_dbg(pdata, link, pdata->netdev, "AN disabled\n");
 }
 
 static enum xgbe_an xgbe_an_tx_training(struct xgbe_prv_data *pdata,
@@ -473,6 +483,9 @@ static enum xgbe_an xgbe_an_tx_training(struct xgbe_prv_data *pdata,
 			    reg);
 
 		XSIR0_IOWRITE_BITS(pdata, SIR0_KR_RT_1, RESET, 0);
+
+		netif_dbg(pdata, link, pdata->netdev,
+			  "KR training initiated\n");
 	}
 
 	return XGBE_AN_PAGE_RECEIVED;
@@ -551,6 +564,9 @@ static enum xgbe_an xgbe_an_page_received(struct xgbe_prv_data *pdata)
 			pdata->kx_state = XGBE_RX_BPA;
 
 			pdata->an_start = jiffies;
+
+			netif_dbg(pdata, link, pdata->netdev,
+				  "AN timed out, resetting state\n");
 		}
 	}
 
@@ -608,6 +624,8 @@ static irqreturn_t xgbe_an_isr(int irq, void *data)
 {
 	struct xgbe_prv_data *pdata = (struct xgbe_prv_data *)data;
 
+	netif_dbg(pdata, intr, pdata->netdev, "AN interrupt received\n");
+
 	/* Interrupt reason must be read and cleared outside of IRQ context */
 	disable_irq_nosync(pdata->an_irq);
 
@@ -627,6 +645,26 @@ static void xgbe_an_irq_work(struct work_struct *work)
 	 */
 	flush_work(&pdata->an_work);
 	queue_work(pdata->an_workqueue, &pdata->an_work);
+}
+
+static const char *xgbe_state_as_string(enum xgbe_an state)
+{
+	switch (state) {
+	case XGBE_AN_READY:
+		return "Ready";
+	case XGBE_AN_PAGE_RECEIVED:
+		return "Page-Received";
+	case XGBE_AN_INCOMPAT_LINK:
+		return "Incompatible-Link";
+	case XGBE_AN_COMPLETE:
+		return "Complete";
+	case XGBE_AN_NO_LINK:
+		return "No-Link";
+	case XGBE_AN_ERROR:
+		return "Error";
+	default:
+		return "Undefined";
+	}
 }
 
 static void xgbe_an_state_machine(struct work_struct *work)
@@ -666,6 +704,9 @@ next_int:
 	pdata->an_result = pdata->an_state;
 
 again:
+	netif_dbg(pdata, link, pdata->netdev, "AN %s\n",
+		  xgbe_state_as_string(pdata->an_state));
+
 	cur_state = pdata->an_state;
 
 	switch (pdata->an_state) {
@@ -686,9 +727,9 @@ again:
 
 	case XGBE_AN_COMPLETE:
 		pdata->parallel_detect = pdata->an_supported ? 0 : 1;
-		netdev_dbg(pdata->netdev, "%s successful\n",
-			   pdata->an_supported ? "Auto negotiation"
-					       : "Parallel detection");
+		netif_dbg(pdata, link, pdata->netdev, "%s successful\n",
+			  pdata->an_supported ? "Auto negotiation"
+					      : "Parallel detection");
 		break;
 
 	case XGBE_AN_NO_LINK:
@@ -716,6 +757,9 @@ again:
 		pdata->kr_state = XGBE_RX_BPA;
 		pdata->kx_state = XGBE_RX_BPA;
 		pdata->an_start = 0;
+
+		netif_dbg(pdata, link, pdata->netdev, "AN result: %s\n",
+			  xgbe_state_as_string(pdata->an_result));
 	}
 
 	if (cur_state != pdata->an_state)
@@ -774,6 +818,8 @@ static void xgbe_an_init(struct xgbe_prv_data *pdata)
 	reg &= ~XGBE_XNP_NP_EXCHANGE;
 
 	XMDIO_WRITE(pdata, MDIO_MMD_AN, MDIO_AN_ADVERTISE, reg);
+
+	netif_dbg(pdata, link, pdata->netdev, "AN initialized\n");
 }
 
 static const char *xgbe_phy_fc_string(struct xgbe_prv_data *pdata)
@@ -858,6 +904,8 @@ static void xgbe_phy_adjust_link(struct xgbe_prv_data *pdata)
 
 static int xgbe_phy_config_fixed(struct xgbe_prv_data *pdata)
 {
+	netif_dbg(pdata, link, pdata->netdev, "fixed PHY configuration\n");
+
 	/* Disable auto-negotiation */
 	xgbe_disable_an(pdata);
 
@@ -890,6 +938,8 @@ static int __xgbe_phy_config_aneg(struct xgbe_prv_data *pdata)
 
 	if (pdata->phy.autoneg != AUTONEG_ENABLE)
 		return xgbe_phy_config_fixed(pdata);
+
+	netif_dbg(pdata, link, pdata->netdev, "AN PHY configuration\n");
 
 	/* Disable auto-negotiation interrupt */
 	disable_irq(pdata->an_irq);
@@ -955,8 +1005,10 @@ static void xgbe_check_link_timeout(struct xgbe_prv_data *pdata)
 	unsigned long link_timeout;
 
 	link_timeout = pdata->link_check + (XGBE_LINK_TIMEOUT * HZ);
-	if (time_after(jiffies, link_timeout))
+	if (time_after(jiffies, link_timeout)) {
+		netif_dbg(pdata, link, pdata->netdev, "AN link timeout\n");
 		xgbe_phy_config_aneg(pdata);
+	}
 }
 
 static void xgbe_phy_status_force(struct xgbe_prv_data *pdata)
@@ -1116,6 +1168,8 @@ adjust_link:
 
 static void xgbe_phy_stop(struct xgbe_prv_data *pdata)
 {
+	netif_dbg(pdata, link, pdata->netdev, "stopping PHY\n");
+
 	/* Disable auto-negotiation */
 	xgbe_disable_an(pdata);
 
@@ -1135,6 +1189,8 @@ static int xgbe_phy_start(struct xgbe_prv_data *pdata)
 {
 	struct net_device *netdev = pdata->netdev;
 	int ret;
+
+	netif_dbg(pdata, link, pdata->netdev, "starting PHY\n");
 
 	ret = devm_request_irq(pdata->dev, pdata->an_irq,
 			       xgbe_an_isr, 0, pdata->an_name,
