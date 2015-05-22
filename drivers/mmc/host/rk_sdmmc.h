@@ -77,50 +77,6 @@ u32   addr;
 char    *name;
 };
 
-static struct sdmmc_reg dw_mci_regs[] =
-{
-  { 0x0000, "CTRL" },
-  { 0x0004, "PWREN" },
-  { 0x0008, "CLKDIV" },
-  { 0x000C, "CLKSRC" },
-  { 0x0010, "CLKENA" },
-  { 0x0014, "TMOUT" },
-  { 0x0018, "CTYPE" },
-  { 0x001C, "BLKSIZ" },
-  { 0x0020, "BYTCNT" },
-  { 0x0024, "INTMASK" },
-  { 0x0028, "CMDARG" },
-  { 0x002C, "CMD" },
-  { 0x0030, "RESP0" },
-  { 0x0034, "RESP1" },
-  { 0x0038, "RESP2" },
-  { 0x003C, "RESP3" },
-  { 0x0040, "MINSTS" },
-  { 0x0044, "RINTSTS" },
-  { 0x0048, "STATUS" },
-  { 0x004C, "FIFOTH" },
-  { 0x0050, "CDETECT" },
-  { 0x0054, "WRTPRT" },
-  { 0x0058, "GPIO" },
-  { 0x005C, "TCBCNT" },
-  { 0x0060, "TBBCNT" },
-  { 0x0064, "DEBNCE" },
-  { 0x0068, "USRID" },
-  { 0x006C, "VERID" },
-  { 0x0070, "HCON" },
-  { 0x0074, "UHS_REG" },
-  { 0x0078, "RST_n" },
-  { 0x0080, "BMOD" },
-  { 0x0084, "PLDMND" },
-  { 0x0088, "DBADDR" },
-  { 0x008C, "IDSTS" },
-  { 0x0090, "IDINTEN" },
-  { 0x0094, "DSCADDR" },
-  { 0x0098, "BUFADDR" },
-  { 0x0100, "CARDTHRCTL" },
-  { 0x0104, "BackEndPwr" },
-  { 0, 0 }
-};
 
 /* Control register defines */
 #define SDMMC_CTRL_USE_IDMAC		BIT(25)
