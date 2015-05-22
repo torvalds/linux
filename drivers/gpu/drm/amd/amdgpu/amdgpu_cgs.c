@@ -24,6 +24,7 @@
 #include <linux/pci.h>
 #include "amdgpu.h"
 #include "cgs_linux.h"
+#include "atom.h"
 
 struct amdgpu_cgs_device {
 	struct cgs_device base;
@@ -221,24 +222,39 @@ static const void *amdgpu_cgs_atom_get_data_table(void *cgs_device,
 						  unsigned table, uint16_t *size,
 						  uint8_t *frev, uint8_t *crev)
 {
-	/* TODO */
+	CGS_FUNC_ADEV;
+	uint16_t data_start;
+
+	if (amdgpu_atom_parse_data_header(
+		    adev->mode_info.atom_context, table, size,
+		    frev, crev, &data_start))
+		return (uint8_t*)adev->mode_info.atom_context->bios +
+			data_start;
+
 	return NULL;
 }
 
 static int amdgpu_cgs_atom_get_cmd_table_revs(void *cgs_device, unsigned table,
 					      uint8_t *frev, uint8_t *crev)
 {
-	/* TODO */
-	return 0;
+	CGS_FUNC_ADEV;
+
+	if (amdgpu_atom_parse_cmd_header(
+		    adev->mode_info.atom_context, table,
+		    frev, crev))
+		return 0;
+
+	return -EINVAL;
 }
 
 static int amdgpu_cgs_atom_exec_cmd_table(void *cgs_device, unsigned table,
 					  void *args)
 {
-	/* TODO */
-	return 0;
-}
+	CGS_FUNC_ADEV;
 
+	return amdgpu_atom_execute_table(
+		adev->mode_info.atom_context, table, args);
+}
 
 static int amdgpu_cgs_create_pm_request(void *cgs_device, cgs_handle_t *request)
 {
