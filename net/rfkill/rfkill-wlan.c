@@ -733,7 +733,7 @@ static int wlan_platdata_parse_dt(struct device *dev,
     data->grf = syscon_regmap_lookup_by_phandle(node, "rockchip,grf");
     if (IS_ERR(data->grf)) {
             LOG("can't find rockchip,grf property\n");
-            return -1;
+            //return -1;
     }
 #endif
 
