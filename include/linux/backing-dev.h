@@ -29,7 +29,6 @@ void bdi_start_writeback(struct backing_dev_info *bdi, long nr_pages,
 			enum wb_reason reason);
 void bdi_start_background_writeback(struct backing_dev_info *bdi);
 void wb_workfn(struct work_struct *work);
-bool bdi_has_dirty_io(struct backing_dev_info *bdi);
 void wb_wakeup_delayed(struct bdi_writeback *wb);
 
 extern spinlock_t bdi_lock;
@@ -40,6 +39,15 @@ extern struct workqueue_struct *bdi_wq;
 static inline bool wb_has_dirty_io(struct bdi_writeback *wb)
 {
 	return test_bit(WB_has_dirty_io, &wb->state);
+}
+
+static inline bool bdi_has_dirty_io(struct backing_dev_info *bdi)
+{
+	/*
+	 * @bdi->tot_write_bandwidth is guaranteed to be > 0 if there are
+	 * any dirty wbs.  See wb_update_write_bandwidth().
+	 */
+	return atomic_long_read(&bdi->tot_write_bandwidth);
 }
 
 static inline void __add_wb_stat(struct bdi_writeback *wb,

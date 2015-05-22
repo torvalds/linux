@@ -256,11 +256,6 @@ static int __init default_bdi_init(void)
 }
 subsys_initcall(default_bdi_init);
 
-bool bdi_has_dirty_io(struct backing_dev_info *bdi)
-{
-	return wb_has_dirty_io(&bdi->wb);
-}
-
 /*
  * This function is used when the first inode for this wb is marked dirty. It
  * wakes-up the corresponding bdi thread which should then take care of the

@@ -99,6 +99,7 @@ static bool wb_io_lists_populated(struct bdi_writeback *wb)
 		return false;
 	} else {
 		set_bit(WB_has_dirty_io, &wb->state);
+		WARN_ON_ONCE(!wb->avg_write_bandwidth);
 		atomic_long_add(wb->avg_write_bandwidth,
 				&wb->bdi->tot_write_bandwidth);
 		return true;
@@ -110,8 +111,8 @@ static void wb_io_lists_depopulated(struct bdi_writeback *wb)
 	if (wb_has_dirty_io(wb) && list_empty(&wb->b_dirty) &&
 	    list_empty(&wb->b_io) && list_empty(&wb->b_more_io)) {
 		clear_bit(WB_has_dirty_io, &wb->state);
-		atomic_long_sub(wb->avg_write_bandwidth,
-				&wb->bdi->tot_write_bandwidth);
+		WARN_ON_ONCE(atomic_long_sub_return(wb->avg_write_bandwidth,
+					&wb->bdi->tot_write_bandwidth) < 0);
 	}
 }
 

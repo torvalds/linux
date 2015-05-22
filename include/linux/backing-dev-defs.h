@@ -98,7 +98,7 @@ struct bdi_writeback {
 	unsigned long dirtied_stamp;
 	unsigned long written_stamp;	/* pages written at bw_time_stamp */
 	unsigned long write_bandwidth;	/* the estimated write bandwidth */
-	unsigned long avg_write_bandwidth; /* further smoothed write bw */
+	unsigned long avg_write_bandwidth; /* further smoothed write bw, > 0 */
 
 	/*
 	 * The base dirty throttle rate, re-calculated on every 200ms.
@@ -142,7 +142,11 @@ struct backing_dev_info {
 	unsigned int min_ratio;
 	unsigned int max_ratio, max_prop_frac;
 
-	atomic_long_t tot_write_bandwidth; /* sum of active avg_write_bw */
+	/*
+	 * Sum of avg_write_bw of wbs with dirty inodes.  > 0 if there are
+	 * any dirty wbs, which is depended upon by bdi_has_dirty().
+	 */
+	atomic_long_t tot_write_bandwidth;
 
 	struct bdi_writeback wb;  /* the root writeback info for this bdi */
 	struct bdi_writeback_congested wb_congested; /* its congested state */
