@@ -3846,6 +3846,49 @@ lpfc_handle_fcp_err(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 }
 
 /**
+ * lpfc_sli4_scmd_to_wqidx_distr - scsi command to SLI4 WQ index distribution
+ * @phba: Pointer to HBA context object.
+ *
+ * This routine performs a roundrobin SCSI command to SLI4 FCP WQ index
+ * distribution.  This is called by __lpfc_sli_issue_iocb_s4() with the hbalock
+ * held.
+ * If scsi-mq is enabled, get the default block layer mapping of software queues
+ * to hardware queues. This information is saved in request tag.
+ *
+ * Return: index into SLI4 fast-path FCP queue index.
+ **/
+int lpfc_sli4_scmd_to_wqidx_distr(struct lpfc_hba *phba,
+				  struct lpfc_scsi_buf *lpfc_cmd)
+{
+	struct scsi_cmnd *cmnd = lpfc_cmd->pCmd;
+	struct lpfc_vector_map_info *cpup;
+	int chann, cpu;
+	uint32_t tag;
+	uint16_t hwq;
+
+	if (shost_use_blk_mq(cmnd->device->host)) {
+		tag = blk_mq_unique_tag(cmnd->request);
+		hwq = blk_mq_unique_tag_to_hwq(tag);
+
+		return hwq;
+	}
+
+	if (phba->cfg_fcp_io_sched == LPFC_FCP_SCHED_BY_CPU
+	    && phba->cfg_fcp_io_channel > 1) {
+		cpu = smp_processor_id();
+		if (cpu < phba->sli4_hba.num_present_cpu) {
+			cpup = phba->sli4_hba.cpu_map;
+			cpup += cpu;
+			return cpup->channel_id;
+		}
+	}
+	chann = atomic_add_return(1, &phba->fcp_qidx);
+	chann = (chann % phba->cfg_fcp_io_channel);
+	return chann;
+}
+
+
+/**
  * lpfc_scsi_cmd_iocb_cmpl - Scsi cmnd IOCB completion routine
  * @phba: The Hba for which this call is being executed.
  * @pIocbIn: The command IOCBQ for the scsi cmnd.
