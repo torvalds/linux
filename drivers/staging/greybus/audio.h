@@ -7,9 +7,8 @@
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <sound/soc.h>
-#include "greybus.h"
-#include "gpbridge.h"
 
+#include "greybus.h"
 
 #define GB_SAMPLE_RATE				48000
 #define GB_RATES				SNDRV_PCM_RATE_48000

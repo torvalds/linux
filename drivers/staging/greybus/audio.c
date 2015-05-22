@@ -10,8 +10,8 @@
 #include <sound/soc.h>
 #include <sound/dmaengine_pcm.h>
 #include <sound/simple_card.h>
+
 #include "greybus.h"
-#include "gpbridge.h"
 #include "audio.h"
 
 

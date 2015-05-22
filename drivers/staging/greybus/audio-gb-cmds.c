@@ -1,6 +1,6 @@
 #include <linux/kernel.h>
+
 #include "greybus.h"
-#include "gpbridge.h"
 #include "audio.h"
 
 #define GB_I2S_MGMT_VERSION_MAJOR		0x00
