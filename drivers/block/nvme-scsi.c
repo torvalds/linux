@@ -1053,7 +1053,7 @@ static int nvme_trans_log_info_exceptions(struct nvme_ns *ns,
 	c.common.prp1 = cpu_to_le64(dma_addr);
 	c.common.cdw10[0] = cpu_to_le32((((sizeof(struct nvme_smart_log) /
 			BYTES_TO_DWORDS) - 1) << 16) | NVME_LOG_SMART);
-	res = nvme_submit_admin_cmd(dev, &c, NULL);
+	res = nvme_submit_sync_cmd(dev->admin_q, &c);
 	if (res != NVME_SC_SUCCESS) {
 		temp_c = LOG_TEMP_UNKNOWN;
 	} else {
@@ -1121,7 +1121,7 @@ static int nvme_trans_log_temperature(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 	c.common.prp1 = cpu_to_le64(dma_addr);
 	c.common.cdw10[0] = cpu_to_le32((((sizeof(struct nvme_smart_log) /
 			BYTES_TO_DWORDS) - 1) << 16) | NVME_LOG_SMART);
-	res = nvme_submit_admin_cmd(dev, &c, NULL);
+	res = nvme_submit_sync_cmd(dev->admin_q, &c);
 	if (res != NVME_SC_SUCCESS) {
 		temp_c_cur = LOG_TEMP_UNKNOWN;
 	} else {
@@ -1609,7 +1609,7 @@ static int nvme_trans_send_fw_cmd(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 		c.common.cdw10[0] = cpu_to_le32(cdw10);
 	}
 
-	nvme_sc = nvme_submit_admin_cmd(dev, &c, NULL);
+	nvme_sc = nvme_submit_sync_cmd(dev->admin_q, &c);
 	res = nvme_trans_status_code(hdr, nvme_sc);
 	if (res)
 		goto out_unmap;
@@ -1971,7 +1971,7 @@ static int nvme_trans_fmt_send_cmd(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 	c.format.nsid = cpu_to_le32(ns->ns_id);
 	c.format.cdw10 = cpu_to_le32(cdw10);
 
-	nvme_sc = nvme_submit_admin_cmd(dev, &c, NULL);
+	nvme_sc = nvme_submit_sync_cmd(dev->admin_q, &c);
 	res = nvme_trans_status_code(hdr, nvme_sc);
 	if (res)
 		goto out_dma;
@@ -2139,7 +2139,7 @@ static int nvme_trans_do_nvme_io(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 
 		nvme_offset += unit_num_blocks;
 
-		nvme_sc = nvme_submit_io_cmd(dev, ns, &c, NULL);
+		nvme_sc = nvme_submit_sync_cmd(ns->queue, &c);
 		if (nvme_sc != NVME_SC_SUCCESS) {
 			nvme_unmap_user_pages(dev,
 				(is_write) ? DMA_TO_DEVICE : DMA_FROM_DEVICE,
@@ -2696,7 +2696,7 @@ static int nvme_trans_start_stop(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 			c.common.opcode = nvme_cmd_flush;
 			c.common.nsid = cpu_to_le32(ns->ns_id);
 
-			nvme_sc = nvme_submit_io_cmd(ns->dev, ns, &c, NULL);
+			nvme_sc = nvme_submit_sync_cmd(ns->queue, &c);
 			res = nvme_trans_status_code(hdr, nvme_sc);
 			if (res)
 				goto out;
@@ -2724,8 +2724,7 @@ static int nvme_trans_synchronize_cache(struct nvme_ns *ns,
 	c.common.opcode = nvme_cmd_flush;
 	c.common.nsid = cpu_to_le32(ns->ns_id);
 
-	nvme_sc = nvme_submit_io_cmd(ns->dev, ns, &c, NULL);
-
+	nvme_sc = nvme_submit_sync_cmd(ns->queue, &c);
 	res = nvme_trans_status_code(hdr, nvme_sc);
 	if (res)
 		goto out;
@@ -2932,7 +2931,7 @@ static int nvme_trans_unmap(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 	c.dsm.nr = cpu_to_le32(ndesc - 1);
 	c.dsm.attributes = cpu_to_le32(NVME_DSMGMT_AD);
 
-	nvme_sc = nvme_submit_io_cmd(dev, ns, &c, NULL);
+	nvme_sc = nvme_submit_sync_cmd(ns->queue, &c);
 	res = nvme_trans_status_code(hdr, nvme_sc);
 
 	dma_free_coherent(&dev->pci_dev->dev, ndesc * sizeof(*range),

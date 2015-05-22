@@ -158,11 +158,7 @@ struct nvme_iod *nvme_map_user_pages(struct nvme_dev *dev, int write,
 				unsigned long addr, unsigned length);
 void nvme_unmap_user_pages(struct nvme_dev *dev, int write,
 			struct nvme_iod *iod);
-int nvme_submit_io_cmd(struct nvme_dev *, struct nvme_ns *,
-						struct nvme_command *, u32 *);
-int nvme_submit_flush_data(struct nvme_queue *nvmeq, struct nvme_ns *ns);
-int nvme_submit_admin_cmd(struct nvme_dev *, struct nvme_command *,
-							u32 *result);
+int nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd);
 int nvme_identify(struct nvme_dev *, unsigned nsid, unsigned cns,
 							dma_addr_t dma_addr);
 int nvme_get_features(struct nvme_dev *dev, unsigned fid, unsigned nsid,
