@@ -999,14 +999,14 @@ static int nvme_trans_fill_mode_parm_hdr(u8 *resp, int len, u8 cdb10, u8 llbaa,
 	if (cdb10) {
 		resp[0] = (mode_data_length & 0xFF00) >> 8;
 		resp[1] = (mode_data_length & 0x00FF);
-		/* resp[2] and [3] are zero */
+		resp[3] = 0x10 /* DPOFUA */;
 		resp[4] = llbaa;
 		resp[5] = RESERVED_FIELD;
 		resp[6] = (blk_desc_len & 0xFF00) >> 8;
 		resp[7] = (blk_desc_len & 0x00FF);
 	} else {
 		resp[0] = (mode_data_length & 0x00FF);
-		/* resp[1] and [2] are zero */
+		resp[2] = 0x10 /* DPOFUA */;
 		resp[3] = (blk_desc_len & 0x00FF);
 	}
 
