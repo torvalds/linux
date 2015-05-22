@@ -2130,7 +2130,6 @@ static void intel_put_excl_constraints(struct cpu_hw_events *cpuc,
 	struct intel_excl_cntrs *excl_cntrs = cpuc->excl_cntrs;
 	int tid = cpuc->excl_thread_id;
 	struct intel_excl_states *xl;
-	unsigned long flags = 0; /* keep compiler happy */
 
 	/*
 	 * nothing needed if in group validation mode
@@ -2141,7 +2140,6 @@ static void intel_put_excl_constraints(struct cpu_hw_events *cpuc,
 	if (WARN_ON_ONCE(!excl_cntrs))
 		return;
 
-	xl = &excl_cntrs->states[tid];
 	if (hwc->flags & PERF_X86_EVENT_EXCL_ACCT) {
 		hwc->flags &= ~PERF_X86_EVENT_EXCL_ACCT;
 		if (!--cpuc->n_excl)
@@ -2149,22 +2147,25 @@ static void intel_put_excl_constraints(struct cpu_hw_events *cpuc,
 	}
 
 	/*
-	 * put_constraint may be called from x86_schedule_events()
-	 * which already has the lock held so here make locking
-	 * conditional
+	 * If event was actually assigned, then mark the counter state as
+	 * unused now.
 	 */
-	if (!xl->sched_started)
-		raw_spin_lock_irqsave(&excl_cntrs->lock, flags);
+	if (hwc->idx >= 0) {
+		xl = &excl_cntrs->states[tid];
 
-	/*
-	 * if event was actually assigned, then mark the
-	 * counter state as unused now
-	 */
-	if (hwc->idx >= 0)
+		/*
+		 * put_constraint may be called from x86_schedule_events()
+		 * which already has the lock held so here make locking
+		 * conditional.
+		 */
+		if (!xl->sched_started)
+			raw_spin_lock(&excl_cntrs->lock);
+
 		xl->state[hwc->idx] = INTEL_EXCL_UNUSED;
 
-	if (!xl->sched_started)
-		raw_spin_unlock_irqrestore(&excl_cntrs->lock, flags);
+		if (!xl->sched_started)
+			raw_spin_unlock(&excl_cntrs->lock);
+	}
 }
 
 static void
