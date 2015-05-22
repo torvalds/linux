@@ -124,29 +124,7 @@ EXPORT_SYMBOL(laptop_mode);
 
 unsigned long global_dirty_limit;
 
-/*
- * Scale the writeback cache size proportional to the relative writeout speeds.
- *
- * We do this by keeping a floating proportion between BDIs, based on page
- * writeback completions [end_page_writeback()]. Those devices that write out
- * pages fastest will get the larger share, while the slower will get a smaller
- * share.
- *
- * We use page writeout completions because we are interested in getting rid of
- * dirty pages. Having them written out is the primary goal.
- *
- * We introduce a concept of time, a period over which we measure these events,
- * because demand can/will vary over time. The length of this period itself is
- * measured in page writeback completions.
- *
- */
-static struct fprop_global writeout_completions;
-
-static void writeout_period(unsigned long t);
-/* Timer for aging of writeout_completions */
-static struct timer_list writeout_period_timer =
-		TIMER_DEFERRED_INITIALIZER(writeout_period, 0, 0);
-static unsigned long writeout_period_time = 0;
+static struct wb_domain global_wb_domain;
 
 /*
  * Length of period for aging writeout fractions of bdis. This is an
@@ -433,24 +411,26 @@ static unsigned long wp_next_time(unsigned long cur_time)
 }
 
 /*
- * Increment the BDI's writeout completion count and the global writeout
+ * Increment the wb's writeout completion count and the global writeout
  * completion count. Called from test_clear_page_writeback().
  */
 static inline void __wb_writeout_inc(struct bdi_writeback *wb)
 {
+	struct wb_domain *dom = &global_wb_domain;
+
 	__inc_wb_stat(wb, WB_WRITTEN);
-	__fprop_inc_percpu_max(&writeout_completions, &wb->completions,
+	__fprop_inc_percpu_max(&dom->completions, &wb->completions,
 			       wb->bdi->max_prop_frac);
 	/* First event after period switching was turned off? */
-	if (!unlikely(writeout_period_time)) {
+	if (!unlikely(dom->period_time)) {
 		/*
 		 * We can race with other __bdi_writeout_inc calls here but
 		 * it does not cause any harm since the resulting time when
 		 * timer will fire and what is in writeout_period_time will be
 		 * roughly the same.
 		 */
-		writeout_period_time = wp_next_time(jiffies);
-		mod_timer(&writeout_period_timer, writeout_period_time);
+		dom->period_time = wp_next_time(jiffies);
+		mod_timer(&dom->period_timer, dom->period_time);
 	}
 }
 
@@ -465,35 +445,35 @@ void wb_writeout_inc(struct bdi_writeback *wb)
 EXPORT_SYMBOL_GPL(wb_writeout_inc);
 
 /*
- * Obtain an accurate fraction of the BDI's portion.
- */
-static void wb_writeout_fraction(struct bdi_writeback *wb,
-				 long *numerator, long *denominator)
-{
-	fprop_fraction_percpu(&writeout_completions, &wb->completions,
-				numerator, denominator);
-}
-
-/*
  * On idle system, we can be called long after we scheduled because we use
  * deferred timers so count with missed periods.
  */
 static void writeout_period(unsigned long t)
 {
-	int miss_periods = (jiffies - writeout_period_time) /
+	struct wb_domain *dom = (void *)t;
+	int miss_periods = (jiffies - dom->period_time) /
 						 VM_COMPLETIONS_PERIOD_LEN;
 
-	if (fprop_new_period(&writeout_completions, miss_periods + 1)) {
-		writeout_period_time = wp_next_time(writeout_period_time +
+	if (fprop_new_period(&dom->completions, miss_periods + 1)) {
+		dom->period_time = wp_next_time(dom->period_time +
 				miss_periods * VM_COMPLETIONS_PERIOD_LEN);
-		mod_timer(&writeout_period_timer, writeout_period_time);
+		mod_timer(&dom->period_timer, dom->period_time);
 	} else {
 		/*
 		 * Aging has zeroed all fractions. Stop wasting CPU on period
 		 * updates.
 		 */
-		writeout_period_time = 0;
+		dom->period_time = 0;
 	}
+}
+
+int wb_domain_init(struct wb_domain *dom, gfp_t gfp)
+{
+	memset(dom, 0, sizeof(*dom));
+	init_timer_deferrable(&dom->period_timer);
+	dom->period_timer.function = writeout_period;
+	dom->period_timer.data = (unsigned long)dom;
+	return fprop_global_init(&dom->completions, gfp);
 }
 
 /*
@@ -579,6 +559,7 @@ static unsigned long hard_dirty_limit(unsigned long thresh)
  */
 unsigned long wb_calc_thresh(struct bdi_writeback *wb, unsigned long thresh)
 {
+	struct wb_domain *dom = &global_wb_domain;
 	u64 wb_thresh;
 	long numerator, denominator;
 	unsigned long wb_min_ratio, wb_max_ratio;
@@ -586,7 +567,8 @@ unsigned long wb_calc_thresh(struct bdi_writeback *wb, unsigned long thresh)
 	/*
 	 * Calculate this BDI's share of the thresh ratio.
 	 */
-	wb_writeout_fraction(wb, &numerator, &denominator);
+	fprop_fraction_percpu(&dom->completions, &wb->completions,
+			      &numerator, &denominator);
 
 	wb_thresh = (thresh * (100 - bdi_min_ratio)) / 100;
 	wb_thresh *= numerator;
@@ -1831,7 +1813,7 @@ void __init page_writeback_init(void)
 	writeback_set_ratelimit();
 	register_cpu_notifier(&ratelimit_nb);
 
-	fprop_global_init(&writeout_completions, GFP_KERNEL);
+	BUG_ON(wb_domain_init(&global_wb_domain, GFP_KERNEL));
 }
 
 /**

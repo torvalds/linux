@@ -7,6 +7,7 @@
 #include <linux/sched.h>
 #include <linux/workqueue.h>
 #include <linux/fs.h>
+#include <linux/flex_proportions.h>
 
 DECLARE_PER_CPU(int, dirty_throttle_leaks);
 
@@ -87,6 +88,36 @@ struct writeback_control {
 };
 
 /*
+ * A wb_domain represents a domain that wb's (bdi_writeback's) belong to
+ * and are measured against each other in.  There always is one global
+ * domain, global_wb_domain, that every wb in the system is a member of.
+ * This allows measuring the relative bandwidth of each wb to distribute
+ * dirtyable memory accordingly.
+ */
+struct wb_domain {
+	/*
+	 * Scale the writeback cache size proportional to the relative
+	 * writeout speed.
+	 *
+	 * We do this by keeping a floating proportion between BDIs, based
+	 * on page writeback completions [end_page_writeback()]. Those
+	 * devices that write out pages fastest will get the larger share,
+	 * while the slower will get a smaller share.
+	 *
+	 * We use page writeout completions because we are interested in
+	 * getting rid of dirty pages. Having them written out is the
+	 * primary goal.
+	 *
+	 * We introduce a concept of time, a period over which we measure
+	 * these events, because demand can/will vary over time. The length
+	 * of this period itself is measured in page writeback completions.
+	 */
+	struct fprop_global completions;
+	struct timer_list period_timer;	/* timer for aging of completions */
+	unsigned long period_time;
+};
+
+/*
  * fs/fs-writeback.c
  */	
 struct bdi_writeback;
@@ -120,6 +151,7 @@ static inline void laptop_sync_completion(void) { }
 #endif
 void throttle_vm_writeout(gfp_t gfp_mask);
 bool zone_dirty_ok(struct zone *zone);
+int wb_domain_init(struct wb_domain *dom, gfp_t gfp);
 
 extern unsigned long global_dirty_limit;
 
