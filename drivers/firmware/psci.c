@@ -78,6 +78,7 @@ static int psci_to_linux_errno(int errno)
 	case PSCI_RET_NOT_SUPPORTED:
 		return -EOPNOTSUPP;
 	case PSCI_RET_INVALID_PARAMS:
+	case PSCI_RET_INVALID_ADDRESS:
 		return -EINVAL;
 	case PSCI_RET_DENIED:
 		return -EPERM;
