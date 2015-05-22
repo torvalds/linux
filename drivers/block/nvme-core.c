@@ -606,13 +606,16 @@ static void req_completion(struct nvme_queue *nvmeq, void *ctx,
 			return;
 		}
 		if (req->cmd_type == REQ_TYPE_DRV_PRIV) {
-			req->sense_len = le32_to_cpup(&cqe->result);
 			req->errors = status;
 		} else {
 			req->errors = nvme_error_status(status);
 		}
 	} else
 		req->errors = 0;
+	if (req->cmd_type == REQ_TYPE_DRV_PRIV) {
+		u32 result = le32_to_cpup(&cqe->result);
+		req->special = (void *)(uintptr_t)result;
+	}
 
 	if (cmd_rq->aborted)
 		dev_warn(nvmeq->dev->dev,
@@ -1015,8 +1018,7 @@ int __nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
 
 	req->cmd = (unsigned char *)cmd;
 	req->cmd_len = sizeof(struct nvme_command);
-	req->sense = NULL;
-	req->sense_len = 0;
+	req->special = (void *)0;
 
 	if (buffer && bufflen) {
 		ret = blk_rq_map_kern(q, req, buffer, bufflen, __GFP_WAIT);
@@ -1033,7 +1035,7 @@ int __nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
 	if (bio)
 		blk_rq_unmap_user(bio);
 	if (result)
-		*result = req->sense_len;
+		*result = (u32)(uintptr_t)req->special;
 	ret = req->errors;
  out:
 	blk_mq_free_request(req);
