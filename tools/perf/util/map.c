@@ -688,9 +688,10 @@ move_map:
 int map_groups__clone(struct map_groups *mg,
 		      struct map_groups *parent, enum map_type type)
 {
-	struct rb_node *nd;
-	for (nd = rb_first(&parent->maps[type]); nd; nd = rb_next(nd)) {
-		struct map *map = rb_entry(nd, struct map, rb_node);
+	struct map *map;
+	struct rb_root *maps = &parent->maps[type];
+
+	for (map = maps__first(maps); map; map = map__next(map)) {
 		struct map *new = map__clone(map);
 		if (new == NULL)
 			return -ENOMEM;

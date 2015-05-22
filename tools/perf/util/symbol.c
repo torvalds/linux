@@ -202,18 +202,16 @@ void symbols__fixup_end(struct rb_root *symbols)
 
 void __map_groups__fixup_end(struct map_groups *mg, enum map_type type)
 {
-	struct map *prev, *curr;
-	struct rb_node *nd, *prevnd = rb_first(&mg->maps[type]);
+	struct rb_root *maps = &mg->maps[type];
+	struct map *next, *curr;
 
-	if (prevnd == NULL)
+	curr = maps__first(maps);
+	if (curr == NULL)
 		return;
 
-	curr = rb_entry(prevnd, struct map, rb_node);
-
-	for (nd = rb_next(prevnd); nd; nd = rb_next(nd)) {
-		prev = curr;
-		curr = rb_entry(nd, struct map, rb_node);
-		prev->end = curr->start;
+	for (next = map__next(curr); next; next = map__next(curr)) {
+		curr->end = next->start;
+		curr = next;
 	}
 
 	/*
@@ -1522,11 +1520,10 @@ out:
 struct map *map_groups__find_by_name(struct map_groups *mg,
 				     enum map_type type, const char *name)
 {
-	struct rb_node *nd;
+	struct rb_root *maps = &mg->maps[type];
+	struct map *map;
 
-	for (nd = rb_first(&mg->maps[type]); nd; nd = rb_next(nd)) {
-		struct map *map = rb_entry(nd, struct map, rb_node);
-
+	for (map = maps__first(maps); map; map = map__next(map)) {
 		if (map->dso && strcmp(map->dso->short_name, name) == 0)
 			return map;
 	}
