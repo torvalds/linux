@@ -551,6 +551,8 @@ static int ap_probe(struct usb_interface *interface,
 	bool bulk_out_found = false;
 	int retval = -ENOMEM;
 	int i;
+	u16 endo_id = 0x4755;	// FIXME - get endo "ID" from the SVC
+	u8 ap_intf_id = 0x01;	// FIXME - get endo "ID" from the SVC
 	u8 svc_interval = 0;
 
 	udev = usb_get_dev(interface_to_usbdev(interface));
@@ -658,6 +660,17 @@ static int ap_probe(struct usb_interface *interface,
 							(S_IWUSR | S_IRUGO),
 							gb_debugfs_get(), es1,
 							&apb1_log_enable_fops);
+
+	/*
+	 * XXX Soon this will be initiated later, with a combination
+	 * XXX of a Control protocol probe operation and a
+	 * XXX subsequent Control protocol connected operation for
+	 * XXX the SVC connection.  At that point we know we're
+	 * XXX properly connected to an Endo.
+	 */
+	retval = greybus_endo_setup(hd, endo_id, ap_intf_id);
+	if (retval)
+		goto error;
 
 	return 0;
 error:

@@ -108,6 +108,8 @@ struct greybus_host_device {
 struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *hd,
 					      struct device *parent,
 					      size_t buffer_size_max);
+int greybus_endo_setup(struct greybus_host_device *hd, u16 endo_id,
+			u8 ap_intf_id);
 void greybus_remove_hd(struct greybus_host_device *hd);
 
 struct greybus_driver {
