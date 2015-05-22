@@ -39,6 +39,7 @@
 #include <linux/slab.h>
 #include <asm/uaccess.h>
 #include <linux/fiemap.h>
+#include <linux/backing-dev.h>
 #include "ext4_jbd2.h"
 #include "ext4_extents.h"
 #include "xattr.h"

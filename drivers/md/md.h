@@ -16,6 +16,7 @@
 #define _MD_MD_H
 
 #include <linux/blkdev.h>
+#include <linux/backing-dev.h>
 #include <linux/kobject.h>
 #include <linux/list.h>
 #include <linux/mm.h>

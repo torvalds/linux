@@ -80,6 +80,7 @@
 #include <linux/stat.h>
 #include <linux/string.h>
 #include <linux/blkdev.h>
+#include <linux/backing-dev.h>
 #include <linux/init.h>
 #include <linux/parser.h>
 #include <linux/buffer_head.h>

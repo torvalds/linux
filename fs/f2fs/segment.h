@@ -9,6 +9,7 @@
  * published by the Free Software Foundation.
  */
 #include <linux/blkdev.h>
+#include <linux/backing-dev.h>
 
 /* constant macro */
 #define NULL_SEGNO			((unsigned int)(~0))

@@ -13,6 +13,7 @@
 #include <linux/pagemap.h>
 #include <linux/mempool.h>
 #include <linux/blkdev.h>
+#include <linux/backing-dev.h>
 #include <linux/init.h>
 #include <linux/hash.h>
 #include <linux/highmem.h>
