@@ -134,6 +134,7 @@ struct blkcg_policy {
 };
 
 extern struct blkcg blkcg_root;
+extern struct cgroup_subsys_state * const blkcg_root_css;
 
 struct blkcg_gq *blkg_lookup(struct blkcg *blkcg, struct request_queue *q);
 struct blkcg_gq *blkg_lookup_create(struct blkcg *blkcg,
@@ -569,6 +570,8 @@ struct blkcg_gq {
 
 struct blkcg_policy {
 };
+
+#define blkcg_root_css	((struct cgroup_subsys_state *)ERR_PTR(-EINVAL))
 
 #ifdef CONFIG_BLOCK
 
