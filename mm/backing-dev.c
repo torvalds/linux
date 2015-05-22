@@ -482,6 +482,7 @@ static void cgwb_release_workfn(struct work_struct *work)
 	css_put(wb->blkcg_css);
 	wb_congested_put(wb->congested);
 
+	fprop_local_destroy_percpu(&wb->memcg_completions);
 	percpu_ref_exit(&wb->refcnt);
 	wb_exit(wb);
 	kfree_rcu(wb, rcu);
@@ -548,9 +549,13 @@ static int cgwb_create(struct backing_dev_info *bdi,
 	if (ret)
 		goto err_wb_exit;
 
+	ret = fprop_local_init_percpu(&wb->memcg_completions, gfp);
+	if (ret)
+		goto err_ref_exit;
+
 	wb->congested = wb_congested_get_create(bdi, blkcg_css->id, gfp);
 	if (!wb->congested)
-		goto err_ref_exit;
+		goto err_fprop_exit;
 
 	wb->memcg_css = memcg_css;
 	wb->blkcg_css = blkcg_css;
@@ -587,6 +592,8 @@ static int cgwb_create(struct backing_dev_info *bdi,
 
 err_put_congested:
 	wb_congested_put(wb->congested);
+err_fprop_exit:
+	fprop_local_destroy_percpu(&wb->memcg_completions);
 err_ref_exit:
 	percpu_ref_exit(&wb->refcnt);
 err_wb_exit:

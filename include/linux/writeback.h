@@ -167,6 +167,9 @@ static inline void laptop_sync_completion(void) { }
 void throttle_vm_writeout(gfp_t gfp_mask);
 bool zone_dirty_ok(struct zone *zone);
 int wb_domain_init(struct wb_domain *dom, gfp_t gfp);
+#ifdef CONFIG_CGROUP_WRITEBACK
+void wb_domain_exit(struct wb_domain *dom);
+#endif
 
 extern struct wb_domain global_wb_domain;
 

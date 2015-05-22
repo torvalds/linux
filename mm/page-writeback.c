@@ -171,6 +171,11 @@ static struct dirty_throttle_control *mdtc_gdtc(struct dirty_throttle_control *m
 	return mdtc->gdtc;
 }
 
+static struct fprop_local_percpu *wb_memcg_completions(struct bdi_writeback *wb)
+{
+	return &wb->memcg_completions;
+}
+
 static void wb_min_max_ratio(struct bdi_writeback *wb,
 			     unsigned long *minp, unsigned long *maxp)
 {
@@ -209,6 +214,11 @@ static struct wb_domain *dtc_dom(struct dirty_throttle_control *dtc)
 }
 
 static struct dirty_throttle_control *mdtc_gdtc(struct dirty_throttle_control *mdtc)
+{
+	return NULL;
+}
+
+static struct fprop_local_percpu *wb_memcg_completions(struct bdi_writeback *wb)
 {
 	return NULL;
 }
@@ -530,9 +540,16 @@ static void wb_domain_writeout_inc(struct wb_domain *dom,
  */
 static inline void __wb_writeout_inc(struct bdi_writeback *wb)
 {
+	struct wb_domain *cgdom;
+
 	__inc_wb_stat(wb, WB_WRITTEN);
 	wb_domain_writeout_inc(&global_wb_domain, &wb->completions,
 			       wb->bdi->max_prop_frac);
+
+	cgdom = mem_cgroup_wb_domain(wb);
+	if (cgdom)
+		wb_domain_writeout_inc(cgdom, wb_memcg_completions(wb),
+				       wb->bdi->max_prop_frac);
 }
 
 void wb_writeout_inc(struct bdi_writeback *wb)
@@ -582,6 +599,14 @@ int wb_domain_init(struct wb_domain *dom, gfp_t gfp)
 
 	return fprop_global_init(&dom->completions, gfp);
 }
+
+#ifdef CONFIG_CGROUP_WRITEBACK
+void wb_domain_exit(struct wb_domain *dom)
+{
+	del_timer_sync(&dom->period_timer);
+	fprop_global_destroy(&dom->completions);
+}
+#endif
 
 /*
  * bdi_min_ratio keeps the sum of the minimum dirty shares of all

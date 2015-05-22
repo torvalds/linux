@@ -389,8 +389,18 @@ enum {
 };
 
 #ifdef CONFIG_CGROUP_WRITEBACK
+
 struct list_head *mem_cgroup_cgwb_list(struct mem_cgroup *memcg);
-#endif
+struct wb_domain *mem_cgroup_wb_domain(struct bdi_writeback *wb);
+
+#else	/* CONFIG_CGROUP_WRITEBACK */
+
+static inline struct wb_domain *mem_cgroup_wb_domain(struct bdi_writeback *wb)
+{
+	return NULL;
+}
+
+#endif	/* CONFIG_CGROUP_WRITEBACK */
 
 struct sock;
 #if defined(CONFIG_INET) && defined(CONFIG_MEMCG_KMEM)
