@@ -47,7 +47,7 @@ struct gb_endo {
 /* Greybus "private" definitions */
 struct greybus_host_device;
 
-struct gb_endo *gb_endo_create(struct greybus_host_device *hd);
+struct gb_endo *gb_endo_create(struct greybus_host_device *hd, u16 endo_id);
 void gb_endo_remove(struct gb_endo *endo);
 
 u8 endo_get_module_id(struct gb_endo *endo, u8 interface_id);

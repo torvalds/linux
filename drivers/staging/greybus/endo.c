@@ -423,11 +423,10 @@ static int gb_endo_register(struct greybus_host_device *hd,
 	return retval;
 }
 
-struct gb_endo *gb_endo_create(struct greybus_host_device *hd)
+struct gb_endo *gb_endo_create(struct greybus_host_device *hd, u16 endo_id)
 {
 	struct gb_endo *endo;
 	int retval;
-	u16 endo_id = 0x4755; // FIXME - get endo "ID" from the SVC
 
 	endo = kzalloc(sizeof(*endo), GFP_KERNEL);
 	if (!endo)
