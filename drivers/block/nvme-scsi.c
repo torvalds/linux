@@ -1900,6 +1900,13 @@ static int nvme_trans_io(struct nvme_ns *ns, struct sg_io_hdr *hdr, u8 is_write,
 	default:
 		cdb_info.fua = cmd[1] & 0x8;
 		cdb_info.prot_info = (cmd[1] & 0xe0) >> 5;
+		if (cdb_info.prot_info && !ns->pi_type) {
+			return nvme_trans_completion(hdr,
+					SAM_STAT_CHECK_CONDITION,
+					ILLEGAL_REQUEST,
+					SCSI_ASC_INVALID_CDB,
+					SCSI_ASCQ_CAUSE_NOT_REPORTABLE);
+		}
 	}
 
 	switch (opcode) {
