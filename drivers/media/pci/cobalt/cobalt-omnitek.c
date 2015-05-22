@@ -109,7 +109,7 @@ void omni_sg_dma_start(struct cobalt_stream *s, struct sg_dma_desc_info *desc)
 {
 	struct cobalt *cobalt = s->cobalt;
 
-	iowrite32((u32)(desc->bus >> 32), DESCRIPTOR(s->dma_channel) + 4);
+	iowrite32((u32)((u64)desc->bus >> 32), DESCRIPTOR(s->dma_channel) + 4);
 	iowrite32((u32)desc->bus & NEXT_ADRS_MSK, DESCRIPTOR(s->dma_channel));
 	iowrite32(ENABLE | SCATTER_GATHER_MODE | START, CS_REG(s->dma_channel));
 }
@@ -219,7 +219,7 @@ int descriptor_list_create(struct cobalt *cobalt,
 				offset += d->bytes;
 				addr += d->bytes;
 				next += sizeof(struct sg_dma_descriptor);
-				d->next_h = (u32)(next >> 32);
+				d->next_h = (u32)((u64)next >> 32);
 				d->next_l = (u32)next |
 					(to_pci ? WRITE_TO_PCI : 0);
 				bytes -= d->bytes;
@@ -265,14 +265,14 @@ int descriptor_list_create(struct cobalt *cobalt,
 		next += sizeof(struct sg_dma_descriptor);
 		if (size == 0) {
 			/* Loopback to the first descriptor */
-			d->next_h = (u32)(desc->bus >> 32);
+			d->next_h = (u32)((u64)desc->bus >> 32);
 			d->next_l = (u32)desc->bus |
 				(to_pci ? WRITE_TO_PCI : 0) | INTERRUPT_ENABLE;
 			if (!to_pci)
 				d->local = 0x22222222;
 			desc->last_desc_virt = d;
 		} else {
-			d->next_h = (u32)(next >> 32);
+			d->next_h = (u32)((u64)next >> 32);
 			d->next_l = (u32)next | (to_pci ? WRITE_TO_PCI : 0);
 		}
 		d++;
@@ -290,7 +290,7 @@ void descriptor_list_chain(struct sg_dma_desc_info *this,
 		d->next_h = 0;
 		d->next_l = direction | INTERRUPT_ENABLE | END_OF_CHAIN;
 	} else {
-		d->next_h = (u32)(next->bus >> 32);
+		d->next_h = (u32)((u64)next->bus >> 32);
 		d->next_l = (u32)next->bus | direction | INTERRUPT_ENABLE;
 	}
 }
@@ -329,7 +329,7 @@ void descriptor_list_loopback(struct sg_dma_desc_info *desc)
 {
 	struct sg_dma_descriptor *d = desc->last_desc_virt;
 
-	d->next_h = (u32)(desc->bus >> 32);
+	d->next_h = (u32)((u64)desc->bus >> 32);
 	d->next_l = (u32)desc->bus | (d->next_l & DESCRIPTOR_FLAG_MSK);
 }
 
