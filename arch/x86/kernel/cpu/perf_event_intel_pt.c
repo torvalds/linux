@@ -955,7 +955,6 @@ static void pt_event_stop(struct perf_event *event, int mode)
 	event->hw.state = PERF_HES_STOPPED;
 
 	if (mode & PERF_EF_UPDATE) {
-		struct pt *pt = this_cpu_ptr(&pt_ctx);
 		struct pt_buffer *buf = perf_get_aux(&pt->handle);
 
 		if (!buf)
