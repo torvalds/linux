@@ -1260,9 +1260,12 @@ static void wakeup_dirtytime_writeback(struct work_struct *w)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(bdi, &bdi_list, bdi_list) {
-		if (list_empty(&bdi->wb.b_dirty_time))
-			continue;
-		wb_wakeup(&bdi->wb);
+		struct bdi_writeback *wb;
+		struct wb_iter iter;
+
+		bdi_for_each_wb(wb, bdi, &iter, 0)
+			if (!list_empty(&bdi->wb.b_dirty_time))
+				wb_wakeup(&bdi->wb);
 	}
 	rcu_read_unlock();
 	schedule_delayed_work(&dirtytime_work, dirtytime_expire_interval * HZ);
