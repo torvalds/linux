@@ -1509,12 +1509,14 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 			 struct lpfc_nodelist *ndlp)
 {
 	struct lpfc_vport    *vport = ndlp->vport;
+	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_nodelist *new_ndlp;
 	struct lpfc_rport_data *rdata;
 	struct fc_rport *rport;
 	struct serv_parm *sp;
 	uint8_t  name[sizeof(struct lpfc_name)];
 	uint32_t rc, keepDID = 0, keep_nlp_flag = 0;
+	uint16_t keep_nlp_state;
 	int  put_node;
 	int  put_rport;
 	unsigned long *active_rrqs_xri_bitmap = NULL;
@@ -1603,11 +1605,14 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 		       ndlp->active_rrqs_xri_bitmap,
 		       phba->cfg_rrq_xri_bitmap_sz);
 
+	spin_lock_irq(shost->host_lock);
 	keep_nlp_flag = new_ndlp->nlp_flag;
 	new_ndlp->nlp_flag = ndlp->nlp_flag;
 	ndlp->nlp_flag = keep_nlp_flag;
+	spin_unlock_irq(shost->host_lock);
 
-	/* Set state will put new_ndlp on to node list if not already done */
+	/* Set nlp_states accordingly */
+	keep_nlp_state = new_ndlp->nlp_state;
 	lpfc_nlp_set_state(vport, new_ndlp, ndlp->nlp_state);
 
 	/* Move this back to NPR state */
@@ -1668,20 +1673,13 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 			       active_rrqs_xri_bitmap,
 			       phba->cfg_rrq_xri_bitmap_sz);
 
-		/* Since we are swapping the ndlp passed in with the new one
-		 * and the did has already been swapped, copy over state.
-		 * The new WWNs are already in new_ndlp since thats what
-		 * we looked it up by in the begining of this routine.
-		 */
-		new_ndlp->nlp_state = ndlp->nlp_state;
-
-		/* Since we are switching over to the new_ndlp, the old
-		 * ndlp should be put in the NPR state, unless we have
-		 * already started re-discovery on it.
+		/* Since we are switching over to the new_ndlp,
+		 * reset the old ndlp state
 		 */
 		if ((ndlp->nlp_state == NLP_STE_UNMAPPED_NODE) ||
 		    (ndlp->nlp_state == NLP_STE_MAPPED_NODE))
-			lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
+			keep_nlp_state = NLP_STE_NPR_NODE;
+		lpfc_nlp_set_state(vport, ndlp, keep_nlp_state);
 
 		/* Fix up the rport accordingly */
 		rport = ndlp->rport;
