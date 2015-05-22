@@ -601,6 +601,7 @@ MACHINE_START(HERALD, "HTC Herald")
 	.map_io         = htcherald_map_io,
 	.init_early     = omap1_init_early,
 	.init_irq       = omap1_init_irq,
+	.handle_irq	= omap1_handle_irq,
 	.init_machine   = htcherald_init,
 	.init_late	= omap1_init_late,
 	.init_time	= omap1_timer_init,

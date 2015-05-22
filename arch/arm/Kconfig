@@ -786,8 +786,10 @@ config ARCH_OMAP1
 	select GENERIC_IRQ_CHIP
 	select HAVE_IDE
 	select IRQ_DOMAIN
+	select MULTI_IRQ_HANDLER
 	select NEED_MACH_IO_H if PCCARD
 	select NEED_MACH_MEMORY_H
+	select SPARSE_IRQ
 	help
 	  Support for older TI OMAP1 (omap7xx, omap15xx or omap16xx)
 
