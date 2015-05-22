@@ -58,9 +58,13 @@ struct kmap {
 	struct map_groups	*kmaps;
 };
 
+struct maps {
+	struct rb_root	 entries;
+	struct list_head removed_maps;
+};
+
 struct map_groups {
-	struct rb_root	 maps[MAP__NR_TYPES];
-	struct list_head removed_maps[MAP__NR_TYPES];
+	struct maps	 maps[MAP__NR_TYPES];
 	struct machine	 *machine;
 	atomic_t	 refcnt;
 };
@@ -162,10 +166,10 @@ void map__reloc_vmlinux(struct map *map);
 
 size_t __map_groups__fprintf_maps(struct map_groups *mg, enum map_type type,
 				  FILE *fp);
-void maps__insert(struct rb_root *maps, struct map *map);
-void maps__remove(struct rb_root *maps, struct map *map);
-struct map *maps__find(struct rb_root *maps, u64 addr);
-struct map *maps__first(struct rb_root *maps);
+void maps__insert(struct maps *maps, struct map *map);
+void maps__remove(struct maps *maps, struct map *map);
+struct map *maps__find(struct maps *maps, u64 addr);
+struct map *maps__first(struct maps *maps);
 struct map *map__next(struct map *map);
 void map_groups__init(struct map_groups *mg, struct machine *machine);
 void map_groups__exit(struct map_groups *mg);

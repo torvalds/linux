@@ -418,48 +418,58 @@ u64 map__objdump_2mem(struct map *map, u64 ip)
 	return ip + map->reloc;
 }
 
+static void maps__init(struct maps *maps)
+{
+	maps->entries = RB_ROOT;
+	INIT_LIST_HEAD(&maps->removed_maps);
+}
+
 void map_groups__init(struct map_groups *mg, struct machine *machine)
 {
 	int i;
 	for (i = 0; i < MAP__NR_TYPES; ++i) {
-		mg->maps[i] = RB_ROOT;
-		INIT_LIST_HEAD(&mg->removed_maps[i]);
+		maps__init(&mg->maps[i]);
 	}
 	mg->machine = machine;
 	atomic_set(&mg->refcnt, 1);
 }
 
-static void maps__delete(struct rb_root *maps)
+static void maps__purge(struct maps *maps)
 {
-	struct rb_node *next = rb_first(maps);
+	struct rb_root *root = &maps->entries;
+	struct rb_node *next = rb_first(root);
 
 	while (next) {
 		struct map *pos = rb_entry(next, struct map, rb_node);
 
 		next = rb_next(&pos->rb_node);
-		rb_erase(&pos->rb_node, maps);
+		rb_erase(&pos->rb_node, root);
 		map__delete(pos);
 	}
 }
 
-static void maps__delete_removed(struct list_head *maps)
+static void maps__purge_removed_maps(struct maps *maps)
 {
 	struct map *pos, *n;
 
-	list_for_each_entry_safe(pos, n, maps, node) {
+	list_for_each_entry_safe(pos, n, &maps->removed_maps, node) {
 		list_del(&pos->node);
 		map__delete(pos);
 	}
+}
+
+static void maps__exit(struct maps *maps)
+{
+	maps__purge(maps);
+	maps__purge_removed_maps(maps);
 }
 
 void map_groups__exit(struct map_groups *mg)
 {
 	int i;
 
-	for (i = 0; i < MAP__NR_TYPES; ++i) {
-		maps__delete(&mg->maps[i]);
-		maps__delete_removed(&mg->removed_maps[i]);
-	}
+	for (i = 0; i < MAP__NR_TYPES; ++i)
+		maps__exit(&mg->maps[i]);
 }
 
 bool map_groups__empty(struct map_groups *mg)
@@ -469,7 +479,7 @@ bool map_groups__empty(struct map_groups *mg)
 	for (i = 0; i < MAP__NR_TYPES; ++i) {
 		if (maps__first(&mg->maps[i]))
 			return false;
-		if (!list_empty(&mg->removed_maps[i]))
+		if (!list_empty(&mg->maps[i].removed_maps))
 			return false;
 	}
 
@@ -523,7 +533,7 @@ struct symbol *map_groups__find_symbol_by_name(struct map_groups *mg,
 {
 	struct rb_node *nd;
 
-	for (nd = rb_first(&mg->maps[type]); nd; nd = rb_next(nd)) {
+	for (nd = rb_first(&mg->maps[type].entries); nd; nd = rb_next(nd)) {
 		struct map *pos = rb_entry(nd, struct map, rb_node);
 		struct symbol *sym = map__find_symbol_by_name(pos, name, filter);
 
@@ -560,7 +570,7 @@ size_t __map_groups__fprintf_maps(struct map_groups *mg, enum map_type type,
 	size_t printed = fprintf(fp, "%s:\n", map_type__name[type]);
 	struct rb_node *nd;
 
-	for (nd = rb_first(&mg->maps[type]); nd; nd = rb_next(nd)) {
+	for (nd = rb_first(&mg->maps[type].entries); nd; nd = rb_next(nd)) {
 		struct map *pos = rb_entry(nd, struct map, rb_node);
 		printed += fprintf(fp, "Map:");
 		printed += map__fprintf(pos, fp);
@@ -587,7 +597,7 @@ static size_t __map_groups__fprintf_removed_maps(struct map_groups *mg,
 	struct map *pos;
 	size_t printed = 0;
 
-	list_for_each_entry(pos, &mg->removed_maps[type], node) {
+	list_for_each_entry(pos, &mg->maps[type].removed_maps, node) {
 		printed += fprintf(fp, "Map:");
 		printed += map__fprintf(pos, fp);
 		if (verbose > 1) {
@@ -617,7 +627,7 @@ size_t map_groups__fprintf(struct map_groups *mg, FILE *fp)
 int map_groups__fixup_overlappings(struct map_groups *mg, struct map *map,
 				   FILE *fp)
 {
-	struct rb_root *root = &mg->maps[map->type];
+	struct rb_root *root = &mg->maps[map->type].entries;
 	struct rb_node *next = rb_first(root);
 	int err = 0;
 
@@ -671,7 +681,7 @@ move_map:
 		 * If we have references, just move them to a separate list.
 		 */
 		if (pos->referenced)
-			list_add_tail(&pos->node, &mg->removed_maps[map->type]);
+			list_add_tail(&pos->node, &mg->maps[map->type].removed_maps);
 		else
 			map__delete(pos);
 
@@ -689,7 +699,7 @@ int map_groups__clone(struct map_groups *mg,
 		      struct map_groups *parent, enum map_type type)
 {
 	struct map *map;
-	struct rb_root *maps = &parent->maps[type];
+	struct maps *maps = &parent->maps[type];
 
 	for (map = maps__first(maps); map; map = map__next(map)) {
 		struct map *new = map__clone(map);
@@ -700,9 +710,9 @@ int map_groups__clone(struct map_groups *mg,
 	return 0;
 }
 
-void maps__insert(struct rb_root *maps, struct map *map)
+void maps__insert(struct maps *maps, struct map *map)
 {
-	struct rb_node **p = &maps->rb_node;
+	struct rb_node **p = &maps->entries.rb_node;
 	struct rb_node *parent = NULL;
 	const u64 ip = map->start;
 	struct map *m;
@@ -717,17 +727,17 @@ void maps__insert(struct rb_root *maps, struct map *map)
 	}
 
 	rb_link_node(&map->rb_node, parent, p);
-	rb_insert_color(&map->rb_node, maps);
+	rb_insert_color(&map->rb_node, &maps->entries);
 }
 
-void maps__remove(struct rb_root *maps, struct map *map)
+void maps__remove(struct maps *maps, struct map *map)
 {
-	rb_erase(&map->rb_node, maps);
+	rb_erase(&map->rb_node, &maps->entries);
 }
 
-struct map *maps__find(struct rb_root *maps, u64 ip)
+struct map *maps__find(struct maps *maps, u64 ip)
 {
-	struct rb_node **p = &maps->rb_node;
+	struct rb_node **p = &maps->entries.rb_node;
 	struct rb_node *parent = NULL;
 	struct map *m;
 
@@ -745,9 +755,9 @@ struct map *maps__find(struct rb_root *maps, u64 ip)
 	return NULL;
 }
 
-struct map *maps__first(struct rb_root *maps)
+struct map *maps__first(struct maps *maps)
 {
-	struct rb_node *first = rb_first(maps);
+	struct rb_node *first = rb_first(&maps->entries);
 
 	if (first)
 		return rb_entry(first, struct map, rb_node);

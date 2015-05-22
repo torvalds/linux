@@ -202,7 +202,7 @@ void symbols__fixup_end(struct rb_root *symbols)
 
 void __map_groups__fixup_end(struct map_groups *mg, enum map_type type)
 {
-	struct rb_root *maps = &mg->maps[type];
+	struct maps *maps = &mg->maps[type];
 	struct map *next, *curr;
 
 	curr = maps__first(maps);
@@ -1520,7 +1520,7 @@ out:
 struct map *map_groups__find_by_name(struct map_groups *mg,
 				     enum map_type type, const char *name)
 {
-	struct rb_root *maps = &mg->maps[type];
+	struct maps *maps = &mg->maps[type];
 	struct map *map;
 
 	for (map = maps__first(maps); map; map = map__next(map)) {
