@@ -790,11 +790,23 @@ static unsigned int omap_gpio_irq_startup(struct irq_data *d)
 		pm_runtime_get_sync(bank->dev);
 
 	spin_lock_irqsave(&bank->lock, flags);
-	omap_gpio_init_irq(bank, offset);
+
+	if (!LINE_USED(bank->mod_usage, offset))
+		omap_set_gpio_direction(bank, offset, 1);
+	else if (!omap_gpio_is_input(bank, offset))
+		goto err;
+	omap_enable_gpio_module(bank, offset);
+	bank->irq_usage |= BIT(offset);
+
 	spin_unlock_irqrestore(&bank->lock, flags);
 	omap_gpio_unmask_irq(d);
 
 	return 0;
+err:
+	spin_unlock_irqrestore(&bank->lock, flags);
+	if (!BANK_USED(bank))
+		pm_runtime_put(bank->dev);
+	return -EINVAL;
 }
 
 static void omap_gpio_irq_shutdown(struct irq_data *d)
