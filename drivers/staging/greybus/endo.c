@@ -82,8 +82,18 @@ static ssize_t endo_id_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(endo_id);
 
+static ssize_t ap_intf_id_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct gb_endo *endo = to_gb_endo(dev);
+
+	return sprintf(buf, "0x%02x", endo->ap_intf_id);
+}
+static DEVICE_ATTR_RO(ap_intf_id);
+
 static struct attribute *endo_attrs[] = {
 	&dev_attr_endo_id.attr,
+	&dev_attr_ap_intf_id.attr,
 	NULL,
 };
 
@@ -452,7 +462,8 @@ static int gb_endo_register(struct greybus_host_device *hd,
 	return retval;
 }
 
-struct gb_endo *gb_endo_create(struct greybus_host_device *hd, u16 endo_id)
+struct gb_endo *gb_endo_create(struct greybus_host_device *hd, u16 endo_id,
+				u8 ap_intf_id)
 {
 	struct gb_endo *endo;
 	int retval;
@@ -466,8 +477,12 @@ struct gb_endo *gb_endo_create(struct greybus_host_device *hd, u16 endo_id)
 		retval = -EINVAL;
 		goto free_endo;
 	}
-
+	if (ap_intf_id > max_endo_interface_id(&endo->layout)) {
+		retval = -EINVAL;
+		goto free_endo;
+	}
 	endo->id = endo_id;
+	endo->ap_intf_id = ap_intf_id;
 
 	/* Register Endo device */
 	retval = gb_endo_register(hd, endo);

@@ -178,7 +178,8 @@ struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *driver
 {
 	struct greybus_host_device *hd;
 	struct gb_endo *endo;
-	u16 endo_id = 0x4755; // FIXME - get endo "ID" from the SVC
+	u16 endo_id = 0x4755;	// FIXME - get endo "ID" from the SVC
+	u8 ap_intf_id = 0x01;	// FIXME - get AP interface ID from the SVC
 
 	/*
 	 * Validate that the driver implements all of the callbacks
@@ -212,7 +213,7 @@ struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *driver
 	ida_init(&hd->cport_id_map);
 	hd->buffer_size_max = buffer_size_max;
 
-	endo = gb_endo_create(hd, endo_id);
+	endo = gb_endo_create(hd, endo_id, ap_intf_id);
 	if (IS_ERR(endo)) {
 		greybus_remove_hd(hd);
 		return ERR_CAST(endo);
