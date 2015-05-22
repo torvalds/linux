@@ -142,6 +142,35 @@ static void __wb_start_writeback(struct bdi_writeback *wb, long nr_pages,
 	wb_queue_work(wb, work);
 }
 
+#ifdef CONFIG_CGROUP_WRITEBACK
+
+/**
+ * inode_congested - test whether an inode is congested
+ * @inode: inode to test for congestion
+ * @cong_bits: mask of WB_[a]sync_congested bits to test
+ *
+ * Tests whether @inode is congested.  @cong_bits is the mask of congestion
+ * bits to test and the return value is the mask of set bits.
+ *
+ * If cgroup writeback is enabled for @inode, the congestion state is
+ * determined by whether the cgwb (cgroup bdi_writeback) for the blkcg
+ * associated with @inode is congested; otherwise, the root wb's congestion
+ * state is used.
+ */
+int inode_congested(struct inode *inode, int cong_bits)
+{
+	if (inode) {
+		struct bdi_writeback *wb = inode_to_wb(inode);
+		if (wb)
+			return wb_congested(wb, cong_bits);
+	}
+
+	return wb_congested(&inode_to_bdi(inode)->wb, cong_bits);
+}
+EXPORT_SYMBOL_GPL(inode_congested);
+
+#endif	/* CONFIG_CGROUP_WRITEBACK */
+
 /**
  * bdi_start_writeback - start writeback
  * @bdi: the backing device to write from
