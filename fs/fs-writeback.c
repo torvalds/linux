@@ -52,6 +52,8 @@ struct wb_writeback_work {
 	unsigned int for_background:1;
 	unsigned int for_sync:1;	/* sync(2) WB_SYNC_ALL writeback */
 	unsigned int auto_free:1;	/* free on completion */
+	unsigned int single_wait:1;
+	unsigned int single_done:1;
 	enum wb_reason reason;		/* why was writeback initiated? */
 
 	struct list_head list;		/* pending work list */
@@ -178,8 +180,11 @@ static void wb_queue_work(struct bdi_writeback *wb,
 	trace_writeback_queue(wb->bdi, work);
 
 	spin_lock_bh(&wb->work_lock);
-	if (!test_bit(WB_registered, &wb->state))
+	if (!test_bit(WB_registered, &wb->state)) {
+		if (work->single_wait)
+			work->single_done = 1;
 		goto out_unlock;
+	}
 	if (work->done)
 		atomic_inc(&work->done->cnt);
 	list_add_tail(&work->list, &wb->work_list);
@@ -232,6 +237,32 @@ int inode_congested(struct inode *inode, int cong_bits)
 	return wb_congested(&inode_to_bdi(inode)->wb, cong_bits);
 }
 EXPORT_SYMBOL_GPL(inode_congested);
+
+/**
+ * wb_wait_for_single_work - wait for completion of a single bdi_writeback_work
+ * @bdi: bdi the work item was issued to
+ * @work: work item to wait for
+ *
+ * Wait for the completion of @work which was issued to one of @bdi's
+ * bdi_writeback's.  The caller must have set @work->single_wait before
+ * issuing it.  This wait operates independently fo
+ * wb_wait_for_completion() and also disables automatic freeing of @work.
+ */
+static void wb_wait_for_single_work(struct backing_dev_info *bdi,
+				    struct wb_writeback_work *work)
+{
+	if (WARN_ON_ONCE(!work->single_wait))
+		return;
+
+	wait_event(bdi->wb_waitq, work->single_done);
+
+	/*
+	 * Paired with smp_wmb() in wb_do_writeback() and ensures that all
+	 * modifications to @work prior to assertion of ->single_done is
+	 * visible to the caller once this function returns.
+	 */
+	smp_rmb();
+}
 
 /**
  * wb_split_bdi_pages - split nr_pages to write according to bandwidth
@@ -1178,14 +1209,26 @@ static long wb_do_writeback(struct bdi_writeback *wb)
 	set_bit(WB_writeback_running, &wb->state);
 	while ((work = get_next_work_item(wb)) != NULL) {
 		struct wb_completion *done = work->done;
+		bool need_wake_up = false;
 
 		trace_writeback_exec(wb->bdi, work);
 
 		wrote += wb_writeback(wb, work);
 
-		if (work->auto_free)
+		if (work->single_wait) {
+			WARN_ON_ONCE(work->auto_free);
+			/* paired w/ rmb in wb_wait_for_single_work() */
+			smp_wmb();
+			work->single_done = 1;
+			need_wake_up = true;
+		} else if (work->auto_free) {
 			kfree(work);
+		}
+
 		if (done && atomic_dec_and_test(&done->cnt))
+			need_wake_up = true;
+
+		if (need_wake_up)
 			wake_up_all(&wb->bdi->wb_waitq);
 	}
 
