@@ -1594,7 +1594,8 @@ void kvm_lapic_reset(struct kvm_vcpu *vcpu, bool init_event)
 	apic_set_reg(apic, APIC_DFR, 0xffffffffU);
 	apic_set_spiv(apic, 0xff);
 	apic_set_reg(apic, APIC_TASKPRI, 0);
-	kvm_apic_set_ldr(apic, 0);
+	if (!apic_x2apic_mode(apic))
+		kvm_apic_set_ldr(apic, 0);
 	apic_set_reg(apic, APIC_ESR, 0);
 	apic_set_reg(apic, APIC_ICR, 0);
 	apic_set_reg(apic, APIC_ICR2, 0);
