@@ -139,9 +139,7 @@ struct crypto_aead {
 
 	struct crypto_aead *child;
 
-	unsigned int ivsize;
 	unsigned int authsize;
-	unsigned int maxauthsize;
 	unsigned int reqsize;
 
 	struct crypto_tfm base;
@@ -187,6 +185,23 @@ static inline struct crypto_aead *crypto_aead_crt(struct crypto_aead *tfm)
 	return tfm;
 }
 
+static inline struct old_aead_alg *crypto_old_aead_alg(struct crypto_aead *tfm)
+{
+	return &crypto_aead_tfm(tfm)->__crt_alg->cra_aead;
+}
+
+static inline struct aead_alg *crypto_aead_alg(struct crypto_aead *tfm)
+{
+	return container_of(crypto_aead_tfm(tfm)->__crt_alg,
+			    struct aead_alg, base);
+}
+
+static inline unsigned int crypto_aead_alg_ivsize(struct aead_alg *alg)
+{
+	return alg->base.cra_aead.encrypt ? alg->base.cra_aead.ivsize :
+					    alg->ivsize;
+}
+
 /**
  * crypto_aead_ivsize() - obtain IV size
  * @tfm: cipher handle
@@ -198,7 +213,7 @@ static inline struct crypto_aead *crypto_aead_crt(struct crypto_aead *tfm)
  */
 static inline unsigned int crypto_aead_ivsize(struct crypto_aead *tfm)
 {
-	return tfm->ivsize;
+	return crypto_aead_alg_ivsize(crypto_aead_alg(tfm));
 }
 
 /**

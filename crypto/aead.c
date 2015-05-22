@@ -69,7 +69,7 @@ int crypto_aead_setauthsize(struct crypto_aead *tfm, unsigned int authsize)
 {
 	int err;
 
-	if (authsize > tfm->maxauthsize)
+	if (authsize > crypto_aead_maxauthsize(tfm))
 		return -EINVAL;
 
 	if (tfm->setauthsize) {
@@ -162,8 +162,6 @@ static int crypto_old_aead_init_tfm(struct crypto_tfm *tfm)
 		crt->givdecrypt = aead_null_givdecrypt;
 	}
 	crt->child = __crypto_aead_cast(tfm);
-	crt->ivsize = alg->ivsize;
-	crt->maxauthsize = alg->maxauthsize;
 	crt->authsize = alg->maxauthsize;
 
 	return 0;
@@ -182,8 +180,6 @@ static int crypto_aead_init_tfm(struct crypto_tfm *tfm)
 	aead->encrypt = alg->encrypt;
 	aead->decrypt = alg->decrypt;
 	aead->child = __crypto_aead_cast(tfm);
-	aead->ivsize = alg->ivsize;
-	aead->maxauthsize = alg->maxauthsize;
 	aead->authsize = alg->maxauthsize;
 
 	return 0;
@@ -418,13 +414,8 @@ struct aead_instance *aead_geniv_alloc(struct crypto_template *tmpl,
 
 	alg = crypto_spawn_aead_alg(spawn);
 
-	if (alg->base.cra_aead.encrypt) {
-		ivsize = alg->base.cra_aead.ivsize;
-		maxauthsize = alg->base.cra_aead.maxauthsize;
-	} else {
-		ivsize = alg->ivsize;
-		maxauthsize = alg->maxauthsize;
-	}
+	ivsize = crypto_aead_alg_ivsize(alg);
+	maxauthsize = crypto_aead_alg_maxauthsize(alg);
 
 	err = -EINVAL;
 	if (!ivsize)

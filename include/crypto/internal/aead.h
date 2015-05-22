@@ -30,17 +30,6 @@ struct crypto_aead_spawn {
 extern const struct crypto_type crypto_aead_type;
 extern const struct crypto_type crypto_nivaead_type;
 
-static inline struct old_aead_alg *crypto_old_aead_alg(struct crypto_aead *tfm)
-{
-	return &crypto_aead_tfm(tfm)->__crt_alg->cra_aead;
-}
-
-static inline struct aead_alg *crypto_aead_alg(struct crypto_aead *tfm)
-{
-	return container_of(crypto_aead_tfm(tfm)->__crt_alg,
-			    struct aead_alg, base);
-}
-
 static inline void *crypto_aead_ctx(struct crypto_aead *tfm)
 {
 	return crypto_tfm_ctx(&tfm->base);
@@ -145,9 +134,15 @@ static inline void crypto_aead_set_reqsize(struct crypto_aead *aead,
 	crypto_aead_crt(aead)->reqsize = reqsize;
 }
 
+static inline unsigned int crypto_aead_alg_maxauthsize(struct aead_alg *alg)
+{
+	return alg->base.cra_aead.encrypt ? alg->base.cra_aead.maxauthsize :
+					    alg->maxauthsize;
+}
+
 static inline unsigned int crypto_aead_maxauthsize(struct crypto_aead *aead)
 {
-	return aead->maxauthsize;
+	return crypto_aead_alg_maxauthsize(crypto_aead_alg(aead));
 }
 
 int crypto_register_aead(struct aead_alg *alg);
