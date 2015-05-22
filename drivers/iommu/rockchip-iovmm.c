@@ -19,6 +19,8 @@
 
 #include "rockchip-iommu.h"
 
+#define IOMMU_REGION_GUARD		(2<<PAGE_SHIFT)
+
 static struct rk_vm_region *find_region(struct rk_iovmm *vmm, dma_addr_t iova)
 {
 	struct rk_vm_region *region;
@@ -84,7 +86,8 @@ dma_addr_t rockchip_iovmm_map(struct device *dev,
 		goto err_map_nomem;
 	}
 
-	start = (dma_addr_t)gen_pool_alloc(vmm->vmm_pool, size);
+	start = (dma_addr_t)gen_pool_alloc(vmm->vmm_pool,
+					   size+IOMMU_REGION_GUARD);
 	if (!start) {
 		ret = -ENOMEM;
 		goto err_map_noiomem;
@@ -197,7 +200,8 @@ void rockchip_iovmm_unmap(struct device *dev, dma_addr_t iova)
 	/*
 	rockchip_iommu_tlb_invalidate(dev);
 	*/
-	gen_pool_free(vmm->vmm_pool, region->start, region->size);
+	gen_pool_free(vmm->vmm_pool, region->start,
+		      region->size+IOMMU_REGION_GUARD);
 
 	WARN_ON(unmapped_size != region->size);
 	
