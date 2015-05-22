@@ -18,6 +18,12 @@ config SND_SOC_LPASS_IPQ806X
 	select SND_SOC_LPASS_CPU
 	select SND_SOC_LPASS_PLATFORM
 
+config SND_SOC_LPASS_APQ8016
+	tristate
+	depends on SND_SOC_QCOM
+	select SND_SOC_LPASS_CPU
+	select SND_SOC_LPASS_PLATFORM
+
 config SND_SOC_STORM
 	tristate "ASoC I2S support for Storm boards"
 	depends on (ARCH_QCOM && SND_SOC_QCOM) || COMPILE_TEST

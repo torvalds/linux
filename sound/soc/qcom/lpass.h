@@ -54,6 +54,10 @@ struct lpass_data {
 
 	/* used it for handling interrupt per dma channel */
 	struct snd_pcm_substream *substream[LPASS_MAX_DMA_CHANNELS];
+
+	/* 8016 specific */
+	struct clk *pcnoc_mport_clk;
+	struct clk *pcnoc_sway_clk;
 };
 
 /* Vairant data per each SOC */
