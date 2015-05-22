@@ -872,6 +872,30 @@ static const struct panel_desc innolux_zj070na_01p = {
 	},
 };
 
+static const struct drm_display_mode lg_lb070wv8_mode = {
+	.clock = 33246,
+	.hdisplay = 800,
+	.hsync_start = 800 + 88,
+	.hsync_end = 800 + 88 + 80,
+	.htotal = 800 + 88 + 80 + 88,
+	.vdisplay = 480,
+	.vsync_start = 480 + 10,
+	.vsync_end = 480 + 10 + 25,
+	.vtotal = 480 + 10 + 25 + 10,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc lg_lb070wv8 = {
+	.modes = &lg_lb070wv8_mode,
+	.num_modes = 1,
+	.bpc = 16,
+	.size = {
+		.width = 151,
+		.height = 91,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG,
+};
+
 static const struct drm_display_mode lg_lp129qe_mode = {
 	.clock = 285250,
 	.hdisplay = 2560,
@@ -1055,6 +1079,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "innolux,zj070na-01p",
 		.data = &innolux_zj070na_01p,
+	}, {
+		.compatible = "lg,lb070wv8",
+		.data = &lg_lb070wv8,
 	}, {
 		.compatible = "lg,lp129qe",
 		.data = &lg_lp129qe,
