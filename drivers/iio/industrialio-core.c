@@ -101,6 +101,8 @@ static const char * const iio_modifier_names[] = {
 	[IIO_MOD_WALKING] = "walking",
 	[IIO_MOD_STILL] = "still",
 	[IIO_MOD_ROOT_SUM_SQUARED_X_Y_Z] = "sqrt(x^2+y^2+z^2)",
+	[IIO_MOD_I] = "i",
+	[IIO_MOD_Q] = "q",
 };
 
 /* relies on pairs of these shared then separate */
