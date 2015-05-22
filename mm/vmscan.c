@@ -154,8 +154,39 @@ static bool global_reclaim(struct scan_control *sc)
 {
 	return !sc->target_mem_cgroup;
 }
+
+/**
+ * sane_reclaim - is the usual dirty throttling mechanism operational?
+ * @sc: scan_control in question
+ *
+ * The normal page dirty throttling mechanism in balance_dirty_pages() is
+ * completely broken with the legacy memcg and direct stalling in
+ * shrink_page_list() is used for throttling instead, which lacks all the
+ * niceties such as fairness, adaptive pausing, bandwidth proportional
+ * allocation and configurability.
+ *
+ * This function tests whether the vmscan currently in progress can assume
+ * that the normal dirty throttling mechanism is operational.
+ */
+static bool sane_reclaim(struct scan_control *sc)
+{
+	struct mem_cgroup *memcg = sc->target_mem_cgroup;
+
+	if (!memcg)
+		return true;
+#ifdef CONFIG_CGROUP_WRITEBACK
+	if (cgroup_on_dfl(mem_cgroup_css(memcg)->cgroup))
+		return true;
+#endif
+	return false;
+}
 #else
 static bool global_reclaim(struct scan_control *sc)
+{
+	return true;
+}
+
+static bool sane_reclaim(struct scan_control *sc)
 {
 	return true;
 }
@@ -941,10 +972,10 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 		 *    note that the LRU is being scanned too quickly and the
 		 *    caller can stall after page list has been processed.
 		 *
-		 * 2) Global reclaim encounters a page, memcg encounters a
-		 *    page that is not marked for immediate reclaim or
-		 *    the caller does not have __GFP_IO. In this case mark
-		 *    the page for immediate reclaim and continue scanning.
+		 * 2) Global or new memcg reclaim encounters a page that is
+		 *    not marked for immediate reclaim or the caller does not
+		 *    have __GFP_IO. In this case mark the page for immediate
+		 *    reclaim and continue scanning.
 		 *
 		 *    __GFP_IO is checked  because a loop driver thread might
 		 *    enter reclaim, and deadlock if it waits on a page for
@@ -958,7 +989,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 		 *    grab_cache_page_write_begin(,,AOP_FLAG_NOFS), so testing
 		 *    may_enter_fs here is liable to OOM on them.
 		 *
-		 * 3) memcg encounters a page that is not already marked
+		 * 3) Legacy memcg encounters a page that is not already marked
 		 *    PageReclaim. memcg does not have any dirty pages
 		 *    throttling so we could easily OOM just because too many
 		 *    pages are in writeback and there is nothing else to
@@ -973,7 +1004,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 				goto keep_locked;
 
 			/* Case 2 above */
-			} else if (global_reclaim(sc) ||
+			} else if (sane_reclaim(sc) ||
 			    !PageReclaim(page) || !(sc->gfp_mask & __GFP_IO)) {
 				/*
 				 * This is slightly racy - end_page_writeback()
@@ -1422,7 +1453,7 @@ static int too_many_isolated(struct zone *zone, int file,
 	if (current_is_kswapd())
 		return 0;
 
-	if (!global_reclaim(sc))
+	if (!sane_reclaim(sc))
 		return 0;
 
 	if (file) {
@@ -1614,10 +1645,10 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
 		set_bit(ZONE_WRITEBACK, &zone->flags);
 
 	/*
-	 * memcg will stall in page writeback so only consider forcibly
-	 * stalling for global reclaim
+	 * Legacy memcg will stall in page writeback so avoid forcibly
+	 * stalling here.
 	 */
-	if (global_reclaim(sc)) {
+	if (sane_reclaim(sc)) {
 		/*
 		 * Tag a zone as congested if all the dirty pages scanned were
 		 * backed by a congested BDI and wait_iff_congested will stall.
