@@ -914,7 +914,7 @@ static int raid10_congested(struct mddev *mddev, int bits)
 	struct r10conf *conf = mddev->private;
 	int i, ret = 0;
 
-	if ((bits & (1 << BDI_async_congested)) &&
+	if ((bits & (1 << WB_async_congested)) &&
 	    conf->pending_count >= max_queued_requests)
 		return 1;
 

@@ -25,13 +25,13 @@ struct device;
 struct dentry;
 
 /*
- * Bits in backing_dev_info.state
+ * Bits in bdi_writeback.state
  */
-enum bdi_state {
-	BDI_async_congested,	/* The async (write) queue is getting full */
-	BDI_sync_congested,	/* The sync queue is getting full */
-	BDI_registered,		/* bdi_register() was done */
-	BDI_writeback_running,	/* Writeback is in progress */
+enum wb_state {
+	WB_async_congested,	/* The async (write) queue is getting full */
+	WB_sync_congested,	/* The sync queue is getting full */
+	WB_registered,		/* bdi_register() was done */
+	WB_writeback_running,	/* Writeback is in progress */
 };
 
 typedef int (congested_fn)(void *, int);
@@ -49,6 +49,7 @@ enum bdi_stat_item {
 struct bdi_writeback {
 	struct backing_dev_info *bdi;	/* our parent bdi */
 
+	unsigned long state;		/* Always use atomic bitops on this */
 	unsigned long last_old_flush;	/* last old data flush */
 
 	struct delayed_work dwork;	/* work item used for writeback */
@@ -62,7 +63,6 @@ struct bdi_writeback {
 struct backing_dev_info {
 	struct list_head bdi_list;
 	unsigned long ra_pages;	/* max readahead in PAGE_CACHE_SIZE units */
-	unsigned long state;	/* Always use atomic bitops on this */
 	unsigned int capabilities; /* Device capabilities */
 	congested_fn *congested_fn; /* Function pointer if device is md/dm */
 	void *congested_data;	/* Pointer to aux data for congested func */
@@ -250,23 +250,23 @@ static inline int bdi_congested(struct backing_dev_info *bdi, int bdi_bits)
 {
 	if (bdi->congested_fn)
 		return bdi->congested_fn(bdi->congested_data, bdi_bits);
-	return (bdi->state & bdi_bits);
+	return (bdi->wb.state & bdi_bits);
 }
 
 static inline int bdi_read_congested(struct backing_dev_info *bdi)
 {
-	return bdi_congested(bdi, 1 << BDI_sync_congested);
+	return bdi_congested(bdi, 1 << WB_sync_congested);
 }
 
 static inline int bdi_write_congested(struct backing_dev_info *bdi)
 {
-	return bdi_congested(bdi, 1 << BDI_async_congested);
+	return bdi_congested(bdi, 1 << WB_async_congested);
 }
 
 static inline int bdi_rw_congested(struct backing_dev_info *bdi)
 {
-	return bdi_congested(bdi, (1 << BDI_sync_congested) |
-				  (1 << BDI_async_congested));
+	return bdi_congested(bdi, (1 << WB_sync_congested) |
+				  (1 << WB_async_congested));
 }
 
 enum {

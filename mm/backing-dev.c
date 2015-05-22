@@ -96,7 +96,7 @@ static int bdi_debug_stats_show(struct seq_file *m, void *v)
 		   nr_io,
 		   nr_more_io,
 		   nr_dirty_time,
-		   !list_empty(&bdi->bdi_list), bdi->state);
+		   !list_empty(&bdi->bdi_list), bdi->wb.state);
 #undef K
 
 	return 0;
@@ -280,7 +280,7 @@ void bdi_wakeup_thread_delayed(struct backing_dev_info *bdi)
 
 	timeout = msecs_to_jiffies(dirty_writeback_interval * 10);
 	spin_lock_bh(&bdi->wb_lock);
-	if (test_bit(BDI_registered, &bdi->state))
+	if (test_bit(WB_registered, &bdi->wb.state))
 		queue_delayed_work(bdi_wq, &bdi->wb.dwork, timeout);
 	spin_unlock_bh(&bdi->wb_lock);
 }
@@ -315,7 +315,7 @@ int bdi_register(struct backing_dev_info *bdi, struct device *parent,
 	bdi->dev = dev;
 
 	bdi_debug_register(bdi, dev_name(dev));
-	set_bit(BDI_registered, &bdi->state);
+	set_bit(WB_registered, &bdi->wb.state);
 
 	spin_lock_bh(&bdi_lock);
 	list_add_tail_rcu(&bdi->bdi_list, &bdi_list);
@@ -339,7 +339,7 @@ static void bdi_wb_shutdown(struct backing_dev_info *bdi)
 {
 	/* Make sure nobody queues further work */
 	spin_lock_bh(&bdi->wb_lock);
-	if (!test_and_clear_bit(BDI_registered, &bdi->state)) {
+	if (!test_and_clear_bit(WB_registered, &bdi->wb.state)) {
 		spin_unlock_bh(&bdi->wb_lock);
 		return;
 	}
@@ -492,11 +492,11 @@ static atomic_t nr_bdi_congested[2];
 
 void clear_bdi_congested(struct backing_dev_info *bdi, int sync)
 {
-	enum bdi_state bit;
+	enum wb_state bit;
 	wait_queue_head_t *wqh = &congestion_wqh[sync];
 
-	bit = sync ? BDI_sync_congested : BDI_async_congested;
-	if (test_and_clear_bit(bit, &bdi->state))
+	bit = sync ? WB_sync_congested : WB_async_congested;
+	if (test_and_clear_bit(bit, &bdi->wb.state))
 		atomic_dec(&nr_bdi_congested[sync]);
 	smp_mb__after_atomic();
 	if (waitqueue_active(wqh))
@@ -506,10 +506,10 @@ EXPORT_SYMBOL(clear_bdi_congested);
 
 void set_bdi_congested(struct backing_dev_info *bdi, int sync)
 {
-	enum bdi_state bit;
+	enum wb_state bit;
 
-	bit = sync ? BDI_sync_congested : BDI_async_congested;
-	if (!test_and_set_bit(bit, &bdi->state))
+	bit = sync ? WB_sync_congested : WB_async_congested;
+	if (!test_and_set_bit(bit, &bdi->wb.state))
 		atomic_inc(&nr_bdi_congested[sync]);
 }
 EXPORT_SYMBOL(set_bdi_congested);
