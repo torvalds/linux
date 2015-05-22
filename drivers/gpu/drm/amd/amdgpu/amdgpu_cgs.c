@@ -103,22 +103,38 @@ static int amdgpu_cgs_kunmap_gpu_mem(void *cgs_device, cgs_handle_t handle)
 
 static uint32_t amdgpu_cgs_read_register(void *cgs_device, unsigned offset)
 {
-	/* TODO */
-	return 0;
+	CGS_FUNC_ADEV;
+	return RREG32(offset);
 }
 
 static void amdgpu_cgs_write_register(void *cgs_device, unsigned offset,
 				      uint32_t value)
 {
-	/* TODO */
-	return;
+	CGS_FUNC_ADEV;
+	WREG32(offset, value);
 }
 
 static uint32_t amdgpu_cgs_read_ind_register(void *cgs_device,
 					     enum cgs_ind_reg space,
 					     unsigned index)
 {
-	/* TODO */
+	CGS_FUNC_ADEV;
+	switch (space) {
+	case CGS_IND_REG__MMIO:
+		return RREG32_IDX(index);
+	case CGS_IND_REG__PCIE:
+		return RREG32_PCIE(index);
+	case CGS_IND_REG__SMC:
+		return RREG32_SMC(index);
+	case CGS_IND_REG__UVD_CTX:
+		return RREG32_UVD_CTX(index);
+	case CGS_IND_REG__DIDT:
+		return RREG32_DIDT(index);
+	case CGS_IND_REG__AUDIO_ENDPT:
+		DRM_ERROR("audio endpt register access not implemented.\n");
+		return 0;
+	}
+	WARN(1, "Invalid indirect register space");
 	return 0;
 }
 
@@ -126,8 +142,23 @@ static void amdgpu_cgs_write_ind_register(void *cgs_device,
 					  enum cgs_ind_reg space,
 					  unsigned index, uint32_t value)
 {
-	/* TODO */
-	return;
+	CGS_FUNC_ADEV;
+	switch (space) {
+	case CGS_IND_REG__MMIO:
+		return WREG32_IDX(index, value);
+	case CGS_IND_REG__PCIE:
+		return WREG32_PCIE(index, value);
+	case CGS_IND_REG__SMC:
+		return WREG32_SMC(index, value);
+	case CGS_IND_REG__UVD_CTX:
+		return WREG32_UVD_CTX(index, value);
+	case CGS_IND_REG__DIDT:
+		return WREG32_DIDT(index, value);
+	case CGS_IND_REG__AUDIO_ENDPT:
+		DRM_ERROR("audio endpt register access not implemented.\n");
+		return;
+	}
+	WARN(1, "Invalid indirect register space");
 }
 
 static uint8_t amdgpu_cgs_read_pci_config_byte(void *cgs_device, unsigned addr)
