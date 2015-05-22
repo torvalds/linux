@@ -1785,11 +1785,15 @@ static void drm_crtc_convert_to_umode(struct drm_mode_modeinfo *out,
 static int drm_crtc_convert_umode(struct drm_display_mode *out,
 				  const struct drm_mode_modeinfo *in)
 {
-	if (in->clock > INT_MAX || in->vrefresh > INT_MAX)
-		return -ERANGE;
+	int ret = -EINVAL;
+
+	if (in->clock > INT_MAX || in->vrefresh > INT_MAX) {
+		ret = -ERANGE;
+		goto out;
+	}
 
 	if ((in->flags & DRM_MODE_FLAG_3D_MASK) > DRM_MODE_FLAG_3D_MAX)
-		return -EINVAL;
+		goto out;
 
 	out->clock = in->clock;
 	out->hdisplay = in->hdisplay;
@@ -1808,7 +1812,14 @@ static int drm_crtc_convert_umode(struct drm_display_mode *out,
 	strncpy(out->name, in->name, DRM_DISPLAY_MODE_LEN);
 	out->name[DRM_DISPLAY_MODE_LEN-1] = 0;
 
-	return 0;
+	out->status = drm_mode_validate_basic(out);
+	if (out->status != MODE_OK)
+		goto out;
+
+	ret = 0;
+
+out:
+	return ret;
 }
 
 /**
@@ -2818,12 +2829,6 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 		ret = drm_crtc_convert_umode(mode, &crtc_req->mode);
 		if (ret) {
 			DRM_DEBUG_KMS("Invalid mode\n");
-			goto out;
-		}
-
-		mode->status = drm_mode_validate_basic(mode);
-		if (mode->status != MODE_OK) {
-			ret = -EINVAL;
 			goto out;
 		}
 
