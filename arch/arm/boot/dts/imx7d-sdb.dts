@@ -495,6 +495,20 @@
 			>;
 		};
 
+		pinctrl_ecspi3_cs: ecspi3_cs_grp {
+			fsl,pins = <
+				MX7D_PAD_SD2_CD_B__GPIO5_IO9	0x80000000
+			>;
+		};
+
+		pinctrl_ecspi3: ecspi3grp {
+			fsl,pins = <
+				MX7D_PAD_SAI2_TX_SYNC__ECSPI3_MISO	0x2
+				MX7D_PAD_SAI2_TX_BCLK__ECSPI3_MOSI	0x2
+				MX7D_PAD_SAI2_RX_DATA__ECSPI3_SCLK	0x2
+			>;
+		};
+
 		pinctrl_enet1: enet1grp {
 			fsl,pins = <
 				MX7D_PAD_GPIO1_IO10__ENET1_MDIO		0x3
@@ -706,6 +720,11 @@
 			>;
 		};
 
+		pinctrl_tsc2046_pendown: tsc2046_pendown {
+			fsl,pins = <
+				MX7D_PAD_EPDC_DATA13__GPIO2_IO13 0x59
+			>;
+		};
 
 		pinctrl_uart1: uart1grp {
 			fsl,pins = <

@@ -1,0 +1,32 @@
+#include "imx7d-sdb.dts"
+
+&sii902x {
+	status = "disabled";
+};
+
+&ecspi3 {
+	fsl,spi-num-chipselects = <1>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ecspi3 &pinctrl_ecspi3_cs>;
+	cs-gpios = <&gpio5 9 0>;
+	status = "okay";
+
+	tsc2046 {
+		compatible = "ti,tsc2046";
+		reg = <0>;
+		spi-max-frequency = <1000000>;
+		pinctrl-names ="default";
+		pinctrl-0 = <&pinctrl_tsc2046_pendown>;
+		interrupt-parent = <&gpio2>;
+		interrupts = <13 0>;
+		pendown-gpio = <&gpio2 13 0>;
+		ti,x-min = <0>;
+		ti,x-max = <8000>;
+		ti,y-min = <0>;
+		ti,y-max = <4800>;
+		ti,pressure-max = <255>;
+		ti,x-plat-ohms = <40>;
+		linux,wakeup;
+	};
+};
+
