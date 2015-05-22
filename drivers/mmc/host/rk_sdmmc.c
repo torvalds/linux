@@ -2038,9 +2038,96 @@ static void dw_mci_post_tmo(struct mmc_host *mmc)
 {
 	struct dw_mci_slot *slot = mmc_priv(mmc);
 	struct dw_mci *host = slot->host;
+	struct mmc_data	*data;
+	u32 ret, i, regs, cmd_flags;
+	u32 sdio_int;
+	unsigned long timeout = 0;
+	bool ret_timeout = true;
+
 	host->cur_slot->mrq = NULL;
 	host->mrq = NULL;
 	host->state = STATE_IDLE;
+
+	data = host->data;
+
+	printk("[%s] -- Timeout recovery procedure start --\n",
+		mmc_hostname(host->mmc));
+
+	if (data && (data->stop)) {
+		send_stop_cmd(host, data);
+	} else {
+		mci_writel(host, CMDARG, 0);
+		wmb();
+		cmd_flags = SDMMC_CMD_STOP | SDMMC_CMD_RESP_CRC |
+			SDMMC_CMD_RESP_EXP | MMC_STOP_TRANSMISSION;
+
+		if (host->mmc->hold_reg_flag)
+			cmd_flags |= SDMMC_CMD_USE_HOLD_REG;
+
+		mci_writel(host, CMD, cmd_flags | SDMMC_CMD_START);
+		wmb();
+		timeout = jiffies + msecs_to_jiffies(500);
+
+		while(ret_timeout) {
+			ret_timeout = time_before(jiffies, timeout);
+			if(!(mci_readl(host, CMD) & SDMMC_CMD_START))
+				break;
+		}
+
+		if (false == ret_timeout)
+			MMC_DBG_ERR_FUNC(host->mmc, "stop recovery failed![%s]",
+					mmc_hostname(host->mmc));
+	}
+
+	if (!dw_mci_ctrl_all_reset(host)) {
+		ret = -ENODEV;
+		return ;
+	}
+
+#ifdef CONFIG_MMC_DW_IDMAC
+	if (host->use_dma && host->dma_ops->init)
+		host->dma_ops->init(host);
+#endif
+
+	/*
+	* Restore the initial value at FIFOTH register
+	* And Invalidate the prev_blksz with zero
+	*/
+	mci_writel(host, FIFOTH, host->fifoth_val);
+	host->prev_blksz = 0;
+	mci_writel(host, TMOUT, 0xFFFFFFFF);
+	mci_writel(host, RINTSTS, 0xFFFFFFFF);
+	regs = SDMMC_INT_CMD_DONE | SDMMC_INT_DATA_OVER | SDMMC_INT_TXDR
+			| SDMMC_INT_RXDR | SDMMC_INT_VSI | DW_MCI_ERROR_FLAGS;
+	if (!(host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SDIO))
+		regs |= SDMMC_INT_CD;
+
+	if ((host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SDIO)) {
+		if (host->verid < DW_MMC_240A)
+			sdio_int = SDMMC_INT_SDIO(0);
+		else
+			sdio_int = SDMMC_INT_SDIO(8);
+
+		if (mci_readl(host, INTMASK) & sdio_int)
+			regs |= sdio_int;
+	}
+
+	mci_writel(host, INTMASK, regs);
+	mci_writel(host, CTRL, SDMMC_CTRL_INT_ENABLE);
+	for (i = 0; i < host->num_slots; i++) {
+		struct dw_mci_slot *slot = host->slot[i];
+		if (!slot)
+			continue;
+		if (slot->mmc->pm_flags & MMC_PM_KEEP_POWER) {
+			dw_mci_set_ios(slot->mmc, &slot->mmc->ios);
+			dw_mci_setup_bus(slot, true);
+		}
+	}
+	mci_writel(host, RINTSTS, 0xFFFFFFFF);
+
+	printk("[%s] -- Timeout recovery procedure finished --\n",
+		mmc_hostname(host->mmc));
+
 }
 
 static const struct mmc_host_ops dw_mci_ops = {
