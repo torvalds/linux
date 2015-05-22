@@ -23,7 +23,7 @@
 #include "kernel_ver.h"
 #include "greybus_id.h"
 #include "greybus_manifest.h"
-#include "gpbridge.h"
+#include "greybus_protocols.h"
 #include "manifest.h"
 #include "endo.h"
 #include "module.h"
