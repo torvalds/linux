@@ -4154,6 +4154,10 @@ done:
  * @dev: DRM device to create property for
  * @length: Length to allocate for blob data
  * @data: If specified, copies data into blob
+ *
+ * Returns:
+ * New blob property with a single reference on success, or an ERR_PTR
+ * value on failure.
  */
 struct drm_property_blob *
 drm_property_create_blob(struct drm_device *dev, size_t length,
@@ -4163,11 +4167,11 @@ drm_property_create_blob(struct drm_device *dev, size_t length,
 	int ret;
 
 	if (!length)
-		return NULL;
+		return ERR_PTR(-EINVAL);
 
 	blob = kzalloc(sizeof(struct drm_property_blob)+length, GFP_KERNEL);
 	if (!blob)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	blob->length = length;
 	blob->dev = dev;
@@ -4181,7 +4185,7 @@ drm_property_create_blob(struct drm_device *dev, size_t length,
 	if (ret) {
 		kfree(blob);
 		mutex_unlock(&dev->mode_config.blob_lock);
-		return NULL;
+		return ERR_PTR(-EINVAL);
 	}
 
 	kref_init(&blob->refcount);
@@ -4370,8 +4374,8 @@ static int drm_property_replace_global_blob(struct drm_device *dev,
 
 	if (length && data) {
 		new_blob = drm_property_create_blob(dev, length, data);
-		if (!new_blob)
-			return -EINVAL;
+		if (IS_ERR(new_blob))
+			return PTR_ERR(new_blob);
 	}
 
 	/* This does not need to be synchronised with blob_lock, as the
