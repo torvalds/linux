@@ -14598,9 +14598,11 @@ static void intel_init_display(struct drm_device *dev)
 	else if (IS_I85X(dev))
 		dev_priv->display.get_display_clock_speed =
 			i85x_get_display_clock_speed;
-	else /* 830 */
+	else { /* 830 */
+		WARN(!IS_I830(dev), "Unknown platform. Assuming 133 MHz CDCLK\n");
 		dev_priv->display.get_display_clock_speed =
 			i830_get_display_clock_speed;
+	}
 
 	if (IS_GEN5(dev)) {
 		dev_priv->display.fdi_link_train = ironlake_fdi_link_train;
