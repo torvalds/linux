@@ -1,3 +1,12 @@
+/*
+ * Greybus audio
+ *
+ * Copyright 2015 Google Inc.
+ * Copyright 2015 Linaro Ltd.
+ *
+ * Released under the GPLv2 only.
+ */
+
 #ifndef __GB_AUDIO_H
 #define __GB_AUDIO_H
 #include <linux/kernel.h>

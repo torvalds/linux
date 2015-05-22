@@ -1,3 +1,12 @@
+/*
+ * Greybus audio commands
+ *
+ * Copyright 2015 Google Inc.
+ * Copyright 2015 Linaro Ltd.
+ *
+ * Released under the GPLv2 only.
+ */
+
 #include <linux/kernel.h>
 
 #include "greybus.h"
