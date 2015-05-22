@@ -606,18 +606,10 @@ struct rk_display_device
 		mutex_unlock(&allocated_dsp_lock);
 
 		if (new_dev->idx >= 0) {
-			if (new_dev->property == DISPLAY_MAIN)
-				new_dev->dev =
-				device_create(display_class, parent,
-					      MKDEV(0, 0), new_dev,
-					      "%s", new_dev->type);
-			else
-				new_dev->dev =
-				device_create(display_class, parent,
-					      MKDEV(0, 0), new_dev,
-					      "display%d.%s",
-					      new_dev->property,
-					      new_dev->type);
+			new_dev->dev =
+			device_create(display_class, parent,
+				      MKDEV(0, 0), new_dev,
+				      "%s", new_dev->type);
 			if (!IS_ERR(new_dev->dev)) {
 				new_dev->parent = parent;
 				new_dev->driver = driver;
