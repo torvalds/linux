@@ -46,4 +46,6 @@ int subdev_8255_mm_init(struct comedi_device *dev, struct comedi_subdevice *s,
 				  int data, unsigned long regbase),
 			unsigned long regbase);
 
+unsigned long subdev_8255_regbase(struct comedi_subdevice *s);
+
 #endif
