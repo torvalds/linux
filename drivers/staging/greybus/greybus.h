@@ -26,6 +26,7 @@
 #include "greybus_protocols.h"
 #include "manifest.h"
 #include "endo.h"
+#include "svc.h"
 #include "module.h"
 #include "interface.h"
 #include "bundle.h"
