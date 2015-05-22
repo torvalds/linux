@@ -13,7 +13,7 @@
 #define MSR_IA32_QM_CTR		0x0c8e
 #define MSR_IA32_QM_EVTSEL	0x0c8d
 
-static unsigned int cqm_max_rmid = -1;
+static u32 cqm_max_rmid = -1;
 static unsigned int cqm_l3_scale; /* supposedly cacheline size */
 
 /**
@@ -76,7 +76,7 @@ static cpumask_t cqm_cpumask;
  * near-zero occupancy value, i.e. no cachelines are tagged with this
  * RMID, once __intel_cqm_rmid_rotate() returns.
  */
-static unsigned int intel_cqm_rotation_rmid;
+static u32 intel_cqm_rotation_rmid;
 
 #define INVALID_RMID		(-1)
 
@@ -88,7 +88,7 @@ static unsigned int intel_cqm_rotation_rmid;
  * Likewise, an rmid value of -1 is used to indicate "no rmid currently
  * assigned" and is used as part of the rotation code.
  */
-static inline bool __rmid_valid(unsigned int rmid)
+static inline bool __rmid_valid(u32 rmid)
 {
 	if (!rmid || rmid == INVALID_RMID)
 		return false;
@@ -96,7 +96,7 @@ static inline bool __rmid_valid(unsigned int rmid)
 	return true;
 }
 
-static u64 __rmid_read(unsigned int rmid)
+static u64 __rmid_read(u32 rmid)
 {
 	u64 val;
 
@@ -121,7 +121,7 @@ enum rmid_recycle_state {
 };
 
 struct cqm_rmid_entry {
-	unsigned int rmid;
+	u32 rmid;
 	enum rmid_recycle_state state;
 	struct list_head list;
 	unsigned long queue_time;
@@ -166,7 +166,7 @@ static LIST_HEAD(cqm_rmid_limbo_lru);
  */
 static struct cqm_rmid_entry **cqm_rmid_ptrs;
 
-static inline struct cqm_rmid_entry *__rmid_entry(int rmid)
+static inline struct cqm_rmid_entry *__rmid_entry(u32 rmid)
 {
 	struct cqm_rmid_entry *entry;
 
@@ -181,7 +181,7 @@ static inline struct cqm_rmid_entry *__rmid_entry(int rmid)
  *
  * We expect to be called with cache_mutex held.
  */
-static int __get_rmid(void)
+static u32 __get_rmid(void)
 {
 	struct cqm_rmid_entry *entry;
 
@@ -196,7 +196,7 @@ static int __get_rmid(void)
 	return entry->rmid;
 }
 
-static void __put_rmid(unsigned int rmid)
+static void __put_rmid(u32 rmid)
 {
 	struct cqm_rmid_entry *entry;
 
@@ -391,7 +391,7 @@ static bool __conflict_event(struct perf_event *a, struct perf_event *b)
 }
 
 struct rmid_read {
-	unsigned int rmid;
+	u32 rmid;
 	atomic64_t value;
 };
 
@@ -400,12 +400,11 @@ static void __intel_cqm_event_count(void *info);
 /*
  * Exchange the RMID of a group of events.
  */
-static unsigned int
-intel_cqm_xchg_rmid(struct perf_event *group, unsigned int rmid)
+static u32 intel_cqm_xchg_rmid(struct perf_event *group, u32 rmid)
 {
 	struct perf_event *event;
-	unsigned int old_rmid = group->hw.cqm_rmid;
 	struct list_head *head = &group->hw.cqm_group_entry;
+	u32 old_rmid = group->hw.cqm_rmid;
 
 	lockdep_assert_held(&cache_mutex);
 
@@ -470,7 +469,7 @@ static void intel_cqm_stable(void *arg)
  * If we have group events waiting for an RMID that don't conflict with
  * events already running, assign @rmid.
  */
-static bool intel_cqm_sched_in_event(unsigned int rmid)
+static bool intel_cqm_sched_in_event(u32 rmid)
 {
 	struct perf_event *leader, *event;
 
@@ -617,7 +616,7 @@ static bool intel_cqm_rmid_stabilize(unsigned int *available)
 static void __intel_cqm_pick_and_rotate(struct perf_event *next)
 {
 	struct perf_event *rotor;
-	unsigned int rmid;
+	u32 rmid;
 
 	lockdep_assert_held(&cache_mutex);
 
@@ -645,7 +644,7 @@ static void __intel_cqm_pick_and_rotate(struct perf_event *next)
 static void intel_cqm_sched_out_conflicting_events(struct perf_event *event)
 {
 	struct perf_event *group, *g;
-	unsigned int rmid;
+	u32 rmid;
 
 	lockdep_assert_held(&cache_mutex);
 
@@ -847,8 +846,8 @@ static void intel_cqm_setup_event(struct perf_event *event,
 				  struct perf_event **group)
 {
 	struct perf_event *iter;
-	unsigned int rmid;
 	bool conflict = false;
+	u32 rmid;
 
 	list_for_each_entry(iter, &cache_groups, hw.cqm_groups_entry) {
 		rmid = iter->hw.cqm_rmid;
@@ -879,7 +878,7 @@ static void intel_cqm_setup_event(struct perf_event *event,
 static void intel_cqm_event_read(struct perf_event *event)
 {
 	unsigned long flags;
-	unsigned int rmid;
+	u32 rmid;
 	u64 val;
 
 	/*
@@ -1021,7 +1020,7 @@ static void intel_cqm_event_stop(struct perf_event *event, int mode)
 static int intel_cqm_event_add(struct perf_event *event, int mode)
 {
 	unsigned long flags;
-	unsigned int rmid;
+	u32 rmid;
 
 	raw_spin_lock_irqsave(&cache_lock, flags);
 
@@ -1064,7 +1063,7 @@ static void intel_cqm_event_destroy(struct perf_event *event)
 			list_replace(&event->hw.cqm_groups_entry,
 				     &group_other->hw.cqm_groups_entry);
 		} else {
-			unsigned int rmid = event->hw.cqm_rmid;
+			u32 rmid = event->hw.cqm_rmid;
 
 			if (__rmid_valid(rmid))
 				__put_rmid(rmid);
