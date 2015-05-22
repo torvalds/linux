@@ -111,6 +111,11 @@ config CLKSRC_LPC32XX
 	select CLKSRC_MMIO
 	select CLKSRC_OF
 
+config CLKSRC_STM32
+	bool "Clocksource for STM32 SoCs" if COMPILE_TEST
+	depends on OF
+	select CLKSRC_MMIO
+
 config ARM_ARCH_TIMER
 	bool
 	select CLKSRC_OF if OF
