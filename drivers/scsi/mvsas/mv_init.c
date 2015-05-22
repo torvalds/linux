@@ -338,8 +338,11 @@ int mvs_ioremap(struct mvs_info *mvi, int bar, int bar_ex)
 
 	res_start = pci_resource_start(pdev, bar);
 	res_len = pci_resource_len(pdev, bar);
-	if (!res_start || !res_len)
+	if (!res_start || !res_len) {
+		iounmap(mvi->regs_ex);
+		mvi->regs_ex = NULL;
 		goto err_out;
+	}
 
 	res_flag = pci_resource_flags(pdev, bar);
 	if (res_flag & IORESOURCE_CACHEABLE)
