@@ -8410,8 +8410,10 @@ lpfc_cmpl_els_npiv_logo(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 	if (irsp->ulpStatus == IOSTAT_SUCCESS) {
 		spin_lock_irq(shost->host_lock);
+		vport->fc_flag &= ~FC_NDISC_ACTIVE;
 		vport->fc_flag &= ~FC_FABRIC;
 		spin_unlock_irq(shost->host_lock);
+		lpfc_can_disctmo(vport);
 	}
 }
 
