@@ -6,6 +6,17 @@ Example: The real path of the attribute /sys/class/cxl/afu0.0s/irqs_max is
 
 Slave contexts (eg. /sys/class/cxl/afu0.0s):
 
+What:           /sys/class/cxl/<afu>/afu_err_buf
+Date:           September 2014
+Contact:        linuxppc-dev@lists.ozlabs.org
+Description:    read only
+                AFU Error Buffer contents. The contents of this file are
+		application specific and depends on the AFU being used.
+		Applications interacting with the AFU can use this attribute
+		to know about the current error condition and take appropriate
+		action like logging the event etc.
+
+
 What:           /sys/class/cxl/<afu>/irqs_max
 Date:           September 2014
 Contact:        linuxppc-dev@lists.ozlabs.org

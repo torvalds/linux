@@ -593,6 +593,22 @@ static int cxl_read_afu_descriptor(struct cxl_afu *afu)
 	afu->crs_len = AFUD_CR_LEN(val) * 256;
 	afu->crs_offset = AFUD_READ_CR_OFF(afu);
 
+
+	/* eb_len is in multiple of 4K */
+	afu->eb_len = AFUD_EB_LEN(AFUD_READ_EB(afu)) * 4096;
+	afu->eb_offset = AFUD_READ_EB_OFF(afu);
+
+	/* eb_off is 4K aligned so lower 12 bits are always zero */
+	if (EXTRACT_PPC_BITS(afu->eb_offset, 0, 11) != 0) {
+		dev_warn(&afu->dev,
+			 "Invalid AFU error buffer offset %Lx\n",
+			 afu->eb_offset);
+		dev_info(&afu->dev,
+			 "Ignoring AFU error buffer in the descriptor\n");
+		/* indicate that no afu buffer exists */
+		afu->eb_len = 0;
+	}
+
 	return 0;
 }
 
@@ -670,6 +686,50 @@ static int sanitise_afu_regs(struct cxl_afu *afu)
 	}
 
 	return 0;
+}
+
+#define ERR_BUFF_MAX_COPY_SIZE PAGE_SIZE
+/*
+ * afu_eb_read:
+ * Called from sysfs and reads the afu error info buffer. The h/w only supports
+ * 4/8 bytes aligned access. So in case the requested offset/count arent 8 byte
+ * aligned the function uses a bounce buffer which can be max PAGE_SIZE.
+ */
+ssize_t cxl_afu_read_err_buffer(struct cxl_afu *afu, char *buf,
+				loff_t off, size_t count)
+{
+	loff_t aligned_start, aligned_end;
+	size_t aligned_length;
+	void *tbuf;
+	const void __iomem *ebuf = afu->afu_desc_mmio + afu->eb_offset;
+
+	if (count == 0 || off < 0 || (size_t)off >= afu->eb_len)
+		return 0;
+
+	/* calculate aligned read window */
+	count = min((size_t)(afu->eb_len - off), count);
+	aligned_start = round_down(off, 8);
+	aligned_end = round_up(off + count, 8);
+	aligned_length = aligned_end - aligned_start;
+
+	/* max we can copy in one read is PAGE_SIZE */
+	if (aligned_length > ERR_BUFF_MAX_COPY_SIZE) {
+		aligned_length = ERR_BUFF_MAX_COPY_SIZE;
+		count = ERR_BUFF_MAX_COPY_SIZE - (off & 0x7);
+	}
+
+	/* use bounce buffer for copy */
+	tbuf = (void *)__get_free_page(GFP_TEMPORARY);
+	if (!tbuf)
+		return -ENOMEM;
+
+	/* perform aligned read from the mmio region */
+	memcpy_fromio(tbuf, ebuf + aligned_start, aligned_length);
+	memcpy(buf, tbuf + (off & 0x7), count);
+
+	free_page((unsigned long)tbuf);
+
+	return count;
 }
 
 static int cxl_init_afu(struct cxl *adapter, int slice, struct pci_dev *dev)
