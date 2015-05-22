@@ -4226,16 +4226,18 @@ int dw_mci_suspend(struct dw_mci *host)
 {
 	int present = dw_mci_get_cd(host->mmc);
 
-	if((host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SDIO) &&
-		(get_wifi_chip_type() == WIFI_ESP8089 || get_wifi_chip_type() > WIFI_AP6XXX_SERIES))
+	if((host->mmc->restrict_caps &
+		RESTRICT_CARD_TYPE_SDIO) &&
+		(get_wifi_chip_type() == WIFI_ESP8089 ||
+		get_wifi_chip_type() > WIFI_AP6XXX_SERIES))
 		return 0;
 
-        if(host->vmmc)
-                regulator_disable(host->vmmc);
+	if(host->vmmc)
+		regulator_disable(host->vmmc);
 
-        /*only for sdmmc controller*/
-        if (host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD) {
-                disable_irq(host->irq);
+	/* Only for sdmmc controller */
+	if (host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD) {
+		disable_irq(host->irq);
 		if (present) {
 			if (pinctrl_select_state(host->pinctrl, host->pins_idle) < 0)
 				MMC_DBG_ERR_FUNC(host->mmc,
@@ -4243,16 +4245,16 @@ int dw_mci_suspend(struct dw_mci *host)
 					mmc_hostname(host->mmc));
 		}
 
-                mci_writel(host, RINTSTS, 0xFFFFFFFF);
-                mci_writel(host, INTMASK, 0x00);
-                mci_writel(host, CTRL, 0x00);
-
                 /* Soc rk3126/3036 already in gpio_cd mode */
                 if (!soc_is_rk3126() && !soc_is_rk3126b() && !soc_is_rk3036()) {
                         dw_mci_of_get_cd_gpio(host->dev, 0, host->mmc);
                         enable_irq_wake(host->mmc->slot.cd_irq);
                 }
         }
+
+	mci_writel(host, RINTSTS, 0xFFFFFFFF);
+	mci_writel(host, INTMASK, 0x00);
+	mci_writel(host, CTRL, 0x00);
 
         if (host->rst_ops &&
 		host->rst_ops->pre_suspend)
@@ -4353,12 +4355,15 @@ int dw_mci_resume(struct dw_mci *host)
 	mci_writel(host, TMOUT, 0xFFFFFFFF);
 
 	mci_writel(host, RINTSTS, 0xFFFFFFFF);
-	regs = SDMMC_INT_CMD_DONE | SDMMC_INT_DATA_OVER | SDMMC_INT_TXDR | SDMMC_INT_RXDR | SDMMC_INT_VSI |
-		   DW_MCI_ERROR_FLAGS;
+	regs = SDMMC_INT_CMD_DONE | SDMMC_INT_DATA_OVER | SDMMC_INT_TXDR |
+		SDMMC_INT_RXDR | SDMMC_INT_VSI | DW_MCI_ERROR_FLAGS;
+
 	if(!(host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SDIO))
-	    regs |= SDMMC_INT_CD;	   
+	    regs |= SDMMC_INT_CD;
+
 	mci_writel(host, INTMASK, regs);
 	mci_writel(host, CTRL, SDMMC_CTRL_INT_ENABLE);
+
 	/*only for sdmmc controller*/
 	if((host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SD)){
 		enable_irq(host->irq);	
