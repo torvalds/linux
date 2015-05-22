@@ -690,8 +690,11 @@ static void omap_gpio_free(struct gpio_chip *chip, unsigned offset)
 
 	spin_lock_irqsave(&bank->lock, flags);
 	bank->mod_usage &= ~(BIT(offset));
+	if (!LINE_USED(bank->irq_usage, offset)) {
+		omap_set_gpio_direction(bank, offset, 1);
+		omap_clear_gpio_debounce(bank, offset);
+	}
 	omap_disable_gpio_module(bank, offset);
-	omap_reset_gpio(bank, offset);
 	spin_unlock_irqrestore(&bank->lock, flags);
 
 	/*
