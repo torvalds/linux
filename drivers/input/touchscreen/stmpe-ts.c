@@ -383,12 +383,20 @@ static int stmpe_ts_remove(struct platform_device *pdev)
 
 static struct platform_driver stmpe_ts_driver = {
 	.driver = {
-		   .name = STMPE_TS_NAME,
-		   },
+		.name = STMPE_TS_NAME,
+	},
 	.probe = stmpe_input_probe,
 	.remove = stmpe_ts_remove,
 };
 module_platform_driver(stmpe_ts_driver);
+
+#ifdef CONFIG_OF
+static const struct of_device_id stmpe_ts_ids[] = {
+	{ .compatible = "st,stmpe-ts", },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, stmpe_ts_ids);
+#endif
 
 MODULE_AUTHOR("Luotao Fu <l.fu@pengutronix.de>");
 MODULE_DESCRIPTION("STMPEXXX touchscreen driver");
