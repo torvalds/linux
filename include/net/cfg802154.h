@@ -177,9 +177,9 @@ struct wpan_dev {
 	__le64 extended_addr;
 
 	/* MAC BSN field */
-	u8 bsn;
+	atomic_t bsn;
 	/* MAC DSN field */
-	u8 dsn;
+	atomic_t dsn;
 
 	u8 min_be;
 	u8 max_be;

@@ -69,13 +69,6 @@ static __le16 lowpan_get_short_addr(const struct net_device *dev)
 	return ieee802154_mlme_ops(real_dev)->get_short_addr(real_dev);
 }
 
-static u8 lowpan_get_dsn(const struct net_device *dev)
-{
-	struct net_device *real_dev = lowpan_dev_info(dev)->real_dev;
-
-	return ieee802154_mlme_ops(real_dev)->get_dsn(real_dev);
-}
-
 static struct header_ops lowpan_header_ops = {
 	.create	= lowpan_header_create,
 };
@@ -106,7 +99,6 @@ static const struct net_device_ops lowpan_netdev_ops = {
 static struct ieee802154_mlme_ops lowpan_mlme = {
 	.get_pan_id = lowpan_get_pan_id,
 	.get_short_addr = lowpan_get_short_addr,
-	.get_dsn = lowpan_get_dsn,
 };
 
 static void lowpan_setup(struct net_device *dev)

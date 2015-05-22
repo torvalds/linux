@@ -76,15 +76,6 @@ void mac802154_dev_set_pan_id(struct net_device *dev, __le16 val)
 	spin_unlock_bh(&sdata->mib_lock);
 }
 
-u8 mac802154_dev_get_dsn(const struct net_device *dev)
-{
-	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);
-
-	BUG_ON(dev->type != ARPHRD_IEEE802154);
-
-	return sdata->wpan_dev.dsn++;
-}
-
 void mac802154_dev_set_page_channel(struct net_device *dev, u8 page, u8 chan)
 {
 	struct ieee802154_sub_if_data *sdata = IEEE802154_DEV_TO_SUB_IF(dev);

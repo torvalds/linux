@@ -368,7 +368,7 @@ static int mac802154_header_create(struct sk_buff *skb,
 	hdr.fc.type = cb->type;
 	hdr.fc.security_enabled = cb->secen;
 	hdr.fc.ack_request = cb->ackreq;
-	hdr.seq = ieee802154_mlme_ops(dev)->get_dsn(dev);
+	hdr.seq = atomic_inc_return(&dev->ieee802154_ptr->dsn) & 0xFF;
 
 	if (mac802154_set_header_security(sdata, &hdr, cb) < 0)
 		return -EINVAL;
@@ -468,13 +468,16 @@ ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
 		       enum nl802154_iftype type)
 {
 	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
+	u8 tmp;
 
 	/* set some type-dependent values */
 	sdata->vif.type = type;
 	sdata->wpan_dev.iftype = type;
 
-	get_random_bytes(&wpan_dev->bsn, 1);
-	get_random_bytes(&wpan_dev->dsn, 1);
+	get_random_bytes(&tmp, sizeof(tmp));
+	atomic_set(&wpan_dev->bsn, tmp);
+	get_random_bytes(&tmp, sizeof(tmp));
+	atomic_set(&wpan_dev->dsn, tmp);
 
 	/* defaults per 802.15.4-2011 */
 	wpan_dev->min_be = 3;
