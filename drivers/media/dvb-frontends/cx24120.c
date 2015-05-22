@@ -838,7 +838,7 @@ static int cx24120_get_fec(struct dvb_frontend *fe)
 }
 
 /* Calculate ber window time */
-void cx24120_calculate_ber_window(struct cx24120_state *state, u32 rate)
+static void cx24120_calculate_ber_window(struct cx24120_state *state, u32 rate)
 {
 	struct dvb_frontend *fe = &state->frontend;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
