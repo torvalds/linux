@@ -326,6 +326,10 @@ struct drm_file {
 	struct list_head fbs;
 	struct mutex fbs_lock;
 
+	/** User-created blob properties; this retains a reference on the
+	 *  property. */
+	struct list_head blobs;
+
 	wait_queue_head_t event_wait;
 	struct list_head event_list;
 	int event_space;

@@ -4173,6 +4173,9 @@ drm_property_create_blob(struct drm_device *dev, size_t length,
 	if (!blob)
 		return ERR_PTR(-ENOMEM);
 
+	/* This must be explicitly initialised, so we can safely call list_del
+	 * on it in the removal handler, even if it isn't in a file list. */
+	INIT_LIST_HEAD(&blob->head_file);
 	blob->length = length;
 	blob->dev = dev;
 
@@ -4190,7 +4193,8 @@ drm_property_create_blob(struct drm_device *dev, size_t length,
 
 	kref_init(&blob->refcount);
 
-	list_add_tail(&blob->head, &dev->mode_config.property_blob_list);
+	list_add_tail(&blob->head_global,
+	              &dev->mode_config.property_blob_list);
 
 	mutex_unlock(&dev->mode_config.blob_lock);
 
@@ -4212,7 +4216,8 @@ static void drm_property_free_blob(struct kref *kref)
 
 	WARN_ON(!mutex_is_locked(&blob->dev->mode_config.blob_lock));
 
-	list_del(&blob->head);
+	list_del(&blob->head_global);
+	list_del(&blob->head_file);
 	drm_mode_object_put(blob->dev, &blob->base);
 
 	kfree(blob);
@@ -4261,6 +4266,26 @@ static void drm_property_unreference_blob_locked(struct drm_property_blob *blob)
 	DRM_DEBUG("%p: blob ID: %d (%d)\n", blob, blob->base.id, atomic_read(&blob->refcount.refcount));
 
 	kref_put(&blob->refcount, drm_property_free_blob);
+}
+
+/**
+ * drm_property_destroy_user_blobs - destroy all blobs created by this client
+ * @dev:       DRM device
+ * @file_priv: destroy all blobs owned by this file handle
+ */
+void drm_property_destroy_user_blobs(struct drm_device *dev,
+				     struct drm_file *file_priv)
+{
+	struct drm_property_blob *blob, *bt;
+
+	mutex_lock(&dev->mode_config.blob_lock);
+
+	list_for_each_entry_safe(blob, bt, &file_priv->blobs, head_file) {
+		list_del_init(&blob->head_file);
+		drm_property_unreference_blob_locked(blob);
+	}
+
+	mutex_unlock(&dev->mode_config.blob_lock);
 }
 
 /**
@@ -4449,6 +4474,114 @@ int drm_mode_getblob_ioctl(struct drm_device *dev,
 done:
 	mutex_unlock(&dev->mode_config.blob_lock);
 	drm_modeset_unlock_all(dev);
+	return ret;
+}
+
+/**
+ * drm_mode_createblob_ioctl - create a new blob property
+ * @dev: DRM device
+ * @data: ioctl data
+ * @file_priv: DRM file info
+ *
+ * This function creates a new blob property with user-defined values. In order
+ * to give us sensible validation and checking when creating, rather than at
+ * every potential use, we also require a type to be provided upfront.
+ *
+ * Called by the user via ioctl.
+ *
+ * Returns:
+ * Zero on success, negative errno on failure.
+ */
+int drm_mode_createblob_ioctl(struct drm_device *dev,
+			      void *data, struct drm_file *file_priv)
+{
+	struct drm_mode_create_blob *out_resp = data;
+	struct drm_property_blob *blob;
+	void __user *blob_ptr;
+	int ret = 0;
+
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
+
+	blob = drm_property_create_blob(dev, out_resp->length, NULL);
+	if (IS_ERR(blob))
+		return PTR_ERR(blob);
+
+	blob_ptr = (void __user *)(unsigned long)out_resp->data;
+	if (copy_from_user(blob->data, blob_ptr, out_resp->length)) {
+		ret = -EFAULT;
+		goto out_blob;
+	}
+
+	/* Dropping the lock between create_blob and our access here is safe
+	 * as only the same file_priv can remove the blob; at this point, it is
+	 * not associated with any file_priv. */
+	mutex_lock(&dev->mode_config.blob_lock);
+	out_resp->blob_id = blob->base.id;
+	list_add_tail(&file_priv->blobs, &blob->head_file);
+	mutex_unlock(&dev->mode_config.blob_lock);
+
+	return 0;
+
+out_blob:
+	drm_property_unreference_blob(blob);
+	return ret;
+}
+
+/**
+ * drm_mode_destroyblob_ioctl - destroy a user blob property
+ * @dev: DRM device
+ * @data: ioctl data
+ * @file_priv: DRM file info
+ *
+ * Destroy an existing user-defined blob property.
+ *
+ * Called by the user via ioctl.
+ *
+ * Returns:
+ * Zero on success, negative errno on failure.
+ */
+int drm_mode_destroyblob_ioctl(struct drm_device *dev,
+			       void *data, struct drm_file *file_priv)
+{
+	struct drm_mode_destroy_blob *out_resp = data;
+	struct drm_property_blob *blob = NULL, *bt;
+	bool found = false;
+	int ret = 0;
+
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
+
+	mutex_lock(&dev->mode_config.blob_lock);
+	blob = __drm_property_lookup_blob(dev, out_resp->blob_id);
+	if (!blob) {
+		ret = -ENOENT;
+		goto err;
+	}
+
+	/* Ensure the property was actually created by this user. */
+	list_for_each_entry(bt, &file_priv->blobs, head_file) {
+		if (bt == blob) {
+			found = true;
+			break;
+		}
+	}
+
+	if (!found) {
+		ret = -EPERM;
+		goto err;
+	}
+
+	/* We must drop head_file here, because we may not be the last
+	 * reference on the blob. */
+	list_del_init(&blob->head_file);
+	drm_property_unreference_blob_locked(blob);
+	mutex_unlock(&dev->mode_config.blob_lock);
+
+	return 0;
+
+err:
+	mutex_unlock(&dev->mode_config.blob_lock);
 	return ret;
 }
 
@@ -5655,7 +5788,7 @@ void drm_mode_config_cleanup(struct drm_device *dev)
 	}
 
 	list_for_each_entry_safe(blob, bt, &dev->mode_config.property_blob_list,
-				 head) {
+				 head_global) {
 		drm_property_unreference_blob(blob);
 	}
 
