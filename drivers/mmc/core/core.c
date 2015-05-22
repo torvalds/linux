@@ -34,6 +34,7 @@
 #include <linux/mmc/host.h>
 #include <linux/mmc/mmc.h>
 #include <linux/mmc/sd.h>
+#include <linux/mmc/sdio.h>
 
 #include "core.h"
 #include "bus.h"
@@ -432,28 +433,36 @@ static int mmc_wait_for_data_req_done(struct mmc_host *host,
 	return err;
 }
 
+static void mmc_get_req_timeout(struct mmc_request *mrq, u32 *timeout)
+{
+	if (!mrq->cmd->data) {
+		if (mrq->cmd->opcode == MMC_ERASE ||
+			(mrq->cmd->opcode == MMC_ERASE_GROUP_START) ||
+			(mrq->cmd->opcode == MMC_ERASE_GROUP_END) ||
+			(mrq->cmd->opcode == MMC_SEND_STATUS))
+			*timeout = 2500000;
+		else
+			*timeout = 500;
+	} else {
+		*timeout = mrq->cmd->data->blocks *
+			mrq->cmd->data->blksz * 500;
+		*timeout = (*timeout) ? (*timeout) : 1000;
+		if (*timeout > 8000)
+			*timeout = 8000;
+	}
+
+	if ((mrq->cmd->opcode == SD_IO_RW_DIRECT) ||
+		(mrq->cmd->opcode == SD_IO_RW_EXTENDED))
+		*timeout = 8000;
+}
+
 static void mmc_wait_for_req_done(struct mmc_host *host,
 				  struct mmc_request *mrq)
 {
 	struct mmc_command *cmd;
 	u32 timeout = 0;
 
-	if (!mrq->cmd->data) {
-		if (mrq->cmd->opcode == MMC_ERASE ||
-			(mrq->cmd->opcode == MMC_ERASE_GROUP_START) ||
-			(mrq->cmd->opcode == MMC_ERASE_GROUP_END) ||
-			(mrq->cmd->opcode == MMC_SEND_STATUS))
-			timeout = 2500000;
-		else
-			timeout = 500;
-	} else {
-		timeout = mrq->cmd->data->blocks *
-			mrq->cmd->data->blksz * 500;
-
-		timeout = timeout ? timeout : 1000;
-		if (timeout > 8000)
-			timeout = 8000;
-	}
+	mmc_get_req_timeout(mrq, &timeout);
 
 	while (1) {
 		if (!wait_for_completion_timeout(&mrq->completion,
