@@ -2143,8 +2143,10 @@ static int setup_scratch_page(struct drm_device *dev)
 #ifdef CONFIG_INTEL_IOMMU
 	dma_addr = pci_map_page(dev->pdev, page, 0, PAGE_SIZE,
 				PCI_DMA_BIDIRECTIONAL);
-	if (pci_dma_mapping_error(dev->pdev, dma_addr))
+	if (pci_dma_mapping_error(dev->pdev, dma_addr)) {
+		__free_page(page);
 		return -EINVAL;
+	}
 #else
 	dma_addr = page_to_phys(page);
 #endif
