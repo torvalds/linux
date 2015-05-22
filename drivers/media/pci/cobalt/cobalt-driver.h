@@ -177,7 +177,7 @@ struct cobalt_i2c_regs;
 /* Per I2C bus private algo callback data */
 struct cobalt_i2c_data {
 	struct cobalt *cobalt;
-	volatile struct cobalt_i2c_regs __iomem *regs;
+	struct cobalt_i2c_regs __iomem *regs;
 };
 
 struct pci_consistent_buffer {
