@@ -240,6 +240,15 @@ static inline void kvm_apic_set_ldr(struct kvm_lapic *apic, u32 id)
 	recalculate_apic_map(apic->vcpu->kvm);
 }
 
+static inline void kvm_apic_set_x2apic_id(struct kvm_lapic *apic, u8 id)
+{
+	u32 ldr = ((id >> 4) << 16) | (1 << (id & 0xf));
+
+	apic_set_reg(apic, APIC_ID, id << 24);
+	apic_set_reg(apic, APIC_LDR, ldr);
+	recalculate_apic_map(apic->vcpu->kvm);
+}
+
 static inline int apic_lvt_enabled(struct kvm_lapic *apic, int lvt_type)
 {
 	return !(kvm_apic_get_reg(apic, lvt_type) & APIC_LVT_MASKED);
@@ -1538,9 +1547,7 @@ void kvm_lapic_set_base(struct kvm_vcpu *vcpu, u64 value)
 
 	if ((old_value ^ value) & X2APIC_ENABLE) {
 		if (value & X2APIC_ENABLE) {
-			u32 id = kvm_apic_id(apic);
-			u32 ldr = ((id >> 4) << 16) | (1 << (id & 0xf));
-			kvm_apic_set_ldr(apic, ldr);
+			kvm_apic_set_x2apic_id(apic, vcpu->vcpu_id);
 			kvm_x86_ops->set_virtual_x2apic_mode(vcpu, true);
 		} else
 			kvm_x86_ops->set_virtual_x2apic_mode(vcpu, false);
