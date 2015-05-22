@@ -1,8 +1,8 @@
 /*
- * Greybus "AP" USB driver
+ * Greybus "AP" USB driver for "ES1" controller chips
  *
- * Copyright 2014 Google Inc.
- * Copyright 2014 Linaro Ltd.
+ * Copyright 2014-2015 Google Inc.
+ * Copyright 2014-2015 Linaro Ltd.
  *
  * Released under the GPLv2 only.
  */

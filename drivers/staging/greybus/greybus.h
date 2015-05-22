@@ -1,8 +1,8 @@
 /*
  * Greybus driver and device API
  *
- * Copyright 2014 Google Inc.
- * Copyright 2014 Linaro Ltd.
+ * Copyright 2014-2015 Google Inc.
+ * Copyright 2014-2015 Linaro Ltd.
  *
  * Released under the GPLv2 only.
  */

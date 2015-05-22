@@ -2,6 +2,7 @@
  * Greybus endo code
  *
  * Copyright 2015 Google Inc.
+ * Copyright 2015 Linaro Ltd.
  *
  * Released under the GPLv2 only.
  */

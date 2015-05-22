@@ -4,8 +4,8 @@
  * See "Greybus Application Protocol" document (version 0.1) for
  * details on these values and structures.
  *
- * Copyright 2014 Google Inc.
- * Copyright 2014 Linaro Ltd.
+ * Copyright 2014-2015 Google Inc.
+ * Copyright 2014-2015 Linaro Ltd.
  *
  * Released under the GPLv2 and BSD licenses.
  */
