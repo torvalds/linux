@@ -3940,6 +3940,22 @@ static struct bpf_test tests[] = {
 		{ },
 		{ { 0, 1 } },
 	},
+	/* BPF_JMP | BPF_JGT | BPF_K jump backwards */
+	{
+		"JMP_JGT_K: if (3 > 2) return 1 (jump backwards)",
+		.u.insns_int = {
+			BPF_JMP_IMM(BPF_JA, 0, 0, 2), /* goto start */
+			BPF_ALU32_IMM(BPF_MOV, R0, 1), /* out: */
+			BPF_EXIT_INSN(),
+			BPF_ALU32_IMM(BPF_MOV, R0, 0), /* start: */
+			BPF_LD_IMM64(R1, 3), /* note: this takes 2 insns */
+			BPF_JMP_IMM(BPF_JGT, R1, 2, -6), /* goto out */
+			BPF_EXIT_INSN(),
+		},
+		INTERNAL,
+		{ },
+		{ { 0, 1 } },
+	},
 	{
 		"JMP_JGE_K: if (3 >= 3) return 1",
 		.u.insns_int = {
