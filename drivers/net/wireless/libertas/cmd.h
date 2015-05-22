@@ -68,7 +68,8 @@ int lbs_process_command_response(struct lbs_private *priv, u8 *data, u32 len);
 
 /* From cmdresp.c */
 
-void lbs_mac_event_disconnected(struct lbs_private *priv);
+void lbs_mac_event_disconnected(struct lbs_private *priv,
+				bool locally_generated);
 
 
 
