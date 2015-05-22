@@ -42,7 +42,7 @@ static int i2c_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg *msgs, int num)
 			retval = saa7164_api_i2c_read(bus,
 				msgs[i].addr,
 				0 /* reglen */,
-				0 /* reg */, msgs[i].len, msgs[i].buf);
+				NULL /* reg */, msgs[i].len, msgs[i].buf);
 		} else if (i + 1 < num && (msgs[i + 1].flags & I2C_M_RD) &&
 			   msgs[i].addr == msgs[i + 1].addr) {
 			/* write then read from same address */
