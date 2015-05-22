@@ -1628,7 +1628,7 @@ static bool valid_cvt_gtf_timings(struct v4l2_dv_timings *timings)
 
 	if (bt->standards == 0 || (bt->standards & V4L2_DV_BT_STD_CVT)) {
 		if (v4l2_detect_cvt(total_v_lines, h_freq, bt->vsync,
-				    bt->polarities, false, timings))
+				    bt->polarities, bt->interlaced, timings))
 			return true;
 	}
 
@@ -1639,7 +1639,7 @@ static bool valid_cvt_gtf_timings(struct v4l2_dv_timings *timings)
 				  &aspect_ratio.numerator,
 				  &aspect_ratio.denominator);
 		if (v4l2_detect_gtf(total_v_lines, h_freq, bt->vsync,
-				    bt->polarities, false,
+				    bt->polarities, bt->interlaced,
 				    aspect_ratio, timings))
 			return true;
 	}
