@@ -470,12 +470,15 @@ struct hdmi *rockchip_hdmi_register(struct hdmi_property *property,
 	hdmi->yscale = 100;
 	hdmi_init_modelist(hdmi);
 
-#ifndef CONFIG_ARCH_RK29
 	if (hdmi->property->videosrc == DISPLAY_SOURCE_LCDC0)
 		hdmi->lcdc = rk_get_lcdc_drv("lcdc0");
 	else
 		hdmi->lcdc = rk_get_lcdc_drv("lcdc1");
-#endif
+
+	if (hdmi->lcdc->prop == EXTEND)
+		hdmi->property->display = DISPLAY_AUX;
+	else
+		hdmi->property->display = DISPLAY_MAIN;
 	memset(name, 0, 32);
 	sprintf(name, "hdmi-%s", hdmi->property->name);
 	hdmi->workqueue = create_singlethread_workqueue(name);
