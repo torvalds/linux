@@ -251,7 +251,12 @@ EXPORT_SYMBOL(amdtp_stream_set_parameters);
  */
 unsigned int amdtp_stream_get_max_payload(struct amdtp_stream *s)
 {
-	return 8 + s->syt_interval * s->data_block_quadlets * 4;
+	unsigned int multiplier = 1;
+
+	if (s->flags & CIP_JUMBO_PAYLOAD)
+		multiplier = 5;
+
+	return 8 + s->syt_interval * s->data_block_quadlets * 4 * multiplier;
 }
 EXPORT_SYMBOL(amdtp_stream_get_max_payload);
 
@@ -807,11 +812,15 @@ static void in_stream_callback(struct fw_iso_context *context, u32 cycle,
 			       void *private_data)
 {
 	struct amdtp_stream *s = private_data;
-	unsigned int p, syt, packets, payload_quadlets;
+	unsigned int p, syt, packets;
+	unsigned int payload_quadlets, max_payload_quadlets;
 	__be32 *buffer, *headers = header;
 
 	/* The number of packets in buffer */
 	packets = header_length / IN_PACKET_HEADER_SIZE;
+
+	/* For buffer-over-run prevention. */
+	max_payload_quadlets = amdtp_stream_get_max_payload(s) / 4;
 
 	for (p = 0; p < packets; p++) {
 		if (s->packet_index < 0)
@@ -828,6 +837,14 @@ static void in_stream_callback(struct fw_iso_context *context, u32 cycle,
 		/* The number of quadlets in this packet */
 		payload_quadlets =
 			(be32_to_cpu(headers[p]) >> ISO_DATA_LENGTH_SHIFT) / 4;
+		if (payload_quadlets > max_payload_quadlets) {
+			dev_err(&s->unit->device,
+				"Detect jumbo payload: %02x %02x\n",
+				payload_quadlets, max_payload_quadlets);
+			s->packet_index = -1;
+			break;
+		}
+
 		handle_in_packet(s, payload_quadlets, buffer);
 	}
 
