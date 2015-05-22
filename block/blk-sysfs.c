@@ -8,9 +8,9 @@
 #include <linux/blkdev.h>
 #include <linux/blktrace_api.h>
 #include <linux/blk-mq.h>
+#include <linux/blk-cgroup.h>
 
 #include "blk.h"
-#include "blk-cgroup.h"
 #include "blk-mq.h"
 
 struct queue_sysfs_entry {
