@@ -69,7 +69,7 @@ struct pinmux_ops {
 	int (*get_function_groups) (struct pinctrl_dev *pctldev,
 				  unsigned selector,
 				  const char * const **groups,
-				  unsigned * const num_groups);
+				  unsigned *num_groups);
 	int (*set_mux) (struct pinctrl_dev *pctldev, unsigned func_selector,
 			unsigned group_selector);
 	int (*gpio_request_enable) (struct pinctrl_dev *pctldev,
