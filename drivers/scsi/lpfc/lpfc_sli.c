@@ -2249,7 +2249,7 @@ lpfc_sli4_unreg_rpi_cmpl_clr(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 						 vport->vpi, ndlp->nlp_rpi,
 						 ndlp->nlp_DID,
 						 ndlp->nlp_usg_map, ndlp);
-
+				ndlp->nlp_flag &= ~NLP_LOGO_ACC;
 				lpfc_nlp_put(ndlp);
 			}
 		}

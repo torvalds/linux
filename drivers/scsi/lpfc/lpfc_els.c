@@ -3668,16 +3668,6 @@ lpfc_cmpl_els_logo_acc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	 * At this point, the driver is done so release the IOCB
 	 */
 	lpfc_els_free_iocb(phba, cmdiocb);
-
-	/*
-	 * Remove the ndlp reference if it's a fabric node that has
-	 * sent us an unsolicted LOGO.
-	 */
-	/* FIXME: this one frees ndlp before breaking rport link */
-	if (ndlp->nlp_type & NLP_FABRIC)
-		lpfc_nlp_put(ndlp);
-
-	return;
 }
 
 /**
@@ -4022,7 +4012,9 @@ lpfc_els_rsp_acc(struct lpfc_vport *vport, uint32_t flag,
 			 ndlp->nlp_rpi, vport->fc_flag);
 	if (ndlp->nlp_flag & NLP_LOGO_ACC) {
 		spin_lock_irq(shost->host_lock);
-		ndlp->nlp_flag &= ~NLP_LOGO_ACC;
+		if (!(ndlp->nlp_flag & NLP_RPI_REGISTERED ||
+			ndlp->nlp_flag & NLP_REG_LOGIN_SEND))
+			ndlp->nlp_flag &= ~NLP_LOGO_ACC;
 		spin_unlock_irq(shost->host_lock);
 		elsiocb->iocb_cmpl = lpfc_cmpl_els_logo_acc;
 	} else {
