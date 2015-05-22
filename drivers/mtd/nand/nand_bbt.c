@@ -1,6 +1,4 @@
 /*
- *  drivers/mtd/nand_bbt.c
- *
  *  Overview:
  *   Bad block table support for the NAND driver
  *
