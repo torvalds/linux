@@ -43,8 +43,8 @@ static int mac802154_mlme_start_req(struct net_device *dev,
 
 	BUG_ON(addr->mode != IEEE802154_ADDR_SHORT);
 
-	mac802154_dev_set_pan_id(dev, addr->pan_id);
-	mac802154_dev_set_short_addr(dev, addr->short_addr);
+	dev->ieee802154_ptr->pan_id = addr->pan_id;
+	dev->ieee802154_ptr->short_addr = addr->short_addr;
 	mac802154_dev_set_page_channel(dev, page, channel);
 
 	if (ops->llsec) {
@@ -151,8 +151,6 @@ static struct ieee802154_llsec_ops mac802154_llsec_ops = {
 
 struct ieee802154_mlme_ops mac802154_mlme_wpan = {
 	.start_req = mac802154_mlme_start_req,
-	.get_pan_id = mac802154_dev_get_pan_id,
-	.get_short_addr = mac802154_dev_get_short_addr,
 
 	.llsec = &mac802154_llsec_ops,
 

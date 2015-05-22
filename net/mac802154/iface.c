@@ -63,7 +63,6 @@ mac802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	int err = -ENOIOCTLCMD;
 
 	rtnl_lock();
-	spin_lock_bh(&sdata->mib_lock);
 
 	switch (cmd) {
 	case SIOCGIFADDR:
@@ -88,7 +87,6 @@ mac802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	}
 	case SIOCSIFADDR:
 		if (netif_running(dev)) {
-			spin_unlock_bh(&sdata->mib_lock);
 			rtnl_unlock();
 			return -EBUSY;
 		}
@@ -111,7 +109,6 @@ mac802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		break;
 	}
 
-	spin_unlock_bh(&sdata->mib_lock);
 	rtnl_unlock();
 	return err;
 }
@@ -374,8 +371,6 @@ static int mac802154_header_create(struct sk_buff *skb,
 		return -EINVAL;
 
 	if (!saddr) {
-		spin_lock_bh(&sdata->mib_lock);
-
 		if (wpan_dev->short_addr == cpu_to_le16(IEEE802154_ADDR_BROADCAST) ||
 		    wpan_dev->short_addr == cpu_to_le16(IEEE802154_ADDR_UNDEF) ||
 		    wpan_dev->pan_id == cpu_to_le16(IEEE802154_PANID_BROADCAST)) {
@@ -387,8 +382,6 @@ static int mac802154_header_create(struct sk_buff *skb,
 		}
 
 		hdr.source.pan_id = wpan_dev->pan_id;
-
-		spin_unlock_bh(&sdata->mib_lock);
 	} else {
 		hdr.source = *(const struct ieee802154_addr *)saddr;
 	}
@@ -500,7 +493,6 @@ ieee802154_setup_sdata(struct ieee802154_sub_if_data *sdata,
 		sdata->dev->ml_priv = &mac802154_mlme_wpan;
 		wpan_dev->promiscuous_mode = false;
 
-		spin_lock_init(&sdata->mib_lock);
 		mutex_init(&sdata->sec_mtx);
 
 		mac802154_llsec_init(&sdata->sec);

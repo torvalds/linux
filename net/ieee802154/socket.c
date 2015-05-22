@@ -64,10 +64,8 @@ ieee802154_get_dev(struct net *net, const struct ieee802154_addr *addr)
 			if (tmp->type != ARPHRD_IEEE802154)
 				continue;
 
-			pan_id = ieee802154_mlme_ops(tmp)->get_pan_id(tmp);
-			short_addr =
-				ieee802154_mlme_ops(tmp)->get_short_addr(tmp);
-
+			pan_id = tmp->ieee802154_ptr->pan_id;
+			short_addr = tmp->ieee802154_ptr->short_addr;
 			if (pan_id == addr->pan_id &&
 			    short_addr == addr->short_addr) {
 				dev = tmp;
@@ -797,9 +795,9 @@ static int ieee802154_dgram_deliver(struct net_device *dev, struct sk_buff *skb)
 	/* Data frame processing */
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
 
-	pan_id = ieee802154_mlme_ops(dev)->get_pan_id(dev);
-	short_addr = ieee802154_mlme_ops(dev)->get_short_addr(dev);
-	hw_addr = ieee802154_devaddr_from_raw(dev->dev_addr);
+	pan_id = dev->ieee802154_ptr->pan_id;
+	short_addr = dev->ieee802154_ptr->short_addr;
+	hw_addr = dev->ieee802154_ptr->extended_addr;
 
 	read_lock(&dgram_lock);
 	sk_for_each(sk, &dgram_head) {
