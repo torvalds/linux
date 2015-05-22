@@ -862,6 +862,7 @@ static int i2c_hid_acpi_pdata(struct i2c_client *client,
 	union acpi_object *obj;
 	struct acpi_device *adev;
 	acpi_handle handle;
+	int ret;
 
 	handle = ACPI_HANDLE(&client->dev);
 	if (!handle || acpi_bus_get_device(handle, &adev))
@@ -877,7 +878,9 @@ static int i2c_hid_acpi_pdata(struct i2c_client *client,
 	pdata->hid_descriptor_address = obj->integer.value;
 	ACPI_FREE(obj);
 
-	return acpi_dev_add_driver_gpios(adev, i2c_hid_acpi_gpios);
+	/* GPIOs are optional */
+	ret = acpi_dev_add_driver_gpios(adev, i2c_hid_acpi_gpios);
+	return ret < 0 && ret != -ENXIO ? ret : 0;
 }
 
 static const struct acpi_device_id i2c_hid_acpi_match[] = {
