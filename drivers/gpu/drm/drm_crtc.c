@@ -4270,7 +4270,7 @@ EXPORT_SYMBOL(drm_property_create_blob);
  *
  * Internal free function for blob properties; must not be used directly.
  *
- * @param kref Reference
+ * @kref: Reference
  */
 static void drm_property_free_blob(struct kref *kref)
 {
@@ -4290,7 +4290,7 @@ static void drm_property_free_blob(struct kref *kref)
  *
  * Drop a reference on a blob property. May free the object.
  *
- * @param blob Pointer to blob property
+ * @blob: Pointer to blob property
  */
 void drm_property_unreference_blob(struct drm_property_blob *blob)
 {
@@ -4318,8 +4318,7 @@ EXPORT_SYMBOL(drm_property_unreference_blob);
  * Drop a reference on a blob property. May free the object. This must be
  * called with blob_lock held.
  *
- * @param dev  Device the blob was created on
- * @param blob Pointer to blob property
+ * @blob: Pointer to blob property
  */
 static void drm_property_unreference_blob_locked(struct drm_property_blob *blob)
 {
@@ -4336,7 +4335,7 @@ static void drm_property_unreference_blob_locked(struct drm_property_blob *blob)
  *
  * Take a new reference on an existing blob property.
  *
- * @param blob Pointer to blob property
+ * @blob: Pointer to blob property
  */
 struct drm_property_blob *drm_property_reference_blob(struct drm_property_blob *blob)
 {
