@@ -79,6 +79,9 @@
 #define SDMMC_CMD_RTO_MAX_HOLD  200
 #define SDMMC_WAIT_FOR_UNBUSY	2500
 
+#define DW_REGS_SIZE	(0x0098 + 4)
+#define DW_REGS_NUM	(0x0098 / 4)
+
 #ifdef CONFIG_MMC_DW_IDMAC
 #define IDMAC_INT_CLR		(SDMMC_IDMAC_INT_AI | SDMMC_IDMAC_INT_NI | \
 				 SDMMC_IDMAC_INT_CES | SDMMC_IDMAC_INT_DU | \
@@ -3778,6 +3781,43 @@ static inline bool dw_mci_ctrl_all_reset(struct dw_mci *host)
 				 SDMMC_CTRL_DMA_RESET);
 }
 
+static void dw_mci_rst_pre_suspend(struct dw_mci *host)
+{
+	u32 index;
+	u32 *buffer;
+
+	buffer = host->regs_buffer;
+
+	for (index = 0; index < DW_REGS_NUM ; index++){
+		*buffer = mci_readreg(host, index*4);
+		MMC_DBG_INFO_FUNC(host->mmc, "[%s] :0x%08x.\n",
+			dw_mci_regs[index].name, *buffer);
+		buffer++;
+	}
+
+	*buffer = mci_readl(host,CDTHRCTL);
+	MMC_DBG_INFO_FUNC(host->mmc, "[%s] :0x%08x.\n", "CARDTHRCTL", *buffer);
+}
+
+static void dw_mci_rst_post_resume(struct dw_mci *host)
+{
+	u32 index;
+	u32 *buffer;
+
+	buffer = host->regs_buffer;
+
+	for (index = 0; index < DW_REGS_NUM; index++){
+		mci_writereg(host, index*4, *buffer);
+		buffer++;
+	}
+	mci_writel(host, CDTHRCTL, *buffer);
+}
+
+static const struct dw_mci_rst_ops dw_mci_pdrst_ops = {
+	.pre_suspend = dw_mci_rst_pre_suspend,
+	.post_resume = dw_mci_rst_post_resume,
+};
+
 #ifdef CONFIG_OF
 /*
 static struct dw_mci_of_quirks {
@@ -3861,7 +3901,20 @@ static struct dw_mci_board *dw_mci_parse_dt(struct dw_mci *host)
 	if (of_get_property(np, "cd-inverted", NULL))
 		pdata->caps2 |= MMC_CAP2_CD_ACTIVE_HIGH;
 	if (of_get_property(np, "bootpart-no-access", NULL))
-		pdata->caps2 |= MMC_CAP2_BOOTPART_NOACC;	
+		pdata->caps2 |= MMC_CAP2_BOOTPART_NOACC;
+
+	if (of_get_property(np, "controller-power-down", NULL)) {
+		host->regs_buffer = (u32 *)devm_kzalloc(host->dev,
+						DW_REGS_SIZE, GFP_KERNEL);
+		if (!host->regs_buffer) {
+			dev_err(host->dev,
+				"could not allocate memory for regs_buffer\n");
+			return ERR_PTR(-ENOMEM);
+		}
+
+		host->rst_ops = &dw_mci_pdrst_ops;
+		mmc_assume_removable = 0;
+	}
 
 	return pdata;
 }
@@ -4200,6 +4253,11 @@ int dw_mci_suspend(struct dw_mci *host)
                         enable_irq_wake(host->mmc->slot.cd_irq);
                 }
         }
+
+        if (host->rst_ops &&
+		host->rst_ops->pre_suspend)
+		host->rst_ops->pre_suspend(host);
+
         return 0;
 }
 EXPORT_SYMBOL(dw_mci_suspend);
@@ -4210,6 +4268,11 @@ int dw_mci_resume(struct dw_mci *host)
 	u32 regs;
 	struct dw_mci_slot *slot;
 	int present = dw_mci_get_cd(host->mmc);
+
+	if (host->rst_ops &&
+		host->rst_ops->post_resume)
+		host->rst_ops->post_resume(host);
+
 
 	if ((host->mmc->restrict_caps & RESTRICT_CARD_TYPE_SDIO) &&
 		(get_wifi_chip_type() == WIFI_ESP8089 ||
