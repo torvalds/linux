@@ -5,6 +5,7 @@
 #include <linux/compiler.h>
 #include <linux/list.h>
 #include <linux/rbtree.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <linux/types.h>
@@ -60,6 +61,7 @@ struct kmap {
 
 struct maps {
 	struct rb_root	 entries;
+	pthread_rwlock_t lock;
 	struct list_head removed_maps;
 };
 

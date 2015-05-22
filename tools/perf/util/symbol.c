@@ -205,9 +205,11 @@ void __map_groups__fixup_end(struct map_groups *mg, enum map_type type)
 	struct maps *maps = &mg->maps[type];
 	struct map *next, *curr;
 
+	pthread_rwlock_wrlock(&maps->lock);
+
 	curr = maps__first(maps);
 	if (curr == NULL)
-		return;
+		goto out_unlock;
 
 	for (next = map__next(curr); next; next = map__next(curr)) {
 		curr->end = next->start;
@@ -219,6 +221,9 @@ void __map_groups__fixup_end(struct map_groups *mg, enum map_type type)
 	 * last map final address.
 	 */
 	curr->end = ~0ULL;
+
+out_unlock:
+	pthread_rwlock_unlock(&maps->lock);
 }
 
 struct symbol *symbol__new(u64 start, u64 len, u8 binding, const char *name)
@@ -1523,12 +1528,18 @@ struct map *map_groups__find_by_name(struct map_groups *mg,
 	struct maps *maps = &mg->maps[type];
 	struct map *map;
 
+	pthread_rwlock_rdlock(&maps->lock);
+
 	for (map = maps__first(maps); map; map = map__next(map)) {
 		if (map->dso && strcmp(map->dso->short_name, name) == 0)
-			return map;
+			goto out_unlock;
 	}
 
-	return NULL;
+	map = NULL;
+
+out_unlock:
+	pthread_rwlock_unlock(&maps->lock);
+	return map;
 }
 
 int dso__load_vmlinux(struct dso *dso, struct map *map,
