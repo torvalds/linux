@@ -4145,6 +4145,16 @@ done:
 	return ret;
 }
 
+/**
+ * drm_property_create_blob - Create new blob property
+ *
+ * Creates a new blob property for a specified DRM device, optionally
+ * copying data.
+ *
+ * @dev: DRM device to create property for
+ * @length: Length to allocate for blob data
+ * @data: If specified, copies data into blob
+ */
 struct drm_property_blob *
 drm_property_create_blob(struct drm_device *dev, size_t length,
 			 const void *data)
@@ -4152,7 +4162,7 @@ drm_property_create_blob(struct drm_device *dev, size_t length,
 	struct drm_property_blob *blob;
 	int ret;
 
-	if (!length || !data)
+	if (!length)
 		return NULL;
 
 	blob = kzalloc(sizeof(struct drm_property_blob)+length, GFP_KERNEL);
@@ -4162,7 +4172,8 @@ drm_property_create_blob(struct drm_device *dev, size_t length,
 	blob->length = length;
 	blob->dev = dev;
 
-	memcpy(blob->data, data, length);
+	if (data)
+		memcpy(blob->data, data, length);
 
 	mutex_lock(&dev->mode_config.blob_lock);
 
