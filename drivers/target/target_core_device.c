@@ -1197,7 +1197,7 @@ int core_dev_add_lun(
 			if (acl->dynamic_node_acl &&
 			    (!tpg->se_tpg_tfo->tpg_check_demo_mode_login_only ||
 			     !tpg->se_tpg_tfo->tpg_check_demo_mode_login_only(tpg))) {
-				core_tpg_add_node_to_devs(acl, tpg);
+				core_tpg_add_node_to_devs(acl, tpg, lun);
 			}
 		}
 		mutex_unlock(&tpg->acl_node_mutex);

@@ -89,7 +89,8 @@ EXPORT_SYMBOL(core_tpg_get_initiator_node_acl);
  */
 void core_tpg_add_node_to_devs(
 	struct se_node_acl *acl,
-	struct se_portal_group *tpg)
+	struct se_portal_group *tpg,
+	struct se_lun *lun_orig)
 {
 	u32 lun_access = 0;
 	struct se_lun *lun;
@@ -98,6 +99,8 @@ void core_tpg_add_node_to_devs(
 	mutex_lock(&tpg->tpg_lun_mutex);
 	hlist_for_each_entry_rcu(lun, &tpg->tpg_lun_hlist, link) {
 		if (lun->lun_status != TRANSPORT_LUN_STATUS_ACTIVE)
+			continue;
+		if (lun_orig && lun != lun_orig)
 			continue;
 
 		dev = lun->lun_se_dev;
@@ -238,7 +241,7 @@ struct se_node_acl *core_tpg_check_initiator_node_acl(
 	 */
 	if ((tpg->se_tpg_tfo->tpg_check_demo_mode_login_only == NULL) ||
 	    (tpg->se_tpg_tfo->tpg_check_demo_mode_login_only(tpg) != 1))
-		core_tpg_add_node_to_devs(acl, tpg);
+		core_tpg_add_node_to_devs(acl, tpg, NULL);
 
 	target_add_node_acl(acl);
 	return acl;
