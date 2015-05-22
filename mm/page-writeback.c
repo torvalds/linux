@@ -128,10 +128,12 @@ struct wb_domain global_wb_domain;
 struct dirty_throttle_control {
 #ifdef CONFIG_CGROUP_WRITEBACK
 	struct wb_domain	*dom;
+	struct dirty_throttle_control *gdtc;	/* only set in memcg dtc's */
 #endif
 	struct bdi_writeback	*wb;
 	struct fprop_local_percpu *wb_completions;
 
+	unsigned long		avail;		/* dirtyable */
 	unsigned long		dirty;		/* file_dirty + write + nfs */
 	unsigned long		thresh;		/* dirty threshold */
 	unsigned long		bg_thresh;	/* dirty background threshold */
@@ -157,10 +159,16 @@ struct dirty_throttle_control {
 
 #define GDTC_INIT(__wb)		.dom = &global_wb_domain,		\
 				DTC_INIT_COMMON(__wb)
+#define GDTC_INIT_NO_WB		.dom = &global_wb_domain
 
 static struct wb_domain *dtc_dom(struct dirty_throttle_control *dtc)
 {
 	return dtc->dom;
+}
+
+static struct dirty_throttle_control *mdtc_gdtc(struct dirty_throttle_control *mdtc)
+{
+	return mdtc->gdtc;
 }
 
 static void wb_min_max_ratio(struct bdi_writeback *wb,
@@ -193,10 +201,16 @@ static void wb_min_max_ratio(struct bdi_writeback *wb,
 #else	/* CONFIG_CGROUP_WRITEBACK */
 
 #define GDTC_INIT(__wb)		DTC_INIT_COMMON(__wb)
+#define GDTC_INIT_NO_WB
 
 static struct wb_domain *dtc_dom(struct dirty_throttle_control *dtc)
 {
 	return &global_wb_domain;
+}
+
+static struct dirty_throttle_control *mdtc_gdtc(struct dirty_throttle_control *mdtc)
+{
+	return NULL;
 }
 
 static void wb_min_max_ratio(struct bdi_writeback *wb,
@@ -303,42 +317,88 @@ static unsigned long global_dirtyable_memory(void)
 	return x + 1;	/* Ensure that we never return 0 */
 }
 
-/*
- * global_dirty_limits - background-writeback and dirty-throttling thresholds
+/**
+ * domain_dirty_limits - calculate thresh and bg_thresh for a wb_domain
+ * @dtc: dirty_throttle_control of interest
  *
- * Calculate the dirty thresholds based on sysctl parameters
- * - vm.dirty_background_ratio  or  vm.dirty_background_bytes
- * - vm.dirty_ratio             or  vm.dirty_bytes
- * The dirty limits will be lifted by 1/4 for PF_LESS_THROTTLE (ie. nfsd) and
+ * Calculate @dtc->thresh and ->bg_thresh considering
+ * vm_dirty_{bytes|ratio} and dirty_background_{bytes|ratio}.  The caller
+ * must ensure that @dtc->avail is set before calling this function.  The
+ * dirty limits will be lifted by 1/4 for PF_LESS_THROTTLE (ie. nfsd) and
  * real-time tasks.
+ */
+static void domain_dirty_limits(struct dirty_throttle_control *dtc)
+{
+	const unsigned long available_memory = dtc->avail;
+	struct dirty_throttle_control *gdtc = mdtc_gdtc(dtc);
+	unsigned long bytes = vm_dirty_bytes;
+	unsigned long bg_bytes = dirty_background_bytes;
+	unsigned long ratio = vm_dirty_ratio;
+	unsigned long bg_ratio = dirty_background_ratio;
+	unsigned long thresh;
+	unsigned long bg_thresh;
+	struct task_struct *tsk;
+
+	/* gdtc is !NULL iff @dtc is for memcg domain */
+	if (gdtc) {
+		unsigned long global_avail = gdtc->avail;
+
+		/*
+		 * The byte settings can't be applied directly to memcg
+		 * domains.  Convert them to ratios by scaling against
+		 * globally available memory.
+		 */
+		if (bytes)
+			ratio = min(DIV_ROUND_UP(bytes, PAGE_SIZE) * 100 /
+				    global_avail, 100UL);
+		if (bg_bytes)
+			bg_ratio = min(DIV_ROUND_UP(bg_bytes, PAGE_SIZE) * 100 /
+				       global_avail, 100UL);
+		bytes = bg_bytes = 0;
+	}
+
+	if (bytes)
+		thresh = DIV_ROUND_UP(bytes, PAGE_SIZE);
+	else
+		thresh = (ratio * available_memory) / 100;
+
+	if (bg_bytes)
+		bg_thresh = DIV_ROUND_UP(bg_bytes, PAGE_SIZE);
+	else
+		bg_thresh = (bg_ratio * available_memory) / 100;
+
+	if (bg_thresh >= thresh)
+		bg_thresh = thresh / 2;
+	tsk = current;
+	if (tsk->flags & PF_LESS_THROTTLE || rt_task(tsk)) {
+		bg_thresh += bg_thresh / 4;
+		thresh += thresh / 4;
+	}
+	dtc->thresh = thresh;
+	dtc->bg_thresh = bg_thresh;
+
+	/* we should eventually report the domain in the TP */
+	if (!gdtc)
+		trace_global_dirty_state(bg_thresh, thresh);
+}
+
+/**
+ * global_dirty_limits - background-writeback and dirty-throttling thresholds
+ * @pbackground: out parameter for bg_thresh
+ * @pdirty: out parameter for thresh
+ *
+ * Calculate bg_thresh and thresh for global_wb_domain.  See
+ * domain_dirty_limits() for details.
  */
 void global_dirty_limits(unsigned long *pbackground, unsigned long *pdirty)
 {
-	const unsigned long available_memory = global_dirtyable_memory();
-	unsigned long background;
-	unsigned long dirty;
-	struct task_struct *tsk;
+	struct dirty_throttle_control gdtc = { GDTC_INIT_NO_WB };
 
-	if (vm_dirty_bytes)
-		dirty = DIV_ROUND_UP(vm_dirty_bytes, PAGE_SIZE);
-	else
-		dirty = (vm_dirty_ratio * available_memory) / 100;
+	gdtc.avail = global_dirtyable_memory();
+	domain_dirty_limits(&gdtc);
 
-	if (dirty_background_bytes)
-		background = DIV_ROUND_UP(dirty_background_bytes, PAGE_SIZE);
-	else
-		background = (dirty_background_ratio * available_memory) / 100;
-
-	if (background >= dirty)
-		background = dirty / 2;
-	tsk = current;
-	if (tsk->flags & PF_LESS_THROTTLE || rt_task(tsk)) {
-		background += background / 4;
-		dirty += dirty / 4;
-	}
-	*pbackground = background;
-	*pdirty = dirty;
-	trace_global_dirty_state(background, dirty);
+	*pbackground = gdtc.bg_thresh;
+	*pdirty = gdtc.thresh;
 }
 
 /**
@@ -1421,9 +1481,10 @@ static void balance_dirty_pages(struct address_space *mapping,
 		 */
 		nr_reclaimable = global_page_state(NR_FILE_DIRTY) +
 					global_page_state(NR_UNSTABLE_NFS);
+		gdtc->avail = global_dirtyable_memory();
 		gdtc->dirty = nr_reclaimable + global_page_state(NR_WRITEBACK);
 
-		global_dirty_limits(&gdtc->bg_thresh, &gdtc->thresh);
+		domain_dirty_limits(gdtc);
 
 		if (unlikely(strictlimit)) {
 			wb_dirty_limits(gdtc);
