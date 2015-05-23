@@ -152,6 +152,7 @@ tee_tg_route6(struct sk_buff *skb, const struct xt_tee_tginfo *info)
 	fl6.daddr = info->gw.in6;
 	fl6.flowlabel = ((iph->flow_lbl[0] & 0xF) << 16) |
 			   (iph->flow_lbl[1] << 8) | iph->flow_lbl[2];
+	fl6.flowi6_flags = FLOWI_FLAG_KNOWN_NH;
 	dst = ip6_route_output(net, NULL, &fl6);
 	if (dst->error) {
 		dst_release(dst);
