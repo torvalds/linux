@@ -66,6 +66,12 @@ struct nvram_parser {
 	bool multi_dev_v2;
 };
 
+/**
+ * is_nvram_char() - check if char is a valid one for NVRAM entry
+ *
+ * It accepts all printable ASCII chars except for '#' which opens a comment.
+ * Please note that ' ' (space) while accepted is not a valid key name char.
+ */
 static bool is_nvram_char(char c)
 {
 	/* comment marker excluded */
@@ -73,7 +79,7 @@ static bool is_nvram_char(char c)
 		return false;
 
 	/* key and value may have any other readable character */
-	return (c > 0x20 && c < 0x7f);
+	return (c >= 0x20 && c < 0x7f);
 }
 
 static bool is_whitespace(char c)
@@ -120,7 +126,7 @@ static enum nvram_parser_state brcmf_nvram_handle_key(struct nvram_parser *nvp)
 			nvp->multi_dev_v1 = true;
 		if (strncmp(&nvp->fwnv->data[nvp->entry], "pcie/", 5) == 0)
 			nvp->multi_dev_v2 = true;
-	} else if (!is_nvram_char(c)) {
+	} else if (!is_nvram_char(c) || c == ' ') {
 		brcmf_dbg(INFO, "warning: ln=%d:col=%d: '=' expected, skip invalid key entry\n",
 			  nvp->line, nvp->column);
 		return COMMENT;
