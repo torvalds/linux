@@ -52,7 +52,6 @@
  *	@base: Common attributes for async crypto requests
  *	@assoclen: Length in bytes of associated data for authentication
  *	@cryptlen: Length of data to be encrypted or decrypted
- *	@cryptoff: Bytes to skip after AD before plain/cipher text
  *	@iv: Initialisation vector
  *	@assoc: Associated data
  *	@src: Source data
@@ -66,7 +65,6 @@ struct aead_request {
 
 	unsigned int assoclen;
 	unsigned int cryptlen;
-	unsigned int cryptoff;
 
 	u8 *iv;
 
@@ -525,18 +523,15 @@ static inline void aead_request_set_assoc(struct aead_request *req,
  * aead_request_set_ad - set associated data information
  * @req: request handle
  * @assoclen: number of bytes in associated data
- * @cryptoff: Number of bytes to skip after AD before plain/cipher text
  *
  * Setting the AD information.  This function sets the length of
  * the associated data and the number of bytes to skip after it to
  * access the plain/cipher text.
  */
 static inline void aead_request_set_ad(struct aead_request *req,
-				       unsigned int assoclen,
-				       unsigned int cryptoff)
+				       unsigned int assoclen)
 {
 	req->assoclen = assoclen;
-	req->cryptoff = cryptoff;
 	req->old = false;
 }
 

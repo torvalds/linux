@@ -259,7 +259,7 @@ static int echainiv_encrypt(struct aead_request *req)
 	aead_request_set_callback(subreq, req->base.flags, compl, data);
 	aead_request_set_crypt(subreq, req->dst, req->dst,
 			       req->cryptlen - ivsize, info);
-	aead_request_set_ad(subreq, req->assoclen + ivsize, 0);
+	aead_request_set_ad(subreq, req->assoclen + ivsize);
 
 	crypto_xor(info, ctx->salt, ivsize);
 	scatterwalk_map_and_copy(info, req->dst, req->assoclen, ivsize, 1);
@@ -322,7 +322,7 @@ static int echainiv_decrypt(struct aead_request *req)
 	aead_request_set_callback(subreq, req->base.flags, compl, data);
 	aead_request_set_crypt(subreq, req->src, req->dst,
 			       req->cryptlen - ivsize, req->iv);
-	aead_request_set_ad(subreq, req->assoclen + ivsize, 0);
+	aead_request_set_ad(subreq, req->assoclen + ivsize);
 
 	scatterwalk_map_and_copy(req->iv, req->src, req->assoclen, ivsize, 0);
 	if (req->src != req->dst)

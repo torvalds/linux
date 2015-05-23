@@ -106,10 +106,8 @@ static int old_crypt(struct aead_request *req,
 	if (req->old)
 		return crypt(req);
 
-	src = scatterwalk_ffwd(nreq->srcbuf, req->src,
-			       req->assoclen + req->cryptoff);
-	dst = scatterwalk_ffwd(nreq->dstbuf, req->dst,
-			       req->assoclen + req->cryptoff);
+	src = scatterwalk_ffwd(nreq->srcbuf, req->src, req->assoclen);
+	dst = scatterwalk_ffwd(nreq->dstbuf, req->dst, req->assoclen);
 
 	aead_request_set_tfm(&nreq->subreq, aead);
 	aead_request_set_callback(&nreq->subreq, aead_request_flags(req),

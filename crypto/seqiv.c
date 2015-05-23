@@ -337,7 +337,7 @@ static int seqiv_aead_encrypt_compat(struct aead_request *req)
 	aead_request_set_callback(subreq, req->base.flags, compl, data);
 	aead_request_set_crypt(subreq, dst, dst,
 			       req->cryptlen - ivsize, req->iv);
-	aead_request_set_ad(subreq, req->assoclen, 0);
+	aead_request_set_ad(subreq, req->assoclen);
 
 	memcpy(buf, req->iv, ivsize);
 	crypto_xor(buf, ctx->salt, ivsize);
@@ -406,7 +406,7 @@ static int seqiv_aead_encrypt(struct aead_request *req)
 	aead_request_set_callback(subreq, req->base.flags, compl, data);
 	aead_request_set_crypt(subreq, req->dst, req->dst,
 			       req->cryptlen - ivsize, info);
-	aead_request_set_ad(subreq, req->assoclen + ivsize, 0);
+	aead_request_set_ad(subreq, req->assoclen + ivsize);
 
 	crypto_xor(info, ctx->salt, ivsize);
 	scatterwalk_map_and_copy(info, req->dst, req->assoclen, ivsize, 1);
@@ -473,7 +473,7 @@ static int seqiv_aead_decrypt_compat(struct aead_request *req)
 	aead_request_set_callback(subreq, req->base.flags, compl, data);
 	aead_request_set_crypt(subreq, dst, dst,
 			       req->cryptlen - ivsize, req->iv);
-	aead_request_set_ad(subreq, req->assoclen, 0);
+	aead_request_set_ad(subreq, req->assoclen);
 
 	err = crypto_aead_decrypt(subreq);
 	if (req->assoclen > 8)
@@ -501,7 +501,7 @@ static int seqiv_aead_decrypt(struct aead_request *req)
 	aead_request_set_callback(subreq, req->base.flags, compl, data);
 	aead_request_set_crypt(subreq, req->src, req->dst,
 			       req->cryptlen - ivsize, req->iv);
-	aead_request_set_ad(subreq, req->assoclen + ivsize, 0);
+	aead_request_set_ad(subreq, req->assoclen + ivsize);
 
 	scatterwalk_map_and_copy(req->iv, req->src, req->assoclen, ivsize, 0);
 	if (req->src != req->dst)
