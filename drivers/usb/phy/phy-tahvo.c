@@ -401,7 +401,8 @@ static int tahvo_usb_probe(struct platform_device *pdev)
 	dev_set_drvdata(&pdev->dev, tu);
 
 	tu->irq = platform_get_irq(pdev, 0);
-	ret = request_threaded_irq(tu->irq, NULL, tahvo_usb_vbus_interrupt, 0,
+	ret = request_threaded_irq(tu->irq, NULL, tahvo_usb_vbus_interrupt,
+				   IRQF_ONESHOT,
 				   "tahvo-vbus", tu);
 	if (ret) {
 		dev_err(&pdev->dev, "could not register tahvo-vbus irq: %d\n",
