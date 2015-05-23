@@ -331,7 +331,7 @@ out:
 
 		rt = (struct rt6_info *)dst;
 		t->dst = dst;
-		t->dst_cookie = rt->rt6i_node ? rt->rt6i_node->fn_sernum : 0;
+		t->dst_cookie = rt6_get_cookie(rt);
 		pr_debug("rt6_dst:%pI6/%d rt6_src:%pI6\n",
 			 &rt->rt6i_dst.addr, rt->rt6i_dst.plen,
 			 &fl6->saddr);

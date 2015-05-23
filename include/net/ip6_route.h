@@ -145,7 +145,7 @@ static inline void __ip6_dst_store(struct sock *sk, struct dst_entry *dst,
 #ifdef CONFIG_IPV6_SUBTREES
 	np->saddr_cache = saddr;
 #endif
-	np->dst_cookie = rt->rt6i_node ? rt->rt6i_node->fn_sernum : 0;
+	np->dst_cookie = rt6_get_cookie(rt);
 }
 
 static inline void ip6_dst_store(struct sock *sk, struct dst_entry *dst,

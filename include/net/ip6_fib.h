@@ -159,6 +159,11 @@ static inline void rt6_update_expires(struct rt6_info *rt0, int timeout)
 	rt0->rt6i_flags |= RTF_EXPIRES;
 }
 
+static inline u32 rt6_get_cookie(const struct rt6_info *rt)
+{
+	return rt->rt6i_node ? rt->rt6i_node->fn_sernum : 0;
+}
+
 static inline void ip6_rt_put(struct rt6_info *rt)
 {
 	/* dst_release() accepts a NULL parameter.
