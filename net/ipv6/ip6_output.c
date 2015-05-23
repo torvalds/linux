@@ -551,7 +551,7 @@ int ip6_fragment(struct sock *sk, struct sk_buff *skb,
 	struct frag_hdr *fh;
 	unsigned int mtu, hlen, left, len;
 	int hroom, troom;
-	__be32 frag_id = 0;
+	__be32 frag_id;
 	int ptr, offset = 0, err = 0;
 	u8 *prevhdr, nexthdr = 0;
 	struct net *net = dev_net(skb_dst(skb)->dev);
@@ -583,6 +583,8 @@ int ip6_fragment(struct sock *sk, struct sk_buff *skb,
 			mtu = np->frag_size;
 	}
 	mtu -= hlen + sizeof(struct frag_hdr);
+
+	frag_id = ipv6_select_ident(net, rt);
 
 	if (skb_has_frag_list(skb)) {
 		int first_len = skb_pagelen(skb);
@@ -632,11 +634,10 @@ int ip6_fragment(struct sock *sk, struct sk_buff *skb,
 		skb_reset_network_header(skb);
 		memcpy(skb_network_header(skb), tmp_hdr, hlen);
 
-		ipv6_select_ident(net, fh, rt);
 		fh->nexthdr = nexthdr;
 		fh->reserved = 0;
 		fh->frag_off = htons(IP6_MF);
-		frag_id = fh->identification;
+		fh->identification = frag_id;
 
 		first_len = skb_pagelen(skb);
 		skb->data_len = first_len - skb_headlen(skb);
@@ -778,11 +779,7 @@ slow_path:
 		 */
 		fh->nexthdr = nexthdr;
 		fh->reserved = 0;
-		if (!frag_id) {
-			ipv6_select_ident(net, fh, rt);
-			frag_id = fh->identification;
-		} else
-			fh->identification = frag_id;
+		fh->identification = frag_id;
 
 		/*
 		 *	Copy a block of the IP datagram.
@@ -1064,7 +1061,6 @@ static inline int ip6_ufo_append_data(struct sock *sk,
 
 {
 	struct sk_buff *skb;
-	struct frag_hdr fhdr;
 	int err;
 
 	/* There is support for UDP large send offload by network
@@ -1106,8 +1102,7 @@ static inline int ip6_ufo_append_data(struct sock *sk,
 	skb_shinfo(skb)->gso_size = (mtu - fragheaderlen -
 				     sizeof(struct frag_hdr)) & ~7;
 	skb_shinfo(skb)->gso_type = SKB_GSO_UDP;
-	ipv6_select_ident(sock_net(sk), &fhdr, rt);
-	skb_shinfo(skb)->ip6_frag_id = fhdr.identification;
+	skb_shinfo(skb)->ip6_frag_id = ipv6_select_ident(sock_net(sk), rt);
 
 append:
 	return skb_append_datato_frags(sk, skb, getfrag, from,
