@@ -29,6 +29,7 @@
 #include <subdev/bios.h>
 #include <subdev/bios/perf.h>
 #include <subdev/bios/pll.h>
+#include <subdev/bios/rammap.h>
 #include <subdev/bios/timing.h>
 #include <subdev/clk/pll.h>
 
@@ -55,6 +56,85 @@ struct nv50_ram {
 	struct nv50_ramseq hwsq;
 };
 
+#define T(t) cfg->timing_10_##t
+static int
+nv50_ram_timing_calc(struct nvkm_fb *pfb, u32 *timing)
+{
+	struct nv50_ram *ram = (void *)pfb->ram;
+	struct nvbios_ramcfg *cfg = &ram->base.target.bios;
+	u32 cur2, cur3, cur4, cur7, cur8;
+	u8 unkt3b;
+
+	cur2 = nv_rd32(pfb, 0x100228);
+	cur3 = nv_rd32(pfb, 0x10022c);
+	cur4 = nv_rd32(pfb, 0x100230);
+	cur7 = nv_rd32(pfb, 0x10023c);
+	cur8 = nv_rd32(pfb, 0x100240);
+
+	switch ((!T(CWL)) * ram->base.type) {
+	case NV_MEM_TYPE_DDR2:
+		T(CWL) = T(CL) - 1;
+		break;
+	case NV_MEM_TYPE_GDDR3:
+		T(CWL) = ((cur2 & 0xff000000) >> 24) + 1;
+		break;
+	}
+
+	/* XXX: N=1 is not proper statistics */
+	if (nv_device(pfb)->chipset == 0xa0) {
+		unkt3b = 0x19 + ram->base.next->bios.rammap_00_16_40;
+		timing[6] = (0x2d + T(CL) - T(CWL) +
+				ram->base.next->bios.rammap_00_16_40) << 16 |
+			    T(CWL) << 8 |
+			    (0x2f + T(CL) - T(CWL));
+	} else {
+		unkt3b = 0x16;
+		timing[6] = (0x2b + T(CL) - T(CWL)) << 16 |
+			    max_t(s8, T(CWL) - 2, 1) << 8 |
+			    (0x2e + T(CL) - T(CWL));
+	}
+
+	timing[0] = (T(RP) << 24 | T(RAS) << 16 | T(RFC) << 8 | T(RC));
+	timing[1] = (T(WR) + 1 + T(CWL)) << 24 |
+		    max_t(u8, T(18), 1) << 16 |
+		    (T(WTR) + 1 + T(CWL)) << 8 |
+		    (3 + T(CL) - T(CWL));
+	timing[2] = (T(CWL) - 1) << 24 |
+		    (T(RRD) << 16) |
+		    (T(RCDWR) << 8) |
+		    T(RCDRD);
+	timing[3] = (unkt3b - 2 + T(CL)) << 24 |
+		    unkt3b << 16 |
+		    (T(CL) - 1) << 8 |
+		    (T(CL) - 1);
+	timing[4] = (cur4 & 0xffff0000) |
+		    T(13) << 8 |
+		    T(13);
+	timing[5] = T(RFC) << 24 |
+		    max_t(u8, T(RCDRD), T(RCDWR)) << 16 |
+		    T(RP);
+	/* Timing 6 is already done above */
+	timing[7] = (cur7 & 0xff00ffff) | (T(CL) - 1) << 16;
+	timing[8] = (cur8 & 0xffffff00);
+
+	/* XXX: P.version == 1 only has DDR2 and GDDR3? */
+	if (pfb->ram->type == NV_MEM_TYPE_DDR2) {
+		timing[5] |= (T(CL) + 3) << 8;
+		timing[8] |= (T(CL) - 4);
+	} else if (pfb->ram->type == NV_MEM_TYPE_GDDR3) {
+		timing[5] |= (T(CL) + 2) << 8;
+		timing[8] |= (T(CL) - 2);
+	}
+
+	nv_debug(pfb, " 220: %08x %08x %08x %08x\n",
+			timing[0], timing[1], timing[2], timing[3]);
+	nv_debug(pfb, " 230: %08x %08x %08x %08x\n",
+			timing[4], timing[5], timing[6], timing[7]);
+	nv_debug(pfb, " 240: %08x\n", timing[8]);
+	return 0;
+}
+#undef T
+
 #define QFX5800NVA0 1
 
 static int
@@ -65,22 +145,25 @@ nv50_ram_calc(struct nvkm_fb *pfb, u32 freq)
 	struct nv50_ramseq *hwsq = &ram->hwsq;
 	struct nvbios_perfE perfE;
 	struct nvbios_pll mpll;
-	struct {
-		u32 data;
-		u8  size;
-	} ramcfg, timing;
-	u8  ver, hdr, cnt, len, strap;
+	struct nvkm_ram_data *next;
+	u8  ver, hdr, cnt, len, strap, size;
+	u32 data;
 	u32 r100da0;
 	int N1, M1, N2, M2, P;
 	int ret, i;
+	u32 timing[9];
+
+	next = &ram->base.target;
+	next->freq = freq;
+	ram->base.next = next;
 
 	/* lookup closest matching performance table entry for frequency */
 	i = 0;
 	do {
-		ramcfg.data = nvbios_perfEp(bios, i++, &ver, &hdr, &cnt,
-					    &ramcfg.size, &perfE);
-		if (!ramcfg.data || (ver < 0x25 || ver >= 0x40) ||
-		    (ramcfg.size < 2)) {
+		data = nvbios_perfEp(bios, i++, &ver, &hdr, &cnt,
+					    &size, &perfE);
+		if (!data || (ver < 0x25 || ver >= 0x40) ||
+		    (size < 2)) {
 			nv_error(pfb, "invalid/missing perftab entry\n");
 			return -EINVAL;
 		}
@@ -93,22 +176,47 @@ nv50_ram_calc(struct nvkm_fb *pfb, u32 freq)
 		return -EINVAL;
 	}
 
-	ramcfg.data += hdr + (strap * ramcfg.size);
+	data = nvbios_rammapSp_from_perf(bios, data + hdr, size, strap,
+			&next->bios);
+	if (!data) {
+		nv_error(pfb, "invalid/missing rammap entry ");
+		return -EINVAL;
+	}
 
 	/* lookup memory timings, if bios says they're present */
-	strap = nv_ro08(bios, ramcfg.data + 0x01);
-	if (strap != 0xff) {
-		timing.data = nvbios_timingEe(bios, strap, &ver, &hdr,
-					      &cnt, &len);
-		if (!timing.data || ver != 0x10 || hdr < 0x12) {
+	if (next->bios.ramcfg_timing != 0xff) {
+		data = nvbios_timingEp(bios, next->bios.ramcfg_timing,
+					&ver, &hdr, &cnt, &len, &next->bios);
+		if (!data || ver != 0x10 || hdr < 0x12) {
 			nv_error(pfb, "invalid/missing timing entry "
 				 "%02x %04x %02x %02x\n",
-				 strap, timing.data, ver, hdr);
+				 strap, data, ver, hdr);
 			return -EINVAL;
 		}
-	} else {
-		timing.data = 0;
 	}
+
+	nv50_ram_timing_calc(pfb, timing);
+
+	ret = ram_init(hwsq, nv_subdev(pfb));
+	if (ret)
+		return ret;
+
+	/* Determine ram-specific MR values */
+	ram->base.mr[0] = ram_rd32(hwsq, mr[0]);
+	ram->base.mr[1] = ram_rd32(hwsq, mr[1]);
+	ram->base.mr[2] = ram_rd32(hwsq, mr[2]);
+
+	switch (ram->base.type) {
+	case NV_MEM_TYPE_GDDR3:
+		ret = nvkm_gddr3_calc(&ram->base);
+		break;
+	default:
+		ret = -ENOSYS;
+		break;
+	}
+
+	if (ret)
+		return ret;
 
 	/* XXX: 750MHz seems rather arbitrary */
 	if (freq <= 750000) {
@@ -116,10 +224,6 @@ nv50_ram_calc(struct nvkm_fb *pfb, u32 freq)
 	} else {
 		r100da0 = 0x00000000;
 	}
-
-	ret = ram_init(hwsq, nv_subdev(pfb));
-	if (ret)
-		return ret;
 
 	ram_wait(hwsq, 0x01, 0x00); /* wait for !vblank */
 	ram_wait(hwsq, 0x01, 0x01); /* wait for vblank */
@@ -177,17 +281,15 @@ nv50_ram_calc(struct nvkm_fb *pfb, u32 freq)
 		break;
 	}
 
-	ram_mask(hwsq, timing[3], 0x00000000, 0x00000000); /*XXX*/
-	ram_mask(hwsq, timing[1], 0x00000000, 0x00000000); /*XXX*/
-	ram_mask(hwsq, timing[6], 0x00000000, 0x00000000); /*XXX*/
-	ram_mask(hwsq, timing[7], 0x00000000, 0x00000000); /*XXX*/
-	ram_mask(hwsq, timing[8], 0x00000000, 0x00000000); /*XXX*/
-	ram_mask(hwsq, timing[0], 0x00000000, 0x00000000); /*XXX*/
-	ram_mask(hwsq, timing[2], 0x00000000, 0x00000000); /*XXX*/
-	ram_mask(hwsq, timing[4], 0x00000000, 0x00000000); /*XXX*/
-	ram_mask(hwsq, timing[5], 0x00000000, 0x00000000); /*XXX*/
-
-	ram_mask(hwsq, timing[0], 0x00000000, 0x00000000); /*XXX*/
+	ram_mask(hwsq, timing[3], 0xffffffff, timing[3]);
+	ram_mask(hwsq, timing[1], 0xffffffff, timing[1]);
+	ram_mask(hwsq, timing[6], 0xffffffff, timing[6]);
+	ram_mask(hwsq, timing[7], 0xffffffff, timing[7]);
+	ram_mask(hwsq, timing[8], 0xffffffff, timing[8]);
+	ram_mask(hwsq, timing[0], 0xffffffff, timing[0]);
+	ram_mask(hwsq, timing[2], 0xffffffff, timing[2]);
+	ram_mask(hwsq, timing[4], 0xffffffff, timing[4]);
+	ram_mask(hwsq, timing[5], 0xffffffff, timing[5]);
 
 #if QFX5800NVA0
 	ram_nuke(hwsq, 0x100e24);
