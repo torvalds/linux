@@ -169,6 +169,10 @@ Shadow pages contain the following information:
     Contains the value of cr4.smep && !cr0.wp for which the page is valid
     (pages for which this is true are different from other pages; see the
     treatment of cr0.wp=0 below).
+  role.smap_andnot_wp:
+    Contains the value of cr4.smap && !cr0.wp for which the page is valid
+    (pages for which this is true are different from other pages; see the
+    treatment of cr0.wp=0 below).
   gfn:
     Either the guest page table containing the translations shadowed by this
     page, or the base page frame for linear translations.  See role.direct.
@@ -344,10 +348,16 @@ on fault type:
 
 (user write faults generate a #PF)
 
-In the first case there is an additional complication if CR4.SMEP is
-enabled: since we've turned the page into a kernel page, the kernel may now
-execute it.  We handle this by also setting spte.nx.  If we get a user
-fetch or read fault, we'll change spte.u=1 and spte.nx=gpte.nx back.
+In the first case there are two additional complications:
+- if CR4.SMEP is enabled: since we've turned the page into a kernel page,
+  the kernel may now execute it.  We handle this by also setting spte.nx.
+  If we get a user fetch or read fault, we'll change spte.u=1 and
+  spte.nx=gpte.nx back.
+- if CR4.SMAP is disabled: since the page has been changed to a kernel
+  page, it can not be reused when CR4.SMAP is enabled. We set
+  CR4.SMAP && !CR0.WP into shadow page's role to avoid this case. Note,
+  here we do not care the case that CR4.SMAP is enabled since KVM will
+  directly inject #PF to guest due to failed permission check.
 
 To prevent an spte that was converted into a kernel page with cr0.wp=0
 from being written by the kernel after cr0.wp has changed to 1, we make

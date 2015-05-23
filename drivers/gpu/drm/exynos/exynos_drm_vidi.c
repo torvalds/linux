@@ -217,7 +217,7 @@ static int vidi_ctx_initialize(struct vidi_context *ctx,
 	return 0;
 }
 
-static struct exynos_drm_crtc_ops vidi_crtc_ops = {
+static const struct exynos_drm_crtc_ops vidi_crtc_ops = {
 	.dpms = vidi_dpms,
 	.enable_vblank = vidi_enable_vblank,
 	.disable_vblank = vidi_disable_vblank,

@@ -294,7 +294,7 @@ int sensor_hub_input_attr_get_raw_value(struct hid_sensor_hub_device *hsdev,
 	if (!report)
 		return -EINVAL;
 
-	mutex_lock(&hsdev->mutex);
+	mutex_lock(hsdev->mutex_ptr);
 	if (flag == SENSOR_HUB_SYNC) {
 		memset(&hsdev->pending, 0, sizeof(hsdev->pending));
 		init_completion(&hsdev->pending.ready);
@@ -328,7 +328,7 @@ int sensor_hub_input_attr_get_raw_value(struct hid_sensor_hub_device *hsdev,
 		kfree(hsdev->pending.raw_data);
 		hsdev->pending.status = false;
 	}
-	mutex_unlock(&hsdev->mutex);
+	mutex_unlock(hsdev->mutex_ptr);
 
 	return ret_val;
 }
@@ -667,7 +667,14 @@ static int sensor_hub_probe(struct hid_device *hdev,
 			hsdev->vendor_id = hdev->vendor;
 			hsdev->product_id = hdev->product;
 			hsdev->usage = collection->usage;
-			mutex_init(&hsdev->mutex);
+			hsdev->mutex_ptr = devm_kzalloc(&hdev->dev,
+							sizeof(struct mutex),
+							GFP_KERNEL);
+			if (!hsdev->mutex_ptr) {
+				ret = -ENOMEM;
+				goto err_stop_hw;
+			}
+			mutex_init(hsdev->mutex_ptr);
 			hsdev->start_collection_index = i;
 			if (last_hsdev)
 				last_hsdev->end_collection_index = i;
