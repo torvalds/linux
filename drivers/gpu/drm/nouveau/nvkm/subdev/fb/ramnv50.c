@@ -42,7 +42,7 @@ struct nv50_ramseq {
 	struct hwsq_reg r_0x1002d0;
 	struct hwsq_reg r_0x1002d4;
 	struct hwsq_reg r_0x1002dc;
-	struct hwsq_reg r_0x100da0[8];
+	struct hwsq_reg r_0x100da0;
 	struct hwsq_reg r_0x100e20;
 	struct hwsq_reg r_0x100e24;
 	struct hwsq_reg r_0x611200;
@@ -70,6 +70,7 @@ nv50_ram_calc(struct nvkm_fb *pfb, u32 freq)
 		u8  size;
 	} ramcfg, timing;
 	u8  ver, hdr, cnt, len, strap;
+	u32 r100da0;
 	int N1, M1, N2, M2, P;
 	int ret, i;
 
@@ -109,6 +110,13 @@ nv50_ram_calc(struct nvkm_fb *pfb, u32 freq)
 		timing.data = 0;
 	}
 
+	/* XXX: 750MHz seems rather arbitrary */
+	if (freq <= 750000) {
+		r100da0 = 0x00000010;
+	} else {
+		r100da0 = 0x00000000;
+	}
+
 	ret = ram_init(hwsq, nv_subdev(pfb));
 	if (ret)
 		return ret;
@@ -144,10 +152,9 @@ nv50_ram_calc(struct nvkm_fb *pfb, u32 freq)
 	ram_mask(hwsq, 0x00400c, 0x0000ffff, (N1 << 8) | M1);
 	ram_mask(hwsq, 0x004008, 0x81ff0000, 0x80000000 | (mpll.bias_p << 19) |
 					     (P << 22) | (P << 16));
-#if QFX5800NVA0
-	for (i = 0; i < 8; i++)
-		ram_mask(hwsq, 0x100da0[i], 0x00000000, 0x00000000); /*XXX*/
-#endif
+
+	if (nv_device(pfb)->chipset == 0xa0)
+		ram_wr32(hwsq, 0x100da0, r100da0); /*XXX: here?*/
 	ram_nsec(hwsq, 96000); /*XXX*/
 	ram_mask(hwsq, 0x004008, 0x00002200, 0x00002000);
 
@@ -430,8 +437,7 @@ nv50_ram_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	ram->hwsq.r_0x1002d0 = hwsq_reg(0x1002d0);
 	ram->hwsq.r_0x1002d4 = hwsq_reg(0x1002d4);
 	ram->hwsq.r_0x1002dc = hwsq_reg(0x1002dc);
-	for (i = 0; i < 8; i++)
-		ram->hwsq.r_0x100da0[i] = hwsq_reg(0x100da0 + (i * 0x04));
+	ram->hwsq.r_0x100da0 = hwsq_stride(0x100da0, 4, ram->base.part_mask);
 	ram->hwsq.r_0x100e20 = hwsq_reg(0x100e20);
 	ram->hwsq.r_0x100e24 = hwsq_reg(0x100e24);
 	ram->hwsq.r_0x611200 = hwsq_reg(0x611200);
