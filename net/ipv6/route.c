@@ -1945,11 +1945,7 @@ static struct rt6_info *ip6_rt_copy(struct rt6_info *ort,
 		if (rt->rt6i_idev)
 			in6_dev_hold(rt->rt6i_idev);
 		rt->dst.lastuse = jiffies;
-
-		if (ort->rt6i_flags & RTF_GATEWAY)
-			rt->rt6i_gateway = ort->rt6i_gateway;
-		else
-			rt->rt6i_gateway = *dest;
+		rt->rt6i_gateway = ort->rt6i_gateway;
 		rt->rt6i_flags = ort->rt6i_flags;
 		rt6_set_from(rt, ort);
 		rt->rt6i_metric = 0;
