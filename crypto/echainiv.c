@@ -67,7 +67,7 @@ static int echainiv_setauthsize(struct crypto_aead *tfm,
 }
 
 /* We don't care if we get preempted and read/write IVs from the next CPU. */
-void echainiv_read_iv(u8 *dst, unsigned size)
+static void echainiv_read_iv(u8 *dst, unsigned size)
 {
 	u32 *a = (u32 *)dst;
 	u32 __percpu *b = echainiv_iv;
@@ -78,7 +78,7 @@ void echainiv_read_iv(u8 *dst, unsigned size)
 	}
 }
 
-void echainiv_write_iv(const u8 *src, unsigned size)
+static void echainiv_write_iv(const u8 *src, unsigned size)
 {
 	const u32 *a = (const u32 *)src;
 	u32 __percpu *b = echainiv_iv;
