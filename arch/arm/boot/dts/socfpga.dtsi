@@ -36,6 +36,7 @@
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
+		enable-method = "altr,socfpga-smp";
 
 		cpu@0 {
 			compatible = "arm,cortex-a9";
