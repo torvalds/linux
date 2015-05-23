@@ -655,15 +655,16 @@ static int ssd1307fb_probe(struct i2c_client *client,
 	snprintf(bl_name, sizeof(bl_name), "ssd1307fb%d", info->node);
 	bl = backlight_device_register(bl_name, &client->dev, par,
 				       &ssd1307fb_bl_ops, NULL);
-	bl->props.brightness = par->contrast;
-	bl->props.max_brightness = MAX_CONTRAST;
-	info->bl_dev = bl;
-
 	if (IS_ERR(bl)) {
 		dev_err(&client->dev, "unable to register backlight device: %ld\n",
 			PTR_ERR(bl));
 		goto bl_init_error;
 	}
+
+	bl->props.brightness = par->contrast;
+	bl->props.max_brightness = MAX_CONTRAST;
+	info->bl_dev = bl;
+
 	dev_info(&client->dev, "fb%d: %s framebuffer device registered, using %d bytes of video memory\n", info->node, info->fix.id, vmem_size);
 
 	return 0;
