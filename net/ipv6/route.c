@@ -655,6 +655,11 @@ static struct rt6_info *rt6_select(struct fib6_node *fn, int oif, int strict)
 	return match ? match : net->ipv6.ip6_null_entry;
 }
 
+static bool rt6_is_gw_or_nonexthop(const struct rt6_info *rt)
+{
+	return (rt->rt6i_flags & (RTF_NONEXTHOP | RTF_GATEWAY));
+}
+
 #ifdef CONFIG_IPV6_ROUTE_INFO
 int rt6_route_rcv(struct net_device *dev, u8 *opt, int len,
 		  const struct in6_addr *gwaddr)
@@ -833,9 +838,9 @@ int ip6_ins_rt(struct rt6_info *rt)
 	return __ip6_ins_rt(rt, &info, &mxc);
 }
 
-static struct rt6_info *rt6_alloc_cow(struct rt6_info *ort,
-				      const struct in6_addr *daddr,
-				      const struct in6_addr *saddr)
+static struct rt6_info *ip6_rt_cache_alloc(struct rt6_info *ort,
+					   const struct in6_addr *daddr,
+					   const struct in6_addr *saddr)
 {
 	struct rt6_info *rt;
 
@@ -846,30 +851,21 @@ static struct rt6_info *rt6_alloc_cow(struct rt6_info *ort,
 	rt = ip6_rt_copy(ort, daddr);
 
 	if (rt) {
-		if (ort->rt6i_dst.plen != 128 &&
-		    ipv6_addr_equal(&ort->rt6i_dst.addr, daddr))
-			rt->rt6i_flags |= RTF_ANYCAST;
-
 		rt->rt6i_flags |= RTF_CACHE;
 
+		if (!rt6_is_gw_or_nonexthop(ort)) {
+			if (ort->rt6i_dst.plen != 128 &&
+			    ipv6_addr_equal(&ort->rt6i_dst.addr, daddr))
+				rt->rt6i_flags |= RTF_ANYCAST;
 #ifdef CONFIG_IPV6_SUBTREES
-		if (rt->rt6i_src.plen && saddr) {
-			rt->rt6i_src.addr = *saddr;
-			rt->rt6i_src.plen = 128;
-		}
+			if (rt->rt6i_src.plen && saddr) {
+				rt->rt6i_src.addr = *saddr;
+				rt->rt6i_src.plen = 128;
+			}
 #endif
+		}
 	}
 
-	return rt;
-}
-
-static struct rt6_info *rt6_alloc_clone(struct rt6_info *ort,
-					const struct in6_addr *daddr)
-{
-	struct rt6_info *rt = ip6_rt_copy(ort, daddr);
-
-	if (rt)
-		rt->rt6i_flags |= RTF_CACHE;
 	return rt;
 }
 
@@ -918,10 +914,9 @@ redo_rt6_select:
 	if (rt->rt6i_flags & RTF_CACHE)
 		goto out2;
 
-	if (!(rt->rt6i_flags & (RTF_NONEXTHOP | RTF_GATEWAY)))
-		nrt = rt6_alloc_cow(rt, &fl6->daddr, &fl6->saddr);
-	else if (!(rt->dst.flags & DST_HOST) || !(rt->rt6i_flags & RTF_LOCAL))
-		nrt = rt6_alloc_clone(rt, &fl6->daddr);
+	if (!rt6_is_gw_or_nonexthop(rt) ||
+	    !(rt->dst.flags & DST_HOST) || !(rt->rt6i_flags & RTF_LOCAL))
+		nrt = ip6_rt_cache_alloc(rt, &fl6->daddr, &fl6->saddr);
 	else
 		goto out2;
 
