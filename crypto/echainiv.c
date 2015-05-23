@@ -167,6 +167,9 @@ static int echainiv_encrypt_compat(struct aead_request *req)
 	__be64 seq;
 	int err;
 
+	if (req->cryptlen < ivsize)
+		return -EINVAL;
+
 	compl = req->base.complete;
 	data = req->base.data;
 
@@ -212,16 +215,17 @@ static int echainiv_encrypt(struct aead_request *req)
 	crypto_completion_t compl;
 	void *data;
 	u8 *info;
-	unsigned int ivsize;
+	unsigned int ivsize = crypto_aead_ivsize(geniv);
 	int err;
+
+	if (req->cryptlen < ivsize)
+		return -EINVAL;
 
 	aead_request_set_tfm(subreq, ctx->child);
 
 	compl = echainiv_encrypt_complete;
 	data = req;
 	info = req->iv;
-
-	ivsize = crypto_aead_ivsize(geniv);
 
 	if (req->src != req->dst) {
 		struct scatterlist src[2];
@@ -270,22 +274,28 @@ static int echainiv_decrypt_compat(struct aead_request *req)
 {
 	struct crypto_aead *geniv = crypto_aead_reqtfm(req);
 	struct echainiv_ctx *ctx = crypto_aead_ctx(geniv);
-	struct aead_request *subreq = aead_request_ctx(req);
+	struct echainiv_request_ctx *rctx = aead_request_ctx(req);
+	struct aead_request *subreq = &rctx->subreq.areq;
 	crypto_completion_t compl;
 	void *data;
-	unsigned int ivsize;
+	unsigned int ivsize = crypto_aead_ivsize(geniv);
+
+	if (req->cryptlen < ivsize + crypto_aead_authsize(geniv))
+		return -EINVAL;
 
 	aead_request_set_tfm(subreq, ctx->child);
 
 	compl = req->base.complete;
 	data = req->base.data;
 
-	ivsize = crypto_aead_ivsize(geniv);
-
 	aead_request_set_callback(subreq, req->base.flags, compl, data);
-	aead_request_set_crypt(subreq, req->src, req->dst,
+	aead_request_set_crypt(subreq,
+			       scatterwalk_ffwd(rctx->src, req->src,
+						req->assoclen + ivsize),
+			       scatterwalk_ffwd(rctx->dst, req->dst,
+						req->assoclen + ivsize),
 			       req->cryptlen - ivsize, req->iv);
-	aead_request_set_ad(subreq, req->assoclen, ivsize);
+	aead_request_set_assoc(subreq, req->src, req->assoclen);
 
 	scatterwalk_map_and_copy(req->iv, req->src, req->assoclen, ivsize, 0);
 
@@ -299,14 +309,15 @@ static int echainiv_decrypt(struct aead_request *req)
 	struct aead_request *subreq = aead_request_ctx(req);
 	crypto_completion_t compl;
 	void *data;
-	unsigned int ivsize;
+	unsigned int ivsize = crypto_aead_ivsize(geniv);
+
+	if (req->cryptlen < ivsize + crypto_aead_authsize(geniv))
+		return -EINVAL;
 
 	aead_request_set_tfm(subreq, ctx->child);
 
 	compl = req->base.complete;
 	data = req->base.data;
-
-	ivsize = crypto_aead_ivsize(geniv);
 
 	aead_request_set_callback(subreq, req->base.flags, compl, data);
 	aead_request_set_crypt(subreq, req->src, req->dst,
