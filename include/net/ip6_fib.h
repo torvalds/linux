@@ -124,6 +124,7 @@ struct rt6_info {
 	struct uncached_list		*rt6i_uncached_list;
 
 	struct inet6_dev		*rt6i_idev;
+	struct rt6_info * __percpu	*rt6i_pcpu;
 
 	u32				rt6i_metric;
 	u32				rt6i_pmtu;
@@ -164,7 +165,7 @@ static inline void rt6_update_expires(struct rt6_info *rt0, int timeout)
 
 static inline u32 rt6_get_cookie(const struct rt6_info *rt)
 {
-	if (unlikely(rt->dst.flags & DST_NOCACHE))
+	if (rt->rt6i_flags & RTF_PCPU || unlikely(rt->dst.flags & DST_NOCACHE))
 		rt = (struct rt6_info *)(rt->dst.from);
 
 	return rt->rt6i_node ? rt->rt6i_node->fn_sernum : 0;
