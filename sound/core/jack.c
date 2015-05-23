@@ -372,7 +372,3 @@ void snd_jack_report(struct snd_jack *jack, int status)
 
 }
 EXPORT_SYMBOL(snd_jack_report);
-
-MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");
-MODULE_DESCRIPTION("Jack detection support for ALSA");
-MODULE_LICENSE("GPL");
