@@ -572,6 +572,13 @@ static int crypto_nivaead_default(struct crypto_alg *alg, u32 type, u32 mask)
 	if (!tmpl)
 		goto kill_larval;
 
+	if (tmpl->create) {
+		err = tmpl->create(tmpl, tb);
+		if (err)
+			goto put_tmpl;
+		goto ok;
+	}
+
 	inst = tmpl->alloc(tb);
 	err = PTR_ERR(inst);
 	if (IS_ERR(inst))
@@ -583,6 +590,7 @@ static int crypto_nivaead_default(struct crypto_alg *alg, u32 type, u32 mask)
 		goto put_tmpl;
 	}
 
+ok:
 	/* Redo the lookup to use the instance we just registered. */
 	err = -EAGAIN;
 
