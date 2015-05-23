@@ -468,12 +468,10 @@ struct aead_instance *aead_geniv_alloc(struct crypto_template *tmpl,
 	    CRYPTO_MAX_ALG_NAME)
 		goto err_drop_alg;
 
-	inst->alg.base.cra_flags = CRYPTO_ALG_TYPE_AEAD;
-	inst->alg.base.cra_flags |= alg->base.cra_flags & CRYPTO_ALG_ASYNC;
+	inst->alg.base.cra_flags = alg->base.cra_flags & CRYPTO_ALG_ASYNC;
 	inst->alg.base.cra_priority = alg->base.cra_priority;
 	inst->alg.base.cra_blocksize = alg->base.cra_blocksize;
 	inst->alg.base.cra_alignmask = alg->base.cra_alignmask;
-	inst->alg.base.cra_type = &crypto_new_aead_type;
 
 	inst->alg.ivsize = ivsize;
 	inst->alg.maxauthsize = maxauthsize;
