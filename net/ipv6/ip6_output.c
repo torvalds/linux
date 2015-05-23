@@ -1300,8 +1300,10 @@ emsgsize:
 
 	/* If this is the first and only packet and device
 	 * supports checksum offloading, let's use it.
+	 * Use transhdrlen, same as IPv4, because partial
+	 * sums only work when transhdrlen is set.
 	 */
-	if (!skb && sk->sk_protocol == IPPROTO_UDP &&
+	if (transhdrlen && sk->sk_protocol == IPPROTO_UDP &&
 	    length + fragheaderlen < mtu &&
 	    rt->dst.dev->features & NETIF_F_V6_CSUM &&
 	    !exthdrlen)

@@ -167,7 +167,7 @@ static const struct usb_descriptor_header *otg_desc[] = {
 
 /*-------------------------------------------------------------------------*/
 
-static int __init audio_do_config(struct usb_configuration *c)
+static int audio_do_config(struct usb_configuration *c)
 {
 	int status;
 
@@ -216,7 +216,7 @@ static struct usb_configuration audio_config_driver = {
 
 /*-------------------------------------------------------------------------*/
 
-static int __init audio_bind(struct usb_composite_dev *cdev)
+static int audio_bind(struct usb_composite_dev *cdev)
 {
 #ifndef CONFIG_GADGET_UAC1
 	struct f_uac2_opts	*uac2_opts;
@@ -276,7 +276,7 @@ fail:
 	return status;
 }
 
-static int __exit audio_unbind(struct usb_composite_dev *cdev)
+static int audio_unbind(struct usb_composite_dev *cdev)
 {
 #ifdef CONFIG_GADGET_UAC1
 	if (!IS_ERR_OR_NULL(f_uac1))
@@ -292,13 +292,13 @@ static int __exit audio_unbind(struct usb_composite_dev *cdev)
 	return 0;
 }
 
-static __refdata struct usb_composite_driver audio_driver = {
+static struct usb_composite_driver audio_driver = {
 	.name		= "g_audio",
 	.dev		= &device_desc,
 	.strings	= audio_strings,
 	.max_speed	= USB_SPEED_HIGH,
 	.bind		= audio_bind,
-	.unbind		= __exit_p(audio_unbind),
+	.unbind		= audio_unbind,
 };
 
 module_usb_composite_driver(audio_driver);

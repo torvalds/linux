@@ -2695,16 +2695,21 @@ static void tcp_process_loss(struct sock *sk, int flag, bool is_dupack)
 	struct tcp_sock *tp = tcp_sk(sk);
 	bool recovered = !before(tp->snd_una, tp->high_seq);
 
+	if ((flag & FLAG_SND_UNA_ADVANCED) &&
+	    tcp_try_undo_loss(sk, false))
+		return;
+
 	if (tp->frto) { /* F-RTO RFC5682 sec 3.1 (sack enhanced version). */
 		/* Step 3.b. A timeout is spurious if not all data are
 		 * lost, i.e., never-retransmitted data are (s)acked.
 		 */
-		if (tcp_try_undo_loss(sk, flag & FLAG_ORIG_SACK_ACKED))
+		if ((flag & FLAG_ORIG_SACK_ACKED) &&
+		    tcp_try_undo_loss(sk, true))
 			return;
 
-		if (after(tp->snd_nxt, tp->high_seq) &&
-		    (flag & FLAG_DATA_SACKED || is_dupack)) {
-			tp->frto = 0; /* Loss was real: 2nd part of step 3.a */
+		if (after(tp->snd_nxt, tp->high_seq)) {
+			if (flag & FLAG_DATA_SACKED || is_dupack)
+				tp->frto = 0; /* Step 3.a. loss was real */
 		} else if (flag & FLAG_SND_UNA_ADVANCED && !recovered) {
 			tp->high_seq = tp->snd_nxt;
 			__tcp_push_pending_frames(sk, tcp_current_mss(sk),
@@ -2729,8 +2734,6 @@ static void tcp_process_loss(struct sock *sk, int flag, bool is_dupack)
 		else if (flag & FLAG_SND_UNA_ADVANCED)
 			tcp_reset_reno_sack(tp);
 	}
-	if (tcp_try_undo_loss(sk, false))
-		return;
 	tcp_xmit_retransmit_queue(sk);
 }
 
@@ -3281,7 +3284,9 @@ static void tcp_snd_una_update(struct tcp_sock *tp, u32 ack)
 {
 	u32 delta = ack - tp->snd_una;
 
+	u64_stats_update_begin(&tp->syncp);
 	tp->bytes_acked += delta;
+	u64_stats_update_end(&tp->syncp);
 	tp->snd_una = ack;
 }
 
@@ -3290,7 +3295,9 @@ static void tcp_rcv_nxt_update(struct tcp_sock *tp, u32 seq)
 {
 	u32 delta = seq - tp->rcv_nxt;
 
+	u64_stats_update_begin(&tp->syncp);
 	tp->bytes_received += delta;
+	u64_stats_update_end(&tp->syncp);
 	tp->rcv_nxt = seq;
 }
 

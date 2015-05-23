@@ -2964,7 +2964,7 @@ static void __net_exit vxlan_exit_net(struct net *net)
 		 * to the list by the previous loop.
 		 */
 		if (!net_eq(dev_net(vxlan->dev), net))
-			unregister_netdevice_queue(dev, &list);
+			unregister_netdevice_queue(vxlan->dev, &list);
 	}
 
 	unregister_netdevice_many(&list);

@@ -581,7 +581,7 @@ static int hostfs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 	if (name == NULL)
 		goto out_put;
 
-	fd = file_create(name, mode & S_IFMT);
+	fd = file_create(name, mode & 0777);
 	if (fd < 0)
 		error = fd;
 	else
