@@ -579,7 +579,7 @@ gt215_ram_calc(struct nvkm_fb *pfb, u32 freq)
 	if (ret)
 		return ret;
 
-	/* XXX: where the fuck does 750MHz come from? */
+	/* XXX: 750MHz seems rather arbitrary */
 	if (freq <= 750000) {
 		r004018 = 0x10000000;
 		r100760 = 0x22222222;
