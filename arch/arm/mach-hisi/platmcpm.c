@@ -152,6 +152,7 @@ out:
 	return 0;
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
 static void hip04_cpu_die(unsigned int l_cpu)
 {
 	unsigned int mpidr, cpu, cluster;
@@ -236,11 +237,14 @@ err:
 	spin_unlock_irq(&boot_lock);
 	return 0;
 }
+#endif
 
 static struct smp_operations __initdata hip04_smp_ops = {
 	.smp_boot_secondary	= hip04_boot_secondary,
+#ifdef CONFIG_HOTPLUG_CPU
 	.cpu_die		= hip04_cpu_die,
 	.cpu_kill		= hip04_cpu_kill,
+#endif
 };
 
 static bool __init hip04_cpu_table_init(void)
