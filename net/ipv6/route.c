@@ -105,6 +105,67 @@ static struct rt6_info *rt6_get_route_info(struct net *net,
 					   const struct in6_addr *gwaddr, int ifindex);
 #endif
 
+struct uncached_list {
+	spinlock_t		lock;
+	struct list_head	head;
+};
+
+static DEFINE_PER_CPU_ALIGNED(struct uncached_list, rt6_uncached_list);
+
+static void rt6_uncached_list_add(struct rt6_info *rt)
+{
+	struct uncached_list *ul = raw_cpu_ptr(&rt6_uncached_list);
+
+	rt->dst.flags |= DST_NOCACHE;
+	rt->rt6i_uncached_list = ul;
+
+	spin_lock_bh(&ul->lock);
+	list_add_tail(&rt->rt6i_uncached, &ul->head);
+	spin_unlock_bh(&ul->lock);
+}
+
+static void rt6_uncached_list_del(struct rt6_info *rt)
+{
+	if (!list_empty(&rt->rt6i_uncached)) {
+		struct uncached_list *ul = rt->rt6i_uncached_list;
+
+		spin_lock_bh(&ul->lock);
+		list_del(&rt->rt6i_uncached);
+		spin_unlock_bh(&ul->lock);
+	}
+}
+
+static void rt6_uncached_list_flush_dev(struct net *net, struct net_device *dev)
+{
+	struct net_device *loopback_dev = net->loopback_dev;
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		struct uncached_list *ul = per_cpu_ptr(&rt6_uncached_list, cpu);
+		struct rt6_info *rt;
+
+		spin_lock_bh(&ul->lock);
+		list_for_each_entry(rt, &ul->head, rt6i_uncached) {
+			struct inet6_dev *rt_idev = rt->rt6i_idev;
+			struct net_device *rt_dev = rt->dst.dev;
+
+			if (rt_idev && (rt_idev->dev == dev || !dev) &&
+			    rt_idev->dev != loopback_dev) {
+				rt->rt6i_idev = in6_dev_get(loopback_dev);
+				in6_dev_put(rt_idev);
+			}
+
+			if (rt_dev && (rt_dev == dev || !dev) &&
+			    rt_dev != loopback_dev) {
+				rt->dst.dev = loopback_dev;
+				dev_hold(rt->dst.dev);
+				dev_put(rt_dev);
+			}
+		}
+		spin_unlock_bh(&ul->lock);
+	}
+}
+
 static u32 *ipv6_cow_metrics(struct dst_entry *dst, unsigned long old)
 {
 	struct rt6_info *rt = (struct rt6_info *)dst;
@@ -262,6 +323,7 @@ static inline struct rt6_info *ip6_dst_alloc(struct net *net,
 
 		memset(dst + 1, 0, sizeof(*rt) - sizeof(*dst));
 		INIT_LIST_HEAD(&rt->rt6i_siblings);
+		INIT_LIST_HEAD(&rt->rt6i_uncached);
 	}
 	return rt;
 }
@@ -269,11 +331,14 @@ static inline struct rt6_info *ip6_dst_alloc(struct net *net,
 static void ip6_dst_destroy(struct dst_entry *dst)
 {
 	struct rt6_info *rt = (struct rt6_info *)dst;
-	struct inet6_dev *idev = rt->rt6i_idev;
 	struct dst_entry *from = dst->from;
+	struct inet6_dev *idev;
 
 	dst_destroy_metrics_generic(dst);
 
+	rt6_uncached_list_del(rt);
+
+	idev = rt->rt6i_idev;
 	if (idev) {
 		rt->rt6i_idev = NULL;
 		in6_dev_put(idev);
@@ -920,7 +985,7 @@ redo_rt6_select:
 		dst_release(&rt->dst);
 
 		if (uncached_rt)
-			uncached_rt->dst.flags |= DST_NOCACHE;
+			rt6_uncached_list_add(uncached_rt);
 		else
 			uncached_rt = net->ipv6.ip6_null_entry;
 		dst_hold(&uncached_rt->dst);
@@ -2367,6 +2432,7 @@ void rt6_ifdown(struct net *net, struct net_device *dev)
 
 	fib6_clean_all(net, fib6_ifdown, &adn);
 	icmp6_clean_all(fib6_ifdown, &adn);
+	rt6_uncached_list_flush_dev(net, dev);
 }
 
 struct rt6_mtu_change_arg {
@@ -3263,6 +3329,7 @@ static struct notifier_block ip6_route_dev_notifier = {
 int __init ip6_route_init(void)
 {
 	int ret;
+	int cpu;
 
 	ret = -ENOMEM;
 	ip6_dst_ops_template.kmem_cachep =
@@ -3321,6 +3388,13 @@ int __init ip6_route_init(void)
 	ret = register_netdevice_notifier(&ip6_route_dev_notifier);
 	if (ret)
 		goto out_register_late_subsys;
+
+	for_each_possible_cpu(cpu) {
+		struct uncached_list *ul = per_cpu_ptr(&rt6_uncached_list, cpu);
+
+		INIT_LIST_HEAD(&ul->head);
+		spin_lock_init(&ul->lock);
+	}
 
 out:
 	return ret;

@@ -120,6 +120,9 @@ struct rt6_info {
 	struct rt6key			rt6i_src;
 	struct rt6key			rt6i_prefsrc;
 
+	struct list_head		rt6i_uncached;
+	struct uncached_list		*rt6i_uncached_list;
+
 	struct inet6_dev		*rt6i_idev;
 
 	u32				rt6i_metric;
