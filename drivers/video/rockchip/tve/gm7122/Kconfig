@@ -1,0 +1,6 @@
+config GM7122_TV_ENCODER
+	bool "gm7122 tv encoder support"
+	depends on RK_TVENCODER
+	default n
+	help
+		Support GM7122 output CVBS.
