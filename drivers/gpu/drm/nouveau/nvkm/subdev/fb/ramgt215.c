@@ -590,7 +590,7 @@ gt215_ram_calc(struct nvkm_fb *pfb, u32 freq)
 		r100da0 = 0x00000000;
 	}
 
-	if (!next->bios.ramcfg_10_DLLoff)
+	if (!next->bios.ramcfg_DLLoff)
 		r004018 |= 0x00004000;
 
 	/* pll2pll requires to switch to a safe clock first */
@@ -630,7 +630,7 @@ gt215_ram_calc(struct nvkm_fb *pfb, u32 freq)
 	}
 
 	/* If we're disabling the DLL, do it now */
-	switch (next->bios.ramcfg_10_DLLoff * ram->base.type) {
+	switch (next->bios.ramcfg_DLLoff * ram->base.type) {
 	case NV_MEM_TYPE_DDR3:
 		nvkm_sddr3_dll_disable(fuc, ram->base.mr);
 		break;
@@ -810,7 +810,7 @@ gt215_ram_calc(struct nvkm_fb *pfb, u32 freq)
 		gt215_ram_fbvref(fuc, 1);
 
 	/* Reset DLL */
-	if (!next->bios.ramcfg_10_DLLoff)
+	if (!next->bios.ramcfg_DLLoff)
 		nvkm_sddr2_dll_reset(fuc);
 
 	if (ram->base.type == NV_MEM_TYPE_GDDR3) {
