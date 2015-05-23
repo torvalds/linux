@@ -202,7 +202,7 @@ static inline struct in6_addr *rt6_nexthop(struct rt6_info *rt,
 {
 	if (rt->rt6i_flags & RTF_GATEWAY)
 		return &rt->rt6i_gateway;
-	else if (rt->rt6i_flags & RTF_CACHE)
+	else if (unlikely(rt->rt6i_flags & RTF_CACHE))
 		return &rt->rt6i_dst.addr;
 	else
 		return daddr;
