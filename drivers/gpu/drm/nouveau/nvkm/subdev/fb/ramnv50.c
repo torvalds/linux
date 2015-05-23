@@ -169,6 +169,8 @@ nv50_ram_calc(struct nvkm_fb *pfb, u32 freq)
 		}
 	} while (perfE.memory < freq);
 
+	nvbios_rammapEp_from_perf(bios, data, hdr, &next->bios);
+
 	/* locate specific data set for the attached memory */
 	strap = nvbios_ramcfg_index(nv_subdev(pfb));
 	if (strap >= cnt) {

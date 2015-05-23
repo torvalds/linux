@@ -7,6 +7,11 @@ struct nvbios_ramcfg {
 	unsigned rammap_max;
 	union {
 		struct {
+			unsigned rammap_00_16_20:1;
+			unsigned rammap_00_16_40:1;
+			unsigned rammap_00_17_02:1;
+		};
+		struct {
 			unsigned rammap_10_04_02:1;
 			unsigned rammap_10_04_08:1;
 		};
