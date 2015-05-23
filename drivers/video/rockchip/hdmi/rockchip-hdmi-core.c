@@ -579,7 +579,8 @@ int hdmi_config_audio(struct hdmi_audio	*audio)
 			continue;
 		}*/
 		memcpy(&hdmi->audio, audio, sizeof(struct hdmi_audio));
-		hdmi_submit_work(hdmi, HDMI_SET_AUDIO, 0, NULL);
+		if (hdmi->hotplug == HDMI_HPD_ACTIVED)
+			hdmi_submit_work(hdmi, HDMI_SET_AUDIO, 0, NULL);
 	}
 	return 0;
 }
