@@ -53,11 +53,16 @@ static inline void *current_text_addr(void)
 	return pc;
 }
 
+/*
+ * These alignment constraints are for performance in the vSMP case,
+ * but in the task_struct case we must also meet hardware imposed
+ * alignment requirements of the FPU state:
+ */
 #ifdef CONFIG_X86_VSMP
 # define ARCH_MIN_TASKALIGN		(1 << INTERNODE_CACHE_SHIFT)
 # define ARCH_MIN_MMSTRUCT_ALIGN	(1 << INTERNODE_CACHE_SHIFT)
 #else
-# define ARCH_MIN_TASKALIGN		16
+# define ARCH_MIN_TASKALIGN		__alignof__(union fpregs_state)
 # define ARCH_MIN_MMSTRUCT_ALIGN	0
 #endif
 
