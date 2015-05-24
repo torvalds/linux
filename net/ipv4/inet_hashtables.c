@@ -502,8 +502,14 @@ int __inet_hash_connect(struct inet_timewait_death_row *death_row,
 		inet_get_local_port_range(net, &low, &high);
 		remaining = (high - low) + 1;
 
+		/* By starting with offset being an even number,
+		 * we tend to leave about 50% of ports for other uses,
+		 * like bind(0).
+		 */
+		offset &= ~1;
+
 		local_bh_disable();
-		for (i = 1; i <= remaining; i++) {
+		for (i = 0; i < remaining; i++) {
 			port = low + (i + offset) % remaining;
 			if (inet_is_local_reserved_port(net, port))
 				continue;
@@ -547,7 +553,7 @@ int __inet_hash_connect(struct inet_timewait_death_row *death_row,
 		return -EADDRNOTAVAIL;
 
 ok:
-		hint += i;
+		hint += (i + 2) & ~1;
 
 		/* Head lock still held and bh's disabled */
 		inet_bind_hash(sk, tb, port);
