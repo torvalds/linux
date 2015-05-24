@@ -23,9 +23,6 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 
-#include <linux/debugfs.h>
-#include <linux/seq_file.h>
-
 #include <asm/io.h>
 
 #include <asm/mach-jz4740/base.h>
@@ -123,42 +120,3 @@ static int __init jz4740_intc_of_init(struct device_node *node,
 	return 0;
 }
 IRQCHIP_DECLARE(jz4740_intc, "ingenic,jz4740-intc", jz4740_intc_of_init);
-
-#ifdef CONFIG_DEBUG_FS
-
-static inline void intc_seq_reg(struct seq_file *s, const char *name,
-	unsigned int reg)
-{
-	seq_printf(s, "%s:\t\t%08x\n", name, readl(jz_intc_base + reg));
-}
-
-static int intc_regs_show(struct seq_file *s, void *unused)
-{
-	intc_seq_reg(s, "Status", JZ_REG_INTC_STATUS);
-	intc_seq_reg(s, "Mask", JZ_REG_INTC_MASK);
-	intc_seq_reg(s, "Pending", JZ_REG_INTC_PENDING);
-
-	return 0;
-}
-
-static int intc_regs_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, intc_regs_show, NULL);
-}
-
-static const struct file_operations intc_regs_operations = {
-	.open		= intc_regs_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
-static int __init intc_debugfs_init(void)
-{
-	(void) debugfs_create_file("jz_regs_intc", S_IFREG | S_IRUGO,
-				NULL, NULL, &intc_regs_operations);
-	return 0;
-}
-subsys_initcall(intc_debugfs_init);
-
-#endif
