@@ -114,6 +114,7 @@ config SND_BEBOB
 	  * M-Audio FireWire410/AudioPhile/Solo
 	  * M-Audio Ozonic/NRV10/ProfireLightBridge
 	  * M-Audio FireWire 1814/ProjectMix IO
+	  * Digidesign Mbox 2 Pro
 
           To compile this driver as a module, choose M here: the module
           will be called snd-bebob.
