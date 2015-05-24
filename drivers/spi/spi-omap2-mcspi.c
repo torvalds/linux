@@ -1108,6 +1108,9 @@ static int omap2_mcspi_work_one(struct omap2_mcspi *mcspi,
 
 	omap2_mcspi_set_enable(spi, 0);
 
+	if (gpio_is_valid(spi->cs_gpio))
+		omap2_mcspi_set_cs(spi, spi->mode & SPI_CS_HIGH);
+
 	if (par_override ||
 	    (t->speed_hz != spi->max_speed_hz) ||
 	    (t->bits_per_word != spi->bits_per_word)) {
@@ -1191,6 +1194,9 @@ out:
 	}
 
 	omap2_mcspi_set_enable(spi, 0);
+
+	if (gpio_is_valid(spi->cs_gpio))
+		omap2_mcspi_set_cs(spi, !(spi->mode & SPI_CS_HIGH));
 
 	if (mcspi->fifo_depth > 0 && t)
 		omap2_mcspi_set_fifo(spi, t, 0);
