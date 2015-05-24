@@ -23,3 +23,6 @@ obj-$(CONFIG_SERIAL_8250_EM)		+= 8250_em.o
 obj-$(CONFIG_SERIAL_8250_OMAP)		+= 8250_omap.o
 obj-$(CONFIG_SERIAL_8250_FINTEK)	+= 8250_fintek.o
 obj-$(CONFIG_SERIAL_8250_MT6577)	+= 8250_mtk.o
+obj-$(CONFIG_SERIAL_8250_INGENIC)	+= 8250_ingenic.o
+
+CFLAGS_8250_ingenic.o += -I$(srctree)/scripts/dtc/libfdt
