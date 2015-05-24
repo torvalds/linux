@@ -5,7 +5,7 @@
 # Object file lists.
 
 obj-y += prom.o time.o reset.o setup.o \
-	gpio.o clock.o platform.o timer.o serial.o
+	gpio.o platform.o timer.o serial.o
 
 # board specific support
 

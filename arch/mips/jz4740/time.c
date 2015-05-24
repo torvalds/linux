@@ -120,7 +120,6 @@ void __init plat_time_init(void)
 	struct clk *ext_clk;
 
 	of_clk_init(NULL);
-	jz4740_clock_init();
 	jz4740_timer_init();
 
 	ext_clk = clk_get(NULL, "ext");
