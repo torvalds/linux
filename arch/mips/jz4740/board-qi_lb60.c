@@ -497,11 +497,6 @@ static int __init qi_lb60_init_platform_devices(void)
 
 }
 
-struct jz4740_clock_board_data jz4740_clock_bdata = {
-	.ext_rate = 12000000,
-	.rtc_rate = 32768,
-};
-
 static __init int board_avt2(char *str)
 {
 	qi_lb60_mmc_pdata.card_detect_active_low = 1;

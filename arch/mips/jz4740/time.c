@@ -14,6 +14,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/time.h>
@@ -118,6 +119,7 @@ void __init plat_time_init(void)
 	uint16_t ctrl;
 	struct clk *ext_clk;
 
+	of_clk_init(NULL);
 	jz4740_clock_init();
 	jz4740_timer_init();
 

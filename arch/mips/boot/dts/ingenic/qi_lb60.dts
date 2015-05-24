@@ -5,3 +5,7 @@
 / {
 	compatible = "qi,lb60", "ingenic,jz4740";
 };
+
+&ext {
+	clock-frequency = <12000000>;
+};

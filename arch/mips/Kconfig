@@ -298,7 +298,7 @@ config MACH_INGENIC
 	select IRQ_MIPS_CPU
 	select ARCH_REQUIRE_GPIOLIB
 	select SYS_HAS_EARLY_PRINTK
-	select HAVE_CLK
+	select COMMON_CLK
 	select GENERIC_IRQ_CHIP
 	select BUILTIN_DTB
 	select USE_OF
