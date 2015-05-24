@@ -108,7 +108,6 @@ struct bmg160_data {
 	int slope_thres;
 	bool dready_trigger_on;
 	bool motion_trigger_on;
-	int64_t timestamp;
 };
 
 enum bmg160_axis {
@@ -738,17 +737,6 @@ static int bmg160_write_event_config(struct iio_dev *indio_dev,
 	return 0;
 }
 
-static int bmg160_validate_trigger(struct iio_dev *indio_dev,
-				   struct iio_trigger *trig)
-{
-	struct bmg160_data *data = iio_priv(indio_dev);
-
-	if (data->dready_trig != trig && data->motion_trig != trig)
-		return -EINVAL;
-
-	return 0;
-}
-
 static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("100 200 400 1000 2000");
 
 static IIO_CONST_ATTR(in_anglvel_scale_available,
@@ -810,7 +798,6 @@ static const struct iio_info bmg160_info = {
 	.write_event_value	= bmg160_write_event,
 	.write_event_config	= bmg160_write_event_config,
 	.read_event_config	= bmg160_read_event_config,
-	.validate_trigger	= bmg160_validate_trigger,
 	.driver_module		= THIS_MODULE,
 };
 
@@ -835,7 +822,7 @@ static irqreturn_t bmg160_trigger_handler(int irq, void *p)
 	mutex_unlock(&data->mutex);
 
 	iio_push_to_buffers_with_timestamp(indio_dev, data->buffer,
-					   data->timestamp);
+					   pf->timestamp);
 err:
 	iio_trigger_notify_done(indio_dev->trig);
 
@@ -938,21 +925,21 @@ static irqreturn_t bmg160_event_handler(int irq, void *private)
 							IIO_MOD_X,
 							IIO_EV_TYPE_ROC,
 							dir),
-							data->timestamp);
+							iio_get_time_ns());
 	if (ret & BMG160_ANY_MOTION_BIT_Y)
 		iio_push_event(indio_dev, IIO_MOD_EVENT_CODE(IIO_ANGL_VEL,
 							0,
 							IIO_MOD_Y,
 							IIO_EV_TYPE_ROC,
 							dir),
-							data->timestamp);
+							iio_get_time_ns());
 	if (ret & BMG160_ANY_MOTION_BIT_Z)
 		iio_push_event(indio_dev, IIO_MOD_EVENT_CODE(IIO_ANGL_VEL,
 							0,
 							IIO_MOD_Z,
 							IIO_EV_TYPE_ROC,
 							dir),
-							data->timestamp);
+							iio_get_time_ns());
 
 ack_intr_status:
 	if (!data->dready_trigger_on) {
@@ -973,8 +960,6 @@ static irqreturn_t bmg160_data_rdy_trig_poll(int irq, void *private)
 	struct iio_dev *indio_dev = private;
 	struct bmg160_data *data = iio_priv(indio_dev);
 
-	data->timestamp = iio_get_time_ns();
-
 	if (data->dready_trigger_on)
 		iio_trigger_poll(data->dready_trig);
 	else if (data->motion_trigger_on)
@@ -986,6 +971,27 @@ static irqreturn_t bmg160_data_rdy_trig_poll(int irq, void *private)
 		return IRQ_HANDLED;
 
 }
+
+static int bmg160_buffer_preenable(struct iio_dev *indio_dev)
+{
+	struct bmg160_data *data = iio_priv(indio_dev);
+
+	return bmg160_set_power_state(data, true);
+}
+
+static int bmg160_buffer_postdisable(struct iio_dev *indio_dev)
+{
+	struct bmg160_data *data = iio_priv(indio_dev);
+
+	return bmg160_set_power_state(data, false);
+}
+
+static const struct iio_buffer_setup_ops bmg160_buffer_setup_ops = {
+	.preenable = bmg160_buffer_preenable,
+	.postenable = iio_triggered_buffer_postenable,
+	.predisable = iio_triggered_buffer_predisable,
+	.postdisable = bmg160_buffer_postdisable,
+};
 
 static int bmg160_gpio_probe(struct i2c_client *client,
 			     struct bmg160_data *data)
@@ -1103,16 +1109,16 @@ static int bmg160_probe(struct i2c_client *client,
 			data->motion_trig = NULL;
 			goto err_trigger_unregister;
 		}
+	}
 
-		ret = iio_triggered_buffer_setup(indio_dev,
-						 NULL,
-						 bmg160_trigger_handler,
-						 NULL);
-		if (ret < 0) {
-			dev_err(&client->dev,
-				"iio triggered buffer setup failed\n");
-			goto err_trigger_unregister;
-		}
+	ret = iio_triggered_buffer_setup(indio_dev,
+					 iio_pollfunc_store_time,
+					 bmg160_trigger_handler,
+					 &bmg160_buffer_setup_ops);
+	if (ret < 0) {
+		dev_err(&client->dev,
+			"iio triggered buffer setup failed\n");
+		goto err_trigger_unregister;
 	}
 
 	ret = iio_device_register(indio_dev);
@@ -1135,8 +1141,7 @@ static int bmg160_probe(struct i2c_client *client,
 err_iio_unregister:
 	iio_device_unregister(indio_dev);
 err_buffer_cleanup:
-	if (data->dready_trig)
-		iio_triggered_buffer_cleanup(indio_dev);
+	iio_triggered_buffer_cleanup(indio_dev);
 err_trigger_unregister:
 	if (data->dready_trig)
 		iio_trigger_unregister(data->dready_trig);
@@ -1156,9 +1161,9 @@ static int bmg160_remove(struct i2c_client *client)
 	pm_runtime_put_noidle(&client->dev);
 
 	iio_device_unregister(indio_dev);
+	iio_triggered_buffer_cleanup(indio_dev);
 
 	if (data->dready_trig) {
-		iio_triggered_buffer_cleanup(indio_dev);
 		iio_trigger_unregister(data->dready_trig);
 		iio_trigger_unregister(data->motion_trig);
 	}

@@ -136,4 +136,25 @@ config MMA9553
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called mma9553.
+
+config STK8312
+	tristate "Sensortek STK8312 3-Axis Accelerometer Driver"
+	depends on I2C
+	help
+	  Say yes here to get support for the Sensortek STK8312 3-axis
+	  accelerometer.
+
+	  Choosing M will build the driver as a module. If so, the module
+	  will be called stk8312.
+
+config STK8BA50
+	tristate "Sensortek STK8BA50 3-Axis Accelerometer Driver"
+	depends on I2C
+	help
+	  Say yes here to get support for the Sensortek STK8BA50 3-axis
+	  accelerometer.
+
+	  Choosing M will build the driver as a module. If so, the module
+	  will be called stk8ba50.
+
 endmenu

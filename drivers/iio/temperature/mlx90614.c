@@ -254,9 +254,7 @@ static int mlx90614_write_raw(struct iio_dev *indio_dev,
 		mutex_unlock(&data->lock);
 		mlx90614_power_put(data);
 
-		if (ret < 0)
-			return ret;
-		return 0;
+		return ret;
 	default:
 		return -EINVAL;
 	}

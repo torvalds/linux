@@ -238,7 +238,7 @@ static int axp288_adc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_device_id axp288_adc_id_table[] = {
+static const struct platform_device_id axp288_adc_id_table[] = {
 	{ .name = "axp288_adc" },
 	{},
 };
