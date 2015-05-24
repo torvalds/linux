@@ -247,6 +247,13 @@ static void omap2_mcspi_set_cs(struct spi_device *spi, bool enable)
 {
 	u32 l;
 
+	/* The controller handles the inverted chip selects
+	 * using the OMAP2_MCSPI_CHCONF_EPOL bit so revert
+	 * the inversion from the core spi_set_cs function.
+	 */
+	if (spi->mode & SPI_CS_HIGH)
+		enable = !enable;
+
 	if (spi->controller_state) {
 		l = mcspi_cached_chconf0(spi);
 
