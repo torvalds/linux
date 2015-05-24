@@ -164,12 +164,13 @@ nvbios_rammapSp_from_perf(struct nvkm_bios *bios, u32 data, u8 size, int idx,
 	if (size < 11)
 		return 0x00000000;
 
+	p->ramcfg_ver = 0;
 	p->ramcfg_timing   =  nv_ro08(bios, data + 0x01);
 	p->ramcfg_00_03_01 = (nv_ro08(bios, data + 0x03) & 0x01) >> 0;
 	p->ramcfg_00_03_02 = (nv_ro08(bios, data + 0x03) & 0x02) >> 1;
 	p->ramcfg_DLLoff   = (nv_ro08(bios, data + 0x03) & 0x04) >> 2;
 	p->ramcfg_00_03_08 = (nv_ro08(bios, data + 0x03) & 0x08) >> 3;
-	p->ramcfg_00_03_10 = (nv_ro08(bios, data + 0x03) & 0x10) >> 4;
+	p->ramcfg_RON      = (nv_ro08(bios, data + 0x03) & 0x10) >> 3;
 	p->ramcfg_00_04_02 = (nv_ro08(bios, data + 0x04) & 0x02) >> 1;
 	p->ramcfg_00_04_04 = (nv_ro08(bios, data + 0x04) & 0x04) >> 2;
 	p->ramcfg_00_04_20 = (nv_ro08(bios, data + 0x04) & 0x20) >> 5;

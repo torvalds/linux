@@ -38,6 +38,7 @@ struct nvbios_ramcfg {
 	unsigned ramcfg_hdr;
 	unsigned ramcfg_timing;
 	unsigned ramcfg_DLLoff;
+	unsigned ramcfg_RON;
 	union {
 		struct {
 			unsigned ramcfg_00_03_01:1;

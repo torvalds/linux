@@ -70,7 +70,7 @@ ramgddr3_wr_lo[] = {
 int
 nvkm_gddr3_calc(struct nvkm_ram *ram)
 {
-	int CL, WR, CWL, DLL = 0, ODT = 0, hi;
+	int CL, WR, CWL, DLL = 0, ODT = 0, RON, hi;
 
 	switch (ram->next->bios.timing_ver) {
 	case 0x10:
@@ -79,6 +79,7 @@ nvkm_gddr3_calc(struct nvkm_ram *ram)
 		WR  = ram->next->bios.timing_10_WR;
 		DLL = !ram->next->bios.ramcfg_DLLoff;
 		ODT = ram->next->bios.timing_10_ODT;
+		RON = ram->next->bios.ramcfg_RON;
 		break;
 	case 0x20:
 		CWL = (ram->next->bios.timing[1] & 0x00000f80) >> 7;
@@ -89,6 +90,7 @@ nvkm_gddr3_calc(struct nvkm_ram *ram)
 		ODT =  (ram->mr[1] & 0x004) >> 2 |
 		       (ram->mr[1] & 0x040) >> 5 |
 		       (ram->mr[1] & 0x200) >> 7;
+		RON = !(ram->mr[1] & 0x300) >> 8;
 		break;
 	default:
 		return -ENOSYS;
@@ -107,7 +109,7 @@ nvkm_gddr3_calc(struct nvkm_ram *ram)
 
 	ram->mr[1] &= ~0x3fc;
 	ram->mr[1] |= (ODT & 0x03) << 2;
-	ram->mr[1] |= (ODT & 0x03) << 8;
+	ram->mr[1] |= (RON & 0x03) << 8;
 	ram->mr[1] |= (WR  & 0x03) << 4;
 	ram->mr[1] |= (WR  & 0x04) << 5;
 	ram->mr[1] |= !DLL << 6;

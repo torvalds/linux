@@ -102,6 +102,8 @@ nvbios_timingEp(struct nvkm_bios *bios, int idx,
 		p->timing_10_RRD   = nv_ro08(bios, data + 0x0c);
 		p->timing_10_13    = nv_ro08(bios, data + 0x0d);
 		p->timing_10_ODT   = nv_ro08(bios, data + 0x0e) & 0x07;
+		if (p->ramcfg_ver >= 0x10)
+			p->ramcfg_RON = nv_ro08(bios, data + 0x0e) & 0x07;
 
 		p->timing_10_24  = 0xff;
 		p->timing_10_21  = 0;
