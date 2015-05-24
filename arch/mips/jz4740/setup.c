@@ -16,6 +16,7 @@
 
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/irqchip.h>
 #include <linux/kernel.h>
 #include <linux/of_fdt.h>
 #include <linux/of_platform.h>
@@ -24,6 +25,7 @@
 #include <asm/prom.h>
 
 #include <asm/mach-jz4740/base.h>
+#include <asm/mach-jz4740/irq.h>
 
 #include "reset.h"
 
@@ -77,4 +79,10 @@ arch_initcall(populate_machine);
 const char *get_system_type(void)
 {
 	return "JZ4740";
+}
+
+void __init arch_init_irq(void)
+{
+	irqchip_init();
+	jz4740_intc_init();
 }

@@ -54,4 +54,6 @@
 
 #define NR_IRQS (JZ4740_IRQ_ADC_BASE + 6)
 
+extern void __init jz4740_intc_init(void);
+
 #endif
