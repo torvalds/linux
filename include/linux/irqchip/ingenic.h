@@ -12,8 +12,8 @@
  *
  */
 
-#ifndef __MIPS_JZ4740_IRQ_H__
-#define __MIPS_JZ4740_IRQ_H__
+#ifndef __LINUX_IRQCHIP_INGENIC_H__
+#define __LINUX_IRQCHIP_INGENIC_H__
 
 #include <linux/irq.h>
 

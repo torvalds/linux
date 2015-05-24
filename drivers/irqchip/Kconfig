@@ -163,3 +163,8 @@ config KEYSTONE_IRQ
 config MIPS_GIC
 	bool
 	select MIPS_CM
+
+config INGENIC_IRQ
+	bool
+	depends on MACH_INGENIC
+	default y

@@ -21,14 +21,13 @@
 #include <linux/gpio.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/irqchip/ingenic.h>
 #include <linux/bitops.h>
 
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 
 #include <asm/mach-jz4740/base.h>
-
-#include "irq.h"
 
 #define JZ4740_GPIO_BASE_A (32*0)
 #define JZ4740_GPIO_BASE_B (32*1)

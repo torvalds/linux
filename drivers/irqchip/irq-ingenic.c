@@ -18,6 +18,7 @@
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
+#include <linux/irqchip/ingenic.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/timex.h>
@@ -27,9 +28,7 @@
 #include <asm/io.h>
 #include <asm/mach-jz4740/irq.h>
 
-#include "irq.h"
-
-#include "../../drivers/irqchip/irqchip.h"
+#include "irqchip.h"
 
 struct ingenic_intc_data {
 	void __iomem *base;
