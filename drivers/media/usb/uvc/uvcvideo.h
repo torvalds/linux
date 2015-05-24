@@ -517,10 +517,6 @@ struct uvc_streaming {
 	} clock;
 };
 
-enum uvc_device_state {
-	UVC_DEV_DISCONNECTED = 1,
-};
-
 struct uvc_device {
 	struct usb_device *udev;
 	struct usb_interface *intf;
@@ -529,7 +525,6 @@ struct uvc_device {
 	int intfnum;
 	char name[32];
 
-	enum uvc_device_state state;
 	struct mutex lock;		/* Protects users */
 	unsigned int users;
 	atomic_t nmappings;

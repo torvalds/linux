@@ -483,9 +483,6 @@ static int uvc_v4l2_open(struct file *file)
 	uvc_trace(UVC_TRACE_CALLS, "uvc_v4l2_open\n");
 	stream = video_drvdata(file);
 
-	if (stream->dev->state & UVC_DEV_DISCONNECTED)
-		return -ENODEV;
-
 	ret = usb_autopm_get_interface(stream->dev->intf);
 	if (ret < 0)
 		return ret;
