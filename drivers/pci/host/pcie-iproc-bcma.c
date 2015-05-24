@@ -62,11 +62,9 @@ static int iproc_pcie_bcma_probe(struct bcma_device *bdev)
 	res_mem.flags = IORESOURCE_MEM;
 	pci_add_resource(&res, &res_mem);
 
-	pcie->resources = &res;
-
 	pcie->map_irq = iproc_pcie_bcma_map_irq;
 
-	ret = iproc_pcie_setup(pcie);
+	ret = iproc_pcie_setup(pcie, &res);
 	if (ret) {
 		dev_err(pcie->dev, "PCIe controller setup failed\n");
 		return ret;
