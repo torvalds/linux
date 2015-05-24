@@ -119,12 +119,6 @@ enum hba_flags_table {
 	HBA_FLAGS_PSCSI_MODE	= 0x02,
 };
 
-/* struct se_lun->lun_status */
-enum transport_lun_status_table {
-	TRANSPORT_LUN_STATUS_FREE = 0,
-	TRANSPORT_LUN_STATUS_ACTIVE = 1,
-};
-
 /* Special transport agnostic struct se_cmd->t_states */
 enum transport_state_table {
 	TRANSPORT_NO_STATE	= 0,
@@ -707,8 +701,6 @@ struct se_lun {
 	u16			lun_rtpi;
 #define SE_LUN_LINK_MAGIC			0xffff7771
 	u32			lun_link_magic;
-	/* See transport_lun_status_table */
-	enum transport_lun_status_table lun_status;
 	u32			lun_access;
 	u32			lun_flags;
 	u32			unpacked_lun;

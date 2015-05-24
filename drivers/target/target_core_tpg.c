@@ -98,8 +98,6 @@ void core_tpg_add_node_to_devs(
 
 	mutex_lock(&tpg->tpg_lun_mutex);
 	hlist_for_each_entry_rcu(lun, &tpg->tpg_lun_hlist, link) {
-		if (lun->lun_status != TRANSPORT_LUN_STATUS_ACTIVE)
-			continue;
 		if (lun_orig && lun != lun_orig)
 			continue;
 
@@ -495,7 +493,6 @@ static int core_tpg_setup_virtual_lun0(struct se_portal_group *se_tpg)
 	int ret;
 
 	lun->unpacked_lun = 0;
-	lun->lun_status = TRANSPORT_LUN_STATUS_FREE;
 	atomic_set(&lun->lun_acl_count, 0);
 	init_completion(&lun->lun_shutdown_comp);
 	spin_lock_init(&lun->lun_sep_lock);
@@ -608,7 +605,6 @@ struct se_lun *core_tpg_alloc_lun(
 	}
 	lun->unpacked_lun = unpacked_lun;
 	lun->lun_link_magic = SE_LUN_LINK_MAGIC;
-	lun->lun_status = TRANSPORT_LUN_STATUS_FREE;
 	atomic_set(&lun->lun_acl_count, 0);
 	init_completion(&lun->lun_shutdown_comp);
 	spin_lock_init(&lun->lun_sep_lock);
@@ -638,7 +634,6 @@ int core_tpg_add_lun(
 
 	mutex_lock(&tpg->tpg_lun_mutex);
 	lun->lun_access = lun_access;
-	lun->lun_status = TRANSPORT_LUN_STATUS_ACTIVE;
 	if (!(dev->se_hba->hba_flags & HBA_FLAGS_INTERNAL_USE))
 		hlist_add_head_rcu(&lun->link, &tpg->tpg_lun_hlist);
 	mutex_unlock(&tpg->tpg_lun_mutex);
@@ -658,7 +653,6 @@ void core_tpg_remove_lun(
 	core_dev_unexport(lun->lun_se_dev, tpg, lun);
 
 	mutex_lock(&tpg->tpg_lun_mutex);
-	lun->lun_status = TRANSPORT_LUN_STATUS_FREE;
 	if (!(dev->se_hba->hba_flags & HBA_FLAGS_INTERNAL_USE))
 		hlist_del_rcu(&lun->link);
 	mutex_unlock(&tpg->tpg_lun_mutex);
