@@ -1023,9 +1023,12 @@ static int omap2_mcspi_setup(struct spi_device *spi)
 	}
 
 	if (gpio_is_valid(spi->cs_gpio)) {
-		if (gpio_request(spi->cs_gpio, dev_name(&spi->dev)) == 0)
-			gpio_direction_output(spi->cs_gpio,
-			!(spi->mode & SPI_CS_HIGH));
+		ret = gpio_request(spi->cs_gpio, dev_name(&spi->dev));
+		if (ret) {
+			dev_err(&spi->dev, "failed to request gpio\n");
+			return ret;
+		}
+		gpio_direction_output(spi->cs_gpio, !(spi->mode & SPI_CS_HIGH));
 	}
 
 	ret = pm_runtime_get_sync(mcspi->dev);
