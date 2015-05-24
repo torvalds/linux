@@ -4,6 +4,10 @@
 
 / {
 	compatible = "qi,lb60", "ingenic,jz4740";
+
+	chosen {
+		stdout-path = &uart0;
+	};
 };
 
 &ext {

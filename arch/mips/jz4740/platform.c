@@ -30,7 +30,6 @@
 #include <linux/serial_core.h>
 #include <linux/serial_8250.h>
 
-#include "serial.h"
 #include "clock.h"
 
 /* OHCI controller */
@@ -279,50 +278,6 @@ struct platform_device jz4740_adc_device = {
 	.num_resources	= ARRAY_SIZE(jz4740_adc_resources),
 	.resource	= jz4740_adc_resources,
 };
-
-/* Serial */
-#define JZ4740_UART_DATA(_id) \
-	{ \
-		.flags = UPF_SKIP_TEST | UPF_IOREMAP | UPF_FIXED_TYPE, \
-		.iotype = UPIO_MEM, \
-		.regshift = 2, \
-		.serial_out = jz4740_serial_out, \
-		.type = PORT_16550, \
-		.mapbase = JZ4740_UART ## _id ## _BASE_ADDR, \
-		.irq = JZ4740_IRQ_UART ## _id, \
-	}
-
-static struct plat_serial8250_port jz4740_uart_data[] = {
-	JZ4740_UART_DATA(0),
-	JZ4740_UART_DATA(1),
-	{},
-};
-
-static struct platform_device jz4740_uart_device = {
-	.name = "serial8250",
-	.id = 0,
-	.dev = {
-		.platform_data = jz4740_uart_data,
-	},
-};
-
-void jz4740_serial_device_register(void)
-{
-	struct plat_serial8250_port *p;
-	struct clk *ext_clk;
-	unsigned long ext_rate;
-
-	ext_clk = clk_get(NULL, "ext");
-	if (IS_ERR(ext_clk))
-		panic("unable to get ext clock");
-	ext_rate = clk_get_rate(ext_clk);
-	clk_put(ext_clk);
-
-	for (p = jz4740_uart_data; p->flags != 0; ++p)
-		p->uartclk = ext_rate;
-
-	platform_device_register(&jz4740_uart_device);
-}
 
 /* Watchdog */
 static struct resource jz4740_wdt_resources[] = {
