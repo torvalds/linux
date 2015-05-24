@@ -43,7 +43,7 @@ struct ingenic_intc_data {
 #define JZ_REG_INTC_PENDING	0x10
 #define CHIP_SIZE		0x20
 
-static irqreturn_t jz4740_cascade(int irq, void *data)
+static irqreturn_t intc_cascade(int irq, void *data)
 {
 	struct ingenic_intc_data *intc = irq_get_handler_data(irq);
 	uint32_t irq_reg;
@@ -61,7 +61,7 @@ static irqreturn_t jz4740_cascade(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static void jz4740_irq_set_mask(struct irq_chip_generic *gc, uint32_t mask)
+static void intc_irq_set_mask(struct irq_chip_generic *gc, uint32_t mask)
 {
 	struct irq_chip_regs *regs = &gc->chip_types->regs;
 
@@ -69,21 +69,21 @@ static void jz4740_irq_set_mask(struct irq_chip_generic *gc, uint32_t mask)
 	writel(~mask, gc->reg_base + regs->disable);
 }
 
-void jz4740_irq_suspend(struct irq_data *data)
+void ingenic_intc_irq_suspend(struct irq_data *data)
 {
 	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(data);
-	jz4740_irq_set_mask(gc, gc->wake_active);
+	intc_irq_set_mask(gc, gc->wake_active);
 }
 
-void jz4740_irq_resume(struct irq_data *data)
+void ingenic_intc_irq_resume(struct irq_data *data)
 {
 	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(data);
-	jz4740_irq_set_mask(gc, gc->mask_cache);
+	intc_irq_set_mask(gc, gc->mask_cache);
 }
 
-static struct irqaction jz4740_cascade_action = {
-	.handler = jz4740_cascade,
-	.name = "JZ4740 cascade interrupt",
+static struct irqaction intc_cascade_action = {
+	.handler = intc_cascade,
+	.name = "SoC intc cascade interrupt",
 };
 
 static int __init ingenic_intc_of_init(struct device_node *node,
@@ -138,8 +138,8 @@ static int __init ingenic_intc_of_init(struct device_node *node,
 		ct->chip.irq_mask = irq_gc_mask_disable_reg;
 		ct->chip.irq_mask_ack = irq_gc_mask_disable_reg;
 		ct->chip.irq_set_wake = irq_gc_set_wake;
-		ct->chip.irq_suspend = jz4740_irq_suspend;
-		ct->chip.irq_resume = jz4740_irq_resume;
+		ct->chip.irq_suspend = ingenic_intc_irq_suspend;
+		ct->chip.irq_resume = ingenic_intc_irq_resume;
 
 		irq_setup_generic_chip(gc, IRQ_MSK(32), 0, 0,
 				       IRQ_NOPROBE | IRQ_LEVEL);
@@ -150,7 +150,7 @@ static int __init ingenic_intc_of_init(struct device_node *node,
 	if (!domain)
 		pr_warn("unable to register IRQ domain\n");
 
-	setup_irq(parent_irq, &jz4740_cascade_action);
+	setup_irq(parent_irq, &intc_cascade_action);
 	return 0;
 
 out_unmap_irq:

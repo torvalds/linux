@@ -442,8 +442,8 @@ static void jz4740_gpio_chip_init(struct jz_gpio_chip *chip, unsigned int id)
 	ct->chip.irq_mask = irq_gc_mask_disable_reg;
 	ct->chip.irq_unmask = jz_gpio_irq_unmask;
 	ct->chip.irq_ack = irq_gc_ack_set_bit;
-	ct->chip.irq_suspend = jz4740_irq_suspend;
-	ct->chip.irq_resume = jz4740_irq_resume;
+	ct->chip.irq_suspend = ingenic_intc_irq_suspend;
+	ct->chip.irq_resume = ingenic_intc_irq_resume;
 	ct->chip.irq_startup = jz_gpio_irq_startup;
 	ct->chip.irq_shutdown = jz_gpio_irq_shutdown;
 	ct->chip.irq_set_type = jz_gpio_irq_set_type;
