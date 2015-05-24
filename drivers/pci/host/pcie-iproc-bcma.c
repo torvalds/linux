@@ -65,12 +65,12 @@ static int iproc_pcie_bcma_probe(struct bcma_device *bdev)
 	pcie->map_irq = iproc_pcie_bcma_map_irq;
 
 	ret = iproc_pcie_setup(pcie, &res);
-	if (ret) {
+	if (ret)
 		dev_err(pcie->dev, "PCIe controller setup failed\n");
-		return ret;
-	}
 
-	return 0;
+	pci_free_resource_list(&res);
+
+	return ret;
 }
 
 static void iproc_pcie_bcma_remove(struct bcma_device *bdev)
