@@ -13,6 +13,7 @@
  *
  */
 
+#include <linux/clk.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/time.h>
@@ -115,11 +116,17 @@ void __init plat_time_init(void)
 	int ret;
 	uint32_t clk_rate;
 	uint16_t ctrl;
+	struct clk *ext_clk;
 
 	jz4740_clock_init();
 	jz4740_timer_init();
 
-	clk_rate = jz4740_clock_bdata.ext_rate >> 4;
+	ext_clk = clk_get(NULL, "ext");
+	if (IS_ERR(ext_clk))
+		panic("unable to get ext clock");
+	clk_rate = clk_get_rate(ext_clk) >> 4;
+	clk_put(ext_clk);
+
 	jz4740_jiffies_per_tick = DIV_ROUND_CLOSEST(clk_rate, HZ);
 
 	clockevent_set_clock(&jz4740_clockevent, clk_rate);

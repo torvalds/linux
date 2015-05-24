@@ -13,6 +13,7 @@
  *
  */
 
+#include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
@@ -308,9 +309,17 @@ static struct platform_device jz4740_uart_device = {
 void jz4740_serial_device_register(void)
 {
 	struct plat_serial8250_port *p;
+	struct clk *ext_clk;
+	unsigned long ext_rate;
+
+	ext_clk = clk_get(NULL, "ext");
+	if (IS_ERR(ext_clk))
+		panic("unable to get ext clock");
+	ext_rate = clk_get_rate(ext_clk);
+	clk_put(ext_clk);
 
 	for (p = jz4740_uart_data; p->flags != 0; ++p)
-		p->uartclk = jz4740_clock_bdata.ext_rate;
+		p->uartclk = ext_rate;
 
 	platform_device_register(&jz4740_uart_device);
 }
