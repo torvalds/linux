@@ -42,9 +42,9 @@ ramxlat(const struct ramxlat *xlat, int id)
 
 static const struct ramxlat
 ramgddr3_cl_lo[] = {
-	{ 7, 7 }, { 8, 0 }, { 9, 1 }, { 10, 2 }, { 11, 3 },
+	{ 5, 5 }, { 7, 7 }, { 8, 0 }, { 9, 1 }, { 10, 2 }, { 11, 3 }, { 12, 8 },
 	/* the below are mentioned in some, but not all, gddr3 docs */
-	{ 12, 4 }, { 13, 5 }, { 14, 6 },
+	{ 13, 9 }, { 14, 6 },
 	/* XXX: Per Samsung docs, are these used? They overlap with Qimonda */
 	/* { 4, 4 }, { 5, 5 }, { 6, 6 }, { 12, 8 }, { 13, 9 }, { 14, 10 },
 	 * { 15, 11 }, */
@@ -61,9 +61,9 @@ ramgddr3_cl_hi[] = {
 static const struct ramxlat
 ramgddr3_wr_lo[] = {
 	{ 5, 2 }, { 7, 4 }, { 8, 5 }, { 9, 6 }, { 10, 7 },
-	{ 11, 0 },
+	{ 11, 0 }, { 13 , 1 },
 	/* the below are mentioned in some, but not all, gddr3 docs */
-	{ 4, 1 }, { 6, 3 }, { 12, 1 }, { 13 , 2 },
+	{ 4, 1 }, { 6, 3 }, { 12, 1 },
 	{ -1 }
 };
 
