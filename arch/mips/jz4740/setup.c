@@ -83,6 +83,9 @@ arch_initcall(populate_machine);
 
 const char *get_system_type(void)
 {
+	if (config_enabled(CONFIG_MACH_JZ4780))
+		return "JZ4780";
+
 	return "JZ4740";
 }
 
