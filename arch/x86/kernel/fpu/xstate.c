@@ -316,8 +316,6 @@ static void __init init_xstate_size(void)
 /*
  * Enable and initialize the xsave feature.
  * Called once per system bootup.
- *
- * ( Not marked __init because of false positive section warnings. )
  */
 void __init fpu__init_system_xstate(void)
 {
@@ -345,17 +343,13 @@ void __init fpu__init_system_xstate(void)
 		BUG();
 	}
 
-	/*
-	 * Support only the state known to OS.
-	 */
+	/* Support only the state known to the OS: */
 	xfeatures_mask = xfeatures_mask & XCNTXT_MASK;
 
 	/* Enable xstate instructions to be able to continue with initialization: */
 	fpu__init_cpu_xstate();
 
-	/*
-	 * Recompute the context size for enabled features
-	 */
+	/* Recompute the context size for enabled features: */
 	init_xstate_size();
 
 	update_regset_xstate_info(xstate_size, xfeatures_mask);
