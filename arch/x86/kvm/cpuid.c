@@ -415,6 +415,12 @@ static inline int __do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 		}
 		break;
 	}
+	case 6: /* Thermal management */
+		entry->eax = 0x4; /* allow ARAT */
+		entry->ebx = 0;
+		entry->ecx = 0;
+		entry->edx = 0;
+		break;
 	case 7: {
 		entry->flags |= KVM_CPUID_FLAG_SIGNIFCANT_INDEX;
 		/* Mask ebx against host capability word 9 */
@@ -591,7 +597,6 @@ static inline int __do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 		break;
 	case 3: /* Processor serial number */
 	case 5: /* MONITOR/MWAIT */
-	case 6: /* Thermal management */
 	case 0xC0000002:
 	case 0xC0000003:
 	case 0xC0000004:
