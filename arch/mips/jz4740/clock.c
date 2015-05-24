@@ -28,7 +28,6 @@
 
 #include "clock.h"
 
-#define JZ_REG_CLOCK_LOW_POWER	0x04
 #define JZ_REG_CLOCK_PLL	0x10
 #define JZ_REG_CLOCK_GATE	0x20
 
@@ -39,9 +38,6 @@
 
 #define JZ_CLOCK_PLL_STABLE		BIT(10)
 #define JZ_CLOCK_PLL_ENABLED		BIT(8)
-
-#define JZ_CLOCK_LOW_POWER_MODE_DOZE BIT(2)
-#define JZ_CLOCK_LOW_POWER_MODE_SLEEP BIT(0)
 
 static void __iomem *jz_clock_base;
 
@@ -66,18 +62,6 @@ static void jz_clk_reg_clear_bits(int reg, uint32_t mask)
 	val = readl(jz_clock_base + reg);
 	val &= ~mask;
 	writel(val, jz_clock_base + reg);
-}
-
-void jz4740_clock_set_wait_mode(enum jz4740_wait_mode mode)
-{
-	switch (mode) {
-	case JZ4740_WAIT_MODE_IDLE:
-		jz_clk_reg_clear_bits(JZ_REG_CLOCK_LOW_POWER, JZ_CLOCK_LOW_POWER_MODE_SLEEP);
-		break;
-	case JZ4740_WAIT_MODE_SLEEP:
-		jz_clk_reg_set_bits(JZ_REG_CLOCK_LOW_POWER, JZ_CLOCK_LOW_POWER_MODE_SLEEP);
-		break;
-	}
 }
 
 void jz4740_clock_udc_disable_auto_suspend(void)

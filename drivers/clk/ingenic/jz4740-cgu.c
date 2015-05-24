@@ -19,10 +19,12 @@
 #include <linux/delay.h>
 #include <linux/of.h>
 #include <dt-bindings/clock/jz4740-cgu.h>
+#include <asm/mach-jz4740/clock.h>
 #include "cgu.h"
 
 /* CGU register offsets */
 #define CGU_REG_CPCCR		0x00
+#define CGU_REG_LCR		0x04
 #define CGU_REG_CPPCR		0x10
 #define CGU_REG_SCR		0x24
 #define CGU_REG_I2SCDR		0x60
@@ -41,6 +43,9 @@
 #define PLLCTL_STABLE		(1 << 10)
 #define PLLCTL_BYPASS		(1 << 9)
 #define PLLCTL_ENABLE		(1 << 8)
+
+/* bits within the LCR register */
+#define LCR_SLEEP		(1 << 0)
 
 static struct ingenic_cgu *cgu;
 
@@ -220,3 +225,20 @@ static void __init jz4740_cgu_init(struct device_node *np)
 		pr_err("%s: failed to register CGU Clocks\n", __func__);
 }
 CLK_OF_DECLARE(jz4740_cgu, "ingenic,jz4740-cgu", jz4740_cgu_init);
+
+void jz4740_clock_set_wait_mode(enum jz4740_wait_mode mode)
+{
+	uint32_t lcr = readl(cgu->base + CGU_REG_LCR);
+
+	switch (mode) {
+	case JZ4740_WAIT_MODE_IDLE:
+		lcr &= ~LCR_SLEEP;
+		break;
+
+	case JZ4740_WAIT_MODE_SLEEP:
+		lcr |= LCR_SLEEP;
+		break;
+	}
+
+	writel(lcr, cgu->base + CGU_REG_LCR);
+}
