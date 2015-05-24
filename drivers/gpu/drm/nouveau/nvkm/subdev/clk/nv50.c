@@ -509,7 +509,8 @@ nv50_clk_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	int ret;
 
 	ret = nvkm_clk_create(parent, engine, oclass, pclass->domains,
-			      NULL, 0, false, &priv);
+			      NULL, 0, nv_device(parent)->chipset == 0xa0,
+			      &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
