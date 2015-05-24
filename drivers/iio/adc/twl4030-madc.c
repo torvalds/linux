@@ -835,7 +835,8 @@ static int twl4030_madc_probe(struct platform_device *pdev)
 	irq = platform_get_irq(pdev, 0);
 	ret = devm_request_threaded_irq(&pdev->dev, irq, NULL,
 				   twl4030_madc_threaded_irq_handler,
-				   IRQF_TRIGGER_RISING, "twl4030_madc", madc);
+				   IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+				   "twl4030_madc", madc);
 	if (ret) {
 		dev_err(&pdev->dev, "could not request irq\n");
 		goto err_i2c;
