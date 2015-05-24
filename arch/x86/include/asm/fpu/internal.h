@@ -232,7 +232,7 @@ static inline void copy_fxregs_to_kernel(struct fpu *fpu)
  * This function is called only during boot time when x86 caps are not set
  * up and alternative can not be used yet.
  */
-static inline int copy_xregs_to_kernel_booting(struct xregs_state *xstate)
+static inline void copy_xregs_to_kernel_booting(struct xregs_state *xstate)
 {
 	u64 mask = -1;
 	u32 lmask = mask;
@@ -253,14 +253,16 @@ static inline int copy_xregs_to_kernel_booting(struct xregs_state *xstate)
 			     xstate_fault(err)
 			: "D" (xstate), "m" (*xstate), "a" (lmask), "d" (hmask), "0" (err)
 			: "memory");
-	return err;
+
+	/* We should never fault when copying to a kernel buffer: */
+	WARN_ON_FPU(err);
 }
 
 /*
  * This function is called only during boot time when x86 caps are not set
  * up and alternative can not be used yet.
  */
-static inline int copy_kernel_to_xregs_booting(struct xregs_state *xstate, u64 mask)
+static inline void copy_kernel_to_xregs_booting(struct xregs_state *xstate, u64 mask)
 {
 	u32 lmask = mask;
 	u32 hmask = mask >> 32;
@@ -280,13 +282,15 @@ static inline int copy_kernel_to_xregs_booting(struct xregs_state *xstate, u64 m
 			     xstate_fault(err)
 			: "D" (xstate), "m" (*xstate), "a" (lmask), "d" (hmask), "0" (err)
 			: "memory");
-	return err;
+
+	/* We should never fault when copying from a kernel buffer: */
+	WARN_ON_FPU(err);
 }
 
 /*
  * Save processor xstate to xsave area.
  */
-static inline int copy_xregs_to_kernel(struct xregs_state *xstate)
+static inline void copy_xregs_to_kernel(struct xregs_state *xstate)
 {
 	u64 mask = -1;
 	u32 lmask = mask;
@@ -319,13 +323,14 @@ static inline int copy_xregs_to_kernel(struct xregs_state *xstate)
 		     : "0" (err)
 		     : "memory");
 
-	return err;
+	/* We should never fault when copying to a kernel buffer: */
+	WARN_ON_FPU(err);
 }
 
 /*
  * Restore processor xstate from xsave area.
  */
-static inline int copy_kernel_to_xregs(struct xregs_state *xstate, u64 mask)
+static inline void copy_kernel_to_xregs(struct xregs_state *xstate, u64 mask)
 {
 	u32 lmask = mask;
 	u32 hmask = mask >> 32;
@@ -347,7 +352,8 @@ static inline int copy_kernel_to_xregs(struct xregs_state *xstate, u64 mask)
 		     : "0" (err)
 		     : "memory");
 
-	return err;
+	/* We should never fault when copying from a kernel buffer: */
+	WARN_ON_FPU(err);
 }
 
 /*
@@ -433,12 +439,15 @@ static inline int copy_fpregs_to_fpstate(struct fpu *fpu)
 
 static inline int __copy_fpstate_to_fpregs(struct fpu *fpu)
 {
-	if (use_xsave())
-		return copy_kernel_to_xregs(&fpu->state.xsave, -1);
-	else if (use_fxsr())
-		return copy_kernel_to_fxregs(&fpu->state.fxsave);
-	else
-		return copy_kernel_to_fregs(&fpu->state.fsave);
+	if (use_xsave()) {
+		copy_kernel_to_xregs(&fpu->state.xsave, -1);
+		return 0;
+	} else {
+		if (use_fxsr())
+			return copy_kernel_to_fxregs(&fpu->state.fxsave);
+		else
+			return copy_kernel_to_fregs(&fpu->state.fsave);
+	}
 }
 
 static inline int copy_fpstate_to_fpregs(struct fpu *fpu)
