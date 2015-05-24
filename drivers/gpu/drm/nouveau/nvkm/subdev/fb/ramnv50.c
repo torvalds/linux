@@ -39,10 +39,19 @@ struct nv50_ramseq {
 	struct hwsq_reg r_0x004008;
 	struct hwsq_reg r_0x00400c;
 	struct hwsq_reg r_0x00c040;
+	struct hwsq_reg r_0x100200;
 	struct hwsq_reg r_0x100210;
+	struct hwsq_reg r_0x10021c;
 	struct hwsq_reg r_0x1002d0;
 	struct hwsq_reg r_0x1002d4;
 	struct hwsq_reg r_0x1002dc;
+	struct hwsq_reg r_0x10053c;
+	struct hwsq_reg r_0x1005a0;
+	struct hwsq_reg r_0x1005a4;
+	struct hwsq_reg r_0x100710;
+	struct hwsq_reg r_0x100714;
+	struct hwsq_reg r_0x100718;
+	struct hwsq_reg r_0x10071c;
 	struct hwsq_reg r_0x100da0;
 	struct hwsq_reg r_0x100e20;
 	struct hwsq_reg r_0x100e24;
@@ -135,7 +144,13 @@ nv50_ram_timing_calc(struct nvkm_fb *pfb, u32 *timing)
 }
 #undef T
 
-#define QFX5800NVA0 1
+static void
+nvkm_sddr2_dll_reset(struct nv50_ramseq *hwsq)
+{
+	ram_mask(hwsq, mr[0], 0x100, 0x100);
+	ram_mask(hwsq, mr[0], 0x100, 0x000);
+	ram_nsec(hwsq, 24000);
+}
 
 static int
 nv50_ram_calc(struct nvkm_fb *pfb, u32 freq)
@@ -148,7 +163,7 @@ nv50_ram_calc(struct nvkm_fb *pfb, u32 freq)
 	struct nvkm_ram_data *next;
 	u8  ver, hdr, cnt, len, strap, size;
 	u32 data;
-	u32 r100da0;
+	u32 r100da0, r004008, unk710, unk714, unk718, unk71c;
 	int N1, M1, N2, M2, P;
 	int ret, i;
 	u32 timing[9];
@@ -220,12 +235,8 @@ nv50_ram_calc(struct nvkm_fb *pfb, u32 freq)
 	if (ret)
 		return ret;
 
-	/* XXX: 750MHz seems rather arbitrary */
-	if (freq <= 750000) {
-		r100da0 = 0x00000010;
-	} else {
-		r100da0 = 0x00000000;
-	}
+	/* Always disable this bit during reclock */
+	ram_mask(hwsq, 0x100200, 0x00000800, 0x00000000);
 
 	ram_wait(hwsq, 0x01, 0x00); /* wait for !vblank */
 	ram_wait(hwsq, 0x01, 0x01); /* wait for vblank */
@@ -234,6 +245,7 @@ nv50_ram_calc(struct nvkm_fb *pfb, u32 freq)
 	ram_nsec(hwsq, 8000);
 	ram_setf(hwsq, 0x10, 0x00); /* disable fb */
 	ram_wait(hwsq, 0x00, 0x01); /* wait for fb disabled */
+	ram_nsec(hwsq, 2000);
 
 	ram_wr32(hwsq, 0x1002d4, 0x00000001); /* precharge */
 	ram_wr32(hwsq, 0x1002d0, 0x00000001); /* refresh */
@@ -253,18 +265,33 @@ nv50_ram_calc(struct nvkm_fb *pfb, u32 freq)
 	if (ret < 0)
 		return ret;
 
-	ram_mask(hwsq, 0x00c040, 0xc000c000, 0x0000c000);
-	ram_mask(hwsq, 0x004008, 0x00000200, 0x00000200);
-	ram_mask(hwsq, 0x00400c, 0x0000ffff, (N1 << 8) | M1);
-	ram_mask(hwsq, 0x004008, 0x81ff0000, 0x80000000 | (mpll.bias_p << 19) |
-					     (P << 22) | (P << 16));
+	/* XXX: 750MHz seems rather arbitrary */
+	if (freq <= 750000) {
+		r100da0 = 0x00000010;
+		r004008 = 0x90000000;
+	} else {
+		r100da0 = 0x00000000;
+		r004008 = 0x80000000;
+	}
 
-	if (nv_device(pfb)->chipset == 0xa0)
-		ram_wr32(hwsq, 0x100da0, r100da0); /*XXX: here?*/
-	ram_nsec(hwsq, 96000); /*XXX*/
+	r004008 |= (mpll.bias_p << 19) | (P << 22) | (P << 16);
+
+	ram_mask(hwsq, 0x00c040, 0xc000c000, 0x0000c000);
+	/* XXX: Is rammap_00_16_40 the DLL bit we've seen in GT215? Why does
+	 * it have a different rammap bit from DLLoff? */
+	ram_mask(hwsq, 0x004008, 0x00004200, 0x00000200 |
+			next->bios.rammap_00_16_40 << 14);
+	ram_mask(hwsq, 0x00400c, 0x0000ffff, (N1 << 8) | M1);
+	ram_mask(hwsq, 0x004008, 0x91ff0000, r004008);
+	if (nv_device(pfb)->chipset >= 0x96)
+		ram_wr32(hwsq, 0x100da0, r100da0);
+	ram_nsec(hwsq, 64000); /*XXX*/
+	ram_nsec(hwsq, 32000); /*XXX*/
+
 	ram_mask(hwsq, 0x004008, 0x00002200, 0x00002000);
 
 	ram_wr32(hwsq, 0x1002dc, 0x00000000); /* disable self-refresh */
+	ram_wr32(hwsq, 0x1002d4, 0x00000001); /* disable self-refresh */
 	ram_wr32(hwsq, 0x100210, 0x80000000); /* enable auto-refresh */
 
 	ram_nsec(hwsq, 12000);
@@ -275,9 +302,10 @@ nv50_ram_calc(struct nvkm_fb *pfb, u32 freq)
 		ram_mask(hwsq, mr[0], 0x000, 0x000);
 		break;
 	case NV_MEM_TYPE_GDDR3:
-		ram_mask(hwsq, mr[2], 0x000, 0x000);
+		ram_nuke(hwsq, mr[1]); /* force update */
+		ram_wr32(hwsq, mr[1], ram->base.mr[1]);
 		ram_nuke(hwsq, mr[0]); /* force update */
-		ram_mask(hwsq, mr[0], 0x000, 0x000);
+		ram_wr32(hwsq, mr[0], ram->base.mr[0]);
 		break;
 	default:
 		break;
@@ -293,20 +321,62 @@ nv50_ram_calc(struct nvkm_fb *pfb, u32 freq)
 	ram_mask(hwsq, timing[4], 0xffffffff, timing[4]);
 	ram_mask(hwsq, timing[5], 0xffffffff, timing[5]);
 
-#if QFX5800NVA0
-	ram_nuke(hwsq, 0x100e24);
-	ram_mask(hwsq, 0x100e24, 0x00000000, 0x00000000);
-	ram_nuke(hwsq, 0x100e20);
-	ram_mask(hwsq, 0x100e20, 0x00000000, 0x00000000);
-#endif
+	if (!next->bios.ramcfg_00_03_02)
+		ram_mask(hwsq, 0x10021c, 0x00010000, 0x00000000);
+	ram_mask(hwsq, 0x100200, 0x00001000, !next->bios.ramcfg_00_04_02 << 12);
 
-	ram_mask(hwsq, mr[0], 0x100, 0x100);
-	ram_mask(hwsq, mr[0], 0x100, 0x000);
+	/* XXX: A lot of this could be "chipset"/"ram type" specific stuff */
+	unk710  = ram_rd32(hwsq, 0x100710) & ~0x00000101;
+	unk714  = ram_rd32(hwsq, 0x100714) & ~0xf0000020;
+	unk718  = ram_rd32(hwsq, 0x100718) & ~0x00000100;
+	unk71c  = ram_rd32(hwsq, 0x10071c) & ~0x00000100;
+
+	if ( next->bios.ramcfg_00_03_01)
+		unk71c |= 0x00000100;
+	if ( next->bios.ramcfg_00_03_02)
+		unk710 |= 0x00000100;
+	if (!next->bios.ramcfg_00_03_08) {
+		unk710 |= 0x1;
+		unk714 |= 0x20;
+	}
+	if ( next->bios.ramcfg_00_04_04)
+		unk714 |= 0x70000000;
+	if ( next->bios.ramcfg_00_04_20)
+		unk718 |= 0x00000100;
+
+	ram_mask(hwsq, 0x100714, 0xffffffff, unk714);
+	ram_mask(hwsq, 0x10071c, 0xffffffff, unk71c);
+	ram_mask(hwsq, 0x100718, 0xffffffff, unk718);
+	ram_mask(hwsq, 0x100710, 0xffffffff, unk710);
+
+	if (next->bios.rammap_00_16_20) {
+		ram_wr32(hwsq, 0x1005a0, next->bios.ramcfg_00_07 << 16 |
+					 next->bios.ramcfg_00_06 << 8 |
+					 next->bios.ramcfg_00_05);
+		ram_wr32(hwsq, 0x1005a4, next->bios.ramcfg_00_09 << 8 |
+					 next->bios.ramcfg_00_08);
+		ram_mask(hwsq, 0x10053c, 0x00001000, 0x00000000);
+	} else {
+		ram_mask(hwsq, 0x10053c, 0x00001000, 0x00001000);
+	}
+	ram_mask(hwsq, mr[1], 0xffffffff, ram->base.mr[1]);
+
+	/* Reset DLL */
+	if (!next->bios.ramcfg_DLLoff)
+		nvkm_sddr2_dll_reset(hwsq);
 
 	ram_setf(hwsq, 0x10, 0x01); /* enable fb */
 	ram_wait(hwsq, 0x00, 0x00); /* wait for fb enabled */
 	ram_wr32(hwsq, 0x611200, 0x00003330);
 	ram_wr32(hwsq, 0x002504, 0x00000000); /* un-block fifo */
+
+	if (next->bios.rammap_00_17_02)
+		ram_mask(hwsq, 0x100200, 0x00000800, 0x00000800);
+	if (!next->bios.rammap_00_16_40)
+		ram_mask(hwsq, 0x004008, 0x00004000, 0x00000000);
+	if (next->bios.ramcfg_00_03_02)
+		ram_mask(hwsq, 0x10021c, 0x00010000, 0x00010000);
+
 	return 0;
 }
 
@@ -522,12 +592,12 @@ nv50_ram_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 		return ret;
 
 	switch (ram->base.type) {
-	case NV_MEM_TYPE_DDR2:
 	case NV_MEM_TYPE_GDDR3:
 		ram->base.calc = nv50_ram_calc;
 		ram->base.prog = nv50_ram_prog;
 		ram->base.tidy = nv50_ram_tidy;
 		break;
+	case NV_MEM_TYPE_DDR2:
 	default:
 		nv_warn(ram, "reclocking of this ram type unsupported\n");
 		return 0;
@@ -537,10 +607,19 @@ nv50_ram_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 	ram->hwsq.r_0x00c040 = hwsq_reg(0x00c040);
 	ram->hwsq.r_0x004008 = hwsq_reg(0x004008);
 	ram->hwsq.r_0x00400c = hwsq_reg(0x00400c);
+	ram->hwsq.r_0x100200 = hwsq_reg(0x100200);
 	ram->hwsq.r_0x100210 = hwsq_reg(0x100210);
+	ram->hwsq.r_0x10021c = hwsq_reg(0x10021c);
 	ram->hwsq.r_0x1002d0 = hwsq_reg(0x1002d0);
 	ram->hwsq.r_0x1002d4 = hwsq_reg(0x1002d4);
 	ram->hwsq.r_0x1002dc = hwsq_reg(0x1002dc);
+	ram->hwsq.r_0x10053c = hwsq_reg(0x10053c);
+	ram->hwsq.r_0x1005a0 = hwsq_reg(0x1005a0);
+	ram->hwsq.r_0x1005a4 = hwsq_reg(0x1005a4);
+	ram->hwsq.r_0x100710 = hwsq_reg(0x100710);
+	ram->hwsq.r_0x100714 = hwsq_reg(0x100714);
+	ram->hwsq.r_0x100718 = hwsq_reg(0x100718);
+	ram->hwsq.r_0x10071c = hwsq_reg(0x10071c);
 	ram->hwsq.r_0x100da0 = hwsq_stride(0x100da0, 4, ram->base.part_mask);
 	ram->hwsq.r_0x100e20 = hwsq_reg(0x100e20);
 	ram->hwsq.r_0x100e24 = hwsq_reg(0x100e24);
