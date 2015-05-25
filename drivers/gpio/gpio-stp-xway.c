@@ -58,7 +58,7 @@
 #define XWAY_STP_ADSL_MASK	0x3
 
 /* 2 groups of 3 bits can be driven by the phys */
-#define XWAY_STP_PHY_MASK	0x3
+#define XWAY_STP_PHY_MASK	0x7
 #define XWAY_STP_PHY1_SHIFT	27
 #define XWAY_STP_PHY2_SHIFT	15
 
