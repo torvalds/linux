@@ -507,11 +507,11 @@ static const struct pcl812_board boardtypes[] = {
 
 struct pcl812_private {
 	struct comedi_isadma *dma;
-	unsigned char range_correction;	/*  =1 we must add 1 to range number */
+	unsigned char range_correction;	/* =1 we must add 1 to range number */
 	unsigned int last_ai_chanspec;
-	unsigned char mode_reg_int;	/*  there is stored INT number for some card */
-	unsigned int ai_poll_ptr;	/*  how many sampes transfer poll */
-	unsigned int max_812_ai_mode0_rangewait;	/*  setling time for gain */
+	unsigned char mode_reg_int; /* stored INT number for some cards */
+	unsigned int ai_poll_ptr; /* how many samples transfer poll */
+	unsigned int max_812_ai_mode0_rangewait; /* settling time for gain */
 	unsigned int use_diff:1;
 	unsigned int use_mpc508:1;
 	unsigned int use_ext_trg:1;
