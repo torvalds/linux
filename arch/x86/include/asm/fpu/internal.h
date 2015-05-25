@@ -232,7 +232,7 @@ static inline void copy_fxregs_to_kernel(struct fpu *fpu)
  * This function is called only during boot time when x86 caps are not set
  * up and alternative can not be used yet.
  */
-static inline int copy_xregs_to_kernel_booting(struct xregs_state *fx)
+static inline int copy_xregs_to_kernel_booting(struct xregs_state *xstate)
 {
 	u64 mask = -1;
 	u32 lmask = mask;
@@ -245,13 +245,13 @@ static inline int copy_xregs_to_kernel_booting(struct xregs_state *fx)
 		asm volatile("1:"XSAVES"\n\t"
 			"2:\n\t"
 			     xstate_fault(err)
-			: "D" (fx), "m" (*fx), "a" (lmask), "d" (hmask)
+			: "D" (xstate), "m" (*xstate), "a" (lmask), "d" (hmask)
 			:   "memory");
 	else
 		asm volatile("1:"XSAVE"\n\t"
 			"2:\n\t"
 			     xstate_fault(err)
-			: "D" (fx), "m" (*fx), "a" (lmask), "d" (hmask)
+			: "D" (xstate), "m" (*xstate), "a" (lmask), "d" (hmask)
 			:   "memory");
 	return err;
 }
@@ -260,7 +260,7 @@ static inline int copy_xregs_to_kernel_booting(struct xregs_state *fx)
  * This function is called only during boot time when x86 caps are not set
  * up and alternative can not be used yet.
  */
-static inline int copy_kernel_to_xregs_booting(struct xregs_state *fx, u64 mask)
+static inline int copy_kernel_to_xregs_booting(struct xregs_state *xstate, u64 mask)
 {
 	u32 lmask = mask;
 	u32 hmask = mask >> 32;
@@ -272,13 +272,13 @@ static inline int copy_kernel_to_xregs_booting(struct xregs_state *fx, u64 mask)
 		asm volatile("1:"XRSTORS"\n\t"
 			"2:\n\t"
 			     xstate_fault(err)
-			: "D" (fx), "m" (*fx), "a" (lmask), "d" (hmask)
+			: "D" (xstate), "m" (*xstate), "a" (lmask), "d" (hmask)
 			:   "memory");
 	else
 		asm volatile("1:"XRSTOR"\n\t"
 			"2:\n\t"
 			     xstate_fault(err)
-			: "D" (fx), "m" (*fx), "a" (lmask), "d" (hmask)
+			: "D" (xstate), "m" (*xstate), "a" (lmask), "d" (hmask)
 			:   "memory");
 	return err;
 }
@@ -286,7 +286,7 @@ static inline int copy_kernel_to_xregs_booting(struct xregs_state *fx, u64 mask)
 /*
  * Save processor xstate to xsave area.
  */
-static inline int copy_xregs_to_kernel(struct xregs_state *fx)
+static inline int copy_xregs_to_kernel(struct xregs_state *xstate)
 {
 	u64 mask = -1;
 	u32 lmask = mask;
@@ -312,7 +312,7 @@ static inline int copy_xregs_to_kernel(struct xregs_state *fx)
 		X86_FEATURE_XSAVEOPT,
 		XSAVES,
 		X86_FEATURE_XSAVES,
-		[fx] "D" (fx), "a" (lmask), "d" (hmask) :
+		[xstate] "D" (xstate), "a" (lmask), "d" (hmask) :
 		"memory");
 	asm volatile("2:\n\t"
 		     xstate_fault(err)
@@ -325,7 +325,7 @@ static inline int copy_xregs_to_kernel(struct xregs_state *fx)
 /*
  * Restore processor xstate from xsave area.
  */
-static inline int copy_kernel_to_xregs(struct xregs_state *fx, u64 mask)
+static inline int copy_kernel_to_xregs(struct xregs_state *xstate, u64 mask)
 {
 	int err = 0;
 	u32 lmask = mask;
@@ -339,7 +339,7 @@ static inline int copy_kernel_to_xregs(struct xregs_state *fx, u64 mask)
 		"1: " XRSTOR,
 		XRSTORS,
 		X86_FEATURE_XSAVES,
-		"D" (fx), "m" (*fx), "a" (lmask), "d" (hmask)
+		"D" (xstate), "m" (*xstate), "a" (lmask), "d" (hmask)
 		: "memory");
 
 	asm volatile("2:\n"
@@ -426,7 +426,7 @@ static inline int copy_fpregs_to_fpstate(struct fpu *fpu)
 	 * Legacy FPU register saving, FNSAVE always clears FPU registers,
 	 * so we have to mark them inactive:
 	 */
-	asm volatile("fnsave %[fx]; fwait" : [fx] "=m" (fpu->state.fsave));
+	asm volatile("fnsave %[fp]; fwait" : [fp] "=m" (fpu->state.fsave));
 
 	return 0;
 }
@@ -459,7 +459,7 @@ static inline int copy_fpstate_to_fpregs(struct fpu *fpu)
 	return __copy_fpstate_to_fpregs(fpu);
 }
 
-extern int copy_fpstate_to_sigframe(void __user *buf, void __user *fx, int size);
+extern int copy_fpstate_to_sigframe(void __user *buf, void __user *fp, int size);
 
 /*
  * FPU context switch related helper methods:
