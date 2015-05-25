@@ -299,6 +299,9 @@ struct drm_crtc_state {
 
 	struct drm_display_mode mode;
 
+	/* blob property to expose current mode to atomic userspace */
+	struct drm_property_blob *mode_blob;
+
 	struct drm_pending_vblank_event *event;
 
 	struct drm_atomic_state *state;

@@ -304,11 +304,25 @@ EXPORT_SYMBOL(drm_atomic_get_crtc_state);
 int drm_atomic_set_mode_for_crtc(struct drm_crtc_state *state,
 				 struct drm_display_mode *mode)
 {
+	struct drm_mode_modeinfo umode;
+
 	/* Early return for no change. */
 	if (mode && memcmp(&state->mode, mode, sizeof(*mode)) == 0)
 		return 0;
 
+	if (state->mode_blob)
+		drm_property_unreference_blob(state->mode_blob);
+	state->mode_blob = NULL;
+
 	if (mode) {
+		drm_mode_convert_to_umode(&umode, mode);
+		state->mode_blob =
+			drm_property_create_blob(state->crtc->dev,
+		                                 sizeof(umode),
+		                                 &umode);
+		if (IS_ERR(state->mode_blob))
+			return PTR_ERR(state->mode_blob);
+
 		drm_mode_copy(&state->mode, mode);
 		state->enable = true;
 		DRM_DEBUG_ATOMIC("Set [MODE:%s] for CRTC state %p\n",
@@ -323,7 +337,6 @@ int drm_atomic_set_mode_for_crtc(struct drm_crtc_state *state,
 	return 0;
 }
 EXPORT_SYMBOL(drm_atomic_set_mode_for_crtc);
-
 
 /**
  * drm_atomic_crtc_set_property - set property on CRTC
@@ -406,6 +419,23 @@ static int drm_atomic_crtc_check(struct drm_crtc *crtc,
 
 	if (state->active && !state->enable) {
 		DRM_DEBUG_ATOMIC("[CRTC:%d] active without enabled\n",
+				 crtc->base.id);
+		return -EINVAL;
+	}
+
+	/* The state->enable vs. state->mode_blob checks can be WARN_ON,
+	 * as this is a kernel-internal detail that userspace should never
+	 * be able to trigger. */
+	if (drm_core_check_feature(crtc->dev, DRIVER_ATOMIC) &&
+	    WARN_ON(state->enable && !state->mode_blob)) {
+		DRM_DEBUG_ATOMIC("[CRTC:%d] enabled without mode blob\n",
+				 crtc->base.id);
+		return -EINVAL;
+	}
+
+	if (drm_core_check_feature(crtc->dev, DRIVER_ATOMIC) &&
+	    WARN_ON(!state->enable && state->mode_blob)) {
+		DRM_DEBUG_ATOMIC("[CRTC:%d] disabled with mode blob\n",
 				 crtc->base.id);
 		return -EINVAL;
 	}
