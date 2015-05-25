@@ -7981,6 +7981,7 @@ walk_down:
 			eb = read_tree_block(root, child_bytenr, child_gen);
 			if (!eb || !extent_buffer_uptodate(eb)) {
 				ret = -EIO;
+				free_extent_buffer(eb);
 				goto out;
 			}
 
