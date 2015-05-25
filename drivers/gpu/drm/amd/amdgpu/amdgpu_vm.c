@@ -315,6 +315,10 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 	if (r)
 		return r;
 
+	r = reservation_object_reserve_shared(bo->tbo.resv);
+	if (r)
+		return r;
+
 	r = ttm_bo_validate(&bo->tbo, &bo->placement, true, false);
 	if (r)
 		goto error_unreserve;
