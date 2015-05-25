@@ -4041,46 +4041,70 @@ int intel_dp_sink_crc(struct intel_dp *intel_dp, u8 *crc)
 	u8 buf;
 	int test_crc_count;
 	int attempts = 6;
+	int ret = 0;
 
-	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_SINK_MISC, &buf) < 0)
-		return -EIO;
+	hsw_disable_ips(intel_crtc);
 
-	if (!(buf & DP_TEST_CRC_SUPPORTED))
-		return -ENOTTY;
+	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_SINK_MISC, &buf) < 0) {
+		ret = -EIO;
+		goto out;
+	}
 
-	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_SINK, &buf) < 0)
-		return -EIO;
+	if (!(buf & DP_TEST_CRC_SUPPORTED)) {
+		ret = -ENOTTY;
+		goto out;
+	}
+
+	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_SINK, &buf) < 0) {
+		ret = -EIO;
+		goto out;
+	}
 
 	if (drm_dp_dpcd_writeb(&intel_dp->aux, DP_TEST_SINK,
-				buf | DP_TEST_SINK_START) < 0)
-		return -EIO;
+				buf | DP_TEST_SINK_START) < 0) {
+		ret = -EIO;
+		goto out;
+	}
 
-	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_SINK_MISC, &buf) < 0)
-		return -EIO;
+	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_SINK_MISC, &buf) < 0) {
+		ret = -EIO;
+		goto out;
+	}
+
 	test_crc_count = buf & DP_TEST_COUNT_MASK;
 
 	do {
 		if (drm_dp_dpcd_readb(&intel_dp->aux,
-				      DP_TEST_SINK_MISC, &buf) < 0)
-			return -EIO;
+				      DP_TEST_SINK_MISC, &buf) < 0) {
+			ret = -EIO;
+			goto out;
+		}
 		intel_wait_for_vblank(dev, intel_crtc->pipe);
 	} while (--attempts && (buf & DP_TEST_COUNT_MASK) == test_crc_count);
 
 	if (attempts == 0) {
 		DRM_DEBUG_KMS("Panel is unable to calculate CRC after 6 vblanks\n");
-		return -ETIMEDOUT;
+		ret = -ETIMEDOUT;
+		goto out;
 	}
 
-	if (drm_dp_dpcd_read(&intel_dp->aux, DP_TEST_CRC_R_CR, crc, 6) < 0)
-		return -EIO;
+	if (drm_dp_dpcd_read(&intel_dp->aux, DP_TEST_CRC_R_CR, crc, 6) < 0) {
+		ret = -EIO;
+		goto out;
+	}
 
-	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_SINK, &buf) < 0)
-		return -EIO;
+	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_TEST_SINK, &buf) < 0) {
+		ret = -EIO;
+		goto out;
+	}
 	if (drm_dp_dpcd_writeb(&intel_dp->aux, DP_TEST_SINK,
-			       buf & ~DP_TEST_SINK_START) < 0)
-		return -EIO;
-
-	return 0;
+			       buf & ~DP_TEST_SINK_START) < 0) {
+		ret = -EIO;
+		goto out;
+	}
+out:
+	hsw_enable_ips(intel_crtc);
+	return ret;
 }
 
 static bool
