@@ -4775,7 +4775,8 @@ void drm_property_change_valid_put(struct drm_property *property,
 	if (drm_property_type_is(property, DRM_MODE_PROP_OBJECT)) {
 		if (property->values[0] == DRM_MODE_OBJECT_FB)
 			drm_framebuffer_unreference(obj_to_fb(ref));
-	}
+	} else if (drm_property_type_is(property, DRM_MODE_PROP_BLOB))
+		drm_property_unreference_blob(obj_to_blob(ref));
 }
 
 /**
