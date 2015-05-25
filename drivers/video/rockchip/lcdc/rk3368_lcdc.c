@@ -3315,6 +3315,10 @@ static int rk3368_lcdc_early_resume(struct rk_lcdc_driver *dev_drv)
 		lcdc_cfg_done(lcdc_dev);
 
 		if (dev_drv->iommu_enabled) {
+			/* win address maybe effect after next frame start,
+			 * but mmu maybe effect right now, so we delay 50ms
+			 */
+			mdelay(50);
 			if (dev_drv->mmu_dev)
 				rockchip_iovmm_activate(dev_drv->dev);
 		}
