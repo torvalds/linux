@@ -1779,8 +1779,7 @@ wl_cfg80211_change_virtual_iface(struct wiphy *wiphy, struct net_device *ndev,
 #endif /* P2PONEINT */
 	}
 
-	if (ibss) {
-		infra = 0;
+	if (ibss || infra) {
 		wl_set_mode_by_netdev(cfg, ndev, mode);
 		err = wldev_ioctl(ndev, WLC_SET_INFRA, &infra, sizeof(s32), true);
 		if (err < 0) {
@@ -7833,7 +7832,7 @@ wl_notify_connect_status_ibss(struct bcm_cfg80211 *cfg, struct net_device *ndev,
 		}
 	} else if ((event == WLC_E_LINK && !(flags & WLC_EVENT_MSG_LINK)) ||
 		event == WLC_E_DEAUTH_IND || event == WLC_E_DISASSOC_IND) {
-		wl_clr_drv_status(cfg, CONNECTED, ndev);
+		wl_clr_drv_status(cfg, DISCONNECTING, ndev);
 		wl_link_down(cfg);
 		wl_init_prof(cfg, ndev);
 	}
