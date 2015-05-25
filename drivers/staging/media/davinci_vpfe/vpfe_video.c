@@ -470,7 +470,7 @@ void vpfe_video_process_buffer_complete(struct vpfe_video_device *video)
 {
 	struct vpfe_pipeline *pipe = &video->pipe;
 
-	do_gettimeofday(&video->cur_frm->vb.v4l2_buf.timestamp);
+	v4l2_get_timestamp(&video->cur_frm->vb.v4l2_buf.timestamp);
 	vb2_buffer_done(&video->cur_frm->vb, VB2_BUF_STATE_DONE);
 	if (pipe->state == VPFE_PIPELINE_STREAM_CONTINUOUS)
 		video->cur_frm = video->next_frm;
@@ -1337,6 +1337,7 @@ static int vpfe_reqbufs(struct file *file, void *priv,
 	q->ops = &video_qops;
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->buf_struct_size = sizeof(struct vpfe_cap_buffer);
+	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 
 	ret = vb2_queue_init(q);
 	if (ret) {
