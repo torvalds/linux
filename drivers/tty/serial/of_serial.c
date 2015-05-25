@@ -74,7 +74,10 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 			return PTR_ERR(info->clk);
 		}
 
-		clk_prepare_enable(info->clk);
+		ret = clk_prepare_enable(info->clk);
+		if (ret < 0)
+			return ret;
+
 		clk = clk_get_rate(info->clk);
 	}
 	/* If current-speed was set, then try not to change it. */
