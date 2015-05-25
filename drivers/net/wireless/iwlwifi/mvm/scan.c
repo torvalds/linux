@@ -1222,8 +1222,8 @@ static int iwl_mvm_scan_umac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	iwl_mvm_umac_scan_cfg_channels(mvm, params->channels,
 				       params->n_channels, ssid_bitmap, cmd);
 
-	/* With UMAC we can have only one schedule, so use the sum of
-	 * the iterations (with a a maximum of 255).
+	/* With UMAC we use only one schedule for now, so use the sum
+	 * of the iterations (with a a maximum of 255).
 	 */
 	sec_part->schedule[0].iter_count =
 		(n_iterations > 255) ? 255 : n_iterations;
