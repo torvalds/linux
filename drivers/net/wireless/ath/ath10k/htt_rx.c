@@ -965,10 +965,16 @@ static void ath10k_process_rx(struct ath10k *ar,
 	ieee80211_rx(ar->hw, skb);
 }
 
-static int ath10k_htt_rx_nwifi_hdrlen(struct ieee80211_hdr *hdr)
+static int ath10k_htt_rx_nwifi_hdrlen(struct ath10k *ar,
+				      struct ieee80211_hdr *hdr)
 {
-	/* nwifi header is padded to 4 bytes. this fixes 4addr rx */
-	return round_up(ieee80211_hdrlen(hdr->frame_control), 4);
+	int len = ieee80211_hdrlen(hdr->frame_control);
+
+	if (!test_bit(ATH10K_FW_FEATURE_NO_NWIFI_DECAP_4ADDR_PADDING,
+		      ar->fw_features))
+		len = round_up(len, 4);
+
+	return len;
 }
 
 static void ath10k_htt_rx_h_undecap_raw(struct ath10k *ar,
@@ -1067,7 +1073,7 @@ static void ath10k_htt_rx_h_undecap_nwifi(struct ath10k *ar,
 
 	/* pull decapped header and copy SA & DA */
 	hdr = (struct ieee80211_hdr *)msdu->data;
-	hdr_len = ath10k_htt_rx_nwifi_hdrlen(hdr);
+	hdr_len = ath10k_htt_rx_nwifi_hdrlen(ar, hdr);
 	ether_addr_copy(da, ieee80211_get_DA(hdr));
 	ether_addr_copy(sa, ieee80211_get_SA(hdr));
 	skb_pull(msdu, hdr_len);
