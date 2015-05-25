@@ -47,8 +47,8 @@
 
 #include "hci_uart.h"
 
-static bool txcrc = 1;
-static bool hciextn = 1;
+static bool txcrc = true;
+static bool hciextn = true;
 
 #define BCSP_TXWINSIZE	4
 
