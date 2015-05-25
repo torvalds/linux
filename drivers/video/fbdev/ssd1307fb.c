@@ -368,7 +368,7 @@ static int ssd1307fb_init(struct ssd1307fb_par *par)
 	if (ret < 0)
 		return ret;
 
-	compins = 0x02 | (!par->com_seq & 0x1) << 4
+	compins = 0x02 | !(par->com_seq & 0x1) << 4
 				   | (par->com_lrremap & 0x1) << 5;
 	ret = ssd1307fb_write_cmd(par->client, compins);
 	if (ret < 0)
