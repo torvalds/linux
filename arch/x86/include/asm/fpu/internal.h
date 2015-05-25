@@ -220,13 +220,13 @@ static inline void copy_fxregs_to_kernel(struct fpu *fpu)
 					\
 	".section .fixup,\"ax\"\n"	\
 					\
-	"3:  movl $-1,%[err]\n"		\
+	"3:  movl $-2,%[_err]\n"	\
 	"    jmp  2b\n"			\
 					\
 	".previous\n"			\
 					\
 	_ASM_EXTABLE(1b, 3b)		\
-	: [err] "=r" (__err)
+	: [_err] "=r" (__err)
 
 /*
  * This function is called only during boot time when x86 caps are not set
@@ -245,14 +245,14 @@ static inline int copy_xregs_to_kernel_booting(struct xregs_state *xstate)
 		asm volatile("1:"XSAVES"\n\t"
 			"2:\n\t"
 			     xstate_fault(err)
-			: "D" (xstate), "m" (*xstate), "a" (lmask), "d" (hmask)
-			:   "memory");
+			: "D" (xstate), "m" (*xstate), "a" (lmask), "d" (hmask), "0" (err)
+			: "memory");
 	else
 		asm volatile("1:"XSAVE"\n\t"
 			"2:\n\t"
 			     xstate_fault(err)
-			: "D" (xstate), "m" (*xstate), "a" (lmask), "d" (hmask)
-			:   "memory");
+			: "D" (xstate), "m" (*xstate), "a" (lmask), "d" (hmask), "0" (err)
+			: "memory");
 	return err;
 }
 
@@ -272,14 +272,14 @@ static inline int copy_kernel_to_xregs_booting(struct xregs_state *xstate, u64 m
 		asm volatile("1:"XRSTORS"\n\t"
 			"2:\n\t"
 			     xstate_fault(err)
-			: "D" (xstate), "m" (*xstate), "a" (lmask), "d" (hmask)
-			:   "memory");
+			: "D" (xstate), "m" (*xstate), "a" (lmask), "d" (hmask), "0" (err)
+			: "memory");
 	else
 		asm volatile("1:"XRSTOR"\n\t"
 			"2:\n\t"
 			     xstate_fault(err)
-			: "D" (xstate), "m" (*xstate), "a" (lmask), "d" (hmask)
-			:   "memory");
+			: "D" (xstate), "m" (*xstate), "a" (lmask), "d" (hmask), "0" (err)
+			: "memory");
 	return err;
 }
 
