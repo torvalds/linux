@@ -155,24 +155,25 @@ static void atmel_pwm_config_v1(struct pwm_chip *chip, struct pwm_device *pwm,
 	struct atmel_pwm_chip *atmel_pwm = to_atmel_pwm_chip(chip);
 	unsigned int val;
 
-	if (test_bit(PWMF_ENABLED, &pwm->flags)) {
-		/*
-		 * If the PWM channel is enabled, using the update register,
-		 * it needs to set bit 10 of CMR to 0
-		 */
-		atmel_pwm_ch_writel(atmel_pwm, pwm->hwpwm, PWMV1_CUPD, dty);
 
-		val = atmel_pwm_ch_readl(atmel_pwm, pwm->hwpwm, PWM_CMR);
-		val &= ~PWM_CMR_UPD_CDTY;
-		atmel_pwm_ch_writel(atmel_pwm, pwm->hwpwm, PWM_CMR, val);
-	} else {
-		/*
-		 * If the PWM channel is disabled, write value to duty and
-		 * period registers directly.
-		 */
-		atmel_pwm_ch_writel(atmel_pwm, pwm->hwpwm, PWMV1_CDTY, dty);
-		atmel_pwm_ch_writel(atmel_pwm, pwm->hwpwm, PWMV1_CPRD, prd);
-	}
+	atmel_pwm_ch_writel(atmel_pwm, pwm->hwpwm, PWMV1_CUPD, dty);
+
+	val = atmel_pwm_ch_readl(atmel_pwm, pwm->hwpwm, PWM_CMR);
+	val &= ~PWM_CMR_UPD_CDTY;
+	atmel_pwm_ch_writel(atmel_pwm, pwm->hwpwm, PWM_CMR, val);
+
+	/*
+	 * If the PWM channel is enabled, only update CDTY by using the update
+	 * register, it needs to set bit 10 of CMR to 0
+	 */
+	if (test_bit(PWMF_ENABLED, &pwm->flags))
+		return;
+	/*
+	 * If the PWM channel is disabled, write value to duty and period
+	 * registers directly.
+	 */
+	atmel_pwm_ch_writel(atmel_pwm, pwm->hwpwm, PWMV1_CDTY, dty);
+	atmel_pwm_ch_writel(atmel_pwm, pwm->hwpwm, PWMV1_CPRD, prd);
 }
 
 static void atmel_pwm_config_v2(struct pwm_chip *chip, struct pwm_device *pwm,
