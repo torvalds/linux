@@ -27,9 +27,6 @@
 #include "vpfe.h"
 #include "vpfe_mc_capture.h"
 
-/* minimum number of buffers needed in cont-mode */
-#define MIN_NUM_BUFFERS			3
-
 static int debug;
 
 /* get v4l2 subdev pointer to external subdev which is active */
@@ -1088,20 +1085,14 @@ vpfe_buffer_queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
 	struct vpfe_fh *fh = vb2_get_drv_priv(vq);
 	struct vpfe_video_device *video = fh->video;
 	struct vpfe_device *vpfe_dev = video->vpfe_dev;
-	struct vpfe_pipeline *pipe = &video->pipe;
 	unsigned long size;
 
 	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_buffer_queue_setup\n");
 	size = video->fmt.fmt.pix.sizeimage;
 
-	if (vpfe_dev->video_limit) {
-		while (size * *nbuffers > vpfe_dev->video_limit)
-			(*nbuffers)--;
-	}
-	if (pipe->state == VPFE_PIPELINE_STREAM_CONTINUOUS) {
-		if (*nbuffers < MIN_NUM_BUFFERS)
-			*nbuffers = MIN_NUM_BUFFERS;
-	}
+	if (vq->num_buffers + *nbuffers < 3)
+		*nbuffers = 3 - vq->num_buffers;
+
 	*nplanes = 1;
 	sizes[0] = size;
 	alloc_ctxs[0] = video->alloc_ctx;
