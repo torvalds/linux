@@ -438,6 +438,10 @@ static void sur40_process_video(struct sur40_state *sur40)
 
 	dev_dbg(sur40->dev, "image acquired\n");
 
+	/* return error if streaming was stopped in the meantime */
+	if (sur40->sequence == -1)
+		goto err_poll;
+
 	/* mark as finished */
 	v4l2_get_timestamp(&new_buf->vb.v4l2_buf.timestamp);
 	new_buf->vb.v4l2_buf.sequence = sur40->sequence++;
@@ -723,6 +727,7 @@ static int sur40_start_streaming(struct vb2_queue *vq, unsigned int count)
 static void sur40_stop_streaming(struct vb2_queue *vq)
 {
 	struct sur40_state *sur40 = vb2_get_drv_priv(vq);
+	sur40->sequence = -1;
 
 	/* Release all active buffers */
 	return_all_buffers(sur40, VB2_BUF_STATE_ERROR);
