@@ -89,9 +89,6 @@ struct btrfs_ordered_extent {
 	/* number of bytes that still need writing */
 	u64 bytes_left;
 
-	/* number of bytes that still need csumming */
-	u64 csum_bytes_left;
-
 	/*
 	 * the end of the ordered extent which is behind it but
 	 * didn't update disk_i_size. Please see the comment of

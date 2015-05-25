@@ -3881,12 +3881,6 @@ static int wait_ordered_extents(struct btrfs_trans_handle *trans,
 				     &ordered->flags))
 			continue;
 
-		if (ordered->csum_bytes_left) {
-			btrfs_start_ordered_extent(inode, ordered, 0);
-			wait_event(ordered->wait,
-				   ordered->csum_bytes_left == 0);
-		}
-
 		list_for_each_entry(sum, &ordered->list, list) {
 			ret = btrfs_csum_file_blocks(trans, log, sum);
 			if (ret)
