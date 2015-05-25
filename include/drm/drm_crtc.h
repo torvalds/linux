@@ -1146,6 +1146,7 @@ struct drm_mode_config {
 	struct drm_property *prop_fb_id;
 	struct drm_property *prop_crtc_id;
 	struct drm_property *prop_active;
+	struct drm_property *prop_mode_id;
 
 	/* DVI-I properties */
 	struct drm_property *dvi_i_subconnector_property;
