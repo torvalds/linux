@@ -840,4 +840,4 @@ module_exit(da9062_regulator_cleanup);
 MODULE_AUTHOR("S Twiss <stwiss.opensource@diasemi.com>");
 MODULE_DESCRIPTION("REGULATOR device driver for Dialog DA9062");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform: da9062-regulators");
+MODULE_ALIAS("platform:da9062-regulators");
