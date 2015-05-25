@@ -225,6 +225,7 @@ struct map *map__new2(u64 start, struct dso *dso, enum map_type type)
 
 void map__delete(struct map *map)
 {
+	BUG_ON(!RB_EMPTY_NODE(&map->rb_node));
 	free(map);
 }
 
@@ -446,7 +447,7 @@ static void __maps__purge(struct maps *maps)
 		struct map *pos = rb_entry(next, struct map, rb_node);
 
 		next = rb_next(&pos->rb_node);
-		rb_erase(&pos->rb_node, root);
+		rb_erase_init(&pos->rb_node, root);
 		map__delete(pos);
 	}
 }
@@ -456,7 +457,7 @@ static void __maps__purge_removed_maps(struct maps *maps)
 	struct map *pos, *n;
 
 	list_for_each_entry_safe(pos, n, &maps->removed_maps, node) {
-		list_del(&pos->node);
+		list_del_init(&pos->node);
 		map__delete(pos);
 	}
 }
@@ -671,7 +672,7 @@ static int maps__fixup_overlappings(struct maps *maps, struct map *map, FILE *fp
 			map__fprintf(pos, fp);
 		}
 
-		rb_erase(&pos->rb_node, root);
+		rb_erase_init(&pos->rb_node, root);
 		/*
 		 * Now check if we need to create new maps for areas not
 		 * overlapped by the new map:
@@ -782,7 +783,7 @@ void maps__insert(struct maps *maps, struct map *map)
 
 static void __maps__remove(struct maps *maps, struct map *map)
 {
-	rb_erase(&map->rb_node, &maps->entries);
+	rb_erase_init(&map->rb_node, &maps->entries);
 }
 
 void maps__remove(struct maps *maps, struct map *map)

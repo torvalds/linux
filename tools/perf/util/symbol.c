@@ -659,14 +659,14 @@ static int dso__split_kallsyms_for_kcore(struct dso *dso, struct map *map,
 		curr_map = map_groups__find(kmaps, map->type, pos->start);
 
 		if (!curr_map || (filter && filter(curr_map, pos))) {
-			rb_erase(&pos->rb_node, root);
+			rb_erase_init(&pos->rb_node, root);
 			symbol__delete(pos);
 		} else {
 			pos->start -= curr_map->start - curr_map->pgoff;
 			if (pos->end)
 				pos->end -= curr_map->start - curr_map->pgoff;
 			if (curr_map != map) {
-				rb_erase(&pos->rb_node, root);
+				rb_erase_init(&pos->rb_node, root);
 				symbols__insert(
 					&curr_map->dso->symbols[curr_map->type],
 					pos);
@@ -1173,7 +1173,7 @@ static int dso__load_kcore(struct dso *dso, struct map *map,
 	/* Add new maps */
 	while (!list_empty(&md.maps)) {
 		new_map = list_entry(md.maps.next, struct map, node);
-		list_del(&new_map->node);
+		list_del_init(&new_map->node);
 		if (new_map == replacement_map) {
 			map->start	= new_map->start;
 			map->end	= new_map->end;
@@ -1211,7 +1211,7 @@ static int dso__load_kcore(struct dso *dso, struct map *map,
 out_err:
 	while (!list_empty(&md.maps)) {
 		map = list_entry(md.maps.next, struct map, node);
-		list_del(&map->node);
+		list_del_init(&map->node);
 		map__delete(map);
 	}
 	close(fd);
