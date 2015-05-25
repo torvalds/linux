@@ -52,7 +52,7 @@
  * event channels are limited resource. Split event channels are
  * enabled by default.
  */
-bool separate_tx_rx_irq = 1;
+bool separate_tx_rx_irq = true;
 module_param(separate_tx_rx_irq, bool, 0644);
 
 /* The time that packets can stay on the guest Rx internal queue
