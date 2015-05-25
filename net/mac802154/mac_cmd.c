@@ -36,8 +36,8 @@ static int mac802154_mlme_start_req(struct net_device *dev,
 				    u8 pan_coord, u8 blx,
 				    u8 coord_realign)
 {
-	struct ieee802154_mlme_ops *ops = ieee802154_mlme_ops(dev);
-	int rc = 0;
+	struct ieee802154_llsec_params params;
+	int changed = 0;
 
 	ASSERT_RTNL();
 
@@ -47,26 +47,19 @@ static int mac802154_mlme_start_req(struct net_device *dev,
 	dev->ieee802154_ptr->short_addr = addr->short_addr;
 	mac802154_dev_set_page_channel(dev, page, channel);
 
-	if (ops->llsec) {
-		struct ieee802154_llsec_params params;
-		int changed = 0;
+	params.pan_id = addr->pan_id;
+	changed |= IEEE802154_LLSEC_PARAM_PAN_ID;
 
-		params.coord_shortaddr = addr->short_addr;
-		changed |= IEEE802154_LLSEC_PARAM_COORD_SHORTADDR;
+	params.hwaddr = ieee802154_devaddr_from_raw(dev->dev_addr);
+	changed |= IEEE802154_LLSEC_PARAM_HWADDR;
 
-		params.pan_id = addr->pan_id;
-		changed |= IEEE802154_LLSEC_PARAM_PAN_ID;
+	params.coord_hwaddr = params.hwaddr;
+	changed |= IEEE802154_LLSEC_PARAM_COORD_HWADDR;
 
-		params.hwaddr = ieee802154_devaddr_from_raw(dev->dev_addr);
-		changed |= IEEE802154_LLSEC_PARAM_HWADDR;
+	params.coord_shortaddr = addr->short_addr;
+	changed |= IEEE802154_LLSEC_PARAM_COORD_SHORTADDR;
 
-		params.coord_hwaddr = params.hwaddr;
-		changed |= IEEE802154_LLSEC_PARAM_COORD_HWADDR;
-
-		rc = ops->llsec->set_params(dev, &params, changed);
-	}
-
-	return rc;
+	return mac802154_set_params(dev, &params, changed);
 }
 
 static int mac802154_set_mac_params(struct net_device *dev,
