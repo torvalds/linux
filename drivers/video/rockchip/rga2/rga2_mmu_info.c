@@ -358,6 +358,7 @@ static int rga2_MapION(struct sg_table *sg,
     uint32_t len;
     struct scatterlist *sgl = sg->sgl;
     uint32_t sg_num = 0;
+    uint32_t break_flag = 0;
 
     status = 0;
     Address = 0;
@@ -366,9 +367,14 @@ static int rga2_MapION(struct sg_table *sg,
         Address = sg_phys(sgl);
 
         for(i=0; i<len; i++) {
+            if (mapped_size + i >= pageCount) {
+                break_flag = 1;
+                break;
+            }
             Memory[mapped_size + i] = (uint32_t)(Address + (i << PAGE_SHIFT));
         }
-
+        if (break_flag)
+            break;
         mapped_size += len;
         sg_num += 1;
     }
