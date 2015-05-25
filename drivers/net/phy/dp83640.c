@@ -846,7 +846,7 @@ static void decode_rxts(struct dp83640_private *dp83640,
 	list_del_init(&rxts->list);
 	phy2rxts(phy_rxts, rxts);
 
-	spin_lock_irqsave(&dp83640->rx_queue.lock, flags);
+	spin_lock(&dp83640->rx_queue.lock);
 	skb_queue_walk(&dp83640->rx_queue, skb) {
 		struct dp83640_skb_info *skb_info;
 
@@ -861,7 +861,7 @@ static void decode_rxts(struct dp83640_private *dp83640,
 			break;
 		}
 	}
-	spin_unlock_irqrestore(&dp83640->rx_queue.lock, flags);
+	spin_unlock(&dp83640->rx_queue.lock);
 
 	if (!shhwtstamps)
 		list_add_tail(&rxts->list, &dp83640->rxts);
