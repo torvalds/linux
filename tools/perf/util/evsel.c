@@ -2149,7 +2149,9 @@ int perf_evsel__open_strerror(struct perf_evsel *evsel, struct target *target,
 	case EMFILE:
 		return scnprintf(msg, size, "%s",
 			 "Too many events are opened.\n"
-			 "Try again after reducing the number of events.");
+			 "Probably the maximum number of open file descriptors has been reached.\n"
+			 "Hint: Try again after reducing the number of events.\n"
+			 "Hint: Try increasing the limit with 'ulimit -n <limit>'");
 	case ENODEV:
 		if (target->cpu_list)
 			return scnprintf(msg, size, "%s",
