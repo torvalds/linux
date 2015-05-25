@@ -701,6 +701,14 @@ struct ath10k {
 	u32 survey_last_cycle_count;
 	struct survey_info survey[ATH10K_NUM_CHANS];
 
+	/* Channel info events are expected to come in pairs without and with
+	 * COMPLETE flag set respectively for each channel visit during scan.
+	 *
+	 * However there are deviations from this rule. This flag is used to
+	 * avoid reporting garbage data.
+	 */
+	bool ch_info_can_report_survey;
+
 	struct dfs_pattern_detector *dfs_detector;
 
 	unsigned long tx_paused; /* see ATH10K_TX_PAUSE_ */

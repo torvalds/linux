@@ -1637,20 +1637,22 @@ void ath10k_wmi_event_chan_info(struct ath10k *ar, struct sk_buff *skb)
 	}
 
 	if (cmd_flags & WMI_CHAN_INFO_FLAG_COMPLETE) {
-		/* During scanning chan info is reported twice for each
-		 * visited channel. The reported cycle count is global
-		 * and per-channel cycle count must be calculated */
+		if (ar->ch_info_can_report_survey) {
+			survey = &ar->survey[idx];
+			survey->noise = noise_floor;
+			survey->filled = SURVEY_INFO_NOISE_DBM;
 
-		survey = &ar->survey[idx];
-		survey->noise = noise_floor;
-		survey->filled = SURVEY_INFO_NOISE_DBM;
+			ath10k_hw_fill_survey_time(ar,
+						   survey,
+						   cycle_count,
+						   rx_clear_count,
+						   ar->survey_last_cycle_count,
+						   ar->survey_last_rx_clear_count);
+		}
 
-		ath10k_hw_fill_survey_time(ar,
-					   survey,
-					   cycle_count,
-					   rx_clear_count,
-					   ar->survey_last_cycle_count,
-					   ar->survey_last_rx_clear_count);
+		ar->ch_info_can_report_survey = false;
+	} else {
+		ar->ch_info_can_report_survey = true;
 	}
 
 	ar->survey_last_rx_clear_count = rx_clear_count;
