@@ -371,6 +371,8 @@ void fpu__restore(struct fpu *fpu)
 	kernel_fpu_disable();
 	fpregs_activate(fpu);
 	if (unlikely(copy_fpstate_to_fpregs(fpu))) {
+		/* Copying the kernel state to FPU registers should never fail: */
+		WARN_ON_FPU(1);
 		fpu__clear(fpu);
 		force_sig_info(SIGSEGV, SEND_SIG_PRIV, current);
 	} else {
