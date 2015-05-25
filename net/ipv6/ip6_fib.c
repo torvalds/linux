@@ -154,10 +154,32 @@ static void node_free(struct fib6_node *fn)
 	kmem_cache_free(fib6_node_kmem, fn);
 }
 
+static void rt6_free_pcpu(struct rt6_info *non_pcpu_rt)
+{
+	int cpu;
+
+	if (!non_pcpu_rt->rt6i_pcpu)
+		return;
+
+	for_each_possible_cpu(cpu) {
+		struct rt6_info **ppcpu_rt;
+		struct rt6_info *pcpu_rt;
+
+		ppcpu_rt = per_cpu_ptr(non_pcpu_rt->rt6i_pcpu, cpu);
+		pcpu_rt = *ppcpu_rt;
+		if (pcpu_rt) {
+			dst_free(&pcpu_rt->dst);
+			*ppcpu_rt = NULL;
+		}
+	}
+}
+
 static void rt6_release(struct rt6_info *rt)
 {
-	if (atomic_dec_and_test(&rt->rt6i_ref))
+	if (atomic_dec_and_test(&rt->rt6i_ref)) {
+		rt6_free_pcpu(rt);
 		dst_free(&rt->dst);
+	}
 }
 
 static void fib6_link_table(struct net *net, struct fib6_table *tb)
@@ -738,6 +760,7 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct rt6_info *rt,
 					rt6_clean_expires(iter);
 				else
 					rt6_set_expires(iter, rt->dst.expires);
+				iter->rt6i_pmtu = rt->rt6i_pmtu;
 				return -EEXIST;
 			}
 			/* If we have the same destination and the same metric,

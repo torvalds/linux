@@ -192,7 +192,7 @@ static inline struct lowpan_peer *peer_lookup_dst(struct lowpan_dev *dev,
 		if (ipv6_addr_any(nexthop))
 			return NULL;
 	} else {
-		nexthop = rt6_nexthop(rt);
+		nexthop = rt6_nexthop(rt, daddr);
 
 		/* We need to remember the address because it is needed
 		 * by bt_xmit() when sending the packet. In bt_xmit(), the
