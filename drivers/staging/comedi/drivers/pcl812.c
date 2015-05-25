@@ -1155,7 +1155,7 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	/* we need an IRQ to do DMA on channel 3 or 1 */
 	if (dev->irq && board->has_dma)
-		 pcl812_alloc_dma(dev, it->options[2]);
+		pcl812_alloc_dma(dev, it->options[2]);
 
 	/* differential analog inputs? */
 	switch (board->board_type) {
