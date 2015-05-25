@@ -141,7 +141,7 @@ static bool driver_deferred_probe_enable = false;
  * more than one device is probing at the same time, it is possible for one
  * probe to complete successfully while another is about to defer. If the second
  * depends on the first, then it will get put on the pending list after the
- * trigger event has already occured and will be stuck there.
+ * trigger event has already occurred and will be stuck there.
  *
  * The atomic 'deferred_trigger_count' is used to determine if a successful
  * trigger has occurred in the midst of probing a driver. If the trigger count
