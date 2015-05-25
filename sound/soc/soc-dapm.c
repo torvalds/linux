@@ -52,8 +52,8 @@ static int snd_soc_dapm_add_path(struct snd_soc_dapm_context *dapm,
 	const char *control,
 	int (*connected)(struct snd_soc_dapm_widget *source,
 			 struct snd_soc_dapm_widget *sink));
-static struct snd_soc_dapm_widget *
-snd_soc_dapm_new_control(struct snd_soc_dapm_context *dapm,
+struct snd_soc_dapm_widget *
+snd_soc_dapm_new_control_unlocked(struct snd_soc_dapm_context *dapm,
 			 const struct snd_soc_dapm_widget *widget);
 
 /* dapm power sequences - make this per codec in the future */
@@ -350,7 +350,8 @@ static int dapm_kcontrol_data_alloc(struct snd_soc_dapm_widget *widget,
 
 			data->value = template.on_val;
 
-			data->widget = snd_soc_dapm_new_control(widget->dapm,
+			data->widget =
+				snd_soc_dapm_new_control_unlocked(widget->dapm,
 				&template);
 			if (!data->widget) {
 				ret = -ENOMEM;
@@ -3264,8 +3265,25 @@ int snd_soc_dapm_put_pin_switch(struct snd_kcontrol *kcontrol,
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_put_pin_switch);
 
-static struct snd_soc_dapm_widget *
+struct snd_soc_dapm_widget *
 snd_soc_dapm_new_control(struct snd_soc_dapm_context *dapm,
+	const struct snd_soc_dapm_widget *widget)
+{
+	struct snd_soc_dapm_widget *w;
+
+	mutex_lock_nested(&dapm->card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
+	w = snd_soc_dapm_new_control_unlocked(dapm, widget);
+	if (!w)
+		dev_err(dapm->dev,
+			"ASoC: Failed to create DAPM control %s\n",
+			widget->name);
+
+	mutex_unlock(&dapm->card->dapm_mutex);
+	return w;
+}
+
+struct snd_soc_dapm_widget *
+snd_soc_dapm_new_control_unlocked(struct snd_soc_dapm_context *dapm,
 			 const struct snd_soc_dapm_widget *widget)
 {
 	struct snd_soc_dapm_widget *w;
@@ -3411,7 +3429,7 @@ int snd_soc_dapm_new_controls(struct snd_soc_dapm_context *dapm,
 
 	mutex_lock_nested(&dapm->card->dapm_mutex, SND_SOC_DAPM_CLASS_INIT);
 	for (i = 0; i < num; i++) {
-		w = snd_soc_dapm_new_control(dapm, widget);
+		w = snd_soc_dapm_new_control_unlocked(dapm, widget);
 		if (!w) {
 			dev_err(dapm->dev,
 				"ASoC: Failed to create DAPM control %s\n",
@@ -3649,7 +3667,7 @@ int snd_soc_dapm_new_pcm(struct snd_soc_card *card,
 
 	dev_dbg(card->dev, "ASoC: adding %s widget\n", link_name);
 
-	w = snd_soc_dapm_new_control(&card->dapm, &template);
+	w = snd_soc_dapm_new_control_unlocked(&card->dapm, &template);
 	if (!w) {
 		dev_err(card->dev, "ASoC: Failed to create %s widget\n",
 			link_name);
@@ -3700,7 +3718,7 @@ int snd_soc_dapm_new_dai_widgets(struct snd_soc_dapm_context *dapm,
 		dev_dbg(dai->dev, "ASoC: adding %s widget\n",
 			template.name);
 
-		w = snd_soc_dapm_new_control(dapm, &template);
+		w = snd_soc_dapm_new_control_unlocked(dapm, &template);
 		if (!w) {
 			dev_err(dapm->dev, "ASoC: Failed to create %s widget\n",
 				dai->driver->playback.stream_name);
@@ -3719,7 +3737,7 @@ int snd_soc_dapm_new_dai_widgets(struct snd_soc_dapm_context *dapm,
 		dev_dbg(dai->dev, "ASoC: adding %s widget\n",
 			template.name);
 
-		w = snd_soc_dapm_new_control(dapm, &template);
+		w = snd_soc_dapm_new_control_unlocked(dapm, &template);
 		if (!w) {
 			dev_err(dapm->dev, "ASoC: Failed to create %s widget\n",
 				dai->driver->capture.stream_name);
