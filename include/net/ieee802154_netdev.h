@@ -430,10 +430,4 @@ ieee802154_mlme_ops(const struct net_device *dev)
 	return dev->ml_priv;
 }
 
-static inline struct ieee802154_reduced_mlme_ops *
-ieee802154_reduced_mlme_ops(const struct net_device *dev)
-{
-	return dev->ml_priv;
-}
-
 #endif
