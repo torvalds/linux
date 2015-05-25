@@ -336,7 +336,7 @@ static int rcar_du_atomic_check(struct drm_device *dev,
 		dev_dbg(rcdu->dev, "%s: finding free planes for group %u\n",
 			__func__, index);
 
-		for (i = 0; i < RCAR_DU_NUM_KMS_PLANES; ++i) {
+		for (i = 0; i < group->num_planes; ++i) {
 			struct rcar_du_plane *plane = &group->planes[i];
 			struct rcar_du_plane_state *plane_state;
 			struct drm_plane_state *s;

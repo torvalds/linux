@@ -214,7 +214,7 @@ static void rcar_du_crtc_update_planes(struct rcar_du_crtc *rcrtc)
 	unsigned int i;
 	u32 dspr = 0;
 
-	for (i = 0; i < ARRAY_SIZE(rcrtc->group->planes); ++i) {
+	for (i = 0; i < rcrtc->group->num_planes; ++i) {
 		struct rcar_du_plane *plane = &rcrtc->group->planes[i];
 		unsigned int j;
 
@@ -445,7 +445,7 @@ void rcar_du_crtc_resume(struct rcar_du_crtc *rcrtc)
 	rcar_du_crtc_start(rcrtc);
 
 	/* Commit the planes state. */
-	for (i = 0; i < ARRAY_SIZE(rcrtc->group->planes); ++i) {
+	for (i = 0; i < rcrtc->group->num_planes; ++i) {
 		struct rcar_du_plane *plane = &rcrtc->group->planes[i];
 
 		if (plane->plane.state->crtc != &rcrtc->crtc)
