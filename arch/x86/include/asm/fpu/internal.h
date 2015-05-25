@@ -143,14 +143,22 @@ static inline int copy_fxregs_to_user(struct fxregs_state __user *fx)
 
 static inline int copy_kernel_to_fxregs(struct fxregs_state *fx)
 {
-	if (config_enabled(CONFIG_X86_32))
-		return check_insn(fxrstor %[fx], "=m" (*fx), [fx] "m" (*fx));
-	else if (config_enabled(CONFIG_AS_FXSAVEQ))
-		return check_insn(fxrstorq %[fx], "=m" (*fx), [fx] "m" (*fx));
+	int err;
 
-	/* See comment in copy_fxregs_to_kernel() below. */
-	return check_insn(rex64/fxrstor (%[fx]), "=m" (*fx), [fx] "R" (fx),
-			  "m" (*fx));
+	if (config_enabled(CONFIG_X86_32)) {
+		err = check_insn(fxrstor %[fx], "=m" (*fx), [fx] "m" (*fx));
+	} else {
+		if (config_enabled(CONFIG_AS_FXSAVEQ)) {
+			err = check_insn(fxrstorq %[fx], "=m" (*fx), [fx] "m" (*fx));
+		} else {
+			/* See comment in copy_fxregs_to_kernel() below. */
+			err = check_insn(rex64/fxrstor (%[fx]), "=m" (*fx), [fx] "R" (fx), "m" (*fx));
+		}
+	}
+	/* Copying from a kernel buffer to FPU registers should never fail: */
+	WARN_ON_FPU(err);
+
+	return err;
 }
 
 static inline int copy_user_to_fxregs(struct fxregs_state __user *fx)
@@ -167,7 +175,11 @@ static inline int copy_user_to_fxregs(struct fxregs_state __user *fx)
 
 static inline int copy_kernel_to_fregs(struct fregs_state *fx)
 {
-	return check_insn(frstor %[fx], "=m" (*fx), [fx] "m" (*fx));
+	int err = check_insn(frstor %[fx], "=m" (*fx), [fx] "m" (*fx));
+
+	WARN_ON_FPU(err);
+
+	return err;
 }
 
 static inline int copy_user_to_fregs(struct fregs_state __user *fx)
