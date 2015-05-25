@@ -61,9 +61,9 @@ void ipv6_proxy_select_ident(struct net *net, struct sk_buff *skb)
 }
 EXPORT_SYMBOL_GPL(ipv6_proxy_select_ident);
 
-u32 ipv6_select_ident(struct net *net,
-		      const struct in6_addr *daddr,
-		      const struct in6_addr *saddr)
+__be32 ipv6_select_ident(struct net *net,
+			 const struct in6_addr *daddr,
+			 const struct in6_addr *saddr)
 {
 	static u32 ip6_idents_hashrnd __read_mostly;
 	u32 id;
