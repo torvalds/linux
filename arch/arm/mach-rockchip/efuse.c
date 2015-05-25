@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013-2014 ROCKCHIP, Inc.
+ * Copyright (C) 2013-2015 ROCKCHIP, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -8,17 +8,19 @@
 
 #include <linux/crc32.h>
 #include <linux/delay.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 #include <linux/rockchip/cpu.h>
 #include <linux/rockchip/iomap.h>
 #include <asm/compiler.h>
 #include <asm/psci.h>
-#ifdef CONFIG_ARM
 #include <asm/system_info.h>
-#endif
 #include "efuse.h"
 
+#ifdef CONFIG_ARM
 #define efuse_readl(offset) readl_relaxed(RK_EFUSE_VIRT + offset)
 #define efuse_writel(val, offset) writel_relaxed(val, RK_EFUSE_VIRT + offset)
+#endif
 
 static u8 efuse_buf[32] = {};
 
@@ -48,31 +50,30 @@ static struct rockchip_efuse efuse;
 #define SEC_REG_WR_64 (SEC_REG_WR | SEC_REG_64)
 
 #define PSCI_OS_ACCESS_REG		(0xa600ffb0)
-#define EFUSE_BASE        0xffb00000
+static phys_addr_t efuse_phys;
+
 /*
  * arg2: rd/wr control, bit[0] 0-rd 1-rt, bit[1] 0-32bit, 1-64bit
  * arg1: base addr
  * arg0: read or write val
  * function_id: return fail/succes
  */
-noinline int __invoke_reg_access_fn_hvc(u64 function_id, u64 arg0, u64 arg1, u64 arg2, u64 *val)
+static u32 reg_wr_fn_smc(u64 function_id, u64 arg0, u64 arg1, u64 arg2)
 {
 	asm volatile(
 			__asmeq("%0", "x0")
 			__asmeq("%1", "x1")
 			__asmeq("%2", "x2")
 			__asmeq("%3", "x3")
-			"hvc	#0\n"
+			"smc	#0\n"
 		: "+r" (function_id), "+r" (arg0)
 		: "r" (arg1), "r" (arg2));
 
-	if(!(arg2 & SEC_REG_WR))
-		*val = arg0;
-
 	return function_id;
 }
 
-noinline int __invoke_reg_wr_fn_smc(u64 function_id, u64 arg0, u64 arg1, u64 arg2)
+static u32 reg_rd_fn_smc(u64 function_id, u64 arg0, u64 arg1, u64 arg2,
+			 u64 *val)
 {
 	asm volatile(
 			__asmeq("%0", "x0")
@@ -80,22 +81,7 @@ noinline int __invoke_reg_wr_fn_smc(u64 function_id, u64 arg0, u64 arg1, u64 arg
 			__asmeq("%2", "x2")
 			__asmeq("%3", "x3")
 			"smc	#0\n"
-		: "+r" (function_id) ,"+r" (arg0)
-		: "r" (arg1), "r" (arg2));
-
-	return function_id;
-}
-
-noinline int __invoke_reg_rd_fn_smc(u64 function_id, u64 arg0, u64 arg1,
-					 u64 arg2, u64 *val)
-{
-	asm volatile(
-			__asmeq("%0", "x0")
-			__asmeq("%1", "x1")
-			__asmeq("%2", "x2")
-			__asmeq("%3", "x3")
-			"smc	#0\n"
-		: "+r" (function_id) ,"+r" (arg0)
+		: "+r" (function_id), "+r" (arg0)
 		: "r" (arg1), "r" (arg2));
 
 		*val = arg0;
@@ -103,71 +89,36 @@ noinline int __invoke_reg_rd_fn_smc(u64 function_id, u64 arg0, u64 arg1,
 	return function_id;
 }
 
-int (*invoke_regs_wr_fn)(u64, u64 , u64, u64) = __invoke_reg_wr_fn_smc;
+static u32 (*reg_wr_fn)(u64, u64, u64, u64) = reg_wr_fn_smc;
+static u32 (*reg_rd_fn)(u64, u64, u64, u64, u64 *) = reg_rd_fn_smc;
 
-int (*invoke_regs_rd_fn)(u64, u64 , u64, u64, u64 *) = __invoke_reg_rd_fn_smc;
-
-
-int secure_regs_rd(u64 addr_phy)
+static u32 secure_regs_rd_32(u64 addr_phy)
 {
-	u64 val_64;
-	u32 val;
-	int ret;
-	ret = invoke_regs_rd_fn(PSCI_OS_ACCESS_REG, 0, addr_phy, SEC_REG_RD_32, &val_64);
-	val = val_64;
+	u64 val = 0;
+
+	reg_rd_fn(PSCI_OS_ACCESS_REG, 0, addr_phy, SEC_REG_RD_32, &val);
 	return val;
 }
 
-int secure_regs_wr_32(u64 addr_phy, u32 val)
+static u32 secure_regs_wr_32(u64 addr_phy, u32 val)
 {
 	u64 val_64 = val;
-	return invoke_regs_wr_fn(PSCI_OS_ACCESS_REG, val_64, addr_phy, SEC_REG_WR_32);
+
+	return reg_wr_fn(PSCI_OS_ACCESS_REG, val_64, addr_phy, SEC_REG_WR_32);
 }
 
-static int rk3368_efuse_readregs(u32 addr, u32 length, u8 *buf)
+static u32 efuse_readl(u32 offset)
 {
-	int ret = length;
-		if (!length)
-		return 0;
-	if (!buf)
-		return 0;
-
-	secure_regs_wr_32(EFUSE_BASE+REG_EFUSE_CTRL , EFUSE_CSB);
-	secure_regs_wr_32(EFUSE_BASE+REG_EFUSE_CTRL , EFUSE_LOAD | EFUSE_PGENB);
-	udelay(2);
-	do {
-		secure_regs_wr_32(EFUSE_BASE+REG_EFUSE_CTRL ,
-				secure_regs_rd(EFUSE_BASE+REG_EFUSE_CTRL) &
-					(~(EFUSE_A_MASK << EFUSE_A_SHIFT)));
-		secure_regs_wr_32(EFUSE_BASE+REG_EFUSE_CTRL,
-				secure_regs_rd(EFUSE_BASE+REG_EFUSE_CTRL) |
-						((addr & EFUSE_A_MASK) << EFUSE_A_SHIFT));
-		udelay(2);
-		secure_regs_wr_32(EFUSE_BASE+REG_EFUSE_CTRL ,
-				secure_regs_rd(EFUSE_BASE+REG_EFUSE_CTRL) | EFUSE_STROBE);
-		udelay(2);
-		*buf = secure_regs_rd(EFUSE_BASE+REG_EFUSE_DOUT);
-		secure_regs_wr_32(EFUSE_BASE+REG_EFUSE_CTRL ,
-				secure_regs_rd(EFUSE_BASE+REG_EFUSE_CTRL) & (~EFUSE_STROBE));
-		udelay(2);
-		buf++;
-		addr++;
-	} while (--length);
-	udelay(2);
-	secure_regs_wr_32(EFUSE_BASE+REG_EFUSE_CTRL ,
-			secure_regs_rd(EFUSE_BASE+REG_EFUSE_CTRL) | EFUSE_CSB);
-	udelay(1);
-
-	return ret;
+	return secure_regs_rd_32(efuse_phys + offset);
 }
-#else
-static int rk3368_efuse_readregs(u32 addr, u32 length, u8 *buf)
+
+static void efuse_writel(u32 val, u32 offset)
 {
-	return 0;
+	secure_regs_wr_32(efuse_phys + offset, val);
 }
 #endif
 
-static int __init rk3288_efuse_readregs(u32 addr, u32 length, u8 *buf)
+static int rk3288_efuse_readregs(u32 addr, u32 length, u8 *buf)
 {
 	int ret = length;
 
@@ -290,46 +241,51 @@ int rockchip_process_version(void)
 int rockchip_get_leakage(int ch)
 {
 	int ret = 0;
-	if (efuse.get_leakage){
-                return efuse.get_leakage(ch);
-	}else{
-		ret = rk3368_efuse_readregs(0,32,efuse_buf);
-		if (ret == 32){
+
+	if (efuse.get_leakage) {
+		return efuse.get_leakage(ch);
+	} else {
+		ret = rk3288_efuse_readregs(0, 32, efuse_buf);
+		if (ret == 32)
 			return efuse_buf[23+ch];
-		}
 	}
 	return 0;
 }
+
 int rockchip_efuse_get_temp_adjust(int ch)
 {
-	int ret = 0;
-	int temp = 0;
-	ret = rk3368_efuse_readregs(0,32,efuse_buf);
-	if (ret == 32){
-		temp = efuse_buf[31+ch];
-		if(efuse_buf[31+ch] & 0x80)
-		{
-			temp = -(efuse_buf[31+ch] & 0x7f);
-		}
-		return temp;
+	int temp;
+
+	if (efuse_buf[31] & 0x80)
+		temp = -(efuse_buf[31] & 0x7f);
+	else
+		temp = efuse_buf[31];
+
+	return temp;
+}
+
+static void __init rk3288_efuse_init(void)
+{
+	int ret;
+
+	ret = rk3288_efuse_readregs(0, 32, efuse_buf);
+	if (ret == 32) {
+		efuse.get_leakage = rk3288_get_leakage;
+		efuse.efuse_version = rk3288_get_efuse_version();
+		efuse.process_version = rk3288_get_process_version();
+		rockchip_set_cpu_version((efuse_buf[6] >> 4) & 3);
+		rk3288_set_system_serial();
+	} else {
+		pr_err("failed to read eFuse, return %d\n", ret);
 	}
-	return 0;
 }
 
 void __init rockchip_efuse_init(void)
 {
 	int ret;
+
 	if (cpu_is_rk3288()) {
-		ret = rk3288_efuse_readregs(0, 32, efuse_buf);
-		if (ret == 32) {
-			efuse.get_leakage = rk3288_get_leakage;
-			efuse.efuse_version = rk3288_get_efuse_version();
-			efuse.process_version = rk3288_get_process_version();
-			rockchip_set_cpu_version((efuse_buf[6] >> 4) & 3);
-			rk3288_set_system_serial();
-		} else {
-			pr_err("failed to read eFuse, return %d\n", ret);
-		}
+		rk3288_efuse_init();
 	} else if (cpu_is_rk312x()) {
 		ret = rk312x_efuse_readregs(0, 32, efuse_buf);
 		if (ret == 32)
@@ -338,3 +294,41 @@ void __init rockchip_efuse_init(void)
 			pr_err("failed to read eFuse, return %d\n", ret);
 	}
 }
+
+#ifdef CONFIG_ARM64
+static int __init rockchip_efuse_probe(struct platform_device *pdev)
+{
+	struct resource *regs;
+
+	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!regs) {
+		dev_err(&pdev->dev, "failed to get I/O memory\n");
+		return -ENODEV;
+	}
+	efuse_phys = regs->start;
+
+	rk3288_efuse_init();
+
+	return 0;
+}
+
+static const struct of_device_id rockchip_efuse_of_match[] = {
+	{ .compatible = "rockchip,rk3368-efuse-256", .data = NULL, },
+	{},
+};
+
+static struct platform_driver rockchip_efuse_driver = {
+	.driver		= {
+		.name		= "efuse",
+		.owner		= THIS_MODULE,
+		.of_match_table	= of_match_ptr(rockchip_efuse_of_match),
+	},
+};
+
+static int __init rockchip_efuse_module_init(void)
+{
+	return platform_driver_probe(&rockchip_efuse_driver,
+				     rockchip_efuse_probe);
+}
+arch_initcall_sync(rockchip_efuse_module_init);
+#endif
