@@ -25,6 +25,7 @@
 #include <linux/serial.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
+#include <linux/spi/spi.h>
 #include <linux/uaccess.h>
 
 #define SC16IS7XX_NAME			"sc16is7xx"
@@ -1204,6 +1205,73 @@ static struct regmap_config regcfg = {
 	.precious_reg = sc16is7xx_regmap_precious,
 };
 
+#ifdef CONFIG_SERIAL_SC16IS7XX_SPI
+static int sc16is7xx_spi_probe(struct spi_device *spi)
+{
+	struct sc16is7xx_devtype *devtype;
+	unsigned long flags = 0;
+	struct regmap *regmap;
+	int ret;
+
+	/* Setup SPI bus */
+	spi->bits_per_word	= 8;
+	/* only supports mode 0 on SC16IS762 */
+	spi->mode		= spi->mode ? : SPI_MODE_0;
+	spi->max_speed_hz	= spi->max_speed_hz ? : 15000000;
+	ret = spi_setup(spi);
+	if (ret)
+		return ret;
+
+	if (spi->dev.of_node) {
+		const struct of_device_id *of_id =
+			of_match_device(sc16is7xx_dt_ids, &spi->dev);
+
+		devtype = (struct sc16is7xx_devtype *)of_id->data;
+	} else {
+		const struct spi_device_id *id_entry = spi_get_device_id(spi);
+
+		devtype = (struct sc16is7xx_devtype *)id_entry->driver_data;
+		flags = IRQF_TRIGGER_FALLING;
+	}
+
+	regcfg.max_register = (0xf << SC16IS7XX_REG_SHIFT) |
+			      (devtype->nr_uart - 1);
+	regmap = devm_regmap_init_spi(spi, &regcfg);
+
+	return sc16is7xx_probe(&spi->dev, devtype, regmap, spi->irq, flags);
+}
+
+static int sc16is7xx_spi_remove(struct spi_device *spi)
+{
+	return sc16is7xx_remove(&spi->dev);
+}
+
+static const struct spi_device_id sc16is7xx_spi_id_table[] = {
+	{ "sc16is74x",	(kernel_ulong_t)&sc16is74x_devtype, },
+	{ "sc16is750",	(kernel_ulong_t)&sc16is750_devtype, },
+	{ "sc16is752",	(kernel_ulong_t)&sc16is752_devtype, },
+	{ "sc16is760",	(kernel_ulong_t)&sc16is760_devtype, },
+	{ "sc16is762",	(kernel_ulong_t)&sc16is762_devtype, },
+	{ }
+};
+
+MODULE_DEVICE_TABLE(spi, sc16is7xx_spi_id_table);
+
+static struct spi_driver sc16is7xx_spi_uart_driver = {
+	.driver = {
+		.name		= SC16IS7XX_NAME,
+		.owner		= THIS_MODULE,
+		.of_match_table	= of_match_ptr(sc16is7xx_dt_ids),
+	},
+	.probe		= sc16is7xx_spi_probe,
+	.remove		= sc16is7xx_spi_remove,
+	.id_table	= sc16is7xx_spi_id_table,
+};
+
+MODULE_ALIAS("spi:sc16is7xx");
+#endif
+
+#ifdef CONFIG_SERIAL_SC16IS7XX_I2C
 static int sc16is7xx_i2c_probe(struct i2c_client *i2c,
 			       const struct i2c_device_id *id)
 {
@@ -1253,8 +1321,43 @@ static struct i2c_driver sc16is7xx_i2c_uart_driver = {
 	.remove		= sc16is7xx_i2c_remove,
 	.id_table	= sc16is7xx_i2c_id_table,
 };
-module_i2c_driver(sc16is7xx_i2c_uart_driver);
+
 MODULE_ALIAS("i2c:sc16is7xx");
+#endif
+
+static int __init sc16is7xx_init(void)
+{
+	int ret = 0;
+#ifdef CONFIG_SERIAL_SC16IS7XX_I2C
+	ret = i2c_add_driver(&sc16is7xx_i2c_uart_driver);
+	if (ret < 0) {
+		pr_err("failed to init sc16is7xx i2c --> %d\n", ret);
+		return ret;
+	}
+#endif
+
+#ifdef CONFIG_SERIAL_SC16IS7XX_SPI
+	ret = spi_register_driver(&sc16is7xx_spi_uart_driver);
+	if (ret < 0) {
+		pr_err("failed to init sc16is7xx spi --> %d\n", ret);
+		return ret;
+	}
+#endif
+	return ret;
+}
+module_init(sc16is7xx_init);
+
+static void __exit sc16is7xx_exit(void)
+{
+#ifdef CONFIG_SERIAL_SC16IS7XX_I2C
+	i2c_del_driver(&sc16is7xx_i2c_uart_driver);
+#endif
+
+#ifdef CONFIG_SERIAL_SC16IS7XX_SPI
+	spi_unregister_driver(&sc16is7xx_spi_uart_driver);
+#endif
+}
+module_exit(sc16is7xx_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jon Ringle <jringle@gridpoint.com>");
