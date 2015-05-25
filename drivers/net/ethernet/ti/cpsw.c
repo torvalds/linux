@@ -1456,7 +1456,7 @@ static void cpsw_hwtstamp_v2(struct cpsw_priv *priv)
 
 		if (priv->cpts->rx_enable)
 			ctrl |= CTRL_V2_RX_TS_BITS;
-	break;
+		break;
 	case CPSW_VERSION_3:
 	default:
 		ctrl &= ~CTRL_V3_ALL_TS_MASK;
@@ -1466,7 +1466,7 @@ static void cpsw_hwtstamp_v2(struct cpsw_priv *priv)
 
 		if (priv->cpts->rx_enable)
 			ctrl |= CTRL_V3_RX_TS_BITS;
-	break;
+		break;
 	}
 
 	mtype = (30 << TS_SEQ_ID_OFFSET_SHIFT) | EVENT_MSG_BITS;
