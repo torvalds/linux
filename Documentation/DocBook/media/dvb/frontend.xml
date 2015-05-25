@@ -2,9 +2,9 @@
 
 <para>The DVB frontend device controls the tuner and DVB demodulator
 hardware. It can be accessed through <emphasis
-role="tt">/dev/dvb/adapter0/frontend0</emphasis>. Data types and and
+role="bold">/dev/dvb/adapter0/frontend0</emphasis>. Data types and and
 ioctl definitions can be accessed by including <emphasis
-role="tt">linux/dvb/frontend.h</emphasis> in your application.</para>
+role="bold">linux/dvb/frontend.h</emphasis> in your application.</para>
 
 <para>DVB frontends come in three varieties: DVB-S (satellite), DVB-C
 (cable) and DVB-T (terrestrial). Transmission via the internet (DVB-IP)

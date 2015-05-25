@@ -129,41 +129,41 @@ hardware. It can depend on the individual security requirements of the
 platform, if and how many of the CA functions are made available to the
 application through this device.</para>
 
-<para>All devices can be found in the <emphasis role="tt">/dev</emphasis>
-tree under <emphasis role="tt">/dev/dvb</emphasis>. The individual devices
+<para>All devices can be found in the <emphasis role="bold">/dev</emphasis>
+tree under <emphasis role="bold">/dev/dvb</emphasis>. The individual devices
 are called:</para>
 
 <itemizedlist>
 <listitem>
 
-<para><emphasis role="tt">/dev/dvb/adapterN/audioM</emphasis>,</para>
+<para><emphasis role="bold">/dev/dvb/adapterN/audioM</emphasis>,</para>
 </listitem>
 <listitem>
-<para><emphasis role="tt">/dev/dvb/adapterN/videoM</emphasis>,</para>
+<para><emphasis role="bold">/dev/dvb/adapterN/videoM</emphasis>,</para>
 </listitem>
 <listitem>
-<para><emphasis role="tt">/dev/dvb/adapterN/frontendM</emphasis>,</para>
+<para><emphasis role="bold">/dev/dvb/adapterN/frontendM</emphasis>,</para>
 </listitem>
  <listitem>
 
-<para><emphasis role="tt">/dev/dvb/adapterN/netM</emphasis>,</para>
+<para><emphasis role="bold">/dev/dvb/adapterN/netM</emphasis>,</para>
 </listitem>
  <listitem>
 
-<para><emphasis role="tt">/dev/dvb/adapterN/demuxM</emphasis>,</para>
+<para><emphasis role="bold">/dev/dvb/adapterN/demuxM</emphasis>,</para>
 </listitem>
  <listitem>
 
-<para><emphasis role="tt">/dev/dvb/adapterN/dvrM</emphasis>,</para>
+<para><emphasis role="bold">/dev/dvb/adapterN/dvrM</emphasis>,</para>
 </listitem>
  <listitem>
 
-<para><emphasis role="tt">/dev/dvb/adapterN/caM</emphasis>,</para></listitem></itemizedlist>
+<para><emphasis role="bold">/dev/dvb/adapterN/caM</emphasis>,</para></listitem></itemizedlist>
 
 <para>where N enumerates the DVB PCI cards in a system starting
 from&#x00A0;0, and M enumerates the devices of each type within each
 adapter, starting from&#x00A0;0, too. We will omit the &#8220;<emphasis
-role="tt">/dev/dvb/adapterN/</emphasis>&#8221; in the further dicussion
+role="bold">/dev/dvb/adapterN/</emphasis>&#8221; in the further dicussion
 of these devices. The naming scheme for the devices is the same wheter
 devfs is used or not.</para>
 
@@ -203,9 +203,9 @@ a partial path like:</para>
 
 <para>To enable applications to support different API version, an
 additional include file <emphasis
-role="tt">linux/dvb/version.h</emphasis> exists, which defines the
-constant <emphasis role="tt">DVB_API_VERSION</emphasis>. This document
-describes <emphasis role="tt">DVB_API_VERSION 5.8</emphasis>.
+role="bold">linux/dvb/version.h</emphasis> exists, which defines the
+constant <emphasis role="bold">DVB_API_VERSION</emphasis>. This document
+describes <emphasis role="bold">DVB_API_VERSION 5.8</emphasis>.
 </para>
 
 </section>
