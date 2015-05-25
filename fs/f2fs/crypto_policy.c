@@ -83,7 +83,7 @@ static int f2fs_create_encryption_context_from_policy(
 
 	return f2fs_setxattr(inode, F2FS_XATTR_INDEX_ENCRYPTION,
 			F2FS_XATTR_NAME_ENCRYPTION_CONTEXT, &ctx,
-			sizeof(ctx), NULL, 0);
+			sizeof(ctx), NULL, XATTR_CREATE);
 }
 
 int f2fs_process_policy(const struct f2fs_encryption_policy *policy,
@@ -202,5 +202,5 @@ int f2fs_inherit_context(struct inode *parent, struct inode *child,
 	get_random_bytes(ctx.nonce, F2FS_KEY_DERIVATION_NONCE_SIZE);
 	return f2fs_setxattr(child, F2FS_XATTR_INDEX_ENCRYPTION,
 				F2FS_XATTR_NAME_ENCRYPTION_CONTEXT, &ctx,
-				sizeof(ctx), ipage, 0);
+				sizeof(ctx), ipage, XATTR_CREATE);
 }
