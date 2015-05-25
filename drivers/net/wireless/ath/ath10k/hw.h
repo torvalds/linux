@@ -169,6 +169,9 @@ struct ath10k_hw_regs {
 extern const struct ath10k_hw_regs qca988x_regs;
 extern const struct ath10k_hw_regs qca6174_regs;
 
+void ath10k_hw_fill_survey_time(struct ath10k *ar, struct survey_info *survey,
+				u32 cc, u32 rcc, u32 cc_prev, u32 rcc_prev);
+
 #define QCA_REV_988X(ar) ((ar)->hw_rev == ATH10K_HW_QCA988X)
 #define QCA_REV_6174(ar) ((ar)->hw_rev == ATH10K_HW_QCA6174)
 

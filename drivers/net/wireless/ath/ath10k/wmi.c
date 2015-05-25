@@ -27,6 +27,7 @@
 #include "testmode.h"
 #include "wmi-ops.h"
 #include "p2p.h"
+#include "hw.h"
 
 /* MAIN WMI cmd track */
 static struct wmi_cmd_map wmi_cmd_map = {
@@ -1640,16 +1641,16 @@ void ath10k_wmi_event_chan_info(struct ath10k *ar, struct sk_buff *skb)
 		 * visited channel. The reported cycle count is global
 		 * and per-channel cycle count must be calculated */
 
-		cycle_count -= ar->survey_last_cycle_count;
-		rx_clear_count -= ar->survey_last_rx_clear_count;
-
 		survey = &ar->survey[idx];
-		survey->time = CCNT_TO_MSEC(cycle_count);
-		survey->time_busy = CCNT_TO_MSEC(rx_clear_count);
 		survey->noise = noise_floor;
-		survey->filled = SURVEY_INFO_TIME |
-				 SURVEY_INFO_TIME_BUSY |
-				 SURVEY_INFO_NOISE_DBM;
+		survey->filled = SURVEY_INFO_NOISE_DBM;
+
+		ath10k_hw_fill_survey_time(ar,
+					   survey,
+					   cycle_count,
+					   rx_clear_count,
+					   ar->survey_last_cycle_count,
+					   ar->survey_last_rx_clear_count);
 	}
 
 	ar->survey_last_rx_clear_count = rx_clear_count;
