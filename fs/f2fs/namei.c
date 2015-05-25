@@ -756,6 +756,14 @@ static int f2fs_cross_rename(struct inode *old_dir, struct dentry *old_dentry,
 	int old_nlink = 0, new_nlink = 0;
 	int err = -ENOENT;
 
+	if ((f2fs_encrypted_inode(old_dir) || f2fs_encrypted_inode(new_dir)) &&
+		(old_dir != new_dir) &&
+		(!f2fs_is_child_context_consistent_with_parent(new_dir,
+								old_inode) ||
+		!f2fs_is_child_context_consistent_with_parent(old_dir,
+								new_inode)))
+		return -EPERM;
+
 	f2fs_balance_fs(sbi);
 
 	old_entry = f2fs_find_entry(old_dir, &old_dentry->d_name, &old_page);
