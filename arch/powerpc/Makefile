@@ -66,7 +66,10 @@ endif
 UTS_MACHINE := $(OLDARCH)
 
 ifeq ($(CONFIG_CPU_LITTLE_ENDIAN),y)
-override CC	+= -mlittle-endian -mno-strict-align
+override CC	+= -mlittle-endian
+ifneq ($(COMPILER),clang)
+override CC	+= -mno-strict-align
+endif
 override AS	+= -mlittle-endian
 override LD	+= -EL
 override CROSS32CC += -mlittle-endian
