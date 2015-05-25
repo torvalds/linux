@@ -34,6 +34,15 @@ static void f2fs_read_end_io(struct bio *bio, int err)
 	struct bio_vec *bvec;
 	int i;
 
+	if (f2fs_bio_encrypted(bio)) {
+		if (err) {
+			f2fs_release_crypto_ctx(bio->bi_private);
+		} else {
+			f2fs_end_io_crypto_work(bio->bi_private, bio);
+			return;
+		}
+	}
+
 	bio_for_each_segment_all(bvec, bio, i) {
 		struct page *page = bvec->bv_page;
 
@@ -45,39 +54,6 @@ static void f2fs_read_end_io(struct bio *bio, int err)
 		}
 		unlock_page(page);
 	}
-	bio_put(bio);
-}
-
-/*
- * I/O completion handler for multipage BIOs.
- * copied from fs/mpage.c
- */
-static void mpage_end_io(struct bio *bio, int err)
-{
-	struct bio_vec *bv;
-	int i;
-
-	if (f2fs_bio_encrypted(bio)) {
-		if (err) {
-			f2fs_release_crypto_ctx(bio->bi_private);
-		} else {
-			f2fs_end_io_crypto_work(bio->bi_private, bio);
-			return;
-		}
-	}
-
-	bio_for_each_segment_all(bv, bio, i) {
-		struct page *page = bv->bv_page;
-
-		if (!err) {
-			SetPageUptodate(page);
-		} else {
-			ClearPageUptodate(page);
-			SetPageError(page);
-		}
-		unlock_page(page);
-	}
-
 	bio_put(bio);
 }
 
@@ -122,7 +98,7 @@ static struct bio *__bio_alloc(struct f2fs_sb_info *sbi, block_t blk_addr,
 	bio->bi_bdev = sbi->sb->s_bdev;
 	bio->bi_iter.bi_sector = SECTOR_FROM_BLOCK(blk_addr);
 	bio->bi_end_io = is_read ? f2fs_read_end_io : f2fs_write_end_io;
-	bio->bi_private = sbi;
+	bio->bi_private = is_read ? NULL : sbi;
 
 	return bio;
 }
@@ -1584,7 +1560,7 @@ submit_and_realloc:
 			}
 			bio->bi_bdev = bdev;
 			bio->bi_iter.bi_sector = SECTOR_FROM_BLOCK(block_nr);
-			bio->bi_end_io = mpage_end_io;
+			bio->bi_end_io = f2fs_read_end_io;
 			bio->bi_private = ctx;
 		}
 
