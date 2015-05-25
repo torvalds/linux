@@ -25,6 +25,7 @@ obj-$(CONFIG_AMCC_PPC440SPE_ADMA) += ppc4xx/
 obj-$(CONFIG_IMX_SDMA) += imx-sdma.o
 obj-$(CONFIG_IMX_DMA) += imx-dma.o
 obj-$(CONFIG_MXS_DMA) += mxs-dma.o
+obj-$(CONFIG_PXA_DMA) += pxa_dma.o
 obj-$(CONFIG_TIMB_DMA) += timb_dma.o
 obj-$(CONFIG_SIRF_DMA) += sirf-dma.o
 obj-$(CONFIG_TI_EDMA) += edma.o
