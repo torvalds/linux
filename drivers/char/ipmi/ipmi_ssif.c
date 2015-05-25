@@ -1154,11 +1154,11 @@ static int use_thread;
 module_param(use_thread, int, 0);
 MODULE_PARM_DESC(use_thread, "Use the thread interface.");
 
-static bool ssif_tryacpi = 1;
+static bool ssif_tryacpi = true;
 module_param_named(tryacpi, ssif_tryacpi, bool, 0);
 MODULE_PARM_DESC(tryacpi, "Setting this to zero will disable the default scan of the interfaces identified via ACPI");
 
-static bool ssif_trydmi = 1;
+static bool ssif_trydmi = true;
 module_param_named(trydmi, ssif_trydmi, bool, 0);
 MODULE_PARM_DESC(trydmi, "Setting this to zero will disable the default scan of the interfaces identified via DMI (SMBIOS)");
 

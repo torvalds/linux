@@ -1279,14 +1279,14 @@ static int smi_num; /* Used to sequence the SMIs */
 #define DEFAULT_REGSIZE		1
 
 #ifdef CONFIG_ACPI
-static bool          si_tryacpi = 1;
+static bool          si_tryacpi = true;
 #endif
 #ifdef CONFIG_DMI
-static bool          si_trydmi = 1;
+static bool          si_trydmi = true;
 #endif
-static bool          si_tryplatform = 1;
+static bool          si_tryplatform = true;
 #ifdef CONFIG_PCI
-static bool          si_trypci = 1;
+static bool          si_trypci = true;
 #endif
 static bool          si_trydefaults = IS_ENABLED(CONFIG_IPMI_SI_PROBE_DEFAULTS);
 static char          *si_type[SI_MAX_PARMS];
