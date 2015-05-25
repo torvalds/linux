@@ -288,6 +288,11 @@
 		};
 	};
 
+	efuse_256@ffb00000 {
+		compatible = "rockchip,rk3368-efuse-256";
+		reg = <0x0 0xffb00000 0x0 0x8>;
+	};
+
 	timer {
 		compatible = "arm,armv8-timer";
 		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_HIGH)>,
