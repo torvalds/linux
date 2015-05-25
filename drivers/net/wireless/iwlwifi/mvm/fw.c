@@ -832,21 +832,6 @@ int iwl_mvm_rx_card_state_notif(struct iwl_mvm *mvm,
 	return 0;
 }
 
-int iwl_mvm_rx_radio_ver(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb,
-			 struct iwl_device_cmd *cmd)
-{
-	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_radio_version_notif *radio_version = (void *)pkt->data;
-
-	/* TODO: what to do with that? */
-	IWL_DEBUG_INFO(mvm,
-		       "Radio version: flavor: 0x%08x, step 0x%08x, dash 0x%08x\n",
-		       le32_to_cpu(radio_version->radio_flavor),
-		       le32_to_cpu(radio_version->radio_step),
-		       le32_to_cpu(radio_version->radio_dash));
-	return 0;
-}
-
 int iwl_mvm_rx_mfuart_notif(struct iwl_mvm *mvm,
 			    struct iwl_rx_cmd_buffer *rxb,
 			    struct iwl_device_cmd *cmd)

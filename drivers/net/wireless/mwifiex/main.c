@@ -231,11 +231,10 @@ int mwifiex_main_process(struct mwifiex_adapter *adapter)
 		goto exit_main_proc;
 	} else {
 		adapter->mwifiex_processing = true;
+		spin_unlock_irqrestore(&adapter->main_proc_lock, flags);
 	}
 process_start:
 	do {
-		adapter->more_task_flag = false;
-		spin_unlock_irqrestore(&adapter->main_proc_lock, flags);
 		if ((adapter->hw_status == MWIFIEX_HW_STATUS_CLOSING) ||
 		    (adapter->hw_status == MWIFIEX_HW_STATUS_NOT_READY))
 			break;
@@ -275,7 +274,6 @@ process_start:
 			adapter->pm_wakeup_fw_try = true;
 			mod_timer(&adapter->wakeup_timer, jiffies + (HZ*3));
 			adapter->if_ops.wakeup(adapter);
-			spin_lock_irqsave(&adapter->main_proc_lock, flags);
 			continue;
 		}
 
@@ -335,7 +333,6 @@ process_start:
 		    (adapter->ps_state == PS_STATE_PRE_SLEEP) ||
 		    (adapter->ps_state == PS_STATE_SLEEP_CFM) ||
 		    adapter->tx_lock_flag){
-			spin_lock_irqsave(&adapter->main_proc_lock, flags);
 			continue;
 		}
 
@@ -386,12 +383,14 @@ process_start:
 			}
 			break;
 		}
-		spin_lock_irqsave(&adapter->main_proc_lock, flags);
 	} while (true);
 
 	spin_lock_irqsave(&adapter->main_proc_lock, flags);
-	if (adapter->more_task_flag)
+	if (adapter->more_task_flag) {
+		adapter->more_task_flag = false;
+		spin_unlock_irqrestore(&adapter->main_proc_lock, flags);
 		goto process_start;
+	}
 	adapter->mwifiex_processing = false;
 	spin_unlock_irqrestore(&adapter->main_proc_lock, flags);
 

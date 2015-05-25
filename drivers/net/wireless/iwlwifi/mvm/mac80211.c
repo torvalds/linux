@@ -80,7 +80,6 @@
 #include "sta.h"
 #include "time-event.h"
 #include "iwl-eeprom-parse.h"
-#include "fw-api-scan.h"
 #include "iwl-phy-db.h"
 #include "testmode.h"
 #include "iwl-fw-error-dump.h"
@@ -506,9 +505,17 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 
 	iwl_mvm_reset_phy_ctxts(mvm);
 
-	hw->wiphy->max_scan_ie_len = iwl_mvm_max_scan_ie_len(mvm, false);
+	hw->wiphy->max_scan_ie_len = iwl_mvm_max_scan_ie_len(mvm);
 
 	hw->wiphy->max_scan_ssids = PROBE_OPTION_MAX;
+
+	BUILD_BUG_ON(IWL_MVM_MAX_UMAC_SCANS > HWEIGHT32(IWL_MVM_SCAN_MASK) ||
+		     IWL_MVM_MAX_LMAC_SCANS > HWEIGHT32(IWL_MVM_SCAN_MASK));
+
+	if (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN)
+		mvm->max_scans = IWL_MVM_MAX_UMAC_SCANS;
+	else
+		mvm->max_scans = IWL_MVM_MAX_LMAC_SCANS;
 
 	if (mvm->nvm_data->bands[IEEE80211_BAND_2GHZ].n_channels)
 		hw->wiphy->bands[IEEE80211_BAND_2GHZ] =
@@ -532,14 +539,12 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	else
 		hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
 
-	if (IWL_UCODE_API(mvm->fw->ucode_ver) >= 10) {
-		hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_SCHED_SCAN;
-		hw->wiphy->max_sched_scan_ssids = PROBE_OPTION_MAX;
-		hw->wiphy->max_match_sets = IWL_SCAN_MAX_PROFILES;
-		/* we create the 802.11 header and zero length SSID IE. */
-		hw->wiphy->max_sched_scan_ie_len =
-			SCAN_OFFLOAD_PROBE_REQ_SIZE - 24 - 2;
-	}
+	hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_SCHED_SCAN;
+	hw->wiphy->max_sched_scan_ssids = PROBE_OPTION_MAX;
+	hw->wiphy->max_match_sets = IWL_SCAN_MAX_PROFILES;
+	/* we create the 802.11 header and zero length SSID IE. */
+	hw->wiphy->max_sched_scan_ie_len =
+		SCAN_OFFLOAD_PROBE_REQ_SIZE - 24 - 2;
 
 	hw->wiphy->features |= NL80211_FEATURE_P2P_GO_CTWIN |
 			       NL80211_FEATURE_LOW_PRIORITY_SCAN |
@@ -1227,22 +1232,23 @@ static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
 
 	iwl_trans_stop_device(mvm->trans);
 
-	mvm->scan_status = IWL_MVM_SCAN_NONE;
+	mvm->scan_status = 0;
 	mvm->ps_disabled = false;
 	mvm->calibrating = false;
 
 	/* just in case one was running */
 	ieee80211_remain_on_channel_expired(mvm->hw);
 
-	ieee80211_iterate_active_interfaces_atomic(
-		mvm->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
-		iwl_mvm_cleanup_iterator, mvm);
+	/*
+	 * cleanup all interfaces, even inactive ones, as some might have
+	 * gone down during the HW restart
+	 */
+	ieee80211_iterate_interfaces(mvm->hw, 0, iwl_mvm_cleanup_iterator, mvm);
 
 	mvm->p2p_device_vif = NULL;
 	mvm->d0i3_ap_sta_id = IWL_MVM_STATION_COUNT;
 
 	iwl_mvm_reset_phy_ctxts(mvm);
-	memset(mvm->fw_key_table, 0, sizeof(mvm->fw_key_table));
 	memset(mvm->sta_drained, 0, sizeof(mvm->sta_drained));
 	memset(mvm->tfd_drained, 0, sizeof(mvm->tfd_drained));
 	memset(&mvm->last_bt_notif, 0, sizeof(mvm->last_bt_notif));
@@ -1426,7 +1432,7 @@ void __iwl_mvm_mac_stop(struct iwl_mvm *mvm)
 	if (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN) {
 		int i;
 
-		for (i = 0; i < IWL_MVM_MAX_SIMULTANEOUS_SCANS; i++) {
+		for (i = 0; i < mvm->max_scans; i++) {
 			if (WARN_ONCE(mvm->scan_uid[i],
 				      "UMAC scan UID %d was not cleaned\n",
 				      mvm->scan_uid[i]))
@@ -2373,89 +2379,21 @@ static void iwl_mvm_bss_info_changed(struct ieee80211_hw *hw,
 	iwl_mvm_unref(mvm, IWL_MVM_REF_BSS_CHANGED);
 }
 
-static int iwl_mvm_cancel_scan_wait_notif(struct iwl_mvm *mvm,
-					  enum iwl_scan_status scan_type)
-{
-	int ret;
-	bool wait_for_handlers = false;
-
-	mutex_lock(&mvm->mutex);
-
-	if (mvm->scan_status != scan_type) {
-		ret = 0;
-		/* make sure there are no pending notifications */
-		wait_for_handlers = true;
-		goto out;
-	}
-
-	switch (scan_type) {
-	case IWL_MVM_SCAN_SCHED:
-		ret = iwl_mvm_scan_offload_stop(mvm, true);
-		break;
-	case IWL_MVM_SCAN_OS:
-		ret = iwl_mvm_cancel_scan(mvm);
-		break;
-	case IWL_MVM_SCAN_NONE:
-	default:
-		WARN_ON_ONCE(1);
-		ret = -EINVAL;
-		break;
-	}
-	if (ret)
-		goto out;
-
-	wait_for_handlers = true;
-out:
-	mutex_unlock(&mvm->mutex);
-
-	/* make sure we consume the completion notification */
-	if (wait_for_handlers)
-		iwl_mvm_wait_for_async_handlers(mvm);
-
-	return ret;
-}
 static int iwl_mvm_mac_hw_scan(struct ieee80211_hw *hw,
 			       struct ieee80211_vif *vif,
 			       struct ieee80211_scan_request *hw_req)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
-	struct cfg80211_scan_request *req = &hw_req->req;
 	int ret;
 
-	if (req->n_channels == 0 ||
-	    req->n_channels > mvm->fw->ucode_capa.n_scan_channels)
+	if (hw_req->req.n_channels == 0 ||
+	    hw_req->req.n_channels > mvm->fw->ucode_capa.n_scan_channels)
 		return -EINVAL;
 
-	if (!(mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN)) {
-		ret = iwl_mvm_cancel_scan_wait_notif(mvm, IWL_MVM_SCAN_SCHED);
-		if (ret)
-			return ret;
-	}
-
 	mutex_lock(&mvm->mutex);
-
-	if (iwl_mvm_is_lar_supported(mvm) && !mvm->lar_regdom_set) {
-		IWL_ERR(mvm, "scan while LAR regdomain is not set\n");
-		ret = -EBUSY;
-		goto out;
-	}
-
-	if (mvm->scan_status != IWL_MVM_SCAN_NONE) {
-		ret = -EBUSY;
-		goto out;
-	}
-
-	iwl_mvm_ref(mvm, IWL_MVM_REF_SCAN);
-
-	if (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN)
-		ret = iwl_mvm_scan_umac(mvm, vif, hw_req);
-	else
-		ret = iwl_mvm_unified_scan_lmac(mvm, vif, hw_req);
-
-	if (ret)
-		iwl_mvm_unref(mvm, IWL_MVM_REF_SCAN);
-out:
+	ret = iwl_mvm_reg_scan_start(mvm, vif, &hw_req->req, &hw_req->ies);
 	mutex_unlock(&mvm->mutex);
+
 	return ret;
 }
 
@@ -2476,7 +2414,7 @@ static void iwl_mvm_mac_cancel_hw_scan(struct ieee80211_hw *hw,
 	/* FIXME: for now, we ignore this race for UMAC scans, since
 	 * they don't set the scan_status.
 	 */
-	if ((mvm->scan_status == IWL_MVM_SCAN_OS) ||
+	if ((mvm->scan_status & IWL_MVM_SCAN_REGULAR) ||
 	    (mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN))
 		iwl_mvm_cancel_scan(mvm);
 
@@ -2794,35 +2732,17 @@ static int iwl_mvm_mac_sched_scan_start(struct ieee80211_hw *hw,
 					struct ieee80211_scan_ies *ies)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+
 	int ret;
 
-	if (!(mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN)) {
-		ret = iwl_mvm_cancel_scan_wait_notif(mvm, IWL_MVM_SCAN_OS);
-		if (ret)
-			return ret;
-	}
-
 	mutex_lock(&mvm->mutex);
-
-	if (iwl_mvm_is_lar_supported(mvm) && !mvm->lar_regdom_set) {
-		IWL_ERR(mvm, "sched-scan while LAR regdomain is not set\n");
-		ret = -EBUSY;
-		goto out;
-	}
 
 	if (!vif->bss_conf.idle) {
 		ret = -EBUSY;
 		goto out;
 	}
 
-	if (mvm->scan_status != IWL_MVM_SCAN_NONE) {
-		ret = -EBUSY;
-		goto out;
-	}
-
-	ret = iwl_mvm_scan_offload_start(mvm, vif, req, ies);
-	if (ret)
-		mvm->scan_status = IWL_MVM_SCAN_NONE;
+	ret = iwl_mvm_sched_scan_start(mvm, vif, req, ies, IWL_MVM_SCAN_SCHED);
 
 out:
 	mutex_unlock(&mvm->mutex);
@@ -2848,7 +2768,7 @@ static int iwl_mvm_mac_sched_scan_stop(struct ieee80211_hw *hw,
 	/* FIXME: for now, we ignore this race for UMAC scans, since
 	 * they don't set the scan_status.
 	 */
-	if (mvm->scan_status != IWL_MVM_SCAN_SCHED &&
+	if (!(mvm->scan_status & IWL_MVM_SCAN_SCHED) &&
 	    !(mvm->fw->ucode_capa.capa[0] & IWL_UCODE_TLV_CAPA_UMAC_SCAN)) {
 		mutex_unlock(&mvm->mutex);
 		return 0;
@@ -2922,8 +2842,21 @@ static int iwl_mvm_mac_set_key(struct ieee80211_hw *hw,
 			break;
 		}
 
+		/* During FW restart, in order to restore the state as it was,
+		 * don't try to reprogram keys we previously failed for.
+		 */
+		if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status) &&
+		    key->hw_key_idx == STA_KEY_IDX_INVALID) {
+			IWL_DEBUG_MAC80211(mvm,
+					   "skip invalid idx key programming during restart\n");
+			ret = 0;
+			break;
+		}
+
 		IWL_DEBUG_MAC80211(mvm, "set hwcrypto key\n");
-		ret = iwl_mvm_set_sta_key(mvm, vif, sta, key, false);
+		ret = iwl_mvm_set_sta_key(mvm, vif, sta, key,
+					  test_bit(IWL_MVM_STATUS_IN_HW_RESTART,
+						   &mvm->status));
 		if (ret) {
 			IWL_WARN(mvm, "set key failed\n");
 			/*
@@ -3001,7 +2934,7 @@ static bool iwl_mvm_rx_aux_roc(struct iwl_notif_wait_data *notif_wait,
 	return true;
 }
 
-#define AUX_ROC_MAX_DELAY_ON_CHANNEL 5000
+#define AUX_ROC_MAX_DELAY_ON_CHANNEL 200
 static int iwl_mvm_send_aux_roc_cmd(struct iwl_mvm *mvm,
 				    struct ieee80211_channel *channel,
 				    struct ieee80211_vif *vif,

@@ -124,6 +124,7 @@ void brcmf_feat_attach(struct brcmf_pub *drvr)
 	struct brcmf_if *ifp = drvr->iflist[0];
 
 	brcmf_feat_iovar_int_get(ifp, BRCMF_FEAT_MCHAN, "mchan");
+	brcmf_feat_iovar_int_get(ifp, BRCMF_FEAT_PNO, "pfn");
 	if (drvr->bus_if->wowl_supported)
 		brcmf_feat_iovar_int_get(ifp, BRCMF_FEAT_WOWL, "wowl");
 	if (drvr->bus_if->chip != BRCM_CC_43362_CHIP_ID)

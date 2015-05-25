@@ -101,13 +101,25 @@ static void iwl_pcie_free_fw_monitor(struct iwl_trans *trans)
 	trans_pcie->fw_mon_size = 0;
 }
 
-static void iwl_pcie_alloc_fw_monitor(struct iwl_trans *trans)
+static void iwl_pcie_alloc_fw_monitor(struct iwl_trans *trans, u8 max_power)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct page *page = NULL;
 	dma_addr_t phys;
-	u32 size;
+	u32 size = 0;
 	u8 power;
+
+	if (!max_power) {
+		/* default max_power is maximum */
+		max_power = 26;
+	} else {
+		max_power += 11;
+	}
+
+	if (WARN(max_power > 26,
+		 "External buffer size for monitor is too big %d, check the FW TLV\n",
+		 max_power))
+		return;
 
 	if (trans_pcie->fw_mon_page) {
 		dma_sync_single_for_device(trans->dev, trans_pcie->fw_mon_phys,
@@ -117,7 +129,7 @@ static void iwl_pcie_alloc_fw_monitor(struct iwl_trans *trans)
 	}
 
 	phys = 0;
-	for (power = 26; power >= 11; power--) {
+	for (power = max_power; power >= 11; power--) {
 		int order;
 
 		size = BIT(power);
@@ -142,6 +154,12 @@ static void iwl_pcie_alloc_fw_monitor(struct iwl_trans *trans)
 
 	if (WARN_ON_ONCE(!page))
 		return;
+
+	if (power != max_power)
+		IWL_ERR(trans,
+			"Sorry - debug buffer is only %luK while you requested %luK\n",
+			(unsigned long)BIT(power - 10),
+			(unsigned long)BIT(max_power - 10));
 
 	trans_pcie->fw_mon_page = page;
 	trans_pcie->fw_mon_phys = phys;
@@ -834,7 +852,7 @@ static void iwl_pcie_apply_destination(struct iwl_trans *trans)
 		 get_fw_dbg_mode_string(dest->monitor_mode));
 
 	if (dest->monitor_mode == EXTERNAL_MODE)
-		iwl_pcie_alloc_fw_monitor(trans);
+		iwl_pcie_alloc_fw_monitor(trans, dest->size_power);
 	else
 		IWL_WARN(trans, "PCI should have external buffer debug\n");
 
@@ -908,7 +926,7 @@ static int iwl_pcie_load_given_ucode(struct iwl_trans *trans,
 	/* supported for 7000 only for the moment */
 	if (iwlwifi_mod_params.fw_monitor &&
 	    trans->cfg->device_family == IWL_DEVICE_FAMILY_7000) {
-		iwl_pcie_alloc_fw_monitor(trans);
+		iwl_pcie_alloc_fw_monitor(trans, 0);
 
 		if (trans_pcie->fw_mon_size) {
 			iwl_write_prph(trans, MON_BUFF_BASE_ADDR,
@@ -2198,6 +2216,29 @@ static u32 iwl_trans_pcie_fh_regs_dump(struct iwl_trans *trans,
 	return sizeof(**data) + fh_regs_len;
 }
 
+static u32
+iwl_trans_pci_dump_marbh_monitor(struct iwl_trans *trans,
+				 struct iwl_fw_error_dump_fw_mon *fw_mon_data,
+				 u32 monitor_len)
+{
+	u32 buf_size_in_dwords = (monitor_len >> 2);
+	u32 *buffer = (u32 *)fw_mon_data->data;
+	unsigned long flags;
+	u32 i;
+
+	if (!iwl_trans_grab_nic_access(trans, false, &flags))
+		return 0;
+
+	__iwl_write_prph(trans, MON_DMARB_RD_CTL_ADDR, 0x1);
+	for (i = 0; i < buf_size_in_dwords; i++)
+		buffer[i] = __iwl_read_prph(trans, MON_DMARB_RD_DATA_ADDR);
+	__iwl_write_prph(trans, MON_DMARB_RD_CTL_ADDR, 0x0);
+
+	iwl_trans_release_nic_access(trans, &flags);
+
+	return monitor_len;
+}
+
 static
 struct iwl_trans_dump_data *iwl_trans_pcie_dump_data(struct iwl_trans *trans)
 {
@@ -2250,7 +2291,8 @@ struct iwl_trans_dump_data *iwl_trans_pcie_dump_data(struct iwl_trans *trans)
 		      trans->dbg_dest_tlv->end_shift;
 
 		/* Make "end" point to the actual end */
-		if (trans->cfg->device_family == IWL_DEVICE_FAMILY_8000)
+		if (trans->cfg->device_family == IWL_DEVICE_FAMILY_8000 ||
+		    trans->dbg_dest_tlv->monitor_mode == MARBH_MODE)
 			end += (1 << trans->dbg_dest_tlv->end_shift);
 		monitor_len = end - base;
 		len += sizeof(*data) + sizeof(struct iwl_fw_error_dump_fw_mon) +
@@ -2326,9 +2368,6 @@ struct iwl_trans_dump_data *iwl_trans_pcie_dump_data(struct iwl_trans *trans)
 
 		len += sizeof(*data) + sizeof(*fw_mon_data);
 		if (trans_pcie->fw_mon_page) {
-			data->len = cpu_to_le32(trans_pcie->fw_mon_size +
-						sizeof(*fw_mon_data));
-
 			/*
 			 * The firmware is now asserted, it won't write anything
 			 * to the buffer. CPU can take ownership to fetch the
@@ -2343,10 +2382,8 @@ struct iwl_trans_dump_data *iwl_trans_pcie_dump_data(struct iwl_trans *trans)
 			       page_address(trans_pcie->fw_mon_page),
 			       trans_pcie->fw_mon_size);
 
-			len += trans_pcie->fw_mon_size;
-		} else {
-			/* If we are here then the buffer is internal */
-
+			monitor_len = trans_pcie->fw_mon_size;
+		} else if (trans->dbg_dest_tlv->monitor_mode == SMEM_MODE) {
 			/*
 			 * Update pointers to reflect actual values after
 			 * shifting
@@ -2355,10 +2392,18 @@ struct iwl_trans_dump_data *iwl_trans_pcie_dump_data(struct iwl_trans *trans)
 			       trans->dbg_dest_tlv->base_shift;
 			iwl_trans_read_mem(trans, base, fw_mon_data->data,
 					   monitor_len / sizeof(u32));
-			data->len = cpu_to_le32(sizeof(*fw_mon_data) +
-						monitor_len);
-			len += monitor_len;
+		} else if (trans->dbg_dest_tlv->monitor_mode == MARBH_MODE) {
+			monitor_len =
+				iwl_trans_pci_dump_marbh_monitor(trans,
+								 fw_mon_data,
+								 monitor_len);
+		} else {
+			/* Didn't match anything - output no monitor data */
+			monitor_len = 0;
 		}
+
+		len += monitor_len;
+		data->len = cpu_to_le32(monitor_len + sizeof(*fw_mon_data));
 	}
 
 	dump_data->len = len;

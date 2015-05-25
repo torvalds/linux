@@ -601,6 +601,8 @@ static const struct sdiod_drive_str sdiod_drvstr_tab2_3v3[] = {
 #define BCM43241B0_NVRAM_NAME		"brcm/brcmfmac43241b0-sdio.txt"
 #define BCM43241B4_FIRMWARE_NAME	"brcm/brcmfmac43241b4-sdio.bin"
 #define BCM43241B4_NVRAM_NAME		"brcm/brcmfmac43241b4-sdio.txt"
+#define BCM43241B5_FIRMWARE_NAME	"brcm/brcmfmac43241b5-sdio.bin"
+#define BCM43241B5_NVRAM_NAME		"brcm/brcmfmac43241b5-sdio.txt"
 #define BCM4329_FIRMWARE_NAME		"brcm/brcmfmac4329-sdio.bin"
 #define BCM4329_NVRAM_NAME		"brcm/brcmfmac4329-sdio.txt"
 #define BCM4330_FIRMWARE_NAME		"brcm/brcmfmac4330-sdio.bin"
@@ -628,6 +630,8 @@ MODULE_FIRMWARE(BCM43241B0_FIRMWARE_NAME);
 MODULE_FIRMWARE(BCM43241B0_NVRAM_NAME);
 MODULE_FIRMWARE(BCM43241B4_FIRMWARE_NAME);
 MODULE_FIRMWARE(BCM43241B4_NVRAM_NAME);
+MODULE_FIRMWARE(BCM43241B5_FIRMWARE_NAME);
+MODULE_FIRMWARE(BCM43241B5_NVRAM_NAME);
 MODULE_FIRMWARE(BCM4329_FIRMWARE_NAME);
 MODULE_FIRMWARE(BCM4329_NVRAM_NAME);
 MODULE_FIRMWARE(BCM4330_FIRMWARE_NAME);
@@ -667,7 +671,8 @@ enum brcmf_firmware_type {
 static const struct brcmf_firmware_names brcmf_fwname_data[] = {
 	{ BRCM_CC_43143_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM43143) },
 	{ BRCM_CC_43241_CHIP_ID, 0x0000001F, BRCMF_FIRMWARE_NVRAM(BCM43241B0) },
-	{ BRCM_CC_43241_CHIP_ID, 0xFFFFFFE0, BRCMF_FIRMWARE_NVRAM(BCM43241B4) },
+	{ BRCM_CC_43241_CHIP_ID, 0x00000020, BRCMF_FIRMWARE_NVRAM(BCM43241B4) },
+	{ BRCM_CC_43241_CHIP_ID, 0xFFFFFFC0, BRCMF_FIRMWARE_NVRAM(BCM43241B5) },
 	{ BRCM_CC_4329_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM4329) },
 	{ BRCM_CC_4330_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM4330) },
 	{ BRCM_CC_4334_CHIP_ID, 0xFFFFFFFF, BRCMF_FIRMWARE_NVRAM(BCM4334) },
@@ -3550,10 +3555,6 @@ void brcmf_sdio_isr(struct brcmf_sdio *bus)
 		return;
 	}
 
-	if (bus->sdiodev->state != BRCMF_SDIOD_DATA) {
-		brcmf_err("bus is down. we have nothing to do\n");
-		return;
-	}
 	/* Count the interrupt call */
 	bus->sdcnt.intrcount++;
 	if (in_interrupt())

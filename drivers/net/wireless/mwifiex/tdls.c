@@ -255,7 +255,7 @@ static int mwifiex_tdls_add_vht_oper(struct mwifiex_private *priv,
 		if (sta_ptr->tdls_cap.extcap.ext_capab[7] &
 		   WLAN_EXT_CAPA8_TDLS_WIDE_BW_ENABLED) {
 			dev_dbg(adapter->dev,
-				"TDLS peer doesn't support wider bandwitdh\n");
+				"TDLS peer doesn't support wider bandwidth\n");
 			return 0;
 		}
 	} else {
