@@ -226,15 +226,9 @@ static int raw_bind(struct sock *sk, struct sockaddr *_uaddr, int len)
 		goto out;
 	}
 
-	if (dev->type != ARPHRD_IEEE802154) {
-		err = -ENODEV;
-		goto out_put;
-	}
-
 	sk->sk_bound_dev_if = dev->ifindex;
 	sk_dst_reset(sk);
 
-out_put:
 	dev_put(dev);
 out:
 	release_sock(sk);
