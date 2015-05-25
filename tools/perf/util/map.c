@@ -139,6 +139,7 @@ void map__init(struct map *map, enum map_type type,
 	map->groups   = NULL;
 	map->referenced = false;
 	map->erange_warned = false;
+	atomic_set(&map->refcnt, 1);
 }
 
 struct map *map__new(struct machine *machine, u64 start, u64 len,
@@ -227,6 +228,12 @@ void map__delete(struct map *map)
 {
 	BUG_ON(!RB_EMPTY_NODE(&map->rb_node));
 	free(map);
+}
+
+void map__put(struct map *map)
+{
+	if (map && atomic_dec_and_test(&map->refcnt))
+		map__delete(map);
 }
 
 void map__fixup_start(struct map *map)
@@ -448,7 +455,7 @@ static void __maps__purge(struct maps *maps)
 
 		next = rb_next(&pos->rb_node);
 		rb_erase_init(&pos->rb_node, root);
-		map__delete(pos);
+		map__put(pos);
 	}
 }
 
@@ -458,7 +465,7 @@ static void __maps__purge_removed_maps(struct maps *maps)
 
 	list_for_each_entry_safe(pos, n, &maps->removed_maps, node) {
 		list_del_init(&pos->node);
-		map__delete(pos);
+		map__put(pos);
 	}
 }
 
@@ -682,7 +689,7 @@ static int maps__fixup_overlappings(struct maps *maps, struct map *map, FILE *fp
 
 			if (before == NULL) {
 				err = -ENOMEM;
-				goto move_map;
+				goto put_map;
 			}
 
 			before->end = map->start;
@@ -696,7 +703,7 @@ static int maps__fixup_overlappings(struct maps *maps, struct map *map, FILE *fp
 
 			if (after == NULL) {
 				err = -ENOMEM;
-				goto move_map;
+				goto put_map;
 			}
 
 			after->start = map->end;
@@ -704,14 +711,14 @@ static int maps__fixup_overlappings(struct maps *maps, struct map *map, FILE *fp
 			if (verbose >= 2)
 				map__fprintf(after, fp);
 		}
-move_map:
+put_map:
 		/*
 		 * If we have references, just move them to a separate list.
 		 */
 		if (pos->referenced)
 			list_add_tail(&pos->node, &maps->removed_maps);
 		else
-			map__delete(pos);
+			map__put(pos);
 
 		if (err)
 			goto out;
@@ -772,6 +779,7 @@ static void __maps__insert(struct maps *maps, struct map *map)
 
 	rb_link_node(&map->rb_node, parent, p);
 	rb_insert_color(&map->rb_node, &maps->entries);
+	map__get(map);
 }
 
 void maps__insert(struct maps *maps, struct map *map)
@@ -784,6 +792,7 @@ void maps__insert(struct maps *maps, struct map *map)
 static void __maps__remove(struct maps *maps, struct map *map)
 {
 	rb_erase_init(&map->rb_node, &maps->entries);
+	map__put(map);
 }
 
 void maps__remove(struct maps *maps, struct map *map)

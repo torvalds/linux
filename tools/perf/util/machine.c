@@ -759,7 +759,6 @@ void machine__destroy_kernel_maps(struct machine *machine)
 				kmap->ref_reloc_sym = NULL;
 		}
 
-		map__delete(machine->vmlinux_maps[type]);
 		machine->vmlinux_maps[type] = NULL;
 	}
 }
@@ -1247,6 +1246,7 @@ int machine__process_mmap2_event(struct machine *machine,
 
 	thread__insert_map(thread, map);
 	thread__put(thread);
+	map__put(map);
 	return 0;
 
 out_problem_map:
@@ -1297,6 +1297,7 @@ int machine__process_mmap_event(struct machine *machine, union perf_event *event
 
 	thread__insert_map(thread, map);
 	thread__put(thread);
+	map__put(map);
 	return 0;
 
 out_problem_map:

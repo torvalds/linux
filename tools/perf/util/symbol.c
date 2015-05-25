@@ -1180,13 +1180,16 @@ static int dso__load_kcore(struct dso *dso, struct map *map,
 			map->pgoff	= new_map->pgoff;
 			map->map_ip	= new_map->map_ip;
 			map->unmap_ip	= new_map->unmap_ip;
-			map__delete(new_map);
 			/* Ensure maps are correctly ordered */
+			map__get(map);
 			map_groups__remove(kmaps, map);
 			map_groups__insert(kmaps, map);
+			map__put(map);
 		} else {
 			map_groups__insert(kmaps, new_map);
 		}
+
+		map__put(new_map);
 	}
 
 	/*
@@ -1212,7 +1215,7 @@ out_err:
 	while (!list_empty(&md.maps)) {
 		map = list_entry(md.maps.next, struct map, node);
 		list_del_init(&map->node);
-		map__delete(map);
+		map__put(map);
 	}
 	close(fd);
 	return -EINVAL;

@@ -52,6 +52,7 @@ struct map {
 
 	struct dso		*dso;
 	struct map_groups	*groups;
+	atomic_t		refcnt;
 };
 
 struct kmap {
@@ -150,6 +151,16 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 struct map *map__new2(u64 start, struct dso *dso, enum map_type type);
 void map__delete(struct map *map);
 struct map *map__clone(struct map *map);
+
+static inline struct map *map__get(struct map *map)
+{
+	if (map)
+		atomic_inc(&map->refcnt);
+	return map;
+}
+
+void map__put(struct map *map);
+
 int map__overlap(struct map *l, struct map *r);
 size_t map__fprintf(struct map *map, FILE *fp);
 size_t map__fprintf_dsoname(struct map *map, FILE *fp);
