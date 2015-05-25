@@ -51,6 +51,7 @@
 #include <linux/fips.h>
 #include <linux/mutex.h>
 #include <linux/list.h>
+#include <linux/workqueue.h>
 
 /*
  * Concatenation Helper and string operation helper
@@ -119,6 +120,7 @@ struct drbg_state {
 	bool fips_primed;	/* Continuous test primed? */
 	unsigned char *prev;	/* FIPS 140-2 continuous test value */
 #endif
+	struct work_struct seed_work;	/* asynchronous seeding support */
 	u8 *seed_buf;			/* buffer holding the seed */
 	size_t seed_buf_len;
 	const struct drbg_state_ops *d_ops;

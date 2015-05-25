@@ -1056,6 +1056,23 @@ static inline int __drbg_seed(struct drbg_state *drbg, struct list_head *seed,
 	return ret;
 }
 
+static void drbg_async_seed(struct work_struct *work)
+{
+	struct drbg_string data;
+	LIST_HEAD(seedlist);
+	struct drbg_state *drbg = container_of(work, struct drbg_state,
+					       seed_work);
+
+	get_blocking_random_bytes(drbg->seed_buf, drbg->seed_buf_len);
+
+	drbg_string_fill(&data, drbg->seed_buf, drbg->seed_buf_len);
+	list_add_tail(&data.list, &seedlist);
+	mutex_lock(&drbg->drbg_mutex);
+	__drbg_seed(drbg, &seedlist, true);
+	memzero_explicit(drbg->seed_buf, drbg->seed_buf_len);
+	mutex_unlock(&drbg->drbg_mutex);
+}
+
 /*
  * Seeding or reseeding of the DRBG
  *
@@ -1124,6 +1141,10 @@ static int drbg_seed(struct drbg_state *drbg, struct drbg_string *pers,
 	 */
 	if (!reseed)
 		drbg->seed_buf_len = drbg->seed_buf_len / 3 * 2;
+
+	/* Invoke asynchronous seeding unless DRBG is in test mode. */
+	if (!list_empty(&drbg->test_data.list) && !reseed)
+		schedule_work(&drbg->seed_work);
 
 out:
 	return ret;
@@ -1230,6 +1251,8 @@ static inline int drbg_alloc_state(struct drbg_state *drbg)
 	drbg->seed_buf = kzalloc(drbg->seed_buf_len, GFP_KERNEL);
 	if (!drbg->seed_buf)
 		goto err;
+
+	INIT_WORK(&drbg->seed_work, drbg_async_seed);
 
 	return 0;
 
@@ -1487,6 +1510,7 @@ unlock:
  */
 static int drbg_uninstantiate(struct drbg_state *drbg)
 {
+	cancel_work_sync(&drbg->seed_work);
 	if (drbg->d_ops)
 		drbg->d_ops->crypto_fini(drbg);
 	drbg_dealloc_state(drbg);
