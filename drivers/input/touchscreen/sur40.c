@@ -342,7 +342,7 @@ static void sur40_poll(struct input_polled_dev *polldev)
 		 * instead of at the end.
 		 */
 		if (packet_id != header->packet_id)
-			dev_warn(sur40->dev, "packet ID mismatch\n");
+			dev_dbg(sur40->dev, "packet ID mismatch\n");
 
 		packet_blobs = result / sizeof(struct sur40_blob);
 		dev_dbg(sur40->dev, "received %d blobs\n", packet_blobs);
@@ -389,6 +389,8 @@ static void sur40_process_video(struct sur40_state *sur40)
 	list_del(&new_buf->list);
 	spin_unlock(&sur40->qlock);
 
+	dev_dbg(sur40->dev, "buffer acquired\n");
+
 	/* retrieve data via bulk read */
 	result = usb_bulk_msg(sur40->usbdev,
 			usb_rcvbulkpipe(sur40->usbdev, VIDEO_ENDPOINT),
@@ -416,6 +418,8 @@ static void sur40_process_video(struct sur40_state *sur40)
 		goto err_poll;
 	}
 
+	dev_dbg(sur40->dev, "header acquired\n");
+
 	sgt = vb2_dma_sg_plane_desc(&new_buf->vb, 0);
 
 	result = usb_sg_init(&sgr, sur40->usbdev,
@@ -432,11 +436,14 @@ static void sur40_process_video(struct sur40_state *sur40)
 		goto err_poll;
 	}
 
+	dev_dbg(sur40->dev, "image acquired\n");
+
 	/* mark as finished */
 	v4l2_get_timestamp(&new_buf->vb.v4l2_buf.timestamp);
 	new_buf->vb.v4l2_buf.sequence = sur40->sequence++;
 	new_buf->vb.v4l2_buf.field = V4L2_FIELD_NONE;
 	vb2_buffer_done(&new_buf->vb, VB2_BUF_STATE_DONE);
+	dev_dbg(sur40->dev, "buffer marked done\n");
 	return;
 
 err_poll:
