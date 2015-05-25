@@ -141,7 +141,7 @@ static inline int copy_fxregs_to_user(struct fxregs_state __user *fx)
 	return user_insn(rex64/fxsave (%[fx]), "=m" (*fx), [fx] "R" (fx));
 }
 
-static inline int copy_kernel_to_fxregs(struct fxregs_state *fx)
+static inline void copy_kernel_to_fxregs(struct fxregs_state *fx)
 {
 	int err;
 
@@ -157,8 +157,6 @@ static inline int copy_kernel_to_fxregs(struct fxregs_state *fx)
 	}
 	/* Copying from a kernel buffer to FPU registers should never fail: */
 	WARN_ON_FPU(err);
-
-	return err;
 }
 
 static inline int copy_user_to_fxregs(struct fxregs_state __user *fx)
@@ -173,13 +171,11 @@ static inline int copy_user_to_fxregs(struct fxregs_state __user *fx)
 			  "m" (*fx));
 }
 
-static inline int copy_kernel_to_fregs(struct fregs_state *fx)
+static inline void copy_kernel_to_fregs(struct fregs_state *fx)
 {
 	int err = check_insn(frstor %[fx], "=m" (*fx), [fx] "m" (*fx));
 
 	WARN_ON_FPU(err);
-
-	return err;
 }
 
 static inline int copy_user_to_fregs(struct fregs_state __user *fx)
@@ -450,20 +446,19 @@ static inline int copy_fpregs_to_fpstate(struct fpu *fpu)
 	return 0;
 }
 
-static inline int __copy_kernel_to_fpregs(struct fpu *fpu)
+static inline void __copy_kernel_to_fpregs(struct fpu *fpu)
 {
 	if (use_xsave()) {
 		copy_kernel_to_xregs(&fpu->state.xsave, -1);
-		return 0;
 	} else {
 		if (use_fxsr())
-			return copy_kernel_to_fxregs(&fpu->state.fxsave);
+			copy_kernel_to_fxregs(&fpu->state.fxsave);
 		else
-			return copy_kernel_to_fregs(&fpu->state.fsave);
+			copy_kernel_to_fregs(&fpu->state.fsave);
 	}
 }
 
-static inline int copy_kernel_to_fpregs(struct fpu *fpu)
+static inline void copy_kernel_to_fpregs(struct fpu *fpu)
 {
 	/*
 	 * AMD K7/K8 CPUs don't save/restore FDP/FIP/FOP unless an exception is
@@ -478,7 +473,7 @@ static inline int copy_kernel_to_fpregs(struct fpu *fpu)
 			: : [addr] "m" (fpu->fpregs_active));
 	}
 
-	return __copy_kernel_to_fpregs(fpu);
+	__copy_kernel_to_fpregs(fpu);
 }
 
 extern int copy_fpstate_to_sigframe(void __user *buf, void __user *fp, int size);
@@ -646,12 +641,8 @@ switch_fpu_prepare(struct fpu *old_fpu, struct fpu *new_fpu, int cpu)
  */
 static inline void switch_fpu_finish(struct fpu *new_fpu, fpu_switch_t fpu_switch)
 {
-	if (fpu_switch.preload) {
-		if (unlikely(copy_kernel_to_fpregs(new_fpu))) {
-			WARN_ON_FPU(1);
-			fpu__clear(new_fpu);
-		}
-	}
+	if (fpu_switch.preload)
+		copy_kernel_to_fpregs(new_fpu);
 }
 
 /*
