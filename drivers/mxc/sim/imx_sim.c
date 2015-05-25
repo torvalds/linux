@@ -189,6 +189,9 @@
 #define SIM_CNTL_GPCNT_CLK_SEL_MASK	(0x03 << 9)
 #define SIM_CNTL_BAUD_SEL(x)		((x&0x07) << 6)
 #define SIM_CNTL_BAUD_SEL_MASK		(0x07 << 6)
+#define SIM_CNTL_GPCNT_CARD_CLK		1
+#define SIM_CNTL_GPCNT_RCV_CLK		2
+#define SIM_CNTL_GPCNT_ETU_CLK		3
 
 /* SIM rcv_threshold register bits */
 #define SIM_RCV_THRESHOLD_RTH(x)	((x&0x0f) << 9)
@@ -222,6 +225,7 @@
 #define SIM_RESET_CNTL_STOP		(1 << 5)
 #define SIM_RESET_CNTL_DEBUG		(1 << 6)
 
+
 /*SIM receive buffer register error status*/
 #define SIM_REC_CWT_ERROR		(1 << 10)
 #define SIM_REC_FRAME_ERROR		(1 << 9)
@@ -241,6 +245,7 @@
 #define RESET_RETRY_TIMES		(5)
 #define SIM_QUIRK_TKT259347		(1 << 0)
 #define EMV_RESET_LOW_CYCLES		42000
+#define ATR_MAX_DELAY_CLK		46400
 
 /* Main SIM driver structure */
 struct sim_t{
@@ -287,6 +292,7 @@ struct sim_t{
 	u32 port_ctrl_reg;
 	u32 clk_rate;
 	u32 quirks;
+	u8 checking_ts_timing;
 };
 
 static struct miscdevice sim_dev;
@@ -368,6 +374,44 @@ static void sim_set_rx(struct sim_t *sim, u8 enable)
 	__raw_writel(reg_data, sim->ioaddr + ENABLE);
 }
 
+static void sim_reset_timer(struct sim_t *sim)
+{
+	u32 reg_data;
+
+	reg_data = __raw_readl(sim->ioaddr + CNTL);
+	reg_data &= ~SIM_CNTL_GPCNT_CLK_SEL_MASK;
+	__raw_writel(reg_data, sim->ioaddr + CNTL);
+}
+
+static void sim_start_timer(struct sim_t *sim, u8 clk_source)
+{
+	u32 reg_data;
+
+	reg_data = __raw_readl(sim->ioaddr + CNTL);
+	reg_data &= ~SIM_CNTL_GPCNT_CLK_SEL_MASK;
+	reg_data |= SIM_CNTL_GPCNT_CLK_SEL(clk_source);
+	writel(reg_data, sim->ioaddr + CNTL);
+}
+
+static void sim_set_gpc_timer(struct sim_t *sim, u32 val)
+{
+	uint32_t reg_data;
+
+	/*Clear the interrupt status*/
+	reg_data = __raw_readl(sim->ioaddr + XMT_STATUS);
+	reg_data |= SIM_XMT_STATUS_GPCNT;
+	__raw_writel(reg_data, sim->ioaddr + XMT_STATUS);
+
+	/*Set the timer counter*/
+	__raw_writel(val, sim->ioaddr + GPCNT);
+
+	/*First reset the counter*/
+	sim_reset_timer(sim);
+
+	/*Set the GPCNT clock source to be Fclk*/
+	sim_start_timer(sim, SIM_CNTL_GPCNT_CARD_CLK);
+}
+
 static void sim_set_cwt(struct sim_t *sim, u8 enable)
 {
 	u32 reg_val;
@@ -416,15 +460,11 @@ static void sim_receive_atr_set(struct sim_t *sim)
 	/*Enable RX*/
 	sim_set_rx(sim, 1);
 
-	/*Receive fifo threshold = 1 to trigger GPC timer in irq handler*/
+	/*Receive fifo threshold = 1*/
 	reg_data = SIM_RCV_THRESHOLD_RTH(0) | SIM_RCV_THRESHOLD_RDT(1);
 	__raw_writel(reg_data, sim->ioaddr + RCV_THRESHOLD);
 
 	/* Clear the interrupt status*/
-	reg_data = __raw_readl(sim->ioaddr + XMT_STATUS);
-	reg_data |= SIM_XMT_STATUS_GPCNT;
-	__raw_writel(reg_data, sim->ioaddr + XMT_STATUS);
-
 	reg_data = __raw_readl(sim->ioaddr + RCV_STATUS);
 	reg_data |= (SIM_RCV_STATUS_CWT | SIM_RCV_STATUS_RDRF);
 	__raw_writel(reg_data, sim->ioaddr + RCV_STATUS);
@@ -432,17 +472,12 @@ static void sim_receive_atr_set(struct sim_t *sim)
 	/*Set the cwt timer.Refer the setting of ATR on EMV4.3 book*/
 	__raw_writel(ATR_MAX_CWT, sim->ioaddr + CHAR_WAIT);
 
-	/*Set the baud rate to be 1/372. Refer the setting of ATR on EMV4.3 book*/
+	/*Set the baud rate to be 1/372. Refer the setting of ATR on EMV4.3 book
+	 *Enable the CWT timer during receiving ATR process.
+	 */
 	reg_data = __raw_readl(sim->ioaddr + CNTL);
 	reg_data &= ~SIM_CNTL_BAUD_SEL_MASK;
-	reg_data |= SIM_CNTL_BAUD_SEL(0);
-
-	/*
-	 *Set the GPT timer disabled.
-	 *KILL_CLOCK is reset to 0 by default, ANACK is disabled by default.
-	 */
-	reg_data &= ~SIM_CNTL_GPCNT_CLK_SEL_MASK;
-	reg_data |= (SIM_CNTL_GPCNT_CLK_SEL(0) | SIM_CNTL_CWTEN);
+	reg_data |= SIM_CNTL_BAUD_SEL(0) | SIM_CNTL_CWTEN;
 
 	/*Enable ICM mode*/
 	reg_data |= SIM_CNTL_ICM;
@@ -459,12 +494,13 @@ static void sim_receive_atr_set(struct sim_t *sim)
 
 	sim->errval = 0;
 	sim->rcv_count = 0;
+	sim->checking_ts_timing = 1;
 	sim->state = SIM_STATE_ATR_RECEIVING;
 
-	/*Enable the Rx threshold interrupt and cwt interrupt,disalbe the GPC interrupt*/
+	/*Enable the RIM and GPC interrupt, disalbe the CWT interrupt*/
 	reg_data = __raw_readl(sim->ioaddr + INT_MASK);
-	reg_data &= ~(SIM_INT_MASK_CWTM | SIM_INT_MASK_RIM);
-	reg_data |= SIM_INT_MASK_GPCM;
+	reg_data |= SIM_INT_MASK_CWTM;
+	reg_data &= ~(SIM_INT_MASK_RIM | SIM_INT_MASK_GPCM);
 	__raw_writel(reg_data, sim->ioaddr + INT_MASK);
 }
 
@@ -611,32 +647,62 @@ static irqreturn_t sim_irq_handler(int irq, void *dev_id)
 	__raw_writel(tx_status, sim->ioaddr + XMT_STATUS);
 	__raw_writel(rx_status, sim->ioaddr + RCV_STATUS);
 
-	if (sim->state == SIM_STATE_ATR_RECEIVING) {
-		if ((rx_status & SIM_RCV_STATUS_RDRF) &&
-			(__raw_readl(sim->ioaddr + RCV_THRESHOLD) == 0x01)) {
+	if (sim->state == SIM_STATE_ATR_RECEIVING &&
+		sim->checking_ts_timing == 1) {
 
-			/*Enable GPC interrupt and disable the rx full interrupt*/
+		if ((tx_status & SIM_XMT_STATUS_GPCNT) &&
+			!(rx_status & SIM_RCV_STATUS_RDRF)) {
+			/*Disable the GPCNT timer and CWT timer right now*/
+			reg_data = __raw_readl(sim->ioaddr + CNTL);
+			reg_data &= ~(SIM_CNTL_GPCNT_CLK_SEL_MASK |
+					SIM_CNTL_CWTEN);
+			__raw_writel(reg_data, sim->ioaddr + CNTL);
+
 			reg_data = __raw_readl(sim->ioaddr + INT_MASK);
-			reg_data &= ~(SIM_INT_MASK_GPCM);
+			reg_data |= (SIM_INT_MASK_GPCM |
+					SIM_INT_MASK_CWTM | SIM_INT_MASK_RIM);
+			__raw_writel(reg_data, sim->ioaddr + INT_MASK);
+			sim->errval = SIM_ERROR_ATR_DELAY;
+			complete(&sim->xfer_done);
+			sim->checking_ts_timing = 0;
+		} else if (rx_status & SIM_RCV_STATUS_RDRF) {
+			/*
+			 * Reset/stop the GPCNT timer first.
+			 */
+			sim_reset_timer(sim);
+
+			/*Enable GPC, CWT interrupt and
+			 *disable the rx full interrupt
+			 */
+			reg_data = __raw_readl(sim->ioaddr + INT_MASK);
+			reg_data &= ~(SIM_INT_MASK_GPCM | SIM_INT_MASK_CWTM);
 			reg_data |= SIM_INT_MASK_RIM;
 			__raw_writel(reg_data, sim->ioaddr + INT_MASK);
 			sim_rcv_read_fifo(sim);
+
+			/*Clear the GPCNT expiring status*/
+			__raw_writel(SIM_XMT_STATUS_GPCNT,
+					sim->ioaddr + XMT_STATUS);
 
 			/*ATR each recieved byte will cost 12 ETU, so get the remaining etus*/
 			reg_data = ATR_MAX_DURATION - sim->rcv_count * 12;
 			__raw_writel(reg_data, sim->ioaddr + GPCNT);
 
-			reg_data = __raw_readl(sim->ioaddr + CNTL);
-			reg_data &= ~SIM_CNTL_GPCNT_CLK_SEL_MASK;
-			reg_data |= SIM_CNTL_GPCNT_CLK_SEL(3);
-			__raw_writel(reg_data, sim->ioaddr + CNTL);
+			sim_start_timer(sim, SIM_CNTL_GPCNT_ETU_CLK);
 
 			/*Receive fifo threshold set to max value*/
 			reg_data = SIM_RCV_THRESHOLD_RTH(0) | SIM_RCV_THRESHOLD_RDT(ATR_THRESHOLD_MAX);
 			__raw_writel(reg_data, sim->ioaddr + RCV_THRESHOLD);
+			sim->checking_ts_timing = 0;
+		} else {
+			pr_err("Unexpected irq when delay checking\n");
 		}
+	}
+
+	else if (sim->state == SIM_STATE_ATR_RECEIVING) {
 		if ((rx_status & SIM_RCV_STATUS_CWT) ||
-			(tx_status & SIM_XMT_STATUS_GPCNT)) {
+			((tx_status & SIM_XMT_STATUS_GPCNT) &&
+				(sim->rcv_count != 0))) {
 
 			/*Disable the GPCNT timer and CWT timer right now*/
 			reg_data = __raw_readl(sim->ioaddr + CNTL);
@@ -897,6 +963,7 @@ static void sim_cold_reset_sequency(struct sim_t *sim)
 	reg_data = __raw_readl(sim->ioaddr + sim->port_ctrl_reg);
 	reg_data |= SIM_PORT_CNTL_SRST;
 	__raw_writel(reg_data, sim->ioaddr + sim->port_ctrl_reg);
+	sim_set_gpc_timer(sim, ATR_MAX_DELAY_CLK);
 };
 
 static void sim_deactivate(struct sim_t *sim)
@@ -906,7 +973,6 @@ static void sim_deactivate(struct sim_t *sim)
 	pr_debug("%s entering.\n", __func__);
 	/* Auto powdown to implement the deactivate sequence */
 	if (sim->present != SIM_PRESENT_REMOVED) {
-
 		if (sim->sven_low_active) {
 			/*Set the RESET to be low*/
 			reg_data = __raw_readl(sim->ioaddr + sim->port_ctrl_reg);
@@ -971,6 +1037,7 @@ static void sim_warm_reset_sequency(struct sim_t *sim)
 	reg_data = __raw_readl(sim->ioaddr + sim->port_ctrl_reg);
 	reg_data |= SIM_PORT_CNTL_SRST;
 	__raw_writel(reg_data, sim->ioaddr + sim->port_ctrl_reg);
+	sim_set_gpc_timer(sim, ATR_MAX_DELAY_CLK);
 }
 
 static void sim_warm_reset(struct sim_t *sim)
@@ -1602,8 +1669,6 @@ static int sim_release(struct inode *inode, struct file *file)
 		clk_disable_unprepare(sim->clk);
 
 	sim->open_cnt = 0;
-
-	pr_err("exit %s\n", __func__);
 
 	return 0;
 };
