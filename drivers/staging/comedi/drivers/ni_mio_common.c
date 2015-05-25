@@ -3761,7 +3761,7 @@ static unsigned int ni_gpct_to_stc_register(struct comedi_device *dev,
 	if (reg < ARRAY_SIZE(ni_gpct_to_stc_regmap)) {
 		regmap = &ni_gpct_to_stc_regmap[reg];
 	} else {
-		dev_warn(dev->class_dev,"%s: unhandled register 0x%x\n",
+		dev_warn(dev->class_dev, "%s: unhandled register 0x%x\n",
 			 __func__, reg);
 		return 0;
 	}
