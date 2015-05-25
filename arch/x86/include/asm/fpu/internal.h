@@ -446,19 +446,19 @@ static inline int copy_fpregs_to_fpstate(struct fpu *fpu)
 	return 0;
 }
 
-static inline void __copy_kernel_to_fpregs(struct fpu *fpu)
+static inline void __copy_kernel_to_fpregs(union fpregs_state *fpstate)
 {
 	if (use_xsave()) {
-		copy_kernel_to_xregs(&fpu->state.xsave, -1);
+		copy_kernel_to_xregs(&fpstate->xsave, -1);
 	} else {
 		if (use_fxsr())
-			copy_kernel_to_fxregs(&fpu->state.fxsave);
+			copy_kernel_to_fxregs(&fpstate->fxsave);
 		else
-			copy_kernel_to_fregs(&fpu->state.fsave);
+			copy_kernel_to_fregs(&fpstate->fsave);
 	}
 }
 
-static inline void copy_kernel_to_fpregs(struct fpu *fpu)
+static inline void copy_kernel_to_fpregs(union fpregs_state *fpstate)
 {
 	/*
 	 * AMD K7/K8 CPUs don't save/restore FDP/FIP/FOP unless an exception is
@@ -470,10 +470,10 @@ static inline void copy_kernel_to_fpregs(struct fpu *fpu)
 			"fnclex\n\t"
 			"emms\n\t"
 			"fildl %P[addr]"	/* set F?P to defined value */
-			: : [addr] "m" (fpu->fpregs_active));
+			: : [addr] "m" (fpstate));
 	}
 
-	__copy_kernel_to_fpregs(fpu);
+	__copy_kernel_to_fpregs(fpstate);
 }
 
 extern int copy_fpstate_to_sigframe(void __user *buf, void __user *fp, int size);
@@ -642,7 +642,7 @@ switch_fpu_prepare(struct fpu *old_fpu, struct fpu *new_fpu, int cpu)
 static inline void switch_fpu_finish(struct fpu *new_fpu, fpu_switch_t fpu_switch)
 {
 	if (fpu_switch.preload)
-		copy_kernel_to_fpregs(new_fpu);
+		copy_kernel_to_fpregs(&new_fpu->state);
 }
 
 /*
