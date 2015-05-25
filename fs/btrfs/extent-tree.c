@@ -7979,9 +7979,12 @@ walk_down:
 			child_gen = btrfs_node_ptr_generation(eb, parent_slot);
 
 			eb = read_tree_block(root, child_bytenr, child_gen);
-			if (!eb || !extent_buffer_uptodate(eb)) {
-				ret = -EIO;
+			if (IS_ERR(eb)) {
+				ret = PTR_ERR(eb);
+				goto out;
+			} else if (!extent_buffer_uptodate(eb)) {
 				free_extent_buffer(eb);
+				ret = -EIO;
 				goto out;
 			}
 
@@ -8211,7 +8214,9 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 		if (reada && level == 1)
 			reada_walk_down(trans, root, wc, path);
 		next = read_tree_block(root, bytenr, generation);
-		if (!next || !extent_buffer_uptodate(next)) {
+		if (IS_ERR(next)) {
+			return PTR_ERR(next);
+		} else if (!extent_buffer_uptodate(next)) {
 			free_extent_buffer(next);
 			return -EIO;
 		}
