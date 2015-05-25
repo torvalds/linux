@@ -195,7 +195,6 @@ static void put_target_map(struct map *map, bool user)
 {
 	if (map && user) {
 		/* Only the user map needs to be released */
-		dso__delete(map->dso);
 		map__delete(map);
 	}
 }
@@ -1791,7 +1790,6 @@ static int find_perf_probe_point_from_map(struct probe_trace_point *tp,
 
 out:
 	if (map && !is_kprobe) {
-		dso__delete(map->dso);
 		map__delete(map);
 	}
 
@@ -2884,7 +2882,6 @@ int show_available_funcs(const char *target, struct strfilter *_filter,
 	dso__fprintf_symbols_by_name(map->dso, map->type, stdout);
 end:
 	if (user) {
-		dso__delete(map->dso);
 		map__delete(map);
 	}
 	exit_symbol_maps();
