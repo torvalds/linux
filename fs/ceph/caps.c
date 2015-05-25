@@ -1525,13 +1525,13 @@ retry:
 retry_locked:
 	file_wanted = __ceph_caps_file_wanted(ci);
 	used = __ceph_caps_used(ci);
-	want = file_wanted | used;
 	issued = __ceph_caps_issued(ci, &implemented);
 	revoking = implemented & ~issued;
 
-	retain = want | CEPH_CAP_PIN;
+	want = file_wanted;
+	retain = file_wanted | used | CEPH_CAP_PIN;
 	if (!mdsc->stopping && inode->i_nlink > 0) {
-		if (want) {
+		if (file_wanted) {
 			retain |= CEPH_CAP_ANY;       /* be greedy */
 		} else if (S_ISDIR(inode->i_mode) &&
 			   (issued & CEPH_CAP_FILE_SHARED) &&
