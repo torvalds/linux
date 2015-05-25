@@ -316,7 +316,7 @@ static inline int copy_xregs_to_kernel(struct xregs_state *xstate)
 		"memory");
 	asm volatile("2:\n\t"
 		     xstate_fault(err)
-		     : "0" (0)
+		     : "0" (err)
 		     : "memory");
 
 	return err;
@@ -327,9 +327,9 @@ static inline int copy_xregs_to_kernel(struct xregs_state *xstate)
  */
 static inline int copy_kernel_to_xregs(struct xregs_state *xstate, u64 mask)
 {
-	int err = 0;
 	u32 lmask = mask;
 	u32 hmask = mask >> 32;
+	int err = 0;
 
 	/*
 	 * Use xrstors to restore context if it is enabled. xrstors supports
@@ -344,7 +344,7 @@ static inline int copy_kernel_to_xregs(struct xregs_state *xstate, u64 mask)
 
 	asm volatile("2:\n"
 		     xstate_fault(err)
-		     : "0" (0)
+		     : "0" (err)
 		     : "memory");
 
 	return err;
@@ -376,7 +376,7 @@ static inline int copy_xregs_to_user(struct xregs_state __user *buf)
 			     "1:"XSAVE"\n"
 			     "2: " ASM_CLAC "\n"
 			     xstate_fault(err)
-			     : "D" (buf), "a" (-1), "d" (-1), "0" (0)
+			     : "D" (buf), "a" (-1), "d" (-1), "0" (err)
 			     : "memory");
 	return err;
 }
@@ -386,16 +386,16 @@ static inline int copy_xregs_to_user(struct xregs_state __user *buf)
  */
 static inline int copy_user_to_xregs(struct xregs_state __user *buf, u64 mask)
 {
-	int err = 0;
 	struct xregs_state *xstate = ((__force struct xregs_state *)buf);
 	u32 lmask = mask;
 	u32 hmask = mask >> 32;
+	int err = 0;
 
 	__asm__ __volatile__(ASM_STAC "\n"
 			     "1:"XRSTOR"\n"
 			     "2: " ASM_CLAC "\n"
 			     xstate_fault(err)
-			     : "D" (xstate), "a" (lmask), "d" (hmask), "0" (0)
+			     : "D" (xstate), "a" (lmask), "d" (hmask), "0" (err)
 			     : "memory");	/* memory required? */
 	return err;
 }
