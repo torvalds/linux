@@ -496,7 +496,9 @@ static int ptp_dp83640_enable(struct ptp_clock_info *ptp,
 			else
 				evnt |= EVNT_RISE;
 		}
+		mutex_lock(&clock->extreg_lock);
 		ext_write(0, phydev, PAGE5, PTP_EVNT, evnt);
+		mutex_unlock(&clock->extreg_lock);
 		return 0;
 
 	case PTP_CLK_REQ_PEROUT:
@@ -532,6 +534,8 @@ static u8 status_frame_src[6] = { 0x08, 0x00, 0x17, 0x0B, 0x6B, 0x0F };
 
 static void enable_status_frames(struct phy_device *phydev, bool on)
 {
+	struct dp83640_private *dp83640 = phydev->priv;
+	struct dp83640_clock *clock = dp83640->clock;
 	u16 cfg0 = 0, ver;
 
 	if (on)
@@ -539,8 +543,12 @@ static void enable_status_frames(struct phy_device *phydev, bool on)
 
 	ver = (PSF_PTPVER & VERSIONPTP_MASK) << VERSIONPTP_SHIFT;
 
+	mutex_lock(&clock->extreg_lock);
+
 	ext_write(0, phydev, PAGE5, PSF_CFG0, cfg0);
 	ext_write(0, phydev, PAGE6, PSF_CFG1, ver);
+
+	mutex_unlock(&clock->extreg_lock);
 
 	if (!phydev->attached_dev) {
 		pr_warn("expected to find an attached netdevice\n");
@@ -1173,11 +1181,18 @@ static int dp83640_config_init(struct phy_device *phydev)
 
 	if (clock->chosen && !list_empty(&clock->phylist))
 		recalibrate(clock);
-	else
+	else {
+		mutex_lock(&clock->extreg_lock);
 		enable_broadcast(phydev, clock->page, 1);
+		mutex_unlock(&clock->extreg_lock);
+	}
 
 	enable_status_frames(phydev, true);
+
+	mutex_lock(&clock->extreg_lock);
 	ext_write(0, phydev, PAGE4, PTP_CTL, PTP_ENABLE);
+	mutex_unlock(&clock->extreg_lock);
+
 	return 0;
 }
 
