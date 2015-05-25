@@ -1489,8 +1489,18 @@ config CRYPTO_DRBG
 	tristate
 	default CRYPTO_DRBG_MENU if (CRYPTO_DRBG_HMAC || CRYPTO_DRBG_HASH || CRYPTO_DRBG_CTR)
 	select CRYPTO_RNG
+	select CRYPTO_JITTERENTROPY
 
 endif	# if CRYPTO_DRBG_MENU
+
+config CRYPTO_JITTERENTROPY
+	tristate "Jitterentropy Non-Deterministic Random Number Generator"
+	help
+	  The Jitterentropy RNG is a noise that is intended
+	  to provide seed to another RNG. The RNG does not
+	  perform any cryptographic whitening of the generated
+	  random numbers. This Jitterentropy RNG registers with
+	  the kernel crypto API and can be used by any caller.
 
 config CRYPTO_USER_API
 	tristate

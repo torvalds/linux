@@ -3106,6 +3106,10 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
+		.alg = "jitterentropy_rng",
+		.fips_allowed = 1,
+		.test = alg_test_null,
+	}, {
 		.alg = "lrw(aes)",
 		.test = alg_test_skcipher,
 		.suite = {
