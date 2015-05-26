@@ -2889,21 +2889,16 @@ static ssize_t target_core_alua_tg_pt_gp_show_attr_members(
 	struct t10_alua_tg_pt_gp *tg_pt_gp,
 	char *page)
 {
-	struct se_port *port;
-	struct se_portal_group *tpg;
 	struct se_lun *lun;
-	struct t10_alua_tg_pt_gp_member *tg_pt_gp_mem;
 	ssize_t len = 0, cur_len;
 	unsigned char buf[TG_PT_GROUP_NAME_BUF];
 
 	memset(buf, 0, TG_PT_GROUP_NAME_BUF);
 
 	spin_lock(&tg_pt_gp->tg_pt_gp_lock);
-	list_for_each_entry(tg_pt_gp_mem, &tg_pt_gp->tg_pt_gp_mem_list,
-			tg_pt_gp_mem_list) {
-		port = tg_pt_gp_mem->tg_pt;
-		tpg = port->sep_tpg;
-		lun = port->sep_lun;
+	list_for_each_entry(lun, &tg_pt_gp->tg_pt_gp_lun_list,
+			lun_tg_pt_gp_link) {
+		struct se_portal_group *tpg = lun->lun_tpg;
 
 		cur_len = snprintf(buf, TG_PT_GROUP_NAME_BUF, "%s/%s/tpgt_%hu"
 			"/%s\n", tpg->se_tpg_tfo->get_fabric_name(),

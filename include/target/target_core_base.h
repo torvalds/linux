@@ -304,20 +304,11 @@ struct t10_alua_tg_pt_gp {
 	struct se_device *tg_pt_gp_dev;
 	struct config_group tg_pt_gp_group;
 	struct list_head tg_pt_gp_list;
-	struct list_head tg_pt_gp_mem_list;
-	struct se_port *tg_pt_gp_alua_port;
+	struct list_head tg_pt_gp_lun_list;
+	struct se_lun *tg_pt_gp_alua_lun;
 	struct se_node_acl *tg_pt_gp_alua_nacl;
 	struct delayed_work tg_pt_gp_transition_work;
 	struct completion *tg_pt_gp_transition_complete;
-};
-
-struct t10_alua_tg_pt_gp_member {
-	bool tg_pt_gp_assoc;
-	atomic_t tg_pt_gp_mem_ref_cnt;
-	spinlock_t tg_pt_gp_mem_lock;
-	struct t10_alua_tg_pt_gp *tg_pt_gp;
-	struct se_port *tg_pt;
-	struct list_head tg_pt_gp_mem_list;
 };
 
 struct t10_vpd {
@@ -650,6 +641,7 @@ struct se_dev_entry {
 #define DEF_PR_REG_ACTIVE		1
 	unsigned long		deve_flags;
 	struct list_head	alua_port_list;
+	struct list_head	lun_link;
 	struct list_head	ua_list;
 	struct hlist_node	link;
 	struct rcu_head		rcu_head;
@@ -697,7 +689,14 @@ struct se_port_stat_grps {
 	struct config_group scsi_transport_group;
 };
 
+struct scsi_port_stats {
+	u32		cmd_pdus;
+	u64		tx_data_octets;
+	u64		rx_data_octets;
+};
+
 struct se_lun {
+	/* RELATIVE TARGET PORT IDENTIFER */
 	u16			lun_rtpi;
 #define SE_LUN_LINK_MAGIC			0xffff7771
 	u32			lun_link_magic;
@@ -707,12 +706,30 @@ struct se_lun {
 	u32			lun_index;
 	atomic_t		lun_acl_count;
 	spinlock_t		lun_sep_lock;
-	struct se_device	*lun_se_dev;
-	struct se_port		*lun_sep;
+	struct se_device __rcu	*lun_se_dev;
+
+	struct list_head	lun_deve_list;
+	spinlock_t		lun_deve_lock;
+
+	/* ALUA state */
+	int			lun_tg_pt_secondary_stat;
+	int			lun_tg_pt_secondary_write_md;
+	atomic_t		lun_tg_pt_secondary_offline;
+	struct mutex		lun_tg_pt_md_mutex;
+
+	/* ALUA target port group linkage */
+	struct list_head	lun_tg_pt_gp_link;
+	struct t10_alua_tg_pt_gp *lun_tg_pt_gp;
+	spinlock_t		lun_tg_pt_gp_lock;
+
+	atomic_t		lun_active;
+	struct se_portal_group	*lun_tpg;
+	struct scsi_port_stats	lun_stats;
 	struct config_group	lun_group;
 	struct se_port_stat_grps port_stat_grps;
 	struct completion	lun_ref_comp;
 	struct percpu_ref	lun_ref;
+	struct list_head	lun_dev_link;
 	struct hlist_node	link;
 	struct rcu_head		rcu_head;
 };
@@ -737,7 +754,6 @@ struct se_device {
 #define DF_EMULATED_VPD_UNIT_SERIAL		0x00000004
 #define DF_USING_UDEV_PATH			0x00000008
 #define DF_USING_ALIAS				0x00000010
-	u32			dev_port_count;
 	/* Physical device queue depth */
 	u32			queue_depth;
 	/* Used for SPC-2 reservations enforce of ISIDs */
@@ -754,7 +770,7 @@ struct se_device {
 	atomic_t		dev_ordered_id;
 	atomic_t		dev_ordered_sync;
 	atomic_t		dev_qf_count;
-	int			export_count;
+	u32			export_count;
 	spinlock_t		delayed_cmd_lock;
 	spinlock_t		execute_task_lock;
 	spinlock_t		dev_reservation_lock;
@@ -821,32 +837,6 @@ struct se_hba {
 	struct target_backend	*backend;
 };
 
-struct scsi_port_stats {
-       u64     cmd_pdus;
-       u64     tx_data_octets;
-       u64     rx_data_octets;
-};
-
-struct se_port {
-	/* RELATIVE TARGET PORT IDENTIFER */
-	u16		sep_rtpi;
-	int		sep_tg_pt_secondary_stat;
-	int		sep_tg_pt_secondary_write_md;
-	u32		sep_index;
-	struct scsi_port_stats sep_stats;
-	/* Used for ALUA Target Port Groups membership */
-	atomic_t	sep_tg_pt_secondary_offline;
-	/* Used for PR ALL_TG_PT=1 */
-	atomic_t	sep_tg_pt_ref_cnt;
-	spinlock_t	sep_alua_lock;
-	struct mutex	sep_tg_pt_md_mutex;
-	struct t10_alua_tg_pt_gp_member *sep_alua_tg_pt_gp_mem;
-	struct se_lun *sep_lun;
-	struct se_portal_group *sep_tpg;
-	struct list_head sep_alua_list;
-	struct list_head sep_list;
-};
-
 struct se_tpg_np {
 	struct se_portal_group *tpg_np_parent;
 	struct config_group	tpg_np_group;
@@ -872,7 +862,7 @@ struct se_portal_group {
 	/* linked list for initiator ACL list */
 	struct list_head	acl_node_list;
 	struct hlist_head	tpg_lun_hlist;
-	struct se_lun		tpg_virt_lun0;
+	struct se_lun		*tpg_virt_lun0;
 	/* List of TCM sessions associated wth this TPG */
 	struct list_head	tpg_sess_list;
 	/* Pointer to $FABRIC_MOD dependent code */

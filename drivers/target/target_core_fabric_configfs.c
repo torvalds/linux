@@ -91,12 +91,11 @@ static int target_fabric_mappedlun_link(
 	/*
 	 * Ensure that the source port exists
 	 */
-	if (!lun->lun_sep || !lun->lun_sep->sep_tpg) {
-		pr_err("Source se_lun->lun_sep or lun->lun_sep->sep"
-				"_tpg does not exist\n");
+	if (!lun->lun_se_dev) {
+		pr_err("Source se_lun->lun_se_dev does not exist\n");
 		return -EINVAL;
 	}
-	se_tpg = lun->lun_sep->sep_tpg;
+	se_tpg = lun->lun_tpg;
 
 	nacl_ci = &lun_acl_ci->ci_parent->ci_group->cg_item;
 	tpg_ci = &nacl_ci->ci_group->cg_item;
@@ -150,9 +149,8 @@ static int target_fabric_mappedlun_unlink(
 			struct se_lun_acl, se_lun_group);
 	struct se_lun *lun = container_of(to_config_group(lun_ci),
 			struct se_lun, lun_group);
-	struct se_portal_group *se_tpg = lun->lun_sep->sep_tpg;
 
-	return core_dev_del_initiator_node_lun_acl(se_tpg, lun, lacl);
+	return core_dev_del_initiator_node_lun_acl(lun, lacl);
 }
 
 CONFIGFS_EATTR_STRUCT(target_fabric_mappedlun, se_lun_acl);
@@ -643,10 +641,10 @@ static ssize_t target_fabric_port_show_attr_alua_tg_pt_gp(
 	struct se_lun *lun,
 	char *page)
 {
-	if (!lun || !lun->lun_sep)
+	if (!lun || !lun->lun_se_dev)
 		return -ENODEV;
 
-	return core_alua_show_tg_pt_gp_info(lun->lun_sep, page);
+	return core_alua_show_tg_pt_gp_info(lun, page);
 }
 
 static ssize_t target_fabric_port_store_attr_alua_tg_pt_gp(
@@ -654,10 +652,10 @@ static ssize_t target_fabric_port_store_attr_alua_tg_pt_gp(
 	const char *page,
 	size_t count)
 {
-	if (!lun || !lun->lun_sep)
+	if (!lun || !lun->lun_se_dev)
 		return -ENODEV;
 
-	return core_alua_store_tg_pt_gp_info(lun->lun_sep, page, count);
+	return core_alua_store_tg_pt_gp_info(lun, page, count);
 }
 
 TCM_PORT_ATTR(alua_tg_pt_gp, S_IRUGO | S_IWUSR);
@@ -669,7 +667,7 @@ static ssize_t target_fabric_port_show_attr_alua_tg_pt_offline(
 	struct se_lun *lun,
 	char *page)
 {
-	if (!lun || !lun->lun_sep)
+	if (!lun || !lun->lun_se_dev)
 		return -ENODEV;
 
 	return core_alua_show_offline_bit(lun, page);
@@ -680,7 +678,7 @@ static ssize_t target_fabric_port_store_attr_alua_tg_pt_offline(
 	const char *page,
 	size_t count)
 {
-	if (!lun || !lun->lun_sep)
+	if (!lun || !lun->lun_se_dev)
 		return -ENODEV;
 
 	return core_alua_store_offline_bit(lun, page, count);
@@ -695,7 +693,7 @@ static ssize_t target_fabric_port_show_attr_alua_tg_pt_status(
 	struct se_lun *lun,
 	char *page)
 {
-	if (!lun || !lun->lun_sep)
+	if (!lun || !lun->lun_se_dev)
 		return -ENODEV;
 
 	return core_alua_show_secondary_status(lun, page);
@@ -706,7 +704,7 @@ static ssize_t target_fabric_port_store_attr_alua_tg_pt_status(
 	const char *page,
 	size_t count)
 {
-	if (!lun || !lun->lun_sep)
+	if (!lun || !lun->lun_se_dev)
 		return -ENODEV;
 
 	return core_alua_store_secondary_status(lun, page, count);
@@ -721,7 +719,7 @@ static ssize_t target_fabric_port_show_attr_alua_tg_pt_write_md(
 	struct se_lun *lun,
 	char *page)
 {
-	if (!lun || !lun->lun_sep)
+	if (!lun || !lun->lun_se_dev)
 		return -ENODEV;
 
 	return core_alua_show_secondary_write_metadata(lun, page);
@@ -732,7 +730,7 @@ static ssize_t target_fabric_port_store_attr_alua_tg_pt_write_md(
 	const char *page,
 	size_t count)
 {
-	if (!lun || !lun->lun_sep)
+	if (!lun || !lun->lun_se_dev)
 		return -ENODEV;
 
 	return core_alua_store_secondary_write_metadata(lun, page, count);
@@ -811,7 +809,7 @@ static int target_fabric_port_unlink(
 {
 	struct se_lun *lun = container_of(to_config_group(lun_ci),
 				struct se_lun, lun_group);
-	struct se_portal_group *se_tpg = lun->lun_sep->sep_tpg;
+	struct se_portal_group *se_tpg = lun->lun_tpg;
 	struct target_fabric_configfs *tf = se_tpg->se_tpg_wwn->wwn_tf;
 
 	if (tf->tf_ops->fabric_pre_unlink) {

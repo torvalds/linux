@@ -642,7 +642,7 @@ static struct t10_pr_registration *__core_scsi3_do_alloc_registration(
 	pr_reg->pr_reg_deve = deve;
 	pr_reg->pr_res_mapped_lun = mapped_lun;
 	pr_reg->pr_aptpl_target_lun = lun->unpacked_lun;
-	pr_reg->tg_pt_sep_rtpi = lun->lun_sep->sep_rtpi;
+	pr_reg->tg_pt_sep_rtpi = lun->lun_rtpi;
 	pr_reg->pr_res_key = sa_res_key;
 	pr_reg->pr_reg_all_tg_pt = all_tg_pt;
 	pr_reg->pr_reg_aptpl = aptpl;
@@ -680,8 +680,7 @@ static struct t10_pr_registration *__core_scsi3_alloc_registration(
 	struct se_dev_entry *deve_tmp;
 	struct se_node_acl *nacl_tmp;
 	struct se_lun_acl *lacl_tmp;
-	struct se_lun *lun_tmp;
-	struct se_port *port, *port_tmp;
+	struct se_lun *lun_tmp, *next, *dest_lun;
 	const struct target_core_fabric_ops *tfo = nacl->se_tpg->se_tpg_tfo;
 	struct t10_pr_registration *pr_reg, *pr_reg_atp, *pr_reg_tmp, *pr_reg_tmp_safe;
 	int ret;
@@ -704,13 +703,12 @@ static struct t10_pr_registration *__core_scsi3_alloc_registration(
 	 * for ALL_TG_PT=1
 	 */
 	spin_lock(&dev->se_port_lock);
-	list_for_each_entry_safe(port, port_tmp, &dev->dev_sep_list, sep_list) {
-		atomic_inc_mb(&port->sep_tg_pt_ref_cnt);
+	list_for_each_entry_safe(lun_tmp, next, &dev->dev_sep_list, lun_dev_link) {
+		atomic_inc_mb(&lun_tmp->lun_active);
 		spin_unlock(&dev->se_port_lock);
 
-		spin_lock_bh(&port->sep_alua_lock);
-		list_for_each_entry(deve_tmp, &port->sep_alua_list,
-					alua_port_list) {
+		spin_lock_bh(&lun_tmp->lun_deve_lock);
+		list_for_each_entry(deve_tmp, &lun_tmp->lun_deve_list, lun_link) {
 			/*
 			 * This pointer will be NULL for demo mode MappedLUNs
 			 * that have not been make explicit via a ConfigFS
@@ -720,7 +718,7 @@ static struct t10_pr_registration *__core_scsi3_alloc_registration(
 				continue;
 
 			lacl_tmp = rcu_dereference_check(deve_tmp->se_lun_acl,
-						lockdep_is_held(&port->sep_alua_lock));
+						lockdep_is_held(&lun_tmp->lun_deve_lock));
 			nacl_tmp = lacl_tmp->se_lun_nacl;
 			/*
 			 * Skip the matching struct se_node_acl that is allocated
@@ -742,7 +740,7 @@ static struct t10_pr_registration *__core_scsi3_alloc_registration(
 				continue;
 
 			kref_get(&deve_tmp->pr_kref);
-			spin_unlock_bh(&port->sep_alua_lock);
+			spin_unlock_bh(&lun_tmp->lun_deve_lock);
 			/*
 			 * Grab a configfs group dependency that is released
 			 * for the exception path at label out: below, or upon
@@ -753,7 +751,7 @@ static struct t10_pr_registration *__core_scsi3_alloc_registration(
 			if (ret < 0) {
 				pr_err("core_scsi3_lunacl_depend"
 						"_item() failed\n");
-				atomic_dec_mb(&port->sep_tg_pt_ref_cnt);
+				atomic_dec_mb(&lun->lun_active);
 				kref_put(&deve_tmp->pr_kref, target_pr_kref_release);
 				goto out;
 			}
@@ -764,27 +762,27 @@ static struct t10_pr_registration *__core_scsi3_alloc_registration(
 			 * the original *pr_reg is processed in
 			 * __core_scsi3_add_registration()
 			 */
-			lun_tmp = rcu_dereference_check(deve_tmp->se_lun,
+			dest_lun = rcu_dereference_check(deve_tmp->se_lun,
 				atomic_read(&deve_tmp->pr_kref.refcount) != 0);
 
 			pr_reg_atp = __core_scsi3_do_alloc_registration(dev,
-						nacl_tmp, lun_tmp, deve_tmp,
+						nacl_tmp, dest_lun, deve_tmp,
 						deve_tmp->mapped_lun, NULL,
 						sa_res_key, all_tg_pt, aptpl);
 			if (!pr_reg_atp) {
-				atomic_dec_mb(&port->sep_tg_pt_ref_cnt);
+				atomic_dec_mb(&lun_tmp->lun_active);
 				core_scsi3_lunacl_undepend_item(deve_tmp);
 				goto out;
 			}
 
 			list_add_tail(&pr_reg_atp->pr_reg_atp_mem_list,
 				      &pr_reg->pr_reg_atp_list);
-			spin_lock_bh(&port->sep_alua_lock);
+			spin_lock_bh(&lun_tmp->lun_deve_lock);
 		}
-		spin_unlock_bh(&port->sep_alua_lock);
+		spin_unlock_bh(&lun_tmp->lun_deve_lock);
 
 		spin_lock(&dev->se_port_lock);
-		atomic_dec_mb(&port->sep_tg_pt_ref_cnt);
+		atomic_dec_mb(&lun_tmp->lun_active);
 	}
 	spin_unlock(&dev->se_port_lock);
 
@@ -938,7 +936,7 @@ static int __core_scsi3_check_aptpl_registration(
 		     (pr_reg->pr_aptpl_target_lun == target_lun)) {
 
 			pr_reg->pr_reg_nacl = nacl;
-			pr_reg->tg_pt_sep_rtpi = lun->lun_sep->sep_rtpi;
+			pr_reg->tg_pt_sep_rtpi = lun->lun_rtpi;
 
 			list_del(&pr_reg->pr_reg_aptpl_list);
 			spin_unlock(&pr_tmpl->aptpl_reg_lock);
@@ -1465,7 +1463,6 @@ core_scsi3_decode_spec_i_port(
 	int aptpl)
 {
 	struct se_device *dev = cmd->se_dev;
-	struct se_port *tmp_port;
 	struct se_portal_group *dest_tpg = NULL, *tmp_tpg;
 	struct se_session *se_sess = cmd->se_sess;
 	struct se_node_acl *dest_node_acl = NULL;
@@ -1550,16 +1547,14 @@ core_scsi3_decode_spec_i_port(
 	ptr = &buf[28];
 
 	while (tpdl > 0) {
-		struct se_lun *dest_lun;
+		struct se_lun *dest_lun, *tmp_lun;
 
 		proto_ident = (ptr[0] & 0x0f);
 		dest_tpg = NULL;
 
 		spin_lock(&dev->se_port_lock);
-		list_for_each_entry(tmp_port, &dev->dev_sep_list, sep_list) {
-			tmp_tpg = tmp_port->sep_tpg;
-			if (!tmp_tpg)
-				continue;
+		list_for_each_entry(tmp_lun, &dev->dev_sep_list, lun_dev_link) {
+			tmp_tpg = tmp_lun->lun_tpg;
 
 			/*
 			 * Look for the matching proto_ident provided by
@@ -1567,7 +1562,7 @@ core_scsi3_decode_spec_i_port(
 			 */
 			if (tmp_tpg->proto_id != proto_ident)
 				continue;
-			dest_rtpi = tmp_port->sep_rtpi;
+			dest_rtpi = tmp_lun->lun_rtpi;
 
 			i_str = target_parse_pr_out_transport_id(tmp_tpg,
 					(const char *)ptr, &tid_len, &iport_ptr);
@@ -3119,9 +3114,8 @@ core_scsi3_emulate_pro_register_and_move(struct se_cmd *cmd, u64 res_key,
 	struct se_session *se_sess = cmd->se_sess;
 	struct se_device *dev = cmd->se_dev;
 	struct se_dev_entry *dest_se_deve = NULL;
-	struct se_lun *se_lun = cmd->se_lun;
+	struct se_lun *se_lun = cmd->se_lun, *tmp_lun;
 	struct se_node_acl *pr_res_nacl, *pr_reg_nacl, *dest_node_acl = NULL;
-	struct se_port *se_port;
 	struct se_portal_group *se_tpg, *dest_se_tpg = NULL;
 	const struct target_core_fabric_ops *dest_tf_ops = NULL, *tf_ops;
 	struct t10_pr_registration *pr_reg, *pr_res_holder, *dest_pr_reg;
@@ -3206,12 +3200,10 @@ core_scsi3_emulate_pro_register_and_move(struct se_cmd *cmd, u64 res_key,
 	}
 
 	spin_lock(&dev->se_port_lock);
-	list_for_each_entry(se_port, &dev->dev_sep_list, sep_list) {
-		if (se_port->sep_rtpi != rtpi)
+	list_for_each_entry(tmp_lun, &dev->dev_sep_list, lun_dev_link) {
+		if (tmp_lun->lun_rtpi != rtpi)
 			continue;
-		dest_se_tpg = se_port->sep_tpg;
-		if (!dest_se_tpg)
-			continue;
+		dest_se_tpg = tmp_lun->lun_tpg;
 		dest_tf_ops = dest_se_tpg->se_tpg_tfo;
 		if (!dest_tf_ops)
 			continue;

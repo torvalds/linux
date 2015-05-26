@@ -21,6 +21,7 @@ extern struct t10_alua_lu_gp *default_lu_gp;
 extern struct mutex g_device_mutex;
 extern struct list_head g_device_list;
 
+int	core_alloc_rtpi(struct se_lun *lun, struct se_device *dev);
 struct se_dev_entry *core_get_se_deve_from_rtpi(struct se_node_acl *, u16);
 void	target_pr_kref_release(struct kref *);
 void	core_free_device_list_for_node(struct se_node_acl *,
@@ -32,10 +33,6 @@ int	core_enable_device_list_for_node(struct se_lun *, struct se_lun_acl *,
 void	core_disable_device_list_for_node(struct se_lun *, struct se_dev_entry *,
 		struct se_node_acl *, struct se_portal_group *);
 void	core_clear_lun_from_tpg(struct se_lun *, struct se_portal_group *);
-int	core_dev_export(struct se_device *, struct se_portal_group *,
-		struct se_lun *);
-void	core_dev_unexport(struct se_device *, struct se_portal_group *,
-		struct se_lun *);
 int	core_dev_add_lun(struct se_portal_group *, struct se_device *,
 		struct se_lun *lun);
 void	core_dev_del_lun(struct se_portal_group *, struct se_lun *);
@@ -43,8 +40,8 @@ struct se_lun_acl *core_dev_init_initiator_node_lun_acl(struct se_portal_group *
 		struct se_node_acl *, u32, int *);
 int	core_dev_add_initiator_node_lun_acl(struct se_portal_group *,
 		struct se_lun_acl *, struct se_lun *lun, u32);
-int	core_dev_del_initiator_node_lun_acl(struct se_portal_group *,
-		struct se_lun *, struct se_lun_acl *);
+int	core_dev_del_initiator_node_lun_acl(struct se_lun *,
+		struct se_lun_acl *);
 void	core_dev_free_initiator_node_lun_acl(struct se_portal_group *,
 		struct se_lun_acl *lacl);
 int	core_dev_setup_virtual_lun0(void);
@@ -119,5 +116,8 @@ bool	target_check_fua(struct se_device *dev);
 void	target_stat_setup_dev_default_groups(struct se_device *);
 void	target_stat_setup_port_default_groups(struct se_lun *);
 void	target_stat_setup_mappedlun_default_groups(struct se_lun_acl *);
+
+/* target_core_xcopy.c */
+extern struct se_portal_group xcopy_pt_tpg;
 
 #endif /* TARGET_CORE_INTERNAL_H */

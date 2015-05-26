@@ -348,8 +348,7 @@ struct xcopy_pt_cmd {
 	unsigned char sense_buffer[TRANSPORT_SENSE_BUFFER];
 };
 
-static struct se_port xcopy_pt_port;
-static struct se_portal_group xcopy_pt_tpg;
+struct se_portal_group xcopy_pt_tpg;
 static struct se_session xcopy_pt_sess;
 static struct se_node_acl xcopy_pt_nacl;
 
@@ -439,17 +438,11 @@ int target_xcopy_setup_pt(void)
 		return -ENOMEM;
 	}
 
-	memset(&xcopy_pt_port, 0, sizeof(struct se_port));
-	INIT_LIST_HEAD(&xcopy_pt_port.sep_alua_list);
-	INIT_LIST_HEAD(&xcopy_pt_port.sep_list);
-	mutex_init(&xcopy_pt_port.sep_tg_pt_md_mutex);
-
 	memset(&xcopy_pt_tpg, 0, sizeof(struct se_portal_group));
 	INIT_LIST_HEAD(&xcopy_pt_tpg.se_tpg_node);
 	INIT_LIST_HEAD(&xcopy_pt_tpg.acl_node_list);
 	INIT_LIST_HEAD(&xcopy_pt_tpg.tpg_sess_list);
 
-	xcopy_pt_port.sep_tpg = &xcopy_pt_tpg;
 	xcopy_pt_tpg.se_tpg_tfo = &xcopy_pt_tfo;
 
 	memset(&xcopy_pt_nacl, 0, sizeof(struct se_node_acl));
@@ -490,10 +483,6 @@ static void target_xcopy_setup_pt_port(
 		 */
 		if (remote_port) {
 			xpt_cmd->remote_port = remote_port;
-			pt_cmd->se_lun->lun_sep = &xcopy_pt_port;
-			pr_debug("Setup emulated remote DEST xcopy_pt_port: %p to"
-				" cmd->se_lun->lun_sep for X-COPY data PUSH\n",
-				pt_cmd->se_lun->lun_sep);
 		} else {
 			pt_cmd->se_lun = ec_cmd->se_lun;
 			pt_cmd->se_dev = ec_cmd->se_dev;
@@ -513,10 +502,6 @@ static void target_xcopy_setup_pt_port(
 		 */
 		if (remote_port) {
 			xpt_cmd->remote_port = remote_port;
-			pt_cmd->se_lun->lun_sep = &xcopy_pt_port;
-			pr_debug("Setup emulated remote SRC xcopy_pt_port: %p to"
-				" cmd->se_lun->lun_sep for X-COPY data PULL\n",
-				pt_cmd->se_lun->lun_sep);
 		} else {
 			pt_cmd->se_lun = ec_cmd->se_lun;
 			pt_cmd->se_dev = ec_cmd->se_dev;

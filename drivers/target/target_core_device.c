@@ -120,8 +120,8 @@ transport_lookup_cmd_lun(struct se_cmd *se_cmd, u32 unpacked_lun)
 		    (se_cmd->data_direction != DMA_NONE))
 			return TCM_WRITE_PROTECTED;
 
-		se_lun = &se_sess->se_tpg->tpg_virt_lun0;
-		se_cmd->se_lun = &se_sess->se_tpg->tpg_virt_lun0;
+		se_lun = se_sess->se_tpg->tpg_virt_lun0;
+		se_cmd->se_lun = se_sess->se_tpg->tpg_virt_lun0;
 		se_cmd->orig_fe_lun = 0;
 		se_cmd->se_cmd_flags |= SCF_SE_LUN_CMD;
 
@@ -309,7 +309,6 @@ int core_enable_device_list_for_node(
 	struct se_node_acl *nacl,
 	struct se_portal_group *tpg)
 {
-	struct se_port *port = lun->lun_sep;
 	struct se_dev_entry *orig, *new;
 
 	new = kzalloc(sizeof(*new), GFP_KERNEL);
@@ -320,8 +319,8 @@ int core_enable_device_list_for_node(
 
 	atomic_set(&new->ua_count, 0);
 	spin_lock_init(&new->ua_lock);
-	INIT_LIST_HEAD(&new->alua_port_list);
 	INIT_LIST_HEAD(&new->ua_list);
+	INIT_LIST_HEAD(&new->lun_link);
 
 	new->mapped_lun = mapped_lun;
 	kref_init(&new->pr_kref);
@@ -357,10 +356,10 @@ int core_enable_device_list_for_node(
 		hlist_add_head_rcu(&new->link, &nacl->lun_entry_hlist);
 		mutex_unlock(&nacl->lun_entry_mutex);
 
-		spin_lock_bh(&port->sep_alua_lock);
-		list_del(&orig->alua_port_list);
-		list_add_tail(&new->alua_port_list, &port->sep_alua_list);
-		spin_unlock_bh(&port->sep_alua_lock);
+		spin_lock_bh(&lun->lun_deve_lock);
+		list_del(&orig->lun_link);
+		list_add_tail(&new->lun_link, &lun->lun_deve_list);
+		spin_unlock_bh(&lun->lun_deve_lock);
 
 		kref_put(&orig->pr_kref, target_pr_kref_release);
 		wait_for_completion(&orig->pr_comp);
@@ -374,9 +373,9 @@ int core_enable_device_list_for_node(
 	hlist_add_head_rcu(&new->link, &nacl->lun_entry_hlist);
 	mutex_unlock(&nacl->lun_entry_mutex);
 
-	spin_lock_bh(&port->sep_alua_lock);
-	list_add_tail(&new->alua_port_list, &port->sep_alua_list);
-	spin_unlock_bh(&port->sep_alua_lock);
+	spin_lock_bh(&lun->lun_deve_lock);
+	list_add_tail(&new->lun_link, &lun->lun_deve_list);
+	spin_unlock_bh(&lun->lun_deve_lock);
 
 	return 0;
 }
@@ -390,23 +389,22 @@ void core_disable_device_list_for_node(
 	struct se_node_acl *nacl,
 	struct se_portal_group *tpg)
 {
-	struct se_port *port = lun->lun_sep;
 	/*
 	 * If the MappedLUN entry is being disabled, the entry in
-	 * port->sep_alua_list must be removed now before clearing the
+	 * lun->lun_deve_list must be removed now before clearing the
 	 * struct se_dev_entry pointers below as logic in
 	 * core_alua_do_transition_tg_pt() depends on these being present.
 	 *
 	 * deve->se_lun_acl will be NULL for demo-mode created LUNs
 	 * that have not been explicitly converted to MappedLUNs ->
-	 * struct se_lun_acl, but we remove deve->alua_port_list from
-	 * port->sep_alua_list. This also means that active UAs and
+	 * struct se_lun_acl, but we remove deve->lun_link from
+	 * lun->lun_deve_list. This also means that active UAs and
 	 * NodeACL context specific PR metadata for demo-mode
 	 * MappedLUN *deve will be released below..
 	 */
-	spin_lock_bh(&port->sep_alua_lock);
-	list_del(&orig->alua_port_list);
-	spin_unlock_bh(&port->sep_alua_lock);
+	spin_lock_bh(&lun->lun_deve_lock);
+	list_del(&orig->lun_link);
+	spin_unlock_bh(&lun->lun_deve_lock);
 	/*
 	 * Disable struct se_dev_entry LUN ACL mapping
 	 */
@@ -458,27 +456,16 @@ void core_clear_lun_from_tpg(struct se_lun *lun, struct se_portal_group *tpg)
 	mutex_unlock(&tpg->acl_node_mutex);
 }
 
-static struct se_port *core_alloc_port(struct se_device *dev)
+int core_alloc_rtpi(struct se_lun *lun, struct se_device *dev)
 {
-	struct se_port *port, *port_tmp;
-
-	port = kzalloc(sizeof(struct se_port), GFP_KERNEL);
-	if (!port) {
-		pr_err("Unable to allocate struct se_port\n");
-		return ERR_PTR(-ENOMEM);
-	}
-	INIT_LIST_HEAD(&port->sep_alua_list);
-	INIT_LIST_HEAD(&port->sep_list);
-	atomic_set(&port->sep_tg_pt_secondary_offline, 0);
-	spin_lock_init(&port->sep_alua_lock);
-	mutex_init(&port->sep_tg_pt_md_mutex);
+	struct se_lun *tmp;
 
 	spin_lock(&dev->se_port_lock);
-	if (dev->dev_port_count == 0x0000ffff) {
+	if (dev->export_count == 0x0000ffff) {
 		pr_warn("Reached dev->dev_port_count =="
 				" 0x0000ffff\n");
 		spin_unlock(&dev->se_port_lock);
-		return ERR_PTR(-ENOSPC);
+		return -ENOSPC;
 	}
 again:
 	/*
@@ -493,133 +480,21 @@ again:
 	 * 2h        Relative port 2, historically known as port B
 	 * 3h to FFFFh    Relative port 3 through 65 535
 	 */
-	port->sep_rtpi = dev->dev_rpti_counter++;
-	if (!port->sep_rtpi)
+	lun->lun_rtpi = dev->dev_rpti_counter++;
+	if (!lun->lun_rtpi)
 		goto again;
 
-	list_for_each_entry(port_tmp, &dev->dev_sep_list, sep_list) {
+	list_for_each_entry(tmp, &dev->dev_sep_list, lun_dev_link) {
 		/*
 		 * Make sure RELATIVE TARGET PORT IDENTIFIER is unique
 		 * for 16-bit wrap..
 		 */
-		if (port->sep_rtpi == port_tmp->sep_rtpi)
+		if (lun->lun_rtpi == tmp->lun_rtpi)
 			goto again;
 	}
 	spin_unlock(&dev->se_port_lock);
 
-	return port;
-}
-
-static void core_export_port(
-	struct se_device *dev,
-	struct se_portal_group *tpg,
-	struct se_port *port,
-	struct se_lun *lun)
-{
-	struct t10_alua_tg_pt_gp_member *tg_pt_gp_mem = NULL;
-
-	spin_lock(&dev->se_port_lock);
-	spin_lock(&lun->lun_sep_lock);
-	port->sep_tpg = tpg;
-	port->sep_lun = lun;
-	lun->lun_sep = port;
-	spin_unlock(&lun->lun_sep_lock);
-
-	list_add_tail(&port->sep_list, &dev->dev_sep_list);
-	spin_unlock(&dev->se_port_lock);
-
-	if (!(dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH) &&
-	    !(dev->se_hba->hba_flags & HBA_FLAGS_INTERNAL_USE)) {
-		tg_pt_gp_mem = core_alua_allocate_tg_pt_gp_mem(port);
-		if (IS_ERR(tg_pt_gp_mem) || !tg_pt_gp_mem) {
-			pr_err("Unable to allocate t10_alua_tg_pt"
-					"_gp_member_t\n");
-			return;
-		}
-		spin_lock(&tg_pt_gp_mem->tg_pt_gp_mem_lock);
-		__core_alua_attach_tg_pt_gp_mem(tg_pt_gp_mem,
-			dev->t10_alua.default_tg_pt_gp);
-		spin_unlock(&tg_pt_gp_mem->tg_pt_gp_mem_lock);
-		pr_debug("%s/%s: Adding to default ALUA Target Port"
-			" Group: alua/default_tg_pt_gp\n",
-			dev->transport->name, tpg->se_tpg_tfo->get_fabric_name());
-	}
-
-	dev->dev_port_count++;
-	port->sep_index = port->sep_rtpi; /* RELATIVE TARGET PORT IDENTIFIER */
-}
-
-/*
- *	Called with struct se_device->se_port_lock spinlock held.
- */
-static void core_release_port(struct se_device *dev, struct se_port *port)
-	__releases(&dev->se_port_lock) __acquires(&dev->se_port_lock)
-{
-	/*
-	 * Wait for any port reference for PR ALL_TG_PT=1 operation
-	 * to complete in __core_scsi3_alloc_registration()
-	 */
-	spin_unlock(&dev->se_port_lock);
-	if (atomic_read(&port->sep_tg_pt_ref_cnt))
-		cpu_relax();
-	spin_lock(&dev->se_port_lock);
-
-	core_alua_free_tg_pt_gp_mem(port);
-
-	list_del(&port->sep_list);
-	dev->dev_port_count--;
-	kfree(port);
-}
-
-int core_dev_export(
-	struct se_device *dev,
-	struct se_portal_group *tpg,
-	struct se_lun *lun)
-{
-	struct se_hba *hba = dev->se_hba;
-	struct se_port *port;
-
-	port = core_alloc_port(dev);
-	if (IS_ERR(port))
-		return PTR_ERR(port);
-
-	lun->lun_index = dev->dev_index;
-	lun->lun_se_dev = dev;
-	lun->lun_rtpi = port->sep_rtpi;
-
-	spin_lock(&hba->device_lock);
-	dev->export_count++;
-	spin_unlock(&hba->device_lock);
-
-	core_export_port(dev, tpg, port, lun);
 	return 0;
-}
-
-void core_dev_unexport(
-	struct se_device *dev,
-	struct se_portal_group *tpg,
-	struct se_lun *lun)
-{
-	struct se_hba *hba = dev->se_hba;
-	struct se_port *port = lun->lun_sep;
-
-	spin_lock(&lun->lun_sep_lock);
-	if (lun->lun_se_dev == NULL) {
-		spin_unlock(&lun->lun_sep_lock);
-		return;
-	}
-	spin_unlock(&lun->lun_sep_lock);
-
-	spin_lock(&dev->se_port_lock);
-	core_release_port(dev, port);
-	spin_unlock(&dev->se_port_lock);
-
-	spin_lock(&hba->device_lock);
-	dev->export_count--;
-	spin_unlock(&hba->device_lock);
-
-	lun->lun_sep = NULL;
-	lun->lun_se_dev = NULL;
 }
 
 static void se_release_vpd_for_dev(struct se_device *dev)
@@ -783,10 +658,10 @@ int core_dev_add_initiator_node_lun_acl(
 }
 
 int core_dev_del_initiator_node_lun_acl(
-	struct se_portal_group *tpg,
 	struct se_lun *lun,
 	struct se_lun_acl *lacl)
 {
+	struct se_portal_group *tpg = lun->lun_tpg;
 	struct se_node_acl *nacl;
 	struct se_dev_entry *deve;
 
@@ -930,6 +805,10 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 	xcopy_lun->lun_se_dev = dev;
 	spin_lock_init(&xcopy_lun->lun_sep_lock);
 	init_completion(&xcopy_lun->lun_ref_comp);
+	INIT_LIST_HEAD(&xcopy_lun->lun_deve_list);
+	INIT_LIST_HEAD(&xcopy_lun->lun_dev_link);
+	mutex_init(&xcopy_lun->lun_tg_pt_md_mutex);
+	xcopy_lun->lun_tpg = &xcopy_pt_tpg;
 
 	return dev;
 }

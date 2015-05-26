@@ -40,6 +40,7 @@
 #include <target/target_core_fabric.h>
 
 #include "target_core_internal.h"
+#include "target_core_alua.h"
 #include "target_core_pr.h"
 
 extern struct se_device *g_lun0_dev;
@@ -484,32 +485,14 @@ static void core_tpg_lun_ref_release(struct percpu_ref *ref)
 	complete(&lun->lun_ref_comp);
 }
 
-static int core_tpg_setup_virtual_lun0(struct se_portal_group *se_tpg)
-{
-	/* Set in core_dev_setup_virtual_lun0() */
-	struct se_device *dev = g_lun0_dev;
-	struct se_lun *lun = &se_tpg->tpg_virt_lun0;
-	u32 lun_access = TRANSPORT_LUNFLAGS_READ_ONLY;
-	int ret;
-
-	lun->unpacked_lun = 0;
-	atomic_set(&lun->lun_acl_count, 0);
-	spin_lock_init(&lun->lun_sep_lock);
-	init_completion(&lun->lun_ref_comp);
-
-	ret = core_tpg_add_lun(se_tpg, lun, lun_access, dev);
-	if (ret < 0)
-		return ret;
-
-	return 0;
-}
-
 int core_tpg_register(
 	const struct target_core_fabric_ops *tfo,
 	struct se_wwn *se_wwn,
 	struct se_portal_group *se_tpg,
 	int proto_id)
 {
+	int ret;
+
 	INIT_HLIST_HEAD(&se_tpg->tpg_lun_hlist);
 	se_tpg->proto_id = proto_id;
 	se_tpg->se_tpg_tfo = tfo;
@@ -523,8 +506,16 @@ int core_tpg_register(
 	mutex_init(&se_tpg->acl_node_mutex);
 
 	if (se_tpg->proto_id >= 0) {
-		if (core_tpg_setup_virtual_lun0(se_tpg) < 0)
-			return -ENOMEM;
+		se_tpg->tpg_virt_lun0 = core_tpg_alloc_lun(se_tpg, 0);
+		if (IS_ERR(se_tpg->tpg_virt_lun0))
+			return PTR_ERR(se_tpg->tpg_virt_lun0);
+
+		ret = core_tpg_add_lun(se_tpg, se_tpg->tpg_virt_lun0,
+				TRANSPORT_LUNFLAGS_READ_ONLY, g_lun0_dev);
+		if (ret < 0) {
+			kfree(se_tpg->tpg_virt_lun0);
+			return ret;
+		}
 	}
 
 	spin_lock_bh(&tpg_lock);
@@ -575,8 +566,10 @@ int core_tpg_deregister(struct se_portal_group *se_tpg)
 		kfree(nacl);
 	}
 
-	if (se_tpg->proto_id >= 0)
-		core_tpg_remove_lun(se_tpg, &se_tpg->tpg_virt_lun0);
+	if (se_tpg->proto_id >= 0) {
+		core_tpg_remove_lun(se_tpg, se_tpg->tpg_virt_lun0);
+		kfree_rcu(se_tpg->tpg_virt_lun0, rcu_head);
+	}
 
 	return 0;
 }
@@ -607,6 +600,15 @@ struct se_lun *core_tpg_alloc_lun(
 	atomic_set(&lun->lun_acl_count, 0);
 	spin_lock_init(&lun->lun_sep_lock);
 	init_completion(&lun->lun_ref_comp);
+	INIT_LIST_HEAD(&lun->lun_deve_list);
+	INIT_LIST_HEAD(&lun->lun_dev_link);
+	atomic_set(&lun->lun_tg_pt_secondary_offline, 0);
+	spin_lock_init(&lun->lun_deve_lock);
+	mutex_init(&lun->lun_tg_pt_md_mutex);
+	INIT_LIST_HEAD(&lun->lun_tg_pt_gp_link);
+	spin_lock_init(&lun->lun_tg_pt_gp_lock);
+	atomic_set(&lun->lun_active, 0);
+	lun->lun_tpg = tpg;
 
 	return lun;
 }
@@ -622,21 +624,40 @@ int core_tpg_add_lun(
 	ret = percpu_ref_init(&lun->lun_ref, core_tpg_lun_ref_release, 0,
 			      GFP_KERNEL);
 	if (ret < 0)
-		return ret;
+		goto out;
 
-	ret = core_dev_export(dev, tpg, lun);
-	if (ret < 0) {
-		percpu_ref_exit(&lun->lun_ref);
-		return ret;
-	}
+	ret = core_alloc_rtpi(lun, dev);
+	if (ret)
+		goto out_kill_ref;
+
+	if (!(dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH) &&
+	    !(dev->se_hba->hba_flags & HBA_FLAGS_INTERNAL_USE))
+		target_attach_tg_pt_gp(lun, dev->t10_alua.default_tg_pt_gp);
 
 	mutex_lock(&tpg->tpg_lun_mutex);
+
+	spin_lock(&lun->lun_sep_lock);
+	lun->lun_index = dev->dev_index;
+	lun->lun_se_dev = dev;
+	spin_unlock(&lun->lun_sep_lock);
+
+	spin_lock(&dev->se_port_lock);
+	rcu_assign_pointer(lun->lun_se_dev, dev);
+	dev->export_count++;
+	list_add_tail(&lun->lun_dev_link, &dev->dev_sep_list);
+	spin_unlock(&dev->se_port_lock);
+
 	lun->lun_access = lun_access;
 	if (!(dev->se_hba->hba_flags & HBA_FLAGS_INTERNAL_USE))
 		hlist_add_head_rcu(&lun->link, &tpg->tpg_lun_hlist);
 	mutex_unlock(&tpg->tpg_lun_mutex);
 
 	return 0;
+
+out_kill_ref:
+	percpu_ref_exit(&lun->lun_ref);
+out:
+	return ret;
 }
 
 void core_tpg_remove_lun(
@@ -648,9 +669,19 @@ void core_tpg_remove_lun(
 	core_clear_lun_from_tpg(lun, tpg);
 	transport_clear_lun_ref(lun);
 
-	core_dev_unexport(lun->lun_se_dev, tpg, lun);
-
 	mutex_lock(&tpg->tpg_lun_mutex);
+	if (lun->lun_se_dev) {
+		while (atomic_read(&lun->lun_active))
+			cpu_relax();
+
+		target_detach_tg_pt_gp(lun);
+
+		spin_lock(&dev->se_port_lock);
+		list_del(&lun->lun_dev_link);
+		dev->export_count--;
+		rcu_assign_pointer(lun->lun_se_dev, NULL);
+		spin_unlock(&dev->se_port_lock);
+	}
 	if (!(dev->se_hba->hba_flags & HBA_FLAGS_INTERNAL_USE))
 		hlist_del_rcu(&lun->link);
 	mutex_unlock(&tpg->tpg_lun_mutex);
