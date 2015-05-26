@@ -37,7 +37,7 @@ specification is available at
 	<link linkend="FE_GET_INFO">FE_GET_INFO</link>.</para>
 </section>
 
-&sub-frontend_get_info;
+&sub-fe-get-info;
 
 <section id="dvb-fe-read-status">
 <title>Querying frontend status</title>
@@ -46,7 +46,7 @@ specification is available at
 	<link linkend="FE_READ_STATUS">FE_READ_STATUS</link>.</para>
 </section>
 
-&sub-frontend_read_status;
+&sub-fe-read-status;
 
 &sub-dvbproperty;
 
