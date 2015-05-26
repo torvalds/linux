@@ -720,16 +720,23 @@ static void __exit xprt_rdma_cleanup(void)
 	if (rc)
 		dprintk("RPC:       %s: xprt_unregister returned %i\n",
 			__func__, rc);
+
+	frwr_destroy_recovery_wq();
 }
 
 static int __init xprt_rdma_init(void)
 {
 	int rc;
 
-	rc = xprt_register_transport(&xprt_rdma);
-
+	rc = frwr_alloc_recovery_wq();
 	if (rc)
 		return rc;
+
+	rc = xprt_register_transport(&xprt_rdma);
+	if (rc) {
+		frwr_destroy_recovery_wq();
+		return rc;
+	}
 
 	dprintk("RPCRDMA Module Init, register RPC RDMA transport\n");
 

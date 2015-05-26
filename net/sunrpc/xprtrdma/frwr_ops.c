@@ -17,6 +17,74 @@
 # define RPCDBG_FACILITY	RPCDBG_TRANS
 #endif
 
+static struct workqueue_struct *frwr_recovery_wq;
+
+#define FRWR_RECOVERY_WQ_FLAGS		(WQ_UNBOUND | WQ_MEM_RECLAIM)
+
+int
+frwr_alloc_recovery_wq(void)
+{
+	frwr_recovery_wq = alloc_workqueue("frwr_recovery",
+					   FRWR_RECOVERY_WQ_FLAGS, 0);
+	return !frwr_recovery_wq ? -ENOMEM : 0;
+}
+
+void
+frwr_destroy_recovery_wq(void)
+{
+	struct workqueue_struct *wq;
+
+	if (!frwr_recovery_wq)
+		return;
+
+	wq = frwr_recovery_wq;
+	frwr_recovery_wq = NULL;
+	destroy_workqueue(wq);
+}
+
+/* Deferred reset of a single FRMR. Generate a fresh rkey by
+ * replacing the MR.
+ *
+ * There's no recovery if this fails. The FRMR is abandoned, but
+ * remains in rb_all. It will be cleaned up when the transport is
+ * destroyed.
+ */
+static void
+__frwr_recovery_worker(struct work_struct *work)
+{
+	struct rpcrdma_mw *r = container_of(work, struct rpcrdma_mw,
+					    r.frmr.fr_work);
+	struct rpcrdma_xprt *r_xprt = r->r.frmr.fr_xprt;
+	unsigned int depth = r_xprt->rx_ia.ri_max_frmr_depth;
+	struct ib_pd *pd = r_xprt->rx_ia.ri_pd;
+
+	if (ib_dereg_mr(r->r.frmr.fr_mr))
+		goto out_fail;
+
+	r->r.frmr.fr_mr = ib_alloc_fast_reg_mr(pd, depth);
+	if (IS_ERR(r->r.frmr.fr_mr))
+		goto out_fail;
+
+	dprintk("RPC:       %s: recovered FRMR %p\n", __func__, r);
+	r->r.frmr.fr_state = FRMR_IS_INVALID;
+	rpcrdma_put_mw(r_xprt, r);
+	return;
+
+out_fail:
+	pr_warn("RPC:       %s: FRMR %p unrecovered\n",
+		__func__, r);
+}
+
+/* A broken MR was discovered in a context that can't sleep.
+ * Defer recovery to the recovery worker.
+ */
+static void
+__frwr_queue_recovery(struct rpcrdma_mw *r)
+{
+	INIT_WORK(&r->r.frmr.fr_work, __frwr_recovery_worker);
+	queue_work(frwr_recovery_wq, &r->r.frmr.fr_work);
+}
+
 static int
 __frwr_init(struct rpcrdma_mw *r, struct ib_pd *pd, struct ib_device *device,
 	    unsigned int depth)
@@ -128,7 +196,7 @@ frwr_sendcompletion(struct ib_wc *wc)
 
 	/* WARNING: Only wr_id and status are reliable at this point */
 	r = (struct rpcrdma_mw *)(unsigned long)wc->wr_id;
-	dprintk("RPC:       %s: frmr %p (stale), status %d\n",
+	pr_warn("RPC:       %s: frmr %p flushed, status %d\n",
 		__func__, r, wc->status);
 	r->r.frmr.fr_state = FRMR_IS_STALE;
 }
@@ -165,6 +233,7 @@ frwr_op_init(struct rpcrdma_xprt *r_xprt)
 		list_add(&r->mw_list, &buf->rb_mws);
 		list_add(&r->mw_all, &buf->rb_all);
 		r->mw_sendcompletion = frwr_sendcompletion;
+		r->r.frmr.fr_xprt = r_xprt;
 	}
 
 	return 0;
