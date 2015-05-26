@@ -1324,28 +1324,6 @@ rpcrdma_buffer_get_frmrs(struct rpcrdma_req *req, struct rpcrdma_buffer *buf,
 	return NULL;
 }
 
-static struct rpcrdma_req *
-rpcrdma_buffer_get_fmrs(struct rpcrdma_req *req, struct rpcrdma_buffer *buf)
-{
-	struct rpcrdma_mw *r;
-	int i;
-
-	i = RPCRDMA_MAX_SEGS - 1;
-	while (!list_empty(&buf->rb_mws)) {
-		r = list_entry(buf->rb_mws.next,
-			       struct rpcrdma_mw, mw_list);
-		list_del(&r->mw_list);
-		req->rl_segments[i].rl_mw = r;
-		if (unlikely(i-- == 0))
-			return req;	/* Success */
-	}
-
-	/* Not enough entries on rb_mws for this req */
-	rpcrdma_buffer_put_sendbuf(req, buf);
-	rpcrdma_buffer_put_mrs(req, buf);
-	return NULL;
-}
-
 /*
  * Get a set of request/reply buffers.
  *
@@ -1387,9 +1365,6 @@ rpcrdma_buffer_get(struct rpcrdma_buffer *buffers)
 	case RPCRDMA_FRMR:
 		req = rpcrdma_buffer_get_frmrs(req, buffers, &stale);
 		break;
-	case RPCRDMA_MTHCAFMR:
-		req = rpcrdma_buffer_get_fmrs(req, buffers);
-		break;
 	default:
 		break;
 	}
@@ -1414,7 +1389,6 @@ rpcrdma_buffer_put(struct rpcrdma_req *req)
 	rpcrdma_buffer_put_sendbuf(req, buffers);
 	switch (ia->ri_memreg_strategy) {
 	case RPCRDMA_FRMR:
-	case RPCRDMA_MTHCAFMR:
 		rpcrdma_buffer_put_mrs(req, buffers);
 		break;
 	default:

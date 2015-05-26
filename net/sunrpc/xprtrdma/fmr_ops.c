@@ -11,6 +11,21 @@
  * can take tens of usecs to complete.
  */
 
+/* Normal operation
+ *
+ * A Memory Region is prepared for RDMA READ or WRITE using the
+ * ib_map_phys_fmr verb (fmr_op_map). When the RDMA operation is
+ * finished, the Memory Region is unmapped using the ib_unmap_fmr
+ * verb (fmr_op_unmap).
+ */
+
+/* Transport recovery
+ *
+ * After a transport reconnect, fmr_op_map re-uses the MR already
+ * allocated for the RPC, but generates a fresh rkey then maps the
+ * MR again. This process is synchronous.
+ */
+
 #include "xprt_rdma.h"
 
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
@@ -77,6 +92,15 @@ out_fmr_err:
 	return rc;
 }
 
+static int
+__fmr_unmap(struct rpcrdma_mw *r)
+{
+	LIST_HEAD(l);
+
+	list_add(&r->r.fmr->list, &l);
+	return ib_unmap_fmr(&l);
+}
+
 /* Use the ib_map_phys_fmr() verb to register a memory region
  * for remote access via RDMA READ or RDMA WRITE.
  */
@@ -88,9 +112,22 @@ fmr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 	struct ib_device *device = ia->ri_device;
 	enum dma_data_direction direction = rpcrdma_data_dir(writing);
 	struct rpcrdma_mr_seg *seg1 = seg;
-	struct rpcrdma_mw *mw = seg1->rl_mw;
 	u64 physaddrs[RPCRDMA_MAX_DATA_SEGS];
 	int len, pageoff, i, rc;
+	struct rpcrdma_mw *mw;
+
+	mw = seg1->rl_mw;
+	seg1->rl_mw = NULL;
+	if (!mw) {
+		mw = rpcrdma_get_mw(r_xprt);
+		if (!mw)
+			return -ENOMEM;
+	} else {
+		/* this is a retransmit; generate a fresh rkey */
+		rc = __fmr_unmap(mw);
+		if (rc)
+			return rc;
+	}
 
 	pageoff = offset_in_page(seg1->mr_offset);
 	seg1->mr_offset -= pageoff;	/* start of page */
@@ -114,6 +151,7 @@ fmr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 	if (rc)
 		goto out_maperr;
 
+	seg1->rl_mw = mw;
 	seg1->mr_rkey = mw->r.fmr->rkey;
 	seg1->mr_base = seg1->mr_dma + pageoff;
 	seg1->mr_nsegs = i;
@@ -137,18 +175,24 @@ fmr_op_unmap(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg)
 {
 	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
 	struct rpcrdma_mr_seg *seg1 = seg;
+	struct rpcrdma_mw *mw = seg1->rl_mw;
 	int rc, nsegs = seg->mr_nsegs;
-	LIST_HEAD(l);
 
-	list_add(&seg1->rl_mw->r.fmr->list, &l);
-	rc = ib_unmap_fmr(&l);
+	dprintk("RPC:       %s: FMR %p\n", __func__, mw);
+
+	seg1->rl_mw = NULL;
 	while (seg1->mr_nsegs--)
 		rpcrdma_unmap_one(ia->ri_device, seg++);
+	rc = __fmr_unmap(mw);
 	if (rc)
 		goto out_err;
+	rpcrdma_put_mw(r_xprt, mw);
 	return nsegs;
 
 out_err:
+	/* The FMR is abandoned, but remains in rb_all. fmr_op_destroy
+	 * will attempt to release it when the transport is destroyed.
+	 */
 	dprintk("RPC:       %s: ib_unmap_fmr status %i\n", __func__, rc);
 	return nsegs;
 }
