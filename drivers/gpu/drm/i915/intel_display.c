@@ -2210,20 +2210,6 @@ static void intel_disable_pipe(struct intel_crtc *crtc)
 		intel_wait_for_pipe_off(crtc);
 }
 
-/*
- * Plane regs are double buffered, going from enabled->disabled needs a
- * trigger in order to latch.  The display address reg provides this.
- */
-void intel_flush_primary_plane(struct drm_i915_private *dev_priv,
-			       enum plane plane)
-{
-	struct drm_device *dev = dev_priv->dev;
-	u32 reg = INTEL_INFO(dev)->gen >= 4 ? DSPSURF(plane) : DSPADDR(plane);
-
-	I915_WRITE(reg, I915_READ(reg));
-	POSTING_READ(reg);
-}
-
 /**
  * intel_enable_primary_hw_plane - enable the primary plane on a given pipe
  * @plane:  plane to be enabled

@@ -5886,13 +5886,15 @@ static void ibx_init_clock_gating(struct drm_device *dev)
 static void g4x_disable_trickle_feed(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int pipe;
+	enum pipe pipe;
 
 	for_each_pipe(dev_priv, pipe) {
 		I915_WRITE(DSPCNTR(pipe),
 			   I915_READ(DSPCNTR(pipe)) |
 			   DISPPLANE_TRICKLE_FEED_DISABLE);
-		intel_flush_primary_plane(dev_priv, pipe);
+
+		I915_WRITE(DSPSURF(pipe), I915_READ(DSPSURF(pipe)));
+		POSTING_READ(DSPSURF(pipe));
 	}
 }
 
