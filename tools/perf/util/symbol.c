@@ -398,7 +398,7 @@ static struct symbol *symbols__find_by_name(struct rb_root *symbols,
 					    const char *name)
 {
 	struct rb_node *n;
-	struct symbol_name_rb_node *s;
+	struct symbol_name_rb_node *s = NULL;
 
 	if (symbols == NULL)
 		return NULL;
