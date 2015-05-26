@@ -65,13 +65,6 @@ IOCTLS = \
 	$(shell perl -ne 'print "$$1 " if /\#define\s+([^\s]+)\s+_IO/' $(srctree)/include/uapi/linux/dvb/video.h) \
 	$(shell perl -ne 'print "$$1 " if /\#define\s+([^\s]+)\s+_IO/' $(srctree)/include/uapi/linux/media.h) \
 	$(shell perl -ne 'print "$$1 " if /\#define\s+([^\s]+)\s+_IO/' $(srctree)/include/uapi/linux/v4l2-subdev.h) \
-	VIDIOC_SUBDEV_G_FRAME_INTERVAL \
-	VIDIOC_SUBDEV_S_FRAME_INTERVAL \
-	VIDIOC_SUBDEV_ENUM_MBUS_CODE \
-	VIDIOC_SUBDEV_ENUM_FRAME_SIZE \
-	VIDIOC_SUBDEV_ENUM_FRAME_INTERVAL \
-	VIDIOC_SUBDEV_G_SELECTION \
-	VIDIOC_SUBDEV_S_SELECTION \
 
 DEFINES = \
 	$(shell perl -ne 'print "$$1 " if /\#define\s+(DTV_[^\s]+)\s+/' $(srctree)/include/uapi/linux/dvb/frontend.h) \
