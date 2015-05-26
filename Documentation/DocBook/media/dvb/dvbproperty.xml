@@ -1,8 +1,35 @@
-<section id="FE_GET_SET_PROPERTY">
-<title><constant>FE_GET_PROPERTY/FE_SET_PROPERTY</constant></title>
-<para>This section describes the DVB version 5 extension of the DVB-API, also
-called "S2API", as this API were added to provide support for DVB-S2. It was
-designed to be able to replace the old frontend API. Yet, the DISEQC and
+<section id="frontend-properties">
+<title>DVB Frontend properties</title>
+<para>Tuning into a Digital TV physical channel and starting decoding it
+    requires to change a set of parameters, in order to control the
+    tuner, the demodulator, the Linear Low-noise Amplifier (LNA) and to set the
+    antena subsystem via Satellite Equipment Control (SEC), on satellital
+    systems. The actual parameters are specific to each particular digital
+    TV standards, and may change as the digital TV specs evolutes.</para>
+<para>In the past, the strategy used were to have an union with the parameters
+    needed to tune for DVB-S, DVB-C, DVB-T and ATSC delivery systems grouped
+    there. The problem is that, as the second generation standards appeared,
+    those structs were not big enough to contain the additional parameters.
+    Also, the union didn't have any space left to be expanded without breaking
+    userspace. So, the decision was to deprecate the legacy union/struct based
+    approach, in favor of a properties set approach.</para>
+<para>By using a properties set, it is now possible to extend and support any
+    digital TV without needing to redesign the API</para>
+<para>Example: with the properties based approach, in order to set the tuner
+    to a DVB-C channel at 651 kHz, modulated with 256-QAM, FEC 3/4 and symbol
+    rate of 5.217 Mbauds, those properties should be sent to
+    <link linkend="FE_GET_PROPERTY"><constant>FE_SET_PROPERTY</constant></link> ioctl:</para>
+    <itemizedlist>
+	<listitem>DTV_FREQUENCY = 651000000</listitem>
+	<listitem>DTV_MODULATION = QAM_256</listitem>
+	<listitem>DTV_INVERSION = INVERSION_AUTO</listitem>
+	<listitem>DTV_SYMBOL_RATE = 5217000</listitem>
+	<listitem>DTV_INNER_FEC = FEC_3_4</listitem>
+	<listitem>DTV_TUNE</listitem>
+    </itemizedlist>
+<para>NOTE: This section describes the DVB version 5 extension of the DVB-API,
+also called "S2API", as this API were added to provide support for DVB-S2. It
+was designed to be able to replace the old frontend API. Yet, the DISEQC and
 the capability ioctls weren't implemented yet via the new way.</para>
 <para>The typical usage for the <constant>FE_GET_PROPERTY/FE_SET_PROPERTY</constant>
 API is to replace the ioctl's were the <link linkend="dvb-frontend-parameters">
