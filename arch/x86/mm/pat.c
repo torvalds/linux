@@ -55,6 +55,7 @@ bool pat_enabled(void)
 {
 	return !!__pat_enabled;
 }
+EXPORT_SYMBOL_GPL(pat_enabled);
 
 int pat_debug_enable;
 
