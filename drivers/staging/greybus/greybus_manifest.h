@@ -4,8 +4,8 @@
  * See "Greybus Application Protocol" document (version 0.1) for
  * details on these values and structures.
  *
- * Copyright 2014 Google Inc.
- * Copyright 2014 Linaro Ltd.
+ * Copyright 2014-2015 Google Inc.
+ * Copyright 2014-2015 Linaro Ltd.
  *
  * Released under the GPLv2 and BSD licenses.
  */
@@ -42,6 +42,7 @@ enum greybus_protocol {
 	GREYBUS_PROTOCOL_LOOPBACK	= 0x11,
 	GREYBUS_PROTOCOL_I2S_RECEIVER	= 0x12,
 	GREYBUS_PROTOCOL_I2S_TRANSMITTER = 0x13,
+	GREYBUS_PROTOCOL_SVC            = 0x14,
 		/* ... */
 	GREYBUS_PROTOCOL_RAW		= 0xfe,
 	GREYBUS_PROTOCOL_VENDOR		= 0xff,

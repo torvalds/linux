@@ -2,6 +2,7 @@
  * Greybus endo code
  *
  * Copyright 2015 Google Inc.
+ * Copyright 2015 Linaro Ltd.
  *
  * Released under the GPLv2 only.
  */
@@ -10,7 +11,7 @@
 #define __ENDO_H
 
 /* Greybus "public" definitions" */
-struct gb_svc {
+struct gb_svc_info {
 	u8 serial_number[10];
 	u8 version[10];
 };
@@ -36,10 +37,11 @@ struct endo_layout {
 };
 
 struct gb_endo {
-	struct endo_layout layout;
 	struct device dev;
-	struct gb_svc svc;
+	struct endo_layout layout;
+	struct gb_svc_info svc_info;
 	u16 id;
+	u8 ap_intf_id;
 };
 #define to_gb_endo(d) container_of(d, struct gb_endo, dev)
 
@@ -47,7 +49,8 @@ struct gb_endo {
 /* Greybus "private" definitions */
 struct greybus_host_device;
 
-struct gb_endo *gb_endo_create(struct greybus_host_device *hd);
+struct gb_endo *gb_endo_create(struct greybus_host_device *hd,
+				u16 endo_id, u8 ap_intf_id);
 void gb_endo_remove(struct gb_endo *endo);
 
 u8 endo_get_module_id(struct gb_endo *endo, u8 interface_id);

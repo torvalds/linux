@@ -1,8 +1,8 @@
 /*
  * Greybus "Core"
  *
- * Copyright 2014 Google Inc.
- * Copyright 2014 Linaro Ltd.
+ * Copyright 2014-2015 Google Inc.
+ * Copyright 2014-2015 Linaro Ltd.
  *
  * Released under the GPLv2 only.
  */
@@ -185,7 +185,7 @@ struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *driver
 	if ((!driver->message_send) || (!driver->message_cancel) ||
 	    (!driver->submit_svc)) {
 		pr_err("Must implement all greybus_host_driver callbacks!\n");
-		return NULL;
+		return ERR_PTR(-EINVAL);
 	}
 
 	if (buffer_size_max < GB_OPERATION_MESSAGE_SIZE_MIN) {
@@ -205,7 +205,7 @@ struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *driver
 
 	hd = kzalloc(sizeof(*hd) + driver->hd_priv_size, GFP_KERNEL);
 	if (!hd)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	kref_init(&hd->kref);
 	hd->parent = parent;
@@ -215,15 +215,23 @@ struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *driver
 	ida_init(&hd->cport_id_map);
 	hd->buffer_size_max = buffer_size_max;
 
-	hd->endo = gb_endo_create(hd);
-	if (!hd->endo) {
-		greybus_remove_hd(hd);
-		return NULL;
-	}
-
 	return hd;
 }
 EXPORT_SYMBOL_GPL(greybus_create_hd);
+
+int greybus_endo_setup(struct greybus_host_device *hd, u16 endo_id,
+			u8 ap_intf_id)
+{
+	struct gb_endo *endo;
+
+	endo = gb_endo_create(hd, endo_id, ap_intf_id);
+	if (IS_ERR(endo))
+		return PTR_ERR(endo);
+	hd->endo = endo;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(greybus_endo_setup);
 
 void greybus_remove_hd(struct greybus_host_device *hd)
 {

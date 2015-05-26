@@ -1,8 +1,8 @@
 /*
  * Greybus driver and device API
  *
- * Copyright 2014 Google Inc.
- * Copyright 2014 Linaro Ltd.
+ * Copyright 2014-2015 Google Inc.
+ * Copyright 2014-2015 Linaro Ltd.
  *
  * Released under the GPLv2 only.
  */
@@ -23,8 +23,10 @@
 #include "kernel_ver.h"
 #include "greybus_id.h"
 #include "greybus_manifest.h"
+#include "greybus_protocols.h"
 #include "manifest.h"
 #include "endo.h"
+#include "svc.h"
 #include "module.h"
 #include "interface.h"
 #include "bundle.h"
@@ -107,6 +109,8 @@ struct greybus_host_device {
 struct greybus_host_device *greybus_create_hd(struct greybus_host_driver *hd,
 					      struct device *parent,
 					      size_t buffer_size_max);
+int greybus_endo_setup(struct greybus_host_device *hd, u16 endo_id,
+			u8 ap_intf_id);
 void greybus_remove_hd(struct greybus_host_device *hd);
 
 struct greybus_driver {

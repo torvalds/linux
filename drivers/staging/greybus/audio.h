@@ -1,14 +1,23 @@
+/*
+ * Greybus audio
+ *
+ * Copyright 2015 Google Inc.
+ * Copyright 2015 Linaro Ltd.
+ *
+ * Released under the GPLv2 only.
+ */
+
 #ifndef __GB_AUDIO_H
 #define __GB_AUDIO_H
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <sound/soc.h>
-#include "greybus.h"
-#include "gpbridge.h"
 
+#include "greybus.h"
 
 #define GB_SAMPLE_RATE				48000
 #define GB_RATES				SNDRV_PCM_RATE_48000
@@ -20,9 +29,7 @@
 #define CONFIG_SAMPLES_PER_MSG			48L
 #define CONFIG_PERIOD_NS			1000000 /* send msg every 1ms */
 
-#define CONFIG_COUNT_MAX			32
-#define CONFIG_I2S_REMOTE_DATA_CPORT		7 /* XXX shouldn't be hardcoded...*/
-#define RT5647_SLAVE_ADDR			0x1b /* from toshiba/quanta code */
+#define CONFIG_COUNT_MAX			20
 
 /* Switch between dummy spdif and jetson rt5645 codec */
 #define USE_RT5645				0
@@ -42,9 +49,12 @@ struct gb_snd {
 	struct platform_device		cpu_dai;
 	struct platform_device		*codec;
 	struct asoc_simple_card_info	*simple_card_info;
+	struct i2c_client		*rt5647;
 	struct gb_connection		*mgmt_connection;
 	struct gb_connection		*i2s_tx_connection;
 	struct gb_connection		*i2s_rx_connection;
+	struct gb_i2s_mgmt_get_supported_configurations_response
+					*i2s_configs;
 	char				*send_data_req_buf;
 	long				send_data_sample_count;
 	int				gb_bundle_id;
@@ -52,6 +62,7 @@ struct gb_snd {
 	struct snd_pcm_substream	*substream;
 	struct hrtimer			timer;
 	atomic_t			running;
+	bool				cport_active;
 	struct workqueue_struct		*workqueue;
 	struct work_struct		work;
 	int				hwptr_done;
@@ -78,7 +89,11 @@ int gb_i2s_mgmt_set_configuration(struct gb_connection *connection,
 			struct gb_i2s_mgmt_set_configuration_request *set_cfg);
 int gb_i2s_mgmt_set_samples_per_message(struct gb_connection *connection,
 					uint16_t samples_per_message);
-int gb_i2s_mgmt_setup(struct gb_connection *connection);
+int gb_i2s_mgmt_get_cfgs(struct gb_snd *snd_dev,
+			 struct gb_connection *connection);
+void gb_i2s_mgmt_free_cfgs(struct gb_snd *snd_dev);
+int gb_i2s_mgmt_set_cfg(struct gb_snd *snd_dev, int rate, int chans,
+			int bytes_per_chan, int is_le);
 int gb_i2s_send_data(struct gb_connection *connection, void *req_buf,
 				void *source_addr, size_t len, int sample_num);
 

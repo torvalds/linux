@@ -1,8 +1,8 @@
 /*
  * Greybus endo code
  *
- * Copyright 2015 Google Inc.
- * Copyright 2014 Linaro Ltd.
+ * Copyright 2014-2015 Google Inc.
+ * Copyright 2014-2015 Linaro Ltd.
  *
  * Released under the GPLv2 only.
  */
@@ -29,36 +29,82 @@
 #define endo_back_left_ribs(id, ribs)		(((id) >> (ribs)) & ENDO_BACK_SIDE_RIBS_MASK(ribs))
 #define endo_back_right_ribs(id, ribs)		((id) & ENDO_BACK_SIDE_RIBS_MASK(ribs))
 
+/*
+ * An Endo has interface block positions on the front and back.
+ * Each has numeric ID, starting with 1 (interface 0 represents
+ * the SVC within the Endo itself).  The maximum interface ID is the
+ * also the number of non-SVC interfaces possible on the endo.
+ *
+ * Total number of interfaces:
+ * - Front: 4
+ * - Back left: max_ribs + 1
+ * - Back right: max_ribs + 1
+ */
+#define max_endo_interface_id(endo_layout) \
+		(4 + ((endo_layout)->max_ribs + 1) * 2)
+
 /* endo sysfs attributes */
-static ssize_t serial_number_show(struct device *dev,
-				  struct device_attribute *attr, char *buf)
+static ssize_t svc_serial_number_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	struct gb_endo *endo = to_gb_endo(dev);
 
-	return sprintf(buf, "%s", &endo->svc.serial_number[0]);
+	return sprintf(buf, "%s", &endo->svc_info.serial_number[0]);
 }
-static DEVICE_ATTR_RO(serial_number);
+static DEVICE_ATTR_RO(svc_serial_number);
 
-static ssize_t version_show(struct device *dev, struct device_attribute *attr,
-			    char *buf)
+static ssize_t svc_version_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	struct gb_endo *endo = to_gb_endo(dev);
 
-	return sprintf(buf, "%s", &endo->svc.version[0]);
+	return sprintf(buf, "%s", &endo->svc_info.version[0]);
 }
-static DEVICE_ATTR_RO(version);
+static DEVICE_ATTR_RO(svc_version);
 
-static struct attribute *endo_attrs[] = {
-	&dev_attr_serial_number.attr,
-	&dev_attr_version.attr,
+static struct attribute *svc_attrs[] = {
+	&dev_attr_svc_serial_number.attr,
+	&dev_attr_svc_version.attr,
 	NULL,
 };
-static const struct attribute_group endo_group = {
-	.attrs = endo_attrs,
+
+static const struct attribute_group svc_group = {
+	.attrs = svc_attrs,
 	.name = "SVC",
 };
+
+static ssize_t endo_id_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct gb_endo *endo = to_gb_endo(dev);
+
+	return sprintf(buf, "0x%04x", endo->id);
+}
+static DEVICE_ATTR_RO(endo_id);
+
+static ssize_t ap_intf_id_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct gb_endo *endo = to_gb_endo(dev);
+
+	return sprintf(buf, "0x%02x", endo->ap_intf_id);
+}
+static DEVICE_ATTR_RO(ap_intf_id);
+
+static struct attribute *endo_attrs[] = {
+	&dev_attr_endo_id.attr,
+	&dev_attr_ap_intf_id.attr,
+	NULL,
+};
+
+static const struct attribute_group endo_group = {
+	.attrs = endo_attrs,
+	.name = "Endo",
+};
+
 static const struct attribute_group *endo_groups[] = {
 	&endo_group,
+	&svc_group,
 	NULL,
 };
 
@@ -361,19 +407,12 @@ static int create_modules(struct gb_endo *endo)
 	int prev_module_id = 0;
 	int interface_id;
 	int module_id;
-	int interfaces;
+	int max_id;
 
-	/*
-	 * Total number of interfaces:
-	 * - Front: 4
-	 * - Back:
-	 *   - Left: max_ribs + 1
-	 *   - Right: max_ribs + 1
-	 */
-	interfaces = 4 + (endo->layout.max_ribs + 1) * 2;
+	max_id = max_endo_interface_id(&endo->layout);
 
 	/* Find module corresponding to each interface */
-	for (interface_id = 1; interface_id <= interfaces; interface_id++) {
+	for (interface_id = 1; interface_id <= max_id; interface_id++) {
 		module_id = endo_get_module_id(endo, interface_id);
 
 		if (WARN_ON(!module_id))
@@ -409,8 +448,8 @@ static int gb_endo_register(struct greybus_host_device *hd,
 	// FIXME
 	// Get the version and serial number from the SVC, right now we are
 	// using "fake" numbers.
-	strcpy(&endo->svc.serial_number[0], "042");
-	strcpy(&endo->svc.version[0], "0.0");
+	strcpy(&endo->svc_info.serial_number[0], "042");
+	strcpy(&endo->svc_info.version[0], "0.0");
 
 	dev_set_name(&endo->dev, "endo-0x%04x", endo->id);
 	retval = device_add(&endo->dev);
@@ -423,24 +462,31 @@ static int gb_endo_register(struct greybus_host_device *hd,
 	return retval;
 }
 
-struct gb_endo *gb_endo_create(struct greybus_host_device *hd)
+struct gb_endo *gb_endo_create(struct greybus_host_device *hd, u16 endo_id,
+				u8 ap_intf_id)
 {
 	struct gb_endo *endo;
 	int retval;
-	u16 endo_id = 0x4755; // FIXME - get endo "ID" from the SVC
 
 	endo = kzalloc(sizeof(*endo), GFP_KERNEL);
 	if (!endo)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	/* First check if the value supplied is a valid endo id */
-	if (gb_endo_validate_id(hd, &endo->layout, endo_id))
+	if (gb_endo_validate_id(hd, &endo->layout, endo_id)) {
+		retval = -EINVAL;
 		goto free_endo;
-
+	}
+	if (ap_intf_id > max_endo_interface_id(&endo->layout)) {
+		retval = -EINVAL;
+		goto free_endo;
+	}
 	endo->id = endo_id;
+	endo->ap_intf_id = ap_intf_id;
 
 	/* Register Endo device */
-	if (gb_endo_register(hd, endo))
+	retval = gb_endo_register(hd, endo);
+	if (retval)
 		goto free_endo;
 
 	/* Create modules/interfaces */
@@ -454,7 +500,8 @@ struct gb_endo *gb_endo_create(struct greybus_host_device *hd)
 
 free_endo:
 	kfree(endo);
-	return NULL;
+
+	return ERR_PTR(retval);
 }
 
 void gb_endo_remove(struct gb_endo *endo)

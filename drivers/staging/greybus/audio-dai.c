@@ -1,3 +1,12 @@
+/*
+ * Greybus audio Digital Audio Interface (DAI) driver
+ *
+ * Copyright 2015 Google Inc.
+ * Copyright 2015 Linaro Ltd.
+ *
+ * Released under the GPLv2 only.
+ */
+
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
@@ -11,8 +20,8 @@
 #include <sound/soc.h>
 #include <sound/dmaengine_pcm.h>
 #include <sound/simple_card.h>
+
 #include "greybus.h"
-#include "gpbridge.h"
 #include "audio.h"
 
 /*

@@ -1,3 +1,12 @@
+/*
+ * Greybus audio Pulse Code Modulation (PCM) driver
+ *
+ * Copyright 2015 Google Inc.
+ * Copyright 2015 Linaro Ltd.
+ *
+ * Released under the GPLv2 only.
+ */
+
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
@@ -11,8 +20,8 @@
 #include <sound/soc.h>
 #include <sound/dmaengine_pcm.h>
 #include <sound/simple_card.h>
+
 #include "greybus.h"
-#include "gpbridge.h"
 #include "audio.h"
 
 /*
@@ -32,15 +41,33 @@ static void gb_pcm_work(struct work_struct *work)
 	struct snd_pcm_substream *substream = snd_dev->substream;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	unsigned int stride, frames, oldptr;
-	int period_elapsed;
+	int period_elapsed, ret;
 	char *address;
 	long len;
 
 	if (!snd_dev)
 		return;
 
-	if (!atomic_read(&snd_dev->running))
+	if (!atomic_read(&snd_dev->running)) {
+		if (snd_dev->cport_active) {
+			ret = gb_i2s_mgmt_deactivate_cport(
+				snd_dev->mgmt_connection,
+				snd_dev->i2s_tx_connection->bundle_cport_id);
+			if (ret) /* XXX Do what else with failure? */
+				pr_err("deactivate_cport failed: %d\n", ret);
+
+			snd_dev->cport_active = false;
+		}
+
 		return;
+	} else if (!snd_dev->cport_active) {
+		ret = gb_i2s_mgmt_activate_cport(snd_dev->mgmt_connection,
+				snd_dev->i2s_tx_connection->bundle_cport_id);
+		if (ret)
+			pr_err("activate_cport failed: %d\n", ret);
+
+		snd_dev->cport_active = true;
+	}
 
 	address = runtime->dma_area + snd_dev->hwptr_done;
 
@@ -88,6 +115,7 @@ static enum hrtimer_restart gb_pcm_timer_function(struct hrtimer *hrtimer)
 void gb_pcm_hrtimer_start(struct gb_snd *snd_dev)
 {
 	atomic_set(&snd_dev->running, 1);
+	queue_work(snd_dev->workqueue, &snd_dev->work); /* Activates CPort */
 	hrtimer_start(&snd_dev->timer, ns_to_ktime(CONFIG_PERIOD_NS),
 						HRTIMER_MODE_REL);
 }
@@ -96,6 +124,7 @@ void gb_pcm_hrtimer_stop(struct gb_snd *snd_dev)
 {
 	atomic_set(&snd_dev->running, 0);
 	hrtimer_cancel(&snd_dev->timer);
+	queue_work(snd_dev->workqueue, &snd_dev->work); /* Deactivates CPort */
 }
 
 static int gb_pcm_hrtimer_init(struct gb_snd *snd_dev)
@@ -200,6 +229,21 @@ static int gb_pcm_close(struct snd_pcm_substream *substream)
 static int gb_pcm_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *hw_params)
 {
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct gb_snd *snd_dev;
+	int rate, chans, bytes_per_chan, is_le, ret;
+
+	snd_dev = snd_soc_dai_get_drvdata(rtd->cpu_dai);
+
+	rate = params_rate(hw_params);
+	chans = params_channels(hw_params);
+	bytes_per_chan = snd_pcm_format_width(params_format(hw_params)) / 8;
+	is_le = snd_pcm_format_little_endian(params_format(hw_params));
+
+	ret = gb_i2s_mgmt_set_cfg(snd_dev, rate, chans, bytes_per_chan, is_le);
+	if (ret)
+		return ret;
+
 	return snd_pcm_lib_malloc_pages(substream,
 					params_buffer_bytes(hw_params));
 }

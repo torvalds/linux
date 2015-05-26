@@ -14,7 +14,6 @@
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include "greybus.h"
-#include "gpbridge.h"
 
 struct gb_gpio_line {
 	/* The following has to be an array of line_max entries */

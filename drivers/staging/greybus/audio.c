@@ -1,23 +1,34 @@
+/*
+ * Greybus audio driver
+ *
+ * Copyright 2015 Google Inc.
+ * Copyright 2015 Linaro Ltd.
+ *
+ * Released under the GPLv2 only.
+ */
+
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/workqueue.h>
-#include <linux/i2c.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/dmaengine_pcm.h>
 #include <sound/simple_card.h>
+
 #include "greybus.h"
-#include "gpbridge.h"
 #include "audio.h"
 
 
 #define GB_AUDIO_DATA_DRIVER_NAME		"gb_audio_data"
 #define GB_AUDIO_MGMT_DRIVER_NAME		"gb_audio_mgmt"
+
+#define RT5647_I2C_ADAPTER_NR			6
+#define RT5647_I2C_ADDR				0x1b
 
 /*
  * gb_snd management functions
@@ -107,13 +118,17 @@ static struct asoc_simple_card_info *setup_card_info(int device_count)
 	obj->card_info.platform		= obj->platform_name;
 	obj->card_info.cpu_dai.name	= obj->dai_name;
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 1, 0)
-	obj->card_info.cpu_dai.fmt	= GB_FMTS;
+	obj->card_info.cpu_dai.fmt	= SND_SOC_DAIFMT_CBM_CFM;
 #endif
 #if USE_RT5645
-	obj->card_info.daifmt		= GB_FMTS;
-	sprintf(obj->codec_name, "rt5645.%s", "6-001b"); /* XXX do i2c bus addr dynamically */
+	obj->card_info.daifmt		= SND_SOC_DAIFMT_NB_NF |
+					  SND_SOC_DAIFMT_I2S;
+	sprintf(obj->codec_name, "rt5645.%d-%04x", RT5647_I2C_ADAPTER_NR,
+		RT5647_I2C_ADDR);
 	obj->card_info.codec_dai.name	= "rt5645-aif1";
-	obj->card_info.codec_dai.fmt	= SND_SOC_DAIFMT_CBM_CFM;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 1, 0)
+	obj->card_info.codec_dai.fmt	= SND_SOC_DAIFMT_CBS_CFS;
+#endif
 	obj->card_info.codec_dai.sysclk	= 12288000;
 #else
 	sprintf(obj->codec_name, "spdif-dit");
@@ -150,6 +165,9 @@ static int gb_i2s_transmitter_connection_init(struct gb_connection *connection)
 	struct gb_snd *snd_dev;
 	struct platform_device *codec, *dai;
 	struct asoc_simple_card_info *simple_card;
+#if USE_RT5645
+	struct i2c_board_info rt5647_info;
+#endif
 	unsigned long flags;
 	int ret;
 
@@ -212,6 +230,18 @@ static int gb_i2s_transmitter_connection_init(struct gb_connection *connection)
 		goto out_get_ver;
 	}
 
+#if USE_RT5645
+	rt5647_info.addr = RT5647_I2C_ADDR;
+	strlcpy(rt5647_info.type, "rt5647", I2C_NAME_SIZE);
+
+	snd_dev->rt5647 = i2c_new_device(i2c_get_adapter(RT5647_I2C_ADAPTER_NR),
+					 &rt5647_info);
+	if (!snd_dev->rt5647) {
+		pr_err("can't create rt5647 i2c device\n");
+		goto out_get_ver;
+	}
+#endif
+
 	return 0;
 
 out_get_ver:
@@ -230,6 +260,10 @@ static void gb_i2s_transmitter_connection_exit(struct gb_connection *connection)
 	struct gb_snd *snd_dev;
 
 	snd_dev = (struct gb_snd *)connection->private;
+
+#if USE_RT5645
+	i2c_unregister_device(snd_dev->rt5647);
+#endif
 
 	platform_device_unregister(&snd_dev->card);
 	platform_device_unregister(&snd_dev->cpu_dai);
@@ -261,19 +295,30 @@ static int gb_i2s_mgmt_connection_init(struct gb_connection *connection)
 		goto err_free_snd_dev;
 	}
 
-	gb_i2s_mgmt_setup(connection);
+	ret = gb_i2s_mgmt_get_cfgs(snd_dev, connection);
+	if (ret) {
+		pr_err("can't get i2s configurations: %d\n", ret);
+		goto err_free_snd_dev;
+	}
+
+	ret = gb_i2s_mgmt_set_samples_per_message(snd_dev->mgmt_connection,
+						  CONFIG_SAMPLES_PER_MSG);
+	if (ret) {
+		pr_err("set_samples_per_msg failed: %d\n", ret);
+		goto err_free_i2s_configs;
+	}
 
 	snd_dev->send_data_req_buf = kzalloc(SEND_DATA_BUF_LEN, GFP_KERNEL);
 
 	if (!snd_dev->send_data_req_buf) {
 		ret = -ENOMEM;
-		goto err_deactivate_cport;
+		goto err_free_i2s_configs;
 	}
 
 	return 0;
 
-err_deactivate_cport:
-	gb_i2s_mgmt_deactivate_cport(connection, CONFIG_I2S_REMOTE_DATA_CPORT);
+err_free_i2s_configs:
+	gb_i2s_mgmt_free_cfgs(snd_dev);
 err_free_snd_dev:
 	gb_free_snd(snd_dev);
 	return ret;
@@ -282,12 +327,8 @@ err_free_snd_dev:
 static void gb_i2s_mgmt_connection_exit(struct gb_connection *connection)
 {
 	struct gb_snd *snd_dev = (struct gb_snd *)connection->private;
-	int ret;
 
-	ret = gb_i2s_mgmt_deactivate_cport(connection,
-					   CONFIG_I2S_REMOTE_DATA_CPORT);
-	if (ret)
-		pr_err("deactivate_cport failed: %d\n", ret);
+	gb_i2s_mgmt_free_cfgs(snd_dev);
 
 	kfree(snd_dev->send_data_req_buf);
 	snd_dev->send_data_req_buf = NULL;
