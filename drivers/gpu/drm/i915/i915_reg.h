@@ -2145,6 +2145,10 @@ enum skl_disp_power_wells {
 #define DPIO_PHY_STATUS			(VLV_DISPLAY_BASE + 0x6240)
 #define   DPLL_PORTD_READY_MASK		(0xf)
 #define DISPLAY_PHY_CONTROL (VLV_DISPLAY_BASE + 0x60100)
+#define   PHY_LDO_DELAY_0NS			0x0
+#define   PHY_LDO_DELAY_200NS			0x1
+#define   PHY_LDO_DELAY_600NS			0x2
+#define   PHY_LDO_SEQ_DELAY(delay, phy)		((delay) << (2*(phy)+23))
 #define   PHY_CH_SU_PSR				0x1
 #define   PHY_CH_DEEP_PSR			0x7
 #define   PHY_CH_POWER_MODE(mode, phy, ch)	((mode) << (6*(phy)+3*(ch)+2))
