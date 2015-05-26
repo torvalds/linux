@@ -86,6 +86,7 @@ struct tvec_base {
 	unsigned long all_timers;
 	int cpu;
 	bool migration_enabled;
+	bool nohz_active;
 	struct tvec_root tv1;
 	struct tvec tv2;
 	struct tvec tv3;
@@ -99,7 +100,7 @@ static DEFINE_PER_CPU(struct tvec_base, tvec_bases);
 #if defined(CONFIG_SMP) && defined(CONFIG_NO_HZ_COMMON)
 unsigned int sysctl_timer_migration = 1;
 
-void timers_update_migration(void)
+void timers_update_migration(bool update_nohz)
 {
 	bool on = sysctl_timer_migration && tick_nohz_active;
 	unsigned int cpu;
@@ -111,6 +112,10 @@ void timers_update_migration(void)
 	for_each_possible_cpu(cpu) {
 		per_cpu(tvec_bases.migration_enabled, cpu) = on;
 		per_cpu(hrtimer_bases.migration_enabled, cpu) = on;
+		if (!update_nohz)
+			continue;
+		per_cpu(tvec_bases.nohz_active, cpu) = true;
+		per_cpu(hrtimer_bases.nohz_active, cpu) = true;
 	}
 }
 
@@ -124,7 +129,7 @@ int timer_migration_handler(struct ctl_table *table, int write,
 	mutex_lock(&mutex);
 	ret = proc_dointvec(table, write, buffer, lenp, ppos);
 	if (!ret && write)
-		timers_update_migration();
+		timers_update_migration(false);
 	mutex_unlock(&mutex);
 	return ret;
 }
@@ -436,8 +441,11 @@ static void internal_add_timer(struct tvec_base *base, struct timer_list *timer)
 	 * require special care against races with idle_cpu(), lets deal
 	 * with that later.
 	 */
-	if (!(timer->flags & TIMER_DEFERRABLE) || tick_nohz_full_cpu(base->cpu))
-		wake_up_nohz_cpu(base->cpu);
+	if (base->nohz_active) {
+		if (!(timer->flags & TIMER_DEFERRABLE) ||
+		    tick_nohz_full_cpu(base->cpu))
+			wake_up_nohz_cpu(base->cpu);
+	}
 }
 
 #ifdef CONFIG_TIMER_STATS

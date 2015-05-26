@@ -164,6 +164,7 @@ enum  hrtimer_base_type {
  * @active_bases:	Bitfield to mark bases with active timers
  * @clock_was_set_seq:	Sequence counter of clock was set events
  * @migration_enabled:	The migration of hrtimers to other cpus is enabled
+ * @nohz_active:	The nohz functionality is enabled
  * @expires_next:	absolute time of the next event which was scheduled
  *			via clock_set_next_event()
  * @next_timer:		Pointer to the first expiring timer
@@ -188,6 +189,7 @@ struct hrtimer_cpu_base {
 	unsigned int			active_bases;
 	unsigned int			clock_was_set_seq;
 	bool				migration_enabled;
+	bool				nohz_active;
 #ifdef CONFIG_HIGH_RES_TIMERS
 	unsigned int			in_hrtirq	: 1,
 					hres_active	: 1,

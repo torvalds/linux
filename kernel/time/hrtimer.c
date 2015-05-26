@@ -994,7 +994,8 @@ void hrtimer_start_range_ns(struct hrtimer *timer, ktime_t tim,
 		 * Kick to reschedule the next tick to handle the new timer
 		 * on dynticks target.
 		 */
-		wake_up_nohz_cpu(new_base->cpu_base->cpu);
+		if (new_base->cpu_base->nohz_active)
+			wake_up_nohz_cpu(new_base->cpu_base->cpu);
 	} else {
 		hrtimer_reprogram(timer, new_base);
 	}
