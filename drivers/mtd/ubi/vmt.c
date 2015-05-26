@@ -253,8 +253,8 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 
 	/* Calculate how many eraseblocks are requested */
 	vol->usable_leb_size = ubi->leb_size - ubi->leb_size % req->alignment;
-	vol->reserved_pebs += div_u64(req->bytes + vol->usable_leb_size - 1,
-				      vol->usable_leb_size);
+	vol->reserved_pebs = div_u64(req->bytes + vol->usable_leb_size - 1,
+				     vol->usable_leb_size);
 
 	/* Reserve physical eraseblocks */
 	if (vol->reserved_pebs > ubi->avail_pebs) {
