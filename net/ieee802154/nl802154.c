@@ -757,7 +757,7 @@ static int nl802154_set_cca_mode(struct sk_buff *skb, struct genl_info *info)
 	struct cfg802154_registered_device *rdev = info->user_ptr[0];
 	struct wpan_phy_cca cca;
 
-	if (rdev->wpan_phy.flags & WPAN_PHY_FLAG_CCA_MODE)
+	if (!(rdev->wpan_phy.flags & WPAN_PHY_FLAG_CCA_MODE))
 		return -EOPNOTSUPP;
 
 	if (!info->attrs[NL802154_ATTR_CCA_MODE])
