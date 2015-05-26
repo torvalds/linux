@@ -145,7 +145,13 @@ void radeon_driver_irq_preinstall_kms(struct drm_device *dev)
  */
 int radeon_driver_irq_postinstall_kms(struct drm_device *dev)
 {
-	dev->max_vblank_count = 0x001fffff;
+	struct radeon_device *rdev = dev->dev_private;
+
+	if (ASIC_IS_AVIVO(rdev))
+		dev->max_vblank_count = 0x00ffffff;
+	else
+		dev->max_vblank_count = 0x001fffff;
+
 	return 0;
 }
 
