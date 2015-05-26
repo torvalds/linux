@@ -702,7 +702,7 @@ static struct ctl_table ipv4_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &zero,
+		.extra1		= &one,
 		.extra2		= &gso_max_segs,
 	},
 	{
