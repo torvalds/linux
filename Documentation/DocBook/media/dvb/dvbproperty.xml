@@ -1250,7 +1250,7 @@ enum fe_interleaving {
       <varlistentry>
 	<term><parameter>fd</parameter></term>
 	<listitem>
-	  <para>&fd;</para>
+	  <para>&fe_fd;</para>
 	</listitem>
       </varlistentry>
       <varlistentry>
@@ -1308,7 +1308,7 @@ statistics from the frontend.
       <varlistentry>
 	<term><parameter>fd</parameter></term>
 	<listitem>
-	  <para>&fd;</para>
+	  <para>&fe_fd;</para>
 	</listitem>
       </varlistentry>
       <varlistentry>

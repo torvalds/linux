@@ -27,7 +27,7 @@
       <varlistentry>
 	<term><parameter>fd</parameter></term>
 	<listitem>
-	  <para>&fd;</para>
+	  <para>&fe_fd;</para>
 	</listitem>
       </varlistentry>
       <varlistentry>
