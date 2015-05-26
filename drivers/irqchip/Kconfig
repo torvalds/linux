@@ -85,6 +85,11 @@ config IMGPDC_IRQ
 	select GENERIC_IRQ_CHIP
 	select IRQ_DOMAIN
 
+config IRQ_MIPS_CPU
+	bool
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+
 config CLPS711X_IRQCHIP
 	bool
 	depends on ARCH_CLPS711X
