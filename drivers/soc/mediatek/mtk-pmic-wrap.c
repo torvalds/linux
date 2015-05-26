@@ -443,11 +443,6 @@ static int pwrap_wait_for_state(struct pmic_wrapper *wrp,
 static int pwrap_write(struct pmic_wrapper *wrp, u32 adr, u32 wdata)
 {
 	int ret;
-	u32 val;
-
-	val = pwrap_readl(wrp, PWRAP_WACS2_RDATA);
-	if (PWRAP_GET_WACS_FSM(val) == PWRAP_WACS_FSM_WFVLDCLR)
-		pwrap_writel(wrp, 1, PWRAP_WACS2_VLDCLR);
 
 	ret = pwrap_wait_for_state(wrp, pwrap_is_fsm_idle);
 	if (ret)
@@ -462,11 +457,6 @@ static int pwrap_write(struct pmic_wrapper *wrp, u32 adr, u32 wdata)
 static int pwrap_read(struct pmic_wrapper *wrp, u32 adr, u32 *rdata)
 {
 	int ret;
-	u32 val;
-
-	val = pwrap_readl(wrp, PWRAP_WACS2_RDATA);
-	if (PWRAP_GET_WACS_FSM(val) == PWRAP_WACS_FSM_WFVLDCLR)
-		pwrap_writel(wrp, 1, PWRAP_WACS2_VLDCLR);
 
 	ret = pwrap_wait_for_state(wrp, pwrap_is_fsm_idle);
 	if (ret)
@@ -479,6 +469,8 @@ static int pwrap_read(struct pmic_wrapper *wrp, u32 adr, u32 *rdata)
 		return ret;
 
 	*rdata = PWRAP_GET_WACS_RDATA(pwrap_readl(wrp, PWRAP_WACS2_RDATA));
+
+	pwrap_writel(wrp, 1, PWRAP_WACS2_VLDCLR);
 
 	return 0;
 }
