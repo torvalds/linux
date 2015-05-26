@@ -280,9 +280,15 @@ void __init imx_gpc_check_dt(void)
 	struct device_node *np;
 
 	np = of_find_compatible_node(NULL, NULL, "fsl,imx6q-gpc");
-	if (WARN_ON(!np ||
-		    !of_find_property(np, "interrupt-controller", NULL)))
-		pr_warn("Outdated DT detected, system is about to crash!!!\n");
+	if (WARN_ON(!np))
+		return;
+
+	if (WARN_ON(!of_find_property(np, "interrupt-controller", NULL))) {
+		pr_warn("Outdated DT detected, suspend/resume will NOT work\n");
+
+		/* map GPC, so that at least CPUidle and WARs keep working */
+		gpc_base = of_iomap(np, 0);
+	}
 }
 
 #ifdef CONFIG_PM_GENERIC_DOMAINS
