@@ -31,6 +31,7 @@
 #include <linux/cpu.h>
 #include <linux/slab.h>
 #include <linux/crash_dump.h>
+#include <linux/memblock.h>
 #include <asm/asm-offsets.h>
 #include <asm/switch_to.h>
 #include <asm/facility.h>
@@ -531,15 +532,12 @@ EXPORT_SYMBOL(smp_ctl_clear_bit);
 
 #ifdef CONFIG_CRASH_DUMP
 
-static inline void __smp_store_cpu_state(int cpu, u16 address, int is_boot_cpu)
+static void __smp_store_cpu_state(struct save_area_ext *sa_ext, u16 address,
+				  int is_boot_cpu)
 {
-	void *lc = pcpu_devices[0].lowcore;
-	struct save_area_ext *sa_ext;
+	void *lc = (void *)(unsigned long) store_prefix();
 	unsigned long vx_sa;
 
-	sa_ext = dump_save_area_create(cpu);
-	if (!sa_ext)
-		panic("could not allocate memory for save area\n");
 	if (is_boot_cpu) {
 		/* Copy the registers of the boot CPU. */
 		copy_oldmem_page(1, (void *) &sa_ext->sa, sizeof(sa_ext->sa),
@@ -554,12 +552,12 @@ static inline void __smp_store_cpu_state(int cpu, u16 address, int is_boot_cpu)
 	if (!MACHINE_HAS_VX)
 		return;
 	/* Get the VX registers */
-	vx_sa = __get_free_page(GFP_KERNEL);
+	vx_sa = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
 	if (!vx_sa)
 		panic("could not allocate memory for VX save area\n");
 	__pcpu_sigp_relax(address, SIGP_STORE_ADDITIONAL_STATUS, vx_sa, NULL);
 	memcpy(sa_ext->vx_regs, (void *) vx_sa, sizeof(sa_ext->vx_regs));
-	free_page(vx_sa);
+	memblock_free(vx_sa, PAGE_SIZE);
 }
 
 /*
@@ -589,10 +587,11 @@ static inline void __smp_store_cpu_state(int cpu, u16 address, int is_boot_cpu)
  *    old system. The ELF sections are picked up by the crash_dump code
  *    via elfcorehdr_addr.
  */
-static void __init smp_store_cpu_states(struct sclp_core_info *info)
+void __init smp_save_dump_cpus(void)
 {
-	unsigned int cpu, address, i, j;
-	int is_boot_cpu;
+	int addr, cpu, boot_cpu_addr, max_cpu_addr;
+	struct save_area_ext *sa_ext;
+	bool is_boot_cpu;
 
 	if (is_kdump_kernel())
 		/* Previous system stored the CPU states. Nothing to do. */
@@ -602,22 +601,34 @@ static void __init smp_store_cpu_states(struct sclp_core_info *info)
 		return;
 	/* Set multi-threading state to the previous system. */
 	pcpu_set_smt(sclp.mtid_prev);
-	/* Collect CPU states. */
-	cpu = 0;
-	for (i = 0; i < info->configured; i++) {
-		/* Skip CPUs with different CPU type. */
-		if (sclp.has_core_type && info->core[i].type != boot_core_type)
+	max_cpu_addr = SCLP_MAX_CORES << sclp.mtid_prev;
+	for (cpu = 0, addr = 0; addr <= max_cpu_addr; addr++) {
+		if (__pcpu_sigp_relax(addr, SIGP_SENSE, 0, NULL) ==
+		    SIGP_CC_NOT_OPERATIONAL)
 			continue;
-		for (j = 0; j <= smp_cpu_mtid; j++, cpu++) {
-			address = (info->core[i].core_id << smp_cpu_mt_shift) + j;
-			is_boot_cpu = (address == pcpu_devices[0].address);
-			if (is_boot_cpu && !OLDMEM_BASE)
-				/* Skip boot CPU for standard zfcp dump. */
-				continue;
-			/* Get state for this CPu. */
-			__smp_store_cpu_state(cpu, address, is_boot_cpu);
-		}
+		cpu += 1;
 	}
+	dump_save_areas.areas = (void *)memblock_alloc(sizeof(void *) * cpu, 8);
+	dump_save_areas.count = cpu;
+	boot_cpu_addr = stap();
+	for (cpu = 0, addr = 0; addr <= max_cpu_addr; addr++) {
+		if (__pcpu_sigp_relax(addr, SIGP_SENSE, 0, NULL) ==
+		    SIGP_CC_NOT_OPERATIONAL)
+			continue;
+		sa_ext = (void *) memblock_alloc(sizeof(*sa_ext), 8);
+		dump_save_areas.areas[cpu] = sa_ext;
+		if (!sa_ext)
+			panic("could not allocate memory for save area\n");
+		is_boot_cpu = (addr == boot_cpu_addr);
+		cpu += 1;
+		if (is_boot_cpu && !OLDMEM_BASE)
+			/* Skip boot CPU for standard zfcp dump. */
+			continue;
+		/* Get state for this CPU. */
+		__smp_store_cpu_state(sa_ext, addr, is_boot_cpu);
+	}
+	diag308_reset();
+	pcpu_set_smt(0);
 }
 
 int smp_store_status(int cpu)
@@ -637,6 +648,10 @@ int smp_store_status(int cpu)
 	return 0;
 }
 
+#else
+void smp_save_dump_cpus(void)
+{
+}
 #endif /* CONFIG_CRASH_DUMP */
 
 void smp_cpu_set_polarization(int cpu, int val)
@@ -734,11 +749,6 @@ static void __init smp_detect_cpus(void)
 		if (cpu >= info->combined)
 			panic("Could not find boot CPU type");
 	}
-
-#ifdef CONFIG_CRASH_DUMP
-	/* Collect CPU state of previous system */
-	smp_store_cpu_states(info);
-#endif
 
 	/* Set multi-threading state for the current system */
 	mtid = boot_core_type ? sclp.mtid : sclp.mtid_cp;

@@ -45,31 +45,6 @@ static struct memblock_type oldmem_type = {
 struct dump_save_areas dump_save_areas;
 
 /*
- * Allocate and add a save area for a CPU
- */
-struct save_area_ext *dump_save_area_create(int cpu)
-{
-	struct save_area_ext **save_areas, *save_area;
-
-	save_area = kmalloc(sizeof(*save_area), GFP_KERNEL);
-	if (!save_area)
-		return NULL;
-	if (cpu + 1 > dump_save_areas.count) {
-		dump_save_areas.count = cpu + 1;
-		save_areas = krealloc(dump_save_areas.areas,
-				      dump_save_areas.count * sizeof(void *),
-				      GFP_KERNEL | __GFP_ZERO);
-		if (!save_areas) {
-			kfree(save_area);
-			return NULL;
-		}
-		dump_save_areas.areas = save_areas;
-	}
-	dump_save_areas.areas[cpu] = save_area;
-	return save_area;
-}
-
-/*
  * Return physical address for virtual address
  */
 static inline void *load_real_addr(void *addr)
