@@ -272,7 +272,6 @@ rpcrdma_recvcq_process_wc(struct ib_wc *wc, struct list_head *sched_list)
 {
 	struct rpcrdma_rep *rep =
 			(struct rpcrdma_rep *)(unsigned long)wc->wr_id;
-	struct rpcrdma_ia *ia;
 
 	/* WARNING: Only wr_id and status are reliable at this point */
 	if (wc->status != IB_WC_SUCCESS)
@@ -285,9 +284,8 @@ rpcrdma_recvcq_process_wc(struct ib_wc *wc, struct list_head *sched_list)
 	dprintk("RPC:       %s: rep %p opcode 'recv', length %u: success\n",
 		__func__, rep, wc->byte_len);
 
-	ia = &rep->rr_rxprt->rx_ia;
 	rep->rr_len = wc->byte_len;
-	ib_dma_sync_single_for_cpu(ia->ri_id->device,
+	ib_dma_sync_single_for_cpu(rep->rr_device,
 				   rdmab_addr(rep->rr_rdmabuf),
 				   rep->rr_len, DMA_FROM_DEVICE);
 	prefetch(rdmab_to_msg(rep->rr_rdmabuf));
@@ -483,7 +481,7 @@ connected:
 
 		pr_info("rpcrdma: connection to %pIS:%u on %s, memreg '%s', %d credits, %d responders%s\n",
 			sap, rpc_get_port(sap),
-			ia->ri_id->device->name,
+			ia->ri_device->name,
 			ia->ri_ops->ro_displayname,
 			xprt->rx_buf.rb_max_requests,
 			ird, ird < 4 && ird < tird / 2 ? " (low!)" : "");
@@ -584,8 +582,9 @@ rpcrdma_ia_open(struct rpcrdma_xprt *xprt, struct sockaddr *addr, int memreg)
 		rc = PTR_ERR(ia->ri_id);
 		goto out1;
 	}
+	ia->ri_device = ia->ri_id->device;
 
-	ia->ri_pd = ib_alloc_pd(ia->ri_id->device);
+	ia->ri_pd = ib_alloc_pd(ia->ri_device);
 	if (IS_ERR(ia->ri_pd)) {
 		rc = PTR_ERR(ia->ri_pd);
 		dprintk("RPC:       %s: ib_alloc_pd() failed %i\n",
@@ -593,7 +592,7 @@ rpcrdma_ia_open(struct rpcrdma_xprt *xprt, struct sockaddr *addr, int memreg)
 		goto out2;
 	}
 
-	rc = ib_query_device(ia->ri_id->device, devattr);
+	rc = ib_query_device(ia->ri_device, devattr);
 	if (rc) {
 		dprintk("RPC:       %s: ib_query_device failed %d\n",
 			__func__, rc);
@@ -602,7 +601,7 @@ rpcrdma_ia_open(struct rpcrdma_xprt *xprt, struct sockaddr *addr, int memreg)
 
 	if (devattr->device_cap_flags & IB_DEVICE_LOCAL_DMA_LKEY) {
 		ia->ri_have_dma_lkey = 1;
-		ia->ri_dma_lkey = ia->ri_id->device->local_dma_lkey;
+		ia->ri_dma_lkey = ia->ri_device->local_dma_lkey;
 	}
 
 	if (memreg == RPCRDMA_FRMR) {
@@ -617,7 +616,7 @@ rpcrdma_ia_open(struct rpcrdma_xprt *xprt, struct sockaddr *addr, int memreg)
 		}
 	}
 	if (memreg == RPCRDMA_MTHCAFMR) {
-		if (!ia->ri_id->device->alloc_fmr) {
+		if (!ia->ri_device->alloc_fmr) {
 			dprintk("RPC:       %s: MTHCAFMR registration "
 				"not supported by HCA\n", __func__);
 			memreg = RPCRDMA_ALLPHYSICAL;
@@ -767,9 +766,9 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 	init_waitqueue_head(&ep->rep_connect_wait);
 	INIT_DELAYED_WORK(&ep->rep_connect_worker, rpcrdma_connect_worker);
 
-	sendcq = ib_create_cq(ia->ri_id->device, rpcrdma_sendcq_upcall,
-				  rpcrdma_cq_async_error_upcall, ep,
-				  ep->rep_attr.cap.max_send_wr + 1, 0);
+	sendcq = ib_create_cq(ia->ri_device, rpcrdma_sendcq_upcall,
+			      rpcrdma_cq_async_error_upcall, ep,
+			      ep->rep_attr.cap.max_send_wr + 1, 0);
 	if (IS_ERR(sendcq)) {
 		rc = PTR_ERR(sendcq);
 		dprintk("RPC:       %s: failed to create send CQ: %i\n",
@@ -784,9 +783,9 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 		goto out2;
 	}
 
-	recvcq = ib_create_cq(ia->ri_id->device, rpcrdma_recvcq_upcall,
-				  rpcrdma_cq_async_error_upcall, ep,
-				  ep->rep_attr.cap.max_recv_wr + 1, 0);
+	recvcq = ib_create_cq(ia->ri_device, rpcrdma_recvcq_upcall,
+			      rpcrdma_cq_async_error_upcall, ep,
+			      ep->rep_attr.cap.max_recv_wr + 1, 0);
 	if (IS_ERR(recvcq)) {
 		rc = PTR_ERR(recvcq);
 		dprintk("RPC:       %s: failed to create recv CQ: %i\n",
@@ -907,7 +906,7 @@ retry:
 		 * More stuff I haven't thought of!
 		 * Rrrgh!
 		 */
-		if (ia->ri_id->device != id->device) {
+		if (ia->ri_device != id->device) {
 			printk("RPC:       %s: can't reconnect on "
 				"different device!\n", __func__);
 			rdma_destroy_id(id);
@@ -1049,6 +1048,7 @@ rpcrdma_create_rep(struct rpcrdma_xprt *r_xprt)
 		goto out_free;
 	}
 
+	rep->rr_device = ia->ri_device;
 	rep->rr_rxprt = r_xprt;
 	return rep;
 
@@ -1449,9 +1449,9 @@ rpcrdma_register_internal(struct rpcrdma_ia *ia, void *va, int len,
 	/*
 	 * All memory passed here was kmalloc'ed, therefore phys-contiguous.
 	 */
-	iov->addr = ib_dma_map_single(ia->ri_id->device,
+	iov->addr = ib_dma_map_single(ia->ri_device,
 			va, len, DMA_BIDIRECTIONAL);
-	if (ib_dma_mapping_error(ia->ri_id->device, iov->addr))
+	if (ib_dma_mapping_error(ia->ri_device, iov->addr))
 		return -ENOMEM;
 
 	iov->length = len;
@@ -1495,8 +1495,8 @@ rpcrdma_deregister_internal(struct rpcrdma_ia *ia,
 {
 	int rc;
 
-	ib_dma_unmap_single(ia->ri_id->device,
-			iov->addr, iov->length, DMA_BIDIRECTIONAL);
+	ib_dma_unmap_single(ia->ri_device,
+			    iov->addr, iov->length, DMA_BIDIRECTIONAL);
 
 	if (NULL == mr)
 		return 0;
@@ -1589,15 +1589,18 @@ rpcrdma_ep_post(struct rpcrdma_ia *ia,
 	send_wr.num_sge = req->rl_niovs;
 	send_wr.opcode = IB_WR_SEND;
 	if (send_wr.num_sge == 4)	/* no need to sync any pad (constant) */
-		ib_dma_sync_single_for_device(ia->ri_id->device,
-			req->rl_send_iov[3].addr, req->rl_send_iov[3].length,
-			DMA_TO_DEVICE);
-	ib_dma_sync_single_for_device(ia->ri_id->device,
-		req->rl_send_iov[1].addr, req->rl_send_iov[1].length,
-		DMA_TO_DEVICE);
-	ib_dma_sync_single_for_device(ia->ri_id->device,
-		req->rl_send_iov[0].addr, req->rl_send_iov[0].length,
-		DMA_TO_DEVICE);
+		ib_dma_sync_single_for_device(ia->ri_device,
+					      req->rl_send_iov[3].addr,
+					      req->rl_send_iov[3].length,
+					      DMA_TO_DEVICE);
+	ib_dma_sync_single_for_device(ia->ri_device,
+				      req->rl_send_iov[1].addr,
+				      req->rl_send_iov[1].length,
+				      DMA_TO_DEVICE);
+	ib_dma_sync_single_for_device(ia->ri_device,
+				      req->rl_send_iov[0].addr,
+				      req->rl_send_iov[0].length,
+				      DMA_TO_DEVICE);
 
 	if (DECR_CQCOUNT(ep) > 0)
 		send_wr.send_flags = 0;
@@ -1630,7 +1633,7 @@ rpcrdma_ep_post_recv(struct rpcrdma_ia *ia,
 	recv_wr.sg_list = &rep->rr_rdmabuf->rg_iov;
 	recv_wr.num_sge = 1;
 
-	ib_dma_sync_single_for_cpu(ia->ri_id->device,
+	ib_dma_sync_single_for_cpu(ia->ri_device,
 				   rdmab_addr(rep->rr_rdmabuf),
 				   rdmab_length(rep->rr_rdmabuf),
 				   DMA_BIDIRECTIONAL);

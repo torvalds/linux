@@ -62,6 +62,7 @@
 struct rpcrdma_ia {
 	const struct rpcrdma_memreg_ops	*ri_ops;
 	rwlock_t		ri_qplock;
+	struct ib_device	*ri_device;
 	struct rdma_cm_id 	*ri_id;
 	struct ib_pd		*ri_pd;
 	struct ib_mr		*ri_bind_mem;
@@ -173,6 +174,7 @@ struct rpcrdma_buffer;
 
 struct rpcrdma_rep {
 	unsigned int		rr_len;
+	struct ib_device	*rr_device;
 	struct rpcrdma_xprt	*rr_rxprt;
 	struct list_head	rr_list;
 	struct rpcrdma_regbuf	*rr_rdmabuf;
