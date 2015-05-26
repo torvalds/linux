@@ -566,19 +566,28 @@ void native_set_fixmap(enum fixed_addresses idx, phys_addr_t phys,
 /**
  * pud_set_huge - setup kernel PUD mapping
  *
- * MTRR can override PAT memory types with 4KiB granularity.  Therefore,
- * this function does not set up a huge page when the range is covered
- * by a non-WB type of MTRR.  MTRR_TYPE_INVALID indicates that MTRR are
- * disabled.
+ * MTRRs can override PAT memory types with 4KiB granularity. Therefore, this
+ * function sets up a huge page only if any of the following conditions are met:
+ *
+ * - MTRRs are disabled, or
+ *
+ * - MTRRs are enabled and the range is completely covered by a single MTRR, or
+ *
+ * - MTRRs are enabled and the corresponding MTRR memory type is WB, which
+ *   has no effect on the requested PAT memory type.
+ *
+ * Callers should try to decrease page size (1GB -> 2MB -> 4K) if the bigger
+ * page mapping attempt fails.
  *
  * Returns 1 on success and 0 on failure.
  */
 int pud_set_huge(pud_t *pud, phys_addr_t addr, pgprot_t prot)
 {
-	u8 mtrr;
+	u8 mtrr, uniform;
 
-	mtrr = mtrr_type_lookup(addr, addr + PUD_SIZE);
-	if ((mtrr != MTRR_TYPE_WRBACK) && (mtrr != MTRR_TYPE_INVALID))
+	mtrr = mtrr_type_lookup(addr, addr + PUD_SIZE, &uniform);
+	if ((mtrr != MTRR_TYPE_INVALID) && (!uniform) &&
+	    (mtrr != MTRR_TYPE_WRBACK))
 		return 0;
 
 	prot = pgprot_4k_2_large(prot);
@@ -593,20 +602,21 @@ int pud_set_huge(pud_t *pud, phys_addr_t addr, pgprot_t prot)
 /**
  * pmd_set_huge - setup kernel PMD mapping
  *
- * MTRR can override PAT memory types with 4KiB granularity.  Therefore,
- * this function does not set up a huge page when the range is covered
- * by a non-WB type of MTRR.  MTRR_TYPE_INVALID indicates that MTRR are
- * disabled.
+ * See text over pud_set_huge() above.
  *
  * Returns 1 on success and 0 on failure.
  */
 int pmd_set_huge(pmd_t *pmd, phys_addr_t addr, pgprot_t prot)
 {
-	u8 mtrr;
+	u8 mtrr, uniform;
 
-	mtrr = mtrr_type_lookup(addr, addr + PMD_SIZE);
-	if ((mtrr != MTRR_TYPE_WRBACK) && (mtrr != MTRR_TYPE_INVALID))
+	mtrr = mtrr_type_lookup(addr, addr + PMD_SIZE, &uniform);
+	if ((mtrr != MTRR_TYPE_INVALID) && (!uniform) &&
+	    (mtrr != MTRR_TYPE_WRBACK)) {
+		pr_warn_once("%s: Cannot satisfy [mem %#010llx-%#010llx] with a huge-page mapping due to MTRR override.\n",
+			     __func__, addr, addr + PMD_SIZE);
 		return 0;
+	}
 
 	prot = pgprot_4k_2_large(prot);
 
