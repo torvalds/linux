@@ -1398,7 +1398,8 @@ static int rk_fb_pan_display(struct fb_var_screeninfo *var,
         /*if not want the config effect,set reserved[3] bit[0] 1*/
         if (likely((var->reserved[3] & 0x1) == 0))
 	        dev_drv->ops->cfg_done(dev_drv);
-
+	if (dev_drv->hdmi_switch)
+		mdelay(100);
 	return 0;
 }
 
@@ -2342,9 +2343,10 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 
 	/* record buffer information for rk_fb_disp_scale to prevent fence timeout
 	 * because rk_fb_disp_scale will call function info->fbops->fb_set_par(info);
+	 * delete by hjc for new hdmi overscan framework
 	 */
-	info->var.yoffset = yoffset;
-	info->var.xoffset = xoffset;
+	/*info->var.yoffset = yoffset;
+	info->var.xoffset = xoffset;*/
 	return 0;
 }
 
@@ -3380,6 +3382,7 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 	int i, win_id;
 	static bool load_screen = false;
 	char *envp[3];
+	int ret, list_is_empty = 0;
 
 	if (unlikely(!rk_fb) || unlikely(!screen))
 		return -ENODEV;
@@ -3410,8 +3413,20 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 	mutex_lock(&dev_drv->switch_screen);
 	hdmi_switch_state = 0;
 	dev_drv->hdmi_switch = 1;
-	if (!dev_drv->uboot_logo)
+	if (!dev_drv->uboot_logo) {
 		mdelay(200);
+		list_is_empty = list_empty(&dev_drv->update_regs_list) &&
+					   list_empty(&dev_drv->saved_list);
+		if (!list_is_empty) {
+			ret = wait_event_timeout(dev_drv->update_regs_wait,
+						 list_empty(&dev_drv->update_regs_list) &&
+						 list_empty(&dev_drv->saved_list),
+						 msecs_to_jiffies(60));
+			if (ret <= 0)
+				pr_info("%s: wait update_regs_wait timeout\n",
+					__func__);
+		}
+	}
 
 	envp[0] = "switch screen";
 	envp[1] = kmalloc(32, GFP_KERNEL);
@@ -3463,6 +3478,7 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 				(dev_drv->cur_screen->mode.xres << 8) +
 				(dev_drv->cur_screen->mode.yres << 20);
 			mutex_lock(&dev_drv->win_config);
+			info->var.xoffset = 0;
 			info->var.yoffset = 0;
 			info->fbops->fb_set_par(info);
 			info->fbops->fb_pan_display(&info->var, info);
@@ -3539,6 +3555,7 @@ int rk_fb_switch_screen(struct rk_screen *screen, int enable, int lcdc_id)
 						dev_drv->ops->open(dev_drv, win_id, 1);
 						dev_drv->suspend_flag = 0;
 						mutex_lock(&dev_drv->win_config);
+						info->var.xoffset = 0;
 						info->var.yoffset = 0;
 						info->fbops->fb_set_par(info);
 						info->fbops->fb_pan_display(&info->var, info);

@@ -1840,7 +1840,9 @@ static int lcdc_reset(struct rk_lcdc_driver *dev_drv, bool initscreen)
 		lcdc_msk_reg(lcdc_dev, SYS_CTRL, mask, val);
 		lcdc_cfg_done(lcdc_dev);
 		mdelay(50);
+		lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_STANDBY_EN, v_STANDBY_EN(1));
 		writel_relaxed(0, lcdc_dev->regs + REG_CFG_DONE);
+		mdelay(50);
 #if 0
 		if (dev_drv->iommu_enabled) {
 			if (dev_drv->mmu_dev)
@@ -2105,8 +2107,9 @@ static int rk3368_load_screen(struct rk_lcdc_driver *dev_drv, bool initscreen)
 		dev_drv->trsm_ops->enable();	
 		if (screen->init)
 			screen->init();
-	if (!lcdc_dev->standby)
-		lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_STANDBY_EN, v_STANDBY_EN(0));
+	/*if (!lcdc_dev->standby)
+		lcdc_msk_reg(lcdc_dev, SYS_CTRL,
+			m_STANDBY_EN, v_STANDBY_EN(0));*/
 	return 0;
 }
 
@@ -4018,6 +4021,19 @@ static int rk3368_lcdc_config_done(struct rk_lcdc_driver *dev_drv)
 	int i;
 	unsigned int mask, val;
 	struct rk_lcdc_win *win = NULL;
+	u32 line_scane_num, dsp_vs_st_f1;
+
+	if (lcdc_dev->driver.cur_screen->mode.vmode == FB_VMODE_INTERLACED) {
+		dsp_vs_st_f1 = lcdc_readl(lcdc_dev, DSP_VS_ST_END_F1) >> 16;
+		for (i = 0; i < 1000; i++) {
+			line_scane_num =
+				lcdc_readl(lcdc_dev, SCAN_LINE_NUM) & 0x1fff;
+			if (line_scane_num > dsp_vs_st_f1 + 1)
+				udelay(50);
+			else
+				break;
+		}
+	}
 
 	spin_lock(&lcdc_dev->reg_lock);
 	lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_STANDBY_EN,
@@ -4710,12 +4726,17 @@ static irqreturn_t rk3368_lcdc_isr(int irq, void *dev_id)
 	u32 cabc_pwm_lut_value;
 	int pwm_plus;
 	int *cabc_gamma_base = NULL;
+	u32 line_scane_num, dsp_vs_st_f1;
+	struct rk_screen *screen = lcdc_dev->driver.cur_screen;
+
 	intr_status = lcdc_readl(lcdc_dev, INTR_STATUS);
 
 	if (intr_status & m_FS_INTR_STS) {
 		timestamp = ktime_get();
 		lcdc_msk_reg(lcdc_dev, INTR_CLEAR, m_FS_INTR_CLR,
 			     v_FS_INTR_CLR(1));
+		line_scane_num = lcdc_readl(lcdc_dev, SCAN_LINE_NUM) & 0x1fff;
+		dsp_vs_st_f1 = lcdc_readl(lcdc_dev, DSP_VS_ST_END_F1) >> 16;
 		/*if(lcdc_dev->driver.wait_fs){ */
 		if (0) {
 			spin_lock(&(lcdc_dev->driver.cpl_lock));
@@ -4727,6 +4748,12 @@ static irqreturn_t rk3368_lcdc_isr(int irq, void *dev_id)
 #endif
 		lcdc_dev->driver.vsync_info.timestamp = timestamp;
 		wake_up_interruptible_all(&lcdc_dev->driver.vsync_info.wait);
+		if ((screen->mode.vmode == FB_VMODE_NONINTERLACED) ||
+		    (line_scane_num >= dsp_vs_st_f1)) {
+			lcdc_dev->driver.vsync_info.timestamp = timestamp;
+			wake_up_interruptible_all(
+				&lcdc_dev->driver.vsync_info.wait);
+		}
 	} else if (intr_status & m_LINE_FLAG0_INTR_STS) {
 		lcdc_dev->driver.frame_time.last_framedone_t =
 			lcdc_dev->driver.frame_time.framedone_t;
