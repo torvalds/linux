@@ -59,6 +59,12 @@
 #define MTRR_TO_PHYS_WC_OFFSET 1000
 
 u32 num_var_ranges;
+static bool __mtrr_enabled;
+
+static bool mtrr_enabled(void)
+{
+	return __mtrr_enabled;
+}
 
 unsigned int mtrr_usage_table[MTRR_MAX_VAR_RANGES];
 static DEFINE_MUTEX(mtrr_mutex);
@@ -286,7 +292,7 @@ int mtrr_add_page(unsigned long base, unsigned long size,
 	int i, replace, error;
 	mtrr_type ltype;
 
-	if (!mtrr_if)
+	if (!mtrr_enabled())
 		return -ENXIO;
 
 	error = mtrr_if->validate_add_page(base, size, type);
@@ -435,6 +441,8 @@ static int mtrr_check(unsigned long base, unsigned long size)
 int mtrr_add(unsigned long base, unsigned long size, unsigned int type,
 	     bool increment)
 {
+	if (!mtrr_enabled())
+		return -ENODEV;
 	if (mtrr_check(base, size))
 		return -EINVAL;
 	return mtrr_add_page(base >> PAGE_SHIFT, size >> PAGE_SHIFT, type,
@@ -463,8 +471,8 @@ int mtrr_del_page(int reg, unsigned long base, unsigned long size)
 	unsigned long lbase, lsize;
 	int error = -EINVAL;
 
-	if (!mtrr_if)
-		return -ENXIO;
+	if (!mtrr_enabled())
+		return -ENODEV;
 
 	max = num_var_ranges;
 	/* No CPU hotplug when we change MTRR entries */
@@ -523,6 +531,8 @@ int mtrr_del_page(int reg, unsigned long base, unsigned long size)
  */
 int mtrr_del(int reg, unsigned long base, unsigned long size)
 {
+	if (!mtrr_enabled())
+		return -ENODEV;
 	if (mtrr_check(base, size))
 		return -EINVAL;
 	return mtrr_del_page(reg, base >> PAGE_SHIFT, size >> PAGE_SHIFT);
@@ -548,7 +558,7 @@ int arch_phys_wc_add(unsigned long base, unsigned long size)
 {
 	int ret;
 
-	if (pat_enabled)
+	if (pat_enabled || !mtrr_enabled())
 		return 0;  /* Success!  (We don't need to do anything.) */
 
 	ret = mtrr_add(base, size, MTRR_TYPE_WRCOMB, true);
@@ -737,10 +747,12 @@ void __init mtrr_bp_init(void)
 	}
 
 	if (mtrr_if) {
+		__mtrr_enabled = true;
 		set_num_var_ranges();
 		init_table();
 		if (use_intel()) {
-			get_mtrr_state();
+			/* BIOS may override */
+			__mtrr_enabled = get_mtrr_state();
 
 			if (mtrr_cleanup(phys_addr)) {
 				changed_by_mtrr_cleanup = 1;
@@ -748,10 +760,16 @@ void __init mtrr_bp_init(void)
 			}
 		}
 	}
+
+	if (!mtrr_enabled())
+		pr_info("MTRR: Disabled\n");
 }
 
 void mtrr_ap_init(void)
 {
+	if (!mtrr_enabled())
+		return;
+
 	if (!use_intel() || mtrr_aps_delayed_init)
 		return;
 	/*
@@ -777,6 +795,9 @@ void mtrr_save_state(void)
 {
 	int first_cpu;
 
+	if (!mtrr_enabled())
+		return;
+
 	get_online_cpus();
 	first_cpu = cpumask_first(cpu_online_mask);
 	smp_call_function_single(first_cpu, mtrr_save_fixed_ranges, NULL, 1);
@@ -785,6 +806,8 @@ void mtrr_save_state(void)
 
 void set_mtrr_aps_delayed_init(void)
 {
+	if (!mtrr_enabled())
+		return;
 	if (!use_intel())
 		return;
 
@@ -796,7 +819,7 @@ void set_mtrr_aps_delayed_init(void)
  */
 void mtrr_aps_init(void)
 {
-	if (!use_intel())
+	if (!use_intel() || !mtrr_enabled())
 		return;
 
 	/*
@@ -813,7 +836,7 @@ void mtrr_aps_init(void)
 
 void mtrr_bp_restore(void)
 {
-	if (!use_intel())
+	if (!use_intel() || !mtrr_enabled())
 		return;
 
 	mtrr_if->set_all();
@@ -821,7 +844,7 @@ void mtrr_bp_restore(void)
 
 static int __init mtrr_init_finialize(void)
 {
-	if (!mtrr_if)
+	if (!mtrr_enabled())
 		return 0;
 
 	if (use_intel()) {
