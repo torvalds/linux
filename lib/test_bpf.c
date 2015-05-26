@@ -314,6 +314,47 @@ static int bpf_fill_maxinsns10(struct bpf_test *self)
 	return 0;
 }
 
+static int __bpf_fill_ja(struct bpf_test *self, unsigned int len,
+			 unsigned int plen)
+{
+	struct sock_filter *insn;
+	unsigned int rlen;
+	int i, j;
+
+	insn = kmalloc_array(len, sizeof(*insn), GFP_KERNEL);
+	if (!insn)
+		return -ENOMEM;
+
+	rlen = (len % plen) - 1;
+
+	for (i = 0; i + plen < len; i += plen)
+		for (j = 0; j < plen; j++)
+			insn[i + j] = __BPF_JUMP(BPF_JMP | BPF_JA,
+						 plen - 1 - j, 0, 0);
+	for (j = 0; j < rlen; j++)
+		insn[i + j] = __BPF_JUMP(BPF_JMP | BPF_JA, rlen - 1 - j,
+					 0, 0);
+
+	insn[len - 1] = __BPF_STMT(BPF_RET | BPF_K, 0xababcbac);
+
+	self->u.ptr.insns = insn;
+	self->u.ptr.len = len;
+
+	return 0;
+}
+
+static int bpf_fill_maxinsns11(struct bpf_test *self)
+{
+	/* Hits 70 passes on x86_64, so cannot get JITed there. */
+	return __bpf_fill_ja(self, BPF_MAXINSNS, 68);
+}
+
+static int bpf_fill_ja(struct bpf_test *self)
+{
+	/* Hits exactly 11 passes on x86_64 JIT. */
+	return __bpf_fill_ja(self, 12, 9);
+}
+
 static struct bpf_test tests[] = {
 	{
 		"TAX",
@@ -4252,6 +4293,14 @@ static struct bpf_test tests[] = {
 		{ },
 		{ { 0, 1 } },
 	},
+	{
+		"JMP_JA: Jump, gap, jump, ...",
+		{ },
+		CLASSIC | FLAG_NO_DATA,
+		{ },
+		{ { 0, 0xababcbac } },
+		.fill_helper = bpf_fill_ja,
+	},
 	{	/* Mainly checking JIT here. */
 		"BPF_MAXINSNS: Maximum possible literals",
 		{ },
@@ -4334,6 +4383,14 @@ static struct bpf_test tests[] = {
 		{ },
 		{ { 0, 0xabababac } },
 		.fill_helper = bpf_fill_maxinsns10,
+	},
+	{
+		"BPF_MAXINSNS: Jump, gap, jump, ...",
+		{ },
+		CLASSIC | FLAG_NO_DATA,
+		{ },
+		{ { 0, 0xababcbac } },
+		.fill_helper = bpf_fill_maxinsns11,
 	},
 };
 
