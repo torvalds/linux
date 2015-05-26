@@ -819,6 +819,7 @@ unsigned int nft_do_chain(struct nft_pktinfo *pkt,
  *	@use: number of chain references to this table
  *	@flags: table flag (see enum nft_table_flags)
  *	@name: name of the table
+ *	@dev: this table is bound to this device (if any)
  */
 struct nft_table {
 	struct list_head		list;
@@ -828,6 +829,11 @@ struct nft_table {
 	u32				use;
 	u16				flags;
 	char				name[NFT_TABLE_MAXNAMELEN];
+	struct net_device		*dev;
+};
+
+enum nft_af_flags {
+	NFT_AF_NEEDS_DEV	= (1 << 0),
 };
 
 /**
@@ -838,6 +844,7 @@ struct nft_table {
  *	@nhooks: number of hooks in this family
  *	@owner: module owner
  *	@tables: used internally
+ *	@flags: family flags
  *	@nops: number of hook ops in this family
  *	@hook_ops_init: initialization function for chain hook ops
  *	@hooks: hookfn overrides for packet validation
@@ -848,6 +855,7 @@ struct nft_af_info {
 	unsigned int			nhooks;
 	struct module			*owner;
 	struct list_head		tables;
+	u32				flags;
 	unsigned int			nops;
 	void				(*hook_ops_init)(struct nf_hook_ops *,
 							 unsigned int);
