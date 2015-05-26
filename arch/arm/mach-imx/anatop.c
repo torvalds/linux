@@ -9,6 +9,7 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
+#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/of.h>
@@ -31,6 +32,7 @@
 #define ANADIG_REG_2P5		0x130
 #define ANADIG_REG_CORE		0x140
 #define ANADIG_ANA_MISC0	0x150
+#define ANADIG_ANA_MISC2	0x170
 #define ANADIG_USB1_CHRG_DETECT	0x1b0
 #define ANADIG_USB2_CHRG_DETECT	0x210
 #define ANADIG_DIGPROG		0x260
@@ -42,15 +44,21 @@
 #define BM_ANADIG_REG_CORE_FET_ODRIVE		0x20000000
 #define BM_ANADIG_REG_CORE_REG1			(0x1f << 9)
 #define BM_ANADIG_REG_CORE_REG2			(0x1f << 18)
+#define BP_ANADIG_REG_CORE_REG2			(18)
 #define BM_ANADIG_ANA_MISC0_STOP_MODE_CONFIG	0x1000
 #define BM_ANADIG_ANA_MISC0_V2_STOP_MODE_CONFIG	0x800
 #define BM_ANADIG_ANA_MISC0_V3_STOP_MODE_CONFIG	0xc00
+#define BM_ANADIG_ANA_MISC2_REG1_STEP_TIME	(0x3 << 26)
+#define BP_ANADIG_ANA_MISC2_REG1_STEP_TIME	(26)
 /* Below MISC0_DISCON_HIGH_SNVS is only for i.MX6SL */
 #define BM_ANADIG_ANA_MISC0_DISCON_HIGH_SNVS	0x2000
 /* Since i.MX6SX, DISCON_HIGH_SNVS is changed to bit 12 */
 #define BM_ANADIG_ANA_MISC0_V2_DISCON_HIGH_SNVS	0x1000
 #define BM_ANADIG_USB_CHRG_DETECT_CHK_CHRG_B	0x80000
 #define BM_ANADIG_USB_CHRG_DETECT_EN_B		0x100000
+
+#define LDO_RAMP_UP_UNIT_IN_CYCLES      64 /* 64 cycles per step */
+#define LDO_RAMP_UP_FREQ_IN_MHZ         24 /* cycle based on 24M OSC */
 
 static struct regmap *anatop;
 
@@ -99,7 +107,7 @@ static inline void imx_anatop_disconnect_high_snvs(bool enable)
 
 static void imx_anatop_disable_pu(bool off)
 {
-	u32  val, soc;
+	u32  val, soc, delay;
 	if (off) {
 		regmap_read(anatop, ANADIG_REG_CORE, &val);
 		val &= ~BM_ANADIG_REG_CORE_REG1;
@@ -111,6 +119,14 @@ static void imx_anatop_disable_pu(bool off)
 		val &= ~BM_ANADIG_REG_CORE_REG1;
 		val |= soc >> 9;
 		regmap_write(anatop, ANADIG_REG_CORE, val);
+		/* wait PU LDO ramp */
+		regmap_read(anatop, ANADIG_ANA_MISC2, &val);
+		val &= BM_ANADIG_ANA_MISC2_REG1_STEP_TIME;
+		val >>= BP_ANADIG_ANA_MISC2_REG1_STEP_TIME;
+		delay = (soc >> BP_ANADIG_REG_CORE_REG2) *
+			(LDO_RAMP_UP_UNIT_IN_CYCLES << val) /
+			LDO_RAMP_UP_FREQ_IN_MHZ + 1;
+		udelay(delay);
 	}
 }
 
