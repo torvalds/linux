@@ -749,6 +749,7 @@ static void unlock_two_stripes(struct stripe_head *sh1, struct stripe_head *sh2)
 static bool stripe_can_batch(struct stripe_head *sh)
 {
 	return test_bit(STRIPE_BATCH_READY, &sh->state) &&
+		!test_bit(STRIPE_BITMAP_PENDING, &sh->state) &&
 		is_full_stripe_write(sh);
 }
 
@@ -2996,14 +2997,32 @@ static int add_stripe_bio(struct stripe_head *sh, struct bio *bi, int dd_idx,
 	pr_debug("added bi b#%llu to stripe s#%llu, disk %d.\n",
 		(unsigned long long)(*bip)->bi_iter.bi_sector,
 		(unsigned long long)sh->sector, dd_idx);
-	spin_unlock_irq(&sh->stripe_lock);
 
 	if (conf->mddev->bitmap && firstwrite) {
+		/* Cannot hold spinlock over bitmap_startwrite,
+		 * but must ensure this isn't added to a batch until
+		 * we have added to the bitmap and set bm_seq.
+		 * So set STRIPE_BITMAP_PENDING to prevent
+		 * batching.
+		 * If multiple add_stripe_bio() calls race here they
+		 * much all set STRIPE_BITMAP_PENDING.  So only the first one
+		 * to complete "bitmap_startwrite" gets to set
+		 * STRIPE_BIT_DELAY.  This is important as once a stripe
+		 * is added to a batch, STRIPE_BIT_DELAY cannot be changed
+		 * any more.
+		 */
+		set_bit(STRIPE_BITMAP_PENDING, &sh->state);
+		spin_unlock_irq(&sh->stripe_lock);
 		bitmap_startwrite(conf->mddev->bitmap, sh->sector,
 				  STRIPE_SECTORS, 0);
-		sh->bm_seq = conf->seq_flush+1;
-		set_bit(STRIPE_BIT_DELAY, &sh->state);
+		spin_lock_irq(&sh->stripe_lock);
+		clear_bit(STRIPE_BITMAP_PENDING, &sh->state);
+		if (!sh->batch_head) {
+			sh->bm_seq = conf->seq_flush+1;
+			set_bit(STRIPE_BIT_DELAY, &sh->state);
+		}
 	}
+	spin_unlock_irq(&sh->stripe_lock);
 
 	if (stripe_can_batch(sh))
 		stripe_add_to_batch_list(conf, sh);
