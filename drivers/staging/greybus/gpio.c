@@ -314,9 +314,8 @@ static int gb_gpio_request_recv(u8 type, struct gb_operation *op)
 		return -EINVAL;
 	}
 
-	/* Dispatch interrupt */
 	local_irq_disable();
-	handle_simple_irq(irq, desc);
+	generic_handle_irq_desc(irq, desc);
 	local_irq_enable();
 
 	return 0;
