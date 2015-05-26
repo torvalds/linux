@@ -192,8 +192,10 @@ static struct ubi_ainf_volume *add_vol(struct ubi_attach_info *ai, int vol_id,
 
 		if (vol_id > av->vol_id)
 			p = &(*p)->rb_left;
-		else
+		else if (vol_id < av->vol_id)
 			p = &(*p)->rb_right;
+		else
+			return ERR_PTR(-EINVAL);
 	}
 
 	av = kmalloc(sizeof(struct ubi_ainf_volume), GFP_KERNEL);
@@ -748,6 +750,11 @@ static int ubi_attach_fastmap(struct ubi_device *ubi,
 
 		if (!av)
 			goto fail_bad;
+		if (PTR_ERR(av) == -EINVAL) {
+			ubi_err(ubi, "volume (ID %i) already exists",
+				fmvhdr->vol_id);
+			goto fail_bad;
+		}
 
 		ai->vols_found++;
 		if (ai->highest_vol_id < be32_to_cpu(fmvhdr->vol_id))
