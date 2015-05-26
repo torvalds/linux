@@ -1336,12 +1336,11 @@ rpcrdma_buffer_get_frmrs(struct rpcrdma_req *req, struct rpcrdma_buffer *buf,
 struct rpcrdma_req *
 rpcrdma_buffer_get(struct rpcrdma_buffer *buffers)
 {
-	struct rpcrdma_ia *ia = rdmab_to_ia(buffers);
-	struct list_head stale;
 	struct rpcrdma_req *req;
 	unsigned long flags;
 
 	spin_lock_irqsave(&buffers->rb_lock, flags);
+
 	if (buffers->rb_send_index == buffers->rb_max_requests) {
 		spin_unlock_irqrestore(&buffers->rb_lock, flags);
 		dprintk("RPC:       %s: out of request buffers\n", __func__);
@@ -1360,17 +1359,7 @@ rpcrdma_buffer_get(struct rpcrdma_buffer *buffers)
 	}
 	buffers->rb_send_bufs[buffers->rb_send_index++] = NULL;
 
-	INIT_LIST_HEAD(&stale);
-	switch (ia->ri_memreg_strategy) {
-	case RPCRDMA_FRMR:
-		req = rpcrdma_buffer_get_frmrs(req, buffers, &stale);
-		break;
-	default:
-		break;
-	}
 	spin_unlock_irqrestore(&buffers->rb_lock, flags);
-	if (!list_empty(&stale))
-		rpcrdma_retry_flushed_linv(&stale, buffers);
 	return req;
 }
 
@@ -1382,18 +1371,10 @@ void
 rpcrdma_buffer_put(struct rpcrdma_req *req)
 {
 	struct rpcrdma_buffer *buffers = req->rl_buffer;
-	struct rpcrdma_ia *ia = rdmab_to_ia(buffers);
 	unsigned long flags;
 
 	spin_lock_irqsave(&buffers->rb_lock, flags);
 	rpcrdma_buffer_put_sendbuf(req, buffers);
-	switch (ia->ri_memreg_strategy) {
-	case RPCRDMA_FRMR:
-		rpcrdma_buffer_put_mrs(req, buffers);
-		break;
-	default:
-		break;
-	}
 	spin_unlock_irqrestore(&buffers->rb_lock, flags);
 }
 

@@ -11,6 +11,62 @@
  * but most complex memory registration mode.
  */
 
+/* Normal operation
+ *
+ * A Memory Region is prepared for RDMA READ or WRITE using a FAST_REG
+ * Work Request (frmr_op_map). When the RDMA operation is finished, this
+ * Memory Region is invalidated using a LOCAL_INV Work Request
+ * (frmr_op_unmap).
+ *
+ * Typically these Work Requests are not signaled, and neither are RDMA
+ * SEND Work Requests (with the exception of signaling occasionally to
+ * prevent provider work queue overflows). This greatly reduces HCA
+ * interrupt workload.
+ *
+ * As an optimization, frwr_op_unmap marks MRs INVALID before the
+ * LOCAL_INV WR is posted. If posting succeeds, the MR is placed on
+ * rb_mws immediately so that no work (like managing a linked list
+ * under a spinlock) is needed in the completion upcall.
+ *
+ * But this means that frwr_op_map() can occasionally encounter an MR
+ * that is INVALID but the LOCAL_INV WR has not completed. Work Queue
+ * ordering prevents a subsequent FAST_REG WR from executing against
+ * that MR while it is still being invalidated.
+ */
+
+/* Transport recovery
+ *
+ * ->op_map and the transport connect worker cannot run at the same
+ * time, but ->op_unmap can fire while the transport connect worker
+ * is running. Thus MR recovery is handled in ->op_map, to guarantee
+ * that recovered MRs are owned by a sending RPC, and not one where
+ * ->op_unmap could fire at the same time transport reconnect is
+ * being done.
+ *
+ * When the underlying transport disconnects, MRs are left in one of
+ * three states:
+ *
+ * INVALID:	The MR was not in use before the QP entered ERROR state.
+ *		(Or, the LOCAL_INV WR has not completed or flushed yet).
+ *
+ * STALE:	The MR was being registered or unregistered when the QP
+ *		entered ERROR state, and the pending WR was flushed.
+ *
+ * VALID:	The MR was registered before the QP entered ERROR state.
+ *
+ * When frwr_op_map encounters STALE and VALID MRs, they are recovered
+ * with ib_dereg_mr and then are re-initialized. Beause MR recovery
+ * allocates fresh resources, it is deferred to a workqueue, and the
+ * recovered MRs are placed back on the rb_mws list when recovery is
+ * complete. frwr_op_map allocates another MR for the current RPC while
+ * the broken MR is reset.
+ *
+ * To ensure that frwr_op_map doesn't encounter an MR that is marked
+ * INVALID but that is about to be flushed due to a previous transport
+ * disconnect, the transport connect worker attempts to drain all
+ * pending send queue WRs before the transport is reconnected.
+ */
+
 #include "xprt_rdma.h"
 
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
@@ -250,9 +306,9 @@ frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 	struct ib_device *device = ia->ri_device;
 	enum dma_data_direction direction = rpcrdma_data_dir(writing);
 	struct rpcrdma_mr_seg *seg1 = seg;
-	struct rpcrdma_mw *mw = seg1->rl_mw;
-	struct rpcrdma_frmr *frmr = &mw->r.frmr;
-	struct ib_mr *mr = frmr->fr_mr;
+	struct rpcrdma_mw *mw;
+	struct rpcrdma_frmr *frmr;
+	struct ib_mr *mr;
 	struct ib_send_wr fastreg_wr, *bad_wr;
 	u8 key;
 	int len, pageoff;
@@ -261,12 +317,25 @@ frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 	u64 pa;
 	int page_no;
 
+	mw = seg1->rl_mw;
+	seg1->rl_mw = NULL;
+	do {
+		if (mw)
+			__frwr_queue_recovery(mw);
+		mw = rpcrdma_get_mw(r_xprt);
+		if (!mw)
+			return -ENOMEM;
+	} while (mw->r.frmr.fr_state != FRMR_IS_INVALID);
+	frmr = &mw->r.frmr;
+	frmr->fr_state = FRMR_IS_VALID;
+
 	pageoff = offset_in_page(seg1->mr_offset);
 	seg1->mr_offset -= pageoff;	/* start of page */
 	seg1->mr_len += pageoff;
 	len = -pageoff;
 	if (nsegs > ia->ri_max_frmr_depth)
 		nsegs = ia->ri_max_frmr_depth;
+
 	for (page_no = i = 0; i < nsegs;) {
 		rpcrdma_map_one(device, seg, direction);
 		pa = seg->mr_dma;
@@ -285,8 +354,6 @@ frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 	dprintk("RPC:       %s: Using frmr %p to map %d segments (%d bytes)\n",
 		__func__, mw, i, len);
 
-	frmr->fr_state = FRMR_IS_VALID;
-
 	memset(&fastreg_wr, 0, sizeof(fastreg_wr));
 	fastreg_wr.wr_id = (unsigned long)(void *)mw;
 	fastreg_wr.opcode = IB_WR_FAST_REG_MR;
@@ -298,6 +365,7 @@ frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 	fastreg_wr.wr.fast_reg.access_flags = writing ?
 				IB_ACCESS_REMOTE_WRITE | IB_ACCESS_LOCAL_WRITE :
 				IB_ACCESS_REMOTE_READ;
+	mr = frmr->fr_mr;
 	key = (u8)(mr->rkey & 0x000000FF);
 	ib_update_fast_reg_key(mr, ++key);
 	fastreg_wr.wr.fast_reg.rkey = mr->rkey;
@@ -307,6 +375,7 @@ frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 	if (rc)
 		goto out_senderr;
 
+	seg1->rl_mw = mw;
 	seg1->mr_rkey = mr->rkey;
 	seg1->mr_base = seg1->mr_dma + pageoff;
 	seg1->mr_nsegs = i;
@@ -315,10 +384,9 @@ frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 
 out_senderr:
 	dprintk("RPC:       %s: ib_post_send status %i\n", __func__, rc);
-	ib_update_fast_reg_key(mr, --key);
-	frmr->fr_state = FRMR_IS_INVALID;
 	while (i--)
 		rpcrdma_unmap_one(device, --seg);
+	__frwr_queue_recovery(mw);
 	return rc;
 }
 
@@ -330,15 +398,19 @@ frwr_op_unmap(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg)
 {
 	struct rpcrdma_mr_seg *seg1 = seg;
 	struct rpcrdma_ia *ia = &r_xprt->rx_ia;
+	struct rpcrdma_mw *mw = seg1->rl_mw;
 	struct ib_send_wr invalidate_wr, *bad_wr;
 	int rc, nsegs = seg->mr_nsegs;
 
-	seg1->rl_mw->r.frmr.fr_state = FRMR_IS_INVALID;
+	dprintk("RPC:       %s: FRMR %p\n", __func__, mw);
+
+	seg1->rl_mw = NULL;
+	mw->r.frmr.fr_state = FRMR_IS_INVALID;
 
 	memset(&invalidate_wr, 0, sizeof(invalidate_wr));
-	invalidate_wr.wr_id = (unsigned long)(void *)seg1->rl_mw;
+	invalidate_wr.wr_id = (unsigned long)(void *)mw;
 	invalidate_wr.opcode = IB_WR_LOCAL_INV;
-	invalidate_wr.ex.invalidate_rkey = seg1->rl_mw->r.frmr.fr_mr->rkey;
+	invalidate_wr.ex.invalidate_rkey = mw->r.frmr.fr_mr->rkey;
 	DECR_CQCOUNT(&r_xprt->rx_ep);
 
 	while (seg1->mr_nsegs--)
@@ -348,12 +420,13 @@ frwr_op_unmap(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg)
 	read_unlock(&ia->ri_qplock);
 	if (rc)
 		goto out_err;
+
+	rpcrdma_put_mw(r_xprt, mw);
 	return nsegs;
 
 out_err:
-	/* Force rpcrdma_buffer_get() to retry */
-	seg1->rl_mw->r.frmr.fr_state = FRMR_IS_STALE;
 	dprintk("RPC:       %s: ib_post_send status %i\n", __func__, rc);
+	__frwr_queue_recovery(mw);
 	return nsegs;
 }
 
@@ -399,6 +472,9 @@ static void
 frwr_op_destroy(struct rpcrdma_buffer *buf)
 {
 	struct rpcrdma_mw *r;
+
+	/* Ensure stale MWs for "buf" are no longer in flight */
+	flush_workqueue(frwr_recovery_wq);
 
 	while (!list_empty(&buf->rb_all)) {
 		r = list_entry(buf->rb_all.next, struct rpcrdma_mw, mw_all);
