@@ -414,11 +414,6 @@ static int gb_gpio_set_debounce(struct gpio_chip *chip, unsigned offset,
 	return gb_gpio_set_debounce_operation(ggc, (u8)offset, usec);
 }
 
-static void gb_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
-{
-	return;	/* XXX */
-}
-
 static int gb_gpio_controller_setup(struct gb_gpio_controller *ggc)
 {
 	int ret;
@@ -616,7 +611,6 @@ static int gb_gpio_connection_init(struct gb_connection *connection)
 	gpio->get = gb_gpio_get;
 	gpio->set = gb_gpio_set;
 	gpio->set_debounce = gb_gpio_set_debounce;
-	gpio->dbg_show = gb_gpio_dbg_show;
 	gpio->to_irq = gb_gpio_to_irq;
 	gpio->base = -1;		/* Allocate base dynamically */
 	gpio->ngpio = ggc->line_max + 1;
