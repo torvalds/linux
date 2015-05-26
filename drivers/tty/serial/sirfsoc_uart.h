@@ -7,6 +7,7 @@
  */
 #include <linux/bitops.h>
 #include <linux/log2.h>
+#include <linux/hrtimer.h>
 struct sirfsoc_uart_param {
 	const char *uart_name;
 	const char *port_name;
@@ -293,6 +294,7 @@ struct sirfsoc_uart_register sirfsoc_uart = {
 
 #define SIRFUART_IO_MODE			BIT(0)
 #define SIRFUART_DMA_MODE			0x0
+#define SIRFUART_RX_DMA_FLUSH			0x4
 
 /* Baud Rate Calculation */
 #define SIRF_USP_MIN_SAMPLE_DIV			0x1
@@ -353,8 +355,7 @@ struct sirfsoc_uart_register sirfsoc_uart = {
 				 uint_st->sirfsoc_rx_timeout)
 #define SIRFUART_CTS_INT_ST(uint_st)	(uint_st->sirfsoc_cts)
 #define SIRFUART_RX_DMA_INT_EN(uint_en, uart_type)		\
-				(uint_en->sirfsoc_rx_timeout_en |\
-				 uint_en->sirfsoc_frm_err_en |\
+				(uint_en->sirfsoc_frm_err_en |\
 				 uint_en->sirfsoc_rx_oflow_en |\
 				 uint_en->sirfsoc_rxd_brk_en |\
 				((uart_type != SIRF_REAL_UART) ? \
@@ -369,7 +370,7 @@ struct sirfsoc_uart_register sirfsoc_uart = {
 #define SIRFSOC_PORT_TYPE			0xa5
 
 /* Uart Common Use Macro*/
-#define SIRFSOC_RX_DMA_BUF_SIZE	256
+#define SIRFSOC_RX_DMA_BUF_SIZE		(1024 * 32)
 #define BYTES_TO_ALIGN(dma_addr)	((unsigned long)(dma_addr) & 0x3)
 /* Uart Fifo Level Chk */
 #define SIRFUART_TX_FIFO_SC_OFFSET	0
@@ -385,8 +386,8 @@ struct sirfsoc_uart_register sirfsoc_uart = {
 #define SIRFUART_RX_FIFO_CHK_SC SIRFUART_TX_FIFO_CHK_SC
 #define	SIRFUART_RX_FIFO_CHK_LC SIRFUART_TX_FIFO_CHK_LC
 #define SIRFUART_RX_FIFO_CHK_HC SIRFUART_TX_FIFO_CHK_HC
+#define SIRFUART_RX_FIFO_MASK 0x7f
 /* Indicate how many buffers used */
-#define SIRFSOC_RX_LOOP_BUF_CNT		2
 
 /* For Fast Baud Rate Calculation */
 struct sirfsoc_baudrate_to_regv {
@@ -400,7 +401,7 @@ enum sirfsoc_tx_state {
 	TX_DMA_PAUSE,
 };
 
-struct sirfsoc_loop_buffer {
+struct sirfsoc_rx_buffer {
 	struct circ_buf			xmit;
 	dma_cookie_t			cookie;
 	struct dma_async_tx_descriptor	*desc;
@@ -420,17 +421,16 @@ struct sirfsoc_uart_port {
 	struct dma_chan			*tx_dma_chan;
 	dma_addr_t			tx_dma_addr;
 	struct dma_async_tx_descriptor	*tx_dma_desc;
-	struct tasklet_struct		rx_dma_complete_tasklet;
-	struct tasklet_struct		rx_tmo_process_tasklet;
 	unsigned int			rx_io_count;
 	unsigned long			transfer_size;
 	enum sirfsoc_tx_state		tx_dma_state;
 	unsigned int			cts_gpio;
 	unsigned int			rts_gpio;
 
-	struct sirfsoc_loop_buffer	rx_dma_items[SIRFSOC_RX_LOOP_BUF_CNT];
-	int				rx_completed;
-	int				rx_issued;
+	struct sirfsoc_rx_buffer	rx_dma_items;
+	struct hrtimer			hrt;
+	bool				is_hrt_enabled;
+	unsigned long			rx_period_time;
 };
 
 /* Register Access Control */
