@@ -73,6 +73,9 @@ IOCTLS = \
 	VIDIOC_SUBDEV_G_SELECTION \
 	VIDIOC_SUBDEV_S_SELECTION \
 
+DEFINES = \
+	$(shell perl -ne 'print "$$1 " if /\#define\s+(DTV_[^\s]+)\s+/' $(srctree)/include/uapi/linux/dvb/frontend.h) \
+
 TYPES = \
 	$(shell perl -ne 'print "$$1 " if /^typedef\s+[^\s]+\s+([^\s]+)\;/' $(srctree)/include/uapi/linux/videodev2.h) \
 	$(shell perl -ne 'print "$$1 " if /^}\s+([a-z0-9_]+_t)/' $(srctree)/include/uapi/linux/dvb/frontend.h)
@@ -187,8 +190,10 @@ DVB_DOCUMENTED = \
 	-e "s,\(audio-mixer\|audio-karaoke\|audio-status\|ca-slot-info\|ca-descr-info\|ca-caps\|ca-msg\|ca-descr\|ca-pid\|dmx-filter\|dmx-caps\|video-system\|video-highlight\|video-spu\|video-spu-palette\|video-navi-pack\)-t,\1,g" \
 	-e "s,DTV-ISDBT-LAYER[A-C],DTV-ISDBT-LAYER,g" \
 	-e "s,\(define\s\+\)\([A-Z0-9_]\+\)\(\s\+_IO\),\1\<link linkend=\"\2\">\2\<\/link\>\3,g" \
+	-e "s,\(define\s\+\)\(DTV_[A-Z0-9_]\+\)\(\s\+\),\1\<link linkend=\"\2\">\2\<\/link\>\3,g" \
 	-e "s,<link\s\+linkend=\".*\">\(__.*_OLD\)<\/link>,\1,g" \
 	-e "s/\(linkend\=\"\)FE_SET_PROPERTY/\1FE_GET_PROPERTY/g" \
+	-e "s,<link\s\+linkend=\".*\">\(DTV_ISDBS_TS_ID_LEGACY\|DTV_MAX_COMMAND\|DTV_IOCTL_MAX_MSGS\)<\/link>,\1,g" \
 
 #
 # Media targets and dependencies
@@ -303,6 +308,15 @@ $(MEDIA_OBJ_DIR)/media-entities.tmpl: $(MEDIA_OBJ_DIR)/v4l2.xml
 	  id=`grep "<refname>$$ident" $(MEDIA_OBJ_DIR)/vidioc-*.xml $(MEDIA_OBJ_DIR)/media-ioc-*.xml | sed -r s,"^.*/(.*).xml.*","\1",` ; \
 	  echo "<!ENTITY $$entity \"<link"				\
 	    "linkend='$$id'><constant>$$ident</constant></link>\">"	\
+	  >>$@ ;							\
+	done)
+	@(								\
+	echo -e "\n<!-- Defines -->") >>$@
+	@(								\
+	for ident in $(DEFINES) ; do					\
+	  entity=`echo $$ident | tr _ -` ;				\
+	  echo "<!ENTITY $$entity \"<link"				\
+	    "linkend='$$entity'><constant>$$ident</constant></link>\">"	\
 	  >>$@ ;							\
 	done)
 	@(								\

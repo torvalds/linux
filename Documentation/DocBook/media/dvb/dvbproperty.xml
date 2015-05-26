@@ -20,12 +20,12 @@
     rate of 5.217 Mbauds, those properties should be sent to
     <link linkend="FE_GET_PROPERTY"><constant>FE_SET_PROPERTY</constant></link> ioctl:</para>
     <itemizedlist>
-	<listitem>DTV_FREQUENCY = 651000000</listitem>
-	<listitem>DTV_MODULATION = QAM_256</listitem>
-	<listitem>DTV_INVERSION = INVERSION_AUTO</listitem>
-	<listitem>DTV_SYMBOL_RATE = 5217000</listitem>
-	<listitem>DTV_INNER_FEC = FEC_3_4</listitem>
-	<listitem>DTV_TUNE</listitem>
+	<listitem>&DTV-FREQUENCY; = 651000000</listitem>
+	<listitem>&DTV-MODULATION; = QAM_256</listitem>
+	<listitem>&DTV-INVERSION; = INVERSION_AUTO</listitem>
+	<listitem>&DTV-SYMBOL-RATE; = 5217000</listitem>
+	<listitem>&DTV-INNER-FEC; = FEC_3_4</listitem>
+	<listitem>&DTV-TUNE;</listitem>
     </itemizedlist>
 <para>NOTE: This section describes the DVB version 5 extension of the DVB-API,
 also called "S2API", as this API were added to provide support for DVB-S2. It
