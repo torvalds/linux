@@ -2241,6 +2241,13 @@ static void mwifiex_sdio_fw_dump_work(struct mwifiex_adapter *adapter)
 
 		if (memory_size == 0) {
 			mwifiex_dbg(adapter, DUMP, "Firmware dump Finished!\n");
+			ret = mwifiex_write_reg(adapter,
+						card->reg->fw_dump_ctrl,
+						FW_DUMP_READ_DONE);
+			if (ret) {
+				mwifiex_dbg(adapter, ERROR, "SDIO write err\n");
+				return;
+			}
 			break;
 		}
 
