@@ -467,7 +467,6 @@ struct radeon_bo_va {
 	/* protected by bo being reserved */
 	struct list_head		bo_list;
 	uint32_t			flags;
-	uint64_t			addr;
 	struct radeon_fence		*last_pt_update;
 	unsigned			ref_count;
 
@@ -940,6 +939,9 @@ struct radeon_vm {
 
 	/* BOs freed, but not yet updated in the PT */
 	struct list_head	freed;
+
+	/* BOs cleared in the PT */
+	struct list_head	cleared;
 
 	/* contains the page directory */
 	struct radeon_bo	*page_directory;
