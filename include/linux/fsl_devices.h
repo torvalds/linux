@@ -24,6 +24,7 @@
 #define FSL_USB_VER_1_6		1
 #define FSL_USB_VER_2_2		2
 #define FSL_USB_VER_2_4		3
+#define FSL_USB_VER_2_5		4
 
 #include <linux/types.h>
 
