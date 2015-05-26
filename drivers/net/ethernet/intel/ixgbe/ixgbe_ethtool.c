@@ -2594,18 +2594,35 @@ static int ixgbe_add_ethtool_fdir_entry(struct ixgbe_adapter *adapter,
 	struct ixgbe_hw *hw = &adapter->hw;
 	struct ixgbe_fdir_filter *input;
 	union ixgbe_atr_input mask;
+	u8 queue;
 	int err;
 
 	if (!(adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE))
 		return -EOPNOTSUPP;
 
-	/*
-	 * Don't allow programming if the action is a queue greater than
-	 * the number of online Rx queues.
+	/* ring_cookie is a masked into a set of queues and ixgbe pools or
+	 * we use the drop index.
 	 */
-	if ((fsp->ring_cookie != RX_CLS_FLOW_DISC) &&
-	    (fsp->ring_cookie >= adapter->num_rx_queues))
-		return -EINVAL;
+	if (fsp->ring_cookie == RX_CLS_FLOW_DISC) {
+		queue = IXGBE_FDIR_DROP_QUEUE;
+	} else {
+		u32 ring = ethtool_get_flow_spec_ring(fsp->ring_cookie);
+		u8 vf = ethtool_get_flow_spec_ring_vf(fsp->ring_cookie);
+
+		if (!vf && (ring >= adapter->num_rx_queues))
+			return -EINVAL;
+		else if (vf &&
+			 ((vf > adapter->num_vfs) ||
+			   ring >= adapter->num_rx_queues_per_pool))
+			return -EINVAL;
+
+		/* Map the ring onto the absolute queue index */
+		if (!vf)
+			queue = adapter->rx_ring[ring]->reg_idx;
+		else
+			queue = ((vf - 1) *
+				adapter->num_rx_queues_per_pool) + ring;
+	}
 
 	/* Don't allow indexes to exist outside of available space */
 	if (fsp->location >= ((1024 << adapter->fdir_pballoc) - 2)) {
@@ -2683,10 +2700,7 @@ static int ixgbe_add_ethtool_fdir_entry(struct ixgbe_adapter *adapter,
 
 	/* program filters to filter memory */
 	err = ixgbe_fdir_write_perfect_filter_82599(hw,
-				&input->filter, input->sw_idx,
-				(input->action == IXGBE_FDIR_DROP_QUEUE) ?
-				IXGBE_FDIR_DROP_QUEUE :
-				adapter->rx_ring[input->action]->reg_idx);
+				&input->filter, input->sw_idx, queue);
 	if (err)
 		goto err_out_w_lock;
 
