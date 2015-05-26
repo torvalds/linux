@@ -1164,6 +1164,7 @@ static void old_requeue_request(struct request *rq)
 
 	spin_lock_irqsave(q->queue_lock, flags);
 	blk_requeue_request(q, rq);
+	blk_run_queue_async(q);
 	spin_unlock_irqrestore(q->queue_lock, flags);
 }
 
