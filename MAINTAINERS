@@ -6365,6 +6365,12 @@ F:	include/uapi/linux/meye.h
 F:	include/uapi/linux/ivtv*
 F:	include/uapi/linux/uvcvideo.h
 
+MEDIATEK MT7601U WIRELESS LAN DRIVER
+M:	Jakub Kicinski <kubakici@wp.pl>
+L:	linux-wireless@vger.kernel.org
+S:	Maintained
+F:	drivers/net/wireless/mediatek/mt7601u/
+
 MEGARAID SCSI/SAS DRIVERS
 M:	Kashyap Desai <kashyap.desai@avagotech.com>
 M:	Sumit Saxena <sumit.saxena@avagotech.com>
