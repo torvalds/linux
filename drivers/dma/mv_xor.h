@@ -30,8 +30,13 @@
 /* Values for the XOR_CONFIG register */
 #define XOR_OPERATION_MODE_XOR		0
 #define XOR_OPERATION_MODE_MEMCPY	2
+#define XOR_OPERATION_MODE_IN_DESC      7
 #define XOR_DESCRIPTOR_SWAP		BIT(14)
 #define XOR_DESC_SUCCESS		0x40000000
+
+#define XOR_DESC_OPERATION_XOR          (0 << 24)
+#define XOR_DESC_OPERATION_CRC32C       (1 << 24)
+#define XOR_DESC_OPERATION_MEMCPY       (2 << 24)
 
 #define XOR_DESC_DMA_OWNED		BIT(31)
 #define XOR_DESC_EOD_INT_EN		BIT(31)
@@ -96,6 +101,7 @@ struct mv_xor_device {
  * @all_slots: complete domain of slots usable by the channel
  * @slots_allocated: records the actual size of the descriptor slot pool
  * @irq_tasklet: bottom half where mv_xor_slot_cleanup runs
+ * @op_in_desc: new mode of driver, each op is writen to descriptor.
  */
 struct mv_xor_chan {
 	int			pending;
@@ -116,6 +122,7 @@ struct mv_xor_chan {
 	struct list_head	all_slots;
 	int			slots_allocated;
 	struct tasklet_struct	irq_tasklet;
+	int                     op_in_desc;
 	char			dummy_src[MV_XOR_MIN_BYTE_COUNT];
 	char			dummy_dst[MV_XOR_MIN_BYTE_COUNT];
 	dma_addr_t		dummy_src_addr, dummy_dst_addr;
