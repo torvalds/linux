@@ -702,17 +702,17 @@ rpcrdma_ia_close(struct rpcrdma_ia *ia)
 		dprintk("RPC:       %s: ib_dereg_mr returned %i\n",
 			__func__, rc);
 	}
+
 	if (ia->ri_id != NULL && !IS_ERR(ia->ri_id)) {
 		if (ia->ri_id->qp)
 			rdma_destroy_qp(ia->ri_id);
 		rdma_destroy_id(ia->ri_id);
 		ia->ri_id = NULL;
 	}
-	if (ia->ri_pd != NULL && !IS_ERR(ia->ri_pd)) {
-		rc = ib_dealloc_pd(ia->ri_pd);
-		dprintk("RPC:       %s: ib_dealloc_pd returned %i\n",
-			__func__, rc);
-	}
+
+	/* If the pd is still busy, xprtrdma missed freeing a resource */
+	if (ia->ri_pd && !IS_ERR(ia->ri_pd))
+		WARN_ON(ib_dealloc_pd(ia->ri_pd));
 }
 
 /*
