@@ -105,11 +105,13 @@ struct dvb_diseqc_slave_reply {
 };			/*  errorcode when no message was received  */
 
 
-typedef enum fe_sec_voltage {
+enum fe_sec_voltage {
 	SEC_VOLTAGE_13,
 	SEC_VOLTAGE_18,
 	SEC_VOLTAGE_OFF
-} fe_sec_voltage_t;
+};
+
+typedef enum fe_sec_voltage fe_sec_voltage_t;
 
 
 typedef enum fe_sec_tone_mode {
