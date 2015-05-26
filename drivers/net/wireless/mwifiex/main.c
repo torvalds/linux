@@ -982,6 +982,96 @@ void mwifiex_drv_info_dump(struct mwifiex_adapter *adapter)
 }
 EXPORT_SYMBOL_GPL(mwifiex_drv_info_dump);
 
+void mwifiex_upload_device_dump(struct mwifiex_adapter *adapter)
+{
+	u8 idx, *dump_data, *fw_dump_ptr;
+	u32 dump_len;
+
+	dump_len = (strlen("========Start dump driverinfo========\n") +
+		       adapter->drv_info_size +
+		       strlen("\n========End dump========\n"));
+
+	for (idx = 0; idx < adapter->num_mem_types; idx++) {
+		struct memory_type_mapping *entry =
+				&adapter->mem_type_mapping_tbl[idx];
+
+		if (entry->mem_ptr) {
+			dump_len += (strlen("========Start dump ") +
+					strlen(entry->mem_name) +
+					strlen("========\n") +
+					(entry->mem_size + 1) +
+					strlen("\n========End dump========\n"));
+		}
+	}
+
+	dump_data = vzalloc(dump_len + 1);
+	if (!dump_data)
+		goto done;
+
+	fw_dump_ptr = dump_data;
+
+	/* Dump all the memory data into single file, a userspace script will
+	 * be used to split all the memory data to multiple files
+	 */
+	mwifiex_dbg(adapter, MSG,
+		    "== mwifiex dump information to /sys/class/devcoredump start");
+
+	strcpy(fw_dump_ptr, "========Start dump driverinfo========\n");
+	fw_dump_ptr += strlen("========Start dump driverinfo========\n");
+	memcpy(fw_dump_ptr, adapter->drv_info_dump, adapter->drv_info_size);
+	fw_dump_ptr += adapter->drv_info_size;
+	strcpy(fw_dump_ptr, "\n========End dump========\n");
+	fw_dump_ptr += strlen("\n========End dump========\n");
+
+	for (idx = 0; idx < adapter->num_mem_types; idx++) {
+		struct memory_type_mapping *entry =
+					&adapter->mem_type_mapping_tbl[idx];
+
+		if (entry->mem_ptr) {
+			strcpy(fw_dump_ptr, "========Start dump ");
+			fw_dump_ptr += strlen("========Start dump ");
+
+			strcpy(fw_dump_ptr, entry->mem_name);
+			fw_dump_ptr += strlen(entry->mem_name);
+
+			strcpy(fw_dump_ptr, "========\n");
+			fw_dump_ptr += strlen("========\n");
+
+			memcpy(fw_dump_ptr, entry->mem_ptr, entry->mem_size);
+			fw_dump_ptr += entry->mem_size;
+
+			strcpy(fw_dump_ptr, "\n========End dump========\n");
+			fw_dump_ptr += strlen("\n========End dump========\n");
+		}
+	}
+
+	/* device dump data will be free in device coredump release function
+	 * after 5 min
+	 */
+	dev_coredumpv(adapter->dev, dump_data, dump_len, GFP_KERNEL);
+	mwifiex_dbg(adapter, MSG,
+		    "== mwifiex dump information to /sys/class/devcoredump end");
+
+done:
+	for (idx = 0; idx < adapter->num_mem_types; idx++) {
+		struct memory_type_mapping *entry =
+			&adapter->mem_type_mapping_tbl[idx];
+
+		if (entry->mem_ptr) {
+			vfree(entry->mem_ptr);
+			entry->mem_ptr = NULL;
+		}
+		entry->mem_size = 0;
+	}
+
+	if (adapter->drv_info_dump) {
+		vfree(adapter->drv_info_dump);
+		adapter->drv_info_dump = NULL;
+		adapter->drv_info_size = 0;
+	}
+}
+EXPORT_SYMBOL_GPL(mwifiex_upload_device_dump);
+
 /*
  * CFG802.11 network device handler for statistics retrieval.
  */

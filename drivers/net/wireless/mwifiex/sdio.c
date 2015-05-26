@@ -2185,7 +2185,6 @@ static void mwifiex_sdio_fw_dump(struct mwifiex_adapter *adapter)
 	u8 *dbg_ptr, *end_ptr, dump_num, idx, i, read_reg, doneflag = 0;
 	enum rdwr_status stat;
 	u32 memory_size;
-	static char *env[] = { "DRIVER=mwifiex_sdio", "EVENT=fw_dump", NULL };
 
 	if (!card->can_dump_fw)
 		return;
@@ -2297,17 +2296,15 @@ static void mwifiex_sdio_fw_dump(struct mwifiex_adapter *adapter)
 	}
 	mwifiex_dbg(adapter, MSG, "== mwifiex firmware dump end ==\n");
 
-	kobject_uevent_env(&adapter->wiphy->dev.kobj, KOBJ_CHANGE, env);
-
 done:
 	sdio_release_host(card->func);
-	adapter->curr_mem_idx = 0;
 }
 
 static void mwifiex_sdio_device_dump_work(struct mwifiex_adapter *adapter)
 {
 	mwifiex_drv_info_dump(adapter);
 	mwifiex_sdio_fw_dump(adapter);
+	mwifiex_upload_device_dump(adapter);
 }
 
 static void mwifiex_sdio_work(struct work_struct *work)

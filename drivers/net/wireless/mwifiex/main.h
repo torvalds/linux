@@ -36,6 +36,7 @@
 #include <linux/of.h>
 #include <linux/idr.h>
 #include <linux/inetdevice.h>
+#include <linux/devcoredump.h>
 
 #include "decl.h"
 #include "ioctl.h"
@@ -950,7 +951,6 @@ struct mwifiex_adapter {
 	u8 key_api_major_ver, key_api_minor_ver;
 	struct memory_type_mapping *mem_type_mapping_tbl;
 	u8 num_mem_types;
-	u8 curr_mem_idx;
 	void *drv_info_dump;
 	u32 drv_info_size;
 	bool scan_chan_gap_enabled;
@@ -1485,6 +1485,7 @@ u8 mwifiex_adjust_data_rate(struct mwifiex_private *priv,
 			    u8 rx_rate, u8 ht_info);
 
 void mwifiex_drv_info_dump(struct mwifiex_adapter *adapter);
+void mwifiex_upload_device_dump(struct mwifiex_adapter *adapter);
 void *mwifiex_alloc_dma_align_buf(int rx_len, gfp_t flags);
 void mwifiex_queue_main_work(struct mwifiex_adapter *adapter);
 
