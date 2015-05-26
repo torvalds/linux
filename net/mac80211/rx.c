@@ -2121,7 +2121,8 @@ ieee80211_deliver_skb(struct ieee80211_rx_data *rx)
 		/* deliver to local stack */
 		skb->protocol = eth_type_trans(skb, dev);
 		memset(skb->cb, 0, sizeof(skb->cb));
-		if (rx->local->napi)
+		if (!(rx->flags & IEEE80211_RX_REORDER_TIMER) &&
+		    rx->local->napi)
 			napi_gro_receive(rx->local->napi, skb);
 		else
 			netif_receive_skb(skb);
@@ -3231,7 +3232,7 @@ void ieee80211_release_reorder_timeout(struct sta_info *sta, int tid)
 		/* This is OK -- must be QoS data frame */
 		.security_idx = tid,
 		.seqno_idx = tid,
-		.flags = 0,
+		.flags = IEEE80211_RX_REORDER_TIMER,
 	};
 	struct tid_ampdu_rx *tid_agg_rx;
 
