@@ -77,6 +77,10 @@ static int mode_string(char *buf, unsigned int offset,
 {
 	char v = 'p';
 
+	if (!buf || !mode) {
+		pr_err("%s parameter error %x %x\n", __func__, buf, mode);
+		return 0;
+	}
 	if (mode->xres == 0 && mode->yres == 0)
 		return snprintf(&buf[offset], PAGE_SIZE - offset, "auto\n");
 /*
