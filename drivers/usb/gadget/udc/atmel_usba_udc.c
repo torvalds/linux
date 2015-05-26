@@ -704,8 +704,8 @@ static int queue_dma(struct usba_udc *udc, struct usba_ep *ep,
 	unsigned long flags;
 	int ret;
 
-	DBG(DBG_DMA, "%s: req l/%u d/%08x %c%c%c\n",
-		ep->ep.name, req->req.length, req->req.dma,
+	DBG(DBG_DMA, "%s: req l/%u d/%pad %c%c%c\n",
+		ep->ep.name, req->req.length, &req->req.dma,
 		req->req.zero ? 'Z' : 'z',
 		req->req.short_not_ok ? 'S' : 's',
 		req->req.no_interrupt ? 'I' : 'i');
