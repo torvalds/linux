@@ -91,6 +91,7 @@ struct pcf857x {
 	spinlock_t		slock;		/* protect irq demux */
 	unsigned		out;		/* software latch */
 	unsigned		status;		/* current status */
+	unsigned int		irq_parent;
 
 	int (*write)(struct i2c_client *client, unsigned data);
 	int (*read)(struct i2c_client *client);
@@ -217,9 +218,19 @@ static unsigned int noop_ret(struct irq_data *data)
 static int pcf857x_irq_set_wake(struct irq_data *data, unsigned int on)
 {
 	struct pcf857x *gpio = irq_data_get_irq_chip_data(data);
+	int error = 0;
 
-	irq_set_irq_wake(gpio->client->irq, on);
-	return 0;
+	if (gpio->irq_parent) {
+		error = irq_set_irq_wake(gpio->irq_parent, on);
+		if (error) {
+			dev_dbg(&gpio->client->dev,
+				"irq %u doesn't support irq_set_wake\n",
+				gpio->irq_parent);
+			gpio->irq_parent = 0;
+		}
+	}
+
+	return error;
 }
 
 static struct irq_chip pcf857x_irq_chip = {
@@ -364,6 +375,7 @@ static int pcf857x_probe(struct i2c_client *client,
 
 		gpiochip_set_chained_irqchip(&gpio->chip, &pcf857x_irq_chip,
 					     client->irq, NULL);
+		gpio->irq_parent = client->irq;
 	}
 
 	/* Let platform code set up the GPIOs and their users.
