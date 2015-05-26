@@ -639,6 +639,11 @@ static int rcar_du_encoders_init_one(struct rcar_du_device *rcdu,
 	of_node_put(encoder);
 	of_node_put(connector);
 
+	if (ret && ret != -EPROBE_DEFER)
+		dev_warn(rcdu->dev,
+			 "failed to initialize encoder %s (%d), skipping\n",
+			 encoder->full_name, ret);
+
 	return ret < 0 ? ret : 1;
 }
 
@@ -688,8 +693,6 @@ static int rcar_du_encoders_init(struct rcar_du_device *rcdu)
 				return ret;
 			}
 
-			dev_info(rcdu->dev,
-				 "encoder initialization failed, skipping\n");
 			continue;
 		}
 
