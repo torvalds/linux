@@ -1666,8 +1666,8 @@ static int rk3368_config_timing(struct rk_lcdc_driver *dev_drv)
 
 		mask = m_DSP_LINE_FLAG0_NUM | m_DSP_LINE_FLAG1_NUM;
 		val =
-		    v_DSP_LINE_FLAG0_NUM(vsync_len + upper_margin + y_res / 2) |
-		    v_DSP_LINE_FLAG1_NUM(vsync_len + upper_margin + y_res / 2);
+		    v_DSP_LINE_FLAG0_NUM(vact_end_f1) |
+		    v_DSP_LINE_FLAG1_NUM(vact_end_f1);
 		lcdc_msk_reg(lcdc_dev, LINE_FLAG, mask, val);
 	} else {
 		mask = m_DSP_VS_PW | m_DSP_VTOTAL;
@@ -4492,6 +4492,49 @@ rk3368_lcdc_dsp_black(struct rk_lcdc_driver *dev_drv, int enable)
 }
 
 
+static int rk3368_lcdc_wait_frame_start(struct rk_lcdc_driver *dev_drv,
+					 int enable)
+{
+	u32 line_scane_num, vsync_end, vact_end;
+	u32 interlace_mode;
+
+	struct lcdc_device *lcdc_dev =
+	    container_of(dev_drv, struct lcdc_device, driver);
+
+	if (unlikely(!lcdc_dev->clk_on)) {
+		pr_info("%s,clk_on = %d\n", __func__, lcdc_dev->clk_on);
+		return 0;
+	}
+	if (0 == enable) {
+		interlace_mode = lcdc_read_bit(lcdc_dev, DSP_CTRL0,
+					       m_DSP_INTERLACE);
+		if (interlace_mode) {
+			vsync_end = lcdc_readl(lcdc_dev, DSP_VS_ST_END_F1) &
+					m_DSP_VS_END_F1;
+			vact_end = lcdc_readl(lcdc_dev, DSP_VACT_ST_END_F1) &
+					m_DSP_VACT_END_F1;
+		} else {
+			vsync_end = lcdc_readl(lcdc_dev, DSP_VTOTAL_VS_END) &
+					m_DSP_VS_PW;
+			vact_end = lcdc_readl(lcdc_dev, DSP_VACT_ST_END) &
+					m_DSP_VACT_END;
+		}
+		while (1) {
+			line_scane_num = lcdc_readl(lcdc_dev, SCAN_LINE_NUM) &
+					0x1fff;
+			if ((line_scane_num > vsync_end) &&
+			    (line_scane_num <= vact_end - 100))
+				break;
+		}
+		return 0;
+	} else if (1 == enable) {
+		line_scane_num = lcdc_readl(lcdc_dev, SCAN_LINE_NUM) & 0x1fff;
+		return line_scane_num;
+	}
+
+	return 0;
+}
+
 static int rk3368_lcdc_backlight_close(struct rk_lcdc_driver *dev_drv,
 				       int enable)
 {
@@ -4618,6 +4661,7 @@ static struct rk_lcdc_drv_ops lcdc_drv_ops = {
 	.mmu_en    = rk3368_lcdc_mmu_en,
 	.set_overscan   = rk3368_lcdc_set_overscan,
 	.extern_func	= rk3368_lcdc_extern_func,
+	.wait_frame_start = rk3368_lcdc_wait_frame_start,
 };
 
 #ifdef LCDC_IRQ_EMPTY_DEBUG
