@@ -314,10 +314,10 @@ topology_sane(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o, const char *name)
 		cpu1, name, cpu2, cpu_to_node(cpu1), cpu_to_node(cpu2));
 }
 
-#define link_mask(_m, c1, c2)						\
+#define link_mask(mfunc, c1, c2)					\
 do {									\
-	cpumask_set_cpu((c1), cpu_##_m##_mask(c2));			\
-	cpumask_set_cpu((c2), cpu_##_m##_mask(c1));			\
+	cpumask_set_cpu((c1), mfunc(c2));				\
+	cpumask_set_cpu((c2), mfunc(c1));				\
 } while (0)
 
 static bool match_smt(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
@@ -398,9 +398,9 @@ void set_cpu_sibling_map(int cpu)
 	cpumask_set_cpu(cpu, cpu_sibling_setup_mask);
 
 	if (!has_mp) {
-		cpumask_set_cpu(cpu, cpu_sibling_mask(cpu));
+		cpumask_set_cpu(cpu, topology_sibling_cpumask(cpu));
 		cpumask_set_cpu(cpu, cpu_llc_shared_mask(cpu));
-		cpumask_set_cpu(cpu, cpu_core_mask(cpu));
+		cpumask_set_cpu(cpu, topology_core_cpumask(cpu));
 		c->booted_cores = 1;
 		return;
 	}
@@ -409,32 +409,34 @@ void set_cpu_sibling_map(int cpu)
 		o = &cpu_data(i);
 
 		if ((i == cpu) || (has_smt && match_smt(c, o)))
-			link_mask(sibling, cpu, i);
+			link_mask(topology_sibling_cpumask, cpu, i);
 
 		if ((i == cpu) || (has_mp && match_llc(c, o)))
-			link_mask(llc_shared, cpu, i);
+			link_mask(cpu_llc_shared_mask, cpu, i);
 
 	}
 
 	/*
 	 * This needs a separate iteration over the cpus because we rely on all
-	 * cpu_sibling_mask links to be set-up.
+	 * topology_sibling_cpumask links to be set-up.
 	 */
 	for_each_cpu(i, cpu_sibling_setup_mask) {
 		o = &cpu_data(i);
 
 		if ((i == cpu) || (has_mp && match_die(c, o))) {
-			link_mask(core, cpu, i);
+			link_mask(topology_core_cpumask, cpu, i);
 
 			/*
 			 *  Does this new cpu bringup a new core?
 			 */
-			if (cpumask_weight(cpu_sibling_mask(cpu)) == 1) {
+			if (cpumask_weight(
+			    topology_sibling_cpumask(cpu)) == 1) {
 				/*
 				 * for each core in package, increment
 				 * the booted_cores for this new cpu
 				 */
-				if (cpumask_first(cpu_sibling_mask(i)) == i)
+				if (cpumask_first(
+				    topology_sibling_cpumask(i)) == i)
 					c->booted_cores++;
 				/*
 				 * increment the core count for all
@@ -1009,8 +1011,8 @@ static __init void disable_smp(void)
 		physid_set_mask_of_physid(boot_cpu_physical_apicid, &phys_cpu_present_map);
 	else
 		physid_set_mask_of_physid(0, &phys_cpu_present_map);
-	cpumask_set_cpu(0, cpu_sibling_mask(0));
-	cpumask_set_cpu(0, cpu_core_mask(0));
+	cpumask_set_cpu(0, topology_sibling_cpumask(0));
+	cpumask_set_cpu(0, topology_core_cpumask(0));
 }
 
 enum {
@@ -1293,22 +1295,22 @@ static void remove_siblinginfo(int cpu)
 	int sibling;
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
 
-	for_each_cpu(sibling, cpu_core_mask(cpu)) {
-		cpumask_clear_cpu(cpu, cpu_core_mask(sibling));
+	for_each_cpu(sibling, topology_core_cpumask(cpu)) {
+		cpumask_clear_cpu(cpu, topology_core_cpumask(sibling));
 		/*/
 		 * last thread sibling in this cpu core going down
 		 */
-		if (cpumask_weight(cpu_sibling_mask(cpu)) == 1)
+		if (cpumask_weight(topology_sibling_cpumask(cpu)) == 1)
 			cpu_data(sibling).booted_cores--;
 	}
 
-	for_each_cpu(sibling, cpu_sibling_mask(cpu))
-		cpumask_clear_cpu(cpu, cpu_sibling_mask(sibling));
+	for_each_cpu(sibling, topology_sibling_cpumask(cpu))
+		cpumask_clear_cpu(cpu, topology_sibling_cpumask(sibling));
 	for_each_cpu(sibling, cpu_llc_shared_mask(cpu))
 		cpumask_clear_cpu(cpu, cpu_llc_shared_mask(sibling));
 	cpumask_clear(cpu_llc_shared_mask(cpu));
-	cpumask_clear(cpu_sibling_mask(cpu));
-	cpumask_clear(cpu_core_mask(cpu));
+	cpumask_clear(topology_sibling_cpumask(cpu));
+	cpumask_clear(topology_core_cpumask(cpu));
 	c->phys_proc_id = 0;
 	c->cpu_core_id = 0;
 	cpumask_clear_cpu(cpu, cpu_sibling_setup_mask);
