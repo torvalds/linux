@@ -272,6 +272,7 @@ static void sirfsoc_uart_start_tx(struct uart_port *port)
 		if (sirfport->uart_reg->uart_type == SIRF_USP_UART)
 			wr_regl(port, ureg->sirfsoc_tx_rx_en, rd_regl(port,
 				ureg->sirfsoc_tx_rx_en) | SIRFUART_TX_EN);
+		wr_regl(port, ureg->sirfsoc_tx_fifo_op, SIRFUART_FIFO_STOP);
 		sirfsoc_uart_pio_tx_chars(sirfport, port->fifosize);
 		wr_regl(port, ureg->sirfsoc_tx_fifo_op, SIRFUART_FIFO_START);
 		if (!sirfport->is_atlas7)
@@ -1117,7 +1118,6 @@ static int sirfsoc_uart_startup(struct uart_port *port)
 			SIRFSOC_USP_ENDIAN_CTRL_LSBF |
 			SIRFSOC_USP_EN);
 	wr_regl(port, ureg->sirfsoc_tx_fifo_op, SIRFUART_FIFO_RESET);
-	wr_regl(port, ureg->sirfsoc_tx_fifo_op, 0);
 	wr_regl(port, ureg->sirfsoc_rx_fifo_op, SIRFUART_FIFO_RESET);
 	wr_regl(port, ureg->sirfsoc_rx_fifo_op, 0);
 	wr_regl(port, ureg->sirfsoc_tx_fifo_ctrl, SIRFUART_FIFO_THD(port));
