@@ -132,7 +132,7 @@ struct kvmppc_book3s_shadow_vcpu {
 	bool in_use;
 	ulong gpr[14];
 	u32 cr;
-	u32 xer;
+	ulong xer;
 	ulong ctr;
 	ulong lr;
 	ulong pc;
