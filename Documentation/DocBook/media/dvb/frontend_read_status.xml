@@ -1,0 +1,103 @@
+<refentry id="FE_READ_STATUS">
+  <refmeta>
+    <refentrytitle>ioctl FE_READ_STATUS</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>FE_READ_STATUS</refname>
+    <refpurpose>Returns status information about the front-end. This call only
+ requires read-only access to the device</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcprototype>
+	<funcdef>int <function>ioctl</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+	<paramdef>int <parameter>request</parameter></paramdef>
+	<paramdef>&fe-status; *<parameter>argp</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Arguments</title>
+        <variablelist>
+      <varlistentry>
+	<term><parameter>fd</parameter></term>
+	<listitem>
+	  <para>&fd;</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>request</parameter></term>
+	<listitem>
+	  <para>FE_READ_STATUS</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>argp</parameter></term>
+	<listitem>
+	    <para>pointer to &fe-status;</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Description</title>
+
+    <para>All DVB frontend devices support the
+<constant>FE_READ_STATUS</constant> ioctl. It is used to check about the
+locking status of the frontend after being tuned. The ioctl takes a
+pointer to a 16-bits number where the status will be written.
+&return-value-dvb;.
+</para>
+</refsect1>
+
+<section id="fe-status-t">
+<title>enum fe_status</title>
+
+<para>The enum fe_status is used to indicate the current state
+    and/or state changes of the frontend hardware.</para>
+
+<table pgwide="1" frame="none" id="fe-status">
+    <title>enum fe_status</title>
+    <tgroup cols="2">
+	&cs-def;
+	<thead>
+	<row>
+	    <entry>ID</entry>
+	    <entry>Description</entry>
+	</row>
+	</thead>
+	<tbody valign="top">
+	<row>
+	    <entry align="char">FE_HAS_SIGNAL</entry>
+	    <entry align="char">The frontend has found something above the noise level</entry>
+	</row><row>
+	    <entry align="char">FE_HAS_CARRIER</entry>
+	    <entry align="char">The frontend has found a DVB signal</entry>
+	</row><row>
+	    <entry align="char">FE_HAS_VITERBI</entry>
+	    <entry align="char">The frontend FEC inner coding (Viterbi, LDPC or other inner code) is stable</entry>
+	</row><row>
+	    <entry align="char">FE_HAS_SYNC</entry>
+	    <entry align="char">Synchronization bytes was found</entry>
+	</row><row>
+	    <entry align="char">FE_HAS_LOCK</entry>
+	    <entry align="char">The DVB were locked and everything is working</entry>
+	</row><row>
+	    <entry align="char">FE_TIMEDOUT</entry>
+	    <entry align="char">no lock within the last about 2 seconds</entry>
+	</row><row>
+	    <entry align="char">FE_REINIT</entry>
+	    <entry align="char">The frontend was reinitialized, application is
+	    recommended to reset DiSEqC, tone and parameters</entry>
+	</row>
+        </tbody>
+    </tgroup>
+</table>
+</section>
+</refentry>
