@@ -60,7 +60,6 @@ int perf_num_counters(void)
 EXPORT_SYMBOL_GPL(perf_num_counters);
 
 /* Include the PMU-specific implementations. */
-#include "perf_event_v6.c"
 #include "perf_event_v7.c"
 
 static void cpu_pmu_enable_percpu_irq(void *data)
@@ -253,9 +252,6 @@ static const struct of_device_id cpu_pmu_of_device_ids[] = {
 	{.compatible = "arm,cortex-a8-pmu",	.data = armv7_a8_pmu_init},
 	{.compatible = "arm,cortex-a7-pmu",	.data = armv7_a7_pmu_init},
 	{.compatible = "arm,cortex-a5-pmu",	.data = armv7_a5_pmu_init},
-	{.compatible = "arm,arm11mpcore-pmu",	.data = armv6mpcore_pmu_init},
-	{.compatible = "arm,arm1176-pmu",	.data = armv6_1176_pmu_init},
-	{.compatible = "arm,arm1136-pmu",	.data = armv6_1136_pmu_init},
 	{.compatible = "qcom,krait-pmu",	.data = krait_pmu_init},
 	{.compatible = "qcom,scorpion-pmu",	.data = scorpion_pmu_init},
 	{.compatible = "qcom,scorpion-mp-pmu",	.data = scorpion_mp_pmu_init},
@@ -264,16 +260,11 @@ static const struct of_device_id cpu_pmu_of_device_ids[] = {
 
 static struct platform_device_id cpu_pmu_plat_device_ids[] = {
 	{.name = "arm-pmu"},
-	{.name = "armv6-pmu"},
 	{.name = "armv7-pmu"},
 	{},
 };
 
 static const struct pmu_probe_info pmu_probe_table[] = {
-	ARM_PMU_PROBE(ARM_CPU_PART_ARM1136, armv6_1136_pmu_init),
-	ARM_PMU_PROBE(ARM_CPU_PART_ARM1156, armv6_1156_pmu_init),
-	ARM_PMU_PROBE(ARM_CPU_PART_ARM1176, armv6_1176_pmu_init),
-	ARM_PMU_PROBE(ARM_CPU_PART_ARM11MPCORE, armv6mpcore_pmu_init),
 	ARM_PMU_PROBE(ARM_CPU_PART_CORTEX_A8, armv7_a8_pmu_init),
 	ARM_PMU_PROBE(ARM_CPU_PART_CORTEX_A9, armv7_a9_pmu_init),
 	{ /* sentinel value */ }
