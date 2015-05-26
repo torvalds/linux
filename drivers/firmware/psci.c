@@ -70,6 +70,21 @@ enum psci_function {
 
 static u32 psci_function_id[PSCI_FN_MAX];
 
+#define PSCI_0_2_POWER_STATE_MASK		\
+				(PSCI_0_2_POWER_STATE_ID_MASK | \
+				PSCI_0_2_POWER_STATE_TYPE_MASK | \
+				PSCI_0_2_POWER_STATE_AFFL_MASK)
+
+bool psci_power_state_loses_context(u32 state)
+{
+	return state & PSCI_0_2_POWER_STATE_TYPE_MASK;
+}
+
+bool psci_power_state_is_valid(u32 state)
+{
+	return !(state & ~PSCI_0_2_POWER_STATE_MASK);
+}
+
 static int psci_to_linux_errno(int errno)
 {
 	switch (errno) {

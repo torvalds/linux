@@ -30,20 +30,6 @@
 #include <asm/smp_plat.h>
 #include <asm/suspend.h>
 
-static bool psci_power_state_loses_context(u32 state)
-{
-	return state & PSCI_0_2_POWER_STATE_TYPE_MASK;
-}
-
-static bool psci_power_state_is_valid(u32 state)
-{
-	const u32 valid_mask = PSCI_0_2_POWER_STATE_ID_MASK |
-			       PSCI_0_2_POWER_STATE_TYPE_MASK |
-			       PSCI_0_2_POWER_STATE_AFFL_MASK;
-
-	return !(state & ~valid_mask);
-}
-
 static DEFINE_PER_CPU_READ_MOSTLY(u32 *, psci_power_state);
 
 static int __maybe_unused cpu_psci_cpu_init_idle(unsigned int cpu)
