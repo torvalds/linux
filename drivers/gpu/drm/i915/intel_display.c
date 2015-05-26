@@ -6055,7 +6055,7 @@ static void vlv_program_pfi_credits(struct drm_i915_private *dev_priv)
 	if (DIV_ROUND_CLOSEST(dev_priv->cdclk_freq, 1000) >= dev_priv->rps.cz_freq) {
 		/* CHV suggested value is 31 or 63 */
 		if (IS_CHERRYVIEW(dev_priv))
-			credits = PFI_CREDIT_31;
+			credits = PFI_CREDIT_63;
 		else
 			credits = PFI_CREDIT(15);
 	} else {
