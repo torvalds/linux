@@ -483,6 +483,7 @@ struct rk_lcdc_drv_ops {
 	int (*backlight_close)(struct rk_lcdc_driver *dev_drv, int enable);
 	int (*area_support_num)(struct rk_lcdc_driver *dev_drv, unsigned int *area_support);
 	int (*extern_func)(struct rk_lcdc_driver *dev_drv, int cmd);
+	int (*wait_frame_start)(struct rk_lcdc_driver *dev_drv, int enable);
 };
 
 struct rk_fb_area_par {

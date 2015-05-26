@@ -3919,6 +3919,7 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 	struct fb_info *fbi;
 	struct rk_fb_par *fb_par = NULL;
 	int i = 0, ret = 0, index = 0;
+	unsigned long flags;
 
 	if (rk_fb->num_lcdc == RK30_MAX_LCDC_SUPPORT)
 		return -ENXIO;
@@ -4090,7 +4091,9 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 					xact, yact, width, height);
 				return 0;
 			}
-
+			local_irq_save(flags);
+			if (dev_drv->ops->wait_frame_start)
+				dev_drv->ops->wait_frame_start(dev_drv, 0);
 			if (dev_drv->ops->post_dspbuf) {
 				dev_drv->ops->post_dspbuf(dev_drv,
 					main_fbi->fix.smem_start,
@@ -4103,7 +4106,7 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 					dev_drv->ops->mmu_en(dev_drv);
 				freed_index = 0;
 			}
-
+			local_irq_restore(flags);
 			return 0;
 		} else if (dev_drv->uboot_logo && uboot_logo_base) {
 			u32 start = uboot_logo_base;
@@ -4143,7 +4146,9 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 
 			kfree(pages);
 			vunmap(vaddr);
-
+			local_irq_save(flags);
+			if (dev_drv->ops->wait_frame_start)
+				dev_drv->ops->wait_frame_start(dev_drv, 0);
 			dev_drv->ops->post_dspbuf(dev_drv,
 					main_fbi->fix.smem_start,
 					format,	xact, yact,
@@ -4154,6 +4159,7 @@ int rk_fb_register(struct rk_lcdc_driver *dev_drv,
 					dev_drv->ops->mmu_en(dev_drv);
 				freed_index = 0;
 			}
+			local_irq_restore(flags);
 			return 0;
 		} else {
 			if (dev_drv->iommu_enabled) {
