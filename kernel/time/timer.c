@@ -351,20 +351,6 @@ void set_timer_slack(struct timer_list *timer, int slack_hz)
 }
 EXPORT_SYMBOL_GPL(set_timer_slack);
 
-/*
- * If the list is empty, catch up ->timer_jiffies to the current time.
- * The caller must hold the tvec_base lock.  Returns true if the list
- * was empty and therefore ->timer_jiffies was updated.
- */
-static bool catchup_timer_jiffies(struct tvec_base *base)
-{
-	if (!base->all_timers) {
-		base->timer_jiffies = jiffies;
-		return true;
-	}
-	return false;
-}
-
 static void
 __internal_add_timer(struct tvec_base *base, struct timer_list *timer)
 {
@@ -411,7 +397,10 @@ __internal_add_timer(struct tvec_base *base, struct timer_list *timer)
 
 static void internal_add_timer(struct tvec_base *base, struct timer_list *timer)
 {
-	(void)catchup_timer_jiffies(base);
+	/* Advance base->jiffies, if the base is empty */
+	if (!base->all_timers++)
+		base->timer_jiffies = jiffies;
+
 	__internal_add_timer(base, timer);
 	/*
 	 * Update base->active_timers and base->next_timer
@@ -421,7 +410,6 @@ static void internal_add_timer(struct tvec_base *base, struct timer_list *timer)
 		    time_before(timer->expires, base->next_timer))
 			base->next_timer = timer->expires;
 	}
-	base->all_timers++;
 
 	/*
 	 * Check whether the other CPU is in dynticks mode and needs
@@ -718,7 +706,6 @@ detach_expired_timer(struct timer_list *timer, struct tvec_base *base)
 	if (!tbase_get_deferrable(timer->base))
 		base->active_timers--;
 	base->all_timers--;
-	(void)catchup_timer_jiffies(base);
 }
 
 static int detach_if_pending(struct timer_list *timer, struct tvec_base *base,
@@ -733,8 +720,9 @@ static int detach_if_pending(struct timer_list *timer, struct tvec_base *base,
 		if (timer->expires == base->next_timer)
 			base->next_timer = base->timer_jiffies;
 	}
-	base->all_timers--;
-	(void)catchup_timer_jiffies(base);
+	/* If this was the last timer, advance base->jiffies */
+	if (!--base->all_timers)
+		base->timer_jiffies = jiffies;
 	return 1;
 }
 
@@ -1184,14 +1172,18 @@ static inline void __run_timers(struct tvec_base *base)
 	struct timer_list *timer;
 
 	spin_lock_irq(&base->lock);
-	if (catchup_timer_jiffies(base)) {
-		spin_unlock_irq(&base->lock);
-		return;
-	}
+
 	while (time_after_eq(jiffies, base->timer_jiffies)) {
 		struct list_head work_list;
 		struct list_head *head = &work_list;
-		int index = base->timer_jiffies & TVR_MASK;
+		int index;
+
+		if (!base->all_timers) {
+			base->timer_jiffies = jiffies;
+			break;
+		}
+
+		index = base->timer_jiffies & TVR_MASK;
 
 		/*
 		 * Cascade timers:
