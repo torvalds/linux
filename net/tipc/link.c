@@ -1320,8 +1320,6 @@ void tipc_link_proto_xmit(struct tipc_link *l_ptr, u32 msg_typ, int probe_msg,
 
 		if (!tipc_link_is_up(l_ptr))
 			return;
-		if (skb_queue_len(&l_ptr->backlogq))
-			next_sent = buf_seqno(skb_peek(&l_ptr->backlogq));
 		msg_set_next_sent(msg, next_sent);
 		if (!skb_queue_empty(&l_ptr->deferdq)) {
 			last_rcv = buf_seqno(skb_peek(&l_ptr->deferdq));
