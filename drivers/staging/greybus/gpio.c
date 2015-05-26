@@ -211,7 +211,7 @@ static int gb_gpio_set_debounce_operation(struct gb_gpio_controller *ggc,
 	return ret;
 }
 
-static void gb_gpio_mask_irq(struct irq_data *d)
+static void gb_gpio_irq_mask(struct irq_data *d)
 {
 	struct gpio_chip *chip = irq_data_to_gpio_chip(d);
 	struct gb_gpio_controller *ggc = gpio_chip_to_gb_gpio_controller(chip);
@@ -226,7 +226,7 @@ static void gb_gpio_mask_irq(struct irq_data *d)
 		dev_err(chip->dev, "failed to mask irq: %d\n", ret);
 }
 
-static void gb_gpio_unmask_irq(struct irq_data *d)
+static void gb_gpio_irq_unmask(struct irq_data *d)
 {
 	struct gpio_chip *chip = irq_data_to_gpio_chip(d);
 	struct gb_gpio_controller *ggc = gpio_chip_to_gb_gpio_controller(chip);
@@ -575,8 +575,8 @@ static int gb_gpio_connection_init(struct gb_connection *connection)
 		goto err_free_controller;
 
 	irqc = &ggc->irqc;
-	irqc->irq_mask = gb_gpio_mask_irq;
-	irqc->irq_unmask = gb_gpio_unmask_irq;
+	irqc->irq_mask = gb_gpio_irq_mask;
+	irqc->irq_unmask = gb_gpio_irq_unmask;
 	irqc->irq_set_type = gb_gpio_irq_set_type;
 	irqc->name = "greybus_gpio";
 
