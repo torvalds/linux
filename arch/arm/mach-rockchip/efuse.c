@@ -49,7 +49,7 @@ static struct rockchip_efuse efuse;
 #define SEC_REG_WR_32 (SEC_REG_WR | SEC_REG_32)
 #define SEC_REG_WR_64 (SEC_REG_WR | SEC_REG_64)
 
-#define PSCI_OS_ACCESS_REG		(0xa600ffb0)
+#define PSCI_SIP_ACCESS_REG		(0x82000002)
 static phys_addr_t efuse_phys;
 
 /*
@@ -96,7 +96,7 @@ static u32 secure_regs_rd_32(u64 addr_phy)
 {
 	u64 val = 0;
 
-	reg_rd_fn(PSCI_OS_ACCESS_REG, 0, addr_phy, SEC_REG_RD_32, &val);
+	reg_rd_fn(PSCI_SIP_ACCESS_REG, 0, addr_phy, SEC_REG_RD_32, &val);
 	return val;
 }
 
@@ -104,7 +104,7 @@ static u32 secure_regs_wr_32(u64 addr_phy, u32 val)
 {
 	u64 val_64 = val;
 
-	return reg_wr_fn(PSCI_OS_ACCESS_REG, val_64, addr_phy, SEC_REG_WR_32);
+	return reg_wr_fn(PSCI_SIP_ACCESS_REG, val_64, addr_phy, SEC_REG_WR_32);
 }
 
 static u32 efuse_readl(u32 offset)

@@ -23,7 +23,7 @@
 #include <linux/of_address.h>
 #include <asm/compiler.h>
 
-#define PSCI_OS_SUSPEND_CTRBITS	(0xa600ffc0)
+#define PSCI_SIP_SUSPEND_CTRBITS	(0x82000003)
 
 #define SEC_REG_RW_SHT (0x0)
 #define SEC_REG_RD (0x0)
@@ -82,7 +82,7 @@ static int pmu_ctlbits_rd_32(u32 *val)
 {
 	u64 val_64;
 	int ret;
-	ret = invoke_regs_pm_rd_fn(PSCI_OS_SUSPEND_CTRBITS, 0, 0, SEC_REG_RD, &val_64);
+	ret = invoke_regs_pm_rd_fn(PSCI_SIP_SUSPEND_CTRBITS, 0, 0, SEC_REG_RD, &val_64);
 	*val = val_64;
 
 	return ret;
@@ -91,7 +91,7 @@ static int pmu_ctlbits_rd_32(u32 *val)
 static int pmu_ctlbits_wr_32(u32 val)
 {
 	u64 val_64 = val;
-	return invoke_regs_pm_wr_fn(PSCI_OS_SUSPEND_CTRBITS, val_64, 0, SEC_REG_WR);
+	return invoke_regs_pm_wr_fn(PSCI_SIP_SUSPEND_CTRBITS, val_64, 0, SEC_REG_WR);
 }
 
 static int __init  rk3688_suspend_init(void)
