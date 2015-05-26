@@ -130,6 +130,8 @@ static int pll_gf40lp_frac_enable(struct clk_hw *hw)
 	val &= ~PLL_FRAC_CTRL4_BYPASS;
 	pll_writel(pll, val, PLL_CTRL4);
 
+	pll_lock(pll);
+
 	return 0;
 }
 
@@ -155,16 +157,12 @@ static int pll_gf40lp_frac_set_rate(struct clk_hw *hw, unsigned long rate,
 {
 	struct pistachio_clk_pll *pll = to_pistachio_pll(hw);
 	struct pistachio_pll_rate_table *params;
-	bool was_enabled;
+	int enabled = pll_gf40lp_frac_is_enabled(hw);
 	u32 val;
 
 	params = pll_get_params(pll, parent_rate, rate);
 	if (!params)
 		return -EINVAL;
-
-	was_enabled = pll_gf40lp_frac_is_enabled(hw);
-	if (!was_enabled)
-		pll_gf40lp_frac_enable(hw);
 
 	val = pll_readl(pll, PLL_CTRL1);
 	val &= ~((PLL_CTRL1_REFDIV_MASK << PLL_CTRL1_REFDIV_SHIFT) |
@@ -184,10 +182,8 @@ static int pll_gf40lp_frac_set_rate(struct clk_hw *hw, unsigned long rate,
 		(params->postdiv2 << PLL_FRAC_CTRL2_POSTDIV2_SHIFT);
 	pll_writel(pll, val, PLL_CTRL2);
 
-	pll_lock(pll);
-
-	if (!was_enabled)
-		pll_gf40lp_frac_disable(hw);
+	if (enabled)
+		pll_lock(pll);
 
 	return 0;
 }
@@ -246,6 +242,8 @@ static int pll_gf40lp_laint_enable(struct clk_hw *hw)
 	val &= ~PLL_INT_CTRL2_BYPASS;
 	pll_writel(pll, val, PLL_CTRL2);
 
+	pll_lock(pll);
+
 	return 0;
 }
 
@@ -271,16 +269,12 @@ static int pll_gf40lp_laint_set_rate(struct clk_hw *hw, unsigned long rate,
 {
 	struct pistachio_clk_pll *pll = to_pistachio_pll(hw);
 	struct pistachio_pll_rate_table *params;
-	bool was_enabled;
+	int enabled = pll_gf40lp_laint_is_enabled(hw);
 	u32 val;
 
 	params = pll_get_params(pll, parent_rate, rate);
 	if (!params)
 		return -EINVAL;
-
-	was_enabled = pll_gf40lp_laint_is_enabled(hw);
-	if (!was_enabled)
-		pll_gf40lp_laint_enable(hw);
 
 	val = pll_readl(pll, PLL_CTRL1);
 	val &= ~((PLL_CTRL1_REFDIV_MASK << PLL_CTRL1_REFDIV_SHIFT) |
@@ -293,10 +287,8 @@ static int pll_gf40lp_laint_set_rate(struct clk_hw *hw, unsigned long rate,
 		(params->postdiv2 << PLL_INT_CTRL1_POSTDIV2_SHIFT);
 	pll_writel(pll, val, PLL_CTRL1);
 
-	pll_lock(pll);
-
-	if (!was_enabled)
-		pll_gf40lp_laint_disable(hw);
+	if (enabled)
+		pll_lock(pll);
 
 	return 0;
 }
