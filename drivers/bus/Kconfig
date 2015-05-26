@@ -7,6 +7,10 @@ menu "Bus devices"
 config ARM_CCI
 	bool
 
+config ARM_CCI_PMU
+	bool
+	select ARM_CCI
+
 config ARM_CCI400_COMMON
 	bool
 	select ARM_CCI
@@ -16,6 +20,7 @@ config ARM_CCI400_PMU
 	depends on (ARM && CPU_V7) || ARM64
 	depends on PERF_EVENTS
 	select ARM_CCI400_COMMON
+	select ARM_CCI_PMU
 	help
 	  Support for PMU events monitoring on the ARM CCI-400 (cache coherent
 	  interconnect). CCI-400 supports counting events related to the
