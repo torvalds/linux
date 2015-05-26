@@ -80,7 +80,6 @@ static void
 rpcrdma_run_tasklet(unsigned long data)
 {
 	struct rpcrdma_rep *rep;
-	void (*func)(struct rpcrdma_rep *);
 	unsigned long flags;
 
 	data = data;
@@ -89,14 +88,9 @@ rpcrdma_run_tasklet(unsigned long data)
 		rep = list_entry(rpcrdma_tasklets_g.next,
 				 struct rpcrdma_rep, rr_list);
 		list_del(&rep->rr_list);
-		func = rep->rr_func;
-		rep->rr_func = NULL;
 		spin_unlock_irqrestore(&rpcrdma_tk_lock_g, flags);
 
-		if (func)
-			func(rep);
-		else
-			rpcrdma_recv_buffer_put(rep);
+		rpcrdma_reply_handler(rep);
 
 		spin_lock_irqsave(&rpcrdma_tk_lock_g, flags);
 	}
@@ -1213,7 +1207,6 @@ rpcrdma_buffer_put_sendbuf(struct rpcrdma_req *req, struct rpcrdma_buffer *buf)
 	req->rl_niovs = 0;
 	if (req->rl_reply) {
 		buf->rb_recv_bufs[--buf->rb_recv_index] = req->rl_reply;
-		req->rl_reply->rr_func = NULL;
 		req->rl_reply = NULL;
 	}
 }
@@ -1428,7 +1421,6 @@ rpcrdma_recv_buffer_put(struct rpcrdma_rep *rep)
 	struct rpcrdma_buffer *buffers = &rep->rr_rxprt->rx_buf;
 	unsigned long flags;
 
-	rep->rr_func = NULL;
 	spin_lock_irqsave(&buffers->rb_lock, flags);
 	buffers->rb_recv_bufs[--buffers->rb_recv_index] = rep;
 	spin_unlock_irqrestore(&buffers->rb_lock, flags);

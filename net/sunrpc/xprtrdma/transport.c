@@ -617,9 +617,6 @@ xprt_rdma_send_request(struct rpc_task *task)
 
 	if (req->rl_reply == NULL) 		/* e.g. reconnection */
 		rpcrdma_recv_buffer_get(req);
-	/* rpcrdma_recv_buffer_get may have set rl_reply, so check again */
-	if (req->rl_reply)
-		req->rl_reply->rr_func = rpcrdma_reply_handler;
 
 	/* Must suppress retransmit to maintain credits */
 	if (req->rl_connect_cookie == xprt->connect_cookie)

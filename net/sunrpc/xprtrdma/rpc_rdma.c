@@ -770,7 +770,6 @@ rpcrdma_reply_handler(struct rpcrdma_rep *rep)
 			rep->rr_len);
 repost:
 		r_xprt->rx_stats.bad_reply_count++;
-		rep->rr_func = rpcrdma_reply_handler;
 		if (rpcrdma_ep_post_recv(&r_xprt->rx_ia, &r_xprt->rx_ep, rep))
 			rpcrdma_recv_buffer_put(rep);
 

@@ -174,7 +174,6 @@ struct rpcrdma_buffer;
 struct rpcrdma_rep {
 	unsigned int		rr_len;
 	struct rpcrdma_xprt	*rr_rxprt;
-	void			(*rr_func)(struct rpcrdma_rep *);
 	struct list_head	rr_list;
 	struct rpcrdma_regbuf	*rr_rdmabuf;
 };
