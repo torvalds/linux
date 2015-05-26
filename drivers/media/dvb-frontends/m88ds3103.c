@@ -52,6 +52,22 @@ err:
 	return ret;
 }
 
+/*
+ * Get the demodulator AGC PWM voltage setting supplied to the tuner.
+ */
+int m88ds3103_get_agc_pwm(struct dvb_frontend *fe, u8 *_agc_pwm)
+{
+	struct m88ds3103_dev *dev = fe->demodulator_priv;
+	unsigned tmp;
+	int ret;
+
+	ret = regmap_read(dev->regmap, 0x3f, &tmp);
+	if (ret == 0)
+		*_agc_pwm = tmp;
+	return ret;
+}
+EXPORT_SYMBOL(m88ds3103_get_agc_pwm);
+
 static int m88ds3103_read_status(struct dvb_frontend *fe,
 				 enum fe_status *status)
 {

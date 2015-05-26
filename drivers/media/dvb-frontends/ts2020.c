@@ -32,6 +32,7 @@ struct ts2020_priv {
 	struct regmap_config regmap_config;
 	struct regmap *regmap;
 	struct dvb_frontend *fe;
+	int (*get_agc_pwm)(struct dvb_frontend *fe, u8 *_agc_pwm);
 	/* i2c details */
 	int i2c_address;
 	struct i2c_adapter *i2c;
@@ -313,32 +314,132 @@ static int ts2020_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
 	return 0;
 }
 
-/* read TS2020 signal strength */
+/*
+ * Get the tuner gain.
+ * @fe: The front end for which we're determining the gain
+ * @v_agc: The voltage of the AGC from the demodulator (0-2600mV)
+ * @_gain: Where to store the gain (in 0.001dB units)
+ *
+ * Returns 0 or a negative error code.
+ */
+static int ts2020_read_tuner_gain(struct dvb_frontend *fe, unsigned v_agc,
+				  __s64 *_gain)
+{
+	struct ts2020_priv *priv = fe->tuner_priv;
+	unsigned long gain1, gain2, gain3;
+	unsigned utmp;
+	int ret;
+
+	/* Read the RF gain */
+	ret = regmap_read(priv->regmap, 0x3d, &utmp);
+	if (ret < 0)
+		return ret;
+	gain1 = utmp & 0x1f;
+
+	/* Read the baseband gain */
+	ret = regmap_read(priv->regmap, 0x21, &utmp);
+	if (ret < 0)
+		return ret;
+	gain2 = utmp & 0x1f;
+
+	switch (priv->tuner) {
+	case TS2020_M88TS2020:
+		gain1 = clamp_t(long, gain1, 0, 15);
+		gain2 = clamp_t(long, gain2, 0, 13);
+		v_agc = clamp_t(long, v_agc, 400, 1100);
+
+		*_gain = -(gain1 * 2330 +
+			   gain2 * 3500 +
+			   v_agc * 24 / 10 * 10 +
+			   10000);
+		/* gain in range -19600 to -116850 in units of 0.001dB */
+		break;
+
+	case TS2020_M88TS2022:
+		ret = regmap_read(priv->regmap, 0x66, &utmp);
+		if (ret < 0)
+			return ret;
+		gain3 = (utmp >> 3) & 0x07;
+
+		gain1 = clamp_t(long, gain1, 0, 15);
+		gain2 = clamp_t(long, gain2, 2, 16);
+		gain3 = clamp_t(long, gain3, 0, 6);
+		v_agc = clamp_t(long, v_agc, 600, 1600);
+
+		*_gain = -(gain1 * 2650 +
+			   gain2 * 3380 +
+			   gain3 * 2850 +
+			   v_agc * 176 / 100 * 10 -
+			   30000);
+		/* gain in range -47320 to -158950 in units of 0.001dB */
+		break;
+	}
+
+	return 0;
+}
+
+/*
+ * Get the AGC information from the demodulator and use that to calculate the
+ * tuner gain.
+ */
+static int ts2020_get_tuner_gain(struct dvb_frontend *fe, __s64 *_gain)
+{
+	struct ts2020_priv *priv = fe->tuner_priv;
+	int v_agc = 0, ret;
+	u8 agc_pwm;
+
+	/* Read the AGC PWM rate from the demodulator */
+	if (priv->get_agc_pwm) {
+		ret = priv->get_agc_pwm(fe, &agc_pwm);
+		if (ret < 0)
+			return ret;
+
+		switch (priv->tuner) {
+		case TS2020_M88TS2020:
+			v_agc = (int)agc_pwm * 20 - 1166;
+			break;
+		case TS2020_M88TS2022:
+			v_agc = (int)agc_pwm * 16 - 670;
+			break;
+		}
+
+		if (v_agc < 0)
+			v_agc = 0;
+	}
+
+	return ts2020_read_tuner_gain(fe, v_agc, _gain);
+}
+
+/*
+ * Read TS2020 signal strength in v3 format.
+ */
 static int ts2020_read_signal_strength(struct dvb_frontend *fe,
 						u16 *signal_strength)
 {
-	struct ts2020_priv *priv = fe->tuner_priv;
-	unsigned int utmp;
-	u16 sig_reading, sig_strength;
-	u8 rfgain, bbgain;
+	unsigned strength;
+	__s64 gain;
+	int ret;
 
-	regmap_read(priv->regmap, 0x3d, &utmp);
-	rfgain = utmp & 0x1f;
-	regmap_read(priv->regmap, 0x21, &utmp);
-	bbgain = utmp & 0x1f;
+	/* Determine the total gain of the tuner */
+	ret = ts2020_get_tuner_gain(fe, &gain);
+	if (ret < 0)
+		return ret;
 
-	if (rfgain > 15)
-		rfgain = 15;
-	if (bbgain > 13)
-		bbgain = 13;
+	/* Calculate the signal strength based on the total gain of the tuner */
+	if (gain < -85000)
+		/* 0%: no signal or weak signal */
+		strength = 0;
+	else if (gain < -65000)
+		/* 0% - 60%: weak signal */
+		strength = 0 + (85000 + gain) * 3 / 1000;
+	else if (gain < -45000)
+		/* 60% - 90%: normal signal */
+		strength = 60 + (65000 + gain) * 3 / 2000;
+	else
+		/* 90% - 99%: strong signal */
+		strength = 90 + (45000 + gain) / 5000;
 
-	sig_reading = rfgain * 2 + bbgain * 3;
-
-	sig_strength = 40 + (64 - sig_reading) * 50 / 64 ;
-
-	/* cook the value to be suitable for szap-s2 human readable output */
-	*signal_strength = sig_strength * 1000;
-
+	*signal_strength = strength * 65535 / 100;
 	return 0;
 }
 
@@ -442,6 +543,7 @@ static int ts2020_probe(struct i2c_client *client,
 	dev->clk_out_div = pdata->clk_out_div;
 	dev->frequency_div = pdata->frequency_div;
 	dev->fe = fe;
+	dev->get_agc_pwm = pdata->get_agc_pwm;
 	fe->tuner_priv = dev;
 	dev->client = client;
 

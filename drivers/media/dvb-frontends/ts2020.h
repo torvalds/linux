@@ -57,6 +57,11 @@ struct ts2020_config {
 	 * driver private, do not set value
 	 */
 	u8 attach_in_use:1;
+
+	/* Operation to be called by the ts2020 driver to get the value of the
+	 * AGC PWM tuner input as theoretically output by the demodulator.
+	 */
+	int (*get_agc_pwm)(struct dvb_frontend *fe, u8 *_agc_pwm);
 };
 
 /* Do not add new ts2020_attach() users! Use I2C bindings instead. */

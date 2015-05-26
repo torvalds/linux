@@ -332,6 +332,7 @@ static int dvbsky_s960_attach(struct dvb_usb_adapter *adap)
 
 	/* attach tuner */
 	ts2020_config.fe = adap->fe[0];
+	ts2020_config.get_agc_pwm = m88ds3103_get_agc_pwm;
 	strlcpy(info.type, "ts2020", I2C_NAME_SIZE);
 	info.addr = 0x60;
 	info.platform_data = &ts2020_config;
@@ -454,6 +455,7 @@ static int dvbsky_s960c_attach(struct dvb_usb_adapter *adap)
 
 	/* attach tuner */
 	ts2020_config.fe = adap->fe[0];
+	ts2020_config.get_agc_pwm = m88ds3103_get_agc_pwm;
 	strlcpy(info.type, "ts2020", I2C_NAME_SIZE);
 	info.addr = 0x60;
 	info.platform_data = &ts2020_config;
