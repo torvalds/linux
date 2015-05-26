@@ -445,11 +445,10 @@ static int prefer_mwait_c1_over_halt(const struct cpuinfo_x86 *c)
 }
 
 /*
- * MONITOR/MWAIT with no hints, used for default default C1 state.
- * This invokes MWAIT with interrutps enabled and no flags,
- * which is backwards compatible with the original MWAIT implementation.
+ * MONITOR/MWAIT with no hints, used for default C1 state. This invokes MWAIT
+ * with interrupts enabled and no flags, which is backwards compatible with the
+ * original MWAIT implementation.
  */
-
 static void mwait_idle(void)
 {
 	if (!current_set_polling_and_test()) {
