@@ -1128,7 +1128,7 @@ static int ipoib_neigh_hash_init(struct ipoib_dev_priv *priv)
 {
 	struct ipoib_neigh_table *ntbl = &priv->ntbl;
 	struct ipoib_neigh_hash *htbl;
-	struct ipoib_neigh **buckets;
+	struct ipoib_neigh __rcu **buckets;
 	u32 size;
 
 	clear_bit(IPOIB_NEIGH_TBL_FLUSH, &priv->flags);
@@ -1146,7 +1146,7 @@ static int ipoib_neigh_hash_init(struct ipoib_dev_priv *priv)
 	htbl->size = size;
 	htbl->mask = (size - 1);
 	htbl->buckets = buckets;
-	ntbl->htbl = htbl;
+	RCU_INIT_POINTER(ntbl->htbl, htbl);
 	htbl->ntbl = ntbl;
 	atomic_set(&ntbl->entries, 0);
 
