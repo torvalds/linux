@@ -520,7 +520,7 @@ static int amdgpu_bo_vm_update_pte(struct amdgpu_cs_parser *p,
 
 		amdgpu_sync_fence(&p->ibs[0].sync, bo_va->last_pt_update);
 	}
-	return amdgpu_vm_clear_invalids(adev, vm);
+	return amdgpu_vm_clear_invalids(adev, vm, &p->ibs[0].sync);
 }
 
 static int amdgpu_cs_ib_vm_chunk(struct amdgpu_device *adev,

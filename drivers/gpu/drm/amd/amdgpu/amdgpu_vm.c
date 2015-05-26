@@ -858,9 +858,9 @@ int amdgpu_vm_clear_freed(struct amdgpu_device *adev,
  * PTs have to be reserved and mutex must be locked!
  */
 int amdgpu_vm_clear_invalids(struct amdgpu_device *adev,
-			     struct amdgpu_vm *vm)
+			     struct amdgpu_vm *vm, struct amdgpu_sync *sync)
 {
-	struct amdgpu_bo_va *bo_va;
+	struct amdgpu_bo_va *bo_va = NULL;
 	int r;
 
 	spin_lock(&vm->status_lock);
@@ -877,6 +877,8 @@ int amdgpu_vm_clear_invalids(struct amdgpu_device *adev,
 	}
 	spin_unlock(&vm->status_lock);
 
+	if (bo_va)
+		amdgpu_sync_fence(sync, bo_va->last_pt_update);
 	return 0;
 }
 
