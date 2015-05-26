@@ -419,7 +419,6 @@ static const struct cpu_dev *cpu_devs[X86_VENDOR_NUM] = {};
 static void get_model_name(struct cpuinfo_x86 *c)
 {
 	unsigned int *v;
-	char *p, *q;
 
 	if (c->extended_cpuid_level < 0x80000004)
 		return;
@@ -431,18 +430,10 @@ static void get_model_name(struct cpuinfo_x86 *c)
 	c->x86_model_id[48] = 0;
 
 	/*
-	 * Intel chips right-justify this string for some dumb reason;
-	 * undo that brain damage:
+	 * Remove leading whitespace on Intel processors and trailing
+	 * whitespace on AMD processors.
 	 */
-	p = q = &c->x86_model_id[0];
-	while (*p == ' ')
-		p++;
-	if (p != q) {
-		while (*p)
-			*q++ = *p++;
-		while (q <= &c->x86_model_id[48])
-			*q++ = '\0';	/* Zero-pad the rest */
-	}
+	memmove(c->x86_model_id, strim(c->x86_model_id), 48);
 }
 
 void cpu_detect_cache_sizes(struct cpuinfo_x86 *c)
@@ -1122,7 +1113,7 @@ void print_cpu_info(struct cpuinfo_x86 *c)
 		printk(KERN_CONT "%s ", vendor);
 
 	if (c->x86_model_id[0])
-		printk(KERN_CONT "%s", strim(c->x86_model_id));
+		printk(KERN_CONT "%s", c->x86_model_id);
 	else
 		printk(KERN_CONT "%d86", c->x86);
 
