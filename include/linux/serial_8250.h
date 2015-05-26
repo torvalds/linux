@@ -12,6 +12,7 @@
 #define _LINUX_SERIAL_8250_H
 
 #include <linux/serial_core.h>
+#include <linux/serial_reg.h>
 #include <linux/platform_device.h>
 
 /*
