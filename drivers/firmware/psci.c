@@ -75,14 +75,34 @@ static u32 psci_function_id[PSCI_FN_MAX];
 				PSCI_0_2_POWER_STATE_TYPE_MASK | \
 				PSCI_0_2_POWER_STATE_AFFL_MASK)
 
+#define PSCI_1_0_EXT_POWER_STATE_MASK		\
+				(PSCI_1_0_EXT_POWER_STATE_ID_MASK | \
+				PSCI_1_0_EXT_POWER_STATE_TYPE_MASK)
+
+static u32 psci_cpu_suspend_feature;
+
+static inline bool psci_has_ext_power_state(void)
+{
+	return psci_cpu_suspend_feature &
+				PSCI_1_0_FEATURES_CPU_SUSPEND_PF_MASK;
+}
+
 bool psci_power_state_loses_context(u32 state)
 {
-	return state & PSCI_0_2_POWER_STATE_TYPE_MASK;
+	const u32 mask = psci_has_ext_power_state() ?
+					PSCI_1_0_EXT_POWER_STATE_TYPE_MASK :
+					PSCI_0_2_POWER_STATE_TYPE_MASK;
+
+	return state & mask;
 }
 
 bool psci_power_state_is_valid(u32 state)
 {
-	return !(state & ~PSCI_0_2_POWER_STATE_MASK);
+	const u32 valid_mask = psci_has_ext_power_state() ?
+			       PSCI_1_0_EXT_POWER_STATE_MASK :
+			       PSCI_0_2_POWER_STATE_MASK;
+
+	return !(state & ~valid_mask);
 }
 
 static int psci_to_linux_errno(int errno)
@@ -203,6 +223,14 @@ static int __init psci_features(u32 psci_func_id)
 			      psci_func_id, 0, 0);
 }
 
+static void __init psci_init_cpu_suspend(void)
+{
+	int feature = psci_features(psci_function_id[PSCI_FN_CPU_SUSPEND]);
+
+	if (feature != PSCI_RET_NOT_SUPPORTED)
+		psci_cpu_suspend_feature = feature;
+}
+
 /*
  * Detect the presence of a resident Trusted OS which may cause CPU_OFF to
  * return DENIED (which would be fatal).
@@ -286,6 +314,8 @@ static int __init psci_probe(void)
 	psci_0_2_set_functions();
 
 	psci_init_migrate();
+
+	psci_init_cpu_suspend();
 
 	return 0;
 }
