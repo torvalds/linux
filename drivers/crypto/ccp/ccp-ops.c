@@ -53,7 +53,6 @@ struct ccp_dm_workarea {
 struct ccp_sg_workarea {
 	struct scatterlist *sg;
 	unsigned int nents;
-	unsigned int length;
 
 	struct scatterlist *dma_sg;
 	struct device *dma_dev;
@@ -497,7 +496,6 @@ static int ccp_init_sg_workarea(struct ccp_sg_workarea *wa, struct device *dev,
 		return 0;
 
 	wa->nents = sg_nents(sg);
-	wa->length = sg->length;
 	wa->bytes_left = len;
 	wa->sg_used = 0;
 
