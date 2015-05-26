@@ -2996,7 +2996,6 @@ void guard_bio_eod(int rw, struct bio *bio)
 int _submit_bh(int rw, struct buffer_head *bh, unsigned long bio_flags)
 {
 	struct bio *bio;
-	int ret = 0;
 
 	BUG_ON(!buffer_locked(bh));
 	BUG_ON(!buffer_mapped(bh));
@@ -3038,7 +3037,7 @@ int _submit_bh(int rw, struct buffer_head *bh, unsigned long bio_flags)
 		rw |= REQ_PRIO;
 
 	submit_bio(rw, bio);
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(_submit_bh);
 
