@@ -1233,18 +1233,6 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 	BIT(POWER_DOMAIN_AUX_C) |		\
 	BIT(POWER_DOMAIN_INIT))
 
-#define CHV_PIPE_A_POWER_DOMAINS (	\
-	BIT(POWER_DOMAIN_PIPE_A) |	\
-	BIT(POWER_DOMAIN_INIT))
-
-#define CHV_PIPE_B_POWER_DOMAINS (	\
-	BIT(POWER_DOMAIN_PIPE_B) |	\
-	BIT(POWER_DOMAIN_INIT))
-
-#define CHV_PIPE_C_POWER_DOMAINS (	\
-	BIT(POWER_DOMAIN_PIPE_C) |	\
-	BIT(POWER_DOMAIN_INIT))
-
 #define CHV_DPIO_CMN_BC_POWER_DOMAINS (		\
 	BIT(POWER_DOMAIN_PORT_DDI_B_2_LANES) |	\
 	BIT(POWER_DOMAIN_PORT_DDI_B_4_LANES) |	\
@@ -1256,17 +1244,6 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 
 #define CHV_DPIO_CMN_D_POWER_DOMAINS (		\
 	BIT(POWER_DOMAIN_PORT_DDI_D_2_LANES) |	\
-	BIT(POWER_DOMAIN_PORT_DDI_D_4_LANES) |	\
-	BIT(POWER_DOMAIN_AUX_D) |		\
-	BIT(POWER_DOMAIN_INIT))
-
-#define CHV_DPIO_TX_D_LANES_01_POWER_DOMAINS (	\
-	BIT(POWER_DOMAIN_PORT_DDI_D_2_LANES) |	\
-	BIT(POWER_DOMAIN_PORT_DDI_D_4_LANES) |	\
-	BIT(POWER_DOMAIN_AUX_D) |		\
-	BIT(POWER_DOMAIN_INIT))
-
-#define CHV_DPIO_TX_D_LANES_23_POWER_DOMAINS (	\
 	BIT(POWER_DOMAIN_PORT_DDI_D_4_LANES) |	\
 	BIT(POWER_DOMAIN_AUX_D) |		\
 	BIT(POWER_DOMAIN_INIT))
@@ -1428,40 +1405,17 @@ static struct i915_power_well chv_power_wells[] = {
 		.domains = VLV_ALWAYS_ON_POWER_DOMAINS,
 		.ops = &i9xx_always_on_power_well_ops,
 	},
-#if 0
 	{
 		.name = "display",
-		.domains = VLV_DISPLAY_POWER_DOMAINS,
-		.data = PUNIT_POWER_WELL_DISP2D,
-		.ops = &vlv_display_power_well_ops,
-	},
-#endif
-	{
-		.name = "pipe-a",
 		/*
-		 * FIXME: pipe A power well seems to be the new disp2d well.
-		 * At least all registers seem to be housed there. Figure
-		 * out if this a a temporary situation in pre-production
-		 * hardware or a permanent state of affairs.
+		 * Pipe A power well is the new disp2d well. Pipe B and C
+		 * power wells don't actually exist. Pipe A power well is
+		 * required for any pipe to work.
 		 */
-		.domains = CHV_PIPE_A_POWER_DOMAINS | VLV_DISPLAY_POWER_DOMAINS,
+		.domains = VLV_DISPLAY_POWER_DOMAINS,
 		.data = PIPE_A,
 		.ops = &chv_pipe_power_well_ops,
 	},
-#if 0
-	{
-		.name = "pipe-b",
-		.domains = CHV_PIPE_B_POWER_DOMAINS,
-		.data = PIPE_B,
-		.ops = &chv_pipe_power_well_ops,
-	},
-	{
-		.name = "pipe-c",
-		.domains = CHV_PIPE_C_POWER_DOMAINS,
-		.data = PIPE_C,
-		.ops = &chv_pipe_power_well_ops,
-	},
-#endif
 	{
 		.name = "dpio-common-bc",
 		.domains = CHV_DPIO_CMN_BC_POWER_DOMAINS,
@@ -1474,50 +1428,6 @@ static struct i915_power_well chv_power_wells[] = {
 		.data = PUNIT_POWER_WELL_DPIO_CMN_D,
 		.ops = &chv_dpio_cmn_power_well_ops,
 	},
-#if 0
-	{
-		.name = "dpio-tx-b-01",
-		.domains = VLV_DPIO_TX_B_LANES_01_POWER_DOMAINS |
-			   VLV_DPIO_TX_B_LANES_23_POWER_DOMAINS,
-		.ops = &vlv_dpio_power_well_ops,
-		.data = PUNIT_POWER_WELL_DPIO_TX_B_LANES_01,
-	},
-	{
-		.name = "dpio-tx-b-23",
-		.domains = VLV_DPIO_TX_B_LANES_01_POWER_DOMAINS |
-			   VLV_DPIO_TX_B_LANES_23_POWER_DOMAINS,
-		.ops = &vlv_dpio_power_well_ops,
-		.data = PUNIT_POWER_WELL_DPIO_TX_B_LANES_23,
-	},
-	{
-		.name = "dpio-tx-c-01",
-		.domains = VLV_DPIO_TX_C_LANES_01_POWER_DOMAINS |
-			   VLV_DPIO_TX_C_LANES_23_POWER_DOMAINS,
-		.ops = &vlv_dpio_power_well_ops,
-		.data = PUNIT_POWER_WELL_DPIO_TX_C_LANES_01,
-	},
-	{
-		.name = "dpio-tx-c-23",
-		.domains = VLV_DPIO_TX_C_LANES_01_POWER_DOMAINS |
-			   VLV_DPIO_TX_C_LANES_23_POWER_DOMAINS,
-		.ops = &vlv_dpio_power_well_ops,
-		.data = PUNIT_POWER_WELL_DPIO_TX_C_LANES_23,
-	},
-	{
-		.name = "dpio-tx-d-01",
-		.domains = CHV_DPIO_TX_D_LANES_01_POWER_DOMAINS |
-			   CHV_DPIO_TX_D_LANES_23_POWER_DOMAINS,
-		.ops = &vlv_dpio_power_well_ops,
-		.data = PUNIT_POWER_WELL_DPIO_TX_D_LANES_01,
-	},
-	{
-		.name = "dpio-tx-d-23",
-		.domains = CHV_DPIO_TX_D_LANES_01_POWER_DOMAINS |
-			   CHV_DPIO_TX_D_LANES_23_POWER_DOMAINS,
-		.ops = &vlv_dpio_power_well_ops,
-		.data = PUNIT_POWER_WELL_DPIO_TX_D_LANES_23,
-	},
-#endif
 };
 
 static struct i915_power_well *lookup_power_well(struct drm_i915_private *dev_priv,
