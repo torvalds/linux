@@ -404,15 +404,12 @@ void __timer_stats_timer_set_start_info(struct timer_list *timer, void *addr)
 
 static void timer_stats_account_timer(struct timer_list *timer)
 {
-	unsigned int flag = 0;
-
 	if (likely(!timer->start_site))
 		return;
-	if (unlikely(timer->flags & TIMER_DEFERRABLE))
-		flag |= TIMER_STATS_FLAG_DEFERRABLE;
 
 	timer_stats_update_stats(timer, timer->start_pid, timer->start_site,
-				 timer->function, timer->start_comm, flag);
+				 timer->function, timer->start_comm,
+				 timer->flags);
 }
 
 #else

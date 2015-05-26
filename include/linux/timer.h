@@ -188,13 +188,10 @@ extern void set_timer_slack(struct timer_list *time, int slack_hz);
 
 extern int timer_stats_active;
 
-#define TIMER_STATS_FLAG_DEFERRABLE	0x1
-
 extern void init_timer_stats(void);
 
 extern void timer_stats_update_stats(void *timer, pid_t pid, void *startf,
-				     void *timerf, char *comm,
-				     unsigned int timer_flag);
+				     void *timerf, char *comm, u32 flags);
 
 extern void __timer_stats_timer_set_start_info(struct timer_list *timer,
 					       void *addr);
