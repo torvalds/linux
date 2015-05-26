@@ -1666,8 +1666,8 @@ struct drm_i915_private {
 	/* To control wakeup latency, e.g. for irq-driven dp aux transfers. */
 	struct pm_qos_request pm_qos;
 
-	/* DPIO indirect register protection */
-	struct mutex dpio_lock;
+	/* Sideband mailbox protection */
+	struct mutex sb_lock;
 
 	/** Cached value of IMR to avoid reads in updating the bitfield */
 	union {
