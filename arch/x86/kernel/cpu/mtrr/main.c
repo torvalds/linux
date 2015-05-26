@@ -538,6 +538,9 @@ EXPORT_SYMBOL(mtrr_del);
  * attempts to add a WC MTRR covering size bytes starting at base and
  * logs an error if this fails.
  *
+ * The called should provide a power of two size on an equivalent
+ * power of two boundary.
+ *
  * Drivers must store the return value to pass to mtrr_del_wc_if_needed,
  * but drivers should not try to interpret that return value.
  */
