@@ -130,7 +130,7 @@ static void drm_update_vblank_count(struct drm_device *dev, int crtc)
 	/*
 	 * Interrupts were disabled prior to this call, so deal with counter
 	 * wrap if needed.
-	 * NOTE!  It's possible we lost a full dev->max_vblank_count events
+	 * NOTE!  It's possible we lost a full dev->max_vblank_count + 1 events
 	 * here if the register is small or we had vblank interrupts off for
 	 * a long time.
 	 *
@@ -147,7 +147,7 @@ static void drm_update_vblank_count(struct drm_device *dev, int crtc)
 	/* Deal with counter wrap */
 	diff = cur_vblank - vblank->last;
 	if (cur_vblank < vblank->last) {
-		diff += dev->max_vblank_count;
+		diff += dev->max_vblank_count + 1;
 
 		DRM_DEBUG("last_vblank[%d]=0x%x, cur_vblank=0x%x => diff=0x%x\n",
 			  crtc, vblank->last, cur_vblank, diff);
