@@ -70,11 +70,11 @@ EXPORT_SYMBOL(jiffies_64);
 #define MAX_TVAL ((unsigned long)((1ULL << (TVR_BITS + 4*TVN_BITS)) - 1))
 
 struct tvec {
-	struct list_head vec[TVN_SIZE];
+	struct hlist_head vec[TVN_SIZE];
 };
 
 struct tvec_root {
-	struct list_head vec[TVR_SIZE];
+	struct hlist_head vec[TVR_SIZE];
 };
 
 struct tvec_base {
@@ -356,7 +356,7 @@ __internal_add_timer(struct tvec_base *base, struct timer_list *timer)
 {
 	unsigned long expires = timer->expires;
 	unsigned long idx = expires - base->timer_jiffies;
-	struct list_head *vec;
+	struct hlist_head *vec;
 
 	if (idx < TVR_SIZE) {
 		int i = expires & TVR_MASK;
@@ -390,7 +390,7 @@ __internal_add_timer(struct tvec_base *base, struct timer_list *timer)
 		vec = base->tv5.vec + i;
 	}
 
-	list_add(&timer->entry, vec);
+	hlist_add_head(&timer->entry, vec);
 }
 
 static void internal_add_timer(struct tvec_base *base, struct timer_list *timer)
@@ -504,8 +504,8 @@ static int timer_fixup_activate(void *addr, enum debug_obj_state state)
 		 * statically initialized. We just make sure that it
 		 * is tracked in the object tracker.
 		 */
-		if (timer->entry.next == NULL &&
-		    timer->entry.prev == TIMER_ENTRY_STATIC) {
+		if (timer->entry.pprev == NULL &&
+		    timer->entry.next == TIMER_ENTRY_STATIC) {
 			debug_object_init(timer, &timer_debug_descr);
 			debug_object_activate(timer, &timer_debug_descr);
 			return 0;
@@ -551,7 +551,7 @@ static int timer_fixup_assert_init(void *addr, enum debug_obj_state state)
 
 	switch (state) {
 	case ODEBUG_STATE_NOTAVAILABLE:
-		if (timer->entry.prev == TIMER_ENTRY_STATIC) {
+		if (timer->entry.next == TIMER_ENTRY_STATIC) {
 			/*
 			 * This is not really a fixup. The timer was
 			 * statically initialized. We just make sure that it
@@ -655,7 +655,7 @@ static void do_init_timer(struct timer_list *timer, unsigned int flags,
 {
 	struct tvec_base *base = raw_cpu_read(tvec_bases);
 
-	timer->entry.next = NULL;
+	timer->entry.pprev = NULL;
 	timer->base = (void *)((unsigned long)base | flags);
 	timer->slack = -1;
 #ifdef CONFIG_TIMER_STATS
@@ -687,14 +687,14 @@ EXPORT_SYMBOL(init_timer_key);
 
 static inline void detach_timer(struct timer_list *timer, bool clear_pending)
 {
-	struct list_head *entry = &timer->entry;
+	struct hlist_node *entry = &timer->entry;
 
 	debug_deactivate(timer);
 
-	__list_del(entry->prev, entry->next);
+	__hlist_del(entry);
 	if (clear_pending)
-		entry->next = NULL;
-	entry->prev = LIST_POISON2;
+		entry->pprev = NULL;
+	entry->next = LIST_POISON2;
 }
 
 static inline void
@@ -1095,16 +1095,17 @@ EXPORT_SYMBOL(del_timer_sync);
 static int cascade(struct tvec_base *base, struct tvec *tv, int index)
 {
 	/* cascade all the timers from tv up one level */
-	struct timer_list *timer, *tmp;
-	struct list_head tv_list;
+	struct timer_list *timer;
+	struct hlist_node *tmp;
+	struct hlist_head tv_list;
 
-	list_replace_init(tv->vec + index, &tv_list);
+	hlist_move_list(tv->vec + index, &tv_list);
 
 	/*
 	 * We are removing _all_ timers from the list, so we
 	 * don't have to detach them individually.
 	 */
-	list_for_each_entry_safe(timer, tmp, &tv_list, entry) {
+	hlist_for_each_entry_safe(timer, tmp, &tv_list, entry) {
 		BUG_ON(tbase_get_base(timer->base) != base);
 		/* No accounting, while moving them */
 		__internal_add_timer(base, timer);
@@ -1172,8 +1173,8 @@ static inline void __run_timers(struct tvec_base *base)
 	spin_lock_irq(&base->lock);
 
 	while (time_after_eq(jiffies, base->timer_jiffies)) {
-		struct list_head work_list;
-		struct list_head *head = &work_list;
+		struct hlist_head work_list;
+		struct hlist_head *head = &work_list;
 		int index;
 
 		if (!base->all_timers) {
@@ -1192,13 +1193,13 @@ static inline void __run_timers(struct tvec_base *base)
 					!cascade(base, &base->tv4, INDEX(2)))
 			cascade(base, &base->tv5, INDEX(3));
 		++base->timer_jiffies;
-		list_replace_init(base->tv1.vec + index, head);
-		while (!list_empty(head)) {
+		hlist_move_list(base->tv1.vec + index, head);
+		while (!hlist_empty(head)) {
 			void (*fn)(unsigned long);
 			unsigned long data;
 			bool irqsafe;
 
-			timer = list_first_entry(head, struct timer_list,entry);
+			timer = hlist_entry(head->first, struct timer_list, entry);
 			fn = timer->function;
 			data = timer->data;
 			irqsafe = tbase_get_irqsafe(timer->base);
@@ -1240,7 +1241,7 @@ static unsigned long __next_timer_interrupt(struct tvec_base *base)
 	/* Look for timer events in tv1. */
 	index = slot = timer_jiffies & TVR_MASK;
 	do {
-		list_for_each_entry(nte, base->tv1.vec + slot, entry) {
+		hlist_for_each_entry(nte, base->tv1.vec + slot, entry) {
 			if (tbase_get_deferrable(nte->base))
 				continue;
 
@@ -1271,7 +1272,7 @@ cascade:
 
 		index = slot = timer_jiffies & TVN_MASK;
 		do {
-			list_for_each_entry(nte, varp->vec + slot, entry) {
+			hlist_for_each_entry(nte, varp->vec + slot, entry) {
 				if (tbase_get_deferrable(nte->base))
 					continue;
 
@@ -1530,12 +1531,12 @@ signed long __sched schedule_timeout_uninterruptible(signed long timeout)
 EXPORT_SYMBOL(schedule_timeout_uninterruptible);
 
 #ifdef CONFIG_HOTPLUG_CPU
-static void migrate_timer_list(struct tvec_base *new_base, struct list_head *head)
+static void migrate_timer_list(struct tvec_base *new_base, struct hlist_head *head)
 {
 	struct timer_list *timer;
 
-	while (!list_empty(head)) {
-		timer = list_first_entry(head, struct timer_list, entry);
+	while (!hlist_empty(head)) {
+		timer = hlist_entry(head->first, struct timer_list, entry);
 		/* We ignore the accounting on the dying cpu */
 		detach_timer(timer, false);
 		timer_set_base(timer, new_base);
@@ -1603,22 +1604,11 @@ static inline void timer_register_cpu_notifier(void) { }
 
 static void __init init_timer_cpu(struct tvec_base *base, int cpu)
 {
-	int j;
-
 	BUG_ON(base != tbase_get_base(base));
 
 	base->cpu = cpu;
 	per_cpu(tvec_bases, cpu) = base;
 	spin_lock_init(&base->lock);
-
-	for (j = 0; j < TVN_SIZE; j++) {
-		INIT_LIST_HEAD(base->tv5.vec + j);
-		INIT_LIST_HEAD(base->tv4.vec + j);
-		INIT_LIST_HEAD(base->tv3.vec + j);
-		INIT_LIST_HEAD(base->tv2.vec + j);
-	}
-	for (j = 0; j < TVR_SIZE; j++)
-		INIT_LIST_HEAD(base->tv1.vec + j);
 
 	base->timer_jiffies = jiffies;
 	base->next_timer = base->timer_jiffies;

@@ -14,7 +14,7 @@ struct timer_list {
 	 * All fields that change during normal runtime grouped to the
 	 * same cacheline
 	 */
-	struct list_head entry;
+	struct hlist_node entry;
 	unsigned long expires;
 	struct tvec_base *base;
 
@@ -71,7 +71,7 @@ extern struct tvec_base boot_tvec_bases;
 #define TIMER_FLAG_MASK			0x3LU
 
 #define __TIMER_INITIALIZER(_function, _expires, _data, _flags) { \
-		.entry = { .prev = TIMER_ENTRY_STATIC },	\
+		.entry = { .next = TIMER_ENTRY_STATIC },	\
 		.function = (_function),			\
 		.expires = (_expires),				\
 		.data = (_data),				\
@@ -168,7 +168,7 @@ static inline void init_timer_on_stack_key(struct timer_list *timer,
  */
 static inline int timer_pending(const struct timer_list * timer)
 {
-	return timer->entry.next != NULL;
+	return timer->entry.pprev != NULL;
 }
 
 extern void add_timer_on(struct timer_list *timer, int cpu);
