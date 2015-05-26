@@ -886,6 +886,7 @@ void mwifiex_dump_drv_info(struct mwifiex_adapter *adapter)
 
 	if (adapter->drv_info_dump) {
 		vfree(adapter->drv_info_dump);
+		adapter->drv_info_dump = NULL;
 		adapter->drv_info_size = 0;
 	}
 
