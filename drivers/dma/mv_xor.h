@@ -19,7 +19,7 @@
 #include <linux/dmaengine.h>
 #include <linux/interrupt.h>
 
-#define MV_XOR_POOL_SIZE		PAGE_SIZE
+#define MV_XOR_POOL_SIZE		(MV_XOR_SLOT_SIZE * 3072)
 #define MV_XOR_SLOT_SIZE		64
 #define MV_XOR_THRESHOLD		1
 #define MV_XOR_MAX_CHANNELS             2
