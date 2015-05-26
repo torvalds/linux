@@ -59,9 +59,6 @@ int perf_num_counters(void)
 }
 EXPORT_SYMBOL_GPL(perf_num_counters);
 
-/* Include the PMU-specific implementations. */
-#include "perf_event_v7.c"
-
 static void cpu_pmu_enable_percpu_irq(void *data)
 {
 	int irq = *(int *)data;
@@ -242,35 +239,6 @@ static void cpu_pmu_destroy(struct arm_pmu *cpu_pmu)
 }
 
 /*
- * PMU platform driver and devicetree bindings.
- */
-static const struct of_device_id cpu_pmu_of_device_ids[] = {
-	{.compatible = "arm,cortex-a17-pmu",	.data = armv7_a17_pmu_init},
-	{.compatible = "arm,cortex-a15-pmu",	.data = armv7_a15_pmu_init},
-	{.compatible = "arm,cortex-a12-pmu",	.data = armv7_a12_pmu_init},
-	{.compatible = "arm,cortex-a9-pmu",	.data = armv7_a9_pmu_init},
-	{.compatible = "arm,cortex-a8-pmu",	.data = armv7_a8_pmu_init},
-	{.compatible = "arm,cortex-a7-pmu",	.data = armv7_a7_pmu_init},
-	{.compatible = "arm,cortex-a5-pmu",	.data = armv7_a5_pmu_init},
-	{.compatible = "qcom,krait-pmu",	.data = krait_pmu_init},
-	{.compatible = "qcom,scorpion-pmu",	.data = scorpion_pmu_init},
-	{.compatible = "qcom,scorpion-mp-pmu",	.data = scorpion_mp_pmu_init},
-	{},
-};
-
-static struct platform_device_id cpu_pmu_plat_device_ids[] = {
-	{.name = "arm-pmu"},
-	{.name = "armv7-pmu"},
-	{},
-};
-
-static const struct pmu_probe_info pmu_probe_table[] = {
-	ARM_PMU_PROBE(ARM_CPU_PART_CORTEX_A8, armv7_a8_pmu_init),
-	ARM_PMU_PROBE(ARM_CPU_PART_CORTEX_A9, armv7_a9_pmu_init),
-	{ /* sentinel value */ }
-};
-
-/*
  * CPU PMU identification and probing.
  */
 static int probe_current_pmu(struct arm_pmu *pmu,
@@ -393,24 +361,3 @@ out_free:
 	kfree(pmu);
 	return ret;
 }
-
-static int cpu_pmu_device_probe(struct platform_device *pdev)
-{
-	return arm_pmu_device_probe(pdev, cpu_pmu_of_device_ids,
-				    pmu_probe_table);
-}
-
-static struct platform_driver cpu_pmu_driver = {
-	.driver		= {
-		.name	= "arm-pmu",
-		.of_match_table = cpu_pmu_of_device_ids,
-	},
-	.probe		= cpu_pmu_device_probe,
-	.id_table	= cpu_pmu_plat_device_ids,
-};
-
-static int __init register_pmu_driver(void)
-{
-	return platform_driver_register(&cpu_pmu_driver);
-}
-device_initcall(register_pmu_driver);
