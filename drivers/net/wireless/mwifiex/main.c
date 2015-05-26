@@ -890,7 +890,7 @@ void mwifiex_dump_drv_info(struct mwifiex_adapter *adapter)
 		adapter->drv_info_size = 0;
 	}
 
-	mwifiex_dbg(adapter, MSG, "=== DRIVER INFO DUMP START===\n");
+	mwifiex_dbg(adapter, MSG, "===mwifiex driverinfo dump start===\n");
 
 	adapter->drv_info_dump = vzalloc(MWIFIEX_DRV_INFO_SIZE_MAX);
 
@@ -958,12 +958,12 @@ void mwifiex_dump_drv_info(struct mwifiex_adapter *adapter)
 	}
 
 	if (adapter->iface_type == MWIFIEX_SDIO) {
-		p += sprintf(p, "\n=== SDIO register DUMP===\n");
+		p += sprintf(p, "\n=== SDIO register dump===\n");
 		if (adapter->if_ops.reg_dump)
 			p += adapter->if_ops.reg_dump(adapter, p);
 	}
 
-	p += sprintf(p, "\n=== MORE DEBUG INFORMATION\n");
+	p += sprintf(p, "\n=== more debug information\n");
 	debug_info = kzalloc(sizeof(*debug_info), GFP_KERNEL);
 	if (debug_info) {
 		for (i = 0; i < adapter->priv_num; i++) {
@@ -978,7 +978,7 @@ void mwifiex_dump_drv_info(struct mwifiex_adapter *adapter)
 	}
 
 	adapter->drv_info_size = p - adapter->drv_info_dump;
-	mwifiex_dbg(adapter, MSG, "=== DRIVER INFO DUMP END===\n");
+	mwifiex_dbg(adapter, MSG, "===mwifiex driverinfo dump end===\n");
 }
 EXPORT_SYMBOL_GPL(mwifiex_dump_drv_info);
 

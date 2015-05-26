@@ -2356,7 +2356,7 @@ mwifiex_sdio_reg_dump(struct mwifiex_adapter *adapter, char *drv_buf)
 	if (!p)
 		return 0;
 
-	mwifiex_dbg(adapter, MSG, "SDIO register DUMP START\n");
+	mwifiex_dbg(adapter, MSG, "SDIO register dump start\n");
 
 	mwifiex_pm_wakeup_card(adapter);
 
@@ -2428,7 +2428,7 @@ mwifiex_sdio_reg_dump(struct mwifiex_adapter *adapter, char *drv_buf)
 
 	sdio_release_host(cardp->func);
 
-	mwifiex_dbg(adapter, MSG, "SDIO register DUMP END\n");
+	mwifiex_dbg(adapter, MSG, "SDIO register dump end\n");
 
 	return p - drv_buf;
 }
