@@ -286,16 +286,16 @@ static const struct pmu_probe_info pmu_probe_table[] = {
 /*
  * CPU PMU identification and probing.
  */
-static int probe_current_pmu(struct arm_pmu *pmu)
+static int probe_current_pmu(struct arm_pmu *pmu,
+			     const struct pmu_probe_info *info)
 {
 	int cpu = get_cpu();
 	unsigned int cpuid = read_cpuid_id();
 	int ret = -ENODEV;
-	const struct pmu_probe_info *info;
 
 	pr_info("probing PMU on CPU %d\n", cpu);
 
-	for (info = pmu_probe_table; info->init != NULL; info++) {
+	for (; info->init != NULL; info++) {
 		if ((cpuid & info->mask) != info->cpuid)
 			continue;
 		ret = info->init(pmu);
@@ -352,7 +352,9 @@ static int of_pmu_irq_cfg(struct arm_pmu *pmu)
 	return 0;
 }
 
-static int cpu_pmu_device_probe(struct platform_device *pdev)
+int arm_pmu_device_probe(struct platform_device *pdev,
+			 const struct of_device_id *of_table,
+			 const struct pmu_probe_info *probe_table)
 {
 	const struct of_device_id *of_id;
 	const int (*init_fn)(struct arm_pmu *);
@@ -371,14 +373,14 @@ static int cpu_pmu_device_probe(struct platform_device *pdev)
 
 	pmu->plat_device = pdev;
 
-	if (node && (of_id = of_match_node(cpu_pmu_of_device_ids, pdev->dev.of_node))) {
+	if (node && (of_id = of_match_node(of_table, pdev->dev.of_node))) {
 		init_fn = of_id->data;
 
 		ret = of_pmu_irq_cfg(pmu);
 		if (!ret)
 			ret = init_fn(pmu);
 	} else {
-		ret = probe_current_pmu(pmu);
+		ret = probe_current_pmu(pmu, probe_table);
 		cpumask_setall(&pmu->supported_cpus);
 	}
 
@@ -403,6 +405,12 @@ out_free:
 	pr_info("failed to register PMU devices!\n");
 	kfree(pmu);
 	return ret;
+}
+
+static int cpu_pmu_device_probe(struct platform_device *pdev)
+{
+	return arm_pmu_device_probe(pdev, cpu_pmu_of_device_ids,
+				    pmu_probe_table);
 }
 
 static struct platform_driver cpu_pmu_driver = {
