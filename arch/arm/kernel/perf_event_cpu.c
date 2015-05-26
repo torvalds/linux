@@ -60,7 +60,6 @@ int perf_num_counters(void)
 EXPORT_SYMBOL_GPL(perf_num_counters);
 
 /* Include the PMU-specific implementations. */
-#include "perf_event_xscale.c"
 #include "perf_event_v6.c"
 #include "perf_event_v7.c"
 
@@ -267,7 +266,6 @@ static struct platform_device_id cpu_pmu_plat_device_ids[] = {
 	{.name = "arm-pmu"},
 	{.name = "armv6-pmu"},
 	{.name = "armv7-pmu"},
-	{.name = "xscale-pmu"},
 	{},
 };
 
@@ -278,8 +276,6 @@ static const struct pmu_probe_info pmu_probe_table[] = {
 	ARM_PMU_PROBE(ARM_CPU_PART_ARM11MPCORE, armv6mpcore_pmu_init),
 	ARM_PMU_PROBE(ARM_CPU_PART_CORTEX_A8, armv7_a8_pmu_init),
 	ARM_PMU_PROBE(ARM_CPU_PART_CORTEX_A9, armv7_a9_pmu_init),
-	XSCALE_PMU_PROBE(ARM_CPU_XSCALE_ARCH_V1, xscale1pmu_init),
-	XSCALE_PMU_PROBE(ARM_CPU_XSCALE_ARCH_V2, xscale2pmu_init),
 	{ /* sentinel value */ }
 };
 
