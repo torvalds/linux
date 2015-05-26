@@ -678,7 +678,14 @@ static int usbhsf_pio_try_pop(struct usbhs_pkt *pkt, int *is_done)
 		*is_done = 1;
 		usbhsf_rx_irq_ctrl(pipe, 0);
 		usbhs_pipe_running(pipe, 0);
-		usbhs_pipe_disable(pipe);	/* disable pipe first */
+		/*
+		 * If function mode, since this controller is possible to enter
+		 * Control Write status stage at this timing, this driver
+		 * should not disable the pipe. If such a case happens, this
+		 * controller is not able to complete the status stage.
+		 */
+		if (!usbhs_mod_is_host(priv) && !usbhs_pipe_is_dcp(pipe))
+			usbhs_pipe_disable(pipe);	/* disable pipe first */
 	}
 
 	/*
