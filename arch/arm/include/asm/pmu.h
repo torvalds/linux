@@ -24,22 +24,10 @@
  *	interrupt and passed the address of the low level handler,
  *	and can be used to implement any platform specific handling
  *	before or after calling it.
- * @runtime_resume: an optional handler which will be called by the
- *	runtime PM framework following a call to pm_runtime_get().
- *	Note that if pm_runtime_get() is called more than once in
- *	succession this handler will only be called once.
- * @runtime_suspend: an optional handler which will be called by the
- *	runtime PM framework following a call to pm_runtime_put().
- *	Note that if pm_runtime_get() is called more than once in
- *	succession this handler will only be called following the
- *	final call to pm_runtime_put() that actually disables the
- *	hardware.
  */
 struct arm_pmu_platdata {
 	irqreturn_t (*handle_irq)(int irq, void *dev,
 				  irq_handler_t pmu_handler);
-	int (*runtime_resume)(struct device *dev);
-	int (*runtime_suspend)(struct device *dev);
 };
 
 #ifdef CONFIG_HW_PERF_EVENTS
@@ -122,8 +110,6 @@ struct arm_pmu {
 };
 
 #define to_arm_pmu(p) (container_of(p, struct arm_pmu, pmu))
-
-extern const struct dev_pm_ops armpmu_dev_pm_ops;
 
 int armpmu_register(struct arm_pmu *armpmu, int type);
 

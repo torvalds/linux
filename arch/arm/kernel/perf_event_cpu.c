@@ -408,7 +408,6 @@ out_free:
 static struct platform_driver cpu_pmu_driver = {
 	.driver		= {
 		.name	= "arm-pmu",
-		.pm	= &armpmu_dev_pm_ops,
 		.of_match_table = cpu_pmu_of_device_ids,
 	},
 	.probe		= cpu_pmu_device_probe,

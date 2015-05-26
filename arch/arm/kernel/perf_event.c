@@ -14,7 +14,6 @@
 #include <linux/cpumask.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
-#include <linux/pm_runtime.h>
 #include <linux/irq.h>
 #include <linux/irqdesc.h>
 
@@ -349,20 +348,12 @@ static void
 armpmu_release_hardware(struct arm_pmu *armpmu)
 {
 	armpmu->free_irq(armpmu);
-	pm_runtime_put_sync(&armpmu->plat_device->dev);
 }
 
 static int
 armpmu_reserve_hardware(struct arm_pmu *armpmu)
 {
-	int err;
-	struct platform_device *pmu_device = armpmu->plat_device;
-
-	if (!pmu_device)
-		return -ENODEV;
-
-	pm_runtime_get_sync(&pmu_device->dev);
-	err = armpmu->request_irq(armpmu, armpmu_dispatch_irq);
+	int err = armpmu->request_irq(armpmu, armpmu_dispatch_irq);
 	if (err) {
 		armpmu_release_hardware(armpmu);
 		return err;
@@ -536,32 +527,6 @@ static int armpmu_filter_match(struct perf_event *event)
 	return cpumask_test_cpu(cpu, &armpmu->supported_cpus);
 }
 
-#ifdef CONFIG_PM
-static int armpmu_runtime_resume(struct device *dev)
-{
-	struct arm_pmu_platdata *plat = dev_get_platdata(dev);
-
-	if (plat && plat->runtime_resume)
-		return plat->runtime_resume(dev);
-
-	return 0;
-}
-
-static int armpmu_runtime_suspend(struct device *dev)
-{
-	struct arm_pmu_platdata *plat = dev_get_platdata(dev);
-
-	if (plat && plat->runtime_suspend)
-		return plat->runtime_suspend(dev);
-
-	return 0;
-}
-#endif
-
-const struct dev_pm_ops armpmu_dev_pm_ops = {
-	SET_RUNTIME_PM_OPS(armpmu_runtime_suspend, armpmu_runtime_resume, NULL)
-};
-
 static void armpmu_init(struct arm_pmu *armpmu)
 {
 	atomic_set(&armpmu->active_events, 0);
@@ -583,7 +548,6 @@ static void armpmu_init(struct arm_pmu *armpmu)
 int armpmu_register(struct arm_pmu *armpmu, int type)
 {
 	armpmu_init(armpmu);
-	pm_runtime_enable(&armpmu->plat_device->dev);
 	pr_info("enabled with %s PMU driver, %d counters available\n",
 			armpmu->name, armpmu->num_events);
 	return perf_pmu_register(&armpmu->pmu, armpmu->name, type);
