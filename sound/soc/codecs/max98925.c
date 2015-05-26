@@ -346,7 +346,7 @@ static int max98925_dai_set_fmt(struct snd_soc_dai *codec_dai,
 	}
 
 	regmap_update_bits(max98925->regmap, MAX98925_FORMAT,
-			M98925_DAI_BCI_MASK, invert);
+			M98925_DAI_BCI_MASK | M98925_DAI_WCI_MASK, invert);
 	return 0;
 }
 
