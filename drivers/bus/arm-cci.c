@@ -52,6 +52,9 @@ static const struct of_device_id arm_cci_matches[] = {
 #ifdef CONFIG_ARM_CCI400_COMMON
 	{.compatible = "arm,cci-400", .data = CCI400_PORTS_DATA },
 #endif
+#ifdef CONFIG_ARM_CCI500_PMU
+	{ .compatible = "arm,cci-500", },
+#endif
 	{},
 };
 
@@ -89,6 +92,9 @@ static const struct of_device_id arm_cci_matches[] = {
 enum {
 	CCI_IF_SLAVE,
 	CCI_IF_MASTER,
+#ifdef CONFIG_ARM_CCI500_PMU
+	CCI_IF_GLOBAL,
+#endif
 	CCI_IF_MAX,
 };
 
@@ -144,6 +150,9 @@ enum cci_models {
 #ifdef CONFIG_ARM_CCI400_PMU
 	CCI400_R0,
 	CCI400_R1,
+#endif
+#ifdef CONFIG_ARM_CCI500_PMU
+	CCI500_R0,
 #endif
 	CCI_MODEL_MAX
 };
@@ -293,6 +302,101 @@ static inline struct cci_pmu_model *probe_cci_model(struct platform_device *pdev
 	return NULL;
 }
 #endif	/* CONFIG_ARM_CCI400_PMU */
+
+#ifdef CONFIG_ARM_CCI500_PMU
+
+/*
+ * CCI500 provides 8 independent event counters that can count
+ * any of the events available.
+ *
+ * CCI500 PMU event id is an 9-bit value made of two parts.
+ *	 bits [8:5] - Source for the event
+ *		      0x0-0x6 - Slave interfaces
+ *		      0x8-0xD - Master interfaces
+ *		      0xf     - Global Events
+ *		      0x7,0xe - Reserved
+ *
+ *	 bits [4:0] - Event code (specific to type of interface)
+ */
+
+/* Port ids */
+#define CCI500_PORT_S0			0x0
+#define CCI500_PORT_S1			0x1
+#define CCI500_PORT_S2			0x2
+#define CCI500_PORT_S3			0x3
+#define CCI500_PORT_S4			0x4
+#define CCI500_PORT_S5			0x5
+#define CCI500_PORT_S6			0x6
+
+#define CCI500_PORT_M0			0x8
+#define CCI500_PORT_M1			0x9
+#define CCI500_PORT_M2			0xa
+#define CCI500_PORT_M3			0xb
+#define CCI500_PORT_M4			0xc
+#define CCI500_PORT_M5			0xd
+
+#define CCI500_PORT_GLOBAL 		0xf
+
+#define CCI500_PMU_EVENT_MASK		0x1ffUL
+#define CCI500_PMU_EVENT_SOURCE_SHIFT	0x5
+#define CCI500_PMU_EVENT_SOURCE_MASK	0xf
+#define CCI500_PMU_EVENT_CODE_SHIFT	0x0
+#define CCI500_PMU_EVENT_CODE_MASK	0x1f
+
+#define CCI500_PMU_EVENT_SOURCE(event)	\
+	((event >> CCI500_PMU_EVENT_SOURCE_SHIFT) & CCI500_PMU_EVENT_SOURCE_MASK)
+#define CCI500_PMU_EVENT_CODE(event)	\
+	((event >> CCI500_PMU_EVENT_CODE_SHIFT) & CCI500_PMU_EVENT_CODE_MASK)
+
+#define CCI500_SLAVE_PORT_MIN_EV	0x00
+#define CCI500_SLAVE_PORT_MAX_EV	0x1f
+#define CCI500_MASTER_PORT_MIN_EV	0x00
+#define CCI500_MASTER_PORT_MAX_EV	0x06
+#define CCI500_GLOBAL_PORT_MIN_EV	0x00
+#define CCI500_GLOBAL_PORT_MAX_EV	0x0f
+
+static int cci500_validate_hw_event(struct cci_pmu *cci_pmu,
+					unsigned long hw_event)
+{
+	u32 ev_source = CCI500_PMU_EVENT_SOURCE(hw_event);
+	u32 ev_code = CCI500_PMU_EVENT_CODE(hw_event);
+	int if_type;
+
+	if (hw_event & ~CCI500_PMU_EVENT_MASK)
+		return -ENOENT;
+
+	switch (ev_source) {
+	case CCI500_PORT_S0:
+	case CCI500_PORT_S1:
+	case CCI500_PORT_S2:
+	case CCI500_PORT_S3:
+	case CCI500_PORT_S4:
+	case CCI500_PORT_S5:
+	case CCI500_PORT_S6:
+		if_type = CCI_IF_SLAVE;
+		break;
+	case CCI500_PORT_M0:
+	case CCI500_PORT_M1:
+	case CCI500_PORT_M2:
+	case CCI500_PORT_M3:
+	case CCI500_PORT_M4:
+	case CCI500_PORT_M5:
+		if_type = CCI_IF_MASTER;
+		break;
+	case CCI500_PORT_GLOBAL:
+		if_type = CCI_IF_GLOBAL;
+		break;
+	default:
+		return -ENOENT;
+	}
+
+	if (ev_code >= cci_pmu->model->event_ranges[if_type].min &&
+		ev_code <= cci_pmu->model->event_ranges[if_type].max)
+		return hw_event;
+
+	return -ENOENT;
+}
+#endif	/* CONFIG_ARM_CCI500_PMU */
 
 static int pmu_is_valid_counter(struct cci_pmu *cci_pmu, int idx)
 {
@@ -981,6 +1085,29 @@ static struct cci_pmu_model cci_pmu_models[] = {
 		.get_event_idx = cci400_get_event_idx,
 	},
 #endif
+#ifdef CONFIG_ARM_CCI500_PMU
+	[CCI500_R0] = {
+		.name = "CCI_500",
+		.fixed_hw_cntrs = 0,
+		.num_hw_cntrs = 8,
+		.cntr_size = SZ_64K,
+		.event_ranges = {
+			[CCI_IF_SLAVE] = {
+				CCI500_SLAVE_PORT_MIN_EV,
+				CCI500_SLAVE_PORT_MAX_EV,
+			},
+			[CCI_IF_MASTER] = {
+				CCI500_MASTER_PORT_MIN_EV,
+				CCI500_MASTER_PORT_MAX_EV,
+			},
+			[CCI_IF_GLOBAL] = {
+				CCI500_GLOBAL_PORT_MIN_EV,
+				CCI500_GLOBAL_PORT_MAX_EV,
+			},
+		},
+		.validate_hw_event = cci500_validate_hw_event,
+	},
+#endif
 };
 
 static const struct of_device_id arm_cci_pmu_matches[] = {
@@ -996,6 +1123,12 @@ static const struct of_device_id arm_cci_pmu_matches[] = {
 	{
 		.compatible = "arm,cci-400-pmu,r1",
 		.data	= &cci_pmu_models[CCI400_R1],
+	},
+#endif
+#ifdef CONFIG_ARM_CCI500_PMU
+	{
+		.compatible = "arm,cci-500-pmu,r0",
+		.data = &cci_pmu_models[CCI500_R0],
 	},
 #endif
 	{},
