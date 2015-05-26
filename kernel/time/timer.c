@@ -389,10 +389,8 @@ __internal_add_timer(struct tvec_base *base, struct timer_list *timer)
 		i = (expires >> (TVR_BITS + 3 * TVN_BITS)) & TVN_MASK;
 		vec = base->tv5.vec + i;
 	}
-	/*
-	 * Timers are FIFO:
-	 */
-	list_add_tail(&timer->entry, vec);
+
+	list_add(&timer->entry, vec);
 }
 
 static void internal_add_timer(struct tvec_base *base, struct timer_list *timer)
