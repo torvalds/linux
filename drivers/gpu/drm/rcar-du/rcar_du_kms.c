@@ -495,8 +495,10 @@ static int rcar_du_atomic_commit(struct drm_device *dev,
 
 	/* Allocate the commit object. */
 	commit = kzalloc(sizeof(*commit), GFP_KERNEL);
-	if (commit == NULL)
-		return -ENOMEM;
+	if (commit == NULL) {
+		ret = -ENOMEM;
+		goto error;
+	}
 
 	INIT_WORK(&commit->work, rcar_du_atomic_work);
 	commit->dev = dev;
@@ -519,7 +521,7 @@ static int rcar_du_atomic_commit(struct drm_device *dev,
 
 	if (ret) {
 		kfree(commit);
-		return ret;
+		goto error;
 	}
 
 	/* Swap the state, this is the point of no return. */
@@ -531,6 +533,10 @@ static int rcar_du_atomic_commit(struct drm_device *dev,
 		rcar_du_atomic_complete(commit);
 
 	return 0;
+
+error:
+	drm_atomic_helper_cleanup_planes(dev, state);
+	return ret;
 }
 
 /* -----------------------------------------------------------------------------
