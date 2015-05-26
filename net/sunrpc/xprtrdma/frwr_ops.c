@@ -430,44 +430,6 @@ out_err:
 	return nsegs;
 }
 
-/* After a disconnect, a flushed FAST_REG_MR can leave an FRMR in
- * an unusable state. Find FRMRs in this state and dereg / reg
- * each.  FRMRs that are VALID and attached to an rpcrdma_req are
- * also torn down.
- *
- * This gives all in-use FRMRs a fresh rkey and leaves them INVALID.
- *
- * This is invoked only in the transport connect worker in order
- * to serialize with rpcrdma_register_frmr_external().
- */
-static void
-frwr_op_reset(struct rpcrdma_xprt *r_xprt)
-{
-	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
-	struct ib_device *device = r_xprt->rx_ia.ri_device;
-	unsigned int depth = r_xprt->rx_ia.ri_max_frmr_depth;
-	struct ib_pd *pd = r_xprt->rx_ia.ri_pd;
-	struct rpcrdma_mw *r;
-	int rc;
-
-	list_for_each_entry(r, &buf->rb_all, mw_all) {
-		if (r->r.frmr.fr_state == FRMR_IS_INVALID)
-			continue;
-
-		__frwr_release(r);
-		rc = __frwr_init(r, pd, device, depth);
-		if (rc) {
-			dprintk("RPC:       %s: mw %p left %s\n",
-				__func__, r,
-				(r->r.frmr.fr_state == FRMR_IS_STALE ?
-					"stale" : "valid"));
-			continue;
-		}
-
-		r->r.frmr.fr_state = FRMR_IS_INVALID;
-	}
-}
-
 static void
 frwr_op_destroy(struct rpcrdma_buffer *buf)
 {
@@ -490,7 +452,6 @@ const struct rpcrdma_memreg_ops rpcrdma_frwr_memreg_ops = {
 	.ro_open			= frwr_op_open,
 	.ro_maxpages			= frwr_op_maxpages,
 	.ro_init			= frwr_op_init,
-	.ro_reset			= frwr_op_reset,
 	.ro_destroy			= frwr_op_destroy,
 	.ro_displayname			= "frwr",
 };
