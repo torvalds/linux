@@ -124,7 +124,7 @@ extern const struct cpumask *cpu_coregroup_mask(int cpu);
 
 #ifdef ENABLE_TOPO_DEFINES
 #define topology_core_cpumask(cpu)		(per_cpu(cpu_core_map, cpu))
-#define topology_thread_cpumask(cpu)		(per_cpu(cpu_sibling_map, cpu))
+#define topology_sibling_cpumask(cpu)		(per_cpu(cpu_sibling_map, cpu))
 #endif
 
 static inline void arch_fix_phys_package_id(int num, u32 slot)

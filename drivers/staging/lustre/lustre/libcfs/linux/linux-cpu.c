@@ -87,7 +87,7 @@ static void cfs_cpu_core_siblings(int cpu, cpumask_t *mask)
 /* return cpumask of HTs in the same core */
 static void cfs_cpu_ht_siblings(int cpu, cpumask_t *mask)
 {
-	cpumask_copy(mask, topology_thread_cpumask(cpu));
+	cpumask_copy(mask, topology_sibling_cpumask(cpu));
 }
 
 static void cfs_node_to_cpumask(int node, cpumask_t *mask)

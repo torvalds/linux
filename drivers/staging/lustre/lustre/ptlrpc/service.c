@@ -557,7 +557,7 @@ ptlrpc_server_nthreads_check(struct ptlrpc_service *svc,
 		 * there are.
 		 */
 		/* weight is # of HTs */
-		if (cpumask_weight(topology_thread_cpumask(0)) > 1) {
+		if (cpumask_weight(topology_sibling_cpumask(0)) > 1) {
 			/* depress thread factor for hyper-thread */
 			factor = factor - (factor >> 1) + (factor >> 3);
 		}
@@ -2768,7 +2768,7 @@ int ptlrpc_hr_init(void)
 
 	init_waitqueue_head(&ptlrpc_hr.hr_waitq);
 
-	weight = cpumask_weight(topology_thread_cpumask(0));
+	weight = cpumask_weight(topology_sibling_cpumask(0));
 
 	cfs_percpt_for_each(hrp, i, ptlrpc_hr.hr_partitions) {
 		hrp->hrp_cpt = i;

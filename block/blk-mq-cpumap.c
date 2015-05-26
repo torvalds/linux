@@ -24,7 +24,7 @@ static int get_first_sibling(unsigned int cpu)
 {
 	unsigned int ret;
 
-	ret = cpumask_first(topology_thread_cpumask(cpu));
+	ret = cpumask_first(topology_sibling_cpumask(cpu));
 	if (ret < nr_cpu_ids)
 		return ret;
 

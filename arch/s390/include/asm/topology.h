@@ -22,7 +22,8 @@ DECLARE_PER_CPU(struct cpu_topology_s390, cpu_topology);
 
 #define topology_physical_package_id(cpu) (per_cpu(cpu_topology, cpu).socket_id)
 #define topology_thread_id(cpu)		  (per_cpu(cpu_topology, cpu).thread_id)
-#define topology_thread_cpumask(cpu)	  (&per_cpu(cpu_topology, cpu).thread_mask)
+#define topology_sibling_cpumask(cpu) \
+		(&per_cpu(cpu_topology, cpu).thread_mask)
 #define topology_core_id(cpu)		  (per_cpu(cpu_topology, cpu).core_id)
 #define topology_core_cpumask(cpu)	  (&per_cpu(cpu_topology, cpu).core_mask)
 #define topology_book_id(cpu)		  (per_cpu(cpu_topology, cpu).book_id)
