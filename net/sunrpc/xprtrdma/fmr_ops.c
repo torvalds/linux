@@ -72,13 +72,19 @@ fmr_op_init(struct rpcrdma_xprt *r_xprt)
 	i = (buf->rb_max_requests + 1) * RPCRDMA_MAX_SEGS;
 	dprintk("RPC:       %s: initializing %d FMRs\n", __func__, i);
 
+	rc = -ENOMEM;
 	while (i--) {
 		r = kzalloc(sizeof(*r), GFP_KERNEL);
 		if (!r)
-			return -ENOMEM;
+			goto out;
 
-		r->r.fmr = ib_alloc_fmr(pd, mr_access_flags, &fmr_attr);
-		if (IS_ERR(r->r.fmr))
+		r->r.fmr.physaddrs = kmalloc(RPCRDMA_MAX_FMR_SGES *
+					     sizeof(u64), GFP_KERNEL);
+		if (!r->r.fmr.physaddrs)
+			goto out_free;
+
+		r->r.fmr.fmr = ib_alloc_fmr(pd, mr_access_flags, &fmr_attr);
+		if (IS_ERR(r->r.fmr.fmr))
 			goto out_fmr_err;
 
 		list_add(&r->mw_list, &buf->rb_mws);
@@ -87,9 +93,12 @@ fmr_op_init(struct rpcrdma_xprt *r_xprt)
 	return 0;
 
 out_fmr_err:
-	rc = PTR_ERR(r->r.fmr);
+	rc = PTR_ERR(r->r.fmr.fmr);
 	dprintk("RPC:       %s: ib_alloc_fmr status %i\n", __func__, rc);
+	kfree(r->r.fmr.physaddrs);
+out_free:
 	kfree(r);
+out:
 	return rc;
 }
 
@@ -98,7 +107,7 @@ __fmr_unmap(struct rpcrdma_mw *r)
 {
 	LIST_HEAD(l);
 
-	list_add(&r->r.fmr->list, &l);
+	list_add(&r->r.fmr.fmr->list, &l);
 	return ib_unmap_fmr(&l);
 }
 
@@ -113,7 +122,6 @@ fmr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 	struct ib_device *device = ia->ri_device;
 	enum dma_data_direction direction = rpcrdma_data_dir(writing);
 	struct rpcrdma_mr_seg *seg1 = seg;
-	u64 physaddrs[RPCRDMA_MAX_DATA_SEGS];
 	int len, pageoff, i, rc;
 	struct rpcrdma_mw *mw;
 
@@ -138,7 +146,7 @@ fmr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 		nsegs = RPCRDMA_MAX_FMR_SGES;
 	for (i = 0; i < nsegs;) {
 		rpcrdma_map_one(device, seg, direction);
-		physaddrs[i] = seg->mr_dma;
+		mw->r.fmr.physaddrs[i] = seg->mr_dma;
 		len += seg->mr_len;
 		++seg;
 		++i;
@@ -148,12 +156,13 @@ fmr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 			break;
 	}
 
-	rc = ib_map_phys_fmr(mw->r.fmr, physaddrs, i, seg1->mr_dma);
+	rc = ib_map_phys_fmr(mw->r.fmr.fmr, mw->r.fmr.physaddrs,
+			     i, seg1->mr_dma);
 	if (rc)
 		goto out_maperr;
 
 	seg1->rl_mw = mw;
-	seg1->mr_rkey = mw->r.fmr->rkey;
+	seg1->mr_rkey = mw->r.fmr.fmr->rkey;
 	seg1->mr_base = seg1->mr_dma + pageoff;
 	seg1->mr_nsegs = i;
 	seg1->mr_len = len;
@@ -207,10 +216,13 @@ fmr_op_destroy(struct rpcrdma_buffer *buf)
 	while (!list_empty(&buf->rb_all)) {
 		r = list_entry(buf->rb_all.next, struct rpcrdma_mw, mw_all);
 		list_del(&r->mw_all);
-		rc = ib_dealloc_fmr(r->r.fmr);
+		kfree(r->r.fmr.physaddrs);
+
+		rc = ib_dealloc_fmr(r->r.fmr.fmr);
 		if (rc)
 			dprintk("RPC:       %s: ib_dealloc_fmr failed %i\n",
 				__func__, rc);
+
 		kfree(r);
 	}
 }

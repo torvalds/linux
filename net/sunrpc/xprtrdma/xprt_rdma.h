@@ -206,9 +206,14 @@ struct rpcrdma_frmr {
 	struct rpcrdma_xprt		*fr_xprt;
 };
 
+struct rpcrdma_fmr {
+	struct ib_fmr		*fmr;
+	u64			*physaddrs;
+};
+
 struct rpcrdma_mw {
 	union {
-		struct ib_fmr		*fmr;
+		struct rpcrdma_fmr	fmr;
 		struct rpcrdma_frmr	frmr;
 	} r;
 	void			(*mw_sendcompletion)(struct ib_wc *);
