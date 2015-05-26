@@ -1,3 +1,6 @@
+Kernel stacks on x86-64 bit
+---------------------------
+
 Most of the text from Keith Owens, hacked by AK
 
 x86_64 page size (PAGE_SIZE) is 4K.
@@ -55,13 +58,6 @@ stack size allocated to an IST assumes no nesting for the same code.
 If that assumption is ever broken then the stacks will become corrupt.
 
 The currently assigned IST stacks are :-
-
-* STACKFAULT_STACK.  EXCEPTION_STKSZ (PAGE_SIZE).
-
-  Used for interrupt 12 - Stack Fault Exception (#SS).
-
-  This allows the CPU to recover from invalid stack segments. Rarely
-  happens.
 
 * DOUBLEFAULT_STACK.  EXCEPTION_STKSZ (PAGE_SIZE).
 
