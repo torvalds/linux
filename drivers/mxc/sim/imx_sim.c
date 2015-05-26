@@ -80,6 +80,7 @@
 #define SIM_STATE_RECEIVING		(7)
 #define SIM_STATE_RECEIVE_DONE		(8)
 #define SIM_STATE_RECEIVE_ERROR		(9)
+#define SIM_STATE_RESET_SEQUENCY	(10)
 
 /* Definitions of the offset of the SIM hardware registers */
 #define PORT1_CNTL			(0x00)
@@ -244,7 +245,7 @@
 #define RX_TIMEOUT			(100)
 #define RESET_RETRY_TIMES		(5)
 #define SIM_QUIRK_TKT259347		(1 << 0)
-#define EMV_RESET_LOW_CYCLES		42000
+#define EMV_RESET_LOW_CYCLES		40000
 #define ATR_MAX_DELAY_CLK		46400
 
 /* Main SIM driver structure */
@@ -408,8 +409,40 @@ static void sim_set_gpc_timer(struct sim_t *sim, u32 val)
 	/*First reset the counter*/
 	sim_reset_timer(sim);
 
+	/*Enable GPC timer interrupt*/
+	reg_data = __raw_readl(sim->ioaddr + INT_MASK);
+	reg_data &= ~SIM_INT_MASK_GPCM;
+	__raw_writel(reg_data, sim->ioaddr + INT_MASK);
+
 	/*Set the GPCNT clock source to be Fclk*/
 	sim_start_timer(sim, SIM_CNTL_GPCNT_CARD_CLK);
+}
+
+static int sim_reset_low_timing(struct sim_t *sim, u32 clock_cycle)
+{
+	int errval = 0;
+	int timeout = 0;
+	u32 fclk_in_khz, delay_in_us, reg_data;
+
+	fclk_in_khz = sim->clk_rate / MSEC_PER_SEC;
+	delay_in_us = EMV_RESET_LOW_CYCLES * USEC_PER_MSEC / fclk_in_khz;
+
+	sim_set_gpc_timer(sim, clock_cycle);
+
+	timeout  = wait_for_completion_timeout(&sim->xfer_done,
+					msecs_to_jiffies(delay_in_us / 1000 * 2));
+	if (timeout == 0) {
+		pr_err("Reset low GPC timout\n");
+		errval =  -SIM_E_TIMEOUT;
+	}
+
+	sim_reset_timer(sim);
+	/*Disable GPC timer interrupt*/
+	reg_data = __raw_readl(sim->ioaddr + INT_MASK);
+	reg_data |= SIM_INT_MASK_GPCM;
+	__raw_writel(reg_data, sim->ioaddr + INT_MASK);
+
+	return errval;
 }
 
 static void sim_set_cwt(struct sim_t *sim, u8 enable)
@@ -827,6 +860,9 @@ static irqreturn_t sim_irq_handler(int irq, void *dev_id)
 		}
 	}
 
+	else if ((sim->state == SIM_STATE_RESET_SEQUENCY) &&
+			(tx_status & SIM_XMT_STATUS_GPCNT))
+		complete(&sim->xfer_done);
 	else if (rx_status & SIM_RCV_STATUS_RDRF) {
 		pr_err("unexpected  status %d\n", sim->state);
 		sim_rcv_read_fifo(sim);
@@ -926,21 +962,11 @@ static void sim_activate(struct sim_t *sim)
 	}
 }
 
-static void sim_reset_low_delay(struct sim_t *sim)
-{
-	u32 fclk_in_khz;
-	u32 delay_in_us;
-
-	fclk_in_khz = sim->clk_rate / MSEC_PER_SEC;
-	delay_in_us = EMV_RESET_LOW_CYCLES * USEC_PER_MSEC / fclk_in_khz;
-	mdelay(delay_in_us / USEC_PER_MSEC);
-	udelay(delay_in_us % USEC_PER_MSEC);
-}
-
 static void sim_cold_reset_sequency(struct sim_t *sim)
 {
 	u32 reg_data;
 
+	sim->state = SIM_STATE_RESET_SEQUENCY;
 	reg_data = __raw_readl(sim->ioaddr + sim->port_ctrl_reg);
 	reg_data &= ~SIM_PORT_CNTL_SRST;
 	__raw_writel(reg_data, sim->ioaddr + sim->port_ctrl_reg);
@@ -952,13 +978,13 @@ static void sim_cold_reset_sequency(struct sim_t *sim)
 		reg_data |= SIM_PORT_CNTL_SVEN;
 
 	__raw_writel(reg_data, sim->ioaddr + sim->port_ctrl_reg);
-	mdelay(9);
+	msleep(9);
 
 	reg_data = __raw_readl(sim->ioaddr + sim->port_ctrl_reg);
 	reg_data |= SIM_PORT_CNTL_SCEN;
 	__raw_writel(reg_data, sim->ioaddr + sim->port_ctrl_reg);
 
-	sim_reset_low_delay(sim);
+	sim_reset_low_timing(sim, EMV_RESET_LOW_CYCLES);
 
 	reg_data = __raw_readl(sim->ioaddr + sim->port_ctrl_reg);
 	reg_data |= SIM_PORT_CNTL_SRST;
@@ -1018,6 +1044,7 @@ static void sim_warm_reset_sequency(struct sim_t *sim)
 {
 	u32 reg_data;
 
+	sim->state = SIM_STATE_RESET_SEQUENCY;
 	reg_data = __raw_readl(sim->ioaddr + sim->port_ctrl_reg);
 	reg_data |= (SIM_PORT_CNTL_SRST | SIM_PORT_CNTL_SCEN);
 	if (sim->sven_low_active)
@@ -1026,13 +1053,13 @@ static void sim_warm_reset_sequency(struct sim_t *sim)
 		reg_data |= SIM_PORT_CNTL_SVEN;
 	__raw_writel(reg_data, sim->ioaddr + sim->port_ctrl_reg);
 
-	udelay(20);
+	usleep_range(20, 25);
 
 	reg_data = __raw_readl(sim->ioaddr + sim->port_ctrl_reg);
 	reg_data &= ~SIM_PORT_CNTL_SRST;
 	__raw_writel(reg_data, sim->ioaddr + sim->port_ctrl_reg);
 
-	sim_reset_low_delay(sim);
+	sim_reset_low_timing(sim, EMV_RESET_LOW_CYCLES);
 
 	reg_data = __raw_readl(sim->ioaddr + sim->port_ctrl_reg);
 	reg_data |= SIM_PORT_CNTL_SRST;
