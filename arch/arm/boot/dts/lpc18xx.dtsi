@@ -171,6 +171,13 @@
 				clocks = <&ccu1 CLK_USB0>;
 				#phy-cells = <0>;
 			};
+
+			dmamux: dma-mux@11c {
+				compatible = "nxp,lpc1850-dmamux";
+				#dma-cells = <3>;
+				dma-requests = <64>;
+				dma-masters = <&dmac>;
+			};
 		};
 
 		cgu: clock-controller@40050000 {
