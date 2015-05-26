@@ -42,7 +42,7 @@
 </tbody></tgroup></table>
 
 <para>Newer formats like DVB-S2, ISDB-T, ISDB-S and DVB-T2 are not described at the above, as they're
-supported via the new <link linkend="FE_GET_SET_PROPERTY">FE_GET_PROPERTY/FE_GET_SET_PROPERTY</link> ioctl's, using the <link linkend="DTV-DELIVERY-SYSTEM">DTV_DELIVERY_SYSTEM</link> parameter.
+supported via the new <link linkend="FE_GET_PROPERTY">FE_GET_PROPERTY/FE_GET_SET_PROPERTY</link> ioctl's, using the <link linkend="DTV-DELIVERY-SYSTEM">DTV_DELIVERY_SYSTEM</link> parameter.
 </para>
 
 <para>The usage of this field is deprecated, as it doesn't report all supported standards, and
@@ -59,11 +59,11 @@ the kind of hardware you are using.</para>
 union with specific per-system parameters. However, as newer delivery systems
 required more data, the structure size weren't enough to fit, and just
 extending its size would break the existing applications. So, those parameters
-were replaced by the usage of <link linkend="FE_GET_SET_PROPERTY">
+were replaced by the usage of <link linkend="FE_GET_PROPERTY">
 <constant>FE_GET_PROPERTY/FE_SET_PROPERTY</constant></link> ioctl's. The
 new API is flexible enough to add new parameters to existing delivery systems,
 and to add newer delivery systems.</para>
-<para>So, newer applications should use <link linkend="FE_GET_SET_PROPERTY">
+<para>So, newer applications should use <link linkend="FE_GET_PROPERTY">
 <constant>FE_GET_PROPERTY/FE_SET_PROPERTY</constant></link> instead, in
 order to be able to support the newer System Delivery like  DVB-S2, DVB-T2,
 DVB-C2, ISDB, etc.</para>

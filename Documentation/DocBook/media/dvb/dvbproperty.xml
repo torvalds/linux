@@ -70,7 +70,7 @@ struct dtv_properties {
 <section>
 	<title>Property types</title>
 <para>
-On <link linkend="FE_GET_PROPERTY">FE_GET_PROPERTY</link>/<link linkend="FE_SET_PROPERTY">FE_SET_PROPERTY</link>,
+On <link linkend="FE_GET_PROPERTY">FE_GET_PROPERTY and FE_SET_PROPERTY</link>,
 the actual action is determined by the dtv_property cmd/data pairs. With one single ioctl, is possible to
 get/set up to 64 properties. The actual meaning of each property is described on the next sections.
 </para>
@@ -1223,14 +1223,14 @@ enum fe_interleaving {
 
 <refentry id="FE_GET_PROPERTY">
   <refmeta>
-    <refentrytitle>ioctl FE_GET_PROPERTY</refentrytitle>
+    <refentrytitle>ioctl FE_SET_PROPERTY, FE_GET_PROPERTY</refentrytitle>
     &manvol;
   </refmeta>
 
   <refnamediv>
-    <refname>FE_GET_PROPERTY</refname>
-    <refpurpose>Returns one or more frontend properties. This call only
- requires read-only access to the device</refpurpose>
+    <refname>FE_SET_PROPERTY and FE_GET_PROPERTY</refname>
+    <refpurpose>FE_SET_PROPERTY sets one or more frontend properties.
+	FE_GET_PROPERTY returns one or more frontend properties.</refpurpose>
   </refnamediv>
 
   <refsynopsisdiv>
@@ -1256,7 +1256,7 @@ enum fe_interleaving {
       <varlistentry>
 	<term><parameter>request</parameter></term>
 	<listitem>
-	  <para>FE_GET_PROPERTY</para>
+	  <para>FE_SET_PROPERTY, FE_GET_PROPERTY</para>
 	</listitem>
       </varlistentry>
       <varlistentry>
@@ -1272,68 +1272,32 @@ enum fe_interleaving {
     <title>Description</title>
 
     <para>All DVB frontend devices support the
-<constant>FE_GET_PROPERTY</constant> ioctl. It is used to get properties and
-statistics from the frontend.
+<constant>FE_SET_PROPERTY</constant> and <constant>FE_GET_PROPERTY</constant>
+ioctls. The supported properties and statistics depends on the delivery system
+and on the device:</para>
+<itemizedlist>
+<listitem>
+    <para><constant>FE_SET_PROPERTY:</constant></para>
+<itemizedlist>
+<listitem>This ioctl is used to set one or more
+	frontend properties.</listitem>
+<listitem>This is the basic command to request the frontend to tune into some
+    frequency and to start decoding the digital TV signal.</listitem>
+<listitem>This call requires read/write access to the device.</listitem>
+<listitem>At return, the values are updated to reflect the
+    actual parameters used.</listitem>
+</itemizedlist>
+</listitem>
+<listitem>
+    <para><constant>FE_GET_PROPERTY:</constant></para>
+<itemizedlist>
+<listitem>This ioctl is used to get properties and
+statistics from the frontend.</listitem>
+<listitem>No properties are changed, and statistics aren't reset.</listitem>
+<listitem>This call only requires read-only access to the device.</listitem>
+</itemizedlist>
+</listitem>
+</itemizedlist>
 &return-value-dvb;.
-</para>
-</refsect1>
-</refentry>
-
-<refentry id="FE_SET_PROPERTY">
-  <refmeta>
-    <refentrytitle>ioctl FE_SET_PROPERTY</refentrytitle>
-    &manvol;
-  </refmeta>
-
-  <refnamediv>
-    <refname>FE_SET_PROPERTY</refname>
-    <refpurpose>Sets one or more frontend properties. This call
- requires read/write access to the device</refpurpose>
-  </refnamediv>
-
-  <refsynopsisdiv>
-    <funcsynopsis>
-      <funcprototype>
-	<funcdef>int <function>ioctl</function></funcdef>
-	<paramdef>int <parameter>fd</parameter></paramdef>
-	<paramdef>int <parameter>request</parameter></paramdef>
-	<paramdef>&dtv-property; *<parameter>argp</parameter></paramdef>
-      </funcprototype>
-    </funcsynopsis>
-  </refsynopsisdiv>
-
-  <refsect1>
-    <title>Arguments</title>
-        <variablelist>
-      <varlistentry>
-	<term><parameter>fd</parameter></term>
-	<listitem>
-	  <para>&fe_fd;</para>
-	</listitem>
-      </varlistentry>
-      <varlistentry>
-	<term><parameter>request</parameter></term>
-	<listitem>
-	  <para>FE_SET_PROPERTY</para>
-	</listitem>
-      </varlistentry>
-      <varlistentry>
-	<term><parameter>argp</parameter></term>
-	<listitem>
-	    <para>pointer to &dtv-property;</para>
-	</listitem>
-      </varlistentry>
-    </variablelist>
-  </refsect1>
-
-  <refsect1>
-    <title>Description</title>
-
-    <para>All DVB frontend devices support the
-<constant>FE_SET_PROPERTY</constant> ioctl. It is used to sets one or more
-frontend properties. This is the basic command to request the frontend to tune
-into some frequency and to start decoding the digital TV signal.
-&return-value-dvb;.
-</para>
 </refsect1>
 </refentry>
