@@ -572,13 +572,12 @@ void resched_cpu(int cpu)
  * selecting an idle cpu will add more delays to the timers than intended
  * (as that cpu's timer base may not be uptodate wrt jiffies etc).
  */
-int get_nohz_timer_target(int pinned)
+int get_nohz_timer_target(void)
 {
-	int cpu = smp_processor_id();
-	int i;
+	int i, cpu = smp_processor_id();
 	struct sched_domain *sd;
 
-	if (pinned || !get_sysctl_timer_migration() || !idle_cpu(cpu))
+	if (!idle_cpu(cpu))
 		return cpu;
 
 	rcu_read_lock();
@@ -7049,8 +7048,6 @@ void __init sched_init_smp(void)
 	sched_init_granularity();
 }
 #endif /* CONFIG_SMP */
-
-const_debug unsigned int sysctl_timer_migration = 1;
 
 int in_sched_functions(unsigned long addr)
 {

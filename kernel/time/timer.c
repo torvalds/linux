@@ -85,6 +85,7 @@ struct tvec_base {
 	unsigned long active_timers;
 	unsigned long all_timers;
 	int cpu;
+	bool migration_enabled;
 	struct tvec_root tv1;
 	struct tvec tv2;
 	struct tvec tv3;
@@ -94,6 +95,54 @@ struct tvec_base {
 
 
 static DEFINE_PER_CPU(struct tvec_base, tvec_bases);
+
+#if defined(CONFIG_SMP) && defined(CONFIG_NO_HZ_COMMON)
+unsigned int sysctl_timer_migration = 1;
+
+void timers_update_migration(void)
+{
+	bool on = sysctl_timer_migration && tick_nohz_active;
+	unsigned int cpu;
+
+	/* Avoid the loop, if nothing to update */
+	if (this_cpu_read(tvec_bases.migration_enabled) == on)
+		return;
+
+	for_each_possible_cpu(cpu) {
+		per_cpu(tvec_bases.migration_enabled, cpu) = on;
+		per_cpu(hrtimer_bases.migration_enabled, cpu) = on;
+	}
+}
+
+int timer_migration_handler(struct ctl_table *table, int write,
+			    void __user *buffer, size_t *lenp,
+			    loff_t *ppos)
+{
+	static DEFINE_MUTEX(mutex);
+	int ret;
+
+	mutex_lock(&mutex);
+	ret = proc_dointvec(table, write, buffer, lenp, ppos);
+	if (!ret && write)
+		timers_update_migration();
+	mutex_unlock(&mutex);
+	return ret;
+}
+
+static inline struct tvec_base *get_target_base(struct tvec_base *base,
+						int pinned)
+{
+	if (pinned || !base->migration_enabled)
+		return this_cpu_ptr(&tvec_bases);
+	return per_cpu_ptr(&tvec_bases, get_nohz_timer_target());
+}
+#else
+static inline struct tvec_base *get_target_base(struct tvec_base *base,
+						int pinned)
+{
+	return this_cpu_ptr(&tvec_bases);
+}
+#endif
 
 static unsigned long round_jiffies_common(unsigned long j, int cpu,
 		bool force_up)
@@ -716,11 +765,11 @@ static struct tvec_base *lock_timer_base(struct timer_list *timer,
 
 static inline int
 __mod_timer(struct timer_list *timer, unsigned long expires,
-						bool pending_only, int pinned)
+	    bool pending_only, int pinned)
 {
 	struct tvec_base *base, *new_base;
 	unsigned long flags;
-	int ret = 0 , cpu;
+	int ret = 0;
 
 	timer_stats_timer_set_start_info(timer);
 	BUG_ON(!timer->function);
@@ -733,8 +782,7 @@ __mod_timer(struct timer_list *timer, unsigned long expires,
 
 	debug_activate(timer, expires);
 
-	cpu = get_nohz_timer_target(pinned);
-	new_base = per_cpu_ptr(&tvec_bases, cpu);
+	new_base = get_target_base(base, pinned);
 
 	if (base != new_base) {
 		/*
@@ -751,7 +799,8 @@ __mod_timer(struct timer_list *timer, unsigned long expires,
 			spin_unlock(&base->lock);
 			base = new_base;
 			spin_lock(&base->lock);
-			timer->flags = (timer->flags & ~TIMER_BASEMASK) | cpu;
+			timer->flags &= ~TIMER_BASEMASK;
+			timer->flags |= base->cpu;
 		}
 	}
 
