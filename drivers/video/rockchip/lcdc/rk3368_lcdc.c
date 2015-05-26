@@ -4036,6 +4036,7 @@ static int rk3368_lcdc_config_done(struct rk_lcdc_driver *dev_drv)
 	}
 
 	spin_lock(&lcdc_dev->reg_lock);
+	rk3368_lcdc_post_cfg(dev_drv);
 	lcdc_msk_reg(lcdc_dev, SYS_CTRL, m_STANDBY_EN,
 		     v_STANDBY_EN(lcdc_dev->standby));
 	for (i = 0; i < 4; i++) {
@@ -4595,7 +4596,7 @@ static int rk3368_lcdc_set_overscan(struct rk_lcdc_driver *dev_drv,
 		pr_info("%s,clk_on = %d\n", __func__, lcdc_dev->clk_on);
 		return 0;
 	}
-        rk3368_lcdc_post_cfg(dev_drv);
+        /*rk3368_lcdc_post_cfg(dev_drv);*/
 
         return 0;
 }
