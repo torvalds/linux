@@ -7,6 +7,8 @@
   <refnamediv>
     <refname>VIDIOC_G_DV_TIMINGS</refname>
     <refname>VIDIOC_S_DV_TIMINGS</refname>
+    <refname>VIDIOC_SUBDEV_G_DV_TIMINGS</refname>
+    <refname>VIDIOC_SUBDEV_S_DV_TIMINGS</refname>
     <refpurpose>Get or set DV timings for input or output</refpurpose>
   </refnamediv>
 
@@ -34,7 +36,7 @@
       <varlistentry>
 	<term><parameter>request</parameter></term>
 	<listitem>
-	  <para>VIDIOC_G_DV_TIMINGS, VIDIOC_S_DV_TIMINGS</para>
+	  <para>VIDIOC_G_DV_TIMINGS, VIDIOC_S_DV_TIMINGS, VIDIOC_SUBDEV_G_DV_TIMINGS, VIDIOC_SUBDEV_S_DV_TIMINGS</para>
 	</listitem>
       </varlistentry>
       <varlistentry>

@@ -1255,7 +1255,8 @@ enum fe_interleaving {
   </refmeta>
 
   <refnamediv>
-    <refname>FE_SET_PROPERTY and FE_GET_PROPERTY</refname>
+      <refname>FE_SET_PROPERTY</refname>
+      <refname>FE_GET_PROPERTY</refname>
     <refpurpose>FE_SET_PROPERTY sets one or more frontend properties.
 	FE_GET_PROPERTY returns one or more frontend properties.</refpurpose>
   </refnamediv>

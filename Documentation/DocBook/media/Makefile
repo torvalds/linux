@@ -296,7 +296,7 @@ $(MEDIA_OBJ_DIR)/media-entities.tmpl: $(MEDIA_OBJ_DIR)/v4l2.xml
 	@(								\
 	echo -e "\n<!-- Ioctls -->") >>$@
 	@(								\
-	for ident in $(IOCTLS) ; do					\
+	for ident in `echo $(IOCTLS) | sed -e "s,VIDIOC_RESERVED,,"`; do\
 	  entity=`echo $$ident | tr _ -` ;				\
 	  id=`grep -e "<refname>$$ident" -e "<section id=\"$$ident\"" $$(find $(MEDIA_SRC_DIR) -name *.xml -type f)| sed -r s,"^.*/(.*).xml.*","\1",` ; \
 	  if [ "$$id" != "" ]; then echo "<!ENTITY $$entity \"<link"	\
