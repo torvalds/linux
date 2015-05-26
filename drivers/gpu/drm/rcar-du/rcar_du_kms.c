@@ -573,7 +573,7 @@ static int rcar_du_encoders_init_one(struct rcar_du_device *rcdu,
 	if (!entity) {
 		dev_dbg(rcdu->dev, "unconnected endpoint %s, skipping\n",
 			ep->local_node->full_name);
-		return 0;
+		return -ENODEV;
 	}
 
 	entity_ep_node = of_parse_phandle(ep->local_node, "remote-endpoint", 0);
@@ -596,7 +596,7 @@ static int rcar_du_encoders_init_one(struct rcar_du_device *rcdu,
 				 encoder->full_name);
 			of_node_put(entity_ep_node);
 			of_node_put(encoder);
-			return 0;
+			return -ENODEV;
 		}
 
 		break;
@@ -625,7 +625,7 @@ static int rcar_du_encoders_init_one(struct rcar_du_device *rcdu,
 				 encoder->full_name);
 			of_node_put(encoder);
 			of_node_put(connector);
-			return 0;
+			return -EINVAL;
 		}
 	} else {
 		/*
@@ -644,7 +644,7 @@ static int rcar_du_encoders_init_one(struct rcar_du_device *rcdu,
 			 "failed to initialize encoder %s (%d), skipping\n",
 			 encoder->full_name, ret);
 
-	return ret < 0 ? ret : 1;
+	return ret;
 }
 
 static int rcar_du_encoders_init(struct rcar_du_device *rcdu)
@@ -696,7 +696,7 @@ static int rcar_du_encoders_init(struct rcar_du_device *rcdu)
 			continue;
 		}
 
-		num_encoders += ret;
+		num_encoders++;
 	}
 
 	return num_encoders;
