@@ -305,10 +305,12 @@ $(MEDIA_OBJ_DIR)/media-entities.tmpl: $(MEDIA_OBJ_DIR)/v4l2.xml
 	@(								\
 	for ident in $(IOCTLS) ; do					\
 	  entity=`echo $$ident | tr _ -` ;				\
-	  id=`grep "<refname>$$ident" $(MEDIA_OBJ_DIR)/vidioc-*.xml $(MEDIA_OBJ_DIR)/media-ioc-*.xml | sed -r s,"^.*/(.*).xml.*","\1",` ; \
-	  echo "<!ENTITY $$entity \"<link"				\
+	  id=`grep -e "<refname>$$ident" -e "<section id=\"$$ident\"" $$(find $(MEDIA_SRC_DIR) -name *.xml -type f)| sed -r s,"^.*/(.*).xml.*","\1",` ; \
+	  if [ "$$id" != "" ]; then echo "<!ENTITY $$entity \"<link"	\
 	    "linkend='$$id'><constant>$$ident</constant></link>\">"	\
-	  >>$@ ;							\
+	  >>$@ ; else							\
+		echo "Warning: undocumented ioctl: $$ident. Please document it at the media DocBook!" >&2;	\
+	  fi;								\
 	done)
 	@(								\
 	echo -e "\n<!-- Defines -->") >>$@
