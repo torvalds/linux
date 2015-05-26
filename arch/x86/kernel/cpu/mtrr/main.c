@@ -580,7 +580,7 @@ void arch_phys_wc_del(int handle)
 EXPORT_SYMBOL(arch_phys_wc_del);
 
 /*
- * phys_wc_to_mtrr_index - translates arch_phys_wc_add's return value
+ * arch_phys_wc_index - translates arch_phys_wc_add's return value
  * @handle: Return value from arch_phys_wc_add
  *
  * This will turn the return value from arch_phys_wc_add into an mtrr
@@ -590,14 +590,14 @@ EXPORT_SYMBOL(arch_phys_wc_del);
  * in printk line.  Alas there is an illegitimate use in some ancient
  * drm ioctls.
  */
-int phys_wc_to_mtrr_index(int handle)
+int arch_phys_wc_index(int handle)
 {
 	if (handle < MTRR_TO_PHYS_WC_OFFSET)
 		return -1;
 	else
 		return handle - MTRR_TO_PHYS_WC_OFFSET;
 }
-EXPORT_SYMBOL_GPL(phys_wc_to_mtrr_index);
+EXPORT_SYMBOL_GPL(arch_phys_wc_index);
 
 /*
  * HACK ALERT!
