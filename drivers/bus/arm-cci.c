@@ -121,6 +121,10 @@ struct cci_pmu_model {
 	u32 fixed_hw_cntrs;
 	u32 num_hw_cntrs;
 	u32 cntr_size;
+	u64 nformat_attrs;
+	u64 nevent_attrs;
+	struct dev_ext_attribute *format_attrs;
+	struct dev_ext_attribute *event_attrs;
 	struct event_range event_ranges[CCI_IF_MAX];
 	int (*validate_hw_event)(struct cci_pmu *, unsigned long);
 	int (*get_event_idx)(struct cci_pmu *, struct cci_pmu_hw_events *, unsigned long);
@@ -156,6 +160,19 @@ enum cci_models {
 #endif
 	CCI_MODEL_MAX
 };
+
+static ssize_t cci_pmu_format_show(struct device *dev,
+			struct device_attribute *attr, char *buf);
+static ssize_t cci_pmu_event_show(struct device *dev,
+			struct device_attribute *attr, char *buf);
+
+#define CCI_EXT_ATTR_ENTRY(_name, _func, _config) \
+	{ __ATTR(_name, S_IRUGO, _func, NULL), (void *)_config }
+
+#define CCI_FORMAT_EXT_ATTR_ENTRY(_name, _config) \
+	CCI_EXT_ATTR_ENTRY(_name, cci_pmu_format_show, (char *)_config)
+#define CCI_EVENT_EXT_ATTR_ENTRY(_name, _config) \
+	CCI_EXT_ATTR_ENTRY(_name, cci_pmu_event_show, (unsigned long)_config)
 
 /* CCI400 PMU Specific definitions */
 
@@ -217,6 +234,106 @@ enum cci400_perf_events {
 #define CCI400_R1_SLAVE_PORT_MAX_EV	0x14
 #define CCI400_R1_MASTER_PORT_MIN_EV	0x00
 #define CCI400_R1_MASTER_PORT_MAX_EV	0x11
+
+#define CCI400_CYCLE_EVENT_EXT_ATTR_ENTRY(_name, _config) \
+	CCI_EXT_ATTR_ENTRY(_name, cci400_pmu_cycle_event_show, \
+					(unsigned long)_config)
+
+static ssize_t cci400_pmu_cycle_event_show(struct device *dev,
+			struct device_attribute *attr, char *buf);
+
+static struct dev_ext_attribute cci400_pmu_format_attrs[] = {
+	CCI_FORMAT_EXT_ATTR_ENTRY(event, "config:0-4"),
+	CCI_FORMAT_EXT_ATTR_ENTRY(source, "config:5-7"),
+};
+
+static struct dev_ext_attribute cci400_r0_pmu_event_attrs[] = {
+	/* Slave events */
+	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_any, 0x0),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_device, 0x01),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_normal_or_nonshareable, 0x2),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_inner_or_outershareable, 0x3),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_cache_maintenance, 0x4),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_mem_barrier, 0x5),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_sync_barrier, 0x6),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_dvm_msg, 0x7),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_dvm_msg_sync, 0x8),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_stall_tt_full, 0x9),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_r_data_last_hs_snoop, 0xA),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_r_data_stall_rvalids_h_rready_l, 0xB),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_wrq_hs_any, 0xC),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_wrq_hs_device, 0xD),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_wrq_hs_normal_or_nonshareable, 0xE),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_wrq_hs_inner_or_outershare_wback_wclean, 0xF),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_wrq_hs_write_unique, 0x10),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_wrq_hs_write_line_unique, 0x11),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_wrq_hs_evict, 0x12),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_wrq_stall_tt_full, 0x13),
+	/* Master events */
+	CCI_EVENT_EXT_ATTR_ENTRY(mi_retry_speculative_fetch, 0x14),
+	CCI_EVENT_EXT_ATTR_ENTRY(mi_rrq_stall_addr_hazard, 0x15),
+	CCI_EVENT_EXT_ATTR_ENTRY(mi_rrq_stall_id_hazard, 0x16),
+	CCI_EVENT_EXT_ATTR_ENTRY(mi_rrq_stall_tt_full, 0x17),
+	CCI_EVENT_EXT_ATTR_ENTRY(mi_rrq_stall_barrier_hazard, 0x18),
+	CCI_EVENT_EXT_ATTR_ENTRY(mi_wrq_stall_barrier_hazard, 0x19),
+	CCI_EVENT_EXT_ATTR_ENTRY(mi_wrq_stall_tt_full, 0x1A),
+	/* Special event for cycles counter */
+	CCI400_CYCLE_EVENT_EXT_ATTR_ENTRY(cycles, 0xff),
+};
+
+static struct dev_ext_attribute cci400_r1_pmu_event_attrs[] = {
+	/* Slave events */
+	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_any, 0x0),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_device, 0x01),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_normal_or_nonshareable, 0x2),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_inner_or_outershareable, 0x3),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_cache_maintenance, 0x4),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_mem_barrier, 0x5),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_sync_barrier, 0x6),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_dvm_msg, 0x7),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_dvm_msg_sync, 0x8),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_stall_tt_full, 0x9),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_r_data_last_hs_snoop, 0xA),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_r_data_stall_rvalids_h_rready_l, 0xB),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_wrq_hs_any, 0xC),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_wrq_hs_device, 0xD),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_wrq_hs_normal_or_nonshareable, 0xE),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_wrq_hs_inner_or_outershare_wback_wclean, 0xF),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_wrq_hs_write_unique, 0x10),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_wrq_hs_write_line_unique, 0x11),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_wrq_hs_evict, 0x12),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_wrq_stall_tt_full, 0x13),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_stall_slave_id_hazard, 0x14),
+	/* Master events */
+	CCI_EVENT_EXT_ATTR_ENTRY(mi_retry_speculative_fetch, 0x0),
+	CCI_EVENT_EXT_ATTR_ENTRY(mi_stall_cycle_addr_hazard, 0x1),
+	CCI_EVENT_EXT_ATTR_ENTRY(mi_rrq_stall_master_id_hazard, 0x2),
+	CCI_EVENT_EXT_ATTR_ENTRY(mi_rrq_stall_hi_prio_rtq_full, 0x3),
+	CCI_EVENT_EXT_ATTR_ENTRY(mi_rrq_stall_barrier_hazard, 0x4),
+	CCI_EVENT_EXT_ATTR_ENTRY(mi_wrq_stall_barrier_hazard, 0x5),
+	CCI_EVENT_EXT_ATTR_ENTRY(mi_wrq_stall_wtq_full, 0x6),
+	CCI_EVENT_EXT_ATTR_ENTRY(mi_rrq_stall_low_prio_rtq_full, 0x7),
+	CCI_EVENT_EXT_ATTR_ENTRY(mi_rrq_stall_mid_prio_rtq_full, 0x8),
+	CCI_EVENT_EXT_ATTR_ENTRY(mi_rrq_stall_qvn_vn0, 0x9),
+	CCI_EVENT_EXT_ATTR_ENTRY(mi_rrq_stall_qvn_vn1, 0xA),
+	CCI_EVENT_EXT_ATTR_ENTRY(mi_rrq_stall_qvn_vn2, 0xB),
+	CCI_EVENT_EXT_ATTR_ENTRY(mi_rrq_stall_qvn_vn3, 0xC),
+	CCI_EVENT_EXT_ATTR_ENTRY(mi_wrq_stall_qvn_vn0, 0xD),
+	CCI_EVENT_EXT_ATTR_ENTRY(mi_wrq_stall_qvn_vn1, 0xE),
+	CCI_EVENT_EXT_ATTR_ENTRY(mi_wrq_stall_qvn_vn2, 0xF),
+	CCI_EVENT_EXT_ATTR_ENTRY(mi_wrq_stall_qvn_vn3, 0x10),
+	CCI_EVENT_EXT_ATTR_ENTRY(mi_wrq_unique_or_line_unique_addr_hazard, 0x11),
+	/* Special event for cycles counter */
+	CCI400_CYCLE_EVENT_EXT_ATTR_ENTRY(cycles, 0xff),
+};
+
+static ssize_t cci400_pmu_cycle_event_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct dev_ext_attribute *eattr = container_of(attr,
+				struct dev_ext_attribute, attr);
+	return snprintf(buf, PAGE_SIZE, "config=0x%lx\n", (unsigned long)eattr->var);
+}
 
 static int cci400_get_event_idx(struct cci_pmu *cci_pmu,
 				struct cci_pmu_hw_events *hw,
@@ -355,6 +472,92 @@ static inline struct cci_pmu_model *probe_cci_model(struct platform_device *pdev
 #define CCI500_GLOBAL_PORT_MIN_EV	0x00
 #define CCI500_GLOBAL_PORT_MAX_EV	0x0f
 
+
+#define CCI500_GLOBAL_EVENT_EXT_ATTR_ENTRY(_name, _config) \
+	CCI_EXT_ATTR_ENTRY(_name, cci500_pmu_global_event_show, \
+					(unsigned long) _config)
+
+static ssize_t cci500_pmu_global_event_show(struct device *dev,
+				struct device_attribute *attr, char *buf);
+
+static struct dev_ext_attribute cci500_pmu_format_attrs[] = {
+	CCI_FORMAT_EXT_ATTR_ENTRY(event, "config:0-4"),
+	CCI_FORMAT_EXT_ATTR_ENTRY(source, "config:5-8"),
+};
+
+static struct dev_ext_attribute cci500_pmu_event_attrs[] = {
+	/* Slave events */
+	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_arvalid, 0x0),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_dev, 0x1),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_nonshareable, 0x2),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_shareable_non_alloc, 0x3),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_shareable_alloc, 0x4),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_invalidate, 0x5),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_cache_maint, 0x6),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_dvm_msg, 0x7),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_rval, 0x8),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_hs_rlast_snoop, 0x9),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_wrq_hs_awalid, 0xA),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_wrq_dev, 0xB),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_wrq_non_shareable, 0xC),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_wrq_share_wb, 0xD),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_wrq_share_wlu, 0xE),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_wrq_share_wunique, 0xF),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_wrq_evict, 0x10),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_wrq_wrevict, 0x11),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_w_data_beat, 0x12),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_srq_acvalid, 0x13),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_srq_read, 0x14),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_srq_clean, 0x15),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_srq_data_transfer_low, 0x16),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_rrq_stall_arvalid, 0x17),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_r_data_stall, 0x18),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_wrq_stall, 0x19),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_w_data_stall, 0x1A),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_w_resp_stall, 0x1B),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_srq_stall, 0x1C),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_s_data_stall, 0x1D),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_rq_stall_ot_limit, 0x1E),
+	CCI_EVENT_EXT_ATTR_ENTRY(si_r_stall_arbit, 0x1F),
+
+	/* Master events */
+	CCI_EVENT_EXT_ATTR_ENTRY(mi_r_data_beat_any, 0x0),
+	CCI_EVENT_EXT_ATTR_ENTRY(mi_w_data_beat_any, 0x1),
+	CCI_EVENT_EXT_ATTR_ENTRY(mi_rrq_stall, 0x2),
+	CCI_EVENT_EXT_ATTR_ENTRY(mi_r_data_stall, 0x3),
+	CCI_EVENT_EXT_ATTR_ENTRY(mi_wrq_stall, 0x4),
+	CCI_EVENT_EXT_ATTR_ENTRY(mi_w_data_stall, 0x5),
+	CCI_EVENT_EXT_ATTR_ENTRY(mi_w_resp_stall, 0x6),
+
+	/* Global events */
+	CCI500_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_snoop_access_filter_bank_0_1, 0x0),
+	CCI500_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_snoop_access_filter_bank_2_3, 0x1),
+	CCI500_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_snoop_access_filter_bank_4_5, 0x2),
+	CCI500_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_snoop_access_filter_bank_6_7, 0x3),
+	CCI500_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_snoop_access_miss_filter_bank_0_1, 0x4),
+	CCI500_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_snoop_access_miss_filter_bank_2_3, 0x5),
+	CCI500_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_snoop_access_miss_filter_bank_4_5, 0x6),
+	CCI500_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_snoop_access_miss_filter_bank_6_7, 0x7),
+	CCI500_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_snoop_back_invalidation, 0x8),
+	CCI500_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_snoop_stall_alloc_busy, 0x9),
+	CCI500_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_snoop_stall_tt_full, 0xA),
+	CCI500_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_wrq, 0xB),
+	CCI500_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_snoop_cd_hs, 0xC),
+	CCI500_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_rq_stall_addr_hazard, 0xD),
+	CCI500_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_snopp_rq_stall_tt_full, 0xE),
+	CCI500_GLOBAL_EVENT_EXT_ATTR_ENTRY(cci_snoop_rq_tzmp1_prot, 0xF),
+};
+
+static ssize_t cci500_pmu_global_event_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct dev_ext_attribute *eattr = container_of(attr,
+					struct dev_ext_attribute, attr);
+	/* Global events have single fixed source code */
+	return snprintf(buf, PAGE_SIZE, "event=0x%lx,source=0x%x\n",
+				(unsigned long)eattr->var, CCI500_PORT_GLOBAL);
+}
+
 static int cci500_validate_hw_event(struct cci_pmu *cci_pmu,
 					unsigned long hw_event)
 {
@@ -397,6 +600,24 @@ static int cci500_validate_hw_event(struct cci_pmu *cci_pmu,
 	return -ENOENT;
 }
 #endif	/* CONFIG_ARM_CCI500_PMU */
+
+static ssize_t cci_pmu_format_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct dev_ext_attribute *eattr = container_of(attr,
+				struct dev_ext_attribute, attr);
+	return snprintf(buf, PAGE_SIZE, "%s\n", (char *)eattr->var);
+}
+
+static ssize_t cci_pmu_event_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct dev_ext_attribute *eattr = container_of(attr,
+				struct dev_ext_attribute, attr);
+	/* source parameter is mandatory for normal PMU events */
+	return snprintf(buf, PAGE_SIZE, "source=?,event=0x%lx\n",
+					 (unsigned long)eattr->var);
+}
 
 static int pmu_is_valid_counter(struct cci_pmu *cci_pmu, int idx)
 {
@@ -980,17 +1201,78 @@ static struct attribute_group pmu_attr_group = {
 	.attrs = pmu_attrs,
 };
 
+static struct attribute_group pmu_format_attr_group = {
+	.name = "format",
+	.attrs = NULL,		/* Filled in cci_pmu_init_attrs */
+};
+
+static struct attribute_group pmu_event_attr_group = {
+	.name = "events",
+	.attrs = NULL,		/* Filled in cci_pmu_init_attrs */
+};
+
 static const struct attribute_group *pmu_attr_groups[] = {
 	&pmu_attr_group,
+	&pmu_format_attr_group,
+	&pmu_event_attr_group,
 	NULL
 };
+
+static struct attribute **alloc_attrs(struct platform_device *pdev,
+				int n, struct dev_ext_attribute *source)
+{
+	int i;
+	struct attribute **attrs;
+
+	/* Alloc n + 1 (for terminating NULL) */
+	attrs  = devm_kcalloc(&pdev->dev, n + 1, sizeof(struct attribute *),
+								GFP_KERNEL);
+	if (!attrs)
+		return attrs;
+	for(i = 0; i < n; i++)
+		attrs[i] = &source[i].attr.attr;
+	return attrs;
+}
+
+static int cci_pmu_init_attrs(struct cci_pmu *cci_pmu, struct platform_device *pdev)
+{
+	const struct cci_pmu_model *model = cci_pmu->model;
+	struct attribute **attrs;
+
+	/*
+	 * All allocations below are managed, hence doesn't need to be
+	 * free'd explicitly in case of an error.
+	 */
+
+	if (model->nevent_attrs) {
+		attrs = alloc_attrs(pdev, model->nevent_attrs,
+						model->event_attrs);
+		if (!attrs)
+			return -ENOMEM;
+		pmu_event_attr_group.attrs = attrs;
+	}
+	if (model->nformat_attrs) {
+		attrs = alloc_attrs(pdev, model->nformat_attrs,
+						 model->format_attrs);
+		if (!attrs)
+			return -ENOMEM;
+		pmu_format_attr_group.attrs = attrs;
+	}
+	pmu_cpumask_attr.var = cci_pmu;
+
+	return 0;
+}
 
 static int cci_pmu_init(struct cci_pmu *cci_pmu, struct platform_device *pdev)
 {
 	char *name = cci_pmu->model->name;
 	u32 num_cntrs;
+	int rc;
 
-	pmu_cpumask_attr.var = cci_pmu;
+	rc = cci_pmu_init_attrs(cci_pmu, pdev);
+	if (rc)
+		return rc;
+
 	cci_pmu->pmu = (struct pmu) {
 		.name		= cci_pmu->model->name,
 		.task_ctx_nr	= perf_invalid_context,
@@ -1053,6 +1335,10 @@ static struct cci_pmu_model cci_pmu_models[] = {
 		.fixed_hw_cntrs = 1,	/* Cycle counter */
 		.num_hw_cntrs = 4,
 		.cntr_size = SZ_4K,
+		.format_attrs = cci400_pmu_format_attrs,
+		.nformat_attrs = ARRAY_SIZE(cci400_pmu_format_attrs),
+		.event_attrs = cci400_r0_pmu_event_attrs,
+		.nevent_attrs = ARRAY_SIZE(cci400_r0_pmu_event_attrs),
 		.event_ranges = {
 			[CCI_IF_SLAVE] = {
 				CCI400_R0_SLAVE_PORT_MIN_EV,
@@ -1071,6 +1357,10 @@ static struct cci_pmu_model cci_pmu_models[] = {
 		.fixed_hw_cntrs = 1,	/* Cycle counter */
 		.num_hw_cntrs = 4,
 		.cntr_size = SZ_4K,
+		.format_attrs = cci400_pmu_format_attrs,
+		.nformat_attrs = ARRAY_SIZE(cci400_pmu_format_attrs),
+		.event_attrs = cci400_r1_pmu_event_attrs,
+		.nevent_attrs = ARRAY_SIZE(cci400_r1_pmu_event_attrs),
 		.event_ranges = {
 			[CCI_IF_SLAVE] = {
 				CCI400_R1_SLAVE_PORT_MIN_EV,
@@ -1091,6 +1381,10 @@ static struct cci_pmu_model cci_pmu_models[] = {
 		.fixed_hw_cntrs = 0,
 		.num_hw_cntrs = 8,
 		.cntr_size = SZ_64K,
+		.format_attrs = cci500_pmu_format_attrs,
+		.nformat_attrs = ARRAY_SIZE(cci500_pmu_format_attrs),
+		.event_attrs = cci500_pmu_event_attrs,
+		.nevent_attrs = ARRAY_SIZE(cci500_pmu_event_attrs),
 		.event_ranges = {
 			[CCI_IF_SLAVE] = {
 				CCI500_SLAVE_PORT_MIN_EV,
