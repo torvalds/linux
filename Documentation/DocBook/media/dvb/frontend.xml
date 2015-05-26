@@ -48,6 +48,8 @@ specification is available at
 
 &sub-frontend_read_status;
 
+&sub-dvbproperty;
+
 <section id="dvb-diseqc-master-cmd">
 <title>diseqc master command</title>
 
@@ -778,5 +780,3 @@ FE_TUNE_MODE_ONESHOT When set, this flag will disable any zigzagging or other "n
 
 &sub-frontend_legacy_api;
 </section>
-
-&sub-dvbproperty;
