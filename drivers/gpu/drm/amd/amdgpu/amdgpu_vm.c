@@ -90,10 +90,13 @@ struct amdgpu_bo_list_entry *amdgpu_vm_get_bos(struct amdgpu_device *adev,
 	struct amdgpu_bo_list_entry *list;
 	unsigned i, idx;
 
+	mutex_lock(&vm->mutex);
 	list = drm_malloc_ab(vm->max_pde_used + 2,
 			     sizeof(struct amdgpu_bo_list_entry));
-	if (!list)
+	if (!list) {
+		mutex_unlock(&vm->mutex);
 		return NULL;
+	}
 
 	/* add the vm page table to the list */
 	list[0].robj = vm->page_directory;
@@ -116,6 +119,7 @@ struct amdgpu_bo_list_entry *amdgpu_vm_get_bos(struct amdgpu_device *adev,
 		list[idx].tv.shared = true;
 		list_add(&list[idx++].tv.head, head);
 	}
+	mutex_unlock(&vm->mutex);
 
 	return list;
 }
