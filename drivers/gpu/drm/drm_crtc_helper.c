@@ -937,10 +937,11 @@ int drm_helper_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mod
 			crtc_state->crtc = crtc;
 	}
 
-	crtc_state->enable = true;
 	crtc_state->planes_changed = true;
 	crtc_state->mode_changed = true;
-	drm_mode_copy(&crtc_state->mode, mode);
+	ret = drm_atomic_set_mode_for_crtc(crtc_state, mode);
+	if (ret)
+		goto out;
 	drm_mode_copy(&crtc_state->adjusted_mode, adjusted_mode);
 
 	if (crtc_funcs->atomic_check) {

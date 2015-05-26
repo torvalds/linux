@@ -290,6 +290,42 @@ drm_atomic_get_crtc_state(struct drm_atomic_state *state,
 EXPORT_SYMBOL(drm_atomic_get_crtc_state);
 
 /**
+ * drm_atomic_set_mode_for_crtc - set mode for CRTC
+ * @state: the CRTC whose incoming state to update
+ * @mode: kernel-internal mode to use for the CRTC, or NULL to disable
+ *
+ * Set a mode (originating from the kernel) on the desired CRTC state. Does
+ * not change any other state properties, including enable, active, or
+ * mode_changed.
+ *
+ * RETURNS:
+ * Zero on success, error code on failure. Cannot return -EDEADLK.
+ */
+int drm_atomic_set_mode_for_crtc(struct drm_crtc_state *state,
+				 struct drm_display_mode *mode)
+{
+	/* Early return for no change. */
+	if (mode && memcmp(&state->mode, mode, sizeof(*mode)) == 0)
+		return 0;
+
+	if (mode) {
+		drm_mode_copy(&state->mode, mode);
+		state->enable = true;
+		DRM_DEBUG_ATOMIC("Set [MODE:%s] for CRTC state %p\n",
+				 mode->name, state);
+	} else {
+		memset(&state->mode, 0, sizeof(state->mode));
+		state->enable = false;
+		DRM_DEBUG_ATOMIC("Set [NOMODE] for CRTC state %p\n",
+				 state);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_atomic_set_mode_for_crtc);
+
+
+/**
  * drm_atomic_crtc_set_property - set property on CRTC
  * @crtc: the drm CRTC to set a property on
  * @state: the state object to update with the new property value

@@ -1607,7 +1607,10 @@ retry:
 		WARN_ON(set->fb);
 		WARN_ON(set->num_connectors);
 
-		crtc_state->enable = false;
+		ret = drm_atomic_set_mode_for_crtc(crtc_state, NULL);
+		if (ret != 0)
+			goto fail;
+
 		crtc_state->active = false;
 
 		ret = drm_atomic_set_crtc_for_plane(primary_state, NULL);
@@ -1622,9 +1625,11 @@ retry:
 	WARN_ON(!set->fb);
 	WARN_ON(!set->num_connectors);
 
-	crtc_state->enable = true;
+	ret = drm_atomic_set_mode_for_crtc(crtc_state, set->mode);
+	if (ret != 0)
+		goto fail;
+
 	crtc_state->active = true;
-	drm_mode_copy(&crtc_state->mode, set->mode);
 
 	ret = drm_atomic_set_crtc_for_plane(primary_state, crtc);
 	if (ret != 0)
