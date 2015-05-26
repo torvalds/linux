@@ -431,11 +431,9 @@ static void stop_streaming(struct vb2_queue *vq)
 			time_before(jiffies, timeout))
 		msleep(1);
 
-	if (time_after(jiffies, timeout)) {
+	if (time_after(jiffies, timeout))
 		dev_err(icd->parent,
 			"Timeout waiting for finishing codec request\n");
-		return;
-	}
 
 	/* Disable interrupts */
 	isi_writel(isi, ISI_INTDIS,
