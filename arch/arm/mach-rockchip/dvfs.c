@@ -41,6 +41,7 @@ static struct dvfs_node *clk_gpu_dvfs_node;
 static int pd_gpu_off, early_suspend;
 static DEFINE_MUTEX(switch_vdd_gpu_mutex);
 struct regulator *vdd_gpu_regulator;
+static DEFINE_MUTEX(temp_limit_mutex);
 
 static int dvfs_get_temp(int chn)
 {
@@ -1228,6 +1229,7 @@ static void dvfs_temp_limit_work_func(struct work_struct *work)
 
 	queue_delayed_work_on(0, dvfs_wq, to_delayed_work(work), delay);
 
+	mutex_lock(&temp_limit_mutex);
 	if (clk_cpu_b_dvfs_node &&
 	    clk_cpu_b_dvfs_node->temp_limit_enable == 1) {
 		temp = dvfs_get_temp(0);
@@ -1255,6 +1257,7 @@ static void dvfs_temp_limit_work_func(struct work_struct *work)
 		if (temp != INVALID_TEMP)
 			dvfs_temp_limit(clk_gpu_dvfs_node, temp);
 	}
+	mutex_unlock(&temp_limit_mutex);
 }
 static DECLARE_DELAYED_WORK(dvfs_temp_limit_work, dvfs_temp_limit_work_func);
 
@@ -2368,11 +2371,111 @@ static ssize_t dvfs_tree_show(struct kobject *kobj, struct kobj_attribute *attr,
        return dump_dbg_map(buf);
 }
 
+static ssize_t cpu_temp_target_store(struct kobject *kobj,
+				     struct kobj_attribute *attr,
+				     const char *buf, size_t n)
+{
+	int ret = 0;
+
+	mutex_lock(&temp_limit_mutex);
+	if (clk_cpu_b_dvfs_node) {
+		ret = kstrtouint(buf, 0, &clk_cpu_b_dvfs_node->target_temp);
+		if (ret < 0)
+			goto error;
+	}
+	if (clk_cpu_l_dvfs_node) {
+		ret = kstrtouint(buf, 0, &clk_cpu_l_dvfs_node->target_temp);
+		if (ret < 0)
+			goto error;
+	}
+	if (clk_cpu_dvfs_node) {
+		ret = kstrtouint(buf, 0, &clk_cpu_dvfs_node->target_temp);
+		if (ret < 0)
+			goto error;
+	}
+error:
+	mutex_unlock(&temp_limit_mutex);
+	return n;
+}
+static ssize_t cpu_temp_target_show(struct kobject *kobj,
+				    struct kobj_attribute *attr, char *buf)
+{
+	int ret = 0;
+
+	if (clk_cpu_b_dvfs_node)
+		ret += sprintf(buf + ret, "cpu_b:%d\n",
+		clk_cpu_b_dvfs_node->target_temp);
+	if (clk_cpu_l_dvfs_node)
+		ret += sprintf(buf + ret, "cpu_l:%d\n",
+		clk_cpu_l_dvfs_node->target_temp);
+	if (clk_cpu_dvfs_node)
+		ret += sprintf(buf + ret, "cpu:%d\n",
+		clk_cpu_dvfs_node->target_temp);
+
+	return ret;
+}
+
+static ssize_t cpu_temp_enable_store(struct kobject *kobj,
+				     struct kobj_attribute *attr,
+				     const char *buf, size_t n)
+{
+	int ret = 0;
+
+	mutex_lock(&temp_limit_mutex);
+	if (clk_cpu_b_dvfs_node) {
+		ret = kstrtouint(buf, 0,
+				 &clk_cpu_b_dvfs_node->temp_limit_enable);
+		if (ret < 0)
+			goto error;
+		clk_cpu_b_dvfs_node->temp_limit_rate =
+			clk_cpu_b_dvfs_node->max_rate;
+	}
+	if (clk_cpu_l_dvfs_node) {
+		ret = kstrtouint(buf, 0,
+				 &clk_cpu_l_dvfs_node->temp_limit_enable);
+		if (ret < 0)
+			goto error;
+		clk_cpu_l_dvfs_node->temp_limit_rate =
+			clk_cpu_l_dvfs_node->max_rate;
+	}
+	if (clk_cpu_dvfs_node) {
+		ret = kstrtouint(buf, 0, &clk_cpu_dvfs_node->temp_limit_enable);
+		if (ret < 0)
+			goto error;
+		clk_cpu_dvfs_node->temp_limit_rate =
+			clk_cpu_dvfs_node->max_rate;
+	}
+error:
+	mutex_unlock(&temp_limit_mutex);
+	return n;
+}
+static ssize_t cpu_temp_enable_show(struct kobject *kobj,
+				    struct kobj_attribute *attr, char *buf)
+{
+	int ret = 0;
+
+	if (clk_cpu_b_dvfs_node)
+		ret += sprintf(buf + ret, "cpu_b:%d\n",
+		clk_cpu_b_dvfs_node->temp_limit_enable);
+	if (clk_cpu_l_dvfs_node)
+		ret += sprintf(buf + ret, "cpu_l:%d\n",
+		clk_cpu_l_dvfs_node->temp_limit_enable);
+	if (clk_cpu_dvfs_node)
+		ret += sprintf(buf + ret, "cpu:%d\n",
+		clk_cpu_dvfs_node->temp_limit_enable);
+
+	return ret;
+}
 
 static struct dvfs_attribute dvfs_attrs[] = {
 	/*     node_name	permision		show_func	store_func */
 //#ifdef CONFIG_RK_CLOCK_PROC
-	__ATTR(dvfs_tree,	S_IRUSR | S_IRGRP | S_IWUSR,	dvfs_tree_show,	dvfs_tree_store),
+	__ATTR(dvfs_tree,	S_IRUSR | S_IRGRP | S_IWUSR,
+	       dvfs_tree_show,	dvfs_tree_store),
+	__ATTR(cpu_temp_target,	S_IRUSR | S_IRGRP | S_IWUSR,
+	       cpu_temp_target_show,	cpu_temp_target_store),
+	__ATTR(cpu_temp_enable,	S_IRUSR | S_IRGRP | S_IWUSR,
+	       cpu_temp_enable_show,	cpu_temp_enable_store),
 //#endif
 };
 
