@@ -1173,15 +1173,14 @@ rpcrdma_get_mw(struct rpcrdma_xprt *r_xprt)
 {
 	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
 	struct rpcrdma_mw *mw = NULL;
-	unsigned long flags;
 
-	spin_lock_irqsave(&buf->rb_lock, flags);
+	spin_lock(&buf->rb_mwlock);
 	if (!list_empty(&buf->rb_mws)) {
 		mw = list_first_entry(&buf->rb_mws,
 				      struct rpcrdma_mw, mw_list);
 		list_del_init(&mw->mw_list);
 	}
-	spin_unlock_irqrestore(&buf->rb_lock, flags);
+	spin_unlock(&buf->rb_mwlock);
 
 	if (!mw)
 		pr_err("RPC:       %s: no MWs available\n", __func__);
@@ -1192,11 +1191,10 @@ void
 rpcrdma_put_mw(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mw *mw)
 {
 	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
-	unsigned long flags;
 
-	spin_lock_irqsave(&buf->rb_lock, flags);
+	spin_lock(&buf->rb_mwlock);
 	list_add_tail(&mw->mw_list, &buf->rb_mws);
-	spin_unlock_irqrestore(&buf->rb_lock, flags);
+	spin_unlock(&buf->rb_mwlock);
 }
 
 static void
