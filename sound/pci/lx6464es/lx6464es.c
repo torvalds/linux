@@ -412,9 +412,9 @@ static int lx_pcm_hw_free(struct snd_pcm_substream *substream)
 	err = snd_pcm_lib_free_pages(substream);
 
 	if (is_capture)
-		chip->capture_stream.stream = 0;
+		chip->capture_stream.stream = NULL;
 	else
-		chip->playback_stream.stream = 0;
+		chip->playback_stream.stream = NULL;
 
 exit:
 	mutex_unlock(&chip->setup_mutex);
