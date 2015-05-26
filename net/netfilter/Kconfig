@@ -456,6 +456,11 @@ config NF_TABLES_INET
 	help
 	  This option enables support for a mixed IPv4/IPv6 "inet" table.
 
+config NF_TABLES_NETDEV
+	tristate "Netfilter nf_tables netdev tables support"
+	help
+	  This option enables support for the "netdev" table.
+
 config NFT_EXTHDR
 	tristate "Netfilter nf_tables IPv6 exthdr module"
 	help
