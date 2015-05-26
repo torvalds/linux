@@ -13,15 +13,13 @@ config ARM_CCI400_COMMON
 
 config ARM_CCI400_PMU
 	bool "ARM CCI400 PMU support"
-	default y
-	depends on ARM || ARM64
-	depends on HW_PERF_EVENTS
+	depends on (ARM && CPU_V7) || ARM64
+	depends on PERF_EVENTS
 	select ARM_CCI400_COMMON
 	help
-	  Support for PMU events monitoring on the ARM CCI cache coherent
-	  interconnect.
-
-	  If unsure, say Y
+	  Support for PMU events monitoring on the ARM CCI-400 (cache coherent
+	  interconnect). CCI-400 supports counting events related to the
+	  connected slave/master interfaces.
 
 config ARM_CCI400_PORT_CTRL
 	bool
