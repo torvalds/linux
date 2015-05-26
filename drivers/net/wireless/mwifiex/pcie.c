@@ -2305,7 +2305,7 @@ mwifiex_pcie_rdwr_firmware(struct mwifiex_adapter *adapter, u8 doneflag)
 }
 
 /* This function dump firmware memory to file */
-static void mwifiex_pcie_fw_dump_work(struct mwifiex_adapter *adapter)
+static void mwifiex_pcie_fw_dump(struct mwifiex_adapter *adapter)
 {
 	struct pcie_service_card *card = adapter->card;
 	const struct mwifiex_pcie_card_reg *creg = card->pcie.reg;
@@ -2315,8 +2315,6 @@ static void mwifiex_pcie_fw_dump_work(struct mwifiex_adapter *adapter)
 	u32 memory_size;
 	int ret;
 	static char *env[] = { "DRIVER=mwifiex_pcie", "EVENT=fw_dump", NULL };
-
-	mwifiex_dump_drv_info(adapter);
 
 	if (!card->pcie.can_dump_fw)
 		return;
@@ -2419,24 +2417,30 @@ done:
 	adapter->curr_mem_idx = 0;
 }
 
+static void mwifiex_pcie_device_dump_work(struct mwifiex_adapter *adapter)
+{
+	mwifiex_drv_info_dump(adapter);
+	mwifiex_pcie_fw_dump(adapter);
+}
+
 static unsigned long iface_work_flags;
 static struct mwifiex_adapter *save_adapter;
 static void mwifiex_pcie_work(struct work_struct *work)
 {
-	if (test_and_clear_bit(MWIFIEX_IFACE_WORK_FW_DUMP,
+	if (test_and_clear_bit(MWIFIEX_IFACE_WORK_DEVICE_DUMP,
 			       &iface_work_flags))
-		mwifiex_pcie_fw_dump_work(save_adapter);
+		mwifiex_pcie_device_dump_work(save_adapter);
 }
 
 static DECLARE_WORK(pcie_work, mwifiex_pcie_work);
 /* This function dumps FW information */
-static void mwifiex_pcie_fw_dump(struct mwifiex_adapter *adapter)
+static void mwifiex_pcie_device_dump(struct mwifiex_adapter *adapter)
 {
 	save_adapter = adapter;
-	if (test_bit(MWIFIEX_IFACE_WORK_FW_DUMP, &iface_work_flags))
+	if (test_bit(MWIFIEX_IFACE_WORK_DEVICE_DUMP, &iface_work_flags))
 		return;
 
-	set_bit(MWIFIEX_IFACE_WORK_FW_DUMP, &iface_work_flags);
+	set_bit(MWIFIEX_IFACE_WORK_DEVICE_DUMP, &iface_work_flags);
 
 	schedule_work(&pcie_work);
 }
@@ -2673,7 +2677,7 @@ static struct mwifiex_if_ops pcie_ops = {
 	.cleanup_mpa_buf =		NULL,
 	.init_fw_port =			mwifiex_pcie_init_fw_port,
 	.clean_pcie_ring =		mwifiex_clean_pcie_ring_buf,
-	.fw_dump =			mwifiex_pcie_fw_dump,
+	.device_dump =			mwifiex_pcie_device_dump,
 };
 
 /*

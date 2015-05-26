@@ -71,7 +71,7 @@ mwifiex_get_dump_flag(struct net_device *dev, struct ethtool_dump *dump)
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct memory_type_mapping *entry;
 
-	if (!adapter->if_ops.fw_dump)
+	if (!adapter->if_ops.device_dump)
 		return -ENOTSUPP;
 
 	dump->flag = adapter->curr_mem_idx;
@@ -97,7 +97,7 @@ mwifiex_get_dump_data(struct net_device *dev, struct ethtool_dump *dump,
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct memory_type_mapping *entry;
 
-	if (!adapter->if_ops.fw_dump)
+	if (!adapter->if_ops.device_dump)
 		return -ENOTSUPP;
 
 	if (adapter->curr_mem_idx == MWIFIEX_DRV_INFO_IDX) {
@@ -109,7 +109,7 @@ mwifiex_get_dump_data(struct net_device *dev, struct ethtool_dump *dump,
 
 	if (adapter->curr_mem_idx == MWIFIEX_FW_DUMP_IDX) {
 		mwifiex_dbg(adapter, ERROR,
-			    "firmware dump in progress!!\n");
+			    "device dump in progress!!\n");
 		return -EBUSY;
 	}
 
@@ -132,7 +132,7 @@ static int mwifiex_set_dump(struct net_device *dev, struct ethtool_dump *val)
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 	struct mwifiex_adapter *adapter = priv->adapter;
 
-	if (!adapter->if_ops.fw_dump)
+	if (!adapter->if_ops.device_dump)
 		return -ENOTSUPP;
 
 	if (val->flag == MWIFIEX_DRV_INFO_IDX) {
@@ -142,13 +142,13 @@ static int mwifiex_set_dump(struct net_device *dev, struct ethtool_dump *val)
 
 	if (adapter->curr_mem_idx == MWIFIEX_FW_DUMP_IDX) {
 		mwifiex_dbg(adapter, ERROR,
-			    "firmware dump in progress!!\n");
+			    "device dump in progress!!\n");
 		return -EBUSY;
 	}
 
 	if (val->flag == MWIFIEX_FW_DUMP_IDX) {
 		adapter->curr_mem_idx = val->flag;
-		adapter->if_ops.fw_dump(adapter);
+		adapter->if_ops.device_dump(adapter);
 		return 0;
 	}
 

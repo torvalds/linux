@@ -873,7 +873,7 @@ mwifiex_tx_timeout(struct net_device *dev)
 	}
 }
 
-void mwifiex_dump_drv_info(struct mwifiex_adapter *adapter)
+void mwifiex_drv_info_dump(struct mwifiex_adapter *adapter)
 {
 	void *p;
 	char drv_version[64];
@@ -980,7 +980,7 @@ void mwifiex_dump_drv_info(struct mwifiex_adapter *adapter)
 	adapter->drv_info_size = p - adapter->drv_info_dump;
 	mwifiex_dbg(adapter, MSG, "===mwifiex driverinfo dump end===\n");
 }
-EXPORT_SYMBOL_GPL(mwifiex_dump_drv_info);
+EXPORT_SYMBOL_GPL(mwifiex_drv_info_dump);
 
 /*
  * CFG802.11 network device handler for statistics retrieval.

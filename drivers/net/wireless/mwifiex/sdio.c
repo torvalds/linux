@@ -2177,7 +2177,7 @@ rdwr_status mwifiex_sdio_rdwr_firmware(struct mwifiex_adapter *adapter,
 }
 
 /* This function dump firmware memory to file */
-static void mwifiex_sdio_fw_dump_work(struct mwifiex_adapter *adapter)
+static void mwifiex_sdio_fw_dump(struct mwifiex_adapter *adapter)
 {
 	struct sdio_mmc_card *card = adapter->card;
 	int ret = 0;
@@ -2186,8 +2186,6 @@ static void mwifiex_sdio_fw_dump_work(struct mwifiex_adapter *adapter)
 	enum rdwr_status stat;
 	u32 memory_size;
 	static char *env[] = { "DRIVER=mwifiex_sdio", "EVENT=fw_dump", NULL };
-
-	mwifiex_dump_drv_info(adapter);
 
 	if (!card->can_dump_fw)
 		return;
@@ -2306,11 +2304,17 @@ done:
 	adapter->curr_mem_idx = 0;
 }
 
+static void mwifiex_sdio_device_dump_work(struct mwifiex_adapter *adapter)
+{
+	mwifiex_drv_info_dump(adapter);
+	mwifiex_sdio_fw_dump(adapter);
+}
+
 static void mwifiex_sdio_work(struct work_struct *work)
 {
-	if (test_and_clear_bit(MWIFIEX_IFACE_WORK_FW_DUMP,
+	if (test_and_clear_bit(MWIFIEX_IFACE_WORK_DEVICE_DUMP,
 			       &iface_work_flags))
-		mwifiex_sdio_fw_dump_work(save_adapter);
+		mwifiex_sdio_device_dump_work(save_adapter);
 	if (test_and_clear_bit(MWIFIEX_IFACE_WORK_CARD_RESET,
 			       &iface_work_flags))
 		mwifiex_sdio_card_reset_work(save_adapter);
@@ -2330,13 +2334,13 @@ static void mwifiex_sdio_card_reset(struct mwifiex_adapter *adapter)
 }
 
 /* This function dumps FW information */
-static void mwifiex_sdio_fw_dump(struct mwifiex_adapter *adapter)
+static void mwifiex_sdio_device_dump(struct mwifiex_adapter *adapter)
 {
 	save_adapter = adapter;
-	if (test_bit(MWIFIEX_IFACE_WORK_FW_DUMP, &iface_work_flags))
+	if (test_bit(MWIFIEX_IFACE_WORK_DEVICE_DUMP, &iface_work_flags))
 		return;
 
-	set_bit(MWIFIEX_IFACE_WORK_FW_DUMP, &iface_work_flags);
+	set_bit(MWIFIEX_IFACE_WORK_DEVICE_DUMP, &iface_work_flags);
 	schedule_work(&sdio_work);
 }
 
@@ -2453,8 +2457,8 @@ static struct mwifiex_if_ops sdio_ops = {
 	.cmdrsp_complete = mwifiex_sdio_cmdrsp_complete,
 	.event_complete = mwifiex_sdio_event_complete,
 	.card_reset = mwifiex_sdio_card_reset,
-	.fw_dump = mwifiex_sdio_fw_dump,
 	.reg_dump = mwifiex_sdio_reg_dump,
+	.device_dump = mwifiex_sdio_device_dump,
 	.deaggr_pkt = mwifiex_deaggr_sdio_pkt,
 };
 
