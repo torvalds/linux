@@ -2316,6 +2316,8 @@ static void mwifiex_pcie_fw_dump_work(struct mwifiex_adapter *adapter)
 	int ret;
 	static char *env[] = { "DRIVER=mwifiex_pcie", "EVENT=fw_dump", NULL };
 
+	mwifiex_dump_drv_info(adapter);
+
 	if (!card->pcie.can_dump_fw)
 		return;
 
