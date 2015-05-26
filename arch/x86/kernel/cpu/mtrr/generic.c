@@ -154,7 +154,7 @@ static u8 __mtrr_type_lookup(u64 start, u64 end, u64 *partial_end, int *repeat)
 
 	prev_match = 0xFF;
 	for (i = 0; i < num_var_ranges; ++i) {
-		unsigned short start_state, end_state;
+		unsigned short start_state, end_state, inclusive;
 
 		if (!(mtrr_state.var_ranges[i].mask_lo & (1 << 11)))
 			continue;
@@ -166,19 +166,27 @@ static u8 __mtrr_type_lookup(u64 start, u64 end, u64 *partial_end, int *repeat)
 
 		start_state = ((start & mask) == (base & mask));
 		end_state = ((end & mask) == (base & mask));
+		inclusive = ((start < base) && (end > base));
 
-		if (start_state != end_state) {
+		if ((start_state != end_state) || inclusive) {
 			/*
 			 * We have start:end spanning across an MTRR.
-			 * We split the region into
-			 * either
-			 * (start:mtrr_end) (mtrr_end:end)
-			 * or
-			 * (start:mtrr_start) (mtrr_start:end)
+			 * We split the region into either
+			 *
+			 * - start_state:1
+			 * (start:mtrr_end)(mtrr_end:end)
+			 * - end_state:1
+			 * (start:mtrr_start)(mtrr_start:end)
+			 * - inclusive:1
+			 * (start:mtrr_start)(mtrr_start:mtrr_end)(mtrr_end:end)
+			 *
 			 * depending on kind of overlap.
-			 * Return the type for first region and a pointer to
-			 * the start of second region so that caller will
-			 * lookup again on the second region.
+			 *
+			 * Return the type of the first region and a pointer
+			 * to the start of next region so that caller will be
+			 * advised to lookup again after having adjusted start
+			 * and end.
+			 *
 			 * Note: This way we handle multiple overlaps as well.
 			 */
 			if (start_state)
