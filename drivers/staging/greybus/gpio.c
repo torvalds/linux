@@ -303,9 +303,9 @@ static int gb_gpio_request_recv(u8 type, struct gb_operation *op)
 		return -EINVAL;
 	}
 
-	irq = gpio_to_irq(ggc->chip.base + event->which);
-	if (irq < 0) {
-		dev_err(ggc->chip.dev, "failed to map irq\n");
+	irq = irq_find_mapping(ggc->irqdomain, event->which);
+	if (!irq) {
+		dev_err(ggc->chip.dev, "failed to find IRQ\n");
 		return -EINVAL;
 	}
 	desc = irq_to_desc(irq);
