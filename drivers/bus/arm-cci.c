@@ -124,9 +124,9 @@ struct cci_pmu {
 	int num_events;
 	atomic_t active_events;
 	struct mutex reserve_mutex;
+	struct notifier_block cpu_nb;
 	cpumask_t cpus;
 };
-static struct cci_pmu *pmu;
 
 #define to_cci_pmu(c)	(container_of(c, struct cci_pmu, pmu))
 
@@ -179,7 +179,7 @@ enum cci400_perf_events {
 #define CCI_REV_R1_MASTER_PORT_MIN_EV	0x00
 #define CCI_REV_R1_MASTER_PORT_MAX_EV	0x11
 
-static int pmu_validate_hw_event(unsigned long hw_event)
+static int pmu_validate_hw_event(struct cci_pmu *cci_pmu, unsigned long hw_event)
 {
 	u8 ev_source = CCI_PMU_EVENT_SOURCE(hw_event);
 	u8 ev_code = CCI_PMU_EVENT_CODE(hw_event);
@@ -207,8 +207,8 @@ static int pmu_validate_hw_event(unsigned long hw_event)
 		return -ENOENT;
 	}
 
-	if (ev_code >= pmu->model->event_ranges[if_type].min &&
-		ev_code <= pmu->model->event_ranges[if_type].max)
+	if (ev_code >= cci_pmu->model->event_ranges[if_type].min &&
+		ev_code <= cci_pmu->model->event_ranges[if_type].max)
 		return hw_event;
 
 	return -ENOENT;
@@ -239,29 +239,31 @@ static int pmu_is_valid_counter(struct cci_pmu *cci_pmu, int idx)
 		idx <= CCI_PMU_CNTR_LAST(cci_pmu);
 }
 
-static u32 pmu_read_register(int idx, unsigned int offset)
+static u32 pmu_read_register(struct cci_pmu *cci_pmu, int idx, unsigned int offset)
 {
-	return readl_relaxed(pmu->base + CCI_PMU_CNTR_BASE(idx) + offset);
+	return readl_relaxed(cci_pmu->base + CCI_PMU_CNTR_BASE(idx) + offset);
 }
 
-static void pmu_write_register(u32 value, int idx, unsigned int offset)
+static void pmu_write_register(struct cci_pmu *cci_pmu, u32 value,
+			       int idx, unsigned int offset)
 {
-	return writel_relaxed(value, pmu->base + CCI_PMU_CNTR_BASE(idx) + offset);
+	return writel_relaxed(value, cci_pmu->base +
+			      CCI_PMU_CNTR_BASE(idx) + offset);
 }
 
-static void pmu_disable_counter(int idx)
+static void pmu_disable_counter(struct cci_pmu *cci_pmu, int idx)
 {
-	pmu_write_register(0, idx, CCI_PMU_CNTR_CTRL);
+	pmu_write_register(cci_pmu, 0, idx, CCI_PMU_CNTR_CTRL);
 }
 
-static void pmu_enable_counter(int idx)
+static void pmu_enable_counter(struct cci_pmu *cci_pmu, int idx)
 {
-	pmu_write_register(1, idx, CCI_PMU_CNTR_CTRL);
+	pmu_write_register(cci_pmu, 1, idx, CCI_PMU_CNTR_CTRL);
 }
 
-static void pmu_set_event(int idx, unsigned long event)
+static void pmu_set_event(struct cci_pmu *cci_pmu, int idx, unsigned long event)
 {
-	pmu_write_register(event, idx, CCI_PMU_EVT_SEL);
+	pmu_write_register(cci_pmu, event, idx, CCI_PMU_EVT_SEL);
 }
 
 static u32 pmu_get_max_counters(void)
@@ -306,7 +308,8 @@ static int pmu_map_event(struct perf_event *event)
 	if (config == CCI_PMU_CYCLES)
 		mapping = config;
 	else
-		mapping = pmu_validate_hw_event(config);
+		mapping = pmu_validate_hw_event(to_cci_pmu(event->pmu),
+							config);
 
 	return mapping;
 }
@@ -319,7 +322,7 @@ static int pmu_request_irq(struct cci_pmu *cci_pmu, irq_handler_t handler)
 	if (unlikely(!pmu_device))
 		return -ENODEV;
 
-	if (pmu->nr_irqs < 1) {
+	if (cci_pmu->nr_irqs < 1) {
 		dev_err(&pmu_device->dev, "no irqs for CCI PMUs defined\n");
 		return -ENODEV;
 	}
@@ -331,16 +334,16 @@ static int pmu_request_irq(struct cci_pmu *cci_pmu, irq_handler_t handler)
 	 *
 	 * This should allow handling of non-unique interrupt for the counters.
 	 */
-	for (i = 0; i < pmu->nr_irqs; i++) {
-		int err = request_irq(pmu->irqs[i], handler, IRQF_SHARED,
+	for (i = 0; i < cci_pmu->nr_irqs; i++) {
+		int err = request_irq(cci_pmu->irqs[i], handler, IRQF_SHARED,
 				"arm-cci-pmu", cci_pmu);
 		if (err) {
 			dev_err(&pmu_device->dev, "unable to request IRQ%d for ARM CCI PMU counters\n",
-				pmu->irqs[i]);
+				cci_pmu->irqs[i]);
 			return err;
 		}
 
-		set_bit(i, &pmu->active_irqs);
+		set_bit(i, &cci_pmu->active_irqs);
 	}
 
 	return 0;
@@ -350,11 +353,11 @@ static void pmu_free_irq(struct cci_pmu *cci_pmu)
 {
 	int i;
 
-	for (i = 0; i < pmu->nr_irqs; i++) {
-		if (!test_and_clear_bit(i, &pmu->active_irqs))
+	for (i = 0; i < cci_pmu->nr_irqs; i++) {
+		if (!test_and_clear_bit(i, &cci_pmu->active_irqs))
 			continue;
 
-		free_irq(pmu->irqs[i], cci_pmu);
+		free_irq(cci_pmu->irqs[i], cci_pmu);
 	}
 }
 
@@ -369,7 +372,7 @@ static u32 pmu_read_counter(struct perf_event *event)
 		dev_err(&cci_pmu->plat_device->dev, "Invalid CCI PMU counter %d\n", idx);
 		return 0;
 	}
-	value = pmu_read_register(idx, CCI_PMU_CNTR);
+	value = pmu_read_register(cci_pmu, idx, CCI_PMU_CNTR);
 
 	return value;
 }
@@ -383,7 +386,7 @@ static void pmu_write_counter(struct perf_event *event, u32 value)
 	if (unlikely(!pmu_is_valid_counter(cci_pmu, idx)))
 		dev_err(&cci_pmu->plat_device->dev, "Invalid CCI PMU counter %d\n", idx);
 	else
-		pmu_write_register(value, idx, CCI_PMU_CNTR);
+		pmu_write_register(cci_pmu, value, idx, CCI_PMU_CNTR);
 }
 
 static u64 pmu_event_update(struct perf_event *event)
@@ -427,7 +430,7 @@ static irqreturn_t pmu_handle_irq(int irq_num, void *dev)
 {
 	unsigned long flags;
 	struct cci_pmu *cci_pmu = dev;
-	struct cci_pmu_hw_events *events = &pmu->hw_events;
+	struct cci_pmu_hw_events *events = &cci_pmu->hw_events;
 	int idx, handled = IRQ_NONE;
 
 	raw_spin_lock_irqsave(&events->pmu_lock, flags);
@@ -446,11 +449,12 @@ static irqreturn_t pmu_handle_irq(int irq_num, void *dev)
 		hw_counter = &event->hw;
 
 		/* Did this counter overflow? */
-		if (!(pmu_read_register(idx, CCI_PMU_OVRFLW) &
+		if (!(pmu_read_register(cci_pmu, idx, CCI_PMU_OVRFLW) &
 		      CCI_PMU_OVRFLW_FLAG))
 			continue;
 
-		pmu_write_register(CCI_PMU_OVRFLW_FLAG, idx, CCI_PMU_OVRFLW);
+		pmu_write_register(cci_pmu, CCI_PMU_OVRFLW_FLAG, idx,
+							CCI_PMU_OVRFLW);
 
 		pmu_event_update(event);
 		pmu_event_set_period(event);
@@ -549,10 +553,10 @@ static void cci_pmu_start(struct perf_event *event, int pmu_flags)
 
 	/* Configure the event to count, unless you are counting cycles */
 	if (idx != CCI_PMU_CYCLE_CNTR_IDX)
-		pmu_set_event(idx, hwc->config_base);
+		pmu_set_event(cci_pmu, idx, hwc->config_base);
 
 	pmu_event_set_period(event);
-	pmu_enable_counter(idx);
+	pmu_enable_counter(cci_pmu, idx);
 
 	raw_spin_unlock_irqrestore(&hw_events->pmu_lock, flags);
 }
@@ -575,7 +579,7 @@ static void cci_pmu_stop(struct perf_event *event, int pmu_flags)
 	 * We always reprogram the counter, so ignore PERF_EF_UPDATE. See
 	 * cci_pmu_start()
 	 */
-	pmu_disable_counter(idx);
+	pmu_disable_counter(cci_pmu, idx);
 	pmu_event_update(event);
 	hwc->state |= PERF_HES_STOPPED | PERF_HES_UPTODATE;
 }
@@ -779,20 +783,27 @@ static int cci_pmu_event_init(struct perf_event *event)
 	return err;
 }
 
-static ssize_t pmu_attr_cpumask_show(struct device *dev,
+static ssize_t pmu_cpumask_attr_show(struct device *dev,
 				     struct device_attribute *attr, char *buf)
 {
+	struct dev_ext_attribute *eattr = container_of(attr,
+					struct dev_ext_attribute, attr);
+	struct cci_pmu *cci_pmu = eattr->var;
+
 	int n = scnprintf(buf, PAGE_SIZE - 1, "%*pbl",
-			  cpumask_pr_args(&pmu->cpus));
+			  cpumask_pr_args(&cci_pmu->cpus));
 	buf[n++] = '\n';
 	buf[n] = '\0';
 	return n;
 }
 
-static DEVICE_ATTR(cpumask, S_IRUGO, pmu_attr_cpumask_show, NULL);
+static struct dev_ext_attribute pmu_cpumask_attr = {
+	__ATTR(cpumask, S_IRUGO, pmu_cpumask_attr_show, NULL),
+	NULL,		/* Populated in cci_pmu_init */
+};
 
 static struct attribute *pmu_attrs[] = {
-	&dev_attr_cpumask.attr,
+	&pmu_cpumask_attr.attr.attr,
 	NULL,
 };
 
@@ -808,6 +819,8 @@ static const struct attribute_group *pmu_attr_groups[] = {
 static int cci_pmu_init(struct cci_pmu *cci_pmu, struct platform_device *pdev)
 {
 	char *name = cci_pmu->model->name;
+
+	pmu_cpumask_attr.var = cci_pmu;
 	cci_pmu->pmu = (struct pmu) {
 		.name		= cci_pmu->model->name,
 		.task_ctx_nr	= perf_invalid_context,
@@ -831,12 +844,14 @@ static int cci_pmu_init(struct cci_pmu *cci_pmu, struct platform_device *pdev)
 static int cci_pmu_cpu_notifier(struct notifier_block *self,
 				unsigned long action, void *hcpu)
 {
+	struct cci_pmu *cci_pmu = container_of(self,
+					struct cci_pmu, cpu_nb);
 	unsigned int cpu = (long)hcpu;
 	unsigned int target;
 
 	switch (action & ~CPU_TASKS_FROZEN) {
 	case CPU_DOWN_PREPARE:
-		if (!cpumask_test_and_clear_cpu(cpu, &pmu->cpus))
+		if (!cpumask_test_and_clear_cpu(cpu, &cci_pmu->cpus))
 			break;
 		target = cpumask_any_but(cpu_online_mask, cpu);
 		if (target < 0) // UP, last CPU
@@ -845,22 +860,13 @@ static int cci_pmu_cpu_notifier(struct notifier_block *self,
 		 * TODO: migrate context once core races on event->ctx have
 		 * been fixed.
 		 */
-		cpumask_set_cpu(target, &pmu->cpus);
+		cpumask_set_cpu(target, &cci_pmu->cpus);
 	default:
 		break;
 	}
 
 	return NOTIFY_OK;
 }
-
-static struct notifier_block cci_pmu_cpu_nb = {
-	.notifier_call	= cci_pmu_cpu_notifier,
-	/*
-	 * to migrate uncore events, our notifier should be executed
-	 * before perf core's notifier.
-	 */
-	.priority	= CPU_PRI_PERF + 1,
-};
 
 static struct cci_pmu_model cci_pmu_models[] = {
 	[CCI_REV_R0] = {
@@ -935,6 +941,7 @@ static bool is_duplicate_irq(int irq, int *irqs, int nr_irqs)
 static int cci_pmu_probe(struct platform_device *pdev)
 {
 	struct resource *res;
+	struct cci_pmu *cci_pmu;
 	int i, ret, irq;
 	const struct cci_pmu_model *model;
 
@@ -944,30 +951,30 @@ static int cci_pmu_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	pmu = devm_kzalloc(&pdev->dev, sizeof(*pmu), GFP_KERNEL);
-	if (!pmu)
+	cci_pmu = devm_kzalloc(&pdev->dev, sizeof(*cci_pmu), GFP_KERNEL);
+	if (!cci_pmu)
 		return -ENOMEM;
 
-	pmu->model = model;
+	cci_pmu->model = model;
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pmu->base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(pmu->base))
+	cci_pmu->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(cci_pmu->base))
 		return -ENOMEM;
 
 	/*
 	 * CCI PMU has 5 overflow signals - one per counter; but some may be tied
 	 * together to a common interrupt.
 	 */
-	pmu->nr_irqs = 0;
+	cci_pmu->nr_irqs = 0;
 	for (i = 0; i < CCI_PMU_MAX_HW_EVENTS; i++) {
 		irq = platform_get_irq(pdev, i);
 		if (irq < 0)
 			break;
 
-		if (is_duplicate_irq(irq, pmu->irqs, pmu->nr_irqs))
+		if (is_duplicate_irq(irq, cci_pmu->irqs, cci_pmu->nr_irqs))
 			continue;
 
-		pmu->irqs[pmu->nr_irqs++] = irq;
+		cci_pmu->irqs[cci_pmu->nr_irqs++] = irq;
 	}
 
 	/*
@@ -980,20 +987,31 @@ static int cci_pmu_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	raw_spin_lock_init(&pmu->hw_events.pmu_lock);
-	mutex_init(&pmu->reserve_mutex);
-	atomic_set(&pmu->active_events, 0);
-	cpumask_set_cpu(smp_processor_id(), &pmu->cpus);
+	raw_spin_lock_init(&cci_pmu->hw_events.pmu_lock);
+	mutex_init(&cci_pmu->reserve_mutex);
+	atomic_set(&cci_pmu->active_events, 0);
+	cpumask_set_cpu(smp_processor_id(), &cci_pmu->cpus);
 
-	ret = register_cpu_notifier(&cci_pmu_cpu_nb);
+	cci_pmu->cpu_nb = (struct notifier_block) {
+		.notifier_call	= cci_pmu_cpu_notifier,
+		/*
+		 * to migrate uncore events, our notifier should be executed
+		 * before perf core's notifier.
+		 */
+		.priority	= CPU_PRI_PERF + 1,
+	};
+
+	ret = register_cpu_notifier(&cci_pmu->cpu_nb);
 	if (ret)
 		return ret;
 
-	ret = cci_pmu_init(pmu, pdev);
-	if (ret)
+	ret = cci_pmu_init(cci_pmu, pdev);
+	if (ret) {
+		unregister_cpu_notifier(&cci_pmu->cpu_nb);
 		return ret;
+	}
 
-	pr_info("ARM %s PMU driver probed", pmu->model->name);
+	pr_info("ARM %s PMU driver probed", cci_pmu->model->name);
 	return 0;
 }
 
