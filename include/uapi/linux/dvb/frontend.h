@@ -36,7 +36,7 @@ typedef enum fe_type {
 } fe_type_t;
 
 
-typedef enum fe_caps {
+enum fe_caps {
 	FE_IS_STUPID			= 0,
 	FE_CAN_INVERSION_AUTO		= 0x1,
 	FE_CAN_FEC_1_2			= 0x2,
@@ -68,7 +68,9 @@ typedef enum fe_caps {
 	FE_NEEDS_BENDING		= 0x20000000, /* not supported anymore, don't use (frontend requires frequency bending) */
 	FE_CAN_RECOVER			= 0x40000000, /* frontend can recover from a cable unplug automatically */
 	FE_CAN_MUTE_TS			= 0x80000000  /* frontend can stop spurious TS data output */
-} fe_caps_t;
+};
+
+typedef enum fe_caps fe_caps_t;
 
 
 struct dvb_frontend_info {
@@ -134,7 +136,7 @@ typedef enum fe_sec_mini_cmd {
  *			to reset DiSEqC, tone and parameters
  */
 
-typedef enum fe_status {
+enum fe_status {
 	FE_HAS_SIGNAL		= 0x01,
 	FE_HAS_CARRIER		= 0x02,
 	FE_HAS_VITERBI		= 0x04,
@@ -142,7 +144,9 @@ typedef enum fe_status {
 	FE_HAS_LOCK		= 0x10,
 	FE_TIMEDOUT		= 0x20,
 	FE_REINIT		= 0x40,
-} fe_status_t;
+};
+
+typedef enum fe_status fe_status_t;
 
 typedef enum fe_spectral_inversion {
 	INVERSION_OFF,
