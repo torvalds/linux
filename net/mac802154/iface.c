@@ -62,6 +62,9 @@ mac802154_wpan_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		(struct sockaddr_ieee802154 *)&ifr->ifr_addr;
 	int err = -ENOIOCTLCMD;
 
+	if (cmd != SIOCGIFADDR && cmd != SIOCSIFADDR)
+		return err;
+
 	rtnl_lock();
 
 	switch (cmd) {
