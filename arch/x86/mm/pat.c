@@ -36,12 +36,11 @@
 #undef pr_fmt
 #define pr_fmt(fmt) "" fmt
 
-#ifdef CONFIG_X86_PAT
-int __read_mostly pat_enabled = 1;
+static int __read_mostly __pat_enabled = IS_ENABLED(CONFIG_X86_PAT);
 
 static inline void pat_disable(const char *reason)
 {
-	pat_enabled = 0;
+	__pat_enabled = 0;
 	pr_info("x86/PAT: %s\n", reason);
 }
 
@@ -51,13 +50,11 @@ static int __init nopat(char *str)
 	return 0;
 }
 early_param("nopat", nopat);
-#else
-static inline void pat_disable(const char *reason)
-{
-	(void)reason;
-}
-#endif
 
+bool pat_enabled(void)
+{
+	return !!__pat_enabled;
+}
 
 int pat_debug_enable;
 
@@ -201,7 +198,7 @@ void pat_init(void)
 	u64 pat;
 	bool boot_cpu = !boot_pat_state;
 
-	if (!pat_enabled)
+	if (!pat_enabled())
 		return;
 
 	if (!cpu_has_pat) {
@@ -402,7 +399,7 @@ int reserve_memtype(u64 start, u64 end, enum page_cache_mode req_type,
 
 	BUG_ON(start >= end); /* end is exclusive */
 
-	if (!pat_enabled) {
+	if (!pat_enabled()) {
 		/* This is identical to page table setting without PAT */
 		if (new_type) {
 			if (req_type == _PAGE_CACHE_MODE_WC)
@@ -477,7 +474,7 @@ int free_memtype(u64 start, u64 end)
 	int is_range_ram;
 	struct memtype *entry;
 
-	if (!pat_enabled)
+	if (!pat_enabled())
 		return 0;
 
 	/* Low ISA region is always mapped WB. No need to track */
@@ -625,7 +622,7 @@ static inline int range_is_allowed(unsigned long pfn, unsigned long size)
 	u64 to = from + size;
 	u64 cursor = from;
 
-	if (!pat_enabled)
+	if (!pat_enabled())
 		return 1;
 
 	while (cursor < to) {
@@ -661,7 +658,7 @@ int phys_mem_access_prot_allowed(struct file *file, unsigned long pfn,
 	 * caching for the high addresses through the KEN pin, but
 	 * we maintain the tradition of paranoia in this code.
 	 */
-	if (!pat_enabled &&
+	if (!pat_enabled() &&
 	    !(boot_cpu_has(X86_FEATURE_MTRR) ||
 	      boot_cpu_has(X86_FEATURE_K6_MTRR) ||
 	      boot_cpu_has(X86_FEATURE_CYRIX_ARR) ||
@@ -730,7 +727,7 @@ static int reserve_pfn_range(u64 paddr, unsigned long size, pgprot_t *vma_prot,
 	 * the type requested matches the type of first page in the range.
 	 */
 	if (is_ram) {
-		if (!pat_enabled)
+		if (!pat_enabled())
 			return 0;
 
 		pcm = lookup_memtype(paddr);
@@ -844,7 +841,7 @@ int track_pfn_remap(struct vm_area_struct *vma, pgprot_t *prot,
 		return ret;
 	}
 
-	if (!pat_enabled)
+	if (!pat_enabled())
 		return 0;
 
 	/*
@@ -872,7 +869,7 @@ int track_pfn_insert(struct vm_area_struct *vma, pgprot_t *prot,
 {
 	enum page_cache_mode pcm;
 
-	if (!pat_enabled)
+	if (!pat_enabled())
 		return 0;
 
 	/* Set prot based on lookup */
@@ -913,7 +910,7 @@ void untrack_pfn(struct vm_area_struct *vma, unsigned long pfn,
 
 pgprot_t pgprot_writecombine(pgprot_t prot)
 {
-	if (pat_enabled)
+	if (pat_enabled())
 		return __pgprot(pgprot_val(prot) |
 				cachemode2protval(_PAGE_CACHE_MODE_WC));
 	else
@@ -996,7 +993,7 @@ static const struct file_operations memtype_fops = {
 
 static int __init pat_memtype_list_init(void)
 {
-	if (pat_enabled) {
+	if (pat_enabled()) {
 		debugfs_create_file("pat_memtype_list", S_IRUSR,
 				    arch_debugfs_dir, NULL, &memtype_fops);
 	}

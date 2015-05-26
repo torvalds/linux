@@ -234,7 +234,7 @@ void __iomem *ioremap_nocache(resource_size_t phys_addr, unsigned long size)
 {
 	/*
 	 * Ideally, this should be:
-	 *	pat_enabled ? _PAGE_CACHE_MODE_UC : _PAGE_CACHE_MODE_UC_MINUS;
+	 *	pat_enabled() ? _PAGE_CACHE_MODE_UC : _PAGE_CACHE_MODE_UC_MINUS;
 	 *
 	 * Till we fix all X drivers to use ioremap_wc(), we will use
 	 * UC MINUS. Drivers that are certain they need or can already
@@ -292,7 +292,7 @@ EXPORT_SYMBOL_GPL(ioremap_uc);
  */
 void __iomem *ioremap_wc(resource_size_t phys_addr, unsigned long size)
 {
-	if (pat_enabled)
+	if (pat_enabled())
 		return __ioremap_caller(phys_addr, size, _PAGE_CACHE_MODE_WC,
 					__builtin_return_address(0));
 	else

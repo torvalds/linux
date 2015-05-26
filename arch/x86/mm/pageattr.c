@@ -1571,7 +1571,7 @@ int set_memory_wc(unsigned long addr, int numpages)
 {
 	int ret;
 
-	if (!pat_enabled)
+	if (!pat_enabled())
 		return set_memory_uc(addr, numpages);
 
 	ret = reserve_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE,
