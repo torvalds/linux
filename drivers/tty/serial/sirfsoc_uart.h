@@ -117,7 +117,7 @@ u32 uart_usp_ff_empty_mask(struct uart_port *port)
 {
 	u32 empty_bit;
 
-	empty_bit = ilog2(port->fifosize);
+	empty_bit = ilog2(port->fifosize) + 1;
 	return (1 << empty_bit);
 }
 struct sirfsoc_uart_register sirfsoc_usp = {
