@@ -61,6 +61,12 @@ enum orion_spi_type {
 
 struct orion_spi_dev {
 	enum orion_spi_type	typ;
+	/*
+	 * min_divisor and max_hz should be exclusive, the only we can
+	 * have both is for managing the armada-370-spi case with old
+	 * device tree
+	 */
+	unsigned long		max_hz;
 	unsigned int		min_divisor;
 	unsigned int		max_divisor;
 	u32			prescale_mask;
@@ -387,8 +393,9 @@ static const struct orion_spi_dev orion_spi_dev_data = {
 
 static const struct orion_spi_dev armada_spi_dev_data = {
 	.typ = ARMADA_SPI,
-	.min_divisor = 1,
+	.min_divisor = 4,
 	.max_divisor = 1920,
+	.max_hz = 50000000,
 	.prescale_mask = ARMADA_SPI_CLK_PRESCALE_MASK,
 };
 
@@ -454,7 +461,21 @@ static int orion_spi_probe(struct platform_device *pdev)
 		goto out;
 
 	tclk_hz = clk_get_rate(spi->clk);
-	master->max_speed_hz = DIV_ROUND_UP(tclk_hz, devdata->min_divisor);
+
+	/*
+	 * With old device tree, armada-370-spi could be used with
+	 * Armada XP, however for this SoC the maximum frequency is
+	 * 50MHz instead of tclk/4. On Armada 370, tclk cannot be
+	 * higher than 200MHz. So, in order to be able to handle both
+	 * SoCs, we can take the minimum of 50MHz and tclk/4.
+	 */
+	if (of_device_is_compatible(pdev->dev.of_node,
+					"marvell,armada-370-spi"))
+		master->max_speed_hz = min(devdata->max_hz,
+				DIV_ROUND_UP(tclk_hz, devdata->min_divisor));
+	else
+		master->max_speed_hz =
+			DIV_ROUND_UP(tclk_hz, devdata->min_divisor);
 	master->min_speed_hz = DIV_ROUND_UP(tclk_hz, devdata->max_divisor);
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
