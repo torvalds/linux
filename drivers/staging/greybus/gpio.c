@@ -211,21 +211,6 @@ static int gb_gpio_set_debounce_operation(struct gb_gpio_controller *ggc,
 	return ret;
 }
 
-static void gb_gpio_ack_irq(struct irq_data *d)
-{
-	struct gpio_chip *chip = irq_data_to_gpio_chip(d);
-	struct gb_gpio_controller *ggc = gpio_chip_to_gb_gpio_controller(chip);
-	struct gb_gpio_irq_ack_request request;
-	int ret;
-
-	request.which = d->hwirq;
-	ret = gb_operation_sync(ggc->connection,
-				GB_GPIO_TYPE_IRQ_ACK,
-				&request, sizeof(request), NULL, 0);
-	if (ret)
-		dev_err(chip->dev, "failed to ack irq: %d\n", ret);
-}
-
 static void gb_gpio_mask_irq(struct irq_data *d)
 {
 	struct gpio_chip *chip = irq_data_to_gpio_chip(d);
@@ -591,7 +576,6 @@ static int gb_gpio_connection_init(struct gb_connection *connection)
 		goto err_free_controller;
 
 	irqc = &ggc->irqc;
-	irqc->irq_ack = gb_gpio_ack_irq;
 	irqc->irq_mask = gb_gpio_mask_irq;
 	irqc->irq_unmask = gb_gpio_unmask_irq;
 	irqc->irq_set_type = gb_gpio_irq_set_type;

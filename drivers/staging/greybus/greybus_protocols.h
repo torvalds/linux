@@ -128,7 +128,6 @@ struct gb_i2c_transfer_response {
 #define GB_GPIO_TYPE_SET_VALUE		0x09
 #define GB_GPIO_TYPE_SET_DEBOUNCE	0x0a
 #define GB_GPIO_TYPE_IRQ_TYPE		0x0b
-#define GB_GPIO_TYPE_IRQ_ACK		0x0c
 #define GB_GPIO_TYPE_IRQ_MASK		0x0d
 #define GB_GPIO_TYPE_IRQ_UNMASK		0x0e
 #define GB_GPIO_TYPE_IRQ_EVENT		0x0f
@@ -202,11 +201,6 @@ struct gb_gpio_irq_unmask_request {
 	__u8	which;
 };
 /* irq unmask response has no payload */
-
-struct gb_gpio_irq_ack_request {
-	__u8	which;
-};
-/* irq ack response has no payload */
 
 /* irq event requests originate on another module and are handled on the AP */
 struct gb_gpio_irq_event_request {
