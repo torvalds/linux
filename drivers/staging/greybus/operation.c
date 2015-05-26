@@ -686,6 +686,10 @@ int gb_operation_response_send(struct gb_operation *operation, int errno)
 		return -EIO;	/* Shouldn't happen */
 	}
 
+	/* Sender of request does not care about response. */
+	if (!operation->id)
+		return 0;
+
 	if (!operation->response) {
 		if (!gb_operation_response_alloc(operation, 0)) {
 			dev_err(&connection->dev,
