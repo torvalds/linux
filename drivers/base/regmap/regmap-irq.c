@@ -109,7 +109,7 @@ static void regmap_irq_sync_unlock(struct irq_data *data)
 		if (!d->chip->init_ack_masked)
 			continue;
 		/*
-		 * Ack all the masked interrupts uncondictionly,
+		 * Ack all the masked interrupts unconditionally,
 		 * OR if there is masked interrupt which hasn't been Acked,
 		 * it'll be ignored in irq handler, then may introduce irq storm
 		 */
