@@ -197,8 +197,8 @@ SUBARCH := $(shell uname -m | sed -e s/i.86/x86/ -e s/x86_64/x86/ \
 ARCH		?= arm
 ARCH		?= $(SUBARCH)
 ifeq ($(ARCH),arm64)
-ifneq ($(wildcard ../3288/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9),)
-CROSS_COMPILE	?= ../3288/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin/aarch64-linux-android-
+ifneq ($(wildcard ../prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9),)
+CROSS_COMPILE	?= ../prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin/aarch64-linux-android-
 endif
 endif
 ifeq ($(ARCH),arm)
