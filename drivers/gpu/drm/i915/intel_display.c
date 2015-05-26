@@ -1668,6 +1668,8 @@ static void chv_enable_pll(struct intel_crtc *crtc,
 	tmp |= DPIO_DCLKP_EN;
 	vlv_dpio_write(dev_priv, pipe, CHV_CMN_DW14(port), tmp);
 
+	mutex_unlock(&dev_priv->sb_lock);
+
 	/*
 	 * Need to wait > 100ns between dclkp clock enable bit and PLL enable.
 	 */
@@ -1683,8 +1685,6 @@ static void chv_enable_pll(struct intel_crtc *crtc,
 	/* not sure when this should be written */
 	I915_WRITE(DPLL_MD(pipe), pipe_config->dpll_hw_state.dpll_md);
 	POSTING_READ(DPLL_MD(pipe));
-
-	mutex_unlock(&dev_priv->sb_lock);
 }
 
 static int intel_num_dvo_pipes(struct drm_device *dev)
@@ -5780,12 +5780,13 @@ static void valleyview_set_cdclk(struct drm_device *dev, int cdclk)
 	}
 	mutex_unlock(&dev_priv->rps.hw_lock);
 
+	mutex_lock(&dev_priv->sb_lock);
+
 	if (cdclk == 400000) {
 		u32 divider;
 
 		divider = DIV_ROUND_CLOSEST(dev_priv->hpll_freq << 1, cdclk) - 1;
 
-		mutex_lock(&dev_priv->sb_lock);
 		/* adjust cdclk divider */
 		val = vlv_cck_read(dev_priv, CCK_DISPLAY_CLOCK_CONTROL);
 		val &= ~DISPLAY_FREQUENCY_VALUES;
@@ -5796,10 +5797,8 @@ static void valleyview_set_cdclk(struct drm_device *dev, int cdclk)
 			      DISPLAY_FREQUENCY_STATUS) == (divider << DISPLAY_FREQUENCY_STATUS_SHIFT),
 			     50))
 			DRM_ERROR("timed out waiting for CDclk change\n");
-		mutex_unlock(&dev_priv->sb_lock);
 	}
 
-	mutex_lock(&dev_priv->sb_lock);
 	/* adjust self-refresh exit latency value */
 	val = vlv_bunit_read(dev_priv, BUNIT_REG_BISOC);
 	val &= ~0x7f;
@@ -5813,6 +5812,7 @@ static void valleyview_set_cdclk(struct drm_device *dev, int cdclk)
 	else
 		val |= 3000 / 250; /* 3.0 usec */
 	vlv_bunit_write(dev_priv, BUNIT_REG_BISOC, val);
+
 	mutex_unlock(&dev_priv->sb_lock);
 
 	vlv_update_cdclk(dev);
