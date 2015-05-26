@@ -344,7 +344,7 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 	if (r)
 		goto error_free;
 
-	amdgpu_bo_fence(bo, ib.fence, false);
+	amdgpu_bo_fence(bo, ib.fence, true);
 
 error_free:
 	amdgpu_ib_free(adev, &ib);
@@ -462,7 +462,7 @@ int amdgpu_vm_update_page_directory(struct amdgpu_device *adev,
 			amdgpu_ib_free(adev, &ib);
 			return r;
 		}
-		amdgpu_bo_fence(pd, ib.fence, false);
+		amdgpu_bo_fence(pd, ib.fence, true);
 	}
 	amdgpu_ib_free(adev, &ib);
 
