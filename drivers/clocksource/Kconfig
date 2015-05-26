@@ -293,4 +293,12 @@ config CLKSRC_IMX_GPT
 	depends on ARM && CLKDEV_LOOKUP
 	select CLKSRC_MMIO
 
+config CLKSRC_ST_LPC
+	bool
+	depends on ARCH_STI
+	select CLKSRC_OF if OF
+	help
+	  Enable this option to use the Low Power controller timer
+	  as clocksource.
+
 endmenu
