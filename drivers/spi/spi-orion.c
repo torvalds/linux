@@ -391,7 +391,7 @@ static const struct orion_spi_dev orion_spi_dev_data = {
 	.prescale_mask = ORION_SPI_CLK_PRESCALE_MASK,
 };
 
-static const struct orion_spi_dev armada_spi_dev_data = {
+static const struct orion_spi_dev armada_370_spi_dev_data = {
 	.typ = ARMADA_SPI,
 	.min_divisor = 4,
 	.max_divisor = 1920,
@@ -399,9 +399,46 @@ static const struct orion_spi_dev armada_spi_dev_data = {
 	.prescale_mask = ARMADA_SPI_CLK_PRESCALE_MASK,
 };
 
+static const struct orion_spi_dev armada_xp_spi_dev_data = {
+	.typ = ARMADA_SPI,
+	.max_hz = 50000000,
+	.max_divisor = 1920,
+	.prescale_mask = ARMADA_SPI_CLK_PRESCALE_MASK,
+};
+
+static const struct orion_spi_dev armada_375_spi_dev_data = {
+	.typ = ARMADA_SPI,
+	.min_divisor = 15,
+	.max_divisor = 1920,
+	.prescale_mask = ARMADA_SPI_CLK_PRESCALE_MASK,
+};
+
 static const struct of_device_id orion_spi_of_match_table[] = {
-	{ .compatible = "marvell,orion-spi", .data = &orion_spi_dev_data, },
-	{ .compatible = "marvell,armada-370-spi", .data = &armada_spi_dev_data, },
+	{
+		.compatible = "marvell,orion-spi",
+		.data = &orion_spi_dev_data,
+	},
+	{
+		.compatible = "marvell,armada-370-spi",
+		.data = &armada_370_spi_dev_data,
+	},
+	{
+		.compatible = "marvell,armada-375-spi",
+		.data = &armada_375_spi_dev_data,
+	},
+	{
+		.compatible = "marvell,armada-380-spi",
+		.data = &armada_xp_spi_dev_data,
+	},
+	{
+		.compatible = "marvell,armada-390-spi",
+		.data = &armada_xp_spi_dev_data,
+	},
+	{
+		.compatible = "marvell,armada-xp-spi",
+		.data = &armada_xp_spi_dev_data,
+	},
+
 	{}
 };
 MODULE_DEVICE_TABLE(of, orion_spi_of_match_table);
@@ -473,9 +510,11 @@ static int orion_spi_probe(struct platform_device *pdev)
 					"marvell,armada-370-spi"))
 		master->max_speed_hz = min(devdata->max_hz,
 				DIV_ROUND_UP(tclk_hz, devdata->min_divisor));
-	else
+	else if (devdata->min_divisor)
 		master->max_speed_hz =
 			DIV_ROUND_UP(tclk_hz, devdata->min_divisor);
+	else
+		master->max_speed_hz = devdata->max_hz;
 	master->min_speed_hz = DIV_ROUND_UP(tclk_hz, devdata->max_divisor);
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
