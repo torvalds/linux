@@ -303,7 +303,6 @@ struct sirfsoc_spi {
 	struct dma_chan *tx_chan;
 	dma_addr_t src_start;
 	dma_addr_t dst_start;
-	void *dummypage;
 	int word_width; /* in bytes */
 
 	/*
@@ -719,8 +718,8 @@ static int spi_sirfsoc_transfer(struct spi_device *spi, struct spi_transfer *t)
 	struct sirfsoc_spi *sspi;
 
 	sspi = spi_master_get_devdata(spi->master);
-	sspi->tx = t->tx_buf ? t->tx_buf : sspi->dummypage;
-	sspi->rx = t->rx_buf ? t->rx_buf : sspi->dummypage;
+	sspi->tx = t->tx_buf;
+	sspi->rx = t->rx_buf;
 	sspi->left_tx_word = sspi->left_rx_word = t->len / sspi->word_width;
 	reinit_completion(&sspi->rx_done);
 	reinit_completion(&sspi->tx_done);
@@ -1114,6 +1113,7 @@ static int spi_sirfsoc_probe(struct platform_device *pdev)
 	master->bits_per_word_mask = SPI_BPW_MASK(8) | SPI_BPW_MASK(12) |
 					SPI_BPW_MASK(16) | SPI_BPW_MASK(32);
 	master->max_speed_hz = SIRFSOC_SPI_DEFAULT_FRQ;
+	master->flags = SPI_MASTER_MUST_RX | SPI_MASTER_MUST_TX;
 	sspi->bitbang.master->dev.of_node = pdev->dev.of_node;
 
 	/* request DMA channels */
@@ -1140,12 +1140,6 @@ static int spi_sirfsoc_probe(struct platform_device *pdev)
 
 	init_completion(&sspi->rx_done);
 	init_completion(&sspi->tx_done);
-
-	sspi->dummypage = devm_kzalloc(&pdev->dev, 2 * PAGE_SIZE, GFP_KERNEL);
-	if (!sspi->dummypage) {
-		ret = -ENOMEM;
-		goto free_clk;
-	}
 
 	ret = spi_bitbang_start(&sspi->bitbang);
 	if (ret)
