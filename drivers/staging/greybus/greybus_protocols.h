@@ -206,7 +206,7 @@ struct gb_gpio_irq_unmask_request {
 struct gb_gpio_irq_event_request {
 	__u8	which;
 };
-/* irq event response has no payload */
+/* irq event has no response */
 
 
 /* PWM */

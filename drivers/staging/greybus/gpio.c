@@ -672,7 +672,7 @@ static int gb_gpio_connection_init(struct gb_connection *connection)
 	}
 
 	ret = gb_gpio_irqchip_add(gpio, irqc, 0,
-				   handle_simple_irq, IRQ_TYPE_NONE);
+				   handle_level_irq, IRQ_TYPE_NONE);
 	if (ret) {
 		dev_err(&connection->dev, "failed to add irq chip: %d\n", ret);
 		goto irqchip_err;
