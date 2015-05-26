@@ -183,7 +183,7 @@ static ssize_t batadv_socket_write(struct file *file, const char __user *buff,
 	struct batadv_orig_node *orig_node = NULL;
 	struct batadv_neigh_node *neigh_node = NULL;
 	size_t packet_len = sizeof(struct batadv_icmp_packet);
-	uint8_t *addr;
+	u8 *addr;
 
 	if (len < sizeof(struct batadv_icmp_header)) {
 		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,

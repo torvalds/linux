@@ -89,7 +89,7 @@ static int batadv_mcast_mla_softif_get(struct net_device *dev,
  * Returns true if the given address is already in the given list.
  * Otherwise returns false.
  */
-static bool batadv_mcast_mla_is_duplicate(uint8_t *mcast_addr,
+static bool batadv_mcast_mla_is_duplicate(u8 *mcast_addr,
 					  struct hlist_head *mcast_list)
 {
 	struct batadv_hw_addr *mcast_entry;
@@ -595,7 +595,7 @@ batadv_mcast_forw_mode(struct batadv_priv *bat_priv, struct sk_buff *skb,
  */
 static void batadv_mcast_want_unsnoop_update(struct batadv_priv *bat_priv,
 					     struct batadv_orig_node *orig,
-					     uint8_t mcast_flags)
+					     u8 mcast_flags)
 {
 	struct hlist_node *node = &orig->mcast_want_all_unsnoopables_node;
 	struct hlist_head *head = &bat_priv->mcast.want_all_unsnoopables_list;
@@ -638,7 +638,7 @@ static void batadv_mcast_want_unsnoop_update(struct batadv_priv *bat_priv,
  */
 static void batadv_mcast_want_ipv4_update(struct batadv_priv *bat_priv,
 					  struct batadv_orig_node *orig,
-					  uint8_t mcast_flags)
+					  u8 mcast_flags)
 {
 	struct hlist_node *node = &orig->mcast_want_all_ipv4_node;
 	struct hlist_head *head = &bat_priv->mcast.want_all_ipv4_list;
@@ -681,7 +681,7 @@ static void batadv_mcast_want_ipv4_update(struct batadv_priv *bat_priv,
  */
 static void batadv_mcast_want_ipv6_update(struct batadv_priv *bat_priv,
 					  struct batadv_orig_node *orig,
-					  uint8_t mcast_flags)
+					  u8 mcast_flags)
 {
 	struct hlist_node *node = &orig->mcast_want_all_ipv6_node;
 	struct hlist_head *head = &bat_priv->mcast.want_all_ipv6_list;
@@ -721,17 +721,17 @@ static void batadv_mcast_want_ipv6_update(struct batadv_priv *bat_priv,
  */
 static void batadv_mcast_tvlv_ogm_handler_v1(struct batadv_priv *bat_priv,
 					     struct batadv_orig_node *orig,
-					     uint8_t flags,
+					     u8 flags,
 					     void *tvlv_value,
-					     uint16_t tvlv_value_len)
+					     u16 tvlv_value_len)
 {
 	bool orig_mcast_enabled = !(flags & BATADV_TVLV_HANDLER_OGM_CIFNOTFND);
-	uint8_t mcast_flags = BATADV_NO_FLAGS;
+	u8 mcast_flags = BATADV_NO_FLAGS;
 	bool orig_initialized;
 
 	if (orig_mcast_enabled && tvlv_value &&
 	    (tvlv_value_len >= sizeof(mcast_flags)))
-		mcast_flags = *(uint8_t *)tvlv_value;
+		mcast_flags = *(u8 *)tvlv_value;
 
 	spin_lock_bh(&orig->mcast_handler_lock);
 	orig_initialized = test_bit(BATADV_ORIG_CAPA_HAS_MCAST,

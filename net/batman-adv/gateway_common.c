@@ -39,7 +39,7 @@
  * Returns false on parse error and true otherwise.
  */
 static bool batadv_parse_gw_bandwidth(struct net_device *net_dev, char *buff,
-				      uint32_t *down, uint32_t *up)
+				      u32 *down, u32 *up)
 {
 	enum batadv_bandwidth_units bw_unit_type = BATADV_BW_UNIT_KBIT;
 	char *slash_ptr, *tmp_ptr;
@@ -124,7 +124,7 @@ static bool batadv_parse_gw_bandwidth(struct net_device *net_dev, char *buff,
 void batadv_gw_tvlv_container_update(struct batadv_priv *bat_priv)
 {
 	struct batadv_tvlv_gateway_data gw;
-	uint32_t down, up;
+	u32 down, up;
 	char gw_mode;
 
 	gw_mode = atomic_read(&bat_priv->gw_mode);
@@ -149,7 +149,7 @@ ssize_t batadv_gw_bandwidth_set(struct net_device *net_dev, char *buff,
 				size_t count)
 {
 	struct batadv_priv *bat_priv = netdev_priv(net_dev);
-	uint32_t down_curr, up_curr, down_new = 0, up_new = 0;
+	u32 down_curr, up_curr, down_new = 0, up_new = 0;
 	bool ret;
 
 	down_curr = (unsigned int)atomic_read(&bat_priv->gw.bandwidth_down);
@@ -195,9 +195,8 @@ end:
  */
 static void batadv_gw_tvlv_ogm_handler_v1(struct batadv_priv *bat_priv,
 					  struct batadv_orig_node *orig,
-					  uint8_t flags,
-					  void *tvlv_value,
-					  uint16_t tvlv_value_len)
+					  u8 flags,
+					  void *tvlv_value, u16 tvlv_value_len)
 {
 	struct batadv_tvlv_gateway_data gateway, *gateway_ptr;
 
