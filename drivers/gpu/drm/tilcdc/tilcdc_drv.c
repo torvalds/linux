@@ -227,6 +227,7 @@ static int tilcdc_load(struct drm_device *dev, unsigned long flags)
 	DBG("Maximum Pixel Clock Value %dKHz", priv->max_pixelclock);
 
 	pm_runtime_enable(dev->dev);
+	pm_runtime_irq_safe(dev->dev);
 
 	/* Determine LCD IP Version */
 	pm_runtime_get_sync(dev->dev);
