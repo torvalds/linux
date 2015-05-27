@@ -75,6 +75,7 @@ libperf-$(CONFIG_X86) += tsc.o
 libperf-y += cloexec.o
 libperf-y += thread-stack.o
 libperf-$(CONFIG_AUXTRACE) += auxtrace.o
+libperf-y += parse-branch-options.o
 
 libperf-$(CONFIG_LIBELF) += symbol-elf.o
 libperf-$(CONFIG_LIBELF) += probe-event.o
