@@ -862,20 +862,8 @@ at_xdmac_interleaved_queue_desc(struct dma_chan *chan,
 
 	desc->lld.mbr_sa = src;
 	desc->lld.mbr_da = dst;
-
-	if (xt->src_inc && xt->src_sgl) {
-		if (chunk->src_icg)
-			desc->lld.mbr_sus = chunk->src_icg;
-		else
-			desc->lld.mbr_sus = chunk->icg;
-	}
-
-	if (xt->dst_inc && xt->dst_sgl) {
-		if (chunk->dst_icg)
-			desc->lld.mbr_dus = chunk->dst_icg;
-		else
-			desc->lld.mbr_dus = chunk->icg;
-	}
+	desc->lld.mbr_sus = dmaengine_get_src_icg(xt, chunk);
+	desc->lld.mbr_dus = dmaengine_get_dst_icg(xt, chunk);
 
 	desc->lld.mbr_ubc = AT_XDMAC_MBR_UBC_NDV3
 		| AT_XDMAC_MBR_UBC_NDEN
@@ -893,32 +881,6 @@ at_xdmac_interleaved_queue_desc(struct dma_chan *chan,
 		at_xdmac_queue_desc(chan, prev, desc);
 
 	return desc;
-}
-
-static size_t at_xdmac_get_icg(bool inc, bool sgl, size_t icg, size_t dir_icg)
-{
-	if (inc) {
-		if (dir_icg)
-			return dir_icg;
-		else if (sgl)
-			return icg;
-	}
-
-	return 0;
-}
-
-static size_t at_xdmac_get_dst_icg(struct dma_interleaved_template *xt,
-				   struct data_chunk *chunk)
-{
-	return at_xdmac_get_icg(xt->dst_inc, xt->dst_sgl,
-				chunk->icg, chunk->dst_icg);
-}
-
-static size_t at_xdmac_get_src_icg(struct dma_interleaved_template *xt,
-				   struct data_chunk *chunk)
-{
-	return at_xdmac_get_icg(xt->src_inc, xt->src_sgl,
-				chunk->icg, chunk->src_icg);
 }
 
 static struct dma_async_tx_descriptor *
@@ -950,8 +912,8 @@ at_xdmac_prep_interleaved(struct dma_chan *chan,
 
 		chunk = xt->sgl + i;
 
-		dst_icg = at_xdmac_get_dst_icg(xt, chunk);
-		src_icg = at_xdmac_get_src_icg(xt, chunk);
+		dst_icg = dmaengine_get_dst_icg(xt, chunk);
+		src_icg = dmaengine_get_src_icg(xt, chunk);
 
 		src_skip = chunk->size + src_icg;
 		dst_skip = chunk->size + dst_icg;
