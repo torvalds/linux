@@ -14,7 +14,7 @@
 #include <linux/slab.h>
 #include <linux/pid.h>
 #include <asm/cputable.h>
-#include <misc/cxl.h>
+#include <misc/cxl-base.h>
 
 #include "cxl.h"
 #include "trace.h"

@@ -26,7 +26,7 @@
 #include <asm/reg.h>
 #include <asm/copro.h>
 #include <asm/spu.h>
-#include <misc/cxl.h>
+#include <misc/cxl-base.h>
 
 /*
  * This ought to be kept in sync with the powerpc specific do_page_fault

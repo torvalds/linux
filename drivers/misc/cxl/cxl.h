@@ -21,7 +21,7 @@
 #include <asm/cputable.h>
 #include <asm/mmu.h>
 #include <asm/reg.h>
-#include <misc/cxl.h>
+#include <misc/cxl-base.h>
 
 #include <uapi/misc/cxl.h>
 

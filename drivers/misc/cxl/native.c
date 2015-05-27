@@ -15,7 +15,7 @@
 #include <linux/mm.h>
 #include <linux/uaccess.h>
 #include <asm/synch.h>
-#include <misc/cxl.h>
+#include <misc/cxl-base.h>
 
 #include "cxl.h"
 #include "trace.h"

@@ -7,8 +7,8 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#ifndef _MISC_CXL_H
-#define _MISC_CXL_H
+#ifndef _MISC_CXL_BASE_H
+#define _MISC_CXL_BASE_H
 
 #ifdef CONFIG_CXL_BASE
 

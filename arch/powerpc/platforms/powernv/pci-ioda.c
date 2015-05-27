@@ -39,7 +39,7 @@
 #include <asm/firmware.h>
 #include <asm/pnv-pci.h>
 
-#include <misc/cxl.h>
+#include <misc/cxl-base.h>
 
 #include "powernv.h"
 #include "pci.h"
