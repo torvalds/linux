@@ -704,12 +704,9 @@ void pnv_pci_shutdown(void)
 {
 	struct pci_controller *hose;
 
-	list_for_each_entry(hose, &hose_list, list_node) {
-		struct pnv_phb *phb = hose->private_data;
-
-		if (phb && phb->shutdown)
-			phb->shutdown(phb);
-	}
+	list_for_each_entry(hose, &hose_list, list_node)
+		if (hose->controller_ops.shutdown)
+			hose->controller_ops.shutdown(hose);
 }
 
 /* Fixup wrong class code in p7ioc and p8 root complex */

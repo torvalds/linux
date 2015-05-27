@@ -2643,8 +2643,10 @@ static u32 pnv_ioda_bdfn_to_pe(struct pnv_phb *phb, struct pci_bus *bus,
 	return phb->ioda.pe_rmap[(bus->number << 8) | devfn];
 }
 
-static void pnv_pci_ioda_shutdown(struct pnv_phb *phb)
+static void pnv_pci_ioda_shutdown(struct pci_controller *hose)
 {
+	struct pnv_phb *phb = hose->private_data;
+
 	opal_pci_reset(phb->opal_id, OPAL_RESET_PCI_IODA_TABLE,
 		       OPAL_ASSERT_RESET);
 }
@@ -2659,6 +2661,7 @@ static const struct pci_controller_ops pnv_pci_ioda_controller_ops = {
        .window_alignment = pnv_pci_window_alignment,
        .reset_secondary_bus = pnv_pci_reset_secondary_bus,
        .dma_set_mask = pnv_pci_ioda_dma_set_mask,
+       .shutdown = pnv_pci_ioda_shutdown,
 };
 
 static void __init pnv_pci_init_ioda_phb(struct device_node *np,
@@ -2805,9 +2808,6 @@ static void __init pnv_pci_init_ioda_phb(struct device_node *np,
 	/* Setup TCEs */
 	phb->dma_dev_setup = pnv_pci_ioda_dma_dev_setup;
 	phb->dma_get_required_mask = pnv_pci_ioda_dma_get_required_mask;
-
-	/* Setup shutdown function for kexec */
-	phb->shutdown = pnv_pci_ioda_shutdown;
 
 	/* Setup MSI support */
 	pnv_pci_init_ioda_msis(phb);
