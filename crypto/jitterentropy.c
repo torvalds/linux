@@ -131,9 +131,6 @@ static inline void jent_get_nstime(__u64 *out)
 	 * and are registered with clocksource_register()
 	 */
 	if ((0 == tmp) &&
-#ifndef MODULE
-	   (0 == timekeeping_valid_for_hres()) &&
-#endif
 	   (0 == __getnstimeofday(&ts))) {
 		tmp = ts.tv_sec;
 		tmp = tmp << 32;
