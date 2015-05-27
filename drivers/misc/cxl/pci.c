@@ -1154,8 +1154,6 @@ static void cxl_remove(struct pci_dev *dev)
 	struct cxl *adapter = pci_get_drvdata(dev);
 	int afu;
 
-	dev_warn(&dev->dev, "pci remove\n");
-
 	/*
 	 * Lock to prevent someone grabbing a ref through the adapter list as
 	 * we are removing it
