@@ -4337,7 +4337,7 @@ static void stac_shutup(struct hda_codec *codec)
 
 #define stac_free	snd_hda_gen_free
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_SND_PROC_FS
 static void stac92hd_proc_hook(struct snd_info_buffer *buffer,
 			       struct hda_codec *codec, hda_nid_t nid)
 {

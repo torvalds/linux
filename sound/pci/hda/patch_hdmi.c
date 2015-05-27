@@ -86,7 +86,7 @@ struct hdmi_spec_per_pin {
 	bool non_pcm;
 	bool chmap_set;		/* channel-map override by ALSA API? */
 	unsigned char chmap[8]; /* ALSA API channel-map */
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_SND_PROC_FS
 	struct snd_info_entry *proc_entry;
 #endif
 };
@@ -548,7 +548,7 @@ static void hdmi_set_channel_count(struct hda_codec *codec,
  * ELD proc files
  */
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_SND_PROC_FS
 static void print_eld_info(struct snd_info_entry *entry,
 			   struct snd_info_buffer *buffer)
 {

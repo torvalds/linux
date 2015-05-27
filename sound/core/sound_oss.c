@@ -207,7 +207,7 @@ EXPORT_SYMBOL(snd_unregister_oss_device);
  *  INFO PART
  */
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_SND_PROC_FS
 static const char *snd_oss_device_type_name(int type)
 {
 	switch (type) {
@@ -259,4 +259,4 @@ int __init snd_minor_info_oss_init(void)
 	entry->c.text.read = snd_minor_info_oss_read;
 	return snd_info_register(entry); /* freed in error path */
 }
-#endif /* CONFIG_PROC_FS */
+#endif /* CONFIG_SND_PROC_FS */

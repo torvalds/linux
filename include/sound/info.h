@@ -92,14 +92,14 @@ struct snd_info_entry {
 	struct list_head list;
 };
 
-#if defined(CONFIG_SND_OSSEMUL) && defined(CONFIG_PROC_FS)
+#if defined(CONFIG_SND_OSSEMUL) && defined(CONFIG_SND_PROC_FS)
 int snd_info_minor_register(void);
 #else
 #define snd_info_minor_register()	0
 #endif
 
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_SND_PROC_FS
 
 extern struct snd_info_entry *snd_seq_root;
 #ifdef CONFIG_SND_OSSEMUL
@@ -197,7 +197,7 @@ static inline int snd_info_check_reserved_words(const char *str) { return 1; }
  * OSS info part
  */
 
-#if defined(CONFIG_SND_OSSEMUL) && defined(CONFIG_PROC_FS)
+#if defined(CONFIG_SND_OSSEMUL) && defined(CONFIG_SND_PROC_FS)
 
 #define SNDRV_OSS_INFO_DEV_AUDIO	0
 #define SNDRV_OSS_INFO_DEV_SYNTH	1
@@ -210,6 +210,6 @@ static inline int snd_info_check_reserved_words(const char *str) { return 1; }
 int snd_oss_info_register(int dev, int num, char *string);
 #define snd_oss_info_unregister(dev, num) snd_oss_info_register(dev, num, NULL)
 
-#endif /* CONFIG_SND_OSSEMUL && CONFIG_PROC_FS */
+#endif /* CONFIG_SND_OSSEMUL && CONFIG_SND_PROC_FS */
 
 #endif /* __SOUND_INFO_H */
