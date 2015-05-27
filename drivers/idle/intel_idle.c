@@ -965,7 +965,8 @@ static int __init intel_idle_cpuidle_driver_init(void)
 	for (cstate = 0; cstate < CPUIDLE_STATE_MAX; ++cstate) {
 		int num_substates, mwait_hint, mwait_cstate;
 
-		if (cpuidle_state_table[cstate].enter == NULL)
+		if ((cpuidle_state_table[cstate].enter == NULL) &&
+		    (cpuidle_state_table[cstate].enter_freeze == NULL))
 			break;
 
 		if (cstate + 1 > max_cstate) {
