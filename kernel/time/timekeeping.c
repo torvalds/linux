@@ -330,32 +330,7 @@ static inline s64 timekeeping_get_ns(struct tk_read_base *tkr)
  * We want to use this from any context including NMI and tracing /
  * instrumenting the timekeeping code itself.
  *
- * So we handle this differently than the other timekeeping accessor
- * functions which retry when the sequence count has changed. The
- * update side does:
- *
- * smp_wmb();	<- Ensure that the last base[1] update is visible
- * tkf->seq++;
- * smp_wmb();	<- Ensure that the seqcount update is visible
- * update(tkf->base[0], tkr);
- * smp_wmb();	<- Ensure that the base[0] update is visible
- * tkf->seq++;
- * smp_wmb();	<- Ensure that the seqcount update is visible
- * update(tkf->base[1], tkr);
- *
- * The reader side does:
- *
- * do {
- *	seq = tkf->seq;
- *	smp_rmb();
- *	idx = seq & 0x01;
- *	now = now(tkf->base[idx]);
- *	smp_rmb();
- * } while (seq != tkf->seq)
- *
- * As long as we update base[0] readers are forced off to
- * base[1]. Once base[0] is updated readers are redirected to base[0]
- * and the base[1] update takes place.
+ * Employ the latch technique; see @raw_write_seqcount_latch.
  *
  * So if a NMI hits the update of base[0] then it will use base[1]
  * which is still consistent. In the worst case this can result is a
