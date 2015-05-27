@@ -245,12 +245,4 @@ static struct gb_protocol svc_protocol = {
 	.request_recv		= gb_svc_request_recv,
 };
 
-int gb_svc_protocol_init(void)
-{
-	return gb_protocol_register(&svc_protocol);
-}
-
-void gb_svc_protocol_exit(void)
-{
-	gb_protocol_deregister(&svc_protocol);
-}
+gb_gpbridge_protocol_driver(svc_protocol);
