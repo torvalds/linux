@@ -121,7 +121,7 @@ int netlink_send(struct sock *sock, int group, u16 type, void *msg, int len)
 	int ret = 0;
 
 	if (group > ND_MAX_GROUP) {
-		pr_err("Group %d is invalied.\n", group);
+		pr_err("Group %d is invalid.\n", group);
 		pr_err("Valid group is 0 ~ %d.\n", ND_MAX_GROUP);
 		return -EINVAL;
 	}
