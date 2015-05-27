@@ -301,23 +301,25 @@ static bool sig_enforce = false;
 static int param_set_bool_enable_only(const char *val,
 				      const struct kernel_param *kp)
 {
-	int err;
-	bool test;
+	int err = 0;
+	bool new_value;
+	bool orig_value = *(bool *)kp->arg;
 	struct kernel_param dummy_kp = *kp;
 
-	dummy_kp.arg = &test;
+	dummy_kp.arg = &new_value;
 
 	err = param_set_bool(val, &dummy_kp);
 	if (err)
 		return err;
 
 	/* Don't let them unset it once it's set! */
-	if (!test && sig_enforce)
+	if (!new_value && orig_value)
 		return -EROFS;
 
-	if (test)
-		sig_enforce = true;
-	return 0;
+	if (new_value)
+		err = param_set_bool(val, kp);
+
+	return err;
 }
 
 static const struct kernel_param_ops param_ops_bool_enable_only = {
