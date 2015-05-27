@@ -103,7 +103,6 @@ struct omap_drm_private {
 	/* irq handling: */
 	struct list_head irq_list;    /* list of omap_drm_irq */
 	uint32_t irq_mask;		/* enabled irqs in addition to irq_list */
-	struct omap_drm_irq error_handler;
 
 	/* atomic commit */
 	struct {

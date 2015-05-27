@@ -21,12 +21,6 @@
 
 static DEFINE_SPINLOCK(list_lock);
 
-static void omap_irq_error_handler(struct omap_drm_irq *irq,
-		uint32_t irqstatus)
-{
-	DRM_ERROR("errors: %08x\n", irqstatus);
-}
-
 /* call with list_lock and dispc runtime held */
 static void omap_irq_update(struct drm_device *dev)
 {
@@ -224,6 +218,14 @@ static void omap_irq_fifo_underflow(struct omap_drm_private *priv,
 	pr_cont("(0x%08x)\n", irqstatus);
 }
 
+static void omap_irq_ocp_error_handler(u32 irqstatus)
+{
+	if (!(irqstatus & DISPC_IRQ_OCP_ERR))
+		return;
+
+	DRM_ERROR("OCP error\n");
+}
+
 static irqreturn_t omap_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
@@ -250,6 +252,7 @@ static irqreturn_t omap_irq_handler(int irq, void *arg)
 			omap_crtc_error_irq(crtc, irqstatus);
 	}
 
+	omap_irq_ocp_error_handler(irqstatus);
 	omap_irq_fifo_underflow(priv, irqstatus);
 
 	spin_lock_irqsave(&list_lock, flags);
@@ -282,7 +285,6 @@ static const u32 omap_underflow_irqs[] = {
 int omap_drm_irq_install(struct drm_device *dev)
 {
 	struct omap_drm_private *priv = dev->dev_private;
-	struct omap_drm_irq *error_handler = &priv->error_handler;
 	unsigned int num_mgrs = dss_feat_get_num_mgrs();
 	unsigned int max_planes;
 	unsigned int i;
@@ -290,7 +292,7 @@ int omap_drm_irq_install(struct drm_device *dev)
 
 	INIT_LIST_HEAD(&priv->irq_list);
 
-	priv->irq_mask = 0;
+	priv->irq_mask = DISPC_IRQ_OCP_ERR;
 
 	max_planes = min(ARRAY_SIZE(priv->planes),
 			 ARRAY_SIZE(omap_underflow_irqs));
@@ -309,16 +311,6 @@ int omap_drm_irq_install(struct drm_device *dev)
 	ret = dispc_request_irq(omap_irq_handler, dev);
 	if (ret < 0)
 		return ret;
-
-	error_handler->irq = omap_irq_error_handler;
-	error_handler->irqmask = DISPC_IRQ_OCP_ERR;
-
-	/* for now ignore DISPC_IRQ_SYNC_LOST_DIGIT.. really I think
-	 * we just need to ignore it while enabling tv-out
-	 */
-	error_handler->irqmask &= ~DISPC_IRQ_SYNC_LOST_DIGIT;
-
-	omap_irq_register(dev, error_handler);
 
 	dev->irq_enabled = true;
 
