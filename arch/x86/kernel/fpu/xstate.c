@@ -281,7 +281,7 @@ static void __init setup_init_fpu_buf(void)
 	/*
 	 * Init all the features state with header_bv being 0x0
 	 */
-	copy_kernel_to_xregs_booting(&init_fpstate.xsave, -1);
+	copy_kernel_to_xregs_booting(&init_fpstate.xsave);
 
 	/*
 	 * Dump the init state again. This is to identify the init state

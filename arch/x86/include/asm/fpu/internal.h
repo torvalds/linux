@@ -271,8 +271,9 @@ static inline void copy_xregs_to_kernel_booting(struct xregs_state *xstate)
  * This function is called only during boot time when x86 caps are not set
  * up and alternative can not be used yet.
  */
-static inline void copy_kernel_to_xregs_booting(struct xregs_state *xstate, u64 mask)
+static inline void copy_kernel_to_xregs_booting(struct xregs_state *xstate)
 {
+	u64 mask = -1;
 	u32 lmask = mask;
 	u32 hmask = mask >> 32;
 	int err = 0;
