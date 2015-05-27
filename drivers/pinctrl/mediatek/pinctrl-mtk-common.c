@@ -1280,7 +1280,7 @@ int mtk_pctrl_init(struct platform_device *pdev,
 		goto pctrl_error;
 	}
 
-	pctl->chip = &mtk_gpio_chip;
+	*pctl->chip = mtk_gpio_chip;
 	pctl->chip->ngpio = pctl->devdata->npins;
 	pctl->chip->label = dev_name(&pdev->dev);
 	pctl->chip->dev = &pdev->dev;
@@ -1300,7 +1300,7 @@ int mtk_pctrl_init(struct platform_device *pdev,
 		goto chip_error;
 	}
 
-	if (of_find_property(np, "interrupt-controller", NULL))
+	if (!of_property_read_bool(np, "interrupt-controller"))
 		return 0;
 
 	/* Get EINT register base from dts. */
