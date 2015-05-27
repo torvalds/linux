@@ -83,7 +83,7 @@ int __cxl_afu_reset(struct cxl_afu *afu)
 			   false);
 }
 
-static int afu_check_and_enable(struct cxl_afu *afu)
+int cxl_afu_check_and_enable(struct cxl_afu *afu)
 {
 	if (afu->enabled)
 		return 0;
@@ -379,7 +379,7 @@ static int remove_process_element(struct cxl_context *ctx)
 }
 
 
-static void assign_psn_space(struct cxl_context *ctx)
+void cxl_assign_psn_space(struct cxl_context *ctx)
 {
 	if (!ctx->afu->pp_size || ctx->master) {
 		ctx->psn_phys = ctx->afu->psn_phys;
@@ -435,7 +435,7 @@ static int attach_afu_directed(struct cxl_context *ctx, u64 wed, u64 amr)
 	u64 sr;
 	int r, result;
 
-	assign_psn_space(ctx);
+	cxl_assign_psn_space(ctx);
 
 	ctx->elem->ctxtime = 0; /* disable */
 	ctx->elem->lpid = cpu_to_be32(mfspr(SPRN_LPID));
@@ -477,7 +477,7 @@ static int attach_afu_directed(struct cxl_context *ctx, u64 wed, u64 amr)
 	ctx->elem->common.wed = cpu_to_be64(wed);
 
 	/* first guy needs to enable */
-	if ((result = afu_check_and_enable(ctx->afu)))
+	if ((result = cxl_afu_check_and_enable(ctx->afu)))
 		return result;
 
 	add_process_element(ctx);
@@ -564,7 +564,7 @@ static int attach_dedicated(struct cxl_context *ctx, u64 wed, u64 amr)
 	cxl_p2n_write(afu, CXL_PSL_AMR_An, amr);
 
 	/* master only context for dedicated */
-	assign_psn_space(ctx);
+	cxl_assign_psn_space(ctx);
 
 	if ((rc = __cxl_afu_reset(afu)))
 		return rc;
