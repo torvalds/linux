@@ -1770,15 +1770,14 @@ static void i9xx_hpd_irq_handler(struct drm_device *dev)
 		u32 hotplug_trigger = hotplug_status & HOTPLUG_INT_STATUS_G4X;
 
 		intel_hpd_irq_handler(dev, hotplug_trigger, 0, hpd_status_g4x);
+
+		if (hotplug_status & DP_AUX_CHANNEL_MASK_INT_STATUS_G4X)
+			dp_aux_irq_handler(dev);
 	} else {
 		u32 hotplug_trigger = hotplug_status & HOTPLUG_INT_STATUS_I915;
 
 		intel_hpd_irq_handler(dev, hotplug_trigger, 0, hpd_status_i915);
 	}
-
-	if ((IS_G4X(dev) || IS_VALLEYVIEW(dev)) &&
-	    hotplug_status & DP_AUX_CHANNEL_MASK_INT_STATUS_G4X)
-		dp_aux_irq_handler(dev);
 }
 
 static irqreturn_t valleyview_irq_handler(int irq, void *arg)
