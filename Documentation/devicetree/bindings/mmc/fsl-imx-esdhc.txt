@@ -7,7 +7,14 @@ This file documents differences between the core properties described
 by mmc.txt and the properties used by the sdhci-esdhc-imx driver.
 
 Required properties:
-- compatible : Should be "fsl,<chip>-esdhc"
+- compatible : Should be "fsl,<chip>-esdhc", the supported chips include
+	       "fsl,imx25-esdhc"
+	       "fsl,imx35-esdhc"
+	       "fsl,imx51-esdhc"
+	       "fsl,imx53-esdhc"
+	       "fsl,imx6q-usdhc"
+	       "fsl,imx6sl-usdhc"
+	       "fsl,imx6sx-usdhc"
 
 Optional properties:
 - fsl,cd-controller : Indicate to use controller internal card detection
