@@ -92,6 +92,9 @@ int f2fs_process_policy(const struct f2fs_encryption_policy *policy,
 	if (policy->version != 0)
 		return -EINVAL;
 
+	if (!S_ISDIR(inode->i_mode))
+		return -EINVAL;
+
 	if (!f2fs_inode_has_encryption_context(inode)) {
 		if (!f2fs_empty_dir(inode))
 			return -ENOTEMPTY;

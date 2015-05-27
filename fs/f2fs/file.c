@@ -1395,12 +1395,6 @@ static int f2fs_ioc_set_encryption_policy(struct file *filp, unsigned long arg)
 				sizeof(policy)))
 		return -EFAULT;
 
-	if (f2fs_has_inline_data(inode)) {
-		int ret = f2fs_convert_inline_inode(inode);
-		if (ret)
-			return ret;
-	}
-
 	return f2fs_process_policy(&policy, inode);
 #else
 	return -EOPNOTSUPP;
