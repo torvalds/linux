@@ -688,10 +688,10 @@ static int handle_out_packet(struct amdtp_stream *s, unsigned int data_blocks,
 }
 
 static int handle_in_packet(struct amdtp_stream *s,
-			    unsigned int payload_quadlets, __be32 *buffer)
+			    unsigned int payload_quadlets, __be32 *buffer,
+			    unsigned int *data_blocks)
 {
 	u32 cip_header[2];
-	unsigned int data_blocks;
 	unsigned int data_block_quadlets, data_block_counter, dbc_interval;
 	struct snd_pcm_substream *pcm = NULL;
 	bool lost;
@@ -709,7 +709,7 @@ static int handle_in_packet(struct amdtp_stream *s,
 		dev_info_ratelimited(&s->unit->device,
 				"Invalid CIP header for AMDTP: %08X:%08X\n",
 				cip_header[0], cip_header[1]);
-		data_blocks = 0;
+		*data_blocks = 0;
 		goto end;
 	}
 
@@ -717,7 +717,7 @@ static int handle_in_packet(struct amdtp_stream *s,
 	if (payload_quadlets < 3 ||
 	    ((cip_header[1] & CIP_FDF_MASK) ==
 				(AMDTP_FDF_NO_DATA << CIP_FDF_SHIFT))) {
-		data_blocks = 0;
+		*data_blocks = 0;
 	} else {
 		data_block_quadlets =
 			(cip_header[0] & CIP_DBS_MASK) >> CIP_DBS_SHIFT;
@@ -731,12 +731,12 @@ static int handle_in_packet(struct amdtp_stream *s,
 		if (s->flags & CIP_WRONG_DBS)
 			data_block_quadlets = s->data_block_quadlets;
 
-		data_blocks = (payload_quadlets - 2) / data_block_quadlets;
+		*data_blocks = (payload_quadlets - 2) / data_block_quadlets;
 	}
 
 	/* Check data block counter continuity */
 	data_block_counter = cip_header[0] & CIP_DBC_MASK;
-	if (data_blocks == 0 && (s->flags & CIP_EMPTY_HAS_WRONG_DBC) &&
+	if (*data_blocks == 0 && (s->flags & CIP_EMPTY_HAS_WRONG_DBC) &&
 	    s->data_block_counter != UINT_MAX)
 		data_block_counter = s->data_block_counter;
 
@@ -746,10 +746,10 @@ static int handle_in_packet(struct amdtp_stream *s,
 	} else if (!(s->flags & CIP_DBC_IS_END_EVENT)) {
 		lost = data_block_counter != s->data_block_counter;
 	} else {
-		if ((data_blocks > 0) && (s->tx_dbc_interval > 0))
+		if ((*data_blocks > 0) && (s->tx_dbc_interval > 0))
 			dbc_interval = s->tx_dbc_interval;
 		else
-			dbc_interval = data_blocks;
+			dbc_interval = *data_blocks;
 
 		lost = data_block_counter !=
 		       ((s->data_block_counter + dbc_interval) & 0xff);
@@ -762,30 +762,30 @@ static int handle_in_packet(struct amdtp_stream *s,
 		return -EIO;
 	}
 
-	if (data_blocks > 0) {
+	if (*data_blocks > 0) {
 		buffer += 2;
 
 		pcm = ACCESS_ONCE(s->pcm);
 		if (pcm)
-			s->transfer_samples(s, pcm, buffer, data_blocks);
+			s->transfer_samples(s, pcm, buffer, *data_blocks);
 
 		if (s->midi_ports)
-			read_midi_messages(s, buffer, data_blocks);
+			read_midi_messages(s, buffer, *data_blocks);
 	}
 
 	if (s->flags & CIP_DBC_IS_END_EVENT)
 		s->data_block_counter = data_block_counter;
 	else
 		s->data_block_counter =
-				(data_block_counter + data_blocks) & 0xff;
+				(data_block_counter + *data_blocks) & 0xff;
 end:
 	if (queue_in_packet(s) < 0)
 		return -EIO;
 
 	if (pcm)
-		update_pcm_pointers(s, pcm, data_blocks);
+		update_pcm_pointers(s, pcm, *data_blocks);
 
-	return data_blocks;
+	return 0;
 }
 
 static void out_stream_callback(struct fw_iso_context *context, u32 cycle,
@@ -853,8 +853,8 @@ static void in_stream_callback(struct fw_iso_context *context, u32 cycle,
 			break;
 		}
 
-		data_blocks = handle_in_packet(s, payload_quadlets, buffer);
-		if (data_blocks < 0) {
+		if (handle_in_packet(s, payload_quadlets, buffer,
+							&data_blocks) < 0) {
 			s->packet_index = -1;
 			break;
 		}
