@@ -141,7 +141,7 @@ int omap_drm_irq_install(struct drm_device *dev);
 struct drm_fb_helper *omap_fbdev_init(struct drm_device *dev);
 void omap_fbdev_free(struct drm_device *dev);
 
-const struct omap_video_timings *omap_crtc_timings(struct drm_crtc *crtc);
+struct omap_video_timings *omap_crtc_timings(struct drm_crtc *crtc);
 enum omap_channel omap_crtc_channel(struct drm_crtc *crtc);
 void omap_crtc_pre_init(void);
 void omap_crtc_pre_uninit(void);
@@ -156,10 +156,6 @@ void omap_plane_install_properties(struct drm_plane *plane,
 
 struct drm_encoder *omap_encoder_init(struct drm_device *dev,
 		struct omap_dss_device *dssdev);
-int omap_encoder_set_enabled(struct drm_encoder *encoder, bool enabled);
-int omap_encoder_update(struct drm_encoder *encoder,
-		struct omap_overlay_manager *mgr,
-		struct omap_video_timings *timings);
 
 struct drm_connector *omap_connector_init(struct drm_device *dev,
 		int connector_type, struct omap_dss_device *dssdev,

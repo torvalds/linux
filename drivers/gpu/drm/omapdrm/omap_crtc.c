@@ -35,7 +35,6 @@ struct omap_crtc {
 
 	const char *name;
 	enum omap_channel channel;
-	struct drm_encoder *current_encoder;
 
 	/*
 	 * Temporary: eventually this will go away, but it is needed
@@ -70,7 +69,7 @@ uint32_t pipe2vbl(struct drm_crtc *crtc)
 	return dispc_mgr_get_vsync_irq(omap_crtc->channel);
 }
 
-const struct omap_video_timings *omap_crtc_timings(struct drm_crtc *crtc)
+struct omap_video_timings *omap_crtc_timings(struct drm_crtc *crtc)
 {
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
 	return &omap_crtc->timings;
@@ -125,7 +124,7 @@ static void omap_crtc_dss_start_update(struct omap_overlay_manager *mgr)
 {
 }
 
-/* Called only from omap_crtc_encoder_setup and suspend/resume handlers. */
+/* Called only from the encoder enable/disable and suspend/resume handlers. */
 static void omap_crtc_set_enabled(struct drm_crtc *crtc, bool enable)
 {
 	struct drm_device *dev = crtc->dev;
@@ -365,37 +364,6 @@ static int omap_crtc_flush(struct drm_crtc *crtc)
 	return 0;
 }
 
-static void omap_crtc_encoder_setup(struct drm_crtc *crtc, bool enable)
-{
-	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
-	struct omap_drm_private *priv = crtc->dev->dev_private;
-	struct drm_encoder *encoder = NULL;
-	unsigned int i;
-
-	DBG("%s: enable=%d", omap_crtc->name, enable);
-
-	for (i = 0; i < priv->num_encoders; i++) {
-		if (priv->encoders[i]->crtc == crtc) {
-			encoder = priv->encoders[i];
-			break;
-		}
-	}
-
-	if (omap_crtc->current_encoder && encoder != omap_crtc->current_encoder)
-		omap_encoder_set_enabled(omap_crtc->current_encoder, false);
-
-	omap_crtc->current_encoder = encoder;
-
-	if (encoder) {
-		omap_encoder_set_enabled(encoder, false);
-		if (enable) {
-			omap_encoder_update(encoder, omap_crtc->mgr,
-					    &omap_crtc->timings);
-			omap_encoder_set_enabled(encoder, true);
-		}
-	}
-}
-
 /* -----------------------------------------------------------------------------
  * CRTC Functions
  */
@@ -437,7 +405,6 @@ static void omap_crtc_enable(struct drm_crtc *crtc)
 			WARN_ON(omap_plane_setup(plane));
 	}
 
-	omap_crtc_encoder_setup(crtc, true);
 	omap_crtc_flush(crtc);
 
 	drm_crtc_vblank_on(crtc);
@@ -462,7 +429,6 @@ static void omap_crtc_disable(struct drm_crtc *crtc)
 			WARN_ON(omap_plane_setup(plane));
 	}
 
-	omap_crtc_encoder_setup(crtc, false);
 	omap_crtc_flush(crtc);
 }
 
