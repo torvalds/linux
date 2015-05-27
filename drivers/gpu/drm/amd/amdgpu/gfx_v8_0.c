@@ -3800,7 +3800,6 @@ static void gfx_v8_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 					unsigned vm_id, uint64_t pd_addr)
 {
 	int usepfp = (ring->type == AMDGPU_RING_TYPE_GFX);
-	u32 srbm_gfx_cntl = 0;
 
 	amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
 	amdgpu_ring_write(ring, (WRITE_DATA_ENGINE_SEL(usepfp) |
@@ -3814,35 +3813,6 @@ static void gfx_v8_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 	}
 	amdgpu_ring_write(ring, 0);
 	amdgpu_ring_write(ring, pd_addr >> 12);
-
-	/* update SH_MEM_* regs */
-	srbm_gfx_cntl = REG_SET_FIELD(srbm_gfx_cntl, SRBM_GFX_CNTL, VMID, vm_id);
-	amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
-	amdgpu_ring_write(ring, (WRITE_DATA_ENGINE_SEL(0) |
-				 WRITE_DATA_DST_SEL(0)));
-	amdgpu_ring_write(ring, mmSRBM_GFX_CNTL);
-	amdgpu_ring_write(ring, 0);
-	amdgpu_ring_write(ring, srbm_gfx_cntl);
-
-	amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 6));
-	amdgpu_ring_write(ring, (WRITE_DATA_ENGINE_SEL(0) |
-				 WRITE_DATA_DST_SEL(0)));
-	amdgpu_ring_write(ring, mmSH_MEM_BASES);
-	amdgpu_ring_write(ring, 0);
-
-	amdgpu_ring_write(ring, 0); /* SH_MEM_BASES */
-	amdgpu_ring_write(ring, 0); /* SH_MEM_CONFIG */
-	amdgpu_ring_write(ring, 1); /* SH_MEM_APE1_BASE */
-	amdgpu_ring_write(ring, 0); /* SH_MEM_APE1_LIMIT */
-
-	srbm_gfx_cntl = REG_SET_FIELD(srbm_gfx_cntl, SRBM_GFX_CNTL, VMID, 0);
-	amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
-	amdgpu_ring_write(ring, (WRITE_DATA_ENGINE_SEL(0) |
-				 WRITE_DATA_DST_SEL(0)));
-	amdgpu_ring_write(ring, mmSRBM_GFX_CNTL);
-	amdgpu_ring_write(ring, 0);
-	amdgpu_ring_write(ring, srbm_gfx_cntl);
-
 
 	/* bits 0-15 are the VM contexts0-15 */
 	/* invalidate the cache */

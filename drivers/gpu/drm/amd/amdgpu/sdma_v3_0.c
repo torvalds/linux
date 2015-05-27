@@ -953,10 +953,6 @@ static void sdma_v3_0_vm_pad_ib(struct amdgpu_ib *ib)
 static void sdma_v3_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 					 unsigned vm_id, uint64_t pd_addr)
 {
-	u32 srbm_gfx_cntl = 0;
-	u32 sh_mem_cfg = REG_SET_FIELD(0, SH_MEM_CONFIG, ALIGNMENT_MODE, 
-				       SH_MEM_ALIGNMENT_MODE_UNALIGNED);
-
 	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_SRBM_WRITE) |
 			  SDMA_PKT_SRBM_WRITE_HEADER_BYTE_EN(0xf));
 	if (vm_id < 8) {
@@ -965,40 +961,6 @@ static void sdma_v3_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 		amdgpu_ring_write(ring, (mmVM_CONTEXT8_PAGE_TABLE_BASE_ADDR + vm_id - 8));
 	}
 	amdgpu_ring_write(ring, pd_addr >> 12);
-
-	/* update SH_MEM_* regs */
-	srbm_gfx_cntl = REG_SET_FIELD(srbm_gfx_cntl, SRBM_GFX_CNTL, VMID, vm_id);
-	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_SRBM_WRITE) |
-			  SDMA_PKT_SRBM_WRITE_HEADER_BYTE_EN(0xf));
-	amdgpu_ring_write(ring, mmSRBM_GFX_CNTL);
-	amdgpu_ring_write(ring, srbm_gfx_cntl);
-
-	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_SRBM_WRITE) |
-			  SDMA_PKT_SRBM_WRITE_HEADER_BYTE_EN(0xf));
-	amdgpu_ring_write(ring, mmSH_MEM_BASES);
-	amdgpu_ring_write(ring, 0);
-
-	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_SRBM_WRITE) |
-			  SDMA_PKT_SRBM_WRITE_HEADER_BYTE_EN(0xf));
-	amdgpu_ring_write(ring, mmSH_MEM_CONFIG);
-	amdgpu_ring_write(ring, sh_mem_cfg);
-
-	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_SRBM_WRITE) |
-			  SDMA_PKT_SRBM_WRITE_HEADER_BYTE_EN(0xf));
-	amdgpu_ring_write(ring, mmSH_MEM_APE1_BASE);
-	amdgpu_ring_write(ring, 1);
-
-	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_SRBM_WRITE) |
-			  SDMA_PKT_SRBM_WRITE_HEADER_BYTE_EN(0xf));
-	amdgpu_ring_write(ring, mmSH_MEM_APE1_LIMIT);
-	amdgpu_ring_write(ring, 0);
-
-	srbm_gfx_cntl = REG_SET_FIELD(srbm_gfx_cntl, SRBM_GFX_CNTL, VMID, 0);
-	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_SRBM_WRITE) |
-			  SDMA_PKT_SRBM_WRITE_HEADER_BYTE_EN(0xf));
-	amdgpu_ring_write(ring, mmSRBM_GFX_CNTL);
-	amdgpu_ring_write(ring, srbm_gfx_cntl);
-
 
 	/* flush TLB */
 	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_SRBM_WRITE) |

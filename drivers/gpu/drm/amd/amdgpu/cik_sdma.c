@@ -829,8 +829,6 @@ static void cik_sdma_ring_emit_vm_flush(struct amdgpu_ring *ring,
 {
 	u32 extra_bits = (SDMA_POLL_REG_MEM_EXTRA_OP(0) |
 			  SDMA_POLL_REG_MEM_EXTRA_FUNC(0)); /* always */
-	u32 sh_mem_cfg = REG_SET_FIELD(0, SH_MEM_CONFIG, ALIGNMENT_MODE, 
-				       SH_MEM_ALIGNMENT_MODE_UNALIGNED);
 
 	amdgpu_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_SRBM_WRITE, 0, 0xf000));
 	if (vm_id < 8) {
@@ -839,31 +837,6 @@ static void cik_sdma_ring_emit_vm_flush(struct amdgpu_ring *ring,
 		amdgpu_ring_write(ring, (mmVM_CONTEXT8_PAGE_TABLE_BASE_ADDR + vm_id - 8));
 	}
 	amdgpu_ring_write(ring, pd_addr >> 12);
-
-	/* update SH_MEM_* regs */
-	amdgpu_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_SRBM_WRITE, 0, 0xf000));
-	amdgpu_ring_write(ring, mmSRBM_GFX_CNTL);
-	amdgpu_ring_write(ring, VMID(vm_id));
-
-	amdgpu_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_SRBM_WRITE, 0, 0xf000));
-	amdgpu_ring_write(ring, mmSH_MEM_BASES);
-	amdgpu_ring_write(ring, 0);
-
-	amdgpu_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_SRBM_WRITE, 0, 0xf000));
-	amdgpu_ring_write(ring, mmSH_MEM_CONFIG);
-	amdgpu_ring_write(ring, sh_mem_cfg);
-
-	amdgpu_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_SRBM_WRITE, 0, 0xf000));
-	amdgpu_ring_write(ring, mmSH_MEM_APE1_BASE);
-	amdgpu_ring_write(ring, 1);
-
-	amdgpu_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_SRBM_WRITE, 0, 0xf000));
-	amdgpu_ring_write(ring, mmSH_MEM_APE1_LIMIT);
-	amdgpu_ring_write(ring, 0);
-
-	amdgpu_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_SRBM_WRITE, 0, 0xf000));
-	amdgpu_ring_write(ring, mmSRBM_GFX_CNTL);
-	amdgpu_ring_write(ring, VMID(0));
 
 	/* flush TLB */
 	amdgpu_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_SRBM_WRITE, 0, 0xf000));
