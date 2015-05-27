@@ -15,7 +15,7 @@
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <asm/gpio.h>
+#include <linux/gpio.h>
 
 #include <linux/kthread.h>
 #include <linux/firmware.h>
