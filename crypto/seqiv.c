@@ -812,7 +812,7 @@ static int seqniv_create(struct crypto_template *tmpl, struct rtattr **tb)
 
 	inst->alg.base.cra_alignmask |= __alignof__(u32) - 1;
 	inst->alg.base.cra_ctxsize = sizeof(struct seqiv_aead_ctx);
-	inst->alg.base.cra_ctxsize += inst->alg.base.cra_aead.ivsize;
+	inst->alg.base.cra_ctxsize += inst->alg.ivsize;
 
 done:
 	err = aead_register_instance(tmpl, inst);
