@@ -308,7 +308,7 @@ static int mmc35240_read_raw(struct iio_dev *indio_dev,
 			return ret;
 
 		i = (reg & MMC35240_CTRL1_BW_MASK) >> MMC35240_CTRL1_BW_SHIFT;
-		if (i < 0 || i > ARRAY_SIZE(mmc35240_samp_freq))
+		if (i < 0 || i >= ARRAY_SIZE(mmc35240_samp_freq))
 			return -EINVAL;
 
 		*val = mmc35240_samp_freq[i];
