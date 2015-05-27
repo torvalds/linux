@@ -1222,7 +1222,7 @@ static int sensors_show(struct seq_file *seq, void *v)
 	param[1] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
 		    FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_DIAG) |
 		    FW_PARAMS_PARAM_Y_V(FW_PARAM_DEV_DIAG_VDD));
-	ret = t4_query_params(adap, adap->mbox, adap->fn, 0, 2,
+	ret = t4_query_params(adap, adap->mbox, adap->pf, 0, 2,
 			      param, val);
 
 	if (ret < 0 || val[0] == 0)
@@ -1959,6 +1959,61 @@ static void add_debugfs_mem(struct adapter *adap, const char *name,
 				 size_mb << 20);
 }
 
+static int blocked_fl_open(struct inode *inode, struct file *file)
+{
+	file->private_data = inode->i_private;
+	return 0;
+}
+
+static ssize_t blocked_fl_read(struct file *filp, char __user *ubuf,
+			       size_t count, loff_t *ppos)
+{
+	int len;
+	const struct adapter *adap = filp->private_data;
+	char *buf;
+	ssize_t size = (adap->sge.egr_sz + 3) / 4 +
+			adap->sge.egr_sz / 32 + 2; /* includes ,/\n/\0 */
+
+	buf = kzalloc(size, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	len = snprintf(buf, size - 1, "%*pb\n",
+		       adap->sge.egr_sz, adap->sge.blocked_fl);
+	len += sprintf(buf + len, "\n");
+	size = simple_read_from_buffer(ubuf, count, ppos, buf, len);
+	t4_free_mem(buf);
+	return size;
+}
+
+static ssize_t blocked_fl_write(struct file *filp, const char __user *ubuf,
+				size_t count, loff_t *ppos)
+{
+	int err;
+	unsigned long *t;
+	struct adapter *adap = filp->private_data;
+
+	t = kcalloc(BITS_TO_LONGS(adap->sge.egr_sz), sizeof(long), GFP_KERNEL);
+	if (!t)
+		return -ENOMEM;
+
+	err = bitmap_parse_user(ubuf, count, t, adap->sge.egr_sz);
+	if (err)
+		return err;
+
+	bitmap_copy(adap->sge.blocked_fl, t, adap->sge.egr_sz);
+	t4_free_mem(t);
+	return count;
+}
+
+static const struct file_operations blocked_fl_fops = {
+	.owner   = THIS_MODULE,
+	.open    = blocked_fl_open,
+	.read    = blocked_fl_read,
+	.write   = blocked_fl_write,
+	.llseek  = generic_file_llseek,
+};
+
 /* Add an array of Debug FS files.
  */
 void add_debugfs_files(struct adapter *adap,
@@ -2022,6 +2077,7 @@ int t4_setup_debugfs(struct adapter *adap)
 #if IS_ENABLED(CONFIG_IPV6)
 		{ "clip_tbl", &clip_tbl_debugfs_fops, S_IRUSR, 0 },
 #endif
+		{ "blocked_fl", &blocked_fl_fops, S_IRUSR | S_IWUSR, 0 },
 	};
 
 	/* Debug FS nodes common to all T5 and later adapters.

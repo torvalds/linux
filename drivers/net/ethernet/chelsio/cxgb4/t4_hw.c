@@ -150,7 +150,7 @@ void t4_write_indirect(struct adapter *adap, unsigned int addr_reg,
  */
 void t4_hw_pci_read_cfg4(struct adapter *adap, int reg, u32 *val)
 {
-	u32 req = ENABLE_F | FUNCTION_V(adap->fn) | REGISTER_V(reg);
+	u32 req = ENABLE_F | FUNCTION_V(adap->pf) | REGISTER_V(reg);
 
 	if (is_t4(adap->params.chip))
 		req |= LOCALCFG_F;
@@ -412,7 +412,7 @@ int t4_memory_rw(struct adapter *adap, int win, int mtype, u32 addr,
 	mem_base = PCIEOFST_G(mem_reg) << PCIEOFST_SHIFT_X;
 	if (is_t4(adap->params.chip))
 		mem_base -= adap->t4_bar0;
-	win_pf = is_t4(adap->params.chip) ? 0 : PFNUM_V(adap->fn);
+	win_pf = is_t4(adap->params.chip) ? 0 : PFNUM_V(adap->pf);
 
 	/* Calculate our initial PCI-E Memory Window Position and Offset into
 	 * that Window.
@@ -547,7 +547,7 @@ u32 t4_read_pcie_cfg4(struct adapter *adap, int reg)
 	ldst_cmd.cycles_to_len16 = cpu_to_be32(FW_LEN16(ldst_cmd));
 	ldst_cmd.u.pcie.select_naccess = FW_LDST_CMD_NACCESS_V(1);
 	ldst_cmd.u.pcie.ctrl_to_fn =
-		(FW_LDST_CMD_LC_F | FW_LDST_CMD_FN_V(adap->fn));
+		(FW_LDST_CMD_LC_F | FW_LDST_CMD_FN_V(adap->pf));
 	ldst_cmd.u.pcie.r = reg;
 
 	/* If the LDST Command succeeds, return the result, otherwise
@@ -2062,7 +2062,7 @@ int t4_phy_fw_ver(struct adapter *adap, int *phy_fw_ver)
 		 FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_PHYFW) |
 		 FW_PARAMS_PARAM_Y_V(adap->params.portvec) |
 		 FW_PARAMS_PARAM_Z_V(FW_PARAMS_PARAM_DEV_PHYFW_VERSION));
-	ret = t4_query_params(adap, adap->mbox, adap->fn, 0, 1,
+	ret = t4_query_params(adap, adap->mbox, adap->pf, 0, 1,
 			      &param, &val);
 	if (ret < 0)
 		return ret;
@@ -2134,7 +2134,7 @@ int t4_load_phy_fw(struct adapter *adap,
 		 FW_PARAMS_PARAM_Y_V(adap->params.portvec) |
 		 FW_PARAMS_PARAM_Z_V(FW_PARAMS_PARAM_DEV_PHYFW_DOWNLOAD));
 	val = phy_fw_size;
-	ret = t4_query_params_rw(adap, adap->mbox, adap->fn, 0, 1,
+	ret = t4_query_params_rw(adap, adap->mbox, adap->pf, 0, 1,
 				 &param, &val, 1);
 	if (ret < 0)
 		return ret;
@@ -2163,7 +2163,7 @@ int t4_load_phy_fw(struct adapter *adap,
 		 FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_PHYFW) |
 		 FW_PARAMS_PARAM_Y_V(adap->params.portvec) |
 		 FW_PARAMS_PARAM_Z_V(FW_PARAMS_PARAM_DEV_PHYFW_DOWNLOAD));
-	ret = t4_set_params_timeout(adap, adap->mbox, adap->fn, 0, 1,
+	ret = t4_set_params_timeout(adap, adap->mbox, adap->pf, 0, 1,
 				    &param, &val, 30000);
 
 	/* If we have version number support, then check to see that the new
@@ -2199,7 +2199,7 @@ int t4_fwcache(struct adapter *adap, enum fw_params_param_dev_fwcache op)
 	c.op_to_vfn =
 		cpu_to_be32(FW_CMD_OP_V(FW_PARAMS_CMD) |
 			    FW_CMD_REQUEST_F | FW_CMD_WRITE_F |
-			    FW_PARAMS_CMD_PFN_V(adap->fn) |
+			    FW_PARAMS_CMD_PFN_V(adap->pf) |
 			    FW_PARAMS_CMD_VFN_V(0));
 	c.retval_len16 = cpu_to_be32(FW_LEN16(c));
 	c.param[0].mnem =
@@ -5299,7 +5299,7 @@ int t4_prep_adapter(struct adapter *adapter)
 }
 
 /**
- *	cxgb4_t4_bar2_sge_qregs - return BAR2 SGE Queue register information
+ *	t4_bar2_sge_qregs - return BAR2 SGE Queue register information
  *	@adapter: the adapter
  *	@qid: the Queue ID
  *	@qtype: the Ingress or Egress type for @qid
@@ -5323,7 +5323,7 @@ int t4_prep_adapter(struct adapter *adapter)
  *	Write Combining Doorbell Buffer. If the BAR2 Queue ID is not 0,
  *	then these "Inferred Queue ID" register may not be used.
  */
-int cxgb4_t4_bar2_sge_qregs(struct adapter *adapter,
+int t4_bar2_sge_qregs(struct adapter *adapter,
 		      unsigned int qid,
 		      enum t4_bar2_qtype qtype,
 		      u64 *pbar2_qoffset,
@@ -5457,13 +5457,13 @@ int t4_init_sge_params(struct adapter *adapter)
 	 */
 	hps = t4_read_reg(adapter, SGE_HOST_PAGE_SIZE_A);
 	s_hps = (HOSTPAGESIZEPF0_S +
-		 (HOSTPAGESIZEPF1_S - HOSTPAGESIZEPF0_S) * adapter->fn);
+		 (HOSTPAGESIZEPF1_S - HOSTPAGESIZEPF0_S) * adapter->pf);
 	sge_params->hps = ((hps >> s_hps) & HOSTPAGESIZEPF0_M);
 
 	/* Extract the SGE Egress and Ingess Queues Per Page for our PF.
 	 */
 	s_qpp = (QUEUESPERPAGEPF0_S +
-		(QUEUESPERPAGEPF1_S - QUEUESPERPAGEPF0_S) * adapter->fn);
+		(QUEUESPERPAGEPF1_S - QUEUESPERPAGEPF0_S) * adapter->pf);
 	qpp = t4_read_reg(adapter, SGE_EGRESS_QUEUES_PER_PAGE_PF_A);
 	sge_params->eq_qpp = ((qpp >> s_qpp) & QUEUESPERPAGEPF0_M);
 	qpp = t4_read_reg(adapter, SGE_INGRESS_QUEUES_PER_PAGE_PF_A);

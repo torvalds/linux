@@ -428,7 +428,7 @@ int t4vf_set_params(struct adapter *adapter, unsigned int nparams,
 }
 
 /**
- *	t4_bar2_sge_qregs - return BAR2 SGE Queue register information
+ *	t4vf_bar2_sge_qregs - return BAR2 SGE Queue register information
  *	@adapter: the adapter
  *	@qid: the Queue ID
  *	@qtype: the Ingress or Egress type for @qid
@@ -452,11 +452,11 @@ int t4vf_set_params(struct adapter *adapter, unsigned int nparams,
  *	Write Combining Doorbell Buffer. If the BAR2 Queue ID is not 0,
  *	then these "Inferred Queue ID" register may not be used.
  */
-int t4_bar2_sge_qregs(struct adapter *adapter,
-		      unsigned int qid,
-		      enum t4_bar2_qtype qtype,
-		      u64 *pbar2_qoffset,
-		      unsigned int *pbar2_qid)
+int t4vf_bar2_sge_qregs(struct adapter *adapter,
+			unsigned int qid,
+			enum t4_bar2_qtype qtype,
+			u64 *pbar2_qoffset,
+			unsigned int *pbar2_qid)
 {
 	unsigned int page_shift, page_size, qpp_shift, qpp_mask;
 	u64 bar2_page_offset, bar2_qoffset;
