@@ -506,6 +506,17 @@ static int __symbol__inc_addr_samples(struct symbol *sym, struct map *map,
 	return 0;
 }
 
+static struct annotation *symbol__get_annotation(struct symbol *sym)
+{
+	struct annotation *notes = symbol__annotation(sym);
+
+	if (notes->src == NULL) {
+		if (symbol__alloc_hist(sym) < 0)
+			return NULL;
+	}
+	return notes;
+}
+
 static int symbol__inc_addr_samples(struct symbol *sym, struct map *map,
 				    int evidx, u64 addr)
 {
@@ -513,13 +524,9 @@ static int symbol__inc_addr_samples(struct symbol *sym, struct map *map,
 
 	if (sym == NULL)
 		return 0;
-
-	notes = symbol__annotation(sym);
-	if (notes->src == NULL) {
-		if (symbol__alloc_hist(sym) < 0)
-			return -ENOMEM;
-	}
-
+	notes = symbol__get_annotation(sym);
+	if (notes == NULL)
+		return -ENOMEM;
 	return __symbol__inc_addr_samples(sym, map, notes, evidx, addr);
 }
 
