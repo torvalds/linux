@@ -50,6 +50,8 @@ static struct rockchip_efuse efuse;
 #define SEC_REG_WR_64 (SEC_REG_WR | SEC_REG_64)
 
 #define PSCI_SIP_ACCESS_REG		(0x82000002)
+#define PSCI_SIP_RKTF_VER		(0x82000001)
+
 static phys_addr_t efuse_phys;
 
 /*
@@ -116,6 +118,38 @@ static void efuse_writel(u32 val, u32 offset)
 {
 	secure_regs_wr_32(efuse_phys + offset, val);
 }
+
+#define RKTF_VER_MAJOR(ver) (((ver) >> 16) & 0xffff)
+#define RKTF_VER_MINOR(ver) ((ver) & 0xffff)
+/* valid ver */
+#define RKTF_VLDVER_MAJOR (1)
+#define RKTF_VLDVER_MINOR (3)
+
+
+static void rockchip_tf_ver_check(void)
+{
+	u64 val;
+	u32 ver_val;
+
+	ver_val = reg_rd_fn(PSCI_SIP_RKTF_VER, 0, 0, 0, &val);
+	if (ver_val == 0xffffffff)
+		goto ver_error;
+
+	if ((RKTF_VER_MAJOR(ver_val) >= RKTF_VLDVER_MAJOR) &&
+		(RKTF_VER_MINOR(ver_val) >= RKTF_VLDVER_MINOR))
+		return;
+
+ver_error:
+
+	pr_err("read tf version 0x%x!\n", ver_val);
+
+	do {
+		mdelay(1000);
+		pr_err("trusted firmware need to update to(%d.%d) or is invaild!\n",
+			RKTF_VLDVER_MAJOR, RKTF_VLDVER_MINOR);
+	} while(1);
+}
+
 #endif
 
 static int rk3288_efuse_readregs(u32 addr, u32 length, u8 *buf)
@@ -307,8 +341,9 @@ static int __init rockchip_efuse_probe(struct platform_device *pdev)
 	}
 	efuse_phys = regs->start;
 
-	rk3288_efuse_init();
+	rockchip_tf_ver_check();
 
+	rk3288_efuse_init();
 	return 0;
 }
 
