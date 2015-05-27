@@ -25,6 +25,8 @@
 static struct mce i_mce;
 static struct dentry *dfs_inj;
 
+static u8 n_banks;
+
 #define MCE_INJECT_SET(reg)						\
 static int inj_##reg##_set(void *data, u64 val)				\
 {									\
@@ -174,11 +176,9 @@ static int inj_bank_set(void *data, u64 val)
 {
 	struct mce *m = (struct mce *)data;
 
-	if (val > 5) {
-		if (boot_cpu_data.x86 != 0x15 || val > 6) {
-			pr_err("Non-existent MCE bank: %llu\n", val);
-			return -EINVAL;
-		}
+	if (val >= n_banks) {
+		pr_err("Non-existent MCE bank: %llu\n", val);
+		return -EINVAL;
 	}
 
 	m->bank = val;
@@ -207,6 +207,10 @@ static struct dfs_node {
 static int __init init_mce_inject(void)
 {
 	int i;
+	u64 cap;
+
+	rdmsrl(MSR_IA32_MCG_CAP, cap);
+	n_banks = cap & MCG_BANKCNT_MASK;
 
 	dfs_inj = debugfs_create_dir("mce-inject", NULL);
 	if (!dfs_inj)
