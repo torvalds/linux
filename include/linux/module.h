@@ -17,6 +17,7 @@
 #include <linux/moduleparam.h>
 #include <linux/jump_label.h>
 #include <linux/export.h>
+#include <linux/rbtree_latch.h>
 
 #include <linux/percpu.h>
 #include <asm/module.h>
@@ -210,6 +211,13 @@ enum module_state {
 	MODULE_STATE_UNFORMED,	/* Still setting it up. */
 };
 
+struct module;
+
+struct mod_tree_node {
+	struct module *mod;
+	struct latch_tree_node node;
+};
+
 struct module {
 	enum module_state state;
 
@@ -269,8 +277,15 @@ struct module {
 	/* Startup function. */
 	int (*init)(void);
 
-	/* If this is non-NULL, vfree after init() returns */
-	void *module_init;
+	/*
+	 * If this is non-NULL, vfree() after init() returns.
+	 *
+	 * Cacheline align here, such that:
+	 *   module_init, module_core, init_size, core_size,
+	 *   init_text_size, core_text_size and ltn_core.node[0]
+	 * are on the same cacheline.
+	 */
+	void *module_init	____cacheline_aligned;
 
 	/* Here is the actual code + data, vfree'd on unload. */
 	void *module_core;
@@ -280,6 +295,14 @@ struct module {
 
 	/* The size of the executable code in each section.  */
 	unsigned int init_text_size, core_text_size;
+
+	/*
+	 * We want mtn_core::{mod,node[0]} to be in the same cacheline as the
+	 * above entries such that a regular lookup will only touch one
+	 * cacheline.
+	 */
+	struct mod_tree_node	mtn_core;
+	struct mod_tree_node	mtn_init;
 
 	/* Size of RO sections of the module (text+rodata) */
 	unsigned int init_ro_size, core_ro_size;
@@ -367,7 +390,7 @@ struct module {
 	ctor_fn_t *ctors;
 	unsigned int num_ctors;
 #endif
-};
+} ____cacheline_aligned;
 #ifndef MODULE_ARCH_INIT
 #define MODULE_ARCH_INIT {}
 #endif

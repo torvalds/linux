@@ -101,6 +101,108 @@
 DEFINE_MUTEX(module_mutex);
 EXPORT_SYMBOL_GPL(module_mutex);
 static LIST_HEAD(modules);
+
+/*
+ * Use a latched RB-tree for __module_address(); this allows us to use
+ * RCU-sched lookups of the address from any context.
+ *
+ * Because modules have two address ranges: init and core, we need two
+ * latch_tree_nodes entries. Therefore we need the back-pointer from
+ * mod_tree_node.
+ *
+ * Because init ranges are short lived we mark them unlikely and have placed
+ * them outside the critical cacheline in struct module.
+ */
+
+static __always_inline unsigned long __mod_tree_val(struct latch_tree_node *n)
+{
+	struct mod_tree_node *mtn = container_of(n, struct mod_tree_node, node);
+	struct module *mod = mtn->mod;
+
+	if (unlikely(mtn == &mod->mtn_init))
+		return (unsigned long)mod->module_init;
+
+	return (unsigned long)mod->module_core;
+}
+
+static __always_inline unsigned long __mod_tree_size(struct latch_tree_node *n)
+{
+	struct mod_tree_node *mtn = container_of(n, struct mod_tree_node, node);
+	struct module *mod = mtn->mod;
+
+	if (unlikely(mtn == &mod->mtn_init))
+		return (unsigned long)mod->init_size;
+
+	return (unsigned long)mod->core_size;
+}
+
+static __always_inline bool
+mod_tree_less(struct latch_tree_node *a, struct latch_tree_node *b)
+{
+	return __mod_tree_val(a) < __mod_tree_val(b);
+}
+
+static __always_inline int
+mod_tree_comp(void *key, struct latch_tree_node *n)
+{
+	unsigned long val = (unsigned long)key;
+	unsigned long start, end;
+
+	start = __mod_tree_val(n);
+	if (val < start)
+		return -1;
+
+	end = start + __mod_tree_size(n);
+	if (val >= end)
+		return 1;
+
+	return 0;
+}
+
+static const struct latch_tree_ops mod_tree_ops = {
+	.less = mod_tree_less,
+	.comp = mod_tree_comp,
+};
+
+static struct latch_tree_root mod_tree __cacheline_aligned;
+
+/*
+ * These modifications: insert, remove_init and remove; are serialized by the
+ * module_mutex.
+ */
+static void mod_tree_insert(struct module *mod)
+{
+	mod->mtn_core.mod = mod;
+	mod->mtn_init.mod = mod;
+
+	latch_tree_insert(&mod->mtn_core.node, &mod_tree, &mod_tree_ops);
+	if (mod->init_size)
+		latch_tree_insert(&mod->mtn_init.node, &mod_tree, &mod_tree_ops);
+}
+
+static void mod_tree_remove_init(struct module *mod)
+{
+	if (mod->init_size)
+		latch_tree_erase(&mod->mtn_init.node, &mod_tree, &mod_tree_ops);
+}
+
+static void mod_tree_remove(struct module *mod)
+{
+	latch_tree_erase(&mod->mtn_core.node, &mod_tree, &mod_tree_ops);
+	mod_tree_remove_init(mod);
+}
+
+static struct module *mod_tree_find(unsigned long addr)
+{
+	struct latch_tree_node *ltn;
+
+	ltn = latch_tree_find((void *)addr, &mod_tree, &mod_tree_ops);
+	if (!ltn)
+		return NULL;
+
+	return container_of(ltn, struct mod_tree_node, node)->mod;
+}
+
 #ifdef CONFIG_KGDB_KDB
 struct list_head *kdb_modules = &modules; /* kdb needs the list of modules */
 #endif /* CONFIG_KGDB_KDB */
@@ -1878,6 +1980,7 @@ static void free_module(struct module *mod)
 	mutex_lock(&module_mutex);
 	/* Unlink carefully: kallsyms could be walking list. */
 	list_del_rcu(&mod->list);
+	mod_tree_remove(mod);
 	/* Remove this module from bug list, this uses list_del_rcu */
 	module_bug_cleanup(mod);
 	/* Wait for RCU-sched synchronizing before releasing mod->list and buglist. */
@@ -3145,6 +3248,7 @@ static noinline int do_init_module(struct module *mod)
 	mod->symtab = mod->core_symtab;
 	mod->strtab = mod->core_strtab;
 #endif
+	mod_tree_remove_init(mod);
 	unset_module_init_ro_nx(mod);
 	module_arch_freeing_init(mod);
 	mod->module_init = NULL;
@@ -3215,6 +3319,7 @@ again:
 		goto out;
 	}
 	list_add_rcu(&mod->list, &modules);
+	mod_tree_insert(mod);
 	err = 0;
 
 out:
@@ -3861,13 +3966,13 @@ struct module *__module_address(unsigned long addr)
 
 	module_assert_mutex_or_preempt();
 
-	list_for_each_entry_rcu(mod, &modules, list) {
+	mod = mod_tree_find(addr);
+	if (mod) {
+		BUG_ON(!within_module(addr, mod));
 		if (mod->state == MODULE_STATE_UNFORMED)
-			continue;
-		if (within_module(addr, mod))
-			return mod;
+			mod = NULL;
 	}
-	return NULL;
+	return mod;
 }
 EXPORT_SYMBOL_GPL(__module_address);
 
