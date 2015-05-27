@@ -211,6 +211,7 @@ static const struct nla_policy nl802154_policy[NL802154_ATTR_MAX+1] = {
 
 	[NL802154_ATTR_CCA_MODE] = { .type = NLA_U32, },
 	[NL802154_ATTR_CCA_OPT] = { .type = NLA_U32, },
+	[NL802154_ATTR_CCA_ED_LEVEL] = { .type = NLA_S32, },
 
 	[NL802154_ATTR_SUPPORTED_CHANNEL] = { .type = NLA_U32, },
 
@@ -418,6 +419,12 @@ static int nl802154_send_wpan_phy(struct cfg802154_registered_device *rdev,
 	if (rdev->wpan_phy.flags & WPAN_PHY_FLAG_TXPOWER) {
 		if (nla_put_s32(msg, NL802154_ATTR_TX_POWER,
 				rdev->wpan_phy.transmit_power))
+			goto nla_put_failure;
+	}
+
+	if (rdev->wpan_phy.flags & WPAN_PHY_FLAG_CCA_ED_LEVEL) {
+		if (nla_put_s32(msg, NL802154_ATTR_CCA_ED_LEVEL,
+				rdev->wpan_phy.cca_ed_level))
 			goto nla_put_failure;
 	}
 
