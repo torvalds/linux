@@ -126,7 +126,7 @@ static void efuse_writel(u32 val, u32 offset)
 #define RKTF_VLDVER_MINOR (3)
 
 
-static void rockchip_tf_ver_check(void)
+static int __init rockchip_tf_ver_check(void)
 {
 	u64 val;
 	u32 ver_val;
@@ -137,7 +137,7 @@ static void rockchip_tf_ver_check(void)
 
 	if ((RKTF_VER_MAJOR(ver_val) >= RKTF_VLDVER_MAJOR) &&
 		(RKTF_VER_MINOR(ver_val) >= RKTF_VLDVER_MINOR))
-		return;
+		return 0;
 
 ver_error:
 
@@ -148,8 +148,10 @@ ver_error:
 		pr_err("trusted firmware need to update to(%d.%d) or is invaild!\n",
 			RKTF_VLDVER_MAJOR, RKTF_VLDVER_MINOR);
 	} while(1);
-}
 
+	return 0;
+}
+device_initcall_sync(rockchip_tf_ver_check);
 #endif
 
 static int rk3288_efuse_readregs(u32 addr, u32 length, u8 *buf)
@@ -340,8 +342,6 @@ static int __init rockchip_efuse_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 	efuse_phys = regs->start;
-
-	rockchip_tf_ver_check();
 
 	rk3288_efuse_init();
 	return 0;
