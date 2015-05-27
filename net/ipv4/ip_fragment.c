@@ -75,6 +75,7 @@ struct ipq {
 	__be16		id;
 	u8		protocol;
 	u8		ecn; /* RFC3168 support */
+	u16		max_df_size; /* largest frag with DF set seen */
 	int             iif;
 	unsigned int    rid;
 	struct inet_peer *peer;
@@ -326,6 +327,7 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 {
 	struct sk_buff *prev, *next;
 	struct net_device *dev;
+	unsigned int fragsize;
 	int flags, offset;
 	int ihl, end;
 	int err = -ENOENT;
@@ -481,9 +483,14 @@ found:
 	if (offset == 0)
 		qp->q.flags |= INET_FRAG_FIRST_IN;
 
+	fragsize = skb->len + ihl;
+
+	if (fragsize > qp->q.max_size)
+		qp->q.max_size = fragsize;
+
 	if (ip_hdr(skb)->frag_off & htons(IP_DF) &&
-	    skb->len + ihl > qp->q.max_size)
-		qp->q.max_size = skb->len + ihl;
+	    fragsize > qp->max_df_size)
+		qp->max_df_size = fragsize;
 
 	if (qp->q.flags == (INET_FRAG_FIRST_IN | INET_FRAG_LAST_IN) &&
 	    qp->q.meat == qp->q.len) {
@@ -613,13 +620,27 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
 	head->next = NULL;
 	head->dev = dev;
 	head->tstamp = qp->q.stamp;
-	IPCB(head)->frag_max_size = qp->q.max_size;
+	IPCB(head)->frag_max_size = max(qp->max_df_size, qp->q.max_size);
 
 	iph = ip_hdr(head);
-	/* max_size != 0 implies at least one fragment had IP_DF set */
-	iph->frag_off = qp->q.max_size ? htons(IP_DF) : 0;
 	iph->tot_len = htons(len);
 	iph->tos |= ecn;
+
+	/* When we set IP_DF on a refragmented skb we must also force a
+	 * call to ip_fragment to avoid forwarding a DF-skb of size s while
+	 * original sender only sent fragments of size f (where f < s).
+	 *
+	 * We only set DF/IPSKB_FRAG_PMTU if such DF fragment was the largest
+	 * frag seen to avoid sending tiny DF-fragments in case skb was built
+	 * from one very small df-fragment and one large non-df frag.
+	 */
+	if (qp->max_df_size == qp->q.max_size) {
+		IPCB(head)->flags |= IPSKB_FRAG_PMTU;
+		iph->frag_off = htons(IP_DF);
+	} else {
+		iph->frag_off = 0;
+	}
+
 	IP_INC_STATS_BH(net, IPSTATS_MIB_REASMOKS);
 	qp->q.fragments = NULL;
 	qp->q.fragments_tail = NULL;
