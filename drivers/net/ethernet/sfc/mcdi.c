@@ -188,7 +188,7 @@ static void efx_mcdi_send_request(struct efx_nic *efx, unsigned cmd,
 	}
 
 #ifdef CONFIG_SFC_MCDI_LOGGING
-	if (!WARN_ON_ONCE(!buf)) {
+	if (mcdi->logging_enabled && !WARN_ON_ONCE(!buf)) {
 		int bytes = 0;
 		int i;
 		/* Lengths should always be a whole number of dwords, so scream
@@ -274,7 +274,7 @@ static void efx_mcdi_read_response_header(struct efx_nic *efx)
 	}
 
 #ifdef CONFIG_SFC_MCDI_LOGGING
-	if (!WARN_ON_ONCE(!buf)) {
+	if (mcdi->logging_enabled && !WARN_ON_ONCE(!buf)) {
 		size_t hdr_len, data_len;
 		int bytes = 0;
 		int i;

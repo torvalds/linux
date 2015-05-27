@@ -59,6 +59,7 @@ enum efx_mcdi_mode {
  * @async_list: Queue of asynchronous requests
  * @async_timer: Timer for asynchronous request timeout
  * @logging_buffer: buffer that may be used to build MCDI tracing messages
+ * @logging_enabled: whether to trace MCDI
  */
 struct efx_mcdi_iface {
 	struct efx_nic *efx;
@@ -77,6 +78,7 @@ struct efx_mcdi_iface {
 	struct timer_list async_timer;
 #ifdef CONFIG_SFC_MCDI_LOGGING
 	char *logging_buffer;
+	bool logging_enabled;
 #endif
 };
 

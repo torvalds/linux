@@ -43,4 +43,5 @@ config SFC_MCDI_LOGGING
 	---help---
 	  This enables support for tracing of MCDI (Management-Controller-to-
 	  Driver-Interface) commands and responses, allowing debugging of
-	  driver/firmware interaction.
+	  driver/firmware interaction.  The tracing is actually enabled by
+	  a sysfs file 'mcdi_logging' under the PCI device.
