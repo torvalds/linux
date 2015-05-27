@@ -974,7 +974,7 @@ static int lynxfb_set_fbinfo(struct fb_info *info, int index)
 
 	ret = fb_alloc_cmap(&info->cmap, 256, 0);
 	if (ret < 0) {
-		pr_err("Could not allcate memory for cmap.\n");
+		pr_err("Could not allocate memory for cmap.\n");
 		goto exit;
 	}
 
