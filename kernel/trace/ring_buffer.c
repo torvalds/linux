@@ -2637,8 +2637,6 @@ rb_reserve_next_event(struct ring_buffer *buffer,
 	return NULL;
 }
 
-#ifdef CONFIG_TRACING
-
 /*
  * The lock and unlock are done within a preempt disable section.
  * The current_context per_cpu variable can only be modified
@@ -2707,13 +2705,6 @@ trace_recursive_unlock(struct ring_buffer_per_cpu *cpu_buffer)
 {
 	cpu_buffer->current_context &= cpu_buffer->current_context - 1;
 }
-
-#else
-
-#define trace_recursive_lock(cpu_buffer)	(0)
-#define trace_recursive_unlock(cpu_buffer)	do { } while (0)
-
-#endif
 
 /**
  * ring_buffer_lock_reserve - reserve a part of the buffer
