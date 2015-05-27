@@ -405,8 +405,6 @@ static void omap_crtc_enable(struct drm_crtc *crtc)
 			WARN_ON(omap_plane_setup(plane));
 	}
 
-	omap_crtc_flush(crtc);
-
 	drm_crtc_vblank_on(crtc);
 }
 
@@ -428,8 +426,6 @@ static void omap_crtc_disable(struct drm_crtc *crtc)
 		if (plane->crtc == crtc)
 			WARN_ON(omap_plane_setup(plane));
 	}
-
-	omap_crtc_flush(crtc);
 }
 
 static void omap_crtc_mode_set_nofb(struct drm_crtc *crtc)
