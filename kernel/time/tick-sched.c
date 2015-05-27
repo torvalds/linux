@@ -208,10 +208,8 @@ void __tick_nohz_full_check(void)
 	struct tick_sched *ts = this_cpu_ptr(&tick_cpu_sched);
 
 	if (tick_nohz_full_cpu(smp_processor_id())) {
-		if (ts->tick_stopped && !is_idle_task(current)) {
-			if (!can_stop_full_tick())
-				tick_nohz_restart_sched_tick(ts, ktime_get());
-		}
+		if (ts->tick_stopped && !can_stop_full_tick())
+			tick_nohz_restart_sched_tick(ts, ktime_get());
 	}
 }
 
@@ -710,7 +708,7 @@ static void tick_nohz_full_stop_tick(struct tick_sched *ts)
 #ifdef CONFIG_NO_HZ_FULL
 	int cpu = smp_processor_id();
 
-	if (!tick_nohz_full_cpu(cpu) || is_idle_task(current))
+	if (!tick_nohz_full_cpu(cpu))
 		return;
 
 	if (!ts->tick_stopped && ts->nohz_mode == NOHZ_MODE_INACTIVE)
