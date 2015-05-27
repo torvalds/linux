@@ -449,6 +449,10 @@ static int imx_gpc_probe(struct platform_device *pdev)
 	struct regulator *pu_reg;
 	int ret;
 
+	/* bail out if DT too old and doesn't provide the necessary info */
+	if (!of_property_read_bool(pdev->dev.of_node, "#power-domain-cells"))
+		return 0;
+
 	pu_reg = devm_regulator_get_optional(&pdev->dev, "pu");
 	if (PTR_ERR(pu_reg) == -ENODEV)
 		pu_reg = NULL;
