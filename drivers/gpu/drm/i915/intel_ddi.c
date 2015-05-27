@@ -2618,20 +2618,6 @@ void intel_ddi_fdi_disable(struct drm_crtc *crtc)
 	I915_WRITE(_FDI_RXA_CTL, val);
 }
 
-static void intel_ddi_hot_plug(struct intel_encoder *intel_encoder)
-{
-	struct intel_digital_port *intel_dig_port = enc_to_dig_port(&intel_encoder->base);
-	int type = intel_dig_port->base.type;
-
-	if (type != INTEL_OUTPUT_DISPLAYPORT &&
-	    type != INTEL_OUTPUT_EDP &&
-	    type != INTEL_OUTPUT_UNKNOWN) {
-		return;
-	}
-
-	intel_dp_hot_plug(intel_encoder);
-}
-
 void intel_ddi_get_config(struct intel_encoder *encoder,
 			  struct intel_crtc_state *pipe_config)
 {
@@ -2825,7 +2811,6 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 	intel_encoder->type = INTEL_OUTPUT_UNKNOWN;
 	intel_encoder->crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
 	intel_encoder->cloneable = 0;
-	intel_encoder->hot_plug = intel_ddi_hot_plug;
 
 	if (init_dp) {
 		if (!intel_ddi_init_dp_connector(intel_dig_port))
