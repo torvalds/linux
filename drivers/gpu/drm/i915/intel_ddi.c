@@ -2832,7 +2832,7 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 			goto err;
 
 		intel_dig_port->hpd_pulse = intel_dp_hpd_pulse;
-		dev_priv->hpd_irq_port[port] = intel_dig_port;
+		dev_priv->hotplug.irq_port[port] = intel_dig_port;
 	}
 
 	/* In theory we don't need the encoder->type check, but leave it just in

@@ -545,15 +545,15 @@ void intel_hpd_cancel_work(struct drm_i915_private *dev_priv)
 {
 	spin_lock_irq(&dev_priv->irq_lock);
 
-	dev_priv->long_hpd_port_mask = 0;
-	dev_priv->short_hpd_port_mask = 0;
-	dev_priv->hpd_event_bits = 0;
+	dev_priv->hotplug.long_port_mask = 0;
+	dev_priv->hotplug.short_port_mask = 0;
+	dev_priv->hotplug.event_bits = 0;
 
 	spin_unlock_irq(&dev_priv->irq_lock);
 
-	cancel_work_sync(&dev_priv->dig_port_work);
-	cancel_work_sync(&dev_priv->hotplug_work);
-	cancel_delayed_work_sync(&dev_priv->hotplug_reenable_work);
+	cancel_work_sync(&dev_priv->hotplug.dig_port_work);
+	cancel_work_sync(&dev_priv->hotplug.hotplug_work);
+	cancel_delayed_work_sync(&dev_priv->hotplug.reenable_work);
 }
 
 void i915_firmware_load_error_print(const char *fw_path, int err)
