@@ -18,6 +18,7 @@
 #include <linux/pid.h>
 #include <linux/io.h>
 #include <linux/pci.h>
+#include <linux/fs.h>
 #include <asm/cputable.h>
 #include <asm/mmu.h>
 #include <asm/reg.h>
@@ -673,5 +674,13 @@ void cxl_stop_trace(struct cxl *cxl);
 
 extern struct pci_driver cxl_pci_driver;
 int afu_allocate_irqs(struct cxl_context *ctx, u32 count);
+
+int afu_open(struct inode *inode, struct file *file);
+int afu_release(struct inode *inode, struct file *file);
+long afu_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
+int afu_mmap(struct file *file, struct vm_area_struct *vm);
+unsigned int afu_poll(struct file *file, struct poll_table_struct *poll);
+ssize_t afu_read(struct file *file, char __user *buf, size_t count, loff_t *off);
+extern const struct file_operations afu_fops;
 
 #endif
