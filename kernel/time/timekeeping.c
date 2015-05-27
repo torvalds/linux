@@ -393,7 +393,7 @@ static __always_inline u64 __ktime_get_fast_ns(struct tk_fast *tkf)
 	u64 now;
 
 	do {
-		seq = raw_read_seqcount(&tkf->seq);
+		seq = raw_read_seqcount_latch(&tkf->seq);
 		tkr = tkf->base + (seq & 0x01);
 		now = ktime_to_ns(tkr->base) + timekeeping_get_ns(tkr);
 	} while (read_seqcount_retry(&tkf->seq, seq));

@@ -35,6 +35,7 @@
 #include <linux/spinlock.h>
 #include <linux/preempt.h>
 #include <linux/lockdep.h>
+#include <linux/compiler.h>
 #include <asm/processor.h>
 
 /*
@@ -233,6 +234,11 @@ static inline void raw_write_seqcount_end(seqcount_t *s)
 	s->sequence++;
 }
 
+static inline int raw_read_seqcount_latch(seqcount_t *s)
+{
+	return lockless_dereference(s->sequence);
+}
+
 /**
  * raw_write_seqcount_latch - redirect readers to even/odd copy
  * @s: pointer to seqcount_t
@@ -284,8 +290,7 @@ static inline void raw_write_seqcount_end(seqcount_t *s)
  *	unsigned seq, idx;
  *
  *	do {
- *		seq = latch->seq;
- *		smp_rmb();
+ *		seq = lockless_dereference(latch->seq);
  *
  *		idx = seq & 0x01;
  *		entry = data_query(latch->data[idx], ...);
