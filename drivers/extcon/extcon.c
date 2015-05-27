@@ -207,14 +207,6 @@ static ssize_t name_show(struct device *dev, struct device_attribute *attr,
 {
 	struct extcon_dev *edev = dev_get_drvdata(dev);
 
-	/* Optional callback given by the user */
-	if (edev->print_name) {
-		int ret = edev->print_name(edev, buf);
-
-		if (ret >= 0)
-			return ret;
-	}
-
 	return sprintf(buf, "%s\n", edev->name);
 }
 static DEVICE_ATTR_RO(name);
