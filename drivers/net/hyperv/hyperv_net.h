@@ -161,6 +161,7 @@ struct netvsc_device_info {
 	unsigned char mac_adr[ETH_ALEN];
 	bool link_state;	/* 0 - link up, 1 - link down */
 	int  ring_size;
+	u32  max_num_vrss_chns;
 };
 
 enum rndis_device_state {
