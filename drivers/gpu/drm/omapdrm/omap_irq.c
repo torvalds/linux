@@ -32,7 +32,7 @@ static void omap_irq_update(struct drm_device *dev)
 {
 	struct omap_drm_private *priv = dev->dev_private;
 	struct omap_drm_irq *irq;
-	uint32_t irqmask = priv->vblank_mask;
+	uint32_t irqmask = priv->irq_mask;
 
 	assert_spin_locked(&list_lock);
 
@@ -153,7 +153,7 @@ int omap_irq_enable_vblank(struct drm_device *dev, unsigned int pipe)
 	DBG("dev=%p, crtc=%u", dev, pipe);
 
 	spin_lock_irqsave(&list_lock, flags);
-	priv->vblank_mask |= pipe2vbl(crtc);
+	priv->irq_mask |= pipe2vbl(crtc);
 	omap_irq_update(dev);
 	spin_unlock_irqrestore(&list_lock, flags);
 
@@ -178,9 +178,50 @@ void omap_irq_disable_vblank(struct drm_device *dev, unsigned int pipe)
 	DBG("dev=%p, crtc=%u", dev, pipe);
 
 	spin_lock_irqsave(&list_lock, flags);
-	priv->vblank_mask &= ~pipe2vbl(crtc);
+	priv->irq_mask &= ~pipe2vbl(crtc);
 	omap_irq_update(dev);
 	spin_unlock_irqrestore(&list_lock, flags);
+}
+
+static void omap_irq_fifo_underflow(struct omap_drm_private *priv,
+				    u32 irqstatus)
+{
+	static DEFINE_RATELIMIT_STATE(_rs, DEFAULT_RATELIMIT_INTERVAL,
+				      DEFAULT_RATELIMIT_BURST);
+	static const struct {
+		const char *name;
+		u32 mask;
+	} sources[] = {
+		{ "gfx", DISPC_IRQ_GFX_FIFO_UNDERFLOW },
+		{ "vid1", DISPC_IRQ_VID1_FIFO_UNDERFLOW },
+		{ "vid2", DISPC_IRQ_VID2_FIFO_UNDERFLOW },
+		{ "vid3", DISPC_IRQ_VID3_FIFO_UNDERFLOW },
+	};
+
+	const u32 mask = DISPC_IRQ_GFX_FIFO_UNDERFLOW
+		       | DISPC_IRQ_VID1_FIFO_UNDERFLOW
+		       | DISPC_IRQ_VID2_FIFO_UNDERFLOW
+		       | DISPC_IRQ_VID3_FIFO_UNDERFLOW;
+	unsigned int i;
+
+	spin_lock(&list_lock);
+	irqstatus &= priv->irq_mask & mask;
+	spin_unlock(&list_lock);
+
+	if (!irqstatus)
+		return;
+
+	if (!__ratelimit(&_rs))
+		return;
+
+	DRM_ERROR("FIFO underflow on ");
+
+	for (i = 0; i < ARRAY_SIZE(sources); ++i) {
+		if (sources[i].mask & irqstatus)
+			pr_cont("%s ", sources[i].name);
+	}
+
+	pr_cont("(0x%08x)\n", irqstatus);
 }
 
 static irqreturn_t omap_irq_handler(int irq, void *arg)
@@ -205,6 +246,8 @@ static irqreturn_t omap_irq_handler(int irq, void *arg)
 			drm_handle_vblank(dev, id);
 	}
 
+	omap_irq_fifo_underflow(priv, irqstatus);
+
 	spin_lock_irqsave(&list_lock, flags);
 	list_for_each_entry_safe(handler, n, &priv->irq_list, node) {
 		if (handler->irqmask & irqstatus) {
@@ -218,6 +261,13 @@ static irqreturn_t omap_irq_handler(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
+static const u32 omap_underflow_irqs[] = {
+	[OMAP_DSS_GFX] = DISPC_IRQ_GFX_FIFO_UNDERFLOW,
+	[OMAP_DSS_VIDEO1] = DISPC_IRQ_VID1_FIFO_UNDERFLOW,
+	[OMAP_DSS_VIDEO2] = DISPC_IRQ_VID2_FIFO_UNDERFLOW,
+	[OMAP_DSS_VIDEO3] = DISPC_IRQ_VID3_FIFO_UNDERFLOW,
+};
+
 /*
  * We need a special version, instead of just using drm_irq_install(),
  * because we need to register the irq via omapdss.  Once omapdss and
@@ -229,9 +279,20 @@ int omap_drm_irq_install(struct drm_device *dev)
 {
 	struct omap_drm_private *priv = dev->dev_private;
 	struct omap_drm_irq *error_handler = &priv->error_handler;
+	unsigned int max_planes;
+	unsigned int i;
 	int ret;
 
 	INIT_LIST_HEAD(&priv->irq_list);
+
+	priv->irq_mask = 0;
+
+	max_planes = min(ARRAY_SIZE(priv->planes),
+			 ARRAY_SIZE(omap_underflow_irqs));
+	for (i = 0; i < max_planes; ++i) {
+		if (priv->planes[i])
+			priv->irq_mask |= omap_underflow_irqs[i];
+	}
 
 	dispc_runtime_get();
 	dispc_clear_irqstatus(0xffffffff);
