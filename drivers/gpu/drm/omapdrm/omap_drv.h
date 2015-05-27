@@ -155,6 +155,7 @@ void omap_crtc_pre_uninit(void);
 struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 		struct drm_plane *plane, enum omap_channel channel, int id);
 int omap_crtc_wait_pending(struct drm_crtc *crtc);
+void omap_crtc_error_irq(struct drm_crtc *crtc, uint32_t irqstatus);
 
 struct drm_plane *omap_plane_init(struct drm_device *dev,
 		int id, enum drm_plane_type type,

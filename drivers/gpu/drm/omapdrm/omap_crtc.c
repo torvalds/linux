@@ -37,7 +37,6 @@ struct omap_crtc {
 	struct videomode vm;
 
 	struct omap_drm_irq vblank_irq;
-	struct omap_drm_irq error_irq;
 
 	bool ignore_digit_sync_lost;
 
@@ -275,10 +274,9 @@ static void omap_crtc_complete_page_flip(struct drm_crtc *crtc)
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 }
 
-static void omap_crtc_error_irq(struct omap_drm_irq *irq, uint32_t irqstatus)
+void omap_crtc_error_irq(struct drm_crtc *crtc, uint32_t irqstatus)
 {
-	struct omap_crtc *omap_crtc =
-			container_of(irq, struct omap_crtc, error_irq);
+	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
 
 	if (omap_crtc->ignore_digit_sync_lost) {
 		irqstatus &= ~DISPC_IRQ_SYNC_LOST_DIGIT;
@@ -325,7 +323,6 @@ static void omap_crtc_destroy(struct drm_crtc *crtc)
 	DBG("%s", omap_crtc->name);
 
 	WARN_ON(omap_crtc->vblank_irq.registered);
-	omap_irq_unregister(crtc->dev, &omap_crtc->error_irq);
 
 	drm_crtc_cleanup(crtc);
 
@@ -548,11 +545,6 @@ struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 
 	omap_crtc->vblank_irq.irqmask = pipe2vbl(crtc);
 	omap_crtc->vblank_irq.irq = omap_crtc_vblank_irq;
-
-	omap_crtc->error_irq.irqmask =
-			dispc_mgr_get_sync_lost_irq(channel);
-	omap_crtc->error_irq.irq = omap_crtc_error_irq;
-	omap_irq_register(dev, &omap_crtc->error_irq);
 
 	ret = drm_crtc_init_with_planes(dev, crtc, plane, NULL,
 					&omap_crtc_funcs, NULL);

@@ -241,9 +241,13 @@ static irqreturn_t omap_irq_handler(int irq, void *arg)
 
 	for (id = 0; id < priv->num_crtcs; id++) {
 		struct drm_crtc *crtc = priv->crtcs[id];
+		enum omap_channel channel = omap_crtc_channel(crtc);
 
 		if (irqstatus & pipe2vbl(crtc))
 			drm_handle_vblank(dev, id);
+
+		if (irqstatus & dispc_mgr_get_sync_lost_irq(channel))
+			omap_crtc_error_irq(crtc, irqstatus);
 	}
 
 	omap_irq_fifo_underflow(priv, irqstatus);
@@ -279,6 +283,7 @@ int omap_drm_irq_install(struct drm_device *dev)
 {
 	struct omap_drm_private *priv = dev->dev_private;
 	struct omap_drm_irq *error_handler = &priv->error_handler;
+	unsigned int num_mgrs = dss_feat_get_num_mgrs();
 	unsigned int max_planes;
 	unsigned int i;
 	int ret;
@@ -293,6 +298,9 @@ int omap_drm_irq_install(struct drm_device *dev)
 		if (priv->planes[i])
 			priv->irq_mask |= omap_underflow_irqs[i];
 	}
+
+	for (i = 0; i < num_mgrs; ++i)
+		priv->irq_mask |= dispc_mgr_get_sync_lost_irq(i);
 
 	dispc_runtime_get();
 	dispc_clear_irqstatus(0xffffffff);
