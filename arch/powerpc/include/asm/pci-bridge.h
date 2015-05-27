@@ -27,6 +27,8 @@ struct pci_controller_ops {
 	 * allow assignment/enabling of the device. */
 	bool		(*enable_device_hook)(struct pci_dev *);
 
+	void		(*disable_device)(struct pci_dev *);
+
 	void		(*release_device)(struct pci_dev *);
 
 	/* Called during PCI resource reassignment */
