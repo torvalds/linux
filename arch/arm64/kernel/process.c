@@ -244,35 +244,35 @@ int copy_thread(unsigned long clone_flags, unsigned long stack_start,
 		unsigned long stk_sz, struct task_struct *p)
 {
 	struct pt_regs *childregs = task_pt_regs(p);
-	unsigned long tls = p->thread.tp_value;
 
 	memset(&p->thread.cpu_context, 0, sizeof(struct cpu_context));
 
 	if (likely(!(p->flags & PF_KTHREAD))) {
 		*childregs = *current_pt_regs();
 		childregs->regs[0] = 0;
-		if (is_compat_thread(task_thread_info(p))) {
-			if (stack_start)
+
+		/*
+		 * Read the current TLS pointer from tpidr_el0 as it may be
+		 * out-of-sync with the saved value.
+		 */
+		asm("mrs %0, tpidr_el0" : "=r" (*task_user_tls(p)));
+
+		if (stack_start) {
+			if (is_compat_thread(task_thread_info(p)))
 				childregs->compat_sp = stack_start;
-		} else {
-			/*
-			 * Read the current TLS pointer from tpidr_el0 as it may be
-			 * out-of-sync with the saved value.
-			 */
-			asm("mrs %0, tpidr_el0" : "=r" (tls));
-			if (stack_start) {
-				/* 16-byte aligned stack mandatory on AArch64 */
-				if (stack_start & 15)
-					return -EINVAL;
+			/* 16-byte aligned stack mandatory on AArch64 */
+			else if (stack_start & 15)
+				return -EINVAL;
+			else
 				childregs->sp = stack_start;
-			}
 		}
+
 		/*
 		 * If a TLS pointer was passed to clone (4th argument), use it
 		 * for the new thread.
 		 */
 		if (clone_flags & CLONE_SETTLS)
-			tls = childregs->regs[3];
+			p->thread.tp_value = childregs->regs[3];
 	} else {
 		memset(childregs, 0, sizeof(struct pt_regs));
 		childregs->pstate = PSR_MODE_EL1h;
@@ -281,7 +281,6 @@ int copy_thread(unsigned long clone_flags, unsigned long stack_start,
 	}
 	p->thread.cpu_context.pc = (unsigned long)ret_from_fork;
 	p->thread.cpu_context.sp = (unsigned long)childregs;
-	p->thread.tp_value = tls;
 
 	ptrace_hw_copy_thread(p);
 
@@ -292,18 +291,12 @@ static void tls_thread_switch(struct task_struct *next)
 {
 	unsigned long tpidr, tpidrro;
 
-	if (!is_compat_task()) {
-		asm("mrs %0, tpidr_el0" : "=r" (tpidr));
-		current->thread.tp_value = tpidr;
-	}
+	asm("mrs %0, tpidr_el0" : "=r" (tpidr));
+	*task_user_tls(current) = tpidr;
 
-	if (is_compat_thread(task_thread_info(next))) {
-		tpidr = 0;
-		tpidrro = next->thread.tp_value;
-	} else {
-		tpidr = next->thread.tp_value;
-		tpidrro = 0;
-	}
+	tpidr = *task_user_tls(next);
+	tpidrro = is_compat_thread(task_thread_info(next)) ?
+		  next->thread.tp_value : 0;
 
 	asm(
 	"	msr	tpidr_el0, %0\n"
