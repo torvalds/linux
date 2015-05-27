@@ -156,13 +156,13 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 	if (obj->fence_reg != I915_FENCE_REG_NONE)
 		seq_printf(m, " (fence: %d)", obj->fence_reg);
 	list_for_each_entry(vma, &obj->vma_list, vma_link) {
-		if (!i915_is_ggtt(vma->vm))
-			seq_puts(m, " (pp");
+		seq_printf(m, " (%sgtt offset: %08llx, size: %08llx",
+			   i915_is_ggtt(vma->vm) ? "g" : "pp",
+			   vma->node.start, vma->node.size);
+		if (i915_is_ggtt(vma->vm))
+			seq_printf(m, ", type: %u)", vma->ggtt_view.type);
 		else
-			seq_puts(m, " (g");
-		seq_printf(m, "gtt offset: %08llx, size: %08llx, type: %u)",
-			   vma->node.start, vma->node.size,
-			   vma->ggtt_view.type);
+			seq_puts(m, ")");
 	}
 	if (obj->stolen)
 		seq_printf(m, " (stolen: %08llx)", obj->stolen->start);
