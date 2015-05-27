@@ -12,7 +12,7 @@
  *
  */
 
-#include <crypto/internal/aead.h>
+#include <crypto/internal/geniv.h>
 #include <crypto/scatterwalk.h>
 #include <linux/err.h>
 #include <linux/init.h>
@@ -26,6 +26,14 @@
 #include <net/netlink.h>
 
 #include "internal.h"
+
+struct compat_request_ctx {
+	struct scatterlist src[2];
+	struct scatterlist dst[2];
+	struct scatterlist ivbuf[2];
+	struct scatterlist *ivsg;
+	struct aead_givcrypt_request subreq;
+};
 
 static int aead_null_givencrypt(struct aead_givcrypt_request *req);
 static int aead_null_givdecrypt(struct aead_givcrypt_request *req);
@@ -373,6 +381,185 @@ static int crypto_grab_nivaead(struct crypto_aead_spawn *spawn,
 	return crypto_grab_spawn(&spawn->base, name, type, mask);
 }
 
+static int aead_geniv_setkey(struct crypto_aead *tfm,
+			     const u8 *key, unsigned int keylen)
+{
+	struct aead_geniv_ctx *ctx = crypto_aead_ctx(tfm);
+
+	return crypto_aead_setkey(ctx->child, key, keylen);
+}
+
+static int aead_geniv_setauthsize(struct crypto_aead *tfm,
+				  unsigned int authsize)
+{
+	struct aead_geniv_ctx *ctx = crypto_aead_ctx(tfm);
+
+	return crypto_aead_setauthsize(ctx->child, authsize);
+}
+
+static void compat_encrypt_complete2(struct aead_request *req, int err)
+{
+	struct compat_request_ctx *rctx = aead_request_ctx(req);
+	struct aead_givcrypt_request *subreq = &rctx->subreq;
+	struct crypto_aead *geniv;
+
+	if (err == -EINPROGRESS)
+		return;
+
+	if (err)
+		goto out;
+
+	geniv = crypto_aead_reqtfm(req);
+	scatterwalk_map_and_copy(subreq->giv, rctx->ivsg, 0,
+				 crypto_aead_ivsize(geniv), 1);
+
+out:
+	kzfree(subreq->giv);
+}
+
+static void compat_encrypt_complete(struct crypto_async_request *base, int err)
+{
+	struct aead_request *req = base->data;
+
+	compat_encrypt_complete2(req, err);
+	aead_request_complete(req, err);
+}
+
+static int compat_encrypt(struct aead_request *req)
+{
+	struct crypto_aead *geniv = crypto_aead_reqtfm(req);
+	struct aead_geniv_ctx *ctx = crypto_aead_ctx(geniv);
+	struct compat_request_ctx *rctx = aead_request_ctx(req);
+	struct aead_givcrypt_request *subreq = &rctx->subreq;
+	unsigned int ivsize = crypto_aead_ivsize(geniv);
+	struct scatterlist *src, *dst;
+	crypto_completion_t compl;
+	void *data;
+	u8 *info;
+	__be64 seq;
+	int err;
+
+	if (req->cryptlen < ivsize)
+		return -EINVAL;
+
+	compl = req->base.complete;
+	data = req->base.data;
+
+	rctx->ivsg = scatterwalk_ffwd(rctx->ivbuf, req->dst, req->assoclen);
+	info = PageHighMem(sg_page(rctx->ivsg)) ? NULL : sg_virt(rctx->ivsg);
+
+	if (!info) {
+		info = kmalloc(ivsize, req->base.flags &
+				       CRYPTO_TFM_REQ_MAY_SLEEP ? GFP_KERNEL:
+								  GFP_ATOMIC);
+		if (!info)
+			return -ENOMEM;
+
+		compl = compat_encrypt_complete;
+		data = req;
+	}
+
+	memcpy(&seq, req->iv + ivsize - sizeof(seq), sizeof(seq));
+
+	src = scatterwalk_ffwd(rctx->src, req->src, req->assoclen + ivsize);
+	dst = req->src == req->dst ?
+	      src : scatterwalk_ffwd(rctx->dst, rctx->ivsg, ivsize);
+
+	aead_givcrypt_set_tfm(subreq, ctx->child);
+	aead_givcrypt_set_callback(subreq, req->base.flags,
+				   req->base.complete, req->base.data);
+	aead_givcrypt_set_crypt(subreq, src, dst,
+				req->cryptlen - ivsize, req->iv);
+	aead_givcrypt_set_assoc(subreq, req->src, req->assoclen);
+	aead_givcrypt_set_giv(subreq, info, be64_to_cpu(seq));
+
+	err = crypto_aead_givencrypt(subreq);
+	if (unlikely(PageHighMem(sg_page(rctx->ivsg))))
+		compat_encrypt_complete2(req, err);
+	return err;
+}
+
+static int compat_decrypt(struct aead_request *req)
+{
+	struct crypto_aead *geniv = crypto_aead_reqtfm(req);
+	struct aead_geniv_ctx *ctx = crypto_aead_ctx(geniv);
+	struct compat_request_ctx *rctx = aead_request_ctx(req);
+	struct aead_request *subreq = &rctx->subreq.areq;
+	unsigned int ivsize = crypto_aead_ivsize(geniv);
+	struct scatterlist *src, *dst;
+	crypto_completion_t compl;
+	void *data;
+
+	if (req->cryptlen < ivsize)
+		return -EINVAL;
+
+	aead_request_set_tfm(subreq, ctx->child);
+
+	compl = req->base.complete;
+	data = req->base.data;
+
+	src = scatterwalk_ffwd(rctx->src, req->src, req->assoclen + ivsize);
+	dst = req->src == req->dst ?
+	      src : scatterwalk_ffwd(rctx->dst, req->dst,
+				     req->assoclen + ivsize);
+
+	aead_request_set_callback(subreq, req->base.flags, compl, data);
+	aead_request_set_crypt(subreq, src, dst,
+			       req->cryptlen - ivsize, req->iv);
+	aead_request_set_assoc(subreq, req->src, req->assoclen);
+
+	scatterwalk_map_and_copy(req->iv, req->src, req->assoclen, ivsize, 0);
+
+	return crypto_aead_decrypt(subreq);
+}
+
+static int compat_encrypt_first(struct aead_request *req)
+{
+	struct crypto_aead *geniv = crypto_aead_reqtfm(req);
+	struct aead_geniv_ctx *ctx = crypto_aead_ctx(geniv);
+	int err = 0;
+
+	spin_lock_bh(&ctx->lock);
+	if (geniv->encrypt != compat_encrypt_first)
+		goto unlock;
+
+	geniv->encrypt = compat_encrypt;
+
+unlock:
+	spin_unlock_bh(&ctx->lock);
+
+	if (err)
+		return err;
+
+	return compat_encrypt(req);
+}
+
+static int aead_geniv_init_compat(struct crypto_tfm *tfm)
+{
+	struct crypto_aead *geniv = __crypto_aead_cast(tfm);
+	struct aead_geniv_ctx *ctx = crypto_aead_ctx(geniv);
+	int err;
+
+	spin_lock_init(&ctx->lock);
+
+	crypto_aead_set_reqsize(geniv, sizeof(struct compat_request_ctx));
+
+	err = aead_geniv_init(tfm);
+
+	ctx->child = geniv->child;
+	geniv->child = geniv;
+
+	return err;
+}
+
+static void aead_geniv_exit_compat(struct crypto_tfm *tfm)
+{
+	struct crypto_aead *geniv = __crypto_aead_cast(tfm);
+	struct aead_geniv_ctx *ctx = crypto_aead_ctx(geniv);
+
+	crypto_free_aead(ctx->child);
+}
+
 struct aead_instance *aead_geniv_alloc(struct crypto_template *tmpl,
 				       struct rtattr **tb, u32 type, u32 mask)
 {
@@ -407,7 +594,9 @@ struct aead_instance *aead_geniv_alloc(struct crypto_template *tmpl,
 	mask |= crypto_requires_sync(algt->type, algt->mask);
 
 	crypto_set_aead_spawn(spawn, aead_crypto_instance(inst));
-	err = crypto_grab_nivaead(spawn, name, type, mask);
+	err = (algt->mask & CRYPTO_ALG_GENIV) ?
+	      crypto_grab_nivaead(spawn, name, type, mask) :
+	      crypto_grab_aead(spawn, name, type, mask);
 	if (err)
 		goto err_free_inst;
 
@@ -417,7 +606,7 @@ struct aead_instance *aead_geniv_alloc(struct crypto_template *tmpl,
 	maxauthsize = crypto_aead_alg_maxauthsize(alg);
 
 	err = -EINVAL;
-	if (!ivsize)
+	if (ivsize < sizeof(u64))
 		goto err_drop_alg;
 
 	/*
@@ -471,9 +660,19 @@ struct aead_instance *aead_geniv_alloc(struct crypto_template *tmpl,
 	inst->alg.base.cra_priority = alg->base.cra_priority;
 	inst->alg.base.cra_blocksize = alg->base.cra_blocksize;
 	inst->alg.base.cra_alignmask = alg->base.cra_alignmask;
+	inst->alg.base.cra_ctxsize = sizeof(struct aead_geniv_ctx);
+
+	inst->alg.setkey = aead_geniv_setkey;
+	inst->alg.setauthsize = aead_geniv_setauthsize;
 
 	inst->alg.ivsize = ivsize;
 	inst->alg.maxauthsize = maxauthsize;
+
+	inst->alg.encrypt = compat_encrypt_first;
+	inst->alg.decrypt = compat_decrypt;
+
+	inst->alg.base.cra_init = aead_geniv_init_compat;
+	inst->alg.base.cra_exit = aead_geniv_exit_compat;
 
 out:
 	return inst;
