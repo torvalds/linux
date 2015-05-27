@@ -138,7 +138,7 @@ struct rs_tx_column;
 
 typedef bool (*allow_column_func_t) (struct iwl_mvm *mvm,
 				     struct ieee80211_sta *sta,
-				     struct iwl_scale_tbl_info *tbl,
+				     struct rs_rate *rate,
 				     const struct rs_tx_column *next_col);
 
 struct rs_tx_column {
@@ -150,14 +150,14 @@ struct rs_tx_column {
 };
 
 static bool rs_ant_allow(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
-			 struct iwl_scale_tbl_info *tbl,
+			 struct rs_rate *rate,
 			 const struct rs_tx_column *next_col)
 {
 	return iwl_mvm_bt_coex_is_ant_avail(mvm, next_col->ant);
 }
 
 static bool rs_mimo_allow(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
-			  struct iwl_scale_tbl_info *tbl,
+			  struct rs_rate *rate,
 			  const struct rs_tx_column *next_col)
 {
 	struct iwl_mvm_sta *mvmsta;
@@ -187,7 +187,7 @@ static bool rs_mimo_allow(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 }
 
 static bool rs_siso_allow(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
-			  struct iwl_scale_tbl_info *tbl,
+			  struct rs_rate *rate,
 			  const struct rs_tx_column *next_col)
 {
 	if (!sta->ht_cap.ht_supported)
@@ -197,10 +197,9 @@ static bool rs_siso_allow(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 }
 
 static bool rs_sgi_allow(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
-			 struct iwl_scale_tbl_info *tbl,
+			 struct rs_rate *rate,
 			 const struct rs_tx_column *next_col)
 {
-	struct rs_rate *rate = &tbl->rate;
 	struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
 	struct ieee80211_sta_vht_cap *vht_cap = &sta->vht_cap;
 
@@ -1659,7 +1658,8 @@ static enum rs_column rs_get_next_column(struct iwl_mvm *mvm,
 
 		for (j = 0; j < MAX_COLUMN_CHECKS; j++) {
 			allow_func = next_col->checks[j];
-			if (allow_func && !allow_func(mvm, sta, tbl, next_col))
+			if (allow_func && !allow_func(mvm, sta, &tbl->rate,
+						      next_col))
 				break;
 		}
 
