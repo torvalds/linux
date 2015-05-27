@@ -36,7 +36,7 @@ extern void build_tlb_refill_handler(void);
 		"nop\n\t"		\
 		".set	pop\n\t")
 
-int r3k_have_wired_reg;		/* should be in cpu_data? */
+static int r3k_have_wired_reg;			/* Should be in cpu_data? */
 
 /* TLB operations. */
 static void local_flush_tlb_from(int entry)
@@ -280,6 +280,13 @@ void add_wired_entry(unsigned long entrylo0, unsigned long entrylo1,
 
 void tlb_init(void)
 {
+	switch (current_cpu_type()) {
+	case CPU_TX3922:
+	case CPU_TX3927:
+		r3k_have_wired_reg = 1;
+		write_c0_wired(0);		/* Set to 8 on reset... */
+		break;
+	}
 	local_flush_tlb_from(0);
 	build_tlb_refill_handler();
 }
