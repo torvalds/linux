@@ -8756,9 +8756,14 @@ struct i40e_vsi *i40e_vsi_setup(struct i40e_pf *pf, u8 type,
 					 __func__);
 				return NULL;
 			}
-			/* We come up by default in VEPA mode */
-			veb->bridge_mode = BRIDGE_MODE_VEPA;
-			pf->flags &= ~I40E_FLAG_VEB_MODE_ENABLED;
+			/* We come up by default in VEPA mode if SRIOV is not
+			 * already enabled, in which case we can't force VEPA
+			 * mode.
+			 */
+			if (!(pf->flags & I40E_FLAG_VEB_MODE_ENABLED)) {
+				veb->bridge_mode = BRIDGE_MODE_VEPA;
+				pf->flags &= ~I40E_FLAG_VEB_MODE_ENABLED;
+			}
 			i40e_config_bridge_mode(veb);
 		}
 		for (i = 0; i < I40E_MAX_VEB && !veb; i++) {
@@ -9869,6 +9874,15 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_switch_setup;
 	}
 
+#ifdef CONFIG_PCI_IOV
+	/* prep for VF support */
+	if ((pf->flags & I40E_FLAG_SRIOV_ENABLED) &&
+	    (pf->flags & I40E_FLAG_MSIX_ENABLED) &&
+	    !test_bit(__I40E_BAD_EEPROM, &pf->state)) {
+		if (pci_num_vf(pdev))
+			pf->flags |= I40E_FLAG_VEB_MODE_ENABLED;
+	}
+#endif
 	err = i40e_setup_pf_switch(pf, false);
 	if (err) {
 		dev_info(&pdev->dev, "setup_pf_switch failed: %d\n", err);
