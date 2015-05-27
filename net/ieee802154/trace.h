@@ -123,6 +123,21 @@ TRACE_EVENT(802154_rdev_set_cca_mode,
 		  WPAN_CCA_PR_ARG)
 );
 
+TRACE_EVENT(802154_rdev_set_cca_ed_level,
+	TP_PROTO(struct wpan_phy *wpan_phy, s32 ed_level),
+	TP_ARGS(wpan_phy, ed_level),
+	TP_STRUCT__entry(
+		WPAN_PHY_ENTRY
+		__field(s32, ed_level)
+	),
+	TP_fast_assign(
+		WPAN_PHY_ASSIGN;
+		__entry->ed_level = ed_level;
+	),
+	TP_printk(WPAN_PHY_PR_FMT ", ed_level: %d", WPAN_PHY_PR_ARG,
+		  __entry->ed_level)
+);
+
 DECLARE_EVENT_CLASS(802154_le16_template,
 	TP_PROTO(struct wpan_phy *wpan_phy, struct wpan_dev *wpan_dev,
 		 __le16 le16arg),
