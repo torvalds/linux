@@ -874,6 +874,7 @@ out_undo_niv:
 
 static void __exit seqiv_module_exit(void)
 {
+	crypto_unregister_template(&seqniv_tmpl);
 	crypto_unregister_template(&seqiv_tmpl);
 }
 
