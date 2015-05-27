@@ -59,11 +59,6 @@ struct tegra_xusb_padctl_function {
 	unsigned int num_groups;
 };
 
-struct tegra_xusb_padctl_group {
-	const unsigned int *funcs;
-	unsigned int num_funcs;
-};
-
 struct tegra_xusb_padctl_soc {
 	const struct pinctrl_pin_desc *pins;
 	unsigned int num_pins;
