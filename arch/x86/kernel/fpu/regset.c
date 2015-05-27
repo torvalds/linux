@@ -50,7 +50,7 @@ int xfpregs_set(struct task_struct *target, const struct user_regset *regset,
 	if (!cpu_has_fxsr)
 		return -ENODEV;
 
-	fpu__activate_fpstate(fpu);
+	fpu__activate_fpstate_write(fpu);
 	fpstate_sanitize_xstate(fpu);
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
@@ -111,7 +111,7 @@ int xstateregs_set(struct task_struct *target, const struct user_regset *regset,
 	if (!cpu_has_xsave)
 		return -ENODEV;
 
-	fpu__activate_fpstate(fpu);
+	fpu__activate_fpstate_write(fpu);
 
 	xsave = &fpu->state.xsave;
 
@@ -303,7 +303,7 @@ int fpregs_set(struct task_struct *target, const struct user_regset *regset,
 	struct user_i387_ia32_struct env;
 	int ret;
 
-	fpu__activate_fpstate(fpu);
+	fpu__activate_fpstate_write(fpu);
 	fpstate_sanitize_xstate(fpu);
 
 	if (!static_cpu_has(X86_FEATURE_FPU))

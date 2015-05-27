@@ -345,7 +345,7 @@ void fpu__activate_fpstate_read(struct fpu *fpu)
  *       the read-only case, it's not strictly necessary for
  *       read-only access to the context.
  */
-void fpu__activate_fpstate(struct fpu *fpu)
+void fpu__activate_fpstate_write(struct fpu *fpu)
 {
 	/*
 	 * If fpregs are active (in the current CPU), then

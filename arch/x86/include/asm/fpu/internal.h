@@ -23,7 +23,7 @@
  */
 extern void fpu__activate_curr(struct fpu *fpu);
 extern void fpu__activate_fpstate_read(struct fpu *fpu);
-extern void fpu__activate_fpstate(struct fpu *fpu);
+extern void fpu__activate_fpstate_write(struct fpu *fpu);
 extern void fpu__save(struct fpu *fpu);
 extern void fpu__restore(struct fpu *fpu);
 extern int  fpu__restore_sig(void __user *buf, int ia32_frame);
