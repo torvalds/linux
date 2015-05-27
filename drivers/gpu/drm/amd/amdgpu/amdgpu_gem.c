@@ -638,7 +638,7 @@ int amdgpu_gem_op_ioctl(struct drm_device *dev, void *data,
 			r = -EFAULT;
 		break;
 	}
-	case AMDGPU_GEM_OP_SET_INITIAL_DOMAIN:
+	case AMDGPU_GEM_OP_SET_PLACEMENT:
 		if (amdgpu_ttm_tt_has_userptr(robj->tbo.ttm)) {
 			r = -EPERM;
 			break;

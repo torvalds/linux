@@ -284,8 +284,8 @@ struct drm_amdgpu_gem_op {
 	uint64_t	value;  /* input or return value */
 };
 
-#define AMDGPU_GEM_OP_GET_GEM_CREATE_INFO		0
-#define AMDGPU_GEM_OP_SET_INITIAL_DOMAIN	1
+#define AMDGPU_GEM_OP_GET_GEM_CREATE_INFO	0
+#define AMDGPU_GEM_OP_SET_PLACEMENT		1
 
 #define AMDGPU_VA_OP_MAP			1
 #define AMDGPU_VA_OP_UNMAP			2
