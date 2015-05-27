@@ -1224,60 +1224,6 @@ static ssize_t ceph_read_dir(struct file *file, char __user *buf, size_t size,
 }
 
 /*
- * an fsync() on a dir will wait for any uncommitted directory
- * operations to commit.
- */
-static int ceph_dir_fsync(struct file *file, loff_t start, loff_t end,
-			  int datasync)
-{
-	struct inode *inode = file_inode(file);
-	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct list_head *head = &ci->i_unsafe_dirops;
-	struct ceph_mds_request *req;
-	u64 last_tid;
-	int ret = 0;
-
-	dout("dir_fsync %p\n", inode);
-	ret = filemap_write_and_wait_range(inode->i_mapping, start, end);
-	if (ret)
-		return ret;
-	mutex_lock(&inode->i_mutex);
-
-	spin_lock(&ci->i_unsafe_lock);
-	if (list_empty(head))
-		goto out;
-
-	req = list_entry(head->prev,
-			 struct ceph_mds_request, r_unsafe_dir_item);
-	last_tid = req->r_tid;
-
-	do {
-		ceph_mdsc_get_request(req);
-		spin_unlock(&ci->i_unsafe_lock);
-
-		dout("dir_fsync %p wait on tid %llu (until %llu)\n",
-		     inode, req->r_tid, last_tid);
-		ret = !wait_for_completion_timeout(&req->r_safe_completion,
-					ceph_timeout_jiffies(req->r_timeout));
-		if (ret)
-			ret = -EIO;  /* timed out */
-
-		ceph_mdsc_put_request(req);
-
-		spin_lock(&ci->i_unsafe_lock);
-		if (ret || list_empty(head))
-			break;
-		req = list_entry(head->next,
-				 struct ceph_mds_request, r_unsafe_dir_item);
-	} while (req->r_tid < last_tid);
-out:
-	spin_unlock(&ci->i_unsafe_lock);
-	mutex_unlock(&inode->i_mutex);
-
-	return ret;
-}
-
-/*
  * We maintain a private dentry LRU.
  *
  * FIXME: this needs to be changed to a per-mds lru to be useful.
@@ -1347,7 +1293,7 @@ const struct file_operations ceph_dir_fops = {
 	.open = ceph_open,
 	.release = ceph_release,
 	.unlocked_ioctl = ceph_ioctl,
-	.fsync = ceph_dir_fsync,
+	.fsync = ceph_fsync,
 };
 
 const struct file_operations ceph_snapdir_fops = {
