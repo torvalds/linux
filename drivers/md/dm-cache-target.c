@@ -418,10 +418,13 @@ static struct dm_cache_migration *alloc_migration(struct cache *cache)
 
 static void free_migration(struct dm_cache_migration *mg)
 {
-	if (atomic_dec_and_test(&mg->cache->nr_allocated_migrations))
-		wake_up(&mg->cache->migration_wait);
+	struct cache *cache = mg->cache;
 
-	mempool_free(mg, mg->cache->migration_pool);
+	if (atomic_dec_and_test(&cache->nr_allocated_migrations))
+		wake_up(&cache->migration_wait);
+
+	mempool_free(mg, cache->migration_pool);
+	wake_worker(cache);
 }
 
 static int prealloc_data_structs(struct cache *cache, struct prealloc *p)
