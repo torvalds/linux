@@ -569,7 +569,7 @@ static int am35x_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int am35x_suspend(struct device *dev)
 {
 	struct am35x_glue	*glue = dev_get_drvdata(dev);
