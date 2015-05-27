@@ -427,7 +427,6 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 	char *key;
 	struct aead_request *req;
 	struct scatterlist *sg;
-	struct scatterlist *asg;
 	struct scatterlist *sgout;
 	const char *e, *d;
 	struct tcrypt_result result;
@@ -454,11 +453,10 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 		goto out_nooutbuf;
 
 	/* avoid "the frame size is larger than 1024 bytes" compiler warning */
-	sg = kmalloc(sizeof(*sg) * 8 * (diff_dst ? 3 : 2), GFP_KERNEL);
+	sg = kmalloc(sizeof(*sg) * 8 * (diff_dst ? 4 : 2), GFP_KERNEL);
 	if (!sg)
 		goto out_nosg;
-	asg = &sg[8];
-	sgout = &asg[8];
+	sgout = &sg[16];
 
 	if (diff_dst)
 		d = "-ddst";
@@ -537,23 +535,27 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 			goto out;
 		}
 
+		k = !!template[i].alen;
+		sg_init_table(sg, k + 1);
+		sg_set_buf(&sg[0], assoc, template[i].alen);
+		sg_set_buf(&sg[k], input,
+			   template[i].ilen + (enc ? authsize : 0));
+		output = input;
+
 		if (diff_dst) {
+			sg_init_table(sgout, k + 1);
+			sg_set_buf(&sgout[0], assoc, template[i].alen);
+
 			output = xoutbuf[0];
 			output += align_offset;
-			sg_init_one(&sg[0], input, template[i].ilen);
-			sg_init_one(&sgout[0], output, template[i].rlen);
-		} else {
-			sg_init_one(&sg[0], input,
-				    template[i].ilen + (enc ? authsize : 0));
-			output = input;
+			sg_set_buf(&sgout[k], output,
+				   template[i].rlen + (enc ? 0 : authsize));
 		}
-
-		sg_init_one(&asg[0], assoc, template[i].alen);
 
 		aead_request_set_crypt(req, sg, (diff_dst) ? sgout : sg,
 				       template[i].ilen, iv);
 
-		aead_request_set_assoc(req, asg, template[i].alen);
+		aead_request_set_ad(req, template[i].alen);
 
 		ret = enc ? crypto_aead_encrypt(req) : crypto_aead_decrypt(req);
 
@@ -633,9 +635,29 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 		authsize = abs(template[i].rlen - template[i].ilen);
 
 		ret = -EINVAL;
-		sg_init_table(sg, template[i].np);
+		sg_init_table(sg, template[i].anp + template[i].np);
 		if (diff_dst)
-			sg_init_table(sgout, template[i].np);
+			sg_init_table(sgout, template[i].anp + template[i].np);
+
+		ret = -EINVAL;
+		for (k = 0, temp = 0; k < template[i].anp; k++) {
+			if (WARN_ON(offset_in_page(IDX[k]) +
+				    template[i].atap[k] > PAGE_SIZE))
+				goto out;
+			sg_set_buf(&sg[k],
+				   memcpy(axbuf[IDX[k] >> PAGE_SHIFT] +
+					  offset_in_page(IDX[k]),
+					  template[i].assoc + temp,
+					  template[i].atap[k]),
+				   template[i].atap[k]);
+			if (diff_dst)
+				sg_set_buf(&sgout[k],
+					   axbuf[IDX[k] >> PAGE_SHIFT] +
+					   offset_in_page(IDX[k]),
+					   template[i].atap[k]);
+			temp += template[i].atap[k];
+		}
+
 		for (k = 0, temp = 0; k < template[i].np; k++) {
 			if (WARN_ON(offset_in_page(IDX[k]) +
 				    template[i].tap[k] > PAGE_SIZE))
@@ -643,7 +665,8 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 
 			q = xbuf[IDX[k] >> PAGE_SHIFT] + offset_in_page(IDX[k]);
 			memcpy(q, template[i].input + temp, template[i].tap[k]);
-			sg_set_buf(&sg[k], q, template[i].tap[k]);
+			sg_set_buf(&sg[template[i].anp + k],
+				   q, template[i].tap[k]);
 
 			if (diff_dst) {
 				q = xoutbuf[IDX[k] >> PAGE_SHIFT] +
@@ -651,7 +674,8 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 
 				memset(q, 0, template[i].tap[k]);
 
-				sg_set_buf(&sgout[k], q, template[i].tap[k]);
+				sg_set_buf(&sgout[template[i].anp + k],
+					   q, template[i].tap[k]);
 			}
 
 			n = template[i].tap[k];
@@ -671,39 +695,24 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 		}
 
 		if (enc) {
-			if (WARN_ON(sg[k - 1].offset +
-				    sg[k - 1].length + authsize >
-				    PAGE_SIZE)) {
+			if (WARN_ON(sg[template[i].anp + k - 1].offset +
+				    sg[template[i].anp + k - 1].length +
+				    authsize > PAGE_SIZE)) {
 				ret = -EINVAL;
 				goto out;
 			}
 
 			if (diff_dst)
-				sgout[k - 1].length += authsize;
-			else
-				sg[k - 1].length += authsize;
-		}
-
-		sg_init_table(asg, template[i].anp);
-		ret = -EINVAL;
-		for (k = 0, temp = 0; k < template[i].anp; k++) {
-			if (WARN_ON(offset_in_page(IDX[k]) +
-				    template[i].atap[k] > PAGE_SIZE))
-				goto out;
-			sg_set_buf(&asg[k],
-				   memcpy(axbuf[IDX[k] >> PAGE_SHIFT] +
-					  offset_in_page(IDX[k]),
-					  template[i].assoc + temp,
-					  template[i].atap[k]),
-				   template[i].atap[k]);
-			temp += template[i].atap[k];
+				sgout[template[i].anp + k - 1].length +=
+					authsize;
+			sg[template[i].anp + k - 1].length += authsize;
 		}
 
 		aead_request_set_crypt(req, sg, (diff_dst) ? sgout : sg,
 				       template[i].ilen,
 				       iv);
 
-		aead_request_set_assoc(req, asg, template[i].alen);
+		aead_request_set_ad(req, template[i].alen);
 
 		ret = enc ? crypto_aead_encrypt(req) : crypto_aead_decrypt(req);
 
