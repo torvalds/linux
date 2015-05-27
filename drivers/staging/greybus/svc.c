@@ -131,10 +131,10 @@ static int gb_svc_intf_hotplug_recv(struct gb_operation *op)
 	 * XXX have the SVC get acknowledgement before we proceed.
 	 * */
 	intf_id = hotplug->intf_id;
-	unipro_mfg_id = hotplug->data.unipro_mfg_id;
-	unipro_prod_id = hotplug->data.unipro_prod_id;
-	ara_vend_id = hotplug->data.ara_vend_id;
-	ara_prod_id = hotplug->data.ara_prod_id;
+	unipro_mfg_id = le32_to_cpu(hotplug->data.unipro_mfg_id);
+	unipro_prod_id = le32_to_cpu(hotplug->data.unipro_prod_id);
+	ara_vend_id = le32_to_cpu(hotplug->data.ara_vend_id);
+	ara_prod_id = le32_to_cpu(hotplug->data.ara_prod_id);
 
 	/* FIXME Set up the interface here; may required firmware download */
 
