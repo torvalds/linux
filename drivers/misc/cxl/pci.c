@@ -917,13 +917,13 @@ static int cxl_read_vsec(struct cxl *adapter, struct pci_dev *dev)
 	u8 image_state;
 
 	if (!(vsec = find_cxl_vsec(dev))) {
-		dev_err(&adapter->dev, "ABORTING: CXL VSEC not found!\n");
+		dev_err(&dev->dev, "ABORTING: CXL VSEC not found!\n");
 		return -ENODEV;
 	}
 
 	CXL_READ_VSEC_LENGTH(dev, vsec, &vseclen);
 	if (vseclen < CXL_VSEC_MIN_SIZE) {
-		pr_err("ABORTING: CXL VSEC too short\n");
+		dev_err(&dev->dev, "ABORTING: CXL VSEC too short\n");
 		return -EINVAL;
 	}
 
@@ -962,24 +962,24 @@ static int cxl_vsec_looks_ok(struct cxl *adapter, struct pci_dev *dev)
 		return -EBUSY;
 
 	if (adapter->vsec_status & CXL_UNSUPPORTED_FEATURES) {
-		dev_err(&adapter->dev, "ABORTING: CXL requires unsupported features\n");
+		dev_err(&dev->dev, "ABORTING: CXL requires unsupported features\n");
 		return -EINVAL;
 	}
 
 	if (!adapter->slices) {
 		/* Once we support dynamic reprogramming we can use the card if
 		 * it supports loadable AFUs */
-		dev_err(&adapter->dev, "ABORTING: Device has no AFUs\n");
+		dev_err(&dev->dev, "ABORTING: Device has no AFUs\n");
 		return -EINVAL;
 	}
 
 	if (!adapter->afu_desc_off || !adapter->afu_desc_size) {
-		dev_err(&adapter->dev, "ABORTING: VSEC shows no AFU descriptors\n");
+		dev_err(&dev->dev, "ABORTING: VSEC shows no AFU descriptors\n");
 		return -EINVAL;
 	}
 
 	if (adapter->ps_size > p2_size(dev) - adapter->ps_off) {
-		dev_err(&adapter->dev, "ABORTING: Problem state size larger than "
+		dev_err(&dev->dev, "ABORTING: Problem state size larger than "
 				   "available in BAR2: 0x%llx > 0x%llx\n",
 			 adapter->ps_size, p2_size(dev) - adapter->ps_off);
 		return -EINVAL;
@@ -1028,6 +1028,15 @@ static struct cxl *cxl_init_adapter(struct pci_dev *dev)
 	if (!(adapter = cxl_alloc_adapter(dev)))
 		return ERR_PTR(-ENOMEM);
 
+	if ((rc = cxl_read_vsec(adapter, dev)))
+		goto err1;
+
+	if ((rc = cxl_vsec_looks_ok(adapter, dev)))
+		goto err1;
+
+	if ((rc = setup_cxl_bars(dev)))
+		goto err1;
+
 	if ((rc = switch_card_to_cxl(dev)))
 		goto err1;
 
@@ -1035,12 +1044,6 @@ static struct cxl *cxl_init_adapter(struct pci_dev *dev)
 		goto err1;
 
 	if ((rc = dev_set_name(&adapter->dev, "card%i", adapter->adapter_num)))
-		goto err2;
-
-	if ((rc = cxl_read_vsec(adapter, dev)))
-		goto err2;
-
-	if ((rc = cxl_vsec_looks_ok(adapter, dev)))
 		goto err2;
 
 	if ((rc = cxl_update_image_control(adapter)))
@@ -1126,9 +1129,6 @@ static int cxl_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	if (cxl_verbose)
 		dump_cxl_config_space(dev);
-
-	if ((rc = setup_cxl_bars(dev)))
-		return rc;
 
 	if ((rc = pci_enable_device(dev))) {
 		dev_err(&dev->dev, "pci_enable_device failed: %i\n", rc);
