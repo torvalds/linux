@@ -112,6 +112,7 @@
 #define OMAP3430_VC_CMD_ONLP_SHIFT			16
 #define OMAP3430_VC_CMD_RET_SHIFT			8
 #define OMAP3430_VC_CMD_OFF_SHIFT			0
+#define OMAP3430_SREN_MASK				(1 << 4)
 #define OMAP3430_HSEN_MASK				(1 << 3)
 #define OMAP3430_MCODE_MASK				(0x7 << 0)
 #define OMAP3430_VALID_MASK				(1 << 24)

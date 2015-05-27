@@ -4345,7 +4345,7 @@ static void ext4_update_other_inodes_time(struct super_block *sb,
 	int inode_size = EXT4_INODE_SIZE(sb);
 
 	oi.orig_ino = orig_ino;
-	ino = orig_ino & ~(inodes_per_block - 1);
+	ino = (orig_ino & ~(inodes_per_block - 1)) + 1;
 	for (i = 0; i < inodes_per_block; i++, ino++, buf += inode_size) {
 		if (ino == orig_ino)
 			continue;

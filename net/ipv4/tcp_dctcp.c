@@ -277,7 +277,8 @@ static void dctcp_cwnd_event(struct sock *sk, enum tcp_ca_event ev)
 	}
 }
 
-static int dctcp_get_info(struct sock *sk, u32 ext, struct sk_buff *skb)
+static size_t dctcp_get_info(struct sock *sk, u32 ext, int *attr,
+			     union tcp_cc_info *info)
 {
 	const struct dctcp *ca = inet_csk_ca(sk);
 
@@ -286,18 +287,17 @@ static int dctcp_get_info(struct sock *sk, u32 ext, struct sk_buff *skb)
 	 */
 	if (ext & (1 << (INET_DIAG_DCTCPINFO - 1)) ||
 	    ext & (1 << (INET_DIAG_VEGASINFO - 1))) {
-		struct tcp_dctcp_info info;
-
-		memset(&info, 0, sizeof(info));
+		memset(info, 0, sizeof(struct tcp_dctcp_info));
 		if (inet_csk(sk)->icsk_ca_ops != &dctcp_reno) {
-			info.dctcp_enabled = 1;
-			info.dctcp_ce_state = (u16) ca->ce_state;
-			info.dctcp_alpha = ca->dctcp_alpha;
-			info.dctcp_ab_ecn = ca->acked_bytes_ecn;
-			info.dctcp_ab_tot = ca->acked_bytes_total;
+			info->dctcp.dctcp_enabled = 1;
+			info->dctcp.dctcp_ce_state = (u16) ca->ce_state;
+			info->dctcp.dctcp_alpha = ca->dctcp_alpha;
+			info->dctcp.dctcp_ab_ecn = ca->acked_bytes_ecn;
+			info->dctcp.dctcp_ab_tot = ca->acked_bytes_total;
 		}
 
-		return nla_put(skb, INET_DIAG_DCTCPINFO, sizeof(info), &info);
+		*attr = INET_DIAG_DCTCPINFO;
+		return sizeof(*info);
 	}
 	return 0;
 }

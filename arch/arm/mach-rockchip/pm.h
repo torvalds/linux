@@ -55,6 +55,10 @@ static inline void rockchip_suspend_init(void)
 #define SGRF_FAST_BOOT_EN		BIT(8)
 #define SGRF_FAST_BOOT_EN_WRITE		BIT(24)
 
+#define RK3288_SGRF_CPU_CON0		(0x40)
+#define SGRF_DAPDEVICEEN		BIT(0)
+#define SGRF_DAPDEVICEEN_WRITE		BIT(16)
+
 #define RK3288_CRU_MODE_CON		0x50
 #define RK3288_CRU_SEL0_CON		0x60
 #define RK3288_CRU_SEL1_CON		0x64

@@ -949,6 +949,10 @@ void uvd_v1_0_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib);
 int uvd_v2_2_resume(struct radeon_device *rdev);
 void uvd_v2_2_fence_emit(struct radeon_device *rdev,
 			 struct radeon_fence *fence);
+bool uvd_v2_2_semaphore_emit(struct radeon_device *rdev,
+			     struct radeon_ring *ring,
+			     struct radeon_semaphore *semaphore,
+			     bool emit_wait);
 
 /* uvd v3.1 */
 bool uvd_v3_1_semaphore_emit(struct radeon_device *rdev,

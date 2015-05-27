@@ -139,7 +139,7 @@ static unsigned long en_stats_adder(__be64 *start, __be64 *next, int num)
 	int i;
 	int offset = next - start;
 
-	for (i = 0; i <= num; i++) {
+	for (i = 0; i < num; i++) {
 		ret += be64_to_cpu(*curr);
 		curr += offset;
 	}

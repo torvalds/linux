@@ -66,6 +66,7 @@
 
 static const struct rhashtable_params sta_rht_params = {
 	.nelem_hint = 3, /* start small */
+	.automatic_shrinking = true,
 	.head_offset = offsetof(struct sta_info, hash_node),
 	.key_offset = offsetof(struct sta_info, sta.addr),
 	.key_len = ETH_ALEN,
@@ -157,8 +158,24 @@ struct sta_info *sta_info_get(struct ieee80211_sub_if_data *sdata,
 			      const u8 *addr)
 {
 	struct ieee80211_local *local = sdata->local;
+	struct sta_info *sta;
+	struct rhash_head *tmp;
+	const struct bucket_table *tbl;
 
-	return rhashtable_lookup_fast(&local->sta_hash, addr, sta_rht_params);
+	rcu_read_lock();
+	tbl = rht_dereference_rcu(local->sta_hash.tbl, &local->sta_hash);
+
+	for_each_sta_info(local, tbl, addr, sta, tmp) {
+		if (sta->sdata == sdata) {
+			rcu_read_unlock();
+			/* this is safe as the caller must already hold
+			 * another rcu read section or the mutex
+			 */
+			return sta;
+		}
+	}
+	rcu_read_unlock();
+	return NULL;
 }
 
 /*

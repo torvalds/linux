@@ -464,6 +464,10 @@ void radeon_audio_detect(struct drm_connector *connector,
 		return;
 
 	rdev = connector->encoder->dev->dev_private;
+
+	if (!radeon_audio_chipset_supported(rdev))
+		return;
+
 	radeon_encoder = to_radeon_encoder(connector->encoder);
 	dig = radeon_encoder->enc_priv;
 

@@ -33,7 +33,7 @@
 
 #include "iwpm_util.h"
 
-static const char iwpm_ulib_name[] = "iWarpPortMapperUser";
+static const char iwpm_ulib_name[IWPM_ULIBNAME_SIZE] = "iWarpPortMapperUser";
 static int iwpm_ulib_version = 3;
 static int iwpm_user_pid = IWPM_PID_UNDEFINED;
 static atomic_t echo_nlmsg_seq;

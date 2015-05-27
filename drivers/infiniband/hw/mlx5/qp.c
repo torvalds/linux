@@ -1392,7 +1392,7 @@ static int mlx5_set_path(struct mlx5_ib_dev *dev, const struct ib_ah_attr *ah,
 
 	if (ah->ah_flags & IB_AH_GRH) {
 		if (ah->grh.sgid_index >= gen->port[port - 1].gid_table_len) {
-			pr_err(KERN_ERR "sgid_index (%u) too large. max is %d\n",
+			pr_err("sgid_index (%u) too large. max is %d\n",
 			       ah->grh.sgid_index, gen->port[port - 1].gid_table_len);
 			return -EINVAL;
 		}

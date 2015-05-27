@@ -911,7 +911,7 @@
 			ti,clock-cycles = <16>;
 
 			reg = <0x4ae07ddc 0x4>, <0x4ae07de0 0x4>,
-			      <0x4ae06014 0x4>, <0x4a003b20 0x8>,
+			      <0x4ae06014 0x4>, <0x4a003b20 0xc>,
 			      <0x4ae0c158 0x4>;
 			reg-names = "setup-address", "control-address",
 				    "int-address", "efuse-address",
@@ -944,7 +944,7 @@
 			ti,clock-cycles = <16>;
 
 			reg = <0x4ae07e34 0x4>, <0x4ae07e24 0x4>,
-			      <0x4ae06010 0x4>, <0x4a0025cc 0x8>,
+			      <0x4ae06010 0x4>, <0x4a0025cc 0xc>,
 			      <0x4a002470 0x4>;
 			reg-names = "setup-address", "control-address",
 				    "int-address", "efuse-address",
@@ -977,7 +977,7 @@
 			ti,clock-cycles = <16>;
 
 			reg = <0x4ae07e30 0x4>, <0x4ae07e20 0x4>,
-			      <0x4ae06010 0x4>, <0x4a0025e0 0x8>,
+			      <0x4ae06010 0x4>, <0x4a0025e0 0xc>,
 			      <0x4a00246c 0x4>;
 			reg-names = "setup-address", "control-address",
 				    "int-address", "efuse-address",
@@ -1010,7 +1010,7 @@
 			ti,clock-cycles = <16>;
 
 			reg = <0x4ae07de4 0x4>, <0x4ae07de8 0x4>,
-			      <0x4ae06010 0x4>, <0x4a003b08 0x8>,
+			      <0x4ae06010 0x4>, <0x4a003b08 0xc>,
 			      <0x4ae0c154 0x4>;
 			reg-names = "setup-address", "control-address",
 				    "int-address", "efuse-address",
@@ -1203,7 +1203,7 @@
 			status = "disabled";
 		};
 
-		rtc@48838000 {
+		rtc: rtc@48838000 {
 			compatible = "ti,am3352-rtc";
 			reg = <0x48838000 0x100>;
 			interrupts = <GIC_SPI 217 IRQ_TYPE_LEVEL_HIGH>,

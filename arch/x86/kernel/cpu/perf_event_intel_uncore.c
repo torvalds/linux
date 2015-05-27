@@ -365,9 +365,8 @@ static int uncore_assign_events(struct intel_uncore_box *box, int assign[], int 
 	bitmap_zero(used_mask, UNCORE_PMC_IDX_MAX);
 
 	for (i = 0, wmin = UNCORE_PMC_IDX_MAX, wmax = 0; i < n; i++) {
-		hwc = &box->event_list[i]->hw;
 		c = uncore_get_event_constraint(box, box->event_list[i]);
-		hwc->constraint = c;
+		box->event_constraint[i] = c;
 		wmin = min(wmin, c->weight);
 		wmax = max(wmax, c->weight);
 	}
@@ -375,7 +374,7 @@ static int uncore_assign_events(struct intel_uncore_box *box, int assign[], int 
 	/* fastpath, try to reuse previous register */
 	for (i = 0; i < n; i++) {
 		hwc = &box->event_list[i]->hw;
-		c = hwc->constraint;
+		c = box->event_constraint[i];
 
 		/* never assigned */
 		if (hwc->idx == -1)
@@ -395,8 +394,8 @@ static int uncore_assign_events(struct intel_uncore_box *box, int assign[], int 
 	}
 	/* slow path */
 	if (i != n)
-		ret = perf_assign_events(box->event_list, n,
-					 wmin, wmax, assign);
+		ret = perf_assign_events(box->event_constraint, n,
+					 wmin, wmax, n, assign);
 
 	if (!assign || ret) {
 		for (i = 0; i < n; i++)

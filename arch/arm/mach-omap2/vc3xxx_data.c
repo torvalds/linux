@@ -40,6 +40,7 @@ static struct omap_vc_common omap3_vc_common = {
 	.cmd_onlp_shift	 = OMAP3430_VC_CMD_ONLP_SHIFT,
 	.cmd_ret_shift	 = OMAP3430_VC_CMD_RET_SHIFT,
 	.cmd_off_shift	 = OMAP3430_VC_CMD_OFF_SHIFT,
+	.i2c_cfg_clear_mask = OMAP3430_SREN_MASK | OMAP3430_HSEN_MASK,
 	.i2c_cfg_hsen_mask = OMAP3430_HSEN_MASK,
 	.i2c_cfg_reg	 = OMAP3_PRM_VC_I2C_CFG_OFFSET,
 	.i2c_mcode_mask	 = OMAP3430_MCODE_MASK,

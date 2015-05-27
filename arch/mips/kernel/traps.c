@@ -269,7 +269,6 @@ static void __show_regs(const struct pt_regs *regs)
 	 */
 	printk("epc   : %0*lx %pS\n", field, regs->cp0_epc,
 	       (void *) regs->cp0_epc);
-	printk("    %s\n", print_tainted());
 	printk("ra    : %0*lx %pS\n", field, regs->regs[31],
 	       (void *) regs->regs[31]);
 
