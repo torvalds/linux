@@ -916,7 +916,7 @@ static int tegra_nvec_remove(struct platform_device *pdev)
 	nvec_unregister_notifier(nvec, &nvec->nvec_status_notifier);
 	cancel_work_sync(&nvec->rx_work);
 	cancel_work_sync(&nvec->tx_work);
-	/* FIXME: needs check wether nvec is responsible for power off */
+	/* FIXME: needs check whether nvec is responsible for power off */
 	pm_power_off = NULL;
 
 	return 0;
