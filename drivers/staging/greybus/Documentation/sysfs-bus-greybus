@@ -7,6 +7,25 @@ Description:
 		replaced with the numeric value of the endo layout
 		scheme as documented in the ARA Module Developer Kit.
 
+What:		/sys/bus/greybus/device/endo-XXXX/Endo/id
+Date:		October 2015
+KernelVersion:	4.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		The Endo ID, which is a 2-byte hexadecimal value
+		defined by the the Endo layout scheme, documented in
+		the ARA Module Developer Kit.
+
+What:		/sys/bus/greybus/device/endo-XXXX/Endo/ap_intf_id
+Date:		October 2015
+KernelVersion:	4.XX
+Contact:	Greg Kroah-Hartman <greg@kroah.com>
+Description:
+		The AP interface ID, a small non-zero integer which
+		defines the position of the AP module on the Endo.
+		The interface positions are defined in the ARA
+		Module Developer Kit.
+
 What:		/sys/bus/greybus/device/endo-XXXX/SVC/serial_number
 Date:		October 2015
 KernelVersion:	4.XX
