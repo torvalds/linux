@@ -216,8 +216,6 @@ static netdev_tx_t vti_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	memset(&fl, 0, sizeof(fl));
 
-	skb->mark = be32_to_cpu(tunnel->parms.o_key);
-
 	switch (skb->protocol) {
 	case htons(ETH_P_IP):
 		xfrm_decode_session(skb, &fl, AF_INET);
@@ -232,6 +230,9 @@ static netdev_tx_t vti_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 		dev_kfree_skb(skb);
 		return NETDEV_TX_OK;
 	}
+
+	/* override mark with tunnel output key */
+	fl.flowi_mark = be32_to_cpu(tunnel->parms.o_key);
 
 	return vti_xmit(skb, dev, &fl);
 }

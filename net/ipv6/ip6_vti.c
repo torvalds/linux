@@ -495,7 +495,6 @@ vti6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 	int ret;
 
 	memset(&fl, 0, sizeof(fl));
-	skb->mark = be32_to_cpu(t->parms.o_key);
 
 	switch (skb->protocol) {
 	case htons(ETH_P_IPV6):
@@ -515,6 +514,9 @@ vti6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 	default:
 		goto tx_err;
 	}
+
+	/* override mark with tunnel output key */
+	fl.flowi_mark = be32_to_cpu(t->parms.o_key);
 
 	ret = vti6_xmit(skb, dev, &fl);
 	if (ret < 0)
