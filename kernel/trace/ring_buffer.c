@@ -462,6 +462,7 @@ struct ring_buffer_per_cpu {
 	arch_spinlock_t			lock;
 	struct lock_class_key		lock_key;
 	unsigned int			nr_pages;
+	unsigned int			current_context;
 	struct list_head		*pages;
 	struct buffer_page		*head_page;	/* read from head */
 	struct buffer_page		*tail_page;	/* write to tail */
@@ -2675,11 +2676,11 @@ rb_reserve_next_event(struct ring_buffer *buffer,
  * just so happens that it is the same bit corresponding to
  * the current context.
  */
-static DEFINE_PER_CPU(unsigned int, current_context);
 
-static __always_inline int trace_recursive_lock(void)
+static __always_inline int
+trace_recursive_lock(struct ring_buffer_per_cpu *cpu_buffer)
 {
-	unsigned int val = __this_cpu_read(current_context);
+	unsigned int val = cpu_buffer->current_context;
 	int bit;
 
 	if (in_interrupt()) {
@@ -2696,20 +2697,21 @@ static __always_inline int trace_recursive_lock(void)
 		return 1;
 
 	val |= (1 << bit);
-	__this_cpu_write(current_context, val);
+	cpu_buffer->current_context = val;
 
 	return 0;
 }
 
-static __always_inline void trace_recursive_unlock(void)
+static __always_inline void
+trace_recursive_unlock(struct ring_buffer_per_cpu *cpu_buffer)
 {
-	__this_cpu_and(current_context, __this_cpu_read(current_context) - 1);
+	cpu_buffer->current_context &= cpu_buffer->current_context - 1;
 }
 
 #else
 
-#define trace_recursive_lock()		(0)
-#define trace_recursive_unlock()	do { } while (0)
+#define trace_recursive_lock(cpu_buffer)	(0)
+#define trace_recursive_unlock(cpu_buffer)	do { } while (0)
 
 #endif
 
@@ -2742,10 +2744,7 @@ ring_buffer_lock_reserve(struct ring_buffer *buffer, unsigned long length)
 	preempt_disable_notrace();
 
 	if (unlikely(atomic_read(&buffer->record_disabled)))
-		goto out_nocheck;
-
-	if (unlikely(trace_recursive_lock()))
-		goto out_nocheck;
+		goto out;
 
 	cpu = raw_smp_processor_id();
 
@@ -2760,16 +2759,18 @@ ring_buffer_lock_reserve(struct ring_buffer *buffer, unsigned long length)
 	if (unlikely(length > BUF_MAX_DATA_SIZE))
 		goto out;
 
+	if (unlikely(trace_recursive_lock(cpu_buffer)))
+		goto out;
+
 	event = rb_reserve_next_event(buffer, cpu_buffer, length);
 	if (!event)
-		goto out;
+		goto out_unlock;
 
 	return event;
 
+ out_unlock:
+	trace_recursive_unlock(cpu_buffer);
  out:
-	trace_recursive_unlock();
-
- out_nocheck:
 	preempt_enable_notrace();
 	return NULL;
 }
@@ -2859,7 +2860,7 @@ int ring_buffer_unlock_commit(struct ring_buffer *buffer,
 
 	rb_wakeups(buffer, cpu_buffer);
 
-	trace_recursive_unlock();
+	trace_recursive_unlock(cpu_buffer);
 
 	preempt_enable_notrace();
 
@@ -2970,7 +2971,7 @@ void ring_buffer_discard_commit(struct ring_buffer *buffer,
  out:
 	rb_end_commit(cpu_buffer);
 
-	trace_recursive_unlock();
+	trace_recursive_unlock(cpu_buffer);
 
 	preempt_enable_notrace();
 
