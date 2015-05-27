@@ -128,9 +128,9 @@ struct gb_i2c_transfer_response {
 #define GB_GPIO_TYPE_SET_VALUE		0x09
 #define GB_GPIO_TYPE_SET_DEBOUNCE	0x0a
 #define GB_GPIO_TYPE_IRQ_TYPE		0x0b
-#define GB_GPIO_TYPE_IRQ_MASK		0x0d
-#define GB_GPIO_TYPE_IRQ_UNMASK		0x0e
-#define GB_GPIO_TYPE_IRQ_EVENT		0x0f
+#define GB_GPIO_TYPE_IRQ_MASK		0x0c
+#define GB_GPIO_TYPE_IRQ_UNMASK		0x0d
+#define GB_GPIO_TYPE_IRQ_EVENT		0x0e
 
 #define GB_GPIO_DEBOUNCE_USEC_DEFAULT	0	/* microseconds */
 
