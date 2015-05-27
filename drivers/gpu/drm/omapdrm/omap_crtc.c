@@ -429,8 +429,6 @@ static void omap_crtc_enable(struct drm_crtc *crtc)
 
 	DBG("%s", omap_crtc->name);
 
-	dispc_runtime_get();
-
 	/* Enable all planes associated with the CRTC. */
 	for (i = 0; i < priv->num_planes; i++) {
 		struct drm_plane *plane = priv->planes[i];
@@ -443,8 +441,6 @@ static void omap_crtc_enable(struct drm_crtc *crtc)
 	omap_crtc_flush(crtc);
 
 	drm_crtc_vblank_on(crtc);
-
-	dispc_runtime_put();
 }
 
 static void omap_crtc_disable(struct drm_crtc *crtc)
@@ -456,7 +452,6 @@ static void omap_crtc_disable(struct drm_crtc *crtc)
 	DBG("%s", omap_crtc->name);
 
 	omap_crtc_wait_page_flip(crtc);
-	dispc_runtime_get();
 	drm_crtc_vblank_off(crtc);
 
 	/* Disable all planes associated with the CRTC. */
@@ -469,8 +464,6 @@ static void omap_crtc_disable(struct drm_crtc *crtc)
 
 	omap_crtc_encoder_setup(crtc, false);
 	omap_crtc_flush(crtc);
-
-	dispc_runtime_put();
 }
 
 static void omap_crtc_mode_set_nofb(struct drm_crtc *crtc)
@@ -495,8 +488,6 @@ static void omap_crtc_atomic_begin(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	unsigned long flags;
 
-	dispc_runtime_get();
-
 	if (event) {
 		WARN_ON(omap_crtc->event);
 		WARN_ON(drm_crtc_vblank_get(crtc) != 0);
@@ -510,8 +501,6 @@ static void omap_crtc_atomic_begin(struct drm_crtc *crtc)
 static void omap_crtc_atomic_flush(struct drm_crtc *crtc)
 {
 	omap_crtc_flush(crtc);
-
-	dispc_runtime_put();
 
 	crtc->invert_dimensions = !!(crtc->primary->state->rotation &
 				    (BIT(DRM_ROTATE_90) | BIT(DRM_ROTATE_270)));

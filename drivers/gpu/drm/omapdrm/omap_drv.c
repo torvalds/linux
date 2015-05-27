@@ -73,6 +73,8 @@ static void omap_atomic_complete(struct omap_atomic_state_commit *commit)
 	struct drm_atomic_state *old_state = commit->state;
 
 	/* Apply the atomic update. */
+	dispc_runtime_get();
+
 	drm_atomic_helper_commit_modeset_disables(dev, old_state);
 	drm_atomic_helper_commit_planes(dev, old_state);
 	drm_atomic_helper_commit_modeset_enables(dev, old_state);
@@ -80,6 +82,8 @@ static void omap_atomic_complete(struct omap_atomic_state_commit *commit)
 	drm_atomic_helper_wait_for_vblanks(dev, old_state);
 
 	drm_atomic_helper_cleanup_planes(dev, old_state);
+
+	dispc_runtime_put();
 
 	drm_atomic_state_free(old_state);
 
