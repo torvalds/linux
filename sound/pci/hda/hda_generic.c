@@ -4926,9 +4926,12 @@ int snd_hda_gen_parse_auto_config(struct hda_codec *codec,
  dig_only:
 	parse_digital(codec);
 
-	if (spec->power_down_unused || codec->power_save_node)
+	if (spec->power_down_unused || codec->power_save_node) {
 		if (!codec->power_filter)
 			codec->power_filter = snd_hda_gen_path_power_filter;
+		if (!codec->patch_ops.stream_pm)
+			codec->patch_ops.stream_pm = snd_hda_gen_stream_pm;
+	}
 
 	if (!spec->no_analog && spec->beep_nid) {
 		err = snd_hda_attach_beep_device(codec, spec->beep_nid);
