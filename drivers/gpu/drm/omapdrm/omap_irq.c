@@ -130,7 +130,7 @@ int omap_irq_enable_vblank(struct drm_device *dev, unsigned int pipe)
 	DBG("dev=%p, crtc=%u", dev, pipe);
 
 	spin_lock_irqsave(&list_lock, flags);
-	priv->irq_mask |= pipe2vbl(crtc);
+	priv->irq_mask |= dispc_mgr_get_vsync_irq(omap_crtc_channel(crtc));
 	omap_irq_update(dev);
 	spin_unlock_irqrestore(&list_lock, flags);
 
@@ -155,7 +155,7 @@ void omap_irq_disable_vblank(struct drm_device *dev, unsigned int pipe)
 	DBG("dev=%p, crtc=%u", dev, pipe);
 
 	spin_lock_irqsave(&list_lock, flags);
-	priv->irq_mask &= ~pipe2vbl(crtc);
+	priv->irq_mask &= ~dispc_mgr_get_vsync_irq(omap_crtc_channel(crtc));
 	omap_irq_update(dev);
 	spin_unlock_irqrestore(&list_lock, flags);
 }
@@ -228,7 +228,7 @@ static irqreturn_t omap_irq_handler(int irq, void *arg)
 		struct drm_crtc *crtc = priv->crtcs[id];
 		enum omap_channel channel = omap_crtc_channel(crtc);
 
-		if (irqstatus & pipe2vbl(crtc)) {
+		if (irqstatus & dispc_mgr_get_vsync_irq(channel)) {
 			drm_handle_vblank(dev, id);
 			omap_crtc_vblank_irq(crtc);
 		}

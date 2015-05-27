@@ -48,13 +48,6 @@ struct omap_crtc {
  * Helper Functions
  */
 
-uint32_t pipe2vbl(struct drm_crtc *crtc)
-{
-	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
-
-	return dispc_mgr_get_vsync_irq(omap_crtc->channel);
-}
-
 struct videomode *omap_crtc_timings(struct drm_crtc *crtc)
 {
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);

@@ -230,7 +230,6 @@ struct drm_gem_object *omap_gem_prime_import(struct drm_device *dev,
 		struct dma_buf *buffer);
 
 /* map crtc to vblank mask */
-uint32_t pipe2vbl(struct drm_crtc *crtc);
 struct omap_dss_device *omap_encoder_get_dssdev(struct drm_encoder *encoder);
 
 #endif /* __OMAP_DRV_H__ */
