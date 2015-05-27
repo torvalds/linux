@@ -213,8 +213,10 @@ int msm_atomic_commit(struct drm_device *dev,
 		return ret;
 
 	c = commit_init(state);
-	if (!c)
-		return -ENOMEM;
+	if (!c) {
+		ret = -ENOMEM;
+		goto error;
+	}
 
 	/*
 	 * Figure out what crtcs we have:
@@ -247,7 +249,7 @@ int msm_atomic_commit(struct drm_device *dev,
 	ret = start_atomic(dev->dev_private, c->crtc_mask);
 	if (ret) {
 		kfree(c);
-		return ret;
+		goto error;
 	}
 
 	/*
@@ -291,4 +293,8 @@ int msm_atomic_commit(struct drm_device *dev,
 	complete_commit(c);
 
 	return 0;
+
+error:
+	drm_atomic_helper_cleanup_planes(dev, state);
+	return ret;
 }
