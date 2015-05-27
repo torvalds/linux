@@ -2045,22 +2045,20 @@ static void ilk_compute_wm_parameters(struct drm_crtc *crtc,
 	p->pipe_htotal = intel_crtc->config->base.adjusted_mode.crtc_htotal;
 	p->pixel_rate = ilk_pipe_pixel_rate(dev, crtc);
 
-	if (crtc->primary->state->fb) {
-		p->pri.enabled = true;
+	if (crtc->primary->state->fb)
 		p->pri.bytes_per_pixel =
 			crtc->primary->state->fb->bits_per_pixel / 8;
-	} else {
-		p->pri.enabled = false;
-		p->pri.bytes_per_pixel = 0;
-	}
+	else
+		p->pri.bytes_per_pixel = 4;
 
-	if (crtc->cursor->state->fb) {
-		p->cur.enabled = true;
-		p->cur.bytes_per_pixel = 4;
-	} else {
-		p->cur.enabled = false;
-		p->cur.bytes_per_pixel = 0;
-	}
+	p->cur.bytes_per_pixel = 4;
+	/*
+	 * TODO: for now, assume primary and cursor planes are always enabled.
+	 * Setting them to false makes the screen flicker.
+	 */
+	p->pri.enabled = true;
+	p->cur.enabled = true;
+
 	p->pri.horiz_pixels = intel_crtc->config->pipe_src_w;
 	p->cur.horiz_pixels = intel_crtc->base.cursor->state->crtc_w;
 

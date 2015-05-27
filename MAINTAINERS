@@ -974,7 +974,7 @@ S:	Maintained
 ARM/CORTINA SYSTEMS GEMINI ARM ARCHITECTURE
 M:	Hans Ulli Kroll <ulli.kroll@googlemail.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-T:	git git://git.berlios.de/gemini-board
+T:	git git://github.com/ulli-kroll/linux.git
 S:	Maintained
 F:	arch/arm/mach-gemini/
 
@@ -1193,7 +1193,7 @@ ARM/MAGICIAN MACHINE SUPPORT
 M:	Philipp Zabel <philipp.zabel@gmail.com>
 S:	Maintained
 
-ARM/Marvell Armada 370 and Armada XP SOC support
+ARM/Marvell Kirkwood and Armada 370, 375, 38x, XP SOC support
 M:	Jason Cooper <jason@lakedaemon.net>
 M:	Andrew Lunn <andrew@lunn.ch>
 M:	Gregory Clement <gregory.clement@free-electrons.com>
@@ -1202,12 +1202,17 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/mach-mvebu/
 F:	drivers/rtc/rtc-armada38x.c
+F:	arch/arm/boot/dts/armada*
+F:	arch/arm/boot/dts/kirkwood*
+
 
 ARM/Marvell Berlin SoC support
 M:	Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/mach-berlin/
+F:	arch/arm/boot/dts/berlin*
+
 
 ARM/Marvell Dove/MV78xx0/Orion SOC support
 M:	Jason Cooper <jason@lakedaemon.net>
@@ -1220,6 +1225,9 @@ F:	arch/arm/mach-dove/
 F:	arch/arm/mach-mv78xx0/
 F:	arch/arm/mach-orion5x/
 F:	arch/arm/plat-orion/
+F:	arch/arm/boot/dts/dove*
+F:	arch/arm/boot/dts/orion5x*
+
 
 ARM/Orion SoC/Technologic Systems TS-78xx platform support
 M:	Alexander Clouter <alex@digriz.org.uk>
@@ -1371,6 +1379,7 @@ N:	rockchip
 
 ARM/SAMSUNG EXYNOS ARM ARCHITECTURES
 M:	Kukjin Kim <kgene@kernel.org>
+M:	Krzysztof Kozlowski <k.kozlowski@samsung.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	linux-samsung-soc@vger.kernel.org (moderated for non-subscribers)
 S:	Maintained
@@ -1935,7 +1944,7 @@ S:	Maintained
 F:	drivers/net/wireless/b43legacy/
 
 BACKLIGHT CLASS/SUBSYSTEM
-M:	Jingoo Han <jg1.han@samsung.com>
+M:	Jingoo Han <jingoohan1@gmail.com>
 M:	Lee Jones <lee.jones@linaro.org>
 S:	Maintained
 F:	drivers/video/backlight/
@@ -3816,10 +3825,11 @@ M:	David Woodhouse <dwmw2@infradead.org>
 L:	linux-embedded@vger.kernel.org
 S:	Maintained
 
-EMULEX LPFC FC SCSI DRIVER
-M:	James Smart <james.smart@emulex.com>
+EMULEX/AVAGO LPFC FC/FCOE SCSI DRIVER
+M:	James Smart <james.smart@avagotech.com>
+M:	Dick Kennedy <dick.kennedy@avagotech.com>
 L:	linux-scsi@vger.kernel.org
-W:	http://sourceforge.net/projects/lpfcxxxx
+W:	http://www.avagotech.com
 S:	Supported
 F:	drivers/scsi/lpfc/
 
@@ -3918,7 +3928,7 @@ F:	drivers/extcon/
 F:	Documentation/extcon/
 
 EXYNOS DP DRIVER
-M:	Jingoo Han <jg1.han@samsung.com>
+M:	Jingoo Han <jingoohan1@gmail.com>
 L:	dri-devel@lists.freedesktop.org
 S:	Maintained
 F:	drivers/gpu/drm/exynos/exynos_dp*
@@ -4377,11 +4387,10 @@ F:	fs/gfs2/
 F:	include/uapi/linux/gfs2_ondisk.h
 
 GIGASET ISDN DRIVERS
-M:	Hansjoerg Lipp <hjlipp@web.de>
-M:	Tilman Schmidt <tilman@imap.cc>
+M:	Paul Bolle <pebolle@tiscali.nl>
 L:	gigaset307x-common@lists.sourceforge.net
 W:	http://gigaset307x.sourceforge.net/
-S:	Maintained
+S:	Odd Fixes
 F:	Documentation/isdn/README.gigaset
 F:	drivers/isdn/gigaset/
 F:	include/uapi/linux/gigaset_dev.h
@@ -4528,7 +4537,7 @@ M:	Jean Delvare <jdelvare@suse.de>
 M:	Guenter Roeck <linux@roeck-us.net>
 L:	lm-sensors@lm-sensors.org
 W:	http://www.lm-sensors.org/
-T:	quilt kernel.org/pub/linux/kernel/people/jdelvare/linux-2.6/jdelvare-hwmon/
+T:	quilt http://jdelvare.nerim.net/devel/linux/jdelvare-hwmon/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/groeck/linux-staging.git
 S:	Maintained
 F:	Documentation/hwmon/
@@ -5054,7 +5063,7 @@ M:	Hal Rosenstock <hal.rosenstock@gmail.com>
 L:	linux-rdma@vger.kernel.org
 W:	http://www.openfabrics.org/
 Q:	http://patchwork.kernel.org/project/linux-rdma/list/
-T:	git git://github.com/dledford/linux.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/dledford/rdma.git
 S:	Supported
 F:	Documentation/infiniband/
 F:	drivers/infiniband/
@@ -6959,6 +6968,17 @@ T:	git git://git.rocketboards.org/linux-socfpga-next.git
 S:	Maintained
 F:	arch/nios2/
 
+NOKIA N900 POWER SUPPLY DRIVERS
+M:	Pali Rohár <pali.rohar@gmail.com>
+S:	Maintained
+F:	include/linux/power/bq2415x_charger.h
+F:	include/linux/power/bq27x00_battery.h
+F:	include/linux/power/isp1704_charger.h
+F:	drivers/power/bq2415x_charger.c
+F:	drivers/power/bq27x00_battery.c
+F:	drivers/power/isp1704_charger.c
+F:	drivers/power/rx51_battery.c
+
 NTB DRIVER
 M:	Jon Mason <jdmason@kudzu.us>
 M:	Dave Jiang <dave.jiang@intel.com>
@@ -7547,7 +7567,7 @@ S:	Maintained
 F:	drivers/pci/host/*rcar*
 
 PCI DRIVER FOR SAMSUNG EXYNOS
-M:	Jingoo Han <jg1.han@samsung.com>
+M:	Jingoo Han <jingoohan1@gmail.com>
 L:	linux-pci@vger.kernel.org
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	linux-samsung-soc@vger.kernel.org (moderated for non-subscribers)
@@ -7555,7 +7575,7 @@ S:	Maintained
 F:	drivers/pci/host/pci-exynos.c
 
 PCI DRIVER FOR SYNOPSIS DESIGNWARE
-M:	Jingoo Han <jg1.han@samsung.com>
+M:	Jingoo Han <jingoohan1@gmail.com>
 L:	linux-pci@vger.kernel.org
 S:	Maintained
 F:	drivers/pci/host/*designware*
@@ -8511,7 +8531,7 @@ S:	Supported
 F:	sound/soc/samsung/
 
 SAMSUNG FRAMEBUFFER DRIVER
-M:	Jingoo Han <jg1.han@samsung.com>
+M:	Jingoo Han <jingoohan1@gmail.com>
 L:	linux-fbdev@vger.kernel.org
 S:	Maintained
 F:	drivers/video/fbdev/s3c-fb.c
@@ -8810,16 +8830,19 @@ F:	drivers/misc/phantom.c
 F:	include/uapi/linux/phantom.h
 
 SERVER ENGINES 10Gbps iSCSI - BladeEngine 2 DRIVER
-M:	Jayamohan Kallickal <jayamohan.kallickal@emulex.com>
+M:	Jayamohan Kallickal <jayamohan.kallickal@avagotech.com>
+M:	Minh Tran <minh.tran@avagotech.com>
+M:	John Soni Jose <sony.john-n@avagotech.com>
 L:	linux-scsi@vger.kernel.org
-W:	http://www.emulex.com
+W:	http://www.avagotech.com
 S:	Supported
 F:	drivers/scsi/be2iscsi/
 
-SERVER ENGINES 10Gbps NIC - BladeEngine 2 DRIVER
-M:	Sathya Perla <sathya.perla@emulex.com>
-M:	Subbu Seetharaman <subbu.seetharaman@emulex.com>
-M:	Ajit Khaparde <ajit.khaparde@emulex.com>
+Emulex 10Gbps NIC BE2, BE3-R, Lancer, Skyhawk-R DRIVER
+M:	Sathya Perla <sathya.perla@avagotech.com>
+M:	Ajit Khaparde <ajit.khaparde@avagotech.com>
+M:	Padmanabh Ratnakar <padmanabh.ratnakar@avagotech.com>
+M:	Sriharsha Basavapatna <sriharsha.basavapatna@avagotech.com>
 L:	netdev@vger.kernel.org
 W:	http://www.emulex.com
 S:	Supported

@@ -844,8 +844,16 @@ static hda_nid_t path_power_update(struct hda_codec *codec,
 			snd_hda_codec_write(codec, nid, 0,
 					    AC_VERB_SET_POWER_STATE, state);
 			changed = nid;
+			/* all known codecs seem to be capable to handl
+			 * widgets state even in D3, so far.
+			 * if any new codecs need to restore the widget
+			 * states after D0 transition, call the function
+			 * below.
+			 */
+#if 0 /* disabled */
 			if (state == AC_PWRST_D0)
 				snd_hdac_regmap_sync_node(&codec->core, nid);
+#endif
 		}
 	}
 	return changed;

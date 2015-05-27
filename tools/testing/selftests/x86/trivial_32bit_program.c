@@ -4,6 +4,10 @@
  * GPL v2
  */
 
+#ifndef __i386__
+# error wrong architecture
+#endif
+
 #include <stdio.h>
 
 int main()

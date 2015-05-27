@@ -3823,6 +3823,9 @@ static void __net_exit ip_vs_control_net_cleanup_sysctl(struct net *net)
 	cancel_work_sync(&ipvs->defense_work.work);
 	unregister_net_sysctl_table(ipvs->sysctl_hdr);
 	ip_vs_stop_estimator(net, &ipvs->tot_stats);
+
+	if (!net_eq(net, &init_net))
+		kfree(ipvs->sysctl_tbl);
 }
 
 #else

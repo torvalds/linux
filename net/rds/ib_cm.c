@@ -183,8 +183,17 @@ void rds_ib_cm_connect_complete(struct rds_connection *conn, struct rdma_cm_even
 
 	/* If the peer gave us the last packet it saw, process this as if
 	 * we had received a regular ACK. */
-	if (dp && dp->dp_ack_seq)
-		rds_send_drop_acked(conn, be64_to_cpu(dp->dp_ack_seq), NULL);
+	if (dp) {
+		/* dp structure start is not guaranteed to be 8 bytes aligned.
+		 * Since dp_ack_seq is 64-bit extended load operations can be
+		 * used so go through get_unaligned to avoid unaligned errors.
+		 */
+		__be64 dp_ack_seq = get_unaligned(&dp->dp_ack_seq);
+
+		if (dp_ack_seq)
+			rds_send_drop_acked(conn, be64_to_cpu(dp_ack_seq),
+					    NULL);
+	}
 
 	rds_connect_complete(conn);
 }

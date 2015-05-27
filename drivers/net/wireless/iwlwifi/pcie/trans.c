@@ -5,8 +5,8 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2007 - 2015 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,8 +31,8 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
+ * Copyright(c) 2005 - 2015 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -104,7 +104,7 @@ static void iwl_pcie_free_fw_monitor(struct iwl_trans *trans)
 static void iwl_pcie_alloc_fw_monitor(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct page *page;
+	struct page *page = NULL;
 	dma_addr_t phys;
 	u32 size;
 	u8 power;
@@ -131,6 +131,7 @@ static void iwl_pcie_alloc_fw_monitor(struct iwl_trans *trans)
 				    DMA_FROM_DEVICE);
 		if (dma_mapping_error(trans->dev, phys)) {
 			__free_pages(page, order);
+			page = NULL;
 			continue;
 		}
 		IWL_INFO(trans,
@@ -1020,7 +1021,7 @@ static void iwl_trans_pcie_fw_alive(struct iwl_trans *trans, u32 scd_addr)
 	iwl_pcie_tx_start(trans, scd_addr);
 }
 
-static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
+static void iwl_trans_pcie_stop_device(struct iwl_trans *trans, bool low_power)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	bool hw_rfkill, was_hw_rfkill;
@@ -1115,7 +1116,7 @@ static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 void iwl_trans_pcie_rf_kill(struct iwl_trans *trans, bool state)
 {
 	if (iwl_op_mode_hw_rf_kill(trans->op_mode, state))
-		iwl_trans_pcie_stop_device(trans);
+		iwl_trans_pcie_stop_device(trans, true);
 }
 
 static void iwl_trans_pcie_d3_suspend(struct iwl_trans *trans, bool test)
@@ -1200,7 +1201,7 @@ static int iwl_trans_pcie_d3_resume(struct iwl_trans *trans,
 	return 0;
 }
 
-static int iwl_trans_pcie_start_hw(struct iwl_trans *trans)
+static int iwl_trans_pcie_start_hw(struct iwl_trans *trans, bool low_power)
 {
 	bool hw_rfkill;
 	int err;
