@@ -49,8 +49,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __GB_GPBRIDGE_H__
-#define __GB_GPBRIDGE_H__
+#ifndef __GREYBUS_PROTOCOLS_H
+#define __GREYBUS_PROTOCOLS_H
 
 /* I2C */
 
@@ -540,4 +540,4 @@ struct gb_svc_conn_destroy_request {
 };
 /* connection destroy response has no payload */
 
-#endif /* __GB_GPBRIDGE_H__ */
+#endif /* __GREYBUS_PROTOCOLS_H */
