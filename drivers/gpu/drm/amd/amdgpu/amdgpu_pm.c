@@ -581,7 +581,6 @@ force:
 	}
 
 	mutex_lock(&adev->ddev->struct_mutex);
-	down_write(&adev->pm.mclk_lock);
 	mutex_lock(&adev->ring_lock);
 
 	/* update whether vce is active */
@@ -629,7 +628,6 @@ force:
 
 done:
 	mutex_unlock(&adev->ring_lock);
-	up_write(&adev->pm.mclk_lock);
 	mutex_unlock(&adev->ddev->struct_mutex);
 }
 

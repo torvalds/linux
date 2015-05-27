@@ -272,11 +272,9 @@ int amdgpu_bo_create_restricted(struct amdgpu_device *adev,
 	bo->flags = flags;
 	amdgpu_fill_placement_to_bo(bo, placement);
 	/* Kernel allocation are uninterruptible */
-	down_read(&adev->pm.mclk_lock);
 	r = ttm_bo_init(&adev->mman.bdev, &bo->tbo, size, type,
 			&bo->placement, page_align, !kernel, NULL,
 			acc_size, sg, NULL, &amdgpu_ttm_bo_destroy);
-	up_read(&adev->pm.mclk_lock);
 	if (unlikely(r != 0)) {
 		return r;
 	}

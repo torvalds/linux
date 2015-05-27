@@ -966,52 +966,20 @@ void amdgpu_ttm_set_active_vram_size(struct amdgpu_device *adev, u64 size)
 	man->size = size >> PAGE_SHIFT;
 }
 
-static struct vm_operations_struct amdgpu_ttm_vm_ops;
-static const struct vm_operations_struct *ttm_vm_ops = NULL;
-
-static int amdgpu_ttm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
-{
-	struct ttm_buffer_object *bo;
-	struct amdgpu_device *adev;
-	int r;
-
-	bo = (struct ttm_buffer_object *)vma->vm_private_data;
-	if (bo == NULL) {
-		return VM_FAULT_NOPAGE;
-	}
-	adev = amdgpu_get_adev(bo->bdev);
-	down_read(&adev->pm.mclk_lock);
-	r = ttm_vm_ops->fault(vma, vmf);
-	up_read(&adev->pm.mclk_lock);
-	return r;
-}
-
 int amdgpu_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	struct drm_file *file_priv;
 	struct amdgpu_device *adev;
-	int r;
 
-	if (unlikely(vma->vm_pgoff < DRM_FILE_PAGE_OFFSET)) {
+	if (unlikely(vma->vm_pgoff < DRM_FILE_PAGE_OFFSET))
 		return -EINVAL;
-	}
 
 	file_priv = filp->private_data;
 	adev = file_priv->minor->dev->dev_private;
-	if (adev == NULL) {
+	if (adev == NULL)
 		return -EINVAL;
-	}
-	r = ttm_bo_mmap(filp, vma, &adev->mman.bdev);
-	if (unlikely(r != 0)) {
-		return r;
-	}
-	if (unlikely(ttm_vm_ops == NULL)) {
-		ttm_vm_ops = vma->vm_ops;
-		amdgpu_ttm_vm_ops = *ttm_vm_ops;
-		amdgpu_ttm_vm_ops.fault = &amdgpu_ttm_fault;
-	}
-	vma->vm_ops = &amdgpu_ttm_vm_ops;
-	return 0;
+
+	return ttm_bo_mmap(filp, vma, &adev->mman.bdev);
 }
 
 int amdgpu_copy_buffer(struct amdgpu_ring *ring,

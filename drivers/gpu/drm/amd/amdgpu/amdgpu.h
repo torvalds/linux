@@ -1558,8 +1558,6 @@ struct amdgpu_dpm {
 
 struct amdgpu_pm {
 	struct mutex		mutex;
-	/* write locked while reprogramming mclk */
-	struct rw_semaphore	mclk_lock;
 	u32                     current_sclk;
 	u32                     current_mclk;
 	u32                     default_sclk;
