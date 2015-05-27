@@ -44,43 +44,43 @@
 		(4 + ((endo_layout)->max_ribs + 1) * 2)
 
 /* endo sysfs attributes */
-static ssize_t svc_serial_number_show(struct device *dev,
+static ssize_t serial_number_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	struct gb_endo *endo = to_gb_endo(dev);
 
 	return sprintf(buf, "%s", &endo->svc_info.serial_number[0]);
 }
-static DEVICE_ATTR_RO(svc_serial_number);
+static DEVICE_ATTR_RO(serial_number);
 
-static ssize_t svc_version_show(struct device *dev,
+static ssize_t version_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	struct gb_endo *endo = to_gb_endo(dev);
 
 	return sprintf(buf, "%s", &endo->svc_info.version[0]);
 }
-static DEVICE_ATTR_RO(svc_version);
+static DEVICE_ATTR_RO(version);
 
 static struct attribute *svc_attrs[] = {
-	&dev_attr_svc_serial_number.attr,
-	&dev_attr_svc_version.attr,
+	&dev_attr_serial_number.attr,
+	&dev_attr_version.attr,
 	NULL,
 };
 
 static const struct attribute_group svc_group = {
 	.attrs = svc_attrs,
-	.name = "SVC",
+	.name = "svc",
 };
 
-static ssize_t endo_id_show(struct device *dev,
+static ssize_t id_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
 	struct gb_endo *endo = to_gb_endo(dev);
 
 	return sprintf(buf, "0x%04x", endo->id);
 }
-static DEVICE_ATTR_RO(endo_id);
+static DEVICE_ATTR_RO(id);
 
 static ssize_t ap_intf_id_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
@@ -92,14 +92,13 @@ static ssize_t ap_intf_id_show(struct device *dev,
 static DEVICE_ATTR_RO(ap_intf_id);
 
 static struct attribute *endo_attrs[] = {
-	&dev_attr_endo_id.attr,
+	&dev_attr_id.attr,
 	&dev_attr_ap_intf_id.attr,
 	NULL,
 };
 
 static const struct attribute_group endo_group = {
 	.attrs = endo_attrs,
-	.name = "Endo",
 };
 
 static const struct attribute_group *endo_groups[] = {

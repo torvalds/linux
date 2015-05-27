@@ -7,7 +7,7 @@ Description:
 		replaced with the numeric value of the endo layout
 		scheme as documented in the ARA Module Developer Kit.
 
-What:		/sys/bus/greybus/device/endo-0xXXXX/Endo/id
+What:		/sys/bus/greybus/device/endo-0xXXXX/id
 Date:		October 2015
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
@@ -16,7 +16,7 @@ Description:
 		defined by the the Endo layout scheme, documented in
 		the ARA Module Developer Kit.
 
-What:		/sys/bus/greybus/device/endo-0xXXXX/Endo/ap_intf_id
+What:		/sys/bus/greybus/device/endo-0xXXXX/ap_intf_id
 Date:		October 2015
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
@@ -26,14 +26,14 @@ Description:
 		The interface positions are defined in the ARA
 		Module Developer Kit.
 
-What:		/sys/bus/greybus/device/endo-0xXXXX/SVC/serial_number
+What:		/sys/bus/greybus/device/endo-0xXXXX/svc/serial_number
 Date:		October 2015
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
 		The serial number of the SVC device
 
-What:		/sys/bus/greybus/device/endo-0xXXXX/SVC/version
+What:		/sys/bus/greybus/device/endo-0xXXXX/svc/version
 Date:		October 2015
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
