@@ -783,6 +783,28 @@ static int nl802154_set_cca_mode(struct sk_buff *skb, struct genl_info *info)
 	return rdev_set_cca_mode(rdev, &cca);
 }
 
+static int nl802154_set_tx_power(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg802154_registered_device *rdev = info->user_ptr[0];
+	s32 power;
+	int i;
+
+	if (!(rdev->wpan_phy.flags & WPAN_PHY_FLAG_TXPOWER))
+		return -EOPNOTSUPP;
+
+	if (!info->attrs[NL802154_ATTR_TX_POWER])
+		return -EINVAL;
+
+	power = nla_get_s32(info->attrs[NL802154_ATTR_TX_POWER]);
+
+	for (i = 0; i < rdev->wpan_phy.supported.tx_powers_size; i++) {
+		if (power == rdev->wpan_phy.supported.tx_powers[i])
+			return rdev_set_tx_power(rdev, power);
+	}
+
+	return -EINVAL;
+}
+
 static int nl802154_set_pan_id(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg802154_registered_device *rdev = info->user_ptr[0];
@@ -1088,6 +1110,14 @@ static const struct genl_ops nl802154_ops[] = {
 	{
 		.cmd = NL802154_CMD_SET_CCA_MODE,
 		.doit = nl802154_set_cca_mode,
+		.policy = nl802154_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = NL802154_FLAG_NEED_WPAN_PHY |
+				  NL802154_FLAG_NEED_RTNL,
+	},
+	{
+		.cmd = NL802154_CMD_SET_TX_POWER,
+		.doit = nl802154_set_tx_power,
 		.policy = nl802154_policy,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL802154_FLAG_NEED_WPAN_PHY |
