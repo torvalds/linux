@@ -39,20 +39,12 @@ extern void build_tlb_refill_handler(void);
 int r3k_have_wired_reg;		/* should be in cpu_data? */
 
 /* TLB operations. */
-void local_flush_tlb_all(void)
+static void local_flush_tlb_from(int entry)
 {
-	unsigned long flags;
 	unsigned long old_ctx;
-	int entry;
 
-#ifdef DEBUG_TLB
-	printk("[tlball]");
-#endif
-
-	local_irq_save(flags);
 	old_ctx = read_c0_entryhi() & ASID_MASK;
 	write_c0_entrylo0(0);
-	entry = r3k_have_wired_reg ? read_c0_wired() : 8;
 	for (; entry < current_cpu_data.tlbsize; entry++) {
 		write_c0_index(entry << 8);
 		write_c0_entryhi((entry | 0x80000) << 12);
@@ -60,6 +52,17 @@ void local_flush_tlb_all(void)
 		tlb_write_indexed();
 	}
 	write_c0_entryhi(old_ctx);
+}
+
+void local_flush_tlb_all(void)
+{
+	unsigned long flags;
+
+#ifdef DEBUG_TLB
+	printk("[tlball]");
+#endif
+	local_irq_save(flags);
+	local_flush_tlb_from(r3k_have_wired_reg ? read_c0_wired() : 8);
 	local_irq_restore(flags);
 }
 
@@ -277,7 +280,6 @@ void add_wired_entry(unsigned long entrylo0, unsigned long entrylo1,
 
 void tlb_init(void)
 {
-	local_flush_tlb_all();
-
+	local_flush_tlb_from(0);
 	build_tlb_refill_handler();
 }
