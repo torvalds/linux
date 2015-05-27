@@ -302,13 +302,15 @@ rcar_du_plane_atomic_duplicate_state(struct drm_plane *plane)
 	struct rcar_du_plane_state *state;
 	struct rcar_du_plane_state *copy;
 
+	if (WARN_ON(!plane->state))
+		return NULL;
+
 	state = to_rcar_plane_state(plane->state);
 	copy = kmemdup(state, sizeof(*state), GFP_KERNEL);
 	if (copy == NULL)
 		return NULL;
 
-	if (copy->state.fb)
-		drm_framebuffer_reference(copy->state.fb);
+	__drm_atomic_helper_plane_duplicate_state(plane, &copy->state);
 
 	return &copy->state;
 }
@@ -316,9 +318,7 @@ rcar_du_plane_atomic_duplicate_state(struct drm_plane *plane)
 static void rcar_du_plane_atomic_destroy_state(struct drm_plane *plane,
 					       struct drm_plane_state *state)
 {
-	if (state->fb)
-		drm_framebuffer_unreference(state->fb);
-
+	__drm_atomic_helper_plane_destroy_state(plane, state);
 	kfree(to_rcar_plane_state(state));
 }
 
