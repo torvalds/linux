@@ -1943,7 +1943,7 @@ static int unix_stream_recvmsg(struct kiocb *iocb, struct socket *sock,
 		struct sk_buff *skb, *last;
 
 		unix_state_lock(sk);
-		if (sock_flag(sg, SOCK_DEAD)) {
+		if (sock_flag(sk, SOCK_DEAD)) {
 			err = -ECONNRESET;
 			goto unlock;
 		}
