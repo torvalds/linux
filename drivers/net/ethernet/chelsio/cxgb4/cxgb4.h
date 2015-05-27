@@ -650,6 +650,7 @@ struct sge {
 	struct sge_rspq **ingr_map; /* qid->queue ingress queue map */
 	unsigned long *starving_fl;
 	unsigned long *txq_maperr;
+	unsigned long *blocked_fl;
 	struct timer_list rx_timer; /* refills starving FLs */
 	struct timer_list tx_timer; /* checks Tx queues */
 };

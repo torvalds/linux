@@ -588,6 +588,11 @@ static unsigned int refill_fl(struct adapter *adap, struct sge_fl *q, int n,
 	struct rx_sw_desc *sd = &q->sdesc[q->pidx];
 	int node;
 
+#ifdef CONFIG_DEBUG_FS
+	if (test_bit(q->cntxt_id - adap->sge.egr_start, adap->sge.blocked_fl))
+		goto out;
+#endif
+
 	gfp |= __GFP_NOWARN;
 	node = dev_to_node(adap->pdev_dev);
 
