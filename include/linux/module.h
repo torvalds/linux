@@ -282,7 +282,7 @@ struct module {
 	 *
 	 * Cacheline align here, such that:
 	 *   module_init, module_core, init_size, core_size,
-	 *   init_text_size, core_text_size and ltn_core.node[0]
+	 *   init_text_size, core_text_size and mtn_core::{mod,node[0]}
 	 * are on the same cacheline.
 	 */
 	void *module_init	____cacheline_aligned;
@@ -296,6 +296,7 @@ struct module {
 	/* The size of the executable code in each section.  */
 	unsigned int init_text_size, core_text_size;
 
+#ifdef CONFIG_MODULES_TREE_LOOKUP
 	/*
 	 * We want mtn_core::{mod,node[0]} to be in the same cacheline as the
 	 * above entries such that a regular lookup will only touch one
@@ -303,6 +304,7 @@ struct module {
 	 */
 	struct mod_tree_node	mtn_core;
 	struct mod_tree_node	mtn_init;
+#endif
 
 	/* Size of RO sections of the module (text+rodata) */
 	unsigned int init_ro_size, core_ro_size;

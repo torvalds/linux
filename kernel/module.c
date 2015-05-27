@@ -102,6 +102,8 @@ DEFINE_MUTEX(module_mutex);
 EXPORT_SYMBOL_GPL(module_mutex);
 static LIST_HEAD(modules);
 
+#ifdef CONFIG_MODULES_TREE_LOOKUP
+
 /*
  * Use a latched RB-tree for __module_address(); this allows us to use
  * RCU-sched lookups of the address from any context.
@@ -112,6 +114,10 @@ static LIST_HEAD(modules);
  *
  * Because init ranges are short lived we mark them unlikely and have placed
  * them outside the critical cacheline in struct module.
+ *
+ * This is conditional on PERF_EVENTS || TRACING because those can really hit
+ * __module_address() hard by doing a lot of stack unwinding; potentially from
+ * NMI context.
  */
 
 static __always_inline unsigned long __mod_tree_val(struct latch_tree_node *n)
@@ -192,7 +198,7 @@ static void mod_tree_remove(struct module *mod)
 	mod_tree_remove_init(mod);
 }
 
-static struct module *mod_tree_find(unsigned long addr)
+static struct module *mod_find(unsigned long addr)
 {
 	struct latch_tree_node *ltn;
 
@@ -202,6 +208,26 @@ static struct module *mod_tree_find(unsigned long addr)
 
 	return container_of(ltn, struct mod_tree_node, node)->mod;
 }
+
+#else /* MODULES_TREE_LOOKUP */
+
+static void mod_tree_insert(struct module *mod) { }
+static void mod_tree_remove_init(struct module *mod) { }
+static void mod_tree_remove(struct module *mod) { }
+
+static struct module *mod_find(unsigned long addr)
+{
+	struct module *mod;
+
+	list_for_each_entry_rcu(mod, &modules, list) {
+		if (within_module(addr, mod))
+			return mod;
+	}
+
+	return NULL;
+}
+
+#endif /* MODULES_TREE_LOOKUP */
 
 #ifdef CONFIG_KGDB_KDB
 struct list_head *kdb_modules = &modules; /* kdb needs the list of modules */
@@ -3966,7 +3992,7 @@ struct module *__module_address(unsigned long addr)
 
 	module_assert_mutex_or_preempt();
 
-	mod = mod_tree_find(addr);
+	mod = mod_find(addr);
 	if (mod) {
 		BUG_ON(!within_module(addr, mod));
 		if (mod->state == MODULE_STATE_UNFORMED)
