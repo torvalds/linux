@@ -114,10 +114,12 @@ enum fe_sec_voltage {
 typedef enum fe_sec_voltage fe_sec_voltage_t;
 
 
-typedef enum fe_sec_tone_mode {
+enum fe_sec_tone_mode {
 	SEC_TONE_ON,
 	SEC_TONE_OFF
-} fe_sec_tone_mode_t;
+};
+
+typedef enum fe_sec_tone_mode fe_sec_tone_mode_t;
 
 
 typedef enum fe_sec_mini_cmd {
