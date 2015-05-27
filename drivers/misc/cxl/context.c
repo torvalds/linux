@@ -186,6 +186,9 @@ int __detach_context(struct cxl_context *ctx)
 		return -EBUSY;
 
 	WARN_ON(cxl_detach_process(ctx));
+	flush_work(&ctx->fault_work); /* Only needed for dedicated process */
+	put_pid(ctx->pid);
+	cxl_ctx_put();
 	return 0;
 }
 
@@ -204,7 +207,6 @@ void cxl_context_detach(struct cxl_context *ctx)
 		return;
 
 	afu_release_irqs(ctx, ctx);
-	flush_work(&ctx->fault_work); /* Only needed for dedicated process */
 	wake_up_all(&ctx->wq);
 }
 
@@ -245,7 +247,6 @@ static void reclaim_ctx(struct rcu_head *rcu)
 	free_page((u64)ctx->sstp);
 	ctx->sstp = NULL;
 
-	put_pid(ctx->pid);
 	kfree(ctx);
 }
 
