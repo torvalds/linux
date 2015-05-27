@@ -267,6 +267,9 @@ static int efx_ef10_probe(struct efx_nic *efx)
 		return -ENOMEM;
 	efx->nic_data = nic_data;
 
+	/* we assume later that we can copy from this buffer in dwords */
+	BUILD_BUG_ON(MCDI_CTL_SDU_LEN_MAX_V2 % 4);
+
 	rc = efx_nic_alloc_buffer(efx, &nic_data->mcdi_buf,
 				  8 + MCDI_CTL_SDU_LEN_MAX_V2, GFP_KERNEL);
 	if (rc)
