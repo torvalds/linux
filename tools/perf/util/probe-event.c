@@ -2811,13 +2811,14 @@ int del_perf_probe_events(struct strfilter *filter)
 		goto error;
 
 	ret2 = del_trace_probe_events(ufd, filter, unamelist);
-	if (ret2 < 0 && ret2 != -ENOENT)
+	if (ret2 < 0 && ret2 != -ENOENT) {
 		ret = ret2;
-	else if (ret == -ENOENT && ret2 == -ENOENT) {
+		goto error;
+	}
+	if (ret == -ENOENT && ret2 == -ENOENT)
 		pr_debug("\"%s\" does not hit any event.\n", str);
 		/* Note that this is silently ignored */
-		ret = 0;
-	}
+	ret = 0;
 
 error:
 	if (kfd >= 0) {
