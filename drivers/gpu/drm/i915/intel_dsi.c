@@ -261,11 +261,6 @@ static inline bool is_cmd_mode(struct intel_dsi *intel_dsi)
 	return intel_dsi->operation_mode == INTEL_DSI_COMMAND_MODE;
 }
 
-static void intel_dsi_hot_plug(struct intel_encoder *encoder)
-{
-	DRM_DEBUG_KMS("\n");
-}
-
 static bool intel_dsi_compute_config(struct intel_encoder *encoder,
 				     struct intel_crtc_state *config)
 {
@@ -1022,7 +1017,6 @@ void intel_dsi_init(struct drm_device *dev)
 	drm_encoder_init(dev, encoder, &intel_dsi_funcs, DRM_MODE_ENCODER_DSI);
 
 	/* XXX: very likely not all of these are needed */
-	intel_encoder->hot_plug = intel_dsi_hot_plug;
 	intel_encoder->compute_config = intel_dsi_compute_config;
 	intel_encoder->pre_pll_enable = intel_dsi_pre_pll_enable;
 	intel_encoder->pre_enable = intel_dsi_pre_enable;
