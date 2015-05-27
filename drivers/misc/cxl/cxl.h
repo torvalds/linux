@@ -378,6 +378,9 @@ struct cxl_afu {
 	int spa_max_procs;
 	unsigned int psl_virq;
 
+	/* pointer to the vphb */
+	struct pci_controller *phb;
+
 	int pp_irqs;
 	int irqs_max;
 	int num_procs;
@@ -671,6 +674,8 @@ int cxl_afu_check_and_enable(struct cxl_afu *afu);
 int cxl_psl_purge(struct cxl_afu *afu);
 
 void cxl_stop_trace(struct cxl *cxl);
+int cxl_pci_vphb_add(struct cxl_afu *afu);
+void cxl_pci_vphb_remove(struct cxl_afu *afu);
 
 extern struct pci_driver cxl_pci_driver;
 int afu_allocate_irqs(struct cxl_context *ctx, u32 count);
