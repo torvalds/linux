@@ -105,6 +105,22 @@ static LIST_HEAD(modules);
 struct list_head *kdb_modules = &modules; /* kdb needs the list of modules */
 #endif /* CONFIG_KGDB_KDB */
 
+static void module_assert_mutex(void)
+{
+	lockdep_assert_held(&module_mutex);
+}
+
+static void module_assert_mutex_or_preempt(void)
+{
+#ifdef CONFIG_LOCKDEP
+	if (unlikely(!debug_locks))
+		return;
+
+	WARN_ON(!rcu_read_lock_sched_held() &&
+		!lockdep_is_held(&module_mutex));
+#endif
+}
+
 #ifdef CONFIG_MODULE_SIG
 #ifdef CONFIG_MODULE_SIG_FORCE
 static bool sig_enforce = true;
@@ -318,6 +334,8 @@ bool each_symbol_section(bool (*fn)(const struct symsearch *arr,
 #endif
 	};
 
+	module_assert_mutex_or_preempt();
+
 	if (each_symbol_in_section(arr, ARRAY_SIZE(arr), NULL, fn, data))
 		return true;
 
@@ -456,6 +474,8 @@ static struct module *find_module_all(const char *name, size_t len,
 				      bool even_unformed)
 {
 	struct module *mod;
+
+	module_assert_mutex();
 
 	list_for_each_entry(mod, &modules, list) {
 		if (!even_unformed && mod->state == MODULE_STATE_UNFORMED)
@@ -1860,8 +1880,8 @@ static void free_module(struct module *mod)
 	list_del_rcu(&mod->list);
 	/* Remove this module from bug list, this uses list_del_rcu */
 	module_bug_cleanup(mod);
-	/* Wait for RCU synchronizing before releasing mod->list and buglist. */
-	synchronize_rcu();
+	/* Wait for RCU-sched synchronizing before releasing mod->list and buglist. */
+	synchronize_sched();
 	mutex_unlock(&module_mutex);
 
 	/* This may be NULL, but that's OK */
@@ -3133,11 +3153,11 @@ static noinline int do_init_module(struct module *mod)
 	mod->init_text_size = 0;
 	/*
 	 * We want to free module_init, but be aware that kallsyms may be
-	 * walking this with preempt disabled.  In all the failure paths,
-	 * we call synchronize_rcu/synchronize_sched, but we don't want
-	 * to slow down the success path, so use actual RCU here.
+	 * walking this with preempt disabled.  In all the failure paths, we
+	 * call synchronize_sched(), but we don't want to slow down the success
+	 * path, so use actual RCU here.
 	 */
-	call_rcu(&freeinit->rcu, do_free_init);
+	call_rcu_sched(&freeinit->rcu, do_free_init);
 	mutex_unlock(&module_mutex);
 	wake_up_all(&module_wq);
 
@@ -3395,8 +3415,8 @@ static int load_module(struct load_info *info, const char __user *uargs,
 	/* Unlink carefully: kallsyms could be walking list. */
 	list_del_rcu(&mod->list);
 	wake_up_all(&module_wq);
-	/* Wait for RCU synchronizing before releasing mod->list. */
-	synchronize_rcu();
+	/* Wait for RCU-sched synchronizing before releasing mod->list. */
+	synchronize_sched();
 	mutex_unlock(&module_mutex);
  free_module:
 	/* Free lock-classes; relies on the preceding sync_rcu() */
@@ -3663,6 +3683,8 @@ int module_kallsyms_on_each_symbol(int (*fn)(void *, const char *,
 	unsigned int i;
 	int ret;
 
+	module_assert_mutex();
+
 	list_for_each_entry(mod, &modules, list) {
 		if (mod->state == MODULE_STATE_UNFORMED)
 			continue;
@@ -3836,6 +3858,8 @@ struct module *__module_address(unsigned long addr)
 
 	if (addr < module_addr_min || addr > module_addr_max)
 		return NULL;
+
+	module_assert_mutex_or_preempt();
 
 	list_for_each_entry_rcu(mod, &modules, list) {
 		if (mod->state == MODULE_STATE_UNFORMED)
