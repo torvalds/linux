@@ -473,8 +473,15 @@ static inline void aead_request_set_callback(struct aead_request *req,
  * destination is the ciphertext. For a decryption operation, the use is
  * reversed - the source is the ciphertext and the destination is the plaintext.
  *
- * For both src/dst the layout is associated data, skipped data,
- * plain/cipher text, authentication tag.
+ * For both src/dst the layout is associated data, plain/cipher text,
+ * authentication tag.
+ *
+ * The content of the AD in the destination buffer after processing
+ * will either be untouched, or it will contain a copy of the AD
+ * from the source buffer.  In order to ensure that it always has
+ * a copy of the AD, the user must copy the AD over either before
+ * or after processing.  Of course this is not relevant if the user
+ * is doing in-place processing where src == dst.
  *
  * IMPORTANT NOTE AEAD requires an authentication tag (MAC). For decryption,
  *		  the caller must concatenate the ciphertext followed by the
@@ -525,8 +532,7 @@ static inline void aead_request_set_assoc(struct aead_request *req,
  * @assoclen: number of bytes in associated data
  *
  * Setting the AD information.  This function sets the length of
- * the associated data and the number of bytes to skip after it to
- * access the plain/cipher text.
+ * the associated data.
  */
 static inline void aead_request_set_ad(struct aead_request *req,
 				       unsigned int assoclen)
