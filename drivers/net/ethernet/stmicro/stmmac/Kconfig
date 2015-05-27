@@ -16,6 +16,7 @@ if STMMAC_ETH
 config STMMAC_PLATFORM
 	tristate "STMMAC Platform bus support"
 	depends on STMMAC_ETH
+	select MFD_SYSCON
 	default y
 	---help---
 	  This selects the platform specific bus support for the stmmac driver.
@@ -35,6 +36,19 @@ config DWMAC_GENERIC
 	  Generic DWMAC driver for platforms that don't require any
 	  platform specific code to function or is using platform
 	  data for setup.
+
+config DWMAC_IPQ806X
+	tristate "QCA IPQ806x DWMAC support"
+	default ARCH_QCOM
+	depends on OF
+	select MFD_SYSCON
+	help
+	  Support for QCA IPQ806X DWMAC Ethernet.
+
+	  This selects the IPQ806x SoC glue layer support for the stmmac
+	  device driver. This driver does not use any of the hardware
+	  acceleration features available on this SoC. Network devices
+	  will behave like standard non-accelerated ethernet interfaces.
 
 config DWMAC_LPC18XX
 	tristate "NXP LPC18xx/43xx DWMAC support"
