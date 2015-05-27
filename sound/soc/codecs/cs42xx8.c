@@ -128,7 +128,6 @@ static const struct snd_soc_dapm_widget cs42xx8_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("AIN2L"),
 	SND_SOC_DAPM_INPUT("AIN2R"),
 
-	SND_SOC_DAPM_SUPPLY("PWR", CS42XX8_PWRCTL, 0, 1, NULL, 0),
 };
 
 static const struct snd_soc_dapm_widget cs42xx8_adc3_dapm_widgets[] = {
@@ -142,35 +141,28 @@ static const struct snd_soc_dapm_route cs42xx8_dapm_routes[] = {
 	/* Playback */
 	{ "AOUT1L", NULL, "DAC1" },
 	{ "AOUT1R", NULL, "DAC1" },
-	{ "DAC1", NULL, "PWR" },
 
 	{ "AOUT2L", NULL, "DAC2" },
 	{ "AOUT2R", NULL, "DAC2" },
-	{ "DAC2", NULL, "PWR" },
 
 	{ "AOUT3L", NULL, "DAC3" },
 	{ "AOUT3R", NULL, "DAC3" },
-	{ "DAC3", NULL, "PWR" },
 
 	{ "AOUT4L", NULL, "DAC4" },
 	{ "AOUT4R", NULL, "DAC4" },
-	{ "DAC4", NULL, "PWR" },
 
 	/* Capture */
 	{ "ADC1", NULL, "AIN1L" },
 	{ "ADC1", NULL, "AIN1R" },
-	{ "ADC1", NULL, "PWR" },
 
 	{ "ADC2", NULL, "AIN2L" },
 	{ "ADC2", NULL, "AIN2R" },
-	{ "ADC2", NULL, "PWR" },
 };
 
 static const struct snd_soc_dapm_route cs42xx8_adc3_dapm_routes[] = {
 	/* Capture */
 	{ "ADC3", NULL, "AIN3L" },
 	{ "ADC3", NULL, "AIN3R" },
-	{ "ADC3", NULL, "PWR" },
 };
 
 struct cs42xx8_ratios {
@@ -467,7 +459,8 @@ static int cs42xx8_codec_probe(struct snd_soc_codec *codec)
 
 	/* Mute all DAC channels */
 	regmap_write(cs42xx8->regmap, CS42XX8_DACMUTE, CS42XX8_DACMUTE_ALL);
-
+	regmap_update_bits(cs42xx8->regmap, CS42XX8_PWRCTL,
+			CS42XX8_PWRCTL_PDN_MASK, 0);
 	return 0;
 }
 
