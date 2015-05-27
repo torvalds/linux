@@ -438,6 +438,7 @@ static int gb_endo_register(struct greybus_host_device *hd,
 	int retval;
 
 	endo->dev.parent = hd->parent;
+	endo->dev.init_name = "endo";
 	endo->dev.bus = &greybus_bus_type;
 	endo->dev.type = &greybus_endo_type;
 	endo->dev.groups = endo_groups;
@@ -450,7 +451,6 @@ static int gb_endo_register(struct greybus_host_device *hd,
 	strcpy(&endo->svc_info.serial_number[0], "042");
 	strcpy(&endo->svc_info.version[0], "0.0");
 
-	dev_set_name(&endo->dev, "endo-0x%04x", endo->id);
 	retval = device_add(&endo->dev);
 	if (retval) {
 		dev_err(hd->parent, "failed to add endo device of id 0x%04x\n",

@@ -1,4 +1,4 @@
-What:		/sys/bus/greybus/device/endo-0xXXXX
+What:		/sys/bus/greybus/device/endo
 Date:		October 2015
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
@@ -7,7 +7,7 @@ Description:
 		replaced with the numeric value of the endo layout
 		scheme as documented in the ARA Module Developer Kit.
 
-What:		/sys/bus/greybus/device/endo-0xXXXX/id
+What:		/sys/bus/greybus/device/endo/id
 Date:		October 2015
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
@@ -16,7 +16,7 @@ Description:
 		defined by the the Endo layout scheme, documented in
 		the ARA Module Developer Kit.
 
-What:		/sys/bus/greybus/device/endo-0xXXXX/ap_intf_id
+What:		/sys/bus/greybus/device/endo/ap_intf_id
 Date:		October 2015
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
@@ -26,21 +26,21 @@ Description:
 		The interface positions are defined in the ARA
 		Module Developer Kit.
 
-What:		/sys/bus/greybus/device/endo-0xXXXX/svc/serial_number
+What:		/sys/bus/greybus/device/endo/svc/serial_number
 Date:		October 2015
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
 		The serial number of the SVC device
 
-What:		/sys/bus/greybus/device/endo-0xXXXX/svc/version
+What:		/sys/bus/greybus/device/endo/svc/version
 Date:		October 2015
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
 Description:
 		The version number of the firmware in the SVC device.
 
-What:		/sys/bus/greybus/device/endo-0xXXXX/.../epm
+What:		/sys/bus/greybus/device/endo/../epm
 Date:		October 2015
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
@@ -50,7 +50,7 @@ Description:
 		Writing 1 to it turns it on, writing 0 to it turns it
 		off.  Reading the value returns if it is on or off.
 
-What:		/sys/bus/greybus/device/endo-0xXXXX/.../power_control
+What:		/sys/bus/greybus/device/endo/.../power_control
 Date:		October 2015
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
@@ -60,7 +60,7 @@ Description:
 		to the module, writing 0 to it turns power off to the
 		module.  Reading the value returns if it is on or off.
 
-What:		/sys/bus/greybus/device/endo-0xXXXX/.../present
+What:		/sys/bus/greybus/device/endo/.../present
 Date:		October 2015
 KernelVersion:	4.XX
 Contact:	Greg Kroah-Hartman <greg@kroah.com>
