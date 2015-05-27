@@ -185,7 +185,7 @@ static ssize_t reset_store_afu(struct device *device,
 		goto err;
 	}
 
-	if ((rc = cxl_afu_reset(afu)))
+	if ((rc = __cxl_afu_reset(afu)))
 		goto err;
 
 	rc = count;
