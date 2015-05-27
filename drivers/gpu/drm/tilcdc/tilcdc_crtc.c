@@ -124,6 +124,7 @@ static void tilcdc_crtc_destroy(struct drm_crtc *crtc)
 
 	tilcdc_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
 
+	of_node_put(crtc->port);
 	drm_crtc_cleanup(crtc);
 	drm_flip_work_cleanup(&tilcdc_crtc->unref_work);
 
@@ -749,6 +750,7 @@ irqreturn_t tilcdc_crtc_irq(struct drm_crtc *crtc)
 
 struct drm_crtc *tilcdc_crtc_create(struct drm_device *dev)
 {
+	struct tilcdc_drm_private *priv = dev->dev_private;
 	struct tilcdc_crtc *tilcdc_crtc;
 	struct drm_crtc *crtc;
 	int ret;
@@ -774,6 +776,24 @@ struct drm_crtc *tilcdc_crtc_create(struct drm_device *dev)
 		goto fail;
 
 	drm_crtc_helper_add(crtc, &tilcdc_crtc_helper_funcs);
+
+	if (priv->is_componentized) {
+		struct device_node *ports =
+			of_get_child_by_name(dev->dev->of_node, "ports");
+
+		if (ports) {
+			crtc->port = of_get_child_by_name(ports, "port");
+			of_node_put(ports);
+		} else {
+			crtc->port =
+				of_get_child_by_name(dev->dev->of_node, "port");
+		}
+		if (!crtc->port) { /* This should never happen */
+			dev_err(dev->dev, "Port node not found in %s\n",
+				dev->dev->of_node->full_name);
+			goto fail;
+		}
+	}
 
 	return crtc;
 
