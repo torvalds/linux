@@ -2446,7 +2446,8 @@ static irqreturn_t vdpu_isr(int irq, void *dev_id)
 			vpu_err("error: dec isr with no task waiting\n");
 		} else {
 			reg_from_run_to_done(data, pservice->reg_codec);
-			writel(1, dev->hwregs + 101);
+			/* avoid vpu timeout and can't recover problem */
+			VDPU_SOFT_RESET(data->regs);
 		}
 	}
 
