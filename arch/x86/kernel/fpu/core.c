@@ -127,7 +127,7 @@ void __kernel_fpu_end(void)
 	struct fpu *fpu = &current->thread.fpu;
 
 	if (fpu->fpregs_active) {
-		if (WARN_ON_FPU(copy_fpstate_to_fpregs(fpu)))
+		if (WARN_ON_FPU(copy_kernel_to_fpregs(fpu)))
 			fpu__clear(fpu);
 	} else {
 		__fpregs_deactivate_hw();
@@ -370,7 +370,7 @@ void fpu__restore(struct fpu *fpu)
 	/* Avoid __kernel_fpu_begin() right after fpregs_activate() */
 	kernel_fpu_disable();
 	fpregs_activate(fpu);
-	if (unlikely(copy_fpstate_to_fpregs(fpu))) {
+	if (unlikely(copy_kernel_to_fpregs(fpu))) {
 		/* Copying the kernel state to FPU registers should never fail: */
 		WARN_ON_FPU(1);
 		fpu__clear(fpu);
