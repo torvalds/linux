@@ -225,7 +225,7 @@ struct kparam_array
 
 /* Obsolete - use module_param_cb() */
 #define module_param_call(name, set, get, arg, perm)			\
-	static struct kernel_param_ops __param_ops_##name =		\
+	static const struct kernel_param_ops __param_ops_##name =		\
 		{ .flags = 0, (void *)set, (void *)get };		\
 	__module_param_call(MODULE_PARAM_PREFIX,			\
 			    name, &__param_ops_##name, arg,		\
@@ -376,64 +376,64 @@ static inline void destroy_params(const struct kernel_param *params,
 #define __param_check(name, p, type) \
 	static inline type __always_unused *__check_##name(void) { return(p); }
 
-extern struct kernel_param_ops param_ops_byte;
+extern const struct kernel_param_ops param_ops_byte;
 extern int param_set_byte(const char *val, const struct kernel_param *kp);
 extern int param_get_byte(char *buffer, const struct kernel_param *kp);
 #define param_check_byte(name, p) __param_check(name, p, unsigned char)
 
-extern struct kernel_param_ops param_ops_short;
+extern const struct kernel_param_ops param_ops_short;
 extern int param_set_short(const char *val, const struct kernel_param *kp);
 extern int param_get_short(char *buffer, const struct kernel_param *kp);
 #define param_check_short(name, p) __param_check(name, p, short)
 
-extern struct kernel_param_ops param_ops_ushort;
+extern const struct kernel_param_ops param_ops_ushort;
 extern int param_set_ushort(const char *val, const struct kernel_param *kp);
 extern int param_get_ushort(char *buffer, const struct kernel_param *kp);
 #define param_check_ushort(name, p) __param_check(name, p, unsigned short)
 
-extern struct kernel_param_ops param_ops_int;
+extern const struct kernel_param_ops param_ops_int;
 extern int param_set_int(const char *val, const struct kernel_param *kp);
 extern int param_get_int(char *buffer, const struct kernel_param *kp);
 #define param_check_int(name, p) __param_check(name, p, int)
 
-extern struct kernel_param_ops param_ops_uint;
+extern const struct kernel_param_ops param_ops_uint;
 extern int param_set_uint(const char *val, const struct kernel_param *kp);
 extern int param_get_uint(char *buffer, const struct kernel_param *kp);
 #define param_check_uint(name, p) __param_check(name, p, unsigned int)
 
-extern struct kernel_param_ops param_ops_long;
+extern const struct kernel_param_ops param_ops_long;
 extern int param_set_long(const char *val, const struct kernel_param *kp);
 extern int param_get_long(char *buffer, const struct kernel_param *kp);
 #define param_check_long(name, p) __param_check(name, p, long)
 
-extern struct kernel_param_ops param_ops_ulong;
+extern const struct kernel_param_ops param_ops_ulong;
 extern int param_set_ulong(const char *val, const struct kernel_param *kp);
 extern int param_get_ulong(char *buffer, const struct kernel_param *kp);
 #define param_check_ulong(name, p) __param_check(name, p, unsigned long)
 
-extern struct kernel_param_ops param_ops_ullong;
+extern const struct kernel_param_ops param_ops_ullong;
 extern int param_set_ullong(const char *val, const struct kernel_param *kp);
 extern int param_get_ullong(char *buffer, const struct kernel_param *kp);
 #define param_check_ullong(name, p) __param_check(name, p, unsigned long long)
 
-extern struct kernel_param_ops param_ops_charp;
+extern const struct kernel_param_ops param_ops_charp;
 extern int param_set_charp(const char *val, const struct kernel_param *kp);
 extern int param_get_charp(char *buffer, const struct kernel_param *kp);
 #define param_check_charp(name, p) __param_check(name, p, char *)
 
 /* We used to allow int as well as bool.  We're taking that away! */
-extern struct kernel_param_ops param_ops_bool;
+extern const struct kernel_param_ops param_ops_bool;
 extern int param_set_bool(const char *val, const struct kernel_param *kp);
 extern int param_get_bool(char *buffer, const struct kernel_param *kp);
 #define param_check_bool(name, p) __param_check(name, p, bool)
 
-extern struct kernel_param_ops param_ops_invbool;
+extern const struct kernel_param_ops param_ops_invbool;
 extern int param_set_invbool(const char *val, const struct kernel_param *kp);
 extern int param_get_invbool(char *buffer, const struct kernel_param *kp);
 #define param_check_invbool(name, p) __param_check(name, p, bool)
 
 /* An int, which can only be set like a bool (though it shows as an int). */
-extern struct kernel_param_ops param_ops_bint;
+extern const struct kernel_param_ops param_ops_bint;
 extern int param_set_bint(const char *val, const struct kernel_param *kp);
 #define param_get_bint param_get_int
 #define param_check_bint param_check_int
@@ -477,9 +477,9 @@ extern int param_set_bint(const char *val, const struct kernel_param *kp);
 			    perm, -1, 0);				\
 	__MODULE_PARM_TYPE(name, "array of " #type)
 
-extern struct kernel_param_ops param_array_ops;
+extern const struct kernel_param_ops param_array_ops;
 
-extern struct kernel_param_ops param_ops_string;
+extern const struct kernel_param_ops param_ops_string;
 extern int param_set_copystring(const char *val, const struct kernel_param *);
 extern int param_get_string(char *buffer, const struct kernel_param *kp);
 
