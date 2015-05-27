@@ -398,7 +398,6 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen)
 	err = __stop_machine(take_cpu_down, &tcd_param, cpumask_of(cpu));
 	if (err) {
 		/* CPU didn't die: tell everyone.  Can't complain. */
-		smpboot_unpark_threads(cpu);
 		cpu_notify_nofail(CPU_DOWN_FAILED | mod, hcpu);
 		goto out_release;
 	}
@@ -463,6 +462,7 @@ static int smpboot_thread_call(struct notifier_block *nfb,
 
 	switch (action & ~CPU_TASKS_FROZEN) {
 
+	case CPU_DOWN_FAILED:
 	case CPU_ONLINE:
 		smpboot_unpark_threads(cpu);
 		break;
@@ -479,7 +479,7 @@ static struct notifier_block smpboot_thread_notifier = {
 	.priority = CPU_PRI_SMPBOOT,
 };
 
-void __cpuinit smpboot_thread_init(void)
+void smpboot_thread_init(void)
 {
 	register_cpu_notifier(&smpboot_thread_notifier);
 }

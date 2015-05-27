@@ -184,6 +184,11 @@ o	Be very careful about comparing pointers obtained from
 		pointer.  Note that the volatile cast in rcu_dereference()
 		will normally prevent the compiler from knowing too much.
 
+		However, please note that if the compiler knows that the
+		pointer takes on only one of two values, a not-equal
+		comparison will provide exactly the information that the
+		compiler needs to deduce the value of the pointer.
+
 o	Disable any value-speculation optimizations that your compiler
 	might provide, especially if you are making use of feedback-based
 	optimizations that take data collected from prior runs.  Such
