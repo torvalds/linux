@@ -1169,11 +1169,17 @@ static inline int check_modstruct_version(Elf_Shdr *sechdrs,
 {
 	const unsigned long *crc;
 
-	/* Since this should be found in kernel (which can't be removed),
-	 * no locking is necessary. */
+	/*
+	 * Since this should be found in kernel (which can't be removed), no
+	 * locking is necessary -- use preempt_disable() to placate lockdep.
+	 */
+	preempt_disable();
 	if (!find_symbol(VMLINUX_SYMBOL_STR(module_layout), NULL,
-			 &crc, true, false))
+			 &crc, true, false)) {
+		preempt_enable();
 		BUG();
+	}
+	preempt_enable();
 	return check_version(sechdrs, versindex,
 			     VMLINUX_SYMBOL_STR(module_layout), mod, crc,
 			     NULL);
