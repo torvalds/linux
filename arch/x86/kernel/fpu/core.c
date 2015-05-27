@@ -312,10 +312,7 @@ void fpu__activate_fpstate_read(struct fpu *fpu)
 	if (fpu->fpregs_active) {
 		fpu__save(fpu);
 	} else {
-		if (fpu->fpstate_active) {
-			/* Invalidate any lazy state: */
-			fpu->last_cpu = -1;
-		} else {
+		if (!fpu->fpstate_active) {
 			fpstate_init(&fpu->state);
 
 			/* Safe to do for current and for stopped child tasks: */
