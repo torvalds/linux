@@ -236,6 +236,8 @@ struct __sk_buff {
 	__u32 vlan_tci;
 	__u32 vlan_proto;
 	__u32 priority;
+	__u32 ingress_ifindex;
+	__u32 ifindex;
 };
 
 #endif /* _UAPI__LINUX_BPF_H__ */
