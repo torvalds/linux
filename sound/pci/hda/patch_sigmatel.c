@@ -4403,7 +4403,6 @@ static const struct hda_codec_ops stac_patch_ops = {
 #ifdef CONFIG_PM
 	.suspend = stac_suspend,
 #endif
-	.stream_pm = snd_hda_gen_stream_pm,
 	.reboot_notify = stac_shutup,
 };
 
