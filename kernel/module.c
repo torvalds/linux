@@ -170,7 +170,26 @@ static const struct latch_tree_ops mod_tree_ops = {
 	.comp = mod_tree_comp,
 };
 
-static struct latch_tree_root mod_tree __cacheline_aligned;
+static struct mod_tree_root {
+	struct latch_tree_root root;
+	unsigned long addr_min;
+	unsigned long addr_max;
+} mod_tree __cacheline_aligned = {
+	.addr_min = -1UL,
+};
+
+#define module_addr_min mod_tree.addr_min
+#define module_addr_max mod_tree.addr_max
+
+static noinline void __mod_tree_insert(struct mod_tree_node *node)
+{
+	latch_tree_insert(&node->node, &mod_tree.root, &mod_tree_ops);
+}
+
+static void __mod_tree_remove(struct mod_tree_node *node)
+{
+	latch_tree_erase(&node->node, &mod_tree.root, &mod_tree_ops);
+}
 
 /*
  * These modifications: insert, remove_init and remove; are serialized by the
@@ -181,20 +200,20 @@ static void mod_tree_insert(struct module *mod)
 	mod->mtn_core.mod = mod;
 	mod->mtn_init.mod = mod;
 
-	latch_tree_insert(&mod->mtn_core.node, &mod_tree, &mod_tree_ops);
+	__mod_tree_insert(&mod->mtn_core);
 	if (mod->init_size)
-		latch_tree_insert(&mod->mtn_init.node, &mod_tree, &mod_tree_ops);
+		__mod_tree_insert(&mod->mtn_init);
 }
 
 static void mod_tree_remove_init(struct module *mod)
 {
 	if (mod->init_size)
-		latch_tree_erase(&mod->mtn_init.node, &mod_tree, &mod_tree_ops);
+		__mod_tree_remove(&mod->mtn_init);
 }
 
 static void mod_tree_remove(struct module *mod)
 {
-	latch_tree_erase(&mod->mtn_core.node, &mod_tree, &mod_tree_ops);
+	__mod_tree_remove(&mod->mtn_core);
 	mod_tree_remove_init(mod);
 }
 
@@ -202,7 +221,7 @@ static struct module *mod_find(unsigned long addr)
 {
 	struct latch_tree_node *ltn;
 
-	ltn = latch_tree_find((void *)addr, &mod_tree, &mod_tree_ops);
+	ltn = latch_tree_find((void *)addr, &mod_tree.root, &mod_tree_ops);
 	if (!ltn)
 		return NULL;
 
@@ -210,6 +229,8 @@ static struct module *mod_find(unsigned long addr)
 }
 
 #else /* MODULES_TREE_LOOKUP */
+
+static unsigned long module_addr_min = -1UL, module_addr_max = 0;
 
 static void mod_tree_insert(struct module *mod) { }
 static void mod_tree_remove_init(struct module *mod) { }
@@ -228,6 +249,28 @@ static struct module *mod_find(unsigned long addr)
 }
 
 #endif /* MODULES_TREE_LOOKUP */
+
+/*
+ * Bounds of module text, for speeding up __module_address.
+ * Protected by module_mutex.
+ */
+static void __mod_update_bounds(void *base, unsigned int size)
+{
+	unsigned long min = (unsigned long)base;
+	unsigned long max = min + size;
+
+	if (min < module_addr_min)
+		module_addr_min = min;
+	if (max > module_addr_max)
+		module_addr_max = max;
+}
+
+static void mod_update_bounds(struct module *mod)
+{
+	__mod_update_bounds(mod->module_core, mod->core_size);
+	if (mod->init_size)
+		__mod_update_bounds(mod->module_init, mod->init_size);
+}
 
 #ifdef CONFIG_KGDB_KDB
 struct list_head *kdb_modules = &modules; /* kdb needs the list of modules */
@@ -296,10 +339,6 @@ core_param(nomodule, modules_disabled, bint, 0);
 static DECLARE_WAIT_QUEUE_HEAD(module_wq);
 
 static BLOCKING_NOTIFIER_HEAD(module_notify_list);
-
-/* Bounds of module allocation, for speeding __module_address.
- * Protected by module_mutex. */
-static unsigned long module_addr_min = -1UL, module_addr_max = 0;
 
 int register_module_notifier(struct notifier_block *nb)
 {
@@ -2539,22 +2578,6 @@ void * __weak module_alloc(unsigned long size)
 	return vmalloc_exec(size);
 }
 
-static void *module_alloc_update_bounds(unsigned long size)
-{
-	void *ret = module_alloc(size);
-
-	if (ret) {
-		mutex_lock(&module_mutex);
-		/* Update module bounds. */
-		if ((unsigned long)ret < module_addr_min)
-			module_addr_min = (unsigned long)ret;
-		if ((unsigned long)ret + size > module_addr_max)
-			module_addr_max = (unsigned long)ret + size;
-		mutex_unlock(&module_mutex);
-	}
-	return ret;
-}
-
 #ifdef CONFIG_DEBUG_KMEMLEAK
 static void kmemleak_load_module(const struct module *mod,
 				 const struct load_info *info)
@@ -2960,7 +2983,7 @@ static int move_module(struct module *mod, struct load_info *info)
 	void *ptr;
 
 	/* Do the allocs. */
-	ptr = module_alloc_update_bounds(mod->core_size);
+	ptr = module_alloc(mod->core_size);
 	/*
 	 * The pointer to this block is stored in the module structure
 	 * which is inside the block. Just mark it as not being a
@@ -2974,7 +2997,7 @@ static int move_module(struct module *mod, struct load_info *info)
 	mod->module_core = ptr;
 
 	if (mod->init_size) {
-		ptr = module_alloc_update_bounds(mod->init_size);
+		ptr = module_alloc(mod->init_size);
 		/*
 		 * The pointer to this block is stored in the module structure
 		 * which is inside the block. This block doesn't need to be
@@ -3344,6 +3367,7 @@ again:
 		err = -EEXIST;
 		goto out;
 	}
+	mod_update_bounds(mod);
 	list_add_rcu(&mod->list, &modules);
 	mod_tree_insert(mod);
 	err = 0;
