@@ -374,8 +374,6 @@ static void omap_crtc_encoder_setup(struct drm_crtc *crtc, bool enable)
 
 	DBG("%s: enable=%d", omap_crtc->name, enable);
 
-	dispc_runtime_get();
-
 	for (i = 0; i < priv->num_encoders; i++) {
 		if (priv->encoders[i]->crtc == crtc) {
 			encoder = priv->encoders[i];
@@ -396,8 +394,6 @@ static void omap_crtc_encoder_setup(struct drm_crtc *crtc, bool enable)
 			omap_encoder_set_enabled(encoder, true);
 		}
 	}
-
-	dispc_runtime_put();
 }
 
 /* -----------------------------------------------------------------------------
