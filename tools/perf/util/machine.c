@@ -333,7 +333,7 @@ static void machine__update_thread_pid(struct machine *machine,
 		if (!map_groups__empty(th->mg))
 			pr_err("Discarding thread maps for %d:%d\n",
 			       th->pid_, th->tid);
-		map_groups__delete(th->mg);
+		map_groups__put(th->mg);
 	}
 
 	th->mg = map_groups__get(leader->mg);
@@ -400,7 +400,7 @@ static struct thread *____machine__findnew_thread(struct machine *machine,
 		 * leader and that would screwed the rb tree.
 		 */
 		if (thread__init_map_groups(th, machine)) {
-			rb_erase(&th->rb_node, &machine->threads);
+			rb_erase_init(&th->rb_node, &machine->threads);
 			RB_CLEAR_NODE(&th->rb_node);
 			thread__delete(th);
 			return NULL;
@@ -1314,7 +1314,7 @@ static void __machine__remove_thread(struct machine *machine, struct thread *th,
 	BUG_ON(atomic_read(&th->refcnt) == 0);
 	if (lock)
 		pthread_rwlock_wrlock(&machine->threads_lock);
-	rb_erase(&th->rb_node, &machine->threads);
+	rb_erase_init(&th->rb_node, &machine->threads);
 	RB_CLEAR_NODE(&th->rb_node);
 	/*
 	 * Move it first to the dead_threads list, then drop the reference,

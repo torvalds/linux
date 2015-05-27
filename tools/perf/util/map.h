@@ -166,7 +166,7 @@ void maps__insert(struct rb_root *maps, struct map *map);
 void maps__remove(struct rb_root *maps, struct map *map);
 struct map *maps__find(struct rb_root *maps, u64 addr);
 struct map *maps__first(struct rb_root *maps);
-struct map *maps__next(struct map *map);
+struct map *map__next(struct map *map);
 void map_groups__init(struct map_groups *mg, struct machine *machine);
 void map_groups__exit(struct map_groups *mg);
 int map_groups__clone(struct map_groups *mg,
@@ -201,7 +201,7 @@ static inline struct map *map_groups__first(struct map_groups *mg,
 
 static inline struct map *map_groups__next(struct map *map)
 {
-	return maps__next(map);
+	return map__next(map);
 }
 
 struct symbol *map_groups__find_symbol(struct map_groups *mg,
@@ -232,7 +232,5 @@ int map_groups__fixup_overlappings(struct map_groups *mg, struct map *map,
 
 struct map *map_groups__find_by_name(struct map_groups *mg,
 				     enum map_type type, const char *name);
-
-void map_groups__flush(struct map_groups *mg);
 
 #endif /* __PERF_MAP_H */

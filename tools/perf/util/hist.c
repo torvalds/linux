@@ -362,10 +362,10 @@ static u8 symbol__parent_filter(const struct symbol *parent)
 	return 0;
 }
 
-static struct hist_entry *add_hist_entry(struct hists *hists,
-					 struct hist_entry *entry,
-					 struct addr_location *al,
-					 bool sample_self)
+static struct hist_entry *hists__findnew_entry(struct hists *hists,
+					       struct hist_entry *entry,
+					       struct addr_location *al,
+					       bool sample_self)
 {
 	struct rb_node **p;
 	struct rb_node *parent = NULL;
@@ -468,7 +468,7 @@ struct hist_entry *__hists__add_entry(struct hists *hists,
 		.transaction = transaction,
 	};
 
-	return add_hist_entry(hists, &entry, al, sample_self);
+	return hists__findnew_entry(hists, &entry, al, sample_self);
 }
 
 static int
@@ -548,9 +548,9 @@ iter_finish_mem_entry(struct hist_entry_iter *iter,
 
 out:
 	/*
-	 * We don't need to free iter->priv (mem_info) here since
-	 * the mem info was either already freed in add_hist_entry() or
-	 * passed to a new hist entry by hist_entry__new().
+	 * We don't need to free iter->priv (mem_info) here since the mem info
+	 * was either already freed in hists__findnew_entry() or passed to a
+	 * new hist entry by hist_entry__new().
 	 */
 	iter->priv = NULL;
 
@@ -851,18 +851,14 @@ const struct hist_iter_ops hist_iter_cumulative = {
 };
 
 int hist_entry_iter__add(struct hist_entry_iter *iter, struct addr_location *al,
-			 struct perf_evsel *evsel, struct perf_sample *sample,
 			 int max_stack_depth, void *arg)
 {
 	int err, err2;
 
-	err = sample__resolve_callchain(sample, &iter->parent, evsel, al,
-					max_stack_depth);
+	err = sample__resolve_callchain(iter->sample, &iter->parent,
+					iter->evsel, al, max_stack_depth);
 	if (err)
 		return err;
-
-	iter->evsel = evsel;
-	iter->sample = sample;
 
 	err = iter->ops->prepare_entry(iter, al);
 	if (err)

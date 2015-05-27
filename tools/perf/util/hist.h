@@ -111,7 +111,6 @@ struct hist_entry *__hists__add_entry(struct hists *hists,
 				      u64 weight, u64 transaction,
 				      bool sample_self);
 int hist_entry_iter__add(struct hist_entry_iter *iter, struct addr_location *al,
-			 struct perf_evsel *evsel, struct perf_sample *sample,
 			 int max_stack_depth, void *arg);
 
 int64_t hist_entry__cmp(struct hist_entry *left, struct hist_entry *right);

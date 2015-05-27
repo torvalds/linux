@@ -329,8 +329,9 @@ int perf_event__synthesize_modules(struct perf_tool *tool,
 				   struct machine *machine)
 {
 	int rc = 0;
-	struct rb_node *nd;
+	struct map *pos;
 	struct map_groups *kmaps = &machine->kmaps;
+	struct rb_root *maps = &kmaps->maps[MAP__FUNCTION];
 	union perf_event *event = zalloc((sizeof(event->mmap) +
 					  machine->id_hdr_size));
 	if (event == NULL) {
@@ -350,10 +351,8 @@ int perf_event__synthesize_modules(struct perf_tool *tool,
 	else
 		event->header.misc = PERF_RECORD_MISC_GUEST_KERNEL;
 
-	for (nd = rb_first(&kmaps->maps[MAP__FUNCTION]);
-	     nd; nd = rb_next(nd)) {
+	for (pos = maps__first(maps); pos; pos = map__next(pos)) {
 		size_t size;
-		struct map *pos = rb_entry(nd, struct map, rb_node);
 
 		if (pos->dso->kernel)
 			continue;

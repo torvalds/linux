@@ -1182,7 +1182,7 @@ int perf_session__peek_event(struct perf_session *session, off_t file_offset,
 		return -1;
 
 	if (lseek(fd, file_offset, SEEK_SET) == (off_t)-1 ||
-	    readn(fd, &buf, hdr_sz) != (ssize_t)hdr_sz)
+	    readn(fd, buf, hdr_sz) != (ssize_t)hdr_sz)
 		return -1;
 
 	event = (union perf_event *)buf;
@@ -1190,12 +1190,12 @@ int perf_session__peek_event(struct perf_session *session, off_t file_offset,
 	if (session->header.needs_swap)
 		perf_event_header__bswap(&event->header);
 
-	if (event->header.size < hdr_sz)
+	if (event->header.size < hdr_sz || event->header.size > buf_sz)
 		return -1;
 
 	rest = event->header.size - hdr_sz;
 
-	if (readn(fd, &buf, rest) != (ssize_t)rest)
+	if (readn(fd, buf, rest) != (ssize_t)rest)
 		return -1;
 
 	if (session->header.needs_swap)

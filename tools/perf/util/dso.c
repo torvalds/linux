@@ -440,15 +440,7 @@ void dso__data_close(struct dso *dso)
 	pthread_mutex_unlock(&dso__data_open_lock);
 }
 
-/**
- * dso__data_fd - Get dso's data file descriptor
- * @dso: dso object
- * @machine: machine object
- *
- * External interface to find dso's file, open it and
- * returns file descriptor.
- */
-int dso__data_fd(struct dso *dso, struct machine *machine)
+static void try_to_open_dso(struct dso *dso, struct machine *machine)
 {
 	enum dso_binary_type binary_type_data[] = {
 		DSO_BINARY_TYPE__BUILD_ID_CACHE,
@@ -457,13 +449,8 @@ int dso__data_fd(struct dso *dso, struct machine *machine)
 	};
 	int i = 0;
 
-	if (dso->data.status == DSO_DATA_STATUS_ERROR)
-		return -1;
-
-	pthread_mutex_lock(&dso__data_open_lock);
-
 	if (dso->data.fd >= 0)
-		goto out;
+		return;
 
 	if (dso->binary_type != DSO_BINARY_TYPE__NOT_FOUND) {
 		dso->data.fd = open_dso(dso, machine);
@@ -483,9 +470,36 @@ out:
 		dso->data.status = DSO_DATA_STATUS_OK;
 	else
 		dso->data.status = DSO_DATA_STATUS_ERROR;
+}
 
-	pthread_mutex_unlock(&dso__data_open_lock);
+/**
+ * dso__data_get_fd - Get dso's data file descriptor
+ * @dso: dso object
+ * @machine: machine object
+ *
+ * External interface to find dso's file, open it and
+ * returns file descriptor.  It should be paired with
+ * dso__data_put_fd() if it returns non-negative value.
+ */
+int dso__data_get_fd(struct dso *dso, struct machine *machine)
+{
+	if (dso->data.status == DSO_DATA_STATUS_ERROR)
+		return -1;
+
+	if (pthread_mutex_lock(&dso__data_open_lock) < 0)
+		return -1;
+
+	try_to_open_dso(dso, machine);
+
+	if (dso->data.fd < 0)
+		pthread_mutex_unlock(&dso__data_open_lock);
+
 	return dso->data.fd;
+}
+
+void dso__data_put_fd(struct dso *dso __maybe_unused)
+{
+	pthread_mutex_unlock(&dso__data_open_lock);
 }
 
 bool dso__data_status_seen(struct dso *dso, enum dso_data_status_seen by)
@@ -609,13 +623,12 @@ dso_cache__read(struct dso *dso, struct machine *machine,
 		 * dso->data.fd might be closed if other thread opened another
 		 * file (dso) due to open file limit (RLIMIT_NOFILE).
 		 */
+		try_to_open_dso(dso, machine);
+
 		if (dso->data.fd < 0) {
-			dso->data.fd = open_dso(dso, machine);
-			if (dso->data.fd < 0) {
-				ret = -errno;
-				dso->data.status = DSO_DATA_STATUS_ERROR;
-				break;
-			}
+			ret = -errno;
+			dso->data.status = DSO_DATA_STATUS_ERROR;
+			break;
 		}
 
 		cache_offset = offset & DSO__DATA_CACHE_MASK;
@@ -702,19 +715,21 @@ static int data_file_size(struct dso *dso, struct machine *machine)
 	if (dso->data.file_size)
 		return 0;
 
+	if (dso->data.status == DSO_DATA_STATUS_ERROR)
+		return -1;
+
 	pthread_mutex_lock(&dso__data_open_lock);
 
 	/*
 	 * dso->data.fd might be closed if other thread opened another
 	 * file (dso) due to open file limit (RLIMIT_NOFILE).
 	 */
+	try_to_open_dso(dso, machine);
+
 	if (dso->data.fd < 0) {
-		dso->data.fd = open_dso(dso, machine);
-		if (dso->data.fd < 0) {
-			ret = -errno;
-			dso->data.status = DSO_DATA_STATUS_ERROR;
-			goto out;
-		}
+		ret = -errno;
+		dso->data.status = DSO_DATA_STATUS_ERROR;
+		goto out;
 	}
 
 	if (fstat(dso->data.fd, &st) < 0) {
@@ -740,12 +755,6 @@ out:
  */
 off_t dso__data_size(struct dso *dso, struct machine *machine)
 {
-	int fd;
-
-	fd = dso__data_fd(dso, machine);
-	if (fd < 0)
-		return fd;
-
 	if (data_file_size(dso, machine))
 		return -1;
 
@@ -1200,12 +1209,15 @@ size_t dso__fprintf(struct dso *dso, enum map_type type, FILE *fp)
 enum dso_type dso__type(struct dso *dso, struct machine *machine)
 {
 	int fd;
+	enum dso_type type = DSO__TYPE_UNKNOWN;
 
-	fd = dso__data_fd(dso, machine);
-	if (fd < 0)
-		return DSO__TYPE_UNKNOWN;
+	fd = dso__data_get_fd(dso, machine);
+	if (fd >= 0) {
+		type = dso__type_fd(fd);
+		dso__data_put_fd(dso);
+	}
 
-	return dso__type_fd(fd);
+	return type;
 }
 
 int dso__strerror_load(struct dso *dso, char *buf, size_t buflen)

@@ -162,8 +162,9 @@ static u64 kernel_get_symbol_address_by_name(const char *name, bool reloc)
 
 static struct map *kernel_get_module_map(const char *module)
 {
-	struct rb_node *nd;
 	struct map_groups *grp = &host_machine->kmaps;
+	struct rb_root *maps = &grp->maps[MAP__FUNCTION];
+	struct map *pos;
 
 	/* A file path -- this is an offline module */
 	if (module && strchr(module, '/'))
@@ -172,8 +173,7 @@ static struct map *kernel_get_module_map(const char *module)
 	if (!module)
 		module = "kernel";
 
-	for (nd = rb_first(&grp->maps[MAP__FUNCTION]); nd; nd = rb_next(nd)) {
-		struct map *pos = rb_entry(nd, struct map, rb_node);
+	for (pos = maps__first(maps); pos; pos = map__next(pos)) {
 		if (strncmp(pos->dso->short_name + 1, module,
 			    pos->dso->short_name_len - 2) == 0) {
 			return pos;
@@ -195,17 +195,17 @@ static void put_target_map(struct map *map, bool user)
 {
 	if (map && user) {
 		/* Only the user map needs to be released */
-		dso__delete(map->dso);
 		map__delete(map);
 	}
 }
 
 
-static struct dso *kernel_get_module_dso(const char *module)
+static int kernel_get_module_dso(const char *module, struct dso **pdso)
 {
 	struct dso *dso;
 	struct map *map;
 	const char *vmlinux_name;
+	int ret = 0;
 
 	if (module) {
 		list_for_each_entry(dso, &host_machine->kernel_dsos.head,
@@ -215,30 +215,21 @@ static struct dso *kernel_get_module_dso(const char *module)
 				goto found;
 		}
 		pr_debug("Failed to find module %s.\n", module);
-		return NULL;
+		return -ENOENT;
 	}
 
 	map = host_machine->vmlinux_maps[MAP__FUNCTION];
 	dso = map->dso;
 
 	vmlinux_name = symbol_conf.vmlinux_name;
-	if (vmlinux_name) {
-		if (dso__load_vmlinux(dso, map, vmlinux_name, false, NULL) <= 0)
-			return NULL;
-	} else {
-		if (dso__load_vmlinux_path(dso, map, NULL) <= 0) {
-			pr_debug("Failed to load kernel map.\n");
-			return NULL;
-		}
-	}
+	dso->load_errno = 0;
+	if (vmlinux_name)
+		ret = dso__load_vmlinux(dso, map, vmlinux_name, false, NULL);
+	else
+		ret = dso__load_vmlinux_path(dso, map, NULL);
 found:
-	return dso;
-}
-
-const char *kernel_get_module_path(const char *module)
-{
-	struct dso *dso = kernel_get_module_dso(module);
-	return (dso) ? dso->long_name : NULL;
+	*pdso = dso;
+	return ret;
 }
 
 static int convert_exec_to_group(const char *exec, char **result)
@@ -390,16 +381,25 @@ static int get_alternative_line_range(struct debuginfo *dinfo,
 static struct debuginfo *open_debuginfo(const char *module, bool silent)
 {
 	const char *path = module;
-	struct debuginfo *ret;
+	char reason[STRERR_BUFSIZE];
+	struct debuginfo *ret = NULL;
+	struct dso *dso = NULL;
+	int err;
 
 	if (!module || !strchr(module, '/')) {
-		path = kernel_get_module_path(module);
-		if (!path) {
+		err = kernel_get_module_dso(module, &dso);
+		if (err < 0) {
+			if (!dso || dso->load_errno == 0) {
+				if (!strerror_r(-err, reason, STRERR_BUFSIZE))
+					strcpy(reason, "(unknown)");
+			} else
+				dso__strerror_load(dso, reason, STRERR_BUFSIZE);
 			if (!silent)
-				pr_err("Failed to find path of %s module.\n",
-				       module ?: "kernel");
+				pr_err("Failed to find the path for %s: %s\n",
+					module ?: "kernel", reason);
 			return NULL;
 		}
+		path = dso->long_name;
 	}
 	ret = debuginfo__new(path);
 	if (!ret && !silent) {
@@ -1791,7 +1791,6 @@ static int find_perf_probe_point_from_map(struct probe_trace_point *tp,
 
 out:
 	if (map && !is_kprobe) {
-		dso__delete(map->dso);
 		map__delete(map);
 	}
 
@@ -2812,13 +2811,14 @@ int del_perf_probe_events(struct strfilter *filter)
 		goto error;
 
 	ret2 = del_trace_probe_events(ufd, filter, unamelist);
-	if (ret2 < 0 && ret2 != -ENOENT)
+	if (ret2 < 0 && ret2 != -ENOENT) {
 		ret = ret2;
-	else if (ret == -ENOENT && ret2 == -ENOENT) {
+		goto error;
+	}
+	if (ret == -ENOENT && ret2 == -ENOENT)
 		pr_debug("\"%s\" does not hit any event.\n", str);
 		/* Note that this is silently ignored */
-		ret = 0;
-	}
+	ret = 0;
 
 error:
 	if (kfd >= 0) {
@@ -2884,7 +2884,6 @@ int show_available_funcs(const char *target, struct strfilter *_filter,
 	dso__fprintf_symbols_by_name(map->dso, map->type, stdout);
 end:
 	if (user) {
-		dso__delete(map->dso);
 		map__delete(map);
 	}
 	exit_symbol_maps();

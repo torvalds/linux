@@ -775,7 +775,9 @@ static void perf_event__process_sample(struct perf_tool *tool,
 	if (al.sym == NULL || !al.sym->ignore) {
 		struct hists *hists = evsel__hists(evsel);
 		struct hist_entry_iter iter = {
-			.add_entry_cb = hist_iter__top_callback,
+			.evsel		= evsel,
+			.sample 	= sample,
+			.add_entry_cb 	= hist_iter__top_callback,
 		};
 
 		if (symbol_conf.cumulate_callchain)
@@ -785,8 +787,7 @@ static void perf_event__process_sample(struct perf_tool *tool,
 
 		pthread_mutex_lock(&hists->lock);
 
-		err = hist_entry_iter__add(&iter, &al, evsel, sample,
-					   top->max_stack, top);
+		err = hist_entry_iter__add(&iter, &al, top->max_stack, top);
 		if (err < 0)
 			pr_err("Problem incrementing symbol period, skipping event\n");
 

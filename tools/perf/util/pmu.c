@@ -442,6 +442,10 @@ static struct perf_pmu *pmu_lookup(const char *name)
 	LIST_HEAD(aliases);
 	__u32 type;
 
+	/* No support for intel_bts or intel_pt so disallow them */
+	if (!strcmp(name, "intel_bts") || !strcmp(name, "intel_pt"))
+		return NULL;
+
 	/*
 	 * The pmu data we store & need consists of the pmu
 	 * type value and format definitions. Load both right

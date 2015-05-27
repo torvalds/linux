@@ -87,6 +87,8 @@ static int add_hist_entries(struct hists *hists, struct machine *machine)
 			},
 		};
 		struct hist_entry_iter iter = {
+			.evsel = evsel,
+			.sample	= &sample,
 			.hide_unresolved = false,
 		};
 
@@ -104,8 +106,8 @@ static int add_hist_entries(struct hists *hists, struct machine *machine)
 						  &sample) < 0)
 			goto out;
 
-		if (hist_entry_iter__add(&iter, &al, evsel, &sample,
-					 PERF_MAX_STACK_DEPTH, NULL) < 0) {
+		if (hist_entry_iter__add(&iter, &al, PERF_MAX_STACK_DEPTH,
+					 NULL) < 0) {
 			addr_location__put(&al);
 			goto out;
 		}

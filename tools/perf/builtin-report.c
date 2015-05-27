@@ -139,8 +139,10 @@ static int process_sample_event(struct perf_tool *tool,
 	struct report *rep = container_of(tool, struct report, tool);
 	struct addr_location al;
 	struct hist_entry_iter iter = {
-		.hide_unresolved = rep->hide_unresolved,
-		.add_entry_cb = hist_iter__report_callback,
+		.evsel 			= evsel,
+		.sample 		= sample,
+		.hide_unresolved 	= rep->hide_unresolved,
+		.add_entry_cb 		= hist_iter__report_callback,
 	};
 	int ret = 0;
 
@@ -168,8 +170,7 @@ static int process_sample_event(struct perf_tool *tool,
 	if (al.map != NULL)
 		al.map->dso->hit = 1;
 
-	ret = hist_entry_iter__add(&iter, &al, evsel, sample, rep->max_stack,
-				   rep);
+	ret = hist_entry_iter__add(&iter, &al, rep->max_stack, rep);
 	if (ret < 0)
 		pr_debug("problem adding hist entry, skipping event\n");
 out_put:

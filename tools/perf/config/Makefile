@@ -32,7 +32,7 @@ ifeq ($(ARCH),x86)
     LIBUNWIND_LIBS = -lunwind -lunwind-x86_64
     $(call detected,CONFIG_X86_64)
   else
-    LIBUNWIND_LIBS = -lunwind -lunwind-x86
+    LIBUNWIND_LIBS = -lunwind-x86 -llzma -lunwind
   endif
   NO_PERF_REGS := 0
 endif
@@ -130,6 +130,8 @@ endif
 
 ifeq ($(DEBUG),0)
   CFLAGS += -O6
+else
+  CFLAGS += $(call cc-option,-Og,-O0)
 endif
 
 ifdef PARSER_DEBUG

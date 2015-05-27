@@ -498,28 +498,6 @@ void map_groups__put(struct map_groups *mg)
 		map_groups__delete(mg);
 }
 
-void map_groups__flush(struct map_groups *mg)
-{
-	int type;
-
-	for (type = 0; type < MAP__NR_TYPES; type++) {
-		struct rb_root *root = &mg->maps[type];
-		struct rb_node *next = rb_first(root);
-
-		while (next) {
-			struct map *pos = rb_entry(next, struct map, rb_node);
-			next = rb_next(&pos->rb_node);
-			rb_erase(&pos->rb_node, root);
-			/*
-			 * We may have references to this map, for
-			 * instance in some hist_entry instances, so
-			 * just move them to a separate list.
-			 */
-			list_add_tail(&pos->node, &mg->removed_maps[pos->type]);
-		}
-	}
-}
-
 struct symbol *map_groups__find_symbol(struct map_groups *mg,
 				       enum map_type type, u64 addr,
 				       struct map **mapp,
@@ -710,9 +688,10 @@ move_map:
 int map_groups__clone(struct map_groups *mg,
 		      struct map_groups *parent, enum map_type type)
 {
-	struct rb_node *nd;
-	for (nd = rb_first(&parent->maps[type]); nd; nd = rb_next(nd)) {
-		struct map *map = rb_entry(nd, struct map, rb_node);
+	struct map *map;
+	struct rb_root *maps = &parent->maps[type];
+
+	for (map = maps__first(maps); map; map = map__next(map)) {
 		struct map *new = map__clone(map);
 		if (new == NULL)
 			return -ENOMEM;
@@ -775,7 +754,7 @@ struct map *maps__first(struct rb_root *maps)
 	return NULL;
 }
 
-struct map *maps__next(struct map *map)
+struct map *map__next(struct map *map)
 {
 	struct rb_node *next = rb_next(&map->rb_node);
 
