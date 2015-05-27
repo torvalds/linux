@@ -1442,36 +1442,39 @@ static void intel_hpd_irq_handler(struct drm_device *dev,
 
 	spin_lock(&dev_priv->irq_lock);
 	for (i = 1; i < HPD_NUM_PINS; i++) {
+		bool long_hpd;
+
 		if (!(hpd[i] & hotplug_trigger))
 			continue;
 
 		port = get_port_from_pin(i);
-		if (port && dev_priv->hpd_irq_port[port]) {
-			bool long_hpd;
+		if (!port || !dev_priv->hpd_irq_port[port])
+			continue;
 
-			if (!HAS_GMCH_DISPLAY(dev_priv)) {
-				dig_shift = pch_port_to_hotplug_shift(port);
-				long_hpd = (dig_hotplug_reg >> dig_shift) & PORTB_HOTPLUG_LONG_DETECT;
-			} else {
-				dig_shift = i915_port_to_hotplug_shift(port);
-				long_hpd = (hotplug_trigger >> dig_shift) & PORTB_HOTPLUG_LONG_DETECT;
-			}
-
-			DRM_DEBUG_DRIVER("digital hpd port %c - %s\n",
-					 port_name(port),
-					 long_hpd ? "long" : "short");
-			/* for long HPD pulses we want to have the digital queue happen,
-			   but we still want HPD storm detection to function. */
-			if (long_hpd) {
-				dev_priv->long_hpd_port_mask |= (1 << port);
-				dig_port_mask |= hpd[i];
-			} else {
-				/* for short HPD just trigger the digital queue */
-				dev_priv->short_hpd_port_mask |= (1 << port);
-				hotplug_trigger &= ~hpd[i];
-			}
-			queue_dig = true;
+		if (!HAS_GMCH_DISPLAY(dev_priv)) {
+			dig_shift = pch_port_to_hotplug_shift(port);
+			long_hpd = (dig_hotplug_reg >> dig_shift) & PORTB_HOTPLUG_LONG_DETECT;
+		} else {
+			dig_shift = i915_port_to_hotplug_shift(port);
+			long_hpd = (hotplug_trigger >> dig_shift) & PORTB_HOTPLUG_LONG_DETECT;
 		}
+
+		DRM_DEBUG_DRIVER("digital hpd port %c - %s\n", port_name(port),
+				 long_hpd ? "long" : "short");
+		/*
+		 * For long HPD pulses we want to have the digital queue happen,
+		 * but we still want HPD storm detection to function.
+		 */
+		if (long_hpd) {
+			dev_priv->long_hpd_port_mask |= (1 << port);
+			dig_port_mask |= hpd[i];
+		} else {
+			/* for short HPD just trigger the digital queue */
+			dev_priv->short_hpd_port_mask |= (1 << port);
+			hotplug_trigger &= ~hpd[i];
+		}
+
+		queue_dig = true;
 	}
 
 	for (i = 1; i < HPD_NUM_PINS; i++) {
