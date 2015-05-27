@@ -391,41 +391,21 @@ static bool omap_crtc_mode_fixup(struct drm_crtc *crtc,
 
 static void omap_crtc_enable(struct drm_crtc *crtc)
 {
-	struct omap_drm_private *priv = crtc->dev->dev_private;
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
-	unsigned int i;
 
 	DBG("%s", omap_crtc->name);
-
-	/* Enable all planes associated with the CRTC. */
-	for (i = 0; i < priv->num_planes; i++) {
-		struct drm_plane *plane = priv->planes[i];
-
-		if (plane->crtc == crtc)
-			WARN_ON(omap_plane_setup(plane));
-	}
 
 	drm_crtc_vblank_on(crtc);
 }
 
 static void omap_crtc_disable(struct drm_crtc *crtc)
 {
-	struct omap_drm_private *priv = crtc->dev->dev_private;
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
-	unsigned int i;
 
 	DBG("%s", omap_crtc->name);
 
 	omap_crtc_wait_page_flip(crtc);
 	drm_crtc_vblank_off(crtc);
-
-	/* Disable all planes associated with the CRTC. */
-	for (i = 0; i < priv->num_planes; i++) {
-		struct drm_plane *plane = priv->planes[i];
-
-		if (plane->crtc == crtc)
-			WARN_ON(omap_plane_setup(plane));
-	}
 }
 
 static void omap_crtc_mode_set_nofb(struct drm_crtc *crtc)

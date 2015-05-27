@@ -58,7 +58,7 @@ to_omap_plane_state(struct drm_plane_state *state)
 	return container_of(state, struct omap_plane_state, base);
 }
 
-int omap_plane_setup(struct drm_plane *plane)
+static int omap_plane_setup(struct drm_plane *plane)
 {
 	struct omap_plane *omap_plane = to_omap_plane(plane);
 	struct drm_plane_state *state = plane->state;
