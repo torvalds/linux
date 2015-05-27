@@ -39,7 +39,7 @@ static unsigned long socfpga_gate_clk_recalc_rate(struct clk_hw *hwclk,
 	else if (socfpgaclk->div_reg) {
 		val = readl(socfpgaclk->div_reg) >> socfpgaclk->shift;
 		val &= div_mask(socfpgaclk->width);
-			div = (1 << val);
+		div = (1 << val);
 	}
 
 	return parent_rate / div;
