@@ -228,19 +228,13 @@ static int echainiv_encrypt(struct aead_request *req)
 	info = req->iv;
 
 	if (req->src != req->dst) {
-		struct scatterlist src[2];
-		struct scatterlist dst[2];
 		struct blkcipher_desc desc = {
 			.tfm = ctx->null,
 		};
 
 		err = crypto_blkcipher_encrypt(
-			&desc,
-			scatterwalk_ffwd(dst, req->dst,
-					 req->assoclen + ivsize),
-			scatterwalk_ffwd(src, req->src,
-					 req->assoclen + ivsize),
-			req->cryptlen - ivsize);
+			&desc, req->dst, req->src,
+			req->assoclen + req->cryptlen);
 		if (err)
 			return err;
 	}
