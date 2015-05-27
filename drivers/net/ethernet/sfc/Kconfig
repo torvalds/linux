@@ -36,3 +36,12 @@ config SFC_SRIOV
 	  This enables support for the SFC9000 I/O Virtualization
 	  features, allowing accelerated network performance in
 	  virtualized environments.
+config SFC_MCDI_LOGGING
+	bool "Solarflare SFC9000/SFC9100-family MCDI logging support"
+	depends on SFC
+	default y
+	---help---
+	  This enables support for tracing of MCDI (Management-Controller-to-
+	  Driver-Interface) commands and responses, allowing debugging of
+	  driver/firmware interaction.  The tracing is actually enabled by
+	  a sysfs file 'mcdi_logging' under the PCI device.

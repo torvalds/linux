@@ -8,6 +8,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/moduleparam.h>
 #include <asm/cmpxchg.h>
 #include "net_driver.h"
 #include "nic.h"
@@ -54,18 +55,32 @@ static int efx_mcdi_drv_attach(struct efx_nic *efx, bool driver_operating,
 static bool efx_mcdi_poll_once(struct efx_nic *efx);
 static void efx_mcdi_abandon(struct efx_nic *efx);
 
+#ifdef CONFIG_SFC_MCDI_LOGGING
+static bool mcdi_logging_default;
+module_param(mcdi_logging_default, bool, 0644);
+MODULE_PARM_DESC(mcdi_logging_default,
+		 "Enable MCDI logging on newly-probed functions");
+#endif
+
 int efx_mcdi_init(struct efx_nic *efx)
 {
 	struct efx_mcdi_iface *mcdi;
 	bool already_attached;
-	int rc;
+	int rc = -ENOMEM;
 
 	efx->mcdi = kzalloc(sizeof(*efx->mcdi), GFP_KERNEL);
 	if (!efx->mcdi)
-		return -ENOMEM;
+		goto fail;
 
 	mcdi = efx_mcdi(efx);
 	mcdi->efx = efx;
+#ifdef CONFIG_SFC_MCDI_LOGGING
+	/* consuming code assumes buffer is page-sized */
+	mcdi->logging_buffer = (char *)__get_free_page(GFP_KERNEL);
+	if (!mcdi->logging_buffer)
+		goto fail1;
+	mcdi->logging_enabled = mcdi_logging_default;
+#endif
 	init_waitqueue_head(&mcdi->wq);
 	spin_lock_init(&mcdi->iface_lock);
 	mcdi->state = MCDI_STATE_QUIESCENT;
@@ -81,7 +96,7 @@ int efx_mcdi_init(struct efx_nic *efx)
 	/* Recover from a failed assertion before probing */
 	rc = efx_mcdi_handle_assertion(efx);
 	if (rc)
-		return rc;
+		goto fail2;
 
 	/* Let the MC (and BMC, if this is a LOM) know that the driver
 	 * is loaded. We should do this before we reset the NIC.
@@ -90,7 +105,7 @@ int efx_mcdi_init(struct efx_nic *efx)
 	if (rc) {
 		netif_err(efx, probe, efx->net_dev,
 			  "Unable to register driver with MCPU\n");
-		return rc;
+		goto fail2;
 	}
 	if (already_attached)
 		/* Not a fatal error */
@@ -102,6 +117,15 @@ int efx_mcdi_init(struct efx_nic *efx)
 		efx->primary = efx;
 
 	return 0;
+fail2:
+#ifdef CONFIG_SFC_MCDI_LOGGING
+	free_page((unsigned long)mcdi->logging_buffer);
+fail1:
+#endif
+	kfree(efx->mcdi);
+	efx->mcdi = NULL;
+fail:
+	return rc;
 }
 
 void efx_mcdi_fini(struct efx_nic *efx)
@@ -114,6 +138,10 @@ void efx_mcdi_fini(struct efx_nic *efx)
 	/* Relinquish the device (back to the BMC, if this is a LOM) */
 	efx_mcdi_drv_attach(efx, false, NULL);
 
+#ifdef CONFIG_SFC_MCDI_LOGGING
+	free_page((unsigned long)efx->mcdi->iface.logging_buffer);
+#endif
+
 	kfree(efx->mcdi);
 }
 
@@ -121,6 +149,9 @@ static void efx_mcdi_send_request(struct efx_nic *efx, unsigned cmd,
 				  const efx_dword_t *inbuf, size_t inlen)
 {
 	struct efx_mcdi_iface *mcdi = efx_mcdi(efx);
+#ifdef CONFIG_SFC_MCDI_LOGGING
+	char *buf = mcdi->logging_buffer; /* page-sized */
+#endif
 	efx_dword_t hdr[2];
 	size_t hdr_len;
 	u32 xflags, seqno;
@@ -165,6 +196,31 @@ static void efx_mcdi_send_request(struct efx_nic *efx, unsigned cmd,
 		hdr_len = 8;
 	}
 
+#ifdef CONFIG_SFC_MCDI_LOGGING
+	if (mcdi->logging_enabled && !WARN_ON_ONCE(!buf)) {
+		int bytes = 0;
+		int i;
+		/* Lengths should always be a whole number of dwords, so scream
+		 * if they're not.
+		 */
+		WARN_ON_ONCE(hdr_len % 4);
+		WARN_ON_ONCE(inlen % 4);
+
+		/* We own the logging buffer, as only one MCDI can be in
+		 * progress on a NIC at any one time.  So no need for locking.
+		 */
+		for (i = 0; i < hdr_len / 4 && bytes < PAGE_SIZE; i++)
+			bytes += snprintf(buf + bytes, PAGE_SIZE - bytes,
+					  " %08x", le32_to_cpu(hdr[i].u32[0]));
+
+		for (i = 0; i < inlen / 4 && bytes < PAGE_SIZE; i++)
+			bytes += snprintf(buf + bytes, PAGE_SIZE - bytes,
+					  " %08x", le32_to_cpu(inbuf[i].u32[0]));
+
+		netif_info(efx, hw, efx->net_dev, "MCDI RPC REQ:%s\n", buf);
+	}
+#endif
+
 	efx->type->mcdi_request(efx, hdr, hdr_len, inbuf, inlen);
 
 	mcdi->new_epoch = false;
@@ -206,6 +262,9 @@ static void efx_mcdi_read_response_header(struct efx_nic *efx)
 {
 	struct efx_mcdi_iface *mcdi = efx_mcdi(efx);
 	unsigned int respseq, respcmd, error;
+#ifdef CONFIG_SFC_MCDI_LOGGING
+	char *buf = mcdi->logging_buffer; /* page-sized */
+#endif
 	efx_dword_t hdr;
 
 	efx->type->mcdi_read_response(efx, &hdr, 0, 4);
@@ -222,6 +281,39 @@ static void efx_mcdi_read_response_header(struct efx_nic *efx)
 		mcdi->resp_data_len =
 			EFX_DWORD_FIELD(hdr, MC_CMD_V2_EXTN_IN_ACTUAL_LEN);
 	}
+
+#ifdef CONFIG_SFC_MCDI_LOGGING
+	if (mcdi->logging_enabled && !WARN_ON_ONCE(!buf)) {
+		size_t hdr_len, data_len;
+		int bytes = 0;
+		int i;
+
+		WARN_ON_ONCE(mcdi->resp_hdr_len % 4);
+		hdr_len = mcdi->resp_hdr_len / 4;
+		/* MCDI_DECLARE_BUF ensures that underlying buffer is padded
+		 * to dword size, and the MCDI buffer is always dword size
+		 */
+		data_len = DIV_ROUND_UP(mcdi->resp_data_len, 4);
+
+		/* We own the logging buffer, as only one MCDI can be in
+		 * progress on a NIC at any one time.  So no need for locking.
+		 */
+		for (i = 0; i < hdr_len && bytes < PAGE_SIZE; i++) {
+			efx->type->mcdi_read_response(efx, &hdr, (i * 4), 4);
+			bytes += snprintf(buf + bytes, PAGE_SIZE - bytes,
+					  " %08x", le32_to_cpu(hdr.u32[0]));
+		}
+
+		for (i = 0; i < data_len && bytes < PAGE_SIZE; i++) {
+			efx->type->mcdi_read_response(efx, &hdr,
+					mcdi->resp_hdr_len + (i * 4), 4);
+			bytes += snprintf(buf + bytes, PAGE_SIZE - bytes,
+					  " %08x", le32_to_cpu(hdr.u32[0]));
+		}
+
+		netif_info(efx, hw, efx->net_dev, "MCDI RPC RESP:%s\n", buf);
+	}
+#endif
 
 	if (error && mcdi->resp_data_len == 0) {
 		netif_err(efx, hw, efx->net_dev, "MC rebooted\n");
