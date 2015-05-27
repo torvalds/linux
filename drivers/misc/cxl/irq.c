@@ -477,7 +477,7 @@ out:
 	return -ENOMEM;
 }
 
-void afu_release_irqs(struct cxl_context *ctx)
+void afu_release_irqs(struct cxl_context *ctx, void *cookie)
 {
 	irq_hw_number_t hwirq;
 	unsigned int virq;
@@ -488,7 +488,7 @@ void afu_release_irqs(struct cxl_context *ctx)
 		for (i = 0; i < ctx->irqs.range[r]; hwirq++, i++) {
 			virq = irq_find_mapping(NULL, hwirq);
 			if (virq)
-				cxl_unmap_irq(virq, ctx);
+				cxl_unmap_irq(virq, cookie);
 		}
 	}
 

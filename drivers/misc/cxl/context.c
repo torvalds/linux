@@ -186,7 +186,7 @@ static void __detach_context(struct cxl_context *ctx)
 		return;
 
 	WARN_ON(cxl_detach_process(ctx));
-	afu_release_irqs(ctx);
+	afu_release_irqs(ctx, ctx);
 	flush_work(&ctx->fault_work); /* Only needed for dedicated process */
 	wake_up_all(&ctx->wq);
 }
