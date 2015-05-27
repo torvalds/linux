@@ -1453,8 +1453,11 @@ static struct nvme_queue *nvme_alloc_queue(struct nvme_dev *dev, int qid,
 	nvmeq->q_db = &dev->dbs[qid * 2 * dev->db_stride];
 	nvmeq->q_depth = depth;
 	nvmeq->qid = qid;
-	dev->queue_count++;
 	dev->queues[qid] = nvmeq;
+
+	/* make sure queue descriptor is set before queue count, for kthread */
+	mb();
+	dev->queue_count++;
 
 	return nvmeq;
 
