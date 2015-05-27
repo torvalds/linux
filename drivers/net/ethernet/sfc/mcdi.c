@@ -8,6 +8,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/moduleparam.h>
 #include <asm/cmpxchg.h>
 #include "net_driver.h"
 #include "nic.h"
@@ -54,6 +55,13 @@ static int efx_mcdi_drv_attach(struct efx_nic *efx, bool driver_operating,
 static bool efx_mcdi_poll_once(struct efx_nic *efx);
 static void efx_mcdi_abandon(struct efx_nic *efx);
 
+#ifdef CONFIG_SFC_MCDI_LOGGING
+static bool mcdi_logging_default;
+module_param(mcdi_logging_default, bool, 0644);
+MODULE_PARM_DESC(mcdi_logging_default,
+		 "Enable MCDI logging on newly-probed functions");
+#endif
+
 int efx_mcdi_init(struct efx_nic *efx)
 {
 	struct efx_mcdi_iface *mcdi;
@@ -71,6 +79,7 @@ int efx_mcdi_init(struct efx_nic *efx)
 	mcdi->logging_buffer = (char *)__get_free_page(GFP_KERNEL);
 	if (!mcdi->logging_buffer)
 		goto fail1;
+	mcdi->logging_enabled = mcdi_logging_default;
 #endif
 	init_waitqueue_head(&mcdi->wq);
 	spin_lock_init(&mcdi->iface_lock);
