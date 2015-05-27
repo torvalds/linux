@@ -2754,13 +2754,15 @@ static int dm_mq_queue_rq(struct blk_mq_hw_ctx *hctx,
 	if (dm_table_get_type(map) == DM_TYPE_REQUEST_BASED) {
 		/* clone request is allocated at the end of the pdu */
 		tio->clone = (void *)blk_mq_rq_to_pdu(rq) + sizeof(struct dm_rq_target_io);
-		if (!clone_rq(rq, md, tio, GFP_ATOMIC))
-			return BLK_MQ_RQ_QUEUE_BUSY;
+		(void) clone_rq(rq, md, tio, GFP_ATOMIC);
 		queue_kthread_work(&md->kworker, &tio->work);
 	} else {
 		/* Direct call is fine since .queue_rq allows allocations */
-		if (map_request(tio, rq, md) == DM_MAPIO_REQUEUE)
-			dm_requeue_unmapped_original_request(md, rq);
+		if (map_request(tio, rq, md) == DM_MAPIO_REQUEUE) {
+			/* Undo dm_start_request() before requeuing */
+			rq_completed(md, rq_data_dir(rq), false);
+			return BLK_MQ_RQ_QUEUE_BUSY;
+		}
 	}
 
 	return BLK_MQ_RQ_QUEUE_OK;
