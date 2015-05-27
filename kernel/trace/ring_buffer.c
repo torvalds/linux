@@ -3013,9 +3013,12 @@ int ring_buffer_write(struct ring_buffer *buffer,
 	if (length > BUF_MAX_DATA_SIZE)
 		goto out;
 
+	if (unlikely(trace_recursive_lock(cpu_buffer)))
+		goto out;
+
 	event = rb_reserve_next_event(buffer, cpu_buffer, length);
 	if (!event)
-		goto out;
+		goto out_unlock;
 
 	body = rb_event_data(event);
 
@@ -3026,6 +3029,10 @@ int ring_buffer_write(struct ring_buffer *buffer,
 	rb_wakeups(buffer, cpu_buffer);
 
 	ret = 0;
+
+ out_unlock:
+	trace_recursive_unlock(cpu_buffer);
+
  out:
 	preempt_enable_notrace();
 
