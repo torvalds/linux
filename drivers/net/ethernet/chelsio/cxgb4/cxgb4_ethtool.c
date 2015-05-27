@@ -250,7 +250,7 @@ static int restart_autoneg(struct net_device *dev)
 		return -EAGAIN;
 	if (p->link_cfg.autoneg != AUTONEG_ENABLE)
 		return -EINVAL;
-	t4_restart_aneg(p->adapter, p->adapter->fn, p->tx_chan);
+	t4_restart_aneg(p->adapter, p->adapter->pf, p->tx_chan);
 	return 0;
 }
 
@@ -267,7 +267,7 @@ static int identify_port(struct net_device *dev,
 	else
 		return -EINVAL;
 
-	return t4_identify_port(adap, adap->fn, netdev2pinfo(dev)->viid, val);
+	return t4_identify_port(adap, adap->pf, netdev2pinfo(dev)->viid, val);
 }
 
 static unsigned int from_fw_linkcaps(enum fw_port_type type, unsigned int caps)
@@ -439,7 +439,7 @@ static int set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	lc->autoneg = cmd->autoneg;
 
 	if (netif_running(dev))
-		return t4_link_start(p->adapter, p->adapter->fn, p->tx_chan,
+		return t4_link_start(p->adapter, p->adapter->pf, p->tx_chan,
 				     lc);
 	return 0;
 }
@@ -472,7 +472,7 @@ static int set_pauseparam(struct net_device *dev,
 	if (epause->tx_pause)
 		lc->requested_fc |= PAUSE_TX;
 	if (netif_running(dev))
-		return t4_link_start(p->adapter, p->adapter->fn, p->tx_chan,
+		return t4_link_start(p->adapter, p->adapter->pf, p->tx_chan,
 				     lc);
 	return 0;
 }
@@ -617,7 +617,7 @@ static int eeprom_ptov(unsigned int phys_addr, unsigned int fn, unsigned int sz)
  */
 static int eeprom_rd_phys(struct adapter *adap, unsigned int phys_addr, u32 *v)
 {
-	int vaddr = eeprom_ptov(phys_addr, adap->fn, EEPROMPFSIZE);
+	int vaddr = eeprom_ptov(phys_addr, adap->pf, EEPROMPFSIZE);
 
 	if (vaddr >= 0)
 		vaddr = pci_read_vpd(adap->pdev, vaddr, sizeof(u32), v);
@@ -626,7 +626,7 @@ static int eeprom_rd_phys(struct adapter *adap, unsigned int phys_addr, u32 *v)
 
 static int eeprom_wr_phys(struct adapter *adap, unsigned int phys_addr, u32 v)
 {
-	int vaddr = eeprom_ptov(phys_addr, adap->fn, EEPROMPFSIZE);
+	int vaddr = eeprom_ptov(phys_addr, adap->pf, EEPROMPFSIZE);
 
 	if (vaddr >= 0)
 		vaddr = pci_write_vpd(adap->pdev, vaddr, sizeof(u32), &v);
@@ -669,8 +669,8 @@ static int set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 	aligned_offset = eeprom->offset & ~3;
 	aligned_len = (eeprom->len + (eeprom->offset & 3) + 3) & ~3;
 
-	if (adapter->fn > 0) {
-		u32 start = 1024 + adapter->fn * EEPROMPFSIZE;
+	if (adapter->pf > 0) {
+		u32 start = 1024 + adapter->pf * EEPROMPFSIZE;
 
 		if (aligned_offset < start ||
 		    aligned_offset + aligned_len > start + EEPROMPFSIZE)

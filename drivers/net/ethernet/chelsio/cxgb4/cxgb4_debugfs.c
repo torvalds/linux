@@ -1222,7 +1222,7 @@ static int sensors_show(struct seq_file *seq, void *v)
 	param[1] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
 		    FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_DIAG) |
 		    FW_PARAMS_PARAM_Y_V(FW_PARAM_DEV_DIAG_VDD));
-	ret = t4_query_params(adap, adap->mbox, adap->fn, 0, 2,
+	ret = t4_query_params(adap, adap->mbox, adap->pf, 0, 2,
 			      param, val);
 
 	if (ret < 0 || val[0] == 0)
