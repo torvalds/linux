@@ -1,4 +1,4 @@
-/* Based on net/wireless/tracing.h */
+/* Based on net/wireless/trace.h */
 
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM cfg802154
