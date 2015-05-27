@@ -45,10 +45,10 @@ static void local_flush_tlb_from(int entry)
 
 	old_ctx = read_c0_entryhi() & ASID_MASK;
 	write_c0_entrylo0(0);
-	for (; entry < current_cpu_data.tlbsize; entry++) {
+	while (entry < current_cpu_data.tlbsize) {
 		write_c0_index(entry << 8);
 		write_c0_entryhi((entry | 0x80000) << 12);
-		BARRIER;
+		entry++;				/* BARRIER */
 		tlb_write_indexed();
 	}
 	write_c0_entryhi(old_ctx);
