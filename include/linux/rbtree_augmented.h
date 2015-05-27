@@ -123,11 +123,11 @@ __rb_change_child(struct rb_node *old, struct rb_node *new,
 {
 	if (parent) {
 		if (parent->rb_left == old)
-			parent->rb_left = new;
+			WRITE_ONCE(parent->rb_left, new);
 		else
-			parent->rb_right = new;
+			WRITE_ONCE(parent->rb_right, new);
 	} else
-		root->rb_node = new;
+		WRITE_ONCE(root->rb_node, new);
 }
 
 extern void __rb_erase_color(struct rb_node *parent, struct rb_root *root,
@@ -137,7 +137,8 @@ static __always_inline struct rb_node *
 __rb_erase_augmented(struct rb_node *node, struct rb_root *root,
 		     const struct rb_augment_callbacks *augment)
 {
-	struct rb_node *child = node->rb_right, *tmp = node->rb_left;
+	struct rb_node *child = node->rb_right;
+	struct rb_node *tmp = node->rb_left;
 	struct rb_node *parent, *rebalance;
 	unsigned long pc;
 
@@ -167,6 +168,7 @@ __rb_erase_augmented(struct rb_node *node, struct rb_root *root,
 		tmp = parent;
 	} else {
 		struct rb_node *successor = child, *child2;
+
 		tmp = child->rb_left;
 		if (!tmp) {
 			/*
@@ -180,6 +182,7 @@ __rb_erase_augmented(struct rb_node *node, struct rb_root *root,
 			 */
 			parent = successor;
 			child2 = successor->rb_right;
+
 			augment->copy(node, successor);
 		} else {
 			/*
@@ -201,19 +204,23 @@ __rb_erase_augmented(struct rb_node *node, struct rb_root *root,
 				successor = tmp;
 				tmp = tmp->rb_left;
 			} while (tmp);
-			parent->rb_left = child2 = successor->rb_right;
-			successor->rb_right = child;
+			child2 = successor->rb_right;
+			WRITE_ONCE(parent->rb_left, child2);
+			WRITE_ONCE(successor->rb_right, child);
 			rb_set_parent(child, successor);
+
 			augment->copy(node, successor);
 			augment->propagate(parent, successor);
 		}
 
-		successor->rb_left = tmp = node->rb_left;
+		tmp = node->rb_left;
+		WRITE_ONCE(successor->rb_left, tmp);
 		rb_set_parent(tmp, successor);
 
 		pc = node->__rb_parent_color;
 		tmp = __rb_parent(pc);
 		__rb_change_child(node, successor, tmp, root);
+
 		if (child2) {
 			successor->__rb_parent_color = pc;
 			rb_set_parent_color(child2, parent, RB_BLACK);
