@@ -672,5 +672,6 @@ int cxl_psl_purge(struct cxl_afu *afu);
 void cxl_stop_trace(struct cxl *cxl);
 
 extern struct pci_driver cxl_pci_driver;
+int afu_allocate_irqs(struct cxl_context *ctx, u32 count);
 
 #endif
