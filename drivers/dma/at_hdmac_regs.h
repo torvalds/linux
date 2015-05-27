@@ -196,6 +196,11 @@ struct at_desc {
 	size_t				len;
 	u32				tx_width;
 	size_t				total_len;
+
+	/* Interleaved data */
+	size_t				boundary;
+	size_t				dst_hole;
+	size_t				src_hole;
 };
 
 static inline struct at_desc *
