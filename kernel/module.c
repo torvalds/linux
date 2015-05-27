@@ -298,37 +298,6 @@ static bool sig_enforce = true;
 #else
 static bool sig_enforce = false;
 
-static int param_set_bool_enable_only(const char *val,
-				      const struct kernel_param *kp)
-{
-	int err = 0;
-	bool new_value;
-	bool orig_value = *(bool *)kp->arg;
-	struct kernel_param dummy_kp = *kp;
-
-	dummy_kp.arg = &new_value;
-
-	err = param_set_bool(val, &dummy_kp);
-	if (err)
-		return err;
-
-	/* Don't let them unset it once it's set! */
-	if (!new_value && orig_value)
-		return -EROFS;
-
-	if (new_value)
-		err = param_set_bool(val, kp);
-
-	return err;
-}
-
-static const struct kernel_param_ops param_ops_bool_enable_only = {
-	.flags = KERNEL_PARAM_OPS_FL_NOARG,
-	.set = param_set_bool_enable_only,
-	.get = param_get_bool,
-};
-#define param_check_bool_enable_only param_check_bool
-
 module_param(sig_enforce, bool_enable_only, 0644);
 #endif /* !CONFIG_MODULE_SIG_FORCE */
 #endif /* CONFIG_MODULE_SIG */

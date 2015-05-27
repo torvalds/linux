@@ -427,6 +427,12 @@ extern int param_set_bool(const char *val, const struct kernel_param *kp);
 extern int param_get_bool(char *buffer, const struct kernel_param *kp);
 #define param_check_bool(name, p) __param_check(name, p, bool)
 
+extern const struct kernel_param_ops param_ops_bool_enable_only;
+extern int param_set_bool_enable_only(const char *val,
+				      const struct kernel_param *kp);
+/* getter is the same as for the regular bool */
+#define param_check_bool_enable_only param_check_bool
+
 extern const struct kernel_param_ops param_ops_invbool;
 extern int param_set_invbool(const char *val, const struct kernel_param *kp);
 extern int param_get_invbool(char *buffer, const struct kernel_param *kp);
