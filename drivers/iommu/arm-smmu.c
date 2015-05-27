@@ -246,7 +246,7 @@
 #define FSYNR0_WNR			(1 << 4)
 
 static int force_stage;
-module_param_named(force_stage, force_stage, int, S_IRUGO | S_IWUSR);
+module_param_named(force_stage, force_stage, int, S_IRUGO);
 MODULE_PARM_DESC(force_stage,
 	"Force SMMU mappings to be installed at a particular stage of translation. A value of '1' or '2' forces the corresponding stage. All other values are ignored (i.e. no stage is forced). Note that selecting a specific stage will disable support for nested translation.");
 
