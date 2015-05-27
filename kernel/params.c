@@ -364,6 +364,7 @@ const struct kernel_param_ops param_ops_bool_enable_only = {
 	.set = param_set_bool_enable_only,
 	.get = param_get_bool,
 };
+EXPORT_SYMBOL_GPL(param_ops_bool_enable_only);
 
 /* This one must be bool. */
 int param_set_invbool(const char *val, const struct kernel_param *kp)
