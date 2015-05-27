@@ -330,7 +330,7 @@ int snd_unregister_device(struct device *dev)
 }
 EXPORT_SYMBOL(snd_unregister_device);
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_SND_PROC_FS
 /*
  *  INFO PART
  */
@@ -391,7 +391,7 @@ int __init snd_minor_info_init(void)
 	entry->c.text.read = snd_minor_info_read;
 	return snd_info_register(entry); /* freed in error path */
 }
-#endif /* CONFIG_PROC_FS */
+#endif /* CONFIG_SND_PROC_FS */
 
 /*
  *  INIT PART

@@ -72,7 +72,7 @@ static struct bus_type snd_seq_bus_type = {
 /*
  * proc interface -- just for compatibility
  */
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_SND_PROC_FS
 static struct snd_info_entry *info_entry;
 
 static int print_dev_info(struct device *dev, void *data)

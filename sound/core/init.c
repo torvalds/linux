@@ -100,7 +100,7 @@ int (*snd_mixer_oss_notify_callback)(struct snd_card *card, int free_flag);
 EXPORT_SYMBOL(snd_mixer_oss_notify_callback);
 #endif
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_SND_PROC_FS
 static void snd_card_id_read(struct snd_info_entry *entry,
 			     struct snd_info_buffer *buffer)
 {
@@ -122,7 +122,7 @@ static int init_info_for_card(struct snd_card *card)
 
 	return snd_info_card_register(card);
 }
-#else /* !CONFIG_PROC_FS */
+#else /* !CONFIG_SND_PROC_FS */
 #define init_info_for_card(card)
 #endif
 
@@ -776,7 +776,7 @@ int snd_card_register(struct snd_card *card)
 
 EXPORT_SYMBOL(snd_card_register);
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_SND_PROC_FS
 static void snd_card_info_read(struct snd_info_entry *entry,
 			       struct snd_info_buffer *buffer)
 {
@@ -861,7 +861,7 @@ int __init snd_card_info_init(void)
 
 	return 0;
 }
-#endif /* CONFIG_PROC_FS */
+#endif /* CONFIG_SND_PROC_FS */
 
 /**
  *  snd_component_add - add a component string

@@ -4,7 +4,7 @@
 #
 
 snd-y     := sound.o init.o memory.o control.o misc.o device.o
-ifneq ($(CONFIG_PROC_FS),)
+ifneq ($(CONFIG_SND_PROC_FS),)
 snd-y += info.o
 snd-$(CONFIG_SND_OSSEMUL) += info_oss.o
 endif
