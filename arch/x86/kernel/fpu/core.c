@@ -296,40 +296,47 @@ void fpu__activate_curr(struct fpu *fpu)
 EXPORT_SYMBOL_GPL(fpu__activate_curr);
 
 /*
- * This function must be called before we modify a stopped child's
+ * This function must be called before we read or write a task's fpstate.
+ *
+ * If the task has not used the FPU before then initialize its
  * fpstate.
  *
- * If the child has not used the FPU before then initialize its
- * fpstate.
+ * If the task has used the FPU before then save and unlazy it.
  *
- * If the child has used the FPU before then unlazy it.
- *
- * [ After this function call, after registers in the fpstate are
+ * [ If this function is used for non-current child tasks, then
+ *   after this function call, after registers in the fpstate are
  *   modified and the child task has woken up, the child task will
  *   restore the modified FPU state from the modified context. If we
  *   didn't clear its lazy status here then the lazy in-registers
  *   state pending on its former CPU could be restored, corrupting
- *   the modifications. ]
+ *   the modifications.
  *
- * This function is also called before we read a stopped child's
- * FPU state - to make sure it's initialized if the child has
- * no active FPU state.
+ *   This function can be used for the current task as well, but
+ *   only for reading the fpstate. Modifications to the fpstate
+ *   will be lost on eagerfpu systems. ]
  *
  * TODO: A future optimization would be to skip the unlazying in
  *       the read-only case, it's not strictly necessary for
  *       read-only access to the context.
  */
-void fpu__activate_stopped(struct fpu *child_fpu)
+void fpu__activate_fpstate(struct fpu *fpu)
 {
-	WARN_ON_FPU(child_fpu == &current->thread.fpu);
-
-	if (child_fpu->fpstate_active) {
-		child_fpu->last_cpu = -1;
+	/*
+	 * If fpregs are active (in the current CPU), then
+	 * copy them to the fpstate:
+	 */
+	if (fpu->fpregs_active) {
+		fpu__save(fpu);
 	} else {
-		fpstate_init(&child_fpu->state);
+		if (fpu->fpstate_active) {
+			/* Invalidate any lazy state: */
+			fpu->last_cpu = -1;
+		} else {
+			fpstate_init(&fpu->state);
 
-		/* Safe to do for stopped child tasks: */
-		child_fpu->fpstate_active = 1;
+			/* Safe to do for current and for stopped child tasks: */
+			fpu->fpstate_active = 1;
+		}
 	}
 }
 
