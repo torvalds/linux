@@ -515,7 +515,7 @@ static int atusb_get_and_show_chip(struct atusb *atusb)
 			man_id_1, man_id_0);
 		goto fail;
 	}
-	if (part_num != 3) {
+	if (part_num != 3 && part_num != 2) {
 		dev_err(&usb_dev->dev,
 			"unexpected transceiver, part 0x%02x version 0x%02x\n",
 			part_num, version_num);
