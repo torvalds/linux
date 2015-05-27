@@ -252,14 +252,15 @@ static bool srcu_readers_active_idx_check(struct srcu_struct *sp, int idx)
 }
 
 /**
- * srcu_readers_active - returns approximate number of readers.
+ * srcu_readers_active - returns true if there are readers. and false
+ *                       otherwise
  * @sp: which srcu_struct to count active readers (holding srcu_read_lock).
  *
  * Note that this is not an atomic primitive, and can therefore suffer
  * severe errors when invoked on an active srcu_struct.  That said, it
  * can be useful as an error check at cleanup time.
  */
-static int srcu_readers_active(struct srcu_struct *sp)
+static bool srcu_readers_active(struct srcu_struct *sp)
 {
 	int cpu;
 	unsigned long sum = 0;
