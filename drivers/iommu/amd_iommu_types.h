@@ -552,9 +552,6 @@ struct amd_iommu {
 	/* if one, we need to send a completion wait command */
 	bool need_sync;
 
-	/* default dma_ops domain for that IOMMU */
-	struct dma_ops_domain *default_dom;
-
 	/* IOMMU sysfs device */
 	struct device *iommu_dev;
 
