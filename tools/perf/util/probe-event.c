@@ -200,38 +200,6 @@ static void put_target_map(struct map *map, bool user)
 }
 
 
-static int kernel_get_module_dso(const char *module, struct dso **pdso)
-{
-	struct dso *dso;
-	struct map *map;
-	const char *vmlinux_name;
-	int ret = 0;
-
-	if (module) {
-		list_for_each_entry(dso, &host_machine->kernel_dsos.head,
-				    node) {
-			if (strncmp(dso->short_name + 1, module,
-				    dso->short_name_len - 2) == 0)
-				goto found;
-		}
-		pr_debug("Failed to find module %s.\n", module);
-		return -ENOENT;
-	}
-
-	map = host_machine->vmlinux_maps[MAP__FUNCTION];
-	dso = map->dso;
-
-	vmlinux_name = symbol_conf.vmlinux_name;
-	dso->load_errno = 0;
-	if (vmlinux_name)
-		ret = dso__load_vmlinux(dso, map, vmlinux_name, false, NULL);
-	else
-		ret = dso__load_vmlinux_path(dso, map, NULL);
-found:
-	*pdso = dso;
-	return ret;
-}
-
 static int convert_exec_to_group(const char *exec, char **result)
 {
 	char *ptr1, *ptr2, *exec_copy;
@@ -279,6 +247,39 @@ static void clear_probe_trace_events(struct probe_trace_event *tevs, int ntevs)
 }
 
 #ifdef HAVE_DWARF_SUPPORT
+
+static int kernel_get_module_dso(const char *module, struct dso **pdso)
+{
+	struct dso *dso;
+	struct map *map;
+	const char *vmlinux_name;
+	int ret = 0;
+
+	if (module) {
+		list_for_each_entry(dso, &host_machine->kernel_dsos.head,
+				    node) {
+			if (strncmp(dso->short_name + 1, module,
+				    dso->short_name_len - 2) == 0)
+				goto found;
+		}
+		pr_debug("Failed to find module %s.\n", module);
+		return -ENOENT;
+	}
+
+	map = host_machine->vmlinux_maps[MAP__FUNCTION];
+	dso = map->dso;
+
+	vmlinux_name = symbol_conf.vmlinux_name;
+	dso->load_errno = 0;
+	if (vmlinux_name)
+		ret = dso__load_vmlinux(dso, map, vmlinux_name, false, NULL);
+	else
+		ret = dso__load_vmlinux_path(dso, map, NULL);
+found:
+	*pdso = dso;
+	return ret;
+}
+
 /*
  * Some binaries like glibc have special symbols which are on the symbol
  * table, but not in the debuginfo. If we can find the address of the
