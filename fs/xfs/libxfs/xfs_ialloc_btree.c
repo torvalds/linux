@@ -427,3 +427,54 @@ xfs_inobt_maxrecs(
 		return blocklen / sizeof(xfs_inobt_rec_t);
 	return blocklen / (sizeof(xfs_inobt_key_t) + sizeof(xfs_inobt_ptr_t));
 }
+
+/*
+ * Convert the inode record holemask to an inode allocation bitmap. The inode
+ * allocation bitmap is inode granularity and specifies whether an inode is
+ * physically allocated on disk (not whether the inode is considered allocated
+ * or free by the fs).
+ *
+ * A bit value of 1 means the inode is allocated, a value of 0 means it is free.
+ */
+uint64_t
+xfs_inobt_irec_to_allocmask(
+	struct xfs_inobt_rec_incore	*rec)
+{
+	uint64_t			bitmap = 0;
+	uint64_t			inodespbit;
+	int				nextbit;
+	uint				allocbitmap;
+
+	/*
+	 * The holemask has 16-bits for a 64 inode record. Therefore each
+	 * holemask bit represents multiple inodes. Create a mask of bits to set
+	 * in the allocmask for each holemask bit.
+	 */
+	inodespbit = (1 << XFS_INODES_PER_HOLEMASK_BIT) - 1;
+
+	/*
+	 * Allocated inodes are represented by 0 bits in holemask. Invert the 0
+	 * bits to 1 and convert to a uint so we can use xfs_next_bit(). Mask
+	 * anything beyond the 16 holemask bits since this casts to a larger
+	 * type.
+	 */
+	allocbitmap = ~rec->ir_holemask & ((1 << XFS_INOBT_HOLEMASK_BITS) - 1);
+
+	/*
+	 * allocbitmap is the inverted holemask so every set bit represents
+	 * allocated inodes. To expand from 16-bit holemask granularity to
+	 * 64-bit (e.g., bit-per-inode), set inodespbit bits in the target
+	 * bitmap for every holemask bit.
+	 */
+	nextbit = xfs_next_bit(&allocbitmap, 1, 0);
+	while (nextbit != -1) {
+		ASSERT(nextbit < (sizeof(rec->ir_holemask) * NBBY));
+
+		bitmap |= (inodespbit <<
+			   (nextbit * XFS_INODES_PER_HOLEMASK_BIT));
+
+		nextbit = xfs_next_bit(&allocbitmap, 1, nextbit + 1);
+	}
+
+	return bitmap;
+}
