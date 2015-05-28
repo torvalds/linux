@@ -235,7 +235,7 @@ static int twl4030battery_temperature(int raw_volt)
 	if (ret < 0)
 		return ret;
 
-	curr = ((val & TWL4030_BCI_ITHEN) + 1) * 10;
+	curr = ((val & TWL4030_BCI_ITHSENS) + 1) * 10;
 	/* Getting and calculating the thermistor resistance in ohms */
 	res = volt * 1000 / curr;
 	/* calculating temperature */
