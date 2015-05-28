@@ -1885,8 +1885,7 @@ xfs_difree_inobt(
 	struct xfs_buf			*agbp,
 	xfs_agino_t			agino,
 	struct xfs_bmap_free		*flist,
-	int				*deleted,
-	xfs_ino_t			*first_ino,
+	struct xfs_icluster		*xic,
 	struct xfs_inobt_rec_incore	*orec)
 {
 	struct xfs_agi			*agi = XFS_BUF_TO_AGI(agbp);
@@ -1947,9 +1946,9 @@ xfs_difree_inobt(
 	if (!(mp->m_flags & XFS_MOUNT_IKEEP) &&
 	    rec.ir_free == XFS_INOBT_ALL_FREE &&
 	    mp->m_sb.sb_inopblock <= XFS_INODES_PER_CHUNK) {
-
-		*deleted = 1;
-		*first_ino = XFS_AGINO_TO_INO(mp, agno, rec.ir_startino);
+		xic->deleted = 1;
+		xic->first_ino = XFS_AGINO_TO_INO(mp, agno, rec.ir_startino);
+		xic->alloc = xfs_inobt_irec_to_allocmask(&rec);
 
 		/*
 		 * Remove the inode cluster from the AGI B+Tree, adjust the
@@ -1974,7 +1973,7 @@ xfs_difree_inobt(
 
 		xfs_difree_inode_chunk(mp, agno, &rec, flist);
 	} else {
-		*deleted = 0;
+		xic->deleted = 0;
 
 		error = xfs_inobt_update(cur, &rec);
 		if (error) {
@@ -2118,8 +2117,7 @@ xfs_difree(
 	struct xfs_trans	*tp,		/* transaction pointer */
 	xfs_ino_t		inode,		/* inode to be freed */
 	struct xfs_bmap_free	*flist,		/* extents to free */
-	int			*deleted,/* set if inode cluster was deleted */
-	xfs_ino_t		*first_ino)/* first inode in deleted cluster */
+	struct xfs_icluster	*xic)	/* cluster info if deleted */
 {
 	/* REFERENCED */
 	xfs_agblock_t		agbno;	/* block number containing inode */
@@ -2170,8 +2168,7 @@ xfs_difree(
 	/*
 	 * Fix up the inode allocation btree.
 	 */
-	error = xfs_difree_inobt(mp, tp, agbp, agino, flist, deleted, first_ino,
-				 &rec);
+	error = xfs_difree_inobt(mp, tp, agbp, agino, flist, xic, &rec);
 	if (error)
 		goto error0;
 
