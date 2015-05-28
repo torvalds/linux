@@ -8,6 +8,7 @@
 #include <linux/workqueue.h>
 #include <linux/fs.h>
 #include <linux/flex_proportions.h>
+#include <linux/backing-dev-defs.h>
 
 DECLARE_PER_CPU(int, dirty_throttle_leaks);
 
@@ -172,6 +173,51 @@ static inline void wait_on_inode(struct inode *inode)
 	might_sleep();
 	wait_on_bit(&inode->i_state, __I_NEW, TASK_UNINTERRUPTIBLE);
 }
+
+#ifdef CONFIG_CGROUP_WRITEBACK
+
+void __inode_attach_wb(struct inode *inode, struct page *page);
+
+/**
+ * inode_attach_wb - associate an inode with its wb
+ * @inode: inode of interest
+ * @page: page being dirtied (may be NULL)
+ *
+ * If @inode doesn't have its wb, associate it with the wb matching the
+ * memcg of @page or, if @page is NULL, %current.  May be called w/ or w/o
+ * @inode->i_lock.
+ */
+static inline void inode_attach_wb(struct inode *inode, struct page *page)
+{
+	if (!inode->i_wb)
+		__inode_attach_wb(inode, page);
+}
+
+/**
+ * inode_detach_wb - disassociate an inode from its wb
+ * @inode: inode of interest
+ *
+ * @inode is being freed.  Detach from its wb.
+ */
+static inline void inode_detach_wb(struct inode *inode)
+{
+	if (inode->i_wb) {
+		wb_put(inode->i_wb);
+		inode->i_wb = NULL;
+	}
+}
+
+#else	/* CONFIG_CGROUP_WRITEBACK */
+
+static inline void inode_attach_wb(struct inode *inode, struct page *page)
+{
+}
+
+static inline void inode_detach_wb(struct inode *inode)
+{
+}
+
+#endif	/* CONFIG_CGROUP_WRITEBACK */
 
 /*
  * mm/page-writeback.c

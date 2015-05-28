@@ -660,36 +660,6 @@ struct bdi_writeback *wb_get_create(struct backing_dev_info *bdi,
 	return wb;
 }
 
-void __inode_attach_wb(struct inode *inode, struct page *page)
-{
-	struct backing_dev_info *bdi = inode_to_bdi(inode);
-	struct bdi_writeback *wb = NULL;
-
-	if (inode_cgwb_enabled(inode)) {
-		struct cgroup_subsys_state *memcg_css;
-
-		if (page) {
-			memcg_css = mem_cgroup_css_from_page(page);
-			wb = wb_get_create(bdi, memcg_css, GFP_ATOMIC);
-		} else {
-			/* must pin memcg_css, see wb_get_create() */
-			memcg_css = task_get_css(current, memory_cgrp_id);
-			wb = wb_get_create(bdi, memcg_css, GFP_ATOMIC);
-			css_put(memcg_css);
-		}
-	}
-
-	if (!wb)
-		wb = &bdi->wb;
-
-	/*
-	 * There may be multiple instances of this function racing to
-	 * update the same inode.  Use cmpxchg() to tell the winner.
-	 */
-	if (unlikely(cmpxchg(&inode->i_wb, NULL, wb)))
-		wb_put(wb);
-}
-
 static void cgwb_bdi_init(struct backing_dev_info *bdi)
 {
 	bdi->wb.memcg_css = mem_cgroup_root_css;

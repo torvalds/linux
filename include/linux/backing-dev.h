@@ -243,7 +243,6 @@ void wb_congested_put(struct bdi_writeback_congested *congested);
 struct bdi_writeback *wb_get_create(struct backing_dev_info *bdi,
 				    struct cgroup_subsys_state *memcg_css,
 				    gfp_t gfp);
-void __inode_attach_wb(struct inode *inode, struct page *page);
 void wb_memcg_offline(struct mem_cgroup *memcg);
 void wb_blkcg_offline(struct blkcg *blkcg);
 int inode_congested(struct inode *inode, int cong_bits);
@@ -262,37 +261,6 @@ static inline bool inode_cgwb_enabled(struct inode *inode)
 	return bdi_cap_account_dirty(bdi) &&
 		(bdi->capabilities & BDI_CAP_CGROUP_WRITEBACK) &&
 		(inode->i_sb->s_type->fs_flags & FS_CGROUP_WRITEBACK);
-}
-
-/**
- * wb_tryget - try to increment a wb's refcount
- * @wb: bdi_writeback to get
- */
-static inline bool wb_tryget(struct bdi_writeback *wb)
-{
-	if (wb != &wb->bdi->wb)
-		return percpu_ref_tryget(&wb->refcnt);
-	return true;
-}
-
-/**
- * wb_get - increment a wb's refcount
- * @wb: bdi_writeback to get
- */
-static inline void wb_get(struct bdi_writeback *wb)
-{
-	if (wb != &wb->bdi->wb)
-		percpu_ref_get(&wb->refcnt);
-}
-
-/**
- * wb_put - decrement a wb's refcount
- * @wb: bdi_writeback to put
- */
-static inline void wb_put(struct bdi_writeback *wb)
-{
-	if (wb != &wb->bdi->wb)
-		percpu_ref_put(&wb->refcnt);
 }
 
 /**
@@ -351,35 +319,6 @@ wb_get_create_current(struct backing_dev_info *bdi, gfp_t gfp)
 		css_put(memcg_css);
 	}
 	return wb;
-}
-
-/**
- * inode_attach_wb - associate an inode with its wb
- * @inode: inode of interest
- * @page: page being dirtied (may be NULL)
- *
- * If @inode doesn't have its wb, associate it with the wb matching the
- * memcg of @page or, if @page is NULL, %current.  May be called w/ or w/o
- * @inode->i_lock.
- */
-static inline void inode_attach_wb(struct inode *inode, struct page *page)
-{
-	if (!inode->i_wb)
-		__inode_attach_wb(inode, page);
-}
-
-/**
- * inode_detach_wb - disassociate an inode from its wb
- * @inode: inode of interest
- *
- * @inode is being freed.  Detach from its wb.
- */
-static inline void inode_detach_wb(struct inode *inode)
-{
-	if (inode->i_wb) {
-		wb_put(inode->i_wb);
-		inode->i_wb = NULL;
-	}
 }
 
 /**
@@ -471,19 +410,6 @@ static inline void wb_congested_put(struct bdi_writeback_congested *congested)
 {
 }
 
-static inline bool wb_tryget(struct bdi_writeback *wb)
-{
-	return true;
-}
-
-static inline void wb_get(struct bdi_writeback *wb)
-{
-}
-
-static inline void wb_put(struct bdi_writeback *wb)
-{
-}
-
 static inline struct bdi_writeback *wb_find_current(struct backing_dev_info *bdi)
 {
 	return &bdi->wb;
@@ -493,14 +419,6 @@ static inline struct bdi_writeback *
 wb_get_create_current(struct backing_dev_info *bdi, gfp_t gfp)
 {
 	return &bdi->wb;
-}
-
-static inline void inode_attach_wb(struct inode *inode, struct page *page)
-{
-}
-
-static inline void inode_detach_wb(struct inode *inode)
-{
 }
 
 static inline struct bdi_writeback *inode_to_wb(struct inode *inode)
