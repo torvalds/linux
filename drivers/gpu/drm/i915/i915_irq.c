@@ -1478,8 +1478,10 @@ static void intel_hpd_irq_handler(struct drm_device *dev,
 	}
 
 	for_each_hpd_pin(i) {
-		if (hpd[i] & hotplug_trigger &&
-		    dev_priv->hotplug.stats[i].state == HPD_DISABLED) {
+		if (!(hpd[i] & hotplug_trigger))
+			continue;
+
+		if (dev_priv->hotplug.stats[i].state == HPD_DISABLED) {
 			/*
 			 * On GMCH platforms the interrupt mask bits only
 			 * prevent irq generation, not the setting of the
@@ -1493,8 +1495,7 @@ static void intel_hpd_irq_handler(struct drm_device *dev,
 			continue;
 		}
 
-		if (!(hpd[i] & hotplug_trigger) ||
-		    dev_priv->hotplug.stats[i].state != HPD_ENABLED)
+		if (dev_priv->hotplug.stats[i].state != HPD_ENABLED)
 			continue;
 
 		if (!(dig_port_mask & hpd[i])) {
