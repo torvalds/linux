@@ -132,6 +132,13 @@ struct gb_i2c_transfer_response {
 #define GB_GPIO_TYPE_IRQ_UNMASK		0x0d
 #define GB_GPIO_TYPE_IRQ_EVENT		0x0e
 
+#define GB_GPIO_IRQ_TYPE_NONE		0x00
+#define GB_GPIO_IRQ_TYPE_EDGE_RISING	0x01
+#define GB_GPIO_IRQ_TYPE_EDGE_FALLING	0x02
+#define GB_GPIO_IRQ_TYPE_EDGE_BOTH	0x03
+#define GB_GPIO_IRQ_TYPE_LEVEL_HIGH	0x04
+#define GB_GPIO_IRQ_TYPE_LEVEL_LOW	0x08
+
 /* line count request has no payload */
 struct gb_gpio_line_count_response {
 	__u8	count;

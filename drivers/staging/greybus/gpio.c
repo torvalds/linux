@@ -286,21 +286,33 @@ static int gb_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	struct gpio_chip *chip = irq_data_to_gpio_chip(d);
 	struct gb_gpio_controller *ggc = gpio_chip_to_gb_gpio_controller(chip);
 	struct gb_gpio_line *line = &ggc->lines[d->hwirq];
+	u8 irq_type;
 
 	switch (type) {
 	case IRQ_TYPE_NONE:
+		irq_type = GB_GPIO_IRQ_TYPE_NONE;
+		break;
 	case IRQ_TYPE_EDGE_RISING:
+		irq_type = GB_GPIO_IRQ_TYPE_EDGE_RISING;
+		break;
 	case IRQ_TYPE_EDGE_FALLING:
+		irq_type = GB_GPIO_IRQ_TYPE_EDGE_FALLING;
+		break;
 	case IRQ_TYPE_EDGE_BOTH:
+		irq_type = GB_GPIO_IRQ_TYPE_EDGE_BOTH;
+		break;
 	case IRQ_TYPE_LEVEL_LOW:
+		irq_type = GB_GPIO_IRQ_TYPE_LEVEL_LOW;
+		break;
 	case IRQ_TYPE_LEVEL_HIGH:
+		irq_type = GB_GPIO_IRQ_TYPE_LEVEL_HIGH;
 		break;
 	default:
 		dev_err(chip->dev, "unsupported irq type: %u\n", type);
 		return -EINVAL;
 	}
 
-	line->irq_type = type;
+	line->irq_type = irq_type;
 	line->irq_type_pending = true;
 
 	return 0;
