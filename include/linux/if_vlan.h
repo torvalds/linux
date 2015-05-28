@@ -416,7 +416,7 @@ static inline void __vlan_hwaccel_put_tag(struct sk_buff *skb,
 /**
  * __vlan_get_tag - get the VLAN ID that is part of the payload
  * @skb: skbuff to query
- * @vlan_tci: buffer to store vlaue
+ * @vlan_tci: buffer to store value
  *
  * Returns error if the skb is not of VLAN type
  */
@@ -435,7 +435,7 @@ static inline int __vlan_get_tag(const struct sk_buff *skb, u16 *vlan_tci)
 /**
  * __vlan_hwaccel_get_tag - get the VLAN ID that is in @skb->cb[]
  * @skb: skbuff to query
- * @vlan_tci: buffer to store vlaue
+ * @vlan_tci: buffer to store value
  *
  * Returns error if @skb->vlan_tci is not set correctly
  */
@@ -456,7 +456,7 @@ static inline int __vlan_hwaccel_get_tag(const struct sk_buff *skb,
 /**
  * vlan_get_tag - get the VLAN ID from the skb
  * @skb: skbuff to query
- * @vlan_tci: buffer to store vlaue
+ * @vlan_tci: buffer to store value
  *
  * Returns error if the skb is not VLAN tagged
  */
