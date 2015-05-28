@@ -268,55 +268,7 @@ struct mlx5_cmd {
 struct mlx5_port_caps {
 	int	gid_table_len;
 	int	pkey_table_len;
-};
-
-struct mlx5_general_caps {
-	u8	log_max_eq;
-	u8	log_max_cq;
-	u8	log_max_qp;
-	u8	log_max_mkey;
-	u8	log_max_pd;
-	u8	log_max_srq;
-	u8	log_max_mrw_sz;
-	u8	log_max_bsf_list_size;
-	u8	log_max_klm_list_size;
-	u32	max_cqes;
-	int	max_wqes;
-	u32	max_eqes;
-	u32	max_indirection;
-	int	max_sq_desc_sz;
-	int	max_rq_desc_sz;
-	int	max_dc_sq_desc_sz;
-	u64	flags;
-	u16	stat_rate_support;
-	int	log_max_msg;
-	int	num_ports;
-	u8	log_max_ra_res_qp;
-	u8	log_max_ra_req_qp;
-	int	max_srq_wqes;
-	int	bf_reg_size;
-	int	bf_regs_per_page;
-	struct mlx5_port_caps	port[MLX5_MAX_PORTS];
-	u8			ext_port_cap[MLX5_MAX_PORTS];
-	int	max_vf;
-	u32	reserved_lkey;
-	u8	local_ca_ack_delay;
-	u8	log_max_mcg;
-	u32	max_qp_mcg;
-	int	min_page_sz;
-	int	pd_cap;
-	u32	max_qp_counters;
-	u32	pkey_table_size;
-	u8	log_max_ra_req_dc;
-	u8	log_max_ra_res_dc;
-	u32	uar_sz;
-	u8	min_log_pg_sz;
-	u8	log_max_xrcd;
-	u16	log_uar_page_sz;
-};
-
-struct mlx5_caps {
-	struct mlx5_general_caps gen;
+	u8	ext_port_cap;
 };
 
 struct mlx5_cmd_mailbox {
@@ -521,7 +473,9 @@ struct mlx5_core_dev {
 	u8			rev_id;
 	char			board_id[MLX5_BOARD_ID_LEN];
 	struct mlx5_cmd		cmd;
-	struct mlx5_caps	caps;
+	struct mlx5_port_caps	port_caps[MLX5_MAX_PORTS];
+	u32 hca_caps_cur[MLX5_CAP_NUM][MLX5_UN_SZ_DW(hca_cap_union)];
+	u32 hca_caps_max[MLX5_CAP_NUM][MLX5_UN_SZ_DW(hca_cap_union)];
 	phys_addr_t		iseg_base;
 	struct mlx5_init_seg __iomem *iseg;
 	void			(*event) (struct mlx5_core_dev *dev,
@@ -651,8 +605,8 @@ void mlx5_cmd_use_events(struct mlx5_core_dev *dev);
 void mlx5_cmd_use_polling(struct mlx5_core_dev *dev);
 int mlx5_cmd_status_to_err(struct mlx5_outbox_hdr *hdr);
 int mlx5_cmd_status_to_err_v2(void *ptr);
-int mlx5_core_get_caps(struct mlx5_core_dev *dev, struct mlx5_caps *caps,
-		       u16 opmod);
+int mlx5_core_get_caps(struct mlx5_core_dev *dev, enum mlx5_cap_type cap_type,
+		       enum mlx5_cap_mode cap_mode);
 int mlx5_cmd_exec(struct mlx5_core_dev *dev, void *in, int in_size, void *out,
 		  int out_size);
 int mlx5_cmd_exec_cb(struct mlx5_core_dev *dev, void *in, int in_size,

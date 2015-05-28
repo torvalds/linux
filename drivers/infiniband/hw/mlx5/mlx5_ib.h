@@ -617,7 +617,7 @@ int mlx5_ib_check_mr_status(struct ib_mr *ibmr, u32 check_mask,
 #ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
 extern struct workqueue_struct *mlx5_ib_page_fault_wq;
 
-int mlx5_ib_internal_query_odp_caps(struct mlx5_ib_dev *dev);
+void mlx5_ib_internal_fill_odp_caps(struct mlx5_ib_dev *dev);
 void mlx5_ib_mr_pfault_handler(struct mlx5_ib_qp *qp,
 			       struct mlx5_ib_pfault *pfault);
 void mlx5_ib_odp_create_qp(struct mlx5_ib_qp *qp);
@@ -631,9 +631,9 @@ void mlx5_ib_invalidate_range(struct ib_umem *umem, unsigned long start,
 			      unsigned long end);
 
 #else /* CONFIG_INFINIBAND_ON_DEMAND_PAGING */
-static inline int mlx5_ib_internal_query_odp_caps(struct mlx5_ib_dev *dev)
+static inline void mlx5_ib_internal_fill_odp_caps(struct mlx5_ib_dev *dev)
 {
-	return 0;
+	return;
 }
 
 static inline void mlx5_ib_odp_create_qp(struct mlx5_ib_qp *qp)		{}

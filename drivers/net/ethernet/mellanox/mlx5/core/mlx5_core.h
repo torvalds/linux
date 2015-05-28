@@ -65,9 +65,15 @@ enum {
 	MLX5_CMD_TIME, /* print command execution time */
 };
 
+static inline int mlx5_cmd_exec_check_status(struct mlx5_core_dev *dev, u32 *in,
+					     int in_size, u32 *out,
+					     int out_size)
+{
+	mlx5_cmd_exec(dev, in, in_size, out, out_size);
+	return mlx5_cmd_status_to_err((struct mlx5_outbox_hdr *)out);
+}
 
-int mlx5_cmd_query_hca_cap(struct mlx5_core_dev *dev,
-			   struct mlx5_caps *caps);
+int mlx5_query_hca_caps(struct mlx5_core_dev *dev);
 int mlx5_cmd_query_adapter(struct mlx5_core_dev *dev);
 int mlx5_cmd_init_hca(struct mlx5_core_dev *dev);
 int mlx5_cmd_teardown_hca(struct mlx5_core_dev *dev);

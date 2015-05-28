@@ -211,11 +211,12 @@ static int mlx5_enable_msix(struct mlx5_core_dev *dev)
 {
 	struct mlx5_priv *priv = &dev->priv;
 	struct mlx5_eq_table *table = &priv->eq_table;
-	int num_eqs = 1 << dev->caps.gen.log_max_eq;
+	int num_eqs = 1 << MLX5_CAP_GEN(dev, log_max_eq);
 	int nvec;
 	int i;
 
-	nvec = dev->caps.gen.num_ports * num_online_cpus() + MLX5_EQ_VEC_COMP_BASE;
+	nvec = MLX5_CAP_GEN(dev, num_ports) * num_online_cpus() +
+	       MLX5_EQ_VEC_COMP_BASE;
 	nvec = min_t(int, nvec, num_eqs);
 	if (nvec <= MLX5_EQ_VEC_COMP_BASE)
 		return -ENOMEM;
@@ -287,97 +288,28 @@ static u16 to_fw_pkey_sz(u32 size)
 	}
 }
 
-/* selectively copy writable fields clearing any reserved area
- */
-static void copy_rw_fields(void *to, struct mlx5_caps *from)
+static u16 to_sw_pkey_sz(int pkey_sz)
 {
-	__be64 *flags_off = (__be64 *)MLX5_ADDR_OF(cmd_hca_cap, to, reserved_22);
-	u64 v64;
-
-	MLX5_SET(cmd_hca_cap, to, log_max_qp, from->gen.log_max_qp);
-	MLX5_SET(cmd_hca_cap, to, log_max_ra_req_qp, from->gen.log_max_ra_req_qp);
-	MLX5_SET(cmd_hca_cap, to, log_max_ra_res_qp, from->gen.log_max_ra_res_qp);
-	MLX5_SET(cmd_hca_cap, to, pkey_table_size, from->gen.pkey_table_size);
-	MLX5_SET(cmd_hca_cap, to, pkey_table_size, to_fw_pkey_sz(from->gen.pkey_table_size));
-	MLX5_SET(cmd_hca_cap, to, log_uar_page_sz, PAGE_SHIFT - 12);
-	v64 = from->gen.flags & MLX5_CAP_BITS_RW_MASK;
-	*flags_off = cpu_to_be64(v64);
-}
-
-static u16 get_pkey_table_size(int pkey)
-{
-	if (pkey > MLX5_MAX_LOG_PKEY_TABLE)
+	if (pkey_sz > MLX5_MAX_LOG_PKEY_TABLE)
 		return 0;
 
-	return MLX5_MIN_PKEY_TABLE_SIZE << pkey;
+	return MLX5_MIN_PKEY_TABLE_SIZE << pkey_sz;
 }
 
-static void fw2drv_caps(struct mlx5_caps *caps, void *out)
-{
-	struct mlx5_general_caps *gen = &caps->gen;
-
-	gen->max_srq_wqes = 1 << MLX5_GET_PR(cmd_hca_cap, out, log_max_srq_sz);
-	gen->max_wqes = 1 << MLX5_GET_PR(cmd_hca_cap, out, log_max_qp_sz);
-	gen->log_max_qp = MLX5_GET_PR(cmd_hca_cap, out, log_max_qp);
-	gen->log_max_srq = MLX5_GET_PR(cmd_hca_cap, out, log_max_srq);
-	gen->max_cqes = 1 << MLX5_GET_PR(cmd_hca_cap, out, log_max_cq_sz);
-	gen->log_max_cq = MLX5_GET_PR(cmd_hca_cap, out, log_max_cq);
-	gen->max_eqes = 1 << MLX5_GET_PR(cmd_hca_cap, out, log_max_eq_sz);
-	gen->log_max_mkey = MLX5_GET_PR(cmd_hca_cap, out, log_max_mkey);
-	gen->log_max_eq = MLX5_GET_PR(cmd_hca_cap, out, log_max_eq);
-	gen->max_indirection = MLX5_GET_PR(cmd_hca_cap, out, max_indirection);
-	gen->log_max_mrw_sz = MLX5_GET_PR(cmd_hca_cap, out, log_max_mrw_sz);
-	gen->log_max_bsf_list_size = MLX5_GET_PR(cmd_hca_cap, out, log_max_bsf_list_size);
-	gen->log_max_klm_list_size = MLX5_GET_PR(cmd_hca_cap, out, log_max_klm_list_size);
-	gen->log_max_ra_req_dc = MLX5_GET_PR(cmd_hca_cap, out, log_max_ra_req_dc);
-	gen->log_max_ra_res_dc = MLX5_GET_PR(cmd_hca_cap, out, log_max_ra_res_dc);
-	gen->log_max_ra_req_qp = MLX5_GET_PR(cmd_hca_cap, out, log_max_ra_req_qp);
-	gen->log_max_ra_res_qp = MLX5_GET_PR(cmd_hca_cap, out, log_max_ra_res_qp);
-	gen->max_qp_counters = MLX5_GET_PR(cmd_hca_cap, out, max_qp_cnt);
-	gen->pkey_table_size = get_pkey_table_size(MLX5_GET_PR(cmd_hca_cap, out, pkey_table_size));
-	gen->local_ca_ack_delay = MLX5_GET_PR(cmd_hca_cap, out, local_ca_ack_delay);
-	gen->num_ports = MLX5_GET_PR(cmd_hca_cap, out, num_ports);
-	gen->log_max_msg = MLX5_GET_PR(cmd_hca_cap, out, log_max_msg);
-	gen->stat_rate_support = MLX5_GET_PR(cmd_hca_cap, out, stat_rate_support);
-	gen->flags = be64_to_cpu(*(__be64 *)MLX5_ADDR_OF(cmd_hca_cap, out, reserved_22));
-	pr_debug("flags = 0x%llx\n", gen->flags);
-	gen->uar_sz = MLX5_GET_PR(cmd_hca_cap, out, uar_sz);
-	gen->min_log_pg_sz = MLX5_GET_PR(cmd_hca_cap, out, log_pg_sz);
-	gen->bf_reg_size = MLX5_GET_PR(cmd_hca_cap, out, bf);
-	gen->bf_reg_size = 1 << MLX5_GET_PR(cmd_hca_cap, out, log_bf_reg_size);
-	gen->max_sq_desc_sz = MLX5_GET_PR(cmd_hca_cap, out, max_wqe_sz_sq);
-	gen->max_rq_desc_sz = MLX5_GET_PR(cmd_hca_cap, out, max_wqe_sz_rq);
-	gen->max_dc_sq_desc_sz = MLX5_GET_PR(cmd_hca_cap, out, max_wqe_sz_sq_dc);
-	gen->max_qp_mcg = MLX5_GET_PR(cmd_hca_cap, out, max_qp_mcg);
-	gen->log_max_pd = MLX5_GET_PR(cmd_hca_cap, out, log_max_pd);
-	gen->log_max_xrcd = MLX5_GET_PR(cmd_hca_cap, out, log_max_xrcd);
-	gen->log_uar_page_sz = MLX5_GET_PR(cmd_hca_cap, out, log_uar_page_sz);
-}
-
-static const char *caps_opmod_str(u16 opmod)
-{
-	switch (opmod) {
-	case HCA_CAP_OPMOD_GET_MAX:
-		return "GET_MAX";
-	case HCA_CAP_OPMOD_GET_CUR:
-		return "GET_CUR";
-	default:
-		return "Invalid";
-	}
-}
-
-int mlx5_core_get_caps(struct mlx5_core_dev *dev, struct mlx5_caps *caps,
-		       u16 opmod)
+int mlx5_core_get_caps(struct mlx5_core_dev *dev, enum mlx5_cap_type cap_type,
+		       enum mlx5_cap_mode cap_mode)
 {
 	u8 in[MLX5_ST_SZ_BYTES(query_hca_cap_in)];
 	int out_sz = MLX5_ST_SZ_BYTES(query_hca_cap_out);
-	void *out;
+	void *out, *hca_caps;
+	u16 opmod = (cap_type << 1) | (cap_mode & 0x01);
 	int err;
 
 	memset(in, 0, sizeof(in));
 	out = kzalloc(out_sz, GFP_KERNEL);
 	if (!out)
 		return -ENOMEM;
+
 	MLX5_SET(query_hca_cap_in, in, opcode, MLX5_CMD_OP_QUERY_HCA_CAP);
 	MLX5_SET(query_hca_cap_in, in, op_mod, opmod);
 	err = mlx5_cmd_exec(dev, in, sizeof(in), out, out_sz);
@@ -386,12 +318,30 @@ int mlx5_core_get_caps(struct mlx5_core_dev *dev, struct mlx5_caps *caps,
 
 	err = mlx5_cmd_status_to_err_v2(out);
 	if (err) {
-		mlx5_core_warn(dev, "query max hca cap failed, %d\n", err);
+		mlx5_core_warn(dev,
+			       "QUERY_HCA_CAP : type(%x) opmode(%x) Failed(%d)\n",
+			       cap_type, cap_mode, err);
 		goto query_ex;
 	}
-	mlx5_core_dbg(dev, "%s\n", caps_opmod_str(opmod));
-	fw2drv_caps(caps, MLX5_ADDR_OF(query_hca_cap_out, out, capability));
 
+	hca_caps =  MLX5_ADDR_OF(query_hca_cap_out, out, capability);
+
+	switch (cap_mode) {
+	case HCA_CAP_OPMOD_GET_MAX:
+		memcpy(dev->hca_caps_max[cap_type], hca_caps,
+		       MLX5_UN_SZ_BYTES(hca_cap_union));
+		break;
+	case HCA_CAP_OPMOD_GET_CUR:
+		memcpy(dev->hca_caps_cur[cap_type], hca_caps,
+		       MLX5_UN_SZ_BYTES(hca_cap_union));
+		break;
+	default:
+		mlx5_core_warn(dev,
+			       "Tried to query dev cap type(%x) with wrong opmode(%x)\n",
+			       cap_type, cap_mode);
+		err = -EINVAL;
+		break;
+	}
 query_ex:
 	kfree(out);
 	return err;
@@ -418,49 +368,45 @@ static int handle_hca_cap(struct mlx5_core_dev *dev)
 {
 	void *set_ctx = NULL;
 	struct mlx5_profile *prof = dev->profile;
-	struct mlx5_caps *cur_caps = NULL;
-	struct mlx5_caps *max_caps = NULL;
 	int err = -ENOMEM;
 	int set_sz = MLX5_ST_SZ_BYTES(set_hca_cap_in);
+	void *set_hca_cap;
 
 	set_ctx = kzalloc(set_sz, GFP_KERNEL);
 	if (!set_ctx)
 		goto query_ex;
 
-	max_caps = kzalloc(sizeof(*max_caps), GFP_KERNEL);
-	if (!max_caps)
-		goto query_ex;
-
-	cur_caps = kzalloc(sizeof(*cur_caps), GFP_KERNEL);
-	if (!cur_caps)
-		goto query_ex;
-
-	err = mlx5_core_get_caps(dev, max_caps, HCA_CAP_OPMOD_GET_MAX);
+	err = mlx5_core_get_caps(dev, MLX5_CAP_GENERAL, HCA_CAP_OPMOD_GET_MAX);
 	if (err)
 		goto query_ex;
 
-	err = mlx5_core_get_caps(dev, cur_caps, HCA_CAP_OPMOD_GET_CUR);
+	err = mlx5_core_get_caps(dev, MLX5_CAP_GENERAL, HCA_CAP_OPMOD_GET_CUR);
 	if (err)
 		goto query_ex;
 
+	set_hca_cap = MLX5_ADDR_OF(set_hca_cap_in, set_ctx,
+				   capability);
+	memcpy(set_hca_cap, dev->hca_caps_cur[MLX5_CAP_GENERAL],
+	       MLX5_ST_SZ_BYTES(cmd_hca_cap));
+
+	mlx5_core_dbg(dev, "Current Pkey table size %d Setting new size %d\n",
+		      to_sw_pkey_sz(MLX5_CAP_GEN(dev, pkey_table_size)),
+		      128);
 	/* we limit the size of the pkey table to 128 entries for now */
-	cur_caps->gen.pkey_table_size = 128;
+	MLX5_SET(cmd_hca_cap, set_hca_cap, pkey_table_size,
+		 to_fw_pkey_sz(128));
 
 	if (prof->mask & MLX5_PROF_MASK_QP_SIZE)
-		cur_caps->gen.log_max_qp = prof->log_max_qp;
+		MLX5_SET(cmd_hca_cap, set_hca_cap, log_max_qp,
+			 prof->log_max_qp);
 
-	/* disable checksum */
-	cur_caps->gen.flags &= ~MLX5_DEV_CAP_FLAG_CMDIF_CSUM;
+	/* disable cmdif checksum */
+	MLX5_SET(cmd_hca_cap, set_hca_cap, cmdif_checksum, 0);
 
-	copy_rw_fields(MLX5_ADDR_OF(set_hca_cap_in, set_ctx, capability),
-		       cur_caps);
 	err = set_caps(dev, set_ctx, set_sz);
 
 query_ex:
-	kfree(cur_caps);
-	kfree(max_caps);
 	kfree(set_ctx);
-
 	return err;
 }
 
@@ -768,7 +714,7 @@ static int mlx5_dev_init(struct mlx5_core_dev *dev, struct pci_dev *pdev)
 
 	mlx5_start_health_poll(dev);
 
-	err = mlx5_cmd_query_hca_cap(dev, &dev->caps);
+	err = mlx5_query_hca_caps(dev);
 	if (err) {
 		dev_err(&pdev->dev, "query hca failed\n");
 		goto err_stop_poll;

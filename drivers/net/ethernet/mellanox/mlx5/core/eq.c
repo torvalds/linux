@@ -455,7 +455,7 @@ int mlx5_start_eqs(struct mlx5_core_dev *dev)
 	u32 async_event_mask = MLX5_ASYNC_EVENT_MASK;
 	int err;
 
-	if (dev->caps.gen.flags & MLX5_DEV_CAP_FLAG_ON_DMND_PG)
+	if (MLX5_CAP_GEN(dev, pg))
 		async_event_mask |= (1ull << MLX5_EVENT_TYPE_PAGE_FAULT);
 
 	err = mlx5_create_map_eq(dev, &table->cmd_eq, MLX5_EQ_VEC_CMD,
@@ -478,7 +478,7 @@ int mlx5_start_eqs(struct mlx5_core_dev *dev)
 
 	err = mlx5_create_map_eq(dev, &table->pages_eq,
 				 MLX5_EQ_VEC_PAGES,
-				 dev->caps.gen.max_vf + 1,
+				 /* TODO: sriov max_vf + */ 1,
 				 1 << MLX5_EVENT_TYPE_PAGE_REQUEST, "mlx5_pages_eq",
 				 &dev->priv.uuari.uars[0]);
 	if (err) {
