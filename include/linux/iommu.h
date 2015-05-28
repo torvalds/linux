@@ -225,6 +225,7 @@ extern void iommu_set_fault_handler(struct iommu_domain *domain,
 
 extern void iommu_get_dm_regions(struct device *dev, struct list_head *list);
 extern void iommu_put_dm_regions(struct device *dev, struct list_head *list);
+extern int iommu_request_dm_for_dev(struct device *dev);
 
 extern int iommu_attach_group(struct iommu_domain *domain,
 			      struct iommu_group *group);
@@ -409,6 +410,11 @@ static inline void iommu_get_dm_regions(struct device *dev,
 static inline void iommu_put_dm_regions(struct device *dev,
 					struct list_head *list)
 {
+}
+
+static inline int iommu_request_dm_for_dev(struct device *dev)
+{
+	return -ENODEV;
 }
 
 static inline int iommu_attach_group(struct iommu_domain *domain,
