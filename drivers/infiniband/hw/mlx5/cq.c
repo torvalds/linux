@@ -590,8 +590,7 @@ static int alloc_cq_buf(struct mlx5_ib_dev *dev, struct mlx5_ib_cq_buf *buf,
 {
 	int err;
 
-	err = mlx5_buf_alloc(dev->mdev, nent * cqe_size,
-			     PAGE_SIZE * 2, &buf->buf);
+	err = mlx5_buf_alloc(dev->mdev, nent * cqe_size, &buf->buf);
 	if (err)
 		return err;
 
