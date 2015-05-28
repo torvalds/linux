@@ -2879,7 +2879,13 @@ xfs_rename_alloc_whiteout(
 	if (error)
 		return error;
 
-	/* Satisfy xfs_bumplink that this is a real tmpfile */
+	/*
+	 * Prepare the tmpfile inode as if it were created through the VFS.
+	 * Otherwise, the link increment paths will complain about nlink 0->1.
+	 * Drop the link count as done by d_tmpfile(), complete the inode setup
+	 * and flag it as linkable.
+	 */
+	drop_nlink(VFS_I(tmpfile));
 	xfs_finish_inode_setup(tmpfile);
 	VFS_I(tmpfile)->i_state |= I_LINKABLE;
 
@@ -3147,7 +3153,7 @@ xfs_rename(
 	 * intermediate state on disk.
 	 */
 	if (wip) {
-		ASSERT(wip->i_d.di_nlink == 0);
+		ASSERT(VFS_I(wip)->i_nlink == 0 && wip->i_d.di_nlink == 0);
 		error = xfs_bumplink(tp, wip);
 		if (error)
 			goto out_trans_abort;
