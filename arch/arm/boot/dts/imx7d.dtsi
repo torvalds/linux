@@ -212,6 +212,37 @@
 				#interrupt-cells = <2>;
 			};
 
+			wdog1: wdog@30280000 {
+				compatible = "fsl,imx7d-wdt", "fsl,imx21-wdt";
+				reg = <0x30280000 0x10000>;
+				interrupts = <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks IMX7D_WDOG1_ROOT_CLK>;
+			};
+
+			wdog2: wdog@30290000 {
+				compatible = "fsl,imx7d-wdt", "fsl,imx21-wdt";
+				reg = <0x30290000 0x10000>;
+				interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks IMX7D_WDOG2_ROOT_CLK>;
+				status = "disabled";
+			};
+
+			wdog3: wdog@302a0000 {
+				compatible = "fsl,imx7d-wdt", "fsl,imx21-wdt";
+				reg = <0x302a0000 0x10000>;
+				interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks IMX7D_WDOG3_ROOT_CLK>;
+				status = "disabled";
+			};
+
+			wdog4: wdog@302b0000 {
+				compatible = "fsl,imx7d-wdt", "fsl,imx21-wdt";
+				reg = <0x302b0000 0x10000>;
+				interrupts = <GIC_SPI 109 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clks IMX7D_WDOG4_ROOT_CLK>;
+				status = "disabled";
+			};
+
 			gpt1: gpt@302d0000 {
 				compatible = "fsl,imx7d-gpt", "fsl,imx6sx-gpt";
 				reg = <0x302d0000 0x10000>;
