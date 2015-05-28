@@ -470,6 +470,3 @@ void gb_audio_protocol_exit(void)
 	gb_protocol_deregister(&gb_i2s_receiver_protocol);
 	gb_protocol_deregister(&gb_i2s_mgmt_protocol);
 }
-
-
-MODULE_LICENSE("GPL");
