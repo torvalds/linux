@@ -120,7 +120,7 @@ static const struct clk_ops rockchip_mmc_clk_ops = {
 };
 
 struct clk *rockchip_clk_register_mmc(const char *name,
-				const char **parent_names, u8 num_parents,
+				const char *const *parent_names, u8 num_parents,
 				void __iomem *reg, int shift)
 {
 	struct clk_init_data init;

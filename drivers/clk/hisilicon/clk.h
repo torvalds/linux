@@ -55,7 +55,7 @@ struct hisi_fixed_factor_clock {
 struct hisi_mux_clock {
 	unsigned int		id;
 	const char		*name;
-	const char		**parent_names;
+	const char		*const *parent_names;
 	u8			num_parents;
 	unsigned long		flags;
 	unsigned long		offset;

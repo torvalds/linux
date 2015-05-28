@@ -14,7 +14,7 @@
 #define _CLK_PXA_
 
 #define PARENTS(name) \
-	static const char *name ## _parents[] __initdata
+	static const char *const name ## _parents[] __initconst
 #define MUX_RO_RATE_RO_OPS(name, clk_name)			\
 	static struct clk_hw name ## _mux_hw;			\
 	static struct clk_hw name ## _rate_hw;			\
