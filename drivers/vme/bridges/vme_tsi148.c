@@ -1844,8 +1844,8 @@ static int tsi148_dma_list_add(struct vme_dma_list *list,
 
 		reg_split((unsigned long long)entry->dma_handle, &address_high,
 			&address_low);
-		entry->descriptor.dnlau = cpu_to_be32(address_high);
-		entry->descriptor.dnlal = cpu_to_be32(address_low);
+		prev->descriptor.dnlau = cpu_to_be32(address_high);
+		prev->descriptor.dnlal = cpu_to_be32(address_low);
 
 	}
 
