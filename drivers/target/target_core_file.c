@@ -30,6 +30,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/module.h>
+#include <linux/vmalloc.h>
 #include <linux/falloc.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>

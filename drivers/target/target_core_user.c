@@ -21,6 +21,7 @@
 #include <linux/idr.h>
 #include <linux/timer.h>
 #include <linux/parser.h>
+#include <linux/vmalloc.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
 #include <linux/uio_driver.h>

@@ -27,6 +27,7 @@
 #include <linux/moduleparam.h>
 #include <generated/utsrelease.h>
 #include <linux/utsname.h>
+#include <linux/vmalloc.h>
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/slab.h>
