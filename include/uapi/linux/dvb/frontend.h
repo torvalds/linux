@@ -122,10 +122,12 @@ enum fe_sec_tone_mode {
 typedef enum fe_sec_tone_mode fe_sec_tone_mode_t;
 
 
-typedef enum fe_sec_mini_cmd {
+enum fe_sec_mini_cmd {
 	SEC_MINI_A,
 	SEC_MINI_B
-} fe_sec_mini_cmd_t;
+};
+
+typedef enum fe_sec_mini_cmd fe_sec_mini_cmd_t;
 
 
 /**

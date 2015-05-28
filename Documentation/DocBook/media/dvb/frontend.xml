@@ -75,23 +75,6 @@ specification is available at
 </programlisting>
 </section>
 
-<section id="fe-sec-mini-cmd-t">
-<title>SEC tone burst</title>
-
-<para>The 22KHz tone burst is usually used with non-DiSEqC capable switches to select
-between two connected LNBs/satellites. When using DiSEqC epuipment this voltage has to
-be switched consistently to the DiSEqC commands as described in the DiSEqC
-spec.</para>
-<programlisting>
-	typedef enum fe_sec_mini_cmd {
-	SEC_MINI_A,
-	SEC_MINI_B
-	} fe_sec_mini_cmd_t;
-</programlisting>
-
-<para></para>
-</section>
-
 <section id="fe-spectral-inversion-t">
 <title>frontend spectral inversion</title>
 <para>The Inversion field can take one of these values:
@@ -519,55 +502,7 @@ typedef enum fe_hierarchy {
 &return-value-dvb;
 </section>
 
-<section id="FE_DISEQC_SEND_BURST">
-<title>FE_DISEQC_SEND_BURST</title>
-<para>DESCRIPTION
-</para>
-<informaltable><tgroup cols="1"><tbody><row><entry
- align="char">
-<para>This ioctl call is used to send a 22KHz tone burst.</para>
-</entry>
- </row></tbody></tgroup></informaltable>
-
-<para>SYNOPSIS
-</para>
-<informaltable><tgroup cols="1"><tbody><row><entry
- align="char">
-<para>int ioctl(int fd, int request =
- <link linkend="FE_DISEQC_SEND_BURST">FE_DISEQC_SEND_BURST</link>, fe_sec_mini_cmd_t burst);</para>
-</entry>
- </row></tbody></tgroup></informaltable>
-
-<para>PARAMETERS
-</para>
-<informaltable><tgroup cols="2"><tbody><row><entry
- align="char">
-<para>int fd</para>
-</entry><entry
- align="char">
-<para>File descriptor returned by a previous call to open().</para>
-</entry>
- </row><row><entry
- align="char">
-<para>int request</para>
-</entry><entry
- align="char">
-<para>Equals <link linkend="FE_DISEQC_SEND_BURST">FE_DISEQC_SEND_BURST</link> for this command.</para>
-</entry>
- </row><row><entry
- align="char">
-<para>fe_sec_mini_cmd_t
- burst</para>
-</entry><entry
- align="char">
-<para>burst A or B.</para>
-</entry>
- </row></tbody></tgroup></informaltable>
-
-&return-value-dvb;
-</section>
-
-
+&sub-fe-diseqc-send-burst;
 &sub-fe-set-tone;
 &sub-fe-set-voltage;
 &sub-fe-enable-high-lnb-voltage;
