@@ -44,7 +44,6 @@
 
 #include <linux/mlx5/device.h>
 #include <linux/mlx5/doorbell.h>
-#include <linux/mlx5/mlx5_ifc.h>
 
 enum {
 	MLX5_BOARD_ID_LEN = 64,
@@ -278,7 +277,6 @@ struct mlx5_general_caps {
 	u8	log_max_mkey;
 	u8	log_max_pd;
 	u8	log_max_srq;
-	u8	log_max_strq;
 	u8	log_max_mrw_sz;
 	u8	log_max_bsf_list_size;
 	u8	log_max_klm_list_size;
@@ -664,6 +662,8 @@ int mlx5_cmd_alloc_uar(struct mlx5_core_dev *dev, u32 *uarn);
 int mlx5_cmd_free_uar(struct mlx5_core_dev *dev, u32 uarn);
 int mlx5_alloc_uuars(struct mlx5_core_dev *dev, struct mlx5_uuar_info *uuari);
 int mlx5_free_uuars(struct mlx5_core_dev *dev, struct mlx5_uuar_info *uuari);
+int mlx5_alloc_map_uar(struct mlx5_core_dev *mdev, struct mlx5_uar *uar);
+void mlx5_unmap_free_uar(struct mlx5_core_dev *mdev, struct mlx5_uar *uar);
 void mlx5_health_cleanup(void);
 void  __init mlx5_health_init(void);
 void mlx5_start_health_poll(struct mlx5_core_dev *dev);

@@ -390,8 +390,17 @@ const char *mlx5_command_str(int command)
 	case MLX5_CMD_OP_ARM_RQ:
 		return "ARM_RQ";
 
-	case MLX5_CMD_OP_RESIZE_SRQ:
-		return "RESIZE_SRQ";
+	case MLX5_CMD_OP_CREATE_XRC_SRQ:
+		return "CREATE_XRC_SRQ";
+
+	case MLX5_CMD_OP_DESTROY_XRC_SRQ:
+		return "DESTROY_XRC_SRQ";
+
+	case MLX5_CMD_OP_QUERY_XRC_SRQ:
+		return "QUERY_XRC_SRQ";
+
+	case MLX5_CMD_OP_ARM_XRC_SRQ:
+		return "ARM_XRC_SRQ";
 
 	case MLX5_CMD_OP_ALLOC_PD:
 		return "ALLOC_PD";
@@ -408,8 +417,8 @@ const char *mlx5_command_str(int command)
 	case MLX5_CMD_OP_ATTACH_TO_MCG:
 		return "ATTACH_TO_MCG";
 
-	case MLX5_CMD_OP_DETACH_FROM_MCG:
-		return "DETACH_FROM_MCG";
+	case MLX5_CMD_OP_DETTACH_FROM_MCG:
+		return "DETTACH_FROM_MCG";
 
 	case MLX5_CMD_OP_ALLOC_XRCD:
 		return "ALLOC_XRCD";

@@ -95,7 +95,7 @@ int mlx5_query_odp_caps(struct mlx5_core_dev *dev, struct mlx5_odp_caps *caps)
 		goto out;
 	}
 
-	memcpy(caps, MLX5_ADDR_OF(query_hca_cap_out, out, capability_struct),
+	memcpy(caps, MLX5_ADDR_OF(query_hca_cap_out, out, capability),
 	       sizeof(*caps));
 
 	mlx5_core_dbg(dev, "on-demand paging capabilities:\nrc: %08x\nuc: %08x\nud: %08x\n",
