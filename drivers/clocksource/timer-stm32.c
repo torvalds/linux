@@ -137,9 +137,9 @@ static void __init stm32_clockevent_init(struct device_node *np)
 	}
 
 	/* Detect whether the timer is 16 or 32 bits */
-	writel_relaxed(~0UL, data->base + TIM_ARR);
+	writel_relaxed(~0U, data->base + TIM_ARR);
 	max_delta = readl_relaxed(data->base + TIM_ARR);
-	if (max_delta == ~0UL) {
+	if (max_delta == ~0U) {
 		prescaler = 1;
 		bits = 32;
 	} else {
