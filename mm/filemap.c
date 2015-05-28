@@ -213,7 +213,8 @@ void __delete_from_page_cache(struct page *page, void *shadow,
 	 * anyway will be cleared before returning page into buddy allocator.
 	 */
 	if (WARN_ON_ONCE(PageDirty(page)))
-		account_page_cleaned(page, mapping, memcg);
+		account_page_cleaned(page, mapping, memcg,
+				     inode_to_wb(mapping->host));
 }
 
 /**

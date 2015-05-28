@@ -2422,12 +2422,12 @@ EXPORT_SYMBOL(account_page_dirtied);
  * Caller must hold mem_cgroup_begin_page_stat().
  */
 void account_page_cleaned(struct page *page, struct address_space *mapping,
-			  struct mem_cgroup *memcg)
+			  struct mem_cgroup *memcg, struct bdi_writeback *wb)
 {
 	if (mapping_cap_account_dirty(mapping)) {
 		mem_cgroup_dec_page_stat(memcg, MEM_CGROUP_STAT_DIRTY);
 		dec_zone_page_state(page, NR_FILE_DIRTY);
-		dec_wb_stat(inode_to_wb(mapping->host), WB_RECLAIMABLE);
+		dec_wb_stat(wb, WB_RECLAIMABLE);
 		task_io_account_cancelled_write(PAGE_CACHE_SIZE);
 	}
 }
@@ -2490,11 +2490,15 @@ void account_page_redirty(struct page *page)
 	struct address_space *mapping = page->mapping;
 
 	if (mapping && mapping_cap_account_dirty(mapping)) {
-		struct bdi_writeback *wb = inode_to_wb(mapping->host);
+		struct inode *inode = mapping->host;
+		struct bdi_writeback *wb;
+		bool locked;
 
+		wb = unlocked_inode_to_wb_begin(inode, &locked);
 		current->nr_dirtied--;
 		dec_zone_page_state(page, NR_DIRTIED);
 		dec_wb_stat(wb, WB_DIRTIED);
+		unlocked_inode_to_wb_end(inode, locked);
 	}
 }
 EXPORT_SYMBOL(account_page_redirty);
@@ -2597,13 +2601,18 @@ void cancel_dirty_page(struct page *page)
 	struct address_space *mapping = page_mapping(page);
 
 	if (mapping_cap_account_dirty(mapping)) {
+		struct inode *inode = mapping->host;
+		struct bdi_writeback *wb;
 		struct mem_cgroup *memcg;
+		bool locked;
 
 		memcg = mem_cgroup_begin_page_stat(page);
+		wb = unlocked_inode_to_wb_begin(inode, &locked);
 
 		if (TestClearPageDirty(page))
-			account_page_cleaned(page, mapping, memcg);
+			account_page_cleaned(page, mapping, memcg, wb);
 
+		unlocked_inode_to_wb_end(inode, locked);
 		mem_cgroup_end_page_stat(memcg);
 	} else {
 		ClearPageDirty(page);
@@ -2628,12 +2637,16 @@ EXPORT_SYMBOL(cancel_dirty_page);
 int clear_page_dirty_for_io(struct page *page)
 {
 	struct address_space *mapping = page_mapping(page);
-	struct mem_cgroup *memcg;
 	int ret = 0;
 
 	BUG_ON(!PageLocked(page));
 
 	if (mapping && mapping_cap_account_dirty(mapping)) {
+		struct inode *inode = mapping->host;
+		struct bdi_writeback *wb;
+		struct mem_cgroup *memcg;
+		bool locked;
+
 		/*
 		 * Yes, Virginia, this is indeed insane.
 		 *
@@ -2670,12 +2683,14 @@ int clear_page_dirty_for_io(struct page *page)
 		 * exclusion.
 		 */
 		memcg = mem_cgroup_begin_page_stat(page);
+		wb = unlocked_inode_to_wb_begin(inode, &locked);
 		if (TestClearPageDirty(page)) {
 			mem_cgroup_dec_page_stat(memcg, MEM_CGROUP_STAT_DIRTY);
 			dec_zone_page_state(page, NR_FILE_DIRTY);
-			dec_wb_stat(inode_to_wb(mapping->host), WB_RECLAIMABLE);
+			dec_wb_stat(wb, WB_RECLAIMABLE);
 			ret = 1;
 		}
+		unlocked_inode_to_wb_end(inode, locked);
 		mem_cgroup_end_page_stat(memcg);
 		return ret;
 	}

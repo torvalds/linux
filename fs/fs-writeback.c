@@ -308,6 +308,115 @@ static struct bdi_writeback *inode_to_wb_and_lock_list(struct inode *inode)
 	return locked_inode_to_wb_and_lock_list(inode);
 }
 
+struct inode_switch_wbs_context {
+	struct inode		*inode;
+	struct bdi_writeback	*new_wb;
+
+	struct rcu_head		rcu_head;
+	struct work_struct	work;
+};
+
+static void inode_switch_wbs_work_fn(struct work_struct *work)
+{
+	struct inode_switch_wbs_context *isw =
+		container_of(work, struct inode_switch_wbs_context, work);
+	struct inode *inode = isw->inode;
+	struct bdi_writeback *new_wb = isw->new_wb;
+
+	/*
+	 * By the time control reaches here, RCU grace period has passed
+	 * since I_WB_SWITCH assertion and all wb stat update transactions
+	 * between unlocked_inode_to_wb_begin/end() are guaranteed to be
+	 * synchronizing against mapping->tree_lock.
+	 */
+	spin_lock(&inode->i_lock);
+
+	inode->i_wb_frn_winner = 0;
+	inode->i_wb_frn_avg_time = 0;
+	inode->i_wb_frn_history = 0;
+
+	/*
+	 * Paired with load_acquire in unlocked_inode_to_wb_begin() and
+	 * ensures that the new wb is visible if they see !I_WB_SWITCH.
+	 */
+	smp_store_release(&inode->i_state, inode->i_state & ~I_WB_SWITCH);
+
+	spin_unlock(&inode->i_lock);
+
+	iput(inode);
+	wb_put(new_wb);
+	kfree(isw);
+}
+
+static void inode_switch_wbs_rcu_fn(struct rcu_head *rcu_head)
+{
+	struct inode_switch_wbs_context *isw = container_of(rcu_head,
+				struct inode_switch_wbs_context, rcu_head);
+
+	/* needs to grab bh-unsafe locks, bounce to work item */
+	INIT_WORK(&isw->work, inode_switch_wbs_work_fn);
+	schedule_work(&isw->work);
+}
+
+/**
+ * inode_switch_wbs - change the wb association of an inode
+ * @inode: target inode
+ * @new_wb_id: ID of the new wb
+ *
+ * Switch @inode's wb association to the wb identified by @new_wb_id.  The
+ * switching is performed asynchronously and may fail silently.
+ */
+static void inode_switch_wbs(struct inode *inode, int new_wb_id)
+{
+	struct backing_dev_info *bdi = inode_to_bdi(inode);
+	struct cgroup_subsys_state *memcg_css;
+	struct inode_switch_wbs_context *isw;
+
+	/* noop if seems to be already in progress */
+	if (inode->i_state & I_WB_SWITCH)
+		return;
+
+	isw = kzalloc(sizeof(*isw), GFP_ATOMIC);
+	if (!isw)
+		return;
+
+	/* find and pin the new wb */
+	rcu_read_lock();
+	memcg_css = css_from_id(new_wb_id, &memory_cgrp_subsys);
+	if (memcg_css)
+		isw->new_wb = wb_get_create(bdi, memcg_css, GFP_ATOMIC);
+	rcu_read_unlock();
+	if (!isw->new_wb)
+		goto out_free;
+
+	/* while holding I_WB_SWITCH, no one else can update the association */
+	spin_lock(&inode->i_lock);
+	if (inode->i_state & (I_WB_SWITCH | I_FREEING) ||
+	    inode_to_wb(inode) == isw->new_wb) {
+		spin_unlock(&inode->i_lock);
+		goto out_free;
+	}
+	inode->i_state |= I_WB_SWITCH;
+	spin_unlock(&inode->i_lock);
+
+	ihold(inode);
+	isw->inode = inode;
+
+	/*
+	 * In addition to synchronizing among switchers, I_WB_SWITCH tells
+	 * the RCU protected stat update paths to grab the mapping's
+	 * tree_lock so that stat transfer can synchronize against them.
+	 * Let's continue after I_WB_SWITCH is guaranteed to be visible.
+	 */
+	call_rcu(&isw->rcu_head, inode_switch_wbs_rcu_fn);
+	return;
+
+out_free:
+	if (isw->new_wb)
+		wb_put(isw->new_wb);
+	kfree(isw);
+}
+
 /**
  * wbc_attach_and_unlock_inode - associate wbc with target inode and unlock it
  * @wbc: writeback_control of interest
@@ -433,12 +542,8 @@ void wbc_detach_inode(struct writeback_control *wbc)
 		 * is okay.  The main goal is avoiding keeping an inode on
 		 * the wrong wb for an extended period of time.
 		 */
-		if (hweight32(history) > WB_FRN_HIST_THR_SLOTS) {
-			/* switch */
-			max_id = 0;
-			avg_time = 0;
-			history = 0;
-		}
+		if (hweight32(history) > WB_FRN_HIST_THR_SLOTS)
+			inode_switch_wbs(inode, max_id);
 	}
 
 	/*

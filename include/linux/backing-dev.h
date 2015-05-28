@@ -332,6 +332,50 @@ static inline struct bdi_writeback *inode_to_wb(struct inode *inode)
 	return inode->i_wb;
 }
 
+/**
+ * unlocked_inode_to_wb_begin - begin unlocked inode wb access transaction
+ * @inode: target inode
+ * @lockedp: temp bool output param, to be passed to the end function
+ *
+ * The caller wants to access the wb associated with @inode but isn't
+ * holding inode->i_lock, mapping->tree_lock or wb->list_lock.  This
+ * function determines the wb associated with @inode and ensures that the
+ * association doesn't change until the transaction is finished with
+ * unlocked_inode_to_wb_end().
+ *
+ * The caller must call unlocked_inode_to_wb_end() with *@lockdep
+ * afterwards and can't sleep during transaction.  IRQ may or may not be
+ * disabled on return.
+ */
+static inline struct bdi_writeback *
+unlocked_inode_to_wb_begin(struct inode *inode, bool *lockedp)
+{
+	rcu_read_lock();
+
+	/*
+	 * Paired with store_release in inode_switch_wb_work_fn() and
+	 * ensures that we see the new wb if we see cleared I_WB_SWITCH.
+	 */
+	*lockedp = smp_load_acquire(&inode->i_state) & I_WB_SWITCH;
+
+	if (unlikely(*lockedp))
+		spin_lock_irq(&inode->i_mapping->tree_lock);
+	return inode_to_wb(inode);
+}
+
+/**
+ * unlocked_inode_to_wb_end - end inode wb access transaction
+ * @inode: target inode
+ * @locked: *@lockedp from unlocked_inode_to_wb_begin()
+ */
+static inline void unlocked_inode_to_wb_end(struct inode *inode, bool locked)
+{
+	if (unlikely(locked))
+		spin_unlock_irq(&inode->i_mapping->tree_lock);
+
+	rcu_read_unlock();
+}
+
 struct wb_iter {
 	int			start_blkcg_id;
 	struct radix_tree_iter	tree_iter;
@@ -418,6 +462,16 @@ wb_get_create_current(struct backing_dev_info *bdi, gfp_t gfp)
 static inline struct bdi_writeback *inode_to_wb(struct inode *inode)
 {
 	return &inode_to_bdi(inode)->wb;
+}
+
+static inline struct bdi_writeback *
+unlocked_inode_to_wb_begin(struct inode *inode, bool *lockedp)
+{
+	return inode_to_wb(inode);
+}
+
+static inline void unlocked_inode_to_wb_end(struct inode *inode, bool locked)
+{
 }
 
 static inline void wb_memcg_offline(struct mem_cgroup *memcg)
