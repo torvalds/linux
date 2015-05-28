@@ -459,8 +459,10 @@ struct intel_pipe_wm {
 };
 
 struct intel_mmio_flip {
-	struct drm_i915_gem_request *req;
 	struct work_struct work;
+	struct drm_i915_private *i915;
+	struct drm_i915_gem_request *req;
+	struct intel_crtc *crtc;
 };
 
 struct skl_pipe_wm {
@@ -544,7 +546,6 @@ struct intel_crtc {
 	} wm;
 
 	int scanline_offset;
-	struct intel_mmio_flip mmio_flip;
 
 	struct intel_crtc_atomic_commit atomic;
 
@@ -555,7 +556,15 @@ struct intel_crtc {
 struct intel_plane_wm_parameters {
 	uint32_t horiz_pixels;
 	uint32_t vert_pixels;
+	/*
+	 *   For packed pixel formats:
+	 *     bytes_per_pixel - holds bytes per pixel
+	 *   For planar pixel formats:
+	 *     bytes_per_pixel - holds bytes per pixel for uv-plane
+	 *     y_bytes_per_pixel - holds bytes per pixel for y-plane
+	 */
 	uint8_t bytes_per_pixel;
+	uint8_t y_bytes_per_pixel;
 	bool enabled;
 	bool scaled;
 	u64 tiling;
@@ -1059,9 +1068,6 @@ intel_rotation_90_or_270(unsigned int rotation)
 	return rotation & (BIT(DRM_ROTATE_90) | BIT(DRM_ROTATE_270));
 }
 
-unsigned int
-intel_tile_height(struct drm_device *dev, uint32_t bits_per_pixel,
-		  uint64_t fb_modifier);
 void intel_create_rotation_property(struct drm_device *dev,
 					struct intel_plane *plane);
 
@@ -1112,6 +1118,8 @@ void broxton_ddi_phy_init(struct drm_device *dev);
 void broxton_ddi_phy_uninit(struct drm_device *dev);
 void bxt_enable_dc9(struct drm_i915_private *dev_priv);
 void bxt_disable_dc9(struct drm_i915_private *dev_priv);
+void skl_init_cdclk(struct drm_i915_private *dev_priv);
+void skl_uninit_cdclk(struct drm_i915_private *dev_priv);
 void intel_dp_get_m_n(struct intel_crtc *crtc,
 		      struct intel_crtc_state *pipe_config);
 void intel_dp_set_m_n(struct intel_crtc *crtc, enum link_m_n_set m_n);
@@ -1359,9 +1367,10 @@ void gen6_rps_busy(struct drm_i915_private *dev_priv);
 void gen6_rps_reset_ei(struct drm_i915_private *dev_priv);
 void gen6_rps_idle(struct drm_i915_private *dev_priv);
 void gen6_rps_boost(struct drm_i915_private *dev_priv,
-		    struct drm_i915_file_private *file_priv);
+		    struct intel_rps_client *rps,
+		    unsigned long submitted);
 void intel_queue_rps_boost_for_request(struct drm_device *dev,
-				       struct drm_i915_gem_request *rq);
+				       struct drm_i915_gem_request *req);
 void ilk_wm_get_hw_state(struct drm_device *dev);
 void skl_wm_get_hw_state(struct drm_device *dev);
 void skl_ddb_get_hw_state(struct drm_i915_private *dev_priv,

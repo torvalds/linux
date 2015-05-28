@@ -873,57 +873,57 @@ static void intel_disable_hdmi(struct intel_encoder *encoder)
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
 	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
 	u32 temp;
-	u32 enable_bits = SDVO_ENABLE | SDVO_AUDIO_ENABLE;
+
+	temp = I915_READ(intel_hdmi->hdmi_reg);
+
+	temp &= ~(SDVO_ENABLE | SDVO_AUDIO_ENABLE);
+	I915_WRITE(intel_hdmi->hdmi_reg, temp);
+	POSTING_READ(intel_hdmi->hdmi_reg);
+
+	/*
+	 * HW workaround for IBX, we need to move the port
+	 * to transcoder A after disabling it to allow the
+	 * matching DP port to be enabled on transcoder A.
+	 */
+	if (HAS_PCH_IBX(dev) && crtc->pipe == PIPE_B) {
+		temp &= ~SDVO_PIPE_B_SELECT;
+		temp |= SDVO_ENABLE;
+		/*
+		 * HW workaround, need to write this twice for issue
+		 * that may result in first write getting masked.
+		 */
+		I915_WRITE(intel_hdmi->hdmi_reg, temp);
+		POSTING_READ(intel_hdmi->hdmi_reg);
+		I915_WRITE(intel_hdmi->hdmi_reg, temp);
+		POSTING_READ(intel_hdmi->hdmi_reg);
+
+		temp &= ~SDVO_ENABLE;
+		I915_WRITE(intel_hdmi->hdmi_reg, temp);
+		POSTING_READ(intel_hdmi->hdmi_reg);
+	}
+}
+
+static void g4x_disable_hdmi(struct intel_encoder *encoder)
+{
+	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
 
 	if (crtc->config->has_audio)
 		intel_audio_codec_disable(encoder);
 
-	temp = I915_READ(intel_hdmi->hdmi_reg);
+	intel_disable_hdmi(encoder);
+}
 
-	/* HW workaround for IBX, we need to move the port to transcoder A
-	 * before disabling it. */
-	if (HAS_PCH_IBX(dev)) {
-		struct drm_crtc *crtc = encoder->base.crtc;
-		int pipe = crtc ? to_intel_crtc(crtc)->pipe : -1;
+static void pch_disable_hdmi(struct intel_encoder *encoder)
+{
+	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
 
-		if (temp & SDVO_PIPE_B_SELECT) {
-			temp &= ~SDVO_PIPE_B_SELECT;
-			I915_WRITE(intel_hdmi->hdmi_reg, temp);
-			POSTING_READ(intel_hdmi->hdmi_reg);
+	if (crtc->config->has_audio)
+		intel_audio_codec_disable(encoder);
+}
 
-			/* Again we need to write this twice. */
-			I915_WRITE(intel_hdmi->hdmi_reg, temp);
-			POSTING_READ(intel_hdmi->hdmi_reg);
-
-			/* Transcoder selection bits only update
-			 * effectively on vblank. */
-			if (crtc)
-				intel_wait_for_vblank(dev, pipe);
-			else
-				msleep(50);
-		}
-	}
-
-	/* HW workaround, need to toggle enable bit off and on for 12bpc, but
-	 * we do this anyway which shows more stable in testing.
-	 */
-	if (HAS_PCH_SPLIT(dev)) {
-		I915_WRITE(intel_hdmi->hdmi_reg, temp & ~SDVO_ENABLE);
-		POSTING_READ(intel_hdmi->hdmi_reg);
-	}
-
-	temp &= ~enable_bits;
-
-	I915_WRITE(intel_hdmi->hdmi_reg, temp);
-	POSTING_READ(intel_hdmi->hdmi_reg);
-
-	/* HW workaround, need to write this twice for issue that may result
-	 * in first write getting masked.
-	 */
-	if (HAS_PCH_SPLIT(dev)) {
-		I915_WRITE(intel_hdmi->hdmi_reg, temp);
-		POSTING_READ(intel_hdmi->hdmi_reg);
-	}
+static void pch_post_disable_hdmi(struct intel_encoder *encoder)
+{
+	intel_disable_hdmi(encoder);
 }
 
 static int hdmi_portclock_limit(struct intel_hdmi *hdmi, bool respect_dvi_limit)
@@ -1806,7 +1806,12 @@ void intel_hdmi_init(struct drm_device *dev, int hdmi_reg, enum port port)
 			 DRM_MODE_ENCODER_TMDS);
 
 	intel_encoder->compute_config = intel_hdmi_compute_config;
-	intel_encoder->disable = intel_disable_hdmi;
+	if (HAS_PCH_SPLIT(dev)) {
+		intel_encoder->disable = pch_disable_hdmi;
+		intel_encoder->post_disable = pch_post_disable_hdmi;
+	} else {
+		intel_encoder->disable = g4x_disable_hdmi;
+	}
 	intel_encoder->get_hw_state = intel_hdmi_get_hw_state;
 	intel_encoder->get_config = intel_hdmi_get_config;
 	if (IS_CHERRYVIEW(dev)) {

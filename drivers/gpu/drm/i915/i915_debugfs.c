@@ -120,10 +120,13 @@ static inline const char *get_global_flag(struct drm_i915_gem_object *obj)
 static void
 describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 {
+	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
+	struct intel_engine_cs *ring;
 	struct i915_vma *vma;
 	int pin_count = 0;
+	int i;
 
-	seq_printf(m, "%pK: %s%s%s%s %8zdKiB %02x %02x %x %x %x%s%s%s",
+	seq_printf(m, "%pK: %s%s%s%s %8zdKiB %02x %02x [ ",
 		   &obj->base,
 		   obj->active ? "*" : " ",
 		   get_pin_flag(obj),
@@ -131,8 +134,11 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		   get_global_flag(obj),
 		   obj->base.size / 1024,
 		   obj->base.read_domains,
-		   obj->base.write_domain,
-		   i915_gem_request_get_seqno(obj->last_read_req),
+		   obj->base.write_domain);
+	for_each_ring(ring, dev_priv, i)
+		seq_printf(m, "%x ",
+				i915_gem_request_get_seqno(obj->last_read_req[i]));
+	seq_printf(m, "] %x %x%s%s%s",
 		   i915_gem_request_get_seqno(obj->last_write_req),
 		   i915_gem_request_get_seqno(obj->last_fenced_req),
 		   i915_cache_level_str(to_i915(obj->base.dev), obj->cache_level),
@@ -169,9 +175,9 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		*t = '\0';
 		seq_printf(m, " (%s mappable)", s);
 	}
-	if (obj->last_read_req != NULL)
+	if (obj->last_write_req != NULL)
 		seq_printf(m, " (%s)",
-			   i915_gem_request_get_ring(obj->last_read_req)->name);
+			   i915_gem_request_get_ring(obj->last_write_req)->name);
 	if (obj->frontbuffer_bits)
 		seq_printf(m, " (frontbuffer: 0x%03x)", obj->frontbuffer_bits);
 }
@@ -665,7 +671,7 @@ static int i915_gem_request_info(struct seq_file *m, void *data)
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *ring;
-	struct drm_i915_gem_request *rq;
+	struct drm_i915_gem_request *req;
 	int ret, any, i;
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
@@ -677,22 +683,22 @@ static int i915_gem_request_info(struct seq_file *m, void *data)
 		int count;
 
 		count = 0;
-		list_for_each_entry(rq, &ring->request_list, list)
+		list_for_each_entry(req, &ring->request_list, list)
 			count++;
 		if (count == 0)
 			continue;
 
 		seq_printf(m, "%s requests: %d\n", ring->name, count);
-		list_for_each_entry(rq, &ring->request_list, list) {
+		list_for_each_entry(req, &ring->request_list, list) {
 			struct task_struct *task;
 
 			rcu_read_lock();
 			task = NULL;
-			if (rq->pid)
-				task = pid_task(rq->pid, PIDTYPE_PID);
+			if (req->pid)
+				task = pid_task(req->pid, PIDTYPE_PID);
 			seq_printf(m, "    %x @ %d: %s [%d]\n",
-				   rq->seqno,
-				   (int) (jiffies - rq->emitted_jiffies),
+				   req->seqno,
+				   (int) (jiffies - req->emitted_jiffies),
 				   task ? task->comm : "<unknown>",
 				   task ? task->pid : -1);
 			rcu_read_unlock();
@@ -2276,6 +2282,18 @@ static int i915_ppgtt_info(struct seq_file *m, void *data)
 	return 0;
 }
 
+static int count_irq_waiters(struct drm_i915_private *i915)
+{
+	struct intel_engine_cs *ring;
+	int count = 0;
+	int i;
+
+	for_each_ring(ring, i915, i)
+		count += ring->irq_refcount;
+
+	return count;
+}
+
 static int i915_rps_boost_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = m->private;
@@ -2292,6 +2310,15 @@ static int i915_rps_boost_info(struct seq_file *m, void *data)
 	if (ret)
 		goto unlock;
 
+	seq_printf(m, "RPS enabled? %d\n", dev_priv->rps.enabled);
+	seq_printf(m, "GPU busy? %d\n", dev_priv->mm.busy);
+	seq_printf(m, "CPU waiting? %d\n", count_irq_waiters(dev_priv));
+	seq_printf(m, "Frequency requested %d; min hard:%d, soft:%d; max soft:%d, hard:%d\n",
+		   intel_gpu_freq(dev_priv, dev_priv->rps.cur_freq),
+		   intel_gpu_freq(dev_priv, dev_priv->rps.min_freq),
+		   intel_gpu_freq(dev_priv, dev_priv->rps.min_freq_softlimit),
+		   intel_gpu_freq(dev_priv, dev_priv->rps.max_freq_softlimit),
+		   intel_gpu_freq(dev_priv, dev_priv->rps.max_freq));
 	list_for_each_entry_reverse(file, &dev->filelist, lhead) {
 		struct drm_i915_file_private *file_priv = file->driver_priv;
 		struct task_struct *task;
@@ -2301,10 +2328,16 @@ static int i915_rps_boost_info(struct seq_file *m, void *data)
 		seq_printf(m, "%s [%d]: %d boosts%s\n",
 			   task ? task->comm : "<unknown>",
 			   task ? task->pid : -1,
-			   file_priv->rps_boosts,
-			   list_empty(&file_priv->rps_boost) ? "" : ", active");
+			   file_priv->rps.boosts,
+			   list_empty(&file_priv->rps.link) ? "" : ", active");
 		rcu_read_unlock();
 	}
+	seq_printf(m, "Semaphore boosts: %d%s\n",
+		   dev_priv->rps.semaphores.boosts,
+		   list_empty(&dev_priv->rps.semaphores.link) ? "" : ", active");
+	seq_printf(m, "MMIO flip boosts: %d%s\n",
+		   dev_priv->rps.mmioflips.boosts,
+		   list_empty(&dev_priv->rps.mmioflips.link) ? "" : ", active");
 	seq_printf(m, "Kernel boosts: %d\n", dev_priv->rps.boosts);
 
 	mutex_unlock(&dev_priv->rps.hw_lock);
@@ -5153,6 +5186,9 @@ static int i915_dpcd_show(struct seq_file *m, void *data)
 	uint8_t buf[16];
 	ssize_t err;
 	int i;
+
+	if (connector->status != connector_status_connected)
+		return -ENODEV;
 
 	for (i = 0; i < ARRAY_SIZE(i915_dpcd_debug); i++) {
 		const struct dpcd_block *b = &i915_dpcd_debug[i];

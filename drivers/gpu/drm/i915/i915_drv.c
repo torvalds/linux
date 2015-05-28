@@ -595,6 +595,7 @@ static int intel_suspend_complete(struct drm_i915_private *dev_priv);
 static int vlv_resume_prepare(struct drm_i915_private *dev_priv,
 			      bool rpm_resume);
 static int skl_resume_prepare(struct drm_i915_private *dev_priv);
+static int bxt_resume_prepare(struct drm_i915_private *dev_priv);
 
 
 static int i915_drm_suspend(struct drm_device *dev)
@@ -811,14 +812,17 @@ static int i915_drm_resume_early(struct drm_device *dev)
 	if (IS_VALLEYVIEW(dev_priv))
 		ret = vlv_resume_prepare(dev_priv, false);
 	if (ret)
-		DRM_ERROR("Resume prepare failed: %d,Continuing resume\n", ret);
+		DRM_ERROR("Resume prepare failed: %d, continuing anyway\n",
+			  ret);
 
 	intel_uncore_early_sanitize(dev, true);
 
-	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
-		hsw_disable_pc8(dev_priv);
+	if (IS_BROXTON(dev))
+		ret = bxt_resume_prepare(dev_priv);
 	else if (IS_SKYLAKE(dev_priv))
 		ret = skl_resume_prepare(dev_priv);
+	else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
+		hsw_disable_pc8(dev_priv);
 
 	intel_uncore_sanitize(dev);
 	intel_power_domains_init_hw(dev_priv);
@@ -989,7 +993,7 @@ static int i915_pm_suspend_late(struct device *dev)
 	struct drm_device *drm_dev = dev_to_i915(dev)->dev;
 
 	/*
-	 * We have a suspedn ordering issue with the snd-hda driver also
+	 * We have a suspend ordering issue with the snd-hda driver also
 	 * requiring our device to be power up. Due to the lack of a
 	 * parent/child relationship we currently solve this with an late
 	 * suspend hook.
@@ -1043,6 +1047,8 @@ static int skl_suspend_complete(struct drm_i915_private *dev_priv)
 	 */
 	intel_csr_load_status_set(dev_priv, FW_UNINITIALIZED);
 
+	skl_uninit_cdclk(dev_priv);
+
 	return 0;
 }
 
@@ -1089,6 +1095,7 @@ static int skl_resume_prepare(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
 
+	skl_init_cdclk(dev_priv);
 	intel_csr_load_program(dev);
 
 	return 0;
@@ -1586,16 +1593,15 @@ static int intel_runtime_resume(struct device *device)
  */
 static int intel_suspend_complete(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = dev_priv->dev;
 	int ret;
 
-	if (IS_BROXTON(dev))
+	if (IS_BROXTON(dev_priv))
 		ret = bxt_suspend_complete(dev_priv);
-	else if (IS_SKYLAKE(dev))
+	else if (IS_SKYLAKE(dev_priv))
 		ret = skl_suspend_complete(dev_priv);
-	else if (IS_HASWELL(dev) || IS_BROADWELL(dev))
+	else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		ret = hsw_suspend_complete(dev_priv);
-	else if (IS_VALLEYVIEW(dev))
+	else if (IS_VALLEYVIEW(dev_priv))
 		ret = vlv_suspend_complete(dev_priv);
 	else
 		ret = 0;

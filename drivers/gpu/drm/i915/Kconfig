@@ -71,3 +71,11 @@ config DRM_I915_PRELIMINARY_HW_SUPPORT
 	  option changes the default for that module option.
 
 	  If in doubt, say "N".
+
+menu "DRM i915 Debugging"
+
+depends on DRM_I915
+
+source drivers/gpu/drm/i915/Kconfig.debug
+
+endmenu

@@ -853,9 +853,6 @@ static int bdw_init_workarounds(struct intel_engine_cs *ring)
 			    GEN6_WIZ_HASHING_MASK,
 			    GEN6_WIZ_HASHING_16x4);
 
-	/* WaProgramL3SqcReg1Default:bdw */
-	WA_WRITE(GEN8_L3SQCREG1, BDW_WA_L3SQCREG1_DEFAULT);
-
 	return 0;
 }
 
@@ -918,6 +915,7 @@ static int gen9_init_workarounds(struct intel_engine_cs *ring)
 {
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t tmp;
 
 	/* WaDisablePartialInstShootdown:skl,bxt */
 	WA_SET_BIT_MASKED(GEN8_ROW_CHICKEN,
@@ -961,14 +959,18 @@ static int gen9_init_workarounds(struct intel_engine_cs *ring)
 	WA_CLR_BIT_MASKED(GEN9_HALF_SLICE_CHICKEN5,
 			  GEN9_CCS_TLB_PREFETCH_ENABLE);
 
-	/*
-	 * FIXME: don't apply the following on BXT for stepping C. On BXT A0
-	 * the flag reads back as 0.
-	 */
-	/* WaDisableMaskBasedCammingInRCC:sklC,bxtA */
-	if (INTEL_REVID(dev) == SKL_REVID_C0 || IS_BROXTON(dev))
+	/* WaDisableMaskBasedCammingInRCC:skl,bxt */
+	if ((IS_SKYLAKE(dev) && INTEL_REVID(dev) == SKL_REVID_C0) ||
+	    (IS_BROXTON(dev) && INTEL_REVID(dev) < BXT_REVID_B0))
 		WA_SET_BIT_MASKED(SLICE_ECO_CHICKEN0,
 				  PIXEL_MASK_CAMMING_DISABLE);
+
+	/* WaForceContextSaveRestoreNonCoherent:skl,bxt */
+	tmp = HDC_FORCE_CONTEXT_SAVE_RESTORE_NON_COHERENT;
+	if ((IS_SKYLAKE(dev) && INTEL_REVID(dev) == SKL_REVID_F0) ||
+	    (IS_BROXTON(dev) && INTEL_REVID(dev) >= BXT_REVID_B0))
+		tmp |= HDC_FORCE_CSR_NON_COHERENT_OVR_DISABLE;
+	WA_SET_BIT_MASKED(HDC_CHICKEN0, tmp);
 
 	return 0;
 }
@@ -1059,10 +1061,6 @@ static int bxt_init_workarounds(struct intel_engine_cs *ring)
 			GEN7_HALF_SLICE_CHICKEN1,
 			GEN7_SBE_SS_CACHE_DISPATCH_PORT_SHARING_DISABLE);
 	}
-
-	/* WaForceContextSaveRestoreNonCoherent:bxt */
-	WA_SET_BIT_MASKED(HDC_CHICKEN0,
-			  HDC_FORCE_CONTEXT_SAVE_RESTORE_NON_COHERENT);
 
 	return 0;
 }
@@ -2102,15 +2100,16 @@ static int ring_wait_for_space(struct intel_engine_cs *ring, int n)
 {
 	struct intel_ringbuffer *ringbuf = ring->buffer;
 	struct drm_i915_gem_request *request;
-	int ret, new_space;
+	unsigned space;
+	int ret;
 
 	if (intel_ring_space(ringbuf) >= n)
 		return 0;
 
 	list_for_each_entry(request, &ring->request_list, list) {
-		new_space = __intel_ring_space(request->postfix, ringbuf->tail,
-				       ringbuf->size);
-		if (new_space >= n)
+		space = __intel_ring_space(request->postfix, ringbuf->tail,
+					   ringbuf->size);
+		if (space >= n)
 			break;
 	}
 
@@ -2121,10 +2120,7 @@ static int ring_wait_for_space(struct intel_engine_cs *ring, int n)
 	if (ret)
 		return ret;
 
-	i915_gem_retire_requests_ring(ring);
-
-	WARN_ON(intel_ring_space(ringbuf) < new_space);
-
+	ringbuf->space = space;
 	return 0;
 }
 
@@ -2168,10 +2164,14 @@ int intel_ring_idle(struct intel_engine_cs *ring)
 		return 0;
 
 	req = list_entry(ring->request_list.prev,
-			   struct drm_i915_gem_request,
-			   list);
+			struct drm_i915_gem_request,
+			list);
 
-	return i915_wait_request(req);
+	/* Make sure we do not trigger any retires */
+	return __i915_wait_request(req,
+				   atomic_read(&to_i915(ring->dev)->gpu_error.reset_counter),
+				   to_i915(ring->dev)->mm.interruptible,
+				   NULL, NULL);
 }
 
 int intel_ring_alloc_request_extras(struct drm_i915_gem_request *request)

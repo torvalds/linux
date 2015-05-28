@@ -219,11 +219,14 @@ i915_mmu_notifier_add(struct drm_device *dev,
 		      struct i915_mmu_object *mo)
 {
 	struct interval_tree_node *it;
-	int ret;
+	int ret = 0;
 
-	ret = i915_mutex_lock_interruptible(dev);
-	if (ret)
-		return ret;
+	/* By this point we have already done a lot of expensive setup that
+	 * we do not want to repeat just because the caller (e.g. X) has a
+	 * signal pending (and partly because of that expensive setup, X
+	 * using an interrupt timer is likely to get stuck in an EINTR loop).
+	 */
+	mutex_lock(&dev->struct_mutex);
 
 	/* Make sure we drop the final active reference (and thereby
 	 * remove the objects from the interval tree) before we do

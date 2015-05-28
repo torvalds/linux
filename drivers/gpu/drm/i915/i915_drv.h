@@ -56,7 +56,7 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20150508"
+#define DRIVER_DATE		"20150522"
 
 #undef WARN_ON
 /* Many gcc seem to no see through this and fall over :( */
@@ -272,6 +272,30 @@ struct drm_i915_private;
 struct i915_mm_struct;
 struct i915_mmu_object;
 
+struct drm_i915_file_private {
+	struct drm_i915_private *dev_priv;
+	struct drm_file *file;
+
+	struct {
+		spinlock_t lock;
+		struct list_head request_list;
+/* 20ms is a fairly arbitrary limit (greater than the average frame time)
+ * chosen to prevent the CPU getting more than a frame ahead of the GPU
+ * (when using lax throttling for the frontbuffer). We also use it to
+ * offer free GPU waitboosts for severely congested workloads.
+ */
+#define DRM_I915_THROTTLE_JIFFIES msecs_to_jiffies(20)
+	} mm;
+	struct idr context_idr;
+
+	struct intel_rps_client {
+		struct list_head link;
+		unsigned boosts;
+	} rps;
+
+	struct intel_engine_cs *bsd_ring;
+};
+
 enum intel_dpll_id {
 	DPLL_ID_PRIVATE = -1, /* non-shared dpll in use */
 	/* real shared dpll ids must be >= 0 */
@@ -309,7 +333,7 @@ struct intel_dpll_hw_state {
 	uint32_t cfgcr1, cfgcr2;
 
 	/* bxt */
-	uint32_t ebb0, pll0, pll1, pll2, pll3, pll6, pll8, pcsdw12;
+	uint32_t ebb0, pll0, pll1, pll2, pll3, pll6, pll8, pll10, pcsdw12;
 };
 
 struct intel_shared_dpll_config {
@@ -508,7 +532,7 @@ struct drm_i915_error_state {
 	struct drm_i915_error_buffer {
 		u32 size;
 		u32 name;
-		u32 rseqno, wseqno;
+		u32 rseqno[I915_NUM_RINGS], wseqno;
 		u32 gtt_offset;
 		u32 read_domains;
 		u32 write_domain;
@@ -1070,6 +1094,8 @@ struct intel_gen6_power_mgmt {
 	struct list_head clients;
 	unsigned boosts;
 
+	struct intel_rps_client semaphores, mmioflips;
+
 	/* manual wa residency calculations */
 	struct intel_rps_ei up_ei, down_ei;
 
@@ -1468,7 +1494,8 @@ static inline bool skl_ddb_entry_equal(const struct skl_ddb_entry *e1,
 
 struct skl_ddb_allocation {
 	struct skl_ddb_entry pipe[I915_MAX_PIPES];
-	struct skl_ddb_entry plane[I915_MAX_PIPES][I915_MAX_PLANES];
+	struct skl_ddb_entry plane[I915_MAX_PIPES][I915_MAX_PLANES]; /* packed/uv */
+	struct skl_ddb_entry y_plane[I915_MAX_PIPES][I915_MAX_PLANES]; /* y-plane */
 	struct skl_ddb_entry cursor[I915_MAX_PIPES];
 };
 
@@ -1684,6 +1711,7 @@ struct drm_i915_private {
 	int num_fence_regs; /* 8 on pre-965, 16 otherwise */
 
 	unsigned int fsb_freq, mem_freq, is_ddr3;
+	unsigned int skl_boot_cdclk;
 	unsigned int cdclk_freq;
 	unsigned int hpll_freq;
 
@@ -1938,7 +1966,7 @@ struct drm_i915_gem_object {
 	struct drm_mm_node *stolen;
 	struct list_head global_list;
 
-	struct list_head ring_list;
+	struct list_head ring_list[I915_NUM_RINGS];
 	/** Used in execbuf to temporarily hold a ref */
 	struct list_head obj_exec_link;
 
@@ -1949,7 +1977,7 @@ struct drm_i915_gem_object {
 	 * rendering and so a non-zero seqno), and is not set if it i s on
 	 * inactive (ready to be unbound) list.
 	 */
-	unsigned int active:1;
+	unsigned int active:I915_NUM_RINGS;
 
 	/**
 	 * This is set if the object has been written to since last bound
@@ -2020,8 +2048,17 @@ struct drm_i915_gem_object {
 	void *dma_buf_vmapping;
 	int vmapping_count;
 
-	/** Breadcrumb of last rendering to the buffer. */
-	struct drm_i915_gem_request *last_read_req;
+	/** Breadcrumb of last rendering to the buffer.
+	 * There can only be one writer, but we allow for multiple readers.
+	 * If there is a writer that necessarily implies that all other
+	 * read requests are complete - but we may only be lazily clearing
+	 * the read requests. A read request is naturally the most recent
+	 * request on a ring, so we may have two different write and read
+	 * requests on one ring where the write request is older than the
+	 * read request. This allows for the CPU to read from an active
+	 * buffer by only waiting for the write to complete.
+	 * */
+	struct drm_i915_gem_request *last_read_req[I915_NUM_RINGS];
 	struct drm_i915_gem_request *last_write_req;
 	/** Breadcrumb of last fenced GPU access to the buffer. */
 	struct drm_i915_gem_request *last_fenced_req;
@@ -2160,10 +2197,12 @@ i915_gem_request_get_ring(struct drm_i915_gem_request *req)
 	return req ? req->ring : NULL;
 }
 
-static inline void
+static inline struct drm_i915_gem_request *
 i915_gem_request_reference(struct drm_i915_gem_request *req)
 {
-	kref_get(&req->ref);
+	if (req)
+		kref_get(&req->ref);
+	return req;
 }
 
 static inline void
@@ -2203,22 +2242,6 @@ static inline void i915_gem_request_assign(struct drm_i915_gem_request **pdst,
  * definition of i915_seqno_passed() which is below. It will be moved in
  * a later patch when the call to i915_seqno_passed() is obsoleted...
  */
-
-struct drm_i915_file_private {
-	struct drm_i915_private *dev_priv;
-	struct drm_file *file;
-
-	struct {
-		spinlock_t lock;
-		struct list_head request_list;
-	} mm;
-	struct idr context_idr;
-
-	struct list_head rps_boost;
-	struct intel_engine_cs *bsd_ring;
-
-	unsigned rps_boosts;
-};
 
 /*
  * A command that requires special handling by the command parser.
@@ -2375,6 +2398,7 @@ struct drm_i915_cmd_table {
 #define SKL_REVID_C0		(0x2)
 #define SKL_REVID_D0		(0x3)
 #define SKL_REVID_E0		(0x4)
+#define SKL_REVID_F0		(0x5)
 
 #define BXT_REVID_A0		(0x0)
 #define BXT_REVID_B0		(0x3)
@@ -2444,6 +2468,9 @@ struct drm_i915_cmd_table {
 #define HAS_FBC(dev) (INTEL_INFO(dev)->has_fbc)
 
 #define HAS_IPS(dev)		(IS_HSW_ULT(dev) || IS_BROADWELL(dev))
+
+#define HAS_DP_MST(dev)		(IS_HASWELL(dev) || IS_BROADWELL(dev) || \
+				 INTEL_INFO(dev)->gen >= 9)
 
 #define HAS_DDI(dev)		(INTEL_INFO(dev)->has_ddi)
 #define HAS_FPGA_DBG_UNCLAIMED(dev)	(INTEL_INFO(dev)->has_fpga_dbg)
@@ -2820,7 +2847,6 @@ static inline bool i915_stop_ring_allow_warn(struct drm_i915_private *dev_priv)
 
 void i915_gem_reset(struct drm_device *dev);
 bool i915_gem_clflush_object(struct drm_i915_gem_object *obj, bool force);
-int __must_check i915_gem_object_finish_gpu(struct drm_i915_gem_object *obj);
 int __must_check i915_gem_init(struct drm_device *dev);
 int i915_gem_init_rings(struct drm_device *dev);
 int __must_check i915_gem_init_hw(struct drm_device *dev);
@@ -2838,9 +2864,12 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 			unsigned reset_counter,
 			bool interruptible,
 			s64 *timeout,
-			struct drm_i915_file_private *file_priv);
+			struct intel_rps_client *rps);
 int __must_check i915_wait_request(struct drm_i915_gem_request *req);
 int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
+int __must_check
+i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj,
+			       bool readonly);
 int __must_check
 i915_gem_object_set_to_gtt_domain(struct drm_i915_gem_object *obj,
 				  bool write);

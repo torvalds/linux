@@ -394,6 +394,12 @@ static void execlists_context_unqueue(struct intel_engine_cs *ring)
 
 	assert_spin_locked(&ring->execlist_lock);
 
+	/*
+	 * If irqs are not active generate a warning as batches that finish
+	 * without the irqs may get lost and a GPU Hang may occur.
+	 */
+	WARN_ON(!intel_irqs_enabled(ring->dev->dev_private));
+
 	if (list_empty(&ring->execlist_queue))
 		return;
 
@@ -622,6 +628,7 @@ static int execlists_move_to_gpu(struct intel_ringbuffer *ringbuf,
 				 struct list_head *vmas)
 {
 	struct intel_engine_cs *ring = ringbuf->ring;
+	const unsigned other_rings = ~intel_ring_flag(ring);
 	struct i915_vma *vma;
 	uint32_t flush_domains = 0;
 	bool flush_chipset = false;
@@ -630,9 +637,11 @@ static int execlists_move_to_gpu(struct intel_ringbuffer *ringbuf,
 	list_for_each_entry(vma, vmas, exec_list) {
 		struct drm_i915_gem_object *obj = vma->obj;
 
-		ret = i915_gem_object_sync(obj, ring);
-		if (ret)
-			return ret;
+		if (obj->active & other_rings) {
+			ret = i915_gem_object_sync(obj, ring);
+			if (ret)
+				return ret;
+		}
 
 		if (obj->base.write_domain & I915_GEM_DOMAIN_CPU)
 			flush_chipset |= i915_gem_clflush_object(obj, false);
@@ -673,7 +682,8 @@ static int logical_ring_wait_for_space(struct intel_ringbuffer *ringbuf,
 {
 	struct intel_engine_cs *ring = ringbuf->ring;
 	struct drm_i915_gem_request *request;
-	int ret, new_space;
+	unsigned space;
+	int ret;
 
 	if (intel_ring_space(ringbuf) >= bytes)
 		return 0;
@@ -684,14 +694,13 @@ static int logical_ring_wait_for_space(struct intel_ringbuffer *ringbuf,
 		 * from multiple ringbuffers. Here, we must ignore any that
 		 * aren't from the ringbuffer we're considering.
 		 */
-		struct intel_context *ctx = request->ctx;
-		if (ctx->engine[ring->id].ringbuf != ringbuf)
+		if (request->ringbuf != ringbuf)
 			continue;
 
 		/* Would completion of this request free enough space? */
-		new_space = __intel_ring_space(request->postfix, ringbuf->tail,
-				       ringbuf->size);
-		if (new_space >= bytes)
+		space = __intel_ring_space(request->postfix, ringbuf->tail,
+					   ringbuf->size);
+		if (space >= bytes)
 			break;
 	}
 
@@ -702,11 +711,8 @@ static int logical_ring_wait_for_space(struct intel_ringbuffer *ringbuf,
 	if (ret)
 		return ret;
 
-	i915_gem_retire_requests_ring(ring);
-
-	WARN_ON(intel_ring_space(ringbuf) < new_space);
-
-	return intel_ring_space(ringbuf) >= bytes ? 0 : -ENOSPC;
+	ringbuf->space = space;
+	return 0;
 }
 
 /*

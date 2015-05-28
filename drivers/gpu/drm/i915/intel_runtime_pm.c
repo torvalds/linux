@@ -771,7 +771,7 @@ static void vlv_set_power_well(struct drm_i915_private *dev_priv,
 	vlv_punit_write(dev_priv, PUNIT_REG_PWRGT_CTRL, ctrl);
 
 	if (wait_for(COND, 100))
-		DRM_ERROR("timout setting power well state %08x (%08x)\n",
+		DRM_ERROR("timeout setting power well state %08x (%08x)\n",
 			  state,
 			  vlv_punit_read(dev_priv, PUNIT_REG_PWRGT_CTRL));
 
@@ -1029,7 +1029,7 @@ static void chv_set_pipe_power_well(struct drm_i915_private *dev_priv,
 	vlv_punit_write(dev_priv, PUNIT_REG_DSPFREQ, ctrl);
 
 	if (wait_for(COND, 100))
-		DRM_ERROR("timout setting power well state %08x (%08x)\n",
+		DRM_ERROR("timeout setting power well state %08x (%08x)\n",
 			  state,
 			  vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ));
 

@@ -1097,6 +1097,9 @@ skl_edp_set_pll_config(struct intel_crtc_state *pipe_config, int link_clock)
 {
 	u32 ctrl1;
 
+	memset(&pipe_config->dpll_hw_state, 0,
+	       sizeof(pipe_config->dpll_hw_state));
+
 	pipe_config->ddi_pll_sel = SKL_DPLL0;
 	pipe_config->dpll_hw_state.cfgcr1 = 0;
 	pipe_config->dpll_hw_state.cfgcr2 = 0;
@@ -1266,7 +1269,7 @@ static void snprintf_int_array(char *str, size_t len,
 	str[0] = '\0';
 
 	for (i = 0; i < nelem; i++) {
-		int r = snprintf(str, len, "%d,", array[i]);
+		int r = snprintf(str, len, "%s%d", i ? ", " : "", array[i]);
 		if (r >= len)
 			return;
 		str += r;
@@ -1567,7 +1570,7 @@ static void intel_dp_prepare(struct intel_encoder *encoder)
 
 	/* Split out the IBX/CPU vs CPT settings */
 
-	if (port == PORT_A && IS_GEN7(dev) && !IS_VALLEYVIEW(dev)) {
+	if (IS_GEN7(dev) && port == PORT_A) {
 		if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
 			intel_dp->DP |= DP_SYNC_HS_HIGH;
 		if (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC)
@@ -1578,7 +1581,18 @@ static void intel_dp_prepare(struct intel_encoder *encoder)
 			intel_dp->DP |= DP_ENHANCED_FRAMING;
 
 		intel_dp->DP |= crtc->pipe << 29;
-	} else if (!HAS_PCH_CPT(dev) || port == PORT_A) {
+	} else if (HAS_PCH_CPT(dev) && port != PORT_A) {
+		u32 trans_dp;
+
+		intel_dp->DP |= DP_LINK_TRAIN_OFF_CPT;
+
+		trans_dp = I915_READ(TRANS_DP_CTL(crtc->pipe));
+		if (drm_dp_enhanced_frame_cap(intel_dp->dpcd))
+			trans_dp |= TRANS_DP_ENH_FRAMING;
+		else
+			trans_dp &= ~TRANS_DP_ENH_FRAMING;
+		I915_WRITE(TRANS_DP_CTL(crtc->pipe), trans_dp);
+	} else {
 		if (!HAS_PCH_SPLIT(dev) && !IS_VALLEYVIEW(dev))
 			intel_dp->DP |= intel_dp->color_range;
 
@@ -1591,14 +1605,10 @@ static void intel_dp_prepare(struct intel_encoder *encoder)
 		if (drm_dp_enhanced_frame_cap(intel_dp->dpcd))
 			intel_dp->DP |= DP_ENHANCED_FRAMING;
 
-		if (!IS_CHERRYVIEW(dev)) {
-			if (crtc->pipe == 1)
-				intel_dp->DP |= DP_PIPEB_SELECT;
-		} else {
+		if (IS_CHERRYVIEW(dev))
 			intel_dp->DP |= DP_PIPE_SELECT_CHV(crtc->pipe);
-		}
-	} else {
-		intel_dp->DP |= DP_LINK_TRAIN_OFF_CPT;
+		else if (crtc->pipe == PIPE_B)
+			intel_dp->DP |= DP_PIPEB_SELECT;
 	}
 }
 
@@ -2182,41 +2192,25 @@ static bool intel_dp_get_hw_state(struct intel_encoder *encoder,
 	if (!(tmp & DP_PORT_EN))
 		return false;
 
-	if (port == PORT_A && IS_GEN7(dev) && !IS_VALLEYVIEW(dev)) {
+	if (IS_GEN7(dev) && port == PORT_A) {
 		*pipe = PORT_TO_PIPE_CPT(tmp);
-	} else if (IS_CHERRYVIEW(dev)) {
-		*pipe = DP_PORT_TO_PIPE_CHV(tmp);
-	} else if (!HAS_PCH_CPT(dev) || port == PORT_A) {
-		*pipe = PORT_TO_PIPE(tmp);
-	} else {
-		u32 trans_sel;
-		u32 trans_dp;
-		int i;
+	} else if (HAS_PCH_CPT(dev) && port != PORT_A) {
+		enum pipe p;
 
-		switch (intel_dp->output_reg) {
-		case PCH_DP_B:
-			trans_sel = TRANS_DP_PORT_SEL_B;
-			break;
-		case PCH_DP_C:
-			trans_sel = TRANS_DP_PORT_SEL_C;
-			break;
-		case PCH_DP_D:
-			trans_sel = TRANS_DP_PORT_SEL_D;
-			break;
-		default:
-			return true;
-		}
-
-		for_each_pipe(dev_priv, i) {
-			trans_dp = I915_READ(TRANS_DP_CTL(i));
-			if ((trans_dp & TRANS_DP_PORT_SEL_MASK) == trans_sel) {
-				*pipe = i;
+		for_each_pipe(dev_priv, p) {
+			u32 trans_dp = I915_READ(TRANS_DP_CTL(p));
+			if (TRANS_DP_PIPE_TO_PORT(trans_dp) == port) {
+				*pipe = p;
 				return true;
 			}
 		}
 
 		DRM_DEBUG_KMS("No pipe for dp port 0x%x found\n",
 			      intel_dp->output_reg);
+	} else if (IS_CHERRYVIEW(dev)) {
+		*pipe = DP_PORT_TO_PIPE_CHV(tmp);
+	} else {
+		*pipe = PORT_TO_PIPE(tmp);
 	}
 
 	return true;
@@ -2237,17 +2231,7 @@ static void intel_dp_get_config(struct intel_encoder *encoder,
 
 	pipe_config->has_audio = tmp & DP_AUDIO_OUTPUT_ENABLE && port != PORT_A;
 
-	if ((port == PORT_A) || !HAS_PCH_CPT(dev)) {
-		if (tmp & DP_SYNC_HS_HIGH)
-			flags |= DRM_MODE_FLAG_PHSYNC;
-		else
-			flags |= DRM_MODE_FLAG_NHSYNC;
-
-		if (tmp & DP_SYNC_VS_HIGH)
-			flags |= DRM_MODE_FLAG_PVSYNC;
-		else
-			flags |= DRM_MODE_FLAG_NVSYNC;
-	} else {
+	if (HAS_PCH_CPT(dev) && port != PORT_A) {
 		tmp = I915_READ(TRANS_DP_CTL(crtc->pipe));
 		if (tmp & TRANS_DP_HSYNC_ACTIVE_HIGH)
 			flags |= DRM_MODE_FLAG_PHSYNC;
@@ -2255,6 +2239,16 @@ static void intel_dp_get_config(struct intel_encoder *encoder,
 			flags |= DRM_MODE_FLAG_NHSYNC;
 
 		if (tmp & TRANS_DP_VSYNC_ACTIVE_HIGH)
+			flags |= DRM_MODE_FLAG_PVSYNC;
+		else
+			flags |= DRM_MODE_FLAG_NVSYNC;
+	} else {
+		if (tmp & DP_SYNC_HS_HIGH)
+			flags |= DRM_MODE_FLAG_PHSYNC;
+		else
+			flags |= DRM_MODE_FLAG_NHSYNC;
+
+		if (tmp & DP_SYNC_VS_HIGH)
 			flags |= DRM_MODE_FLAG_PVSYNC;
 		else
 			flags |= DRM_MODE_FLAG_NVSYNC;
@@ -2419,7 +2413,8 @@ _intel_dp_set_link_train(struct intel_dp *intel_dp,
 		}
 		I915_WRITE(DP_TP_CTL(port), temp);
 
-	} else if (HAS_PCH_CPT(dev) && (IS_GEN7(dev) || port != PORT_A)) {
+	} else if ((IS_GEN7(dev) && port == PORT_A) ||
+		   (HAS_PCH_CPT(dev) && port != PORT_A)) {
 		*DP &= ~DP_LINK_TRAIN_MASK_CPT;
 
 		switch (dp_train_pat & DP_TRAINING_PATTERN_MASK) {
@@ -3848,6 +3843,7 @@ static void
 intel_dp_link_down(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	struct intel_crtc *crtc = to_intel_crtc(intel_dig_port->base.base.crtc);
 	enum port port = intel_dig_port->port;
 	struct drm_device *dev = intel_dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -3861,36 +3857,41 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 
 	DRM_DEBUG_KMS("\n");
 
-	if (HAS_PCH_CPT(dev) && (IS_GEN7(dev) || port != PORT_A)) {
+	if ((IS_GEN7(dev) && port == PORT_A) ||
+	    (HAS_PCH_CPT(dev) && port != PORT_A)) {
 		DP &= ~DP_LINK_TRAIN_MASK_CPT;
-		I915_WRITE(intel_dp->output_reg, DP | DP_LINK_TRAIN_PAT_IDLE_CPT);
+		DP |= DP_LINK_TRAIN_PAT_IDLE_CPT;
 	} else {
 		if (IS_CHERRYVIEW(dev))
 			DP &= ~DP_LINK_TRAIN_MASK_CHV;
 		else
 			DP &= ~DP_LINK_TRAIN_MASK;
-		I915_WRITE(intel_dp->output_reg, DP | DP_LINK_TRAIN_PAT_IDLE);
+		DP |= DP_LINK_TRAIN_PAT_IDLE;
 	}
+	I915_WRITE(intel_dp->output_reg, DP);
 	POSTING_READ(intel_dp->output_reg);
 
-	if (HAS_PCH_IBX(dev) &&
-	    I915_READ(intel_dp->output_reg) & DP_PIPEB_SELECT) {
-		/* Hardware workaround: leaving our transcoder select
-		 * set to transcoder B while it's off will prevent the
-		 * corresponding HDMI output on transcoder A.
-		 *
-		 * Combine this with another hardware workaround:
-		 * transcoder select bit can only be cleared while the
-		 * port is enabled.
-		 */
-		DP &= ~DP_PIPEB_SELECT;
+	DP &= ~(DP_PORT_EN | DP_AUDIO_OUTPUT_ENABLE);
+	I915_WRITE(intel_dp->output_reg, DP);
+	POSTING_READ(intel_dp->output_reg);
+
+	/*
+	 * HW workaround for IBX, we need to move the port
+	 * to transcoder A after disabling it to allow the
+	 * matching HDMI port to be enabled on transcoder A.
+	 */
+	if (HAS_PCH_IBX(dev) && crtc->pipe == PIPE_B && port != PORT_A) {
+		/* always enable with pattern 1 (as per spec) */
+		DP &= ~(DP_PIPEB_SELECT | DP_LINK_TRAIN_MASK);
+		DP |= DP_PORT_EN | DP_LINK_TRAIN_PAT_1;
+		I915_WRITE(intel_dp->output_reg, DP);
+		POSTING_READ(intel_dp->output_reg);
+
+		DP &= ~DP_PORT_EN;
 		I915_WRITE(intel_dp->output_reg, DP);
 		POSTING_READ(intel_dp->output_reg);
 	}
 
-	DP &= ~DP_AUDIO_OUTPUT_ENABLE;
-	I915_WRITE(intel_dp->output_reg, DP & ~DP_PORT_EN);
-	POSTING_READ(intel_dp->output_reg);
 	msleep(intel_dp->panel_power_down_delay);
 }
 
@@ -4142,7 +4143,7 @@ static uint8_t intel_dp_autotest_edid(struct intel_dp *intel_dp)
 		if (!drm_dp_dpcd_write(&intel_dp->aux,
 					DP_TEST_EDID_CHECKSUM,
 					&intel_connector->detect_edid->checksum,
-					1));
+					1))
 			DRM_DEBUG_KMS("Failed to write EDID checksum\n");
 
 		test_result = DP_TEST_ACK | DP_TEST_EDID_CHECKSUM_WRITE;
@@ -5814,12 +5815,10 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	intel_dp_aux_init(intel_dp, intel_connector);
 
 	/* init MST on ports that can support it */
-	if (IS_HASWELL(dev) || IS_BROADWELL(dev) || INTEL_INFO(dev)->gen >= 9) {
-		if (port == PORT_B || port == PORT_C || port == PORT_D) {
-			intel_dp_mst_encoder_init(intel_dig_port,
-						  intel_connector->base.base.id);
-		}
-	}
+	if (HAS_DP_MST(dev) &&
+	    (port == PORT_B || port == PORT_C || port == PORT_D))
+		intel_dp_mst_encoder_init(intel_dig_port,
+					  intel_connector->base.base.id);
 
 	if (!intel_edp_init_connector(intel_dp, intel_connector)) {
 		drm_dp_aux_unregister(&intel_dp->aux);
