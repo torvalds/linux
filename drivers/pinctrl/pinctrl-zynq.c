@@ -125,7 +125,7 @@ enum zynq_pinmux_functions {
 	ZYNQ_PMUX_MAX_FUNC
 };
 
-const struct pinctrl_pin_desc zynq_pins[] = {
+static const struct pinctrl_pin_desc zynq_pins[] = {
 	PINCTRL_PIN(0,  "MIO0"),
 	PINCTRL_PIN(1,  "MIO1"),
 	PINCTRL_PIN(2,  "MIO2"),
