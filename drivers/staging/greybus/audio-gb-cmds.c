@@ -16,7 +16,7 @@
 #define GB_I2S_MGMT_VERSION_MINOR		0x01
 
 #define GB_I2S_DATA_VERSION_MAJOR		0x00
-#define GB_I2S_MGMT_VERSION_MINOR		0x01
+#define GB_I2S_DATA_VERSION_MINOR		0x01
 
 /***********************************
  * GB I2S helper functions
