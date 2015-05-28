@@ -245,7 +245,7 @@ static void __intel_pmu_lbr_restore(struct x86_perf_task_context *task_ctx)
 		wrmsrl(x86_pmu.lbr_from + lbr_idx, task_ctx->lbr_from[i]);
 		wrmsrl(x86_pmu.lbr_to + lbr_idx, task_ctx->lbr_to[i]);
 		if (x86_pmu.intel_cap.lbr_format == LBR_FORMAT_INFO)
-			wrmsrl(MSR_LBR_INFO_0 + i, task_ctx->lbr_info[i]);
+			wrmsrl(MSR_LBR_INFO_0 + lbr_idx, task_ctx->lbr_info[i]);
 	}
 	task_ctx->lbr_stack_state = LBR_NONE;
 }
@@ -268,7 +268,7 @@ static void __intel_pmu_lbr_save(struct x86_perf_task_context *task_ctx)
 		rdmsrl(x86_pmu.lbr_from + lbr_idx, task_ctx->lbr_from[i]);
 		rdmsrl(x86_pmu.lbr_to + lbr_idx, task_ctx->lbr_to[i]);
 		if (x86_pmu.intel_cap.lbr_format == LBR_FORMAT_INFO)
-			rdmsrl(MSR_LBR_INFO_0 + i, task_ctx->lbr_info[i]);
+			rdmsrl(MSR_LBR_INFO_0 + lbr_idx, task_ctx->lbr_info[i]);
 	}
 	task_ctx->lbr_stack_state = LBR_VALID;
 }
