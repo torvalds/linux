@@ -1014,7 +1014,7 @@ int __nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
 	req->__sector = (sector_t) -1;
 	req->bio = req->biotail = NULL;
 
-	req->timeout = ADMIN_TIMEOUT;
+	req->timeout = timeout ? timeout : ADMIN_TIMEOUT;
 
 	req->cmd = (unsigned char *)cmd;
 	req->cmd_len = sizeof(struct nvme_command);
