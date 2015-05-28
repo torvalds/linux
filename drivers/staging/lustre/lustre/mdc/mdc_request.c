@@ -1818,10 +1818,7 @@ static int mdc_ioc_swap_layouts(struct obd_export *exp,
 	ptlrpc_request_set_replen(req);
 
 	rc = ptlrpc_queue_wait(req);
-	if (rc)
-		goto out;
 
-out:
 	ptlrpc_req_finished(req);
 	return rc;
 }
