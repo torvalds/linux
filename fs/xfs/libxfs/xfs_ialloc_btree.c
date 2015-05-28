@@ -478,3 +478,34 @@ xfs_inobt_irec_to_allocmask(
 
 	return bitmap;
 }
+
+#if defined(DEBUG) || defined(XFS_WARN)
+/*
+ * Verify that an in-core inode record has a valid inode count.
+ */
+int
+xfs_inobt_rec_check_count(
+	struct xfs_mount		*mp,
+	struct xfs_inobt_rec_incore	*rec)
+{
+	int				inocount = 0;
+	int				nextbit = 0;
+	uint64_t			allocbmap;
+	int				wordsz;
+
+	wordsz = sizeof(allocbmap) / sizeof(unsigned int);
+	allocbmap = xfs_inobt_irec_to_allocmask(rec);
+
+	nextbit = xfs_next_bit((uint *) &allocbmap, wordsz, nextbit);
+	while (nextbit != -1) {
+		inocount++;
+		nextbit = xfs_next_bit((uint *) &allocbmap, wordsz,
+				       nextbit + 1);
+	}
+
+	if (inocount != rec->ir_count)
+		return -EFSCORRUPTED;
+
+	return 0;
+}
+#endif	/* DEBUG */
