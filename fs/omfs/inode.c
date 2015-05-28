@@ -306,7 +306,8 @@ static const struct super_operations omfs_sops = {
  */
 static int omfs_get_imap(struct super_block *sb)
 {
-	unsigned int bitmap_size, count, array_size;
+	unsigned int bitmap_size, array_size;
+	int count;
 	struct omfs_sb_info *sbi = OMFS_SB(sb);
 	struct buffer_head *bh;
 	unsigned long **ptr;
