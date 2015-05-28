@@ -121,8 +121,10 @@
          2) add rl3369 pd_isp enable/disable.
 *v0.0x1f.0:
 		 1) GPIO(gpio7 GPIO_B5) is EBUSY when register after factory reset, but after power on ,it's normal.
+*v0.0x20.0:
+         1) rk3368 camera: hold vio0 noc clock during the camera work, fixed isp iommu stall failed.
 */
-#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0,0x1f,0)
+#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0,0x20,0)
 
 
 #define CAMSYS_PLATFORM_DRV_NAME                "RockChip-CamSys"

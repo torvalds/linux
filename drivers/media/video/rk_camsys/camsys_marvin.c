@@ -341,6 +341,7 @@ static int camsys_mrv_clkin_cb(void *ptr, unsigned int on)
 
 			clk_prepare_enable(clk->cif_clk_out);
 			clk_prepare_enable(clk->pclk_dphyrx);
+			clk_prepare_enable(clk->clk_vio0_noc);
 		}else{
 			clk_prepare_enable(clk->clk_mipi_24m);		
 		}
@@ -361,6 +362,7 @@ static int camsys_mrv_clkin_cb(void *ptr, unsigned int on)
 		if(CHIP_TYPE == 3368){
 	        clk_disable_unprepare(clk->cif_clk_out);
 			clk_disable_unprepare(clk->pclk_dphyrx);
+			clk_disable_unprepare(clk->clk_vio0_noc);
 
 		}else{
 	        clk_disable_unprepare(clk->clk_mipi_24m); 
@@ -532,6 +534,9 @@ static int camsys_mrv_remove_cb(struct platform_device *pdev)
         if (!IS_ERR_OR_NULL(mrv_clk->cif_clk_out)) {
             devm_clk_put(&pdev->dev,mrv_clk->cif_clk_out);
         }
+        if (!IS_ERR_OR_NULL(mrv_clk->clk_vio0_noc)) {
+            devm_clk_put(&pdev->dev,mrv_clk->clk_vio0_noc);
+        }
 
         kfree(mrv_clk);
         mrv_clk = NULL;
@@ -567,11 +572,12 @@ int camsys_mrv_probe_cb(struct platform_device *pdev, camsys_dev_t *camsys_dev)
 	    mrv_clk->cif_clk_out = devm_clk_get(&pdev->dev, "clk_cif_out");
 	    mrv_clk->cif_clk_pll = devm_clk_get(&pdev->dev, "clk_cif_pll");
 	    mrv_clk->pclk_dphyrx = devm_clk_get(&pdev->dev, "pclk_dphyrx");    
-	    
+	    mrv_clk->clk_vio0_noc = devm_clk_get(&pdev->dev, "clk_vio0_noc");
+
 		if (IS_ERR_OR_NULL(mrv_clk->aclk_isp) || IS_ERR_OR_NULL(mrv_clk->hclk_isp) ||
 	        IS_ERR_OR_NULL(mrv_clk->isp) || IS_ERR_OR_NULL(mrv_clk->isp_jpe) || IS_ERR_OR_NULL(mrv_clk->pclkin_isp) || 
 	        IS_ERR_OR_NULL(mrv_clk->cif_clk_out) || IS_ERR_OR_NULL(mrv_clk->pclk_dphyrx)||
-	        IS_ERR_OR_NULL(mrv_clk->pd_isp)) {
+	        IS_ERR_OR_NULL(mrv_clk->pd_isp) || IS_ERR_OR_NULL(mrv_clk->clk_vio0_noc)) {
 	        camsys_err("Get %s clock resouce failed!\n",miscdev_name);
 	        err = -EINVAL;
 	        goto clk_failed;
@@ -660,6 +666,9 @@ clk_failed:
 	        if (!IS_ERR_OR_NULL(mrv_clk->pclk_dphyrx)) {
 	            clk_put(mrv_clk->pclk_dphyrx);
 	        }
+		if (!IS_ERR_OR_NULL(mrv_clk->clk_vio0_noc)) {
+			clk_put(mrv_clk->clk_vio0_noc);
+		}
 		}
 
         kfree(mrv_clk);
