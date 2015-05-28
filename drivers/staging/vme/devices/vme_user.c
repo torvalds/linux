@@ -430,15 +430,17 @@ static loff_t vme_user_llseek(struct file *file, loff_t off, int whence)
 	size_t image_size;
 	loff_t res;
 
-	if (minor == CONTROL_MINOR)
-		return -EINVAL;
+	switch (type[minor]) {
+	case MASTER_MINOR:
+	case SLAVE_MINOR:
+		mutex_lock(&image[minor].mutex);
+		image_size = vme_get_size(image[minor].resource);
+		res = fixed_size_llseek(file, off, whence, image_size);
+		mutex_unlock(&image[minor].mutex);
+		return res;
+	}
 
-	mutex_lock(&image[minor].mutex);
-	image_size = vme_get_size(image[minor].resource);
-	res = fixed_size_llseek(file, off, whence, image_size);
-	mutex_unlock(&image[minor].mutex);
-
-	return res;
+	return -EINVAL;
 }
 
 /*
