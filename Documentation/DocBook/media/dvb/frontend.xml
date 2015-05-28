@@ -29,19 +29,29 @@
 specification is available at
 <ulink url="http://www.eutelsat.com/satellites/4_5_5.html">Eutelsat</ulink>.</para>
 
-
 <section id="query-dvb-frontend-info">
 <title>Querying frontend information</title>
 
-<para>Information about the frontend can be queried with
-	<link linkend="FE_GET_INFO">FE_GET_INFO</link>.</para>
+<para>Usually, the first thing to do when the frontend is opened is to
+    check the frontend capabilities. This is done using <link linkend="FE_GET_INFO">FE_GET_INFO</link>. This ioctl will enumerate
+    the DVB API version and other characteristics about the frontend, and
+    can be opened either in read only or read/write mode.</para>
 </section>
 
 <section id="dvb-fe-read-status">
-<title>Querying frontend status</title>
+<title>Querying frontend status and statistics</title>
 
-<para>Information about the frontend tuner locking status can be queried with
-	<link linkend="FE_READ_STATUS">FE_READ_STATUS</link>.</para>
+<para>Once <link linkend="FE_GET_PROPERTY"><constant>FE_SET_PROPERTY</constant></link>
+    is called, the frontend will run a kernel thread that will periodically
+    check for the tuner lock status and provide statistics about the quality
+    of the signal.</para>
+<para>The information about the frontend tuner locking status can be queried
+    using <link linkend="FE_READ_STATUS">FE_READ_STATUS</link>.</para>
+<para>Signal statistics are provided via <link linkend="FE_GET_PROPERTY"><constant>FE_GET_PROPERTY</constant></link>.
+    Please notice that several statistics require the demodulator to be fully
+    locked (e. g. with FE_HAS_LOCK bit set). See
+    <xref linkend="frontend-stat-properties">Frontend statistics indicators</xref>
+    for more details.</para>
 </section>
 
 &sub-dvbproperty;
