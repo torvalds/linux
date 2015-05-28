@@ -2840,9 +2840,9 @@ static struct dma_map_ops amd_iommu_dma_ops = {
 	.dma_supported = amd_iommu_dma_supported,
 };
 
-void __init amd_iommu_init_api(void)
+int __init amd_iommu_init_api(void)
 {
-	bus_set_iommu(&pci_bus_type, &amd_iommu_ops);
+	return bus_set_iommu(&pci_bus_type, &amd_iommu_ops);
 }
 
 int __init amd_iommu_init_dma_ops(void)

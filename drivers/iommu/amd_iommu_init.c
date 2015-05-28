@@ -1391,9 +1391,10 @@ static int __init amd_iommu_init_pci(void)
 	for_each_iommu(iommu)
 		iommu_flush_all_caches(iommu);
 
-	amd_iommu_init_api();
+	ret = amd_iommu_init_api();
 
-	print_iommu_info();
+	if (!ret)
+		print_iommu_info();
 
 	return ret;
 }
