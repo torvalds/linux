@@ -32,6 +32,7 @@
 #include <linux/miscdevice.h>
 #include <linux/module.h>
 #include <linux/nfc.h>
+#include <linux/gpio/consumer.h>
 #include <linux/of_gpio.h>
 #include <linux/of_irq.h>
 #include <linux/platform_data/nxp-nci.h>
