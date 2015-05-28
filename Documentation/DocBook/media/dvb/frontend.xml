@@ -50,18 +50,6 @@ specification is available at
 
 &sub-dvbproperty;
 
-<section id="dvb-diseqc-master-cmd">
-<title>diseqc master command</title>
-
-<para>A message sent from the frontend to DiSEqC capable equipment.</para>
-<programlisting>
-	struct dvb_diseqc_master_cmd {
-	uint8_t msg [6]; /&#x22C6;  { framing, address, command, data[3] } &#x22C6;/
-	uint8_t msg_len; /&#x22C6;  valid values are 3...6  &#x22C6;/
-	};
-</programlisting>
-</section>
-
 <section id="fe-spectral-inversion-t">
 <title>frontend spectral inversion</title>
 <para>The Inversion field can take one of these values:
@@ -389,56 +377,7 @@ typedef enum fe_hierarchy {
 &return-value-dvb;
 </section>
 
-<section id="FE_DISEQC_SEND_MASTER_CMD">
-<title>FE_DISEQC_SEND_MASTER_CMD</title>
-<para>DESCRIPTION
-</para>
-<informaltable><tgroup cols="1"><tbody><row><entry
- align="char">
-<para>This ioctl call is used to send a a DiSEqC command.</para>
-</entry>
- </row></tbody></tgroup></informaltable>
-<para>SYNOPSIS
-</para>
-<informaltable><tgroup cols="1"><tbody><row><entry
- align="char">
-<para>int ioctl(int fd, int request =
- <link linkend="FE_DISEQC_SEND_MASTER_CMD">FE_DISEQC_SEND_MASTER_CMD</link>, struct
- dvb_diseqc_master_cmd &#x22C6;cmd);</para>
-</entry>
- </row></tbody></tgroup></informaltable>
-
-<para>PARAMETERS
-</para>
-<informaltable><tgroup cols="2"><tbody><row><entry
- align="char">
-<para>int fd</para>
-</entry><entry
- align="char">
-<para>File descriptor returned by a previous call to open().</para>
-</entry>
- </row><row><entry
- align="char">
-<para>int request</para>
-</entry><entry
- align="char">
-<para>Equals <link linkend="FE_DISEQC_SEND_MASTER_CMD">FE_DISEQC_SEND_MASTER_CMD</link> for this
- command.</para>
-</entry>
- </row><row><entry
- align="char">
-<para>struct
- dvb_diseqc_master_cmd
- *cmd</para>
-</entry><entry
- align="char">
-<para>Pointer to the command to be transmitted.</para>
-</entry>
- </row></tbody></tgroup></informaltable>
-
-&return-value-dvb;
-</section>
-
+&sub-fe-diseqc-send-master-cmd;
 &sub-fe-diseqc-recv-slave-reply;
 &sub-fe-diseqc-send-burst;
 &sub-fe-set-tone;
