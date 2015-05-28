@@ -202,12 +202,14 @@ void symbols__fixup_end(struct rb_root *symbols)
 
 void __map_groups__fixup_end(struct map_groups *mg, enum map_type type)
 {
-	struct rb_root *maps = &mg->maps[type];
+	struct maps *maps = &mg->maps[type];
 	struct map *next, *curr;
+
+	pthread_rwlock_wrlock(&maps->lock);
 
 	curr = maps__first(maps);
 	if (curr == NULL)
-		return;
+		goto out_unlock;
 
 	for (next = map__next(curr); next; next = map__next(curr)) {
 		curr->end = next->start;
@@ -219,6 +221,9 @@ void __map_groups__fixup_end(struct map_groups *mg, enum map_type type)
 	 * last map final address.
 	 */
 	curr->end = ~0ULL;
+
+out_unlock:
+	pthread_rwlock_unlock(&maps->lock);
 }
 
 struct symbol *symbol__new(u64 start, u64 len, u8 binding, const char *name)
@@ -654,14 +659,14 @@ static int dso__split_kallsyms_for_kcore(struct dso *dso, struct map *map,
 		curr_map = map_groups__find(kmaps, map->type, pos->start);
 
 		if (!curr_map || (filter && filter(curr_map, pos))) {
-			rb_erase(&pos->rb_node, root);
+			rb_erase_init(&pos->rb_node, root);
 			symbol__delete(pos);
 		} else {
 			pos->start -= curr_map->start - curr_map->pgoff;
 			if (pos->end)
 				pos->end -= curr_map->start - curr_map->pgoff;
 			if (curr_map != map) {
-				rb_erase(&pos->rb_node, root);
+				rb_erase_init(&pos->rb_node, root);
 				symbols__insert(
 					&curr_map->dso->symbols[curr_map->type],
 					pos);
@@ -1168,20 +1173,23 @@ static int dso__load_kcore(struct dso *dso, struct map *map,
 	/* Add new maps */
 	while (!list_empty(&md.maps)) {
 		new_map = list_entry(md.maps.next, struct map, node);
-		list_del(&new_map->node);
+		list_del_init(&new_map->node);
 		if (new_map == replacement_map) {
 			map->start	= new_map->start;
 			map->end	= new_map->end;
 			map->pgoff	= new_map->pgoff;
 			map->map_ip	= new_map->map_ip;
 			map->unmap_ip	= new_map->unmap_ip;
-			map__delete(new_map);
 			/* Ensure maps are correctly ordered */
+			map__get(map);
 			map_groups__remove(kmaps, map);
 			map_groups__insert(kmaps, map);
+			map__put(map);
 		} else {
 			map_groups__insert(kmaps, new_map);
 		}
+
+		map__put(new_map);
 	}
 
 	/*
@@ -1206,8 +1214,8 @@ static int dso__load_kcore(struct dso *dso, struct map *map,
 out_err:
 	while (!list_empty(&md.maps)) {
 		map = list_entry(md.maps.next, struct map, node);
-		list_del(&map->node);
-		map__delete(map);
+		list_del_init(&map->node);
+		map__put(map);
 	}
 	close(fd);
 	return -EINVAL;
@@ -1520,15 +1528,21 @@ out:
 struct map *map_groups__find_by_name(struct map_groups *mg,
 				     enum map_type type, const char *name)
 {
-	struct rb_root *maps = &mg->maps[type];
+	struct maps *maps = &mg->maps[type];
 	struct map *map;
+
+	pthread_rwlock_rdlock(&maps->lock);
 
 	for (map = maps__first(maps); map; map = map__next(map)) {
 		if (map->dso && strcmp(map->dso->short_name, name) == 0)
-			return map;
+			goto out_unlock;
 	}
 
-	return NULL;
+	map = NULL;
+
+out_unlock:
+	pthread_rwlock_unlock(&maps->lock);
+	return map;
 }
 
 int dso__load_vmlinux(struct dso *dso, struct map *map,

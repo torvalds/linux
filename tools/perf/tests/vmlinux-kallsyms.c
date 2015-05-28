@@ -26,7 +26,7 @@ int test__vmlinux_matches_kallsyms(void)
 	struct map *kallsyms_map, *vmlinux_map, *map;
 	struct machine kallsyms, vmlinux;
 	enum map_type type = MAP__FUNCTION;
-	struct rb_root *maps = &vmlinux.kmaps.maps[type];
+	struct maps *maps = &vmlinux.kmaps.maps[type];
 	u64 mem_start, mem_end;
 
 	/*

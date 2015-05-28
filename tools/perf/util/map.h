@@ -5,6 +5,7 @@
 #include <linux/compiler.h>
 #include <linux/list.h>
 #include <linux/rbtree.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <linux/types.h>
@@ -51,6 +52,7 @@ struct map {
 
 	struct dso		*dso;
 	struct map_groups	*groups;
+	atomic_t		refcnt;
 };
 
 struct kmap {
@@ -58,9 +60,14 @@ struct kmap {
 	struct map_groups	*kmaps;
 };
 
+struct maps {
+	struct rb_root	 entries;
+	pthread_rwlock_t lock;
+	struct list_head removed_maps;
+};
+
 struct map_groups {
-	struct rb_root	 maps[MAP__NR_TYPES];
-	struct list_head removed_maps[MAP__NR_TYPES];
+	struct maps	 maps[MAP__NR_TYPES];
 	struct machine	 *machine;
 	atomic_t	 refcnt;
 };
@@ -144,6 +151,16 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 struct map *map__new2(u64 start, struct dso *dso, enum map_type type);
 void map__delete(struct map *map);
 struct map *map__clone(struct map *map);
+
+static inline struct map *map__get(struct map *map)
+{
+	if (map)
+		atomic_inc(&map->refcnt);
+	return map;
+}
+
+void map__put(struct map *map);
+
 int map__overlap(struct map *l, struct map *r);
 size_t map__fprintf(struct map *map, FILE *fp);
 size_t map__fprintf_dsoname(struct map *map, FILE *fp);
@@ -162,10 +179,10 @@ void map__reloc_vmlinux(struct map *map);
 
 size_t __map_groups__fprintf_maps(struct map_groups *mg, enum map_type type,
 				  FILE *fp);
-void maps__insert(struct rb_root *maps, struct map *map);
-void maps__remove(struct rb_root *maps, struct map *map);
-struct map *maps__find(struct rb_root *maps, u64 addr);
-struct map *maps__first(struct rb_root *maps);
+void maps__insert(struct maps *maps, struct map *map);
+void maps__remove(struct maps *maps, struct map *map);
+struct map *maps__find(struct maps *maps, u64 addr);
+struct map *maps__first(struct maps *maps);
 struct map *map__next(struct map *map);
 void map_groups__init(struct map_groups *mg, struct machine *machine);
 void map_groups__exit(struct map_groups *mg);

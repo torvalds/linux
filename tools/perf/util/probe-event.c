@@ -163,7 +163,7 @@ static u64 kernel_get_symbol_address_by_name(const char *name, bool reloc)
 static struct map *kernel_get_module_map(const char *module)
 {
 	struct map_groups *grp = &host_machine->kmaps;
-	struct rb_root *maps = &grp->maps[MAP__FUNCTION];
+	struct maps *maps = &grp->maps[MAP__FUNCTION];
 	struct map *pos;
 
 	/* A file path -- this is an offline module */
@@ -195,7 +195,7 @@ static void put_target_map(struct map *map, bool user)
 {
 	if (map && user) {
 		/* Only the user map needs to be released */
-		map__delete(map);
+		map__put(map);
 	}
 }
 
@@ -1791,7 +1791,7 @@ static int find_perf_probe_point_from_map(struct probe_trace_point *tp,
 
 out:
 	if (map && !is_kprobe) {
-		map__delete(map);
+		map__put(map);
 	}
 
 	return ret;
@@ -2884,7 +2884,7 @@ int show_available_funcs(const char *target, struct strfilter *_filter,
 	dso__fprintf_symbols_by_name(map->dso, map->type, stdout);
 end:
 	if (user) {
-		map__delete(map);
+		map__put(map);
 	}
 	exit_symbol_maps();
 

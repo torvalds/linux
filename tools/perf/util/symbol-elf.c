@@ -972,8 +972,10 @@ int dso__load_sym(struct dso *dso, struct map *map,
 					map->unmap_ip = map__unmap_ip;
 					/* Ensure maps are correctly ordered */
 					if (kmaps) {
+						map__get(map);
 						map_groups__remove(kmaps, map);
 						map_groups__insert(kmaps, map);
+						map__put(map);
 					}
 				}
 

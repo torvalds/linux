@@ -59,6 +59,10 @@ static int perf_evsel__add_sample(struct perf_evsel *evsel,
 	    (al->sym == NULL ||
 	     strcmp(ann->sym_hist_filter, al->sym->name) != 0)) {
 		/* We're only interested in a symbol named sym_hist_filter */
+		/*
+		 * FIXME: why isn't this done in the symbol_filter when loading
+		 * the DSO?
+		 */
 		if (al->sym != NULL) {
 			rb_erase(&al->sym->rb_node,
 				 &al->map->dso->symbols[al->map->type]);
