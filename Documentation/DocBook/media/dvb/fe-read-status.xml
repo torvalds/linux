@@ -16,7 +16,7 @@
 	<funcdef>int <function>ioctl</function></funcdef>
 	<paramdef>int <parameter>fd</parameter></paramdef>
 	<paramdef>int <parameter>request</parameter></paramdef>
-	<paramdef>&fe-status; *<parameter>argp</parameter></paramdef>
+	<paramdef>unsigned int *<parameter>status</parameter></paramdef>
       </funcprototype>
     </funcsynopsis>
   </refsynopsisdiv>
@@ -37,9 +37,10 @@
 	</listitem>
       </varlistentry>
       <varlistentry>
-	<term><parameter>argp</parameter></term>
+	<term><parameter>status</parameter></term>
 	<listitem>
-	    <para>pointer to &fe-status;</para>
+	    <para>pointer to a bitmask integer filled with the values defined by
+		&fe-status;.</para>
 	</listitem>
       </varlistentry>
     </variablelist>
@@ -51,16 +52,19 @@
     <para>All DVB frontend devices support the
 <constant>FE_READ_STATUS</constant> ioctl. It is used to check about the
 locking status of the frontend after being tuned. The ioctl takes a
-pointer to a 16-bits number where the status will be written.
-&return-value-dvb;.
+pointer to an integer where the status will be written.
 </para>
+<para>NOTE: the size of status is actually sizeof(enum fe_status), with varies
+    according with the architecture. This needs to be fixed in the future.</para>
+&return-value-dvb;
 </refsect1>
 
 <section id="fe-status-t">
-<title>enum fe_status</title>
+<title>int fe_status</title>
 
-<para>The enum fe_status is used to indicate the current state
-    and/or state changes of the frontend hardware.</para>
+<para>The fe_status parameter is used to indicate the current state
+    and/or state changes of the frontend hardware. It is produced using
+    the &fe-status; values on a bitmask</para>
 
 <table pgwide="1" frame="none" id="fe-status">
     <title>enum fe_status</title>
