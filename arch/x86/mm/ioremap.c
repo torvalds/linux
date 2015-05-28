@@ -365,7 +365,7 @@ void iounmap(volatile void __iomem *addr)
 }
 EXPORT_SYMBOL(iounmap);
 
-int arch_ioremap_pud_supported(void)
+int __init arch_ioremap_pud_supported(void)
 {
 #ifdef CONFIG_X86_64
 	return cpu_has_gbpages;
@@ -374,7 +374,7 @@ int arch_ioremap_pud_supported(void)
 #endif
 }
 
-int arch_ioremap_pmd_supported(void)
+int __init arch_ioremap_pmd_supported(void)
 {
 	return cpu_has_pse;
 }
