@@ -360,10 +360,6 @@ static int f2fs_symlink(struct inode *dir, struct dentry *dentry,
 	if (f2fs_encrypted_inode(dir)) {
 		struct qstr istr = QSTR_INIT(symname, len);
 
-		err = f2fs_inherit_context(dir, inode, NULL);
-		if (err)
-			goto err_out;
-
 		err = f2fs_get_encryption_info(inode);
 		if (err)
 			goto err_out;
