@@ -60,6 +60,48 @@ supported via the new <link linkend="FE_GET_PROPERTY">FE_GET_PROPERTY/FE_GET_SET
     using the &DTV-DELIVERY-SYSTEM; property.</para>
 </section>
 
+<section id="fe-bandwidth-t">
+<title>Frontend bandwidth</title>
+
+<table pgwide="1" frame="none" id="fe-bandwidth">
+    <title>enum fe_bandwidth</title>
+    <tgroup cols="2">
+	&cs-def;
+	<thead>
+	<row>
+	    <entry>ID</entry>
+	    <entry>Description</entry>
+	</row>
+	</thead>
+	<tbody valign="top">
+	<row>
+	    <entry>BANDWIDTH_AUTO</entry>
+	    <entry>Autodetect bandwidth (if supported)</entry>
+	</row><row>
+	    <entry>BANDWIDTH_1_712_MHZ</entry>
+	    <entry>1.712 MHz</entry>
+	</row><row>
+	    <entry>BANDWIDTH_5_MHZ</entry>
+	    <entry>5 MHz</entry>
+	</row><row>
+	    <entry>BANDWIDTH_6_MHZ</entry>
+	    <entry>6 MHz</entry>
+	</row><row>
+	    <entry>BANDWIDTH_7_MHZ</entry>
+	    <entry>7 MHz</entry>
+	</row><row>
+	    <entry>BANDWIDTH_8_MHZ</entry>
+	    <entry>8 MHz</entry>
+	</row><row>
+	    <entry>BANDWIDTH_10_MHZ</entry>
+	    <entry>10 MHz</entry>
+	</row><row>
+	</row>
+        </tbody>
+    </tgroup>
+</table>
+
+</section>
 
 <section id="dvb-frontend-parameters">
 <title>frontend parameters</title>
@@ -135,7 +177,7 @@ struct dvb_vsb_parameters {
 <para>DVB-T frontends are supported by the <constant>dvb_ofdm_parameters</constant> structure:</para>
 <programlisting>
  struct dvb_ofdm_parameters {
-	 fe_bandwidth_t      bandwidth;
+	 &fe-bandwidth-t;      bandwidth;
 	 fe_code_rate_t      code_rate_HP;  /&#x22C6; high priority stream code rate &#x22C6;/
 	 fe_code_rate_t      code_rate_LP;  /&#x22C6; low priority stream code rate &#x22C6;/
 	 &fe-modulation-t;     constellation; /&#x22C6; modulation type (see above) &#x22C6;/

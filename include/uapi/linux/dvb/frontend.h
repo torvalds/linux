@@ -213,7 +213,7 @@ enum fe_transmit_mode {
 typedef enum fe_transmit_mode fe_transmit_mode_t;
 
 #if defined(__DVB_CORE__) || !defined (__KERNEL__)
-typedef enum fe_bandwidth {
+enum fe_bandwidth {
 	BANDWIDTH_8_MHZ,
 	BANDWIDTH_7_MHZ,
 	BANDWIDTH_6_MHZ,
@@ -221,7 +221,9 @@ typedef enum fe_bandwidth {
 	BANDWIDTH_5_MHZ,
 	BANDWIDTH_10_MHZ,
 	BANDWIDTH_1_712_MHZ,
-} fe_bandwidth_t;
+};
+
+typedef enum fe_bandwidth fe_bandwidth_t;
 #endif
 
 typedef enum fe_guard_interval {

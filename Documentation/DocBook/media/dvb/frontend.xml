@@ -87,21 +87,6 @@ detection.
 <section>
 <title>More OFDM parameters</title>
 
-<section id="fe-bandwidth-t">
-<title>frontend bandwidth</title>
-<programlisting>
-typedef enum fe_bandwidth {
-	BANDWIDTH_8_MHZ,
-	BANDWIDTH_7_MHZ,
-	BANDWIDTH_6_MHZ,
-	BANDWIDTH_AUTO,
-	BANDWIDTH_5_MHZ,
-	BANDWIDTH_10_MHZ,
-	BANDWIDTH_1_712_MHZ,
-} fe_bandwidth_t;
-</programlisting>
-</section>
-
 <section id="fe-guard-interval-t">
 <title>frontend guard inverval</title>
 <programlisting>
