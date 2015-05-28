@@ -536,8 +536,8 @@
 
      <para>
       For other use cases of AEAD ciphers, the ASCII art applies as
-      well, but the caller may not use the GIVCIPHER interface. In
-      this case, the caller must generate the IV.
+      well, but the caller may not use the AEAD cipher with a separate
+      IV generator. In this case, the caller must generate the IV.
      </para>
 
      <para>
@@ -584,8 +584,8 @@ kernel crypto API                                |   IPSEC Layer
                                                  |
 +-----------+                                    |
 |           |            (1)
-| givcipher | <-----------------------------------  esp_output
-|  (seqiv)  | ---+
+|   aead    | <-----------------------------------  esp_output
+| (seqniv)  | ---+
 +-----------+    |
                  | (2)
 +-----------+    |
@@ -620,8 +620,8 @@ kernel crypto API                                |   IPSEC Layer
      <orderedlist>
       <listitem>
        <para>
-        esp_output() invokes crypto_aead_givencrypt() to trigger an encryption
-        operation of the GIVCIPHER implementation.
+        esp_output() invokes crypto_aead_encrypt() to trigger an encryption
+        operation of the AEAD cipher with IV generator.
        </para>
 
        <para>
@@ -1669,6 +1669,16 @@ read(opfd, out, outlen);
   </chapter>
 
   <chapter id="API"><title>Programming Interface</title>
+   <para>
+    Please note that the kernel crypto API contains the AEAD givcrypt
+    API (crypto_aead_giv* and aead_givcrypt_* function calls in
+    include/crypto/aead.h). This API is obsolete and will be removed
+    in the future. To obtain the functionality of an AEAD cipher with
+    internal IV generation, use the IV generator as a regular cipher.
+    For example, rfc4106(gcm(aes)) is the AEAD cipher with external
+    IV generation and seqniv(rfc4106(gcm(aes))) implies that the kernel
+    crypto API generates the IV. Different IV generators are available.
+   </para>
    <sect1><title>Block Cipher Context Data Structures</title>
 !Pinclude/linux/crypto.h Block Cipher Context Data Structures
 !Finclude/crypto/aead.h aead_request
@@ -1724,6 +1734,7 @@ read(opfd, out, outlen);
 !Finclude/crypto/aead.h aead_request_set_callback
 !Finclude/crypto/aead.h aead_request_set_crypt
 !Finclude/crypto/aead.h aead_request_set_assoc
+!Finclude/crypto/aead.h aead_request_set_ad
    </sect1>
    <sect1><title>Synchronous Block Cipher API</title>
 !Pinclude/linux/crypto.h Synchronous Block Cipher API

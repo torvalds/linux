@@ -50,6 +50,7 @@
 /**
  *	struct aead_request - AEAD request
  *	@base: Common attributes for async crypto requests
+ *	@old: Boolean whether the old or new AEAD API is used
  *	@assoclen: Length in bytes of associated data for authentication
  *	@cryptlen: Length of data to be encrypted or decrypted
  *	@iv: Initialisation vector
@@ -467,7 +468,9 @@ static inline void aead_request_set_callback(struct aead_request *req,
  * @iv: IV for the cipher operation which must comply with the IV size defined
  *      by crypto_aead_ivsize()
  *
- * Setting the source data and destination data scatter / gather lists.
+ * Setting the source data and destination data scatter / gather lists which
+ * hold the associated data concatenated with the plaintext or ciphertext. See
+ * below for the authentication tag.
  *
  * For encryption, the source is treated as the plaintext and the
  * destination is the ciphertext. For a decryption operation, the use is
