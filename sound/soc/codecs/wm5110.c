@@ -167,7 +167,7 @@ static int wm5110_sysclk_ev(struct snd_soc_dapm_widget *w,
 static DECLARE_TLV_DB_SCALE(ana_tlv, 0, 100, 0);
 static DECLARE_TLV_DB_SCALE(eq_tlv, -1200, 100, 0);
 static DECLARE_TLV_DB_SCALE(digital_tlv, -6400, 50, 0);
-static DECLARE_TLV_DB_SCALE(noise_tlv, 0, 600, 0);
+static DECLARE_TLV_DB_SCALE(noise_tlv, -13200, 600, 0);
 static DECLARE_TLV_DB_SCALE(ng_tlv, -10200, 600, 0);
 
 #define WM5110_NG_SRC(name, base) \
