@@ -5839,10 +5839,6 @@ static int ci_dpm_init(struct amdgpu_device *adev)
 	int ret;
 	u32 mask;
 
-	ret = ci_dpm_init_microcode(adev);
-	if (ret)
-		return ret;
-
 	pi = kzalloc(sizeof(struct ci_power_info), GFP_KERNEL);
 	if (pi == NULL)
 		return -ENOMEM;
@@ -6223,6 +6219,10 @@ static int ci_dpm_sw_init(void *handle)
 
 	if (amdgpu_dpm == 0)
 		return 0;
+
+	ret = ci_dpm_init_microcode(adev);
+	if (ret)
+		return ret;
 
 	INIT_WORK(&adev->pm.dpm.thermal.work, amdgpu_dpm_thermal_work_handler);
 	mutex_lock(&adev->pm.mutex);
