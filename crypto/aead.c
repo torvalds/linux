@@ -890,9 +890,9 @@ int crypto_register_aead(struct aead_alg *alg)
 }
 EXPORT_SYMBOL_GPL(crypto_register_aead);
 
-int crypto_unregister_aead(struct aead_alg *alg)
+void crypto_unregister_aead(struct aead_alg *alg)
 {
-	return crypto_unregister_alg(&alg->base);
+	crypto_unregister_alg(&alg->base);
 }
 EXPORT_SYMBOL_GPL(crypto_unregister_aead);
 
