@@ -199,10 +199,8 @@ static int vme_check_window(u32 aspace, unsigned long long vme_base,
 			retval = -EFAULT;
 		break;
 	case VME_A64:
-		/*
-		 * Any value held in an unsigned long long can be used as the
-		 * base
-		 */
+		if ((size != 0) && (vme_base > U64_MAX + 1 - size))
+			retval = -EFAULT;
 		break;
 	case VME_CRCSR:
 		if (((vme_base + size) > VME_CRCSR_MAX) ||
