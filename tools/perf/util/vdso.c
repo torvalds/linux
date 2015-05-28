@@ -127,7 +127,7 @@ static struct dso *vdso__new(struct machine *machine, const char *short_name,
 
 	dso = dso__new(short_name);
 	if (dso != NULL) {
-		dsos__add(&machine->user_dsos, dso);
+		dsos__add(&machine->dsos, dso);
 		dso__set_long_name(dso, long_name, false);
 	}
 
@@ -236,7 +236,7 @@ static struct dso *vdso__findnew_compat(struct machine *machine,
 	const char *file_name;
 	struct dso *dso;
 
-	dso = dsos__find(&machine->user_dsos, vdso_file->dso_name, true);
+	dso = dsos__find(&machine->dsos, vdso_file->dso_name, true);
 	if (dso)
 		return dso;
 
@@ -299,7 +299,7 @@ struct dso *vdso__dso_findnew(struct machine *machine,
 		return dso;
 #endif
 
-	dso = dsos__find(&machine->user_dsos, DSO__NAME_VDSO, true);
+	dso = dsos__find(&machine->dsos, DSO__NAME_VDSO, true);
 	if (!dso) {
 		char *file;
 

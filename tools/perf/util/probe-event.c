@@ -256,8 +256,9 @@ static int kernel_get_module_dso(const char *module, struct dso **pdso)
 	int ret = 0;
 
 	if (module) {
-		list_for_each_entry(dso, &host_machine->kernel_dsos.head,
-				    node) {
+		list_for_each_entry(dso, &host_machine->dsos.head, node) {
+			if (!dso->kernel)
+				continue;
 			if (strncmp(dso->short_name + 1, module,
 				    dso->short_name_len - 2) == 0)
 				goto found;

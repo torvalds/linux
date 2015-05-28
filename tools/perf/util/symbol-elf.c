@@ -1031,11 +1031,7 @@ int dso__load_sym(struct dso *dso, struct map *map,
 				}
 				curr_dso->symtab_type = dso->symtab_type;
 				map_groups__insert(kmaps, curr_map);
-				/*
-				 * The new DSO should go to the kernel DSOS
-				 */
-				dsos__add(&map->groups->machine->kernel_dsos,
-					  curr_dso);
+				dsos__add(&map->groups->machine->dsos, curr_dso);
 				dso__set_loaded(curr_dso, map->type);
 			} else
 				curr_dso = curr_map->dso;

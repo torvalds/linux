@@ -1238,7 +1238,6 @@ static int __event_process_build_id(struct build_id_event *bev,
 				    struct perf_session *session)
 {
 	int err = -1;
-	struct dsos *dsos;
 	struct machine *machine;
 	u16 misc;
 	struct dso *dso;
@@ -1253,22 +1252,19 @@ static int __event_process_build_id(struct build_id_event *bev,
 	switch (misc) {
 	case PERF_RECORD_MISC_KERNEL:
 		dso_type = DSO_TYPE_KERNEL;
-		dsos = &machine->kernel_dsos;
 		break;
 	case PERF_RECORD_MISC_GUEST_KERNEL:
 		dso_type = DSO_TYPE_GUEST_KERNEL;
-		dsos = &machine->kernel_dsos;
 		break;
 	case PERF_RECORD_MISC_USER:
 	case PERF_RECORD_MISC_GUEST_USER:
 		dso_type = DSO_TYPE_USER;
-		dsos = &machine->user_dsos;
 		break;
 	default:
 		goto out;
 	}
 
-	dso = __dsos__findnew(dsos, filename);
+	dso = __dsos__findnew(&machine->dsos, filename);
 	if (dso != NULL) {
 		char sbuild_id[BUILD_ID_SIZE * 2 + 1];
 

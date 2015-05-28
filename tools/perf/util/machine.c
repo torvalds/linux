@@ -26,8 +26,7 @@ int machine__init(struct machine *machine, const char *root_dir, pid_t pid)
 {
 	map_groups__init(&machine->kmaps, machine);
 	RB_CLEAR_NODE(&machine->rb_node);
-	dsos__init(&machine->user_dsos);
-	dsos__init(&machine->kernel_dsos);
+	dsos__init(&machine->dsos);
 
 	machine->threads = RB_ROOT;
 	pthread_rwlock_init(&machine->threads_lock, NULL);
@@ -111,8 +110,7 @@ void machine__delete_threads(struct machine *machine)
 void machine__exit(struct machine *machine)
 {
 	map_groups__exit(&machine->kmaps);
-	dsos__delete(&machine->user_dsos);
-	dsos__delete(&machine->kernel_dsos);
+	dsos__delete(&machine->dsos);
 	vdso__exit(machine);
 	zfree(&machine->root_dir);
 	zfree(&machine->current_tid);
@@ -490,9 +488,9 @@ machine__module_dso(struct machine *machine, struct kmod_path *m,
 {
 	struct dso *dso;
 
-	dso = dsos__find(&machine->kernel_dsos, m->name, true);
+	dso = dsos__find(&machine->dsos, m->name, true);
 	if (!dso) {
-		dso = dsos__addnew(&machine->kernel_dsos, m->name);
+		dso = dsos__addnew(&machine->dsos, m->name);
 		if (dso == NULL)
 			return NULL;
 
@@ -561,13 +559,11 @@ out:
 size_t machines__fprintf_dsos(struct machines *machines, FILE *fp)
 {
 	struct rb_node *nd;
-	size_t ret = __dsos__fprintf(&machines->host.kernel_dsos.head, fp) +
-		     __dsos__fprintf(&machines->host.user_dsos.head, fp);
+	size_t ret = __dsos__fprintf(&machines->host.dsos.head, fp);
 
 	for (nd = rb_first(&machines->guests); nd; nd = rb_next(nd)) {
 		struct machine *pos = rb_entry(nd, struct machine, rb_node);
-		ret += __dsos__fprintf(&pos->kernel_dsos.head, fp);
-		ret += __dsos__fprintf(&pos->user_dsos.head, fp);
+		ret += __dsos__fprintf(&pos->dsos.head, fp);
 	}
 
 	return ret;
@@ -576,8 +572,7 @@ size_t machines__fprintf_dsos(struct machines *machines, FILE *fp)
 size_t machine__fprintf_dsos_buildid(struct machine *m, FILE *fp,
 				     bool (skip)(struct dso *dso, int parm), int parm)
 {
-	return __dsos__fprintf_buildid(&m->kernel_dsos.head, fp, skip, parm) +
-	       __dsos__fprintf_buildid(&m->user_dsos.head, fp, skip, parm);
+	return __dsos__fprintf_buildid(&m->dsos.head, fp, skip, parm);
 }
 
 size_t machines__fprintf_dsos_buildid(struct machines *machines, FILE *fp,
@@ -1106,7 +1101,7 @@ static bool machine__uses_kcore(struct machine *machine)
 {
 	struct dso *dso;
 
-	list_for_each_entry(dso, &machine->kernel_dsos.head, node) {
+	list_for_each_entry(dso, &machine->dsos.head, node) {
 		if (dso__is_kcore(dso))
 			return true;
 	}
@@ -1153,8 +1148,8 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 		struct dso *kernel = NULL;
 		struct dso *dso;
 
-		list_for_each_entry(dso, &machine->kernel_dsos.head, node) {
-			if (is_kernel_module(dso->long_name))
+		list_for_each_entry(dso, &machine->dsos.head, node) {
+			if (dso->kernel && is_kernel_module(dso->long_name))
 				continue;
 
 			kernel = dso;
@@ -1162,8 +1157,7 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 		}
 
 		if (kernel == NULL)
-			kernel = __dsos__findnew(&machine->kernel_dsos,
-						 kmmap_prefix);
+			kernel = __dsos__findnew(&machine->dsos, kmmap_prefix);
 		if (kernel == NULL)
 			goto out_problem;
 

@@ -180,7 +180,7 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 			pgoff = 0;
 			dso = vdso__dso_findnew(machine, thread);
 		} else
-			dso = __dsos__findnew(&machine->user_dsos, filename);
+			dso = __dsos__findnew(&machine->dsos, filename);
 
 		if (dso == NULL)
 			goto out_delete;
