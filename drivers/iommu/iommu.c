@@ -51,6 +51,7 @@ struct iommu_group {
 	void (*iommu_data_release)(void *iommu_data);
 	char *name;
 	int id;
+	struct iommu_domain *default_domain;
 };
 
 struct iommu_device {
@@ -74,6 +75,9 @@ struct iommu_group_attribute iommu_group_attr_##_name =		\
 	container_of(_attr, struct iommu_group_attribute, attr)
 #define to_iommu_group(_kobj)		\
 	container_of(_kobj, struct iommu_group, kobj)
+
+static struct iommu_domain *__iommu_domain_alloc(struct bus_type *bus,
+						 unsigned type);
 
 static ssize_t iommu_group_attr_show(struct kobject *kobj,
 				     struct attribute *__attr, char *buf)
@@ -136,6 +140,9 @@ static void iommu_group_release(struct kobject *kobj)
 	mutex_lock(&iommu_group_mutex);
 	ida_remove(&iommu_group_ida, group->id);
 	mutex_unlock(&iommu_group_mutex);
+
+	if (group->default_domain)
+		iommu_domain_free(group->default_domain);
 
 	kfree(group->name);
 	kfree(group);
@@ -701,7 +708,17 @@ static struct iommu_group *iommu_group_get_for_pci_dev(struct pci_dev *pdev)
 		return group;
 
 	/* No shared group found, allocate new */
-	return iommu_group_alloc();
+	group = iommu_group_alloc();
+	if (group) {
+		/*
+		 * Try to allocate a default domain - needs support from the
+		 * IOMMU driver.
+		 */
+		group->default_domain = __iommu_domain_alloc(pdev->dev.bus,
+							     IOMMU_DOMAIN_DMA);
+	}
+
+	return group;
 }
 
 /**
@@ -922,21 +939,27 @@ void iommu_set_fault_handler(struct iommu_domain *domain,
 }
 EXPORT_SYMBOL_GPL(iommu_set_fault_handler);
 
-struct iommu_domain *iommu_domain_alloc(struct bus_type *bus)
+static struct iommu_domain *__iommu_domain_alloc(struct bus_type *bus,
+						 unsigned type)
 {
 	struct iommu_domain *domain;
 
 	if (bus == NULL || bus->iommu_ops == NULL)
 		return NULL;
 
-	domain = bus->iommu_ops->domain_alloc(IOMMU_DOMAIN_UNMANAGED);
+	domain = bus->iommu_ops->domain_alloc(type);
 	if (!domain)
 		return NULL;
 
 	domain->ops  = bus->iommu_ops;
-	domain->type = IOMMU_DOMAIN_UNMANAGED;
+	domain->type = type;
 
 	return domain;
+}
+
+struct iommu_domain *iommu_domain_alloc(struct bus_type *bus)
+{
+	return __iommu_domain_alloc(bus, IOMMU_DOMAIN_UNMANAGED);
 }
 EXPORT_SYMBOL_GPL(iommu_domain_alloc);
 
