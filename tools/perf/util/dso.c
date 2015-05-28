@@ -827,8 +827,8 @@ struct map *dso__new_map(const char *name)
 	return map;
 }
 
-struct dso *dso__kernel_findnew(struct machine *machine, const char *name,
-		    const char *short_name, int dso_type)
+struct dso *machine__findnew_kernel(struct machine *machine, const char *name,
+				    const char *short_name, int dso_type)
 {
 	/*
 	 * The kernel dso could be created by build_id processing.

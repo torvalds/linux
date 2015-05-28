@@ -294,8 +294,8 @@ ssize_t dso__data_read_addr(struct dso *dso, struct map *map,
 bool dso__data_status_seen(struct dso *dso, enum dso_data_status_seen by);
 
 struct map *dso__new_map(const char *name);
-struct dso *dso__kernel_findnew(struct machine *machine, const char *name,
-				const char *short_name, int dso_type);
+struct dso *machine__findnew_kernel(struct machine *machine, const char *name,
+				    const char *short_name, int dso_type);
 
 void dsos__add(struct dsos *dsos, struct dso *dso);
 struct dso *dsos__addnew(struct dsos *dsos, const char *name);

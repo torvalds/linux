@@ -640,9 +640,8 @@ static struct dso *machine__get_kernel(struct machine *machine)
 		if (!vmlinux_name)
 			vmlinux_name = "[kernel.kallsyms]";
 
-		kernel = dso__kernel_findnew(machine, vmlinux_name,
-					     "[kernel]",
-					     DSO_TYPE_KERNEL);
+		kernel = machine__findnew_kernel(machine, vmlinux_name,
+						 "[kernel]", DSO_TYPE_KERNEL);
 	} else {
 		char bf[PATH_MAX];
 
@@ -652,9 +651,9 @@ static struct dso *machine__get_kernel(struct machine *machine)
 			vmlinux_name = machine__mmap_name(machine, bf,
 							  sizeof(bf));
 
-		kernel = dso__kernel_findnew(machine, vmlinux_name,
-					     "[guest.kernel]",
-					     DSO_TYPE_GUEST_KERNEL);
+		kernel = machine__findnew_kernel(machine, vmlinux_name,
+						 "[guest.kernel]",
+						 DSO_TYPE_GUEST_KERNEL);
 	}
 
 	if (kernel != NULL && (!kernel->has_build_id))
