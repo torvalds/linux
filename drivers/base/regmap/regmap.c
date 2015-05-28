@@ -2583,10 +2583,7 @@ int regmap_register_patch(struct regmap *map, const struct reg_default *regs,
 	map->async = true;
 
 	ret = _regmap_multi_reg_write(map, regs, num_regs);
-	if (ret != 0)
-		goto out;
 
-out:
 	map->async = false;
 	map->cache_bypass = bypass;
 
