@@ -1223,26 +1223,54 @@ typedef	__uint64_t	xfs_inofree_t;
 #define	XFS_INOBT_ALL_FREE		((xfs_inofree_t)-1)
 #define	XFS_INOBT_MASK(i)		((xfs_inofree_t)1 << (i))
 
+#define XFS_INOBT_HOLEMASK_FULL		0	/* holemask for full chunk */
+#define XFS_INOBT_HOLEMASK_BITS		(NBBY * sizeof(__uint16_t))
+#define XFS_INODES_PER_HOLEMASK_BIT	\
+	(XFS_INODES_PER_CHUNK / (NBBY * sizeof(__uint16_t)))
+
 static inline xfs_inofree_t xfs_inobt_maskn(int i, int n)
 {
 	return ((n >= XFS_INODES_PER_CHUNK ? 0 : XFS_INOBT_MASK(n)) - 1) << i;
 }
 
 /*
- * Data record structure
+ * The on-disk inode record structure has two formats. The original "full"
+ * format uses a 4-byte freecount. The "sparse" format uses a 1-byte freecount
+ * and replaces the 3 high-order freecount bytes wth the holemask and inode
+ * count.
+ *
+ * The holemask of the sparse record format allows an inode chunk to have holes
+ * that refer to blocks not owned by the inode record. This facilitates inode
+ * allocation in the event of severe free space fragmentation.
  */
 typedef struct xfs_inobt_rec {
 	__be32		ir_startino;	/* starting inode number */
-	__be32		ir_freecount;	/* count of free inodes (set bits) */
+	union {
+		struct {
+			__be32	ir_freecount;	/* count of free inodes */
+		} f;
+		struct {
+			__be16	ir_holemask;/* hole mask for sparse chunks */
+			__u8	ir_count;	/* total inode count */
+			__u8	ir_freecount;	/* count of free inodes */
+		} sp;
+	} ir_u;
 	__be64		ir_free;	/* free inode mask */
 } xfs_inobt_rec_t;
 
 typedef struct xfs_inobt_rec_incore {
 	xfs_agino_t	ir_startino;	/* starting inode number */
-	__int32_t	ir_freecount;	/* count of free inodes (set bits) */
+	__uint16_t	ir_holemask;	/* hole mask for sparse chunks */
+	__uint8_t	ir_count;	/* total inode count */
+	__uint8_t	ir_freecount;	/* count of free inodes (set bits) */
 	xfs_inofree_t	ir_free;	/* free inode mask */
 } xfs_inobt_rec_incore_t;
 
+static inline bool xfs_inobt_issparse(uint16_t holemask)
+{
+	/* non-zero holemask represents a sparse rec. */
+	return holemask;
+}
 
 /*
  * Key structure

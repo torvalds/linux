@@ -167,7 +167,16 @@ xfs_inobt_init_rec_from_cur(
 	union xfs_btree_rec	*rec)
 {
 	rec->inobt.ir_startino = cpu_to_be32(cur->bc_rec.i.ir_startino);
-	rec->inobt.ir_freecount = cpu_to_be32(cur->bc_rec.i.ir_freecount);
+	if (xfs_sb_version_hassparseinodes(&cur->bc_mp->m_sb)) {
+		rec->inobt.ir_u.sp.ir_holemask =
+					cpu_to_be16(cur->bc_rec.i.ir_holemask);
+		rec->inobt.ir_u.sp.ir_count = cur->bc_rec.i.ir_count;
+		rec->inobt.ir_u.sp.ir_freecount = cur->bc_rec.i.ir_freecount;
+	} else {
+		/* ir_holemask/ir_count not supported on-disk */
+		rec->inobt.ir_u.f.ir_freecount =
+					cpu_to_be32(cur->bc_rec.i.ir_freecount);
+	}
 	rec->inobt.ir_free = cpu_to_be64(cur->bc_rec.i.ir_free);
 }
 

@@ -65,6 +65,8 @@ xfs_inobt_lookup(
 	int			*stat)	/* success/failure */
 {
 	cur->bc_rec.i.ir_startino = ino;
+	cur->bc_rec.i.ir_holemask = 0;
+	cur->bc_rec.i.ir_count = 0;
 	cur->bc_rec.i.ir_freecount = 0;
 	cur->bc_rec.i.ir_free = 0;
 	return xfs_btree_lookup(cur, dir, stat);
@@ -82,7 +84,14 @@ xfs_inobt_update(
 	union xfs_btree_rec	rec;
 
 	rec.inobt.ir_startino = cpu_to_be32(irec->ir_startino);
-	rec.inobt.ir_freecount = cpu_to_be32(irec->ir_freecount);
+	if (xfs_sb_version_hassparseinodes(&cur->bc_mp->m_sb)) {
+		rec.inobt.ir_u.sp.ir_holemask = cpu_to_be16(irec->ir_holemask);
+		rec.inobt.ir_u.sp.ir_count = irec->ir_count;
+		rec.inobt.ir_u.sp.ir_freecount = irec->ir_freecount;
+	} else {
+		/* ir_holemask/ir_count not supported on-disk */
+		rec.inobt.ir_u.f.ir_freecount = cpu_to_be32(irec->ir_freecount);
+	}
 	rec.inobt.ir_free = cpu_to_be64(irec->ir_free);
 	return xfs_btree_update(cur, &rec);
 }
@@ -100,12 +109,27 @@ xfs_inobt_get_rec(
 	int			error;
 
 	error = xfs_btree_get_rec(cur, &rec, stat);
-	if (!error && *stat == 1) {
-		irec->ir_startino = be32_to_cpu(rec->inobt.ir_startino);
-		irec->ir_freecount = be32_to_cpu(rec->inobt.ir_freecount);
-		irec->ir_free = be64_to_cpu(rec->inobt.ir_free);
+	if (error || *stat == 0)
+		return error;
+
+	irec->ir_startino = be32_to_cpu(rec->inobt.ir_startino);
+	if (xfs_sb_version_hassparseinodes(&cur->bc_mp->m_sb)) {
+		irec->ir_holemask = be16_to_cpu(rec->inobt.ir_u.sp.ir_holemask);
+		irec->ir_count = rec->inobt.ir_u.sp.ir_count;
+		irec->ir_freecount = rec->inobt.ir_u.sp.ir_freecount;
+	} else {
+		/*
+		 * ir_holemask/ir_count not supported on-disk. Fill in hardcoded
+		 * values for full inode chunks.
+		 */
+		irec->ir_holemask = XFS_INOBT_HOLEMASK_FULL;
+		irec->ir_count = XFS_INODES_PER_CHUNK;
+		irec->ir_freecount =
+				be32_to_cpu(rec->inobt.ir_u.f.ir_freecount);
 	}
-	return error;
+	irec->ir_free = be64_to_cpu(rec->inobt.ir_free);
+
+	return 0;
 }
 
 /*
@@ -114,10 +138,14 @@ xfs_inobt_get_rec(
 STATIC int
 xfs_inobt_insert_rec(
 	struct xfs_btree_cur	*cur,
+	__uint16_t		holemask,
+	__uint8_t		count,
 	__int32_t		freecount,
 	xfs_inofree_t		free,
 	int			*stat)
 {
+	cur->bc_rec.i.ir_holemask = holemask;
+	cur->bc_rec.i.ir_count = count;
 	cur->bc_rec.i.ir_freecount = freecount;
 	cur->bc_rec.i.ir_free = free;
 	return xfs_btree_insert(cur, stat);
@@ -154,7 +182,9 @@ xfs_inobt_insert(
 		}
 		ASSERT(i == 0);
 
-		error = xfs_inobt_insert_rec(cur, XFS_INODES_PER_CHUNK,
+		error = xfs_inobt_insert_rec(cur, XFS_INOBT_HOLEMASK_FULL,
+					     XFS_INODES_PER_CHUNK,
+					     XFS_INODES_PER_CHUNK,
 					     XFS_INOBT_ALL_FREE, &i);
 		if (error) {
 			xfs_btree_del_cursor(cur, XFS_BTREE_ERROR);
@@ -1609,7 +1639,9 @@ xfs_difree_finobt(
 		 */
 		XFS_WANT_CORRUPTED_GOTO(mp, ibtrec->ir_freecount == 1, error);
 
-		error = xfs_inobt_insert_rec(cur, ibtrec->ir_freecount,
+		error = xfs_inobt_insert_rec(cur, ibtrec->ir_holemask,
+					     ibtrec->ir_count,
+					     ibtrec->ir_freecount,
 					     ibtrec->ir_free, &i);
 		if (error)
 			goto error;
