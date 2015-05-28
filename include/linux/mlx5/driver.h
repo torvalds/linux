@@ -85,7 +85,7 @@ enum {
 };
 
 enum {
-	MLX5_MAX_EQ_NAME	= 32
+	MLX5_MAX_IRQ_NAME	= 32
 };
 
 enum {
@@ -349,7 +349,6 @@ struct mlx5_eq {
 	u8			eqn;
 	int			nent;
 	u64			mask;
-	char			name[MLX5_MAX_EQ_NAME];
 	struct list_head	list;
 	int			index;
 	struct mlx5_rsc_debug	*dbg;
@@ -412,7 +411,6 @@ struct mlx5_eq_table {
 	struct mlx5_eq		pages_eq;
 	struct mlx5_eq		async_eq;
 	struct mlx5_eq		cmd_eq;
-	struct msix_entry	*msix_arr;
 	int			num_comp_vectors;
 	/* protect EQs list
 	 */
@@ -465,9 +463,16 @@ struct mlx5_mr_table {
 	struct radix_tree_root	tree;
 };
 
+struct mlx5_irq_info {
+	cpumask_var_t mask;
+	char name[MLX5_MAX_IRQ_NAME];
+};
+
 struct mlx5_priv {
 	char			name[MLX5_MAX_NAME_LEN];
 	struct mlx5_eq_table	eq_table;
+	struct msix_entry	*msix_arr;
+	struct mlx5_irq_info	*irq_info;
 	struct mlx5_uuar_info	uuari;
 	MLX5_DECLARE_DOORBELL_LOCK(cq_uar_lock);
 
