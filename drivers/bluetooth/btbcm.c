@@ -89,21 +89,14 @@ int btbcm_set_bdaddr(struct hci_dev *hdev, const bdaddr_t *bdaddr)
 }
 EXPORT_SYMBOL_GPL(btbcm_set_bdaddr);
 
-int btbcm_patchram(struct hci_dev *hdev, const char *firmware)
+int btbcm_patchram(struct hci_dev *hdev, const struct firmware *fw)
 {
 	const struct hci_command_hdr *cmd;
-	const struct firmware *fw;
 	const u8 *fw_ptr;
 	size_t fw_size;
 	struct sk_buff *skb;
 	u16 opcode;
-	int err;
-
-	err = request_firmware(&fw, firmware, &hdev->dev);
-	if (err < 0) {
-		BT_INFO("%s: BCM: Patch %s not found", hdev->name, firmware);
-		return err;
-	}
+	int err = 0;
 
 	/* Start Download */
 	skb = __hci_cmd_sync(hdev, 0xfc2e, 0, NULL, HCI_INIT_TIMEOUT);
@@ -129,8 +122,7 @@ int btbcm_patchram(struct hci_dev *hdev, const char *firmware)
 		fw_size -= sizeof(*cmd);
 
 		if (fw_size < cmd->plen) {
-			BT_ERR("%s: BCM: Patch %s is corrupted", hdev->name,
-			       firmware);
+			BT_ERR("%s: BCM: Patch is corrupted", hdev->name);
 			err = -EINVAL;
 			goto done;
 		}
@@ -156,7 +148,6 @@ int btbcm_patchram(struct hci_dev *hdev, const char *firmware)
 	msleep(250);
 
 done:
-	release_firmware(fw);
 	return err;
 }
 EXPORT_SYMBOL(btbcm_patchram);
@@ -265,6 +256,7 @@ static const struct {
 int btbcm_setup_patchram(struct hci_dev *hdev)
 {
 	char fw_name[64];
+	const struct firmware *fw;
 	u16 subver, rev, pid, vid;
 	const char *hw_name = NULL;
 	struct sk_buff *skb;
@@ -335,9 +327,15 @@ int btbcm_setup_patchram(struct hci_dev *hdev)
 		hw_name ? : "BCM", (subver & 0x7000) >> 13,
 		(subver & 0x1f00) >> 8, (subver & 0x00ff), rev & 0x0fff);
 
-	err = btbcm_patchram(hdev, fw_name);
-	if (err == -ENOENT)
+	err = request_firmware(&fw, fw_name, &hdev->dev);
+	if (err < 0) {
+		BT_INFO("%s: BCM: Patch %s not found", hdev->name, fw_name);
 		return 0;
+	}
+
+	btbcm_patchram(hdev, fw);
+
+	release_firmware(fw);
 
 	/* Reset */
 	err = btbcm_reset(hdev);
