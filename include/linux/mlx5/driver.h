@@ -489,6 +489,7 @@ struct mlx5_core_dev {
 	struct mlx5_priv	priv;
 	struct mlx5_profile	*profile;
 	atomic_t		num_qps;
+	u32			issi;
 };
 
 struct mlx5_db {

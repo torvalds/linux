@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2013-2015, Mellanox Technologies, Ltd.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -36,6 +36,10 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
+
+#define DRIVER_NAME "mlx5_core"
+#define DRIVER_VERSION "3.0-1"
+#define DRIVER_RELDATE  "January 2015"
 
 extern int mlx5_core_debug_mask;
 
@@ -77,5 +81,8 @@ int mlx5_query_hca_caps(struct mlx5_core_dev *dev);
 int mlx5_cmd_query_adapter(struct mlx5_core_dev *dev);
 int mlx5_cmd_init_hca(struct mlx5_core_dev *dev);
 int mlx5_cmd_teardown_hca(struct mlx5_core_dev *dev);
+
+void mlx5e_init(void);
+void mlx5e_cleanup(void);
 
 #endif /* __MLX5_CORE_H__ */

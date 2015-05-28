@@ -48,10 +48,6 @@
 #include <linux/mlx5/mlx5_ifc.h>
 #include "mlx5_core.h"
 
-#define DRIVER_NAME "mlx5_core"
-#define DRIVER_VERSION "3.0"
-#define DRIVER_RELDATE  "January 2015"
-
 MODULE_AUTHOR("Eli Cohen <eli@mellanox.com>");
 MODULE_DESCRIPTION("Mellanox Connect-IB, ConnectX-4 core driver");
 MODULE_LICENSE("Dual BSD/GPL");
@@ -614,6 +610,61 @@ clean:
 	return err;
 }
 
+#ifdef CONFIG_MLX5_CORE_EN
+static int mlx5_core_set_issi(struct mlx5_core_dev *dev)
+{
+	u32 query_in[MLX5_ST_SZ_DW(query_issi_in)];
+	u32 query_out[MLX5_ST_SZ_DW(query_issi_out)];
+	u32 set_in[MLX5_ST_SZ_DW(set_issi_in)];
+	u32 set_out[MLX5_ST_SZ_DW(set_issi_out)];
+	int err;
+	u32 sup_issi;
+
+	memset(query_in, 0, sizeof(query_in));
+	memset(query_out, 0, sizeof(query_out));
+
+	MLX5_SET(query_issi_in, query_in, opcode, MLX5_CMD_OP_QUERY_ISSI);
+
+	err = mlx5_cmd_exec_check_status(dev, query_in, sizeof(query_in),
+					 query_out, sizeof(query_out));
+	if (err) {
+		if (((struct mlx5_outbox_hdr *)query_out)->status ==
+		    MLX5_CMD_STAT_BAD_OP_ERR) {
+			pr_debug("Only ISSI 0 is supported\n");
+			return 0;
+		}
+
+		pr_err("failed to query ISSI\n");
+		return err;
+	}
+
+	sup_issi = MLX5_GET(query_issi_out, query_out, supported_issi_dw0);
+
+	if (sup_issi & (1 << 1)) {
+		memset(set_in, 0, sizeof(set_in));
+		memset(set_out, 0, sizeof(set_out));
+
+		MLX5_SET(set_issi_in, set_in, opcode, MLX5_CMD_OP_SET_ISSI);
+		MLX5_SET(set_issi_in, set_in, current_issi, 1);
+
+		err = mlx5_cmd_exec_check_status(dev, set_in, sizeof(set_in),
+						 set_out, sizeof(set_out));
+		if (err) {
+			pr_err("failed to set ISSI=1\n");
+			return err;
+		}
+
+		dev->issi = 1;
+
+		return 0;
+	} else if (sup_issi & (1 << 0)) {
+		return 0;
+	}
+
+	return -ENOTSUPP;
+}
+#endif
+
 static int mlx5_dev_init(struct mlx5_core_dev *dev, struct pci_dev *pdev)
 {
 	struct mlx5_priv *priv = &dev->priv;
@@ -675,6 +726,14 @@ static int mlx5_dev_init(struct mlx5_core_dev *dev, struct pci_dev *pdev)
 		dev_err(&pdev->dev, "enable hca failed\n");
 		goto err_pagealloc_cleanup;
 	}
+
+#ifdef CONFIG_MLX5_CORE_EN
+	err = mlx5_core_set_issi(dev);
+	if (err) {
+		dev_err(&pdev->dev, "failed to set issi\n");
+		goto err_disable_hca;
+	}
+#endif
 
 	err = mlx5_satisfy_startup_pages(dev, 1);
 	if (err) {
@@ -1084,6 +1143,10 @@ static int __init init(void)
 	if (err)
 		goto err_health;
 
+#ifdef CONFIG_MLX5_CORE_EN
+	mlx5e_init();
+#endif
+
 	return 0;
 
 err_health:
@@ -1096,6 +1159,9 @@ err_debug:
 
 static void __exit cleanup(void)
 {
+#ifdef CONFIG_MLX5_CORE_EN
+	mlx5e_cleanup();
+#endif
 	pci_unregister_driver(&mlx5_core_driver);
 	mlx5_health_cleanup();
 	destroy_workqueue(mlx5_core_wq);
