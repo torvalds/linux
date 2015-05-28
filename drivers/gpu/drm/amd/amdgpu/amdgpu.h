@@ -1509,6 +1509,7 @@ struct amdgpu_dpm_funcs {
 	int (*force_performance_level)(struct amdgpu_device *adev, enum amdgpu_dpm_forced_level level);
 	bool (*vblank_too_short)(struct amdgpu_device *adev);
 	void (*powergate_uvd)(struct amdgpu_device *adev, bool gate);
+	void (*powergate_vce)(struct amdgpu_device *adev, bool gate);
 	void (*enable_bapm)(struct amdgpu_device *adev, bool enable);
 	void (*set_fan_control_mode)(struct amdgpu_device *adev, u32 mode);
 	u32 (*get_fan_control_mode)(struct amdgpu_device *adev);
@@ -2182,6 +2183,7 @@ static inline void amdgpu_ring_write(struct amdgpu_ring *ring, uint32_t v)
 #define amdgpu_dpm_force_performance_level(adev, l) (adev)->pm.funcs->force_performance_level((adev), (l))
 #define amdgpu_dpm_vblank_too_short(adev) (adev)->pm.funcs->vblank_too_short((adev))
 #define amdgpu_dpm_powergate_uvd(adev, g) (adev)->pm.funcs->powergate_uvd((adev), (g))
+#define amdgpu_dpm_powergate_vce(adev, g) (adev)->pm.funcs->powergate_vce((adev), (g))
 #define amdgpu_dpm_enable_bapm(adev, e) (adev)->pm.funcs->enable_bapm((adev), (e))
 #define amdgpu_dpm_set_fan_control_mode(adev, m) (adev)->pm.funcs->set_fan_control_mode((adev), (m))
 #define amdgpu_dpm_get_fan_control_mode(adev) (adev)->pm.funcs->get_fan_control_mode((adev))
