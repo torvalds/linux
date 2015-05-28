@@ -45,9 +45,19 @@
 supported via the new <link linkend="FE_GET_PROPERTY">FE_GET_PROPERTY/FE_GET_SET_PROPERTY</link> ioctl's, using the <link linkend="DTV-DELIVERY-SYSTEM">DTV_DELIVERY_SYSTEM</link> parameter.
 </para>
 
-<para>The usage of this field is deprecated, as it doesn't report all supported standards, and
-will provide an incomplete information for frontends that support multiple delivery systems.
-Please use <link linkend="DTV-ENUM-DELSYS">DTV_ENUM_DELSYS</link> instead.</para>
+<para>In the old days, &dvb-frontend-info; used to contain
+    <constant>fe_type_t</constant> field to indicate the delivery systems,
+    filled with either FE_QPSK, FE_QAM, FE_OFDM or FE_ATSC. While this is
+    still filled to keep backward compatibility, the usage of this
+    field is deprecated, as it can report just one delivery system, but some
+    devices support multiple delivery systems. Please use
+    <link linkend="DTV-ENUM-DELSYS">DTV_ENUM_DELSYS</link> instead.
+</para>
+<para>On devices that support multiple delivery systems,
+    &dvb-frontend-info;::<constant>fe_type_t</constant> is filled with the
+    currently standard, as selected by the last call to
+    <link linkend="FE_GET_PROPERTY">FE_SET_PROPERTY</link>
+    using the &DTV-DELIVERY-SYSTEM; property.</para>
 </section>
 
 
