@@ -53,8 +53,9 @@
 kernel devices compatible with this specification and to obtain
 information about driver and hardware capabilities. The ioctl takes a
 pointer to dvb_frontend_info which is filled by the driver. When the
-driver is not compatible with this specification the ioctl returns an error &return-value-dvb;.
+driver is not compatible with this specification the ioctl returns an error.
 </para>
+&return-value-dvb;
 
     <table pgwide="1" frame="none" id="dvb-frontend-info">
       <title>struct <structname>dvb_frontend_info</structname></title>
@@ -62,13 +63,13 @@ driver is not compatible with this specification the ioctl returns an error &ret
 	&cs-str;
 	<tbody valign="top">
 	  <row>
-	    <entry>char *</entry>
+	    <entry>char</entry>
 	    <entry>name[128]</entry>
 	    <entry>Name of the frontend</entry>
 	  </row><row>
 	    <entry>fe_type_t</entry>
 	    <entry>type</entry>
-	    <entry>DVBv3 type. Should not be used on modern programs, as a
+	    <entry><emphasis role="bold">DEPRECATED</emphasis>. DVBv3 type. Should not be used on modern programs, as a
 		frontend may have more than one type. So, the DVBv5 API should
 		be used instead to enumerate and select the frontend type.</entry>
 	  </row><row>
@@ -102,7 +103,7 @@ driver is not compatible with this specification the ioctl returns an error &ret
 	  </row><row>
 	    <entry>uint32_t</entry>
 	    <entry>notifier_delay</entry>
-	    <entry>Deprecated. Not used by any driver.</entry>
+	    <entry><emphasis role="bold">DEPRECATED</emphasis>. Not used by any driver.</entry>
 	  </row><row>
 	    <entry>&fe-caps;</entry>
 	    <entry>caps</entry>
