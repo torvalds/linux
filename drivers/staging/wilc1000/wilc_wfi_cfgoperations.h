@@ -77,7 +77,7 @@ static const u32 cipher_suites[] = {
 };
 
 static const struct ieee80211_txrx_stypes
-	wilc_wfi_cfg80211_mgmt_types[NL80211_IFTYPE_MAX] = {
+	wilc_wfi_cfg80211_mgmt_types[NUM_NL80211_IFTYPES] = {
 	[NL80211_IFTYPE_STATION] = {
 		.tx = 0xffff,
 		.rx = BIT(IEEE80211_STYPE_ACTION >> 4) |
