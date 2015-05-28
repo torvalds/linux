@@ -322,30 +322,112 @@ static void inode_switch_wbs_work_fn(struct work_struct *work)
 	struct inode_switch_wbs_context *isw =
 		container_of(work, struct inode_switch_wbs_context, work);
 	struct inode *inode = isw->inode;
+	struct address_space *mapping = inode->i_mapping;
+	struct bdi_writeback *old_wb = inode->i_wb;
 	struct bdi_writeback *new_wb = isw->new_wb;
+	struct radix_tree_iter iter;
+	bool switched = false;
+	void **slot;
 
 	/*
 	 * By the time control reaches here, RCU grace period has passed
 	 * since I_WB_SWITCH assertion and all wb stat update transactions
 	 * between unlocked_inode_to_wb_begin/end() are guaranteed to be
 	 * synchronizing against mapping->tree_lock.
+	 *
+	 * Grabbing old_wb->list_lock, inode->i_lock and mapping->tree_lock
+	 * gives us exclusion against all wb related operations on @inode
+	 * including IO list manipulations and stat updates.
 	 */
+	if (old_wb < new_wb) {
+		spin_lock(&old_wb->list_lock);
+		spin_lock_nested(&new_wb->list_lock, SINGLE_DEPTH_NESTING);
+	} else {
+		spin_lock(&new_wb->list_lock);
+		spin_lock_nested(&old_wb->list_lock, SINGLE_DEPTH_NESTING);
+	}
 	spin_lock(&inode->i_lock);
+	spin_lock_irq(&mapping->tree_lock);
 
+	/*
+	 * Once I_FREEING is visible under i_lock, the eviction path owns
+	 * the inode and we shouldn't modify ->i_wb_list.
+	 */
+	if (unlikely(inode->i_state & I_FREEING))
+		goto skip_switch;
+
+	/*
+	 * Count and transfer stats.  Note that PAGECACHE_TAG_DIRTY points
+	 * to possibly dirty pages while PAGECACHE_TAG_WRITEBACK points to
+	 * pages actually under underwriteback.
+	 */
+	radix_tree_for_each_tagged(slot, &mapping->page_tree, &iter, 0,
+				   PAGECACHE_TAG_DIRTY) {
+		struct page *page = radix_tree_deref_slot_protected(slot,
+							&mapping->tree_lock);
+		if (likely(page) && PageDirty(page)) {
+			__dec_wb_stat(old_wb, WB_RECLAIMABLE);
+			__inc_wb_stat(new_wb, WB_RECLAIMABLE);
+		}
+	}
+
+	radix_tree_for_each_tagged(slot, &mapping->page_tree, &iter, 0,
+				   PAGECACHE_TAG_WRITEBACK) {
+		struct page *page = radix_tree_deref_slot_protected(slot,
+							&mapping->tree_lock);
+		if (likely(page)) {
+			WARN_ON_ONCE(!PageWriteback(page));
+			__dec_wb_stat(old_wb, WB_WRITEBACK);
+			__inc_wb_stat(new_wb, WB_WRITEBACK);
+		}
+	}
+
+	wb_get(new_wb);
+
+	/*
+	 * Transfer to @new_wb's IO list if necessary.  The specific list
+	 * @inode was on is ignored and the inode is put on ->b_dirty which
+	 * is always correct including from ->b_dirty_time.  The transfer
+	 * preserves @inode->dirtied_when ordering.
+	 */
+	if (!list_empty(&inode->i_wb_list)) {
+		struct inode *pos;
+
+		inode_wb_list_del_locked(inode, old_wb);
+		inode->i_wb = new_wb;
+		list_for_each_entry(pos, &new_wb->b_dirty, i_wb_list)
+			if (time_after_eq(inode->dirtied_when,
+					  pos->dirtied_when))
+				break;
+		inode_wb_list_move_locked(inode, new_wb, pos->i_wb_list.prev);
+	} else {
+		inode->i_wb = new_wb;
+	}
+
+	/* ->i_wb_frn updates may race wbc_detach_inode() but doesn't matter */
 	inode->i_wb_frn_winner = 0;
 	inode->i_wb_frn_avg_time = 0;
 	inode->i_wb_frn_history = 0;
-
+	switched = true;
+skip_switch:
 	/*
 	 * Paired with load_acquire in unlocked_inode_to_wb_begin() and
 	 * ensures that the new wb is visible if they see !I_WB_SWITCH.
 	 */
 	smp_store_release(&inode->i_state, inode->i_state & ~I_WB_SWITCH);
 
+	spin_unlock_irq(&mapping->tree_lock);
 	spin_unlock(&inode->i_lock);
+	spin_unlock(&new_wb->list_lock);
+	spin_unlock(&old_wb->list_lock);
+
+	if (switched) {
+		wb_wakeup(new_wb);
+		wb_put(old_wb);
+	}
+	wb_put(new_wb);
 
 	iput(inode);
-	wb_put(new_wb);
 	kfree(isw);
 }
 
