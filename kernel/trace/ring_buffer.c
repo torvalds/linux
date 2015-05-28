@@ -2396,6 +2396,29 @@ rb_move_tail(struct ring_buffer_per_cpu *cpu_buffer,
 	return NULL;
 }
 
+#ifndef CONFIG_HAVE_UNSTABLE_SCHED_CLOCK
+static inline bool sched_clock_stable(void)
+{
+	return true;
+}
+#endif
+
+static noinline void
+rb_handle_timestamp(struct ring_buffer_per_cpu *cpu_buffer,
+		    struct rb_event_info *info)
+{
+	WARN_ONCE(info->delta > (1ULL << 59),
+		  KERN_WARNING "Delta way too big! %llu ts=%llu write stamp = %llu\n%s",
+		  (unsigned long long)info->delta,
+		  (unsigned long long)info->ts,
+		  (unsigned long long)cpu_buffer->write_stamp,
+		  sched_clock_stable() ? "" :
+		  "If you just came from a suspend/resume,\n"
+		  "please switch to the trace global clock:\n"
+		  "  echo global > /sys/kernel/debug/tracing/trace_clock\n");
+	info->add_timestamp = 1;
+}
+
 static struct ring_buffer_event *
 __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 		  struct rb_event_info *info)
@@ -2582,22 +2605,8 @@ rb_reserve_next_event(struct ring_buffer *buffer,
 	/* Did the write stamp get updated already? */
 	if (likely(info.ts >= cpu_buffer->write_stamp)) {
 		info.delta = diff;
-		if (unlikely(test_time_stamp(info.delta))) {
-			int local_clock_stable = 1;
-#ifdef CONFIG_HAVE_UNSTABLE_SCHED_CLOCK
-			local_clock_stable = sched_clock_stable();
-#endif
-			WARN_ONCE(info.delta > (1ULL << 59),
-				  KERN_WARNING "Delta way too big! %llu ts=%llu write stamp = %llu\n%s",
-				  (unsigned long long)info.delta,
-				  (unsigned long long)info.ts,
-				  (unsigned long long)cpu_buffer->write_stamp,
-				  local_clock_stable ? "" :
-				  "If you just came from a suspend/resume,\n"
-				  "please switch to the trace global clock:\n"
-				  "  echo global > /sys/kernel/debug/tracing/trace_clock\n");
-			info.add_timestamp = 1;
-		}
+		if (unlikely(test_time_stamp(info.delta)))
+			rb_handle_timestamp(cpu_buffer, &info);
 	}
 
 	event = __rb_reserve_next(cpu_buffer, &info);
