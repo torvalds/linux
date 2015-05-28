@@ -2495,11 +2495,18 @@ void amd_iommu_init_notifier(void)
 static struct protection_domain *get_domain(struct device *dev)
 {
 	struct protection_domain *domain;
+	struct iommu_domain *io_domain;
 	struct dma_ops_domain *dma_dom;
 	u16 devid = get_device_id(dev);
 
 	if (!check_device(dev))
 		return ERR_PTR(-EINVAL);
+
+	io_domain = iommu_get_domain_for_dev(dev);
+	if (io_domain) {
+		domain = to_pdomain(io_domain);
+		return domain;
+	}
 
 	domain = domain_for_device(dev);
 	if (domain != NULL && !dma_ops_domain(domain))
