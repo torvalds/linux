@@ -3091,8 +3091,8 @@ xlog_recover_do_icreate_pass2(
 			XFS_AGB_TO_DADDR(mp, agno, agbno), length, 0))
 		return 0;
 
-	xfs_ialloc_inode_init(mp, NULL, buffer_list, agno, agbno, length,
-					be32_to_cpu(icl->icl_gen));
+	xfs_ialloc_inode_init(mp, NULL, buffer_list, count, agno, agbno, length,
+			      be32_to_cpu(icl->icl_gen));
 	return 0;
 }
 
