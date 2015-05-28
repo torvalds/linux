@@ -1103,8 +1103,10 @@ static int hsw_pcm_remove(struct snd_soc_platform *platform)
 		snd_soc_platform_get_drvdata(platform);
 	int i;
 
+	/* execute a suspend call to unload all FW resources */
+	if (!pm_runtime_status_suspended(platform->dev))
+		pm_runtime_put_sync_suspend(platform->dev);
 	pm_runtime_disable(platform->dev);
-	hsw_pcm_free_modules(priv_data);
 
 	for (i = 0; i < ARRAY_SIZE(hsw_dais); i++) {
 		if (hsw_dais[i].playback.channels_min)
