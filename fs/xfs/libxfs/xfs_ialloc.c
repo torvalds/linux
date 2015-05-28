@@ -645,7 +645,7 @@ xfs_ialloc_ag_select(
 		 * if we fail allocation due to alignment issues then it is most
 		 * likely a real ENOSPC condition.
 		 */
-		ineed = mp->m_ialloc_blks;
+		ineed = mp->m_ialloc_min_blks;
 		if (flags && ineed > 1)
 			ineed += xfs_ialloc_cluster_alignment(mp);
 		longest = pag->pagf_longest;
