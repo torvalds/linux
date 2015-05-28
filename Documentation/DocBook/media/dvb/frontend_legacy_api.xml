@@ -115,7 +115,7 @@ OFDM frontends the <constant>frequency</constant> specifies the absolute frequen
  struct dvb_qam_parameters {
 	 uint32_t         symbol_rate; /&#x22C6; symbol rate in Symbols per second &#x22C6;/
 	 fe_code_rate_t   fec_inner;   /&#x22C6; forward error correction (see above) &#x22C6;/
-	 fe_modulation_t  modulation;  /&#x22C6; modulation type (see above) &#x22C6;/
+	 &fe-modulation-t;  modulation;  /&#x22C6; modulation type (see above) &#x22C6;/
  };
 </programlisting>
 </section>
@@ -125,7 +125,7 @@ OFDM frontends the <constant>frequency</constant> specifies the absolute frequen
 <para>ATSC frontends are supported by the <constant>dvb_vsb_parameters</constant> structure:</para>
 <programlisting>
 struct dvb_vsb_parameters {
-	fe_modulation_t modulation;	/&#x22C6; modulation type (see above) &#x22C6;/
+	&fe-modulation-t; modulation;	/&#x22C6; modulation type (see above) &#x22C6;/
 };
 </programlisting>
 </section>
@@ -138,7 +138,7 @@ struct dvb_vsb_parameters {
 	 fe_bandwidth_t      bandwidth;
 	 fe_code_rate_t      code_rate_HP;  /&#x22C6; high priority stream code rate &#x22C6;/
 	 fe_code_rate_t      code_rate_LP;  /&#x22C6; low priority stream code rate &#x22C6;/
-	 fe_modulation_t     constellation; /&#x22C6; modulation type (see above) &#x22C6;/
+	 &fe-modulation-t;     constellation; /&#x22C6; modulation type (see above) &#x22C6;/
 	 fe_transmit_mode_t  transmission_mode;
 	 fe_guard_interval_t guard_interval;
 	 fe_hierarchy_t      hierarchy_information;
