@@ -1010,6 +1010,7 @@ int __nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
 		return PTR_ERR(req);
 
 	req->cmd_type = REQ_TYPE_DRV_PRIV;
+	req->cmd_flags = REQ_FAILFAST_DRIVER;
 	req->__data_len = 0;
 	req->__sector = (sector_t) -1;
 	req->bio = req->biotail = NULL;
