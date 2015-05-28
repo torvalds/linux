@@ -393,7 +393,7 @@ static const unsigned int usb1_0_pins[] = {40, 41, 42, 43, 44, 45, 46, 47, 48,
 		.npins = ARRAY_SIZE(nm ## _pins), \
 	}
 
-struct zynq_pctrl_group zynq_pctrl_groups[] = {
+static const struct zynq_pctrl_group zynq_pctrl_groups[] = {
 	DEFINE_ZYNQ_PINCTRL_GRP(ethernet0_0),
 	DEFINE_ZYNQ_PINCTRL_GRP(ethernet1_0),
 	DEFINE_ZYNQ_PINCTRL_GRP(mdio0_0),
