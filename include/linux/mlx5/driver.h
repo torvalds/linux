@@ -149,6 +149,11 @@ enum mlx5_dev_event {
 	MLX5_DEV_EVENT_CLIENT_REREG,
 };
 
+enum mlx5_port_status {
+	MLX5_PORT_UP        = 1 << 1,
+	MLX5_PORT_DOWN      = 1 << 2,
+};
+
 struct mlx5_uuar_info {
 	struct mlx5_uar	       *uars;
 	int			num_uars;
@@ -701,6 +706,9 @@ int mlx5_query_port_proto_admin(struct mlx5_core_dev *dev,
 				u32 *proto_admin, int proto_mask);
 int mlx5_set_port_proto(struct mlx5_core_dev *dev, u32 proto_admin,
 			int proto_mask);
+int mlx5_set_port_status(struct mlx5_core_dev *dev,
+			 enum mlx5_port_status status);
+int mlx5_query_port_status(struct mlx5_core_dev *dev, u8 *status);
 
 int mlx5_debug_eq_add(struct mlx5_core_dev *dev, struct mlx5_eq *eq);
 void mlx5_debug_eq_remove(struct mlx5_core_dev *dev, struct mlx5_eq *eq);
