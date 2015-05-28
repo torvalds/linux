@@ -920,21 +920,6 @@ err:
 	return -ENODEV;
 }
 
-static void hsw_pcm_free_modules(struct hsw_priv_data *pdata)
-{
-	struct sst_hsw *hsw = pdata->hsw;
-	struct hsw_pcm_data *pcm_data;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(mod_map); i++) {
-		pcm_data = &pdata->pcm[mod_map[i].dai_id][mod_map[i].stream];
-		sst_hsw_runtime_module_free(pcm_data->runtime);
-	}
-	if (sst_hsw_is_module_loaded(hsw, SST_HSW_MODULE_WAVES)) {
-		sst_hsw_runtime_module_free(pdata->runtime_waves);
-	}
-}
-
 static int hsw_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_pcm *pcm = rtd->pcm;
