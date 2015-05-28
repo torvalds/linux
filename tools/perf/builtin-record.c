@@ -345,11 +345,8 @@ static int process_buildids(struct record *rec)
 	struct perf_data_file *file  = &rec->file;
 	struct perf_session *session = rec->session;
 
-	u64 size = lseek(perf_data_file__fd(file), 0, SEEK_CUR);
-	if (size == 0)
+	if (file->size == 0)
 		return 0;
-
-	file->size = size;
 
 	/*
 	 * During this process, it'll load kernel map and replace the
@@ -719,6 +716,7 @@ out_child:
 
 	if (!err && !file->is_pipe) {
 		rec->session->header.data_size += rec->bytes_written;
+		file->size = lseek(perf_data_file__fd(file), 0, SEEK_CUR);
 
 		if (!rec->no_buildid) {
 			process_buildids(rec);
