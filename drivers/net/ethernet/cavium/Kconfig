@@ -4,7 +4,7 @@
 
 config NET_VENDOR_CAVIUM
 	tristate "Cavium ethernet drivers"
-	depends on PCI
+	depends on PCI && 64BIT
 	---help---
 	  Enable support for the Cavium ThunderX Network Interface
 	  Controller (NIC). The NIC provides the controller and DMA
