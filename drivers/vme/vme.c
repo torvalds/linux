@@ -177,8 +177,8 @@ size_t vme_get_size(struct vme_resource *resource)
 }
 EXPORT_SYMBOL(vme_get_size);
 
-static int vme_check_window(u32 aspace, unsigned long long vme_base,
-	unsigned long long size)
+int vme_check_window(u32 aspace, unsigned long long vme_base,
+		     unsigned long long size)
 {
 	int retval = 0;
 
@@ -221,6 +221,7 @@ static int vme_check_window(u32 aspace, unsigned long long vme_base,
 
 	return retval;
 }
+EXPORT_SYMBOL(vme_check_window);
 
 /*
  * Request a slave image with specific attributes, return some unique
