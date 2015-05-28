@@ -22,7 +22,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
 
-#define GPMI_CLK_MAX 5 /* MX6Q needs five clocks */
+#define GPMI_CLK_MAX 4 /* MX6Q needs four clocks */
 struct resources {
 	void __iomem  *gpmi_regs;
 	void __iomem  *bch_regs;
@@ -125,7 +125,8 @@ enum gpmi_type {
 	IS_MX6Q,
 	IS_MX6QP,
 	IS_MX6SX,
-	IS_MX7D
+	IS_MX7D,
+	IS_MX6UL
 };
 
 struct gpmi_devdata {
@@ -310,8 +311,9 @@ void gpmi_copy_bits(u8 *dst, size_t dst_bit_off,
 #define GPMI_IS_MX6QP(x)	((x)->devdata->type == IS_MX6QP)
 #define GPMI_IS_MX6SX(x)	((x)->devdata->type == IS_MX6SX)
 #define GPMI_IS_MX7D(x)		((x)->devdata->type == IS_MX7D)
+#define GPMI_IS_MX6UL(x)	((x)->devdata->type == IS_MX6UL)
 
 #define GPMI_IS_MX6(x)		(GPMI_IS_MX6Q(x) || GPMI_IS_MX6QP(x)\
-	   || GPMI_IS_MX6SX(x))
+	   || GPMI_IS_MX6SX(x) || GPMI_IS_MX6UL(x))
 #define GPMI_IS_MX7(x)		(GPMI_IS_MX7D(x))
 #endif
