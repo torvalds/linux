@@ -1115,7 +1115,7 @@ int pinctrl_register_map(struct pinctrl_map const *maps, unsigned num_maps,
 	int i, ret;
 	struct pinctrl_maps *maps_node;
 
-	pr_debug("add %d pinmux maps\n", num_maps);
+	pr_debug("add %u pinctrl maps\n", num_maps);
 
 	/* First sanity check the new mapping */
 	for (i = 0; i < num_maps; i++) {
