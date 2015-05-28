@@ -1463,22 +1463,17 @@ static void intel_hpd_irq_handler(struct drm_device *dev,
 			 * For long HPD pulses we want to have the digital queue happen,
 			 * but we still want HPD storm detection to function.
 			 */
+			queue_dig = true;
 			if (long_hpd) {
 				dev_priv->hotplug.long_port_mask |= (1 << port);
+				/* FIXME: this can be simplified. */
 				dig_port_mask |= hpd[i];
 			} else {
 				/* for short HPD just trigger the digital queue */
 				dev_priv->hotplug.short_port_mask |= (1 << port);
-				hotplug_trigger &= ~hpd[i];
+				continue;
 			}
-
-			queue_dig = true;
 		}
-	}
-
-	for_each_hpd_pin(i) {
-		if (!(hpd[i] & hotplug_trigger))
-			continue;
 
 		if (dev_priv->hotplug.stats[i].state == HPD_DISABLED) {
 			/*
