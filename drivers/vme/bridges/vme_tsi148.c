@@ -1833,17 +1833,21 @@ static int tsi148_dma_list_add(struct vme_dma_list *list,
 	/* Add to list */
 	list_add_tail(&entry->list, &list->entries);
 
+	entry->dma_handle = dma_map_single(tsi148_bridge->parent,
+		&entry->descriptor,
+		sizeof(struct tsi148_dma_descriptor), DMA_TO_DEVICE);
+	if (dma_mapping_error(tsi148_bridge->parent, entry->dma_handle)) {
+		dev_err(tsi148_bridge->parent, "DMA mapping error\n");
+		retval = -EINVAL;
+		goto err_dma;
+	}
+
 	/* Fill out previous descriptors "Next Address" */
 	if (entry->list.prev != &list->entries) {
-		prev = list_entry(entry->list.prev, struct tsi148_dma_entry,
-			list);
-		/* We need the bus address for the pointer */
-		entry->dma_handle = dma_map_single(tsi148_bridge->parent,
-			&entry->descriptor,
-			sizeof(struct tsi148_dma_descriptor), DMA_TO_DEVICE);
-
 		reg_split((unsigned long long)entry->dma_handle, &address_high,
 			&address_low);
+		prev = list_entry(entry->list.prev, struct tsi148_dma_entry,
+				  list);
 		prev->descriptor.dnlau = cpu_to_be32(address_high);
 		prev->descriptor.dnlal = cpu_to_be32(address_low);
 
@@ -1851,6 +1855,7 @@ static int tsi148_dma_list_add(struct vme_dma_list *list,
 
 	return 0;
 
+err_dma:
 err_dest:
 err_source:
 err_align:
@@ -1920,10 +1925,6 @@ static int tsi148_dma_list_exec(struct vme_dma_list *list)
 	/* Get first bus address and write into registers */
 	entry = list_first_entry(&list->entries, struct tsi148_dma_entry,
 		list);
-
-	entry->dma_handle = dma_map_single(tsi148_bridge->parent,
-		&entry->descriptor,
-		sizeof(struct tsi148_dma_descriptor), DMA_TO_DEVICE);
 
 	mutex_unlock(&ctrlr->mtx);
 
