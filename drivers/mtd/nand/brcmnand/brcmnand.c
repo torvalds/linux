@@ -1887,7 +1887,7 @@ static int brcmnand_init_cs(struct brcmnand_host *host)
 	struct platform_device *pdev = host->pdev;
 	struct mtd_info *mtd;
 	struct nand_chip *chip;
-	int ret = 0;
+	int ret;
 	struct mtd_part_parser_data ppdata = { .of_node = dn };
 
 	ret = of_property_read_u32(dn, "reg", &host->cs);
