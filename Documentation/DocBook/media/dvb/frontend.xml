@@ -62,19 +62,6 @@ specification is available at
 </programlisting>
 </section>
 
-<section role="subsection" id="dvb-diseqc-slave-reply">
-<title>diseqc slave reply</title>
-
-<para>A reply to the frontend from DiSEqC 2.0 capable equipment.</para>
-<programlisting>
-	struct dvb_diseqc_slave_reply {
-	uint8_t msg [4]; /&#x22C6;  { framing, data [3] } &#x22C6;/
-	uint8_t msg_len; /&#x22C6;  valid values are 0...4, 0 means no msg  &#x22C6;/
-	int     timeout; /&#x22C6;  return from ioctl after timeout ms with &#x22C6;/
-	};                       /&#x22C6;  errorcode when no message was received  &#x22C6;/
-</programlisting>
-</section>
-
 <section id="fe-spectral-inversion-t">
 <title>frontend spectral inversion</title>
 <para>The Inversion field can take one of these values:
@@ -452,56 +439,7 @@ typedef enum fe_hierarchy {
 &return-value-dvb;
 </section>
 
-<section id="FE_DISEQC_RECV_SLAVE_REPLY">
-<title>FE_DISEQC_RECV_SLAVE_REPLY</title>
-<para>DESCRIPTION
-</para>
-<informaltable><tgroup cols="1"><tbody><row><entry
- align="char">
-<para>This ioctl call is used to receive reply to a DiSEqC 2.0 command.</para>
-</entry>
- </row></tbody></tgroup></informaltable>
-
-<para>SYNOPSIS
-</para>
-<informaltable><tgroup cols="1"><tbody><row><entry
- align="char">
-<para>int ioctl(int fd, int request =
- <link linkend="FE_DISEQC_RECV_SLAVE_REPLY">FE_DISEQC_RECV_SLAVE_REPLY</link>, struct
- dvb_diseqc_slave_reply &#x22C6;reply);</para>
-</entry>
- </row></tbody></tgroup></informaltable>
-
-<para>PARAMETERS
-</para>
-<informaltable><tgroup cols="2"><tbody><row><entry
- align="char">
-<para>int fd</para>
-</entry><entry
- align="char">
-<para>File descriptor returned by a previous call to open().</para>
-</entry>
- </row><row><entry
- align="char">
-<para>int request</para>
-</entry><entry
- align="char">
-<para>Equals <link linkend="FE_DISEQC_RECV_SLAVE_REPLY">FE_DISEQC_RECV_SLAVE_REPLY</link> for this
- command.</para>
-</entry>
- </row><row><entry
- align="char">
-<para>struct
- dvb_diseqc_slave_reply
- *reply</para>
-</entry><entry
- align="char">
-<para>Pointer to the command to be received.</para>
-</entry>
- </row></tbody></tgroup></informaltable>
-&return-value-dvb;
-</section>
-
+&sub-fe-diseqc-recv-slave-reply;
 &sub-fe-diseqc-send-burst;
 &sub-fe-set-tone;
 &sub-fe-set-voltage;
