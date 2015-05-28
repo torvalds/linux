@@ -359,7 +359,7 @@ nomem:
 }
 
 enum {
-	Opt_uid, Opt_gid, Opt_umask, Opt_dmask, Opt_fmask
+	Opt_uid, Opt_gid, Opt_umask, Opt_dmask, Opt_fmask, Opt_err
 };
 
 static const match_table_t tokens = {
@@ -368,6 +368,7 @@ static const match_table_t tokens = {
 	{Opt_umask, "umask=%o"},
 	{Opt_dmask, "dmask=%o"},
 	{Opt_fmask, "fmask=%o"},
+	{Opt_err, NULL},
 };
 
 static int parse_options(char *options, struct omfs_sb_info *sbi)
