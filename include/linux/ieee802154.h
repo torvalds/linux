@@ -225,15 +225,13 @@ static inline bool ieee802154_is_valid_psdu_len(const u8 len)
  * ieee802154_is_valid_psdu_len - check if extended addr is valid
  * @addr: extended addr to check
  */
-static inline bool ieee802154_is_valid_extended_addr(const __le64 addr)
+static inline bool ieee802154_is_valid_extended_unicast_addr(const __le64 addr)
 {
-	/* These EUI-64 addresses are reserved by IEEE. 0xffffffffffffffff
-	 * is used internally as extended to short address broadcast mapping.
-	 * This is currently a workaround because neighbor discovery can't
-	 * deal with short addresses types right now.
+	/* Bail out if the address is all zero, or if the group
+	 * address bit is set.
 	 */
 	return ((addr != cpu_to_le64(0x0000000000000000ULL)) &&
-		(addr != cpu_to_le64(0xffffffffffffffffULL)));
+		!(addr & cpu_to_le64(0x0100000000000000ULL)));
 }
 
 /**
