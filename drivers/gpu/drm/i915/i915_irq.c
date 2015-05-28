@@ -1432,7 +1432,7 @@ static void intel_hpd_irq_handler(struct drm_device *dev,
 	bool storm_detected = false;
 	bool queue_dig = false, queue_hp = false;
 	u32 dig_shift;
-	u32 dig_port_mask = 0;
+	bool is_dig_port;
 
 	if (!hotplug_trigger)
 		return;
@@ -1446,7 +1446,9 @@ static void intel_hpd_irq_handler(struct drm_device *dev,
 			continue;
 
 		port = get_port_from_pin(i);
-		if (port && dev_priv->hotplug.irq_port[port]) {
+		is_dig_port = port && dev_priv->hotplug.irq_port[port];
+
+		if (is_dig_port) {
 			bool long_hpd;
 
 			if (!HAS_GMCH_DISPLAY(dev_priv)) {
@@ -1466,8 +1468,6 @@ static void intel_hpd_irq_handler(struct drm_device *dev,
 			queue_dig = true;
 			if (long_hpd) {
 				dev_priv->hotplug.long_port_mask |= (1 << port);
-				/* FIXME: this can be simplified. */
-				dig_port_mask |= hpd[i];
 			} else {
 				/* for short HPD just trigger the digital queue */
 				dev_priv->hotplug.short_port_mask |= (1 << port);
@@ -1492,7 +1492,7 @@ static void intel_hpd_irq_handler(struct drm_device *dev,
 		if (dev_priv->hotplug.stats[i].state != HPD_ENABLED)
 			continue;
 
-		if (!(dig_port_mask & hpd[i])) {
+		if (!is_dig_port) {
 			dev_priv->hotplug.event_bits |= (1 << i);
 			queue_hp = true;
 		}
