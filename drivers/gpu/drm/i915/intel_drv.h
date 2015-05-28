@@ -424,6 +424,7 @@ struct intel_crtc_atomic_commit {
 	/* Sleepable operations to perform before commit */
 	bool wait_for_flips;
 	bool disable_fbc;
+	bool disable_ips;
 	bool pre_disable_primary;
 	bool update_wm;
 	unsigned disabled_planes;
