@@ -70,6 +70,7 @@
  */
 #define WIN_CTRL_OFF		0x0000
 #define   WIN_CTRL_ENABLE       BIT(0)
+/* Only on HW I/O coherency capable platforms */
 #define   WIN_CTRL_SYNCBARRIER  BIT(1)
 #define   WIN_CTRL_TGT_MASK     0xf0
 #define   WIN_CTRL_TGT_SHIFT    4
@@ -323,8 +324,9 @@ static int mvebu_mbus_setup_window(struct mvebu_mbus_state *mbus,
 	ctrl = ((size - 1) & WIN_CTRL_SIZE_MASK) |
 		(attr << WIN_CTRL_ATTR_SHIFT)    |
 		(target << WIN_CTRL_TGT_SHIFT)   |
-		WIN_CTRL_SYNCBARRIER             |
 		WIN_CTRL_ENABLE;
+	if (mbus->hw_io_coherency)
+		ctrl |= WIN_CTRL_SYNCBARRIER;
 
 	writel(base & WIN_BASE_LOW, addr + WIN_BASE_OFF);
 	writel(ctrl, addr + WIN_CTRL_OFF);
