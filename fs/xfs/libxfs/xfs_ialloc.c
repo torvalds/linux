@@ -1801,6 +1801,83 @@ out_error:
 	return error;
 }
 
+/*
+ * Free the blocks of an inode chunk. We must consider that the inode chunk
+ * might be sparse and only free the regions that are allocated as part of the
+ * chunk.
+ */
+STATIC void
+xfs_difree_inode_chunk(
+	struct xfs_mount		*mp,
+	xfs_agnumber_t			agno,
+	struct xfs_inobt_rec_incore	*rec,
+	struct xfs_bmap_free		*flist)
+{
+	xfs_agblock_t	sagbno = XFS_AGINO_TO_AGBNO(mp, rec->ir_startino);
+	int		startidx, endidx;
+	int		nextbit;
+	xfs_agblock_t	agbno;
+	int		contigblk;
+	DECLARE_BITMAP(holemask, XFS_INOBT_HOLEMASK_BITS);
+
+	if (!xfs_inobt_issparse(rec->ir_holemask)) {
+		/* not sparse, calculate extent info directly */
+		xfs_bmap_add_free(XFS_AGB_TO_FSB(mp, agno,
+				  XFS_AGINO_TO_AGBNO(mp, rec->ir_startino)),
+				  mp->m_ialloc_blks, flist, mp);
+		return;
+	}
+
+	/* holemask is only 16-bits (fits in an unsigned long) */
+	ASSERT(sizeof(rec->ir_holemask) <= sizeof(holemask[0]));
+	holemask[0] = rec->ir_holemask;
+
+	/*
+	 * Find contiguous ranges of zeroes (i.e., allocated regions) in the
+	 * holemask and convert the start/end index of each range to an extent.
+	 * We start with the start and end index both pointing at the first 0 in
+	 * the mask.
+	 */
+	startidx = endidx = find_first_zero_bit(holemask,
+						XFS_INOBT_HOLEMASK_BITS);
+	nextbit = startidx + 1;
+	while (startidx < XFS_INOBT_HOLEMASK_BITS) {
+		nextbit = find_next_zero_bit(holemask, XFS_INOBT_HOLEMASK_BITS,
+					     nextbit);
+		/*
+		 * If the next zero bit is contiguous, update the end index of
+		 * the current range and continue.
+		 */
+		if (nextbit != XFS_INOBT_HOLEMASK_BITS &&
+		    nextbit == endidx + 1) {
+			endidx = nextbit;
+			goto next;
+		}
+
+		/*
+		 * nextbit is not contiguous with the current end index. Convert
+		 * the current start/end to an extent and add it to the free
+		 * list.
+		 */
+		agbno = sagbno + (startidx * XFS_INODES_PER_HOLEMASK_BIT) /
+				  mp->m_sb.sb_inopblock;
+		contigblk = ((endidx - startidx + 1) *
+			     XFS_INODES_PER_HOLEMASK_BIT) /
+			    mp->m_sb.sb_inopblock;
+
+		ASSERT(agbno % mp->m_sb.sb_spino_align == 0);
+		ASSERT(contigblk % mp->m_sb.sb_spino_align == 0);
+		xfs_bmap_add_free(XFS_AGB_TO_FSB(mp, agno, agbno), contigblk,
+				  flist, mp);
+
+		/* reset range to current bit and carry on... */
+		startidx = endidx = nextbit;
+
+next:
+		nextbit++;
+	}
+}
+
 STATIC int
 xfs_difree_inobt(
 	struct xfs_mount		*mp,
@@ -1895,9 +1972,7 @@ xfs_difree_inobt(
 			goto error0;
 		}
 
-		xfs_bmap_add_free(XFS_AGB_TO_FSB(mp, agno,
-				  XFS_AGINO_TO_AGBNO(mp, rec.ir_startino)),
-				  mp->m_ialloc_blks, flist, mp);
+		xfs_difree_inode_chunk(mp, agno, &rec, flist);
 	} else {
 		*deleted = 0;
 
