@@ -37,16 +37,12 @@ specification is available at
 	<link linkend="FE_GET_INFO">FE_GET_INFO</link>.</para>
 </section>
 
-&sub-fe-get-info;
-
 <section id="dvb-fe-read-status">
 <title>Querying frontend status</title>
 
 <para>Information about the frontend tuner locking status can be queried with
 	<link linkend="FE_READ_STATUS">FE_READ_STATUS</link>.</para>
 </section>
-
-&sub-fe-read-status;
 
 &sub-dvbproperty;
 
@@ -333,6 +329,9 @@ typedef enum fe_hierarchy {
  </row></tbody></tgroup></informaltable>
 </section>
 
+&sub-fe-get-info;
+&sub-fe-read-status;
+&sub-fe-get-property;
 &sub-fe-diseqc-reset-overload;
 &sub-fe-diseqc-send-master-cmd;
 &sub-fe-diseqc-recv-slave-reply;

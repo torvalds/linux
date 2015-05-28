@@ -35,8 +35,6 @@ the capability ioctls weren't implemented yet via the new way.</para>
 API is to replace the ioctl's were the <link linkend="dvb-frontend-parameters">
 struct <constant>dvb_frontend_parameters</constant></link> were used.</para>
 
-&sub-fe-get-property;
-
 <section id="dtv-stats">
 <title>DTV stats type</title>
 <programlisting>
