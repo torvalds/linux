@@ -266,11 +266,37 @@ static int hci_uart_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 	return 0;
 }
 
+void hci_uart_set_baudrate(struct hci_uart *hu, unsigned int speed)
+{
+	struct tty_struct *tty = hu->tty;
+	struct ktermios ktermios;
+
+	ktermios = tty->termios;
+	ktermios.c_cflag &= ~CBAUD;
+	ktermios.c_cflag |= BOTHER;
+	tty_termios_encode_baud_rate(&ktermios, speed, speed);
+
+	/* tty_set_termios() return not checked as it is always 0 */
+	tty_set_termios(tty, &ktermios);
+
+	BT_DBG("%s: New tty speed: %d", hu->hdev->name, tty->termios.c_ispeed);
+}
+
 static int hci_uart_setup(struct hci_dev *hdev)
 {
 	struct hci_uart *hu = hci_get_drvdata(hdev);
 	struct hci_rp_read_local_version *ver;
 	struct sk_buff *skb;
+	int err;
+
+	if (hu->proto->init_speed)
+		hci_uart_set_baudrate(hu, hu->proto->init_speed);
+
+	if (hu->proto->set_baudrate && hu->proto->oper_speed) {
+		err = hu->proto->set_baudrate(hu, hu->proto->oper_speed);
+		if (!err)
+			hci_uart_set_baudrate(hu, hu->proto->oper_speed);
+	}
 
 	if (hu->proto->setup)
 		return hu->proto->setup(hu);
