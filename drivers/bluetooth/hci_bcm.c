@@ -80,11 +80,39 @@ static int bcm_flush(struct hci_uart *hu)
 
 static int bcm_setup(struct hci_uart *hu)
 {
+	char fw_name[64];
+	const struct firmware *fw;
+	int err;
+
 	BT_DBG("hu %p", hu);
 
 	hu->hdev->set_bdaddr = btbcm_set_bdaddr;
 
-	return btbcm_setup_patchram(hu->hdev);
+	err = btbcm_initialize(hu->hdev, fw_name, sizeof(fw_name));
+	if (err)
+		return err;
+
+	err = request_firmware(&fw, fw_name, &hu->hdev->dev);
+	if (err < 0) {
+		BT_INFO("%s: BCM: Patch %s not found", hu->hdev->name, fw_name);
+		return 0;
+	}
+
+	err = btbcm_patchram(hu->hdev, fw);
+	if (err) {
+		BT_INFO("%s: BCM: Patch failed (%d)", hu->hdev->name, err);
+		goto finalize;
+	}
+
+	if (hu->proto->init_speed)
+		hci_uart_set_baudrate(hu, hu->proto->init_speed);
+
+finalize:
+	release_firmware(fw);
+
+	err = btbcm_finalize(hu->hdev);
+
+	return err;
 }
 
 static const struct h4_recv_pkt bcm_recv_pkts[] = {
