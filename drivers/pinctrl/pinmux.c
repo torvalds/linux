@@ -585,7 +585,12 @@ static int pinmux_pins_show(struct seq_file *s, void *what)
 		return 0;
 
 	seq_puts(s, "Pinmux settings per pin\n");
-	seq_puts(s, "Format: pin (name): mux_owner gpio_owner hog?\n");
+	if (pmxops->strict)
+		seq_puts(s,
+		 "Format: pin (name): mux_owner|gpio_owner (strict) hog?\n");
+	else
+		seq_puts(s,
+		"Format: pin (name): mux_owner gpio_owner hog?\n");
 
 	mutex_lock(&pctldev->mutex);
 
@@ -604,14 +609,34 @@ static int pinmux_pins_show(struct seq_file *s, void *what)
 		    !strcmp(desc->mux_owner, pinctrl_dev_get_name(pctldev)))
 			is_hog = true;
 
-		seq_printf(s, "pin %d (%s): %s %s%s", pin,
-			   desc->name ? desc->name : "unnamed",
-			   desc->mux_owner ? desc->mux_owner
-				: "(MUX UNCLAIMED)",
-			   desc->gpio_owner ? desc->gpio_owner
-				: "(GPIO UNCLAIMED)",
-			   is_hog ? " (HOG)" : "");
+		if (pmxops->strict) {
+			if (desc->mux_owner)
+				seq_printf(s, "pin %d (%s): device %s%s",
+					   pin,
+					   desc->name ? desc->name : "unnamed",
+					   desc->mux_owner,
+					   is_hog ? " (HOG)" : "");
+			else if (desc->gpio_owner)
+				seq_printf(s, "pin %d (%s): GPIO %s",
+					   pin,
+					   desc->name ? desc->name : "unnamed",
+					   desc->gpio_owner);
+			else
+				seq_printf(s, "pin %d (%s): UNCLAIMED",
+					   pin,
+					   desc->name ? desc->name : "unnamed");
+		} else {
+			/* For non-strict controllers */
+			seq_printf(s, "pin %d (%s): %s %s%s", pin,
+				   desc->name ? desc->name : "unnamed",
+				   desc->mux_owner ? desc->mux_owner
+				   : "(MUX UNCLAIMED)",
+				   desc->gpio_owner ? desc->gpio_owner
+				   : "(GPIO UNCLAIMED)",
+				   is_hog ? " (HOG)" : "");
+		}
 
+		/* If mux: print function+group claiming the pin */
 		if (desc->mux_setting)
 			seq_printf(s, " function %s group %s\n",
 				   pmxops->get_function_name(pctldev,
