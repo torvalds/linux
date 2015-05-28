@@ -641,6 +641,8 @@ struct iwl_trans {
 
 	enum iwl_d0i3_mode d0i3_mode;
 
+	bool wowlan_d0i3;
+
 	/* pointer to trans specific struct */
 	/*Ensure that this pointer will always be aligned to sizeof pointer */
 	char trans_specific[0] __aligned(sizeof(void *));
