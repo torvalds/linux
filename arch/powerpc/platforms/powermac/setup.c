@@ -473,7 +473,7 @@ static void __init pmac_init_early(void)
 	udbg_adb_init(!!strstr(boot_command_line, "btextdbg"));
 
 #ifdef CONFIG_PPC64
-	iommu_init_early_dart();
+	iommu_init_early_dart(&pmac_pci_controller_ops);
 #endif
 
 	/* SMP Init has to be done early as we need to patch up
@@ -637,24 +637,6 @@ static int __init pmac_probe(void)
 	return 1;
 }
 
-#ifdef CONFIG_PPC64
-/* Move that to pci.c */
-static int pmac_pci_probe_mode(struct pci_bus *bus)
-{
-	struct device_node *node = pci_bus_to_OF_node(bus);
-
-	/* We need to use normal PCI probing for the AGP bus,
-	 * since the device for the AGP bridge isn't in the tree.
-	 * Same for the PCIe host on U4 and the HT host bridge.
-	 */
-	if (bus->self == NULL && (of_device_is_compatible(node, "u3-agp") ||
-				  of_device_is_compatible(node, "u4-pcie") ||
-				  of_device_is_compatible(node, "u3-ht")))
-		return PCI_PROBE_NORMAL;
-	return PCI_PROBE_DEVTREE;
-}
-#endif /* CONFIG_PPC64 */
-
 define_machine(powermac) {
 	.name			= "PowerMac",
 	.probe			= pmac_probe,
@@ -674,12 +656,10 @@ define_machine(powermac) {
 	.feature_call		= pmac_do_feature_call,
 	.progress		= udbg_progress,
 #ifdef CONFIG_PPC64
-	.pci_probe_mode		= pmac_pci_probe_mode,
 	.power_save		= power4_idle,
 	.enable_pmcs		= power4_enable_pmcs,
 #endif /* CONFIG_PPC64 */
 #ifdef CONFIG_PPC32
-	.pcibios_enable_device_hook = pmac_pci_enable_device_hook,
 	.pcibios_after_init	= pmac_pcibios_after_init,
 	.phys_mem_access_prot	= pci_phys_mem_access_prot,
 #endif

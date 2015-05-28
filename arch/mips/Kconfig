@@ -43,6 +43,7 @@ config MIPS
 	select GENERIC_SMP_IDLE_THREAD
 	select BUILDTIME_EXTABLE_SORT
 	select GENERIC_CLOCKEVENTS
+	select GENERIC_SCHED_CLOCK if !CAVIUM_OCTEON_SOC
 	select GENERIC_CMOS_UPDATE
 	select HAVE_MOD_ARCH_SPECIFIC
 	select VIRT_TO_BUS
@@ -55,6 +56,8 @@ config MIPS
 	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
 	select ARCH_BINFMT_ELF_STATE
 	select SYSCTL_EXCEPTION_TRACE
+	select HAVE_VIRT_CPU_ACCOUNTING_GEN
+	select HAVE_IRQ_TIME_ACCOUNTING
 
 menu "Machine selection"
 
@@ -131,8 +134,8 @@ config ATH79
 	help
 	  Support for the Atheros AR71XX/AR724X/AR913X SoCs.
 
-config BCM3384
-	bool "Broadcom BCM3384 based boards"
+config BMIPS_GENERIC
+	bool "Broadcom Generic BMIPS kernel"
 	select BOOT_RAW
 	select NO_EXCEPT_FILL
 	select USE_OF
@@ -140,22 +143,30 @@ config BCM3384
 	select CSRC_R4K
 	select SYNC_R4K
 	select COMMON_CLK
-	select DMA_NONCOHERENT
+	select BCM7038_L1_IRQ
+	select BCM7120_L2_IRQ
+	select BRCMSTB_L2_IRQ
 	select IRQ_CPU
+	select RAW_IRQ_ACCESSORS
+	select DMA_NONCOHERENT
 	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_HIGHMEM
+	select SYS_HAS_CPU_BMIPS32_3300
+	select SYS_HAS_CPU_BMIPS4350
+	select SYS_HAS_CPU_BMIPS4380
 	select SYS_HAS_CPU_BMIPS5000
 	select SWAP_IO_SPACE
-	select USB_EHCI_BIG_ENDIAN_DESC
-	select USB_EHCI_BIG_ENDIAN_MMIO
-	select USB_OHCI_BIG_ENDIAN_DESC
-	select USB_OHCI_BIG_ENDIAN_MMIO
+	select USB_EHCI_BIG_ENDIAN_DESC if CPU_BIG_ENDIAN
+	select USB_EHCI_BIG_ENDIAN_MMIO if CPU_BIG_ENDIAN
+	select USB_OHCI_BIG_ENDIAN_DESC if CPU_BIG_ENDIAN
+	select USB_OHCI_BIG_ENDIAN_MMIO if CPU_BIG_ENDIAN
 	help
-	  Support for BCM3384 based boards.  BCM3384/BCM33843 is a cable modem
-	  chipset with a Linux application processor that is often used to
-	  provide Samba services, a CUPS print server, and/or advanced routing
-	  features.
+	  Build a generic DT-based kernel image that boots on select
+	  BCM33xx cable modem chips, BCM63xx DSL chips, and BCM7xxx set-top
+	  box chips.  Note that CONFIG_CPU_BIG_ENDIAN/CONFIG_CPU_LITTLE_ENDIAN
+	  must be set appropriately for your board.
 
 config BCM47XX
 	bool "Broadcom BCM47XX based boards"
@@ -352,6 +363,33 @@ config MACH_LOONGSON1
 	  the ICT (Institute of Computing Technology) and the Chinese Academy
 	  of Sciences.
 
+config MACH_PISTACHIO
+	bool "IMG Pistachio SoC based boards"
+	select ARCH_REQUIRE_GPIOLIB
+	select BOOT_ELF32
+	select BOOT_RAW
+	select CEVT_R4K
+	select CLKSRC_MIPS_GIC
+	select COMMON_CLK
+	select CSRC_R4K
+	select DMA_MAYBE_COHERENT
+	select IRQ_CPU
+	select LIBFDT
+	select MFD_SYSCON
+	select MIPS_CPU_SCACHE
+	select MIPS_GIC
+	select PINCTRL
+	select REGULATOR
+	select SYS_HAS_CPU_MIPS32_R2
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_SUPPORTS_MIPS_CPS
+	select SYS_SUPPORTS_MULTITHREADING
+	select SYS_SUPPORTS_ZBOOT
+	select USE_OF
+	help
+	  This enables support for the IMG Pistachio SoC platform.
+
 config MIPS_MALTA
 	bool "MIPS Malta board"
 	select ARCH_MAY_HAVE_PC_FDC
@@ -377,6 +415,7 @@ config MIPS_MALTA
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_HAS_CPU_MIPS32_R2
 	select SYS_HAS_CPU_MIPS32_R3_5
+	select SYS_HAS_CPU_MIPS32_R5
 	select SYS_HAS_CPU_MIPS32_R6
 	select SYS_HAS_CPU_MIPS64_R1
 	select SYS_HAS_CPU_MIPS64_R2
@@ -386,6 +425,7 @@ config MIPS_MALTA
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
+	select SYS_SUPPORTS_HIGHMEM
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_MICROMIPS
 	select SYS_SUPPORTS_MIPS_CMP
@@ -779,7 +819,8 @@ config CAVIUM_OCTEON_SOC
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select EDAC_SUPPORT
-	select SYS_SUPPORTS_HOTPLUG_CPU
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_SUPPORTS_HOTPLUG_CPU if CPU_BIG_ENDIAN
 	select SYS_HAS_EARLY_PRINTK
 	select SYS_HAS_CPU_CAVIUM_OCTEON
 	select SWAP_IO_SPACE
@@ -793,6 +834,7 @@ config CAVIUM_OCTEON_SOC
 	select SYS_SUPPORTS_SMP
 	select NR_CPUS_DEFAULT_16
 	select BUILTIN_DTB
+	select MTD_COMPLEX_MAPPINGS
 	help
 	  This option supports all of the Octeon reference boards from Cavium
 	  Networks. It builds a kernel that dynamically determines the Octeon
@@ -887,6 +929,7 @@ source "arch/mips/ath25/Kconfig"
 source "arch/mips/ath79/Kconfig"
 source "arch/mips/bcm47xx/Kconfig"
 source "arch/mips/bcm63xx/Kconfig"
+source "arch/mips/bmips/Kconfig"
 source "arch/mips/jazz/Kconfig"
 source "arch/mips/jz4740/Kconfig"
 source "arch/mips/lantiq/Kconfig"
@@ -1202,10 +1245,10 @@ config MIPS_L1_CACHE_SHIFT_7
 
 config MIPS_L1_CACHE_SHIFT
 	int
-	default "4" if MIPS_L1_CACHE_SHIFT_4
-	default "5" if MIPS_L1_CACHE_SHIFT_5
-	default "6" if MIPS_L1_CACHE_SHIFT_6
 	default "7" if MIPS_L1_CACHE_SHIFT_7
+	default "6" if MIPS_L1_CACHE_SHIFT_6
+	default "5" if MIPS_L1_CACHE_SHIFT_5
+	default "4" if MIPS_L1_CACHE_SHIFT_4
 	default "5"
 
 config HAVE_STD_PC_SERIAL_PORT
@@ -1572,6 +1615,7 @@ config CPU_XLP
 	select WEAK_REORDERING_BEYOND_LLSC
 	select CPU_HAS_PREFETCH
 	select CPU_MIPSR2
+	select CPU_SUPPORTS_HUGEPAGES
 	help
 	  Netlogic Microsystems XLP processors.
 endchoice
@@ -1595,6 +1639,33 @@ config CPU_MIPS32_3_5_EVA
 	  Addressing (EVA) on your MIPS32 core (such as proAptiv).
 	  One of its primary benefits is an increase in the maximum size
 	  of lowmem (up to 3GB). If unsure, say 'N' here.
+
+config CPU_MIPS32_R5_FEATURES
+	bool "MIPS32 Release 5 Features"
+	depends on SYS_HAS_CPU_MIPS32_R5
+	depends on CPU_MIPS32_R2
+	help
+	  Choose this option to build a kernel for release 2 or later of the
+	  MIPS32 architecture including features from release 5 such as
+	  support for Extended Physical Addressing (XPA).
+
+config CPU_MIPS32_R5_XPA
+	bool "Extended Physical Addressing (XPA)"
+	depends on CPU_MIPS32_R5_FEATURES
+	depends on !EVA
+	depends on !PAGE_SIZE_4KB
+	depends on SYS_SUPPORTS_HIGHMEM
+	select XPA
+	select HIGHMEM
+	select ARCH_PHYS_ADDR_T_64BIT
+	default n
+	help
+	  Choose this option if you want to enable the Extended Physical
+	  Addressing (XPA) on your MIPS32 core (such as P5600 series). The
+	  benefit is to increase physical addressing equal to or greater
+	  than 40 bits. Note that this has the side effect of turning on
+	  64-bit addressing which in turn makes the PTEs 64-bit in size.
+	  If unsure, say 'N' here.
 
 if CPU_LOONGSON2F
 config CPU_NOP_WORKAROUNDS
@@ -1697,6 +1768,9 @@ config SYS_HAS_CPU_MIPS32_R2
 	bool
 
 config SYS_HAS_CPU_MIPS32_R3_5
+	bool
+
+config SYS_HAS_CPU_MIPS32_R5
 	bool
 
 config SYS_HAS_CPU_MIPS32_R6
@@ -1834,6 +1908,9 @@ config CPU_MIPSR6
 	select MIPS_SPRAM
 
 config EVA
+	bool
+
+config XPA
 	bool
 
 config SYS_SUPPORTS_32BIT_KERNEL
@@ -2072,7 +2149,7 @@ config MIPSR2_TO_R6_EMULATOR
 	help
 	  Choose this option if you want to run non-R6 MIPS userland code.
 	  Even if you say 'Y' here, the emulator will still be disabled by
-	  default. You can enable it using the 'mipsr2emul' kernel option.
+	  default. You can enable it using the 'mipsr2emu' kernel option.
 	  The only reason this is a build-time option is to save ~14K from the
 	  final kernel image.
 comment "MIPS R2-to-R6 emulator is only available for UP kernels"
@@ -2142,7 +2219,7 @@ config MIPS_CMP
 
 config MIPS_CPS
 	bool "MIPS Coherent Processing System support"
-	depends on SYS_SUPPORTS_MIPS_CPS
+	depends on SYS_SUPPORTS_MIPS_CPS && !64BIT
 	select MIPS_CM
 	select MIPS_CPC
 	select MIPS_CPS_PM if HOTPLUG_CPU
@@ -2348,7 +2425,7 @@ config NODES_SHIFT
 
 config HW_PERF_EVENTS
 	bool "Enable hardware performance counter support for perf events"
-	depends on PERF_EVENTS && OPROFILE=n && (CPU_MIPS32 || CPU_MIPS64 || CPU_R10000 || CPU_SB1 || CPU_CAVIUM_OCTEON || CPU_XLP)
+	depends on PERF_EVENTS && OPROFILE=n && (CPU_MIPS32 || CPU_MIPS64 || CPU_R10000 || CPU_SB1 || CPU_CAVIUM_OCTEON || CPU_XLP || CPU_LOONGSON3)
 	default y
 	help
 	  Enable hardware performance counter support for perf events. If
@@ -2499,6 +2576,9 @@ config HZ
 	default 256 if HZ_256
 	default 1000 if HZ_1000
 	default 1024 if HZ_1024
+
+config SCHED_HRTICK
+	def_bool HIGH_RES_TIMERS
 
 source "kernel/Kconfig.preempt"
 

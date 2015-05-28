@@ -162,7 +162,17 @@ static void fsl_compose_msi_msg(struct pci_dev *pdev, int hwirq,
 	msg->address_lo = lower_32_bits(address);
 	msg->address_hi = upper_32_bits(address);
 
-	msg->data = hwirq;
+	/*
+	 * MPIC version 2.0 has erratum PIC1. It causes
+	 * that neither MSI nor MSI-X can work fine.
+	 * This is a workaround to allow MSI-X to function
+	 * properly. It only works for MSI-X, we prevent
+	 * MSI on buggy chips in fsl_setup_msi_irqs().
+	 */
+	if (msi_data->feature & MSI_HW_ERRATA_ENDIAN)
+		msg->data = __swab32(hwirq);
+	else
+		msg->data = hwirq;
 
 	pr_debug("%s: allocated srs: %d, ibs: %d\n", __func__,
 		 (hwirq >> msi_data->srs_shift) & MSI_SRS_MASK,
@@ -180,8 +190,16 @@ static int fsl_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 	struct msi_msg msg;
 	struct fsl_msi *msi_data;
 
-	if (type == PCI_CAP_ID_MSIX)
-		pr_debug("fslmsi: MSI-X untested, trying anyway.\n");
+	if (type == PCI_CAP_ID_MSI) {
+		/*
+		 * MPIC version 2.0 has erratum PIC1. For now MSI
+		 * could not work. So check to prevent MSI from
+		 * being used on the board with this erratum.
+		 */
+		list_for_each_entry(msi_data, &msi_head, list)
+			if (msi_data->feature & MSI_HW_ERRATA_ENDIAN)
+				return -EINVAL;
+	}
 
 	/*
 	 * If the PCI node has an fsl,msi property, then we need to use it
@@ -445,6 +463,11 @@ static int fsl_of_msi_probe(struct platform_device *dev)
 	}
 
 	msi->feature = features->fsl_pic_ip;
+
+	/* For erratum PIC1 on MPIC version 2.0*/
+	if ((features->fsl_pic_ip & FSL_PIC_IP_MASK) == FSL_PIC_IP_MPIC
+			&& (fsl_mpic_primary_get_version() == 0x0200))
+		msi->feature |= MSI_HW_ERRATA_ENDIAN;
 
 	/*
 	 * Remember the phandle, so that we can match with any PCI nodes

@@ -503,7 +503,6 @@ extern struct clk_ops kona_peri_clk_ops;
 
 /* Externally visible functions */
 
-extern u64 do_div_round_closest(u64 dividend, unsigned long divisor);
 extern u64 scaled_div_max(struct bcm_clk_div *div);
 extern u64 scaled_div_build(struct bcm_clk_div *div, u32 div_value,
 				u32 billionths);

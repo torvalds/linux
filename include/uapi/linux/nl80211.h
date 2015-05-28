@@ -2620,16 +2620,17 @@ enum nl80211_band_attr {
  *	an indoor surroundings, i.e., it is connected to AC power (and not
  *	through portable DC inverters) or is under the control of a master
  *	that is acting as an AP and is connected to AC power.
- * @NL80211_FREQUENCY_ATTR_GO_CONCURRENT: GO operation is allowed on this
+ * @NL80211_FREQUENCY_ATTR_IR_CONCURRENT: IR operation is allowed on this
  *	channel if it's connected concurrently to a BSS on the same channel on
  *	the 2 GHz band or to a channel in the same UNII band (on the 5 GHz
- *	band), and IEEE80211_CHAN_RADAR is not set. Instantiating a GO on a
- *	channel that has the GO_CONCURRENT attribute set can be done when there
- *	is a clear assessment that the device is operating under the guidance of
- *	an authorized master, i.e., setting up a GO while the device is also
- *	connected to an AP with DFS and radar detection on the UNII band (it is
- *	up to user-space, i.e., wpa_supplicant to perform the required
- *	verifications)
+ *	band), and IEEE80211_CHAN_RADAR is not set. Instantiating a GO or TDLS
+ *	off-channel on a channel that has the IR_CONCURRENT attribute set can be
+ *	done when there is a clear assessment that the device is operating under
+ *	the guidance of an authorized master, i.e., setting up a GO or TDLS
+ *	off-channel while the device is also connected to an AP with DFS and
+ *	radar detection on the UNII band (it is up to user-space, i.e.,
+ *	wpa_supplicant to perform the required verifications). Using this
+ *	attribute for IR is disallowed for master interfaces (IBSS, AP).
  * @NL80211_FREQUENCY_ATTR_NO_20MHZ: 20 MHz operation is not allowed
  *	on this channel in current regulatory domain.
  * @NL80211_FREQUENCY_ATTR_NO_10MHZ: 10 MHz operation is not allowed
@@ -2641,7 +2642,7 @@ enum nl80211_band_attr {
  * See https://apps.fcc.gov/eas/comments/GetPublishedDocument.html?id=327&tn=528122
  * for more information on the FCC description of the relaxations allowed
  * by NL80211_FREQUENCY_ATTR_INDOOR_ONLY and
- * NL80211_FREQUENCY_ATTR_GO_CONCURRENT.
+ * NL80211_FREQUENCY_ATTR_IR_CONCURRENT.
  */
 enum nl80211_frequency_attr {
 	__NL80211_FREQUENCY_ATTR_INVALID,
@@ -2659,7 +2660,7 @@ enum nl80211_frequency_attr {
 	NL80211_FREQUENCY_ATTR_NO_160MHZ,
 	NL80211_FREQUENCY_ATTR_DFS_CAC_TIME,
 	NL80211_FREQUENCY_ATTR_INDOOR_ONLY,
-	NL80211_FREQUENCY_ATTR_GO_CONCURRENT,
+	NL80211_FREQUENCY_ATTR_IR_CONCURRENT,
 	NL80211_FREQUENCY_ATTR_NO_20MHZ,
 	NL80211_FREQUENCY_ATTR_NO_10MHZ,
 
@@ -2672,6 +2673,8 @@ enum nl80211_frequency_attr {
 #define NL80211_FREQUENCY_ATTR_PASSIVE_SCAN	NL80211_FREQUENCY_ATTR_NO_IR
 #define NL80211_FREQUENCY_ATTR_NO_IBSS		NL80211_FREQUENCY_ATTR_NO_IR
 #define NL80211_FREQUENCY_ATTR_NO_IR		NL80211_FREQUENCY_ATTR_NO_IR
+#define NL80211_FREQUENCY_ATTR_GO_CONCURRENT \
+					NL80211_FREQUENCY_ATTR_IR_CONCURRENT
 
 /**
  * enum nl80211_bitrate_attr - bitrate attributes
@@ -2830,7 +2833,7 @@ enum nl80211_sched_scan_match_attr {
  * @NL80211_RRF_AUTO_BW: maximum available bandwidth should be calculated
  *	base on contiguous rules and wider channels will be allowed to cross
  *	multiple contiguous/overlapping frequency ranges.
- * @NL80211_RRF_GO_CONCURRENT: See &NL80211_FREQUENCY_ATTR_GO_CONCURRENT
+ * @NL80211_RRF_IR_CONCURRENT: See &NL80211_FREQUENCY_ATTR_IR_CONCURRENT
  * @NL80211_RRF_NO_HT40MINUS: channels can't be used in HT40- operation
  * @NL80211_RRF_NO_HT40PLUS: channels can't be used in HT40+ operation
  * @NL80211_RRF_NO_80MHZ: 80MHz operation not allowed
@@ -2847,7 +2850,7 @@ enum nl80211_reg_rule_flags {
 	NL80211_RRF_NO_IR		= 1<<7,
 	__NL80211_RRF_NO_IBSS		= 1<<8,
 	NL80211_RRF_AUTO_BW		= 1<<11,
-	NL80211_RRF_GO_CONCURRENT	= 1<<12,
+	NL80211_RRF_IR_CONCURRENT	= 1<<12,
 	NL80211_RRF_NO_HT40MINUS	= 1<<13,
 	NL80211_RRF_NO_HT40PLUS		= 1<<14,
 	NL80211_RRF_NO_80MHZ		= 1<<15,
@@ -2859,6 +2862,7 @@ enum nl80211_reg_rule_flags {
 #define NL80211_RRF_NO_IR		NL80211_RRF_NO_IR
 #define NL80211_RRF_NO_HT40		(NL80211_RRF_NO_HT40MINUS |\
 					 NL80211_RRF_NO_HT40PLUS)
+#define NL80211_RRF_GO_CONCURRENT	NL80211_RRF_IR_CONCURRENT
 
 /* For backport compatibility with older userspace */
 #define NL80211_RRF_NO_IR_ALL		(NL80211_RRF_NO_IR | __NL80211_RRF_NO_IBSS)

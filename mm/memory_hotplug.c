@@ -1373,7 +1373,7 @@ static unsigned long scan_movable_pages(unsigned long start, unsigned long end)
 			if (PageLRU(page))
 				return pfn;
 			if (PageHuge(page)) {
-				if (is_hugepage_active(page))
+				if (page_huge_active(page))
 					return pfn;
 				else
 					pfn = round_up(pfn + 1,

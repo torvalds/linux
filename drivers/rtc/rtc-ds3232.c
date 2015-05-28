@@ -15,6 +15,8 @@
  * "Sending and receiving", using SMBus level communication is preferred.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
@@ -373,8 +375,8 @@ static void ds3232_work(struct work_struct *work)
 	if (stat & DS3232_REG_SR_A1F) {
 		control = i2c_smbus_read_byte_data(client, DS3232_REG_CR);
 		if (control < 0) {
-			pr_warn("Read DS3232 Control Register error."
-				"Disable IRQ%d.\n", client->irq);
+			pr_warn("Read Control Register error - Disable IRQ%d\n",
+				client->irq);
 		} else {
 			/* disable alarm1 interrupt */
 			control &= ~(DS3232_REG_CR_A1IE);

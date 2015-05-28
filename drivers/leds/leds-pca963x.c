@@ -289,7 +289,7 @@ pca963x_dt_init(struct i2c_client *client, struct pca963x_chipdef *chip)
 		return ERR_PTR(-ENOMEM);
 
 	for_each_child_of_node(np, child) {
-		struct led_info led;
+		struct led_info led = {};
 		u32 reg;
 		int res;
 

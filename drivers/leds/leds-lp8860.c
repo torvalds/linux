@@ -391,11 +391,13 @@ static int lp8860_probe(struct i2c_client *client,
 		}
 	}
 
-	led->enable_gpio = devm_gpiod_get(&client->dev, "enable");
-	if (IS_ERR(led->enable_gpio))
-		led->enable_gpio = NULL;
-	else
-		gpiod_direction_output(led->enable_gpio, 0);
+	led->enable_gpio = devm_gpiod_get_optional(&client->dev,
+						   "enable", GPIOD_OUT_LOW);
+	if (IS_ERR(led->enable_gpio)) {
+		ret = PTR_ERR(led->enable_gpio);
+		dev_err(&client->dev, "Failed to get enable gpio: %d\n", ret);
+		return ret;
+	}
 
 	led->regulator = devm_regulator_get(&client->dev, "vled");
 	if (IS_ERR(led->regulator))
@@ -486,6 +488,6 @@ static struct i2c_driver lp8860_driver = {
 };
 module_i2c_driver(lp8860_driver);
 
-MODULE_DESCRIPTION("Texas Instruments LP8860 LED drvier");
+MODULE_DESCRIPTION("Texas Instruments LP8860 LED driver");
 MODULE_AUTHOR("Dan Murphy <dmurphy@ti.com>");
 MODULE_LICENSE("GPL");

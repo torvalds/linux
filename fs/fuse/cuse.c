@@ -88,32 +88,23 @@ static struct list_head *cuse_conntbl_head(dev_t devt)
  * FUSE file.
  */
 
-static ssize_t cuse_read(struct file *file, char __user *buf, size_t count,
-			 loff_t *ppos)
+static ssize_t cuse_read_iter(struct kiocb *kiocb, struct iov_iter *to)
 {
+	struct fuse_io_priv io = { .async = 0, .file = kiocb->ki_filp };
 	loff_t pos = 0;
-	struct iovec iov = { .iov_base = buf, .iov_len = count };
-	struct fuse_io_priv io = { .async = 0, .file = file };
-	struct iov_iter ii;
-	iov_iter_init(&ii, READ, &iov, 1, count);
 
-	return fuse_direct_io(&io, &ii, &pos, FUSE_DIO_CUSE);
+	return fuse_direct_io(&io, to, &pos, FUSE_DIO_CUSE);
 }
 
-static ssize_t cuse_write(struct file *file, const char __user *buf,
-			  size_t count, loff_t *ppos)
+static ssize_t cuse_write_iter(struct kiocb *kiocb, struct iov_iter *from)
 {
+	struct fuse_io_priv io = { .async = 0, .file = kiocb->ki_filp };
 	loff_t pos = 0;
-	struct iovec iov = { .iov_base = (void __user *)buf, .iov_len = count };
-	struct fuse_io_priv io = { .async = 0, .file = file };
-	struct iov_iter ii;
-	iov_iter_init(&ii, WRITE, &iov, 1, count);
-
 	/*
 	 * No locking or generic_write_checks(), the server is
 	 * responsible for locking and sanity checks.
 	 */
-	return fuse_direct_io(&io, &ii, &pos,
+	return fuse_direct_io(&io, from, &pos,
 			      FUSE_DIO_WRITE | FUSE_DIO_CUSE);
 }
 
@@ -186,8 +177,8 @@ static long cuse_file_compat_ioctl(struct file *file, unsigned int cmd,
 
 static const struct file_operations cuse_frontend_fops = {
 	.owner			= THIS_MODULE,
-	.read			= cuse_read,
-	.write			= cuse_write,
+	.read_iter		= cuse_read_iter,
+	.write_iter		= cuse_write_iter,
 	.open			= cuse_open,
 	.release		= cuse_release,
 	.unlocked_ioctl		= cuse_file_ioctl,

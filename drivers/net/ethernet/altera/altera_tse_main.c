@@ -376,8 +376,13 @@ static int tse_rx(struct altera_tse_private *priv, int limit)
 	u16 pktlength;
 	u16 pktstatus;
 
-	while (((rxstatus = priv->dmaops->get_rx_status(priv)) != 0) &&
-	       (count < limit))  {
+	/* Check for count < limit first as get_rx_status is changing
+	* the response-fifo so we must process the next packet
+	* after calling get_rx_status if a response is pending.
+	* (reading the last byte of the response pops the value from the fifo.)
+	*/
+	while ((count < limit) &&
+	       ((rxstatus = priv->dmaops->get_rx_status(priv)) != 0)) {
 		pktstatus = rxstatus >> 16;
 		pktlength = rxstatus & 0xffff;
 

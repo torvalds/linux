@@ -631,15 +631,15 @@ void ieee80211_tx_status_noskb(struct ieee80211_hw *hw,
 	}
 
 	if (acked || noack_success) {
-		    local->dot11TransmittedFrameCount++;
-		    if (!pubsta)
-			    local->dot11MulticastTransmittedFrameCount++;
-		    if (retry_count > 0)
-			    local->dot11RetryCount++;
-		    if (retry_count > 1)
-			    local->dot11MultipleRetryCount++;
+		I802_DEBUG_INC(local->dot11TransmittedFrameCount);
+		if (!pubsta)
+			I802_DEBUG_INC(local->dot11MulticastTransmittedFrameCount);
+		if (retry_count > 0)
+			I802_DEBUG_INC(local->dot11RetryCount);
+		if (retry_count > 1)
+			I802_DEBUG_INC(local->dot11MultipleRetryCount);
 	} else {
-		local->dot11FailedCount++;
+		I802_DEBUG_INC(local->dot11FailedCount);
 	}
 }
 EXPORT_SYMBOL(ieee80211_tx_status_noskb);
@@ -802,13 +802,13 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 	if ((info->flags & IEEE80211_TX_STAT_ACK) ||
 	    (info->flags & IEEE80211_TX_STAT_NOACK_TRANSMITTED)) {
 		if (ieee80211_is_first_frag(hdr->seq_ctrl)) {
-			local->dot11TransmittedFrameCount++;
+			I802_DEBUG_INC(local->dot11TransmittedFrameCount);
 			if (is_multicast_ether_addr(ieee80211_get_DA(hdr)))
-				local->dot11MulticastTransmittedFrameCount++;
+				I802_DEBUG_INC(local->dot11MulticastTransmittedFrameCount);
 			if (retry_count > 0)
-				local->dot11RetryCount++;
+				I802_DEBUG_INC(local->dot11RetryCount);
 			if (retry_count > 1)
-				local->dot11MultipleRetryCount++;
+				I802_DEBUG_INC(local->dot11MultipleRetryCount);
 		}
 
 		/* This counter shall be incremented for an acknowledged MPDU
@@ -818,10 +818,10 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 		if (!is_multicast_ether_addr(hdr->addr1) ||
 		    ieee80211_is_data(fc) ||
 		    ieee80211_is_mgmt(fc))
-			local->dot11TransmittedFragmentCount++;
+			I802_DEBUG_INC(local->dot11TransmittedFragmentCount);
 	} else {
 		if (ieee80211_is_first_frag(hdr->seq_ctrl))
-			local->dot11FailedCount++;
+			I802_DEBUG_INC(local->dot11FailedCount);
 	}
 
 	if (ieee80211_is_nullfunc(fc) && ieee80211_has_pm(fc) &&

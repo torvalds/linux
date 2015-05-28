@@ -1,0 +1,22 @@
+
+Flash LED handling under Linux
+==============================
+
+Some LED devices provide two modes - torch and flash. In the LED subsystem
+those modes are supported by LED class (see Documentation/leds/leds-class.txt)
+and LED Flash class respectively. The torch mode related features are enabled
+by default and the flash ones only if a driver declares it by setting
+LED_DEV_CAP_FLASH flag.
+
+In order to enable the support for flash LEDs CONFIG_LEDS_CLASS_FLASH symbol
+must be defined in the kernel config. A LED Flash class driver must be
+registered in the LED subsystem with led_classdev_flash_register function.
+
+Following sysfs attributes are exposed for controlling flash LED devices:
+(see Documentation/ABI/testing/sysfs-class-led-flash)
+	- flash_brightness
+	- max_flash_brightness
+	- flash_timeout
+	- max_flash_timeout
+	- flash_strobe
+	- flash_fault

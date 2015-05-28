@@ -690,12 +690,11 @@ static void print_bad_pte(struct vm_area_struct *vma, unsigned long addr,
 	/*
 	 * Choose text because data symbols depend on CONFIG_KALLSYMS_ALL=y
 	 */
-	if (vma->vm_ops)
-		printk(KERN_ALERT "vma->vm_ops->fault: %pSR\n",
-		       vma->vm_ops->fault);
-	if (vma->vm_file)
-		printk(KERN_ALERT "vma->vm_file->f_op->mmap: %pSR\n",
-		       vma->vm_file->f_op->mmap);
+	pr_alert("file:%pD fault:%pf mmap:%pf readpage:%pf\n",
+		 vma->vm_file,
+		 vma->vm_ops ? vma->vm_ops->fault : NULL,
+		 vma->vm_file ? vma->vm_file->f_op->mmap : NULL,
+		 mapping ? mapping->a_ops->readpage : NULL);
 	dump_stack();
 	add_taint(TAINT_BAD_PAGE, LOCKDEP_NOW_UNRELIABLE);
 }
@@ -2181,6 +2180,42 @@ oom:
 	return VM_FAULT_OOM;
 }
 
+/*
+ * Handle write page faults for VM_MIXEDMAP or VM_PFNMAP for a VM_SHARED
+ * mapping
+ */
+static int wp_pfn_shared(struct mm_struct *mm,
+			struct vm_area_struct *vma, unsigned long address,
+			pte_t *page_table, spinlock_t *ptl, pte_t orig_pte,
+			pmd_t *pmd)
+{
+	if (vma->vm_ops && vma->vm_ops->pfn_mkwrite) {
+		struct vm_fault vmf = {
+			.page = NULL,
+			.pgoff = linear_page_index(vma, address),
+			.virtual_address = (void __user *)(address & PAGE_MASK),
+			.flags = FAULT_FLAG_WRITE | FAULT_FLAG_MKWRITE,
+		};
+		int ret;
+
+		pte_unmap_unlock(page_table, ptl);
+		ret = vma->vm_ops->pfn_mkwrite(vma, &vmf);
+		if (ret & VM_FAULT_ERROR)
+			return ret;
+		page_table = pte_offset_map_lock(mm, pmd, address, &ptl);
+		/*
+		 * We might have raced with another page fault while we
+		 * released the pte_offset_map_lock.
+		 */
+		if (!pte_same(*page_table, orig_pte)) {
+			pte_unmap_unlock(page_table, ptl);
+			return 0;
+		}
+	}
+	return wp_page_reuse(mm, vma, address, page_table, ptl, orig_pte,
+			     NULL, 0, 0);
+}
+
 static int wp_page_shared(struct mm_struct *mm, struct vm_area_struct *vma,
 			  unsigned long address, pte_t *page_table,
 			  pmd_t *pmd, spinlock_t *ptl, pte_t orig_pte,
@@ -2259,13 +2294,12 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		 * VM_PFNMAP VMA.
 		 *
 		 * We should not cow pages in a shared writeable mapping.
-		 * Just mark the pages writable as we can't do any dirty
-		 * accounting on raw pfn maps.
+		 * Just mark the pages writable and/or call ops->pfn_mkwrite.
 		 */
 		if ((vma->vm_flags & (VM_WRITE|VM_SHARED)) ==
 				     (VM_WRITE|VM_SHARED))
-			return wp_page_reuse(mm, vma, address, page_table, ptl,
-					     orig_pte, old_page, 0, 0);
+			return wp_pfn_shared(mm, vma, address, page_table, ptl,
+					     orig_pte, pmd);
 
 		pte_unmap_unlock(page_table, ptl);
 		return wp_page_copy(mm, vma, address, page_table, pmd,
@@ -2845,7 +2879,7 @@ static void do_fault_around(struct vm_area_struct *vma, unsigned long address,
 	struct vm_fault vmf;
 	int off;
 
-	nr_pages = ACCESS_ONCE(fault_around_bytes) >> PAGE_SHIFT;
+	nr_pages = READ_ONCE(fault_around_bytes) >> PAGE_SHIFT;
 	mask = ~(nr_pages * PAGE_SIZE - 1) & PAGE_MASK;
 
 	start_addr = max(address & mask, vma->vm_start);

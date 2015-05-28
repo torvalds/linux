@@ -41,8 +41,7 @@
 #define BRCMS_FLUSH_TIMEOUT	500 /* msec */
 
 /* Flags we support */
-#define MAC_FILTERS (FIF_PROMISC_IN_BSS | \
-	FIF_ALLMULTI | \
+#define MAC_FILTERS (FIF_ALLMULTI | \
 	FIF_FCSFAIL | \
 	FIF_CONTROL | \
 	FIF_OTHER_BSS | \
@@ -743,8 +742,6 @@ brcms_ops_configure_filter(struct ieee80211_hw *hw,
 	changed_flags &= MAC_FILTERS;
 	*total_flags &= MAC_FILTERS;
 
-	if (changed_flags & FIF_PROMISC_IN_BSS)
-		brcms_dbg_info(core, "FIF_PROMISC_IN_BSS\n");
 	if (changed_flags & FIF_ALLMULTI)
 		brcms_dbg_info(core, "FIF_ALLMULTI\n");
 	if (changed_flags & FIF_FCSFAIL)

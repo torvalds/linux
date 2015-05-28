@@ -664,6 +664,8 @@ out:
 		ieee80211_bss_info_change_notify(sdata,
 						 BSS_CHANGED_IDLE);
 
+	ieee80211_check_fast_xmit_iface(sdata);
+
 	return ret;
 }
 
@@ -1030,6 +1032,8 @@ ieee80211_vif_use_reserved_reassign(struct ieee80211_sub_if_data *sdata)
 	if (sdata->vif.type == NL80211_IFTYPE_AP)
 		__ieee80211_vif_copy_chanctx_to_vlans(sdata, false);
 
+	ieee80211_check_fast_xmit_iface(sdata);
+
 	if (ieee80211_chanctx_refcount(local, old_ctx) == 0)
 		ieee80211_free_chanctx(local, old_ctx);
 
@@ -1375,6 +1379,8 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 			if (sdata->vif.type == NL80211_IFTYPE_AP)
 				__ieee80211_vif_copy_chanctx_to_vlans(sdata,
 								      false);
+
+			ieee80211_check_fast_xmit_iface(sdata);
 
 			sdata->radar_required = sdata->reserved_radar_required;
 

@@ -394,6 +394,7 @@ endchoice
 
 config BSD_PROCESS_ACCT
 	bool "BSD Process Accounting"
+	depends on MULTIUSER
 	help
 	  If you say Y here, a user level program will be able to instruct the
 	  kernel (via a special system call) to write process accounting
@@ -420,6 +421,7 @@ config BSD_PROCESS_ACCT_V3
 config TASKSTATS
 	bool "Export task/process statistics through netlink"
 	depends on NET
+	depends on MULTIUSER
 	default n
 	help
 	  Export selected statistics for tasks/processes through the
@@ -1160,6 +1162,7 @@ config CHECKPOINT_RESTORE
 
 menuconfig NAMESPACES
 	bool "Namespaces support" if EXPERT
+	depends on MULTIUSER
 	default !EXPERT
 	help
 	  Provides the way to make tasks work with different objects using
@@ -1356,10 +1359,24 @@ menuconfig EXPERT
 
 config UID16
 	bool "Enable 16-bit UID system calls" if EXPERT
-	depends on HAVE_UID16
+	depends on HAVE_UID16 && MULTIUSER
 	default y
 	help
 	  This enables the legacy 16-bit UID syscall wrappers.
+
+config MULTIUSER
+	bool "Multiple users, groups and capabilities support" if EXPERT
+	default y
+	help
+	  This option enables support for non-root users, groups and
+	  capabilities.
+
+	  If you say N here, all processes will run with UID 0, GID 0, and all
+	  possible capabilities.  Saying N here also compiles out support for
+	  system calls related to UIDs, GIDs, and capabilities, such as setuid,
+	  setgid, and capset.
+
+	  If unsure, say Y here.
 
 config SGETMASK_SYSCALL
 	bool "sgetmask/ssetmask syscalls support" if EXPERT

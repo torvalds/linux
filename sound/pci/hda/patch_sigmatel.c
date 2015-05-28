@@ -299,32 +299,33 @@ static void stac_gpio_set(struct hda_codec *codec, unsigned int mask,
 			  unsigned int dir_mask, unsigned int data)
 {
 	unsigned int gpiostate, gpiomask, gpiodir;
+	hda_nid_t fg = codec->core.afg;
 
 	codec_dbg(codec, "%s msk %x dir %x gpio %x\n", __func__, mask, dir_mask, data);
 
-	gpiostate = snd_hda_codec_read(codec, codec->afg, 0,
+	gpiostate = snd_hda_codec_read(codec, fg, 0,
 				       AC_VERB_GET_GPIO_DATA, 0);
 	gpiostate = (gpiostate & ~dir_mask) | (data & dir_mask);
 
-	gpiomask = snd_hda_codec_read(codec, codec->afg, 0,
+	gpiomask = snd_hda_codec_read(codec, fg, 0,
 				      AC_VERB_GET_GPIO_MASK, 0);
 	gpiomask |= mask;
 
-	gpiodir = snd_hda_codec_read(codec, codec->afg, 0,
+	gpiodir = snd_hda_codec_read(codec, fg, 0,
 				     AC_VERB_GET_GPIO_DIRECTION, 0);
 	gpiodir |= dir_mask;
 
 	/* Configure GPIOx as CMOS */
-	snd_hda_codec_write(codec, codec->afg, 0, 0x7e7, 0);
+	snd_hda_codec_write(codec, fg, 0, 0x7e7, 0);
 
-	snd_hda_codec_write(codec, codec->afg, 0,
+	snd_hda_codec_write(codec, fg, 0,
 			    AC_VERB_SET_GPIO_MASK, gpiomask);
-	snd_hda_codec_read(codec, codec->afg, 0,
+	snd_hda_codec_read(codec, fg, 0,
 			   AC_VERB_SET_GPIO_DIRECTION, gpiodir); /* sync */
 
 	msleep(1);
 
-	snd_hda_codec_read(codec, codec->afg, 0,
+	snd_hda_codec_read(codec, fg, 0,
 			   AC_VERB_SET_GPIO_DATA, gpiostate); /* sync */
 }
 
@@ -387,7 +388,7 @@ static unsigned int stac_vref_led_power_filter(struct hda_codec *codec,
 					       hda_nid_t nid,
 					       unsigned int power_state)
 {
-	if (nid == codec->afg && power_state == AC_PWRST_D3)
+	if (nid == codec->core.afg && power_state == AC_PWRST_D3)
 		return AC_PWRST_D1;
 	return snd_hda_gen_path_power_filter(codec, nid, power_state);
 }
@@ -432,7 +433,7 @@ static void stac_update_outputs(struct hda_codec *codec)
 
 	if (spec->gpio_mute)
 		spec->gen.master_mute =
-			!(snd_hda_codec_read(codec, codec->afg, 0,
+			!(snd_hda_codec_read(codec, codec->core.afg, 0,
 				AC_VERB_GET_GPIO_DATA, 0) & spec->gpio_mute);
 
 	snd_hda_gen_update_outputs(codec);
@@ -476,7 +477,7 @@ static void stac_toggle_power_map(struct hda_codec *codec, hda_nid_t nid,
 	if (val != spec->power_map_bits) {
 		spec->power_map_bits = val;
 		if (do_write)
-			snd_hda_codec_write(codec, codec->afg, 0,
+			snd_hda_codec_write(codec, codec->core.afg, 0,
 					    AC_VERB_IDT_SET_POWER_MAP, val);
 	}
 }
@@ -508,7 +509,8 @@ static void jack_update_power(struct hda_codec *codec,
 				      false);
 	}
 
-	snd_hda_codec_write(codec, codec->afg, 0, AC_VERB_IDT_SET_POWER_MAP,
+	snd_hda_codec_write(codec, codec->core.afg, 0,
+			    AC_VERB_IDT_SET_POWER_MAP,
 			    spec->power_map_bits);
 }
 
@@ -517,10 +519,10 @@ static void stac_vref_event(struct hda_codec *codec,
 {
 	unsigned int data;
 
-	data = snd_hda_codec_read(codec, codec->afg, 0,
+	data = snd_hda_codec_read(codec, codec->core.afg, 0,
 				  AC_VERB_GET_GPIO_DATA, 0);
 	/* toggle VREF state based on GPIOx status */
-	snd_hda_codec_write(codec, codec->afg, 0, 0x7e0,
+	snd_hda_codec_write(codec, codec->core.afg, 0, 0x7e0,
 			    !!(data & (1 << event->private_data)));
 }
 
@@ -622,7 +624,7 @@ static int stac_aloopback_put(struct snd_kcontrol *kcontrol,
 	/* Only return the bits defined by the shift value of the
 	 * first two bytes of the mask
 	 */
-	dac_mode = snd_hda_codec_read(codec, codec->afg, 0,
+	dac_mode = snd_hda_codec_read(codec, codec->core.afg, 0,
 				      kcontrol->private_value & 0xFFFF, 0x0);
 	dac_mode >>= spec->aloopback_shift;
 
@@ -634,7 +636,7 @@ static int stac_aloopback_put(struct snd_kcontrol *kcontrol,
 		dac_mode &= ~idx_val;
 	}
 
-	snd_hda_codec_write_cache(codec, codec->afg, 0,
+	snd_hda_codec_write_cache(codec, codec->core.afg, 0,
 		kcontrol->private_value >> 16, dac_mode);
 
 	return 1;
@@ -658,11 +660,11 @@ static int stac_aloopback_put(struct snd_kcontrol *kcontrol,
 /* check whether it's a HP laptop with a docking port */
 static bool hp_bnb2011_with_dock(struct hda_codec *codec)
 {
-	if (codec->vendor_id != 0x111d7605 &&
-	    codec->vendor_id != 0x111d76d1)
+	if (codec->core.vendor_id != 0x111d7605 &&
+	    codec->core.vendor_id != 0x111d76d1)
 		return false;
 
-	switch (codec->subsystem_id) {
+	switch (codec->core.subsystem_id) {
 	case 0x103c1618:
 	case 0x103c1619:
 	case 0x103c161a:
@@ -733,7 +735,7 @@ static void set_hp_led_gpio(struct hda_codec *codec)
 	if (spec->gpio_led)
 		return;
 
-	gpio = snd_hda_param_read(codec, codec->afg, AC_PAR_GPIO_CAP);
+	gpio = snd_hda_param_read(codec, codec->core.afg, AC_PAR_GPIO_CAP);
 	gpio &= AC_GPIO_IO_COUNT;
 	if (gpio > 3)
 		spec->gpio_led = 0x08; /* GPIO 3 */
@@ -777,7 +779,7 @@ static int find_mute_led_cfg(struct hda_codec *codec, int default_polarity)
 			   &spec->gpio_led_polarity,
 			   &spec->gpio_led) == 2) {
 			unsigned int max_gpio;
-			max_gpio = snd_hda_param_read(codec, codec->afg,
+			max_gpio = snd_hda_param_read(codec, codec->core.afg,
 						      AC_PAR_GPIO_CAP);
 			max_gpio &= AC_GPIO_IO_COUNT;
 			if (spec->gpio_led < max_gpio)
@@ -807,7 +809,7 @@ static int find_mute_led_cfg(struct hda_codec *codec, int default_polarity)
 	 * we statically set the GPIO - if not a B-series system
 	 * and default polarity is provided
 	 */
-	if (!hp_blike_system(codec->subsystem_id) &&
+	if (!hp_blike_system(codec->core.subsystem_id) &&
 	    (default_polarity == 0 || default_polarity == 1)) {
 		set_hp_led_gpio(codec);
 		spec->gpio_led_polarity = default_polarity;
@@ -1048,12 +1050,9 @@ static const struct hda_verb stac92hd71bxx_core_init[] = {
 	{}
 };
 
-static const struct hda_verb stac92hd71bxx_unmute_core_init[] = {
+static const hda_nid_t stac92hd71bxx_unmute_nids[] = {
 	/* unmute right and left channels for nodes 0x0f, 0xa, 0x0d */
-	{ 0x0f, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{ 0x0a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{ 0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{}
+	0x0f, 0x0a, 0x0d, 0
 };
 
 static const struct hda_verb stac925x_core_init[] = {
@@ -2132,8 +2131,10 @@ static void stac92hd83xxx_fixup_hp_mic_led(struct hda_codec *codec,
 
 	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
 		spec->mic_mute_led_gpio = 0x08; /* GPIO3 */
+#ifdef CONFIG_PM
 		/* resetting controller clears GPIO, so we need to keep on */
-		codec->bus->power_keep_link_on = 1;
+		codec->core.power_caps &= ~AC_PWRST_CLKSTOP;
+#endif
 	}
 }
 
@@ -3029,9 +3030,9 @@ static void stac92hd71bxx_fixup_hp_m4(struct hda_codec *codec,
 		return;
 
 	/* Enable VREF power saving on GPIO1 detect */
-	snd_hda_codec_write_cache(codec, codec->afg, 0,
+	snd_hda_codec_write_cache(codec, codec->core.afg, 0,
 				  AC_VERB_SET_GPIO_UNSOLICITED_RSP_MASK, 0x02);
-	jack = snd_hda_jack_detect_enable_callback(codec, codec->afg,
+	jack = snd_hda_jack_detect_enable_callback(codec, codec->core.afg,
 						   stac_vref_event);
 	if (!IS_ERR(jack))
 		jack->private_data = 0x02;
@@ -3091,7 +3092,7 @@ static void stac92hd71bxx_fixup_hp(struct hda_codec *codec,
 	if (action != HDA_FIXUP_ACT_PRE_PROBE)
 		return;
 
-	if (hp_blike_system(codec->subsystem_id)) {
+	if (hp_blike_system(codec->core.subsystem_id)) {
 		unsigned int pin_cfg = snd_hda_codec_get_pincfg(codec, 0x0f);
 		if (get_defcfg_device(pin_cfg) == AC_JACK_LINE_OUT ||
 			get_defcfg_device(pin_cfg) == AC_JACK_SPEAKER  ||
@@ -3790,7 +3791,7 @@ static void stac927x_fixup_dell_dmic(struct hda_codec *codec,
 	if (action != HDA_FIXUP_ACT_PRE_PROBE)
 		return;
 
-	if (codec->subsystem_id != 0x1028022f) {
+	if (codec->core.subsystem_id != 0x1028022f) {
 		/* GPIO2 High = Enable EAPD */
 		spec->eapd_mask = spec->gpio_mask = 0x04;
 		spec->gpio_dir = spec->gpio_data = 0x04;
@@ -4051,9 +4052,9 @@ static void stac9205_fixup_dell_m43(struct hda_codec *codec,
 		snd_hda_apply_pincfgs(codec, dell_9205_m43_pin_configs);
 
 		/* Enable unsol response for GPIO4/Dock HP connection */
-		snd_hda_codec_write_cache(codec, codec->afg, 0,
+		snd_hda_codec_write_cache(codec, codec->core.afg, 0,
 			AC_VERB_SET_GPIO_UNSOLICITED_RSP_MASK, 0x10);
-		jack = snd_hda_jack_detect_enable_callback(codec, codec->afg,
+		jack = snd_hda_jack_detect_enable_callback(codec, codec->core.afg,
 							   stac_vref_event);
 		if (!IS_ERR(jack))
 			jack->private_data = 0x01;
@@ -4223,6 +4224,12 @@ static int stac_parse_auto_config(struct hda_codec *codec)
 	if (err < 0)
 		return err;
 
+	if (spec->vref_mute_led_nid) {
+		err = snd_hda_gen_fix_pin_power(codec, spec->vref_mute_led_nid);
+		if (err < 0)
+			return err;
+	}
+
 	/* setup analog beep controls */
 	if (spec->anabeep_nid > 0) {
 		err = stac_auto_create_beep_ctls(codec,
@@ -4259,6 +4266,10 @@ static int stac_parse_auto_config(struct hda_codec *codec)
 
 	if (spec->aloopback_ctl &&
 	    snd_hda_get_bool_hint(codec, "loopback") == 1) {
+		unsigned int wr_verb =
+			spec->aloopback_ctl->private_value >> 16;
+		if (snd_hdac_regmap_add_vendor_verb(&codec->core, wr_verb))
+			return -ENOMEM;
 		if (!snd_hda_gen_add_kctl(&spec->gen, NULL, spec->aloopback_ctl))
 			return -ENOMEM;
 	}
@@ -4294,7 +4305,7 @@ static int stac_init(struct hda_codec *codec)
 
 	/* sync the power-map */
 	if (spec->num_pwrs)
-		snd_hda_codec_write(codec, codec->afg, 0,
+		snd_hda_codec_write(codec, codec->core.afg, 0,
 				    AC_VERB_IDT_SET_POWER_MAP,
 				    spec->power_map_bits);
 
@@ -4330,7 +4341,7 @@ static void stac_shutup(struct hda_codec *codec)
 static void stac92hd_proc_hook(struct snd_info_buffer *buffer,
 			       struct hda_codec *codec, hda_nid_t nid)
 {
-	if (nid == codec->afg)
+	if (nid == codec->core.afg)
 		snd_iprintf(buffer, "Power-Map: 0x%02x\n", 
 			    snd_hda_codec_read(codec, nid, 0,
 					       AC_VERB_IDT_GET_POWER_MAP, 0));
@@ -4341,7 +4352,7 @@ static void analog_loop_proc_hook(struct snd_info_buffer *buffer,
 				  unsigned int verb)
 {
 	snd_iprintf(buffer, "Analog Loopback: 0x%02x\n",
-		    snd_hda_codec_read(codec, codec->afg, 0, verb, 0));
+		    snd_hda_codec_read(codec, codec->core.afg, 0, verb, 0));
 }
 
 /* stac92hd71bxx, stac92hd73xx */
@@ -4349,21 +4360,21 @@ static void stac92hd7x_proc_hook(struct snd_info_buffer *buffer,
 				 struct hda_codec *codec, hda_nid_t nid)
 {
 	stac92hd_proc_hook(buffer, codec, nid);
-	if (nid == codec->afg)
+	if (nid == codec->core.afg)
 		analog_loop_proc_hook(buffer, codec, 0xfa0);
 }
 
 static void stac9205_proc_hook(struct snd_info_buffer *buffer,
 			       struct hda_codec *codec, hda_nid_t nid)
 {
-	if (nid == codec->afg)
+	if (nid == codec->core.afg)
 		analog_loop_proc_hook(buffer, codec, 0xfe0);
 }
 
 static void stac927x_proc_hook(struct snd_info_buffer *buffer,
 			       struct hda_codec *codec, hda_nid_t nid)
 {
-	if (nid == codec->afg)
+	if (nid == codec->core.afg)
 		analog_loop_proc_hook(buffer, codec, 0xfeb);
 }
 #else
@@ -4392,6 +4403,7 @@ static const struct hda_codec_ops stac_patch_ops = {
 #ifdef CONFIG_PM
 	.suspend = stac_suspend,
 #endif
+	.stream_pm = snd_hda_gen_stream_pm,
 	.reboot_notify = stac_shutup,
 };
 
@@ -4485,6 +4497,7 @@ static int patch_stac92hd73xx(struct hda_codec *codec)
 		return err;
 
 	spec = codec->spec;
+	codec->power_save_node = 1;
 	spec->linear_tone_beep = 0;
 	spec->gen.mixer_nid = 0x1d;
 	spec->have_spdif_mux = 1;
@@ -4587,9 +4600,11 @@ static int patch_stac92hd83xxx(struct hda_codec *codec)
 	if (err < 0)
 		return err;
 
-	codec->epss = 0; /* longer delay needed for D3 */
+	/* longer delay needed for D3 */
+	codec->core.power_caps &= ~AC_PWRST_EPSS;
 
 	spec = codec->spec;
+	codec->power_save_node = 1;
 	spec->linear_tone_beep = 0;
 	spec->gen.own_eapd_ctl = 1;
 	spec->gen.power_down_unused = 1;
@@ -4636,9 +4651,11 @@ static int patch_stac92hd95(struct hda_codec *codec)
 	if (err < 0)
 		return err;
 
-	codec->epss = 0; /* longer delay needed for D3 */
+	/* longer delay needed for D3 */
+	codec->core.power_caps &= ~AC_PWRST_EPSS;
 
 	spec = codec->spec;
+	codec->power_save_node = 1;
 	spec->linear_tone_beep = 0;
 	spec->gen.own_eapd_ctl = 1;
 	spec->gen.power_down_unused = 1;
@@ -4672,7 +4689,7 @@ static int patch_stac92hd95(struct hda_codec *codec)
 static int patch_stac92hd71bxx(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec;
-	const struct hda_verb *unmute_init = stac92hd71bxx_unmute_core_init;
+	const hda_nid_t *unmute_nids = stac92hd71bxx_unmute_nids;
 	int err;
 
 	err = alloc_stac_spec(codec);
@@ -4680,6 +4697,7 @@ static int patch_stac92hd71bxx(struct hda_codec *codec)
 		return err;
 
 	spec = codec->spec;
+	codec->power_save_node = 1;
 	spec->linear_tone_beep = 0;
 	spec->gen.own_eapd_ctl = 1;
 	spec->gen.power_down_unused = 1;
@@ -4693,23 +4711,23 @@ static int patch_stac92hd71bxx(struct hda_codec *codec)
 	spec->gpio_dir = 0x01;
 	spec->gpio_data = 0x01;
 
-	switch (codec->vendor_id) {
+	switch (codec->core.vendor_id) {
 	case 0x111d76b6: /* 4 Port without Analog Mixer */
 	case 0x111d76b7:
-		unmute_init++;
+		unmute_nids++;
 		break;
 	case 0x111d7608: /* 5 Port with Analog Mixer */
-		if ((codec->revision_id & 0xf) == 0 ||
-		    (codec->revision_id & 0xf) == 1)
+		if ((codec->core.revision_id & 0xf) == 0 ||
+		    (codec->core.revision_id & 0xf) == 1)
 			spec->stream_delay = 40; /* 40 milliseconds */
 
 		/* disable VSW */
-		unmute_init++;
+		unmute_nids++;
 		snd_hda_codec_set_pincfg(codec, 0x0f, 0x40f000f0);
 		snd_hda_codec_set_pincfg(codec, 0x19, 0x40f000f3);
 		break;
 	case 0x111d7603: /* 6 Port with Analog Mixer */
-		if ((codec->revision_id & 0xf) == 1)
+		if ((codec->core.revision_id & 0xf) == 1)
 			spec->stream_delay = 40; /* 40 milliseconds */
 
 		break;
@@ -4718,8 +4736,12 @@ static int patch_stac92hd71bxx(struct hda_codec *codec)
 	if (get_wcaps_type(get_wcaps(codec, 0x28)) == AC_WID_VOL_KNB)
 		snd_hda_add_verbs(codec, stac92hd71bxx_core_init);
 
-	if (get_wcaps(codec, 0xa) & AC_WCAP_IN_AMP)
-		snd_hda_sequence_write_cache(codec, unmute_init);
+	if (get_wcaps(codec, 0xa) & AC_WCAP_IN_AMP) {
+		const hda_nid_t *p;
+		for (p = unmute_nids; *p; p++)
+			snd_hda_codec_amp_init_stereo(codec, *p, HDA_INPUT, 0,
+						      0xff, 0x00);
+	}
 
 	spec->aloopback_ctl = &stac92hd71bxx_loopback;
 	spec->aloopback_mask = 0x50;
@@ -5091,20 +5113,8 @@ MODULE_ALIAS("snd-hda-codec-id:111d*");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("IDT/Sigmatel HD-audio codec");
 
-static struct hda_codec_preset_list sigmatel_list = {
+static struct hda_codec_driver sigmatel_driver = {
 	.preset = snd_hda_preset_sigmatel,
-	.owner = THIS_MODULE,
 };
 
-static int __init patch_sigmatel_init(void)
-{
-	return snd_hda_add_codec_preset(&sigmatel_list);
-}
-
-static void __exit patch_sigmatel_exit(void)
-{
-	snd_hda_delete_codec_preset(&sigmatel_list);
-}
-
-module_init(patch_sigmatel_init)
-module_exit(patch_sigmatel_exit)
+module_hda_codec_driver(sigmatel_driver);

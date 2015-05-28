@@ -1820,8 +1820,8 @@ static int ext3_releasepage(struct page *page, gfp_t wait)
  * crashes then stale disk data _may_ be exposed inside the file. But current
  * VFS code falls back into buffered path in that case so we are safe.
  */
-static ssize_t ext3_direct_IO(int rw, struct kiocb *iocb,
-			struct iov_iter *iter, loff_t offset)
+static ssize_t ext3_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
+			      loff_t offset)
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
@@ -1832,9 +1832,9 @@ static ssize_t ext3_direct_IO(int rw, struct kiocb *iocb,
 	size_t count = iov_iter_count(iter);
 	int retries = 0;
 
-	trace_ext3_direct_IO_enter(inode, offset, count, rw);
+	trace_ext3_direct_IO_enter(inode, offset, count, iov_iter_rw(iter));
 
-	if (rw == WRITE) {
+	if (iov_iter_rw(iter) == WRITE) {
 		loff_t final_size = offset + count;
 
 		if (final_size > inode->i_size) {
@@ -1856,12 +1856,12 @@ static ssize_t ext3_direct_IO(int rw, struct kiocb *iocb,
 	}
 
 retry:
-	ret = blockdev_direct_IO(rw, iocb, inode, iter, offset, ext3_get_block);
+	ret = blockdev_direct_IO(iocb, inode, iter, offset, ext3_get_block);
 	/*
 	 * In case of error extending write may have instantiated a few
 	 * blocks outside i_size. Trim these off again.
 	 */
-	if (unlikely((rw & WRITE) && ret < 0)) {
+	if (unlikely(iov_iter_rw(iter) == WRITE && ret < 0)) {
 		loff_t isize = i_size_read(inode);
 		loff_t end = offset + count;
 
@@ -1908,7 +1908,7 @@ retry:
 			ret = err;
 	}
 out:
-	trace_ext3_direct_IO_exit(inode, offset, count, rw, ret);
+	trace_ext3_direct_IO_exit(inode, offset, count, iov_iter_rw(iter), ret);
 	return ret;
 }
 

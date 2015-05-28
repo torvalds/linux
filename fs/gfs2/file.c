@@ -709,7 +709,7 @@ static ssize_t gfs2_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 
 	gfs2_size_hint(file, iocb->ki_pos, iov_iter_count(from));
 
-	if (file->f_flags & O_APPEND) {
+	if (iocb->ki_flags & IOCB_APPEND) {
 		struct gfs2_holder gh;
 
 		ret = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, 0, &gh);
@@ -1105,9 +1105,7 @@ static int gfs2_flock(struct file *file, int cmd, struct file_lock *fl)
 
 const struct file_operations gfs2_file_fops = {
 	.llseek		= gfs2_llseek,
-	.read		= new_sync_read,
 	.read_iter	= generic_file_read_iter,
-	.write		= new_sync_write,
 	.write_iter	= gfs2_file_write_iter,
 	.unlocked_ioctl	= gfs2_ioctl,
 	.mmap		= gfs2_mmap,
@@ -1137,9 +1135,7 @@ const struct file_operations gfs2_dir_fops = {
 
 const struct file_operations gfs2_file_fops_nolock = {
 	.llseek		= gfs2_llseek,
-	.read		= new_sync_read,
 	.read_iter	= generic_file_read_iter,
-	.write		= new_sync_write,
 	.write_iter	= gfs2_file_write_iter,
 	.unlocked_ioctl	= gfs2_ioctl,
 	.mmap		= gfs2_mmap,

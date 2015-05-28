@@ -18,7 +18,6 @@
 
 #define NUM_DEFAULT_KEYS 4
 #define NUM_DEFAULT_MGMT_KEYS 2
-#define MAX_PN_LEN 16
 
 struct ieee80211_local;
 struct ieee80211_sub_if_data;
@@ -116,7 +115,7 @@ struct ieee80211_key {
 		} gcmp;
 		struct {
 			/* generic cipher scheme */
-			u8 rx_pn[IEEE80211_NUM_TIDS + 1][MAX_PN_LEN];
+			u8 rx_pn[IEEE80211_NUM_TIDS + 1][IEEE80211_MAX_PN_LEN];
 		} gen;
 	} u;
 

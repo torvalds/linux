@@ -124,7 +124,7 @@ static ssize_t temp1_max_store(struct device *dev,
 
 	return count;
 }
-static DEVICE_ATTR(temp1_max, S_IRUGO, temp1_max_show, temp1_max_store);
+static DEVICE_ATTR_RW(temp1_max);
 
 static ssize_t temp1_max_alarm_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
@@ -159,8 +159,8 @@ static umode_t dsa_hwmon_attrs_visible(struct kobject *kobj,
 	if (index == 1) {
 		if (!drv->get_temp_limit)
 			mode = 0;
-		else if (drv->set_temp_limit)
-			mode |= S_IWUSR;
+		else if (!drv->set_temp_limit)
+			mode &= ~S_IWUSR;
 	} else if (index == 2 && !drv->get_temp_alarm) {
 		mode = 0;
 	}

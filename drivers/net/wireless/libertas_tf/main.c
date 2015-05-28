@@ -439,7 +439,7 @@ static u64 lbtf_op_prepare_multicast(struct ieee80211_hw *hw,
 	return mc_count;
 }
 
-#define SUPPORTED_FIF_FLAGS  (FIF_PROMISC_IN_BSS | FIF_ALLMULTI)
+#define SUPPORTED_FIF_FLAGS  FIF_ALLMULTI
 static void lbtf_op_configure_filter(struct ieee80211_hw *hw,
 			unsigned int changed_flags,
 			unsigned int *new_flags,
@@ -458,10 +458,7 @@ static void lbtf_op_configure_filter(struct ieee80211_hw *hw,
 		return;
 	}
 
-	if (*new_flags & (FIF_PROMISC_IN_BSS))
-		priv->mac_control |= CMD_ACT_MAC_PROMISCUOUS_ENABLE;
-	else
-		priv->mac_control &= ~CMD_ACT_MAC_PROMISCUOUS_ENABLE;
+	priv->mac_control &= ~CMD_ACT_MAC_PROMISCUOUS_ENABLE;
 	if (*new_flags & (FIF_ALLMULTI) ||
 	    multicast > MRVDRV_MAX_MULTICAST_LIST_SIZE) {
 		priv->mac_control |= CMD_ACT_MAC_ALL_MULTICAST_ENABLE;

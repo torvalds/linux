@@ -434,8 +434,8 @@ static void qat_hal_reset_timestamp(struct icp_qat_fw_loader_handle *handle)
 	SET_GLB_CSR(handle, MISC_CONTROL, misc_ctl | MC_TIMESTAMP_ENABLE);
 }
 
-#define ESRAM_AUTO_TINIT (1<<2)
-#define ESRAM_AUTO_TINIT_DONE (1<<3)
+#define ESRAM_AUTO_TINIT	BIT(2)
+#define ESRAM_AUTO_TINIT_DONE	BIT(3)
 #define ESRAM_AUTO_INIT_USED_CYCLES (1640)
 #define ESRAM_AUTO_INIT_CSR_OFFSET 0xC1C
 static int qat_hal_init_esram(struct icp_qat_fw_loader_handle *handle)
@@ -718,7 +718,7 @@ int qat_hal_init(struct adf_accel_dev *accel_dev)
 	handle->hal_handle->ae_max_num = max_en_ae_id + 1;
 	/* take all AEs out of reset */
 	if (qat_hal_clr_reset(handle)) {
-		pr_err("QAT: qat_hal_clr_reset error\n");
+		dev_err(&GET_DEV(accel_dev), "qat_hal_clr_reset error\n");
 		goto out_err;
 	}
 	if (qat_hal_clear_gpr(handle))

@@ -1198,8 +1198,7 @@ static int ceph_write_end(struct file *file, struct address_space *mapping,
  * intercept O_DIRECT reads and writes early, this function should
  * never get called.
  */
-static ssize_t ceph_direct_io(int rw, struct kiocb *iocb,
-			      struct iov_iter *iter,
+static ssize_t ceph_direct_io(struct kiocb *iocb, struct iov_iter *iter,
 			      loff_t pos)
 {
 	WARN_ON(1);

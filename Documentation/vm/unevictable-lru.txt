@@ -22,6 +22,7 @@ CONTENTS
      - Filtering special vmas.
      - munlock()/munlockall() system call handling.
      - Migrating mlocked pages.
+     - Compacting mlocked pages.
      - mmap(MAP_LOCKED) system call handling.
      - munmap()/exit()/exec() system call handling.
      - try_to_unmap().
@@ -448,6 +449,17 @@ page on failure - will be freed when the reference count held by the migration
 process is released.  To ensure that we don't strand pages on the unevictable
 list because of a race between munlock and migration, page migration uses the
 putback_lru_page() function to add migrated pages back to the LRU.
+
+
+COMPACTING MLOCKED PAGES
+------------------------
+
+The unevictable LRU can be scanned for compactable regions and the default
+behavior is to do so.  /proc/sys/vm/compact_unevictable_allowed controls
+this behavior (see Documentation/sysctl/vm.txt).  Once scanning of the
+unevictable LRU is enabled, the work of compaction is mostly handled by
+the page migration code and the same work flow as described in MIGRATING
+MLOCKED PAGES will apply.
 
 
 mmap(MAP_LOCKED) SYSTEM CALL HANDLING

@@ -81,6 +81,7 @@ static struct mtd_dev_param __initdata mtd_dev_param[UBI_MAX_DEVICES];
 #ifdef CONFIG_MTD_UBI_FASTMAP
 /* UBI module parameter to enable fastmap automatically on non-fastmap images */
 static bool fm_autoconvert;
+static bool fm_debug;
 #endif
 /* Root UBI "class" object (corresponds to '/<sysfs>/class/ubi/') */
 struct class *ubi_class;
@@ -154,23 +155,22 @@ static struct device_attribute dev_mtd_num =
  */
 int ubi_volume_notify(struct ubi_device *ubi, struct ubi_volume *vol, int ntype)
 {
+	int ret;
 	struct ubi_notification nt;
 
 	ubi_do_get_device_info(ubi, &nt.di);
 	ubi_do_get_volume_info(ubi, vol, &nt.vi);
 
-#ifdef CONFIG_MTD_UBI_FASTMAP
 	switch (ntype) {
 	case UBI_VOLUME_ADDED:
 	case UBI_VOLUME_REMOVED:
 	case UBI_VOLUME_RESIZED:
 	case UBI_VOLUME_RENAMED:
-		if (ubi_update_fastmap(ubi)) {
-			ubi_err(ubi, "Unable to update fastmap!");
-			ubi_ro_mode(ubi);
-		}
+		ret = ubi_update_fastmap(ubi);
+		if (ret)
+			ubi_msg(ubi, "Unable to write a new fastmap: %i", ret);
 	}
-#endif
+
 	return blocking_notifier_call_chain(&ubi_notifiers, ntype, &nt);
 }
 
@@ -950,8 +950,10 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num,
 	if (ubi->fm_pool.max_size < UBI_FM_MIN_POOL_SIZE)
 		ubi->fm_pool.max_size = UBI_FM_MIN_POOL_SIZE;
 
-	ubi->fm_wl_pool.max_size = UBI_FM_WL_POOL_SIZE;
+	ubi->fm_wl_pool.max_size = ubi->fm_pool.max_size / 2;
 	ubi->fm_disabled = !fm_autoconvert;
+	if (fm_debug)
+		ubi_enable_dbg_chk_fastmap(ubi);
 
 	if (!ubi->fm_disabled && (int)mtd_div_by_eb(ubi->mtd->size, ubi->mtd)
 	    <= UBI_FM_MAX_START) {
@@ -970,8 +972,8 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num,
 	mutex_init(&ubi->ckvol_mutex);
 	mutex_init(&ubi->device_mutex);
 	spin_lock_init(&ubi->volumes_lock);
-	mutex_init(&ubi->fm_mutex);
-	init_rwsem(&ubi->fm_sem);
+	init_rwsem(&ubi->fm_protect);
+	init_rwsem(&ubi->fm_eba_sem);
 
 	ubi_msg(ubi, "attaching mtd%d", mtd->index);
 
@@ -1115,8 +1117,11 @@ int ubi_detach_mtd_dev(int ubi_num, int anyway)
 	ubi_msg(ubi, "detaching mtd%d", ubi->mtd->index);
 #ifdef CONFIG_MTD_UBI_FASTMAP
 	/* If we don't write a new fastmap at detach time we lose all
-	 * EC updates that have been made since the last written fastmap. */
-	ubi_update_fastmap(ubi);
+	 * EC updates that have been made since the last written fastmap.
+	 * In case of fastmap debugging we omit the update to simulate an
+	 * unclean shutdown. */
+	if (!ubi_dbg_chk_fastmap(ubi))
+		ubi_update_fastmap(ubi);
 #endif
 	/*
 	 * Before freeing anything, we have to stop the background thread to
@@ -1501,6 +1506,8 @@ MODULE_PARM_DESC(mtd, "MTD devices to attach. Parameter format: mtd=<name|num|pa
 #ifdef CONFIG_MTD_UBI_FASTMAP
 module_param(fm_autoconvert, bool, 0644);
 MODULE_PARM_DESC(fm_autoconvert, "Set this parameter to enable fastmap automatically on images without a fastmap.");
+module_param(fm_debug, bool, 0);
+MODULE_PARM_DESC(fm_debug, "Set this parameter to enable fastmap debugging by default. Warning, this will make fastmap slow!");
 #endif
 MODULE_VERSION(__stringify(UBI_VERSION));
 MODULE_DESCRIPTION("UBI - Unsorted Block Images");

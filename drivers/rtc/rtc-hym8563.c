@@ -66,7 +66,7 @@
 #define HYM8563_ALM_BIT_DISABLE	BIT(7)
 
 #define HYM8563_CLKOUT		0x0d
-#define HYM8563_CLKOUT_DISABLE	BIT(7)
+#define HYM8563_CLKOUT_ENABLE	BIT(7)
 #define HYM8563_CLKOUT_32768	0
 #define HYM8563_CLKOUT_1024	1
 #define HYM8563_CLKOUT_32	2
@@ -309,7 +309,7 @@ static unsigned long hym8563_clkout_recalc_rate(struct clk_hw *hw,
 	struct i2c_client *client = hym8563->client;
 	int ret = i2c_smbus_read_byte_data(client, HYM8563_CLKOUT);
 
-	if (ret < 0 || ret & HYM8563_CLKOUT_DISABLE)
+	if (ret < 0)
 		return 0;
 
 	ret &= HYM8563_CLKOUT_MASK;
@@ -360,9 +360,9 @@ static int hym8563_clkout_control(struct clk_hw *hw, bool enable)
 		return ret;
 
 	if (enable)
-		ret &= ~HYM8563_CLKOUT_DISABLE;
+		ret |= HYM8563_CLKOUT_ENABLE;
 	else
-		ret |= HYM8563_CLKOUT_DISABLE;
+		ret &= ~HYM8563_CLKOUT_ENABLE;
 
 	return i2c_smbus_write_byte_data(client, HYM8563_CLKOUT, ret);
 }
@@ -386,7 +386,7 @@ static int hym8563_clkout_is_prepared(struct clk_hw *hw)
 	if (ret < 0)
 		return ret;
 
-	return !(ret & HYM8563_CLKOUT_DISABLE);
+	return !!(ret & HYM8563_CLKOUT_ENABLE);
 }
 
 static const struct clk_ops hym8563_clkout_ops = {
@@ -407,7 +407,7 @@ static struct clk *hym8563_clkout_register_clk(struct hym8563 *hym8563)
 	int ret;
 
 	ret = i2c_smbus_write_byte_data(client, HYM8563_CLKOUT,
-						HYM8563_CLKOUT_DISABLE);
+						0);
 	if (ret < 0)
 		return ERR_PTR(ret);
 

@@ -637,8 +637,6 @@ static void talitos_unregister_rng(struct device *dev)
 #define TALITOS_MAX_KEY_SIZE		96
 #define TALITOS_MAX_IV_LENGTH		16 /* max of AES_BLOCK_SIZE, DES3_EDE_BLOCK_SIZE */
 
-#define MD5_BLOCK_SIZE    64
-
 struct talitos_ctx {
 	struct device *dev;
 	int ch;
@@ -2195,7 +2193,7 @@ static struct talitos_alg_template driver_algs[] = {
 			.halg.base = {
 				.cra_name = "md5",
 				.cra_driver_name = "md5-talitos",
-				.cra_blocksize = MD5_BLOCK_SIZE,
+				.cra_blocksize = MD5_HMAC_BLOCK_SIZE,
 				.cra_flags = CRYPTO_ALG_TYPE_AHASH |
 					     CRYPTO_ALG_ASYNC,
 			}
@@ -2285,7 +2283,7 @@ static struct talitos_alg_template driver_algs[] = {
 			.halg.base = {
 				.cra_name = "hmac(md5)",
 				.cra_driver_name = "hmac-md5-talitos",
-				.cra_blocksize = MD5_BLOCK_SIZE,
+				.cra_blocksize = MD5_HMAC_BLOCK_SIZE,
 				.cra_flags = CRYPTO_ALG_TYPE_AHASH |
 					     CRYPTO_ALG_ASYNC,
 			}
@@ -2706,20 +2704,16 @@ static int talitos_probe(struct platform_device *ofdev)
 		goto err_out;
 	}
 
+	priv->fifo_len = roundup_pow_of_two(priv->chfifo_len);
+
 	for (i = 0; i < priv->num_channels; i++) {
 		priv->chan[i].reg = priv->reg + TALITOS_CH_STRIDE * (i + 1);
 		if (!priv->irq[1] || !(i & 1))
 			priv->chan[i].reg += TALITOS_CH_BASE_OFFSET;
-	}
 
-	for (i = 0; i < priv->num_channels; i++) {
 		spin_lock_init(&priv->chan[i].head_lock);
 		spin_lock_init(&priv->chan[i].tail_lock);
-	}
 
-	priv->fifo_len = roundup_pow_of_two(priv->chfifo_len);
-
-	for (i = 0; i < priv->num_channels; i++) {
 		priv->chan[i].fifo = kzalloc(sizeof(struct talitos_request) *
 					     priv->fifo_len, GFP_KERNEL);
 		if (!priv->chan[i].fifo) {
@@ -2727,11 +2721,10 @@ static int talitos_probe(struct platform_device *ofdev)
 			err = -ENOMEM;
 			goto err_out;
 		}
-	}
 
-	for (i = 0; i < priv->num_channels; i++)
 		atomic_set(&priv->chan[i].submit_count,
 			   -(priv->chfifo_len - 1));
+	}
 
 	dma_set_mask(dev, DMA_BIT_MASK(36));
 

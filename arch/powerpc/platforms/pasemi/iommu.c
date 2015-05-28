@@ -27,6 +27,8 @@
 #include <asm/machdep.h>
 #include <asm/firmware.h>
 
+#include "pasemi.h"
+
 #define IOBMAP_PAGE_SHIFT	12
 #define IOBMAP_PAGE_SIZE	(1 << IOBMAP_PAGE_SHIFT)
 #define IOBMAP_PAGE_MASK	(IOBMAP_PAGE_SIZE - 1)
@@ -248,8 +250,8 @@ void __init iommu_init_early_pasemi(void)
 
 	iob_init(NULL);
 
-	ppc_md.pci_dma_dev_setup = pci_dma_dev_setup_pasemi;
-	ppc_md.pci_dma_bus_setup = pci_dma_bus_setup_pasemi;
+	pasemi_pci_controller_ops.dma_dev_setup = pci_dma_dev_setup_pasemi;
+	pasemi_pci_controller_ops.dma_bus_setup = pci_dma_bus_setup_pasemi;
 	ppc_md.tce_build = iobmap_build;
 	ppc_md.tce_free  = iobmap_free;
 	set_pci_dma_ops(&dma_iommu_ops);

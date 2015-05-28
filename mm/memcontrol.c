@@ -259,11 +259,6 @@ static void mem_cgroup_oom_notify(struct mem_cgroup *memcg);
  * page cache and RSS per cgroup. We would eventually like to provide
  * statistics based on the statistics developed by Rik Van Riel for clock-pro,
  * to help the administrator determine what knobs to tune.
- *
- * TODO: Add a water mark for the memory controller. Reclaim will begin when
- * we hit the water mark. May be even add a low water mark, such that
- * no reclaim occurs from a cgroup at it's low water mark, this is
- * a feature that will be implemented much later in the future.
  */
 struct mem_cgroup {
 	struct cgroup_subsys_state css;
@@ -460,6 +455,12 @@ static inline unsigned short mem_cgroup_id(struct mem_cgroup *memcg)
 	return memcg->css.id;
 }
 
+/*
+ * A helper function to get mem_cgroup from ID. must be called under
+ * rcu_read_lock().  The caller is responsible for calling
+ * css_tryget_online() if the mem_cgroup is used for charging. (dropping
+ * refcnt from swap can be called against removed memcg.)
+ */
 static inline struct mem_cgroup *mem_cgroup_from_id(unsigned short id)
 {
 	struct cgroup_subsys_state *css;
@@ -673,7 +674,7 @@ static void mem_cgroup_remove_exceeded(struct mem_cgroup_per_zone *mz,
 static unsigned long soft_limit_excess(struct mem_cgroup *memcg)
 {
 	unsigned long nr_pages = page_counter_read(&memcg->memory);
-	unsigned long soft_limit = ACCESS_ONCE(memcg->soft_limit);
+	unsigned long soft_limit = READ_ONCE(memcg->soft_limit);
 	unsigned long excess = 0;
 
 	if (nr_pages > soft_limit)
@@ -1041,7 +1042,7 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
 			goto out_unlock;
 
 		do {
-			pos = ACCESS_ONCE(iter->position);
+			pos = READ_ONCE(iter->position);
 			/*
 			 * A racing update may change the position and
 			 * put the last reference, hence css_tryget(),
@@ -1358,13 +1359,13 @@ static unsigned long mem_cgroup_margin(struct mem_cgroup *memcg)
 	unsigned long limit;
 
 	count = page_counter_read(&memcg->memory);
-	limit = ACCESS_ONCE(memcg->memory.limit);
+	limit = READ_ONCE(memcg->memory.limit);
 	if (count < limit)
 		margin = limit - count;
 
 	if (do_swap_account) {
 		count = page_counter_read(&memcg->memsw);
-		limit = ACCESS_ONCE(memcg->memsw.limit);
+		limit = READ_ONCE(memcg->memsw.limit);
 		if (count <= limit)
 			margin = min(margin, limit - count);
 	}
@@ -2349,20 +2350,6 @@ static void cancel_charge(struct mem_cgroup *memcg, unsigned int nr_pages)
 }
 
 /*
- * A helper function to get mem_cgroup from ID. must be called under
- * rcu_read_lock().  The caller is responsible for calling
- * css_tryget_online() if the mem_cgroup is used for charging. (dropping
- * refcnt from swap can be called against removed memcg.)
- */
-static struct mem_cgroup *mem_cgroup_lookup(unsigned short id)
-{
-	/* ID 0 is unused ID */
-	if (!id)
-		return NULL;
-	return mem_cgroup_from_id(id);
-}
-
-/*
  * try_get_mem_cgroup_from_page - look up page's memcg association
  * @page: the page
  *
@@ -2388,7 +2375,7 @@ struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
 		ent.val = page_private(page);
 		id = lookup_swap_cgroup_id(ent);
 		rcu_read_lock();
-		memcg = mem_cgroup_lookup(id);
+		memcg = mem_cgroup_from_id(id);
 		if (memcg && !css_tryget_online(&memcg->css))
 			memcg = NULL;
 		rcu_read_unlock();
@@ -2650,7 +2637,7 @@ struct kmem_cache *__memcg_kmem_get_cache(struct kmem_cache *cachep)
 		return cachep;
 
 	memcg = get_mem_cgroup_from_mm(current->mm);
-	kmemcg_id = ACCESS_ONCE(memcg->kmemcg_id);
+	kmemcg_id = READ_ONCE(memcg->kmemcg_id);
 	if (kmemcg_id < 0)
 		goto out;
 
@@ -5020,7 +5007,7 @@ static int mem_cgroup_can_attach(struct cgroup_subsys_state *css,
 	 * tunable will only affect upcoming migrations, not the current one.
 	 * So we need to save it, and keep it going.
 	 */
-	move_flags = ACCESS_ONCE(memcg->move_charge_at_immigrate);
+	move_flags = READ_ONCE(memcg->move_charge_at_immigrate);
 	if (move_flags) {
 		struct mm_struct *mm;
 		struct mem_cgroup *from = mem_cgroup_from_task(p);
@@ -5254,7 +5241,7 @@ static u64 memory_current_read(struct cgroup_subsys_state *css,
 static int memory_low_show(struct seq_file *m, void *v)
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
-	unsigned long low = ACCESS_ONCE(memcg->low);
+	unsigned long low = READ_ONCE(memcg->low);
 
 	if (low == PAGE_COUNTER_MAX)
 		seq_puts(m, "max\n");
@@ -5284,7 +5271,7 @@ static ssize_t memory_low_write(struct kernfs_open_file *of,
 static int memory_high_show(struct seq_file *m, void *v)
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
-	unsigned long high = ACCESS_ONCE(memcg->high);
+	unsigned long high = READ_ONCE(memcg->high);
 
 	if (high == PAGE_COUNTER_MAX)
 		seq_puts(m, "max\n");
@@ -5314,7 +5301,7 @@ static ssize_t memory_high_write(struct kernfs_open_file *of,
 static int memory_max_show(struct seq_file *m, void *v)
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
-	unsigned long max = ACCESS_ONCE(memcg->memory.limit);
+	unsigned long max = READ_ONCE(memcg->memory.limit);
 
 	if (max == PAGE_COUNTER_MAX)
 		seq_puts(m, "max\n");
@@ -5869,7 +5856,7 @@ void mem_cgroup_uncharge_swap(swp_entry_t entry)
 
 	id = swap_cgroup_record(entry, 0);
 	rcu_read_lock();
-	memcg = mem_cgroup_lookup(id);
+	memcg = mem_cgroup_from_id(id);
 	if (memcg) {
 		if (!mem_cgroup_is_root(memcg))
 			page_counter_uncharge(&memcg->memsw, 1);

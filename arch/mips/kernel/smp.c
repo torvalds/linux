@@ -176,10 +176,8 @@ static void stop_this_cpu(void *dummy)
 	 * Remove this CPU:
 	 */
 	set_cpu_online(smp_processor_id(), false);
-	for (;;) {
-		if (cpu_wait)
-			(*cpu_wait)();		/* Wait if available. */
-	}
+	local_irq_disable();
+	while (1);
 }
 
 void smp_send_stop(void)

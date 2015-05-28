@@ -238,13 +238,15 @@ static int proc_pid_wchan(struct seq_file *m, struct pid_namespace *ns,
 
 	wchan = get_wchan(task);
 
-	if (lookup_symbol_name(wchan, symname) < 0)
+	if (lookup_symbol_name(wchan, symname) < 0) {
 		if (!ptrace_may_access(task, PTRACE_MODE_READ))
 			return 0;
-		else
-			return seq_printf(m, "%lu", wchan);
-	else
-		return seq_printf(m, "%s", symname);
+		seq_printf(m, "%lu", wchan);
+	} else {
+		seq_printf(m, "%s", symname);
+	}
+
+	return 0;
 }
 #endif /* CONFIG_KALLSYMS */
 
@@ -309,10 +311,12 @@ static int proc_pid_stack(struct seq_file *m, struct pid_namespace *ns,
 static int proc_pid_schedstat(struct seq_file *m, struct pid_namespace *ns,
 			      struct pid *pid, struct task_struct *task)
 {
-	return seq_printf(m, "%llu %llu %lu\n",
-			(unsigned long long)task->se.sum_exec_runtime,
-			(unsigned long long)task->sched_info.run_delay,
-			task->sched_info.pcount);
+	seq_printf(m, "%llu %llu %lu\n",
+		   (unsigned long long)task->se.sum_exec_runtime,
+		   (unsigned long long)task->sched_info.run_delay,
+		   task->sched_info.pcount);
+
+	return 0;
 }
 #endif
 
@@ -387,7 +391,9 @@ static int proc_oom_score(struct seq_file *m, struct pid_namespace *ns,
 		points = oom_badness(task, NULL, NULL, totalpages) *
 						1000 / totalpages;
 	read_unlock(&tasklist_lock);
-	return seq_printf(m, "%lu\n", points);
+	seq_printf(m, "%lu\n", points);
+
+	return 0;
 }
 
 struct limit_names {
@@ -432,15 +438,15 @@ static int proc_pid_limits(struct seq_file *m, struct pid_namespace *ns,
 	 * print the file header
 	 */
        seq_printf(m, "%-25s %-20s %-20s %-10s\n",
-			"Limit", "Soft Limit", "Hard Limit", "Units");
+		  "Limit", "Soft Limit", "Hard Limit", "Units");
 
 	for (i = 0; i < RLIM_NLIMITS; i++) {
 		if (rlim[i].rlim_cur == RLIM_INFINITY)
 			seq_printf(m, "%-25s %-20s ",
-					 lnames[i].name, "unlimited");
+				   lnames[i].name, "unlimited");
 		else
 			seq_printf(m, "%-25s %-20lu ",
-					 lnames[i].name, rlim[i].rlim_cur);
+				   lnames[i].name, rlim[i].rlim_cur);
 
 		if (rlim[i].rlim_max == RLIM_INFINITY)
 			seq_printf(m, "%-20s ", "unlimited");
@@ -462,7 +468,9 @@ static int proc_pid_syscall(struct seq_file *m, struct pid_namespace *ns,
 {
 	long nr;
 	unsigned long args[6], sp, pc;
-	int res = lock_trace(task);
+	int res;
+
+	res = lock_trace(task);
 	if (res)
 		return res;
 
@@ -477,7 +485,8 @@ static int proc_pid_syscall(struct seq_file *m, struct pid_namespace *ns,
 		       args[0], args[1], args[2], args[3], args[4], args[5],
 		       sp, pc);
 	unlock_trace(task);
-	return res;
+
+	return 0;
 }
 #endif /* CONFIG_HAVE_ARCH_TRACEHOOK */
 
@@ -2002,12 +2011,13 @@ static int show_timer(struct seq_file *m, void *v)
 	notify = timer->it_sigev_notify;
 
 	seq_printf(m, "ID: %d\n", timer->it_id);
-	seq_printf(m, "signal: %d/%p\n", timer->sigq->info.si_signo,
-			timer->sigq->info.si_value.sival_ptr);
+	seq_printf(m, "signal: %d/%p\n",
+		   timer->sigq->info.si_signo,
+		   timer->sigq->info.si_value.sival_ptr);
 	seq_printf(m, "notify: %s/%s.%d\n",
-		nstr[notify & ~SIGEV_THREAD_ID],
-		(notify & SIGEV_THREAD_ID) ? "tid" : "pid",
-		pid_nr_ns(timer->it_pid, tp->ns));
+		   nstr[notify & ~SIGEV_THREAD_ID],
+		   (notify & SIGEV_THREAD_ID) ? "tid" : "pid",
+		   pid_nr_ns(timer->it_pid, tp->ns));
 	seq_printf(m, "ClockID: %d\n", timer->it_clock);
 
 	return 0;
@@ -2352,21 +2362,23 @@ static int do_io_accounting(struct task_struct *task, struct seq_file *m, int wh
 
 		unlock_task_sighand(task, &flags);
 	}
-	result = seq_printf(m,
-			"rchar: %llu\n"
-			"wchar: %llu\n"
-			"syscr: %llu\n"
-			"syscw: %llu\n"
-			"read_bytes: %llu\n"
-			"write_bytes: %llu\n"
-			"cancelled_write_bytes: %llu\n",
-			(unsigned long long)acct.rchar,
-			(unsigned long long)acct.wchar,
-			(unsigned long long)acct.syscr,
-			(unsigned long long)acct.syscw,
-			(unsigned long long)acct.read_bytes,
-			(unsigned long long)acct.write_bytes,
-			(unsigned long long)acct.cancelled_write_bytes);
+	seq_printf(m,
+		   "rchar: %llu\n"
+		   "wchar: %llu\n"
+		   "syscr: %llu\n"
+		   "syscw: %llu\n"
+		   "read_bytes: %llu\n"
+		   "write_bytes: %llu\n"
+		   "cancelled_write_bytes: %llu\n",
+		   (unsigned long long)acct.rchar,
+		   (unsigned long long)acct.wchar,
+		   (unsigned long long)acct.syscr,
+		   (unsigned long long)acct.syscw,
+		   (unsigned long long)acct.read_bytes,
+		   (unsigned long long)acct.write_bytes,
+		   (unsigned long long)acct.cancelled_write_bytes);
+	result = 0;
+
 out_unlock:
 	mutex_unlock(&task->signal->cred_guard_mutex);
 	return result;

@@ -78,6 +78,8 @@ static void __init setup_pcimap(void)
 #endif
 }
 
+extern int sbx00_acpi_init(void);
+
 static int __init pcibios_init(void)
 {
 	setup_pcimap();
@@ -88,6 +90,10 @@ static int __init pcibios_init(void)
 	loongson_pci_mem_resource.end = loongson_sysconf.pci_mem_end_addr;
 #endif
 	register_pci_controller(&loongson_pci_controller);
+
+#ifdef CONFIG_CPU_LOONGSON3
+	sbx00_acpi_init();
+#endif
 
 	return 0;
 }

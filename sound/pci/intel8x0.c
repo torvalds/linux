@@ -1795,7 +1795,7 @@ static struct ac97_pcm ac97_pcm_defs[] = {
 	},
 };
 
-static struct ac97_quirk ac97_quirks[] = {
+static const struct ac97_quirk ac97_quirks[] = {
         {
 		.subvendor = 0x0e11,
 		.subdevice = 0x000e,

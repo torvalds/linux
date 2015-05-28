@@ -408,7 +408,7 @@ bool oom_killer_disabled __read_mostly;
 static DECLARE_RWSEM(oom_sem);
 
 /**
- * mark_tsk_oom_victim - marks the given taks as OOM victim.
+ * mark_tsk_oom_victim - marks the given task as OOM victim.
  * @tsk: task to mark
  *
  * Has to be called with oom_sem taken for read and never after

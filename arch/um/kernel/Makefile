@@ -12,8 +12,8 @@ clean-files :=
 
 obj-y = config.o exec.o exitcode.o irq.o ksyms.o mem.o \
 	physmem.o process.o ptrace.o reboot.o sigio.o \
-	signal.o smp.o syscall.o sysrq.o time.o tlb.o trap.o \
-	um_arch.o umid.o maccess.o skas/
+	signal.o syscall.o sysrq.o time.o tlb.o trap.o \
+	um_arch.o umid.o maccess.o kmsg_dump.o skas/
 
 obj-$(CONFIG_BLK_DEV_INITRD) += initrd.o
 obj-$(CONFIG_GPROF)	+= gprof_syms.o

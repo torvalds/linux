@@ -36,7 +36,8 @@ extern void mempool_free(void *element, mempool_t *pool);
 
 /*
  * A mempool_alloc_t and mempool_free_t that get the memory from
- * a slab that is passed in through pool_data.
+ * a slab cache that is passed in through pool_data.
+ * Note: the slab cache may not have a ctor function.
  */
 void *mempool_alloc_slab(gfp_t gfp_mask, void *pool_data);
 void mempool_free_slab(void *element, void *pool_data);

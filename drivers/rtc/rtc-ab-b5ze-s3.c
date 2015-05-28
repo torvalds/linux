@@ -881,7 +881,7 @@ static const struct rtc_class_ops rtc_ops = {
 	.alarm_irq_enable = abb5zes3_rtc_alarm_irq_enable,
 };
 
-static struct regmap_config abb5zes3_rtc_regmap_config = {
+static const struct regmap_config abb5zes3_rtc_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 };

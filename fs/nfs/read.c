@@ -117,15 +117,15 @@ int nfs_readpage_async(struct nfs_open_context *ctx, struct inode *inode,
 
 static void nfs_readpage_release(struct nfs_page *req)
 {
-	struct inode *d_inode = req->wb_context->dentry->d_inode;
+	struct inode *inode = req->wb_context->dentry->d_inode;
 
-	dprintk("NFS: read done (%s/%llu %d@%lld)\n", d_inode->i_sb->s_id,
-		(unsigned long long)NFS_FILEID(d_inode), req->wb_bytes,
+	dprintk("NFS: read done (%s/%llu %d@%lld)\n", inode->i_sb->s_id,
+		(unsigned long long)NFS_FILEID(inode), req->wb_bytes,
 		(long long)req_offset(req));
 
 	if (nfs_page_group_sync_on_bit(req, PG_UNLOCKPAGE)) {
 		if (PageUptodate(req->wb_page))
-			nfs_readpage_to_fscache(d_inode, req->wb_page, 0);
+			nfs_readpage_to_fscache(inode, req->wb_page, 0);
 
 		unlock_page(req->wb_page);
 	}

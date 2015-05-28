@@ -157,20 +157,12 @@ static int msm_rng_probe(struct platform_device *pdev)
 	rng->hwrng.cleanup = msm_rng_cleanup,
 	rng->hwrng.read = msm_rng_read,
 
-	ret = hwrng_register(&rng->hwrng);
+	ret = devm_hwrng_register(&pdev->dev, &rng->hwrng);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register hwrng\n");
 		return ret;
 	}
 
-	return 0;
-}
-
-static int msm_rng_remove(struct platform_device *pdev)
-{
-	struct msm_rng *rng = platform_get_drvdata(pdev);
-
-	hwrng_unregister(&rng->hwrng);
 	return 0;
 }
 
@@ -182,7 +174,6 @@ MODULE_DEVICE_TABLE(of, msm_rng_of_match);
 
 static struct platform_driver msm_rng_driver = {
 	.probe = msm_rng_probe,
-	.remove = msm_rng_remove,
 	.driver = {
 		.name = KBUILD_MODNAME,
 		.of_match_table = of_match_ptr(msm_rng_of_match),

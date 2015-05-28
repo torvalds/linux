@@ -490,7 +490,7 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
 			 * of interest and try to speed up its reclaim.
 			 */
 			if (!ret)
-				deactivate_page(page);
+				deactivate_file_page(page);
 			count += ret;
 		}
 		pagevec_remove_exceptionals(&pvec);

@@ -152,6 +152,7 @@ config PPC
 	select DCACHE_WORD_ACCESS if PPC64 && CPU_LITTLE_ENDIAN
 	select NO_BOOTMEM
 	select HAVE_GENERIC_RCU_GUP
+	select HAVE_PERF_EVENTS_NMI if PPC64
 
 config GENERIC_CSUM
 	def_bool CPU_LITTLE_ENDIAN
@@ -188,9 +189,6 @@ config SCHED_OMIT_FRAME_POINTER
 config ARCH_MAY_HAVE_PC_FDC
 	bool
 	default PCI
-
-config PPC_OF
-	def_bool y
 
 config PPC_UDBG_16550
 	bool

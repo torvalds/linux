@@ -277,13 +277,15 @@ static int mrst_procfs(struct device *dev, struct seq_file *seq)
 	valid = vrtc_cmos_read(RTC_VALID);
 	spin_unlock_irq(&rtc_lock);
 
-	return seq_printf(seq,
-			"periodic_IRQ\t: %s\n"
-			"alarm\t\t: %s\n"
-			"BCD\t\t: no\n"
-			"periodic_freq\t: daily (not adjustable)\n",
-			(rtc_control & RTC_PIE) ? "on" : "off",
-			(rtc_control & RTC_AIE) ? "on" : "off");
+	seq_printf(seq,
+		   "periodic_IRQ\t: %s\n"
+		   "alarm\t\t: %s\n"
+		   "BCD\t\t: no\n"
+		   "periodic_freq\t: daily (not adjustable)\n",
+		   (rtc_control & RTC_PIE) ? "on" : "off",
+		   (rtc_control & RTC_AIE) ? "on" : "off");
+
+	return 0;
 }
 
 #else

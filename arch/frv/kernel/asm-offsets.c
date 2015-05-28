@@ -34,7 +34,6 @@ void foo(void)
 {
 	/* offsets into the thread_info structure */
 	OFFSET(TI_TASK,			thread_info, task);
-	OFFSET(TI_EXEC_DOMAIN,		thread_info, exec_domain);
 	OFFSET(TI_FLAGS,		thread_info, flags);
 	OFFSET(TI_STATUS,		thread_info, status);
 	OFFSET(TI_CPU,			thread_info, cpu);

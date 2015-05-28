@@ -313,7 +313,7 @@ static rx_handler_result_t macvtap_handle_frame(struct sk_buff **pskb)
 	 */
 	if (q->flags & IFF_VNET_HDR)
 		features |= vlan->tap_features;
-	if (netif_needs_gso(dev, skb, features)) {
+	if (netif_needs_gso(skb, features)) {
 		struct sk_buff *segs = __skb_gso_segment(skb, features, false);
 
 		if (IS_ERR(segs))
@@ -1118,8 +1118,6 @@ static const struct file_operations macvtap_fops = {
 	.owner		= THIS_MODULE,
 	.open		= macvtap_open,
 	.release	= macvtap_release,
-	.read		= new_sync_read,
-	.write		= new_sync_write,
 	.read_iter	= macvtap_read_iter,
 	.write_iter	= macvtap_write_iter,
 	.poll		= macvtap_poll,
