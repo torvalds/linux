@@ -87,21 +87,6 @@ detection.
 <section>
 <title>More OFDM parameters</title>
 
-<section id="fe-transmit-mode-t">
-<title>Number of carriers per channel</title>
-<programlisting>
-typedef enum fe_transmit_mode {
-	TRANSMISSION_MODE_2K,
-	TRANSMISSION_MODE_8K,
-	TRANSMISSION_MODE_AUTO,
-	TRANSMISSION_MODE_4K,
-	TRANSMISSION_MODE_1K,
-	TRANSMISSION_MODE_16K,
-	TRANSMISSION_MODE_32K,
- } fe_transmit_mode_t;
-</programlisting>
-</section>
-
 <section id="fe-bandwidth-t">
 <title>frontend bandwidth</title>
 <programlisting>

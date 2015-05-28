@@ -827,22 +827,61 @@ typedef enum fe_guard_interval {
 	<section id="DTV-TRANSMISSION-MODE">
 		<title><constant>DTV_TRANSMISSION_MODE</constant></title>
 
-		<para>Specifies the number of carriers used by the standard</para>
+		<para>Specifies the number of carriers used by the standard.
+		    This is used only on OFTM-based standards, e. g.
+		    DVB-T/T2, ISDB-T, DTMB</para>
 
-		<para>Possible values are:</para>
-<programlisting>
-typedef enum fe_transmit_mode {
-	TRANSMISSION_MODE_2K,
-	TRANSMISSION_MODE_8K,
-	TRANSMISSION_MODE_AUTO,
-	TRANSMISSION_MODE_4K,
-	TRANSMISSION_MODE_1K,
-	TRANSMISSION_MODE_16K,
-	TRANSMISSION_MODE_32K,
-	TRANSMISSION_MODE_C1,
-	TRANSMISSION_MODE_C3780,
-} fe_transmit_mode_t;
-</programlisting>
+<section id="fe-transmit-mode-t">
+<title>enum fe_transmit_mode: Number of carriers per channel</title>
+
+<table pgwide="1" frame="none" id="fe-transmit-mode">
+    <title>enum fe_transmit_mode</title>
+    <tgroup cols="2">
+	&cs-def;
+	<thead>
+	<row>
+	    <entry>ID</entry>
+	    <entry>Description</entry>
+	</row>
+	</thead>
+	<tbody valign="top">
+	<row>
+	    <entry>TRANSMISSION_MODE_AUTO</entry>
+	    <entry>Autodetect transmission mode. The hardware will try to find
+		the correct FFT-size (if capable) to fill in the missing
+		parameters.</entry>
+	</row><row>
+	    <entry>TRANSMISSION_MODE_1K</entry>
+	    <entry>Transmission mode 1K</entry>
+	</row><row>
+	    <entry>TRANSMISSION_MODE_2K</entry>
+	    <entry>Transmission mode 2K</entry>
+	</row><row>
+	    <entry>TRANSMISSION_MODE_8K</entry>
+	    <entry>Transmission mode 8K</entry>
+	</row><row>
+	    <entry>TRANSMISSION_MODE_4K</entry>
+	    <entry>Transmission mode 4K</entry>
+	</row><row>
+	    <entry>TRANSMISSION_MODE_16K</entry>
+	    <entry>Transmission mode 16K</entry>
+	</row><row>
+	    <entry>TRANSMISSION_MODE_32K</entry>
+	    <entry>Transmission mode 32K</entry>
+	</row><row>
+	    <entry>TRANSMISSION_MODE_C1</entry>
+	    <entry>Single Carrier (C=1) transmission mode (DTMB)</entry>
+	</row><row>
+	    <entry>TRANSMISSION_MODE_C3780</entry>
+	    <entry>Multi Carrier (C=3780) transmission mode (DTMB)</entry>
+	</row><row>
+	</row>
+        </tbody>
+    </tgroup>
+</table>
+</section>
+
+
 		<para>Notes:</para>
 		<para>1) ISDB-T supports three carrier/symbol-size: 8K, 4K, 2K. It is called
 			'mode' in the standard: Mode 1 is 2K, mode 2 is 4K, mode 3 is 8K</para>

@@ -198,7 +198,7 @@ enum fe_modulation {
 
 typedef enum fe_modulation fe_modulation_t;
 
-typedef enum fe_transmit_mode {
+enum fe_transmit_mode {
 	TRANSMISSION_MODE_2K,
 	TRANSMISSION_MODE_8K,
 	TRANSMISSION_MODE_AUTO,
@@ -208,7 +208,9 @@ typedef enum fe_transmit_mode {
 	TRANSMISSION_MODE_32K,
 	TRANSMISSION_MODE_C1,
 	TRANSMISSION_MODE_C3780,
-} fe_transmit_mode_t;
+};
+
+typedef enum fe_transmit_mode fe_transmit_mode_t;
 
 #if defined(__DVB_CORE__) || !defined (__KERNEL__)
 typedef enum fe_bandwidth {
