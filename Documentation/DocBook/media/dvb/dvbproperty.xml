@@ -137,25 +137,78 @@ get/set up to 64 properties. The actual meaning of each property is described on
 	</section>
 	<section id="DTV-MODULATION">
 	<title><constant>DTV_MODULATION</constant></title>
-<para>Specifies the frontend modulation type for cable and satellite types. The modulation can be one of the types bellow:</para>
-<programlisting>
- typedef enum fe_modulation {
-	QPSK,
-	QAM_16,
-	QAM_32,
-	QAM_64,
-	QAM_128,
-	QAM_256,
-	QAM_AUTO,
-	VSB_8,
-	VSB_16,
-	PSK_8,
-	APSK_16,
-	APSK_32,
-	DQPSK,
-	QAM_4_NR,
- } fe_modulation_t;
-</programlisting>
+<para>Specifies the frontend modulation type for delivery systems that supports
+    more than one modulation type. The modulation can be one of the types
+    defined by &fe-modulation;.</para>
+
+
+<section id="fe-modulation-t">
+<title>Modulation property</title>
+
+<para>Most of the digital TV standards currently offers more than one possible
+    modulation (sometimes called as "constellation" on some standards). This
+    enum contains the values used by the Kernel. Please notice that not all
+    modulations are supported by a given standard.</para>
+
+<table pgwide="1" frame="none" id="fe-modulation">
+    <title>enum fe_modulation</title>
+    <tgroup cols="2">
+	&cs-def;
+	<thead>
+	<row>
+	    <entry>ID</entry>
+	    <entry>Description</entry>
+	</row>
+	</thead>
+	<tbody valign="top">
+	<row>
+	    <entry>QPSK</entry>
+	    <entry>QPSK modulation</entry>
+	</row><row>
+	    <entry>QAM_16</entry>
+	    <entry>16-QAM modulation</entry>
+	</row><row>
+	    <entry>QAM_32</entry>
+	    <entry>32-QAM modulation</entry>
+	</row><row>
+	    <entry>QAM_64</entry>
+	    <entry>64-QAM modulation</entry>
+	</row><row>
+	    <entry>QAM_128</entry>
+	    <entry>128-QAM modulation</entry>
+	</row><row>
+	    <entry>QAM_256</entry>
+	    <entry>256-QAM modulation</entry>
+	</row><row>
+	    <entry>QAM_AUTO</entry>
+	    <entry>Autodetect QAM modulation</entry>
+	</row><row>
+	    <entry>VSB_8</entry>
+	    <entry>8-VSB modulation</entry>
+	</row><row>
+	    <entry>VSB_16</entry>
+	    <entry>16-VSB modulation</entry>
+	</row><row>
+	    <entry>PSK_8</entry>
+	    <entry>8-PSK modulation</entry>
+	</row><row>
+	    <entry>APSK_16</entry>
+	    <entry>16-APSK modulation</entry>
+	</row><row>
+	    <entry>APSK_32</entry>
+	    <entry>32-APSK modulation</entry>
+	</row><row>
+	    <entry>DQPSK</entry>
+	    <entry>DQPSK modulation</entry>
+	</row><row>
+	    <entry>QAM_4_NR</entry>
+	    <entry>4-QAM-NR modulation</entry>
+	</row>
+        </tbody>
+    </tgroup>
+</table>
+</section>
+
 	</section>
 	<section id="DTV-BANDWIDTH-HZ">
 		<title><constant>DTV_BANDWIDTH_HZ</constant></title>

@@ -100,32 +100,6 @@ detection.
 </para>
 </section>
 
-<section id="fe-modulation-t">
-<title>frontend modulation type for QAM, OFDM and VSB</title>
-<para>For cable and terrestrial frontends, e. g. for
-<link linkend="dvb-qam-parameters"><constant>struct dvb_qpsk_parameters</constant></link>,
-<link linkend="dvb-ofdm-parameters"><constant>struct dvb_qam_parameters</constant></link> and
-<link linkend="dvb-vsb-parameters"><constant>struct dvb_qam_parameters</constant></link>,
-it needs to specify the quadrature modulation mode which can be one of the following:
-</para>
-<programlisting>
- typedef enum fe_modulation {
-	QPSK,
-	QAM_16,
-	QAM_32,
-	QAM_64,
-	QAM_128,
-	QAM_256,
-	QAM_AUTO,
-	VSB_8,
-	VSB_16,
-	PSK_8,
-	APSK_16,
-	APSK_32,
-	DQPSK,
- } fe_modulation_t;
-</programlisting>
-</section>
 
 <section>
 <title>More OFDM parameters</title>

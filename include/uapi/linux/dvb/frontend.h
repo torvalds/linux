@@ -178,7 +178,7 @@ typedef enum fe_code_rate {
 } fe_code_rate_t;
 
 
-typedef enum fe_modulation {
+enum fe_modulation {
 	QPSK,
 	QAM_16,
 	QAM_32,
@@ -193,7 +193,9 @@ typedef enum fe_modulation {
 	APSK_32,
 	DQPSK,
 	QAM_4_NR,
-} fe_modulation_t;
+};
+
+typedef enum fe_modulation fe_modulation_t;
 
 typedef enum fe_transmit_mode {
 	TRANSMISSION_MODE_2K,
