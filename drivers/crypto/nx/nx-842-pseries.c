@@ -26,7 +26,6 @@
 #include "nx-842.h"
 #include "nx_csbcpb.h" /* struct nx_csbcpb */
 
-#define MODULE_NAME NX842_PSERIES_MODULE_NAME
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Robert Jennings <rcj@linux.vnet.ibm.com>");
 MODULE_DESCRIPTION("842 H/W Compression driver for IBM Power processors");
@@ -965,6 +964,7 @@ static struct attribute_group nx842_attribute_group = {
 };
 
 static struct nx842_driver nx842_pseries_driver = {
+	.name =		KBUILD_MODNAME,
 	.owner =	THIS_MODULE,
 	.constraints =	&nx842_pseries_constraints,
 	.compress =	nx842_pseries_compress,
@@ -1033,8 +1033,6 @@ static int __init nx842_probe(struct vio_dev *viodev,
 		goto error;
 	}
 
-	nx842_register_driver(&nx842_pseries_driver);
-
 	return 0;
 
 error_unlock:
@@ -1066,18 +1064,16 @@ static int __exit nx842_remove(struct vio_dev *viodev)
 		kfree(old_devdata->counters);
 	kfree(old_devdata);
 
-	nx842_unregister_driver(&nx842_pseries_driver);
-
 	return 0;
 }
 
 static struct vio_device_id nx842_vio_driver_ids[] = {
-	{NX842_PSERIES_COMPAT_NAME "-v1", NX842_PSERIES_COMPAT_NAME},
+	{"ibm,compression-v1", "ibm,compression"},
 	{"", ""},
 };
 
 static struct vio_driver nx842_vio_driver = {
-	.name = MODULE_NAME,
+	.name = KBUILD_MODNAME,
 	.probe = nx842_probe,
 	.remove = __exit_p(nx842_remove),
 	.get_desired_dma = nx842_get_desired_dma,
@@ -1087,9 +1083,14 @@ static struct vio_driver nx842_vio_driver = {
 static int __init nx842_init(void)
 {
 	struct nx842_devdata *new_devdata;
+	int ret;
+
 	pr_info("Registering IBM Power 842 compression driver\n");
 
 	BUILD_BUG_ON(sizeof(struct nx842_workmem) > NX842_MEM_COMPRESS);
+
+	if (!of_find_compatible_node(NULL, NULL, "ibm,compression"))
+		return -ENODEV;
 
 	RCU_INIT_POINTER(devdata, NULL);
 	new_devdata = kzalloc(sizeof(*new_devdata), GFP_KERNEL);
@@ -1100,7 +1101,21 @@ static int __init nx842_init(void)
 	new_devdata->status = UNAVAILABLE;
 	RCU_INIT_POINTER(devdata, new_devdata);
 
-	return vio_register_driver(&nx842_vio_driver);
+	ret = vio_register_driver(&nx842_vio_driver);
+	if (ret) {
+		pr_err("Could not register VIO driver %d\n", ret);
+
+		kfree(new_devdata);
+		return ret;
+	}
+
+	if (!nx842_platform_driver_set(&nx842_pseries_driver)) {
+		vio_unregister_driver(&nx842_vio_driver);
+		kfree(new_devdata);
+		return -EEXIST;
+	}
+
+	return 0;
 }
 
 module_init(nx842_init);
@@ -1111,6 +1126,7 @@ static void __exit nx842_exit(void)
 	unsigned long flags;
 
 	pr_info("Exiting IBM Power 842 compression driver\n");
+	nx842_platform_driver_unset(&nx842_pseries_driver);
 	spin_lock_irqsave(&devdata_mutex, flags);
 	old_devdata = rcu_dereference_check(devdata,
 			lockdep_is_held(&devdata_mutex));
@@ -1120,7 +1136,6 @@ static void __exit nx842_exit(void)
 	if (old_devdata && old_devdata->dev)
 		dev_set_drvdata(old_devdata->dev, NULL);
 	kfree(old_devdata);
-	nx842_unregister_driver(&nx842_pseries_driver);
 	vio_unregister_driver(&nx842_vio_driver);
 }
 

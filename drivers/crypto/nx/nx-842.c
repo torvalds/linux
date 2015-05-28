@@ -21,70 +21,9 @@
 
 #include "nx-842.h"
 
-#define MODULE_NAME "nx-compress"
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Dan Streetman <ddstreet@ieee.org>");
 MODULE_DESCRIPTION("842 H/W Compression driver for IBM Power processors");
-
-/* Only one driver is expected, based on the HW platform */
-static struct nx842_driver *nx842_driver;
-static DEFINE_SPINLOCK(nx842_driver_lock); /* protects driver pointers */
-
-void nx842_register_driver(struct nx842_driver *driver)
-{
-	spin_lock(&nx842_driver_lock);
-
-	if (nx842_driver) {
-		pr_err("can't register driver %s, already using driver %s\n",
-		       driver->owner->name, nx842_driver->owner->name);
-	} else {
-		pr_info("registering driver %s\n", driver->owner->name);
-		nx842_driver = driver;
-	}
-
-	spin_unlock(&nx842_driver_lock);
-}
-EXPORT_SYMBOL_GPL(nx842_register_driver);
-
-void nx842_unregister_driver(struct nx842_driver *driver)
-{
-	spin_lock(&nx842_driver_lock);
-
-	if (nx842_driver == driver) {
-		pr_info("unregistering driver %s\n", driver->owner->name);
-		nx842_driver = NULL;
-	} else if (nx842_driver) {
-		pr_err("can't unregister driver %s, using driver %s\n",
-		       driver->owner->name, nx842_driver->owner->name);
-	} else {
-		pr_err("can't unregister driver %s, no driver in use\n",
-		       driver->owner->name);
-	}
-
-	spin_unlock(&nx842_driver_lock);
-}
-EXPORT_SYMBOL_GPL(nx842_unregister_driver);
-
-static struct nx842_driver *get_driver(void)
-{
-	struct nx842_driver *driver = NULL;
-
-	spin_lock(&nx842_driver_lock);
-
-	driver = nx842_driver;
-
-	if (driver && !try_module_get(driver->owner))
-		driver = NULL;
-
-	spin_unlock(&nx842_driver_lock);
-
-	return driver;
-}
-
-static void put_driver(struct nx842_driver *driver)
-{
-	module_put(driver->owner);
-}
 
 /**
  * nx842_constraints
@@ -109,69 +48,38 @@ static void put_driver(struct nx842_driver *driver)
  */
 int nx842_constraints(struct nx842_constraints *c)
 {
-	struct nx842_driver *driver = get_driver();
-	int ret = 0;
-
-	if (!driver)
-		return -ENODEV;
-
-	BUG_ON(!c);
-	memcpy(c, driver->constraints, sizeof(*c));
-
-	put_driver(driver);
-
-	return ret;
+	memcpy(c, nx842_platform_driver()->constraints, sizeof(*c));
+	return 0;
 }
 EXPORT_SYMBOL_GPL(nx842_constraints);
 
-int nx842_compress(const unsigned char *in, unsigned int in_len,
-		   unsigned char *out, unsigned int *out_len,
-		   void *wrkmem)
+int nx842_compress(const unsigned char *in, unsigned int ilen,
+		   unsigned char *out, unsigned int *olen, void *wmem)
 {
-	struct nx842_driver *driver = get_driver();
-	int ret;
-
-	if (!driver)
-		return -ENODEV;
-
-	ret = driver->compress(in, in_len, out, out_len, wrkmem);
-
-	put_driver(driver);
-
-	return ret;
+	return nx842_platform_driver()->compress(in, ilen, out, olen, wmem);
 }
 EXPORT_SYMBOL_GPL(nx842_compress);
 
-int nx842_decompress(const unsigned char *in, unsigned int in_len,
-		     unsigned char *out, unsigned int *out_len,
-		     void *wrkmem)
+int nx842_decompress(const unsigned char *in, unsigned int ilen,
+		     unsigned char *out, unsigned int *olen, void *wmem)
 {
-	struct nx842_driver *driver = get_driver();
-	int ret;
-
-	if (!driver)
-		return -ENODEV;
-
-	ret = driver->decompress(in, in_len, out, out_len, wrkmem);
-
-	put_driver(driver);
-
-	return ret;
+	return nx842_platform_driver()->decompress(in, ilen, out, olen, wmem);
 }
 EXPORT_SYMBOL_GPL(nx842_decompress);
 
 static __init int nx842_init(void)
 {
-	pr_info("loading\n");
+	request_module("nx-compress-powernv");
+	request_module("nx-compress-pseries");
 
-	if (of_find_compatible_node(NULL, NULL, NX842_POWERNV_COMPAT_NAME))
-		request_module_nowait(NX842_POWERNV_MODULE_NAME);
-	else if (of_find_compatible_node(NULL, NULL, NX842_PSERIES_COMPAT_NAME))
-		request_module_nowait(NX842_PSERIES_MODULE_NAME);
-	else
+	/* we prevent loading if there's no platform driver, and we get the
+	 * module that set it so it won't unload, so we don't need to check
+	 * if it's set in any of the above functions
+	 */
+	if (!nx842_platform_driver_get()) {
 		pr_err("no nx842 driver found.\n");
-
-	pr_info("loaded\n");
+		return -ENODEV;
+	}
 
 	return 0;
 }
@@ -179,6 +87,6 @@ module_init(nx842_init);
 
 static void __exit nx842_exit(void)
 {
-	pr_info("NX842 unloaded\n");
+	nx842_platform_driver_put();
 }
 module_exit(nx842_exit);

@@ -23,7 +23,6 @@
 #include <asm/prom.h>
 #include <asm/icswx.h>
 
-#define MODULE_NAME NX842_POWERNV_MODULE_NAME
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Dan Streetman <ddstreet@ieee.org>");
 MODULE_DESCRIPTION("842 H/W Compression driver for IBM PowerNV processors");
@@ -571,6 +570,7 @@ static struct nx842_constraints nx842_powernv_constraints = {
 };
 
 static struct nx842_driver nx842_powernv_driver = {
+	.name =		KBUILD_MODNAME,
 	.owner =	THIS_MODULE,
 	.constraints =	&nx842_powernv_constraints,
 	.compress =	nx842_powernv_compress,
@@ -593,7 +593,7 @@ static __init int nx842_powernv_init(void)
 
 	pr_info("loading\n");
 
-	for_each_compatible_node(dn, NULL, NX842_POWERNV_COMPAT_NAME)
+	for_each_compatible_node(dn, NULL, "ibm,power-nx")
 		nx842_powernv_probe(dn);
 
 	if (!nx842_ct) {
@@ -601,7 +601,16 @@ static __init int nx842_powernv_init(void)
 		return -ENODEV;
 	}
 
-	nx842_register_driver(&nx842_powernv_driver);
+	if (!nx842_platform_driver_set(&nx842_powernv_driver)) {
+		struct nx842_coproc *coproc, *n;
+
+		list_for_each_entry_safe(coproc, n, &nx842_coprocs, list) {
+			list_del(&coproc->list);
+			kfree(coproc);
+		}
+
+		return -EEXIST;
+	}
 
 	pr_info("loaded\n");
 
@@ -613,7 +622,7 @@ static void __exit nx842_powernv_exit(void)
 {
 	struct nx842_coproc *coproc, *n;
 
-	nx842_unregister_driver(&nx842_powernv_driver);
+	nx842_platform_driver_unset(&nx842_powernv_driver);
 
 	list_for_each_entry_safe(coproc, n, &nx842_coprocs, list) {
 		list_del(&coproc->list);

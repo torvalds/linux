@@ -105,6 +105,7 @@ static inline unsigned long nx842_get_pa(void *addr)
 #define SET_FIELD(v, m, val)	(((v) & ~(m)) | (((val) << MASK_LSH(m)) & (m)))
 
 struct nx842_driver {
+	char *name;
 	struct module *owner;
 
 	struct nx842_constraints *constraints;
@@ -117,15 +118,10 @@ struct nx842_driver {
 			  void *wrkmem);
 };
 
-void nx842_register_driver(struct nx842_driver *driver);
-void nx842_unregister_driver(struct nx842_driver *driver);
-
-
-/* To allow the main nx-compress module to load platform module */
-#define NX842_POWERNV_MODULE_NAME	"nx-compress-powernv"
-#define NX842_POWERNV_COMPAT_NAME	"ibm,power-nx"
-#define NX842_PSERIES_MODULE_NAME	"nx-compress-pseries"
-#define NX842_PSERIES_COMPAT_NAME	"ibm,compression"
-
+struct nx842_driver *nx842_platform_driver(void);
+bool nx842_platform_driver_set(struct nx842_driver *driver);
+void nx842_platform_driver_unset(struct nx842_driver *driver);
+bool nx842_platform_driver_get(void);
+void nx842_platform_driver_put(void);
 
 #endif /* __NX_842_H__ */
