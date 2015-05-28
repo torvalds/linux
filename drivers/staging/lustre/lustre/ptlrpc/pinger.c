@@ -91,7 +91,7 @@ int ptlrpc_obd_ping(struct obd_device *obd)
 }
 EXPORT_SYMBOL(ptlrpc_obd_ping);
 
-int ptlrpc_ping(struct obd_import *imp)
+static int ptlrpc_ping(struct obd_import *imp)
 {
 	struct ptlrpc_request *req;
 
@@ -110,7 +110,7 @@ int ptlrpc_ping(struct obd_import *imp)
 	return 0;
 }
 
-void ptlrpc_update_next_ping(struct obd_import *imp, int soon)
+static void ptlrpc_update_next_ping(struct obd_import *imp, int soon)
 {
 	int time = soon ? PING_INTERVAL_SHORT : PING_INTERVAL;
 	if (imp->imp_state == LUSTRE_IMP_DISCON) {
@@ -141,7 +141,7 @@ static inline int ptlrpc_next_reconnect(struct obd_import *imp)
 		return cfs_time_shift(obd_timeout);
 }
 
-long pinger_check_timeout(unsigned long time)
+static long pinger_check_timeout(unsigned long time)
 {
 	struct timeout_item *item;
 	unsigned long timeout = PING_INTERVAL;
@@ -422,8 +422,8 @@ EXPORT_SYMBOL(ptlrpc_pinger_del_import);
  * Register a timeout callback to the pinger list, and the callback will
  * be called when timeout happens.
  */
-struct timeout_item *ptlrpc_new_timeout(int time, enum timeout_event event,
-					timeout_cb_t cb, void *data)
+static struct timeout_item *ptlrpc_new_timeout(int time,
+	enum timeout_event event, timeout_cb_t cb, void *data)
 {
 	struct timeout_item *ti;
 
@@ -548,7 +548,7 @@ void ptlrpc_pinger_wake_up(void)
 static int pet_refcount;
 static int	       pet_state;
 static wait_queue_head_t       pet_waitq;
-LIST_HEAD(pet_list);
+static LIST_HEAD(pet_list);
 static DEFINE_SPINLOCK(pet_lock);
 
 int ping_evictor_wake(struct obd_export *exp)
