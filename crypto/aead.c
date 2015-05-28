@@ -896,6 +896,35 @@ void crypto_unregister_aead(struct aead_alg *alg)
 }
 EXPORT_SYMBOL_GPL(crypto_unregister_aead);
 
+int crypto_register_aeads(struct aead_alg *algs, int count)
+{
+	int i, ret;
+
+	for (i = 0; i < count; i++) {
+		ret = crypto_register_aead(&algs[i]);
+		if (ret)
+			goto err;
+	}
+
+	return 0;
+
+err:
+	for (--i; i >= 0; --i)
+		crypto_unregister_aead(&algs[i]);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(crypto_register_aeads);
+
+void crypto_unregister_aeads(struct aead_alg *algs, int count)
+{
+	int i;
+
+	for (i = count - 1; i >= 0; --i)
+		crypto_unregister_aead(&algs[i]);
+}
+EXPORT_SYMBOL_GPL(crypto_unregister_aeads);
+
 int aead_register_instance(struct crypto_template *tmpl,
 			   struct aead_instance *inst)
 {

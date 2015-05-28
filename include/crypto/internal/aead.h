@@ -152,6 +152,8 @@ static inline unsigned int crypto_aead_maxauthsize(struct crypto_aead *aead)
 
 int crypto_register_aead(struct aead_alg *alg);
 void crypto_unregister_aead(struct aead_alg *alg);
+int crypto_register_aeads(struct aead_alg *algs, int count);
+void crypto_unregister_aeads(struct aead_alg *algs, int count);
 int aead_register_instance(struct crypto_template *tmpl,
 			   struct aead_instance *inst);
 
