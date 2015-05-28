@@ -1441,7 +1441,7 @@ static void intel_hpd_irq_handler(struct drm_device *dev,
 			 hotplug_trigger, dig_hotplug_reg);
 
 	spin_lock(&dev_priv->irq_lock);
-	for (i = 1; i < HPD_NUM_PINS; i++) {
+	for_each_hpd_pin(i) {
 		bool long_hpd;
 
 		if (!(hpd[i] & hotplug_trigger))
@@ -1477,7 +1477,7 @@ static void intel_hpd_irq_handler(struct drm_device *dev,
 		queue_dig = true;
 	}
 
-	for (i = 1; i < HPD_NUM_PINS; i++) {
+	for_each_hpd_pin(i) {
 		if (hpd[i] & hotplug_trigger &&
 		    dev_priv->hotplug.stats[i].state == HPD_DISABLED) {
 			/*
@@ -4292,7 +4292,7 @@ static void intel_hpd_irq_reenable_work(struct work_struct *work)
 	intel_runtime_pm_get(dev_priv);
 
 	spin_lock_irq(&dev_priv->irq_lock);
-	for (i = (HPD_NONE + 1); i < HPD_NUM_PINS; i++) {
+	for_each_hpd_pin(i) {
 		struct drm_connector *connector;
 
 		if (dev_priv->hotplug.stats[i].state != HPD_DISABLED)
@@ -4450,7 +4450,7 @@ void intel_hpd_init(struct drm_i915_private *dev_priv)
 	struct drm_connector *connector;
 	int i;
 
-	for (i = 1; i < HPD_NUM_PINS; i++) {
+	for_each_hpd_pin(i) {
 		dev_priv->hotplug.stats[i].count = 0;
 		dev_priv->hotplug.stats[i].state = HPD_ENABLED;
 	}

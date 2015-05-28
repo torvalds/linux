@@ -217,6 +217,9 @@ enum hpd_pin {
 	HPD_NUM_PINS
 };
 
+#define for_each_hpd_pin(__pin) \
+	for ((__pin) = (HPD_NONE + 1); (__pin) < HPD_NUM_PINS; (__pin)++)
+
 struct i915_hotplug {
 	struct work_struct hotplug_work;
 
