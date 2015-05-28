@@ -400,6 +400,17 @@ struct rb_irq_work {
 };
 
 /*
+ * Structure to hold event state and handle nested events.
+ */
+struct rb_event_info {
+	u64			ts;
+	u64			delta;
+	unsigned long		length;
+	struct buffer_page	*tail_page;
+	int			add_timestamp;
+};
+
+/*
  * Used for which event context the event is in.
  *  NMI     = 0
  *  IRQ     = 1
@@ -2000,9 +2011,12 @@ rb_add_time_stamp(struct ring_buffer_event *event, u64 delta)
  */
 static void
 rb_update_event(struct ring_buffer_per_cpu *cpu_buffer,
-		struct ring_buffer_event *event, unsigned length,
-		int add_timestamp, u64 delta)
+		struct ring_buffer_event *event,
+		struct rb_event_info *info)
 {
+	unsigned length = info->length;
+	u64 delta = info->delta;
+
 	/* Only a commit updates the timestamp */
 	if (unlikely(!rb_event_is_commit(cpu_buffer, event)))
 		delta = 0;
@@ -2011,7 +2025,7 @@ rb_update_event(struct ring_buffer_per_cpu *cpu_buffer,
 	 * If we need to add a timestamp, then we
 	 * add it to the start of the resevered space.
 	 */
-	if (unlikely(add_timestamp)) {
+	if (unlikely(info->add_timestamp)) {
 		event = rb_add_time_stamp(event, delta);
 		length -= RB_LEN_TIME_EXTEND;
 		delta = 0;
@@ -2203,10 +2217,11 @@ static unsigned rb_calculate_event_length(unsigned length)
 
 static inline void
 rb_reset_tail(struct ring_buffer_per_cpu *cpu_buffer,
-	      struct buffer_page *tail_page,
-	      unsigned long tail, unsigned long length)
+	      unsigned long tail, struct rb_event_info *info)
 {
+	struct buffer_page *tail_page = info->tail_page;
 	struct ring_buffer_event *event;
+	unsigned long length = info->length;
 
 	/*
 	 * Only the event that crossed the page boundary
@@ -2276,13 +2291,14 @@ rb_reset_tail(struct ring_buffer_per_cpu *cpu_buffer,
  */
 static noinline struct ring_buffer_event *
 rb_move_tail(struct ring_buffer_per_cpu *cpu_buffer,
-	     unsigned long length, unsigned long tail,
-	     struct buffer_page *tail_page, u64 ts)
+	     unsigned long tail, struct rb_event_info *info)
 {
+	struct buffer_page *tail_page = info->tail_page;
 	struct buffer_page *commit_page = cpu_buffer->commit_page;
 	struct ring_buffer *buffer = cpu_buffer->buffer;
 	struct buffer_page *next_page;
 	int ret;
+	u64 ts;
 
 	next_page = tail_page;
 
@@ -2368,25 +2384,24 @@ rb_move_tail(struct ring_buffer_per_cpu *cpu_buffer,
 
  out_again:
 
-	rb_reset_tail(cpu_buffer, tail_page, tail, length);
+	rb_reset_tail(cpu_buffer, tail, info);
 
 	/* fail and let the caller try again */
 	return ERR_PTR(-EAGAIN);
 
  out_reset:
 	/* reset write */
-	rb_reset_tail(cpu_buffer, tail_page, tail, length);
+	rb_reset_tail(cpu_buffer, tail, info);
 
 	return NULL;
 }
 
 static struct ring_buffer_event *
 __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
-		  unsigned long length, u64 ts,
-		  u64 delta, int add_timestamp)
+		  struct rb_event_info *info)
 {
-	struct buffer_page *tail_page;
 	struct ring_buffer_event *event;
+	struct buffer_page *tail_page;
 	unsigned long tail, write;
 
 	/*
@@ -2394,33 +2409,32 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 	 * hold in the time field of the event, then we append a
 	 * TIME EXTEND event ahead of the data event.
 	 */
-	if (unlikely(add_timestamp))
-		length += RB_LEN_TIME_EXTEND;
+	if (unlikely(info->add_timestamp))
+		info->length += RB_LEN_TIME_EXTEND;
 
-	tail_page = cpu_buffer->tail_page;
-	write = local_add_return(length, &tail_page->write);
+	tail_page = info->tail_page = cpu_buffer->tail_page;
+	write = local_add_return(info->length, &tail_page->write);
 
 	/* set write to only the index of the write */
 	write &= RB_WRITE_MASK;
-	tail = write - length;
+	tail = write - info->length;
 
 	/*
 	 * If this is the first commit on the page, then it has the same
 	 * timestamp as the page itself.
 	 */
 	if (!tail)
-		delta = 0;
+		info->delta = 0;
 
 	/* See if we shot pass the end of this buffer page */
 	if (unlikely(write > BUF_PAGE_SIZE))
-		return rb_move_tail(cpu_buffer, length, tail,
-				    tail_page, ts);
+		return rb_move_tail(cpu_buffer, tail, info);
 
 	/* We reserved something on the buffer */
 
 	event = __rb_page_index(tail_page, tail);
 	kmemcheck_annotate_bitfield(event, bitfield);
-	rb_update_event(cpu_buffer, event, length, add_timestamp, delta);
+	rb_update_event(cpu_buffer, event, info);
 
 	local_inc(&tail_page->entries);
 
@@ -2429,10 +2443,10 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 	 * its timestamp.
 	 */
 	if (!tail)
-		tail_page->page->time_stamp = ts;
+		tail_page->page->time_stamp = info->ts;
 
 	/* account for these added bytes */
-	local_add(length, &cpu_buffer->entries_bytes);
+	local_add(info->length, &cpu_buffer->entries_bytes);
 
 	return event;
 }
@@ -2521,9 +2535,8 @@ rb_reserve_next_event(struct ring_buffer *buffer,
 		      unsigned long length)
 {
 	struct ring_buffer_event *event;
-	u64 ts, delta;
+	struct rb_event_info info;
 	int nr_loops = 0;
-	int add_timestamp;
 	u64 diff;
 
 	rb_start_commit(cpu_buffer);
@@ -2543,10 +2556,10 @@ rb_reserve_next_event(struct ring_buffer *buffer,
 	}
 #endif
 
-	length = rb_calculate_event_length(length);
+	info.length = rb_calculate_event_length(length);
  again:
-	add_timestamp = 0;
-	delta = 0;
+	info.add_timestamp = 0;
+	info.delta = 0;
 
 	/*
 	 * We allow for interrupts to reenter here and do a trace.
@@ -2560,35 +2573,35 @@ rb_reserve_next_event(struct ring_buffer *buffer,
 	if (RB_WARN_ON(cpu_buffer, ++nr_loops > 1000))
 		goto out_fail;
 
-	ts = rb_time_stamp(cpu_buffer->buffer);
-	diff = ts - cpu_buffer->write_stamp;
+	info.ts = rb_time_stamp(cpu_buffer->buffer);
+	diff = info.ts - cpu_buffer->write_stamp;
 
 	/* make sure this diff is calculated here */
 	barrier();
 
 	/* Did the write stamp get updated already? */
-	if (likely(ts >= cpu_buffer->write_stamp)) {
-		delta = diff;
-		if (unlikely(test_time_stamp(delta))) {
+	if (likely(info.ts >= cpu_buffer->write_stamp)) {
+		info.delta = diff;
+		if (unlikely(test_time_stamp(info.delta))) {
 			int local_clock_stable = 1;
 #ifdef CONFIG_HAVE_UNSTABLE_SCHED_CLOCK
 			local_clock_stable = sched_clock_stable();
 #endif
-			WARN_ONCE(delta > (1ULL << 59),
+			WARN_ONCE(info.delta > (1ULL << 59),
 				  KERN_WARNING "Delta way too big! %llu ts=%llu write stamp = %llu\n%s",
-				  (unsigned long long)delta,
-				  (unsigned long long)ts,
+				  (unsigned long long)info.delta,
+				  (unsigned long long)info.ts,
 				  (unsigned long long)cpu_buffer->write_stamp,
 				  local_clock_stable ? "" :
 				  "If you just came from a suspend/resume,\n"
 				  "please switch to the trace global clock:\n"
 				  "  echo global > /sys/kernel/debug/tracing/trace_clock\n");
-			add_timestamp = 1;
+			info.add_timestamp = 1;
 		}
 	}
 
-	event = __rb_reserve_next(cpu_buffer, length, ts,
-				  delta, add_timestamp);
+	event = __rb_reserve_next(cpu_buffer, &info);
+
 	if (unlikely(PTR_ERR(event) == -EAGAIN))
 		goto again;
 
