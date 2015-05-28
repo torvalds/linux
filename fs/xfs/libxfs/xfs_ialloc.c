@@ -1508,10 +1508,13 @@ xfs_difree_inobt(
 	rec.ir_freecount++;
 
 	/*
-	 * When an inode cluster is free, it becomes eligible for removal
+	 * When an inode chunk is free, it becomes eligible for removal. Don't
+	 * remove the chunk if the block size is large enough for multiple inode
+	 * chunks (that might not be free).
 	 */
 	if (!(mp->m_flags & XFS_MOUNT_IKEEP) &&
-	    (rec.ir_freecount == mp->m_ialloc_inos)) {
+	    rec.ir_free == XFS_INOBT_ALL_FREE &&
+	    mp->m_sb.sb_inopblock <= XFS_INODES_PER_CHUNK) {
 
 		*deleted = 1;
 		*first_ino = XFS_AGINO_TO_INO(mp, agno, rec.ir_startino);
@@ -1521,7 +1524,7 @@ xfs_difree_inobt(
 		 * AGI and Superblock inode counts, and mark the disk space
 		 * to be freed when the transaction is committed.
 		 */
-		ilen = mp->m_ialloc_inos;
+		ilen = rec.ir_freecount;
 		be32_add_cpu(&agi->agi_count, -ilen);
 		be32_add_cpu(&agi->agi_freecount, -(ilen - 1));
 		xfs_ialloc_log_agi(tp, agbp, XFS_AGI_COUNT | XFS_AGI_FREECOUNT);
@@ -1641,8 +1644,13 @@ xfs_difree_finobt(
 	 * free inode. Hence, if all of the inodes are free and we aren't
 	 * keeping inode chunks permanently on disk, remove the record.
 	 * Otherwise, update the record with the new information.
+	 *
+	 * Note that we currently can't free chunks when the block size is large
+	 * enough for multiple chunks. Leave the finobt record to remain in sync
+	 * with the inobt.
 	 */
-	if (rec.ir_freecount == mp->m_ialloc_inos &&
+	if (rec.ir_free == XFS_INOBT_ALL_FREE &&
+	    mp->m_sb.sb_inopblock <= XFS_INODES_PER_CHUNK &&
 	    !(mp->m_flags & XFS_MOUNT_IKEEP)) {
 		error = xfs_btree_delete(cur, &i);
 		if (error)
