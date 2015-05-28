@@ -1302,7 +1302,8 @@ void rewrite_data_page(struct f2fs_io_info *fio)
 	f2fs_submit_page_mbio(fio);
 }
 
-void f2fs_replace_block(struct f2fs_sb_info *sbi, struct f2fs_summary *sum,
+static void __f2fs_replace_block(struct f2fs_sb_info *sbi,
+				struct f2fs_summary *sum,
 				block_t old_blkaddr, block_t new_blkaddr,
 				bool recover_curseg)
 {
@@ -1360,6 +1361,21 @@ void f2fs_replace_block(struct f2fs_sb_info *sbi, struct f2fs_summary *sum,
 
 	mutex_unlock(&sit_i->sentry_lock);
 	mutex_unlock(&curseg->curseg_mutex);
+}
+
+void f2fs_replace_block(struct f2fs_sb_info *sbi, struct dnode_of_data *dn,
+				block_t old_addr, block_t new_addr,
+				unsigned char version, bool recover_curseg)
+{
+	struct f2fs_summary sum;
+
+	set_summary(&sum, dn->nid, dn->ofs_in_node, version);
+
+	__f2fs_replace_block(sbi, &sum, old_addr, new_addr, recover_curseg);
+
+	dn->data_blkaddr = new_addr;
+	set_data_blkaddr(dn);
+	f2fs_update_extent_cache(dn);
 }
 
 static inline bool is_merged_page(struct f2fs_sb_info *sbi,

@@ -360,7 +360,6 @@ static int do_recover_data(struct f2fs_sb_info *sbi, struct inode *inode,
 	struct f2fs_inode_info *fi = F2FS_I(inode);
 	unsigned int start, end;
 	struct dnode_of_data dn;
-	struct f2fs_summary sum;
 	struct node_info ni;
 	int err = 0, recovered = 0;
 
@@ -420,13 +419,9 @@ static int do_recover_data(struct f2fs_sb_info *sbi, struct inode *inode,
 			if (err)
 				goto err;
 
-			set_summary(&sum, dn.nid, dn.ofs_in_node, ni.version);
-
 			/* write dummy data page */
-			f2fs_replace_block(sbi, &sum, src, dest, false);
-			dn.data_blkaddr = dest;
-			set_data_blkaddr(&dn);
-			f2fs_update_extent_cache(&dn);
+			f2fs_replace_block(sbi, &dn, src, dest,
+							ni.version, false);
 			recovered++;
 		}
 		dn.ofs_in_node++;

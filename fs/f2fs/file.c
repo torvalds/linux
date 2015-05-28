@@ -854,18 +854,10 @@ static int f2fs_do_collapse(struct inode *inode, pgoff_t start, pgoff_t end)
 				set_data_blkaddr(&dn);
 			} else if (new_addr != NEW_ADDR) {
 				struct node_info ni;
-				struct f2fs_summary sum;
 
 				get_node_info(sbi, dn.nid, &ni);
-				set_summary(&sum, dn.nid, dn.ofs_in_node,
-								ni.version);
-
-				f2fs_replace_block(sbi, &sum, old_addr,
-								new_addr, true);
-
-				dn.data_blkaddr = new_addr;
-				set_data_blkaddr(&dn);
-				f2fs_update_extent_cache(&dn);
+				f2fs_replace_block(sbi, &dn, old_addr, new_addr,
+							ni.version, true);
 			}
 
 			f2fs_put_dnode(&dn);
