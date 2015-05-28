@@ -1273,6 +1273,7 @@ void __init intel_ds_init(void)
 			x86_pmu.pebs_record_size =
 						sizeof(struct pebs_record_skl);
 			x86_pmu.drain_pebs = intel_pmu_drain_pebs_nhm;
+			x86_pmu.free_running_flags |= PERF_SAMPLE_TIME;
 			break;
 
 		default:

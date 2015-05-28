@@ -594,6 +594,7 @@ struct x86_pmu {
 	struct event_constraint *pebs_constraints;
 	void		(*pebs_aliases)(struct perf_event *event);
 	int 		max_pebs_events;
+	unsigned long	free_running_flags;
 
 	/*
 	 * Intel LBR
