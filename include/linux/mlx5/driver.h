@@ -504,6 +504,11 @@ enum {
 	MLX5_COMP_EQ_SIZE = 1024,
 };
 
+enum {
+	MLX5_PTYS_IB = 1 << 0,
+	MLX5_PTYS_EN = 1 << 2,
+};
+
 struct mlx5_db_pgdir {
 	struct list_head	list;
 	DECLARE_BITMAP(bitmap, MLX5_DB_PER_PAGE);
@@ -686,7 +691,16 @@ void mlx5_qp_debugfs_cleanup(struct mlx5_core_dev *dev);
 int mlx5_core_access_reg(struct mlx5_core_dev *dev, void *data_in,
 			 int size_in, void *data_out, int size_out,
 			 u16 reg_num, int arg, int write);
+
 int mlx5_set_port_caps(struct mlx5_core_dev *dev, u8 port_num, u32 caps);
+int mlx5_query_port_ptys(struct mlx5_core_dev *dev, u32 *ptys,
+			 int ptys_size, int proto_mask);
+int mlx5_query_port_proto_cap(struct mlx5_core_dev *dev,
+			      u32 *proto_cap, int proto_mask);
+int mlx5_query_port_proto_admin(struct mlx5_core_dev *dev,
+				u32 *proto_admin, int proto_mask);
+int mlx5_set_port_proto(struct mlx5_core_dev *dev, u32 proto_admin,
+			int proto_mask);
 
 int mlx5_debug_eq_add(struct mlx5_core_dev *dev, struct mlx5_eq *eq);
 void mlx5_debug_eq_remove(struct mlx5_core_dev *dev, struct mlx5_eq *eq);

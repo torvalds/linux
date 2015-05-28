@@ -102,3 +102,80 @@ int mlx5_set_port_caps(struct mlx5_core_dev *dev, u8 port_num, u32 caps)
 	return err;
 }
 EXPORT_SYMBOL_GPL(mlx5_set_port_caps);
+
+int mlx5_query_port_ptys(struct mlx5_core_dev *dev, u32 *ptys,
+			 int ptys_size, int proto_mask)
+{
+	u32 in[MLX5_ST_SZ_DW(ptys_reg)];
+	int err;
+
+	memset(in, 0, sizeof(in));
+	MLX5_SET(ptys_reg, in, local_port, 1);
+	MLX5_SET(ptys_reg, in, proto_mask, proto_mask);
+
+	err = mlx5_core_access_reg(dev, in, sizeof(in), ptys,
+				   ptys_size, MLX5_REG_PTYS, 0, 0);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(mlx5_query_port_ptys);
+
+int mlx5_query_port_proto_cap(struct mlx5_core_dev *dev,
+			      u32 *proto_cap, int proto_mask)
+{
+	u32 out[MLX5_ST_SZ_DW(ptys_reg)];
+	int err;
+
+	err = mlx5_query_port_ptys(dev, out, sizeof(out), proto_mask);
+	if (err)
+		return err;
+
+	if (proto_mask == MLX5_PTYS_EN)
+		*proto_cap = MLX5_GET(ptys_reg, out, eth_proto_capability);
+	else
+		*proto_cap = MLX5_GET(ptys_reg, out, ib_proto_capability);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mlx5_query_port_proto_cap);
+
+int mlx5_query_port_proto_admin(struct mlx5_core_dev *dev,
+				u32 *proto_admin, int proto_mask)
+{
+	u32 out[MLX5_ST_SZ_DW(ptys_reg)];
+	int err;
+
+	err = mlx5_query_port_ptys(dev, out, sizeof(out), proto_mask);
+	if (err)
+		return err;
+
+	if (proto_mask == MLX5_PTYS_EN)
+		*proto_admin = MLX5_GET(ptys_reg, out, eth_proto_admin);
+	else
+		*proto_admin = MLX5_GET(ptys_reg, out, ib_proto_admin);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mlx5_query_port_proto_admin);
+
+int mlx5_set_port_proto(struct mlx5_core_dev *dev, u32 proto_admin,
+			int proto_mask)
+{
+	u32 in[MLX5_ST_SZ_DW(ptys_reg)];
+	u32 out[MLX5_ST_SZ_DW(ptys_reg)];
+	int err;
+
+	memset(in, 0, sizeof(in));
+
+	MLX5_SET(ptys_reg, in, local_port, 1);
+	MLX5_SET(ptys_reg, in, proto_mask, proto_mask);
+	if (proto_mask == MLX5_PTYS_EN)
+		MLX5_SET(ptys_reg, in, eth_proto_admin, proto_admin);
+	else
+		MLX5_SET(ptys_reg, in, ib_proto_admin, proto_admin);
+
+	err = mlx5_core_access_reg(dev, in, sizeof(in), out,
+				   sizeof(out), MLX5_REG_PTYS, 0, 1);
+	return err;
+}
+EXPORT_SYMBOL_GPL(mlx5_set_port_proto);
