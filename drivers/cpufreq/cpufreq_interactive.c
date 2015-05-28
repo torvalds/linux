@@ -622,8 +622,19 @@ static void cpufreq_interactive_boost(struct cpufreq_interactive_tunables *tunab
 
 	for_each_online_cpu(i) {
 		pcpu = &per_cpu(cpuinfo, i);
-		if (tunables != pcpu->policy->governor_data)
+
+		if (!down_read_trylock(&pcpu->enable_sem))
 			continue;
+
+		if (!pcpu->governor_enabled) {
+			up_read(&pcpu->enable_sem);
+			continue;
+		}
+
+		if (tunables != pcpu->policy->governor_data) {
+			up_read(&pcpu->enable_sem);
+			continue;
+		}
 
 		spin_lock_irqsave(&pcpu->target_freq_lock, flags[1]);
 		if (pcpu->target_freq < tunables->hispeed_freq) {
@@ -634,6 +645,8 @@ static void cpufreq_interactive_boost(struct cpufreq_interactive_tunables *tunab
 			anyboost = 1;
 		}
 		spin_unlock_irqrestore(&pcpu->target_freq_lock, flags[1]);
+
+		up_read(&pcpu->enable_sem);
 	}
 
 	spin_unlock_irqrestore(&speedchange_cpumask_lock, flags[0]);
