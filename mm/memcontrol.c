@@ -598,6 +598,39 @@ struct cgroup_subsys_state *mem_cgroup_css(struct mem_cgroup *memcg)
 	return &memcg->css;
 }
 
+/**
+ * mem_cgroup_css_from_page - css of the memcg associated with a page
+ * @page: page of interest
+ *
+ * If memcg is bound to the default hierarchy, css of the memcg associated
+ * with @page is returned.  The returned css remains associated with @page
+ * until it is released.
+ *
+ * If memcg is bound to a traditional hierarchy, the css of root_mem_cgroup
+ * is returned.
+ *
+ * XXX: The above description of behavior on the default hierarchy isn't
+ * strictly true yet as replace_page_cache_page() can modify the
+ * association before @page is released even on the default hierarchy;
+ * however, the current and planned usages don't mix the the two functions
+ * and replace_page_cache_page() will soon be updated to make the invariant
+ * actually true.
+ */
+struct cgroup_subsys_state *mem_cgroup_css_from_page(struct page *page)
+{
+	struct mem_cgroup *memcg;
+
+	rcu_read_lock();
+
+	memcg = page->mem_cgroup;
+
+	if (!memcg || !cgroup_on_dfl(memcg->css.cgroup))
+		memcg = root_mem_cgroup;
+
+	rcu_read_unlock();
+	return &memcg->css;
+}
+
 static struct mem_cgroup_per_zone *
 mem_cgroup_page_zoneinfo(struct mem_cgroup *memcg, struct page *page)
 {
