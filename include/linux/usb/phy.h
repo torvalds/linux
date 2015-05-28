@@ -240,6 +240,12 @@ static inline struct usb_phy *devm_usb_get_phy_by_phandle(struct device *dev,
 	return ERR_PTR(-ENXIO);
 }
 
+static inline struct usb_phy *devm_usb_get_phy_by_node(struct device *dev,
+	struct device_node *node, struct notifier_block *nb)
+{
+	return ERR_PTR(-ENXIO);
+}
+
 static inline void usb_put_phy(struct usb_phy *x)
 {
 }
