@@ -607,9 +607,18 @@ xfs_ialloc_ag_alloc(
 	struct xfs_inobt_rec_incore rec;
 	struct xfs_perag *pag;
 
+	int		do_sparse = 0;
+
+#ifdef DEBUG
+	/* randomly do sparse inode allocations */
+	if (xfs_sb_version_hassparseinodes(&tp->t_mountp->m_sb))
+		do_sparse = prandom_u32() & 1;
+#endif
+
 	memset(&args, 0, sizeof(args));
 	args.tp = tp;
 	args.mp = tp->t_mountp;
+	args.fsbno = NULLFSBLOCK;
 
 	/*
 	 * Locking will ensure that we don't have two callers in here
@@ -631,6 +640,8 @@ xfs_ialloc_ag_alloc(
 	agno = be32_to_cpu(agi->agi_seqno);
 	args.agbno = XFS_AGINO_TO_AGBNO(args.mp, newino) +
 		     args.mp->m_ialloc_blks;
+	if (do_sparse)
+		goto sparse_alloc;
 	if (likely(newino != NULLAGINO &&
 		  (args.agbno < be32_to_cpu(agi->agi_length)))) {
 		args.fsbno = XFS_AGB_TO_FSB(args.mp, agno, args.agbno);
@@ -669,8 +680,7 @@ xfs_ialloc_ag_alloc(
 		 * subsequent requests.
 		 */
 		args.minalignslop = 0;
-	} else
-		args.fsbno = NULLFSBLOCK;
+	}
 
 	if (unlikely(args.fsbno == NULLFSBLOCK)) {
 		/*
@@ -728,6 +738,7 @@ xfs_ialloc_ag_alloc(
 	if (xfs_sb_version_hassparseinodes(&args.mp->m_sb) &&
 	    args.mp->m_ialloc_min_blks < args.mp->m_ialloc_blks &&
 	    args.fsbno == NULLFSBLOCK) {
+sparse_alloc:
 		args.type = XFS_ALLOCTYPE_NEAR_BNO;
 		args.agbno = be32_to_cpu(agi->agi_root);
 		args.fsbno = XFS_AGB_TO_FSB(args.mp, agno, args.agbno);
