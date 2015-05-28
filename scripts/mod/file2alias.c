@@ -34,6 +34,9 @@ typedef Elf64_Addr	kernel_ulong_t;
 typedef uint32_t	__u32;
 typedef uint16_t	__u16;
 typedef unsigned char	__u8;
+typedef struct {
+	__u8 b[16];
+} uuid_le;
 
 /* Big exception to the "don't include kernel headers into userspace, which
  * even potentially has different endianness and word sizes, since
@@ -131,13 +134,13 @@ static inline void add_wildcard(char *str)
 		strcat(str + len, "*");
 }
 
-static inline void add_uuid(char *str, __u8 uuid[16])
+static inline void add_uuid(char *str, uuid_le uuid)
 {
 	int len = strlen(str);
 	int i;
 
 	for (i = 0; i < 16; i++)
-		sprintf(str + len + (i << 1), "%02x", uuid[i]);
+		sprintf(str + len + (i << 1), "%02x", uuid.b[i]);
 }
 
 /**

@@ -614,7 +614,7 @@ struct ipack_device_id {
  */
 struct mei_cl_device_id {
 	char name[MEI_CL_NAME_SIZE];
-	__u8 uuid[16];
+	uuid_le uuid;
 	kernel_ulong_t driver_info;
 };
 

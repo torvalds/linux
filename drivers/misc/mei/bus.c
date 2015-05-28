@@ -30,11 +30,6 @@
 #define to_mei_cl_driver(d) container_of(d, struct mei_cl_driver, driver)
 #define to_mei_cl_device(d) container_of(d, struct mei_cl_device, dev)
 
-static inline uuid_le uuid_le_cast(const __u8 uuid[16])
-{
-	return *(uuid_le *)uuid;
-}
-
 static int mei_cl_device_match(struct device *dev, struct device_driver *drv)
 {
 	struct mei_cl_device *device = to_mei_cl_device(dev);
@@ -54,9 +49,9 @@ static int mei_cl_device_match(struct device *dev, struct device_driver *drv)
 
 	id = driver->id_table;
 
-	while (uuid_le_cmp(NULL_UUID_LE, uuid_le_cast(id->uuid))) {
+	while (uuid_le_cmp(NULL_UUID_LE, id->uuid)) {
 
-		if (!uuid_le_cmp(*uuid, uuid_le_cast(id->uuid))) {
+		if (!uuid_le_cmp(*uuid, id->uuid)) {
 			if (id->name[0]) {
 				if (!strncmp(name, id->name, sizeof(id->name)))
 					return 1;
