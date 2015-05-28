@@ -240,7 +240,7 @@ static void __intel_pmu_lbr_restore(struct x86_perf_task_context *task_ctx)
 
 	mask = x86_pmu.lbr_nr - 1;
 	tos = intel_pmu_lbr_tos();
-	for (i = 0; i < x86_pmu.lbr_nr; i++) {
+	for (i = 0; i < tos; i++) {
 		lbr_idx = (tos - i) & mask;
 		wrmsrl(x86_pmu.lbr_from + lbr_idx, task_ctx->lbr_from[i]);
 		wrmsrl(x86_pmu.lbr_to + lbr_idx, task_ctx->lbr_to[i]);
@@ -263,7 +263,7 @@ static void __intel_pmu_lbr_save(struct x86_perf_task_context *task_ctx)
 
 	mask = x86_pmu.lbr_nr - 1;
 	tos = intel_pmu_lbr_tos();
-	for (i = 0; i < x86_pmu.lbr_nr; i++) {
+	for (i = 0; i < tos; i++) {
 		lbr_idx = (tos - i) & mask;
 		rdmsrl(x86_pmu.lbr_from + lbr_idx, task_ctx->lbr_from[i]);
 		rdmsrl(x86_pmu.lbr_to + lbr_idx, task_ctx->lbr_to[i]);
@@ -425,8 +425,12 @@ static void intel_pmu_lbr_read_64(struct cpu_hw_events *cpuc)
 	u64 tos = intel_pmu_lbr_tos();
 	int i;
 	int out = 0;
+	int num = x86_pmu.lbr_nr;
 
-	for (i = 0; i < x86_pmu.lbr_nr; i++) {
+	if (cpuc->lbr_sel->config & LBR_CALL_STACK)
+		num = tos;
+
+	for (i = 0; i < num; i++) {
 		unsigned long lbr_idx = (tos - i) & mask;
 		u64 from, to, mis = 0, pred = 0, in_tx = 0, abort = 0;
 		int skip = 0;
