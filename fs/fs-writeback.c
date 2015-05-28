@@ -259,6 +259,56 @@ void __inode_attach_wb(struct inode *inode, struct page *page)
 }
 
 /**
+ * locked_inode_to_wb_and_lock_list - determine a locked inode's wb and lock it
+ * @inode: inode of interest with i_lock held
+ *
+ * Returns @inode's wb with its list_lock held.  @inode->i_lock must be
+ * held on entry and is released on return.  The returned wb is guaranteed
+ * to stay @inode's associated wb until its list_lock is released.
+ */
+static struct bdi_writeback *
+locked_inode_to_wb_and_lock_list(struct inode *inode)
+	__releases(&inode->i_lock)
+	__acquires(&wb->list_lock)
+{
+	while (true) {
+		struct bdi_writeback *wb = inode_to_wb(inode);
+
+		/*
+		 * inode_to_wb() association is protected by both
+		 * @inode->i_lock and @wb->list_lock but list_lock nests
+		 * outside i_lock.  Drop i_lock and verify that the
+		 * association hasn't changed after acquiring list_lock.
+		 */
+		wb_get(wb);
+		spin_unlock(&inode->i_lock);
+		spin_lock(&wb->list_lock);
+		wb_put(wb);		/* not gonna deref it anymore */
+
+		if (likely(wb == inode_to_wb(inode)))
+			return wb;	/* @inode already has ref */
+
+		spin_unlock(&wb->list_lock);
+		cpu_relax();
+		spin_lock(&inode->i_lock);
+	}
+}
+
+/**
+ * inode_to_wb_and_lock_list - determine an inode's wb and lock it
+ * @inode: inode of interest
+ *
+ * Same as locked_inode_to_wb_and_lock_list() but @inode->i_lock isn't held
+ * on entry.
+ */
+static struct bdi_writeback *inode_to_wb_and_lock_list(struct inode *inode)
+	__acquires(&wb->list_lock)
+{
+	spin_lock(&inode->i_lock);
+	return locked_inode_to_wb_and_lock_list(inode);
+}
+
+/**
  * wbc_attach_and_unlock_inode - associate wbc with target inode and unlock it
  * @wbc: writeback_control of interest
  * @inode: target inode
@@ -603,6 +653,27 @@ restart:
 
 #else	/* CONFIG_CGROUP_WRITEBACK */
 
+static struct bdi_writeback *
+locked_inode_to_wb_and_lock_list(struct inode *inode)
+	__releases(&inode->i_lock)
+	__acquires(&wb->list_lock)
+{
+	struct bdi_writeback *wb = inode_to_wb(inode);
+
+	spin_unlock(&inode->i_lock);
+	spin_lock(&wb->list_lock);
+	return wb;
+}
+
+static struct bdi_writeback *inode_to_wb_and_lock_list(struct inode *inode)
+	__acquires(&wb->list_lock)
+{
+	struct bdi_writeback *wb = inode_to_wb(inode);
+
+	spin_lock(&wb->list_lock);
+	return wb;
+}
+
 static long wb_split_bdi_pages(struct bdi_writeback *wb, long nr_pages)
 {
 	return nr_pages;
@@ -678,9 +749,9 @@ void wb_start_background_writeback(struct bdi_writeback *wb)
  */
 void inode_wb_list_del(struct inode *inode)
 {
-	struct bdi_writeback *wb = inode_to_wb(inode);
+	struct bdi_writeback *wb;
 
-	spin_lock(&wb->list_lock);
+	wb = inode_to_wb_and_lock_list(inode);
 	inode_wb_list_del_locked(inode, wb);
 	spin_unlock(&wb->list_lock);
 }
@@ -1784,12 +1855,11 @@ void __mark_inode_dirty(struct inode *inode, int flags)
 		 * reposition it (that would break b_dirty time-ordering).
 		 */
 		if (!was_dirty) {
-			struct bdi_writeback *wb = inode_to_wb(inode);
+			struct bdi_writeback *wb;
 			struct list_head *dirty_list;
 			bool wakeup_bdi = false;
 
-			spin_unlock(&inode->i_lock);
-			spin_lock(&wb->list_lock);
+			wb = locked_inode_to_wb_and_lock_list(inode);
 
 			WARN(bdi_cap_writeback_dirty(wb->bdi) &&
 			     !test_bit(WB_registered, &wb->state),
