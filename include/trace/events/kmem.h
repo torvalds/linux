@@ -158,11 +158,23 @@ DEFINE_EVENT_CONDITION(kmem_free, kmem_cache_free,
 	TP_CONDITION(cpu_online(raw_smp_processor_id()))
 );
 
-TRACE_EVENT(mm_page_free,
+TRACE_EVENT_CONDITION(mm_page_free,
 
 	TP_PROTO(struct page *page, unsigned int order),
 
 	TP_ARGS(page, order),
+
+
+	/*
+	 * This trace can be potentially called from an offlined cpu.
+	 * Since trace points use RCU and RCU should not be used from
+	 * offline cpus, filter such calls out.
+	 * While this trace can be called from a preemptable section,
+	 * it has no impact on the condition since tasks can migrate
+	 * only from online cpus to other online cpus. Thus its safe
+	 * to use raw_smp_processor_id.
+	 */
+	TP_CONDITION(cpu_online(raw_smp_processor_id())),
 
 	TP_STRUCT__entry(
 		__field(	unsigned long,	pfn		)
