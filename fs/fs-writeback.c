@@ -214,6 +214,20 @@ static void wb_wait_for_completion(struct backing_dev_info *bdi,
 
 #ifdef CONFIG_CGROUP_WRITEBACK
 
+/* parameters for foreign inode detection, see wb_detach_inode() */
+#define WB_FRN_TIME_SHIFT	13	/* 1s = 2^13, upto 8 secs w/ 16bit */
+#define WB_FRN_TIME_AVG_SHIFT	3	/* avg = avg * 7/8 + new * 1/8 */
+#define WB_FRN_TIME_CUT_DIV	2	/* ignore rounds < avg / 2 */
+#define WB_FRN_TIME_PERIOD	(2 * (1 << WB_FRN_TIME_SHIFT))	/* 2s */
+
+#define WB_FRN_HIST_SLOTS	16	/* inode->i_wb_frn_history is 16bit */
+#define WB_FRN_HIST_UNIT	(WB_FRN_TIME_PERIOD / WB_FRN_HIST_SLOTS)
+					/* each slot's duration is 2s / 16 */
+#define WB_FRN_HIST_THR_SLOTS	(WB_FRN_HIST_SLOTS / 2)
+					/* if foreign slots >= 8, switch */
+#define WB_FRN_HIST_MAX_SLOTS	(WB_FRN_HIST_THR_SLOTS / 2 + 1)
+					/* one round can affect upto 5 slots */
+
 void __inode_attach_wb(struct inode *inode, struct page *page)
 {
 	struct backing_dev_info *bdi = inode_to_bdi(inode);
@@ -258,21 +272,180 @@ void wbc_attach_and_unlock_inode(struct writeback_control *wbc,
 				 struct inode *inode)
 {
 	wbc->wb = inode_to_wb(inode);
+	wbc->inode = inode;
+
+	wbc->wb_id = wbc->wb->memcg_css->id;
+	wbc->wb_lcand_id = inode->i_wb_frn_winner;
+	wbc->wb_tcand_id = 0;
+	wbc->wb_bytes = 0;
+	wbc->wb_lcand_bytes = 0;
+	wbc->wb_tcand_bytes = 0;
+
 	wb_get(wbc->wb);
 	spin_unlock(&inode->i_lock);
 }
 
 /**
- * wbc_detach_inode - disassociate wbc from its target inode
- * @wbc: writeback_control of interest
+ * wbc_detach_inode - disassociate wbc from inode and perform foreign detection
+ * @wbc: writeback_control of the just finished writeback
  *
  * To be called after a writeback attempt of an inode finishes and undoes
  * wbc_attach_and_unlock_inode().  Can be called under any context.
+ *
+ * As concurrent write sharing of an inode is expected to be very rare and
+ * memcg only tracks page ownership on first-use basis severely confining
+ * the usefulness of such sharing, cgroup writeback tracks ownership
+ * per-inode.  While the support for concurrent write sharing of an inode
+ * is deemed unnecessary, an inode being written to by different cgroups at
+ * different points in time is a lot more common, and, more importantly,
+ * charging only by first-use can too readily lead to grossly incorrect
+ * behaviors (single foreign page can lead to gigabytes of writeback to be
+ * incorrectly attributed).
+ *
+ * To resolve this issue, cgroup writeback detects the majority dirtier of
+ * an inode and transfers the ownership to it.  To avoid unnnecessary
+ * oscillation, the detection mechanism keeps track of history and gives
+ * out the switch verdict only if the foreign usage pattern is stable over
+ * a certain amount of time and/or writeback attempts.
+ *
+ * On each writeback attempt, @wbc tries to detect the majority writer
+ * using Boyer-Moore majority vote algorithm.  In addition to the byte
+ * count from the majority voting, it also counts the bytes written for the
+ * current wb and the last round's winner wb (max of last round's current
+ * wb, the winner from two rounds ago, and the last round's majority
+ * candidate).  Keeping track of the historical winner helps the algorithm
+ * to semi-reliably detect the most active writer even when it's not the
+ * absolute majority.
+ *
+ * Once the winner of the round is determined, whether the winner is
+ * foreign or not and how much IO time the round consumed is recorded in
+ * inode->i_wb_frn_history.  If the amount of recorded foreign IO time is
+ * over a certain threshold, the switch verdict is given.
  */
 void wbc_detach_inode(struct writeback_control *wbc)
 {
+	struct bdi_writeback *wb = wbc->wb;
+	struct inode *inode = wbc->inode;
+	u16 history = inode->i_wb_frn_history;
+	unsigned long avg_time = inode->i_wb_frn_avg_time;
+	unsigned long max_bytes, max_time;
+	int max_id;
+
+	/* pick the winner of this round */
+	if (wbc->wb_bytes >= wbc->wb_lcand_bytes &&
+	    wbc->wb_bytes >= wbc->wb_tcand_bytes) {
+		max_id = wbc->wb_id;
+		max_bytes = wbc->wb_bytes;
+	} else if (wbc->wb_lcand_bytes >= wbc->wb_tcand_bytes) {
+		max_id = wbc->wb_lcand_id;
+		max_bytes = wbc->wb_lcand_bytes;
+	} else {
+		max_id = wbc->wb_tcand_id;
+		max_bytes = wbc->wb_tcand_bytes;
+	}
+
+	/*
+	 * Calculate the amount of IO time the winner consumed and fold it
+	 * into the running average kept per inode.  If the consumed IO
+	 * time is lower than avag / WB_FRN_TIME_CUT_DIV, ignore it for
+	 * deciding whether to switch or not.  This is to prevent one-off
+	 * small dirtiers from skewing the verdict.
+	 */
+	max_time = DIV_ROUND_UP((max_bytes >> PAGE_SHIFT) << WB_FRN_TIME_SHIFT,
+				wb->avg_write_bandwidth);
+	if (avg_time)
+		avg_time += (max_time >> WB_FRN_TIME_AVG_SHIFT) -
+			    (avg_time >> WB_FRN_TIME_AVG_SHIFT);
+	else
+		avg_time = max_time;	/* immediate catch up on first run */
+
+	if (max_time >= avg_time / WB_FRN_TIME_CUT_DIV) {
+		int slots;
+
+		/*
+		 * The switch verdict is reached if foreign wb's consume
+		 * more than a certain proportion of IO time in a
+		 * WB_FRN_TIME_PERIOD.  This is loosely tracked by 16 slot
+		 * history mask where each bit represents one sixteenth of
+		 * the period.  Determine the number of slots to shift into
+		 * history from @max_time.
+		 */
+		slots = min(DIV_ROUND_UP(max_time, WB_FRN_HIST_UNIT),
+			    (unsigned long)WB_FRN_HIST_MAX_SLOTS);
+		history <<= slots;
+		if (wbc->wb_id != max_id)
+			history |= (1U << slots) - 1;
+
+		/*
+		 * Switch if the current wb isn't the consistent winner.
+		 * If there are multiple closely competing dirtiers, the
+		 * inode may switch across them repeatedly over time, which
+		 * is okay.  The main goal is avoiding keeping an inode on
+		 * the wrong wb for an extended period of time.
+		 */
+		if (hweight32(history) > WB_FRN_HIST_THR_SLOTS) {
+			/* switch */
+			max_id = 0;
+			avg_time = 0;
+			history = 0;
+		}
+	}
+
+	/*
+	 * Multiple instances of this function may race to update the
+	 * following fields but we don't mind occassional inaccuracies.
+	 */
+	inode->i_wb_frn_winner = max_id;
+	inode->i_wb_frn_avg_time = min(avg_time, (unsigned long)U16_MAX);
+	inode->i_wb_frn_history = history;
+
 	wb_put(wbc->wb);
 	wbc->wb = NULL;
+}
+
+/**
+ * wbc_account_io - account IO issued during writeback
+ * @wbc: writeback_control of the writeback in progress
+ * @page: page being written out
+ * @bytes: number of bytes being written out
+ *
+ * @bytes from @page are about to written out during the writeback
+ * controlled by @wbc.  Keep the book for foreign inode detection.  See
+ * wbc_detach_inode().
+ */
+void wbc_account_io(struct writeback_control *wbc, struct page *page,
+		    size_t bytes)
+{
+	int id;
+
+	/*
+	 * pageout() path doesn't attach @wbc to the inode being written
+	 * out.  This is intentional as we don't want the function to block
+	 * behind a slow cgroup.  Ultimately, we want pageout() to kick off
+	 * regular writeback instead of writing things out itself.
+	 */
+	if (!wbc->wb)
+		return;
+
+	rcu_read_lock();
+	id = mem_cgroup_css_from_page(page)->id;
+	rcu_read_unlock();
+
+	if (id == wbc->wb_id) {
+		wbc->wb_bytes += bytes;
+		return;
+	}
+
+	if (id == wbc->wb_lcand_id)
+		wbc->wb_lcand_bytes += bytes;
+
+	/* Boyer-Moore majority vote algorithm */
+	if (!wbc->wb_tcand_bytes)
+		wbc->wb_tcand_id = id;
+	if (id == wbc->wb_tcand_id)
+		wbc->wb_tcand_bytes += bytes;
+	else
+		wbc->wb_tcand_bytes -= min(bytes, wbc->wb_tcand_bytes);
 }
 
 /**

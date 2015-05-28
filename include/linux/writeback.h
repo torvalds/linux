@@ -88,6 +88,15 @@ struct writeback_control {
 	unsigned for_sync:1;		/* sync(2) WB_SYNC_ALL writeback */
 #ifdef CONFIG_CGROUP_WRITEBACK
 	struct bdi_writeback *wb;	/* wb this writeback is issued under */
+	struct inode *inode;		/* inode being written out */
+
+	/* foreign inode detection, see wbc_detach_inode() */
+	int wb_id;			/* current wb id */
+	int wb_lcand_id;		/* last foreign candidate wb id */
+	int wb_tcand_id;		/* this foreign candidate wb id */
+	size_t wb_bytes;		/* bytes written by current wb */
+	size_t wb_lcand_bytes;		/* bytes written by last candidate */
+	size_t wb_tcand_bytes;		/* bytes written by this candidate */
 #endif
 };
 
@@ -187,6 +196,8 @@ void wbc_attach_and_unlock_inode(struct writeback_control *wbc,
 				 struct inode *inode)
 	__releases(&inode->i_lock);
 void wbc_detach_inode(struct writeback_control *wbc);
+void wbc_account_io(struct writeback_control *wbc, struct page *page,
+		    size_t bytes);
 
 /**
  * inode_attach_wb - associate an inode with its wb
@@ -282,6 +293,11 @@ static inline void wbc_detach_inode(struct writeback_control *wbc)
 }
 
 static inline void wbc_init_bio(struct writeback_control *wbc, struct bio *bio)
+{
+}
+
+static inline void wbc_account_io(struct writeback_control *wbc,
+				  struct page *page, size_t bytes)
 {
 }
 
