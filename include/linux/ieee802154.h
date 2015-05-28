@@ -244,9 +244,9 @@ static inline void ieee802154_random_extended_addr(__le64 *addr)
 {
 	get_random_bytes(addr, IEEE802154_EXTENDED_ADDR_LEN);
 
-	/* toggle some bit if we hit an invalid extended addr */
-	if (!ieee802154_is_valid_extended_addr(*addr))
-		((u8 *)addr)[IEEE802154_EXTENDED_ADDR_LEN - 1] ^= 0x01;
+	/* clear the group bit, and set the locally administered bit */
+	((u8 *)addr)[IEEE802154_EXTENDED_ADDR_LEN - 1] &= ~0x01;
+	((u8 *)addr)[IEEE802154_EXTENDED_ADDR_LEN - 1] |= 0x02;
 }
 
 #endif /* LINUX_IEEE802154_H */
