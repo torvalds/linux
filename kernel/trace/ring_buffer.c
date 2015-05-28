@@ -115,62 +115,10 @@ int ring_buffer_print_entry_header(struct trace_seq *s)
  *
  */
 
-/*
- * A fast way to enable or disable all ring buffers is to
- * call tracing_on or tracing_off. Turning off the ring buffers
- * prevents all ring buffers from being recorded to.
- * Turning this switch on, makes it OK to write to the
- * ring buffer, if the ring buffer is enabled itself.
- *
- * There's three layers that must be on in order to write
- * to the ring buffer.
- *
- * 1) This global flag must be set.
- * 2) The ring buffer must be enabled for recording.
- * 3) The per cpu buffer must be enabled for recording.
- *
- * In case of an anomaly, this global flag has a bit set that
- * will permantly disable all ring buffers.
- */
-
-/*
- * Global flag to disable all recording to ring buffers
- *  This has two bits: ON, DISABLED
- *
- *  ON   DISABLED
- * ---- ----------
- *   0      0        : ring buffers are off
- *   1      0        : ring buffers are on
- *   X      1        : ring buffers are permanently disabled
- */
-
-enum {
-	RB_BUFFERS_ON_BIT	= 0,
-	RB_BUFFERS_DISABLED_BIT	= 1,
-};
-
-enum {
-	RB_BUFFERS_ON		= 1 << RB_BUFFERS_ON_BIT,
-	RB_BUFFERS_DISABLED	= 1 << RB_BUFFERS_DISABLED_BIT,
-};
-
-static unsigned long ring_buffer_flags __read_mostly = RB_BUFFERS_ON;
-
 /* Used for individual buffers (after the counter) */
 #define RB_BUFFER_OFF		(1 << 20)
 
 #define BUF_PAGE_HDR_SIZE offsetof(struct buffer_data_page, data)
-
-/**
- * tracing_off_permanent - permanently disable ring buffers
- *
- * This function, once called, will disable all ring buffers
- * permanently.
- */
-void tracing_off_permanent(void)
-{
-	set_bit(RB_BUFFERS_DISABLED_BIT, &ring_buffer_flags);
-}
 
 #define RB_EVNT_HDR_SIZE (offsetof(struct ring_buffer_event, array))
 #define RB_ALIGNMENT		4U
@@ -2728,9 +2676,6 @@ ring_buffer_lock_reserve(struct ring_buffer *buffer, unsigned long length)
 	struct ring_buffer_event *event;
 	int cpu;
 
-	if (ring_buffer_flags != RB_BUFFERS_ON)
-		return NULL;
-
 	/* If we are tracing schedule, we don't want to recurse */
 	preempt_disable_notrace();
 
@@ -2991,9 +2936,6 @@ int ring_buffer_write(struct ring_buffer *buffer,
 	void *body;
 	int ret = -EBUSY;
 	int cpu;
-
-	if (ring_buffer_flags != RB_BUFFERS_ON)
-		return -EBUSY;
 
 	preempt_disable_notrace();
 
@@ -4349,9 +4291,6 @@ int ring_buffer_swap_cpu(struct ring_buffer *buffer_a,
 		goto out;
 
 	ret = -EAGAIN;
-
-	if (ring_buffer_flags != RB_BUFFERS_ON)
-		goto out;
 
 	if (atomic_read(&buffer_a->record_disabled))
 		goto out;
