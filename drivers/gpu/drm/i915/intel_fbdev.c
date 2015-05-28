@@ -96,6 +96,32 @@ static int intel_fbdev_blank(int blank, struct fb_info *info)
 	return ret;
 }
 
+static int intel_fbdev_pan_display(struct fb_var_screeninfo *var,
+				   struct fb_info *info)
+{
+	struct drm_fb_helper *fb_helper = info->par;
+	struct intel_fbdev *ifbdev =
+		container_of(fb_helper, struct intel_fbdev, helper);
+
+	int ret;
+	ret = drm_fb_helper_pan_display(var, info);
+
+	if (ret == 0) {
+		/*
+		 * FIXME: fbdev presumes that all callbacks also work from
+		 * atomic contexts and relies on that for emergency oops
+		 * printing. KMS totally doesn't do that and the locking here is
+		 * by far not the only place this goes wrong.  Ignore this for
+		 * now until we solve this for real.
+		 */
+		mutex_lock(&fb_helper->dev->struct_mutex);
+		intel_fb_obj_invalidate(ifbdev->fb->obj, NULL, ORIGIN_GTT);
+		mutex_unlock(&fb_helper->dev->struct_mutex);
+	}
+
+	return ret;
+}
+
 static struct fb_ops intelfb_ops = {
 	.owner = THIS_MODULE,
 	.fb_check_var = drm_fb_helper_check_var,
@@ -103,7 +129,7 @@ static struct fb_ops intelfb_ops = {
 	.fb_fillrect = cfb_fillrect,
 	.fb_copyarea = cfb_copyarea,
 	.fb_imageblit = cfb_imageblit,
-	.fb_pan_display = drm_fb_helper_pan_display,
+	.fb_pan_display = intel_fbdev_pan_display,
 	.fb_blank = intel_fbdev_blank,
 	.fb_setcmap = drm_fb_helper_setcmap,
 	.fb_debug_enter = drm_fb_helper_debug_enter,
