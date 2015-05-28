@@ -1269,6 +1269,7 @@ static int ca91cx42_dma_list_exec(struct vme_dma_list *list)
 
 		dev_err(dev, "ca91c042: DMA Error. DGCS=%08X\n", val);
 		val = ioread32(bridge->base + DCTL);
+		retval = -EIO;
 	}
 
 exit:
