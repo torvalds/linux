@@ -725,6 +725,22 @@ xfs_mountfs(
 	}
 
 	/*
+	 * If enabled, sparse inode chunk alignment is expected to match the
+	 * cluster size. Full inode chunk alignment must match the chunk size,
+	 * but that is checked on sb read verification...
+	 */
+	if (xfs_sb_version_hassparseinodes(&mp->m_sb) &&
+	    mp->m_sb.sb_spino_align !=
+			XFS_B_TO_FSBT(mp, mp->m_inode_cluster_size)) {
+		xfs_warn(mp,
+	"Sparse inode block alignment (%u) must match cluster size (%llu).",
+			 mp->m_sb.sb_spino_align,
+			 XFS_B_TO_FSBT(mp, mp->m_inode_cluster_size));
+		error = -EINVAL;
+		goto out_remove_uuid;
+	}
+
+	/*
 	 * Set inode alignment fields
 	 */
 	xfs_set_inoalignment(mp);
