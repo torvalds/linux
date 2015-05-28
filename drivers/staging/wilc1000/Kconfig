@@ -1,5 +1,6 @@
 config WILC1000
 	tristate "WILC1000 support (WiFi only)"
+	depends on !S390
 	---help---
 		This module only support IEEE 802.11n WiFi.
 
