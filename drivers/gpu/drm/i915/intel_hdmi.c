@@ -1036,7 +1036,8 @@ bool intel_hdmi_compute_config(struct intel_encoder *encoder,
 	 */
 	if (pipe_config->pipe_bpp > 8*3 && pipe_config->has_hdmi_sink &&
 	    clock_12bpc <= portclock_limit &&
-	    hdmi_12bpc_possible(pipe_config)) {
+	    hdmi_12bpc_possible(pipe_config) &&
+	    0 /* FIXME 12bpc support totally broken */) {
 		DRM_DEBUG_KMS("picking bpc to 12 for HDMI output\n");
 		desired_bpp = 12*3;
 
