@@ -70,8 +70,8 @@ DEFINES = \
 	$(shell perl -ne 'print "$$1 " if /\#define\s+(DTV_[^\s]+)\s+/' $(srctree)/include/uapi/linux/dvb/frontend.h) \
 
 TYPES = \
-	$(shell perl -ne 'print "$$1 " if /^typedef\s+[^\s]+\s+([^\s]+)\;/' $(srctree)/include/uapi/linux/videodev2.h) \
-	$(shell perl -ne 'print "$$1 " if /^}\s+([a-z0-9_]+_t)/' $(srctree)/include/uapi/linux/dvb/frontend.h)
+	$(shell perl -ne 'print "$$1 " if /^typedef\s+.*\s+(\S+)\;/' $(srctree)/include/uapi/linux/videodev2.h) \
+	$(shell perl -ne 'print "$$1 " if /^typedef\s+.*\s+(\S+)\;/' $(srctree)/include/uapi/linux/dvb/frontend.h)
 
 ENUMS = \
 	$(shell perl -ne 'print "$$1 " if /^enum\s+([^\s]+)\s+/' $(srctree)/include/uapi/linux/videodev2.h) \
