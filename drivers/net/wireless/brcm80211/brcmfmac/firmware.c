@@ -232,6 +232,8 @@ static void brcmf_fw_strip_multi_v1(struct nvram_parser *nvp, u16 domain_nr,
 				    u16 bus_nr)
 {
 	/* Device path with a leading '=' key-value separator */
+	char pci_path[] = "=pci/?/?";
+	size_t pci_len;
 	char pcie_path[] = "=pcie/?/?";
 	size_t pcie_len;
 
@@ -251,6 +253,9 @@ static void brcmf_fw_strip_multi_v1(struct nvram_parser *nvp, u16 domain_nr,
 	/* First search for the devpathX and see if it is the configuration
 	 * for domain_nr/bus_nr. Search complete nvp
 	 */
+	snprintf(pci_path, sizeof(pci_path), "=pci/%d/%d", domain_nr,
+		 bus_nr);
+	pci_len = strlen(pci_path);
 	snprintf(pcie_path, sizeof(pcie_path), "=pcie/%d/%d", domain_nr,
 		 bus_nr);
 	pcie_len = strlen(pcie_path);
@@ -260,8 +265,9 @@ static void brcmf_fw_strip_multi_v1(struct nvram_parser *nvp, u16 domain_nr,
 		/* Format: devpathX=pcie/Y/Z/
 		 * Y = domain_nr, Z = bus_nr, X = virtual ID
 		 */
-		if ((strncmp(&nvp->nvram[i], "devpath", 7) == 0) &&
-		    (strncmp(&nvp->nvram[i + 8], pcie_path, pcie_len) == 0)) {
+		if (strncmp(&nvp->nvram[i], "devpath", 7) == 0 &&
+		    (!strncmp(&nvp->nvram[i + 8], pci_path, pci_len) ||
+		     !strncmp(&nvp->nvram[i + 8], pcie_path, pcie_len))) {
 			id = nvp->nvram[i + 7] - '0';
 			found = true;
 			break;
