@@ -52,6 +52,11 @@ static inline struct aead_instance *aead_instance(struct crypto_instance *inst)
 	return container_of(&inst->alg, struct aead_instance, alg.base);
 }
 
+static inline struct aead_instance *aead_alg_instance(struct crypto_aead *aead)
+{
+	return aead_instance(crypto_aead_alg_instance(aead));
+}
+
 static inline void *aead_instance_ctx(struct aead_instance *inst)
 {
 	return crypto_instance_ctx(aead_crypto_instance(inst));
