@@ -362,7 +362,32 @@ static inline unsigned long msecs_to_jiffies(const unsigned int m)
 	}
 }
 
-extern unsigned long usecs_to_jiffies(const unsigned int u);
+extern unsigned long __usecs_to_jiffies(const unsigned int u);
+#if HZ <= USEC_PER_SEC && !(USEC_PER_SEC % HZ)
+static inline unsigned long _usecs_to_jiffies(const unsigned int u)
+{
+	return (u + (USEC_PER_SEC / HZ) - 1) / (USEC_PER_SEC / HZ);
+}
+#elif HZ > USEC_PER_SEC && !(HZ % USEC_PER_SEC)
+static inline unsigned long _usecs_to_jiffies(const unsigned int u)
+{
+	return u * (HZ / USEC_PER_SEC);
+}
+static inline unsigned long _usecs_to_jiffies(const unsigned int u)
+{
+#else
+static inline unsigned long _usecs_to_jiffies(const unsigned int u)
+{
+	return (USEC_TO_HZ_MUL32 * u + USEC_TO_HZ_ADJ32)
+		>> USEC_TO_HZ_SHR32;
+}
+#endif
+
+static inline unsigned long usecs_to_jiffies(const unsigned int u)
+{
+	return __usecs_to_jiffies(u);
+}
+
 extern unsigned long timespec_to_jiffies(const struct timespec *value);
 extern void jiffies_to_timespec(const unsigned long jiffies,
 				struct timespec *value);

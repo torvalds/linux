@@ -522,20 +522,13 @@ unsigned long __msecs_to_jiffies(const unsigned int m)
 }
 EXPORT_SYMBOL(__msecs_to_jiffies);
 
-unsigned long usecs_to_jiffies(const unsigned int u)
+unsigned long __usecs_to_jiffies(const unsigned int u)
 {
 	if (u > jiffies_to_usecs(MAX_JIFFY_OFFSET))
 		return MAX_JIFFY_OFFSET;
-#if HZ <= USEC_PER_SEC && !(USEC_PER_SEC % HZ)
-	return (u + (USEC_PER_SEC / HZ) - 1) / (USEC_PER_SEC / HZ);
-#elif HZ > USEC_PER_SEC && !(HZ % USEC_PER_SEC)
-	return u * (HZ / USEC_PER_SEC);
-#else
-	return (USEC_TO_HZ_MUL32 * u + USEC_TO_HZ_ADJ32)
-		>> USEC_TO_HZ_SHR32;
-#endif
+	return _usecs_to_jiffies(u);
 }
-EXPORT_SYMBOL(usecs_to_jiffies);
+EXPORT_SYMBOL(__usecs_to_jiffies);
 
 /*
  * The TICK_NSEC - 1 rounds up the value to the next resolution.  Note
