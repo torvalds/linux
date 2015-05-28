@@ -460,9 +460,6 @@ void radeon_audio_detect(struct drm_connector *connector,
 	if (!connector || !connector->encoder)
 		return;
 
-	if (!radeon_encoder_is_digital(connector->encoder))
-		return;
-
 	rdev = connector->encoder->dev->dev_private;
 
 	if (!radeon_audio_chipset_supported(rdev))
@@ -471,26 +468,26 @@ void radeon_audio_detect(struct drm_connector *connector,
 	radeon_encoder = to_radeon_encoder(connector->encoder);
 	dig = radeon_encoder->enc_priv;
 
-	if (!dig->afmt)
-		return;
-
 	if (status == connector_status_connected) {
-		struct radeon_connector *radeon_connector = to_radeon_connector(connector);
+		struct radeon_connector *radeon_connector;
+		int sink_type;
+
+		if (!drm_detect_monitor_audio(radeon_connector_edid(connector))) {
+			radeon_encoder->audio = NULL;
+			return;
+		}
+
+		radeon_connector = to_radeon_connector(connector);
+		sink_type = radeon_dp_getsinktype(radeon_connector);
 
 		if (connector->connector_type == DRM_MODE_CONNECTOR_DisplayPort &&
-		    radeon_dp_getsinktype(radeon_connector) ==
-		    CONNECTOR_OBJECT_ID_DISPLAYPORT)
+			sink_type == CONNECTOR_OBJECT_ID_DISPLAYPORT)
 			radeon_encoder->audio = rdev->audio.dp_funcs;
 		else
 			radeon_encoder->audio = rdev->audio.hdmi_funcs;
 
 		dig->afmt->pin = radeon_audio_get_pin(connector->encoder);
-		if (drm_detect_monitor_audio(radeon_connector_edid(connector))) {
-			radeon_audio_enable(rdev, dig->afmt->pin, 0xf);
-		} else {
-			radeon_audio_enable(rdev, dig->afmt->pin, 0);
-			dig->afmt->pin = NULL;
-		}
+		radeon_audio_enable(rdev, dig->afmt->pin, 0xf);
 	} else {
 		radeon_audio_enable(rdev, dig->afmt->pin, 0);
 		dig->afmt->pin = NULL;
