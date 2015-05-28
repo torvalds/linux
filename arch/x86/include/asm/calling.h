@@ -46,8 +46,6 @@ For 32-bit we have the following conventions - kernel is built with
 
 */
 
-#include <asm/dwarf2.h>
-
 #ifdef CONFIG_X86_64
 
 /*
@@ -92,27 +90,26 @@ For 32-bit we have the following conventions - kernel is built with
 
 	.macro ALLOC_PT_GPREGS_ON_STACK addskip=0
 	subq	$15*8+\addskip, %rsp
-	CFI_ADJUST_CFA_OFFSET 15*8+\addskip
 	.endm
 
 	.macro SAVE_C_REGS_HELPER offset=0 rax=1 rcx=1 r8910=1 r11=1
 	.if \r11
-	movq_cfi r11, 6*8+\offset
+	movq %r11, 6*8+\offset(%rsp)
 	.endif
 	.if \r8910
-	movq_cfi r10, 7*8+\offset
-	movq_cfi r9,  8*8+\offset
-	movq_cfi r8,  9*8+\offset
+	movq %r10, 7*8+\offset(%rsp)
+	movq %r9,  8*8+\offset(%rsp)
+	movq %r8,  9*8+\offset(%rsp)
 	.endif
 	.if \rax
-	movq_cfi rax, 10*8+\offset
+	movq %rax, 10*8+\offset(%rsp)
 	.endif
 	.if \rcx
-	movq_cfi rcx, 11*8+\offset
+	movq %rcx, 11*8+\offset(%rsp)
 	.endif
-	movq_cfi rdx, 12*8+\offset
-	movq_cfi rsi, 13*8+\offset
-	movq_cfi rdi, 14*8+\offset
+	movq %rdx, 12*8+\offset(%rsp)
+	movq %rsi, 13*8+\offset(%rsp)
+	movq %rdi, 14*8+\offset(%rsp)
 	.endm
 	.macro SAVE_C_REGS offset=0
 	SAVE_C_REGS_HELPER \offset, 1, 1, 1, 1
@@ -131,24 +128,24 @@ For 32-bit we have the following conventions - kernel is built with
 	.endm
 
 	.macro SAVE_EXTRA_REGS offset=0
-	movq_cfi r15, 0*8+\offset
-	movq_cfi r14, 1*8+\offset
-	movq_cfi r13, 2*8+\offset
-	movq_cfi r12, 3*8+\offset
-	movq_cfi rbp, 4*8+\offset
-	movq_cfi rbx, 5*8+\offset
+	movq %r15, 0*8+\offset(%rsp)
+	movq %r14, 1*8+\offset(%rsp)
+	movq %r13, 2*8+\offset(%rsp)
+	movq %r12, 3*8+\offset(%rsp)
+	movq %rbp, 4*8+\offset(%rsp)
+	movq %rbx, 5*8+\offset(%rsp)
 	.endm
 	.macro SAVE_EXTRA_REGS_RBP offset=0
-	movq_cfi rbp, 4*8+\offset
+	movq %rbp, 4*8+\offset(%rsp)
 	.endm
 
 	.macro RESTORE_EXTRA_REGS offset=0
-	movq_cfi_restore 0*8+\offset, r15
-	movq_cfi_restore 1*8+\offset, r14
-	movq_cfi_restore 2*8+\offset, r13
-	movq_cfi_restore 3*8+\offset, r12
-	movq_cfi_restore 4*8+\offset, rbp
-	movq_cfi_restore 5*8+\offset, rbx
+	movq 0*8+\offset(%rsp), %r15
+	movq 1*8+\offset(%rsp), %r14
+	movq 2*8+\offset(%rsp), %r13
+	movq 3*8+\offset(%rsp), %r12
+	movq 4*8+\offset(%rsp), %rbp
+	movq 5*8+\offset(%rsp), %rbx
 	.endm
 
 	.macro ZERO_EXTRA_REGS
@@ -162,24 +159,24 @@ For 32-bit we have the following conventions - kernel is built with
 
 	.macro RESTORE_C_REGS_HELPER rstor_rax=1, rstor_rcx=1, rstor_r11=1, rstor_r8910=1, rstor_rdx=1
 	.if \rstor_r11
-	movq_cfi_restore 6*8, r11
+	movq 6*8(%rsp), %r11
 	.endif
 	.if \rstor_r8910
-	movq_cfi_restore 7*8, r10
-	movq_cfi_restore 8*8, r9
-	movq_cfi_restore 9*8, r8
+	movq 7*8(%rsp), %r10
+	movq 8*8(%rsp), %r9
+	movq 9*8(%rsp), %r8
 	.endif
 	.if \rstor_rax
-	movq_cfi_restore 10*8, rax
+	movq 10*8(%rsp), %rax
 	.endif
 	.if \rstor_rcx
-	movq_cfi_restore 11*8, rcx
+	movq 11*8(%rsp), %rcx
 	.endif
 	.if \rstor_rdx
-	movq_cfi_restore 12*8, rdx
+	movq 12*8(%rsp), %rdx
 	.endif
-	movq_cfi_restore 13*8, rsi
-	movq_cfi_restore 14*8, rdi
+	movq 13*8(%rsp), %rsi
+	movq 14*8(%rsp), %rdi
 	.endm
 	.macro RESTORE_C_REGS
 	RESTORE_C_REGS_HELPER 1,1,1,1,1
@@ -205,7 +202,6 @@ For 32-bit we have the following conventions - kernel is built with
 
 	.macro REMOVE_PT_GPREGS_FROM_STACK addskip=0
 	addq $15*8+\addskip, %rsp
-	CFI_ADJUST_CFA_OFFSET -(15*8+\addskip)
 	.endm
 
 	.macro icebp
@@ -224,23 +220,23 @@ For 32-bit we have the following conventions - kernel is built with
  */
 
 	.macro SAVE_ALL
-	pushl_cfi_reg eax
-	pushl_cfi_reg ebp
-	pushl_cfi_reg edi
-	pushl_cfi_reg esi
-	pushl_cfi_reg edx
-	pushl_cfi_reg ecx
-	pushl_cfi_reg ebx
+	pushl %eax
+	pushl %ebp
+	pushl %edi
+	pushl %esi
+	pushl %edx
+	pushl %ecx
+	pushl %ebx
 	.endm
 
 	.macro RESTORE_ALL
-	popl_cfi_reg ebx
-	popl_cfi_reg ecx
-	popl_cfi_reg edx
-	popl_cfi_reg esi
-	popl_cfi_reg edi
-	popl_cfi_reg ebp
-	popl_cfi_reg eax
+	popl %ebx
+	popl %ecx
+	popl %edx
+	popl %esi
+	popl %edi
+	popl %ebp
+	popl %eax
 	.endm
 
 #endif /* CONFIG_X86_64 */
