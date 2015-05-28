@@ -1700,6 +1700,8 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 		vcpu->pvclock_set_guest_stopped_request = false;
 	}
 
+	pvclock_flags |= PVCLOCK_COUNTS_FROM_ZERO;
+
 	/* If the host uses TSC clocksource, then it is stable */
 	if (use_master_clock)
 		pvclock_flags |= PVCLOCK_TSC_STABLE_BIT;
@@ -2282,6 +2284,8 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 					&vcpu->requests);
 
 			ka->boot_vcpu_runs_old_kvmclock = tmp;
+
+			ka->kvmclock_offset = -get_kernel_ns();
 		}
 
 		vcpu->arch.time = data;
