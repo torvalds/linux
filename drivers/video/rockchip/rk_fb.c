@@ -2185,6 +2185,11 @@ static int rk_fb_set_win_buffer(struct fb_info *info,
 		reg_win_data->reg_area_data[i].xact = win_par->area_par[i].xact;
 		reg_win_data->reg_area_data[i].yact = win_par->area_par[i].yact;
 
+		/*act_height should be 2 pix align for interlace output*/
+		if ((screen->mode.vmode == FB_VMODE_INTERLACED) &&
+		    (reg_win_data->reg_area_data[i].yact % 2 == 1))
+			reg_win_data->reg_area_data[i].yact -= 1;
+
 		xoffset = win_par->area_par[i].x_offset;	/* buf offset */
 		yoffset = win_par->area_par[i].y_offset;
 		reg_win_data->reg_area_data[i].xoff = xoffset;
