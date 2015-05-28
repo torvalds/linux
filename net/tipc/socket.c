@@ -410,7 +410,7 @@ static int tipc_release(struct socket *sock)
 	struct net *net;
 	struct tipc_sock *tsk;
 	struct sk_buff *skb;
-	u32 dnode, probing_state;
+	u32 dnode;
 
 	/*
 	 * Exit if socket isn't fully initialized (occurs when a failed accept()
@@ -448,10 +448,7 @@ static int tipc_release(struct socket *sock)
 	}
 
 	tipc_sk_withdraw(tsk, 0, NULL);
-	probing_state = tsk->probing_state;
-	if (del_timer_sync(&sk->sk_timer) &&
-	    probing_state != TIPC_CONN_PROBING)
-		sock_put(sk);
+	sk_stop_timer(sk, &sk->sk_timer);
 	tipc_sk_remove(tsk);
 	if (tsk->connected) {
 		skb = tipc_msg_create(TIPC_CRITICAL_IMPORTANCE,
