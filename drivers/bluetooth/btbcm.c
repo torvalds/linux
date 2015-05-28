@@ -246,6 +246,95 @@ static const struct {
 	{ }
 };
 
+int btbcm_initialize(struct hci_dev *hdev, char *fw_name, size_t len)
+{
+	u16 subver, rev;
+	const char *hw_name = NULL;
+	struct sk_buff *skb;
+	struct hci_rp_read_local_version *ver;
+	int i, err;
+
+	/* Reset */
+	err = btbcm_reset(hdev);
+	if (err)
+		return err;
+
+	/* Read Local Version Info */
+	skb = btbcm_read_local_version(hdev);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	ver = (struct hci_rp_read_local_version *)skb->data;
+	rev = le16_to_cpu(ver->hci_rev);
+	subver = le16_to_cpu(ver->lmp_subver);
+	kfree_skb(skb);
+
+	/* Read Verbose Config Version Info */
+	skb = btbcm_read_verbose_config(hdev);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	BT_INFO("%s: BCM: chip id %u", hdev->name, skb->data[1]);
+	kfree_skb(skb);
+
+	switch ((rev & 0xf000) >> 12) {
+	case 0:
+	case 3:
+		for (i = 0; bcm_uart_subver_table[i].name; i++) {
+			if (subver == bcm_uart_subver_table[i].subver) {
+				hw_name = bcm_uart_subver_table[i].name;
+				break;
+			}
+		}
+
+		snprintf(fw_name, len, "brcm/%s.hcd", hw_name ? : "BCM");
+		break;
+	default:
+		return 0;
+	}
+
+	BT_INFO("%s: %s (%3.3u.%3.3u.%3.3u) build %4.4u", hdev->name,
+		hw_name ? : "BCM", (subver & 0x7000) >> 13,
+		(subver & 0x1f00) >> 8, (subver & 0x00ff), rev & 0x0fff);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(btbcm_initialize);
+
+int btbcm_finalize(struct hci_dev *hdev)
+{
+	struct sk_buff *skb;
+	struct hci_rp_read_local_version *ver;
+	u16 subver, rev;
+	int err;
+
+	/* Reset */
+	err = btbcm_reset(hdev);
+	if (err)
+		return err;
+
+	/* Read Local Version Info */
+	skb = btbcm_read_local_version(hdev);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	ver = (struct hci_rp_read_local_version *)skb->data;
+	rev = le16_to_cpu(ver->hci_rev);
+	subver = le16_to_cpu(ver->lmp_subver);
+	kfree_skb(skb);
+
+	BT_INFO("%s: BCM (%3.3u.%3.3u.%3.3u) build %4.4u", hdev->name,
+		(subver & 0x7000) >> 13, (subver & 0x1f00) >> 8,
+		(subver & 0x00ff), rev & 0x0fff);
+
+	btbcm_check_bdaddr(hdev);
+
+	set_bit(HCI_QUIRK_STRICT_DUPLICATE_FILTER, &hdev->quirks);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(btbcm_finalize);
+
 static const struct {
 	u16 subver;
 	const char *name;
