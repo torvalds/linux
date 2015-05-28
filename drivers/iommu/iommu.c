@@ -750,9 +750,7 @@ static int add_iommu_group(struct device *dev, void *data)
 
 	WARN_ON(dev->iommu_group);
 
-	ops->add_device(dev);
-
-	return 0;
+	return ops->add_device(dev);
 }
 
 static int iommu_bus_notifier(struct notifier_block *nb,
