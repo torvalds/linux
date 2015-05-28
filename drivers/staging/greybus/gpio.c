@@ -13,6 +13,8 @@
 #include <linux/gpio.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
+#include <linux/mutex.h>
+
 #include "greybus.h"
 
 struct gb_gpio_line {
@@ -22,6 +24,11 @@ struct gb_gpio_line {
 				direction: 1,	/* 0 = output, 1 = input */
 				value:     1;	/* 0 = low, 1 = high */
 	u16			debounce_usec;
+
+	u8			irq_type;
+	bool			irq_type_pending;
+	bool			masked;
+	bool			masked_pending;
 };
 
 struct gb_gpio_controller {
@@ -38,6 +45,7 @@ struct gb_gpio_controller {
 	unsigned int		irq_base;
 	irq_flow_handler_t	irq_handler;
 	unsigned int		irq_default_type;
+	struct mutex		irq_lock;
 };
 #define gpio_chip_to_gb_gpio_controller(chip) \
 	container_of(chip, struct gb_gpio_controller, chip)
@@ -211,83 +219,121 @@ static int gb_gpio_set_debounce_operation(struct gb_gpio_controller *ggc,
 	return ret;
 }
 
-static void gb_gpio_ack_irq(struct irq_data *d)
+static void _gb_gpio_irq_mask(struct gb_gpio_controller *ggc, u8 hwirq)
 {
-	struct gpio_chip *chip = irq_data_to_gpio_chip(d);
-	struct gb_gpio_controller *ggc = gpio_chip_to_gb_gpio_controller(chip);
-	struct gb_gpio_irq_ack_request request;
-	int ret;
-
-	request.which = d->hwirq;
-	ret = gb_operation_sync(ggc->connection,
-				GB_GPIO_TYPE_IRQ_ACK,
-				&request, sizeof(request), NULL, 0);
-	if (ret)
-		dev_err(chip->dev, "failed to ack irq: %d\n", ret);
-}
-
-static void gb_gpio_mask_irq(struct irq_data *d)
-{
-	struct gpio_chip *chip = irq_data_to_gpio_chip(d);
-	struct gb_gpio_controller *ggc = gpio_chip_to_gb_gpio_controller(chip);
 	struct gb_gpio_irq_mask_request request;
 	int ret;
 
-	request.which = d->hwirq;
+	request.which = hwirq;
 	ret = gb_operation_sync(ggc->connection,
 				GB_GPIO_TYPE_IRQ_MASK,
 				&request, sizeof(request), NULL, 0);
 	if (ret)
-		dev_err(chip->dev, "failed to mask irq: %d\n", ret);
+		dev_err(ggc->chip.dev, "failed to mask irq: %d\n", ret);
 }
 
-static void gb_gpio_unmask_irq(struct irq_data *d)
+static void _gb_gpio_irq_unmask(struct gb_gpio_controller *ggc, u8 hwirq)
 {
-	struct gpio_chip *chip = irq_data_to_gpio_chip(d);
-	struct gb_gpio_controller *ggc = gpio_chip_to_gb_gpio_controller(chip);
 	struct gb_gpio_irq_unmask_request request;
 	int ret;
 
-	request.which = d->hwirq;
+	request.which = hwirq;
 	ret = gb_operation_sync(ggc->connection,
 				GB_GPIO_TYPE_IRQ_UNMASK,
 				&request, sizeof(request), NULL, 0);
 	if (ret)
-		dev_err(chip->dev, "failed to unmask irq: %d\n", ret);
+		dev_err(ggc->chip.dev, "failed to unmask irq: %d\n", ret);
+}
+
+static void _gb_gpio_irq_set_type(struct gb_gpio_controller *ggc,
+					u8 hwirq, u8 type)
+{
+	struct gb_gpio_irq_type_request request;
+	int ret;
+
+	request.which = hwirq;
+	request.type = type;
+
+	ret = gb_operation_sync(ggc->connection,
+				GB_GPIO_TYPE_IRQ_TYPE,
+				&request, sizeof(request), NULL, 0);
+	if (ret)
+		dev_err(ggc->chip.dev, "failed to set irq type: %d\n", ret);
+}
+
+static void gb_gpio_irq_mask(struct irq_data *d)
+{
+	struct gpio_chip *chip = irq_data_to_gpio_chip(d);
+	struct gb_gpio_controller *ggc = gpio_chip_to_gb_gpio_controller(chip);
+	struct gb_gpio_line *line = &ggc->lines[d->hwirq];
+
+	line->masked = true;
+	line->masked_pending = true;
+}
+
+static void gb_gpio_irq_unmask(struct irq_data *d)
+{
+	struct gpio_chip *chip = irq_data_to_gpio_chip(d);
+	struct gb_gpio_controller *ggc = gpio_chip_to_gb_gpio_controller(chip);
+	struct gb_gpio_line *line = &ggc->lines[d->hwirq];
+
+	line->masked = false;
+	line->masked_pending = true;
 }
 
 static int gb_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 {
 	struct gpio_chip *chip = irq_data_to_gpio_chip(d);
 	struct gb_gpio_controller *ggc = gpio_chip_to_gb_gpio_controller(chip);
-	struct gb_gpio_irq_type_request request;
-	int ret = 0;
-
-	request.which = d->hwirq;
-	request.type = type;
+	struct gb_gpio_line *line = &ggc->lines[d->hwirq];
 
 	switch (type) {
 	case IRQ_TYPE_NONE:
-		break;
 	case IRQ_TYPE_EDGE_RISING:
 	case IRQ_TYPE_EDGE_FALLING:
 	case IRQ_TYPE_EDGE_BOTH:
 	case IRQ_TYPE_LEVEL_LOW:
 	case IRQ_TYPE_LEVEL_HIGH:
-		ret = gb_operation_sync(ggc->connection,
-					GB_GPIO_TYPE_IRQ_TYPE,
-					&request, sizeof(request), NULL, 0);
-		if (ret) {
-			dev_err(chip->dev, "failed to set irq type: %d\n",
-				ret);
-		}
 		break;
 	default:
 		dev_err(chip->dev, "unsupported irq type: %u\n", type);
-		ret = -EINVAL;
+		return -EINVAL;
 	}
 
-	return ret;
+	line->irq_type = type;
+	line->irq_type_pending = true;
+
+	return 0;
+}
+
+static void gb_gpio_irq_bus_lock(struct irq_data *d)
+{
+	struct gpio_chip *chip = irq_data_to_gpio_chip(d);
+	struct gb_gpio_controller *ggc = gpio_chip_to_gb_gpio_controller(chip);
+
+	mutex_lock(&ggc->irq_lock);
+}
+
+static void gb_gpio_irq_bus_sync_unlock(struct irq_data *d)
+{
+	struct gpio_chip *chip = irq_data_to_gpio_chip(d);
+	struct gb_gpio_controller *ggc = gpio_chip_to_gb_gpio_controller(chip);
+	struct gb_gpio_line *line = &ggc->lines[d->hwirq];
+
+	if (line->irq_type_pending) {
+		_gb_gpio_irq_set_type(ggc, d->hwirq, line->irq_type);
+		line->irq_type_pending = false;
+	}
+
+	if (line->masked_pending) {
+		if (line->masked)
+			_gb_gpio_irq_mask(ggc, d->hwirq);
+		else
+			_gb_gpio_irq_unmask(ggc, d->hwirq);
+		line->masked_pending = false;
+	}
+
+	mutex_unlock(&ggc->irq_lock);
 }
 
 static int gb_gpio_request_recv(u8 type, struct gb_operation *op)
@@ -318,9 +364,9 @@ static int gb_gpio_request_recv(u8 type, struct gb_operation *op)
 		return -EINVAL;
 	}
 
-	irq = gpio_to_irq(ggc->chip.base + event->which);
-	if (irq < 0) {
-		dev_err(ggc->chip.dev, "failed to map irq\n");
+	irq = irq_find_mapping(ggc->irqdomain, event->which);
+	if (!irq) {
+		dev_err(ggc->chip.dev, "failed to find IRQ\n");
 		return -EINVAL;
 	}
 	desc = irq_to_desc(irq);
@@ -329,9 +375,8 @@ static int gb_gpio_request_recv(u8 type, struct gb_operation *op)
 		return -EINVAL;
 	}
 
-	/* Dispatch interrupt */
 	local_irq_disable();
-	handle_simple_irq(irq, desc);
+	generic_handle_irq_desc(irq, desc);
 	local_irq_enable();
 
 	return 0;
@@ -412,11 +457,6 @@ static int gb_gpio_set_debounce(struct gpio_chip *chip, unsigned offset,
 	usec = (u16)debounce;
 
 	return gb_gpio_set_debounce_operation(ggc, (u8)offset, usec);
-}
-
-static void gb_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
-{
-	return;	/* XXX */
 }
 
 static int gb_gpio_controller_setup(struct gb_gpio_controller *ggc)
@@ -596,11 +636,14 @@ static int gb_gpio_connection_init(struct gb_connection *connection)
 		goto err_free_controller;
 
 	irqc = &ggc->irqc;
-	irqc->irq_ack = gb_gpio_ack_irq;
-	irqc->irq_mask = gb_gpio_mask_irq;
-	irqc->irq_unmask = gb_gpio_unmask_irq;
+	irqc->irq_mask = gb_gpio_irq_mask;
+	irqc->irq_unmask = gb_gpio_irq_unmask;
 	irqc->irq_set_type = gb_gpio_irq_set_type;
+	irqc->irq_bus_lock = gb_gpio_irq_bus_lock;
+	irqc->irq_bus_sync_unlock = gb_gpio_irq_bus_sync_unlock;
 	irqc->name = "greybus_gpio";
+
+	mutex_init(&ggc->irq_lock);
 
 	gpio = &ggc->chip;
 
@@ -616,7 +659,6 @@ static int gb_gpio_connection_init(struct gb_connection *connection)
 	gpio->get = gb_gpio_get;
 	gpio->set = gb_gpio_set;
 	gpio->set_debounce = gb_gpio_set_debounce;
-	gpio->dbg_show = gb_gpio_dbg_show;
 	gpio->to_irq = gb_gpio_to_irq;
 	gpio->base = -1;		/* Allocate base dynamically */
 	gpio->ngpio = ggc->line_max + 1;
@@ -630,7 +672,7 @@ static int gb_gpio_connection_init(struct gb_connection *connection)
 	}
 
 	ret = gb_gpio_irqchip_add(gpio, irqc, 0,
-				   handle_simple_irq, IRQ_TYPE_NONE);
+				   handle_level_irq, IRQ_TYPE_NONE);
 	if (ret) {
 		dev_err(&connection->dev, "failed to add irq chip: %d\n", ret);
 		goto irqchip_err;
