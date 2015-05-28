@@ -2241,21 +2241,11 @@ static void bxt_hpd_handler(struct drm_device *dev, uint32_t iir_status)
 		return;
 	}
 
-	DRM_DEBUG_DRIVER("hotplug event received, stat 0x%08x\n",
-		hp_control & BXT_HOTPLUG_CTL_MASK);
-
-	/* Check for HPD storm and schedule bottom half */
-	pch_get_hpd_pins(&pin_mask, &long_mask, hp_trigger, hp_control, hpd_bxt);
-	intel_hpd_irq_handler(dev, pin_mask, long_mask);
-
-	/*
-	 * FIXME: Save the hot plug status for bottom half before
-	 * clearing the sticky status bits, else the status will be
-	 * lost.
-	 */
-
 	/* Clear sticky bits in hpd status */
 	I915_WRITE(BXT_HOTPLUG_CTL, hp_control);
+
+	pch_get_hpd_pins(&pin_mask, &long_mask, hp_trigger, hp_control, hpd_bxt);
+	intel_hpd_irq_handler(dev, pin_mask, long_mask);
 }
 
 static irqreturn_t gen8_irq_handler(int irq, void *arg)
