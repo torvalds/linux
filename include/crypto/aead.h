@@ -109,6 +109,17 @@ struct aead_givcrypt_request {
  * @decrypt: see struct ablkcipher_alg
  * @geniv: see struct ablkcipher_alg
  * @ivsize: see struct ablkcipher_alg
+ * @init: Initialize the cryptographic transformation object. This function
+ *	  is used to initialize the cryptographic transformation object.
+ *	  This function is called only once at the instantiation time, right
+ *	  after the transformation context was allocated. In case the
+ *	  cryptographic hardware has some special requirements which need to
+ *	  be handled by software, this function shall check for the precise
+ *	  requirement of the transformation and put any software fallbacks
+ *	  in place.
+ * @exit: Deinitialize the cryptographic transformation object. This is a
+ *	  counterpart to @init, used to remove various changes set in
+ *	  @init.
  *
  * All fields except @ivsize is mandatory and must be filled.
  */
@@ -118,6 +129,8 @@ struct aead_alg {
 	int (*setauthsize)(struct crypto_aead *tfm, unsigned int authsize);
 	int (*encrypt)(struct aead_request *req);
 	int (*decrypt)(struct aead_request *req);
+	int (*init)(struct crypto_aead *tfm);
+	void (*exit)(struct crypto_aead *tfm);
 
 	const char *geniv;
 
