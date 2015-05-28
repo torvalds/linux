@@ -219,6 +219,17 @@ static inline void wb_put(struct bdi_writeback *wb)
 		percpu_ref_put(&wb->refcnt);
 }
 
+/**
+ * wb_dying - is a wb dying?
+ * @wb: bdi_writeback of interest
+ *
+ * Returns whether @wb is unlinked and being drained.
+ */
+static inline bool wb_dying(struct bdi_writeback *wb)
+{
+	return percpu_ref_is_dying(&wb->refcnt);
+}
+
 #else	/* CONFIG_CGROUP_WRITEBACK */
 
 static inline bool wb_tryget(struct bdi_writeback *wb)
@@ -232,6 +243,11 @@ static inline void wb_get(struct bdi_writeback *wb)
 
 static inline void wb_put(struct bdi_writeback *wb)
 {
+}
+
+static inline bool wb_dying(struct bdi_writeback *wb)
+{
+	return false;
 }
 
 #endif	/* CONFIG_CGROUP_WRITEBACK */
