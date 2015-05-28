@@ -2996,6 +2996,13 @@ static struct iommu_domain *amd_iommu_domain_alloc(unsigned type)
 		}
 		pdomain = &dma_domain->domain;
 		break;
+	case IOMMU_DOMAIN_IDENTITY:
+		pdomain = protection_domain_alloc();
+		if (!pdomain)
+			return NULL;
+
+		pdomain->mode = PAGE_MODE_NONE;
+		break;
 	default:
 		return NULL;
 	}
