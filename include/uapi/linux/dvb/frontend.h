@@ -154,12 +154,13 @@ enum fe_status {
 
 typedef enum fe_status fe_status_t;
 
-typedef enum fe_spectral_inversion {
+enum fe_spectral_inversion {
 	INVERSION_OFF,
 	INVERSION_ON,
 	INVERSION_AUTO
-} fe_spectral_inversion_t;
+};
 
+typedef enum fe_spectral_inversion fe_spectral_inversion_t;
 
 typedef enum fe_code_rate {
 	FEC_NONE = 0,

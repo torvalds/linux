@@ -56,23 +56,6 @@ specification is available at
 
 &sub-dvbproperty;
 
-<section id="fe-spectral-inversion-t">
-<title>frontend spectral inversion</title>
-<para>The Inversion field can take one of these values:
-</para>
-<programlisting>
-typedef enum fe_spectral_inversion {
-	INVERSION_OFF,
-	INVERSION_ON,
-	INVERSION_AUTO
-} fe_spectral_inversion_t;
-</programlisting>
-<para>It indicates if spectral inversion should be presumed or not. In the automatic setting
-(<constant>INVERSION_AUTO</constant>) the hardware will try to figure out the correct setting by
-itself.
-</para>
-</section>
-
 <section id="fe-code-rate-t">
 <title>frontend code rate</title>
 <para>The possible values for the <constant>fec_inner</constant> field used on

@@ -82,7 +82,7 @@ DVB-C2, ISDB, etc.</para>
 struct dvb_frontend_parameters {
 	uint32_t frequency;     /&#x22C6; (absolute) frequency in Hz for QAM/OFDM &#x22C6;/
 				/&#x22C6; intermediate frequency in kHz for QPSK &#x22C6;/
-	fe_spectral_inversion_t inversion;
+	&fe-spectral-inversion-t; inversion;
 	union {
 		struct dvb_qpsk_parameters qpsk;
 		struct dvb_qam_parameters  qam;

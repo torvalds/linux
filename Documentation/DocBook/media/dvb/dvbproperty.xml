@@ -238,19 +238,45 @@ get/set up to 64 properties. The actual meaning of each property is described on
 	</section>
 	<section id="DTV-INVERSION">
 	<title><constant>DTV_INVERSION</constant></title>
-	<para>The Inversion field can take one of these values:
-	</para>
-	<programlisting>
-	typedef enum fe_spectral_inversion {
-		INVERSION_OFF,
-		INVERSION_ON,
-		INVERSION_AUTO
-	} fe_spectral_inversion_t;
-	</programlisting>
-	<para>It indicates if spectral inversion should be presumed or not. In the automatic setting
-	(<constant>INVERSION_AUTO</constant>) the hardware will try to figure out the correct setting by
-	itself.
-	</para>
+
+	<para>Specifies if the frontend should do spectral inversion or not.</para>
+
+<section id="fe-spectral-inversion-t">
+<title>enum fe_modulation: Frontend spectral inversion</title>
+
+<para>This parameter indicates if spectral inversion should be presumed or not.
+    In the automatic setting (<constant>INVERSION_AUTO</constant>) the hardware
+    will try to figure out the correct setting by itself. If the hardware
+    doesn't support, the DVB core will try to lock at the carrier first with
+    inversion off. If it fails, it will try to enable inversion.
+</para>
+
+<table pgwide="1" frame="none" id="fe-spectral-inversion">
+    <title>enum fe_modulation</title>
+    <tgroup cols="2">
+	&cs-def;
+	<thead>
+	<row>
+	    <entry>ID</entry>
+	    <entry>Description</entry>
+	</row>
+	</thead>
+	<tbody valign="top">
+	<row>
+	    <entry>INVERSION_OFF</entry>
+	    <entry>Don't do spectral band inversion.</entry>
+	</row><row>
+	    <entry>INVERSION_ON</entry>
+	    <entry>Do spectral band inversion.</entry>
+	</row><row>
+	    <entry>INVERSION_AUTO</entry>
+	    <entry>Autodetect spectral band inversion.</entry>
+	</row>
+        </tbody>
+    </tgroup>
+</table>
+</section>
+
 	</section>
 	<section id="DTV-DISEQC-MASTER">
 	<title><constant>DTV_DISEQC_MASTER</constant></title>
