@@ -2311,8 +2311,9 @@ int intel_ring_begin(struct intel_engine_cs *ring,
 }
 
 /* Align the ring tail to a cacheline boundary */
-int intel_ring_cacheline_align(struct intel_engine_cs *ring)
+int intel_ring_cacheline_align(struct drm_i915_gem_request *req)
 {
+	struct intel_engine_cs *ring = req->ring;
 	int num_dwords = (ring->buffer->tail & (CACHELINE_BYTES - 1)) / sizeof(uint32_t);
 	int ret;
 

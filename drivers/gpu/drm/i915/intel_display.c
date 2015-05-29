@@ -11055,7 +11055,7 @@ static int intel_gen7_queue_flip(struct drm_device *dev,
 	 * then do the cacheline alignment, and finally emit the
 	 * MI_DISPLAY_FLIP.
 	 */
-	ret = intel_ring_cacheline_align(ring);
+	ret = intel_ring_cacheline_align(req);
 	if (ret)
 		return ret;
 
