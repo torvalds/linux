@@ -1530,9 +1530,9 @@ static void gen8_set_seqno(struct intel_engine_cs *ring, u32 seqno)
 	intel_write_status_page(ring, I915_GEM_HWS_INDEX, seqno);
 }
 
-static int gen8_emit_request(struct intel_ringbuffer *ringbuf,
-			     struct drm_i915_gem_request *request)
+static int gen8_emit_request(struct drm_i915_gem_request *request)
 {
+	struct intel_ringbuffer *ringbuf = request->ringbuf;
 	struct intel_engine_cs *ring = ringbuf->ring;
 	u32 cmd;
 	int ret;
@@ -1554,8 +1554,7 @@ static int gen8_emit_request(struct intel_ringbuffer *ringbuf,
 				(ring->status_page.gfx_addr +
 				(I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT)));
 	intel_logical_ring_emit(ringbuf, 0);
-	intel_logical_ring_emit(ringbuf,
-		i915_gem_request_get_seqno(ring->outstanding_lazy_request));
+	intel_logical_ring_emit(ringbuf, i915_gem_request_get_seqno(request));
 	intel_logical_ring_emit(ringbuf, MI_USER_INTERRUPT);
 	intel_logical_ring_emit(ringbuf, MI_NOOP);
 	intel_logical_ring_advance_and_submit(ringbuf, request->ctx, request);
