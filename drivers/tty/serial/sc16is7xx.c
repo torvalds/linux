@@ -652,21 +652,6 @@ static void sc16is7xx_wq_proc(struct work_struct *ws)
 
 static void sc16is7xx_stop_tx(struct uart_port* port)
 {
-	struct sc16is7xx_one *one = to_sc16is7xx_one(port, port);
-	struct circ_buf *xmit = &one->port.state->xmit;
-
-	/* handle rs485 */
-	if (port->rs485.flags & SER_RS485_ENABLED) {
-		/* do nothing if current tx not yet completed */
-		int lsr = sc16is7xx_port_read(port, SC16IS7XX_LSR_REG);
-		if (!(lsr & SC16IS7XX_LSR_TEMT_BIT))
-			return;
-
-		if (uart_circ_empty(xmit) &&
-		    (port->rs485.delay_rts_after_send > 0))
-			mdelay(port->rs485.delay_rts_after_send);
-	}
-
 	sc16is7xx_port_update(port, SC16IS7XX_IER_REG,
 			      SC16IS7XX_IER_THRI_BIT,
 			      0);
@@ -852,6 +837,14 @@ static int sc16is7xx_config_rs485(struct uart_port *port,
 			dev_err(port->dev,
 				"unsupported RTS signalling on_send:%d after_send:%d - exactly one of RS485 RTS flags should be set\n",
 				rts_during_tx, rts_during_rx);
+
+		/*
+		 * RTS signal is handled by HW, it's timing can't be influenced.
+		 * However, it's sometimes useful to delay TX even without RTS
+		 * control therefore we try to handle .delay_rts_before_send.
+		 */
+		if (rs485->delay_rts_after_send)
+			return -EINVAL;
 	}
 
 	sc16is7xx_port_update(port, SC16IS7XX_EFCR_REG, mask, efcr);
