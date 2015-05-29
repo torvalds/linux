@@ -173,8 +173,11 @@ static int bcm2835_sdhci_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	return sdhci_add_host(host);
+	ret = sdhci_add_host(host);
+	if (ret)
+		goto err;
 
+	return 0;
 err:
 	sdhci_pltfm_free(pdev);
 	return ret;
