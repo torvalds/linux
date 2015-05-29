@@ -301,10 +301,17 @@ struct sc16is7xx_devtype {
 	int	nr_uart;
 };
 
+#define SC16IS7XX_RECONF_MD		(1 << 0)
+
+struct sc16is7xx_one_config {
+	unsigned int			flags;
+};
+
 struct sc16is7xx_one {
 	struct uart_port		port;
 	struct kthread_work		tx_work;
-	struct work_struct		md_work;
+	struct kthread_work		reg_work;
+	struct sc16is7xx_one_config	config;
 };
 
 struct sc16is7xx_port {
@@ -659,6 +666,24 @@ static void sc16is7xx_tx_proc(struct kthread_work *ws)
 	sc16is7xx_handle_tx(port);
 }
 
+static void sc16is7xx_reg_proc(struct kthread_work *ws)
+{
+	struct sc16is7xx_one *one = to_sc16is7xx_one(ws, reg_work);
+	struct sc16is7xx_one_config config;
+	unsigned long irqflags;
+
+	spin_lock_irqsave(&one->port.lock, irqflags);
+	config = one->config;
+	memset(&one->config, 0, sizeof(one->config));
+	spin_unlock_irqrestore(&one->port.lock, irqflags);
+
+	if (config.flags & SC16IS7XX_RECONF_MD)
+		sc16is7xx_port_update(&one->port, SC16IS7XX_MCR_REG,
+				      SC16IS7XX_MCR_LOOP_BIT,
+				      (one->port.mctrl & TIOCM_LOOP) ?
+				      SC16IS7XX_MCR_LOOP_BIT : 0);
+}
+
 static void sc16is7xx_stop_tx(struct uart_port* port)
 {
 	sc16is7xx_port_update(port, SC16IS7XX_IER_REG,
@@ -701,21 +726,13 @@ static unsigned int sc16is7xx_get_mctrl(struct uart_port *port)
 	return TIOCM_DSR | TIOCM_CAR;
 }
 
-static void sc16is7xx_md_proc(struct work_struct *ws)
-{
-	struct sc16is7xx_one *one = to_sc16is7xx_one(ws, md_work);
-
-	sc16is7xx_port_update(&one->port, SC16IS7XX_MCR_REG,
-			      SC16IS7XX_MCR_LOOP_BIT,
-			      (one->port.mctrl & TIOCM_LOOP) ?
-				      SC16IS7XX_MCR_LOOP_BIT : 0);
-}
-
 static void sc16is7xx_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
+	struct sc16is7xx_port *s = dev_get_drvdata(port->dev);
 	struct sc16is7xx_one *one = to_sc16is7xx_one(port, port);
 
-	schedule_work(&one->md_work);
+	one->config.flags |= SC16IS7XX_RECONF_MD;
+	queue_kthread_work(&s->kworker, &one->reg_work);
 }
 
 static void sc16is7xx_break_ctl(struct uart_port *port, int break_state)
@@ -1132,10 +1149,9 @@ static int sc16is7xx_probe(struct device *dev,
 		sc16is7xx_port_write(&s->p[i].port, SC16IS7XX_EFCR_REG,
 				     SC16IS7XX_EFCR_RXDISABLE_BIT |
 				     SC16IS7XX_EFCR_TXDISABLE_BIT);
-		/* Initialize queue for start TX */
+		/* Initialize kthread work structs */
 		init_kthread_work(&s->p[i].tx_work, sc16is7xx_tx_proc);
-		/* Initialize queue for changing mode */
-		INIT_WORK(&s->p[i].md_work, sc16is7xx_md_proc);
+		init_kthread_work(&s->p[i].reg_work, sc16is7xx_reg_proc);
 		/* Register port */
 		uart_add_one_port(&s->uart, &s->p[i].port);
 		/* Go to suspend mode */
@@ -1180,7 +1196,6 @@ static int sc16is7xx_remove(struct device *dev)
 #endif
 
 	for (i = 0; i < s->uart.nr; i++) {
-		cancel_work_sync(&s->p[i].md_work);
 		uart_remove_one_port(&s->uart, &s->p[i].port);
 		sc16is7xx_power(&s->p[i].port, 0);
 	}
