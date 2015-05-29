@@ -2494,7 +2494,8 @@ close_out:
 	return ret;
 }
 
-static int find_probe_functions(struct map *map, char *name)
+static int find_probe_functions(struct map *map, char *name,
+				struct symbol **syms)
 {
 	int found = 0;
 	struct symbol *sym;
@@ -2504,8 +2505,11 @@ static int find_probe_functions(struct map *map, char *name)
 		return 0;
 
 	map__for_each_symbol(map, sym, tmp) {
-		if (strglobmatch(sym->name, name))
+		if (strglobmatch(sym->name, name)) {
 			found++;
+			if (syms && found < probe_conf.max_probes)
+				syms[found - 1] = sym;
+		}
 	}
 
 	return found;
@@ -2528,11 +2532,12 @@ static int find_probe_trace_events_from_map(struct perf_probe_event *pev,
 	struct map *map = NULL;
 	struct ref_reloc_sym *reloc_sym = NULL;
 	struct symbol *sym;
+	struct symbol **syms = NULL;
 	struct probe_trace_event *tev;
 	struct perf_probe_point *pp = &pev->point;
 	struct probe_trace_point *tp;
 	int num_matched_functions;
-	int ret, i;
+	int ret, i, j;
 
 	map = get_target_map(pev->target, pev->uprobes);
 	if (!map) {
@@ -2540,11 +2545,17 @@ static int find_probe_trace_events_from_map(struct perf_probe_event *pev,
 		goto out;
 	}
 
+	syms = malloc(sizeof(struct symbol *) * probe_conf.max_probes);
+	if (!syms) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
 	/*
 	 * Load matched symbols: Since the different local symbols may have
 	 * same name but different addresses, this lists all the symbols.
 	 */
-	num_matched_functions = find_probe_functions(map, pp->function);
+	num_matched_functions = find_probe_functions(map, pp->function, syms);
 	if (num_matched_functions == 0) {
 		pr_err("Failed to find symbol %s in %s\n", pp->function,
 			pev->target ? : "kernel");
@@ -2575,7 +2586,9 @@ static int find_probe_trace_events_from_map(struct perf_probe_event *pev,
 
 	ret = 0;
 
-	map__for_each_symbol_by_name(map, pp->function, sym) {
+	for (j = 0; j < num_matched_functions; j++) {
+		sym = syms[j];
+
 		tev = (*tevs) + ret;
 		tp = &tev->point;
 		if (ret == num_matched_functions) {
@@ -2599,6 +2612,8 @@ static int find_probe_trace_events_from_map(struct perf_probe_event *pev,
 			tp->symbol = strdup_or_goto(sym->name, nomem_out);
 			tp->offset = pp->offset;
 		}
+		tp->realname = strdup_or_goto(sym->name, nomem_out);
+
 		tp->retprobe = pp->retprobe;
 		if (pev->target)
 			tev->point.module = strdup_or_goto(pev->target,
@@ -2629,6 +2644,7 @@ static int find_probe_trace_events_from_map(struct perf_probe_event *pev,
 
 out:
 	put_target_map(map, pev->uprobes);
+	free(syms);
 	return ret;
 
 nomem_out:
