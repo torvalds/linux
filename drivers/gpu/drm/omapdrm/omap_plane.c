@@ -132,8 +132,10 @@ static void omap_plane_atomic_update(struct drm_plane *plane,
 	/* and finally, update omapdss: */
 	ret = dispc_ovl_setup(omap_plane->id, &info, false,
 			      omap_crtc_timings(state->crtc), false);
-	if (WARN_ON(ret))
+	if (WARN_ON(ret)) {
+		dispc_ovl_enable(omap_plane->id, false);
 		return;
+	}
 
 	dispc_ovl_enable(omap_plane->id, true);
 }
