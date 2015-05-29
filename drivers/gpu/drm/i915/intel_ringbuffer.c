@@ -2910,8 +2910,9 @@ intel_ring_flush_all_caches(struct intel_engine_cs *ring)
 }
 
 int
-intel_ring_invalidate_all_caches(struct intel_engine_cs *ring)
+intel_ring_invalidate_all_caches(struct drm_i915_gem_request *req)
 {
+	struct intel_engine_cs *ring = req->ring;
 	uint32_t flush_domains;
 	int ret;
 

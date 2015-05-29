@@ -604,10 +604,9 @@ static int execlists_context_queue(struct intel_engine_cs *ring,
 	return 0;
 }
 
-static int logical_ring_invalidate_all_caches(struct intel_ringbuffer *ringbuf,
-					      struct intel_context *ctx)
+static int logical_ring_invalidate_all_caches(struct drm_i915_gem_request *req)
 {
-	struct intel_engine_cs *ring = ringbuf->ring;
+	struct intel_engine_cs *ring = req->ring;
 	uint32_t flush_domains;
 	int ret;
 
@@ -615,7 +614,7 @@ static int logical_ring_invalidate_all_caches(struct intel_ringbuffer *ringbuf,
 	if (ring->gpu_caches_dirty)
 		flush_domains = I915_GEM_GPU_DOMAINS;
 
-	ret = ring->emit_flush(ringbuf, ctx,
+	ret = ring->emit_flush(req->ringbuf, req->ctx,
 			       I915_GEM_GPU_DOMAINS, flush_domains);
 	if (ret)
 		return ret;
@@ -654,7 +653,7 @@ static int execlists_move_to_gpu(struct drm_i915_gem_request *req,
 	/* Unconditionally invalidate gpu caches and ensure that we do flush
 	 * any residual writes from the previous batch.
 	 */
-	return logical_ring_invalidate_all_caches(req->ringbuf, req->ctx);
+	return logical_ring_invalidate_all_caches(req);
 }
 
 int intel_logical_ring_alloc_request_extras(struct drm_i915_gem_request *request)

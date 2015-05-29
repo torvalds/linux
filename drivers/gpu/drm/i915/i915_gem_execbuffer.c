@@ -924,7 +924,7 @@ i915_gem_execbuffer_move_to_gpu(struct drm_i915_gem_request *req,
 	/* Unconditionally invalidate gpu caches and ensure that we do flush
 	 * any residual writes from the previous batch.
 	 */
-	return intel_ring_invalidate_all_caches(req->ring);
+	return intel_ring_invalidate_all_caches(req);
 }
 
 static bool
@@ -1071,8 +1071,9 @@ i915_gem_execbuffer_retire_commands(struct i915_execbuffer_params *params)
 
 static int
 i915_reset_gen7_sol_offsets(struct drm_device *dev,
-			    struct intel_engine_cs *ring)
+			    struct drm_i915_gem_request *req)
 {
+	struct intel_engine_cs *ring = req->ring;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret, i;
 
@@ -1097,10 +1098,11 @@ i915_reset_gen7_sol_offsets(struct drm_device *dev,
 }
 
 static int
-i915_emit_box(struct intel_engine_cs *ring,
+i915_emit_box(struct drm_i915_gem_request *req,
 	      struct drm_clip_rect *box,
 	      int DR1, int DR4)
 {
+	struct intel_engine_cs *ring = req->ring;
 	int ret;
 
 	if (box->y2 <= box->y1 || box->x2 <= box->x1 ||
@@ -1310,7 +1312,7 @@ i915_gem_ringbuffer_submission(struct i915_execbuffer_params *params,
 	}
 
 	if (args->flags & I915_EXEC_GEN7_SOL_RESET) {
-		ret = i915_reset_gen7_sol_offsets(dev, ring);
+		ret = i915_reset_gen7_sol_offsets(dev, params->request);
 		if (ret)
 			goto error;
 	}
@@ -1321,7 +1323,7 @@ i915_gem_ringbuffer_submission(struct i915_execbuffer_params *params,
 
 	if (cliprects) {
 		for (i = 0; i < args->num_cliprects; i++) {
-			ret = i915_emit_box(ring, &cliprects[i],
+			ret = i915_emit_box(params->request, &cliprects[i],
 					    args->DR1, args->DR4);
 			if (ret)
 				goto error;

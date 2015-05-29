@@ -446,7 +446,7 @@ bool intel_ring_stopped(struct intel_engine_cs *ring);
 int __must_check intel_ring_idle(struct intel_engine_cs *ring);
 void intel_ring_init_seqno(struct intel_engine_cs *ring, u32 seqno);
 int intel_ring_flush_all_caches(struct intel_engine_cs *ring);
-int intel_ring_invalidate_all_caches(struct intel_engine_cs *ring);
+int intel_ring_invalidate_all_caches(struct drm_i915_gem_request *req);
 
 void intel_fini_pipe_control(struct intel_engine_cs *ring);
 int intel_init_pipe_control(struct intel_engine_cs *ring);
