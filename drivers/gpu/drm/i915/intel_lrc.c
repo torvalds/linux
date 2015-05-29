@@ -624,12 +624,10 @@ static int logical_ring_invalidate_all_caches(struct intel_ringbuffer *ringbuf,
 	return 0;
 }
 
-static int execlists_move_to_gpu(struct intel_ringbuffer *ringbuf,
-				 struct intel_context *ctx,
+static int execlists_move_to_gpu(struct drm_i915_gem_request *req,
 				 struct list_head *vmas)
 {
-	struct intel_engine_cs *ring = ringbuf->ring;
-	const unsigned other_rings = ~intel_ring_flag(ring);
+	const unsigned other_rings = ~intel_ring_flag(req->ring);
 	struct i915_vma *vma;
 	uint32_t flush_domains = 0;
 	bool flush_chipset = false;
@@ -639,7 +637,7 @@ static int execlists_move_to_gpu(struct intel_ringbuffer *ringbuf,
 		struct drm_i915_gem_object *obj = vma->obj;
 
 		if (obj->active & other_rings) {
-			ret = i915_gem_object_sync(obj, ring);
+			ret = i915_gem_object_sync(obj, req->ring);
 			if (ret)
 				return ret;
 		}
@@ -656,7 +654,7 @@ static int execlists_move_to_gpu(struct intel_ringbuffer *ringbuf,
 	/* Unconditionally invalidate gpu caches and ensure that we do flush
 	 * any residual writes from the previous batch.
 	 */
-	return logical_ring_invalidate_all_caches(ringbuf, ctx);
+	return logical_ring_invalidate_all_caches(req->ringbuf, req->ctx);
 }
 
 int intel_logical_ring_alloc_request_extras(struct drm_i915_gem_request *request)
@@ -918,7 +916,7 @@ int intel_execlists_submission(struct i915_execbuffer_params *params,
 		return -EINVAL;
 	}
 
-	ret = execlists_move_to_gpu(ringbuf, params->ctx, vmas);
+	ret = execlists_move_to_gpu(params->request, vmas);
 	if (ret)
 		return ret;
 

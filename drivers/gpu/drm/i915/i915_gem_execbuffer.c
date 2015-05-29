@@ -891,10 +891,10 @@ err:
 }
 
 static int
-i915_gem_execbuffer_move_to_gpu(struct intel_engine_cs *ring,
+i915_gem_execbuffer_move_to_gpu(struct drm_i915_gem_request *req,
 				struct list_head *vmas)
 {
-	const unsigned other_rings = ~intel_ring_flag(ring);
+	const unsigned other_rings = ~intel_ring_flag(req->ring);
 	struct i915_vma *vma;
 	uint32_t flush_domains = 0;
 	bool flush_chipset = false;
@@ -904,7 +904,7 @@ i915_gem_execbuffer_move_to_gpu(struct intel_engine_cs *ring,
 		struct drm_i915_gem_object *obj = vma->obj;
 
 		if (obj->active & other_rings) {
-			ret = i915_gem_object_sync(obj, ring);
+			ret = i915_gem_object_sync(obj, req->ring);
 			if (ret)
 				return ret;
 		}
@@ -916,7 +916,7 @@ i915_gem_execbuffer_move_to_gpu(struct intel_engine_cs *ring,
 	}
 
 	if (flush_chipset)
-		i915_gem_chipset_flush(ring->dev);
+		i915_gem_chipset_flush(req->ring->dev);
 
 	if (flush_domains & I915_GEM_DOMAIN_GTT)
 		wmb();
@@ -924,7 +924,7 @@ i915_gem_execbuffer_move_to_gpu(struct intel_engine_cs *ring,
 	/* Unconditionally invalidate gpu caches and ensure that we do flush
 	 * any residual writes from the previous batch.
 	 */
-	return intel_ring_invalidate_all_caches(ring);
+	return intel_ring_invalidate_all_caches(req->ring);
 }
 
 static bool
@@ -1246,7 +1246,7 @@ i915_gem_ringbuffer_submission(struct i915_execbuffer_params *params,
 		}
 	}
 
-	ret = i915_gem_execbuffer_move_to_gpu(ring, vmas);
+	ret = i915_gem_execbuffer_move_to_gpu(params->request, vmas);
 	if (ret)
 		goto error;
 
