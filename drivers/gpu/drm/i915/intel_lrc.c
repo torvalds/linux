@@ -944,7 +944,7 @@ int intel_execlists_submission(struct i915_execbuffer_params *params,
 
 	trace_i915_gem_ring_dispatch(params->request, params->dispatch_flags);
 
-	i915_gem_execbuffer_move_to_active(vmas, ring);
+	i915_gem_execbuffer_move_to_active(vmas, params->request);
 	i915_gem_execbuffer_retire_commands(params);
 
 	return 0;

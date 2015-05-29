@@ -1020,9 +1020,9 @@ i915_gem_validate_context(struct drm_device *dev, struct drm_file *file,
 
 void
 i915_gem_execbuffer_move_to_active(struct list_head *vmas,
-				   struct intel_engine_cs *ring)
+				   struct drm_i915_gem_request *req)
 {
-	struct drm_i915_gem_request *req = intel_ring_get_request(ring);
+	struct intel_engine_cs *ring = i915_gem_request_get_ring(req);
 	struct i915_vma *vma;
 
 	list_for_each_entry(vma, vmas, exec_list) {
@@ -1342,7 +1342,7 @@ i915_gem_ringbuffer_submission(struct i915_execbuffer_params *params,
 
 	trace_i915_gem_ring_dispatch(params->request, params->dispatch_flags);
 
-	i915_gem_execbuffer_move_to_active(vmas, ring);
+	i915_gem_execbuffer_move_to_active(vmas, params->request);
 	i915_gem_execbuffer_retire_commands(params);
 
 error:
