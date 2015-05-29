@@ -36,7 +36,10 @@
 	</listitem>
       </varlistentry>
       <varlistentry>
-	<term><parameter>pointer to &fe-sec-voltage;</parameter></term>
+	<term><parameter>voltage</parameter></term>
+	<listitem>
+	  <para>pointer to &fe-sec-voltage;</para>
+	</listitem>
       </varlistentry>
     </variablelist>
   </refsect1>

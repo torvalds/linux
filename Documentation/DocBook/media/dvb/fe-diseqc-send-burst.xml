@@ -36,7 +36,10 @@
 	</listitem>
       </varlistentry>
       <varlistentry>
-	<term><parameter>pointer to &fe-sec-mini-cmd;</parameter></term>
+	<term><parameter>tone</parameter></term>
+	<listitem>
+	  <para>pointer to &fe-sec-mini-cmd;</para>
+	</listitem>
       </varlistentry>
     </variablelist>
   </refsect1>
