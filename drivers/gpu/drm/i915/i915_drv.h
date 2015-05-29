@@ -1657,6 +1657,7 @@ struct i915_execbuffer_params {
 	struct intel_engine_cs          *ring;
 	struct drm_i915_gem_object      *batch_obj;
 	struct intel_context            *ctx;
+	struct drm_i915_gem_request     *request;
 };
 
 struct drm_i915_private {
