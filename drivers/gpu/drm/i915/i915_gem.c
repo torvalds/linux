@@ -2524,7 +2524,7 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 	if (i915.enable_execlists)
 		ret = ring->emit_request(ringbuf, request);
 	else {
-		ret = ring->add_request(ring);
+		ret = ring->add_request(request);
 
 		request->tail = intel_ring_get_tail(ringbuf);
 	}

@@ -183,7 +183,7 @@ struct  intel_engine_cs {
 	int __must_check (*flush)(struct drm_i915_gem_request *req,
 				  u32	invalidate_domains,
 				  u32	flush_domains);
-	int		(*add_request)(struct intel_engine_cs *ring);
+	int		(*add_request)(struct drm_i915_gem_request *req);
 	/* Some chipsets are not quite as coherent as advertised and need
 	 * an expensive kick to force a true read of the up-to-date seqno.
 	 * However, the up-to-date seqno is not always required and the last
