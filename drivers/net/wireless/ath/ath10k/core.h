@@ -468,6 +468,9 @@ enum ath10k_fw_features {
 	 */
 	ATH10K_FW_FEATURE_NO_NWIFI_DECAP_4ADDR_PADDING,
 
+	/* Firmware supports bypassing PLL setting on init. */
+	ATH10K_FW_FEATURE_SUPPORTS_SKIP_CLOCK_INIT = 9,
+
 	/* keep last */
 	ATH10K_FW_FEATURE_COUNT,
 };
