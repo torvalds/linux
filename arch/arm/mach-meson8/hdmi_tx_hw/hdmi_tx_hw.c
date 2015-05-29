@@ -2861,6 +2861,7 @@ static void cts_test(hdmitx_dev_t* hdmitx_device)
             printk("dis: %d  [%d] %d  [%d] %d\n", cts_buf[i].val - cts_buf[i-1].val, i, cts_buf[i].val, i - 1, cts_buf[i - 1].val);
     }
 
+    min = max = cts_buf[0].val;
     for(i = 0; i < AUD_CTS_LOG_NUM; i++) {
         total += cts_buf[i].val;
         if(min > cts_buf[i].val)

@@ -1474,21 +1474,29 @@ void hdmi_hw_init(hdmitx_dev_t* hdmitx_device)
     delay_us(10);
 }    
 
-#ifdef CONFIG_ARCH_MESON6
-// TODO, need test in m8
-// When 1080p50hz output, we shall manually configure
+// When have below format output, we shall manually configure
 // bolow register to get stable Video Timing.
-static void hdmi_reconfig_packet_setting(void)
+static void hdmi_reconfig_packet_setting(HDMI_Video_Codes_t vic)
 {
-    hdmi_wr_reg(TX_PACKET_ALLOC_ACTIVE_1, 0x01);
-    hdmi_wr_reg(TX_PACKET_ALLOC_ACTIVE_2, 0x12);
-    hdmi_wr_reg(TX_PACKET_ALLOC_EOF_1, 0x10);
-    hdmi_wr_reg(TX_PACKET_ALLOC_EOF_2, 0x12);
-    hdmi_wr_reg(TX_PACKET_ALLOC_SOF_1, 0xb6);
-    hdmi_wr_reg(TX_PACKET_ALLOC_SOF_2, 0x11);
-    hdmi_wr_reg(TX_PACKET_CONTROL_1, (hdmi_rd_reg(TX_PACKET_CONTROL_1)) | (1 << 7));    // bit[7]: forced_packet_timing
+    switch(vic) {
+    case HDMI_1080p50:
+        hdmi_wr_reg(TX_PACKET_CONTROL_1, 0x3a);         //0x7e
+        hdmi_wr_reg(TX_PACKET_ALLOC_ACTIVE_1, 0x01);    //0x78
+        hdmi_wr_reg(TX_PACKET_ALLOC_ACTIVE_2, 0x12);    //0x79
+        hdmi_wr_reg(TX_PACKET_ALLOC_EOF_1, 0x10);       //0x7a
+        hdmi_wr_reg(TX_PACKET_ALLOC_EOF_2, 0x12);       //0x7b
+        hdmi_wr_reg(TX_CORE_ALLOC_VSYNC_0, 0x01);       //0x81
+        hdmi_wr_reg(TX_CORE_ALLOC_VSYNC_1, 0x00);       //0x82
+        hdmi_wr_reg(TX_CORE_ALLOC_VSYNC_2, 0x0a);       //0x83
+        hdmi_wr_reg(TX_PACKET_ALLOC_SOF_1, 0xb6);       //0x7c
+        hdmi_wr_reg(TX_PACKET_ALLOC_SOF_2, 0x11);       //0x7d
+        hdmi_wr_reg(TX_PACKET_CONTROL_1, 0xba);         //0x7e
+        break;
+    default:
+        break;
+    }
+    printk("reconfig packet setting done\n");
 }
-#endif
 
 static void hdmi_hw_reset(hdmitx_dev_t* hdmitx_device, Hdmi_tx_video_para_t *param)
 {
@@ -1842,11 +1850,7 @@ static void hdmi_hw_reset(hdmitx_dev_t* hdmitx_device, Hdmi_tx_video_para_t *par
             hdmi_wr_reg(TX_SYS5_TX_SOFT_RESET_2, 0x00);        
         }
     }
-#ifdef CONFIG_ARCH_MESON6       //todo
-    if(param->VIC == HDMI_1080p50) {
-        hdmi_reconfig_packet_setting();  // For 1080p50hz only
-    }
-#endif
+    hdmi_reconfig_packet_setting(param->VIC);
 }
 
 static void hdmi_audio_init(unsigned char spdif_flag)
@@ -3012,6 +3016,71 @@ static void hdmitx_print_info(hdmitx_dev_t* hdmitx_device, int printk_flag)
     hdmi_print(INF, "------------------\n");
 }
 
+typedef struct {
+    unsigned int val : 20;
+    unsigned int stable: 1;
+}aud_cts_log_t;
+
+static inline unsigned int get_msr_cts(void)
+{
+    unsigned int ret;
+
+    ret  = hdmi_rd_reg(TX_TMDS_ST_CLOCK_METER_1);
+    ret += (hdmi_rd_reg(TX_TMDS_ST_CLOCK_METER_2) << 8);
+    ret += ((hdmi_rd_reg(TX_TMDS_ST_CLOCK_METER_3) & 0xf) << 16);
+
+    return ret;
+}
+
+static inline unsigned int get_msr_cts_st(void)
+{
+    return !!(hdmi_rd_reg(TX_TMDS_ST_CLOCK_METER_3) & 0x80);
+}
+
+#define AUD_CTS_LOG_NUM     1000
+aud_cts_log_t cts_buf[AUD_CTS_LOG_NUM];
+static void cts_test(hdmitx_dev_t* hdmitx_device)
+{
+    int i, j;
+    unsigned int min = 0, max = 0, total = 0;
+
+    printk("\nhdmitx: audio: cts test\n");
+    memset(cts_buf, 0, sizeof(cts_buf));
+    for(i = 0; i < AUD_CTS_LOG_NUM; i++) {
+        cts_buf[i].val = get_msr_cts();
+        cts_buf[i].stable = get_msr_cts_st();
+        mdelay(1);
+    }
+
+    printk("cts unstable:\n");
+    for(i = 0, j = 0; i < AUD_CTS_LOG_NUM; i++) {
+        if(cts_buf[i].stable == 0) {
+            printk("%d  ", i);
+            j ++;
+            if(((j+1) & 0xf) == 0)
+                printk("\n");
+        }
+    }
+
+    printk("\ncts change:\n");
+    for(i = 1; i < AUD_CTS_LOG_NUM; i++) {
+        if(cts_buf[i].val > cts_buf[i-1].val)
+            printk("dis: +%d  [%d] %d  [%d] %d\n", cts_buf[i].val - cts_buf[i-1].val, i, cts_buf[i].val, i - 1, cts_buf[i - 1].val);
+        if(cts_buf[i].val < cts_buf[i-1].val)
+            printk("dis: %d  [%d] %d  [%d] %d\n", cts_buf[i].val - cts_buf[i-1].val, i, cts_buf[i].val, i - 1, cts_buf[i - 1].val);
+    }
+
+    min = max = cts_buf[0].val;
+    for(i = 0; i < AUD_CTS_LOG_NUM; i++) {
+        total += cts_buf[i].val;
+        if(min > cts_buf[i].val)
+            min = cts_buf[i].val;
+        if(max < cts_buf[i].val)
+            max = cts_buf[i].val;
+    }
+    printk("\nCTS Min: %d   Max: %d   Avg: %d/1000\n\n", min, max, total);
+}
+
 static void hdmitx_debug(hdmitx_dev_t* hdmitx_device, const char* buf)
 {
     char tmpbuf[128];
@@ -3025,6 +3094,10 @@ static void hdmitx_debug(hdmitx_dev_t* hdmitx_device, const char* buf)
     tmpbuf[i]=0;
     if((strncmp(tmpbuf, "dumpreg", 7)==0) || (strncmp(tmpbuf, "dumptvencreg", 12)==0)){
         hdmitx_dump_tvenc_reg(hdmitx_device->cur_VIC, 1);
+        return;
+    }
+    else if(strncmp(tmpbuf, "ctstest", 7) == 0) {
+        cts_test(hdmitx_device);
         return;
     }
     else if(strncmp(tmpbuf, "ss", 2) == 0) {

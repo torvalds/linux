@@ -32,6 +32,7 @@ typedef struct enc_clk_val{
     unsigned encl_div;
     unsigned vdac0_div;
     unsigned vdac1_div;
+    unsigned unused;    // prevent compile error\r
 }enc_clk_val_t;
 
 
