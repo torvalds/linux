@@ -327,12 +327,12 @@ static long madvise_remove(struct vm_area_struct *vma,
 	 * vma's reference to the file) can go away as soon as we drop
 	 * mmap_sem.
 	 */
-	vma_get_file(vma);
+	get_file(f);
 	up_read(&current->mm->mmap_sem);
 	error = do_fallocate(f,
 				FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
 				offset, end - start);
-	vma_fput(vma);
+	fput(f);
 	down_read(&current->mm->mmap_sem);
 	return error;
 }
