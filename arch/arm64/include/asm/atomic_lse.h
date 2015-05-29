@@ -166,7 +166,7 @@ static inline int atomic_cmpxchg(atomic_t *ptr, int old, int new)
 	"	mov	%w[ret], w30")
 	: [ret] "+r" (x0), [v] "+Q" (ptr->counter)
 	: [old] "r" (w1), [new] "r" (w2)
-	: "x30", "cc", "memory");
+	: "x30", "memory");
 
 	return x0;
 }
@@ -313,7 +313,7 @@ static inline long atomic64_cmpxchg(atomic64_t *ptr, long old, long new)
 	"	mov	%[ret], x30")
 	: [ret] "+r" (x0), [v] "+Q" (ptr->counter)
 	: [old] "r" (x1), [new] "r" (x2)
-	: "x30", "cc", "memory");
+	: "x30", "memory");
 
 	return x0;
 }
