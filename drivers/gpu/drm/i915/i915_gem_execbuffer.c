@@ -1250,7 +1250,7 @@ i915_gem_ringbuffer_submission(struct i915_execbuffer_params *params,
 	if (ret)
 		goto error;
 
-	ret = i915_switch_context(ring, params->ctx);
+	ret = i915_switch_context(params->request);
 	if (ret)
 		goto error;
 

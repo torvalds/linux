@@ -420,7 +420,7 @@ int i915_gem_context_enable(struct drm_i915_gem_request *req)
 
 		ret = ring->init_context(ring, ring->default_context);
 	} else
-		ret = i915_switch_context(ring, ring->default_context);
+		ret = i915_switch_context(req);
 
 	if (ret) {
 		DRM_ERROR("ring init context: %d\n", ret);
@@ -775,8 +775,7 @@ unpin_out:
 
 /**
  * i915_switch_context() - perform a GPU context switch.
- * @ring: ring for which we'll execute the context switch
- * @to: the context to switch to
+ * @req: request for which we'll execute the context switch
  *
  * The context life cycle is simple. The context refcount is incremented and
  * decremented by 1 and create and destroy. If the context is in use by the GPU,
@@ -787,25 +786,25 @@ unpin_out:
  * switched by writing to the ELSP and requests keep a reference to their
  * context.
  */
-int i915_switch_context(struct intel_engine_cs *ring,
-			struct intel_context *to)
+int i915_switch_context(struct drm_i915_gem_request *req)
 {
+	struct intel_engine_cs *ring = req->ring;
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
 
 	WARN_ON(i915.enable_execlists);
 	WARN_ON(!mutex_is_locked(&dev_priv->dev->struct_mutex));
 
-	if (to->legacy_hw_ctx.rcs_state == NULL) { /* We have the fake context */
-		if (to != ring->last_context) {
-			i915_gem_context_reference(to);
+	if (req->ctx->legacy_hw_ctx.rcs_state == NULL) { /* We have the fake context */
+		if (req->ctx != ring->last_context) {
+			i915_gem_context_reference(req->ctx);
 			if (ring->last_context)
 				i915_gem_context_unreference(ring->last_context);
-			ring->last_context = to;
+			ring->last_context = req->ctx;
 		}
 		return 0;
 	}
 
-	return do_switch(ring, to);
+	return do_switch(req->ring, req->ctx);
 }
 
 static bool contexts_enabled(struct drm_device *dev)

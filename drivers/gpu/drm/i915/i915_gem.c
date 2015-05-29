@@ -2539,8 +2539,6 @@ void __i915_add_request(struct intel_engine_cs *ring,
 	 */
 	request->batch_obj = obj;
 
-	WARN_ON(!i915.enable_execlists && (request->ctx != ring->last_context));
-
 	request->emitted_jiffies = jiffies;
 	list_add_tail(&request->list, &ring->request_list);
 	request->file_priv = NULL;
@@ -3311,7 +3309,7 @@ int i915_gpu_idle(struct drm_device *dev)
 			if (ret)
 				return ret;
 
-			ret = i915_switch_context(req->ring, ring->default_context);
+			ret = i915_switch_context(req);
 			if (ret) {
 				i915_gem_request_cancel(req);
 				return ret;
