@@ -1149,17 +1149,6 @@ i915_gem_check_wedge(struct i915_gpu_error *error,
 	return 0;
 }
 
-/*
- * Compare arbitrary request against outstanding lazy request. Emit on match.
- */
-int
-i915_gem_check_olr(struct drm_i915_gem_request *req)
-{
-	WARN_ON(!mutex_is_locked(&req->ring->dev->struct_mutex));
-
-	return 0;
-}
-
 static void fake_irq(unsigned long data)
 {
 	wake_up_process((struct task_struct *)data);
@@ -1440,10 +1429,6 @@ i915_wait_request(struct drm_i915_gem_request *req)
 	if (ret)
 		return ret;
 
-	ret = i915_gem_check_olr(req);
-	if (ret)
-		return ret;
-
 	ret = __i915_wait_request(req,
 				  atomic_read(&dev_priv->gpu_error.reset_counter),
 				  interruptible, NULL, NULL);
@@ -1543,10 +1528,6 @@ i915_gem_object_wait_rendering__nonblocking(struct drm_i915_gem_object *obj,
 		if (req == NULL)
 			return 0;
 
-		ret = i915_gem_check_olr(req);
-		if (ret)
-			goto err;
-
 		requests[n++] = i915_gem_request_reference(req);
 	} else {
 		for (i = 0; i < I915_NUM_RINGS; i++) {
@@ -1555,10 +1536,6 @@ i915_gem_object_wait_rendering__nonblocking(struct drm_i915_gem_object *obj,
 			req = obj->last_read_req[i];
 			if (req == NULL)
 				continue;
-
-			ret = i915_gem_check_olr(req);
-			if (ret)
-				goto err;
 
 			requests[n++] = i915_gem_request_reference(req);
 		}
@@ -1570,7 +1547,6 @@ i915_gem_object_wait_rendering__nonblocking(struct drm_i915_gem_object *obj,
 					  NULL, rps);
 	mutex_lock(&dev->struct_mutex);
 
-err:
 	for (i = 0; i < n; i++) {
 		if (ret == 0)
 			i915_gem_object_retire_request(obj, requests[i]);
@@ -2983,7 +2959,7 @@ i915_gem_idle_work_handler(struct work_struct *work)
 static int
 i915_gem_object_flush_active(struct drm_i915_gem_object *obj)
 {
-	int ret, i;
+	int i;
 
 	if (!obj->active)
 		return 0;
@@ -2997,10 +2973,6 @@ i915_gem_object_flush_active(struct drm_i915_gem_object *obj)
 
 		if (list_empty(&req->list))
 			goto retire;
-
-		ret = i915_gem_check_olr(req);
-		if (ret)
-			return ret;
 
 		if (i915_gem_request_completed(req, true)) {
 			__i915_gem_request_retire__upto(req);
@@ -3116,10 +3088,6 @@ __i915_gem_object_sync(struct drm_i915_gem_object *obj,
 
 	if (i915_gem_request_completed(from_req, true))
 		return 0;
-
-	ret = i915_gem_check_olr(from_req);
-	if (ret)
-		return ret;
 
 	if (!i915_semaphore_is_enabled(obj->base.dev)) {
 		struct drm_i915_private *i915 = to_i915(obj->base.dev);

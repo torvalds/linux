@@ -11476,12 +11476,6 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 		i915_gem_request_assign(&work->flip_queued_req,
 					obj->last_write_req);
 	} else {
-		if (obj->last_write_req) {
-			ret = i915_gem_check_olr(obj->last_write_req);
-			if (ret)
-				goto cleanup_unpin;
-		}
-
 		if (!request) {
 			ret = i915_gem_request_alloc(ring, ring->default_context, &request);
 			if (ret)
