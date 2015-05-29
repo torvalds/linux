@@ -121,6 +121,11 @@
 #define ADSP2_WDMA_CONFIG_2 0x31
 #define ADSP2_RDMA_CONFIG_1 0x34
 
+#define ADSP2_SCRATCH0        0x40
+#define ADSP2_SCRATCH1        0x41
+#define ADSP2_SCRATCH2        0x42
+#define ADSP2_SCRATCH3        0x43
+
 /*
  * ADSP2 Control
  */
@@ -362,6 +367,25 @@ static unsigned int wm_adsp_region_to_reg(struct wm_adsp_region const *mem,
 		WARN(1, "Unknown memory region type");
 		return offset;
 	}
+}
+
+static void wm_adsp2_show_fw_status(struct wm_adsp *dsp)
+{
+	u16 scratch[4];
+	int ret;
+
+	ret = regmap_raw_read(dsp->regmap, dsp->base + ADSP2_SCRATCH0,
+				scratch, sizeof(scratch));
+	if (ret) {
+		adsp_err(dsp, "Failed to read SCRATCH regs: %d\n", ret);
+		return;
+	}
+
+	adsp_dbg(dsp, "FW SCRATCH 0:0x%x 1:0x%x 2:0x%x 3:0x%x\n",
+		 be16_to_cpu(scratch[0]),
+		 be16_to_cpu(scratch[1]),
+		 be16_to_cpu(scratch[2]),
+		 be16_to_cpu(scratch[3]));
 }
 
 static int wm_coeff_info(struct snd_kcontrol *kcontrol,
@@ -1898,6 +1922,9 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 		break;
 
 	case SND_SOC_DAPM_PRE_PMD:
+		/* Log firmware state, it can be useful for analysis */
+		wm_adsp2_show_fw_status(dsp);
+
 		dsp->running = false;
 
 		regmap_update_bits(dsp->regmap, dsp->base + ADSP2_CONTROL,
