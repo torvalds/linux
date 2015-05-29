@@ -478,10 +478,9 @@ i915_gem_context_get(struct drm_i915_file_private *file_priv, u32 id)
 }
 
 static inline int
-mi_set_context(struct intel_engine_cs *ring,
-	       struct intel_context *new_context,
-	       u32 hw_flags)
+mi_set_context(struct drm_i915_gem_request *req, u32 hw_flags)
 {
+	struct intel_engine_cs *ring = req->ring;
 	u32 flags = hw_flags | MI_MM_SPACE_GTT;
 	const int num_rings =
 		/* Use an extended w/a on ivb+ if signalling from other rings */
@@ -533,7 +532,7 @@ mi_set_context(struct intel_engine_cs *ring,
 
 	intel_ring_emit(ring, MI_NOOP);
 	intel_ring_emit(ring, MI_SET_CONTEXT);
-	intel_ring_emit(ring, i915_gem_obj_ggtt_offset(new_context->legacy_hw_ctx.rcs_state) |
+	intel_ring_emit(ring, i915_gem_obj_ggtt_offset(req->ctx->legacy_hw_ctx.rcs_state) |
 			flags);
 	/*
 	 * w/a: MI_SET_CONTEXT must always be followed by MI_NOOP
@@ -695,7 +694,7 @@ static int do_switch(struct drm_i915_gem_request *req)
 	WARN_ON(needs_pd_load_pre(ring, to) &&
 		needs_pd_load_post(ring, to, hw_flags));
 
-	ret = mi_set_context(ring, to, hw_flags);
+	ret = mi_set_context(req, hw_flags);
 	if (ret)
 		goto unpin_out;
 
