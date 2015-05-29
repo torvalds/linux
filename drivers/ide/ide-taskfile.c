@@ -186,7 +186,7 @@ static ide_startstop_t task_no_data_intr(ide_drive_t *drive)
 	    tf->command == ATA_CMD_CHK_POWER) {
 		struct request *rq = hwif->rq;
 
-		if (blk_pm_request(rq))
+		if (ata_pm_request(rq))
 			ide_complete_pm_rq(drive, rq);
 		else
 			ide_finish_cmd(drive, cmd, stat);

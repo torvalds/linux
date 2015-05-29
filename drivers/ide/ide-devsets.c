@@ -166,7 +166,7 @@ int ide_devset_execute(ide_drive_t *drive, const struct ide_devset *setting,
 		return setting->set(drive, arg);
 
 	rq = blk_get_request(q, READ, __GFP_WAIT);
-	rq->cmd_type = REQ_TYPE_SPECIAL;
+	rq->cmd_type = REQ_TYPE_DRV_PRIV;
 	rq->cmd_len = 5;
 	rq->cmd[0] = REQ_DEVSET_EXEC;
 	*(int *)&rq->cmd[1] = arg;
