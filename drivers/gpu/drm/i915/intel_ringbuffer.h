@@ -176,8 +176,7 @@ struct  intel_engine_cs {
 
 	int		(*init_hw)(struct intel_engine_cs *ring);
 
-	int		(*init_context)(struct intel_engine_cs *ring,
-					struct intel_context *ctx);
+	int		(*init_context)(struct drm_i915_gem_request *req);
 
 	void		(*write_tail)(struct intel_engine_cs *ring,
 				      u32 value);

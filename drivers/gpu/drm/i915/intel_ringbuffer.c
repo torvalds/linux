@@ -742,16 +742,15 @@ static int intel_ring_workarounds_emit(struct intel_engine_cs *ring,
 	return 0;
 }
 
-static int intel_rcs_ctx_init(struct intel_engine_cs *ring,
-			      struct intel_context *ctx)
+static int intel_rcs_ctx_init(struct drm_i915_gem_request *req)
 {
 	int ret;
 
-	ret = intel_ring_workarounds_emit(ring, ctx);
+	ret = intel_ring_workarounds_emit(req->ring, req->ctx);
 	if (ret != 0)
 		return ret;
 
-	ret = i915_gem_render_state_init(ring);
+	ret = i915_gem_render_state_init(req->ring);
 	if (ret)
 		DRM_ERROR("init render state: %d\n", ret);
 

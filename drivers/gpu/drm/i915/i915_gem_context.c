@@ -418,7 +418,7 @@ int i915_gem_context_enable(struct drm_i915_gem_request *req)
 		if (ring->init_context == NULL)
 			return 0;
 
-		ret = ring->init_context(ring, ring->default_context);
+		ret = ring->init_context(req);
 	} else
 		ret = i915_switch_context(req);
 
@@ -760,7 +760,7 @@ done:
 
 	if (uninitialized) {
 		if (ring->init_context) {
-			ret = ring->init_context(ring, to);
+			ret = ring->init_context(req);
 			if (ret)
 				DRM_ERROR("ring init context: %d\n", ret);
 		}

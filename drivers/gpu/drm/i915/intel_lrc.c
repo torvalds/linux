@@ -1602,16 +1602,15 @@ out:
 	return ret;
 }
 
-static int gen8_init_rcs_context(struct intel_engine_cs *ring,
-		       struct intel_context *ctx)
+static int gen8_init_rcs_context(struct drm_i915_gem_request *req)
 {
 	int ret;
 
-	ret = intel_logical_ring_workarounds_emit(ring, ctx);
+	ret = intel_logical_ring_workarounds_emit(req->ring, req->ctx);
 	if (ret)
 		return ret;
 
-	return intel_lr_context_render_state_init(ring, ctx);
+	return intel_lr_context_render_state_init(req->ring, req->ctx);
 }
 
 /**
@@ -2236,7 +2235,7 @@ int intel_lr_context_deferred_create(struct intel_context *ctx,
 			if (ret)
 				return ret;
 
-			ret = ring->init_context(req->ring, ctx);
+			ret = ring->init_context(req);
 			if (ret) {
 				DRM_ERROR("ring init context: %d\n", ret);
 				i915_gem_request_cancel(req);
