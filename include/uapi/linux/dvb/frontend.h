@@ -228,7 +228,7 @@ enum fe_bandwidth {
 typedef enum fe_bandwidth fe_bandwidth_t;
 #endif
 
-typedef enum fe_guard_interval {
+enum fe_guard_interval {
 	GUARD_INTERVAL_1_32,
 	GUARD_INTERVAL_1_16,
 	GUARD_INTERVAL_1_8,
@@ -240,8 +240,9 @@ typedef enum fe_guard_interval {
 	GUARD_INTERVAL_PN420,
 	GUARD_INTERVAL_PN595,
 	GUARD_INTERVAL_PN945,
-} fe_guard_interval_t;
+};
 
+typedef enum fe_guard_interval fe_guard_interval_t;
 
 typedef enum fe_hierarchy {
 	HIERARCHY_NONE,

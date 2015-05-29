@@ -59,22 +59,6 @@ specification is available at
 <section>
 <title>More OFDM parameters</title>
 
-<section id="fe-guard-interval-t">
-<title>frontend guard inverval</title>
-<programlisting>
-typedef enum fe_guard_interval {
-	GUARD_INTERVAL_1_32,
-	GUARD_INTERVAL_1_16,
-	GUARD_INTERVAL_1_8,
-	GUARD_INTERVAL_1_4,
-	GUARD_INTERVAL_AUTO,
-	GUARD_INTERVAL_1_128,
-	GUARD_INTERVAL_19_128,
-	GUARD_INTERVAL_19_256,
-} fe_guard_interval_t;
-</programlisting>
-</section>
-
 <section id="fe-hierarchy-t">
 <title>frontend hierarchy</title>
 <programlisting>

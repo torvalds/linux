@@ -818,21 +818,59 @@ typedef enum atscmh_sccc_code_mode {
 		<title><constant>DTV_GUARD_INTERVAL</constant></title>
 
 		<para>Possible values are:</para>
-<programlisting>
-typedef enum fe_guard_interval {
-	GUARD_INTERVAL_1_32,
-	GUARD_INTERVAL_1_16,
-	GUARD_INTERVAL_1_8,
-	GUARD_INTERVAL_1_4,
-	GUARD_INTERVAL_AUTO,
-	GUARD_INTERVAL_1_128,
-	GUARD_INTERVAL_19_128,
-	GUARD_INTERVAL_19_256,
-	GUARD_INTERVAL_PN420,
-	GUARD_INTERVAL_PN595,
-	GUARD_INTERVAL_PN945,
-} fe_guard_interval_t;
-</programlisting>
+
+<section id="fe-guard-interval-t">
+<title>Modulation guard interval</title>
+
+<table pgwide="1" frame="none" id="fe-guard-interval">
+    <title>enum fe_guard_interval</title>
+    <tgroup cols="2">
+	&cs-def;
+	<thead>
+	<row>
+	    <entry>ID</entry>
+	    <entry>Description</entry>
+	</row>
+	</thead>
+	<tbody valign="top">
+	<row>
+	    <entry>GUARD_INTERVAL_AUTO</entry>
+	    <entry>Autodetect the guard interval</entry>
+	</row><row>
+	    <entry>GUARD_INTERVAL_1_128</entry>
+	    <entry>Guard interval 1/128</entry>
+	</row><row>
+	    <entry>GUARD_INTERVAL_1_32</entry>
+	    <entry>Guard interval 1/32</entry>
+	</row><row>
+	    <entry>GUARD_INTERVAL_1_16</entry>
+	    <entry>Guard interval 1/16</entry>
+	</row><row>
+	    <entry>GUARD_INTERVAL_1_8</entry>
+	    <entry>Guard interval 1/8</entry>
+	</row><row>
+	    <entry>GUARD_INTERVAL_1_4</entry>
+	    <entry>Guard interval 1/4</entry>
+	</row><row>
+	    <entry>GUARD_INTERVAL_19_128</entry>
+	    <entry>Guard interval 19/128</entry>
+	</row><row>
+	    <entry>GUARD_INTERVAL_19_256</entry>
+	    <entry>Guard interval 19/256</entry>
+	</row><row>
+	    <entry>GUARD_INTERVAL_PN420</entry>
+	    <entry>PN length 420 (1/4)</entry>
+	</row><row>
+	    <entry>GUARD_INTERVAL_PN595</entry>
+	    <entry>PN length 595 (1/6)</entry>
+	</row><row>
+	    <entry>GUARD_INTERVAL_PN945</entry>
+	    <entry>PN length 945 (1/9)</entry>
+	</row>
+        </tbody>
+    </tgroup>
+</table>
+</section>
 
 		<para>Notes:</para>
 		<para>1) If <constant>DTV_GUARD_INTERVAL</constant> is set the <constant>GUARD_INTERVAL_AUTO</constant> the hardware will
