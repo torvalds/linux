@@ -212,8 +212,6 @@ struct dgnc_board {
 
 	uint		TtyRefCnt;
 
-	char		*flipbuf;	/* Our flip buffer, alloced if board is found */
-
 	u16		dpatype;	/* The board "type", as defined by DPA */
 	u16		dpastatus;	/* The board "status", as defined by DPA */
 
@@ -288,7 +286,6 @@ struct un_t {
 #define CH_TX_FIFO_LWM  0x0800		/* TX Fifo is below Low Water	*/
 #define CH_BREAK_SENDING 0x1000		/* Break is being sent		*/
 #define CH_LOOPBACK 0x2000		/* Channel is in lookback mode	*/
-#define CH_FLIPBUF_IN_USE 0x4000	/* Channel's flipbuf is in use	*/
 #define CH_BAUD0	0x08000		/* Used for checking B0 transitions */
 #define CH_FORCED_STOP  0x20000		/* Output is forcibly stopped	*/
 #define CH_FORCED_STOPI 0x40000		/* Input is forcibly stopped	*/
