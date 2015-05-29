@@ -314,7 +314,10 @@ static void oz_usb_handle_ep_data(struct oz_usb_ctx *usb_ctx,
 			struct oz_multiple_fixed *body =
 				(struct oz_multiple_fixed *)data_hdr;
 			u8 *data = body->data;
-			int n = (len - sizeof(struct oz_multiple_fixed)+1)
+			int n;
+			if (!body->unit_size)
+				break;
+			n = (len - sizeof(struct oz_multiple_fixed)+1)
 				/ body->unit_size;
 			while (n--) {
 				oz_hcd_data_ind(usb_ctx->hport, body->endpoint,
