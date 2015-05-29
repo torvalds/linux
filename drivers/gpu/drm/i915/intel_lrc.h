@@ -41,8 +41,7 @@ void intel_logical_ring_stop(struct intel_engine_cs *ring);
 void intel_logical_ring_cleanup(struct intel_engine_cs *ring);
 int intel_logical_rings_init(struct drm_device *dev);
 
-int logical_ring_flush_all_caches(struct intel_ringbuffer *ringbuf,
-				  struct intel_context *ctx);
+int logical_ring_flush_all_caches(struct drm_i915_gem_request *req);
 /**
  * intel_logical_ring_advance() - advance the ringbuffer tail
  * @ringbuf: Ringbuffer to advance.

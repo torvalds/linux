@@ -715,7 +715,7 @@ static int intel_ring_workarounds_emit(struct drm_i915_gem_request *req)
 		return 0;
 
 	ring->gpu_caches_dirty = true;
-	ret = intel_ring_flush_all_caches(ring);
+	ret = intel_ring_flush_all_caches(req);
 	if (ret)
 		return ret;
 
@@ -733,7 +733,7 @@ static int intel_ring_workarounds_emit(struct drm_i915_gem_request *req)
 	intel_ring_advance(ring);
 
 	ring->gpu_caches_dirty = true;
-	ret = intel_ring_flush_all_caches(ring);
+	ret = intel_ring_flush_all_caches(req);
 	if (ret)
 		return ret;
 
@@ -2892,8 +2892,9 @@ int intel_init_vebox_ring_buffer(struct drm_device *dev)
 }
 
 int
-intel_ring_flush_all_caches(struct intel_engine_cs *ring)
+intel_ring_flush_all_caches(struct drm_i915_gem_request *req)
 {
+	struct intel_engine_cs *ring = req->ring;
 	int ret;
 
 	if (!ring->gpu_caches_dirty)

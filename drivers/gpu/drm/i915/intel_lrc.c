@@ -997,16 +997,15 @@ void intel_logical_ring_stop(struct intel_engine_cs *ring)
 	I915_WRITE_MODE(ring, _MASKED_BIT_DISABLE(STOP_RING));
 }
 
-int logical_ring_flush_all_caches(struct intel_ringbuffer *ringbuf,
-				  struct intel_context *ctx)
+int logical_ring_flush_all_caches(struct drm_i915_gem_request *req)
 {
-	struct intel_engine_cs *ring = ringbuf->ring;
+	struct intel_engine_cs *ring = req->ring;
 	int ret;
 
 	if (!ring->gpu_caches_dirty)
 		return 0;
 
-	ret = ring->emit_flush(ringbuf, ctx, 0, I915_GEM_GPU_DOMAINS);
+	ret = ring->emit_flush(req->ringbuf, req->ctx, 0, I915_GEM_GPU_DOMAINS);
 	if (ret)
 		return ret;
 
@@ -1071,7 +1070,7 @@ static int intel_logical_ring_workarounds_emit(struct drm_i915_gem_request *req)
 		return 0;
 
 	ring->gpu_caches_dirty = true;
-	ret = logical_ring_flush_all_caches(ringbuf, req->ctx);
+	ret = logical_ring_flush_all_caches(req);
 	if (ret)
 		return ret;
 
@@ -1089,7 +1088,7 @@ static int intel_logical_ring_workarounds_emit(struct drm_i915_gem_request *req)
 	intel_logical_ring_advance(ringbuf);
 
 	ring->gpu_caches_dirty = true;
-	ret = logical_ring_flush_all_caches(ringbuf, req->ctx);
+	ret = logical_ring_flush_all_caches(req);
 	if (ret)
 		return ret;
 

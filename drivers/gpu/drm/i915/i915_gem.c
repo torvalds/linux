@@ -2507,9 +2507,9 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 	 */
 	if (flush_caches) {
 		if (i915.enable_execlists)
-			ret = logical_ring_flush_all_caches(ringbuf, request->ctx);
+			ret = logical_ring_flush_all_caches(request);
 		else
-			ret = intel_ring_flush_all_caches(ring);
+			ret = intel_ring_flush_all_caches(request);
 		/* Not allowed to fail! */
 		WARN(ret, "*_ring_flush_all_caches failed: %d!\n", ret);
 	}
