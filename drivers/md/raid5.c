@@ -681,8 +681,8 @@ get_active_stripe(struct r5conf *conf, sector_t sector,
 		if (!sh) {
 			if (!test_bit(R5_INACTIVE_BLOCKED, &conf->cache_state)) {
 				sh = get_free_stripe(conf, hash);
-				if (!sh && llist_empty(&conf->released_stripes) &&
-				    !test_bit(R5_DID_ALLOC, &conf->cache_state))
+				if (!sh && !test_bit(R5_DID_ALLOC,
+						     &conf->cache_state))
 					set_bit(R5_ALLOC_MORE,
 						&conf->cache_state);
 			}
