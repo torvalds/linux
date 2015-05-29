@@ -544,23 +544,18 @@ void intel_lrc_irq_handler(struct intel_engine_cs *ring)
 		   ((u32)ring->next_context_status_buffer & 0x07) << 8);
 }
 
-static int execlists_context_queue(struct intel_engine_cs *ring,
-				   struct intel_context *to,
-				   u32 tail,
-				   struct drm_i915_gem_request *request)
+static int execlists_context_queue(struct drm_i915_gem_request *request)
 {
+	struct intel_engine_cs *ring = request->ring;
 	struct drm_i915_gem_request *cursor;
 	int num_elements = 0;
 
-	if (to != ring->default_context)
-		intel_lr_context_pin(ring, to);
-
-	WARN_ON(!request);
-	WARN_ON(to != request->ctx);
+	if (request->ctx != ring->default_context)
+		intel_lr_context_pin(ring, request->ctx);
 
 	i915_gem_request_reference(request);
 
-	request->tail = tail;
+	request->tail = request->ringbuf->tail;
 
 	spin_lock_irq(&ring->execlist_lock);
 
@@ -575,7 +570,7 @@ static int execlists_context_queue(struct intel_engine_cs *ring,
 					   struct drm_i915_gem_request,
 					   execlist_link);
 
-		if (to == tail_req->ctx) {
+		if (request->ctx == tail_req->ctx) {
 			WARN(tail_req->elsp_submitted != 0,
 				"More than 2 already-submitted reqs queued\n");
 			list_del(&tail_req->execlist_link);
@@ -659,12 +654,12 @@ int intel_logical_ring_alloc_request_extras(struct drm_i915_gem_request *request
 	return 0;
 }
 
-static int logical_ring_wait_for_space(struct intel_ringbuffer *ringbuf,
-				       struct intel_context *ctx,
+static int logical_ring_wait_for_space(struct drm_i915_gem_request *req,
 				       int bytes)
 {
-	struct intel_engine_cs *ring = ringbuf->ring;
-	struct drm_i915_gem_request *request;
+	struct intel_ringbuffer *ringbuf = req->ringbuf;
+	struct intel_engine_cs *ring = req->ring;
+	struct drm_i915_gem_request *target;
 	unsigned space;
 	int ret;
 
@@ -674,26 +669,26 @@ static int logical_ring_wait_for_space(struct intel_ringbuffer *ringbuf,
 	if (intel_ring_space(ringbuf) >= bytes)
 		return 0;
 
-	list_for_each_entry(request, &ring->request_list, list) {
+	list_for_each_entry(target, &ring->request_list, list) {
 		/*
 		 * The request queue is per-engine, so can contain requests
 		 * from multiple ringbuffers. Here, we must ignore any that
 		 * aren't from the ringbuffer we're considering.
 		 */
-		if (request->ringbuf != ringbuf)
+		if (target->ringbuf != ringbuf)
 			continue;
 
 		/* Would completion of this request free enough space? */
-		space = __intel_ring_space(request->postfix, ringbuf->tail,
+		space = __intel_ring_space(target->postfix, ringbuf->tail,
 					   ringbuf->size);
 		if (space >= bytes)
 			break;
 	}
 
-	if (WARN_ON(&request->list == &ring->request_list))
+	if (WARN_ON(&target->list == &ring->request_list))
 		return -ENOSPC;
 
-	ret = i915_wait_request(request);
+	ret = i915_wait_request(target);
 	if (ret)
 		return ret;
 
@@ -703,7 +698,7 @@ static int logical_ring_wait_for_space(struct intel_ringbuffer *ringbuf,
 
 /*
  * intel_logical_ring_advance_and_submit() - advance the tail and submit the workload
- * @ringbuf: Logical Ringbuffer to advance.
+ * @request: Request to advance the logical ringbuffer of.
  *
  * The tail is updated in our logical ringbuffer struct, not in the actual context. What
  * really happens during submission is that the context and current tail will be placed
@@ -711,23 +706,21 @@ static int logical_ring_wait_for_space(struct intel_ringbuffer *ringbuf,
  * point, the tail *inside* the context is updated and the ELSP written to.
  */
 static void
-intel_logical_ring_advance_and_submit(struct intel_ringbuffer *ringbuf,
-				      struct intel_context *ctx,
-				      struct drm_i915_gem_request *request)
+intel_logical_ring_advance_and_submit(struct drm_i915_gem_request *request)
 {
-	struct intel_engine_cs *ring = ringbuf->ring;
+	struct intel_engine_cs *ring = request->ring;
 
-	intel_logical_ring_advance(ringbuf);
+	intel_logical_ring_advance(request->ringbuf);
 
 	if (intel_ring_stopped(ring))
 		return;
 
-	execlists_context_queue(ring, ctx, ringbuf->tail, request);
+	execlists_context_queue(request);
 }
 
-static int logical_ring_wrap_buffer(struct intel_ringbuffer *ringbuf,
-				    struct intel_context *ctx)
+static int logical_ring_wrap_buffer(struct drm_i915_gem_request *req)
 {
+	struct intel_ringbuffer *ringbuf = req->ringbuf;
 	uint32_t __iomem *virt;
 	int rem = ringbuf->size - ringbuf->tail;
 
@@ -735,7 +728,7 @@ static int logical_ring_wrap_buffer(struct intel_ringbuffer *ringbuf,
 	WARN_ON(ringbuf->reserved_in_use);
 
 	if (ringbuf->space < rem) {
-		int ret = logical_ring_wait_for_space(ringbuf, ctx, rem);
+		int ret = logical_ring_wait_for_space(req, rem);
 
 		if (ret)
 			return ret;
@@ -752,9 +745,9 @@ static int logical_ring_wrap_buffer(struct intel_ringbuffer *ringbuf,
 	return 0;
 }
 
-static int logical_ring_prepare(struct intel_ringbuffer *ringbuf,
-				struct intel_context *ctx, int bytes)
+static int logical_ring_prepare(struct drm_i915_gem_request *req, int bytes)
 {
+	struct intel_ringbuffer *ringbuf = req->ringbuf;
 	int ret;
 
 	/*
@@ -766,7 +759,7 @@ static int logical_ring_prepare(struct intel_ringbuffer *ringbuf,
 		bytes += ringbuf->reserved_size;
 
 	if (unlikely(ringbuf->tail + bytes > ringbuf->effective_size)) {
-		ret = logical_ring_wrap_buffer(ringbuf, ctx);
+		ret = logical_ring_wrap_buffer(req);
 		if (unlikely(ret))
 			return ret;
 
@@ -779,7 +772,7 @@ static int logical_ring_prepare(struct intel_ringbuffer *ringbuf,
 	}
 
 	if (unlikely(ringbuf->space < bytes)) {
-		ret = logical_ring_wait_for_space(ringbuf, ctx, bytes);
+		ret = logical_ring_wait_for_space(req, bytes);
 		if (unlikely(ret))
 			return ret;
 	}
@@ -814,8 +807,7 @@ static int intel_logical_ring_begin(struct drm_i915_gem_request *req,
 	if (ret)
 		return ret;
 
-	ret = logical_ring_prepare(req->ringbuf, req->ctx,
-				   num_dwords * sizeof(uint32_t));
+	ret = logical_ring_prepare(req, num_dwords * sizeof(uint32_t));
 	if (ret)
 		return ret;
 
@@ -1557,7 +1549,7 @@ static int gen8_emit_request(struct drm_i915_gem_request *request)
 	intel_logical_ring_emit(ringbuf, i915_gem_request_get_seqno(request));
 	intel_logical_ring_emit(ringbuf, MI_USER_INTERRUPT);
 	intel_logical_ring_emit(ringbuf, MI_NOOP);
-	intel_logical_ring_advance_and_submit(ringbuf, request->ctx, request);
+	intel_logical_ring_advance_and_submit(request);
 
 	/*
 	 * Here we add two extra NOOPs as padding to avoid
