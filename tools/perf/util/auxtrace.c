@@ -1182,6 +1182,13 @@ static int __auxtrace_mmap__read(struct auxtrace_mmap *mm,
 		data2 = NULL;
 	}
 
+	if (itr->alignment) {
+		unsigned int unwanted = len1 % itr->alignment;
+
+		len1 -= unwanted;
+		size -= unwanted;
+	}
+
 	/* padding must be written by fn() e.g. record__process_auxtrace() */
 	padding = size & 7;
 	if (padding)
