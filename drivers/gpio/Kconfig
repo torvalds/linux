@@ -126,6 +126,14 @@ config GPIO_BCM_KONA
 	help
 	  Turn on GPIO support for Broadcom "Kona" chips.
 
+config GPIO_BRCMSTB
+	tristate "BRCMSTB GPIO support"
+	default y if ARCH_BRCMSTB
+	depends on OF_GPIO && (ARCH_BRCMSTB || COMPILE_TEST)
+	select GPIO_GENERIC
+	help
+	  Say yes here to enable GPIO support for Broadcom STB (BCM7XXX) SoCs.
+
 config GPIO_CLPS711X
 	tristate "CLPS711X GPIO support"
 	depends on ARCH_CLPS711X || COMPILE_TEST
