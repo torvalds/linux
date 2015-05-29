@@ -68,7 +68,6 @@
 #define nl80211_SCAN_RESULT_EXPIRE	(3 * HZ)
 #define SCAN_RESULT_EXPIRE				(40 * HZ)
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 30)
 static const u32 cipher_suites[] = {
 	WLAN_CIPHER_SUITE_WEP40,
 	WLAN_CIPHER_SUITE_WEP104,
@@ -76,11 +75,7 @@ static const u32 cipher_suites[] = {
 	WLAN_CIPHER_SUITE_CCMP,
 	WLAN_CIPHER_SUITE_AES_CMAC,
 };
-#endif
 
-
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37)
 static const struct ieee80211_txrx_stypes
 	wilc_wfi_cfg80211_mgmt_types[NL80211_IFTYPE_MAX] = {
 	[NL80211_IFTYPE_STATION] = {
@@ -110,7 +105,7 @@ static const struct ieee80211_txrx_stypes
 			BIT(IEEE80211_STYPE_DEAUTH >> 4)
 	}
 };
-#endif
+
 /* Time to stay on the channel */
 #define WILC_WFI_DWELL_PASSIVE 100
 #define WILC_WFI_DWELL_ACTIVE  40

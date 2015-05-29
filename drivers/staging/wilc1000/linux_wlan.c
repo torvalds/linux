@@ -180,7 +180,6 @@ linux_wlan_t *g_linux_wlan;
 wilc_wlan_oup_t *gpstrWlanOps;
 WILC_Bool bEnablePS = WILC_TRUE;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 2, 0)
 static const struct net_device_ops wilc_netdev_ops = {
 	.ndo_init = mac_init_fn,
 	.ndo_open = mac_open,
@@ -191,37 +190,7 @@ static const struct net_device_ops wilc_netdev_ops = {
 	.ndo_set_rx_mode  = wilc_set_multicast_list,
 
 };
-#define wilc_set_netdev_ops(ndev) do { (ndev)->netdev_ops = &wilc_netdev_ops; } while (0)
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29)
 
-static const struct net_device_ops wilc_netdev_ops = {
-	.ndo_init = mac_init_fn,
-	.ndo_open = mac_open,
-	.ndo_stop = mac_close,
-	.ndo_start_xmit = mac_xmit,
-	.ndo_do_ioctl = mac_ioctl,
-	.ndo_get_stats = mac_stats,
-	.ndo_set_multicast_list = wilc_set_multicast_list,
-
-};
-
-#define wilc_set_netdev_ops(ndev) do { (ndev)->netdev_ops = &wilc_netdev_ops; } while (0)
-
-#else
-
-static void wilc_set_netdev_ops(struct net_device *ndev)
-{
-
-	ndev->init = mac_init_fn;
-	ndev->open = mac_open;
-	ndev->stop = mac_close;
-	ndev->hard_start_xmit = mac_xmit;
-	ndev->do_ioctl = mac_ioctl;
-	ndev->get_stats = mac_stats;
-	ndev->set_multicast_list = wilc_set_multicast_list,
-}
-
-#endif
 #ifdef DEBUG_MODE
 
 extern volatile int timeNo;
@@ -594,12 +563,7 @@ static void linux_wlan_msleep(uint32_t msc)
 {
 	if (msc <= 4000000) {
 		WILC_Uint32 u32Temp = msc * 1000;
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 35)
 		usleep_range(u32Temp, u32Temp);
-#else
-		/* This is delay not sleep !!!, has to be changed*/
-		msleep(msc);
-#endif
 	} else {
 		msleep(msc);
 	}
@@ -2195,7 +2159,6 @@ struct net_device_stats *mac_stats(struct net_device *dev)
 }
 
 /* Setup the multicast filter */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 34)
 static void wilc_set_multicast_list(struct net_device *dev)
 {
 
@@ -2250,55 +2213,6 @@ static void wilc_set_multicast_list(struct net_device *dev)
 	return;
 
 }
-
-#else
-
-static void wilc_set_multicast_list(struct net_device *dev)
-{
-	/* BIG Warning, Beware : Uncompiled, untested... */
-	struct dev_mc_list *mc_ptr;
-	int i = 0;
-
-	if (!dev)
-		return;
-
-	PRINT_D(INIT_DBG, "Setting Multicast List. \n");
-	PRINT_D(INIT_DBG, "dev->mc_count = %d\n", dev->mc_count);
-
-	if (dev->flags & IFF_PROMISC) {
-		/* Normally, we should configure the chip to retrive all packets
-		 * but we don't wanna support this right now */
-		/* TODO: add promiscuous mode support */
-		PRINT_D(INIT_DBG, "Set promiscuous mode ON, retrive all packets \n");
-		return;
-	}
-
-	/* If there's more addresses than we handle, get all multicast
-	 * packets and sort them out in software. */
-	if ((dev->flags & IFF_ALLMULTI) || (dev->mc_count > WILC_MULTICAST_TABLE_SIZE)) {
-		PRINT_D(INIT_DBG, "Disable multicast filter, retrive all multicast packets\n");
-		host_int_setup_multicast_filter((WILC_WFIDrvHandle)gWFiDrvHandle, WILC_FALSE, 0);
-		return;
-	}
-
-	/* No multicast?  Just get our own stuff */
-	if (dev->mc_count == 0) {
-		PRINT_D(INIT_DBG, "Enable multicast filter, retrive directed packets only.\n");
-		host_int_setup_multicast_filter((WILC_WFIDrvHandle)gWFiDrvHandle, WILC_TRUE, 0);
-		return;
-	}
-
-	/* Store all of the multicast addresses in the hardware filter */
-
-	for (mc_ptr = dev->mc_list; mc_ptr; mc_ptr = mc_ptr->next, i++) {
-		WILC_memcpy(gau8MulticastMacAddrList[i], mc_ptr->dmi_addr, ETH_ALEN)
-		i++;
-	}
-
-	host_int_setup_multicast_filter((WILC_WFIDrvHandle)gWFiDrvHandle, WILC_TRUE, (dev->mc_count));
-
-}
-#endif
 
 static void linux_wlan_tx_complete(void *priv, int status)
 {
@@ -2765,7 +2679,7 @@ int wilc_netdev_init(void)
 		nic->wilc_netdev = ndev;
 		g_linux_wlan->strInterfaceInfo[g_linux_wlan->u8NoIfcs].wilc_netdev = ndev;
 		g_linux_wlan->u8NoIfcs++;
-		wilc_set_netdev_ops(ndev);
+		ndev->netdev_ops = &wilc_netdev_ops;
 
 		#ifdef USE_WIRELESS
 		{

@@ -49,12 +49,7 @@
 #include <asm/checksum.h>
 #include "host_interface.h"
 #include "wilc_wlan.h"
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2, 6, 30)
-#include <net/wireless.h>
-#else
 #include <linux/wireless.h>     /* tony, 2013-06-12 */
-#endif
-
 
 #define FLOW_CONTROL_LOWER_THRESHOLD	128
 #define FLOW_CONTROL_UPPER_THRESHOLD	256
@@ -163,9 +158,6 @@ struct WILC_WFI_priv {
 	tstrHostIFpmkidAttr pmkid_list;
 	struct WILC_WFI_stats netstats;
 	WILC_Uint8 WILC_WFI_wep_default;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 31)
-#define WLAN_KEY_LEN_WEP104 13
-#endif
 	WILC_Uint8 WILC_WFI_wep_key[4][WLAN_KEY_LEN_WEP104];
 	WILC_Uint8 WILC_WFI_wep_key_len[4];
 	struct net_device *real_ndev;   /* The real interface that the monitor is on */
