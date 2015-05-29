@@ -1934,7 +1934,7 @@ static int process_ctrl_td(struct xhci_hcd *xhci, struct xhci_td *td,
 			td->urb->actual_length =
 				td->urb->transfer_buffer_length -
 				EVENT_TRB_LEN(le32_to_cpu(event->transfer_len));
-		else
+		else if (!td->urb_length_set)
 			td->urb->actual_length = 0;
 
 		return finish_td(xhci, td, event_trb, event, ep, status, false);
