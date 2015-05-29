@@ -26,7 +26,7 @@ static const char ** __init clkgen_mux_get_parents(struct device_node *np,
 	const char **parents;
 	int nparents, i;
 
-	nparents = of_count_phandle_with_args(np, "clocks", "#clock-cells");
+	nparents = of_clk_get_parent_count(np);
 	if (WARN_ON(nparents <= 0))
 		return ERR_PTR(-EINVAL);
 
