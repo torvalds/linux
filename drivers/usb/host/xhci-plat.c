@@ -136,21 +136,15 @@ static int xhci_plat_probe(struct platform_device *pdev)
 			goto disable_clk;
 	}
 
-	ret = usb_add_hcd(hcd, irq, IRQF_SHARED);
-	if (ret)
-		goto disable_clk;
-
 	device_wakeup_enable(hcd->self.controller);
 
-	/* USB 2.0 roothub is stored in the platform_device now. */
-	hcd = platform_get_drvdata(pdev);
 	xhci = hcd_to_xhci(hcd);
 	xhci->clk = clk;
 	xhci->shared_hcd = usb_create_shared_hcd(driver, &pdev->dev,
 			dev_name(&pdev->dev), hcd);
 	if (!xhci->shared_hcd) {
 		ret = -ENOMEM;
-		goto dealloc_usb2_hcd;
+		goto disable_clk;
 	}
 
 	if ((node && of_property_read_bool(node, "usb3-lpm-capable")) ||
@@ -172,20 +166,25 @@ static int xhci_plat_probe(struct platform_device *pdev)
 			goto put_usb3_hcd;
 	}
 
-	ret = usb_add_hcd(xhci->shared_hcd, irq, IRQF_SHARED);
+	ret = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (ret)
 		goto disable_usb_phy;
 
+	ret = usb_add_hcd(xhci->shared_hcd, irq, IRQF_SHARED);
+	if (ret)
+		goto dealloc_usb2_hcd;
+
 	return 0;
+
+
+dealloc_usb2_hcd:
+	usb_remove_hcd(hcd);
 
 disable_usb_phy:
 	usb_phy_shutdown(hcd->usb_phy);
 
 put_usb3_hcd:
 	usb_put_hcd(xhci->shared_hcd);
-
-dealloc_usb2_hcd:
-	usb_remove_hcd(hcd);
 
 disable_clk:
 	if (!IS_ERR(clk))
@@ -205,9 +204,10 @@ static int xhci_plat_remove(struct platform_device *dev)
 
 	usb_remove_hcd(xhci->shared_hcd);
 	usb_phy_shutdown(hcd->usb_phy);
-	usb_put_hcd(xhci->shared_hcd);
 
 	usb_remove_hcd(hcd);
+	usb_put_hcd(xhci->shared_hcd);
+
 	if (!IS_ERR(clk))
 		clk_disable_unprepare(clk);
 	usb_put_hcd(hcd);
