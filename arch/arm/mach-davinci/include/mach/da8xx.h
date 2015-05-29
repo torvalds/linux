@@ -36,7 +36,7 @@ extern void __iomem *da8xx_syscfg1_base;
 
 /*
  * If the DA850/OMAP-L138/AM18x SoC on board is of a higher speed grade
- * (than the regular 300Mhz variant), the board code should set this up
+ * (than the regular 300MHz variant), the board code should set this up
  * with the supported speed before calling da850_register_cpufreq().
  */
 extern unsigned int da850_max_speed;
