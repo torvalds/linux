@@ -326,7 +326,9 @@ static int netvsc_init_buf(struct hv_device *device)
 
 	/* Now setup the send buffer.
 	 */
-	net_device->send_buf = vzalloc(net_device->send_buf_size);
+	net_device->send_buf = vzalloc_node(net_device->send_buf_size, node);
+	if (!net_device->send_buf)
+		net_device->send_buf = vzalloc(net_device->send_buf_size);
 	if (!net_device->send_buf) {
 		netdev_err(ndev, "unable to allocate send "
 			   "buffer of size %d\n", net_device->send_buf_size);
