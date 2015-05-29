@@ -586,6 +586,8 @@ config SOC_IMX7D
 	bool "i.MX7 Dual support"
 	select PINCTRL_IMX7D
 	select ARM_GIC
+	select HAVE_IMX_ANATOP
+	select HAVE_IMX_MMDC
 	help
 		This enables support for Freescale i.MX7 Dual processor.
 
