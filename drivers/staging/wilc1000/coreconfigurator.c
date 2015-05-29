@@ -2123,7 +2123,6 @@ WILC_Sint32 CoreConfiguratorDeInit(void)
 
 
 #ifndef SIMULATION
-#if WILC_PLATFORM != WILC_WIN32
 /*Using the global handle of the driver*/
 extern wilc_wlan_oup_t *gpstrWlanOps;
 /**
@@ -2197,5 +2196,4 @@ WILC_Sint32 SendConfigPkt(WILC_Uint8 u8Mode, tstrWID *pstrWIDs,
 
 	return ret;
 }
-#endif
 #endif

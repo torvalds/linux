@@ -1,18 +1,3 @@
-/*
- * Automatically generated C config: don't edit
- * Tue Aug 10 19:52:12 2010
- */
-
-/* OSes supported */
-#define WILC_WIN32		0
-#define WILC_NU				1
-#define WILC_MTK		2
-#define WILC_LINUX		3
-#define WILC_LINUXKERNEL	4
-/* the current OS */
-/* #define WILC_PLATFORM WILC_LINUXKERNEL */
-
-
 /* Logs options */
 #define WILC_LOGS_NOTHING          0
 #define WILC_LOGS_WARN             1

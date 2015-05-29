@@ -46,21 +46,7 @@ typedef WILC_Uint16 WILC_WideChar;
 
 /* Os Configuration File */
 #include "wilc_osconfig.h"
-
-/* Platform specific include */
-#if WILC_PLATFORM == WILC_WIN32
 #include "wilc_platform.h"
-#elif WILC_PLATFORM == WILC_NU
-#include "wilc_platform.h"
-#elif WILC_PLATFORM == WILC_MTK
-#include "wilc_platform.h"
-#elif WILC_PLATFORM == WILC_LINUX
-#include "wilc_platform.h"
-#elif WILC_PLATFORM == WILC_LINUXKERNEL
-#include "wilc_platform.h"
-#else
-#error "OS not supported"
-#endif
 
 /* Logging Functions */
 #include "wilc_log.h"
