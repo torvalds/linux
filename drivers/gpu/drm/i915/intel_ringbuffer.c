@@ -2101,7 +2101,6 @@ void intel_cleanup_ring_buffer(struct intel_engine_cs *ring)
 
 	intel_unpin_ringbuffer_obj(ringbuf);
 	intel_destroy_ringbuffer_obj(ringbuf);
-	i915_gem_request_assign(&ring->outstanding_lazy_request, NULL);
 
 	if (ring->cleanup)
 		ring->cleanup(ring);
@@ -2175,11 +2174,6 @@ static int intel_wrap_ring_buffer(struct intel_engine_cs *ring)
 int intel_ring_idle(struct intel_engine_cs *ring)
 {
 	struct drm_i915_gem_request *req;
-
-	/* We need to add any requests required to flush the objects and ring */
-	WARN_ON(ring->outstanding_lazy_request);
-	if (ring->outstanding_lazy_request)
-		i915_add_request(ring->outstanding_lazy_request);
 
 	/* Wait upon the last request to be completed */
 	if (list_empty(&ring->request_list))
@@ -2338,8 +2332,6 @@ void intel_ring_init_seqno(struct intel_engine_cs *ring, u32 seqno)
 {
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	BUG_ON(ring->outstanding_lazy_request);
 
 	if (INTEL_INFO(dev)->gen == 6 || INTEL_INFO(dev)->gen == 7) {
 		I915_WRITE(RING_SYNC_0(ring->mmio_base), 0);

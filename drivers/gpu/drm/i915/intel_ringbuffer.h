@@ -291,10 +291,6 @@ struct  intel_engine_cs {
 	 */
 	struct list_head request_list;
 
-	/**
-	 * Do we have some not yet emitted requests outstanding?
-	 */
-	struct drm_i915_gem_request *outstanding_lazy_request;
 	bool gpu_caches_dirty;
 
 	wait_queue_head_t irq_queue;

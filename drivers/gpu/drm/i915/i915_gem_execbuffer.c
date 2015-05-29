@@ -1655,10 +1655,8 @@ err:
 	 * must be freed again. If it was submitted then it is being tracked
 	 * on the active request list and no clean up is required here.
 	 */
-	if (ret && params->request) {
+	if (ret && params->request)
 		i915_gem_request_cancel(params->request);
-		ring->outstanding_lazy_request = NULL;
-	}
 
 	mutex_unlock(&dev->struct_mutex);
 

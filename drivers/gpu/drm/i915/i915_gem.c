@@ -1157,9 +1157,6 @@ i915_gem_check_olr(struct drm_i915_gem_request *req)
 {
 	WARN_ON(!mutex_is_locked(&req->ring->dev->struct_mutex));
 
-	if (req == req->ring->outstanding_lazy_request)
-		i915_add_request(req);
-
 	return 0;
 }
 
@@ -2488,8 +2485,6 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 	dev_priv = ring->dev->dev_private;
 	ringbuf = request->ringbuf;
 
-	WARN_ON(request != ring->outstanding_lazy_request);
-
 	/*
 	 * To ensure that this call will not fail, space for its emissions
 	 * should already have been reserved in the ring buffer. Let the ring
@@ -2558,7 +2553,6 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 	}
 
 	trace_i915_gem_request_add(request);
-	ring->outstanding_lazy_request = NULL;
 
 	i915_queue_hangcheck(ring->dev);
 
@@ -2647,8 +2641,7 @@ int i915_gem_request_alloc(struct intel_engine_cs *ring,
 	if (!req_out)
 		return -EINVAL;
 
-	if ((*req_out = ring->outstanding_lazy_request) != NULL)
-		return 0;
+	*req_out = NULL;
 
 	req = kmem_cache_zalloc(dev_priv->requests, GFP_KERNEL);
 	if (req == NULL)
@@ -2694,7 +2687,7 @@ int i915_gem_request_alloc(struct intel_engine_cs *ring,
 		return ret;
 	}
 
-	*req_out = ring->outstanding_lazy_request = req;
+	*req_out = req;
 	return 0;
 
 err:
@@ -2791,9 +2784,6 @@ static void i915_gem_reset_ring_cleanup(struct drm_i915_private *dev_priv,
 
 		i915_gem_request_retire(request);
 	}
-
-	/* This may not have been flushed before the reset, so clean it now */
-	i915_gem_request_assign(&ring->outstanding_lazy_request, NULL);
 }
 
 void i915_gem_restore_fences(struct drm_device *dev)
@@ -3343,8 +3333,6 @@ int i915_gpu_idle(struct drm_device *dev)
 
 			i915_add_request_no_flush(req);
 		}
-
-		WARN_ON(ring->outstanding_lazy_request);
 
 		ret = intel_ring_idle(ring);
 		if (ret)
