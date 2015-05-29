@@ -484,6 +484,7 @@ intel_ring_get_request(struct intel_engine_cs *ring)
  * will always have sufficient room to do its stuff. The request creation
  * code calls this automatically.
  */
+int intel_ring_reserve_space(struct drm_i915_gem_request *request);
 void intel_ring_reserved_space_reserve(struct intel_ringbuffer *ringbuf, int size);
 /* Cancel the reservation, e.g. because the request is being discarded. */
 void intel_ring_reserved_space_cancel(struct intel_ringbuffer *ringbuf);

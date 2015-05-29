@@ -2679,19 +2679,20 @@ int i915_gem_request_alloc(struct intel_engine_cs *ring,
 	 * i915_add_request() call can't fail. Note that the reserve may need
 	 * to be redone if the request is not actually submitted straight
 	 * away, e.g. because a GPU scheduler has deferred it.
-	 *
-	 * Note further that this call merely notes the reserve request. A
-	 * subsequent call to *_ring_begin() is required to actually ensure
-	 * that the reservation is available. Without the begin, if the
-	 * request creator immediately submitted the request without adding
-	 * any commands to it then there might not actually be sufficient
-	 * room for the submission commands. Unfortunately, the current
-	 * *_ring_begin() implementations potentially call back here to
-	 * i915_gem_request_alloc(). Thus calling _begin() here would lead to
-	 * infinite recursion! Until that back call path is removed, it is
-	 * necessary to do a manual _begin() outside.
 	 */
-	intel_ring_reserved_space_reserve(req->ringbuf, MIN_SPACE_FOR_ADD_REQUEST);
+	if (i915.enable_execlists)
+		ret = intel_logical_ring_reserve_space(req);
+	else
+		ret = intel_ring_reserve_space(req);
+	if (ret) {
+		/*
+		 * At this point, the request is fully allocated even if not
+		 * fully prepared. Thus it can be cleaned up using the proper
+		 * free code.
+		 */
+		i915_gem_request_cancel(req);
+		return ret;
+	}
 
 	*req_out = ring->outstanding_lazy_request = req;
 	return 0;

@@ -2202,24 +2202,27 @@ int intel_ring_alloc_request_extras(struct drm_i915_gem_request *request)
 	return 0;
 }
 
+int intel_ring_reserve_space(struct drm_i915_gem_request *request)
+{
+	/*
+	 * The first call merely notes the reserve request and is common for
+	 * all back ends. The subsequent localised _begin() call actually
+	 * ensures that the reservation is available. Without the begin, if
+	 * the request creator immediately submitted the request without
+	 * adding any commands to it then there might not actually be
+	 * sufficient room for the submission commands.
+	 */
+	intel_ring_reserved_space_reserve(request->ringbuf, MIN_SPACE_FOR_ADD_REQUEST);
+
+	return intel_ring_begin(request, 0);
+}
+
 void intel_ring_reserved_space_reserve(struct intel_ringbuffer *ringbuf, int size)
 {
-	/* NB: Until request management is fully tidied up and the OLR is
-	 * removed, there are too many ways for get false hits on this
-	 * anti-recursion check! */
-	/*WARN_ON(ringbuf->reserved_size);*/
+	WARN_ON(ringbuf->reserved_size);
 	WARN_ON(ringbuf->reserved_in_use);
 
 	ringbuf->reserved_size = size;
-
-	/*
-	 * Really need to call _begin() here but that currently leads to
-	 * recursion problems! This will be fixed later but for now just
-	 * return and hope for the best. Note that there is only a real
-	 * problem if the create of the request never actually calls _begin()
-	 * but if they are not submitting any work then why did they create
-	 * the request in the first place?
-	 */
 }
 
 void intel_ring_reserved_space_cancel(struct intel_ringbuffer *ringbuf)
