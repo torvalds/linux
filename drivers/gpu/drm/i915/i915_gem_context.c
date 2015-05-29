@@ -652,7 +652,7 @@ static int do_switch(struct drm_i915_gem_request *req)
 		 * Register Immediate commands in Ring Buffer before submitting
 		 * a context."*/
 		trace_switch_mm(ring, to);
-		ret = to->ppgtt->switch_mm(to->ppgtt, ring);
+		ret = to->ppgtt->switch_mm(to->ppgtt, req);
 		if (ret)
 			goto unpin_out;
 
@@ -703,7 +703,7 @@ static int do_switch(struct drm_i915_gem_request *req)
 	 */
 	if (needs_pd_load_post(ring, to, hw_flags)) {
 		trace_switch_mm(ring, to);
-		ret = to->ppgtt->switch_mm(to->ppgtt, ring);
+		ret = to->ppgtt->switch_mm(to->ppgtt, req);
 		/* The hardware context switch is emitted, but we haven't
 		 * actually changed the state - so it's probably safe to bail
 		 * here. Still, let the user know something dangerous has

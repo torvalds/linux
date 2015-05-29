@@ -452,10 +452,11 @@ free_pd:
 }
 
 /* Broadwell Page Directory Pointer Descriptors */
-static int gen8_write_pdp(struct intel_engine_cs *ring,
+static int gen8_write_pdp(struct drm_i915_gem_request *req,
 			  unsigned entry,
 			  dma_addr_t addr)
 {
+	struct intel_engine_cs *ring = req->ring;
 	int ret;
 
 	BUG_ON(entry >= 4);
@@ -476,7 +477,7 @@ static int gen8_write_pdp(struct intel_engine_cs *ring,
 }
 
 static int gen8_mm_switch(struct i915_hw_ppgtt *ppgtt,
-			  struct intel_engine_cs *ring)
+			  struct drm_i915_gem_request *req)
 {
 	int i, ret;
 
@@ -485,7 +486,7 @@ static int gen8_mm_switch(struct i915_hw_ppgtt *ppgtt,
 		dma_addr_t pd_daddr = pd ? pd->daddr : ppgtt->scratch_pd->daddr;
 		/* The page directory might be NULL, but we need to clear out
 		 * whatever the previous context might have used. */
-		ret = gen8_write_pdp(ring, i, pd_daddr);
+		ret = gen8_write_pdp(req, i, pd_daddr);
 		if (ret)
 			return ret;
 	}
@@ -1062,8 +1063,9 @@ static uint32_t get_pd_offset(struct i915_hw_ppgtt *ppgtt)
 }
 
 static int hsw_mm_switch(struct i915_hw_ppgtt *ppgtt,
-			 struct intel_engine_cs *ring)
+			 struct drm_i915_gem_request *req)
 {
+	struct intel_engine_cs *ring = req->ring;
 	int ret;
 
 	/* NB: TLBs must be flushed and invalidated before a switch */
@@ -1087,8 +1089,9 @@ static int hsw_mm_switch(struct i915_hw_ppgtt *ppgtt,
 }
 
 static int vgpu_mm_switch(struct i915_hw_ppgtt *ppgtt,
-			  struct intel_engine_cs *ring)
+			  struct drm_i915_gem_request *req)
 {
+	struct intel_engine_cs *ring = req->ring;
 	struct drm_i915_private *dev_priv = to_i915(ppgtt->base.dev);
 
 	I915_WRITE(RING_PP_DIR_DCLV(ring), PP_DIR_DCLV_2G);
@@ -1097,8 +1100,9 @@ static int vgpu_mm_switch(struct i915_hw_ppgtt *ppgtt,
 }
 
 static int gen7_mm_switch(struct i915_hw_ppgtt *ppgtt,
-			  struct intel_engine_cs *ring)
+			  struct drm_i915_gem_request *req)
 {
+	struct intel_engine_cs *ring = req->ring;
 	int ret;
 
 	/* NB: TLBs must be flushed and invalidated before a switch */
@@ -1129,8 +1133,9 @@ static int gen7_mm_switch(struct i915_hw_ppgtt *ppgtt,
 }
 
 static int gen6_mm_switch(struct i915_hw_ppgtt *ppgtt,
-			  struct intel_engine_cs *ring)
+			  struct drm_i915_gem_request *req)
 {
+	struct intel_engine_cs *ring = req->ring;
 	struct drm_device *dev = ppgtt->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
@@ -1582,7 +1587,7 @@ int i915_ppgtt_init_ring(struct drm_i915_gem_request *req)
 	if (!ppgtt)
 		return 0;
 
-	return ppgtt->switch_mm(ppgtt, req->ring);
+	return ppgtt->switch_mm(ppgtt, req);
 }
 
 struct i915_hw_ppgtt *
