@@ -1741,6 +1741,10 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 	if (browser == NULL)
 		return -1;
 
+	/* reset abort key so that it can get Ctrl-C as a key */
+	SLang_reset_tty();
+	SLang_init_tty(0, 0, 0);
+
 	if (min_pcnt) {
 		browser->min_pcnt = min_pcnt;
 		hist_browser__update_nr_entries(browser);

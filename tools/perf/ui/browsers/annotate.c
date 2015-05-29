@@ -838,6 +838,10 @@ int map_symbol__tui_annotate(struct map_symbol *ms, struct perf_evsel *evsel,
 int hist_entry__tui_annotate(struct hist_entry *he, struct perf_evsel *evsel,
 			     struct hist_browser_timer *hbt)
 {
+	/* reset abort key so that it can get Ctrl-C as a key */
+	SLang_reset_tty();
+	SLang_init_tty(0, 0, 0);
+
 	return map_symbol__tui_annotate(&he->ms, evsel, hbt);
 }
 
