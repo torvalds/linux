@@ -70,7 +70,7 @@ snd_kctl_jack_new(const char *name, struct snd_card *card)
 		return NULL;
 
 	jack_kctl_name_gen(kctl->id.name, name, sizeof(kctl->id.name));
-	kctl->id.index = get_available_index(card, name);
+	kctl->id.index = get_available_index(card, kctl->id.name);
 	kctl->private_value = 0;
 	return kctl;
 }
