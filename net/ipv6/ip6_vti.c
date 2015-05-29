@@ -435,6 +435,7 @@ vti6_xmit(struct sk_buff *skb, struct net_device *dev, struct flowi *fl)
 	struct net_device *tdev;
 	struct xfrm_state *x;
 	int err = -1;
+	int mtu;
 
 	if (!dst)
 		goto tx_err_link_failure;
@@ -467,6 +468,19 @@ vti6_xmit(struct sk_buff *skb, struct net_device *dev, struct flowi *fl)
 	skb_scrub_packet(skb, !net_eq(t->net, dev_net(dev)));
 	skb_dst_set(skb, dst);
 	skb->dev = skb_dst(skb)->dev;
+
+	mtu = dst_mtu(dst);
+	if (!skb->ignore_df && skb->len > mtu) {
+		skb_dst(skb)->ops->update_pmtu(dst, NULL, skb, mtu);
+
+		if (skb->protocol == htons(ETH_P_IPV6))
+			icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
+		else
+			icmp_send(skb, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED,
+				  htonl(mtu));
+
+		return -EMSGSIZE;
+	}
 
 	err = dst_output(skb);
 	if (net_xmit_eval(err) == 0) {
