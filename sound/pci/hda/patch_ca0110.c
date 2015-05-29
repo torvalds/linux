@@ -63,6 +63,7 @@ static int patch_ca0110(struct hda_codec *codec)
 		return -ENOMEM;
 	snd_hda_gen_spec_init(spec);
 	codec->spec = spec;
+	codec->patch_ops = ca0110_patch_ops;
 
 	spec->multi_cap_vol = 1;
 	codec->bus->needs_damn_long_delay = 1;
@@ -70,8 +71,6 @@ static int patch_ca0110(struct hda_codec *codec)
 	err = ca0110_parse_auto_config(codec);
 	if (err < 0)
 		goto error;
-
-	codec->patch_ops = ca0110_patch_ops;
 
 	return 0;
 
