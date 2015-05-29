@@ -17,8 +17,6 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/completion.h>
-
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
@@ -49,13 +47,10 @@ struct omap_crtc {
 	struct omap_drm_irq vblank_irq;
 	struct omap_drm_irq error_irq;
 
-	/* pending event */
-	struct drm_pending_vblank_event *event;
-	wait_queue_head_t flip_wait;
-
-	struct completion completion;
-
 	bool ignore_digit_sync_lost;
+
+	bool pending;
+	wait_queue_head_t pending_wait;
 };
 
 /* -----------------------------------------------------------------------------
@@ -79,6 +74,15 @@ enum omap_channel omap_crtc_channel(struct drm_crtc *crtc)
 {
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
 	return omap_crtc->channel;
+}
+
+int omap_crtc_wait_pending(struct drm_crtc *crtc)
+{
+	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
+
+	return wait_event_timeout(omap_crtc->pending_wait,
+				  !omap_crtc->pending,
+				  msecs_to_jiffies(50));
 }
 
 /* -----------------------------------------------------------------------------
@@ -255,61 +259,29 @@ static const struct dss_mgr_ops mgr_ops = {
 
 static void omap_crtc_complete_page_flip(struct drm_crtc *crtc)
 {
-	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
 	struct drm_pending_vblank_event *event;
 	struct drm_device *dev = crtc->dev;
 	unsigned long flags;
 
-	spin_lock_irqsave(&dev->event_lock, flags);
+	event = crtc->state->event;
 
-	event = omap_crtc->event;
-	omap_crtc->event = NULL;
-
-	if (event) {
-		list_del(&event->base.link);
-
-		/*
-		 * Queue the event for delivery if it's still linked to a file
-		 * handle, otherwise just destroy it.
-		 */
-		if (event->base.file_priv)
-			drm_crtc_send_vblank_event(crtc, event);
-		else
-			event->base.destroy(&event->base);
-
-		wake_up(&omap_crtc->flip_wait);
-		drm_crtc_vblank_put(crtc);
-	}
-
-	spin_unlock_irqrestore(&dev->event_lock, flags);
-}
-
-static bool omap_crtc_page_flip_pending(struct drm_crtc *crtc)
-{
-	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
-	struct drm_device *dev = crtc->dev;
-	unsigned long flags;
-	bool pending;
-
-	spin_lock_irqsave(&dev->event_lock, flags);
-	pending = omap_crtc->event != NULL;
-	spin_unlock_irqrestore(&dev->event_lock, flags);
-
-	return pending;
-}
-
-static void omap_crtc_wait_page_flip(struct drm_crtc *crtc)
-{
-	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
-
-	if (wait_event_timeout(omap_crtc->flip_wait,
-			       !omap_crtc_page_flip_pending(crtc),
-			       msecs_to_jiffies(50)))
+	if (!event)
 		return;
 
-	dev_warn(crtc->dev->dev, "page flip timeout!\n");
+	spin_lock_irqsave(&dev->event_lock, flags);
 
-	omap_crtc_complete_page_flip(crtc);
+	list_del(&event->base.link);
+
+	/*
+	 * Queue the event for delivery if it's still linked to a file
+	 * handle, otherwise just destroy it.
+	 */
+	if (event->base.file_priv)
+		drm_crtc_send_vblank_event(crtc, event);
+	else
+		event->base.destroy(&event->base);
+
+	spin_unlock_irqrestore(&dev->event_lock, flags);
 }
 
 static void omap_crtc_error_irq(struct omap_drm_irq *irq, uint32_t irqstatus)
@@ -336,12 +308,19 @@ static void omap_crtc_vblank_irq(struct omap_drm_irq *irq, uint32_t irqstatus)
 		return;
 
 	DBG("%s: apply done", omap_crtc->name);
+
 	__omap_irq_unregister(dev, &omap_crtc->vblank_irq);
 
-	/* wakeup userspace */
+	rmb();
+	WARN_ON(!omap_crtc->pending);
+	omap_crtc->pending = false;
+	wmb();
+
+	/* wake up userspace */
 	omap_crtc_complete_page_flip(&omap_crtc->base);
 
-	complete(&omap_crtc->completion);
+	/* wake up omap_atomic_complete */
+	wake_up(&omap_crtc->pending_wait);
 }
 
 /* -----------------------------------------------------------------------------
@@ -375,6 +354,13 @@ static void omap_crtc_enable(struct drm_crtc *crtc)
 
 	DBG("%s", omap_crtc->name);
 
+	rmb();
+	WARN_ON(omap_crtc->pending);
+	omap_crtc->pending = true;
+	wmb();
+
+	omap_irq_register(crtc->dev, &omap_crtc->vblank_irq);
+
 	drm_crtc_vblank_on(crtc);
 }
 
@@ -384,7 +370,6 @@ static void omap_crtc_disable(struct drm_crtc *crtc)
 
 	DBG("%s", omap_crtc->name);
 
-	omap_crtc_wait_page_flip(crtc);
 	drm_crtc_vblank_off(crtc);
 }
 
@@ -405,19 +390,6 @@ static void omap_crtc_mode_set_nofb(struct drm_crtc *crtc)
 
 static void omap_crtc_atomic_begin(struct drm_crtc *crtc)
 {
-	struct drm_pending_vblank_event *event = crtc->state->event;
-	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
-	struct drm_device *dev = crtc->dev;
-	unsigned long flags;
-
-	if (event) {
-		WARN_ON(omap_crtc->event);
-		WARN_ON(drm_crtc_vblank_get(crtc) != 0);
-
-		spin_lock_irqsave(&dev->event_lock, flags);
-		omap_crtc->event = event;
-		spin_unlock_irqrestore(&dev->event_lock, flags);
-	}
 }
 
 static void omap_crtc_atomic_flush(struct drm_crtc *crtc)
@@ -427,14 +399,16 @@ static void omap_crtc_atomic_flush(struct drm_crtc *crtc)
 	WARN_ON(omap_crtc->vblank_irq.registered);
 
 	if (dispc_mgr_is_enabled(omap_crtc->channel)) {
+
 		DBG("%s: GO", omap_crtc->name);
+
+		rmb();
+		WARN_ON(omap_crtc->pending);
+		omap_crtc->pending = true;
+		wmb();
 
 		dispc_mgr_go(omap_crtc->channel);
 		omap_irq_register(crtc->dev, &omap_crtc->vblank_irq);
-
-		WARN_ON(!wait_for_completion_timeout(&omap_crtc->completion,
-						     msecs_to_jiffies(100)));
-		reinit_completion(&omap_crtc->completion);
 	}
 
 	crtc->invert_dimensions = !!(crtc->primary->state->rotation &
@@ -534,8 +508,7 @@ struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 
 	crtc = &omap_crtc->base;
 
-	init_waitqueue_head(&omap_crtc->flip_wait);
-	init_completion(&omap_crtc->completion);
+	init_waitqueue_head(&omap_crtc->pending_wait);
 
 	omap_crtc->channel = channel;
 	omap_crtc->name = channel_names[channel];

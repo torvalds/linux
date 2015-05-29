@@ -66,6 +66,26 @@ struct omap_atomic_state_commit {
 	u32 crtcs;
 };
 
+static void omap_atomic_wait_for_completion(struct drm_device *dev,
+					    struct drm_atomic_state *old_state)
+{
+	struct drm_crtc_state *old_crtc_state;
+	struct drm_crtc *crtc;
+	unsigned int i;
+	int ret;
+
+	for_each_crtc_in_state(old_state, crtc, old_crtc_state, i) {
+		if (!crtc->state->enable)
+			continue;
+
+		ret = omap_crtc_wait_pending(crtc);
+
+		if (!ret)
+			dev_warn(dev->dev,
+				 "atomic complete timeout (pipe %u)!\n", i);
+	}
+}
+
 static void omap_atomic_complete(struct omap_atomic_state_commit *commit)
 {
 	struct drm_device *dev = commit->dev;
@@ -79,7 +99,7 @@ static void omap_atomic_complete(struct omap_atomic_state_commit *commit)
 	drm_atomic_helper_commit_planes(dev, old_state);
 	drm_atomic_helper_commit_modeset_enables(dev, old_state);
 
-	drm_atomic_helper_wait_for_vblanks(dev, old_state);
+	omap_atomic_wait_for_completion(dev, old_state);
 
 	drm_atomic_helper_cleanup_planes(dev, old_state);
 
