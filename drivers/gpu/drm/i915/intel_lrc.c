@@ -858,16 +858,15 @@ static int intel_logical_ring_begin(struct intel_ringbuffer *ringbuf,
  *
  * Return: non-zero if the submission fails.
  */
-int intel_execlists_submission(struct drm_device *dev, struct drm_file *file,
-			       struct intel_engine_cs *ring,
-			       struct intel_context *ctx,
+int intel_execlists_submission(struct i915_execbuffer_params *params,
 			       struct drm_i915_gem_execbuffer2 *args,
-			       struct list_head *vmas,
-			       struct drm_i915_gem_object *batch_obj,
-			       u64 exec_start, u32 dispatch_flags)
+			       struct list_head *vmas)
 {
+	struct drm_device       *dev = params->dev;
+	struct intel_engine_cs  *ring = params->ring;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_ringbuffer *ringbuf = ctx->engine[ring->id].ringbuf;
+	struct intel_ringbuffer *ringbuf = params->ctx->engine[ring->id].ringbuf;
+	u64 exec_start;
 	int instp_mode;
 	u32 instp_mask;
 	int ret;
@@ -918,13 +917,13 @@ int intel_execlists_submission(struct drm_device *dev, struct drm_file *file,
 		return -EINVAL;
 	}
 
-	ret = execlists_move_to_gpu(ringbuf, ctx, vmas);
+	ret = execlists_move_to_gpu(ringbuf, params->ctx, vmas);
 	if (ret)
 		return ret;
 
 	if (ring == &dev_priv->ring[RCS] &&
 	    instp_mode != dev_priv->relative_constants_mode) {
-		ret = intel_logical_ring_begin(ringbuf, ctx, 4);
+		ret = intel_logical_ring_begin(ringbuf, params->ctx, 4);
 		if (ret)
 			return ret;
 
@@ -937,14 +936,17 @@ int intel_execlists_submission(struct drm_device *dev, struct drm_file *file,
 		dev_priv->relative_constants_mode = instp_mode;
 	}
 
-	ret = ring->emit_bb_start(ringbuf, ctx, exec_start, dispatch_flags);
+	exec_start = params->batch_obj_vm_offset +
+		     args->batch_start_offset;
+
+	ret = ring->emit_bb_start(ringbuf, params->ctx, exec_start, params->dispatch_flags);
 	if (ret)
 		return ret;
 
-	trace_i915_gem_ring_dispatch(intel_ring_get_request(ring), dispatch_flags);
+	trace_i915_gem_ring_dispatch(intel_ring_get_request(ring), params->dispatch_flags);
 
 	i915_gem_execbuffer_move_to_active(vmas, ring);
-	i915_gem_execbuffer_retire_commands(dev, file, ring, batch_obj);
+	i915_gem_execbuffer_retire_commands(params->dev, params->file, ring, params->batch_obj);
 
 	return 0;
 }

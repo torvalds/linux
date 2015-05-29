@@ -1648,6 +1648,17 @@ struct i915_virtual_gpu {
 	bool active;
 };
 
+struct i915_execbuffer_params {
+	struct drm_device               *dev;
+	struct drm_file                 *file;
+	uint32_t                        dispatch_flags;
+	uint32_t                        args_batch_start_offset;
+	uint32_t                        batch_obj_vm_offset;
+	struct intel_engine_cs          *ring;
+	struct drm_i915_gem_object      *batch_obj;
+	struct intel_context            *ctx;
+};
+
 struct drm_i915_private {
 	struct drm_device *dev;
 	struct kmem_cache *objects;
@@ -1885,13 +1896,9 @@ struct drm_i915_private {
 
 	/* Abstract the submission mechanism (legacy ringbuffer or execlists) away */
 	struct {
-		int (*execbuf_submit)(struct drm_device *dev, struct drm_file *file,
-				      struct intel_engine_cs *ring,
-				      struct intel_context *ctx,
+		int (*execbuf_submit)(struct i915_execbuffer_params *params,
 				      struct drm_i915_gem_execbuffer2 *args,
-				      struct list_head *vmas,
-				      struct drm_i915_gem_object *batch_obj,
-				      u64 exec_start, u32 flags);
+				      struct list_head *vmas);
 		int (*init_rings)(struct drm_device *dev);
 		void (*cleanup_ring)(struct intel_engine_cs *ring);
 		void (*stop_ring)(struct intel_engine_cs *ring);
@@ -2689,14 +2696,9 @@ void i915_gem_execbuffer_retire_commands(struct drm_device *dev,
 					 struct drm_file *file,
 					 struct intel_engine_cs *ring,
 					 struct drm_i915_gem_object *obj);
-int i915_gem_ringbuffer_submission(struct drm_device *dev,
-				   struct drm_file *file,
-				   struct intel_engine_cs *ring,
-				   struct intel_context *ctx,
+int i915_gem_ringbuffer_submission(struct i915_execbuffer_params *params,
 				   struct drm_i915_gem_execbuffer2 *args,
-				   struct list_head *vmas,
-				   struct drm_i915_gem_object *batch_obj,
-				   u64 exec_start, u32 flags);
+				   struct list_head *vmas);
 int i915_gem_execbuffer(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
 int i915_gem_execbuffer2(struct drm_device *dev, void *data,
