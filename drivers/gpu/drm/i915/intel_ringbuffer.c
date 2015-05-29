@@ -81,7 +81,7 @@ bool intel_ring_stopped(struct intel_engine_cs *ring)
 	return dev_priv->gpu_error.stop_rings & intel_ring_flag(ring);
 }
 
-void __intel_ring_advance(struct intel_engine_cs *ring)
+static void __intel_ring_advance(struct intel_engine_cs *ring)
 {
 	struct intel_ringbuffer *ringbuf = ring->buffer;
 	ringbuf->tail &= ringbuf->size - 1;

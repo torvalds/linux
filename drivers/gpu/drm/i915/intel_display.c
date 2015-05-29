@@ -10868,9 +10868,10 @@ static int intel_gen2_queue_flip(struct drm_device *dev,
 				 struct drm_crtc *crtc,
 				 struct drm_framebuffer *fb,
 				 struct drm_i915_gem_object *obj,
-				 struct intel_engine_cs *ring,
+				 struct drm_i915_gem_request *req,
 				 uint32_t flags)
 {
+	struct intel_engine_cs *ring = req->ring;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	u32 flip_mask;
 	int ret;
@@ -10895,7 +10896,6 @@ static int intel_gen2_queue_flip(struct drm_device *dev,
 	intel_ring_emit(ring, 0); /* aux display base address, unused */
 
 	intel_mark_page_flip_active(intel_crtc);
-	__intel_ring_advance(ring);
 	return 0;
 }
 
@@ -10903,9 +10903,10 @@ static int intel_gen3_queue_flip(struct drm_device *dev,
 				 struct drm_crtc *crtc,
 				 struct drm_framebuffer *fb,
 				 struct drm_i915_gem_object *obj,
-				 struct intel_engine_cs *ring,
+				 struct drm_i915_gem_request *req,
 				 uint32_t flags)
 {
+	struct intel_engine_cs *ring = req->ring;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	u32 flip_mask;
 	int ret;
@@ -10927,7 +10928,6 @@ static int intel_gen3_queue_flip(struct drm_device *dev,
 	intel_ring_emit(ring, MI_NOOP);
 
 	intel_mark_page_flip_active(intel_crtc);
-	__intel_ring_advance(ring);
 	return 0;
 }
 
@@ -10935,9 +10935,10 @@ static int intel_gen4_queue_flip(struct drm_device *dev,
 				 struct drm_crtc *crtc,
 				 struct drm_framebuffer *fb,
 				 struct drm_i915_gem_object *obj,
-				 struct intel_engine_cs *ring,
+				 struct drm_i915_gem_request *req,
 				 uint32_t flags)
 {
+	struct intel_engine_cs *ring = req->ring;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	uint32_t pf, pipesrc;
@@ -10966,7 +10967,6 @@ static int intel_gen4_queue_flip(struct drm_device *dev,
 	intel_ring_emit(ring, pf | pipesrc);
 
 	intel_mark_page_flip_active(intel_crtc);
-	__intel_ring_advance(ring);
 	return 0;
 }
 
@@ -10974,9 +10974,10 @@ static int intel_gen6_queue_flip(struct drm_device *dev,
 				 struct drm_crtc *crtc,
 				 struct drm_framebuffer *fb,
 				 struct drm_i915_gem_object *obj,
-				 struct intel_engine_cs *ring,
+				 struct drm_i915_gem_request *req,
 				 uint32_t flags)
 {
+	struct intel_engine_cs *ring = req->ring;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	uint32_t pf, pipesrc;
@@ -11002,7 +11003,6 @@ static int intel_gen6_queue_flip(struct drm_device *dev,
 	intel_ring_emit(ring, pf | pipesrc);
 
 	intel_mark_page_flip_active(intel_crtc);
-	__intel_ring_advance(ring);
 	return 0;
 }
 
@@ -11010,9 +11010,10 @@ static int intel_gen7_queue_flip(struct drm_device *dev,
 				 struct drm_crtc *crtc,
 				 struct drm_framebuffer *fb,
 				 struct drm_i915_gem_object *obj,
-				 struct intel_engine_cs *ring,
+				 struct drm_i915_gem_request *req,
 				 uint32_t flags)
 {
+	struct intel_engine_cs *ring = req->ring;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	uint32_t plane_bit = 0;
 	int len, ret;
@@ -11097,7 +11098,6 @@ static int intel_gen7_queue_flip(struct drm_device *dev,
 	intel_ring_emit(ring, (MI_NOOP));
 
 	intel_mark_page_flip_active(intel_crtc);
-	__intel_ring_advance(ring);
 	return 0;
 }
 
@@ -11267,7 +11267,7 @@ static int intel_default_queue_flip(struct drm_device *dev,
 				    struct drm_crtc *crtc,
 				    struct drm_framebuffer *fb,
 				    struct drm_i915_gem_object *obj,
-				    struct intel_engine_cs *ring,
+				    struct drm_i915_gem_request *req,
 				    uint32_t flags)
 {
 	return -ENODEV;
@@ -11482,13 +11482,18 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 				goto cleanup_unpin;
 		}
 
-		ret = dev_priv->display.queue_flip(dev, crtc, fb, obj, ring,
+		if (!request) {
+			ret = i915_gem_request_alloc(ring, ring->default_context, &request);
+			if (ret)
+				goto cleanup_unpin;
+		}
+
+		ret = dev_priv->display.queue_flip(dev, crtc, fb, obj, request,
 						   page_flip_flags);
 		if (ret)
 			goto cleanup_unpin;
 
-		i915_gem_request_assign(&work->flip_queued_req,
-					intel_ring_get_request(ring));
+		i915_gem_request_assign(&work->flip_queued_req, request);
 	}
 
 	if (request)
