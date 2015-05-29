@@ -604,6 +604,7 @@ static int iio_verify_update(struct iio_dev *indio_dev,
 	const unsigned long *scan_mask;
 	struct iio_buffer *buffer;
 	bool scan_timestamp;
+	unsigned int modes;
 
 	memset(config, 0, sizeof(*config));
 
@@ -615,12 +616,23 @@ static int iio_verify_update(struct iio_dev *indio_dev,
 		list_is_singular(&indio_dev->buffer_list))
 			return 0;
 
+	modes = indio_dev->modes;
+
+	list_for_each_entry(buffer, &indio_dev->buffer_list, buffer_list) {
+		if (buffer == remove_buffer)
+			continue;
+		modes &= buffer->access->modes;
+	}
+
+	if (insert_buffer)
+		modes &= insert_buffer->access->modes;
+
 	/* Definitely possible for devices to support both of these. */
-	if ((indio_dev->modes & INDIO_BUFFER_TRIGGERED) && indio_dev->trig) {
+	if ((modes & INDIO_BUFFER_TRIGGERED) && indio_dev->trig) {
 		config->mode = INDIO_BUFFER_TRIGGERED;
-	} else if (indio_dev->modes & INDIO_BUFFER_HARDWARE) {
+	} else if (modes & INDIO_BUFFER_HARDWARE) {
 		config->mode = INDIO_BUFFER_HARDWARE;
-	} else if (indio_dev->modes & INDIO_BUFFER_SOFTWARE) {
+	} else if (modes & INDIO_BUFFER_SOFTWARE) {
 		config->mode = INDIO_BUFFER_SOFTWARE;
 	} else {
 		/* Can only occur on first buffer */
