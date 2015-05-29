@@ -268,8 +268,7 @@ struct  intel_engine_cs {
 	u32             irq_keep_mask; /* bitmask for interrupts that should not be masked */
 	int		(*emit_request)(struct intel_ringbuffer *ringbuf,
 					struct drm_i915_gem_request *request);
-	int		(*emit_flush)(struct intel_ringbuffer *ringbuf,
-				      struct intel_context *ctx,
+	int		(*emit_flush)(struct drm_i915_gem_request *request,
 				      u32 invalidate_domains,
 				      u32 flush_domains);
 	int		(*emit_bb_start)(struct intel_ringbuffer *ringbuf,

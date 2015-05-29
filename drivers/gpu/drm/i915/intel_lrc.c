@@ -614,8 +614,7 @@ static int logical_ring_invalidate_all_caches(struct drm_i915_gem_request *req)
 	if (ring->gpu_caches_dirty)
 		flush_domains = I915_GEM_GPU_DOMAINS;
 
-	ret = ring->emit_flush(req->ringbuf, req->ctx,
-			       I915_GEM_GPU_DOMAINS, flush_domains);
+	ret = ring->emit_flush(req, I915_GEM_GPU_DOMAINS, flush_domains);
 	if (ret)
 		return ret;
 
@@ -1005,7 +1004,7 @@ int logical_ring_flush_all_caches(struct drm_i915_gem_request *req)
 	if (!ring->gpu_caches_dirty)
 		return 0;
 
-	ret = ring->emit_flush(req->ringbuf, req->ctx, 0, I915_GEM_GPU_DOMAINS);
+	ret = ring->emit_flush(req, 0, I915_GEM_GPU_DOMAINS);
 	if (ret)
 		return ret;
 
@@ -1420,18 +1419,18 @@ static void gen8_logical_ring_put_irq(struct intel_engine_cs *ring)
 	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
 }
 
-static int gen8_emit_flush(struct intel_ringbuffer *ringbuf,
-			   struct intel_context *ctx,
+static int gen8_emit_flush(struct drm_i915_gem_request *request,
 			   u32 invalidate_domains,
 			   u32 unused)
 {
+	struct intel_ringbuffer *ringbuf = request->ringbuf;
 	struct intel_engine_cs *ring = ringbuf->ring;
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t cmd;
 	int ret;
 
-	ret = intel_logical_ring_begin(ringbuf, ctx, 4);
+	ret = intel_logical_ring_begin(ringbuf, request->ctx, 4);
 	if (ret)
 		return ret;
 
@@ -1461,11 +1460,11 @@ static int gen8_emit_flush(struct intel_ringbuffer *ringbuf,
 	return 0;
 }
 
-static int gen8_emit_flush_render(struct intel_ringbuffer *ringbuf,
-				  struct intel_context *ctx,
+static int gen8_emit_flush_render(struct drm_i915_gem_request *request,
 				  u32 invalidate_domains,
 				  u32 flush_domains)
 {
+	struct intel_ringbuffer *ringbuf = request->ringbuf;
 	struct intel_engine_cs *ring = ringbuf->ring;
 	u32 scratch_addr = ring->scratch.gtt_offset + 2 * CACHELINE_BYTES;
 	bool vf_flush_wa;
@@ -1497,7 +1496,7 @@ static int gen8_emit_flush_render(struct intel_ringbuffer *ringbuf,
 	vf_flush_wa = INTEL_INFO(ring->dev)->gen >= 9 &&
 		      flags & PIPE_CONTROL_VF_CACHE_INVALIDATE;
 
-	ret = intel_logical_ring_begin(ringbuf, ctx, vf_flush_wa ? 12 : 6);
+	ret = intel_logical_ring_begin(ringbuf, request->ctx, vf_flush_wa ? 12 : 6);
 	if (ret)
 		return ret;
 
