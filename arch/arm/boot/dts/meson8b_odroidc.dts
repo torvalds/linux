@@ -987,4 +987,12 @@
         // linux,open-drain; // .is_open_drain = 1;
 	};
 
+	amvideocap{
+		compatible = "amlogic,amvideocap";
+		dev_name = "amvideocap.0";
+		status = "okay";
+		reserve-memory = <0x00a00000>; // 1920 * 1088 * 4 = 8,355,840
+		reserve-iomap = "true";
+	};
+
 }; /* end of / */
