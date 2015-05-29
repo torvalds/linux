@@ -1158,7 +1158,7 @@ i915_gem_check_olr(struct drm_i915_gem_request *req)
 	WARN_ON(!mutex_is_locked(&req->ring->dev->struct_mutex));
 
 	if (req == req->ring->outstanding_lazy_request)
-		i915_add_request(req->ring);
+		i915_add_request(req);
 
 	return 0;
 }
@@ -2468,25 +2468,25 @@ i915_gem_get_seqno(struct drm_device *dev, u32 *seqno)
  * request is not being tracked for completion but the work itself is
  * going to happen on the hardware. This would be a Bad Thing(tm).
  */
-void __i915_add_request(struct intel_engine_cs *ring,
+void __i915_add_request(struct drm_i915_gem_request *request,
 			struct drm_file *file,
 			struct drm_i915_gem_object *obj,
 			bool flush_caches)
 {
-	struct drm_i915_private *dev_priv = ring->dev->dev_private;
-	struct drm_i915_gem_request *request;
+	struct intel_engine_cs *ring;
+	struct drm_i915_private *dev_priv;
 	struct intel_ringbuffer *ringbuf;
 	u32 request_start;
 	int ret;
 
-	request = ring->outstanding_lazy_request;
 	if (WARN_ON(request == NULL))
 		return;
 
-	if (i915.enable_execlists) {
-		ringbuf = request->ctx->engine[ring->id].ringbuf;
-	} else
-		ringbuf = ring->buffer;
+	ring = request->ring;
+	dev_priv = ring->dev->dev_private;
+	ringbuf = request->ringbuf;
+
+	WARN_ON(request != ring->outstanding_lazy_request);
 
 	/*
 	 * To ensure that this call will not fail, space for its emissions
@@ -3338,7 +3338,7 @@ int i915_gpu_idle(struct drm_device *dev)
 				return ret;
 			}
 
-			i915_add_request_no_flush(req->ring);
+			i915_add_request_no_flush(req);
 		}
 
 		WARN_ON(ring->outstanding_lazy_request);
@@ -5122,7 +5122,7 @@ i915_gem_init_hw(struct drm_device *dev)
 			goto out;
 		}
 
-		i915_add_request_no_flush(ring);
+		i915_add_request_no_flush(req);
 	}
 
 out:

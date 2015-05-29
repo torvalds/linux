@@ -2167,8 +2167,9 @@ int intel_ring_idle(struct intel_engine_cs *ring)
 	struct drm_i915_gem_request *req;
 
 	/* We need to add any requests required to flush the objects and ring */
+	WARN_ON(ring->outstanding_lazy_request);
 	if (ring->outstanding_lazy_request)
-		i915_add_request(ring);
+		i915_add_request(ring->outstanding_lazy_request);
 
 	/* Wait upon the last request to be completed */
 	if (list_empty(&ring->request_list))

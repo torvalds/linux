@@ -11497,7 +11497,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	}
 
 	if (request)
-		i915_add_request_no_flush(request->ring);
+		i915_add_request_no_flush(request);
 
 	work->flip_queued_vblank = drm_crtc_vblank_count(crtc);
 	work->enable_stall_check = true;

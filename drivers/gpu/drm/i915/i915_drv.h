@@ -2890,14 +2890,14 @@ void i915_gem_init_swizzling(struct drm_device *dev);
 void i915_gem_cleanup_ringbuffer(struct drm_device *dev);
 int __must_check i915_gpu_idle(struct drm_device *dev);
 int __must_check i915_gem_suspend(struct drm_device *dev);
-void __i915_add_request(struct intel_engine_cs *ring,
+void __i915_add_request(struct drm_i915_gem_request *req,
 			struct drm_file *file,
 			struct drm_i915_gem_object *batch_obj,
 			bool flush_caches);
-#define i915_add_request(ring) \
-	__i915_add_request(ring, NULL, NULL, true)
-#define i915_add_request_no_flush(ring) \
-	__i915_add_request(ring, NULL, NULL, false)
+#define i915_add_request(req) \
+	__i915_add_request(req, NULL, NULL, true)
+#define i915_add_request_no_flush(req) \
+	__i915_add_request(req, NULL, NULL, false)
 int __i915_wait_request(struct drm_i915_gem_request *req,
 			unsigned reset_counter,
 			bool interruptible,
