@@ -28,12 +28,12 @@
 #define MYDRVNAME "visorbus"
 
 /* module parameters */
-int visorbus_debug;
-int visorbus_forcematch;
-int visorbus_forcenomatch;
+static int visorbus_debug;
+static int visorbus_forcematch;
+static int visorbus_forcenomatch;
 #define MAXDEVICETEST 4
-int visorbus_devicetest;
-int visorbus_debugref;
+static int visorbus_devicetest;
+static int visorbus_debugref;
 #define SERIALLOOPBACKCHANADDR (100 * 1024 * 1024)
 
 /** This is the private data that we store for each bus device instance.
@@ -79,7 +79,7 @@ static const struct attribute_group visorbus_bus_group = {
 	.attrs = visorbus_bus_attrs,
 };
 
-const struct attribute_group *visorbus_bus_groups[] = {
+static const struct attribute_group *visorbus_bus_groups[] = {
 	&visorbus_bus_group,
 	NULL,
 };
@@ -282,7 +282,7 @@ devmajorminor_attr_store(struct kobject *kobj,
 
 static int register_devmajorminor_attributes(struct visor_device *dev);
 
-int
+static int
 devmajorminor_create_file(struct visor_device *dev, const char *name,
 			  int major, int minor)
 {
@@ -327,7 +327,7 @@ away:
 	return rc;
 }
 
-void
+static void
 devmajorminor_remove_file(struct visor_device *dev, int slot)
 {
 	int maxdevnodes = ARRAY_SIZE(dev->devnodes) / sizeof(dev->devnodes[0]);
@@ -344,7 +344,7 @@ devmajorminor_remove_file(struct visor_device *dev, int slot)
 	kfree(myattr);
 }
 
-void
+static void
 devmajorminor_remove_all_files(struct visor_device *dev)
 {
 	int i = 0;
@@ -384,7 +384,7 @@ away:
 	return rc;
 }
 
-void
+static void
 unregister_devmajorminor_attributes(struct visor_device *dev)
 {
 	if (!dev->kobjdevmajorminor.parent)
@@ -1797,26 +1797,21 @@ visorbus_exit(void)
 
 module_param_named(debug, visorbus_debug, int, S_IRUGO);
 MODULE_PARM_DESC(visorbus_debug, "1 to debug");
-int visorbus_debug = 0;
 
 module_param_named(forcematch, visorbus_forcematch, int, S_IRUGO);
 MODULE_PARM_DESC(visorbus_forcematch,
 		 "1 to force a successful dev <--> drv match");
-int visorbus_forcematch = 0;
 
 module_param_named(forcenomatch, visorbus_forcenomatch, int, S_IRUGO);
 MODULE_PARM_DESC(visorbus_forcenomatch,
 		 "1 to force an UNsuccessful dev <--> drv match");
-int visorbus_forcenomatch = 0;
 
 module_param_named(devicetest, visorbus_devicetest, int, S_IRUGO);
 MODULE_PARM_DESC(visorbus_devicetest,
 		 "non-0 to just test device creation and destruction");
-int visorbus_devicetest = 0;
 
 module_param_named(debugref, visorbus_debugref, int, S_IRUGO);
 MODULE_PARM_DESC(visorbus_debugref, "1 to debug reference counting");
-int visorbus_debugref = 0;
 
 MODULE_AUTHOR("Unisys");
 MODULE_LICENSE("GPL");
