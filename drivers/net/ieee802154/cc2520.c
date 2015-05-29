@@ -762,6 +762,8 @@ static int cc2520_register(struct cc2520_private *priv)
 		priv->hw->phy->transmit_power = priv->hw->phy->supported.tx_powers[0];
 	}
 
+	priv->hw->phy->current_channel = 11;
+
 	dev_vdbg(&priv->spi->dev, "registered cc2520\n");
 	ret = ieee802154_register_hw(priv->hw);
 	if (ret)
