@@ -26,16 +26,16 @@
  */
 
 #include <linux/acpi.h>
-#include <linux/module.h>
-#include <linux/delay.h>
-#include <linux/string.h>
 #include <linux/ctype.h>
-#include <linux/leds.h>
+#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
-#include <linux/slab.h>
+#include <linux/leds.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_data/leds-pca963x.h>
+#include <linux/slab.h>
+#include <linux/string.h>
 
 /* LED select registers determine the source that drives LED outputs */
 #define PCA963X_LED_OFF		0x0	/* LED driver off */
