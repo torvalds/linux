@@ -1574,28 +1574,26 @@ static int gen8_emit_request(struct intel_ringbuffer *ringbuf,
 	return 0;
 }
 
-static int intel_lr_context_render_state_init(struct intel_engine_cs *ring,
-					      struct intel_context *ctx)
+static int intel_lr_context_render_state_init(struct drm_i915_gem_request *req)
 {
-	struct intel_ringbuffer *ringbuf = ctx->engine[ring->id].ringbuf;
 	struct render_state so;
 	int ret;
 
-	ret = i915_gem_render_state_prepare(ring, &so);
+	ret = i915_gem_render_state_prepare(req->ring, &so);
 	if (ret)
 		return ret;
 
 	if (so.rodata == NULL)
 		return 0;
 
-	ret = ring->emit_bb_start(ringbuf,
-			ctx,
-			so.ggtt_offset,
-			I915_DISPATCH_SECURE);
+	ret = req->ring->emit_bb_start(req->ringbuf,
+				       req->ctx,
+				       so.ggtt_offset,
+				       I915_DISPATCH_SECURE);
 	if (ret)
 		goto out;
 
-	i915_vma_move_to_active(i915_gem_obj_to_ggtt(so.obj), ring);
+	i915_vma_move_to_active(i915_gem_obj_to_ggtt(so.obj), req->ring);
 
 out:
 	i915_gem_render_state_fini(&so);
@@ -1610,7 +1608,7 @@ static int gen8_init_rcs_context(struct drm_i915_gem_request *req)
 	if (ret)
 		return ret;
 
-	return intel_lr_context_render_state_init(req->ring, req->ctx);
+	return intel_lr_context_render_state_init(req);
 }
 
 /**

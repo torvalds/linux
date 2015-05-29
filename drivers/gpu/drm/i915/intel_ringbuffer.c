@@ -750,7 +750,7 @@ static int intel_rcs_ctx_init(struct drm_i915_gem_request *req)
 	if (ret != 0)
 		return ret;
 
-	ret = i915_gem_render_state_init(req->ring);
+	ret = i915_gem_render_state_init(req);
 	if (ret)
 		DRM_ERROR("init render state: %d\n", ret);
 
