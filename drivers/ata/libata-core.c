@@ -3654,7 +3654,7 @@ int sata_link_resume(struct ata_link *link, const unsigned long *params,
  *	EH context.
  *
  *	RETURNS:
- *	0 on succes, -errno otherwise.
+ *	0 on success, -errno otherwise.
  */
 int sata_link_scr_lpm(struct ata_link *link, enum ata_lpm_policy policy,
 		      bool spm_wakeup)
