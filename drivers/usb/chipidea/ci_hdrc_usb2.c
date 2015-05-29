@@ -25,7 +25,7 @@ struct ci_hdrc_usb2_priv {
 	struct clk		*clk;
 };
 
-static struct ci_hdrc_platform_data ci_default_pdata = {
+static const struct ci_hdrc_platform_data ci_default_pdata = {
 	.capoffset	= DEF_CAPOFFSET,
 	.flags		= CI_HDRC_DISABLE_STREAMING,
 };
@@ -37,8 +37,10 @@ static int ci_hdrc_usb2_probe(struct platform_device *pdev)
 	struct ci_hdrc_platform_data *ci_pdata = dev_get_platdata(dev);
 	int ret;
 
-	if (!ci_pdata)
-		ci_pdata = &ci_default_pdata;
+	if (!ci_pdata) {
+		ci_pdata = devm_kmalloc(dev, sizeof(*ci_pdata), GFP_KERNEL);
+		*ci_pdata = ci_default_pdata;	/* struct copy */
+	}
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
