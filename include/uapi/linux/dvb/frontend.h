@@ -162,7 +162,7 @@ enum fe_spectral_inversion {
 
 typedef enum fe_spectral_inversion fe_spectral_inversion_t;
 
-typedef enum fe_code_rate {
+enum fe_code_rate {
 	FEC_NONE = 0,
 	FEC_1_2,
 	FEC_2_3,
@@ -176,7 +176,9 @@ typedef enum fe_code_rate {
 	FEC_3_5,
 	FEC_9_10,
 	FEC_2_5,
-} fe_code_rate_t;
+};
+
+typedef enum fe_code_rate fe_code_rate_t;
 
 
 enum fe_modulation {

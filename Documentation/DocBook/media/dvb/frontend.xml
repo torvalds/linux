@@ -56,34 +56,6 @@ specification is available at
 
 &sub-dvbproperty;
 
-<section id="fe-code-rate-t">
-<title>frontend code rate</title>
-<para>The possible values for the <constant>fec_inner</constant> field used on
-<link linkend="dvb-qpsk-parameters"><constant>struct dvb_qpsk_parameters</constant></link> and
-<link linkend="dvb-qam-parameters"><constant>struct dvb_qam_parameters</constant></link> are:
-</para>
-<programlisting>
-typedef enum fe_code_rate {
-	FEC_NONE = 0,
-	FEC_1_2,
-	FEC_2_3,
-	FEC_3_4,
-	FEC_4_5,
-	FEC_5_6,
-	FEC_6_7,
-	FEC_7_8,
-	FEC_8_9,
-	FEC_AUTO,
-	FEC_3_5,
-	FEC_9_10,
-} fe_code_rate_t;
-</programlisting>
-<para>which correspond to error correction rates of 1/2, 2/3, etc., no error correction or auto
-detection.
-</para>
-</section>
-
-
 <section>
 <title>More OFDM parameters</title>
 

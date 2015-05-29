@@ -290,25 +290,70 @@ get/set up to 64 properties. The actual meaning of each property is described on
 	<title><constant>DTV_INNER_FEC</constant></title>
 	<para>Used cable/satellite transmissions. The acceptable values are:
 	</para>
-	<programlisting>
-typedef enum fe_code_rate {
-	FEC_NONE = 0,
-	FEC_1_2,
-	FEC_2_3,
-	FEC_3_4,
-	FEC_4_5,
-	FEC_5_6,
-	FEC_6_7,
-	FEC_7_8,
-	FEC_8_9,
-	FEC_AUTO,
-	FEC_3_5,
-	FEC_9_10,
-	FEC_2_5,
-} fe_code_rate_t;
-	</programlisting>
-	<para>which correspond to error correction rates of 1/2, 2/3, etc.,
-	no error correction or auto detection.</para>
+<section id="fe-code-rate-t">
+<title>enum fe_code_rate: type of the Forward Error Correction.</title>
+
+<table pgwide="1" frame="none" id="fe-code-rate">
+    <title>enum fe_code_rate</title>
+    <tgroup cols="2">
+	&cs-def;
+	<thead>
+	<row>
+	    <entry>ID</entry>
+	    <entry>Description</entry>
+	</row>
+	</thead>
+	<tbody valign="top">
+	<row>
+	    <entry>TRANSMISSION_MODE_AUTO</entry>
+	    <entry>Autodetect transmission mode. The hardware will try to find
+		the correct FFT-size (if capable) to fill in the missing
+		parameters.</entry>
+	</row><row>
+	    <entry>FEC_NONE</entry>
+	    <entry>No Forward Error Correction Code</entry>
+	</row><row>
+	    <entry>FEC_AUTO</entry>
+	    <entry>Autodetect Error Correction Code</entry>
+	</row><row>
+	    <entry>FEC_1_2</entry>
+	    <entry>Forward Error Correction Code 1/2</entry>
+	</row><row>
+	    <entry>FEC_2_3</entry>
+	    <entry>Forward Error Correction Code 2/3</entry>
+	</row><row>
+	    <entry>FEC_3_4</entry>
+	    <entry>Forward Error Correction Code 3/4</entry>
+	</row><row>
+	    <entry>FEC_4_5</entry>
+	    <entry>Forward Error Correction Code 4/5</entry>
+	</row><row>
+	    <entry>FEC_5_6</entry>
+	    <entry>Forward Error Correction Code 5/6</entry>
+	</row><row>
+	    <entry>FEC_6_7</entry>
+	    <entry>Forward Error Correction Code 6/7</entry>
+	</row><row>
+	    <entry>FEC_7_8</entry>
+	    <entry>Forward Error Correction Code 7/8</entry>
+	</row><row>
+	    <entry>FEC_8_9</entry>
+	    <entry>Forward Error Correction Code 8/9</entry>
+	</row><row>
+	    <entry>FEC_9_10</entry>
+	    <entry>Forward Error Correction Code 9/10</entry>
+	</row><row>
+	    <entry>FEC_2_5</entry>
+	    <entry>Forward Error Correction Code 2/5</entry>
+	</row><row>
+	    <entry>FEC_3_5</entry>
+	    <entry>Forward Error Correction Code 3/5</entry>
+	</row><row>
+	</row>
+        </tbody>
+    </tgroup>
+</table>
+</section>
 	</section>
 	<section id="DTV-VOLTAGE">
 	<title><constant>DTV_VOLTAGE</constant></title>
@@ -757,46 +802,18 @@ typedef enum atscmh_sccc_code_mode {
 	</section>
 	<section id="DTV-CODE-RATE-HP">
 	<title><constant>DTV_CODE_RATE_HP</constant></title>
-	<para>Used on terrestrial transmissions. The acceptable values are:
+	<para>Used on terrestrial transmissions.  The acceptable values are
+	    the ones described at &fe-transmit-mode-t;.
 	</para>
-	<programlisting>
-typedef enum fe_code_rate {
-	FEC_NONE = 0,
-	FEC_1_2,
-	FEC_2_3,
-	FEC_3_4,
-	FEC_4_5,
-	FEC_5_6,
-	FEC_6_7,
-	FEC_7_8,
-	FEC_8_9,
-	FEC_AUTO,
-	FEC_3_5,
-	FEC_9_10,
-} fe_code_rate_t;
-	</programlisting>
 	</section>
 	<section id="DTV-CODE-RATE-LP">
 	<title><constant>DTV_CODE_RATE_LP</constant></title>
-	<para>Used on terrestrial transmissions. The acceptable values are:
+	<para>Used on terrestrial transmissions. The acceptable values are
+	    the ones described at &fe-transmit-mode-t;.
 	</para>
-	<programlisting>
-typedef enum fe_code_rate {
-	FEC_NONE = 0,
-	FEC_1_2,
-	FEC_2_3,
-	FEC_3_4,
-	FEC_4_5,
-	FEC_5_6,
-	FEC_6_7,
-	FEC_7_8,
-	FEC_8_9,
-	FEC_AUTO,
-	FEC_3_5,
-	FEC_9_10,
-} fe_code_rate_t;
-	</programlisting>
+
 	</section>
+
 	<section id="DTV-GUARD-INTERVAL">
 		<title><constant>DTV_GUARD_INTERVAL</constant></title>
 

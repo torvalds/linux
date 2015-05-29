@@ -145,7 +145,7 @@ OFDM frontends the <constant>frequency</constant> specifies the absolute frequen
 <programlisting>
  struct dvb_qpsk_parameters {
 	 uint32_t        symbol_rate;  /&#x22C6; symbol rate in Symbols per second &#x22C6;/
-	 fe_code_rate_t  fec_inner;    /&#x22C6; forward error correction (see above) &#x22C6;/
+	 &fe-code-rate-t;  fec_inner;    /&#x22C6; forward error correction (see above) &#x22C6;/
  };
 </programlisting>
 </section>
@@ -156,7 +156,7 @@ OFDM frontends the <constant>frequency</constant> specifies the absolute frequen
 <programlisting>
  struct dvb_qam_parameters {
 	 uint32_t         symbol_rate; /&#x22C6; symbol rate in Symbols per second &#x22C6;/
-	 fe_code_rate_t   fec_inner;   /&#x22C6; forward error correction (see above) &#x22C6;/
+	 &fe-code-rate-t;   fec_inner;   /&#x22C6; forward error correction (see above) &#x22C6;/
 	 &fe-modulation-t;  modulation;  /&#x22C6; modulation type (see above) &#x22C6;/
  };
 </programlisting>
@@ -178,8 +178,8 @@ struct dvb_vsb_parameters {
 <programlisting>
  struct dvb_ofdm_parameters {
 	 &fe-bandwidth-t;      bandwidth;
-	 fe_code_rate_t      code_rate_HP;  /&#x22C6; high priority stream code rate &#x22C6;/
-	 fe_code_rate_t      code_rate_LP;  /&#x22C6; low priority stream code rate &#x22C6;/
+	 &fe-code-rate-t;      code_rate_HP;  /&#x22C6; high priority stream code rate &#x22C6;/
+	 &fe-code-rate-t;      code_rate_LP;  /&#x22C6; low priority stream code rate &#x22C6;/
 	 &fe-modulation-t;     constellation; /&#x22C6; modulation type (see above) &#x22C6;/
 	 &fe-transmit-mode-t;  transmission_mode;
 	 fe_guard_interval_t guard_interval;
