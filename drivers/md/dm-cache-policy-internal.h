@@ -83,10 +83,10 @@ static inline dm_cblock_t policy_residency(struct dm_cache_policy *p)
 	return p->residency(p);
 }
 
-static inline void policy_tick(struct dm_cache_policy *p)
+static inline void policy_tick(struct dm_cache_policy *p, bool can_block)
 {
 	if (p->tick)
-		return p->tick(p);
+		return p->tick(p, can_block);
 }
 
 static inline int policy_emit_config_values(struct dm_cache_policy *p, char *result,

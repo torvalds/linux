@@ -200,10 +200,10 @@ struct dm_cache_policy {
 	 * Because of where we sit in the block layer, we can be asked to
 	 * map a lot of little bios that are all in the same block (no
 	 * queue merging has occurred).  To stop the policy being fooled by
-	 * these the core target sends regular tick() calls to the policy.
+	 * these, the core target sends regular tick() calls to the policy.
 	 * The policy should only count an entry as hit once per tick.
 	 */
-	void (*tick)(struct dm_cache_policy *p);
+	void (*tick)(struct dm_cache_policy *p, bool can_block);
 
 	/*
 	 * Configuration.

@@ -2271,7 +2271,7 @@ static void do_worker(struct work_struct *ws)
 static void do_waker(struct work_struct *ws)
 {
 	struct cache *cache = container_of(to_delayed_work(ws), struct cache, waker);
-	policy_tick(cache->policy);
+	policy_tick(cache->policy, true);
 	wake_worker(cache);
 	queue_delayed_work(cache->wq, &cache->waker, COMMIT_PERIOD);
 }
@@ -3148,7 +3148,7 @@ static int cache_end_io(struct dm_target *ti, struct bio *bio, int error)
 	struct per_bio_data *pb = get_per_bio_data(bio, pb_data_size);
 
 	if (pb->tick) {
-		policy_tick(cache->policy);
+		policy_tick(cache->policy, false);
 
 		spin_lock_irqsave(&cache->lock, flags);
 		cache->need_tick_bio = true;

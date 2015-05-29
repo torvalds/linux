@@ -1283,7 +1283,7 @@ static dm_cblock_t mq_residency(struct dm_cache_policy *p)
 	return r;
 }
 
-static void mq_tick(struct dm_cache_policy *p)
+static void mq_tick(struct dm_cache_policy *p, bool can_block)
 {
 	struct mq_policy *mq = to_mq_policy(p);
 	unsigned long flags;
@@ -1291,6 +1291,12 @@ static void mq_tick(struct dm_cache_policy *p)
 	spin_lock_irqsave(&mq->tick_lock, flags);
 	mq->tick_protected++;
 	spin_unlock_irqrestore(&mq->tick_lock, flags);
+
+	if (can_block) {
+		mutex_lock(&mq->lock);
+		copy_tick(mq);
+		mutex_unlock(&mq->lock);
+	}
 }
 
 static int mq_set_config_value(struct dm_cache_policy *p,
