@@ -463,13 +463,6 @@ static inline u32 intel_ring_get_tail(struct intel_ringbuffer *ringbuf)
 	return ringbuf->tail;
 }
 
-static inline struct drm_i915_gem_request *
-intel_ring_get_request(struct intel_engine_cs *ring)
-{
-	BUG_ON(ring->outstanding_lazy_request == NULL);
-	return ring->outstanding_lazy_request;
-}
-
 /*
  * Arbitrary size for largest possible 'add request' sequence. The code paths
  * are complex and variable. Empirical measurement shows that the worst case
