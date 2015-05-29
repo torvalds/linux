@@ -1760,10 +1760,11 @@ gen8_ring_put_irq(struct intel_engine_cs *ring)
 }
 
 static int
-i965_dispatch_execbuffer(struct intel_engine_cs *ring,
+i965_dispatch_execbuffer(struct drm_i915_gem_request *req,
 			 u64 offset, u32 length,
 			 unsigned dispatch_flags)
 {
+	struct intel_engine_cs *ring = req->ring;
 	int ret;
 
 	ret = intel_ring_begin(ring, 2);
@@ -1786,10 +1787,11 @@ i965_dispatch_execbuffer(struct intel_engine_cs *ring,
 #define I830_TLB_ENTRIES (2)
 #define I830_WA_SIZE max(I830_TLB_ENTRIES*4096, I830_BATCH_LIMIT)
 static int
-i830_dispatch_execbuffer(struct intel_engine_cs *ring,
+i830_dispatch_execbuffer(struct drm_i915_gem_request *req,
 			 u64 offset, u32 len,
 			 unsigned dispatch_flags)
 {
+	struct intel_engine_cs *ring = req->ring;
 	u32 cs_offset = ring->scratch.gtt_offset;
 	int ret;
 
@@ -1848,10 +1850,11 @@ i830_dispatch_execbuffer(struct intel_engine_cs *ring,
 }
 
 static int
-i915_dispatch_execbuffer(struct intel_engine_cs *ring,
+i915_dispatch_execbuffer(struct drm_i915_gem_request *req,
 			 u64 offset, u32 len,
 			 unsigned dispatch_flags)
 {
+	struct intel_engine_cs *ring = req->ring;
 	int ret;
 
 	ret = intel_ring_begin(ring, 2);
@@ -2423,10 +2426,11 @@ static int gen6_bsd_ring_flush(struct drm_i915_gem_request *req,
 }
 
 static int
-gen8_ring_dispatch_execbuffer(struct intel_engine_cs *ring,
+gen8_ring_dispatch_execbuffer(struct drm_i915_gem_request *req,
 			      u64 offset, u32 len,
 			      unsigned dispatch_flags)
 {
+	struct intel_engine_cs *ring = req->ring;
 	bool ppgtt = USES_PPGTT(ring->dev) &&
 			!(dispatch_flags & I915_DISPATCH_SECURE);
 	int ret;
@@ -2446,10 +2450,11 @@ gen8_ring_dispatch_execbuffer(struct intel_engine_cs *ring,
 }
 
 static int
-hsw_ring_dispatch_execbuffer(struct intel_engine_cs *ring,
+hsw_ring_dispatch_execbuffer(struct drm_i915_gem_request *req,
 			     u64 offset, u32 len,
 			     unsigned dispatch_flags)
 {
+	struct intel_engine_cs *ring = req->ring;
 	int ret;
 
 	ret = intel_ring_begin(ring, 2);
@@ -2468,10 +2473,11 @@ hsw_ring_dispatch_execbuffer(struct intel_engine_cs *ring,
 }
 
 static int
-gen6_ring_dispatch_execbuffer(struct intel_engine_cs *ring,
+gen6_ring_dispatch_execbuffer(struct drm_i915_gem_request *req,
 			      u64 offset, u32 len,
 			      unsigned dispatch_flags)
 {
+	struct intel_engine_cs *ring = req->ring;
 	int ret;
 
 	ret = intel_ring_begin(ring, 2);

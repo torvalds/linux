@@ -194,7 +194,7 @@ struct  intel_engine_cs {
 				     bool lazy_coherency);
 	void		(*set_seqno)(struct intel_engine_cs *ring,
 				     u32 seqno);
-	int		(*dispatch_execbuffer)(struct intel_engine_cs *ring,
+	int		(*dispatch_execbuffer)(struct drm_i915_gem_request *req,
 					       u64 offset, u32 length,
 					       unsigned dispatch_flags);
 #define I915_DISPATCH_SECURE 0x1

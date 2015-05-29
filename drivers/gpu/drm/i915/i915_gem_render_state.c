@@ -164,8 +164,7 @@ int i915_gem_render_state_init(struct drm_i915_gem_request *req)
 	if (so.rodata == NULL)
 		return 0;
 
-	ret = req->ring->dispatch_execbuffer(req->ring,
-					     so.ggtt_offset,
+	ret = req->ring->dispatch_execbuffer(req, so.ggtt_offset,
 					     so.rodata->batch_items * 4,
 					     I915_DISPATCH_SECURE);
 	if (ret)

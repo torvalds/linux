@@ -1328,14 +1328,14 @@ i915_gem_ringbuffer_submission(struct i915_execbuffer_params *params,
 			if (ret)
 				goto error;
 
-			ret = ring->dispatch_execbuffer(ring,
+			ret = ring->dispatch_execbuffer(params->request,
 							exec_start, exec_len,
 							params->dispatch_flags);
 			if (ret)
 				goto error;
 		}
 	} else {
-		ret = ring->dispatch_execbuffer(ring,
+		ret = ring->dispatch_execbuffer(params->request,
 						exec_start, exec_len,
 						params->dispatch_flags);
 		if (ret)
