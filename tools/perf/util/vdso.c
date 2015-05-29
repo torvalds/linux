@@ -101,7 +101,7 @@ static char *get_file(struct vdso_file *vdso_file)
 	return vdso;
 }
 
-void vdso__exit(struct machine *machine)
+void machine__exit_vdso(struct machine *machine)
 {
 	struct vdso_info *vdso_info = machine->vdso_info;
 
@@ -120,14 +120,14 @@ void vdso__exit(struct machine *machine)
 	zfree(&machine->vdso_info);
 }
 
-static struct dso *vdso__new(struct machine *machine, const char *short_name,
-			     const char *long_name)
+static struct dso *machine__addnew_vdso(struct machine *machine, const char *short_name,
+					const char *long_name)
 {
 	struct dso *dso;
 
 	dso = dso__new(short_name);
 	if (dso != NULL) {
-		dsos__add(&machine->user_dsos, dso);
+		dsos__add(&machine->dsos, dso);
 		dso__set_long_name(dso, long_name, false);
 	}
 
@@ -236,7 +236,7 @@ static struct dso *vdso__findnew_compat(struct machine *machine,
 	const char *file_name;
 	struct dso *dso;
 
-	dso = dsos__find(&machine->user_dsos, vdso_file->dso_name, true);
+	dso = dsos__find(&machine->dsos, vdso_file->dso_name, true);
 	if (dso)
 		return dso;
 
@@ -244,10 +244,10 @@ static struct dso *vdso__findnew_compat(struct machine *machine,
 	if (!file_name)
 		return NULL;
 
-	return vdso__new(machine, vdso_file->dso_name, file_name);
+	return machine__addnew_vdso(machine, vdso_file->dso_name, file_name);
 }
 
-static int vdso__dso_findnew_compat(struct machine *machine,
+static int machine__findnew_vdso_compat(struct machine *machine,
 				    struct thread *thread,
 				    struct vdso_info *vdso_info,
 				    struct dso **dso)
@@ -281,8 +281,8 @@ static int vdso__dso_findnew_compat(struct machine *machine,
 
 #endif
 
-struct dso *vdso__dso_findnew(struct machine *machine,
-			      struct thread *thread __maybe_unused)
+struct dso *machine__findnew_vdso(struct machine *machine,
+				  struct thread *thread __maybe_unused)
 {
 	struct vdso_info *vdso_info;
 	struct dso *dso;
@@ -295,11 +295,11 @@ struct dso *vdso__dso_findnew(struct machine *machine,
 		return NULL;
 
 #if BITS_PER_LONG == 64
-	if (vdso__dso_findnew_compat(machine, thread, vdso_info, &dso))
+	if (machine__findnew_vdso_compat(machine, thread, vdso_info, &dso))
 		return dso;
 #endif
 
-	dso = dsos__find(&machine->user_dsos, DSO__NAME_VDSO, true);
+	dso = dsos__find(&machine->dsos, DSO__NAME_VDSO, true);
 	if (!dso) {
 		char *file;
 
@@ -307,7 +307,7 @@ struct dso *vdso__dso_findnew(struct machine *machine,
 		if (!file)
 			return NULL;
 
-		dso = vdso__new(machine, DSO__NAME_VDSO, file);
+		dso = machine__addnew_vdso(machine, DSO__NAME_VDSO, file);
 	}
 
 	return dso;

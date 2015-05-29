@@ -34,8 +34,7 @@ struct machine {
 	struct list_head  dead_threads;
 	struct thread	  *last_match;
 	struct vdso_info  *vdso_info;
-	struct dsos	  user_dsos;
-	struct dsos	  kernel_dsos;
+	struct dsos	  dsos;
 	struct map_groups kmaps;
 	struct map	  *vmlinux_maps[MAP__NR_TYPES];
 	u64		  kernel_start;
@@ -154,6 +153,8 @@ static inline bool machine__is_host(struct machine *machine)
 
 struct thread *__machine__findnew_thread(struct machine *machine, pid_t pid, pid_t tid);
 struct thread *machine__findnew_thread(struct machine *machine, pid_t pid, pid_t tid);
+
+struct dso *machine__findnew_dso(struct machine *machine, const char *filename);
 
 size_t machine__fprintf(struct machine *machine, FILE *fp);
 
