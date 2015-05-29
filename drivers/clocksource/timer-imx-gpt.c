@@ -34,8 +34,6 @@
 #include <linux/of_irq.h>
 #include <soc/imx/timer.h>
 
-#include <asm/mach/time.h>
-
 /*
  * There are 4 versions of the timer hardware on Freescale MXC hardware.
  *  - MX1/MXL
