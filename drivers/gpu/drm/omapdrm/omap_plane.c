@@ -58,7 +58,22 @@ to_omap_plane_state(struct drm_plane_state *state)
 	return container_of(state, struct omap_plane_state, base);
 }
 
-static void omap_plane_setup(struct drm_plane *plane)
+static int omap_plane_prepare_fb(struct drm_plane *plane,
+				 struct drm_framebuffer *fb,
+				 const struct drm_plane_state *new_state)
+{
+	return omap_framebuffer_pin(fb);
+}
+
+static void omap_plane_cleanup_fb(struct drm_plane *plane,
+				  struct drm_framebuffer *fb,
+				  const struct drm_plane_state *old_state)
+{
+	omap_framebuffer_unpin(fb);
+}
+
+static void omap_plane_atomic_update(struct drm_plane *plane,
+				     struct drm_plane_state *old_state)
 {
 	struct omap_plane *omap_plane = to_omap_plane(plane);
 	struct drm_plane_state *state = plane->state;
@@ -68,11 +83,6 @@ static void omap_plane_setup(struct drm_plane *plane)
 	int ret;
 
 	DBG("%s, crtc=%p fb=%p", omap_plane->name, state->crtc, state->fb);
-
-	if (!state->crtc) {
-		dispc_ovl_enable(omap_plane->id, false);
-		return;
-	}
 
 	memset(&info, 0, sizeof(info));
 	info.rotation_type = OMAP_DSS_ROT_DMA;
@@ -128,26 +138,6 @@ static void omap_plane_setup(struct drm_plane *plane)
 	dispc_ovl_enable(omap_plane->id, true);
 }
 
-static int omap_plane_prepare_fb(struct drm_plane *plane,
-				 struct drm_framebuffer *fb,
-				 const struct drm_plane_state *new_state)
-{
-	return omap_framebuffer_pin(fb);
-}
-
-static void omap_plane_cleanup_fb(struct drm_plane *plane,
-				  struct drm_framebuffer *fb,
-				  const struct drm_plane_state *old_state)
-{
-	omap_framebuffer_unpin(fb);
-}
-
-static void omap_plane_atomic_update(struct drm_plane *plane,
-				     struct drm_plane_state *old_state)
-{
-	omap_plane_setup(plane);
-}
-
 static void omap_plane_atomic_disable(struct drm_plane *plane,
 				      struct drm_plane_state *old_state)
 {
@@ -158,7 +148,7 @@ static void omap_plane_atomic_disable(struct drm_plane *plane,
 	omap_state->zorder = plane->type == DRM_PLANE_TYPE_PRIMARY
 			   ? 0 : omap_plane->id;
 
-	omap_plane_setup(plane);
+	dispc_ovl_enable(omap_plane->id, false);
 }
 
 static const struct drm_plane_helper_funcs omap_plane_helper_funcs = {
