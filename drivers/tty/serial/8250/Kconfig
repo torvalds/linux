@@ -342,3 +342,10 @@ config SERIAL_8250_MT6577
 	help
 	  If you have a Mediatek based board and want to use the
 	  serial port, say Y to this option. If unsure, say N.
+
+config SERIAL_8250_UNIPHIER
+	tristate "Support for UniPhier on-chip UART"
+	depends on SERIAL_8250 && ARCH_UNIPHIER
+	help
+	  If you have a UniPhier based board and want to use the on-chip
+	  serial ports, say Y to this option. If unsure, say N.
