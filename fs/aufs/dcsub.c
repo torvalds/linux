@@ -120,7 +120,7 @@ resume:
 	while (next != &this_parent->d_subdirs) {
 		struct list_head *tmp = next;
 		struct dentry *dentry = list_entry(tmp, struct dentry,
-						   d_u.d_child);
+						   d_child);
 
 		next = tmp->next;
 		spin_lock_nested(&dentry->d_lock, DENTRY_D_LOCK_NESTED);
@@ -156,7 +156,7 @@ resume:
 		this_parent = tmp;
 		spin_lock(&this_parent->d_lock);
 		rcu_read_unlock();
-		next = child->d_u.d_child.next;
+		next = child->d_child.next;
 		goto resume;
 	}
 

@@ -365,7 +365,7 @@ static struct dentry *lookup_wlock_by_name(char *name, unsigned int nlen,
 
 	dentry = NULL;
 	spin_lock(&parent->d_lock);
-	list_for_each_entry(d, &parent->d_subdirs, d_u.d_child) {
+	list_for_each_entry(d, &parent->d_subdirs, d_child) {
 		/* AuDbg("%.*s\n", AuDLNPair(d)); */
 		spin_lock_nested(&d->d_lock, DENTRY_D_LOCK_NESTED);
 		dname = &d->d_name;
