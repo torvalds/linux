@@ -798,6 +798,7 @@ struct rds_transport *rds_trans_get_preferred(__be32 addr);
 void rds_trans_put(struct rds_transport *trans);
 unsigned int rds_trans_stats_info_copy(struct rds_info_iterator *iter,
 				       unsigned int avail);
+struct rds_transport *rds_trans_get(int t_type);
 int rds_trans_init(void);
 void rds_trans_exit(void);
 

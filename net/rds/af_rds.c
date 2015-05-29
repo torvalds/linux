@@ -270,6 +270,28 @@ static int rds_cong_monitor(struct rds_sock *rs, char __user *optval,
 	return ret;
 }
 
+static int rds_set_transport(struct rds_sock *rs, char __user *optval,
+			     int optlen)
+{
+	int t_type;
+
+	if (rs->rs_transport)
+		return -EOPNOTSUPP; /* previously attached to transport */
+
+	if (optlen != sizeof(int))
+		return -EINVAL;
+
+	if (copy_from_user(&t_type, (int __user *)optval, sizeof(t_type)))
+		return -EFAULT;
+
+	if (t_type < 0 || t_type >= RDS_TRANS_COUNT)
+		return -EINVAL;
+
+	rs->rs_transport = rds_trans_get(t_type);
+
+	return rs->rs_transport ? 0 : -ENOPROTOOPT;
+}
+
 static int rds_setsockopt(struct socket *sock, int level, int optname,
 			  char __user *optval, unsigned int optlen)
 {
@@ -299,6 +321,11 @@ static int rds_setsockopt(struct socket *sock, int level, int optname,
 		break;
 	case RDS_CONG_MONITOR:
 		ret = rds_cong_monitor(rs, optval, optlen);
+		break;
+	case SO_RDS_TRANSPORT:
+		lock_sock(sock->sk);
+		ret = rds_set_transport(rs, optval, optlen);
+		release_sock(sock->sk);
 		break;
 	default:
 		ret = -ENOPROTOOPT;
