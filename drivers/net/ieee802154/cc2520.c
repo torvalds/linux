@@ -755,9 +755,11 @@ static int cc2520_register(struct cc2520_private *priv)
 	if (!priv->amplified) {
 		priv->hw->phy->supported.tx_powers = cc2520_powers;
 		priv->hw->phy->supported.tx_powers_size = ARRAY_SIZE(cc2520_powers);
+		priv->hw->phy->transmit_power = priv->hw->phy->supported.tx_powers[4];
 	} else {
 		priv->hw->phy->supported.tx_powers = cc2520_cc2591_powers;
 		priv->hw->phy->supported.tx_powers_size = ARRAY_SIZE(cc2520_cc2591_powers);
+		priv->hw->phy->transmit_power = priv->hw->phy->supported.tx_powers[0];
 	}
 
 	dev_vdbg(&priv->spi->dev, "registered cc2520\n");
