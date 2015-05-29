@@ -782,10 +782,6 @@ static int cc2520_hw_init(struct cc2520_private *priv)
 	 * http://www.ti.com/lit/an/swra229a/swra229a.pdf
 	 */
 	if (pdata.amplified) {
-		ret = cc2520_write_register(priv, CC2520_TXPOWER, 0xF9);
-		if (ret)
-			goto err_ret;
-
 		ret = cc2520_write_register(priv, CC2520_AGCCTRL1, 0x16);
 		if (ret)
 			goto err_ret;
@@ -806,10 +802,6 @@ static int cc2520_hw_init(struct cc2520_private *priv)
 		if (ret)
 			goto err_ret;
 	} else {
-		ret = cc2520_write_register(priv, CC2520_TXPOWER, 0xF7);
-		if (ret)
-			goto err_ret;
-
 		ret = cc2520_write_register(priv, CC2520_AGCCTRL1, 0x11);
 		if (ret)
 			goto err_ret;
