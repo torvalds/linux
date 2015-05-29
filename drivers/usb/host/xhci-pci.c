@@ -45,6 +45,13 @@ static const char hcd_name[] = "xhci_hcd";
 
 static struct hc_driver __read_mostly xhci_pci_hc_driver;
 
+static int xhci_pci_setup(struct usb_hcd *hcd);
+
+static const struct xhci_driver_overrides xhci_pci_overrides __initconst = {
+	.extra_priv_size = sizeof(struct xhci_hcd),
+	.reset = xhci_pci_setup,
+};
+
 /* called after powerup, by probe or system-pm "wakeup" */
 static int xhci_pci_reinit(struct xhci_hcd *xhci, struct pci_dev *pdev)
 {
@@ -206,7 +213,6 @@ static int xhci_pci_setup(struct usb_hcd *hcd)
 	if (!retval)
 		return retval;
 
-	kfree(xhci);
 	return retval;
 }
 
@@ -247,11 +253,6 @@ static int xhci_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		goto dealloc_usb2_hcd;
 	}
 
-	/* Set the xHCI pointer before xhci_pci_setup() (aka hcd_driver.reset)
-	 * is called by usb_add_hcd().
-	 */
-	*((struct xhci_hcd **) xhci->shared_hcd->hcd_priv) = xhci;
-
 	retval = usb_add_hcd(xhci->shared_hcd, dev->irq,
 			IRQF_SHARED);
 	if (retval)
@@ -290,8 +291,6 @@ static void xhci_pci_remove(struct pci_dev *dev)
 	/* Workaround for spurious wakeups at shutdown with HSW */
 	if (xhci->quirks & XHCI_SPURIOUS_WAKEUP)
 		pci_set_power_state(dev, PCI_D3hot);
-
-	kfree(xhci);
 }
 
 #ifdef CONFIG_PM
@@ -379,7 +378,7 @@ static struct pci_driver xhci_pci_driver = {
 
 static int __init xhci_pci_init(void)
 {
-	xhci_init_driver(&xhci_pci_hc_driver, xhci_pci_setup);
+	xhci_init_driver(&xhci_pci_hc_driver, &xhci_pci_overrides);
 #ifdef CONFIG_PM
 	xhci_pci_hc_driver.pci_suspend = xhci_pci_suspend;
 	xhci_pci_hc_driver.pci_resume = xhci_pci_resume;
