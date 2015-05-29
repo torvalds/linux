@@ -2169,7 +2169,8 @@ struct drm_i915_gem_request {
 	struct intel_context *ctx;
 	struct intel_ringbuffer *ringbuf;
 
-	/** Batch buffer related to this request if any */
+	/** Batch buffer related to this request if any (used for
+	    error state dump only) */
 	struct drm_i915_gem_object *batch_obj;
 
 	/** Time at which this request was emitted, in jiffies. */
