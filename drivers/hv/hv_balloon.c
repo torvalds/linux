@@ -567,7 +567,9 @@ static int hv_memory_notifier(struct notifier_block *nb, unsigned long val,
 	case MEM_ONLINE:
 		dm_device.num_pages_onlined += mem->nr_pages;
 	case MEM_CANCEL_ONLINE:
-		mutex_unlock(&dm_device.ha_region_mutex);
+		if (val == MEM_ONLINE ||
+		    mutex_is_locked(&dm_device.ha_region_mutex))
+			mutex_unlock(&dm_device.ha_region_mutex);
 		if (dm_device.ha_waiting) {
 			dm_device.ha_waiting = false;
 			complete(&dm_device.ol_waitevent);
