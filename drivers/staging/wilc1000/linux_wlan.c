@@ -2747,7 +2747,7 @@ static int __init init_wilc_driver(void)
 #endif
 
 	printk("IN INIT FUNCTION\n");
-	printk("*** WILC1000 driver VERSION=[%s] FW_VER=[%s] ***\n", __DRIVER_VERSION__, __DRIVER_VERSION__);
+	printk("*** WILC1000 driver VERSION=[10.2] FW_VER=[10.2] ***\n");
 
 	linux_wlan_device_power(1);
 	msleep(100);
