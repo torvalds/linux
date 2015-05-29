@@ -367,7 +367,7 @@ struct pinctrl_map * amlogic_register_mux_map(struct device *dev,const char *sta
 		map1->name=PINCTRL_STATE_DEFAULT;
 	map1->data.mux.function=func;
 	map1->data.mux.group=group;
-	ret=pinctrl_register_map(map1, 1, false, false);
+	ret=pinctrl_register_map(map1, 1, false);
 	if(!ret)
 		return map1;
 	else
@@ -403,7 +403,7 @@ struct pinctrl_map * amlogic_register_config_map(struct device *dev,const char *
 	map1->data.configs.group_or_pin=group;
 	map1->data.configs.configs=configs;
 	map1->data.configs.num_configs=num_configs;
-	ret=pinctrl_register_map(map1, 1, false, false);
+	ret=pinctrl_register_map(map1, 1, false);
 	if(!ret)
 		return map1;
 	else
