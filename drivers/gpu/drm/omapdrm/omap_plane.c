@@ -58,12 +58,11 @@ to_omap_plane_state(struct drm_plane_state *state)
 	return container_of(state, struct omap_plane_state, base);
 }
 
-static int omap_plane_setup(struct drm_plane *plane)
+static void omap_plane_setup(struct drm_plane *plane)
 {
 	struct omap_plane *omap_plane = to_omap_plane(plane);
 	struct drm_plane_state *state = plane->state;
 	struct omap_plane_state *omap_state = to_omap_plane_state(state);
-	struct drm_device *dev = plane->dev;
 	struct omap_overlay_info info;
 	struct omap_drm_window win;
 	int ret;
@@ -72,7 +71,7 @@ static int omap_plane_setup(struct drm_plane *plane)
 
 	if (!state->crtc) {
 		dispc_ovl_enable(omap_plane->id, false);
-		return 0;
+		return;
 	}
 
 	memset(&info, 0, sizeof(info));
@@ -123,14 +122,10 @@ static int omap_plane_setup(struct drm_plane *plane)
 	/* and finally, update omapdss: */
 	ret = dispc_ovl_setup(omap_plane->id, &info, false,
 			      omap_crtc_timings(state->crtc), false);
-	if (ret) {
-		dev_err(dev->dev, "dispc_ovl_setup failed: %d\n", ret);
-		return ret;
-	}
+	if (WARN_ON(ret))
+		return;
 
 	dispc_ovl_enable(omap_plane->id, true);
-
-	return 0;
 }
 
 static int omap_plane_prepare_fb(struct drm_plane *plane,
