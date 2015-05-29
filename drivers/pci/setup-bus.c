@@ -428,9 +428,10 @@ static void __assign_resources_sorted(struct list_head *head,
 		 * consistent.
 		 */
 		if (add_align > dev_res->res->start) {
+			resource_size_t r_size = resource_size(dev_res->res);
+
 			dev_res->res->start = add_align;
-			dev_res->res->end = add_align +
-				            resource_size(dev_res->res);
+			dev_res->res->end = add_align + r_size - 1;
 
 			list_for_each_entry(dev_res2, head, list) {
 				align = pci_resource_alignment(dev_res2->dev,
