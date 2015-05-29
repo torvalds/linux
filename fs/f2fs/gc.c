@@ -750,6 +750,15 @@ static void do_garbage_collect(struct f2fs_sb_info *sbi, unsigned int segno,
 
 	sum = page_address(sum_page);
 
+	/*
+	 * this is to avoid deadlock:
+	 * - lock_page(sum_page)         - f2fs_replace_block
+	 *  - check_valid_map()            - mutex_lock(sentry_lock)
+	 *   - mutex_lock(sentry_lock)     - change_curseg()
+	 *                                  - lock_page(sum_page)
+	 */
+	unlock_page(sum_page);
+
 	switch (GET_SUM_TYPE((&sum->footer))) {
 	case SUM_TYPE_NODE:
 		gc_node_segment(sbi, sum->entries, segno, gc_type);
@@ -763,7 +772,7 @@ static void do_garbage_collect(struct f2fs_sb_info *sbi, unsigned int segno,
 	stat_inc_seg_count(sbi, GET_SUM_TYPE((&sum->footer)), gc_type);
 	stat_inc_call_count(sbi->stat_info);
 
-	f2fs_put_page(sum_page, 1);
+	f2fs_put_page(sum_page, 0);
 }
 
 int f2fs_gc(struct f2fs_sb_info *sbi)
