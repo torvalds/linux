@@ -37,7 +37,7 @@ subdir-obj-y :=
 
 # Build definitions
 build-file := $(dir)/Build
-include $(build-file)
+-include $(build-file)
 
 quiet_cmd_flex  = FLEX     $@
 quiet_cmd_bison = BISON    $@
