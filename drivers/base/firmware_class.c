@@ -1307,8 +1307,10 @@ request_firmware_nowait(
 
 	fw_work->module = module;
 	fw_work->name = kstrdup_const(name, gfp);
-	if (!fw_work->name)
+	if (!fw_work->name) {
+		kfree(fw_work);
 		return -ENOMEM;
+	}
 	fw_work->device = device;
 	fw_work->context = context;
 	fw_work->cont = cont;
