@@ -76,8 +76,6 @@ static bool handle_mmio_ctlr(struct kvm_vcpu *vcpu,
 	vgic_reg_access(mmio, &reg, offset,
 			ACCESS_READ_VALUE | ACCESS_WRITE_VALUE);
 	if (mmio->is_write) {
-		if (reg & GICD_CTLR_ENABLE_SS_G0)
-			kvm_info("guest tried to enable unsupported Group0 interrupts\n");
 		vcpu->kvm->arch.vgic.enabled = !!(reg & GICD_CTLR_ENABLE_SS_G1);
 		vgic_update_state(vcpu->kvm);
 		return true;
