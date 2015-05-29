@@ -2422,6 +2422,8 @@ static int max98090_probe(struct snd_soc_codec *codec)
 	struct max98090_cdata *cdata;
 	enum max98090_type devtype;
 	int ret = 0;
+	int err;
+	unsigned int micbias;
 
 	dev_dbg(codec->dev, "max98090_probe\n");
 
@@ -2506,8 +2508,17 @@ static int max98090_probe(struct snd_soc_codec *codec)
 	snd_soc_write(codec, M98090_REG_BIAS_CONTROL,
 		M98090_VCM_MODE_MASK);
 
+	err = device_property_read_u32(codec->dev, "maxim,micbias", &micbias);
+	if (err) {
+		micbias = M98090_MBVSEL_2V8;
+		dev_info(codec->dev, "use default 2.8v micbias\n");
+	} else if (micbias < M98090_MBVSEL_2V2 || micbias > M98090_MBVSEL_2V8) {
+		dev_err(codec->dev, "micbias out of range 0x%x\n", micbias);
+		micbias = M98090_MBVSEL_2V8;
+	}
+
 	snd_soc_update_bits(codec, M98090_REG_MIC_BIAS_VOLTAGE,
-		M98090_MBVSEL_MASK, M98090_MBVSEL_2V8);
+		M98090_MBVSEL_MASK, micbias);
 
 	max98090_add_widgets(codec);
 
