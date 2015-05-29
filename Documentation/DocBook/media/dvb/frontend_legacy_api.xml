@@ -183,7 +183,7 @@ struct dvb_vsb_parameters {
 	 &fe-modulation-t;     constellation; /&#x22C6; modulation type (see above) &#x22C6;/
 	 &fe-transmit-mode-t;  transmission_mode;
 	 &fe-guard-interval-t; guard_interval;
-	 fe_hierarchy_t      hierarchy_information;
+	 &fe-hierarchy-t;      hierarchy_information;
  };
 </programlisting>
 </section>

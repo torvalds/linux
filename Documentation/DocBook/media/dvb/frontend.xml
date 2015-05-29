@@ -56,24 +56,6 @@ specification is available at
 
 &sub-dvbproperty;
 
-<section>
-<title>More OFDM parameters</title>
-
-<section id="fe-hierarchy-t">
-<title>frontend hierarchy</title>
-<programlisting>
-typedef enum fe_hierarchy {
-	 HIERARCHY_NONE,
-	 HIERARCHY_1,
-	 HIERARCHY_2,
-	 HIERARCHY_4,
-	 HIERARCHY_AUTO
- } fe_hierarchy_t;
-</programlisting>
-</section>
-
-</section>
-
 <section id="frontend_fcalls">
 <title>Frontend Function Calls</title>
 

@@ -951,15 +951,43 @@ typedef enum atscmh_sccc_code_mode {
 	<section id="DTV-HIERARCHY">
 	<title><constant>DTV_HIERARCHY</constant></title>
 	<para>Frontend hierarchy</para>
-	<programlisting>
-typedef enum fe_hierarchy {
-	 HIERARCHY_NONE,
-	 HIERARCHY_1,
-	 HIERARCHY_2,
-	 HIERARCHY_4,
-	 HIERARCHY_AUTO
- } fe_hierarchy_t;
-	</programlisting>
+
+
+<section id="fe-hierarchy-t">
+<title>Frontend hierarchy</title>
+
+<table pgwide="1" frame="none" id="fe-hierarchy">
+    <title>enum fe_hierarchy</title>
+    <tgroup cols="2">
+	&cs-def;
+	<thead>
+	<row>
+	    <entry>ID</entry>
+	    <entry>Description</entry>
+	</row>
+	</thead>
+	<tbody valign="top">
+	<row>
+	     <entry>HIERARCHY_NONE</entry>
+	    <entry>No hierarchy</entry>
+	</row><row>
+	     <entry>HIERARCHY_AUTO</entry>
+	    <entry>Autodetect hierarchy (if supported)</entry>
+	</row><row>
+	     <entry>HIERARCHY_1</entry>
+	    <entry>Hierarchy 1</entry>
+	</row><row>
+	     <entry>HIERARCHY_2</entry>
+	    <entry>Hierarchy 2</entry>
+	</row><row>
+	     <entry>HIERARCHY_4</entry>
+	    <entry>Hierarchy 4</entry>
+	</row>
+        </tbody>
+    </tgroup>
+</table>
+</section>
+
 	</section>
 	<section id="DTV-STREAM-ID">
 	<title><constant>DTV_STREAM_ID</constant></title>

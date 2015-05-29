@@ -244,13 +244,15 @@ enum fe_guard_interval {
 
 typedef enum fe_guard_interval fe_guard_interval_t;
 
-typedef enum fe_hierarchy {
+enum fe_hierarchy {
 	HIERARCHY_NONE,
 	HIERARCHY_1,
 	HIERARCHY_2,
 	HIERARCHY_4,
 	HIERARCHY_AUTO
-} fe_hierarchy_t;
+};
+
+typedef enum fe_hierarchy fe_hierarchy_t;
 
 enum fe_interleaving {
 	INTERLEAVING_NONE,
