@@ -214,8 +214,9 @@ gen4_render_ring_flush(struct drm_i915_gem_request *req,
  * really our business.  That leaves only stall at scoreboard.
  */
 static int
-intel_emit_post_sync_nonzero_flush(struct intel_engine_cs *ring)
+intel_emit_post_sync_nonzero_flush(struct drm_i915_gem_request *req)
 {
+	struct intel_engine_cs *ring = req->ring;
 	u32 scratch_addr = ring->scratch.gtt_offset + 2 * CACHELINE_BYTES;
 	int ret;
 
@@ -258,7 +259,7 @@ gen6_render_ring_flush(struct drm_i915_gem_request *req,
 	int ret;
 
 	/* Force SNB workarounds for PIPE_CONTROL flushes */
-	ret = intel_emit_post_sync_nonzero_flush(ring);
+	ret = intel_emit_post_sync_nonzero_flush(req);
 	if (ret)
 		return ret;
 
@@ -302,8 +303,9 @@ gen6_render_ring_flush(struct drm_i915_gem_request *req,
 }
 
 static int
-gen7_render_ring_cs_stall_wa(struct intel_engine_cs *ring)
+gen7_render_ring_cs_stall_wa(struct drm_i915_gem_request *req)
 {
+	struct intel_engine_cs *ring = req->ring;
 	int ret;
 
 	ret = intel_ring_begin(ring, 4);
@@ -366,7 +368,7 @@ gen7_render_ring_flush(struct drm_i915_gem_request *req,
 		/* Workaround: we must issue a pipe_control with CS-stall bit
 		 * set before a pipe_control command that has the state cache
 		 * invalidate bit set. */
-		gen7_render_ring_cs_stall_wa(ring);
+		gen7_render_ring_cs_stall_wa(req);
 	}
 
 	ret = intel_ring_begin(ring, 4);
@@ -383,9 +385,10 @@ gen7_render_ring_flush(struct drm_i915_gem_request *req,
 }
 
 static int
-gen8_emit_pipe_control(struct intel_engine_cs *ring,
+gen8_emit_pipe_control(struct drm_i915_gem_request *req,
 		       u32 flags, u32 scratch_addr)
 {
+	struct intel_engine_cs *ring = req->ring;
 	int ret;
 
 	ret = intel_ring_begin(ring, 6);
@@ -407,9 +410,8 @@ static int
 gen8_render_ring_flush(struct drm_i915_gem_request *req,
 		       u32 invalidate_domains, u32 flush_domains)
 {
-	struct intel_engine_cs *ring = req->ring;
 	u32 flags = 0;
-	u32 scratch_addr = ring->scratch.gtt_offset + 2 * CACHELINE_BYTES;
+	u32 scratch_addr = req->ring->scratch.gtt_offset + 2 * CACHELINE_BYTES;
 	int ret;
 
 	flags |= PIPE_CONTROL_CS_STALL;
@@ -429,7 +431,7 @@ gen8_render_ring_flush(struct drm_i915_gem_request *req,
 		flags |= PIPE_CONTROL_GLOBAL_GTT_IVB;
 
 		/* WaCsStallBeforeStateCacheInvalidate:bdw,chv */
-		ret = gen8_emit_pipe_control(ring,
+		ret = gen8_emit_pipe_control(req,
 					     PIPE_CONTROL_CS_STALL |
 					     PIPE_CONTROL_STALL_AT_SCOREBOARD,
 					     0);
@@ -437,7 +439,7 @@ gen8_render_ring_flush(struct drm_i915_gem_request *req,
 			return ret;
 	}
 
-	return gen8_emit_pipe_control(ring, flags, scratch_addr);
+	return gen8_emit_pipe_control(req, flags, scratch_addr);
 }
 
 static void ring_write_tail(struct intel_engine_cs *ring,
