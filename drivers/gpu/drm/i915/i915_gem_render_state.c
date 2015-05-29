@@ -173,7 +173,7 @@ int i915_gem_render_state_init(struct intel_engine_cs *ring)
 
 	i915_vma_move_to_active(i915_gem_obj_to_ggtt(so.obj), ring);
 
-	__i915_add_request(ring, NULL, so.obj, true);
+	__i915_add_request(ring, NULL, NULL, true);
 	/* __i915_add_request moves object to inactive if it fails */
 out:
 	i915_gem_render_state_fini(&so);
