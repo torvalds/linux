@@ -644,7 +644,7 @@ static char *compact_gfp_flags(char *gfp_flags)
 {
 	char *orig_flags = strdup(gfp_flags);
 	char *new_flags = NULL;
-	char *str, *pos;
+	char *str, *pos = NULL;
 	size_t len = 0;
 
 	if (orig_flags == NULL)
