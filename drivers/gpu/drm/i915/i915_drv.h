@@ -2212,6 +2212,8 @@ int i915_gem_request_alloc(struct intel_engine_cs *ring,
 			   struct drm_i915_gem_request **req_out);
 void i915_gem_request_cancel(struct drm_i915_gem_request *req);
 void i915_gem_request_free(struct kref *req_ref);
+int i915_gem_request_add_to_client(struct drm_i915_gem_request *req,
+				   struct drm_file *file);
 
 static inline uint32_t
 i915_gem_request_get_seqno(struct drm_i915_gem_request *req)
@@ -2891,13 +2893,12 @@ void i915_gem_cleanup_ringbuffer(struct drm_device *dev);
 int __must_check i915_gpu_idle(struct drm_device *dev);
 int __must_check i915_gem_suspend(struct drm_device *dev);
 void __i915_add_request(struct drm_i915_gem_request *req,
-			struct drm_file *file,
 			struct drm_i915_gem_object *batch_obj,
 			bool flush_caches);
 #define i915_add_request(req) \
-	__i915_add_request(req, NULL, NULL, true)
+	__i915_add_request(req, NULL, true)
 #define i915_add_request_no_flush(req) \
-	__i915_add_request(req, NULL, NULL, false)
+	__i915_add_request(req, NULL, false)
 int __i915_wait_request(struct drm_i915_gem_request *req,
 			unsigned reset_counter,
 			bool interruptible,

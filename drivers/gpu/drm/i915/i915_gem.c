@@ -1331,6 +1331,33 @@ out:
 	return ret;
 }
 
+int i915_gem_request_add_to_client(struct drm_i915_gem_request *req,
+				   struct drm_file *file)
+{
+	struct drm_i915_private *dev_private;
+	struct drm_i915_file_private *file_priv;
+
+	WARN_ON(!req || !file || req->file_priv);
+
+	if (!req || !file)
+		return -EINVAL;
+
+	if (req->file_priv)
+		return -EINVAL;
+
+	dev_private = req->ring->dev->dev_private;
+	file_priv = file->driver_priv;
+
+	spin_lock(&file_priv->mm.lock);
+	req->file_priv = file_priv;
+	list_add_tail(&req->client_list, &file_priv->mm.request_list);
+	spin_unlock(&file_priv->mm.lock);
+
+	req->pid = get_pid(task_pid(current));
+
+	return 0;
+}
+
 static inline void
 i915_gem_request_remove_from_client(struct drm_i915_gem_request *request)
 {
@@ -1343,6 +1370,9 @@ i915_gem_request_remove_from_client(struct drm_i915_gem_request *request)
 	list_del(&request->client_list);
 	request->file_priv = NULL;
 	spin_unlock(&file_priv->mm.lock);
+
+	put_pid(request->pid);
+	request->pid = NULL;
 }
 
 static void i915_gem_request_retire(struct drm_i915_gem_request *request)
@@ -1361,8 +1391,6 @@ static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 
 	list_del_init(&request->list);
 	i915_gem_request_remove_from_client(request);
-
-	put_pid(request->pid);
 
 	i915_gem_request_unreference(request);
 }
@@ -2468,7 +2496,6 @@ i915_gem_get_seqno(struct drm_device *dev, u32 *seqno)
  * going to happen on the hardware. This would be a Bad Thing(tm).
  */
 void __i915_add_request(struct drm_i915_gem_request *request,
-			struct drm_file *file,
 			struct drm_i915_gem_object *obj,
 			bool flush_caches)
 {
@@ -2538,19 +2565,6 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 
 	request->emitted_jiffies = jiffies;
 	list_add_tail(&request->list, &ring->request_list);
-	request->file_priv = NULL;
-
-	if (file) {
-		struct drm_i915_file_private *file_priv = file->driver_priv;
-
-		spin_lock(&file_priv->mm.lock);
-		request->file_priv = file_priv;
-		list_add_tail(&request->client_list,
-			      &file_priv->mm.request_list);
-		spin_unlock(&file_priv->mm.lock);
-
-		request->pid = get_pid(task_pid(current));
-	}
 
 	trace_i915_gem_request_add(request);
 
@@ -2615,6 +2629,9 @@ void i915_gem_request_free(struct kref *req_ref)
 	struct drm_i915_gem_request *req = container_of(req_ref,
 						 typeof(*req), ref);
 	struct intel_context *ctx = req->ctx;
+
+	if (req->file_priv)
+		i915_gem_request_remove_from_client(req);
 
 	if (ctx) {
 		if (i915.enable_execlists) {
@@ -4313,6 +4330,13 @@ i915_gem_ring_throttle(struct drm_device *dev, struct drm_file *file)
 	list_for_each_entry(request, &file_priv->mm.request_list, client_list) {
 		if (time_after_eq(request->emitted_jiffies, recent_enough))
 			break;
+
+		/*
+		 * Note that the request might not have been submitted yet.
+		 * In which case emitted_jiffies will be zero.
+		 */
+		if (!request->emitted_jiffies)
+			continue;
 
 		target = request;
 	}

@@ -1066,7 +1066,7 @@ i915_gem_execbuffer_retire_commands(struct i915_execbuffer_params *params)
 	params->ring->gpu_caches_dirty = true;
 
 	/* Add a breadcrumb for the completion of the batch buffer */
-	__i915_add_request(params->request, params->file, params->batch_obj, true);
+	__i915_add_request(params->request, params->batch_obj, true);
 }
 
 static int
@@ -1617,6 +1617,10 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 
 	/* Allocate a request for this batch buffer nice and early. */
 	ret = i915_gem_request_alloc(ring, ctx, &params->request);
+	if (ret)
+		goto err_batch_unpin;
+
+	ret = i915_gem_request_add_to_client(params->request, file);
 	if (ret)
 		goto err_batch_unpin;
 
