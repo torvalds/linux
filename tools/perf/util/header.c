@@ -1264,7 +1264,7 @@ static int __event_process_build_id(struct build_id_event *bev,
 		goto out;
 	}
 
-	dso = __dsos__findnew(&machine->dsos, filename);
+	dso = machine__findnew_dso(machine, filename);
 	if (dso != NULL) {
 		char sbuild_id[BUILD_ID_SIZE * 2 + 1];
 

@@ -121,8 +121,7 @@ struct machine *setup_fake_machine(struct machines *machines)
 		size_t k;
 		struct dso *dso;
 
-		dso = __dsos__findnew(&machine->dsos,
-				      fake_symbols[i].dso_name);
+		dso = machine__findnew_dso(machine, fake_symbols[i].dso_name);
 		if (dso == NULL)
 			goto out;
 

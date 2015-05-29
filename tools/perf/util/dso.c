@@ -833,7 +833,7 @@ struct dso *machine__findnew_kernel(struct machine *machine, const char *name,
 	/*
 	 * The kernel dso could be created by build_id processing.
 	 */
-	struct dso *dso = __dsos__findnew(&machine->dsos, name);
+	struct dso *dso = machine__findnew_dso(machine, name);
 
 	/*
 	 * We need to run this in all cases, since during the build_id

@@ -1157,7 +1157,7 @@ static int machine__process_kernel_mmap_event(struct machine *machine,
 		}
 
 		if (kernel == NULL)
-			kernel = __dsos__findnew(&machine->dsos, kmmap_prefix);
+			kernel = machine__findnew_dso(machine, kmmap_prefix);
 		if (kernel == NULL)
 			goto out_problem;
 
@@ -1914,4 +1914,9 @@ int machine__get_kernel_start(struct machine *machine)
 			machine->kernel_start = map->start;
 	}
 	return err;
+}
+
+struct dso *machine__findnew_dso(struct machine *machine, const char *filename)
+{
+	return __dsos__findnew(&machine->dsos, filename);
 }
