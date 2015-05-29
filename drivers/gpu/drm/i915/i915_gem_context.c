@@ -720,7 +720,7 @@ static int do_switch(struct drm_i915_gem_request *req)
 		if (!(to->remap_slice & (1<<i)))
 			continue;
 
-		ret = i915_gem_l3_remap(ring, i);
+		ret = i915_gem_l3_remap(req, i);
 		/* If it failed, try again next round */
 		if (ret)
 			DRM_DEBUG_DRIVER("L3 remapping failed\n");

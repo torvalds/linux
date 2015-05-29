@@ -4882,8 +4882,9 @@ err:
 	return ret;
 }
 
-int i915_gem_l3_remap(struct intel_engine_cs *ring, int slice)
+int i915_gem_l3_remap(struct drm_i915_gem_request *req, int slice)
 {
+	struct intel_engine_cs *ring = req->ring;
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 reg_base = GEN7_L3LOG_BASE + (slice * 0x200);
@@ -5105,7 +5106,7 @@ i915_gem_init_hw(struct drm_device *dev)
 
 		if (ring->id == RCS) {
 			for (j = 0; j < NUM_L3_SLICES(dev); j++)
-				i915_gem_l3_remap(ring, j);
+				i915_gem_l3_remap(req, j);
 		}
 
 		ret = i915_ppgtt_init_ring(req);
