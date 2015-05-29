@@ -1060,16 +1060,13 @@ i915_gem_execbuffer_move_to_active(struct list_head *vmas,
 }
 
 void
-i915_gem_execbuffer_retire_commands(struct drm_device *dev,
-				    struct drm_file *file,
-				    struct intel_engine_cs *ring,
-				    struct drm_i915_gem_object *obj)
+i915_gem_execbuffer_retire_commands(struct i915_execbuffer_params *params)
 {
 	/* Unconditionally force add_request to emit a full flush. */
-	ring->gpu_caches_dirty = true;
+	params->ring->gpu_caches_dirty = true;
 
 	/* Add a breadcrumb for the completion of the batch buffer */
-	__i915_add_request(ring, file, obj);
+	__i915_add_request(params->ring, params->file, params->batch_obj);
 }
 
 static int
@@ -1346,8 +1343,7 @@ i915_gem_ringbuffer_submission(struct i915_execbuffer_params *params,
 	trace_i915_gem_ring_dispatch(intel_ring_get_request(ring), params->dispatch_flags);
 
 	i915_gem_execbuffer_move_to_active(vmas, ring);
-	i915_gem_execbuffer_retire_commands(params->dev, params->file, ring,
-					    params->batch_obj);
+	i915_gem_execbuffer_retire_commands(params);
 
 error:
 	kfree(cliprects);
