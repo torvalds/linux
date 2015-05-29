@@ -775,12 +775,10 @@ static void pin_to_bits(int pin, unsigned char *d_val, unsigned char *c_val)
 /* sleeps that many milliseconds with a reschedule */
 static void long_sleep(int ms)
 {
-	if (in_interrupt()) {
+	if (in_interrupt())
 		mdelay(ms);
-	} else {
-		__set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout((ms * HZ + 999) / 1000);
-	}
+	else
+		schedule_timeout_interruptible(msecs_to_jiffies(ms));
 }
 
 /* send a serial byte to the LCD panel. The caller is responsible for locking
