@@ -15,6 +15,7 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include "skeleton64.dtsi"
+#include "mt8135-pinfunc.h"
 
 / {
 	compatible = "mediatek,mt8135";
@@ -101,6 +102,29 @@
 		compatible = "simple-bus";
 		ranges;
 
+		/*
+		 * Pinctrl access register at 0x10005000 and 0x1020c000 through
+		 * regmap. Register 0x1000b000 is used by EINT.
+		 */
+		pio: pinctrl@10005000 {
+			compatible = "mediatek,mt8135-pinctrl";
+			reg = <0 0x1000b000 0 0x1000>;
+			mediatek,pctl-regmap = <&syscfg_pctl_a &syscfg_pctl_b>;
+			pins-are-numbered;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			interrupts = <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		syscfg_pctl_a: syscfg_pctl_a@10005000 {
+			compatible = "mediatek,mt8135-pctl-a-syscfg", "syscon";
+			reg = <0 0x10005000 0 0x1000>;
+		};
+
 		timer: timer@10008000 {
 			compatible = "mediatek,mt8135-timer",
 					"mediatek,mt6577-timer";
@@ -117,6 +141,11 @@
 			#interrupt-cells = <3>;
 			interrupt-parent = <&gic>;
 			reg = <0 0x10200030 0 0x1c>;
+		};
+
+		syscfg_pctl_b: syscfg_pctl_b@1020c000 {
+			compatible = "mediatek,mt8135-pctl-b-syscfg", "syscon";
+			reg = <0 0x1020c000 0 0x1000>;
 		};
 
 		gic: interrupt-controller@10211000 {
