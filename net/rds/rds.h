@@ -408,11 +408,6 @@ struct rds_notifier {
  *                 should try hard not to block.
  */
 
-#define RDS_TRANS_IB	0
-#define RDS_TRANS_IWARP	1
-#define RDS_TRANS_TCP	2
-#define RDS_TRANS_COUNT	3
-
 struct rds_transport {
 	char			t_name[TRANSNAMSIZ];
 	struct list_head	t_item;
