@@ -634,6 +634,23 @@ config FCOE_FNIC
 	  <file:Documentation/scsi/scsi.txt>.
 	  The module will be called fnic.
 
+config SCSI_SNIC
+	tristate "Cisco SNIC Driver"
+	depends on PCI && SCSI
+	help
+	  This is support for the Cisco PCI-Express SCSI HBA.
+
+	  To compile this driver as a module, choose M here and read
+	  <file:Documentation/scsi/scsi.txt>.
+	  The module will be called snic.
+
+config SCSI_SNIC_DEBUG_FS
+	bool "Cisco SNIC Driver Debugfs Support"
+	depends on SCSI_SNIC && DEBUG_FS
+	help
+	  This enables to list debugging information from SNIC Driver
+	  available via debugfs file system
+
 config SCSI_DMX3191D
 	tristate "DMX3191D SCSI support"
 	depends on PCI && SCSI

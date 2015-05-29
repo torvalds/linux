@@ -2590,6 +2590,13 @@ L:	linux-scsi@vger.kernel.org
 S:	Supported
 F:	drivers/scsi/fnic/
 
+CISCO SCSI HBA DRIVER
+M:	Narsimhulu Musini <nmusini@cisco.com>
+M:	Sesidhar Baddela <sebaddel@cisco.com>
+L:	linux-scsi@vger.kernel.org
+S:	Supported
+F:	drivers/scsi/snic/
+
 CMPC ACPI DRIVER
 M:	Thadeu Lima de Souza Cascardo <cascardo@holoscopio.com>
 M:	Daniel Oliveira Nascimento <don@syst.com.br>
