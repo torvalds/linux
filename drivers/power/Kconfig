@@ -460,6 +460,13 @@ config BATTERY_RT5033
 	  The fuelgauge calculates and determines the battery state of charge
 	  according to battery open circuit voltage.
 
+config CHARGER_RT9455
+	tristate "Richtek RT9455 battery charger driver"
+	depends on I2C && GPIOLIB
+	select REGMAP_I2C
+	help
+	  Say Y to enable support for Richtek RT9455 battery charger.
+
 source "drivers/power/reset/Kconfig"
 
 endif # POWER_SUPPLY
