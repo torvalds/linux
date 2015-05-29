@@ -409,32 +409,22 @@ void i915_gem_context_fini(struct drm_device *dev)
 	i915_gem_context_unreference(dctx);
 }
 
-int i915_gem_context_enable(struct drm_i915_private *dev_priv)
+int i915_gem_context_enable(struct intel_engine_cs *ring)
 {
-	struct intel_engine_cs *ring;
-	int ret, i;
-
-	BUG_ON(!dev_priv->ring[RCS].default_context);
+	int ret;
 
 	if (i915.enable_execlists) {
-		for_each_ring(ring, dev_priv, i) {
-			if (ring->init_context) {
-				ret = ring->init_context(ring,
-						ring->default_context);
-				if (ret) {
-					DRM_ERROR("ring init context: %d\n",
-							ret);
-					return ret;
-				}
-			}
-		}
+		if (ring->init_context == NULL)
+			return 0;
 
+		ret = ring->init_context(ring, ring->default_context);
 	} else
-		for_each_ring(ring, dev_priv, i) {
-			ret = i915_switch_context(ring, ring->default_context);
-			if (ret)
-				return ret;
-		}
+		ret = i915_switch_context(ring, ring->default_context);
+
+	if (ret) {
+		DRM_ERROR("ring init context: %d\n", ret);
+		return ret;
+	}
 
 	return 0;
 }
