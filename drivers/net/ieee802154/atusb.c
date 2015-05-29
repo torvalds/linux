@@ -473,6 +473,33 @@ atusb_set_txpower(struct ieee802154_hw *hw, s32 mbm)
 	return -EINVAL;
 }
 
+static int
+atusb_set_promiscuous_mode(struct ieee802154_hw *hw, const bool on)
+{
+	struct atusb *atusb = hw->priv;
+	int ret;
+
+	if (on) {
+		ret = atusb_write_subreg(atusb, SR_AACK_DIS_ACK, 1);
+		if (ret < 0)
+			return ret;
+
+		ret = atusb_write_subreg(atusb, SR_AACK_PROM_MODE, 1);
+		if (ret < 0)
+			return ret;
+	} else {
+		ret = atusb_write_subreg(atusb, SR_AACK_PROM_MODE, 0);
+		if (ret < 0)
+			return ret;
+
+		ret = atusb_write_subreg(atusb, SR_AACK_DIS_ACK, 0);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
 static struct ieee802154_ops atusb_ops = {
 	.owner			= THIS_MODULE,
 	.xmit_async		= atusb_xmit,
@@ -482,6 +509,7 @@ static struct ieee802154_ops atusb_ops = {
 	.stop			= atusb_stop,
 	.set_hw_addr_filt	= atusb_set_hw_addr_filt,
 	.set_txpower		= atusb_set_txpower,
+	.set_promiscuous_mode	= atusb_set_promiscuous_mode,
 };
 
 /* ----- Firmware and chip version information ----------------------------- */
@@ -600,7 +628,7 @@ static int atusb_probe(struct usb_interface *interface,
 
 	hw->parent = &usb_dev->dev;
 	hw->flags = IEEE802154_HW_TX_OMIT_CKSUM | IEEE802154_HW_AFILT |
-		    IEEE802154_HW_AACK;
+		    IEEE802154_HW_AACK | IEEE802154_HW_PROMISCUOUS;
 
 	hw->phy->flags = WPAN_PHY_FLAG_TXPOWER;
 
