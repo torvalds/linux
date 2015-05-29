@@ -555,22 +555,11 @@ static int execlists_context_queue(struct intel_engine_cs *ring,
 	if (to != ring->default_context)
 		intel_lr_context_pin(ring, to);
 
-	if (!request) {
-		/*
-		 * If there isn't a request associated with this submission,
-		 * create one as a temporary holder.
-		 */
-		request = kzalloc(sizeof(*request), GFP_KERNEL);
-		if (request == NULL)
-			return -ENOMEM;
-		request->ring = ring;
-		request->ctx = to;
-		kref_init(&request->ref);
-		i915_gem_context_reference(request->ctx);
-	} else {
-		i915_gem_request_reference(request);
-		WARN_ON(to != request->ctx);
-	}
+	WARN_ON(!request);
+	WARN_ON(to != request->ctx);
+
+	i915_gem_request_reference(request);
+
 	request->tail = tail;
 
 	spin_lock_irq(&ring->execlist_lock);
