@@ -303,7 +303,7 @@ struct sc16is7xx_devtype {
 
 struct sc16is7xx_one {
 	struct uart_port		port;
-	struct work_struct		tx_work;
+	struct kthread_work		tx_work;
 	struct work_struct		md_work;
 };
 
@@ -311,15 +311,18 @@ struct sc16is7xx_port {
 	struct uart_driver		uart;
 	struct sc16is7xx_devtype	*devtype;
 	struct regmap			*regmap;
-	struct mutex			mutex;
 	struct clk			*clk;
 #ifdef CONFIG_GPIOLIB
 	struct gpio_chip		gpio;
 #endif
 	unsigned char			buf[SC16IS7XX_FIFO_SIZE];
+	struct kthread_worker		kworker;
+	struct task_struct		*kworker_task;
+	struct kthread_work		irq_work;
 	struct sc16is7xx_one		p[0];
 };
 
+#define to_sc16is7xx_port(p,e)	((container_of((p), struct sc16is7xx_port, e)))
 #define to_sc16is7xx_one(p,e)	((container_of((p), struct sc16is7xx_one, e)))
 
 static u8 sc16is7xx_port_read(struct uart_port *port, u8 reg)
@@ -616,9 +619,7 @@ static void sc16is7xx_port_irq(struct sc16is7xx_port *s, int portno)
 					       !!(msr & SC16IS7XX_MSR_CTS_BIT));
 			break;
 		case SC16IS7XX_IIR_THRI_SRC:
-			mutex_lock(&s->mutex);
 			sc16is7xx_handle_tx(port);
-			mutex_unlock(&s->mutex);
 			break;
 		default:
 			dev_err_ratelimited(port->dev,
@@ -629,25 +630,29 @@ static void sc16is7xx_port_irq(struct sc16is7xx_port *s, int portno)
 	} while (1);
 }
 
-static irqreturn_t sc16is7xx_ist(int irq, void *dev_id)
+static void sc16is7xx_ist(struct kthread_work *ws)
 {
-	struct sc16is7xx_port *s = (struct sc16is7xx_port *)dev_id;
+	struct sc16is7xx_port *s = to_sc16is7xx_port(ws, irq_work);
 	int i;
 
 	for (i = 0; i < s->uart.nr; ++i)
 		sc16is7xx_port_irq(s, i);
+}
+
+static irqreturn_t sc16is7xx_irq(int irq, void *dev_id)
+{
+	struct sc16is7xx_port *s = (struct sc16is7xx_port *)dev_id;
+
+	queue_kthread_work(&s->kworker, &s->irq_work);
 
 	return IRQ_HANDLED;
 }
 
-static void sc16is7xx_wq_proc(struct work_struct *ws)
+static void sc16is7xx_tx_proc(struct kthread_work *ws)
 {
 	struct sc16is7xx_one *one = to_sc16is7xx_one(ws, tx_work);
-	struct sc16is7xx_port *s = dev_get_drvdata(one->port.dev);
 
-	mutex_lock(&s->mutex);
 	sc16is7xx_handle_tx(&one->port);
-	mutex_unlock(&s->mutex);
 }
 
 static void sc16is7xx_stop_tx(struct uart_port* port)
@@ -669,6 +674,7 @@ static void sc16is7xx_stop_rx(struct uart_port* port)
 
 static void sc16is7xx_start_tx(struct uart_port *port)
 {
+	struct sc16is7xx_port *s = dev_get_drvdata(port->dev);
 	struct sc16is7xx_one *one = to_sc16is7xx_one(port, port);
 
 	/* handle rs485 */
@@ -677,8 +683,7 @@ static void sc16is7xx_start_tx(struct uart_port *port)
 		mdelay(port->rs485.delay_rts_before_send);
 	}
 
-	if (!work_pending(&one->tx_work))
-		schedule_work(&one->tx_work);
+	queue_kthread_work(&s->kworker, &one->tx_work);
 }
 
 static unsigned int sc16is7xx_tx_empty(struct uart_port *port)
@@ -909,6 +914,8 @@ static int sc16is7xx_startup(struct uart_port *port)
 
 static void sc16is7xx_shutdown(struct uart_port *port)
 {
+	struct sc16is7xx_port *s = dev_get_drvdata(port->dev);
+
 	/* Disable all interrupts */
 	sc16is7xx_port_write(port, SC16IS7XX_IER_REG, 0);
 	/* Disable TX/RX */
@@ -919,6 +926,8 @@ static void sc16is7xx_shutdown(struct uart_port *port)
 			      SC16IS7XX_EFCR_TXDISABLE_BIT);
 
 	sc16is7xx_power(port, 0);
+
+	flush_kthread_worker(&s->kworker);
 }
 
 static const char *sc16is7xx_type(struct uart_port *port)
@@ -1036,6 +1045,7 @@ static int sc16is7xx_probe(struct device *dev,
 			   struct sc16is7xx_devtype *devtype,
 			   struct regmap *regmap, int irq, unsigned long flags)
 {
+	struct sched_param sched_param = { .sched_priority = MAX_RT_PRIO / 2 };
 	unsigned long freq, *pfreq = dev_get_platdata(dev);
 	int i, ret;
 	struct sc16is7xx_port *s;
@@ -1077,6 +1087,16 @@ static int sc16is7xx_probe(struct device *dev,
 		goto out_clk;
 	}
 
+	init_kthread_worker(&s->kworker);
+	init_kthread_work(&s->irq_work, sc16is7xx_ist);
+	s->kworker_task = kthread_run(kthread_worker_fn, &s->kworker,
+				      "sc16is7xx");
+	if (IS_ERR(s->kworker_task)) {
+		ret = PTR_ERR(s->kworker_task);
+		goto out_uart;
+	}
+	sched_setscheduler(s->kworker_task, SCHED_FIFO, &sched_param);
+
 #ifdef CONFIG_GPIOLIB
 	if (devtype->nr_gpio) {
 		/* Setup GPIO cotroller */
@@ -1092,11 +1112,9 @@ static int sc16is7xx_probe(struct device *dev,
 		s->gpio.can_sleep	 = 1;
 		ret = gpiochip_add(&s->gpio);
 		if (ret)
-			goto out_uart;
+			goto out_thread;
 	}
 #endif
-
-	mutex_init(&s->mutex);
 
 	for (i = 0; i < devtype->nr_uart; ++i) {
 		/* Initialize port data */
@@ -1117,7 +1135,7 @@ static int sc16is7xx_probe(struct device *dev,
 				     SC16IS7XX_EFCR_RXDISABLE_BIT |
 				     SC16IS7XX_EFCR_TXDISABLE_BIT);
 		/* Initialize queue for start TX */
-		INIT_WORK(&s->p[i].tx_work, sc16is7xx_wq_proc);
+		init_kthread_work(&s->p[i].tx_work, sc16is7xx_tx_proc);
 		/* Initialize queue for changing mode */
 		INIT_WORK(&s->p[i].md_work, sc16is7xx_md_proc);
 		/* Register port */
@@ -1127,22 +1145,23 @@ static int sc16is7xx_probe(struct device *dev,
 	}
 
 	/* Setup interrupt */
-	ret = devm_request_threaded_irq(dev, irq, NULL, sc16is7xx_ist,
-					IRQF_ONESHOT | flags, dev_name(dev), s);
+	ret = devm_request_irq(dev, irq, sc16is7xx_irq,
+			       IRQF_ONESHOT | flags, dev_name(dev), s);
 	if (!ret)
 		return 0;
 
 	for (i = 0; i < s->uart.nr; i++)
 		uart_remove_one_port(&s->uart, &s->p[i].port);
 
-	mutex_destroy(&s->mutex);
-
 #ifdef CONFIG_GPIOLIB
 	if (devtype->nr_gpio)
 		gpiochip_remove(&s->gpio);
 
-out_uart:
+out_thread:
 #endif
+	kthread_stop(s->kworker_task);
+
+out_uart:
 	uart_unregister_driver(&s->uart);
 
 out_clk:
@@ -1163,13 +1182,14 @@ static int sc16is7xx_remove(struct device *dev)
 #endif
 
 	for (i = 0; i < s->uart.nr; i++) {
-		cancel_work_sync(&s->p[i].tx_work);
 		cancel_work_sync(&s->p[i].md_work);
 		uart_remove_one_port(&s->uart, &s->p[i].port);
 		sc16is7xx_power(&s->p[i].port, 0);
 	}
 
-	mutex_destroy(&s->mutex);
+	flush_kthread_worker(&s->kworker);
+	kthread_stop(s->kworker_task);
+
 	uart_unregister_driver(&s->uart);
 	if (!IS_ERR(s->clk))
 		clk_disable_unprepare(s->clk);
