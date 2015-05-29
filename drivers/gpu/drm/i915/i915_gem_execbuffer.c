@@ -1415,6 +1415,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	struct i915_address_space *vm;
 	struct i915_execbuffer_params params_master; /* XXX: will be removed later */
 	struct i915_execbuffer_params *params = &params_master;
+	struct drm_i915_gem_request *request;
 	const u32 ctx_id = i915_execbuffer2_get_context_id(*args);
 	u32 dispatch_flags;
 	int ret;
@@ -1614,7 +1615,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		params->batch_obj_vm_offset = i915_gem_obj_offset(batch_obj, vm);
 
 	/* Allocate a request for this batch buffer nice and early. */
-	ret = i915_gem_request_alloc(ring, ctx);
+	ret = i915_gem_request_alloc(ring, ctx, &request);
 	if (ret)
 		goto err_batch_unpin;
 

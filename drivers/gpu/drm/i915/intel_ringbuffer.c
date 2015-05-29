@@ -2277,6 +2277,7 @@ static int __intel_ring_prepare(struct intel_engine_cs *ring, int bytes)
 int intel_ring_begin(struct intel_engine_cs *ring,
 		     int num_dwords)
 {
+	struct drm_i915_gem_request *req;
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
 	int ret;
 
@@ -2290,7 +2291,7 @@ int intel_ring_begin(struct intel_engine_cs *ring,
 		return ret;
 
 	/* Preallocate the olr before touching the ring */
-	ret = i915_gem_request_alloc(ring, ring->default_context);
+	ret = i915_gem_request_alloc(ring, ring->default_context, &req);
 	if (ret)
 		return ret;
 

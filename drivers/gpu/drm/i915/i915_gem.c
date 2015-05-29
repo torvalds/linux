@@ -2634,13 +2634,17 @@ void i915_gem_request_free(struct kref *req_ref)
 }
 
 int i915_gem_request_alloc(struct intel_engine_cs *ring,
-			   struct intel_context *ctx)
+			   struct intel_context *ctx,
+			   struct drm_i915_gem_request **req_out)
 {
 	struct drm_i915_private *dev_priv = to_i915(ring->dev);
 	struct drm_i915_gem_request *req;
 	int ret;
 
-	if (ring->outstanding_lazy_request)
+	if (!req_out)
+		return -EINVAL;
+
+	if ((*req_out = ring->outstanding_lazy_request) != NULL)
 		return 0;
 
 	req = kmem_cache_zalloc(dev_priv->requests, GFP_KERNEL);
@@ -2686,7 +2690,7 @@ int i915_gem_request_alloc(struct intel_engine_cs *ring,
 	 */
 	intel_ring_reserved_space_reserve(req->ringbuf, MIN_SPACE_FOR_ADD_REQUEST);
 
-	ring->outstanding_lazy_request = req;
+	*req_out = ring->outstanding_lazy_request = req;
 	return 0;
 
 err:

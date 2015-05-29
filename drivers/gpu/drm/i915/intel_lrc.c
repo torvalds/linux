@@ -818,6 +818,7 @@ static int logical_ring_prepare(struct intel_ringbuffer *ringbuf,
 static int intel_logical_ring_begin(struct intel_ringbuffer *ringbuf,
 				    struct intel_context *ctx, int num_dwords)
 {
+	struct drm_i915_gem_request *req;
 	struct intel_engine_cs *ring = ringbuf->ring;
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -833,7 +834,7 @@ static int intel_logical_ring_begin(struct intel_ringbuffer *ringbuf,
 		return ret;
 
 	/* Preallocate the olr before touching the ring */
-	ret = i915_gem_request_alloc(ring, ctx);
+	ret = i915_gem_request_alloc(ring, ctx, &req);
 	if (ret)
 		return ret;
 
