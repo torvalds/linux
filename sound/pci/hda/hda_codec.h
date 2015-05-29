@@ -82,11 +82,7 @@ struct hda_bus {
  */
 struct hda_codec_preset {
 	unsigned int id;
-	unsigned int mask;
-	unsigned int subs;
-	unsigned int subs_mask;
 	unsigned int rev;
-	hda_nid_t afg, mfg;
 	const char *name;
 	int (*patch)(struct hda_codec *codec);
 };

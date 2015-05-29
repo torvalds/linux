@@ -850,6 +850,7 @@ static int patch_conexant_auto(struct hda_codec *codec)
 		return -ENOMEM;
 	snd_hda_gen_spec_init(&spec->gen);
 	codec->spec = spec;
+	codec->patch_ops = cx_auto_patch_ops;
 
 	cx_auto_parse_beep(codec);
 	cx_auto_parse_eapd(codec);
@@ -907,8 +908,6 @@ static int patch_conexant_auto(struct hda_codec *codec)
 	err = snd_hda_gen_parse_auto_config(codec, &spec->gen.autocfg);
 	if (err < 0)
 		goto error;
-
-	codec->patch_ops = cx_auto_patch_ops;
 
 	/* Some laptops with Conexant chips show stalls in S3 resume,
 	 * which falls into the single-cmd mode.

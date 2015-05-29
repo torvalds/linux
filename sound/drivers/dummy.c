@@ -914,7 +914,7 @@ static int snd_card_dummy_new_mixer(struct snd_dummy *dummy)
 	return 0;
 }
 
-#if defined(CONFIG_SND_DEBUG) && defined(CONFIG_PROC_FS)
+#if defined(CONFIG_SND_DEBUG) && defined(CONFIG_SND_PROC_FS)
 /*
  * proc interface
  */
@@ -1042,7 +1042,7 @@ static void dummy_proc_init(struct snd_dummy *chip)
 }
 #else
 #define dummy_proc_init(x)
-#endif /* CONFIG_SND_DEBUG && CONFIG_PROC_FS */
+#endif /* CONFIG_SND_DEBUG && CONFIG_SND_PROC_FS */
 
 static int snd_dummy_probe(struct platform_device *devptr)
 {
