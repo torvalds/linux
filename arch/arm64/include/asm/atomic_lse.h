@@ -291,7 +291,7 @@ static inline long atomic64_dec_if_positive(atomic64_t *v)
 	/* LSE atomics */
 	"1:	ldr	x30, %[v]\n"
 	"	subs	%[ret], x30, #1\n"
-	"	b.mi	2f\n"
+	"	b.lt	2f\n"
 	"	casal	x30, %[ret], %[v]\n"
 	"	sub	x30, x30, #1\n"
 	"	sub	x30, x30, %[ret]\n"
