@@ -123,7 +123,7 @@ static const struct drm_i915_cmd_descriptor common_cmds[] = {
 	CMD(  MI_SEMAPHORE_MBOX,                SMI,   !F,  0xFF,   R  ),
 	CMD(  MI_STORE_DWORD_INDEX,             SMI,   !F,  0xFF,   R  ),
 	CMD(  MI_LOAD_REGISTER_IMM(1),          SMI,   !F,  0xFF,   W,
-	      .reg = { .offset = 1, .mask = 0x007FFFFC }               ),
+	      .reg = { .offset = 1, .mask = 0x007FFFFC, .step = 2 }    ),
 	CMD(  MI_STORE_REGISTER_MEM(1),         SMI,   !F,  0xFF,   W | B,
 	      .reg = { .offset = 1, .mask = 0x007FFFFC },
 	      .bits = {{
@@ -934,7 +934,7 @@ bool i915_needs_cmd_parser(struct intel_engine_cs *ring)
 
 static bool check_cmd(const struct intel_engine_cs *ring,
 		      const struct drm_i915_cmd_descriptor *desc,
-		      const u32 *cmd,
+		      const u32 *cmd, u32 length,
 		      const bool is_master,
 		      bool *oacontrol_set)
 {
@@ -950,38 +950,49 @@ static bool check_cmd(const struct intel_engine_cs *ring,
 	}
 
 	if (desc->flags & CMD_DESC_REGISTER) {
-		u32 reg_addr = cmd[desc->reg.offset] & desc->reg.mask;
-
 		/*
-		 * OACONTROL requires some special handling for writes. We
-		 * want to make sure that any batch which enables OA also
-		 * disables it before the end of the batch. The goal is to
-		 * prevent one process from snooping on the perf data from
-		 * another process. To do that, we need to check the value
-		 * that will be written to the register. Hence, limit
-		 * OACONTROL writes to only MI_LOAD_REGISTER_IMM commands.
+		 * Get the distance between individual register offset
+		 * fields if the command can perform more than one
+		 * access at a time.
 		 */
-		if (reg_addr == OACONTROL) {
-			if (desc->cmd.value == MI_LOAD_REGISTER_MEM) {
-				DRM_DEBUG_DRIVER("CMD: Rejected LRM to OACONTROL\n");
-				return false;
+		const u32 step = desc->reg.step ? desc->reg.step : length;
+		u32 offset;
+
+		for (offset = desc->reg.offset; offset < length;
+		     offset += step) {
+			const u32 reg_addr = cmd[offset] & desc->reg.mask;
+
+			/*
+			 * OACONTROL requires some special handling for
+			 * writes. We want to make sure that any batch which
+			 * enables OA also disables it before the end of the
+			 * batch. The goal is to prevent one process from
+			 * snooping on the perf data from another process. To do
+			 * that, we need to check the value that will be written
+			 * to the register. Hence, limit OACONTROL writes to
+			 * only MI_LOAD_REGISTER_IMM commands.
+			 */
+			if (reg_addr == OACONTROL) {
+				if (desc->cmd.value == MI_LOAD_REGISTER_MEM) {
+					DRM_DEBUG_DRIVER("CMD: Rejected LRM to OACONTROL\n");
+					return false;
+				}
+
+				if (desc->cmd.value == MI_LOAD_REGISTER_IMM(1))
+					*oacontrol_set = (cmd[offset + 1] != 0);
 			}
 
-			if (desc->cmd.value == MI_LOAD_REGISTER_IMM(1))
-				*oacontrol_set = (cmd[2] != 0);
-		}
-
-		if (!valid_reg(ring->reg_table,
-			       ring->reg_count, reg_addr)) {
-			if (!is_master ||
-			    !valid_reg(ring->master_reg_table,
-				       ring->master_reg_count,
-				       reg_addr)) {
-				DRM_DEBUG_DRIVER("CMD: Rejected register 0x%08X in command: 0x%08X (ring=%d)\n",
-						 reg_addr,
-						 *cmd,
-						 ring->id);
-				return false;
+			if (!valid_reg(ring->reg_table,
+				       ring->reg_count, reg_addr)) {
+				if (!is_master ||
+				    !valid_reg(ring->master_reg_table,
+					       ring->master_reg_count,
+					       reg_addr)) {
+					DRM_DEBUG_DRIVER("CMD: Rejected register 0x%08X in command: 0x%08X (ring=%d)\n",
+							 reg_addr, *cmd,
+							 ring->id);
+					return false;
+				}
 			}
 		}
 	}
@@ -1105,7 +1116,8 @@ int i915_parse_cmds(struct intel_engine_cs *ring,
 			break;
 		}
 
-		if (!check_cmd(ring, desc, cmd, is_master, &oacontrol_set)) {
+		if (!check_cmd(ring, desc, cmd, length, is_master,
+			       &oacontrol_set)) {
 			ret = -EINVAL;
 			break;
 		}
