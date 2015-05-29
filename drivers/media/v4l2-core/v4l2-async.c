@@ -213,7 +213,14 @@ void v4l2_async_notifier_unregister(struct v4l2_async_notifier *notifier)
 		v4l2_async_cleanup(sd);
 
 		/* If we handled USB devices, we'd have to lock the parent too */
+		/*
+		 * If anyone calls v4l2_async_notifier_unregister() recursively from
+		 * device_release_driver(), code will deadlock at list_lock,
+		 * so unlock list_lock when device_release_driver() called.
+		 */
+		mutex_unlock(&list_lock);
 		device_release_driver(d);
+		mutex_lock(&list_lock);
 
 		if (notifier->unbind)
 			notifier->unbind(notifier, sd, sd->asd);
