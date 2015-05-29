@@ -234,7 +234,7 @@ int db_export__symbol(struct db_export *dbe, struct symbol *sym,
 static struct thread *get_main_thread(struct machine *machine, struct thread *thread)
 {
 	if (thread->pid_ == thread->tid)
-		return thread;
+		return thread__get(thread);
 
 	if (thread->pid_ == -1)
 		return NULL;
@@ -308,19 +308,18 @@ int db_export__sample(struct db_export *dbe, union perf_event *event,
 	if (err)
 		return err;
 
-	/* FIXME: check refcounting for get_main_thread, that calls machine__find_thread... */
 	main_thread = get_main_thread(al->machine, thread);
 	if (main_thread)
 		comm = machine__thread_exec_comm(al->machine, main_thread);
 
 	err = db_export__thread(dbe, thread, al->machine, comm);
 	if (err)
-		return err;
+		goto out_put;
 
 	if (comm) {
 		err = db_export__comm(dbe, comm, main_thread);
 		if (err)
-			return err;
+			goto out_put;
 		es.comm_db_id = comm->db_id;
 	}
 
@@ -328,7 +327,7 @@ int db_export__sample(struct db_export *dbe, union perf_event *event,
 
 	err = db_ids_from_al(dbe, al, &es.dso_db_id, &es.sym_db_id, &es.offset);
 	if (err)
-		return err;
+		goto out_put;
 
 	if ((evsel->attr.sample_type & PERF_SAMPLE_ADDR) &&
 	    sample_addr_correlates_sym(&evsel->attr)) {
@@ -338,20 +337,22 @@ int db_export__sample(struct db_export *dbe, union perf_event *event,
 		err = db_ids_from_al(dbe, &addr_al, &es.addr_dso_db_id,
 				     &es.addr_sym_db_id, &es.addr_offset);
 		if (err)
-			return err;
+			goto out_put;
 		if (dbe->crp) {
 			err = thread_stack__process(thread, comm, sample, al,
 						    &addr_al, es.db_id,
 						    dbe->crp);
 			if (err)
-				return err;
+				goto out_put;
 		}
 	}
 
 	if (dbe->export_sample)
-		return dbe->export_sample(dbe, &es);
+		err = dbe->export_sample(dbe, &es);
 
-	return 0;
+out_put:
+	thread__put(main_thread);
+	return err;
 }
 
 static struct {
