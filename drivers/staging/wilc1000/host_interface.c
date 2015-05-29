@@ -543,7 +543,7 @@ tstrWILC_WFIDrv *gWFiDrvHandle = WILC_NULL;
 WILC_Bool g_obtainingIP = WILC_FALSE;
 #endif
 WILC_Uint8 P2P_LISTEN_STATE;
-static WILC_ThreadHandle HostIFthreadHandler;
+static struct task_struct *HostIFthreadHandler;
 static WILC_MsgQueueHandle gMsgQHostIF;
 static WILC_SemaphoreHandle hSemHostIFthrdEnd;
 
@@ -4370,7 +4370,7 @@ static WILC_Sint32 Handle_DelAllRxBASessions(void *drvHandler, tstrHostIfBASessi
  *  @date
  *  @version	1.0
  */
-static void hostIFthread(void *pvArg)
+static int hostIFthread(void *pvArg)
 {
 	WILC_Uint32 u32Ret;
 	tstrHostIFmsg strHostIFmsg;
@@ -4591,10 +4591,7 @@ static void hostIFthread(void *pvArg)
 
 	PRINT_D(HOSTINF_DBG, "Releasing thread exit semaphore\n");
 	WILC_SemaphoreRelease(&hSemHostIFthrdEnd, WILC_NULL);
-	return;
-	/* do_exit(error); */
-	/* PRINT_D(HOSTINF_DBG,"do_exit error code %d\n",error); */
-
+	return 0;
 }
 
 static void TimerCB_Scan(void *pvArg)
@@ -6683,9 +6680,10 @@ WILC_Sint32 host_int_init(WILC_WFIDrvHandle *phWFIDrv)
 			goto _fail_;
 		}
 		msgQ_created = 1;
-		s32Error = WILC_ThreadCreate(&HostIFthreadHandler, hostIFthread, WILC_NULL, WILC_NULL);
-		if (s32Error < 0) {
+		HostIFthreadHandler = kthread_run(hostIFthread, NULL, "WILC_kthread");
+		if (IS_ERR(HostIFthreadHandler)) {
 			PRINT_ER("Failed to creat Thread\n");
+			s32Error = WILC_FAIL;
 			goto _fail_mq_;
 		}
 		s32Error = WILC_TimerCreate(&(g_hPeriodicRSSI), GetPeriodicRSSI, WILC_NULL);
@@ -6788,7 +6786,7 @@ _fail_timer_2:
 _fail_timer_1:
 	WILC_TimerDestroy(&(pstrWFIDrv->hScanTimer), WILC_NULL);
 _fail_thread_:
-	WILC_ThreadDestroy(&HostIFthreadHandler, WILC_NULL);
+	kthread_stop(HostIFthreadHandler);
 _fail_mq_:
 	WILC_MsgQueueDestroy(&gMsgQHostIF, WILC_NULL);
 _fail_:

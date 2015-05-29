@@ -15,18 +15,6 @@
  *      Feature support checks
  *******************************************************************/
 
-/* CONFIG_WILC_THREAD_FEATURE is implemented */
-
-/* remove the following block when implementing its feature */
-#ifdef CONFIG_WILC_THREAD_SUSPEND_CONTROL
-#error This feature is not supported by this OS
-#endif
-
-/* remove the following block when implementing its feature */
-#ifdef CONFIG_WILC_THREAD_STRICT_PRIORITY
-#error This feature is not supported by this OS
-#endif
-
 /* CONFIG_WILC_SEMAPHORE_FEATURE is implemented */
 
 /* remove the following block when implementing its feature
@@ -139,8 +127,6 @@
 /******************************************************************
  *      OS specific types
  *******************************************************************/
-
-typedef struct task_struct *WILC_ThreadHandle;
 
 typedef void *WILC_MemoryPoolHandle;
 typedef struct semaphore WILC_SemaphoreHandle;
