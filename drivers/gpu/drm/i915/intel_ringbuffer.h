@@ -270,8 +270,7 @@ struct  intel_engine_cs {
 	int		(*emit_flush)(struct drm_i915_gem_request *request,
 				      u32 invalidate_domains,
 				      u32 flush_domains);
-	int		(*emit_bb_start)(struct intel_ringbuffer *ringbuf,
-					 struct intel_context *ctx,
+	int		(*emit_bb_start)(struct drm_i915_gem_request *req,
 					 u64 offset, unsigned dispatch_flags);
 
 	/**

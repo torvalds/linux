@@ -936,7 +936,7 @@ int intel_execlists_submission(struct i915_execbuffer_params *params,
 	exec_start = params->batch_obj_vm_offset +
 		     args->batch_start_offset;
 
-	ret = ring->emit_bb_start(ringbuf, params->ctx, exec_start, params->dispatch_flags);
+	ret = ring->emit_bb_start(params->request, exec_start, params->dispatch_flags);
 	if (ret)
 		return ret;
 
@@ -1365,14 +1365,14 @@ static int gen9_init_render_ring(struct intel_engine_cs *ring)
 	return init_workarounds_ring(ring);
 }
 
-static int gen8_emit_bb_start(struct intel_ringbuffer *ringbuf,
-			      struct intel_context *ctx,
+static int gen8_emit_bb_start(struct drm_i915_gem_request *req,
 			      u64 offset, unsigned dispatch_flags)
 {
+	struct intel_ringbuffer *ringbuf = req->ringbuf;
 	bool ppgtt = !(dispatch_flags & I915_DISPATCH_SECURE);
 	int ret;
 
-	ret = intel_logical_ring_begin(ringbuf, ctx, 4);
+	ret = intel_logical_ring_begin(ringbuf, req->ctx, 4);
 	if (ret)
 		return ret;
 
@@ -1582,9 +1582,7 @@ static int intel_lr_context_render_state_init(struct drm_i915_gem_request *req)
 	if (so.rodata == NULL)
 		return 0;
 
-	ret = req->ring->emit_bb_start(req->ringbuf,
-				       req->ctx,
-				       so.ggtt_offset,
+	ret = req->ring->emit_bb_start(req, so.ggtt_offset,
 				       I915_DISPATCH_SECURE);
 	if (ret)
 		goto out;
