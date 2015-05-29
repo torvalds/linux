@@ -903,7 +903,7 @@ static inline unsigned int blk_rq_get_max_sectors(struct request *rq)
 	if (unlikely(rq->cmd_type == REQ_TYPE_BLOCK_PC))
 		return q->limits.max_hw_sectors;
 
-	if (!q->limits.chunk_sectors)
+	if (!q->limits.chunk_sectors || (rq->cmd_flags & REQ_DISCARD))
 		return blk_queue_get_max_sectors(q, rq->cmd_flags);
 
 	return min(blk_max_size_offset(q, blk_rq_pos(rq)),
