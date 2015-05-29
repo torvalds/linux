@@ -1036,7 +1036,7 @@ i915_gem_execbuffer_move_to_active(struct list_head *vmas,
 			obj->base.pending_read_domains |= obj->base.read_domains;
 		obj->base.read_domains = obj->base.pending_read_domains;
 
-		i915_vma_move_to_active(vma, ring);
+		i915_vma_move_to_active(vma, req);
 		if (obj->base.write_domain) {
 			obj->dirty = 1;
 			i915_gem_request_assign(&obj->last_write_req, req);

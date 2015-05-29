@@ -2340,9 +2340,12 @@ i915_gem_object_get_pages(struct drm_i915_gem_object *obj)
 }
 
 void i915_vma_move_to_active(struct i915_vma *vma,
-			     struct intel_engine_cs *ring)
+			     struct drm_i915_gem_request *req)
 {
 	struct drm_i915_gem_object *obj = vma->obj;
+	struct intel_engine_cs *ring;
+
+	ring = i915_gem_request_get_ring(req);
 
 	/* Add a reference if we're newly entering the active list. */
 	if (obj->active == 0)
@@ -2350,8 +2353,7 @@ void i915_vma_move_to_active(struct i915_vma *vma,
 	obj->active |= intel_ring_flag(ring);
 
 	list_move_tail(&obj->ring_list[ring->id], &ring->active_list);
-	i915_gem_request_assign(&obj->last_read_req[ring->id],
-				intel_ring_get_request(ring));
+	i915_gem_request_assign(&obj->last_read_req[ring->id], req);
 
 	list_move_tail(&vma->mm_list, &vma->vm->active_list);
 }

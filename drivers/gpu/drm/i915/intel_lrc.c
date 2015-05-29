@@ -1593,7 +1593,7 @@ static int intel_lr_context_render_state_init(struct drm_i915_gem_request *req)
 	if (ret)
 		goto out;
 
-	i915_vma_move_to_active(i915_gem_obj_to_ggtt(so.obj), req->ring);
+	i915_vma_move_to_active(i915_gem_obj_to_ggtt(so.obj), req);
 
 out:
 	i915_gem_render_state_fini(&so);
