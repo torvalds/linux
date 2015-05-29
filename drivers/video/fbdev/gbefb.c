@@ -38,6 +38,7 @@ static struct sgi_gbe *gbe;
 struct gbefb_par {
 	struct fb_var_screeninfo var;
 	struct gbe_timing_info timing;
+	int wc_cookie;
 	int valid;
 };
 
@@ -1198,8 +1199,10 @@ static int gbefb_probe(struct platform_device *p_dev)
 		gbe_mem_phys = (unsigned long) gbe_dma_addr;
 	}
 
+	par = info->par;
 #ifdef CONFIG_X86
-	mtrr_add(gbe_mem_phys, gbe_mem_size, MTRR_TYPE_WRCOMB, 1);
+	par->wc_cookie = mtrr_add(gbe_mem_phys, gbe_mem_size,
+				   MTRR_TYPE_WRCOMB, 1);
 #endif
 
 	/* map framebuffer memory into tiles table */
@@ -1215,7 +1218,6 @@ static int gbefb_probe(struct platform_device *p_dev)
 	/* reset GBE */
 	gbe_reset();
 
-	par = info->par;
 	/* turn on default video mode */
 	if (fb_find_mode(&par->var, info, mode_option, NULL, 0,
 			 default_mode, 8) == 0)
@@ -1240,6 +1242,10 @@ static int gbefb_probe(struct platform_device *p_dev)
 	return 0;
 
 out_gbe_unmap:
+#ifdef CONFIG_MTRR
+	if (par->wc_cookie >= 0)
+		mtrr_del(par->wc_cookie, 0, 0);
+#endif
 	if (gbe_dma_addr)
 		dma_free_coherent(NULL, gbe_mem_size, gbe_mem, gbe_mem_phys);
 out_tiles_free:
@@ -1256,9 +1262,14 @@ out_release_framebuffer:
 static int gbefb_remove(struct platform_device* p_dev)
 {
 	struct fb_info *info = platform_get_drvdata(p_dev);
+	struct gbefb_par *par = info->par;
 
 	unregister_framebuffer(info);
 	gbe_turn_off();
+#ifdef CONFIG_MTRR
+	if (par->wc_cookie >= 0)
+		mtrr_del(par->wc_cookie, 0, 0);
+#endif
 	if (gbe_dma_addr)
 		dma_free_coherent(NULL, gbe_mem_size, gbe_mem, gbe_mem_phys);
 	dma_free_coherent(NULL, GBE_TLB_SIZE * sizeof(uint16_t),
