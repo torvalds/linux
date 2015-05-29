@@ -196,6 +196,7 @@ struct cc2520_private {
 	u8 *buf;			/* SPI TX/Rx data buffer */
 	struct mutex buffer_mutex;	/* SPI buffer mutex */
 	bool is_tx;			/* Flag for sync b/w Tx and Rx */
+	bool amplified;			/* Flag for CC2591 */
 	int fifo_pin;			/* FIFO GPIO pin number */
 	struct work_struct fifop_irqwork;/* Workqueue for FIFOP */
 	spinlock_t lock;		/* Lock for is_tx*/
@@ -738,7 +739,9 @@ static int cc2520_get_platform_data(struct spi_device *spi,
 	pdata->vreg = of_get_named_gpio(np, "vreg-gpio", 0);
 	pdata->reset = of_get_named_gpio(np, "reset-gpio", 0);
 
-	pdata->amplified = of_property_read_bool(np, "amplified");
+	/* CC2591 front end for CC2520 */
+	if (of_property_read_bool(np, "amplified"))
+		priv->amplified = true;
 
 	return 0;
 }
@@ -781,7 +784,7 @@ static int cc2520_hw_init(struct cc2520_private *priv)
 	 * amplifier. See section 8 page 17 of TI application note AN065.
 	 * http://www.ti.com/lit/an/swra229a/swra229a.pdf
 	 */
-	if (pdata.amplified) {
+	if (priv->amplified) {
 		ret = cc2520_write_register(priv, CC2520_AGCCTRL1, 0x16);
 		if (ret)
 			goto err_ret;
@@ -895,6 +898,9 @@ static int cc2520_probe(struct spi_device *spi)
 	INIT_WORK(&priv->fifop_irqwork, cc2520_fifop_irqwork);
 	spin_lock_init(&priv->lock);
 	init_completion(&priv->tx_complete);
+
+	/* Assumption that CC2591 is not connected */
+	priv->amplified = false;
 
 	/* Request all the gpio's */
 	if (!gpio_is_valid(pdata.fifo)) {
