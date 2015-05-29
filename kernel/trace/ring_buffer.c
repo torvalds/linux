@@ -400,6 +400,23 @@ struct rb_irq_work {
 };
 
 /*
+ * Used for which event context the event is in.
+ *  NMI     = 0
+ *  IRQ     = 1
+ *  SOFTIRQ = 2
+ *  NORMAL  = 3
+ *
+ * See trace_recursive_lock() comment below for more details.
+ */
+enum {
+	RB_CTX_NMI,
+	RB_CTX_IRQ,
+	RB_CTX_SOFTIRQ,
+	RB_CTX_NORMAL,
+	RB_CTX_MAX
+};
+
+/*
  * head_page == tail_page && head == tail then buffer is empty.
  */
 struct ring_buffer_per_cpu {
@@ -2173,7 +2190,7 @@ static unsigned rb_calculate_event_length(unsigned length)
 
 	/* zero length can cause confusions */
 	if (!length)
-		length = 1;
+		length++;
 
 	if (length > RB_MAX_SMALL_DATA || RB_FORCE_8BYTE_ALIGNMENT)
 		length += sizeof(event.array[0]);
@@ -2631,13 +2648,13 @@ trace_recursive_lock(struct ring_buffer_per_cpu *cpu_buffer)
 
 	if (in_interrupt()) {
 		if (in_nmi())
-			bit = 0;
+			bit = RB_CTX_NMI;
 		else if (in_irq())
-			bit = 1;
+			bit = RB_CTX_IRQ;
 		else
-			bit = 2;
+			bit = RB_CTX_SOFTIRQ;
 	} else
-		bit = 3;
+		bit = RB_CTX_NORMAL;
 
 	if (unlikely(val & (1 << bit)))
 		return 1;
