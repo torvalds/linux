@@ -1611,10 +1611,16 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	} else
 		exec_start += i915_gem_obj_offset(batch_obj, vm);
 
+	/* Allocate a request for this batch buffer nice and early. */
+	ret = i915_gem_request_alloc(ring, ctx);
+	if (ret)
+		goto err_batch_unpin;
+
 	ret = dev_priv->gt.execbuf_submit(dev, file, ring, ctx, args,
 					  &eb->vmas, batch_obj, exec_start,
 					  dispatch_flags);
 
+err_batch_unpin:
 	/*
 	 * FIXME: We crucially rely upon the active tracking for the (ppgtt)
 	 * batch vma for correctness. For less ugly and less fragility this
@@ -1623,6 +1629,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	 */
 	if (dispatch_flags & I915_DISPATCH_SECURE)
 		i915_gem_object_ggtt_unpin(batch_obj);
+
 err:
 	/* the request owns the ref now */
 	i915_gem_context_unreference(ctx);
