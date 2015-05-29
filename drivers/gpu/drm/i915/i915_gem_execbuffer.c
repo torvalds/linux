@@ -1340,7 +1340,7 @@ i915_gem_ringbuffer_submission(struct i915_execbuffer_params *params,
 			return ret;
 	}
 
-	trace_i915_gem_ring_dispatch(intel_ring_get_request(ring), params->dispatch_flags);
+	trace_i915_gem_ring_dispatch(params->request, params->dispatch_flags);
 
 	i915_gem_execbuffer_move_to_active(vmas, ring);
 	i915_gem_execbuffer_retire_commands(params);
