@@ -828,7 +828,7 @@ void br_ifinfo_notify(int event, struct net_bridge_port *port);
 int br_setlink(struct net_device *dev, struct nlmsghdr *nlmsg, u16 flags);
 int br_dellink(struct net_device *dev, struct nlmsghdr *nlmsg, u16 flags);
 int br_getlink(struct sk_buff *skb, u32 pid, u32 seq, struct net_device *dev,
-	       u32 filter_mask);
+	       u32 filter_mask, int nlflags);
 
 #ifdef CONFIG_SYSFS
 /* br_sysfs_if.c */

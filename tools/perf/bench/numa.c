@@ -180,7 +180,7 @@ static const struct option options[] = {
 	OPT_INTEGER('H', "thp"		, &p0.thp,		"MADV_NOHUGEPAGE < 0 < MADV_HUGEPAGE"),
 	OPT_BOOLEAN('c', "show_convergence", &p0.show_convergence, "show convergence details"),
 	OPT_BOOLEAN('m', "measure_convergence",	&p0.measure_convergence, "measure convergence latency"),
-	OPT_BOOLEAN('q', "quiet"	, &p0.show_quiet,	"bzero the initial allocations"),
+	OPT_BOOLEAN('q', "quiet"	, &p0.show_quiet,	"quiet mode"),
 	OPT_BOOLEAN('S', "serialize-startup", &p0.serialize_startup,"serialize thread startup"),
 
 	/* Special option string parsing callbacks: */
@@ -828,6 +828,9 @@ static int count_process_nodes(int process_nr)
 		td = g->threads + task_nr;
 
 		node = numa_node_of_cpu(td->curr_cpu);
+		if (node < 0) /* curr_cpu was likely still -1 */
+			return 0;
+
 		node_present[node] = 1;
 	}
 
@@ -881,6 +884,11 @@ static void calc_convergence_compression(int *strong)
 
 	for (p = 0; p < g->p.nr_proc; p++) {
 		unsigned int nodes = count_process_nodes(p);
+
+		if (!nodes) {
+			*strong = 0;
+			return;
+		}
 
 		nodes_min = min(nodes, nodes_min);
 		nodes_max = max(nodes, nodes_max);
@@ -1395,7 +1403,7 @@ static void print_res(const char *name, double val,
 	if (!name)
 		name = "main,";
 
-	if (g->p.show_quiet)
+	if (!g->p.show_quiet)
 		printf(" %-30s %15.3f, %-15s %s\n", name, val, txt_unit, txt_short);
 	else
 		printf(" %14.3f %s\n", val, txt_long);

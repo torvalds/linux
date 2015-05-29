@@ -1669,12 +1669,28 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 		&guest_hv_clock, sizeof(guest_hv_clock))))
 		return 0;
 
-	/*
-	 * The interface expects us to write an even number signaling that the
-	 * update is finished. Since the guest won't see the intermediate
-	 * state, we just increase by 2 at the end.
+	/* This VCPU is paused, but it's legal for a guest to read another
+	 * VCPU's kvmclock, so we really have to follow the specification where
+	 * it says that version is odd if data is being modified, and even after
+	 * it is consistent.
+	 *
+	 * Version field updates must be kept separate.  This is because
+	 * kvm_write_guest_cached might use a "rep movs" instruction, and
+	 * writes within a string instruction are weakly ordered.  So there
+	 * are three writes overall.
+	 *
+	 * As a small optimization, only write the version field in the first
+	 * and third write.  The vcpu->pv_time cache is still valid, because the
+	 * version field is the first in the struct.
 	 */
-	vcpu->hv_clock.version = guest_hv_clock.version + 2;
+	BUILD_BUG_ON(offsetof(struct pvclock_vcpu_time_info, version) != 0);
+
+	vcpu->hv_clock.version = guest_hv_clock.version + 1;
+	kvm_write_guest_cached(v->kvm, &vcpu->pv_time,
+				&vcpu->hv_clock,
+				sizeof(vcpu->hv_clock.version));
+
+	smp_wmb();
 
 	/* retain PVCLOCK_GUEST_STOPPED if set in guest copy */
 	pvclock_flags = (guest_hv_clock.flags & PVCLOCK_GUEST_STOPPED);
@@ -1695,6 +1711,13 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 	kvm_write_guest_cached(v->kvm, &vcpu->pv_time,
 				&vcpu->hv_clock,
 				sizeof(vcpu->hv_clock));
+
+	smp_wmb();
+
+	vcpu->hv_clock.version++;
+	kvm_write_guest_cached(v->kvm, &vcpu->pv_time,
+				&vcpu->hv_clock,
+				sizeof(vcpu->hv_clock.version));
 	return 0;
 }
 

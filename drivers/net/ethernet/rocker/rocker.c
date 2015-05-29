@@ -4176,14 +4176,15 @@ static int rocker_port_bridge_setlink(struct net_device *dev,
 
 static int rocker_port_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 				      struct net_device *dev,
-				      u32 filter_mask)
+				      u32 filter_mask, int nlflags)
 {
 	struct rocker_port *rocker_port = netdev_priv(dev);
 	u16 mode = BRIDGE_MODE_UNDEF;
 	u32 mask = BR_LEARNING | BR_LEARNING_SYNC;
 
 	return ndo_dflt_bridge_getlink(skb, pid, seq, dev, mode,
-				       rocker_port->brport_flags, mask);
+				       rocker_port->brport_flags, mask,
+				       nlflags);
 }
 
 static int rocker_port_get_phys_port_name(struct net_device *dev,

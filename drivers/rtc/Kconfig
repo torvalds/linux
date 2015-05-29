@@ -164,6 +164,16 @@ config RTC_DRV_ABB5ZES3
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-ab-b5ze-s3.
 
+config RTC_DRV_ABX80X
+	tristate "Abracon ABx80x"
+	help
+	  If you say yes here you get support for Abracon AB080X and AB180X
+	  families of ultra-low-power  battery- and capacitor-backed real-time
+	  clock chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-abx80x.
+
 config RTC_DRV_AS3722
 	tristate "ams AS3722 RTC driver"
 	depends on MFD_AS3722

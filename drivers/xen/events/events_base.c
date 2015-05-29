@@ -529,8 +529,8 @@ static unsigned int __startup_pirq(unsigned int irq)
 	if (rc)
 		goto err;
 
-	bind_evtchn_to_cpu(evtchn, 0);
 	info->evtchn = evtchn;
+	bind_evtchn_to_cpu(evtchn, 0);
 
 	rc = xen_evtchn_port_setup(info);
 	if (rc)
@@ -1279,8 +1279,9 @@ void rebind_evtchn_irq(int evtchn, int irq)
 
 	mutex_unlock(&irq_mapping_update_lock);
 
-	/* new event channels are always bound to cpu 0 */
-	irq_set_affinity(irq, cpumask_of(0));
+        bind_evtchn_to_cpu(evtchn, info->cpu);
+	/* This will be deferred until interrupt is processed */
+	irq_set_affinity(irq, cpumask_of(info->cpu));
 
 	/* Unmask the event channel. */
 	enable_irq(irq);

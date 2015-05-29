@@ -282,7 +282,8 @@ static inline bool rht_shrink_below_30(const struct rhashtable *ht,
 static inline bool rht_grow_above_100(const struct rhashtable *ht,
 				      const struct bucket_table *tbl)
 {
-	return atomic_read(&ht->nelems) > tbl->size;
+	return atomic_read(&ht->nelems) > tbl->size &&
+		(!ht->p.max_size || tbl->size < ht->p.max_size);
 }
 
 /* The bucket lock is selected based on the hash and protects mutations

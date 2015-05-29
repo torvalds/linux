@@ -468,7 +468,8 @@ add_mapping_response_exit:
 }
 EXPORT_SYMBOL(iwpm_add_mapping_cb);
 
-/* netlink attribute policy for the response to add and query mapping request */
+/* netlink attribute policy for the response to add and query mapping request
+ * and response with remote address info */
 static const struct nla_policy resp_query_policy[IWPM_NLA_RQUERY_MAPPING_MAX] = {
 	[IWPM_NLA_QUERY_MAPPING_SEQ]      = { .type = NLA_U32 },
 	[IWPM_NLA_QUERY_LOCAL_ADDR]       = { .len = sizeof(struct sockaddr_storage) },
@@ -558,6 +559,76 @@ query_mapping_response_exit:
 	return 0;
 }
 EXPORT_SYMBOL(iwpm_add_and_query_mapping_cb);
+
+/*
+ * iwpm_remote_info_cb - Process a port mapper message, containing
+ *			  the remote connecting peer address info
+ */
+int iwpm_remote_info_cb(struct sk_buff *skb, struct netlink_callback *cb)
+{
+	struct nlattr *nltb[IWPM_NLA_RQUERY_MAPPING_MAX];
+	struct sockaddr_storage *local_sockaddr, *remote_sockaddr;
+	struct sockaddr_storage *mapped_loc_sockaddr, *mapped_rem_sockaddr;
+	struct iwpm_remote_info *rem_info;
+	const char *msg_type;
+	u8 nl_client;
+	int ret = -EINVAL;
+
+	msg_type = "Remote Mapping info";
+	if (iwpm_parse_nlmsg(cb, IWPM_NLA_RQUERY_MAPPING_MAX,
+				resp_query_policy, nltb, msg_type))
+		return ret;
+
+	nl_client = RDMA_NL_GET_CLIENT(cb->nlh->nlmsg_type);
+	if (!iwpm_valid_client(nl_client)) {
+		pr_info("%s: Invalid port mapper client = %d\n",
+				__func__, nl_client);
+		return ret;
+	}
+	atomic_set(&echo_nlmsg_seq, cb->nlh->nlmsg_seq);
+
+	local_sockaddr = (struct sockaddr_storage *)
+			nla_data(nltb[IWPM_NLA_QUERY_LOCAL_ADDR]);
+	remote_sockaddr = (struct sockaddr_storage *)
+			nla_data(nltb[IWPM_NLA_QUERY_REMOTE_ADDR]);
+	mapped_loc_sockaddr = (struct sockaddr_storage *)
+			nla_data(nltb[IWPM_NLA_RQUERY_MAPPED_LOC_ADDR]);
+	mapped_rem_sockaddr = (struct sockaddr_storage *)
+			nla_data(nltb[IWPM_NLA_RQUERY_MAPPED_REM_ADDR]);
+
+	if (mapped_loc_sockaddr->ss_family != local_sockaddr->ss_family ||
+		mapped_rem_sockaddr->ss_family != remote_sockaddr->ss_family) {
+		pr_info("%s: Sockaddr family doesn't match the requested one\n",
+				__func__);
+		return ret;
+	}
+	rem_info = kzalloc(sizeof(struct iwpm_remote_info), GFP_ATOMIC);
+	if (!rem_info) {
+		pr_err("%s: Unable to allocate a remote info\n", __func__);
+		ret = -ENOMEM;
+		return ret;
+	}
+	memcpy(&rem_info->mapped_loc_sockaddr, mapped_loc_sockaddr,
+	       sizeof(struct sockaddr_storage));
+	memcpy(&rem_info->remote_sockaddr, remote_sockaddr,
+	       sizeof(struct sockaddr_storage));
+	memcpy(&rem_info->mapped_rem_sockaddr, mapped_rem_sockaddr,
+	       sizeof(struct sockaddr_storage));
+	rem_info->nl_client = nl_client;
+
+	iwpm_add_remote_info(rem_info);
+
+	iwpm_print_sockaddr(local_sockaddr,
+			"remote_info: Local sockaddr:");
+	iwpm_print_sockaddr(mapped_loc_sockaddr,
+			"remote_info: Mapped local sockaddr:");
+	iwpm_print_sockaddr(remote_sockaddr,
+			"remote_info: Remote sockaddr:");
+	iwpm_print_sockaddr(mapped_rem_sockaddr,
+			"remote_info: Mapped remote sockaddr:");
+	return ret;
+}
+EXPORT_SYMBOL(iwpm_remote_info_cb);
 
 /* netlink attribute policy for the received request for mapping info */
 static const struct nla_policy resp_mapinfo_policy[IWPM_NLA_MAPINFO_REQ_MAX] = {

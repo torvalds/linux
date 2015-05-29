@@ -34,7 +34,6 @@
 #include <asm/ftrace.h>
 #include <asm/hw_irq.h>
 #include <asm/context_tracking.h>
-#include <asm/tm.h>
 
 /*
  * System calls.
@@ -146,24 +145,6 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_SPLPAR)
 	andi.	r11,r10,_TIF_SYSCALL_DOTRACE
 	bne	syscall_dotrace
 .Lsyscall_dotrace_cont:
-#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
-BEGIN_FTR_SECTION
-	b	1f
-END_FTR_SECTION_IFCLR(CPU_FTR_TM)
-	extrdi.	r11, r12, 1, (63-MSR_TS_T_LG) /* transaction active? */
-	beq+	1f
-
-	/* Doom the transaction and don't perform the syscall: */
-	mfmsr	r11
-	li	r12, 1
-	rldimi	r11, r12, MSR_TM_LG, 63-MSR_TM_LG
-	mtmsrd	r11, 0
-	li	r11, (TM_CAUSE_SYSCALL|TM_CAUSE_PERSISTENT)
-	TABORT(R11)
-
-	b	.Lsyscall_exit
-1:
-#endif
 	cmpldi	0,r0,NR_syscalls
 	bge-	syscall_enosys
 

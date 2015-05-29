@@ -22,6 +22,12 @@ struct mpls_entry_decoded {
 	u8 bos;
 };
 
+struct mpls_dev {
+	int			input_enabled;
+
+	struct ctl_table_header *sysctl;
+};
+
 struct sk_buff;
 
 static inline struct mpls_shim_hdr *mpls_hdr(const struct sk_buff *skb)

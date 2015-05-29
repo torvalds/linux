@@ -405,13 +405,18 @@ int rhashtable_insert_rehash(struct rhashtable *ht)
 
 	if (rht_grow_above_75(ht, tbl))
 		size *= 2;
-	/* More than two rehashes (not resizes) detected. */
-	else if (WARN_ON(old_tbl != tbl && old_tbl->size == size))
+	/* Do not schedule more than one rehash */
+	else if (old_tbl != tbl)
 		return -EBUSY;
 
 	new_tbl = bucket_table_alloc(ht, size, GFP_ATOMIC);
-	if (new_tbl == NULL)
+	if (new_tbl == NULL) {
+		/* Schedule async resize/rehash to try allocation
+		 * non-atomic context.
+		 */
+		schedule_work(&ht->run_work);
 		return -ENOMEM;
+	}
 
 	err = rhashtable_rehash_attach(ht, tbl, new_tbl);
 	if (err) {

@@ -81,7 +81,6 @@ static void cpuidle_idle_call(void)
 	struct cpuidle_device *dev = __this_cpu_read(cpuidle_devices);
 	struct cpuidle_driver *drv = cpuidle_get_cpu_driver(dev);
 	int next_state, entered_state;
-	unsigned int broadcast;
 	bool reflect;
 
 	/*
@@ -150,17 +149,6 @@ static void cpuidle_idle_call(void)
 		goto exit_idle;
 	}
 
-	broadcast = drv->states[next_state].flags & CPUIDLE_FLAG_TIMER_STOP;
-
-	/*
-	 * Tell the time framework to switch to a broadcast timer
-	 * because our local timer will be shutdown. If a local timer
-	 * is used from another cpu as a broadcast timer, this call may
-	 * fail if it is not available
-	 */
-	if (broadcast && tick_broadcast_enter())
-		goto use_default;
-
 	/* Take note of the planned idle state. */
 	idle_set_state(this_rq(), &drv->states[next_state]);
 
@@ -174,8 +162,8 @@ static void cpuidle_idle_call(void)
 	/* The cpu is no longer idle or about to enter idle. */
 	idle_set_state(this_rq(), NULL);
 
-	if (broadcast)
-		tick_broadcast_exit();
+	if (entered_state == -EBUSY)
+		goto use_default;
 
 	/*
 	 * Give the governor an opportunity to reflect on the outcome

@@ -128,7 +128,6 @@ struct ndis_tcp_ip_checksum_info;
 struct hv_netvsc_packet {
 	/* Bookkeeping stuff */
 	u32 status;
-	bool part_of_skb;
 
 	bool is_data_pkt;
 	bool xmit_more; /* from skb */
@@ -612,6 +611,15 @@ struct multi_send_data {
 	u32 count; /* counter of batched packets */
 };
 
+/* The context of the netvsc device  */
+struct net_device_context {
+	/* point back to our device context */
+	struct hv_device *device_ctx;
+	struct delayed_work dwork;
+	struct work_struct work;
+	u32 msg_enable; /* debug level */
+};
+
 /* Per netvsc device */
 struct netvsc_device {
 	struct hv_device *dev;
@@ -667,6 +675,9 @@ struct netvsc_device {
 	struct multi_send_data msd[NR_CPUS];
 	u32 max_pkt; /* max number of pkt in one send, e.g. 8 */
 	u32 pkt_align; /* alignment bytes, e.g. 8 */
+
+	/* The net device context */
+	struct net_device_context *nd_ctx;
 };
 
 /* NdisInitialize message */

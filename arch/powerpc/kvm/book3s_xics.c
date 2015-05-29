@@ -12,6 +12,7 @@
 #include <linux/err.h>
 #include <linux/gfp.h>
 #include <linux/anon_inodes.h>
+#include <linux/spinlock.h>
 
 #include <asm/uaccess.h>
 #include <asm/kvm_book3s.h>
@@ -20,7 +21,6 @@
 #include <asm/xics.h>
 #include <asm/debug.h>
 #include <asm/time.h>
-#include <asm/spinlock.h>
 
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>

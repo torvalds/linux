@@ -319,7 +319,7 @@ static int page_stat_cmp(struct page_stat *a, struct page_stat *b)
 	return 0;
 }
 
-static struct page_stat *search_page_alloc_stat(struct page_stat *stat, bool create)
+static struct page_stat *search_page_alloc_stat(struct page_stat *pstat, bool create)
 {
 	struct rb_node **node = &page_alloc_tree.rb_node;
 	struct rb_node *parent = NULL;
@@ -331,7 +331,7 @@ static struct page_stat *search_page_alloc_stat(struct page_stat *stat, bool cre
 		parent = *node;
 		data = rb_entry(*node, struct page_stat, node);
 
-		cmp = page_stat_cmp(data, stat);
+		cmp = page_stat_cmp(data, pstat);
 		if (cmp < 0)
 			node = &parent->rb_left;
 		else if (cmp > 0)
@@ -345,10 +345,10 @@ static struct page_stat *search_page_alloc_stat(struct page_stat *stat, bool cre
 
 	data = zalloc(sizeof(*data));
 	if (data != NULL) {
-		data->page = stat->page;
-		data->order = stat->order;
-		data->gfp_flags = stat->gfp_flags;
-		data->migrate_type = stat->migrate_type;
+		data->page = pstat->page;
+		data->order = pstat->order;
+		data->gfp_flags = pstat->gfp_flags;
+		data->migrate_type = pstat->migrate_type;
 
 		rb_link_node(&data->node, parent, node);
 		rb_insert_color(&data->node, &page_alloc_tree);
@@ -375,7 +375,7 @@ static int perf_evsel__process_page_alloc_event(struct perf_evsel *evsel,
 	unsigned int migrate_type = perf_evsel__intval(evsel, sample,
 						       "migratetype");
 	u64 bytes = kmem_page_size << order;
-	struct page_stat *stat;
+	struct page_stat *pstat;
 	struct page_stat this = {
 		.order = order,
 		.gfp_flags = gfp_flags,
@@ -401,21 +401,21 @@ static int perf_evsel__process_page_alloc_event(struct perf_evsel *evsel,
 	 * This is to find the current page (with correct gfp flags and
 	 * migrate type) at free event.
 	 */
-	stat = search_page(page, true);
-	if (stat == NULL)
+	pstat = search_page(page, true);
+	if (pstat == NULL)
 		return -ENOMEM;
 
-	stat->order = order;
-	stat->gfp_flags = gfp_flags;
-	stat->migrate_type = migrate_type;
+	pstat->order = order;
+	pstat->gfp_flags = gfp_flags;
+	pstat->migrate_type = migrate_type;
 
 	this.page = page;
-	stat = search_page_alloc_stat(&this, true);
-	if (stat == NULL)
+	pstat = search_page_alloc_stat(&this, true);
+	if (pstat == NULL)
 		return -ENOMEM;
 
-	stat->nr_alloc++;
-	stat->alloc_bytes += bytes;
+	pstat->nr_alloc++;
+	pstat->alloc_bytes += bytes;
 
 	order_stats[order][migrate_type]++;
 
@@ -428,7 +428,7 @@ static int perf_evsel__process_page_free_event(struct perf_evsel *evsel,
 	u64 page;
 	unsigned int order = perf_evsel__intval(evsel, sample, "order");
 	u64 bytes = kmem_page_size << order;
-	struct page_stat *stat;
+	struct page_stat *pstat;
 	struct page_stat this = {
 		.order = order,
 	};
@@ -441,8 +441,8 @@ static int perf_evsel__process_page_free_event(struct perf_evsel *evsel,
 	nr_page_frees++;
 	total_page_free_bytes += bytes;
 
-	stat = search_page(page, false);
-	if (stat == NULL) {
+	pstat = search_page(page, false);
+	if (pstat == NULL) {
 		pr_debug2("missing free at page %"PRIx64" (order: %d)\n",
 			  page, order);
 
@@ -453,18 +453,18 @@ static int perf_evsel__process_page_free_event(struct perf_evsel *evsel,
 	}
 
 	this.page = page;
-	this.gfp_flags = stat->gfp_flags;
-	this.migrate_type = stat->migrate_type;
+	this.gfp_flags = pstat->gfp_flags;
+	this.migrate_type = pstat->migrate_type;
 
-	rb_erase(&stat->node, &page_tree);
-	free(stat);
+	rb_erase(&pstat->node, &page_tree);
+	free(pstat);
 
-	stat = search_page_alloc_stat(&this, false);
-	if (stat == NULL)
+	pstat = search_page_alloc_stat(&this, false);
+	if (pstat == NULL)
 		return -ENOENT;
 
-	stat->nr_free++;
-	stat->free_bytes += bytes;
+	pstat->nr_free++;
+	pstat->free_bytes += bytes;
 
 	return 0;
 }
@@ -640,9 +640,9 @@ static void print_page_summary(void)
 	       nr_page_frees, total_page_free_bytes / 1024);
 	printf("\n");
 
-	printf("%-30s: %'16lu   [ %'16"PRIu64" KB ]\n", "Total alloc+freed requests",
+	printf("%-30s: %'16"PRIu64"   [ %'16"PRIu64" KB ]\n", "Total alloc+freed requests",
 	       nr_alloc_freed, (total_alloc_freed_bytes) / 1024);
-	printf("%-30s: %'16lu   [ %'16"PRIu64" KB ]\n", "Total alloc-only requests",
+	printf("%-30s: %'16"PRIu64"   [ %'16"PRIu64" KB ]\n", "Total alloc-only requests",
 	       nr_page_allocs - nr_alloc_freed,
 	       (total_page_alloc_bytes - total_alloc_freed_bytes) / 1024);
 	printf("%-30s: %'16lu   [ %'16"PRIu64" KB ]\n", "Total free-only requests",

@@ -633,7 +633,7 @@ static int dsa_of_probe(struct device *dev)
 		if (cd->sw_addr > PHY_MAX_ADDR)
 			continue;
 
-		if (!of_property_read_u32(np, "eeprom-length", &eeprom_len))
+		if (!of_property_read_u32(child, "eeprom-length", &eeprom_len))
 			cd->eeprom_len = eeprom_len;
 
 		for_each_available_child_of_node(child, port) {

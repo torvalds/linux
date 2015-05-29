@@ -707,7 +707,7 @@ static struct page *kimage_alloc_normal_control_pages(struct kimage *image,
 	do {
 		unsigned long pfn, epfn, addr, eaddr;
 
-		pages = kimage_alloc_pages(GFP_KERNEL, order);
+		pages = kimage_alloc_pages(KEXEC_CONTROL_MEMORY_GFP, order);
 		if (!pages)
 			break;
 		pfn   = page_to_pfn(pages);

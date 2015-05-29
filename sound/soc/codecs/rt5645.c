@@ -18,6 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
 #include <linux/gpio.h>
+#include <linux/acpi.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -2656,6 +2657,15 @@ static const struct i2c_device_id rt5645_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, rt5645_i2c_id);
 
+#ifdef CONFIG_ACPI
+static struct acpi_device_id rt5645_acpi_match[] = {
+	{ "10EC5645", 0 },
+	{ "10EC5650", 0 },
+	{},
+};
+MODULE_DEVICE_TABLE(acpi, rt5645_acpi_match);
+#endif
+
 static int rt5645_i2c_probe(struct i2c_client *i2c,
 		    const struct i2c_device_id *id)
 {
@@ -2770,7 +2780,7 @@ static int rt5645_i2c_probe(struct i2c_client *i2c,
 
 		case RT5645_DMIC_DATA_GPIO12:
 			regmap_update_bits(rt5645->regmap, RT5645_DMIC_CTRL1,
-				RT5645_DMIC_1_DP_MASK, RT5645_DMIC_2_DP_GPIO12);
+				RT5645_DMIC_2_DP_MASK, RT5645_DMIC_2_DP_GPIO12);
 			regmap_update_bits(rt5645->regmap, RT5645_GPIO_CTRL1,
 				RT5645_GP12_PIN_MASK,
 				RT5645_GP12_PIN_DMIC2_SDA);
@@ -2872,6 +2882,7 @@ static struct i2c_driver rt5645_i2c_driver = {
 	.driver = {
 		.name = "rt5645",
 		.owner = THIS_MODULE,
+		.acpi_match_table = ACPI_PTR(rt5645_acpi_match),
 	},
 	.probe = rt5645_i2c_probe,
 	.remove   = rt5645_i2c_remove,

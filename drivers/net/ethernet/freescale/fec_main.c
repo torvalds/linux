@@ -988,7 +988,10 @@ fec_restart(struct net_device *ndev)
 		rcntl |= 0x40000000 | 0x00000020;
 
 		/* RGMII, RMII or MII */
-		if (fep->phy_interface == PHY_INTERFACE_MODE_RGMII)
+		if (fep->phy_interface == PHY_INTERFACE_MODE_RGMII ||
+		    fep->phy_interface == PHY_INTERFACE_MODE_RGMII_ID ||
+		    fep->phy_interface == PHY_INTERFACE_MODE_RGMII_RXID ||
+		    fep->phy_interface == PHY_INTERFACE_MODE_RGMII_TXID)
 			rcntl |= (1 << 6);
 		else if (fep->phy_interface == PHY_INTERFACE_MODE_RMII)
 			rcntl |= (1 << 8);
