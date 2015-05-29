@@ -475,8 +475,8 @@ TRACE_EVENT(i915_gem_ring_dispatch,
 );
 
 TRACE_EVENT(i915_gem_ring_flush,
-	    TP_PROTO(struct intel_engine_cs *ring, u32 invalidate, u32 flush),
-	    TP_ARGS(ring, invalidate, flush),
+	    TP_PROTO(struct drm_i915_gem_request *req, u32 invalidate, u32 flush),
+	    TP_ARGS(req, invalidate, flush),
 
 	    TP_STRUCT__entry(
 			     __field(u32, dev)
@@ -486,8 +486,8 @@ TRACE_EVENT(i915_gem_ring_flush,
 			     ),
 
 	    TP_fast_assign(
-			   __entry->dev = ring->dev->primary->index;
-			   __entry->ring = ring->id;
+			   __entry->dev = req->ring->dev->primary->index;
+			   __entry->ring = req->ring->id;
 			   __entry->invalidate = invalidate;
 			   __entry->flush = flush;
 			   ),

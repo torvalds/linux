@@ -91,10 +91,11 @@ static void __intel_ring_advance(struct intel_engine_cs *ring)
 }
 
 static int
-gen2_render_ring_flush(struct intel_engine_cs *ring,
+gen2_render_ring_flush(struct drm_i915_gem_request *req,
 		       u32	invalidate_domains,
 		       u32	flush_domains)
 {
+	struct intel_engine_cs *ring = req->ring;
 	u32 cmd;
 	int ret;
 
@@ -117,10 +118,11 @@ gen2_render_ring_flush(struct intel_engine_cs *ring,
 }
 
 static int
-gen4_render_ring_flush(struct intel_engine_cs *ring,
+gen4_render_ring_flush(struct drm_i915_gem_request *req,
 		       u32	invalidate_domains,
 		       u32	flush_domains)
 {
+	struct intel_engine_cs *ring = req->ring;
 	struct drm_device *dev = ring->dev;
 	u32 cmd;
 	int ret;
@@ -247,9 +249,10 @@ intel_emit_post_sync_nonzero_flush(struct intel_engine_cs *ring)
 }
 
 static int
-gen6_render_ring_flush(struct intel_engine_cs *ring,
-                         u32 invalidate_domains, u32 flush_domains)
+gen6_render_ring_flush(struct drm_i915_gem_request *req,
+		       u32 invalidate_domains, u32 flush_domains)
 {
+	struct intel_engine_cs *ring = req->ring;
 	u32 flags = 0;
 	u32 scratch_addr = ring->scratch.gtt_offset + 2 * CACHELINE_BYTES;
 	int ret;
@@ -318,9 +321,10 @@ gen7_render_ring_cs_stall_wa(struct intel_engine_cs *ring)
 }
 
 static int
-gen7_render_ring_flush(struct intel_engine_cs *ring,
+gen7_render_ring_flush(struct drm_i915_gem_request *req,
 		       u32 invalidate_domains, u32 flush_domains)
 {
+	struct intel_engine_cs *ring = req->ring;
 	u32 flags = 0;
 	u32 scratch_addr = ring->scratch.gtt_offset + 2 * CACHELINE_BYTES;
 	int ret;
@@ -400,9 +404,10 @@ gen8_emit_pipe_control(struct intel_engine_cs *ring,
 }
 
 static int
-gen8_render_ring_flush(struct intel_engine_cs *ring,
+gen8_render_ring_flush(struct drm_i915_gem_request *req,
 		       u32 invalidate_domains, u32 flush_domains)
 {
+	struct intel_engine_cs *ring = req->ring;
 	u32 flags = 0;
 	u32 scratch_addr = ring->scratch.gtt_offset + 2 * CACHELINE_BYTES;
 	int ret;
@@ -1594,10 +1599,11 @@ i8xx_ring_put_irq(struct intel_engine_cs *ring)
 }
 
 static int
-bsd_ring_flush(struct intel_engine_cs *ring,
+bsd_ring_flush(struct drm_i915_gem_request *req,
 	       u32     invalidate_domains,
 	       u32     flush_domains)
 {
+	struct intel_engine_cs *ring = req->ring;
 	int ret;
 
 	ret = intel_ring_begin(ring, 2);
@@ -2372,9 +2378,10 @@ static void gen6_bsd_ring_write_tail(struct intel_engine_cs *ring,
 		   _MASKED_BIT_DISABLE(GEN6_BSD_SLEEP_MSG_DISABLE));
 }
 
-static int gen6_bsd_ring_flush(struct intel_engine_cs *ring,
+static int gen6_bsd_ring_flush(struct drm_i915_gem_request *req,
 			       u32 invalidate, u32 flush)
 {
+	struct intel_engine_cs *ring = req->ring;
 	uint32_t cmd;
 	int ret;
 
@@ -2484,9 +2491,10 @@ gen6_ring_dispatch_execbuffer(struct intel_engine_cs *ring,
 
 /* Blitter support (SandyBridge+) */
 
-static int gen6_ring_flush(struct intel_engine_cs *ring,
+static int gen6_ring_flush(struct drm_i915_gem_request *req,
 			   u32 invalidate, u32 flush)
 {
+	struct intel_engine_cs *ring = req->ring;
 	struct drm_device *dev = ring->dev;
 	uint32_t cmd;
 	int ret;
@@ -2900,11 +2908,11 @@ intel_ring_flush_all_caches(struct drm_i915_gem_request *req)
 	if (!ring->gpu_caches_dirty)
 		return 0;
 
-	ret = ring->flush(ring, 0, I915_GEM_GPU_DOMAINS);
+	ret = ring->flush(req, 0, I915_GEM_GPU_DOMAINS);
 	if (ret)
 		return ret;
 
-	trace_i915_gem_ring_flush(ring, 0, I915_GEM_GPU_DOMAINS);
+	trace_i915_gem_ring_flush(req, 0, I915_GEM_GPU_DOMAINS);
 
 	ring->gpu_caches_dirty = false;
 	return 0;
@@ -2921,11 +2929,11 @@ intel_ring_invalidate_all_caches(struct drm_i915_gem_request *req)
 	if (ring->gpu_caches_dirty)
 		flush_domains = I915_GEM_GPU_DOMAINS;
 
-	ret = ring->flush(ring, I915_GEM_GPU_DOMAINS, flush_domains);
+	ret = ring->flush(req, I915_GEM_GPU_DOMAINS, flush_domains);
 	if (ret)
 		return ret;
 
-	trace_i915_gem_ring_flush(ring, I915_GEM_GPU_DOMAINS, flush_domains);
+	trace_i915_gem_ring_flush(req, I915_GEM_GPU_DOMAINS, flush_domains);
 
 	ring->gpu_caches_dirty = false;
 	return 0;

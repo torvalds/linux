@@ -180,7 +180,7 @@ struct  intel_engine_cs {
 
 	void		(*write_tail)(struct intel_engine_cs *ring,
 				      u32 value);
-	int __must_check (*flush)(struct intel_engine_cs *ring,
+	int __must_check (*flush)(struct drm_i915_gem_request *req,
 				  u32	invalidate_domains,
 				  u32	flush_domains);
 	int		(*add_request)(struct intel_engine_cs *ring);

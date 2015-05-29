@@ -495,7 +495,7 @@ mi_set_context(struct drm_i915_gem_request *req, u32 hw_flags)
 	 * itlb_before_ctx_switch.
 	 */
 	if (IS_GEN6(ring->dev)) {
-		ret = ring->flush(ring, I915_GEM_GPU_DOMAINS, 0);
+		ret = ring->flush(req, I915_GEM_GPU_DOMAINS, 0);
 		if (ret)
 			return ret;
 	}
