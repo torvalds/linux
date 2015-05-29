@@ -1885,7 +1885,7 @@ static int snd_ca0106_probe(struct pci_dev *pci,
 		goto error;
 	dev_dbg(card->dev, " done.\n");
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_SND_PROC_FS
 	snd_ca0106_proc_init(chip);
 #endif
 
