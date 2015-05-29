@@ -432,6 +432,23 @@ static void free_used_maps(struct bpf_prog_aux *aux)
 	kfree(aux->used_maps);
 }
 
+static void __prog_put_rcu(struct rcu_head *rcu)
+{
+	struct bpf_prog_aux *aux = container_of(rcu, struct bpf_prog_aux, rcu);
+
+	free_used_maps(aux);
+	bpf_prog_free(aux->prog);
+}
+
+/* version of bpf_prog_put() that is called after a grace period */
+void bpf_prog_put_rcu(struct bpf_prog *prog)
+{
+	if (atomic_dec_and_test(&prog->aux->refcnt)) {
+		prog->aux->prog = prog;
+		call_rcu(&prog->aux->rcu, __prog_put_rcu);
+	}
+}
+
 void bpf_prog_put(struct bpf_prog *prog)
 {
 	if (atomic_dec_and_test(&prog->aux->refcnt)) {
@@ -445,7 +462,7 @@ static int bpf_prog_release(struct inode *inode, struct file *filp)
 {
 	struct bpf_prog *prog = filp->private_data;
 
-	bpf_prog_put(prog);
+	bpf_prog_put_rcu(prog);
 	return 0;
 }
 

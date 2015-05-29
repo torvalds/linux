@@ -202,7 +202,7 @@ static int prog_array_map_update_elem(struct bpf_map *map, void *key,
 
 	old_prog = xchg(array->prog + index, prog);
 	if (old_prog)
-		bpf_prog_put(old_prog);
+		bpf_prog_put_rcu(old_prog);
 
 	return 0;
 }
@@ -218,7 +218,7 @@ static int prog_array_map_delete_elem(struct bpf_map *map, void *key)
 
 	old_prog = xchg(array->prog + index, NULL);
 	if (old_prog) {
-		bpf_prog_put(old_prog);
+		bpf_prog_put_rcu(old_prog);
 		return 0;
 	} else {
 		return -ENOENT;
