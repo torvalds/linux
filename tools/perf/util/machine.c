@@ -111,7 +111,7 @@ void machine__exit(struct machine *machine)
 {
 	map_groups__exit(&machine->kmaps);
 	dsos__delete(&machine->dsos);
-	vdso__exit(machine);
+	machine__exit_vdso(machine);
 	zfree(&machine->root_dir);
 	zfree(&machine->current_tid);
 	pthread_rwlock_destroy(&machine->threads_lock);
