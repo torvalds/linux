@@ -1,0 +1,33 @@
+
+# Copyright (C) 2005-2014 Junjiro R. Okajima
+
+mmap(2) -- File Memory Mapping
+----------------------------------------------------------------------
+In aufs, the file-mapped pages are handled by a branch fs directly, no
+interaction with aufs. It means aufs_mmap() calls the branch fs's
+->mmap().
+This approach is simple and good, but there is one problem.
+Under /proc, several entries show the mmap-ped files by its path (with
+device and inode number), and the printed path will be the path on the
+branch fs's instead of virtual aufs's.
+This is not a problem in most cases, but some utilities lsof(1) (and its
+user) may expect the path on aufs.
+
+To address this issue, aufs adds a new member called vm_prfile in struct
+vm_area_struct (and struct vm_region). The original vm_file points to
+the file on the branch fs in order to handle everything correctly as
+usual. The new vm_prfile points to a virtual file in aufs, and the
+show-functions in procfs refers to vm_prfile if it is set.
+Also we need to maintain several other places where touching vm_file
+such like
+- fork()/clone() copies vma and the reference count of vm_file is
+  incremented.
+- merging vma maintains the ref count too.
+
+This is not a good approach. It just faking the printed path. But it
+leaves all behaviour around f_mapping unchanged. This is surely an
+advantage.
+Actually aufs had adopted another complicated approach which calls
+generic_file_mmap() and handles struct vm_operations_struct. In this
+approach, aufs met a hard problem and I could not solve it without
+switching the approach.

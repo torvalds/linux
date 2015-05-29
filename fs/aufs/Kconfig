@@ -1,0 +1,185 @@
+config AUFS_FS
+	bool "Aufs (Advanced multi layered unification filesystem) support"
+	help
+	Aufs is a stackable unification filesystem such as Unionfs,
+	which unifies several directories and provides a merged single
+	directory.
+	In the early days, aufs was entirely re-designed and
+	re-implemented Unionfs Version 1.x series. Introducing many
+	original ideas, approaches and improvements, it becomes totally
+	different from Unionfs while keeping the basic features.
+
+if AUFS_FS
+choice
+	prompt "Maximum number of branches"
+	default AUFS_BRANCH_MAX_127
+	help
+	Specifies the maximum number of branches (or member directories)
+	in a single aufs. The larger value consumes more system
+	resources and has a minor impact to performance.
+config AUFS_BRANCH_MAX_127
+	bool "127"
+	help
+	Specifies the maximum number of branches (or member directories)
+	in a single aufs. The larger value consumes more system
+	resources and has a minor impact to performance.
+config AUFS_BRANCH_MAX_511
+	bool "511"
+	help
+	Specifies the maximum number of branches (or member directories)
+	in a single aufs. The larger value consumes more system
+	resources and has a minor impact to performance.
+config AUFS_BRANCH_MAX_1023
+	bool "1023"
+	help
+	Specifies the maximum number of branches (or member directories)
+	in a single aufs. The larger value consumes more system
+	resources and has a minor impact to performance.
+config AUFS_BRANCH_MAX_32767
+	bool "32767"
+	help
+	Specifies the maximum number of branches (or member directories)
+	in a single aufs. The larger value consumes more system
+	resources and has a minor impact to performance.
+endchoice
+
+config AUFS_SBILIST
+	bool
+	depends on AUFS_MAGIC_SYSRQ || PROC_FS
+	default y
+	help
+	Automatic configuration for internal use.
+	When aufs supports Magic SysRq or /proc, enabled automatically.
+
+config AUFS_HNOTIFY
+	bool "Detect direct branch access (bypassing aufs)"
+	help
+	If you want to modify files on branches directly, eg. bypassing aufs,
+	and want aufs to detect the changes of them fully, then enable this
+	option and use 'udba=notify' mount option.
+	Currently there is only one available configuration, "fsnotify".
+	It will have a negative impact to the performance.
+	See detail in aufs.5.
+
+choice
+	prompt "method" if AUFS_HNOTIFY
+	default AUFS_HFSNOTIFY
+config AUFS_HFSNOTIFY
+	bool "fsnotify"
+	select FSNOTIFY
+endchoice
+
+config AUFS_EXPORT
+	bool "NFS-exportable aufs"
+	depends on EXPORTFS = y
+	help
+	If you want to export your mounted aufs via NFS, then enable this
+	option. There are several requirements for this configuration.
+	See detail in aufs.5.
+
+config AUFS_INO_T_64
+	bool
+	depends on AUFS_EXPORT
+	depends on 64BIT && !(ALPHA || S390)
+	default y
+	help
+	Automatic configuration for internal use.
+	/* typedef unsigned long/int __kernel_ino_t */
+	/* alpha and s390x are int */
+
+config AUFS_XATTR
+	bool "support for XATTR/EA (including Security Labels)"
+	help
+	If your branch fs supports XATTR/EA and you want to make them
+	available in aufs too, then enable this opsion and specify the
+	branch attributes for EA.
+	See detail in aufs.5.
+
+config AUFS_FHSM
+	bool "File-based Hierarchical Storage Management"
+	help
+	Hierarchical Storage Management (or HSM) is a well-known feature
+	in the storage world. Aufs provides this feature as file-based.
+	with multiple branches.
+	These multiple branches are prioritized, ie. the topmost one
+	should be the fastest drive and be used heavily.
+
+config AUFS_RDU
+	bool "Readdir in userspace"
+	help
+	Aufs has two methods to provide a merged view for a directory,
+	by a user-space library and by kernel-space natively. The latter
+	is always enabled but sometimes large and slow.
+	If you enable this option, install the library in aufs2-util
+	package, and set some environment variables for your readdir(3),
+	then the work will be handled in user-space which generally
+	shows better performance in most cases.
+	See detail in aufs.5.
+
+config AUFS_SHWH
+	bool "Show whiteouts"
+	help
+	If you want to make the whiteouts in aufs visible, then enable
+	this option and specify 'shwh' mount option. Although it may
+	sounds like philosophy or something, but in technically it
+	simply shows the name of whiteout with keeping its behaviour.
+
+config AUFS_BR_RAMFS
+	bool "Ramfs (initramfs/rootfs) as an aufs branch"
+	help
+	If you want to use ramfs as an aufs branch fs, then enable this
+	option. Generally tmpfs is recommended.
+	Aufs prohibited them to be a branch fs by default, because
+	initramfs becomes unusable after switch_root or something
+	generally. If you sets initramfs as an aufs branch and boot your
+	system by switch_root, you will meet a problem easily since the
+	files in initramfs may be inaccessible.
+	Unless you are going to use ramfs as an aufs branch fs without
+	switch_root or something, leave it N.
+
+config AUFS_BR_FUSE
+	bool "Fuse fs as an aufs branch"
+	depends on FUSE_FS
+	select AUFS_POLL
+	help
+	If you want to use fuse-based userspace filesystem as an aufs
+	branch fs, then enable this option.
+	It implements the internal poll(2) operation which is
+	implemented by fuse only (curretnly).
+
+config AUFS_POLL
+	bool
+	help
+	Automatic configuration for internal use.
+
+config AUFS_BR_HFSPLUS
+	bool "Hfsplus as an aufs branch"
+	depends on HFSPLUS_FS
+	default y
+	help
+	If you want to use hfsplus fs as an aufs branch fs, then enable
+	this option. This option introduces a small overhead at
+	copying-up a file on hfsplus.
+
+config AUFS_BDEV_LOOP
+	bool
+	depends on BLK_DEV_LOOP
+	default y
+	help
+	Automatic configuration for internal use.
+	Convert =[ym] into =y.
+
+config AUFS_DEBUG
+	bool "Debug aufs"
+	help
+	Enable this to compile aufs internal debug code.
+	It will have a negative impact to the performance.
+
+config AUFS_MAGIC_SYSRQ
+	bool
+	depends on AUFS_DEBUG && MAGIC_SYSRQ
+	default y
+	help
+	Automatic configuration for internal use.
+	When aufs supports Magic SysRq, enabled automatically.
+endif
