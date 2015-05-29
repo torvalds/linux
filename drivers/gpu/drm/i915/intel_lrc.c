@@ -2230,13 +2230,22 @@ int intel_lr_context_deferred_create(struct intel_context *ctx,
 		lrc_setup_hardware_status_page(ring, ctx_obj);
 	else if (ring->id == RCS && !ctx->rcs_initialized) {
 		if (ring->init_context) {
-			ret = ring->init_context(ring, ctx);
+			struct drm_i915_gem_request *req;
+
+			ret = i915_gem_request_alloc(ring, ctx, &req);
+			if (ret)
+				return ret;
+
+			ret = ring->init_context(req->ring, ctx);
 			if (ret) {
 				DRM_ERROR("ring init context: %d\n", ret);
+				i915_gem_request_cancel(req);
 				ctx->engine[ring->id].ringbuf = NULL;
 				ctx->engine[ring->id].state = NULL;
 				goto error;
 			}
+
+			i915_add_request_no_flush(req->ring);
 		}
 
 		ctx->rcs_initialized = true;
