@@ -31,6 +31,7 @@ ENTRY(	\name	)
 	eor	w0, w0, w3		// Clear low bits
 	mov	x2, #1
 	add	x1, x1, x0, lsr #3	// Get word offset
+alt_lse "	prfm	pstl1strm, [x1]",	"nop"
 	lsl	x3, x2, x3		// Create mask
 
 alt_lse	"1:	ldxr	x2, [x1]",		"\lse	x3, [x1]"
@@ -48,6 +49,7 @@ ENTRY(	\name	)
 	eor	w0, w0, w3		// Clear low bits
 	mov	x2, #1
 	add	x1, x1, x0, lsr #3	// Get word offset
+alt_lse "	prfm	pstl1strm, [x1]",	"nop"
 	lsl	x4, x2, x3		// Create mask
 
 alt_lse	"1:	ldxr	x2, [x1]",		"\lse	x4, x2, [x1]"

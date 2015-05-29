@@ -45,6 +45,7 @@ __LL_SC_PREFIX(atomic_##op(int i, atomic_t *v))				\
 	int result;							\
 									\
 	asm volatile("// atomic_" #op "\n"				\
+"	prfm	pstl1strm, %2\n"					\
 "1:	ldxr	%w0, %2\n"						\
 "	" #asm_op "	%w0, %w0, %w3\n"				\
 "	stxr	%w1, %w0, %2\n"						\
@@ -62,6 +63,7 @@ __LL_SC_PREFIX(atomic_##op##_return(int i, atomic_t *v))		\
 	int result;							\
 									\
 	asm volatile("// atomic_" #op "_return\n"			\
+"	prfm	pstl1strm, %2\n"					\
 "1:	ldxr	%w0, %2\n"						\
 "	" #asm_op "	%w0, %w0, %w3\n"				\
 "	stlxr	%w1, %w0, %2\n"						\
@@ -98,6 +100,7 @@ __LL_SC_PREFIX(atomic_cmpxchg(atomic_t *ptr, int old, int new))
 	int oldval;
 
 	asm volatile("// atomic_cmpxchg\n"
+"	prfm	pstl1strm, %2\n"
 "1:	ldxr	%w1, %2\n"
 "	eor	%w0, %w1, %w3\n"
 "	cbnz	%w0, 2f\n"
@@ -121,6 +124,7 @@ __LL_SC_PREFIX(atomic64_##op(long i, atomic64_t *v))			\
 	unsigned long tmp;						\
 									\
 	asm volatile("// atomic64_" #op "\n"				\
+"	prfm	pstl1strm, %2\n"					\
 "1:	ldxr	%0, %2\n"						\
 "	" #asm_op "	%0, %0, %3\n"					\
 "	stxr	%w1, %0, %2\n"						\
@@ -138,6 +142,7 @@ __LL_SC_PREFIX(atomic64_##op##_return(long i, atomic64_t *v))		\
 	unsigned long tmp;						\
 									\
 	asm volatile("// atomic64_" #op "_return\n"			\
+"	prfm	pstl1strm, %2\n"					\
 "1:	ldxr	%0, %2\n"						\
 "	" #asm_op "	%0, %0, %3\n"					\
 "	stlxr	%w1, %0, %2\n"						\
@@ -174,6 +179,7 @@ __LL_SC_PREFIX(atomic64_cmpxchg(atomic64_t *ptr, long old, long new))
 	unsigned long res;
 
 	asm volatile("// atomic64_cmpxchg\n"
+"	prfm	pstl1strm, %2\n"
 "1:	ldxr	%1, %2\n"
 "	eor	%0, %1, %3\n"
 "	cbnz	%w0, 2f\n"
@@ -196,6 +202,7 @@ __LL_SC_PREFIX(atomic64_dec_if_positive(atomic64_t *v))
 	unsigned long tmp;
 
 	asm volatile("// atomic64_dec_if_positive\n"
+"	prfm	pstl1strm, %2\n"
 "1:	ldxr	%0, %2\n"
 "	subs	%0, %0, #1\n"
 "	b.mi	2f\n"
@@ -220,6 +227,7 @@ __LL_SC_PREFIX(__cmpxchg_case_##name(volatile void *ptr,		\
 	unsigned long tmp, oldval;					\
 									\
 	asm volatile(							\
+	"	prfm	pstl1strm, %2\n"				\
 	"1:	ldxr" #sz "\t%" #w "[oldval], %[v]\n"			\
 	"	eor	%" #w "[tmp], %" #w "[oldval], %" #w "[old]\n"	\
 	"	cbnz	%" #w "[tmp], 2f\n"				\
@@ -259,6 +267,7 @@ __LL_SC_PREFIX(__cmpxchg_double##name(unsigned long old1,		\
 	unsigned long tmp, ret;						\
 									\
 	asm volatile("// __cmpxchg_double" #name "\n"			\
+	"	prfm	pstl1strm, %2\n"				\
 	"1:	ldxp	%0, %1, %2\n"					\
 	"	eor	%0, %0, %3\n"					\
 	"	eor	%1, %1, %4\n"					\

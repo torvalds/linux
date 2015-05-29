@@ -33,11 +33,13 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr, int size
 	case 1:
 		asm volatile(ARM64_LSE_ATOMIC_INSN(
 		/* LL/SC */
+		"	prfm	pstl1strm, %2\n"
 		"1:	ldxrb	%w0, %2\n"
 		"	stlxrb	%w1, %w3, %2\n"
 		"	cbnz	%w1, 1b\n"
 		"	dmb	ish",
 		/* LSE atomics */
+		"	nop\n"
 		"	nop\n"
 		"	swpalb	%w3, %w0, %2\n"
 		"	nop\n"
@@ -49,11 +51,13 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr, int size
 	case 2:
 		asm volatile(ARM64_LSE_ATOMIC_INSN(
 		/* LL/SC */
+		"	prfm	pstl1strm, %2\n"
 		"1:	ldxrh	%w0, %2\n"
 		"	stlxrh	%w1, %w3, %2\n"
 		"	cbnz	%w1, 1b\n"
 		"	dmb	ish",
 		/* LSE atomics */
+		"	nop\n"
 		"	nop\n"
 		"	swpalh	%w3, %w0, %2\n"
 		"	nop\n"
@@ -65,11 +69,13 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr, int size
 	case 4:
 		asm volatile(ARM64_LSE_ATOMIC_INSN(
 		/* LL/SC */
+		"	prfm	pstl1strm, %2\n"
 		"1:	ldxr	%w0, %2\n"
 		"	stlxr	%w1, %w3, %2\n"
 		"	cbnz	%w1, 1b\n"
 		"	dmb	ish",
 		/* LSE atomics */
+		"	nop\n"
 		"	nop\n"
 		"	swpal	%w3, %w0, %2\n"
 		"	nop\n"
@@ -81,11 +87,13 @@ static inline unsigned long __xchg(unsigned long x, volatile void *ptr, int size
 	case 8:
 		asm volatile(ARM64_LSE_ATOMIC_INSN(
 		/* LL/SC */
+		"	prfm	pstl1strm, %2\n"
 		"1:	ldxr	%0, %2\n"
 		"	stlxr	%w1, %3, %2\n"
 		"	cbnz	%w1, 1b\n"
 		"	dmb	ish",
 		/* LSE atomics */
+		"	nop\n"
 		"	nop\n"
 		"	swpal	%3, %0, %2\n"
 		"	nop\n"
