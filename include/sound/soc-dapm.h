@@ -15,6 +15,7 @@
 
 #include <linux/types.h>
 #include <sound/control.h>
+#include <sound/asoc.h>
 
 struct device;
 
