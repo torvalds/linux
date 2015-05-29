@@ -68,7 +68,8 @@ static void pm_clk_acquire(struct device *dev, struct pm_clock_entry *ce)
 	} else {
 		clk_prepare(ce->clk);
 		ce->status = PCE_STATUS_ACQUIRED;
-		dev_dbg(dev, "Clock %s managed by runtime PM.\n", ce->con_id);
+		dev_dbg(dev, "Clock %pC con_id %s managed by runtime PM.\n",
+			ce->clk, ce->con_id);
 	}
 }
 
