@@ -26,6 +26,7 @@ struct cgroup_taskset;
 struct kernfs_node;
 struct kernfs_ops;
 struct kernfs_open_file;
+struct seq_file;
 
 #define MAX_CGROUP_TYPE_NAMELEN 32
 #define MAX_CGROUP_ROOT_NAMELEN 64
