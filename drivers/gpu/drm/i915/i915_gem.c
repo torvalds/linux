@@ -3305,10 +3305,22 @@ int i915_gpu_idle(struct drm_device *dev)
 	/* Flush everything onto the inactive list. */
 	for_each_ring(ring, dev_priv, i) {
 		if (!i915.enable_execlists) {
-			ret = i915_switch_context(ring, ring->default_context);
+			struct drm_i915_gem_request *req;
+
+			ret = i915_gem_request_alloc(ring, ring->default_context, &req);
 			if (ret)
 				return ret;
+
+			ret = i915_switch_context(req->ring, ring->default_context);
+			if (ret) {
+				i915_gem_request_cancel(req);
+				return ret;
+			}
+
+			i915_add_request_no_flush(req->ring);
 		}
+
+		WARN_ON(ring->outstanding_lazy_request);
 
 		ret = intel_ring_idle(ring);
 		if (ret)
