@@ -244,7 +244,7 @@ static int intel_overlay_on(struct intel_overlay *overlay)
 	if (ret)
 		return ret;
 
-	ret = intel_ring_begin(ring, 4);
+	ret = intel_ring_begin(req, 4);
 	if (ret) {
 		i915_gem_request_cancel(req);
 		return ret;
@@ -287,7 +287,7 @@ static int intel_overlay_continue(struct intel_overlay *overlay,
 	if (ret)
 		return ret;
 
-	ret = intel_ring_begin(ring, 2);
+	ret = intel_ring_begin(req, 2);
 	if (ret) {
 		i915_gem_request_cancel(req);
 		return ret;
@@ -353,7 +353,7 @@ static int intel_overlay_off(struct intel_overlay *overlay)
 	if (ret)
 		return ret;
 
-	ret = intel_ring_begin(ring, 6);
+	ret = intel_ring_begin(req, 6);
 	if (ret) {
 		i915_gem_request_cancel(req);
 		return ret;
@@ -427,7 +427,7 @@ static int intel_overlay_release_old_vid(struct intel_overlay *overlay)
 		if (ret)
 			return ret;
 
-		ret = intel_ring_begin(ring, 2);
+		ret = intel_ring_begin(req, 2);
 		if (ret) {
 			i915_gem_request_cancel(req);
 			return ret;

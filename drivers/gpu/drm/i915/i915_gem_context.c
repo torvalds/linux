@@ -509,7 +509,7 @@ mi_set_context(struct drm_i915_gem_request *req, u32 hw_flags)
 	if (INTEL_INFO(ring->dev)->gen >= 7)
 		len += 2 + (num_rings ? 4*num_rings + 2 : 0);
 
-	ret = intel_ring_begin(ring, len);
+	ret = intel_ring_begin(req, len);
 	if (ret)
 		return ret;
 

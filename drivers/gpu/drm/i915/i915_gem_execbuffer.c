@@ -1082,7 +1082,7 @@ i915_reset_gen7_sol_offsets(struct drm_device *dev,
 		return -EINVAL;
 	}
 
-	ret = intel_ring_begin(ring, 4 * 3);
+	ret = intel_ring_begin(req, 4 * 3);
 	if (ret)
 		return ret;
 
@@ -1113,7 +1113,7 @@ i915_emit_box(struct drm_i915_gem_request *req,
 	}
 
 	if (INTEL_INFO(ring->dev)->gen >= 4) {
-		ret = intel_ring_begin(ring, 4);
+		ret = intel_ring_begin(req, 4);
 		if (ret)
 			return ret;
 
@@ -1122,7 +1122,7 @@ i915_emit_box(struct drm_i915_gem_request *req,
 		intel_ring_emit(ring, ((box->x2 - 1) & 0xffff) | (box->y2 - 1) << 16);
 		intel_ring_emit(ring, DR4);
 	} else {
-		ret = intel_ring_begin(ring, 6);
+		ret = intel_ring_begin(req, 6);
 		if (ret)
 			return ret;
 
@@ -1298,7 +1298,7 @@ i915_gem_ringbuffer_submission(struct i915_execbuffer_params *params,
 
 	if (ring == &dev_priv->ring[RCS] &&
 			instp_mode != dev_priv->relative_constants_mode) {
-		ret = intel_ring_begin(ring, 4);
+		ret = intel_ring_begin(params->request, 4);
 		if (ret)
 			goto error;
 

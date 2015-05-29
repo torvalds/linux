@@ -4894,7 +4894,7 @@ int i915_gem_l3_remap(struct drm_i915_gem_request *req, int slice)
 	if (!HAS_L3_DPF(dev) || !remap_info)
 		return 0;
 
-	ret = intel_ring_begin(ring, GEN7_L3LOG_SIZE / 4 * 3);
+	ret = intel_ring_begin(req, GEN7_L3LOG_SIZE / 4 * 3);
 	if (ret)
 		return ret;
 

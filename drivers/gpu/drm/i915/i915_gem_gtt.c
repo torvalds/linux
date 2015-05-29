@@ -461,7 +461,7 @@ static int gen8_write_pdp(struct drm_i915_gem_request *req,
 
 	BUG_ON(entry >= 4);
 
-	ret = intel_ring_begin(ring, 6);
+	ret = intel_ring_begin(req, 6);
 	if (ret)
 		return ret;
 
@@ -1073,7 +1073,7 @@ static int hsw_mm_switch(struct i915_hw_ppgtt *ppgtt,
 	if (ret)
 		return ret;
 
-	ret = intel_ring_begin(ring, 6);
+	ret = intel_ring_begin(req, 6);
 	if (ret)
 		return ret;
 
@@ -1110,7 +1110,7 @@ static int gen7_mm_switch(struct i915_hw_ppgtt *ppgtt,
 	if (ret)
 		return ret;
 
-	ret = intel_ring_begin(ring, 6);
+	ret = intel_ring_begin(req, 6);
 	if (ret)
 		return ret;
 

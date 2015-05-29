@@ -106,7 +106,7 @@ gen2_render_ring_flush(struct drm_i915_gem_request *req,
 	if (invalidate_domains & I915_GEM_DOMAIN_SAMPLER)
 		cmd |= MI_READ_FLUSH;
 
-	ret = intel_ring_begin(ring, 2);
+	ret = intel_ring_begin(req, 2);
 	if (ret)
 		return ret;
 
@@ -165,7 +165,7 @@ gen4_render_ring_flush(struct drm_i915_gem_request *req,
 	    (IS_G4X(dev) || IS_GEN5(dev)))
 		cmd |= MI_INVALIDATE_ISP;
 
-	ret = intel_ring_begin(ring, 2);
+	ret = intel_ring_begin(req, 2);
 	if (ret)
 		return ret;
 
@@ -220,8 +220,7 @@ intel_emit_post_sync_nonzero_flush(struct drm_i915_gem_request *req)
 	u32 scratch_addr = ring->scratch.gtt_offset + 2 * CACHELINE_BYTES;
 	int ret;
 
-
-	ret = intel_ring_begin(ring, 6);
+	ret = intel_ring_begin(req, 6);
 	if (ret)
 		return ret;
 
@@ -234,7 +233,7 @@ intel_emit_post_sync_nonzero_flush(struct drm_i915_gem_request *req)
 	intel_ring_emit(ring, MI_NOOP);
 	intel_ring_advance(ring);
 
-	ret = intel_ring_begin(ring, 6);
+	ret = intel_ring_begin(req, 6);
 	if (ret)
 		return ret;
 
@@ -289,7 +288,7 @@ gen6_render_ring_flush(struct drm_i915_gem_request *req,
 		flags |= PIPE_CONTROL_QW_WRITE | PIPE_CONTROL_CS_STALL;
 	}
 
-	ret = intel_ring_begin(ring, 4);
+	ret = intel_ring_begin(req, 4);
 	if (ret)
 		return ret;
 
@@ -308,7 +307,7 @@ gen7_render_ring_cs_stall_wa(struct drm_i915_gem_request *req)
 	struct intel_engine_cs *ring = req->ring;
 	int ret;
 
-	ret = intel_ring_begin(ring, 4);
+	ret = intel_ring_begin(req, 4);
 	if (ret)
 		return ret;
 
@@ -371,7 +370,7 @@ gen7_render_ring_flush(struct drm_i915_gem_request *req,
 		gen7_render_ring_cs_stall_wa(req);
 	}
 
-	ret = intel_ring_begin(ring, 4);
+	ret = intel_ring_begin(req, 4);
 	if (ret)
 		return ret;
 
@@ -391,7 +390,7 @@ gen8_emit_pipe_control(struct drm_i915_gem_request *req,
 	struct intel_engine_cs *ring = req->ring;
 	int ret;
 
-	ret = intel_ring_begin(ring, 6);
+	ret = intel_ring_begin(req, 6);
 	if (ret)
 		return ret;
 
@@ -726,7 +725,7 @@ static int intel_ring_workarounds_emit(struct drm_i915_gem_request *req)
 	if (ret)
 		return ret;
 
-	ret = intel_ring_begin(ring, (w->count * 2 + 2));
+	ret = intel_ring_begin(req, (w->count * 2 + 2));
 	if (ret)
 		return ret;
 
@@ -1185,7 +1184,7 @@ static int gen8_rcs_signal(struct drm_i915_gem_request *signaller_req,
 	num_dwords += (num_rings-1) * MBOX_UPDATE_DWORDS;
 #undef MBOX_UPDATE_DWORDS
 
-	ret = intel_ring_begin(signaller, num_dwords);
+	ret = intel_ring_begin(signaller_req, num_dwords);
 	if (ret)
 		return ret;
 
@@ -1226,7 +1225,7 @@ static int gen8_xcs_signal(struct drm_i915_gem_request *signaller_req,
 	num_dwords += (num_rings-1) * MBOX_UPDATE_DWORDS;
 #undef MBOX_UPDATE_DWORDS
 
-	ret = intel_ring_begin(signaller, num_dwords);
+	ret = intel_ring_begin(signaller_req, num_dwords);
 	if (ret)
 		return ret;
 
@@ -1265,7 +1264,7 @@ static int gen6_signal(struct drm_i915_gem_request *signaller_req,
 	num_dwords += round_up((num_rings-1) * MBOX_UPDATE_DWORDS, 2);
 #undef MBOX_UPDATE_DWORDS
 
-	ret = intel_ring_begin(signaller, num_dwords);
+	ret = intel_ring_begin(signaller_req, num_dwords);
 	if (ret)
 		return ret;
 
@@ -1303,7 +1302,7 @@ gen6_add_request(struct drm_i915_gem_request *req)
 	if (ring->semaphore.signal)
 		ret = ring->semaphore.signal(req, 4);
 	else
-		ret = intel_ring_begin(ring, 4);
+		ret = intel_ring_begin(req, 4);
 
 	if (ret)
 		return ret;
@@ -1341,7 +1340,7 @@ gen8_ring_sync(struct drm_i915_gem_request *waiter_req,
 	struct drm_i915_private *dev_priv = waiter->dev->dev_private;
 	int ret;
 
-	ret = intel_ring_begin(waiter, 4);
+	ret = intel_ring_begin(waiter_req, 4);
 	if (ret)
 		return ret;
 
@@ -1378,7 +1377,7 @@ gen6_ring_sync(struct drm_i915_gem_request *waiter_req,
 
 	WARN_ON(wait_mbox == MI_SEMAPHORE_SYNC_INVALID);
 
-	ret = intel_ring_begin(waiter, 4);
+	ret = intel_ring_begin(waiter_req, 4);
 	if (ret)
 		return ret;
 
@@ -1423,7 +1422,7 @@ pc_render_add_request(struct drm_i915_gem_request *req)
 	 * incoherence by flushing the 6 PIPE_NOTIFY buffers out to
 	 * memory before requesting an interrupt.
 	 */
-	ret = intel_ring_begin(ring, 32);
+	ret = intel_ring_begin(req, 32);
 	if (ret)
 		return ret;
 
@@ -1608,7 +1607,7 @@ bsd_ring_flush(struct drm_i915_gem_request *req,
 	struct intel_engine_cs *ring = req->ring;
 	int ret;
 
-	ret = intel_ring_begin(ring, 2);
+	ret = intel_ring_begin(req, 2);
 	if (ret)
 		return ret;
 
@@ -1624,7 +1623,7 @@ i9xx_add_request(struct drm_i915_gem_request *req)
 	struct intel_engine_cs *ring = req->ring;
 	int ret;
 
-	ret = intel_ring_begin(ring, 4);
+	ret = intel_ring_begin(req, 4);
 	if (ret)
 		return ret;
 
@@ -1769,7 +1768,7 @@ i965_dispatch_execbuffer(struct drm_i915_gem_request *req,
 	struct intel_engine_cs *ring = req->ring;
 	int ret;
 
-	ret = intel_ring_begin(ring, 2);
+	ret = intel_ring_begin(req, 2);
 	if (ret)
 		return ret;
 
@@ -1797,7 +1796,7 @@ i830_dispatch_execbuffer(struct drm_i915_gem_request *req,
 	u32 cs_offset = ring->scratch.gtt_offset;
 	int ret;
 
-	ret = intel_ring_begin(ring, 6);
+	ret = intel_ring_begin(req, 6);
 	if (ret)
 		return ret;
 
@@ -1814,7 +1813,7 @@ i830_dispatch_execbuffer(struct drm_i915_gem_request *req,
 		if (len > I830_BATCH_LIMIT)
 			return -ENOSPC;
 
-		ret = intel_ring_begin(ring, 6 + 2);
+		ret = intel_ring_begin(req, 6 + 2);
 		if (ret)
 			return ret;
 
@@ -1837,7 +1836,7 @@ i830_dispatch_execbuffer(struct drm_i915_gem_request *req,
 		offset = cs_offset;
 	}
 
-	ret = intel_ring_begin(ring, 4);
+	ret = intel_ring_begin(req, 4);
 	if (ret)
 		return ret;
 
@@ -1859,7 +1858,7 @@ i915_dispatch_execbuffer(struct drm_i915_gem_request *req,
 	struct intel_engine_cs *ring = req->ring;
 	int ret;
 
-	ret = intel_ring_begin(ring, 2);
+	ret = intel_ring_begin(req, 2);
 	if (ret)
 		return ret;
 
@@ -2285,12 +2284,16 @@ static int __intel_ring_prepare(struct intel_engine_cs *ring, int bytes)
 	return 0;
 }
 
-int intel_ring_begin(struct intel_engine_cs *ring,
+int intel_ring_begin(struct drm_i915_gem_request *req,
 		     int num_dwords)
 {
-	struct drm_i915_gem_request *req;
-	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+	struct intel_engine_cs *ring;
+	struct drm_i915_private *dev_priv;
 	int ret;
+
+	WARN_ON(req == NULL);
+	ring = req->ring;
+	dev_priv = ring->dev->dev_private;
 
 	ret = i915_gem_check_wedge(&dev_priv->gpu_error,
 				   dev_priv->mm.interruptible);
@@ -2298,11 +2301,6 @@ int intel_ring_begin(struct intel_engine_cs *ring,
 		return ret;
 
 	ret = __intel_ring_prepare(ring, num_dwords * sizeof(uint32_t));
-	if (ret)
-		return ret;
-
-	/* Preallocate the olr before touching the ring */
-	ret = i915_gem_request_alloc(ring, ring->default_context, &req);
 	if (ret)
 		return ret;
 
@@ -2321,7 +2319,7 @@ int intel_ring_cacheline_align(struct drm_i915_gem_request *req)
 		return 0;
 
 	num_dwords = CACHELINE_BYTES / sizeof(uint32_t) - num_dwords;
-	ret = intel_ring_begin(ring, num_dwords);
+	ret = intel_ring_begin(req, num_dwords);
 	if (ret)
 		return ret;
 
@@ -2391,7 +2389,7 @@ static int gen6_bsd_ring_flush(struct drm_i915_gem_request *req,
 	uint32_t cmd;
 	int ret;
 
-	ret = intel_ring_begin(ring, 4);
+	ret = intel_ring_begin(req, 4);
 	if (ret)
 		return ret;
 
@@ -2438,7 +2436,7 @@ gen8_ring_dispatch_execbuffer(struct drm_i915_gem_request *req,
 			!(dispatch_flags & I915_DISPATCH_SECURE);
 	int ret;
 
-	ret = intel_ring_begin(ring, 4);
+	ret = intel_ring_begin(req, 4);
 	if (ret)
 		return ret;
 
@@ -2460,7 +2458,7 @@ hsw_ring_dispatch_execbuffer(struct drm_i915_gem_request *req,
 	struct intel_engine_cs *ring = req->ring;
 	int ret;
 
-	ret = intel_ring_begin(ring, 2);
+	ret = intel_ring_begin(req, 2);
 	if (ret)
 		return ret;
 
@@ -2483,7 +2481,7 @@ gen6_ring_dispatch_execbuffer(struct drm_i915_gem_request *req,
 	struct intel_engine_cs *ring = req->ring;
 	int ret;
 
-	ret = intel_ring_begin(ring, 2);
+	ret = intel_ring_begin(req, 2);
 	if (ret)
 		return ret;
 
@@ -2508,7 +2506,7 @@ static int gen6_ring_flush(struct drm_i915_gem_request *req,
 	uint32_t cmd;
 	int ret;
 
-	ret = intel_ring_begin(ring, 4);
+	ret = intel_ring_begin(req, 4);
 	if (ret)
 		return ret;
 
