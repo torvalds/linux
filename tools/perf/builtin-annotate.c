@@ -289,7 +289,6 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
 		},
 	};
 	struct perf_data_file file = {
-		.path  = input_name,
 		.mode  = PERF_DATA_MODE_READ,
 	};
 	const struct option options[] = {
@@ -345,6 +344,8 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
 		use_browser = 1;
 	else if (annotate.use_gtk)
 		use_browser = 2;
+
+	file.path  = input_name;
 
 	setup_browser(true);
 
