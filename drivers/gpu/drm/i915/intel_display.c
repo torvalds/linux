@@ -12045,15 +12045,15 @@ intel_modeset_update_state(struct drm_atomic_state *state)
 		if (!intel_encoder->base.crtc)
 			continue;
 
-		for_each_crtc_in_state(state, crtc, crtc_state, i)
-			if (crtc == intel_encoder->base.crtc)
-				break;
+		for_each_crtc_in_state(state, crtc, crtc_state, i) {
+			if (crtc != intel_encoder->base.crtc)
+				continue;
 
-		if (crtc != intel_encoder->base.crtc)
-			continue;
+			if (crtc_state->enable && needs_modeset(crtc_state))
+				intel_encoder->connectors_active = false;
 
-		if (crtc_state->enable && needs_modeset(crtc_state))
-			intel_encoder->connectors_active = false;
+			break;
+		}
 	}
 
 	drm_atomic_helper_swap_state(state->dev, state);
@@ -12068,24 +12068,24 @@ intel_modeset_update_state(struct drm_atomic_state *state)
 		if (!connector->encoder || !connector->encoder->crtc)
 			continue;
 
-		for_each_crtc_in_state(state, crtc, crtc_state, i)
-			if (crtc == connector->encoder->crtc)
-				break;
+		for_each_crtc_in_state(state, crtc, crtc_state, i) {
+			if (crtc != connector->encoder->crtc)
+				continue;
 
-		if (crtc != connector->encoder->crtc)
-			continue;
+			if (crtc->state->enable && needs_modeset(crtc->state)) {
+				struct drm_property *dpms_property =
+					dev->mode_config.dpms_property;
 
-		if (crtc->state->enable && needs_modeset(crtc->state)) {
-			struct drm_property *dpms_property =
-				dev->mode_config.dpms_property;
+				connector->dpms = DRM_MODE_DPMS_ON;
+				drm_object_property_set_value(&connector->base,
+								 dpms_property,
+								 DRM_MODE_DPMS_ON);
 
-			connector->dpms = DRM_MODE_DPMS_ON;
-			drm_object_property_set_value(&connector->base,
-							 dpms_property,
-							 DRM_MODE_DPMS_ON);
+				intel_encoder = to_intel_encoder(connector->encoder);
+				intel_encoder->connectors_active = true;
+			}
 
-			intel_encoder = to_intel_encoder(connector->encoder);
-			intel_encoder->connectors_active = true;
+			break;
 		}
 	}
 
