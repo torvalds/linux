@@ -599,7 +599,8 @@ static int lenovo_probe_tpkbd(struct hid_device *hdev)
 				    GFP_KERNEL);
 	if (data_pointer == NULL) {
 		hid_err(hdev, "Could not allocate memory for driver data\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err;
 	}
 
 	// set same default values as windows driver
@@ -610,7 +611,8 @@ static int lenovo_probe_tpkbd(struct hid_device *hdev)
 	name_micmute = devm_kzalloc(&hdev->dev, name_sz, GFP_KERNEL);
 	if (name_mute == NULL || name_micmute == NULL) {
 		hid_err(hdev, "Could not allocate memory for led data\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err;
 	}
 	snprintf(name_mute, name_sz, "%s:amber:mute", dev_name(dev));
 	snprintf(name_micmute, name_sz, "%s:amber:micmute", dev_name(dev));
@@ -634,6 +636,9 @@ static int lenovo_probe_tpkbd(struct hid_device *hdev)
 	lenovo_features_set_tpkbd(hdev);
 
 	return 0;
+err:
+	sysfs_remove_group(&hdev->dev.kobj, &lenovo_attr_group_tpkbd);
+	return ret;
 }
 
 static int lenovo_probe_cptkbd(struct hid_device *hdev)
