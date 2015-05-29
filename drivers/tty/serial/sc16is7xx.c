@@ -302,9 +302,11 @@ struct sc16is7xx_devtype {
 };
 
 #define SC16IS7XX_RECONF_MD		(1 << 0)
+#define SC16IS7XX_RECONF_IER		(1 << 1)
 
 struct sc16is7xx_one_config {
 	unsigned int			flags;
+	u8				ier_clear;
 };
 
 struct sc16is7xx_one {
@@ -682,23 +684,30 @@ static void sc16is7xx_reg_proc(struct kthread_work *ws)
 				      SC16IS7XX_MCR_LOOP_BIT,
 				      (one->port.mctrl & TIOCM_LOOP) ?
 				      SC16IS7XX_MCR_LOOP_BIT : 0);
+
+	if (config.flags & SC16IS7XX_RECONF_IER)
+		sc16is7xx_port_update(&one->port, SC16IS7XX_IER_REG,
+				      config.ier_clear, 0);
 }
 
-static void sc16is7xx_stop_tx(struct uart_port* port)
+static void sc16is7xx_ier_clear(struct uart_port *port, u8 bit)
 {
-	sc16is7xx_port_update(port, SC16IS7XX_IER_REG,
-			      SC16IS7XX_IER_THRI_BIT,
-			      0);
-}
-
-static void sc16is7xx_stop_rx(struct uart_port* port)
-{
+	struct sc16is7xx_port *s = dev_get_drvdata(port->dev);
 	struct sc16is7xx_one *one = to_sc16is7xx_one(port, port);
 
-	one->port.read_status_mask &= ~SC16IS7XX_LSR_DR_BIT;
-	sc16is7xx_port_update(port, SC16IS7XX_IER_REG,
-			      SC16IS7XX_LSR_DR_BIT,
-			      0);
+	one->config.flags |= SC16IS7XX_RECONF_IER;
+	one->config.ier_clear |= bit;
+	queue_kthread_work(&s->kworker, &one->reg_work);
+}
+
+static void sc16is7xx_stop_tx(struct uart_port *port)
+{
+	sc16is7xx_ier_clear(port, SC16IS7XX_IER_THRI_BIT);
+}
+
+static void sc16is7xx_stop_rx(struct uart_port *port)
+{
+	sc16is7xx_ier_clear(port, SC16IS7XX_IER_RDI_BIT);
 }
 
 static void sc16is7xx_start_tx(struct uart_port *port)
