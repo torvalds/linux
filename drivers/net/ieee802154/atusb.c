@@ -58,17 +58,6 @@ struct atusb {
 	uint8_t tx_ack_seq;		/* current TX ACK sequence number */
 };
 
-/* at86rf230.h defines values as <reg, mask, shift> tuples. We use the more
- * traditional style of having registers and or-able values. SR_REG extracts
- * the register number. SR_VALUE uses the shift to prepare a value accordingly.
- */
-
-#define __SR_REG(reg, mask, shift)	(reg)
-#define SR_REG(sr)			__SR_REG(sr)
-
-#define __SR_VALUE(reg, mask, shift, val)	((val) << (shift))
-#define SR_VALUE(sr, val)			__SR_VALUE(sr, (val))
-
 /* ----- USB commands without data ----------------------------------------- */
 
 /* To reduce the number of error checks in the code, we record the first error
@@ -128,6 +117,30 @@ static int atusb_read_reg(struct atusb *atusb, uint8_t reg)
 				ATUSB_REG_READ, ATUSB_REQ_FROM_DEV,
 				0, reg, &value, 1, 1000);
 	return ret >= 0 ? value : ret;
+}
+
+static int atusb_write_subreg(struct atusb *atusb, uint8_t reg, uint8_t mask,
+			      uint8_t shift, uint8_t value)
+{
+	struct usb_device *usb_dev = atusb->usb_dev;
+	uint8_t orig, tmp;
+	int ret = 0;
+
+	dev_dbg(&usb_dev->dev, "atusb_write_subreg: 0x%02x <- 0x%02x\n",
+		reg, value);
+
+	orig = atusb_read_reg(atusb, reg);
+
+	/* Write the value only into that part of the register which is allowed
+	 * by the mask. All other bits stay as before.
+	 */
+	tmp = orig & ~mask;
+	tmp |= (value << shift) & mask;
+
+	if (tmp != orig)
+		ret = atusb_write_reg(atusb, reg, tmp);
+
+	return ret;
 }
 
 static int atusb_get_and_clear_error(struct atusb *atusb)
@@ -376,7 +389,6 @@ static int atusb_set_hw_addr_filt(struct ieee802154_hw *hw,
 {
 	struct atusb *atusb = hw->priv;
 	struct device *dev = &atusb->usb_dev->dev;
-	uint8_t reg;
 
 	if (changed & IEEE802154_AFILT_SADDR_CHANGED) {
 		u16 addr = le16_to_cpu(filt->short_addr);
@@ -406,12 +418,10 @@ static int atusb_set_hw_addr_filt(struct ieee802154_hw *hw,
 	if (changed & IEEE802154_AFILT_PANC_CHANGED) {
 		dev_vdbg(dev,
 			 "atusb_set_hw_addr_filt called for panc change\n");
-		reg = atusb_read_reg(atusb, SR_REG(SR_AACK_I_AM_COORD));
 		if (filt->pan_coord)
-			reg |= SR_VALUE(SR_AACK_I_AM_COORD, 1);
+			atusb_write_subreg(atusb, SR_AACK_I_AM_COORD, 1);
 		else
-			reg &= ~SR_VALUE(SR_AACK_I_AM_COORD, 1);
-		atusb_write_reg(atusb, SR_REG(SR_AACK_I_AM_COORD), reg);
+			atusb_write_subreg(atusb, SR_AACK_I_AM_COORD, 0);
 	}
 
 	return atusb_get_and_clear_error(atusb);
@@ -622,8 +632,7 @@ static int atusb_probe(struct usb_interface *interface,
 	 *     http://www.jennic.com/download_file.php?supportFile=JN-AN-1035%20Calculating%20802-15-4%20Data%20Rates-1v0.pdf
 	 */
 
-	atusb_write_reg(atusb,
-			SR_REG(SR_RX_SAFE_MODE), SR_VALUE(SR_RX_SAFE_MODE, 1));
+	atusb_write_subreg(atusb, SR_RX_SAFE_MODE, 1);
 #endif
 	atusb_write_reg(atusb, RG_IRQ_MASK, 0xff);
 
