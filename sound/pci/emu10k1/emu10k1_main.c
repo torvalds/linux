@@ -2063,7 +2063,7 @@ int snd_emu10k1_create(struct snd_card *card,
 	if (err < 0)
 		goto error;
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_SND_PROC_FS
 	snd_emu10k1_proc_init(emu);
 #endif
 
