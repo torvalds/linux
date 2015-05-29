@@ -30,8 +30,7 @@ static inline int dev_pm_set_wake_irq(struct device *dev, int irq)
 	return 0;
 }
 
-static inline int dev_pm_set_dedicated__wake_irq(struct device *dev,
-						 int irq)
+static inline int dev_pm_set_dedicated_wake_irq(struct device *dev, int irq)
 {
 	return 0;
 }
