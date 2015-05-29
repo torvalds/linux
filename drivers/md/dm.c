@@ -1082,12 +1082,10 @@ static void rq_completed(struct mapped_device *md, int rw, bool run_queue)
 	dm_put(md);
 }
 
-static void free_rq_clone(struct request *clone, bool must_be_mapped)
+static void free_rq_clone(struct request *clone)
 {
 	struct dm_rq_target_io *tio = clone->end_io_data;
 	struct mapped_device *md = tio->md;
-
-	WARN_ON_ONCE(must_be_mapped && !clone->q);
 
 	blk_rq_unprep_clone(clone);
 
@@ -1132,7 +1130,7 @@ static void dm_end_request(struct request *clone, int error)
 			rq->sense_len = clone->sense_len;
 	}
 
-	free_rq_clone(clone, true);
+	free_rq_clone(clone);
 	if (!rq->q->mq_ops)
 		blk_end_request_all(rq, error);
 	else
@@ -1151,7 +1149,7 @@ static void dm_unprep_request(struct request *rq)
 	}
 
 	if (clone)
-		free_rq_clone(clone, false);
+		free_rq_clone(clone);
 }
 
 /*
@@ -1164,6 +1162,7 @@ static void old_requeue_request(struct request *rq)
 
 	spin_lock_irqsave(q->queue_lock, flags);
 	blk_requeue_request(q, rq);
+	blk_run_queue_async(q);
 	spin_unlock_irqrestore(q->queue_lock, flags);
 }
 
@@ -1724,8 +1723,7 @@ static int dm_merge_bvec(struct request_queue *q,
 	struct mapped_device *md = q->queuedata;
 	struct dm_table *map = dm_get_live_table_fast(md);
 	struct dm_target *ti;
-	sector_t max_sectors;
-	int max_size = 0;
+	sector_t max_sectors, max_size = 0;
 
 	if (unlikely(!map))
 		goto out;
@@ -1740,8 +1738,16 @@ static int dm_merge_bvec(struct request_queue *q,
 	max_sectors = min(max_io_len(bvm->bi_sector, ti),
 			  (sector_t) queue_max_sectors(q));
 	max_size = (max_sectors << SECTOR_SHIFT) - bvm->bi_size;
-	if (unlikely(max_size < 0)) /* this shouldn't _ever_ happen */
-		max_size = 0;
+
+	/*
+	 * FIXME: this stop-gap fix _must_ be cleaned up (by passing a sector_t
+	 * to the targets' merge function since it holds sectors not bytes).
+	 * Just doing this as an interim fix for stable@ because the more
+	 * comprehensive cleanup of switching to sector_t will impact every
+	 * DM target that implements a ->merge hook.
+	 */
+	if (max_size > INT_MAX)
+		max_size = INT_MAX;
 
 	/*
 	 * merge_bvec_fn() returns number of bytes
@@ -1749,7 +1755,7 @@ static int dm_merge_bvec(struct request_queue *q,
 	 * max is precomputed maximal io size
 	 */
 	if (max_size && ti->type->merge)
-		max_size = ti->type->merge(ti, bvm, biovec, max_size);
+		max_size = ti->type->merge(ti, bvm, biovec, (int) max_size);
 	/*
 	 * If the target doesn't support merge method and some of the devices
 	 * provided their merge_bvec method (we know this by looking for the
@@ -1971,8 +1977,8 @@ static int map_request(struct dm_rq_target_io *tio, struct request *rq,
 			dm_kill_unmapped_request(rq, r);
 			return r;
 		}
-		if (IS_ERR(clone))
-			return DM_MAPIO_REQUEUE;
+		if (r != DM_MAPIO_REMAPPED)
+			return r;
 		if (setup_clone(clone, rq, tio, GFP_ATOMIC)) {
 			/* -ENOMEM */
 			ti->type->release_clone_rq(clone);
@@ -2753,13 +2759,15 @@ static int dm_mq_queue_rq(struct blk_mq_hw_ctx *hctx,
 	if (dm_table_get_type(map) == DM_TYPE_REQUEST_BASED) {
 		/* clone request is allocated at the end of the pdu */
 		tio->clone = (void *)blk_mq_rq_to_pdu(rq) + sizeof(struct dm_rq_target_io);
-		if (!clone_rq(rq, md, tio, GFP_ATOMIC))
-			return BLK_MQ_RQ_QUEUE_BUSY;
+		(void) clone_rq(rq, md, tio, GFP_ATOMIC);
 		queue_kthread_work(&md->kworker, &tio->work);
 	} else {
 		/* Direct call is fine since .queue_rq allows allocations */
-		if (map_request(tio, rq, md) == DM_MAPIO_REQUEUE)
-			dm_requeue_unmapped_original_request(md, rq);
+		if (map_request(tio, rq, md) == DM_MAPIO_REQUEUE) {
+			/* Undo dm_start_request() before requeuing */
+			rq_completed(md, rq_data_dir(rq), false);
+			return BLK_MQ_RQ_QUEUE_BUSY;
+		}
 	}
 
 	return BLK_MQ_RQ_QUEUE_OK;
