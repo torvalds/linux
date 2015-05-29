@@ -1333,10 +1333,11 @@ static inline bool i915_gem_has_seqno_wrapped(struct drm_device *dev,
  */
 
 static int
-gen8_ring_sync(struct intel_engine_cs *waiter,
+gen8_ring_sync(struct drm_i915_gem_request *waiter_req,
 	       struct intel_engine_cs *signaller,
 	       u32 seqno)
 {
+	struct intel_engine_cs *waiter = waiter_req->ring;
 	struct drm_i915_private *dev_priv = waiter->dev->dev_private;
 	int ret;
 
@@ -1358,10 +1359,11 @@ gen8_ring_sync(struct intel_engine_cs *waiter,
 }
 
 static int
-gen6_ring_sync(struct intel_engine_cs *waiter,
+gen6_ring_sync(struct drm_i915_gem_request *waiter_req,
 	       struct intel_engine_cs *signaller,
 	       u32 seqno)
 {
+	struct intel_engine_cs *waiter = waiter_req->ring;
 	u32 dw1 = MI_SEMAPHORE_MBOX |
 		  MI_SEMAPHORE_COMPARE |
 		  MI_SEMAPHORE_REGISTER;

@@ -252,8 +252,8 @@ struct  intel_engine_cs {
 		};
 
 		/* AKA wait() */
-		int	(*sync_to)(struct intel_engine_cs *ring,
-				   struct intel_engine_cs *to,
+		int	(*sync_to)(struct drm_i915_gem_request *to_req,
+				   struct intel_engine_cs *from,
 				   u32 seqno);
 		int	(*signal)(struct intel_engine_cs *signaller,
 				  /* num_dwords needed by caller */

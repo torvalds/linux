@@ -3139,8 +3139,8 @@ __i915_gem_object_sync(struct drm_i915_gem_object *obj,
 				return ret;
 		}
 
-		trace_i915_gem_ring_sync_to(from, to, from_req);
-		ret = to->semaphore.sync_to(to, from, seqno);
+		trace_i915_gem_ring_sync_to(*to_req, from, from_req);
+		ret = to->semaphore.sync_to(*to_req, from, seqno);
 		if (ret)
 			return ret;
 
