@@ -966,6 +966,15 @@ int iio_buffer_alloc_sysfs_and_mask(struct iio_dev *indio_dev)
 	int ret, i, attrn, attrcount, attrcount_orig = 0;
 	const struct iio_chan_spec *channels;
 
+	channels = indio_dev->channels;
+	if (channels) {
+		int ml = indio_dev->masklength;
+
+		for (i = 0; i < indio_dev->num_channels; i++)
+			ml = max(ml, channels[i].scan_index + 1);
+		indio_dev->masklength = ml;
+	}
+
 	if (!buffer)
 		return 0;
 
@@ -1008,12 +1017,6 @@ int iio_buffer_alloc_sysfs_and_mask(struct iio_dev *indio_dev)
 		for (i = 0; i < indio_dev->num_channels; i++) {
 			if (channels[i].scan_index < 0)
 				continue;
-
-			/* Establish necessary mask length */
-			if (channels[i].scan_index >
-			    (int)indio_dev->masklength - 1)
-				indio_dev->masklength
-					= channels[i].scan_index + 1;
 
 			ret = iio_buffer_add_channel_sysfs(indio_dev,
 							 &channels[i]);
