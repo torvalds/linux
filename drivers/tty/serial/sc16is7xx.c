@@ -683,12 +683,11 @@ static void sc16is7xx_start_tx(struct uart_port *port)
 
 static unsigned int sc16is7xx_tx_empty(struct uart_port *port)
 {
-	unsigned int lvl, lsr;
+	unsigned int lsr;
 
-	lvl = sc16is7xx_port_read(port, SC16IS7XX_TXLVL_REG);
 	lsr = sc16is7xx_port_read(port, SC16IS7XX_LSR_REG);
 
-	return ((lsr & SC16IS7XX_LSR_THRE_BIT) && !lvl) ? TIOCSER_TEMT : 0;
+	return (lsr & SC16IS7XX_LSR_TEMT_BIT) ? TIOCSER_TEMT : 0;
 }
 
 static unsigned int sc16is7xx_get_mctrl(struct uart_port *port)
