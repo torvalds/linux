@@ -2300,10 +2300,15 @@ struct drm_i915_cmd_descriptor {
 	 * Describes where to find a register address in the command to check
 	 * against the ring's register whitelist. Only valid if flags has the
 	 * CMD_DESC_REGISTER bit set.
+	 *
+	 * A non-zero step value implies that the command may access multiple
+	 * registers in sequence (e.g. LRI), in that case step gives the
+	 * distance in dwords between individual offset fields.
 	 */
 	struct {
 		u32 offset;
 		u32 mask;
+		u32 step;
 	} reg;
 
 #define MAX_CMD_DESC_BITMASKS 3
