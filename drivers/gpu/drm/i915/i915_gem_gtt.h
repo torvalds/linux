@@ -475,7 +475,7 @@ void i915_global_gtt_cleanup(struct drm_device *dev);
 
 int i915_ppgtt_init(struct drm_device *dev, struct i915_hw_ppgtt *ppgtt);
 int i915_ppgtt_init_hw(struct drm_device *dev);
-int i915_ppgtt_init_ring(struct intel_engine_cs *ring);
+int i915_ppgtt_init_ring(struct drm_i915_gem_request *req);
 void i915_ppgtt_release(struct kref *kref);
 struct i915_hw_ppgtt *i915_ppgtt_create(struct drm_device *dev,
 					struct drm_i915_file_private *fpriv);

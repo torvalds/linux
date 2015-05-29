@@ -5084,7 +5084,7 @@ i915_gem_init_hw(struct drm_device *dev)
 				i915_gem_l3_remap(ring, j);
 		}
 
-		ret = i915_ppgtt_init_ring(ring);
+		ret = i915_ppgtt_init_ring(req);
 		if (ret && ret != -EIO) {
 			DRM_ERROR("PPGTT enable ring #%d failed %d\n", i, ret);
 			i915_gem_request_cancel(req);
@@ -5092,7 +5092,7 @@ i915_gem_init_hw(struct drm_device *dev)
 			goto out;
 		}
 
-		ret = i915_gem_context_enable(ring);
+		ret = i915_gem_context_enable(req);
 		if (ret && ret != -EIO) {
 			DRM_ERROR("Context enable ring #%d failed %d\n", i, ret);
 			i915_gem_request_cancel(req);

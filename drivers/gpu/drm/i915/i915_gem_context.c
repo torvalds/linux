@@ -409,8 +409,9 @@ void i915_gem_context_fini(struct drm_device *dev)
 	i915_gem_context_unreference(dctx);
 }
 
-int i915_gem_context_enable(struct intel_engine_cs *ring)
+int i915_gem_context_enable(struct drm_i915_gem_request *req)
 {
+	struct intel_engine_cs *ring = req->ring;
 	int ret;
 
 	if (i915.enable_execlists) {

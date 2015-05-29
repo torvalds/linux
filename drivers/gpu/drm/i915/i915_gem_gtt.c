@@ -1571,9 +1571,9 @@ int i915_ppgtt_init_hw(struct drm_device *dev)
 	return 0;
 }
 
-int i915_ppgtt_init_ring(struct intel_engine_cs *ring)
+int i915_ppgtt_init_ring(struct drm_i915_gem_request *req)
 {
-	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+	struct drm_i915_private *dev_priv = req->ring->dev->dev_private;
 	struct i915_hw_ppgtt *ppgtt = dev_priv->mm.aliasing_ppgtt;
 
 	if (i915.enable_execlists)
@@ -1582,7 +1582,7 @@ int i915_ppgtt_init_ring(struct intel_engine_cs *ring)
 	if (!ppgtt)
 		return 0;
 
-	return ppgtt->switch_mm(ppgtt, ring);
+	return ppgtt->switch_mm(ppgtt, req->ring);
 }
 
 struct i915_hw_ppgtt *
