@@ -303,6 +303,7 @@ struct sc16is7xx_devtype {
 
 #define SC16IS7XX_RECONF_MD		(1 << 0)
 #define SC16IS7XX_RECONF_IER		(1 << 1)
+#define SC16IS7XX_RECONF_RS485		(1 << 2)
 
 struct sc16is7xx_one_config {
 	unsigned int			flags;
@@ -668,6 +669,26 @@ static void sc16is7xx_tx_proc(struct kthread_work *ws)
 	sc16is7xx_handle_tx(port);
 }
 
+static void sc16is7xx_reconf_rs485(struct uart_port *port)
+{
+	const u32 mask = SC16IS7XX_EFCR_AUTO_RS485_BIT |
+			 SC16IS7XX_EFCR_RTS_INVERT_BIT;
+	u32 efcr = 0;
+	struct serial_rs485 *rs485 = &port->rs485;
+	unsigned long irqflags;
+
+	spin_lock_irqsave(&port->lock, irqflags);
+	if (rs485->flags & SER_RS485_ENABLED) {
+		efcr |=	SC16IS7XX_EFCR_AUTO_RS485_BIT;
+
+		if (rs485->flags & SER_RS485_RTS_AFTER_SEND)
+			efcr |= SC16IS7XX_EFCR_RTS_INVERT_BIT;
+	}
+	spin_unlock_irqrestore(&port->lock, irqflags);
+
+	sc16is7xx_port_update(port, SC16IS7XX_EFCR_REG, mask, efcr);
+}
+
 static void sc16is7xx_reg_proc(struct kthread_work *ws)
 {
 	struct sc16is7xx_one *one = to_sc16is7xx_one(ws, reg_work);
@@ -688,6 +709,9 @@ static void sc16is7xx_reg_proc(struct kthread_work *ws)
 	if (config.flags & SC16IS7XX_RECONF_IER)
 		sc16is7xx_port_update(&one->port, SC16IS7XX_IER_REG,
 				      config.ier_clear, 0);
+
+	if (config.flags & SC16IS7XX_RECONF_RS485)
+		sc16is7xx_reconf_rs485(&one->port);
 }
 
 static void sc16is7xx_ier_clear(struct uart_port *port, u8 bit)
@@ -845,9 +869,8 @@ static void sc16is7xx_set_termios(struct uart_port *port,
 static int sc16is7xx_config_rs485(struct uart_port *port,
 				  struct serial_rs485 *rs485)
 {
-	const u32 mask = SC16IS7XX_EFCR_AUTO_RS485_BIT |
-			 SC16IS7XX_EFCR_RTS_INVERT_BIT;
-	u32 efcr = 0;
+	struct sc16is7xx_port *s = dev_get_drvdata(port->dev);
+	struct sc16is7xx_one *one = to_sc16is7xx_one(port, port);
 
 	if (rs485->flags & SER_RS485_ENABLED) {
 		bool rts_during_rx, rts_during_tx;
@@ -855,13 +878,7 @@ static int sc16is7xx_config_rs485(struct uart_port *port,
 		rts_during_rx = rs485->flags & SER_RS485_RTS_AFTER_SEND;
 		rts_during_tx = rs485->flags & SER_RS485_RTS_ON_SEND;
 
-		efcr |= SC16IS7XX_EFCR_AUTO_RS485_BIT;
-
-		if (!rts_during_rx && rts_during_tx)
-			/* default */;
-		else if (rts_during_rx && !rts_during_tx)
-			efcr |= SC16IS7XX_EFCR_RTS_INVERT_BIT;
-		else
+		if (rts_during_rx == rts_during_tx)
 			dev_err(port->dev,
 				"unsupported RTS signalling on_send:%d after_send:%d - exactly one of RS485 RTS flags should be set\n",
 				rts_during_tx, rts_during_rx);
@@ -875,9 +892,9 @@ static int sc16is7xx_config_rs485(struct uart_port *port,
 			return -EINVAL;
 	}
 
-	sc16is7xx_port_update(port, SC16IS7XX_EFCR_REG, mask, efcr);
-
 	port->rs485 = *rs485;
+	one->config.flags |= SC16IS7XX_RECONF_RS485;
+	queue_kthread_work(&s->kworker, &one->reg_work);
 
 	return 0;
 }
