@@ -36,8 +36,7 @@
 #define RING_CONTEXT_STATUS_PTR(ring)	((ring)->mmio_base+0x3a0)
 
 /* Logical Rings */
-int intel_logical_ring_alloc_request_extras(struct drm_i915_gem_request *request,
-					    struct intel_context *ctx);
+int intel_logical_ring_alloc_request_extras(struct drm_i915_gem_request *request);
 void intel_logical_ring_stop(struct intel_engine_cs *ring);
 void intel_logical_ring_cleanup(struct intel_engine_cs *ring);
 int intel_logical_rings_init(struct drm_device *dev);

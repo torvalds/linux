@@ -659,20 +659,17 @@ static int execlists_move_to_gpu(struct intel_ringbuffer *ringbuf,
 	return logical_ring_invalidate_all_caches(ringbuf, ctx);
 }
 
-int intel_logical_ring_alloc_request_extras(struct drm_i915_gem_request *request,
-					    struct intel_context *ctx)
+int intel_logical_ring_alloc_request_extras(struct drm_i915_gem_request *request)
 {
 	int ret;
 
-	if (ctx != request->ring->default_context) {
-		ret = intel_lr_context_pin(request->ring, ctx);
+	if (request->ctx != request->ring->default_context) {
+		ret = intel_lr_context_pin(request->ring, request->ctx);
 		if (ret)
 			return ret;
 	}
 
-	request->ringbuf = ctx->engine[request->ring->id].ringbuf;
-	request->ctx     = ctx;
-	i915_gem_context_reference(request->ctx);
+	request->ringbuf = request->ctx->engine[request->ring->id].ringbuf;
 
 	return 0;
 }

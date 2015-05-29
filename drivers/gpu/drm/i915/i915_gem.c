@@ -2536,14 +2536,7 @@ void __i915_add_request(struct intel_engine_cs *ring,
 	 */
 	request->batch_obj = obj;
 
-	if (!i915.enable_execlists) {
-		/* Hold a reference to the current context so that we can inspect
-		 * it later in case a hangcheck error event fires.
-		 */
-		request->ctx = ring->last_context;
-		if (request->ctx)
-			i915_gem_context_reference(request->ctx);
-	}
+	WARN_ON(!i915.enable_execlists && (request->ctx != ring->last_context));
 
 	request->emitted_jiffies = jiffies;
 	list_add_tail(&request->list, &ring->request_list);
@@ -2654,21 +2647,24 @@ int i915_gem_request_alloc(struct intel_engine_cs *ring,
 	if (req == NULL)
 		return -ENOMEM;
 
-	kref_init(&req->ref);
-	req->i915 = dev_priv;
-
 	ret = i915_gem_get_seqno(ring->dev, &req->seqno);
 	if (ret)
 		goto err;
 
+	kref_init(&req->ref);
+	req->i915 = dev_priv;
 	req->ring = ring;
+	req->ctx  = ctx;
+	i915_gem_context_reference(req->ctx);
 
 	if (i915.enable_execlists)
-		ret = intel_logical_ring_alloc_request_extras(req, ctx);
+		ret = intel_logical_ring_alloc_request_extras(req);
 	else
 		ret = intel_ring_alloc_request_extras(req);
-	if (ret)
+	if (ret) {
+		i915_gem_context_unreference(req->ctx);
 		goto err;
+	}
 
 	/*
 	 * Reserve space in the ring buffer for all the commands required to
