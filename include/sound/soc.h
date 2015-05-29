@@ -27,6 +27,7 @@
 #include <sound/compress_driver.h>
 #include <sound/control.h>
 #include <sound/ac97_codec.h>
+#include <sound/soc-topology.h>
 
 /*
  * Convenience kcontrol builders
@@ -764,6 +765,9 @@ struct snd_soc_component {
 
 	struct mutex io_mutex;
 
+	/* attached dynamic objects */
+	struct list_head dobj_list;
+
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_root;
 #endif
@@ -1108,6 +1112,9 @@ struct snd_soc_card {
 	struct list_head dapm_list;
 	struct list_head dapm_dirty;
 
+	/* attached dynamic objects */
+	struct list_head dobj_list;
+
 	/* Generic DAPM context for the card */
 	struct snd_soc_dapm_context dapm;
 	struct snd_soc_dapm_stats dapm_stats;
@@ -1167,6 +1174,7 @@ struct soc_mixer_control {
 	unsigned int sign_bit;
 	unsigned int invert:1;
 	unsigned int autodisable:1;
+	struct snd_soc_dobj dobj;
 };
 
 struct soc_bytes {
@@ -1177,6 +1185,8 @@ struct soc_bytes {
 
 struct soc_bytes_ext {
 	int max;
+	struct snd_soc_dobj dobj;
+
 	/* used for TLV byte control */
 	int (*get)(unsigned int __user *bytes, unsigned int size);
 	int (*put)(const unsigned int __user *bytes, unsigned int size);
@@ -1198,6 +1208,7 @@ struct soc_enum {
 	const char * const *texts;
 	const unsigned int *values;
 	unsigned int autodisable:1;
+	struct snd_soc_dobj dobj;
 };
 
 /**
