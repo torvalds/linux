@@ -39,9 +39,7 @@ static int hdmi_get_modelist(struct rk_display_device *device,
 {
 	struct hdmi *hdmi = device->priv_data;
 
-	mutex_lock(&hdmi->lock);
 	*modelist = &hdmi->edid.modelist;
-	mutex_unlock(&hdmi->lock);
 	return 0;
 }
 

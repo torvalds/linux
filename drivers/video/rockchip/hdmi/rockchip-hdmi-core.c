@@ -253,10 +253,12 @@ static void hdmi_wq_remove(struct hdmi *hdmi)
 	#ifdef CONFIG_SWITCH
 	switch_set_state(&(hdmi->switchdev), 0);
 	#endif
+	mutex_lock(&hdmi->ddev->lock);
 	list_for_each_safe(pos, n, &hdmi->edid.modelist) {
 		list_del(pos);
 		kfree(pos);
 	}
+	mutex_unlock(&hdmi->ddev->lock);
 	for (i = 0; i < HDMI_MAX_EDID_BLOCK; i++)
 		kfree(hdmi->edid.raw[i]);
 	kfree(hdmi->edid.audio);

@@ -114,10 +114,14 @@ static ssize_t display_show_modes(struct device *dev,
 	const struct fb_videomode *mode;
 	int i;
 
+	mutex_lock(&dsp->lock);
 	if (dsp->ops && dsp->ops->getmodelist) {
-		if (dsp->ops->getmodelist(dsp, &modelist))
+		if (dsp->ops->getmodelist(dsp, &modelist)) {
+			mutex_unlock(&dsp->lock);
 			return -EINVAL;
+		}
 	} else {
+		mutex_unlock(&dsp->lock);
 		return 0;
 	}
 	i = 0;
@@ -131,6 +135,7 @@ static ssize_t display_show_modes(struct device *dev,
 		mode = &display_modelist->mode;
 		i += mode_string(buf, i, mode);
 	}
+	mutex_unlock(&dsp->lock);
 	return i;
 }
 
