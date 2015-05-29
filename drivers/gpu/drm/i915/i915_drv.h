@@ -2887,9 +2887,9 @@ void i915_gem_init_swizzling(struct drm_device *dev);
 void i915_gem_cleanup_ringbuffer(struct drm_device *dev);
 int __must_check i915_gpu_idle(struct drm_device *dev);
 int __must_check i915_gem_suspend(struct drm_device *dev);
-int __i915_add_request(struct intel_engine_cs *ring,
-		       struct drm_file *file,
-		       struct drm_i915_gem_object *batch_obj);
+void __i915_add_request(struct intel_engine_cs *ring,
+			struct drm_file *file,
+			struct drm_i915_gem_object *batch_obj);
 #define i915_add_request(ring) \
 	__i915_add_request(ring, NULL, NULL)
 int __i915_wait_request(struct drm_i915_gem_request *req,

@@ -220,9 +220,7 @@ static int intel_overlay_do_wait_request(struct intel_overlay *overlay,
 	WARN_ON(overlay->last_flip_req);
 	i915_gem_request_assign(&overlay->last_flip_req,
 					     ring->outstanding_lazy_request);
-	ret = i915_add_request(ring);
-	if (ret)
-		return ret;
+	i915_add_request(ring);
 
 	overlay->flip_tail = tail;
 	ret = i915_wait_request(overlay->last_flip_req);
@@ -291,7 +289,9 @@ static int intel_overlay_continue(struct intel_overlay *overlay,
 	WARN_ON(overlay->last_flip_req);
 	i915_gem_request_assign(&overlay->last_flip_req,
 					     ring->outstanding_lazy_request);
-	return i915_add_request(ring);
+	i915_add_request(ring);
+
+	return 0;
 }
 
 static void intel_overlay_release_old_vid_tail(struct intel_overlay *overlay)

@@ -1155,15 +1155,12 @@ i915_gem_check_wedge(struct i915_gpu_error *error,
 int
 i915_gem_check_olr(struct drm_i915_gem_request *req)
 {
-	int ret;
-
 	WARN_ON(!mutex_is_locked(&req->ring->dev->struct_mutex));
 
-	ret = 0;
 	if (req == req->ring->outstanding_lazy_request)
-		ret = i915_add_request(req->ring);
+		i915_add_request(req->ring);
 
-	return ret;
+	return 0;
 }
 
 static void fake_irq(unsigned long data)
@@ -2466,9 +2463,14 @@ i915_gem_get_seqno(struct drm_device *dev, u32 *seqno)
 	return 0;
 }
 
-int __i915_add_request(struct intel_engine_cs *ring,
-		       struct drm_file *file,
-		       struct drm_i915_gem_object *obj)
+/*
+ * NB: This function is not allowed to fail. Doing so would mean the the
+ * request is not being tracked for completion but the work itself is
+ * going to happen on the hardware. This would be a Bad Thing(tm).
+ */
+void __i915_add_request(struct intel_engine_cs *ring,
+			struct drm_file *file,
+			struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
 	struct drm_i915_gem_request *request;
@@ -2478,7 +2480,7 @@ int __i915_add_request(struct intel_engine_cs *ring,
 
 	request = ring->outstanding_lazy_request;
 	if (WARN_ON(request == NULL))
-		return -ENOMEM;
+		return;
 
 	if (i915.enable_execlists) {
 		ringbuf = request->ctx->engine[ring->id].ringbuf;
@@ -2500,15 +2502,12 @@ int __i915_add_request(struct intel_engine_cs *ring,
 	 * is that the flush _must_ happen before the next request, no matter
 	 * what.
 	 */
-	if (i915.enable_execlists) {
+	if (i915.enable_execlists)
 		ret = logical_ring_flush_all_caches(ringbuf, request->ctx);
-		if (ret)
-			return ret;
-	} else {
+	else
 		ret = intel_ring_flush_all_caches(ring);
-		if (ret)
-			return ret;
-	}
+	/* Not allowed to fail! */
+	WARN(ret, "*_ring_flush_all_caches failed: %d!\n", ret);
 
 	/* Record the position of the start of the request so that
 	 * should we detect the updated seqno part-way through the
@@ -2517,17 +2516,15 @@ int __i915_add_request(struct intel_engine_cs *ring,
 	 */
 	request->postfix = intel_ring_get_tail(ringbuf);
 
-	if (i915.enable_execlists) {
+	if (i915.enable_execlists)
 		ret = ring->emit_request(ringbuf, request);
-		if (ret)
-			return ret;
-	} else {
+	else {
 		ret = ring->add_request(ring);
-		if (ret)
-			return ret;
 
 		request->tail = intel_ring_get_tail(ringbuf);
 	}
+	/* Not allowed to fail! */
+	WARN(ret, "emit|add_request failed: %d!\n", ret);
 
 	request->head = request_start;
 
@@ -2576,8 +2573,6 @@ int __i915_add_request(struct intel_engine_cs *ring,
 
 	/* Sanity check that the reserved size was large enough. */
 	intel_ring_reserved_space_end(ringbuf);
-
-	return 0;
 }
 
 static bool i915_context_is_banned(struct drm_i915_private *dev_priv,

@@ -2166,14 +2166,10 @@ static int intel_wrap_ring_buffer(struct intel_engine_cs *ring)
 int intel_ring_idle(struct intel_engine_cs *ring)
 {
 	struct drm_i915_gem_request *req;
-	int ret;
 
 	/* We need to add any requests required to flush the objects and ring */
-	if (ring->outstanding_lazy_request) {
-		ret = i915_add_request(ring);
-		if (ret)
-			return ret;
-	}
+	if (ring->outstanding_lazy_request)
+		i915_add_request(ring);
 
 	/* Wait upon the last request to be completed */
 	if (list_empty(&ring->request_list))
