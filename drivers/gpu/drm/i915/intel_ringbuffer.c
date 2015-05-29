@@ -703,10 +703,10 @@ err:
 	return ret;
 }
 
-static int intel_ring_workarounds_emit(struct intel_engine_cs *ring,
-				       struct intel_context *ctx)
+static int intel_ring_workarounds_emit(struct drm_i915_gem_request *req)
 {
 	int ret, i;
+	struct intel_engine_cs *ring = req->ring;
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct i915_workarounds *w = &dev_priv->workarounds;
@@ -746,7 +746,7 @@ static int intel_rcs_ctx_init(struct drm_i915_gem_request *req)
 {
 	int ret;
 
-	ret = intel_ring_workarounds_emit(req->ring, req->ctx);
+	ret = intel_ring_workarounds_emit(req);
 	if (ret != 0)
 		return ret;
 
