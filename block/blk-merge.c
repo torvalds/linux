@@ -589,7 +589,8 @@ bool blk_rq_merge_ok(struct request *rq, struct bio *bio)
 	    !blk_write_same_mergeable(rq->bio, bio))
 		return false;
 
-	if (q->queue_flags & (1 << QUEUE_FLAG_SG_GAPS)) {
+	/* Only check gaps if the bio carries data */
+	if (q->queue_flags & (1 << QUEUE_FLAG_SG_GAPS) && bio_has_data(bio)) {
 		struct bio_vec *bprev;
 
 		bprev = &rq->biotail->bi_io_vec[rq->biotail->bi_vcnt - 1];
