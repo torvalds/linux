@@ -2009,17 +2009,13 @@ rb_add_time_stamp(struct ring_buffer_event *event, u64 delta)
  * and with this, we can determine what to place into the
  * data field.
  */
-static void
+static void __always_inline
 rb_update_event(struct ring_buffer_per_cpu *cpu_buffer,
 		struct ring_buffer_event *event,
 		struct rb_event_info *info)
 {
 	unsigned length = info->length;
 	u64 delta = info->delta;
-
-	/* Only a commit updates the timestamp */
-	if (unlikely(!rb_event_is_commit(cpu_buffer, event)))
-		delta = 0;
 
 	/*
 	 * If we need to add a timestamp, then we
@@ -2286,6 +2282,8 @@ rb_reset_tail(struct ring_buffer_per_cpu *cpu_buffer,
 	local_sub(length, &tail_page->write);
 }
 
+static inline void rb_end_commit(struct ring_buffer_per_cpu *cpu_buffer);
+
 /*
  * This is the slow path, force gcc not to inline it.
  */
@@ -2299,6 +2297,16 @@ rb_move_tail(struct ring_buffer_per_cpu *cpu_buffer,
 	struct buffer_page *next_page;
 	int ret;
 	u64 ts;
+
+	/*
+	 * If the event had a timestamp attached to it, remove it.
+	 * The first event on a page (nested or not) always uses
+	 * the full timestamp of the new page.
+	 */
+	if (info->add_timestamp) {
+		info->add_timestamp = 0;
+		info->length -= RB_LEN_TIME_EXTEND;
+	}
 
 	next_page = tail_page;
 
@@ -2386,6 +2394,11 @@ rb_move_tail(struct ring_buffer_per_cpu *cpu_buffer,
 
 	rb_reset_tail(cpu_buffer, tail, info);
 
+	/* Commit what we have for now to update timestamps */
+	rb_end_commit(cpu_buffer);
+	/* rb_end_commit() decs committing */
+	local_inc(&cpu_buffer->committing);
+
 	/* fail and let the caller try again */
 	return ERR_PTR(-EAGAIN);
 
@@ -2403,10 +2416,23 @@ static inline bool sched_clock_stable(void)
 }
 #endif
 
+static inline int
+rb_try_to_discard(struct ring_buffer_per_cpu *cpu_buffer,
+		  struct ring_buffer_event *event);
+static inline void rb_event_discard(struct ring_buffer_event *event);
+static void
+rb_update_write_stamp(struct ring_buffer_per_cpu *cpu_buffer,
+		      struct ring_buffer_event *event);
+
 static noinline void
 rb_handle_timestamp(struct ring_buffer_per_cpu *cpu_buffer,
+		    struct ring_buffer_event *event,
 		    struct rb_event_info *info)
 {
+	struct ring_buffer_event *padding;
+	int length;
+	int size;
+
 	WARN_ONCE(info->delta > (1ULL << 59),
 		  KERN_WARNING "Delta way too big! %llu ts=%llu write stamp = %llu\n%s",
 		  (unsigned long long)info->delta,
@@ -2416,7 +2442,61 @@ rb_handle_timestamp(struct ring_buffer_per_cpu *cpu_buffer,
 		  "If you just came from a suspend/resume,\n"
 		  "please switch to the trace global clock:\n"
 		  "  echo global > /sys/kernel/debug/tracing/trace_clock\n");
-	info->add_timestamp = 1;
+
+	/*
+	 * Discarding this event to add a timestamp in front, but
+	 * we still need to update the length of it to perform the discard.
+	 */
+	rb_update_event(cpu_buffer, event, info);
+
+	if (rb_try_to_discard(cpu_buffer, event)) {
+		info->add_timestamp = 1;
+		/*
+		 * The time delta since the last event is too big to
+		 * hold in the time field of the event, then we append a
+		 * TIME EXTEND event ahead of the data event.
+		 */
+		info->length += RB_LEN_TIME_EXTEND;
+		return;
+	}
+
+	/*
+	 * Humpf! An event came in after this one, and because it is not a
+	 * commit, it will have a delta of zero, thus, it will take on
+	 * the timestamp of the previous commit, which happened a long time
+	 * ago (we need to add a timestamp, remember?).
+	 * We need to add the timestamp here. A timestamp is a fixed size
+	 * of 8 bytes. That means the rest of the event needs to be
+	 * padding.
+	 */
+	size = info->length - RB_LEN_TIME_EXTEND;
+
+	/* The padding will have a delta of 1 */
+	if (size)
+		info->delta--;
+
+	padding = rb_add_time_stamp(event, info->delta);
+
+	if (size) {
+		length = info->length;
+		info->delta = 0;
+		info->length = size;
+		rb_update_event(cpu_buffer, padding, info);
+
+		rb_event_discard(padding);
+
+		/* Still visible, need to update write_stamp */
+		rb_update_write_stamp(cpu_buffer, event);
+
+		/* Still need to commit the padding. */
+		rb_end_commit(cpu_buffer);
+
+		/* rb_end_commit() decs committing */
+		local_inc(&cpu_buffer->committing);
+
+		/* The next iteration still uses the original length */
+		info->length = length;
+	}
 }
 
 static struct ring_buffer_event *
@@ -2426,14 +2506,7 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 	struct ring_buffer_event *event;
 	struct buffer_page *tail_page;
 	unsigned long tail, write;
-
-	/*
-	 * If the time delta since the last event is too big to
-	 * hold in the time field of the event, then we append a
-	 * TIME EXTEND event ahead of the data event.
-	 */
-	if (unlikely(info->add_timestamp))
-		info->length += RB_LEN_TIME_EXTEND;
+	bool is_commit;
 
 	tail_page = info->tail_page = cpu_buffer->tail_page;
 	write = local_add_return(info->length, &tail_page->write);
@@ -2442,31 +2515,42 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 	write &= RB_WRITE_MASK;
 	tail = write - info->length;
 
-	/*
-	 * If this is the first commit on the page, then it has the same
-	 * timestamp as the page itself.
-	 */
-	if (!tail)
-		info->delta = 0;
-
 	/* See if we shot pass the end of this buffer page */
 	if (unlikely(write > BUF_PAGE_SIZE))
 		return rb_move_tail(cpu_buffer, tail, info);
 
 	/* We reserved something on the buffer */
-
 	event = __rb_page_index(tail_page, tail);
+
+	/*
+	 * If this is the first commit on the page, then it has the same
+	 * timestamp as the page itself, otherwise we need to figure out
+	 * the delta.
+	 */
+	info->ts = rb_time_stamp(cpu_buffer->buffer);
+	is_commit = rb_event_is_commit(cpu_buffer, event);
+
+	/* Commits are special (non nested events) */
+	info->delta = is_commit ? info->ts - cpu_buffer->write_stamp : 0;
+
+	if (!tail) {
+		/*
+		 * If this is the first commit on the page, set the
+		 * page to its timestamp.
+		 */
+		tail_page->page->time_stamp = info->ts;
+		info->delta = 0;
+
+	} else if (unlikely(test_time_stamp(info->delta)) &&
+		   !info->add_timestamp) {
+		rb_handle_timestamp(cpu_buffer, event, info);
+		return ERR_PTR(-EAGAIN);
+	}
+
 	kmemcheck_annotate_bitfield(event, bitfield);
 	rb_update_event(cpu_buffer, event, info);
 
 	local_inc(&tail_page->entries);
-
-	/*
-	 * If this is the first commit on the page, then update
-	 * its timestamp.
-	 */
-	if (!tail)
-		tail_page->page->time_stamp = info->ts;
 
 	/* account for these added bytes */
 	local_add(info->length, &cpu_buffer->entries_bytes);
@@ -2560,7 +2644,6 @@ rb_reserve_next_event(struct ring_buffer *buffer,
 	struct ring_buffer_event *event;
 	struct rb_event_info info;
 	int nr_loops = 0;
-	u64 diff;
 
 	rb_start_commit(cpu_buffer);
 
@@ -2578,12 +2661,9 @@ rb_reserve_next_event(struct ring_buffer *buffer,
 		return NULL;
 	}
 #endif
-
 	info.length = rb_calculate_event_length(length);
- again:
 	info.add_timestamp = 0;
-	info.delta = 0;
-
+ again:
 	/*
 	 * We allow for interrupts to reenter here and do a trace.
 	 * If one does, it will cause this original code to loop
@@ -2595,19 +2675,6 @@ rb_reserve_next_event(struct ring_buffer *buffer,
 	 */
 	if (RB_WARN_ON(cpu_buffer, ++nr_loops > 1000))
 		goto out_fail;
-
-	info.ts = rb_time_stamp(cpu_buffer->buffer);
-	diff = info.ts - cpu_buffer->write_stamp;
-
-	/* make sure this diff is calculated here */
-	barrier();
-
-	/* Did the write stamp get updated already? */
-	if (likely(info.ts >= cpu_buffer->write_stamp)) {
-		info.delta = diff;
-		if (unlikely(test_time_stamp(info.delta)))
-			rb_handle_timestamp(cpu_buffer, &info);
-	}
 
 	event = __rb_reserve_next(cpu_buffer, &info);
 
