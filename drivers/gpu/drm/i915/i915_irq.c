@@ -1375,6 +1375,45 @@ static irqreturn_t gen8_gt_irq_handler(struct drm_i915_private *dev_priv,
 #define HPD_STORM_DETECT_PERIOD 1000
 #define HPD_STORM_THRESHOLD 5
 
+/**
+ * intel_hpd_irq_storm - gather stats and detect HPD irq storm on a pin
+ * @dev_priv: private driver data pointer
+ * @pin: the pin to gather stats on
+ *
+ * Gather stats about HPD irqs from the specified @pin, and detect irq
+ * storms. Only the pin specific stats and state are changed, the caller is
+ * responsible for further action.
+ *
+ * @HPD_STORM_THRESHOLD irqs are allowed within @HPD_STORM_DETECT_PERIOD ms,
+ * otherwise it's considered an irq storm, and the irq state is set to
+ * @HPD_MARK_DISABLED.
+ *
+ * Return true if an irq storm was detected on @pin.
+ */
+static bool intel_hpd_irq_storm(struct drm_i915_private *dev_priv,
+				enum hpd_pin pin)
+{
+	unsigned long start = dev_priv->hotplug.stats[pin].last_jiffies;
+	unsigned long end = start + msecs_to_jiffies(HPD_STORM_DETECT_PERIOD);
+	bool storm = false;
+
+	if (!time_in_range(jiffies, start, end)) {
+		dev_priv->hotplug.stats[pin].last_jiffies = jiffies;
+		dev_priv->hotplug.stats[pin].count = 0;
+		DRM_DEBUG_KMS("Received HPD interrupt on PIN %d - cnt: 0\n", pin);
+	} else if (dev_priv->hotplug.stats[pin].count > HPD_STORM_THRESHOLD) {
+		dev_priv->hotplug.stats[pin].state = HPD_MARK_DISABLED;
+		DRM_DEBUG_KMS("HPD interrupt storm detected on PIN %d\n", pin);
+		storm = true;
+	} else {
+		dev_priv->hotplug.stats[pin].count++;
+		DRM_DEBUG_KMS("Received HPD interrupt on PIN %d - cnt: %d\n", pin,
+			      dev_priv->hotplug.stats[pin].count);
+	}
+
+	return storm;
+}
+
 static bool pch_port_hotplug_long_detect(enum port port, u32 val)
 {
 	switch (port) {
@@ -1544,21 +1583,9 @@ static void intel_hpd_irq_handler(struct drm_device *dev,
 			queue_hp = true;
 		}
 
-		if (!time_in_range(jiffies, dev_priv->hotplug.stats[i].last_jiffies,
-				   dev_priv->hotplug.stats[i].last_jiffies
-				   + msecs_to_jiffies(HPD_STORM_DETECT_PERIOD))) {
-			dev_priv->hotplug.stats[i].last_jiffies = jiffies;
-			dev_priv->hotplug.stats[i].count = 0;
-			DRM_DEBUG_KMS("Received HPD interrupt on PIN %d - cnt: 0\n", i);
-		} else if (dev_priv->hotplug.stats[i].count > HPD_STORM_THRESHOLD) {
-			dev_priv->hotplug.stats[i].state = HPD_MARK_DISABLED;
+		if (intel_hpd_irq_storm(dev_priv, i)) {
 			dev_priv->hotplug.event_bits &= ~BIT(i);
-			DRM_DEBUG_KMS("HPD interrupt storm detected on PIN %d\n", i);
 			storm_detected = true;
-		} else {
-			dev_priv->hotplug.stats[i].count++;
-			DRM_DEBUG_KMS("Received HPD interrupt on PIN %d - cnt: %d\n", i,
-				      dev_priv->hotplug.stats[i].count);
 		}
 	}
 
