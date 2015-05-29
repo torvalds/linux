@@ -453,6 +453,26 @@ static void atusb_stop(struct ieee802154_hw *hw)
 	atusb_get_and_clear_error(atusb);
 }
 
+#define ATUSB_MAX_TX_POWERS 0xF
+static const s32 atusb_powers[ATUSB_MAX_TX_POWERS + 1] = {
+	300, 280, 230, 180, 130, 70, 0, -100, -200, -300, -400, -500, -700,
+	-900, -1200, -1700,
+};
+
+static int
+atusb_set_txpower(struct ieee802154_hw *hw, s32 mbm)
+{
+	struct atusb *atusb = hw->priv;
+	u32 i;
+
+	for (i = 0; i < hw->phy->supported.tx_powers_size; i++) {
+		if (hw->phy->supported.tx_powers[i] == mbm)
+			return atusb_write_subreg(atusb, SR_TX_PWR_23X, i);
+	}
+
+	return -EINVAL;
+}
+
 static struct ieee802154_ops atusb_ops = {
 	.owner			= THIS_MODULE,
 	.xmit_async		= atusb_xmit,
@@ -461,6 +481,7 @@ static struct ieee802154_ops atusb_ops = {
 	.start			= atusb_start,
 	.stop			= atusb_stop,
 	.set_hw_addr_filt	= atusb_set_hw_addr_filt,
+	.set_txpower		= atusb_set_txpower,
 };
 
 /* ----- Firmware and chip version information ----------------------------- */
@@ -581,9 +602,14 @@ static int atusb_probe(struct usb_interface *interface,
 	hw->flags = IEEE802154_HW_TX_OMIT_CKSUM | IEEE802154_HW_AFILT |
 		    IEEE802154_HW_AACK;
 
+	hw->phy->flags = WPAN_PHY_FLAG_TXPOWER;
+
 	hw->phy->current_page = 0;
 	hw->phy->current_channel = 11;	/* reset default */
 	hw->phy->supported.channels[0] = 0x7FFF800;
+	hw->phy->supported.tx_powers = atusb_powers;
+	hw->phy->supported.tx_powers_size = ARRAY_SIZE(atusb_powers);
+	hw->phy->transmit_power = hw->phy->supported.tx_powers[0];
 	ieee802154_random_extended_addr(&hw->phy->perm_extended_addr);
 
 	atusb_command(atusb, ATUSB_RF_RESET, 0);
