@@ -650,9 +650,13 @@ static irqreturn_t sc16is7xx_irq(int irq, void *dev_id)
 
 static void sc16is7xx_tx_proc(struct kthread_work *ws)
 {
-	struct sc16is7xx_one *one = to_sc16is7xx_one(ws, tx_work);
+	struct uart_port *port = &(to_sc16is7xx_one(ws, tx_work)->port);
 
-	sc16is7xx_handle_tx(&one->port);
+	if ((port->rs485.flags & SER_RS485_ENABLED) &&
+	    (port->rs485.delay_rts_before_send > 0))
+		msleep(port->rs485.delay_rts_before_send);
+
+	sc16is7xx_handle_tx(port);
 }
 
 static void sc16is7xx_stop_tx(struct uart_port* port)
@@ -676,12 +680,6 @@ static void sc16is7xx_start_tx(struct uart_port *port)
 {
 	struct sc16is7xx_port *s = dev_get_drvdata(port->dev);
 	struct sc16is7xx_one *one = to_sc16is7xx_one(port, port);
-
-	/* handle rs485 */
-	if ((port->rs485.flags & SER_RS485_ENABLED) &&
-	    (port->rs485.delay_rts_before_send > 0)) {
-		mdelay(port->rs485.delay_rts_before_send);
-	}
 
 	queue_kthread_work(&s->kworker, &one->tx_work);
 }
