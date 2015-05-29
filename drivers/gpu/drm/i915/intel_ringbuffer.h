@@ -118,6 +118,7 @@ struct intel_ringbuffer {
 };
 
 struct	intel_context;
+struct drm_i915_reg_descriptor;
 
 struct  intel_engine_cs {
 	const char	*name;
@@ -300,14 +301,14 @@ struct  intel_engine_cs {
 	/*
 	 * Table of registers allowed in commands that read/write registers.
 	 */
-	const u32 *reg_table;
+	const struct drm_i915_reg_descriptor *reg_table;
 	int reg_count;
 
 	/*
 	 * Table of registers allowed in commands that read/write registers, but
 	 * only from the DRM master.
 	 */
-	const u32 *master_reg_table;
+	const struct drm_i915_reg_descriptor *master_reg_table;
 	int master_reg_count;
 
 	/*
