@@ -189,11 +189,7 @@ void show_stack(struct task_struct *tsk, unsigned long *sp)
 #else
 #define S_PREEMPT ""
 #endif
-#ifdef CONFIG_SMP
 #define S_SMP " SMP"
-#else
-#define S_SMP ""
-#endif
 
 static int __die(const char *str, int err, struct thread_info *thread,
 		 struct pt_regs *regs)

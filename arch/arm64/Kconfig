@@ -28,7 +28,7 @@ config ARM64
 	select EDAC_SUPPORT
 	select GENERIC_ALLOCATOR
 	select GENERIC_CLOCKEVENTS
-	select GENERIC_CLOCKEVENTS_BROADCAST if SMP
+	select GENERIC_CLOCKEVENTS_BROADCAST
 	select GENERIC_CPU_AUTOPROBE
 	select GENERIC_EARLY_IOREMAP
 	select GENERIC_IRQ_PROBE
@@ -135,6 +135,9 @@ config NEED_DMA_MAP_STATE
 	def_bool y
 
 config NEED_SG_DMA_LENGTH
+	def_bool y
+
+config SMP
 	def_bool y
 
 config SWIOTLB
@@ -491,22 +494,8 @@ config CPU_BIG_ENDIAN
        help
          Say Y if you plan on running a kernel in big-endian mode.
 
-config SMP
-	bool "Symmetric Multi-Processing"
-	help
-	  This enables support for systems with more than one CPU.  If
-	  you say N here, the kernel will run on single and
-	  multiprocessor machines, but will use only one CPU of a
-	  multiprocessor machine. If you say Y here, the kernel will run
-	  on many, but not all, single processor machines. On a single
-	  processor machine, the kernel will run faster if you say N
-	  here.
-
-	  If you don't know what to do here, say N.
-
 config SCHED_MC
 	bool "Multi-core scheduler support"
-	depends on SMP
 	help
 	  Multi-core scheduler support improves the CPU scheduler's decision
 	  making when dealing with multi-core CPU chips at a cost of slightly
@@ -514,7 +503,6 @@ config SCHED_MC
 
 config SCHED_SMT
 	bool "SMT scheduler support"
-	depends on SMP
 	help
 	  Improves the CPU scheduler's decision making when dealing with
 	  MultiThreading at a cost of slightly increased overhead in some
@@ -523,22 +511,16 @@ config SCHED_SMT
 config NR_CPUS
 	int "Maximum number of CPUs (2-4096)"
 	range 2 4096
-	depends on SMP
 	# These have to remain sorted largest to smallest
 	default "64"
 
 config HOTPLUG_CPU
 	bool "Support for hot-pluggable CPUs"
-	depends on SMP
 	help
 	  Say Y here to experiment with turning CPUs off and on.  CPUs
 	  can be controlled through /sys/devices/system/cpu.
 
 source kernel/Kconfig.preempt
-
-config UP_LATE_INIT
-       def_bool y
-       depends on !SMP
 
 config HZ
 	int

@@ -34,11 +34,7 @@
 #define TCR_TG_FLAGS	TCR_TG0_4K | TCR_TG1_4K
 #endif
 
-#ifdef CONFIG_SMP
 #define TCR_SMP_FLAGS	TCR_SHARED
-#else
-#define TCR_SMP_FLAGS	0
-#endif
 
 /* PTWs cacheable, inner/outer WBWA */
 #define TCR_CACHE_FLAGS	TCR_IRGN_WBWA | TCR_ORGN_WBWA

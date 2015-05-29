@@ -91,9 +91,7 @@
  * SMP data memory barrier
  */
 	.macro	smp_dmb, opt
-#ifdef CONFIG_SMP
 	dmb	\opt
-#endif
 	.endm
 
 #define USER(l, x...)				\
