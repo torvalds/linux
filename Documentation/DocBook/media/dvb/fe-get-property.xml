@@ -17,7 +17,7 @@
 	<funcdef>int <function>ioctl</function></funcdef>
 	<paramdef>int <parameter>fd</parameter></paramdef>
 	<paramdef>int <parameter>request</parameter></paramdef>
-	<paramdef>&dtv-property; *<parameter>argp</parameter></paramdef>
+	<paramdef>&dtv-properties; *<parameter>argp</parameter></paramdef>
       </funcprototype>
     </funcsynopsis>
   </refsynopsisdiv>
@@ -40,7 +40,7 @@
       <varlistentry>
 	<term><parameter>argp</parameter></term>
 	<listitem>
-	    <para>pointer to &dtv-property;</para>
+	    <para>pointer to &dtv-properties;</para>
 	</listitem>
       </varlistentry>
     </variablelist>

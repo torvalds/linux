@@ -36,7 +36,7 @@ API is to replace the ioctl's were the <link linkend="dvb-frontend-parameters">
 struct <constant>dvb_frontend_parameters</constant></link> were used.</para>
 
 <section id="dtv-stats">
-<title>DTV stats type</title>
+<title>struct <structname>dtv_stats</structname></title>
 <programlisting>
 struct dtv_stats {
 	__u8 scale;	/* enum fecap_scale_params type */
@@ -48,19 +48,19 @@ struct dtv_stats {
 </programlisting>
 </section>
 <section id="dtv-fe-stats">
-<title>DTV stats type</title>
+<title>struct <structname>dtv_fe_stats</structname></title>
 <programlisting>
 #define MAX_DTV_STATS   4
 
 struct dtv_fe_stats {
 	__u8 len;
-	struct dtv_stats stat[MAX_DTV_STATS];
+	&dtv-stats; stat[MAX_DTV_STATS];
 } __packed;
 </programlisting>
 </section>
 
 <section id="dtv-property">
-<title>DTV property type</title>
+<title>struct <structname>dtv_property</structname></title>
 <programlisting>
 /* Reserved fields should be set to 0 */
 
@@ -69,7 +69,7 @@ struct dtv_property {
 	__u32 reserved[3];
 	union {
 		__u32 data;
-		struct dtv_fe_stats st;
+		&dtv-fe-stats; st;
 		struct {
 			__u8 data[32];
 			__u32 len;
@@ -85,11 +85,11 @@ struct dtv_property {
 </programlisting>
 </section>
 <section id="dtv-properties">
-<title>DTV properties type</title>
+<title>struct <structname>dtv_properties</structname></title>
 <programlisting>
 struct dtv_properties {
 	__u32 num;
-	struct dtv_property *props;
+	&dtv-property; *props;
 };
 </programlisting>
 </section>
