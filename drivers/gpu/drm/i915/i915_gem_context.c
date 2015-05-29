@@ -614,9 +614,10 @@ needs_pd_load_post(struct intel_engine_cs *ring, struct intel_context *to,
 	return false;
 }
 
-static int do_switch(struct intel_engine_cs *ring,
-		     struct intel_context *to)
+static int do_switch(struct drm_i915_gem_request *req)
 {
+	struct intel_context *to = req->ctx;
+	struct intel_engine_cs *ring = req->ring;
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
 	struct intel_context *from = ring->last_context;
 	u32 hw_flags = 0;
@@ -804,7 +805,7 @@ int i915_switch_context(struct drm_i915_gem_request *req)
 		return 0;
 	}
 
-	return do_switch(req->ring, req->ctx);
+	return do_switch(req);
 }
 
 static bool contexts_enabled(struct drm_device *dev)
