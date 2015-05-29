@@ -378,7 +378,7 @@ void __init of_at91sam9x5_clk_usb_setup(struct device_node *np,
 	const char *parent_names[USB_SOURCE_MAX];
 	const char *name = np->name;
 
-	num_parents = of_count_phandle_with_args(np, "clocks", "#clock-cells");
+	num_parents = of_clk_get_parent_count(np);
 	if (num_parents <= 0 || num_parents > USB_SOURCE_MAX)
 		return;
 
