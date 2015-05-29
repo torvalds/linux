@@ -2470,7 +2470,8 @@ i915_gem_get_seqno(struct drm_device *dev, u32 *seqno)
  */
 void __i915_add_request(struct intel_engine_cs *ring,
 			struct drm_file *file,
-			struct drm_i915_gem_object *obj)
+			struct drm_i915_gem_object *obj,
+			bool flush_caches)
 {
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
 	struct drm_i915_gem_request *request;
@@ -2502,12 +2503,14 @@ void __i915_add_request(struct intel_engine_cs *ring,
 	 * is that the flush _must_ happen before the next request, no matter
 	 * what.
 	 */
-	if (i915.enable_execlists)
-		ret = logical_ring_flush_all_caches(ringbuf, request->ctx);
-	else
-		ret = intel_ring_flush_all_caches(ring);
-	/* Not allowed to fail! */
-	WARN(ret, "*_ring_flush_all_caches failed: %d!\n", ret);
+	if (flush_caches) {
+		if (i915.enable_execlists)
+			ret = logical_ring_flush_all_caches(ringbuf, request->ctx);
+		else
+			ret = intel_ring_flush_all_caches(ring);
+		/* Not allowed to fail! */
+		WARN(ret, "*_ring_flush_all_caches failed: %d!\n", ret);
+	}
 
 	/* Record the position of the start of the request so that
 	 * should we detect the updated seqno part-way through the

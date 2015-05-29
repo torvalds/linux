@@ -1599,7 +1599,7 @@ static int intel_lr_context_render_state_init(struct intel_engine_cs *ring,
 
 	i915_vma_move_to_active(i915_gem_obj_to_ggtt(so.obj), ring);
 
-	__i915_add_request(ring, file, so.obj);
+	__i915_add_request(ring, file, so.obj, true);
 	/* intel_logical_ring_add_request moves object to inactive if it
 	 * fails */
 out:
