@@ -216,6 +216,9 @@ size_t machine__fprintf_vmlinux_path(struct machine *machine, FILE *fp);
 int machine__for_each_thread(struct machine *machine,
 			     int (*fn)(struct thread *thread, void *p),
 			     void *priv);
+int machines__for_each_thread(struct machines *machines,
+			      int (*fn)(struct thread *thread, void *p),
+			      void *priv);
 
 int __machine__synthesize_threads(struct machine *machine, struct perf_tool *tool,
 				  struct target *target, struct thread_map *threads,

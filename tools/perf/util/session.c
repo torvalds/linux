@@ -16,6 +16,7 @@
 #include "perf_regs.h"
 #include "asm/bug.h"
 #include "auxtrace.h"
+#include "thread-stack.h"
 
 static int perf_session__deliver_event(struct perf_session *session,
 				       union perf_event *event,
@@ -1361,6 +1362,19 @@ static void perf_session__warn_about_errors(const struct perf_session *session)
 	events_stats__auxtrace_error_warn(stats);
 }
 
+static int perf_session__flush_thread_stack(struct thread *thread,
+					    void *p __maybe_unused)
+{
+	return thread_stack__flush(thread);
+}
+
+static int perf_session__flush_thread_stacks(struct perf_session *session)
+{
+	return machines__for_each_thread(&session->machines,
+					 perf_session__flush_thread_stack,
+					 NULL);
+}
+
 volatile int session_done;
 
 static int __perf_session__process_pipe_events(struct perf_session *session)
@@ -1450,6 +1464,9 @@ done:
 	if (err)
 		goto out_err;
 	err = auxtrace__flush_events(session, tool);
+	if (err)
+		goto out_err;
+	err = perf_session__flush_thread_stacks(session);
 out_err:
 	free(buf);
 	perf_session__warn_about_errors(session);
@@ -1600,6 +1617,9 @@ out:
 	if (err)
 		goto out_err;
 	err = auxtrace__flush_events(session, tool);
+	if (err)
+		goto out_err;
+	err = perf_session__flush_thread_stacks(session);
 out_err:
 	ui_progress__finish();
 	perf_session__warn_about_errors(session);
