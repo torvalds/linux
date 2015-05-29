@@ -801,7 +801,7 @@ static int logical_ring_prepare(struct intel_ringbuffer *ringbuf,
 /**
  * intel_logical_ring_begin() - prepare the logical ringbuffer to accept some commands
  *
- * @ringbuf: Logical ringbuffer.
+ * @request: The request to start some new work for
  * @num_dwords: number of DWORDs that we plan to write to the ringbuffer.
  *
  * The ringbuffer might not be ready to accept the commands right away (maybe it needs to
@@ -811,30 +811,26 @@ static int logical_ring_prepare(struct intel_ringbuffer *ringbuf,
  *
  * Return: non-zero if the ringbuffer is not ready to be written to.
  */
-static int intel_logical_ring_begin(struct intel_ringbuffer *ringbuf,
-				    struct intel_context *ctx, int num_dwords)
+static int intel_logical_ring_begin(struct drm_i915_gem_request *req,
+				    int num_dwords)
 {
-	struct drm_i915_gem_request *req;
-	struct intel_engine_cs *ring = ringbuf->ring;
-	struct drm_device *dev = ring->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv;
 	int ret;
+
+	WARN_ON(req == NULL);
+	dev_priv = req->ring->dev->dev_private;
 
 	ret = i915_gem_check_wedge(&dev_priv->gpu_error,
 				   dev_priv->mm.interruptible);
 	if (ret)
 		return ret;
 
-	ret = logical_ring_prepare(ringbuf, ctx, num_dwords * sizeof(uint32_t));
+	ret = logical_ring_prepare(req->ringbuf, req->ctx,
+				   num_dwords * sizeof(uint32_t));
 	if (ret)
 		return ret;
 
-	/* Preallocate the olr before touching the ring */
-	ret = i915_gem_request_alloc(ring, ctx, &req);
-	if (ret)
-		return ret;
-
-	ringbuf->space -= num_dwords * sizeof(uint32_t);
+	req->ringbuf->space -= num_dwords * sizeof(uint32_t);
 	return 0;
 }
 
@@ -920,7 +916,7 @@ int intel_execlists_submission(struct i915_execbuffer_params *params,
 
 	if (ring == &dev_priv->ring[RCS] &&
 	    instp_mode != dev_priv->relative_constants_mode) {
-		ret = intel_logical_ring_begin(ringbuf, params->ctx, 4);
+		ret = intel_logical_ring_begin(params->request, 4);
 		if (ret)
 			return ret;
 
@@ -1073,7 +1069,7 @@ static int intel_logical_ring_workarounds_emit(struct drm_i915_gem_request *req)
 	if (ret)
 		return ret;
 
-	ret = intel_logical_ring_begin(ringbuf, req->ctx, w->count * 2 + 2);
+	ret = intel_logical_ring_begin(req, w->count * 2 + 2);
 	if (ret)
 		return ret;
 
@@ -1372,7 +1368,7 @@ static int gen8_emit_bb_start(struct drm_i915_gem_request *req,
 	bool ppgtt = !(dispatch_flags & I915_DISPATCH_SECURE);
 	int ret;
 
-	ret = intel_logical_ring_begin(ringbuf, req->ctx, 4);
+	ret = intel_logical_ring_begin(req, 4);
 	if (ret)
 		return ret;
 
@@ -1430,7 +1426,7 @@ static int gen8_emit_flush(struct drm_i915_gem_request *request,
 	uint32_t cmd;
 	int ret;
 
-	ret = intel_logical_ring_begin(ringbuf, request->ctx, 4);
+	ret = intel_logical_ring_begin(request, 4);
 	if (ret)
 		return ret;
 
@@ -1496,7 +1492,7 @@ static int gen8_emit_flush_render(struct drm_i915_gem_request *request,
 	vf_flush_wa = INTEL_INFO(ring->dev)->gen >= 9 &&
 		      flags & PIPE_CONTROL_VF_CACHE_INVALIDATE;
 
-	ret = intel_logical_ring_begin(ringbuf, request->ctx, vf_flush_wa ? 12 : 6);
+	ret = intel_logical_ring_begin(request, vf_flush_wa ? 12 : 6);
 	if (ret)
 		return ret;
 
@@ -1542,7 +1538,7 @@ static int gen8_emit_request(struct drm_i915_gem_request *request)
 	 * used as a workaround for not being allowed to do lite
 	 * restore with HEAD==TAIL (WaIdleLiteRestore).
 	 */
-	ret = intel_logical_ring_begin(ringbuf, request->ctx, 8);
+	ret = intel_logical_ring_begin(request, 8);
 	if (ret)
 		return ret;
 
