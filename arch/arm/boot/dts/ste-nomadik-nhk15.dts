@@ -131,6 +131,16 @@
 				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
+				/*
+				 * This will turn off SATA so that MMC/SD
+				 * can thrive
+				 */
+				mmcsd-gpio {
+					gpio-hog;
+					gpios = <2 0x0>;
+					output-low;
+					line-name = "SATA EN";
+				};
 			};
 		};
 	};
@@ -139,14 +149,6 @@
 		mmcsd: sdi@101f6000 {
 			cd-gpios = <&stmpe_gpio44 7 GPIO_ACTIVE_LOW>;
 			wp-gpios = <&stmpe_gpio44 18 GPIO_ACTIVE_HIGH>;
-		};
-	};
-
-	/* Custom board node with GPIO pins to active etc */
-	usb-s8815 {
-		/* This will turn off SATA so that MMC/SD can thrive */
-		mmcsd-gpio {
-			gpios = <&stmpe_gpio44 2 0x1>;
 		};
 	};
 };

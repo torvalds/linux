@@ -19,6 +19,16 @@
 		serial1 = &uart1;
 	};
 
+	gpio3: gpio@101e7000 {
+		/* This hog will bias the MMC/SD card detect line */
+		mmcsd-gpio {
+			gpio-hog;
+			gpios = <16 0x0>;
+			output-low;
+			line-name = "card detect bias";
+		};
+	};
+
 	src@101e0000 {
 		/* These chrystal drivers are not used on this board */
 		disable-sxtalo;
@@ -106,14 +116,6 @@
 	amba {
 		mmcsd: sdi@101f6000 {
 			cd-gpios = <&gpio3 15 GPIO_ACTIVE_LOW>;
-		};
-	};
-
-	/* Custom board node with GPIO pins to active etc */
-	usb-s8815 {
-		/* This will bias the MMC/SD card detect line */
-		mmcsd-gpio {
-			gpios = <&gpio3 16 0x1>;
 		};
 	};
 
