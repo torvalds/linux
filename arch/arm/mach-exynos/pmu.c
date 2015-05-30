@@ -698,7 +698,7 @@ static void exynos_power_off(void)
 		;
 }
 
-void exynos5420_powerdown_conf(enum sys_powerdown mode)
+static void exynos5420_powerdown_conf(enum sys_powerdown mode)
 {
 	u32 this_cluster;
 
