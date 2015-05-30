@@ -665,9 +665,8 @@ error_ret:
  *
  * Parameters follow those of iio_dummy_probe for buses.
  */
-static int iio_dummy_remove(int index)
+static void iio_dummy_remove(int index)
 {
-	int ret;
 	/*
 	 * Get a pointer to the device instance iio_dev structure
 	 * from the bus subsystem. E.g.
@@ -685,15 +684,10 @@ static int iio_dummy_remove(int index)
 	/* Buffered capture related cleanup */
 	iio_simple_dummy_unconfigure_buffer(indio_dev);
 
-	ret = iio_simple_dummy_events_unregister(indio_dev);
-	if (ret)
-		goto error_ret;
+	iio_simple_dummy_events_unregister(indio_dev);
 
 	/* Free all structures */
 	iio_device_free(indio_dev);
-
-error_ret:
-	return ret;
 }
 
 /**
