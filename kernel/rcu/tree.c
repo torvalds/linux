@@ -3253,6 +3253,58 @@ void cond_synchronize_rcu(unsigned long oldstate)
 }
 EXPORT_SYMBOL_GPL(cond_synchronize_rcu);
 
+/**
+ * get_state_synchronize_sched - Snapshot current RCU-sched state
+ *
+ * Returns a cookie that is used by a later call to cond_synchronize_sched()
+ * to determine whether or not a full grace period has elapsed in the
+ * meantime.
+ */
+unsigned long get_state_synchronize_sched(void)
+{
+	/*
+	 * Any prior manipulation of RCU-protected data must happen
+	 * before the load from ->gpnum.
+	 */
+	smp_mb();  /* ^^^ */
+
+	/*
+	 * Make sure this load happens before the purportedly
+	 * time-consuming work between get_state_synchronize_sched()
+	 * and cond_synchronize_sched().
+	 */
+	return smp_load_acquire(&rcu_sched_state.gpnum);
+}
+EXPORT_SYMBOL_GPL(get_state_synchronize_sched);
+
+/**
+ * cond_synchronize_sched - Conditionally wait for an RCU-sched grace period
+ *
+ * @oldstate: return value from earlier call to get_state_synchronize_sched()
+ *
+ * If a full RCU-sched grace period has elapsed since the earlier call to
+ * get_state_synchronize_sched(), just return.  Otherwise, invoke
+ * synchronize_sched() to wait for a full grace period.
+ *
+ * Yes, this function does not take counter wrap into account.  But
+ * counter wrap is harmless.  If the counter wraps, we have waited for
+ * more than 2 billion grace periods (and way more on a 64-bit system!),
+ * so waiting for one additional grace period should be just fine.
+ */
+void cond_synchronize_sched(unsigned long oldstate)
+{
+	unsigned long newstate;
+
+	/*
+	 * Ensure that this load happens before any RCU-destructive
+	 * actions the caller might carry out after we return.
+	 */
+	newstate = smp_load_acquire(&rcu_sched_state.completed);
+	if (ULONG_CMP_GE(oldstate, newstate))
+		synchronize_sched();
+}
+EXPORT_SYMBOL_GPL(cond_synchronize_sched);
+
 static int synchronize_sched_expedited_cpu_stop(void *data)
 {
 	/*
