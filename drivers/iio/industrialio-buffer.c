@@ -888,8 +888,6 @@ static ssize_t iio_buffer_store_enable(struct device *dev,
 		ret = __iio_update_buffers(indio_dev,
 					 NULL, indio_dev->buffer);
 
-	if (ret < 0)
-		goto done;
 done:
 	mutex_unlock(&indio_dev->mlock);
 	return (ret < 0) ? ret : len;
