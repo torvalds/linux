@@ -389,6 +389,23 @@
 		};
 	};
 
+	ssp0_pins: ssp0-pins {
+		ssp0_sck_miso_mosi {
+			pins = "pf_0", "pf_2", "pf_3";
+			function = "ssp0";
+			slew-rate = <1>;
+			bias-pull-down;
+			input-enable;
+			input-schmitt-disable;
+		};
+
+		ssp0_ssel {
+			pins = "pf_1";
+			function = "ssp0";
+			bias-pull-up;
+		};
+	};
+
 	uart0_pins: uart0-pins {
 		uart0_rx_cfg {
 			pins = "pf_11";
@@ -533,6 +550,13 @@
 			reg = <0 0x200000>;
 		};
 	};
+};
+
+&ssp0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&ssp0_pins>;
+	num-cs = <1>;
 };
 
 &uart0 {
