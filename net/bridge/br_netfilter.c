@@ -278,37 +278,6 @@ static void nf_bridge_update_protocol(struct sk_buff *skb)
 	}
 }
 
-/* PF_BRIDGE/PRE_ROUTING *********************************************/
-/* Undo the changes made for ip6tables PREROUTING and continue the
- * bridge PRE_ROUTING hook. */
-static int br_nf_pre_routing_finish_ipv6(struct sock *sk, struct sk_buff *skb)
-{
-	struct nf_bridge_info *nf_bridge = nf_bridge_info_get(skb);
-	struct rtable *rt;
-
-	if (nf_bridge->pkt_otherhost) {
-		skb->pkt_type = PACKET_OTHERHOST;
-		nf_bridge->pkt_otherhost = false;
-	}
-	nf_bridge->mask &= ~BRNF_NF_BRIDGE_PREROUTING;
-
-	rt = bridge_parent_rtable(nf_bridge->physindev);
-	if (!rt) {
-		kfree_skb(skb);
-		return 0;
-	}
-	skb_dst_set_noref(skb, &rt->dst);
-
-	skb->dev = nf_bridge->physindev;
-	nf_bridge_update_protocol(skb);
-	nf_bridge_push_encap_header(skb);
-	NF_HOOK_THRESH(NFPROTO_BRIDGE, NF_BR_PRE_ROUTING, sk, skb,
-		       skb->dev, NULL,
-		       br_handle_frame_finish, 1);
-
-	return 0;
-}
-
 /* Obtain the correct destination MAC address, while preserving the original
  * source MAC address. If we already know this address, we just copy it. If we
  * don't, we use the neighbour framework to find out. In both cases, we make
@@ -358,6 +327,38 @@ static bool daddr_was_changed(const struct sk_buff *skb,
 			      const struct nf_bridge_info *nf_bridge)
 {
 	return ip_hdr(skb)->daddr != nf_bridge->ipv4_daddr;
+}
+
+/* PF_BRIDGE/PRE_ROUTING *********************************************/
+/* Undo the changes made for ip6tables PREROUTING and continue the
+ * bridge PRE_ROUTING hook.
+ */
+static int br_nf_pre_routing_finish_ipv6(struct sock *sk, struct sk_buff *skb)
+{
+	struct nf_bridge_info *nf_bridge = nf_bridge_info_get(skb);
+	struct rtable *rt;
+
+	if (nf_bridge->pkt_otherhost) {
+		skb->pkt_type = PACKET_OTHERHOST;
+		nf_bridge->pkt_otherhost = false;
+	}
+	nf_bridge->mask &= ~BRNF_NF_BRIDGE_PREROUTING;
+
+	rt = bridge_parent_rtable(nf_bridge->physindev);
+	if (!rt) {
+		kfree_skb(skb);
+		return 0;
+	}
+	skb_dst_set_noref(skb, &rt->dst);
+
+	skb->dev = nf_bridge->physindev;
+	nf_bridge_update_protocol(skb);
+	nf_bridge_push_encap_header(skb);
+	NF_HOOK_THRESH(NFPROTO_BRIDGE, NF_BR_PRE_ROUTING, sk, skb,
+		       skb->dev, NULL,
+		       br_handle_frame_finish, 1);
+
+	return 0;
 }
 
 /* This requires some explaining. If DNAT has taken place,
