@@ -1209,6 +1209,20 @@ static int hsw_pcm_runtime_idle(struct device *dev)
 	return 0;
 }
 
+static int hsw_pcm_suspend(struct device *dev)
+{
+	struct hsw_priv_data *pdata = dev_get_drvdata(dev);
+	struct sst_hsw *hsw = pdata->hsw;
+
+	/* enter D3 state and stall */
+	sst_hsw_dsp_runtime_suspend(hsw);
+	/* free all runtime modules */
+	hsw_pcm_free_modules(pdata);
+	/* put the DSP to sleep, fw unloaded after runtime modules freed */
+	sst_hsw_dsp_runtime_sleep(hsw);
+	return 0;
+}
+
 static int hsw_pcm_runtime_suspend(struct device *dev)
 {
 	struct hsw_priv_data *pdata = dev_get_drvdata(dev);
@@ -1225,8 +1239,7 @@ static int hsw_pcm_runtime_suspend(struct device *dev)
 			return ret;
 		sst_hsw_set_module_enabled_rtd3(hsw, SST_HSW_MODULE_WAVES);
 	}
-	sst_hsw_dsp_runtime_suspend(hsw);
-	sst_hsw_dsp_runtime_sleep(hsw);
+	hsw_pcm_suspend(dev);
 	pdata->pm_state = HSW_PM_STATE_RTD3;
 
 	return 0;
@@ -1366,10 +1379,7 @@ static int hsw_pcm_prepare(struct device *dev)
 			if (err < 0)
 				dev_err(dev, "failed to save context for PCM %d\n", i);
 		}
-		/* enter D3 state and stall */
-		sst_hsw_dsp_runtime_suspend(hsw);
-		/* put the DSP to sleep */
-		sst_hsw_dsp_runtime_sleep(hsw);
+		hsw_pcm_suspend(dev);
 	}
 
 	snd_soc_suspend(pdata->soc_card->dev);
