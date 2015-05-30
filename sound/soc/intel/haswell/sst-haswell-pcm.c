@@ -928,10 +928,15 @@ static void hsw_pcm_free_modules(struct hsw_priv_data *pdata)
 
 	for (i = 0; i < ARRAY_SIZE(mod_map); i++) {
 		pcm_data = &pdata->pcm[mod_map[i].dai_id][mod_map[i].stream];
-		sst_hsw_runtime_module_free(pcm_data->runtime);
+		if (pcm_data->runtime){
+			sst_hsw_runtime_module_free(pcm_data->runtime);
+			pcm_data->runtime = NULL;
+		}
 	}
-	if (sst_hsw_is_module_loaded(hsw, SST_HSW_MODULE_WAVES)) {
+	if (sst_hsw_is_module_loaded(hsw, SST_HSW_MODULE_WAVES) &&
+				pdata->runtime_waves) {
 		sst_hsw_runtime_module_free(pdata->runtime_waves);
+		pdata->runtime_waves = NULL;
 	}
 }
 
