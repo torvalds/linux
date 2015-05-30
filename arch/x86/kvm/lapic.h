@@ -165,7 +165,7 @@ static inline u16 apic_logical_id(struct kvm_apic_map *map, u32 ldr)
 
 static inline bool kvm_apic_has_events(struct kvm_vcpu *vcpu)
 {
-	return vcpu->arch.apic->pending_events;
+	return kvm_vcpu_has_lapic(vcpu) && vcpu->arch.apic->pending_events;
 }
 
 bool kvm_apic_pending_eoi(struct kvm_vcpu *vcpu, int vector);
