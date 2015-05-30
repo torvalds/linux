@@ -30,7 +30,7 @@
  * dummy devices are registered.
  */
 static unsigned instances = 1;
-module_param(instances, int, 0);
+module_param(instances, uint, 0);
 
 /* Pointer array used to fake bus elements */
 static struct iio_dev **iio_dummy_devs;
