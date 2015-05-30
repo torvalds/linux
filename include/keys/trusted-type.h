@@ -16,7 +16,7 @@
 
 #define MIN_KEY_SIZE			32
 #define MAX_KEY_SIZE			128
-#define MAX_BLOB_SIZE			320
+#define MAX_BLOB_SIZE			512
 #define MAX_PCRINFO_SIZE		64
 
 struct trusted_key_payload {

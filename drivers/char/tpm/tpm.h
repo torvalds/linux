@@ -90,6 +90,9 @@ enum tpm2_return_codes {
 
 enum tpm2_algorithms {
 	TPM2_ALG_SHA1		= 0x0004,
+	TPM2_ALG_KEYEDHASH	= 0x0008,
+	TPM2_ALG_SHA256		= 0x000B,
+	TPM2_ALG_NULL		= 0x0010
 };
 
 enum tpm2_command_codes {
@@ -97,6 +100,10 @@ enum tpm2_command_codes {
 	TPM2_CC_SELF_TEST	= 0x0143,
 	TPM2_CC_STARTUP		= 0x0144,
 	TPM2_CC_SHUTDOWN	= 0x0145,
+	TPM2_CC_CREATE		= 0x0153,
+	TPM2_CC_LOAD		= 0x0157,
+	TPM2_CC_UNSEAL		= 0x015E,
+	TPM2_CC_FLUSH_CONTEXT	= 0x0165,
 	TPM2_CC_GET_CAPABILITY	= 0x017A,
 	TPM2_CC_GET_RANDOM	= 0x017B,
 	TPM2_CC_PCR_READ	= 0x017E,
@@ -407,7 +414,7 @@ struct tpm_buf {
 	u8 *data;
 };
 
-static inline void tpm_buf_init(struct tpm_buf *buf, u16 tag, u32 ordinal)
+static inline int tpm_buf_init(struct tpm_buf *buf, u16 tag, u32 ordinal)
 {
 	struct tpm_input_header *head;
 
@@ -527,6 +534,12 @@ static inline void tpm_add_ppi(struct tpm_chip *chip)
 int tpm2_pcr_read(struct tpm_chip *chip, int pcr_idx, u8 *res_buf);
 int tpm2_pcr_extend(struct tpm_chip *chip, int pcr_idx, const u8 *hash);
 int tpm2_get_random(struct tpm_chip *chip, u8 *out, size_t max);
+int tpm2_seal_trusted(struct tpm_chip *chip,
+		      struct trusted_key_payload *payload,
+		      struct trusted_key_options *options);
+int tpm2_unseal_trusted(struct tpm_chip *chip,
+			struct trusted_key_payload *payload,
+			struct trusted_key_options *options);
 ssize_t tpm2_get_tpm_pt(struct tpm_chip *chip, u32 property_id,
 			u32 *value, const char *desc);
 
