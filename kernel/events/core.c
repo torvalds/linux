@@ -4331,20 +4331,20 @@ static void ring_buffer_attach(struct perf_event *event,
 		WARN_ON_ONCE(event->rcu_pending);
 
 		old_rb = event->rb;
-		event->rcu_batches = get_state_synchronize_rcu();
-		event->rcu_pending = 1;
-
 		spin_lock_irqsave(&old_rb->event_lock, flags);
 		list_del_rcu(&event->rb_entry);
 		spin_unlock_irqrestore(&old_rb->event_lock, flags);
-	}
 
-	if (event->rcu_pending && rb) {
-		cond_synchronize_rcu(event->rcu_batches);
-		event->rcu_pending = 0;
+		event->rcu_batches = get_state_synchronize_rcu();
+		event->rcu_pending = 1;
 	}
 
 	if (rb) {
+		if (event->rcu_pending) {
+			cond_synchronize_rcu(event->rcu_batches);
+			event->rcu_pending = 0;
+		}
+
 		spin_lock_irqsave(&rb->event_lock, flags);
 		list_add_rcu(&event->rb_entry, &rb->event_list);
 		spin_unlock_irqrestore(&rb->event_lock, flags);
