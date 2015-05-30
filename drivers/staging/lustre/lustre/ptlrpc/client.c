@@ -390,7 +390,7 @@ static int ptlrpc_at_recv_early_reply(struct ptlrpc_request *req)
 	return rc;
 }
 
-struct kmem_cache *request_cache;
+static struct kmem_cache *request_cache;
 
 int ptlrpc_request_cache_init(void)
 {
