@@ -652,6 +652,9 @@ static int skystarS2_rev33_attach(struct flexcop_device *fc,
 	}
 	info("ISL6421 successfully attached.");
 
+	if (fc->has_32_hw_pid_filter)
+		fc->skip_6_hw_pid_filter = 1;
+
 	return 1;
 }
 #else
