@@ -12,6 +12,7 @@
 
 /dts-v1/;
 #include <dt-bindings/clock/samsung,s2mps11.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/sound/samsung-i2s.h>
 #include "exynos5800.dtsi"
@@ -152,6 +153,11 @@
 		s2mps11,buck2-ramp-enable = <1>;
 		s2mps11,buck3-ramp-enable = <1>;
 		s2mps11,buck4-ramp-enable = <1>;
+
+		interrupt-parent = <&gpx0>;
+		interrupts = <4 IRQ_TYPE_EDGE_FALLING>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&s2mps11_irq>;
 
 		s2mps11_osc: clocks {
 			#clock-cells = <1>;
@@ -462,6 +468,13 @@
 		samsung,pins = "gpx3-7";
 		samsung,pin-function = <0>;
 		samsung,pin-pud = <1>;
+		samsung,pin-drv = <0>;
+	};
+
+	s2mps11_irq: s2mps11-irq {
+		samsung,pins = "gpx0-4";
+		samsung,pin-function = <0xf>;
+		samsung,pin-pud = <0>;
 		samsung,pin-drv = <0>;
 	};
 };
