@@ -93,6 +93,7 @@ static inline unsigned nd_inc_seq(unsigned seq)
 
 	return next[seq & 3];
 }
+
 enum nd_async_mode {
 	ND_SYNC,
 	ND_ASYNC,
@@ -115,6 +116,8 @@ struct nvdimm;
 struct nvdimm_drvdata *to_ndd(struct nd_mapping *nd_mapping);
 int nvdimm_init_nsarea(struct nvdimm_drvdata *ndd);
 int nvdimm_init_config_data(struct nvdimm_drvdata *ndd);
+int nvdimm_set_config_data(struct nvdimm_drvdata *ndd, size_t offset,
+		void *buf, size_t len);
 struct nd_region *to_nd_region(struct device *dev);
 int nd_region_to_nstype(struct nd_region *nd_region);
 int nd_region_register_namespaces(struct nd_region *nd_region, int *err);

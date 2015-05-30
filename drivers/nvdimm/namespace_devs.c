@@ -149,20 +149,53 @@ static resource_size_t nd_namespace_blk_size(struct nd_namespace_blk *nsblk)
 	return size;
 }
 
+static int nd_namespace_label_update(struct nd_region *nd_region,
+		struct device *dev)
+{
+	dev_WARN_ONCE(dev, dev->driver,
+			"namespace must be idle during label update\n");
+	if (dev->driver)
+		return 0;
+
+	/*
+	 * Only allow label writes that will result in a valid namespace
+	 * or deletion of an existing namespace.
+	 */
+	if (is_namespace_pmem(dev)) {
+		struct nd_namespace_pmem *nspm = to_nd_namespace_pmem(dev);
+		struct resource *res = &nspm->nsio.res;
+		resource_size_t size = resource_size(res);
+
+		if (size == 0 && nspm->uuid)
+			/* delete allocation */;
+		else if (!nspm->uuid)
+			return 0;
+
+		return nd_pmem_namespace_label_update(nd_region, nspm, size);
+	} else if (is_namespace_blk(dev)) {
+		/* TODO: implement blk labels */
+		return 0;
+	} else
+		return -ENXIO;
+}
+
 static ssize_t alt_name_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t len)
 {
+	struct nd_region *nd_region = to_nd_region(dev->parent);
 	ssize_t rc;
 
 	device_lock(dev);
 	nvdimm_bus_lock(dev);
 	wait_nvdimm_bus_probe_idle(dev);
 	rc = __alt_name_store(dev, buf, len);
+	if (rc >= 0)
+		rc = nd_namespace_label_update(nd_region, dev);
 	dev_dbg(dev, "%s: %s(%zd)\n", __func__, rc < 0 ? "fail " : "", rc);
 	nvdimm_bus_unlock(dev);
 	device_unlock(dev);
 
-	return rc;
+	return rc < 0 ? rc : len;
 }
 
 static ssize_t alt_name_show(struct device *dev,
@@ -709,6 +742,7 @@ static ssize_t __size_store(struct device *dev, unsigned long long val)
 static ssize_t size_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t len)
 {
+	struct nd_region *nd_region = to_nd_region(dev->parent);
 	unsigned long long val;
 	u8 **uuid = NULL;
 	int rc;
@@ -721,6 +755,8 @@ static ssize_t size_store(struct device *dev,
 	nvdimm_bus_lock(dev);
 	wait_nvdimm_bus_probe_idle(dev);
 	rc = __size_store(dev, val);
+	if (rc >= 0)
+		rc = nd_namespace_label_update(nd_region, dev);
 
 	if (is_namespace_pmem(dev)) {
 		struct nd_namespace_pmem *nspm = to_nd_namespace_pmem(dev);
@@ -744,7 +780,7 @@ static ssize_t size_store(struct device *dev,
 	nvdimm_bus_unlock(dev);
 	device_unlock(dev);
 
-	return rc ? rc : len;
+	return rc < 0 ? rc : len;
 }
 
 static ssize_t size_show(struct device *dev,
@@ -804,16 +840,33 @@ static int namespace_update_uuid(struct nd_region *nd_region,
 	u32 flags = is_namespace_blk(dev) ? NSLABEL_FLAG_LOCAL : 0;
 	struct nd_label_id old_label_id;
 	struct nd_label_id new_label_id;
-	int i, rc;
+	int i;
 
-	rc = nd_is_uuid_unique(dev, new_uuid) ? 0 : -EINVAL;
-	if (rc) {
-		kfree(new_uuid);
-		return rc;
-	}
+	if (!nd_is_uuid_unique(dev, new_uuid))
+		return -EINVAL;
 
 	if (*old_uuid == NULL)
 		goto out;
+
+	/*
+	 * If we've already written a label with this uuid, then it's
+	 * too late to rename because we can't reliably update the uuid
+	 * without losing the old namespace.  Userspace must delete this
+	 * namespace to abandon the old uuid.
+	 */
+	for (i = 0; i < nd_region->ndr_mappings; i++) {
+		struct nd_mapping *nd_mapping = &nd_region->mapping[i];
+
+		/*
+		 * This check by itself is sufficient because old_uuid
+		 * would be NULL above if this uuid did not exist in the
+		 * currently written set.
+		 *
+		 * FIXME: can we delete uuid with zero dpa allocated?
+		 */
+		if (nd_mapping->labels)
+			return -EBUSY;
+	}
 
 	nd_label_gen_id(&old_label_id, *old_uuid, flags);
 	nd_label_gen_id(&new_label_id, new_uuid, flags);
@@ -858,12 +911,16 @@ static ssize_t uuid_store(struct device *dev,
 	rc = nd_uuid_store(dev, &uuid, buf, len);
 	if (rc >= 0)
 		rc = namespace_update_uuid(nd_region, dev, uuid, ns_uuid);
+	if (rc >= 0)
+		rc = nd_namespace_label_update(nd_region, dev);
+	else
+		kfree(uuid);
 	dev_dbg(dev, "%s: result: %zd wrote: %s%s", __func__,
 			rc, buf, buf[len - 1] == '\n' ? "" : "\n");
 	nvdimm_bus_unlock(dev);
 	device_unlock(dev);
 
-	return rc ? rc : len;
+	return rc < 0 ? rc : len;
 }
 static DEVICE_ATTR_RW(uuid);
 
@@ -907,6 +964,7 @@ static ssize_t sector_size_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t len)
 {
 	struct nd_namespace_blk *nsblk = to_nd_namespace_blk(dev);
+	struct nd_region *nd_region = to_nd_region(dev->parent);
 	ssize_t rc;
 
 	if (!is_namespace_blk(dev))
@@ -916,8 +974,11 @@ static ssize_t sector_size_store(struct device *dev,
 	nvdimm_bus_lock(dev);
 	rc = nd_sector_size_store(dev, buf, &nsblk->lbasize,
 			ns_lbasize_supported);
-	dev_dbg(dev, "%s: result: %zd wrote: %s%s", __func__,
-			rc, buf, buf[len - 1] == '\n' ? "" : "\n");
+	if (rc >= 0)
+		rc = nd_namespace_label_update(nd_region, dev);
+	dev_dbg(dev, "%s: result: %zd %s: %s%s", __func__,
+			rc, rc < 0 ? "tried" : "wrote", buf,
+			buf[len - 1] == '\n' ? "" : "\n");
 	nvdimm_bus_unlock(dev);
 	device_unlock(dev);
 
