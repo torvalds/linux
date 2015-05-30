@@ -216,7 +216,7 @@ static inline void nf_bridge_pull_encap_header_rcsum(struct sk_buff *skb)
  * expected format
  */
 
-static int br_parse_ip_options(struct sk_buff *skb)
+static int br_validate_ipv4(struct sk_buff *skb)
 {
 	const struct iphdr *iph;
 	struct net_device *dev = skb->dev;
@@ -692,7 +692,7 @@ static unsigned int br_nf_pre_routing(const struct nf_hook_ops *ops,
 
 	nf_bridge_pull_encap_header_rcsum(skb);
 
-	if (br_parse_ip_options(skb))
+	if (br_validate_ipv4(skb))
 		return NF_DROP;
 
 	nf_bridge_put(skb->nf_bridge);
@@ -802,7 +802,7 @@ static unsigned int br_nf_forward_ip(const struct nf_hook_ops *ops,
 	}
 
 	if (pf == NFPROTO_IPV4) {
-		if (br_parse_ip_options(skb))
+		if (br_validate_ipv4(skb))
 			return NF_DROP;
 		IPCB(skb)->frag_max_size = nf_bridge->frag_max_size;
 	}
@@ -913,8 +913,7 @@ static int br_nf_dev_queue_xmit(struct sock *sk, struct sk_buff *skb)
 	if (skb->len + mtu_reserved > skb->dev->mtu) {
 		struct brnf_frag_data *data;
 
-		if (br_parse_ip_options(skb))
-			/* Drop invalid packet */
+		if (br_validate_ipv4(skb))
 			return NF_DROP;
 
 		IPCB(skb)->frag_max_size = nf_bridge->frag_max_size;
