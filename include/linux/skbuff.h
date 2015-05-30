@@ -174,6 +174,7 @@ struct nf_bridge_info {
 		BRNF_PROTO_PPPOE
 	} orig_proto:8;
 	bool			pkt_otherhost;
+	__u16			frag_max_size;
 	unsigned int		mask;
 	struct net_device	*physindev;
 	union {

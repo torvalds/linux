@@ -440,10 +440,8 @@ static int br_nf_pre_routing_finish(struct sock *sk, struct sk_buff *skb)
 	struct nf_bridge_info *nf_bridge = nf_bridge_info_get(skb);
 	struct rtable *rt;
 	int err;
-	int frag_max_size;
 
-	frag_max_size = IPCB(skb)->frag_max_size;
-	BR_INPUT_SKB_CB(skb)->frag_max_size = frag_max_size;
+	nf_bridge->frag_max_size = IPCB(skb)->frag_max_size;
 
 	if (nf_bridge->pkt_otherhost) {
 		skb->pkt_type = PACKET_OTHERHOST;
@@ -738,11 +736,9 @@ static int br_nf_forward_finish(struct sock *sk, struct sk_buff *skb)
 	struct net_device *in;
 
 	if (!IS_ARP(skb) && !IS_VLAN_ARP(skb)) {
-		int frag_max_size;
 
 		if (skb->protocol == htons(ETH_P_IP)) {
-			frag_max_size = IPCB(skb)->frag_max_size;
-			BR_INPUT_SKB_CB(skb)->frag_max_size = frag_max_size;
+			nf_bridge->frag_max_size = IPCB(skb)->frag_max_size;
 		}
 
 		in = nf_bridge->physindev;
@@ -806,12 +802,9 @@ static unsigned int br_nf_forward_ip(const struct nf_hook_ops *ops,
 	}
 
 	if (pf == NFPROTO_IPV4) {
-		int frag_max = BR_INPUT_SKB_CB(skb)->frag_max_size;
-
 		if (br_parse_ip_options(skb))
 			return NF_DROP;
-
-		IPCB(skb)->frag_max_size = frag_max;
+		IPCB(skb)->frag_max_size = nf_bridge->frag_max_size;
 	}
 
 	nf_bridge->physoutdev = skb->dev;
@@ -904,7 +897,7 @@ static int br_nf_ip_fragment(struct sock *sk, struct sk_buff *skb,
 static int br_nf_dev_queue_xmit(struct sock *sk, struct sk_buff *skb)
 {
 	int ret;
-	int frag_max_size;
+	struct nf_bridge_info *nf_bridge;
 	unsigned int mtu_reserved;
 
 	if (skb_is_gso(skb) || skb->protocol != htons(ETH_P_IP)) {
@@ -913,17 +906,18 @@ static int br_nf_dev_queue_xmit(struct sock *sk, struct sk_buff *skb)
 	}
 
 	mtu_reserved = nf_bridge_mtu_reduction(skb);
+	nf_bridge = nf_bridge_info_get(skb);
 	/* This is wrong! We should preserve the original fragment
 	 * boundaries by preserving frag_list rather than refragmenting.
 	 */
 	if (skb->len + mtu_reserved > skb->dev->mtu) {
 		struct brnf_frag_data *data;
 
-		frag_max_size = BR_INPUT_SKB_CB(skb)->frag_max_size;
 		if (br_parse_ip_options(skb))
 			/* Drop invalid packet */
 			return NF_DROP;
-		IPCB(skb)->frag_max_size = frag_max_size;
+
+		IPCB(skb)->frag_max_size = nf_bridge->frag_max_size;
 
 		nf_bridge_update_protocol(skb);
 
