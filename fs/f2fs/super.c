@@ -1237,10 +1237,12 @@ try_onemore:
 
 	if (test_opt(sbi, DISCARD)) {
 		struct request_queue *q = bdev_get_queue(sb->s_bdev);
-		if (!blk_queue_discard(q))
+		if (!blk_queue_discard(q)) {
 			f2fs_msg(sb, KERN_WARNING,
 					"mounting with \"discard\" option, but "
 					"the device does not support discard");
+			clear_opt(sbi, DISCARD);
+		}
 	}
 
 	sbi->s_kobj.kset = f2fs_kset;
