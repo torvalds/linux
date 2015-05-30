@@ -326,30 +326,63 @@ free_skb:
 static bool daddr_was_changed(const struct sk_buff *skb,
 			      const struct nf_bridge_info *nf_bridge)
 {
-	return ip_hdr(skb)->daddr != nf_bridge->ipv4_daddr;
+	switch (skb->protocol) {
+	case htons(ETH_P_IP):
+		return ip_hdr(skb)->daddr != nf_bridge->ipv4_daddr;
+	case htons(ETH_P_IPV6):
+		return memcmp(&nf_bridge->ipv6_daddr, &ipv6_hdr(skb)->daddr,
+			      sizeof(ipv6_hdr(skb)->daddr)) != 0;
+	default:
+		return false;
+	}
 }
 
-/* PF_BRIDGE/PRE_ROUTING *********************************************/
-/* Undo the changes made for ip6tables PREROUTING and continue the
- * bridge PRE_ROUTING hook.
+/* PF_BRIDGE/PRE_ROUTING: Undo the changes made for ip6tables
+ * PREROUTING and continue the bridge PRE_ROUTING hook. See comment
+ * for br_nf_pre_routing_finish(), same logic is used here but
+ * equivalent IPv6 function ip6_route_input() called indirectly.
  */
 static int br_nf_pre_routing_finish_ipv6(struct sock *sk, struct sk_buff *skb)
 {
 	struct nf_bridge_info *nf_bridge = nf_bridge_info_get(skb);
 	struct rtable *rt;
+	struct net_device *dev = skb->dev;
+	const struct nf_ipv6_ops *v6ops = nf_get_ipv6_ops();
 
 	if (nf_bridge->pkt_otherhost) {
 		skb->pkt_type = PACKET_OTHERHOST;
 		nf_bridge->pkt_otherhost = false;
 	}
 	nf_bridge->mask &= ~BRNF_NF_BRIDGE_PREROUTING;
+	if (daddr_was_changed(skb, nf_bridge)) {
+		skb_dst_drop(skb);
+		v6ops->route_input(skb);
 
-	rt = bridge_parent_rtable(nf_bridge->physindev);
-	if (!rt) {
-		kfree_skb(skb);
-		return 0;
+		if (skb_dst(skb)->error) {
+			kfree_skb(skb);
+			return 0;
+		}
+
+		if (skb_dst(skb)->dev == dev) {
+			skb->dev = nf_bridge->physindev;
+			nf_bridge_update_protocol(skb);
+			nf_bridge_push_encap_header(skb);
+			NF_HOOK_THRESH(NFPROTO_BRIDGE, NF_BR_PRE_ROUTING,
+				       sk, skb, skb->dev, NULL,
+				       br_nf_pre_routing_finish_bridge,
+				       1);
+			return 0;
+		}
+		ether_addr_copy(eth_hdr(skb)->h_dest, dev->dev_addr);
+		skb->pkt_type = PACKET_HOST;
+	} else {
+		rt = bridge_parent_rtable(nf_bridge->physindev);
+		if (!rt) {
+			kfree_skb(skb);
+			return 0;
+		}
+		skb_dst_set_noref(skb, &rt->dst);
 	}
-	skb_dst_set_noref(skb, &rt->dst);
 
 	skb->dev = nf_bridge->physindev;
 	nf_bridge_update_protocol(skb);
@@ -579,6 +612,7 @@ static unsigned int br_nf_pre_routing_ipv6(const struct nf_hook_ops *ops,
 					   struct sk_buff *skb,
 					   const struct nf_hook_state *state)
 {
+	struct nf_bridge_info *nf_bridge;
 	const struct ipv6hdr *hdr;
 	u32 pkt_len;
 
@@ -609,6 +643,9 @@ static unsigned int br_nf_pre_routing_ipv6(const struct nf_hook_ops *ops,
 		return NF_DROP;
 	if (!setup_pre_routing(skb))
 		return NF_DROP;
+
+	nf_bridge = nf_bridge_info_get(skb);
+	nf_bridge->ipv6_daddr = ipv6_hdr(skb)->daddr;
 
 	skb->protocol = htons(ETH_P_IPV6);
 	NF_HOOK(NFPROTO_IPV6, NF_INET_PRE_ROUTING, state->sk, skb,
