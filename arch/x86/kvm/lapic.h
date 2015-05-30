@@ -150,7 +150,7 @@ static inline bool kvm_apic_vid_enabled(struct kvm *kvm)
 
 static inline bool kvm_apic_has_events(struct kvm_vcpu *vcpu)
 {
-	return vcpu->arch.apic->pending_events;
+	return kvm_vcpu_has_lapic(vcpu) && vcpu->arch.apic->pending_events;
 }
 
 static inline bool kvm_lowest_prio_delivery(struct kvm_lapic_irq *irq)
