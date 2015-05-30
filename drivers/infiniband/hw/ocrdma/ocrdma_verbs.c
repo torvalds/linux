@@ -375,7 +375,12 @@ static struct ocrdma_pd *_ocrdma_alloc_pd(struct ocrdma_dev *dev,
 
 	if (dev->pd_mgr->pd_prealloc_valid) {
 		status = ocrdma_get_pd_num(dev, pd);
-		return (status == 0) ? pd : ERR_PTR(status);
+		if (status == 0) {
+			return pd;
+		} else {
+			kfree(pd);
+			return ERR_PTR(status);
+		}
 	}
 
 retry:
