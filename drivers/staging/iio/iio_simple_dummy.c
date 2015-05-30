@@ -722,9 +722,16 @@ static __init int iio_dummy_init(void)
 	for (i = 0; i < instances; i++) {
 		ret = iio_dummy_probe(i);
 		if (ret < 0)
-			return ret;
+			goto error_remove_devs;
 	}
 	return 0;
+
+error_remove_devs:
+	while (i--)
+		iio_dummy_remove(i);
+
+	kfree(iio_dummy_devs);
+	return ret;
 }
 module_init(iio_dummy_init);
 
