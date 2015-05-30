@@ -19,6 +19,7 @@
 #include <linux/fs.h>
 #include <linux/mm.h>
 #include "nd-core.h"
+#include "label.h"
 #include "nd.h"
 
 static DEFINE_IDA(dimm_ida);
@@ -296,9 +297,33 @@ static ssize_t state_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RO(state);
 
+static ssize_t available_slots_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct nvdimm_drvdata *ndd = dev_get_drvdata(dev);
+	ssize_t rc;
+	u32 nfree;
+
+	if (!ndd)
+		return -ENXIO;
+
+	nvdimm_bus_lock(dev);
+	nfree = nd_label_nfree(ndd);
+	if (nfree - 1 > nfree) {
+		dev_WARN_ONCE(dev, 1, "we ate our last label?\n");
+		nfree = 0;
+	} else
+		nfree--;
+	rc = sprintf(buf, "%d\n", nfree);
+	nvdimm_bus_unlock(dev);
+	return rc;
+}
+static DEVICE_ATTR_RO(available_slots);
+
 static struct attribute *nvdimm_attributes[] = {
 	&dev_attr_state.attr,
 	&dev_attr_commands.attr,
+	&dev_attr_available_slots.attr,
 	NULL,
 };
 

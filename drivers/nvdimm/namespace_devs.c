@@ -163,8 +163,7 @@ static int nd_namespace_label_update(struct nd_region *nd_region,
 	 */
 	if (is_namespace_pmem(dev)) {
 		struct nd_namespace_pmem *nspm = to_nd_namespace_pmem(dev);
-		struct resource *res = &nspm->nsio.res;
-		resource_size_t size = resource_size(res);
+		resource_size_t size = resource_size(&nspm->nsio.res);
 
 		if (size == 0 && nspm->uuid)
 			/* delete allocation */;
@@ -173,8 +172,15 @@ static int nd_namespace_label_update(struct nd_region *nd_region,
 
 		return nd_pmem_namespace_label_update(nd_region, nspm, size);
 	} else if (is_namespace_blk(dev)) {
-		/* TODO: implement blk labels */
-		return 0;
+		struct nd_namespace_blk *nsblk = to_nd_namespace_blk(dev);
+		resource_size_t size = nd_namespace_blk_size(nsblk);
+
+		if (size == 0 && nsblk->uuid)
+			/* delete allocation */;
+		else if (!nsblk->uuid || !nsblk->lbasize)
+			return 0;
+
+		return nd_blk_namespace_label_update(nd_region, nsblk, size);
 	} else
 		return -ENXIO;
 }
@@ -986,6 +992,48 @@ static ssize_t sector_size_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(sector_size);
 
+static ssize_t dpa_extents_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct nd_region *nd_region = to_nd_region(dev->parent);
+	struct nd_label_id label_id;
+	int count = 0, i;
+	u8 *uuid = NULL;
+	u32 flags = 0;
+
+	nvdimm_bus_lock(dev);
+	if (is_namespace_pmem(dev)) {
+		struct nd_namespace_pmem *nspm = to_nd_namespace_pmem(dev);
+
+		uuid = nspm->uuid;
+		flags = 0;
+	} else if (is_namespace_blk(dev)) {
+		struct nd_namespace_blk *nsblk = to_nd_namespace_blk(dev);
+
+		uuid = nsblk->uuid;
+		flags = NSLABEL_FLAG_LOCAL;
+	}
+
+	if (!uuid)
+		goto out;
+
+	nd_label_gen_id(&label_id, uuid, flags);
+	for (i = 0; i < nd_region->ndr_mappings; i++) {
+		struct nd_mapping *nd_mapping = &nd_region->mapping[i];
+		struct nvdimm_drvdata *ndd = to_ndd(nd_mapping);
+		struct resource *res;
+
+		for_each_dpa_resource(ndd, res)
+			if (strcmp(res->name, label_id.id) == 0)
+				count++;
+	}
+ out:
+	nvdimm_bus_unlock(dev);
+
+	return sprintf(buf, "%d\n", count);
+}
+static DEVICE_ATTR_RO(dpa_extents);
+
 static struct attribute *nd_namespace_attributes[] = {
 	&dev_attr_nstype.attr,
 	&dev_attr_size.attr,
@@ -993,6 +1041,7 @@ static struct attribute *nd_namespace_attributes[] = {
 	&dev_attr_resource.attr,
 	&dev_attr_alt_name.attr,
 	&dev_attr_sector_size.attr,
+	&dev_attr_dpa_extents.attr,
 	NULL,
 };
 
