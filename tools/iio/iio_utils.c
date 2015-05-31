@@ -36,7 +36,7 @@ int iioutils_break_up_name(const char *full_name,
 	char *current;
 	char *w, *r;
 	char *working, *prefix = "";
-	int i;
+	int i, ret;
 
 	for (i = 0; i < sizeof(iio_direction) / sizeof(iio_direction[0]); i++)
 		if (!strncmp(full_name, iio_direction[i],
@@ -46,6 +46,9 @@ int iioutils_break_up_name(const char *full_name,
 		}
 
 	current = strdup(full_name + strlen(prefix) + 1);
+	if (!current)
+		return -ENOMEM;
+
 	working = strtok(current, "_\0");
 
 	w = working;
@@ -59,10 +62,10 @@ int iioutils_break_up_name(const char *full_name,
 		r++;
 	}
 	*w = '\0';
-	asprintf(generic_name, "%s_%s", prefix, working);
+	ret = asprintf(generic_name, "%s_%s", prefix, working);
 	free(current);
 
-	return 0;
+	return (ret == -1) ? -ENOMEM : 0;
 }
 
 /**

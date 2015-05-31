@@ -265,6 +265,8 @@ int main(int argc, char **argv)
 		/* If we can't find a IIO device by name assume device_name is a
 		   IIO chrdev */
 		chrdev_name = strdup(device_name);
+		if (!chrdev_name)
+			return -ENOMEM;
 	}
 
 	fd = open(chrdev_name, 0);

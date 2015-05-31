@@ -234,7 +234,9 @@ int main(int argc, char **argv)
 	}
 	printf("iio device number being used is %d\n", dev_num);
 
-	asprintf(&dev_dir_name, "%siio:device%d", iio_dir, dev_num);
+	ret = asprintf(&dev_dir_name, "%siio:device%d", iio_dir, dev_num);
+	if (ret < 0)
+		return -ENOMEM;
 
 	if (!notrigger) {
 		if (trigger_name == NULL) {
