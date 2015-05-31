@@ -2090,6 +2090,7 @@ static inline int ext4_sb_has_crypto(struct super_block *sb)
 /* crypto_fname.c */
 bool ext4_valid_filenames_enc_mode(uint32_t mode);
 u32 ext4_fname_crypto_round_up(u32 size, u32 blksize);
+unsigned ext4_fname_encrypted_size(struct inode *inode, u32 ilen);
 int ext4_fname_crypto_alloc_buffer(struct inode *inode,
 				   u32 ilen, struct ext4_str *crypto_str);
 int _ext4_fname_disk_to_usr(struct inode *inode,

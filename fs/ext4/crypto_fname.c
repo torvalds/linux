@@ -262,8 +262,20 @@ u32 ext4_fname_crypto_round_up(u32 size, u32 blksize)
 	return ((size+blksize-1)/blksize)*blksize;
 }
 
-/**
- * ext4_fname_crypto_alloc_obuff() -
+unsigned ext4_fname_encrypted_size(struct inode *inode, u32 ilen)
+{
+	struct ext4_crypt_info *ci = EXT4_I(inode)->i_crypt_info;
+	int padding = 32;
+
+	if (ci)
+		padding = 4 << (ci->ci_flags & EXT4_POLICY_FLAGS_PAD_MASK);
+	if (ilen < EXT4_CRYPTO_BLOCK_SIZE)
+		ilen = EXT4_CRYPTO_BLOCK_SIZE;
+	return ext4_fname_crypto_round_up(ilen, padding);
+}
+
+/*
+ * ext4_fname_crypto_alloc_buffer() -
  *
  * Allocates an output buffer that is sufficient for the crypto operation
  * specified by the context and the direction.
@@ -271,15 +283,8 @@ u32 ext4_fname_crypto_round_up(u32 size, u32 blksize)
 int ext4_fname_crypto_alloc_buffer(struct inode *inode,
 				   u32 ilen, struct ext4_str *crypto_str)
 {
-	unsigned int olen;
-	int padding = 16;
-	struct ext4_crypt_info *ci = EXT4_I(inode)->i_crypt_info;
+	unsigned int olen = ext4_fname_encrypted_size(inode, ilen);
 
-	if (ci)
-		padding = 4 << (ci->ci_flags & EXT4_POLICY_FLAGS_PAD_MASK);
-	if (padding < EXT4_CRYPTO_BLOCK_SIZE)
-		padding = EXT4_CRYPTO_BLOCK_SIZE;
-	olen = ext4_fname_crypto_round_up(ilen, padding);
 	crypto_str->len = olen;
 	if (olen < EXT4_FNAME_CRYPTO_DIGEST_SIZE*2)
 		olen = EXT4_FNAME_CRYPTO_DIGEST_SIZE*2;

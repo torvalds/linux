@@ -3039,10 +3039,23 @@ static int ext4_symlink(struct inode *dir,
 
 	encryption_required = (ext4_encrypted_inode(dir) ||
 			       DUMMY_ENCRYPTION_ENABLED(EXT4_SB(dir->i_sb)));
-	if (encryption_required)
-		disk_link.len = encrypted_symlink_data_len(len) + 1;
-	if (disk_link.len > dir->i_sb->s_blocksize)
-		return -ENAMETOOLONG;
+	if (encryption_required) {
+		err = ext4_get_encryption_info(dir);
+		if (err)
+			return err;
+		if (ext4_encryption_info(dir) == NULL)
+			return -EPERM;
+		disk_link.len = (ext4_fname_encrypted_size(dir, len) +
+				 sizeof(struct ext4_encrypted_symlink_data));
+		sd = kzalloc(disk_link.len, GFP_KERNEL);
+		if (!sd)
+			return -ENOMEM;
+	}
+
+	if (disk_link.len > dir->i_sb->s_blocksize) {
+		err = -ENAMETOOLONG;
+		goto err_free_sd;
+	}
 
 	dquot_initialize(dir);
 
@@ -3073,18 +3086,14 @@ static int ext4_symlink(struct inode *dir,
 	if (IS_ERR(inode)) {
 		if (handle)
 			ext4_journal_stop(handle);
-		return PTR_ERR(inode);
+		err = PTR_ERR(inode);
+		goto err_free_sd;
 	}
 
 	if (encryption_required) {
 		struct qstr istr;
 		struct ext4_str ostr;
 
-		sd = kzalloc(disk_link.len, GFP_NOFS);
-		if (!sd) {
-			err = -ENOMEM;
-			goto err_drop_inode;
-		}
 		istr.name = (const unsigned char *) symname;
 		istr.len = len;
 		ostr.name = sd->encrypted_path;
@@ -3156,10 +3165,11 @@ static int ext4_symlink(struct inode *dir,
 err_drop_inode:
 	if (handle)
 		ext4_journal_stop(handle);
-	kfree(sd);
 	clear_nlink(inode);
 	unlock_new_inode(inode);
 	iput(inode);
+err_free_sd:
+	kfree(sd);
 	return err;
 }
 
