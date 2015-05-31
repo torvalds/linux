@@ -202,7 +202,7 @@ int main(int argc, char **argv)
 	dev_num = find_type_by_name(device_name, "iio:device");
 	if (dev_num < 0) {
 		printf("Failed to find the %s\n", device_name);
-		ret = -ENODEV;
+		ret = dev_num;
 		goto error_ret;
 	}
 	printf("iio device number being used is %d\n", dev_num);
@@ -228,7 +228,7 @@ int main(int argc, char **argv)
 		trig_num = find_type_by_name(trigger_name, "trigger");
 		if (trig_num < 0) {
 			printf("Failed to find the trigger %s\n", trigger_name);
-			ret = -ENODEV;
+			ret = trig_num;
 			goto error_free_triggername;
 		}
 		printf("iio trigger number being used is %d\n", trig_num);
