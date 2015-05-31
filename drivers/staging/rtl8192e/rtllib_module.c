@@ -107,7 +107,7 @@ struct net_device *alloc_rtllib(int sizeof_priv)
 
 	dev = alloc_etherdev(sizeof(struct rtllib_device) + sizeof_priv);
 	if (!dev) {
-		RTLLIB_ERROR("Unable to network device.\n");
+		pr_err("Unable to allocate net_device.\n");
 		return NULL;
 	}
 	ieee = (struct rtllib_device *)netdev_priv_rsl(dev);
@@ -116,8 +116,7 @@ struct net_device *alloc_rtllib(int sizeof_priv)
 
 	err = rtllib_networks_allocate(ieee);
 	if (err) {
-		RTLLIB_ERROR("Unable to allocate beacon storage: %d\n",
-				err);
+		pr_err("Unable to allocate beacon storage: %d\n", err);
 		goto failed;
 	}
 	rtllib_networks_initialize(ieee);
@@ -240,8 +239,7 @@ static int __init rtllib_init(void)
 	rtllib_debug_level = debug;
 	rtllib_proc = proc_mkdir(DRV_NAME, init_net.proc_net);
 	if (rtllib_proc == NULL) {
-		RTLLIB_ERROR("Unable to create " DRV_NAME
-				" proc directory\n");
+		pr_err("Unable to create " DRV_NAME " proc directory\n");
 		return -EIO;
 	}
 	e = proc_create("debug_level", S_IRUGO | S_IWUSR, rtllib_proc, &fops);
