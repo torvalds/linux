@@ -231,6 +231,7 @@ struct cobalt_stream {
 	u32 pixfmt;
 	u32 sequence;
 	u32 colorspace;
+	u32 xfer_func;
 	u32 ycbcr_enc;
 	u32 quantization;
 
