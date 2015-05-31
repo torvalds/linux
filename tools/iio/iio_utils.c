@@ -431,6 +431,18 @@ error_ret:
 	return ret;
 }
 
+int calc_digits(int num)
+{
+	int count = 0;
+
+	while (num != 0) {
+		num /= 10;
+		count++;
+	}
+
+	return count;
+}
+
 /**
  * find_type_by_name() - function to match top level types by name
  * @name: top level type instance name
@@ -441,7 +453,7 @@ error_ret:
 int find_type_by_name(const char *name, const char *type)
 {
 	const struct dirent *ent;
-	int number, numstrlen;
+	int number, numstrlen, ret;
 
 	FILE *nameFile;
 	DIR *dp;
@@ -459,9 +471,19 @@ int find_type_by_name(const char *name, const char *type)
 			strcmp(ent->d_name, "..") != 0 &&
 			strlen(ent->d_name) > strlen(type) &&
 			strncmp(ent->d_name, type, strlen(type)) == 0) {
-			numstrlen = sscanf(ent->d_name + strlen(type),
-					   "%d",
-					   &number);
+			errno = 0;
+			ret = sscanf(ent->d_name + strlen(type), "%d", &number);
+			if (ret < 0) {
+				ret = -errno;
+				printf("failed to read element number\n");
+				goto error_close_dir;
+			} else if (ret != 1) {
+				ret = -EIO;
+				printf("failed to match element number\n");
+				goto error_close_dir;
+			}
+
+			numstrlen = calc_digits(number);
 			/* verify the next character is not a colon */
 			if (strncmp(ent->d_name + strlen(type) + numstrlen,
 					":",
@@ -495,6 +517,11 @@ int find_type_by_name(const char *name, const char *type)
 	}
 	closedir(dp);
 	return -ENODEV;
+
+error_close_dir:
+	if (closedir(dp) == -1)
+		perror("find_type_by_name(): Failed to close directory");
+	return ret;
 }
 
 int _write_sysfs_int(char *filename, char *basedir, int val, int verify)
