@@ -289,10 +289,10 @@ struct proc_dir_entry *lprocfs_add_simple(struct proc_dir_entry *root,
 }
 EXPORT_SYMBOL(lprocfs_add_simple);
 
-struct proc_dir_entry *lprocfs_add_symlink(const char *name,
-			struct proc_dir_entry *parent, const char *format, ...)
+struct dentry *ldebugfs_add_symlink(const char *name, struct dentry *parent,
+				    const char *format, ...)
 {
-	struct proc_dir_entry *entry;
+	struct dentry *entry;
 	char *dest;
 	va_list ap;
 
@@ -307,15 +307,17 @@ struct proc_dir_entry *lprocfs_add_symlink(const char *name,
 	vsnprintf(dest, MAX_STRING_SIZE, format, ap);
 	va_end(ap);
 
-	entry = proc_symlink(name, parent, dest);
-	if (entry == NULL)
-		CERROR("LprocFS: Could not create symbolic link from %s to %s",
+	entry = debugfs_create_symlink(name, parent, dest);
+	if (IS_ERR_OR_NULL(entry)) {
+		CERROR("LdebugFS: Could not create symbolic link from %s to %s",
 			name, dest);
+		entry = NULL;
+	}
 
 	kfree(dest);
 	return entry;
 }
-EXPORT_SYMBOL(lprocfs_add_symlink);
+EXPORT_SYMBOL(ldebugfs_add_symlink);
 
 static struct file_operations lprocfs_generic_fops = { };
 
