@@ -258,8 +258,7 @@ int main(int argc, char **argv)
 			device_name, dev_num);
 		ret = asprintf(&chrdev_name, "/dev/iio:device%d", dev_num);
 		if (ret < 0) {
-			ret = -ENOMEM;
-			goto error_ret;
+			return -ENOMEM;
 		}
 	} else {
 		/* If we can't find a IIO device by name assume device_name is a
@@ -312,6 +311,6 @@ int main(int argc, char **argv)
 
 error_free_chrdev_name:
 	free(chrdev_name);
-error_ret:
+
 	return ret;
 }

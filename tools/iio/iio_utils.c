@@ -107,10 +107,9 @@ int iioutils_get_type(unsigned *is_signed,
 	const struct dirent *ent;
 
 	ret = asprintf(&scan_el_dir, FORMAT_SCAN_ELEMENTS_DIR, device_dir);
-	if (ret < 0) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
+	if (ret < 0)
+		return -ENOMEM;
+
 	ret = asprintf(&builtname, FORMAT_TYPE_FILE, name);
 	if (ret < 0) {
 		ret = -ENOMEM;
@@ -202,7 +201,7 @@ error_free_builtname:
 	free(builtname);
 error_free_scan_el_dir:
 	free(scan_el_dir);
-error_ret:
+
 	return ret;
 }
 
@@ -230,10 +229,9 @@ int iioutils_get_param_float(float *output,
 	const struct dirent *ent;
 
 	ret = asprintf(&builtname, "%s_%s", name, param_name);
-	if (ret < 0) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
+	if (ret < 0)
+		return -ENOMEM;
+
 	ret = asprintf(&builtname_generic,
 		       "%s_%s", generic_name, param_name);
 	if (ret < 0) {
@@ -277,7 +275,7 @@ error_free_builtname_generic:
 	free(builtname_generic);
 error_free_builtname:
 	free(builtname);
-error_ret:
+
 	return ret;
 }
 
@@ -326,10 +324,9 @@ int build_channel_array(const char *device_dir,
 
 	*counter = 0;
 	ret = asprintf(&scan_el_dir, FORMAT_SCAN_ELEMENTS_DIR, device_dir);
-	if (ret < 0) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
+	if (ret < 0)
+		return -ENOMEM;
+
 	dp = opendir(scan_el_dir);
 	if (dp == NULL) {
 		ret = -errno;
@@ -526,7 +523,7 @@ error_close_dir:
 
 error_free_name:
 	free(scan_el_dir);
-error_ret:
+
 	return ret;
 }
 

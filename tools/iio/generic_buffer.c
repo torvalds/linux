@@ -238,8 +238,7 @@ int main(int argc, char **argv)
 	dev_num = find_type_by_name(device_name, "iio:device");
 	if (dev_num < 0) {
 		printf("Failed to find the %s\n", device_name);
-		ret = dev_num;
-		goto error_ret;
+		return dev_num;
 	}
 	printf("iio device number being used is %d\n", dev_num);
 
@@ -410,6 +409,6 @@ error_free_triggername:
 		free(trigger_name);
 error_free_dev_dir_name:
 	free(dev_dir_name);
-error_ret:
+
 	return ret;
 }
