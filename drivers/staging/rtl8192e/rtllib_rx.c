@@ -2130,8 +2130,8 @@ int rtllib_parse_info_param(struct rtllib_device *ieee,
 			break;
 
 		case MFIE_TYPE_HT_CAP:
-			RTLLIB_DEBUG_SCAN("MFIE_TYPE_HT_CAP: %d bytes\n",
-					     info_element->len);
+			netdev_dbg(ieee->dev, "MFIE_TYPE_HT_CAP: %d bytes\n",
+				   info_element->len);
 			tmp_htcap_len = min_t(u8, info_element->len, MAX_IE_LEN);
 			if (tmp_htcap_len != 0) {
 				network->bssht.bdHTSpecVer = HT_SPEC_VER_EWC;
@@ -2157,8 +2157,8 @@ int rtllib_parse_info_param(struct rtllib_device *ieee,
 
 
 		case MFIE_TYPE_HT_INFO:
-			RTLLIB_DEBUG_SCAN("MFIE_TYPE_HT_INFO: %d bytes\n",
-					     info_element->len);
+			netdev_dbg(ieee->dev, "MFIE_TYPE_HT_INFO: %d bytes\n",
+				   info_element->len);
 			tmp_htinfo_len = min_t(u8, info_element->len, MAX_IE_LEN);
 			if (tmp_htinfo_len) {
 				network->bssht.bdHTSpecVer = HT_SPEC_VER_IEEE;
@@ -2173,8 +2173,8 @@ int rtllib_parse_info_param(struct rtllib_device *ieee,
 			break;
 
 		case MFIE_TYPE_AIRONET:
-			RTLLIB_DEBUG_SCAN("MFIE_TYPE_AIRONET: %d bytes\n",
-					     info_element->len);
+			netdev_dbg(ieee->dev, "MFIE_TYPE_AIRONET: %d bytes\n",
+				   info_element->len);
 			if (info_element->len > IE_CISCO_FLAG_POSITION) {
 				network->bWithAironetIE = true;
 
@@ -2196,8 +2196,8 @@ int rtllib_parse_info_param(struct rtllib_device *ieee,
 			break;
 
 		case MFIE_TYPE_COUNTRY:
-			RTLLIB_DEBUG_SCAN("MFIE_TYPE_COUNTRY: %d bytes\n",
-					     info_element->len);
+			netdev_dbg(ieee->dev, "MFIE_TYPE_COUNTRY: %d bytes\n",
+				   info_element->len);
 			rtllib_extract_country_ie(ieee, info_element, network,
 						  network->bssid);
 			break;
@@ -2304,10 +2304,9 @@ static inline int rtllib_network_init(
 	}
 
 	if (network->mode == 0) {
-		RTLLIB_DEBUG_SCAN("Filtered out '%s (%pM)' network.\n",
-				     escape_essid(network->ssid,
-						  network->ssid_len),
-				     network->bssid);
+		netdev_dbg(ieee->dev, "Filtered out '%s (%pM)' network.\n",
+			   escape_essid(network->ssid, network->ssid_len),
+			   network->bssid);
 		return 1;
 	}
 
@@ -2505,33 +2504,32 @@ static inline void rtllib_process_probe_response(
 	if (!network)
 		return;
 
-	RTLLIB_DEBUG_SCAN(
-		"'%s' ( %pM ): %c%c%c%c %c%c%c%c-%c%c%c%c %c%c%c%c\n",
-		escape_essid(info_element->data, info_element->len),
-		beacon->header.addr3,
-		(le16_to_cpu(beacon->capability) & (1<<0xf)) ? '1' : '0',
-		(le16_to_cpu(beacon->capability) & (1<<0xe)) ? '1' : '0',
-		(le16_to_cpu(beacon->capability) & (1<<0xd)) ? '1' : '0',
-		(le16_to_cpu(beacon->capability) & (1<<0xc)) ? '1' : '0',
-		(le16_to_cpu(beacon->capability) & (1<<0xb)) ? '1' : '0',
-		(le16_to_cpu(beacon->capability) & (1<<0xa)) ? '1' : '0',
-		(le16_to_cpu(beacon->capability) & (1<<0x9)) ? '1' : '0',
-		(le16_to_cpu(beacon->capability) & (1<<0x8)) ? '1' : '0',
-		(le16_to_cpu(beacon->capability) & (1<<0x7)) ? '1' : '0',
-		(le16_to_cpu(beacon->capability) & (1<<0x6)) ? '1' : '0',
-		(le16_to_cpu(beacon->capability) & (1<<0x5)) ? '1' : '0',
-		(le16_to_cpu(beacon->capability) & (1<<0x4)) ? '1' : '0',
-		(le16_to_cpu(beacon->capability) & (1<<0x3)) ? '1' : '0',
-		(le16_to_cpu(beacon->capability) & (1<<0x2)) ? '1' : '0',
-		(le16_to_cpu(beacon->capability) & (1<<0x1)) ? '1' : '0',
-		(le16_to_cpu(beacon->capability) & (1<<0x0)) ? '1' : '0');
+	netdev_dbg(ieee->dev,
+		   "'%s' ( %pM ): %c%c%c%c %c%c%c%c-%c%c%c%c %c%c%c%c\n",
+		   escape_essid(info_element->data, info_element->len),
+		   beacon->header.addr3,
+		   (le16_to_cpu(beacon->capability) & (1<<0xf)) ? '1' : '0',
+		   (le16_to_cpu(beacon->capability) & (1<<0xe)) ? '1' : '0',
+		   (le16_to_cpu(beacon->capability) & (1<<0xd)) ? '1' : '0',
+		   (le16_to_cpu(beacon->capability) & (1<<0xc)) ? '1' : '0',
+		   (le16_to_cpu(beacon->capability) & (1<<0xb)) ? '1' : '0',
+		   (le16_to_cpu(beacon->capability) & (1<<0xa)) ? '1' : '0',
+		   (le16_to_cpu(beacon->capability) & (1<<0x9)) ? '1' : '0',
+		   (le16_to_cpu(beacon->capability) & (1<<0x8)) ? '1' : '0',
+		   (le16_to_cpu(beacon->capability) & (1<<0x7)) ? '1' : '0',
+		   (le16_to_cpu(beacon->capability) & (1<<0x6)) ? '1' : '0',
+		   (le16_to_cpu(beacon->capability) & (1<<0x5)) ? '1' : '0',
+		   (le16_to_cpu(beacon->capability) & (1<<0x4)) ? '1' : '0',
+		   (le16_to_cpu(beacon->capability) & (1<<0x3)) ? '1' : '0',
+		   (le16_to_cpu(beacon->capability) & (1<<0x2)) ? '1' : '0',
+		   (le16_to_cpu(beacon->capability) & (1<<0x1)) ? '1' : '0',
+		   (le16_to_cpu(beacon->capability) & (1<<0x0)) ? '1' : '0');
 
 	if (rtllib_network_init(ieee, beacon, network, stats)) {
-		RTLLIB_DEBUG_SCAN("Dropped '%s' ( %pM) via %s.\n",
-				  escape_essid(info_element->data,
-				  info_element->len), beacon->header.addr3,
-				  is_beacon(frame_ctl) ? "BEACON" :
-							 "PROBE RESPONSE");
+		netdev_dbg(ieee->dev, "Dropped '%s' ( %pM) via %s.\n",
+			   escape_essid(info_element->data, info_element->len),
+			   beacon->header.addr3,
+			   is_beacon(frame_ctl) ? "BEACON" : "PROBE RESPONSE");
 		goto free_network;
 	}
 
@@ -2594,10 +2592,10 @@ static inline void rtllib_process_probe_response(
 			/* If there are no more slots, expire the oldest */
 			list_del(&oldest->list);
 			target = oldest;
-			RTLLIB_DEBUG_SCAN("Expired '%s' ( %pM) from network list.\n",
-					     escape_essid(target->ssid,
-							  target->ssid_len),
-					     target->bssid);
+			netdev_dbg(ieee->dev,
+				   "Expired '%s' ( %pM) from network list.\n",
+				   escape_essid(target->ssid, target->ssid_len),
+				   target->bssid);
 		} else {
 			/* Otherwise just pull from the free list */
 			target = list_entry(ieee->network_free_list.next,
@@ -2605,22 +2603,20 @@ static inline void rtllib_process_probe_response(
 			list_del(ieee->network_free_list.next);
 		}
 
+		netdev_dbg(ieee->dev, "Adding '%s' ( %pM) via %s.\n",
+			   escape_essid(network->ssid, network->ssid_len),
+			   network->bssid,
+			   is_beacon(frame_ctl) ? "BEACON" : "PROBE RESPONSE");
 
-		RTLLIB_DEBUG_SCAN("Adding '%s' ( %pM) via %s.\n",
-				  escape_essid(network->ssid,
-				  network->ssid_len), network->bssid,
-				  is_beacon(frame_ctl) ? "BEACON" :
-							 "PROBE RESPONSE");
 		memcpy(target, network, sizeof(*target));
 		list_add_tail(&target->list, &ieee->network_list);
 		if (ieee->softmac_features & IEEE_SOFTMAC_ASSOCIATE)
 			rtllib_softmac_new_net(ieee, network);
 	} else {
-		RTLLIB_DEBUG_SCAN("Updating '%s' ( %pM) via %s.\n",
-				  escape_essid(target->ssid, target->ssid_len),
-				  target->bssid,
-				  is_beacon(frame_ctl) ? "BEACON" :
-							 "PROBE RESPONSE");
+		netdev_dbg(ieee->dev, "Updating '%s' ( %pM) via %s.\n",
+			   escape_essid(target->ssid, target->ssid_len),
+			   target->bssid,
+			   is_beacon(frame_ctl) ? "BEACON" : "PROBE RESPONSE");
 
 		/* we have an entry and we are going to update it. But this
 		 *  entry may be already expired. In this case we do the same
@@ -2670,7 +2666,6 @@ void rtllib_rx_mgt(struct rtllib_device *ieee,
 	case RTLLIB_STYPE_BEACON:
 		RTLLIB_DEBUG_MGMT("received BEACON (%d)\n",
 				  WLAN_FC_GET_STYPE(le16_to_cpu(header->frame_ctl)));
-		RTLLIB_DEBUG_SCAN("Beacon\n");
 		rtllib_process_probe_response(
 				ieee, (struct rtllib_probe_response *)header,
 				stats);
@@ -2685,7 +2680,6 @@ void rtllib_rx_mgt(struct rtllib_device *ieee,
 	case RTLLIB_STYPE_PROBE_RESP:
 		RTLLIB_DEBUG_MGMT("received PROBE RESPONSE (%d)\n",
 			WLAN_FC_GET_STYPE(le16_to_cpu(header->frame_ctl)));
-		RTLLIB_DEBUG_SCAN("Probe response\n");
 		rtllib_process_probe_response(ieee,
 			      (struct rtllib_probe_response *)header, stats);
 		break;
@@ -2693,7 +2687,6 @@ void rtllib_rx_mgt(struct rtllib_device *ieee,
 		RTLLIB_DEBUG_MGMT("received PROBE RESQUEST (%d)\n",
 				  WLAN_FC_GET_STYPE(
 					  le16_to_cpu(header->frame_ctl)));
-		RTLLIB_DEBUG_SCAN("Probe request\n");
 		if ((ieee->softmac_features & IEEE_SOFTMAC_PROBERS) &&
 		    ((ieee->iw_mode == IW_MODE_ADHOC ||
 		    ieee->iw_mode == IW_MODE_MASTER) &&

@@ -281,11 +281,13 @@ int rtllib_wx_get_scan(struct rtllib_device *ieee,
 			ev = rtl819x_translate_scan(ieee, ev, stop, network,
 						    info);
 		else
-			RTLLIB_DEBUG_SCAN("Not showing network '%s ( %pM)' due to age (%lums).\n",
-				escape_essid(network->ssid,
-					     network->ssid_len),
-				network->bssid,
-				(jiffies - network->last_scanned) / (HZ / 100));
+			netdev_dbg(ieee->dev,
+				   "Network '%s ( %pM)' hidden due to age (%lums).\n",
+				   escape_essid(network->ssid,
+						network->ssid_len),
+				   network->bssid,
+				   (jiffies - network->last_scanned) /
+				   (HZ / 100));
 	}
 
 	spin_unlock_irqrestore(&ieee->lock, flags);
