@@ -93,6 +93,8 @@ int ext4_process_policy(const struct ext4_encryption_policy *policy,
 		return -EINVAL;
 
 	if (!ext4_inode_has_encryption_context(inode)) {
+		if (!S_ISDIR(inode->i_mode))
+			return -EINVAL;
 		if (!ext4_empty_dir(inode))
 			return -ENOTEMPTY;
 		return ext4_create_encryption_context_from_policy(inode,
