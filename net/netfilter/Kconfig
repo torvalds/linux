@@ -3,6 +3,7 @@ menu "Core Netfilter Configuration"
 
 config NETFILTER_INGRESS
 	bool "Netfilter ingress support"
+	default y
 	select NET_INGRESS
 	help
 	  This allows you to classify packets from ingress using the Netfilter
@@ -454,6 +455,11 @@ config NF_TABLES_INET
 	tristate "Netfilter nf_tables mixed IPv4/IPv6 tables support"
 	help
 	  This option enables support for a mixed IPv4/IPv6 "inet" table.
+
+config NF_TABLES_NETDEV
+	tristate "Netfilter nf_tables netdev tables support"
+	help
+	  This option enables support for the "netdev" table.
 
 config NFT_EXTHDR
 	tristate "Netfilter nf_tables IPv6 exthdr module"

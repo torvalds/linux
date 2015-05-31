@@ -1459,7 +1459,6 @@ static int
 compat_find_calc_match(struct xt_entry_match *m,
 		       const char *name,
 		       const struct ip6t_ip6 *ipv6,
-		       unsigned int hookmask,
 		       int *size)
 {
 	struct xt_match *match;
@@ -1528,8 +1527,7 @@ check_compat_entry_size_and_hooks(struct compat_ip6t_entry *e,
 	entry_offset = (void *)e - (void *)base;
 	j = 0;
 	xt_ematch_foreach(ematch, e) {
-		ret = compat_find_calc_match(ematch, name,
-					     &e->ipv6, e->comefrom, &off);
+		ret = compat_find_calc_match(ematch, name, &e->ipv6, &off);
 		if (ret != 0)
 			goto release_matches;
 		++j;

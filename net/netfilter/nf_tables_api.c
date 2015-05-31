@@ -399,6 +399,8 @@ static const struct nla_policy nft_table_policy[NFTA_TABLE_MAX + 1] = {
 	[NFTA_TABLE_NAME]	= { .type = NLA_STRING,
 				    .len = NFT_TABLE_MAXNAMELEN - 1 },
 	[NFTA_TABLE_FLAGS]	= { .type = NLA_U32 },
+	[NFTA_TABLE_DEV]	= { .type = NLA_STRING,
+				    .len = IFNAMSIZ - 1 },
 };
 
 static int nf_tables_fill_table_info(struct sk_buff *skb, struct net *net,
@@ -421,6 +423,10 @@ static int nf_tables_fill_table_info(struct sk_buff *skb, struct net *net,
 	if (nla_put_string(skb, NFTA_TABLE_NAME, table->name) ||
 	    nla_put_be32(skb, NFTA_TABLE_FLAGS, htonl(table->flags)) ||
 	    nla_put_be32(skb, NFTA_TABLE_USE, htonl(table->use)))
+		goto nla_put_failure;
+
+	if (table->dev &&
+	    nla_put_string(skb, NFTA_TABLE_DEV, table->dev->name))
 		goto nla_put_failure;
 
 	nlmsg_end(skb, nlh);
@@ -608,6 +614,11 @@ static int nf_tables_updtable(struct nft_ctx *ctx)
 	if (flags == ctx->table->flags)
 		return 0;
 
+	if ((ctx->afi->flags & NFT_AF_NEEDS_DEV) &&
+	    ctx->nla[NFTA_TABLE_DEV] &&
+	    nla_strcmp(ctx->nla[NFTA_TABLE_DEV], ctx->table->dev->name))
+		return -EOPNOTSUPP;
+
 	trans = nft_trans_alloc(ctx, NFT_MSG_NEWTABLE,
 				sizeof(struct nft_trans_table));
 	if (trans == NULL)
@@ -645,6 +656,7 @@ static int nf_tables_newtable(struct sock *nlsk, struct sk_buff *skb,
 	struct nft_table *table;
 	struct net *net = sock_net(skb->sk);
 	int family = nfmsg->nfgen_family;
+	struct net_device *dev = NULL;
 	u32 flags = 0;
 	struct nft_ctx ctx;
 	int err;
@@ -679,30 +691,50 @@ static int nf_tables_newtable(struct sock *nlsk, struct sk_buff *skb,
 			return -EINVAL;
 	}
 
+	if (afi->flags & NFT_AF_NEEDS_DEV) {
+		char ifname[IFNAMSIZ];
+
+		if (!nla[NFTA_TABLE_DEV])
+			return -EOPNOTSUPP;
+
+		nla_strlcpy(ifname, nla[NFTA_TABLE_DEV], IFNAMSIZ);
+		dev = dev_get_by_name(net, ifname);
+		if (!dev)
+			return -ENOENT;
+	} else if (nla[NFTA_TABLE_DEV]) {
+		return -EOPNOTSUPP;
+	}
+
+	err = -EAFNOSUPPORT;
 	if (!try_module_get(afi->owner))
-		return -EAFNOSUPPORT;
+		goto err1;
 
 	err = -ENOMEM;
 	table = kzalloc(sizeof(*table), GFP_KERNEL);
 	if (table == NULL)
-		goto err1;
+		goto err2;
 
 	nla_strlcpy(table->name, name, NFT_TABLE_MAXNAMELEN);
 	INIT_LIST_HEAD(&table->chains);
 	INIT_LIST_HEAD(&table->sets);
 	table->flags = flags;
+	table->dev   = dev;
 
 	nft_ctx_init(&ctx, skb, nlh, afi, table, NULL, nla);
 	err = nft_trans_table_add(&ctx, NFT_MSG_NEWTABLE);
 	if (err < 0)
-		goto err2;
+		goto err3;
 
 	list_add_tail_rcu(&table->list, &afi->tables);
 	return 0;
-err2:
+err3:
 	kfree(table);
-err1:
+err2:
 	module_put(afi->owner);
+err1:
+	if (dev != NULL)
+		dev_put(dev);
+
 	return err;
 }
 
@@ -805,6 +837,9 @@ static int nf_tables_deltable(struct sock *nlsk, struct sk_buff *skb,
 static void nf_tables_table_destroy(struct nft_ctx *ctx)
 {
 	BUG_ON(ctx->table->use > 0);
+
+	if (ctx->table->dev)
+		dev_put(ctx->table->dev);
 
 	kfree(ctx->table);
 	module_put(ctx->afi->owner);
@@ -1361,6 +1396,7 @@ static int nf_tables_newchain(struct sock *nlsk, struct sk_buff *skb,
 			ops->priority	= priority;
 			ops->priv	= chain;
 			ops->hook	= afi->hooks[ops->hooknum];
+			ops->dev	= table->dev;
 			if (hookfn)
 				ops->hook = hookfn;
 			if (afi->hook_ops_init)
