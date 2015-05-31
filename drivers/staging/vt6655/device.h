@@ -286,8 +286,6 @@ struct vnt_private {
 	unsigned char abyCurrentNetAddr[ETH_ALEN]; __aligned(2)
 	bool bLinkPass;          /* link status: OK or fail */
 
-	/* Adapter statistics */
-	SStatCounter                scStatistic;
 	/* 802.11 counter */
 	SDot11Counters              s802_11Counter;
 

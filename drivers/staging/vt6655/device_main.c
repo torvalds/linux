@@ -1100,7 +1100,6 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance)
 	 * update ISR counter
 	 */
 	while (pDevice->dwIsr && pDevice->vif) {
-		STAvUpdateIsrStatCounter(&pDevice->scStatistic, pDevice->dwIsr);
 		MACvWriteISR(pDevice->PortOffset, pDevice->dwIsr);
 
 		if (pDevice->dwIsr & ISR_FETALERR) {
