@@ -701,7 +701,6 @@ do {								\
 #define RTLLIB_DL_TRACE	   (1<<29)
 #define RTLLIB_DL_DATA	   (1<<30)
 #define RTLLIB_DL_ERR	   (1<<31)
-#define RTLLIB_DEBUG_INFO(f, a...)   RTLLIB_DEBUG(RTLLIB_DL_INFO, f, ## a)
 
 #ifndef ETH_P_PAE
 #define ETH_P_PAE 0x888E /* Port Access Entity (IEEE 802.1X) */

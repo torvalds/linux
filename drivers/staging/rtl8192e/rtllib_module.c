@@ -103,7 +103,7 @@ struct net_device *alloc_rtllib(int sizeof_priv)
 	struct net_device *dev;
 	int i, err;
 
-	RTLLIB_DEBUG_INFO("Initializing...\n");
+	pr_debug("rtllib: Initializing...\n");
 
 	dev = alloc_etherdev(sizeof(struct rtllib_device) + sizeof_priv);
 	if (!dev) {
