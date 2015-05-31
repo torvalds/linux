@@ -74,13 +74,11 @@ struct ext4_encryption_key {
 } __attribute__((__packed__));
 
 struct ext4_crypt_info {
-	unsigned char	ci_size;
 	char		ci_data_mode;
 	char		ci_filename_mode;
 	char		ci_flags;
 	struct crypto_ablkcipher *ci_ctfm;
 	struct key	*ci_keyring_key;
-	char		ci_raw[EXT4_MAX_KEY_SIZE];
 	char		ci_master_key[EXT4_KEY_DESCRIPTOR_SIZE];
 };
 
@@ -89,7 +87,6 @@ struct ext4_crypt_info {
 #define EXT4_WRITE_PATH_FL			      0x00000004
 
 struct ext4_crypto_ctx {
-	struct crypto_tfm *tfm;         /* Crypto API context */
 	union {
 		struct {
 			struct page *bounce_page;       /* Ciphertext page */

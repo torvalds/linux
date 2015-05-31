@@ -959,7 +959,7 @@ void ext4_clear_inode(struct inode *inode)
 	}
 #ifdef CONFIG_EXT4_FS_ENCRYPTION
 	if (EXT4_I(inode)->i_crypt_info)
-		ext4_free_encryption_info(inode);
+		ext4_free_encryption_info(inode, EXT4_I(inode)->i_crypt_info);
 #endif
 }
 

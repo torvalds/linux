@@ -911,7 +911,6 @@ struct ext4_inode_info {
 
 	/* on-disk additional length */
 	__u16 i_extra_isize;
-	char i_crypt_policy_flags;
 
 	/* Indicate the inline data space. */
 	u16 i_inline_off;
@@ -2105,7 +2104,6 @@ int ext4_fname_usr_to_disk(struct inode *inode,
 			   const struct qstr *iname,
 			   struct ext4_str *oname);
 #ifdef CONFIG_EXT4_FS_ENCRYPTION
-int ext4_setup_fname_crypto(struct inode *inode);
 void ext4_fname_crypto_free_buffer(struct ext4_str *crypto_str);
 int ext4_fname_setup_filename(struct inode *dir, const struct qstr *iname,
 			      int lookup, struct ext4_filename *fname);
@@ -2131,7 +2129,8 @@ static inline void ext4_fname_free_filename(struct ext4_filename *fname) { }
 
 
 /* crypto_key.c */
-void ext4_free_encryption_info(struct inode *inode);
+void ext4_free_crypt_info(struct ext4_crypt_info *ci);
+void ext4_free_encryption_info(struct inode *inode, struct ext4_crypt_info *ci);
 int _ext4_get_encryption_info(struct inode *inode);
 
 #ifdef CONFIG_EXT4_FS_ENCRYPTION

@@ -607,11 +607,12 @@ static struct stats dx_show_leaf(struct inode *dir,
 				char *name;
 				struct ext4_str fname_crypto_str
 					= {.name = NULL, .len = 0};
-				int res;
+				int res = 0;
 
 				name  = de->name;
 				len = de->name_len;
-				res = ext4_setup_fname_crypto(dir);
+				if (ext4_encrypted_inode(inode))
+					res = ext4_get_encryption_info(dir);
 				if (res) {
 					printk(KERN_WARNING "Error setting up"
 					       " fname crypto: %d\n", res);
@@ -953,12 +954,12 @@ static int htree_dirblock_to_tree(struct file *dir_file,
 					   EXT4_DIR_REC_LEN(0));
 #ifdef CONFIG_EXT4_FS_ENCRYPTION
 	/* Check if the directory is encrypted */
-	err = ext4_setup_fname_crypto(dir);
-	if (err) {
-		brelse(bh);
-		return err;
-	}
 	if (ext4_encrypted_inode(dir)) {
+		err = ext4_get_encryption_info(dir);
+		if (err < 0) {
+			brelse(bh);
+			return err;
+		}
 		err = ext4_fname_crypto_alloc_buffer(dir, EXT4_NAME_LEN,
 						     &fname_crypto_str);
 		if (err < 0) {
@@ -3108,7 +3109,7 @@ static int ext4_symlink(struct inode *dir,
 		err = ext4_inherit_context(dir, inode);
 		if (err)
 			goto err_drop_inode;
-		err = ext4_setup_fname_crypto(inode);
+		err = ext4_get_encryption_info(inode);
 		if (err)
 			goto err_drop_inode;
 		istr.name = (const unsigned char *) symname;

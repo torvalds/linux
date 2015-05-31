@@ -252,52 +252,6 @@ static int digest_decode(const char *src, int len, char *dst)
 	return cp - dst;
 }
 
-int ext4_setup_fname_crypto(struct inode *inode)
-{
-	struct ext4_inode_info *ei = EXT4_I(inode);
-	struct ext4_crypt_info *ci = ei->i_crypt_info;
-	struct crypto_ablkcipher *ctfm;
-	int res;
-
-	/* Check if the crypto policy is set on the inode */
-	res = ext4_encrypted_inode(inode);
-	if (res == 0)
-		return 0;
-
-	res = ext4_get_encryption_info(inode);
-	if (res < 0)
-		return res;
-	ci = ei->i_crypt_info;
-
-	if (!ci || ci->ci_ctfm)
-		return 0;
-
-	if (ci->ci_filename_mode != EXT4_ENCRYPTION_MODE_AES_256_CTS) {
-		printk_once(KERN_WARNING "ext4: unsupported key mode %d\n",
-			    ci->ci_filename_mode);
-		return -ENOKEY;
-	}
-
-	ctfm = crypto_alloc_ablkcipher("cts(cbc(aes))", 0, 0);
-	if (!ctfm || IS_ERR(ctfm)) {
-		res = ctfm ? PTR_ERR(ctfm) : -ENOMEM;
-		printk(KERN_DEBUG "%s: error (%d) allocating crypto tfm\n",
-		       __func__, res);
-		return res;
-	}
-	crypto_ablkcipher_clear_flags(ctfm, ~0);
-	crypto_tfm_set_flags(crypto_ablkcipher_tfm(ctfm),
-			     CRYPTO_TFM_REQ_WEAK_KEY);
-
-	res = crypto_ablkcipher_setkey(ctfm, ci->ci_raw, ci->ci_size);
-	if (res) {
-		crypto_free_ablkcipher(ctfm);
-		return -EIO;
-	}
-	ci->ci_ctfm = ctfm;
-	return 0;
-}
-
 /**
  * ext4_fname_crypto_round_up() -
  *
@@ -449,7 +403,7 @@ int ext4_fname_setup_filename(struct inode *dir, const struct qstr *iname,
 		fname->disk_name.len = iname->len;
 		goto out;
 	}
-	ret = ext4_setup_fname_crypto(dir);
+	ret = ext4_get_encryption_info(dir);
 	if (ret)
 		return ret;
 	ci = EXT4_I(dir)->i_crypt_info;

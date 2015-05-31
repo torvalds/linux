@@ -80,8 +80,6 @@ void ext4_release_crypto_ctx(struct ext4_crypto_ctx *ctx)
 	ctx->w.bounce_page = NULL;
 	ctx->w.control_page = NULL;
 	if (ctx->flags & EXT4_CTX_REQUIRES_FREE_ENCRYPT_FL) {
-		if (ctx->tfm)
-			crypto_free_tfm(ctx->tfm);
 		kmem_cache_free(ext4_crypto_ctx_cachep, ctx);
 	} else {
 		spin_lock_irqsave(&ext4_crypto_ctx_lock, flags);
@@ -136,36 +134,6 @@ struct ext4_crypto_ctx *ext4_get_crypto_ctx(struct inode *inode)
 	}
 	ctx->flags &= ~EXT4_WRITE_PATH_FL;
 
-	/* Allocate a new Crypto API context if we don't already have
-	 * one or if it isn't the right mode. */
-	if (ctx->tfm && (ctx->mode != ci->ci_data_mode)) {
-		crypto_free_tfm(ctx->tfm);
-		ctx->tfm = NULL;
-		ctx->mode = EXT4_ENCRYPTION_MODE_INVALID;
-	}
-	if (!ctx->tfm) {
-		switch (ci->ci_data_mode) {
-		case EXT4_ENCRYPTION_MODE_AES_256_XTS:
-			ctx->tfm = crypto_ablkcipher_tfm(
-				crypto_alloc_ablkcipher("xts(aes)", 0, 0));
-			break;
-		case EXT4_ENCRYPTION_MODE_AES_256_GCM:
-			/* TODO(mhalcrow): AEAD w/ gcm(aes);
-			 * crypto_aead_setauthsize() */
-			ctx->tfm = ERR_PTR(-ENOTSUPP);
-			break;
-		default:
-			BUG();
-		}
-		if (IS_ERR_OR_NULL(ctx->tfm)) {
-			res = PTR_ERR(ctx->tfm);
-			ctx->tfm = NULL;
-			goto out;
-		}
-		ctx->mode = ci->ci_data_mode;
-	}
-	BUG_ON(ci->ci_size != ext4_encryption_key_size(ci->ci_data_mode));
-
 out:
 	if (res) {
 		if (!IS_ERR_OR_NULL(ctx))
@@ -185,11 +153,8 @@ void ext4_exit_crypto(void)
 {
 	struct ext4_crypto_ctx *pos, *n;
 
-	list_for_each_entry_safe(pos, n, &ext4_free_crypto_ctxs, free_list) {
-		if (pos->tfm)
-			crypto_free_tfm(pos->tfm);
+	list_for_each_entry_safe(pos, n, &ext4_free_crypto_ctxs, free_list)
 		kmem_cache_free(ext4_crypto_ctx_cachep, pos);
-	}
 	INIT_LIST_HEAD(&ext4_free_crypto_ctxs);
 	if (ext4_bounce_page_pool)
 		mempool_destroy(ext4_bounce_page_pool);
@@ -303,32 +268,11 @@ static int ext4_page_crypto(struct ext4_crypto_ctx *ctx,
 	struct ablkcipher_request *req = NULL;
 	DECLARE_EXT4_COMPLETION_RESULT(ecr);
 	struct scatterlist dst, src;
-	struct ext4_inode_info *ei = EXT4_I(inode);
-	struct crypto_ablkcipher *atfm = __crypto_ablkcipher_cast(ctx->tfm);
+	struct ext4_crypt_info *ci = EXT4_I(inode)->i_crypt_info;
+	struct crypto_ablkcipher *tfm = ci->ci_ctfm;
 	int res = 0;
 
-	BUG_ON(!ctx->tfm);
-	BUG_ON(ctx->mode != ei->i_crypt_info->ci_data_mode);
-
-	if (ctx->mode != EXT4_ENCRYPTION_MODE_AES_256_XTS) {
-		printk_ratelimited(KERN_ERR
-				   "%s: unsupported crypto algorithm: %d\n",
-				   __func__, ctx->mode);
-		return -ENOTSUPP;
-	}
-
-	crypto_ablkcipher_clear_flags(atfm, ~0);
-	crypto_tfm_set_flags(ctx->tfm, CRYPTO_TFM_REQ_WEAK_KEY);
-
-	res = crypto_ablkcipher_setkey(atfm, ei->i_crypt_info->ci_raw,
-				       ei->i_crypt_info->ci_size);
-	if (res) {
-		printk_ratelimited(KERN_ERR
-				   "%s: crypto_ablkcipher_setkey() failed\n",
-				   __func__);
-		return res;
-	}
-	req = ablkcipher_request_alloc(atfm, GFP_NOFS);
+	req = ablkcipher_request_alloc(tfm, GFP_NOFS);
 	if (!req) {
 		printk_ratelimited(KERN_ERR
 				   "%s: crypto_request_alloc() failed\n",
