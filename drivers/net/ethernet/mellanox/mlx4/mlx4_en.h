@@ -338,7 +338,7 @@ struct mlx4_en_cq {
 	struct napi_struct	napi;
 	int size;
 	int buf_size;
-	unsigned vector;
+	int vector;
 	enum cq_type is_tx;
 	u16 moder_time;
 	u16 moder_cnt;
