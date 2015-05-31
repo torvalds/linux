@@ -275,14 +275,16 @@ int main(int argc, char **argv)
 	}
 
 	ret = ioctl(fd, IIO_GET_EVENT_FD_IOCTL, &event_fd);
-
-	close(fd);
-
 	if (ret == -1 || event_fd == -1) {
 		ret = -errno;
 		fprintf(stdout, "Failed to retrieve event fd\n");
+		if (close(fd) == -1)
+			perror("Failed to close character device file");
+
 		goto error_free_chrdev_name;
 	}
+
+	close(fd);
 
 	while (true) {
 		ret = read(event_fd, &event, sizeof(event));
