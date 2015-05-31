@@ -6071,6 +6071,7 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 		brcmf_err("Could not allocate wiphy device\n");
 		return NULL;
 	}
+	memcpy(wiphy->perm_addr, drvr->mac, ETH_ALEN);
 	set_wiphy_dev(wiphy, busdev);
 
 	cfg = wiphy_priv(wiphy);
