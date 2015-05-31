@@ -1237,14 +1237,18 @@ static int ahci_init_msi(struct pci_dev *pdev, unsigned int n_ports,
 	if (nvec > 1)
 		hpriv->flags |= AHCI_HFLAG_MULTI_MSI;
 
-	return nvec;
+	goto out;
 
 single_msi:
+	nvec = 1;
+
 	rc = pci_enable_msi(pdev);
 	if (rc < 0)
 		return rc;
+out:
+	hpriv->irq = pdev->irq;
 
-	return 1;
+	return nvec;
 }
 
 static int ahci_init_interrupts(struct pci_dev *pdev, unsigned int n_ports,
@@ -1258,6 +1262,7 @@ static int ahci_init_interrupts(struct pci_dev *pdev, unsigned int n_ports,
 
 	/* lagacy intx interrupts */
 	pci_intx(pdev, 1);
+	hpriv->irq = pdev->irq;
 
 	return 0;
 }
@@ -1423,12 +1428,12 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 */
 	n_ports = max(ahci_nr_ports(hpriv->cap), fls(hpriv->port_map));
 
-	ahci_init_interrupts(pdev, n_ports, hpriv);
-
 	host = ata_host_alloc_pinfo(&pdev->dev, ppi, n_ports);
 	if (!host)
 		return -ENOMEM;
 	host->private_data = hpriv;
+
+	ahci_init_interrupts(pdev, n_ports, hpriv);
 
 	if (!(hpriv->cap & HOST_CAP_SSS) || ahci_ignore_sss)
 		host->flags |= ATA_HOST_PARALLEL_SCAN;
@@ -1475,7 +1480,7 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_master(pdev);
 
-	return ahci_host_activate(host, pdev->irq, &ahci_sht);
+	return ahci_host_activate(host, &ahci_sht);
 }
 
 module_pci_driver(ahci_pci_driver);
