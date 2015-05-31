@@ -312,7 +312,7 @@ int build_channel_array(const char *device_dir,
 {
 	DIR *dp;
 	FILE *sysfsfp;
-	int count, i;
+	int count = 0, i;
 	struct iio_channel_info *current;
 	int ret;
 	const struct dirent *ent;
@@ -370,7 +370,6 @@ int build_channel_array(const char *device_dir,
 		goto error_close_dir;
 	}
 	seekdir(dp, 0);
-	count = 0;
 	while (ent = readdir(dp), ent != NULL) {
 		if (strcmp(ent->d_name + strlen(ent->d_name) - strlen("_en"),
 			   "_en") == 0) {
