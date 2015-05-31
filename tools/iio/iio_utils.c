@@ -175,10 +175,10 @@ int iioutils_get_type(unsigned *is_signed,
 				goto error_free_filename;
 			}
 
+			sysfsfp = 0;
 			free(filename);
 
 			filename = 0;
-			sysfsfp = 0;
 		}
 error_close_sysfsfp:
 	if (sysfsfp)
