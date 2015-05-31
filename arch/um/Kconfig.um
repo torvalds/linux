@@ -46,6 +46,7 @@ config HOSTFS
 
 config MCONSOLE
 	bool "Management console"
+	depends on PROC_FS
 	default y
 	help
           The user mode linux management console is a low-level interface to
