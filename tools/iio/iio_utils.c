@@ -403,6 +403,7 @@ int build_channel_array(const char *device_dir,
 	}
 
 	closedir(dp);
+	free(scan_el_dir);
 	/* reorder so that the array is in index order */
 	bsort_channel_array_by_index(ci_array, *counter);
 
