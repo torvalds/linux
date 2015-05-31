@@ -334,6 +334,7 @@ int build_channel_array(const char *device_dir,
 			if (sysfsfp == NULL) {
 				free(filename);
 				ret = -errno;
+				count--;
 				goto error_cleanup_array;
 			}
 			fscanf(sysfsfp, "%i", &current_enabled);
@@ -353,6 +354,7 @@ int build_channel_array(const char *device_dir,
 			if (current->name == NULL) {
 				free(filename);
 				ret = -ENOMEM;
+				count--;
 				goto error_cleanup_array;
 			}
 			/* Get the generic and specific name elements */
@@ -360,6 +362,8 @@ int build_channel_array(const char *device_dir,
 						     &current->generic_name);
 			if (ret) {
 				free(filename);
+				free(current->name);
+				count--;
 				goto error_cleanup_array;
 			}
 			ret = asprintf(&filename,
