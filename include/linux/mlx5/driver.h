@@ -44,7 +44,6 @@
 
 #include <linux/mlx5/device.h>
 #include <linux/mlx5/doorbell.h>
-#include <linux/mlx5/mlx5_ifc.h>
 
 enum {
 	MLX5_BOARD_ID_LEN = 64,
@@ -85,7 +84,7 @@ enum {
 };
 
 enum {
-	MLX5_MAX_EQ_NAME	= 32
+	MLX5_MAX_IRQ_NAME	= 32
 };
 
 enum {
@@ -148,6 +147,11 @@ enum mlx5_dev_event {
 	MLX5_DEV_EVENT_PKEY_CHANGE,
 	MLX5_DEV_EVENT_GUID_CHANGE,
 	MLX5_DEV_EVENT_CLIENT_REREG,
+};
+
+enum mlx5_port_status {
+	MLX5_PORT_UP        = 1 << 1,
+	MLX5_PORT_DOWN      = 1 << 2,
 };
 
 struct mlx5_uuar_info {
@@ -269,56 +273,7 @@ struct mlx5_cmd {
 struct mlx5_port_caps {
 	int	gid_table_len;
 	int	pkey_table_len;
-};
-
-struct mlx5_general_caps {
-	u8	log_max_eq;
-	u8	log_max_cq;
-	u8	log_max_qp;
-	u8	log_max_mkey;
-	u8	log_max_pd;
-	u8	log_max_srq;
-	u8	log_max_strq;
-	u8	log_max_mrw_sz;
-	u8	log_max_bsf_list_size;
-	u8	log_max_klm_list_size;
-	u32	max_cqes;
-	int	max_wqes;
-	u32	max_eqes;
-	u32	max_indirection;
-	int	max_sq_desc_sz;
-	int	max_rq_desc_sz;
-	int	max_dc_sq_desc_sz;
-	u64	flags;
-	u16	stat_rate_support;
-	int	log_max_msg;
-	int	num_ports;
-	u8	log_max_ra_res_qp;
-	u8	log_max_ra_req_qp;
-	int	max_srq_wqes;
-	int	bf_reg_size;
-	int	bf_regs_per_page;
-	struct mlx5_port_caps	port[MLX5_MAX_PORTS];
-	u8			ext_port_cap[MLX5_MAX_PORTS];
-	int	max_vf;
-	u32	reserved_lkey;
-	u8	local_ca_ack_delay;
-	u8	log_max_mcg;
-	u32	max_qp_mcg;
-	int	min_page_sz;
-	int	pd_cap;
-	u32	max_qp_counters;
-	u32	pkey_table_size;
-	u8	log_max_ra_req_dc;
-	u8	log_max_ra_res_dc;
-	u32	uar_sz;
-	u8	min_log_pg_sz;
-	u8	log_max_xrcd;
-	u16	log_uar_page_sz;
-};
-
-struct mlx5_caps {
-	struct mlx5_general_caps gen;
+	u8	ext_port_cap;
 };
 
 struct mlx5_cmd_mailbox {
@@ -334,8 +289,6 @@ struct mlx5_buf_list {
 
 struct mlx5_buf {
 	struct mlx5_buf_list	direct;
-	struct mlx5_buf_list   *page_list;
-	int			nbufs;
 	int			npages;
 	int			size;
 	u8			page_shift;
@@ -351,7 +304,6 @@ struct mlx5_eq {
 	u8			eqn;
 	int			nent;
 	u64			mask;
-	char			name[MLX5_MAX_EQ_NAME];
 	struct list_head	list;
 	int			index;
 	struct mlx5_rsc_debug	*dbg;
@@ -414,7 +366,6 @@ struct mlx5_eq_table {
 	struct mlx5_eq		pages_eq;
 	struct mlx5_eq		async_eq;
 	struct mlx5_eq		cmd_eq;
-	struct msix_entry	*msix_arr;
 	int			num_comp_vectors;
 	/* protect EQs list
 	 */
@@ -467,9 +418,16 @@ struct mlx5_mr_table {
 	struct radix_tree_root	tree;
 };
 
+struct mlx5_irq_info {
+	cpumask_var_t mask;
+	char name[MLX5_MAX_IRQ_NAME];
+};
+
 struct mlx5_priv {
 	char			name[MLX5_MAX_NAME_LEN];
 	struct mlx5_eq_table	eq_table;
+	struct msix_entry	*msix_arr;
+	struct mlx5_irq_info	*irq_info;
 	struct mlx5_uuar_info	uuari;
 	MLX5_DECLARE_DOORBELL_LOCK(cq_uar_lock);
 
@@ -520,7 +478,9 @@ struct mlx5_core_dev {
 	u8			rev_id;
 	char			board_id[MLX5_BOARD_ID_LEN];
 	struct mlx5_cmd		cmd;
-	struct mlx5_caps	caps;
+	struct mlx5_port_caps	port_caps[MLX5_MAX_PORTS];
+	u32 hca_caps_cur[MLX5_CAP_NUM][MLX5_UN_SZ_DW(hca_cap_union)];
+	u32 hca_caps_max[MLX5_CAP_NUM][MLX5_UN_SZ_DW(hca_cap_union)];
 	phys_addr_t		iseg_base;
 	struct mlx5_init_seg __iomem *iseg;
 	void			(*event) (struct mlx5_core_dev *dev,
@@ -529,6 +489,7 @@ struct mlx5_core_dev {
 	struct mlx5_priv	priv;
 	struct mlx5_profile	*profile;
 	atomic_t		num_qps;
+	u32			issi;
 };
 
 struct mlx5_db {
@@ -547,6 +508,11 @@ enum {
 
 enum {
 	MLX5_COMP_EQ_SIZE = 1024,
+};
+
+enum {
+	MLX5_PTYS_IB = 1 << 0,
+	MLX5_PTYS_EN = 1 << 2,
 };
 
 struct mlx5_db_pgdir {
@@ -586,11 +552,7 @@ struct mlx5_pas {
 
 static inline void *mlx5_buf_offset(struct mlx5_buf *buf, int offset)
 {
-	if (likely(BITS_PER_LONG == 64 || buf->nbufs == 1))
 		return buf->direct.buf + offset;
-	else
-		return buf->page_list[offset >> PAGE_SHIFT].buf +
-			(offset & (PAGE_SIZE - 1));
 }
 
 extern struct workqueue_struct *mlx5_core_wq;
@@ -654,8 +616,8 @@ void mlx5_cmd_use_events(struct mlx5_core_dev *dev);
 void mlx5_cmd_use_polling(struct mlx5_core_dev *dev);
 int mlx5_cmd_status_to_err(struct mlx5_outbox_hdr *hdr);
 int mlx5_cmd_status_to_err_v2(void *ptr);
-int mlx5_core_get_caps(struct mlx5_core_dev *dev, struct mlx5_caps *caps,
-		       u16 opmod);
+int mlx5_core_get_caps(struct mlx5_core_dev *dev, enum mlx5_cap_type cap_type,
+		       enum mlx5_cap_mode cap_mode);
 int mlx5_cmd_exec(struct mlx5_core_dev *dev, void *in, int in_size, void *out,
 		  int out_size);
 int mlx5_cmd_exec_cb(struct mlx5_core_dev *dev, void *in, int in_size,
@@ -665,12 +627,13 @@ int mlx5_cmd_alloc_uar(struct mlx5_core_dev *dev, u32 *uarn);
 int mlx5_cmd_free_uar(struct mlx5_core_dev *dev, u32 uarn);
 int mlx5_alloc_uuars(struct mlx5_core_dev *dev, struct mlx5_uuar_info *uuari);
 int mlx5_free_uuars(struct mlx5_core_dev *dev, struct mlx5_uuar_info *uuari);
+int mlx5_alloc_map_uar(struct mlx5_core_dev *mdev, struct mlx5_uar *uar);
+void mlx5_unmap_free_uar(struct mlx5_core_dev *mdev, struct mlx5_uar *uar);
 void mlx5_health_cleanup(void);
 void  __init mlx5_health_init(void);
 void mlx5_start_health_poll(struct mlx5_core_dev *dev);
 void mlx5_stop_health_poll(struct mlx5_core_dev *dev);
-int mlx5_buf_alloc(struct mlx5_core_dev *dev, int size, int max_direct,
-		   struct mlx5_buf *buf);
+int mlx5_buf_alloc(struct mlx5_core_dev *dev, int size, struct mlx5_buf *buf);
 void mlx5_buf_free(struct mlx5_core_dev *dev, struct mlx5_buf *buf);
 struct mlx5_cmd_mailbox *mlx5_alloc_cmd_mailbox_chain(struct mlx5_core_dev *dev,
 						      gfp_t flags, int npages);
@@ -734,7 +697,23 @@ void mlx5_qp_debugfs_cleanup(struct mlx5_core_dev *dev);
 int mlx5_core_access_reg(struct mlx5_core_dev *dev, void *data_in,
 			 int size_in, void *data_out, int size_out,
 			 u16 reg_num, int arg, int write);
+
 int mlx5_set_port_caps(struct mlx5_core_dev *dev, u8 port_num, u32 caps);
+int mlx5_query_port_ptys(struct mlx5_core_dev *dev, u32 *ptys,
+			 int ptys_size, int proto_mask);
+int mlx5_query_port_proto_cap(struct mlx5_core_dev *dev,
+			      u32 *proto_cap, int proto_mask);
+int mlx5_query_port_proto_admin(struct mlx5_core_dev *dev,
+				u32 *proto_admin, int proto_mask);
+int mlx5_set_port_proto(struct mlx5_core_dev *dev, u32 proto_admin,
+			int proto_mask);
+int mlx5_set_port_status(struct mlx5_core_dev *dev,
+			 enum mlx5_port_status status);
+int mlx5_query_port_status(struct mlx5_core_dev *dev, u8 *status);
+
+int mlx5_set_port_mtu(struct mlx5_core_dev *dev, int mtu);
+int mlx5_query_port_max_mtu(struct mlx5_core_dev *dev, int *max_mtu);
+int mlx5_query_port_oper_mtu(struct mlx5_core_dev *dev, int *oper_mtu);
 
 int mlx5_debug_eq_add(struct mlx5_core_dev *dev, struct mlx5_eq *eq);
 void mlx5_debug_eq_remove(struct mlx5_core_dev *dev, struct mlx5_eq *eq);

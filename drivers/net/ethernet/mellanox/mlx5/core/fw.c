@@ -64,50 +64,74 @@ out_out:
 	return err;
 }
 
-int mlx5_cmd_query_hca_cap(struct mlx5_core_dev *dev, struct mlx5_caps *caps)
+int mlx5_query_hca_caps(struct mlx5_core_dev *dev)
 {
-	return mlx5_core_get_caps(dev, caps, HCA_CAP_OPMOD_GET_CUR);
-}
-
-int mlx5_query_odp_caps(struct mlx5_core_dev *dev, struct mlx5_odp_caps *caps)
-{
-	u8 in[MLX5_ST_SZ_BYTES(query_hca_cap_in)];
-	int out_sz = MLX5_ST_SZ_BYTES(query_hca_cap_out);
-	void *out;
 	int err;
 
-	if (!(dev->caps.gen.flags & MLX5_DEV_CAP_FLAG_ON_DMND_PG))
-		return -ENOTSUPP;
-
-	memset(in, 0, sizeof(in));
-	out = kzalloc(out_sz, GFP_KERNEL);
-	if (!out)
-		return -ENOMEM;
-	MLX5_SET(query_hca_cap_in, in, opcode, MLX5_CMD_OP_QUERY_HCA_CAP);
-	MLX5_SET(query_hca_cap_in, in, op_mod, HCA_CAP_OPMOD_GET_ODP_CUR);
-	err = mlx5_cmd_exec(dev, in, sizeof(in), out, out_sz);
+	err = mlx5_core_get_caps(dev, MLX5_CAP_GENERAL, HCA_CAP_OPMOD_GET_CUR);
 	if (err)
-		goto out;
+		return err;
 
-	err = mlx5_cmd_status_to_err_v2(out);
-	if (err) {
-		mlx5_core_warn(dev, "query cur hca ODP caps failed, %d\n", err);
-		goto out;
+	err = mlx5_core_get_caps(dev, MLX5_CAP_GENERAL, HCA_CAP_OPMOD_GET_MAX);
+	if (err)
+		return err;
+
+	if (MLX5_CAP_GEN(dev, eth_net_offloads)) {
+		err = mlx5_core_get_caps(dev, MLX5_CAP_ETHERNET_OFFLOADS,
+					 HCA_CAP_OPMOD_GET_CUR);
+		if (err)
+			return err;
+		err = mlx5_core_get_caps(dev, MLX5_CAP_ETHERNET_OFFLOADS,
+					 HCA_CAP_OPMOD_GET_MAX);
+		if (err)
+			return err;
 	}
 
-	memcpy(caps, MLX5_ADDR_OF(query_hca_cap_out, out, capability_struct),
-	       sizeof(*caps));
+	if (MLX5_CAP_GEN(dev, pg)) {
+		err = mlx5_core_get_caps(dev, MLX5_CAP_ODP,
+					 HCA_CAP_OPMOD_GET_CUR);
+		if (err)
+			return err;
+		err = mlx5_core_get_caps(dev, MLX5_CAP_ODP,
+					 HCA_CAP_OPMOD_GET_MAX);
+		if (err)
+			return err;
+	}
 
-	mlx5_core_dbg(dev, "on-demand paging capabilities:\nrc: %08x\nuc: %08x\nud: %08x\n",
-		be32_to_cpu(caps->per_transport_caps.rc_odp_caps),
-		be32_to_cpu(caps->per_transport_caps.uc_odp_caps),
-		be32_to_cpu(caps->per_transport_caps.ud_odp_caps));
+	if (MLX5_CAP_GEN(dev, atomic)) {
+		err = mlx5_core_get_caps(dev, MLX5_CAP_ATOMIC,
+					 HCA_CAP_OPMOD_GET_CUR);
+		if (err)
+			return err;
+		err = mlx5_core_get_caps(dev, MLX5_CAP_ATOMIC,
+					 HCA_CAP_OPMOD_GET_MAX);
+		if (err)
+			return err;
+	}
 
-out:
-	kfree(out);
-	return err;
+	if (MLX5_CAP_GEN(dev, roce)) {
+		err = mlx5_core_get_caps(dev, MLX5_CAP_ROCE,
+					 HCA_CAP_OPMOD_GET_CUR);
+		if (err)
+			return err;
+		err = mlx5_core_get_caps(dev, MLX5_CAP_ROCE,
+					 HCA_CAP_OPMOD_GET_MAX);
+		if (err)
+			return err;
+	}
+
+	if (MLX5_CAP_GEN(dev, nic_flow_table)) {
+		err = mlx5_core_get_caps(dev, MLX5_CAP_FLOW_TABLE,
+					 HCA_CAP_OPMOD_GET_CUR);
+		if (err)
+			return err;
+		err = mlx5_core_get_caps(dev, MLX5_CAP_FLOW_TABLE,
+					 HCA_CAP_OPMOD_GET_MAX);
+		if (err)
+			return err;
+	}
+	return 0;
 }
-EXPORT_SYMBOL(mlx5_query_odp_caps);
 
 int mlx5_cmd_init_hca(struct mlx5_core_dev *dev)
 {
