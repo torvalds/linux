@@ -755,6 +755,45 @@ static int amd_xgbe_phy_set_mode(struct phy_device *phydev,
 	return ret;
 }
 
+static bool amd_xgbe_phy_use_xgmii_mode(struct phy_device *phydev)
+{
+	if (phydev->autoneg == AUTONEG_ENABLE) {
+		if (phydev->advertising & ADVERTISED_10000baseKR_Full)
+			return true;
+	} else {
+		if (phydev->speed == SPEED_10000)
+			return true;
+	}
+
+	return false;
+}
+
+static bool amd_xgbe_phy_use_gmii_2500_mode(struct phy_device *phydev)
+{
+	if (phydev->autoneg == AUTONEG_ENABLE) {
+		if (phydev->advertising & ADVERTISED_2500baseX_Full)
+			return true;
+	} else {
+		if (phydev->speed == SPEED_2500)
+			return true;
+	}
+
+	return false;
+}
+
+static bool amd_xgbe_phy_use_gmii_mode(struct phy_device *phydev)
+{
+	if (phydev->autoneg == AUTONEG_ENABLE) {
+		if (phydev->advertising & ADVERTISED_1000baseKX_Full)
+			return true;
+	} else {
+		if (phydev->speed == SPEED_1000)
+			return true;
+	}
+
+	return false;
+}
+
 static int amd_xgbe_phy_set_an(struct phy_device *phydev, bool enable,
 			       bool restart)
 {
@@ -1235,11 +1274,11 @@ static int amd_xgbe_phy_config_init(struct phy_device *phydev)
 	/* Set initial mode - call the mode setting routines
 	 * directly to insure we are properly configured
 	 */
-	if (phydev->advertising & SUPPORTED_10000baseKR_Full)
+	if (amd_xgbe_phy_use_xgmii_mode(phydev))
 		ret = amd_xgbe_phy_xgmii_mode(phydev);
-	else if (phydev->advertising & SUPPORTED_1000baseKX_Full)
+	else if (amd_xgbe_phy_use_gmii_mode(phydev))
 		ret = amd_xgbe_phy_gmii_mode(phydev);
-	else if (phydev->advertising & SUPPORTED_2500baseX_Full)
+	else if (amd_xgbe_phy_use_gmii_2500_mode(phydev))
 		ret = amd_xgbe_phy_gmii_2500_mode(phydev);
 	else
 		ret = -EINVAL;

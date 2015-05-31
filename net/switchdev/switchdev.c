@@ -338,7 +338,7 @@ int netdev_switch_fib_ipv4_add(u32 dst, int dst_len, struct fib_info *fi,
 					      fi, tos, type, nlflags,
 					      tb_id);
 		if (!err)
-			fi->fib_flags |= RTNH_F_EXTERNAL;
+			fi->fib_flags |= RTNH_F_OFFLOAD;
 	}
 
 	return err;
@@ -364,7 +364,7 @@ int netdev_switch_fib_ipv4_del(u32 dst, int dst_len, struct fib_info *fi,
 	const struct swdev_ops *ops;
 	int err = 0;
 
-	if (!(fi->fib_flags & RTNH_F_EXTERNAL))
+	if (!(fi->fib_flags & RTNH_F_OFFLOAD))
 		return 0;
 
 	dev = netdev_switch_get_dev_by_nhs(fi);
@@ -376,7 +376,7 @@ int netdev_switch_fib_ipv4_del(u32 dst, int dst_len, struct fib_info *fi,
 		err = ops->swdev_fib_ipv4_del(dev, htonl(dst), dst_len,
 					      fi, tos, type, tb_id);
 		if (!err)
-			fi->fib_flags &= ~RTNH_F_EXTERNAL;
+			fi->fib_flags &= ~RTNH_F_OFFLOAD;
 	}
 
 	return err;

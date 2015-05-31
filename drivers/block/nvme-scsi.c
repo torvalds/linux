@@ -2257,7 +2257,8 @@ static int nvme_trans_inquiry(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 	page_code = GET_INQ_PAGE_CODE(cmd);
 	alloc_len = GET_INQ_ALLOC_LENGTH(cmd);
 
-	inq_response = kmalloc(alloc_len, GFP_KERNEL);
+	inq_response = kmalloc(max(alloc_len, STANDARD_INQUIRY_LENGTH),
+				GFP_KERNEL);
 	if (inq_response == NULL) {
 		res = -ENOMEM;
 		goto out_mem;

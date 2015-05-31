@@ -404,7 +404,7 @@ static struct phy_driver bcm7xxx_driver[] = {
 	.name           = "Broadcom BCM7425",
 	.features       = PHY_GBIT_FEATURES |
 			  SUPPORTED_Pause | SUPPORTED_Asym_Pause,
-	.flags          = 0,
+	.flags          = PHY_IS_INTERNAL,
 	.config_init    = bcm7xxx_config_init,
 	.config_aneg    = genphy_config_aneg,
 	.read_status    = genphy_read_status,

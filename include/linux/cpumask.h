@@ -151,10 +151,8 @@ static inline unsigned int cpumask_any_but(const struct cpumask *mask,
 	return 1;
 }
 
-static inline int cpumask_set_cpu_local_first(int i, int numa_node, cpumask_t *dstp)
+static inline unsigned int cpumask_local_spread(unsigned int i, int node)
 {
-	set_bit(0, cpumask_bits(dstp));
-
 	return 0;
 }
 
@@ -208,7 +206,7 @@ static inline unsigned int cpumask_next_zero(int n, const struct cpumask *srcp)
 
 int cpumask_next_and(int n, const struct cpumask *, const struct cpumask *);
 int cpumask_any_but(const struct cpumask *mask, unsigned int cpu);
-int cpumask_set_cpu_local_first(int i, int numa_node, cpumask_t *dstp);
+unsigned int cpumask_local_spread(unsigned int i, int node);
 
 /**
  * for_each_cpu - iterate over every cpu in a mask
