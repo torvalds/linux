@@ -980,6 +980,13 @@ static int i40e_pci_sriov_enable(struct pci_dev *pdev, int num_vfs)
 	int pre_existing_vfs = pci_num_vf(pdev);
 	int err = 0;
 
+	if (pf->state & __I40E_TESTING) {
+		dev_warn(&pdev->dev,
+			 "Cannot enable SR-IOV virtual functions while the device is undergoing diagnostic testing\n");
+		err = -EPERM;
+		goto err_out;
+	}
+
 	dev_info(&pdev->dev, "Allocating %d VFs.\n", num_vfs);
 	if (pre_existing_vfs && pre_existing_vfs != num_vfs)
 		i40e_free_vfs(pf);
