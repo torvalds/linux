@@ -32,7 +32,6 @@
  *   device_free_info - device structure resource free function
  *   device_get_pci_info - get allocated pci io/mem resource
  *   device_print_info - print out resource
- *   device_intr - interrupt handle function
  *   device_rx_srv - rx service function
  *   device_alloc_rx_buf - rx buffer pre-allocated function
  *   device_free_tx_buf - free tx buffer function
@@ -148,7 +147,6 @@ static void vt6655_init_info(struct pci_dev *pcid,
 static void device_free_info(struct vnt_private *pDevice);
 static bool device_get_pci_info(struct vnt_private *, struct pci_dev *pcid);
 static void device_print_info(struct vnt_private *pDevice);
-static  irqreturn_t  device_intr(int irq,  void *dev_instance);
 
 #ifdef CONFIG_PM
 static int device_notify_reboot(struct notifier_block *, unsigned long event, void *ptr);
@@ -1053,27 +1051,24 @@ static void vnt_check_bb_vga(struct vnt_private *priv)
 	}
 }
 
-static  irqreturn_t  device_intr(int irq,  void *dev_instance)
+static void vnt_interrupt_process(struct vnt_private *pDevice)
 {
-	struct vnt_private *pDevice = dev_instance;
 	struct ieee80211_low_level_stats *low_stats = &pDevice->low_stats;
 	int             max_count = 0;
 	u32 mib_counter;
 	unsigned char byOrgPageSel = 0;
-	int             handled = 0;
 	unsigned long flags;
 
 	MACvReadISR(pDevice->PortOffset, &pDevice->dwIsr);
 
 	if (pDevice->dwIsr == 0)
-		return IRQ_RETVAL(handled);
+		return;
 
 	if (pDevice->dwIsr == 0xffffffff) {
 		pr_debug("dwIsr = 0xffff\n");
-		return IRQ_RETVAL(handled);
+		return;
 	}
 
-	handled = 1;
 	MACvIntDisable(pDevice->PortOffset);
 
 	spin_lock_irqsave(&pDevice->lock, flags);
@@ -1175,8 +1170,25 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance)
 	spin_unlock_irqrestore(&pDevice->lock, flags);
 
 	MACvIntEnable(pDevice->PortOffset, IMR_MASK_VALUE);
+}
 
-	return IRQ_RETVAL(handled);
+static void vnt_interrupt_work(struct work_struct *work)
+{
+	struct vnt_private *priv =
+		container_of(work, struct vnt_private, interrupt_work);
+
+	if (priv->vif)
+		vnt_interrupt_process(priv);
+}
+
+static irqreturn_t vnt_interrupt(int irq,  void *arg)
+{
+	struct vnt_private *priv = arg;
+
+	if (priv->vif)
+		schedule_work(&priv->interrupt_work);
+
+	return IRQ_HANDLED;
 }
 
 static int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
@@ -1268,7 +1280,7 @@ static int vnt_start(struct ieee80211_hw *hw)
 	if (!device_init_rings(priv))
 		return -ENOMEM;
 
-	ret = request_irq(priv->pcid->irq, &device_intr,
+	ret = request_irq(priv->pcid->irq, &vnt_interrupt,
 			  IRQF_SHARED, "vt6655", priv);
 	if (ret) {
 		dev_dbg(&priv->pcid->dev, "failed to start irq\n");
@@ -1296,6 +1308,8 @@ static void vnt_stop(struct ieee80211_hw *hw)
 	struct vnt_private *priv = hw->priv;
 
 	ieee80211_stop_queues(hw);
+
+	cancel_work_sync(&priv->interrupt_work);
 
 	MACbShutdown(priv->PortOffset);
 	MACbSoftwareReset(priv->PortOffset);
@@ -1782,6 +1796,8 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 		device_free_info(priv);
 		return -ENODEV;
 	}
+
+	INIT_WORK(&priv->interrupt_work, vnt_interrupt_work);
 
 	/* do reset */
 	if (!MACbSoftwareReset(priv->PortOffset)) {

@@ -405,6 +405,8 @@ struct vnt_private {
 
 	unsigned short wBeaconInterval;
 
+	struct work_struct interrupt_work;
+
 	struct ieee80211_low_level_stats low_stats;
 };
 
