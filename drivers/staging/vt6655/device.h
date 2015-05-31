@@ -238,7 +238,6 @@ struct vnt_private {
 	CHIP_TYPE                   chip_id;
 
 	void __iomem                *PortOffset;
-	unsigned long dwIsr;
 	u32                         memaddr;
 	u32                         ioaddr;
 	u32                         io_size;

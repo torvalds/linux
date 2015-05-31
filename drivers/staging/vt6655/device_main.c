@@ -1056,15 +1056,16 @@ static void vnt_interrupt_process(struct vnt_private *priv)
 	struct ieee80211_low_level_stats *low_stats = &priv->low_stats;
 	int             max_count = 0;
 	u32 mib_counter;
+	u32 isr;
 	unsigned long flags;
 
-	MACvReadISR(priv->PortOffset, &priv->dwIsr);
+	MACvReadISR(priv->PortOffset, &isr);
 
-	if (priv->dwIsr == 0)
+	if (isr == 0)
 		return;
 
-	if (priv->dwIsr == 0xffffffff) {
-		pr_debug("dwIsr = 0xffff\n");
+	if (isr == 0xffffffff) {
+		pr_debug("isr = 0xffff\n");
 		return;
 	}
 
@@ -1086,18 +1087,18 @@ static void vnt_interrupt_process(struct vnt_private *priv)
 	 * than RD/TD write back
 	 * update ISR counter
 	 */
-	while (priv->dwIsr && priv->vif) {
-		MACvWriteISR(priv->PortOffset, priv->dwIsr);
+	while (isr && priv->vif) {
+		MACvWriteISR(priv->PortOffset, isr);
 
-		if (priv->dwIsr & ISR_FETALERR) {
+		if (isr & ISR_FETALERR) {
 			pr_debug(" ISR_FETALERR\n");
 			VNSvOutPortB(priv->PortOffset + MAC_REG_SOFTPWRCTL, 0);
 			VNSvOutPortW(priv->PortOffset +
 				     MAC_REG_SOFTPWRCTL, SOFTPWRCTL_SWPECTI);
-			device_error(priv, priv->dwIsr);
+			device_error(priv, isr);
 		}
 
-		if (priv->dwIsr & ISR_TBTT) {
+		if (isr & ISR_TBTT) {
 			if (priv->op_mode != NL80211_IFTYPE_ADHOC)
 				vnt_check_bb_vga(priv);
 
@@ -1116,7 +1117,7 @@ static void vnt_interrupt_process(struct vnt_private *priv)
 
 		}
 
-		if (priv->dwIsr & ISR_BNTX) {
+		if (isr & ISR_BNTX) {
 			if (priv->op_mode == NL80211_IFTYPE_ADHOC) {
 				priv->bIsBeaconBufReadySet = false;
 				priv->cbBeaconBufReadySetCnt = 0;
@@ -1125,19 +1126,19 @@ static void vnt_interrupt_process(struct vnt_private *priv)
 			priv->bBeaconSent = true;
 		}
 
-		if (priv->dwIsr & ISR_RXDMA0)
+		if (isr & ISR_RXDMA0)
 			max_count += device_rx_srv(priv, TYPE_RXDMA0);
 
-		if (priv->dwIsr & ISR_RXDMA1)
+		if (isr & ISR_RXDMA1)
 			max_count += device_rx_srv(priv, TYPE_RXDMA1);
 
-		if (priv->dwIsr & ISR_TXDMA0)
+		if (isr & ISR_TXDMA0)
 			max_count += device_tx_srv(priv, TYPE_TXDMA0);
 
-		if (priv->dwIsr & ISR_AC0DMA)
+		if (isr & ISR_AC0DMA)
 			max_count += device_tx_srv(priv, TYPE_AC0DMA);
 
-		if (priv->dwIsr & ISR_SOFTTIMER1) {
+		if (isr & ISR_SOFTTIMER1) {
 			if (priv->vif->bss_conf.enable_beacon)
 				vnt_beacon_make(priv, priv->vif);
 		}
@@ -1148,7 +1149,7 @@ static void vnt_interrupt_process(struct vnt_private *priv)
 		    ieee80211_queue_stopped(priv->hw, 0))
 			ieee80211_wake_queues(priv->hw);
 
-		MACvReadISR(priv->PortOffset, &priv->dwIsr);
+		MACvReadISR(priv->PortOffset, &isr);
 
 		MACvReceive0(priv->PortOffset);
 		MACvReceive1(priv->PortOffset);
