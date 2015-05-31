@@ -116,9 +116,8 @@ static int r8192_wx_set_power(struct net_device *dev,
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	if (priv->bHwRadioOff) {
-		RT_TRACE(COMP_ERR,
-			 "%s():Hw is Radio Off, we can't set Power,return\n",
-			 __func__);
+		netdev_warn(dev, "%s(): Can't set Power: Radio is Off.\n",
+			    __func__);
 		return 0;
 	}
 	down(&priv->wx_sem);
@@ -278,8 +277,8 @@ static int r8192_wx_set_mode(struct net_device *dev, struct iw_request_info *a,
 			if (rtState == eRfOff) {
 				if (priv->rtllib->RfOffReason >
 				    RF_CHANGE_BY_IPS) {
-					RT_TRACE(COMP_ERR, "%s(): RF is OFF.\n",
-						 __func__);
+					netdev_warn(dev, "%s(): RF is OFF.\n",
+						    __func__);
 					up(&priv->wx_sem);
 					return -1;
 				}
@@ -438,9 +437,8 @@ static int r8192_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 			if (rtState == eRfOff) {
 				if (priv->rtllib->RfOffReason >
 				    RF_CHANGE_BY_IPS) {
-					RT_TRACE(COMP_ERR,
-						 "%s(): RF is OFF.\n",
-						 __func__);
+					netdev_warn(dev, "%s(): RF is OFF.\n",
+						    __func__);
 					up(&priv->wx_sem);
 					return -1;
 				}

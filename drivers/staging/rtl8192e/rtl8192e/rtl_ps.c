@@ -202,8 +202,8 @@ void rtllib_ips_leave_wq(struct net_device *dev)
 	if (priv->rtllib->PowerSaveControl.bInactivePs) {
 		if (rtState == eRfOff) {
 			if (priv->rtllib->RfOffReason > RF_CHANGE_BY_IPS) {
-				RT_TRACE(COMP_ERR, "%s(): RF is OFF.\n",
-					 __func__);
+				netdev_warn(dev, "%s(): RF is OFF.\n",
+					    __func__);
 				return;
 			}
 			netdev_info(dev, "=========>%s(): IPSLeave\n",

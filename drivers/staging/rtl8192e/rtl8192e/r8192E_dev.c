@@ -326,8 +326,8 @@ static void rtl8192_read_eeprom_info(struct net_device *dev)
 
 	EEPROMId = eprom_read(dev, 0);
 	if (EEPROMId != RTL8190_EEPROM_ID) {
-		RT_TRACE(COMP_ERR, "EEPROM ID is invalid:%x, %x\n",
-			 EEPROMId, RTL8190_EEPROM_ID);
+		netdev_err(dev, "%s(): Invalid EEPROM ID: %x\n", __func__,
+			   EEPROMId);
 		priv->AutoloadFailFlag = true;
 	} else {
 		priv->AutoloadFailFlag = false;
@@ -736,9 +736,8 @@ start:
 	else if (priv->pFirmware->firmware_status == FW_STATUS_5_READY)
 		ulRegRead |= CPU_GEN_FIRMWARE_RESET;
 	else
-		RT_TRACE(COMP_ERR,
-			 "ERROR in %s(): undefined firmware state(%d)\n",
-			 __func__,   priv->pFirmware->firmware_status);
+		netdev_err(dev, "%s(): undefined firmware state: %d.\n",
+			   __func__, priv->pFirmware->firmware_status);
 
 	write_nic_dword(dev, CPU_GEN, ulRegRead);
 
@@ -754,7 +753,7 @@ start:
 	RT_TRACE(COMP_INIT, "BB Config Start!\n");
 	rtStatus = rtl8192_BBConfig(dev);
 	if (!rtStatus) {
-		RT_TRACE(COMP_ERR, "BB Config failed\n");
+		netdev_warn(dev, "%s(): Failed to configure BB\n", __func__);
 		return rtStatus;
 	}
 	RT_TRACE(COMP_INIT, "BB Config Finished!\n");
@@ -768,8 +767,8 @@ start:
 		else if (priv->LoopbackMode == RTL819X_MAC_LOOPBACK)
 			ulRegRead |= CPU_CCK_LOOPBACK;
 		else
-			RT_TRACE(COMP_ERR,
-				 "Serious error: wrong loopback mode setting\n");
+			netdev_err(dev, "%s: Invalid loopback mode setting.\n",
+				   __func__);
 
 		write_nic_dword(dev, CPU_GEN, ulRegRead);
 
@@ -867,7 +866,7 @@ start:
 		RT_TRACE(COMP_INIT, "RF Config Started!\n");
 		rtStatus = rtl8192_phy_RFConfig(dev);
 		if (!rtStatus) {
-			RT_TRACE(COMP_ERR, "RF Config failed\n");
+			netdev_info(dev, "RF Config failed\n");
 			return rtStatus;
 		}
 		RT_TRACE(COMP_INIT, "RF Config Finished!\n");
@@ -1137,7 +1136,8 @@ static u8 MRateToHwRate8190Pci(u8 rate)
 	return ret;
 }
 
-static u8 rtl8192_MapHwQueueToFirmwareQueue(u8 QueueID, u8 priority)
+static u8 rtl8192_MapHwQueueToFirmwareQueue(struct net_device *dev, u8 QueueID,
+					    u8 priority)
 {
 	u8 QueueSelect = 0x0;
 
@@ -1170,9 +1170,8 @@ static u8 rtl8192_MapHwQueueToFirmwareQueue(u8 QueueID, u8 priority)
 		QueueSelect = QSLT_HIGH;
 		break;
 	default:
-		RT_TRACE(COMP_ERR,
-			 "TransmitTCB(): Impossible Queue Selection: %d\n",
-			 QueueID);
+		netdev_warn(dev, "%s(): Impossible Queue Selection: %d\n",
+			    __func__, QueueID);
 		break;
 	}
 	return QueueSelect;
@@ -1196,7 +1195,7 @@ void  rtl8192_tx_fill_desc(struct net_device *dev, struct tx_desc *pdesc,
 						cb_desc);
 
 	if (pci_dma_mapping_error(priv->pdev, mapping))
-		RT_TRACE(COMP_ERR, "DMA Mapping error\n");
+		netdev_err(dev, "%s(): DMA Mapping error\n", __func__);
 	if (cb_desc->bAMPDUEnable) {
 		pTxFwInfo->AllowAggregation = 1;
 		pTxFwInfo->RxMF = cb_desc->ampdu_factor;
@@ -1272,7 +1271,7 @@ void  rtl8192_tx_fill_desc(struct net_device *dev, struct tx_desc *pdesc,
 
 	pdesc->PktId = 0x0;
 
-	pdesc->QueueSelect = rtl8192_MapHwQueueToFirmwareQueue(
+	pdesc->QueueSelect = rtl8192_MapHwQueueToFirmwareQueue(dev,
 						cb_desc->queue_index,
 						cb_desc->priority);
 	pdesc->TxFWInfoSize = sizeof(struct tx_fwinfo_8190pci);
@@ -1296,7 +1295,7 @@ void  rtl8192_tx_fill_cmd_desc(struct net_device *dev,
 			 PCI_DMA_TODEVICE);
 
 	if (pci_dma_mapping_error(priv->pdev, mapping))
-		RT_TRACE(COMP_ERR, "DMA Mapping error\n");
+		netdev_err(dev, "%s(): DMA Mapping error\n", __func__);
 	memset(entry, 0, 12);
 	entry->LINIP = cb_desc->bLastIniPkt;
 	entry->FirstSeg = 1;

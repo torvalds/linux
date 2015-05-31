@@ -113,8 +113,8 @@ void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType,
 	if (priv->rtllib->PowerSaveControl.bInactivePs) {
 		if (rtState == eRfOff) {
 			if (priv->rtllib->RfOffReason > RF_CHANGE_BY_IPS) {
-				RT_TRACE(COMP_ERR, "%s(): RF is OFF.\n",
-					__func__);
+				netdev_warn(dev, "%s(): RF is OFF.\n",
+					    __func__);
 				return;
 			}
 			down(&priv->rtllib->ips_sem);
@@ -124,7 +124,7 @@ void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType,
 	}
 	priv->rtllib->is_set_key = true;
 	if (EntryNo >= TOTAL_CAM_ENTRY)
-		RT_TRACE(COMP_ERR, "cam entry exceeds in setKey()\n");
+		netdev_info(dev, "%s(): Invalid CAM entry\n", __func__);
 
 	RT_TRACE(COMP_SEC,
 		 "====>to setKey(), dev:%p, EntryNo:%d, KeyIndex:%d,KeyType:%d, MacAddr %pM\n",
@@ -243,9 +243,9 @@ void CamRestoreAllEntry(struct net_device *dev)
 				       (u32 *)(&priv->rtllib->swcamtable[0].key_buf[0])
 				     );
 			} else {
-				RT_TRACE(COMP_ERR,
-					 "===>%s():ERR!! ADHOC TKIP ,but 0 entry is have no data\n",
-					 __func__);
+				netdev_warn(dev,
+					    "%s(): ADHOC TKIP: missing key entry.\n",
+					    __func__);
 				return;
 			}
 		}
@@ -267,9 +267,9 @@ void CamRestoreAllEntry(struct net_device *dev)
 					CAM_CONST_ADDR[0], 0,
 					(u32 *)(&priv->rtllib->swcamtable[0].key_buf[0]));
 			} else {
-				RT_TRACE(COMP_ERR,
-					 "===>%s():ERR!! ADHOC CCMP ,but 0 entry is have no data\n",
-					 __func__);
+				netdev_warn(dev,
+					    "%s(): ADHOC CCMP: missing key entry.\n",
+					    __func__);
 				return;
 			}
 		}

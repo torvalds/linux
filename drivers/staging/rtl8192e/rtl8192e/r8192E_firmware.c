@@ -116,7 +116,7 @@ static bool CPUcheck_maincodeok_turnonCPU(struct net_device *dev)
 	}
 
 	if (!(CPU_status&CPU_GEN_PUT_CODE_OK)) {
-		RT_TRACE(COMP_ERR, "Download Firmware: Put code fail!\n");
+		netdev_err(dev, "Firmware download failed.\n");
 		goto CPUCheckMainCodeOKAndTurnOnCPU_Fail;
 	} else {
 		RT_TRACE(COMP_FIRMWARE, "Download Firmware: Put code ok!\n");
@@ -135,15 +135,16 @@ static bool CPUcheck_maincodeok_turnonCPU(struct net_device *dev)
 		mdelay(2);
 	}
 
-	if (!(CPU_status&CPU_GEN_BOOT_RDY))
+	if (!(CPU_status&CPU_GEN_BOOT_RDY)) {
+		netdev_err(dev, "Firmware boot failed.\n");
 		goto CPUCheckMainCodeOKAndTurnOnCPU_Fail;
-	else
-		RT_TRACE(COMP_FIRMWARE, "Download Firmware: Boot ready!\n");
+	}
+
+	RT_TRACE(COMP_FIRMWARE, "Download Firmware: Boot ready!\n");
 
 	return rt_status;
 
 CPUCheckMainCodeOKAndTurnOnCPU_Fail:
-	RT_TRACE(COMP_ERR, "ERR in %s()\n", __func__);
 	rt_status = false;
 	return rt_status;
 }
@@ -310,7 +311,7 @@ bool init_firmware(struct net_device *dev)
 	return rt_status;
 
 download_firmware_fail:
-	RT_TRACE(COMP_ERR, "ERR in %s()\n", __func__);
+	netdev_err(dev, "%s: Failed to initialize firmware.\n", __func__);
 	rt_status = false;
 	return rt_status;
 

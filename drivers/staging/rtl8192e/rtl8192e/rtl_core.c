@@ -343,8 +343,9 @@ bool MgntActSet_RF_State(struct net_device *dev,
 					mdelay(1);
 
 					if (RFWaitCounter > 100) {
-						RT_TRACE(COMP_ERR,
-							 "MgntActSet_RF_State(): Wait too logn to set RF\n");
+						netdev_warn(dev,
+							    "%s(): Timeout waiting for RF change.\n",
+							    __func__);
 						return false;
 					}
 				}
@@ -897,9 +898,9 @@ void rtl8192_SetWirelessMode(struct net_device *dev, u8 wireless_mode)
 		} else if ((bSupportMode & WIRELESS_MODE_B)) {
 			wireless_mode = WIRELESS_MODE_B;
 		} else {
-			RT_TRACE(COMP_ERR,
-				 "%s(), No valid wireless mode supported (%x)!!!\n",
-				 __func__, bSupportMode);
+			netdev_info(dev,
+				    "%s(): Unsupported mode requested. Fallback to 802.11b\n",
+				    __func__);
 			wireless_mode = WIRELESS_MODE_B;
 		}
 	}
@@ -946,8 +947,7 @@ static int _rtl8192_sta_up(struct net_device *dev, bool is_silent_reset)
 	priv->bfirst_init = true;
 	init_status = priv->ops->initialize_adapter(dev);
 	if (!init_status) {
-		RT_TRACE(COMP_ERR, "ERR!!! %s(): initialization is failed!\n",
-			 __func__);
+		netdev_err(dev, "%s(): Initialization failed!\n", __func__);
 		priv->bfirst_init = false;
 		return -1;
 	}
@@ -1267,9 +1267,8 @@ static short rtl8192_get_channel_map(struct net_device *dev)
 
 	if ((priv->rf_chip != RF_8225) && (priv->rf_chip != RF_8256)
 			&& (priv->rf_chip != RF_6052)) {
-		RT_TRACE(COMP_ERR,
-			 "%s: unknown rf chip, can't set channel map\n",
-			 __func__);
+		netdev_err(dev, "%s: unknown rf chip, can't set channel map\n",
+			   __func__);
 		return -1;
 	}
 
@@ -1498,9 +1497,8 @@ RESET_START:
 			LeisurePSLeave(dev);
 
 		if (priv->up) {
-			RT_TRACE(COMP_ERR,
-				 "%s():the driver is not up! return\n",
-				 __func__);
+			netdev_info(dev, "%s():the driver is not up.\n",
+				    __func__);
 			up(&priv->wx_sem);
 			return;
 		}
@@ -1554,9 +1552,8 @@ RESET_START:
 				reset_times++;
 				goto RESET_START;
 			} else {
-				RT_TRACE(COMP_ERR,
-					 " ERR!!! %s():  Reset Failed!!\n",
-					 __func__);
+				netdev_warn(dev, "%s():	Reset Failed\n",
+					    __func__);
 			}
 		}
 
@@ -1729,7 +1726,7 @@ void	rtl819x_watchdog_wqcallback(void *data)
 
 		if (priv->check_roaming_cnt > 0) {
 			if (ieee->eRFPowerState == eRfOff)
-				RT_TRACE(COMP_ERR, "========>%s()\n", __func__);
+				netdev_info(dev, "%s(): RF is off\n", __func__);
 
 			netdev_info(dev,
 				    "===>%s(): AP is power off, chan:%d, connect another one\n",
@@ -1999,9 +1996,8 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff *skb)
 	u32 fwinfo_size = 0;
 
 	if (priv->bdisable_nic) {
-		RT_TRACE(COMP_ERR,
-			 "%s: ERR!! Nic is disabled! Can't tx packet len=%d qidx=%d!!!\n",
-			 __func__, skb->len, tcb_desc->queue_index);
+		netdev_warn(dev, "%s: Nic is disabled! Can't tx packet.\n",
+			    __func__);
 		return skb->len;
 	}
 
@@ -2038,10 +2034,10 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff *skb)
 
 	pdesc = &ring->desc[idx];
 	if ((pdesc->OWN == 1) && (tcb_desc->queue_index != BEACON_QUEUE)) {
-		RT_TRACE(COMP_ERR,
-			 "No more TX desc@%d, ring->idx = %d, idx = %d, skblen = 0x%x queuelen=%d",
-			 tcb_desc->queue_index, ring->idx, idx, skb->len,
-			 skb_queue_len(&ring->queue));
+		netdev_warn(dev,
+			    "No more TX desc@%d, ring->idx = %d, idx = %d, skblen = 0x%x queuelen=%d",
+			    tcb_desc->queue_index, ring->idx, idx, skb->len,
+			    skb_queue_len(&ring->queue));
 		spin_unlock_irqrestore(&priv->irq_th_lock, flags);
 		return skb->len;
 	}
@@ -2072,7 +2068,7 @@ static short rtl8192_alloc_rx_desc_ring(struct net_device *dev)
 					      &priv->rx_ring_dma[rx_queue_idx]);
 		if (!priv->rx_ring[rx_queue_idx] ||
 		    (unsigned long)priv->rx_ring[rx_queue_idx] & 0xFF) {
-			RT_TRACE(COMP_ERR, "Cannot allocate RX ring\n");
+			netdev_warn(dev, "Cannot allocate RX ring\n");
 			return -ENOMEM;
 		}
 
@@ -2118,8 +2114,7 @@ static int rtl8192_alloc_tx_desc_ring(struct net_device *dev,
 
 	ring = pci_zalloc_consistent(priv->pdev, sizeof(*ring) * entries, &dma);
 	if (!ring || (unsigned long)ring & 0xFF) {
-		RT_TRACE(COMP_ERR, "Cannot allocate TX ring (prio = %d)\n",
-			 prio);
+		netdev_warn(dev, "Cannot allocate TX ring (prio = %d)\n", prio);
 		return -ENOMEM;
 	}
 
@@ -2848,7 +2843,7 @@ static int rtl8192_pci_probe(struct pci_dev *pdev,
 	RT_TRACE(COMP_INIT, "Configuring chip resources");
 
 	if (pci_enable_device(pdev)) {
-		RT_TRACE(COMP_ERR, "Failed to enable PCI device");
+		dev_err(&pdev->dev, "Failed to enable PCI device");
 		return -EIO;
 	}
 
@@ -2886,21 +2881,21 @@ static int rtl8192_pci_probe(struct pci_dev *pdev,
 	pmem_flags = pci_resource_flags(pdev, 1);
 
 	if (!(pmem_flags & IORESOURCE_MEM)) {
-		RT_TRACE(COMP_ERR, "region #1 not a MMIO resource, aborting");
+		netdev_err(dev, "region #1 not a MMIO resource, aborting");
 		goto err_rel_rtllib;
 	}
 
 	dev_info(&pdev->dev, "Memory mapped space start: 0x%08lx\n",
 		 pmem_start);
 	if (!request_mem_region(pmem_start, pmem_len, DRV_NAME)) {
-		RT_TRACE(COMP_ERR, "request_mem_region failed!");
+		netdev_err(dev, "request_mem_region failed!");
 		goto err_rel_rtllib;
 	}
 
 
 	ioaddr = (unsigned long)ioremap_nocache(pmem_start, pmem_len);
 	if (ioaddr == (unsigned long)NULL) {
-		RT_TRACE(COMP_ERR, "ioremap failed!");
+		netdev_err(dev, "ioremap failed!");
 		goto err_rel_mem;
 	}
 
@@ -2936,7 +2931,7 @@ static int rtl8192_pci_probe(struct pci_dev *pdev,
 
 	RT_TRACE(COMP_INIT, "Driver probe completed1\n");
 	if (rtl8192_init(dev) != 0) {
-		RT_TRACE(COMP_ERR, "Initialization failed");
+		netdev_warn(dev, "Initialization failed");
 		goto err_free_irq;
 	}
 
@@ -3022,8 +3017,7 @@ bool NicIFEnableNIC(struct net_device *dev)
 					(&(priv->rtllib->PowerSaveControl));
 
 	if (!priv->up) {
-		RT_TRACE(COMP_ERR, "ERR!!! %s(): Driver is already down!\n",
-			 __func__);
+		netdev_warn(dev, "%s(): Driver is already down!\n", __func__);
 		priv->bdisable_nic = false;
 		return false;
 	}
@@ -3032,8 +3026,7 @@ bool NicIFEnableNIC(struct net_device *dev)
 	priv->bfirst_init = true;
 	init_status = priv->ops->initialize_adapter(dev);
 	if (!init_status) {
-		RT_TRACE(COMP_ERR, "ERR!!! %s(): initialization is failed!\n",
-			 __func__);
+		netdev_warn(dev, "%s(): Initialization failed!\n", __func__);
 		priv->bdisable_nic = false;
 		return false;
 	}
