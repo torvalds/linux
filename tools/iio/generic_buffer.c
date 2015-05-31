@@ -345,10 +345,10 @@ int main(int argc, char **argv)
 
 error_close_buffer_access:
 	close(fp);
-error_free_data:
-	free(data);
 error_free_buffer_access:
 	free(buffer_access);
+error_free_data:
+	free(data);
 error_free_buf_dir_name:
 	free(buf_dir_name);
 error_free_triggername:
