@@ -206,13 +206,22 @@ int main(int argc, char **argv)
 			noevents = 1;
 			break;
 		case 'c':
+			errno = 0;
 			num_loops = strtoul(optarg, &dummy, 10);
+			if (errno)
+				return -errno;
 			break;
 		case 'w':
+			errno = 0;
 			timedelay = strtoul(optarg, &dummy, 10);
+			if (errno)
+				return -errno;
 			break;
 		case 'l':
+			errno = 0;
 			buf_len = strtoul(optarg, &dummy, 10);
+			if (errno)
+				return -errno;
 			break;
 		case 'g':
 			notrigger = 1;
