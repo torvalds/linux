@@ -287,6 +287,12 @@ struct mlx4_icm_table {
 #define MLX4_CQE_SIZE_MASK_STRIDE	0x3
 #define MLX4_EQE_SIZE_MASK_STRIDE	0x30
 
+#define MLX4_EQ_ASYNC			0
+#define MLX4_EQ_TO_CQ_VECTOR(vector)	((vector) - \
+					 !!((int)(vector) >= MLX4_EQ_ASYNC))
+#define MLX4_CQ_TO_EQ_VECTOR(vector)	((vector) + \
+					 !!((int)(vector) >= MLX4_EQ_ASYNC))
+
 /*
  * Must be packed because mtt_seg is 64 bits but only aligned to 32 bits.
  */
@@ -391,6 +397,9 @@ struct mlx4_eq {
 	struct mlx4_buf_list   *page_list;
 	struct mlx4_mtt		mtt;
 	struct mlx4_eq_tasklet	tasklet_ctx;
+	struct mlx4_active_ports actv_ports;
+	u32			ref_count;
+	cpumask_var_t		affinity_mask;
 };
 
 struct mlx4_slave_eqe {
@@ -808,6 +817,7 @@ struct mlx4_port_info {
 	struct mlx4_vlan_table	vlan_table;
 	struct mlx4_roce_gid_table gid_table;
 	int			base_qpn;
+	struct cpu_rmap		*rmap;
 };
 
 struct mlx4_sense {
@@ -818,7 +828,7 @@ struct mlx4_sense {
 };
 
 struct mlx4_msix_ctl {
-	u64		pool_bm;
+	DECLARE_BITMAP(pool_bm, MAX_MSIX);
 	struct mutex	pool_lock;
 };
 

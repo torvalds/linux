@@ -523,7 +523,6 @@ struct mlx4_ib_dev {
 	struct mlx4_ib_iboe	iboe;
 	int			counters[MLX4_MAX_PORTS];
 	int		       *eq_table;
-	int			eq_added;
 	struct kobject	       *iov_parent;
 	struct kobject	       *ports_parent;
 	struct kobject	       *dev_ports_parent[MLX4_MFUNC_MAX];

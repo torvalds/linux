@@ -1958,7 +1958,6 @@ void mlx4_en_free_resources(struct mlx4_en_priv *priv)
 	int i;
 
 #ifdef CONFIG_RFS_ACCEL
-	free_irq_cpu_rmap(priv->dev->rx_cpu_rmap);
 	priv->dev->rx_cpu_rmap = NULL;
 #endif
 
@@ -2016,11 +2015,7 @@ int mlx4_en_alloc_resources(struct mlx4_en_priv *priv)
 	}
 
 #ifdef CONFIG_RFS_ACCEL
-	if (priv->mdev->dev->caps.comp_pool) {
-		priv->dev->rx_cpu_rmap = alloc_irq_cpu_rmap(priv->mdev->dev->caps.comp_pool);
-		if (!priv->dev->rx_cpu_rmap)
-			goto err;
-	}
+	priv->dev->rx_cpu_rmap = mlx4_get_cpu_rmap(priv->mdev->dev, priv->port);
 #endif
 
 	return 0;
