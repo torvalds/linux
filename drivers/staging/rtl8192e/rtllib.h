@@ -641,51 +641,6 @@ enum wireless_network_type {
 #define OUI_SUBTYPE_WMM_PARAM	1
 #define OUI_SUBTYPE_QOS_CAPABI	5
 
-/* debug macros */
-/* To use the debug system;
- *
- * If you are defining a new debug classification, simply add it to the #define
- * list here in the form of:
- *
- * #define RTLLIB_DL_xxxx VALUE
- *
- * shifting value to the left one bit from the previous entry.  xxxx should be
- * the name of the classification (for example, WEP)
- *
- * You then need to either add a RTLLIB_xxxx_DEBUG() macro definition for your
- * classification, or use RTLLIB_DEBUG(RTLLIB_DL_xxxx, ...) whenever you want
- * to send output to that classification.
- *
- * To add your debug level to the list of levels seen when you perform
- *
- * % cat /proc/net/ipw/debug_level
- *
- * you simply need to add your entry to the ipw_debug_levels array.
- */
-
-#define RTLLIB_DL_INFO	  (1<<0)
-#define RTLLIB_DL_WX	    (1<<1)
-#define RTLLIB_DL_SCAN	  (1<<2)
-#define RTLLIB_DL_STATE	 (1<<3)
-#define RTLLIB_DL_MGMT	  (1<<4)
-#define RTLLIB_DL_FRAG	  (1<<5)
-#define RTLLIB_DL_EAP	   (1<<6)
-#define RTLLIB_DL_DROP	  (1<<7)
-
-#define RTLLIB_DL_TX	    (1<<8)
-#define RTLLIB_DL_RX	    (1<<9)
-
-#define RTLLIB_DL_HT		   (1<<10)
-#define RTLLIB_DL_BA		   (1<<11)
-#define RTLLIB_DL_TS		   (1<<12)
-#define RTLLIB_DL_QOS	   (1<<13)
-#define RTLLIB_DL_REORDER	   (1<<14)
-#define RTLLIB_DL_IOT	   (1<<15)
-#define RTLLIB_DL_IPS	   (1<<16)
-#define RTLLIB_DL_TRACE	   (1<<29)
-#define RTLLIB_DL_DATA	   (1<<30)
-#define RTLLIB_DL_ERR	   (1<<31)
-
 #ifndef ETH_P_PAE
 #define ETH_P_PAE 0x888E /* Port Access Entity (IEEE 802.1X) */
 #define ETH_P_IP	0x0800		/* Internet Protocol packet	*/
