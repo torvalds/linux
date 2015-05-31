@@ -56,7 +56,7 @@ static int dump_channels(const char *dev_dir_name)
 			printf("   %-10s\n", ent->d_name);
 		}
 
-	return 0;
+	return (closedir(dp) == -1) ? -errno : 0;
 }
 
 static int dump_one_device(const char *dev_dir_name)
