@@ -40,6 +40,7 @@
 #include <linux/freezer.h>
 #include <linux/jiffies.h>
 #include <linux/kthread.h>
+#include <linux/ktime.h>
 #include <asm/processor.h>
 
 #include "dvb_frontend.h"
@@ -890,42 +891,21 @@ static void dvb_frontend_stop(struct dvb_frontend *fe)
 				fepriv->thread);
 }
 
-s32 timeval_usec_diff(struct timeval lasttime, struct timeval curtime)
-{
-	return ((curtime.tv_usec < lasttime.tv_usec) ?
-		1000000 - lasttime.tv_usec + curtime.tv_usec :
-		curtime.tv_usec - lasttime.tv_usec);
-}
-EXPORT_SYMBOL(timeval_usec_diff);
-
-static inline void timeval_usec_add(struct timeval *curtime, u32 add_usec)
-{
-	curtime->tv_usec += add_usec;
-	if (curtime->tv_usec >= 1000000) {
-		curtime->tv_usec -= 1000000;
-		curtime->tv_sec++;
-	}
-}
-
 /*
  * Sleep until gettimeofday() > waketime + add_usec
  * This needs to be as precise as possible, but as the delay is
  * usually between 2ms and 32ms, it is done using a scheduled msleep
  * followed by usleep (normally a busy-wait loop) for the remainder
  */
-void dvb_frontend_sleep_until(struct timeval *waketime, u32 add_usec)
+void dvb_frontend_sleep_until(ktime_t *waketime, u32 add_usec)
 {
-	struct timeval lasttime;
 	s32 delta, newdelta;
 
-	timeval_usec_add(waketime, add_usec);
-
-	do_gettimeofday(&lasttime);
-	delta = timeval_usec_diff(lasttime, *waketime);
+	ktime_add_us(*waketime, add_usec);
+	delta = ktime_us_delta(ktime_get_real(), *waketime);
 	if (delta > 2500) {
 		msleep((delta - 1500) / 1000);
-		do_gettimeofday(&lasttime);
-		newdelta = timeval_usec_diff(lasttime, *waketime);
+		newdelta = ktime_us_delta(ktime_get_real(), *waketime);
 		delta = (newdelta > delta) ? 0 : newdelta;
 	}
 	if (delta > 0)
@@ -2463,13 +2443,13 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 			 * include the initialization or start bit
 			 */
 			unsigned long swcmd = ((unsigned long) parg) << 1;
-			struct timeval nexttime;
-			struct timeval tv[10];
+			ktime_t nexttime;
+			ktime_t tv[10];
 			int i;
 			u8 last = 1;
 			if (dvb_frontend_debug)
 				printk("%s switch command: 0x%04lx\n", __func__, swcmd);
-			do_gettimeofday(&nexttime);
+			nexttime = ktime_get_real();
 			if (dvb_frontend_debug)
 				tv[0] = nexttime;
 			/* before sending a command, initialize by sending
@@ -2480,7 +2460,7 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 
 			for (i = 0; i < 9; i++) {
 				if (dvb_frontend_debug)
-					do_gettimeofday(&tv[i + 1]);
+					tv[i+1] = ktime_get_real();
 				if ((swcmd & 0x01) != last) {
 					/* set voltage to (last ? 13V : 18V) */
 					fe->ops.set_voltage(fe, (last) ? SEC_VOLTAGE_13 : SEC_VOLTAGE_18);
@@ -2494,7 +2474,8 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 				printk("%s(%d): switch delay (should be 32k followed by all 8k\n",
 					__func__, fe->dvb->num);
 				for (i = 1; i < 10; i++)
-					printk("%d: %d\n", i, timeval_usec_diff(tv[i-1] , tv[i]));
+					printk("%d: %d\n", i,
+					(int) ktime_us_delta(tv[i], tv[i-1]));
 			}
 			err = 0;
 			fepriv->state = FESTATE_DISEQC;

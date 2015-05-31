@@ -44,6 +44,7 @@
 
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/ktime.h>
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/slab.h>
@@ -407,8 +408,8 @@ static int stv0299_send_legacy_dish_cmd (struct dvb_frontend* fe, unsigned long 
 	u8 lv_mask = 0x40;
 	u8 last = 1;
 	int i;
-	struct timeval nexttime;
-	struct timeval tv[10];
+	ktime_t nexttime;
+	ktime_t tv[10];
 
 	reg0x08 = stv0299_readreg (state, 0x08);
 	reg0x0c = stv0299_readreg (state, 0x0c);
@@ -421,7 +422,7 @@ static int stv0299_send_legacy_dish_cmd (struct dvb_frontend* fe, unsigned long 
 	if (debug_legacy_dish_switch)
 		printk ("%s switch command: 0x%04lx\n",__func__, cmd);
 
-	do_gettimeofday (&nexttime);
+	nexttime = ktime_get_real();
 	if (debug_legacy_dish_switch)
 		tv[0] = nexttime;
 	stv0299_writeregI (state, 0x0c, reg0x0c | 0x50); /* set LNB to 18V */
@@ -430,7 +431,7 @@ static int stv0299_send_legacy_dish_cmd (struct dvb_frontend* fe, unsigned long 
 
 	for (i=0; i<9; i++) {
 		if (debug_legacy_dish_switch)
-			do_gettimeofday (&tv[i+1]);
+			tv[i+1] = ktime_get_real();
 		if((cmd & 0x01) != last) {
 			/* set voltage to (last ? 13V : 18V) */
 			stv0299_writeregI (state, 0x0c, reg0x0c | (last ? lv_mask : 0x50));
@@ -446,7 +447,8 @@ static int stv0299_send_legacy_dish_cmd (struct dvb_frontend* fe, unsigned long 
 		printk ("%s(%d): switch delay (should be 32k followed by all 8k\n",
 			__func__, fe->dvb->num);
 		for (i = 1; i < 10; i++)
-			printk ("%d: %d\n", i, timeval_usec_diff(tv[i-1] , tv[i]));
+			printk("%d: %d\n", i,
+			       (int) ktime_us_delta(tv[i], tv[i-1]));
 	}
 
 	return 0;
