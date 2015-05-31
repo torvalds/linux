@@ -57,18 +57,19 @@
  *
  *
  * 802.11 frame_control for data frames - 2 bytes
- *      ,-----------------------------------------------------------------------------------------.
- * bits | 0  |  1  |  2  |  3  |  4  |  5  |  6  |  7  |  8  |  9  |  a  |  b  |  c  |  d  |  e   |
- *      |----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|------|
- * val  | 0  |  0  |  0  |  1  |  x  |  0  |  0  |  0  |  1  |  0  |  x  |  x  |  x  |  x  |  x   |
- *      |----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|------|
- * desc | ^-ver-^  |  ^type-^  |  ^-----subtype-----^  | to  |from |more |retry| pwr |more |wep   |
- *      |          |           | x=0 data,x=1 data+ack | DS  | DS  |frag |     | mgm |data |      |
- *      '-----------------------------------------------------------------------------------------'
- *                                                   /\
- *                                                   |
- * 802.11 Data Frame                                 |
- *          ,--------- 'ctrl' expands to >-----------'
+ *      ,--------------------------------------------------------------------.
+ * bits | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |  9 |  a |  b  |  c  |  d  | e  |
+ *      |---|---|---|---|---|---|---|---|---|----|----|-----|-----|-----|----|
+ * val  | 0 | 0 | 0 | 1 | x | 0 | 0 | 0 | 1 |  0 |  x |  x  |  x  |  x  | x  |
+ *      |---|---|---|---|---|---|---|---|---|----|----|-----|-----|-----|----|
+ * desc |  ver  | type  |  ^-subtype-^  |to |from|more|retry| pwr |more |wep |
+ *      |       |       | x=0 data      |DS | DS |frag|     | mgm |data |    |
+ *      |       |       | x=1 data+ack  |   |    |    |     |     |     |    |
+ *      '--------------------------------------------------------------------'
+ *                                           /\
+ *                                           |
+ * 802.11 Data Frame                         |
+ *          ,--------- 'ctrl' expands to >---'
  *          |
  *       ,--'---,-------------------------------------------------------------.
  * Bytes |  2   |  2   |    6    |    6    |    6    |  2   | 0..2312 |   4  |
@@ -112,15 +113,15 @@
  *       `-----------------------------------------'
  * Total: 18 non-data bytes
  *
- * In the event that fragmentation is required, the incoming payload is split into
- * N parts of size ieee->fts.  The first fragment contains the SNAP header and the
- * remaining packets are just data.
+ * In the event that fragmentation is required, the incoming payload is split
+ * into N parts of size ieee->fts.  The first fragment contains the SNAP header
+ * and the remaining packets are just data.
  *
- * If encryption is enabled, each fragment payload size is reduced by enough space
- * to add the prefix and postfix (IV and ICV totalling 8 bytes in the case of WEP)
- * So if you have 1500 bytes of payload with ieee->fts set to 500 without
- * encryption it will take 3 frames.  With WEP it will take 4 frames as the
- * payload of each frame is reduced to 492 bytes.
+ * If encryption is enabled, each fragment payload size is reduced by enough
+ * space to add the prefix and postfix (IV and ICV totalling 8 bytes in
+ * the case of WEP) So if you have 1500 bytes of payload with ieee->fts set to
+ * 500 without encryption it will take 3 frames.  With WEP it will take 4 frames
+ * as the payload of each frame is reduced to 492 bytes.
  *
  * SKB visualization
  *

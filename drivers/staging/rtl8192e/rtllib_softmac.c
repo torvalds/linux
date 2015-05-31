@@ -272,9 +272,10 @@ inline void softmac_mgmt_xmit(struct sk_buff *skb, struct rtllib_device *ieee)
 			ieee->seq_ctrl[0]++;
 
 		/* check whether the managed packet queued greater than 5 */
-		if (!ieee->check_nic_enough_desc(ieee->dev, tcb_desc->queue_index) ||
-		    (skb_queue_len(&ieee->skb_waitQ[tcb_desc->queue_index]) != 0) ||
-		    (ieee->queue_stop)) {
+		if (!ieee->check_nic_enough_desc(ieee->dev,
+						 tcb_desc->queue_index) ||
+		    skb_queue_len(&ieee->skb_waitQ[tcb_desc->queue_index]) ||
+		    ieee->queue_stop) {
 			/* insert the skb packet to the management queue
 			 *
 			 * as for the completion function, it does not need
@@ -1483,7 +1484,8 @@ static void rtllib_associate_step1(struct rtllib_device *ieee, u8 *daddr)
 	}
 }
 
-static void rtllib_auth_challenge(struct rtllib_device *ieee, u8 *challenge, int chlen)
+static void rtllib_auth_challenge(struct rtllib_device *ieee, u8 *challenge,
+				  int chlen)
 {
 	u8 *c;
 	struct sk_buff *skb;
@@ -1740,7 +1742,7 @@ inline void rtllib_softmac_new_net(struct rtllib_device *ieee,
 				/* Join the network for the first time */
 				ieee->AsocRetryCount = 0;
 				if ((ieee->current_network.qos_data.supported == 1) &&
-				   ieee->current_network.bssht.bdSupportHT)
+				    ieee->current_network.bssht.bdSupportHT)
 					HTResetSelfAndSavePeerSetting(ieee,
 						 &(ieee->current_network));
 				else
@@ -1755,14 +1757,19 @@ inline void rtllib_softmac_new_net(struct rtllib_device *ieee,
 					   &ieee->associate_procedure_wq, 0);
 			} else {
 				if (rtllib_is_54g(&ieee->current_network) &&
-					(ieee->modulation & RTLLIB_OFDM_MODULATION)) {
+				    (ieee->modulation &
+				     RTLLIB_OFDM_MODULATION)) {
 					ieee->rate = 108;
-					ieee->SetWirelessMode(ieee->dev, IEEE_G);
-					netdev_info(ieee->dev, "Using G rates\n");
+					ieee->SetWirelessMode(ieee->dev,
+							      IEEE_G);
+					netdev_info(ieee->dev,
+						    "Using G rates\n");
 				} else {
 					ieee->rate = 22;
-					ieee->SetWirelessMode(ieee->dev, IEEE_B);
-					netdev_info(ieee->dev, "Using B rates\n");
+					ieee->SetWirelessMode(ieee->dev,
+							      IEEE_B);
+					netdev_info(ieee->dev,
+						    "Using B rates\n");
 				}
 				memset(ieee->dot11HTOperationalRateSet, 0, 16);
 				ieee->state = RTLLIB_LINKED;
@@ -2023,7 +2030,7 @@ static short rtllib_sta_ps_sleep(struct rtllib_device *ieee, u64 *time)
 		if (ieee->bAwakePktSent) {
 			pPSC->LPSAwakeIntvl = 1;
 		} else {
-			u8		MaxPeriod = 1;
+			u8 MaxPeriod = 1;
 
 			if (pPSC->LPSAwakeIntvl == 0)
 				pPSC->LPSAwakeIntvl = 1;
@@ -2194,7 +2201,8 @@ void rtllib_ps_tx_ack(struct rtllib_device *ieee, short success)
 }
 EXPORT_SYMBOL(rtllib_ps_tx_ack);
 
-static void rtllib_process_action(struct rtllib_device *ieee, struct sk_buff *skb)
+static void rtllib_process_action(struct rtllib_device *ieee,
+				  struct sk_buff *skb)
 {
 	struct rtllib_hdr_3addr *header = (struct rtllib_hdr_3addr *) skb->data;
 	u8 *act = rtllib_get_payload((struct rtllib_hdr *)header);
@@ -3674,8 +3682,8 @@ static void rtllib_MgntDisconnectIBSS(struct rtllib_device *rtllib)
 
 }
 
-static void rtllib_MlmeDisassociateRequest(struct rtllib_device *rtllib, u8 *asSta,
-				    u8 asRsn)
+static void rtllib_MlmeDisassociateRequest(struct rtllib_device *rtllib,
+					   u8 *asSta, u8 asRsn)
 {
 	u8 i;
 	u8	OpMode;

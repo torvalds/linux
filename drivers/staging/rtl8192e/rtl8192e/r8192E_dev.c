@@ -30,7 +30,8 @@
 #include "rtl_dm.h"
 #include "rtl_wx.h"
 
-static int WDCAPARA_ADD[] = {EDCAPARA_BE, EDCAPARA_BK, EDCAPARA_VI, EDCAPARA_VO};
+static int WDCAPARA_ADD[] = {EDCAPARA_BE, EDCAPARA_BK, EDCAPARA_VI,
+			     EDCAPARA_VO};
 
 void rtl8192e_start_beacon(struct net_device *dev)
 {
@@ -187,22 +188,21 @@ void rtl8192e_SetHwReg(struct net_device *dev, u8 variable, u8 *val)
 		u8		u1bAIFS;
 		u32		u4bAcParam;
 		u8 mode = priv->rtllib->mode;
-		struct rtllib_qos_parameters *qos_parameters =
+		struct rtllib_qos_parameters *qop =
 			 &priv->rtllib->current_network.qos_data.parameters;
 
-		u1bAIFS = qos_parameters->aifs[pAcParam] *
+		u1bAIFS = qop->aifs[pAcParam] *
 			  ((mode&(IEEE_G|IEEE_N_24G)) ? 9 : 20) + aSifsTime;
 
 		dm_init_edca_turbo(dev);
 
-		u4bAcParam = (((le16_to_cpu(
-					qos_parameters->tx_op_limit[pAcParam])) <<
-			     AC_PARAM_TXOP_LIMIT_OFFSET) |
-			     ((le16_to_cpu(qos_parameters->cw_max[pAcParam])) <<
-			     AC_PARAM_ECW_MAX_OFFSET) |
-			     ((le16_to_cpu(qos_parameters->cw_min[pAcParam])) <<
-			     AC_PARAM_ECW_MIN_OFFSET) |
-			     (((u32)u1bAIFS) << AC_PARAM_AIFS_OFFSET));
+		u4bAcParam = (le16_to_cpu(qop->tx_op_limit[pAcParam]) <<
+			      AC_PARAM_TXOP_LIMIT_OFFSET) |
+				((le16_to_cpu(qop->cw_max[pAcParam])) <<
+				 AC_PARAM_ECW_MAX_OFFSET) |
+				((le16_to_cpu(qop->cw_min[pAcParam])) <<
+				 AC_PARAM_ECW_MIN_OFFSET) |
+				(((u32)u1bAIFS) << AC_PARAM_AIFS_OFFSET);
 
 		RT_TRACE(COMP_DBG, "%s():HW_VAR_AC_PARAM eACI:%x:%x\n",
 			 __func__, eACI, u4bAcParam);

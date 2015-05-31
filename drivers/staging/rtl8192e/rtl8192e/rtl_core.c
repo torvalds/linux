@@ -2068,8 +2068,7 @@ static short rtl8192_alloc_rx_desc_ring(struct net_device *dev)
 	int i, rx_queue_idx;
 
 	for (rx_queue_idx = 0; rx_queue_idx < MAX_RX_QUEUE; rx_queue_idx++) {
-		priv->rx_ring[rx_queue_idx] =
-			pci_zalloc_consistent(priv->pdev,
+		priv->rx_ring[rx_queue_idx] = pci_zalloc_consistent(priv->pdev,
 					      sizeof(*priv->rx_ring[rx_queue_idx]) * priv->rxringcount,
 					      &priv->rx_ring_dma[rx_queue_idx]);
 		if (!priv->rx_ring[rx_queue_idx] ||

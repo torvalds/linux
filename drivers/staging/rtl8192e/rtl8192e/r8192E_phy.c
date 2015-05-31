@@ -628,8 +628,8 @@ void rtl8192_phy_getTxPower(struct net_device *dev)
 	priv->DefaultInitialGain[3] = read_nic_byte(dev, rOFDM0_XDAGCCore1);
 	RT_TRACE(COMP_INIT,
 		 "Default initial gain (c50=0x%x, c58=0x%x, c60=0x%x, c68=0x%x)\n",
-		priv->DefaultInitialGain[0], priv->DefaultInitialGain[1],
-		priv->DefaultInitialGain[2], priv->DefaultInitialGain[3]);
+		 priv->DefaultInitialGain[0], priv->DefaultInitialGain[1],
+		 priv->DefaultInitialGain[2], priv->DefaultInitialGain[3]);
 
 	priv->framesync = read_nic_byte(dev, rOFDM0_RxDetector3);
 	priv->framesyncC34 = read_nic_dword(dev, rOFDM0_RxDetector2);

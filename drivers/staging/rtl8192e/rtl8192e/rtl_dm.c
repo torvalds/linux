@@ -248,7 +248,8 @@ void init_hal_dm(struct net_device *dev)
 	if (IS_HARDWARE_TYPE_8192SE(dev))
 		dm_Init_WA_Broadcom_IOT(dev);
 
-	INIT_DELAYED_WORK_RSL(&priv->gpio_change_rf_wq, (void *)dm_CheckRfCtrlGPIO, dev);
+	INIT_DELAYED_WORK_RSL(&priv->gpio_change_rf_wq,
+			      (void *)dm_CheckRfCtrlGPIO, dev);
 }
 
 void deinit_hal_dm(struct net_device *dev)
@@ -288,8 +289,8 @@ void hal_dm_watchdog(struct net_device *dev)
 static void dm_check_ac_dc_power(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	static char *ac_dc_check_script_path = "/etc/acpi/wireless-rtl-ac-dc-power.sh";
-	char *argv[] = {ac_dc_check_script_path, DRV_NAME, NULL};
+	static char *ac_dc_script = "/etc/acpi/wireless-rtl-ac-dc-power.sh";
+	char *argv[] = {ac_dc_script, DRV_NAME, NULL};
 	static char *envp[] = {"HOME=/",
 			"TERM=linux",
 			"PATH=/usr/bin:/bin",
@@ -303,7 +304,7 @@ static void dm_check_ac_dc_power(struct net_device *dev)
 
 	if (priv->rtllib->state != RTLLIB_LINKED)
 		return;
-	call_usermodehelper(ac_dc_check_script_path, argv, envp, UMH_WAIT_PROC);
+	call_usermodehelper(ac_dc_script, argv, envp, UMH_WAIT_PROC);
 
 	return;
 };
@@ -313,7 +314,7 @@ void init_rate_adaptive(struct net_device *dev)
 {
 
 	struct r8192_priv *priv = rtllib_priv(dev);
-	struct rate_adaptive *pra = (struct rate_adaptive *)&priv->rate_adaptive;
+	struct rate_adaptive *pra = &priv->rate_adaptive;
 
 	pra->ratr_state = DM_RATR_STA_MAX;
 	pra->high2low_rssi_thresh_for_ra = RateAdaptiveTH_High;
@@ -354,14 +355,15 @@ static void dm_check_rate_adaptive(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rt_hi_throughput *pHTInfo = priv->rtllib->pHTInfo;
-	struct rate_adaptive *pra = (struct rate_adaptive *)&priv->rate_adaptive;
+	struct rate_adaptive *pra = &priv->rate_adaptive;
 	u32 currentRATR, targetRATR = 0;
 	u32 LowRSSIThreshForRA = 0, HighRSSIThreshForRA = 0;
 	bool bshort_gi_enabled = false;
 	static u8 ping_rssi_state;
 
 	if (!priv->up) {
-		RT_TRACE(COMP_RATE, "<---- dm_check_rate_adaptive(): driver is going to unload\n");
+		RT_TRACE(COMP_RATE,
+			 "<---- dm_check_rate_adaptive(): driver is going to unload\n");
 		return;
 	}
 
@@ -374,25 +376,31 @@ static void dm_check_rate_adaptive(struct net_device *dev)
 
 	if (priv->rtllib->state == RTLLIB_LINKED) {
 
-		bshort_gi_enabled = (pHTInfo->bCurTxBW40MHz && pHTInfo->bCurShortGI40MHz) ||
-			(!pHTInfo->bCurTxBW40MHz && pHTInfo->bCurShortGI20MHz);
-
+		bshort_gi_enabled = (pHTInfo->bCurTxBW40MHz &&
+				     pHTInfo->bCurShortGI40MHz) ||
+				    (!pHTInfo->bCurTxBW40MHz &&
+				     pHTInfo->bCurShortGI20MHz);
 
 		pra->upper_rssi_threshold_ratr =
-				(pra->upper_rssi_threshold_ratr & (~BIT31)) | ((bshort_gi_enabled) ? BIT31 : 0);
+				(pra->upper_rssi_threshold_ratr & (~BIT31)) |
+				((bshort_gi_enabled) ? BIT31 : 0);
 
 		pra->middle_rssi_threshold_ratr =
-				(pra->middle_rssi_threshold_ratr & (~BIT31)) | ((bshort_gi_enabled) ? BIT31 : 0);
+				(pra->middle_rssi_threshold_ratr & (~BIT31)) |
+				((bshort_gi_enabled) ? BIT31 : 0);
 
 		if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20) {
 			pra->low_rssi_threshold_ratr =
-				(pra->low_rssi_threshold_ratr_40M & (~BIT31)) | ((bshort_gi_enabled) ? BIT31 : 0);
+				(pra->low_rssi_threshold_ratr_40M & (~BIT31)) |
+				((bshort_gi_enabled) ? BIT31 : 0);
 		} else {
 			pra->low_rssi_threshold_ratr =
-			(pra->low_rssi_threshold_ratr_20M & (~BIT31)) | ((bshort_gi_enabled) ? BIT31 : 0);
+				(pra->low_rssi_threshold_ratr_20M & (~BIT31)) |
+				((bshort_gi_enabled) ? BIT31 : 0);
 		}
 		pra->ping_rssi_ratr =
-				(pra->ping_rssi_ratr & (~BIT31)) | ((bshort_gi_enabled) ? BIT31 : 0);
+				(pra->ping_rssi_ratr & (~BIT31)) |
+				((bshort_gi_enabled) ? BIT31 : 0);
 
 		if (pra->ratr_state == DM_RATR_STA_HIGH) {
 			HighRSSIThreshForRA	= pra->high2low_rssi_thresh_for_ra;
@@ -408,10 +416,12 @@ static void dm_check_rate_adaptive(struct net_device *dev)
 					(pra->low_rssi_thresh_for_ra40M) : (pra->low_rssi_thresh_for_ra20M);
 		}
 
-		if (priv->undecorated_smoothed_pwdb >= (long)HighRSSIThreshForRA) {
+		if (priv->undecorated_smoothed_pwdb >=
+		    (long)HighRSSIThreshForRA) {
 			pra->ratr_state = DM_RATR_STA_HIGH;
 			targetRATR = pra->upper_rssi_threshold_ratr;
-		} else if (priv->undecorated_smoothed_pwdb >= (long)LowRSSIThreshForRA) {
+		} else if (priv->undecorated_smoothed_pwdb >=
+			   (long)LowRSSIThreshForRA) {
 			pra->ratr_state = DM_RATR_STA_MIDDLE;
 			targetRATR = pra->middle_rssi_threshold_ratr;
 		} else {
@@ -420,8 +430,10 @@ static void dm_check_rate_adaptive(struct net_device *dev)
 		}
 
 		if (pra->ping_rssi_enable) {
-			if (priv->undecorated_smoothed_pwdb < (long)(pra->ping_rssi_thresh_for_ra+5)) {
-				if ((priv->undecorated_smoothed_pwdb < (long)pra->ping_rssi_thresh_for_ra) ||
+			if (priv->undecorated_smoothed_pwdb <
+			    (long)(pra->ping_rssi_thresh_for_ra+5)) {
+				if ((priv->undecorated_smoothed_pwdb <
+				     (long)pra->ping_rssi_thresh_for_ra) ||
 				    ping_rssi_state) {
 					pra->ratr_state = DM_RATR_STA_LOW;
 					targetRATR = pra->ping_rssi_ratr;
@@ -722,7 +734,8 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 			if (viviflag) {
 				write_nic_byte(dev, Pw_Track_Flag, 0);
 				viviflag = false;
-				RT_TRACE(COMP_POWER_TRACKING, "we filted this data\n");
+				RT_TRACE(COMP_POWER_TRACKING,
+					 "we filted this data\n");
 				for (k = 0; k < 5; k++)
 					tmp_report[k] = 0;
 				break;
@@ -731,7 +744,7 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 			for (k = 0; k < 5; k++)
 				Avg_TSSI_Meas_from_driver += tmp_report[k];
 
-			Avg_TSSI_Meas_from_driver = Avg_TSSI_Meas_from_driver*100/5;
+			Avg_TSSI_Meas_from_driver *= 100 / 5;
 			RT_TRACE(COMP_POWER_TRACKING,
 				 "Avg_TSSI_Meas_from_driver = %d\n",
 				 Avg_TSSI_Meas_from_driver);
@@ -844,12 +857,15 @@ static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device *dev)
 	int i = 0, CCKSwingNeedUpdate = 0;
 
 	if (!priv->btxpower_trackingInit) {
-		tmpRegA = rtl8192_QueryBBReg(dev, rOFDM0_XATxIQImbalance, bMaskDWord);
+		tmpRegA = rtl8192_QueryBBReg(dev, rOFDM0_XATxIQImbalance,
+					     bMaskDWord);
 		for (i = 0; i < OFDM_Table_Length; i++) {
 			if (tmpRegA == OFDMSwingTable[i]) {
 				priv->OFDM_index[0] = (u8)i;
-				RT_TRACE(COMP_POWER_TRACKING, "Initial reg0x%x = 0x%x, OFDM_index = 0x%x\n",
-					rOFDM0_XATxIQImbalance, tmpRegA, priv->OFDM_index[0]);
+				RT_TRACE(COMP_POWER_TRACKING,
+					 "Initial reg0x%x = 0x%x, OFDM_index = 0x%x\n",
+					 rOFDM0_XATxIQImbalance, tmpRegA,
+					 priv->OFDM_index[0]);
 			}
 		}
 
@@ -997,7 +1013,8 @@ static void dm_CheckTXPowerTracking_TSSI(struct net_device *dev)
 
 
 	 if (tx_power_track_counter >= 180) {
-		queue_delayed_work_rsl(priv->priv_wq, &priv->txpower_tracking_wq, 0);
+		queue_delayed_work_rsl(priv->priv_wq,
+				       &priv->txpower_tracking_wq, 0);
 		tx_power_track_counter = 0;
 	}
 
@@ -1084,53 +1101,57 @@ static void dm_CCKTxPowerAdjust_TSSI(struct net_device *dev, bool  bInCH14)
 	}
 }
 
-static void dm_CCKTxPowerAdjust_ThermalMeter(struct net_device *dev,	bool  bInCH14)
+static void dm_CCKTxPowerAdjust_ThermalMeter(struct net_device *dev,
+					     bool bInCH14)
 {
 	u32 TempVal;
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	TempVal = 0;
 	if (!bInCH14) {
-		TempVal =	CCKSwingTable_Ch1_Ch13[priv->CCK_index][0] +
-					(CCKSwingTable_Ch1_Ch13[priv->CCK_index][1]<<8);
+		TempVal = CCKSwingTable_Ch1_Ch13[priv->CCK_index][0] +
+			  (CCKSwingTable_Ch1_Ch13[priv->CCK_index][1] << 8);
 		rtl8192_setBBreg(dev, rCCK0_TxFilter1, bMaskHWord, TempVal);
-		RT_TRACE(COMP_POWER_TRACKING, "CCK not chnl 14, reg 0x%x = 0x%x\n",
-			rCCK0_TxFilter1, TempVal);
-		TempVal =	CCKSwingTable_Ch1_Ch13[priv->CCK_index][2] +
-					(CCKSwingTable_Ch1_Ch13[priv->CCK_index][3]<<8) +
-					(CCKSwingTable_Ch1_Ch13[priv->CCK_index][4]<<16)+
-					(CCKSwingTable_Ch1_Ch13[priv->CCK_index][5]<<24);
+		RT_TRACE(COMP_POWER_TRACKING,
+			 "CCK not chnl 14, reg 0x%x = 0x%x\n", rCCK0_TxFilter1,
+			 TempVal);
+		TempVal = CCKSwingTable_Ch1_Ch13[priv->CCK_index][2] +
+			  (CCKSwingTable_Ch1_Ch13[priv->CCK_index][3] << 8) +
+			  (CCKSwingTable_Ch1_Ch13[priv->CCK_index][4] << 16)+
+			  (CCKSwingTable_Ch1_Ch13[priv->CCK_index][5] << 24);
 		rtl8192_setBBreg(dev, rCCK0_TxFilter2, bMaskDWord, TempVal);
-		RT_TRACE(COMP_POWER_TRACKING, "CCK not chnl 14, reg 0x%x = 0x%x\n",
-			rCCK0_TxFilter2, TempVal);
-		TempVal =	CCKSwingTable_Ch1_Ch13[priv->CCK_index][6] +
-					(CCKSwingTable_Ch1_Ch13[priv->CCK_index][7]<<8);
+		RT_TRACE(COMP_POWER_TRACKING,
+			 "CCK not chnl 14, reg 0x%x = 0x%x\n", rCCK0_TxFilter2,
+			 TempVal);
+		TempVal = CCKSwingTable_Ch1_Ch13[priv->CCK_index][6] +
+			  (CCKSwingTable_Ch1_Ch13[priv->CCK_index][7] << 8);
 
 		rtl8192_setBBreg(dev, rCCK0_DebugPort, bMaskLWord, TempVal);
-		RT_TRACE(COMP_POWER_TRACKING, "CCK not chnl 14, reg 0x%x = 0x%x\n",
-			rCCK0_DebugPort, TempVal);
+		RT_TRACE(COMP_POWER_TRACKING,
+			 "CCK not chnl 14, reg 0x%x = 0x%x\n", rCCK0_DebugPort,
+			 TempVal);
 	} else {
-		TempVal =	CCKSwingTable_Ch14[priv->CCK_index][0] +
-					(CCKSwingTable_Ch14[priv->CCK_index][1]<<8);
+		TempVal = CCKSwingTable_Ch14[priv->CCK_index][0] +
+			  (CCKSwingTable_Ch14[priv->CCK_index][1] << 8);
 
 		rtl8192_setBBreg(dev, rCCK0_TxFilter1, bMaskHWord, TempVal);
 		RT_TRACE(COMP_POWER_TRACKING, "CCK chnl 14, reg 0x%x = 0x%x\n",
 			rCCK0_TxFilter1, TempVal);
-		TempVal =	CCKSwingTable_Ch14[priv->CCK_index][2] +
-					(CCKSwingTable_Ch14[priv->CCK_index][3]<<8) +
-					(CCKSwingTable_Ch14[priv->CCK_index][4]<<16)+
-					(CCKSwingTable_Ch14[priv->CCK_index][5]<<24);
+		TempVal = CCKSwingTable_Ch14[priv->CCK_index][2] +
+			  (CCKSwingTable_Ch14[priv->CCK_index][3] << 8) +
+			  (CCKSwingTable_Ch14[priv->CCK_index][4] << 16)+
+			  (CCKSwingTable_Ch14[priv->CCK_index][5] << 24);
 		rtl8192_setBBreg(dev, rCCK0_TxFilter2, bMaskDWord, TempVal);
 		RT_TRACE(COMP_POWER_TRACKING, "CCK chnl 14, reg 0x%x = 0x%x\n",
 			rCCK0_TxFilter2, TempVal);
-		TempVal =	CCKSwingTable_Ch14[priv->CCK_index][6] +
-					(CCKSwingTable_Ch14[priv->CCK_index][7]<<8);
+		TempVal = CCKSwingTable_Ch14[priv->CCK_index][6] +
+			  (CCKSwingTable_Ch14[priv->CCK_index][7]<<8);
 
 		rtl8192_setBBreg(dev, rCCK0_DebugPort, bMaskLWord, TempVal);
 		RT_TRACE(COMP_POWER_TRACKING, "CCK chnl 14, reg 0x%x = 0x%x\n",
 			rCCK0_DebugPort, TempVal);
 	}
-	}
+}
 
 void dm_cck_txpower_adjust(struct net_device *dev, bool  binch14)
 {
@@ -1181,7 +1202,8 @@ void dm_restore_dynamic_mechanism_state(struct net_device *dev)
 	u32 ratr_value;
 
 	if (!priv->up) {
-		RT_TRACE(COMP_RATE, "<---- dm_restore_dynamic_mechanism_state(): driver is going to unload\n");
+		RT_TRACE(COMP_RATE,
+			 "<---- dm_restore_dynamic_mechanism_state(): driver is going to unload\n");
 		return;
 	}
 
@@ -1325,8 +1347,10 @@ static void dm_dig_init(struct net_device *dev)
 
 	dm_digtable.dig_state		= DM_STA_DIG_MAX;
 	dm_digtable.dig_highpwr_state	= DM_STA_DIG_MAX;
-	dm_digtable.CurSTAConnectState = dm_digtable.PreSTAConnectState = DIG_STA_DISCONNECT;
-	dm_digtable.CurAPConnectState = dm_digtable.PreAPConnectState = DIG_AP_DISCONNECT;
+	dm_digtable.CurSTAConnectState = DIG_STA_DISCONNECT;
+	dm_digtable.PreSTAConnectState = DIG_STA_DISCONNECT;
+	dm_digtable.CurAPConnectState = DIG_AP_DISCONNECT;
+	dm_digtable.PreAPConnectState = DIG_AP_DISCONNECT;
 	dm_digtable.initialgain_lowerbound_state = false;
 
 	dm_digtable.rssi_low_thresh	= DM_DIG_THRESH_LOW;
@@ -1512,11 +1536,14 @@ static void dm_ctrl_initgain_byrssi_highpwr(struct net_device *dev)
 	struct r8192_priv *priv = rtllib_priv(dev);
 	static u32 reset_cnt_highpwr;
 
-	if ((priv->undecorated_smoothed_pwdb > dm_digtable.rssi_high_power_lowthresh) &&
-		(priv->undecorated_smoothed_pwdb < dm_digtable.rssi_high_power_highthresh))
+	if ((priv->undecorated_smoothed_pwdb >
+	     dm_digtable.rssi_high_power_lowthresh) &&
+	    (priv->undecorated_smoothed_pwdb <
+	     dm_digtable.rssi_high_power_highthresh))
 		return;
 
-	if (priv->undecorated_smoothed_pwdb >= dm_digtable.rssi_high_power_highthresh) {
+	if (priv->undecorated_smoothed_pwdb >=
+	    dm_digtable.rssi_high_power_highthresh) {
 		if (dm_digtable.dig_highpwr_state == DM_STA_DIG_ON &&
 			(priv->reset_count == reset_cnt_highpwr))
 			return;
@@ -1532,8 +1559,10 @@ static void dm_ctrl_initgain_byrssi_highpwr(struct net_device *dev)
 			return;
 		dm_digtable.dig_highpwr_state = DM_STA_DIG_OFF;
 
-		if (priv->undecorated_smoothed_pwdb < dm_digtable.rssi_high_power_lowthresh &&
-			 priv->undecorated_smoothed_pwdb >= dm_digtable.rssi_high_thresh) {
+		if ((priv->undecorated_smoothed_pwdb <
+		     dm_digtable.rssi_high_power_lowthresh) &&
+		    (priv->undecorated_smoothed_pwdb >=
+		    dm_digtable.rssi_high_thresh)) {
 			if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20)
 				write_nic_byte(dev, (rOFDM0_XATxAFE+3), 0x20);
 			else
@@ -1562,12 +1591,12 @@ static void dm_initial_gain(struct net_device *dev)
 
 	if (dm_digtable.PreSTAConnectState == dm_digtable.CurSTAConnectState) {
 		if (dm_digtable.CurSTAConnectState == DIG_STA_CONNECT) {
-			if ((dm_digtable.rssi_val+10-dm_digtable.backoff_val) > dm_digtable.rx_gain_range_max)
-				dm_digtable.cur_ig_value = dm_digtable.rx_gain_range_max;
-			else if ((dm_digtable.rssi_val+10-dm_digtable.backoff_val) < dm_digtable.rx_gain_range_min)
-				dm_digtable.cur_ig_value = dm_digtable.rx_gain_range_min;
-			else
-				dm_digtable.cur_ig_value = dm_digtable.rssi_val+10-dm_digtable.backoff_val;
+			long gain_range = dm_digtable.rssi_val + 10 -
+					  dm_digtable.backoff_val;
+			gain_range = clamp_t(long, gain_range,
+					     dm_digtable.rx_gain_range_min,
+					     dm_digtable.rx_gain_range_max);
+			dm_digtable.cur_ig_value = gain_range;
 		} else {
 			if (dm_digtable.cur_ig_value == 0)
 				dm_digtable.cur_ig_value = priv->DefaultInitialGain[0];
@@ -1613,15 +1642,23 @@ static void dm_pd_th(struct net_device *dev)
 
 	if (dm_digtable.PreSTAConnectState == dm_digtable.CurSTAConnectState) {
 		if (dm_digtable.CurSTAConnectState == DIG_STA_CONNECT) {
-			if (dm_digtable.rssi_val >= dm_digtable.rssi_high_power_highthresh)
-				dm_digtable.curpd_thstate = DIG_PD_AT_HIGH_POWER;
-			else if (dm_digtable.rssi_val <= dm_digtable.rssi_low_thresh)
-				dm_digtable.curpd_thstate = DIG_PD_AT_LOW_POWER;
-			else if ((dm_digtable.rssi_val >= dm_digtable.rssi_high_thresh) &&
-					(dm_digtable.rssi_val < dm_digtable.rssi_high_power_lowthresh))
-				dm_digtable.curpd_thstate = DIG_PD_AT_NORMAL_POWER;
+			if (dm_digtable.rssi_val >=
+			    dm_digtable.rssi_high_power_highthresh)
+				dm_digtable.curpd_thstate =
+							DIG_PD_AT_HIGH_POWER;
+			else if (dm_digtable.rssi_val <=
+				 dm_digtable.rssi_low_thresh)
+				dm_digtable.curpd_thstate =
+							DIG_PD_AT_LOW_POWER;
+			else if ((dm_digtable.rssi_val >=
+				  dm_digtable.rssi_high_thresh) &&
+				 (dm_digtable.rssi_val <
+				  dm_digtable.rssi_high_power_lowthresh))
+				dm_digtable.curpd_thstate =
+							DIG_PD_AT_NORMAL_POWER;
 			else
-				dm_digtable.curpd_thstate = dm_digtable.prepd_thstate;
+				dm_digtable.curpd_thstate =
+						dm_digtable.prepd_thstate;
 		} else {
 			dm_digtable.curpd_thstate = DIG_PD_AT_LOW_POWER;
 		}
@@ -1641,7 +1678,8 @@ static void dm_pd_th(struct net_device *dev)
 				write_nic_byte(dev, (rOFDM0_XATxAFE+3), 0x00);
 			else
 				write_nic_byte(dev, rOFDM0_RxDetector1, 0x42);
-		} else if (dm_digtable.curpd_thstate == DIG_PD_AT_NORMAL_POWER) {
+		} else if (dm_digtable.curpd_thstate ==
+			   DIG_PD_AT_NORMAL_POWER) {
 			if (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20)
 				write_nic_byte(dev, (rOFDM0_XATxAFE+3), 0x20);
 			else
@@ -1796,7 +1834,8 @@ static void dm_check_edca_turbo(struct net_device *dev)
 		 if (priv->bcurrent_turbo_EDCA) {
 			u8 tmp = AC0_BE;
 
-			priv->rtllib->SetHwRegHandler(dev, HW_VAR_AC_PARAM, (u8 *)(&tmp));
+			priv->rtllib->SetHwRegHandler(dev, HW_VAR_AC_PARAM,
+						      (u8 *)(&tmp));
 			priv->bcurrent_turbo_EDCA = false;
 		}
 	}
@@ -1866,7 +1905,8 @@ void dm_CheckRfCtrlGPIO(void *data)
 	bool bActuallySet = false;
 	char *argv[3];
 	static char *RadioPowerPath = "/etc/acpi/events/RadioPower.sh";
-	static char *envp[] = {"HOME=/", "TERM=linux", "PATH=/usr/bin:/bin", NULL};
+	static char *envp[] = {"HOME=/", "TERM=linux", "PATH=/usr/bin:/bin",
+			       NULL};
 
 	bActuallySet = false;
 
@@ -1897,7 +1937,8 @@ void dm_CheckRfCtrlGPIO(void *data)
 	if (bActuallySet) {
 		mdelay(1000);
 		priv->bHwRfOffAction = 1;
-		MgntActSet_RF_State(dev, eRfPowerStateToSet, RF_CHANGE_BY_HW, true);
+		MgntActSet_RF_State(dev, eRfPowerStateToSet, RF_CHANGE_BY_HW,
+				    true);
 		if (priv->bHwRadioOff)
 			argv[1] = "RFOFF";
 		else

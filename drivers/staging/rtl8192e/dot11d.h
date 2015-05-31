@@ -74,8 +74,8 @@ static inline void cpMacAddr(unsigned char *des, unsigned char *src)
 	(GET_DOT11D_INFO(__pIeeeDev)->CountryIeLen > 0)
 
 #define IS_EQUAL_CIE_SRC(__pIeeeDev, __pTa)		\
-	 ether_addr_equal_unaligned(GET_DOT11D_INFO(__pIeeeDev)->CountryIeSrcAddr, \
-	__pTa)
+	 ether_addr_equal_unaligned( \
+		GET_DOT11D_INFO(__pIeeeDev)->CountryIeSrcAddr, __pTa)
 #define UPDATE_CIE_SRC(__pIeeeDev, __pTa)		\
 	cpMacAddr(GET_DOT11D_INFO(__pIeeeDev)->CountryIeSrcAddr, __pTa)
 

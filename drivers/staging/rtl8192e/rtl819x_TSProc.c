@@ -49,8 +49,10 @@ static void RxPktPendingTimeout(unsigned long data)
 			if (index == 0)
 				pRxTs->RxIndicateSeq = pReorderEntry->SeqNum;
 
-			if (SN_LESS(pReorderEntry->SeqNum, pRxTs->RxIndicateSeq) ||
-				SN_EQUAL(pReorderEntry->SeqNum, pRxTs->RxIndicateSeq)) {
+			if (SN_LESS(pReorderEntry->SeqNum,
+				    pRxTs->RxIndicateSeq) ||
+			    SN_EQUAL(pReorderEntry->SeqNum,
+				     pRxTs->RxIndicateSeq)) {
 				list_del_init(&pReorderEntry->List);
 
 				if (SN_EQUAL(pReorderEntry->SeqNum,
@@ -92,7 +94,8 @@ static void RxPktPendingTimeout(unsigned long data)
 	if (bPktInBuf && (pRxTs->RxTimeoutIndicateSeq == 0xffff)) {
 		pRxTs->RxTimeoutIndicateSeq = pRxTs->RxIndicateSeq;
 		mod_timer(&pRxTs->RxPktPendingTimer,  jiffies +
-			  msecs_to_jiffies(ieee->pHTInfo->RxReorderPendingTime));
+			  msecs_to_jiffies(ieee->pHTInfo->RxReorderPendingTime)
+			  );
 	}
 	spin_unlock_irqrestore(&(ieee->reorder_spinlock), flags);
 }
@@ -269,10 +272,10 @@ static struct ts_common_info *SearchAdmitTRStream(struct rtllib_device *ieee,
 		if (!search_dir[dir])
 			continue;
 		list_for_each_entry(pRet, psearch_list, List) {
-			if (memcmp(pRet->Addr, Addr, 6) == 0)
-				if (pRet->TSpec.f.TSInfo.field.ucTSID == TID)
-					if (pRet->TSpec.f.TSInfo.field.ucDirection == dir)
-						break;
+			if (memcmp(pRet->Addr, Addr, 6) == 0 &&
+			    pRet->TSpec.f.TSInfo.field.ucTSID == TID &&
+			    pRet->TSpec.f.TSInfo.field.ucDirection == dir)
+				break;
 
 		}
 		if (&pRet->List  != psearch_list)
@@ -415,8 +418,8 @@ bool GetTs(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 	return false;
 }
 
-static void RemoveTsEntry(struct rtllib_device *ieee, struct ts_common_info *pTs,
-			  enum tr_select TxRxSelect)
+static void RemoveTsEntry(struct rtllib_device *ieee,
+			  struct ts_common_info *pTs, enum tr_select TxRxSelect)
 {
 	del_timer_sync(&pTs->SetupTimer);
 	del_timer_sync(&pTs->InactTimer);

@@ -236,7 +236,8 @@ static bool HTIOTActIsDisableMCSTwoSpatialStream(struct rtllib_device *ieee)
 	return false;
 }
 
-static u8 HTIOTActIsDisableEDCATurbo(struct rtllib_device *ieee, u8 *PeerMacAddr)
+static u8 HTIOTActIsDisableEDCATurbo(struct rtllib_device *ieee,
+				     u8 *PeerMacAddr)
 {
 	return false;
 }
