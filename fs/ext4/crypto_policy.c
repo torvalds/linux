@@ -206,6 +206,7 @@ int ext4_inherit_context(struct inode *parent, struct inode *child)
 	if (!res) {
 		ext4_set_inode_flag(child, EXT4_INODE_ENCRYPT);
 		ext4_clear_inode_state(child, EXT4_STATE_MAY_INLINE_DATA);
+		res = ext4_get_encryption_info(child);
 	}
 	return res;
 }
