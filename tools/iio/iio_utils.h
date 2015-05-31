@@ -28,9 +28,12 @@ extern const char *iio_dir;
  * @offset: offset to be applied for conversion to si units
  * @index: the channel index in the buffer output
  * @bytes: number of bytes occupied in buffer output
+ * @bits_used: number of valid bits of data
+ * @shift: amount of bits to shift right data before applying bit mask
  * @mask: a bit mask for the raw output
+ * @be: flag if data is big endian
  * @is_signed: is the raw value stored signed
- * @enabled: is this channel enabled
+ * @location: data offset for this channel inside the buffer (in bytes)
  **/
 struct iio_channel_info {
 	char *name;
