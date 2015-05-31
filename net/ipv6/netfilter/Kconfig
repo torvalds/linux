@@ -47,6 +47,12 @@ config NFT_REJECT_IPV6
 	default NFT_REJECT
 	tristate
 
+config NFT_DUP_IPV6
+	tristate "IPv6 nf_tables packet duplication support"
+	select NF_DUP_IPV6
+	help
+	  This module enables IPv6 packet duplication support for nf_tables.
+
 endif # NF_TABLES_IPV6
 endif # NF_TABLES
 

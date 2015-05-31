@@ -69,7 +69,7 @@ void nf_dup_ipv4(struct sk_buff *skb, unsigned int hooknum,
 {
 	struct iphdr *iph;
 
-	if (__this_cpu_read(nf_skb_duplicated))
+	if (this_cpu_read(nf_skb_duplicated))
 		return;
 	/*
 	 * Copy the skb, and route the copy. Will later return %XT_CONTINUE for

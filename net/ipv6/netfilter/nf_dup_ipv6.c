@@ -63,7 +63,7 @@ static bool nf_dup_ipv6_route(struct sk_buff *skb, const struct in6_addr *gw,
 void nf_dup_ipv6(struct sk_buff *skb, unsigned int hooknum,
 		 const struct in6_addr *gw, int oif)
 {
-	if (__this_cpu_read(nf_skb_duplicated))
+	if (this_cpu_read(nf_skb_duplicated))
 		return;
 	skb = pskb_copy(skb, GFP_ATOMIC);
 	if (skb == NULL)
