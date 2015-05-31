@@ -1657,9 +1657,10 @@ static int rtllib_qos_convert_ac_to_parameters(struct rtllib_qos_parameter_info 
  * parameters element. check the information element length to decide
  * which type to read
  */
-static int rtllib_parse_qos_info_param_IE(struct rtllib_info_element
+static int rtllib_parse_qos_info_param_IE(struct rtllib_device *ieee,
+					  struct rtllib_info_element
 					     *info_element,
-					     struct rtllib_network *network)
+					  struct rtllib_network *network)
 {
 	int rc = 0;
 	struct rtllib_qos_information_element qos_info_element;
@@ -1684,7 +1685,7 @@ static int rtllib_parse_qos_info_param_IE(struct rtllib_info_element
 	}
 
 	if (rc == 0) {
-		RTLLIB_DEBUG_QOS("QoS is supported\n");
+		netdev_dbg(ieee->dev, "QoS is supported\n");
 		network->qos_data.supported = 1;
 	}
 	return rc;
@@ -1761,7 +1762,7 @@ static void rtllib_parse_mife_generic(struct rtllib_device *ieee,
 	u16 ht_realtek_agg_len = 0;
 	u8  ht_realtek_agg_buf[MAX_IE_LEN];
 
-	if (!rtllib_parse_qos_info_param_IE(info_element, network))
+	if (!rtllib_parse_qos_info_param_IE(ieee, info_element, network))
 		return;
 	if (info_element->len >= 4 &&
 	    info_element->data[0] == 0x00 &&
@@ -2352,7 +2353,8 @@ static inline int is_same_network(struct rtllib_network *src,
 }
 
 
-static inline void update_network(struct rtllib_network *dst,
+static inline void update_network(struct rtllib_device *ieee,
+				  struct rtllib_network *dst,
 				  struct rtllib_network *src)
 {
 	int qos_active;
@@ -2426,12 +2428,12 @@ static inline void update_network(struct rtllib_network *dst,
 		       sizeof(struct rtllib_qos_data));
 	if (dst->qos_data.supported == 1) {
 		if (dst->ssid_len)
-			RTLLIB_DEBUG_QOS
-				("QoS the network %s is QoS supported\n",
-				dst->ssid);
+			netdev_dbg(ieee->dev,
+				   "QoS the network %s is QoS supported\n",
+				   dst->ssid);
 		else
-			RTLLIB_DEBUG_QOS
-				("QoS the network is QoS supported\n");
+			netdev_dbg(ieee->dev,
+				   "QoS the network is QoS supported\n");
 	}
 	dst->qos_data.active = qos_active;
 	dst->qos_data.old_param_count = old_param;
@@ -2567,7 +2569,7 @@ static inline void rtllib_process_probe_response(
 	spin_lock_irqsave(&ieee->lock, flags);
 	if (is_same_network(&ieee->current_network, network,
 	   (network->ssid_len ? 1 : 0))) {
-		update_network(&ieee->current_network, network);
+		update_network(ieee, &ieee->current_network, network);
 		if ((ieee->current_network.mode == IEEE_N_24G ||
 		     ieee->current_network.mode == IEEE_G)
 		     && ieee->current_network.berp_info_valid) {
@@ -2637,7 +2639,7 @@ static inline void rtllib_process_probe_response(
 		    network->ssid_len) == 0) &&
 		    (ieee->state == RTLLIB_NOLINK))))
 			renew = 1;
-		update_network(target, network);
+		update_network(ieee, target, network);
 		if (renew && (ieee->softmac_features & IEEE_SOFTMAC_ASSOCIATE))
 			rtllib_softmac_new_net(ieee, network);
 	}
