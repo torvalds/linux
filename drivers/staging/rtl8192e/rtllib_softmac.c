@@ -1853,7 +1853,7 @@ static short probe_rq_parse(struct rtllib_device *ieee, struct sk_buff *skb,
 		return -1; /* corrupted */
 
 	bssid_match =
-	  (memcmp(header->addr3, ieee->current_network.bssid, ETH_ALEN) != 0) &&
+	  (!ether_addr_equal(header->addr3, ieee->current_network.bssid)) &&
 	  (!is_broadcast_ether_addr(header->addr3));
 	if (bssid_match)
 		return -1;
