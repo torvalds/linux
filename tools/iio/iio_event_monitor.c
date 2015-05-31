@@ -269,8 +269,8 @@ int main(int argc, char **argv)
 
 	fd = open(chrdev_name, 0);
 	if (fd == -1) {
-		fprintf(stdout, "Failed to open %s\n", chrdev_name);
 		ret = -errno;
+		fprintf(stdout, "Failed to open %s\n", chrdev_name);
 		goto error_free_chrdev_name;
 	}
 
@@ -279,8 +279,8 @@ int main(int argc, char **argv)
 	close(fd);
 
 	if (ret == -1 || event_fd == -1) {
-		fprintf(stdout, "Failed to retrieve event fd\n");
 		ret = -errno;
+		fprintf(stdout, "Failed to retrieve event fd\n");
 		goto error_free_chrdev_name;
 	}
 
@@ -291,8 +291,8 @@ int main(int argc, char **argv)
 				printf("nothing available\n");
 				continue;
 			} else {
-				perror("Failed to read event from device");
 				ret = -errno;
+				perror("Failed to read event from device");
 				break;
 			}
 		}

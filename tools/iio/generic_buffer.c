@@ -296,8 +296,8 @@ int main(int argc, char **argv)
 	/* Attempt to open non blocking the access dev */
 	fp = open(buffer_access, O_RDONLY | O_NONBLOCK);
 	if (fp == -1) { /* If it isn't there make the node */
-		printf("Failed to open %s\n", buffer_access);
 		ret = -errno;
+		printf("Failed to open %s\n", buffer_access);
 		goto error_free_buffer_access;
 	}
 

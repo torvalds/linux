@@ -129,8 +129,8 @@ int iioutils_get_type(unsigned *is_signed,
 			}
 			sysfsfp = fopen(filename, "r");
 			if (sysfsfp == NULL) {
-				printf("failed to open %s\n", filename);
 				ret = -errno;
+				printf("failed to open %s\n", filename);
 				goto error_free_filename;
 			}
 
@@ -141,8 +141,8 @@ int iioutils_get_type(unsigned *is_signed,
 				     bits_used,
 				     &padint, shift);
 			if (ret < 0) {
-				printf("failed to pass scan type description\n");
 				ret = -errno;
+				printf("failed to pass scan type description\n");
 				goto error_close_sysfsfp;
 			}
 			*be = (endianchar == 'b');
@@ -332,8 +332,8 @@ int build_channel_array(const char *device_dir,
 			}
 			sysfsfp = fopen(filename, "r");
 			if (sysfsfp == NULL) {
-				free(filename);
 				ret = -errno;
+				free(filename);
 				count--;
 				goto error_cleanup_array;
 			}
@@ -505,8 +505,8 @@ int _write_sysfs_int(char *filename, char *basedir, int val, int verify)
 	sprintf(temp, "%s/%s", basedir, filename);
 	sysfsfp = fopen(temp, "w");
 	if (sysfsfp == NULL) {
-		printf("failed to open %s\n", temp);
 		ret = -errno;
+		printf("failed to open %s\n", temp);
 		goto error_free;
 	}
 	fprintf(sysfsfp, "%d", val);
@@ -514,8 +514,8 @@ int _write_sysfs_int(char *filename, char *basedir, int val, int verify)
 	if (verify) {
 		sysfsfp = fopen(temp, "r");
 		if (sysfsfp == NULL) {
-			printf("failed to open %s\n", temp);
 			ret = -errno;
+			printf("failed to open %s\n", temp);
 			goto error_free;
 		}
 		fscanf(sysfsfp, "%d", &test);
@@ -556,8 +556,8 @@ int _write_sysfs_string(char *filename, char *basedir, char *val, int verify)
 	sprintf(temp, "%s/%s", basedir, filename);
 	sysfsfp = fopen(temp, "w");
 	if (sysfsfp == NULL) {
-		printf("Could not open %s\n", temp);
 		ret = -errno;
+		printf("Could not open %s\n", temp);
 		goto error_free;
 	}
 	fprintf(sysfsfp, "%s", val);
@@ -565,8 +565,8 @@ int _write_sysfs_string(char *filename, char *basedir, char *val, int verify)
 	if (verify) {
 		sysfsfp = fopen(temp, "r");
 		if (sysfsfp == NULL) {
-			printf("could not open file to verify\n");
 			ret = -errno;
+			printf("could not open file to verify\n");
 			goto error_free;
 		}
 		fscanf(sysfsfp, "%s", temp);
