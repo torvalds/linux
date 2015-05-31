@@ -133,7 +133,10 @@ static struct sk_buff *rtllib_ADDBA(struct rtllib_device *ieee, u8 *Dst,
 		tag += 2;
 	}
 
-	RTLLIB_DEBUG_DATA(RTLLIB_DL_DATA|RTLLIB_DL_BA, skb->data, skb->len);
+#ifdef VERBOSE_DEBUG
+	print_hex_dump_bytes("rtllib_ADDBA(): ", DUMP_PREFIX_NONE, skb->data,
+			     skb->len);
+#endif
 	return skb;
 }
 
@@ -184,7 +187,10 @@ static struct sk_buff *rtllib_DELBA(struct rtllib_device *ieee, u8 *dst,
 	put_unaligned_le16(ReasonCode, tag);
 	tag += 2;
 
-	RTLLIB_DEBUG_DATA(RTLLIB_DL_DATA|RTLLIB_DL_BA, skb->data, skb->len);
+#ifdef VERBOSE_DEBUG
+	print_hex_dump_bytes("rtllib_DELBA(): ", DUMP_PREFIX_NONE, skb->data,
+			     skb->len);
+#endif
 	return skb;
 }
 
@@ -246,7 +252,10 @@ int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
 		return -1;
 	}
 
-	RTLLIB_DEBUG_DATA(RTLLIB_DL_DATA|RTLLIB_DL_BA, skb->data, skb->len);
+#ifdef VERBOSE_DEBUG
+	print_hex_dump_bytes("rtllib_rx_ADDBAReq(): ", DUMP_PREFIX_NONE,
+			     skb->data, skb->len);
+#endif
 
 	req = (struct rtllib_hdr_3addr *) skb->data;
 	tag = (u8 *)req;
@@ -442,7 +451,10 @@ int rtllib_rx_DELBA(struct rtllib_device *ieee, struct sk_buff *skb)
 		return -1;
 	}
 
-	RTLLIB_DEBUG_DATA(RTLLIB_DL_DATA|RTLLIB_DL_BA, skb->data, skb->len);
+#ifdef VERBOSE_DEBUG
+	print_hex_dump_bytes("rtllib_rx_DELBA(): ", DUMP_PREFIX_NONE, skb->data,
+			     skb->len);
+#endif
 	delba = (struct rtllib_hdr_3addr *)skb->data;
 	dst = (u8 *)(&delba->addr2[0]);
 	delba += sizeof(struct rtllib_hdr_3addr);

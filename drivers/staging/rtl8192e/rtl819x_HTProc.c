@@ -553,8 +553,11 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 	else
 		pPeerHTInfo = (struct ht_info_ele *)(pHTInfo->PeerHTInfoBuf);
 
-	RTLLIB_DEBUG_DATA(RTLLIB_DL_DATA | RTLLIB_DL_HT, pPeerHTCap,
-			  sizeof(struct ht_capab_ele));
+
+#ifdef VERBOSE_DEBUG
+	print_hex_dump_bytes("HTOnAssocRsp(): ", DUMP_PREFIX_NONE,
+			     pPeerHTCap, sizeof(struct ht_capab_ele));
+#endif
 	HTSetConnectBwMode(ieee, (enum ht_channel_width)(pPeerHTCap->ChlWidth),
 			  (enum ht_extchnl_offset)(pPeerHTInfo->ExtChlOffset));
 	pHTInfo->bCurTxBW40MHz = ((pPeerHTInfo->RecommemdedTxWidth == 1) ?

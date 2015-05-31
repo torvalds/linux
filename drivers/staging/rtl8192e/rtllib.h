@@ -642,17 +642,6 @@ enum wireless_network_type {
 #define OUI_SUBTYPE_QOS_CAPABI	5
 
 /* debug macros */
-extern u32 rtllib_debug_level;
-
-#define RTLLIB_DEBUG_DATA(level, data, datalen)	\
-	do {							\
-		if ((rtllib_debug_level & (level)) == (level)) {	\
-			printk(KERN_DEBUG "rtllib: %s()\n", __func__);	\
-			print_hex_dump_bytes(KERN_DEBUG, DUMP_PREFIX_NONE, \
-					     data, datalen); \
-		}					\
-	} while (0)
-
 /* To use the debug system;
  *
  * If you are defining a new debug classification, simply add it to the #define

@@ -260,7 +260,10 @@ static int rtllib_classify(struct sk_buff *skb, u8 bIsAmsdu)
 	if (eth->h_proto != htons(ETH_P_IP))
 		return 0;
 
-	RTLLIB_DEBUG_DATA(RTLLIB_DL_DATA, skb->data, skb->len);
+#ifdef VERBOSE_DEBUG
+	print_hex_dump_bytes("rtllib_classify(): ", DUMP_PREFIX_NONE, skb->data,
+			     skb->len);
+#endif
 	ip = ip_hdr(skb);
 	switch (ip->tos & 0xfc) {
 	case 0x20:
