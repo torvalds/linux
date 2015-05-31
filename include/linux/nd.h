@@ -26,6 +26,16 @@ static inline struct nd_device_driver *to_nd_device_driver(
 		struct device_driver *drv)
 {
 	return container_of(drv, struct nd_device_driver, drv);
+};
+
+struct nd_namespace_io {
+	struct device dev;
+	struct resource res;
+};
+
+static inline struct nd_namespace_io *to_nd_namespace_io(struct device *dev)
+{
+	return container_of(dev, struct nd_namespace_io, dev);
 }
 
 #define MODULE_ALIAS_ND_DEVICE(type) \

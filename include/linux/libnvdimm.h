@@ -71,8 +71,11 @@ struct nd_region_desc {
 
 struct nvdimm_bus;
 struct device;
-struct nvdimm_bus *nvdimm_bus_register(struct device *parent,
-		struct nvdimm_bus_descriptor *nfit_desc);
+struct module;
+struct nvdimm_bus *__nvdimm_bus_register(struct device *parent,
+		struct nvdimm_bus_descriptor *nfit_desc, struct module *module);
+#define nvdimm_bus_register(parent, desc) \
+	__nvdimm_bus_register(parent, desc, THIS_MODULE)
 void nvdimm_bus_unregister(struct nvdimm_bus *nvdimm_bus);
 struct nvdimm_bus *to_nvdimm_bus(struct device *dev);
 struct nvdimm *to_nvdimm(struct device *dev);

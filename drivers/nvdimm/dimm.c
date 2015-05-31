@@ -84,7 +84,7 @@ int __init nvdimm_init(void)
 	return nd_driver_register(&nvdimm_driver);
 }
 
-void __exit nvdimm_exit(void)
+void nvdimm_exit(void)
 {
 	driver_unregister(&nvdimm_driver.drv);
 }

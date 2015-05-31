@@ -21,9 +21,11 @@ extern int nvdimm_major;
 
 struct nvdimm_bus {
 	struct nvdimm_bus_descriptor *nd_desc;
+	struct module *module;
 	struct list_head list;
 	struct device dev;
 	int id;
+	struct mutex reconfig_mutex;
 };
 
 struct nvdimm {
@@ -34,6 +36,9 @@ struct nvdimm {
 	int id;
 };
 
+bool is_nvdimm(struct device *dev);
+bool is_nd_blk(struct device *dev);
+bool is_nd_pmem(struct device *dev);
 struct nvdimm_bus *walk_to_nvdimm_bus(struct device *nd_dev);
 int __init nvdimm_bus_init(void);
 void nvdimm_bus_exit(void);
@@ -43,5 +48,4 @@ void nd_synchronize(void);
 int nvdimm_bus_register_dimms(struct nvdimm_bus *nvdimm_bus);
 int nvdimm_bus_register_regions(struct nvdimm_bus *nvdimm_bus);
 int nd_match_dimm(struct device *dev, void *data);
-bool is_nvdimm(struct device *dev);
 #endif /* __ND_CORE_H__ */

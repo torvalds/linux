@@ -23,6 +23,11 @@ struct nvdimm_drvdata {
 	void *data;
 };
 
+struct nd_region_namespaces {
+	int count;
+	int active;
+};
+
 struct nd_region {
 	struct device dev;
 	u16 ndr_mappings;
@@ -41,7 +46,15 @@ enum nd_async_mode {
 void nd_device_register(struct device *dev);
 void nd_device_unregister(struct device *dev, enum nd_async_mode mode);
 int __init nvdimm_init(void);
+int __init nd_region_init(void);
 void nvdimm_exit(void);
+void nd_region_exit(void);
 int nvdimm_init_nsarea(struct nvdimm_drvdata *ndd);
 int nvdimm_init_config_data(struct nvdimm_drvdata *ndd);
+struct nd_region *to_nd_region(struct device *dev);
+int nd_region_to_nstype(struct nd_region *nd_region);
+int nd_region_register_namespaces(struct nd_region *nd_region, int *err);
+void nvdimm_bus_lock(struct device *dev);
+void nvdimm_bus_unlock(struct device *dev);
+bool is_nvdimm_bus_locked(struct device *dev);
 #endif /* __ND_H__ */

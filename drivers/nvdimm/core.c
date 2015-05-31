@@ -24,6 +24,36 @@ LIST_HEAD(nvdimm_bus_list);
 DEFINE_MUTEX(nvdimm_bus_list_mutex);
 static DEFINE_IDA(nd_ida);
 
+void nvdimm_bus_lock(struct device *dev)
+{
+	struct nvdimm_bus *nvdimm_bus = walk_to_nvdimm_bus(dev);
+
+	if (!nvdimm_bus)
+		return;
+	mutex_lock(&nvdimm_bus->reconfig_mutex);
+}
+EXPORT_SYMBOL(nvdimm_bus_lock);
+
+void nvdimm_bus_unlock(struct device *dev)
+{
+	struct nvdimm_bus *nvdimm_bus = walk_to_nvdimm_bus(dev);
+
+	if (!nvdimm_bus)
+		return;
+	mutex_unlock(&nvdimm_bus->reconfig_mutex);
+}
+EXPORT_SYMBOL(nvdimm_bus_unlock);
+
+bool is_nvdimm_bus_locked(struct device *dev)
+{
+	struct nvdimm_bus *nvdimm_bus = walk_to_nvdimm_bus(dev);
+
+	if (!nvdimm_bus)
+		return false;
+	return mutex_is_locked(&nvdimm_bus->reconfig_mutex);
+}
+EXPORT_SYMBOL(is_nvdimm_bus_locked);
+
 static void nvdimm_bus_release(struct device *dev)
 {
 	struct nvdimm_bus *nvdimm_bus;
@@ -135,8 +165,8 @@ struct attribute_group nvdimm_bus_attribute_group = {
 };
 EXPORT_SYMBOL_GPL(nvdimm_bus_attribute_group);
 
-struct nvdimm_bus *nvdimm_bus_register(struct device *parent,
-		struct nvdimm_bus_descriptor *nd_desc)
+struct nvdimm_bus *__nvdimm_bus_register(struct device *parent,
+		struct nvdimm_bus_descriptor *nd_desc, struct module *module)
 {
 	struct nvdimm_bus *nvdimm_bus;
 	int rc;
@@ -146,11 +176,13 @@ struct nvdimm_bus *nvdimm_bus_register(struct device *parent,
 		return NULL;
 	INIT_LIST_HEAD(&nvdimm_bus->list);
 	nvdimm_bus->id = ida_simple_get(&nd_ida, 0, 0, GFP_KERNEL);
+	mutex_init(&nvdimm_bus->reconfig_mutex);
 	if (nvdimm_bus->id < 0) {
 		kfree(nvdimm_bus);
 		return NULL;
 	}
 	nvdimm_bus->nd_desc = nd_desc;
+	nvdimm_bus->module = module;
 	nvdimm_bus->dev.parent = parent;
 	nvdimm_bus->dev.release = nvdimm_bus_release;
 	nvdimm_bus->dev.groups = nd_desc->attr_groups;
@@ -174,7 +206,7 @@ struct nvdimm_bus *nvdimm_bus_register(struct device *parent,
 	put_device(&nvdimm_bus->dev);
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(nvdimm_bus_register);
+EXPORT_SYMBOL_GPL(__nvdimm_bus_register);
 
 static int child_unregister(struct device *dev, void *data)
 {
@@ -218,7 +250,12 @@ static __init int libnvdimm_init(void)
 	rc = nvdimm_init();
 	if (rc)
 		goto err_dimm;
+	rc = nd_region_init();
+	if (rc)
+		goto err_region;
 	return 0;
+ err_region:
+	nvdimm_exit();
  err_dimm:
 	nvdimm_bus_exit();
 	return rc;
@@ -227,6 +264,7 @@ static __init int libnvdimm_init(void)
 static __exit void libnvdimm_exit(void)
 {
 	WARN_ON(!list_empty(&nvdimm_bus_list));
+	nd_region_exit();
 	nvdimm_exit();
 	nvdimm_bus_exit();
 }

@@ -47,9 +47,14 @@ static struct device_type nd_volatile_device_type = {
 	.release = nd_region_release,
 };
 
-static bool is_nd_pmem(struct device *dev)
+bool is_nd_pmem(struct device *dev)
 {
 	return dev ? dev->type == &nd_pmem_device_type : false;
+}
+
+bool is_nd_blk(struct device *dev)
+{
+	return dev ? dev->type == &nd_blk_device_type : false;
 }
 
 struct nd_region *to_nd_region(struct device *dev)
@@ -60,6 +65,37 @@ struct nd_region *to_nd_region(struct device *dev)
 	return nd_region;
 }
 EXPORT_SYMBOL_GPL(to_nd_region);
+
+/**
+ * nd_region_to_nstype() - region to an integer namespace type
+ * @nd_region: region-device to interrogate
+ *
+ * This is the 'nstype' attribute of a region as well, an input to the
+ * MODALIAS for namespace devices, and bit number for a nvdimm_bus to match
+ * namespace devices with namespace drivers.
+ */
+int nd_region_to_nstype(struct nd_region *nd_region)
+{
+	if (is_nd_pmem(&nd_region->dev)) {
+		u16 i, alias;
+
+		for (i = 0, alias = 0; i < nd_region->ndr_mappings; i++) {
+			struct nd_mapping *nd_mapping = &nd_region->mapping[i];
+			struct nvdimm *nvdimm = nd_mapping->nvdimm;
+
+			if (nvdimm->flags & NDD_ALIASING)
+				alias++;
+		}
+		if (alias)
+			return ND_DEVICE_NAMESPACE_PMEM;
+		else
+			return ND_DEVICE_NAMESPACE_IO;
+	} else if (is_nd_blk(&nd_region->dev)) {
+		return ND_DEVICE_NAMESPACE_BLK;
+	}
+
+	return 0;
+}
 
 static ssize_t size_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -88,9 +124,37 @@ static ssize_t mappings_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(mappings);
 
+static ssize_t nstype_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct nd_region *nd_region = to_nd_region(dev);
+
+	return sprintf(buf, "%d\n", nd_region_to_nstype(nd_region));
+}
+static DEVICE_ATTR_RO(nstype);
+
+static ssize_t init_namespaces_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct nd_region_namespaces *num_ns = dev_get_drvdata(dev);
+	ssize_t rc;
+
+	nvdimm_bus_lock(dev);
+	if (num_ns)
+		rc = sprintf(buf, "%d/%d\n", num_ns->active, num_ns->count);
+	else
+		rc = -ENXIO;
+	nvdimm_bus_unlock(dev);
+
+	return rc;
+}
+static DEVICE_ATTR_RO(init_namespaces);
+
 static struct attribute *nd_region_attributes[] = {
 	&dev_attr_size.attr,
+	&dev_attr_nstype.attr,
 	&dev_attr_mappings.attr,
+	&dev_attr_init_namespaces.attr,
 	NULL,
 };
 

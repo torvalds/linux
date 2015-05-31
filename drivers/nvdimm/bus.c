@@ -13,6 +13,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/vmalloc.h>
 #include <linux/uaccess.h>
+#include <linux/module.h>
 #include <linux/fcntl.h>
 #include <linux/async.h>
 #include <linux/ndctl.h>
@@ -33,6 +34,12 @@ static int to_nd_device_type(struct device *dev)
 {
 	if (is_nvdimm(dev))
 		return ND_DEVICE_DIMM;
+	else if (is_nd_pmem(dev))
+		return ND_DEVICE_REGION_PMEM;
+	else if (is_nd_blk(dev))
+		return ND_DEVICE_REGION_BLK;
+	else if (is_nd_pmem(dev->parent) || is_nd_blk(dev->parent))
+		return nd_region_to_nstype(to_nd_region(dev->parent));
 
 	return 0;
 }
@@ -50,27 +57,46 @@ static int nvdimm_bus_match(struct device *dev, struct device_driver *drv)
 	return test_bit(to_nd_device_type(dev), &nd_drv->type);
 }
 
+static struct module *to_bus_provider(struct device *dev)
+{
+	/* pin bus providers while regions are enabled */
+	if (is_nd_pmem(dev) || is_nd_blk(dev)) {
+		struct nvdimm_bus *nvdimm_bus = walk_to_nvdimm_bus(dev);
+
+		return nvdimm_bus->module;
+	}
+	return NULL;
+}
+
 static int nvdimm_bus_probe(struct device *dev)
 {
 	struct nd_device_driver *nd_drv = to_nd_device_driver(dev->driver);
+	struct module *provider = to_bus_provider(dev);
 	struct nvdimm_bus *nvdimm_bus = walk_to_nvdimm_bus(dev);
 	int rc;
+
+	if (!try_module_get(provider))
+		return -ENXIO;
 
 	rc = nd_drv->probe(dev);
 	dev_dbg(&nvdimm_bus->dev, "%s.probe(%s) = %d\n", dev->driver->name,
 			dev_name(dev), rc);
+	if (rc != 0)
+		module_put(provider);
 	return rc;
 }
 
 static int nvdimm_bus_remove(struct device *dev)
 {
 	struct nd_device_driver *nd_drv = to_nd_device_driver(dev->driver);
+	struct module *provider = to_bus_provider(dev);
 	struct nvdimm_bus *nvdimm_bus = walk_to_nvdimm_bus(dev);
 	int rc;
 
 	rc = nd_drv->remove(dev);
 	dev_dbg(&nvdimm_bus->dev, "%s.remove(%s) = %d\n", dev->driver->name,
 			dev_name(dev), rc);
+	module_put(provider);
 	return rc;
 }
 
