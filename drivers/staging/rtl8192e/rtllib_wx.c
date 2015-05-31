@@ -510,7 +510,8 @@ int rtllib_wx_get_encode(struct rtllib_device *ieee,
 		return 0;
 	}
 	len = crypt->ops->get_key(keybuf, SCM_KEY_LEN, NULL, crypt->priv);
-	erq->length = (len >= 0 ? len : 0);
+
+	erq->length = max(len, 0);
 
 	erq->flags |= IW_ENCODE_ENABLED;
 
