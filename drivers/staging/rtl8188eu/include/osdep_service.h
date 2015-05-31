@@ -157,8 +157,6 @@ void rtw_free_netdev(struct net_device *netdev);
 #define FUNC_ADPT_FMT "%s(%s)"
 #define FUNC_ADPT_ARG(adapter) __func__, adapter->pnetdev->name
 
-#define rtw_signal_process(pid, sig) kill_pid(find_vpid((pid)), (sig), 1)
-
 u64 rtw_modular64(u64 x, u64 y);
 
 /* Macros for handling unaligned memory accesses */

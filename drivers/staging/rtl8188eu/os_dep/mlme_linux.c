@@ -41,8 +41,6 @@ void rtw_os_indicate_connect(struct adapter *adapter)
 {
 	rtw_indicate_wx_assoc_event(adapter);
 	netif_carrier_on(adapter->pnetdev);
-	if (adapter->pid[2] != 0)
-		rtw_signal_process(adapter->pid[2], SIGALRM);
 }
 
 void rtw_os_indicate_scan_done(struct adapter *padapter, bool aborted)
