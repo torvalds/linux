@@ -112,7 +112,11 @@ static int perf_pmu__parse_scale(struct perf_pmu_alias *alias, char *dir, char *
 	if (sret < 0)
 		goto error;
 
-	scale[sret] = '\0';
+	if (scale[sret - 1] == '\n')
+		scale[sret - 1] = '\0';
+	else
+		scale[sret] = '\0';
+
 	/*
 	 * save current locale
 	 */
@@ -154,7 +158,10 @@ static int perf_pmu__parse_unit(struct perf_pmu_alias *alias, char *dir, char *n
 
 	close(fd);
 
-	alias->unit[sret] = '\0';
+	if (alias->unit[sret - 1] == '\n')
+		alias->unit[sret - 1] = '\0';
+	else
+		alias->unit[sret] = '\0';
 
 	return 0;
 error:
