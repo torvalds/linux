@@ -265,7 +265,7 @@ typedef enum ldlm_policy_res ldlm_policy_res_t;
 	static ssize_t var##_store(struct kobject *kobj,		    \
 				     struct attribute *attr,		    \
 				     const char *buffer,		    \
-				     unsigned long count)		    \
+				     size_t count)			    \
 	{								    \
 		struct ldlm_pool *pl = container_of(kobj, struct ldlm_pool, \
 						    pl_kobj);		    \
@@ -301,7 +301,7 @@ typedef enum ldlm_policy_res ldlm_policy_res_t;
 	static ssize_t var##_store(struct kobject *kobj,		    \
 				     struct attribute *attr,		    \
 				     const char *buffer,		    \
-				     unsigned long count)		    \
+				     size_t count)			    \
 	{								    \
 		struct ldlm_pool *pl = container_of(kobj, struct ldlm_pool, \
 						    pl_kobj);		    \
