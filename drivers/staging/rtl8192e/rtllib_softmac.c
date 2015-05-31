@@ -832,7 +832,8 @@ inline struct sk_buff *rtllib_authentication_req(struct rtllib_network *beacon,
 	return skb;
 }
 
-static struct sk_buff *rtllib_probe_resp(struct rtllib_device *ieee, u8 *dest)
+static struct sk_buff *rtllib_probe_resp(struct rtllib_device *ieee,
+					 const u8 *dest)
 {
 	u8 *tag;
 	int beacon_size;

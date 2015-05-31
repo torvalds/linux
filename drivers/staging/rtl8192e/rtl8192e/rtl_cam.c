@@ -81,7 +81,7 @@ void EnableHWSecurityConfig8192(struct net_device *dev)
 }
 
 void set_swcam(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType,
-	       u8 *MacAddr, u8 DefaultKey, u32 *KeyContent, u8 is_mesh)
+	       const u8 *MacAddr, u8 DefaultKey, u32 *KeyContent, u8 is_mesh)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_device *ieee = priv->rtllib;
@@ -100,7 +100,7 @@ void set_swcam(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType,
 }
 
 void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType,
-	    u8 *MacAddr, u8 DefaultKey, u32 *KeyContent)
+	    const u8 *MacAddr, u8 DefaultKey, u32 *KeyContent)
 {
 	u32 TargetCommand = 0;
 	u32 TargetContent = 0;
