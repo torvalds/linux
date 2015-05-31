@@ -164,7 +164,7 @@ int main(int argc, char **argv)
 {
 	int c, err = 0;
 
-	while ((c = getopt(argc, argv, "d:D:v")) != EOF) {
+	while ((c = getopt(argc, argv, "v")) != EOF) {
 		switch (c) {
 		case 'v':
 			verblevel++;
@@ -179,9 +179,7 @@ int main(int argc, char **argv)
 	if (err || argc > optind) {
 		fprintf(stderr, "Usage: lsiio [options]...\n"
 			"List industrial I/O devices\n"
-			"  -v, --verbose\n"
-			"      Increase verbosity (may be given multiple times)\n"
-			);
+			"  -v  Increase verbosity (may be given multiple times)\n");
 		exit(1);
 	}
 

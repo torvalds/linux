@@ -168,6 +168,19 @@ void process_scan(char *data,
 	printf("\n");
 }
 
+void print_usage(void)
+{
+	printf("Usage: generic_buffer [options]...\n"
+	       "Capture, convert and output data from IIO device buffer\n"
+	       "  -c <n>     Do n conversions\n"
+	       "  -e         Disable wait for event (new data)\n"
+	       "  -g         Use trigger-less mode\n"
+	       "  -l <n>     Set buffer length to n samples\n"
+	       "  -n <name>  Set device name (mandatory)\n"
+	       "  -t <name>  Set trigger name\n"
+	       "  -w <n>     Set delay between reads in us (event-less mode)\n");
+}
+
 int main(int argc, char **argv)
 {
 	unsigned long num_loops = 2;
@@ -193,29 +206,19 @@ int main(int argc, char **argv)
 
 	struct iio_channel_info *channels;
 
-	while ((c = getopt(argc, argv, "l:w:c:et:n:g")) != -1) {
+	while ((c = getopt(argc, argv, "c:egl:n:t:w:")) != -1) {
 		switch (c) {
-		case 'n':
-			device_name = optarg;
-			break;
-		case 't':
-			trigger_name = optarg;
-			datardytrigger = 0;
-			break;
-		case 'e':
-			noevents = 1;
-			break;
 		case 'c':
 			errno = 0;
 			num_loops = strtoul(optarg, &dummy, 10);
 			if (errno)
 				return -errno;
 			break;
-		case 'w':
-			errno = 0;
-			timedelay = strtoul(optarg, &dummy, 10);
-			if (errno)
-				return -errno;
+		case 'e':
+			noevents = 1;
+			break;
+		case 'g':
+			notrigger = 1;
 			break;
 		case 'l':
 			errno = 0;
@@ -223,16 +226,30 @@ int main(int argc, char **argv)
 			if (errno)
 				return -errno;
 			break;
-		case 'g':
-			notrigger = 1;
+		case 'n':
+			device_name = optarg;
+			break;
+		case 't':
+			trigger_name = optarg;
+			datardytrigger = 0;
+			break;
+		case 'w':
+			errno = 0;
+			timedelay = strtoul(optarg, &dummy, 10);
+			if (errno)
+				return -errno;
 			break;
 		case '?':
+			print_usage();
 			return -1;
 		}
 	}
 
-	if (device_name == NULL)
+	if (device_name == NULL) {
+		printf("Device name not set\n");
+		print_usage();
 		return -1;
+	}
 
 	/* Find the device requested */
 	dev_num = find_type_by_name(device_name, "iio:device");
