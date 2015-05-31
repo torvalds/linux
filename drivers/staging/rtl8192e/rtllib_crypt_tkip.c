@@ -68,8 +68,7 @@ static void *rtllib_tkip_init(int key_idx)
 	priv->tx_tfm_arc4 = crypto_alloc_blkcipher("ecb(arc4)", 0,
 			CRYPTO_ALG_ASYNC);
 	if (IS_ERR(priv->tx_tfm_arc4)) {
-		printk(KERN_DEBUG
-		       "rtllib_crypt_tkip: could not allocate crypto API arc4\n");
+		pr_debug("Could not allocate crypto API arc4\n");
 		priv->tx_tfm_arc4 = NULL;
 		goto fail;
 	}
@@ -77,8 +76,7 @@ static void *rtllib_tkip_init(int key_idx)
 	priv->tx_tfm_michael = crypto_alloc_hash("michael_mic", 0,
 			CRYPTO_ALG_ASYNC);
 	if (IS_ERR(priv->tx_tfm_michael)) {
-		printk(KERN_DEBUG
-		       "rtllib_crypt_tkip: could not allocate crypto API michael_mic\n");
+		pr_debug("Could not allocate crypto API michael_mic\n");
 		priv->tx_tfm_michael = NULL;
 		goto fail;
 	}
@@ -86,8 +84,7 @@ static void *rtllib_tkip_init(int key_idx)
 	priv->rx_tfm_arc4 = crypto_alloc_blkcipher("ecb(arc4)", 0,
 			CRYPTO_ALG_ASYNC);
 	if (IS_ERR(priv->rx_tfm_arc4)) {
-		printk(KERN_DEBUG
-		       "rtllib_crypt_tkip: could not allocate crypto API arc4\n");
+		pr_debug("Could not allocate crypto API arc4\n");
 		priv->rx_tfm_arc4 = NULL;
 		goto fail;
 	}
@@ -95,8 +92,7 @@ static void *rtllib_tkip_init(int key_idx)
 	priv->rx_tfm_michael = crypto_alloc_hash("michael_mic", 0,
 			CRYPTO_ALG_ASYNC);
 	if (IS_ERR(priv->rx_tfm_michael)) {
-		printk(KERN_DEBUG
-		       "rtllib_crypt_tkip: could not allocate crypto API michael_mic\n");
+		pr_debug("Could not allocate crypto API michael_mic\n");
 		priv->rx_tfm_michael = NULL;
 		goto fail;
 	}
@@ -403,24 +399,24 @@ static int rtllib_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	keyidx = pos[3];
 	if (!(keyidx & (1 << 5))) {
 		if (net_ratelimit()) {
-			printk(KERN_DEBUG
-			       "TKIP: received packet without ExtIV flag from %pM\n",
-			       hdr->addr2);
+			netdev_dbg(skb->dev,
+				   "Received packet without ExtIV flag from %pM\n",
+				   hdr->addr2);
 		}
 		return -2;
 	}
 	keyidx >>= 6;
 	if (tkey->key_idx != keyidx) {
-		printk(KERN_DEBUG
-		       "TKIP: RX tkey->key_idx=%d frame keyidx=%d priv=%p\n",
-		       tkey->key_idx, keyidx, priv);
+		netdev_dbg(skb->dev,
+			   "RX tkey->key_idx=%d frame keyidx=%d priv=%p\n",
+			   tkey->key_idx, keyidx, priv);
 		return -6;
 	}
 	if (!tkey->key_set) {
 		if (net_ratelimit()) {
-			printk(KERN_DEBUG
-			       "TKIP: received packet from %pM with keyid=%d that does not have a configured key\n",
-			       hdr->addr2, keyidx);
+			netdev_dbg(skb->dev,
+				   "Received packet from %pM with keyid=%d that does not have a configured key\n",
+				   hdr->addr2, keyidx);
 		}
 		return -3;
 	}
@@ -433,10 +429,10 @@ static int rtllib_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		    (iv32 == tkey->rx_iv32 && iv16 <= tkey->rx_iv16)) &&
 		    tkey->initialized) {
 			if (net_ratelimit()) {
-				printk(KERN_DEBUG
-				       "TKIP: replay detected: STA= %pM previous TSC %08x%04x received TSC %08x%04x\n",
-				       hdr->addr2, tkey->rx_iv32, tkey->rx_iv16,
-				       iv32, iv16);
+				netdev_dbg(skb->dev,
+					   "Replay detected: STA= %pM previous TSC %08x%04x received TSC %08x%04x\n",
+					   hdr->addr2, tkey->rx_iv32,
+					   tkey->rx_iv16, iv32, iv16);
 			}
 			tkey->dot11RSNAStatsTKIPReplays++;
 			return -4;
@@ -457,9 +453,9 @@ static int rtllib_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		crypto_blkcipher_setkey(tkey->rx_tfm_arc4, rc4key, 16);
 		if (crypto_blkcipher_decrypt(&desc, &sg, &sg, plen + 4)) {
 			if (net_ratelimit()) {
-				printk(KERN_DEBUG
-				       ": TKIP: failed to decrypt received packet from %pM\n",
-				       hdr->addr2);
+				netdev_dbg(skb->dev,
+					   "Failed to decrypt received packet from %pM\n",
+					   hdr->addr2);
 			}
 			return -7;
 		}
@@ -479,9 +475,9 @@ static int rtllib_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 				tkey->rx_phase1_done = 0;
 			}
 			if (net_ratelimit()) {
-				printk(KERN_DEBUG
-				       "TKIP: ICV error detected: STA= %pM\n",
-				       hdr->addr2);
+				netdev_dbg(skb->dev,
+					   "ICV error detected: STA= %pM\n",
+					   hdr->addr2);
 			}
 			tkey->dot11RSNAStatsTKIPICVErrors++;
 			return -5;
@@ -566,9 +562,9 @@ static int rtllib_michael_mic_add(struct sk_buff *skb, int hdr_len, void *priv)
 	hdr = (struct rtllib_hdr_4addr *) skb->data;
 
 	if (skb_tailroom(skb) < 8 || skb->len < hdr_len) {
-		printk(KERN_DEBUG
-		       "Invalid packet for Michael MIC add (tailroom=%d hdr_len=%d skb->len=%d)\n",
-		       skb_tailroom(skb), hdr_len, skb->len);
+		netdev_dbg(skb->dev,
+			   "Invalid packet for Michael MIC add (tailroom=%d hdr_len=%d skb->len=%d)\n",
+			   skb_tailroom(skb), hdr_len, skb->len);
 		return -1;
 	}
 
@@ -630,12 +626,11 @@ static int rtllib_michael_mic_verify(struct sk_buff *skb, int keyidx,
 		struct rtllib_hdr_4addr *hdr;
 
 		hdr = (struct rtllib_hdr_4addr *) skb->data;
-		printk(KERN_DEBUG
-		       "%s: Michael MIC verification failed for MSDU from %pM keyidx=%d\n",
-		       skb->dev ? skb->dev->name : "N/A", hdr->addr2,
-		       keyidx);
-		printk(KERN_DEBUG "%d\n",
-		       memcmp(mic, skb->data + skb->len - 8, 8) != 0);
+		netdev_dbg(skb->dev,
+			   "Michael MIC verification failed for MSDU from %pM keyidx=%d\n",
+			   hdr->addr2, keyidx);
+		netdev_dbg(skb->dev, "%d\n",
+			   memcmp(mic, skb->data + skb->len - 8, 8) != 0);
 		if (skb->dev) {
 			pr_info("skb->dev != NULL\n");
 			rtllib_michael_mic_failure(skb->dev, hdr, keyidx);

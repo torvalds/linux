@@ -346,8 +346,9 @@ rtllib_rx_frame_decrypt_msdu(struct rtllib_device *ieee, struct sk_buff *skb,
 	res = crypt->ops->decrypt_msdu(skb, keyidx, hdrlen, crypt->priv);
 	atomic_dec(&crypt->refcnt);
 	if (res < 0) {
-		printk(KERN_DEBUG "%s: MSDU decryption/MIC verification failed (SA= %pM keyidx=%d)\n",
-		       ieee->dev->name, hdr->addr2, keyidx);
+		netdev_dbg(ieee->dev,
+			   "MSDU decryption/MIC verification failed (SA= %pM keyidx=%d)\n",
+			   hdr->addr2, keyidx);
 		return -1;
 	}
 
