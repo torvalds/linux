@@ -349,7 +349,6 @@ enum {
 
 #define EXTRA_FIRST_OPC LDLM_GLIMPSE_ENQUEUE
 /* class_obd.c */
-extern struct proc_dir_entry *proc_lustre_root;
 extern struct dentry *debugfs_lustre_root;
 extern struct kobject *lustre_kobj;
 
@@ -850,8 +849,6 @@ extern int lprocfs_quota_wr_qs_factor(struct file *file,
 				      unsigned long count, void *data);
 #else
 /* CONFIG_PROC_FS is not defined */
-
-#define proc_lustre_root NULL
 
 static inline void lprocfs_counter_add(struct lprocfs_stats *stats,
 				       int index, long amount)

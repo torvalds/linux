@@ -322,11 +322,6 @@ static ssize_t jobid_name_store(struct kobject *kobj, struct attribute *attr,
 struct dentry *debugfs_lustre_root;
 EXPORT_SYMBOL_GPL(debugfs_lustre_root);
 
-#if defined(CONFIG_PROC_FS)
-/* Root for /proc/fs/lustre */
-struct proc_dir_entry *proc_lustre_root = NULL;
-EXPORT_SYMBOL(proc_lustre_root);
-
 LUSTRE_RO_ATTR(version);
 LUSTRE_RO_ATTR(pinger);
 LUSTRE_RO_ATTR(health);
@@ -459,14 +454,6 @@ int class_procfs_init(void)
 		kobject_put(lustre_kobj);
 		goto out;
 	}
-
-	proc_lustre_root = lprocfs_register("fs/lustre", NULL, NULL, NULL);
-	if (IS_ERR(proc_lustre_root)) {
-		rc = PTR_ERR(proc_lustre_root);
-		proc_lustre_root = NULL;
-		kobject_put(lustre_kobj);
-		goto out;
-	}
 out:
 	return rc;
 }
@@ -478,12 +465,7 @@ int class_procfs_clean(void)
 
 	debugfs_lustre_root = NULL;
 
-	if (proc_lustre_root) {
-		lprocfs_remove(&proc_lustre_root);
-	}
-
 	kobject_put(lustre_kobj);
 
 	return 0;
 }
-#endif /* CONFIG_PROC_FS */
