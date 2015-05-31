@@ -840,29 +840,26 @@ int class_add_profile(int proflen, char *prof, int osclen, char *osc,
 	INIT_LIST_HEAD(&lprof->lp_list);
 
 	LASSERT(proflen == (strlen(prof) + 1));
-	lprof->lp_profile = kzalloc(proflen, GFP_NOFS);
+	lprof->lp_profile = kmemdup(prof, proflen, GFP_NOFS);
 	if (lprof->lp_profile == NULL) {
 		err = -ENOMEM;
 		goto free_lprof;
 	}
-	memcpy(lprof->lp_profile, prof, proflen);
 
 	LASSERT(osclen == (strlen(osc) + 1));
-	lprof->lp_dt = kzalloc(osclen, GFP_NOFS);
+	lprof->lp_dt = kmemdup(osc, osclen, GFP_NOFS);
 	if (lprof->lp_dt == NULL) {
 		err = -ENOMEM;
 		goto free_lp_profile;
 	}
-	memcpy(lprof->lp_dt, osc, osclen);
 
 	if (mdclen > 0) {
 		LASSERT(mdclen == (strlen(mdc) + 1));
-		lprof->lp_md = kzalloc(mdclen, GFP_NOFS);
+		lprof->lp_md = kmemdup(mdc, mdclen, GFP_NOFS);
 		if (lprof->lp_md == NULL) {
 			err = -ENOMEM;
 			goto free_lp_dt;
 		}
-		memcpy(lprof->lp_md, mdc, mdclen);
 	}
 
 	list_add(&lprof->lp_list, &lustre_profile_list);
