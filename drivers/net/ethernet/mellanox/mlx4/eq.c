@@ -221,6 +221,20 @@ static void mlx4_slave_event(struct mlx4_dev *dev, int slave,
 	slave_event(dev, slave, eqe);
 }
 
+static void mlx4_set_eq_affinity_hint(struct mlx4_priv *priv, int vec)
+{
+	int hint_err;
+	struct mlx4_dev *dev = &priv->dev;
+	struct mlx4_eq *eq = &priv->eq_table.eq[vec];
+
+	if (!eq->affinity_mask || cpumask_empty(eq->affinity_mask))
+		return;
+
+	hint_err = irq_set_affinity_hint(eq->irq, eq->affinity_mask);
+	if (hint_err)
+		mlx4_warn(dev, "irq_set_affinity_hint failed, err %d\n", hint_err);
+}
+
 int mlx4_gen_pkey_eqe(struct mlx4_dev *dev, int slave, u8 port)
 {
 	struct mlx4_eqe eqe;
@@ -1092,6 +1106,10 @@ static void mlx4_free_irqs(struct mlx4_dev *dev)
 
 	for (i = 0; i < dev->caps.num_comp_vectors + 1; ++i)
 		if (eq_table->eq[i].have_irq) {
+			free_cpumask_var(eq_table->eq[i].affinity_mask);
+#if defined(CONFIG_SMP)
+			irq_set_affinity_hint(eq_table->eq[i].irq, NULL);
+#endif
 			free_irq(eq_table->eq[i].irq, eq_table->eq + i);
 			eq_table->eq[i].have_irq = 0;
 		}
@@ -1483,6 +1501,9 @@ int mlx4_assign_eq(struct mlx4_dev *dev, u8 port, int *vector)
 			clear_bit(*prequested_vector, priv->msix_ctl.pool_bm);
 			*prequested_vector = -1;
 		} else {
+#if defined(CONFIG_SMP)
+			mlx4_set_eq_affinity_hint(priv, *prequested_vector);
+#endif
 			eq_set_ci(&priv->eq_table.eq[*prequested_vector], 1);
 			priv->eq_table.eq[*prequested_vector].have_irq = 1;
 		}
