@@ -347,7 +347,14 @@ int main(int argc, char **argv)
 				.events = POLLIN,
 			};
 
-			poll(&pfd, 1, -1);
+			ret = poll(&pfd, 1, -1);
+			if (ret < 0) {
+				ret = -errno;
+				goto error_close_buffer_access;
+			} else if (ret == 0) {
+				continue;
+			}
+
 			toread = buf_len;
 
 		} else {
@@ -378,11 +385,14 @@ int main(int argc, char **argv)
 
 	if (!notrigger)
 		/* Disconnect the trigger - just write a dummy name. */
-		write_sysfs_string("trigger/current_trigger",
-				   dev_dir_name, "NULL");
+		ret = write_sysfs_string("trigger/current_trigger",
+					 dev_dir_name, "NULL");
+		if (ret < 0)
+			printf("Failed to write to %s\n", dev_dir_name);
 
 error_close_buffer_access:
-	close(fp);
+	if (close(fp) == -1)
+		perror("Failed to close buffer");
 error_free_buffer_access:
 	free(buffer_access);
 error_free_data:
