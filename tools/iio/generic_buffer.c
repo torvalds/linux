@@ -321,7 +321,7 @@ int main(int argc, char **argv)
 				 data,
 				 toread*scan_size);
 		if (read_size < 0) {
-			if (errno == -EAGAIN) {
+			if (errno == EAGAIN) {
 				printf("nothing available\n");
 				continue;
 			} else
