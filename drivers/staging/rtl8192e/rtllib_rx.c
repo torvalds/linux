@@ -1951,12 +1951,10 @@ static void rtllib_parse_mife_generic(struct rtllib_device *ieee,
 	    info_element->data[1] == 0x50 &&
 	    info_element->data[2] == 0xf2 &&
 	    info_element->data[3] == 0x04) {
-		RTLLIB_DEBUG_MGMT("MFIE_TYPE_WZC: %d bytes\n",
-				  info_element->len);
-		network->wzc_ie_len = min(info_element->len+2,
-					  MAX_WZC_IE_LEN);
-		memcpy(network->wzc_ie, info_element,
-		       network->wzc_ie_len);
+		netdev_dbg(ieee->dev, "MFIE_TYPE_WZC: %d bytes\n",
+			   info_element->len);
+		network->wzc_ie_len = min(info_element->len+2, MAX_WZC_IE_LEN);
+		memcpy(network->wzc_ie, info_element, network->wzc_ie_len);
 	}
 }
 
@@ -1975,10 +1973,10 @@ int rtllib_parse_info_param(struct rtllib_device *ieee,
 
 	while (length >= sizeof(*info_element)) {
 		if (sizeof(*info_element) + info_element->len > length) {
-			RTLLIB_DEBUG_MGMT("Info elem: parse failed: info_element->len + 2 > left : info_element->len+2=%zd left=%d, id=%d.\n",
-					     info_element->len +
-					     sizeof(*info_element),
-					     length, info_element->id);
+			netdev_dbg(ieee->dev,
+				   "Info elem: parse failed: info_element->len + 2 > left : info_element->len+2=%zd left=%d, id=%d.\n",
+				   info_element->len + sizeof(*info_element),
+				   length, info_element->id);
 			/* We stop processing but don't return an error here
 			 * because some misbehaviour APs break this rule. ie.
 			 * Orinoco AP1000.
@@ -2001,8 +1999,8 @@ int rtllib_parse_info_param(struct rtllib_device *ieee,
 				memset(network->ssid + network->ssid_len, 0,
 				       IW_ESSID_MAX_SIZE - network->ssid_len);
 
-			RTLLIB_DEBUG_MGMT("MFIE_TYPE_SSID: '%s' len=%d.\n",
-					     network->ssid, network->ssid_len);
+			netdev_dbg(ieee->dev, "MFIE_TYPE_SSID: '%s' len=%d.\n",
+				   network->ssid, network->ssid_len);
 			break;
 
 		case MFIE_TYPE_RATES:
@@ -2029,8 +2027,8 @@ int rtllib_parse_info_param(struct rtllib_device *ieee,
 				}
 			}
 
-			RTLLIB_DEBUG_MGMT("MFIE_TYPE_RATES: '%s' (%d)\n",
-					     rates_str, network->rates_len);
+			netdev_dbg(ieee->dev, "MFIE_TYPE_RATES: '%s' (%d)\n",
+				   rates_str, network->rates_len);
 			break;
 
 		case MFIE_TYPE_RATES_EX:
@@ -2052,22 +2050,22 @@ int rtllib_parse_info_param(struct rtllib_device *ieee,
 				}
 			}
 
-			RTLLIB_DEBUG_MGMT("MFIE_TYPE_RATES_EX: '%s' (%d)\n",
-					     rates_str, network->rates_ex_len);
+			netdev_dbg(ieee->dev, "MFIE_TYPE_RATES_EX: '%s' (%d)\n",
+				   rates_str, network->rates_ex_len);
 			break;
 
 		case MFIE_TYPE_DS_SET:
-			RTLLIB_DEBUG_MGMT("MFIE_TYPE_DS_SET: %d\n",
-					     info_element->data[0]);
+			netdev_dbg(ieee->dev, "MFIE_TYPE_DS_SET: %d\n",
+				   info_element->data[0]);
 			network->channel = info_element->data[0];
 			break;
 
 		case MFIE_TYPE_FH_SET:
-			RTLLIB_DEBUG_MGMT("MFIE_TYPE_FH_SET: ignored\n");
+			netdev_dbg(ieee->dev, "MFIE_TYPE_FH_SET: ignored\n");
 			break;
 
 		case MFIE_TYPE_CF_SET:
-			RTLLIB_DEBUG_MGMT("MFIE_TYPE_CF_SET: ignored\n");
+			netdev_dbg(ieee->dev, "MFIE_TYPE_CF_SET: ignored\n");
 			break;
 
 		case MFIE_TYPE_TIM:
@@ -2106,30 +2104,31 @@ int rtllib_parse_info_param(struct rtllib_device *ieee,
 		case MFIE_TYPE_ERP:
 			network->erp_value = info_element->data[0];
 			network->flags |= NETWORK_HAS_ERP_VALUE;
-			RTLLIB_DEBUG_MGMT("MFIE_TYPE_ERP_SET: %d\n",
-					     network->erp_value);
+			netdev_dbg(ieee->dev, "MFIE_TYPE_ERP_SET: %d\n",
+				   network->erp_value);
 			break;
 		case MFIE_TYPE_IBSS_SET:
 			network->atim_window = info_element->data[0];
-			RTLLIB_DEBUG_MGMT("MFIE_TYPE_IBSS_SET: %d\n",
-					     network->atim_window);
+			netdev_dbg(ieee->dev, "MFIE_TYPE_IBSS_SET: %d\n",
+				   network->atim_window);
 			break;
 
 		case MFIE_TYPE_CHALLENGE:
-			RTLLIB_DEBUG_MGMT("MFIE_TYPE_CHALLENGE: ignored\n");
+			netdev_dbg(ieee->dev, "MFIE_TYPE_CHALLENGE: ignored\n");
 			break;
 
 		case MFIE_TYPE_GENERIC:
-			RTLLIB_DEBUG_MGMT("MFIE_TYPE_GENERIC: %d bytes\n",
-					     info_element->len);
+			netdev_dbg(ieee->dev, "MFIE_TYPE_GENERIC: %d bytes\n",
+				   info_element->len);
+
 			rtllib_parse_mife_generic(ieee, info_element, network,
 						  &tmp_htcap_len,
 						  &tmp_htinfo_len);
 			break;
 
 		case MFIE_TYPE_RSN:
-			RTLLIB_DEBUG_MGMT("MFIE_TYPE_RSN: %d bytes\n",
-					     info_element->len);
+			netdev_dbg(ieee->dev, "MFIE_TYPE_RSN: %d bytes\n",
+				   info_element->len);
 			network->rsn_ie_len = min(info_element->len + 2,
 						  MAX_WPA_IE_LEN);
 			memcpy(network->rsn_ie, info_element,
@@ -2210,10 +2209,10 @@ int rtllib_parse_info_param(struct rtllib_device *ieee,
 			break;
 /* TODO */
 		default:
-			RTLLIB_DEBUG_MGMT
-			    ("Unsupported info element: %s (%d)\n",
-			     get_info_element_string(info_element->id),
-			     info_element->id);
+			netdev_dbg(ieee->dev,
+				   "Unsupported info element: %s (%d)\n",
+				   get_info_element_string(info_element->id),
+				   info_element->id);
 			break;
 		}
 
@@ -2672,8 +2671,8 @@ void rtllib_rx_mgt(struct rtllib_device *ieee,
 	switch (WLAN_FC_GET_STYPE(le16_to_cpu(header->frame_ctl))) {
 
 	case RTLLIB_STYPE_BEACON:
-		RTLLIB_DEBUG_MGMT("received BEACON (%d)\n",
-				  WLAN_FC_GET_STYPE(le16_to_cpu(header->frame_ctl)));
+		netdev_dbg(ieee->dev, "received BEACON (%d)\n",
+			   WLAN_FC_GET_STYPE(le16_to_cpu(header->frame_ctl)));
 		rtllib_process_probe_response(
 				ieee, (struct rtllib_probe_response *)header,
 				stats);
@@ -2686,15 +2685,14 @@ void rtllib_rx_mgt(struct rtllib_device *ieee,
 		break;
 
 	case RTLLIB_STYPE_PROBE_RESP:
-		RTLLIB_DEBUG_MGMT("received PROBE RESPONSE (%d)\n",
-			WLAN_FC_GET_STYPE(le16_to_cpu(header->frame_ctl)));
+		netdev_dbg(ieee->dev, "received PROBE RESPONSE (%d)\n",
+			   WLAN_FC_GET_STYPE(le16_to_cpu(header->frame_ctl)));
 		rtllib_process_probe_response(ieee,
 			      (struct rtllib_probe_response *)header, stats);
 		break;
 	case RTLLIB_STYPE_PROBE_REQ:
-		RTLLIB_DEBUG_MGMT("received PROBE RESQUEST (%d)\n",
-				  WLAN_FC_GET_STYPE(
-					  le16_to_cpu(header->frame_ctl)));
+		netdev_dbg(ieee->dev, "received PROBE RESQUEST (%d)\n",
+			   WLAN_FC_GET_STYPE(le16_to_cpu(header->frame_ctl)));
 		if ((ieee->softmac_features & IEEE_SOFTMAC_PROBERS) &&
 		    ((ieee->iw_mode == IW_MODE_ADHOC ||
 		    ieee->iw_mode == IW_MODE_MASTER) &&

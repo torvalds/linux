@@ -1439,10 +1439,10 @@ void rtllib_associate_abort(struct rtllib_device *ieee)
 	 * with, so we retry or just get back to NO_LINK and scanning
 	 */
 	if (ieee->state == RTLLIB_ASSOCIATING_AUTHENTICATING) {
-		RTLLIB_DEBUG_MGMT("Authentication failed\n");
+		netdev_dbg(ieee->dev, "Authentication failed\n");
 		ieee->softmac_stats.no_auth_rs++;
 	} else {
-		RTLLIB_DEBUG_MGMT("Association failed\n");
+		netdev_dbg(ieee->dev, "Association failed\n");
 		ieee->softmac_stats.no_ass_rs++;
 	}
 
@@ -1464,7 +1464,7 @@ static void rtllib_associate_step1(struct rtllib_device *ieee, u8 *daddr)
 	struct rtllib_network *beacon = &ieee->current_network;
 	struct sk_buff *skb;
 
-	RTLLIB_DEBUG_MGMT("Stopping scan\n");
+	netdev_dbg(ieee->dev, "Stopping scan\n");
 
 	ieee->softmac_stats.tx_auth_rq++;
 
@@ -1474,7 +1474,7 @@ static void rtllib_associate_step1(struct rtllib_device *ieee, u8 *daddr)
 		rtllib_associate_abort(ieee);
 	else {
 		ieee->state = RTLLIB_ASSOCIATING_AUTHENTICATING;
-		RTLLIB_DEBUG_MGMT("Sending authentication request\n");
+		netdev_dbg(ieee->dev, "Sending authentication request\n");
 		softmac_mgmt_xmit(skb, ieee);
 		if (!timer_pending(&ieee->associate_timer)) {
 			ieee->associate_timer.expires = jiffies + (HZ / 2);
@@ -1502,7 +1502,8 @@ static void rtllib_auth_challenge(struct rtllib_device *ieee, u8 *challenge, int
 		*(c++) = chlen;
 		memcpy(c, challenge, chlen);
 
-		RTLLIB_DEBUG_MGMT("Sending authentication challenge response\n");
+		netdev_dbg(ieee->dev,
+			   "Sending authentication challenge response\n");
 
 		rtllib_encrypt_fragment(ieee, skb,
 					sizeof(struct rtllib_hdr_3addr));
@@ -1520,7 +1521,7 @@ static void rtllib_associate_step2(struct rtllib_device *ieee)
 
 	del_timer_sync(&ieee->associate_timer);
 
-	RTLLIB_DEBUG_MGMT("Sending association request\n");
+	netdev_dbg(ieee->dev, "Sending association request\n");
 
 	ieee->softmac_stats.tx_ass_rq++;
 	skb = rtllib_association_req(beacon, ieee);
@@ -1793,14 +1794,15 @@ void rtllib_softmac_check_all_nets(struct rtllib_device *ieee)
 	spin_unlock_irqrestore(&ieee->lock, flags);
 }
 
-static inline u16 auth_parse(struct sk_buff *skb, u8 **challenge, int *chlen)
+static inline u16 auth_parse(struct net_device *dev, struct sk_buff *skb,
+			     u8 **challenge, int *chlen)
 {
 	struct rtllib_authentication *a;
 	u8 *t;
 
 	if (skb->len <  (sizeof(struct rtllib_authentication) -
 	    sizeof(struct rtllib_info_element))) {
-		RTLLIB_DEBUG_MGMT("invalid len in auth resp: %d\n", skb->len);
+		netdev_dbg(dev, "invalid len in auth resp: %d\n", skb->len);
 		return 0xcafe;
 	}
 	*challenge = NULL;
@@ -1818,14 +1820,13 @@ static inline u16 auth_parse(struct sk_buff *skb, u8 **challenge, int *chlen)
 	return le16_to_cpu(a->status);
 }
 
-static int auth_rq_parse(struct sk_buff *skb, u8 *dest)
+static int auth_rq_parse(struct net_device *dev, struct sk_buff *skb, u8 *dest)
 {
 	struct rtllib_authentication *a;
 
 	if (skb->len <  (sizeof(struct rtllib_authentication) -
 	    sizeof(struct rtllib_info_element))) {
-		RTLLIB_DEBUG_MGMT("invalid len in auth request: %d\n",
-				  skb->len);
+		netdev_dbg(dev, "invalid len in auth request: %d\n", skb->len);
 		return -1;
 	}
 	a = (struct rtllib_authentication *) skb->data;
@@ -1884,14 +1885,13 @@ static short probe_rq_parse(struct rtllib_device *ieee, struct sk_buff *skb,
 	return !strncmp(ssid, ieee->current_network.ssid, ssidlen);
 }
 
-static int assoc_rq_parse(struct sk_buff *skb, u8 *dest)
+static int assoc_rq_parse(struct net_device *dev, struct sk_buff *skb, u8 *dest)
 {
 	struct rtllib_assoc_request_frame *a;
 
 	if (skb->len < (sizeof(struct rtllib_assoc_request_frame) -
 		sizeof(struct rtllib_info_element))) {
-
-		RTLLIB_DEBUG_MGMT("invalid len in auth request:%d\n", skb->len);
+		netdev_dbg(dev, "invalid len in auth request:%d\n", skb->len);
 		return -1;
 	}
 
@@ -1909,7 +1909,8 @@ static inline u16 assoc_parse(struct rtllib_device *ieee, struct sk_buff *skb,
 	u16 status_code;
 
 	if (skb->len <  sizeof(struct rtllib_assoc_response_frame)) {
-		RTLLIB_DEBUG_MGMT("invalid len in auth resp: %d\n", skb->len);
+		netdev_dbg(ieee->dev, "Invalid len in auth resp: %d\n",
+			   skb->len);
 		return 0xcafe;
 	}
 
@@ -1949,7 +1950,7 @@ static inline void rtllib_rx_auth_rq(struct rtllib_device *ieee,
 
 	ieee->softmac_stats.rx_auth_rq++;
 
-	status = auth_rq_parse(skb, dest);
+	status = auth_rq_parse(ieee->dev, skb, dest);
 	if (status != -1)
 		rtllib_resp_to_auth(ieee, status, dest);
 }
@@ -1961,7 +1962,7 @@ static inline void rtllib_rx_assoc_rq(struct rtllib_device *ieee,
 
 
 	ieee->softmac_stats.rx_ass_rq++;
-	if (assoc_rq_parse(skb, dest) != -1)
+	if (assoc_rq_parse(ieee->dev, skb, dest) != -1)
 		rtllib_resp_to_assoc_rq(ieee, dest);
 
 	netdev_info(ieee->dev, "New client associated: %pM\n", dest);
@@ -2235,8 +2236,8 @@ inline int rtllib_rx_assoc_resp(struct rtllib_device *ieee, struct sk_buff *skb,
 	struct rtllib_assoc_response_frame *assoc_resp;
 	struct rtllib_hdr_3addr *header = (struct rtllib_hdr_3addr *) skb->data;
 
-	RTLLIB_DEBUG_MGMT("received [RE]ASSOCIATION RESPONSE (%d)\n",
-			  WLAN_FC_GET_STYPE(header->frame_ctl));
+	netdev_dbg(ieee->dev, "received [RE]ASSOCIATION RESPONSE (%d)\n",
+		   WLAN_FC_GET_STYPE(header->frame_ctl));
 
 	if ((ieee->softmac_features & IEEE_SOFTMAC_ASSOCIATE) &&
 	     ieee->state == RTLLIB_ASSOCIATING_AUTHENTICATED &&
@@ -2297,9 +2298,6 @@ inline int rtllib_rx_assoc_resp(struct rtllib_device *ieee, struct sk_buff *skb,
 			netdev_info(ieee->dev,
 				    "Association response status code 0x%x\n",
 				    errcode);
-			RTLLIB_DEBUG_MGMT(
-				"Association response status code 0x%x\n",
-				errcode);
 			if (ieee->AsocRetryCount < RT_ASOC_RETRY_LIMIT)
 				queue_delayed_work_rsl(ieee->wq,
 					 &ieee->associate_procedure_wq, 0);
@@ -2317,13 +2315,10 @@ static void rtllib_rx_auth_resp(struct rtllib_device *ieee, struct sk_buff *skb)
 	int chlen = 0;
 	bool bSupportNmode = true, bHalfSupportNmode = false;
 
-	errcode = auth_parse(skb, &challenge, &chlen);
+	errcode = auth_parse(ieee->dev, skb, &challenge, &chlen);
 
 	if (errcode) {
 		ieee->softmac_stats.rx_auth_rs_err++;
-		RTLLIB_DEBUG_MGMT("Authentication respose status code 0x%x",
-				  errcode);
-
 		netdev_info(ieee->dev,
 			    "Authentication respose status code 0x%x", errcode);
 		rtllib_associate_abort(ieee);
@@ -2373,7 +2368,8 @@ inline int rtllib_rx_auth(struct rtllib_device *ieee, struct sk_buff *skb,
 	if (ieee->softmac_features & IEEE_SOFTMAC_ASSOCIATE) {
 		if (ieee->state == RTLLIB_ASSOCIATING_AUTHENTICATING &&
 		    (ieee->iw_mode == IW_MODE_INFRA)) {
-			RTLLIB_DEBUG_MGMT("Received authentication response");
+			netdev_dbg(ieee->dev,
+				   "Received authentication response");
 			rtllib_rx_auth_resp(ieee, skb);
 		} else if (ieee->iw_mode == IW_MODE_MASTER) {
 			rtllib_rx_auth_rq(ieee, skb);
