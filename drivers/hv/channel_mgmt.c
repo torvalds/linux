@@ -370,25 +370,27 @@ static const struct hv_vmbus_device_id hp_devs[] = {
 /*
  * We use this state to statically distribute the channel interrupt load.
  */
-static u32  next_vp;
+static int next_numa_node_id;
 
 /*
  * Starting with Win8, we can statically distribute the incoming
- * channel interrupt load by binding a channel to VCPU. We
- * implement here a simple round robin scheme for distributing
- * the interrupt load.
- * We will bind channels that are not performance critical to cpu 0 and
- * performance critical channels (IDE, SCSI and Network) will be uniformly
- * distributed across all available CPUs.
+ * channel interrupt load by binding a channel to VCPU.
+ * We do this in a hierarchical fashion:
+ * First distribute the primary channels across available NUMA nodes
+ * and then distribute the subchannels amongst the CPUs in the NUMA
+ * node assigned to the primary channel.
+ *
+ * For pre-win8 hosts or non-performance critical channels we assign the
+ * first CPU in the first NUMA node.
  */
 static void init_vp_index(struct vmbus_channel *channel, const uuid_le *type_guid)
 {
 	u32 cur_cpu;
 	int i;
 	bool perf_chn = false;
-	u32 max_cpus = num_online_cpus();
-	struct vmbus_channel *primary = channel->primary_channel, *prev;
-	unsigned long flags;
+	struct vmbus_channel *primary = channel->primary_channel;
+	int next_node;
+	struct cpumask available_mask;
 
 	for (i = IDE; i < MAX_PERF_CHN; i++) {
 		if (!memcmp(type_guid->b, hp_devs[i].guid,
@@ -405,35 +407,47 @@ static void init_vp_index(struct vmbus_channel *channel, const uuid_le *type_gui
 		 * Also if the channel is not a performance critical
 		 * channel, bind it to cpu 0.
 		 */
+		channel->numa_node = 0;
+		cpumask_set_cpu(0, &channel->alloced_cpus_in_node);
 		channel->target_cpu = 0;
 		channel->target_vp = hv_context.vp_index[0];
 		return;
 	}
 
 	/*
-	 * Primary channels are distributed evenly across all vcpus we have.
-	 * When the host asks us to create subchannels it usually makes us
-	 * num_cpus-1 offers and we are supposed to distribute the work evenly
-	 * among the channel itself and all its subchannels. Make sure they are
-	 * all assigned to different vcpus.
+	 * We distribute primary channels evenly across all the available
+	 * NUMA nodes and within the assigned NUMA node we will assign the
+	 * first available CPU to the primary channel.
+	 * The sub-channels will be assigned to the CPUs available in the
+	 * NUMA node evenly.
 	 */
-	if (!primary)
-		cur_cpu = (++next_vp % max_cpus);
-	else {
-		/*
-		 * Let's assign the first subchannel of a channel to the
-		 * primary->target_cpu+1 and all the subsequent channels to
-		 * the prev->target_cpu+1.
-		 */
-		spin_lock_irqsave(&primary->lock, flags);
-		if (primary->num_sc == 1)
-			cur_cpu = (primary->target_cpu + 1) % max_cpus;
-		else {
-			prev = list_prev_entry(channel, sc_list);
-			cur_cpu = (prev->target_cpu + 1) % max_cpus;
+	if (!primary) {
+		while (true) {
+			next_node = next_numa_node_id++;
+			if (next_node == nr_node_ids)
+				next_node = next_numa_node_id = 0;
+			if (cpumask_empty(cpumask_of_node(next_node)))
+				continue;
+			break;
 		}
-		spin_unlock_irqrestore(&primary->lock, flags);
+		channel->numa_node = next_node;
+		primary = channel;
 	}
+
+	if (cpumask_weight(&primary->alloced_cpus_in_node) ==
+	    cpumask_weight(cpumask_of_node(primary->numa_node))) {
+		/*
+		 * We have cycled through all the CPUs in the node;
+		 * reset the alloced map.
+		 */
+		cpumask_clear(&primary->alloced_cpus_in_node);
+	}
+
+	cpumask_xor(&available_mask, &primary->alloced_cpus_in_node,
+		    cpumask_of_node(primary->numa_node));
+
+	cur_cpu = cpumask_next(-1, &available_mask);
+	cpumask_set_cpu(cur_cpu, &primary->alloced_cpus_in_node);
 
 	channel->target_cpu = cur_cpu;
 	channel->target_vp = hv_context.vp_index[cur_cpu];

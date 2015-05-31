@@ -697,6 +697,11 @@ struct vmbus_channel {
 	/* The corresponding CPUID in the guest */
 	u32 target_cpu;
 	/*
+	 * State to manage the CPU affiliation of channels.
+	 */
+	struct cpumask alloced_cpus_in_node;
+	int numa_node;
+	/*
 	 * Support for sub-channels. For high performance devices,
 	 * it will be useful to have multiple sub-channels to support
 	 * a scalable communication infrastructure with the host.
