@@ -524,7 +524,7 @@ error_close_dir:
 	return ret;
 }
 
-int _write_sysfs_int(char *filename, char *basedir, int val, int verify)
+static int _write_sysfs_int(char *filename, char *basedir, int val, int verify)
 {
 	int ret = 0;
 	FILE *sysfsfp;
@@ -574,7 +574,8 @@ int write_sysfs_int_and_verify(char *filename, char *basedir, int val)
 	return _write_sysfs_int(filename, basedir, val, 1);
 }
 
-int _write_sysfs_string(char *filename, char *basedir, char *val, int verify)
+static int _write_sysfs_string(char *filename, char *basedir, char *val,
+			       int verify)
 {
 	int ret = 0;
 	FILE  *sysfsfp;
