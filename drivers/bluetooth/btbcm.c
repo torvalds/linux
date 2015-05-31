@@ -55,12 +55,6 @@ int btbcm_check_bdaddr(struct hci_dev *hdev)
 	}
 
 	bda = (struct hci_rp_read_bd_addr *)skb->data;
-	if (bda->status) {
-		BT_ERR("%s: BCM: Device address result failed (%02x)",
-		       hdev->name, bda->status);
-		kfree_skb(skb);
-		return -bt_to_errno(bda->status);
-	}
 
 	/* The address 00:20:70:02:A0:00 indicates a BCM20702A0 controller
 	 * with no configured address.

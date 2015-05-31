@@ -1217,7 +1217,7 @@ static void btmrvl_sdio_dump_firmware(struct btmrvl_private *priv)
 	unsigned int reg, reg_start, reg_end;
 	enum rdwr_status stat;
 	u8 *dbg_ptr, *end_ptr, *fw_dump_data, *fw_dump_ptr;
-	u8 dump_num, idx, i, read_reg, doneflag = 0;
+	u8 dump_num = 0, idx, i, read_reg, doneflag = 0;
 	u32 memory_size, fw_dump_len = 0;
 
 	/* dump sdio register first */

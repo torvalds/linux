@@ -58,7 +58,7 @@ drv_set_channel(struct ieee802154_local *local, u8 page, u8 channel)
 	return local->ops->set_channel(&local->hw, page, channel);
 }
 
-static inline int drv_set_tx_power(struct ieee802154_local *local, s8 dbm)
+static inline int drv_set_tx_power(struct ieee802154_local *local, s32 mbm)
 {
 	might_sleep();
 
@@ -67,7 +67,7 @@ static inline int drv_set_tx_power(struct ieee802154_local *local, s8 dbm)
 		return -EOPNOTSUPP;
 	}
 
-	return local->ops->set_txpower(&local->hw, dbm);
+	return local->ops->set_txpower(&local->hw, mbm);
 }
 
 static inline int drv_set_cca_mode(struct ieee802154_local *local,
@@ -96,7 +96,7 @@ static inline int drv_set_lbt_mode(struct ieee802154_local *local, bool mode)
 }
 
 static inline int
-drv_set_cca_ed_level(struct ieee802154_local *local, s32 ed_level)
+drv_set_cca_ed_level(struct ieee802154_local *local, s32 mbm)
 {
 	might_sleep();
 
@@ -105,7 +105,7 @@ drv_set_cca_ed_level(struct ieee802154_local *local, s32 ed_level)
 		return -EOPNOTSUPP;
 	}
 
-	return local->ops->set_cca_ed_level(&local->hw, ed_level);
+	return local->ops->set_cca_ed_level(&local->hw, mbm);
 }
 
 static inline int drv_set_pan_id(struct ieee802154_local *local, __le16 pan_id)

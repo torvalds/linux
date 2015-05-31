@@ -1,4 +1,4 @@
-/* Based on net/wireless/tracing.h */
+/* Based on net/wireless/trace.h */
 
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM cfg802154
@@ -93,6 +93,21 @@ TRACE_EVENT(802154_rdev_set_channel,
 		  __entry->page, __entry->channel)
 );
 
+TRACE_EVENT(802154_rdev_set_tx_power,
+	TP_PROTO(struct wpan_phy *wpan_phy, s32 power),
+	TP_ARGS(wpan_phy, power),
+	TP_STRUCT__entry(
+		WPAN_PHY_ENTRY
+		__field(s32, power)
+	),
+	TP_fast_assign(
+		WPAN_PHY_ASSIGN;
+		__entry->power = power;
+	),
+	TP_printk(WPAN_PHY_PR_FMT ", power: %d", WPAN_PHY_PR_ARG,
+		  __entry->power)
+);
+
 TRACE_EVENT(802154_rdev_set_cca_mode,
 	TP_PROTO(struct wpan_phy *wpan_phy, const struct wpan_phy_cca *cca),
 	TP_ARGS(wpan_phy, cca),
@@ -106,6 +121,21 @@ TRACE_EVENT(802154_rdev_set_cca_mode,
 	),
 	TP_printk(WPAN_PHY_PR_FMT ", " WPAN_CCA_PR_FMT, WPAN_PHY_PR_ARG,
 		  WPAN_CCA_PR_ARG)
+);
+
+TRACE_EVENT(802154_rdev_set_cca_ed_level,
+	TP_PROTO(struct wpan_phy *wpan_phy, s32 ed_level),
+	TP_ARGS(wpan_phy, ed_level),
+	TP_STRUCT__entry(
+		WPAN_PHY_ENTRY
+		__field(s32, ed_level)
+	),
+	TP_fast_assign(
+		WPAN_PHY_ASSIGN;
+		__entry->ed_level = ed_level;
+	),
+	TP_printk(WPAN_PHY_PR_FMT ", ed_level: %d", WPAN_PHY_PR_ARG,
+		  __entry->ed_level)
 );
 
 DECLARE_EVENT_CLASS(802154_le16_template,

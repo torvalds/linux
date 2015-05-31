@@ -750,7 +750,7 @@ static int mrf24j40_probe(struct spi_device *spi)
 
 	devrec->hw->priv = devrec;
 	devrec->hw->parent = &devrec->spi->dev;
-	devrec->hw->phy->channels_supported[0] = CHANNEL_MASK;
+	devrec->hw->phy->supported.channels[0] = CHANNEL_MASK;
 	devrec->hw->flags = IEEE802154_HW_OMIT_CKSUM | IEEE802154_HW_AACK |
 			    IEEE802154_HW_AFILT;
 

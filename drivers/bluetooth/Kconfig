@@ -9,6 +9,10 @@ config BT_BCM
 	tristate
 	select FW_LOADER
 
+config BT_RTL
+	tristate
+	select FW_LOADER
+
 config BT_HCIBTUSB
 	tristate "HCI USB driver"
 	depends on USB
@@ -31,6 +35,17 @@ config BT_HCIBTUSB_BCM
 	  download support for Broadcom Bluetooth controllers.
 
 	  Say Y here to compile support for Broadcom protocol.
+
+config BT_HCIBTUSB_RTL
+	bool "Realtek protocol support"
+	depends on BT_HCIBTUSB
+	select BT_RTL
+	default y
+	help
+	  The Realtek protocol support enables firmware and configuration
+	  download support for Realtek Bluetooth controllers.
+
+	  Say Y here to compile support for Realtek protocol.
 
 config BT_HCIBTSDIO
 	tristate "HCI SDIO driver"
