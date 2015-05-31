@@ -286,7 +286,10 @@ int main(int argc, char **argv)
 		goto error_free_chrdev_name;
 	}
 
-	close(fd);
+	if (close(fd) == -1)  {
+		ret = -errno;
+		goto error_free_chrdev_name;
+	}
 
 	while (true) {
 		ret = read(event_fd, &event, sizeof(event));
@@ -304,7 +307,9 @@ int main(int argc, char **argv)
 		print_event(&event);
 	}
 
-	close(event_fd);
+	if (close(event_fd) == -1)
+		perror("Failed to close event file");
+
 error_free_chrdev_name:
 	free(chrdev_name);
 error_ret:
