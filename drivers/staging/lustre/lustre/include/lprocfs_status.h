@@ -561,8 +561,6 @@ struct obd_export;
 struct nid_stat;
 extern int lprocfs_add_clear_entry(struct obd_device *obd,
 				   struct proc_dir_entry *entry);
-extern int lprocfs_exp_setup(struct obd_export *exp,
-			     lnet_nid_t *peer_nid, int *newnid);
 extern int lprocfs_exp_cleanup(struct obd_export *exp);
 extern struct dentry *ldebugfs_add_simple(struct dentry *root,
 					  char *name,

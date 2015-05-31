@@ -918,7 +918,6 @@ struct obd_device {
 	struct lprocfs_stats  *md_stats;
 
 	struct dentry		*obd_debugfs_entry;
-	struct proc_dir_entry  *obd_proc_exports_entry;
 	struct dentry		*obd_svc_debugfs_entry;
 	struct lprocfs_stats  *obd_svc_stats;
 	atomic_t	   obd_evict_inprogress;
