@@ -18,6 +18,10 @@
 #include <linux/acpi.h>
 #include "nfit.h"
 
+static bool force_enable_dimms;
+module_param(force_enable_dimms, bool, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(force_enable_dimms, "Ignore _STA (ACPI DIMM device) status");
+
 static u8 nfit_uuid[NFIT_UUID_MAX][16];
 
 static const u8 *to_nfit_uuid(enum nfit_uuids id)
@@ -633,6 +637,7 @@ static struct attribute_group acpi_nfit_dimm_attribute_group = {
 
 static const struct attribute_group *acpi_nfit_dimm_attribute_groups[] = {
 	&nvdimm_attribute_group,
+	&nd_device_attribute_group,
 	&acpi_nfit_dimm_attribute_group,
 	NULL,
 };
@@ -669,7 +674,7 @@ static int acpi_nfit_add_dimm(struct acpi_nfit_desc *acpi_desc,
 	if (!adev_dimm) {
 		dev_err(dev, "no ACPI.NFIT device with _ADR %#x, disabling...\n",
 				device_handle);
-		return -ENODEV;
+		return force_enable_dimms ? 0 : -ENODEV;
 	}
 
 	status = acpi_evaluate_integer(adev_dimm->handle, "_STA", NULL, &sta);
@@ -690,12 +695,13 @@ static int acpi_nfit_add_dimm(struct acpi_nfit_desc *acpi_desc,
 		if (acpi_check_dsm(adev_dimm->handle, uuid, 1, 1ULL << i))
 			set_bit(i, &nfit_mem->dsm_mask);
 
-	return rc;
+	return force_enable_dimms ? 0 : rc;
 }
 
 static int acpi_nfit_register_dimms(struct acpi_nfit_desc *acpi_desc)
 {
 	struct nfit_mem *nfit_mem;
+	int dimm_count = 0;
 
 	list_for_each_entry(nfit_mem, &acpi_desc->dimms, list) {
 		struct nvdimm *nvdimm;
@@ -729,9 +735,10 @@ static int acpi_nfit_register_dimms(struct acpi_nfit_desc *acpi_desc)
 			return -ENOMEM;
 
 		nfit_mem->nvdimm = nvdimm;
+		dimm_count++;
 	}
 
-	return 0;
+	return nvdimm_bus_check_dimm_count(acpi_desc->nvdimm_bus, dimm_count);
 }
 
 static void acpi_nfit_init_dsms(struct acpi_nfit_desc *acpi_desc)

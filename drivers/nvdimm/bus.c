@@ -16,19 +16,183 @@
 #include <linux/fcntl.h>
 #include <linux/async.h>
 #include <linux/ndctl.h>
+#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/io.h>
 #include <linux/mm.h>
+#include <linux/nd.h>
 #include "nd-core.h"
+#include "nd.h"
 
 int nvdimm_major;
 static int nvdimm_bus_major;
 static struct class *nd_class;
 
-struct bus_type nvdimm_bus_type = {
+static int to_nd_device_type(struct device *dev)
+{
+	if (is_nvdimm(dev))
+		return ND_DEVICE_DIMM;
+
+	return 0;
+}
+
+static int nvdimm_bus_uevent(struct device *dev, struct kobj_uevent_env *env)
+{
+	return add_uevent_var(env, "MODALIAS=" ND_DEVICE_MODALIAS_FMT,
+			to_nd_device_type(dev));
+}
+
+static int nvdimm_bus_match(struct device *dev, struct device_driver *drv)
+{
+	struct nd_device_driver *nd_drv = to_nd_device_driver(drv);
+
+	return test_bit(to_nd_device_type(dev), &nd_drv->type);
+}
+
+static int nvdimm_bus_probe(struct device *dev)
+{
+	struct nd_device_driver *nd_drv = to_nd_device_driver(dev->driver);
+	struct nvdimm_bus *nvdimm_bus = walk_to_nvdimm_bus(dev);
+	int rc;
+
+	rc = nd_drv->probe(dev);
+	dev_dbg(&nvdimm_bus->dev, "%s.probe(%s) = %d\n", dev->driver->name,
+			dev_name(dev), rc);
+	return rc;
+}
+
+static int nvdimm_bus_remove(struct device *dev)
+{
+	struct nd_device_driver *nd_drv = to_nd_device_driver(dev->driver);
+	struct nvdimm_bus *nvdimm_bus = walk_to_nvdimm_bus(dev);
+	int rc;
+
+	rc = nd_drv->remove(dev);
+	dev_dbg(&nvdimm_bus->dev, "%s.remove(%s) = %d\n", dev->driver->name,
+			dev_name(dev), rc);
+	return rc;
+}
+
+static struct bus_type nvdimm_bus_type = {
 	.name = "nd",
+	.uevent = nvdimm_bus_uevent,
+	.match = nvdimm_bus_match,
+	.probe = nvdimm_bus_probe,
+	.remove = nvdimm_bus_remove,
 };
+
+static ASYNC_DOMAIN_EXCLUSIVE(nd_async_domain);
+
+void nd_synchronize(void)
+{
+	async_synchronize_full_domain(&nd_async_domain);
+}
+EXPORT_SYMBOL_GPL(nd_synchronize);
+
+static void nd_async_device_register(void *d, async_cookie_t cookie)
+{
+	struct device *dev = d;
+
+	if (device_add(dev) != 0) {
+		dev_err(dev, "%s: failed\n", __func__);
+		put_device(dev);
+	}
+	put_device(dev);
+}
+
+static void nd_async_device_unregister(void *d, async_cookie_t cookie)
+{
+	struct device *dev = d;
+
+	device_unregister(dev);
+	put_device(dev);
+}
+
+void nd_device_register(struct device *dev)
+{
+	dev->bus = &nvdimm_bus_type;
+	device_initialize(dev);
+	get_device(dev);
+	async_schedule_domain(nd_async_device_register, dev,
+			&nd_async_domain);
+}
+EXPORT_SYMBOL(nd_device_register);
+
+void nd_device_unregister(struct device *dev, enum nd_async_mode mode)
+{
+	switch (mode) {
+	case ND_ASYNC:
+		get_device(dev);
+		async_schedule_domain(nd_async_device_unregister, dev,
+				&nd_async_domain);
+		break;
+	case ND_SYNC:
+		nd_synchronize();
+		device_unregister(dev);
+		break;
+	}
+}
+EXPORT_SYMBOL(nd_device_unregister);
+
+/**
+ * __nd_driver_register() - register a region or a namespace driver
+ * @nd_drv: driver to register
+ * @owner: automatically set by nd_driver_register() macro
+ * @mod_name: automatically set by nd_driver_register() macro
+ */
+int __nd_driver_register(struct nd_device_driver *nd_drv, struct module *owner,
+		const char *mod_name)
+{
+	struct device_driver *drv = &nd_drv->drv;
+
+	if (!nd_drv->type) {
+		pr_debug("driver type bitmask not set (%pf)\n",
+				__builtin_return_address(0));
+		return -EINVAL;
+	}
+
+	if (!nd_drv->probe || !nd_drv->remove) {
+		pr_debug("->probe() and ->remove() must be specified\n");
+		return -EINVAL;
+	}
+
+	drv->bus = &nvdimm_bus_type;
+	drv->owner = owner;
+	drv->mod_name = mod_name;
+
+	return driver_register(drv);
+}
+EXPORT_SYMBOL(__nd_driver_register);
+
+static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	return sprintf(buf, ND_DEVICE_MODALIAS_FMT "\n",
+			to_nd_device_type(dev));
+}
+static DEVICE_ATTR_RO(modalias);
+
+static ssize_t devtype_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	return sprintf(buf, "%s\n", dev->type->name);
+}
+static DEVICE_ATTR_RO(devtype);
+
+static struct attribute *nd_device_attributes[] = {
+	&dev_attr_modalias.attr,
+	&dev_attr_devtype.attr,
+	NULL,
+};
+
+/**
+ * nd_device_attribute_group - generic attributes for all devices on an nd bus
+ */
+struct attribute_group nd_device_attribute_group = {
+	.attrs = nd_device_attributes,
+};
+EXPORT_SYMBOL_GPL(nd_device_attribute_group);
 
 int nvdimm_bus_create_ndctl(struct nvdimm_bus *nvdimm_bus)
 {
@@ -404,7 +568,7 @@ int __init nvdimm_bus_init(void)
 	return rc;
 }
 
-void __exit nvdimm_bus_exit(void)
+void nvdimm_bus_exit(void)
 {
 	class_destroy(nd_class);
 	unregister_chrdev(nvdimm_bus_major, "ndctl");

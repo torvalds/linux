@@ -18,6 +18,7 @@
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include "nd-core.h"
+#include "nd.h"
 
 LIST_HEAD(nvdimm_bus_list);
 DEFINE_MUTEX(nvdimm_bus_list_mutex);
@@ -98,8 +99,33 @@ static ssize_t provider_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(provider);
 
+static int flush_namespaces(struct device *dev, void *data)
+{
+	device_lock(dev);
+	device_unlock(dev);
+	return 0;
+}
+
+static int flush_regions_dimms(struct device *dev, void *data)
+{
+	device_lock(dev);
+	device_unlock(dev);
+	device_for_each_child(dev, NULL, flush_namespaces);
+	return 0;
+}
+
+static ssize_t wait_probe_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	nd_synchronize();
+	device_for_each_child(dev, NULL, flush_regions_dimms);
+	return sprintf(buf, "1\n");
+}
+static DEVICE_ATTR_RO(wait_probe);
+
 static struct attribute *nvdimm_bus_attributes[] = {
 	&dev_attr_commands.attr,
+	&dev_attr_wait_probe.attr,
 	&dev_attr_provider.attr,
 	NULL,
 };
@@ -161,7 +187,7 @@ static int child_unregister(struct device *dev, void *data)
 	if (dev->class)
 		/* pass */;
 	else
-		device_unregister(dev);
+		nd_device_unregister(dev, ND_SYNC);
 	return 0;
 }
 
@@ -174,6 +200,7 @@ void nvdimm_bus_unregister(struct nvdimm_bus *nvdimm_bus)
 	list_del_init(&nvdimm_bus->list);
 	mutex_unlock(&nvdimm_bus_list_mutex);
 
+	nd_synchronize();
 	device_for_each_child(&nvdimm_bus->dev, NULL, child_unregister);
 	nvdimm_bus_destroy_ndctl(nvdimm_bus);
 
@@ -183,12 +210,24 @@ EXPORT_SYMBOL_GPL(nvdimm_bus_unregister);
 
 static __init int libnvdimm_init(void)
 {
-	return nvdimm_bus_init();
+	int rc;
+
+	rc = nvdimm_bus_init();
+	if (rc)
+		return rc;
+	rc = nvdimm_init();
+	if (rc)
+		goto err_dimm;
+	return 0;
+ err_dimm:
+	nvdimm_bus_exit();
+	return rc;
 }
 
 static __exit void libnvdimm_exit(void)
 {
 	WARN_ON(!list_empty(&nvdimm_bus_list));
+	nvdimm_exit();
 	nvdimm_bus_exit();
 }
 

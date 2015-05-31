@@ -17,7 +17,6 @@
 
 extern struct list_head nvdimm_bus_list;
 extern struct mutex nvdimm_bus_list_mutex;
-extern struct bus_type nvdimm_bus_type;
 extern int nvdimm_major;
 
 struct nvdimm_bus {
@@ -35,10 +34,11 @@ struct nvdimm {
 	int id;
 };
 
-bool is_nvdimm(struct device *dev);
 struct nvdimm_bus *walk_to_nvdimm_bus(struct device *nd_dev);
 int __init nvdimm_bus_init(void);
-void __exit nvdimm_bus_exit(void);
+void nvdimm_bus_exit(void);
 int nvdimm_bus_create_ndctl(struct nvdimm_bus *nvdimm_bus);
 void nvdimm_bus_destroy_ndctl(struct nvdimm_bus *nvdimm_bus);
+void nd_synchronize(void);
+bool is_nvdimm(struct device *dev);
 #endif /* __ND_CORE_H__ */

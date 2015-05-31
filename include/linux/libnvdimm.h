@@ -30,6 +30,7 @@ enum {
 
 extern struct attribute_group nvdimm_bus_attribute_group;
 extern struct attribute_group nvdimm_attribute_group;
+extern struct attribute_group nd_device_attribute_group;
 
 struct nvdimm;
 struct nvdimm_bus_descriptor;
@@ -71,4 +72,5 @@ u32 nd_cmd_in_size(struct nvdimm *nvdimm, int cmd,
 u32 nd_cmd_out_size(struct nvdimm *nvdimm, int cmd,
 		const struct nd_cmd_desc *desc, int idx, const u32 *in_field,
 		const u32 *out_field);
+int nvdimm_bus_check_dimm_count(struct nvdimm_bus *nvdimm_bus, int dimm_count);
 #endif /* __LIBNVDIMM_H__ */
