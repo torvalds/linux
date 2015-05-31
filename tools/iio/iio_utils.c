@@ -144,6 +144,10 @@ int iioutils_get_type(unsigned *is_signed,
 				ret = -errno;
 				printf("failed to pass scan type description\n");
 				goto error_close_sysfsfp;
+			} else if (ret != 5) {
+				ret = -EIO;
+				printf("scan type description didn't match\n");
+				goto error_close_sysfsfp;
 			}
 			*be = (endianchar == 'b');
 			*bytes = padint / 8;
