@@ -84,9 +84,9 @@ static struct sk_buff *rtllib_ADDBA(struct rtllib_device *ieee, u8 *Dst,
 	u8 *tag = NULL;
 	u16 len = ieee->tx_headroom + 9;
 
-	RTLLIB_DEBUG(RTLLIB_DL_TRACE | RTLLIB_DL_BA,
-		     "========>%s(), frame(%d) sentd to: %pM, ieee->dev:%p\n",
-		     __func__, type, Dst, ieee->dev);
+	netdev_dbg(ieee->dev, "%s(): frame(%d) sentd to: %pM, ieee->dev:%p\n",
+		   __func__, type, Dst, ieee->dev);
+
 	if (pBA == NULL) {
 		netdev_warn(ieee->dev, "pBA is NULL\n");
 		return NULL;
@@ -148,9 +148,8 @@ static struct sk_buff *rtllib_DELBA(struct rtllib_device *ieee, u8 *dst,
 	u16 len = 6 + ieee->tx_headroom;
 
 	if (net_ratelimit())
-		RTLLIB_DEBUG(RTLLIB_DL_TRACE | RTLLIB_DL_BA,
-			     "========>%s(), ReasonCode(%d) sentd to: %pM\n",
-			     __func__, ReasonCode, dst);
+		netdev_dbg(ieee->dev, "%s(): ReasonCode(%d) sentd to: %pM\n",
+			   __func__, ReasonCode, dst);
 
 	memset(&DelbaParamSet, 0, 2);
 
@@ -186,9 +185,6 @@ static struct sk_buff *rtllib_DELBA(struct rtllib_device *ieee, u8 *dst,
 	tag += 2;
 
 	RTLLIB_DEBUG_DATA(RTLLIB_DL_DATA|RTLLIB_DL_BA, skb->data, skb->len);
-	if (net_ratelimit())
-		RTLLIB_DEBUG(RTLLIB_DL_TRACE | RTLLIB_DL_BA, "<=====%s()\n",
-			     __func__);
 	return skb;
 }
 
@@ -203,8 +199,7 @@ static void rtllib_send_ADDBAReq(struct rtllib_device *ieee, u8 *dst,
 		RT_TRACE(COMP_DBG, "====>to send ADDBAREQ!!!!!\n");
 		softmac_mgmt_xmit(skb, ieee);
 	} else {
-		RTLLIB_DEBUG(RTLLIB_DL_ERR,
-			     "alloc skb error in function %s()\n", __func__);
+		netdev_dbg(ieee->dev, "Failed to generate ADDBAReq packet.\n");
 	}
 }
 
@@ -217,8 +212,7 @@ static void rtllib_send_ADDBARsp(struct rtllib_device *ieee, u8 *dst,
 	if (skb)
 		softmac_mgmt_xmit(skb, ieee);
 	else
-		RTLLIB_DEBUG(RTLLIB_DL_ERR,
-			     "alloc skb error in function %s()\n", __func__);
+		netdev_dbg(ieee->dev, "Failed to generate ADDBARsp packet.\n");
 }
 
 static void rtllib_send_DELBA(struct rtllib_device *ieee, u8 *dst,
@@ -231,8 +225,7 @@ static void rtllib_send_DELBA(struct rtllib_device *ieee, u8 *dst,
 	if (skb)
 		softmac_mgmt_xmit(skb, ieee);
 	else
-		RTLLIB_DEBUG(RTLLIB_DL_ERR,
-			     "alloc skb error in function %s()\n", __func__);
+		netdev_dbg(ieee->dev, "Failed to generate DELBA packet.\n");
 }
 
 int rtllib_rx_ADDBAReq(struct rtllib_device *ieee, struct sk_buff *skb)
@@ -374,20 +367,20 @@ int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
 
 
 	if (pAdmittedBA->bValid == true) {
-		RTLLIB_DEBUG(RTLLIB_DL_BA,
-			     "OnADDBARsp(): Recv ADDBA Rsp. Drop because already admit it!\n");
+		netdev_dbg(ieee->dev, "%s(): ADDBA response already admitted\n",
+			   __func__);
 		return -1;
 	} else if ((pPendingBA->bValid == false) ||
 		   (*pDialogToken != pPendingBA->DialogToken)) {
 		netdev_warn(ieee->dev,
-			    "%s(): Recv ADDBA Rsp. BA invalid, DELBA!\n",
+			    "%s(): ADDBA Rsp. BA invalid, DELBA!\n",
 			    __func__);
 		ReasonCode = DELBA_REASON_UNKNOWN_BA;
 		goto OnADDBARsp_Reject;
 	} else {
-		RTLLIB_DEBUG(RTLLIB_DL_BA,
-			     "OnADDBARsp(): Recv ADDBA Rsp. BA is admitted! Status code:%X\n",
-			     *pStatusCode);
+		netdev_dbg(ieee->dev,
+			   "%s(): Recv ADDBA Rsp. BA is admitted! Status code:%X\n",
+			   __func__, *pStatusCode);
 		DeActivateBAEntry(ieee, pPendingBA);
 	}
 

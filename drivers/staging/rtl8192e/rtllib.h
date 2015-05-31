@@ -643,11 +643,6 @@ enum wireless_network_type {
 
 /* debug macros */
 extern u32 rtllib_debug_level;
-#define RTLLIB_DEBUG(level, fmt, args...) \
-do {								\
-	if (rtllib_debug_level & (level))			\
-		printk(KERN_DEBUG "rtllib: " fmt, ## args);	\
-} while (0)
 
 #define RTLLIB_DEBUG_DATA(level, data, datalen)	\
 	do {							\

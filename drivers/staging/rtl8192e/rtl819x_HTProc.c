@@ -217,8 +217,7 @@ static void HTIOTPeerDetermine(struct rtllib_device *ieee)
 	else
 		pHTInfo->IOTPeer = HT_IOT_PEER_UNKNOWN;
 
-	RTLLIB_DEBUG(RTLLIB_DL_IOT, "Joseph debug!! IOTPEER: %x\n",
-		     pHTInfo->IOTPeer);
+	netdev_dbg(ieee->dev, "IOTPEER: %x\n", pHTInfo->IOTPeer);
 }
 
 static u8 HTIOTActIsDisableMCS14(struct rtllib_device *ieee, u8 *PeerMacAddr)
@@ -328,9 +327,9 @@ void HTConstructCapabilityElement(struct rtllib_device *ieee, u8 *posHTCap,
 	pCapELE->LSigTxopProtect = 0;
 
 
-	RTLLIB_DEBUG(RTLLIB_DL_HT,
-		     "TX HT cap/info ele BW=%d MaxAMSDUSize:%d DssCCk:%d\n",
-		     pCapELE->ChlWidth, pCapELE->MaxAMSDUSize, pCapELE->DssCCk);
+	netdev_dbg(ieee->dev,
+		   "TX HT cap/info ele BW=%d MaxAMSDUSize:%d DssCCk:%d\n",
+		   pCapELE->ChlWidth, pCapELE->MaxAMSDUSize, pCapELE->DssCCk);
 
 	if (IsEncrypt) {
 		pCapELE->MPDUDensity	= 7;
@@ -541,7 +540,7 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 		netdev_warn(ieee->dev, "%s(): HT_DISABLE\n", __func__);
 		return;
 	}
-	RTLLIB_DEBUG(RTLLIB_DL_HT, "===> HTOnAssocRsp_wq(): HT_ENABLE\n");
+	netdev_dbg(ieee->dev, "%s(): HT_ENABLE\n", __func__);
 
 	if (!memcmp(pHTInfo->PeerHTCapBuf, EWC11NHTCap, sizeof(EWC11NHTCap)))
 		pPeerHTCap = (struct ht_capab_ele *)(&pHTInfo->PeerHTCapBuf[4]);
@@ -646,7 +645,7 @@ void HTInitializeHTInfo(struct rtllib_device *ieee)
 {
 	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 
-	RTLLIB_DEBUG(RTLLIB_DL_HT, "===========>%s()\n", __func__);
+	netdev_vdbg(ieee->dev, "%s()\n", __func__);
 	pHTInfo->bCurrentHTSupport = false;
 
 	pHTInfo->bCurBW40MHz = false;
@@ -716,7 +715,7 @@ void HTResetSelfAndSavePeerSetting(struct rtllib_device *ieee,
 	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 	u8	bIOTAction = 0;
 
-	RTLLIB_DEBUG(RTLLIB_DL_HT, "==============>%s()\n", __func__);
+	netdev_vdbg(ieee->dev, "%s()\n", __func__);
 	/* unmark bEnableHT flag here is the same reason why unmarked in
 	 * function rtllib_softmac_new_net. WB 2008.09.10
 	 */
@@ -840,8 +839,7 @@ u8 HTCCheck(struct rtllib_device *ieee, u8 *pFrame)
 {
 	if (ieee->pHTInfo->bCurrentHTSupport) {
 		if ((IsQoSDataFrame(pFrame) && Frame_Order(pFrame)) == 1) {
-			RTLLIB_DEBUG(RTLLIB_DL_HT,
-				     "HT CONTROL FILED EXIST!!\n");
+			netdev_dbg(ieee->dev, "HT CONTROL FILED EXIST!!\n");
 			return true;
 		}
 	}
@@ -852,7 +850,8 @@ static void HTSetConnectBwModeCallback(struct rtllib_device *ieee)
 {
 	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 
-	RTLLIB_DEBUG(RTLLIB_DL_HT, "======>%s()\n", __func__);
+	netdev_vdbg(ieee->dev, "%s()\n", __func__);
+
 	if (pHTInfo->bCurBW40MHz) {
 		if (pHTInfo->CurSTAExtChnlOffset == HT_EXTCHNL_OFFSET_UPPER)
 			ieee->set_chan(ieee->dev,

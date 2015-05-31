@@ -536,7 +536,8 @@ void rtllib_FlushRxTsPendingPkts(struct rtllib_device *ieee,	struct rx_ts_record
 		}
 
 		pRxReorderEntry = (struct rx_reorder_entry *)list_entry(pTS->RxPendingPktList.prev, struct rx_reorder_entry, List);
-		RTLLIB_DEBUG(RTLLIB_DL_REORDER, "%s(): Indicate SeqNum %d!\n", __func__, pRxReorderEntry->SeqNum);
+		netdev_dbg(ieee->dev, "%s(): Indicate SeqNum %d!\n", __func__,
+			   pRxReorderEntry->SeqNum);
 		list_del_init(&pRxReorderEntry->List);
 
 		ieee->RfdArray[RfdCnt] = pRxReorderEntry->prxb;
@@ -561,8 +562,9 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 	bool bMatchWinStart = false, bPktInBuf = false;
 	unsigned long flags;
 
-	RTLLIB_DEBUG(RTLLIB_DL_REORDER, "%s(): Seq is %d, pTS->RxIndicateSeq is %d, WinSize is %d\n", __func__, SeqNum,
-		     pTS->RxIndicateSeq, WinSize);
+	netdev_dbg(ieee->dev,
+		   "%s(): Seq is %d, pTS->RxIndicateSeq is %d, WinSize is %d\n",
+		   __func__, SeqNum, pTS->RxIndicateSeq, WinSize);
 
 	spin_lock_irqsave(&(ieee->reorder_spinlock), flags);
 
@@ -573,8 +575,9 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 
 	/* Drop out the packet which SeqNum is smaller than WinStart */
 	if (SN_LESS(SeqNum, pTS->RxIndicateSeq)) {
-		RTLLIB_DEBUG(RTLLIB_DL_REORDER, "Packet Drop! IndicateSeq: %d, NewSeq: %d\n",
-				 pTS->RxIndicateSeq, SeqNum);
+		netdev_dbg(ieee->dev,
+			   "Packet Drop! IndicateSeq: %d, NewSeq: %d\n",
+			   pTS->RxIndicateSeq, SeqNum);
 		pHTInfo->RxReorderDropCounter++;
 		{
 			int i;
@@ -600,7 +603,9 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 			pTS->RxIndicateSeq = SeqNum + 1 - WinSize;
 		else
 			pTS->RxIndicateSeq = 4095 - (WinSize - (SeqNum + 1)) + 1;
-		RTLLIB_DEBUG(RTLLIB_DL_REORDER, "Window Shift! IndicateSeq: %d, NewSeq: %d\n", pTS->RxIndicateSeq, SeqNum);
+		netdev_dbg(ieee->dev,
+			   "Window Shift! IndicateSeq: %d, NewSeq: %d\n",
+			   pTS->RxIndicateSeq, SeqNum);
 	}
 
 	/* Indication process.
@@ -615,8 +620,8 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 	 */
 	if (bMatchWinStart) {
 		/* Current packet is going to be indicated.*/
-		RTLLIB_DEBUG(RTLLIB_DL_REORDER, "Packets indication!! IndicateSeq: %d, NewSeq: %d\n",
-				pTS->RxIndicateSeq, SeqNum);
+		netdev_dbg(ieee->dev, "Packets indication! IndicateSeq: %d, NewSeq: %d\n",
+			   pTS->RxIndicateSeq, SeqNum);
 		ieee->prxbIndicateArray[0] = prxb;
 		index = 1;
 	} else {
@@ -632,10 +637,10 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 			pReorderEntry->prxb = prxb;
 
 			if (!AddReorderEntry(pTS, pReorderEntry)) {
-				RTLLIB_DEBUG(RTLLIB_DL_REORDER,
-					     "%s(): Duplicate packet is dropped!! IndicateSeq: %d, NewSeq: %d\n",
-					    __func__, pTS->RxIndicateSeq,
-					    SeqNum);
+				netdev_dbg(ieee->dev,
+					   "%s(): Duplicate packet is dropped. IndicateSeq: %d, NewSeq: %d\n",
+					   __func__, pTS->RxIndicateSeq,
+					   SeqNum);
 				list_add_tail(&pReorderEntry->List,
 					      &ieee->RxReorder_Unused_List); {
 					int i;
@@ -646,9 +651,9 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 					prxb = NULL;
 				}
 			} else {
-				RTLLIB_DEBUG(RTLLIB_DL_REORDER,
-					 "Pkt insert into struct buffer!! IndicateSeq: %d, NewSeq: %d\n",
-					 pTS->RxIndicateSeq, SeqNum);
+				netdev_dbg(ieee->dev,
+					   "Pkt insert into struct buffer. IndicateSeq: %d, NewSeq: %d\n",
+					   pTS->RxIndicateSeq, SeqNum);
 			}
 		} else {
 			/* Packets are dropped if there are not enough reorder
@@ -672,7 +677,8 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 
 	/* Check if there is any packet need indicate.*/
 	while (!list_empty(&pTS->RxPendingPktList)) {
-		RTLLIB_DEBUG(RTLLIB_DL_REORDER, "%s(): start RREORDER indicate\n", __func__);
+		netdev_dbg(ieee->dev, "%s(): start RREORDER indicate\n",
+			   __func__);
 
 		pReorderEntry = (struct rx_reorder_entry *)list_entry(pTS->RxPendingPktList.prev,
 				 struct rx_reorder_entry, List);
@@ -693,7 +699,8 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 				pTS->RxIndicateSeq = (pTS->RxIndicateSeq + 1) % 4096;
 
 			ieee->prxbIndicateArray[index] = pReorderEntry->prxb;
-			RTLLIB_DEBUG(RTLLIB_DL_REORDER, "%s(): Indicate SeqNum %d!\n", __func__, pReorderEntry->SeqNum);
+			netdev_dbg(ieee->dev, "%s(): Indicate SeqNum %d!\n",
+				   __func__, pReorderEntry->SeqNum);
 			index++;
 
 			list_add_tail(&pReorderEntry->List,
@@ -725,8 +732,7 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 	}
 
 	if (bPktInBuf && pTS->RxTimeoutIndicateSeq == 0xffff) {
-		RTLLIB_DEBUG(RTLLIB_DL_REORDER, "%s(): SET rx timeout timer\n",
-			     __func__);
+		netdev_dbg(ieee->dev, "%s(): SET rx timeout timer\n", __func__);
 		pTS->RxTimeoutIndicateSeq = pTS->RxIndicateSeq;
 		mod_timer(&pTS->RxPktPendingTimer, jiffies +
 			  msecs_to_jiffies(pHTInfo->RxReorderPendingTime));
@@ -1084,10 +1090,10 @@ static int rtllib_rx_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 		netdev_dbg(ieee->dev, "Rx Fragment received (%u)\n", frag);
 
 		if (!frag_skb) {
-			RTLLIB_DEBUG(RTLLIB_DL_RX | RTLLIB_DL_FRAG,
-					"Rx cannot get skb from fragment cache (morefrag=%d seq=%u frag=%u)\n",
-					(fc & RTLLIB_FCTL_MOREFRAGS) != 0,
-					WLAN_GET_SEQ_SEQ(sc), frag);
+			netdev_dbg(ieee->dev,
+				   "Rx cannot get skb from fragment cache (morefrag=%d seq=%u frag=%u)\n",
+				   (fc & RTLLIB_FCTL_MOREFRAGS) != 0,
+				   WLAN_GET_SEQ_SEQ(sc), frag);
 			return -1;
 		}
 		flen = skb->len;
