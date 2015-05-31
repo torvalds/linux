@@ -220,7 +220,7 @@ int main(int argc, char **argv)
 				       "%s-dev%d", device_name, dev_num);
 			if (ret < 0) {
 				ret = -ENOMEM;
-				goto error_ret;
+				goto error_free_dev_dir_name;
 			}
 		}
 
@@ -354,6 +354,8 @@ error_free_buf_dir_name:
 error_free_triggername:
 	if (datardytrigger)
 		free(trigger_name);
+error_free_dev_dir_name:
+	free(dev_dir_name);
 error_ret:
 	return ret;
 }
