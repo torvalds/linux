@@ -67,6 +67,12 @@ config NF_TABLES_ARP
 
 endif # NF_TABLES
 
+config NF_DUP_IPV4
+	tristate "Netfilter IPv4 packet duplication to alternate destination"
+	help
+	  This option enables the nf_dup_ipv4 core, which duplicates an IPv4
+	  packet to be rerouted to another destination.
+
 config NF_LOG_ARP
 	tristate "ARP packet logging"
 	default m if NETFILTER_ADVANCED=n

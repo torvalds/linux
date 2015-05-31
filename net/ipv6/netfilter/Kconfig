@@ -50,6 +50,12 @@ config NFT_REJECT_IPV6
 endif # NF_TABLES_IPV6
 endif # NF_TABLES
 
+config NF_DUP_IPV6
+	tristate "Netfilter IPv6 packet duplication to alternate destination"
+	help
+	  This option enables the nf_dup_ipv6 core, which duplicates an IPv6
+	  packet to be rerouted to another destination.
+
 config NF_REJECT_IPV6
 	tristate "IPv6 packet rejection"
 	default m if NETFILTER_ADVANCED=n

@@ -70,3 +70,5 @@ obj-$(CONFIG_IP_NF_ARP_MANGLE) += arpt_mangle.o
 
 # just filtering instance of ARP tables for now
 obj-$(CONFIG_IP_NF_ARPFILTER) += arptable_filter.o
+
+obj-$(CONFIG_NF_DUP_IPV4) += nf_dup_ipv4.o
