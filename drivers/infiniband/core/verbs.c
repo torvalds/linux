@@ -257,8 +257,9 @@ struct ib_ah *ib_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr)
 }
 EXPORT_SYMBOL(ib_create_ah);
 
-int ib_init_ah_from_wc(struct ib_device *device, u8 port_num, struct ib_wc *wc,
-		       struct ib_grh *grh, struct ib_ah_attr *ah_attr)
+int ib_init_ah_from_wc(struct ib_device *device, u8 port_num,
+		       const struct ib_wc *wc, const struct ib_grh *grh,
+		       struct ib_ah_attr *ah_attr)
 {
 	u32 flow_class;
 	u16 gid_index;
@@ -307,8 +308,8 @@ int ib_init_ah_from_wc(struct ib_device *device, u8 port_num, struct ib_wc *wc,
 }
 EXPORT_SYMBOL(ib_init_ah_from_wc);
 
-struct ib_ah *ib_create_ah_from_wc(struct ib_pd *pd, struct ib_wc *wc,
-				   struct ib_grh *grh, u8 port_num)
+struct ib_ah *ib_create_ah_from_wc(struct ib_pd *pd, const struct ib_wc *wc,
+				   const struct ib_grh *grh, u8 port_num)
 {
 	struct ib_ah_attr ah_attr;
 	int ret;

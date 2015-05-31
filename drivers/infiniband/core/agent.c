@@ -54,7 +54,7 @@ static DEFINE_SPINLOCK(ib_agent_port_list_lock);
 static LIST_HEAD(ib_agent_port_list);
 
 static struct ib_agent_port_private *
-__ib_get_agent_port(struct ib_device *device, int port_num)
+__ib_get_agent_port(const struct ib_device *device, int port_num)
 {
 	struct ib_agent_port_private *entry;
 
@@ -67,7 +67,7 @@ __ib_get_agent_port(struct ib_device *device, int port_num)
 }
 
 static struct ib_agent_port_private *
-ib_get_agent_port(struct ib_device *device, int port_num)
+ib_get_agent_port(const struct ib_device *device, int port_num)
 {
 	struct ib_agent_port_private *entry;
 	unsigned long flags;
@@ -78,8 +78,8 @@ ib_get_agent_port(struct ib_device *device, int port_num)
 	return entry;
 }
 
-void agent_send_response(struct ib_mad *mad, struct ib_grh *grh,
-			 struct ib_wc *wc, struct ib_device *device,
+void agent_send_response(const struct ib_mad *mad, const struct ib_grh *grh,
+			 const struct ib_wc *wc, const struct ib_device *device,
 			 int port_num, int qpn)
 {
 	struct ib_agent_port_private *port_priv;

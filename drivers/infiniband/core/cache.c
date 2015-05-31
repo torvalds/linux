@@ -85,10 +85,10 @@ int ib_get_cached_gid(struct ib_device *device,
 }
 EXPORT_SYMBOL(ib_get_cached_gid);
 
-int ib_find_cached_gid(struct ib_device *device,
-		       union ib_gid	*gid,
-		       u8               *port_num,
-		       u16              *index)
+int ib_find_cached_gid(struct ib_device   *device,
+		       const union ib_gid *gid,
+		       u8                 *port_num,
+		       u16                *index)
 {
 	struct ib_gid_cache *cache;
 	unsigned long flags;
