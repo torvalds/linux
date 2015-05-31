@@ -68,7 +68,6 @@
 
 #include "device_cfg.h"
 #include "card.h"
-#include "mib.h"
 #include "srom.h"
 #include "desc.h"
 #include "key.h"
@@ -285,9 +284,6 @@ struct vnt_private {
 
 	unsigned char abyCurrentNetAddr[ETH_ALEN]; __aligned(2)
 	bool bLinkPass;          /* link status: OK or fail */
-
-	/* 802.11 counter */
-	SDot11Counters              s802_11Counter;
 
 	unsigned int	uCurrRSSI;
 	unsigned char byCurrSQ;
