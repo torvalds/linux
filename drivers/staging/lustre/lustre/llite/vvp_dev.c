@@ -253,7 +253,7 @@ int cl_sb_fini(struct super_block *sb)
 
 /****************************************************************************
  *
- * /proc/fs/lustre/llite/$MNT/dump_page_cache
+ * debugfs/lustre/llite/$MNT/dump_page_cache
  *
  ****************************************************************************/
 
@@ -526,16 +526,17 @@ static struct seq_operations vvp_pgcache_ops = {
 
 static int vvp_dump_pgcache_seq_open(struct inode *inode, struct file *filp)
 {
-	struct ll_sb_info     *sbi = PDE_DATA(inode);
-	struct seq_file       *seq;
-	int		    result;
+	struct seq_file *seq;
+	int rc;
 
-	result = seq_open(filp, &vvp_pgcache_ops);
-	if (result == 0) {
-		seq = filp->private_data;
-		seq->private = sbi;
-	}
-	return result;
+	rc = seq_open(filp, &vvp_pgcache_ops);
+	if (rc)
+		return rc;
+
+	seq = filp->private_data;
+	seq->private = inode->i_private ?: PDE_DATA(inode);
+
+	return 0;
 }
 
 const struct file_operations vvp_dump_pgcache_file_ops = {

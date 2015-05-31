@@ -950,12 +950,13 @@ static const char *ra_stat_string[] = {
 	[RA_STAT_WRONG_GRAB_PAGE] = "wrong page from grab_cache_page",
 };
 
-int lprocfs_register_mountpoint(struct proc_dir_entry *parent,
-				struct super_block *sb, char *osc, char *mdc)
+int ldebugfs_register_mountpoint(struct dentry *parent,
+				 struct super_block *sb, char *osc, char *mdc)
 {
 	struct lustre_sb_info *lsi = s2lsi(sb);
 	struct ll_sb_info *sbi = ll_s2sbi(sb);
 	struct obd_device *obd;
+	struct dentry *dir;
 	char name[MAX_STRING_SIZE + 1], *ptr;
 	int err, id, len, rc;
 
@@ -976,30 +977,32 @@ int lprocfs_register_mountpoint(struct proc_dir_entry *parent,
 	snprintf(name, MAX_STRING_SIZE, "%.*s-%p", len,
 		 lsi->lsi_lmd->lmd_profile, sb);
 
-	sbi->ll_proc_root = lprocfs_register(name, parent, NULL, NULL);
-	if (IS_ERR(sbi->ll_proc_root)) {
-		err = PTR_ERR(sbi->ll_proc_root);
-		sbi->ll_proc_root = NULL;
+	dir = ldebugfs_register(name, parent, NULL, NULL);
+	if (IS_ERR_OR_NULL(dir)) {
+		err = dir ? PTR_ERR(dir) : -ENOMEM;
+		sbi->ll_debugfs_entry = NULL;
 		return err;
 	}
+	sbi->ll_debugfs_entry = dir;
 
-	rc = lprocfs_seq_create(sbi->ll_proc_root, "dump_page_cache", 0444,
-				&vvp_dump_pgcache_file_ops, sbi);
+	rc = ldebugfs_seq_create(sbi->ll_debugfs_entry, "dump_page_cache", 0444,
+				 &vvp_dump_pgcache_file_ops, sbi);
 	if (rc)
 		CWARN("Error adding the dump_page_cache file\n");
 
-	rc = lprocfs_seq_create(sbi->ll_proc_root, "extents_stats", 0644,
-				&ll_rw_extents_stats_fops, sbi);
+	rc = ldebugfs_seq_create(sbi->ll_debugfs_entry, "extents_stats", 0644,
+				 &ll_rw_extents_stats_fops, sbi);
 	if (rc)
 		CWARN("Error adding the extent_stats file\n");
 
-	rc = lprocfs_seq_create(sbi->ll_proc_root, "extents_stats_per_process",
-				0644, &ll_rw_extents_stats_pp_fops, sbi);
+	rc = ldebugfs_seq_create(sbi->ll_debugfs_entry,
+				  "extents_stats_per_process",
+				 0644, &ll_rw_extents_stats_pp_fops, sbi);
 	if (rc)
 		CWARN("Error adding the extents_stats_per_process file\n");
 
-	rc = lprocfs_seq_create(sbi->ll_proc_root, "offset_stats", 0644,
-				&ll_rw_offset_stats_fops, sbi);
+	rc = ldebugfs_seq_create(sbi->ll_debugfs_entry, "offset_stats", 0644,
+				 &ll_rw_offset_stats_fops, sbi);
 	if (rc)
 		CWARN("Error adding the offset_stats file\n");
 
@@ -1025,7 +1028,8 @@ int lprocfs_register_mountpoint(struct proc_dir_entry *parent,
 				     (type & LPROCFS_CNTR_AVGMINMAX),
 				     llite_opcode_table[id].opname, ptr);
 	}
-	err = lprocfs_register_stats(sbi->ll_proc_root, "stats", sbi->ll_stats);
+	err = ldebugfs_register_stats(sbi->ll_debugfs_entry, "stats",
+				     sbi->ll_stats);
 	if (err)
 		goto out;
 
@@ -1039,13 +1043,15 @@ int lprocfs_register_mountpoint(struct proc_dir_entry *parent,
 	for (id = 0; id < ARRAY_SIZE(ra_stat_string); id++)
 		lprocfs_counter_init(sbi->ll_ra_stats, id, 0,
 				     ra_stat_string[id], "pages");
-	err = lprocfs_register_stats(sbi->ll_proc_root, "read_ahead_stats",
+
+	err = ldebugfs_register_stats(sbi->ll_debugfs_entry, "read_ahead_stats",
 				     sbi->ll_ra_stats);
 	if (err)
 		goto out;
 
 
-	err = lprocfs_add_vars(sbi->ll_proc_root, lprocfs_llite_obd_vars, sb);
+	err = ldebugfs_add_vars(sbi->ll_debugfs_entry,
+				lprocfs_llite_obd_vars, sb);
 	if (err)
 		goto out;
 
@@ -1071,17 +1077,17 @@ int lprocfs_register_mountpoint(struct proc_dir_entry *parent,
 				obd->obd_type->typ_name);
 out:
 	if (err) {
-		lprocfs_remove(&sbi->ll_proc_root);
+		ldebugfs_remove(&sbi->ll_debugfs_entry);
 		lprocfs_free_stats(&sbi->ll_ra_stats);
 		lprocfs_free_stats(&sbi->ll_stats);
 	}
 	return err;
 }
 
-void lprocfs_unregister_mountpoint(struct ll_sb_info *sbi)
+void ldebugfs_unregister_mountpoint(struct ll_sb_info *sbi)
 {
-	if (sbi->ll_proc_root) {
-		lprocfs_remove(&sbi->ll_proc_root);
+	if (sbi->ll_debugfs_entry) {
+		ldebugfs_remove(&sbi->ll_debugfs_entry);
 		kobject_put(&sbi->ll_kobj);
 		wait_for_completion(&sbi->ll_kobj_unregister);
 		lprocfs_free_stats(&sbi->ll_ra_stats);

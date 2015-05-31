@@ -57,7 +57,7 @@
 #include "llite_internal.h"
 
 struct kmem_cache *ll_file_data_slab;
-struct proc_dir_entry *proc_lustre_fs_root;
+struct dentry *llite_root;
 struct kset *llite_kset;
 
 static LIST_HEAD(ll_super_blocks);
@@ -184,11 +184,10 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 		return -ENOMEM;
 	}
 
-	if (proc_lustre_fs_root) {
-		err = lprocfs_register_mountpoint(proc_lustre_fs_root, sb,
-						  dt, md);
+	if (llite_root != NULL) {
+		err = ldebugfs_register_mountpoint(llite_root, sb, dt, md);
 		if (err < 0)
-			CERROR("could not register mount in /proc/fs/lustre\n");
+			CERROR("could not register mount in <debugfs>/lustre/llite\n");
 	}
 
 	/* indicate the features supported by this client */
@@ -601,7 +600,7 @@ out_md:
 out:
 	kfree(data);
 	kfree(osfs);
-	lprocfs_unregister_mountpoint(sbi);
+	ldebugfs_unregister_mountpoint(sbi);
 	return err;
 }
 
@@ -682,7 +681,7 @@ static void client_common_put_super(struct super_block *sb)
 	 * see LU-2543. */
 	obd_zombie_barrier();
 
-	lprocfs_unregister_mountpoint(sbi);
+	ldebugfs_unregister_mountpoint(sbi);
 
 	obd_fid_fini(sbi->ll_md_exp->exp_obd);
 	obd_disconnect(sbi->ll_md_exp);
