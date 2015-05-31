@@ -168,10 +168,7 @@ int iioutils_get_type(unsigned *is_signed,
 				*mask = ~0;
 			else
 				*mask = (1 << *bits_used) - 1;
-			if (signchar == 's')
-				*is_signed = 1;
-			else
-				*is_signed = 0;
+			*is_signed = (signchar == 's');
 			if (fclose(sysfsfp)) {
 				ret = -errno;
 				printf("Failed to close %s\n", filename);
