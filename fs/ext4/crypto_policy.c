@@ -183,7 +183,8 @@ int ext4_inherit_context(struct inode *parent, struct inode *child)
 	if (res < 0)
 		return res;
 	ci = EXT4_I(parent)->i_crypt_info;
-	BUG_ON(ci == NULL);
+	if (ci == NULL)
+		return -ENOKEY;
 
 	ctx.format = EXT4_ENCRYPTION_CONTEXT_FORMAT_V1;
 	if (DUMMY_ENCRYPTION_ENABLED(EXT4_SB(parent->i_sb))) {

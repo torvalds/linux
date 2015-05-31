@@ -104,7 +104,8 @@ struct ext4_crypto_ctx *ext4_get_crypto_ctx(struct inode *inode)
 	unsigned long flags;
 	struct ext4_crypt_info *ci = EXT4_I(inode)->i_crypt_info;
 
-	BUG_ON(ci == NULL);
+	if (ci == NULL)
+		return ERR_PTR(-ENOKEY);
 
 	/*
 	 * We first try getting the ctx from a free list because in
