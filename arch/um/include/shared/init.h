@@ -40,7 +40,7 @@
 typedef int (*initcall_t)(void);
 typedef void (*exitcall_t)(void);
 
-#ifndef __KERNEL__
+#ifdef __UM_HOST__
 #ifndef __section
 # define __section(S) __attribute__ ((__section__(#S)))
 #endif
@@ -131,7 +131,7 @@ extern struct uml_param __uml_setup_start, __uml_setup_end;
 #define __uml_postsetup_call	__used __section(.uml.postsetup.init)
 #define __uml_exit_call		__used __section(.uml.exitcall.exit)
 
-#ifndef __KERNEL__
+#ifdef __UM_HOST__
 
 #define __define_initcall(level,fn) \
 	static initcall_t __initcall_##fn __used \
