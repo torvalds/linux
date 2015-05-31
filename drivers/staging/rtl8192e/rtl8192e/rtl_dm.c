@@ -403,16 +403,16 @@ static void dm_check_rate_adaptive(struct net_device *dev)
 				((bshort_gi_enabled) ? BIT31 : 0);
 
 		if (pra->ratr_state == DM_RATR_STA_HIGH) {
-			HighRSSIThreshForRA	= pra->high2low_rssi_thresh_for_ra;
-			LowRSSIThreshForRA	= (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20) ?
+			HighRSSIThreshForRA = pra->high2low_rssi_thresh_for_ra;
+			LowRSSIThreshForRA = (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20) ?
 					(pra->low_rssi_thresh_for_ra40M) : (pra->low_rssi_thresh_for_ra20M);
 		} else if (pra->ratr_state == DM_RATR_STA_LOW) {
-			HighRSSIThreshForRA	= pra->high_rssi_thresh_for_ra;
-			LowRSSIThreshForRA	= (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20) ?
+			HighRSSIThreshForRA = pra->high_rssi_thresh_for_ra;
+			LowRSSIThreshForRA = (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20) ?
 					(pra->low2high_rssi_thresh_for_ra40M) : (pra->low2high_rssi_thresh_for_ra20M);
 		} else {
-			HighRSSIThreshForRA	= pra->high_rssi_thresh_for_ra;
-			LowRSSIThreshForRA	= (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20) ?
+			HighRSSIThreshForRA = pra->high_rssi_thresh_for_ra;
+			LowRSSIThreshForRA = (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20) ?
 					(pra->low_rssi_thresh_for_ra40M) : (pra->low_rssi_thresh_for_ra20M);
 		}
 
@@ -749,7 +749,8 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 				 "Avg_TSSI_Meas_from_driver = %d\n",
 				 Avg_TSSI_Meas_from_driver);
 			TSSI_13dBm = priv->TSSI_13dBm;
-			RT_TRACE(COMP_POWER_TRACKING, "TSSI_13dBm = %d\n", TSSI_13dBm);
+			RT_TRACE(COMP_POWER_TRACKING, "TSSI_13dBm = %d\n",
+				 TSSI_13dBm);
 
 			if (Avg_TSSI_Meas_from_driver > TSSI_13dBm)
 				delta = Avg_TSSI_Meas_from_driver - TSSI_13dBm;
@@ -828,11 +829,13 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 				 "priv->CCKPresentAttentuation = %d\n",
 				 priv->CCKPresentAttentuation);
 
-			if (priv->CCKPresentAttentuation_difference <= -12 || priv->CCKPresentAttentuation_difference >= 24) {
+			if (priv->CCKPresentAttentuation_difference <= -12 ||
+			    priv->CCKPresentAttentuation_difference >= 24) {
 				priv->rtllib->bdynamic_txpower_enable = true;
 				write_nic_byte(dev, Pw_Track_Flag, 0);
 				write_nic_byte(dev, FW_Busy_Flag, 0);
-				RT_TRACE(COMP_POWER_TRACKING, "tx power track--->limited\n");
+				RT_TRACE(COMP_POWER_TRACKING,
+					 "tx power track--->limited\n");
 				return;
 			}
 
@@ -1233,18 +1236,28 @@ static void dm_bb_initialgain_restore(struct net_device *dev)
 		return;
 
 	rtl8192_setBBreg(dev, UFWP, bMaskByte1, 0x8);
-	rtl8192_setBBreg(dev, rOFDM0_XAAGCCore1, bit_mask, (u32)priv->initgain_backup.xaagccore1);
-	rtl8192_setBBreg(dev, rOFDM0_XBAGCCore1, bit_mask, (u32)priv->initgain_backup.xbagccore1);
-	rtl8192_setBBreg(dev, rOFDM0_XCAGCCore1, bit_mask, (u32)priv->initgain_backup.xcagccore1);
-	rtl8192_setBBreg(dev, rOFDM0_XDAGCCore1, bit_mask, (u32)priv->initgain_backup.xdagccore1);
+	rtl8192_setBBreg(dev, rOFDM0_XAAGCCore1, bit_mask,
+			 (u32)priv->initgain_backup.xaagccore1);
+	rtl8192_setBBreg(dev, rOFDM0_XBAGCCore1, bit_mask,
+			 (u32)priv->initgain_backup.xbagccore1);
+	rtl8192_setBBreg(dev, rOFDM0_XCAGCCore1, bit_mask,
+			 (u32)priv->initgain_backup.xcagccore1);
+	rtl8192_setBBreg(dev, rOFDM0_XDAGCCore1, bit_mask,
+			 (u32)priv->initgain_backup.xdagccore1);
 	bit_mask  = bMaskByte2;
-	rtl8192_setBBreg(dev, rCCK0_CCA, bit_mask, (u32)priv->initgain_backup.cca);
+	rtl8192_setBBreg(dev, rCCK0_CCA, bit_mask,
+			 (u32)priv->initgain_backup.cca);
 
-	RT_TRACE(COMP_DIG, "dm_BBInitialGainRestore 0xc50 is %x\n", priv->initgain_backup.xaagccore1);
-	RT_TRACE(COMP_DIG, "dm_BBInitialGainRestore 0xc58 is %x\n", priv->initgain_backup.xbagccore1);
-	RT_TRACE(COMP_DIG, "dm_BBInitialGainRestore 0xc60 is %x\n", priv->initgain_backup.xcagccore1);
-	RT_TRACE(COMP_DIG, "dm_BBInitialGainRestore 0xc68 is %x\n", priv->initgain_backup.xdagccore1);
-	RT_TRACE(COMP_DIG, "dm_BBInitialGainRestore 0xa0a is %x\n", priv->initgain_backup.cca);
+	RT_TRACE(COMP_DIG, "dm_BBInitialGainRestore 0xc50 is %x\n",
+		 priv->initgain_backup.xaagccore1);
+	RT_TRACE(COMP_DIG, "dm_BBInitialGainRestore 0xc58 is %x\n",
+		 priv->initgain_backup.xbagccore1);
+	RT_TRACE(COMP_DIG, "dm_BBInitialGainRestore 0xc60 is %x\n",
+		 priv->initgain_backup.xcagccore1);
+	RT_TRACE(COMP_DIG, "dm_BBInitialGainRestore 0xc68 is %x\n",
+		 priv->initgain_backup.xdagccore1);
+	RT_TRACE(COMP_DIG, "dm_BBInitialGainRestore 0xa0a is %x\n",
+		 priv->initgain_backup.cca);
 	rtl8192_setBBreg(dev, UFWP, bMaskByte1, 0x1);
 
 }
@@ -1277,11 +1290,16 @@ static void dm_bb_initialgain_backup(struct net_device *dev)
 	bit_mask  = bMaskByte2;
 	priv->initgain_backup.cca = (u8)rtl8192_QueryBBReg(dev, rCCK0_CCA, bit_mask);
 
-	RT_TRACE(COMP_DIG, "BBInitialGainBackup 0xc50 is %x\n", priv->initgain_backup.xaagccore1);
-	RT_TRACE(COMP_DIG, "BBInitialGainBackup 0xc58 is %x\n", priv->initgain_backup.xbagccore1);
-	RT_TRACE(COMP_DIG, "BBInitialGainBackup 0xc60 is %x\n", priv->initgain_backup.xcagccore1);
-	RT_TRACE(COMP_DIG, "BBInitialGainBackup 0xc68 is %x\n", priv->initgain_backup.xdagccore1);
-	RT_TRACE(COMP_DIG, "BBInitialGainBackup 0xa0a is %x\n", priv->initgain_backup.cca);
+	RT_TRACE(COMP_DIG, "BBInitialGainBackup 0xc50 is %x\n",
+		 priv->initgain_backup.xaagccore1);
+	RT_TRACE(COMP_DIG, "BBInitialGainBackup 0xc58 is %x\n",
+		 priv->initgain_backup.xbagccore1);
+	RT_TRACE(COMP_DIG, "BBInitialGainBackup 0xc60 is %x\n",
+		 priv->initgain_backup.xcagccore1);
+	RT_TRACE(COMP_DIG, "BBInitialGainBackup 0xc68 is %x\n",
+		 priv->initgain_backup.xdagccore1);
+	RT_TRACE(COMP_DIG, "BBInitialGainBackup 0xa0a is %x\n",
+		 priv->initgain_backup.cca);
 
 }
 
@@ -1798,10 +1816,12 @@ static void dm_check_edca_turbo(struct net_device *dev)
 				if (!priv->bis_cur_rdlstate ||
 				    !priv->bcurrent_turbo_EDCA) {
 					if (priv->rtllib->mode == WIRELESS_MODE_G)
-						write_nic_dword(dev, EDCAPARA_BE,
+						write_nic_dword(dev,
+								EDCAPARA_BE,
 							 edca_setting_DL_GMode[pHTInfo->IOTPeer]);
 					else
-						write_nic_dword(dev, EDCAPARA_BE,
+						write_nic_dword(dev,
+								EDCAPARA_BE,
 							 edca_setting_DL[pHTInfo->IOTPeer]);
 					priv->bis_cur_rdlstate = true;
 				}
@@ -1809,12 +1829,15 @@ static void dm_check_edca_turbo(struct net_device *dev)
 			priv->bcurrent_turbo_EDCA = true;
 		} else {
 			if (curRxOkCnt > 4*curTxOkCnt) {
-				if (!priv->bis_cur_rdlstate || !priv->bcurrent_turbo_EDCA) {
+				if (!priv->bis_cur_rdlstate ||
+				    !priv->bcurrent_turbo_EDCA) {
 					if (priv->rtllib->mode == WIRELESS_MODE_G)
-						write_nic_dword(dev, EDCAPARA_BE,
+						write_nic_dword(dev,
+								EDCAPARA_BE,
 							 edca_setting_DL_GMode[pHTInfo->IOTPeer]);
 					else
-						write_nic_dword(dev, EDCAPARA_BE,
+						write_nic_dword(dev,
+								EDCAPARA_BE,
 							 edca_setting_DL[pHTInfo->IOTPeer]);
 					priv->bis_cur_rdlstate = true;
 				}

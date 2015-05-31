@@ -1256,14 +1256,16 @@ static void rtllib_rx_indicate_pkt_legacy(struct rtllib_device *ieee,
 		struct sk_buff *sub_skb = rxb->subframes[i];
 
 		if (sub_skb) {
-			/* convert hdr + possible LLC headers into Ethernet header */
+			/* convert hdr + possible LLC headers
+			 * into Ethernet header
+			 */
 			ethertype = (sub_skb->data[6] << 8) | sub_skb->data[7];
 			if (sub_skb->len >= 8 &&
 				((memcmp(sub_skb->data, rfc1042_header, SNAP_SIZE) == 0 &&
 				ethertype != ETH_P_AARP && ethertype != ETH_P_IPX) ||
 				memcmp(sub_skb->data, bridge_tunnel_header, SNAP_SIZE) == 0)) {
-				/* remove RFC1042 or Bridge-Tunnel encapsulation and
-				 * replace EtherType
+				/* remove RFC1042 or Bridge-Tunnel encapsulation
+				 * and replace EtherType
 				 */
 				skb_pull(sub_skb, SNAP_SIZE);
 				ether_addr_copy(skb_push(sub_skb, ETH_ALEN),
@@ -1272,7 +1274,9 @@ static void rtllib_rx_indicate_pkt_legacy(struct rtllib_device *ieee,
 						dst);
 			} else {
 				u16 len;
-				/* Leave Ethernet header part of hdr and full payload */
+				/* Leave Ethernet header part of hdr
+				 * and full payload
+				 */
 				len = sub_skb->len;
 				memcpy(skb_push(sub_skb, 2), &len, 2);
 				ether_addr_copy(skb_push(sub_skb, ETH_ALEN),
@@ -1293,7 +1297,8 @@ static void rtllib_rx_indicate_pkt_legacy(struct rtllib_device *ieee,
 			sub_skb->dev = dev;
 			sub_skb->dev->stats.rx_packets++;
 			sub_skb->dev->stats.rx_bytes += sub_skb->len;
-			sub_skb->ip_summed = CHECKSUM_NONE; /* 802.11 crc not sufficient */
+			/* 802.11 crc not sufficient */
+			sub_skb->ip_summed = CHECKSUM_NONE;
 			netif_rx(sub_skb);
 		}
 	}
@@ -1835,11 +1840,10 @@ static void rtllib_parse_mife_generic(struct rtllib_device *ieee,
 
 	if (*tmp_htcap_len == 0) {
 		if (info_element->len >= 4 &&
-		   info_element->data[0] == 0x00 &&
-		   info_element->data[1] == 0x90 &&
-		   info_element->data[2] == 0x4c &&
-		   info_element->data[3] == 0x033) {
-
+		    info_element->data[0] == 0x00 &&
+		    info_element->data[1] == 0x90 &&
+		    info_element->data[2] == 0x4c &&
+		    info_element->data[3] == 0x033) {
 			*tmp_htcap_len = min_t(u8, info_element->len,
 					       MAX_IE_LEN);
 			if (*tmp_htcap_len != 0) {
