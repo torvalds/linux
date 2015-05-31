@@ -120,7 +120,6 @@ static int lustre_ext_acl_xattr_reduce_space(ext_acl_xattr_header **header,
 {
 	int ext_count = le32_to_cpu((*header)->a_count);
 	int ext_size = CFS_ACL_XATTR_SIZE(ext_count, ext_acl_xattr);
-	int old_size = CFS_ACL_XATTR_SIZE(old_count, ext_acl_xattr);
 	ext_acl_xattr_header *new;
 
 	if (unlikely(old_count <= ext_count))
