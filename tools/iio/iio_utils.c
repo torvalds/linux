@@ -634,7 +634,8 @@ error_close_dir:
 	return ret;
 }
 
-static int _write_sysfs_int(char *filename, char *basedir, int val, int verify)
+static int _write_sysfs_int(const char *filename, const char *basedir, int val,
+			    int verify)
 {
 	int ret = 0;
 	FILE *sysfsfp;
@@ -707,7 +708,7 @@ error_free:
  *
  * Returns a value >= 0 on success, otherwise a negative error code.
  **/
-int write_sysfs_int(char *filename, char *basedir, int val)
+int write_sysfs_int(const char *filename, const char *basedir, int val)
 {
 	return _write_sysfs_int(filename, basedir, val, 0);
 }
@@ -721,13 +722,14 @@ int write_sysfs_int(char *filename, char *basedir, int val)
  *
  * Returns a value >= 0 on success, otherwise a negative error code.
  **/
-int write_sysfs_int_and_verify(char *filename, char *basedir, int val)
+int write_sysfs_int_and_verify(const char *filename, const char *basedir,
+			       int val)
 {
 	return _write_sysfs_int(filename, basedir, val, 1);
 }
 
-static int _write_sysfs_string(char *filename, char *basedir, char *val,
-			       int verify)
+static int _write_sysfs_string(const char *filename, const char *basedir,
+			       const char *val, int verify)
 {
 	int ret = 0;
 	FILE  *sysfsfp;
@@ -805,7 +807,8 @@ error_free:
  *
  * Returns a value >= 0 on success, otherwise a negative error code.
  **/
-int write_sysfs_string_and_verify(char *filename, char *basedir, char *val)
+int write_sysfs_string_and_verify(const char *filename, const char *basedir,
+				  const char *val)
 {
 	return _write_sysfs_string(filename, basedir, val, 1);
 }
@@ -818,7 +821,8 @@ int write_sysfs_string_and_verify(char *filename, char *basedir, char *val)
  *
  * Returns a value >= 0 on success, otherwise a negative error code.
  **/
-int write_sysfs_string(char *filename, char *basedir, char *val)
+int write_sysfs_string(const char *filename, const char *basedir,
+		       const char *val)
 {
 	return _write_sysfs_string(filename, basedir, val, 0);
 }
@@ -831,7 +835,7 @@ int write_sysfs_string(char *filename, char *basedir, char *val)
  * Returns the read integer value >= 0 on success, otherwise a negative error
  * code.
  **/
-int read_sysfs_posint(char *filename, char *basedir)
+int read_sysfs_posint(const char *filename, const char *basedir)
 {
 	int ret;
 	FILE  *sysfsfp;
@@ -875,7 +879,7 @@ error_free:
  *
  * Returns a value >= 0 on success, otherwise a negative error code.
  **/
-int read_sysfs_float(char *filename, char *basedir, float *val)
+int read_sysfs_float(const char *filename, const char *basedir, float *val)
 {
 	int ret = 0;
 	FILE  *sysfsfp;
