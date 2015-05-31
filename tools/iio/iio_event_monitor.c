@@ -213,23 +213,19 @@ static void print_event(struct iio_event_data *event)
 		return;
 	}
 
-	printf("Event: time: %lld, ", event->timestamp);
+	printf("Event: time: %lld, type: %s", event->timestamp,
+	       iio_chan_type_name_spec[type]);
 
-	if (mod != IIO_NO_MOD) {
-		printf("type: %s(%s), ",
-			iio_chan_type_name_spec[type],
-			iio_modifier_names[mod]);
-	} else {
-		printf("type: %s, ",
-			iio_chan_type_name_spec[type]);
+	if (mod != IIO_NO_MOD)
+		printf("(%s)", iio_modifier_names[mod]);
+
+	if (chan >= 0) {
+		printf(", channel: %d", chan);
+		if (diff && chan2 >= 0)
+			printf("-%d", chan2);
 	}
 
-	if (diff && chan >= 0 && chan2 >= 0)
-		printf("channel: %d-%d, ", chan, chan2);
-	else if (chan >= 0)
-		printf("channel: %d, ", chan);
-
-	printf("evtype: %s", iio_ev_type_text[ev_type]);
+	printf(", evtype: %s", iio_ev_type_text[ev_type]);
 
 	if (dir != IIO_EV_DIR_NONE)
 		printf(", direction: %s", iio_ev_dir_text[dir]);
