@@ -76,12 +76,4 @@ do {			\
 		printk(KERN_DEBUG DRV_NAME ":" x "\n", ##args);\
 } while (0)
 
-#define assert(expr) \
-do {	\
-	if (!(expr)) {				  \
-		pr_info("Assertion failed! %s,%s,%s,line=%d\n", \
-		#expr, __FILE__, __func__, __LINE__);	  \
-	}	\
-} while (0)
-
 #endif

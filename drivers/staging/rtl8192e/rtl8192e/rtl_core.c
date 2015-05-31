@@ -1885,8 +1885,9 @@ void rtl8192_hard_data_xmit(struct sk_buff *skb, struct net_device *dev,
 		return;
 	}
 
-	assert(queue_index != TXCMD_QUEUE);
-
+	if (queue_index != TXCMD_QUEUE)
+		netdev_warn(dev, "%s(): queue index != TXCMD_QUEUE\n",
+			    __func__);
 
 	memcpy((unsigned char *)(skb->cb), &dev, sizeof(dev));
 	skb_push(skb, priv->rtllib->tx_headroom);
