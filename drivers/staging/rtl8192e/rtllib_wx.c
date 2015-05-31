@@ -851,8 +851,7 @@ int rtllib_wx_set_gen_ie(struct rtllib_device *ieee, u8 *ie, size_t len)
 		if ((eid == MFIE_TYPE_GENERIC) && (!memcmp(&ie[2],
 		     wps_oui, 4))) {
 
-			ieee->wps_ie_len = (len < MAX_WZC_IE_LEN) ? (len) :
-					   (MAX_WZC_IE_LEN);
+			ieee->wps_ie_len = min_t(size_t, len, MAX_WZC_IE_LEN);
 			buf = kmemdup(ie, ieee->wps_ie_len, GFP_KERNEL);
 			if (buf == NULL)
 				return -ENOMEM;

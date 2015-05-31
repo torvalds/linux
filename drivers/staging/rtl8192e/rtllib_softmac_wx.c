@@ -454,13 +454,7 @@ int rtllib_wx_set_essid(struct rtllib_device *ieee,
 
 	proto_started = ieee->proto_started;
 
-	len = (wrqu->essid.length < IW_ESSID_MAX_SIZE) ? wrqu->essid.length :
-	       IW_ESSID_MAX_SIZE;
-
-	if (len > IW_ESSID_MAX_SIZE) {
-		ret = -E2BIG;
-		goto out;
-	}
+	len = min_t(__u16, wrqu->essid.length, IW_ESSID_MAX_SIZE);
 
 	if (ieee->iw_mode == IW_MODE_MONITOR) {
 		ret = -1;
