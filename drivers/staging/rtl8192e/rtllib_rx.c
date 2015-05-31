@@ -2010,6 +2010,33 @@ static void rtllib_parse_mife_generic(struct rtllib_device *ieee,
 	}
 }
 
+static void rtllib_parse_mfie_ht_cap(struct rtllib_info_element *info_element,
+				     struct rtllib_network *network,
+				     u16 *tmp_htcap_len)
+{
+	struct bss_ht *ht = &network->bssht;
+
+	*tmp_htcap_len = min_t(u8, info_element->len, MAX_IE_LEN);
+	if (*tmp_htcap_len != 0) {
+		ht->bdHTSpecVer = HT_SPEC_VER_EWC;
+		ht->bdHTCapLen = min_t(u16, *tmp_htcap_len,
+				       sizeof(ht->bdHTCapBuf));
+		memcpy(ht->bdHTCapBuf, info_element->data, ht->bdHTCapLen);
+
+		ht->bdSupportHT = true;
+		ht->bdHT1R = ((((struct ht_capab_ele *)
+				ht->bdHTCapBuf))->MCS[1]) == 0;
+
+		ht->bdBandWidth = (enum ht_channel_width)
+					     (((struct ht_capab_ele *)
+					     (ht->bdHTCapBuf))->ChlWidth);
+	} else {
+		ht->bdSupportHT = false;
+		ht->bdHT1R = false;
+		ht->bdBandWidth = HT_CHANNEL_WIDTH_20;
+	}
+}
+
 int rtllib_parse_info_param(struct rtllib_device *ieee,
 		struct rtllib_info_element *info_element,
 		u16 length,
@@ -2191,27 +2218,9 @@ int rtllib_parse_info_param(struct rtllib_device *ieee,
 		case MFIE_TYPE_HT_CAP:
 			netdev_dbg(ieee->dev, "MFIE_TYPE_HT_CAP: %d bytes\n",
 				   info_element->len);
-			tmp_htcap_len = min_t(u8, info_element->len, MAX_IE_LEN);
-			if (tmp_htcap_len != 0) {
-				network->bssht.bdHTSpecVer = HT_SPEC_VER_EWC;
-				network->bssht.bdHTCapLen = tmp_htcap_len > sizeof(network->bssht.bdHTCapBuf) ?
-					sizeof(network->bssht.bdHTCapBuf) : tmp_htcap_len;
-				memcpy(network->bssht.bdHTCapBuf,
-				       info_element->data,
-				       network->bssht.bdHTCapLen);
 
-				network->bssht.bdSupportHT = true;
-				network->bssht.bdHT1R = ((((struct ht_capab_ele *)
-							network->bssht.bdHTCapBuf))->MCS[1]) == 0;
-
-				network->bssht.bdBandWidth = (enum ht_channel_width)
-							     (((struct ht_capab_ele *)
-							     (network->bssht.bdHTCapBuf))->ChlWidth);
-			} else {
-				network->bssht.bdSupportHT = false;
-				network->bssht.bdHT1R = false;
-				network->bssht.bdBandWidth = HT_CHANNEL_WIDTH_20;
-			}
+			rtllib_parse_mfie_ht_cap(info_element, network,
+						 &tmp_htcap_len);
 			break;
 
 
