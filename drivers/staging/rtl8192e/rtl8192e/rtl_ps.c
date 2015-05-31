@@ -101,7 +101,7 @@ void rtl8192_hw_to_sleep(struct net_device *dev, u64 time)
 	time -= msecs_to_jiffies(8 + 16 + 7);
 
 	timeout = jiffies + msecs_to_jiffies(MIN_SLEEP_TIME);
-	if (time_before((unsigned long)time,timeout)) {
+	if (time_before((unsigned long)time, timeout)) {
 		spin_unlock_irqrestore(&priv->ps_lock, flags);
 		netdev_info(dev, "too short to sleep::%lld < %ld\n",
 			    time - jiffies, msecs_to_jiffies(MIN_SLEEP_TIME));
