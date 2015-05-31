@@ -92,10 +92,8 @@ static struct sk_buff *rtllib_ADDBA(struct rtllib_device *ieee, u8 *Dst,
 		return NULL;
 	}
 	skb = dev_alloc_skb(len + sizeof(struct rtllib_hdr_3addr));
-	if (skb == NULL) {
-		netdev_err(ieee->dev, "Can't alloc skb for ADDBA_REQ\n");
+	if (skb == NULL)
 		return NULL;
-	}
 
 	memset(skb->data, 0, sizeof(struct rtllib_hdr_3addr));
 
@@ -160,10 +158,8 @@ static struct sk_buff *rtllib_DELBA(struct rtllib_device *ieee, u8 *dst,
 	DelbaParamSet.field.TID	= pBA->BaParamSet.field.TID;
 
 	skb = dev_alloc_skb(len + sizeof(struct rtllib_hdr_3addr));
-	if (skb == NULL) {
-		netdev_err(ieee->dev, "Can't alloc skb for DELBA_REQ\n");
+	if (skb == NULL)
 		return NULL;
-	}
 
 	skb_reserve(skb, ieee->tx_headroom);
 
