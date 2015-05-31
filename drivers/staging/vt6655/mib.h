@@ -73,10 +73,4 @@ typedef struct tagSStatCounter {
 
 void STAvUpdateIsrStatCounter(PSStatCounter pStatistic, unsigned long dwIsr);
 
-void STAvUpdate802_11Counter(
-	PSDot11Counters p802_11Counter,
-	PSStatCounter   pStatistic,
-	unsigned long dwCounter
-);
-
 #endif // __MIB_H__

@@ -110,30 +110,3 @@ void STAvUpdateIsrStatCounter(PSStatCounter pStatistic, unsigned long dwIsr)
 	if (dwIsr & ISR_SOFTTIMER1)           /* ISR, bit21 */
 		pStatistic->ISRStat.dwIsrSTIMER1Int++;
 }
-
-/*
- * Description: Update 802.11 mib counter
- *
- * Parameters:
- *  In:
- *      p802_11Counter  - Pointer to 802.11 mib counter
- *      pStatistic      - Pointer to Statistic Counter Data Structure
- *      dwCounter       - hardware counter for 802.11 mib
- *  Out:
- *      none
- *
- * Return Value: none
- *
- */
-void
-STAvUpdate802_11Counter(
-	PSDot11Counters         p802_11Counter,
-	PSStatCounter           pStatistic,
-	unsigned long dwCounter
-)
-{
-	p802_11Counter->RTSSuccessCount += (unsigned long long)  (dwCounter & 0x000000ff);
-	p802_11Counter->RTSFailureCount += (unsigned long long) ((dwCounter & 0x0000ff00) >> 8);
-	p802_11Counter->ACKFailureCount += (unsigned long long) ((dwCounter & 0x00ff0000) >> 16);
-	p802_11Counter->FCSErrorCount +=   (unsigned long long) ((dwCounter & 0xff000000) >> 24);
-}
