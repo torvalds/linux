@@ -1739,6 +1739,213 @@ static inline void rtllib_extract_country_ie(
 
 }
 
+static void rtllib_parse_mife_generic(struct rtllib_device *ieee,
+				      struct rtllib_info_element *info_element,
+				      struct rtllib_network *network,
+				      u16 *tmp_htcap_len,
+				      u16 *tmp_htinfo_len)
+{
+	u16 ht_realtek_agg_len = 0;
+	u8  ht_realtek_agg_buf[MAX_IE_LEN];
+
+	if (!rtllib_parse_qos_info_param_IE(info_element, network))
+		return;
+	if (info_element->len >= 4 &&
+	    info_element->data[0] == 0x00 &&
+	    info_element->data[1] == 0x50 &&
+	    info_element->data[2] == 0xf2 &&
+	    info_element->data[3] == 0x01) {
+		network->wpa_ie_len = min(info_element->len + 2,
+					  MAX_WPA_IE_LEN);
+		memcpy(network->wpa_ie, info_element, network->wpa_ie_len);
+		return;
+	}
+	if (info_element->len == 7 &&
+	    info_element->data[0] == 0x00 &&
+	    info_element->data[1] == 0xe0 &&
+	    info_element->data[2] == 0x4c &&
+	    info_element->data[3] == 0x01 &&
+	    info_element->data[4] == 0x02)
+		network->Turbo_Enable = 1;
+
+	if (*tmp_htcap_len == 0) {
+		if (info_element->len >= 4 &&
+		   info_element->data[0] == 0x00 &&
+		   info_element->data[1] == 0x90 &&
+		   info_element->data[2] == 0x4c &&
+		   info_element->data[3] == 0x033) {
+
+			*tmp_htcap_len = min_t(u8, info_element->len,
+					       MAX_IE_LEN);
+			if (*tmp_htcap_len != 0) {
+				network->bssht.bdHTSpecVer = HT_SPEC_VER_EWC;
+				network->bssht.bdHTCapLen = min_t(u16, *tmp_htcap_len, sizeof(network->bssht.bdHTCapBuf));
+				memcpy(network->bssht.bdHTCapBuf,
+				       info_element->data,
+				       network->bssht.bdHTCapLen);
+			}
+		}
+		if (*tmp_htcap_len != 0) {
+			network->bssht.bdSupportHT = true;
+			network->bssht.bdHT1R = ((((struct ht_capab_ele *)(network->bssht.bdHTCapBuf))->MCS[1]) == 0);
+		} else {
+			network->bssht.bdSupportHT = false;
+			network->bssht.bdHT1R = false;
+		}
+	}
+
+
+	if (*tmp_htinfo_len == 0) {
+		if (info_element->len >= 4 &&
+		    info_element->data[0] == 0x00 &&
+		    info_element->data[1] == 0x90 &&
+		    info_element->data[2] == 0x4c &&
+		    info_element->data[3] == 0x034) {
+			*tmp_htinfo_len = min_t(u8, info_element->len,
+						MAX_IE_LEN);
+			if (*tmp_htinfo_len != 0) {
+				network->bssht.bdHTSpecVer = HT_SPEC_VER_EWC;
+				network->bssht.bdHTInfoLen = min_t(u16, *tmp_htinfo_len, sizeof(network->bssht.bdHTInfoBuf));
+				memcpy(network->bssht.bdHTInfoBuf,
+				       info_element->data,
+				       network->bssht.bdHTInfoLen);
+			}
+
+		}
+	}
+
+	if (ieee->aggregation) {
+		if (network->bssht.bdSupportHT) {
+			if (info_element->len >= 4 &&
+			    info_element->data[0] == 0x00 &&
+			    info_element->data[1] == 0xe0 &&
+			    info_element->data[2] == 0x4c &&
+			    info_element->data[3] == 0x02) {
+				ht_realtek_agg_len = min_t(u8,
+							   info_element->len,
+							   MAX_IE_LEN);
+				memcpy(ht_realtek_agg_buf,
+				       info_element->data,
+				       info_element->len);
+			}
+			if (ht_realtek_agg_len >= 5) {
+				network->realtek_cap_exit = true;
+				network->bssht.bdRT2RTAggregation = true;
+
+				if ((ht_realtek_agg_buf[4] == 1) &&
+				    (ht_realtek_agg_buf[5] & 0x02))
+					network->bssht.bdRT2RTLongSlotTime = true;
+
+				if ((ht_realtek_agg_buf[4] == 1) &&
+				    (ht_realtek_agg_buf[5] & RT_HT_CAP_USE_92SE))
+					network->bssht.RT2RT_HT_Mode |= RT_HT_CAP_USE_92SE;
+			}
+		}
+		if (ht_realtek_agg_len >= 5) {
+			if ((ht_realtek_agg_buf[5] & RT_HT_CAP_USE_SOFTAP))
+				network->bssht.RT2RT_HT_Mode |= RT_HT_CAP_USE_SOFTAP;
+		}
+	}
+
+	if ((info_element->len >= 3 &&
+	     info_element->data[0] == 0x00 &&
+	     info_element->data[1] == 0x05 &&
+	     info_element->data[2] == 0xb5) ||
+	     (info_element->len >= 3 &&
+	     info_element->data[0] == 0x00 &&
+	     info_element->data[1] == 0x0a &&
+	     info_element->data[2] == 0xf7) ||
+	     (info_element->len >= 3 &&
+	     info_element->data[0] == 0x00 &&
+	     info_element->data[1] == 0x10 &&
+	     info_element->data[2] == 0x18)) {
+		network->broadcom_cap_exist = true;
+	}
+	if (info_element->len >= 3 &&
+	    info_element->data[0] == 0x00 &&
+	    info_element->data[1] == 0x0c &&
+	    info_element->data[2] == 0x43)
+		network->ralink_cap_exist = true;
+	if ((info_element->len >= 3 &&
+	     info_element->data[0] == 0x00 &&
+	     info_element->data[1] == 0x03 &&
+	     info_element->data[2] == 0x7f) ||
+	     (info_element->len >= 3 &&
+	     info_element->data[0] == 0x00 &&
+	     info_element->data[1] == 0x13 &&
+	     info_element->data[2] == 0x74))
+		network->atheros_cap_exist = true;
+
+	if ((info_element->len >= 3 &&
+	     info_element->data[0] == 0x00 &&
+	     info_element->data[1] == 0x50 &&
+	     info_element->data[2] == 0x43))
+		network->marvell_cap_exist = true;
+	if (info_element->len >= 3 &&
+	    info_element->data[0] == 0x00 &&
+	    info_element->data[1] == 0x40 &&
+	    info_element->data[2] == 0x96)
+		network->cisco_cap_exist = true;
+
+
+	if (info_element->len >= 3 &&
+	    info_element->data[0] == 0x00 &&
+	    info_element->data[1] == 0x0a &&
+	    info_element->data[2] == 0xf5)
+		network->airgo_cap_exist = true;
+
+	if (info_element->len > 4 &&
+	    info_element->data[0] == 0x00 &&
+	    info_element->data[1] == 0x40 &&
+	    info_element->data[2] == 0x96 &&
+	    info_element->data[3] == 0x01) {
+		if (info_element->len == 6) {
+			memcpy(network->CcxRmState, &info_element[4], 2);
+			if (network->CcxRmState[0] != 0)
+				network->bCcxRmEnable = true;
+			else
+				network->bCcxRmEnable = false;
+			network->MBssidMask = network->CcxRmState[1] & 0x07;
+			if (network->MBssidMask != 0) {
+				network->bMBssidValid = true;
+				network->MBssidMask = 0xff << (network->MBssidMask);
+				ether_addr_copy(network->MBssid,
+						network->bssid);
+				network->MBssid[5] &= network->MBssidMask;
+			} else {
+				network->bMBssidValid = false;
+			}
+		} else {
+			network->bCcxRmEnable = false;
+		}
+	}
+	if (info_element->len > 4  &&
+	    info_element->data[0] == 0x00 &&
+	    info_element->data[1] == 0x40 &&
+	    info_element->data[2] == 0x96 &&
+	    info_element->data[3] == 0x03) {
+		if (info_element->len == 5) {
+			network->bWithCcxVerNum = true;
+			network->BssCcxVerNumber = info_element->data[4];
+		} else {
+			network->bWithCcxVerNum = false;
+			network->BssCcxVerNumber = 0;
+		}
+	}
+	if (info_element->len > 4  &&
+	    info_element->data[0] == 0x00 &&
+	    info_element->data[1] == 0x50 &&
+	    info_element->data[2] == 0xf2 &&
+	    info_element->data[3] == 0x04) {
+		RTLLIB_DEBUG_MGMT("MFIE_TYPE_WZC: %d bytes\n",
+				  info_element->len);
+		network->wzc_ie_len = min(info_element->len+2,
+					  MAX_WZC_IE_LEN);
+		memcpy(network->wzc_ie, info_element,
+		       network->wzc_ie_len);
+	}
+}
+
 int rtllib_parse_info_param(struct rtllib_device *ieee,
 		struct rtllib_info_element *info_element,
 		u16 length,
@@ -1749,8 +1956,6 @@ int rtllib_parse_info_param(struct rtllib_device *ieee,
 	short offset;
 	u16	tmp_htcap_len = 0;
 	u16	tmp_htinfo_len = 0;
-	u16 ht_realtek_agg_len = 0;
-	u8  ht_realtek_agg_buf[MAX_IE_LEN];
 	char rates_str[64];
 	char *p;
 
@@ -1903,191 +2108,9 @@ int rtllib_parse_info_param(struct rtllib_device *ieee,
 		case MFIE_TYPE_GENERIC:
 			RTLLIB_DEBUG_MGMT("MFIE_TYPE_GENERIC: %d bytes\n",
 					     info_element->len);
-			if (!rtllib_parse_qos_info_param_IE(info_element,
-							       network))
-				break;
-			if (info_element->len >= 4 &&
-			    info_element->data[0] == 0x00 &&
-			    info_element->data[1] == 0x50 &&
-			    info_element->data[2] == 0xf2 &&
-			    info_element->data[3] == 0x01) {
-				network->wpa_ie_len = min(info_element->len + 2,
-							  MAX_WPA_IE_LEN);
-				memcpy(network->wpa_ie, info_element,
-				       network->wpa_ie_len);
-				break;
-			}
-			if (info_element->len == 7 &&
-			    info_element->data[0] == 0x00 &&
-			    info_element->data[1] == 0xe0 &&
-			    info_element->data[2] == 0x4c &&
-			    info_element->data[3] == 0x01 &&
-			    info_element->data[4] == 0x02)
-				network->Turbo_Enable = 1;
-
-			if (tmp_htcap_len == 0) {
-				if (info_element->len >= 4 &&
-				   info_element->data[0] == 0x00 &&
-				   info_element->data[1] == 0x90 &&
-				   info_element->data[2] == 0x4c &&
-				   info_element->data[3] == 0x033) {
-
-					tmp_htcap_len = min_t(u8, info_element->len, MAX_IE_LEN);
-					if (tmp_htcap_len != 0) {
-						network->bssht.bdHTSpecVer = HT_SPEC_VER_EWC;
-						network->bssht.bdHTCapLen = min_t(u16, tmp_htcap_len, sizeof(network->bssht.bdHTCapBuf));
-						memcpy(network->bssht.bdHTCapBuf, info_element->data, network->bssht.bdHTCapLen);
-					}
-				}
-				if (tmp_htcap_len != 0) {
-					network->bssht.bdSupportHT = true;
-					network->bssht.bdHT1R = ((((struct ht_capab_ele *)(network->bssht.bdHTCapBuf))->MCS[1]) == 0);
-				} else {
-					network->bssht.bdSupportHT = false;
-					network->bssht.bdHT1R = false;
-				}
-			}
-
-
-			if (tmp_htinfo_len == 0) {
-				if (info_element->len >= 4 &&
-				    info_element->data[0] == 0x00 &&
-				    info_element->data[1] == 0x90 &&
-				    info_element->data[2] == 0x4c &&
-				    info_element->data[3] == 0x034) {
-					tmp_htinfo_len = min_t(u8, info_element->len, MAX_IE_LEN);
-					if (tmp_htinfo_len != 0) {
-						network->bssht.bdHTSpecVer = HT_SPEC_VER_EWC;
-						network->bssht.bdHTInfoLen = min_t(u16, tmp_htinfo_len, sizeof(network->bssht.bdHTInfoBuf));
-						memcpy(network->bssht.bdHTInfoBuf, info_element->data, network->bssht.bdHTInfoLen);
-					}
-
-				}
-			}
-
-			if (ieee->aggregation) {
-				if (network->bssht.bdSupportHT) {
-					if (info_element->len >= 4 &&
-					    info_element->data[0] == 0x00 &&
-					    info_element->data[1] == 0xe0 &&
-					    info_element->data[2] == 0x4c &&
-					    info_element->data[3] == 0x02) {
-						ht_realtek_agg_len = min_t(u8, info_element->len, MAX_IE_LEN);
-						memcpy(ht_realtek_agg_buf, info_element->data, info_element->len);
-					}
-					if (ht_realtek_agg_len >= 5) {
-						network->realtek_cap_exit = true;
-						network->bssht.bdRT2RTAggregation = true;
-
-						if ((ht_realtek_agg_buf[4] == 1) && (ht_realtek_agg_buf[5] & 0x02))
-							network->bssht.bdRT2RTLongSlotTime = true;
-
-						if ((ht_realtek_agg_buf[4] == 1) && (ht_realtek_agg_buf[5] & RT_HT_CAP_USE_92SE))
-							network->bssht.RT2RT_HT_Mode |= RT_HT_CAP_USE_92SE;
-					}
-				}
-				if (ht_realtek_agg_len >= 5) {
-					if ((ht_realtek_agg_buf[5] & RT_HT_CAP_USE_SOFTAP))
-						network->bssht.RT2RT_HT_Mode |= RT_HT_CAP_USE_SOFTAP;
-				}
-			}
-
-			if ((info_element->len >= 3 &&
-			     info_element->data[0] == 0x00 &&
-			     info_element->data[1] == 0x05 &&
-			     info_element->data[2] == 0xb5) ||
-			     (info_element->len >= 3 &&
-			     info_element->data[0] == 0x00 &&
-			     info_element->data[1] == 0x0a &&
-			     info_element->data[2] == 0xf7) ||
-			     (info_element->len >= 3 &&
-			     info_element->data[0] == 0x00 &&
-			     info_element->data[1] == 0x10 &&
-			     info_element->data[2] == 0x18)) {
-				network->broadcom_cap_exist = true;
-			}
-			if (info_element->len >= 3 &&
-			    info_element->data[0] == 0x00 &&
-			    info_element->data[1] == 0x0c &&
-			    info_element->data[2] == 0x43)
-				network->ralink_cap_exist = true;
-			if ((info_element->len >= 3 &&
-			     info_element->data[0] == 0x00 &&
-			     info_element->data[1] == 0x03 &&
-			     info_element->data[2] == 0x7f) ||
-			     (info_element->len >= 3 &&
-			     info_element->data[0] == 0x00 &&
-			     info_element->data[1] == 0x13 &&
-			     info_element->data[2] == 0x74))
-				network->atheros_cap_exist = true;
-
-			if ((info_element->len >= 3 &&
-			     info_element->data[0] == 0x00 &&
-			     info_element->data[1] == 0x50 &&
-			     info_element->data[2] == 0x43))
-				network->marvell_cap_exist = true;
-			if (info_element->len >= 3 &&
-			    info_element->data[0] == 0x00 &&
-			    info_element->data[1] == 0x40 &&
-			    info_element->data[2] == 0x96)
-				network->cisco_cap_exist = true;
-
-
-			if (info_element->len >= 3 &&
-			    info_element->data[0] == 0x00 &&
-			    info_element->data[1] == 0x0a &&
-			    info_element->data[2] == 0xf5)
-				network->airgo_cap_exist = true;
-
-			if (info_element->len > 4 &&
-			    info_element->data[0] == 0x00 &&
-			    info_element->data[1] == 0x40 &&
-			    info_element->data[2] == 0x96 &&
-			    info_element->data[3] == 0x01) {
-				if (info_element->len == 6) {
-					memcpy(network->CcxRmState, &info_element[4], 2);
-					if (network->CcxRmState[0] != 0)
-						network->bCcxRmEnable = true;
-					else
-						network->bCcxRmEnable = false;
-					network->MBssidMask = network->CcxRmState[1] & 0x07;
-					if (network->MBssidMask != 0) {
-						network->bMBssidValid = true;
-						network->MBssidMask = 0xff << (network->MBssidMask);
-						ether_addr_copy(network->MBssid, network->bssid);
-						network->MBssid[5] &= network->MBssidMask;
-					} else {
-						network->bMBssidValid = false;
-					}
-				} else {
-					network->bCcxRmEnable = false;
-				}
-			}
-			if (info_element->len > 4  &&
-			    info_element->data[0] == 0x00 &&
-			    info_element->data[1] == 0x40 &&
-			    info_element->data[2] == 0x96 &&
-			    info_element->data[3] == 0x03) {
-				if (info_element->len == 5) {
-					network->bWithCcxVerNum = true;
-					network->BssCcxVerNumber = info_element->data[4];
-				} else {
-					network->bWithCcxVerNum = false;
-					network->BssCcxVerNumber = 0;
-				}
-			}
-			if (info_element->len > 4  &&
-			    info_element->data[0] == 0x00 &&
-			    info_element->data[1] == 0x50 &&
-			    info_element->data[2] == 0xf2 &&
-			    info_element->data[3] == 0x04) {
-				RTLLIB_DEBUG_MGMT("MFIE_TYPE_WZC: %d bytes\n",
-						     info_element->len);
-				network->wzc_ie_len = min(info_element->len+2,
-							  MAX_WZC_IE_LEN);
-				memcpy(network->wzc_ie, info_element,
-						network->wzc_ie_len);
-			}
+			rtllib_parse_mife_generic(ieee, info_element, network,
+						  &tmp_htcap_len,
+						  &tmp_htinfo_len);
 			break;
 
 		case MFIE_TYPE_RSN:
