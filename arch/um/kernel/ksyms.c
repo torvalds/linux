@@ -43,5 +43,4 @@ EXPORT_SYMBOL(add_sigio_fd);
 EXPORT_SYMBOL(ignore_sigio_fd);
 EXPORT_SYMBOL(sigio_broken);
 
-extern long int syscall (long int __sysno, ...);
 EXPORT_SYMBOL(syscall);
