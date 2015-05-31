@@ -663,8 +663,6 @@ struct bcm_sysport_priv {
 
 	/* Receive queue */
 	void __iomem		*rx_bds;
-	void __iomem		*rx_bd_assign_ptr;
-	unsigned int		rx_bd_assign_index;
 	struct bcm_sysport_cb	*rx_cbs;
 	unsigned int		num_rx_bds;
 	unsigned int		rx_read_ptr;

@@ -524,67 +524,70 @@ static void bcm_sysport_free_cb(struct bcm_sysport_cb *cb)
 	dma_unmap_addr_set(cb, dma_addr, 0);
 }
 
-static int bcm_sysport_rx_refill(struct bcm_sysport_priv *priv,
-				 struct bcm_sysport_cb *cb)
+static struct sk_buff *bcm_sysport_rx_refill(struct bcm_sysport_priv *priv,
+					     struct bcm_sysport_cb *cb)
 {
 	struct device *kdev = &priv->pdev->dev;
 	struct net_device *ndev = priv->netdev;
+	struct sk_buff *skb, *rx_skb;
 	dma_addr_t mapping;
-	int ret;
 
-	cb->skb = netdev_alloc_skb(priv->netdev, RX_BUF_LENGTH);
-	if (!cb->skb) {
+	/* Allocate a new SKB for a new packet */
+	skb = netdev_alloc_skb(priv->netdev, RX_BUF_LENGTH);
+	if (!skb) {
+		priv->mib.alloc_rx_buff_failed++;
 		netif_err(priv, rx_err, ndev, "SKB alloc failed\n");
-		return -ENOMEM;
+		return NULL;
 	}
 
-	mapping = dma_map_single(kdev, cb->skb->data,
+	mapping = dma_map_single(kdev, skb->data,
 				 RX_BUF_LENGTH, DMA_FROM_DEVICE);
-	ret = dma_mapping_error(kdev, mapping);
-	if (ret) {
+	if (dma_mapping_error(kdev, mapping)) {
 		priv->mib.rx_dma_failed++;
-		bcm_sysport_free_cb(cb);
+		dev_kfree_skb_any(skb);
 		netif_err(priv, rx_err, ndev, "DMA mapping failure\n");
-		return ret;
+		return NULL;
 	}
 
-	dma_unmap_addr_set(cb, dma_addr, mapping);
-	dma_desc_set_addr(priv, priv->rx_bd_assign_ptr, mapping);
+	/* Grab the current SKB on the ring */
+	rx_skb = cb->skb;
+	if (likely(rx_skb))
+		dma_unmap_single(kdev, dma_unmap_addr(cb, dma_addr),
+				 RX_BUF_LENGTH, DMA_FROM_DEVICE);
 
-	priv->rx_bd_assign_index++;
-	priv->rx_bd_assign_index &= (priv->num_rx_bds - 1);
-	priv->rx_bd_assign_ptr = priv->rx_bds +
-		(priv->rx_bd_assign_index * DESC_SIZE);
+	/* Put the new SKB on the ring */
+	cb->skb = skb;
+	dma_unmap_addr_set(cb, dma_addr, mapping);
+	dma_desc_set_addr(priv, cb->bd_addr, mapping);
 
 	netif_dbg(priv, rx_status, ndev, "RX refill\n");
 
-	return 0;
+	/* Return the current SKB to the caller */
+	return rx_skb;
 }
 
 static int bcm_sysport_alloc_rx_bufs(struct bcm_sysport_priv *priv)
 {
 	struct bcm_sysport_cb *cb;
-	int ret = 0;
+	struct sk_buff *skb;
 	unsigned int i;
 
 	for (i = 0; i < priv->num_rx_bds; i++) {
-		cb = &priv->rx_cbs[priv->rx_bd_assign_index];
-		if (cb->skb)
-			continue;
-
-		ret = bcm_sysport_rx_refill(priv, cb);
-		if (ret)
-			break;
+		cb = &priv->rx_cbs[i];
+		skb = bcm_sysport_rx_refill(priv, cb);
+		if (skb)
+			dev_kfree_skb(skb);
+		if (!cb->skb)
+			return -ENOMEM;
 	}
 
-	return ret;
+	return 0;
 }
 
 /* Poll the hardware for up to budget packets to process */
 static unsigned int bcm_sysport_desc_rx(struct bcm_sysport_priv *priv,
 					unsigned int budget)
 {
-	struct device *kdev = &priv->pdev->dev;
 	struct net_device *ndev = priv->netdev;
 	unsigned int processed = 0, to_process;
 	struct bcm_sysport_cb *cb;
@@ -592,7 +595,6 @@ static unsigned int bcm_sysport_desc_rx(struct bcm_sysport_priv *priv,
 	unsigned int p_index;
 	u16 len, status;
 	struct bcm_rsb *rsb;
-	int ret;
 
 	/* Determine how much we should process since last call */
 	p_index = rdma_readl(priv, RDMA_PROD_INDEX);
@@ -610,13 +612,8 @@ static unsigned int bcm_sysport_desc_rx(struct bcm_sysport_priv *priv,
 
 	while ((processed < to_process) && (processed < budget)) {
 		cb = &priv->rx_cbs[priv->rx_read_ptr];
-		skb = cb->skb;
+		skb = bcm_sysport_rx_refill(priv, cb);
 
-		processed++;
-		priv->rx_read_ptr++;
-
-		if (priv->rx_read_ptr == priv->num_rx_bds)
-			priv->rx_read_ptr = 0;
 
 		/* We do not have a backing SKB, so we do not a corresponding
 		 * DMA mapping for this incoming packet since
@@ -627,11 +624,8 @@ static unsigned int bcm_sysport_desc_rx(struct bcm_sysport_priv *priv,
 			netif_err(priv, rx_err, ndev, "out of memory!\n");
 			ndev->stats.rx_dropped++;
 			ndev->stats.rx_errors++;
-			goto refill;
+			goto next;
 		}
-
-		dma_unmap_single(kdev, dma_unmap_addr(cb, dma_addr),
-				 RX_BUF_LENGTH, DMA_FROM_DEVICE);
 
 		/* Extract the Receive Status Block prepended */
 		rsb = (struct bcm_rsb *)skb->data;
@@ -644,12 +638,20 @@ static unsigned int bcm_sysport_desc_rx(struct bcm_sysport_priv *priv,
 			  p_index, priv->rx_c_index, priv->rx_read_ptr,
 			  len, status);
 
+		if (unlikely(len > RX_BUF_LENGTH)) {
+			netif_err(priv, rx_status, ndev, "oversized packet\n");
+			ndev->stats.rx_length_errors++;
+			ndev->stats.rx_errors++;
+			dev_kfree_skb_any(skb);
+			goto next;
+		}
+
 		if (unlikely(!(status & DESC_EOP) || !(status & DESC_SOP))) {
 			netif_err(priv, rx_status, ndev, "fragmented packet!\n");
 			ndev->stats.rx_dropped++;
 			ndev->stats.rx_errors++;
-			bcm_sysport_free_cb(cb);
-			goto refill;
+			dev_kfree_skb_any(skb);
+			goto next;
 		}
 
 		if (unlikely(status & (RX_STATUS_ERR | RX_STATUS_OVFLOW))) {
@@ -658,8 +660,8 @@ static unsigned int bcm_sysport_desc_rx(struct bcm_sysport_priv *priv,
 				ndev->stats.rx_over_errors++;
 			ndev->stats.rx_dropped++;
 			ndev->stats.rx_errors++;
-			bcm_sysport_free_cb(cb);
-			goto refill;
+			dev_kfree_skb_any(skb);
+			goto next;
 		}
 
 		skb_put(skb, len);
@@ -686,10 +688,12 @@ static unsigned int bcm_sysport_desc_rx(struct bcm_sysport_priv *priv,
 		ndev->stats.rx_bytes += len;
 
 		napi_gro_receive(&priv->napi, skb);
-refill:
-		ret = bcm_sysport_rx_refill(priv, cb);
-		if (ret)
-			priv->mib.alloc_rx_buff_failed++;
+next:
+		processed++;
+		priv->rx_read_ptr++;
+
+		if (priv->rx_read_ptr == priv->num_rx_bds)
+			priv->rx_read_ptr = 0;
 	}
 
 	return processed;
@@ -1330,14 +1334,14 @@ static inline int tdma_enable_set(struct bcm_sysport_priv *priv,
 
 static int bcm_sysport_init_rx_ring(struct bcm_sysport_priv *priv)
 {
+	struct bcm_sysport_cb *cb;
 	u32 reg;
 	int ret;
+	int i;
 
 	/* Initialize SW view of the RX ring */
 	priv->num_rx_bds = NUM_RX_DESC;
 	priv->rx_bds = priv->base + SYS_PORT_RDMA_OFFSET;
-	priv->rx_bd_assign_ptr = priv->rx_bds;
-	priv->rx_bd_assign_index = 0;
 	priv->rx_c_index = 0;
 	priv->rx_read_ptr = 0;
 	priv->rx_cbs = kcalloc(priv->num_rx_bds, sizeof(struct bcm_sysport_cb),
@@ -1345,6 +1349,11 @@ static int bcm_sysport_init_rx_ring(struct bcm_sysport_priv *priv)
 	if (!priv->rx_cbs) {
 		netif_err(priv, hw, priv->netdev, "CB allocation failed\n");
 		return -ENOMEM;
+	}
+
+	for (i = 0; i < priv->num_rx_bds; i++) {
+		cb = priv->rx_cbs + i;
+		cb->bd_addr = priv->rx_bds + i * DESC_SIZE;
 	}
 
 	ret = bcm_sysport_alloc_rx_bufs(priv);
