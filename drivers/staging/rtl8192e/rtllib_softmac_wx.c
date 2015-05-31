@@ -160,7 +160,7 @@ int rtllib_wx_set_wap(struct rtllib_device *ieee,
 
 	if (is_zero_ether_addr(temp->sa_data)) {
 		spin_lock_irqsave(&ieee->lock, flags);
-		memcpy(ieee->current_network.bssid, temp->sa_data, ETH_ALEN);
+		ether_addr_copy(ieee->current_network.bssid, temp->sa_data);
 		ieee->wap_set = 0;
 		spin_unlock_irqrestore(&ieee->lock, flags);
 		ret = -1;
@@ -177,7 +177,7 @@ int rtllib_wx_set_wap(struct rtllib_device *ieee,
 	spin_lock_irqsave(&ieee->lock, flags);
 
 	ieee->cannot_notify = false;
-	memcpy(ieee->current_network.bssid, temp->sa_data, ETH_ALEN);
+	ether_addr_copy(ieee->current_network.bssid, temp->sa_data);
 	ieee->wap_set = !is_zero_ether_addr(temp->sa_data);
 
 	spin_unlock_irqrestore(&ieee->lock, flags);

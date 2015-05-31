@@ -382,7 +382,7 @@ static void rtl8192_read_eeprom_info(struct net_device *dev)
 			*(u16 *)(&dev->dev_addr[i]) = usValue;
 		}
 	} else {
-		memcpy(dev->dev_addr, bMac_Tmp_Addr, 6);
+		ether_addr_copy(dev->dev_addr, bMac_Tmp_Addr);
 	}
 
 	RT_TRACE(COMP_INIT, "Permanent Address = %pM\n",

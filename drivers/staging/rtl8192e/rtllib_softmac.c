@@ -372,7 +372,7 @@ static inline struct sk_buff *rtllib_probe_req(struct rtllib_device *ieee)
 	req->header.duration_id = 0;
 
 	memset(req->header.addr1, 0xff, ETH_ALEN);
-	memcpy(req->header.addr2, ieee->dev->dev_addr, ETH_ALEN);
+	ether_addr_copy(req->header.addr2, ieee->dev->dev_addr);
 	memset(req->header.addr3, 0xff, ETH_ALEN);
 
 	tag = (u8 *) skb_put(skb, len + 2 + rate_len);
@@ -815,9 +815,9 @@ inline struct sk_buff *rtllib_authentication_req(struct rtllib_network *beacon,
 		auth->header.frame_ctl |= cpu_to_le16(RTLLIB_FCTL_WEP);
 
 	auth->header.duration_id = cpu_to_le16(0x013a);
-	memcpy(auth->header.addr1, beacon->bssid, ETH_ALEN);
-	memcpy(auth->header.addr2, ieee->dev->dev_addr, ETH_ALEN);
-	memcpy(auth->header.addr3, beacon->bssid, ETH_ALEN);
+	ether_addr_copy(auth->header.addr1, beacon->bssid);
+	ether_addr_copy(auth->header.addr2, ieee->dev->dev_addr);
+	ether_addr_copy(auth->header.addr3, beacon->bssid);
 	if (ieee->auth_mode == 0)
 		auth->algorithm = WLAN_AUTH_OPEN;
 	else if (ieee->auth_mode == 1)
@@ -909,9 +909,9 @@ static struct sk_buff *rtllib_probe_resp(struct rtllib_device *ieee,
 
 	beacon_buf = (struct rtllib_probe_response *) skb_put(skb,
 		     (beacon_size - ieee->tx_headroom));
-	memcpy(beacon_buf->header.addr1, dest, ETH_ALEN);
-	memcpy(beacon_buf->header.addr2, ieee->dev->dev_addr, ETH_ALEN);
-	memcpy(beacon_buf->header.addr3, ieee->current_network.bssid, ETH_ALEN);
+	ether_addr_copy(beacon_buf->header.addr1, dest);
+	ether_addr_copy(beacon_buf->header.addr2, ieee->dev->dev_addr);
+	ether_addr_copy(beacon_buf->header.addr3, ieee->current_network.bssid);
 
 	beacon_buf->header.duration_id = 0;
 	beacon_buf->beacon_interval =
@@ -1006,9 +1006,9 @@ static struct sk_buff *rtllib_assoc_resp(struct rtllib_device *ieee, u8 *dest)
 		skb_put(skb, sizeof(struct rtllib_assoc_response_frame));
 
 	assoc->header.frame_ctl = cpu_to_le16(RTLLIB_STYPE_ASSOC_RESP);
-	memcpy(assoc->header.addr1, dest, ETH_ALEN);
-	memcpy(assoc->header.addr3, ieee->dev->dev_addr, ETH_ALEN);
-	memcpy(assoc->header.addr2, ieee->dev->dev_addr, ETH_ALEN);
+	ether_addr_copy(assoc->header.addr1, dest);
+	ether_addr_copy(assoc->header.addr3, ieee->dev->dev_addr);
+	ether_addr_copy(assoc->header.addr2, ieee->dev->dev_addr);
 	assoc->capability = cpu_to_le16(ieee->iw_mode == IW_MODE_MASTER ?
 		WLAN_CAPABILITY_ESS : WLAN_CAPABILITY_IBSS);
 
@@ -1063,9 +1063,9 @@ static struct sk_buff *rtllib_auth_resp(struct rtllib_device *ieee, int status,
 	auth->transaction = cpu_to_le16(2);
 	auth->algorithm = cpu_to_le16(WLAN_AUTH_OPEN);
 
-	memcpy(auth->header.addr3, ieee->dev->dev_addr, ETH_ALEN);
-	memcpy(auth->header.addr2, ieee->dev->dev_addr, ETH_ALEN);
-	memcpy(auth->header.addr1, dest, ETH_ALEN);
+	ether_addr_copy(auth->header.addr3, ieee->dev->dev_addr);
+	ether_addr_copy(auth->header.addr2, ieee->dev->dev_addr);
+	ether_addr_copy(auth->header.addr1, dest);
 	auth->header.frame_ctl = cpu_to_le16(RTLLIB_STYPE_AUTH);
 	return skb;
 
@@ -1086,9 +1086,9 @@ static struct sk_buff *rtllib_null_func(struct rtllib_device *ieee, short pwr)
 	hdr = (struct rtllib_hdr_3addr *)skb_put(skb,
 	      sizeof(struct rtllib_hdr_3addr));
 
-	memcpy(hdr->addr1, ieee->current_network.bssid, ETH_ALEN);
-	memcpy(hdr->addr2, ieee->dev->dev_addr, ETH_ALEN);
-	memcpy(hdr->addr3, ieee->current_network.bssid, ETH_ALEN);
+	ether_addr_copy(hdr->addr1, ieee->current_network.bssid);
+	ether_addr_copy(hdr->addr2, ieee->dev->dev_addr);
+	ether_addr_copy(hdr->addr3, ieee->current_network.bssid);
 
 	hdr->frame_ctl = cpu_to_le16(RTLLIB_FTYPE_DATA |
 		RTLLIB_STYPE_NULLFUNC | RTLLIB_FCTL_TODS |
@@ -1113,8 +1113,8 @@ static struct sk_buff *rtllib_pspoll_func(struct rtllib_device *ieee)
 	hdr = (struct rtllib_pspoll_hdr *)skb_put(skb,
 	      sizeof(struct rtllib_pspoll_hdr));
 
-	memcpy(hdr->bssid, ieee->current_network.bssid, ETH_ALEN);
-	memcpy(hdr->ta, ieee->dev->dev_addr, ETH_ALEN);
+	ether_addr_copy(hdr->bssid, ieee->current_network.bssid);
+	ether_addr_copy(hdr->ta, ieee->dev->dev_addr);
 
 	hdr->aid = cpu_to_le16(ieee->assoc_id | 0xc000);
 	hdr->frame_ctl = cpu_to_le16(RTLLIB_FTYPE_CTL | RTLLIB_STYPE_PSPOLL |
@@ -1266,11 +1266,11 @@ inline struct sk_buff *rtllib_association_req(struct rtllib_network *beacon,
 
 	hdr->header.frame_ctl = RTLLIB_STYPE_ASSOC_REQ;
 	hdr->header.duration_id = cpu_to_le16(37);
-	memcpy(hdr->header.addr1, beacon->bssid, ETH_ALEN);
-	memcpy(hdr->header.addr2, ieee->dev->dev_addr, ETH_ALEN);
-	memcpy(hdr->header.addr3, beacon->bssid, ETH_ALEN);
+	ether_addr_copy(hdr->header.addr1, beacon->bssid);
+	ether_addr_copy(hdr->header.addr2, ieee->dev->dev_addr);
+	ether_addr_copy(hdr->header.addr3, beacon->bssid);
 
-	memcpy(ieee->ap_mac_addr, beacon->bssid, ETH_ALEN);
+	ether_addr_copy(ieee->ap_mac_addr, beacon->bssid);
 
 	hdr->capability = cpu_to_le16(WLAN_CAPABILITY_ESS);
 	if (beacon->capability & WLAN_CAPABILITY_PRIVACY)
@@ -1830,7 +1830,7 @@ static int auth_rq_parse(struct sk_buff *skb, u8 *dest)
 	}
 	a = (struct rtllib_authentication *) skb->data;
 
-	memcpy(dest, a->header.addr2, ETH_ALEN);
+	ether_addr_copy(dest, a->header.addr2);
 
 	if (le16_to_cpu(a->algorithm) != WLAN_AUTH_OPEN)
 		return  WLAN_STATUS_NOT_SUPPORTED_AUTH_ALG;
@@ -1858,7 +1858,7 @@ static short probe_rq_parse(struct rtllib_device *ieee, struct sk_buff *skb,
 	if (bssid_match)
 		return -1;
 
-	memcpy(src, header->addr2, ETH_ALEN);
+	ether_addr_copy(src, header->addr2);
 
 	skbend = (u8 *)skb->data + skb->len;
 
@@ -1897,7 +1897,7 @@ static int assoc_rq_parse(struct sk_buff *skb, u8 *dest)
 
 	a = (struct rtllib_assoc_request_frame *) skb->data;
 
-	memcpy(dest, a->header.addr2, ETH_ALEN);
+	ether_addr_copy(dest, a->header.addr2);
 
 	return 0;
 }
@@ -2652,7 +2652,7 @@ void rtllib_start_master_bss(struct rtllib_device *ieee)
 		ieee->ssid_set = 1;
 	}
 
-	memcpy(ieee->current_network.bssid, ieee->dev->dev_addr, ETH_ALEN);
+	ether_addr_copy(ieee->current_network.bssid, ieee->dev->dev_addr);
 
 	ieee->set_chan(ieee->dev, ieee->current_network.channel);
 	ieee->state = RTLLIB_LINKED;
@@ -3519,9 +3519,9 @@ inline struct sk_buff *rtllib_disauth_skb(struct rtllib_network *beacon,
 	disauth->header.frame_ctl = cpu_to_le16(RTLLIB_STYPE_DEAUTH);
 	disauth->header.duration_id = 0;
 
-	memcpy(disauth->header.addr1, beacon->bssid, ETH_ALEN);
-	memcpy(disauth->header.addr2, ieee->dev->dev_addr, ETH_ALEN);
-	memcpy(disauth->header.addr3, beacon->bssid, ETH_ALEN);
+	ether_addr_copy(disauth->header.addr1, beacon->bssid);
+	ether_addr_copy(disauth->header.addr2, ieee->dev->dev_addr);
+	ether_addr_copy(disauth->header.addr3, beacon->bssid);
 
 	disauth->reason = cpu_to_le16(asRsn);
 	return skb;
@@ -3546,9 +3546,9 @@ inline struct sk_buff *rtllib_disassociate_skb(struct rtllib_network *beacon,
 	disass->header.frame_ctl = cpu_to_le16(RTLLIB_STYPE_DISASSOC);
 	disass->header.duration_id = 0;
 
-	memcpy(disass->header.addr1, beacon->bssid, ETH_ALEN);
-	memcpy(disass->header.addr2, ieee->dev->dev_addr, ETH_ALEN);
-	memcpy(disass->header.addr3, beacon->bssid, ETH_ALEN);
+	ether_addr_copy(disass->header.addr1, beacon->bssid);
+	ether_addr_copy(disass->header.addr2, ieee->dev->dev_addr);
+	ether_addr_copy(disass->header.addr3, beacon->bssid);
 
 	disass->reason = cpu_to_le16(asRsn);
 	return skb;

@@ -609,8 +609,8 @@ int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 			goto success;
 		}
 		/* Save source and destination addresses */
-		memcpy(dest, skb->data, ETH_ALEN);
-		memcpy(src, skb->data+ETH_ALEN, ETH_ALEN);
+		ether_addr_copy(dest, skb->data);
+		ether_addr_copy(src, skb->data + ETH_ALEN);
 
 		memset(skb->cb, 0, sizeof(skb->cb));
 		ether_type = ntohs(((struct ethhdr *)skb->data)->h_proto);
@@ -695,22 +695,22 @@ int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 			/* To DS: Addr1 = BSSID, Addr2 = SA,
 			 * Addr3 = DA
 			 */
-			memcpy(&header.addr1, ieee->current_network.bssid,
-			       ETH_ALEN);
-			memcpy(&header.addr2, &src, ETH_ALEN);
+			ether_addr_copy(header.addr1,
+					ieee->current_network.bssid);
+			ether_addr_copy(header.addr2, src);
 			if (IsAmsdu)
-				memcpy(&header.addr3,
-				       ieee->current_network.bssid, ETH_ALEN);
+				ether_addr_copy(header.addr3,
+						ieee->current_network.bssid);
 			else
-				memcpy(&header.addr3, &dest, ETH_ALEN);
+				ether_addr_copy(header.addr3, dest);
 		} else if (ieee->iw_mode == IW_MODE_ADHOC) {
 			/* not From/To DS: Addr1 = DA, Addr2 = SA,
 			 * Addr3 = BSSID
 			 */
-			memcpy(&header.addr1, dest, ETH_ALEN);
-			memcpy(&header.addr2, src, ETH_ALEN);
-			memcpy(&header.addr3, ieee->current_network.bssid,
-			       ETH_ALEN);
+			ether_addr_copy(header.addr1, dest);
+			ether_addr_copy(header.addr2, src);
+			ether_addr_copy(header.addr3,
+					ieee->current_network.bssid);
 		}
 
 		bIsMulticast = is_multicast_ether_addr(header.addr1);

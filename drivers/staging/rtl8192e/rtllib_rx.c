@@ -139,8 +139,8 @@ rtllib_frag_cache_get(struct rtllib_device *ieee,
 		entry->seq = seq;
 		entry->last_frag = frag;
 		entry->skb = skb;
-		memcpy(entry->src_addr, hdr->addr2, ETH_ALEN);
-		memcpy(entry->dst_addr, hdr->addr1, ETH_ALEN);
+		ether_addr_copy(entry->src_addr, hdr->addr2);
+		ether_addr_copy(entry->dst_addr, hdr->addr1);
 	} else {
 		/* received a fragment of a frame for which the head fragment
 		 * should have already been received
@@ -400,7 +400,7 @@ static int is_duplicate_packet(struct rtllib_device *ieee,
 			if (!entry)
 				return 0;
 
-			memcpy(entry->mac, mac, ETH_ALEN);
+			ether_addr_copy(entry->mac, mac);
 			entry->seq_num[tid] = seq;
 			entry->frag_num[tid] = frag;
 			entry->packet_time[tid] = jiffies;
@@ -927,24 +927,24 @@ static void rtllib_rx_extract_addr(struct rtllib_device *ieee,
 
 	switch (fc & (RTLLIB_FCTL_FROMDS | RTLLIB_FCTL_TODS)) {
 	case RTLLIB_FCTL_FROMDS:
-		memcpy(dst, hdr->addr1, ETH_ALEN);
-		memcpy(src, hdr->addr3, ETH_ALEN);
-		memcpy(bssid, hdr->addr2, ETH_ALEN);
+		ether_addr_copy(dst, hdr->addr1);
+		ether_addr_copy(src, hdr->addr3);
+		ether_addr_copy(bssid, hdr->addr2);
 		break;
 	case RTLLIB_FCTL_TODS:
-		memcpy(dst, hdr->addr3, ETH_ALEN);
-		memcpy(src, hdr->addr2, ETH_ALEN);
-		memcpy(bssid, hdr->addr1, ETH_ALEN);
+		ether_addr_copy(dst, hdr->addr3);
+		ether_addr_copy(src, hdr->addr2);
+		ether_addr_copy(bssid, hdr->addr1);
 		break;
 	case RTLLIB_FCTL_FROMDS | RTLLIB_FCTL_TODS:
-		memcpy(dst, hdr->addr3, ETH_ALEN);
-		memcpy(src, hdr->addr4, ETH_ALEN);
-		memcpy(bssid, ieee->current_network.bssid, ETH_ALEN);
+		ether_addr_copy(dst, hdr->addr3);
+		ether_addr_copy(src, hdr->addr4);
+		ether_addr_copy(bssid, ieee->current_network.bssid);
 		break;
 	case 0:
-		memcpy(dst, hdr->addr1, ETH_ALEN);
-		memcpy(src, hdr->addr2, ETH_ALEN);
-		memcpy(bssid, hdr->addr3, ETH_ALEN);
+		ether_addr_copy(dst, hdr->addr1);
+		ether_addr_copy(src, hdr->addr2);
+		ether_addr_copy(bssid, hdr->addr3);
 		break;
 	}
 }
@@ -1218,15 +1218,19 @@ static void rtllib_rx_indicate_pkt_legacy(struct rtllib_device *ieee,
 				 * replace EtherType
 				 */
 				skb_pull(sub_skb, SNAP_SIZE);
-				memcpy(skb_push(sub_skb, ETH_ALEN), src, ETH_ALEN);
-				memcpy(skb_push(sub_skb, ETH_ALEN), dst, ETH_ALEN);
+				ether_addr_copy(skb_push(sub_skb, ETH_ALEN),
+						src);
+				ether_addr_copy(skb_push(sub_skb, ETH_ALEN),
+						dst);
 			} else {
 				u16 len;
 				/* Leave Ethernet header part of hdr and full payload */
 				len = sub_skb->len;
 				memcpy(skb_push(sub_skb, 2), &len, 2);
-				memcpy(skb_push(sub_skb, ETH_ALEN), src, ETH_ALEN);
-				memcpy(skb_push(sub_skb, ETH_ALEN), dst, ETH_ALEN);
+				ether_addr_copy(skb_push(sub_skb, ETH_ALEN),
+						src);
+				ether_addr_copy(skb_push(sub_skb, ETH_ALEN),
+						dst);
 			}
 
 			ieee->stats.rx_packets++;
@@ -2050,7 +2054,7 @@ int rtllib_parse_info_param(struct rtllib_device *ieee,
 					if (network->MBssidMask != 0) {
 						network->bMBssidValid = true;
 						network->MBssidMask = 0xff << (network->MBssidMask);
-						memcpy(network->MBssid, network->bssid, ETH_ALEN);
+						ether_addr_copy(network->MBssid, network->bssid);
 						network->MBssid[5] &= network->MBssidMask;
 					} else {
 						network->bMBssidValid = false;
@@ -2210,7 +2214,7 @@ static inline int rtllib_network_init(
 	memset(&network->qos_data, 0, sizeof(struct rtllib_qos_data));
 
 	/* Pull out fixed field data */
-	memcpy(network->bssid, beacon->header.addr3, ETH_ALEN);
+	ether_addr_copy(network->bssid, beacon->header.addr3);
 	network->capability = le16_to_cpu(beacon->capability);
 	network->last_scanned = jiffies;
 	network->time_stamp[0] = beacon->time_stamp[0];

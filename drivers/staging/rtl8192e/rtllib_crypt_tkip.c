@@ -21,6 +21,7 @@
 #include <linux/crypto.h>
 #include <linux/scatterlist.h>
 #include <linux/crc32.h>
+#include <linux/etherdevice.h>
 
 #include "rtllib.h"
 
@@ -533,20 +534,20 @@ static void michael_mic_hdr(struct sk_buff *skb, u8 *hdr)
 	switch (le16_to_cpu(hdr11->frame_ctl) &
 		(RTLLIB_FCTL_FROMDS | RTLLIB_FCTL_TODS)) {
 	case RTLLIB_FCTL_TODS:
-		memcpy(hdr, hdr11->addr3, ETH_ALEN); /* DA */
-		memcpy(hdr + ETH_ALEN, hdr11->addr2, ETH_ALEN); /* SA */
+		ether_addr_copy(hdr, hdr11->addr3); /* DA */
+		ether_addr_copy(hdr + ETH_ALEN, hdr11->addr2); /* SA */
 		break;
 	case RTLLIB_FCTL_FROMDS:
-		memcpy(hdr, hdr11->addr1, ETH_ALEN); /* DA */
-		memcpy(hdr + ETH_ALEN, hdr11->addr3, ETH_ALEN); /* SA */
+		ether_addr_copy(hdr, hdr11->addr1); /* DA */
+		ether_addr_copy(hdr + ETH_ALEN, hdr11->addr3); /* SA */
 		break;
 	case RTLLIB_FCTL_FROMDS | RTLLIB_FCTL_TODS:
-		memcpy(hdr, hdr11->addr3, ETH_ALEN); /* DA */
-		memcpy(hdr + ETH_ALEN, hdr11->addr4, ETH_ALEN); /* SA */
+		ether_addr_copy(hdr, hdr11->addr3); /* DA */
+		ether_addr_copy(hdr + ETH_ALEN, hdr11->addr4); /* SA */
 		break;
 	case 0:
-		memcpy(hdr, hdr11->addr1, ETH_ALEN); /* DA */
-		memcpy(hdr + ETH_ALEN, hdr11->addr2, ETH_ALEN); /* SA */
+		ether_addr_copy(hdr, hdr11->addr1); /* DA */
+		ether_addr_copy(hdr + ETH_ALEN, hdr11->addr2); /* SA */
 		break;
 	}
 
@@ -599,7 +600,7 @@ static void rtllib_michael_mic_failure(struct net_device *dev,
 	else
 		ev.flags |= IW_MICFAILURE_PAIRWISE;
 	ev.src_addr.sa_family = ARPHRD_ETHER;
-	memcpy(ev.src_addr.sa_data, hdr->addr2, ETH_ALEN);
+	ether_addr_copy(ev.src_addr.sa_data, hdr->addr2);
 	memset(&wrqu, 0, sizeof(wrqu));
 	wrqu.data.length = sizeof(ev);
 	wireless_send_event(dev, IWEVMICHAELMICFAILURE, &wrqu, (char *) &ev);

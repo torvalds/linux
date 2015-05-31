@@ -18,6 +18,7 @@
 ******************************************************************************/
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
+#include <linux/etherdevice.h>
 #include "rtllib.h"
 #include "rtl819x_BA.h"
 
@@ -103,10 +104,10 @@ static struct sk_buff *rtllib_ADDBA(struct rtllib_device *ieee, u8 *Dst,
 	BAReq = (struct rtllib_hdr_3addr *)skb_put(skb,
 		 sizeof(struct rtllib_hdr_3addr));
 
-	memcpy(BAReq->addr1, Dst, ETH_ALEN);
-	memcpy(BAReq->addr2, ieee->dev->dev_addr, ETH_ALEN);
+	ether_addr_copy(BAReq->addr1, Dst);
+	ether_addr_copy(BAReq->addr2, ieee->dev->dev_addr);
 
-	memcpy(BAReq->addr3, ieee->current_network.bssid, ETH_ALEN);
+	ether_addr_copy(BAReq->addr3, ieee->current_network.bssid);
 	BAReq->frame_ctl = cpu_to_le16(RTLLIB_STYPE_MANAGE_ACT);
 
 	tag = (u8 *)skb_put(skb, 9);
@@ -167,9 +168,9 @@ static struct sk_buff *rtllib_DELBA(struct rtllib_device *ieee, u8 *dst,
 	Delba = (struct rtllib_hdr_3addr *) skb_put(skb,
 		 sizeof(struct rtllib_hdr_3addr));
 
-	memcpy(Delba->addr1, dst, ETH_ALEN);
-	memcpy(Delba->addr2, ieee->dev->dev_addr, ETH_ALEN);
-	memcpy(Delba->addr3, ieee->current_network.bssid, ETH_ALEN);
+	ether_addr_copy(Delba->addr1, dst);
+	ether_addr_copy(Delba->addr2, ieee->dev->dev_addr);
+	ether_addr_copy(Delba->addr3, ieee->current_network.bssid);
 	Delba->frame_ctl = cpu_to_le16(RTLLIB_STYPE_MANAGE_ACT);
 
 	tag = (u8 *)skb_put(skb, 6);
