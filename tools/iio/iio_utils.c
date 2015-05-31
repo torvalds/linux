@@ -410,8 +410,10 @@ int build_channel_array(const char *device_dir,
 	return 0;
 
 error_cleanup_array:
-	for (i = count - 1;  i >= 0; i--)
+	for (i = count - 1;  i >= 0; i--) {
 		free((*ci_array)[i].name);
+		free((*ci_array)[i].generic_name);
+	}
 	free(*ci_array);
 error_close_dir:
 	closedir(dp);

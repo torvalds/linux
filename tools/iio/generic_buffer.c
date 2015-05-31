@@ -255,7 +255,7 @@ int main(int argc, char **argv)
 		       "%siio:device%d/buffer", iio_dir, dev_num);
 	if (ret < 0) {
 		ret = -ENOMEM;
-		goto error_free_triggername;
+		goto error_free_channels;
 	}
 
 	if (!notrigger) {
@@ -351,6 +351,12 @@ error_free_data:
 	free(data);
 error_free_buf_dir_name:
 	free(buf_dir_name);
+error_free_channels:
+	for (i = num_channels - 1; i >= 0; i--) {
+		free(channels[i].name);
+		free(channels[i].generic_name);
+	}
+	free(channels);
 error_free_triggername:
 	if (datardytrigger)
 		free(trigger_name);
