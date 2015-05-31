@@ -291,8 +291,8 @@ void HTConstructCapabilityElement(struct rtllib_device *ieee, u8 *posHTCap,
 	struct ht_capab_ele *pCapELE = NULL;
 
 	if ((posHTCap == NULL) || (pHT == NULL)) {
-		RTLLIB_DEBUG(RTLLIB_DL_ERR,
-			     "posHTCap or pHTInfo can't be null in HTConstructCapabilityElement()\n");
+		netdev_warn(ieee->dev,
+			    "%s(): posHTCap and pHTInfo are null\n", __func__);
 		return;
 	}
 	memset(posHTCap, 0, *len);
@@ -373,8 +373,9 @@ void HTConstructInfoElement(struct rtllib_device *ieee, u8 *posHTInfo,
 	struct ht_info_ele *pHTInfoEle = (struct ht_info_ele *)posHTInfo;
 
 	if ((posHTInfo == NULL) || (pHTInfoEle == NULL)) {
-		RTLLIB_DEBUG(RTLLIB_DL_ERR,
-			     "posHTInfo or pHTInfoEle can't be null in HTConstructInfoElement()\n");
+		netdev_warn(ieee->dev,
+			    "%s(): posHTInfo and pHTInfoEle are null\n",
+			    __func__);
 		return;
 	}
 
@@ -413,8 +414,7 @@ void HTConstructRT2RTAggElement(struct rtllib_device *ieee, u8 *posRT2RTAgg,
 				u8 *len)
 {
 	if (posRT2RTAgg == NULL) {
-		RTLLIB_DEBUG(RTLLIB_DL_ERR,
-			     "posRT2RTAgg can't be null in HTConstructRT2RTAggElement()\n");
+		netdev_warn(ieee->dev, "%s(): posRT2RTAgg is null\n", __func__);
 		return;
 	}
 	memset(posRT2RTAgg, 0, *len);
@@ -437,8 +437,7 @@ static u8 HT_PickMCSRate(struct rtllib_device *ieee, u8 *pOperateMCS)
 	u8 i;
 
 	if (pOperateMCS == NULL) {
-		RTLLIB_DEBUG(RTLLIB_DL_ERR,
-			     "pOperateMCS can't be null in HT_PickMCSRate()\n");
+		netdev_warn(ieee->dev, "%s(): pOperateMCS is null\n", __func__);
 		return false;
 	}
 
@@ -472,8 +471,9 @@ u8 HTGetHighestMCSRate(struct rtllib_device *ieee, u8 *pMCSRateSet,
 	u8		availableMcsRate[16];
 
 	if (pMCSRateSet == NULL || pMCSFilter == NULL) {
-		RTLLIB_DEBUG(RTLLIB_DL_ERR,
-			     "pMCSRateSet or pMCSFilter can't be null in HTGetHighestMCSRate()\n");
+		netdev_warn(ieee->dev,
+			    "%s(): pMCSRateSet and pMCSFilter are null\n",
+			    __func__);
 		return false;
 	}
 	for (i = 0; i < 16; i++)
@@ -538,8 +538,7 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 	static u8 EWC11NHTInfo[] = {0x00, 0x90, 0x4c, 0x34};
 
 	if (pHTInfo->bCurrentHTSupport == false) {
-		RTLLIB_DEBUG(RTLLIB_DL_ERR,
-			     "<=== HTOnAssocRsp(): HT_DISABLE\n");
+		netdev_warn(ieee->dev, "%s(): HT_DISABLE\n", __func__);
 		return;
 	}
 	RTLLIB_DEBUG(RTLLIB_DL_HT, "===> HTOnAssocRsp_wq(): HT_ENABLE\n");

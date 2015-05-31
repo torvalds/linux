@@ -654,7 +654,9 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 			 * indicate all the packets in struct buffer and get
 			 * reorder entries.
 			 */
-			RTLLIB_DEBUG(RTLLIB_DL_ERR, "RxReorderIndicatePacket(): There is no reorder entry!! Packet is dropped!!\n");
+			netdev_err(ieee->dev,
+				   "%s(): There is no reorder entry! Packet is dropped!\n",
+				   __func__);
 			{
 				int i;
 
@@ -676,7 +678,9 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 				SN_EQUAL(pReorderEntry->SeqNum, pTS->RxIndicateSeq)) {
 			/* This protect struct buffer from overflow. */
 			if (index >= REORDER_WIN_SIZE) {
-				RTLLIB_DEBUG(RTLLIB_DL_ERR, "RxReorderIndicatePacket(): Buffer overflow!!\n");
+				netdev_err(ieee->dev,
+					   "%s(): Buffer overflow!\n",
+					   __func__);
 				bPktInBuf = true;
 				break;
 			}
@@ -707,7 +711,9 @@ static void RxReorderIndicatePacket(struct rtllib_device *ieee,
 		pTS->RxTimeoutIndicateSeq = 0xffff;
 
 		if (index > REORDER_WIN_SIZE) {
-			RTLLIB_DEBUG(RTLLIB_DL_ERR, "RxReorderIndicatePacket(): Rx Reorder struct buffer full!!\n");
+			netdev_err(ieee->dev,
+				   "%s(): Rx Reorder struct buffer full!\n",
+				   __func__);
 			spin_unlock_irqrestore(&(ieee->reorder_spinlock),
 					       flags);
 			return;
@@ -911,7 +917,8 @@ static int rtllib_rx_check_duplicate(struct rtllib_device *ieee,
 			pRxTS->RxLastFragNum = frag;
 			pRxTS->RxLastSeqNum = WLAN_GET_SEQ_SEQ(sc);
 		} else {
-			RTLLIB_DEBUG(RTLLIB_DL_ERR, "ERR!!%s(): No TS!! Skip the check!!\n", __func__);
+			netdev_warn(ieee->dev, "%s(): No TS! Skip the check!\n",
+				    __func__);
 			return -1;
 		}
 	}

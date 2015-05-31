@@ -2200,8 +2200,8 @@ static void rtllib_process_action(struct rtllib_device *ieee, struct sk_buff *sk
 	u8 category = 0;
 
 	if (act == NULL) {
-		RTLLIB_DEBUG(RTLLIB_DL_ERR,
-			     "error to get payload of action frame\n");
+		netdev_warn(ieee->dev,
+			    "Error getting payload of action frame\n");
 		return;
 	}
 
@@ -3074,7 +3074,7 @@ void rtllib_softmac_init(struct rtllib_device *ieee)
 		ieee->seq_ctrl[i] = 0;
 	ieee->pDot11dInfo = kzalloc(sizeof(struct rt_dot11d_info), GFP_ATOMIC);
 	if (!ieee->pDot11dInfo)
-		RTLLIB_DEBUG(RTLLIB_DL_ERR, "can't alloc memory for DOT11D\n");
+		netdev_err(ieee->dev, "Can't alloc memory for DOT11D\n");
 	ieee->LinkDetectInfo.SlotIndex = 0;
 	ieee->LinkDetectInfo.SlotNum = 2;
 	ieee->LinkDetectInfo.NumRecvBcnInPeriod = 0;

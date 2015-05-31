@@ -78,8 +78,9 @@ static void RxPktPendingTimeout(unsigned long data)
 		pRxTs->RxTimeoutIndicateSeq = 0xffff;
 
 		if (index > REORDER_WIN_SIZE) {
-			RTLLIB_DEBUG(RTLLIB_DL_ERR,
-				     "RxReorderIndicatePacket(): Rx Reorder struct buffer full!!\n");
+			netdev_warn(ieee->dev,
+				    "%s(): Rx Reorder struct buffer full\n",
+				    __func__);
 			spin_unlock_irqrestore(&(ieee->reorder_spinlock),
 					       flags);
 			return;
@@ -318,17 +319,15 @@ bool GetTs(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 	enum direction_value Dir;
 
 	if (is_multicast_ether_addr(Addr)) {
-		RTLLIB_DEBUG(RTLLIB_DL_ERR,
-			     "ERR! get TS for Broadcast or Multicast\n");
+		netdev_warn(ieee->dev, "Get TS for Broadcast or Multicast\n");
 		return false;
 	}
 	if (ieee->current_network.qos_data.supported == 0) {
 		UP = 0;
 	} else {
 		if (!IsACValid(TID)) {
-			RTLLIB_DEBUG(RTLLIB_DL_ERR,
-				     "ERR! in %s(), TID(%d) is not valid\n",
-				     __func__, TID);
+			netdev_warn(ieee->dev, "%s(): TID(%d) is not valid\n",
+				    __func__, TID);
 			return false;
 		}
 
@@ -413,9 +412,9 @@ bool GetTs(struct rtllib_device *ieee, struct ts_common_info **ppTS,
 		return true;
 	}
 
-	RTLLIB_DEBUG(RTLLIB_DL_ERR,
-		     "ERR!!in function %s() There is not enough dir=%d(0=up down=1) TS record to be used!!",
-		     __func__, Dir);
+	netdev_warn(ieee->dev,
+		    "There is not enough dir=%d(0=up down=1) TS record to be used!",
+		    Dir);
 	return false;
 }
 
