@@ -316,12 +316,11 @@ void rtl8192e_SetHwReg(struct net_device *dev, u8 variable, u8 *val)
 static void rtl8192_read_eeprom_info(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-
+	const u8 bMac_Tmp_Addr[ETH_ALEN] = {0x00, 0xe0, 0x4c, 0x00, 0x00, 0x01};
 	u8 tempval;
 	u8 ICVer8192, ICVer8256;
 	u16 i, usValue, IC_Version;
 	u16 EEPROMId;
-	u8 bMac_Tmp_Addr[6] = {0x00, 0xe0, 0x4c, 0x00, 0x00, 0x01};
 
 	RT_TRACE(COMP_INIT, "====> rtl8192_read_eeprom_info\n");
 

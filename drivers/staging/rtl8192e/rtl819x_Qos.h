@@ -255,8 +255,8 @@ union qos_tclas {
 		u8		Priority;
 		u8		ClassifierType;
 		u8		Mask;
-		u8		SrcAddr[6];
-		u8		DstAddr[6];
+		u8		SrcAddr[ETH_ALEN];
+		u8		DstAddr[ETH_ALEN];
 		u16		Type;
 	} TYPE0_ETH;
 

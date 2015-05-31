@@ -987,8 +987,8 @@ static int r8192_wx_set_enc_ext(struct net_device *dev,
 
 	ret = rtllib_wx_set_encode_ext(ieee, info, wrqu, extra);
 	{
-		u8 broadcast_addr[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-		u8 zero[6] = {0};
+		const u8 broadcast_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+		const u8 zero[ETH_ALEN] = {0};
 		u32 key[4] = {0};
 		struct iw_encode_ext *ext = (struct iw_encode_ext *)extra;
 		struct iw_point *encoding = &wrqu->encoding;

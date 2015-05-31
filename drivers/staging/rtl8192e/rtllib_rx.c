@@ -1258,7 +1258,11 @@ static int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 	struct rx_ts_record *pTS = NULL;
 	u16 fc, sc, SeqNum = 0;
 	u8 type, stype, multicast = 0, unicast = 0, nr_subframes = 0, TID = 0;
-	u8 dst[ETH_ALEN], src[ETH_ALEN], bssid[ETH_ALEN] = {0}, *payload;
+	u8 *payload;
+	u8 dst[ETH_ALEN];
+	u8 src[ETH_ALEN];
+	u8 bssid[ETH_ALEN] = {0};
+
 	size_t hdrlen = 0;
 	bool bToOtherSTA = false;
 	int ret = 0, i = 0;

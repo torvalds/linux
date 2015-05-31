@@ -2573,8 +2573,7 @@ static int rtl8192_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	int ret = -1;
 	struct rtllib_device *ieee = priv->rtllib;
 	u32 key[4];
-	u8 broadcast_addr[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-	u8 zero_addr[6] = {0};
+	const u8 broadcast_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	struct iw_point *p = &wrq->u.data;
 	struct ieee_param *ipw = NULL;
 
@@ -2611,8 +2610,7 @@ static int rtl8192_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 				}
 
 				if (ieee->pairwise_key_type) {
-					if (memcmp(ieee->ap_mac_addr, zero_addr,
-					    6) == 0)
+					if (is_zero_ether_addr(ieee->ap_mac_addr))
 						ieee->iw_mode = IW_MODE_ADHOC;
 					memcpy((u8 *)key, ipw->u.crypt.key, 16);
 					EnableHWSecurityConfig8192(dev);

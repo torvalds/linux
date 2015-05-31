@@ -1531,7 +1531,7 @@ struct rtllib_network {
 	u16	CcxRmState[2];
 	bool	bMBssidValid;
 	u8	MBssidMask;
-	u8	MBssid[6];
+	u8	MBssid[ETH_ALEN];
 	bool	bWithCcxVerNum;
 	u8	BssCcxVerNumber;
 	/* These are network statistics */
@@ -1866,7 +1866,7 @@ struct rt_link_detect {
 
 struct sw_cam_table {
 
-	u8				macaddr[6];
+	u8				macaddr[ETH_ALEN];
 	bool				bused;
 	u8				key_buf[16];
 	u16				key_type;
@@ -1912,10 +1912,10 @@ enum ratr_table_mode_8192s {
 
 #define	NUM_PMKID_CACHE		16
 struct rt_pmkid_list {
-	u8 bUsed;
-	u8 Bssid[6];
+	u8 Bssid[ETH_ALEN];
 	u8 PMKID[16];
 	u8 SsidBuf[33];
+	u8 bUsed;
 	u8 *ssid_octet;
 	u16 ssid_length;
 };
@@ -2083,7 +2083,7 @@ struct rtllib_device {
 	u8 *wpa_ie;
 	size_t wps_ie_len;
 	u8 *wps_ie;
-	u8 ap_mac_addr[6];
+	u8 ap_mac_addr[ETH_ALEN];
 	u16 pairwise_key_type;
 	u16 group_key_type;
 

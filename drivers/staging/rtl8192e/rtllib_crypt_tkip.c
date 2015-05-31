@@ -52,7 +52,8 @@ struct rtllib_tkip_data {
 	struct crypto_blkcipher *tx_tfm_arc4;
 	struct crypto_hash *tx_tfm_michael;
 	/* scratch buffers for virt_to_page() (crypto API) */
-	u8 rx_hdr[16], tx_hdr[16];
+	u8 rx_hdr[16];
+	u8 tx_hdr[16];
 };
 
 static void *rtllib_tkip_init(int key_idx)

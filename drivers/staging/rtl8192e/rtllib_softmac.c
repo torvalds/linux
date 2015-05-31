@@ -1957,8 +1957,8 @@ static inline void rtllib_rx_auth_rq(struct rtllib_device *ieee,
 static inline void rtllib_rx_assoc_rq(struct rtllib_device *ieee,
 				      struct sk_buff *skb)
 {
-
 	u8 dest[ETH_ALEN];
+
 
 	ieee->softmac_stats.rx_ass_rq++;
 	if (assoc_rq_parse(skb, dest) != -1)
@@ -2912,7 +2912,7 @@ exit:
 
 struct sk_buff *rtllib_get_beacon_(struct rtllib_device *ieee)
 {
-	u8 broadcast_addr[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+	const u8 broadcast_addr[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
 	struct sk_buff *skb;
 	struct rtllib_probe_response *b;
