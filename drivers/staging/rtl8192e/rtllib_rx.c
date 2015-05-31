@@ -1685,7 +1685,7 @@ static int rtllib_qos_convert_ac_to_parameters(struct rtllib_qos_parameter_info 
 		qos_param->aifs[aci] = (ac_params->aci_aifsn) & 0x0f;
 
 		/* WMM spec P.11: The minimum value for AIFSN shall be 2 */
-		qos_param->aifs[aci] = (qos_param->aifs[aci] < 2) ? 2 : qos_param->aifs[aci];
+		qos_param->aifs[aci] = max_t(u8, qos_param->aifs[aci], 2);
 
 		qos_param->cw_min[aci] = cpu_to_le16(ac_params->ecw_min_max &
 						     0x0F);
