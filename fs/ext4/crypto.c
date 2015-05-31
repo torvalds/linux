@@ -314,6 +314,26 @@ static int ext4_page_crypto(struct ext4_crypto_ctx *ctx,
 	return 0;
 }
 
+static struct page *alloc_bounce_page(struct ext4_crypto_ctx *ctx)
+{
+	struct page *ciphertext_page = alloc_page(GFP_NOFS);
+
+	if (!ciphertext_page) {
+		/* This is a potential bottleneck, but at least we'll have
+		 * forward progress. */
+		ciphertext_page = mempool_alloc(ext4_bounce_page_pool,
+						 GFP_NOFS);
+		if (ciphertext_page == NULL)
+			return ERR_PTR(-ENOMEM);
+		ctx->flags &= ~EXT4_BOUNCE_PAGE_REQUIRES_FREE_ENCRYPT_FL;
+	} else {
+		ctx->flags |= EXT4_BOUNCE_PAGE_REQUIRES_FREE_ENCRYPT_FL;
+	}
+	ctx->flags |= EXT4_WRITE_PATH_FL;
+	ctx->w.bounce_page = ciphertext_page;
+	return ciphertext_page;
+}
+
 /**
  * ext4_encrypt() - Encrypts a page
  * @inode:          The inode for which the encryption should take place
@@ -343,28 +363,17 @@ struct page *ext4_encrypt(struct inode *inode,
 		return (struct page *) ctx;
 
 	/* The encryption operation will require a bounce page. */
-	ciphertext_page = alloc_page(GFP_NOFS);
-	if (!ciphertext_page) {
-		/* This is a potential bottleneck, but at least we'll have
-		 * forward progress. */
-		ciphertext_page = mempool_alloc(ext4_bounce_page_pool,
-						 GFP_NOFS);
-		if (WARN_ON_ONCE(!ciphertext_page)) {
-			ciphertext_page = mempool_alloc(ext4_bounce_page_pool,
-							 GFP_NOFS | __GFP_WAIT);
-		}
-		ctx->flags &= ~EXT4_BOUNCE_PAGE_REQUIRES_FREE_ENCRYPT_FL;
-	} else {
-		ctx->flags |= EXT4_BOUNCE_PAGE_REQUIRES_FREE_ENCRYPT_FL;
-	}
-	ctx->flags |= EXT4_WRITE_PATH_FL;
-	ctx->w.bounce_page = ciphertext_page;
+	ciphertext_page = alloc_bounce_page(ctx);
+	if (IS_ERR(ciphertext_page))
+		goto errout;
 	ctx->w.control_page = plaintext_page;
 	err = ext4_page_crypto(ctx, inode, EXT4_ENCRYPT, plaintext_page->index,
 			       plaintext_page, ciphertext_page);
 	if (err) {
+		ciphertext_page = ERR_PTR(err);
+	errout:
 		ext4_release_crypto_ctx(ctx);
-		return ERR_PTR(err);
+		return ciphertext_page;
 	}
 	SetPagePrivate(ciphertext_page);
 	set_page_private(ciphertext_page, (unsigned long)ctx);
@@ -424,21 +433,11 @@ int ext4_encrypted_zeroout(struct inode *inode, struct ext4_extent *ex)
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
-	ciphertext_page = alloc_page(GFP_NOFS);
-	if (!ciphertext_page) {
-		/* This is a potential bottleneck, but at least we'll have
-		 * forward progress. */
-		ciphertext_page = mempool_alloc(ext4_bounce_page_pool,
-						 GFP_NOFS);
-		if (WARN_ON_ONCE(!ciphertext_page)) {
-			ciphertext_page = mempool_alloc(ext4_bounce_page_pool,
-							 GFP_NOFS | __GFP_WAIT);
-		}
-		ctx->flags &= ~EXT4_BOUNCE_PAGE_REQUIRES_FREE_ENCRYPT_FL;
-	} else {
-		ctx->flags |= EXT4_BOUNCE_PAGE_REQUIRES_FREE_ENCRYPT_FL;
+	ciphertext_page = alloc_bounce_page(ctx);
+	if (IS_ERR(ciphertext_page)) {
+		err = PTR_ERR(ciphertext_page);
+		goto errout;
 	}
-	ctx->w.bounce_page = ciphertext_page;
 
 	while (len--) {
 		err = ext4_page_crypto(ctx, inode, EXT4_ENCRYPT, lblk,
@@ -460,6 +459,7 @@ int ext4_encrypted_zeroout(struct inode *inode, struct ext4_extent *ex)
 			goto errout;
 		}
 		err = submit_bio_wait(WRITE, bio);
+		bio_put(bio);
 		if (err)
 			goto errout;
 	}
