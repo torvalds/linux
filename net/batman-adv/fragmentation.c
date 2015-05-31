@@ -1,4 +1,4 @@
-/* Copyright (C) 2013-2014 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2013-2015 B.A.T.M.A.N. contributors:
  *
  * Martin Hundebøll <martin@hundeboll.net>
  *
@@ -161,6 +161,7 @@ static bool batadv_frag_insert_packet(struct batadv_orig_node *orig_node,
 		hlist_add_head(&frag_entry_new->list, &chain->head);
 		chain->size = skb->len - hdr_size;
 		chain->timestamp = jiffies;
+		chain->total_size = ntohs(frag_packet->total_size);
 		ret = true;
 		goto out;
 	}
@@ -195,9 +196,11 @@ static bool batadv_frag_insert_packet(struct batadv_orig_node *orig_node,
 
 out:
 	if (chain->size > batadv_frag_size_limit() ||
-	    ntohs(frag_packet->total_size) > batadv_frag_size_limit()) {
+	    chain->total_size != ntohs(frag_packet->total_size) ||
+	    chain->total_size > batadv_frag_size_limit()) {
 		/* Clear chain if total size of either the list or the packet
-		 * exceeds the maximum size of one merged packet.
+		 * exceeds the maximum size of one merged packet. Don't allow
+		 * packets to have different total_size.
 		 */
 		batadv_frag_clear_chain(&chain->head);
 		chain->size = 0;
@@ -228,18 +231,12 @@ err:
  * Returns the merged skb or NULL on error.
  */
 static struct sk_buff *
-batadv_frag_merge_packets(struct hlist_head *chain, struct sk_buff *skb)
+batadv_frag_merge_packets(struct hlist_head *chain)
 {
 	struct batadv_frag_packet *packet;
 	struct batadv_frag_list_entry *entry;
 	struct sk_buff *skb_out = NULL;
 	int size, hdr_size = sizeof(struct batadv_frag_packet);
-
-	/* Make sure incoming skb has non-bogus data. */
-	packet = (struct batadv_frag_packet *)skb->data;
-	size = ntohs(packet->total_size);
-	if (size > batadv_frag_size_limit())
-		goto free;
 
 	/* Remove first entry, as this is the destination for the rest of the
 	 * fragments.
@@ -248,6 +245,9 @@ batadv_frag_merge_packets(struct hlist_head *chain, struct sk_buff *skb)
 	hlist_del(&entry->list);
 	skb_out = entry->skb;
 	kfree(entry);
+
+	packet = (struct batadv_frag_packet *)skb_out->data;
+	size = ntohs(packet->total_size);
 
 	/* Make room for the rest of the fragments. */
 	if (pskb_expand_head(skb_out, 0, size - skb_out->len, GFP_ATOMIC) < 0) {
@@ -304,7 +304,7 @@ bool batadv_frag_skb_buffer(struct sk_buff **skb,
 	if (hlist_empty(&head))
 		goto out;
 
-	skb_out = batadv_frag_merge_packets(&head, *skb);
+	skb_out = batadv_frag_merge_packets(&head);
 	if (!skb_out)
 		goto out_err;
 
