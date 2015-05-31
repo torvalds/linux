@@ -221,8 +221,6 @@ int lprocfs_write_frac_helper(const char __user *buffer, unsigned long count,
 }
 EXPORT_SYMBOL(lprocfs_write_frac_helper);
 
-#if defined (CONFIG_PROC_FS)
-
 static int lprocfs_no_percpu_stats;
 module_param(lprocfs_no_percpu_stats, int, 0644);
 MODULE_PARM_DESC(lprocfs_no_percpu_stats, "Do not alloc percpu data for lprocfs stats");
@@ -265,29 +263,6 @@ struct dentry *ldebugfs_add_simple(struct dentry *root,
 	return entry;
 }
 EXPORT_SYMBOL(ldebugfs_add_simple);
-
-struct proc_dir_entry *lprocfs_add_simple(struct proc_dir_entry *root,
-				     char *name, void *data,
-				     struct file_operations *fops)
-{
-	struct proc_dir_entry *proc;
-	umode_t mode = 0;
-
-	if (root == NULL || name == NULL || fops == NULL)
-		return ERR_PTR(-EINVAL);
-
-	if (fops->read)
-		mode = 0444;
-	if (fops->write)
-		mode |= 0200;
-	proc = proc_create_data(name, mode, root, fops, data);
-	if (!proc) {
-		CERROR("LprocFS: No memory to create /proc entry %s", name);
-		return ERR_PTR(-ENOMEM);
-	}
-	return proc;
-}
-EXPORT_SYMBOL(lprocfs_add_simple);
 
 struct dentry *ldebugfs_add_symlink(const char *name, struct dentry *parent,
 				    const char *format, ...)
@@ -352,66 +327,12 @@ int ldebugfs_add_vars(struct dentry *parent,
 }
 EXPORT_SYMBOL(ldebugfs_add_vars);
 
-/**
- * Add /proc entries.
- *
- * \param root [in]  The parent proc entry on which new entry will be added.
- * \param list [in]  Array of proc entries to be added.
- * \param data [in]  The argument to be passed when entries read/write routines
- *		   are called through /proc file.
- *
- * \retval 0   on success
- *	 < 0 on error
- */
-int lprocfs_add_vars(struct proc_dir_entry *root, struct lprocfs_vars *list,
-		     void *data)
-{
-	if (root == NULL || list == NULL)
-		return -EINVAL;
-
-	while (list->name != NULL) {
-		struct proc_dir_entry *proc;
-		umode_t mode = 0;
-
-		if (list->proc_mode != 0000) {
-			mode = list->proc_mode;
-		} else if (list->fops) {
-			if (list->fops->read)
-				mode = 0444;
-			if (list->fops->write)
-				mode |= 0200;
-		}
-		proc = proc_create_data(list->name, mode, root,
-					list->fops ?: &lprocfs_generic_fops,
-					list->data ?: data);
-		if (proc == NULL)
-			return -ENOMEM;
-		list++;
-	}
-	return 0;
-}
-EXPORT_SYMBOL(lprocfs_add_vars);
-
 void ldebugfs_remove(struct dentry **entryp)
 {
 	debugfs_remove(*entryp);
 	*entryp = NULL;
 }
 EXPORT_SYMBOL(ldebugfs_remove);
-
-void lprocfs_remove(struct proc_dir_entry **rooth)
-{
-	proc_remove(*rooth);
-	*rooth = NULL;
-}
-EXPORT_SYMBOL(lprocfs_remove);
-
-void lprocfs_remove_proc_entry(const char *name, struct proc_dir_entry *parent)
-{
-	LASSERT(parent != NULL);
-	remove_proc_entry(name, parent);
-}
-EXPORT_SYMBOL(lprocfs_remove_proc_entry);
 
 struct dentry *ldebugfs_register(const char *name,
 				 struct dentry *parent,
@@ -438,30 +359,6 @@ out:
 	return entry;
 }
 EXPORT_SYMBOL(ldebugfs_register);
-
-struct proc_dir_entry *lprocfs_register(const char *name,
-					struct proc_dir_entry *parent,
-					struct lprocfs_vars *list, void *data)
-{
-	struct proc_dir_entry *entry;
-
-	entry = proc_mkdir(name, parent);
-	if (entry == NULL) {
-		entry = ERR_PTR(-ENOMEM);
-		goto out;
-	}
-
-	if (list != NULL) {
-		int rc = lprocfs_add_vars(entry, list, data);
-		if (rc != 0) {
-			lprocfs_remove(&entry);
-			entry = ERR_PTR(rc);
-		}
-	}
-out:
-	return entry;
-}
-EXPORT_SYMBOL(lprocfs_register);
 
 /* Generic callbacks */
 int lprocfs_rd_uint(struct seq_file *m, void *data)
@@ -1337,7 +1234,7 @@ static int lprocfs_stats_seq_open(struct inode *inode, struct file *file)
 		return rc;
 
 	seq = file->private_data;
-	seq->private = inode->i_private ?: PDE_DATA(inode);
+	seq->private = inode->i_private;
 
 	return 0;
 }
@@ -1366,21 +1263,6 @@ int ldebugfs_register_stats(struct dentry *parent, const char *name,
 	return 0;
 }
 EXPORT_SYMBOL(ldebugfs_register_stats);
-
-int lprocfs_register_stats(struct proc_dir_entry *root, const char *name,
-			   struct lprocfs_stats *stats)
-{
-	struct proc_dir_entry *entry;
-	LASSERT(root != NULL);
-
-	entry = proc_create_data(name, 0644, root,
-				 &lprocfs_stats_seq_fops, stats);
-	if (entry == NULL)
-		return -ENOMEM;
-
-	return 0;
-}
-EXPORT_SYMBOL(lprocfs_register_stats);
 
 void lprocfs_counter_init(struct lprocfs_stats *stats, int index,
 			  unsigned conf, const char *name, const char *units)
@@ -1854,35 +1736,16 @@ int ldebugfs_seq_create(struct dentry *parent,
 }
 EXPORT_SYMBOL(ldebugfs_seq_create);
 
-int lprocfs_seq_create(struct proc_dir_entry *parent,
-		       const char *name,
-		       umode_t mode,
-		       const struct file_operations *seq_fops,
-		       void *data)
-{
-	struct proc_dir_entry *entry;
-
-	/* Disallow secretly (un)writable entries. */
-	LASSERT((seq_fops->write == NULL) == ((mode & 0222) == 0));
-	entry = proc_create_data(name, mode, parent, seq_fops, data);
-
-	if (entry == NULL)
-		return -ENOMEM;
-
-	return 0;
-}
-EXPORT_SYMBOL(lprocfs_seq_create);
-
-int lprocfs_obd_seq_create(struct obd_device *dev,
-			   const char *name,
-			   umode_t mode,
-			   const struct file_operations *seq_fops,
-			   void *data)
+int ldebugfs_obd_seq_create(struct obd_device *dev,
+			    const char *name,
+			    umode_t mode,
+			    const struct file_operations *seq_fops,
+			    void *data)
 {
 	return ldebugfs_seq_create(dev->obd_debugfs_entry, name,
 				   mode, seq_fops, data);
 }
-EXPORT_SYMBOL(lprocfs_obd_seq_create);
+EXPORT_SYMBOL(ldebugfs_obd_seq_create);
 
 void lprocfs_oh_tally(struct obd_histogram *oh, unsigned int value)
 {
@@ -1937,8 +1800,6 @@ int lprocfs_obd_rd_max_pages_per_rpc(struct seq_file *m, void *data)
 	return 0;
 }
 EXPORT_SYMBOL(lprocfs_obd_rd_max_pages_per_rpc);
-
-#endif
 
 ssize_t lustre_attr_show(struct kobject *kobj,
 			 struct attribute *attr, char *buf)

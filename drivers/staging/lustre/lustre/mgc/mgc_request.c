@@ -448,7 +448,6 @@ static int config_log_end(char *logname, struct config_llog_instance *cfg)
 	return rc;
 }
 
-#if defined (CONFIG_PROC_FS)
 int lprocfs_mgc_rd_ir_state(struct seq_file *m, void *data)
 {
 	struct obd_device       *obd = data;
@@ -477,7 +476,6 @@ int lprocfs_mgc_rd_ir_state(struct seq_file *m, void *data)
 	LPROCFS_CLIMP_EXIT(obd);
 	return 0;
 }
-#endif
 
 /* reenqueue any lost locks */
 #define RQ_RUNNING 0x1

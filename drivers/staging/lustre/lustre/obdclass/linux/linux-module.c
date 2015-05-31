@@ -53,7 +53,6 @@
 #include <linux/fcntl.h>
 #include <linux/delay.h>
 #include <linux/skbuff.h>
-#include <linux/proc_fs.h>
 #include <linux/fs.h>
 #include <linux/poll.h>
 #include <linux/list.h>

@@ -955,7 +955,7 @@ void ldlm_namespace_free_post(struct ldlm_namespace *ns)
  * proc1: destroy import
  *	class_disconnect_export(grab cl_sem) ->
  *	      -> ldlm_namespace_free ->
- *	      -> lprocfs_remove(grab _lprocfs_lock).
+ *	      -> ldebugfs_remove(grab _lprocfs_lock).
  * proc2: read proc info
  *	lprocfs_fops_read(grab _lprocfs_lock) ->
  *	      -> osc_rd_active, etc(grab cl_sem).

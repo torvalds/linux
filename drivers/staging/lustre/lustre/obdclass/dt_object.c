@@ -49,8 +49,6 @@
 /* fid_be_to_cpu() */
 #include "../include/lustre_fid.h"
 
-#include "../include/lustre_quota.h"
-
 /* context key constructor/destructor: dt_global_key_init, dt_global_key_fini */
 LU_KEY_INIT(dt_global, struct dt_thread_info);
 LU_KEY_FINI(dt_global, struct dt_thread_info);
@@ -939,8 +937,6 @@ out:
 }
 EXPORT_SYMBOL(dt_index_read);
 
-#if defined (CONFIG_PROC_FS)
-
 int lprocfs_dt_rd_blksize(char *page, char **start, off_t off,
 			  int count, int *eof, void *data)
 {
@@ -1055,5 +1051,3 @@ int lprocfs_dt_rd_filesfree(char *page, char **start, off_t off,
 	return rc;
 }
 EXPORT_SYMBOL(lprocfs_dt_rd_filesfree);
-
-#endif /* CONFIG_PROC_FS */

@@ -152,7 +152,6 @@ cfs_hash_ops_t pool_hash_operations = {
 
 };
 
-#if defined (CONFIG_PROC_FS)
 /* ifdef needed for liblustre support */
 /*
  * pool /proc seq_file methods
@@ -294,7 +293,6 @@ static struct file_operations pool_proc_operations = {
 	.llseek	 = seq_lseek,
 	.release	= seq_release,
 };
-#endif /* CONFIG_PROC_FS */
 
 void lov_dump_pool(int level, struct pool_desc *pool)
 {

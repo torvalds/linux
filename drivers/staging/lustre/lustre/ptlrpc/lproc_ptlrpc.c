@@ -256,7 +256,6 @@ ptlrpc_ldebugfs_register(struct dentry *root, char *dir,
 	}
 }
 
-#if defined(CONFIG_PROC_FS)
 static int
 ptlrpc_lprocfs_req_history_len_seq_show(struct seq_file *m, void *v)
 {
@@ -1237,7 +1236,7 @@ int lprocfs_wr_evict_client(struct file *file, const char __user *buffer,
 	/* Kludge code(deadlock situation): the lprocfs lock has been held
 	 * since the client is evicted by writing client's
 	 * uuid/nid to procfs "evict_client" entry. However,
-	 * obd_export_evict_by_uuid() will call lprocfs_remove() to destroy
+	 * obd_export_evict_by_uuid() will call ldebugfs_remove() to destroy
 	 * the proc entries under the being destroyed export{}, so I have
 	 * to drop the lock at first here.
 	 * - jay, jxiong@clusterfs.com */
@@ -1390,5 +1389,3 @@ int lprocfs_wr_pinger_recov(struct file *file, const char __user *buffer,
 
 }
 EXPORT_SYMBOL(lprocfs_wr_pinger_recov);
-
-#endif /* CONFIG_PROC_FS */

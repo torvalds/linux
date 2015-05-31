@@ -509,7 +509,6 @@ extern atomic_t libcfs_kmemory;
 
 extern void obd_update_maxusage(void);
 
-#if defined (CONFIG_PROC_FS)
 #define obd_memory_add(size)						  \
 	lprocfs_counter_add(obd_memory, OBD_MEMORY_STAT, (long)(size))
 #define obd_memory_sub(size)						  \
@@ -529,46 +528,6 @@ extern void obd_update_maxusage(void);
 
 extern __u64 obd_memory_max(void);
 extern __u64 obd_pages_max(void);
-
-#else
-
-extern __u64 obd_alloc;
-extern __u64 obd_pages;
-
-extern __u64 obd_max_alloc;
-extern __u64 obd_max_pages;
-
-static inline void obd_memory_add(long size)
-{
-	obd_alloc += size;
-	if (obd_alloc > obd_max_alloc)
-		obd_max_alloc = obd_alloc;
-}
-
-static inline void obd_memory_sub(long size)
-{
-	obd_alloc -= size;
-}
-
-static inline void obd_pages_add(int order)
-{
-	obd_pages += 1<< order;
-	if (obd_pages > obd_max_pages)
-		obd_max_pages = obd_pages;
-}
-
-static inline void obd_pages_sub(int order)
-{
-	obd_pages -= 1<< order;
-}
-
-#define obd_memory_sum() (obd_alloc)
-#define obd_pages_sum()  (obd_pages)
-
-#define obd_memory_max() (obd_max_alloc)
-#define obd_pages_max() (obd_max_pages)
-
-#endif
 
 #define OBD_DEBUG_MEMUSAGE (1)
 

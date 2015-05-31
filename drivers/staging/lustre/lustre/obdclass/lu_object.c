@@ -1989,14 +1989,10 @@ void lu_global_fini(void)
 
 static __u32 ls_stats_read(struct lprocfs_stats *stats, int idx)
 {
-#if defined (CONFIG_PROC_FS)
 	struct lprocfs_counter ret;
 
 	lprocfs_stats_collect(stats, idx, &ret);
 	return (__u32)ret.lc_count;
-#else
-	return 0;
-#endif
 }
 
 /**

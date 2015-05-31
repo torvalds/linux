@@ -49,7 +49,6 @@
 #include <linux/file.h>
 #include <linux/list.h>
 
-#include <linux/proc_fs.h>
 #include <linux/sysctl.h>
 
 # define DEBUG_SUBSYSTEM S_LNET

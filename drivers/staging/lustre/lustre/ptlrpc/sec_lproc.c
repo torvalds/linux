@@ -144,16 +144,16 @@ int sptlrpc_lprocfs_cliobd_attach(struct obd_device *dev)
 		return -EINVAL;
 	}
 
-	rc = lprocfs_obd_seq_create(dev, "srpc_info", 0444,
-				    &sptlrpc_info_lprocfs_fops, dev);
+	rc = ldebugfs_obd_seq_create(dev, "srpc_info", 0444,
+				     &sptlrpc_info_lprocfs_fops, dev);
 	if (rc) {
 		CERROR("create proc entry srpc_info for %s: %d\n",
 		       dev->obd_name, rc);
 		return rc;
 	}
 
-	rc = lprocfs_obd_seq_create(dev, "srpc_contexts", 0444,
-				    &sptlrpc_ctxs_lprocfs_fops, dev);
+	rc = ldebugfs_obd_seq_create(dev, "srpc_contexts", 0444,
+				     &sptlrpc_ctxs_lprocfs_fops, dev);
 	if (rc) {
 		CERROR("create proc entry srpc_contexts for %s: %d\n",
 		       dev->obd_name, rc);

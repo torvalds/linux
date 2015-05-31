@@ -139,14 +139,7 @@ int class_add_conn(struct obd_device *obd, struct lustre_cfg *lcfg);
 int class_add_uuid(const char *uuid, __u64 nid);
 
 /*obdecho*/
-#if defined (CONFIG_PROC_FS)
 extern void lprocfs_echo_init_vars(struct lprocfs_static_vars *lvars);
-#else
-static inline void lprocfs_echo_init_vars(struct lprocfs_static_vars *lvars)
-{
-	memset(lvars, 0, sizeof(*lvars));
-}
-#endif
 
 #define CFG_F_START     0x01   /* Set when we start updating from a log */
 #define CFG_F_MARKER    0x02   /* We are within a maker */
@@ -356,7 +349,6 @@ static inline int obd_check_dev_active(struct obd_device *obd)
 	return rc;
 }
 
-#if defined (CONFIG_PROC_FS)
 #define OBD_COUNTER_OFFSET(op)				  \
 	((offsetof(struct obd_ops, o_ ## op) -		  \
 	  offsetof(struct obd_ops, o_iocontrol))		\
@@ -406,13 +398,6 @@ static inline int obd_check_dev_active(struct obd_device *obd)
 				(export)->exp_md_stats, coffset);	    \
 	}
 
-#else
-#define OBD_COUNTER_OFFSET(op)
-#define OBD_COUNTER_INCREMENT(obd, op)
-#define EXP_COUNTER_INCREMENT(exp, op)
-#define MD_COUNTER_INCREMENT(obd, op)
-#define EXP_MD_COUNTER_INCREMENT(exp, op)
-#endif
 
 #define OBD_CHECK_MD_OP(obd, op, err)			   \
 do {							    \

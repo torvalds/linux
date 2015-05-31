@@ -663,7 +663,6 @@ void ll_ra_read_ex(struct file *f, struct ll_ra_read *rar);
 struct ll_ra_read *ll_ra_read_get(struct file *f);
 
 /* llite/lproc_llite.c */
-#if defined (CONFIG_PROC_FS)
 int ldebugfs_register_mountpoint(struct dentry *parent,
 				 struct super_block *sb, char *osc, char *mdc);
 void ldebugfs_unregister_mountpoint(struct ll_sb_info *sbi);
@@ -672,26 +671,6 @@ void lprocfs_llite_init_vars(struct lprocfs_static_vars *lvars);
 void ll_rw_stats_tally(struct ll_sb_info *sbi, pid_t pid,
 		       struct ll_file_data *file, loff_t pos,
 		       size_t count, int rw);
-#else /* CONFIG_PROC_FS */
-static inline
-int ldebugfs_register_mountpoint(struct dentry *parent,
-				 struct super_block *sb, char *osc, char *mdc)
-{ return 0; }
-static inline
-void ldebugfs_unregister_mountpoint(struct ll_sb_info *sbi)
-{}
-static inline
-void ll_stats_ops_tally(struct ll_sb_info *sbi, int op, int count)
-{}
-static inline void lprocfs_llite_init_vars(struct lprocfs_static_vars *lvars)
-{
-	memset(lvars, 0, sizeof(*lvars));
-}
-static inline void ll_rw_stats_tally(struct ll_sb_info *sbi, pid_t pid,
-				     struct ll_file_data *file, loff_t pos,
-				     size_t count, int rw) {}
-#endif /* CONFIG_PROC_FS */
-
 
 /* llite/dir.c */
 void ll_release_page(struct page *page, int remove);

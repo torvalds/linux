@@ -534,7 +534,7 @@ static int vvp_dump_pgcache_seq_open(struct inode *inode, struct file *filp)
 		return rc;
 
 	seq = filp->private_data;
-	seq->private = inode->i_private ?: PDE_DATA(inode);
+	seq->private = inode->i_private;
 
 	return 0;
 }

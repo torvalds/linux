@@ -71,10 +71,6 @@ struct lu_fld_target {
 
 struct lu_server_fld {
 	/**
-	 * Fld dir proc entry. */
-	struct proc_dir_entry    *lsf_proc_dir;
-
-	/**
 	 * /fld file object device */
 	struct dt_object	*lsf_obj;
 
