@@ -28,6 +28,7 @@
 #include <linux/of.h>
 #include <linux/of_net.h>
 #include <linux/of_device.h>
+#include <linux/of_mdio.h>
 
 #include "stmmac.h"
 #include "stmmac_platform.h"
@@ -144,13 +145,24 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 	/* Default to phy auto-detection */
 	plat->phy_addr = -1;
 
+	/* If we find a phy-handle property, use it as the PHY */
+	plat->phy_node = of_parse_phandle(np, "phy-handle", 0);
+
+	/* If phy-handle is not specified, check if we have a fixed-phy */
+	if (!plat->phy_node && of_phy_is_fixed_link(np)) {
+		if ((of_phy_register_fixed_link(np) < 0))
+			return -ENODEV;
+
+		plat->phy_node = of_node_get(np);
+	}
+
 	/* "snps,phy-addr" is not a standard property. Mark it as deprecated
 	 * and warn of its use. Remove this when phy node support is added.
 	 */
 	if (of_property_read_u32(np, "snps,phy-addr", &plat->phy_addr) == 0)
 		dev_warn(&pdev->dev, "snps,phy-addr property is deprecated\n");
 
-	if (plat->phy_bus_name)
+	if (plat->phy_node || plat->phy_bus_name)
 		plat->mdio_bus_data = NULL;
 	else
 		plat->mdio_bus_data =
@@ -208,8 +220,10 @@ static int stmmac_probe_config_dt(struct platform_device *pdev,
 	if (of_find_property(np, "snps,pbl", NULL)) {
 		dma_cfg = devm_kzalloc(&pdev->dev, sizeof(*dma_cfg),
 				       GFP_KERNEL);
-		if (!dma_cfg)
+		if (!dma_cfg) {
+			of_node_put(np);
 			return -ENOMEM;
+		}
 		plat->dma_cfg = dma_cfg;
 		of_property_read_u32(np, "snps,pbl", &dma_cfg->pbl);
 		dma_cfg->fixed_burst =
