@@ -4,7 +4,7 @@
 <itemizedlist>
     <listitem>Terrestrial systems: DVB-T, DVB-T2, ATSC, ATSC M/H, ISDB-T, DVB-H, DTMB, CMMB</listitem>
     <listitem>Cable systems: DVB-C Annex A/C, ClearQAM (DVB-C Annex B), ISDB-C</listitem>
-    <listitem>Satellital systems: DVB-S, DVB-S2, DVB Turbo, ISDB-S, DSS</listitem>
+    <listitem>Satellite systems: DVB-S, DVB-S2, DVB Turbo, ISDB-S, DSS</listitem>
 </itemizedlist>
 <para>The DVB frontend controls several sub-devices including:</para>
 <itemizedlist>
@@ -21,7 +21,7 @@
 
 <para>NOTE: Transmission via the internet (DVB-IP)
     is not yet handled by this API but a future extension is possible.</para>
-<para>On Satellital systems, the API support for the Satellite Equipment Control
+<para>On Satellite systems, the API support for the Satellite Equipment Control
     (SEC) allows to power control and to send/receive signals to control the
     antenna subsystem, selecting the polarization and choosing the Intermediate
     Frequency IF) of the Low Noise Block Converter Feed Horn (LNBf). It

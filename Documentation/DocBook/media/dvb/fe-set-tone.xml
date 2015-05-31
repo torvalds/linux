@@ -49,7 +49,7 @@
 
 <para>This ioctl is used to set the generation of the continuous 22kHz tone.
     This call requires read/write permissions.</para>
-<para>Usually, satellital antenna subsystems require that the digital TV
+<para>Usually, satellite antenna subsystems require that the digital TV
     device to send a 22kHz tone in order to select between high/low band on
     some dual-band LNBf. It is also used to send signals to DiSEqC equipment,
     but this is done using the DiSEqC ioctls.</para>
