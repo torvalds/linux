@@ -398,7 +398,7 @@ static ssize_t store_no_turbo(struct kobject *a, struct attribute *b,
 
 	update_turbo_state();
 	if (limits.turbo_disabled) {
-		pr_warn("Turbo disabled by BIOS or unavailable on processor\n");
+		pr_warn("intel_pstate: Turbo disabled by BIOS or unavailable on processor\n");
 		return -EPERM;
 	}
 
@@ -486,7 +486,7 @@ static void __init intel_pstate_sysfs_expose_params(void)
 static void intel_pstate_hwp_enable(void)
 {
 	hwp_active++;
-	pr_info("intel_pstate HWP enabled\n");
+	pr_info("intel_pstate: HWP enabled\n");
 
 	wrmsrl( MSR_PM_ENABLE, 0x1);
 }
@@ -946,7 +946,7 @@ static int intel_pstate_init_cpu(unsigned int cpunum)
 
 	add_timer_on(&cpu->timer, cpunum);
 
-	pr_debug("Intel pstate controlling: cpu %d\n", cpunum);
+	pr_debug("intel_pstate: controlling: cpu %d\n", cpunum);
 
 	return 0;
 }
@@ -1012,7 +1012,7 @@ static void intel_pstate_stop_cpu(struct cpufreq_policy *policy)
 	int cpu_num = policy->cpu;
 	struct cpudata *cpu = all_cpu_data[cpu_num];
 
-	pr_info("intel_pstate CPU %d exiting\n", cpu_num);
+	pr_debug("intel_pstate: CPU %d exiting\n", cpu_num);
 
 	del_timer_sync(&all_cpu_data[cpu_num]->timer);
 	if (hwp_active)
