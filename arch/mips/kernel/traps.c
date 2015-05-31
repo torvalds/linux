@@ -2185,11 +2185,6 @@ void __init trap_init(void)
 
 	check_wait();
 
-#if defined(CONFIG_KGDB)
-	if (kgdb_early_setup)
-		return; /* Already done */
-#endif
-
 	if (cpu_has_veic || cpu_has_vint) {
 		unsigned long size = 0x200 + VECTORSPACING*64;
 		ebase = (unsigned long)
