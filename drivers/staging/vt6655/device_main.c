@@ -1056,7 +1056,6 @@ static void vnt_interrupt_process(struct vnt_private *pDevice)
 	struct ieee80211_low_level_stats *low_stats = &pDevice->low_stats;
 	int             max_count = 0;
 	u32 mib_counter;
-	unsigned char byOrgPageSel = 0;
 	unsigned long flags;
 
 	MACvReadISR(pDevice->PortOffset, &pDevice->dwIsr);
@@ -1072,13 +1071,6 @@ static void vnt_interrupt_process(struct vnt_private *pDevice)
 	MACvIntDisable(pDevice->PortOffset);
 
 	spin_lock_irqsave(&pDevice->lock, flags);
-
-	/* Make sure current page is 0 */
-	VNSvInPortB(pDevice->PortOffset + MAC_REG_PAGE1SEL, &byOrgPageSel);
-	if (byOrgPageSel == 1)
-		MACvSelectPage0(pDevice->PortOffset);
-	else
-		byOrgPageSel = 0;
 
 	/* Read low level stats */
 	MACvReadMIBCounter(pDevice->PortOffset, &mib_counter);
@@ -1163,9 +1155,6 @@ static void vnt_interrupt_process(struct vnt_private *pDevice)
 		if (max_count > pDevice->sOpts.int_works)
 			break;
 	}
-
-	if (byOrgPageSel == 1)
-		MACvSelectPage1(pDevice->PortOffset);
 
 	spin_unlock_irqrestore(&pDevice->lock, flags);
 
