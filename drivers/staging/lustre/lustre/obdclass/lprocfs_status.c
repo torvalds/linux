@@ -1106,46 +1106,6 @@ int lprocfs_obd_cleanup(struct obd_device *obd)
 }
 EXPORT_SYMBOL(lprocfs_obd_cleanup);
 
-static void lprocfs_free_client_stats(struct nid_stat *client_stat)
-{
-	CDEBUG(D_CONFIG, "stat %p - data %p/%p\n", client_stat,
-	       client_stat->nid_proc, client_stat->nid_stats);
-
-	LASSERTF(atomic_read(&client_stat->nid_exp_ref_count) == 0,
-		 "nid %s:count %d\n", libcfs_nid2str(client_stat->nid),
-		 atomic_read(&client_stat->nid_exp_ref_count));
-
-	if (client_stat->nid_proc)
-		lprocfs_remove(&client_stat->nid_proc);
-
-	if (client_stat->nid_stats)
-		lprocfs_free_stats(&client_stat->nid_stats);
-
-	if (client_stat->nid_ldlm_stats)
-		lprocfs_free_stats(&client_stat->nid_ldlm_stats);
-
-	kfree(client_stat);
-	return;
-
-}
-
-void lprocfs_free_per_client_stats(struct obd_device *obd)
-{
-	struct cfs_hash *hash = obd->obd_nid_stats_hash;
-	struct nid_stat *stat;
-
-	/* we need extra list - because hash_exit called to early */
-	/* not need locking because all clients is died */
-	while (!list_empty(&obd->obd_nid_stats)) {
-		stat = list_entry(obd->obd_nid_stats.next,
-				      struct nid_stat, nid_list);
-		list_del_init(&stat->nid_list);
-		cfs_hash_del(hash, &stat->nid, &stat->nid_hash);
-		lprocfs_free_client_stats(stat);
-	}
-}
-EXPORT_SYMBOL(lprocfs_free_per_client_stats);
-
 int lprocfs_stats_alloc_one(struct lprocfs_stats *stats, unsigned int cpuid)
 {
 	struct lprocfs_counter  *cntr;
@@ -1679,64 +1639,8 @@ void lprocfs_init_ldlm_stats(struct lprocfs_stats *ldlm_stats)
 }
 EXPORT_SYMBOL(lprocfs_init_ldlm_stats);
 
-int lprocfs_nid_stats_clear_read(struct seq_file *m, void *data)
-{
-	seq_printf(m, "%s\n",
-		   "Write into this file to clear all nid stats and stale nid entries");
-	return 0;
-}
-EXPORT_SYMBOL(lprocfs_nid_stats_clear_read);
-
-static int lprocfs_nid_stats_clear_write_cb(void *obj, void *data)
-{
-	struct nid_stat *stat = obj;
-
-	CDEBUG(D_INFO, "refcnt %d\n", atomic_read(&stat->nid_exp_ref_count));
-	if (atomic_read(&stat->nid_exp_ref_count) == 1) {
-		/* object has only hash references. */
-		spin_lock(&stat->nid_obd->obd_nid_lock);
-		list_move(&stat->nid_list, data);
-		spin_unlock(&stat->nid_obd->obd_nid_lock);
-		return 1;
-	}
-	/* we has reference to object - only clear data*/
-	if (stat->nid_stats)
-		lprocfs_clear_stats(stat->nid_stats);
-
-	return 0;
-}
-
-int lprocfs_nid_stats_clear_write(struct file *file, const char *buffer,
-				  unsigned long count, void *data)
-{
-	struct obd_device *obd = (struct obd_device *)data;
-	struct nid_stat *client_stat;
-	LIST_HEAD(free_list);
-
-	cfs_hash_cond_del(obd->obd_nid_stats_hash,
-			  lprocfs_nid_stats_clear_write_cb, &free_list);
-
-	while (!list_empty(&free_list)) {
-		client_stat = list_entry(free_list.next, struct nid_stat,
-					     nid_list);
-		list_del_init(&client_stat->nid_list);
-		lprocfs_free_client_stats(client_stat);
-	}
-
-	return count;
-}
-EXPORT_SYMBOL(lprocfs_nid_stats_clear_write);
-
 int lprocfs_exp_cleanup(struct obd_export *exp)
 {
-	struct nid_stat *stat = exp->exp_nid_stats;
-
-	if (!stat || !exp->exp_obd)
-		return 0;
-
-	nidstat_putref(exp->exp_nid_stats);
-	exp->exp_nid_stats = NULL;
-
 	return 0;
 }
 EXPORT_SYMBOL(lprocfs_exp_cleanup);

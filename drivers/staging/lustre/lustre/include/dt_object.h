@@ -58,7 +58,6 @@
 #include "../../include/linux/libcfs/libcfs.h"
 
 struct seq_file;
-struct proc_dir_entry;
 struct lustre_cfg;
 
 struct thandle;

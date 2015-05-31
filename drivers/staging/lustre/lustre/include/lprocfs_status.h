@@ -558,7 +558,6 @@ extern void lprocfs_counter_init(struct lprocfs_stats *stats, int index,
 extern void lprocfs_free_obd_stats(struct obd_device *obddev);
 extern void lprocfs_free_md_stats(struct obd_device *obddev);
 struct obd_export;
-struct nid_stat;
 extern int lprocfs_add_clear_entry(struct obd_device *obd,
 				   struct proc_dir_entry *entry);
 extern int lprocfs_exp_cleanup(struct obd_export *exp);
@@ -573,11 +572,6 @@ extern struct proc_dir_entry *lprocfs_add_simple(struct proc_dir_entry *root,
 extern struct dentry *
 ldebugfs_add_symlink(const char *name, struct dentry *parent,
 		    const char *format, ...);
-extern void lprocfs_free_per_client_stats(struct obd_device *obd);
-extern int
-lprocfs_nid_stats_clear_write(struct file *file, const char *buffer,
-			      unsigned long count, void *data);
-extern int lprocfs_nid_stats_clear_read(struct seq_file *m, void *data);
 
 extern int ldebugfs_register_stats(struct dentry *parent,
 				   const char *name,
@@ -909,15 +903,6 @@ static inline struct proc_dir_entry *
 lprocfs_add_simple(struct proc_dir_entry *root, char *name,
 		   void *data, struct file_operations *fops)
 {return 0; }
-static inline void lprocfs_free_per_client_stats(struct obd_device *obd)
-{ return; }
-static inline
-int lprocfs_nid_stats_clear_write(struct file *file, const char *buffer,
-				  unsigned long count, void *data)
-{return count;}
-static inline
-int lprocfs_nid_stats_clear_read(struct seq_file *m, void *data)
-{ return 0; }
 
 static inline struct proc_dir_entry *
 lprocfs_register(const char *name, struct proc_dir_entry *parent,
