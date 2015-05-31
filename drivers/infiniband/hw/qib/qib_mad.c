@@ -1854,7 +1854,7 @@ static int pma_set_portcounters_ext(struct ib_pma_mad *pmp,
 }
 
 static int process_subn(struct ib_device *ibdev, int mad_flags,
-			u8 port, struct ib_mad *in_mad,
+			u8 port, const struct ib_mad *in_mad,
 			struct ib_mad *out_mad)
 {
 	struct ib_smp *smp = (struct ib_smp *)out_mad;
@@ -2006,7 +2006,7 @@ bail:
 }
 
 static int process_perf(struct ib_device *ibdev, u8 port,
-			struct ib_mad *in_mad,
+			const struct ib_mad *in_mad,
 			struct ib_mad *out_mad)
 {
 	struct ib_pma_mad *pmp = (struct ib_pma_mad *)out_mad;
@@ -2299,7 +2299,7 @@ static int check_cc_key(struct qib_ibport *ibp,
 }
 
 static int process_cc(struct ib_device *ibdev, int mad_flags,
-			u8 port, struct ib_mad *in_mad,
+			u8 port, const struct ib_mad *in_mad,
 			struct ib_mad *out_mad)
 {
 	struct ib_cc_mad *ccp = (struct ib_cc_mad *)out_mad;
@@ -2400,8 +2400,8 @@ bail:
  * This is called by the ib_mad module.
  */
 int qib_process_mad(struct ib_device *ibdev, int mad_flags, u8 port,
-		    struct ib_wc *in_wc, struct ib_grh *in_grh,
-		    struct ib_mad *in_mad, struct ib_mad *out_mad)
+		    const struct ib_wc *in_wc, const struct ib_grh *in_grh,
+		    const struct ib_mad *in_mad, struct ib_mad *out_mad)
 {
 	int ret;
 	struct qib_ibport *ibp = to_iport(ibdev, port);

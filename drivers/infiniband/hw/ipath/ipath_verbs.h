@@ -701,9 +701,9 @@ static inline void ipath_schedule_send(struct ipath_qp *qp)
 int ipath_process_mad(struct ib_device *ibdev,
 		      int mad_flags,
 		      u8 port_num,
-		      struct ib_wc *in_wc,
-		      struct ib_grh *in_grh,
-		      struct ib_mad *in_mad, struct ib_mad *out_mad);
+		      const struct ib_wc *in_wc,
+		      const struct ib_grh *in_grh,
+		      const struct ib_mad *in_mad, struct ib_mad *out_mad);
 
 /*
  * Compare the lower 24 bits of the two values.

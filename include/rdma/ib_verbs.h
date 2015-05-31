@@ -1690,9 +1690,9 @@ struct ib_device {
 	int                        (*process_mad)(struct ib_device *device,
 						  int process_mad_flags,
 						  u8 port_num,
-						  struct ib_wc *in_wc,
-						  struct ib_grh *in_grh,
-						  struct ib_mad *in_mad,
+						  const struct ib_wc *in_wc,
+						  const struct ib_grh *in_grh,
+						  const struct ib_mad *in_mad,
 						  struct ib_mad *out_mad);
 	struct ib_xrcd *	   (*alloc_xrcd)(struct ib_device *device,
 						 struct ib_ucontext *ucontext,

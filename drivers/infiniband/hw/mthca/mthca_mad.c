@@ -104,7 +104,7 @@ static void update_sm_ah(struct mthca_dev *dev,
  */
 static void smp_snoop(struct ib_device *ibdev,
 		      u8 port_num,
-		      struct ib_mad *mad,
+		      const struct ib_mad *mad,
 		      u16 prev_lid)
 {
 	struct ib_event event;
@@ -160,7 +160,7 @@ static void node_desc_override(struct ib_device *dev,
 
 static void forward_trap(struct mthca_dev *dev,
 			 u8 port_num,
-			 struct ib_mad *mad)
+			 const struct ib_mad *mad)
 {
 	int qpn = mad->mad_hdr.mgmt_class != IB_MGMT_CLASS_SUBN_LID_ROUTED;
 	struct ib_mad_send_buf *send_buf;
@@ -195,9 +195,9 @@ static void forward_trap(struct mthca_dev *dev,
 int mthca_process_mad(struct ib_device *ibdev,
 		      int mad_flags,
 		      u8 port_num,
-		      struct ib_wc *in_wc,
-		      struct ib_grh *in_grh,
-		      struct ib_mad *in_mad,
+		      const struct ib_wc *in_wc,
+		      const struct ib_grh *in_grh,
+		      const struct ib_mad *in_mad,
 		      struct ib_mad *out_mad)
 {
 	int err;

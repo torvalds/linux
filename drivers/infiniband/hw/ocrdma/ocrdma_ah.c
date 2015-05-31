@@ -196,9 +196,9 @@ int ocrdma_modify_ah(struct ib_ah *ibah, struct ib_ah_attr *attr)
 int ocrdma_process_mad(struct ib_device *ibdev,
 		       int process_mad_flags,
 		       u8 port_num,
-		       struct ib_wc *in_wc,
-		       struct ib_grh *in_grh,
-		       struct ib_mad *in_mad, struct ib_mad *out_mad)
+		       const struct ib_wc *in_wc,
+		       const struct ib_grh *in_grh,
+		       const struct ib_mad *in_mad, struct ib_mad *out_mad)
 {
 	int status;
 	struct ocrdma_dev *dev;

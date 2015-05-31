@@ -582,9 +582,9 @@ static int c2_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 static int c2_process_mad(struct ib_device *ibdev,
 			  int mad_flags,
 			  u8 port_num,
-			  struct ib_wc *in_wc,
-			  struct ib_grh *in_grh,
-			  struct ib_mad *in_mad, struct ib_mad *out_mad)
+			  const struct ib_wc *in_wc,
+			  const struct ib_grh *in_grh,
+			  const struct ib_mad *in_mad, struct ib_mad *out_mad)
 {
 	pr_debug("%s:%u\n", __func__, __LINE__);
 	return -ENOSYS;
