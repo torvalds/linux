@@ -15,7 +15,7 @@
 	<funcdef>int <function>ioctl</function></funcdef>
 	<paramdef>int <parameter>fd</parameter></paramdef>
 	<paramdef>int <parameter>request</parameter></paramdef>
-	<paramdef>&dvb-diseqc-slave-reply; *<parameter>argp</parameter></paramdef>
+	<paramdef>struct dvb_diseqc_slave_reply *<parameter>argp</parameter></paramdef>
       </funcprototype>
     </funcsynopsis>
   </refsynopsisdiv>

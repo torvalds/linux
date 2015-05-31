@@ -16,7 +16,7 @@
 	<funcdef>int <function>ioctl</function></funcdef>
 	<paramdef>int <parameter>fd</parameter></paramdef>
 	<paramdef>int <parameter>request</parameter></paramdef>
-	<paramdef>&dvb-frontend-info; *<parameter>argp</parameter></paramdef>
+	<paramdef>struct dvb_frontend_info *<parameter>argp</parameter></paramdef>
       </funcprototype>
     </funcsynopsis>
   </refsynopsisdiv>
@@ -112,12 +112,12 @@ driver is not compatible with this specification the ioctl returns an error.
 	</tbody>
       </tgroup>
     </table>
-  </refsect1>
 
   <para>NOTE: The frequencies are specified in Hz for Terrestrial and Cable
       systems. They're specified in kHz for Satellite systems</para>
+  </refsect1>
 
-<section id="fe-caps-t">
+<refsect1 id="fe-caps-t">
 <title>frontend capabilities</title>
 
 <para>Capabilities describe what a frontend can do. Some capabilities are
@@ -262,5 +262,5 @@ driver is not compatible with this specification the ioctl returns an error.
         </tbody>
     </tgroup>
 </table>
-</section>
+</refsect1>
 </refentry>

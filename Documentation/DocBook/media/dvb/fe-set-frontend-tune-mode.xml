@@ -40,14 +40,14 @@
 	<listitem>
 	    <para>Valid flags:</para>
 	    <itemizedlist>
-		<listitem>0 - normal tune mode</listitem>
-		<listitem>FE_TUNE_MODE_ONESHOT - When set, this flag will
+		<listitem><para>0 - normal tune mode</para></listitem>
+		<listitem><para>FE_TUNE_MODE_ONESHOT - When set, this flag will
 		    disable any zigzagging or other "normal" tuning behaviour.
 		    Additionally, there will be no automatic monitoring of the
 		    lock status, and hence no frontend events will be
 		    generated. If a frontend device is closed, this flag will
 		    be automatically turned off when the device is reopened
-		    read-write.</listitem>
+		    read-write.</para></listitem>
 	    </itemizedlist>
 	</listitem>
       </varlistentry>

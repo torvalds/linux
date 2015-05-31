@@ -41,9 +41,9 @@
 	<listitem>
 	    <para>Valid flags:</para>
 	    <itemizedlist>
-		<listitem>0 - normal 13V and 18V.</listitem>
-		<listitem>&gt;0 - enables slightly higher voltages instead of
-		    13/18V, in order to compensate for long antena cables.</listitem>
+		<listitem><para>0 - normal 13V and 18V.</para></listitem>
+		<listitem><para>&gt;0 - enables slightly higher voltages instead of
+		    13/18V, in order to compensate for long antenna cables.</para></listitem>
 	    </itemizedlist>
 	</listitem>
       </varlistentry>

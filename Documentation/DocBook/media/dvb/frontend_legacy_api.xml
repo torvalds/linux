@@ -95,7 +95,6 @@ supported via the new <link linkend="FE_GET_PROPERTY">FE_GET_PROPERTY/FE_GET_SET
 	</row><row>
 	    <entry>BANDWIDTH_10_MHZ</entry>
 	    <entry>10 MHz</entry>
-	</row><row>
 	</row>
         </tbody>
     </tgroup>
@@ -200,7 +199,7 @@ struct dvb_vsb_parameters {
  </section>
 </section>
 
-<section id="frontend_fcalls">
+<section id="frontend_legacy_fcalls">
 <title>Frontend Legacy Function Calls</title>
 
 <para>Those functions are defined at DVB version 3. The support is kept in

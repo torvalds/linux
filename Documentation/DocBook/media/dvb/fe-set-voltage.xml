@@ -15,7 +15,7 @@
 	<funcdef>int <function>ioctl</function></funcdef>
 	<paramdef>int <parameter>fd</parameter></paramdef>
 	<paramdef>int <parameter>request</parameter></paramdef>
-	<paramdef>&fe-sec-voltage; *<parameter>voltage</parameter></paramdef>
+	<paramdef>enum fe_sec_voltage *<parameter>voltage</parameter></paramdef>
       </funcprototype>
     </funcsynopsis>
   </refsynopsisdiv>
@@ -65,7 +65,7 @@
 &return-value-dvb;
 </refsect1>
 
-<section id="fe-sec-voltage-t">
+<refsect1 id="fe-sec-voltage-t">
 <title>enum fe_sec_voltage</title>
 
 <table pgwide="1" frame="none" id="fe-sec-voltage">
@@ -92,6 +92,6 @@
         </tbody>
     </tgroup>
 </table>
-</section>
+</refsect1>
 
 </refentry>

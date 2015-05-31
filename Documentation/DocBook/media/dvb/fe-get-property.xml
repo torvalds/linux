@@ -17,7 +17,7 @@
 	<funcdef>int <function>ioctl</function></funcdef>
 	<paramdef>int <parameter>fd</parameter></paramdef>
 	<paramdef>int <parameter>request</parameter></paramdef>
-	<paramdef>&dtv-properties; *<parameter>argp</parameter></paramdef>
+	<paramdef>struct dtv_property *<parameter>argp</parameter></paramdef>
       </funcprototype>
     </funcsynopsis>
   </refsynopsisdiv>
@@ -57,25 +57,25 @@ and on the device:</para>
 <listitem>
     <para><constant>FE_SET_PROPERTY:</constant></para>
 <itemizedlist>
-<listitem>This ioctl is used to set one or more
-	frontend properties.</listitem>
-<listitem>This is the basic command to request the frontend to tune into some
-    frequency and to start decoding the digital TV signal.</listitem>
-<listitem>This call requires read/write access to the device.</listitem>
-<listitem>At return, the values are updated to reflect the
-    actual parameters used.</listitem>
+<listitem><para>This ioctl is used to set one or more
+	frontend properties.</para></listitem>
+<listitem><para>This is the basic command to request the frontend to tune into some
+    frequency and to start decoding the digital TV signal.</para></listitem>
+<listitem><para>This call requires read/write access to the device.</para></listitem>
+<listitem><para>At return, the values are updated to reflect the
+    actual parameters used.</para></listitem>
 </itemizedlist>
 </listitem>
 <listitem>
     <para><constant>FE_GET_PROPERTY:</constant></para>
 <itemizedlist>
-<listitem>This ioctl is used to get properties and
-statistics from the frontend.</listitem>
-<listitem>No properties are changed, and statistics aren't reset.</listitem>
-<listitem>This call only requires read-only access to the device.</listitem>
+<listitem><para>This ioctl is used to get properties and
+statistics from the frontend.</para></listitem>
+<listitem><para>No properties are changed, and statistics aren't reset.</para></listitem>
+<listitem><para>This call only requires read-only access to the device.</para></listitem>
 </itemizedlist>
 </listitem>
 </itemizedlist>
-&return-value-dvb;.
+&return-value-dvb;
 </refsect1>
 </refentry>

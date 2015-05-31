@@ -2,16 +2,16 @@
 
 <para>The DVB frontend API was designed to support three types of delivery systems:</para>
 <itemizedlist>
-    <listitem>Terrestrial systems: DVB-T, DVB-T2, ATSC, ATSC M/H, ISDB-T, DVB-H, DTMB, CMMB</listitem>
-    <listitem>Cable systems: DVB-C Annex A/C, ClearQAM (DVB-C Annex B), ISDB-C</listitem>
-    <listitem>Satellite systems: DVB-S, DVB-S2, DVB Turbo, ISDB-S, DSS</listitem>
+    <listitem><para>Terrestrial systems: DVB-T, DVB-T2, ATSC, ATSC M/H, ISDB-T, DVB-H, DTMB, CMMB</para></listitem>
+    <listitem><para>Cable systems: DVB-C Annex A/C, ClearQAM (DVB-C Annex B), ISDB-C</para></listitem>
+    <listitem><para>Satellite systems: DVB-S, DVB-S2, DVB Turbo, ISDB-S, DSS</para></listitem>
 </itemizedlist>
 <para>The DVB frontend controls several sub-devices including:</para>
 <itemizedlist>
-    <listitem>Tuner</listitem>,
-    <listitem>Digital TV demodulator</listitem>
-    <listitem>Low noise amplifier (LNA)</listitem>
-    <listitem>Satellite Equipment Control (SEC) hardware (only for Satellite).</listitem>
+    <listitem><para>Tuner</para></listitem>
+    <listitem><para>Digital TV demodulator</para></listitem>
+    <listitem><para>Low noise amplifier (LNA)</para></listitem>
+    <listitem><para>Satellite Equipment Control (SEC) hardware (only for Satellite).</para></listitem>
 </itemizedlist>
 <para>The frontend can be accessed through
     <emphasis role="bold">/dev/dvb/adapter?/frontend?</emphasis>. Data types and
@@ -50,7 +50,7 @@ specification is available at
 <para>Signal statistics are provided via <link linkend="FE_GET_PROPERTY"><constant>FE_GET_PROPERTY</constant></link>.
     Please notice that several statistics require the demodulator to be fully
     locked (e. g. with FE_HAS_LOCK bit set). See
-    <xref linkend="frontend-stat-properties">Frontend statistics indicators</xref>
+    <link linkend="frontend-stat-properties">Frontend statistics indicators</link>
     for more details.</para>
 </section>
 

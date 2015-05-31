@@ -59,7 +59,7 @@ pointer to an integer where the status will be written.
 &return-value-dvb;
 </refsect1>
 
-<section id="fe-status-t">
+<refsect1 id="fe-status-t">
 <title>int fe_status</title>
 
 <para>The fe_status parameter is used to indicate the current state
@@ -103,5 +103,5 @@ pointer to an integer where the status will be written.
         </tbody>
     </tgroup>
 </table>
-</section>
+</refsect1>
 </refentry>

@@ -15,7 +15,7 @@
 	<funcdef>int <function>ioctl</function></funcdef>
 	<paramdef>int <parameter>fd</parameter></paramdef>
 	<paramdef>int <parameter>request</parameter></paramdef>
-	<paramdef>&fe-sec-mini-cmd; *<parameter>tone</parameter></paramdef>
+	<paramdef>enum fe_sec_mini_cmd *<parameter>tone</parameter></paramdef>
       </funcprototype>
     </funcsynopsis>
   </refsynopsisdiv>
@@ -58,11 +58,11 @@
 &return-value-dvb;
 </refsect1>
 
-<section id="fe-sec-mini-cmd-t">
+<refsect1 id="fe-sec-mini-cmd-t">
 <title>enum fe_sec_mini_cmd</title>
 
 <table pgwide="1" frame="none" id="fe-sec-mini-cmd">
-    <title>enum fe_sec_tone_mode</title>
+    <title>enum fe_sec_mini_cmd</title>
     <tgroup cols="2">
 	&cs-def;
 	<thead>
@@ -84,6 +84,6 @@
         </tbody>
     </tgroup>
 </table>
-</section>
+</refsect1>
 
 </refentry>
