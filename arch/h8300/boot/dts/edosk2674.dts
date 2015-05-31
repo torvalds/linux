@@ -7,7 +7,7 @@
 
 	chosen {
 		bootargs = "console=ttySC2,38400";
-		stdout-path = <&sci2>;
+		stdout-path = &sci2;
 	};
 	aliases {
 		serial0 = &sci0;
@@ -25,13 +25,13 @@
 		compatible = "renesas,h8s2678-pll-clock";
 		clocks = <&xclk>;
 		#clock-cells = <0>;
-		reg = <0xfee03b 2>, <0xfee045 2>;
+		reg = <0xffff3b 1>, <0xffff45 1>;
 	};
 	core_clk: core_clk {
 		compatible = "renesas,h8300-div-clock";
 		clocks = <&pllclk>;
 		#clock-cells = <0>;
-		reg = <0xfee03b 2>;
+		reg = <0xffff3b 1>;
 		renesas,width = <3>;
 	};
 	fclk: fclk {
