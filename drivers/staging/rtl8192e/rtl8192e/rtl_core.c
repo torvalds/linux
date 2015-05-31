@@ -1118,7 +1118,6 @@ static void rtl8192_init_priv_variable(struct net_device *dev)
 	priv->bDriverIsGoingToUnload = false;
 	priv->being_init_adapter = false;
 	priv->initialized_at_probe = false;
-	priv->sw_radio_on = true;
 	priv->bdisable_nic = false;
 	priv->bfirst_init = false;
 	priv->txringcount = 64;

@@ -626,7 +626,6 @@ struct r8192_priv {
 	u8		RegCWinMin;
 	u8		keepAliveLevel;
 
-	bool		sw_radio_on;
 	bool		bHwRadioOff;
 	bool		pwrdown;
 	bool		blinked_ingpio;

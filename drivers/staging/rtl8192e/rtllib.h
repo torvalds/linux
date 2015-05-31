@@ -1904,7 +1904,6 @@ struct rtllib_device {
 
 	u8 hwsec_active;
 	bool is_silent_reset;
-	bool force_mic_error;
 	bool is_roaming;
 	bool ieee_up;
 	bool cannot_notify;
