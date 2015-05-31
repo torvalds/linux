@@ -504,13 +504,15 @@ bool rtl8192_phy_checkBBAndRF(struct net_device *dev,
 	WriteAddr[HW90_BLOCK_RF] = 0x3;
 	RT_TRACE(COMP_PHY, "=======>%s(), CheckBlock:%d\n", __func__,
 		 CheckBlock);
+
+	if (CheckBlock == HW90_BLOCK_MAC) {
+		netdev_warn(dev, "%s(): No checks available for MAC block.\n",
+			    __func__);
+		return ret;
+	}
+
 	for (i = 0; i < CheckTimes; i++) {
 		switch (CheckBlock) {
-		case HW90_BLOCK_MAC:
-			RT_TRACE(COMP_ERR,
-				 "PHY_CheckBBRFOK(): Never Write 0x100 here!");
-			break;
-
 		case HW90_BLOCK_PHY0:
 		case HW90_BLOCK_PHY1:
 			write_nic_dword(dev, WriteAddr[CheckBlock],
