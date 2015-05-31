@@ -670,8 +670,9 @@ int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 			struct eapol *eap = (struct eapol *)(skb->data +
 				sizeof(struct ethhdr) - SNAP_SIZE -
 				sizeof(u16));
-			RTLLIB_DEBUG_EAP("TX: IEEE 802.11 EAPOL frame: %s\n",
-				eap_get_type(eap->type));
+			netdev_dbg(ieee->dev,
+				   "TX: IEEE 802.11 EAPOL frame: %s\n",
+				   eap_get_type(eap->type));
 		}
 
 		/* Advance the SKB to the start of the payload */

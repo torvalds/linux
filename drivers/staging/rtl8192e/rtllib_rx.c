@@ -69,9 +69,9 @@ rtllib_frag_cache_find(struct rtllib_device *ieee, unsigned int seq,
 		entry = &ieee->frag_cache[tid][i];
 		if (entry->skb != NULL &&
 		    time_after(jiffies, entry->first_frag_time + 2 * HZ)) {
-			RTLLIB_DEBUG_FRAG(
-				"expiring fragment cache entry seq=%u last_frag=%u\n",
-				entry->seq, entry->last_frag);
+			netdev_dbg(ieee->dev,
+				   "expiring fragment cache entry seq=%u last_frag=%u\n",
+				   entry->seq, entry->last_frag);
 			dev_kfree_skb_any(entry->skb);
 			entry->skb = NULL;
 		}
@@ -187,8 +187,9 @@ static int rtllib_frag_cache_invalidate(struct rtllib_device *ieee,
 					  hdr->addr1);
 
 	if (entry == NULL) {
-		RTLLIB_DEBUG_FRAG(
-			"could not invalidate fragment cache entry (seq=%u)\n", seq);
+		netdev_dbg(ieee->dev,
+			   "Couldn't invalidate fragment cache entry (seq=%u)\n",
+			   seq);
 		return -1;
 	}
 
@@ -305,11 +306,12 @@ rtllib_rx_frame_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 	res = crypt->ops->decrypt_mpdu(skb, hdrlen, crypt->priv);
 	atomic_dec(&crypt->refcnt);
 	if (res < 0) {
-		RTLLIB_DEBUG_DROP(
-			"decryption failed (SA= %pM) res=%d\n", hdr->addr2, res);
+		netdev_dbg(ieee->dev, "decryption failed (SA= %pM) res=%d\n",
+			   hdr->addr2, res);
 		if (res == -2)
-			RTLLIB_DEBUG_DROP("Decryption failed ICV mismatch (key %d)\n",
-					     skb->data[hdrlen + 3] >> 6);
+			netdev_dbg(ieee->dev,
+				   "Decryption failed ICV mismatch (key %d)\n",
+				   skb->data[hdrlen + 3] >> 6);
 		ieee->ieee_stats.rx_discards_undecryptable++;
 		return -1;
 	}
@@ -840,7 +842,8 @@ static u8 parse_subframe(struct rtllib_device *ieee, struct sk_buff *skb,
 		sub_skb->dev = ieee->dev;
 		rxb->subframes[rxb->nr_subframes++] = sub_skb;
 		if (rxb->nr_subframes >= MAX_SUBFRAME_COUNT) {
-			RTLLIB_DEBUG_RX("ParseSubframe(): Too many Subframes! Packets dropped!\n");
+			netdev_dbg(ieee->dev,
+				   "ParseSubframe(): Too many Subframes! Packets dropped!\n");
 			break;
 		}
 		skb_pull(skb, nSubframe_Length);
@@ -991,9 +994,9 @@ static int rtllib_rx_data_filter(struct rtllib_device *ieee, u16 fc,
 		    stype != RTLLIB_STYPE_DATA_CFACKPOLL &&
 		    stype != RTLLIB_STYPE_QOS_DATA) {
 			if (stype != RTLLIB_STYPE_NULLFUNC)
-				RTLLIB_DEBUG_DROP(
-					"RX: dropped data frame with no data (type=0x%02x, subtype=0x%02x)\n",
-					type, stype);
+				netdev_dbg(ieee->dev,
+					   "RX: dropped data frame with no data (type=0x%02x, subtype=0x%02x)\n",
+					   type, stype);
 			return -1;
 		}
 	}
@@ -1037,8 +1040,9 @@ static int rtllib_rx_get_crypt(struct rtllib_device *ieee, struct sk_buff *skb,
 			 * frames silently instead of filling system log with
 			 * these reports.
 			 */
-			RTLLIB_DEBUG_DROP("Decryption failed (not set) (SA= %pM)\n",
-					     hdr->addr2);
+			netdev_dbg(ieee->dev,
+				   "Decryption failed (not set) (SA= %pM)\n",
+				   hdr->addr2);
 			ieee->ieee_stats.rx_discards_undecryptable++;
 			return -1;
 		}
@@ -1077,7 +1081,7 @@ static int rtllib_rx_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 		int flen;
 		struct sk_buff *frag_skb = rtllib_frag_cache_get(ieee, hdr);
 
-		RTLLIB_DEBUG_FRAG("Rx Fragment received (%u)\n", frag);
+		netdev_dbg(ieee->dev, "Rx Fragment received (%u)\n", frag);
 
 		if (!frag_skb) {
 			RTLLIB_DEBUG(RTLLIB_DL_RX | RTLLIB_DL_FRAG,
@@ -1148,12 +1152,13 @@ static int rtllib_rx_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 			 */
 			struct eapol *eap = (struct eapol *)(skb->data +
 				24);
-			RTLLIB_DEBUG_EAP("RX: IEEE 802.1X EAPOL frame: %s\n",
-						eap_get_type(eap->type));
+			netdev_dbg(ieee->dev,
+				   "RX: IEEE 802.1X EAPOL frame: %s\n",
+				   eap_get_type(eap->type));
 		} else {
-			RTLLIB_DEBUG_DROP(
-				"encryption configured, but RX frame not encrypted (SA= %pM)\n",
-				hdr->addr2);
+			netdev_dbg(ieee->dev,
+				   "encryption configured, but RX frame not encrypted (SA= %pM)\n",
+				   hdr->addr2);
 			return -1;
 		}
 	}
@@ -1162,15 +1167,16 @@ static int rtllib_rx_decrypt(struct rtllib_device *ieee, struct sk_buff *skb,
 	    rtllib_is_eapol_frame(ieee, skb, hdrlen)) {
 			struct eapol *eap = (struct eapol *)(skb->data +
 				24);
-			RTLLIB_DEBUG_EAP("RX: IEEE 802.1X EAPOL frame: %s\n",
-						eap_get_type(eap->type));
+			netdev_dbg(ieee->dev,
+				   "RX: IEEE 802.1X EAPOL frame: %s\n",
+				   eap_get_type(eap->type));
 	}
 
 	if (crypt && !(fc & RTLLIB_FCTL_WEP) && !ieee->open_wep &&
 	    !rtllib_is_eapol_frame(ieee, skb, hdrlen)) {
-		RTLLIB_DEBUG_DROP(
-			"dropped unencrypted RX data frame from %pM (drop_unencrypted=1)\n",
-			hdr->addr2);
+		netdev_dbg(ieee->dev,
+			   "dropped unencrypted RX data frame from %pM (drop_unencrypted=1)\n",
+			   hdr->addr2);
 		return -1;
 	}
 
