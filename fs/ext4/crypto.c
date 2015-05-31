@@ -71,14 +71,14 @@ void ext4_release_crypto_ctx(struct ext4_crypto_ctx *ctx)
 {
 	unsigned long flags;
 
-	if (ctx->bounce_page) {
+	if (ctx->flags & EXT4_WRITE_PATH_FL && ctx->w.bounce_page) {
 		if (ctx->flags & EXT4_BOUNCE_PAGE_REQUIRES_FREE_ENCRYPT_FL)
-			__free_page(ctx->bounce_page);
+			__free_page(ctx->w.bounce_page);
 		else
-			mempool_free(ctx->bounce_page, ext4_bounce_page_pool);
-		ctx->bounce_page = NULL;
+			mempool_free(ctx->w.bounce_page, ext4_bounce_page_pool);
 	}
-	ctx->control_page = NULL;
+	ctx->w.bounce_page = NULL;
+	ctx->w.control_page = NULL;
 	if (ctx->flags & EXT4_CTX_REQUIRES_FREE_ENCRYPT_FL) {
 		if (ctx->tfm)
 			crypto_free_tfm(ctx->tfm);
@@ -134,6 +134,7 @@ struct ext4_crypto_ctx *ext4_get_crypto_ctx(struct inode *inode)
 	} else {
 		ctx->flags &= ~EXT4_CTX_REQUIRES_FREE_ENCRYPT_FL;
 	}
+	ctx->flags &= ~EXT4_WRITE_PATH_FL;
 
 	/* Allocate a new Crypto API context if we don't already have
 	 * one or if it isn't the right mode. */
@@ -165,10 +166,6 @@ struct ext4_crypto_ctx *ext4_get_crypto_ctx(struct inode *inode)
 	}
 	BUG_ON(ci->ci_size != ext4_encryption_key_size(ci->ci_data_mode));
 
-	/* There shouldn't be a bounce page attached to the crypto
-	 * context at this point. */
-	BUG_ON(ctx->bounce_page);
-
 out:
 	if (res) {
 		if (!IS_ERR_OR_NULL(ctx))
@@ -189,15 +186,6 @@ void ext4_exit_crypto(void)
 	struct ext4_crypto_ctx *pos, *n;
 
 	list_for_each_entry_safe(pos, n, &ext4_free_crypto_ctxs, free_list) {
-		if (pos->bounce_page) {
-			if (pos->flags &
-			    EXT4_BOUNCE_PAGE_REQUIRES_FREE_ENCRYPT_FL) {
-				__free_page(pos->bounce_page);
-			} else {
-				mempool_free(pos->bounce_page,
-					     ext4_bounce_page_pool);
-			}
-		}
 		if (pos->tfm)
 			crypto_free_tfm(pos->tfm);
 		kmem_cache_free(ext4_crypto_ctx_cachep, pos);
@@ -425,8 +413,9 @@ struct page *ext4_encrypt(struct inode *inode,
 	} else {
 		ctx->flags |= EXT4_BOUNCE_PAGE_REQUIRES_FREE_ENCRYPT_FL;
 	}
-	ctx->bounce_page = ciphertext_page;
-	ctx->control_page = plaintext_page;
+	ctx->flags |= EXT4_WRITE_PATH_FL;
+	ctx->w.bounce_page = ciphertext_page;
+	ctx->w.control_page = plaintext_page;
 	err = ext4_page_crypto(ctx, inode, EXT4_ENCRYPT, plaintext_page->index,
 			       plaintext_page, ciphertext_page);
 	if (err) {
@@ -505,7 +494,7 @@ int ext4_encrypted_zeroout(struct inode *inode, struct ext4_extent *ex)
 	} else {
 		ctx->flags |= EXT4_BOUNCE_PAGE_REQUIRES_FREE_ENCRYPT_FL;
 	}
-	ctx->bounce_page = ciphertext_page;
+	ctx->w.bounce_page = ciphertext_page;
 
 	while (len--) {
 		err = ext4_page_crypto(ctx, inode, EXT4_ENCRYPT, lblk,

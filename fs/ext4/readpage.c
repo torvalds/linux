@@ -54,8 +54,8 @@ static void completion_pages(struct work_struct *work)
 {
 #ifdef CONFIG_EXT4_FS_ENCRYPTION
 	struct ext4_crypto_ctx *ctx =
-		container_of(work, struct ext4_crypto_ctx, work);
-	struct bio	*bio	= ctx->bio;
+		container_of(work, struct ext4_crypto_ctx, r.work);
+	struct bio	*bio	= ctx->r.bio;
 	struct bio_vec	*bv;
 	int		i;
 
@@ -109,9 +109,9 @@ static void mpage_end_io(struct bio *bio, int err)
 		if (err) {
 			ext4_release_crypto_ctx(ctx);
 		} else {
-			INIT_WORK(&ctx->work, completion_pages);
-			ctx->bio = bio;
-			queue_work(ext4_read_workqueue, &ctx->work);
+			INIT_WORK(&ctx->r.work, completion_pages);
+			ctx->r.bio = bio;
+			queue_work(ext4_read_workqueue, &ctx->r.work);
 			return;
 		}
 	}
