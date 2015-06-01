@@ -58,6 +58,11 @@ def parse_options():
                            "input format bases on Git log's "
                            "\'commmit1..commit2\'.")
 
+    parser.add_option('-f', '--find', dest='find', action='store_true',
+                      default=False,
+                      help="Find and show commits that may cause symbols to be "
+                           "missing.  Required to run with --diff.")
+
     parser.add_option('-i', '--ignore', dest='ignore', action='store',
                       default="",
                       help="Ignore files matching this pattern.  Note that "
@@ -85,6 +90,9 @@ def parse_options():
                      " Please run this script in a clean Git tree or pass "
                      "'--force' if you\nwant to ignore this warning and "
                      "continue.")
+
+    if opts.commit:
+        opts.find = False
 
     if opts.ignore:
         try:
@@ -129,12 +137,18 @@ def main():
             if not feature in undefined_a:
                 files = sorted(undefined_b.get(feature))
                 print "%s\t%s" % (feature, ", ".join(files))
+                if opts.find:
+                    commits = find_commits(feature, opts.diff)
+                    print commits
             # check if there are new files that reference the undefined feature
             else:
                 files = sorted(undefined_b.get(feature) -
                                undefined_a.get(feature))
                 if files:
                     print "%s\t%s" % (feature, ", ".join(files))
+                    if opts.find:
+                        commits = find_commits(feature, opts.diff)
+                        print commits
 
         # reset to head
         execute("git reset --hard %s" % head)
@@ -154,6 +168,13 @@ def execute(cmd):
     if pop.returncode != 0:
         sys.exit(stdout)
     return stdout
+
+
+def find_commits(symbol, diff):
+    """Find commits changing %symbol in the given range of %diff."""
+    commits = execute("git log --pretty=oneline --abbrev-commit -G %s %s"
+                      % (symbol, diff))
+    return commits
 
 
 def tree_is_dirty():
