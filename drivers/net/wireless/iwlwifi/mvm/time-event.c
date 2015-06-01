@@ -797,13 +797,12 @@ int iwl_mvm_start_p2p_roc(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 void iwl_mvm_stop_roc(struct iwl_mvm *mvm)
 {
-	struct iwl_mvm_vif *mvmvif;
+	struct iwl_mvm_vif *mvmvif = NULL;
 	struct iwl_mvm_time_event_data *te_data;
 	bool is_p2p = false;
 
 	lockdep_assert_held(&mvm->mutex);
 
-	mvmvif = NULL;
 	spin_lock_bh(&mvm->time_event_lock);
 
 	/*
@@ -821,17 +820,14 @@ void iwl_mvm_stop_roc(struct iwl_mvm *mvm)
 		}
 	}
 
-	/*
-	 * Iterate over the list of aux roc time events and find the time
-	 * event that is associated with a BSS interface.
-	 * This assumes that a BSS interface can have only a single time
-	 * event at any given time and this time event corresponds to a ROC
-	 * request
+	/* There can only be at most one AUX ROC time event, we just use the
+	 * list to simplify/unify code. Remove it if it exists.
 	 */
-	list_for_each_entry(te_data, &mvm->aux_roc_te_list, list) {
+	te_data = list_first_entry_or_null(&mvm->aux_roc_te_list,
+					   struct iwl_mvm_time_event_data,
+					   list);
+	if (te_data)
 		mvmvif = iwl_mvm_vif_from_mac80211(te_data->vif);
-		goto remove_te;
-	}
 
 remove_te:
 	spin_unlock_bh(&mvm->time_event_lock);
