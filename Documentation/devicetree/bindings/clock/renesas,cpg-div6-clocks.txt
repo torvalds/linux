@@ -14,7 +14,7 @@ Required Properties:
     - "renesas,r8a7793-div6-clock" for R8A7793 (R-Car M2-N) DIV6 clocks
     - "renesas,r8a7794-div6-clock" for R8A7794 (R-Car E2) DIV6 clocks
     - "renesas,sh73a0-div6-clock" for SH73A0 (SH-Mobile AG5) DIV6 clocks
-    - "renesas,cpg-div6-clock" for generic DIV6 clocks
+    and "renesas,cpg-div6-clock" as a fallback.
   - reg: Base address and length of the memory resource used by the DIV6 clock
   - clocks: Reference to the parent clock(s); either one, four, or eight
     clocks must be specified.  For clocks with multiple parents, invalid
