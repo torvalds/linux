@@ -3136,6 +3136,8 @@ static int rocker_port_vlan_flood_group(struct rocker_port *rocker_port,
 
 	for (i = 0; i < rocker->port_count; i++) {
 		p = rocker->ports[i];
+		if (!p)
+			continue;
 		if (!rocker_port_is_bridged(p))
 			continue;
 		if (test_bit(ntohs(vlan_id), p->vlan_bitmap)) {
@@ -3195,7 +3197,7 @@ static int rocker_port_vlan_l2_groups(struct rocker_port *rocker_port,
 
 	for (i = 0; i < rocker->port_count; i++) {
 		p = rocker->ports[i];
-		if (test_bit(ntohs(vlan_id), p->vlan_bitmap))
+		if (p && test_bit(ntohs(vlan_id), p->vlan_bitmap))
 			ref++;
 	}
 
@@ -4857,6 +4859,7 @@ static int rocker_probe_port(struct rocker *rocker, unsigned int port_number)
 	const struct pci_dev *pdev = rocker->pdev;
 	struct rocker_port *rocker_port;
 	struct net_device *dev;
+	u16 untagged_vid = 0;
 	int err;
 
 	dev = alloc_etherdev(sizeof(struct rocker_port));
@@ -4892,16 +4895,27 @@ static int rocker_probe_port(struct rocker *rocker, unsigned int port_number)
 
 	rocker_port_set_learning(rocker_port, SWITCHDEV_TRANS_NONE);
 
-	rocker_port->internal_vlan_id =
-		rocker_port_internal_vlan_id_get(rocker_port, dev->ifindex);
 	err = rocker_port_ig_tbl(rocker_port, SWITCHDEV_TRANS_NONE, 0);
 	if (err) {
 		dev_err(&pdev->dev, "install ig port table failed\n");
 		goto err_port_ig_tbl;
 	}
 
+	rocker_port->internal_vlan_id =
+		rocker_port_internal_vlan_id_get(rocker_port, dev->ifindex);
+
+	err = rocker_port_vlan_add(rocker_port, SWITCHDEV_TRANS_NONE,
+				   untagged_vid, 0);
+	if (err) {
+		netdev_err(rocker_port->dev, "install untagged VLAN failed\n");
+		goto err_untagged_vlan;
+	}
+
 	return 0;
 
+err_untagged_vlan:
+	rocker_port_ig_tbl(rocker_port, SWITCHDEV_TRANS_NONE,
+			   ROCKER_OP_FLAG_REMOVE);
 err_port_ig_tbl:
 	unregister_netdev(dev);
 err_register_netdev:
