@@ -421,7 +421,8 @@ static int si470x_i2c_probe(struct i2c_client *client,
 	init_waitqueue_head(&radio->read_queue);
 
 	retval = request_threaded_irq(client->irq, NULL, si470x_i2c_interrupt,
-			IRQF_TRIGGER_FALLING, DRIVER_NAME, radio);
+			IRQF_TRIGGER_FALLING | IRQF_ONESHOT, DRIVER_NAME,
+			radio);
 	if (retval) {
 		dev_err(&client->dev, "Failed to register interrupt\n");
 		goto err_rds;
