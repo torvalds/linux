@@ -106,7 +106,7 @@ TRIG_WAKE_EOS
 #define   IRQ_LVL_BITS(x)		(((x) & 0xf) << 4)	/*  sets irq level */
 #define   FIFO_INTR_EN_BIT		0x100	/*  enable fifo interrupts */
 #define   FIFO_INTR_FHF_BIT		0x200	/*  interrupt fifo half full */
-#define   DMA_INTR_EN_BIT 		0x800	/*  enable interrupt on dma terminal count */
+#define   DMA_INTR_EN_BIT		0x800	/*  enable interrupt on dma terminal count */
 #define   DMA_DEM_EN_BIT	0x1000	/*  enables demand mode dma */
 #define I8253_BASE_REG		0x14
 
