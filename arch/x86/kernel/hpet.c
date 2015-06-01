@@ -426,7 +426,7 @@ static struct irq_domain *hpet_domain;
 
 void hpet_msi_unmask(struct irq_data *data)
 {
-	struct hpet_dev *hdev = data->handler_data;
+	struct hpet_dev *hdev = irq_data_get_irq_handler_data(data);
 	unsigned int cfg;
 
 	/* unmask it */
@@ -437,7 +437,7 @@ void hpet_msi_unmask(struct irq_data *data)
 
 void hpet_msi_mask(struct irq_data *data)
 {
-	struct hpet_dev *hdev = data->handler_data;
+	struct hpet_dev *hdev = irq_data_get_irq_handler_data(data);
 	unsigned int cfg;
 
 	/* mask it */
