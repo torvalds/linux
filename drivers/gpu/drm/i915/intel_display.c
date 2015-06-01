@@ -3190,9 +3190,6 @@ void intel_crtc_reset(struct intel_crtc *crtc)
 
 void intel_prepare_reset(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_crtc *crtc;
-
 	/* no reset support for gen2 */
 	if (IS_GEN2(dev))
 		return;
@@ -3207,13 +3204,7 @@ void intel_prepare_reset(struct drm_device *dev)
 	 * Disabling the crtcs gracefully seems nicer. Also the
 	 * g33 docs say we should at least disable all the planes.
 	 */
-	for_each_intel_crtc(dev, crtc) {
-		if (!crtc->active)
-			continue;
-
-		intel_crtc_disable_planes(&crtc->base);
-		dev_priv->display.crtc_disable(&crtc->base);
-	}
+	intel_display_suspend(dev);
 }
 
 void intel_finish_reset(struct drm_device *dev)
@@ -6276,6 +6267,33 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 	mutex_lock(&dev->struct_mutex);
 	intel_fbc_update(dev);
 	mutex_unlock(&dev->struct_mutex);
+}
+
+/*
+ * turn all crtc's off, but do not adjust state
+ * This has to be paired with a call to intel_modeset_setup_hw_state.
+ */
+void intel_display_suspend(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_crtc *crtc;
+
+	for_each_crtc(dev, crtc) {
+		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+		enum intel_display_power_domain domain;
+		unsigned long domains;
+
+		if (!intel_crtc->active)
+			continue;
+
+		intel_crtc_disable_planes(crtc);
+		dev_priv->display.crtc_disable(crtc);
+
+		domains = intel_crtc->enabled_power_domains;
+		for_each_power_domain(domain, domains)
+			intel_display_power_put(dev_priv, domain);
+		intel_crtc->enabled_power_domains = 0;
+	}
 }
 
 /* Master function to enable/disable CRTC and corresponding power wells */

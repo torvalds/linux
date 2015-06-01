@@ -601,7 +601,6 @@ static int bxt_resume_prepare(struct drm_i915_private *dev_priv);
 static int i915_drm_suspend(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_crtc *crtc;
 	pci_power_t opregion_target_state;
 	int error;
 
@@ -632,8 +631,7 @@ static int i915_drm_suspend(struct drm_device *dev)
 	 * for _thaw. Also, power gate the CRTC power wells.
 	 */
 	drm_modeset_lock_all(dev);
-	for_each_crtc(dev, crtc)
-		intel_crtc_control(crtc, false);
+	intel_display_suspend(dev);
 	drm_modeset_unlock_all(dev);
 
 	intel_dp_mst_suspend(dev);
