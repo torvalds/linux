@@ -4629,7 +4629,7 @@ static void intel_crtc_load_lut(struct drm_crtc *crtc)
 	bool reenable_ips = false;
 
 	/* The clocks have to be on to load the palette. */
-	if (!crtc->state->enable || !intel_crtc->active)
+	if (!crtc->state->active)
 		return;
 
 	if (HAS_GMCH_DISPLAY(dev_priv->dev)) {
@@ -4845,9 +4845,7 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	struct intel_encoder *encoder;
 	int pipe = intel_crtc->pipe;
 
-	WARN_ON(!crtc->state->enable);
-
-	if (intel_crtc->active)
+	if (WARN_ON(intel_crtc->active))
 		return;
 
 	if (intel_crtc->config->has_pch_encoder)
@@ -4951,9 +4949,7 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	struct intel_encoder *encoder;
 	int pipe = intel_crtc->pipe;
 
-	WARN_ON(!crtc->state->enable);
-
-	if (intel_crtc->active)
+	if (WARN_ON(intel_crtc->active))
 		return;
 
 	if (intel_crtc_to_shared_dpll(intel_crtc))
@@ -5055,7 +5051,7 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 	int pipe = intel_crtc->pipe;
 	u32 reg, temp;
 
-	if (!intel_crtc->active)
+	if (WARN_ON(!intel_crtc->active))
 		return;
 
 	for_each_encoder_on_crtc(dev, crtc, encoder)
@@ -5118,7 +5114,7 @@ static void haswell_crtc_disable(struct drm_crtc *crtc)
 	struct intel_encoder *encoder;
 	enum transcoder cpu_transcoder = intel_crtc->config->cpu_transcoder;
 
-	if (!intel_crtc->active)
+	if (WARN_ON(!intel_crtc->active))
 		return;
 
 	for_each_encoder_on_crtc(dev, crtc, encoder) {
@@ -5978,7 +5974,7 @@ static int valleyview_modeset_global_pipes(struct drm_atomic_state *state)
 
 	/* add all active pipes to the state */
 	for_each_crtc(state->dev, crtc) {
-		if (!crtc->state->enable)
+		if (!crtc->state->active)
 			continue;
 
 		crtc_state = drm_atomic_get_crtc_state(state, crtc);
@@ -5988,7 +5984,7 @@ static int valleyview_modeset_global_pipes(struct drm_atomic_state *state)
 
 	/* disable/enable all currently active pipes while we change cdclk */
 	for_each_crtc_in_state(state, crtc, crtc_state, i)
-		if (crtc_state->enable)
+		if (crtc_state->active)
 			crtc_state->mode_changed = true;
 
 	return 0;
@@ -6076,9 +6072,7 @@ static void valleyview_crtc_enable(struct drm_crtc *crtc)
 	int pipe = intel_crtc->pipe;
 	bool is_dsi;
 
-	WARN_ON(!crtc->state->enable);
-
-	if (intel_crtc->active)
+	if (WARN_ON(intel_crtc->active))
 		return;
 
 	is_dsi = intel_pipe_has_type(intel_crtc, INTEL_OUTPUT_DSI);
@@ -6154,9 +6148,7 @@ static void i9xx_crtc_enable(struct drm_crtc *crtc)
 	struct intel_encoder *encoder;
 	int pipe = intel_crtc->pipe;
 
-	WARN_ON(!crtc->state->enable);
-
-	if (intel_crtc->active)
+	if (WARN_ON(intel_crtc->active))
 		return;
 
 	i9xx_set_pll_dividers(intel_crtc);
@@ -6216,7 +6208,7 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 	struct intel_encoder *encoder;
 	int pipe = intel_crtc->pipe;
 
-	if (!intel_crtc->active)
+	if (WARN_ON(!intel_crtc->active))
 		return;
 
 	/*
@@ -12264,7 +12256,7 @@ intel_modeset_update_state(struct drm_atomic_state *state)
 		if (!crtc_state || !needs_modeset(crtc->state))
 			continue;
 
-		if (crtc->state->enable) {
+		if (crtc->state->active) {
 			struct drm_property *dpms_property =
 				dev->mode_config.dpms_property;
 
@@ -12679,6 +12671,10 @@ check_crtc_state(struct drm_device *dev)
 		     "crtc active state doesn't match with hw state "
 		     "(expected %i, found %i)\n", crtc->active, active);
 
+		I915_STATE_WARN(crtc->active != crtc->base.state->active,
+		     "transitional active state does not match atomic hw state "
+		     "(expected %i, found %i)\n", crtc->base.state->active, crtc->active);
+
 		if (active &&
 		    !intel_pipe_config_compare(dev, crtc->config, &pipe_config)) {
 			I915_STATE_WARN(1, "pipe state doesn't match!\n");
@@ -12820,6 +12816,10 @@ intel_modeset_compute_config(struct drm_crtc *crtc,
 	if (IS_ERR(pipe_config))
 		return pipe_config;
 
+	if (!pipe_config->base.enable &&
+	    WARN_ON(pipe_config->base.active))
+		pipe_config->base.active = false;
+
 	if (!pipe_config->base.enable)
 		return pipe_config;
 
@@ -12932,7 +12932,7 @@ static int __intel_set_mode(struct drm_atomic_state *state)
 		return ret;
 
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
-		if (!needs_modeset(crtc_state))
+		if (!needs_modeset(crtc_state) || !crtc->state->active)
 			continue;
 
 		intel_crtc_disable_planes(crtc);
@@ -12954,7 +12954,7 @@ static int __intel_set_mode(struct drm_atomic_state *state)
 
 	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
-		if (!needs_modeset(crtc->state) || !crtc->state->enable)
+		if (!needs_modeset(crtc->state) || !crtc->state->active)
 			continue;
 
 		update_scanline_offset(to_intel_crtc(crtc));
@@ -15215,7 +15215,7 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 	 * have active connectors/encoders. */
 	intel_crtc_update_dpms(&crtc->base);
 
-	if (crtc->active != crtc->base.state->enable) {
+	if (crtc->active != crtc->base.state->active) {
 		struct intel_encoder *encoder;
 
 		/* This can happen either due to bugs in the get_hw_state

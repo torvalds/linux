@@ -796,7 +796,7 @@ static int i915_get_vblank_timestamp(struct drm_device *dev, int pipe,
 		return -EINVAL;
 	}
 
-	if (!crtc->state->enable) {
+	if (!crtc->state->active) {
 		DRM_DEBUG_KMS("crtc %d is disabled\n", pipe);
 		return -EBUSY;
 	}
