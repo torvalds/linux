@@ -868,7 +868,7 @@ static int wm8978_set_bias_level(struct snd_soc_codec *codec,
 		/* bit 3: enable bias, bit 2: enable I/O tie off buffer */
 		power1 |= 0xc;
 
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
 			/* Initial cap charge at VMID 5k */
 			snd_soc_write(codec, WM8978_POWER_MANAGEMENT_1,
 				      power1 | 0x3);
